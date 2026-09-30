@@ -31,9 +31,7 @@ export interface GroundedClaim {
 }
 
 export type GroundedDropReason =
-  | 'unknown_evidence_id'
-  | 'quote_not_found_in_evidence'
-  | 'no_evidence_cited';
+  'unknown_evidence_id' | 'quote_not_found_in_evidence' | 'no_evidence_cited';
 
 export interface GroundedDroppedClaim {
   claim: GroundedClaim;

@@ -445,6 +445,32 @@ export function MemoryReviewInbox({ isAdmin }: { isAdmin: boolean }) {
               />
             )}
 
+            {!['pending', 'changes_requested'].includes(detail.data.status) && (
+              <Card size="small" title="Decision receipt" aria-label="Memory decision receipt">
+                <Descriptions size="small" column={1}>
+                  <Descriptions.Item label="Review reference">
+                    <Text code>{detail.data.candidateId}</Text>
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Decision">
+                    {memoryReviewStatusLabel(detail.data.status)}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Decided by">
+                    {detail.data.decidedBy?.name ?? 'Canonical review service'}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Decided at">
+                    {detail.data.decidedAt
+                      ? new Date(detail.data.decidedAt).toLocaleString()
+                      : 'Timestamp unavailable'}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Controlling version">
+                    {detail.data.controllingMemory
+                      ? `${detail.data.controllingMemory.itemId} · version ${detail.data.controllingMemory.version ?? 'unreported'}`
+                      : 'No controlling memory version reported'}
+                  </Descriptions.Item>
+                </Descriptions>
+              </Card>
+            )}
+
             <Card size="small" title="Proposed memory">
               {detail.data.proposal.canonicalItem?.sections.map((section) => (
                 <div key={section.key} style={{ marginBottom: 16 }}>

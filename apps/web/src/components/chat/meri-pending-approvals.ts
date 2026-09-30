@@ -10,9 +10,14 @@ import { clientSaveReceipt } from './meri-client-save-receipt.js';
  * fields.
  */
 
-/** Cards still waiting on the user. Resolved/executing rows stay visible but don't count. */
+/** Cards the bulk action can dispatch now. Uncertain rows stay visible but do not count. */
 export function outstandingApprovals(cards: PendingApproval[]): PendingApproval[] {
-  return cards.filter((c) => c.status === 'proposed');
+  return cards.filter(
+    (card) =>
+      card.status === 'proposed' &&
+      card.approvalRecovery?.state !== 'checking' &&
+      card.approvalRecovery?.state !== 'unavailable',
+  );
 }
 
 /**

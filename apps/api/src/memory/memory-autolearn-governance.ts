@@ -8,8 +8,7 @@ export type MemoryAutoLearnSkipReason =
   | 'no_source_message';
 
 export type MemoryAutoLearnDecision =
-  | { attempt: true }
-  | { attempt: false; reason: MemoryAutoLearnSkipReason };
+  { attempt: true } | { attempt: false; reason: MemoryAutoLearnSkipReason };
 
 export interface MemoryAutoLearnTurn {
   enabled: boolean;

@@ -25,16 +25,34 @@ export interface DefenseDossierFieldDto<T = string> {
 }
 
 export interface DefenseDossierDto {
-  subject: { type: 'program' | 'program_element' | 'project' | 'budget_line'; id: string; label: string };
+  subject: {
+    type: 'program' | 'program_element' | 'project' | 'budget_line';
+    id: string;
+    label: string;
+  };
   projectionVersion: 'defense-dossier-v1';
   fields: readonly DefenseDossierFieldDto[];
-  coverage: { state: DefenseResearchAvailability; expectedFields: number; availableFields: number; partialFields: number; unavailableFields: number };
+  coverage: {
+    state: DefenseResearchAvailability;
+    expectedFields: number;
+    availableFields: number;
+    partialFields: number;
+    unavailableFields: number;
+  };
 }
 
 export interface DefenseMilestonePeriodDto {
   role: 'planned' | 'actual';
   rawText: string;
-  precision: 'exact_date' | 'calendar_month' | 'calendar_quarter' | 'fiscal_quarter' | 'fiscal_year' | 'text_only' | 'range' | 'unknown';
+  precision:
+    | 'exact_date'
+    | 'calendar_month'
+    | 'calendar_quarter'
+    | 'fiscal_quarter'
+    | 'fiscal_year'
+    | 'text_only'
+    | 'range'
+    | 'unknown';
   exactDate: string | null;
   rangeStart: string | null;
   rangeEnd: string | null;
@@ -52,7 +70,11 @@ export interface DefenseMilestoneDto {
   periods: readonly DefenseMilestonePeriodDto[];
   observedAt: string | null;
   edition: string | null;
-  history: readonly { revision: string; observedAt: string | null; periods: readonly DefenseMilestonePeriodDto[] }[];
+  history: readonly {
+    revision: string;
+    observedAt: string | null;
+    periods: readonly DefenseMilestonePeriodDto[];
+  }[];
 }
 
 export interface DefenseMilestoneResponseDto {
@@ -87,7 +109,13 @@ export interface DefenseFundingMatrixDto {
   subject: DefenseDossierDto['subject'];
   projectionVersion: 'defense-funding-matrix-v1';
   cells: readonly DefenseFundingCellDto[];
-  supported: { fiscalYears: readonly number[]; editions: readonly string[]; stages: readonly string[]; metrics: readonly DefenseFundingBasisDto['metric'][]; knownAt: boolean };
+  supported: {
+    fiscalYears: readonly number[];
+    editions: readonly string[];
+    stages: readonly string[];
+    metrics: readonly DefenseFundingBasisDto['metric'][];
+    knownAt: boolean;
+  };
   limitations: readonly string[];
 }
 
@@ -135,7 +163,12 @@ export interface DefenseReferenceOccurrenceDto {
   originalWording: string;
   referenceType: string;
   targetCandidates: readonly { type: string; id: string; label: string }[];
-  resolvedTarget: { type: string; id: string; versionId: string | null; sectionId: string | null } | null;
+  resolvedTarget: {
+    type: string;
+    id: string;
+    versionId: string | null;
+    sectionId: string | null;
+  } | null;
   disposition: 'resolved' | 'ambiguous' | 'unresolved' | 'unavailable';
   evidenceRef: DefenseEvidenceRefDto;
 }
@@ -149,7 +182,14 @@ export interface DefenseContextDocumentDetailDto extends DefenseContextDocumentS
 export interface DefenseContextDocumentListDto {
   items: readonly DefenseContextDocumentSummaryDto[];
   nextCursor: string | null;
-  denominator: { eligible: number; observed: number; qualified: number; available: number; partial: number; unavailable: number };
+  denominator: {
+    eligible: number;
+    observed: number;
+    qualified: number;
+    available: number;
+    partial: number;
+    unavailable: number;
+  };
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -174,7 +214,8 @@ export type OfficeRelation =
 export interface DefenseOfficeSummaryDto {
   id: string;
   name: string;
-  officeType: 'peo' | 'pm' | 'cpe' | 'pae' | 'directorate' | 'command' | 'contracting_office' | 'other';
+  officeType:
+    'peo' | 'pm' | 'cpe' | 'pae' | 'directorate' | 'command' | 'contracting_office' | 'other';
   service: string | null;
   parentOfficeId: string | null;
   parentOfficeName: string | null;
@@ -252,7 +293,16 @@ export interface DefenseOfficeListDto {
 }
 
 export interface DefenseRelationshipNodeDto {
-  type: 'program' | 'program_element' | 'project' | 'budget_line' | 'office' | 'person' | 'contractor' | 'acquisition' | 'evidence';
+  type:
+    | 'program'
+    | 'program_element'
+    | 'project'
+    | 'budget_line'
+    | 'office'
+    | 'person'
+    | 'contractor'
+    | 'acquisition'
+    | 'evidence';
   id: string;
   label: string;
   service?: string | null;
@@ -262,7 +312,8 @@ export interface DefenseRelationshipEdgeDto {
   id: string;
   from: DefenseRelationshipNodeDto;
   to: DefenseRelationshipNodeDto;
-  relation: OfficeRelation | 'mentions' | 'cites' | 'applies_to' | 'amends' | 'supersedes' | 'allocates';
+  relation:
+    OfficeRelation | 'mentions' | 'cites' | 'applies_to' | 'amends' | 'supersedes' | 'allocates';
   sourceStated: boolean;
   derived: boolean;
   inferred: boolean;

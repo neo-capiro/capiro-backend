@@ -17,11 +17,14 @@ describe('Jev configuration', () => {
     });
   });
 
-  it.each(['jev-latest', 'jev-preview', 'other-1.2.3'])('rejects moving/invalid model %s', (model) => {
-    const result = resolveJevConfig({ TYPESAFE_API_KEY: 'secret', MERI_JEV_MODEL: model });
-    expect(result.available).toBe(false);
-    expect(result.reasons).toContain('moving_alias_or_invalid_model');
-  });
+  it.each(['jev-latest', 'jev-preview', 'other-1.2.3'])(
+    'rejects moving/invalid model %s',
+    (model) => {
+      const result = resolveJevConfig({ TYPESAFE_API_KEY: 'secret', MERI_JEV_MODEL: model });
+      expect(result.available).toBe(false);
+      expect(result.reasons).toContain('moving_alias_or_invalid_model');
+    },
+  );
 
   it('clamps numeric bounds, validates routing, and reports unknown tasks', () => {
     const result = resolveJevConfig({
@@ -47,10 +50,15 @@ describe('Jev configuration', () => {
   });
 
   it('recognizes client_fit without enabling it in the live task list', () => {
-    expect(resolveJevConfig({ TYPESAFE_API_KEY: 'secret', MERI_JEV_TASKS: 'client_fit' }))
-      .toMatchObject({ available: true, tasks: ['client_fit'], reasons: [] });
-    expect(resolveJevConfig({ TYPESAFE_API_KEY: 'secret', MERI_JEV_TASKS: 'claim_support,passage_relevance' }).tasks)
-      .toEqual(['claim_support', 'passage_relevance']);
+    expect(
+      resolveJevConfig({ TYPESAFE_API_KEY: 'secret', MERI_JEV_TASKS: 'client_fit' }),
+    ).toMatchObject({ available: true, tasks: ['client_fit'], reasons: [] });
+    expect(
+      resolveJevConfig({
+        TYPESAFE_API_KEY: 'secret',
+        MERI_JEV_TASKS: 'claim_support,passage_relevance',
+      }).tasks,
+    ).toEqual(['claim_support', 'passage_relevance']);
   });
 
   it('logs issue codes without key material', () => {
@@ -60,14 +68,21 @@ describe('Jev configuration', () => {
   });
 
   it('recognizes the provisional status-selection task', () => {
-    expect(resolveJevConfig({ TYPESAFE_API_KEY: 'secret', MERI_JEV_TASKS: 'status_selection' }))
-      .toMatchObject({ available: true, tasks: ['status_selection'] });
+    expect(
+      resolveJevConfig({ TYPESAFE_API_KEY: 'secret', MERI_JEV_TASKS: 'status_selection' }),
+    ).toMatchObject({ available: true, tasks: ['status_selection'] });
   });
 
   it('recognizes the Package 2 task names without enabling them by default', () => {
-    expect(resolveJevConfig({ TYPESAFE_API_KEY: 'secret',
-      MERI_JEV_TASKS: 'program_identity,mention_scope,evidence_selection' })).toMatchObject({
-      available: true, tasks: ['program_identity', 'mention_scope', 'evidence_selection'], reasons: [],
+    expect(
+      resolveJevConfig({
+        TYPESAFE_API_KEY: 'secret',
+        MERI_JEV_TASKS: 'program_identity,mention_scope,evidence_selection',
+      }),
+    ).toMatchObject({
+      available: true,
+      tasks: ['program_identity', 'mention_scope', 'evidence_selection'],
+      reasons: [],
     });
   });
 });

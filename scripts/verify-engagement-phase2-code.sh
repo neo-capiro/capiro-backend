@@ -47,7 +47,16 @@ node_test() {
   while [ "$attempt" -le "$max_attempts" ]; do
     : >"$log"
     set +e
-    timeout 1200 node "$file" >"$log" 2>&1
+    # On Windows/MSYS, PATH can resolve the native System32 timeout.exe
+    # instead of GNU coreutils timeout. The native command interprets the
+    # first numeric argument as an option and aborts before starting Node.
+    # Prefer the explicit MSYS GNU binary when present; retain the generic
+    # command fallback for Linux CI.
+    if [ -x /usr/bin/timeout ] && /usr/bin/timeout --version 2>/dev/null | grep -q 'GNU coreutils'; then
+      /usr/bin/timeout 1200 node "$file" >"$log" 2>&1
+    else
+      timeout 1200 node "$file" >"$log" 2>&1
+    fi
     local rc=$?
     set -e
     if grep -qE '(^# fail 0|^ℹ fail 0)' "$log"; then
@@ -115,7 +124,9 @@ else
     pnpm verify:engagement-phase-1 >"$p1_log" 2>&1 &
   fi
   p1_pid=$!
-  p1_deadline=$((SECONDS + 1500))
+  # The standalone Phase 1 step in ci-pr takes ~32 minutes on hosted runners
+  # (in-band Jest, API build, web suite); 25 minutes cut it off mid-run.
+  p1_deadline=$((SECONDS + 2700))
   p1_rc=124
   while true; do
     if grep -q 'ENGAGEMENT_PHASE1_DB_FREE_COMPLETE' "$p1_log" 2>/dev/null; then
@@ -149,7 +160,9 @@ else
      ! grep -q 'ENGAGEMENT_PHASE1_DB_FREE_FAILED' "$p1_log"; then
     pass "Phase 1 DB-free verifier  (COMPLETE; poll-rc=${p1_rc})"
   else
-    fail "Phase 1 DB-free verifier  (see $p1_log)"
+    fail "Phase 1 DB-free verifier  (see $p1_log; poll-rc=${p1_rc})"
+    # CI keeps no artifact of this log, so surface why it failed.
+    tail -n 60 "$p1_log" | sed "s/^/    | /"
   fi
 fi
 
@@ -183,6 +196,7 @@ bold "2.3  Infrastructure config and read-only discovery"
 ts_test "config contract" test/engagement-api-config.spec.ts
 ts_test "deployment-surge DB budget" test/engagement-api-db-budget.spec.ts
 gate "discovery script syntax" bash -n scripts/engagement-api-infra-discover.sh
+node_test "current task config and security regressions" scripts/verify-engagement-api-task-config.spec.mjs
 node_test "discovery (fake AWS, read-only proven)" scripts/engagement-api-infra-discover.spec.mjs
 
 echo ""

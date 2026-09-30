@@ -52,16 +52,25 @@ export const evidenceShadowEventSchema = z.object({
   jev: shadowLoggedDecisionSchema,
   legacy: shadowLoggedDecisionSchema,
   agreement: z.boolean(),
-  legacyAdapterVersion: z.enum([
-    'legacy-skeptic-adapter.v1',
-    'legacy-skeptic-adapter.v2',
-  ]).default('legacy-skeptic-adapter.v1'),
+  legacyAdapterVersion: z
+    .enum(['legacy-skeptic-adapter.v1', 'legacy-skeptic-adapter.v2'])
+    .default('legacy-skeptic-adapter.v1'),
   proposedAction: z.object({ jev: z.string(), legacy: z.string() }),
   escalated: z.boolean().optional(),
-  escalationReasons: z.array(z.enum([
-    'jev_unavailable', 'jev_failure', 'low_confidence', 'compound_claim', 'conflict',
-    'high_impact_category', 'out_of_distribution', 'audit_sample',
-  ])).optional(),
+  escalationReasons: z
+    .array(
+      z.enum([
+        'jev_unavailable',
+        'jev_failure',
+        'low_confidence',
+        'compound_claim',
+        'conflict',
+        'high_impact_category',
+        'out_of_distribution',
+        'audit_sample',
+      ]),
+    )
+    .optional(),
   audited: z.boolean().optional(),
   auditDisagreement: z.boolean().optional(),
   claimText: z.string().optional(),
@@ -98,7 +107,8 @@ function eventPayload(value: unknown): unknown {
   const row = value as Record<string, unknown>;
   const name = row.event ?? row.message ?? row.name;
   if (name !== 'meri.evidence_shadow' && name !== 'meri.evidence_shadow.turn') return null;
-  const fields = row.fields && typeof row.fields === 'object' ? row.fields as Record<string, unknown> : row;
+  const fields =
+    row.fields && typeof row.fields === 'object' ? (row.fields as Record<string, unknown>) : row;
   return { ...fields, event: name };
 }
 
@@ -120,9 +130,10 @@ export function readShadowEvents(jsonlPath: string): ReadShadowEventsResult {
       continue;
     }
     const name = (payload as { event: string }).event;
-    const checked = name === 'meri.evidence_shadow'
-      ? evidenceShadowEventSchema.safeParse(payload)
-      : evidenceShadowTurnEventSchema.safeParse(payload);
+    const checked =
+      name === 'meri.evidence_shadow'
+        ? evidenceShadowEventSchema.safeParse(payload)
+        : evidenceShadowTurnEventSchema.safeParse(payload);
     if (checked.success) result.events.push(checked.data);
     else result.rejected += 1;
   }
@@ -131,17 +142,21 @@ export function readShadowEvents(jsonlPath: string): ReadShadowEventsResult {
 
 export const humanLabelsSchema = z.object({
   version: z.literal('jev_human_labels_v1'),
-  labels: z.array(z.object({
-    claimId: z.string().min(1).optional(),
-    envelopeHash: z.string().min(1).optional(),
-    label: z.enum(EVIDENCE_OUTCOMES),
-    status: z.enum(['proposed', 'approved']).default('approved'),
-    reviewer: z.string().min(1),
-    reviewedAt: z.string().datetime(),
-    note: z.string(),
-  }).refine((row) => Boolean(row.claimId || row.envelopeHash), {
-    message: 'A human label requires claimId or envelopeHash',
-  })),
+  labels: z.array(
+    z
+      .object({
+        claimId: z.string().min(1).optional(),
+        envelopeHash: z.string().min(1).optional(),
+        label: z.enum(EVIDENCE_OUTCOMES),
+        status: z.enum(['proposed', 'approved']).default('approved'),
+        reviewer: z.string().min(1),
+        reviewedAt: z.string().datetime(),
+        note: z.string(),
+      })
+      .refine((row) => Boolean(row.claimId || row.envelopeHash), {
+        message: 'A human label requires claimId or envelopeHash',
+      }),
+  ),
 });
 
 export type HumanLabels = z.infer<typeof humanLabelsSchema>;
@@ -167,10 +182,14 @@ export function joinWithLabels(
       : (labelsOverride as HumanLabels).labels;
   const approved = labels.filter((label) => label.status === 'approved');
   return events.map((event) => {
-    const override = approved.find((label) =>
-      (label.claimId && label.claimId === event.claimId)
-      || (label.envelopeHash && label.envelopeHash === event.envelopeHash));
-    const fixture = fixtures?.cases.find((item) => item.claim.id === event.claimId || item.id === event.claimId);
+    const override = approved.find(
+      (label) =>
+        (label.claimId && label.claimId === event.claimId) ||
+        (label.envelopeHash && label.envelopeHash === event.envelopeHash),
+    );
+    const fixture = fixtures?.cases.find(
+      (item) => item.claim.id === event.claimId || item.id === event.claimId,
+    );
     const fixtureApproved = fixture?.humanReview.status === 'approved';
     return {
       ...event,

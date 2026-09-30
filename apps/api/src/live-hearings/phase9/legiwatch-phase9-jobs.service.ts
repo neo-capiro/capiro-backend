@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { hostname } from 'node:os';
 import { CommitteeSiteAdapter } from '../../hearing-discovery/adapters/committee-site.adapter.js';
+import { GovInfoChrgAdapter } from '../../hearing-discovery/adapters/govinfo-chrg.adapter.js';
+import { SenateCommitteeCalendarAdapter } from '../../hearing-discovery/adapters/senate-committee-calendar.adapter.js';
 import {
   CongressGovAdapter,
   currentCongress,
@@ -268,6 +270,10 @@ export class LegiWatchPhase9JobsService {
       ],
       ['senate-schedule', new SenateScheduleAdapter({ congress, resolveCommitteeName })],
       ['committee-site', new CommitteeSiteAdapter()],
+      // govinfo-chrg and senate-committee-calendar were missing from probe adapter map,
+      // causing their sources to remain 'unknown' indefinitely (never probed).
+      ['govinfo-chrg', new GovInfoChrgAdapter(process.env.GOVINFO_API_KEY ?? '')],
+      ['senate-committee-calendar', new SenateCommitteeCalendarAdapter({ congress })],
     ]);
   }
 }

@@ -400,8 +400,7 @@ export interface MemoryRecallAccess {
 }
 
 export type MemoryFilterDecision =
-  | { include: true }
-  | { include: false; reason: MemorySuppressionReason };
+  { include: true } | { include: false; reason: MemorySuppressionReason };
 
 export function filterGovernedMemory(
   record: GovernedMemoryRecord,

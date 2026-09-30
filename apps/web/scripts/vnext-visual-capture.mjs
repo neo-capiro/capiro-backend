@@ -195,6 +195,7 @@ try {
   try {
     await cdp.send('Page.enable');
     await cdp.send('Runtime.enable');
+    await cdp.send('Network.enable');
 
     for (const target of targets) {
       const url = `${baseUrl}${target.path}`;
@@ -214,33 +215,68 @@ try {
         mobile: false,
       });
 
-      const loaded = cdp.once('Page.loadEventFired', NAV_TIMEOUT_MS);
-      // Chrome occasionally refuses the first navigation on a freshly launched
-      // headless instance (ERR_CONNECTION_REFUSED while the network stack warms
-      // up); retry until the tab actually lands on the URL.
-      for (let navAttempt = 0; ; navAttempt++) {
-        await cdp.send('Page.navigate', { url });
-        await new Promise((r) => setTimeout(r, navAttempt === 0 ? 1500 : 750));
-        const landed = await evaluate(cdp, `location.href.startsWith(${JSON.stringify(url.slice(0, 40))})`);
-        if (landed === true || navAttempt >= 8) break;
-      }
-      await loaded;
+      // A module script that fails to load (for example a vite dependency chunk
+      // invalidated by a mid-run re-optimization) never raises an exception;
+      // keep console errors and failed requests for the failure message.
+      const loadDiagnostics = [];
+      const offConsole = cdp.on('Runtime.consoleAPICalled', (params) => {
+        if (params?.type !== 'error') return;
+        const text = (params.args ?? []).map((a) => a.value ?? a.description ?? '').join(' ');
+        loadDiagnostics.push(`console: ${text.slice(0, 200)}`);
+      });
+      const offNetwork = cdp.on('Network.loadingFailed', (params) => {
+        loadDiagnostics.push(
+          `request failed: ${params?.errorText ?? 'unknown'} (${params?.type ?? '?'})`,
+        );
+      });
 
-      // Dev-server settle wait: on vite dev the module graph can finish executing
-      // AFTER the load event (on-demand transform), so poll for the expect selector
-      // for up to 45s before declaring the page unrendered.
-      {
+      for (let loadAttempt = 1; ; loadAttempt++) {
+        // Start from a blank document: consecutive targets can share a URL, and
+        // a same-URL navigation would pass the landed check on the old page.
+        const blank = cdp.once('Page.loadEventFired', 5_000);
+        await cdp.send('Page.navigate', { url: 'about:blank' });
+        await blank.catch(() => undefined);
+        const loaded = cdp.once('Page.loadEventFired', NAV_TIMEOUT_MS);
+        // Chrome occasionally refuses the first navigation on a freshly launched
+        // headless instance (ERR_CONNECTION_REFUSED while the network stack warms
+        // up); retry until the tab actually lands on the URL.
+        for (let navAttempt = 0; ; navAttempt++) {
+          await cdp.send('Page.navigate', { url });
+          await new Promise((r) => setTimeout(r, navAttempt === 0 ? 1500 : 750));
+          const landed = await evaluate(cdp, `location.href.startsWith(${JSON.stringify(url.slice(0, 40))})`);
+          if (landed === true || navAttempt >= 8) break;
+        }
+        await loaded;
+
+        // Dev-server settle wait: on vite dev the module graph can finish executing
+        // AFTER the load event (on-demand transform), so poll for the expect selector
+        // for up to 45s before declaring the page unrendered.
         const settleDeadline = Date.now() + 45_000;
+        let present = false;
         for (;;) {
-          const present = await evaluate(
-            cdp,
-            `Boolean(document.querySelector(${JSON.stringify(target.expect)}))`,
-          );
-          if (present === true) break;
-          if (Date.now() > settleDeadline) break;
+          present =
+            (await evaluate(
+              cdp,
+              `Boolean(document.querySelector(${JSON.stringify(target.expect)}))`,
+            )) === true;
+          if (present || Date.now() > settleDeadline) break;
           await new Promise((r) => setTimeout(r, 500));
         }
+        // One fresh reload when the page stayed empty; the selector is still
+        // required for the capture below.
+        if (present || loadAttempt >= 2) break;
+        console.warn(
+          `[capture] ${target.name}: "${target.expect}" absent after load; reloading once` +
+            ([...pageErrors, ...loadDiagnostics].length
+              ? ` (${[...pageErrors, ...loadDiagnostics].slice(-5).join(' | ')})`
+              : ''),
+        );
+        // Errors from the discarded attempt are reported above, not against
+        // the fresh load.
+        pageErrors.length = 0;
       }
+      offConsole();
+      offNetwork();
 
       // Webfonts, then two animation frames: text metrics must be final before
       // the pixels are taken or every overlay against Figma is off by a hair.
@@ -261,7 +297,8 @@ try {
         );
         throw new Error(
           `${target.name}: expected selector "${target.expect}" was absent after load — ` +
-            `the page did not render${pageErrors.length ? `; page errors: ${pageErrors.join(' | ')}` : ''}; probe: ${probe}`,
+            `the page did not render${pageErrors.length ? `; page errors: ${pageErrors.join(' | ')}` : ''}` +
+            `${loadDiagnostics.length ? `; load diagnostics: ${loadDiagnostics.slice(-10).join(' | ')}` : ''}; probe: ${probe}`,
         );
       }
       if (pageErrors.length) {

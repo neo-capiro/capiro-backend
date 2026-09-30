@@ -13,6 +13,7 @@ const MAX_TOTAL_CHARS = 96_000;
 
 export interface EvidencePassage {
   text: string;
+  clientId?: string;
   locator?: string;
   documentId?: string;
   version?: string;
@@ -20,6 +21,10 @@ export interface EvidencePassage {
   publishedAt?: string;
   effectiveAt?: string;
   retrievedAt?: string;
+  acquisitionState?: 'discovered' | 'consulted';
+  evidenceKind?: 'source_passage' | 'structured_record';
+  contentHash?: string;
+  ownerVerified?: boolean;
   authority?: { sourceAuthority: string; publisher?: string | null; jurisdiction?: string | null };
   documentCompleteness?: DocumentCompleteness;
   relationScope?: EvidenceRelationScope;
@@ -44,6 +49,7 @@ export type JevEvidenceSource = Pick<
   | 'evidenceId'
   | 'sourceType'
   | 'sourceId'
+  | 'clientId'
   | 'documentId'
   | 'version'
   | 'locator'
@@ -52,6 +58,10 @@ export type JevEvidenceSource = Pick<
   | 'publishedAt'
   | 'effectiveAt'
   | 'retrievedAt'
+  | 'acquisitionState'
+  | 'evidenceKind'
+  | 'contentHash'
+  | 'ownerVerified'
   | 'authority'
   | 'documentCompleteness'
   | 'relationScope'
@@ -68,6 +78,7 @@ export function envelopeSourcesForJev(
     evidenceId: source.evidenceId,
     sourceType: source.sourceType,
     sourceId: source.sourceId,
+    ...(source.clientId !== undefined ? { clientId: source.clientId } : {}),
     documentId: source.documentId,
     version: source.version,
     locator: source.locator,
@@ -76,6 +87,10 @@ export function envelopeSourcesForJev(
     publishedAt: source.publishedAt,
     effectiveAt: source.effectiveAt,
     retrievedAt: source.retrievedAt,
+    ...(source.acquisitionState ? { acquisitionState: source.acquisitionState } : {}),
+    ...(source.evidenceKind ? { evidenceKind: source.evidenceKind } : {}),
+    ...(source.contentHash !== undefined ? { contentHash: source.contentHash } : {}),
+    ...(source.ownerVerified !== undefined ? { ownerVerified: source.ownerVerified } : {}),
     ...(source.authority ? { authority: source.authority } : {}),
     ...(source.documentCompleteness ? { documentCompleteness: source.documentCompleteness } : {}),
     ...(source.relationScope ? { relationScope: source.relationScope } : {}),
@@ -87,25 +102,37 @@ export function envelopeSourcesForJev(
 function truncateAtBoundary(text: string, cap: number): string {
   if (text.length <= cap) return text;
   const prefix = text.slice(0, cap + 1);
-  const boundary = Math.max(prefix.lastIndexOf('. '), prefix.lastIndexOf('! '), prefix.lastIndexOf('? '));
+  const boundary = Math.max(
+    prefix.lastIndexOf('. '),
+    prefix.lastIndexOf('! '),
+    prefix.lastIndexOf('? '),
+  );
   return `${prefix.slice(0, boundary >= Math.floor(cap / 2) ? boundary + 1 : cap).trimEnd()}…`;
 }
 
 function deriveQualifiers(input: BuildEvidenceEnvelopeInput): string[] {
   const derived = [
     `category:${input.claim.category}`,
-    input.asOf ?? input.claim.asOf ? `as-of:${input.asOf ?? input.claim.asOf}` : undefined,
+    (input.asOf ?? input.claim.asOf) ? `as-of:${input.asOf ?? input.claim.asOf}` : undefined,
   ];
-  return [...new Set([...derived, ...(input.scopeQualifiers ?? [])].filter((x): x is string => typeof x === 'string' && Boolean(x.trim())))]
-    .sort();
+  return [
+    ...new Set(
+      [...derived, ...(input.scopeQualifiers ?? [])].filter(
+        (x): x is string => typeof x === 'string' && Boolean(x.trim()),
+      ),
+    ),
+  ].sort();
 }
 
-export function buildEvidenceEnvelope(
-  input: BuildEvidenceEnvelopeInput,
-): { envelope: EvidenceEnvelope; hash: string } {
+export function buildEvidenceEnvelope(input: BuildEvidenceEnvelopeInput): {
+  envelope: EvidenceEnvelope;
+  hash: string;
+} {
   const referenced = new Set(input.claim.sourceIds);
   const evidenceById = new Map(input.ledger.evidence.map((item) => [item.id, item]));
-  const citationById = new Map(input.citations.filter((item) => referenced.has(item.id)).map((item) => [item.id, item]));
+  const citationById = new Map(
+    input.citations.filter((item) => referenced.has(item.id)).map((item) => [item.id, item]),
+  );
   const droppedEvidenceIds: string[] = [];
   const truncatedEvidenceIds: string[] = [];
   let totalChars = 0;
@@ -136,6 +163,9 @@ export function buildEvidenceEnvelope(
       evidenceId,
       sourceType: evidence.sourceType,
       sourceId: evidence.sourceId,
+      ...((passage?.clientId ?? evidence.clientId)
+        ? { clientId: passage?.clientId ?? evidence.clientId }
+        : {}),
       documentId: passage?.documentId ?? citation?.documentEvidence?.documentId ?? null,
       version: passage?.version ?? citation?.source?.version ?? null,
       locator: passage?.locator ?? citation?.source?.section ?? null,
@@ -143,13 +173,38 @@ export function buildEvidenceEnvelope(
       sourceDate: passage?.sourceDate ?? evidence.asOf ?? null,
       publishedAt: passage?.publishedAt ?? evidence.publishedAt ?? null,
       effectiveAt: passage?.effectiveAt ?? evidence.effectiveAt ?? null,
-      retrievedAt: passage?.retrievedAt ?? evidence.retrievedAt ?? citation?.source?.observedAt
-        ?? citation?.documentEvidence?.observedAt ?? null,
-      ...(passage?.authority
-        ? { authority: { sourceAuthority: passage.authority.sourceAuthority,
-            publisher: passage.authority.publisher ?? null, jurisdiction: passage.authority.jurisdiction ?? null } }
+      retrievedAt:
+        passage?.retrievedAt ??
+        evidence.retrievedAt ??
+        citation?.source?.observedAt ??
+        citation?.documentEvidence?.observedAt ??
+        null,
+      ...((passage?.acquisitionState ?? evidence.acquisitionState)
+        ? { acquisitionState: passage?.acquisitionState ?? evidence.acquisitionState }
         : {}),
-      ...(passage?.documentCompleteness ? { documentCompleteness: passage.documentCompleteness } : {}),
+      ...((passage?.evidenceKind ?? evidence.evidenceKind)
+        ? { evidenceKind: passage?.evidenceKind ?? evidence.evidenceKind }
+        : {}),
+      ...((passage?.contentHash ?? evidence.contentHash)
+        ? { contentHash: passage?.contentHash ?? evidence.contentHash }
+        : {}),
+      ...(passage?.ownerVerified !== undefined
+        ? { ownerVerified: passage.ownerVerified }
+        : evidence.ownerVerified !== undefined
+          ? { ownerVerified: evidence.ownerVerified }
+          : {}),
+      ...(passage?.authority
+        ? {
+            authority: {
+              sourceAuthority: passage.authority.sourceAuthority,
+              publisher: passage.authority.publisher ?? null,
+              jurisdiction: passage.authority.jurisdiction ?? null,
+            },
+          }
+        : {}),
+      ...(passage?.documentCompleteness
+        ? { documentCompleteness: passage.documentCompleteness }
+        : {}),
       ...(passage?.relationScope ? { relationScope: passage.relationScope } : {}),
       ...(passage?.financialStage !== undefined ? { financialStage: passage.financialStage } : {}),
       ...(input.includeProvenance

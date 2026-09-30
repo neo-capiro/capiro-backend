@@ -56,7 +56,9 @@ describe('buildControlledClaimLedger', () => {
         MERI_EVIDENCE_PROFILES_TENANTS: tenantId,
         MERI_EVIDENCE_PROFILES_SURFACES: 'chat',
       },
-      logShadow: () => { throw new Error('logger unavailable'); },
+      logShadow: () => {
+        throw new Error('logger unavailable');
+      },
     });
     expect(ledger.claims[0]).toMatchObject({ primarySourcePresent: true, confidence: 'high' });
   });

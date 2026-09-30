@@ -70,12 +70,7 @@ const AUTHORITATIVE_IDENTITY_TOOLS = new Set([
   'search_lda_filings',
   'search_sec_filings',
 ]);
-const NON_IDENTITY_DOMAINS = new Set([
-  'facebook.com',
-  'linkedin.com',
-  'x.com',
-  'youtube.com',
-]);
+const NON_IDENTITY_DOMAINS = new Set(['facebook.com', 'linkedin.com', 'x.com', 'youtube.com']);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -382,9 +377,7 @@ export function buildMeriExternalEntityResolution(
   const authoritative = top ? hasAuthoritativeIdentity(top) : false;
   const separatedFromRunnerUp =
     !runnerUp ||
-    (top
-      ? Math.round((top.confidence - runnerUp.confidence) * 1000) / 1000 >= 0.06
-      : false);
+    (top ? Math.round((top.confidence - runnerUp.confidence) * 1000) / 1000 >= 0.06 : false);
   const identityStrength =
     exactDomain || corroborated || (authoritative && exactName && (top?.confidence ?? 0) >= 0.9);
   const confident = Boolean(

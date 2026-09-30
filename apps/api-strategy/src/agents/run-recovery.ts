@@ -167,9 +167,7 @@ export function detectRecovery(input: RecoveryInput): RecoveryFinding[] {
     hasRealArtifact &&
     !isTerminal &&
     input.nodeLive &&
-    (run.state === 'executing' ||
-      run.state === 'failed_recoverable' ||
-      run.state === 'staged')
+    (run.state === 'executing' || run.state === 'failed_recoverable' || run.state === 'staged')
   ) {
     findings.push({
       code: 'ARTIFACT_NOT_ADVANCED',

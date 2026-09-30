@@ -1,14 +1,14 @@
 import type { AssuredClaim, AssuredEvidence, ClaimLedger } from '../assurance/claim-ledger';
-import type { DomainEvidencePlan, EvidenceClass, EvidenceRequirement } from '../assurance/evidence-plan';
+import type {
+  DomainEvidencePlan,
+  EvidenceClass,
+  EvidenceRequirement,
+} from '../assurance/evidence-plan';
 import type { EvidenceDecision, EvidenceEnvelope } from '../jev/decision-contract';
 import type { DeterministicClaimEvaluation } from '../assurance/deterministic-evaluation';
 
 export type RepairRequirementKind =
-  | 'missing_evidence'
-  | 'contradiction'
-  | 'conflict'
-  | 'document_unavailable'
-  | 'stale_status';
+  'missing_evidence' | 'contradiction' | 'conflict' | 'document_unavailable' | 'stale_status';
 
 export interface RepairRequirement {
   claimId: string;
@@ -56,13 +56,16 @@ export interface RepairBudget {
 export interface RepairEvidence extends AssuredEvidence {
   passage: string;
   documentId?: string;
-  version?: string;
-  locator?: string;
 }
 
 export type RepairToolResult =
   | { ok: true; evidence: RepairEvidence[]; inputTokens?: number }
-  | { ok: false; state: 'retrieval_failed' | 'document_unavailable'; reason: string; inputTokens?: number };
+  | {
+      ok: false;
+      state: 'retrieval_failed' | 'document_unavailable';
+      reason: string;
+      inputTokens?: number;
+    };
 
 export interface RepairTraceEvent {
   at: number;
@@ -98,7 +101,8 @@ export type RepairOutcomeStatus =
   | 'cancelled'
   | 'budget_exhausted';
 
-export type RepairClaimTerminalOutcome = 'corrected' | 'qualified' | 'omitted' | 'unresolved' | 'aborted';
+export type RepairClaimTerminalOutcome =
+  'corrected' | 'qualified' | 'omitted' | 'unresolved' | 'aborted';
 
 /** Exactly one terminal outcome per attempted claim. */
 export interface RepairClaimOutcome {

@@ -33,11 +33,16 @@ function keys(capability: string): { mode: string; tenants: string; surfaces: st
 }
 
 function configuredMode(raw: string | undefined): CapabilityRolloutMode | undefined {
-  const mode = String(raw ?? '').trim().toLowerCase();
+  const mode = String(raw ?? '')
+    .trim()
+    .toLowerCase();
   return mode === 'off' || mode === 'shadow' || mode === 'enforce' ? mode : undefined;
 }
 
-function tenantConfig(raw: string | undefined): { selected: ReadonlySet<string>; issues: string[] } {
+function tenantConfig(raw: string | undefined): {
+  selected: ReadonlySet<string>;
+  issues: string[];
+} {
   const tokens = parseRolloutTokens(raw);
   const invalid = tokens.filter((token) => token !== 'all' && !UUID_RE.test(token));
   const valid = tokens.filter((token) => token === 'all' || UUID_RE.test(token));
@@ -79,12 +84,17 @@ export function resolveCapabilityRollout(input: CapabilityRolloutInput): Capabil
   const reasons = [...(mode ? [] : ['invalid_mode']), ...tenants.issues, ...surfaces.issues];
   const tenantId = input.tenantId?.trim().toLowerCase();
   const tenantSelected = Boolean(
-    tenantId && UUID_RE.test(tenantId) && (tenants.selected.has('all') || tenants.selected.has(tenantId)),
+    tenantId &&
+    UUID_RE.test(tenantId) &&
+    (tenants.selected.has('all') || tenants.selected.has(tenantId)),
   );
   if (!tenantSelected) reasons.push('tenant_not_enrolled');
   if (!surfaces.selected.has(input.surface)) reasons.push('surface_not_enrolled');
   return {
-    mode: mode && mode !== 'off' && tenantSelected && surfaces.selected.has(input.surface) ? mode : 'off',
+    mode:
+      mode && mode !== 'off' && tenantSelected && surfaces.selected.has(input.surface)
+        ? mode
+        : 'off',
     reasons,
   };
 }

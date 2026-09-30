@@ -34,21 +34,24 @@ jobs:
       postgres:
         image: pgvector/pgvector:pg16
         env:
-          POSTGRES_USER: capiro
-          POSTGRES_PASSWORD: capiro
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
           POSTGRES_DB: capiro
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U capiro -d capiro"
+          --health-cmd "pg_isready -U postgres -d capiro"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 10
     env:
-      DATABASE_URL: postgresql://capiro:capiro@localhost:5432/capiro
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/capiro
+      NODE_OPTIONS: --max-old-space-size=6144
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
 
       - name: Patch hygiene
         run: git diff --check HEAD^
@@ -72,12 +75,17 @@ jobs:
           pnpm --filter @capiro/api exec prisma validate --schema prisma/schema.prisma
           pnpm --filter @capiro/api exec prisma generate --schema prisma/schema.prisma
 
+      # One worker preserves sequential execution and recycles its heap between suites.
       - name: Focused Phase 11 Retrieval tests
-        run: pnpm --filter @capiro/api exec jest --runInBand --forceExit src/retrieval
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144 --experimental-vm-modules
+        run: pnpm --filter @capiro/api exec jest --maxWorkers=1 --workerIdleMemoryLimit=1GB --forceExit src/retrieval
 
       - name: Canonical identity normalization regressions
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
         run: |
-          pnpm --filter @capiro/api exec jest --runInBand --forceExit \
+          pnpm --filter @capiro/api exec jest --maxWorkers=1 --workerIdleMemoryLimit=1GB --forceExit \
             src/knowledge/entities/entity-normalization.spec.ts \
             src/knowledge/entities/universal-entity-resolution.preview.spec.ts \
             src/knowledge/entities/universal-entity-resolution.service.spec.ts
@@ -95,6 +103,11 @@ jobs:
             exit 1
           fi
           echo "Full API typecheck exit: $status (unrelated baseline errors, if any, are not attributed to Phase 11)."
+
+      - name: Bootstrap disposable pgvector roles
+        env:
+          CI_DISPOSABLE_POSTGRES: '1'
+        run: bash scripts/ci/bootstrap-disposable-postgres-roles.sh
 
       - name: Deploy full migration chain to disposable pgvector/Postgres
         run: pnpm --filter @capiro/api exec prisma migrate deploy

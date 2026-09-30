@@ -77,6 +77,31 @@ describe('Phase 3 full-read materialization', () => {
     });
   });
 
+  test('binds the current mail-thread detail read to an owned synthetic row', () => {
+    const request = uniquePhase3Reads(inventory().requests).find(
+      (row) => row.routeManifestKey === 'GET /api/engagement/mail-threads/:id',
+    );
+    expect(request).toBeDefined();
+    const fixtures = fixtureIndex();
+    const result = materializePhase3Read(request!, fixtures);
+    expect(result.relative).toBe(
+      `/api/engagement/mail-threads/${fixtures.ids['mailThread.alpha']}`,
+    );
+    expect(result.bindings).toEqual({ id: 'mailThread.alpha' });
+    expect(result.expectation.kind).toBe('data');
+    const plan = buildFixturePlan();
+    const thread = plan.mailThreads.find((row) => row.key === 'mailThread.alpha')!;
+    expect(thread.tenantKey).toBe('tenant.primary');
+    expect(thread.clientKey).toBe('client.alpha');
+    expect(thread.connectionKey).toBe('connection.microsoftConnected');
+    expect(plan.connections.find((row) => row.key === thread.connectionKey)?.tenantKey).toBe(
+      thread.tenantKey,
+    );
+    const missing = { ids: { ...fixtures.ids } };
+    delete missing.ids['mailThread.alpha'];
+    expect(() => materializePhase3Read(request!, missing)).toThrow(/mailThread\.alpha/);
+  });
+
   test('adds the required attachment parent instead of accepting a matching 400', () => {
     const request = uniquePhase3Reads(inventory().requests).find(
       (row) => row.routeManifestKey === 'GET /api/engagement/attachments',
@@ -92,8 +117,7 @@ describe('Phase 3 full-read materialization', () => {
   test('binds named nested parameters to the row that actually owns data', () => {
     const request = uniquePhase3Reads(inventory().requests).find(
       (row) =>
-        row.routeManifestKey ===
-        'GET /api/engagement/outreach/:outreachRecordId/draft-artifacts',
+        row.routeManifestKey === 'GET /api/engagement/outreach/:outreachRecordId/draft-artifacts',
     );
     expect(request).toBeDefined();
     const fixtures = fixtureIndex();
@@ -127,7 +151,9 @@ describe('Phase 3 full-read materialization', () => {
   test('negative controls fail on fixture drift, path drift, and unknown parameters', () => {
     const reads = uniquePhase3Reads(inventory().requests);
     const fixtures = fixtureIndex();
-    const meeting = reads.find((row) => row.routeManifestKey === 'GET /api/engagement/meetings/:id')!;
+    const meeting = reads.find(
+      (row) => row.routeManifestKey === 'GET /api/engagement/meetings/:id',
+    )!;
 
     const missingMeeting = { ids: { ...fixtures.ids } };
     delete missingMeeting.ids['meeting.past'];

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import type { HearingRoomViewModel } from '../../../../pages/intelligence/LiveHearingRoomPage.js';
+import type { HearingRoomViewModel } from './LiveHearingRoomController.js';
 import type { HearingTranscriptItem } from '../../../../lib/hearing-watch-api.js';
 import { LwButton, LwPill } from '../lib/primitives.js';
 import { LwStateLoading, LwStateUnavailable } from '../states/SystemStates.js';

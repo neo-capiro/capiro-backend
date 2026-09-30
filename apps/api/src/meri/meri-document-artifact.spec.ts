@@ -1,4 +1,4 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import JSZip from 'jszip';
 import { extractRawText } from 'mammoth';
@@ -7,6 +7,8 @@ import { MeriDocgenService } from './meri-docgen.service.js';
 import { MeriController } from './meri.controller.js';
 import { PDFArray, PDFDocument, PDFRawStream, decodePDFRawStream } from 'pdf-lib';
 import type { Response } from 'express';
+import { generatedPngBase64 } from './meri-artifact-test-fixtures.js';
+import { sha256Bytes } from './meri-artifact-integrity.js';
 
 // These unused injected services are outside the document boundary. Keep the
 // actual tool dispatch, document normalization and Office binary generator.
@@ -49,7 +51,7 @@ const ctx = { tenantId: 'tenant-a', userId: 'user-a' } as TenantContext;
 const artifactId = '238b644b-c252-44f1-a63e-cd8b1c1e1d3f';
 const conversationId = '8418d847-7f93-4d7f-b371-6e6300a38f31';
 const chartId = 'a1111111-1111-4111-8111-111111111111';
-const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aY1cAAAAASUVORK5CYII=';
+const png = generatedPngBase64();
 const fixtureLines = [
   'SYNTHETIC QA FIXTURE — not a real client or approved plan.',
   'Project: Glass Harbor',
@@ -71,15 +73,22 @@ type Artifact = {
 };
 
 function harness(initialArtifacts: Artifact[] = []) {
-  const artifacts = [...initialArtifacts];
-  const conversation = {
+  const artifacts = initialArtifacts.map((artifact) =>
+    typeof artifact.metadata?.imageBase64 === 'string'
+      ? { kind: 'analysis_chart', clientId: null, conversationId, ...artifact }
+      : artifact);
+  const conversation: {
+    id: string; tenantId: string; userId: string; archivedAt: Date | null; clientId: string | null;
+  } = {
     id: conversationId, tenantId: ctx.tenantId, userId: ctx.userId,
     archivedAt: null, clientId: null,
   };
   const tx = {
     clioArtifact: {
-      findFirst: jest.fn(async ({ where }: { where: Record<string, unknown> }) =>
-        artifacts.find((row) => Object.entries(where).every(([key, value]) => row[key] === value)) ?? null),
+      findFirst: jest.fn(async ({ where }: { where: Record<string, unknown> }) => {
+        const row = artifacts.find((candidate) => Object.entries(where).every(([key, value]) => candidate[key] === value));
+        return row ? { ...row, conversation } : null;
+      }),
       create: jest.fn(async ({ data }: { data: Omit<Artifact, 'id'> }) => {
         const row = { ...data, id: artifactId } as Artifact;
         artifacts.push(row);
@@ -99,9 +108,13 @@ function harness(initialArtifacts: Artifact[] = []) {
   const buildDocx = jest.spyOn(docgen, 'buildDocx');
   const buildPdf = jest.spyOn(docgen, 'buildPdf');
   // Only these two constructor ports are used on this production path.
-  const service = Object.assign(Object.create(MeriToolsService.prototype), { prisma, docgen }) as MeriToolsService;
+  const contextPlane = { securityEnvelope: jest.fn(async () => ({
+    authorizedClientIds: conversation.clientId ? [conversation.clientId] : [],
+    authorizedMailboxConnectionIds: [],
+  })) };
+  const service = Object.assign(Object.create(MeriToolsService.prototype), { prisma, docgen, contextPlane }) as MeriToolsService;
   const controller = Object.assign(Object.create(MeriController.prototype), { tools: service }) as MeriController;
-  return { service, controller, prisma, tx, artifacts, buildDocx, buildPdf };
+  return { service, controller, prisma, tx, artifacts, buildDocx, buildPdf, conversation, contextPlane };
 }
 
 function wordInput() {
@@ -111,6 +124,7 @@ function wordInput() {
 
 function storedArtifact(overrides: Partial<Artifact> = {}): Artifact {
   return { id: artifactId, tenantId: ctx.tenantId, userId: ctx.userId,
+    clientId: null, conversationId,
     bodyText: JSON.stringify(wordInput()),
     metadata: { docFormat: 'docx', filename: 'glass-harbor-qa-brief.docx' }, ...overrides };
 }
@@ -313,6 +327,78 @@ describe('Meri generated document download boundary (MW-01)', () => {
     expect(await h.service.getDocumentArtifact(ctx, artifactId)).toEqual(stored);
   });
 
+  it('serves immutable native bytes with their creation checksum instead of regenerating them', async () => {
+    const h = harness();
+    const generated = await h.service.execute(ctx, 'create_word', wordInput()) as {
+      artifact: { id: string };
+    };
+    const metadata = h.artifacts[0]!.metadata!;
+    const persisted = Buffer.from(metadata.documentBytesBase64 as string, 'base64');
+    expect(metadata).toMatchObject({
+      documentSha256: sha256Bytes(persisted),
+      documentByteLength: persisted.length,
+      documentByteFormat: 'docx',
+      documentByteAuthority: 'persisted_at_creation_v1',
+    });
+    h.buildDocx.mockRejectedValueOnce(new Error('native download must not regenerate'));
+    const response = downloadResponse();
+
+    await h.controller.downloadArtifact(ctx, generated.artifact.id, response.response);
+
+    expect(response.send).toHaveBeenCalledWith(persisted);
+    expect(response.setHeader).toHaveBeenCalledWith('X-Capiro-Artifact-Sha256', sha256Bytes(persisted));
+    expect(response.setHeader).toHaveBeenCalledWith('X-Capiro-Artifact-Byte-Authority', 'persisted_at_creation_v1');
+    expect(h.buildDocx).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects a partial or mismatched persisted byte receipt instead of regenerating', async () => {
+    const h = harness();
+    await h.service.execute(ctx, 'create_word', wordInput());
+    h.artifacts[0]!.metadata = {
+      ...h.artifacts[0]!.metadata,
+      documentSha256: '0'.repeat(64),
+    };
+    const response = downloadResponse();
+
+    await expect(h.controller.downloadArtifact(ctx, artifactId, response.response))
+      .rejects.toBeInstanceOf(UnprocessableEntityException);
+    expect(response.send).not.toHaveBeenCalled();
+    expect(h.buildDocx).toHaveBeenCalledTimes(1);
+  });
+
+  it('blocks alternate exports when any native byte receipt is partial', async () => {
+    const h = harness([storedArtifact({ metadata: {
+      docFormat: 'docx',
+      filename: 'glass-harbor-qa-brief.docx',
+      documentSha256: '0'.repeat(64),
+    } })]);
+
+    await expect(h.service.getDocumentArtifact(ctx, artifactId, 'pdf'))
+      .rejects.toBeInstanceOf(UnprocessableEntityException);
+    expect(h.buildPdf).not.toHaveBeenCalled();
+  });
+
+  it('keeps legacy rows compatible but rechecks conversation state and client wall at delivery', async () => {
+    const legacy = storedArtifact({ clientId: 'client-1' });
+    const h = harness([legacy]);
+    h.conversation.clientId = 'client-1';
+    h.contextPlane.securityEnvelope.mockResolvedValue({
+      authorizedClientIds: ['client-1'],
+      authorizedMailboxConnectionIds: [],
+    });
+    const response = downloadResponse();
+    await h.controller.downloadArtifact(ctx, artifactId, response.response);
+    expect(response.setHeader).toHaveBeenCalledWith('X-Capiro-Artifact-Byte-Authority', 'regenerated_legacy');
+
+    h.contextPlane.securityEnvelope.mockResolvedValue({
+      authorizedClientIds: [],
+      authorizedMailboxConnectionIds: [],
+    });
+    await expect(h.service.getDocumentArtifact(ctx, artifactId)).resolves.toBeNull();
+    h.conversation.archivedAt = new Date('2026-09-28T00:00:00.000Z');
+    await expect(h.service.getDocumentArtifact(ctx, artifactId)).resolves.toBeNull();
+  });
+
   it.each([
     ['another tenant', { tenantId: 'tenant-b', userId: ctx.userId }],
     ['another user', { tenantId: ctx.tenantId, userId: 'user-b' }],
@@ -373,11 +459,70 @@ describe('Meri generated document download boundary (MW-01)', () => {
     expect(spec.sections[0]!.images).toHaveLength(allowed ? 1 : 0);
     expect(spec.sections[0]!.imageArtifactIds).toEqual([]);
     expect(h.tx.clioArtifact.findFirst).toHaveBeenCalledWith(expect.objectContaining({
-      where: { id: chartId, tenantId: ctx.tenantId, userId: ctx.userId },
+      where: {
+        id: chartId,
+        tenantId: ctx.tenantId,
+        userId: ctx.userId,
+        kind: 'analysis_chart',
+        conversationId,
+        clientId: null,
+      },
     }));
     const bytes = await h.service.renderStoredDocument(stored!.format, stored!.specJson);
     const zip = await JSZip.loadAsync(bytes);
     expect(Object.keys(zip.files).filter((name) => /^word\/media\/.*\.png$/.test(name)))
       .toHaveLength(allowed ? 1 : 0);
+  });
+
+  it('refuses an archived chart from another client even if a data adapter returns it', async () => {
+    const h = harness();
+    h.conversation.clientId = 'client-a';
+    h.tx.clioArtifact.findFirst.mockResolvedValueOnce({
+      id: chartId,
+      tenantId: ctx.tenantId,
+      userId: ctx.userId,
+      kind: 'analysis_chart',
+      clientId: 'client-b',
+      conversationId: 'conversation-b',
+      metadata: { imageBase64: png, imageSha256: sha256Bytes(Buffer.from(png, 'base64')) },
+      conversation: {
+        id: 'conversation-b',
+        tenantId: ctx.tenantId,
+        userId: ctx.userId,
+        clientId: 'client-b',
+        archivedAt: new Date('2026-09-28T00:00:00.000Z'),
+      },
+    } as never);
+
+    await expect(h.service.execute(ctx, 'create_word', {
+      ...wordInput(),
+      sections: [{ heading: 'Chart', imageArtifactIds: [chartId] }],
+    })).rejects.toBeInstanceOf(NotFoundException);
+    expect(h.tx.clioArtifact.create).not.toHaveBeenCalled();
+  });
+});
+
+describe('Meri legacy analysis image route', () => {
+  it('serves the owner-scoped reader result with no-store and persisted integrity headers', async () => {
+    const bytes = Buffer.from(png, 'base64');
+    const getArtifactImage = jest.fn(async () => ({
+      buffer: bytes,
+      contentType: 'image/png',
+      sha256: sha256Bytes(bytes),
+      integrityPolicy: 'persisted_hash_match' as const,
+    }));
+    const controller = Object.assign(Object.create(MeriController.prototype), {
+      service: { getArtifactImage },
+    }) as MeriController;
+    const response = downloadResponse();
+
+    await controller.artifactImage(ctx, chartId, response.response);
+
+    expect(getArtifactImage).toHaveBeenCalledWith(ctx, chartId);
+    expect(response.setHeader).toHaveBeenCalledWith('Cache-Control', 'private, no-store');
+    expect(response.setHeader).toHaveBeenCalledWith('X-Capiro-Artifact-Id', chartId);
+    expect(response.setHeader).toHaveBeenCalledWith('X-Capiro-Image-Integrity', 'persisted_hash_match');
+    expect(response.setHeader).toHaveBeenCalledWith('ETag', `"sha256-${sha256Bytes(bytes)}"`);
+    expect(response.send).toHaveBeenCalledWith(bytes);
   });
 });

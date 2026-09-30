@@ -70,6 +70,12 @@
       "require": "./dist/context/context-release-switch.js",
       "import": "./dist/context/context-release-switch.js",
       "default": "./dist/context/context-release-switch.js"
+    },
+    "./observability/otel": {
+      "types": "./dist/observability/meri-otel.d.ts",
+      "require": "./dist/observability/meri-otel.js",
+      "import": "./dist/observability/meri-otel.js",
+      "default": "./dist/observability/meri-otel.js"
     }
   },
   "scripts": {
@@ -90,6 +96,10 @@
   },
   "dependencies": {
     "@capiro/shared": "workspace:*",
+    "@opentelemetry/api": "1.9.1",
+    "@opentelemetry/exporter-trace-otlp-http": "0.222.0",
+    "@opentelemetry/resources": "2.11.0",
+    "@opentelemetry/sdk-trace": "2.11.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
@@ -100,5 +110,12 @@
     "ts-jest": "^29.4.12",
     "tsx": "^4.23.13",
     "typescript": "^5.5.4"
+  },
+  "typesVersions": {
+    "*": {
+      "observability/otel": [
+        "dist/observability/meri-otel.d.ts"
+      ]
+    }
   }
 }

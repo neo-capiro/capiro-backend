@@ -77,8 +77,7 @@ export const EVALUATION_SKIP_REASONS = [
 export type EvaluationSkipReason = (typeof EVALUATION_SKIP_REASONS)[number];
 
 export type EvaluationEligibilityDecision =
-  | { readonly eligible: true }
-  | { readonly eligible: false; readonly reason: EvaluationSkipReason };
+  { readonly eligible: true } | { readonly eligible: false; readonly reason: EvaluationSkipReason };
 
 /**
  * Bundled version string covering the eligibility policy, sampling policy,

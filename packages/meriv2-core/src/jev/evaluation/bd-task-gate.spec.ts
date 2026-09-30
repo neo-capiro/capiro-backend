@@ -45,21 +45,43 @@ function syntheticCase(index: number, overrides: CaseOverrides = {}): BdEvalCase
   const approved = (overrides.status ?? 'approved') === 'approved';
   const difficultNegative = index % 5 === 0;
   const split = overrides.split ?? (index % 3 === 0 ? 'tuning' : 'heldout');
-  const expectedOutcome = overrides.expectedOutcome ?? (task === 'bd_entity'
-    ? (index % 4 === 0 ? 'same_legal_entity' : index % 4 === 1 ? 'related_not_same'
-      : index % 4 === 2 ? 'different' : 'insufficient_evidence')
-    : (index % 5 === 0 ? 'explicit_link' : index % 5 === 1 ? 'conditional_alignment'
-      : index % 5 === 2 ? 'thematic_fit' : index % 5 === 3 ? 'unrelated' : 'insufficient_evidence'));
-  const sources = [{
-    sourceRecordId: `rec-${index}`,
-    sourceFamily: overrides.sourceFamily ?? (index % 2 === 0 ? 'usaspending' : 'sam'),
-    snapshotId: `snap-${index}`,
-    snapshotHash: `hash-${index}-abcdef`,
-    retrievedAt: '2026-09-01',
-    locator: `https://example.test/records/${index}`,
-  }];
-  const jevOutcome = overrides.jevOutcome !== undefined ? overrides.jevOutcome
-    : (index % 20 === 7 ? (task === 'bd_entity' ? 'different' : 'thematic_fit') : expectedOutcome);
+  const expectedOutcome =
+    overrides.expectedOutcome ??
+    (task === 'bd_entity'
+      ? index % 4 === 0
+        ? 'same_legal_entity'
+        : index % 4 === 1
+          ? 'related_not_same'
+          : index % 4 === 2
+            ? 'different'
+            : 'insufficient_evidence'
+      : index % 5 === 0
+        ? 'explicit_link'
+        : index % 5 === 1
+          ? 'conditional_alignment'
+          : index % 5 === 2
+            ? 'thematic_fit'
+            : index % 5 === 3
+              ? 'unrelated'
+              : 'insufficient_evidence');
+  const sources = [
+    {
+      sourceRecordId: `rec-${index}`,
+      sourceFamily: overrides.sourceFamily ?? (index % 2 === 0 ? 'usaspending' : 'sam'),
+      snapshotId: `snap-${index}`,
+      snapshotHash: `hash-${index}-abcdef`,
+      retrievedAt: '2026-09-01',
+      locator: `https://example.test/records/${index}`,
+    },
+  ];
+  const jevOutcome =
+    overrides.jevOutcome !== undefined
+      ? overrides.jevOutcome
+      : index % 20 === 7
+        ? task === 'bd_entity'
+          ? 'different'
+          : 'thematic_fit'
+        : expectedOutcome;
   const followUp = overrides.requireHumanFollowUp ?? false;
   const base = {
     id: `synthetic-${index}`,
@@ -75,40 +97,57 @@ function syntheticCase(index: number, overrides: CaseOverrides = {}): BdEvalCase
       sector: `sector-${index % 5}`,
       companySize: (['micro', 'small', 'mid', 'large', 'unknown'] as const)[index % 5]!,
       taskCategory: `category-${index % 3}`,
-      sourceAvailability: overrides.sourceAvailability
-        ?? (index % 6 === 5 ? 'partial' : 'available'),
+      sourceAvailability:
+        overrides.sourceAvailability ?? (index % 6 === 5 ? 'partial' : 'available'),
     },
     sources,
     expectedOutcome,
     rationale: `synthetic rationale ${index}`,
     humanReview: approved
       ? {
-        status: 'approved' as const,
-        reviewer: { reviewerId: 'synthetic-reviewer-id', reviewedAt: '2026-09-20T00:00:00.000Z' },
-        difficultNegative,
-        adjudication: difficultNegative ? {
-          required: true as const,
-          reviewerIds: ['synthetic-reviewer-a', 'synthetic-reviewer-b'],
-          adjudicatorId: 'synthetic-adjudicator',
-          adjudicatedAt: '2026-09-21T00:00:00.000Z',
-          finalOutcomeConfirmed: true,
-        } : null,
-      }
-      : { status: 'proposed' as const, reviewer: null, reviewedAt: null,
-        difficultNegative: false, adjudication: null },
+          status: 'approved' as const,
+          reviewer: { reviewerId: 'synthetic-reviewer-id', reviewedAt: '2026-09-20T00:00:00.000Z' },
+          difficultNegative,
+          adjudication: difficultNegative
+            ? {
+                required: true as const,
+                reviewerIds: ['synthetic-reviewer-a', 'synthetic-reviewer-b'],
+                adjudicatorId: 'synthetic-adjudicator',
+                adjudicatedAt: '2026-09-21T00:00:00.000Z',
+                finalOutcomeConfirmed: true,
+              }
+            : null,
+        }
+      : {
+          status: 'proposed' as const,
+          reviewer: null,
+          reviewedAt: null,
+          difficultNegative: false,
+          adjudication: null,
+        },
     observations: {
       baseline: {
-        outcome: expectedOutcome, action: 'propose' as const, confidence: 0.8,
-        latencyMs: 50, usage: { inputTokens: 100, outputTokens: 20 }, failureState: null,
+        outcome: expectedOutcome,
+        action: 'propose' as const,
+        confidence: 0.8,
+        latencyMs: 50,
+        usage: { inputTokens: 100, outputTokens: 20 },
+        failureState: null,
       },
       jev: {
         outcome: jevOutcome,
-        action: (overrides.jevAction !== undefined ? overrides.jevAction
-          : (jevOutcome === null ? null : 'propose' as const)),
+        action:
+          overrides.jevAction !== undefined
+            ? overrides.jevAction
+            : jevOutcome === null
+              ? null
+              : ('propose' as const),
         confidence: 0.9,
         latencyMs: overrides.jevLatencyMs ?? 40,
-        usage: overrides.jevUsage !== undefined ? overrides.jevUsage
-          : { inputTokens: 120, outputTokens: 30 },
+        usage:
+          overrides.jevUsage !== undefined
+            ? overrides.jevUsage
+            : { inputTokens: 120, outputTokens: 30 },
         failureState: jevOutcome === null ? 'timeout' : null,
       },
     },
@@ -131,7 +170,7 @@ function syntheticCase(index: number, overrides: CaseOverrides = {}): BdEvalCase
   const unproven = overrides.directLabelUnproven ?? false;
   const foreign = overrides.directLabelForeignSource ?? false;
   const mismatchedTuple = overrides.directLabelTupleMismatch ?? false;
-  const supportedStage = (index % 6 === 3) ? 'obligated' : 'awarded';
+  const supportedStage = index % 6 === 3 ? 'obligated' : 'awarded';
   return {
     ...base,
     input: {
@@ -143,20 +182,34 @@ function syntheticCase(index: number, overrides: CaseOverrides = {}): BdEvalCase
     effect: {
       kind: 'bd_signal_effect' as const,
       directLabelApplied: applyDirectLabel,
-      directLabelProof: applyDirectLabel && !unproven ? {
-        resolvedCompanyPublicId: `company-${index}`,
-        sourceRecordId: foreign ? 'rec-not-in-case' : `rec-${index}`,
-        recordType: 'award' as const,
-        financialStage: mismatchedTuple ? 'requested' : supportedStage,
-        locator: `https://example.test/records/${index}`,
-      } : null,
+      directLabelProof:
+        applyDirectLabel && !unproven
+          ? {
+              resolvedCompanyPublicId: `company-${index}`,
+              sourceRecordId: foreign ? 'rec-not-in-case' : `rec-${index}`,
+              recordType: 'award' as const,
+              financialStage: mismatchedTuple ? 'requested' : supportedStage,
+              locator: `https://example.test/records/${index}`,
+            }
+          : null,
       requiredHumanFollowUp: followUp,
     },
   } as BdEvalCase;
 }
 
-const SIGNAL_OUTCOMES = ['explicit_link', 'conditional_alignment', 'thematic_fit', 'unrelated', 'insufficient_evidence'];
-const ENTITY_OUTCOMES = ['same_legal_entity', 'related_not_same', 'different', 'insufficient_evidence'];
+const SIGNAL_OUTCOMES = [
+  'explicit_link',
+  'conditional_alignment',
+  'thematic_fit',
+  'unrelated',
+  'insufficient_evidence',
+];
+const ENTITY_OUTCOMES = [
+  'same_legal_entity',
+  'related_not_same',
+  'different',
+  'insufficient_evidence',
+];
 
 function fullThresholdMap(task: 'bd_entity' | 'bd_signal'): {
   minPrecisionByOutcome: Record<string, number>;
@@ -214,7 +267,8 @@ describe('bd task gate (synthetic — logic only, never semantic accuracy)', () 
     const result = evaluateBdTaskGate(fixture);
     expect(result.approved).toBe(false);
     expect(result.reasons).toContain(
-      `insufficient_reviewed_cases: 60 < ${BD_EVALUATION_MIN_REVIEWED_CASES} approved for task bd_signal`);
+      `insufficient_reviewed_cases: 60 < ${BD_EVALUATION_MIN_REVIEWED_CASES} approved for task bd_signal`,
+    );
     const allProposed = evaluateBdTaskGate(syntheticFixture({ count: 5, status: 'proposed' }));
     expect(allProposed.approved).toBe(false);
     expect(allProposed.metrics.proposedCases).toBe(5);
@@ -243,14 +297,27 @@ describe('bd task gate (synthetic — logic only, never semantic accuracy)', () 
 
   it('flags unreviewed exact-identity merge effects even on proposed cases', () => {
     // Merge effect on a PROPOSED (unreviewed) case must be severe.
-    const result = evaluateBdTaskGate(syntheticFixture({
-      count: 120, task: 'bd_entity', status: 'proposed', mergeEffect: true }));
-    expect(result.metrics.severeErrors.some((e) => e.kind === 'unreviewed_exact_identity_merge')).toBe(true);
+    const result = evaluateBdTaskGate(
+      syntheticFixture({
+        count: 120,
+        task: 'bd_entity',
+        status: 'proposed',
+        mergeEffect: true,
+      }),
+    );
+    expect(
+      result.metrics.severeErrors.some((e) => e.kind === 'unreviewed_exact_identity_merge'),
+    ).toBe(true);
     expect(result.approved).toBe(false);
     expect(result.reasons.join(' ')).toContain('severe_invariant_violations');
     // The same merge on an approved case is not severe by itself (suggestions are allowed).
-    const approvedMerge = evaluateBdTaskGate(syntheticFixture({
-      count: 120, task: 'bd_entity', mergeEffect: true }));
+    const approvedMerge = evaluateBdTaskGate(
+      syntheticFixture({
+        count: 120,
+        task: 'bd_entity',
+        mergeEffect: true,
+      }),
+    );
     expect(approvedMerge.metrics.severeErrors).toEqual([]);
   });
 
@@ -264,7 +331,11 @@ describe('bd task gate (synthetic — logic only, never semantic accuracy)', () 
     }
     const unprovenResult = evaluateBdTaskGate(unproven);
     expect(unprovenResult.approved).toBe(false);
-    expect(unprovenResult.metrics.severeErrors.every((e) => e.kind === 'direct_signal_label_without_proof')).toBe(true);
+    expect(
+      unprovenResult.metrics.severeErrors.every(
+        (e) => e.kind === 'direct_signal_label_without_proof',
+      ),
+    ).toBe(true);
 
     const foreign = syntheticFixture({ count: 120, directLabelEffect: true });
     for (const item of foreign.cases) {
@@ -274,8 +345,11 @@ describe('bd task gate (synthetic — logic only, never semantic accuracy)', () 
     }
     const foreignResult = evaluateBdTaskGate(foreign);
     expect(foreignResult.approved).toBe(false);
-    expect(foreignResult.metrics.severeErrors.some((e) =>
-      e.detail.includes('not present in the case sources'))).toBe(true);
+    expect(
+      foreignResult.metrics.severeErrors.some((e) =>
+        e.detail.includes('not present in the case sources'),
+      ),
+    ).toBe(true);
 
     // A fully proven direct label is not severe.
     const proven = evaluateBdTaskGate(syntheticFixture({ count: 120, directLabelEffect: true }));
@@ -327,13 +401,21 @@ describe('bd task gate (synthetic — logic only, never semantic accuracy)', () 
     const slow = evaluateBdTaskGate(syntheticFixture({ count: 120, jevLatencyMs: 9_000 }));
     expect(slow.approved).toBe(false);
     expect(slow.reasons.join(' ')).toContain('p95_latency_ceiling_exceeded');
-    const expensive = evaluateBdTaskGate(syntheticFixture({
-      count: 120, jevUsage: { inputTokens: 900_000, outputTokens: 0 } }));
+    const expensive = evaluateBdTaskGate(
+      syntheticFixture({
+        count: 120,
+        jevUsage: { inputTokens: 900_000, outputTokens: 0 },
+      }),
+    );
     expect(expensive.approved).toBe(false);
     expect(expensive.reasons.join(' ')).toContain('cost_ceiling_exceeded');
     // Output tokens are free: huge output alone stays under the $1 ceiling.
-    const outputHeavy = evaluateBdTaskGate(syntheticFixture({
-      count: 120, jevUsage: { inputTokens: 120, outputTokens: 900_000_000 } }));
+    const outputHeavy = evaluateBdTaskGate(
+      syntheticFixture({
+        count: 120,
+        jevUsage: { inputTokens: 120, outputTokens: 900_000_000 },
+      }),
+    );
     expect(outputHeavy.approved).toBe(true);
     expect(outputHeavy.metrics.estimatedCostUsd).toBeCloseTo((120 * 120 * 0.042) / 1_000_000, 9);
   });
@@ -368,16 +450,21 @@ describe('bd task gate (synthetic — logic only, never semantic accuracy)', () 
       bad.humanReview.difficultNegative = true;
       bad.humanReview.adjudication = null;
     }
-    expect(() => bdTaskReviewFixtureSchema.parse({ ...syntheticFixture(), cases: [bad] })).toThrow();
+    expect(() =>
+      bdTaskReviewFixtureSchema.parse({ ...syntheticFixture(), cases: [bad] }),
+    ).toThrow();
 
     const unproven = syntheticCase(0, { directLabelEffect: true, directLabelUnproven: true });
-    expect(() => bdTaskReviewFixtureSchema.parse({ ...syntheticFixture(), cases: [unproven] })).toThrow();
+    expect(() =>
+      bdTaskReviewFixtureSchema.parse({ ...syntheticFixture(), cases: [unproven] }),
+    ).toThrow();
 
     // Mixed-task fixture is rejected: every case task must equal the fixture task.
     const entityCase = syntheticCase(0, { task: 'bd_entity' });
     const mixed = syntheticFixture();
-    expect(() => bdTaskReviewFixtureSchema.parse({ ...mixed, cases: [entityCase, ...mixed.cases.slice(1)] }))
-      .toThrow(/single-task/);
+    expect(() =>
+      bdTaskReviewFixtureSchema.parse({ ...mixed, cases: [entityCase, ...mixed.cases.slice(1)] }),
+    ).toThrow(/single-task/);
   });
 
   it('reports per-outcome confusion matrices and precision/recall over approved cases', () => {
@@ -394,17 +481,26 @@ describe('bd task gate (synthetic — logic only, never semantic accuracy)', () 
       }
     }
     const expectedObserved = new Set(
-      syntheticFixture({ count: 120 }).cases
-        .filter((c) => c.humanReview.status === 'approved')
-        .map((c) => (c.observations.jev.outcome === null
-          ? `failure:${c.observations.jev.failureState}` : c.observations.jev.action === 'abstain'
-            ? 'abstain' : c.observations.jev.outcome!)),
+      syntheticFixture({ count: 120 })
+        .cases.filter((c) => c.humanReview.status === 'approved')
+        .map((c) =>
+          c.observations.jev.outcome === null
+            ? `failure:${c.observations.jev.failureState}`
+            : c.observations.jev.action === 'abstain'
+              ? 'abstain'
+              : c.observations.jev.outcome!,
+        ),
     );
     expect(allObserved).toEqual(new Set([...allObserved].filter((o) => expectedObserved.has(o))));
-    expect(Object.keys(result.metrics.confusionMatrix).sort())
-      .toEqual([...new Set(syntheticFixture({ count: 120 }).cases
-        .filter((c) => c.humanReview.status === 'approved')
-        .map((c) => c.expectedOutcome))].sort());
+    expect(Object.keys(result.metrics.confusionMatrix).sort()).toEqual(
+      [
+        ...new Set(
+          syntheticFixture({ count: 120 })
+            .cases.filter((c) => c.humanReview.status === 'approved')
+            .map((c) => c.expectedOutcome),
+        ),
+      ].sort(),
+    );
   });
 
   it('builds observed columns from actual observation labels including failure:<state> and abstain', () => {
@@ -425,29 +521,39 @@ describe('bd task gate (synthetic — logic only, never semantic accuracy)', () 
     const failColumns = Object.keys(result.metrics.confusionMatrix.explicit_link ?? {});
     expect(failColumns).toContain('failure:timeout');
     // Both representations carry the same observed-column set across every row.
-    const columnSets = Object.values(result.metrics.confusionMatrix).map((row) => Object.keys(row).sort());
+    const columnSets = Object.values(result.metrics.confusionMatrix).map((row) =>
+      Object.keys(row).sort(),
+    );
     for (const set of columnSets) expect(set).toEqual(columnSets[0]!);
   });
 
   it('fails closed on duplicated adjudication reviewer ids (schema + gate)', () => {
-    const duplicated = { ...adjudicationCase(), humanReview: {
-      status: 'approved' as const,
-      reviewer: { reviewerId: 'synthetic-reviewer-id', reviewedAt: '2026-09-20T00:00:00.000Z' },
-      difficultNegative: true,
-      adjudication: {
-        required: true as const,
-        reviewerIds: ['same-reviewer', 'same-reviewer'],
-        adjudicatorId: 'synthetic-adjudicator',
-        adjudicatedAt: '2026-09-21T00:00:00.000Z',
-        finalOutcomeConfirmed: true,
+    const duplicated = {
+      ...adjudicationCase(),
+      humanReview: {
+        status: 'approved' as const,
+        reviewer: { reviewerId: 'synthetic-reviewer-id', reviewedAt: '2026-09-20T00:00:00.000Z' },
+        difficultNegative: true,
+        adjudication: {
+          required: true as const,
+          reviewerIds: ['same-reviewer', 'same-reviewer'],
+          adjudicatorId: 'synthetic-adjudicator',
+          adjudicatedAt: '2026-09-21T00:00:00.000Z',
+          finalOutcomeConfirmed: true,
+        },
       },
-    } };
-    expect(() => bdTaskReviewFixtureSchema.parse({ ...syntheticFixture(), cases: [duplicated] })).toThrow(/DISTINCT/);
+    };
+    expect(() =>
+      bdTaskReviewFixtureSchema.parse({ ...syntheticFixture(), cases: [duplicated] }),
+    ).toThrow(/DISTINCT/);
     // Post-parse corruption with duplicated ids is also rejected by the gate.
     const corrupted = syntheticFixture({ count: 120 });
     for (const item of corrupted.cases) {
       if (item.humanReview.status === 'approved' && item.humanReview.adjudication) {
-        item.humanReview.adjudication.reviewerIds = ['same-reviewer', 'same-reviewer'] as unknown as typeof item.humanReview.adjudication.reviewerIds;
+        item.humanReview.adjudication.reviewerIds = [
+          'same-reviewer',
+          'same-reviewer',
+        ] as unknown as typeof item.humanReview.adjudication.reviewerIds;
       }
     }
     const result = evaluateBdTaskGate(corrupted);
@@ -456,17 +562,28 @@ describe('bd task gate (synthetic — logic only, never semantic accuracy)', () 
   });
 
   it('fails closed on direct-label proof that mismatches the exact evaluated tuple', () => {
-    const mismatch = evaluateBdTaskGate(syntheticFixture({
-      count: 120, directLabelEffect: true, directLabelTupleMismatch: true }));
+    const mismatch = evaluateBdTaskGate(
+      syntheticFixture({
+        count: 120,
+        directLabelEffect: true,
+        directLabelTupleMismatch: true,
+      }),
+    );
     expect(mismatch.approved).toBe(false);
-    expect(mismatch.metrics.severeErrors.some((e) => e.detail.includes('exact evaluated tuple'))).toBe(true);
+    expect(
+      mismatch.metrics.severeErrors.some((e) => e.detail.includes('exact evaluated tuple')),
+    ).toBe(true);
     // Unsupported financial stage / record type are rejected by the schema itself.
     const badStage = syntheticCase(0, { directLabelEffect: true });
     (badStage as { input: { financialStage: string } }).input.financialStage = 'speculative';
-    expect(() => bdTaskReviewFixtureSchema.parse({ ...syntheticFixture(), cases: [badStage] })).toThrow();
+    expect(() =>
+      bdTaskReviewFixtureSchema.parse({ ...syntheticFixture(), cases: [badStage] }),
+    ).toThrow();
     const badType = syntheticCase(0, { directLabelEffect: true });
     (badType as { input: { recordType: string } }).input.recordType = 'rumor';
-    expect(() => bdTaskReviewFixtureSchema.parse({ ...syntheticFixture(), cases: [badType] })).toThrow();
+    expect(() =>
+      bdTaskReviewFixtureSchema.parse({ ...syntheticFixture(), cases: [badType] }),
+    ).toThrow();
   });
 
   it('fails closed on empty or partial predeclared threshold maps', () => {
@@ -475,15 +592,21 @@ describe('bd task gate (synthetic — logic only, never semantic accuracy)', () 
     empty.thresholds.minRecallByOutcome = {};
     const emptyResult = evaluateBdTaskGate(empty);
     expect(emptyResult.approved).toBe(false);
-    expect(emptyResult.reasons.join(' ')).toContain('threshold_map_incomplete_precision:explicit_link');
-    expect(emptyResult.reasons.join(' ')).toContain('threshold_map_incomplete_recall:insufficient_evidence');
+    expect(emptyResult.reasons.join(' ')).toContain(
+      'threshold_map_incomplete_precision:explicit_link',
+    );
+    expect(emptyResult.reasons.join(' ')).toContain(
+      'threshold_map_incomplete_recall:insufficient_evidence',
+    );
 
     const partial = syntheticFixture();
     partial.thresholds.minPrecisionByOutcome = { explicit_link: 0 };
     partial.thresholds.minRecallByOutcome = { explicit_link: 0, thematic_fit: 0 };
     const partialResult = evaluateBdTaskGate(partial);
     expect(partialResult.approved).toBe(false);
-    expect(partialResult.reasons.join(' ')).toContain('threshold_map_incomplete_precision:thematic_fit');
+    expect(partialResult.reasons.join(' ')).toContain(
+      'threshold_map_incomplete_precision:thematic_fit',
+    );
     expect(partialResult.reasons.join(' ')).toContain('threshold_map_incomplete_recall:unrelated');
 
     // A full threshold map covering every allowed outcome passes the completeness rule.

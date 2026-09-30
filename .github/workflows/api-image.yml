@@ -71,3 +71,20 @@ jobs:
           test -n "$IMAGE_DIGEST"
           echo "Candidate: $REGISTRY/capiro/$TARGET_ENV/api@$IMAGE_DIGEST" >> "$GITHUB_STEP_SUMMARY"
           echo "Source: $GITHUB_SHA — build publication only; qualification and approval still required." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Create API image build record
+        env:
+          ECR_REGISTRY: ${{ steps.ecr.outputs.registry }}
+          IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          export CHECKED_OUT_SHA="$(git rev-parse HEAD)"
+          python scripts/api-image-build-record.py
+
+      - name: Upload API image build record
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-image-build-record-${{ github.run_id }}-${{ github.run_attempt }}
+          path: api-image-build-record.json
+          if-no-files-found: error

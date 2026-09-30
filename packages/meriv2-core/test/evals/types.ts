@@ -1,12 +1,7 @@
 import type { AssuranceEvalResult, EvalDomain, EvalSeverity, EvalTier } from '../../src/assurance';
 
 export type EvalCategory =
-  | 'leakage'
-  | 'grounding'
-  | 'compliance'
-  | 'entity'
-  | 'legislation'
-  | 'assurance';
+  'leakage' | 'grounding' | 'compliance' | 'entity' | 'legislation' | 'assurance';
 
 export interface EvalOutcome {
   pass: boolean;

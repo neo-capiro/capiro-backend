@@ -14,9 +14,16 @@ export function resolveEvidenceProfilesMode(
   tenantId: string | null | undefined,
   surface: AssuranceSurface,
 ): CapabilityRolloutMode {
-  return resolveCapabilityRollout({ capability: EVIDENCE_PROFILES_CAPABILITY, env, tenantId, surface }).mode;
+  return resolveCapabilityRollout({
+    capability: EVIDENCE_PROFILES_CAPABILITY,
+    env,
+    tenantId,
+    surface,
+  }).mode;
 }
 
-export function validateEvidenceProfilesConfig(env: CapabilityRolloutEnvironment): CapabilityRolloutValidation {
+export function validateEvidenceProfilesConfig(
+  env: CapabilityRolloutEnvironment,
+): CapabilityRolloutValidation {
   return validateCapabilityRolloutConfig({ capability: EVIDENCE_PROFILES_CAPABILITY, env });
 }

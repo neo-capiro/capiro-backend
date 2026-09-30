@@ -17,6 +17,16 @@ describe('program-elements vNext route contract', () => {
     expect(matchPeProfilePath('/program-elements/0605053A')).toBe('0605053A');
   });
 
+  it('canonicalizes ASCII lowercase identifiers while retaining identifier guards', () => {
+    expect(isVNextProgramElementsPath('/program-elements/0601102a')).toBe(true);
+    expect(matchPeProfilePath('/program-elements/0601102a')).toBe('0601102A');
+    expect(matchPeProfilePath('/program-elements/4868w12002')).toBe('4868W12002');
+    expect(matchPeProfilePath('/program-elements/0601102%61')).toBe('0601102A');
+    for (const segment of ['ABCDß123', 'ABCDEFGH', '123', '12345678901', 'ABC_DEF1']) {
+      expect(matchPeProfilePath(`/program-elements/${segment}`)).toBeNull();
+    }
+  });
+
   it('decodes a URL-encoded PE code', () => {
     expect(matchPeProfilePath('/program-elements/4868W12002')).toBe('4868W12002');
   });

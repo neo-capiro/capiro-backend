@@ -1,5 +1,6 @@
 import type { MeriTurnScope } from '../../components/chat/meri-turn-scope.js';
 import type { PendingApproval } from '../../components/chat/useMeriChatController.js';
+import { outstandingApprovals } from '../../components/chat/meri-pending-approvals.js';
 import { MeriIcon } from './meri-icons.js';
 import { MeriThinkingTab, type MeriThinkingTabProps } from './MeriThinkingTab.js';
 import { MeriEvidenceTab, type MeriEvidenceTabProps } from './MeriEvidenceTab.js';
@@ -38,9 +39,14 @@ export interface MeriTurnInspectorData {
  * translated to one turn's own approvals rather than the whole conversation's.
  */
 export function meriTurnInspectorInitialTab(approvals: PendingApproval[]): MeriTurnInspectorTab {
-  const awaitingDecision = approvals.some(
-    (proposal) => proposal.status === 'proposed' || proposal.status === 'failed_retryable',
-  );
+  const awaitingDecision =
+    outstandingApprovals(approvals).length > 0 ||
+    approvals.some(
+      (proposal) =>
+        proposal.status === 'failed_retryable' &&
+        proposal.approvalRecovery?.state !== 'checking' &&
+        proposal.approvalRecovery?.state !== 'unavailable',
+    );
   return awaitingDecision ? 'approvals' : 'thinking';
 }
 
@@ -60,6 +66,7 @@ export interface MeriTurnInspectorProps {
   onApprove: (proposalId: string) => void;
   onApproveAll: () => void;
   onDismiss: (proposalId: string) => void;
+  onRefreshApprovalStatus?: (proposalId: string) => void;
 }
 
 export function MeriTurnInspector({
@@ -71,6 +78,7 @@ export function MeriTurnInspector({
   onApprove,
   onApproveAll,
   onDismiss,
+  onRefreshApprovalStatus = () => undefined,
 }: MeriTurnInspectorProps) {
   return (
     <>
@@ -90,6 +98,7 @@ export function MeriTurnInspector({
             onApprove={onApprove}
             onApproveAll={onApproveAll}
             onDismiss={onDismiss}
+            onRefreshApprovalStatus={onRefreshApprovalStatus}
           />
         ) : null}
       </div>

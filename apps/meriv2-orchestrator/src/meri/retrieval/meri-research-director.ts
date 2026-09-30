@@ -313,5 +313,9 @@ export function researchScheduleConstraints(
 }
 
 export function validateResearchScheduleDraft(text: string, asOf: string, toolResults: unknown) {
-  return appendScheduleCorrections({ text, asOf, deadlines: collectScheduleDeadlines(toolResults) });
+  return appendScheduleCorrections({
+    text,
+    asOf,
+    deadlines: collectScheduleDeadlines(toolResults),
+  });
 }

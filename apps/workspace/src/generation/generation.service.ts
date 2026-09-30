@@ -421,8 +421,7 @@ export class GenerationService {
     // and passes the records down to avoid N duplicate lookups.
     const linkedPes =
       (cfg.linkedProgramElements as
-        | Array<{ peCode?: string; title?: string; context?: string }>
-        | undefined) ?? [];
+        Array<{ peCode?: string; title?: string; context?: string }> | undefined) ?? [];
     const authPes =
       authoritativePes ?? (await this.peResolver.resolve(linkedPes.map((pe) => pe.peCode)));
     const authByCode = new Map(authPes.map((r) => [r.peCode.toUpperCase(), r]));
@@ -1778,11 +1777,13 @@ export class GenerationService {
           'anthropic-version': '2023-06-01',
           'content-type': 'application/json',
         },
-        body: JSON.stringify(prepareAnthropicRequest({
-          model,
-          max_tokens: MAX_TOKENS,
-          messages: [{ role: 'user', content: prompt }],
-        })),
+        body: JSON.stringify(
+          prepareAnthropicRequest({
+            model,
+            max_tokens: MAX_TOKENS,
+            messages: [{ role: 'user', content: prompt }],
+          }),
+        ),
         signal: controller.signal,
       });
       if (!res.ok) {

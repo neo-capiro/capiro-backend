@@ -78,8 +78,8 @@ describe('capability rollout', () => {
       ok: false,
       issues: ['invalid_mode'],
     });
-    expect(
-      validateCapabilityRolloutConfig({ capability, env: { MERI_TEST_MODE: 'off' } }),
-    ).toEqual({ ok: true, issues: [] });
+    expect(validateCapabilityRolloutConfig({ capability, env: { MERI_TEST_MODE: 'off' } })).toEqual(
+      { ok: true, issues: [] },
+    );
   });
 });

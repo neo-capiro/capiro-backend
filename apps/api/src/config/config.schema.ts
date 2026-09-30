@@ -1,4 +1,5 @@
 import { upgradeTextModel } from '@capiro/shared/ai-model-policy';
+import { AI_PRICING } from '@capiro/shared';
 import { z } from 'zod';
 import { ENGAGEMENT_API_PROMOTION_ACKNOWLEDGEMENT } from '../engagement/runtime/engagement-runtime-env.js';
 
@@ -16,6 +17,10 @@ const normalizeOptionalSwitch = (value: unknown): unknown =>
   typeof value === 'string' ? blankToUndefined(value.trim().toLowerCase()) : value;
 const rolloutModeSwitch = () =>
   z.preprocess(normalizeOptionalSwitch, z.enum(['off', 'shadow', 'enforce']).optional());
+const DEFAULT_RESEARCH_TOTAL_TOKENS = 120_000;
+const DEFAULT_RESEARCH_MAX_COST_USD =
+  (DEFAULT_RESEARCH_TOTAL_TOKENS / 1_000_000) *
+  Math.max(...Object.values(AI_PRICING).map((price) => price.outputPerM));
 
 export const configSchema = z.object({
   NODE_ENV: z.enum(['development', 'staging', 'production', 'test']).default('development'),
@@ -299,9 +304,7 @@ export const configSchema = z.object({
   // one, and both live models (OPENAI_MODEL/OUTREACH_V3_REASONING_MODEL =
   // gpt-4.1-mini) accept none, so the effort applies the moment a reasoning model
   // is configured and is inert until then.
-  OUTREACH_V3_GENERATION_EFFORT: z
-    .enum(['low', 'medium', 'high', 'xhigh', 'max'])
-    .default('max'),
+  OUTREACH_V3_GENERATION_EFFORT: z.enum(['low', 'medium', 'high', 'xhigh', 'max']).default('max'),
 
   // Model override for V3 generation only. Empty (the default) keeps the resolved
   // credential's model, so a deploy never changes the drafting model or COGS on
@@ -689,6 +692,21 @@ export const configSchema = z.object({
   CLIO_RESEARCH_PLAN_MODEL: z.string().default('claude-sonnet-5').transform(upgradeTextModel),
   CLIO_RESEARCH_MAX_TOKENS: z.coerce.number().int().positive().default(16_000),
   CLIO_RESEARCH_MAX_TOOL_ROUNDS: z.coerce.number().int().positive().default(20),
+  // Durable aggregate provider accounting. Enabled explicitly by default for
+  // research only; ordinary chat retains its request-local controller.
+  CLIO_RESEARCH_PROVIDER_BUDGET_ENABLED: z
+    .string()
+    .default('true')
+    .transform((value) => ['true', '1', 'yes', 'on'].includes(value.trim().toLowerCase())),
+  CLIO_RESEARCH_MAX_PROVIDER_ATTEMPTS: z.coerce.number().int().positive().max(64).default(23),
+  CLIO_RESEARCH_MAX_TOTAL_TOKENS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(DEFAULT_RESEARCH_TOTAL_TOKENS),
+  // Derived from the existing shared price schedule's highest output rate,
+  // rather than a second pricing table or an unpriced zero-cost fallback.
+  CLIO_RESEARCH_MAX_COST_USD: z.coerce.number().positive().default(DEFAULT_RESEARCH_MAX_COST_USD),
   // Per-request timeout for the deep-research model calls. A single research
   // turn legitimately runs many minutes (gathering across many tools, then
   // streaming a long report), so the 120s interactive chat timeout
@@ -852,9 +870,9 @@ export const configSchema = z.object({
   // be activated by default); every entry must be a known family (validated
   // at read time — unknown families fail closed, never silently skipped).
   // No provider credentials anywhere in this block.
-  BIZDEV_WATCH_SOURCE_FAMILIES: z.string().default(
-    'federal_award,federal_assistance_award,sam_opportunity,tango_resource,lda_filing',
-  ),
+  BIZDEV_WATCH_SOURCE_FAMILIES: z
+    .string()
+    .default('federal_award,federal_assistance_award,sam_opportunity,tango_resource,lda_filing'),
   // Max watches processed per evaluator run (bounded work).
   BIZDEV_WATCH_MAX_PER_RUN: z.coerce.number().int().min(1).max(500).default(50),
   // Max source records read per watch per family per pass (complete bound: a
@@ -1242,7 +1260,10 @@ export function validateConfig(raw: Record<string, unknown>): AppConfig {
           '\n\nThe engagement-api process must run with all five controls at the same posture.',
       );
     }
-    if (isActive && parsed.ENGAGEMENT_API_PROMOTION_TOKEN !== ENGAGEMENT_API_PROMOTION_ACKNOWLEDGEMENT) {
+    if (
+      isActive &&
+      parsed.ENGAGEMENT_API_PROMOTION_TOKEN !== ENGAGEMENT_API_PROMOTION_ACKNOWLEDGEMENT
+    ) {
       throw new Error(
         'Engagement API is configured for the ACTIVE posture but ENGAGEMENT_API_PROMOTION_TOKEN ' +
           'does not match the required acknowledgement string. See ' +

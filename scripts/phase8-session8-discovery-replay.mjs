@@ -84,7 +84,8 @@ const check = (name, fn) => {
 const bodyOf = (key) => {
   const resource = byKey.get(key);
   if (!resource) throw new Error(`resource ${key} missing from prepared corpus`);
-  if (!resource.path) throw new Error(`resource ${key} has no bytes (status ${resource.statusCode})`);
+  if (!resource.path)
+    throw new Error(`resource ${key} has no bytes (status ${resource.statusCode})`);
   return fs.readFileSync(path.join(root, resource.path), 'utf8');
 };
 
@@ -365,7 +366,9 @@ check('a real bill resolves via its own alternative title', () => {
   // The primary title names both tracks at once and is correctly ambiguous.
   assert.match(ndaaBill.mods.title, /authorize appropriations/i);
   assert.ok(
-    ndaaBill.mods.alternativeTitles.some((title) => /National Defense Authorization Act/i.test(title)),
+    ndaaBill.mods.alternativeTitles.some((title) =>
+      /National Defense Authorization Act/i.test(title),
+    ),
     'the popular title is in the same MODS record as an alternative',
   );
   assert.equal(ndaaBill.resolved.outcome, 'resolved');
@@ -437,16 +440,17 @@ for (const [key, label] of [
 
 // ── 5. Publisher-native resolution, against the real committee listing ─────
 
-const sascListing = bodyOf('senate-armed-services-legislation');
+const sascListing = bodyOf('senate-armed-services-library');
 const sascLinks = extractDocumentLinks({
   html: sascListing,
-  pageUrl: 'https://www.armed-services.senate.gov/legislation',
+  pageUrl: 'https://www.armed-services.senate.gov/committee-actions/library',
   officialHosts: ['www.armed-services.senate.gov', 'armed-services.senate.gov'],
+  extensionlessDocumentPathPrefixes: ['/download/'],
 });
 
 let sascOnHostDocuments = 0;
 
-check('the real committee listing yields on-host documents and nothing off-host', () => {
+check('the real committee library yields on-host download candidates and nothing off-host', () => {
   sascOnHostDocuments = sascLinks.length;
   assert.ok(sascLinks.length > 0, 'the live page really does link at least one document');
   for (const link of sascLinks) {
@@ -454,16 +458,15 @@ check('the real committee listing yields on-host documents and nothing off-host'
   }
 });
 
-check('a real committee document with no package id is still examined', () => {
-  // The live page's document is "FY27 NDAA SASC Accepted Amendments on June 25th".
-  // It carries no GovInfo package id at all, which is the situation that made
-  // every index-page adapter unresolvable before publisher-native kinds existed.
+check('a real committee download link with no package id is still examined', () => {
+  // Inspect an actual current library download rather than assuming a fixed
+  // first-link title. These publisher-native aliases carry no GovInfo package id.
   const target = sascLinks[0];
   assert.ok(target);
   assert.equal(packageIdFromSitemapLoc(target.url), null, 'no official package id exists');
 });
 
-check('an amendments list is recorded but NOT emitted; a real mark IS', () => {
+check('a synthetic amendments title is not emitted; an expected chairman-mark title resolves', () => {
   const registered = new Set(
     bootstrapFiscalYearCycle({ fiscalYear: 2027 }).expectedSources.map((s) => s.dedupKey),
   );
@@ -479,11 +482,22 @@ check('an amendments list is recorded but NOT emitted; a real mark IS', () => {
       registeredExpectedSourceKeys: registered,
     });
 
-  // The real title on the live page today. An accepted-amendments list is not the
-  // chairman's mark, so it must stay unresolved - recorded, never invented.
-  const real = resolveSasc(sascLinks[0].text);
-  assert.notEqual(real.outcome, 'resolved');
-  assert.equal(real.expectedSourceDedupKey, null);
+  // Explicit synthetic negative classification case; this title is not claimed
+  // to be the current library's first link. Amendments are never invented as marks.
+  const amendments = resolveSasc('FY27 NDAA SASC Accepted Amendments on June 25th');
+  assert.notEqual(amendments.outcome, 'resolved');
+  assert.equal(amendments.expectedSourceDedupKey, null);
+
+  // Every actual library title is still examined against the registered horizon.
+  // Historical or ambiguous documents stay audited without an invented source key.
+  for (const link of sascLinks) {
+    const actual = resolveSasc(link.text);
+    if (actual.outcome === 'resolved') {
+      assert.ok(registered.has(actual.expectedSourceDedupKey));
+    } else {
+      assert.equal(actual.expectedSourceDedupKey, null);
+    }
+  }
 
   // The document the cycle actually expects from this publisher does resolve,
   // through publisher identity, with no package id anywhere.

@@ -31,35 +31,7 @@ export TMPDIR
 case "${1:-serve}" in
   migrate)
     echo "Running prisma migrate deploy (onboard-api)"
-    # Auto-resolve any previously failed onboard migrations before deploying,
-    # so a stuck failed entry doesn't block forward progress. Scoped to
-    # migrations named *_onboard_* — this service must never touch other
-    # services' rows in the shared _prisma_migrations table.
-    node -e "
-      const { PrismaClient } = require('./generated/prisma-client');
-      const p = new PrismaClient();
-      (async () => {
-        try {
-          const failed = await p.\$queryRaw\`
-            SELECT migration_name FROM _prisma_migrations
-            WHERE finished_at IS NULL AND rolled_back_at IS NULL
-              AND migration_name LIKE '%_onboard_%'
-          \`;
-          for (const row of failed) {
-            console.log('Resolving failed onboard migration:', row.migration_name);
-            await p.\$executeRaw\`
-              UPDATE _prisma_migrations
-              SET rolled_back_at = NOW()
-              WHERE migration_name = \${row.migration_name}
-            \`;
-          }
-        } catch (e) {
-          console.log('Pre-migrate check skipped:', e.message);
-        } finally {
-          await p.\$disconnect();
-        }
-      })();
-    " || true
+    # Stop on failed migrations. Ledger recovery requires a reviewed procedure.
     exec node node_modules/prisma/build/index.js migrate deploy
     ;;
   serve)

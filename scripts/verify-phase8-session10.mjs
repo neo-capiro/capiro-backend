@@ -12,7 +12,7 @@
  *      reintroduce a "current year" assumption Session 7 deliberately avoided.
  *   4. The new defense-api surface stays dark: no @Cron/ScheduleModule/
  *      EventBridge/setInterval, no new HTTP route, no NVIDIA/GPU naming.
- *   5. The frozen Session 7-9 files this session builds on are BYTE-IDENTICAL
+ *   5. When schedule product code changes, its frozen Session 7-9 primitives are BYTE-IDENTICAL
  *      to origin/main — the only permitted diff under budget-lifecycle/ is the
  *      module registration file itself plus the new schedule/ directory.
  *   6. The coordinator's runAdapter() call site supplies no fiscalYear/
@@ -30,7 +30,8 @@
  * because `\r` is itself a line terminator a JS regex `.`/`$` will not cross.
  * Both strippers here normalise line endings FIRST, verbatim from Session 9.
  */
-import { execSync } from 'node:child_process';
+import { execSync, execFileSync } from 'node:child_process';
+import { frozenScheduleProblems } from './verify-phase8-session10-change-scope.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
@@ -84,7 +85,8 @@ const stripSqlComments = (content) =>
 
 // ── 1. Migration: additive, append-only privilege, dbgenerated id ──────────
 
-const MIGRATION_DIR = 'apps/api/prisma/migrations/20261211120000_phase8_session10_schedule_control_plane';
+const MIGRATION_DIR =
+  'apps/api/prisma/migrations/20261211120000_phase8_session10_schedule_control_plane';
 const migrationSql = requireTokens(
   `${MIGRATION_DIR}/migration.sql`,
   [
@@ -127,7 +129,9 @@ if (schema) {
   if (!modelMatch) {
     fail('DefenseBudgetScheduleTick model block could not be isolated in schema.prisma');
   } else if (/@default\(uuid\(\)\)/.test(modelMatch[0])) {
-    fail('DefenseBudgetScheduleTick.id drifts against the SQL default: uses @default(uuid()) not dbgenerated');
+    fail(
+      'DefenseBudgetScheduleTick.id drifts against the SQL default: uses @default(uuid()) not dbgenerated',
+    );
   }
 }
 
@@ -135,13 +139,20 @@ if (schema) {
 
 const scheduleDomain = requireTokens(
   'packages/defense-domain/src/budget-lifecycle/schedule.ts',
-  ['evaluateAdapterDue', 'selectDueAdapters', 'sanitizeScheduleFailureReason', 'buildScheduleTickSummary'],
+  [
+    'evaluateAdapterDue',
+    'selectDueAdapters',
+    'sanitizeScheduleFailureReason',
+    'buildScheduleTickSummary',
+  ],
   'Session 10 domain module',
 );
 if (scheduleDomain) {
   const strippedDomain = stripComments(scheduleDomain);
   if (/getFullYear|getUTCFullYear|CURRENT_FISCAL_YEAR|currentFiscalYear/.test(strippedDomain)) {
-    fail('schedule.ts must not read the calendar year at all: due-ness is (adapterId, nowIso) only');
+    fail(
+      'schedule.ts must not read the calendar year at all: due-ness is (adapterId, nowIso) only',
+    );
   }
   if (/\bFY\d{2,4}\b/.test(strippedDomain)) {
     fail('schedule.ts must not name a specific fiscal year');
@@ -170,7 +181,9 @@ for (const file of S10_DEFENSE_API_FILES) {
   }
   const content = stripComments(read(file));
   if (/@Cron\(|CronExpression|ScheduleModule|EventBridge|setInterval\(/.test(content)) {
-    fail(`${file} installs an active schedule; Session 10 stays dark until an explicit deployment act`);
+    fail(
+      `${file} installs an active schedule; Session 10 stays dark until an explicit deployment act`,
+    );
   }
   if (/@Controller|@Get\(|@Post\(|@Put\(|@Patch\(|@Delete\(/.test(content)) {
     fail(`${file} declares an HTTP route; the Session 3 surface stays frozen at 49`);
@@ -185,7 +198,12 @@ for (const file of S10_DEFENSE_API_FILES) {
 
 requireTokens(
   'apps/defense-api/src/budget-lifecycle/schedule/schedule-audit.port.ts',
-  ['SCHEDULE_AUDIT_STORE', 'interface ScheduleAuditStore', 'loadAdapterScheduleStates', 'recordScheduleTick'],
+  [
+    'SCHEDULE_AUDIT_STORE',
+    'interface ScheduleAuditStore',
+    'loadAdapterScheduleStates',
+    'recordScheduleTick',
+  ],
   'ScheduleAuditStore port',
 );
 
@@ -193,7 +211,11 @@ const moduleContent = read('apps/defense-api/src/budget-lifecycle/budget-lifecyc
 if (!/ScheduleCoordinatorService/.test(moduleContent)) {
   fail('budget-lifecycle.module.ts does not register ScheduleCoordinatorService');
 }
-if (!/exports:\s*\[[^\]]*ScheduleCoordinatorService/.test(stripComments(moduleContent).replace(/\n/g, ' '))) {
+if (
+  !/exports:\s*\[[^\]]*ScheduleCoordinatorService/.test(
+    stripComments(moduleContent).replace(/\n/g, ' '),
+  )
+) {
   fail('ScheduleCoordinatorService must be exported from BudgetLifecycleModule');
 }
 
@@ -208,19 +230,26 @@ if (!/exports:\s*\[[^\]]*ScheduleCoordinatorService/.test(stripComments(moduleCo
 
 try {
   execSync('git rev-parse --verify origin/main', { cwd: root, stdio: 'ignore' });
-  const diffOutput = execSync('git diff --name-only origin/main -- apps/defense-api/src/budget-lifecycle', {
+  const diffOutput = execFileSync('git', ['diff', '--name-only', 'origin/main'], {
     cwd: root,
     encoding: 'utf8',
   });
-  const changed = diffOutput
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean);
-  const unexpected = changed.filter(
-    (relativeToBudgetLifecycle) =>
-      relativeToBudgetLifecycle !== 'apps/defense-api/src/budget-lifecycle/budget-lifecycle.module.ts' &&
-      !relativeToBudgetLifecycle.startsWith('apps/defense-api/src/budget-lifecycle/schedule/'),
-  );
+  const changed = diffOutput.split(/\r?\n/).filter(Boolean);
+  const changes = changed.map((file) => {
+    if (file !== 'apps/api/prisma/schema.prisma') return { file };
+    let before = null;
+    try {
+      before = execFileSync('git', ['show', `origin/main:${file}`], {
+        cwd: root,
+        encoding: 'utf8',
+      });
+    } catch {}
+    return { file, before, after: exists(file) ? read(file) : null };
+  });
+  // Every current structural invariant above/below still runs. The frozen
+  // attribution guard belongs to schedule product work; unrelated discovery
+  // fixes are verified by their own gate. Mixed schedule/primitive edits fail.
+  const unexpected = frozenScheduleProblems(changes);
   if (unexpected.length > 0) {
     fail(
       'Session 10 modified frozen Session 7-9 files outside budget-lifecycle.module.ts and schedule/: ' +
@@ -228,7 +257,9 @@ try {
     );
   }
 } catch (error) {
-  fail(`Could not diff against origin/main to prove the frozen surface is untouched: ${error.message}`);
+  fail(
+    `Could not diff against origin/main to prove the frozen surface is untouched: ${error.message}`,
+  );
 }
 
 // ── 6. runAdapter() delegation: the coordinator is FY/track-blind ──────────
@@ -242,14 +273,23 @@ try {
 // independently from one tick) is proven in
 // schedule-coordinator.spec.ts's "lifecycle-effect independence" suite.
 
-const coordinatorServicePath = 'apps/defense-api/src/budget-lifecycle/schedule/schedule-coordinator.service.ts';
+const coordinatorServicePath =
+  'apps/defense-api/src/budget-lifecycle/schedule/schedule-coordinator.service.ts';
 if (exists(coordinatorServicePath)) {
   const coordinatorSource = stripComments(read(coordinatorServicePath));
   const runAdapterCall = coordinatorSource.match(/this\.watcher\.runAdapter\(\{([\s\S]*?)\}\)/);
   if (!runAdapterCall) {
-    fail(`${coordinatorServicePath} does not call this.watcher.runAdapter(...) — delegation cannot be proven`);
+    fail(
+      `${coordinatorServicePath} does not call this.watcher.runAdapter(...) — delegation cannot be proven`,
+    );
   } else {
-    const forbidden = ['fiscalYear', 'authorityTrack', 'cycleId', 'expectedSourceId', 'expectedSourceDedupKey'];
+    const forbidden = [
+      'fiscalYear',
+      'authorityTrack',
+      'cycleId',
+      'expectedSourceId',
+      'expectedSourceDedupKey',
+    ];
     for (const key of forbidden) {
       if (new RegExp(`\\b${key}\\b`).test(runAdapterCall[1])) {
         fail(
@@ -269,7 +309,9 @@ if (exists(coordinatorServicePath)) {
   ];
   for (const table of LIFECYCLE_TABLES) {
     if (coordinatorSource.includes(table)) {
-      fail(`${coordinatorServicePath} references ${table} directly; it must delegate all lifecycle writes to runAdapter`);
+      fail(
+        `${coordinatorServicePath} references ${table} directly; it must delegate all lifecycle writes to runAdapter`,
+      );
     }
   }
 }
@@ -288,7 +330,9 @@ for (const file of scheduleAuditStoreFiles) {
     'defense_budget_ingestion_outbox',
   ]) {
     if (content.includes(table)) {
-      fail(`${file} references ${table}; the schedule audit store must touch only watcher_adapter (read) and schedule_tick (write)`);
+      fail(
+        `${file} references ${table}; the schedule audit store must touch only watcher_adapter (read) and schedule_tick (write)`,
+      );
     }
   }
 }
@@ -297,7 +341,13 @@ for (const file of scheduleAuditStoreFiles) {
 
 requireTokens(
   'apps/defense-api/scripts/run-schedule-controller.mjs',
-  ['PHASE8_SESSION10_TICK_AUTHORIZED', '--list-adapters', '--plan', '--tick', 'SESSION10_PLAN_ONLY'],
+  [
+    'PHASE8_SESSION10_TICK_AUTHORIZED',
+    '--list-adapters',
+    '--plan',
+    '--tick',
+    'SESSION10_PLAN_ONLY',
+  ],
   'Session 10 governed command',
 );
 requireTokens(
@@ -305,8 +355,10 @@ requireTokens(
   ["require('../packages/defense-domain/dist/index.js')"],
   'Session 10 domain gate',
 );
-if (!exists('scripts/verify-phase8-session10-db.mjs')) fail('Missing scripts/verify-phase8-session10-db.mjs');
-if (!exists('scripts/verify-phase8-session10-db.sh')) fail('Missing scripts/verify-phase8-session10-db.sh');
+if (!exists('scripts/verify-phase8-session10-db.mjs'))
+  fail('Missing scripts/verify-phase8-session10-db.mjs');
+if (!exists('scripts/verify-phase8-session10-db.sh'))
+  fail('Missing scripts/verify-phase8-session10-db.sh');
 if (!exists('.github/workflows/phase8-session10-schedule-control-plane.yml')) {
   fail('Missing .github/workflows/phase8-session10-schedule-control-plane.yml');
 }

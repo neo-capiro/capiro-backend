@@ -12,10 +12,21 @@ export const EVIDENCE_OUTCOMES = [
 ] as const;
 export type EvidenceOutcome = (typeof EVIDENCE_OUTCOMES)[number];
 
-export const DOCUMENT_COMPLETENESS = ['complete', 'partial', 'excerpt', 'unavailable', 'unknown'] as const;
+export const DOCUMENT_COMPLETENESS = [
+  'complete',
+  'partial',
+  'excerpt',
+  'unavailable',
+  'unknown',
+] as const;
 export type DocumentCompleteness = (typeof DOCUMENT_COMPLETENESS)[number];
 export const EVIDENCE_RELATION_SCOPES = [
-  'pe_specific', 'project_specific', 'program_wide', 'capability_only', 'incidental', 'unknown',
+  'pe_specific',
+  'project_specific',
+  'program_wide',
+  'capability_only',
+  'incidental',
+  'unknown',
 ] as const;
 export type EvidenceRelationScope = (typeof EVIDENCE_RELATION_SCOPES)[number];
 
@@ -61,6 +72,7 @@ const evidenceSourceSchema = z.object({
   evidenceId: z.string().min(1),
   sourceType: z.string().min(1),
   sourceId: z.string().min(1),
+  clientId: z.string().min(1).nullable().optional(),
   documentId: z.string().min(1).nullable(),
   version: z.string().min(1).nullable(),
   locator: z.string().min(1).nullable(),
@@ -69,11 +81,17 @@ const evidenceSourceSchema = z.object({
   publishedAt: z.string().nullable(),
   effectiveAt: z.string().nullable(),
   retrievedAt: z.string().nullable(),
-  authority: z.object({
-    sourceAuthority: z.string().min(1),
-    publisher: z.string().min(1).nullable(),
-    jurisdiction: z.string().min(1).nullable(),
-  }).optional(),
+  acquisitionState: z.enum(['discovered', 'consulted']).optional(),
+  evidenceKind: z.enum(['source_passage', 'structured_record']).optional(),
+  contentHash: z.string().min(1).nullable().optional(),
+  ownerVerified: z.boolean().optional(),
+  authority: z
+    .object({
+      sourceAuthority: z.string().min(1),
+      publisher: z.string().min(1).nullable(),
+      jurisdiction: z.string().min(1).nullable(),
+    })
+    .optional(),
   documentCompleteness: z.enum(DOCUMENT_COMPLETENESS).optional(),
   relationScope: z.enum(EVIDENCE_RELATION_SCOPES).optional(),
   financialStage: z.string().min(1).nullable().optional(),
@@ -124,6 +142,7 @@ export interface EvidenceEnvelope {
     evidenceId: string;
     sourceType: string;
     sourceId: string;
+    clientId?: string | null;
     documentId: string | null;
     version: string | null;
     locator: string | null;
@@ -132,6 +151,10 @@ export interface EvidenceEnvelope {
     publishedAt: string | null;
     effectiveAt: string | null;
     retrievedAt: string | null;
+    acquisitionState?: 'discovered' | 'consulted';
+    evidenceKind?: 'source_passage' | 'structured_record';
+    contentHash?: string | null;
+    ownerVerified?: boolean;
     authority?: {
       sourceAuthority: string;
       publisher: string | null;
@@ -161,8 +184,10 @@ function canonicalJevJson(value: unknown): string {
   if (value === null || typeof value !== 'object') return JSON.stringify(value) ?? 'null';
   if (Array.isArray(value)) return `[${value.map(canonicalJevJson).join(',')}]`;
   const record = value as Record<string, unknown>;
-  return `{${Object.keys(record).sort().map((key) =>
-    `${JSON.stringify(key)}:${canonicalJevJson(record[key])}`).join(',')}}`;
+  return `{${Object.keys(record)
+    .sort()
+    .map((key) => `${JSON.stringify(key)}:${canonicalJevJson(record[key])}`)
+    .join(',')}}`;
 }
 
 /** SHA-256 over canonical JSON for security-sensitive Jev boundary bindings. */

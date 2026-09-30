@@ -1,13 +1,44 @@
 #!/usr/bin/env node
-import { spawnSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const BASE_SHA = process.env.OUTREACH_V3_PHASE2_BASE_SHA || 'cf0aa80d8d16fbd1e775fc054e8de34570535e23';
+const BASE_SHA =
+  process.env.OUTREACH_V3_PHASE2_BASE_SHA || 'cf0aa80d8d16fbd1e775fc054e8de34570535e23';
 const DUMMY_DATABASE_URL = 'postgresql://phase2:phase2@127.0.0.1:1/phase2?schema=public';
 
+function resolveWhitespaceBase() {
+  const explicit = process.env.OUTREACH_V3_PHASE2_WHITESPACE_BASE;
+  if (explicit) return explicit;
+  try {
+    const originMain = execFileSync('git', ['rev-parse', 'origin/main'], {
+      cwd: ROOT,
+      encoding: 'utf8',
+    }).trim();
+    const scopeEnd = process.env.ENGAGEMENT_PHASE3_SCOPE_END ?? 'HEAD';
+    const mergeBase = execFileSync('git', ['merge-base', originMain, scopeEnd], {
+      cwd: ROOT,
+      encoding: 'utf8',
+    }).trim();
+    if (mergeBase === originMain) return originMain;
+  } catch {
+    // Keep the accepted Phase 2 range for detached or shallow checkouts.
+  }
+  return BASE_SHA;
+}
+
+const PHASE2_WHITESPACE_BASE = resolveWhitespaceBase();
+
 const steps = [
+  ['Build shared API dependency', 'pnpm', ['--filter', '@capiro/shared', 'build']],
+  ['Build Meri core API dependency', 'pnpm', ['--filter', '@capiro/meriv2-core', 'build']],
+  [
+    'Build Defense contracts API dependency',
+    'pnpm',
+    ['--filter', '@capiro/defense-contracts', 'build'],
+  ],
+  ['Build Defense domain API dependency', 'pnpm', ['--filter', '@capiro/defense-domain', 'build']],
   [
     'Canonical API Prisma client generation',
     'pnpm',
@@ -37,9 +68,14 @@ const steps = [
       'src/outreach-v3/outreach-v3-supersession-audit.spec.ts',
       'src/capabilities/capability-authorization.service.spec.ts',
     ],
-    process.env.ENGAGEMENT_PHASE3_SCOPE_END
-      ? { ENGAGEMENT_PHASE3_SCOPE_END: process.env.ENGAGEMENT_PHASE3_SCOPE_END }
-      : {},
+    {
+      NODE_OPTIONS: [process.env.NODE_OPTIONS, '--max-old-space-size=6144']
+        .filter(Boolean)
+        .join(' '),
+      ...(process.env.ENGAGEMENT_PHASE3_SCOPE_END
+        ? { ENGAGEMENT_PHASE3_SCOPE_END: process.env.ENGAGEMENT_PHASE3_SCOPE_END }
+        : {}),
+    },
   ],
   [
     'Phase 2 focused TypeScript project',
@@ -49,19 +85,56 @@ const steps = [
   [
     'Phase 2 focused Prisma projection validation',
     'pnpm',
-    ['-C', 'apps/api', 'exec', 'prisma', 'validate', '--schema', 'prisma/outreach-v3-phase2/schema.prisma'],
+    [
+      '-C',
+      'apps/api',
+      'exec',
+      'prisma',
+      'validate',
+      '--schema',
+      'prisma/outreach-v3-phase2/schema.prisma',
+    ],
     { DATABASE_URL: DUMMY_DATABASE_URL },
   ],
   ['Phase 2 DB rehearsal syntax', 'node', ['--check', 'scripts/verify-outreach-v3-phase2-db.mjs']],
-  ['Phase 2 flow-DB orchestrator syntax', 'node', ['--check', 'scripts/run-outreach-v3-phase2-flow-db.mjs']],
-  ['Phase 2 exact-head runner syntax', 'node', ['--check', 'scripts/run-outreach-v3-phase2-local.mjs']],
+  [
+    'Phase 2 flow-DB orchestrator syntax',
+    'node',
+    ['--check', 'scripts/run-outreach-v3-phase2-flow-db.mjs'],
+  ],
+  [
+    'Phase 2 exact-head runner syntax',
+    'node',
+    ['--check', 'scripts/run-outreach-v3-phase2-local.mjs'],
+  ],
   ['Phase 1 ownership regression', 'node', ['scripts/engagement-runtime-ownership.mjs']],
-  ['Phase 1 architecture regression', 'node', ['scripts/verify-outreach-v3-p1-architecture.mjs'], { OUTREACH_V3_P1_SCOPE_END: BASE_SHA }],
-  ['API production build', 'pnpm', ['--filter', '@capiro/api', 'build']],
+  [
+    'Phase 1 architecture regression',
+    'node',
+    ['scripts/verify-outreach-v3-p1-architecture.mjs'],
+    { OUTREACH_V3_P1_SCOPE_END: BASE_SHA, OUTREACH_V3_P1_CATALOG_SHA: 'HEAD' },
+  ],
+  [
+    'API production build',
+    'pnpm',
+    ['--filter', '@capiro/api', 'build'],
+    {
+      NODE_OPTIONS: [process.env.NODE_OPTIONS, '--max-old-space-size=6144']
+        .filter(Boolean)
+        .join(' '),
+    },
+  ],
   [
     'Phase 2 committed-diff whitespace',
     'git',
-    ['diff', '--check', `${BASE_SHA}..${process.env.ENGAGEMENT_PHASE3_SCOPE_END ?? 'HEAD'}`, '--', '.', ':(exclude)docs/plans/outreach-v3/*.md'],
+    [
+      'diff',
+      '--check',
+      `${PHASE2_WHITESPACE_BASE}..${process.env.ENGAGEMENT_PHASE3_SCOPE_END ?? 'HEAD'}`,
+      '--',
+      '.',
+      ':(exclude)docs/plans/outreach-v3/*.md',
+    ],
   ],
 ];
 

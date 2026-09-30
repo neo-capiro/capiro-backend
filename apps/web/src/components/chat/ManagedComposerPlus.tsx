@@ -134,14 +134,15 @@ function ManagedAppRow({
   const reconnect = app.status === 'needs_reauth' || app.status === 'error';
   return (
     <div className={`meri-app-menu-row meri-app-row meri-app-row--${app.id}`} role="group">
-      <span className={`meri-app-menu-icon meri-app-brand meri-app-brand--${app.id}`} aria-hidden="true">
+      <span
+        className={`meri-app-menu-icon meri-app-brand meri-app-brand--${app.id}`}
+        aria-hidden="true"
+      >
         <ConnectorMark id={app.id} size={18} />
       </span>
       <span className="meri-app-row-copy">
         <strong>{app.name}</strong>
-        <small>
-          {managedAppStatusLabel(app)}
-        </small>
+        <small>{managedAppStatusLabel(app)}</small>
       </span>
       {busy ? (
         <span className="meri-app-row-action meri-app-row-action--busy" aria-label="Connecting">

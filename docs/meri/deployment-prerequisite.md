@@ -31,7 +31,7 @@ recheck Actions before activating the prerequisite.
 
 | Path | Before | Now |
 | --- | --- | --- |
-| `api-image.yml`, `api-strategy-image.yml`, `workspace-image.yml` | Main/path builds publish mutable tags and update services | SHA-only build publication; no ECS calls |
+| `api-image.yml`, `api-strategy-image.yml`, `workspace-image.yml` | Main/path builds publish mutable tags and update services | SHA-only build publication; no ECS calls. `api-image.yml` also keeps main's source-to-digest build-record artifact (`docs/contracts/api-image-build-record.md`, consumed by `scripts/meri-synthetic-fullchat.py`); the guard permits that exact evidence-only command and upload action for this one workflow |
 | `engagement-api-image.yml`, `intel-api-image.yml`, `onboard-api-image.yml` | Shared/API/lockfile changes can publish and deploy collateral services | Same build-only isolation |
 | `web-image.yml` | Build-only, but still moves mutable tag | SHA-only publication |
 | `meriv2-orchestrator-image.yml` | Already isolated by #1895 | Preserved; digest evidence and wider guard added |

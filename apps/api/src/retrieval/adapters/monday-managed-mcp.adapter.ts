@@ -329,10 +329,8 @@ export class MondayManagedMcpAdapter implements RetrievalSourceAdapter {
       return { ...result, sourceStatus: 'error', stopReason: 'monday_board_scope_invalid' };
     }
 
-    const scope = await this.prisma.withTenantUser(
-      request.caller.tenantId,
-      request.caller.userId,
-      async (tx) => {
+    const loadScope = () =>
+      this.prisma.withTenantUser(request.caller.tenantId, request.caller.userId, async (tx) => {
         const membership = await tx.tenantMembership.findFirst({
           where: {
             tenantId: request.caller.tenantId,
@@ -358,6 +356,11 @@ export class MondayManagedMcpAdapter implements RetrievalSourceAdapter {
           select: { boardIds: true },
         });
         if (!membership || !client) return null;
+        if (
+          !mapping?.boardIds?.length ||
+          (queryScope.explicit && queryScope.boardIds.some((id) => !mapping.boardIds.includes(id)))
+        )
+          return null;
         return {
           ctx: {
             tenantId: membership.tenantId,
@@ -369,8 +372,8 @@ export class MondayManagedMcpAdapter implements RetrievalSourceAdapter {
           boardIds: queryScope.explicit ? queryScope.boardIds : (mapping?.boardIds ?? []),
           explicitBoardScope: queryScope.explicit,
         };
-      },
-    );
+      });
+    const scope = await loadScope();
     if (!scope)
       return {
         ...result,
@@ -678,6 +681,31 @@ export class MondayManagedMcpAdapter implements RetrievalSourceAdapter {
               : 'monday_updates_unavailable',
           );
         }
+      }
+      const currentScope = await loadScope();
+      const currentBoardIds = currentScope ? [...new Set(currentScope.boardIds)].sort() : [];
+      const currentScopeHash = currentScope
+        ? mondayHash([
+            request.caller.tenantId,
+            request.caller.userId,
+            clientId,
+            currentScope.explicitBoardScope,
+            currentBoardIds,
+          ])
+        : null;
+      if (!currentScope || currentScopeHash !== scopeHash) {
+        return {
+          ...result,
+          records: [],
+          returned: 0,
+          hasMore: false,
+          nextCursor: undefined,
+          sourceStatus: 'unauthorized',
+          truncated: true,
+          paginationComplete: false,
+          coverageComplete: false,
+          stopReason: 'monday_scope_changed_during_read',
+        };
       }
       if (result.recordsEvaluated >= MAX_ITEMS) gaps.push('monday_item_cap');
       result.sourceStatus = gaps.length ? 'degraded' : 'healthy';

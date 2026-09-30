@@ -357,11 +357,11 @@ export function LegiWatchModule() {
             size="42"
             className="lw-header-action lw-header-action--search"
             onClick={() => setOverlay('search')}
-            aria-label="Search LegiWatch"
-            title="Search LegiWatch"
+            ariaLabel="Search LegiWatch"
+            title="Search all LegiWatch"
           >
             <Search size={16} aria-hidden="true" />
-            <span>Search LegiWatch</span>
+            <span>Search all LegiWatch</span>
           </LwButton>
           <button
             type="button"

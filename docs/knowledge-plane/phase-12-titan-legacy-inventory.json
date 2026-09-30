@@ -1,0 +1,191 @@
+{
+  "schemaVersion": 1,
+  "baselineCommit": "42942dedad59382f4b4aac6f904b9aee0e02efa6",
+  "entries": [
+    {
+      "path": "apps/api/prisma/schema.prisma",
+      "baselineLine": 1958,
+      "lineText": "  // Model that produced the embedding, e.g. 'amazon.titan-embed-text-v2:0'.",
+      "before": [
+        "  sourceType  String                @map(\"source_type\")",
+        "  sourceId    String                @map(\"source_id\")"
+      ],
+      "after": [
+        "  // Stored so we can run multiple models side-by-side and migrate gradually.",
+        "  model       String"
+      ],
+      "occurrences": 1,
+      "category": "schema_comment",
+      "ownerReference": "docs/knowledge-plane/phase-12-provider-guard-qualification.md"
+    },
+    {
+      "path": "apps/api/src/prisma/memory-projection-worker-infrastructure.spec.ts",
+      "baselineLine": 52,
+      "lineText": "    expect(construct).toContain('amazon.titan-embed-text-v2:0');",
+      "before": [
+        "      \"DB_PASSWORD: ecs.Secret.fromSecretsManager(props.appDbSecret, 'password')\",",
+        "    );"
+      ],
+      "after": [
+        "    expect(construct).toContain(\"actions: ['bedrock:InvokeModel']\");",
+        "    expect(construct).not.toContain('bedrock:*');"
+      ],
+      "occurrences": 1,
+      "category": "validation_fixture",
+      "ownerReference": "docs/knowledge-plane/phase-12-provider-guard-qualification.md"
+    },
+    {
+      "path": "apps/defense-api/src/program-elements/budget-lines-read.service.ts",
+      "baselineLine": 50,
+      "lineText": "    return this.embedding?.model ?? process.env.EMBEDDINGS_MODEL ?? 'amazon.titan-embed-text-v2:0';",
+      "before": ["", "  private embeddingModel(): string {"],
+      "after": ["  }", ""],
+      "occurrences": 1,
+      "category": "runtime_owner",
+      "ownerReference": "docs/defense-budget/phase8-session9-provider-design.md"
+    },
+    {
+      "path": "apps/defense-api/src/program-elements/cross-domain/ports.ts",
+      "baselineLine": 52,
+      "lineText": "  readonly model = process.env.EMBEDDINGS_MODEL ?? 'amazon.titan-embed-text-v2:0';",
+      "before": ["   * EXISTING stored vector rather than embedding anything.", "   */"],
+      "after": ["", "  async embedQuery(): Promise<readonly number[] | null> {"],
+      "occurrences": 1,
+      "category": "runtime_owner",
+      "ownerReference": "docs/defense-budget/phase8-session9-provider-design.md"
+    },
+    {
+      "path": "apps/defense-api/src/program-elements/cross-domain/provider-runtime.spec.ts",
+      "baselineLine": 204,
+      "lineText": "  assert.equal(adapter.model, 'amazon.titan-embed-text-v2:0');",
+      "before": [
+        "  await adapter.embedQuery('q');",
+        "  assert.equal(audit.rows[0]?.model, adapter.model);"
+      ],
+      "after": ["});", ""],
+      "occurrences": 1,
+      "category": "validation_fixture",
+      "ownerReference": "docs/defense-budget/phase8-session9-provider-design.md"
+    },
+    {
+      "path": "apps/defense-api/src/program-elements/program-element-read.service.ts",
+      "baselineLine": 2290,
+      "lineText": "    return this.embedding?.model ?? process.env.EMBEDDINGS_MODEL ?? 'amazon.titan-embed-text-v2:0';",
+      "before": ["   */", "  private embeddingModel(): string {"],
+      "after": ["  }", ""],
+      "occurrences": 1,
+      "category": "runtime_owner",
+      "ownerReference": "docs/defense-budget/phase8-session9-provider-design.md"
+    },
+    {
+      "path": "apps/intel-api/src/embeddings/embedder.ts",
+      "baselineLine": 24,
+      "lineText": "  process.env.EMBEDDINGS_MODEL ?? 'amazon.titan-embed-text-v2:0';",
+      "before": ["", "export const EMBEDDING_MODEL ="],
+      "after": [
+        "export const EMBEDDING_DIM = 1024;",
+        "const REGION = process.env.AWS_REGION_DEFAULT ?? 'us-east-1';"
+      ],
+      "occurrences": 1,
+      "category": "runtime_owner",
+      "ownerReference": "docs/plans/capiro-intelligence-unification.md:3138"
+    },
+    {
+      "path": "packages/defense-domain/src/cross-domain/provider-selection.ts",
+      "baselineLine": 55,
+      "lineText": "export const DEFAULT_EMBEDDING_MODEL = 'amazon.titan-embed-text-v2:0';",
+      "before": ["", "/** Titan v2 is what `apps/api` stores in `context_embeddings.model`. */"],
+      "after": [
+        "",
+        "/** Bounds that keep a misconfiguration from becoming an outage or a bill. */"
+      ],
+      "occurrences": 1,
+      "category": "runtime_owner",
+      "ownerReference": "docs/defense-budget/phase8-session9-provider-design.md"
+    },
+    {
+      "path": "packages/meriv2-core/src/llm/quality-model-upgrade.spec.ts",
+      "baselineLine": 46,
+      "lineText": "    'amazon.titan-embed-text-v2:0',",
+      "before": ["    'whisper-1',", "    'nova-3',"],
+      "after": ["    'gpt-image-1-mini',", "    'custom-deployment',"],
+      "occurrences": 1,
+      "category": "validation_fixture",
+      "ownerReference": "docs/knowledge-plane/phase-12-provider-guard-qualification.md"
+    },
+    {
+      "path": "scripts/test-phase8-session9-provider-domain.mjs",
+      "baselineLine": 431,
+      "lineText": "  model: 'amazon.titan-embed-text-v2:0',",
+      "before": ["  operation: 'embed_query',", "  outcome: 'succeeded',"],
+      "after": ["  tenantId: 'tenant-a',", "  payloadSha256: 'a'.repeat(64),"],
+      "occurrences": 1,
+      "category": "validation_fixture",
+      "ownerReference": "docs/defense-budget/phase8-session9-provider-design.md"
+    },
+    {
+      "path": "scripts/verify-phase8-session3-db.sh",
+      "baselineLine": 300,
+      "lineText": "  \"SELECT count(*) FROM capiro_defense_related_pe_vectors('0601102A', 'amazon.titan-embed-text-v2:0', 0.7, 8);\"",
+      "before": [
+        "  \"SELECT 1 FROM context_embeddings LIMIT 1;\"",
+        "expect_ok \"serve reads PE mission vectors via capiro_defense_related_pe_vectors\" \"$SERVE_URL\" \\"
+      ],
+      "after": [
+        "expect_ok \"serve searches PE mission vectors via capiro_defense_search_pe_vectors\" \"$SERVE_URL\" \\",
+        "  \"SELECT count(*) FROM capiro_defense_search_pe_vectors(('[' || array_to_string(array_fill(0.01::float8, ARRAY[1024]), ',') || ']'), 'amazon.titan-embed-text-v2:0', 0.35, 5);\""
+      ],
+      "occurrences": 1,
+      "category": "validation_fixture",
+      "ownerReference": "docs/defense-budget/phase8-session9-provider-design.md"
+    },
+    {
+      "path": "scripts/verify-phase8-session3-db.sh",
+      "baselineLine": 302,
+      "lineText": "  \"SELECT count(*) FROM capiro_defense_search_pe_vectors(('[' || array_to_string(array_fill(0.01::float8, ARRAY[1024]), ',') || ']'), 'amazon.titan-embed-text-v2:0', 0.35, 5);\"",
+      "before": [
+        "  \"SELECT count(*) FROM capiro_defense_related_pe_vectors('0601102A', 'amazon.titan-embed-text-v2:0', 0.7, 8);\"",
+        "expect_ok \"serve searches PE mission vectors via capiro_defense_search_pe_vectors\" \"$SERVE_URL\" \\"
+      ],
+      "after": [
+        "expect_fail \"job executes the PE-vector reader (serve-only capability)\" \"$JOB_URL\" \\",
+        "  \"SELECT count(*) FROM capiro_defense_related_pe_vectors('0601102A', 'amazon.titan-embed-text-v2:0', 0.7, 8);\""
+      ],
+      "occurrences": 1,
+      "category": "validation_fixture",
+      "ownerReference": "docs/defense-budget/phase8-session9-provider-design.md"
+    },
+    {
+      "path": "scripts/verify-phase8-session3-db.sh",
+      "baselineLine": 304,
+      "lineText": "  \"SELECT count(*) FROM capiro_defense_related_pe_vectors('0601102A', 'amazon.titan-embed-text-v2:0', 0.7, 8);\"",
+      "before": [
+        "  \"SELECT count(*) FROM capiro_defense_search_pe_vectors(('[' || array_to_string(array_fill(0.01::float8, ARRAY[1024]), ',') || ']'), 'amazon.titan-embed-text-v2:0', 0.35, 5);\"",
+        "expect_fail \"job executes the PE-vector reader (serve-only capability)\" \"$JOB_URL\" \\"
+      ],
+      "after": [
+        "",
+        "# The vector functions must be STABLE (cannot write) and scoped to the GLOBAL"
+      ],
+      "occurrences": 1,
+      "category": "validation_fixture",
+      "ownerReference": "docs/defense-budget/phase8-session9-provider-design.md"
+    },
+    {
+      "path": "scripts/verify-phase8-session9-db.sh",
+      "baselineLine": 138,
+      "lineText": "  ('bedrock','embed_query','succeeded','amazon.titan-embed-text-v2:0','tenant-a',",
+      "before": [
+        "# can record them. This is the one narrow grant Session 9 adds.",
+        "expect_ok \"serve records a successful embedding\" \"$SERVE_URL\" \"$INS VALUES"
+      ],
+      "after": [
+        "   '$(hex64 a)','$(hex64 b)',1,42,NULL,'provider answered on attempt 1',1024,NULL,now(),now());\"",
+        "expect_ok \"serve records a degraded relevance call\" \"$SERVE_URL\" \"$INS VALUES"
+      ],
+      "occurrences": 1,
+      "category": "validation_fixture",
+      "ownerReference": "docs/defense-budget/phase8-session9-provider-design.md"
+    }
+  ]
+}

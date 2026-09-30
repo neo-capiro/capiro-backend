@@ -1,4 +1,8 @@
-import { buildChatDateGrounding, buildChatSystemPrompt, composeChatSystemPrompt } from './chat-prompt';
+import {
+  buildChatDateGrounding,
+  buildChatSystemPrompt,
+  composeChatSystemPrompt,
+} from './chat-prompt';
 import { KeywordIntentRouter, MERI_GOVERNMENT_AFFAIRS_OUTPUT_CONTRACT } from '@capiro/meriv2-core';
 import type { MeriContext } from '@capiro/meriv2-core';
 
@@ -56,6 +60,57 @@ describe('buildChatSystemPrompt', () => {
     expect(parts.base).toContain('admitted context evidence or a tool result');
     expect(parts.base).not.toContain('show the chain');
     expect(parts.base).not.toContain('trace to a tool result you retrieved this turn');
+  });
+
+  it('adapts a simple lookup to a concise, current named-client narrative', () => {
+    const parts = composeChatSystemPrompt(
+      {
+        clientId: 'client-1',
+        messages: [{ role: 'user', text: 'What is the current status of H.R. 1?' }],
+      },
+      {
+        ...ctx,
+        contextPacket: {
+          packetId: 'packet-1',
+          compiledAt: '2026-09-28T12:00:00.000Z',
+          clientId: 'client-1',
+          items: [
+            {
+              id: 'profile-1',
+              label: 'Profile',
+              type: 'client-profile',
+              scope: 'client',
+              authority: 'system-of-record',
+              clientName: 'Northstar Systems',
+              selection: 'explicit',
+            },
+          ],
+          exclusions: [],
+          unauthorizedCount: 0,
+          degraded: false,
+        },
+      },
+    );
+    expect(parts.dynamic).toContain('Response depth: lookup.');
+    expect(parts.dynamic).toContain('Focused client: Northstar Systems (client id client-1).');
+    expect(parts.dynamic).toContain('compiled at 2026-09-28T12:00:00.000Z');
+  });
+
+  it('adapts analysis without inventing a client name absent from the current packet', () => {
+    const parts = composeChatSystemPrompt(
+      {
+        clientId: 'client-2',
+        messages: [
+          { role: 'user', text: 'Compare the options and recommend a strategy for the client.' },
+        ],
+      },
+      ctx,
+    );
+    expect(parts.dynamic).toContain('Response depth: analysis.');
+    expect(parts.dynamic).toContain(
+      'client id client-2; the current packet did not establish a client name',
+    );
+    expect(parts.dynamic).toContain('Localize unsupported claims');
   });
 
   it('injects the real conversation id so save_chat_attachments/save_note never have to ask the user for it', () => {
@@ -278,7 +333,14 @@ describe('held-write honesty (the "submitted for processing" fabrication)', () =
     expect(prompt).toContain('proposal card in chat');
     expect(prompt).toContain('originating conversation');
     expect(prompt).toContain('conversation’s Approvals tab');
+    expect(prompt).toContain('business-action proposals, scoped to the originating conversation');
     expect(prompt).toContain('separate run-bound requests');
+    expect(prompt).toContain('Grounding-held Deep Research reports');
+    expect(prompt).toContain('separate run-bound requests in Reviews');
+    expect(prompt).toContain('not business-action proposals or the conversation’s Approvals tab');
+    expect(prompt).toContain(
+      'each report remains unreleased until a tenant admin or its assigned reviewer approves it there',
+    );
     expect(prompt).toContain('Do not imply there is one cross-conversation approval registry');
     expect(prompt).toContain('Approve all');
   });

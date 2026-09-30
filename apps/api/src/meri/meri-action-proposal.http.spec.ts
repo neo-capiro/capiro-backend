@@ -14,6 +14,7 @@ import { MeriApprovalService } from './meri-approval.service.js';
 import { MeriComplianceAuditService } from './meri-compliance-audit.service.js';
 import { MeriController } from './meri.controller.js';
 import { MeriFirmSkillsService } from './meri-firm-skills.service.js';
+import { MeriProcedureRuntimeValidationService } from './meri-procedure-runtime-validation.service.js';
 import { MeriMcpOAuthService } from './meri-mcp-oauth.service.js';
 import { MeriMcpService } from './meri-mcp.service.js';
 import { MeriClaimWriterService } from './meri-claim-writer.js';
@@ -61,6 +62,16 @@ describe('MeriV2 Phase 0 HTTP adversarial boundary', () => {
     status: 'proposed',
     preview: { label: 'Send email', fields: {}, counts: {}, reason: 'Approval required' },
     expiresAt: new Date(Date.now() + 60_000).toISOString(),
+  });
+  const validateProcedureRuntime = jest.fn().mockResolvedValue({
+    authorized: true,
+    identity: {
+      source: 'firm',
+      recordId: 'procedure-row-1',
+      canonicalId: 'commitments_audit',
+      version: 3,
+    },
+    manifestDigest: 'a'.repeat(64),
   });
   const approve = jest.fn(async (ctx: TenantContext, proposalId: string) => {
     if (ctx.tenantId !== TENANT || ctx.userId !== USER || proposalId !== PROPOSAL) {
@@ -116,6 +127,10 @@ describe('MeriV2 Phase 0 HTTP adversarial boundary', () => {
         { provide: MeriMcpService, useValue: {} },
         { provide: MeriMcpOAuthService, useValue: {} },
         { provide: MeriFirmSkillsService, useValue: {} },
+        {
+          provide: MeriProcedureRuntimeValidationService,
+          useValue: { validate: validateProcedureRuntime },
+        },
         { provide: MeriComplianceAuditService, useValue: {} },
         { provide: MeriClaimWriterService, useValue: {} },
       ],
@@ -149,6 +164,8 @@ describe('MeriV2 Phase 0 HTTP adversarial boundary', () => {
     executeTool.mockClear();
     createProposal.mockClear();
     approve.mockClear();
+    proposalService.list.mockClear();
+    validateProcedureRuntime.mockClear();
   });
 
   it('normal user cannot POST arbitrary legacy pending action data', async () => {
@@ -185,6 +202,47 @@ describe('MeriV2 Phase 0 HTTP adversarial boundary', () => {
       'send_email',
       { to: 'victim@example.com', body: 'test' },
     );
+  });
+
+  it('requires service identity and accepts only bounded procedure validation fields', async () => {
+    const body = {
+      conversationId: '33333333-3333-4333-8333-333333333333',
+      clientId: '44444444-4444-4444-8444-444444444444',
+      scope: 'client',
+      recordId: 'procedure-row-1',
+      canonicalId: 'commitments_audit',
+      procedureVersion: 3,
+      manifestDigest: 'a'.repeat(64),
+      toolName: 'query_tasks',
+    };
+    await request(app.getHttpServer())
+      .post('/api/clio/procedure-runtime/validate')
+      .send(body)
+      .expect(403);
+    await request(app.getHttpServer())
+      .post('/api/clio/procedure-runtime/validate')
+      .set('x-internal-service-secret', 'wrong')
+      .send(body)
+      .expect(403);
+    expect(validateProcedureRuntime).not.toHaveBeenCalled();
+
+    await request(app.getHttpServer())
+      .post('/api/clio/procedure-runtime/validate')
+      .set('x-internal-service-secret', SECRET)
+      .send(body)
+      .expect(201);
+    expect(validateProcedureRuntime).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: TENANT, userId: USER }),
+      body,
+    );
+
+    validateProcedureRuntime.mockClear();
+    await request(app.getHttpServer())
+      .post('/api/clio/procedure-runtime/validate')
+      .set('x-internal-service-secret', SECRET)
+      .send({ ...body, tenantId: OTHER, userId: OTHER, allowedTools: ['send_email'] })
+      .expect(400);
+    expect(validateProcedureRuntime).not.toHaveBeenCalled();
   });
 
   it('browser cannot create a trusted proposal without service identity', async () => {
@@ -262,5 +320,33 @@ describe('MeriV2 Phase 0 HTTP adversarial boundary', () => {
       expect.objectContaining({ tenantId: TENANT, userId: USER }),
       PROPOSAL,
     );
+  });
+
+  it('passes an authorized exact-receipt filter through the existing list route', async () => {
+    await request(app.getHttpServer())
+      .get(`/api/clio/action-proposals?conversationId=${OTHER}&proposalId=${PROPOSAL}`)
+      .expect(200);
+
+    expect(proposalService.list).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: TENANT, userId: USER }),
+      OTHER,
+      PROPOSAL,
+    );
+  });
+
+  it('rejects malformed exact-receipt ids before the list service runs', async () => {
+    await request(app.getHttpServer())
+      .get(`/api/clio/action-proposals?conversationId=${OTHER}&proposalId=not-a-proposal-id`)
+      .expect(400);
+
+    expect(proposalService.list).not.toHaveBeenCalled();
+  });
+
+  it('requires the conversation authorization fence for an exact receipt', async () => {
+    await request(app.getHttpServer())
+      .get(`/api/clio/action-proposals?proposalId=${PROPOSAL}`)
+      .expect(400);
+
+    expect(proposalService.list).not.toHaveBeenCalled();
   });
 });

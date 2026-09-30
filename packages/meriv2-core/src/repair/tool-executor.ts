@@ -12,7 +12,9 @@ export interface RecordedToolResult {
 }
 
 export function toolRecordingKey(call: RepairToolCall): string {
-  return createHash('sha256').update(`${call.name}:${canonicalJson(call.args)}`).digest('hex');
+  return createHash('sha256')
+    .update(`${call.name}:${canonicalJson(call.args)}`)
+    .digest('hex');
 }
 
 export class ReplayToolExecutor implements ToolExecutor {
@@ -24,13 +26,19 @@ export class ReplayToolExecutor implements ToolExecutor {
       : (results as ReadonlyMap<string, RepairToolResult>);
   }
 
-  async execute(call: RepairToolCall, options: { signal?: AbortSignal }): Promise<RepairToolResult> {
-    if (options.signal?.aborted) return { ok: false, state: 'retrieval_failed', reason: 'cancelled' };
-    return this.results.get(toolRecordingKey(call)) ?? {
-      ok: false,
-      state: 'retrieval_failed',
-      reason: 'no_recording',
-    };
+  async execute(
+    call: RepairToolCall,
+    options: { signal?: AbortSignal },
+  ): Promise<RepairToolResult> {
+    if (options.signal?.aborted)
+      return { ok: false, state: 'retrieval_failed', reason: 'cancelled' };
+    return (
+      this.results.get(toolRecordingKey(call)) ?? {
+        ok: false,
+        state: 'retrieval_failed',
+        reason: 'no_recording',
+      }
+    );
   }
 }
 
@@ -39,7 +47,10 @@ export class RecordingToolExecutor implements ToolExecutor {
 
   constructor(private readonly delegate: ToolExecutor) {}
 
-  async execute(call: RepairToolCall, options: { signal?: AbortSignal }): Promise<RepairToolResult> {
+  async execute(
+    call: RepairToolCall,
+    options: { signal?: AbortSignal },
+  ): Promise<RepairToolResult> {
     const result = await this.delegate.execute(call, options);
     this.recordings.push({ key: toolRecordingKey(call), result });
     return result;
@@ -52,7 +63,10 @@ export class DeduplicatingToolExecutor implements ToolExecutor {
 
   constructor(private readonly delegate: ToolExecutor) {}
 
-  async execute(call: RepairToolCall, options: { signal?: AbortSignal }): Promise<RepairToolResult> {
+  async execute(
+    call: RepairToolCall,
+    options: { signal?: AbortSignal },
+  ): Promise<RepairToolResult> {
     const key = toolRecordingKey(call);
     const previous = this.failures.get(key);
     if (previous) return previous;

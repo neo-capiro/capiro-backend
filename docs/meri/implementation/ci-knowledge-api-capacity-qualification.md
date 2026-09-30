@@ -1,0 +1,7 @@
+# Knowledge Plane API typecheck capacity
+
+Knowledge Plane CI aborted API TypeScript checking at the default approximately2GB Node heap. Actual failure runs36500091818 at foundation3fd1a0cd1 and36498426999 at223e5f588 are retained in the local evidence. The Typecheck API step now sets NODE_OPTIONS=--max-old-space-size=6144, matching existing qualified capacity settings. All steps, test selections, triggers, database settings and deployment configuration are unchanged.
+
+The first Qwen full-file proposal changed an unrelated disposable database URL and its worker exited1. That proposal is rejected and retained. Codex derived the exact two-line env addition from the original source, validated unique-key YAML and full semantic equality outside this one env setting, and obtained a separate Hermes/Bedrock Kimi static SCOPED PASS with exit0. Combined foundation API build and typecheck with the same6GB setting exit0; this is local capacity evidence, not a hostedCIpass. No tests or gates were removed.
+
+Evidence: C:/dev/cap-meri-foundation-evidence/parallel-closeout-20260929/ci-capacity/lead-validation.json, review-a-ci-capacity-exact-report.md, memory-candidate-integrated-gates.json and the original failed logs. Fresh hosted qualification is still required. Other workflow failures and full Workstream A/File01 acceptance remain open. No application runtime, provider policy, tenant routing, shared database or AWS setting changed.

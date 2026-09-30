@@ -2,7 +2,10 @@ import type { Request, Response } from 'express';
 import type { MeriContext, MeriGovernedTurnContext } from '@capiro/meriv2-core';
 import type { OrchestratorTenantContext } from '../../auth/tenant-context.js';
 import type { MeriContextResolver } from '../meri-context.resolver.js';
-import type { StrategyAssistantService, StrategyDraftOptions } from './strategy-assistant.service.js';
+import type {
+  StrategyAssistantService,
+  StrategyDraftOptions,
+} from './strategy-assistant.service.js';
 import type { StrategyReportNarrativeService } from './strategy-report-narrative.service.js';
 import { StrategyController } from './strategy.controller.js';
 import type { StrategyDraftInput } from './strategy-prompt.js';
@@ -149,7 +152,7 @@ describe('StrategyController.draftStream', () => {
     return { controller, resolveIdentity, draft };
   }
 
-  it('sets ndjson/chunked headers and streams progress lines then a result line matching strategy-draft\'s return shape', async () => {
+  it("sets ndjson/chunked headers and streams progress lines then a result line matching strategy-draft's return shape", async () => {
     const { controller } = build(async (_ctx, _dto, opts) => {
       opts?.onProgress?.({ stage: 'drafting', attempt: 1, round: 1, delta: 'Hel' });
       opts?.onProgress?.({ stage: 'drafting', attempt: 1, round: 1, delta: 'lo' });

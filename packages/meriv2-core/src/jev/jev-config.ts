@@ -38,7 +38,12 @@ export interface JevConfig {
   tasks: JevTask[];
 }
 
-function boundedInteger(raw: string | undefined, fallback: number, min: number, max: number): number {
+function boundedInteger(
+  raw: string | undefined,
+  fallback: number,
+  min: number,
+  max: number,
+): number {
   const parsed = Number(raw);
   if (!Number.isFinite(parsed)) return fallback;
   return Math.min(max, Math.max(min, Math.trunc(parsed)));

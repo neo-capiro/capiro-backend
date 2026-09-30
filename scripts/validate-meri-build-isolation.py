@@ -23,6 +23,14 @@ DENY = '''case "$SERVICE" in
 ALLOWED_ACTIONS = ('actions/checkout@', 'pnpm/action-setup@', 'actions/setup-node@',
                    'aws-actions/configure-aws-credentials@', 'aws-actions/amazon-ecr-login@',
                    'docker/setup-buildx-action@', 'docker/setup-qemu-action@', 'docker/build-push-action@')
+BUILD_DIGEST = '${{ steps.build.outputs.digest }}'
+# api-image.yml also uploads the narrow source-to-digest receipt defined in
+# docs/contracts/api-image-build-record.md (consumed by scripts/meri-synthetic-fullchat.py).
+# Evidence only: the exact producer command and artifact action are permitted for
+# that one workflow; nothing else may add actions or helpers.
+EVIDENCE_ACTIONS = {'api-image.yml': ('actions/upload-artifact@',)}
+EVIDENCE_RUNS = {'api-image.yml': (
+    'set -euo pipefail\nexport CHECKED_OUT_SHA="$(git rev-parse HEAD)"\npython scripts/api-image-build-record.py',)}
 
 
 def evaluate(files):
@@ -36,7 +44,8 @@ def evaluate(files):
         if re.search(r':latest\b|workflow_run\s*:|aws\s+ecs\b|update-service|register-task-definition|services-stable|docker\s+push', code):
             errors.append(name + ': forbidden mutable/deploy path')
         actions = re.findall(r'\buses:\s*(\S+)', code)
-        if any(not a.startswith(ALLOWED_ACTIONS) for a in actions):
+        allowed_actions = ALLOWED_ACTIONS + EVIDENCE_ACTIONS.get(name, ())
+        if any(not a.startswith(allowed_actions) for a in actions):
             errors.append(name + ': unreviewed action/reusable workflow')
         tag_blocks = re.findall(r'(?m)^          tags: \|\n((?:            [^\n]+\n)+)', content + '\n')
         service = name.removesuffix('-image.yml')
@@ -47,7 +56,9 @@ def evaluate(files):
             errors.append(name + ': require exclusive exact SHA tag')
         if '        id: build\n        uses: docker/build-push-action@' not in content or 'push: true' not in content:
             errors.append(name + ': missing bound build action')
-        if '${{ steps.build.outputs.digest }}' not in content or '$GITHUB_STEP_SUMMARY' not in content:
+        # Every IMAGE_DIGEST binding must be the bound build step's digest, never a tag or SHA.
+        digests = re.findall(r'(?m)^\s+IMAGE_DIGEST:\s*(.*?)\s*$', code)
+        if not digests or any(d != BUILD_DIGEST for d in digests) or '$GITHUB_STEP_SUMMARY' not in content:
             errors.append(name + ': missing candidate digest evidence')
         # Only known build/test commands are expected. Adding an indirect shell,
         # Python/Node release helper is a reviewable contract change, not an escape.
@@ -56,6 +67,8 @@ def evaluate(files):
             if not run:
                 continue
             body = (run[1] + run[2]).strip().lstrip('|>-').strip()
+            if '\n'.join(line.strip() for line in body.splitlines()) in EVIDENCE_RUNS.get(name, ()):
+                continue
             if (re.search(r'\b(?:bash|sh|curl|wget|aws|node|pwsh|powershell|source)\b|\$\(|`|&&|;', body)
                     or not re.match(r'(?:python3 scripts/validate-meri-(?:build-isolation|orchestrator-build-only)\.py\s*$|pnpm (?:install --frozen-lockfile|--filter @capiro/(?:shared|strategy-verifier|web) (?:build|typecheck|exec vitest run))|test -n "\$IMAGE_DIGEST")', body)):
                 # Summary prose contains a semicolon; it is quoted, not executable.
@@ -121,6 +134,13 @@ class ContractTests(unittest.TestCase):
 
     def test_missing_digest(self):
         self.mutate('.github/workflows/api-image.yml', '${{ steps.build.outputs.digest }}', '${{ github.sha }}')
+
+    def test_record_helper_exact(self):
+        self.mutate('.github/workflows/api-image.yml', 'python scripts/api-image-build-record.py',
+                    'python scripts/api-image-build-record.py --promote')
+
+    def test_evidence_action_scoped(self):
+        self.mutate('.github/workflows/web-image.yml', 'uses: actions/checkout@v4', 'uses: actions/upload-artifact@v4')
 
     def test_missing_deny(self):
         self.mutate('.github/workflows/deploy-all.yml', DENY, 'echo allowed')

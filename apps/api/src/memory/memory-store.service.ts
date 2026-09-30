@@ -1,4 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -27,6 +32,14 @@ import {
 import { MemoryAuthorizationService } from './memory-authorization.service.js';
 import { MemoryTransitionAuditService } from './memory-transition-audit.service.js';
 import { MemoryCleanupOutboxService } from './memory-cleanup-outbox.service.js';
+import { memoryGovernanceCenterEnabled } from './memory-governance-center.switch.js';
+import {
+  assertSyntheticApprovedMemoryInTx,
+  readSyntheticMemoryRetirementInTx,
+  type SyntheticApprovedMemoryGuard,
+  type SyntheticMemoryRevocationAudit,
+  type SyntheticMemoryRetirementProof,
+} from './synthetic-approved-memory.helpers.js';
 
 /** Result shape returned by the Phase 1 (1D) user-facing memory verbs. */
 export interface MemoryVerbResult {
@@ -348,10 +361,15 @@ export class MemoryStoreService {
     // content items but the ON CONFLICT SET below never resets a 'confirmed' row.
     const ingestRunId = ctx?.runId ?? item.ingestRunId ?? null;
     const reviewState = ctx?.reviewState ?? item.reviewState ?? 'auto';
+    // memory_scope is structural routing metadata and must move atomically with
+    // client/owner/visibility during a projection refresh.
+    const memoryScope =
+      item.memoryScope ??
+      (item.clientId ? 'client' : item.visibility === 'user' ? 'user_private' : 'firm');
     return this.prisma.withSystem(async (tx) => {
       const rows = await tx.$queryRaw<Array<{ id: string }>>`
         INSERT INTO memory_items (
-          tenant_id, client_id, owner_user_id, type, visibility, entity_id,
+          tenant_id, client_id, owner_user_id, type, visibility, memory_scope, entity_id,
           slug, title, aliases, tags, source, source_ref, provenance,
           sections_jsonb, schema_version,
           status, sensitivity, legal_hold, exportable, training_use, expires_at,
@@ -362,6 +380,7 @@ export class MemoryStoreService {
           ${item.ownerUserId}::uuid,
           ${item.type},
           ${item.visibility},
+          ${memoryScope},
           ${item.entityId}::uuid,
           ${item.slug},
           ${item.title},
@@ -393,6 +412,7 @@ export class MemoryStoreService {
           client_id = EXCLUDED.client_id,
           owner_user_id = EXCLUDED.owner_user_id,
           visibility = EXCLUDED.visibility,
+          memory_scope = EXCLUDED.memory_scope,
           entity_id = EXCLUDED.entity_id,
           title = EXCLUDED.title,
           aliases = EXCLUDED.aliases,
@@ -640,6 +660,7 @@ export class MemoryStoreService {
     slug: string,
     clientId: string | null,
     reason?: string,
+    fixtureAudit?: SyntheticMemoryRevocationAudit,
   ): Promise<void> {
     if (!governedMemoryLifecycleEnabled(process.env.MEMORY_GOVERNANCE_LIFECYCLE)) return;
     const before = await this.governedStatusOf(tx, ctx.tenantId, itemId);
@@ -647,6 +668,17 @@ export class MemoryStoreService {
       UPDATE memory_items SET governed_status = 'revoked', updated_at = now()
       WHERE id = ${itemId}::uuid AND tenant_id = ${ctx.tenantId}::uuid
     `;
+    let fixtureRevokedAtEpoch: string | undefined;
+    if (fixtureAudit) {
+      const dates = await tx.$queryRaw<Array<{ epoch: string | null }>>`
+        SELECT extract(epoch from revoked_at)::text AS epoch FROM memory_items
+        WHERE id=${itemId}::uuid AND tenant_id=${ctx.tenantId}::uuid
+      `;
+      if (dates.length !== 1 || !dates[0]?.epoch) {
+        throw new ForbiddenException('Synthetic memory revocation timestamp is unavailable');
+      }
+      fixtureRevokedAtEpoch = dates[0].epoch;
+    }
     await this.transitionAudit.record(tx, ctx.tenantId, {
       subject: { memoryItemId: itemId },
       actorUserId: ctx.userId,
@@ -659,7 +691,12 @@ export class MemoryStoreService {
       toStatus: 'revoked',
       reasonCode: 'revoked',
       reason: reason ? `forget: ${reason}` : 'forget verb',
-      metadata: { verb: 'forget', priorGovernedStatus: before },
+      metadata: {
+        verb: 'forget',
+        priorGovernedStatus: before,
+        ...(fixtureAudit ?? {}),
+        ...(fixtureRevokedAtEpoch ? { syntheticFixtureRevokedAtEpoch: fixtureRevokedAtEpoch } : {}),
+      },
     });
     await this.cleanupOutbox.enqueue(tx, ctx.tenantId, {
       memoryItemId: itemId,
@@ -772,8 +809,79 @@ export class MemoryStoreService {
    * (revoked), so an accidental forget is administratively recoverable.
    */
   async forgetMemory(itemId: string, reason?: string): Promise<MemoryVerbResult> {
+    return this.forgetMemoryGuarded(itemId, reason);
+  }
+
+  /** Internal fixture operation only; never exposed by a controller or DTO. */
+  async forgetSyntheticFixture(
+    itemId: string,
+    guard: SyntheticApprovedMemoryGuard,
+  ): Promise<MemoryVerbResult> {
+    if (!guard) throw new ForbiddenException('Approved synthetic memory guard is required');
+    if (!memoryGovernanceCenterEnabled()) {
+      throw new ServiceUnavailableException(
+        'Governed memory revocation is not enabled for this environment.',
+      );
+    }
+    return this.forgetMemoryGuarded(itemId, 'Retire owned Meri synthetic fixture', guard);
+  }
+
+  /** Internal evidence readback; current canonical read policy still applies. */
+  async inspectSyntheticFixture(
+    itemId: string,
+    guard: SyntheticApprovedMemoryGuard,
+  ): Promise<SyntheticMemoryRevocationAudit> {
+    if (!memoryGovernanceCenterEnabled()) {
+      throw new ServiceUnavailableException('Governed memory fixture inspection is not enabled.');
+    }
     const ctx = this.tenantCtx.require();
     return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      const proof = await assertSyntheticApprovedMemoryInTx(tx, ctx, itemId, guard);
+      const subject = await this.authz.loadItemInTx(tx, ctx.tenantId, itemId);
+      if (
+        !subject ||
+        !(await this.authz.evaluateInTx(tx, ctx, subject, 'read', { emitDenialMetrics: false }))
+          .allowed
+      ) {
+        throw new ForbiddenException('Synthetic memory fixture is not accessible');
+      }
+      return proof;
+    });
+  }
+
+  /** Internal evidence readback; current canonical read policy still applies. */
+  async inspectSyntheticFixtureRetirement(
+    itemId: string,
+    guard: SyntheticApprovedMemoryGuard,
+  ): Promise<SyntheticMemoryRetirementProof> {
+    if (!memoryGovernanceCenterEnabled()) {
+      throw new ServiceUnavailableException('Governed memory retirement evidence is not enabled.');
+    }
+    const ctx = this.tenantCtx.require();
+    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      const proof = await readSyntheticMemoryRetirementInTx(tx, ctx, itemId, guard);
+      const subject = await this.authz.loadItemInTx(tx, ctx.tenantId, itemId);
+      if (
+        !subject ||
+        !(await this.authz.evaluateInTx(tx, ctx, subject, 'read', { emitDenialMetrics: false }))
+          .allowed
+      ) {
+        throw new ForbiddenException('Synthetic memory retirement evidence is not accessible');
+      }
+      return proof;
+    });
+  }
+
+  private async forgetMemoryGuarded(
+    itemId: string,
+    reason?: string,
+    fixtureGuard?: SyntheticApprovedMemoryGuard,
+  ): Promise<MemoryVerbResult> {
+    const ctx = this.tenantCtx.require();
+    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      const fixtureAudit = fixtureGuard
+        ? await assertSyntheticApprovedMemoryInTx(tx, ctx, itemId, fixtureGuard)
+        : undefined;
       const rows = await tx.$queryRaw<
         Array<{
           title: string;
@@ -790,6 +898,7 @@ export class MemoryStoreService {
         WHERE id = ${itemId}::uuid AND tenant_id = ${ctx.tenantId}::uuid
           AND status <> 'revoked'
         LIMIT 1
+        FOR UPDATE
       `;
       const row = rows[0];
       if (!row) return { found: false };
@@ -824,7 +933,15 @@ export class MemoryStoreService {
       // Governed lifecycle (dark): flip the v2 status, evidence the transition and
       // enqueue durable secondary-projection cleanup — all in THIS transaction, so
       // suppression, evidence and cleanup intent commit or roll back together.
-      await this.recordGovernedRevocation(tx, ctx, itemId, row.slug, row.client_id, reason);
+      await this.recordGovernedRevocation(
+        tx,
+        ctx,
+        itemId,
+        row.slug,
+        row.client_id,
+        reason,
+        fixtureAudit,
+      );
       // Purge the semantic projection (no FK cascade from memory_items).
       await tx.$executeRaw`
         DELETE FROM context_embeddings WHERE source_type = 'memory_item' AND source_id = ${itemId}

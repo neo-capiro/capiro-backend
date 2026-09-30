@@ -6,8 +6,19 @@ import { fileURLToPath } from 'node:url';
 import { validateOwnershipFixture } from './engagement-runtime-ownership.mjs';
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-export const PHASE1_BASE_SHA = process.env.OUTREACH_V3_P1_BASE_SHA || '46e029dad5c27bf44c7920cd5a4000716621671f';
-export const REQUIRED_CAPABILITIES = [
+// Start of the original Phase 1 development window. The historical scope check
+// below always uses this immutable commit.
+export const PHASE1_ORIGINAL_BASE_SHA = '46e029dad5c27bf44c7920cd5a4000716621671f';
+// Callers (outreach-v3-p1-preflight.yml) may supply the moving PR scope base:
+// the PR base for Revised Phase 1 product changes, or HEAD for gate-only
+// maintenance. When supplied, the current change is attributed to Phase 1 too.
+export const PHASE1_BASE_SHA = process.env.OUTREACH_V3_P1_BASE_SHA || PHASE1_ORIGINAL_BASE_SHA;
+// Immutable original Phase 1 security closeout; later phases legitimately extend
+// the product. Current architecture and catalog metadata remain checked below.
+export const PHASE1_SCOPE_END =
+  process.env.OUTREACH_V3_P1_SCOPE_END ?? 'cf0aa80d8d16fbd1e775fc054e8de34570535e23';
+// The closed capability set frozen at the original Phase 1 closeout.
+export const PHASE1_REQUIRED_CAPABILITIES = [
   'search_capiro',
   'get_capiro_record',
   'get_client_context',
@@ -18,6 +29,17 @@ export const REQUIRED_CAPABILITIES = [
   'search_targets',
   'get_target_profile',
 ].sort();
+// The complete current closed set: the Phase 1 foundation plus the later
+// shared capabilities.
+export const REQUIRED_CAPABILITIES = [
+  ...PHASE1_REQUIRED_CAPABILITIES,
+  'get_document',
+  'recommend_outreach_strategy',
+  'analyze_target_coverage',
+  'find_similar_targets',
+].sort();
+const CAPABILITY_CATALOG =
+  'apps/api/src/capabilities/__fixtures__/capiro-capability-catalog.v1.json';
 
 function read(relative) {
   return fs.readFileSync(path.join(ROOT, relative), 'utf8');
@@ -29,15 +51,23 @@ function exists(relative) {
   return fs.existsSync(path.join(ROOT, relative));
 }
 
-export function validateCapabilityCatalog(catalog) {
+export function validateCapabilityCatalog(
+  catalog,
+  { allowExtensions = false, required = REQUIRED_CAPABILITIES } = {},
+) {
   const problems = [];
   const names = catalog.map((entry) => entry.name);
   if (new Set(names).size !== names.length) problems.push('duplicate capability name');
-  if (JSON.stringify([...names].sort()) !== JSON.stringify(REQUIRED_CAPABILITIES)) {
+  if (allowExtensions) {
+    for (const name of required) {
+      if (!names.includes(name)) problems.push(`current capability catalog missing ${name}`);
+    }
+  } else if (JSON.stringify([...names].sort()) !== JSON.stringify([...required].sort())) {
     problems.push('capability catalog names do not match the required closed set');
   }
   for (const name of names) {
-    if (/^(meri|outreach)_/.test(name)) problems.push(`consumer-prefixed duplicate capability: ${name}`);
+    if (/^(meri|outreach)_/.test(name))
+      problems.push(`consumer-prefixed duplicate capability: ${name}`);
   }
   for (const required of ['get_client_context', 'get_recent_activity', 'get_capiro_record']) {
     if (catalog.find((entry) => entry.name === required)?.status !== 'implemented') {
@@ -98,19 +128,54 @@ function providerImportProblem(source, file) {
     .map((name) => `${file} imports provider/reasoning runtime ${name}`);
 }
 
+function catalogAt(revision) {
+  const result = execFileSync('git', ['show', `${revision}:${CAPABILITY_CATALOG}`], {
+    cwd: ROOT,
+    encoding: 'utf8',
+  });
+  return JSON.parse(result);
+}
+
+// Files changed in `range` must stay inside the Phase 1 backend boundary.
+function scopeProblems(range) {
+  const problems = [];
+  let changed = [];
+  try {
+    changed = execFileSync('git', ['diff', '--name-only', range], {
+      cwd: ROOT,
+      encoding: 'utf8',
+    })
+      .split(/\r?\n/)
+      .filter(Boolean);
+  } catch {
+    problems.push(`could not inspect Phase 1 changed-file scope ${range}`);
+  }
+  for (const file of changed) {
+    if (file.startsWith('apps/web/')) problems.push(`Phase 1 changed forbidden UI path ${file}`);
+    if (file.includes('/prisma/migrations/')) problems.push(`Phase 1 added migration ${file}`);
+    if (file.startsWith('infra/cdk/lib/')) problems.push(`Phase 1 changed AWS source ${file}`);
+    if (/campaign[-_]spec|outreachsession|outreachevent/i.test(file)) {
+      problems.push(`Phase 1 introduced later-phase state path ${file}`);
+    }
+  }
+  return problems;
+}
+
 export function architectureProblems() {
   const problems = [];
-  const scopeEnd = process.env.OUTREACH_V3_P1_SCOPE_END;
-  let catalog;
-  if (scopeEnd) {
-    const result = execFileSync('git', ['show', `${scopeEnd}:apps/api/src/capabilities/__fixtures__/capiro-capability-catalog.v1.json`], {
-      cwd: ROOT, encoding: 'utf8',
-    });
-    catalog = JSON.parse(result);
-  } else {
-    catalog = json('apps/api/src/capabilities/__fixtures__/capiro-capability-catalog.v1.json');
-  }
-  problems.push(...validateCapabilityCatalog(catalog));
+  // The immutable Phase 1 closeout catalog is exactly the original closed set.
+  problems.push(
+    ...validateCapabilityCatalog(catalogAt(PHASE1_SCOPE_END), {
+      required: PHASE1_REQUIRED_CAPABILITIES,
+    }),
+  );
+  // Validate the complete current catalog too: it must be the complete current
+  // closed set, and extensions cannot hide missing foundation entries,
+  // duplicate names, consumer forks, or authority metadata.
+  problems.push(...validateCapabilityCatalog(json(CAPABILITY_CATALOG)));
+  // Callers may also pin the current catalog to an exact revision.
+  const catalogRef = process.env.OUTREACH_V3_P1_CATALOG_SHA;
+  if (catalogRef) problems.push(...validateCapabilityCatalog(catalogAt(catalogRef)));
 
   const reverse = json(
     'apps/api/src/engagement/__fixtures__/outreach-v3-p1-reverse-dependencies.v1.json',
@@ -151,12 +216,8 @@ export function architectureProblems() {
   }
 
   const alertMemoModule = read('apps/api/src/intelligence/alert-memo/alert-memo.module.ts');
-  const districtBriefModule = read(
-    'apps/api/src/intelligence/alert-memo/district-brief.module.ts',
-  );
-  const hearingRecapService = read(
-    'apps/api/src/intelligence/alert-memo/hearing-recap.service.ts',
-  );
+  const districtBriefModule = read('apps/api/src/intelligence/alert-memo/district-brief.module.ts');
+  const hearingRecapService = read('apps/api/src/intelligence/alert-memo/hearing-recap.service.ts');
   if (/^import\s+\{[^}]*EngagementModule/m.test(alertMemoModule)) {
     problems.push('AlertMemoModule still imports broad EngagementModule');
   }
@@ -171,7 +232,7 @@ export function architectureProblems() {
   if (!meriModule.includes('AiCredentialsModule')) {
     problems.push('MeriModule does not consume the neutral AiCredentialsModule');
   }
-  if (meriModule.includes("../engagement/ai-credential-resolver.service")) {
+  if (meriModule.includes('../engagement/ai-credential-resolver.service')) {
     problems.push('MeriModule still resolves credentials through the Engagement path');
   }
 
@@ -221,25 +282,14 @@ export function architectureProblems() {
     if (!exists(requiredFile)) problems.push(`missing ${requiredFile}`);
   }
 
-  const phase1ScopeEnd = process.env.OUTREACH_V3_P1_SCOPE_END ?? 'HEAD';
-  let changed = [];
-  try {
-    changed = execFileSync('git', ['diff', '--name-only', `${PHASE1_BASE_SHA}..${phase1ScopeEnd}`], {
-      cwd: ROOT,
-      encoding: 'utf8',
-    })
-      .split(/\r?\n/)
-      .filter(Boolean);
-  } catch {
-    problems.push('could not inspect Phase 1 changed-file scope');
-  }
-  for (const file of changed) {
-    if (file.startsWith('apps/web/')) problems.push(`Phase 1 changed forbidden UI path ${file}`);
-    if (file.includes('/prisma/migrations/')) problems.push(`Phase 1 added migration ${file}`);
-    if (file.startsWith('infra/cdk/lib/')) problems.push(`Phase 1 changed AWS source ${file}`);
-    if (/campaign[-_]spec|outreachsession|outreachevent/i.test(file)) {
-      problems.push(`Phase 1 introduced later-phase state path ${file}`);
-    }
+  // The original Phase 1 window stays backend-only, independent of later history.
+  problems.push(...scopeProblems(`${PHASE1_ORIGINAL_BASE_SHA}..${PHASE1_SCOPE_END}`));
+  // A supplied moving scope base retains whole-change attribution for the
+  // current change as well (an empty range for gate-only maintenance).
+  if (process.env.OUTREACH_V3_P1_BASE_SHA) {
+    problems.push(
+      ...scopeProblems(`${PHASE1_BASE_SHA}..${process.env.OUTREACH_V3_P1_SCOPE_END ?? 'HEAD'}`),
+    );
   }
 
   for (const requiredDoc of [

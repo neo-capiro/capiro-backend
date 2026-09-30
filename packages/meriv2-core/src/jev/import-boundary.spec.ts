@@ -15,17 +15,14 @@ describe('Jev import boundary', () => {
     const repository = path.resolve(__dirname, '../../../..');
     const appSources = sourceFiles(path.join(repository, 'apps'))
       .filter((file) => file.includes(`${path.sep}src${path.sep}`))
-      .filter((file) => /(?:from\s+|require\()['"][^'"]*jev(?:\/|['"])/.test(readFileSync(file, 'utf8')));
+      .filter((file) =>
+        /(?:from\s+|require\()['"][^'"]*jev(?:\/|['"])/.test(readFileSync(file, 'utf8')),
+      );
 
-    const allowedDirectory = path.join(
-      repository,
-      'apps/meriv2-orchestrator/src/meri/jev',
-    ) + path.sep;
+    const allowedDirectory =
+      path.join(repository, 'apps/meriv2-orchestrator/src/meri/jev') + path.sep;
     const allowedFiles = new Set([
-      path.join(
-        repository,
-        'apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts',
-      ),
+      path.join(repository, 'apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts'),
     ]);
     const offenders = appSources.filter(
       (file) => !file.startsWith(allowedDirectory) && !allowedFiles.has(file),

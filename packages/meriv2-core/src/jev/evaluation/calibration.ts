@@ -39,12 +39,19 @@ export function evaluateThresholds(input: {
   const scoped = input.rows.filter((row) => row.task === input.task);
   const versions = [...new Set(scoped.map((row) => row.questionVersion))].sort();
   const models = [...new Set(scoped.map((row) => row.model))].sort();
-  if (versions.some((value) => value !== input.questionVersion) || models.some((value) => value !== input.model)) {
-    throw new Error(`Calibration refuses mixed scope; question versions [${versions.join(', ')}], models [${models.join(', ')}]`);
+  if (
+    versions.some((value) => value !== input.questionVersion) ||
+    models.some((value) => value !== input.model)
+  ) {
+    throw new Error(
+      `Calibration refuses mixed scope; question versions [${versions.join(', ')}], models [${models.join(', ')}]`,
+    );
   }
   const tuning = scoped.filter((row) => row.split === 'tuning');
   const heldout = scoped.filter((row) => row.split === 'heldout');
-  const candidates = [...new Set(input.thresholds)].sort((a, b) => a - b).map((threshold) => metrics(tuning, threshold));
+  const candidates = [...new Set(input.thresholds)]
+    .sort((a, b) => a - b)
+    .map((threshold) => metrics(tuning, threshold));
   const chosenThreshold = input.chosenThreshold;
   return {
     reportVersion: 'jev_threshold_calibration_v1' as const,

@@ -746,6 +746,8 @@ export interface CommitteeFollowInput {
 
 export function useSaveCommitteeFollow(systemCode: string) {
   const api = useApi();
+  // Write under the same key useCommitteeFollow reads. useApiScope is safe
+  // before ClerkProvider mounts, so pre-auth renders need no other identity.
   const apiScope = useApiScope();
   const qc = useQueryClient();
   return useMutation<CommitteeFollowConfig, Error, CommitteeFollowInput>({

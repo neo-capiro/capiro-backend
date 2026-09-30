@@ -2,8 +2,8 @@
 /**
  * Outreach V3 Revised Phase 2 disposable PostgreSQL rehearsal.
  *
- * Required environment: a PostgreSQL 16-compatible ADMIN endpoint via the usual
- * PGHOST/PGPORT/PGUSER/PGPASSWORD variables plus host `psql` and `pnpm`.
+ * Full rehearsal is restricted to the pinned GitHub Actions Linux pgvector service.
+ * Local ownership/prerequisite tests remain supported; arbitrary or split targets refuse.
  *
  * Safety: this script NEVER accepts a target database name or DATABASE_URL. It
  * creates two uniquely named databases itself, applies only repository migration
@@ -18,35 +18,39 @@
 
 import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { basename, dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
+import {
+  assertPhase2DisposableInvocation,
+  createPhase2OwnedResources,
+} from './ci/outreach-phase2-owned-resources.mjs';
+import { includePrePhase2PrismaPath } from './ci/phase2-migration-baseline.mjs';
+
+// Refuse unsafe targets before any command, temporary resources or cleanup.
+const targetEnv = assertPhase2DisposableInvocation();
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const API_PRISMA = resolve(ROOT, 'apps/api/prisma');
 const MAIN_SCHEMA = resolve(API_PRISMA, 'schema.prisma');
 const FOCUSED_SCHEMA = resolve(API_PRISMA, 'outreach-v3-phase2/schema.prisma');
 const PHASE2_MIGRATION_NAME = '20260908010000_outreach_v3_campaign_state';
-const PHASE2_MIGRATION = resolve(
-  API_PRISMA,
-  'migrations',
-  PHASE2_MIGRATION_NAME,
-  'migration.sql',
-);
+const PHASE2_MIGRATION = resolve(API_PRISMA, 'migrations', PHASE2_MIGRATION_NAME, 'migration.sql');
 
 for (const path of [MAIN_SCHEMA, FOCUSED_SCHEMA, PHASE2_MIGRATION]) {
   if (!existsSync(path)) throw new Error(`Required Phase 2 input is missing: ${path}`);
 }
 
 const PSQL = process.env.PSQL_BIN || 'psql';
-const PGHOST = process.env.PGHOST || '127.0.0.1';
-const PGPORT = process.env.PGPORT || '5432';
-const PGUSER = process.env.PGUSER || 'postgres';
-const PGPASSWORD = process.env.PGPASSWORD || '';
-const suffix = `${process.pid}_${Date.now().toString(36)}`.replace(/[^a-zA-Z0-9_]/g, '_');
+const PGHOST = targetEnv.PGHOST;
+const PGPORT = targetEnv.PGPORT;
+const PGUSER = targetEnv.PGUSER;
+const PGPASSWORD = targetEnv.PGPASSWORD;
+const suffix = randomUUID().replaceAll('-', '');
 const FRESH_DB = `outreach_v3_p2_fresh_${suffix}`;
 const UPGRADE_DB = `outreach_v3_p2_upgrade_${suffix}`;
-const PROBE_ROLE = `outreach_v3_p2_probe_${process.pid}`.replace(/[^a-zA-Z0-9_]/g, '_');
+const PROBE_ROLE = `outreach_v3_p2_probe_${suffix}`;
 const PROBE_PASSWORD = `p2_${process.pid}_probe`;
 const tempRoot = mkdtempSync(join(tmpdir(), 'capiro-outreach-v3-p2-'));
 
@@ -82,7 +86,7 @@ function eq(label, actual, expected) {
 function command(bin, args, options = {}) {
   const result = spawnSync(bin, args, {
     cwd: options.cwd || ROOT,
-    env: { ...process.env, ...(options.env || {}) },
+    env: { ...targetEnv, ...(options.env || {}) },
     input: options.input,
     encoding: 'utf8',
     maxBuffer: 32 * 1024 * 1024,
@@ -113,7 +117,22 @@ function psql(db, sql, options = {}) {
   const password = options.password === undefined ? PGPASSWORD : options.password;
   return command(
     PSQL,
-    ['-X', '-v', 'ON_ERROR_STOP=1', '-qAt', '-h', PGHOST, '-p', PGPORT, '-U', user, '-d', db, '-c', sql],
+    [
+      '-X',
+      '-v',
+      'ON_ERROR_STOP=1',
+      '-qAt',
+      '-h',
+      PGHOST,
+      '-p',
+      PGPORT,
+      '-U',
+      user,
+      '-d',
+      db,
+      '-c',
+      sql,
+    ],
     { env: { PGPASSWORD: password } },
   );
 }
@@ -142,20 +161,6 @@ function expectSqlFailure(label, db, sql, pattern, options = {}) {
 
 function adminSql(sql) {
   return psql('postgres', sql);
-}
-
-function terminateAndDropDatabase(db) {
-  try {
-    adminSql(`SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '${db}' AND pid <> pg_backend_pid();`);
-  } catch {}
-  try {
-    adminSql(`DROP DATABASE IF EXISTS "${db}";`);
-  } catch {}
-}
-
-function createDatabase(db) {
-  terminateAndDropDatabase(db);
-  adminSql(`CREATE DATABASE "${db}";`);
 }
 
 function databaseUrl(db) {
@@ -203,15 +208,6 @@ function seedIdentity(db) {
   );
 }
 
-function createProbeRole() {
-  try {
-    adminSql(`DROP ROLE IF EXISTS "${PROBE_ROLE}";`);
-  } catch {}
-  adminSql(
-    `CREATE ROLE "${PROBE_ROLE}" LOGIN PASSWORD '${PROBE_PASSWORD}' NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;`,
-  );
-}
-
 function grantProbe(db) {
   psql(
     db,
@@ -228,12 +224,31 @@ function grantProbe(db) {
 function seedPhase2Rows(db) {
   const blank = JSON.stringify({
     schemaVersion: 'outreach_campaign_spec_v1',
-    goal: { goal: null, objective: null, topic: null, desiredOutcome: null, ask: { mode: 'undecided', text: null }, whyNow: null },
+    goal: {
+      goal: null,
+      objective: null,
+      topic: null,
+      desiredOutcome: null,
+      ask: { mode: 'undecided', text: null },
+      whyNow: null,
+    },
     sponsor: { kind: 'undecided', label: null, clientRefs: [] },
     targeting: { criteria: null, selectedTargetRefs: [], rejectedRecommendationRefs: [] },
     delivery: { pattern: 'undecided', personalization: 'undecided' },
-    context: { requiredPolicyRefs: [], writingGuidanceRefs: [], campaignFactRefs: [], targetSpecificRefs: [], groupSafeRefs: [], excludedRefs: [] },
-    strategy: { campaignAngle: null, tone: null, length: 'undecided', customLengthInstruction: null },
+    context: {
+      requiredPolicyRefs: [],
+      writingGuidanceRefs: [],
+      campaignFactRefs: [],
+      targetSpecificRefs: [],
+      groupSafeRefs: [],
+      excludedRefs: [],
+    },
+    strategy: {
+      campaignAngle: null,
+      tone: null,
+      length: 'undecided',
+      customLengthInstruction: null,
+    },
   }).replaceAll("'", "''");
 
   psql(
@@ -270,22 +285,34 @@ function seedPhase2Rows(db) {
 function proveDatabaseInvariants(db, labelPrefix) {
   eq(
     `${labelPrefix}: four Phase 2 tables exist`,
-    psql(db, `SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public' AND table_name IN ('outreach_sessions','outreach_state_versions','outreach_events','outreach_command_proposals');`),
+    psql(
+      db,
+      `SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public' AND table_name IN ('outreach_sessions','outreach_state_versions','outreach_events','outreach_command_proposals');`,
+    ),
     '4',
   );
   eq(
     `${labelPrefix}: RLS is enabled and forced on all Phase 2 tables`,
-    psql(db, `SELECT COUNT(*) FROM pg_class WHERE oid IN ('outreach_sessions'::regclass,'outreach_state_versions'::regclass,'outreach_events'::regclass,'outreach_command_proposals'::regclass) AND relrowsecurity AND relforcerowsecurity;`),
+    psql(
+      db,
+      `SELECT COUNT(*) FROM pg_class WHERE oid IN ('outreach_sessions'::regclass,'outreach_state_versions'::regclass,'outreach_events'::regclass,'outreach_command_proposals'::regclass) AND relrowsecurity AND relforcerowsecurity;`,
+    ),
     '4',
   );
   eq(
     `${labelPrefix}: append-only triggers exist`,
-    psql(db, `SELECT COUNT(*) FROM pg_trigger WHERE NOT tgisinternal AND tgname IN ('outreach_state_versions_append_only','outreach_events_append_only');`),
+    psql(
+      db,
+      `SELECT COUNT(*) FROM pg_trigger WHERE NOT tgisinternal AND tgname IN ('outreach_state_versions_append_only','outreach_events_append_only');`,
+    ),
     '2',
   );
   eq(
     `${labelPrefix}: proposal lifecycle trigger exists`,
-    psql(db, `SELECT COUNT(*) FROM pg_trigger WHERE NOT tgisinternal AND tgname='outreach_command_proposals_lifecycle';`),
+    psql(
+      db,
+      `SELECT COUNT(*) FROM pg_trigger WHERE NOT tgisinternal AND tgname='outreach_command_proposals_lifecycle';`,
+    ),
     '1',
   );
 
@@ -293,8 +320,7 @@ function proveDatabaseInvariants(db, labelPrefix) {
   seedPhase2Rows(db);
   grantProbe(db);
 
-  const probe = (sql) =>
-    psql(db, sql, { user: PROBE_ROLE, password: PROBE_PASSWORD });
+  const probe = (sql) => psql(db, sql, { user: PROBE_ROLE, password: PROBE_PASSWORD });
 
   eq(
     `${labelPrefix}: runtime-like role with no tenant context sees no sessions`,
@@ -409,9 +435,11 @@ function seedLegacyOutreach(db) {
 
 function buildPrePhase2PrismaCopy() {
   const copyRoot = resolve(tempRoot, 'prisma');
-  cpSync(API_PRISMA, copyRoot, { recursive: true });
-  const phase2Copy = resolve(copyRoot, 'migrations', PHASE2_MIGRATION_NAME);
-  rmSync(phase2Copy, { recursive: true, force: true });
+  cpSync(API_PRISMA, copyRoot, {
+    recursive: true,
+    filter: (source) =>
+      includePrePhase2PrismaPath(relative(API_PRISMA, source), PHASE2_MIGRATION_NAME),
+  });
   // The focused projection is not part of the canonical migration chain and is
   // irrelevant to the baseline; remove generated output if a developer had it.
   rmSync(resolve(copyRoot, 'outreach-v3-phase2/generated'), { recursive: true, force: true });
@@ -424,10 +452,11 @@ async function main() {
   console.log(`== Outreach V3 Phase 2 DB rehearsal on ${PGHOST}:${PGPORT} ==`);
   console.log('Safety: creating disposable databases only; no DATABASE_URL target is accepted.');
 
-  createProbeRole();
+  resources.verifyTarget();
+  resources.createProbe();
 
   console.log('\n-- Fresh path: full migration chain --');
-  createDatabase(FRESH_DB);
+  resources.createDb(FRESH_DB);
   prismaMigrate(FRESH_DB, MAIN_SCHEMA);
   ok('fresh: full repository migration chain applies');
   prismaValidate(FRESH_DB, FOCUSED_SCHEMA);
@@ -435,13 +464,16 @@ async function main() {
   proveDatabaseInvariants(FRESH_DB, 'fresh');
 
   console.log('\n-- Ordered-upgrade path: pre-Phase-2 -> exact Phase 2 migration --');
-  createDatabase(UPGRADE_DB);
+  resources.createDb(UPGRADE_DB);
   const prePhase2Schema = buildPrePhase2PrismaCopy();
   prismaMigrate(UPGRADE_DB, prePhase2Schema);
   ok('upgrade: pre-Phase-2 repository migration chain applies');
   eq(
     'upgrade: Phase 2 tables are absent before the new migration',
-    psql(UPGRADE_DB, `SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public' AND table_name IN ('outreach_sessions','outreach_state_versions','outreach_events','outreach_command_proposals');`),
+    psql(
+      UPGRADE_DB,
+      `SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public' AND table_name IN ('outreach_sessions','outreach_state_versions','outreach_events','outreach_command_proposals');`,
+    ),
     '0',
   );
 
@@ -453,11 +485,28 @@ async function main() {
     UPGRADE_DB,
     `SELECT md5(row_to_json(r)::text) FROM outreach_records r WHERE id='${LEGACY_OUTREACH_ID}';`,
   );
-  eq('upgrade: legacy outreach_records sentinel is byte/logically unchanged', legacyAfter, legacyBefore);
+  eq(
+    'upgrade: legacy outreach_records sentinel is byte/logically unchanged',
+    legacyAfter,
+    legacyBefore,
+  );
   proveDatabaseInvariants(UPGRADE_DB, 'upgrade');
 
   console.log(`\nOUTREACH_V3_PHASE2_DB_COMPLETE (${passes} checks)`);
 }
+
+const resources = createPhase2OwnedResources({
+  admin: adminSql,
+  psqlInput: psqlFile,
+  freshDb: FRESH_DB,
+  upgradeDb: UPGRADE_DB,
+  probeRole: PROBE_ROLE,
+  probePassword: PROBE_PASSWORD,
+  appendOnlySql: readFileSync(
+    resolve(ROOT, 'scripts/ci/research-portfolio-append-only-prerequisite.sql'),
+    'utf8',
+  ),
+});
 
 let exitCode = 0;
 try {
@@ -466,12 +515,8 @@ try {
   exitCode = 1;
   console.error(`OUTREACH_V3_PHASE2_DB_FAILED: ${error.stack || error.message || error}`);
 } finally {
-  terminateAndDropDatabase(FRESH_DB);
-  terminateAndDropDatabase(UPGRADE_DB);
-  try {
-    adminSql(`DROP ROLE IF EXISTS "${PROBE_ROLE}";`);
-  } catch (error) {
-    console.error(`WARN: could not drop probe role ${PROBE_ROLE}: ${error.message}`);
+  for (const error of resources.cleanup()) {
+    console.error(`Phase 2 owned cleanup failed: ${error.message}`);
     exitCode = 1;
   }
   rmSync(tempRoot, { recursive: true, force: true });

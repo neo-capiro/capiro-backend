@@ -3,12 +3,9 @@ export type ResearchPortfolioMode = 'manual' | 'rules' | 'hybrid';
 export type ResearchPortfolioLifecycle = 'active' | 'archived';
 export type ResearchPortfolioGrantRole = 'owner' | 'editor' | 'viewer';
 export type ResearchPortfolioMemberKind =
-  | 'program'
-  | 'program_element'
-  | 'project'
-  | 'budget_line'
-  | 'award';
-export type ResearchPortfolioMemberDisposition = 'included' | 'candidate' | 'withdrawn' | 'excluded' | 'unresolved';
+  'program' | 'program_element' | 'project' | 'budget_line' | 'award';
+export type ResearchPortfolioMemberDisposition =
+  'included' | 'candidate' | 'withdrawn' | 'excluded' | 'unresolved';
 export type ResearchPortfolioMemberOrigin = 'manual' | 'rule' | 'import';
 export type ResearchPortfolioEventKind =
   | 'created'
@@ -187,19 +184,26 @@ export interface ResearchPortfolioMutationReceiptDto {
   outcomes: readonly ResearchPortfolioMutationOutcomeDto[];
 }
 
-export type ResearchPortfolioRuleOperator = 'eq' | 'neq' | 'in' | 'not_in' | 'contains' | 'exists' | 'gte' | 'lte';
+export type ResearchPortfolioRuleOperator =
+  'eq' | 'neq' | 'in' | 'not_in' | 'contains' | 'exists' | 'gte' | 'lte';
 export type ResearchPortfolioRuleScalar = string | number | boolean;
 export type ResearchPortfolioRuleNode =
   | { kind: 'and' | 'or'; clauses: readonly ResearchPortfolioRuleNode[] }
   | { kind: 'not'; clause: ResearchPortfolioRuleNode }
-  | { kind: 'condition'; field: string; operator: ResearchPortfolioRuleOperator; value: ResearchPortfolioRuleScalar | readonly ResearchPortfolioRuleScalar[] };
+  | {
+      kind: 'condition';
+      field: string;
+      operator: ResearchPortfolioRuleOperator;
+      value: ResearchPortfolioRuleScalar | readonly ResearchPortfolioRuleScalar[];
+    };
 
 export interface ResearchPortfolioRuleCandidateDto {
   targetKind: ResearchPortfolioMemberKind;
   targetId: string;
   label?: string | null;
   facts: Readonly<Record<string, unknown>>;
-  completeness?: 'complete' | 'partial' | 'unavailable' | 'unresolved' | 'insufficient_qualification';
+  completeness?:
+    'complete' | 'partial' | 'unavailable' | 'unresolved' | 'insufficient_qualification';
   unknownReasons?: readonly string[];
 }
 
@@ -220,7 +224,15 @@ export interface ResearchPortfolioRulePreviewItemDto {
   targetId: string;
   label: string | null;
   result: 'match' | 'nonmatch' | 'unknown';
-  disposition: 'added' | 'retained' | 'withdrawn' | 'accepted_nonmatch' | 'manual_override' | 'candidate' | 'unknown' | 'not_evaluated';
+  disposition:
+    | 'added'
+    | 'retained'
+    | 'withdrawn'
+    | 'accepted_nonmatch'
+    | 'manual_override'
+    | 'candidate'
+    | 'unknown'
+    | 'not_evaluated';
   reasons: readonly string[];
 }
 
@@ -254,7 +266,10 @@ export interface ResearchPortfolioRuleVersionDto {
   authorUserId: string;
   predecessorId: string | null;
   publishedAt: string;
-  recompute: { operationId: string; status: 'queued' | 'running' | 'partial' | 'completed' | 'failed' | 'cancelled' } | null;
+  recompute: {
+    operationId: string;
+    status: 'queued' | 'running' | 'partial' | 'completed' | 'failed' | 'cancelled';
+  } | null;
 }
 
 export interface ResearchTaxonomyConceptDto {
@@ -319,15 +334,40 @@ export interface CreateResearchPortfolioTemplateVersionDto extends ResearchPortf
   taxonomyVersionId?: string | null;
 }
 
-export type ResearchPortfolioReviewStatus = 'open' | 'assigned' | 'deferred' | 'resolved' | 'cancelled';
-export type ResearchPortfolioReviewTrigger = 'rule_change' | 'annual_continuity' | 'import' | 'dispute' | 'manual';
+export type ResearchPortfolioReviewStatus =
+  'open' | 'assigned' | 'deferred' | 'resolved' | 'cancelled';
+export type ResearchPortfolioReviewTrigger =
+  'rule_change' | 'annual_continuity' | 'import' | 'dispute' | 'manual';
 export type ResearchPortfolioReviewTargetKind = ResearchPortfolioMemberKind | 'rule' | 'portfolio';
 export type ResearchPortfolioDecisionType = 'include' | 'exclude' | 'defer' | 'reopen' | 'dispute';
-export type ResearchPortfolioContinuityStatus = 'unchanged' | 'changed' | 'expired' | 'renamed' | 'renumbered' | 'split' | 'merged' | 'unresolved' | 'new';
-export type ResearchPortfolioImportJobStatus = 'created' | 'mapped' | 'previewed' | 'applying' | 'paused' | 'completed' | 'partial' | 'failed' | 'cancelled' | 'unknown' | 'needs_reconciliation' | 'compensated';
+export type ResearchPortfolioContinuityStatus =
+  | 'unchanged'
+  | 'changed'
+  | 'expired'
+  | 'renamed'
+  | 'renumbered'
+  | 'split'
+  | 'merged'
+  | 'unresolved'
+  | 'new';
+export type ResearchPortfolioImportJobStatus =
+  | 'created'
+  | 'mapped'
+  | 'previewed'
+  | 'applying'
+  | 'paused'
+  | 'completed'
+  | 'partial'
+  | 'failed'
+  | 'cancelled'
+  | 'unknown'
+  | 'needs_reconciliation'
+  | 'compensated';
 export type ResearchPortfolioImportWorksheetKind = 'membership' | 'rules' | 'reviews';
-export type ResearchPortfolioImportRowOutcome = 'applied' | 'skipped' | 'conflict' | 'failed' | 'unknown';
-export type ResearchPortfolioImportRowPreviewClassification = 'resolved' | 'duplicate' | 'invalid' | 'ambiguous' | 'unresolved' | 'inaccessible';
+export type ResearchPortfolioImportRowOutcome =
+  'applied' | 'skipped' | 'conflict' | 'failed' | 'unknown';
+export type ResearchPortfolioImportRowPreviewClassification =
+  'resolved' | 'duplicate' | 'invalid' | 'ambiguous' | 'unresolved' | 'inaccessible';
 
 export interface ResearchPortfolioReviewEvidenceDto {
   sourceRevisionId: string;
@@ -518,7 +558,8 @@ export interface ResearchPortfolioImportMappingVersionDto {
 export interface ResearchPortfolioImportAttemptDto {
   id: string;
   operationKey: string;
-  action: 'preview' | 'apply' | 'pause' | 'resume' | 'cancel' | 'retry' | 'reconcile' | 'compensate';
+  action:
+    'preview' | 'apply' | 'pause' | 'resume' | 'cancel' | 'retry' | 'reconcile' | 'compensate';
   outcome: 'succeeded' | 'known_failure' | 'unknown';
   checkpoint: Readonly<Record<string, unknown>>;
   errorCode: string | null;
@@ -601,11 +642,7 @@ export interface UpdateResearchPortfolioEventStateDto {
 }
 
 export type ResearchPortfolioSubscriptionTargetKind =
-  | 'portfolio'
-  | ResearchPortfolioMemberKind
-  | 'client'
-  | 'rule'
-  | 'review';
+  'portfolio' | ResearchPortfolioMemberKind | 'client' | 'rule' | 'review';
 export type ResearchPortfolioSubscriptionChannel = 'in_app' | 'email';
 export type ResearchPortfolioSubscriptionCadence = 'immediate' | 'daily' | 'weekly';
 
@@ -632,7 +669,8 @@ export interface ResearchPortfolioSubscriptionDeliveryDto {
   eventId: string;
   recipientUserId: string;
   channel: 'in_app' | 'email';
-  status: 'queued' | 'delivered' | 'partial' | 'failed' | 'withheld' | 'cancelled' | 'outcome_unknown';
+  status:
+    'queued' | 'delivered' | 'partial' | 'failed' | 'withheld' | 'cancelled' | 'outcome_unknown';
   attemptNumber: number;
   checkpoint: Readonly<Record<string, unknown>>;
   receipt: Readonly<Record<string, unknown>>;
@@ -666,13 +704,7 @@ export interface ResearchPortfolioFinancialBasisDto {
 }
 
 export type ResearchPortfolioContributionDisposition =
-  | 'included'
-  | 'excluded'
-  | 'overlap'
-  | 'incompatible'
-  | 'missing'
-  | 'unavailable'
-  | 'withheld';
+  'included' | 'excluded' | 'overlap' | 'incompatible' | 'missing' | 'unavailable' | 'withheld';
 
 export interface ResearchPortfolioContributionDto {
   contributionId: string;
@@ -756,13 +788,7 @@ export interface ResearchPortfolioSnapshotDto extends ResearchPortfolioSnapshotS
 }
 
 export type ResearchPortfolioOutputStatus =
-  | 'queued'
-  | 'running'
-  | 'completed'
-  | 'partial'
-  | 'failed'
-  | 'cancelled'
-  | 'outcome_unknown';
+  'queued' | 'running' | 'completed' | 'partial' | 'failed' | 'cancelled' | 'outcome_unknown';
 
 export interface CreateResearchPortfolioOutputDto {
   operationKey: string;
@@ -848,7 +874,8 @@ export interface SaveResearchPortfolioOutputToClientDto {
 
 // Phase 11 — bookmarks, fit, review notes, watch-conversion, operations, tour state
 
-export type ResearchPortfolioBookmarkTargetKind = 'member' | 'snapshot' | 'evidence' | 'review' | 'import' | 'output' | 'other';
+export type ResearchPortfolioBookmarkTargetKind =
+  'member' | 'snapshot' | 'evidence' | 'review' | 'import' | 'output' | 'other';
 
 export interface ResearchPortfolioBookmarkDto {
   id: string;
@@ -909,7 +936,12 @@ export interface ResearchPortfolioWatchConversionPreviewDto {
   legacyWatches: number;
   convertibleWatches: number;
   alreadyConverted: number;
-  previewItems: readonly { userId: string; channel: string; legacyKind: string; willConvert: boolean }[];
+  previewItems: readonly {
+    userId: string;
+    channel: string;
+    legacyKind: string;
+    willConvert: boolean;
+  }[];
 }
 
 export interface ResearchPortfolioWatchConversionResultDto {
@@ -919,7 +951,8 @@ export interface ResearchPortfolioWatchConversionResultDto {
 }
 
 export type ResearchPortfolioOperationKind = 'import' | 'recompute' | 'output' | 'snapshot';
-export type ResearchPortfolioOperationStatus = 'queued' | 'running' | 'completed' | 'partial' | 'failed' | 'cancelled' | 'outcome_unknown';
+export type ResearchPortfolioOperationStatus =
+  'queued' | 'running' | 'completed' | 'partial' | 'failed' | 'cancelled' | 'outcome_unknown';
 
 export interface ResearchPortfolioOperationDto {
   id: string;
