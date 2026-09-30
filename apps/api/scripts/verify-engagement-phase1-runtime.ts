@@ -22,6 +22,27 @@ const API_DIR = path.resolve(__dirname, '..');
 const REPO_ROOT = path.resolve(API_DIR, '../..');
 const GIT = process.platform === 'win32' ? 'git.exe' : 'git';
 
+const writeRetryPause = new Int32Array(new SharedArrayBuffer(4));
+
+/**
+ * Synchronous, complete write. Output stays unbuffered for Windows teardown,
+ * but when a parent verifier reads through a non-blocking pipe (Linux CI),
+ * writeSync throws EAGAIN once the pipe is full and may write only part of a
+ * large relayed log; wait briefly and continue until every byte is written.
+ */
+function writeAll(fd: number, text: string): void {
+  const bytes = Buffer.from(text);
+  let offset = 0;
+  while (offset < bytes.length) {
+    try {
+      offset += writeSync(fd, bytes, offset, bytes.length - offset);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'EAGAIN') throw error;
+      Atomics.wait(writeRetryPause, 0, 0, 5);
+    }
+  }
+}
+
 const TEST_TARGETS = [
   'src/bootstrap/configure-api-http-app.spec.ts',
   'src/engagement-api.app.module.spec.ts',
@@ -89,7 +110,7 @@ function runWindowsWebRegression(resolved: { command: string; args: string[] }):
           windowsHide: true,
         });
       }
-      writeSync(1, output);
+      writeAll(1, output);
       return;
     }
     if (child.exitCode !== null) break;
@@ -99,12 +120,12 @@ function runWindowsWebRegression(resolved: { command: string; args: string[] }):
     });
   }
   const output = readFileSync(logPath, 'utf8');
-  if (!greenSummary) writeSync(1, output);
+  if (!greenSummary) writeAll(1, output);
   throw new Error(`Web regression suite failed or timed out; see ${logPath}`);
 }
 
 function run(label: string, command: string, args: string[], cwd = REPO_ROOT): void {
-  writeSync(1, `\n==> ${label}\n`);
+  writeAll(1, `\n==> ${label}\n`);
   const resolved =
     command === 'pnpm' || command === 'pnpm.cmd' ? resolvePnpm(args) : { command, args };
   if (process.platform === 'win32' && label === 'Web regression suite') {
@@ -136,8 +157,8 @@ function run(label: string, command: string, args: string[], cwd = REPO_ROOT): v
     if (result.error) throw result.error;
     const stdout = result.stdout ?? '';
     const stderr = result.stderr ?? '';
-    if (stdout) writeSync(1, stdout);
-    if (stderr) writeSync(2, stderr);
+    if (stdout) writeAll(1, stdout);
+    if (stderr) writeAll(2, stderr);
     lastStatus = result.status;
     if (result.status === 0) return;
 
@@ -281,7 +302,7 @@ function main(): void {
 
   // Write COMPLETE unbuffered so redirected nested logs see it before Windows
   // process teardown can hang the parent (stdbuf alone is not enough for Node).
-  writeSync(1, '\nENGAGEMENT_PHASE1_DB_FREE_COMPLETE\n');
+  writeAll(1, '\nENGAGEMENT_PHASE1_DB_FREE_COMPLETE\n');
   // All checks have completed; exit explicitly so nested Windows callers do
   // not remain alive on teardown handles after the completion marker.
   process.exit(0);
@@ -290,7 +311,7 @@ function main(): void {
 try {
   main();
 } catch (error) {
-  writeSync(2, '\nENGAGEMENT_PHASE1_DB_FREE_FAILED\n');
-  writeSync(2, `${error instanceof Error ? (error.stack ?? error.message) : String(error)}\n`);
+  writeAll(2, '\nENGAGEMENT_PHASE1_DB_FREE_FAILED\n');
+  writeAll(2, `${error instanceof Error ? (error.stack ?? error.message) : String(error)}\n`);
   process.exit(1);
 }
