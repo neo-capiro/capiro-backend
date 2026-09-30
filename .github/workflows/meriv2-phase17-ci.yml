@@ -146,35 +146,55 @@ jobs:
           "apps/workspace/src/generation/**/*.ts"
           "apps/api-strategy/src/agents/**/*.ts"
 
+      # ubuntu-latest does not ship ripgrep. Without it every search below
+      # printed "rg: command not found" and `|| true` turned that into a pass.
+      - name: Install ripgrep for the Phase 17 bypass searches
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ripgrep
+          rg --version
+
+      - name: Test the ethical-wall literal gate
+        run: node --test scripts/check-ethical-wall-literals.test.mjs
+
       - name: Run and classify Phase 17 bypass searches
         shell: bash
         run: |
           set -euo pipefail
+          command -v rg >/dev/null || { echo '::error::ripgrep (rg) is required for the Phase 17 bypass searches'; exit 1; }
           mkdir -p .phase17
 
-          rg -n "admin_auto_commit|void this\.memoryIngest\.projectClioMemory|ethicalWallAllowed:\s*true" apps packages \
-            | tee .phase17/bypass-memory.txt || true
-          rg -n "PROPOSED_CAPIRO_RULES|ruleBasedCompliancePolicy" apps packages \
-            | tee .phase17/bypass-policy.txt || true
-          rg -n "TODO|FIXME|not implemented|deliberate follow-up" \
+          # rg exits 0 on a match and 1 on no match. Anything above 1 is a search
+          # that did not run (bad path, bad pattern, I/O error), never a clean result.
+          search() {
+            local out=$1
+            shift
+            local status=0
+            rg "$@" > "$out" || status=$?
+            cat "$out"
+            if (( status > 1 )); then
+              echo "::error::rg exited $status: rg $*"
+              exit 1
+            fi
+          }
+
+          search .phase17/bypass-memory.txt -n "admin_auto_commit|void this\.memoryIngest\.projectClioMemory|ethicalWallAllowed:\s*true" apps packages
+          search .phase17/bypass-policy.txt -n "PROPOSED_CAPIRO_RULES|ruleBasedCompliancePolicy" apps packages
+          search .phase17/follow-ups.txt -n "TODO|FIXME|not implemented|deliberate follow-up" \
             apps/api/src/memory \
             apps/meriv2-orchestrator/src/meri \
             apps/workspace/src/generation \
             apps/api-strategy/src/agents \
-            packages/meriv2-core/src \
-            | tee .phase17/follow-ups.txt || true
+            packages/meriv2-core/src
 
-          # Fail on dangerous values in live non-test TypeScript. Historical
-          # migration comments, regression fixtures, and explicit fallback
-          # definitions remain visible in the captured evidence for review.
-          live_wall=$(rg -n "ethicalWallAllowed:\s*true" apps packages -g '*.ts' -g '!*.spec.ts' -g '!*.test.ts' || true)
-          if [ -n "$live_wall" ]; then
-            echo "Live ethical-wall bypass found:"
-            echo "$live_wall"
-            exit 1
-          fi
+          # Fail on a literal ethical-wall grant in live non-test source unless
+          # it has a reviewed, reasoned entry in the script's allowlist. The
+          # script fails closed on a scan it cannot verify. Test fixtures remain
+          # visible in the captured evidence above.
+          node scripts/check-ethical-wall-literals.mjs
 
-          live_auto=$(rg -n "admin_auto_commit" apps packages -g '*.ts' -g '!*.spec.ts' -g '!*.test.ts' || true)
+          search .phase17/live-auto.txt -n "admin_auto_commit" apps packages -g '*.ts' -g '!*.spec.ts' -g '!*.test.ts'
+          live_auto=$(cat .phase17/live-auto.txt)
           if [ -n "$live_auto" ] && ! printf '%s\n' "$live_auto" | grep -q '^apps/api/src/memory/memory-candidate-rules.ts:'; then
             echo "Unexpected live admin auto-commit reference found:"
             echo "$live_auto"
