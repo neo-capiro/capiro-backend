@@ -194,7 +194,9 @@ describe('Research Portfolio proposal binding', () => {
   });
 
   it('rejects a missing current conversation and a changed policy-bound client', async () => {
-    const scope = { authorize: jest.fn().mockResolvedValue({ researchPortfolioId: 'portfolio-1' }) };
+    const scope = {
+      authorize: jest.fn().mockResolvedValue({ researchPortfolioId: 'portfolio-1' }),
+    };
     const prisma = (conversation: unknown) => ({
       withTenant: jest.fn((_tenantId: string, callback: (tx: unknown) => unknown) =>
         callback({ clioConversation: { findFirst: jest.fn().mockResolvedValue(conversation) } }),
@@ -241,7 +243,9 @@ describe('Research Portfolio proposal binding', () => {
       await expect(
         authorizeResearchPortfolioProposalConversation(
           prisma as never,
-          { authorize: jest.fn().mockResolvedValue({ researchPortfolioId: 'portfolio-1' }) } as never,
+          {
+            authorize: jest.fn().mockResolvedValue({ researchPortfolioId: 'portfolio-1' }),
+          } as never,
           ctx,
           CONVERSATION,
           trustedSelectedClientId,
@@ -252,15 +256,18 @@ describe('Research Portfolio proposal binding', () => {
 
   it.each([
     ['client', { metadata, clientId: null }],
-    ['RP metadata', {
-      metadata: {
-        researchPortfolioScope: {
-          ...metadata.researchPortfolioScope,
-          researchPortfolioRevision: 4,
+    [
+      'RP metadata',
+      {
+        metadata: {
+          researchPortfolioScope: {
+            ...metadata.researchPortfolioScope,
+            researchPortfolioRevision: 4,
+          },
         },
+        clientId: CLIENT,
       },
-      clientId: CLIENT,
-    }],
+    ],
   ])('rejects %s drift while the RP grant check is awaited', async (_label, changed) => {
     let release!: () => void;
     const waiting = new Promise<void>((resolve) => {

@@ -39,6 +39,7 @@ function parseProposal(
     !object(value.input) ||
     value.surface !== 'chat' ||
     (value.conversationId !== undefined &&
+      value.conversationId !== null &&
       (typeof value.conversationId !== 'string' || !UUID.test(value.conversationId)))
   ) {
     throw new BadRequestException('Action proposal request is invalid');

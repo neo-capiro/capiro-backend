@@ -2,6 +2,7 @@ import type { TrustedCurrentTurnScope } from '../request/trusted-current-turn-sc
 
 /** Exact Research Portfolio tool set present in this checkout's canonical registry. */
 export const CURRENT_CONVERSATION_RESEARCH_PORTFOLIO_TOOLS = Object.freeze([
+  'manage_research_portfolio',
   'get_research_portfolio',
   'get_research_portfolio_analytics',
   'get_research_portfolio_changes',
@@ -22,12 +23,7 @@ export const CURRENT_CONVERSATION_RESEARCH_PORTFOLIO_TOOLS = Object.freeze([
   'prepare_research_portfolio_meeting',
 ] as const);
 
-const researchPortfolioTools = new Set<string>([
-  ...CURRENT_CONVERSATION_RESEARCH_PORTFOLIO_TOOLS,
-  // Defense owns this future name. Guard it before registry enablement so a
-  // later catalog addition cannot accidentally bypass current-turn binding.
-  'manage_research_portfolio',
-]);
+const researchPortfolioTools = new Set<string>(CURRENT_CONVERSATION_RESEARCH_PORTFOLIO_TOOLS);
 
 export function isCurrentConversationResearchPortfolioTool(toolName: string): boolean {
   return researchPortfolioTools.has(toolName.trim());

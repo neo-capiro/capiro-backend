@@ -43,6 +43,7 @@ import type {
   DecideResearchPortfolioReviewDto,
   BulkResearchPortfolioReviewsDto,
   ReopenResearchPortfolioAnnualReviewDto,
+  RefreshResearchPortfolioAnnualReviewDto,
   ResearchPortfolioAnnualReviewDto,
   ResearchPortfolioReviewDto,
   ResearchPortfolioReviewMutationReceiptDto,
@@ -71,9 +72,11 @@ import type {
   ResearchPortfolioFitDto,
   CreateResearchPortfolioReviewNoteDto,
   ResearchPortfolioReviewNoteDto,
+  ApplyResearchPortfolioWatchConversionDto,
   ResearchPortfolioWatchConversionPreviewDto,
   ResearchPortfolioWatchConversionResultDto,
   ResearchPortfolioOperationDto,
+  ReconcileResearchPortfolioOperationDto,
   ResearchPortfolioTourStateDto,
 } from '@capiro/shared';
 import { Roles } from '../auth/roles.decorator.js';
@@ -121,7 +124,12 @@ export class ResearchPortfoliosController {
   ): Promise<{ items: readonly ResearchPortfolioChangeDto[]; nextCursor: string | null }> {
     ensurePortfolioId(id);
     const parsed = limit ? Number.parseInt(limit, 10) : 50;
-    return this.changesService.listChanges(ctx, id, cursor ?? null, Number.isFinite(parsed) ? Math.min(Math.max(parsed, 1), 100) : 50);
+    return this.changesService.listChanges(
+      ctx,
+      id,
+      cursor ?? null,
+      Number.isFinite(parsed) ? Math.min(Math.max(parsed, 1), 100) : 50,
+    );
   }
 
   @Patch(':id/changes/:eventId/state')
@@ -272,7 +280,10 @@ export class ResearchPortfoliosController {
     ensurePortfolioId(id);
     const output = await this.outputService.download(ctx, id, outputId);
     response.setHeader('Content-Type', output.mediaType);
-    response.setHeader('Content-Disposition', `attachment; filename="${output.fileName.replace(/"/g, '')}"`);
+    response.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${output.fileName.replace(/"/g, '')}"`,
+    );
     response.setHeader('ETag', `"${output.contentHash}"`);
     response.setHeader('Cache-Control', 'private, no-store');
     response.send(output.bytes);
@@ -296,9 +307,7 @@ export class ResearchPortfoliosController {
     @Query('limit') limit?: string,
   ): Promise<ResearchPortfolioListResponseDto> {
     const parsedLimit = limit ? Number.parseInt(limit, 10) : 50;
-    const limitNum = Number.isFinite(parsedLimit)
-      ? Math.min(Math.max(parsedLimit, 1), 50)
-      : 50;
+    const limitNum = Number.isFinite(parsedLimit) ? Math.min(Math.max(parsedLimit, 1), 50) : 50;
     return this.service.list(ctx, cursor ?? null, limitNum);
   }
 
@@ -321,7 +330,9 @@ export class ResearchPortfoliosController {
   }
 
   @Get('templates')
-  async templates(@CurrentTenant() ctx: TenantContext): Promise<readonly ResearchPortfolioTemplateDto[]> {
+  async templates(
+    @CurrentTenant() ctx: TenantContext,
+  ): Promise<readonly ResearchPortfolioTemplateDto[]> {
     return this.rules.listTemplates(ctx);
   }
 
@@ -604,6 +615,16 @@ export class ResearchPortfoliosController {
     return this.reviewService.getAnnualReview(ctx, id);
   }
 
+  @Post(':id/annual-review/refresh')
+  async refreshAnnualReview(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Body() dto: RefreshResearchPortfolioAnnualReviewDto,
+  ): Promise<ResearchPortfolioReviewMutationReceiptDto> {
+    ensurePortfolioId(id);
+    return this.reviewService.refreshAnnualReview(ctx, id, dto);
+  }
+
   @Post(':id/annual-review/reopen')
   async reopenAnnualReview(
     @CurrentTenant() ctx: TenantContext,
@@ -704,9 +725,10 @@ export class ResearchPortfoliosController {
   async applyWatchConversion(
     @CurrentTenant() ctx: TenantContext,
     @Param('id') id: string,
+    @Body() body: ApplyResearchPortfolioWatchConversionDto,
   ): Promise<ResearchPortfolioWatchConversionResultDto> {
     ensurePortfolioId(id);
-    return this.phase11.applyWatchConversion(ctx, id);
+    return this.phase11.applyWatchConversion(ctx, id, body);
   }
 
   // --- Phase 11: operations ---
@@ -726,9 +748,10 @@ export class ResearchPortfoliosController {
     @CurrentTenant() ctx: TenantContext,
     @Param('id') id: string,
     @Param('operationId') operationId: string,
+    @Body() body: ReconcileResearchPortfolioOperationDto,
   ): Promise<ResearchPortfolioOperationDto> {
     ensurePortfolioId(id);
-    return this.phase11.reconcileOperation(ctx, id, operationId);
+    return this.phase11.reconcileOperation(ctx, id, operationId, body ?? {});
   }
 
   // --- Phase 11: tour state ---

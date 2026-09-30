@@ -1,3 +1,5 @@
+import { bindResearchPortfolioToolConversation } from './meri-research-portfolio-tool-scope.js';
+import { isResearchPortfolioArtifact, authorizeResearchPortfolioArtifact, authorizeResearchPortfolioConversation } from '../research-portfolios/research-portfolio-artifact-authority.js';
 import { authorizeMeriCaptureMessageReadback } from './meri-capture-policy-readback.js';
 import { prepareAnthropicRequest, anthropicResponseText } from '@capiro/shared/ai-model-policy';
 import {
@@ -412,8 +414,8 @@ export class MeriService implements MeriTurnMaintenance {
   }
 
   async listConversations(ctx: TenantContext) {
-    const conversations = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.clioConversation.findMany({
+    const conversations = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const rows = await tx.clioConversation.findMany({
         where: { tenantId: ctx.tenantId, userId: ctx.userId, archivedAt: null },
         orderBy: { updatedAt: 'desc' },
         include: {
@@ -426,8 +428,21 @@ export class MeriService implements MeriTurnMaintenance {
             take: 4,
           },
         },
-      }),
-    );
+      });
+      // Research Portfolio conversations stay listed only while the current user
+      // holds portfolio access; ordinary conversations pass through unchanged.
+      const visible: typeof rows = [];
+      for (const conversation of rows) {
+        try {
+          await authorizeResearchPortfolioConversation(tx, ctx, conversation);
+          visible.push(conversation);
+        } catch (error) {
+          if (error instanceof ForbiddenException || error instanceof NotFoundException) continue;
+          throw error;
+        }
+      }
+      return visible;
+    });
     const authorization = new Map<string, Promise<boolean>>();
     return Promise.all(
       conversations.map(async (conversation) => ({
@@ -873,8 +888,8 @@ export class MeriService implements MeriTurnMaintenance {
   }
 
   private async ensureConversation(ctx: TenantContext, conversationId: string) {
-    const conversation = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.clioConversation.findFirst({
+    const conversation = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const row=await tx.clioConversation.findFirst({
         where: {
           id: conversationId,
           tenantId: ctx.tenantId,
@@ -882,23 +897,27 @@ export class MeriService implements MeriTurnMaintenance {
           archivedAt: null,
         },
         include: { client: { select: { id: true, name: true } } },
-      }),
-    );
+      });
+      if(row)await authorizeResearchPortfolioConversation(tx,ctx,row);
+      return row;
+    });
     if (!conversation) throw new NotFoundException('Meri conversation not found');
     return conversation;
   }
 
   private async ensureConversationAnyStatus(ctx: TenantContext, conversationId: string) {
-    const conversation = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.clioConversation.findFirst({
+    const conversation = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const row=await tx.clioConversation.findFirst({
         where: {
           id: conversationId,
           tenantId: ctx.tenantId,
           userId: ctx.userId,
         },
         include: { client: { select: { id: true, name: true } } },
-      }),
-    );
+      });
+      if(row)await authorizeResearchPortfolioConversation(tx,ctx,row);
+      return row;
+    });
     if (!conversation) throw new NotFoundException('Meri conversation not found');
     return conversation;
   }
@@ -2154,6 +2173,9 @@ export class MeriService implements MeriTurnMaintenance {
           // ClioArtifact row — without it persistArtifact returns
           // { persisted: false } and the generated Office document is silently
           // dropped (no artifact row, no download URL, canvas never opens).
+          const researchBinding = bindResearchPortfolioToolConversation(t.name, parsedInput, conversationId);
+          parsedInput = researchBinding.input;
+          if (researchBinding.refusal) scopeViolation = researchBinding.refusal;
           if (parsedInput.conversationId === undefined) {
             parsedInput.conversationId = conversationId;
           }
@@ -3772,7 +3794,7 @@ export class MeriService implements MeriTurnMaintenance {
           createdAt: new Date(r.created_at),
           score: Number(r.score),
         }));
-      if (hits.length) return groupHitsByConversation(hits, q, limit);
+      if (hits.length) return groupHitsByConversation(await this.authorizedResearchPortfolioHistory(ctx,hits), q, limit);
     } catch (err) {
       this.logger.debug(
         `Semantic history search unavailable, falling back to keywords: ${err instanceof Error ? err.message : err}`,
@@ -3821,7 +3843,18 @@ export class MeriService implements MeriTurnMaintenance {
       createdAt: r.createdAt,
       score: null,
     }));
-    return groupHitsByConversation(hits, q, limit);
+    return groupHitsByConversation(await this.authorizedResearchPortfolioHistory(ctx,hits), q, limit);
+  }
+
+
+  private async authorizedResearchPortfolioHistory(ctx:TenantContext,hits:HistorySearchHit[]):Promise<HistorySearchHit[]>{
+    return this.prisma.withTenant(ctx.tenantId,async(tx)=>{
+      const ids=[...new Set(hits.map(hit=>hit.conversationId))];
+      const rows=await tx.clioConversation.findMany({where:{id:{in:ids},tenantId:ctx.tenantId,userId:ctx.userId,archivedAt:null}});
+      const allowed=new Set<string>();
+      for(const row of rows){try{await authorizeResearchPortfolioConversation(tx,ctx,row);allowed.add(row.id);}catch(error){if(error instanceof ForbiddenException||error instanceof NotFoundException)continue;throw error;}}
+      return hits.filter(hit=>allowed.has(hit.conversationId));
+    });
   }
 
   private async orchestrateContext(
@@ -5535,6 +5568,19 @@ export class MeriService implements MeriTurnMaintenance {
     );
     if (!parent || isInternalClioArtifact(parent))
       throw new NotFoundException('Artifact not found');
+
+    if (isResearchPortfolioArtifact(parent.kind)) {
+      if (typeof bodyText !== 'string' || bodyText.length > 500_000) throw new BadRequestException('Edited artifact text is invalid or too long');
+      return this.prisma.withTenant(ctx.tenantId, async tx => {
+        await tx.$executeRaw`SELECT id FROM clio_artifacts WHERE id=${parentId}::uuid AND tenant_id=${ctx.tenantId}::uuid AND user_id=${ctx.userId}::uuid FOR SHARE`;
+        const current = await tx.clioArtifact.findFirst({where:{id:parentId,tenantId:ctx.tenantId,userId:ctx.userId}});
+        if (!current) throw new NotFoundException('Research Portfolio artifact not found');
+        const {metadata} = await authorizeResearchPortfolioArtifact(tx,ctx,current);
+        return tx.clioArtifact.create({data:{tenantId:ctx.tenantId,userId:ctx.userId,clientId:null,conversationId:current.conversationId,parentArtifactId:current.id,title:current.title,kind:current.kind,contentType:current.contentType,bodyText,metadata:{...metadata,versionOf:current.id,editedBy:ctx.userId,reviewStatus:'unreviewed_edit',editedAt:new Date().toISOString()}}});
+      });
+    }
+
+
 
     return this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.clioArtifact.create({

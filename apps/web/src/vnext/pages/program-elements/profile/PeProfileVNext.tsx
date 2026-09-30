@@ -11,7 +11,7 @@
  * export as the canonical page. The PE code comes from location.pathname
  * (useParams is empty under VNextRouter); tests may pass `peCode` directly.
  */
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { CapiroButton } from '../../../components/actions/index.js';
 import { CapiroEmptyState } from '../../../components/feedback/index.js';
 import { CapiroTabs } from '../../../components/menus/index.js';
@@ -73,14 +73,11 @@ export function PeProfileVNext({ peCode }: { peCode?: string }) {
     deltasQuery,
   } = vm;
 
-  const [localTab, setLocalTab] = useState<V2Tab | null>(null);
   const tab: V2Tab = useMemo(() => {
-    if (localTab) return localTab;
     return section === 'ecosystem' ? 'overview' : (section as V2Tab);
-  }, [localTab, section]);
+  }, [section]);
 
   const goTab = (t: V2Tab) => {
-    setLocalTab(t);
     setActiveSection(t);
   };
 

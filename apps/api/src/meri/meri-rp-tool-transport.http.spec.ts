@@ -114,9 +114,11 @@ describe('Research Portfolio actual repo -> HTTP -> controller -> canonical owne
     researchPortfolioScope: scopeService,
   }) as MeriToolsService;
   const priorSecret = process.env.INTERNAL_SERVICE_SECRET;
+  const priorToolsFlag = process.env.RESEARCH_PORTFOLIO_MERI_TOOLS_ENABLED;
 
   beforeAll(async () => {
     process.env.INTERNAL_SERVICE_SECRET = SECRET;
+    process.env.RESEARCH_PORTFOLIO_MERI_TOOLS_ENABLED = 'true';
     const moduleRef = await Test.createTestingModule({
       controllers: [MeriController],
       providers: [
@@ -156,28 +158,24 @@ describe('Research Portfolio actual repo -> HTTP -> controller -> canonical owne
 
     app = moduleRef.createNestApplication();
     app.setGlobalPrefix('api');
-    app.use(
-      (
-        req: { tenantContext?: TenantContext },
-        _res: unknown,
-        next: () => void,
-      ) => {
-        req.tenantContext = {
-          tenantId: TENANT,
-          tenantSlug: 'test',
-          userId: USER,
-          clerkUserId: 'clerk-test',
-          role: 'standard_user',
-        };
-        next();
-      },
-    );
+    app.use((req: { tenantContext?: TenantContext }, _res: unknown, next: () => void) => {
+      req.tenantContext = {
+        tenantId: TENANT,
+        tenantSlug: 'test',
+        userId: USER,
+        clerkUserId: 'clerk-test',
+        role: 'standard_user',
+      };
+      next();
+    });
     await app.listen(0, '127.0.0.1');
     apiBaseUrl = await app.getUrl();
   });
 
   afterAll(async () => {
     if (app) await app.close();
+    if (priorToolsFlag === undefined) delete process.env.RESEARCH_PORTFOLIO_MERI_TOOLS_ENABLED;
+    else process.env.RESEARCH_PORTFOLIO_MERI_TOOLS_ENABLED = priorToolsFlag;
     if (priorSecret === undefined) delete process.env.INTERNAL_SERVICE_SECRET;
     else process.env.INTERNAL_SERVICE_SECRET = priorSecret;
   });
@@ -194,6 +192,20 @@ describe('Research Portfolio actual repo -> HTTP -> controller -> canonical owne
     expect(validateProcedureRuntime).not.toHaveBeenCalled();
   });
 
+  it.each([undefined, 'false'])(
+    'keeps strict opt-in default gate closed for %s without owner effect',
+    async (flag) => {
+      if (flag === undefined) delete process.env.RESEARCH_PORTFOLIO_MERI_TOOLS_ENABLED;
+      else process.env.RESEARCH_PORTFOLIO_MERI_TOOLS_ENABLED = flag;
+      try {
+        await expect(executeThroughActualRepo({}, CLIENT)).rejects.toThrow('404');
+        expect(detail).not.toHaveBeenCalled();
+      } finally {
+        process.env.RESEARCH_PORTFOLIO_MERI_TOOLS_ENABLED = 'true';
+      }
+    },
+  );
+
   it('requires strict RP admission for whitespace-normalized tool names before canonical dispatch', async () => {
     await request(app.getHttpServer())
       .post('/api/clio/tools/%20get_research_portfolio%20')
@@ -205,7 +217,9 @@ describe('Research Portfolio actual repo -> HTTP -> controller -> canonical owne
   function repo(): OrchestratorRepo {
     // Runtime require keeps the API package's production TypeScript root closed
     // while exercising the actual orchestrator repository over a real socket.
-    const { ApiToolExecutorRepo } = require('../../../meriv2-orchestrator/src/meri/api-tool-executor.repo');
+    const {
+      ApiToolExecutorRepo,
+    } = require('../../../meriv2-orchestrator/src/meri/api-tool-executor.repo');
     return new ApiToolExecutorRepo({
       get: (key: string) =>
         key === 'INTERNAL_SERVICE_SECRET'
@@ -222,8 +236,12 @@ describe('Research Portfolio actual repo -> HTTP -> controller -> canonical owne
     input: Record<string, unknown>,
     selectedClientId: string | null = CLIENT,
   ) {
-    const { RequestCredentialsStore } = require('../../../meriv2-orchestrator/src/request/request-credentials.store');
-    const { withTrustedCurrentTurnScope } = require('../../../meriv2-orchestrator/src/request/trusted-current-turn-scope');
+    const {
+      RequestCredentialsStore,
+    } = require('../../../meriv2-orchestrator/src/request/request-credentials.store');
+    const {
+      withTrustedCurrentTurnScope,
+    } = require('../../../meriv2-orchestrator/src/request/trusted-current-turn-scope');
     return RequestCredentialsStore.run({ bearerToken: 'synthetic-user-token' }, () =>
       withTrustedCurrentTurnScope(turn(selectedClientId), () =>
         repo().execute({}, 'get_research_portfolio', input),
@@ -231,10 +249,7 @@ describe('Research Portfolio actual repo -> HTTP -> controller -> canonical owne
     );
   }
 
-  const post = (
-    body: Record<string, unknown>,
-    secret: string | null | undefined = SECRET,
-  ) => {
+  const post = (body: Record<string, unknown>, secret: string | null | undefined = SECRET) => {
     const pending = request(app.getHttpServer())
       .post('/api/clio/tools/get_research_portfolio')
       .set('authorization', 'Bearer synthetic-user-token');
@@ -248,9 +263,9 @@ describe('Research Portfolio actual repo -> HTTP -> controller -> canonical owne
       name: 'Synthetic portfolio',
       purpose: 'Boundary proof',
     });
-    await expect(
-      executeThroughActualRepo({ conversationId: CONVERSATION }),
-    ).resolves.toMatchObject({ id: PORTFOLIO });
+    await expect(executeThroughActualRepo({ conversationId: CONVERSATION })).resolves.toMatchObject(
+      { id: PORTFOLIO },
+    );
 
     expect(detail).toHaveBeenCalledTimes(2);
     expect(detail).toHaveBeenCalledWith(
@@ -301,6 +316,7 @@ describe('Research Portfolio actual repo -> HTTP -> controller -> canonical owne
       await post(envelope(), SECRET).expect(403);
     } finally {
       process.env.INTERNAL_SERVICE_SECRET = SECRET;
+      process.env.RESEARCH_PORTFOLIO_MERI_TOOLS_ENABLED = 'true';
     }
     expect(detail).not.toHaveBeenCalled();
   });
@@ -327,7 +343,9 @@ describe('Research Portfolio actual repo -> HTTP -> controller -> canonical owne
     const response = await pending;
 
     expect(response.status).toBe(400);
-    expect(response.body.message).toMatch(/client changed while Research Portfolio access was checked/i);
+    expect(response.body.message).toMatch(
+      /client changed while Research Portfolio access was checked/i,
+    );
     expect(detail).not.toHaveBeenCalled();
   });
 });

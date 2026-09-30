@@ -1,0 +1,2801 @@
+{
+  "schemaVersion": "rp_closeout_available_registers_v1",
+  "capturedAt": "2026-09-28T14:48:32.412248+00:00",
+  "head": "b466d26017cee42dbf614112395f6342653504e1",
+  "scope": "Scratch current70-row overlay after root confirmed source/semantic application. Original parsed matrix/register fields and snapshots retained. Root appends actual final62-suite/web/build/commit receipts; no full project completion.",
+  "counts": {
+    "requirements": 28,
+    "screens": 18,
+    "acceptance": 24,
+    "total": 70
+  },
+  "verdictMeaning": {
+    "PASS": "Only explicitly stated bounded local behavior/proof, never full corpus/deployed acceptance.",
+    "ACCEPTED LIMITATION": "Explicit supported subset/unsupported behavior; human full-release approval not inferred.",
+    "BLOCKED": "Required source/infrastructure/runtime prerequisites unavailable.",
+    "NOT RUN": "Complete scenario not executed/no reliable targeted current proof."
+  },
+  "fullReleaseOverall": {
+    "verdict": "BLOCKED",
+    "decision": "NO-GO full Phase11 release acceptance; current request excludes integration/shipment. Local proof separate."
+  },
+  "requiredSourceDocuments": [
+    {
+      "path": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/requirements-and-screens.md",
+      "sha256": "A46D61E22B1C52D991C5B0638B1BFC493BB662DDDFF819AE0A306DD77E44D183"
+    },
+    {
+      "path": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/acceptance-results.md",
+      "sha256": "892E596EB077D8E83D185D80623B05AC4B0C8106BA8639649109954AB3EA26D1"
+    },
+    {
+      "path": "C:/dev/cap-defense-continuation/docs/research-portfolios/PROJECT-CLOSEOUT-PLAN.md",
+      "sha256": "7C0FE1BB941D6CA8052DB560A137BDA8393E85FA933748B27691D3BE6D0D9E5E"
+    }
+  ],
+  "actualLocalRemaining": [
+    {
+      "kind": "applied bounded semantic implementation, unqualified release acceptance",
+      "ids": [
+        "DI-09",
+        "S09",
+        "AT-11"
+      ],
+      "description": "Local hardcoded-abstention gap repaired/applied and controlled113-test proof recorded. Native pgvector/index SQL, real provider/S3 byte opening/hash and deployed integration NOT RUN. Exact archived indexed-text attestation, independent hard-negative precision/recall/economics and full-result/corpus denominators BLOCKED. Full facets/selection/browser scenario remains unestablished."
+    },
+    {
+      "kind": "actual local full-chat integration blocker",
+      "ids": [
+        "MX-01",
+        "S18",
+        "AT-15"
+      ],
+      "description": "BLOCKED local integration: absent trusted immutable full-chat active-turn context and late-policy selected-client race remain separately owned, repairing but not integrated. Do not claim transport-bound writes from legacy/adapter tests. The bounded profile/research repair is applied and current mounted tests pass; complete enabled-surface alias/workspace/browser acceptance remains unestablished. RP gate remains strict true/default OFF; no enabled production surface inferred.",
+      "evidenceBasis": "Parent-coordinated known blocker; no duplicate transport audit or new implementation by this reviewer."
+    },
+    {
+      "kind": "explicit supported subset limitation",
+      "ids": [
+        "RP-09",
+        "S05",
+        "AT-16"
+      ],
+      "description": "External email unsupported partial, no configured external channel; dormant in-app worker has real native cadence/lease closure."
+    },
+    {
+      "kind": "explicit historical limitation",
+      "ids": [
+        "RP-07",
+        "DI-03",
+        "AT-12"
+      ],
+      "description": "Canonical facts are current projection, not historical as-of reconstruction; temporal identity and immutable captured basis supported."
+    },
+    {
+      "kind": "unestablished local completeness, not invented confirmed defect",
+      "ids": [
+        "DI-01",
+        "DI-04",
+        "DI-05",
+        "DI-08",
+        "DI-11",
+        "S10",
+        "S11",
+        "S12",
+        "S14",
+        "S15"
+      ],
+      "description": "Complete narratives/temporal graph/acquisition/workspace/coverage/inspector behavior lacks targeted full local scenario proof. Original portable/F/V details unavailable. Retain NOT RUN/bounded seams instead of claiming only external work remains."
+    }
+  ],
+  "terminalExternalAndUnknownGaps": [
+    {
+      "verdict": "BLOCKED",
+      "gap": "Original START-HERE/full portable plan/F01-F42 and V4-01-V4-15 definitions/audit unavailable; unknown obligations cannot be invented from ranges/PARTIAL labels."
+    },
+    {
+      "verdict": "BLOCKED",
+      "gap": "Linux image/platform infrastructure unavailable; application build0 does not provide deployable image digests."
+    },
+    {
+      "verdict": "BLOCKED",
+      "gap": "Full historical migration chain/shared ledger recovery rehearsal unavailable; read-only DDL generation/isolated selected migrations narrower."
+    },
+    {
+      "verdict": "BLOCKED",
+      "gap": "Official independently reviewed two-cycle corpus/admission/archive/full family/account/component/FY/edition denominators unavailable; donor catalog non-admitted."
+    },
+    {
+      "verdict": "NOT RUN",
+      "gap": "Independent labels/semantic quality/economics and authenticated production-like performance not executed."
+    },
+    {
+      "verdict": "NOT RUN",
+      "gap": "Deployed Clerk/HTTP/runtime, real writer storage/scan/index/open, external channel and user-run production canaries not executed."
+    },
+    {
+      "verdict": "NOT RUN",
+      "gap": "Latest scope explicitly excludes merge/local-main integration/GitHub main/AWS shipment; old release-preparation history does not authorize these."
+    }
+  ],
+  "proofCatalog": {
+    "P-CORE": {
+      "id": "P-CORE",
+      "scope": "Owned native manual CRUD/lifecycle/current grants, tenant/client wall, replay and CAS; raw role inventory is observation, not full current role acceptance.",
+      "observedExitCode": 0,
+      "exitBasis": "Result JSON",
+      "artifacts": [
+        {
+          "artifact": "native-portfolio-acceptance-results.json",
+          "path": "C:/dev/defense-completion-20260928/native-portfolio-acceptance-results.json",
+          "sha256": "C33FC49BFD0E40EF0D6F93B2A12CB0896CD7E0B0711DA18A052B7FEFD445AC6D",
+          "recordedExitCode": 0
+        }
+      ]
+    },
+    "P-OWNER": {
+      "id": "P-OWNER",
+      "scope": "Native old race zero owners versus closure remaining one owner/second actor denied.",
+      "observedExitCode": 0,
+      "exitBasis": "Root confirmed actual runner0; closure JSON PASS has no exitCode field.",
+      "artifacts": [
+        {
+          "artifact": "native-last-owner-race-results.json",
+          "path": "C:/dev/defense-completion-20260928/native-last-owner-race-results.json",
+          "sha256": "E76D7583AF7D172BB68339977C4CB1D7D4B1ED793F92CFD0AF6E208FC79CB948",
+          "recordedExitCode": null
+        },
+        {
+          "artifact": "native-last-owner-closure-results.json",
+          "path": "C:/dev/defense-completion-20260928/native-last-owner-closure-results.json",
+          "sha256": "2BC744CD56B47FC46C27FC158667BFE863A55EA83A0F0AB5F871C02F0B63D631",
+          "recordedExitCode": null
+        }
+      ]
+    },
+    "P-IMPORT": {
+      "id": "P-IMPORT",
+      "scope": "Original setup failure retained; exact native v2 three PASS: SQL savepoint/next row, cumulative repair/repreview, immutable review import. No target storage/browser.",
+      "observedExitCode": 0,
+      "exitBasis": "Resumed-v2 JSON0; original JSON1 remains historical.",
+      "artifacts": [
+        {
+          "artifact": "native-import-acceptance-results.json",
+          "path": "C:/dev/defense-completion-20260928/native-import-acceptance-results.json",
+          "sha256": "AF356823F85370CBF6AD1DC458A24B932E8F563B5868858C6A0B270B58C139A7",
+          "recordedExitCode": 1
+        },
+        {
+          "artifact": "native-import-resumed-v2-results.json",
+          "path": "C:/dev/defense-completion-20260928/native-import-resumed-v2-results.json",
+          "sha256": "151CFACB71BDF19E3BC9403B29B0E957B24ED533C8AADDEFFF948222CA49E66D",
+          "recordedExitCode": 0
+        }
+      ]
+    },
+    "P-COMP": {
+      "id": "P-COMP",
+      "scope": "Original rollback defect and enum23514 retained; exact v3 known_failure receipt/attempt commit before409, replay stable, human decision preserved.",
+      "observedExitCode": 0,
+      "exitBasis": "v3 JSON0 only; earlier failures not relabeled.",
+      "artifacts": [
+        {
+          "artifact": "native-compensation-defect-results.json",
+          "path": "C:/dev/defense-completion-20260928/native-compensation-defect-results.json",
+          "sha256": "34602BD2478BFB4D3A2408393CB3380130D358E3371844F8D4708E01DC8BCF97",
+          "recordedExitCode": 0
+        },
+        {
+          "artifact": "native-compensation-closure-v2-results.json",
+          "path": "C:/dev/defense-completion-20260928/native-compensation-closure-v2-results.json",
+          "sha256": "C744E735858855EE1F46BA2068ABFAEEE311F443E3AE536144F2662D92C71078",
+          "recordedExitCode": 1
+        },
+        {
+          "artifact": "native-compensation-closure-v3-results.json",
+          "path": "C:/dev/defense-completion-20260928/native-compensation-closure-v3-results.json",
+          "sha256": "A682AC0644743F117CF8EDE3FC15C4C70C3F922BB554C7A8C92A416C6B191478",
+          "recordedExitCode": 0
+        }
+      ]
+    },
+    "P-FITCONT": {
+      "id": "P-FITCONT",
+      "scope": "Eight owned native PASS: immutable private direct PE subset, wall, original evidence/basis, accepted rename/split, readonly annual/reopen/legacy and honest historical limitation; synthetic sources, no official cycles.",
+      "observedExitCode": 0,
+      "exitBasis": "Result JSON",
+      "artifacts": [
+        {
+          "artifact": "review-api-native-fit-continuity-results.json",
+          "path": "C:/dev/defense-completion-20260928/review-api-native-fit-continuity-results.json",
+          "sha256": "3D87923AE7B6CF62ED140450882965BBAD5D70BCC95804F269A2ACBD8BFCC69E",
+          "recordedExitCode": 0
+        }
+      ]
+    },
+    "P-LOCATOR": {
+      "id": "P-LOCATOR",
+      "scope": "Observed page0/empty locator defect; applied guarded helper39 tests/strict tsc0. Controlled service fixtures, not corpus.",
+      "observedExitCode": 0,
+      "exitBasis": "Reviewer actual exits0, logs retained.",
+      "artifacts": [
+        {
+          "artifact": "review-api-fit-locator-observation.log",
+          "path": "C:/dev/defense-completion-20260928/review-api-fit-locator-observation.log",
+          "sha256": "DAA6746B9C8910071192AA7B4D383CF1AF3AE6975E5BFD2E4C1439F40C1F50D4"
+        },
+        {
+          "artifact": "review-api-fit-locator-jest.log",
+          "path": "C:/dev/defense-completion-20260928/review-api-fit-locator-jest.log",
+          "sha256": "4E11A0C22FCE5AC5F69A7EFD7E0BBC5F6C9844CFB1A9F75F172477E3A55AC6CA"
+        },
+        {
+          "artifact": "review-api-fit-locator-tsc.log",
+          "path": "C:/dev/defense-completion-20260928/review-api-fit-locator-tsc.log",
+          "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+        },
+        {
+          "artifact": "review-api-fit-locator-manifest.json",
+          "path": "C:/dev/defense-completion-20260928/review-api-fit-locator-manifest.json",
+          "sha256": "A771AAEB78AC85604D0FCE6D7B99F5BD10793F0C98476D8C0B9D82FA8D8AB135",
+          "recordedExitCode": null
+        }
+      ]
+    },
+    "P-EVIDENCE": {
+      "id": "P-EVIDENCE",
+      "scope": "Three owned native PASS: [{}]400/no immutable decision or revision change, exact typed bytes/original lineage; opaque refs not official-source qualified.",
+      "observedExitCode": 0,
+      "exitBasis": "Result JSON",
+      "artifacts": [
+        {
+          "artifact": "review-api-native-evidence-results.json",
+          "path": "C:/dev/defense-completion-20260928/review-api-native-evidence-results.json",
+          "sha256": "DA07B3496321C5FC6A266862D801F6BE95F80D6E0ACF8BA7A046F9A8191DEA2A",
+          "recordedExitCode": 0
+        }
+      ]
+    },
+    "P-WATCH": {
+      "id": "P-WATCH",
+      "scope": "Five native PASS: own counts/explicit dormant selected conversion/preserved preferences/baseline/archive drift retry/current actor editor.",
+      "observedExitCode": 0,
+      "exitBasis": "Result JSON",
+      "artifacts": [
+        {
+          "artifact": "review-api-native-watch-results.json",
+          "path": "C:/dev/defense-completion-20260928/review-api-native-watch-results.json",
+          "sha256": "6AF19A61266B8393136344DD3FD139E61F095B770970268E2575829FD9D24950",
+          "recordedExitCode": 0
+        }
+      ]
+    },
+    "P-WORKER": {
+      "id": "P-WORKER",
+      "scope": "v1 five PASS then fixture P2002/exit1 retained; exact v2 four PASS0: readonly/current walls+membership, real in-app cadence, fenced crash/fault atomic cursor, queued blocked, >200 fairness; no external email.",
+      "observedExitCode": 0,
+      "exitBasis": "v2 JSON0 only; v1 failure remains historical.",
+      "artifacts": [
+        {
+          "artifact": "review-api-native-worker-results.json",
+          "path": "C:/dev/defense-completion-20260928/review-api-native-worker-results.json",
+          "sha256": "EFAC72B4A4D98603C01BB8A067798CADAFC82AFE7F28C159BFBC658DFF63116A",
+          "recordedExitCode": 1
+        },
+        {
+          "artifact": "review-api-native-worker-v2-results.json",
+          "path": "C:/dev/defense-completion-20260928/review-api-native-worker-v2-results.json",
+          "sha256": "BCADF18589ECBF868F0D0BE6A32FD308E1F2E23117F3729E326FF3E25904DBC2",
+          "recordedExitCode": 0
+        }
+      ]
+    },
+    "P-OPS": {
+      "id": "P-OPS",
+      "scope": "Real empty actor defect then four native PASS: honest creator/status/null dates; actual output and actor/key checkpoint-only filing reconcile, writerCalls1; unsupported generic domains400.",
+      "observedExitCode": 0,
+      "exitBasis": "Result JSON",
+      "artifacts": [
+        {
+          "artifact": "review-api-native-operation-defect-results.json",
+          "path": "C:/dev/defense-completion-20260928/review-api-native-operation-defect-results.json",
+          "sha256": "F3D7955AB006B95B52B42C9FDD1E34D27E3C4336D7295A068EB4503821EB8F68",
+          "recordedExitCode": 0
+        },
+        {
+          "artifact": "review-api-native-operation-closure-results.json",
+          "path": "C:/dev/defense-completion-20260928/review-api-native-operation-closure-results.json",
+          "sha256": "3A8881207F99EE38A2046203190C656ADA51BD9BB2BC0134CC2BF3D90088FA37",
+          "recordedExitCode": 0
+        }
+      ]
+    },
+    "P-FILING": {
+      "id": "P-FILING",
+      "scope": "Six native owned controlled canonical writer-port cases with actual jobs/receipts and permission/unknown recovery; no external storage/scan/index/Clerk.",
+      "observedExitCode": 0,
+      "exitBasis": "Result JSON",
+      "artifacts": [
+        {
+          "artifact": "review-web-output-filing-native-results.json",
+          "path": "C:/dev/defense-completion-20260928/review-web-output-filing-native-results.json",
+          "sha256": "BEADCF2375EAF7C7536CA8B64642A71EC188BCA51F0835F948FDD506F1C6B508",
+          "recordedExitCode": 0
+        }
+      ]
+    },
+    "P-SAVED": {
+      "id": "P-SAVED",
+      "scope": "Native immutable saved compare/pins/authority/replay/selected capture. Initial enum fixture failure retained; exact followup-v3 PASS0; no official/deployed proof.",
+      "observedExitCode": 0,
+      "exitBasis": "Followup-v3 JSON0; earlier failure retained.",
+      "artifacts": [
+        {
+          "artifact": "review-source-native-saved-comparison-acceptance-results.json",
+          "path": "C:/dev/defense-completion-20260928/review-source-native-saved-comparison-acceptance-results.json",
+          "sha256": "EFD50CA1B00F2A790AF54F002829A56D96AEA2E7B1750EB1188F797449307D5C",
+          "recordedExitCode": 1
+        },
+        {
+          "artifact": "review-source-native-saved-comparison-acceptance-results-v2.json",
+          "path": "C:/dev/defense-completion-20260928/review-source-native-saved-comparison-acceptance-results-v2.json",
+          "sha256": "EE7332BAAE57114E24A66CCCA04189F2CE8D486E797BE8551EEE461441EC80A3",
+          "recordedExitCode": 0
+        },
+        {
+          "artifact": "review-source-native-saved-comparison-acceptance-followup-results-v3.json",
+          "path": "C:/dev/defense-completion-20260928/review-source-native-saved-comparison-acceptance-followup-results-v3.json",
+          "sha256": "FF48F74827F0D7650E299FF2FC35892D03F8DF62AE6BDA76C29C36D6B110D380",
+          "recordedExitCode": 0
+        }
+      ]
+    },
+    "P-INSTITUTION": {
+      "id": "P-INSTITUTION",
+      "scope": "Actual native institutional artifact/prep/task IDs and canonical AST methods. Earlier harness failures retained; v3 three remaining PASS0. Current meeting eligibility/privacy followup pending source owner; no full HTTP/report/routes. Latest root checkpoint: meeting guard applied, four controlled closure checks observed but runner finally ReferenceError prevents qualified exit0; exact v2 continuation pending. Original9400 v3 remains scoped historical proof, not current meeting-guard closure.",
+      "observedExitCode": 0,
+      "exitBasis": "v3 JSON0 only; earlier harness failures retained.",
+      "artifacts": [
+        {
+          "artifact": "review-source-native-institutional-9400-results.json",
+          "path": "C:/dev/defense-completion-20260928/review-source-native-institutional-9400-results.json",
+          "sha256": "BB4CC285A40664784B5D4A23981F66A3B58FBA916CB7935E6F96D3831565DE2E",
+          "recordedExitCode": 1
+        },
+        {
+          "artifact": "review-source-native-institutional-9400-results-v2.json",
+          "path": "C:/dev/defense-completion-20260928/review-source-native-institutional-9400-results-v2.json",
+          "sha256": "690CABFDA6526547FF7A5A395CDD1D4EFCBDFD5A7BB78D1C23A0B64A22FD7480",
+          "recordedExitCode": 1
+        },
+        {
+          "artifact": "review-source-native-institutional-9400-results-v3.json",
+          "path": "C:/dev/defense-completion-20260928/review-source-native-institutional-9400-results-v3.json",
+          "sha256": "4822DF8538A6149FA670D7398E0E794719BB49423B0C8650C4ED62401D4ACB48",
+          "recordedExitCode": 0
+        }
+      ]
+    },
+    "P-SOURCE": {
+      "id": "P-SOURCE",
+      "scope": "Eight exact synthetic parser assertions0 plus nonpromotable donor-mirror occurrence catalog. No official admission/archive/full families.",
+      "observedExitCode": 0,
+      "exitBasis": "Synthetic JSON0; catalog has no exit field, not independently claimed runner PASS.",
+      "artifacts": [
+        {
+          "artifact": "review-source-native-synthetic-spec-results.json",
+          "path": "C:/dev/defense-completion-20260928/review-source-native-synthetic-spec-results.json",
+          "sha256": "459F42C82640B599BBD49A78454CC648540EDB1DE1E94B659400F67384D211C4",
+          "recordedExitCode": 0
+        },
+        {
+          "artifact": "review-source-native-catalog-probe-results.json",
+          "path": "C:/dev/defense-completion-20260928/review-source-native-catalog-probe-results.json",
+          "sha256": "62642E705A62BE93F5491BFE782DE2BD1921B4957DE13CA2462187D495AC86D2",
+          "recordedExitCode": null
+        }
+      ]
+    },
+    "P-API": {
+      "id": "P-API",
+      "scope": "Root bounded current API/Defense/parser/Meri31 suites461 tests/process0; unit/contracts do not prove corpus or deployed runtime.",
+      "observedExitCode": 0,
+      "exitBasis": "Companion exit file0.",
+      "artifacts": [
+        {
+          "artifact": "domain-combined-jest-ninth.log",
+          "path": "C:/dev/defense-completion-20260928/domain-combined-jest-ninth.log",
+          "sha256": "9ABB71631DDB2E07239C91DF455CE2480A2BF7AF7AA70517EFB231E320D10305"
+        },
+        {
+          "artifact": "domain-combined-jest-ninth-exit.txt",
+          "path": "C:/dev/defense-completion-20260928/domain-combined-jest-ninth-exit.txt",
+          "sha256": "5FECEB66FFC86F38D952786C6D696C79C2DBC239DD4E91B46729D73A27FB57E9"
+        }
+      ]
+    },
+    "P-ENGAGEMENT": {
+      "id": "P-ENGAGEMENT",
+      "scope": "Canonical Engagement/prep/runtime plus institutional6 suites107 tests/process0; does not close pending new meeting guard.",
+      "observedExitCode": 0,
+      "exitBasis": "Companion exit file0.",
+      "artifacts": [
+        {
+          "artifact": "institutional-engagement-preserved-current.log",
+          "path": "C:/dev/defense-completion-20260928/institutional-engagement-preserved-current.log",
+          "sha256": "74792D3B1949F3711B1B0129EC58E7517A5B64CFE21BFA66141326809F12C28A"
+        },
+        {
+          "artifact": "institutional-engagement-preserved-current.exit",
+          "path": "C:/dev/defense-completion-20260928/institutional-engagement-preserved-current.exit",
+          "sha256": "13BF7B3039C63BF5A50491FA3CFD8EB4E699D1BA1436315AEF9CBE5711530354"
+        }
+      ]
+    },
+    "P-UI": {
+      "id": "P-UI",
+      "scope": "Actual tracked mounted jsdom13 files82 tests/process0: retained requests, governed UI/watch/saved/output/query/tour. Not real browser/Clerk/mobile/focus.",
+      "observedExitCode": 0,
+      "exitBasis": "Companion exit file0.",
+      "artifacts": [
+        {
+          "artifact": "web-domain-watch-current.log",
+          "path": "C:/dev/defense-completion-20260928/web-domain-watch-current.log",
+          "sha256": "7733E57628B9AC797B3DCFAF314151732445944DA13D9173FA3937030E6BD262"
+        },
+        {
+          "artifact": "web-domain-watch-current.exit",
+          "path": "C:/dev/defense-completion-20260928/web-domain-watch-current.exit",
+          "sha256": "13BF7B3039C63BF5A50491FA3CFD8EB4E699D1BA1436315AEF9CBE5711530354"
+        }
+      ]
+    },
+    "P-SCOPE": {
+      "id": "P-SCOPE",
+      "scope": "Six current scope/adapter/helper controlled tests: receipt/drift/revocation/ordinary portfolio distinction/owned conversation/model authority/no fabricated saved prep.",
+      "observedExitCode": 0,
+      "exitBasis": "Reviewer actual exit0.",
+      "artifacts": [
+        {
+          "artifact": "review-api-final-scope-audit.log",
+          "path": "C:/dev/defense-completion-20260928/review-api-final-scope-audit.log",
+          "sha256": "5F34A01AD94241BCA12F5543C1019FA113A73F98E895D25D571E3E780F0F4DE7"
+        },
+        {
+          "artifact": "review-api-final-scope-audit.spec.ts",
+          "path": "C:/dev/defense-completion-20260928/review-api-final-scope-audit.spec.ts",
+          "sha256": "AA9884251B97B8CA5051E92B2925176D3CBA7033473BBD759D0FBBD225447E62"
+        }
+      ]
+    },
+    "P-BUILD": {
+      "id": "P-BUILD",
+      "scope": "Recorded API/web-vnext/shared application build0; root appends final current runs/commits. Not Linux images/digests/deployed routing.",
+      "observedExitCode": 0,
+      "exitBasis": "Companion exit files0.",
+      "artifacts": [
+        {
+          "artifact": "build-api-current-exit.txt",
+          "path": "C:/dev/defense-completion-20260928/build-api-current-exit.txt",
+          "sha256": "5FECEB66FFC86F38D952786C6D696C79C2DBC239DD4E91B46729D73A27FB57E9"
+        },
+        {
+          "artifact": "build-api-current.log",
+          "path": "C:/dev/defense-completion-20260928/build-api-current.log",
+          "sha256": "48FF5F611BBAFD682BB6265BEFA767D4E62D3D40B3A1F929A13392BFD804CC78"
+        },
+        {
+          "artifact": "build-web-vnext-current.exit",
+          "path": "C:/dev/defense-completion-20260928/build-web-vnext-current.exit",
+          "sha256": "13BF7B3039C63BF5A50491FA3CFD8EB4E699D1BA1436315AEF9CBE5711530354"
+        },
+        {
+          "artifact": "build-web-vnext-current.log",
+          "path": "C:/dev/defense-completion-20260928/build-web-vnext-current.log",
+          "sha256": "925C3DE53C40390A1551E49711F3AF3A01D6E3FB318430615DEB42CB0A5E7920"
+        },
+        {
+          "artifact": "build-shared-ninth.exit",
+          "path": "C:/dev/defense-completion-20260928/build-shared-ninth.exit",
+          "sha256": "13BF7B3039C63BF5A50491FA3CFD8EB4E699D1BA1436315AEF9CBE5711530354"
+        },
+        {
+          "artifact": "build-shared-ninth.log",
+          "path": "C:/dev/defense-completion-20260928/build-shared-ninth.log",
+          "sha256": "4745E4289DA698E59B562E2165E8F53CA69346F832DBCE4B55BB88FCF857913E"
+        }
+      ]
+    },
+    "P-INFRA": {
+      "id": "P-INFRA",
+      "scope": "Linux image attempt platform infrastructure error. Schema-from-empty read-only DDL generation0 is not historical migration apply/shared ledger recovery.",
+      "observedExitCode": null,
+      "exitBasis": "Image explicit platform error; schema generation is narrower successful evidence.",
+      "artifacts": [
+        {
+          "artifact": "web-linux-image-build-attempt.log",
+          "path": "C:/dev/defense-completion-20260928/web-linux-image-build-attempt.log",
+          "sha256": "D7835E79BCBF9F6C28A8B12DD1BA93D7368C54FD2F5619B3A5B593E817F71228"
+        },
+        {
+          "artifact": "schema-from-empty-receipt.json",
+          "path": "C:/dev/defense-completion-20260928/schema-from-empty-receipt.json",
+          "sha256": "754C8218264CBDBE4CDCEDA3B609278CB36BAA71C7731EE18B45E89D18B36F98",
+          "recordedExitCode": 0
+        }
+      ]
+    },
+    "P-MERI-INVENTORY": {
+      "id": "P-MERI-INVENTORY",
+      "scope": "18 current adapters/required-field source probe; full action parity pending web freeze.",
+      "observedExitCode": null,
+      "exitBasis": "Read-only inventory, not full action acceptance runner.",
+      "artifacts": [
+        {
+          "artifact": "review-web-meri-action-inventory.json",
+          "path": "C:/dev/defense-completion-20260928/review-web-meri-action-inventory.json",
+          "sha256": "59D79E154D3F3F3ED92420CE78511B54C5027C96B7E1572548908935AFCA0831",
+          "recordedExitCode": null
+        },
+        {
+          "artifact": "review-web-meri-adapters-results.json",
+          "path": "C:/dev/defense-completion-20260928/review-web-meri-adapters-results.json",
+          "sha256": "266EB870E52CB249E9008A9174367050F3923F40C6DFA853FDD8F1FF4BF0941A",
+          "recordedExitCode": 0
+        }
+      ],
+      "historicalSnapshot": true,
+      "currentSuccessor": "P-FINAL-CURRENT"
+    },
+    "P-DI-HONESTY-CURRENT": {
+      "scope": "Five reader defects fail-before/pass-after; focused four suites47 PASS0, no official source/corpus/browser qualification.",
+      "artifacts": [
+        {
+          "path": "C:/dev/defense-completion-20260928/review-api-di-honesty-closure.json",
+          "sha256": "EFFBB685D31ACE675A9B8C28CA45C4E8EA43A7BD3FAD08776231C0BE24C170EF"
+        }
+      ]
+    },
+    "P-DI-RESIDUAL-CURRENT": {
+      "scope": "Current exact five source method fragments; eleven baseline failures and four superseded receipt-time failures preserved; final33 strict-diagnostic tests and actual API compiler exit0.",
+      "artifacts": [
+        {
+          "path": "C:/dev/defense-completion-20260928/review-source-residual-di-closeout.json",
+          "sha256": "983607BB6A036F675B026DEBFB11AE8BB7C8A7FA71BEEDDCFF6299F51DC0CBFC"
+        }
+      ]
+    },
+    "P-SEMANTIC-CURRENT": {
+      "scope": "Applied opt-in public PE partial semantic suggestions; current auth, public scope, exact model/current canonical hash, HTTPS/positive-page/persisted archive receipts; controlled provider/persistence focused113 tests+strict compiler PASS0, not native index/provider/S3/deployed qualification.",
+      "artifacts": [
+        {
+          "path": "C:/dev/defense-completion-20260928/review-api-semantic-final-v5.json",
+          "sha256": "244F23488D5A266DAC7D51F30273584B9C770D65E773A715741422068B261AAA"
+        },
+        {
+          "path": "C:/dev/defense-completion-20260928/review-api-semantic-apply-receipt.json",
+          "sha256": "862FF9DB6D9D7AFD1668A6F3D231B2B48980C745148F73CAC3E032876C332494"
+        }
+      ]
+    },
+    "P-MEETING-CURRENT": {
+      "scope": "Owned native exact existing private meeting outputs; canonical owner/internal/classification/reciprocal prep guard and restores. Five observations PASS0 including restored-state preflight; bounded four behavior checks, not full HTTP/list/report/access matrix.",
+      "artifacts": [
+        {
+          "path": "C:/dev/defense-completion-20260928/review-source-native-institutional-meeting-boundary-closure-results-v2.json",
+          "sha256": "1504642140F29C1B4FF701963905023C69C68A967E851251118596F0F2F35FFC"
+        }
+      ]
+    },
+    "P-SAVED-RP-CURRENT": {
+      "scope": "Owned native exact existing saved9000 fixtures; current matching-RP read/history/lifecycle denial and unchanged eight model snapshots. Five observations PASS0; no new captures or deployed writer.",
+      "artifacts": [
+        {
+          "path": "C:/dev/defense-completion-20260928/review-source-native-saved-rp-scope-results.json",
+          "sha256": "192253DC5ACAE256FB02738D91B95B2B755906E52EE1AC7162BA72B326B20771"
+        }
+      ]
+    },
+    "P-FINAL-PRESERVATION-CURRENT": {
+      "scope": "Owned55199 stopped, files retained and existing5432 unchanged;447 historical migration files/lockfile preserved, four additive LF migrations and unknown paths retained. These receipts do not prove final publication or full migration-chain acceptance.",
+      "artifacts": [
+        {
+          "path": "C:/dev/defense-completion-20260928/final-static-preservation-receipt.json",
+          "sha256": "7FAC8692C4E14E06331FE3427612F73A41C615E7C7ECB468C2D22A96A4E95726"
+        },
+        {
+          "path": "C:/dev/defense-completion-20260928/stop-owned-postgres-receipt.json",
+          "sha256": "A4CA14E3FAA940B47A2777DC0CFCDC0FEFCC9DA6459723D48DF1221CB65E8B02"
+        }
+      ]
+    },
+    "P-FINAL-CURRENT": {
+      "scope": "Current 62 API suites/1033 tests and 31 web files/198 tests, actual exit0; controlled local tests only. Actual compiler/build receipts are separate.",
+      "artifacts": [
+        {
+          "path": "C:/dev/defense-completion-20260928/review-api-final-suite-receipt.json",
+          "sha256": "3e0265864e5ede011ee45687eeeef571d6ed5e7277061cc4e27b4f6aa0bd1ed6"
+        },
+        {
+          "path": "C:/dev/defense-completion-20260928/review-api-final-suite-jest-results.json",
+          "sha256": "a091213990de7f2d9f0a3105d6bcd8f627e3f9a82d3639b0a0ab53c50d19a38b"
+        },
+        {
+          "path": "C:/dev/defense-completion-20260928/review-api-semantic-contract-apply-receipt.json",
+          "sha256": "f20a5294e630266c9334cad9476280bfbaaaf03078f3ad7a59350610043978d5"
+        },
+        {
+          "path": "C:/dev/defense-completion-20260928/review-web-residual-FROZEN.json",
+          "sha256": "9ef5c6bd270b14c9b71d2392743f01b68349010c7150af52c6162f3109ee9e8c"
+        },
+        {
+          "path": "C:/dev/defense-completion-20260928/web-final-current-v2-results.json",
+          "sha256": "4dafcf30e73626cc7fde3c55265cc91b742c83d9643fbfa302cd7ca92a53c892"
+        }
+      ]
+    }
+  },
+  "requirements": [
+    {
+      "id": "RP-01",
+      "historicalStatus": "PARTIAL",
+      "historicalLocalSeam": "Tenant-scoped portfolio CRUD, lifecycle, grants and events exist.",
+      "historicalRemaining": "Database-backed owner/editor/viewer/revoked tests, target migration rehearsal, browser conflict recovery, and deployed route proof.",
+      "routeOrService": "`/api/research-portfolios`; `ResearchPortfoliosService`; list/detail pages",
+      "owner": "Portfolio persistence/security",
+      "sourceLine": 9,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/requirements-and-screens.md",
+      "sourceSha256": "A46D61E22B1C52D991C5B0638B1BFC493BB662DDDFF819AE0A306DD77E44D183",
+      "originalRow": "| RP-01 | PARTIAL | Tenant-scoped portfolio CRUD, lifecycle, grants and events exist. | Database-backed owner/editor/viewer/revoked tests, target migration rehearsal, browser conflict recovery, and deployed route proof. | `/api/research-portfolios`; `ResearchPortfoliosService`; list/detail pages | Portfolio persistence/security |",
+      "localImplemented": "Manual tenant CRUD/lifecycle/current grants, original actor retry, serialized last-owner/CAS.",
+      "localProofIds": [
+        "P-CORE",
+        "P-OWNER",
+        "P-UI"
+      ],
+      "localVerdict": "PASS",
+      "localRemainingImplementationOrVerification": "Full main-role/migration/deployed acceptance blocked/unrun.",
+      "fullReleaseAcceptance": {
+        "verdict": "BLOCKED",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      }
+    },
+    {
+      "id": "RP-02",
+      "historicalStatus": "PARTIAL",
+      "historicalLocalSeam": "Typed manual members, dispositions, reasons and unresolved identities exist.",
+      "historicalRemaining": "Full browser bulk outcomes, canonical return-state, stable unresolved-ID database proof, and large collection pagination.",
+      "routeOrService": "`/api/research-portfolios/:id/members`; `ResearchPortfoliosService`",
+      "owner": "Portfolio persistence/security",
+      "sourceLine": 10,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/requirements-and-screens.md",
+      "sourceSha256": "A46D61E22B1C52D991C5B0638B1BFC493BB662DDDFF819AE0A306DD77E44D183",
+      "originalRow": "| RP-02 | PARTIAL | Typed manual members, dispositions, reasons and unresolved identities exist. | Full browser bulk outcomes, canonical return-state, stable unresolved-ID database proof, and large collection pagination. | `/api/research-portfolios/:id/members`; `ResearchPortfoliosService` | Portfolio persistence/security |",
+      "localImplemented": "Typed manual dispositions/bulk outcomes, retained UI requests and native selected saved capture.",
+      "localProofIds": [
+        "P-CORE",
+        "P-SAVED",
+        "P-UI"
+      ],
+      "localVerdict": "PASS",
+      "localRemainingImplementationOrVerification": "Complete large/page/all collection and stable unresolved-ID perimeter/browser not established.",
+      "fullReleaseAcceptance": {
+        "verdict": "NOT RUN",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      }
+    },
+    {
+      "id": "RP-03",
+      "historicalStatus": "PARTIAL",
+      "historicalLocalSeam": "Versioned rule AST, preview/publish, recompute and precedence foundations exist.",
+      "historicalRemaining": "Populated-database outage/concurrency proof and complete dynamic/hybrid UI acceptance.",
+      "routeOrService": "`/rules`; `ResearchPortfolioRulesService`; `ResearchPortfolioRulesPanel`",
+      "owner": "Portfolio persistence/security",
+      "sourceLine": 11,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/requirements-and-screens.md",
+      "sourceSha256": "A46D61E22B1C52D991C5B0638B1BFC493BB662DDDFF819AE0A306DD77E44D183",
+      "originalRow": "| RP-03 | PARTIAL | Versioned rule AST, preview/publish, recompute and precedence foundations exist. | Populated-database outage/concurrency proof and complete dynamic/hybrid UI acceptance. | `/rules`; `ResearchPortfolioRulesService`; `ResearchPortfolioRulesPanel` | Portfolio persistence/security |",
+      "localImplemented": "Versioned AST preview/diff/publish, bounded recompute/manual precedence, governed draft import.",
+      "localProofIds": [
+        "P-API",
+        "P-IMPORT",
+        "P-UI"
+      ],
+      "localVerdict": "PASS",
+      "localRemainingImplementationOrVerification": "Complete outage/dynamic-hybrid browser scenario not run; draft publication requires explicit subsequent action.",
+      "fullReleaseAcceptance": {
+        "verdict": "NOT RUN",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      }
+    },
+    {
+      "id": "RP-04",
+      "historicalStatus": "PARTIAL",
+      "historicalLocalSeam": "Rule/template/taxonomy version contracts and deterministic predicates exist.",
+      "historicalRemaining": "Independently qualified vocabulary/mapping evidence, old-template reproduction across deployment, and advanced editor accessibility.",
+      "routeOrService": "`research-portfolio-rules.ts`; rules panel",
+      "owner": "Graph/search/evaluation",
+      "sourceLine": 12,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/requirements-and-screens.md",
+      "sourceSha256": "A46D61E22B1C52D991C5B0638B1BFC493BB662DDDFF819AE0A306DD77E44D183",
+      "originalRow": "| RP-04 | PARTIAL | Rule/template/taxonomy version contracts and deterministic predicates exist. | Independently qualified vocabulary/mapping evidence, old-template reproduction across deployment, and advanced editor accessibility. | `research-portfolio-rules.ts`; rules panel | Graph/search/evaluation |",
+      "localImplemented": "Versioned deterministic AST/template/taxonomy references and governed draft versions.",
+      "localProofIds": [
+        "P-API"
+      ],
+      "localVerdict": "ACCEPTED LIMITATION",
+      "localRemainingImplementationOrVerification": "Independent vocabulary mapping/complete advanced editor/accessibility/deployed old-template reproduction unqualified.",
+      "fullReleaseAcceptance": {
+        "verdict": "BLOCKED",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      }
+    },
+    {
+      "id": "RP-05",
+      "historicalStatus": "PARTIAL",
+      "historicalLocalSeam": "Explicit client links and access checks exist.",
+      "historicalRemaining": "Prove shared authorized policy through fit, cache, snapshot, output and unrelated-client revocation in the target database/runtime.",
+      "routeOrService": "`/client-links`; `research-portfolio-access.ts`",
+      "owner": "Portfolio persistence/security",
+      "sourceLine": 13,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/requirements-and-screens.md",
+      "sourceSha256": "A46D61E22B1C52D991C5B0638B1BFC493BB662DDDFF819AE0A306DD77E44D183",
+      "originalRow": "| RP-05 | PARTIAL | Explicit client links and access checks exist. | Prove shared authorized policy through fit, cache, snapshot, output and unrelated-client revocation in the target database/runtime. | `/client-links`; `research-portfolio-access.ts` | Portfolio persistence/security |",
+      "localImplemented": "Current canonical internal/owner/classification/reciprocal meeting-prep authorization and matching-current-RP saved capture reads/history/lifecycle are applied and owned native closure PASS0; existing outputs/snapshots preserved.",
+      "localProofIds": [
+        "P-CORE",
+        "P-FITCONT",
+        "P-FILING",
+        "P-WORKER",
+        "P-OPS",
+        "P-MEETING-CURRENT",
+        "P-SAVED-RP-CURRENT"
+      ],
+      "localVerdict": "PASS",
+      "localRemainingImplementationOrVerification": "Meeting guard and saved-scope native pending statements are stale and closed locally. Full cache/snippets/download URLs/delivery target matrix, real storage/scan/index/open and deployed create-through-cited-save/open buyer journeys remain unrun.",
+      "fullReleaseAcceptance": {
+        "verdict": "BLOCKED",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      },
+      "previousLocalSnapshot": {
+        "localImplemented": "Independent wall before private fit/history/output/filing/delivery, current actor/role before immutable request replay.",
+        "localVerdict": "PASS",
+        "localProofIds": [
+          "P-CORE",
+          "P-FITCONT",
+          "P-FILING",
+          "P-WORKER",
+          "P-OPS"
+        ],
+        "localRemainingImplementationOrVerification": "Current canonical institutional meeting eligibility/read guard applied by source owner, current native closure still pending; full cache/snapshot/delivery target matrix unrun.",
+        "fullReleaseAcceptance": {
+          "verdict": "BLOCKED",
+          "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+        }
+      }
+    },
+    {
+      "id": "RP-06",
+      "historicalStatus": "PARTIAL",
+      "historicalLocalSeam": "Reviews, immutable decisions, assignment, dispute and notes foundations exist.",
+      "historicalRemaining": "End-to-end supporting/against evidence, visibility, bulk conflict and browser outcome proof.",
+      "routeOrService": "`/reviews`; `ResearchPortfolioReviewService`",
+      "owner": "Portfolio persistence/security",
+      "sourceLine": 14,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/requirements-and-screens.md",
+      "sourceSha256": "A46D61E22B1C52D991C5B0638B1BFC493BB662DDDFF819AE0A306DD77E44D183",
+      "originalRow": "| RP-06 | PARTIAL | Reviews, immutable decisions, assignment, dispute and notes foundations exist. | End-to-end supporting/against evidence, visibility, bulk conflict and browser outcome proof. | `/reviews`; `ResearchPortfolioReviewService` | Portfolio persistence/security |",
+      "localImplemented": "Reviews/assignment/immutable decisions/dispute/defer/reopen/notes, typed exact evidence and real import decisions.",
+      "localProofIds": [
+        "P-API",
+        "P-EVIDENCE",
+        "P-IMPORT",
+        "P-UI"
+      ],
+      "localVerdict": "PASS",
+      "localRemainingImplementationOrVerification": "Official reference resolution/independent evidence qualification and complete browser bulk conflicts unqualified.",
+      "fullReleaseAcceptance": {
+        "verdict": "NOT RUN",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      }
+    },
+    {
+      "id": "RP-07",
+      "historicalStatus": "PARTIAL",
+      "historicalLocalSeam": "Continuity statuses and dependency-triggered review records exist.",
+      "historicalRemaining": "Real prior/next-cycle corpus rehearsal for rename/split/merge/expiry and exactly-once reopen behavior.",
+      "routeOrService": "review/continuity service and ledger models",
+      "owner": "Portfolio persistence/security",
+      "sourceLine": 15,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/requirements-and-screens.md",
+      "sourceSha256": "A46D61E22B1C52D991C5B0638B1BFC493BB662DDDFF819AE0A306DD77E44D183",
+      "originalRow": "| RP-07 | PARTIAL | Continuity statuses and dependency-triggered review records exist. | Real prior/next-cycle corpus rehearsal for rename/split/merge/expiry and exactly-once reopen behavior. | review/continuity service and ledger models | Portfolio persistence/security |",
+      "localImplemented": "Original immutable evidence/basis, readonly annual current projection and explicit refresh/reopen preserving lineage.",
+      "localProofIds": [
+        "P-FITCONT",
+        "P-EVIDENCE"
+      ],
+      "localVerdict": "ACCEPTED LIMITATION",
+      "localRemainingImplementationOrVerification": "Historical canonical as-of intentionally unsupported; real prior/next-cycle corpus missing.",
+      "fullReleaseAcceptance": {
+        "verdict": "BLOCKED",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      }
+    },
+    {
+      "id": "RP-08",
+      "historicalStatus": "PARTIAL",
+      "historicalLocalSeam": "Durable import jobs, rows, mappings, attempts, effects, compensation and CSV parser exist.",
+      "historicalRemaining": "Database crash/reconciliation, all-row receipt/export, worksheet UI and later-edit compensation acceptance.",
+      "routeOrService": "`/imports`; `ResearchPortfolioImportService`; operations panel",
+      "owner": "Portfolio persistence/security",
+      "sourceLine": 16,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/requirements-and-screens.md",
+      "sourceSha256": "A46D61E22B1C52D991C5B0638B1BFC493BB662DDDFF819AE0A306DD77E44D183",
+      "originalRow": "| RP-08 | PARTIAL | Durable import jobs, rows, mappings, attempts, effects, compensation and CSV parser exist. | Database crash/reconciliation, all-row receipt/export, worksheet UI and later-edit compensation acceptance. | `/imports`; `ResearchPortfolioImportService`; operations panel | Portfolio persistence/security |",
+      "localImplemented": "Durable CSV/mapping/rows/all receipts, rules/reviews/member effects, row savepoints, cumulative repair/replay and compensation.",
+      "localProofIds": [
+        "P-IMPORT",
+        "P-COMP",
+        "P-API",
+        "P-UI"
+      ],
+      "localVerdict": "PASS",
+      "localRemainingImplementationOrVerification": "Real object storage/target upload browser unrun; rules import is governed draft requiring publish, not automatic publication.",
+      "fullReleaseAcceptance": {
+        "verdict": "NOT RUN",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      }
+    },
+    {
+      "id": "RP-09",
+      "historicalStatus": "PARTIAL",
+      "historicalLocalSeam": "Material events, per-user state, explicit quiet-first subscriptions, deduplicated in-app delivery receipts and honest partial email outcomes exist.",
+      "historicalRemaining": "Configured external channel worker, two-actor database proof, restored baseline and no historical-flood acceptance.",
+      "routeOrService": "`/changes`; `/subscriptions`; `/subscription-deliveries`; `ResearchPortfolioChangesService`",
+      "owner": "Meri/output delivery",
+      "sourceLine": 17,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/requirements-and-screens.md",
+      "sourceSha256": "A46D61E22B1C52D991C5B0638B1BFC493BB662DDDFF819AE0A306DD77E44D183",
+      "originalRow": "| RP-09 | PARTIAL | Material events, per-user state, explicit quiet-first subscriptions, deduplicated in-app delivery receipts and honest partial email outcomes exist. | Configured external channel worker, two-actor database proof, restored baseline and no historical-flood acceptance. | `/changes`; `/subscriptions`; `/subscription-deliveries`; `ResearchPortfolioChangesService` | Meri/output delivery |",
+      "localImplemented": "Own state/subscriptions, quiet dormant conversion, true-only fenced in-app worker with actual immediate/daily/weekly due and fair discovery.",
+      "localProofIds": [
+        "P-WATCH",
+        "P-WORKER",
+        "P-UI"
+      ],
+      "localVerdict": "ACCEPTED LIMITATION",
+      "localRemainingImplementationOrVerification": "Configured external email unsupported partial; default OFF/no sends or activation.",
+      "fullReleaseAcceptance": {
+        "verdict": "BLOCKED",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      }
+    },
+    {
+      "id": "RP-10",
+      "historicalStatus": "PARTIAL",
+      "historicalLocalSeam": "Compatible-basis analytics, contribution ledger, immutable snapshots, durable CSV jobs and native analytics/output controls exist.",
+      "historicalRemaining": "Target database/output-store proof, source-correction reproduction, revocation before/during/after delivery, and independently rendered bytes.",
+      "routeOrService": "`/analytics`; `/snapshots`; `/outputs`; `ResearchPortfolioAnalyticsPanel`; analytics/output services",
+      "owner": "Financial projections",
+      "sourceLine": 18,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/requirements-and-screens.md",
+      "sourceSha256": "A46D61E22B1C52D991C5B0638B1BFC493BB662DDDFF819AE0A306DD77E44D183",
+      "originalRow": "| RP-10 | PARTIAL | Compatible-basis analytics, contribution ledger, immutable snapshots, durable CSV jobs and native analytics/output controls exist. | Target database/output-store proof, source-correction reproduction, revocation before/during/after delivery, and independently rendered bytes. | `/analytics`; `/snapshots`; `/outputs`; `ResearchPortfolioAnalyticsPanel`; analytics/output services | Financial projections |",
+      "localImplemented": "Exact compatible ledger/analytics, immutable snapshots/CSV jobs, checkpoint reconciliation and real durable filing IDs.",
+      "localProofIds": [
+        "P-API",
+        "P-SAVED",
+        "P-OPS",
+        "P-FILING",
+        "P-INSTITUTION",
+        "P-UI"
+      ],
+      "localVerdict": "PASS",
+      "localRemainingImplementationOrVerification": "Real storage/scan/index/open and official correction/full financial corpus/authenticated delivery unrun.",
+      "fullReleaseAcceptance": {
+        "verdict": "NOT RUN",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      }
+    },
+    {
+      "id": "DI-01",
+      "historicalStatus": "PARTIAL",
+      "historicalLocalSeam": "Existing program/PE dossier readers remain available and portfolio members retain typed canonical references.",
+      "historicalRemaining": "Complete required narrative fields, multiple real subjects, exact evidence and browser acceptance.",
+      "routeOrService": "Intelligence dossier routes and Defense Research service",
+      "owner": "Frontend/navigation",
+      "sourceLine": 19,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/requirements-and-screens.md",
+      "sourceSha256": "A46D61E22B1C52D991C5B0638B1BFC493BB662DDDFF819AE0A306DD77E44D183",
+      "originalRow": "| DI-01 | PARTIAL | Existing program/PE dossier readers remain available and portfolio members retain typed canonical references. | Complete required narrative fields, multiple real subjects, exact evidence and browser acceptance. | Intelligence dossier routes and Defense Research service | Frontend/navigation |",
+      "localImplemented": "Useful dossier values/context retained with explicit partial state; available fields require exact field binding/current archive receipt metadata. Direct project mission requires native current-head/document binding and nonfuture retained versioned receipt. The program-element overview displays the existing eight dossier fields with partial values/reasons/contextual locators and safe citation links, retains useful data after failed refresh and follows URL Back/Forward for profile tabs.",
+      "localProofIds": [
+        "P-API",
+        "P-SAVED",
+        "P-DI-RESIDUAL-CURRENT",
+        "P-FINAL-CURRENT"
+      ],
+      "localVerdict": "ACCEPTED LIMITATION",
+      "localRemainingImplementationOrVerification": "Complete original required narrative field list and independent real-subject/archive-byte/browser qualification remain unestablished; absent original full plan is not reconstructed.",
+      "fullReleaseAcceptance": {
+        "verdict": "BLOCKED",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      },
+      "previousLocalSnapshot": {
+        "localImplemented": "Existing canonical program/PE dossier and typed member readers; selected subjects captured.",
+        "localVerdict": "ACCEPTED LIMITATION",
+        "localProofIds": [
+          "P-API",
+          "P-SAVED"
+        ],
+        "localRemainingImplementationOrVerification": "Complete required narrative/multi-real-subject/local dossier perimeter not established; unknown original field list not invented.",
+        "fullReleaseAcceptance": {
+          "verdict": "BLOCKED",
+          "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+        }
+      },
+      "preFinalWebSnapshot": {
+        "localImplemented": "Useful dossier values/context retained with explicit partial state; available fields require exact field binding/current archive receipt metadata. Direct project mission requires native current-head/document binding and nonfuture retained versioned receipt.",
+        "localRemainingImplementationOrVerification": "Complete original required narrative field list and independent real-subject/archive-byte/browser qualification remain unestablished; absent original full plan is not reconstructed.",
+        "localProofIds": [
+          "P-API",
+          "P-SAVED",
+          "P-DI-RESIDUAL-CURRENT"
+        ]
+      }
+    },
+    {
+      "id": "DI-02",
+      "historicalStatus": "PARTIAL",
+      "historicalLocalSeam": "Existing schedule/milestone foundations are reused.",
+      "historicalRemaining": "Complete planned/completed precision, history and exact source proof in target readers/UI.",
+      "routeOrService": "Intelligence timeline readers",
+      "owner": "Financial projections",
+      "sourceLine": 20,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/requirements-and-screens.md",
+      "sourceSha256": "A46D61E22B1C52D991C5B0638B1BFC493BB662DDDFF819AE0A306DD77E44D183",
+      "originalRow": "| DI-02 | PARTIAL | Existing schedule/milestone foundations are reused. | Complete planned/completed precision, history and exact source proof in target readers/UI. | Intelligence timeline readers | Financial projections |",
+      "localImplemented": "Typed/proved periods only advertise full milestone coverage; useful text-only/TBD/unproved rows and immutable history remain partial.",
+      "localProofIds": [
+        "P-API",
+        "P-DI-HONESTY-CURRENT"
+      ],
+      "localVerdict": "ACCEPTED LIMITATION",
+      "localRemainingImplementationOrVerification": "Complete planned/completed/history source/UI perimeter and independently qualified schedules remain unrun.",
+      "fullReleaseAcceptance": {
+        "verdict": "NOT RUN",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      },
+      "previousLocalSnapshot": {
+        "localImplemented": "Milestone projection preserves calendar month separately from fiscal precision and source-supported dates.",
+        "localVerdict": "ACCEPTED LIMITATION",
+        "localProofIds": [
+          "P-API"
+        ],
+        "localRemainingImplementationOrVerification": "Complete planned/completed/history/per-subject source/UI perimeter unproved; unsupported schedules unavailable.",
+        "fullReleaseAcceptance": {
+          "verdict": "NOT RUN",
+          "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+        }
+      }
+    },
+    {
+      "id": "DI-03",
+      "historicalStatus": "PARTIAL",
+      "historicalLocalSeam": "Existing budget projection is consumed with explicit basis.",
+      "historicalRemaining": "Qualified edition/FYDP corpus and exact cell evidence across supported families; unsupported history stays unsupported.",
+      "routeOrService": "Defense Research funding matrix",
+      "owner": "Financial projections",
+      "sourceLine": 21,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/requirements-and-screens.md",
+      "sourceSha256": "A46D61E22B1C52D991C5B0638B1BFC493BB662DDDFF819AE0A306DD77E44D183",
+      "originalRow": "| DI-03 | PARTIAL | Existing budget projection is consumed with explicit basis. | Qualified edition/FYDP corpus and exact cell evidence across supported families; unsupported history stays unsupported. | Defense Research funding matrix | Financial projections |",
+      "localImplemented": "Exact stage/year/value-bound funding evidence, zero/missing/partial and immutable capture; candidate XML distinct from facts.",
+      "localProofIds": [
+        "P-API",
+        "P-SOURCE",
+        "P-SAVED"
+      ],
+      "localVerdict": "ACCEPTED LIMITATION",
+      "localRemainingImplementationOrVerification": "Official edition/FYDP/cell families unqualified; arbitrary historical knownAt unsupported.",
+      "fullReleaseAcceptance": {
+        "verdict": "BLOCKED",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      }
+    },
+    {
+      "id": "DI-04",
+      "historicalStatus": "PARTIAL",
+      "historicalLocalSeam": "Existing office/person/relationship foundations are retained.",
+      "historicalRemaining": "Complete temporal ownership/transition projection and unresolved-state browser acceptance.",
+      "routeOrService": "Intelligence relationship/office readers",
+      "owner": "Graph/search/evaluation",
+      "sourceLine": 22,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/requirements-and-screens.md",
+      "sourceSha256": "A46D61E22B1C52D991C5B0638B1BFC493BB662DDDFF819AE0A306DD77E44D183",
+      "originalRow": "| DI-04 | PARTIAL | Existing office/person/relationship foundations are retained. | Complete temporal ownership/transition projection and unresolved-state browser acceptance. | Intelligence relationship/office readers | Graph/search/evaluation |",
+      "localImplemented": "Office metadata availability predicates agree before pagination; candidate unsourced parent edges withheld unless speculative requested; future accepted roles unresolved until effective date.",
+      "localProofIds": [
+        "P-API",
+        "P-DI-HONESTY-CURRENT"
+      ],
+      "localVerdict": "ACCEPTED LIMITATION",
+      "localRemainingImplementationOrVerification": "Bounded graph negative/temporal cases have local regression proof. Complete temporal ownership/transition and authority/access-filtered-count scenarios, independent dated edge qualification and target browser perimeter remain unrun.",
+      "fullReleaseAcceptance": {
+        "verdict": "BLOCKED",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      },
+      "previousLocalSnapshot": {
+        "localImplemented": "Existing office/person/relationship foundations retained.",
+        "localVerdict": "NOT RUN",
+        "localProofIds": [
+          "P-API"
+        ],
+        "localRemainingImplementationOrVerification": "Complete temporal ownership/transition graph and unresolved scenario lack specific local completion proof; not an invented code defect.",
+        "fullReleaseAcceptance": {
+          "verdict": "BLOCKED",
+          "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+        }
+      }
+    },
+    {
+      "id": "DI-05",
+      "historicalStatus": "PARTIAL",
+      "historicalLocalSeam": "Existing acquisition/federal-market readers are retained.",
+      "historicalRemaining": "Independently qualified action identity, measures, text availability and end-to-end acquisition journey.",
+      "routeOrService": "Acquisition continuity and federal market services",
+      "owner": "Extraction/source operations",
+      "sourceLine": 23,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/requirements-and-screens.md",
+      "sourceSha256": "A46D61E22B1C52D991C5B0638B1BFC493BB662DDDFF819AE0A306DD77E44D183",
+      "originalRow": "| DI-05 | PARTIAL | Existing acquisition/federal-market readers are retained. | Independently qualified action identity, measures, text availability and end-to-end acquisition journey. | Acquisition continuity and federal market services | Extraction/source operations |",
+      "localImplemented": "Acquisition latest immutable scalar revision selected before mutable status/title/buyer/activeOn filters; count/pagination and detail use deterministic recordedAt/id order. Mounted research UI distinguishes acquisition pending/error from successful emptiness, retains successful actions/gaps after failed refresh and keys the relationship projection by requested URL status.",
+      "localProofIds": [
+        "P-API",
+        "P-DI-RESIDUAL-CURRENT",
+        "P-FINAL-CURRENT"
+      ],
+      "localVerdict": "ACCEPTED LIMITATION",
+      "localRemainingImplementationOrVerification": "No stale status resurrection in bounded regressions; independently qualified action identity/measures/text, complete four-segment workspace/routed controls and end-to-end browser journey remain unestablished.",
+      "fullReleaseAcceptance": {
+        "verdict": "BLOCKED",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      },
+      "previousLocalSnapshot": {
+        "localImplemented": "Existing acquisition/federal-market identity readers retained.",
+        "localVerdict": "NOT RUN",
+        "localProofIds": [
+          "P-API"
+        ],
+        "localRemainingImplementationOrVerification": "Qualified action measures/text and complete acquisition journey lack specific current local completion proof.",
+        "fullReleaseAcceptance": {
+          "verdict": "BLOCKED",
+          "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+        }
+      },
+      "preFinalWebSnapshot": {
+        "localImplemented": "Acquisition latest immutable scalar revision selected before mutable status/title/buyer/activeOn filters; count/pagination and detail use deterministic recordedAt/id order.",
+        "localRemainingImplementationOrVerification": "No stale status resurrection in bounded regressions; independently qualified action identity/measures/text, complete four-segment workspace/routed controls and end-to-end browser journey remain unestablished.",
+        "localProofIds": [
+          "P-API",
+          "P-DI-RESIDUAL-CURRENT"
+        ]
+      }
+    },
+    {
+      "id": "DI-06",
+      "historicalStatus": "PARTIAL",
+      "historicalLocalSeam": "Existing federal evidence/source registry foundations are retained.",
+      "historicalRemaining": "Qualify each claimed policy/hearing family with physical/logical denominators and exact occurrence evidence.",
+      "routeOrService": "Federal evidence/source registry",
+      "owner": "Extraction/source operations",
+      "sourceLine": 24,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/requirements-and-screens.md",
+      "sourceSha256": "A46D61E22B1C52D991C5B0638B1BFC493BB662DDDFF819AE0A306DD77E44D183",
+      "originalRow": "| DI-06 | PARTIAL | Existing federal evidence/source registry foundations are retained. | Qualify each claimed policy/hearing family with physical/logical denominators and exact occurrence evidence. | Federal evidence/source registry | Extraction/source operations |",
+      "localImplemented": "Context source/revision registry and explicit missing policy/hearing/transcript families.",
+      "localProofIds": [
+        "P-API",
+        "P-SOURCE",
+        "P-SAVED"
+      ],
+      "localVerdict": "ACCEPTED LIMITATION",
+      "localRemainingImplementationOrVerification": "Official physical/logical family denominators and exact occurrence corpus absent.",
+      "fullReleaseAcceptance": {
+        "verdict": "BLOCKED",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      }
+    },
+    {
+      "id": "DI-07",
+      "historicalStatus": "PARTIAL",
+      "historicalLocalSeam": "Revision-bound evidence foundations exist.",
+      "historicalRemaining": "Complete page/table/row/cell/section/span locators and independent before/after browser behavior.",
+      "routeOrService": "Shared evidence inspector/readers",
+      "owner": "Extraction/source operations",
+      "sourceLine": 25,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/requirements-and-screens.md",
+      "sourceSha256": "A46D61E22B1C52D991C5B0638B1BFC493BB662DDDFF819AE0A306DD77E44D183",
+      "originalRow": "| DI-07 | PARTIAL | Revision-bound evidence foundations exist. | Complete page/table/row/cell/section/span locators and independent before/after browser behavior. | Shared evidence inspector/readers | Extraction/source operations |",
+      "localImplemented": "Immutable typed positive page/XML/span/table/section locators, exact revision pins and independent comparison evidence.",
+      "localProofIds": [
+        "P-EVIDENCE",
+        "P-SAVED",
+        "P-LOCATOR",
+        "P-API"
+      ],
+      "localVerdict": "PASS",
+      "localRemainingImplementationOrVerification": "Complete all-family cell/section/before-after real browser inspector unqualified.",
+      "fullReleaseAcceptance": {
+        "verdict": "NOT RUN",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      }
+    },
+    {
+      "id": "DI-08",
+      "historicalStatus": "PARTIAL",
+      "historicalLocalSeam": "Existing evidence and relationship graph foundations are reused.",
+      "historicalRemaining": "Authority semantics, dated edge proof, access-filtered counts and negative-case qualification.",
+      "routeOrService": "Knowledge Plane/evidence graph",
+      "owner": "Graph/search/evaluation",
+      "sourceLine": 26,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/requirements-and-screens.md",
+      "sourceSha256": "A46D61E22B1C52D991C5B0638B1BFC493BB662DDDFF819AE0A306DD77E44D183",
+      "originalRow": "| DI-08 | PARTIAL | Existing evidence and relationship graph foundations are reused. | Authority semantics, dated edge proof, access-filtered counts and negative-case qualification. | Knowledge Plane/evidence graph | Graph/search/evaluation |",
+      "localImplemented": "Office metadata availability predicates agree before pagination; candidate unsourced parent edges withheld unless speculative requested; future accepted roles unresolved until effective date.",
+      "localProofIds": [
+        "P-API",
+        "P-DI-HONESTY-CURRENT"
+      ],
+      "localVerdict": "ACCEPTED LIMITATION",
+      "localRemainingImplementationOrVerification": "Bounded graph negative/temporal cases have local regression proof. Complete temporal ownership/transition and authority/access-filtered-count scenarios, independent dated edge qualification and target browser perimeter remain unrun.",
+      "fullReleaseAcceptance": {
+        "verdict": "BLOCKED",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      },
+      "previousLocalSnapshot": {
+        "localImplemented": "Existing evidence/relationship graph foundations retained.",
+        "localVerdict": "NOT RUN",
+        "localProofIds": [
+          "P-API"
+        ],
+        "localRemainingImplementationOrVerification": "Complete authority/dated edge/access-filtered count and independent negative scenario lacks specific local proof.",
+        "fullReleaseAcceptance": {
+          "verdict": "BLOCKED",
+          "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+        }
+      }
+    },
+    {
+      "id": "DI-09",
+      "historicalStatus": "PARTIAL",
+      "historicalLocalSeam": "Exact/capability search foundations exist.",
+      "historicalRemaining": "Independent semantic evaluation, difficult negatives, full-result semantics and declared precision/recall denominators.",
+      "routeOrService": "Explore/search services",
+      "owner": "Graph/search/evaluation",
+      "sourceLine": 27,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/requirements-and-screens.md",
+      "sourceSha256": "A46D61E22B1C52D991C5B0638B1BFC493BB662DDDFF819AE0A306DD77E44D183",
+      "originalRow": "| DI-09 | PARTIAL | Exact/capability search foundations exist. | Independent semantic evaluation, difficult negatives, full-result semantics and declared precision/recall denominators. | Explore/search services | Graph/search/evaluation |",
+      "localImplemented": "Opt-in bounded public PE semantic suggestions query existing index/provider ports after current membership/index preflight; current model/canonical-text hash and HTTPS/positive-page/versioned archive metadata controls; all suggestions explicitly partial. Disabled/absent/failure lanes preserve exact and governed capability answers.",
+      "localProofIds": [
+        "P-API",
+        "P-SEMANTIC-CURRENT"
+      ],
+      "localVerdict": "ACCEPTED LIMITATION",
+      "localRemainingImplementationOrVerification": "Local hardcoded-abstention gap repaired/applied and controlled113-test proof recorded. Native pgvector/index SQL, real provider/S3 byte opening/hash and deployed integration NOT RUN. Exact archived indexed-text attestation, independent hard-negative precision/recall/economics and full-result/corpus denominators BLOCKED. Full facets/selection/browser scenario remains unestablished.",
+      "fullReleaseAcceptance": {
+        "verdict": "BLOCKED",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      },
+      "previousLocalSnapshot": {
+        "localImplemented": "Exact/capability persisted-source search; semantic explicitly abstained/disabled.",
+        "localVerdict": "ACCEPTED LIMITATION",
+        "localProofIds": [
+          "P-API"
+        ],
+        "localRemainingImplementationOrVerification": "Actual unsupported local behavior: enabled semantic branch returns abstained without qualified index query; full semantic/evaluation not complete.",
+        "fullReleaseAcceptance": {
+          "verdict": "BLOCKED",
+          "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+        }
+      }
+    },
+    {
+      "id": "DI-10",
+      "historicalStatus": "PARTIAL",
+      "historicalLocalSeam": "Existing comparison/basis foundations are present.",
+      "historicalRemaining": "Complete saved comparison workbench, independent evidence per side, full URL state and browser acceptance.",
+      "routeOrService": "Compare readers/routes",
+      "owner": "Frontend/navigation",
+      "sourceLine": 28,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/requirements-and-screens.md",
+      "sourceSha256": "A46D61E22B1C52D991C5B0638B1BFC493BB662DDDFF819AE0A306DD77E44D183",
+      "originalRow": "| DI-10 | PARTIAL | Existing comparison/basis foundations are present. | Complete saved comparison workbench, independent evidence per side, full URL state and browser acceptance. | Compare readers/routes | Frontend/navigation |",
+      "localImplemented": "Immutable owned saved compare/workbench/pins, explicit selected portfolio capture and retained unknown/replay flows.",
+      "localProofIds": [
+        "P-SAVED",
+        "P-UI",
+        "P-API"
+      ],
+      "localVerdict": "PASS",
+      "localRemainingImplementationOrVerification": "Full authenticated independent-source browser/URL trace unqualified.",
+      "fullReleaseAcceptance": {
+        "verdict": "NOT RUN",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      }
+    },
+    {
+      "id": "DI-11",
+      "historicalStatus": "PARTIAL",
+      "historicalLocalSeam": "Internal source health/review foundations exist.",
+      "historicalRemaining": "Customer-safe coverage projection, governed diagnostics and real-family denominators without exposing internal queues.",
+      "routeOrService": "Coverage and evidence review services",
+      "owner": "Extraction/source operations",
+      "sourceLine": 29,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/requirements-and-screens.md",
+      "sourceSha256": "A46D61E22B1C52D991C5B0638B1BFC493BB662DDDFF819AE0A306DD77E44D183",
+      "originalRow": "| DI-11 | PARTIAL | Internal source health/review foundations exist. | Customer-safe coverage projection, governed diagnostics and real-family denominators without exposing internal queues. | Coverage and evidence review services | Extraction/source operations |",
+      "localImplemented": "Account/edition/detail/member cohort filters precede501 sentinel; first500 matching slots explicitly truncated and physical completeness/denominators remain unknown.",
+      "localProofIds": [
+        "P-API",
+        "P-SOURCE",
+        "P-DI-RESIDUAL-CURRENT"
+      ],
+      "localVerdict": "ACCEPTED LIMITATION",
+      "localRemainingImplementationOrVerification": "Complete independently admitted marketed component/account/FY/edition/detail denominator and governance/browser evaluation remain blocked or unrun.",
+      "fullReleaseAcceptance": {
+        "verdict": "BLOCKED",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      },
+      "previousLocalSnapshot": {
+        "localImplemented": "Customer persisted coverage/unavailable family projection; donor candidates stay non-admitted.",
+        "localVerdict": "ACCEPTED LIMITATION",
+        "localProofIds": [
+          "P-API",
+          "P-SOURCE"
+        ],
+        "localRemainingImplementationOrVerification": "Complete denominator-backed component/account/FY/edition/cohort/governed diagnostics not established; no admission activation.",
+        "fullReleaseAcceptance": {
+          "verdict": "BLOCKED",
+          "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+        }
+      }
+    },
+    {
+      "id": "MX-01",
+      "historicalStatus": "PARTIAL",
+      "historicalLocalSeam": "Eight Phase 9 portfolio tools are registered in the authoritative Meri registry, dispatch through thin domain-service adapters, and bind to the owned conversation's server-stored research scope. Every turn reauthorizes current portfolio access and labels revision drift; the scope remains distinct from all-clients `portfolio` scope.",
+      "historicalRemaining": "Complete the remaining Phase 1–8 UI/tool parity and prove every enabled UI/tool/alias surface reauthorizes and dispatches to the same services in the target runtime.",
+      "routeOrService": "`MERI_CAPABILITY_REGISTRY`; `MeriToolsService`; `ResearchPortfolioMeriScopeService`",
+      "owner": "Meri/output delivery",
+      "sourceLine": 30,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/requirements-and-screens.md",
+      "sourceSha256": "A46D61E22B1C52D991C5B0638B1BFC493BB662DDDFF819AE0A306DD77E44D183",
+      "originalRow": "| MX-01 | PARTIAL | Eight Phase 9 portfolio tools are registered in the authoritative Meri registry, dispatch through thin domain-service adapters, and bind to the owned conversation's server-stored research scope. Every turn reauthorizes current portfolio access and labels revision drift; the scope remains distinct from all-clients `portfolio` scope. | Complete the remaining Phase 1–8 UI/tool parity and prove every enabled UI/tool/alias surface reauthorizes and dispatches to the same services in the target runtime. | `MERI_CAPABILITY_REGISTRY`; `MeriToolsService`; `ResearchPortfolioMeriScopeService` | Meri/output delivery |",
+      "localImplemented": "49 finite native management actions/19 registered tool names and legacy current-turn normalization/dispatch guard have local regression proof; editable starters await Send. These finite adapters do not prove trusted full-chat transport authority or complete enabled-surface UI/alias parity.",
+      "localProofIds": [
+        "P-SCOPE",
+        "P-MERI-INVENTORY",
+        "P-API"
+      ],
+      "localVerdict": "ACCEPTED LIMITATION",
+      "localRemainingImplementationOrVerification": "BLOCKED local integration: absent trusted immutable full-chat active-turn context and late-policy selected-client race remain separately owned, repairing but not integrated. Do not claim transport-bound writes from legacy/adapter tests. The bounded profile/research residual UI repair is applied and current mounted tests pass; complete enabled-surface alias/workspace/browser acceptance remains unestablished. RP gate remains strict true/default OFF; no enabled production surface inferred.",
+      "fullReleaseAcceptance": {
+        "verdict": "BLOCKED",
+        "disposition": "Full-chat authority dependency not integrated: trusted immutable turn context and late-policy selected-client race remain owned by the separate chat. Local adapter/legacy proof cannot qualify the full transport. Deployed acceptance is also unrun."
+      },
+      "previousLocalSnapshot": {
+        "localImplemented": "18 authoritative RP adapters/server-owned scope/current grant/fingerprint independent from ordinary all-client portfolio.",
+        "localVerdict": "ACCEPTED LIMITATION",
+        "localProofIds": [
+          "P-SCOPE",
+          "P-MERI-INVENTORY",
+          "P-API"
+        ],
+        "localRemainingImplementationOrVerification": "Full Phase1-8 UI/tool/action/alias parity pending web freeze;18 adapters do not prove every mutation. Confirmed active-turn binding gap: other-owner fullchatApiToolExecutorRepo ignores MeriContext/forwards model input. Immutable governed request context/RP pinning repair belongs to other chat and needs future integration. Legacy Meri19-name guard pending web freeze. RP gate remains OFF unless exact true. Do not claim fullchat write binding complete.",
+        "fullReleaseAcceptance": {
+          "verdict": "NOT RUN",
+          "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+        }
+      }
+    },
+    {
+      "id": "MX-02",
+      "historicalStatus": "PARTIAL",
+      "historicalLocalSeam": "Snapshot/output/client-file writer creates durable operation/artifact/receipt seams.",
+      "historicalRemaining": "Evidence-based editable brief/task/meeting-prep actions with real IDs, exact saved bytes, unknown-commit reconciliation and browser open.",
+      "routeOrService": "Research Portfolio output and client-document writer",
+      "owner": "Meri/output delivery",
+      "sourceLine": 31,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/requirements-and-screens.md",
+      "sourceSha256": "A46D61E22B1C52D991C5B0638B1BFC493BB662DDDFF819AE0A306DD77E44D183",
+      "originalRow": "| MX-02 | PARTIAL | Snapshot/output/client-file writer creates durable operation/artifact/receipt seams. | Evidence-based editable brief/task/meeting-prep actions with real IDs, exact saved bytes, unknown-commit reconciliation and browser open. | Research Portfolio output and client-document writer | Meri/output delivery |",
+      "localImplemented": "Current canonical internal/owner/classification/reciprocal meeting-prep authorization and matching-current-RP saved capture reads/history/lifecycle are applied and owned native closure PASS0; existing outputs/snapshots preserved.",
+      "localProofIds": [
+        "P-INSTITUTION",
+        "P-FILING",
+        "P-OPS",
+        "P-ENGAGEMENT",
+        "P-MEETING-CURRENT",
+        "P-SAVED-RP-CURRENT"
+      ],
+      "localVerdict": "ACCEPTED LIMITATION",
+      "localRemainingImplementationOrVerification": "Meeting guard and saved-scope native pending statements are stale and closed locally. Full cache/snippets/download URLs/delivery target matrix, real storage/scan/index/open and deployed create-through-cited-save/open buyer journeys remain unrun.",
+      "fullReleaseAcceptance": {
+        "verdict": "NOT RUN",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      },
+      "previousLocalSnapshot": {
+        "localImplemented": "Editable evidence-bound institutional artifacts and real task/prep IDs, saved lineage/output filing recovery.",
+        "localVerdict": "ACCEPTED LIMITATION",
+        "localProofIds": [
+          "P-INSTITUTION",
+          "P-FILING",
+          "P-OPS",
+          "P-ENGAGEMENT"
+        ],
+        "localRemainingImplementationOrVerification": "Canonical meeting eligibility/read privacy applied by source owner, current native closure still pending; real storage/index/deployed open unrun.",
+        "fullReleaseAcceptance": {
+          "verdict": "NOT RUN",
+          "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+        }
+      }
+    },
+    {
+      "id": "MX-03",
+      "historicalStatus": "PARTIAL",
+      "historicalLocalSeam": "A dismissible, restartable, versioned five-step Research Portfolio tour is implemented and existing correction/event outcomes remain linked rather than rewritten.",
+      "historicalRemaining": "Test the tour and correction outcomes across supported breakpoints, keyboard paths and target browser/runtime state.",
+      "routeOrService": "Research Portfolio pages; shared correction/support services",
+      "owner": "Frontend/navigation",
+      "sourceLine": 32,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/requirements-and-screens.md",
+      "sourceSha256": "A46D61E22B1C52D991C5B0638B1BFC493BB662DDDFF819AE0A306DD77E44D183",
+      "originalRow": "| MX-03 | PARTIAL | A dismissible, restartable, versioned five-step Research Portfolio tour is implemented and existing correction/event outcomes remain linked rather than rewritten. | Test the tour and correction outcomes across supported breakpoints, keyboard paths and target browser/runtime state. | Research Portfolio pages; shared correction/support services | Frontend/navigation |",
+      "localImplemented": "Persisted versioned tour/restart/retry and editable unsent Meri starter behavior.",
+      "localProofIds": [
+        "P-UI",
+        "P-API"
+      ],
+      "localVerdict": "PASS",
+      "localRemainingImplementationOrVerification": "All viewport/keyboard/focus/correction target browser paths unrun.",
+      "fullReleaseAcceptance": {
+        "verdict": "NOT RUN",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      }
+    },
+    {
+      "id": "OP-01",
+      "historicalStatus": "PARTIAL",
+      "historicalLocalSeam": "Main `/api` research routes and typed DTOs are source-visible.",
+      "historicalRemaining": "Build every affected image context and prove actual authenticated runtime ownership, URL state, mirror parity and temporal-read honesty.",
+      "routeOrService": "Main API/web/Meri runtimes",
+      "owner": "Release operations",
+      "sourceLine": 33,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/requirements-and-screens.md",
+      "sourceSha256": "A46D61E22B1C52D991C5B0638B1BFC493BB662DDDFF819AE0A306DD77E44D183",
+      "originalRow": "| OP-01 | PARTIAL | Main `/api` research routes and typed DTOs are source-visible. | Build every affected image context and prove actual authenticated runtime ownership, URL state, mirror parity and temporal-read honesty. | Main API/web/Meri runtimes | Release operations |",
+      "localImplemented": "Main /api/additive DTO domain routes, app builds/source mirror and web-vnext destination retained.",
+      "localProofIds": [
+        "P-BUILD",
+        "P-API",
+        "P-UI"
+      ],
+      "localVerdict": "ACCEPTED LIMITATION",
+      "localRemainingImplementationOrVerification": "Linux image infrastructure blocked; actual deployed authenticated route/Clerk/temporal parity unrun.",
+      "fullReleaseAcceptance": {
+        "verdict": "BLOCKED",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      }
+    },
+    {
+      "id": "OP-02",
+      "historicalStatus": "BLOCKED",
+      "historicalLocalSeam": "Existing candidate/source/publication lanes remain unchanged by this packet.",
+      "historicalRemaining": "Real baseline family qualification, independent review and governed admission/publication. No activation is authorized.",
+      "routeOrService": "Defense source pipeline",
+      "owner": "Extraction/source operations",
+      "sourceLine": 34,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/requirements-and-screens.md",
+      "sourceSha256": "A46D61E22B1C52D991C5B0638B1BFC493BB662DDDFF819AE0A306DD77E44D183",
+      "originalRow": "| OP-02 | BLOCKED | Existing candidate/source/publication lanes remain unchanged by this packet. | Real baseline family qualification, independent review and governed admission/publication. No activation is authorized. | Defense source pipeline | Extraction/source operations |",
+      "localImplemented": "Dormant governed source lanes; candidate parser inventories physical occurrences without promotion.",
+      "localProofIds": [
+        "P-SOURCE"
+      ],
+      "localVerdict": "ACCEPTED LIMITATION",
+      "localRemainingImplementationOrVerification": "Original baseline/official families/independent admission/publication unavailable and not activated.",
+      "fullReleaseAcceptance": {
+        "verdict": "BLOCKED",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      }
+    },
+    {
+      "id": "OP-03",
+      "historicalStatus": "BLOCKED",
+      "historicalLocalSeam": "Existing annual/source lifecycle foundations remain available.",
+      "historicalRemaining": "Full physical corpus and account/component/edition perimeter with two historical cycles and simulated next cycle.",
+      "routeOrService": "Source/annual operations pipeline",
+      "owner": "Extraction/source operations",
+      "sourceLine": 35,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/requirements-and-screens.md",
+      "sourceSha256": "A46D61E22B1C52D991C5B0638B1BFC493BB662DDDFF819AE0A306DD77E44D183",
+      "originalRow": "| OP-03 | BLOCKED | Existing annual/source lifecycle foundations remain available. | Full physical corpus and account/component/edition perimeter with two historical cycles and simulated next cycle. | Source/annual operations pipeline | Extraction/source operations |",
+      "localImplemented": "Original/current decision/snapshot lineage and explicit temporal identity/current canonical boundaries.",
+      "localProofIds": [
+        "P-FITCONT",
+        "P-SAVED"
+      ],
+      "localVerdict": "ACCEPTED LIMITATION",
+      "localRemainingImplementationOrVerification": "Full physical corpus/account/component/two historical cycles/simulated next cycle unavailable.",
+      "fullReleaseAcceptance": {
+        "verdict": "BLOCKED",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      }
+    },
+    {
+      "id": "OP-04",
+      "historicalStatus": "BLOCKED",
+      "historicalLocalSeam": "Local contract/unit checks can be run.",
+      "historicalRemaining": "Independent quality labels, authenticated performance, failure recovery, workload/cost economics, image/deployment/rollback evidence and human operator response.",
+      "routeOrService": "All affected runtimes",
+      "owner": "Release operations",
+      "sourceLine": 36,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/requirements-and-screens.md",
+      "sourceSha256": "A46D61E22B1C52D991C5B0638B1BFC493BB662DDDFF819AE0A306DD77E44D183",
+      "originalRow": "| OP-04 | BLOCKED | Local contract/unit checks can be run. | Independent quality labels, authenticated performance, failure recovery, workload/cost economics, image/deployment/rollback evidence and human operator response. | All affected runtimes | Release operations |",
+      "localImplemented": "Local builds, actual SQL fault/race/lease/privacy and controlled UI recovery executed.",
+      "localProofIds": [
+        "P-API",
+        "P-BUILD",
+        "P-WORKER",
+        "P-COMP",
+        "P-UI"
+      ],
+      "localVerdict": "ACCEPTED LIMITATION",
+      "localRemainingImplementationOrVerification": "Original full/F/V acceptance definitions unavailable; labels/performance/economics/provider/storage/release operator proof absent.",
+      "fullReleaseAcceptance": {
+        "verdict": "BLOCKED",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      }
+    }
+  ],
+  "screens": [
+    {
+      "id": "S01",
+      "historicalStatus": "PARTIAL",
+      "historicalLocalSeam": "Research Portfolio list route/page and authorized API list exist.",
+      "historicalRemaining": "Browser loading/retry/empty/revoked/archive, accurate accessible counts and list-context restoration.",
+      "sourceLine": 42,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/requirements-and-screens.md",
+      "sourceSha256": "A46D61E22B1C52D991C5B0638B1BFC493BB662DDDFF819AE0A306DD77E44D183",
+      "originalRow": "| S01 | PARTIAL | Research Portfolio list route/page and authorized API list exist. | Browser loading/retry/empty/revoked/archive, accurate accessible counts and list-context restoration. |",
+      "localImplemented": "Authorized list/empty/retry/archive and retained context mounted controls.",
+      "localProofIds": [
+        "P-CORE",
+        "P-UI"
+      ],
+      "localVerdict": "PASS",
+      "localRemainingImplementationOrVerification": "Real empty deployed tenant/accessible counts/browser trace unrun.",
+      "fullReleaseAcceptance": {
+        "verdict": "NOT RUN",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      }
+    },
+    {
+      "id": "S02",
+      "historicalStatus": "PARTIAL",
+      "historicalLocalSeam": "Create/edit controls and idempotent service foundations exist.",
+      "historicalRemaining": "Three-step retained draft, preview, Back/Forward/refresh, duplicate/unknown reconciliation and accessibility proof.",
+      "sourceLine": 43,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/requirements-and-screens.md",
+      "sourceSha256": "A46D61E22B1C52D991C5B0638B1BFC493BB662DDDFF819AE0A306DD77E44D183",
+      "originalRow": "| S02 | PARTIAL | Create/edit controls and idempotent service foundations exist. | Three-step retained draft, preview, Back/Forward/refresh, duplicate/unknown reconciliation and accessibility proof. |",
+      "localImplemented": "Editable retained create request/draft, duplicate/unknown recovery and scoped UI.",
+      "localProofIds": [
+        "P-CORE",
+        "P-UI"
+      ],
+      "localVerdict": "PASS",
+      "localRemainingImplementationOrVerification": "Complete required three-step/Back/Forward/mobile/accessibility browser journey not qualified.",
+      "fullReleaseAcceptance": {
+        "verdict": "NOT RUN",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      }
+    },
+    {
+      "id": "S03",
+      "historicalStatus": "PARTIAL",
+      "historicalLocalSeam": "Detail overview exposes members, clients, sharing, rules and operations.",
+      "historicalRemaining": "One common projection for all counts/fit/freshness; source versus activity freshness and snapshot distinction.",
+      "sourceLine": 44,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/requirements-and-screens.md",
+      "sourceSha256": "A46D61E22B1C52D991C5B0638B1BFC493BB662DDDFF819AE0A306DD77E44D183",
+      "originalRow": "| S03 | PARTIAL | Detail overview exposes members, clients, sharing, rules and operations. | One common projection for all counts/fit/freshness; source versus activity freshness and snapshot distinction. |",
+      "localImplemented": "Overview typed members/client fit/freshness/rules/operations and immutable version counts.",
+      "localProofIds": [
+        "P-FITCONT",
+        "P-OPS",
+        "P-UI"
+      ],
+      "localVerdict": "PASS",
+      "localRemainingImplementationOrVerification": "Common-projection/source-versus-activity/snapshot full UI perimeter not separately established.",
+      "fullReleaseAcceptance": {
+        "verdict": "NOT RUN",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      }
+    },
+    {
+      "id": "S04",
+      "historicalStatus": "PARTIAL",
+      "historicalLocalSeam": "Members, rules, bookmarks and deterministic rule service foundations exist.",
+      "historicalRemaining": "Full typed discovery, per-item bulk outcomes, exact evidence, advanced editor and outage/manual-precedence browser proof.",
+      "sourceLine": 45,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/requirements-and-screens.md",
+      "sourceSha256": "A46D61E22B1C52D991C5B0638B1BFC493BB662DDDFF819AE0A306DD77E44D183",
+      "originalRow": "| S04 | PARTIAL | Members, rules, bookmarks and deterministic rule service foundations exist. | Full typed discovery, per-item bulk outcomes, exact evidence, advanced editor and outage/manual-precedence browser proof. |",
+      "localImplemented": "Typed member bulk/rules/bookmarks and deterministic governed controls.",
+      "localProofIds": [
+        "P-API",
+        "P-IMPORT",
+        "P-UI"
+      ],
+      "localVerdict": "PASS",
+      "localRemainingImplementationOrVerification": "Full discovery/advanced editor/outage/manual-precedence browser acceptance unrun.",
+      "fullReleaseAcceptance": {
+        "verdict": "NOT RUN",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      }
+    },
+    {
+      "id": "S05",
+      "historicalStatus": "PARTIAL",
+      "historicalLocalSeam": "Change feed state, explicit subscription API and per-recipient delivery ledger exist.",
+      "historicalRemaining": "Feed/detail badge parity, two-user state, configured external delivery, pause/restore and real restored-baseline proof.",
+      "sourceLine": 46,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/requirements-and-screens.md",
+      "sourceSha256": "A46D61E22B1C52D991C5B0638B1BFC493BB662DDDFF819AE0A306DD77E44D183",
+      "originalRow": "| S05 | PARTIAL | Change feed state, explicit subscription API and per-recipient delivery ledger exist. | Feed/detail badge parity, two-user state, configured external delivery, pause/restore and real restored-baseline proof. |",
+      "localImplemented": "Readonly changes, own state, subscriptions/cadenced in-app receipts and dormant conversion.",
+      "localProofIds": [
+        "P-WATCH",
+        "P-WORKER",
+        "P-UI"
+      ],
+      "localVerdict": "ACCEPTED LIMITATION",
+      "localRemainingImplementationOrVerification": "External email partial; complete badge/restored-baseline real browser matrix unrun.",
+      "fullReleaseAcceptance": {
+        "verdict": "BLOCKED",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      }
+    },
+    {
+      "id": "S06",
+      "historicalStatus": "PARTIAL",
+      "historicalLocalSeam": "Compatible-basis analytics/contribution service and accessible native table/control panel exist.",
+      "historicalRemaining": "Complete source/cohort drilldowns, ledger equality and target-corpus qualification.",
+      "sourceLine": 47,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/requirements-and-screens.md",
+      "sourceSha256": "A46D61E22B1C52D991C5B0638B1BFC493BB662DDDFF819AE0A306DD77E44D183",
+      "originalRow": "| S06 | PARTIAL | Compatible-basis analytics/contribution service and accessible native table/control panel exist. | Complete source/cohort drilldowns, ledger equality and target-corpus qualification. |",
+      "localImplemented": "Exact compatible-basis ledger/table/accessible controls and honest partial/null drilldown.",
+      "localProofIds": [
+        "P-API",
+        "P-SAVED",
+        "P-UI"
+      ],
+      "localVerdict": "PASS",
+      "localRemainingImplementationOrVerification": "Complete independent corpus/source/cohort/equality target proof absent.",
+      "fullReleaseAcceptance": {
+        "verdict": "BLOCKED",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      }
+    },
+    {
+      "id": "S07",
+      "historicalStatus": "PARTIAL",
+      "historicalLocalSeam": "Review/decision/continuity persistence and service exist.",
+      "historicalRemaining": "Full Mine/Team/Deferred/Resolved UI, independent evidence, bulk outcomes and real-cycle continuity acceptance.",
+      "sourceLine": 48,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/requirements-and-screens.md",
+      "sourceSha256": "A46D61E22B1C52D991C5B0638B1BFC493BB662DDDFF819AE0A306DD77E44D183",
+      "originalRow": "| S07 | PARTIAL | Review/decision/continuity persistence and service exist. | Full Mine/Team/Deferred/Resolved UI, independent evidence, bulk outcomes and real-cycle continuity acceptance. |",
+      "localImplemented": "Review lanes/structured evidence/assignment/bulk outcomes and annual refresh/reopen.",
+      "localProofIds": [
+        "P-EVIDENCE",
+        "P-FITCONT",
+        "P-UI"
+      ],
+      "localVerdict": "PASS",
+      "localRemainingImplementationOrVerification": "Real cycles/independent evidence/full browser lanes unqualified.",
+      "fullReleaseAcceptance": {
+        "verdict": "BLOCKED",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      }
+    },
+    {
+      "id": "S08",
+      "historicalStatus": "PARTIAL",
+      "historicalLocalSeam": "Grants, client links, archive/restore and revision checks exist.",
+      "historicalRemaining": "Open-form access-loss/archive commit checks, complete effective-grant UI parity and revoked-client browser proof.",
+      "sourceLine": 49,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/requirements-and-screens.md",
+      "sourceSha256": "A46D61E22B1C52D991C5B0638B1BFC493BB662DDDFF819AE0A306DD77E44D183",
+      "originalRow": "| S08 | PARTIAL | Grants, client links, archive/restore and revision checks exist. | Open-form access-loss/archive commit checks, complete effective-grant UI parity and revoked-client browser proof. |",
+      "localImplemented": "Current grants/client links/lifecycle/conflict controls, retained request/revocation-safe replay.",
+      "localProofIds": [
+        "P-CORE",
+        "P-OWNER",
+        "P-UI"
+      ],
+      "localVerdict": "PASS",
+      "localRemainingImplementationOrVerification": "Full target open-form access-loss/effective grant/wall browser matrix unrun.",
+      "fullReleaseAcceptance": {
+        "verdict": "NOT RUN",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      }
+    },
+    {
+      "id": "S09",
+      "historicalStatus": "PARTIAL",
+      "historicalLocalSeam": "Existing Explore route/search foundations remain.",
+      "historicalRemaining": "Full typed facets, explanations, exact detail, explicit selected/page/all export semantics and unavailable-family honesty.",
+      "sourceLine": 50,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/requirements-and-screens.md",
+      "sourceSha256": "A46D61E22B1C52D991C5B0638B1BFC493BB662DDDFF819AE0A306DD77E44D183",
+      "originalRow": "| S09 | PARTIAL | Existing Explore route/search foundations remain. | Full typed facets, explanations, exact detail, explicit selected/page/all export semantics and unavailable-family honesty. |",
+      "localImplemented": "Opt-in bounded public PE semantic suggestions query existing index/provider ports after current membership/index preflight; current model/canonical-text hash and HTTPS/positive-page/versioned archive metadata controls; all suggestions explicitly partial. Disabled/absent/failure lanes preserve exact and governed capability answers.",
+      "localProofIds": [
+        "P-API",
+        "P-SEMANTIC-CURRENT"
+      ],
+      "localVerdict": "ACCEPTED LIMITATION",
+      "localRemainingImplementationOrVerification": "Local hardcoded-abstention gap repaired/applied and controlled113-test proof recorded. Native pgvector/index SQL, real provider/S3 byte opening/hash and deployed integration NOT RUN. Exact archived indexed-text attestation, independent hard-negative precision/recall/economics and full-result/corpus denominators BLOCKED. Full facets/selection/browser scenario remains unestablished.",
+      "fullReleaseAcceptance": {
+        "verdict": "BLOCKED",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      },
+      "previousLocalSnapshot": {
+        "localImplemented": "Exact/capability Explore foundations and honest persisted-source explanations/empty lanes.",
+        "localVerdict": "ACCEPTED LIMITATION",
+        "localProofIds": [
+          "P-API"
+        ],
+        "localRemainingImplementationOrVerification": "Semantic has no qualified index query; complete facets/full-results/selected-page-all browser scenario not established.",
+        "fullReleaseAcceptance": {
+          "verdict": "BLOCKED",
+          "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+        }
+      }
+    },
+    {
+      "id": "S10",
+      "historicalStatus": "PARTIAL",
+      "historicalLocalSeam": "Existing Changes destinations remain available.",
+      "historicalRemaining": "Recomposition/browser proof for Budget/Congressional/Monitored/Actions and actual FY/source semantics.",
+      "sourceLine": 51,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/requirements-and-screens.md",
+      "sourceSha256": "A46D61E22B1C52D991C5B0638B1BFC493BB662DDDFF819AE0A306DD77E44D183",
+      "originalRow": "| S10 | PARTIAL | Existing Changes destinations remain available. | Recomposition/browser proof for Budget/Congressional/Monitored/Actions and actual FY/source semantics. |",
+      "localImplemented": "Existing Changes destinations retained.",
+      "localProofIds": [],
+      "localVerdict": "NOT RUN",
+      "localRemainingImplementationOrVerification": "Budget/Congressional/Monitored/Actions full recomposed workspace/source semantics lack targeted local proof.",
+      "fullReleaseAcceptance": {
+        "verdict": "NOT RUN",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      }
+    },
+    {
+      "id": "S11",
+      "historicalStatus": "PARTIAL",
+      "historicalLocalSeam": "Existing program/acquisition/federal evidence/relationship readers remain.",
+      "historicalRemaining": "Four-segment native Research workspace with complete routed controls and real-source details.",
+      "sourceLine": 52,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/requirements-and-screens.md",
+      "sourceSha256": "A46D61E22B1C52D991C5B0638B1BFC493BB662DDDFF819AE0A306DD77E44D183",
+      "originalRow": "| S11 | PARTIAL | Existing program/acquisition/federal evidence/relationship readers remain. | Four-segment native Research workspace with complete routed controls and real-source details. |",
+      "localImplemented": "Acquisition latest immutable scalar revision selected before mutable status/title/buyer/activeOn filters; count/pagination and detail use deterministic recordedAt/id order. Mounted research UI distinguishes acquisition pending/error from successful emptiness, retains successful actions/gaps after failed refresh and keys the relationship projection by requested URL status.",
+      "localProofIds": [
+        "P-API",
+        "P-DI-RESIDUAL-CURRENT",
+        "P-FINAL-CURRENT"
+      ],
+      "localVerdict": "ACCEPTED LIMITATION",
+      "localRemainingImplementationOrVerification": "No stale status resurrection in bounded regressions; independently qualified action identity/measures/text, complete four-segment workspace/routed controls and end-to-end browser journey remain unestablished.",
+      "fullReleaseAcceptance": {
+        "verdict": "NOT RUN",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      },
+      "previousLocalSnapshot": {
+        "localImplemented": "Existing program/acquisition/context/relationship readers retained.",
+        "localVerdict": "NOT RUN",
+        "localProofIds": [
+          "P-API"
+        ],
+        "localRemainingImplementationOrVerification": "Complete four-segment native workspace/routed controls/real detail not specifically established locally.",
+        "fullReleaseAcceptance": {
+          "verdict": "NOT RUN",
+          "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+        }
+      },
+      "preFinalWebSnapshot": {
+        "localImplemented": "Acquisition latest immutable scalar revision selected before mutable status/title/buyer/activeOn filters; count/pagination and detail use deterministic recordedAt/id order.",
+        "localRemainingImplementationOrVerification": "No stale status resurrection in bounded regressions; independently qualified action identity/measures/text, complete four-segment workspace/routed controls and end-to-end browser journey remain unestablished.",
+        "localProofIds": [
+          "P-API",
+          "P-DI-RESIDUAL-CURRENT"
+        ]
+      }
+    },
+    {
+      "id": "S12",
+      "historicalStatus": "PARTIAL",
+      "historicalLocalSeam": "Existing five-tab PE dossier foundations remain.",
+      "historicalRemaining": "All required narratives, funding, legislative, structure and complete sources with exact evidence and URL authority.",
+      "sourceLine": 53,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/requirements-and-screens.md",
+      "sourceSha256": "A46D61E22B1C52D991C5B0638B1BFC493BB662DDDFF819AE0A306DD77E44D183",
+      "originalRow": "| S12 | PARTIAL | Existing five-tab PE dossier foundations remain. | All required narratives, funding, legislative, structure and complete sources with exact evidence and URL authority. |",
+      "localImplemented": "Useful dossier values/context retained with explicit partial state; available fields require exact field binding/current archive receipt metadata. Direct project mission requires native current-head/document binding and nonfuture retained versioned receipt. The program-element overview displays the existing eight dossier fields with partial values/reasons/contextual locators and safe citation links, retains useful data after failed refresh and follows URL Back/Forward for profile tabs.",
+      "localProofIds": [
+        "P-API",
+        "P-DI-RESIDUAL-CURRENT",
+        "P-FINAL-CURRENT"
+      ],
+      "localVerdict": "ACCEPTED LIMITATION",
+      "localRemainingImplementationOrVerification": "Complete original required narrative field list and independent real-subject/archive-byte/browser qualification remain unestablished; absent original full plan is not reconstructed.",
+      "fullReleaseAcceptance": {
+        "verdict": "BLOCKED",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      },
+      "previousLocalSnapshot": {
+        "localImplemented": "Existing PE dossier/funding/milestone/source with corrected exact basis/calendar precision.",
+        "localVerdict": "ACCEPTED LIMITATION",
+        "localProofIds": [
+          "P-API"
+        ],
+        "localRemainingImplementationOrVerification": "All required narrative/legislative/structure/source fields/five-tab URL authority not fully established.",
+        "fullReleaseAcceptance": {
+          "verdict": "BLOCKED",
+          "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+        }
+      },
+      "preFinalWebSnapshot": {
+        "localImplemented": "Useful dossier values/context retained with explicit partial state; available fields require exact field binding/current archive receipt metadata. Direct project mission requires native current-head/document binding and nonfuture retained versioned receipt.",
+        "localRemainingImplementationOrVerification": "Complete original required narrative field list and independent real-subject/archive-byte/browser qualification remain unestablished; absent original full plan is not reconstructed.",
+        "localProofIds": [
+          "P-API",
+          "P-DI-RESIDUAL-CURRENT"
+        ]
+      }
+    },
+    {
+      "id": "S13",
+      "historicalStatus": "PARTIAL",
+      "historicalLocalSeam": "Existing comparison readers/foundations remain.",
+      "historicalRemaining": "Saved comparison workbench, independent evidence, explicit empty state, typed Add and exact bookmark behavior.",
+      "sourceLine": 54,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/requirements-and-screens.md",
+      "sourceSha256": "A46D61E22B1C52D991C5B0638B1BFC493BB662DDDFF819AE0A306DD77E44D183",
+      "originalRow": "| S13 | PARTIAL | Existing comparison readers/foundations remain. | Saved comparison workbench, independent evidence, explicit empty state, typed Add and exact bookmark behavior. |",
+      "localImplemented": "Saved Compare immutable independent pins/typed subjects/empty selection/capture/bookmark/recovery.",
+      "localProofIds": [
+        "P-SAVED",
+        "P-UI"
+      ],
+      "localVerdict": "PASS",
+      "localRemainingImplementationOrVerification": "Authenticated independent source/browser trace unrun.",
+      "fullReleaseAcceptance": {
+        "verdict": "NOT RUN",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      }
+    },
+    {
+      "id": "S14",
+      "historicalStatus": "PARTIAL",
+      "historicalLocalSeam": "Existing lifecycle health/reconciliation foundations remain.",
+      "historicalRemaining": "Customer-safe denominator-backed Coverage UI, complete cohort keys and governed recheck outcomes.",
+      "sourceLine": 55,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/requirements-and-screens.md",
+      "sourceSha256": "A46D61E22B1C52D991C5B0638B1BFC493BB662DDDFF819AE0A306DD77E44D183",
+      "originalRow": "| S14 | PARTIAL | Existing lifecycle health/reconciliation foundations remain. | Customer-safe denominator-backed Coverage UI, complete cohort keys and governed recheck outcomes. |",
+      "localImplemented": "Account/edition/detail/member cohort filters precede501 sentinel; first500 matching slots explicitly truncated and physical completeness/denominators remain unknown.",
+      "localProofIds": [
+        "P-API",
+        "P-SOURCE",
+        "P-DI-RESIDUAL-CURRENT"
+      ],
+      "localVerdict": "ACCEPTED LIMITATION",
+      "localRemainingImplementationOrVerification": "Complete independently admitted marketed component/account/FY/edition/detail denominator and governance/browser evaluation remain blocked or unrun.",
+      "fullReleaseAcceptance": {
+        "verdict": "BLOCKED",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      },
+      "previousLocalSnapshot": {
+        "localImplemented": "Persisted customer coverage and unavailable-family states retained.",
+        "localVerdict": "ACCEPTED LIMITATION",
+        "localProofIds": [
+          "P-API",
+          "P-SOURCE"
+        ],
+        "localRemainingImplementationOrVerification": "Complete denominator-backed coverage/cohort/governed recheck scenario unestablished; corpus unavailable.",
+        "fullReleaseAcceptance": {
+          "verdict": "BLOCKED",
+          "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+        }
+      }
+    },
+    {
+      "id": "S15",
+      "historicalStatus": "PARTIAL",
+      "historicalLocalSeam": "Existing evidence drawer/correction foundations remain.",
+      "historicalRemaining": "Immutable typed targets, exact occurrence/before-after, current authorization, focus trap/return and correction impact proof.",
+      "sourceLine": 56,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/requirements-and-screens.md",
+      "sourceSha256": "A46D61E22B1C52D991C5B0638B1BFC493BB662DDDFF819AE0A306DD77E44D183",
+      "originalRow": "| S15 | PARTIAL | Existing evidence drawer/correction foundations remain. | Immutable typed targets, exact occurrence/before-after, current authorization, focus trap/return and correction impact proof. |",
+      "localImplemented": "Revision-bound exact typed evidence/pins and immutable correction/history foundations.",
+      "localProofIds": [
+        "P-EVIDENCE",
+        "P-SAVED",
+        "P-API"
+      ],
+      "localVerdict": "ACCEPTED LIMITATION",
+      "localRemainingImplementationOrVerification": "Complete focus trap/return/before-after/correction impact real browser scenario unrun.",
+      "fullReleaseAcceptance": {
+        "verdict": "NOT RUN",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      }
+    },
+    {
+      "id": "S16",
+      "historicalStatus": "PARTIAL",
+      "historicalLocalSeam": "Import CSV parser, durable jobs/rows/effects/receipts and operations panel exist.",
+      "historicalRemaining": "Full upload/mapping/repair UI, all-row receipt, crash/retry/reconcile and compensation after later edit.",
+      "sourceLine": 57,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/requirements-and-screens.md",
+      "sourceSha256": "A46D61E22B1C52D991C5B0638B1BFC493BB662DDDFF819AE0A306DD77E44D183",
+      "originalRow": "| S16 | PARTIAL | Import CSV parser, durable jobs/rows/effects/receipts and operations panel exist. | Full upload/mapping/repair UI, all-row receipt, crash/retry/reconcile and compensation after later edit. |",
+      "localImplemented": "Retained upload/mapping/repair/all receipts, native SQL fault/repreview/retry/compensation.",
+      "localProofIds": [
+        "P-IMPORT",
+        "P-COMP",
+        "P-UI"
+      ],
+      "localVerdict": "PASS",
+      "localRemainingImplementationOrVerification": "Target authenticated upload/storage/browser acceptance unrun.",
+      "fullReleaseAcceptance": {
+        "verdict": "NOT RUN",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      }
+    },
+    {
+      "id": "S17",
+      "historicalStatus": "PARTIAL",
+      "historicalLocalSeam": "Snapshot/output/client-file backend contract and native create/history/progress/cancel/retry/reconcile/download/save/open controls exist.",
+      "historicalRemaining": "Exact independent artifact render/hash/open, unknown-commit recovery and pre/during/post revocation acceptance in the target environment.",
+      "sourceLine": 58,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/requirements-and-screens.md",
+      "sourceSha256": "A46D61E22B1C52D991C5B0638B1BFC493BB662DDDFF819AE0A306DD77E44D183",
+      "originalRow": "| S17 | PARTIAL | Snapshot/output/client-file backend contract and native create/history/progress/cancel/retry/reconcile/download/save/open controls exist. | Exact independent artifact render/hash/open, unknown-commit recovery and pre/during/post revocation acceptance in the target environment. |",
+      "localImplemented": "Snapshots/output progress/retry/reconcile/download and durable filing IDs/bytes/hash controls.",
+      "localProofIds": [
+        "P-OPS",
+        "P-FILING",
+        "P-SAVED",
+        "P-UI"
+      ],
+      "localVerdict": "PASS",
+      "localRemainingImplementationOrVerification": "Actual object writer/scan/index/open/deployed revocation acceptance unrun.",
+      "fullReleaseAcceptance": {
+        "verdict": "NOT RUN",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      }
+    },
+    {
+      "id": "S18",
+      "historicalStatus": "PARTIAL",
+      "historicalLocalSeam": "Exact Research Portfolio launch context and the eight Phase 9 read/action tools use the authoritative registry and domain services.",
+      "historicalRemaining": "Complete Phase 1–8 research-context tools/actions across enabled surfaces with unsent-input preservation and full UI/Meri parity.",
+      "sourceLine": 59,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/requirements-and-screens.md",
+      "sourceSha256": "A46D61E22B1C52D991C5B0638B1BFC493BB662DDDFF819AE0A306DD77E44D183",
+      "originalRow": "| S18 | PARTIAL | Exact Research Portfolio launch context and the eight Phase 9 read/action tools use the authoritative registry and domain services. | Complete Phase 1–8 research-context tools/actions across enabled surfaces with unsent-input preservation and full UI/Meri parity. |",
+      "localImplemented": "49 finite native management actions/19 registered tool names and legacy current-turn normalization/dispatch guard have local regression proof; editable starters await Send. These finite adapters do not prove trusted full-chat transport authority or complete enabled-surface UI/alias parity.",
+      "localProofIds": [
+        "P-SCOPE",
+        "P-MERI-INVENTORY",
+        "P-UI"
+      ],
+      "localVerdict": "ACCEPTED LIMITATION",
+      "localRemainingImplementationOrVerification": "BLOCKED local integration: absent trusted immutable full-chat active-turn context and late-policy selected-client race remain separately owned, repairing but not integrated. Do not claim transport-bound writes from legacy/adapter tests. The bounded profile/research residual UI repair is applied and current mounted tests pass; complete enabled-surface alias/workspace/browser acceptance remains unestablished. RP gate remains strict true/default OFF; no enabled production surface inferred.",
+      "fullReleaseAcceptance": {
+        "verdict": "BLOCKED",
+        "disposition": "Full-chat authority dependency not integrated: trusted immutable turn context and late-policy selected-client race remain owned by the separate chat. Local adapter/legacy proof cannot qualify the full transport. Deployed acceptance is also unrun."
+      },
+      "previousLocalSnapshot": {
+        "localImplemented": "Captured RP context/editable unsent starter/18 registered scoped domain adapters.",
+        "localVerdict": "ACCEPTED LIMITATION",
+        "localProofIds": [
+          "P-SCOPE",
+          "P-MERI-INVENTORY",
+          "P-UI"
+        ],
+        "localRemainingImplementationOrVerification": "Complete Phase1-8 action/alias/UI parity pending web freeze; not closed by adapter count. Confirmed active-turn binding gap: other-owner fullchatApiToolExecutorRepo ignores MeriContext/forwards model input. Immutable governed request context/RP pinning repair belongs to other chat and needs future integration. Legacy Meri19-name guard pending web freeze. RP gate remains OFF unless exact true. Do not claim fullchat write binding complete.",
+        "fullReleaseAcceptance": {
+          "verdict": "NOT RUN",
+          "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+        }
+      }
+    }
+  ],
+  "acceptance": [
+    {
+      "id": "AT-01",
+      "historicalStatus": "NOT RUN",
+      "historicalObserved": "No browser session against an empty deployed tenant.",
+      "owner": "Frontend/navigation",
+      "historicalRemaining": "Browser trace for Clients, BizDev, Research Portfolios and Intelligence navigation.",
+      "sourceLine": 9,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/acceptance-results.md",
+      "sourceSha256": "892E596EB077D8E83D185D80623B05AC4B0C8106BA8639649109954AB3EA26D1",
+      "originalRow": "| AT-01 | NOT RUN | No browser session against an empty deployed tenant. | Frontend/navigation | Browser trace for Clients, BizDev, Research Portfolios and Intelligence navigation. |",
+      "localImplemented": "Mounted list/navigation seams only.",
+      "localProofIds": [
+        "P-UI"
+      ],
+      "localVerdict": "NOT RUN",
+      "localRemainingImplementationOrVerification": "Actual empty tenant Clients/BizDev/RP/Intelligence browser scenario not executed.",
+      "fullReleaseAcceptance": {
+        "verdict": "NOT RUN",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      }
+    },
+    {
+      "id": "AT-02",
+      "historicalStatus": "NOT RUN",
+      "historicalObserved": "No target browser matrix or direct-link replay.",
+      "owner": "Frontend/navigation",
+      "historicalRemaining": "Back/refresh/mobile trace covering legacy and new routes.",
+      "sourceLine": 10,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/acceptance-results.md",
+      "sourceSha256": "892E596EB077D8E83D185D80623B05AC4B0C8106BA8639649109954AB3EA26D1",
+      "originalRow": "| AT-02 | NOT RUN | No target browser matrix or direct-link replay. | Frontend/navigation | Back/refresh/mobile trace covering legacy and new routes. |",
+      "localImplemented": "Mounted URL/tab/Back/Forward/refresh/retained request checks.",
+      "localProofIds": [
+        "P-UI"
+      ],
+      "localVerdict": "ACCEPTED LIMITATION",
+      "localRemainingImplementationOrVerification": "Complete direct-link/mobile/legacy-new actual browser matrix not executed.",
+      "fullReleaseAcceptance": {
+        "verdict": "NOT RUN",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      }
+    },
+    {
+      "id": "AT-03",
+      "historicalStatus": "BLOCKED",
+      "historicalObserved": "Source checks are not target database/runtime tenant-isolation proof.",
+      "owner": "Portfolio persistence/security",
+      "historicalRemaining": "Database-backed owner/editor/viewer/revoked, raw role, job, cache, export and Meri attempts.",
+      "sourceLine": 11,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/acceptance-results.md",
+      "sourceSha256": "892E596EB077D8E83D185D80623B05AC4B0C8106BA8639649109954AB3EA26D1",
+      "originalRow": "| AT-03 | BLOCKED | Source checks are not target database/runtime tenant-isolation proof. | Portfolio persistence/security | Database-backed owner/editor/viewer/revoked, raw role, job, cache, export and Meri attempts. |",
+      "localImplemented": "Native tenant/current grant/wall/job/actor-private replay and scoped Meri boundaries.",
+      "localProofIds": [
+        "P-CORE",
+        "P-OWNER",
+        "P-FITCONT",
+        "P-FILING",
+        "P-WORKER",
+        "P-SAVED",
+        "P-SCOPE"
+      ],
+      "localVerdict": "PASS",
+      "localRemainingImplementationOrVerification": "Full main-role raw RLS/cache/export/HTTP/runtime matrix unqualified.",
+      "fullReleaseAcceptance": {
+        "verdict": "BLOCKED",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      }
+    },
+    {
+      "id": "AT-04",
+      "historicalStatus": "NOT RUN",
+      "historicalObserved": "No populated concurrent database run.",
+      "owner": "Portfolio persistence/security",
+      "historicalRemaining": "Create/import/add race traces and idempotency/conflict receipts.",
+      "sourceLine": 12,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/acceptance-results.md",
+      "sourceSha256": "892E596EB077D8E83D185D80623B05AC4B0C8106BA8639649109954AB3EA26D1",
+      "originalRow": "| AT-04 | NOT RUN | No populated concurrent database run. | Portfolio persistence/security | Create/import/add race traces and idempotency/conflict receipts. |",
+      "localImplemented": "Native same-revision/last-owner races and duplicate/unknown actor-bound recovery.",
+      "localProofIds": [
+        "P-CORE",
+        "P-OWNER",
+        "P-IMPORT",
+        "P-COMP",
+        "P-OPS",
+        "P-FILING"
+      ],
+      "localVerdict": "PASS",
+      "localRemainingImplementationOrVerification": "Full create/import/add target/browser concurrency scenario narrower/unrun.",
+      "fullReleaseAcceptance": {
+        "verdict": "NOT RUN",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      }
+    },
+    {
+      "id": "AT-05",
+      "historicalStatus": "NOT RUN",
+      "historicalObserved": "Local rule tests are narrower than the required outage and browser scenario.",
+      "owner": "Portfolio persistence/security",
+      "historicalRemaining": "Rule diff, manual exclusion and incomplete-fetch database/browser trace.",
+      "sourceLine": 13,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/acceptance-results.md",
+      "sourceSha256": "892E596EB077D8E83D185D80623B05AC4B0C8106BA8639649109954AB3EA26D1",
+      "originalRow": "| AT-05 | NOT RUN | Local rule tests are narrower than the required outage and browser scenario. | Portfolio persistence/security | Rule diff, manual exclusion and incomplete-fetch database/browser trace. |",
+      "localImplemented": "Rule diff/bounded incompleteness/manual precedence and governed UI regressions.",
+      "localProofIds": [
+        "P-API",
+        "P-UI"
+      ],
+      "localVerdict": "ACCEPTED LIMITATION",
+      "localRemainingImplementationOrVerification": "Complete actual outage + browser scenario not separately executed.",
+      "fullReleaseAcceptance": {
+        "verdict": "NOT RUN",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      }
+    },
+    {
+      "id": "AT-06",
+      "historicalStatus": "BLOCKED",
+      "historicalObserved": "No independently qualified continuity corpus or next-cycle rehearsal.",
+      "owner": "Graph/search/evaluation",
+      "historicalRemaining": "Rename/split/merge/unknown fixtures adjudicated against real identities and history.",
+      "sourceLine": 14,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/acceptance-results.md",
+      "sourceSha256": "892E596EB077D8E83D185D80623B05AC4B0C8106BA8639649109954AB3EA26D1",
+      "originalRow": "| AT-06 | BLOCKED | No independently qualified continuity corpus or next-cycle rehearsal. | Graph/search/evaluation | Rename/split/merge/unknown fixtures adjudicated against real identities and history. |",
+      "localImplemented": "Native accepted renamed/split/legacy/unknown owned continuity.",
+      "localProofIds": [
+        "P-FITCONT"
+      ],
+      "localVerdict": "ACCEPTED LIMITATION",
+      "localRemainingImplementationOrVerification": "Official independent rename/split/merge/next-cycle identity corpus absent.",
+      "fullReleaseAcceptance": {
+        "verdict": "BLOCKED",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      }
+    },
+    {
+      "id": "AT-07",
+      "historicalStatus": "NOT RUN",
+      "historicalObserved": "Phase 9 unit checks are not the full projection/corpus scenario.",
+      "owner": "Financial projections",
+      "historicalRemaining": "Database-backed PE/project, portfolio, parent/order and repeated-fact reconciliation with exact basis.",
+      "sourceLine": 15,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/acceptance-results.md",
+      "sourceSha256": "892E596EB077D8E83D185D80623B05AC4B0C8106BA8639649109954AB3EA26D1",
+      "originalRow": "| AT-07 | NOT RUN | Phase 9 unit checks are not the full projection/corpus scenario. | Financial projections | Database-backed PE/project, portfolio, parent/order and repeated-fact reconciliation with exact basis. |",
+      "localImplemented": "Exact stage/value/unit/native candidates and compatible/nonadditive financial regressions.",
+      "localProofIds": [
+        "P-API",
+        "P-SOURCE",
+        "P-SAVED"
+      ],
+      "localVerdict": "ACCEPTED LIMITATION",
+      "localRemainingImplementationOrVerification": "Complete official PE/project/parent-order/repeated-fact corpus reconciliation unqualified.",
+      "fullReleaseAcceptance": {
+        "verdict": "BLOCKED",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      }
+    },
+    {
+      "id": "AT-08",
+      "historicalStatus": "BLOCKED",
+      "historicalObserved": "No governed source revision/correction/revocation was executed.",
+      "owner": "Extraction/source operations",
+      "historicalRemaining": "Official-byte revision, pagination failure and dependent invalidation trace.",
+      "sourceLine": 16,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/acceptance-results.md",
+      "sourceSha256": "892E596EB077D8E83D185D80623B05AC4B0C8106BA8639649109954AB3EA26D1",
+      "originalRow": "| AT-08 | BLOCKED | No governed source revision/correction/revocation was executed. | Extraction/source operations | Official-byte revision, pagination failure and dependent invalidation trace. |",
+      "localImplemented": "Immutable source pins/original decision basis and controlled correction fixtures.",
+      "localProofIds": [
+        "P-SAVED",
+        "P-FITCONT",
+        "P-INSTITUTION"
+      ],
+      "localVerdict": "ACCEPTED LIMITATION",
+      "localRemainingImplementationOrVerification": "Official byte revision/pagination/correction/publication/dependent invalidation unrun.",
+      "fullReleaseAcceptance": {
+        "verdict": "BLOCKED",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      }
+    },
+    {
+      "id": "AT-09",
+      "historicalStatus": "BLOCKED",
+      "historicalObserved": "No qualified House/Senate/amendment/report target corpus was exercised.",
+      "owner": "Extraction/source operations",
+      "historicalRemaining": "Independently reviewed legislative branch examples with exact text/status evidence.",
+      "sourceLine": 17,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/acceptance-results.md",
+      "sourceSha256": "892E596EB077D8E83D185D80623B05AC4B0C8106BA8639649109954AB3EA26D1",
+      "originalRow": "| AT-09 | BLOCKED | No qualified House/Senate/amendment/report target corpus was exercised. | Extraction/source operations | Independently reviewed legislative branch examples with exact text/status evidence. |",
+      "localImplemented": "Context readers with explicit unavailable source-family states.",
+      "localProofIds": [
+        "P-API"
+      ],
+      "localVerdict": "NOT RUN",
+      "localRemainingImplementationOrVerification": "No qualified full House/Senate/amendment/report execution.",
+      "fullReleaseAcceptance": {
+        "verdict": "BLOCKED",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      }
+    },
+    {
+      "id": "AT-10",
+      "historicalStatus": "NOT RUN",
+      "historicalObserved": "No complete profile/milestone browser acceptance was run.",
+      "owner": "Frontend/navigation",
+      "historicalRemaining": "Exact source/date precision/state/edition trace including negative inference cases.",
+      "sourceLine": 18,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/acceptance-results.md",
+      "sourceSha256": "892E596EB077D8E83D185D80623B05AC4B0C8106BA8639649109954AB3EA26D1",
+      "originalRow": "| AT-10 | NOT RUN | No complete profile/milestone browser acceptance was run. | Frontend/navigation | Exact source/date precision/state/edition trace including negative inference cases. |",
+      "localImplemented": "Exact month/funding proof regressions and retained dossier foundations.",
+      "localProofIds": [
+        "P-API"
+      ],
+      "localVerdict": "ACCEPTED LIMITATION",
+      "localRemainingImplementationOrVerification": "Complete real source/profile/milestone browser scenario unrun.",
+      "fullReleaseAcceptance": {
+        "verdict": "NOT RUN",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      }
+    },
+    {
+      "id": "AT-11",
+      "historicalStatus": "BLOCKED",
+      "historicalObserved": "No independent search/taxonomy negative set was evaluated.",
+      "owner": "Graph/search/evaluation",
+      "historicalRemaining": "Ambiguous acronym, wrong section, similar unrelated and none-result adjudication.",
+      "sourceLine": 19,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/acceptance-results.md",
+      "sourceSha256": "892E596EB077D8E83D185D80623B05AC4B0C8106BA8639649109954AB3EA26D1",
+      "originalRow": "| AT-11 | BLOCKED | No independent search/taxonomy negative set was evaluated. | Graph/search/evaluation | Ambiguous acronym, wrong section, similar unrelated and none-result adjudication. |",
+      "localImplemented": "Opt-in bounded public PE semantic suggestions query existing index/provider ports after current membership/index preflight; current model/canonical-text hash and HTTPS/positive-page/versioned archive metadata controls; all suggestions explicitly partial. Disabled/absent/failure lanes preserve exact and governed capability answers.",
+      "localProofIds": [
+        "P-API",
+        "P-SEMANTIC-CURRENT"
+      ],
+      "localVerdict": "ACCEPTED LIMITATION",
+      "localRemainingImplementationOrVerification": "Local hardcoded-abstention gap repaired/applied and controlled113-test proof recorded. Native pgvector/index SQL, real provider/S3 byte opening/hash and deployed integration NOT RUN. Exact archived indexed-text attestation, independent hard-negative precision/recall/economics and full-result/corpus denominators BLOCKED. Full facets/selection/browser scenario remains unestablished.",
+      "fullReleaseAcceptance": {
+        "verdict": "BLOCKED",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      },
+      "previousLocalSnapshot": {
+        "localImplemented": "Exact/capability search; semantic explicitly abstained.",
+        "localVerdict": "ACCEPTED LIMITATION",
+        "localProofIds": [
+          "P-API"
+        ],
+        "localRemainingImplementationOrVerification": "Qualified semantic index locally unsupported; independent hard-negative taxonomy/evaluation absent.",
+        "fullReleaseAcceptance": {
+          "verdict": "BLOCKED",
+          "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+        }
+      }
+    },
+    {
+      "id": "AT-12",
+      "historicalStatus": "BLOCKED",
+      "historicalObserved": "No real prior/next-cycle decision corpus was available.",
+      "owner": "Portfolio persistence/security",
+      "historicalRemaining": "Selective reopen/carry-forward trace preserving original decisions/evidence.",
+      "sourceLine": 20,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/acceptance-results.md",
+      "sourceSha256": "892E596EB077D8E83D185D80623B05AC4B0C8106BA8639649109954AB3EA26D1",
+      "originalRow": "| AT-12 | BLOCKED | No real prior/next-cycle decision corpus was available. | Portfolio persistence/security | Selective reopen/carry-forward trace preserving original decisions/evidence. |",
+      "localImplemented": "Native readonly current continuity/reopen/immutable decisions/evidence.",
+      "localProofIds": [
+        "P-FITCONT",
+        "P-EVIDENCE"
+      ],
+      "localVerdict": "ACCEPTED LIMITATION",
+      "localRemainingImplementationOrVerification": "Real prior/next-cycle/historical canonical reconstruction unqualified.",
+      "fullReleaseAcceptance": {
+        "verdict": "BLOCKED",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      }
+    },
+    {
+      "id": "AT-13",
+      "historicalStatus": "NOT RUN",
+      "historicalObserved": "Local CSV/output tests do not prove actual object storage or Client Files indexing.",
+      "owner": "Meri/output delivery",
+      "historicalRemaining": "Mixed-row import, retry/reversal, byte hash and real writer receipt/open trace.",
+      "sourceLine": 21,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/acceptance-results.md",
+      "sourceSha256": "892E596EB077D8E83D185D80623B05AC4B0C8106BA8639649109954AB3EA26D1",
+      "originalRow": "| AT-13 | NOT RUN | Local CSV/output tests do not prove actual object storage or Client Files indexing. | Meri/output delivery | Mixed-row import, retry/reversal, byte hash and real writer receipt/open trace. |",
+      "localImplemented": "Native mixed import/savepoint/recovery/compensation plus output/filing controlled port.",
+      "localProofIds": [
+        "P-IMPORT",
+        "P-COMP",
+        "P-FILING",
+        "P-OPS"
+      ],
+      "localVerdict": "PASS",
+      "localRemainingImplementationOrVerification": "Real storage/Client Files scan/index/open/external writer not executed.",
+      "fullReleaseAcceptance": {
+        "verdict": "NOT RUN",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      }
+    },
+    {
+      "id": "AT-14",
+      "historicalStatus": "NOT RUN",
+      "historicalObserved": "No populated snapshot/source correction reproduction was executed.",
+      "owner": "Financial projections",
+      "historicalRemaining": "Snapshot membership/figures/evidence replay and unsupported-history negative trace.",
+      "sourceLine": 22,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/acceptance-results.md",
+      "sourceSha256": "892E596EB077D8E83D185D80623B05AC4B0C8106BA8639649109954AB3EA26D1",
+      "originalRow": "| AT-14 | NOT RUN | No populated snapshot/source correction reproduction was executed. | Financial projections | Snapshot membership/figures/evidence replay and unsupported-history negative trace. |",
+      "localImplemented": "Immutable saved projection/pins/snapshots preserve original history.",
+      "localProofIds": [
+        "P-SAVED",
+        "P-FITCONT",
+        "P-API"
+      ],
+      "localVerdict": "ACCEPTED LIMITATION",
+      "localRemainingImplementationOrVerification": "Full official correction/unsupported-history target reproduction unrun.",
+      "fullReleaseAcceptance": {
+        "verdict": "NOT RUN",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      }
+    },
+    {
+      "id": "AT-15",
+      "historicalStatus": "NOT RUN",
+      "historicalObserved": "No enabled-surface Meri/UI parity matrix was run.",
+      "owner": "Meri/output delivery",
+      "historicalRemaining": "Same-context/action IDs/status across UI, registry tool and aliases.",
+      "sourceLine": 23,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/acceptance-results.md",
+      "sourceSha256": "892E596EB077D8E83D185D80623B05AC4B0C8106BA8639649109954AB3EA26D1",
+      "originalRow": "| AT-15 | NOT RUN | No enabled-surface Meri/UI parity matrix was run. | Meri/output delivery | Same-context/action IDs/status across UI, registry tool and aliases. |",
+      "localImplemented": "49 finite native management actions/19 registered tool names and legacy current-turn normalization/dispatch guard have local regression proof; editable starters await Send. These finite adapters do not prove trusted full-chat transport authority or complete enabled-surface UI/alias parity.",
+      "localProofIds": [
+        "P-MERI-INVENTORY",
+        "P-SCOPE",
+        "P-INSTITUTION",
+        "P-UI"
+      ],
+      "localVerdict": "ACCEPTED LIMITATION",
+      "localRemainingImplementationOrVerification": "BLOCKED local integration: absent trusted immutable full-chat active-turn context and late-policy selected-client race remain separately owned, repairing but not integrated. Do not claim transport-bound writes from legacy/adapter tests. The bounded profile/research residual UI repair is applied and current mounted tests pass; complete enabled-surface alias/workspace/browser acceptance remains unestablished. RP gate remains strict true/default OFF; no enabled production surface inferred.",
+      "fullReleaseAcceptance": {
+        "verdict": "BLOCKED",
+        "disposition": "Full-chat authority dependency not integrated: trusted immutable turn context and late-policy selected-client race remain owned by the separate chat. Local adapter/legacy proof cannot qualify the full transport. Deployed acceptance is also unrun."
+      },
+      "previousLocalSnapshot": {
+        "localImplemented": "18 adapter schemas/dispatch/scope, real institutional IDs and mounted editable starter.",
+        "localVerdict": "ACCEPTED LIMITATION",
+        "localProofIds": [
+          "P-MERI-INVENTORY",
+          "P-SCOPE",
+          "P-INSTITUTION",
+          "P-UI"
+        ],
+        "localRemainingImplementationOrVerification": "Complete enabled-surface UI/tool/alias action parity pending final freeze/run. Confirmed active-turn binding gap: other-owner fullchatApiToolExecutorRepo ignores MeriContext/forwards model input. Immutable governed request context/RP pinning repair belongs to other chat and needs future integration. Legacy Meri19-name guard pending web freeze. RP gate remains OFF unless exact true. Do not claim fullchat write binding complete.",
+        "fullReleaseAcceptance": {
+          "verdict": "NOT RUN",
+          "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+        }
+      }
+    },
+    {
+      "id": "AT-16",
+      "historicalStatus": "BLOCKED",
+      "historicalObserved": "No configured delivery channel or two-user database run.",
+      "owner": "Meri/output delivery",
+      "historicalRemaining": "One logical event, explicit subscription, baseline, ack/dismiss and no-flood trace.",
+      "sourceLine": 24,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/acceptance-results.md",
+      "sourceSha256": "892E596EB077D8E83D185D80623B05AC4B0C8106BA8639649109954AB3EA26D1",
+      "originalRow": "| AT-16 | BLOCKED | No configured delivery channel or two-user database run. | Meri/output delivery | One logical event, explicit subscription, baseline, ack/dismiss and no-flood trace. |",
+      "localImplemented": "Native two-user ownership/preferences/state, quiet baseline/fenced cadence/fairness.",
+      "localProofIds": [
+        "P-WATCH",
+        "P-WORKER"
+      ],
+      "localVerdict": "ACCEPTED LIMITATION",
+      "localRemainingImplementationOrVerification": "Configured external delivery/email absent; full restored-baseline browser journey unrun.",
+      "fullReleaseAcceptance": {
+        "verdict": "BLOCKED",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      }
+    },
+    {
+      "id": "AT-17",
+      "historicalStatus": "BLOCKED",
+      "historicalObserved": "No two-cycle corpus or simulated next FY/Congress target environment.",
+      "owner": "Extraction/source operations",
+      "historicalRemaining": "Historical-cycle plus rollover run with metadata-driven options and old edition retention.",
+      "sourceLine": 25,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/acceptance-results.md",
+      "sourceSha256": "892E596EB077D8E83D185D80623B05AC4B0C8106BA8639649109954AB3EA26D1",
+      "originalRow": "| AT-17 | BLOCKED | No two-cycle corpus or simulated next FY/Congress target environment. | Extraction/source operations | Historical-cycle plus rollover run with metadata-driven options and old edition retention. |",
+      "localImplemented": "Temporal identity and retained immutable older decisions/saved projections.",
+      "localProofIds": [
+        "P-FITCONT",
+        "P-SAVED"
+      ],
+      "localVerdict": "ACCEPTED LIMITATION",
+      "localRemainingImplementationOrVerification": "Official two-cycle/FY/Congress/simulated rollover corpus absent.",
+      "fullReleaseAcceptance": {
+        "verdict": "BLOCKED",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      }
+    },
+    {
+      "id": "AT-18",
+      "historicalStatus": "NOT RUN",
+      "historicalObserved": "No object/database/provider fault injection was run.",
+      "owner": "Release operations",
+      "historicalRemaining": "Lease expiry, retry, unknown commit, partial output and bounded recovery traces.",
+      "sourceLine": 26,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/acceptance-results.md",
+      "sourceSha256": "892E596EB077D8E83D185D80623B05AC4B0C8106BA8639649109954AB3EA26D1",
+      "originalRow": "| AT-18 | NOT RUN | No object/database/provider fault injection was run. | Release operations | Lease expiry, retry, unknown commit, partial output and bounded recovery traces. |",
+      "localImplemented": "Actual SQL/savepoint/lease/crash/fence faults and native unknown commit recovery.",
+      "localProofIds": [
+        "P-IMPORT",
+        "P-COMP",
+        "P-WORKER",
+        "P-OPS",
+        "P-FILING"
+      ],
+      "localVerdict": "PASS",
+      "localRemainingImplementationOrVerification": "Object-store/provider/full deployment recovery faults unrun.",
+      "fullReleaseAcceptance": {
+        "verdict": "NOT RUN",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      }
+    },
+    {
+      "id": "AT-19",
+      "historicalStatus": "NOT RUN",
+      "historicalObserved": "No affected image context, deployment or migration sequence was executed.",
+      "owner": "Release operations",
+      "historicalRemaining": "Source SHA, build logs, image digests, migration ledger, route/flag/cohort evidence.",
+      "sourceLine": 27,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/acceptance-results.md",
+      "sourceSha256": "892E596EB077D8E83D185D80623B05AC4B0C8106BA8639649109954AB3EA26D1",
+      "originalRow": "| AT-19 | NOT RUN | No affected image context, deployment or migration sequence was executed. | Release operations | Source SHA, build logs, image digests, migration ledger, route/flag/cohort evidence. |",
+      "localImplemented": "Application builds and isolated selected migrations/prerequisites; no deployment.",
+      "localProofIds": [
+        "P-BUILD",
+        "P-INFRA"
+      ],
+      "localVerdict": "ACCEPTED LIMITATION",
+      "localRemainingImplementationOrVerification": "Linux images and historical migration/shared recovery BLOCKED; deployment/rollout excluded.",
+      "fullReleaseAcceptance": {
+        "verdict": "BLOCKED",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      }
+    },
+    {
+      "id": "AT-20",
+      "historicalStatus": "NOT RUN",
+      "historicalObserved": "No deployed end-to-end buyer journey was exercised.",
+      "owner": "Frontend/navigation",
+      "historicalRemaining": "Create through cited brief save/open with exact intermediate IDs and evidence.",
+      "sourceLine": 28,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/acceptance-results.md",
+      "sourceSha256": "892E596EB077D8E83D185D80623B05AC4B0C8106BA8639649109954AB3EA26D1",
+      "originalRow": "| AT-20 | NOT RUN | No deployed end-to-end buyer journey was exercised. | Frontend/navigation | Create through cited brief save/open with exact intermediate IDs and evidence. |",
+      "localImplemented": "Current canonical internal/owner/classification/reciprocal meeting-prep authorization and matching-current-RP saved capture reads/history/lifecycle are applied and owned native closure PASS0; existing outputs/snapshots preserved.",
+      "localProofIds": [
+        "P-UI",
+        "P-SAVED",
+        "P-INSTITUTION",
+        "P-FILING",
+        "P-MEETING-CURRENT",
+        "P-SAVED-RP-CURRENT"
+      ],
+      "localVerdict": "ACCEPTED LIMITATION",
+      "localRemainingImplementationOrVerification": "Meeting guard and saved-scope native pending statements are stale and closed locally. Full cache/snippets/download URLs/delivery target matrix, real storage/scan/index/open and deployed create-through-cited-save/open buyer journeys remain unrun.",
+      "fullReleaseAcceptance": {
+        "verdict": "NOT RUN",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      },
+      "previousLocalSnapshot": {
+        "localImplemented": "Mounted RP/compare/output UI and native institutional artifact/task/prep IDs.",
+        "localVerdict": "ACCEPTED LIMITATION",
+        "localProofIds": [
+          "P-UI",
+          "P-SAVED",
+          "P-INSTITUTION",
+          "P-FILING"
+        ],
+        "localRemainingImplementationOrVerification": "Deployed create-through-cited-save/open buyer journey unrun; meeting privacy guard applied; current native closure pending.",
+        "fullReleaseAcceptance": {
+          "verdict": "NOT RUN",
+          "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+        }
+      }
+    },
+    {
+      "id": "AT-21",
+      "historicalStatus": "BLOCKED",
+      "historicalObserved": "No qualified amended/withdrawn/replacement/FYDP corpus was available.",
+      "owner": "Financial projections",
+      "historicalRemaining": "Related-but-distinct request editions and retained enacted/outyear evidence.",
+      "sourceLine": 29,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/acceptance-results.md",
+      "sourceSha256": "892E596EB077D8E83D185D80623B05AC4B0C8106BA8639649109954AB3EA26D1",
+      "originalRow": "| AT-21 | BLOCKED | No qualified amended/withdrawn/replacement/FYDP corpus was available. | Financial projections | Related-but-distinct request editions and retained enacted/outyear evidence. |",
+      "localImplemented": "Exact per-cell stage/value/basis, pins, explicit missing/partial/history boundaries.",
+      "localProofIds": [
+        "P-API",
+        "P-SOURCE",
+        "P-SAVED"
+      ],
+      "localVerdict": "ACCEPTED LIMITATION",
+      "localRemainingImplementationOrVerification": "Official amended/withdrawn/replacement/FYDP corpus absent.",
+      "fullReleaseAcceptance": {
+        "verdict": "BLOCKED",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      }
+    },
+    {
+      "id": "AT-22",
+      "historicalStatus": "NOT RUN",
+      "historicalObserved": "Source access checks are not pre/during/post artifact revocation proof.",
+      "owner": "Portfolio persistence/security",
+      "historicalRemaining": "Shared portfolio snapshot/snippet/count/notification/download revocation matrix.",
+      "sourceLine": 30,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/acceptance-results.md",
+      "sourceSha256": "892E596EB077D8E83D185D80623B05AC4B0C8106BA8639649109954AB3EA26D1",
+      "originalRow": "| AT-22 | NOT RUN | Source access checks are not pre/during/post artifact revocation proof. | Portfolio persistence/security | Shared portfolio snapshot/snippet/count/notification/download revocation matrix. |",
+      "localImplemented": "Current canonical internal/owner/classification/reciprocal meeting-prep authorization and matching-current-RP saved capture reads/history/lifecycle are applied and owned native closure PASS0; existing outputs/snapshots preserved.",
+      "localProofIds": [
+        "P-FILING",
+        "P-WORKER",
+        "P-FITCONT",
+        "P-SAVED",
+        "P-OPS",
+        "P-MEETING-CURRENT",
+        "P-SAVED-RP-CURRENT"
+      ],
+      "localVerdict": "ACCEPTED LIMITATION",
+      "localRemainingImplementationOrVerification": "Meeting guard and saved-scope native pending statements are stale and closed locally. Full cache/snippets/download URLs/delivery target matrix, real storage/scan/index/open and deployed create-through-cited-save/open buyer journeys remain unrun.",
+      "fullReleaseAcceptance": {
+        "verdict": "NOT RUN",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      },
+      "previousLocalSnapshot": {
+        "localImplemented": "Native filing/grant/wall/membership, historical removed-link delivery, private fit/saved revocation.",
+        "localVerdict": "ACCEPTED LIMITATION",
+        "localProofIds": [
+          "P-FILING",
+          "P-WORKER",
+          "P-FITCONT",
+          "P-SAVED",
+          "P-OPS"
+        ],
+        "localRemainingImplementationOrVerification": "Canonical meeting eligibility/read guard pending; complete snippets/cache/download URLs/target matrix unrun.",
+        "fullReleaseAcceptance": {
+          "verdict": "NOT RUN",
+          "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+        }
+      }
+    },
+    {
+      "id": "AT-23",
+      "historicalStatus": "BLOCKED",
+      "historicalObserved": "No independently dated geography corpus was evaluated.",
+      "owner": "Extraction/source operations",
+      "historicalRemaining": "Separate recipient/performance/district identities and outdated-geography negatives.",
+      "sourceLine": 31,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/acceptance-results.md",
+      "sourceSha256": "892E596EB077D8E83D185D80623B05AC4B0C8106BA8639649109954AB3EA26D1",
+      "originalRow": "| AT-23 | BLOCKED | No independently dated geography corpus was evaluated. | Extraction/source operations | Separate recipient/performance/district identities and outdated-geography negatives. |",
+      "localImplemented": "Existing geography foundations; no new inferred facts/admission.",
+      "localProofIds": [],
+      "localVerdict": "NOT RUN",
+      "localRemainingImplementationOrVerification": "Independent dated recipient/performance/district/geography corpus not exercised.",
+      "fullReleaseAcceptance": {
+        "verdict": "BLOCKED",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      }
+    },
+    {
+      "id": "AT-24",
+      "historicalStatus": "BLOCKED",
+      "historicalObserved": "No complete marketed-corpus denominator exists in this task.",
+      "owner": "Extraction/source operations",
+      "historicalRemaining": "Explicit component/account/FY/edition/detail denominators including unavailable families.",
+      "sourceLine": 32,
+      "sourcePath": "C:/dev/cap-defense-continuation/docs/research-portfolios/phase11/acceptance-results.md",
+      "sourceSha256": "892E596EB077D8E83D185D80623B05AC4B0C8106BA8639649109954AB3EA26D1",
+      "originalRow": "| AT-24 | BLOCKED | No complete marketed-corpus denominator exists in this task. | Extraction/source operations | Explicit component/account/FY/edition/detail denominators including unavailable families. |",
+      "localImplemented": "Bounded non-admitted candidate inventory and unavailable-family/source coverage.",
+      "localProofIds": [
+        "P-SOURCE",
+        "P-API"
+      ],
+      "localVerdict": "ACCEPTED LIMITATION",
+      "localRemainingImplementationOrVerification": "Complete marketed component/account/FY/edition/detail denominator absent.",
+      "fullReleaseAcceptance": {
+        "verdict": "BLOCKED",
+        "disposition": "Not accepted as full release. Target corpus/runtime/browser qualification separate; latest instruction excludes merge/main integration/AWS."
+      }
+    }
+  ],
+  "sideEffects": {
+    "trackedEdits": false,
+    "dbReadsOrWrites": false,
+    "commitPushMerge": false,
+    "mainIntegration": false,
+    "awsShipment": false,
+    "providerOrCohortChange": false
+  },
+  "previousActualLocalRemaining": [
+    {
+      "kind": "actual declared unsupported local feature",
+      "ids": [
+        "DI-09",
+        "S09",
+        "AT-11"
+      ],
+      "description": "Qualified semantic search is not an index query: enabled branch returns hardcoded abstained. Exact/capability subset remains available; no invented semantic quality claim.",
+      "source": "C:/dev/cap-defense-continuation/apps/api/src/defense-research/defense-research.service.ts",
+      "line": 221
+    },
+    {
+      "kind": "pending local integration/actions",
+      "ids": [
+        "MX-01",
+        "S18",
+        "AT-15"
+      ],
+      "description": "Full UI/tool/alias Phase1-8 mutation parity pending web freeze/current runs;18 read/action adapters do not establish every UI mutation. Confirmed active-turn binding gap: other-owner fullchatApiToolExecutorRepo ignores MeriContext/forwards model input. Immutable governed request context/RP pinning repair belongs to other chat and needs future integration. Legacy Meri19-name guard pending web freeze. RP gate remains OFF unless exact true. Do not claim fullchat write binding complete."
+    },
+    {
+      "kind": "pending local privacy closure",
+      "ids": [
+        "RP-05",
+        "MX-02",
+        "AT-22"
+      ],
+      "description": "Meeting internal/classification/prep assignment code guard now applied by source owner. Controlled closure first runner finally ReferenceError is not PASS0; exact v2 pending. No repeat fixtures/races/output mutations inferred."
+    },
+    {
+      "kind": "explicit supported subset limitation",
+      "ids": [
+        "RP-09",
+        "S05",
+        "AT-16"
+      ],
+      "description": "External email unsupported partial, no configured external channel; dormant in-app worker has real native cadence/lease closure."
+    },
+    {
+      "kind": "explicit historical limitation",
+      "ids": [
+        "RP-07",
+        "DI-03",
+        "AT-12"
+      ],
+      "description": "Canonical facts are current projection, not historical as-of reconstruction; temporal identity and immutable captured basis supported."
+    },
+    {
+      "kind": "unestablished local completeness, not invented confirmed defect",
+      "ids": [
+        "DI-01",
+        "DI-04",
+        "DI-05",
+        "DI-08",
+        "DI-11",
+        "S10",
+        "S11",
+        "S12",
+        "S14",
+        "S15"
+      ],
+      "description": "Complete narratives/temporal graph/acquisition/workspace/coverage/inspector behavior lacks targeted full local scenario proof. Original portable/F/V details unavailable. Retain NOT RUN/bounded seams instead of claiming only external work remains."
+    }
+  ],
+  "currentOverlay": {
+    "sourceSnapshot": {
+      "path": "C:/dev/defense-completion-20260928/review-api-closeout-matrix.json",
+      "sha256": "D369F180710416CF8F49D68B422C93FE75C96D904A605ED7C263793CA88C3027"
+    },
+    "packetReviewed": {
+      "path": "C:/dev/defense-completion-20260928/prepare-closeout-packet.cjs",
+      "sha256": "DDDC1F515C1A4781CBC8333C44F551FB15FA53941B7984EC58D2E3BC481AFF9C"
+    },
+    "updatedRows": [
+      "DI-01",
+      "S12",
+      "DI-02",
+      "DI-04",
+      "DI-08",
+      "DI-05",
+      "S11",
+      "DI-11",
+      "S14",
+      "DI-09",
+      "S09",
+      "AT-11",
+      "RP-05",
+      "MX-02",
+      "AT-20",
+      "AT-22",
+      "MX-01",
+      "S18",
+      "AT-15"
+    ],
+    "finalGates": "PASS for the final bounded API/web suites, application wiring and required local builds; full release/deployed/source acceptance remains BLOCKED or NOT RUN.",
+    "fullChatBlocker": "Absent trusted immutable context AND late-policy selected-client race; separately owned repair not integrated.",
+    "sideEffects": "Scratch JSON/Markdown only; no tracked edit, DB/provider/routing/config/other-chat changes.",
+    "previousFinalGates": "Root current combined62-suite1033-test run:61suites1032tests PASS, one stale static semantic assertion FAIL. Narrow original contract FAIL1/PASS5, candidate contract+66 applied runtime tests72PASS0; test-only guarded package applied by Hermes exit0/final combined repeat running. Current fullAPI compiler/Nest/module exit0 confirmed by root. Web residual pending; previous60/952+185web proof historical only."
+  },
+  "finalOverlay": {
+    "capturedAt": "2026-09-28T14:59:30.728Z",
+    "branch": "codex/defense-continuation-20260928",
+    "verificationParent": "b466d26017cee42dbf614112395f6342653504e1",
+    "sourceSnapshot": {
+      "path": "C:/dev/defense-completion-20260928/review-api-closeout-matrix-current.json",
+      "sha256": "049bbe9b4bbe57bbb7df82e2ab093956b09ebf5ab841ca4321abd5f2537c43d4",
+      "historicalSource": {
+        "path": "C:/dev/defense-completion-20260928/review-api-closeout-matrix.json",
+        "sha256": "D369F180710416CF8F49D68B422C93FE75C96D904A605ED7C263793CA88C3027"
+      }
+    },
+    "stableSuite": {
+      "verdict": "PASS",
+      "processExitCode": 0,
+      "error": null,
+      "startedAt": "2026-09-28T14:47:56.7207736Z",
+      "completedAt": "2026-09-28T14:49:11.1183174Z",
+      "scope": "Frozen local Jest suites using actual API base config plus actual Defense API runtime-source mirror; mocked/synthetic checks only. No DB/provider/deployment/corpus/HTTP acceptance.",
+      "inventorySha256": "58E18FB407BDF1259C6A62A1D6A8334D42055D4D9A83DE7D2B8EF5DCEAF1434B",
+      "suiteCount": 62,
+      "logPath": "C:/dev/defense-completion-20260928/review-api-final-suite.log",
+      "resultPath": "C:/dev/defense-completion-20260928/review-api-final-suite-jest-results.json",
+      "sideEffects": "Scratch logs/results only; local mocked/synthetic unit code executes. No native acceptance or provider/deployment claim.",
+      "logSha256": "A57B74A6A5D67B77BFC1B03ED38328F4F58648D146EA4864600BD463C5135016",
+      "resultSha256": "A091213990DE7F2D9F0A3105D6BCD8F627E3F9A82D3639B0A0AB53C50D19A38B"
+    },
+    "moduleSmoke": {
+      "verdict": "PASS",
+      "processExitCode": 0,
+      "error": null,
+      "startedAt": "2026-09-28T14:41:10.7709267Z",
+      "completedAt": "2026-09-28T14:42:15.9407205Z",
+      "scope": "AppModule compile-only dependency injection graph; no ModuleInit, DB/network connections or production bootstrap acceptance. Dummy environment forced by runner. Maximum test timeout 180 seconds; root polls execution under 60 seconds.",
+      "inventorySha256": "E3AF2BA11FD2A94C617D72A712E1FC2ADDF386B026041FB51AEAC879DD7F12AF",
+      "suiteCount": 1,
+      "logPath": "C:/dev/defense-completion-20260928/review-api-final-module-smoke.log",
+      "resultPath": "C:/dev/defense-completion-20260928/review-api-final-module-smoke-jest-results.json",
+      "sideEffects": "Scratch logs/results only; local mocked/synthetic unit code executes. No native acceptance or provider/deployment claim.",
+      "logSha256": "559F6AA78B1FFCF6F85B427F5AE0C66EF62330DC046D30A95E6D454E0B448457",
+      "resultSha256": "ABD27CD72C04E12FDB7F9B834782A252265FAE6B9884EC56DE13FF8EBE63341F"
+    },
+    "web": {
+      "files": 31,
+      "tests": 198,
+      "passed": 198,
+      "processExitCode": 0
+    },
+    "native": [
+      {
+        "name": "review-source-native-institutional-meeting-boundary-closure-results-v2.json",
+        "sha256": "1504642140f29c1b4ff701963905023c69c68a967e851251118596f0f2f35ffc",
+        "checks": 5,
+        "scope": "Patched native meeting-boundary closure on exact existing private outputs only. No new fixture/child/output/reseed or repeated prior race, no source qualification. Narrow v3 continuation after original resolvedAt and v2 cross-VM assertion harness failures; no reseed/child correction/repeated prior race. Actual InstitutionalService/AnalyticsService plus exact tracked canonical Engagement and Meri AST methods with real Prisma/auth on owned native v3. Source prep helper proves native filtering; not full listMeetings/report/HTTP/DI routes, provider use, full migration chain, raw restricted-role coverage, official source/donor qualification, arbitrary knownAt, production or AWS."
+      },
+      {
+        "name": "review-source-native-saved-rp-scope-results.json",
+        "sha256": "192253dc5acae256fb02738d91b95b2b755906e52ee1ac7162ba72b326b20771",
+        "checks": 5,
+        "scope": "Actual applied saved service+Prisma read-only same-RP native acceptance on exact existing owned9000 v3 fixtures. No replayed prior races, fixture/new output/version/member/bookmark creation, source qualification/provider/transport/HTTP/Clerk/full migration chain/restricted raw role/production/AWS claim."
+      }
+    ],
+    "operationalProofs": [
+      {
+        "path": "C:/dev/defense-completion-20260928/final-static-preservation-receipt.json",
+        "sha256": "7fac8692c4e14e06331fe3427612f73a41c615e7c7ecb468c2d22a96a4e95726"
+      },
+      {
+        "path": "C:/dev/defense-completion-20260928/stop-owned-postgres-receipt.json",
+        "sha256": "a4ca14e3faa940b47a2777dc0cfcdc0fefcc9da6459723d48df1221cb65e8b02"
+      }
+    ],
+    "liveDependencies": {
+      "fullChat": "BLOCKED local integration: absent trusted immutable full-chat active-turn context and late-policy selected-client race remain separately owned, repairing but not integrated. Finite adapter/legacy guard tests do not prove transport-bound writes. RP tools remain strict-true opt-in/default OFF.",
+      "semantic": "ACCEPTED LIMITATION for opt-in read-only public-PE vector suggestions with current membership/model/text-hash and native archive-receipt controls. BLOCKED full qualified semantic acceptance: archived indexed-text attestation, real pgvector/provider/archive bytes and independently reviewed difficult-negative accuracy/cost/recall evidence remain unavailable. Exact/capability partial answers survive failures.",
+      "source": "BLOCKED: official independently reviewed two-cycle corpus/source admission and financial-family/component/FY/edition denominators are unavailable. Native XML donor candidates are independently inspected, not admitted as official facts.",
+      "migration": "BLOCKED: full historical migration chain/shared ledger recovery is separately owned; four additive LF SQL migrations pass only the dedicated native selected subset.",
+      "image": "BLOCKED locally: Windows Docker provides no Linux/arm64 buildx worker; preserved image build failure generated no deployable image digest.",
+      "fullPlan": "BLOCKED: original START-HERE/213155-byte portable plan/F01–F42/V4-01–V4-15 source files unavailable. Existing70 rows are fully enumerated; unknown definitions are not invented.",
+      "acceptance": "NOT RUN: deployed Clerk/HTTP journeys, real canonical file storage/scan/index/open, external email, independently labelled corpus quality/economics/performance and user-run production canaries.",
+      "integration": "NOT RUN by latest user instruction: local-main integration, GitHub-main merge, AWS Actions dispatch/migrations/deployment."
+    },
+    "verdict": "PASS for explicit bounded implementation proofs; BLOCKED/NOT RUN for full acceptance. No full-project completion or deployment claim."
+  },
+  "previousPreFinalActualLocalRemaining": [
+    {
+      "kind": "applied bounded semantic implementation, unqualified release acceptance",
+      "ids": [
+        "DI-09",
+        "S09",
+        "AT-11"
+      ],
+      "description": "Local hardcoded-abstention gap repaired/applied and controlled113-test proof recorded. Native pgvector/index SQL, real provider/S3 byte opening/hash and deployed integration NOT RUN. Exact archived indexed-text attestation, independent hard-negative precision/recall/economics and full-result/corpus denominators BLOCKED. Full facets/selection/browser scenario remains unestablished."
+    },
+    {
+      "kind": "actual local full-chat integration blocker",
+      "ids": [
+        "MX-01",
+        "S18",
+        "AT-15"
+      ],
+      "description": "BLOCKED local integration: absent trusted immutable full-chat active-turn context and late-policy selected-client race remain separately owned, repairing but not integrated. Do not claim transport-bound writes from legacy/adapter tests. The bounded profile/research repair is applied and current mounted tests pass; complete enabled-surface alias/workspace/browser acceptance remains unestablished. RP gate remains strict true/default OFF; no enabled production surface inferred.",
+      "evidenceBasis": "Parent-coordinated known blocker; no duplicate transport audit or new implementation by this reviewer."
+    },
+    {
+      "kind": "pending web residual/current final verification",
+      "ids": [
+        "DI-05",
+        "S10",
+        "S11",
+        "S12"
+      ],
+      "description": "Separate web owner residual profile/workspace changes are pending root application/current proof. Final62 suites1033tests had61 suites1032tests PASS and one outdated static semantic assertion FAIL; original log/JSON preserved. Narrow test-only closure72tests PASS0 applied by Hermes exit0, final combined repeat running; completion not inferred. Current fullAPI compiler/Nest/module exit0 confirmed by root; no all-suite PASS inferred."
+    },
+    {
+      "kind": "explicit supported subset limitation",
+      "ids": [
+        "RP-09",
+        "S05",
+        "AT-16"
+      ],
+      "description": "External email unsupported partial, no configured external channel; dormant in-app worker has real native cadence/lease closure."
+    },
+    {
+      "kind": "explicit historical limitation",
+      "ids": [
+        "RP-07",
+        "DI-03",
+        "AT-12"
+      ],
+      "description": "Canonical facts are current projection, not historical as-of reconstruction; temporal identity and immutable captured basis supported."
+    },
+    {
+      "kind": "unestablished local completeness, not invented confirmed defect",
+      "ids": [
+        "DI-01",
+        "DI-04",
+        "DI-05",
+        "DI-08",
+        "DI-11",
+        "S10",
+        "S11",
+        "S12",
+        "S14",
+        "S15"
+      ],
+      "description": "Complete narratives/temporal graph/acquisition/workspace/coverage/inspector behavior lacks targeted full local scenario proof. Original portable/F/V details unavailable. Retain NOT RUN/bounded seams instead of claiming only external work remains."
+    }
+  ]
+}

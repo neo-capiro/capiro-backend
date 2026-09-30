@@ -1,3 +1,4 @@
+import { researchPortfolioManagementSchema, parseResearchPortfolioManagementInput } from '../research-portfolios/research-portfolio-management.js';
 import { federalHearingWhere } from '../hearing-discovery/hearing-geography.js';
 import {
   deadlineStatus as structuredDeadlineStatus,
@@ -434,7 +435,7 @@ export class MeriToolsService {
   }
 
   private requireResearchPortfolioTools(): ResearchPortfolioMeriToolsService {
-    if (process.env.RESEARCH_PORTFOLIO_MERI_TOOLS_ENABLED === 'false') {
+    if (process.env.RESEARCH_PORTFOLIO_MERI_TOOLS_ENABLED !== 'true') {
       throw new NotFoundException('Meri tool not found');
     }
     if (!this.researchPortfolioTools) throw new NotFoundException('Meri tool not found');
@@ -526,6 +527,7 @@ export class MeriToolsService {
     };
 
     const schemas: Record<MeriToolName, Record<string, unknown>> = {
+      manage_research_portfolio: researchPortfolioManagementSchema,
       get_research_portfolio: obj(
         { conversationId: str('Exact current Research Portfolio chat conversation UUID') },
         ['conversationId'],
@@ -588,18 +590,20 @@ export class MeriToolsService {
       create_research_portfolio_bookmark: obj(
         {
           conversationId: str('Exact current Research Portfolio chat conversation UUID'),
-          targetKind: { type: 'string', enum: ['member', 'source', 'snapshot', 'output'] },
+          operationKey: str('Stable idempotency key for this intended bookmark'),
+          targetKind: { type: 'string', enum: ['member', 'snapshot', 'evidence', 'review', 'import', 'output', 'other'] },
           targetId: str('Exact bookmark target entity UUID'),
           label: str('Optional human-readable label'),
+          note: str('Optional private bookmark note'),
         },
-        ['conversationId', 'targetKind', 'targetId'],
+        ['conversationId', 'operationKey', 'targetKind', 'targetId'],
       ),
       get_research_portfolio_fit: obj(
         { conversationId: str('Exact current Research Portfolio chat conversation UUID') },
         ['conversationId'],
       ),
       get_research_portfolio_reviews: obj(
-        { conversationId: str('Exact current Research Portfolio chat conversation UUID') },
+        { conversationId: str('Exact current Research Portfolio chat conversation UUID'), lane: { type: 'string', enum: ['mine', 'team', 'deferred', 'resolved'] } },
         ['conversationId'],
       ),
       add_research_portfolio_review_note: obj(
@@ -607,36 +611,46 @@ export class MeriToolsService {
           conversationId: str('Exact current Research Portfolio chat conversation UUID'),
           reviewId: str('Exact review UUID'),
           body: str('Note content'),
-          parentNoteId: str('Optional parent note UUID for threading'),
+          operationKey: str('Stable idempotency key for this intended append-only note'),
+          expectedRevision: { type: 'integer', minimum: 0 },
         },
-        ['conversationId', 'reviewId', 'body'],
+        ['conversationId', 'operationKey', 'expectedRevision', 'reviewId', 'body'],
       ),
       get_research_portfolio_rules: obj(
         { conversationId: str('Exact current Research Portfolio chat conversation UUID') },
         ['conversationId'],
       ),
       get_research_portfolio_imports: obj(
-        { conversationId: str('Exact current Research Portfolio chat conversation UUID') },
+        { conversationId: str('Exact current Research Portfolio chat conversation UUID'), jobId: str('Optional exact authorized import job UUID for all-row detail and compensation receipt') },
         ['conversationId'],
       ),
       get_research_portfolio_operations: obj(
-        { conversationId: str('Exact current Research Portfolio chat conversation UUID') },
-        ['conversationId'],
+        { conversationId: str('Exact current Research Portfolio chat conversation UUID'), operationId: str('Exact authorized import, recompute, output job, or snapshot operation UUID') },
+        ['conversationId', 'operationId'],
       ),
       prepare_research_portfolio_brief: obj(
-        {
-          conversationId: str('Exact current Research Portfolio chat conversation UUID'),
-          scope: { type: 'string', enum: ['summary', 'full'] },
-        },
-        ['conversationId'],
-      ),
+    {
+      conversationId: str('Exact current Research Portfolio chat UUID'),
+      operationKey: str('Original stable idempotency key for this unreviewed editable draft'),
+      confirmed: { type: 'boolean', enum: [true] },
+    },
+    ['conversationId', 'operationKey', 'confirmed'],
+  ),
       prepare_research_portfolio_meeting: obj(
-        {
-          conversationId: str('Exact current Research Portfolio chat conversation UUID'),
-          meetingType: { type: 'string', enum: ['status', 'review', 'planning'] },
-        },
-        ['conversationId'],
-      ),
+    {
+      conversationId: str('Exact current Research Portfolio chat UUID'),
+      operationKey: str('Original stable idempotency key for this unreviewed editable draft'),
+      confirmed: { type: 'boolean', enum: [true] },
+      meetingId: str('Optional exact owned internal client-null meeting UUID'),
+      selectedReviewIds: {
+        type: 'array',
+        maxItems: 20,
+        uniqueItems: true,
+        items: { type: 'string', format: 'uuid' },
+      },
+    },
+    ['conversationId', 'operationKey', 'confirmed'],
+  ),
       search_legiwatch_news: obj(
         {
           ...legiwatchScope,
@@ -2137,7 +2151,7 @@ export class MeriToolsService {
       resolveStatusProvenanceMode(rollout.env ?? process.env, rollout.tenantId, rollout.surface) ===
         'enforce';
     const researchPortfolioToolsEnabled =
-      (rollout?.env ?? process.env).RESEARCH_PORTFOLIO_MERI_TOOLS_ENABLED !== 'false';
+      (rollout?.env ?? process.env).RESEARCH_PORTFOLIO_MERI_TOOLS_ENABLED === 'true';
     return TOOL_DEFINITIONS.filter(
       (tool) =>
         (tool.name !== 'get_certification_status' || statusProvenanceEnabled) &&
@@ -2178,6 +2192,10 @@ export class MeriToolsService {
     if (!this.isSideEffecting(normalizedName)) {
       throw new BadRequestException(`${normalizedName} is not a side-effecting Meri tool`);
     }
+    if (normalizedName === 'manage_research_portfolio') {
+  this.requireResearchPortfolioTools();
+  return parseResearchPortfolioManagementInput(rawInput);
+}
     const definition = this.anthropicToolSchemas().find((tool) => tool.name === normalizedName);
     if (!definition) throw new BadRequestException(`Unknown Meri tool: ${normalizedName}`);
     return validateMeriWriteToolInput(
@@ -2505,6 +2523,7 @@ export class MeriToolsService {
     });
     assertMeriToolRequestActive();
     switch (name) {
+      case 'manage_research_portfolio':
       case 'get_research_portfolio':
       case 'get_research_portfolio_analytics':
       case 'get_research_portfolio_changes':

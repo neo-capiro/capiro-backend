@@ -118,11 +118,7 @@ export function storeResearchPortfolioProposalTurnScope(
   scope: ResearchPortfolioProposalTurnScope | undefined,
 ): Record<string, unknown> {
   if (!isResearchPortfolioProposalTool(tool)) return preview;
-  const trusted = assertResearchPortfolioProposalTurnScope(
-    tool,
-    scope,
-    scope?.conversationId,
-  )!;
+  const trusted = assertResearchPortfolioProposalTurnScope(tool, scope, scope?.conversationId)!;
   return {
     ...preview,
     [TRUSTED_SCOPE_KEY]: {
@@ -166,9 +162,7 @@ export function readStoredResearchPortfolioProposalTurnScope(
   };
 }
 
-export function publicResearchPortfolioProposalPreview(
-  preview: unknown,
-): Record<string, unknown> {
+export function publicResearchPortfolioProposalPreview(preview: unknown): Record<string, unknown> {
   if (!preview || typeof preview !== 'object' || Array.isArray(preview)) return {};
   const { [TRUSTED_SCOPE_KEY]: _scope, ...publicPreview } = preview as Record<string, unknown>;
   return publicPreview;
@@ -214,11 +208,7 @@ export async function authorizeResearchPortfolioProposalConversation(
   );
   if (!conversation) throw new NotFoundException('Meri conversation not found');
 
-  const scope = await authorizeMeriResearchPortfolioScope(
-    scopeService,
-    ctx,
-    conversation.metadata,
-  );
+  const scope = await authorizeMeriResearchPortfolioScope(scopeService, ctx, conversation.metadata);
   if (!scope) {
     throw new BadRequestException('This conversation is not scoped to a Research Portfolio');
   }
@@ -242,19 +232,12 @@ export async function authorizeResearchPortfolioProposalConversation(
       'The current Research Portfolio conversation authority changed during authorization.',
     );
   }
-  if (
-    trustedSelectedClientId !== undefined &&
-    current.clientId !== trustedSelectedClientId
-  ) {
+  if (trustedSelectedClientId !== undefined && current.clientId !== trustedSelectedClientId) {
     throw new BadRequestException(
       'The current conversation client changed after the Research Portfolio proposal turn.',
     );
   }
-  if (
-    policyClientId &&
-    current.clientId &&
-    current.clientId !== policyClientId
-  ) {
+  if (policyClientId && current.clientId && current.clientId !== policyClientId) {
     throw new BadRequestException(
       'The proposal client does not match the current conversation client.',
     );

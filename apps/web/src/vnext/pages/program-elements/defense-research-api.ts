@@ -69,10 +69,7 @@ export async function getDefenseOffice(api: AxiosInstance, officeId: string) {
   ).data;
 }
 
-export async function listDefenseRelationships(
-  api: AxiosInstance,
-  filters: RelationshipFilters,
-) {
+export async function listDefenseRelationships(api: AxiosInstance, filters: RelationshipFilters) {
   return (
     await api.get<DefenseRelationshipListDto>('/api/defense-budget/relationships', {
       params: defined(filters as Record<string, unknown>),
@@ -81,28 +78,43 @@ export async function listDefenseRelationships(
 }
 
 export async function listAcquisitionRecords(api: AxiosInstance, filters: AcquisitionFilters) {
-  return (await api.get<DefenseAcquisitionRecordListDto>('/api/defense-budget/acquisition-records', {
-    params: defined(filters as Record<string, unknown>),
-  })).data;
+  return (
+    await api.get<DefenseAcquisitionRecordListDto>('/api/defense-budget/acquisition-records', {
+      params: defined(filters as Record<string, unknown>),
+    })
+  ).data;
 }
 
 export async function getAcquisitionRecord(api: AxiosInstance, identityKey: string) {
-  return (await api.get<DefenseAcquisitionRecordDetailDto>(
-    `/api/defense-budget/acquisition-records/${encodeURIComponent(identityKey)}`,
-    { params: { includeSpeculative: false } },
-  )).data;
+  return (
+    await api.get<DefenseAcquisitionRecordDetailDto>(
+      `/api/defense-budget/acquisition-records/${encodeURIComponent(identityKey)}`,
+      { params: { includeSpeculative: false } },
+    )
+  ).data;
 }
 
 export async function getAcquisitionActions(api: AxiosInstance, identityKey: string) {
-  return (await api.get<readonly DefenseAcquisitionRecordActionDto[]>(
-    `/api/defense-budget/acquisition-records/${encodeURIComponent(identityKey)}/actions`,
-  )).data;
+  return (
+    await api.get<readonly DefenseAcquisitionRecordActionDto[]>(
+      `/api/defense-budget/acquisition-records/${encodeURIComponent(identityKey)}/actions`,
+    )
+  ).data;
 }
 
-export async function getAcquisitionCoverage(api: AxiosInstance, subjectKind: string, subjectKey: string) {
-  return (await api.get<DefenseAcquisitionCoverageGapListDto>('/api/defense-budget/acquisition-coverage', {
-    params: { subjectKind, subjectKey },
-  })).data;
+export async function getAcquisitionCoverage(
+  api: AxiosInstance,
+  subjectKind: string,
+  subjectKey: string,
+) {
+  return (
+    await api.get<DefenseAcquisitionCoverageGapListDto>(
+      '/api/defense-budget/acquisition-coverage',
+      {
+        params: { subjectKind, subjectKey },
+      },
+    )
+  ).data;
 }
 
 export interface DefenseSearchFilters {
@@ -110,10 +122,7 @@ export interface DefenseSearchFilters {
   semanticEnabled?: boolean;
 }
 
-export async function searchDefenseBudget(
-  api: AxiosInstance,
-  filters: DefenseSearchFilters,
-) {
+export async function searchDefenseBudget(api: AxiosInstance, filters: DefenseSearchFilters) {
   return (
     await api.get<DefenseSearchResponseDto>('/api/defense-budget/search', {
       params: defined({ ...filters }),
@@ -125,10 +134,7 @@ export interface DefenseCompareFilters {
   subjects: readonly string[];
 }
 
-export async function compareDefenseBudget(
-  api: AxiosInstance,
-  filters: DefenseCompareFilters,
-) {
+export async function compareDefenseBudget(api: AxiosInstance, filters: DefenseCompareFilters) {
   return (
     await api.get<DefenseComparisonResponseDto>('/api/defense-budget/compare', {
       params: { subjects: filters.subjects.join(',') },
@@ -156,4 +162,76 @@ export async function getDefenseProductCoverage(
       params: defined(filters as Record<string, unknown>),
     })
   ).data;
+}
+
+export async function listSavedDefenseComparisons(api: AxiosInstance, includeArchived = false) {
+  return (
+    await api.get<readonly import('@capiro/shared').DefenseSavedComparisonDto[]>(
+      '/api/defense-budget/saved-comparisons',
+      { params: { includeArchived } },
+    )
+  ).data;
+}
+export async function loadSavedDefenseComparison(
+  api: AxiosInstance,
+  id: string,
+  versionId?: string,
+) {
+  return (
+    await api.get<import('@capiro/shared').DefenseSavedComparisonDto>(
+      '/api/defense-budget/saved-comparisons/' +
+        encodeURIComponent(id) +
+        (versionId ? '/versions/' + encodeURIComponent(versionId) : ''),
+    )
+  ).data;
+}
+export async function saveDefenseComparison(
+  api: AxiosInstance,
+  input: import('@capiro/shared').SaveDefenseComparisonDto,
+  id?: string,
+) {
+  return (
+    await api.post<import('@capiro/shared').DefenseSavedComparisonReceiptDto>(
+      '/api/defense-budget/saved-comparisons' +
+        (id ? '/' + encodeURIComponent(id) + '/versions' : ''),
+      input,
+    )
+  ).data;
+}
+
+export async function changeSavedDefenseComparisonLifecycle(
+  api: AxiosInstance,
+  id: string,
+  input: import('@capiro/shared').ChangeDefenseSavedComparisonLifecycleDto,
+  archived: boolean,
+) {
+  return (
+    await api.post<import('@capiro/shared').DefenseSavedComparisonReceiptDto>(
+      '/api/defense-budget/saved-comparisons/' +
+        encodeURIComponent(id) +
+        (archived ? '/archive' : '/restore'),
+      input,
+    )
+  ).data;
+}
+export async function addSavedDefenseComparisonSelection(
+  api: AxiosInstance,
+  id: string,
+  versionId: string,
+  input: import('@capiro/shared').AddDefenseSavedComparisonSelectionDto,
+) {
+  return (
+    await api.post<import('@capiro/shared').DefenseSavedComparisonSelectionReceiptDto>(
+      '/api/defense-budget/saved-comparisons/' +
+        encodeURIComponent(id) +
+        '/versions/' +
+        encodeURIComponent(versionId) +
+        '/add-selection-to-portfolio',
+      input,
+    )
+  ).data;
+}
+
+export async function getDefenseDossier(api: AxiosInstance, subjectType: import('@capiro/shared').DefenseDossierDto['subject']['type'], subjectId: string) {
+ return (await api.get<import('@capiro/shared').DefenseDossierDto>('/api/defense-budget/dossiers/'+encodeURIComponent(subjectType)+'/'+encodeURIComponent(subjectId))).data;
 }

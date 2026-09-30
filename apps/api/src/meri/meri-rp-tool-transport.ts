@@ -60,7 +60,8 @@ function parseEnvelope(value: unknown): ResearchPortfolioToolEnvelope {
     typeof currentTurn.conversationId !== 'string' ||
     !UUID.test(currentTurn.conversationId) ||
     (currentTurn.selectedClientId !== null &&
-      (typeof currentTurn.selectedClientId !== 'string' || !UUID.test(currentTurn.selectedClientId)))
+      (typeof currentTurn.selectedClientId !== 'string' ||
+        !UUID.test(currentTurn.selectedClientId)))
   ) {
     throw new BadRequestException('Trusted Research Portfolio tool transport context is invalid');
   }

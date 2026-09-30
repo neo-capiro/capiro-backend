@@ -3752,6 +3752,14 @@ export function isMeriMailReadTool(name: string | undefined): boolean {
 
 export const MERI_CAPABILITY_REGISTRY = [
   {
+    name: 'manage_research_portfolio',
+    description:
+      'Execute a selected native Research Portfolio UI action within the current server-owned chat scope. Read current revision/preview first; writes require explicit user confirmation and original idempotency identity. Supports portfolio lifecycle, own authorized grant/link/member decisions, rule previews/publication, review/annual decisions, retained CSV import actions, own subscriptions/bookmarks, qualified direct-PE subset fit refresh, dormant watch conversion, owner-private saved comparisons attached to this Research Portfolio, explicit saved selection additions, and safe output/checkpoint reconciliation. Domain services enforce current permissions and return actual receipts; never retarget chat scope, send messages, invent recompute support, or widen tenant/admin authority.',
+    backend: 'meri',
+    readOnly: false,
+    surfaces: ['full_chat'],
+  },
+  {
     name: 'get_research_portfolio',
     description:
       'Read one authorized Defense Intelligence Research Portfolio, including its immutable identity, revision, members, linked clients, grants, and recent event history. A Research Portfolio is distinct from Meri portfolio scope, which means all firm clients.',
@@ -3834,7 +3842,7 @@ export const MERI_CAPABILITY_REGISTRY = [
   {
     name: 'get_research_portfolio_fit',
     description:
-      'Read the client-link fit evaluation for an authorized Research Portfolio. Shows how well each linked client matches the portfolio rules with match scores and details.',
+      'Read current client-link fit for the supported direct qualified canonical PE association subset. Percentage is matched supported PE members, not general relevance; unsupported members and missing facts make partial/unavailable explicit. Persisted version UUID and basis fingerprint are optional; never imply durable history when absent.',
     backend: 'meri',
     readOnly: true,
     surfaces: ['full_chat'],
@@ -3882,17 +3890,17 @@ export const MERI_CAPABILITY_REGISTRY = [
   {
     name: 'prepare_research_portfolio_brief',
     description:
-      'Prepare structured brief data from an authorized Research Portfolio including membership summary, analytics overview, recent changes, and review status for composing an evidence-bound editable brief.',
+      'Create an owner-private durable unreviewed editable brief draft using current Research Portfolio evidence after explicit confirmed:true approval and original operationKey. Return actual artifact ID, source lineage and optional real owned internal meeting prep/task IDs; no provider sends or automatic task selection.',
     backend: 'meri',
-    readOnly: true,
+    readOnly: false,
     surfaces: ['full_chat'],
   },
   {
     name: 'prepare_research_portfolio_meeting',
     description:
-      'Prepare meeting preparation materials from an authorized Research Portfolio including open reviews, pending decisions, analytics highlights, and action items.',
+      'Create an owner-private durable unreviewed editable meeting draft using current Research Portfolio evidence after explicit confirmed:true approval and original operationKey. Return actual artifact ID, source lineage and optional real owned internal meeting prep/task IDs; no provider sends or automatic task selection.',
     backend: 'meri',
-    readOnly: true,
+    readOnly: false,
     surfaces: ['full_chat'],
   },
   {

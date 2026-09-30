@@ -49,7 +49,7 @@ export function PeResearchView() {
     enabled: view === 'offices' && Boolean(selectedOffice),
   });
   const relationships = useQuery({
-    queryKey: ['defense-research', 'relationships', params.get('edgeType')],
+    queryKey: ['defense-research', 'relationships', params.get('edgeType'), params.get('relationshipStatus')],
     queryFn: () => listDefenseRelationships(api, {
       edgeType: params.get('edgeType') ?? undefined,
       status: params.get('relationshipStatus') ?? undefined,
@@ -209,9 +209,13 @@ export function PeResearchView() {
                 <h3>Program associations</h3>
                 {acquisitionDetail.data.associations.length ? <ul>{acquisitionDetail.data.associations.map((association) => <li key={association.relationshipId}><strong>{association.subjectKind}:{association.subjectKey}</strong> · {association.relationshipClass} · {association.allocatedAmountUsd ? `$${association.allocatedAmountUsd}` : 'not an allocation'}</li>)}</ul> : <p>No accepted program associations.</p>}
                 <h3>Action ledger</h3>
-                {acquisitionActions.isPending ? <p role="status">Loading actions…</p> : acquisitionActions.data?.length ? <ul>{acquisitionActions.data.map((action) => <li key={action.transactionIdentityKey}><strong>{action.modificationNumber ?? action.sourceTransactionId}</strong> · {action.actionDate ?? 'date unavailable'} · obligation delta {action.signedObligationDelta ?? 'unavailable'}{action.correctsIdentityKey ? ` · corrects ${action.correctsIdentityKey}` : ''} · <EvidenceLink url={action.sourceUrl} /></li>)}</ul> : <p>No source actions are available.</p>}
+                {acquisitionActions.isPending ? <p role="status">Loading actions…</p> : null}
+                {acquisitionActions.isError ? <p role="alert">Source actions could not be refreshed. Current availability is unknown; retained actions remain below.</p> : null}
+                {acquisitionActions.data?.length ? <ul>{acquisitionActions.data.map((action) => <li key={action.transactionIdentityKey}><strong>{action.modificationNumber ?? action.sourceTransactionId}</strong> · {action.actionDate ?? 'date unavailable'} · obligation delta {action.signedObligationDelta ?? 'unavailable'}{action.correctsIdentityKey ? ` · corrects ${action.correctsIdentityKey}` : ''} · <EvidenceLink url={action.sourceUrl} /></li>)}</ul> : acquisitionActions.isSuccess && acquisitionActions.data !== undefined ? <p>No source actions are available.</p> : null}
                 <h3>Coverage gaps</h3>
-                {acquisitionCoverage.data?.items.length ? <ul>{acquisitionCoverage.data.items.map((gap) => <li key={gap.id}><strong>{gap.reason}</strong> · {gap.coverageState} · {gap.detail ?? 'No additional source detail.'}</li>)}</ul> : <p>No open coverage gaps recorded. This does not assert universal source completeness.</p>}
+                {acquisitionCoverage.isPending ? <p role="status">Loading acquisition coverage…</p> : null}
+                {acquisitionCoverage.isError ? <p role="alert">Acquisition coverage could not be refreshed. Current open gaps are unknown; retained gaps remain below.</p> : null}
+                {acquisitionCoverage.data?.items.length ? <ul>{acquisitionCoverage.data.items.map((gap) => <li key={gap.id}><strong>{gap.reason}</strong> · {gap.coverageState} · {gap.detail ?? 'No additional source detail.'}</li>)}</ul> : acquisitionCoverage.isSuccess && acquisitionCoverage.data !== undefined ? <p>No open coverage gaps recorded. This does not assert universal source completeness.</p> : null}
               </> : null}
             </aside>
           </div>

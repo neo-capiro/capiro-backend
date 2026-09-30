@@ -48,7 +48,8 @@ export const researchPortfolioKeys = {
   subscriptions: (id: string) => ['research-portfolios', id, 'subscriptions'] as const,
   analytics: (id: string) => ['research-portfolios', id, 'analytics'] as const,
   snapshots: (id: string) => ['research-portfolios', id, 'snapshots'] as const,
-  snapshot: (id: string, snapshotId: string) => ['research-portfolios', id, 'snapshots', snapshotId] as const,
+  snapshot: (id: string, snapshotId: string) =>
+    ['research-portfolios', id, 'snapshots', snapshotId] as const,
   outputJob: (id: string, jobId: string) => ['research-portfolios', id, 'outputs', jobId] as const,
 };
 
@@ -62,22 +63,40 @@ export function newIdempotencyKey(operation: string): string {
   return `research-portfolios:${operation}:${suffix}`;
 }
 
-export async function listResearchPortfolios(api: AxiosInstance): Promise<ResearchPortfolioListResponseDto> {
+export async function listResearchPortfolios(
+  api: AxiosInstance,
+  cursor?: string | null,
+  limit = 50,
+): Promise<ResearchPortfolioListResponseDto> {
+  if (cursor)
+    return (
+      await api.get<ResearchPortfolioListResponseDto>('/api/research-portfolios', {
+        params: { cursor, limit },
+      })
+    ).data;
   return (await api.get<ResearchPortfolioListResponseDto>('/api/research-portfolios')).data;
 }
 
-export async function getResearchPortfolio(api: AxiosInstance, id: string): Promise<ResearchPortfolioDetailDto> {
-  return (await api.get<ResearchPortfolioDetailDto>(`/api/research-portfolios/${encodeURIComponent(id)}`)).data;
+export async function getResearchPortfolio(
+  api: AxiosInstance,
+  id: string,
+): Promise<ResearchPortfolioDetailDto> {
+  return (
+    await api.get<ResearchPortfolioDetailDto>(`/api/research-portfolios/${encodeURIComponent(id)}`)
+  ).data;
 }
 
 export async function createResearchPortfolio(
   api: AxiosInstance,
   input: Omit<CreateResearchPortfolioDto, 'idempotencyKey'>,
+  idempotencyKey = newIdempotencyKey('create'),
 ): Promise<ResearchPortfolioMutationReceiptDto> {
-  return (await api.post<ResearchPortfolioMutationReceiptDto>('/api/research-portfolios', {
-    ...input,
-    idempotencyKey: newIdempotencyKey('create'),
-  })).data;
+  return (
+    await api.post<ResearchPortfolioMutationReceiptDto>('/api/research-portfolios', {
+      ...input,
+      idempotencyKey,
+    })
+  ).data;
 }
 
 export async function updateResearchPortfolio(
@@ -85,10 +104,12 @@ export async function updateResearchPortfolio(
   id: string,
   input: Omit<UpdateResearchPortfolioDto, 'idempotencyKey'>,
 ): Promise<ResearchPortfolioMutationReceiptDto> {
-  return (await api.patch<ResearchPortfolioMutationReceiptDto>(`/api/research-portfolios/${id}`, {
-    ...input,
-    idempotencyKey: newIdempotencyKey('update'),
-  })).data;
+  return (
+    await api.patch<ResearchPortfolioMutationReceiptDto>(`/api/research-portfolios/${id}`, {
+      ...input,
+      idempotencyKey: newIdempotencyKey('update'),
+    })
+  ).data;
 }
 
 export async function changeResearchPortfolioLifecycle(
@@ -97,10 +118,15 @@ export async function changeResearchPortfolioLifecycle(
   action: 'archive' | 'restore',
   input: Omit<ChangeResearchPortfolioLifecycleDto, 'idempotencyKey'>,
 ): Promise<ResearchPortfolioMutationReceiptDto> {
-  return (await api.post<ResearchPortfolioMutationReceiptDto>(`/api/research-portfolios/${id}/${action}`, {
-    ...input,
-    idempotencyKey: newIdempotencyKey(action),
-  })).data;
+  return (
+    await api.post<ResearchPortfolioMutationReceiptDto>(
+      `/api/research-portfolios/${id}/${action}`,
+      {
+        ...input,
+        idempotencyKey: newIdempotencyKey(action),
+      },
+    )
+  ).data;
 }
 
 export async function putResearchPortfolioGrant(
@@ -109,10 +135,12 @@ export async function putResearchPortfolioGrant(
   principalId: string,
   input: Omit<PutResearchPortfolioGrantDto, 'idempotencyKey'>,
 ): Promise<ResearchPortfolioMutationReceiptDto> {
-  return (await api.put<ResearchPortfolioMutationReceiptDto>(
-    `/api/research-portfolios/${id}/grants/${encodeURIComponent(principalId)}`,
-    { ...input, idempotencyKey: newIdempotencyKey('grant') },
-  )).data;
+  return (
+    await api.put<ResearchPortfolioMutationReceiptDto>(
+      `/api/research-portfolios/${id}/grants/${encodeURIComponent(principalId)}`,
+      { ...input, idempotencyKey: newIdempotencyKey('grant') },
+    )
+  ).data;
 }
 
 export async function removeResearchPortfolioGrant(
@@ -121,10 +149,12 @@ export async function removeResearchPortfolioGrant(
   principalId: string,
   expectedRevision: number,
 ): Promise<ResearchPortfolioMutationReceiptDto> {
-  return (await api.delete<ResearchPortfolioMutationReceiptDto>(
-    `/api/research-portfolios/${id}/grants/${encodeURIComponent(principalId)}`,
-    { data: { expectedRevision, idempotencyKey: newIdempotencyKey('grant-remove') } },
-  )).data;
+  return (
+    await api.delete<ResearchPortfolioMutationReceiptDto>(
+      `/api/research-portfolios/${id}/grants/${encodeURIComponent(principalId)}`,
+      { data: { expectedRevision, idempotencyKey: newIdempotencyKey('grant-remove') } },
+    )
+  ).data;
 }
 
 export async function linkResearchPortfolioClient(
@@ -132,10 +162,15 @@ export async function linkResearchPortfolioClient(
   id: string,
   input: Omit<CreateResearchPortfolioClientLinkDto, 'idempotencyKey'>,
 ): Promise<ResearchPortfolioMutationReceiptDto> {
-  return (await api.post<ResearchPortfolioMutationReceiptDto>(`/api/research-portfolios/${id}/client-links`, {
-    ...input,
-    idempotencyKey: newIdempotencyKey('client-link'),
-  })).data;
+  return (
+    await api.post<ResearchPortfolioMutationReceiptDto>(
+      `/api/research-portfolios/${id}/client-links`,
+      {
+        ...input,
+        idempotencyKey: newIdempotencyKey('client-link'),
+      },
+    )
+  ).data;
 }
 
 export async function unlinkResearchPortfolioClient(
@@ -144,10 +179,12 @@ export async function unlinkResearchPortfolioClient(
   clientId: string,
   expectedRevision: number,
 ): Promise<ResearchPortfolioMutationReceiptDto> {
-  return (await api.delete<ResearchPortfolioMutationReceiptDto>(
-    `/api/research-portfolios/${id}/client-links/${encodeURIComponent(clientId)}`,
-    { data: { expectedRevision, idempotencyKey: newIdempotencyKey('client-unlink') } },
-  )).data;
+  return (
+    await api.delete<ResearchPortfolioMutationReceiptDto>(
+      `/api/research-portfolios/${id}/client-links/${encodeURIComponent(clientId)}`,
+      { data: { expectedRevision, idempotencyKey: newIdempotencyKey('client-unlink') } },
+    )
+  ).data;
 }
 
 export async function addResearchPortfolioMember(
@@ -155,10 +192,12 @@ export async function addResearchPortfolioMember(
   id: string,
   input: Omit<CreateResearchPortfolioMemberDto, 'idempotencyKey'>,
 ): Promise<ResearchPortfolioMutationReceiptDto> {
-  return (await api.post<ResearchPortfolioMutationReceiptDto>(`/api/research-portfolios/${id}/members`, {
-    ...input,
-    idempotencyKey: newIdempotencyKey('member-add'),
-  })).data;
+  return (
+    await api.post<ResearchPortfolioMutationReceiptDto>(`/api/research-portfolios/${id}/members`, {
+      ...input,
+      idempotencyKey: newIdempotencyKey('member-add'),
+    })
+  ).data;
 }
 
 export async function decideResearchPortfolioMember(
@@ -166,10 +205,12 @@ export async function decideResearchPortfolioMember(
   id: string,
   input: Omit<DecideResearchPortfolioMembersDto, 'idempotencyKey'>,
 ): Promise<ResearchPortfolioMutationReceiptDto> {
-  return (await api.post<ResearchPortfolioMutationReceiptDto>(
-    `/api/research-portfolios/${id}/members/decisions`,
-    { ...input, idempotencyKey: newIdempotencyKey('member-decision') },
-  )).data;
+  return (
+    await api.post<ResearchPortfolioMutationReceiptDto>(
+      `/api/research-portfolios/${id}/members/decisions`,
+      { ...input, idempotencyKey: newIdempotencyKey('member-decision') },
+    )
+  ).data;
 }
 
 export async function resolveResearchPortfolioMember(
@@ -178,10 +219,12 @@ export async function resolveResearchPortfolioMember(
   memberId: string,
   input: Omit<ResolveResearchPortfolioMemberDto, 'idempotencyKey'>,
 ): Promise<ResearchPortfolioMutationReceiptDto> {
-  return (await api.post<ResearchPortfolioMutationReceiptDto>(
-    `/api/research-portfolios/${id}/members/${encodeURIComponent(memberId)}/resolve`,
-    { ...input, idempotencyKey: newIdempotencyKey('member-resolve') },
-  )).data;
+  return (
+    await api.post<ResearchPortfolioMutationReceiptDto>(
+      `/api/research-portfolios/${id}/members/${encodeURIComponent(memberId)}/resolve`,
+      { ...input, idempotencyKey: newIdempotencyKey('member-resolve') },
+    )
+  ).data;
 }
 
 export async function listResearchPortfolioReviews(
@@ -189,10 +232,11 @@ export async function listResearchPortfolioReviews(
   id: string,
   lane: 'mine' | 'team' | 'deferred' | 'resolved',
 ): Promise<readonly ResearchPortfolioReviewDto[]> {
-  return (await api.get<readonly ResearchPortfolioReviewDto[]>(
-    `/api/research-portfolios/${id}/reviews`,
-    { params: { lane } },
-  )).data;
+  return (
+    await api.get<readonly ResearchPortfolioReviewDto[]>(`/api/research-portfolios/${id}/reviews`, {
+      params: { lane },
+    })
+  ).data;
 }
 
 export async function assignResearchPortfolioReview(
@@ -201,10 +245,12 @@ export async function assignResearchPortfolioReview(
   reviewId: string,
   input: Omit<AssignResearchPortfolioReviewDto, 'idempotencyKey'>,
 ): Promise<ResearchPortfolioReviewMutationReceiptDto> {
-  return (await api.post<ResearchPortfolioReviewMutationReceiptDto>(
-    `/api/research-portfolios/${id}/reviews/${reviewId}/assign`,
-    { ...input, idempotencyKey: newIdempotencyKey('review-assign') },
-  )).data;
+  return (
+    await api.post<ResearchPortfolioReviewMutationReceiptDto>(
+      `/api/research-portfolios/${id}/reviews/${reviewId}/assign`,
+      { ...input, idempotencyKey: newIdempotencyKey('review-assign') },
+    )
+  ).data;
 }
 
 export async function decideResearchPortfolioReview(
@@ -213,17 +259,21 @@ export async function decideResearchPortfolioReview(
   reviewId: string,
   input: Omit<DecideResearchPortfolioReviewDto, 'idempotencyKey'>,
 ): Promise<ResearchPortfolioReviewMutationReceiptDto> {
-  return (await api.post<ResearchPortfolioReviewMutationReceiptDto>(
-    `/api/research-portfolios/${id}/reviews/${reviewId}/decision`,
-    { ...input, idempotencyKey: newIdempotencyKey('review-decision') },
-  )).data;
+  return (
+    await api.post<ResearchPortfolioReviewMutationReceiptDto>(
+      `/api/research-portfolios/${id}/reviews/${reviewId}/decision`,
+      { ...input, idempotencyKey: newIdempotencyKey('review-decision') },
+    )
+  ).data;
 }
 
 export async function getResearchPortfolioAnnualReview(
   api: AxiosInstance,
   id: string,
 ): Promise<ResearchPortfolioAnnualReviewDto> {
-  return (await api.get<ResearchPortfolioAnnualReviewDto>(`/api/research-portfolios/${id}/annual-review`)).data;
+  return (
+    await api.get<ResearchPortfolioAnnualReviewDto>(`/api/research-portfolios/${id}/annual-review`)
+  ).data;
 }
 
 export async function reopenResearchPortfolioAnnualReview(
@@ -231,21 +281,26 @@ export async function reopenResearchPortfolioAnnualReview(
   id: string,
   input: Omit<ReopenResearchPortfolioAnnualReviewDto, 'idempotencyKey'>,
 ): Promise<ResearchPortfolioReviewMutationReceiptDto> {
-  return (await api.post<ResearchPortfolioReviewMutationReceiptDto>(
-    `/api/research-portfolios/${id}/annual-review/reopen`,
-    { ...input, idempotencyKey: newIdempotencyKey('annual-reopen') },
-  )).data;
+  return (
+    await api.post<ResearchPortfolioReviewMutationReceiptDto>(
+      `/api/research-portfolios/${id}/annual-review/reopen`,
+      { ...input, idempotencyKey: newIdempotencyKey('annual-reopen') },
+    )
+  ).data;
 }
 
 export async function createResearchPortfolioImport(
   api: AxiosInstance,
   id: string,
   input: Omit<CreateResearchPortfolioImportDto, 'operationKey'>,
+  operationKey = newIdempotencyKey('import-create'),
 ): Promise<ResearchPortfolioImportJobDto> {
-  return (await api.post<ResearchPortfolioImportJobDto>(`/api/research-portfolios/${id}/imports`, {
-    ...input,
-    operationKey: newIdempotencyKey('import-create'),
-  })).data;
+  return (
+    await api.post<ResearchPortfolioImportJobDto>(`/api/research-portfolios/${id}/imports`, {
+      ...input,
+      operationKey,
+    })
+  ).data;
 }
 
 export async function getResearchPortfolioImport(
@@ -253,20 +308,27 @@ export async function getResearchPortfolioImport(
   id: string,
   jobId: string,
 ): Promise<ResearchPortfolioImportDetailDto> {
-  return (await api.get<ResearchPortfolioImportDetailDto>(`/api/research-portfolios/${id}/imports/${jobId}`)).data;
+  return (
+    await api.get<ResearchPortfolioImportDetailDto>(
+      `/api/research-portfolios/${id}/imports/${jobId}`,
+    )
+  ).data;
 }
 
 export async function actOnResearchPortfolioImport(
   api: AxiosInstance,
   id: string,
   jobId: string,
-  action: 'preview' | 'apply' | 'pause' | 'resume' | 'cancel' | 'retry' | 'reconcile' | 'compensate',
+  action:
+    'preview' | 'apply' | 'pause' | 'resume' | 'cancel' | 'retry' | 'reconcile' | 'compensate',
   input: Omit<ResearchPortfolioImportActionDto, 'operationKey'> = {},
 ): Promise<ResearchPortfolioImportDetailDto> {
-  return (await api.post<ResearchPortfolioImportDetailDto>(
-    `/api/research-portfolios/${id}/imports/${jobId}/${action}`,
-    { ...input, operationKey: newIdempotencyKey(`import-${action}`) },
-  )).data;
+  return (
+    await api.post<ResearchPortfolioImportDetailDto>(
+      `/api/research-portfolios/${id}/imports/${jobId}/${action}`,
+      { ...input, operationKey: newIdempotencyKey(`import-${action}`) },
+    )
+  ).data;
 }
 
 export async function listResearchPortfolioChanges(
@@ -275,9 +337,11 @@ export async function listResearchPortfolioChanges(
   cursor?: string | null,
   limit = 50,
 ): Promise<ResearchPortfolioChangesResponse> {
-  return (await api.get<ResearchPortfolioChangesResponse>(`/api/research-portfolios/${id}/changes`, {
-    params: { ...(cursor ? { cursor } : {}), limit },
-  })).data;
+  return (
+    await api.get<ResearchPortfolioChangesResponse>(`/api/research-portfolios/${id}/changes`, {
+      params: { ...(cursor ? { cursor } : {}), limit },
+    })
+  ).data;
 }
 
 export async function updateResearchPortfolioChangeState(
@@ -286,19 +350,23 @@ export async function updateResearchPortfolioChangeState(
   eventId: string,
   input: UpdateResearchPortfolioEventStateDto,
 ): Promise<ResearchPortfolioEventRecipientStateDto> {
-  return (await api.patch<ResearchPortfolioEventRecipientStateDto>(
-    `/api/research-portfolios/${id}/changes/${encodeURIComponent(eventId)}/state`,
-    input,
-  )).data;
+  return (
+    await api.patch<ResearchPortfolioEventRecipientStateDto>(
+      `/api/research-portfolios/${id}/changes/${encodeURIComponent(eventId)}/state`,
+      input,
+    )
+  ).data;
 }
 
 export async function listResearchPortfolioSubscriptions(
   api: AxiosInstance,
   id: string,
 ): Promise<readonly ResearchPortfolioSubscriptionDto[]> {
-  return (await api.get<readonly ResearchPortfolioSubscriptionDto[]>(
-    `/api/research-portfolios/${id}/subscriptions`,
-  )).data;
+  return (
+    await api.get<readonly ResearchPortfolioSubscriptionDto[]>(
+      `/api/research-portfolios/${id}/subscriptions`,
+    )
+  ).data;
 }
 
 export async function createResearchPortfolioSubscription(
@@ -306,10 +374,12 @@ export async function createResearchPortfolioSubscription(
   id: string,
   input: CreateResearchPortfolioSubscriptionDto,
 ): Promise<ResearchPortfolioSubscriptionDto> {
-  return (await api.post<ResearchPortfolioSubscriptionDto>(
-    `/api/research-portfolios/${id}/subscriptions`,
-    input,
-  )).data;
+  return (
+    await api.post<ResearchPortfolioSubscriptionDto>(
+      `/api/research-portfolios/${id}/subscriptions`,
+      input,
+    )
+  ).data;
 }
 
 export async function updateResearchPortfolioSubscription(
@@ -318,26 +388,31 @@ export async function updateResearchPortfolioSubscription(
   subscriptionId: string,
   input: UpdateResearchPortfolioSubscriptionDto,
 ): Promise<ResearchPortfolioSubscriptionDto> {
-  return (await api.patch<ResearchPortfolioSubscriptionDto>(
-    `/api/research-portfolios/${id}/subscriptions/${encodeURIComponent(subscriptionId)}`,
-    input,
-  )).data;
+  return (
+    await api.patch<ResearchPortfolioSubscriptionDto>(
+      `/api/research-portfolios/${id}/subscriptions/${encodeURIComponent(subscriptionId)}`,
+      input,
+    )
+  ).data;
 }
 
 export async function getResearchPortfolioAnalytics(
   api: AxiosInstance,
   id: string,
 ): Promise<ResearchPortfolioAnalyticsDto> {
-  return (await api.get<ResearchPortfolioAnalyticsDto>(`/api/research-portfolios/${id}/analytics`)).data;
+  return (await api.get<ResearchPortfolioAnalyticsDto>(`/api/research-portfolios/${id}/analytics`))
+    .data;
 }
 
 export async function listResearchPortfolioSnapshots(
   api: AxiosInstance,
   id: string,
 ): Promise<readonly ResearchPortfolioSnapshotSummaryDto[]> {
-  return (await api.get<readonly ResearchPortfolioSnapshotSummaryDto[]>(
-    `/api/research-portfolios/${id}/snapshots`,
-  )).data;
+  return (
+    await api.get<readonly ResearchPortfolioSnapshotSummaryDto[]>(
+      `/api/research-portfolios/${id}/snapshots`,
+    )
+  ).data;
 }
 
 export async function createResearchPortfolioSnapshot(
@@ -345,10 +420,12 @@ export async function createResearchPortfolioSnapshot(
   id: string,
   input: Omit<CreateResearchPortfolioSnapshotDto, 'operationKey'>,
 ): Promise<ResearchPortfolioSnapshotDto> {
-  return (await api.post<ResearchPortfolioSnapshotDto>(`/api/research-portfolios/${id}/snapshots`, {
-    ...input,
-    operationKey: newIdempotencyKey('snapshot-create'),
-  })).data;
+  return (
+    await api.post<ResearchPortfolioSnapshotDto>(`/api/research-portfolios/${id}/snapshots`, {
+      ...input,
+      operationKey: newIdempotencyKey('snapshot-create'),
+    })
+  ).data;
 }
 
 export async function getResearchPortfolioSnapshot(
@@ -356,20 +433,25 @@ export async function getResearchPortfolioSnapshot(
   id: string,
   snapshotId: string,
 ): Promise<ResearchPortfolioSnapshotDto> {
-  return (await api.get<ResearchPortfolioSnapshotDto>(
-    `/api/research-portfolios/${id}/snapshots/${encodeURIComponent(snapshotId)}`,
-  )).data;
+  return (
+    await api.get<ResearchPortfolioSnapshotDto>(
+      `/api/research-portfolios/${id}/snapshots/${encodeURIComponent(snapshotId)}`,
+    )
+  ).data;
 }
 
 export async function createResearchPortfolioOutput(
   api: AxiosInstance,
   id: string,
   input: Omit<CreateResearchPortfolioOutputDto, 'operationKey'>,
+  operationKey = newIdempotencyKey('output-create'),
 ): Promise<ResearchPortfolioOutputJobDto> {
-  return (await api.post<ResearchPortfolioOutputJobDto>(`/api/research-portfolios/${id}/outputs`, {
-    ...input,
-    operationKey: newIdempotencyKey('output-create'),
-  })).data;
+  return (
+    await api.post<ResearchPortfolioOutputJobDto>(`/api/research-portfolios/${id}/outputs`, {
+      ...input,
+      operationKey,
+    })
+  ).data;
 }
 
 export async function getResearchPortfolioOutputJob(
@@ -377,9 +459,11 @@ export async function getResearchPortfolioOutputJob(
   id: string,
   jobId: string,
 ): Promise<ResearchPortfolioOutputJobDto> {
-  return (await api.get<ResearchPortfolioOutputJobDto>(
-    `/api/research-portfolios/${id}/output-jobs/${encodeURIComponent(jobId)}`,
-  )).data;
+  return (
+    await api.get<ResearchPortfolioOutputJobDto>(
+      `/api/research-portfolios/${id}/output-jobs/${encodeURIComponent(jobId)}`,
+    )
+  ).data;
 }
 
 export async function actOnResearchPortfolioOutput(
@@ -388,9 +472,11 @@ export async function actOnResearchPortfolioOutput(
   jobId: string,
   action: 'cancel' | 'retry' | 'reconcile',
 ): Promise<ResearchPortfolioOutputJobDto> {
-  return (await api.post<ResearchPortfolioOutputJobDto>(
-    `/api/research-portfolios/${id}/output-jobs/${encodeURIComponent(jobId)}/${action}`,
-  )).data;
+  return (
+    await api.post<ResearchPortfolioOutputJobDto>(
+      `/api/research-portfolios/${id}/output-jobs/${encodeURIComponent(jobId)}/${action}`,
+    )
+  ).data;
 }
 
 export async function downloadResearchPortfolioOutput(
@@ -410,11 +496,14 @@ export async function saveResearchPortfolioOutputToClient(
   id: string,
   outputId: string,
   input: Omit<SaveResearchPortfolioOutputToClientDto, 'operationKey'>,
+  operationKey = newIdempotencyKey('output-client-file'),
 ): Promise<ResearchPortfolioClientFileReceiptDto> {
-  return (await api.post<ResearchPortfolioClientFileReceiptDto>(
-    `/api/research-portfolios/${id}/outputs/${encodeURIComponent(outputId)}/client-files`,
-    { ...input, operationKey: newIdempotencyKey('output-client-file') },
-  )).data;
+  return (
+    await api.post<ResearchPortfolioClientFileReceiptDto>(
+      `/api/research-portfolios/${id}/outputs/${encodeURIComponent(outputId)}/client-files`,
+      { ...input, operationKey },
+    )
+  ).data;
 }
 
 // --- Phase 11: bookmarks, fit, review notes, watch-conversion, operations, tour ---
@@ -425,66 +514,160 @@ import type {
   UpdateResearchPortfolioBookmarkDto,
   ResearchPortfolioFitDto,
   ResearchPortfolioReviewNoteDto,
+  ApplyResearchPortfolioWatchConversionDto,
   ResearchPortfolioWatchConversionPreviewDto,
   ResearchPortfolioWatchConversionResultDto,
   ResearchPortfolioOperationDto,
+  ReconcileResearchPortfolioOperationDto,
   ResearchPortfolioTourStateDto,
 } from '@capiro/shared';
 
-export async function listResearchPortfolioBookmarks(api: AxiosInstance, id: string): Promise<readonly ResearchPortfolioBookmarkDto[]> {
-  return (await api.get<readonly ResearchPortfolioBookmarkDto[]>(`/api/research-portfolios/${id}/bookmarks`)).data;
+export async function listResearchPortfolioBookmarks(
+  api: AxiosInstance,
+  id: string,
+): Promise<readonly ResearchPortfolioBookmarkDto[]> {
+  return (
+    await api.get<readonly ResearchPortfolioBookmarkDto[]>(
+      `/api/research-portfolios/${id}/bookmarks`,
+    )
+  ).data;
 }
 
 export async function createResearchPortfolioBookmark(
-  api: AxiosInstance, id: string, input: Omit<CreateResearchPortfolioBookmarkDto, 'idempotencyKey'>,
+  api: AxiosInstance,
+  id: string,
+  input: Omit<CreateResearchPortfolioBookmarkDto, 'idempotencyKey'>,
 ): Promise<ResearchPortfolioBookmarkDto> {
-  return (await api.post<ResearchPortfolioBookmarkDto>(`/api/research-portfolios/${id}/bookmarks`, { ...input, idempotencyKey: newIdempotencyKey('bookmark') })).data;
+  return (
+    await api.post<ResearchPortfolioBookmarkDto>(`/api/research-portfolios/${id}/bookmarks`, {
+      ...input,
+      idempotencyKey: newIdempotencyKey('bookmark'),
+    })
+  ).data;
 }
 
 export async function updateResearchPortfolioBookmark(
-  api: AxiosInstance, id: string, bookmarkId: string, input: UpdateResearchPortfolioBookmarkDto,
+  api: AxiosInstance,
+  id: string,
+  bookmarkId: string,
+  input: UpdateResearchPortfolioBookmarkDto,
 ): Promise<ResearchPortfolioBookmarkDto> {
-  return (await api.patch<ResearchPortfolioBookmarkDto>(`/api/research-portfolios/${id}/bookmarks/${bookmarkId}`, input)).data;
+  return (
+    await api.patch<ResearchPortfolioBookmarkDto>(
+      `/api/research-portfolios/${id}/bookmarks/${bookmarkId}`,
+      input,
+    )
+  ).data;
 }
 
-export async function deleteResearchPortfolioBookmark(api: AxiosInstance, id: string, bookmarkId: string): Promise<void> {
+export async function deleteResearchPortfolioBookmark(
+  api: AxiosInstance,
+  id: string,
+  bookmarkId: string,
+): Promise<void> {
   await api.delete(`/api/research-portfolios/${id}/bookmarks/${bookmarkId}`);
 }
 
-export async function getResearchPortfolioFit(api: AxiosInstance, id: string): Promise<ResearchPortfolioFitDto> {
+export async function getResearchPortfolioFit(
+  api: AxiosInstance,
+  id: string,
+): Promise<ResearchPortfolioFitDto> {
   return (await api.get<ResearchPortfolioFitDto>(`/api/research-portfolios/${id}/fit`)).data;
 }
 
-export async function refreshResearchPortfolioFit(api: AxiosInstance, id: string): Promise<ResearchPortfolioFitDto> {
-  return (await api.post<ResearchPortfolioFitDto>(`/api/research-portfolios/${id}/fit/refresh`)).data;
+export async function refreshResearchPortfolioFit(
+  api: AxiosInstance,
+  id: string,
+): Promise<ResearchPortfolioFitDto> {
+  return (await api.post<ResearchPortfolioFitDto>(`/api/research-portfolios/${id}/fit/refresh`))
+    .data;
 }
 
 export async function addResearchPortfolioReviewNote(
-  api: AxiosInstance, id: string, reviewId: string, body: string, expectedRevision: number,
+  api: AxiosInstance,
+  id: string,
+  reviewId: string,
+  body: string,
+  expectedRevision: number,
 ): Promise<ResearchPortfolioReviewNoteDto> {
-  return (await api.post<ResearchPortfolioReviewNoteDto>(`/api/research-portfolios/${id}/reviews/${reviewId}/notes`, { body, expectedRevision, idempotencyKey: newIdempotencyKey('review-note') })).data;
+  return (
+    await api.post<ResearchPortfolioReviewNoteDto>(
+      `/api/research-portfolios/${id}/reviews/${reviewId}/notes`,
+      { body, expectedRevision, idempotencyKey: newIdempotencyKey('review-note') },
+    )
+  ).data;
 }
 
-export async function previewResearchPortfolioWatchConversion(api: AxiosInstance, id: string): Promise<ResearchPortfolioWatchConversionPreviewDto> {
-  return (await api.post<ResearchPortfolioWatchConversionPreviewDto>(`/api/research-portfolios/${id}/watch-conversion/preview`)).data;
+export async function previewResearchPortfolioWatchConversion(
+  api: AxiosInstance,
+  id: string,
+): Promise<ResearchPortfolioWatchConversionPreviewDto> {
+  return (
+    await api.post<ResearchPortfolioWatchConversionPreviewDto>(
+      `/api/research-portfolios/${id}/watch-conversion/preview`,
+    )
+  ).data;
 }
 
-export async function applyResearchPortfolioWatchConversion(api: AxiosInstance, id: string): Promise<ResearchPortfolioWatchConversionResultDto> {
-  return (await api.post<ResearchPortfolioWatchConversionResultDto>(`/api/research-portfolios/${id}/watch-conversion/apply`)).data;
+export async function applyResearchPortfolioWatchConversion(
+  api: AxiosInstance,
+  id: string,
+  input: ApplyResearchPortfolioWatchConversionDto,
+): Promise<ResearchPortfolioWatchConversionResultDto> {
+  return (
+    await api.post<ResearchPortfolioWatchConversionResultDto>(
+      `/api/research-portfolios/${id}/watch-conversion/apply`,
+      input,
+    )
+  ).data;
 }
 
-export async function getResearchPortfolioOperation(api: AxiosInstance, id: string, operationId: string): Promise<ResearchPortfolioOperationDto> {
-  return (await api.get<ResearchPortfolioOperationDto>(`/api/research-portfolios/${id}/operations/${operationId}`)).data;
+export async function getResearchPortfolioOperation(
+  api: AxiosInstance,
+  id: string,
+  operationId: string,
+): Promise<ResearchPortfolioOperationDto> {
+  return (
+    await api.get<ResearchPortfolioOperationDto>(
+      `/api/research-portfolios/${id}/operations/${operationId}`,
+    )
+  ).data;
 }
 
-export async function reconcileResearchPortfolioOperation(api: AxiosInstance, id: string, operationId: string): Promise<ResearchPortfolioOperationDto> {
-  return (await api.post<ResearchPortfolioOperationDto>(`/api/research-portfolios/${id}/operations/${operationId}/reconcile`)).data;
+export async function reconcileResearchPortfolioOperation(
+  api: AxiosInstance,
+  id: string,
+  operationId: string,
+  input: ReconcileResearchPortfolioOperationDto = {},
+): Promise<ResearchPortfolioOperationDto> {
+  return (
+    await api.post<ResearchPortfolioOperationDto>(
+      `/api/research-portfolios/${id}/operations/${operationId}/reconcile`,
+      input,
+    )
+  ).data;
 }
 
-export async function getResearchPortfolioTourState(api: AxiosInstance, tourVersion: string): Promise<ResearchPortfolioTourStateDto> {
-  return (await api.get<ResearchPortfolioTourStateDto>(`/api/research-portfolios/tour-state/${encodeURIComponent(tourVersion)}`)).data;
+export async function getResearchPortfolioTourState(
+  api: AxiosInstance,
+  tourVersion: string,
+): Promise<ResearchPortfolioTourStateDto> {
+  return (
+    await api.get<ResearchPortfolioTourStateDto>(
+      `/api/research-portfolios/tour-state/${encodeURIComponent(tourVersion)}`,
+    )
+  ).data;
 }
 
-export async function updateResearchPortfolioTourState(api: AxiosInstance, tourVersion: string, status: 'dismissed' | 'completed'): Promise<ResearchPortfolioTourStateDto> {
-  return (await api.post<ResearchPortfolioTourStateDto>(`/api/research-portfolios/tour-state/${encodeURIComponent(tourVersion)}`, { status })).data;
+export async function updateResearchPortfolioTourState(
+  api: AxiosInstance,
+  tourVersion: string,
+  status: 'dismissed' | 'completed',
+): Promise<ResearchPortfolioTourStateDto> {
+  return (
+    await api.post<ResearchPortfolioTourStateDto>(
+      `/api/research-portfolios/tour-state/${encodeURIComponent(tourVersion)}`,
+      { status },
+    )
+  ).data;
 }

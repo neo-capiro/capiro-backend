@@ -20,12 +20,12 @@ const scope: TrustedCurrentTurnScope = {
 };
 
 describe('Research Portfolio tool transport envelope', () => {
-  it('tracks exactly the 18 canonical names and separately guards the future manage name', () => {
+  it('tracks exactly the 19 current canonical names including management', () => {
     const canonical = MERI_TOOL_NAMES.filter((name) => name.includes('research_portfolio')).sort();
     expect([...CURRENT_CONVERSATION_RESEARCH_PORTFOLIO_TOOLS].sort()).toEqual(canonical);
-    expect(canonical).toHaveLength(18);
+    expect(canonical).toHaveLength(19);
     expect(isCurrentConversationResearchPortfolioTool('manage_research_portfolio')).toBe(true);
-    expect(canonical).not.toContain('manage_research_portfolio');
+    expect(canonical).toContain('manage_research_portfolio');
   });
 
   it.each(CURRENT_CONVERSATION_RESEARCH_PORTFOLIO_TOOLS)(

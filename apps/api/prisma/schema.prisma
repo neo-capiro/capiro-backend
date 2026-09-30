@@ -134,6 +134,10 @@ enum BillingStatus {
 }
 
 model Tenant {
+  savedDefenseComparisons DefenseSavedComparison[]
+  savedDefenseComparisonVersions DefenseSavedComparisonVersion[]
+  savedDefenseComparisonEvents DefenseSavedComparisonEvent[]
+
   clientNotetakerPreferences ClientNotetakerPreference[]
   meetingPrepJobs            MeetingPrepJob[]
   meetingPrepMondayMappings  MeetingPrepMondayMapping[]
@@ -331,6 +335,7 @@ model Tenant {
   bizdevWatchSourceStates                 BusinessDevelopmentWatchSourceState[]
   bizdevAlerts                            BusinessDevelopmentAlert[]
   bizdevAlertDeliveries                   BusinessDevelopmentAlertDelivery[]
+  researchPortfolioFitVersions            ResearchPortfolioFitVersion[]
   researchPortfolios                      ResearchPortfolio[]
   researchPortfolioGrants                 ResearchPortfolioGrant[]
   researchPortfolioClientLinks            ResearchPortfolioClientLink[]
@@ -364,6 +369,7 @@ model Tenant {
   researchPortfolioReviewNotes            ResearchPortfolioReviewNote[]
 
   @@map("tenants")
+  researchPortfolioClientFilingJobs ResearchPortfolioClientFilingJob[]
 }
 
 /// Universal canonical identity registry. The SQL migrations remain the source
@@ -546,6 +552,10 @@ model CanonicalEntityBackfillCheckpoint {
 }
 
 model User {
+  ownedDefenseComparisons DefenseSavedComparison[] @relation("DefenseSavedComparisonOwner")
+  createdDefenseComparisonVersions DefenseSavedComparisonVersion[] @relation("DefenseSavedComparisonVersionCreator")
+  savedDefenseComparisonEvents DefenseSavedComparisonEvent[] @relation("DefenseSavedComparisonEventActor")
+
   clientNotetakerPreferences ClientNotetakerPreference[]
   meetingPrepJobs            MeetingPrepJob[]
   meetingPrepMondayMappings  MeetingPrepMondayMapping[]
@@ -621,6 +631,7 @@ model User {
   outreachDraftVersions            OutreachDraftVersion[]         @relation("OutreachDraftVersionAuthor")
   outreachSendIntents              OutreachSendIntent[]           @relation("OutreachSendIntentOwner")
   savedOpportunitySearches         SavedOpportunitySearch[]       @relation("SavedOpportunitySearchOwner")
+  authoredResearchPortfolioFits    ResearchPortfolioFitVersion[] @relation("ResearchPortfolioFitAuthor")
   ownedResearchPortfolios          ResearchPortfolio[]            @relation("ResearchPortfolioOwner")
   researchPortfolioGrants          ResearchPortfolioGrant[]       @relation("ResearchPortfolioGrantPrincipal")
   // Business Development Phase 1 adds NO User back-relations: prospect
@@ -629,6 +640,7 @@ model User {
   // breaks reads and Prisma must not imply an FK.
 
   @@map("users")
+  researchPortfolioClientFilingJobs ResearchPortfolioClientFilingJob[]
 }
 
 model TenantMembership {
@@ -970,12 +982,14 @@ model Client {
   canonicalEntity          CanonicalEntity?                    @relation("ClientCanonicalEntity", fields: [canonicalEntityId], references: [id], onDelete: Restrict, map: "clients_canonical_entity_fkey")
   // Business Development Phase 1 back-relation.
   bizdevProspects          BusinessDevelopmentProspect[]       @relation("BizDevProspectLinkedClient")
+  researchPortfolioFitVersions ResearchPortfolioFitVersion[]
   researchPortfolioLinks   ResearchPortfolioClientLink[]
 
   @@unique([tenantId, id], map: "clients_tenant_id_key")
   @@index([tenantId], map: "clients_tenant_idx")
   @@index([tenantId, name], map: "clients_tenant_name_idx")
   @@map("clients")
+  researchPortfolioClientFilingJobs ResearchPortfolioClientFilingJob[]
 }
 
 /// Ethical-wall grant (master plan Phase 1): membership row allowing one user
@@ -15091,6 +15105,8 @@ enum ResearchPortfolioEventKind {
 }
 
 model ResearchPortfolio {
+  savedDefenseComparisons DefenseSavedComparison[]
+
   id          String                     @id @default(uuid()) @db.Uuid
   tenantId    String                     @map("tenant_id") @db.Uuid
   ownerUserId String                     @map("owner_user_id") @db.Uuid
@@ -15106,6 +15122,7 @@ model ResearchPortfolio {
   tenant                 Tenant                                       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   owner                  User                                         @relation("ResearchPortfolioOwner", fields: [ownerUserId], references: [id], onDelete: Restrict)
   grants                 ResearchPortfolioGrant[]
+  fitVersions            ResearchPortfolioFitVersion[]
   clientLinks            ResearchPortfolioClientLink[]
   members                ResearchPortfolioMember[]
   events                 ResearchPortfolioEvent[]
@@ -15137,6 +15154,7 @@ model ResearchPortfolio {
   @@index([tenantId, lifecycle, updatedAt(sort: Desc)], map: "research_portfolios_tenant_lifecycle_updated_idx")
   @@index([tenantId, ownerUserId], map: "research_portfolios_tenant_owner_idx")
   @@map("research_portfolios")
+  clientFilingJobs ResearchPortfolioClientFilingJob[]
 }
 
 model ResearchPortfolioGrant {
@@ -15594,7 +15612,7 @@ model ResearchPortfolioContinuityLedger {
   relevantPeriodStart        DateTime?                         @map("relevant_period_start") @db.Date
   relevantPeriodEnd          DateTime?                         @map("relevant_period_end") @db.Date
   expiryDate                 DateTime?                         @map("expiry_date") @db.Date
-  reopeningReason            String?
+  reopeningReason            String? @map("reopening_reason")
   reopeningReviewId          String?                           @map("reopening_review_id") @db.Uuid
   createdAt                  DateTime                          @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt                  DateTime                          @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -15660,9 +15678,9 @@ model ResearchPortfolioImportRow {
   repairs               Json                                             @default("{}") @map("repairs")
   validationIssues      Json                                             @default("[]") @map("validation_issues")
   selected              Boolean                                          @default(true)
-  previewClassification ResearchPortfolioImportRowPreviewClassification?
+  previewClassification ResearchPortfolioImportRowPreviewClassification? @map("preview_classification")
   previewReason         String?                                          @map("preview_reason")
-  finalOutcome          ResearchPortfolioImportRowOutcome?
+  finalOutcome          ResearchPortfolioImportRowOutcome? @map("final_outcome")
   finalReason           String?                                          @map("final_reason")
   finalDisposition      Json                                             @default("{}") @map("final_disposition")
   expectedRevision      Int?                                             @map("expected_revision")
@@ -16025,6 +16043,7 @@ model ResearchPortfolioOutputArtifact {
   @@unique([tenantId, jobId], map: "research_portfolio_output_artifacts_job_key")
   @@index([tenantId, contentHash], map: "research_portfolio_output_artifacts_hash_idx")
   @@map("research_portfolio_output_artifacts")
+  clientFilingJobs ResearchPortfolioClientFilingJob[]
 }
 
 /// Append-only receipt from the canonical ClientDocumentWriterService boundary.
@@ -16051,6 +16070,8 @@ model ResearchPortfolioOutputClientFileReceipt {
   @@unique([tenantId, attachmentId], map: "research_portfolio_output_receipts_attachment_key")
   @@index([tenantId, artifactId, createdAt(sort: Desc)], map: "research_portfolio_output_receipts_artifact_idx")
   @@map("research_portfolio_output_client_file_receipts")
+  filingJobs ResearchPortfolioClientFilingJob[]
+  @@unique([tenantId, id], map: "research_portfolio_output_receipts_tenant_id_key")
 }
 
 model ResearchPortfolioBookmark {
@@ -16221,6 +16242,157 @@ model DefenseReferenceOccurrence {
   @@index([resolvedTargetDocumentId, disposition], map: "defense_reference_occurrences_target_idx")
   @@index([referenceType, disposition], map: "defense_reference_occurrences_type_idx")
   @@map("defense_reference_occurrences")
+}
+
+
+// Client-private fit versions are immutable and separate from public portfolio events.
+model ResearchPortfolioFitVersion {
+  id                 String   @id @default(uuid()) @db.Uuid
+  tenantId           String   @map("tenant_id") @db.Uuid
+  portfolioId        String   @map("portfolio_id") @db.Uuid
+  clientId           String   @map("client_id") @db.Uuid
+  basisFingerprint   String   @map("basis_fingerprint") @db.Char(64)
+  calculationVersion String   @map("calculation_version") @db.VarChar(64)
+  portfolioRevision  Int      @map("portfolio_revision")
+  projection         Json
+  inputBasis         Json     @map("input_basis")
+  createdByUserId    String   @map("created_by_user_id") @db.Uuid
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant    Tenant            @relation(fields: [tenantId], references: [id], onDelete: Restrict, map: "research_portfolio_fit_versions_tenant_fkey", onUpdate: NoAction)
+  portfolio ResearchPortfolio @relation(fields: [tenantId, portfolioId], references: [tenantId, id], onDelete: Restrict, map: "research_portfolio_fit_versions_portfolio_fkey", onUpdate: NoAction)
+  client    Client            @relation(fields: [tenantId, clientId], references: [tenantId, id], onDelete: Restrict, map: "research_portfolio_fit_versions_client_fkey", onUpdate: NoAction)
+  createdBy User              @relation("ResearchPortfolioFitAuthor", fields: [createdByUserId], references: [id], onDelete: Restrict, map: "research_portfolio_fit_versions_author_fkey", onUpdate: NoAction)
+
+  @@unique([tenantId, portfolioId, clientId, basisFingerprint], map: "research_portfolio_fit_versions_basis_key")
+  @@index([tenantId, portfolioId, clientId, createdAt(sort: Desc)], map: "research_portfolio_fit_versions_history_idx")
+  @@map("research_portfolio_fit_versions")
+}
+
+// Additive saved comparison metadata and immutable capture versions.
+// Generated proposal only: do not apply without the root schema reviewer.
+model DefenseSavedComparison {
+  id               String    @id @default(uuid()) @db.Uuid
+  tenantId         String    @map("tenant_id") @db.Uuid
+  ownerUserId      String    @map("owner_user_id") @db.Uuid
+  portfolioId      String?   @map("portfolio_id") @db.Uuid
+  name             String    @db.VarChar(200)
+  revision         Int       @default(1)
+  currentVersionId String?   @map("current_version_id") @db.Uuid
+  archivedAt       DateTime? @map("archived_at") @db.Timestamptz(6)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant         Tenant                         @relation(fields: [tenantId], references: [id], onDelete: Restrict, map: "defense_saved_compare_tenant_fkey", onUpdate: NoAction)
+  owner          User                           @relation("DefenseSavedComparisonOwner", fields: [ownerUserId], references: [id], onDelete: Restrict, map: "defense_saved_compare_owner_fkey", onUpdate: NoAction)
+  portfolio      ResearchPortfolio?             @relation(fields: [tenantId, portfolioId], references: [tenantId, id], onDelete: Restrict, map: "defense_saved_compare_portfolio_fkey", onUpdate: NoAction)
+  versions       DefenseSavedComparisonVersion[] @relation("DefenseSavedComparisonVersions")
+  currentVersion DefenseSavedComparisonVersion?  @relation("DefenseSavedComparisonCurrentVersion", fields: [tenantId, id, currentVersionId], references: [tenantId, comparisonId, id], onDelete: Restrict, map: "defense_saved_compare_current_version_fkey", onUpdate: NoAction)
+  events         DefenseSavedComparisonEvent[]
+
+  @@unique([tenantId, id], map: "defense_saved_comparisons_tenant_id_key")
+  @@index([tenantId, ownerUserId, archivedAt, updatedAt(sort: Desc)], map: "defense_saved_comparisons_owner_list_idx")
+  @@index([tenantId, portfolioId, archivedAt], map: "defense_saved_comparisons_portfolio_idx")
+  @@map("defense_saved_comparisons")
+}
+
+model DefenseSavedComparisonVersion {
+  id                 String   @id @default(uuid()) @db.Uuid
+  tenantId           String   @map("tenant_id") @db.Uuid
+  comparisonId       String   @map("comparison_id") @db.Uuid
+  version            Int
+  creatorUserId      String   @map("creator_user_id") @db.Uuid
+  schemaVersion      String   @map("schema_version") @db.VarChar(64)
+  projectionVersion  String   @map("projection_version") @db.VarChar(64)
+  displayVersion     String   @map("display_version") @db.VarChar(64)
+  subjects           Json
+  selection          Json
+  basisPair          Json     @map("basis_pair")
+  passageMode        String   @map("passage_mode") @db.VarChar(32)
+  sourcePins         Json     @map("source_pins")
+  capturedProjection Json     @map("captured_projection")
+  limitations        Json     @default("[]")
+  contentHash        String   @map("content_hash") @db.Char(64)
+  captureKnownAt     DateTime @map("capture_known_at") @db.Timestamptz(6)
+  knownAtSupport     String   @default("capture_only") @map("known_at_support") @db.VarChar(32)
+  capturedAt         DateTime @default(now()) @map("captured_at") @db.Timestamptz(6)
+
+  tenant     Tenant                   @relation(fields: [tenantId], references: [id], onDelete: Restrict, map: "defense_saved_compare_version_tenant_fkey", onUpdate: NoAction)
+  comparison DefenseSavedComparison   @relation("DefenseSavedComparisonVersions", fields: [tenantId, comparisonId], references: [tenantId, id], onDelete: Restrict, map: "defense_saved_compare_version_parent_fkey", onUpdate: NoAction)
+  creator    User                     @relation("DefenseSavedComparisonVersionCreator", fields: [creatorUserId], references: [id], onDelete: Restrict, map: "defense_saved_compare_version_creator_fkey", onUpdate: NoAction)
+  currentFor DefenseSavedComparison[] @relation("DefenseSavedComparisonCurrentVersion")
+  events     DefenseSavedComparisonEvent[]
+
+  @@unique([tenantId, comparisonId, id], map: "defense_saved_compare_version_parent_id_key")
+  @@unique([tenantId, comparisonId, version], map: "defense_saved_compare_version_number_key")
+  @@index([tenantId, comparisonId, capturedAt(sort: Desc)], map: "defense_saved_compare_versions_timeline_idx")
+  @@map("defense_saved_comparison_versions")
+}
+
+model DefenseSavedComparisonEvent {
+  id                 String   @id @default(uuid()) @db.Uuid
+  tenantId           String   @map("tenant_id") @db.Uuid
+  comparisonId       String   @map("comparison_id") @db.Uuid
+  versionId          String?  @map("version_id") @db.Uuid
+  actorUserId        String   @map("actor_user_id") @db.Uuid
+  aggregateRevision  Int      @map("aggregate_revision")
+  eventKind          String   @map("event_kind") @db.VarChar(32)
+  idempotencyKey     String   @map("idempotency_key") @db.VarChar(128)
+  payloadFingerprint String   @map("payload_fingerprint") @db.Char(64)
+  payload            Json
+  occurredAt         DateTime @default(now()) @map("occurred_at") @db.Timestamptz(6)
+
+  tenant     Tenant                       @relation(fields: [tenantId], references: [id], onDelete: Restrict, map: "defense_saved_compare_event_tenant_fkey", onUpdate: NoAction)
+  comparison DefenseSavedComparison       @relation(fields: [tenantId, comparisonId], references: [tenantId, id], onDelete: Restrict, map: "defense_saved_compare_event_parent_fkey", onUpdate: NoAction)
+  version    DefenseSavedComparisonVersion? @relation(fields: [tenantId, comparisonId, versionId], references: [tenantId, comparisonId, id], onDelete: Restrict, map: "defense_saved_compare_event_version_fkey", onUpdate: NoAction)
+  actor      User                         @relation("DefenseSavedComparisonEventActor", fields: [actorUserId], references: [id], onDelete: Restrict, map: "defense_saved_compare_event_actor_fkey", onUpdate: NoAction)
+
+  @@unique([tenantId, actorUserId, idempotencyKey], map: "defense_saved_compare_events_idempotency_key")
+  @@index([tenantId, comparisonId, occurredAt(sort: Desc)], map: "defense_saved_compare_events_timeline_idx")
+  @@map("defense_saved_comparison_events")
+}
+// Root merges these declarations and reverse relation fields into schema.prisma.
+// No schema mutation or generation has been performed by this reviewer.
+enum ResearchPortfolioClientFilingStatus {
+  pending
+  outcome_unknown
+  completed
+
+  @@map("research_portfolio_client_filing_status")
+}
+
+model ResearchPortfolioClientFilingJob {
+  id                   String @id @default(uuid()) @db.Uuid
+  tenantId             String @map("tenant_id") @db.Uuid
+  portfolioId          String @map("portfolio_id") @db.Uuid
+  artifactId           String @map("artifact_id") @db.Uuid
+  clientId             String @map("client_id") @db.Uuid
+  actorUserId          String @map("actor_user_id") @db.Uuid
+  operationKey         String @map("operation_key") @db.VarChar(128)
+  receiptOperationKey  String @map("receipt_operation_key") @db.VarChar(128)
+  requestHash          String @map("request_hash") @db.Char(64)
+  status               ResearchPortfolioClientFilingStatus @default(pending)
+  writerFence          Int @default(1) @map("writer_fence")
+  writerStartedAt      DateTime @default(now()) @map("writer_started_at") @db.Timestamptz(6)
+  externalCheckpoint   Json @default("{}") @map("external_checkpoint")
+  receiptId            String? @map("receipt_id") @db.Uuid
+  lastErrorCode        String? @map("last_error_code") @db.VarChar(128)
+  completedAt          DateTime? @map("completed_at") @db.Timestamptz(6)
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant    Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "research_portfolio_client_filing_jobs_tenant_fkey")
+  portfolio ResearchPortfolio @relation(fields: [tenantId, portfolioId], references: [tenantId, id], onDelete: Cascade, onUpdate: NoAction, map: "research_portfolio_client_filing_jobs_portfolio_fkey")
+  artifact  ResearchPortfolioOutputArtifact @relation(fields: [tenantId, artifactId], references: [tenantId, id], onDelete: Restrict, onUpdate: NoAction, map: "research_portfolio_client_filing_jobs_artifact_fkey")
+  client    Client @relation(fields: [tenantId, clientId], references: [tenantId, id], onDelete: Restrict, onUpdate: NoAction, map: "research_portfolio_client_filing_jobs_client_fkey")
+  actor     User @relation(fields: [actorUserId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "research_portfolio_client_filing_jobs_actor_fkey")
+  receipt   ResearchPortfolioOutputClientFileReceipt? @relation(fields: [tenantId, receiptId], references: [tenantId, id], onDelete: Restrict, onUpdate: NoAction, map: "research_portfolio_client_filing_jobs_receipt_fkey")
+
+  @@unique([tenantId, id], map: "research_portfolio_client_filing_jobs_tenant_id_key")
+  @@unique([tenantId, actorUserId, operationKey], map: "research_portfolio_client_filing_jobs_actor_operation_key")
+  @@unique([tenantId, receiptOperationKey], map: "research_portfolio_client_filing_jobs_receipt_operation_key")
+  @@index([tenantId, portfolioId, status, createdAt], map: "research_portfolio_client_filing_jobs_status_idx")
+  @@map("research_portfolio_client_filing_jobs")
 }
 
 /// Global public reference data. Tenant exposure is decided by confirmed client

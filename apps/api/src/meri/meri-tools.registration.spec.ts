@@ -121,6 +121,7 @@ const EXPECTED_TOOLS = [
   'get_research_portfolio_rules',
   'get_research_portfolio_imports',
   'get_research_portfolio_operations',
+  'manage_research_portfolio',
   'prepare_research_portfolio_brief',
   'prepare_research_portfolio_meeting',
   // Client knowledge base (assistant-parity F5)
@@ -305,15 +306,22 @@ const REQUIRED_INPUTS: Record<string, string[]> = {
   watch_research_portfolio: ['conversationId'],
   update_research_portfolio_change_state: ['conversationId', 'eventId', 'action'],
   get_research_portfolio_bookmarks: ['conversationId'],
-  create_research_portfolio_bookmark: ['conversationId', 'targetKind', 'targetId'],
+  create_research_portfolio_bookmark: ['conversationId', 'operationKey', 'targetKind', 'targetId'],
   get_research_portfolio_fit: ['conversationId'],
   get_research_portfolio_reviews: ['conversationId'],
-  add_research_portfolio_review_note: ['conversationId', 'reviewId', 'body'],
+  add_research_portfolio_review_note: [
+    'conversationId',
+    'operationKey',
+    'expectedRevision',
+    'reviewId',
+    'body',
+  ],
   get_research_portfolio_rules: ['conversationId'],
   get_research_portfolio_imports: ['conversationId'],
-  get_research_portfolio_operations: ['conversationId'],
-  prepare_research_portfolio_brief: ['conversationId'],
-  prepare_research_portfolio_meeting: ['conversationId'],
+  get_research_portfolio_operations: ['conversationId', 'operationId'],
+  manage_research_portfolio: ['conversationId', 'action', 'parameters'],
+  prepare_research_portfolio_brief: ['conversationId', 'operationKey', 'confirmed'],
+  prepare_research_portfolio_meeting: ['conversationId', 'operationKey', 'confirmed'],
   search_client_knowledge: ['query'],
   run_analysis: ['code'],
   search_public_web: ['query'],
@@ -409,6 +417,7 @@ function schemas() {
     tenantId: '11111111-1111-4111-8111-111111111111',
     surface: 'chat',
     env: {
+      RESEARCH_PORTFOLIO_MERI_TOOLS_ENABLED: 'true',
       MERI_STATUS_PROVENANCE_MODE: 'enforce',
       MERI_STATUS_PROVENANCE_TENANTS: 'all',
       MERI_STATUS_PROVENANCE_SURFACES: 'chat',
@@ -555,16 +564,24 @@ describe('Meri tool registration', () => {
       const service = Object.assign(Object.create(MeriToolsService.prototype), {
         researchPortfolioTools: { execute },
       }) as MeriToolsService;
+      // Research Portfolio tools are strict opt-in (default OFF); delegation is
+      // only reachable with the gate explicitly enabled.
+      const priorToolsFlag = process.env.RESEARCH_PORTFOLIO_MERI_TOOLS_ENABLED;
+      process.env.RESEARCH_PORTFOLIO_MERI_TOOLS_ENABLED = 'true';
+      try {
+        await expect(service.execute(actor as never, name, input)).resolves.toEqual({
+          authorized: true,
+        });
+        expect(execute).toHaveBeenCalledWith(actor, name, input);
 
-      await expect(service.execute(actor as never, name, input)).resolves.toEqual({
-        authorized: true,
-      });
-      expect(execute).toHaveBeenCalledWith(actor, name, input);
-
-      execute.mockRejectedValueOnce(new Error('portfolio scope denied'));
-      await expect(service.execute(actor as never, name, input)).rejects.toThrow(
-        'portfolio scope denied',
-      );
+        execute.mockRejectedValueOnce(new Error('portfolio scope denied'));
+        await expect(service.execute(actor as never, name, input)).rejects.toThrow(
+          'portfolio scope denied',
+        );
+      } finally {
+        if (priorToolsFlag === undefined) delete process.env.RESEARCH_PORTFOLIO_MERI_TOOLS_ENABLED;
+        else process.env.RESEARCH_PORTFOLIO_MERI_TOOLS_ENABLED = priorToolsFlag;
+      }
     },
   );
 
@@ -705,7 +722,11 @@ describe('Meri tool registration', () => {
     const enabled = schemas();
     const baseline = enabled.filter((schema) => schema.name !== 'get_certification_status');
     expect(
-      service.anthropicToolSchemas({ tenantId: 'tenant-1', surface: 'chat', env: {} }),
+      service.anthropicToolSchemas({
+        tenantId: 'tenant-1',
+        surface: 'chat',
+        env: { RESEARCH_PORTFOLIO_MERI_TOOLS_ENABLED: 'true' },
+      }),
     ).toEqual(baseline);
     expect(enabled.filter((schema) => !baseline.some((item) => item.name === schema.name))).toEqual(
       [expect.objectContaining({ name: 'get_certification_status' })],
@@ -715,6 +736,7 @@ describe('Meri tool registration', () => {
         tenantId: 'tenant-1',
         surface: 'chat',
         env: {
+          RESEARCH_PORTFOLIO_MERI_TOOLS_ENABLED: 'true',
           MERI_STATUS_PROVENANCE_MODE: 'shadow',
           MERI_STATUS_PROVENANCE_TENANTS: 'all',
           MERI_STATUS_PROVENANCE_SURFACES: 'chat',

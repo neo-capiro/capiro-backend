@@ -2,6 +2,7 @@ import { timingSafeEqual } from 'node:crypto';
 import {
   BadRequestException,
   Injectable,
+  Optional,
   NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common';

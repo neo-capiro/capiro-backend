@@ -3,9 +3,20 @@ import { useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { useApi } from '../../../lib/use-api.js';
 import { compareDefenseBudget, type DefenseCompareFilters } from './defense-research-api.js';
+import { loadSavedDefenseComparison } from './defense-research-api.js';
+import { DefenseCompareSavePanel } from './DefenseCompareSavePanel.js';
+import { DefenseSavedComparisonActions } from './DefenseSavedComparisonActions.js';
+import { useAuth } from '@clerk/clerk-react';
+import { useImpersonation } from '../../../state/impersonation.js';
 import './defense-research.css';
 
-const SUBJECT_TYPES = ['program_element', 'program', 'project', 'budget_line', 'context_document'] as const;
+const SUBJECT_TYPES = [
+  'program_element',
+  'program',
+  'project',
+  'budget_line',
+  'context_document',
+] as const;
 type SubjectType = (typeof SUBJECT_TYPES)[number];
 
 function parseSubject(subject: string): { type: SubjectType; id: string } | null {
@@ -20,11 +31,13 @@ function parseSubject(subject: string): { type: SubjectType; id: string } | null
 function SubjectInput({
   value,
   onChange,
-  placeholder = "program_element:PE123456",
+  placeholder = 'program_element:PE123456',
+  disabled = false,
 }: {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
+  disabled?: boolean;
 }) {
   const parsed = parseSubject(value);
   const isValid = value === '' || parsed !== null;
@@ -38,26 +51,64 @@ function SubjectInput({
         placeholder={placeholder}
         className={`dr-input ${!isValid ? 'is-invalid' : ''}`}
         aria-label="Subject identifier"
+        disabled={disabled}
       />
       {!isValid && value ? (
         <small className="dr-input-hint">
-          Format: type:id (e.g., program_element:PE123456, program:P123, project:PROJ-1, budget_line:BL-2025)
+          Format: type:id (e.g., program_element:PE123456, program:P123, project:PROJ-1,
+          budget_line:BL-2025)
         </small>
       ) : null}
     </div>
   );
 }
 
-export function PeCompareView() {
+function PeCompareAuthorityView({
+  authority,
+}: {
+  authority: readonly [string | null, string | null, string | null];
+}) {
   const api = useApi();
   const [params, setParams] = useSearchParams();
 
+  const [pendingCapture, setPendingSave] = useState(() => {
+    try {
+      return !!localStorage.getItem(
+        'capiro:defense-compare-pending:v1:' + JSON.stringify(authority),
+      );
+    } catch {
+      return true;
+    }
+  });
+  const [pendingAction, setPendingAction] = useState(() => {
+    try {
+      return !!localStorage.getItem(
+        'capiro:defense-compare-action-pending:v1:' + JSON.stringify(authority),
+      );
+    } catch {
+      return true;
+    }
+  });
+  const pendingSave = pendingCapture || pendingAction;
+  const savedId = params.get('saved');
+  const savedVersion = params.get('savedVersion') ?? undefined;
+  const saved = useQuery({
+    queryKey: ['defense-saved-comparison', ...authority, savedId, savedVersion],
+    queryFn: () => loadSavedDefenseComparison(api, savedId!, savedVersion),
+    enabled: !!savedId && !!authority[0],
+  });
   const rawSubjects = params.get('subjects')?.split(',').filter(Boolean) ?? [];
-  const subjects = rawSubjects.map((s) => s.trim());
+  const subjects =
+    savedId && saved.data
+      ? saved.data.currentVersion.subjects.map((subject) => subject.type + ':' + subject.id)
+      : rawSubjects.map((s) => s.trim());
 
   const updateSubjects = (newSubjects: string[]) => {
+    if (pendingSave) return;
     setParams((current) => {
       const next = new URLSearchParams(current);
+      next.delete('saved');
+      next.delete('savedVersion');
       if (newSubjects.length) {
         next.set('subjects', newSubjects.join(','));
       } else {
@@ -77,16 +128,33 @@ export function PeCompareView() {
     updateSubjects(subjects.filter((_, i) => i !== index));
   };
 
-  const compareEnabled = subjects.length >= 2 && subjects.length <= 5 && subjects.every((s) => parseSubject(s) !== null);
+  const compareEnabled =
+    subjects.length >= 2 && subjects.length <= 5 && subjects.every((s) => parseSubject(s) !== null);
 
   const comparison = useQuery({
-    queryKey: ['defense-compare', subjects],
+    queryKey: ['defense-compare', ...authority, subjects],
     queryFn: () =>
       compareDefenseBudget(api, {
         subjects,
       }),
-    enabled: compareEnabled,
+    enabled: compareEnabled && !savedId && !!authority[0],
   });
+
+  const displayComparison = savedId
+    ? saved.data?.currentVersion.capturedProjection
+    : comparison.data;
+  const loadSaved = (id: string) =>
+    setParams((current) => {
+      const next = new URLSearchParams(current);
+      next.set('saved', id);
+      next.delete('savedVersion');
+      return next;
+    });
+  const editSaved = () =>
+    updateSubjects(
+      saved.data?.currentVersion.subjects.map((subject) => subject.type + ':' + subject.id) ??
+        subjects,
+    );
 
   const [newSubject, setNewSubject] = useState('');
 
@@ -122,6 +190,7 @@ export function PeCompareView() {
                 <button
                   type="button"
                   className="dr-chip-remove"
+                  disabled={pendingSave}
                   onClick={() => removeSubject(idx)}
                   aria-label={`Remove ${subject}`}
                 >
@@ -141,8 +210,8 @@ export function PeCompareView() {
                 }
               }}
             >
-              <SubjectInput value={newSubject} onChange={setNewSubject} />
-              <button type="submit" disabled={!parseSubject(newSubject)}>
+              <SubjectInput value={newSubject} onChange={setNewSubject} disabled={pendingSave} />
+              <button type="submit" disabled={pendingSave || !parseSubject(newSubject)}>
                 Add
               </button>
             </form>
@@ -156,22 +225,43 @@ export function PeCompareView() {
         )}
       </section>
 
-      {compareEnabled ? (
+      <DefenseCompareSavePanel
+        key={JSON.stringify(authority)}
+        authority={authority}
+        comparison={displayComparison}
+        saved={savedId ? saved.data : undefined}
+        onLoad={loadSaved}
+        onEdit={editSaved}
+        onPendingChange={setPendingSave}
+        externalLocked={pendingAction}
+      />
+      <DefenseSavedComparisonActions
+        key={'actions:' + JSON.stringify(authority)}
+        authority={authority}
+        saved={savedId ? saved.data : undefined}
+        onLoad={loadSaved}
+        onPendingChange={setPendingAction}
+        disabled={pendingCapture}
+      />
+      {savedId && saved.isError ? (
+        <p role="alert">The saved comparison could not be opened.</p>
+      ) : null}
+      {compareEnabled || savedId ? (
         <section className="dr-section">
           <h2>Comparison</h2>
-          {comparison.isPending ? (
+          {(savedId ? saved.isPending : comparison.isPending) ? (
             <p role="status">Loading comparison…</p>
-          ) : comparison.isError ? (
+          ) : (savedId ? saved.isError : comparison.isError) ? (
             <p role="alert">The comparison could not be loaded.</p>
-          ) : comparison.data ? (
+          ) : displayComparison ? (
             <>
               <div className="dr-comparison-meta">
-                <span>Projection version: {comparison.data.projectionVersion}</span>
-                {comparison.data.limitations.length > 0 && (
+                <span>Projection version: {displayComparison.projectionVersion}</span>
+                {displayComparison.limitations.length > 0 && (
                   <details className="dr-limitations">
-                    <summary>Limitations ({comparison.data.limitations.length})</summary>
+                    <summary>Limitations ({displayComparison.limitations.length})</summary>
                     <ul>
-                      {comparison.data.limitations.map((limitation, idx) => (
+                      {displayComparison.limitations.map((limitation, idx) => (
                         <li key={idx}>{limitation}</li>
                       ))}
                     </ul>
@@ -180,7 +270,7 @@ export function PeCompareView() {
               </div>
 
               <div className="dr-subjects-header">
-                {comparison.data.subjects.map((subject) => (
+                {displayComparison.subjects.map((subject) => (
                   <div key={subject.key} className="dr-subject-header">
                     <h3>{subject.label}</h3>
                     <span className={`dr-availability-${subject.availability}`}>
@@ -195,12 +285,12 @@ export function PeCompareView() {
                   <div>Metric</div>
                   <div>Period</div>
                   <div>Unit</div>
-                  {comparison.data.subjects.map((subject) => (
+                  {displayComparison.subjects.map((subject) => (
                     <div key={subject.key}>{subject.type}</div>
                   ))}
                 </div>
 
-                {comparison.data.metrics.map((metric) => (
+                {displayComparison.metrics.map((metric) => (
                   <div key={metric.key} className="dr-metric-row">
                     <div className="dr-metric-label">{metric.label}</div>
                     <div className="dr-metric-period">{metric.period ?? '—'}</div>
@@ -212,23 +302,36 @@ export function PeCompareView() {
                         title={cell.reason ?? undefined}
                       >
                         {cell.disposition === 'observed'
-                          ? cell.value ?? '—'
+                          ? (cell.value ?? '—')
                           : cell.disposition.toUpperCase()}
-                        {cell.evidence.length > 0 ? <small className="dr-evidence-count">
-                          {cell.evidence.map((evidence, evidenceIndex) => evidence.sourceUrl ? (
-                            <a key={evidence.evidenceRefId} href={evidence.sourceUrl} target="_blank" rel="noreferrer">Source {evidenceIndex + 1}</a>
-                          ) : <span key={evidence.evidenceRefId}>Locator unavailable</span>)}
-                        </small> : null}
+                        {cell.evidence.length > 0 ? (
+                          <small className="dr-evidence-count">
+                            {cell.evidence.map((evidence, evidenceIndex) =>
+                              evidence.sourceUrl ? (
+                                <a
+                                  key={evidence.evidenceRefId}
+                                  href={evidence.sourceUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                >
+                                  Source {evidenceIndex + 1}
+                                </a>
+                              ) : (
+                                <span key={evidence.evidenceRefId}>Locator unavailable</span>
+                              ),
+                            )}
+                          </small>
+                        ) : null}
                       </div>
                     ))}
                   </div>
                 ))}
               </div>
 
-              {comparison.data.alignments.length > 0 && (
+              {displayComparison.alignments.length > 0 && (
                 <div className="dr-alignments">
                   <h3>Alignments</h3>
-                  {comparison.data.alignments.map((alignment, idx) => (
+                  {displayComparison.alignments.map((alignment, idx) => (
                     <div key={idx} className={`dr-alignment dr-state-${alignment.state}`}>
                       <span className="dr-alignment-kind">{alignment.kind}</span>
                       <span className="dr-alignment-state">{alignment.state}</span>
@@ -256,4 +359,11 @@ export function PeCompareView() {
       </nav>
     </main>
   );
+}
+
+export function PeCompareView() {
+  const { userId, orgId } = useAuth();
+  const { actAsTenantSlug } = useImpersonation();
+  const authority = [userId ?? null, orgId ?? null, actAsTenantSlug ?? null] as const;
+  return <PeCompareAuthorityView key={JSON.stringify(authority)} authority={authority} />;
 }

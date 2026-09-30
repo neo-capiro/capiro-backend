@@ -1,0 +1,49 @@
+{
+  "schemaVersion": "native_xml_candidate_reference_provenance_v1",
+  "status": "candidate_only",
+  "promotable": false,
+  "defaultSourcePublish": false,
+  "donor": {
+    "repository": "handriss/defense-budget-justification-data",
+    "commit": "5c6310d9845cd75360bf4c39a220f9d6699b65df",
+    "readmeUrl": "https://github.com/handriss/defense-budget-justification-data/blob/5c6310d9845cd75360bf4c39a220f9d6699b65df/README.md",
+    "licenseFileInventory": [],
+    "githubLicenseEndpoint": "404",
+    "noticeClaim": "Pinned README describes the material as unchanged U.S. Government public-domain data in a convenience collection.",
+    "independentOfficialByteReconciliation": "NOT RUN in this catalog slice; README claim is not official-source byte proof"
+  },
+  "copyDisposition": {
+    "code": "Independently authored candidate catalog and schema-only fixtures; no donor application code copied.",
+    "trackedFixtures": "Synthetic schema-only XML in the test source; no raw donor file bodies or narratives.",
+    "rawActualFixtures": "Scratch only; no source activation, admission, publication or aggregate coverage claim."
+  },
+  "actualReadOnlyReferences": [
+    {
+      "path": "fy2026/RDTE_DTIC_PB_2026.xml",
+      "bytes": 67578,
+      "sha256": "02479cd6e67dfee10bb1029d9413dbc35e81174384b25319fedfb9589d4aac6a"
+    },
+    {
+      "path": "fy2026/RDTE_DCAA_PB_2026.xml",
+      "bytes": 15366,
+      "sha256": "6c8f68bed0494b8fe5954f4adeac62c19db99285579037037049a2fa23528a5f"
+    },
+    {
+      "path": "fy2026/PROC_DODEA_PB_2026.xml",
+      "bytes": 4212,
+      "sha256": "61de74d9d5ec60c0b0f6c26f571e346c21dd203cef5d416678cc5da699fb9578"
+    },
+    {
+      "path": "fy2026/fy26_NATO_Security_Investment_Program.xml",
+      "bytes": 22134,
+      "sha256": "c77daa78e6a2f7a37cfceca04009ccc5966ec93d12901a14a6a939b904134ae9"
+    }
+  ],
+  "qualificationBoundary": "Catalog parses scopes, native field paths and raw cells only. Archived official XML/PDF bytes, source observations/outbox, proof-bound artifact mapping, verification/review and publication remain existing pipeline responsibilities. TaggedPDF emits no native funding assertions.",
+  "probeEvidence": {
+    "actualByteProbe": "review-source-native-catalog-probe-results.json",
+    "assertions": 11,
+    "exitCode": 0,
+    "environment": "read-only local scratch, current code with installed compiler, no production access"
+  }
+}

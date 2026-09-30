@@ -63,10 +63,12 @@ describe('Research Portfolio Phase 10 Meri integration', () => {
       {} as never,
       {} as never,
     );
-    await expect(service.execute(ctx, 'get_research_portfolio', { conversationId }))
-      .resolves.toEqual({ id: portfolioId });
-    await expect(service.execute(ctx, 'watch_research_portfolio', { conversationId }))
-      .resolves.toEqual({ id: 'watch-1' });
+    await expect(
+      service.execute(ctx, 'get_research_portfolio', { conversationId }),
+    ).resolves.toEqual({ id: portfolioId });
+    await expect(
+      service.execute(ctx, 'watch_research_portfolio', { conversationId }),
+    ).resolves.toEqual({ id: 'watch-1' });
     await service.execute(ctx, 'create_research_portfolio_snapshot', {
       conversationId,
       operationKey: 'snapshot:key',
@@ -78,15 +80,26 @@ describe('Research Portfolio Phase 10 Meri integration', () => {
       operationKey: 'output:key',
     });
     expect(changes.createSubscription).toHaveBeenCalledWith(ctx, portfolioId, {
-      targetKind: 'portfolio', targetId: portfolioId, channel: 'in_app', cadence: 'immediate',
+      targetKind: 'portfolio',
+      targetId: portfolioId,
+      channel: 'in_app',
+      cadence: 'immediate',
     });
-    expect(outputs.create).toHaveBeenCalledWith(ctx, portfolioId, expect.objectContaining({
-      operationKey: 'output:key', format: 'csv', includeSourceAppendix: true,
-    }));
-    await expect(service.execute(ctx, 'get_research_portfolio', {
-      conversationId,
+    expect(outputs.create).toHaveBeenCalledWith(
+      ctx,
       portfolioId,
-    })).rejects.toThrow('portfolioId is controlled by the server');
+      expect.objectContaining({
+        operationKey: 'output:key',
+        format: 'csv',
+        includeSourceAppendix: true,
+      }),
+    );
+    await expect(
+      service.execute(ctx, 'get_research_portfolio', {
+        conversationId,
+        portfolioId,
+      }),
+    ).rejects.toThrow('portfolioId is controlled by the server');
   });
 
   test('resolves an immutable receipt and rechecks current access on every turn', async () => {
@@ -110,43 +123,73 @@ describe('Research Portfolio Phase 10 Meri integration', () => {
     const receipt = await service.resolve(ctx, portfolioId);
     expect(receipt.scopeVersion).toMatch(/^[0-9a-f]{64}$/);
     expect(researchPortfolioTurnScopeReceipt(receipt)).toMatchObject({
-      kind: 'research_portfolio', researchPortfolioId: portfolioId, researchPortfolioRevision: 9,
+      kind: 'research_portfolio',
+      researchPortfolioId: portfolioId,
+      researchPortfolioRevision: 9,
     });
-    await expect(authorizeMeriResearchPortfolioScope(service, ctx, {
-      [MERI_RESEARCH_PORTFOLIO_SCOPE_METADATA_KEY]: receipt,
-    } as never)).resolves.toMatchObject({ researchPortfolioId: portfolioId });
+    await expect(
+      authorizeMeriResearchPortfolioScope(service, ctx, {
+        [MERI_RESEARCH_PORTFOLIO_SCOPE_METADATA_KEY]: receipt,
+      } as never),
+    ).resolves.toMatchObject({ researchPortfolioId: portfolioId });
     expect(prisma.withTenant).toHaveBeenCalledTimes(2);
   });
 
   test('fails closed for malformed or unavailable scoped conversations', async () => {
-    expect(readMeriResearchPortfolioScope({
-      kind: 'research_portfolio', researchPortfolioId: portfolioId,
-      researchPortfolioName: 'x', researchPortfolioRevision: 1, scopeVersion: 'short',
-    })).toBeNull();
-    await expect(authorizeMeriResearchPortfolioScope(undefined, ctx, {
-      [MERI_RESEARCH_PORTFOLIO_SCOPE_METADATA_KEY]: {
-        kind: 'research_portfolio', researchPortfolioId: portfolioId,
-        researchPortfolioName: 'x', researchPortfolioRevision: 1, scopeVersion: 'a'.repeat(64),
-      },
-    })).rejects.toBeInstanceOf(ForbiddenException);
+    expect(
+      readMeriResearchPortfolioScope({
+        kind: 'research_portfolio',
+        researchPortfolioId: portfolioId,
+        researchPortfolioName: 'x',
+        researchPortfolioRevision: 1,
+        scopeVersion: 'short',
+      }),
+    ).toBeNull();
+    await expect(
+      authorizeMeriResearchPortfolioScope(undefined, ctx, {
+        [MERI_RESEARCH_PORTFOLIO_SCOPE_METADATA_KEY]: {
+          kind: 'research_portfolio',
+          researchPortfolioId: portfolioId,
+          researchPortfolioName: 'x',
+          researchPortfolioRevision: 1,
+          scopeVersion: 'a'.repeat(64),
+        },
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   test('restores an existing paused watch without replacing its quiet-first baseline', async () => {
     const baselineCompletedAt = new Date('2026-09-25T12:00:00.000Z');
     const existing = {
-      id: 'watch-1', portfolioId, subscriberUserId: ctx.userId,
-      targetKind: 'portfolio', targetId: portfolioId, channel: 'in_app', cadence: 'immediate',
-      active: false, baselineEventId: 'event-1', baselineRevision: 7, baselineCompletedAt,
-      checkpoint: { quietFirstBaseline: true }, createdAt: baselineCompletedAt, updatedAt: baselineCompletedAt,
+      id: 'watch-1',
+      portfolioId,
+      subscriberUserId: ctx.userId,
+      targetKind: 'portfolio',
+      targetId: portfolioId,
+      channel: 'in_app',
+      cadence: 'immediate',
+      active: false,
+      baselineEventId: 'event-1',
+      baselineRevision: 7,
+      baselineCompletedAt,
+      checkpoint: { quietFirstBaseline: true },
+      createdAt: baselineCompletedAt,
+      updatedAt: baselineCompletedAt,
     };
     const update = jest.fn(async () => ({ ...existing, active: true }));
     const prisma = {
       withTenant: jest.fn(async (_tenantId: string, callback: (tx: unknown) => unknown) =>
         callback({
-          researchPortfolio: { findFirst: jest.fn(async () => ({
-            id: portfolioId, tenantId: ctx.tenantId, name: 'Portfolio', revision: 9,
-            grants: [{ role: 'viewer' }], clientLinks: [],
-          })) },
+          researchPortfolio: {
+            findFirst: jest.fn(async () => ({
+              id: portfolioId,
+              tenantId: ctx.tenantId,
+              name: 'Portfolio',
+              revision: 9,
+              grants: [{ role: 'viewer' }],
+              clientLinks: [],
+            })),
+          },
           researchPortfolioSubscription: {
             findFirst: jest.fn(async () => existing),
             update,
@@ -155,32 +198,72 @@ describe('Research Portfolio Phase 10 Meri integration', () => {
       ),
     };
     const service = new ResearchPortfolioChangesService(prisma as never);
-    await expect(service.createSubscription(ctx, portfolioId, {
-      targetKind: 'portfolio', targetId: portfolioId, channel: 'in_app', cadence: 'immediate',
-    })).resolves.toMatchObject({ id: 'watch-1', active: true, baselineRevision: 7 });
+    await expect(
+      service.createSubscription(ctx, portfolioId, {
+        targetKind: 'portfolio',
+        targetId: portfolioId,
+        channel: 'in_app',
+        cadence: 'immediate',
+      }),
+    ).resolves.toMatchObject({ id: 'watch-1', active: true, baselineRevision: 7 });
     expect(update).toHaveBeenCalledWith({ where: { id: 'watch-1' }, data: { active: true } });
   });
 
-  test('withholds client-private change events after that client wall is revoked', async () => {
+  test('withholds historical client-private change events after the wall is revoked and the client link removed', async () => {
     const deniedClientId = '55555555-5555-4555-8555-555555555555';
     const occurredAt = new Date('2026-09-26T05:00:00.000Z');
     const tx = {
-      $queryRawUnsafe: jest.fn(async () => [{ allowed: false }]),
-      researchPortfolio: { findFirst: jest.fn(async () => ({
-        id: portfolioId, tenantId: ctx.tenantId, name: 'Portfolio', revision: 9,
-        grants: [{ role: 'viewer' }], clientLinks: [{ clientId: deniedClientId }],
-      })) },
+      $queryRawUnsafe: jest.fn(async () => [{ id: deniedClientId }]),
+      researchPortfolio: {
+        findFirst: jest.fn(async () => ({
+          id: portfolioId,
+          tenantId: ctx.tenantId,
+          name: 'Portfolio',
+          revision: 9,
+          grants: [{ role: 'viewer' }],
+          clientLinks: [],
+        })),
+      },
       researchPortfolioSubscription: { findMany: jest.fn(async () => []) },
-      researchPortfolioEvent: { findMany: jest.fn(async () => [
-        { id: 'event-private', portfolioId, eventKind: 'client_linked', aggregateRevision: 9, actorUserId: ctx.userId, occurredAt, payload: { clientId: deniedClientId }, recipientStates: [] },
-        { id: 'event-public', portfolioId, eventKind: 'member_added', aggregateRevision: 8, actorUserId: ctx.userId, occurredAt, payload: { memberId: 'member-1' }, recipientStates: [] },
-      ]) },
+      researchPortfolioEvent: {
+        findMany: jest.fn(async () => [
+          {
+            id: 'event-private',
+            portfolioId,
+            eventKind: 'client_linked',
+            aggregateRevision: 9,
+            actorUserId: ctx.userId,
+            occurredAt,
+            payload: { clientId: deniedClientId },
+            recipientStates: [],
+          },
+          {
+            id: 'event-public',
+            portfolioId,
+            eventKind: 'member_added',
+            aggregateRevision: 8,
+            actorUserId: ctx.userId,
+            occurredAt,
+            payload: { memberId: 'member-1' },
+            recipientStates: [],
+          },
+        ]),
+      },
     };
-    const prisma = { withTenant: jest.fn(async (_tenantId: string, callback: (value: unknown) => unknown) => callback(tx)) };
+    const prisma = {
+      withTenant: jest.fn(async (_tenantId: string, callback: (value: unknown) => unknown) =>
+        callback(tx),
+      ),
+    };
     const service = new ResearchPortfolioChangesService(prisma as never);
     await expect(service.listChanges(ctx, portfolioId, null, 25)).resolves.toMatchObject({
       items: [{ id: 'event-public' }],
       nextCursor: null,
     });
+    expect(tx.$queryRawUnsafe).toHaveBeenCalledWith(
+      expect.stringContaining('FROM clients c'),
+      ctx.tenantId,
+      ctx.userId,
+    );
   });
 });

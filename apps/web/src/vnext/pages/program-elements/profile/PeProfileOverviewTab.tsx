@@ -1,3 +1,4 @@
+import { PeDossierNarrative } from './PeDossierNarrative.js';
 /**
  * Program Elements vNext profile — Overview tab.
  * Native port of PeV2OverviewTab: funding-by-FY bars (enacted ink / request
@@ -54,6 +55,7 @@ export function PeProfileOverviewTab({ vm }: { vm: ProgramElementProfileFinalVm 
     >
       {/* Main column */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 20, minWidth: 0, flex: '1 1 520px' }}>
+        <PeDossierNarrative peCode={detail!.peCode} description={detail?.description ?? null} />
         {/* Funding by fiscal year */}
         <PfCard
           inkTop

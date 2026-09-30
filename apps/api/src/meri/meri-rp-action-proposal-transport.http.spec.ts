@@ -184,6 +184,23 @@ describe('Research Portfolio proposal HTTP transport', () => {
     );
   });
 
+  it('preserves the existing ordinary optional-null conversation under the actual strict DTO pipeline', async () => {
+    const body = {
+      tool: 'send_email',
+      input: { to: 'person@example.com', body: 'Hello' },
+      surface: 'chat',
+      conversationId: null,
+    };
+    await post(body).expect(201);
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: TENANT, userId: USER }),
+      body,
+    );
+    create.mockClear();
+    await post({ ...body, unexpected: 'denied' }).expect(400);
+    expect(create).not.toHaveBeenCalled();
+  });
+
   it('keeps browser approval opaque and rejects scope retarget fields', async () => {
     await request(app.getHttpServer())
       .post(`/api/clio/action-proposals/${PROPOSAL}/approve`)

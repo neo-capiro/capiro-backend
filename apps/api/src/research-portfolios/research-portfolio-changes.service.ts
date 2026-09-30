@@ -14,7 +14,7 @@ import type {
   UpdateResearchPortfolioEventStateDto,
   UpdateResearchPortfolioSubscriptionDto,
 } from '@capiro/shared';
-import { clientMemoryAllowed } from '../memory/memory-wall.helpers.js';
+import { clientMemoryAllowed, fetchDeniedClientIds } from '../memory/memory-wall.helpers.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { loadAuthorizedResearchPortfolio } from './research-portfolio-access.js';
 
@@ -34,7 +34,7 @@ const CADENCES = new Set(['immediate', 'daily', 'weekly']);
 
 const iso = (value: Date | null | undefined) => (value ? value.toISOString() : null);
 
-function containsExactIdentifier(value: unknown, identifier: string): boolean {
+export function containsExactIdentifier(value: unknown, identifier: string): boolean {
   if (value === identifier) return true;
   if (Array.isArray(value))
     return value.some((entry) => containsExactIdentifier(entry, identifier));
@@ -58,8 +58,7 @@ export class ResearchPortfolioChangesService {
   ): Promise<{ items: readonly ResearchPortfolioChangeDto[]; nextCursor: string | null }> {
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const portfolio = await loadAuthorizedResearchPortfolio(tx, ctx, portfolioId, 'viewer');
-      const deniedClientIds = await this.deniedClientIds(tx, ctx, portfolio.clientLinks);
-      await this.materializeDeliveries(tx, ctx, portfolioId, deniedClientIds);
+      const deniedClientIds = await this.deniedClientIds(tx, ctx);
       const visible: any[] = [];
       let scanCursor = cursor;
       let exhausted = false;
@@ -99,8 +98,14 @@ export class ResearchPortfolioChangesService {
   ): Promise<readonly ResearchPortfolioSubscriptionDeliveryDto[]> {
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const portfolio = await loadAuthorizedResearchPortfolio(tx, ctx, portfolioId, 'viewer');
-      const deniedClientIds = await this.deniedClientIds(tx, ctx, portfolio.clientLinks);
-      await this.materializeDeliveries(tx, ctx, portfolioId, deniedClientIds);
+      if (
+        !(await tx.tenantMembership.findFirst({
+          where: { tenantId: ctx.tenantId, userId: ctx.userId, status: 'active' },
+          select: { id: true },
+        }))
+      )
+        return [];
+      const deniedClientIds = await this.deniedClientIds(tx, ctx);
       const rows = await tx.researchPortfolioSubscriptionDelivery.findMany({
         where: { tenantId: ctx.tenantId, portfolioId, recipientUserId: ctx.userId },
         include: { event: { select: { payload: true } } },
@@ -125,7 +130,7 @@ export class ResearchPortfolioChangesService {
     }
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const portfolio = await loadAuthorizedResearchPortfolio(tx, ctx, portfolioId, 'viewer');
-      const deniedClientIds = await this.deniedClientIds(tx, ctx, portfolio.clientLinks);
+      const deniedClientIds = await this.deniedClientIds(tx, ctx);
       const event = await tx.researchPortfolioEvent.findFirst({
         where: { id: eventId, portfolioId },
       });
@@ -180,7 +185,7 @@ export class ResearchPortfolioChangesService {
   ): Promise<readonly ResearchPortfolioSubscriptionDto[]> {
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const portfolio = await loadAuthorizedResearchPortfolio(tx, ctx, portfolioId, 'viewer');
-      const deniedClientIds = await this.deniedClientIds(tx, ctx, portfolio.clientLinks);
+      const deniedClientIds = await this.deniedClientIds(tx, ctx);
       const rows = await tx.researchPortfolioSubscription.findMany({
         where: { tenantId: ctx.tenantId, portfolioId, subscriberUserId: ctx.userId },
         orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
@@ -266,7 +271,7 @@ export class ResearchPortfolioChangesService {
       throw new BadRequestException('Unsupported subscription cadence');
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const portfolio = await loadAuthorizedResearchPortfolio(tx, ctx, portfolioId, 'viewer');
-      const deniedClientIds = await this.deniedClientIds(tx, ctx, portfolio.clientLinks);
+      const deniedClientIds = await this.deniedClientIds(tx, ctx);
       const existing = await tx.researchPortfolioSubscription.findFirst({
         where: { id: subscriptionId, portfolioId, subscriberUserId: ctx.userId },
       });
@@ -298,97 +303,9 @@ export class ResearchPortfolioChangesService {
       throw new BadRequestException('Unsupported subscription cadence');
   }
 
-  private async materializeDeliveries(
-    tx: any,
-    ctx: TenantContext,
-    portfolioId: string,
-    deniedClientIds: ReadonlySet<string>,
-  ) {
-    if (process.env.RESEARCH_PORTFOLIO_WATCH_DELIVERY_ENABLED === 'false') return;
-    const subscriptions = await tx.researchPortfolioSubscription.findMany({
-      where: {
-        tenantId: ctx.tenantId,
-        portfolioId,
-        subscriberUserId: ctx.userId,
-        active: true,
-      },
-    });
-    if (!subscriptions.length) return;
-    const minimumBaseline = Math.min(...subscriptions.map((row: any) => row.baselineRevision));
-    const events = await tx.researchPortfolioEvent.findMany({
-      where: {
-        tenantId: ctx.tenantId,
-        portfolioId,
-        aggregateRevision: { gt: minimumBaseline },
-      },
-      orderBy: [{ aggregateRevision: 'asc' }, { id: 'asc' }],
-    });
-    const now = new Date();
-    const rows = subscriptions.flatMap((subscription: any) =>
-      events
-        .filter((event: any) => event.aggregateRevision > subscription.baselineRevision)
-        .filter((event: any) => !this.referencesDeniedClient(event.payload, deniedClientIds))
-        .filter((event: any) => this.subscriptionMatches(subscription, event))
-        .map((event: any) => {
-          const configured =
-            subscription.channel === 'in_app' && subscription.cadence === 'immediate';
-          return {
-            tenantId: ctx.tenantId,
-            portfolioId,
-            subscriptionId: subscription.id,
-            eventId: event.id,
-            recipientUserId: ctx.userId,
-            channel: subscription.channel,
-            status: configured ? 'delivered' : 'partial',
-            checkpoint: {
-              baselineRevision: subscription.baselineRevision,
-              aggregateRevision: event.aggregateRevision,
-              quietFirstBaseline: true,
-              accessRecheckedAt: now.toISOString(),
-            },
-            receipt: configured
-              ? { surface: 'research_portfolio_change_feed', eventId: event.id }
-              : {
-                  configured: false,
-                  reason:
-                    subscription.channel === 'email'
-                      ? 'Email delivery is not configured for Research Portfolios'
-                      : `${subscription.cadence} cadence scheduling is not configured for Research Portfolios`,
-                },
-            errorCode: configured
-              ? null
-              : subscription.channel === 'email'
-                ? 'email_delivery_not_configured'
-                : 'cadence_scheduler_not_configured',
-            completedAt: now,
-          };
-        }),
-    );
-    if (rows.length) {
-      await tx.researchPortfolioSubscriptionDelivery.createMany({
-        data: rows,
-        skipDuplicates: true,
-      });
-    }
-  }
-
-  private subscriptionMatches(subscription: any, event: any): boolean {
-    if (subscription.targetKind === 'portfolio') return subscription.targetId === event.portfolioId;
-    return containsExactIdentifier(event.payload, subscription.targetId);
-  }
-
-  private async deniedClientIds(
-    tx: any,
-    ctx: TenantContext,
-    links: readonly { clientId: string }[],
-  ): Promise<ReadonlySet<string>> {
-    const denied = new Set<string>();
-    for (const link of links) {
-      if (!(await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, link.clientId))) {
-        denied.add(link.clientId);
-      }
-    }
-    return denied;
+  private async deniedClientIds(tx: any, ctx: TenantContext): Promise<ReadonlySet<string>> {
+    // Historical client references remain private even after their portfolio link is removed.
+    return new Set(await fetchDeniedClientIds(tx, ctx.tenantId, ctx.userId));
   }
 
   private referencesDeniedClient(payload: unknown, deniedClientIds: ReadonlySet<string>): boolean {

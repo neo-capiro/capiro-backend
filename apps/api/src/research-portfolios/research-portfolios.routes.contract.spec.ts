@@ -28,8 +28,15 @@ describe('Research Portfolios Phase 1 route ownership', () => {
 
   it('reserves templates/taxonomy before dynamic IDs and keeps delete receipts explicit', () => {
     const controller = source('research-portfolios.controller.ts');
-    expect(controller).toContain("new Set(['templates', 'taxonomy'])");
+    const reserved = controller.match(/const RESERVED_STATIC_IDS = new Set\((\[[^\]]+\])\)/)?.[1];
+    expect(reserved).toBeDefined();
+    const names = JSON.parse(reserved!.replace(/'/g, '"'));
+    expect(names).toEqual(expect.arrayContaining(['templates', 'taxonomy', 'tour-state']));
     expect(controller).not.toContain('ParseUUIDPipe');
-    expect(controller.match(/@Delete\([^)]*\)[\s\S]*?@Body\(\) dto/g)?.length).toBe(2);
+    for (const method of ['deleteGrant', 'deleteClientLink']) {
+      // Bound the signature so a later bookmark route cannot match a different body.
+      const signature = controller.match(new RegExp(`async ${method}\\([\\s\\S]*?\\): Promise<ResearchPortfolioMutationReceiptDto>`))?.[0];
+      expect(signature).toContain('@Body() dto: ResearchPortfolioMutationMetaDto & { expectedRevision: number }');
+    }
   });
 });

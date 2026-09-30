@@ -37,7 +37,17 @@ describe('Defense research Phase 3-8 contracts', () => {
   test('keeps customer search, comparison, and coverage semantics explicit', () => {
     const service = read('src/defense-research/defense-research.service.ts');
     expect(service).toContain("status: 'accepted'");
-    expect(service).toContain('No qualified semantic index is available');
+    const controller = read('src/defense-research/defense-research.controller.ts');
+    const semantic = read('src/defense-research/defense-research-semantic.ts');
+    expect(service).toContain('semanticEnabled = false');
+    expect(service).toContain("status: 'disabled'");
+    expect(service).toContain('await readPublicPESemanticSuggestions(this.prisma, ctx, original)');
+    expect(controller).toContain('@CurrentTenant() ctx: TenantContext');
+    expect(controller).toContain("this.service.search(q, semanticEnabled === 'true', ctx)");
+    expect(semantic).toContain('prisma.withTenantUser');
+    expect(semantic).toContain('tx.tenantMembership.findFirst');
+    expect(service).toContain('Semantic results are partial public-PE mission-similarity suggestions');
+    expect(service).toContain('do not attest every indexed field at that locator or independently qualify relevance');
     expect(service).toContain('missing is not zero');
     expect(service).toContain("state: 'unknown'");
     expect(service).toContain('No cohort is labelled complete while its denominator is unknown.');
