@@ -181,6 +181,13 @@ describe.each([
       renderDrawer(item);
       await waitFor(() => expect(screen.getByDisplayValue(/Original body\./)).toBeTruthy());
 
+      // antd drops clicks on a loading button (busy while the memo link settles);
+      // wait until Regenerate is actionable so the click is not swallowed.
+      await waitFor(() => {
+        const regenerate = screen.getByRole('button', { name: /Regenerate/i });
+        expect(regenerate).not.toBeDisabled();
+        expect(regenerate.className).not.toContain('ant-btn-loading');
+      });
       fireEvent.click(screen.getByRole('button', { name: /Regenerate/i }));
 
       // H-2: the confirm names the consequence in plain words. antd's Modal.confirm
@@ -245,6 +252,13 @@ describe.each([
       renderDrawer(item);
       await waitFor(() => expect(screen.getByDisplayValue(/Original body\./)).toBeTruthy());
 
+      // antd drops clicks on a loading button (busy while the memo link settles);
+      // wait until Regenerate is actionable so the click is not swallowed.
+      await waitFor(() => {
+        const regenerate = screen.getByRole('button', { name: /Regenerate/i });
+        expect(regenerate).not.toBeDisabled();
+        expect(regenerate.className).not.toContain('ant-btn-loading');
+      });
       fireEvent.click(screen.getByRole('button', { name: /Regenerate/i }));
       await waitFor(
         () => expect(screen.getAllByText(/Regenerate this memo\?/i).length).toBeGreaterThan(0),
@@ -312,6 +326,13 @@ describe.each([
       await waitFor(() => expect(screen.getByDisplayValue(/Orphaned content/)).toBeTruthy());
       expect(screen.getByText(/^Not yet filed$/i)).toBeTruthy();
 
+      // antd drops clicks on a loading button (busy while the memo link settles);
+      // wait until Regenerate is actionable so the click is not swallowed.
+      await waitFor(() => {
+        const regenerate = screen.getByRole('button', { name: /Regenerate/i });
+        expect(regenerate).not.toBeDisabled();
+        expect(regenerate.className).not.toContain('ant-btn-loading');
+      });
       fireEvent.click(screen.getByRole('button', { name: /Regenerate/i }));
 
       // Nothing to replace — no confirm dialog, generate fires directly with no replaceAttachmentId.
