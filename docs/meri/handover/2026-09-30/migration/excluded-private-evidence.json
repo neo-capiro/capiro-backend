@@ -1,0 +1,101 @@
+{
+  "schemaVersion": 1,
+  "excluded": [
+    {
+      "name": "integrated-full-reconciliation.json",
+      "sha256": "3b81582f1ddb722e12cfc92eea3f35328e49025a14f426df73a984ed195eff83",
+      "reason": "Full actual ledger/catalog/role/schema metadata snapshots excluded; only explicit aggregates are archived."
+    },
+    {
+      "name": "clone-full-reconciliation-decision-manifest.json",
+      "sha256": "a76a0cb7135e4f09e3213070536fd773d39a300a55e0090ea28c3ff593a0c395",
+      "reason": "Contains historical/current ledger rows and private evidence paths; replaced by non-executable source-name/hash decision summary."
+    },
+    {
+      "name": "api-workspace-pending-historical-ledger.json",
+      "sha256": "94b41431d0b1598ddc4a0e2d2052a78afd7ccc76dba889d97e595539c90774b4",
+      "reason": "Private audit/source-plan input, not required to understand the portable archive; raw catalog/ledger evidence intentionally excluded."
+    },
+    {
+      "name": "api-pending-postconditions-02-20.json",
+      "sha256": "f23f88cf53d4a2f128bdee2cef21901146688180016220daa1f1c6f92eab22d5",
+      "reason": "Private audit/source-plan input, not required to understand the portable archive; raw catalog/ledger evidence intentionally excluded."
+    },
+    {
+      "name": "api-pending-postconditions-21-47.json",
+      "sha256": "517a3fae2ec085195ffa0baa2673fda9af8632b16b1a47e57c26ae0c3980cf6a",
+      "reason": "Private audit/source-plan input, not required to understand the portable archive; raw catalog/ledger evidence intentionally excluded."
+    },
+    {
+      "name": "api-pending-postconditions-48-58.json",
+      "sha256": "651597fa11df165e43ce16cb4e6e6d054e207df6c9bea926b7a8d7df685eb03a",
+      "reason": "Private audit/source-plan input, not required to understand the portable archive; raw catalog/ledger evidence intentionally excluded."
+    },
+    {
+      "name": "workspace-current-postconditions.json",
+      "sha256": "39806cd26174afc977e2780dce85ec78c0c862fc457b8f5d5dec9e1fede615b3",
+      "reason": "Private audit/source-plan input, not required to understand the portable archive; raw catalog/ledger evidence intentionally excluded."
+    },
+    {
+      "name": "migration-closeout-current-matrix.json",
+      "sha256": "eb41d21ef2e8f72b85486b8605ed648644c17c6e08c888887556f18a9b4f5bde",
+      "reason": "Private audit/source-plan input, not required to understand the portable archive; raw catalog/ledger evidence intentionally excluded."
+    },
+    {
+      "name": "migration-closeout-live-readonly.json",
+      "sha256": "59464498b603f65280cb63eee473e73ed4e1135f2c2cbbceedebfd7cc3b20e40",
+      "reason": "Private audit/source-plan input, not required to understand the portable archive; raw catalog/ledger evidence intentionally excluded."
+    },
+    {
+      "name": "migration-closeout-provenance.json",
+      "sha256": "ff5240f1b574c2331ddd1a5b82e8f1a8f4bfad11202225ef6adb487f8608f4f6",
+      "reason": "Private audit/source-plan input, not required to understand the portable archive; raw catalog/ledger evidence intentionally excluded."
+    },
+    {
+      "name": "api-deploy-once-and-workspace-rehearsal-plan.md",
+      "sha256": "11ab615971d067fb327c8dfebc6a11cd07b1e9a9b7a5c8189ab79dace1b5fc67",
+      "reason": "Private audit/source-plan input, not required to understand the portable archive; raw catalog/ledger evidence intentionally excluded."
+    },
+    {
+      "name": "runtime-database-bindings.json",
+      "sha256": "92da974fb52cb4c0c3286b0ad4f46b81fcbdcc3035d0999ca621e985d5ac11f3",
+      "reason": "Credential location bindings omitted; no secret/config must be copied."
+    },
+    {
+      "name": "inspection.json",
+      "sha256": "6f8099e202ae71a76e3dd92b4fa10a6adba442932452dd905341cfc82ed28837",
+      "reason": "Raw original inspection snapshots excluded."
+    },
+    {
+      "name": "integrated-061-four-normal-migrations-before.json",
+      "sha256": "74b468ce1a51252b23cf97494ab4f7e169862c97b59cc6d174d2a2ee5df70910",
+      "reason": "Raw catalog/ledger/schema snapshot excluded."
+    },
+    {
+      "name": "integrated-061-four-normal-migrations-after.json",
+      "sha256": "3b42ddae67f7ee69de833ea75b083918e357438cf8b748994dbaf9c6d4486154",
+      "reason": "Raw catalog/ledger/schema snapshot excluded."
+    },
+    {
+      "name": "integrated-061-four-normal-migrations-execution.json",
+      "sha256": "0b02816c08526efb477f1a4d2d691400849e2fa090866d557df939754c3e4e60",
+      "reason": "Original execution proof remains local; only explicit actual-exit/time/hash aggregate included."
+    },
+    {
+      "name": "clones.json, CA paths, environment files, runtime dependencies",
+      "sha256": null,
+      "reason": "Machine configuration, credentials/auth/session state and installed dependencies are excluded; no portable runtime is supplied."
+    },
+    {
+      "name": "all command stdout/stderr, full data streams, per-command receipts, original database snapshots",
+      "sha256": null,
+      "reason": "Raw output and snapshots excluded; source hashes and specific aggregate evidence do not replace the originals."
+    },
+    {
+      "name": "frozen API/Workspace Prisma source copies",
+      "sha256": null,
+      "reason": "Source can be read at Git commit25d1339c0c0e21fe0c3c0148787fad772e5096e8; complete migration directories are not duplicated or authorized for replay."
+    }
+  ],
+  "dependencyBoundary": "Archived source refers to the old Windows evidence paths. Do not populate them or rewrite guards to run this archive. A new authorized safe workflow requires independent review and fresh protected evidence."
+}

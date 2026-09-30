@@ -1,0 +1,60 @@
+diff --git a/apps/api/src/intelligence/actions/action-recommendation.service.ts b/apps/api/src/intelligence/actions/action-recommendation.service.ts
+index aa39dac3374fc0c859235854766ca904cc225ed0..bb2d085bc14850bfece05ae140a4525d4734d9dd 100644
+--- a/apps/api/src/intelligence/actions/action-recommendation.service.ts
++++ b/apps/api/src/intelligence/actions/action-recommendation.service.ts
+@@ -1,4 +1,4 @@
+-import { Injectable, Logger } from '@nestjs/common';
++import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+ import { Prisma } from '@prisma/client';
+ import { PrismaService } from '../../prisma/prisma.service.js';
+ import { ClientPeRelevanceService } from '../client-pe-relevance.service.js';
+@@ -102,6 +102,49 @@ export class ActionRecommendationService {
+     private readonly relevanceService: ClientPeRelevanceService,
+   ) {}
+ 
++  /**
++   * Internal reviewed-fixture write. It uses the same canonical table and
++   * tenant/client join as generated cards, but does not fabricate a federal
++   * budget delta merely to pass the normal generator gate.
++   */
++  async createFixtureRecommendation(input: {
++    tenantId: string;
++    clientId: string;
++    physicalId: string;
++    logicalId: string;
++    markerSha256: string;
++    issueTitle: string;
++    recommendedActions: readonly string[];
++  }) {
++    return this.prisma.withTenant(input.tenantId, async (tx) => {
++      const client = await tx.client.findFirst({
++        where: { id: input.clientId, tenantId: input.tenantId, status: { not: 'archived' } },
++        select: { id: true },
++      });
++      if (!client) throw new NotFoundException('Client not found');
++      return tx.actionRecommendation.create({
++        data: {
++          id: input.physicalId,
++          tenantId: input.tenantId,
++          clientId: input.clientId,
++          actionType: 'client_strategy',
++          issueTitle: input.issueTitle,
++          whatChanged: 'Reviewed synthetic client strategy fixture.',
++          whyItMatters: input.recommendedActions.join(' '),
++          recommendedAction: input.recommendedActions.join('\n'),
++          evidence: [
++            {
++              sourceType: 'meri_synthetic_fixture',
++              logicalId: input.logicalId,
++              markerSha256: input.markerSha256,
++            },
++          ],
++          confidence: { source: 'frozen_fixture', interpretation: false },
++        },
++      });
++    });
++  }
++
+   /**
+    * Generate (idempotently upsert) action cards for every current, material delta and the
+    * clients it is relevant to. Returns the number of cards created OR updated this run.

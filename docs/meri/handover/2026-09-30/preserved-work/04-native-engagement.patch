@@ -1,0 +1,72 @@
+diff --git a/apps/api/src/engagement/engagement.service.ts b/apps/api/src/engagement/engagement.service.ts
+index e1ee659df843c66edfa8baae015656cf9be0f95c..c49acc83c1c2451ab9d0485aa4088bfd35616aa5 100644
+--- a/apps/api/src/engagement/engagement.service.ts
++++ b/apps/api/src/engagement/engagement.service.ts
+@@ -1415,7 +1414,12 @@ export class EngagementService {
+     });
+   }
+ 
+-  async createMeeting(ctx: TenantContext, input: CreateMeetingInput) {
++  async createMeeting(
++    ctx: TenantContext,
++    input: CreateMeetingInput,
++    /** Internal fixture-only identity; public controllers never bind it. */
++    fixtureIdentity?: { physicalId: string; logicalId: string; markerSha256: string },
++  ) {
+     const startsAt = parseDate(input.startsAt, 'startsAt');
+     const endsAt = parseDate(input.endsAt, 'endsAt');
+     if (endsAt < startsAt) throw new BadRequestException('endsAt must be after startsAt');
+@@ -1454,6 +1458,18 @@ export class EngagementService {
+ 
+       const created = await tx.meeting.create({
+         data: {
++          ...(fixtureIdentity
++            ? {
++                id: fixtureIdentity.physicalId,
++                externalId: `meri-fixture:${fixtureIdentity.logicalId}`,
++                metadata: {
++                  meriSyntheticFixture: {
++                    logicalId: fixtureIdentity.logicalId,
++                    markerSha256: fixtureIdentity.markerSha256,
++                  },
++                },
++              }
++            : {}),
+           tenantId: ctx.tenantId,
+           clientId: autoAssociation.clientId,
+           source: EngagementSource.manual,
+@@ -5321,10 +5336,16 @@ export class EngagementService {
+     return archiveReportTarget(this.prisma, ctx, targetId);
+   }
+ 
+-  createTask(ctx: TenantContext, input: CreateTaskInput) {
++  createTask(
++    ctx: TenantContext,
++    input: CreateTaskInput,
++    /** Internal fixture-only primary key; public controllers never bind it. */
++    fixturePhysicalId?: string,
++  ) {
+     return this.prisma.withTenant(ctx.tenantId, (tx) =>
+       tx.engagementTask.create({
+         data: {
++          ...(fixturePhysicalId ? { id: fixturePhysicalId } : {}),
+           tenantId: ctx.tenantId,
+           clientId: input.clientId ?? null,
+           meetingId: input.meetingId ?? null,
+@@ -5448,6 +5481,8 @@ export class EngagementService {
+     ctx: TenantContext,
+     meetingId: string,
+     input: { body: string; confidential?: boolean; accessLevel?: string; approved?: boolean },
++    /** Internal fixture-only primary key; public controllers never bind it. */
++    fixturePhysicalId?: string,
+   ) {
+     const encrypted = this.notesCrypto.encrypt(input.body);
+     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+@@ -5458,6 +5493,7 @@ export class EngagementService {
+       if (!meeting) throw new NotFoundException('Meeting not found');
+       return tx.meetingDebrief.create({
+         data: {
++          ...(fixturePhysicalId ? { id: fixturePhysicalId } : {}),
+           tenantId: ctx.tenantId,
+           meetingId,
+           clientId: meeting.clientId,

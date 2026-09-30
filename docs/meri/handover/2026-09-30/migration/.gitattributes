@@ -1,0 +1,2 @@
+# Verbatim historical bytes include CRLF; formatting them would invalidate pins.
+reference-source/*.txt -text whitespace=-blank-at-eol,cr-at-eol

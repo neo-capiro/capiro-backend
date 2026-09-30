@@ -1,0 +1,112 @@
+{
+  "schemaVersion": 1,
+  "archiveOnly": true,
+  "portableProof": false,
+  "liveAuthorized": false,
+  "sharedPolicyCommit": "fe8adaa858ee2391b42697311ce91cf787e080b8",
+  "sourceCommit": "25d1339c0c0e21fe0c3c0148787fad772e5096e8",
+  "clone": {
+    "cluster": "capiro-dev-meri-rehearsal-20260929",
+    "resourceId": "cluster-3PE7KKIRXQVJYXSXLBI5M2R7IY",
+    "endpoint": "capiro-dev-meri-rehearsal-20260929.cluster-csryw28ai752.us-east-1.rds.amazonaws.com",
+    "account": "967807252336",
+    "region": "us-east-1",
+    "identityIsHistoricalNotCurrentReadback": true
+  },
+  "originalAttempt": {
+    "receiptSha256": "3b81582f1ddb722e12cfc92eea3f35328e49025a14f426df73a984ed195eff83",
+    "startedAt": "2026-09-29T22:42:04.585Z",
+    "finishedAt": "2026-09-29T23:27:06.174Z",
+    "actualProcessExit": 1,
+    "actualProcessExitProvenance": "Observed by root operator in completed original process session 21571; raw session transcript is not included.",
+    "complete": false,
+    "rehearsalVerdict": "BLOCKED",
+    "releaseVerdict": "BLOCKED",
+    "failureCode": "UNEXPECTED_SCHEMA_REMOVAL",
+    "normalMigrationDeploy": {
+      "executionSha256": "0b02816c08526efb477f1a4d2d691400849e2fa090866d557df939754c3e4e60",
+      "actualExit": 0,
+      "startedAt": "2026-09-29T23:13:06.954Z",
+      "completedAt": "2026-09-29T23:13:08.287Z",
+      "successfulMigrationCount": 4
+    },
+    "ledgerCounts": {
+      "before": 542,
+      "beforeNormal": 600,
+      "after": 604,
+      "fullRowsExcluded": true
+    },
+    "schemaDelta": {
+      "removedBlocks": 28,
+      "addedBlocks": 0,
+      "changedBlocks": 1,
+      "meaning": "Three empty legacy tables and their helper/attached objects removed; one expected function repair."
+    },
+    "fullDataProof": "PASS_DATA_ONLY_ATTEMPT_FAILED",
+    "beforeAdjustedData": {
+      "sha256": "06ce9be52e4c889c045682f6bc884059bcb2c3032ce200a6abdc4b00ed5e3571",
+      "bytes": 23995017016,
+      "exitCode": 0,
+      "stderrSha256": "ea9cc78e2252c060293888cfacee214c11c61d4d54afaff1b40009c7062cb7af",
+      "stderrBytes": 11314,
+      "stderrTruncated": false
+    },
+    "afterFailureAdjustedData": {
+      "sha256": "06ce9be52e4c889c045682f6bc884059bcb2c3032ce200a6abdc4b00ed5e3571",
+      "bytes": 23995017016,
+      "exitCode": 0,
+      "stderrSha256": "ea9cc78e2252c060293888cfacee214c11c61d4d54afaff1b40009c7062cb7af",
+      "stderrBytes": 11314,
+      "stderrTruncated": false
+    },
+    "terminalChecks": {
+      "total": 8,
+      "run": 0,
+      "verdict": "NOT RUN"
+    },
+    "recordedCommandReceipts": 60,
+    "recordedCommandExitCounts": {
+      "exit0": 58,
+      "expectedDiagnosticExit1": 2,
+      "appliedResolutions": 56,
+      "rollbackMarkers": 2,
+      "normalStep61CountedSeparately": true
+    },
+    "historicalProcessAndLock": {
+      "processSession": 21571,
+      "processFinishedWithExit": 1,
+      "noActiveCloneConnectionObservedByRootAfterCompletion": true,
+      "retainedAttemptMarker": "integrated-full-reconciliation.lock",
+      "currentProcessOrConnectionStateNotRechecked": true,
+      "markerRemovalAuthorized": false
+    }
+  },
+  "supplement": {
+    "sourceSha256": "e4c77e1d9b63f3508184ba3f656a0f672100e1af2c8b86ea77b3257efe86a275",
+    "executionVerdict": "NOT RUN",
+    "noReceiptObserved": true,
+    "offlineChecks": {
+      "verdict": "PASS",
+      "actualExit": 0,
+      "priorActualCommandReceiptsValidated": 60
+    },
+    "independentTests": {
+      "verdict": "PASS",
+      "actualExit": 0,
+      "total": 131,
+      "passed": 131,
+      "sourceStable": true,
+      "resultSha256": "532b19ce0b64bcd055c1383861a8a21f5ce2da3e7eee5099b66d82350f221975"
+    },
+    "kimiReview": {
+      "verdict": "PASS",
+      "actualExit": 0,
+      "completed": "2026-09-29T23:34:05.5837621Z",
+      "sourceSha256": "e4c77e1d9b63f3508184ba3f656a0f672100e1af2c8b86ea77b3257efe86a275",
+      "reviewOutputSha256": "00bd858251d6c339dff5848776b9d1541e97b0422f850730e694d198a2301b64",
+      "limitation": "The Kimi text cites the earlier 121-test report; the independently recorded final 131-test report supersedes that count. Review is not execution or live authorization."
+    }
+  },
+  "currentVerdict": "BLOCKED",
+  "currentPolicy": "Never mutate shared migration ledgers to recover a rollout. Earlier task proposals/approvals do not override current shared policy."
+}

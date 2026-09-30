@@ -1,0 +1,3 @@
+# Preserve exact patch bytes and their archive hashes on every host.
+# Blank unified-diff context lines and original source whitespace are literal data.
+*.patch -text whitespace=-blank-at-eol,cr-at-eol
