@@ -179,7 +179,9 @@ export class StrategyContextPlaneService {
       persistence: 'required',
       contractVersion: 2,
       traceId: input.traceId ?? null,
-      ethicalWallAllowed: true,
+      // Read off the actor's wall-filtered envelope, never asserted. The
+      // compiler re-derives it from the packet's own actor and client as well.
+      ethicalWallAllowed: security.authorizedClientIds.includes(input.clientId),
       ref: {
         operationId: route.operationId,
         originProduct: 'strategies',
