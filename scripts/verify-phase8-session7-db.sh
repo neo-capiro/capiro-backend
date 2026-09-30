@@ -55,7 +55,12 @@ cleanup() {
 }
 trap cleanup EXIT
 
-ADMIN=(psql "$REHEARSAL_DATABASE_URL" -v ON_ERROR_STOP=1 -q)
+if [ "$SELF_MANAGED" = "1" ]; then
+  unset PGSERVICE PGSERVICEFILE PGOPTIONS
+  export PGHOSTADDR=127.0.0.1
+fi
+
+ADMIN=(psql --no-psqlrc "$REHEARSAL_DATABASE_URL" -v ON_ERROR_STOP=1 -q)
 run_sql() { "${ADMIN[@]}" -c "$1" >/dev/null || fail "expected success: $1"; }
 q()       { "${ADMIN[@]}" -tAc "$1"; }
 login_url() {
@@ -80,10 +85,15 @@ expect_ok() {
 hex64() { printf "$1%.0s" $(seq 1 64); }
 
 log "1. Apply the full authoritative migration ledger from zero"
+# Only the container created by this rehearsal receives a new role.
 if [ "$SELF_MANAGED" = "1" ]; then
-  docker exec -i "$NAME" psql -X -U "$SUPERUSER" -d "$DB_NAME" -v ON_ERROR_STOP=1 < "$REPO_ROOT/scripts/ci/disposable-capiro-worker-prerequisite.sql"
-  docker exec -i "$NAME" psql -X -U "$SUPERUSER" -d "$DB_NAME" -v ON_ERROR_STOP=1 < "$REPO_ROOT/scripts/ci/research-portfolio-append-only-prerequisite.sql"
+  run_sql "$(cat "$REPO_ROOT/scripts/ci/disposable-capiro-worker-role.sql")"
+else
+  [ "$(q "SELECT NOT (r.rolsuper OR r.rolinherit OR r.rolcreaterole OR r.rolcreatedb OR r.rolcanlogin OR r.rolreplication OR r.rolbypassrls) AND NOT EXISTS (SELECT 1 FROM pg_auth_members m WHERE r.oid IN (m.roleid,m.member)) FROM pg_roles r WHERE r.rolname='capiro_worker';")" = "t" ] \
+    || fail "external rehearsal requires an existing safe capiro_worker prerequisite"
 fi
+ok "restricted worker prerequisite verified before migration replay"
+
 run_sql "$(cat "$REPO_ROOT/docker/postgres/init/01-extensions.sql")"
 ok "extensions bootstrapped"
 (cd "$API_ROOT" && DATABASE_URL="$REHEARSAL_DATABASE_URL" npx prisma migrate deploy --schema prisma/schema.prisma >/dev/null) \

@@ -132,6 +132,8 @@ else
     pass "Phase 1 DB-free verifier  (exit 0; COMPLETE)"
   else
     fail "Phase 1 DB-free verifier  (see $p1_log)"
+    # CI keeps no artifact of this log, so surface why it failed.
+    tail -n 60 "$p1_log" | sed "s/^/    | /"
   fi
 fi
 

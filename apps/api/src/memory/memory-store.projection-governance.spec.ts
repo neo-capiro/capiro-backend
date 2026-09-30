@@ -77,6 +77,14 @@ describe('MemoryStoreService projection governance restoration', () => {
     expect(sql).not.toContain('governed_status =');
   });
 
+  it('synchronizes structural memory_scope with projection routing', async () => {
+    const h = harness();
+    await h.service.upsertSystem({ ...baseItem(), clientId: CLIO, memoryScope: 'client' });
+    const sql = h.queries.join('\n');
+    expect(sql).toContain('memory_scope');
+    expect(sql).toContain('memory_scope = EXCLUDED.memory_scope');
+  });
+
   it('restores candidate-approved authority in the projection transaction', async () => {
     const h = harness();
     await h.service.upsertSystem({

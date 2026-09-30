@@ -2,7 +2,7 @@ import { NewsEvidenceService } from './news-evidence.service.js';
 import { ForbiddenException, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { buildSemanticIntelArticleWhere } from '../../explorer/news-semantic-matching.js';
-import { clientMemoryScopeForClerkActor } from '../../memory/memory-wall.helpers.js';
+import { fetchAccessibleClientRevisionsForClerkActor } from '../../memory/memory-wall.helpers.js';
 
 const DEFAULT_BASE_URL = 'https://v3-api.newscatcherapi.com/api';
 const DEFAULT_CACHE_MS = 30 * 60 * 1000;
@@ -306,7 +306,7 @@ export class NewsCatcherDashboardService {
 
   async allowedNewsClients(tenantId: string, actorId: string) {
     return this.prisma.withTenant(tenantId, (tx) =>
-      clientMemoryScopeForClerkActor(tx, tenantId, actorId),
+      fetchAccessibleClientRevisionsForClerkActor(tx, tenantId, actorId),
     );
   }
 

@@ -56,7 +56,13 @@ function resolvePnpm(args: string[]): { command: string; args: string[] } {
   return { command: 'pnpm', args };
 }
 
-async function run(label: string, command: string, args: string[], cwd = REPO_ROOT): Promise<void> {
+async function run(
+  label: string,
+  command: string,
+  args: string[],
+  cwd = REPO_ROOT,
+  env: NodeJS.ProcessEnv = {},
+): Promise<void> {
   console.log(`\n==> ${label}`);
   const resolved =
     command === 'pnpm' || command === 'pnpm.cmd' ? resolvePnpm(args) : { command, args };
@@ -75,7 +81,7 @@ async function run(label: string, command: string, args: string[], cwd = REPO_RO
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     const result = await runVerifierProcess(resolved.command, resolved.args, {
       cwd,
-      env: { ...process.env, CI: 'true' },
+      env: { ...process.env, CI: 'true', ...env },
       shell: useShell,
       maxBufferBytes: 64 * 1024 * 1024,
     });
@@ -170,14 +176,17 @@ async function main(): Promise<void> {
     ]);
   }
 
-  await run('Build workspace packages required by API tests', 'pnpm', [
-    '--filter',
+  for (const pkg of [
     '@capiro/shared',
-    '--filter',
+    '@capiro/defense-contracts',
+    '@capiro/defense-domain',
+    '@capiro/auth',
+    // The web typecheck below imports it; not every calling workflow builds it.
+    '@capiro/strategy-verifier',
     '@capiro/meriv2-core',
-    'run',
-    'build',
-  ]);
+  ]) {
+    await run(`Build workspace package: ${pkg}`, 'pnpm', ['--filter', pkg, 'run', 'build']);
+  }
 
   await run('Phase 0 contract prerequisite', 'pnpm', [
     '--filter',
@@ -188,7 +197,12 @@ async function main(): Promise<void> {
   await run(
     'Phase 1 manifests, runtime, route, timer, provider, bootstrap, health, and image-entrypoint tests',
     'pnpm',
+    // In-band on a 6 GB heap. In-band at 4 GB ran out of memory; a 1 GB
+    // idle limit restarts the worker after every suite (~30 s ts-jest reload
+    // each), which pushed this step past Phase 2's 25-minute Phase 1 deadline.
     ['--filter', '@capiro/api', 'exec', 'jest', '--runInBand', '--forceExit', ...TEST_TARGETS],
+    REPO_ROOT,
+    { NODE_OPTIONS: '--max-old-space-size=6144' },
   );
   await run('Build API entrypoints', 'pnpm', ['--filter', '@capiro/api', 'run', 'build']);
 
@@ -223,6 +237,9 @@ async function main(): Promise<void> {
   // Write COMPLETE unbuffered so redirected nested logs see it before Windows
   // process teardown can hang the parent (stdbuf alone is not enough for Node).
   writeSync(1, '\nENGAGEMENT_PHASE1_DB_FREE_COMPLETE\n');
+  // All checks have completed; exit explicitly so nested Windows callers do
+  // not remain alive on teardown handles after the completion marker.
+  process.exit(0);
 }
 
 void main().catch((error) => {

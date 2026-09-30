@@ -129,11 +129,14 @@ export async function clientMemoryAllowed(
 }
 
 /**
- * Current client scope for a Clerk actor. Resolve active tenant membership and
- * ethical-wall grants in the same read; callers recheck this scope after async
- * work before returning cached or provider-derived client content.
+ * Current client scope for a Clerk actor: visible, active client revisions for
+ * an actor with active tenant membership. Resolve membership and ethical-wall
+ * grants in the same read, and keep Clerk actor resolution inside the tenant
+ * query: it is not a database user UUID. Callers recheck this scope after
+ * async work before returning cached or provider-derived client content.
+ * Revision hashes intentionally retain the dashboard cache contract.
  */
-export async function clientMemoryScopeForClerkActor(
+export async function fetchAccessibleClientRevisionsForClerkActor(
   tx: Tx,
   tenantId: string,
   actorId: string,

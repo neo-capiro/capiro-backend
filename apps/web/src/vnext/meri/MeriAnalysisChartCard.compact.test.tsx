@@ -99,9 +99,7 @@ describe('MeriAnalysisChartCard — compact reference presentation', () => {
     // others scale down, and the rendered ratio matches the data ratio.
     const bars = plot.querySelectorAll('.meri-acc-bar');
     expect(bars).toHaveLength(3);
-    const heights = Array.from(bars).map((bar) =>
-      parseFloat((bar as HTMLElement).style.height),
-    );
+    const heights = Array.from(bars).map((bar) => parseFloat((bar as HTMLElement).style.height));
     expect(heights[1]).toBeCloseTo(100, 0);
     expect(heights[0]).toBeCloseTo((192.2 / 210.2) * 100, 0);
     expect(heights[2]).toBeCloseTo((186 / 210.2) * 100, 0);
@@ -152,6 +150,12 @@ describe('MeriAnalysisChartCard — compact reference presentation', () => {
     );
     render(<MeriAnalysisChartCard artifactId="chart-mark-comparison" title="Fallback" />);
     await screen.findByRole('figure', { name: 'House and Senate marks · PE 0605053A' });
+    // The artifact effect establishes the initial Chart view in a passive
+    // effect; wait for that state before switching views so a concurrent
+    // effect cannot immediately overwrite the Data click.
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Chart' })).toHaveClass('is-active'),
+    );
 
     // Data view -> table with the real figures (currency-formatted via the
     // shared formatValue, so assert '$210.2' scoped to the table).

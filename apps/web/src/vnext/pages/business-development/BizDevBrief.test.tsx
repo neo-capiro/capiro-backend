@@ -242,7 +242,9 @@ describe('BizDevBrief', () => {
     renderBrief(h.api);
     const judgment = await screen.findByRole('textbox', { name: 'Judgment' });
     fireEvent.change(judgment, { target: { value: 'User-authored judgment with a qualification.' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Save new version' }));
+    const saveButton = await screen.findByRole('button', { name: 'Save new version' });
+    await waitFor(() => expect(saveButton).toBeEnabled());
+    fireEvent.click(saveButton);
 
     await waitFor(() => expect(h.put).toHaveBeenCalledTimes(1));
     const [, body] = h.put.mock.calls[0]! as unknown as [

@@ -87,6 +87,63 @@ describe('LegiWatch Wave 1 committee routes through the real HTTP pipeline', () 
             },
           },
         },
+        // Safe stubs: committee routes never touch brief or speaker services.
+        // These resolve the controller's constructor dependencies; an unexpected
+        // call throws immediately so a future developer adding a committee route
+        // that touches briefs/speakers sees a test failure.
+        {
+          provide: HearingBriefGenerationService,
+          useValue: {
+            generate: jest
+              .fn()
+              .mockRejectedValue(
+                new Error(
+                  'HearingBriefGenerationService called unexpectedly in committee route test',
+                ),
+              ),
+            generateForHearing: jest
+              .fn()
+              .mockRejectedValue(
+                new Error(
+                  'HearingBriefGenerationService called unexpectedly in committee route test',
+                ),
+              ),
+          },
+        },
+        {
+          provide: HearingBriefExportService,
+          useValue: {
+            exportDocx: jest
+              .fn()
+              .mockRejectedValue(
+                new Error('HearingBriefExportService called unexpectedly in committee route test'),
+              ),
+            saveToClient: jest
+              .fn()
+              .mockRejectedValue(
+                new Error('HearingBriefExportService called unexpectedly in committee route test'),
+              ),
+          },
+        },
+        {
+          provide: HearingSpeakerAttributionService,
+          useValue: {
+            resolve: jest
+              .fn()
+              .mockRejectedValue(
+                new Error(
+                  'HearingSpeakerAttributionService called unexpectedly in committee route test',
+                ),
+              ),
+            rename: jest
+              .fn()
+              .mockRejectedValue(
+                new Error(
+                  'HearingSpeakerAttributionService called unexpectedly in committee route test',
+                ),
+              ),
+          },
+        },
       ],
     })
       .overrideGuard(RolesGuard)

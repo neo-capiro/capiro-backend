@@ -16,7 +16,7 @@ const theme = readFileSync(resolve(COMPONENTS, '../theme.css'), 'utf8');
 describe('P0 — Meri workspace popup bypasses the app shell', () => {
   it('AppShell returns MeriOverlay for ?meriWindow=1 BEFORE the capiro-internal branch', () => {
     const meriIdx = appShell.indexOf('if (isMeriWorkspaceWindow())');
-    const v2Idx = appShell.indexOf("tenant.slug === 'capiro-internal'");
+    const v2Idx = appShell.indexOf("if (me.data && tenant && tenant.slug === 'capiro-internal') {");
     expect(meriIdx).toBeGreaterThan(-1);
     expect(v2Idx).toBeGreaterThan(-1);
     // The Meri early-return must precede the AppShellV2 gate in source order.

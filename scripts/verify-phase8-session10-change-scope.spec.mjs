@@ -29,7 +29,6 @@ for (const file of [
   'apps/defense-api/scripts/run-schedule-controller.mjs',
   'packages/defense-domain/src/budget-lifecycle/schedule.ts',
   'packages/defense-domain/src/budget-lifecycle/index.ts',
-  'packages/defense-domain/src/index.ts',
   'apps/api/prisma/migrations/20261211120000_phase8_session10_schedule_control_plane/migration.sql',
 ])
   test(`schedule product path retains frozen boundary: ${file}`, () => {

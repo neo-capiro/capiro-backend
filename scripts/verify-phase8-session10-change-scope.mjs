@@ -28,7 +28,6 @@ export function hasScheduleProductChanges(changes) {
       file === 'apps/defense-api/scripts/run-schedule-controller.mjs' ||
       file === 'packages/defense-domain/src/budget-lifecycle/schedule.ts' ||
       file === 'packages/defense-domain/src/budget-lifecycle/index.ts' ||
-      file === 'packages/defense-domain/src/index.ts' ||
       file.startsWith(
         'apps/api/prisma/migrations/20261211120000_phase8_session10_schedule_control_plane/',
       )

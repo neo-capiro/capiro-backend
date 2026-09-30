@@ -1,4 +1,17 @@
 /**
+ * ⚠️  DESTRUCTIVE — DO NOT RUN, EDIT, OR ADD THIS SPEC TO CI.
+ *
+ * beforeAll runs, against whatever DATABASE_URL points at:
+ *   TRUNCATE community_funding_request_source, community_funding_request,
+ *            source_document RESTART IDENTITY CASCADE
+ * CASCADE also empties every table with a foreign key to those three. The only
+ * guard is "DATABASE_URL is set" — there is no disposable-database check — so
+ * pointing it at a shared, dev, or production database wipes that data.
+ *
+ * It also depends on a hard-coded local Python interpreter and is not run by any
+ * CI job. Leave it untouched until it has a disposable-database guard and an
+ * owner who has reviewed it.
+ *
  * Real FY2026 cross-source dedup rehearsal, against a real disposable Postgres —
  * the mandatory proof for this repair (see PR #1328 repair brief §8-9).
  *

@@ -132,8 +132,12 @@ jobs:
 
       - name: API tests — shared federal market
         if: steps.scope.outputs.in_scope == 'true'
+        # One recycled worker with the heap the API typecheck uses: in-band at
+        # Node's default heap, these suites ran out of memory.
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
         run: >-
-          pnpm --filter @capiro/api exec jest --ci --runInBand
+          pnpm --filter @capiro/api exec jest --ci --maxWorkers=1 --workerIdleMemoryLimit=1GB
           src/external/tango/tango-subaward.client.spec.ts
           src/external/tango/tango-subaward.mapper.spec.ts
           scripts/sync-tango-subawards.spec.ts
@@ -154,6 +158,8 @@ jobs:
 
       - name: Build API and web
         if: steps.scope.outputs.in_scope == 'true'
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
         run: |
           pnpm --filter @capiro/api build
           pnpm --filter @capiro/web build

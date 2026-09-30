@@ -23,10 +23,9 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-
     env:
       NODE_OPTIONS: --max-old-space-size=6144
+    timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@v4
@@ -53,6 +52,7 @@ jobs:
           pnpm --filter @capiro/meriv2-core build
 
       - name: Validate and generate Prisma client
+        # Validation/generation require a URL but do not connect to a database.
         env:
           DATABASE_URL: postgresql://capiro:capiro@localhost:5432/capiro
         run: |

@@ -116,6 +116,11 @@ fi
 [[ "${GITHUB_ACTIONS:-}" == true ]] || fail 'mutating mode is restricted to GitHub Actions'
 [[ "${CI:-}" == true ]] || fail 'CI=true is required'
 [[ "${CI_DISPOSABLE_POSTGRES:-}" == 1 ]] || fail 'CI_DISPOSABLE_POSTGRES=1 is required'
+
+# Pin inherited libpq settings for every psql and Prisma child.
+unset PGSERVICE PGSERVICEFILE PGOPTIONS
+export PGHOSTADDR="$PG_HOST"
+
 command -v psql >/dev/null 2>&1 || fail 'psql is required on the CI runner'
 command -v pnpm >/dev/null 2>&1 || fail 'pnpm is required on the CI runner'
 
@@ -129,6 +134,13 @@ target_psql() {
   shift
   psql --no-psqlrc --set=ON_ERROR_STOP=1 "$(psql_url_for "$db")" "$@"
 }
+
+connection_identity="$(admin_psql --tuples-only --no-align --command \
+  "SELECT current_database(), current_user, inet_server_port(), current_setting('is_superuser')")"
+[[ "$connection_identity" == "${ADMIN_DATABASE}|${ADMIN_ROLE}|5432|on" ]] ||
+  fail 'refusing unexpected PostgreSQL admin identity'
+
+admin_psql --file="$SCRIPT_DIR/disposable-capiro-worker-role.sql"
 
 printf 'Ensuring CI role %s and historical migration prerequisite database capiro exist...\n' "$TEST_ROLE"
 admin_psql <<'SQL'

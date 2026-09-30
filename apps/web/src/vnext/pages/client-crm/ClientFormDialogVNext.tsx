@@ -16,7 +16,7 @@ import type {
   ClientFormValues,
 } from '../../../pages/clients/clientTypes.js';
 import { SET_ASIDE_CERTIFICATION_OPTIONS, setAsideLabel } from '../../../pages/clients/client-registrations.js';
-import { OrganizationTypesField } from '../../../pages/clients/OrganizationTypesField.js';
+import { OrganizationTypesField } from './OrganizationTypesFieldVNext.js';
 import {
   CLIENT_FORM_STEP_FIELDS,
   CLIENT_FORM_STEP_TITLES,

@@ -201,3 +201,41 @@ test('the checked-in migration still requires the exact capiro_worker fixture ro
   const syntax = execFileSync('bash', ['-n', script], { encoding: 'utf8' });
   assert.equal(syntax, '');
 });
+
+test('Phase 11 workflow uses the fixed disposable identity, invokes guarded bootstrap, and orders it before migrate deploy', () => {
+  const workflow = readFileSync(
+    path.resolve(scriptDir, '../../.github/workflows/knowledge-phase11-ci.yml'),
+    'utf8',
+  );
+
+  // 1. pgvector service uses the fixed disposable identity
+  assert.match(
+    workflow,
+    /POSTGRES_USER:\s*postgres\s*\n\s*POSTGRES_PASSWORD:\s*postgres\s*\n\s*POSTGRES_DB:\s*capiro/,
+  );
+  assert.match(workflow, /DATABASE_URL:\s*postgresql:\/\/postgres:postgres@localhost:5432\/capiro/);
+
+  // 2. Contains a named bootstrap step that calls the guarded script
+  assert.match(
+    workflow,
+    /name:\s*Bootstrap disposable pgvector roles[\s\S]*?run:\s*bash scripts\/ci\/bootstrap-disposable-postgres-roles\.sh/,
+  );
+
+  // 3. That step sets CI_DISPOSABLE_POSTGRES: '1'
+  assert.match(
+    workflow,
+    /Bootstrap disposable pgvector roles[\s\S]*?CI_DISPOSABLE_POSTGRES:\s*'1'/,
+  );
+
+  // 4. Bootstrap step is ordered before prisma migrate deploy
+  const bootstrapIndex = workflow.indexOf('Bootstrap disposable pgvector roles');
+  const migrateIndex = workflow.indexOf(
+    'Deploy full migration chain to disposable pgvector/Postgres',
+  );
+  assert.ok(bootstrapIndex >= 0, 'bootstrap step must exist');
+  assert.ok(migrateIndex >= 0, 'migrate deploy step must exist');
+  assert.ok(
+    bootstrapIndex < migrateIndex,
+    'bootstrap step must be ordered before prisma migrate deploy',
+  );
+});

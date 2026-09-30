@@ -1,7 +1,7 @@
 import { MeetingCapturePersistenceService } from './meeting-capture-persistence.service.js';
 
 describe('MeetingCapturePersistenceService', () => {
-  it('exposes only six persistence operations and the scoped association predicate', () => {
+  it('exposes only the seven Notetaker persistence operations', () => {
     const methods = Object.getOwnPropertyNames(MeetingCapturePersistenceService.prototype)
       .filter((name) => name !== 'constructor')
       .sort();
@@ -18,33 +18,33 @@ describe('MeetingCapturePersistenceService', () => {
 
   it('delegates without widening the input or changing lifecycle behavior', async () => {
     const engagement = {
+      clientMeetingAssociationWhere: jest.fn().mockResolvedValue({ clientId: 'client' }),
       createAttachmentFromBuffer: jest.fn().mockResolvedValue({ id: 'a1' }),
       deleteAttachment: jest.fn().mockResolvedValue({ ok: true }),
       eraseAttachmentAsSystem: jest.fn().mockResolvedValue({ ok: true }),
       generateMeetingDebriefDraft: jest.fn().mockResolvedValue({ recap: 'r' }),
       createMeetingNote: jest.fn().mockResolvedValue({ id: 'n1' }),
       createMeetingDebrief: jest.fn().mockResolvedValue({ id: 'd1' }),
-      clientMeetingAssociationWhere: jest.fn().mockResolvedValue({ clientId: 'c1' }),
     };
     const service = new MeetingCapturePersistenceService(engagement as never);
     const ctx = { tenantId: 'tenant' } as never;
+    const tx = { marker: 'tx' } as never;
 
+    const association = await service.clientMeetingAssociationWhere(tx, 'tenant', 'client');
     await service.createAttachmentFromBuffer(ctx, { buffer: Buffer.from('x') } as never);
     await service.deleteAttachment(ctx, 'a1');
     await service.eraseAttachmentAsSystem('tenant', 'a1');
     await service.generateMeetingDebriefDraft(ctx, 'm1', { method: 'upload' } as never);
     await service.createMeetingNote(ctx, 'm1', { body: 'note' });
     await service.createMeetingDebrief(ctx, 'm1', { body: 'debrief' });
-    const tx = {} as never;
-    await expect(service.clientMeetingAssociationWhere(tx, 'tenant', 'c1'))
-      .resolves.toEqual({ clientId: 'c1' });
 
+    expect(association).toEqual({ clientId: 'client' });
+    expect(engagement.clientMeetingAssociationWhere).toHaveBeenCalledWith(tx, 'tenant', 'client');
     expect(engagement.createAttachmentFromBuffer).toHaveBeenCalledTimes(1);
     expect(engagement.deleteAttachment).toHaveBeenCalledWith(ctx, 'a1');
     expect(engagement.eraseAttachmentAsSystem).toHaveBeenCalledWith('tenant', 'a1');
     expect(engagement.generateMeetingDebriefDraft).toHaveBeenCalledTimes(1);
     expect(engagement.createMeetingNote).toHaveBeenCalledWith(ctx, 'm1', { body: 'note' });
     expect(engagement.createMeetingDebrief).toHaveBeenCalledWith(ctx, 'm1', { body: 'debrief' });
-    expect(engagement.clientMeetingAssociationWhere).toHaveBeenCalledWith(tx, 'tenant', 'c1');
   });
 });

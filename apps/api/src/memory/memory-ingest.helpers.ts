@@ -67,8 +67,8 @@ export interface EmailThreadInput {
   subject: string;
   /** Decided by the product's client-scoping logic; null => user-private. */
   clientId: string | null;
-  /** The user who owns this inbox (always set; thread is theirs). */
-  ownerUserId: string;
+  /** The user who owns this inbox; required when the thread is not client-scoped. */
+  ownerUserId: string | null;
   /** Participant domains the scoping logic deemed in-scope (#4 audit trail). */
   inScopeDomains: string[];
   messageCount: number;
@@ -88,6 +88,9 @@ export interface EmailThreadInput {
  */
 export function emailThreadToItem(input: EmailThreadInput): MemoryItem {
   const isClientScoped = input.clientId !== null;
+  if (!isClientScoped && !input.ownerUserId) {
+    throw new Error('a user-private email thread requires a real owner');
+  }
   const summaryBody = [
     input.summary.trim(),
     '',
@@ -103,6 +106,7 @@ export function emailThreadToItem(input: EmailThreadInput): MemoryItem {
     ownerUserId: isClientScoped ? null : input.ownerUserId,
     type: 'thread',
     visibility: isClientScoped ? 'tenant' : 'user',
+    memoryScope: isClientScoped ? 'client' : 'user_private',
     entityId: null,
     slug: input.threadId,
     title: input.subject || '(no subject)',

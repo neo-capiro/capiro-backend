@@ -281,13 +281,16 @@ describe('every call requests only the fields it uses', () => {
     },
   );
 
-  test.each(['', '   '])('rejects an empty forecast date without making a request: %j', async (changedSince) => {
-    const { service, calls } = gateway([{ body: FORECAST_PAGE }]);
-    await expect(service.listForecasts({ changedSince })).rejects.toThrow(
-      'changedSince must be a valid ISO date or timestamp',
-    );
-    expect(calls).toHaveLength(0);
-  });
+  test.each(['', '   '])(
+    'rejects an empty forecast date without making a request: %j',
+    async (changedSince) => {
+      const { service, calls } = gateway([{ body: FORECAST_PAGE }]);
+      await expect(service.listForecasts({ changedSince })).rejects.toThrow(
+        'changedSince must be a valid ISO date or timestamp',
+      );
+      expect(calls).toHaveLength(0);
+    },
+  );
 
   test('the key travels as a header, never in the query string', async () => {
     const { service, calls } = gateway([{ body: ENTITY_PAGE }]);

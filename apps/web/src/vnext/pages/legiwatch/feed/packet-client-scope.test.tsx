@@ -48,7 +48,7 @@ vi.mock('../../../../lib/use-api.js', () => ({
     post: vi.fn().mockResolvedValue({ data: { ok: true } }),
   }),
 }));
-vi.mock('../../../../pages/clients/tracker/MemoComposerDrawer.js', () => ({
+vi.mock('./MemoComposerDrawerVNext.js', () => ({
   MemoComposerDrawer: () => <div role="dialog" aria-label="Existing memo composer" />,
 }));
 

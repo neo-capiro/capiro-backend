@@ -35,6 +35,30 @@ describe('computeStateDeadlineRisk (Phase 1 M2.1/M2.3/M2.4, PD5)', () => {
     sineDie: '2026-05-31',
   };
 
+  it.each([
+    ['2026-09-29', '2026-10-01', 2],
+    ['2026-01-30', '2026-02-01', 2],
+    ['2026-02-27', '2026-03-01', 2],
+    ['2028-02-27', '2028-03-01', 3],
+    ['2028-02-29', '2028-03-01', 1],
+    ['2026-12-31', '2027-01-01', 1],
+    ['2026-10-01', '2026-09-29', -2],
+    ['2026-09-30', '2026-09-30', 0],
+  ])('counts actual UTC calendar days from %s to %s', (today, cutoffDate, daysUntil) => {
+    expect(
+      computeStateDeadlineRisk({
+        status: 'committee',
+        session: { committeeCutoffDate: cutoffDate },
+        today,
+      }),
+    ).toEqual({
+      daysUntil,
+      cutoffDate,
+      cutoffType: 'committeeCutoff',
+      isPastCutoff: daysUntil < 0,
+    });
+  });
+
   it('a bill still in committee races the committee cutoff', () => {
     const risk = computeStateDeadlineRisk({
       status: 'committee',

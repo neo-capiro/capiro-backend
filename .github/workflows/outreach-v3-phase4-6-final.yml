@@ -25,9 +25,11 @@ concurrency:
 jobs:
   combined-final:
     runs-on: ubuntu-latest
-    timeout-minutes: 55
     env:
-      NODE_OPTIONS: --max-old-space-size=4096
+      NODE_OPTIONS: --max-old-space-size=6144
+    # Phase 4 re-runs Phase 3, which re-runs Engagement Phase 1-3 (Phase 1
+    # twice); the same budget as the Revised Phase 2/3 DB-free jobs.
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
         with:
@@ -37,17 +39,25 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: 20
+          # 22 like the other web gates: Node 20's WebCrypto rejects the
+          # jsdom-realm ArrayBuffers the Meri artifact download tests hash.
+          node-version: 22
           cache: pnpm
 
       - name: Install
         run: pnpm install --frozen-lockfile
 
-      - name: Build shared
-        run: pnpm --filter @capiro/shared build
-
-      - name: Build MeriV2 core
-        run: pnpm --filter @capiro/meriv2-core build
+      # Builds shared and MeriV2 core plus every other declared verification
+      # workspace dependency. @capiro/web resolves @capiro/strategy-verifier from
+      # its dist, so it is built before the web typecheck/test/build gates.
+      - name: Build verification workspace prerequisites
+        run: |
+          pnpm --filter @capiro/shared build
+          pnpm --filter @capiro/defense-contracts build
+          pnpm --filter @capiro/defense-domain build
+          pnpm --filter @capiro/auth build
+          pnpm --filter @capiro/strategy-verifier build
+          pnpm --filter @capiro/meriv2-core build
 
       - name: Prisma generate
         run: pnpm --filter @capiro/api exec prisma generate
