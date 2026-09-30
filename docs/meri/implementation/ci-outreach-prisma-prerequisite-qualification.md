@@ -1,0 +1,7 @@
+# Provider contract Prisma prerequisite
+
+The Outreach provider contract could not import the canonical PrismaService in CI because .prisma/client/default had not been generated. The workflow now generates the canonical API client before the unchanged provider verification command. The schema path is relative to the filtered API package; the loopback DATABASE_URL is step-local to generation and does not request a database connection or migration.
+
+The Qwen proposal selected the separate Outreach schema with a custom output directory and an incorrect package-relative path. Although that worker exited0, its patch was rejected. Codex corrected the prerequisite using the actual canonical schema. Unique-key YAML and exact semantic comparison prove every original workflow setting and step remains unchanged. The exact existing verifier passed19 tests in two suites with exit0 against the prepared local client; it does not prove fresh hosted client generation. Separate Hermes/Bedrock Kimi static review passed the corrected delta with exit0.
+
+Evidence: C:/dev/cap-meri-foundation-evidence/remaining-acceptance-20260929/outreach-provider-contract.log, outreach-workflow-validation-exit.json and C:/dev/cap-meri-foundation-evidence/review-outreach-prisma-exact-report.md. The actual CI failure remains in ci-223e-36498427122-failed.log. Fresh hostedCI is required; no test, scope gate, production schema, routing or model policy was changed or waived.

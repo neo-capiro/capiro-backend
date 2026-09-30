@@ -55,13 +55,18 @@ const ASSERTED_LABEL: Readonly<Record<AssertedMatchTier, MatchLabel>> = {
 };
 
 function isHistoricalAward(evidence: AssuredEvidence): boolean {
-  return evidence.sourceType.toLowerCase().includes('award') &&
-    !evidence.sourceType.toLowerCase().includes('opportunit');
+  return (
+    evidence.sourceType.toLowerCase().includes('award') &&
+    !evidence.sourceType.toLowerCase().includes('opportunit')
+  );
 }
 
 function isOpportunityEvidence(evidence: AssuredEvidence): boolean {
   const value = `${evidence.sourceType} ${evidence.title ?? ''}`.toLowerCase();
-  return /opportunit|solicitation|forecast|grant|notice|rfp|rfi/.test(value) && !isHistoricalAward(evidence);
+  return (
+    /opportunit|solicitation|forecast|grant|notice|rfp|rfi/.test(value) &&
+    !isHistoricalAward(evidence)
+  );
 }
 
 function isClientCapabilityEvidence(evidence: AssuredEvidence): boolean {
@@ -85,11 +90,19 @@ export function deriveMatchLabel(input: DeriveMatchLabelInput): DerivedMatchLabe
   const nonAward = authoritative.some((evidence) => !isHistoricalAward(evidence));
   const historicalAwardOnly = input.evidence.length > 0 && input.evidence.every(isHistoricalAward);
   const jev = input.jevCategory ?? null;
-  const jevUsable = jev !== null && Number.isFinite(input.jevConfidence ?? 0) && (input.jevConfidence ?? 0) >= 0.5;
+  const jevUsable =
+    jev !== null && Number.isFinite(input.jevConfidence ?? 0) && (input.jevConfidence ?? 0) >= 0.5;
   const reasons: MatchLabelReason[] = [];
 
-  if (!input.evidence.length || (!authoritative.length && (!jevUsable || jev === 'insufficient_evidence'))) {
-    return { label: 'insufficient_evidence', downgraded: RANK[asserted] > 0, reasons: ['no_supporting_evidence'] };
+  if (
+    !input.evidence.length ||
+    (!authoritative.length && (!jevUsable || jev === 'insufficient_evidence'))
+  ) {
+    return {
+      label: 'insufficient_evidence',
+      downgraded: RANK[asserted] > 0,
+      reasons: ['no_supporting_evidence'],
+    };
   }
 
   let label = jevUsable && jev ? jev : asserted;
@@ -98,9 +111,11 @@ export function deriveMatchLabel(input: DeriveMatchLabelInput): DerivedMatchLabe
   if (label === 'explicit_linkage') {
     if (!opportunity) reasons.push('missing_opportunity_authority');
     if (!clientCapability) reasons.push('missing_client_capability_authority');
-    if (!jevUsable || jev !== 'explicit_linkage') reasons.push('jev_does_not_confirm_explicit_linkage');
+    if (!jevUsable || jev !== 'explicit_linkage')
+      reasons.push('jev_does_not_confirm_explicit_linkage');
     if (!opportunity || !clientCapability || !jevUsable || jev !== 'explicit_linkage') {
-      label = opportunity || clientCapability ? 'conditional_linkage' : 'capability_class_alignment';
+      label =
+        opportunity || clientCapability ? 'conditional_linkage' : 'capability_class_alignment';
     } else {
       reasons.push('jev_agrees_explicit_linkage');
     }
@@ -110,7 +125,10 @@ export function deriveMatchLabel(input: DeriveMatchLabelInput): DerivedMatchLabe
     label = capAt(label, 'capability_class_alignment');
     reasons.push('historical_award_only');
   }
-  if (input.eligibility.mandatoryRequirementsKnown && !input.eligibility.mandatoryRequirementsSatisfied) {
+  if (
+    input.eligibility.mandatoryRequirementsKnown &&
+    !input.eligibility.mandatoryRequirementsSatisfied
+  ) {
     label = capAt(label, 'conditional_linkage');
     reasons.push('mandatory_eligibility_failed');
   }
@@ -138,9 +156,12 @@ export const MATCH_LABEL_DISPLAY: Readonly<Record<MatchLabel, string>> = {
 };
 
 export function establishedRelationshipSentence(result: DerivedMatchLabel): string {
-  if (result.label === 'explicit_linkage') return 'The cited evidence establishes the specific capability-to-need linkage.';
-  if (result.label === 'conditional_linkage') return 'The evidence supports a conditional relationship, subject to the named qualification or eligibility requirement.';
-  if (result.label === 'capability_class_alignment') return 'The evidence establishes capability-class alignment, but not a specific capability-to-need linkage.';
+  if (result.label === 'explicit_linkage')
+    return 'The cited evidence establishes the specific capability-to-need linkage.';
+  if (result.label === 'conditional_linkage')
+    return 'The evidence supports a conditional relationship, subject to the named qualification or eligibility requirement.';
+  if (result.label === 'capability_class_alignment')
+    return 'The evidence establishes capability-class alignment, but not a specific capability-to-need linkage.';
   if (result.label === 'adjacency') return 'The evidence establishes thematic relevance only.';
   return 'The cited evidence does not establish a match tier.';
 }

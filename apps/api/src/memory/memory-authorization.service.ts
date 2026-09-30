@@ -194,7 +194,9 @@ export class MemoryAuthorizationService {
              mc.proposed_by::text AS "ownerUserId",
              mc.proposed_by::text AS "proposedByUserId",
              mc.memory_class AS "memoryClass",
-             mc.memory_scope AS scope,
+             -- A pending proposal still has the governed column's firm default.
+             -- Authorization must follow the proposal scope used by approval.
+             CASE WHEN mc.scope = 'personal' THEN 'user_private' ELSE mc.scope END AS scope,
              mc.governed_status AS status,
              mc.status AS "legacyCandidateStatus",
              mc.legal_hold AS "legalHold",

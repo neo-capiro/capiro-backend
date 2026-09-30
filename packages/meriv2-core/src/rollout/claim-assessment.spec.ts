@@ -12,17 +12,28 @@ describe('claim assessment rollout', () => {
     ['shadow', TENANT, '', 'off'],
     ['junk', TENANT, 'chat', 'off'],
   ])('resolves %s / %s / %s to %s', (mode, tenants, surfaces, expected) => {
-    expect(resolveClaimAssessmentMode({
-      MERI_CLAIM_ASSESSMENT_MODE: mode,
-      MERI_CLAIM_ASSESSMENT_TENANTS: tenants,
-      MERI_CLAIM_ASSESSMENT_SURFACES: surfaces,
-    }, TENANT, 'chat')).toBe(expected);
+    expect(
+      resolveClaimAssessmentMode(
+        {
+          MERI_CLAIM_ASSESSMENT_MODE: mode,
+          MERI_CLAIM_ASSESSMENT_TENANTS: tenants,
+          MERI_CLAIM_ASSESSMENT_SURFACES: surfaces,
+        },
+        TENANT,
+        'chat',
+      ),
+    ).toBe(expected);
   });
 
   it('does not enroll a different tenant or surface', () => {
-    const env = { MERI_CLAIM_ASSESSMENT_MODE: 'shadow', MERI_CLAIM_ASSESSMENT_TENANTS: TENANT,
-      MERI_CLAIM_ASSESSMENT_SURFACES: 'chat' };
-    expect(resolveClaimAssessmentMode(env, 'c60da102-8c0e-4590-a356-686784f7c51f', 'chat')).toBe('off');
+    const env = {
+      MERI_CLAIM_ASSESSMENT_MODE: 'shadow',
+      MERI_CLAIM_ASSESSMENT_TENANTS: TENANT,
+      MERI_CLAIM_ASSESSMENT_SURFACES: 'chat',
+    };
+    expect(resolveClaimAssessmentMode(env, 'c60da102-8c0e-4590-a356-686784f7c51f', 'chat')).toBe(
+      'off',
+    );
     expect(resolveClaimAssessmentMode(env, TENANT, 'strategy')).toBe('off');
   });
 });

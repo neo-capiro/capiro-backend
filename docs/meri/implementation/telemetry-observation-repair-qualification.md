@@ -1,0 +1,11 @@
+# Telemetry observation repair qualification
+
+Verdict: PASS for this bounded repair; telemetry integration and export remain incomplete.
+
+Candidate base fdbd85b1c. The inherited worker patch attempted nullable legacy ProviderUsage, coercing absent fields to zero and rejecting UUID operation/source IDs with arbitrary prefix rules. The lead retained the numeric compatibility contract and added strict nullable raw observations only for telemetry; no shared provider/billing API was widened. Attempt and task records now distinguish absent usage, partial fields, reported zero and known subtotals across failed attempts. Unknown cost is not fabricated as zero.
+
+Canonical UUID/SHA identifiers remain joinable. Other bounded explicit identifiers are hashed consistently rather than logging potentially private labels; hashed values are idempotent across internal carriers. Source/version and operation references use explicit fields, goal revisions are numeric, extra usage properties are discarded, and telemetry sink failures cannot block served work. This is content minimization, not a claim that hashes anonymize guessable identifiers.
+
+Validation: shared/core builds, runtime types, 12 core telemetry tests, 19 initial runtime tests and two API transport tests exit 0. A subsequent actual provider-wire regression run passes 24 tests covering missing, partial, zero and malformed observations. Separate Hermes/Bedrock Kimi review passes only these repair deltas. Evidence: C:/dev/cap-meri-foundation-evidence/telemetry-repair-gates.json, telemetry-wire-observations-exit.json and logs, telemetry-repair-source-manifest.json, review-telemetry-repair-final-report.md and exit JSON. Original worker patch retained in telemetry-worker-before-lead.patch.
+
+NOT RUN / incomplete: full original telemetry implementation review on the current foundation, new durable/child/budget boundary coverage, deployed joins, and OpenTelemetry export. Source inspection and read-only ECS metadata (API task definition 483, orchestrator 84) found CloudWatch awslogs but no configured OTel exporter/collector path. That plan prerequisite is not claimed complete. No main, deployment, AWS configuration, model policy, routing, shared database or production canary changes.

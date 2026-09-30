@@ -152,14 +152,12 @@ function makeHarness() {
   const isAgenticFlagEnabled = jest.fn(async (_tenantId: string, _flag: string) => true);
   // Merged reference calendars (ReferenceService.getCalendars) — empty
   // baseline by default; change-detection tests mockResolvedValue a fixture.
-  const getCalendars = jest.fn(
-    async (_tenantId: string): Promise<ReferenceCalendars> => ({
-      congress: [],
-      ppbeLanes: [],
-      ppbeCurrentPhases: [],
-      source: {},
-    }),
-  );
+  const getCalendars = jest.fn(async (_tenantId: string): Promise<ReferenceCalendars> => ({
+    congress: [],
+    ppbeLanes: [],
+    ppbeCurrentPhases: [],
+    source: {},
+  }));
 
   const svc = new WatcherSchedulerService(
     prisma,

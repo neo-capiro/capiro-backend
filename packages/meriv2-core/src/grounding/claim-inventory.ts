@@ -5,12 +5,7 @@ import { inferClaimCategories, type ClaimCategory } from '../assurance/evidence-
 import { classifyClaimType } from '../assurance/tool-ledger-adapter';
 
 export type MaterialClaimExclusion =
-  | 'greeting'
-  | 'formatting'
-  | 'brainstorm'
-  | 'labelled_recommendation'
-  | 'question'
-  | 'meta';
+  'greeting' | 'formatting' | 'brainstorm' | 'labelled_recommendation' | 'question' | 'meta';
 
 export interface MaterialClaim {
   id: string;
@@ -37,9 +32,11 @@ export interface ExtractMaterialClaimsInput {
 }
 
 const MARKER_RE = /\[(\d{1,3})\]/g;
-const FACTUAL_ASSERTION = /(?:\$\s?\d|\b\d{1,4}(?:[,.]\d+)*(?:%|\s+(?:million|billion))?\b|\b[A-Z]{2,}(?:[- ]?\d+)+\b|\b(?:is|are|was|were|has been|have been|passed|failed|signed|enacted|serves?|chairs?|holds?|received|awarded|scheduled|due)\b)/i;
+const FACTUAL_ASSERTION =
+  /(?:\$\s?\d|\b\d{1,4}(?:[,.]\d+)*(?:%|\s+(?:million|billion))?\b|\b[A-Z]{2,}(?:[- ]?\d+)+\b|\b(?:is|are|was|were|has been|have been|passed|failed|signed|enacted|serves?|chairs?|holds?|received|awarded|scheduled|due)\b)/i;
 const REAL_ENTITY = /\b(?:the\s+)?[A-Z][\w'’-]+(?:\s+[A-Z][\w'’.-]+){0,5}\b/;
-const META = /^(?:sources?|notes?|answer|summary|here(?:'s| is)|based on (?:the )?(?:sources|information)|i (?:found|reviewed|can help))\b/i;
+const META =
+  /^(?:sources?|notes?|answer|summary|here(?:'s| is)|based on (?:the )?(?:sources|information)|i (?:found|reviewed|can help))\b/i;
 const GREETING = /^(?:hi|hello|hey|good (?:morning|afternoon|evening)|thanks|thank you)[!,.\s]*$/i;
 const BRAINSTORM = /^(?:ideas?|options?|possibilities|brainstorm)(?:\s*:|$)/i;
 const RECOMMENDATION_LABEL = /^(?:recommendations?|suggested next steps?|next steps?)(?:\s*:|$)/i;
@@ -69,18 +66,27 @@ export function extractMaterialClaims(input: ExtractMaterialClaimsInput): Materi
           .filter((citation): citation is NonNullable<typeof citation> => Boolean(citation))
           .map((citation) => citation.stableId || `${citation.tool}:${citation.id}`),
       );
-      const plainText = text.replace(MARKER_RE, '').replace(/\s+([.!?,;:])/g, '$1').replace(/\s+/g, ' ').trim();
+      const plainText = text
+        .replace(MARKER_RE, '')
+        .replace(/\s+([.!?,;:])/g, '$1')
+        .replace(/\s+/g, ' ')
+        .trim();
       const ledgerClaim = ledgerClaims.find(
-        (claim) => normalize(claim.text) === normalize(plainText) || normalize(claim.text).includes(normalize(plainText)),
+        (claim) =>
+          normalize(claim.text) === normalize(plainText) ||
+          normalize(claim.text).includes(normalize(plainText)),
       );
       const exclusion = classifyExclusion(plainText, sentence);
-      const factualOverride = FACTUAL_ASSERTION.test(plainText) &&
+      const factualOverride =
+        FACTUAL_ASSERTION.test(plainText) &&
         (REAL_ENTITY.test(plainText) || /\b[A-Z]+\.[A-Z.]*\s*\d+\b/.test(plainText));
-      const material = !exclusion ||
-        (factualOverride && (exclusion === 'brainstorm' || exclusion === 'labelled_recommendation'));
-      const kind = ledgerClaim?.type ?? (/\b(?:unclear|unknown)\b/i.test(plainText)
-        ? 'uncertainty'
-        : classifyClaimType(plainText));
+      const material =
+        !exclusion ||
+        (factualOverride &&
+          (exclusion === 'brainstorm' || exclusion === 'labelled_recommendation'));
+      const kind =
+        ledgerClaim?.type ??
+        (/\b(?:unclear|unknown)\b/i.test(plainText) ? 'uncertainty' : classifyClaimType(plainText));
       const inferred = inferClaimCategories(plainText);
       const ledgerCategory = ledgerClaim?.category;
       const category = isClaimCategory(ledgerCategory)
@@ -108,7 +114,9 @@ export function extractMaterialClaims(input: ExtractMaterialClaimsInput): Materi
 }
 
 export function segmentReply(replyText: string): string[] {
-  const text = String(replyText ?? '').replace(/\r\n?/g, '\n').trim();
+  const text = String(replyText ?? '')
+    .replace(/\r\n?/g, '\n')
+    .trim();
   if (!text) return [];
   const lines = text.split('\n');
   const output: string[] = [];
@@ -131,8 +139,14 @@ function segmentProse(text: string): string[] {
   for (let index = 0; index < text.length; index += 1) {
     if (!/[.!?]/.test(text[index]!)) continue;
     const candidate = text.slice(start, index + 1);
-    if (text[index] === '.' &&
-      (ABBREVIATIONS.test(candidate) || /\d\.\d$/.test(candidate) || /\b[A-Z](?:\.[A-Z])+\.$/.test(candidate) || /^S\.$/.test(candidate))) continue;
+    if (
+      text[index] === '.' &&
+      (ABBREVIATIONS.test(candidate) ||
+        /\d\.\d$/.test(candidate) ||
+        /\b[A-Z](?:\.[A-Z])+\.$/.test(candidate) ||
+        /^S\.$/.test(candidate))
+    )
+      continue;
     let end = index + 1;
     while (/\s*\[\d{1,3}\]/.test(text.slice(end))) {
       const marker = text.slice(end).match(/^\s*\[\d{1,3}\]/)?.[0];
@@ -157,10 +171,16 @@ function splitClauses(sentence: string): string[] {
   );
   return clauses.flatMap((part) => {
     const conjunction = part.match(/^(.*?\[\d{1,3}\].*?)\s+(?:and|but)\s+(.+\[\d{1,3}\].*)$/i);
-    if (conjunction && FACTUAL_ASSERTION.test(conjunction[1]!) && FACTUAL_ASSERTION.test(conjunction[2]!)) {
+    if (
+      conjunction &&
+      FACTUAL_ASSERTION.test(conjunction[1]!) &&
+      FACTUAL_ASSERTION.test(conjunction[2]!)
+    ) {
       return [conjunction[1]!, conjunction[2]!];
     }
-    const predicates = part.match(/^(.+?\b(?:is|was|has been|passed|failed|received)\b.+?)\s+(?:and|but)\s+(.+?\b(?:is|was|has been|passed|failed|received)\b.+)$/i);
+    const predicates = part.match(
+      /^(.+?\b(?:is|was|has been|passed|failed|received)\b.+?)\s+(?:and|but)\s+(.+?\b(?:is|was|has been|passed|failed|received)\b.+)$/i,
+    );
     return predicates ? [predicates[1]!, predicates[2]!] : [part];
   });
 }
@@ -172,12 +192,19 @@ function classifyExclusion(text: string, original: string): MaterialClaimExclusi
   if (RECOMMENDATION_LABEL.test(text)) return 'labelled_recommendation';
   if (META.test(text)) return 'meta';
   if (/^#{1,6}\s/.test(original) || /^(?:[-*+]\s*)?$/.test(text)) return 'formatting';
-  if (/^(?:consider|could|might|one option is|another option is)\b/i.test(text) && !FACTUAL_ASSERTION.test(text)) return 'brainstorm';
+  if (
+    /^(?:consider|could|might|one option is|another option is)\b/i.test(text) &&
+    !FACTUAL_ASSERTION.test(text)
+  )
+    return 'brainstorm';
   return undefined;
 }
 
 function cleanUnit(text: string): string {
-  return text.replace(/^(?:#{1,6}\s+|[-*+]\s+|\d+[.)]\s+)/, '').replace(/\s+([.!?,;:])$/, '$1').trim();
+  return text
+    .replace(/^(?:#{1,6}\s+|[-*+]\s+|\d+[.)]\s+)/, '')
+    .replace(/\s+([.!?,;:])$/, '$1')
+    .trim();
 }
 
 function stableClaimId(sentenceIndex: number, clauseIndex: number, text: string): string {
@@ -189,14 +216,31 @@ function orderedUnique(values: readonly string[]): string[] {
 }
 
 function normalize(value: string): string {
-  return value.toLowerCase().replace(MARKER_RE, '').replace(/[^a-z0-9]+/g, ' ').trim();
+  return value
+    .toLowerCase()
+    .replace(MARKER_RE, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
 }
 
 const CLAIM_CATEGORIES: ReadonlySet<string> = new Set([
-  'bill_status', 'member_vote', 'current_role', 'budget_amount', 'budget_delta', 'enactment',
-  'report_language', 'regulatory_deadline', 'schedule_commitment', 'regulatory_stage',
-  'district_representation', 'grant_opportunity', 'grant_award', 'procurement_opportunity',
-  'client_recommendation', 'negative_or_exhaustive', 'general_background',
+  'bill_status',
+  'member_vote',
+  'current_role',
+  'budget_amount',
+  'budget_delta',
+  'enactment',
+  'report_language',
+  'regulatory_deadline',
+  'schedule_commitment',
+  'regulatory_stage',
+  'district_representation',
+  'grant_opportunity',
+  'grant_award',
+  'procurement_opportunity',
+  'client_recommendation',
+  'negative_or_exhaustive',
+  'general_background',
 ]);
 
 function isClaimCategory(value: string | undefined): value is ClaimCategory {

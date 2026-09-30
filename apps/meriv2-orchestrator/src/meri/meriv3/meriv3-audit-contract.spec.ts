@@ -55,9 +55,7 @@ describe('literal same-chat audit contract', () => {
       prior,
     );
     expect(result.valid).toBe(false);
-    expect(result.issues).toEqual([
-      expect.objectContaining({ code: 'missing_literal_quote' }),
-    ]);
+    expect(result.issues).toEqual([expect.objectContaining({ code: 'missing_literal_quote' })]);
   });
 
   it('allows a no-change audit without manufacturing a correction', () => {

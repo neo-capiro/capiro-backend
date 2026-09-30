@@ -46,8 +46,14 @@ const requirement: CoverageRequirement = {
 
 function receipt(overrides: Partial<MeriToolCoverageReceipt> = {}): MeriToolCoverageReceipt {
   return {
-    tool: 'read_source', source: 'source', status: 'complete', recordsReturned: 1, recordsEvaluated: 1,
-    paginationComplete: true, truncated: false, ...overrides,
+    tool: 'read_source',
+    source: 'source',
+    status: 'complete',
+    recordsReturned: 1,
+    recordsEvaluated: 1,
+    paginationComplete: true,
+    truncated: false,
+    ...overrides,
   };
 }
 
@@ -56,16 +62,29 @@ function entry(tool: string, result: unknown): LedgerEntry {
 }
 
 const listing = {
-  tool: 'read_client_documents', clientId: 'client-1',
-  coverage: { total: 30, returned: 25, truncated: true, paginationComplete: false, complete: false },
+  tool: 'read_client_documents',
+  clientId: 'client-1',
+  coverage: {
+    total: 30,
+    returned: 25,
+    truncated: true,
+    paginationComplete: false,
+    complete: false,
+  },
   note: 'A file listing is not evidence that its contents have been read.',
-  documents: [{ id: 'doc-1', fileName: 'transcript.txt', usable: true }, { id: 'doc-2', fileName: 'memo.pdf', usable: true }],
+  documents: [
+    { id: 'doc-1', fileName: 'transcript.txt', usable: true },
+    { id: 'doc-2', fileName: 'memo.pdf', usable: true },
+  ],
 };
 const contentRead = {
-  tool: 'read_client_documents', clientId: 'client-1',
+  tool: 'read_client_documents',
+  clientId: 'client-1',
   document: { id: 'doc-1', fileName: 'transcript.txt', contentHash: 'abc' },
   coverage: { complete: true, truncated: false, section: 1, sectionCount: 1 },
-  records: [{ recordId: 'doc-1:abc:1:0-40', payload: { text: 'The chair promised action on the bill.' } }],
+  records: [
+    { recordId: 'doc-1:abc:1:0-40', payload: { text: 'The chair promised action on the bill.' } },
+  ],
 };
 
 describe('coverage requirements', () => {
@@ -117,11 +136,13 @@ describe('coverage requirements', () => {
       frame,
       clientId: null,
     });
-    expect(requirements[0]).toEqual(expect.objectContaining({
-      requirementId: 'bill-status.official-status',
-      toolFamilies: ['get_bill_status'],
-      essential: true,
-    }));
+    expect(requirements[0]).toEqual(
+      expect.objectContaining({
+        requirementId: 'bill-status.official-status',
+        toolFamilies: ['get_bill_status'],
+        essential: true,
+      }),
+    );
   });
 
   it('turns a document keyword without any concrete document into a non-essential hint only', () => {
@@ -136,12 +157,33 @@ describe('coverage requirements', () => {
     expect(document[0]).toMatchObject({ essential: false, requirementId: 'document-content.hint' });
     expect(document[0]?.route).toBeUndefined();
     // A hint never produces a follow-up or a residual limitation.
-    const gaps = compareCoverage({ requirements, toolsUsed: [], receipts: [], ledgerEntries: [], citations: [] });
-    expect(gaps[0]).toMatchObject({ status: 'never_called', essential: false, materiality: 'supplementary' });
-    expect(planFollowUp({
-      gaps, requirements, request: 'Summarize the report', frame,
-      toolSchemas: [{ name: 'read_client_documents', readOnly: true, input_schema: { properties: { clientId: {}, documentId: {} }, required: ['clientId'] } }],
-    })).toBeNull();
+    const gaps = compareCoverage({
+      requirements,
+      toolsUsed: [],
+      receipts: [],
+      ledgerEntries: [],
+      citations: [],
+    });
+    expect(gaps[0]).toMatchObject({
+      status: 'never_called',
+      essential: false,
+      materiality: 'supplementary',
+    });
+    expect(
+      planFollowUp({
+        gaps,
+        requirements,
+        request: 'Summarize the report',
+        frame,
+        toolSchemas: [
+          {
+            name: 'read_client_documents',
+            readOnly: true,
+            input_schema: { properties: { clientId: {}, documentId: {} }, required: ['clientId'] },
+          },
+        ],
+      }),
+    ).toBeNull();
     expect(appendClaimTiedCoverageDisclosure('Answer.', gaps, requirements)).toBe('Answer.');
   });
 
@@ -166,15 +208,29 @@ describe('coverage requirements', () => {
     expect(docRequirements[0]?.route).toBeUndefined();
     // Never called (nothing in this fixture calls read_client_documents), but non-essential — so it must
     // never be planned as a follow-up and never reach the reply as a disclosure.
-    const gaps = compareCoverage({ requirements: docRequirements, toolsUsed: [], receipts: [], ledgerEntries: [], citations: [] });
-    expect(gaps).toEqual([expect.objectContaining({ essential: false, status: 'never_called' })]);
-    expect(planFollowUp({
-      gaps,
+    const gaps = compareCoverage({
       requirements: docRequirements,
-      request: 'Summarize it.',
-      frame,
-      toolSchemas: [{ name: 'read_client_documents', readOnly: true, input_schema: { properties: { clientId: {}, documentId: {} }, required: ['clientId'] } }],
-    })).toBeNull();
+      toolsUsed: [],
+      receipts: [],
+      ledgerEntries: [],
+      citations: [],
+    });
+    expect(gaps).toEqual([expect.objectContaining({ essential: false, status: 'never_called' })]);
+    expect(
+      planFollowUp({
+        gaps,
+        requirements: docRequirements,
+        request: 'Summarize it.',
+        frame,
+        toolSchemas: [
+          {
+            name: 'read_client_documents',
+            readOnly: true,
+            input_schema: { properties: { clientId: {}, documentId: {} }, required: ['clientId'] },
+          },
+        ],
+      }),
+    ).toBeNull();
     expect(appendClaimTiedCoverageDisclosure('Answer.', gaps, docRequirements)).toBe('Answer.');
   });
 
@@ -184,7 +240,15 @@ describe('coverage requirements', () => {
       request: 'Summarize it.',
       frame,
       selectedDocumentIds: ['doc-9'],
-      attachments: [{ id: 'doc-9', filename: 'memo.pdf', contentState: 'metadata_only', readable: false, kind: 'client_document' }],
+      attachments: [
+        {
+          id: 'doc-9',
+          filename: 'memo.pdf',
+          contentState: 'metadata_only',
+          readable: false,
+          kind: 'client_document',
+        },
+      ],
       clientId: 'client-1',
     });
     expect(requirements.filter((item) => item.template === 'transcript_summary')).toEqual([
@@ -202,12 +266,28 @@ describe('coverage requirements', () => {
       request: 'Compare hearing.txt with memo.pdf and tell me our exposure.',
       frame,
       attachments: [
-        { id: 'doc-1', filename: 'hearing.txt', contentState: 'ready', readable: true, kind: 'client_document' },
-        { id: 'doc-2', filename: 'memo.pdf', contentState: 'ready', readable: true, kind: 'client_document' },
+        {
+          id: 'doc-1',
+          filename: 'hearing.txt',
+          contentState: 'ready',
+          readable: true,
+          kind: 'client_document',
+        },
+        {
+          id: 'doc-2',
+          filename: 'memo.pdf',
+          contentState: 'ready',
+          readable: true,
+          kind: 'client_document',
+        },
       ],
       clientId: 'client-1',
     });
-    expect(requirements.filter((item) => item.template === 'transcript_summary').map((item) => item.route?.documentId)).toEqual(['doc-1', 'doc-2']);
+    expect(
+      requirements
+        .filter((item) => item.template === 'transcript_summary')
+        .map((item) => item.route?.documentId),
+    ).toEqual(['doc-1', 'doc-2']);
     expect(requirements.every((item) => item.essential)).toBe(true);
   });
 
@@ -220,7 +300,10 @@ describe('coverage requirements', () => {
       clientId: 'client-1',
     });
     expect(requirements.filter((item) => item.template === 'transcript_summary')).toEqual([
-      expect.objectContaining({ essential: false, route: expect.objectContaining({ documentId: 'doc-1' }) }),
+      expect.objectContaining({
+        essential: false,
+        route: expect.objectContaining({ documentId: 'doc-1' }),
+      }),
     ]);
   });
 });
@@ -229,27 +312,68 @@ describe('coverage comparison', () => {
   it.each<[CoverageGapStatus, string[], unknown, unknown]>([
     ['never_called', [], [], undefined],
     ['called_no_usable_content', ['read_source'], [], { records: [] }],
-    ['truncated', ['read_source'], [receipt({ status: 'partial', recordsReturned: 0, recordsEvaluated: 2, paginationComplete: false, truncated: true })], { records: [], coverage: { truncated: true } }],
-    ['unavailable', ['read_source'], [receipt({ status: 'unavailable', recordsReturned: 0, recordsEvaluated: 0, paginationComplete: null })], { records: [] }],
-    ['extraction_failed', ['read_source'], [receipt({ status: 'error', recordsReturned: 0, recordsEvaluated: 0, paginationComplete: null })], { error: 'extract failed' }],
+    [
+      'truncated',
+      ['read_source'],
+      [
+        receipt({
+          status: 'partial',
+          recordsReturned: 0,
+          recordsEvaluated: 2,
+          paginationComplete: false,
+          truncated: true,
+        }),
+      ],
+      { records: [], coverage: { truncated: true } },
+    ],
+    [
+      'unavailable',
+      ['read_source'],
+      [
+        receipt({
+          status: 'unavailable',
+          recordsReturned: 0,
+          recordsEvaluated: 0,
+          paginationComplete: null,
+        }),
+      ],
+      { records: [] },
+    ],
+    [
+      'extraction_failed',
+      ['read_source'],
+      [
+        receipt({
+          status: 'error',
+          recordsReturned: 0,
+          recordsEvaluated: 0,
+          paginationComplete: null,
+        }),
+      ],
+      { error: 'extract failed' },
+    ],
     ['satisfied', ['read_source'], [receipt()], { records: [{ id: 'a', text: 'usable' }] }],
   ])('classifies %s', (status, toolsUsed, receipts, result) => {
-    const ledgerEntries: LedgerEntry[] =
-      result === undefined
-        ? []
-        : [entry('read_source', result)];
-    expect(compareCoverage({
-      requirements: [requirement],
-      toolsUsed,
-      receipts: receipts as MeriToolCoverageReceipt[],
-      ledgerEntries,
-      citations: [],
-    })[0]?.status).toBe(status);
+    const ledgerEntries: LedgerEntry[] = result === undefined ? [] : [entry('read_source', result)];
+    expect(
+      compareCoverage({
+        requirements: [requirement],
+        toolsUsed,
+        receipts: receipts as MeriToolCoverageReceipt[],
+        ledgerEntries,
+        citations: [],
+      })[0]?.status,
+    ).toBe(status);
   });
 
   it('keeps usable evidence open while the matching read is incomplete, then closes on a later complete receipt', () => {
     const usable = entry('read_source', { records: [{ id: 'a', text: 'usable rows' }] });
-    const partial = receipt({ status: 'partial', source: 'report', paginationComplete: false, truncated: true });
+    const partial = receipt({
+      status: 'partial',
+      source: 'report',
+      paginationComplete: false,
+      truncated: true,
+    });
     const open = compareCoverage({
       requirements: [requirement],
       toolsUsed: ['read_source'],
@@ -279,35 +403,61 @@ describe('coverage comparison', () => {
       requirements: [requirement],
       toolsUsed: ['read_source'],
       receipts: [],
-      ledgerEntries: [entry('read_source', {
-        records: [{ id: 'a', text: 'usable rows' }],
-        coverage: { complete: false, hasMore: true, nextCursor: 'cursor-2' },
-      })],
+      ledgerEntries: [
+        entry('read_source', {
+          records: [{ id: 'a', text: 'usable rows' }],
+          coverage: { complete: false, hasMore: true, nextCursor: 'cursor-2' },
+        }),
+      ],
       citations: [],
     });
     expect(gaps[0]).toMatchObject({ status: 'truncated', evidenceIds: ['a'] });
   });
 
   it('treats a transcript filename without content as unusable', () => {
-    expect(compareCoverage({
-      requirements: [{ ...requirement, toolFamilies: ['read_client_documents'] }],
-      toolsUsed: ['read_client_documents'],
-      receipts: [],
-      ledgerEntries: [entry('read_client_documents', { document: { id: 'doc-1', fileName: 'transcript.txt' }, records: [] })],
-      citations: [],
-    })[0]?.status).toBe('called_no_usable_content');
+    expect(
+      compareCoverage({
+        requirements: [{ ...requirement, toolFamilies: ['read_client_documents'] }],
+        toolsUsed: ['read_client_documents'],
+        receipts: [],
+        ledgerEntries: [
+          entry('read_client_documents', {
+            document: { id: 'doc-1', fileName: 'transcript.txt' },
+            records: [],
+          }),
+        ],
+        citations: [],
+      })[0]?.status,
+    ).toBe('called_no_usable_content');
   });
 
   it('never lets a file listing satisfy a document-content requirement', () => {
     const routed: CoverageRequirement = {
-      ...requirement, id: 'doc', requirementId: 'document-content.doc-1', toolFamilies: ['read_client_documents'],
-      template: 'transcript_summary', route: { documentId: 'doc-1', documentName: 'transcript.txt', clientId: 'client-1' },
+      ...requirement,
+      id: 'doc',
+      requirementId: 'document-content.doc-1',
+      toolFamilies: ['read_client_documents'],
+      template: 'transcript_summary',
+      route: { documentId: 'doc-1', documentName: 'transcript.txt', clientId: 'client-1' },
     };
-    const hint: CoverageRequirement = { ...routed, id: 'hint', requirementId: 'document-content.hint', route: undefined };
+    const hint: CoverageRequirement = {
+      ...routed,
+      id: 'hint',
+      requirementId: 'document-content.hint',
+      route: undefined,
+    };
     const gaps = compareCoverage({
       requirements: [routed, hint],
       toolsUsed: ['read_client_documents'],
-      receipts: [receipt({ tool: 'read_client_documents', source: 'client_documents', status: 'partial', paginationComplete: false, truncated: true })],
+      receipts: [
+        receipt({
+          tool: 'read_client_documents',
+          source: 'client_documents',
+          status: 'partial',
+          paginationComplete: false,
+          truncated: true,
+        }),
+      ],
       ledgerEntries: [entry('read_client_documents', listing)],
       citations: [],
     });
@@ -317,18 +467,41 @@ describe('coverage comparison', () => {
 
   it('is satisfied by a complete content read of the routed document after a truncated listing', () => {
     const routed: CoverageRequirement = {
-      ...requirement, id: 'doc', requirementId: 'document-content.doc-1', toolFamilies: ['read_client_documents'],
-      template: 'transcript_summary', route: { documentId: 'doc-1', documentName: 'transcript.txt', clientId: 'client-1' },
+      ...requirement,
+      id: 'doc',
+      requirementId: 'document-content.doc-1',
+      toolFamilies: ['read_client_documents'],
+      template: 'transcript_summary',
+      route: { documentId: 'doc-1', documentName: 'transcript.txt', clientId: 'client-1' },
     };
-    const other: CoverageRequirement = { ...routed, id: 'other', requirementId: 'document-content.doc-2', route: { documentId: 'doc-2' } };
+    const other: CoverageRequirement = {
+      ...routed,
+      id: 'other',
+      requirementId: 'document-content.doc-2',
+      route: { documentId: 'doc-2' },
+    };
     const gaps = compareCoverage({
       requirements: [routed, other],
       toolsUsed: ['read_client_documents'],
       receipts: [
-        receipt({ tool: 'read_client_documents', source: 'client_documents', status: 'partial', paginationComplete: false, truncated: true }),
-        receipt({ tool: 'read_client_documents', source: 'client_documents', status: 'complete', paginationComplete: null }),
+        receipt({
+          tool: 'read_client_documents',
+          source: 'client_documents',
+          status: 'partial',
+          paginationComplete: false,
+          truncated: true,
+        }),
+        receipt({
+          tool: 'read_client_documents',
+          source: 'client_documents',
+          status: 'complete',
+          paginationComplete: null,
+        }),
       ],
-      ledgerEntries: [entry('read_client_documents', listing), entry('read_client_documents', contentRead)],
+      ledgerEntries: [
+        entry('read_client_documents', listing),
+        entry('read_client_documents', contentRead),
+      ],
       citations: [],
     });
     expect(gaps[0]).toMatchObject({ status: 'satisfied', evidenceIds: ['doc-1:abc:1:0-40'] });
@@ -336,13 +509,28 @@ describe('coverage comparison', () => {
   });
 
   it('matches chamber routes against the evidence actually retrieved', () => {
-    const house: CoverageRequirement = { ...requirement, id: 'h', requirementId: 'house-senate-comparison.house', toolFamilies: ['get_pe_budget_timeline'], route: { chamber: 'house' } };
-    const senate: CoverageRequirement = { ...house, id: 's', requirementId: 'house-senate-comparison.senate', route: { chamber: 'senate' } };
+    const house: CoverageRequirement = {
+      ...requirement,
+      id: 'h',
+      requirementId: 'house-senate-comparison.house',
+      toolFamilies: ['get_pe_budget_timeline'],
+      route: { chamber: 'house' },
+    };
+    const senate: CoverageRequirement = {
+      ...house,
+      id: 's',
+      requirementId: 'house-senate-comparison.senate',
+      route: { chamber: 'senate' },
+    };
     const gaps = compareCoverage({
       requirements: [house, senate],
       toolsUsed: ['get_pe_budget_timeline'],
       receipts: [receipt({ tool: 'get_pe_budget_timeline', source: 'program_elements' })],
-      ledgerEntries: [entry('get_pe_budget_timeline', { records: [{ id: '0603851F', stage: 'SAC-D', amount: 42 }] })],
+      ledgerEntries: [
+        entry('get_pe_budget_timeline', {
+          records: [{ id: '0603851F', stage: 'SAC-D', amount: 42 }],
+        }),
+      ],
       citations: [],
     });
     expect(gaps.map((gap) => gap.status)).toEqual(['called_no_usable_content', 'satisfied']);
@@ -353,10 +541,25 @@ describe('coverage follow-up and disclosure', () => {
   const documentSchema = {
     name: 'read_client_documents',
     readOnly: true,
-    input_schema: { type: 'object', properties: { clientId: { type: 'string' }, documentId: { type: 'string' }, query: {}, cursor: { type: 'string' } }, required: ['clientId'] },
+    input_schema: {
+      type: 'object',
+      properties: {
+        clientId: { type: 'string' },
+        documentId: { type: 'string' },
+        query: {},
+        cursor: { type: 'string' },
+      },
+      required: ['clientId'],
+    },
   };
   function gap(requirementId: string, essential = true): CoverageGap {
-    return { requirementId, essential, status: 'never_called', materiality: essential ? 'changes_answer' : 'supplementary', evidenceIds: [] };
+    return {
+      requirementId,
+      essential,
+      status: 'never_called',
+      materiality: essential ? 'changes_answer' : 'supplementary',
+      evidenceIds: [],
+    };
   }
 
   it('plans every concrete essential read-only call up to the caller safety ceiling', () => {
@@ -371,11 +574,17 @@ describe('coverage follow-up and disclosure', () => {
     const followUp = planFollowUp({
       gaps,
       requirements,
-      toolSchemas: [{
-        name: 'get_pe_budget_timeline',
-        readOnly: true,
-        input_schema: { type: 'object', properties: { peCode: { type: 'string' } }, required: ['peCode'] },
-      }],
+      toolSchemas: [
+        {
+          name: 'get_pe_budget_timeline',
+          readOnly: true,
+          input_schema: {
+            type: 'object',
+            properties: { peCode: { type: 'string' } },
+            required: ['peCode'],
+          },
+        },
+      ],
       request: 'Compare House vs Senate for PE 0603851F',
       frame,
     });
@@ -384,39 +593,63 @@ describe('coverage follow-up and disclosure', () => {
   });
 
   it('fails closed for non-read-only tools and missing concrete routes', () => {
-    expect(planFollowUp({
-      gaps: [gap('x')],
-      requirements: [{ ...requirement, requirementId: 'x' }],
-      toolSchemas: [{ name: 'read_source', readOnly: false, input_schema: { required: ['id'], properties: { id: {} } } }],
-      request: 'Get it',
-      frame,
-    })).toBeNull();
+    expect(
+      planFollowUp({
+        gaps: [gap('x')],
+        requirements: [{ ...requirement, requirementId: 'x' }],
+        toolSchemas: [
+          {
+            name: 'read_source',
+            readOnly: false,
+            input_schema: { required: ['id'], properties: { id: {} } },
+          },
+        ],
+        request: 'Get it',
+        frame,
+      }),
+    ).toBeNull();
   });
 
   it('never plans a bare document listing for a content requirement without a document route', () => {
     const unrouted: CoverageRequirement = {
-      ...requirement, requirementId: 'document-content.requested', toolFamilies: ['read_client_documents'], template: 'transcript_summary',
+      ...requirement,
+      requirementId: 'document-content.requested',
+      toolFamilies: ['read_client_documents'],
+      template: 'transcript_summary',
     };
-    expect(planFollowUp({
-      gaps: [gap('document-content.requested')],
-      requirements: [unrouted],
-      toolSchemas: [documentSchema],
-      request: 'Review the Q3 compliance memo and tell me our exposure',
-      frame,
-    })).toBeNull();
+    expect(
+      planFollowUp({
+        gaps: [gap('document-content.requested')],
+        requirements: [unrouted],
+        toolSchemas: [documentSchema],
+        request: 'Review the Q3 compliance memo and tell me our exposure',
+        frame,
+      }),
+    ).toBeNull();
   });
 
   it('plans a document read only with the concrete document id', () => {
     const routed: CoverageRequirement = {
-      ...requirement, requirementId: 'document-content.doc-1', toolFamilies: ['read_client_documents'],
-      template: 'transcript_summary', route: { documentId: 'doc-1', documentName: 'transcript.txt', clientId: 'client-1' },
-    };
-    const followUp = planFollowUp({ gaps: [gap('document-content.doc-1')], requirements: [routed], toolSchemas: [documentSchema], request: 'Summarize transcript.txt', frame });
-    expect(followUp?.calls).toEqual([{
-      name: 'read_client_documents',
-      arguments: { clientId: 'client-1', documentId: 'doc-1' },
+      ...requirement,
       requirementId: 'document-content.doc-1',
-    }]);
+      toolFamilies: ['read_client_documents'],
+      template: 'transcript_summary',
+      route: { documentId: 'doc-1', documentName: 'transcript.txt', clientId: 'client-1' },
+    };
+    const followUp = planFollowUp({
+      gaps: [gap('document-content.doc-1')],
+      requirements: [routed],
+      toolSchemas: [documentSchema],
+      request: 'Summarize transcript.txt',
+      frame,
+    });
+    expect(followUp?.calls).toEqual([
+      {
+        name: 'read_client_documents',
+        arguments: { clientId: 'client-1', documentId: 'doc-1' },
+        requirementId: 'document-content.doc-1',
+      },
+    ]);
   });
 
   it('retains the concrete route when planning continuation for an incomplete read', () => {
@@ -451,11 +684,13 @@ describe('coverage follow-up and disclosure', () => {
       toolSchemas: [documentSchema],
       request: 'Summarize transcript.txt',
       frame,
-      ledgerEntries: [entry('read_client_documents', {
-        document: { id: 'doc-1' },
-        coverage: { complete: false, nextCursor: 'page:5000' },
-        records: [{ recordId: 'doc-1:0-5000', payload: { text: 'partial' } }],
-      })],
+      ledgerEntries: [
+        entry('read_client_documents', {
+          document: { id: 'doc-1' },
+          coverage: { complete: false, nextCursor: 'page:5000' },
+          records: [{ recordId: 'doc-1:0-5000', payload: { text: 'partial' } }],
+        }),
+      ],
     });
     expect(followUp?.calls[0]?.arguments).toEqual({
       clientId: 'client-1',
@@ -466,9 +701,19 @@ describe('coverage follow-up and disclosure', () => {
 
   it('adds one marker-free claim-tied limitation only for essential residual gaps', () => {
     const residual = gap(requirement.requirementId);
-    const disclosed = appendClaimTiedCoverageDisclosure('Senate mark is $2.', [residual], [requirement]);
+    const disclosed = appendClaimTiedCoverageDisclosure(
+      'Senate mark is $2.',
+      [residual],
+      [requirement],
+    );
     expect(disclosed).toContain('House figure for CDAO');
     expect(disclosed).not.toMatch(/\[\d+\]/);
-    expect(appendClaimTiedCoverageDisclosure('Answer.', [{ ...residual, essential: false }], [requirement])).toBe('Answer.');
+    expect(
+      appendClaimTiedCoverageDisclosure(
+        'Answer.',
+        [{ ...residual, essential: false }],
+        [requirement],
+      ),
+    ).toBe('Answer.');
   });
 });

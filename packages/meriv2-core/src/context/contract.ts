@@ -37,11 +37,7 @@ export type ContextSurface =
   | 'workspace-gen';
 
 export type SteeringLayer =
-  | 'firm-identity'
-  | 'firm-playbook'
-  | 'user-voice'
-  | 'client-steering'
-  | 'client-people';
+  'firm-identity' | 'firm-playbook' | 'user-voice' | 'client-steering' | 'client-people';
 
 export const LAYER_BY_TYPE: Readonly<Record<string, SteeringLayer>> = {
   'firm-soul': 'firm-identity',

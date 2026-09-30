@@ -128,13 +128,19 @@ export const MERI_DATASET_CATALOG: MeriDatasetDefinition[] = [
     description: 'Upcoming meetings, completed meetings, notes and debrief records.',
     domains: ['meetings'],
     entities: ['meeting', 'person', 'company', 'client'],
-    tools: ['list_upcoming_meetings', 'query_debriefs'],
+    tools: ['list_upcoming_meetings', 'read_client_meetings', 'query_debriefs'],
     timeSemantics: {
       occurredAt: ['startsAt', 'endedAt', 'occurredAt'],
       changedAt: ['updatedAt'],
     },
     capabilities: caps(true, false),
-    authority: ['meeting occurrence', 'meeting participants', 'debrief content'],
+    authority: [
+      'meeting occurrence',
+      'meeting participants',
+      'exact persisted meeting-note content',
+      'exact persisted meeting-transcript content',
+      'debrief content',
+    ],
     scope: 'tenant_and_client',
   },
   {
@@ -521,7 +527,8 @@ export const MERI_RECIPE_CATALOG: Record<MeriRetrievalRecipeTool, MeriRecipeCata
   },
   query_pe_deep_dive: {
     tool: 'query_pe_deep_dive',
-    description: 'Complete single-Program-Element brief: definition, budget timeline, report language, contractors, and related bills.',
+    description:
+      'Complete single-Program-Element brief: definition, budget timeline, report language, contractors, and related bills.',
     requiredDomains: ['budget'],
     optionalDomains: ['awards', 'legislation'],
     recommendedTools: [
@@ -535,32 +542,32 @@ export const MERI_RECIPE_CATALOG: Record<MeriRetrievalRecipeTool, MeriRecipeCata
   },
   query_bill_watch: {
     tool: 'query_bill_watch',
-    description: 'Bill status watch for one client: tracked list, federal bills, and state bills where the client has a footprint.',
+    description:
+      'Bill status watch for one client: tracked list, federal bills, and state bills where the client has a footprint.',
     requiredDomains: ['legislation'],
     optionalDomains: [],
-    recommendedTools: [
-      'search_tracked_bills',
-      'search_congress_bills',
-      'search_state_bills',
-    ],
+    recommendedTools: ['search_tracked_bills', 'search_congress_bills', 'search_state_bills'],
   },
   query_hearing_watch: {
     tool: 'query_hearing_watch',
-    description: 'Committee-hearing calendar watch for one client, with the LegiWatch handoff surfaced when present.',
+    description:
+      'Committee-hearing calendar watch for one client, with the LegiWatch handoff surfaced when present.',
     requiredDomains: ['hearings'],
     optionalDomains: [],
     recommendedTools: ['search_committee_hearings'],
   },
   query_representation_lookup: {
     tool: 'query_representation_lookup',
-    description: 'Who represents a district/state: member roster plus client-scoped representation mapping.',
+    description:
+      'Who represents a district/state: member roster plus client-scoped representation mapping.',
     requiredDomains: ['directory'],
     optionalDomains: [],
     recommendedTools: ['list_members', 'get_representation'],
   },
   query_regulatory_docket_brief: {
     tool: 'query_regulatory_docket_brief',
-    description: 'Rulemaking status brief: federal docket activity plus state register implementation status.',
+    description:
+      'Rulemaking status brief: federal docket activity plus state register implementation status.',
     requiredDomains: ['regulatory'],
     optionalDomains: [],
     recommendedTools: ['query_regulatory_dockets', 'get_state_rule_status'],

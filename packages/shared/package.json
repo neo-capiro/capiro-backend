@@ -27,6 +27,9 @@
       "meri-skills": [
         "dist/meri-skills.d.ts"
       ],
+      "meri-read-outcome": [
+        "dist/meri-read-outcome.d.ts"
+      ],
       "market-title": [
         "dist/market-title.d.ts"
       ]
@@ -80,6 +83,12 @@
       "require": "./dist/meri-skills.js",
       "import": "./dist/meri-skills.js",
       "default": "./dist/meri-skills.js"
+    },
+    "./meri-read-outcome": {
+      "types": "./dist/meri-read-outcome.d.ts",
+      "require": "./dist/meri-read-outcome.js",
+      "import": "./dist/meri-read-outcome.js",
+      "default": "./dist/meri-read-outcome.js"
     },
     "./market-title": {
       "types": "./dist/market-title.d.ts",

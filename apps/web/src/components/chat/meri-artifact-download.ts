@@ -8,6 +8,159 @@ const DOCUMENT_TYPES: Record<string, string> = {
   'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'pptx',
 };
 const ARTIFACT_ID = /^[a-zA-Z0-9_-]{1,200}$/;
+export const MAX_MERI_DOCUMENT_DOWNLOAD_BYTES = 20 * 1024 * 1024;
+const SHA256_HEX = /^[0-9a-f]{64}$/;
+
+async function readBoundedResponse(response: Response, signal: AbortSignal): Promise<Uint8Array> {
+  const declared = response.headers.get('Content-Length');
+  let declaredLength: number | null = null;
+  if (declared !== null) {
+    const length = Number(declared);
+    if (!Number.isSafeInteger(length) || length < 1 || length > MAX_MERI_DOCUMENT_DOWNLOAD_BYTES) {
+      throw new Error('The downloaded document was empty or too large. Please retry.');
+    }
+    declaredLength = length;
+  }
+  if (!response.body) throw new Error('The server did not return readable document bytes. Please retry.');
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    while (true) {
+      signal.throwIfAborted();
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value?.byteLength) continue;
+      total += value.byteLength;
+      if (total > MAX_MERI_DOCUMENT_DOWNLOAD_BYTES) {
+        await reader.cancel();
+        throw new Error('The downloaded document was too large. Please retry.');
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  if (!total) throw new Error('The downloaded document was empty. Please retry.');
+  if (declaredLength !== null && total !== declaredLength) {
+    throw new Error('The downloaded document was incomplete. Please retry.');
+  }
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return bytes;
+}
+
+async function sha256Hex(bytes: Uint8Array): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', arrayBufferCopy(bytes));
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+function arrayBufferCopy(bytes: Uint8Array): ArrayBuffer {
+  const copy = new Uint8Array(bytes.byteLength);
+  copy.set(bytes);
+  return copy.buffer;
+}
+
+function uint16Le(bytes: Uint8Array, offset: number): number {
+  return bytes[offset]! | (bytes[offset + 1]! << 8);
+}
+
+function uint32Le(bytes: Uint8Array, offset: number): number {
+  return (bytes[offset]! | (bytes[offset + 1]! << 8) | (bytes[offset + 2]! << 16) |
+    (bytes[offset + 3]! << 24)) >>> 0;
+}
+
+function asciiAt(bytes: Uint8Array, offset: number, value: string): boolean {
+  if (offset < 0 || offset + value.length > bytes.length) return false;
+  for (let index = 0; index < value.length; index += 1) {
+    if (bytes[offset + index] !== value.charCodeAt(index)) return false;
+  }
+  return true;
+}
+
+function zipHasStructuralEnvelope(bytes: Uint8Array, requiredMainPart: string): boolean {
+  if (bytes.length < 22) return false;
+  let endOffset = -1;
+  const minimum = Math.max(0, bytes.length - 65_557);
+  for (let offset = bytes.length - 22; offset >= minimum; offset -= 1) {
+    if (uint32Le(bytes, offset) === 0x06054b50 && offset + 22 + uint16Le(bytes, offset + 20) === bytes.length) {
+      endOffset = offset;
+      break;
+    }
+  }
+  if (endOffset < 0 || uint16Le(bytes, endOffset + 4) !== 0 || uint16Le(bytes, endOffset + 6) !== 0) return false;
+  const entries = uint16Le(bytes, endOffset + 10);
+  const centralSize = uint32Le(bytes, endOffset + 12);
+  const centralOffset = uint32Le(bytes, endOffset + 16);
+  if (!entries || entries !== uint16Le(bytes, endOffset + 8) || entries > 5_000 ||
+      centralOffset + centralSize !== endOffset) return false;
+
+  const names = new Set<string>();
+  const decoder = new TextDecoder('utf-8', { fatal: true });
+  let offset = centralOffset;
+  for (let index = 0; index < entries; index += 1) {
+    if (offset + 46 > endOffset || uint32Le(bytes, offset) !== 0x02014b50) return false;
+    const flags = uint16Le(bytes, offset + 8);
+    const method = uint16Le(bytes, offset + 10);
+    const compressedSize = uint32Le(bytes, offset + 20);
+    const nameLength = uint16Le(bytes, offset + 28);
+    const extraLength = uint16Le(bytes, offset + 30);
+    const commentLength = uint16Le(bytes, offset + 32);
+    const localOffset = uint32Le(bytes, offset + 42);
+    const next = offset + 46 + nameLength + extraLength + commentLength;
+    if (!nameLength || next > endOffset || flags & 1 || ![0, 8].includes(method) ||
+        localOffset + 30 > centralOffset || uint32Le(bytes, localOffset) !== 0x04034b50) return false;
+    const localNameLength = uint16Le(bytes, localOffset + 26);
+    const localExtraLength = uint16Le(bytes, localOffset + 28);
+    const dataEnd = localOffset + 30 + localNameLength + localExtraLength + compressedSize;
+    if (uint16Le(bytes, localOffset + 6) !== flags || uint16Le(bytes, localOffset + 8) !== method ||
+        dataEnd > centralOffset) return false;
+    let name: string;
+    let localName: string;
+    try {
+      name = decoder.decode(bytes.subarray(offset + 46, offset + 46 + nameLength));
+      localName = decoder.decode(bytes.subarray(localOffset + 30, localOffset + 30 + localNameLength));
+    } catch {
+      return false;
+    }
+    if (!name || localName !== name || names.has(name) || name.includes('\\') || name.includes('\0') || name.startsWith('/') ||
+        name.split('/').some((part) => part === '..')) return false;
+    names.add(name);
+    offset = next;
+  }
+  return offset === endOffset && names.has('[Content_Types].xml') &&
+    names.has('_rels/.rels') && names.has(requiredMainPart);
+}
+
+/** Browser-side transport format envelope check. This is deliberately not a
+ * renderer certification: the API performs the full PDF/OOXML parser checks. */
+export function meriDocumentBytesMatchFormat(bytes: Uint8Array, extension: string): boolean {
+  if (extension === 'pdf') {
+    if (bytes.length < 24 || !asciiAt(bytes, 0, '%PDF-1.')) return false;
+    const tailStart = Math.max(0, bytes.length - 2_048);
+    const tail = new TextDecoder('latin1').decode(bytes.subarray(tailStart));
+    const eof = /%%EOF\s*$/.exec(tail);
+    const start = /startxref\s+(\d+)\s+%%EOF\s*$/.exec(tail);
+    if (!eof || !start) return false;
+    const xrefOffset = Number(start[1]);
+    if (!Number.isSafeInteger(xrefOffset) || xrefOffset < 9 || xrefOffset >= bytes.length) return false;
+    if (asciiAt(bytes, xrefOffset, 'xref')) return true;
+    const xrefObject = new TextDecoder('latin1').decode(bytes.subarray(xrefOffset, Math.min(bytes.length, xrefOffset + 1_024)));
+    return /^\d+\s+\d+\s+obj\b/.test(xrefObject) && /\/Type\s*\/XRef\b/.test(xrefObject);
+  }
+  const mainParts: Record<string, string> = {
+    docx: 'word/document.xml',
+    xlsx: 'xl/workbook.xml',
+    pptx: 'ppt/presentation.xml',
+  };
+  const mainPart = mainParts[extension];
+  return Boolean(mainPart && zipHasStructuralEnvelope(bytes, mainPart));
+}
+
 
 /** Older model replies wrapped this protected app route in a sandbox alias.
  * Accept that exact alias only; it never names a file, host or fetch target. */
@@ -122,7 +275,16 @@ export async function fetchMeriArtifactDownload({
     throw new Error('Sign in again, then retry the download.');
   }
   const url = `${apiBaseUrl.replace(/\/$/, '')}/api/clio/artifacts/${artifactId}/download${format ? `?format=${format}` : ''}`;
-  const response = await fetch(url, { headers, signal, cache: 'no-store', redirect: 'error' });
+  let response: Response;
+  try {
+    response = await fetch(url, { headers, signal, cache: 'no-store', redirect: 'error' });
+  } catch (error) {
+    signal.throwIfAborted();
+    if (error instanceof TypeError) {
+      throw new Error('The network connection failed. Check your connection and retry the download.');
+    }
+    throw error;
+  }
   if (!response.ok) {
     if (response.status === 401) throw new Error('Your sign-in expired. Sign in again, then retry the download.');
     if (response.status === 403 || response.status === 404) {
@@ -152,9 +314,22 @@ export async function fetchMeriArtifactDownload({
   if (!extension || (requestedFormat && extension !== requestedFormat)) {
     throw new Error('The server did not return the expected document. Please retry.');
   }
-  const blob = await response.blob();
+  if (response.headers.get('X-Capiro-Artifact-Id') !== artifactId) {
+    throw new Error('The server returned a different saved document. Please retry.');
+  }
+  const expectedSha256 = response.headers.get('X-Capiro-Artifact-Sha256')?.toLowerCase() ?? '';
+  if (!SHA256_HEX.test(expectedSha256)) {
+    throw new Error('The server did not return a document integrity receipt. Please retry.');
+  }
+  const bytes = await readBoundedResponse(response, signal);
   signal.throwIfAborted();
-  if (!blob.size) throw new Error('The downloaded document was empty. Please retry.');
+  if (await sha256Hex(bytes) !== expectedSha256) {
+    throw new Error('The downloaded document did not match its integrity receipt. Please retry.');
+  }
+  if (!meriDocumentBytesMatchFormat(bytes, extension)) {
+    throw new Error('The downloaded bytes were not the expected document format. Please retry.');
+  }
+  const blob = new Blob([arrayBufferCopy(bytes)], { type: contentType });
   const filename = safeFilename(filenameFromDisposition(response.headers.get('Content-Disposition')), extension)
     ?? safeFilename(fallbackFilename, extension)
     ?? `document.${extension}`;

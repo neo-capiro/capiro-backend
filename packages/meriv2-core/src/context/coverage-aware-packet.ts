@@ -4,12 +4,7 @@ import type { CompiledContextPacketV2, ContextPacketHealth } from './contract';
 export type ContextPacketRetrievalCompleteness = 'not_requested' | 'complete' | 'incomplete';
 
 export type ContextPacketSourceStatus =
-  | 'healthy'
-  | 'degraded'
-  | 'unavailable'
-  | 'unauthorized'
-  | 'unsupported'
-  | 'error';
+  'healthy' | 'degraded' | 'unavailable' | 'unauthorized' | 'unsupported' | 'error';
 
 export interface ContextPacketResolvedEntity {
   status: 'resolved' | 'ambiguous' | 'unresolved' | 'error';

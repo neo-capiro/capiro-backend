@@ -101,11 +101,17 @@ describe('Monday.com governed retrieval adapter', () => {
 
   function harness(
     options: {
-      mapping?: string[];
+      mapping?: string[] | null;
       columns?: unknown[];
       executeRead?: (name: string, args: Record<string, unknown>) => unknown;
     } = {},
   ) {
+    const mappingValue =
+      options.mapping === undefined
+        ? { boardIds: ['123'] }
+        : options.mapping === null
+          ? null
+          : { boardIds: options.mapping };
     const tx = {
       tenantMembership: {
         findFirst: jest.fn().mockResolvedValue({
@@ -118,7 +124,7 @@ describe('Monday.com governed retrieval adapter', () => {
       },
       client: { findFirst: jest.fn().mockResolvedValue({ id: 'client' }) },
       meetingPrepMondayMapping: {
-        findFirst: jest.fn().mockResolvedValue({ boardIds: options.mapping ?? ['123'] }),
+        findFirst: jest.fn().mockResolvedValue(mappingValue),
       },
     };
     const managed = {
@@ -223,7 +229,7 @@ describe('Monday.com governed retrieval adapter', () => {
     ]);
   });
 
-  test('request board scope reaches real retrieval without mutating the saved client mapping', async () => {
+  test('denies explicit board selector when not in saved client mapping', async () => {
     const h = harness({ mapping: ['123'] });
     const result = await h.adapter.retrieve(
       {} as never,
@@ -235,17 +241,68 @@ describe('Monday.com governed retrieval adapter', () => {
         deadlineAt: Date.now() + 60_000,
       } as never,
     );
+    expect(result.coverageComplete).toBe(false);
+    expect(result.stopReason).toBe('monday_client_scope_unauthorized');
+    expect(result.records).toEqual([]);
+    expect(h.managed.executeRead).not.toHaveBeenCalled();
+  });
+
+  test('denies explicit board selector when client has no saved mapping', async () => {
+    const h = harness({ mapping: null });
+    const result = await h.adapter.retrieve(
+      {} as never,
+      {
+        caller: { tenantId: 'tenant', userId: 'actor', clientIds: ['client'] },
+        queryClass: 'lookup',
+        requestedDomains: ['monday'],
+        mondayBoardContext: 'Read Monday board https://firm.monday.com/boards/123/',
+        deadlineAt: Date.now() + 60_000,
+      } as never,
+    );
+    expect(result.coverageComplete).toBe(false);
+    expect(result.stopReason).toBe('monday_client_scope_unauthorized');
+    expect(result.records).toEqual([]);
+    expect(h.managed.executeRead).not.toHaveBeenCalled();
+  });
+
+  test('authorizes retrieval for boards in the saved client mapping', async () => {
+    const h = harness({ mapping: ['123'] });
+    const result = await h.adapter.retrieve(
+      {} as never,
+      {
+        caller: { tenantId: 'tenant', userId: 'actor', clientIds: ['client'] },
+        queryClass: 'lookup',
+        requestedDomains: ['monday'],
+        mondayBoardContext: 'Read Monday board https://firm.monday.com/boards/123/',
+        deadlineAt: Date.now() + 60_000,
+      } as never,
+    );
+    expect(result.coverageComplete).toBe(true);
     expect(result.stopReason).toBe('monday_requested_boards_complete');
-    expect(result.records.every((row) => row.recordId.startsWith('999:'))).toBe(true);
+    expect(result.records.every((row) => row.recordId.startsWith('123:'))).toBe(true);
     expect(h.managed.executeRead).toHaveBeenCalledWith(
       expect.objectContaining({ userId: 'actor' }),
       schema.name,
-      expect.objectContaining({ boardId: 999 }),
+      expect.objectContaining({ boardId: 123 }),
       { structuredRead: true },
     );
-    expect(h.tx.meetingPrepMondayMapping.findFirst).toHaveBeenCalled();
-    expect(h.tx.meetingPrepMondayMapping).not.toHaveProperty('update');
-    expect(result.records[0]?.payload.origin).toMatchObject({ scope: 'request' });
+  });
+
+  test('denies retrieval when client has no saved mapping', async () => {
+    const h = harness({ mapping: null });
+    const result = await h.adapter.retrieve(
+      {} as never,
+      {
+        caller: { tenantId: 'tenant', userId: 'actor', clientIds: ['client'] },
+        queryClass: 'lookup',
+        requestedDomains: ['monday'],
+        deadlineAt: Date.now() + 60_000,
+      } as never,
+    );
+    expect(result.coverageComplete).toBe(false);
+    expect(result.stopReason).toBe('monday_client_scope_unauthorized');
+    expect(result.records).toEqual([]);
+    expect(h.managed.executeRead).not.toHaveBeenCalled();
   });
 
   test('emits independently citable parent/subitem tasks with status, owners, deadline and updates', async () => {
@@ -590,8 +647,9 @@ describe('Monday.com governed retrieval adapter', () => {
         parentItemId: '100',
       });
       expect(new Set(pages.map((page) => page.evaluatedRecordSetId)).size).toBe(1);
-      expect(h.tx.tenantMembership.findFirst).toHaveBeenCalledTimes(6);
-      expect(h.tx.client.findFirst).toHaveBeenCalledTimes(6);
+      // Each provider page is enclosed by current membership/client checks.
+      expect(h.tx.tenantMembership.findFirst).toHaveBeenCalledTimes(12);
+      expect(h.tx.client.findFirst).toHaveBeenCalledTimes(12);
       expect(h.managed.listApps).toHaveBeenCalledTimes(6);
       expect(h.managed.schemasForMeriV3).toHaveBeenCalledTimes(6);
       expect(
@@ -749,7 +807,11 @@ describe('Monday.com governed retrieval adapter', () => {
         const page = await h.adapter.retrieve({} as never, nextRequest, first.nextCursor);
         expect(page.records).toEqual([]);
         expect(page.sourceStatus).toBe('unauthorized');
-        expect(page.stopReason).toBe('monday_cursor_scope_mismatch');
+        if (changed === 'boards') {
+          expect(page.stopReason).toBe('monday_client_scope_unauthorized');
+        } else {
+          expect(page.stopReason).toBe('monday_cursor_scope_mismatch');
+        }
         expect(page.coverageComplete).toBe(false);
         expect(h.managed.executeRead).not.toHaveBeenCalled();
       },
@@ -827,6 +889,27 @@ describe('Monday.com governed retrieval adapter', () => {
       expect(
         h.managed.executeRead.mock.calls.filter(([, name]) => name.endsWith('get_updates')),
       ).toHaveLength(6);
+    });
+
+    test('denies result when mapping is withdrawn during provider await', async () => {
+      const h = harness();
+      // First loadScope call returns initial mapping, second returns null (withdrawn)
+      h.tx.meetingPrepMondayMapping.findFirst.mockResolvedValueOnce({ boardIds: ['123'] });
+      h.tx.meetingPrepMondayMapping.findFirst.mockResolvedValueOnce(null as never);
+      const result = await h.adapter.retrieve(
+        {} as never,
+        {
+          caller: { tenantId: 'tenant', userId: 'actor', clientIds: ['client'] },
+          queryClass: 'lookup',
+          requestedDomains: ['monday'],
+          deadlineAt: Date.now() + 60_000,
+        } as never,
+      );
+      expect(result.records).toEqual([]);
+      expect(result.sourceStatus).toBe('unauthorized');
+      expect(result.stopReason).toBe('monday_scope_changed_during_read');
+      expect(result.coverageComplete).toBe(false);
+      expect(result.nextCursor).toBeUndefined();
     });
   });
 });

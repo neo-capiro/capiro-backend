@@ -18,6 +18,58 @@ export interface MeriSkillTemplate {
   sections: string[];
 }
 
+export const MERI_PROCEDURE_SCOPES = ['general', 'client', 'portfolio', 'external_entity'] as const;
+export type MeriProcedureScope = (typeof MERI_PROCEDURE_SCOPES)[number];
+
+export const MERI_PROCEDURE_CAPABILITIES = [
+  'client.read',
+  'mail.read',
+  'meetings.read',
+  'debriefs.read',
+  'tasks.read',
+  'action_items.read',
+  'documents.read',
+  'monday.read',
+] as const;
+export type MeriProcedureCapability = (typeof MERI_PROCEDURE_CAPABILITIES)[number];
+
+/**
+ * Compact, persisted procedure contract. Capability names express requested
+ * authority; they are not tool grants. The server still resolves availability,
+ * tenant/client authorization, and the current version before each use.
+ */
+export interface MeriProcedureManifest {
+  purpose: string;
+  scopes: MeriProcedureScope[];
+  evidencePrerequisites: string[];
+  allowedCapabilities: MeriProcedureCapability[];
+  output: {
+    fields: string[];
+    statuses: string[];
+    coverageStates: string[];
+    unknownValue: string;
+    preserveModality: boolean;
+    honorRequestedWindow: boolean;
+    defaultRecentWindowDays: number | null;
+    reportPartialCoverage: boolean;
+  };
+  completion: string[];
+  effectPolicy: {
+    mode: 'read_only' | 'approval_required';
+    prohibitedEffects: string[];
+  };
+  examples: string[];
+  caseIds: string[];
+}
+
+/** Server-issued identity for the exact current tenant procedure row. */
+export interface MeriProcedureBinding {
+  source: 'firm';
+  recordId: string;
+  canonicalId: string;
+  version: number;
+}
+
 export interface MeriSkill {
   /** Stable identifier. */
   id: string;
@@ -37,4 +89,8 @@ export interface MeriSkill {
   requiredTools: string[];
   /** Structured output template, or null when the skill has no fixed format. */
   template: MeriSkillTemplate | null;
+  /** Optional versioned procedure content persisted in the existing skill JSON. */
+  procedure?: MeriProcedureManifest;
+  /** Attached only by MeriFirmSkillsService; never accepted as stored authority. */
+  procedureBinding?: MeriProcedureBinding;
 }

@@ -1,10 +1,10 @@
 # P0A Baseline: Meri Quality Recovery and Cutover Plan
 
-**Date:** 2026-09-27  
-**Plan:** `C:\Users\Administrator\Desktop\Meri-Architecture-Quality-Recovery-and-Cutover-Plan-2026-09-27.md`, Â§11.2, first work-package row.  
-**Scope:** P0A Baseline only; no implementation/deployment.  
-**Repo SHA:** `42942dedad59382f4b4aac6f904b9aee0e02efa6` on `main`.  
-**Repository path:** `C:\Users\Administrator\cap-meri-completion` (relocated from `C:\dev\cap-meri-completion`; git worktree moved).  
+**Date:** 2026-09-27\
+**Plan:** `C:\Users\Administrator\Desktop\Meri-Architecture-Quality-Recovery-and-Cutover-Plan-2026-09-27.md`, Â§11.2, first work-package row.\
+**Scope:** P0A Baseline only; no implementation/deployment.\
+**Repo SHA:** `42942dedad59382f4b4aac6f904b9aee0e02efa6` on `main`.\
+**Repository path:** `C:\Users\Administrator\cap-meri-completion` (relocated from `C:\dev\cap-meri-completion`; git worktree moved).\
 **Evidence directory:** `C:\Users\Administrator\cap-meri-completion-meri-eval-evidence`.
 
 ## Executive status
@@ -58,7 +58,7 @@ python -m unittest discover -s evals/meri -p 'test_*.py' -v
 node --test evals/meri/runtime/provider.test.cjs evals/meri/runtime/smoke.test.cjs
 ```
 
-**Python unit tests:** `Ran 53 tests in 0.784s OK`, exit code 0.  
+**Python unit tests:** `Ran 53 tests in 0.784s OK`, exit code 0.\
 **Node provider/smoke tests:** `tests 40 / pass 40 / fail 0`, exit code 0.
 
 ### Offline Promptfoo evaluation
@@ -163,7 +163,7 @@ Before any live fixture: confirm non-production endpoint/tenant, disposable DB a
 
 **Artifact:** `C:\Users\Administrator\p0a-home-closeout-worker-result.md`
 
-**Git status:**  
+**Git status:**\
 ```
  M package.json
  M pnpm-lock.yaml

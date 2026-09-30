@@ -1,0 +1,468 @@
+{
+  "valid": true,
+  "errors": [],
+  "contract": {
+    "fixtureVersion": "meri-live-v1-2026-09-26.1",
+    "fixtureSha256": "2a8159d45d512f325539eb700907700ecc16cbc2d6536277adf85d8f49368e61",
+    "contractSourceSha256": "acd2a1cf766ad6e988025c4c43235213164926e7036cc8361986916d59963b66"
+  },
+  "counts": {
+    "PASS": 0,
+    "FAIL": 0,
+    "BLOCKED": 0,
+    "NOT_RUN": 75
+  },
+  "score": null,
+  "results": [
+    {
+      "caseId": "01",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "02",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "03",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "04",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "05",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "06",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "07",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "08",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "09",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "10",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "11",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "12",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "13",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "14",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "15",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "16",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "17",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "18",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "19",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "20",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "21",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "22",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "23",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "24",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "25",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "26",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "27",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "28",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "29",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "30",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "31",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "32",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "33",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "34",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "35",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "36",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "37",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "38",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "39",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "40",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "41",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "42",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "43",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "44",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "45",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "46",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "47",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "48",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "49",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "50",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "51",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "52",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "53",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "54",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "55",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "56",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "57",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "58",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "59",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "60",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "61",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "62",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "63",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "64",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "65",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "66",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "67",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "68",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "69",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "70",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "71",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "72",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "73",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "74",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    },
+    {
+      "caseId": "75",
+      "status": "NOT_RUN",
+      "reason": "no capture exists",
+      "details": []
+    }
+  ]
+}

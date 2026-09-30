@@ -21,30 +21,77 @@ jobs:
     name: Revised Phase 1 DB-free closeout
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    # The focused Phase 1 Jest run is in-band over 37 suites, and the nested
+    # Phase 3 regression runs nest build and the web build on this heap.
+    env:
+      NODE_OPTIONS: --max-old-space-size=6144
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Detect Revised Phase 1 owned changes
+        id: phase1-scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" != 'pull_request' ]; then
+            echo 'should_run=true' >> "$GITHUB_OUTPUT"
+            echo 'product_changed=true' >> "$GITHUB_OUTPUT"
+            echo 'scope_base=' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Content-aware maintenance classification keeps full-PR attribution
+          # for runtime/contract changes. Every current invariant and named
+          # test still runs for gate maintenance.
+          node --test scripts/outreach-v3-p1-change-scope.spec.mjs
+          # pull_request.base.sha is the base tip when the PR was opened and is
+          # not refreshed as the base branch advances. Attribute only this PR's
+          # changes by using its merge base with the current base branch.
+          base="$(git merge-base "origin/${{ github.event.pull_request.base.ref }}" HEAD)"
+          node scripts/outreach-v3-p1-change-scope.mjs \
+            --base "$base" >> "$GITHUB_OUTPUT"
 
       - name: Show exact execution head
         run: |
           git rev-parse HEAD
           test -z "$(git status --short)"
 
+      - name: Report non-Phase-1 pull request
+        if: steps.phase1-scope.outputs.should_run != 'true'
+        run: echo 'No Revised Phase 1 owned paths changed; closeout gate is not applicable.'
+
       - uses: pnpm/action-setup@v4
+        if: steps.phase1-scope.outputs.should_run == 'true'
 
       - uses: actions/setup-node@v7
+        if: steps.phase1-scope.outputs.should_run == 'true'
         with:
           node-version: 22
           cache: pnpm
 
       - name: Install locked dependencies
+        if: steps.phase1-scope.outputs.should_run == 'true'
         run: pnpm install --frozen-lockfile
 
+      - name: Build focused-test workspace prerequisites
+        if: steps.phase1-scope.outputs.should_run == 'true'
+        run: |
+          pnpm --filter @capiro/shared build
+          pnpm --filter @capiro/defense-contracts build
+          pnpm --filter @capiro/defense-domain build
+          pnpm --filter @capiro/auth build
+          pnpm --filter @capiro/strategy-verifier build
+          pnpm --filter @capiro/meriv2-core build
+
       - name: Generate API Prisma client
+        if: steps.phase1-scope.outputs.should_run == 'true'
         run: pnpm --filter @capiro/api exec prisma generate
 
       - name: Execute exact Revised Phase 1 DB-free gate
+        if: steps.phase1-scope.outputs.should_run == 'true'
+        env:
+          OUTREACH_V3_P1_BASE_SHA: ${{ steps.phase1-scope.outputs.scope_base }}
         run: |
           set -o pipefail
           pnpm verify:outreach-v3-phase-1

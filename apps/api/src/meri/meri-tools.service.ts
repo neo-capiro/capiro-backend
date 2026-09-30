@@ -8,8 +8,14 @@ import {
 } from '@capiro/shared';
 import {
   assertMeriToolRequestActive,
+  currentMeriToolCapturePolicy,
   meriToolRequestControl,
 } from './meri-tool-request-control.js';
+import { currentMeriServerReadonlyCapturePolicy } from './meri-context-plane-runtime.js';
+import {
+  assertMeriServerReadonlyCaptureCurrentAuthority,
+  assertMeriServerReadonlyCaptureToolAllowed,
+} from './meri-server-readonly-capture.js';
 import {
   BadGatewayException,
   BadRequestException,
@@ -59,7 +65,11 @@ import { ClientAdvocacyMatterService } from '../clients/client-advocacy-matter.s
 import { MemoryIngestService } from '../memory/memory-ingest.service.js';
 import { MemoryCandidateService } from '../memory/memory-candidate.service.js';
 import { MemoryStoreService } from '../memory/memory-store.service.js';
-import { fetchDeniedClientIds, wallExclusionSql } from '../memory/memory-wall.helpers.js';
+import {
+  clientMemoryAllowed,
+  fetchDeniedClientIds,
+  wallExclusionSql,
+} from '../memory/memory-wall.helpers.js';
 import {
   governedRecallSuppressionEnabled,
   governedRecallSuppressionSql,
@@ -113,7 +123,14 @@ import {
   validateScheduleRequest,
 } from './meri-schedule.helpers.js';
 import { createHash } from 'node:crypto';
+import {
+  MAX_DOCUMENT_ARTIFACT_BYTES,
+  readPersistedPng,
+  sha256Bytes,
+  validateDocumentArtifactBytes,
+} from './meri-artifact-integrity.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { isInternalClioArtifact } from '../common/internal-clio-artifact.js';
 import { ClientKbService } from '../embeddings/client-kb.service.js';
 import { MeriFeatureFlagsService } from './meri-feature-flags.service.js';
 import { validateMeriWriteToolInput, type MeriJsonSchema } from './meri-write-tool-input.js';
@@ -127,6 +144,23 @@ import {
 } from './meri-defense-budget-tool.helpers.js';
 import { buildWebSearchRequest, normalizeWebResults } from '../common/web-search.helpers.js';
 import { looksLikePdf } from './meri-scrape.helpers.js';
+import { extractWebPdfText } from './meri-web-pdf-worker.js';
+
+// Hardened transport for web scraping - SSRF mitigation, size limits, and
+// deadline enforcement for HTML/PDF content retrieval.
+import {
+  withGuardedWebResponse,
+  type WebReadScope,
+  readBodyWithSizeLimit,
+  getContentType,
+  looksLikePdf as looksLikePdfTransport,
+  validateUrlBeforeRequest,
+} from './hardenedWebTransport.js';
+
+// Size limits for web content (bytes)
+const MAX_HTML_BYTES = 5 * 1024 * 1024;
+const MAX_PDF_BYTES = 15 * 1024 * 1024;
+
 import {
   buildKnowledgeGraph,
   restrictGraphToClient,
@@ -150,12 +184,29 @@ import { MERI_DATA_QUERY_CLASSES, searchCapiroData } from './meri-data-search.he
 import { projectMemoryContent } from './meri-memory-content.helpers.js';
 import { getResearchEvidence } from './meri-research-evidence.helpers.js';
 import { buildDocumentReadPage, parseDocumentReadInput } from './meri-document-read.helpers.js';
+import { MeriChatAttachmentReadService } from './meri-chat-attachment-read.service.js';
+import { buildDebriefReadResult, parseDebriefReadInput } from './meri-debrief-read.helpers.js';
+import {
+  buildMeetingListResult,
+  buildMeetingSourceResult,
+  parseMeetingReadInput,
+  type ExactMeetingSource,
+  type MeetingReadRow,
+  type MeetingSourceInventory,
+} from './meri-meeting-read.helpers.js';
+import { buildMeriTaskReadResult, parseMeriTaskReadInput } from './meri-task-read.helpers.js';
+import {
+  buildMeriActionItemReadResult,
+  parseMeriActionItemReadInput,
+} from './meri-action-item-read.helpers.js';
 import { MeriClientFilingService } from './meri-client-filing.service.js';
 import { MeriBizDevToolsService } from './meri-bizdev-tools.service.js';
 import {
   isResearchPortfolioMeriTool,
   ResearchPortfolioMeriToolsService,
 } from '../research-portfolios/research-portfolio-meri-tools.service.js';
+import { ResearchPortfolioMeriScopeService } from '../research-portfolios/research-portfolio-meri-scope.service.js';
+import { executeMeriResearchPortfolioToolAtCurrentUse } from './meri-rp-tool-transport.js';
 import { MeetingPrepJobService } from '../engagement/meeting-prep-job.service.js';
 import { R5MeriDistrictTools } from '../district-nexus/r5-action-layer/r5-meri-district-tools.js';
 import { meetingPrepEnabled } from '../engagement/meeting-prep-policy.js';
@@ -229,6 +280,76 @@ interface ToolArtifactInput {
   metadata?: Prisma.InputJsonValue;
 }
 
+interface FederalBillTextRow {
+  revisionId: string;
+  sourceKey: string;
+  provider: string;
+  packageId: string;
+  billId: string;
+  versionCode: string;
+  lineageKey: string;
+  contentHash: string;
+  extractionHash: string;
+  sourceUrl: string;
+  sourceModifiedAt: Date | null;
+  publishedAt: Date | null;
+  fetchedAt: Date;
+  extractedText: string;
+}
+
+interface ScheduleTaskReceipt {
+  id: string;
+  name: string;
+  intervalMinutes: number;
+  nextRunAt: Date;
+  enabled: boolean;
+  lastStatus: string | null;
+  active: boolean;
+  creationConfirmed: true;
+}
+
+interface NormalizedScheduleEffect {
+  name: string;
+  prompt: string;
+  intervalMinutes: number;
+  allowList: string[];
+  runAtMinutesUtc: number | null;
+  clientId: string | null;
+  emailRecipientIntent: 'none' | 'explicit' | 'owner_connection';
+  emailTo: string | null;
+  fingerprint: string;
+}
+
+const SCHEDULE_EFFECT_FINGERPRINT_VERSION = 1;
+const UUID_V4_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function scheduleEffectFingerprint(
+  ctx: TenantContext,
+  effect: Omit<NormalizedScheduleEffect, 'fingerprint'>,
+): string {
+  return createHash('sha256')
+    .update(
+      JSON.stringify({
+        version: SCHEDULE_EFFECT_FINGERPRINT_VERSION,
+        tenantId: ctx.tenantId,
+        actorUserId: ctx.userId,
+        clientId: effect.clientId,
+        schedule: {
+          name: effect.name,
+          prompt: effect.prompt,
+          intervalMinutes: effect.intervalMinutes,
+          runAtMinutesUtc: effect.runAtMinutesUtc,
+          toolAllowList: effect.allowList,
+        },
+        emailRecipient: {
+          intent: effect.emailRecipientIntent,
+          address: effect.emailTo,
+        },
+      }),
+    )
+    .digest('hex');
+}
+
 interface MeetingForBrief {
   clientId: string | null;
   subject: string;
@@ -290,6 +411,8 @@ export class MeriToolsService {
     @Optional() private readonly bizDevTools?: MeriBizDevToolsService,
     @Optional() private readonly researchPortfolioTools?: ResearchPortfolioMeriToolsService,
     @Optional() private readonly districtTools?: R5MeriDistrictTools,
+    @Optional() private readonly chatAttachmentReader?: MeriChatAttachmentReadService,
+    @Optional() private readonly researchPortfolioScope?: ResearchPortfolioMeriScopeService,
   ) {}
 
   manifest() {
@@ -316,6 +439,47 @@ export class MeriToolsService {
     }
     if (!this.researchPortfolioTools) throw new NotFoundException('Meri tool not found');
     return this.researchPortfolioTools;
+  }
+
+  private readChatAttachments(ctx: TenantContext, input: Record<string, unknown>) {
+    if (!this.chatAttachmentReader) throw new NotFoundException('Meri tool not found');
+    return this.chatAttachmentReader.read(ctx, input);
+  }
+
+  private async readMondayClientBoards(ctx: TenantContext, input: Record<string, unknown>) {
+    if (!this.contextPlane) throw new NotFoundException('Meri tool not found');
+    const clientId = requiredString(input, 'clientId', 80);
+    if (!CLIENT_ID_UUID_RE.test(clientId)) throw new BadRequestException('clientId must be a UUID');
+    const boardContext = optionalString(input, 'boardContext', 2000);
+    const cursor = optionalString(input, 'cursor', 512);
+    const pageSize =
+      input.pageSize === undefined ? undefined : clampInt(input.pageSize, 1, 100, 100);
+    const assertCurrentWall = async () => {
+      const allowed = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
+        clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, clientId),
+      );
+      if (!allowed) throw new NotFoundException('Client not found');
+    };
+    await assertCurrentWall();
+    const response = await this.contextPlane.searchToolData(ctx, {
+      clientId,
+      queryClass: 'lookup',
+      requestedDomains: ['monday'],
+      ...(boardContext ? { mondayBoardContext: boardContext } : {}),
+      ...(pageSize ? { pageSize } : {}),
+      ...(cursor ? { cursors: { monday: cursor } } : {}),
+      requireComplete: !pageSize && !cursor,
+      deadlineAt: meriToolRequestControl()?.deadlineAt,
+    });
+    await assertCurrentWall();
+    return {
+      tool: 'read_monday_client_boards',
+      authoritativeOwner: 'managed_monday_mcp',
+      currentStatus: response.coverage.sources[0]?.sourceStatus ?? 'unavailable',
+      clientId,
+      records: response.records,
+      coverage: response.coverage,
+    };
   }
 
   /**
@@ -705,6 +869,66 @@ export class MeriToolsService {
         },
         ['sessionId'],
       ),
+      read_chat_attachments: obj(
+        {
+          conversationId: str(
+            'Optional compatibility value for the current Meri conversation UUID. Omit it normally: the server derives the current conversation from authenticated transport context and rejects a conflicting value.',
+          ),
+          attachmentId: str(
+            'Optional ordinary-chat attachment UUID from this conversation. Omit to page through the finite prior-attachment manifest.',
+          ),
+          query: str(
+            'Optional literal search within the selected typed section, or filename filter for the manifest.',
+          ),
+          section: {
+            type: 'integer',
+            minimum: 1,
+            maximum: 500,
+            description:
+              '1-based PDF page, PowerPoint slide, workbook sheet, or text section. Defaults to 1.',
+          },
+          rowStart: {
+            type: 'integer',
+            minimum: 1,
+            maximum: 1000000,
+            description: 'First worksheet row position for an XLSX typed section. Defaults to 1.',
+          },
+          characterOffset: {
+            type: 'integer',
+            minimum: 0,
+            maximum: 2000000,
+            description: '0-based continuation offset inside the selected typed section.',
+          },
+          cursor: str(
+            'Signed nextCursor from the preceding manifest or section read. Repeat the same conversationId, attachmentId, and query.',
+          ),
+          limit: {
+            type: 'integer',
+            minimum: 1,
+            maximum: 6000,
+            description:
+              'Maximum returned characters for a section (1-6000), or manifest records (1-20).',
+          },
+        },
+        [],
+      ),
+      read_monday_client_boards: obj(
+        {
+          clientId: str(
+            'Selected client UUID; required and reauthorized against current tenant, membership, and memory wall.',
+          ),
+          boardContext: str(
+            'Optional exact Monday.com board ID or board URL supplied by the user. This narrows scope but never grants provider access.',
+          ),
+          pageSize: int(
+            'Optional returned item count from 1-100. Omit for a bounded exhaustive read.',
+          ),
+          cursor: str(
+            'Opaque Monday continuation from coverage.sources[0].nextCursor for the same current scope.',
+          ),
+        },
+        ['clientId'],
+      ),
       search_capiro_data: obj(
         {
           query: {
@@ -885,6 +1109,18 @@ export class MeriToolsService {
       get_bill_status: obj(
         {
           billId: str('Bill id ("119-hr-8800") or designation ("H.R. 8800")'),
+        },
+        ['billId'],
+      ),
+      read_bill_text: obj(
+        {
+          billId: str(
+            'Exact canonical federal bill ID or designation, including Congress when needed.',
+          ),
+          versionCode: str(
+            'Optional exact publisher bill version code. Omit to read the current canonical revision.',
+          ),
+          cursor: str('Opaque continuation from the prior read of this exact current revision.'),
         },
         ['billId'],
       ),
@@ -1240,6 +1476,9 @@ export class MeriToolsService {
       get_email_thread: obj(
         {
           threadId: str('Exact threadId from list_emails or search_emails'),
+          clientId: str(
+            'Optional explicit client UUID scope. Include only for explicitly client-specific mail; omit for the user’s personal inbox.',
+          ),
           messageId: str('Optional exact message id to read one message body'),
           messageOffset: int('Message page offset, default 0; reuse nextMessageOffset'),
           limit: int('Messages per page, default 3, maximum 10'),
@@ -1439,17 +1678,21 @@ export class MeriToolsService {
       cancel_scheduled_task: obj({ taskId: str('Scheduled task UUID') }, ['taskId']),
       query_tasks: obj({
         clientId: str('Optional client UUID'),
+        taskId: str('Optional exact native task UUID; requires clientId'),
         status: str('Optional: open | overdue | todo | in_progress | done | blocked | canceled'),
         dueBefore: str('Optional ISO date upper bound on due date'),
         limit: int('Max results (1-50)'),
+        cursor: str('Opaque nextCursor for exact client-scoped native task pagination'),
       }),
       query_action_items: obj({
         clientId: str('Optional client UUID filter'),
+        actionItemId: str('Optional exact action-recommendation UUID; requires clientId'),
         status: str(
           'Optional status: new | triaged | assigned | drafting | ready_for_review | sent_to_client | outreach_completed | monitoring | dismissed | archived',
         ),
         sort: str('Sort order: deadline (default) | priority'),
         limit: int('Max results (1-50)'),
+        cursor: str('Opaque nextCursor for exact client-scoped action-item pagination'),
       }),
       search_tracked_bills: obj({ clientId: str('Client UUID') }, ['clientId']),
       query_regulatory_dockets: obj({
@@ -1471,7 +1714,62 @@ export class MeriToolsService {
         },
         limit: int('Max results (1-50)'),
       }),
-      query_debriefs: obj({ clientId: str('Client UUID') }, ['clientId']),
+      query_debriefs: obj(
+        {
+          clientId: str('Client UUID'),
+          debriefId: str(
+            'Optional exact debrief UUID. Use for an exact body read and repeat it when following a body cursor.',
+          ),
+          from: str(
+            'Optional inclusive ISO timestamp lower bound on the parent meeting start. No time window is applied when omitted.',
+          ),
+          to: str(
+            'Optional inclusive ISO timestamp upper bound on the parent meeting start. No time window is applied when omitted.',
+          ),
+          cursor: str(
+            'Opaque nextCursor from the preceding query_debriefs page. Repeat the same client, debrief identity, and time window.',
+          ),
+          limit: int('Maximum authorized debrief rows per list page (1-25, default 25).'),
+          characterOffset: int(
+            '0-based exact body character offset for an initial debriefId read. Prefer cursor for continuation.',
+          ),
+          characterLimit: int(
+            'Maximum exact body characters per debrief (1-6000; default 1500 for lists and 5000 for debriefId reads).',
+          ),
+        },
+        ['clientId'],
+      ),
+      read_client_meetings: obj(
+        {
+          clientId: str('Exact selected client UUID'),
+          meetingId: str(
+            'Optional exact meeting UUID. Without sourceKind/sourceId, returns its authorized note/transcript source inventory.',
+          ),
+          sourceKind: {
+            type: 'string',
+            enum: ['note', 'transcript'],
+            description: 'Exact persisted meeting source family; requires meetingId and sourceId.',
+          },
+          sourceId: str(
+            'Exact note UUID or persisted transcript attachment UUID from a prior meeting inventory.',
+          ),
+          from: str(
+            'Optional inclusive ISO timestamp lower bound on meeting start. Omit for all eligible history.',
+          ),
+          to: str(
+            'Optional inclusive ISO timestamp upper bound on meeting start. Omit for all eligible history.',
+          ),
+          cursor: str(
+            'Opaque nextCursor from the preceding meeting list or source-body page. Repeat the same scope and identities.',
+          ),
+          limit: int('Maximum authorized meeting rows per inventory page (1-25, default 25).'),
+          characterOffset: int(
+            '0-based exact source-body offset for an initial sourceId read. Prefer cursor for continuation.',
+          ),
+          characterLimit: int('Maximum exact source characters per page (1-6000, default 5000).'),
+        },
+        ['clientId'],
+      ),
       read_client_documents: obj(
         {
           clientId: str('Client UUID whose Documents-tab files to list/read'),
@@ -2088,13 +2386,18 @@ export class MeriToolsService {
     };
   }
 
-  executeFromAuthenticatedUser(ctx: TenantContext, rawName: string, rawInput: unknown) {
+  executeFromAuthenticatedUser(
+    ctx: TenantContext,
+    rawName: string,
+    rawInput: unknown,
+    execution?: { actionProposalId?: string },
+  ) {
     assertMeriToolRequestActive();
     const name = normalizeToolName(rawName);
     const input = this.isSideEffecting(name)
       ? this.validateSideEffectingInput(name, rawInput)
       : objectInput(rawInput);
-    return this.execute(ctx, name, input);
+    return this.execute(ctx, name, input, execution);
   }
 
   /**
@@ -2185,7 +2488,21 @@ export class MeriToolsService {
     };
   }
 
-  async execute(ctx: TenantContext, name: MeriToolName, input: Record<string, unknown>) {
+  async execute(
+    ctx: TenantContext,
+    name: MeriToolName,
+    input: Record<string, unknown>,
+    execution?: { actionProposalId?: string },
+  ) {
+    assertMeriToolRequestActive();
+    const capturePolicy =
+      currentMeriToolCapturePolicy() ?? currentMeriServerReadonlyCapturePolicy();
+    assertMeriServerReadonlyCaptureToolAllowed(String(name), capturePolicy);
+    await assertMeriServerReadonlyCaptureCurrentAuthority({
+      prisma: this.prisma,
+      ctx,
+      policy: capturePolicy,
+    });
     assertMeriToolRequestActive();
     switch (name) {
       case 'get_research_portfolio':
@@ -2206,7 +2523,14 @@ export class MeriToolsService {
       case 'get_research_portfolio_operations':
       case 'prepare_research_portfolio_brief':
       case 'prepare_research_portfolio_meeting':
-        return this.requireResearchPortfolioTools().execute(ctx, name, input);
+        return executeMeriResearchPortfolioToolAtCurrentUse({
+          prisma: this.prisma,
+          scopeService: this.researchPortfolioScope,
+          ctx,
+          name,
+          input,
+          execute: () => this.requireResearchPortfolioTools().execute(ctx, name, input),
+        });
       case 'search_legiwatch_news':
       case 'get_florida_budget_project':
       case 'compare_florida_budget_amounts':
@@ -2222,6 +2546,10 @@ export class MeriToolsService {
         return this.legiwatchTool(ctx, name, input);
       case 'get_research_evidence':
         return getResearchEvidence(ctx, input, this.prisma);
+      case 'read_chat_attachments':
+        return this.readChatAttachments(ctx, input);
+      case 'read_monday_client_boards':
+        return this.readMondayClientBoards(ctx, input);
       case 'search_capiro_data':
         return searchCapiroData(ctx, input, this.contextPlane);
       case 'get_client_context':
@@ -2244,6 +2572,8 @@ export class MeriToolsService {
         return this.searchCongressBills(input);
       case 'get_bill_status':
         return this.getBillStatus(input);
+      case 'read_bill_text':
+        return this.readBillText(input);
       case 'get_certification_status':
         return this.getCertificationStatus(input);
       case 'search_floor_votes':
@@ -2368,7 +2698,7 @@ export class MeriToolsService {
       case 'create_powerpoint':
         return this.createDocument(ctx, input, 'pptx');
       case 'schedule_task':
-        return this.scheduleTask(ctx, input);
+        return this.scheduleTask(ctx, input, execution?.actionProposalId);
       case 'list_scheduled_tasks':
         return this.listScheduledTasks(ctx);
       case 'cancel_scheduled_task':
@@ -2385,6 +2715,8 @@ export class MeriToolsService {
         return this.searchSamOpportunities(ctx, input);
       case 'query_debriefs':
         return this.queryDebriefs(ctx, input);
+      case 'read_client_meetings':
+        return this.readClientMeetings(ctx, input);
       case 'read_client_documents':
         return this.readClientDocuments(ctx, input);
       case 'query_outreach':
@@ -3448,12 +3780,140 @@ export class MeriToolsService {
     };
   }
 
+  private async readBillText(input: Record<string, unknown>) {
+    const raw = requiredString(input, 'billId', 60);
+    const billId = this.resolveBillId(raw);
+    if (!billId)
+      throw new BadRequestException('Use an exact canonical federal bill ID or designation.');
+    const requestedVersion = optionalString(input, 'versionCode', 32);
+    let expectedRevisionId: string | null = null;
+    let expectedTextHash: string | null = null;
+    let offset = 0;
+    if (input.cursor !== undefined) {
+      try {
+        if (
+          typeof input.cursor !== 'string' ||
+          input.cursor.length > 1024 ||
+          !/^[A-Za-z0-9_-]+$/.test(input.cursor)
+        )
+          throw new Error('shape');
+        const bytes = Buffer.from(input.cursor, 'base64url');
+        if (bytes.toString('base64url') !== input.cursor) throw new Error('canonical');
+        const cursor = JSON.parse(bytes.toString('utf8')) as unknown;
+        if (!Array.isArray(cursor) || cursor.length !== 5) throw new Error('shape');
+        const [cursorBillId, cursorVersion, revisionId, textHash, cursorOffset] = cursor;
+        if (
+          cursorBillId !== billId ||
+          typeof cursorVersion !== 'string' ||
+          (requestedVersion && requestedVersion !== cursorVersion) ||
+          typeof revisionId !== 'string' ||
+          !UUID_V4_RE.test(revisionId) ||
+          typeof textHash !== 'string' ||
+          !/^[a-f0-9]{64}$/.test(textHash) ||
+          !Number.isSafeInteger(cursorOffset) ||
+          cursorOffset < 1 ||
+          cursorOffset > 30_000_000
+        )
+          throw new Error('scope');
+        expectedRevisionId = revisionId;
+        expectedTextHash = textHash;
+        offset = cursorOffset;
+      } catch {
+        throw new BadRequestException('Invalid or stale bill-text continuation.');
+      }
+    }
+
+    const versionCode = requestedVersion ?? null;
+    const rows = await this.prisma.$queryRawUnsafe<FederalBillTextRow[]>(
+      `SELECT r.id AS "revisionId", r.source_key AS "sourceKey", r.provider,
+              r.package_id AS "packageId", r.bill_id AS "billId",
+              r.version_code AS "versionCode", r.lineage_key AS "lineageKey",
+              r.content_hash AS "contentHash", r.extraction_hash AS "extractionHash",
+              r.source_url AS "sourceUrl", r.source_modified_at AS "sourceModifiedAt",
+              r.published_at AS "publishedAt", r.fetched_at AS "fetchedAt",
+              r.extracted_text AS "extractedText"
+         FROM federal_evidence_current c
+         JOIN federal_evidence_revision r ON r.id = c.revision_id
+        WHERE c.state = 'present' AND c.bill_id = $1
+          AND r.completeness = 'complete' AND r.version_code IS NOT NULL
+          AND ($2::text IS NULL OR r.version_code = $2)
+        ORDER BY COALESCE(r.source_modified_at, r.published_at, r.fetched_at) DESC,
+                 r.fetched_at DESC, r.source_key ASC
+        LIMIT 20`,
+      billId,
+      versionCode,
+    );
+    const row = expectedRevisionId
+      ? rows.find((candidate) => candidate.revisionId === expectedRevisionId)
+      : rows[0];
+    if (!row) {
+      return {
+        tool: 'read_bill_text',
+        authoritativeOwner: 'federal_evidence_current',
+        currentStatus: 'unavailable',
+        billId,
+        requestedVersionCode: requestedVersion ?? null,
+        found: false,
+        coverage: { complete: true, truncated: false, nextCursor: null },
+        note: requestedVersion
+          ? `No current complete bill-text revision ${requestedVersion} is available for ${billId}.`
+          : `No current complete bill-text revision is available for ${billId}.`,
+      };
+    }
+    if (expectedTextHash && row.extractionHash !== expectedTextHash)
+      throw new BadRequestException('Bill text changed since the previous page; restart the read.');
+    if (offset > row.extractedText.length)
+      throw new BadRequestException('Bill-text continuation is outside the current revision.');
+    let end = Math.min(row.extractedText.length, offset + 12_000);
+    if (end < row.extractedText.length && /[\uD800-\uDBFF]/.test(row.extractedText.charAt(end - 1)))
+      end -= 1;
+    const nextCursor =
+      end < row.extractedText.length
+        ? Buffer.from(
+            JSON.stringify([billId, row.versionCode, row.revisionId, row.extractionHash, end]),
+          ).toString('base64url')
+        : null;
+    return {
+      tool: 'read_bill_text',
+      authoritativeOwner: 'federal_evidence_current',
+      currentStatus: 'available',
+      found: true,
+      billId,
+      versionCode: row.versionCode,
+      revisionId: row.revisionId,
+      packageId: row.packageId,
+      provider: row.provider,
+      lineageKey: row.lineageKey,
+      versionHash: row.contentHash,
+      textHash: row.extractionHash,
+      sourceLocator: row.sourceUrl,
+      sourceModifiedAt: row.sourceModifiedAt,
+      publishedAt: row.publishedAt,
+      fetchedAt: row.fetchedAt,
+      text: row.extractedText.slice(offset, end),
+      trust: 'external_untrusted',
+      coverage: {
+        locator: { offset, endOffset: end },
+        totalCharacters: row.extractedText.length,
+        pageComplete: true,
+        contentComplete: nextCursor === null && offset === 0,
+        paginationComplete: nextCursor === null,
+        complete: true,
+        truncated: nextCursor !== null || offset > 0,
+        nextCursor,
+      },
+      note: 'This is exact bill-version text from the current federal evidence owner. It is not amendment text or bill status.',
+    };
+  }
+
   private async getBillStatus(input: Record<string, unknown>) {
     const raw = optionalString(input, 'billId', 60) ?? optionalString(input, 'query', 60);
     const billId = this.resolveBillId(raw);
     if (!billId) {
       return {
         tool: 'get_bill_status',
+        authoritativeOwner: 'congress_bill_status',
+        currentStatus: 'invalid_request',
         generatedAt: new Date().toISOString(),
         found: false,
         note: 'Provide a bill id ("119-hr-8800") or designation ("H.R. 8800").',
@@ -3478,6 +3938,8 @@ export class MeriToolsService {
     if (!bill) {
       return {
         tool: 'get_bill_status',
+        authoritativeOwner: 'congress_bill_status',
+        currentStatus: 'unavailable',
         generatedAt: new Date().toISOString(),
         billId,
         found: false,
@@ -3561,6 +4023,8 @@ export class MeriToolsService {
 
     return {
       tool: 'get_bill_status',
+      authoritativeOwner: 'congress_bill_status',
+      currentStatus: 'available',
       generatedAt: new Date().toISOString(),
       billId,
       found: true,
@@ -5976,6 +6440,7 @@ export class MeriToolsService {
           const results = normalizeWebResults(provider, await response.json()).slice(0, limit);
           return {
             tool: 'search_public_web',
+            contentStatus: 'discovered',
             generatedAt: new Date().toISOString(),
             provider,
             total: results.length,
@@ -5992,6 +6457,7 @@ export class MeriToolsService {
     const results = await queryDuckDuckGoNews(query, limit);
     return {
       tool: 'search_public_web',
+      contentStatus: 'discovered',
       generatedAt: new Date().toISOString(),
       provider: 'duckduckgo',
       total: results.length,
@@ -6004,60 +6470,74 @@ export class MeriToolsService {
     const mode = optionalString(input, 'mode', 20) ?? 'summary';
     const maxChars = clampInt(input.maxChars, 500, 20000, mode === 'extract' ? 12000 : 4000);
 
-    const parsed = parseAndValidatePublicUrl(rawUrl);
-    const response = await fetchWithTimeout(
+    // Validate URL before ANY network I/O (pre-fetch SSRF prevention)
+    const parsed = validateUrlBeforeRequest(rawUrl);
+
+    return withGuardedWebResponse(
       parsed.toString(),
+      async (response, finalUrl, scope) => {
+        if (!response.ok) {
+          throw new BadGatewayException(`Web scrape failed (${response.status})`);
+        }
+
+        // Use the final URL from the response (after any redirects we followed)
+        // Validate the final URL as well
+        validateUrlBeforeRequest(finalUrl);
+
+        const contentType = getContentType(response);
+
+        if (looksLikePdfTransport(contentType, finalUrl)) {
+          return this.extractPdfText(response, finalUrl, contentType, maxChars, scope);
+        }
+
+        if (!contentType.includes('text/html') && !contentType.includes('application/xhtml+xml')) {
+          throw new BadRequestException(
+            `Unsupported content type for scraping: ${contentType || 'unknown'}`,
+          );
+        }
+
+        // Streambounded bytes BEFORE allocation - validate before reading
+        const htmlBytes = await readBodyWithSizeLimit(response, MAX_HTML_BYTES, scope);
+        const html = new TextDecoder('utf-8', { fatal: true }).decode(htmlBytes);
+        const title = extractHtmlTitle(html);
+        const readableProbe = extractReadableText(html, maxChars + 1);
+        const text = summarizeText(readableProbe, maxChars);
+        const truncated = readableProbe.length > maxChars;
+        const links = extractTopLinks(html, finalUrl, 8);
+
+        return {
+          tool: 'scrape_web_page',
+          generatedAt: new Date().toISOString(),
+          url: finalUrl,
+          title,
+          contentType,
+          text,
+          totalChars: truncated ? null : text.length,
+          truncated,
+          links,
+          contentHash: sha256Bytes(htmlBytes),
+          authoritativeOwner: 'public_url',
+          currentStatus: 'available',
+          trust: 'external_untrusted',
+          coverage: {
+            locator: { url: finalUrl, characterStart: 0, characterEnd: text.length },
+            complete: !truncated,
+            truncated,
+          },
+        };
+      },
       {
-        method: 'GET',
         headers: {
           'User-Agent': 'Mozilla/5.0 (compatible; Capiro-Meri/1.0; +https://capiro.ai)',
           Accept: 'text/html,application/xhtml+xml,application/pdf',
         },
-        redirect: 'follow',
       },
-      10000,
     );
-
-    if (!response.ok) {
-      throw new BadGatewayException(`Web scrape failed (${response.status})`);
-    }
-
-    const finalUrl = response.url || parsed.toString();
-    const finalParsed = parseAndValidatePublicUrl(finalUrl);
-
-    const contentType = (response.headers.get('content-type') ?? '').toLowerCase();
-
-    if (looksLikePdf(contentType, finalParsed.toString())) {
-      return this.extractPdfText(response, finalParsed.toString(), contentType, maxChars);
-    }
-
-    if (!contentType.includes('text/html') && !contentType.includes('application/xhtml+xml')) {
-      throw new BadRequestException(
-        `Unsupported content type for scraping: ${contentType || 'unknown'}`,
-      );
-    }
-
-    const html = await response.text();
-    const title = extractHtmlTitle(html);
-    const text = extractReadableText(html, maxChars);
-    const links = extractTopLinks(html, finalParsed.origin, 8);
-
-    return {
-      tool: 'scrape_web_page',
-      generatedAt: new Date().toISOString(),
-      url: finalParsed.toString(),
-      title,
-      contentType,
-      text,
-      totalChars: text.length,
-      truncated: text.length >= maxChars,
-      links,
-    };
   }
 
   /**
    * PDF branch of scrape_web_page. The response already passed the SSRF guard
-   * (parseAndValidatePublicUrl on the original AND final URL) before we get
+   * (validateUrlBeforeRequest on the original AND final URL) before we get
    * here; this only buffers (size-capped) and extracts text.
    */
   private async extractPdfText(
@@ -6065,34 +6545,16 @@ export class MeriToolsService {
     url: string,
     contentType: string,
     maxChars: number,
+    scope: WebReadScope,
   ) {
-    const MAX_PDF_BYTES = 15 * 1024 * 1024;
-    const declaredLength = Number(response.headers.get('content-length') ?? 0);
-    if (declaredLength > MAX_PDF_BYTES) {
-      throw new BadRequestException('PDF too large to extract (limit 15MB)');
-    }
-    const buffer = Buffer.from(await response.arrayBuffer());
-    if (buffer.byteLength > MAX_PDF_BYTES) {
-      throw new BadRequestException('PDF too large to extract (limit 15MB)');
-    }
+    // Streambounded bytes BEFORE allocation - validate before reading
+    const buffer = await readBodyWithSizeLimit(response, MAX_PDF_BYTES, scope);
 
-    // Lazy-loaded: pdf-parse pulls in pdfjs-dist, which is heavy at module
-    // load and only needed when a PDF is actually scraped.
-    const { PDFParse } = await import('pdf-parse');
-    const parser = new PDFParse({ data: buffer });
-    let rawText: string;
-    let pages: number;
-    try {
-      const parsed = await parser.getText();
-      rawText = parsed.text ?? '';
-      pages = parsed.total ?? 0;
-    } catch (err) {
-      throw new BadGatewayException(`PDF text extraction failed: ${(err as Error).message}`);
-    } finally {
-      await parser.destroy().catch(() => {});
-    }
-
-    const text = summarizeText(rawText, maxChars);
+    const { text: rawText, totalChars, pages } = await extractWebPdfText(buffer, scope, maxChars);
+    scope.check();
+    const normalizedText = rawText.replace(/\s+/g, ' ').trim();
+    const text = summarizeText(normalizedText, maxChars);
+    const truncated = totalChars > maxChars;
     return {
       tool: 'scrape_web_page',
       generatedAt: new Date().toISOString(),
@@ -6102,9 +6564,19 @@ export class MeriToolsService {
       contentType,
       pages,
       text,
-      totalChars: text.length,
-      truncated: text.length >= maxChars,
+      totalChars,
+      truncated,
       links: [],
+      contentHash: sha256Bytes(buffer),
+      authoritativeOwner: 'public_url',
+      currentStatus: 'available',
+      trust: 'external_untrusted',
+      coverage: {
+        locator: { url, characterStart: 0, characterEnd: text.length },
+        pages,
+        complete: !truncated,
+        truncated,
+      },
     };
   }
 
@@ -6598,7 +7070,7 @@ export class MeriToolsService {
         id: string;
         subject: string | null;
         snippet: string | null;
-        lastMessageAt: Date | null;
+        lastMessageAt: string | null;
         client: { id: string; name: string | null } | null;
         messages: Array<Record<string, unknown>>;
       }
@@ -6633,13 +7105,20 @@ export class MeriToolsService {
   private async getEmailThread(ctx: TenantContext, input: Record<string, unknown>) {
     const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     const threadId = typeof input.threadId === 'string' ? input.threadId.trim() : '';
+    const clientId = typeof input.clientId === 'string' ? input.clientId.trim() : '';
     const messageId = typeof input.messageId === 'string' ? input.messageId.trim() : '';
     const messageOffset = input.messageOffset == null ? 0 : Number(input.messageOffset);
     const bodyOffset = input.bodyOffset == null ? 0 : Number(input.bodyOffset);
     const limit = input.limit == null ? 3 : Number(input.limit);
     const maxCharacters = input.maxCharacters == null ? 2000 : Number(input.maxCharacters);
-    if (!uuid.test(threadId) || (messageId && !uuid.test(messageId))) {
-      return { error: 'Use exact threadId and messageId UUIDs returned by the mail tools.' };
+    if (
+      !uuid.test(threadId) ||
+      (clientId && !uuid.test(clientId)) ||
+      (messageId && !uuid.test(messageId))
+    ) {
+      return {
+        error: 'Use exact threadId, clientId and messageId UUIDs returned by the mail tools.',
+      };
     }
     if (
       !Number.isInteger(messageOffset) ||
@@ -6663,7 +7142,9 @@ export class MeriToolsService {
     }
     // Reuse the endpoint's tenant, owner and active-message authorization. No
     // provider network call, read-receipt mutation, or message send is involved.
-    const thread = await this.engagement.getMailThread(ctx, threadId);
+    const thread = await this.engagement.getMailThread(ctx, threadId, clientId || undefined);
+    if (clientId && thread.clientId !== clientId)
+      throw new NotFoundException('Mail thread not found');
     const matching = messageId
       ? thread.messages.filter((message) => message.id === messageId)
       : thread.messages;
@@ -6683,8 +7164,18 @@ export class MeriToolsService {
         from: { email: message.fromEmail, name: message.fromName },
         to: message.toRecipients,
         cc: message.ccRecipients,
-        sentAt: message.sentAt,
-        receivedAt: message.receivedAt,
+        sentAt:
+          message.sentAt instanceof Date
+            ? message.sentAt.toISOString()
+            : typeof message.sentAt === 'string'
+              ? message.sentAt
+              : null,
+        receivedAt:
+          message.receivedAt instanceof Date
+            ? message.receivedAt.toISOString()
+            : typeof message.receivedAt === 'string'
+              ? message.receivedAt
+              : null,
         bodyText: body.slice(bodyOffset, bodyEnd),
         bodyOffset,
         bodyLength: body.length,
@@ -6692,6 +7183,19 @@ export class MeriToolsService {
           typeof metadata.bodyCompleteness === 'string' ? metadata.bodyCompleteness : 'unknown',
         bodyTruncated: bodyOffset > 0 || bodyEnd < body.length,
         nextBodyOffset: bodyEnd < body.length ? bodyEnd : null,
+        sourceProof: {
+          version: 1,
+          mailboxId: message.connectionId,
+          threadId,
+          messageId: message.id,
+          messageUpdatedAt:
+            message.updatedAt instanceof Date
+              ? message.updatedAt.toISOString()
+              : typeof message.updatedAt === 'string'
+                ? message.updatedAt
+                : null,
+          bodySha256: createHash('sha256').update(body, 'utf8').digest('hex'),
+        },
       };
     });
     const hasMore = messageOffset + messages.length < matching.length;
@@ -6706,6 +7210,19 @@ export class MeriToolsService {
       hasMore,
       nextMessageOffset: hasMore ? messageOffset + messages.length : null,
       messages,
+      sourceProof: {
+        version: 1,
+        threadId: thread.id,
+        mailboxId: thread.connectionId,
+        mailboxStatus: thread.connectionStatus,
+        clientId: thread.clientId,
+        threadUpdatedAt:
+          thread.updatedAt instanceof Date
+            ? thread.updatedAt.toISOString()
+            : typeof thread.updatedAt === 'string'
+              ? thread.updatedAt
+              : null,
+      },
       notes: [
         'Read remaining message pages and each nextBodyOffset before claiming the full thread was read. Body continuation uses the same threadId, exact messageId, messageOffset=0 and bodyOffset=nextBodyOffset. Provider bodies may themselves be truncated or unavailable; bodyCompleteness reports the stored state.',
       ],
@@ -6819,26 +7336,43 @@ export class MeriToolsService {
       ? thread.subject
       : `Re: ${thread.subject ?? ''}`;
 
-    await this.mailSender.sendMail(ctx, connection, {
+    const sendReceipt = await this.mailSender.sendMail(ctx, connection, {
       subject: replySubject,
       body,
       toRecipients: [{ email: lastMsg.fromEmail }],
     });
 
+    let artifactPersistence:
+      { persisted: true } | { persisted: false; error?: string; reason?: string } = conversationId
+      ? { persisted: true }
+      : { persisted: false, reason: 'No conversationId was supplied; no artifact was requested.' };
     if (conversationId) {
-      await this.persistArtifact(ctx, {
-        conversationId,
-        clientId,
-        title: `Reply: ${replySubject}`,
-        kind: 'email_reply',
-        bodyText: `Reply to: ${lastMsg.fromEmail}\nSubject: ${replySubject}\n\n${body}`,
-        metadata: {
-          to: lastMsg.fromEmail,
-          subject: replySubject,
-          sentFrom: connection.accountEmail,
-          threadId,
-        },
-      });
+      try {
+        await this.persistArtifact(ctx, {
+          conversationId,
+          clientId,
+          title: `Reply: ${replySubject}`,
+          kind: 'email_reply',
+          bodyText: `Reply to: ${lastMsg.fromEmail}\nSubject: ${replySubject}\n\n${body}`,
+          metadata: {
+            to: lastMsg.fromEmail,
+            subject: replySubject,
+            sentFrom: connection.accountEmail,
+            threadId,
+          },
+        });
+      } catch (error) {
+        // The provider has already acknowledged the irreversible send. Preserve
+        // that receipt and report only the ancillary artifact failure; throwing
+        // here would falsely classify a delivered reply as safe to retry.
+        artifactPersistence = {
+          persisted: false,
+          error:
+            error instanceof Error && error.message.trim()
+              ? error.message.slice(0, 500)
+              : 'The sent-reply artifact could not be persisted.',
+        };
+      }
     }
 
     return {
@@ -6846,6 +7380,8 @@ export class MeriToolsService {
       sentFrom: connection.accountEmail,
       to: lastMsg.fromEmail,
       subject: replySubject,
+      sendReceipt,
+      artifactPersistence,
     };
   }
 
@@ -6854,10 +7390,9 @@ export class MeriToolsService {
   // ── Document generation (Word / PDF / Excel / PowerPoint) ──
 
   /**
-   * Generate a downloadable document. The validated spec is normalized,
-   * then a binary is produced ONCE to prove it builds; the spec (JSON) is stored
-   * on the artifact so the download endpoint regenerates the binary statelessly
-   * (no blob storage needed), mirroring the research-export pattern.
+   * Generate a downloadable document. The normalized spec and validated native
+   * bytes are persisted together so the native download is immutable. Legacy
+   * rows and alternate Word/PDF exports remain explicitly regenerated.
    */
   private async createDocument(
     ctx: TenantContext,
@@ -6867,9 +7402,17 @@ export class MeriToolsService {
     let clientId = optionalString(input, 'clientId', 80) ?? null;
     const conversationId = optionalString(input, 'conversationId', 80);
     if (clientId) clientId = await this.ensureClientVisible(ctx, clientId);
+    if (conversationId) {
+      const conversation = await this.ensureConversationForTool(ctx, conversationId, clientId);
+      if (clientId !== null && clientId !== conversation.clientId) {
+        throw new BadRequestException('Tool clientId does not match the Meri conversation client');
+      }
+      clientId = conversation.clientId;
+    }
 
     let title: string;
     let normalized: unknown;
+    let generatedBuffer: Buffer;
     if (format === 'docx' || format === 'pdf') {
       const spec = normalizeWordSpec(input);
       // Resolve referenced analysis-chart artifacts into embedded PNGs (F4)
@@ -6877,7 +7420,10 @@ export class MeriToolsService {
       for (const section of spec.sections) {
         section.images = [
           ...section.images,
-          ...(await this.resolveChartImages(ctx, section.imageArtifactIds)),
+          ...(await this.resolveChartImages(ctx, section.imageArtifactIds, {
+            conversationId,
+            clientId,
+          })),
         ];
         if (section.images.length > MAX_IMAGES_PER_BLOCK) {
           throw new BadRequestException(
@@ -6890,7 +7436,7 @@ export class MeriToolsService {
       normalized = spec;
       if (format === 'pdf') {
         try {
-          await this.docgen.buildPdf(spec);
+          generatedBuffer = await this.docgen.buildPdf(spec);
         } catch (error) {
           throw new UnprocessableEntityException({
             code: 'MERI_DOCUMENT_GENERATION_FAILED',
@@ -6902,18 +7448,21 @@ export class MeriToolsService {
                 : 'PDF generation failed. Nothing was saved. Try again or request Word.',
           });
         }
-      } else await this.docgen.buildDocx(spec);
+      } else generatedBuffer = await this.docgen.buildDocx(spec);
     } else if (format === 'xlsx') {
       const spec = normalizeExcelSpec(input);
       title = spec.title;
       normalized = spec;
-      await this.docgen.buildXlsx(spec);
+      generatedBuffer = await this.docgen.buildXlsx(spec);
     } else {
       const spec = normalizePptxSpec(input);
       for (const slide of spec.slides) {
         slide.images = [
           ...slide.images,
-          ...(await this.resolveChartImages(ctx, slide.imageArtifactIds)),
+          ...(await this.resolveChartImages(ctx, slide.imageArtifactIds, {
+            conversationId,
+            clientId,
+          })),
         ];
         if (slide.images.length > MAX_IMAGES_PER_BLOCK) {
           throw new BadRequestException(
@@ -6924,8 +7473,10 @@ export class MeriToolsService {
       }
       title = spec.title;
       normalized = spec;
-      await this.docgen.buildPptx(spec);
+      generatedBuffer = await this.docgen.buildPptx(spec);
     }
+    await validateDocumentArtifactBytes(format, generatedBuffer);
+    const documentSha256 = sha256Bytes(generatedBuffer);
 
     const toolName =
       format === 'docx' || format === 'pdf'
@@ -6955,6 +7506,11 @@ export class MeriToolsService {
         mimeType: mimeForFormat(format),
         filename,
         generatedAt: new Date().toISOString(),
+        documentBytesBase64: generatedBuffer.toString('base64'),
+        documentSha256,
+        documentByteLength: generatedBuffer.length,
+        documentByteFormat: format,
+        documentByteAuthority: 'persisted_at_creation_v1',
       },
     });
 
@@ -6997,14 +7553,44 @@ export class MeriToolsService {
     ctx: TenantContext,
     artifactId: string,
     requestedFormat?: string,
-  ): Promise<{ format: DocFormat; specJson: string; filename: string; mimeType: string } | null> {
+  ): Promise<{
+    format: DocFormat;
+    specJson: string;
+    filename: string;
+    mimeType: string;
+    persistedBytes: Buffer | null;
+    persistedSha256: string | null;
+    byteAuthority: 'persisted_at_creation_v1' | 'regenerated_legacy' | 'regenerated_export';
+  } | null> {
     const artifact = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.clioArtifact.findFirst({
         where: { id: artifactId, tenantId: ctx.tenantId, userId: ctx.userId },
-        select: { bodyText: true, metadata: true },
+        select: {
+          bodyText: true,
+          metadata: true,
+          kind: true,
+          clientId: true,
+          conversation: {
+            select: { tenantId: true, userId: true, clientId: true, archivedAt: true },
+          },
+        },
       }),
     );
-    if (!artifact || !artifact.bodyText) return null;
+    if (!artifact || !artifact.bodyText || isInternalClioArtifact(artifact)) return null;
+    if (
+      !artifact.conversation ||
+      artifact.conversation.tenantId !== ctx.tenantId ||
+      artifact.conversation.userId !== ctx.userId ||
+      artifact.conversation.archivedAt ||
+      artifact.conversation.clientId !== artifact.clientId
+    )
+      return null;
+    if (artifact.clientId) {
+      if (!this.contextPlane) return null;
+      const security = await this.contextPlane.securityEnvelope(ctx);
+      if (!security.authorizedClientIds.includes(artifact.clientId)) return null;
+    }
+
     const meta = (artifact.metadata ?? {}) as Record<string, unknown>;
     const nativeFormat = meta.docFormat;
     if (
@@ -7033,94 +7619,408 @@ export class MeriToolsService {
     const filename = (
       format === nativeFormat ? savedFilename : `${savedFilename.replace(/\.[^.]*$/, '')}.${format}`
     ).replace(/[\r\n"\\]/g, '_');
+    let persistedBytes: Buffer | null = null;
+    let persistedSha256: string | null = null;
+    let byteAuthority: 'persisted_at_creation_v1' | 'regenerated_legacy' | 'regenerated_export' =
+      format === nativeFormat ? 'regenerated_legacy' : 'regenerated_export';
+    const hasPersistedByteFields = [
+      meta.documentBytesBase64,
+      meta.documentSha256,
+      meta.documentByteLength,
+      meta.documentByteFormat,
+      meta.documentByteAuthority,
+    ].some((value) => value !== undefined);
+    if (hasPersistedByteFields) {
+      if (
+        typeof meta.documentBytesBase64 !== 'string' ||
+        meta.documentBytesBase64.length > Math.ceil(MAX_DOCUMENT_ARTIFACT_BYTES / 3) * 4 + 4 ||
+        typeof meta.documentSha256 !== 'string' ||
+        !/^[0-9a-f]{64}$/.test(meta.documentSha256) ||
+        meta.documentByteFormat !== nativeFormat ||
+        meta.documentByteAuthority !== 'persisted_at_creation_v1' ||
+        typeof meta.documentByteLength !== 'number' ||
+        !Number.isSafeInteger(meta.documentByteLength) ||
+        meta.documentByteLength < 1 ||
+        meta.documentByteLength > MAX_DOCUMENT_ARTIFACT_BYTES
+      ) {
+        throw new UnprocessableEntityException(
+          'The saved document bytes failed their integrity receipt.',
+        );
+      }
+      const decoded = Buffer.from(meta.documentBytesBase64, 'base64');
+      if (
+        decoded.toString('base64') !== meta.documentBytesBase64 ||
+        decoded.length !== meta.documentByteLength ||
+        sha256Bytes(decoded) !== meta.documentSha256
+      ) {
+        throw new UnprocessableEntityException(
+          'The saved document bytes failed their integrity receipt.',
+        );
+      }
+      if (format === nativeFormat) {
+        persistedBytes = decoded;
+        persistedSha256 = meta.documentSha256;
+        byteAuthority = 'persisted_at_creation_v1';
+      }
+    }
     return {
       format,
       specJson: artifact.bodyText,
       filename,
       mimeType: mimeForFormat(format),
+      persistedBytes,
+      persistedSha256,
+      byteAuthority,
     };
   }
 
   // ── Scheduled tasks (W3) ────────────────────
 
-  private async scheduleTask(ctx: TenantContext, input: Record<string, unknown>) {
+  private async normalizeScheduleEffect(
+    ctx: TenantContext,
+    input: Record<string, unknown>,
+  ): Promise<{ ok: true; effect: NormalizedScheduleEffect } | { ok: false; error: string }> {
+    // Receipt verification must not depend on the current task count. The quota
+    // is checked separately immediately before a genuinely new insert.
+    const validation = validateScheduleRequest({
+      name: input.name,
+      prompt: input.prompt,
+      intervalMinutes: input.intervalMinutes,
+      toolAllowList: input.toolAllowList,
+      existingTaskCount: 0,
+    });
+    if (!validation.ok) return { ok: false, error: validation.error! };
+
+    const requestedClient =
+      typeof input.clientId === 'string' && input.clientId.trim() ? input.clientId.trim() : null;
+    const clientId = requestedClient
+      ? await this.ensureScheduleClientAuthorized(ctx, requestedClient)
+      : null;
+    const requestedEmail = normalizeDeliveryEmail(input.deliverEmailTo);
+    let emailRecipientIntent: NormalizedScheduleEffect['emailRecipientIntent'] = 'none';
+    let emailTo: string | null = null;
+    if (input.emailBriefing === true) {
+      if (requestedEmail) {
+        emailRecipientIntent = 'explicit';
+        emailTo = requestedEmail;
+      } else {
+        emailRecipientIntent = 'owner_connection';
+        const connection = await this.findUserEmailConnection(ctx);
+        emailTo = connection?.accountEmail ? normalizeDeliveryEmail(connection.accountEmail) : null;
+      }
+      if (!emailTo) {
+        return {
+          ok: false,
+          error:
+            'Email delivery requested but no valid recipient: provide deliverEmailTo, or connect a Microsoft 365 account in Settings → Integrations so the briefing can be sent to your own address.',
+        };
+      }
+    }
+
+    const withoutFingerprint: Omit<NormalizedScheduleEffect, 'fingerprint'> = {
+      name: String(input.name).trim().slice(0, 200),
+      prompt: String(input.prompt).trim().slice(0, 8000),
+      intervalMinutes: validation.intervalMinutes!,
+      allowList: [...new Set(validation.allowList!)].sort(),
+      runAtMinutesUtc: parseTimeOfDayUtc(input.dailyAtUtc),
+      clientId,
+      emailRecipientIntent,
+      emailTo,
+    };
+    return {
+      ok: true,
+      effect: {
+        ...withoutFingerprint,
+        fingerprint: scheduleEffectFingerprint(ctx, withoutFingerprint),
+      },
+    };
+  }
+
+  private scheduleCandidateMatches(
+    candidate: {
+      id: string;
+      scope: string;
+      name: string;
+      prompt: string;
+      intervalMinutes: number;
+      toolAllowList: Prisma.JsonValue;
+      createdBy: string;
+      metadata: Prisma.JsonValue;
+    },
+    actionProposalId: string,
+    effect: NormalizedScheduleEffect,
+  ): boolean {
+    const metadata =
+      candidate.metadata &&
+      typeof candidate.metadata === 'object' &&
+      !Array.isArray(candidate.metadata)
+        ? (candidate.metadata as Record<string, unknown>)
+        : {};
+    const allowList = Array.isArray(candidate.toolAllowList)
+      ? candidate.toolAllowList.filter((value): value is string => typeof value === 'string')
+      : [];
+    const boundProposalId =
+      typeof metadata.actionProposalId === 'string'
+        ? metadata.actionProposalId
+        : metadata.logicalOperationId;
+    return (
+      candidate.scope === 'user_private' &&
+      candidate.createdBy === 'meri' &&
+      boundProposalId === actionProposalId &&
+      metadata.scheduleEffectFingerprintVersion === SCHEDULE_EFFECT_FINGERPRINT_VERSION &&
+      metadata.scheduleEffectFingerprint === effect.fingerprint &&
+      candidate.name === effect.name &&
+      candidate.prompt === effect.prompt &&
+      candidate.intervalMinutes === effect.intervalMinutes &&
+      JSON.stringify([...new Set(allowList)].sort()) === JSON.stringify(effect.allowList) &&
+      (typeof metadata.runAtMinutesUtc === 'number' ? metadata.runAtMinutesUtc : null) ===
+        effect.runAtMinutesUtc &&
+      (typeof metadata.clientId === 'string' ? metadata.clientId : null) === effect.clientId &&
+      (typeof metadata.emailRecipientIntent === 'string'
+        ? metadata.emailRecipientIntent
+        : 'none') === effect.emailRecipientIntent &&
+      (typeof metadata.emailTo === 'string' ? metadata.emailTo : null) === effect.emailTo
+    );
+  }
+
+  private scheduleTaskReceipt(candidate: {
+    id: string;
+    name: string;
+    intervalMinutes: number;
+    nextRunAt: Date;
+    enabled: boolean;
+    lastStatus: string | null;
+  }): ScheduleTaskReceipt {
+    const active = candidate.enabled && candidate.lastStatus !== 'canceled';
+    return {
+      id: candidate.id,
+      name: candidate.name,
+      intervalMinutes: candidate.intervalMinutes,
+      nextRunAt: candidate.nextRunAt,
+      enabled: candidate.enabled,
+      lastStatus: candidate.lastStatus,
+      active,
+      creationConfirmed: true,
+    };
+  }
+
+  private async findScheduleTaskReceipt(
+    ctx: TenantContext,
+    actionProposalId: string,
+    effect: NormalizedScheduleEffect,
+  ): Promise<ScheduleTaskReceipt | null> {
+    const select = {
+      id: true,
+      scope: true,
+      name: true,
+      prompt: true,
+      intervalMinutes: true,
+      toolAllowList: true,
+      nextRunAt: true,
+      enabled: true,
+      lastStatus: true,
+      createdBy: true,
+      metadata: true,
+    } as const;
+    const deterministic = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.clioScheduledTask.findFirst({
+        where: {
+          id: actionProposalId,
+          tenantId: ctx.tenantId,
+          ownerUserId: ctx.userId,
+          scope: 'user_private',
+        },
+        select,
+      }),
+    );
+    if (deterministic) {
+      return this.scheduleCandidateMatches(deterministic, actionProposalId, effect)
+        ? this.scheduleTaskReceipt(deterministic)
+        : null;
+    }
+
+    // Compatibility is deliberately narrow: older proposal-owned rows used a
+    // random task id and kept the proposal id only in metadata. A known-version
+    // exact fingerprint and exact current scope are mandatory; metadata-only
+    // rows from before fingerprints existed remain unprovable.
+    const legacy = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.clioScheduledTask.findMany({
+        where: {
+          id: { not: actionProposalId },
+          tenantId: ctx.tenantId,
+          ownerUserId: ctx.userId,
+          scope: 'user_private',
+          OR: [
+            { metadata: { path: ['actionProposalId'], equals: actionProposalId } },
+            { metadata: { path: ['logicalOperationId'], equals: actionProposalId } },
+          ],
+        },
+        select,
+        take: 3,
+      }),
+    );
+    const verified = legacy.filter((candidate) =>
+      this.scheduleCandidateMatches(candidate, actionProposalId, effect),
+    );
+    if (verified.length !== 1) return null;
+    const [candidate] = verified;
+    return this.scheduleTaskReceipt(candidate!);
+  }
+
+  /** Read-only durable-receipt lookup for action-proposal status recovery. */
+  async readScheduleTaskReceipt(
+    ctx: TenantContext,
+    actionProposalId: string,
+    input: Record<string, unknown>,
+  ): Promise<ScheduleTaskReceipt | null> {
+    if (!UUID_V4_RE.test(actionProposalId)) return null;
+    try {
+      const normalized = await this.normalizeScheduleEffect(ctx, input);
+      if (!normalized.ok) return null;
+      return await this.findScheduleTaskReceipt(ctx, actionProposalId, normalized.effect);
+    } catch {
+      // Access changes, malformed legacy rows, and unavailable evidence all mean
+      // "not proved". Status recovery must never turn those into a redispatch.
+      return null;
+    }
+  }
+
+  private async scheduleTask(
+    ctx: TenantContext,
+    input: Record<string, unknown>,
+    actionProposalId?: string,
+  ) {
+    if (actionProposalId && !UUID_V4_RE.test(actionProposalId)) {
+      throw new BadRequestException('Invalid server action proposal identity');
+    }
+    const selectReceipt = {
+      id: true,
+      name: true,
+      intervalMinutes: true,
+      nextRunAt: true,
+      enabled: true,
+      lastStatus: true,
+    } as const;
+    const normalized = await this.normalizeScheduleEffect(ctx, input);
+    if (!normalized.ok) {
+      return { tool: 'schedule_task', scheduled: false, error: normalized.error };
+    }
+    const effect = normalized.effect;
+    const authoritativeReceipt = actionProposalId
+      ? await this.findScheduleTaskReceipt(ctx, actionProposalId, effect)
+      : null;
+    if (authoritativeReceipt) {
+      return {
+        tool: 'schedule_task',
+        scheduled: authoritativeReceipt.active,
+        active: authoritativeReceipt.active,
+        creationConfirmed: true,
+        task: authoritativeReceipt,
+        reconciled: true,
+        note: authoritativeReceipt.active
+          ? 'The existing active scheduled task receipt was recovered; no second task was created.'
+          : 'Historical creation was confirmed, but the task is currently disabled or canceled. It was not re-enabled and no new task was created.',
+      };
+    }
     const existingTaskCount = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.clioScheduledTask.count({ where: { tenantId: ctx.tenantId, ownerUserId: ctx.userId } }),
     );
-    const validation = validateScheduleRequest({
+    const quotaValidation = validateScheduleRequest({
       name: input.name,
       prompt: input.prompt,
       intervalMinutes: input.intervalMinutes,
       toolAllowList: input.toolAllowList,
       existingTaskCount,
     });
-    if (!validation.ok) {
-      return { tool: 'schedule_task', scheduled: false, error: validation.error };
-    }
-    const intervalMinutes = validation.intervalMinutes!;
-    const allowList = validation.allowList!;
-    // Optional clock-anchored time-of-day (UTC) + client scope.
-    const runAtMinutesUtc = parseTimeOfDayUtc(input.dailyAtUtc);
-    const clientId =
-      typeof input.clientId === 'string' && input.clientId.trim()
-        ? input.clientId.trim()
-        : undefined;
-    const metadata: Record<string, string | number> = { createdVia: 'schedule_task_tool' };
-    if (runAtMinutesUtc != null) metadata.runAtMinutesUtc = runAtMinutesUtc;
-    if (clientId) metadata.clientId = clientId;
-
-    // Optional fixed email delivery of the finished briefing. The recipient is
-    // resolved + frozen NOW (not at run time): an explicit deliverEmailTo if
-    // valid, else the owner's own connected Microsoft 365 address. The scheduled
-    // runner only ever emails its own briefing to this one pre-set address — the
-    // model never gets a send tool, so there is no autonomous-send surface.
-    let emailDeliveryNote = '';
-    if (input.emailBriefing === true) {
-      const requested = normalizeDeliveryEmail(input.deliverEmailTo);
-      let emailTo = requested;
-      if (!emailTo) {
-        const conn = await this.findUserEmailConnection(ctx);
-        emailTo = conn?.accountEmail ? normalizeDeliveryEmail(conn.accountEmail) : null;
-      }
-      if (!emailTo) {
+    if (!quotaValidation.ok) {
+      // Another invocation for this exact proposal can commit task 25 after our
+      // initial receipt read but before this count. A fresh scoped read must win
+      // over quota rejection; it only returns the original exact receipt and
+      // never permits another insert.
+      const quotaBoundaryReceipt = actionProposalId
+        ? await this.findScheduleTaskReceipt(ctx, actionProposalId, effect)
+        : null;
+      if (quotaBoundaryReceipt) {
         return {
           tool: 'schedule_task',
-          scheduled: false,
-          error:
-            'Email delivery requested but no valid recipient: provide deliverEmailTo, or connect a Microsoft 365 account in Settings → Integrations so the briefing can be sent to your own address.',
+          scheduled: quotaBoundaryReceipt.active,
+          active: quotaBoundaryReceipt.active,
+          creationConfirmed: true,
+          task: quotaBoundaryReceipt,
+          reconciled: true,
+          note: quotaBoundaryReceipt.active
+            ? 'The original active scheduled task receipt was recovered at the quota boundary; no second task was created.'
+            : 'Historical creation was confirmed at the quota boundary, but the task is currently disabled or canceled. It was not re-enabled and no new task was created.',
         };
       }
-      metadata.emailTo = emailTo;
-      emailDeliveryNote = ` Each briefing is also emailed to ${emailTo}.`;
+      return { tool: 'schedule_task', scheduled: false, error: quotaValidation.error };
     }
+    const metadata: Record<string, string | number> = {
+      createdVia: 'schedule_task_tool',
+      scheduleEffectFingerprintVersion: SCHEDULE_EFFECT_FINGERPRINT_VERSION,
+      scheduleEffectFingerprint: effect.fingerprint,
+      emailRecipientIntent: effect.emailRecipientIntent,
+    };
+    if (actionProposalId) metadata.actionProposalId = actionProposalId;
+    if (effect.runAtMinutesUtc != null) metadata.runAtMinutesUtc = effect.runAtMinutesUtc;
+    if (effect.clientId) metadata.clientId = effect.clientId;
+    if (effect.emailTo) metadata.emailTo = effect.emailTo;
 
-    const nextRunAt = computeNextRunAtAnchored(new Date(), intervalMinutes, runAtMinutesUtc);
-    const task = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.clioScheduledTask.create({
-        data: {
-          tenantId: ctx.tenantId,
-          ownerUserId: ctx.userId,
-          scope: 'user_private',
-          name: String(input.name).slice(0, 200),
-          prompt: String(input.prompt).slice(0, 8000),
-          intervalMinutes,
-          toolAllowList: allowList,
-          nextRunAt,
-          createdBy: 'meri',
-          metadata,
-        },
-        select: { id: true, name: true, intervalMinutes: true, nextRunAt: true },
-      }),
+    const nextRunAt = computeNextRunAtAnchored(
+      new Date(),
+      effect.intervalMinutes,
+      effect.runAtMinutesUtc,
     );
+    let task: ScheduleTaskReceipt;
+    let reconciled = false;
+    try {
+      const created = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+        tx.clioScheduledTask.create({
+          data: {
+            ...(actionProposalId ? { id: actionProposalId } : {}),
+            tenantId: ctx.tenantId,
+            ownerUserId: ctx.userId,
+            scope: 'user_private',
+            name: effect.name,
+            prompt: effect.prompt,
+            intervalMinutes: effect.intervalMinutes,
+            toolAllowList: effect.allowList,
+            nextRunAt,
+            createdBy: 'meri',
+            metadata,
+          },
+          select: selectReceipt,
+        }),
+      );
+      task = this.scheduleTaskReceipt(created);
+    } catch (error) {
+      // A transaction/connection failure can arrive after commit. Reconcile by
+      // the proposal-stable operation identity before allowing the ambiguity to
+      // escape; the proposal layer keeps an unreconciled outcome non-retryable.
+      const recovered = actionProposalId
+        ? await this.findScheduleTaskReceipt(ctx, actionProposalId, effect)
+        : null;
+      if (!recovered) throw error;
+      task = recovered;
+      reconciled = true;
+    }
     const cadence =
-      runAtMinutesUtc != null
-        ? `daily at ${String(Math.floor(runAtMinutesUtc / 60)).padStart(2, '0')}:${String(runAtMinutesUtc % 60).padStart(2, '0')} UTC`
-        : `every ${intervalMinutes} minutes`;
+      effect.runAtMinutesUtc != null
+        ? `daily at ${String(Math.floor(effect.runAtMinutesUtc / 60)).padStart(2, '0')}:${String(effect.runAtMinutesUtc % 60).padStart(2, '0')} UTC`
+        : `every ${effect.intervalMinutes} minutes`;
+    const emailDeliveryNote = effect.emailTo
+      ? ` Each briefing is also emailed to ${effect.emailTo}.`
+      : '';
     return {
       tool: 'schedule_task',
-      scheduled: true,
+      scheduled: task.active,
+      active: task.active,
+      creationConfirmed: true,
       task,
-      note: `Scheduled as a READ-ONLY recurring research task (${cadence}; no autonomous email/writes). Meri runs it automatically and delivers each briefing to your inbox.${emailDeliveryNote} Use list_scheduled_tasks to review or cancel_scheduled_task to stop it.`,
+      ...(reconciled ? { reconciled: true } : {}),
+      note: task.active
+        ? `Scheduled as a READ-ONLY recurring research task (${cadence}; no autonomous email/writes). Meri runs it automatically and delivers each briefing to your inbox.${emailDeliveryNote} Use list_scheduled_tasks to review or cancel_scheduled_task to stop it.`
+        : 'Historical creation was confirmed after the insert outcome was reconciled, but the task is currently disabled or canceled. It was not re-enabled and no new task was created.',
     };
   }
 
@@ -7163,11 +8063,32 @@ export class MeriToolsService {
 
   private async queryTasks(ctx: TenantContext, input: Record<string, unknown>) {
     let clientId = optionalString(input, 'clientId', 80);
+    if (clientId) {
+      clientId = await this.ensureClientVisible(ctx, clientId);
+      const selection = parseMeriTaskReadInput(
+        ctx,
+        input,
+        clientId,
+        Object.values(EngagementTaskStatus),
+      );
+      const page = await this.engagement.readMeriTasksExact(ctx, {
+        clientId,
+        taskId: selection.taskId,
+        status: selection.status,
+        openOnly: selection.openOnly,
+        dueBefore: selection.dueBefore,
+        offset: selection.offset,
+        limit: selection.limit,
+      });
+      return buildMeriTaskReadResult(ctx, selection, page);
+    }
+    if (input.cursor !== undefined || input.taskId !== undefined)
+      throw new BadRequestException(
+        'clientId is required for exact task identity or pagination reads',
+      );
     const statusRaw = optionalString(input, 'status', 30)?.toLowerCase() ?? null;
     const dueBeforeRaw = optionalString(input, 'dueBefore', 40);
     const limit = clampInt(input.limit, 1, 50, 25);
-    if (clientId) clientId = await this.ensureClientVisible(ctx, clientId);
-
     const taskStatuses = Object.values(EngagementTaskStatus) as string[];
     let status: EngagementTaskStatus | undefined;
     let openOnly = false;
@@ -7228,11 +8149,26 @@ export class MeriToolsService {
 
   private async queryActionItems(ctx: TenantContext, input: Record<string, unknown>) {
     let clientId = optionalString(input, 'clientId', 80);
+    if (clientId) {
+      clientId = await this.ensureClientVisible(ctx, clientId);
+      const selection = parseMeriActionItemReadInput(ctx, input, clientId);
+      const page = await this.actionRecommendations.readMeriActionItemsExact(ctx, {
+        clientId,
+        actionItemId: selection.actionItemId,
+        status: selection.status ?? undefined,
+        sort: selection.sort,
+        page: selection.page,
+        limit: selection.limit,
+      });
+      return buildMeriActionItemReadResult(ctx, selection, page);
+    }
+    if (input.cursor !== undefined || input.actionItemId !== undefined)
+      throw new BadRequestException(
+        'clientId is required for exact action-item identity or pagination reads',
+      );
     const status = optionalString(input, 'status', 40);
     const sort = optionalString(input, 'sort', 20);
     const limit = clampInt(input.limit, 1, 50, 20);
-    if (clientId) clientId = await this.ensureClientVisible(ctx, clientId);
-
     const result = await this.actionRecommendations.list(ctx, {
       clientId: clientId ?? undefined,
       status: (status as ActionStatus | null) ?? undefined,
@@ -7378,22 +8314,257 @@ export class MeriToolsService {
   private async queryDebriefs(ctx: TenantContext, input: Record<string, unknown>) {
     let clientId = requiredString(input, 'clientId', 80);
     clientId = await this.ensureClientVisible(ctx, clientId);
-    const debriefs = await this.engagement.listClientDebriefs(ctx, { clientId });
-    return {
-      tool: 'query_debriefs',
-      generatedAt: new Date().toISOString(),
-      clientId,
-      total: debriefs.length,
-      debriefs: debriefs.map((debrief) => ({
-        id: debrief.id,
-        meetingId: debrief.meetingId,
-        meeting: debrief.meeting,
-        body: debrief.restricted ? null : summarizeText(debrief.body, 1500),
-        restricted: debrief.restricted,
-        author: debrief.author,
-        createdAt: debrief.createdAt,
-      })),
+    const assertWallAllowed = async () => {
+      const allowed = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
+        clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, clientId),
+      );
+      if (!allowed) throw new NotFoundException('Client not found');
     };
+    // The tool boundary rejects before the private owner query. The owner also
+    // enforces this wall so direct callers and unfocused report replay inherit it.
+    await assertWallAllowed();
+    const selection = parseDebriefReadInput(ctx, input, clientId);
+    const page = await this.engagement.readClientDebriefsExact(ctx, {
+      clientId,
+      debriefId: selection.debriefId,
+      from: selection.from,
+      to: selection.to,
+      limit: selection.debriefId ? 1 : selection.limit,
+      listAfter: selection.listAfter,
+    });
+    // Close a grant-revocation window across the owner await before projection.
+    await assertWallAllowed();
+    return buildDebriefReadResult(ctx, selection, page);
+  }
+
+  private async assertMeetingReadAllowed(ctx: TenantContext, clientId: string): Promise<void> {
+    const allowed = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      const client = await tx.client.findFirst({
+        where: { id: clientId, tenantId: ctx.tenantId, status: { not: 'archived' } },
+        select: { id: true },
+      });
+      return Boolean(client) && clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, clientId);
+    });
+    if (!allowed) throw new NotFoundException('Client not found');
+  }
+
+  private async meetingReadRow(
+    ctx: TenantContext,
+    clientId: string,
+    meetingId: string,
+  ): Promise<MeetingReadRow> {
+    await this.engagement.getClientMeeting(ctx, clientId, meetingId);
+    const [notes, attachments] = await Promise.all([
+      this.engagement.listMeetingNotes(ctx, meetingId),
+      this.engagement.listAttachments(ctx, { meetingId }),
+    ]);
+    // Re-resolve after the source-owner awaits so a deleted, reassigned, or
+    // newly disassociated parent cannot lend stale authority to its children.
+    const currentMeeting = await this.engagement.getClientMeeting(ctx, clientId, meetingId);
+    const noteSources: MeetingSourceInventory[] = notes
+      .filter((note) => note.meetingId === meetingId)
+      .map((note) => {
+        const body = typeof note.body === 'string' ? note.body : null;
+        return {
+          sourceKind: 'note',
+          sourceId: note.id,
+          sourceVersion: note.updatedAt.toISOString(),
+          meetingId,
+          clientId,
+          lifecycleStatus: String(note.status),
+          availability: body === null ? 'restricted' : 'available',
+          availabilityReason: body === null ? 'meeting_entry_acl_denied' : null,
+          contentHash:
+            body === null ? null : createHash('sha256').update(body, 'utf8').digest('hex'),
+          createdAt: note.createdAt.toISOString(),
+          updatedAt: note.updatedAt.toISOString(),
+        };
+      });
+    const transcriptSources: MeetingSourceInventory[] = attachments
+      .filter(
+        (attachment) =>
+          attachment.source === 'notetaker' &&
+          attachment.contentType === 'text/plain' &&
+          (!currentMeeting.transcriptS3Key || attachment.s3Key === currentMeeting.transcriptS3Key),
+      )
+      .map((attachment) => ({
+        sourceKind: 'transcript' as const,
+        sourceId: attachment.id,
+        sourceVersion:
+          typeof attachment.calculatedSha256 === 'string' && attachment.calculatedSha256
+            ? attachment.calculatedSha256
+            : attachment.createdAt.toISOString(),
+        meetingId,
+        clientId,
+        lifecycleStatus: String(attachment.lifecycleStatus),
+        availability: attachment.usable ? ('available' as const) : ('unavailable' as const),
+        availabilityReason: attachment.usable
+          ? null
+          : String(attachment.blockedReason ?? 'persisted_transcript_unavailable'),
+        contentHash:
+          typeof attachment.calculatedSha256 === 'string' ? attachment.calculatedSha256 : null,
+        createdAt: attachment.createdAt.toISOString(),
+        updatedAt: attachment.createdAt.toISOString(),
+      }));
+    const sources = [...noteSources, ...transcriptSources].sort(
+      (left, right) =>
+        left.sourceKind.localeCompare(right.sourceKind) ||
+        left.sourceId.localeCompare(right.sourceId),
+    );
+    const transcriptAvailable = transcriptSources.some(
+      (source) => source.availability === 'available',
+    );
+    const notesRestricted = noteSources.some((source) => source.availability !== 'available');
+    // The wall must still hold after every parent/source-owner await.
+    await this.assertMeetingReadAllowed(ctx, clientId);
+    return {
+      id: currentMeeting.id,
+      clientId,
+      subject: currentMeeting.subject,
+      startsAt: currentMeeting.startsAt.toISOString(),
+      endsAt: currentMeeting.endsAt.toISOString(),
+      status: String(currentMeeting.status),
+      updatedAt: currentMeeting.updatedAt.toISOString(),
+      sources,
+      sourceAvailability: {
+        notes: noteSources.length === 0 ? 'empty' : notesRestricted ? 'partial' : 'available',
+        transcript: transcriptAvailable ? 'available' : 'unavailable',
+        transcriptReason: transcriptAvailable
+          ? null
+          : transcriptSources.length > 0
+            ? 'persisted_transcript_unavailable'
+            : 'calendar_event_without_persisted_transcript',
+      },
+    };
+  }
+
+  private async readClientMeetings(ctx: TenantContext, input: Record<string, unknown>) {
+    const clientId = await this.ensureClientVisible(ctx, requiredString(input, 'clientId', 80));
+    await this.assertMeetingReadAllowed(ctx, clientId);
+    const selection = parseMeetingReadInput(ctx, input, clientId);
+
+    if (selection.sourceId && selection.sourceKind && selection.meetingId) {
+      const initial = await this.meetingReadRow(ctx, clientId, selection.meetingId);
+      const initialSource = initial.sources.find(
+        (source) =>
+          source.sourceKind === selection.sourceKind && source.sourceId === selection.sourceId,
+      );
+      if (!initialSource) throw new NotFoundException('Meeting source not found');
+      if (initialSource.availability !== 'available')
+        throw new NotFoundException('Meeting source not available');
+
+      // Reauthorize after owner inventory awaits and use only the fresh current row.
+      await this.assertMeetingReadAllowed(ctx, clientId);
+      const current = await this.meetingReadRow(ctx, clientId, selection.meetingId);
+      const currentSource = current.sources.find(
+        (source) =>
+          source.sourceKind === selection.sourceKind && source.sourceId === selection.sourceId,
+      );
+      if (!currentSource || currentSource.availability !== 'available')
+        throw new NotFoundException('Meeting source not available');
+
+      let exactSource: ExactMeetingSource;
+      if (selection.sourceKind === 'note') {
+        const notes = await this.engagement.listMeetingNotes(ctx, selection.meetingId);
+        const note = notes.find(
+          (candidate) =>
+            candidate.id === selection.sourceId && candidate.meetingId === selection.meetingId,
+        );
+        if (!note || typeof note.body !== 'string')
+          throw new NotFoundException('Meeting source not available');
+        exactSource = {
+          ...currentSource,
+          sourceVersion: note.updatedAt.toISOString(),
+          contentHash: createHash('sha256').update(note.body, 'utf8').digest('hex'),
+          body: note.body,
+        };
+      } else {
+        const extracted = await this.engagement.extractAttachmentText(ctx, selection.sourceId, {
+          section: 1,
+          ...(meriToolRequestControl()?.signal ? { signal: meriToolRequestControl()!.signal } : {}),
+        });
+        if (
+          extracted.contentType !== 'text/plain' ||
+          typeof extracted.text !== 'string' ||
+          ('truncated' in extracted && extracted.truncated === true) ||
+          !/^[a-f0-9]{64}$/.test(extracted.contentHash)
+        )
+          throw new NotFoundException('Persisted transcript source is not exactly readable');
+        const bodyHash = createHash('sha256').update(extracted.text, 'utf8').digest('hex');
+        if (bodyHash !== extracted.contentHash)
+          throw new NotFoundException('Persisted transcript source hash is not exact');
+        exactSource = {
+          ...currentSource,
+          sourceVersion: extracted.contentHash,
+          contentHash: extracted.contentHash,
+          body: extracted.text,
+        };
+      }
+
+      // Close permission, parent, lifecycle, supersession, and source-version races.
+      await this.assertMeetingReadAllowed(ctx, clientId);
+      const final = await this.meetingReadRow(ctx, clientId, selection.meetingId);
+      const finalSource = final.sources.find(
+        (source) =>
+          source.sourceKind === selection.sourceKind && source.sourceId === selection.sourceId,
+      );
+      if (!finalSource || finalSource.availability !== 'available')
+        throw new NotFoundException('Meeting source not available');
+      if (
+        selection.sourceKind === 'note' &&
+        (finalSource.sourceVersion !== exactSource.sourceVersion ||
+          finalSource.contentHash !== exactSource.contentHash)
+      )
+        throw new BadRequestException('Meeting source changed during the read; restart the read');
+      if (
+        selection.sourceKind === 'transcript' &&
+        finalSource.contentHash !== null &&
+        finalSource.contentHash !== exactSource.contentHash
+      )
+        throw new BadRequestException('Meeting source changed during the read; restart the read');
+
+      // Close a wall/membership revocation at the final current-owner boundary.
+      await this.assertMeetingReadAllowed(ctx, clientId);
+      const { sources: _sources, ...meeting } = final;
+      return buildMeetingSourceResult(ctx, selection, meeting, exactSource);
+    }
+
+    let rows: MeetingReadRow[];
+    let hasMore = false;
+    if (selection.meetingId) {
+      rows = [await this.meetingReadRow(ctx, clientId, selection.meetingId)];
+    } else {
+      const from = selection.from?.toISOString() ?? '0001-01-01T00:00:00.000Z';
+      const toExclusive = selection.to
+        ? new Date(selection.to.getTime() + 1).toISOString()
+        : '9999-12-31T23:59:59.999Z';
+      const meetings = await this.engagement.listMeetings(ctx, {
+        clientId,
+        from,
+        to: toExclusive,
+        limit: selection.limit + 1,
+        ...(selection.listAfter
+          ? {
+              cursor: {
+                startsAt: selection.listAfter.startsAt.toISOString(),
+                id: selection.listAfter.id,
+              },
+            }
+          : {}),
+      });
+      hasMore = meetings.length > selection.limit;
+      const settled = await Promise.allSettled(
+        meetings
+          .slice(0, selection.limit)
+          .map((meeting) => this.meetingReadRow(ctx, clientId, meeting.id)),
+      );
+      rows = settled.flatMap((result) => (result.status === 'fulfilled' ? [result.value] : []));
+      const omittedMeetings = settled.length - rows.length;
+      await this.assertMeetingReadAllowed(ctx, clientId);
+      return buildMeetingListResult(ctx, selection, rows, hasMore, omittedMeetings);
+    }
+    await this.assertMeetingReadAllowed(ctx, clientId);
+    return buildMeetingListResult(ctx, selection, rows, hasMore);
   }
 
   /** Canonical, currently authorized section reads with resumable evidence. */
@@ -8156,27 +9327,79 @@ export class MeriToolsService {
   private async resolveChartImages(
     ctx: TenantContext,
     artifactIds: string[],
+    binding: { conversationId: string | null; clientId: string | null },
   ): Promise<Array<{ dataBase64: string }>> {
+    if (!artifactIds.length) return [];
+    if (!binding.conversationId) {
+      throw new NotFoundException(
+        'Analysis charts can only be embedded from the current Meri conversation.',
+      );
+    }
+    if (binding.clientId) {
+      if (!this.contextPlane)
+        throw new NotFoundException('One or more analysis charts were not found.');
+      const security = await this.contextPlane.securityEnvelope(ctx);
+      if (!security.authorizedClientIds.includes(binding.clientId)) {
+        throw new NotFoundException('One or more analysis charts were not found.');
+      }
+    }
     const out: Array<{ dataBase64: string }> = [];
     for (const id of artifactIds) {
       const artifact = await this.prisma.withTenant(ctx.tenantId, (tx) =>
         tx.clioArtifact.findFirst({
-          where: { id, tenantId: ctx.tenantId, userId: ctx.userId },
-          select: { metadata: true },
+          where: {
+            id,
+            tenantId: ctx.tenantId,
+            userId: ctx.userId,
+            kind: 'analysis_chart',
+            conversationId: binding.conversationId!,
+            clientId: binding.clientId,
+          },
+          select: {
+            kind: true,
+            metadata: true,
+            clientId: true,
+            conversationId: true,
+            conversation: {
+              select: { id: true, tenantId: true, userId: true, clientId: true, archivedAt: true },
+            },
+          },
         }),
       );
-      const meta = artifact?.metadata as Record<string, unknown> | null;
-      if (typeof meta?.imageBase64 !== 'string' || !meta.imageBase64) {
+      const conversation = artifact?.conversation;
+      if (
+        !artifact ||
+        isInternalClioArtifact(artifact) ||
+        artifact.kind !== 'analysis_chart' ||
+        artifact.clientId !== binding.clientId ||
+        artifact.conversationId !== binding.conversationId ||
+        !conversation ||
+        conversation.id !== binding.conversationId ||
+        conversation.tenantId !== ctx.tenantId ||
+        conversation.userId !== ctx.userId ||
+        conversation.clientId !== binding.clientId ||
+        conversation.archivedAt
+      ) {
         throw new NotFoundException(
-          'One or more analysis charts were not found. Regenerate the charts and try again.',
+          'One or more analysis charts were not found. Regenerate the charts in this conversation and try again.',
         );
       }
-      if (meta.imageBase64.length > MAX_IMAGE_BASE64_CHARS) {
+      const metadata = artifact?.metadata as Record<string, unknown> | null;
+      if (
+        typeof metadata?.imageBase64 === 'string' &&
+        metadata.imageBase64.length > MAX_IMAGE_BASE64_CHARS
+      ) {
         throw new BadRequestException(
           'A saved chart is too large to embed. Regenerate a smaller chart and try again.',
         );
       }
-      out.push({ dataBase64: meta.imageBase64 });
+      const image = readPersistedPng(artifact?.metadata);
+      if (!image) {
+        throw new NotFoundException(
+          'One or more analysis charts were not found. Regenerate the charts and try again.',
+        );
+      }
+      out.push({ dataBase64: image.base64 });
     }
     return out;
   }
@@ -8309,6 +9532,25 @@ export class MeriToolsService {
     throw new NotFoundException(
       `No client named "${raw}" is in the book of business. Pass the exact client id, or select the client in Meri. If the client does not exist yet, use lookup_client_registry + create_client first.`,
     );
+  }
+
+  /**
+   * Scheduling persists a client scope for later unattended reads, so ordinary
+   * same-tenant visibility is insufficient. Resolve the client first, then use
+   * the current actor's existing memory-wall authority in a fresh tenant
+   * transaction. Receipt normalization calls this same boundary, which makes a
+   * revoked grant fail closed during reconciliation as well as creation.
+   */
+  private async ensureScheduleClientAuthorized(
+    ctx: TenantContext,
+    clientReference: string,
+  ): Promise<string> {
+    const clientId = await this.ensureClientVisible(ctx, clientReference);
+    const allowed = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, clientId),
+    );
+    if (!allowed) throw new NotFoundException('Client not found');
+    return clientId;
   }
 
   private async ensureConversationForTool(

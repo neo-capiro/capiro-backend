@@ -94,23 +94,26 @@ describe('MeriV3 citation exposure', () => {
     else expectIntegrity(logger, 'page_write', mode);
   });
 
-  it.each(['off', 'shadow', 'enforce'] as const)('logs reply orphan markers only outside %s mode', (mode) => {
-    const { internals, logger } = harness();
-    const result = internals.finalizeReply({
-      ctx: { tenantId: 'tenant-1', userId: 'user-1' },
-      dto: { conversationId: 'conversation-1' },
-      reply: 'Reply claim [1] and orphan [53].',
-      citations: [citation],
-      ledgerEntries: [],
-      evidencePlan: {},
-      assuranceRisk: { requiresBufferBeforeRelease: false },
-      assuranceMode: 'off',
-      evidenceAccuracyMode: mode,
-      verificationAvailable: true,
-      emit: jest.fn(),
-    });
-    expect(result.reply).toBe('Reply claim [1] and orphan .');
-    if (mode === 'off') expect(logger.warn).not.toHaveBeenCalled();
-    else expectIntegrity(logger, 'reply', mode);
-  });
+  it.each(['off', 'shadow', 'enforce'] as const)(
+    'logs reply orphan markers only outside %s mode',
+    (mode) => {
+      const { internals, logger } = harness();
+      const result = internals.finalizeReply({
+        ctx: { tenantId: 'tenant-1', userId: 'user-1' },
+        dto: { conversationId: 'conversation-1' },
+        reply: 'Reply claim [1] and orphan [53].',
+        citations: [citation],
+        ledgerEntries: [],
+        evidencePlan: {},
+        assuranceRisk: { requiresBufferBeforeRelease: false },
+        assuranceMode: 'off',
+        evidenceAccuracyMode: mode,
+        verificationAvailable: true,
+        emit: jest.fn(),
+      });
+      expect(result.reply).toBe('Reply claim [1] and orphan .');
+      if (mode === 'off') expect(logger.warn).not.toHaveBeenCalled();
+      else expectIntegrity(logger, 'reply', mode);
+    },
+  );
 });

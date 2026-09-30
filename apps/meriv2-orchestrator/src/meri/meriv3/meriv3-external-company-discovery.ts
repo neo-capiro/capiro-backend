@@ -10,10 +10,7 @@ import {
 } from './meriv3-retrieval-recipe-utils.js';
 
 export type MeriExternalCompanyIdentityStatus =
-  | 'resolved'
-  | 'provisional'
-  | 'ambiguous'
-  | 'not_found';
+  'resolved' | 'provisional' | 'ambiguous' | 'not_found';
 
 export interface MeriExternalCompanyCandidate {
   canonicalName: string;
@@ -508,8 +505,8 @@ export async function executeMeriExternalCompanyDiscovery(
     : candidates.length === 0
       ? 'not_found'
       : provisionalUsable
-      ? 'provisional'
-      : 'ambiguous';
+        ? 'provisional'
+        : 'ambiguous';
   const researchName =
     resolvedName(resolution) ?? selectedCandidate?.canonicalName ?? normalizedInput;
 
@@ -528,9 +525,9 @@ export async function executeMeriExternalCompanyDiscovery(
     ambiguityReason:
       identityStatus === 'resolved' || identityStatus === 'provisional'
         ? null
-        : provisional.ambiguityReason ??
+        : (provisional.ambiguityReason ??
           (identityStatus === 'ambiguous'
             ? 'The strongest candidate could not be verified as the official company identity.'
-            : 'No credible company candidate was found.'),
+            : 'No credible company candidate was found.')),
   };
 }

@@ -1,0 +1,359 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://capiro.invalid/evals/meri/live-v1/capture.schema.json",
+  "title": "Meri live-v1 single-capture evidence bundle",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "contract", "runManifest", "artifactRoot", "ownerSha256", "captures"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fixtureVersion", "fixtureSha256", "contractSourceSha256"],
+      "properties": {
+        "fixtureVersion": { "const": "meri-live-v1-2026-09-26.1" },
+        "fixtureSha256": { "$ref": "#/$defs/sha256" },
+        "contractSourceSha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "artifactRoot": { "$ref": "#/$defs/nonempty" },
+    "ownerSha256": { "$ref": "#/$defs/sha256" },
+    "runManifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["captureRunId", "checkoutSha", "deployed", "target", "fixture", "captureAdapter", "authPrerequisites"],
+      "properties": {
+        "captureRunId": { "$ref": "#/$defs/nonempty" },
+        "checkoutSha": { "$ref": "#/$defs/gitSha" },
+        "deployed": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["apiSha", "webSha", "runtimeRelease", "configHash", "flagsHash", "checkoutDifferenceReason"],
+          "properties": {
+            "apiSha": { "$ref": "#/$defs/nonempty" },
+            "webSha": { "$ref": "#/$defs/nonempty" },
+            "runtimeRelease": { "$ref": "#/$defs/nonempty" },
+            "configHash": { "$ref": "#/$defs/sha256" },
+            "flagsHash": { "$ref": "#/$defs/sha256" },
+            "checkoutDifferenceReason": { "type": ["string", "null"] }
+          }
+        },
+        "target": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["environment", "endpointIdentity", "dedicatedEvalTenant", "networkExecutionAllowed"],
+          "properties": {
+            "environment": { "enum": ["isolated-local", "dedicated-staging"] },
+            "endpointIdentity": { "$ref": "#/$defs/nonempty" },
+            "dedicatedEvalTenant": { "const": true },
+            "networkExecutionAllowed": { "type": "boolean" }
+          }
+        },
+        "fixture": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["namespace", "version", "sha256", "clock", "resetReceipt"],
+          "properties": {
+            "namespace": { "$ref": "#/$defs/nonempty" },
+            "version": { "const": "meri-live-v1-2026-09-26.1" },
+            "sha256": { "$ref": "#/$defs/sha256" },
+            "clock": { "const": "2026-09-26 12:00 America/New_York" },
+            "resetReceipt": { "$ref": "#/$defs/nonempty" }
+          }
+        },
+        "captureAdapter": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name", "version", "writeExecution"],
+          "properties": {
+            "name": { "$ref": "#/$defs/nonempty" },
+            "version": { "$ref": "#/$defs/nonempty" },
+            "writeExecution": { "const": "capture-only-live-adapter" }
+          }
+        },
+        "authPrerequisites": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "identitiesVerified", "reason"],
+          "properties": {
+            "status": { "enum": ["READY", "BLOCKED"] },
+            "identitiesVerified": { "type": "boolean" },
+            "reason": { "type": ["string", "null"] }
+          }
+        }
+      }
+    },
+    "captures": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/capture" }
+    }
+  },
+  "$defs": {
+    "nonempty": { "type": "string", "minLength": 1 },
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "gitSha": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ref", "sha256"],
+      "properties": {
+        "ref": { "$ref": "#/$defs/nonempty" },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "explicitApplicability": {
+      "type": "object",
+      "required": ["applicable", "notApplicableReason"],
+      "properties": {
+        "applicable": { "type": "boolean" },
+        "notApplicableReason": { "type": ["string", "null"] }
+      }
+    },
+    "capture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["caseId", "classification", "evidence", "assertions", "rubric"],
+      "properties": {
+        "caseId": { "type": "string", "pattern": "^(0[1-9]|[1-6][0-9]|7[0-5])$" },
+        "classification": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["setupStatus", "executionStatus", "failureBoundary", "reason"],
+          "properties": {
+            "setupStatus": { "enum": ["READY", "BLOCKED_PREREQUISITE", "STALE_TARGET"] },
+            "executionStatus": { "enum": ["NOT_RUN", "CAPTURED", "INTERRUPTED"] },
+            "failureBoundary": { "enum": ["none", "setup", "auth", "fixture", "stale_deployment", "runtime", "product_defect"] },
+            "reason": { "type": ["string", "null"] }
+          }
+        },
+        "evidence": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["run", "auth", "runtime", "setup", "execution", "sources", "effects", "status", "ui", "predicate"],
+          "properties": {
+            "run": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["runId", "conversationId", "traceId", "planId", "stepIds", "startedAt", "finishedAt", "traceArtifact"],
+              "properties": {
+                "runId": { "$ref": "#/$defs/nonempty" },
+                "conversationId": { "$ref": "#/$defs/nonempty" },
+                "traceId": { "$ref": "#/$defs/nonempty" },
+                "planId": { "type": ["string", "null"] },
+                "stepIds": { "type": "array", "items": { "$ref": "#/$defs/nonempty" } },
+                "startedAt": { "$ref": "#/$defs/nonempty" },
+                "finishedAt": { "$ref": "#/$defs/nonempty" },
+                "traceArtifact": { "$ref": "#/$defs/artifact" }
+              }
+            },
+            "auth": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["actorId", "actorTenantId", "selectedTenantId", "selectedClientId", "sessionEvidenceRef", "sessionEvidenceSha256", "actorProven", "tenantProven", "clientProven"],
+              "properties": {
+                "actorId": { "$ref": "#/$defs/nonempty" },
+                "actorTenantId": { "$ref": "#/$defs/nonempty" },
+                "selectedTenantId": { "$ref": "#/$defs/nonempty" },
+                "selectedClientId": { "type": ["string", "null"] },
+                "sessionEvidenceRef": { "$ref": "#/$defs/nonempty" },
+                "sessionEvidenceSha256": { "$ref": "#/$defs/sha256" },
+                "actorProven": { "const": true },
+                "tenantProven": { "const": true },
+                "clientProven": { "const": true }
+              }
+            },
+            "runtime": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["mode", "effectiveModel", "modelStatus", "modelAttempts", "tools"],
+              "properties": {
+                "mode": { "$ref": "#/$defs/nonempty" },
+                "effectiveModel": { "$ref": "#/$defs/nonempty" },
+                "modelStatus": { "enum": ["complete", "incomplete", "failed", "unavailable"] },
+                "modelAttempts": { "type": "integer", "minimum": 0 },
+                "tools": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["callId", "name", "attempt", "status", "sourceIds", "operationId"],
+                    "properties": {
+                      "callId": { "$ref": "#/$defs/nonempty" },
+                      "name": { "$ref": "#/$defs/nonempty" },
+                      "attempt": { "type": "integer", "minimum": 1 },
+                      "status": { "enum": ["complete", "empty", "partial", "unavailable", "denied", "retryable_failure", "permanent_failure", "unknown_outcome", "invalid_not_executed"] },
+                      "sourceIds": { "type": "array", "items": { "$ref": "#/$defs/nonempty" } },
+                      "operationId": { "type": ["string", "null"] }
+                    }
+                  }
+                }
+              }
+            },
+            "setup": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["applicable", "notApplicableReason", "artifact"],
+              "properties": {
+                "applicable": { "type": "boolean" },
+                "notApplicableReason": { "type": ["string", "null"] },
+                "artifact": { "anyOf": [{ "$ref": "#/$defs/artifact" }, { "type": "null" }] }
+              }
+            },
+            "execution": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["runtimeMode", "verificationMode", "pairId"],
+              "properties": {
+                "runtimeMode": { "$ref": "#/$defs/nonempty" },
+                "verificationMode": { "$ref": "#/$defs/nonempty" },
+                "pairId": { "$ref": "#/$defs/nonempty" }
+              }
+            },
+            "sources": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["expectedSourceIds", "consultedSourceIds", "citedSourceIds", "citations", "coverage", "attachments"],
+              "properties": {
+                "expectedSourceIds": { "type": "array", "items": { "$ref": "#/$defs/nonempty" } },
+                "consultedSourceIds": { "type": "array", "items": { "$ref": "#/$defs/nonempty" } },
+                "citedSourceIds": { "type": "array", "items": { "$ref": "#/$defs/nonempty" } },
+                "citations": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["sourceId", "version", "locator", "passageRef", "passageSha256", "consulted"],
+                    "properties": {
+                      "sourceId": { "$ref": "#/$defs/nonempty" },
+                      "version": { "$ref": "#/$defs/nonempty" },
+                      "locator": { "$ref": "#/$defs/nonempty" },
+                      "passageRef": { "$ref": "#/$defs/nonempty" },
+                      "passageSha256": { "$ref": "#/$defs/sha256" },
+                      "consulted": { "const": true }
+                    }
+                  }
+                },
+                "coverage": { "enum": ["complete", "partial", "unavailable", "denied"] },
+                "attachments": {
+                  "type": "array",
+                  "items": {
+                    "allOf": [
+                      { "$ref": "#/$defs/explicitApplicability" },
+                      {
+                        "type": "object",
+                        "required": ["attachmentId", "byteRef", "byteSha256", "downloadReceiptRef", "downloadReceiptSha256"],
+                        "properties": {
+                          "attachmentId": { "type": ["string", "null"] },
+                          "byteRef": { "type": ["string", "null"] },
+                          "byteSha256": { "anyOf": [{ "$ref": "#/$defs/sha256" }, { "type": "null" }] },
+                          "downloadReceiptRef": { "type": ["string", "null"] },
+                          "downloadReceiptSha256": { "anyOf": [{ "$ref": "#/$defs/sha256" }, { "type": "null" }] }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "effects": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["applicable", "notApplicableReason", "approvalRequired", "proposalId", "operationId", "payloadRef", "payloadSha256", "sinkRef", "sinkSha256", "receiptIds", "observedLogicalEffectCount", "authoritativeReadback", "status"],
+              "properties": {
+                "applicable": { "type": "boolean" },
+                "notApplicableReason": { "type": ["string", "null"] },
+                "approvalRequired": { "type": "boolean" },
+                "proposalId": { "type": ["string", "null"] },
+                "operationId": { "type": ["string", "null"] },
+                "payloadRef": { "type": ["string", "null"] },
+                "payloadSha256": { "anyOf": [{ "$ref": "#/$defs/sha256" }, { "type": "null" }] },
+                "sinkRef": { "type": ["string", "null"] },
+                "sinkSha256": { "anyOf": [{ "$ref": "#/$defs/sha256" }, { "type": "null" }] },
+                "receiptIds": { "type": "array", "items": { "$ref": "#/$defs/nonempty" } },
+                "observedLogicalEffectCount": { "type": "integer", "minimum": 0 },
+                "authoritativeReadback": { "type": "boolean" },
+                "status": { "enum": ["not_applicable", "proposed", "approved", "rejected", "denied", "succeeded", "failed", "unknown_outcome"] }
+              }
+            },
+            "status": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["terminal", "answerStatus", "answerRef", "answerSha256", "claimedCompleted"],
+              "properties": {
+                "terminal": { "enum": ["complete", "partial", "failed", "cancelled"] },
+                "answerStatus": { "enum": ["complete", "partial", "failed", "cancelled"] },
+                "answerRef": { "$ref": "#/$defs/nonempty" },
+                "answerSha256": { "$ref": "#/$defs/sha256" },
+                "claimedCompleted": { "type": "boolean" }
+              }
+            },
+            "ui": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["applicable", "notApplicableReason", "route", "evidenceRefs", "evidenceArtifacts", "approvalVisible", "approvalErrorVisible", "persistedAfterReload", "stayedInsideMeri"],
+              "properties": {
+                "applicable": { "type": "boolean" },
+                "notApplicableReason": { "type": ["string", "null"] },
+                "route": { "type": ["string", "null"] },
+                "evidenceRefs": { "type": "array", "items": { "$ref": "#/$defs/nonempty" } },
+                "evidenceArtifacts": { "type": "array", "items": { "$ref": "#/$defs/artifact" } },
+                "approvalVisible": { "type": ["boolean", "null"] },
+                "approvalErrorVisible": { "type": ["boolean", "null"] },
+                "persistedAfterReload": { "type": ["boolean", "null"] },
+                "stayedInsideMeri": { "type": ["boolean", "null"] }
+              }
+            },
+            "predicate": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["applicable", "notApplicableReason", "artifact"],
+              "properties": {
+                "applicable": { "type": "boolean" },
+                "notApplicableReason": { "type": ["string", "null"] },
+                "artifact": { "anyOf": [{ "$ref": "#/$defs/artifact" }, { "type": "null" }] }
+              }
+            }
+          }
+        },
+        "assertions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "passed", "evidenceRefs"],
+            "properties": {
+              "id": { "$ref": "#/$defs/nonempty" },
+              "passed": { "type": "boolean" },
+              "evidenceRefs": { "type": "array", "items": { "$ref": "#/$defs/nonempty" } }
+            }
+          }
+        },
+        "rubric": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "grader", "humanAdjudication", "adjudicationRef", "adjudicationSha256", "dimensions"],
+          "properties": {
+            "status": { "enum": ["GRADED", "NOT_GRADED", "UNAVAILABLE"] },
+            "grader": { "type": ["string", "null"] },
+            "humanAdjudication": { "type": ["string", "null"] },
+            "adjudicationRef": { "type": ["string", "null"] },
+            "adjudicationSha256": { "anyOf": [{ "$ref": "#/$defs/sha256" }, { "type": "null" }] },
+            "dimensions": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["factual_support", "evidence_coverage_citation_validity", "client_relevance", "directness_clarity", "actionable_judgment"],
+              "properties": {
+                "factual_support": { "type": ["integer", "null"], "minimum": 0, "maximum": 2 },
+                "evidence_coverage_citation_validity": { "type": ["integer", "null"], "minimum": 0, "maximum": 2 },
+                "client_relevance": { "type": ["integer", "null"], "minimum": 0, "maximum": 2 },
+                "directness_clarity": { "type": ["integer", "null"], "minimum": 0, "maximum": 2 },
+                "actionable_judgment": { "type": ["integer", "null"], "minimum": 0, "maximum": 2 }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -26,3 +26,45 @@ export const MERI_GOVERNMENT_AFFAIRS_OUTPUT_CONTRACT = [
   '- Legislative analysis: identify jurisdiction, Congress/session, current bill/rule version and stage, the relevant text/section, and observation date. Explain implementation implications, evidence-based targets, and timing. Distinguish introduced, amended, passed, signed/enacted, effective, and implementing-rule stages; do not transfer status or text between versions or jurisdictions.',
   '- Executive briefing: provide a decision-oriented overview, substantiated analysis, alternatives and material risks, prioritized recommendations, and a complete polished deliverable. Use the same admitted evidence and citation references as the chat; preserve amounts, stages, qualifiers, client scope, and unresolved gaps when writing or exporting Word/PowerPoint. Do not silently replace analysis with an outline or introduce unsupported facts during formatting. Report an incomplete deliverable as incomplete.',
 ].join('\n');
+
+export type MeriNarrativeDepth = 'lookup' | 'analysis';
+
+export interface AdaptiveClientNarrativeInput {
+  request: string;
+  clientId?: string | null;
+  /** Only a name admitted by the current context packet; never inferred from stale memory. */
+  clientName?: string | null;
+  contextAsOf?: string | null;
+}
+
+/** Deterministic presentation guidance; it does not alter model or routing policy. */
+export function buildAdaptiveClientNarrative(input: AdaptiveClientNarrativeInput): string {
+  const depth = classifyMeriNarrativeDepth(input.request);
+  const client = input.clientId
+    ? input.clientName
+      ? `${input.clientName} (client id ${input.clientId})`
+      : `client id ${input.clientId}; the current packet did not establish a client name`
+    : 'no selected client; do not imply client-specific facts';
+  const currency = input.contextAsOf
+    ? `Current context packet compiled at ${input.contextAsOf}.`
+    : 'Current context packet compilation time is unavailable; qualify freshness where material.';
+  return [
+    '# Adaptive client narrative for this turn',
+    `Response depth: ${depth}.`,
+    depth === 'lookup'
+      ? 'Answer the lookup directly and concisely; add analysis or sections only when needed to prevent a misleading answer.'
+      : 'Give decision-relevant analysis with client implication, exact evidence, judgment, action, and material gaps in proportion to the request.',
+    `Focused client: ${client}.`,
+    currency,
+    'Localize unsupported claims with a specific evidence limitation; do not replace the rest of a supported answer with a generic refusal.',
+  ].join('\n');
+}
+
+export function classifyMeriNarrativeDepth(request: string): MeriNarrativeDepth {
+  const text = request.trim();
+  if (!text) return 'lookup';
+  const analytical =
+    /\b(?:analy[sz]e|analysis|compare|contrast|recommend|strategy|strategic|implication|brief|memo|prepare|options?|risk|trade-?off|why|how should|what should)\b/i;
+  const multiPart = /(?:\?|;|\n).*(?:\?|;|\n)/s;
+  return analytical.test(text) || multiPart.test(text) ? 'analysis' : 'lookup';
+}

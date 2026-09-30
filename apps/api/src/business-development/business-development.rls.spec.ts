@@ -182,6 +182,7 @@ const createHarness = (opts: HarnessOptions = {}) => {
         prospects.filter((p) => p.tenantId === tenantId),
         watchlist.filter((w) => w.tenantId === tenantId),
         bellAlerts.filter((a) => a.tenantId === tenantId),
+        tenantSettings,
       );
       return fn(tx);
     }),
@@ -201,7 +202,7 @@ const createHarness = (opts: HarnessOptions = {}) => {
     tenant: {
       findUnique: jest.fn(async () => ({ settings: tenantSettings })),
     },
-  } as unknown as PrismaService;
+  };
 
   const samClientMock = {
     lookupByUei: jest.fn(async (uei: string) => {
@@ -217,7 +218,7 @@ const createHarness = (opts: HarnessOptions = {}) => {
     lookupByName: jest.fn(),
   } as unknown as VendorReferenceSamClient;
 
-  const service = new BizDevDossierService(prismaMock, samClientMock);
+  const service = new BizDevDossierService(prismaMock as unknown as PrismaService, samClientMock);
 
   return { service, prisma: prismaMock, samClient: samClientMock };
 };
@@ -230,6 +231,7 @@ const createTransaction = (
   prospects: prospectRow[],
   watchlist: WatchlistItem[],
   bellAlerts: BellAlert[],
+  tenantSettings: Record<string, unknown>,
 ) => ({
   $queryRaw: jest.fn(async (sql: any, ...args: any[]) => {
     // Simple SQL parser for testing — handle both tagged template and plain string

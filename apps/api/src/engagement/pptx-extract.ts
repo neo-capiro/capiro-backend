@@ -103,6 +103,43 @@ async function presentationSlides(zip: JSZip, budget: { remaining: number }): Pr
   });
 }
 
+function relatedPartPath(ownerPath: string, target: string): string | null {
+  if (!target || /[\\?#]/.test(target) || /^[a-z][a-z\d+.-]*:/i.test(target)) return null;
+  const path = posix.normalize(
+    target.startsWith('/') ? target.slice(1) : posix.join(posix.dirname(ownerPath), target),
+  );
+  return path === '..' || path.startsWith('../') ? null : path;
+}
+
+async function slideNotesPath(
+  zip: JSZip,
+  slidePath: string,
+  budget: { remaining: number },
+): Promise<string | null> {
+  const relationshipsPath = posix.join(
+    posix.dirname(slidePath),
+    '_rels',
+    `${posix.basename(slidePath)}.rels`,
+  );
+  const relationships = zip.file(relationshipsPath);
+  if (!relationships) return null;
+  const parser = new XMLParser({ ignoreAttributes: false, parseTagValue: false, trimValues: true });
+  const root = child(parser.parse(await readXml(relationships, budget)), 'Relationships');
+  for (const value of list(child(root, 'Relationship'))) {
+    const rel = record(value);
+    if (
+      !rel ||
+      typeof rel['@_Type'] !== 'string' ||
+      !rel['@_Type'].endsWith('/notesSlide') ||
+      typeof rel['@_Target'] !== 'string' ||
+      String(rel['@_TargetMode'] ?? '').toLowerCase() === 'external'
+    )
+      continue;
+    return relatedPartPath(slidePath, rel['@_Target']);
+  }
+  return null;
+}
+
 /**
  * Walk a parsed-XML subtree and collect every `a:t` text run in document
  * order. fast-xml-parser yields a string for a single run, an array for
@@ -141,6 +178,67 @@ export function collectTextRuns(node: unknown, out: string[]): void {
  */
 export async function extractPptxText(buffer: Buffer): Promise<string> {
   return (await extractPptxDocument(buffer)).text;
+}
+
+/** Read one presentation-ordered slide and its speaker-notes part. The same
+ * bounded XML inflater and package traversal used by full extraction remain the
+ * authority; unrelated slides are not inflated or parsed. */
+export async function extractPptxSlide(buffer: Buffer, slideNumber: number): Promise<{
+  slideNumber: number;
+  slideCount: number;
+  text: string;
+  notes: string;
+  truncated: boolean;
+  readable: boolean;
+}> {
+  if (!Number.isSafeInteger(slideNumber) || slideNumber < 1 || slideNumber > MAX_SLIDES)
+    throw new Error('PowerPoint slide is outside the reading limit');
+  const { default: JSZip } = await import('jszip');
+  const zip = await JSZip.loadAsync(buffer);
+  const budget = { remaining: MAX_TOTAL_XML_BYTES };
+  const paths = await presentationSlides(zip, budget);
+  const path = paths[slideNumber - 1];
+  if (slideNumber > paths.length) throw new Error('PowerPoint slide does not exist');
+  if (!path) {
+    return { slideNumber, slideCount: paths.length, text: '', notes: '', truncated: false, readable: false };
+  }
+  const parser = new XMLParser({ ignoreAttributes: true, parseTagValue: false, trimValues: true });
+  const readRuns = async (partPath: string, expectedRoot: 'sld' | 'notes'): Promise<string> => {
+    const file = zip.file(partPath);
+    if (!file) return '';
+    const parsed = parser.parse(await readXml(file, budget));
+    if (!record(child(parsed, expectedRoot))) throw new Error('Invalid PowerPoint section');
+    const runs: string[] = [];
+    collectTextRuns(parsed, runs);
+    return runs.join('\n').trim();
+  };
+  let text = '';
+  let notes = '';
+  let truncated = false;
+  try {
+    text = await readRuns(path, 'sld');
+    const notesPath = await slideNotesPath(zip, path, budget);
+    if (notesPath) notes = await readRuns(notesPath, 'notes');
+  } catch (error) {
+    if (error instanceof XmlReadingLimitError) truncated = true;
+    else throw error;
+  }
+  if (text.length > MAX_CHARS_PER_SLIDE) {
+    text = text.slice(0, MAX_CHARS_PER_SLIDE);
+    truncated = true;
+  }
+  if (notes.length > MAX_CHARS_PER_SLIDE) {
+    notes = notes.slice(0, MAX_CHARS_PER_SLIDE);
+    truncated = true;
+  }
+  return {
+    slideNumber,
+    slideCount: paths.length,
+    text,
+    notes,
+    truncated,
+    readable: Boolean(text || notes),
+  };
 }
 
 /** Preserve reading limits and gaps for callers that display attachment status. */

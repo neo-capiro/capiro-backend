@@ -47,6 +47,8 @@ const RUNTIME_ACTION_BY_METHOD: Readonly<Record<string, RuntimeMethodMetadata>> 
   createAttachmentFromBuffer: { action: 'attachment_external_write' },
   supersedeAttachment: { action: 'attachment_external_write' },
   deleteAttachment: { action: 'attachment_external_write' },
+  deleteSyntheticFixtureAttachment: { action: 'attachment_external_write' },
+  inspectSyntheticFixtureAttachmentDeletion: { action: 'attachment_external_read' },
   eraseAttachmentAsSystem: { action: 'attachment_external_write' },
   reconcileFailedAttachmentDeletes: { action: 'attachment_external_write' },
   extractAttachmentText: { action: 'attachment_external_read' },
@@ -174,8 +176,6 @@ export function guardEngagementServiceRuntime(
   });
 }
 
-export function guardedEngagementServiceMethods(): Readonly<
-  Record<string, RuntimeMethodMetadata>
-> {
+export function guardedEngagementServiceMethods(): Readonly<Record<string, RuntimeMethodMetadata>> {
   return RUNTIME_ACTION_BY_METHOD;
 }

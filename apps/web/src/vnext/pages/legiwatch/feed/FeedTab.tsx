@@ -325,7 +325,7 @@ function ScopedFeedTab({ scope, clients, suppressAlert }: { scope: string; clien
           <div className="lw-search" style={{ marginLeft: 'auto', flex: '0 1 320px', minWidth: 200 }}>
             <span aria-hidden="true" style={{ color: 'var(--lw-meta)' }}>⌕</span>
             <input
-              aria-label="Filter updates"
+              aria-label="Search the feed"
               aria-describedby="feed-search-hint"
               placeholder="Filter visible updates"
               value={search}
@@ -572,7 +572,7 @@ function RowStatePill({
       {/* Single interactive state control -- the select already shows the current state
           as its selected value, so the static pill would be redundant (QA finding). */}
       <select
-        aria-label={`Work state: ${WORK_STATE_LABEL[state]}`}
+        aria-label="Change work state"
         value={state}
         disabled={pending}
         aria-busy={pending}

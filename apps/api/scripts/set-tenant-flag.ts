@@ -25,6 +25,14 @@
  * scopes the bypass to this transaction only — it never leaks past it.
  */
 import { Prisma, PrismaClient } from '@prisma/client';
+import {
+  decodeExpectedState,
+  FOUNDATION_APPLY_CONFIRMATION,
+  FOUNDATION_ROLLBACK_CONFIRMATION,
+  runFoundationFullchat,
+  type FoundationDatabase,
+  type FoundationMode,
+} from './set-tenant-flag-foundation.js';
 
 const prisma = new PrismaClient();
 
@@ -36,7 +44,7 @@ function arg(name: string): string | undefined {
   return kv ? kv.slice(p.length + 1) : undefined;
 }
 
-async function main(): Promise<void> {
+async function runGeneric(): Promise<void> {
   const slug = arg('slug');
   const flag = arg('flag');
   const valueRaw = arg('value');
@@ -85,10 +93,80 @@ async function main(): Promise<void> {
   });
 }
 
+function foundationArguments(): {
+  mode: FoundationMode;
+  expectedState: string;
+} {
+  const values = new Map<string, string>();
+  let markerCount = 0;
+  const tokens = process.argv.slice(2);
+  for (let index = 0; index < tokens.length; index += 1) {
+    const token = tokens[index];
+    if (token === '--foundation-fullchat') {
+      markerCount += 1;
+      continue;
+    }
+    const equal = token.indexOf('=');
+    const name = equal < 0 ? token : token.slice(0, equal);
+    if (!['--mode', '--confirmation', '--expected-state'].includes(name)) {
+      throw new Error(`Unsupported fixed foundation option: ${token}`);
+    }
+    if (values.has(name)) throw new Error(`Duplicate fixed foundation option: ${name}`);
+    const value = equal < 0 ? tokens[++index] : token.slice(equal + 1);
+    if (!value || value.startsWith('--')) {
+      throw new Error(`Fixed foundation option ${name} requires one value`);
+    }
+    values.set(name, value);
+  }
+  if (markerCount !== 1) throw new Error('Fixed foundation marker must appear exactly once');
+  const mode = (values.get('--mode') ?? 'plan') as FoundationMode;
+  if (!['plan', 'apply', 'rollback'].includes(mode)) {
+    throw new Error('Fixed foundation mode must be plan, apply, or rollback');
+  }
+  const confirmation = values.get('--confirmation') ?? '';
+  const expectedState = values.get('--expected-state') ?? '';
+  if (mode === 'plan') {
+    if (confirmation || expectedState) {
+      throw new Error('Fixed foundation plan does not accept confirmation or expected state');
+    }
+  } else {
+    const required = mode === 'apply' ? FOUNDATION_APPLY_CONFIRMATION : FOUNDATION_ROLLBACK_CONFIRMATION;
+    if (confirmation !== required) {
+      throw new Error(`Fixed foundation ${mode} requires its exact confirmation`);
+    }
+    if (!expectedState) {
+      throw new Error(`Fixed foundation ${mode} requires receipt-bound expected state`);
+    }
+  }
+  return { mode, expectedState };
+}
+
+async function runFoundation(): Promise<void> {
+  const { mode, expectedState } = foundationArguments();
+  const states = mode === 'plan' ? undefined : decodeExpectedState(expectedState);
+  const receipt = await runFoundationFullchat(prisma as unknown as FoundationDatabase, mode, states);
+  // One bounded machine-readable line is the only foundation-mode output. It
+  // contains tenant identity plus this flag's presence/value, never settings.
+  // eslint-disable-next-line no-console
+  console.log(`MERI_FOUNDATION_FULLCHAT_RESULT=${JSON.stringify(receipt)}`);
+}
+
+async function main(): Promise<void> {
+  if (process.argv.includes('--foundation-fullchat')) {
+    await runFoundation();
+    return;
+  }
+  await runGeneric();
+}
+
 main()
   .catch((err) => {
     // eslint-disable-next-line no-console
-    console.error(err);
+    console.error(
+      process.argv.includes('--foundation-fullchat')
+        ? `Fixed foundation flag operation refused: ${err instanceof Error ? err.message : 'unexpected failure'}`
+        : err,
+    );
     process.exit(1);
   })
   .finally(() => prisma.$disconnect());

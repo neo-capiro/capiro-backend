@@ -1,4 +1,5 @@
 import { CLIO_SKILLS, matchSkill } from './skill-registry.js';
+import { MERI_SKILL_REGISTRY } from '@capiro/shared/meri-skills';
 
 // Golden values copied from the legacy inline maps in meri.service.ts
 // (intentGuidance + templateForIntent). The migrated skills MUST stay
@@ -56,6 +57,29 @@ describe('all registered skills are well-formed', () => {
       expect(skill.requiredTools.length).toBeGreaterThan(0);
     });
   }
+});
+
+describe('procedure slice preserves existing inventories', () => {
+  it('keeps the six built-in procedural skills unchanged', () => {
+    expect(CLIO_SKILLS.map((skill) => skill.id)).toEqual([
+      'briefing',
+      'draft',
+      'bill_analysis',
+      'hearing_prep',
+      'coalition_letter',
+      'amendment_tracker',
+    ]);
+  });
+
+  it('keeps all 14 starter definitions including Commitments & Deliverables', () => {
+    expect(MERI_SKILL_REGISTRY).toHaveLength(14);
+    expect(MERI_SKILL_REGISTRY.find((skill) => skill.id === 'commitments_audit')).toMatchObject({
+      label: 'Commitments & Deliverables',
+      requiresClient: true,
+      permittedScopes: ['general', 'client'],
+      readOnly: true,
+    });
+  });
 });
 
 describe('lobbying skills library (P1-8)', () => {

@@ -5,7 +5,8 @@ import { resolve } from 'node:path';
 
 const root = process.cwd();
 const phase3Base = 'b043a995928314f7085b7f9df94bdba02cee9640';
-const phase4ScopeEnd = process.env.OUTREACH_V3_PHASE4_SCOPE_END ?? 'HEAD';
+// Original closed phase scope; all functional/source checks still read this checkout.
+const phase4ScopeEnd = process.env.OUTREACH_V3_PHASE4_SCOPE_END ?? '208dae611d9f5636f3b7507f8782ff7cc864c4ed';
 
 function run(label, command, args, options = {}) {
   process.stdout.write(`\n== ${label} ==\n${[command, ...args].join(' ')}\n`);
@@ -164,5 +165,7 @@ run('Phase 4 focused tests', 'pnpm', [
 });
 run('API build', 'pnpm', ['--filter', '@capiro/api', 'build']);
 run('Diff whitespace', 'git', ['diff', '--check', `${phase3Base}...${phase4ScopeEnd}`]);
+
+run('Current PR whitespace', 'git', ['diff', '--check', 'origin/main...HEAD']);
 
 process.stdout.write('\nOUTREACH_V3_PHASE4_DB_FREE_COMPLETE\n');

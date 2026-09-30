@@ -23,7 +23,13 @@ jobs:
   phase4-target-intelligence:
     name: Phase 4 target intelligence
     runs-on: ubuntu-latest
-    timeout-minutes: 75
+    # The Phase 3 -> Engagement Phase 1-3 chain ran 69 minutes with Phase 1
+    # cut off at 25; it needs the same budget as the other Outreach gates.
+    timeout-minutes: 120
+    # The nested Phase 3 -> Engagement Phase 1-3 verifiers run in-band Jest,
+    # nest build and the web build on this heap.
+    env:
+      NODE_OPTIONS: --max-old-space-size=6144
     steps:
       - uses: actions/checkout@v4
         with:
@@ -45,6 +51,12 @@ jobs:
 
       - name: Install locked dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Build shared
+        run: pnpm --filter @capiro/shared build
+
+      - name: Build MeriV2 core
+        run: pnpm --filter @capiro/meriv2-core build
 
       - name: Generate API Prisma client
         run: pnpm --filter @capiro/api exec prisma generate

@@ -1,0 +1,7 @@
+# Monday client mapping authorization
+
+Donor16aa415ccef8604410c8074d1360875ee9e5ec59 combines semantic repair fddae0ff0 with a nullable test-fixture declaration correction. The two-file integration includes current membership/client/mapping checks before provider read and again before result release. Explicit board IDs must all belong to the selected client's saved mapping; personal connector access alone does not authorize an unmapped board. Missing mapping denies access.
+
+Independent Kimi review ran the actual adapter suite:57 tests exit0. The lead then found2 TS2322 errors in the new null fixture (mapping?:string[] omitted null), fixed only that test type and obtained API typecheck exit0. On the combined foundation checkout, all57 tests, API typecheck and2-file formatting passed with actual exit0. Evidence: review-monday-mapping.jsonl, monday-source-current-types.log (initial error), monday-final-types-gates.json, monday-integrated-gates.json and corresponding logs under C:/dev/cap-meri-foundation-evidence. Review report category counts and invented out-of-scope family names are not used as evidence.
+
+The other remaining-source defects (semantic replay fields, prior-attachment snapshot text, unavailable bill states, bounded web transport and truthful coverage) are not closed by this scoped repair. Other dirty donor files were excluded. No provider call, shared-database mutation, main merge, deployment or source-family-wide acceptance is claimed.

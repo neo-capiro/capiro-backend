@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
+import { randomUUID } from 'node:crypto';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MemoryIngestService } from './memory-ingest.service.js';
@@ -16,7 +17,7 @@ import { MemoryAuthorizationService } from './memory-authorization.service.js';
 import { governedMemoryEnforcementEnabled } from './memory-authorization.helpers.js';
 import { isMemoryReviewAdminRole } from './memory-review-admin-policy.js';
 import { evaluateMemoryCandidate } from './memory-candidate-rules.js';
-import { fetchDeniedClientIds } from './memory-wall.helpers.js';
+import { clientMemoryAllowed, fetchDeniedClientIds } from './memory-wall.helpers.js';
 import {
   candidateTransitionPath,
   classifyCandidateForGovernance,
@@ -274,7 +275,32 @@ export class MemoryCandidateService {
     // artifact promotion ('workspace_artifact'). Defaults preserve every existing
     // caller's behavior exactly.
     sourceKind: string = 'explicit_user',
+    /** Internal fixture-only identity; controllers never bind this argument. */
+    fixtureCandidateId?: string,
   ): Promise<ProposeSaveMemoryResult> {
+    if (fixtureCandidateId !== undefined) {
+      const namespace = 'meri-foundation-20260928';
+      const fixtureTenants = [
+        'f2d6cf8f-057c-479a-8110-62fe5086d43f',
+        '52e91176-08f0-4d89-9633-bc212f5bdbbf',
+      ];
+      if (
+        process.env.MERI_SYNTHETIC_FIXTURE_NAMESPACE !== namespace ||
+        !fixtureTenants.includes(tenantId) ||
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(
+          fixtureCandidateId,
+        ) ||
+        sourceKind !== 'model_extraction' ||
+        record.source !== 'meri_synthetic_fixture' ||
+        record.sourceType !== 'meri_synthetic_fixture' ||
+        !record.key.startsWith(`${namespace}:`) ||
+        !/^[0-9a-f]{64}$/u.test(record.sourceId ?? '') ||
+        !record.sourceExcerpt ||
+        record.sourceExcerpt.length > 4000
+      ) {
+        throw new ForbiddenException('Synthetic candidate identity is not authorized');
+      }
+    }
     const scope: 'personal' | 'firm' | 'client' =
       record.scope === 'user_private' ? 'personal' : record.scope === 'client' ? 'client' : 'firm';
     if (record.scope === 'client' && !record.clientId) {
@@ -347,6 +373,20 @@ export class MemoryCandidateService {
     });
 
     const result = await this.prisma.withTenantUser(tenantId, proposedByUserId, async (tx) => {
+      if (fixtureCandidateId !== undefined) {
+        const membership = await tx.$queryRaw<Array<{ user_id: string }>>`
+          SELECT user_id::text AS user_id FROM tenant_memberships
+          WHERE tenant_id = ${tenantId}::uuid AND user_id = ${proposedByUserId}::uuid
+            AND status = 'active' FOR SHARE
+        `;
+        if (
+          membership.length !== 1 ||
+          (record.clientId &&
+            !(await clientMemoryAllowed(tx, tenantId, proposedByUserId, record.clientId)))
+        ) {
+          throw new ForbiddenException('Synthetic candidate actor or client is not authorized');
+        }
+      }
       const priorCommitted = await tx.$queryRaw<
         Array<{ id: string; committed_memory_id: string | null }>
       >`
@@ -364,14 +404,15 @@ export class MemoryCandidateService {
       `;
       const duplicateOfId = priorCommitted[0]?.id ?? null;
 
+      const candidateId = fixtureCandidateId ?? randomUUID();
       const rows = await tx.$queryRaw<Array<{ id: string }>>`
         INSERT INTO memory_candidate (
-          tenant_id, proposed_by, source_kind, scope, client_id, payload_jsonb,
+          id, tenant_id, proposed_by, source_kind, scope, client_id, payload_jsonb,
           provenance_jsonb, duplicate_of_id, status, confidence,
           source_type, source_id, memory_class, memory_authority,
           contradicts_memory_item_id, conflict_status
         ) VALUES (
-          ${tenantId}::uuid, ${proposedByUserId}::uuid, ${sourceKind}, ${scope},
+          ${candidateId}::uuid, ${tenantId}::uuid, ${proposedByUserId}::uuid, ${sourceKind}, ${scope},
           ${record.clientId ?? null}::uuid,
           ${JSON.stringify(payload)}::jsonb, ${JSON.stringify(provenance)}::jsonb,
           ${duplicateOfId}::uuid, 'pending', ${candidateConfidence},

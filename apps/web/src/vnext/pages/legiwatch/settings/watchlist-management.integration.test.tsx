@@ -188,5 +188,86 @@ describe('LW-07 real watchlist management routes', () => {
       ).toBeInTheDocument();
     },
   );
+});
 
+describe('native configuration verification and alert results', () => {
+  it('requires server confirmation of the entered OTP before marking a phone verified', async () => {
+    const originalGet = api.get.getMockImplementation()!;
+    api.get.mockImplementation(async (url: string) =>
+      url.endsWith('/alert-prefs')
+        ? {
+            data: {
+              triggers: ['newMatch'],
+              materiality: 'medium',
+              smsEnabled: true,
+              smsPhone: '+14155551234',
+              smsPhoneVerified: false,
+              smsCadence: 'realtime',
+            },
+          }
+        : originalGet(url),
+    );
+    api.post.mockImplementation(async (url: string) => {
+      if (url.endsWith('/sms/verify/start')) return { data: { masked: '***1234', dormant: true } };
+      if (url.endsWith('/sms/verify/confirm')) return { data: {} };
+      throw new Error(`Unexpected POST ${url}`);
+    });
+    api.put.mockImplementation(async (_url: string, body: unknown) => ({ data: body }));
+    mount('/legiwatch?tab=settings&sub=watchlist&client=client-A');
+    fireEvent.click(await screen.findByRole('button', { name: 'Verify' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Verify your phone' });
+    expect(api.post).toHaveBeenCalledWith('/intel-api/clients/client-A/tracker/sms/verify/start', {
+      phone: '+14155551234',
+    });
+    expect(screen.queryByText('Verified', { exact: true })).toBeNull();
+    expect(within(dialog).getByRole('button', { name: 'Verify' })).toBeDisabled();
+    fireEvent.change(within(dialog).getByLabelText('Verification code'), {
+      target: { value: '123456' },
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Verify' }));
+    await waitFor(() =>
+      expect(api.post).toHaveBeenCalledWith(
+        '/intel-api/clients/client-A/tracker/sms/verify/confirm',
+        { phone: '+14155551234', code: '123456' },
+      ),
+    );
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Verify your phone' })).toBeNull(),
+    );
+    expect(screen.getByText('Verified', { exact: true })).toBeTruthy();
+  });
+  it('reports every channel result and does not fetch the board or recommendations for configuration', async () => {
+    const originalGet = api.get.getMockImplementation()!;
+    api.get.mockImplementation(async (url: string) =>
+      url.endsWith('/alert-prefs')
+        ? {
+            data: {
+              triggers: ['newMatch'],
+              materiality: 'medium',
+              emailEnabled: true,
+              emailAddress: 'test@example.invalid',
+              emailCadence: 'realtime',
+            },
+          }
+        : originalGet(url),
+    );
+    api.post.mockResolvedValue({
+      data: [
+        { channel: 'in_app', status: 'sent' },
+        { channel: 'email', status: 'failed', detail: 'sandbox rejection' },
+      ],
+    });
+    mount('/legiwatch?tab=settings&sub=watchlist&client=client-A');
+    fireEvent.click(await screen.findByRole('button', { name: /Send test alert/i }));
+    await waitFor(() =>
+      expect(api.post).toHaveBeenCalledWith('/intel-api/clients/client-A/tracker/test-alert', {
+        channels: ['in_app', 'email'],
+      }),
+    );
+    expect(await screen.findByText('In-app: sent')).toBeTruthy();
+    expect(screen.getByText('Email: failed — sandbox rejection')).toBeTruthy();
+    expect(
+      api.get.mock.calls.some(([url]) => /\/(board|recommendations)(?:\?|$)/.test(String(url))),
+    ).toBe(false);
+  });
 });

@@ -2,6 +2,7 @@ import { MERI_FEDERAL_MARKET_TOOL_DEFINITIONS } from '@capiro/shared';
 import { BadRequestException, HttpException, NotFoundException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { ordinaryClioArtifactWhere } from '../common/internal-clio-artifact.js';
 import { FederalMarketMeriToolsService } from '../federal-spending/federal-market-meri-tools.service.js';
 import { MeriToolsService } from './meri-tools.service.js';
 
@@ -71,6 +72,7 @@ async function assertOwnedChartArtifacts(
         tenantId: ctx.tenantId,
         userId: ctx.userId,
         kind: 'analysis_chart',
+        ...ordinaryClioArtifactWhere(),
       },
       select: { id: true },
     }),

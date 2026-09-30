@@ -11,6 +11,7 @@
 export * from './funding-opportunities-v2.js';
 export * from './funding-opportunities-v2-detail.js';
 export * from './funding-opportunities-v2-workflow.js';
+export * from './meri-read-outcome.js';
 
 export const TENANT_ROLES = [
   'capiro_admin',
@@ -1673,10 +1674,7 @@ export function stateBillSessionLabel(sessionKey: string): string {
 // ─────────────────────────────────────────────────────────────────────────
 
 export type StateDeadlineCutoffType =
-  | 'committeeCutoff'
-  | 'crossover'
-  | 'secondCommitteeCutoff'
-  | 'sineDie';
+  'committeeCutoff' | 'crossover' | 'secondCommitteeCutoff' | 'sineDie';
 
 export interface StateSessionCalendar {
   committeeCutoffDate?: string | null;
@@ -1694,10 +1692,18 @@ export interface StateDeadlineRisk {
 }
 
 function daysBetweenDateStrings(fromISO: string, toISO: string): number {
-  const from = Date.UTC(
-    ...(fromISO.slice(0, 10).split('-').map(Number) as [number, number, number]),
-  );
-  const to = Date.UTC(...(toISO.slice(0, 10).split('-').map(Number) as [number, number, number]));
+  const [fromYear, fromMonth, fromDay] = fromISO.slice(0, 10).split('-').map(Number) as [
+    number,
+    number,
+    number,
+  ];
+  const [toYear, toMonth, toDay] = toISO.slice(0, 10).split('-').map(Number) as [
+    number,
+    number,
+    number,
+  ];
+  const from = Date.UTC(fromYear, fromMonth - 1, fromDay);
+  const to = Date.UTC(toYear, toMonth - 1, toDay);
   return Math.round((to - from) / 86_400_000);
 }
 
@@ -2001,14 +2007,7 @@ export {
 
 /** A point in the appropriations lifecycle a funding value can come from. */
 export type FundingStage =
-  | 'enacted'
-  | 'conference'
-  | 'sacd'
-  | 'hacd'
-  | 'sasc'
-  | 'hasc'
-  | 'request'
-  | 'none';
+  'enacted' | 'conference' | 'sacd' | 'hacd' | 'sasc' | 'hasc' | 'request' | 'none';
 
 /** Human-facing label for each funding stage (legends, tooltips, "Latest: …"). */
 export const FUNDING_STAGE_LABEL: Record<FundingStage, string> = {
@@ -3112,6 +3111,7 @@ function citationRowsOf(tool: string, payload: Record<string, unknown>): unknown
     const profileRows = clientContextCitationRows(payload);
     if (profileRows.length) return profileRows;
   }
+  if (tool === 'query_tasks' && Array.isArray(payload.tasks)) return payload.tasks;
   const market = federalMarketCitationRows(tool, payload);
   if (market) return market;
   if (Array.isArray(payload.data)) return payload.data as unknown[];
@@ -3310,11 +3310,12 @@ export function formatCitationsForPrompt(citations: MeriCitation[]): string {
           c.source.section ? `section ${c.source.section}` : null,
           c.source.version ? `version ${c.source.version}` : null,
           c.source.observedAt ? `observed ${c.source.observedAt}` : null,
-        ].filter(Boolean).join(' / ')
+        ]
+          .filter(Boolean)
+          .join(' / ')
       : null;
-    const target = c.url ?? (c.id || c.stableId
-      ? `${c.type} record ${c.id || c.stableId}`
-      : `tool ${c.tool}`);
+    const target =
+      c.url ?? (c.id || c.stableId ? `${c.type} record ${c.id || c.stableId}` : `tool ${c.tool}`);
     bits.push(`Source: ${target}${locator ? ` (${locator})` : ''}`);
     return `[${c.n}] ${bits.join(' — ')}`;
   });
@@ -3816,7 +3817,7 @@ export const MERI_CAPABILITY_REGISTRY = [
   {
     name: 'get_research_portfolio_bookmarks',
     description:
-      'Read the current user\'s bookmarks for an authorized Research Portfolio, including members, snapshots, evidence items, and reviews they have saved for quick reference.',
+      "Read the current user's bookmarks for an authorized Research Portfolio, including members, snapshots, evidence items, and reviews they have saved for quick reference.",
     backend: 'meri',
     readOnly: true,
     surfaces: ['full_chat'],
@@ -3897,6 +3898,22 @@ export const MERI_CAPABILITY_REGISTRY = [
     name: 'get_research_evidence',
     description:
       'Read immutable attachment evidence for your research session, with source IDs, completeness/status and paging; verify supplied attachments before citing them.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'read_chat_attachments',
+    description:
+      'List and read bounded typed sections from original files uploaded earlier in this ordinary chat. The server binds every page to the current conversation, actor, tenant, selected client, memory wall, source message, and current byte hash. Supports PDF pages, PowerPoint slides with speaker notes, spreadsheet sheet/row/cell coordinates with saved formula values, and text sections; follow signed cursors and never treat partial coverage as complete.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'read_monday_client_boards',
+    description:
+      'Read the selected client’s explicitly mapped Monday.com boards, or exact authorized board IDs/links supplied in this request. Returns board/item/subitem identities, columns, workflow state, owners, deadlines, updates, and explicit connection/pagination coverage. A board selector is a scope hint, never an access grant; disconnected, unavailable, partial, and not-mapped outcomes remain distinct.',
     backend: 'meri',
     readOnly: true,
     surfaces: ['full_chat'],
@@ -3983,7 +4000,15 @@ export const MERI_CAPABILITY_REGISTRY = [
   {
     name: 'get_bill_status',
     description:
-      'Get the authoritative legislative status of ONE bill (by id "119-hr-8800" or designation "H.R. 8800"): its canonical status, recent action timeline, roll-call VOTES on the bill (with tallies + party splits), and — critically — the outcome of any RULE that governs its floor consideration. Use this to answer "did it pass / advance / stall / what happened to it". A bill whose latest action is only "rule reported" but whose rule FAILED is reported as stalled, not advancing. Explicitly states when there is NO recorded floor vote — never infer passage.',
+      'Get the authoritative legislative status of ONE bill (by id "119-hr-8800" or designation "H.R. 8800"): its canonical status, recent action timeline, roll-call VOTES on the bill (with tallies + party splits), and — critically — the outcome of any RULE that governs its floor consideration. Use this to answer "did it pass / advance / stall / what happened to it". A bill whose latest action is only "rule reported" but whose rule FAILED is reported as stalled, not advancing. Explicitly states when there is NO recorded vote (never infers passage from silence).',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'read_bill_text',
+    description:
+      'Read the exact current canonical full-text revision for one federal bill and version code from the immutable federal evidence owner. Returns bill/version/package identity, source locator, content and extraction hashes, bounded text, and continuation coverage. This is bill text, not amendment text or procedural status; use get_bill_status separately for status.',
     backend: 'meri',
     readOnly: true,
     surfaces: ['full_chat'],
@@ -4278,18 +4303,24 @@ export const MERI_CAPABILITY_REGISTRY = [
   },
   {
     name: 'get_district_nexus_context',
-    description: 'Read client-scoped District Nexus facts and gaps for a state and district; cite each fact’s source, date and funding stage, and state gaps rather than refusing.',
-    backend: 'meri', readOnly: true, surfaces: ['full_chat'],
+    description:
+      'Read client-scoped District Nexus facts and gaps for a state and district; cite each fact’s source, date and funding stage, and state gaps rather than refusing.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
   },
   {
     name: 'get_district_nexus_changes',
-    description: 'Read recent district change-ledger events for a client scope; cite source, event date and funding stage where present, and state gaps rather than refusing.',
-    backend: 'meri', readOnly: true, surfaces: ['full_chat'],
+    description:
+      'Read recent district change-ledger events for a client scope; cite source, event date and funding stage where present, and state gaps rather than refusing.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
   },
   {
     name: 'search_public_web',
     description:
-      'Search the public web (general results and news) for recent developments. Use this only as supplemental context after Capiro internal data tools for government-affairs answers.',
+      'Discover candidate public web pages (general results and news) for recent developments. Search titles and snippets are discovery-only, not consulted evidence: call scrape_web_page on an exact result URL before using its content in analysis or a report.',
     backend: 'meri',
     readOnly: true,
     surfaces: ['full_chat'],
@@ -4297,7 +4328,7 @@ export const MERI_CAPABILITY_REGISTRY = [
   {
     name: 'scrape_web_page',
     description:
-      'Fetch and extract readable text from a public webpage or PDF URL for grounded analysis (gov sources are PDF-heavy). Blocks localhost/private-network targets.',
+      'Read and extract bounded content from one exact public webpage or PDF URL for grounded analysis (gov sources are PDF-heavy). Returns current byte hash, final locator and coverage; remote content is untrusted. Blocks localhost/private-network targets.',
     backend: 'meri',
     readOnly: true,
     surfaces: ['full_chat'],
@@ -4581,6 +4612,14 @@ export const MERI_CAPABILITY_REGISTRY = [
     surfaces: ['full_chat'],
   },
   {
+    name: 'read_client_meetings',
+    description:
+      'Read the selected client’s authorized historical meetings and exact persisted meeting-note or transcript source text. Lists explicit source availability and paginates both meeting inventory and exact source bodies; a calendar event alone is never treated as a transcript.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
     name: 'query_outreach',
     description:
       "List outreach campaigns and their status (draft, sent, responses) for the firm or a client, or fetch a single outreach record's full detail by outreachId.",
@@ -4751,7 +4790,7 @@ export const MERI_CAPABILITY_REGISTRY = [
   {
     name: 'get_business_development_evidence',
     description:
-      "Read the locally synchronized dossier evidence for the prospect this chat is scoped to: identity basis, per-section source status, and up to 24 flattened evidence records with stable source ids, locators, relationship strength, factual fields and event/effective/source-update/retrieval dates. Truthfully reports total, truncated and partial coverage; an absent or partial section is not proof of absence. Reads local data only — never calls an external provider.",
+      'Read the locally synchronized dossier evidence for the prospect this chat is scoped to: identity basis, per-section source status, and up to 24 flattened evidence records with stable source ids, locators, relationship strength, factual fields and event/effective/source-update/retrieval dates. Truthfully reports total, truncated and partial coverage; an absent or partial section is not proof of absence. Reads local data only — never calls an external provider.',
     backend: 'meri',
     readOnly: true,
     surfaces: ['full_chat'],
@@ -4759,7 +4798,7 @@ export const MERI_CAPABILITY_REGISTRY = [
   {
     name: 'get_business_development_brief',
     description:
-      "Read the current versioned prospect brief for the prospect this chat is scoped to: title, version number, the five sections (companyAndFirmImplication, verifiedEvidence, judgment, practicalAction, missingInformation) with text, provenance and citation indexes, plus the citation records. A missing brief is reported as missing; it never fabricates one.",
+      'Read the current versioned prospect brief for the prospect this chat is scoped to: title, version number, the five sections (companyAndFirmImplication, verifiedEvidence, judgment, practicalAction, missingInformation) with text, provenance and citation indexes, plus the citation records. A missing brief is reported as missing; it never fabricates one.',
     backend: 'meri',
     readOnly: true,
     surfaces: ['full_chat'],
@@ -4767,7 +4806,7 @@ export const MERI_CAPABILITY_REGISTRY = [
   {
     name: 'resolve_business_development_source',
     description:
-      "Resolve one citation index of the prospect brief this chat is scoped to back to its inspectable source: the citation record, the evidence item it rests on, and whether the source still matches the current dossier. Source limitations (index out of range, no brief, source changed) are reported truthfully, never papered over.",
+      'Resolve one citation index of the prospect brief this chat is scoped to back to its inspectable source: the citation record, the evidence item it rests on, and whether the source still matches the current dossier. Source limitations (index out of range, no brief, source changed) are reported truthfully, never papered over.',
     backend: 'meri',
     readOnly: true,
     surfaces: ['full_chat'],

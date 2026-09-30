@@ -113,6 +113,14 @@ if ((VALIDATE_ONLY)); then
   exit 0
 fi
 
+[[ "${GITHUB_ACTIONS:-}" == true ]] || fail 'mutating mode is restricted to GitHub Actions'
+[[ "${CI:-}" == true ]] || fail 'CI=true is required'
+[[ "${CI_DISPOSABLE_POSTGRES:-}" == 1 ]] || fail 'CI_DISPOSABLE_POSTGRES=1 is required'
+
+# Pin inherited libpq settings for every psql and Prisma child.
+unset PGSERVICE PGSERVICEFILE PGOPTIONS
+export PGHOSTADDR="$PG_HOST"
+
 command -v psql >/dev/null 2>&1 || fail 'psql is required on the CI runner'
 command -v pnpm >/dev/null 2>&1 || fail 'pnpm is required on the CI runner'
 
@@ -126,6 +134,13 @@ target_psql() {
   shift
   psql --no-psqlrc --set=ON_ERROR_STOP=1 "$(psql_url_for "$db")" "$@"
 }
+
+connection_identity="$(admin_psql --tuples-only --no-align --command \
+  "SELECT current_database(), current_user, inet_server_port(), current_setting('is_superuser')")"
+[[ "$connection_identity" == "${ADMIN_DATABASE}|${ADMIN_ROLE}|5432|on" ]] ||
+  fail 'refusing unexpected PostgreSQL admin identity'
+
+admin_psql --file="$SCRIPT_DIR/disposable-capiro-worker-role.sql"
 
 printf 'Ensuring CI role %s and historical migration prerequisite database capiro exist...\n' "$TEST_ROLE"
 admin_psql <<'SQL'
@@ -165,7 +180,26 @@ for db in "${TEST_DATABASES[@]}"; do
   ensure_database "$db"
 done
 
+# Reuse the canonical CI baseline SQL in each already-owned database. These
+# prerequisites confer no login, membership or table privileges themselves.
+# Keep the dedicated connection independent of inherited libpq routing options.
+migration_prerequisite_psql() (
+  local db="$1"
+  shift
+  case "$db" in
+    fo_v2_test|fo_v2_search|fo_v2_saved) ;;
+    *) fail 'unexpected migration-prerequisite database' ;;
+  esac
+  unset PGSERVICE PGSERVICEFILE PGOPTIONS
+  export PGHOSTADDR="$PG_HOST"
+  psql --no-psqlrc --set=ON_ERROR_STOP=1 "$(psql_url_for "$db")" "$@"
+)
+
 for db in "${TEST_DATABASES[@]}"; do
+  identity="$(migration_prerequisite_psql "$db" -Atc "SELECT current_database(), current_user, inet_server_port(), current_setting('is_superuser')")"
+  [[ "$identity" == "$db|$ADMIN_ROLE|5432|on" ]] || fail "refusing unexpected migration-prerequisite identity '$identity'"
+  migration_prerequisite_psql "$db" < "$SCRIPT_DIR/disposable-capiro-worker-prerequisite.sql"
+  migration_prerequisite_psql "$db" -f "$SCRIPT_DIR/research-portfolio-append-only-prerequisite.sql"
   target_url="$(admin_url_for "$db")"
   printf 'Applying API migrations to %s (DATABASE_URL uses validated CI admin authority)...\n' "$db"
   (cd "$API_DIR" && DATABASE_URL="$target_url" FUNDING_OPPORTUNITIES_TEST_DATABASE_URL="$(test_url_for "$db")" pnpm exec prisma migrate deploy)

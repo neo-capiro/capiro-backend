@@ -83,10 +83,7 @@ describe('save-time context conflict comparison', () => {
 
   it('still rejects over-long or NUL-containing warnings as malformed', () => {
     expect(() =>
-      sanitizeContextCompareResult(
-        { conflicts: [], warnings: ['a'.repeat(1_001)] },
-        INPUT,
-      ),
+      sanitizeContextCompareResult({ conflicts: [], warnings: ['a'.repeat(1_001)] }, INPUT),
     ).toThrow('Comparison warning');
     expect(() =>
       sanitizeContextCompareResult({ conflicts: [], warnings: ['has\0nul'] }, INPUT),

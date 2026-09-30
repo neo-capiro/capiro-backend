@@ -47,7 +47,9 @@ jobs:
       # default ~2 GiB old-space limit on hosted runners. Keep the suite and its
       # count floor intact; raise only the process heap ceiling so CI validates
       # the same tests instead of aborting before a JSON summary is written.
-      NODE_OPTIONS: --max-old-space-size=4096
+      # 4 GB also ran out once main's API grew; 6 GB matches the other in-band
+      # API test jobs.
+      NODE_OPTIONS: --max-old-space-size=6144
 
     steps:
       - uses: actions/checkout@v4
@@ -138,7 +140,9 @@ jobs:
           SQL
 
       - name: Typecheck Engagement packages
-        run: pnpm turbo run typecheck --filter=@capiro/api --filter=@capiro/web
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
+        run: pnpm turbo run typecheck --concurrency=1 --filter=@capiro/api --filter=@capiro/web
 
       - name: Tests — apps/api Engagement trust boundary
         id: api_tests

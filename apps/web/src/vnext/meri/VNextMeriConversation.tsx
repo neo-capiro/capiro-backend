@@ -14,6 +14,7 @@ import { VNextMeriComposer } from './VNextMeriComposer.js';
 import { MeriApprovalNotice } from './MeriApprovalNotice.js';
 import { VNextMeriReasoningControl } from './VNextMeriReasoningControl.js';
 import { MeriStartWork } from './MeriStartWork.js';
+import { MeriDurableResearchControls } from './MeriDurableResearchControls.js';
 import type { MeriTurnInspectorData, MeriTurnInspectorTab } from './MeriTurnInspector.js';
 
 function greetingFor(name: string): string {
@@ -385,7 +386,10 @@ export function VNextMeriConversation({
           role="log"
           aria-live="polite"
         >
-          <div className={`vnext-meri__conversation-column${!hasThread ? ' is-landing' : ''}`} data-meri-column>
+          <div
+            className={`vnext-meri__conversation-column${!hasThread ? ' is-landing' : ''}`}
+            data-meri-column
+          >
             {controller.metaError ? (
               <div className="vnext-meri__error" role="alert">
                 {controller.metaError}
@@ -496,6 +500,13 @@ export function VNextMeriConversation({
                     </div>
                   );
                 })}
+
+                <MeriDurableResearchControls
+                  controller={controller}
+                  researchId={
+                    controller.researchSessionRef.current ?? controller.researchRecovery?.id ?? null
+                  }
+                />
 
                 {controller.researchAwaitingAnswers && controller.researchQuestions.length > 0 ? (
                   <ResearchClarifyInline controller={controller} />

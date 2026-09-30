@@ -132,8 +132,11 @@ export async function embedAndUpsert(
   // SELECT, quick, no lock, no transaction needed. RLS is enforced on
   // SELECT too, but for global content (NULL tenant) the policy is
   // permissive so this query runs the same way bypassRls would.
-  const existing = await prisma.$queryRawUnsafe<Array<{ content_hash: string }>>(
-    `SELECT content_hash FROM context_embeddings
+  const existing = await prisma.$queryRawUnsafe<
+    Array<{ content_hash: string; client_id: string | null; owner_user_id: string | null }>
+  >(
+    `SELECT content_hash, client_id::text AS client_id, owner_user_id::text AS owner_user_id
+       FROM context_embeddings
        WHERE source_type = $1 AND source_id = $2 AND model = $3
          AND (tenant_id = $4::uuid OR ($4 IS NULL AND tenant_id IS NULL))
        LIMIT 1`,
@@ -142,8 +145,32 @@ export async function embedAndUpsert(
     model,
     args.tenantId,
   );
+  const desiredClientId = args.clientId ?? null;
+  const desiredOwnerUserId = args.ownerUserId ?? null;
   if (existing[0]?.content_hash === hash) {
-    return 'skipped';
+    if (
+      existing[0].client_id === desiredClientId &&
+      existing[0].owner_user_id === desiredOwnerUserId
+    )
+      return 'skipped';
+    // Scope metadata is security-sensitive and can change while content stays byte-identical.
+    return prisma.$transaction(async (tx) => {
+      if (args.bypassRls) await tx.$executeRawUnsafe(`SET LOCAL app.bypass_rls = 'on'`);
+      if (args.beforeWrite && !(await args.beforeWrite(tx))) return 'skipped' as const;
+      await tx.$executeRawUnsafe(
+        `UPDATE context_embeddings
+           SET client_id = $1::uuid, owner_user_id = $2::uuid, updated_at = NOW()
+         WHERE source_type = $3 AND source_id = $4 AND model = $5
+           AND (tenant_id = $6::uuid OR ($6 IS NULL AND tenant_id IS NULL))`,
+        desiredClientId,
+        desiredOwnerUserId,
+        args.sourceType,
+        args.sourceId,
+        model,
+        args.tenantId,
+      );
+      return 'updated' as const;
+    });
   }
 
   // Step 2 (no transaction): call the embedding provider. This is the slow
@@ -168,6 +195,7 @@ export async function embedAndUpsert(
            DO UPDATE SET content_text  = EXCLUDED.content_text,
                          content_hash  = EXCLUDED.content_hash,
                          embedding     = EXCLUDED.embedding,
+                         client_id     = EXCLUDED.client_id,
                          owner_user_id = EXCLUDED.owner_user_id,
                          updated_at    = NOW()`,
         args.tenantId,
@@ -185,7 +213,7 @@ export async function embedAndUpsert(
       `UPDATE context_embeddings
          SET content_text = $1, content_hash = $2,
              embedding = '${literal}'::vector,
-             owner_user_id = $7::uuid,
+             client_id = $7::uuid, owner_user_id = $8::uuid,
              updated_at = NOW()
        WHERE source_type = $3 AND source_id = $4 AND model = $5
          AND (tenant_id = $6::uuid OR ($6 IS NULL AND tenant_id IS NULL))`,
@@ -195,7 +223,8 @@ export async function embedAndUpsert(
       args.sourceId,
       model,
       args.tenantId,
-      args.ownerUserId ?? null,
+      desiredClientId,
+      desiredOwnerUserId,
     );
     return 'updated' as const;
   });

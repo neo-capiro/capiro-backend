@@ -9,6 +9,7 @@ const ROW_KEYS = [
   'memories',
   'hearings',
   'messages',
+  'tasks',
 ];
 const META_KEYS = [
   'status',
@@ -197,6 +198,75 @@ function projectFloridaBudgetEvidence(original: Record<string, unknown>, maxChar
     },
   };
   return JSON.stringify(projected).length <= maxCharacters ? projected : null;
+}
+
+/** A document row is useful only with the owner receipt that authorizes that
+ * exact span. Compact oversized diagnostic coverage, but keep document/client/
+ * revision identity, read coverage, and every displayed row byte-complete. */
+function projectClientDocumentEvidence(
+  original: Record<string, unknown>,
+  maxCharacters: number,
+  originalCharacters: number,
+): Record<string, unknown> | null {
+  const document = original.document;
+  const coverage = original.coverage;
+  if (
+    !object(document) ||
+    typeof original.clientId !== 'string' ||
+    typeof document.id !== 'string' ||
+    typeof document.contentHash !== 'string' ||
+    !object(coverage) ||
+    !Array.isArray(original.records)
+  )
+    return null;
+  if (originalCharacters <= maxCharacters) return original;
+
+  const omittedCoverageFields: string[] = [];
+  const boundedCoverage = Object.fromEntries(
+    Object.entries(coverage).flatMap(([key, value]) => {
+      if (JSON.stringify(value).length <= 1_600) return [[key, value]];
+      omittedCoverageFields.push(key);
+      return [];
+    }),
+  );
+  const shown: unknown[] = [];
+  const projected: Record<string, unknown> = {
+    ...(original.tool !== undefined ? { tool: original.tool } : {}),
+    ...(original.generatedAt !== undefined ? { generatedAt: original.generatedAt } : {}),
+    clientId: original.clientId,
+    document,
+    coverage: boundedCoverage,
+    records: shown,
+    truncated: true,
+    partial: true,
+    projection: {
+      truncated: true,
+      reason: 'model_tool_evidence_budget',
+      originalCharacters,
+      sourceRecordCount: original.records.length,
+      shownRecordCount: 0,
+      contentTruncated: false,
+      ownerEnvelopePreserved: true,
+      omittedCoverageFields,
+      continuation: {
+        preserveFilters: true,
+        preserveCurrentCursor: true,
+        instruction:
+          'Displayed document rows retain their complete owner document, client, revision and row-span receipt. Follow the owner coverage nextCursor for unread text. A row not displayed here was not read and cannot support a claim.',
+      },
+    },
+  };
+  if (JSON.stringify(projected).length > maxCharacters) return null;
+  for (const row of original.records) {
+    shown.push(row);
+    (projected.projection as Record<string, unknown>).shownRecordCount = shown.length;
+    if (JSON.stringify(projected).length > maxCharacters) {
+      shown.pop();
+      (projected.projection as Record<string, unknown>).shownRecordCount = shown.length;
+      break;
+    }
+  }
+  return projected;
 }
 
 /** Mail inventory has a message page and a duplicate legacy thread view. Keep
@@ -528,6 +598,8 @@ export function projectMeriToolEvidence(args: {
   if (args.readOnly) {
     const fiscal = projectFloridaBudgetEvidence(original, args.maxCharacters);
     if (fiscal) return fiscal;
+    const document = projectClientDocumentEvidence(original, args.maxCharacters, safe.length);
+    if (document) return document;
     const mail = projectMailInventoryEvidence(original, args.maxCharacters, safe.length);
     if (mail) return mail;
     const thread = projectMailThreadEvidence(original, args.maxCharacters, safe.length);

@@ -65,6 +65,7 @@ import { MeriMcpOAuthService } from './meri-mcp-oauth.service.js';
 import { MeriMcpOAuthController } from './meri-mcp-oauth.controller.js';
 import { MeriManagedMcpService } from './meri-managed-mcp.service.js';
 import { MeriFirmSkillsService } from './meri-firm-skills.service.js';
+import { MeriProcedureRuntimeValidationService } from './meri-procedure-runtime-validation.service.js';
 import { MeriFeatureFlagsService } from './meri-feature-flags.service.js';
 import { MeriApprovalService } from './meri-approval.service.js';
 import { MeriComplianceAuditService } from './meri-compliance-audit.service.js';
@@ -77,11 +78,13 @@ import { MeriV3ResearchRunner } from './meri-v3-research-runner.js';
 import { MeriV3InternalServiceGuard } from './meri-v3-internal-service.guard.js';
 import { MeriV3ProxyService } from './meriv3-proxy.service.js';
 import { MeriConversationEvidenceService } from './meri-conversation-evidence.service.js';
+import { MeriChatAttachmentReadService } from './meri-chat-attachment-read.service.js';
 import { MeriV3SettingsController } from './meriv3-settings.controller.js';
 import { MeriV3VisualAnalysisService } from './meri-v3-visual-analysis.service.js';
 import { MeriVNextLibraryController } from './meri-vnext-library.controller.js';
 import { MeriVNextLibraryService } from './meri-vnext-library.service.js';
 import { createMeriRuntimeService, RAW_MERI_SERVICE } from './meriv3-runtime.proxy.js';
+import { MeriOtelLifecycleProvider } from './meri-otel-lifecycle.provider.js';
 
 @Module({
   imports: [
@@ -127,6 +130,7 @@ import { createMeriRuntimeService, RAW_MERI_SERVICE } from './meriv3-runtime.pro
   ],
   providers: [
     MeriClientFilingService,
+    MeriChatAttachmentReadService,
     MeriSourceService,
     MeriContextPlaneService,
     MeriContextPlaneRuntimeService,
@@ -178,6 +182,7 @@ import { createMeriRuntimeService, RAW_MERI_SERVICE } from './meriv3-runtime.pro
     MeriV3VisualAnalysisService,
     MeriVNextLibraryService,
     MeriFirmSkillsService,
+    MeriProcedureRuntimeValidationService,
     MeriFeatureFlagsService,
     MeriApprovalService,
     MeriActionProposalService,
@@ -254,6 +259,7 @@ import { createMeriRuntimeService, RAW_MERI_SERVICE } from './meriv3-runtime.pro
         ConfigService,
       ],
     },
+    MeriOtelLifecycleProvider,
   ],
   exports: [MeriToolsService, MeriFeatureFlagsService],
 })

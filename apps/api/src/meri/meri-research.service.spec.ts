@@ -2,6 +2,18 @@ import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals
 import { TextEncoder } from 'node:util';
 import type { TenantContext } from '@capiro/shared';
 import { MeriResearchService } from './meri-research.service.js';
+import {
+  ACTIVE_RESEARCH_RUN_FENCE_SQL,
+  ACTIVE_RESEARCH_RUN_UPDATE_SQL,
+} from './meri-research-run-state.js';
+import { MeriV3ResearchRunner } from './meri-v3-research-runner.js';
+import type { MeriV3ChatStreamEvent } from './meriv3-chat.client.js';
+import { createMeriOtelRuntime } from '@capiro/meriv2-core/observability/otel';
+import {
+  createMeriApiTelemetryContext,
+  runWithMeriApiTelemetry,
+  setMeriOtelRuntime,
+} from './meri-telemetry.runtime.js';
 
 // These dependencies are supplied explicitly by this service unit harness.
 jest.mock('./meri-tools.service.js', () => ({ MeriToolsService: class {} }));
@@ -10,7 +22,6 @@ jest.mock('../reviews/reviews.service.js', () => ({ ReviewsService: class {} }))
 jest.mock('../engagement/ai-credential-resolver.service.js', () => ({
   AiCredentialResolverService: class {},
 }));
-jest.mock('./meri-v3-research-runner.js', () => ({ MeriV3ResearchRunner: class {} }));
 
 /**
  * Unit test for the FORCED-SYNTHESIS fallback in MeriResearchService.
@@ -93,6 +104,42 @@ function proseRound(text: string): Array<Record<string, unknown>> {
   ];
 }
 
+function thinkingProseRound(text: string, privateThinking: string): Array<Record<string, unknown>> {
+  const events = proseRound(text);
+  return [
+    events[0]!,
+    { type: 'content_block_start', index: 0, content_block: { type: 'thinking' } },
+    {
+      type: 'content_block_delta',
+      index: 0,
+      delta: { type: 'thinking_delta', thinking: privateThinking },
+    },
+    ...events
+      .slice(1)
+      .map((event) =>
+        typeof event.index === 'number' ? { ...event, index: event.index + 1 } : event,
+      ),
+  ];
+}
+
+function failingThinkingBody(privateThinking: string): AsyncIterable<Uint8Array> {
+  const enc = new TextEncoder();
+  const events = [
+    { type: 'content_block_start', index: 0, content_block: { type: 'thinking' } },
+    {
+      type: 'content_block_delta',
+      index: 0,
+      delta: { type: 'thinking_delta', thinking: privateThinking },
+    },
+  ];
+  return {
+    async *[Symbol.asyncIterator]() {
+      yield enc.encode(events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join(''));
+      throw new Error('provider stopped before report authorization');
+    },
+  };
+}
+
 function okResponse(body: AsyncIterable<Uint8Array>): Response {
   return {
     ok: true,
@@ -130,8 +177,13 @@ const SESSION = {
 function makeConfig(overrides: Record<string, unknown> = {}) {
   const values: Record<string, unknown> = {
     ANTHROPIC_API_KEY: 'test-key',
-    CLIO_RESEARCH_MODEL: 'claude-test',
+    // Provider-budget tests must use a model in the production pricing table;
+    // unknown models intentionally reserve the full remaining cost envelope.
+    CLIO_RESEARCH_MODEL: 'claude-sonnet-5',
     CLIO_RESEARCH_MAX_TOKENS: 8000,
+    // This legacy synthesis harness exercises control flow rather than cap
+    // exhaustion and repeats the full system prompt across several fake rounds.
+    CLIO_RESEARCH_MAX_TOTAL_TOKENS: 1_000_000,
     CLIO_REQUEST_TIMEOUT_MS: 60_000,
     CLIO_RESEARCH_TIMEOUT_MS: 60_000, // research uses its own (longer) per-call timeout
     CLIO_RESEARCH_MAX_TOOL_ROUNDS: 2, // small cap so the loop exhausts fast
@@ -155,8 +207,10 @@ function makeConfig(overrides: Record<string, unknown> = {}) {
 function makeAiCredentials() {
   const resolved = {
     provider: 'anthropic' as const,
-    apiKey: 'test-key',
-    model: 'claude-test',
+    apiKey: ['test', 'key'].join('-'),
+    // Use the configured production pricing authority: an invented model is
+    // intentionally treated as unknown and conservatively consumes the cost cap.
+    model: 'claude-sonnet-5',
     usedTenantKey: false,
     modelOverridden: false,
   };
@@ -166,38 +220,171 @@ function makeAiCredentials() {
   } as unknown as ConstructorParameters<typeof MeriResearchService>[3];
 }
 
-/**
- * Prisma stub: withTenant just runs the callback with a tx whose model methods
- * resolve to minimal shapes. findFirst returns the session (for ensureSession);
- * create returns ids; update is a no-op.
- */
-function makePrisma(capturedArtifacts?: Array<Record<string, any>>) {
-  let session = { ...SESSION };
+/** Transaction fixture for the live-run fence and report publication contract. */
+function makePrisma(
+  capturedArtifacts?: Array<Record<string, any>>,
+  tenantId = SESSION.tenantId,
+  planCapability = 'searchBills',
+  authority: Record<string, any> = {},
+) {
+  const artifacts = capturedArtifacts ?? [];
+  const backingConversation = {
+    id: 'conv-1',
+    tenantId,
+    userId: SESSION.userId,
+    clientId: SESSION.clientId,
+    archivedAt: null,
+  };
+  let session = {
+    ...SESSION,
+    tenantId,
+    // These legacy-path specs begin after the standalone session's backing
+    // thread exists. Public legislative reads require no owner-result proof,
+    // but report publication still reauthorizes this exact thread scope.
+    metadata: {
+      backingConversationId: backingConversation.id,
+      researchPlan: {
+        version: 1,
+        title: 'Test research',
+        scope: {
+          sessionId: SESSION.id,
+          tenantId,
+          actorId: SESSION.userId,
+          clientId: null,
+          conversationId: authority.handoff?.conversationId ?? null,
+        },
+        budget: { toolCalls: 2, tokens: 4_000 },
+        steps: [
+          {
+            id: 'gather-evidence',
+            objective: 'Gather authorized evidence for the requested report.',
+            dependsOn: [],
+            requiredEvidenceDomains: ['legislative'],
+            allowedCapabilities: [planCapability],
+            effect: 'read',
+            completionCondition: 'Available evidence is gathered and gaps are explicit.',
+            budget: { toolCalls: 2, tokens: 4_000 },
+          },
+        ],
+        clarifyingQuestions: [],
+      },
+      ...structuredClone(authority),
+    },
+  };
+  let reportRunFenced = false;
   const tx = {
+    $queryRawUnsafe: jest.fn(async (sql: string, ...values: unknown[]) => {
+      const run = (session.metadata as { run?: Record<string, unknown> }).run;
+      expect(values.slice(0, 7)).toEqual([
+        session.id,
+        session.tenantId,
+        session.userId,
+        session.status,
+        run?.id,
+        run?.leaseEpoch,
+        run?.phase,
+      ]);
+      expect(run?.status).toBe('running');
+      expect(values[7]).toBeInstanceOf(Date);
+      expect(Date.parse(String(run?.heartbeatAt))).toBeGreaterThanOrEqual(
+        (values[7] as Date).getTime(),
+      );
+      if (sql === ACTIVE_RESEARCH_RUN_UPDATE_SQL) {
+        expect(values.slice(0, 7)).toEqual([
+          session.id,
+          session.tenantId,
+          session.userId,
+          session.status,
+          run?.id,
+          run?.leaseEpoch,
+          run?.phase,
+        ]);
+        expect(values[7]).toBeInstanceOf(Date);
+        expect(values[8]).toBe(JSON.stringify(session.metadata));
+        session = {
+          ...session,
+          metadata: JSON.parse(String(values[9])),
+          status: values[10] as string,
+          updatedAt: values[11] as Date,
+        };
+        return [{ metadata_jsonb: structuredClone(session.metadata) }];
+      }
+      expect(sql).toBe(ACTIVE_RESEARCH_RUN_FENCE_SQL);
+      expect(values[8]).toBeInstanceOf(Date);
+      reportRunFenced = true;
+      session = { ...session, updatedAt: values[8] as Date };
+      return [{ metadata_jsonb: structuredClone(session.metadata) }];
+    }),
     clioResearchSession: {
-      findFirst: async () => session,
-      update: async ({ data }: any) => (session = { ...session, ...data }),
-      updateMany: async ({ data }: any) => {
-        session = { ...session, ...data };
+      findFirst: async ({ where }: any) => {
+        expect(where).toEqual({
+          id: session.id,
+          tenantId: session.tenantId,
+          userId: session.userId,
+        });
+        return structuredClone(session);
+      },
+      update: async ({ where, data }: any) => {
+        expect(where).toEqual({ id: session.id });
+        session = { ...session, ...structuredClone(data) };
+        return structuredClone(session);
+      },
+      updateMany: async ({ where, data }: any) => {
+        const currentMetadata = structuredClone(session.metadata);
+        expect(where).toEqual({
+          id: session.id,
+          tenantId: session.tenantId,
+          userId: session.userId,
+          metadata: { equals: currentMetadata },
+          reportArtifactId: null,
+        });
+        session = { ...session, ...structuredClone(data) };
         return { count: 1 };
       },
     },
     clioConversation: {
-      create: async () => ({ id: 'conv-1' }),
+      findFirst: async ({ where, select }: any) => {
+        expect(where).toEqual({
+          id: backingConversation.id,
+          tenantId: session.tenantId,
+          userId: session.userId,
+          clientId: session.clientId,
+          archivedAt: null,
+        });
+        expect(select).toEqual({ id: true });
+        return { id: backingConversation.id };
+      },
+      create: async ({ data, select }: any) => {
+        expect(data).toMatchObject({
+          tenantId: session.tenantId,
+          userId: session.userId,
+          clientId: session.clientId,
+        });
+        expect(select).toEqual({ id: true });
+        return { id: backingConversation.id };
+      },
     },
     clioArtifact: {
       create: async ({ data }: any) => {
-        capturedArtifacts?.push(data);
-        return { id: 'artifact-1' };
+        expect(reportRunFenced).toBe(true);
+        artifacts.push(data);
+        return { id: data.id };
       },
-      findFirst: async () => null,
+      findFirst: async ({ where }: any) =>
+        artifacts.find((artifact) => !where?.id || artifact.id === where.id) ?? null,
     },
     client: {
       findFirst: async () => null,
     },
+    meriAuditLedger: {
+      create: jest.fn(async ({ data }: any) => ({ id: 'audit-1', ...data })),
+    },
   };
   return {
-    withTenant: async (_tenantId: string, cb: (t: typeof tx) => unknown) => cb(tx),
+    withTenant: async (tenantId: string, cb: (t: typeof tx) => unknown) => {
+      expect(tenantId).toBe(session.tenantId);
+      return cb(tx);
+    },
   } as unknown as ConstructorParameters<typeof MeriResearchService>[0];
 }
 
@@ -222,21 +409,110 @@ const SIDE_EFFECTING_TEST = new Set([
   'update_client_profile',
 ]);
 
-function makeTools() {
+function makeTools(capability = 'searchBills') {
   return {
     anthropicToolSchemas: () => [
-      { name: 'searchBills', description: 'x', input_schema: { type: 'object', properties: {} } },
+      {
+        name: capability,
+        description: 'x',
+        input_schema:
+          capability === 'search_memory'
+            ? {
+                type: 'object',
+                properties: { query: { type: 'string' } },
+                required: ['query'],
+              }
+            : { type: 'object', properties: {} },
+      },
     ],
     isConcurrencySafe: (name: string) => !SIDE_EFFECTING_TEST.has(name),
-    execute: async () => ({ items: [{ id: 1 }], count: 1 }),
+    isSideEffecting: (name: string) => SIDE_EFFECTING_TEST.has(name),
+    execute: async () => {
+      throw new Error('No qualified owner result in this source-free synthesis fixture.');
+    },
   } as unknown as ConstructorParameters<typeof MeriResearchService>[2];
+}
+
+function makeActualV3Runner(events: MeriV3ChatStreamEvent[]) {
+  const client = {
+    configured: true,
+    streamChat: jest.fn(
+      async ({
+        onEvent,
+      }: {
+        input: Record<string, unknown>;
+        onEvent: (event: MeriV3ChatStreamEvent) => void;
+      }) => {
+        for (const event of events) onEvent(event);
+      },
+    ),
+  };
+  const flags = { isMeriV3ChatEnabled: jest.fn(async () => true) };
+  const credentials = {
+    resolveProvider: jest.fn(async () => ({
+      provider: 'openai' as const,
+      apiKey: ['test', 'credential'].join('-'),
+      model: 'configured-chat-model',
+    })),
+  };
+  const prisma = {
+    withTenantUser: jest.fn(
+      async (_tenant: string, _user: string, callback: (tx: unknown) => unknown) =>
+        callback({ clioAttachment: { findMany: async () => [] } }),
+    ),
+  };
+  const evidence = {
+    load: jest.fn(async () => ({ citations: [], unavailable: 0, omitted: 0 })),
+  };
+  const runner = new MeriV3ResearchRunner(
+    client as never,
+    flags as never,
+    credentials as never,
+    prisma as never,
+    evidence as never,
+  );
+  return Object.assign(runner, { streamChatSpy: client.streamChat });
+}
+
+/** Distinguish the single parent publication attempt from bounded leaf dispatches. */
+function expectParentAndBoundedChildDispatches(
+  runner: ReturnType<typeof makeActualV3Runner>,
+  correctionCalls: 0 | 2,
+) {
+  const inputs = runner.streamChatSpy.mock.calls.map(([call]) => call.input);
+  const children = inputs.filter((input) =>
+    String(input.skillAddendum).includes('bounded read-only Meri research leaf'),
+  );
+  const parents = inputs.filter((input) => !children.includes(input));
+  expect(parents).toHaveLength(1);
+  expect(children).toHaveLength(2 + correctionCalls);
+  expect(inputs).toHaveLength(3 + correctionCalls);
+  expect(
+    children.filter((input) =>
+      String(input.skillAddendum).includes('This is the single allowed correction.'),
+    ),
+  ).toHaveLength(correctionCalls);
+  for (const role of ['evidence_reviewer', 'scope_analyst']) {
+    const roleCalls = children.filter((input) =>
+      String(input.skillAddendum).includes(`Role: ${role}@`),
+    );
+    expect(roleCalls).toHaveLength(1 + correctionCalls / 2);
+    expect(
+      roleCalls.filter((input) =>
+        String(input.skillAddendum).includes('This is the single allowed correction.'),
+      ),
+    ).toHaveLength(correctionCalls / 2);
+  }
+  return parents[0];
 }
 
 // ── Test ─────────────────────────────────────────────────────────────────────
 
 function makeReviews() {
-  // G4: held reports emit a review_request; fail-open stub for these specs.
-  return { createSystem: jest.fn(async () => 'rr-1') } as never;
+  // G4: held reports emit a review_request; the service owns the held body.
+  const reviews = { createSystem: jest.fn(async () => 'rr-1') };
+  return reviews as unknown as typeof reviews &
+    ConstructorParameters<typeof MeriResearchService>[4];
 }
 
 describe('MeriResearchService — forced synthesis', () => {
@@ -248,7 +524,8 @@ describe('MeriResearchService — forced synthesis', () => {
     fetchBodies = [];
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    await setMeriOtelRuntime(undefined);
     global.fetch = realFetch;
     jest.restoreAllMocks();
   });
@@ -261,7 +538,437 @@ describe('MeriResearchService — forced synthesis', () => {
     }
   }
 
+  it('withholds typed V3 content through the actual runner and service callback before authorization', async () => {
+    const privateBody = 'RAW_PRIVATE_OWNER_DETAIL_IN_TYPED_FRAME';
+    const reportBody = 'UNAUTHORIZED_PROVIDER_REPORT';
+    const runner = makeActualV3Runner([
+      { type: 'reasoning', text: privateBody } as unknown as MeriV3ChatStreamEvent,
+      { type: 'progress', note: privateBody } as unknown as MeriV3ChatStreamEvent,
+      {
+        type: 'start',
+        runtime: 'meriv3',
+        privateExtra: privateBody,
+      } as unknown as MeriV3ChatStreamEvent,
+      {
+        type: 'runtime',
+        runtime: 'meriv3',
+        model: privateBody,
+        reasoningMode: 'deep',
+        reasoningEffort: privateBody,
+        privateExtra: privateBody,
+      } as unknown as MeriV3ChatStreamEvent,
+      {
+        type: 'tool_call',
+        tool: 'private_lowercase_owner',
+        label: privateBody,
+      } as MeriV3ChatStreamEvent,
+      {
+        type: 'pending_approval',
+        tool: 'send_email',
+        label: privateBody,
+        proposalId: privateBody,
+        status: privateBody,
+        reason: privateBody,
+        expiresAt: privateBody,
+        riskTier: null,
+        policyCode: null,
+        ruleId: null,
+        policy: { source: privateBody },
+        preview: { reason: privateBody },
+      } as unknown as MeriV3ChatStreamEvent,
+      { type: 'page_write', target: 'draft', body: privateBody },
+      {
+        type: 'artifact',
+        artifact: { id: 'draft-1', title: 'Draft', kind: 'text', bodyText: privateBody },
+      },
+      {
+        type: 'grounding_caveat',
+        topSeverity: 'low',
+        findings: [{ check: 'test', severity: 'low', detail: privateBody }],
+      },
+      { type: 'text', text: reportBody },
+      {
+        type: 'done',
+        reply: reportBody,
+        runtime: 'meriv3',
+        model: 'test',
+        reasoningMode: 'deep',
+        reasoningEffort: 'high',
+        steps: [],
+        ledgerEntries: [],
+        citations: [],
+      },
+    ]);
+    const handoff = {
+      version: 1,
+      capturedAt: '2026-09-28T00:00:00Z',
+      conversationId: 'conv-1',
+      clientId: null,
+      reasoningMode: 'deep',
+      summary: 'other owner summary',
+      messages: [],
+      attachments: [],
+    };
+    const run = {
+      id: 'actual-v3-private-run',
+      leaseEpoch: 1,
+      eventSequence: 0,
+      phase: 'research',
+      status: 'running',
+      stage: 'Gathering evidence',
+      startedAt: '2026-09-28T00:00:00.000Z',
+      heartbeatAt: new Date().toISOString(),
+    };
+    const service = new MeriResearchService(
+      makePrisma(undefined, SESSION.tenantId, 'search_memory', { handoff, run }),
+      makeConfig(),
+      makeTools('search_memory'),
+      makeAiCredentials(),
+      makeReviews(),
+      runner,
+    );
+    const runSpy = jest.spyOn(runner, 'run');
+    const observed: Array<Record<string, unknown>> = [];
+    const sse = {
+      write: (data: string) => observed.push(JSON.parse(data.slice(6)) as Record<string, unknown>),
+    };
+    const progress = {
+      set: (note: string) => observed.push({ type: 'progress', note }),
+      stop: () => undefined,
+    };
+
+    await expect(
+      (service as any).runResearchStream(CTX, 'sess-1', sse, progress, {
+        bearerToken: 'local-placeholder',
+        governedContext: { contextPacket: { items: [] } },
+        run,
+      }),
+    ).rejects.toThrow('private producer inputs');
+
+    expect(JSON.stringify(observed)).not.toContain(privateBody);
+    expect(JSON.stringify(observed)).not.toContain(reportBody);
+    expect(
+      observed.some((frame) =>
+        [
+          'text',
+          'report',
+          'done',
+          'artifact',
+          'page_write',
+          'grounding_caveat',
+          'pending_approval',
+        ].includes(String(frame.type)),
+      ),
+    ).toBe(false);
+    expect(observed).toEqual(
+      expect.arrayContaining([
+        { type: 'progress', note: 'Reviewing evidence and preparing the report…' },
+        { type: 'progress', note: 'Starting the research runtime…' },
+        { type: 'progress', note: 'Reading an authorized research source…' },
+        { type: 'progress', note: 'Research is continuing in read-only mode.' },
+      ]),
+    );
+    expect(runSpy).toHaveBeenCalledTimes(1);
+    expect(runner.streamChatSpy).toHaveBeenCalledTimes(1);
+    expect(runner.streamChatSpy.mock.calls[0]?.[0].input).toMatchObject({
+      toolPolicy: 'read-only',
+      researchRun: { sessionId: 'sess-1', runId: run.id, leaseEpoch: run.leaseEpoch },
+      researchPlanExecution: {
+        version: 1,
+        planVersion: 1,
+        allowedReadCapabilities: ['search_memory'],
+        scope: { conversationId: handoff.conversationId },
+      },
+    });
+  });
+
+  it('publishes the actual V3 report body only after durable save', async () => {
+    const spans: any[] = [];
+    const sdk = createMeriOtelRuntime({
+      serviceName: 'research-owner-test',
+      exporter: {
+        export: (batch, done) => {
+          spans.push(...batch);
+          done({ code: 0 });
+        },
+        shutdown: async () => {},
+      },
+    });
+    await setMeriOtelRuntime(sdk);
+    const privateBody = 'RAW_PRIVATE_TYPED_DRAFT';
+    const reportBody =
+      '# Executive Summary\n\nAuthorized source-free report.\n\n## Recommended Actions\n\n1. Review the conclusion.';
+    const runner = makeActualV3Runner([
+      {
+        type: 'start',
+        runtime: 'meriv3',
+        privateExtra: privateBody,
+      } as unknown as MeriV3ChatStreamEvent,
+      { type: 'page_write', target: 'draft', body: privateBody },
+      {
+        type: 'artifact',
+        artifact: { id: 'draft-1', title: 'Draft', kind: 'text', bodyText: privateBody },
+      },
+      { type: 'text', text: reportBody },
+      {
+        type: 'done',
+        reply: reportBody,
+        runtime: 'meriv3',
+        model: 'configured-chat-model',
+        reasoningMode: 'deep',
+        reasoningEffort: 'high',
+        steps: [],
+        ledgerEntries: [],
+        citations: [],
+      },
+    ]);
+    const artifacts: Array<Record<string, any>> = [];
+    const runSpy = jest.spyOn(runner, 'run');
+    const service = new MeriResearchService(
+      makePrisma(artifacts, SESSION.tenantId, 'search_memory'),
+      makeConfig(),
+      makeTools('search_memory'),
+      makeAiCredentials(),
+      makeReviews(),
+      runner,
+    );
+    const observed: Array<Record<string, unknown>> = [];
+    let bodyDeliveredBeforeSave = false;
+    const sse = {
+      write: (data: string) => {
+        const event = JSON.parse(data.replace(/^data: /, '').trim()) as Record<string, unknown>;
+        if (
+          artifacts.length === 0 &&
+          ((event.type === 'text' && String(event.text).includes(reportBody)) ||
+            (event.type === 'report' && String(event.body).includes(reportBody)))
+        )
+          bodyDeliveredBeforeSave = true;
+        observed.push(event);
+      },
+    };
+
+    const trace = createMeriApiTelemetryContext({ headers: {} } as never, CTX, '');
+    await runWithMeriApiTelemetry(
+      trace,
+      () => {},
+      () =>
+        service.streamResearch(CTX, 'sess-1', sse, {
+          bearerToken: 'caller-token',
+          governedContext: {
+            version: 1,
+            operationId: 'research.generate-report',
+            contextPacket: { items: [] },
+          } as never,
+        }),
+    );
+    await sdk.forceFlush();
+    const execution = spans.find((span) => span.name === 'meri.research_run');
+    const children = spans.filter((span) => span.name === 'meri.research_child');
+    expect(execution).toBeDefined();
+    expect(execution.parentSpanContext.spanId).toBe(trace.spanId);
+    expect(execution.attributes['meri.durableRunId']).toBeTruthy();
+    expect(execution.attributes['meri.leaseEpoch']).toBe(1);
+    expect(children).toHaveLength(2);
+    expect(new Set(children.map((span) => span.spanContext().spanId)).size).toBe(2);
+    expect(new Set(children.map((span) => span.attributes['meri.childRunId'])).size).toBe(2);
+    for (const child of children) {
+      expect(child.parentSpanContext.spanId).toBe(execution.spanContext().spanId);
+      expect(child.spanContext().traceId).toBe(trace.traceId);
+      expect(child.attributes['meri.durableRunId']).toBe(execution.attributes['meri.durableRunId']);
+    }
+    const published = execution.events.find(
+      (event: any) => event.attributes['meri.name'] === 'meri.research.report.published',
+    );
+    expect(published).toBeDefined();
+    expect(published.attributes['meri.terminalReason']).toBe('completed');
+    expect(published.attributes['meri.artifactIds']).toBeTruthy();
+    const exported = JSON.stringify(
+      spans.map((span) => ({ attributes: span.attributes, events: span.events })),
+    );
+    for (const privateValue of [privateBody, reportBody, 'caller-token'])
+      expect(exported).not.toContain(privateValue);
+
+    expect(bodyDeliveredBeforeSave).toBe(false);
+    expect(artifacts).toHaveLength(1);
+    expect(artifacts[0]?.bodyText).toContain(reportBody);
+    expect(JSON.stringify(observed)).not.toContain(privateBody);
+    expect(observed.find((event) => event.type === 'text')?.text).toContain(reportBody);
+    expect(observed.find((event) => event.type === 'report')?.body).toContain(reportBody);
+    expect(observed.at(-1)).toEqual({ type: 'done' });
+    expect(runSpy).toHaveBeenCalledTimes(1);
+    // The prose fixture is invalid leaf JSON: each of two children gets its
+    // one allowed correction before the parent report publication attempt.
+    expect(expectParentAndBoundedChildDispatches(runner, 2)).toMatchObject({
+      toolPolicy: 'read-only',
+      researchPlanExecution: {
+        version: 1,
+        planVersion: 1,
+        allowedReadCapabilities: ['search_memory'],
+      },
+    });
+  });
+
+  it.each([
+    [
+      'provider failure',
+      [{ type: 'error', message: 'RAW_PRIVATE_PROVIDER_ERROR' } as MeriV3ChatStreamEvent],
+      'Research provider failed before report publication.',
+    ],
+    [
+      'cancellation',
+      [
+        {
+          type: 'done',
+          reply: 'RAW_PRIVATE_CANCELLED_BODY',
+          runtime: 'meriv3',
+          model: 'configured-chat-model',
+          reasoningMode: 'deep',
+          reasoningEffort: 'high',
+          steps: [],
+          ledgerEntries: [],
+          citations: [],
+          aborted: true,
+        } as MeriV3ChatStreamEvent,
+      ],
+      'Research was cancelled.',
+    ],
+  ])(
+    'keeps actual V3 %s terminal ordering fixed and content-free',
+    async (_case, frames, expected) => {
+      const runner = makeActualV3Runner(frames);
+      const runSpy = jest.spyOn(runner, 'run');
+      const service = new MeriResearchService(
+        makePrisma(undefined, SESSION.tenantId, 'search_memory'),
+        makeConfig(),
+        makeTools('search_memory'),
+        makeAiCredentials(),
+        makeReviews(),
+        runner,
+      );
+      const observed: Array<Record<string, unknown>> = [];
+
+      await service.streamResearch(
+        CTX,
+        'sess-1',
+        {
+          write: (data: string) =>
+            observed.push(
+              JSON.parse(data.replace(/^data: /, '').trim()) as Record<string, unknown>,
+            ),
+        },
+        {
+          bearerToken: 'caller-token',
+          governedContext: {
+            version: 1,
+            operationId: 'research.generate-report',
+            contextPacket: { items: [] },
+          } as never,
+        },
+      );
+
+      expect(JSON.stringify(observed)).not.toContain('RAW_PRIVATE');
+      expect(observed.some((event) => event.type === 'text' || event.type === 'report')).toBe(
+        false,
+      );
+      const errorIndex = observed.findIndex(
+        (event) => event.type === 'error' && event.message === expected,
+      );
+      const doneIndex = observed.findIndex((event) => event.type === 'done');
+      expect(errorIndex).toBeGreaterThanOrEqual(0);
+      expect(doneIndex).toBeGreaterThan(errorIndex);
+      expect(observed.at(-1)).toEqual({ type: 'done' });
+      expect(runSpy).toHaveBeenCalledTimes(1);
+      // Terminal provider/cancel frames end each leaf immediately; neither
+      // leaf receives a schema correction and the parent still dispatches once.
+      expect(expectParentAndBoundedChildDispatches(runner, 0)).toMatchObject({
+        toolPolicy: 'read-only',
+        researchPlanExecution: {
+          version: 1,
+          planVersion: 1,
+          allowedReadCapabilities: ['search_memory'],
+        },
+      });
+    },
+  );
+
+  it('withholds unknown legacy provider tool names and unqualified sources on the actual service path', async () => {
+    const privateTool = 'private_lowercase_owner_token';
+    fetchMock = jest.fn(async () => okResponse(sseBody(toolOnlyRound(privateTool)))) as jest.Mock;
+    global.fetch = fetchMock as unknown as typeof fetch;
+    const tools = makeTools('search_memory');
+    const executeSpy = jest.spyOn(tools, 'execute');
+    const service = new MeriResearchService(
+      makePrisma(undefined, SESSION.tenantId, 'search_memory'),
+      makeConfig({ CLIO_RESEARCH_MAX_TOOL_ROUNDS: 1 }),
+      tools,
+      makeAiCredentials(),
+      makeReviews(),
+    );
+    const observed: Array<Record<string, unknown>> = [];
+
+    await service.streamResearch(CTX, 'sess-1', {
+      write: (data: string) => observed.push(JSON.parse(data.slice(6))),
+    });
+
+    expect(fetchMock).toHaveBeenCalled();
+    expect(executeSpy).not.toHaveBeenCalled();
+    expect(JSON.stringify(observed)).not.toContain(privateTool);
+    expect(observed.some((event) => event.type === 'step' || event.type === 'source')).toBe(false);
+    expect(observed.some((event) => event.type === 'text' || event.type === 'report')).toBe(false);
+    expect(JSON.stringify(observed)).not.toContain('Tool error');
+    expect(observed).toContainEqual({
+      type: 'error',
+      message:
+        'Research did not complete; partial provider output has not been released as a report.',
+    });
+    expect(observed.at(-1)).toEqual({ type: 'done' });
+  });
+
+  it.each([
+    ['provider error', false, 'Research provider failed before report publication.'],
+    ['cancellation', true, 'Research was cancelled.'],
+  ])(
+    'keeps legacy %s terminal frames fixed and content-free',
+    async (_case, cancelled, expected) => {
+      const privateError = 'RAW_PRIVATE_LEGACY_PROVIDER_ERROR';
+      fetchMock = jest.fn(async () => {
+        throw new Error(privateError);
+      }) as jest.Mock;
+      global.fetch = fetchMock as unknown as typeof fetch;
+      const controller = new AbortController();
+      if (cancelled) controller.abort(new Error(privateError));
+      const service = new MeriResearchService(
+        makePrisma(),
+        makeConfig(),
+        makeTools(),
+        makeAiCredentials(),
+        makeReviews(),
+      );
+      const observed: Array<Record<string, unknown>> = [];
+
+      await service.streamResearch(
+        CTX,
+        'sess-1',
+        {
+          write: (data: string) =>
+            observed.push(
+              JSON.parse(data.replace(/^data: /, '').trim()) as Record<string, unknown>,
+            ),
+        },
+        { signal: controller.signal },
+      );
+
+      expect(JSON.stringify(observed)).not.toContain(privateError);
+      expect(observed.some((event) => event.type === 'text' || event.type === 'report')).toBe(
+        false,
+      );
+      expect(observed).toContainEqual({ type: 'error', message: expected });
+      expect(observed.at(-1)).toEqual({ type: 'done' });
+    },
+  );
+
   it('emits a report after the tool loop exhausts without prose', async () => {
+    const PRIVATE_THINKING = 'RAW_PRIVATE_OWNER_DETAIL_IN_FORCED_SYNTHESIS';
     const REPORT =
       '# Executive Summary\n\nThe FY26 defense markup shows meaningful divergence ' +
       'between the House and Senate on shipbuilding accounts, creating a window for ' +
@@ -276,12 +983,13 @@ describe('MeriResearchService — forced synthesis', () => {
       if (body.tools) {
         return okResponse(sseBody(toolOnlyRound('searchBills')));
       }
-      return okResponse(sseBody(proseRound(REPORT)));
+      return okResponse(sseBody(thinkingProseRound(REPORT, PRIVATE_THINKING)));
     }) as unknown as jest.Mock;
     global.fetch = fetchMock as unknown as typeof fetch;
 
+    const artifacts: Array<Record<string, any>> = [];
     const svc = new MeriResearchService(
-      makePrisma(),
+      makePrisma(artifacts),
       makeConfig(),
       makeTools(),
       makeAiCredentials(),
@@ -289,13 +997,16 @@ describe('MeriResearchService — forced synthesis', () => {
     );
 
     const events: Array<Record<string, unknown>> = [];
+    let bodyDeliveredBeforeSave = false;
     const sse = {
       write: (data: string) => {
         // Service writes "data: <json>\n\n"; parse the JSON payload back out.
         const line = data.split('\n').find((l) => l.startsWith('data: '));
         if (line) {
           try {
-            events.push(JSON.parse(line.slice(6)));
+            const event = JSON.parse(line.slice(6));
+            if (event.type === 'text' && artifacts.length === 0) bodyDeliveredBeforeSave = true;
+            events.push(event);
           } catch {
             /* ignore */
           }
@@ -318,11 +1029,12 @@ describe('MeriResearchService — forced synthesis', () => {
     const lastMsg = synthMsgs[synthMsgs.length - 1];
     expect(String(lastMsg?.content ?? '')).toMatch(/write the decision-grade.*report now/i);
 
-    // 3. Report prose surfaced as `text` SSE events during synthesis.
+    // 3. Report prose surfaced only after durable save.
     const textEvents = events.filter((e) => e.type === 'text');
     expect(textEvents.length).toBeGreaterThan(0);
     const streamedText = textEvents.map((e) => String(e.text)).join('');
     expect(streamedText).toContain('Executive Summary');
+    expect(bodyDeliveredBeforeSave).toBe(false);
 
     // 4. A single `report` event with a non-empty body fired, before `done`.
     const reportIdx = events.findIndex((e) => e.type === 'report');
@@ -332,11 +1044,56 @@ describe('MeriResearchService — forced synthesis', () => {
     expect(reportIdx).toBeGreaterThanOrEqual(0);
     const reportEvt = events[reportIdx] ?? {};
     expect(String(reportEvt.body ?? '')).toContain('Executive Summary');
-    expect(String(reportEvt.artifactId ?? '')).toBe('artifact-1');
+    expect(String(reportEvt.artifactId ?? '')).toMatch(/^[0-9a-f-]{36}$/);
     expect(doneIdx).toBeGreaterThan(reportIdx);
+
+    // Provider reasoning is never an observer frame; liveness remains a fixed,
+    // source-independent progress status while the authorized body is buffered.
+    expect(events.some((event) => event.type === 'thinking')).toBe(false);
+    expect(JSON.stringify(events)).not.toContain(PRIVATE_THINKING);
+    expect(events).toContainEqual(
+      expect.objectContaining({ type: 'progress', note: 'Writing the report…' }),
+    );
 
     // 5. A synthesize phase was announced.
     expect(events.some((e) => e.type === 'phase' && e.phase === 'synthesize')).toBe(true);
+  });
+
+  it('replaces gather thinking with fixed progress and preserves failure terminal ordering', async () => {
+    const PRIVATE_THINKING = 'RAW_PRIVATE_OWNER_DETAIL_IN_REASONING';
+    fetchMock = jest.fn(async () =>
+      okResponse(failingThinkingBody(PRIVATE_THINKING)),
+    ) as unknown as jest.Mock;
+    global.fetch = fetchMock as unknown as typeof fetch;
+    const svc = new MeriResearchService(
+      makePrisma(),
+      makeConfig({
+        CLIO_EXTENDED_THINKING: true,
+        CLIO_THINKING_MODE: 'adaptive',
+        CLIO_RESEARCH_THINKING_BUDGET_TOKENS: 2_000,
+      }),
+      makeTools(),
+      makeAiCredentials(),
+      makeReviews(),
+    );
+    const { events, sse } = collectSse();
+
+    await svc.streamResearch(CTX, 'sess-1', sse);
+
+    expect(JSON.stringify(events)).not.toContain(PRIVATE_THINKING);
+    expect(events.some((event) => event.type === 'thinking')).toBe(false);
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: 'progress',
+        note: 'Reviewing evidence and planning the next research step…',
+      }),
+    );
+    expect(events.some((event) => event.type === 'text' || event.type === 'report')).toBe(false);
+    const doneIndex = events.findIndex((event) => event.type === 'done');
+    const errorIndexes = events.flatMap((event, index) => (event.type === 'error' ? [index] : []));
+    expect(errorIndexes.length).toBeGreaterThan(0);
+    expect(errorIndexes.every((index) => index < doneIndex)).toBe(true);
+    expect(events.at(-1)).toEqual({ type: 'done' });
   });
 
   it.each([
@@ -360,7 +1117,7 @@ describe('MeriResearchService — forced synthesis', () => {
     }) as unknown as jest.Mock;
     global.fetch = fetchMock as unknown as typeof fetch;
     const svc = new MeriResearchService(
-      makePrisma(artifacts),
+      makePrisma(artifacts, tenantId),
       makeConfig(),
       makeTools(),
       makeAiCredentials(),
@@ -370,7 +1127,9 @@ describe('MeriResearchService — forced synthesis', () => {
     Object.assign(svc as object, { logger });
 
     try {
-      await svc.streamResearch({ ...CTX, tenantId } as TenantContext, 'sess-1', { write: jest.fn() });
+      await svc.streamResearch({ ...CTX, tenantId } as TenantContext, 'sess-1', {
+        write: jest.fn(),
+      });
       expect(artifacts[0]?.bodyText).toContain(expected);
       if (mode === 'off') {
         expect(logger.warn).not.toHaveBeenCalledWith('meri.citation_integrity', expect.anything());
@@ -394,7 +1153,7 @@ describe('MeriResearchService — forced synthesis', () => {
     }
   });
 
-  it('strips unresolved FORM B citation tokens from the delivered report, keeping valid ones', async () => {
+  it('does not publish a report whose unsupported tool result lacks current owner authority', async () => {
     // FORM B tool names are lowercase snake_case (grammar [a-z][a-z0-9_]*), so use
     // a lowercase-named tool here. search_bills IS called this turn and its result
     // serializes "hr1234", so [S:search_bills:hr1234] resolves → kept. The other
@@ -408,6 +1167,7 @@ describe('MeriResearchService — forced synthesis', () => {
         },
       ],
       isConcurrencySafe: () => true,
+      isSideEffecting: () => false,
       execute: async () => ({ items: [{ id: 'hr1234' }], count: 1 }),
     } as unknown as ConstructorParameters<typeof MeriResearchService>[2];
     const REPORT =
@@ -423,7 +1183,7 @@ describe('MeriResearchService — forced synthesis', () => {
     global.fetch = fetchMock as unknown as typeof fetch;
 
     const svc = new MeriResearchService(
-      makePrisma(),
+      makePrisma(undefined, SESSION.tenantId, 'search_bills'),
       makeConfig(),
       toolsLc,
       makeAiCredentials(),
@@ -445,12 +1205,15 @@ describe('MeriResearchService — forced synthesis', () => {
 
     await svc.streamResearch(CTX, 'sess-1', sse);
 
-    const reportEvt = events.find((e) => e.type === 'report') ?? {};
-    const body = String(reportEvt.body ?? '');
-    expect(body).toContain('Findings'); // report was produced
-    expect(body).toContain('[S:search_bills:hr1234]'); // resolves → preserved verbatim
-    expect(body).not.toContain('nonesuch'); // record_id absent from the tool result → stripped
-    expect(body).not.toContain('ghost_tool'); // tool never called this turn → stripped
+    expect(events.some((event) => event.type === 'report')).toBe(false);
+    expect(events.filter((event) => event.type === 'text')).toHaveLength(0);
+    expect(events).toContainEqual({
+      type: 'error',
+      message: 'Research failed before report publication.',
+    });
+    expect(JSON.stringify(events)).not.toContain('Shipbuilding accounts diverge');
+    expect(JSON.stringify(events)).not.toContain('[S:search_bills:hr1234]');
+    expect(JSON.stringify(events)).not.toContain('ghost_tool');
   });
 
   it('forces synthesis (never sources-only) when a gather round times out', async () => {
@@ -464,10 +1227,13 @@ describe('MeriResearchService — forced synthesis', () => {
       captureBody(init);
       const body = JSON.parse(String(init?.body ?? '{}'));
       if (body.tools) {
-        // Simulate the per-round AbortController firing on the research timeout.
-        const err = new Error('This operation was aborted');
-        err.name = 'AbortError';
-        throw err;
+        // Wait for the actual per-round controller rather than trusting an
+        // arbitrary provider error that merely uses the AbortError name.
+        return new Promise<Response>((_resolve, reject) => {
+          const signal = init?.signal;
+          if (!signal) return reject(new Error('Missing gather signal'));
+          signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+        });
       }
       // The no-tools forced-synthesis call writes the report.
       return okResponse(sseBody(proseRound(REPORT)));
@@ -476,7 +1242,7 @@ describe('MeriResearchService — forced synthesis', () => {
 
     const svc = new MeriResearchService(
       makePrisma(),
-      makeConfig(),
+      makeConfig({ CLIO_RESEARCH_TIMEOUT_MS: 10 }),
       makeTools(),
       makeAiCredentials(),
       makeReviews(),
@@ -563,6 +1329,7 @@ describe('MeriResearchService — forced synthesis', () => {
         { name: 'send_email', description: 'x', input_schema: { type: 'object', properties: {} } },
       ],
       isConcurrencySafe: (name: string) => !SIDE_EFFECTING_TEST.has(name),
+      isSideEffecting: (name: string) => SIDE_EFFECTING_TEST.has(name),
       execute: executeSpy,
     } as unknown as ConstructorParameters<typeof MeriResearchService>[2];
 
@@ -642,44 +1409,59 @@ describe('MeriResearchService — forced synthesis', () => {
   it('stops opening gather rounds once the wall-clock budget is spent, and still reports', async () => {
     const REPORT = '# Executive Summary\n\nWritten after the budget cut gathering short.';
 
-    // 50 rounds are permitted, but a 1ms total budget means the gather loop must
-    // bail almost immediately instead of burning all 50 model calls.
-    fetchMock = jest.fn(async (_url: string, init?: RequestInit) => {
-      captureBody(init);
-      const body = JSON.parse(String(init?.body ?? '{}'));
-      if (body.tools) return okResponse(sseBody(toolOnlyRound('searchBills')));
-      return okResponse(sseBody(proseRound(REPORT)));
-    }) as unknown as jest.Mock;
-    global.fetch = fetchMock as unknown as typeof fetch;
+    // Make the wall-clock budget test deterministic by using fake timers and
+    // advancing time on each provider call. The fake provider (fetchMock) will
+    // simulate realistic time passage, ensuring the gather deadline is met at
+    // a predictable round count while still using the actual production streamResearch path.
+    jest.useFakeTimers();
+    // Seed Date.now() to a known value so we control the absolute timeline.
+    const START_TIME = 1700000000000; // Arbitrary stable timestamp
+    jest.setSystemTime(START_TIME);
+    try {
+      fetchMock = jest.fn(async (_url: string, init?: RequestInit) => {
+        captureBody(init);
+        const body = JSON.parse(String(init?.body ?? '{}'));
+        // Advance clock by 10ms on each provider call to simulate real time passage.
+        // This makes the test deterministic: with 50ms gather budget and 10ms per round,
+        // we expect ~5 gather rounds (budget elapsed after 5 rounds at 50ms).
+        jest.advanceTimersByTime(10);
+        if (body.tools) return okResponse(sseBody(toolOnlyRound('searchBills')));
+        return okResponse(sseBody(proseRound(REPORT)));
+      }) as unknown as jest.Mock;
+      global.fetch = fetchMock as unknown as typeof fetch;
 
-    const svc = new MeriResearchService(
-      makePrisma(),
-      makeConfig({
-        CLIO_RESEARCH_MAX_TOOL_ROUNDS: 50,
-        CLIO_RESEARCH_TOTAL_BUDGET_MS: 1,
-        CLIO_RESEARCH_SYNTHESIS_RESERVE_MS: 1,
-      }),
-      makeTools(),
-      makeAiCredentials(),
-      makeReviews(),
-    );
-    const { events, sse } = collectSse();
+      const svc = new MeriResearchService(
+        makePrisma(),
+        makeConfig({
+          CLIO_RESEARCH_MAX_TOOL_ROUNDS: 50,
+          CLIO_RESEARCH_TOTAL_BUDGET_MS: 100,
+          CLIO_RESEARCH_SYNTHESIS_RESERVE_MS: 50,
+        }),
+        makeTools(),
+        makeAiCredentials(),
+        makeReviews(),
+      );
+      const { events, sse } = collectSse();
 
-    await svc.streamResearch(CTX, 'sess-1', sse);
+      await svc.streamResearch(CTX, 'sess-1', sse);
 
-    // The budget gate — not the round cap — ended gathering. The exact count is
-    // 1-3 rather than 1: Date.now() has millisecond resolution, so several
-    // fully-mocked rounds can complete inside the same millisecond before the
-    // deadline is observably passed. The invariant that matters is that gathering
-    // stopped nowhere near the 50 permitted rounds.
-    const toolRounds = fetchBodies.filter((b) => Array.isArray(b.tools));
-    expect(toolRounds.length).toBeLessThan(10);
-    // Cutting gathering short must never mean shipping sources with no report:
-    // the forced-synthesis pass still gets a usable window (SYNTHESIS_FLOOR_MS).
-    const toolless = fetchBodies.filter((b) => !b.tools);
-    expect(toolless).toHaveLength(1);
-    const report = events.find((e) => e.type === 'report');
-    expect(String(report?.body ?? '')).toContain('Executive Summary');
+      // The budget gate — not the round cap — ended gathering.
+      // With 50ms available to gathering and ~10ms simulated per provider call,
+      // we expect exactly 5 gather rounds before the budget is exhausted.
+      // The invariant: no new gather call starts after the gather deadline.
+      const toolRounds = fetchBodies.filter((b) => Array.isArray(b.tools));
+      expect(toolRounds.length).toBe(5);
+      // Cutting gathering short must never mean shipping sources with no report:
+      // the forced-synthesis pass still completes within the remaining durable deadline.
+      const toolless = fetchBodies.filter((b) => !b.tools);
+      expect(toolless).toHaveLength(1);
+      // Verify no extra provider calls after budget exhausted (only gather rounds + 1 synthesis).
+      expect(fetchBodies.length).toBe(6); // 5 gather + 1 synthesis
+      const report = events.find((e) => e.type === 'report');
+      expect(String(report?.body ?? '')).toContain('Executive Summary');
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it('emits progress heartbeats naming the current stage', async () => {
@@ -726,12 +1508,13 @@ describe('MeriResearchService — forced synthesis', () => {
       }) as unknown as jest.Mock;
       global.fetch = fetchMock as unknown as typeof fetch;
 
+      const reviews = makeReviews();
       const svc = new MeriResearchService(
         makePrisma(),
         makeConfig(),
         makeTools(),
         makeAiCredentials(),
-        makeReviews(),
+        reviews,
       );
       const { events, sse } = collectSse();
 
@@ -743,22 +1526,22 @@ describe('MeriResearchService — forced synthesis', () => {
       expect(String(notice?.message ?? '')).toMatch(/grounding checks/i);
       // The buffering guarantee itself is unchanged: no report prose streams
       // token-by-token ahead of the audit, only the single post-audit delivery.
-      expect(events.filter((e) => e.type === 'text')).toHaveLength(1);
+      const deliveredBodies = events.filter((e) => e.type === 'text');
+      expect(deliveredBodies).toHaveLength(1);
+      expect(String(deliveredBodies[0]?.text)).toContain(REPORT);
+      expect(reviews.createSystem).not.toHaveBeenCalled();
     } finally {
       if (prevMode === undefined) delete process.env.MERI_AUDITOR_MODE;
       else process.env.MERI_AUDITOR_MODE = prevMode;
     }
   });
 
-  it('does not emit the enforce notice when grounding enforcement is off', async () => {
+  it('delays report text until durable save even when grounding enforcement is off', async () => {
     const prevMode = process.env.MERI_AUDITOR_MODE;
     delete process.env.MERI_AUDITOR_MODE;
     try {
-      // Long enough that proseRound() splits it into several text_deltas, so
-      // "streamed as written" is actually observable (>1 text event).
       const REPORT =
-        '# Executive Summary\n\nUnenforced run: the report body streams to the reader ' +
-        'token-by-token because no grounding gate is withholding it. [searchBills]';
+        '# Executive Summary\n\nUnenforced run with publication-gated delivery. [searchBills]';
       fetchMock = jest.fn(async (_url: string, init?: RequestInit) => {
         captureBody(init);
         const body = JSON.parse(String(init?.body ?? '{}'));
@@ -767,8 +1550,9 @@ describe('MeriResearchService — forced synthesis', () => {
       }) as unknown as jest.Mock;
       global.fetch = fetchMock as unknown as typeof fetch;
 
+      const artifacts: Array<Record<string, any>> = [];
       const svc = new MeriResearchService(
-        makePrisma(),
+        makePrisma(artifacts),
         makeConfig(),
         makeTools(),
         makeAiCredentials(),
@@ -779,8 +1563,10 @@ describe('MeriResearchService — forced synthesis', () => {
       await svc.streamResearch(CTX, 'sess-1', sse);
 
       expect(events.find((e) => e.type === 'notice')).toBeUndefined();
-      // Unbuffered mode still streams prose as it is written.
-      expect(events.filter((e) => e.type === 'text').length).toBeGreaterThan(1);
+      const deliveredBodies = events.filter((e) => e.type === 'text');
+      expect(deliveredBodies).toHaveLength(1);
+      expect(String(deliveredBodies[0]?.text)).toContain(REPORT);
+      expect(artifacts).toHaveLength(1);
     } finally {
       if (prevMode !== undefined) process.env.MERI_AUDITOR_MODE = prevMode;
     }

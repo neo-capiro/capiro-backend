@@ -24,7 +24,7 @@ export interface StagedAttachment {
   /** Server attachment id once uploaded; null while uploading or when unusable. */
   id: string | null;
   filename: string;
-  kind: 'pdf' | 'docx' | 'pptx' | 'image' | 'text' | 'unsupported';
+  kind: 'pdf' | 'docx' | 'pptx' | 'xlsx' | 'image' | 'text' | 'unsupported';
   status:
     | 'uploading'
     | 'parsed'

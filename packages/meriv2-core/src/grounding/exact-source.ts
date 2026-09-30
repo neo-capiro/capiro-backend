@@ -60,19 +60,30 @@ export interface ExactSourceEligibility {
  * Resolves already-known references only. Filename and pronoun matches are
  * explicitly heuristic and this function never reads or retrieves a document.
  */
-export function resolveDocumentReferences(input: ResolveDocumentReferencesInput): DocumentReference[] {
+export function resolveDocumentReferences(
+  input: ResolveDocumentReferencesInput,
+): DocumentReference[] {
   const text = input.userText.toLowerCase();
   const selected = new Set(input.selectedAttachmentIds);
   const candidates = [
     ...input.priorTurnManifest.map((candidate) => ({ ...candidate, kind: 'attachment' as const })),
-    ...input.clientDocuments.map((candidate) => ({ ...candidate, kind: 'client_document' as const })),
+    ...input.clientDocuments.map((candidate) => ({
+      ...candidate,
+      kind: 'client_document' as const,
+    })),
   ];
   const output: DocumentReference[] = [];
   for (const candidate of candidates) {
     let resolution: DocumentReference['resolution'] | undefined;
-    if (selected.has(candidate.id) || mentionsId(input.userText, candidate.id)) resolution = 'explicit_id';
+    if (selected.has(candidate.id) || mentionsId(input.userText, candidate.id))
+      resolution = 'explicit_id';
     else if (mentionsFilename(text, candidate.filename)) resolution = 'filename';
-    else if (candidates.length === 1 && /\b(?:it|this|that|the)\s+(?:file|document|attachment|transcript|memo|report)\b/i.test(input.userText)) {
+    else if (
+      candidates.length === 1 &&
+      /\b(?:it|this|that|the)\s+(?:file|document|attachment|transcript|memo|report)\b/i.test(
+        input.userText,
+      )
+    ) {
       resolution = 'pronoun_heuristic';
     }
     if (!resolution) continue;
@@ -102,10 +113,19 @@ export function checkExactSourceEligibility(
   if (!isDocumentSpecificClaim(claim, ledger)) return { eligible: true, reason: 'ok' };
   const related = references.filter((reference) => referenceMatchesClaim(reference, claim, ledger));
   if (!related.length) return { eligible: false, reason: 'no_document' };
-  if (related.every((reference) => reference.requestedClientId && reference.clientId !== reference.requestedClientId)) {
+  if (
+    related.every(
+      (reference) =>
+        reference.requestedClientId && reference.clientId !== reference.requestedClientId,
+    )
+  ) {
     return { eligible: false, reason: 'wrong_client' };
   }
-  if (related.every((reference) => reference.requestedVersion && reference.version !== reference.requestedVersion)) {
+  if (
+    related.every(
+      (reference) => reference.requestedVersion && reference.version !== reference.requestedVersion,
+    )
+  ) {
     return { eligible: false, reason: 'version_mismatch' };
   }
   const scoped = related.filter(
@@ -126,11 +146,18 @@ export function checkExactSourceEligibility(
 }
 
 export function isDocumentSpecificClaim(claim: MaterialClaim, ledger?: ClaimLedger): boolean {
-  if (/\b(?:attachment|document|file|memo|report|transcript|meeting notes?|minutes|brief)\b/i.test(claim.text)) return true;
+  if (
+    /\b(?:attachment|document|file|memo|report|transcript|meeting notes?|minutes|brief)\b/i.test(
+      claim.text,
+    )
+  )
+    return true;
   if (claim.category === 'report_language') return true;
   const evidence = ledger?.evidence.filter((item) => claim.evidenceIds.includes(item.id)) ?? [];
   return evidence.some((item) =>
-    /(?:document|attachment|transcript|client_context)/i.test(`${item.sourceType} ${item.sourceId}`),
+    /(?:document|attachment|transcript|client_context)/i.test(
+      `${item.sourceType} ${item.sourceId}`,
+    ),
   );
 }
 
@@ -142,12 +169,17 @@ function referenceMatchesClaim(
   if (claim.evidenceIds.includes(reference.id)) return true;
   if (claim.text.toLowerCase().includes(reference.filename.toLowerCase())) return true;
   const evidence = ledger?.evidence.filter((item) => claim.evidenceIds.includes(item.id)) ?? [];
-  if (evidence.some((item) => item.sourceId === reference.id || item.id === reference.id)) return true;
+  if (evidence.some((item) => item.sourceId === reference.id || item.id === reference.id))
+    return true;
   return referencesCanSupplyGenericDocumentClaim(claim);
 }
 
 function referencesCanSupplyGenericDocumentClaim(claim: MaterialClaim): boolean {
-  return /\b(?:attachment|document|file|memo|report|transcript|meeting notes?|minutes|brief)\b/i.test(claim.text) || claim.category === 'report_language';
+  return (
+    /\b(?:attachment|document|file|memo|report|transcript|meeting notes?|minutes|brief)\b/i.test(
+      claim.text,
+    ) || claim.category === 'report_language'
+  );
 }
 
 function readableState(state: DocumentContentState | undefined): boolean {
@@ -164,7 +196,10 @@ function mentionsFilename(text: string, filename: string): boolean {
   return text.includes(lower) || (stem.length >= 4 && text.includes(stem));
 }
 
-function parseRequestedVersion(text: string, filename: string): Pick<DocumentReference, 'requestedVersion'> | object {
+function parseRequestedVersion(
+  text: string,
+  filename: string,
+): Pick<DocumentReference, 'requestedVersion'> | object {
   if (!mentionsFilename(text.toLowerCase(), filename)) return {};
   const match = text.match(/\b(?:version|v)\s*([\w.-]+)/i);
   return match ? { requestedVersion: match[1]! } : {};
@@ -179,7 +214,8 @@ function dedupeReferences(references: readonly DocumentReference[]): DocumentRef
   for (const reference of references) {
     const key = `${reference.kind}:${reference.id}`;
     const existing = byKey.get(key);
-    if (!existing || resolutionRank(reference.resolution) < resolutionRank(existing.resolution)) byKey.set(key, reference);
+    if (!existing || resolutionRank(reference.resolution) < resolutionRank(existing.resolution))
+      byKey.set(key, reference);
   }
   return [...byKey.values()];
 }

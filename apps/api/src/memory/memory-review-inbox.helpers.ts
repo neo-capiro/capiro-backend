@@ -11,25 +11,13 @@ export const MEMORY_REVIEW_INBOX_VIEWS = [
 export type MemoryReviewInboxView = (typeof MEMORY_REVIEW_INBOX_VIEWS)[number];
 
 export type MemoryReviewPublicStatus =
-  | 'pending'
-  | 'changes_requested'
-  | 'approved'
-  | 'rejected'
-  | 'withdrawn'
-  | 'superseded';
+  'pending' | 'changes_requested' | 'approved' | 'rejected' | 'withdrawn' | 'superseded';
 
 export type MemoryReviewNextAction =
-  | 'review'
-  | 'revise'
-  | 'await_reviewer'
-  | 'assign_reviewer'
-  | 'none';
+  'review' | 'revise' | 'await_reviewer' | 'assign_reviewer' | 'none';
 
 export type MemoryReviewBlockedReason =
-  | 'no_reviewer'
-  | 'reviewer_unavailable'
-  | 'archived_client'
-  | null;
+  'no_reviewer' | 'reviewer_unavailable' | 'archived_client' | null;
 
 export interface MemoryReviewCursor {
   createdAt: string;

@@ -71,11 +71,11 @@ jobs:
   legiwatch:
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    # The enumerated apps/api Jest run repeatedly exceeded Node's default
-    # ~2 GiB heap before it could write its JSON summary. Keep one worker
-    # and a bounded larger heap so the absolute-zero gate is deterministic.
+    # The enumerated apps/api Jest run exceeded both Node's default heap and
+    # 4 GB in-band before it could write its JSON summary. In-band at 6 GB
+    # completes the whole scope in about five minutes.
     env:
-      NODE_OPTIONS: --max-old-space-size=4096
+      NODE_OPTIONS: --max-old-space-size=6144
       DATABASE_URL: postgresql://legiwatch_test:legiwatch_test@localhost:5433/capiro
       LEGIWATCH_COMMITTEE_TEST_DATABASE_URL: postgresql://legiwatch_test:legiwatch_test@localhost:5433/capiro_committee_alerts_ci
       LEGIWATCH_RECORDING_TEST_DATABASE: disposable
@@ -139,7 +139,16 @@ jobs:
       # 100+ errors in code this gate does not own. Generated clients and
       # typechecked packages must agree; these two lists are that agreement.
       - name: Typecheck (apps/api, apps/intel-api, apps/web)
-        run: pnpm turbo run typecheck --filter=@capiro/api --filter=@capiro/intel-api --filter=@capiro/web
+        # The API typecheck's first program alone now exceeds 4 GB. Build the
+        # workspace packages (turbo's ^build did this before), then run the
+        # projects one at a time through pnpm, which passes NODE_OPTIONS on.
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
+        run: |
+          pnpm --filter "./packages/*" build
+          pnpm --filter @capiro/api typecheck
+          pnpm --filter @capiro/intel-api typecheck
+          pnpm --filter @capiro/web typecheck
 
       - name: Tests — saved hearing association SQL
         env:
@@ -148,6 +157,14 @@ jobs:
           pnpm --filter @capiro/api exec jest --ci --silent --runInBand
           --json --outputFile=$GITHUB_WORKSPACE/saved-session-sql-summary.json
           src/live-hearings/legiwatch-saved-sessions-pg.integration.spec.ts
+
+      # Cluster roles also apply to the committee fixture created below.
+      - name: Bootstrap restricted worker in the owned LegiWatch service
+        run: |
+          docker exec -i "${{ job.services['folder-postgres'].id }}" \
+            psql --no-psqlrc --set=ON_ERROR_STOP=1 --host=127.0.0.1 \
+              --username=legiwatch_test --dbname=capiro \
+            < scripts/ci/disposable-capiro-worker-role.sql
 
       - name: LegiWatch additive migrations and PostgreSQL recovery
         env:
@@ -222,7 +239,7 @@ jobs:
 
       - name: Assert saved hearing association SQL is clean
         if: always()
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/saved-session-sql-summary.json" saved-session-sql 1 17
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/saved-session-sql-summary.json" saved-session-sql 1 26
 
       # ---------------------------------------------------------------- api --
       # Gate H (memo lifecycle), Gate I (entailment/filing), Gate J (integrity),
@@ -246,6 +263,8 @@ jobs:
       - name: Tests — apps/api LegiWatch scope
         env:
           DATABASE_URL: postgresql://legiwatch_test:legiwatch_test@localhost:5433/capiro
+        # In-band on the 6 GB job heap. A 1 GB idle limit restarts the worker
+        # after every suite (~30 s ts-jest reload each) and overran the job.
         run: >
           pnpm --filter @capiro/api exec jest --ci --silent --runInBand
           --json --outputFile=$GITHUB_WORKSPACE/api-summary.json

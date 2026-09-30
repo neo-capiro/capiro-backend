@@ -97,9 +97,7 @@ export async function executeMeriBillWatch(
       gaps:
         states.length === 0
           ? ['search_state_bills skipped: no state footprint provided for this client']
-          : sources
-              .filter((source) => resultHasError(source.result))
-              .map((source) => source.tool),
+          : sources.filter((source) => resultHasError(source.result)).map((source) => source.tool),
       note:
         states.length === 0
           ? 'State lane skipped — pass states[] to include state legislation for clients with state footprints.'

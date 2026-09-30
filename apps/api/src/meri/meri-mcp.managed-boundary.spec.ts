@@ -41,9 +41,9 @@ function make() {
       { name: 'list_bases', inputSchema: { type: 'object' } },
       { name: 'execute_api', inputSchema: { type: 'object' } },
     ]),
-    callTool: jest.fn(
-      async (): Promise<unknown> => ({ content: [{ type: 'text', text: 'fixture' }] }),
-    ),
+    callTool: jest.fn(async (): Promise<unknown> => ({
+      content: [{ type: 'text', text: 'fixture' }],
+    })),
   };
   jest.mocked(createMcpClient).mockReturnValue(client);
   return {

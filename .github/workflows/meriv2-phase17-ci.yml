@@ -17,25 +17,28 @@ concurrency:
 jobs:
   final-release-matrix:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    # Includes the complete apps/api suite (four shards), which alone ran for
+    # 44+ minutes before the sharding.
+    timeout-minutes: 150
     services:
       postgres:
         image: pgvector/pgvector:pg16
         env:
-          POSTGRES_USER: capiro
-          POSTGRES_PASSWORD: capiro
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
           POSTGRES_DB: capiro
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U capiro -d capiro"
+          --health-cmd "pg_isready -U postgres -d capiro"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 10
     env:
+      NODE_OPTIONS: --max-old-space-size=6144
       CI: 'true'
-      DATABASE_URL: postgresql://capiro:capiro@localhost:5432/capiro?schema=public
-      DIRECT_URL: postgresql://capiro:capiro@localhost:5432/capiro?schema=public
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/capiro?schema=public
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/capiro?schema=public
       CLERK_SECRET_KEY: sk_test_meriv2_phase17_ci
 
     steps:
@@ -61,9 +64,90 @@ jobs:
           pnpm --filter @capiro/onboard-api exec prisma generate
           pnpm --filter @capiro/workspace exec prisma generate
 
+      # Guarded prerequisites for the owned disposable database, before any
+      # service replays its migrations: the restricted worker role and
+      # append-only function, then the cluster extensions and app role.
+      - name: Prepare owned disposable integration database prerequisites
+        env:
+          CI_DISPOSABLE_POSTGRES: '1'
+          CI_POSTGRES_PASSWORD: postgres
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_ACTIONS" = true
+          test "$CI" = true
+          test "$DATABASE_URL" = 'postgresql://postgres:postgres@localhost:5432/capiro?schema=public'
+          test "$DIRECT_URL" = "$DATABASE_URL"
+          unset PGSERVICE PGSERVICEFILE PGOPTIONS
+          export PGHOST=127.0.0.1 PGHOSTADDR=127.0.0.1 PGPORT=5432 PGDATABASE=capiro PGUSER=postgres PGPASSWORD=postgres
+          bash scripts/ci/bootstrap-disposable-postgres-roles.sh
+          psql --no-psqlrc -v ON_ERROR_STOP=1 -f docker/postgres/init/01-extensions.sql
+
+      - name: Initialize disposable service database
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # These services deliberately share the public schema but own disjoint
+          # table prefixes. API goes first because its migrations install the
+          # shared extensions, RLS helpers, and capiro_app role used by later
+          # Workspace migrations. Each owner then replays its own history; db
+          # push would overwrite that ownership boundary and is not used here.
+          pnpm --filter @capiro/api exec prisma migrate deploy
+          pnpm --filter @capiro/workspace exec prisma migrate deploy
+          pnpm --filter @capiro/api-strategy exec prisma migrate deploy
+
+          database_url="${DIRECT_URL%%\?*}"
+          psql "$database_url" -v ON_ERROR_STOP=1 <<'SQL'
+          DO $$
+          DECLARE
+            missing_tables text[];
+          BEGIN
+            SELECT array_agg(required_table)
+              INTO missing_tables
+              FROM unnest(ARRAY[
+                'tenants',
+                'ws_draft',
+                'ws_document',
+                'sp_strategy',
+                'sp_node',
+                'sp_context_fact'
+              ]) AS required(required_table)
+             WHERE to_regclass('public.' || required_table) IS NULL;
+
+            IF missing_tables IS NOT NULL THEN
+              RAISE EXCEPTION 'missing required service tables: %', missing_tables;
+            END IF;
+
+            IF NOT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'vector') THEN
+              RAISE EXCEPTION 'missing required vector extension';
+            END IF;
+
+            IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'capiro_app') THEN
+              RAISE EXCEPTION 'missing required capiro_app role';
+            END IF;
+
+            IF NOT EXISTS (
+              SELECT 1 FROM pg_constraint WHERE conname = 'ws_document_draft_id_fkey'
+            ) THEN
+              RAISE EXCEPTION 'missing Workspace draft/document foreign key';
+            END IF;
+
+            IF NOT EXISTS (
+              SELECT 1 FROM pg_constraint WHERE conname = 'sp_node_strategy_id_fkey'
+            ) THEN
+              RAISE EXCEPTION 'missing Strategy node/strategy foreign key';
+            END IF;
+          END
+          $$;
+          SQL
+
       - name: Build required dependency packages
         run: |
           pnpm --filter @capiro/shared build
+          pnpm --filter @capiro/defense-contracts build
+          pnpm --filter @capiro/defense-domain build
+          pnpm --filter @capiro/defense-client build
           pnpm --filter @capiro/auth build
           pnpm --filter @capiro/strategy-verifier build
           pnpm --filter @capiro/meriv2-core build
@@ -78,6 +162,29 @@ jobs:
           "apps/api/src/context/**/*.ts"
           "apps/workspace/src/generation/**/*.ts"
           "apps/api-strategy/src/agents/**/*.ts"
+
+      - name: Check changed files in the Phase 17 formatting scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          # pull_request.base.sha is not refreshed as main advances.
+          base=$(git merge-base "origin/${{ github.base_ref || 'main' }}" HEAD 2>/dev/null || git rev-parse HEAD^)
+          changed_file_list=$(mktemp)
+          trap 'rm -f "$changed_file_list"' EXIT
+          git diff --name-only -z --diff-filter=ACMR "$base...HEAD" -- \
+            '.github/workflows/meriv2-phase17-*.yml' \
+            'packages/meriv2-core/**' \
+            'apps/meriv2-orchestrator/**' \
+            'apps/api/src/memory/**' \
+            'apps/api/src/context/**' \
+            'apps/workspace/src/generation/**' \
+            'apps/api-strategy/src/agents/**' > "$changed_file_list"
+          mapfile -d '' -t files < "$changed_file_list"
+          if (( ${#files[@]} == 0 )); then
+            echo 'No changed files in the Phase 17 formatting scope.'
+          else
+            pnpm exec prettier --check "${files[@]}"
+          fi
 
       - name: Run and classify Phase 17 bypass searches
         shell: bash
@@ -147,11 +254,26 @@ jobs:
       - name: Test MeriV2 orchestrator
         run: pnpm --filter @capiro/meriv2-orchestrator test
 
+      # The owned disposable database was prepared and every service migration
+      # chain replayed and verified before the builds above.
       - name: Test Strategy API
+        env:
+          CI_DISPOSABLE_POSTGRES: '1'
         run: pnpm --filter @capiro/api-strategy test
 
+      # The package's `jest --detectOpenHandles --forceExit` implies in-band, and
+      # all ~1,760 apps/api spec files in one process ran out of heap. Run the
+      # same command as four sequential shards, each a fresh process. Every
+      # shard runs so one CI pass reports the complete failure set.
       - name: Test API
-        run: pnpm --filter @capiro/api test
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144 --experimental-vm-modules
+        run: |
+          status=0
+          for shard in 1 2 3 4; do
+            pnpm --filter @capiro/api exec jest --detectOpenHandles --forceExit --shard="$shard/4" || status=1
+          done
+          exit "$status"
 
       - name: Test Workspace
         run: pnpm --filter @capiro/workspace test

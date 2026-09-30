@@ -384,8 +384,8 @@ function ProTip({ onClose }: { onClose: () => void }) {
           </div>
           <p>
             Say it plainly in the thread — “remember that this principal prefers one-page briefs” —
-            and Meri proposes it as institutional memory. You approve it before it sticks, and future
-            answers for that client can use it.
+            and Meri proposes it as institutional memory. You approve it before it sticks, and
+            future answers for that client can use it.
           </p>
           <blockquote>“Remember: we never cite draft RFP language with clients.”</blockquote>
         </section>

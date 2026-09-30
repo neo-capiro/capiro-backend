@@ -58,7 +58,10 @@ describe('impersonation passthrough on delegated apps/api calls (2.5)', () => {
   });
 
   it('action-proposal creation forwards the impersonate header when set', async () => {
-    const calls = captureFetch({ proposalId: 'p1', status: 'proposed' });
+    const calls = captureFetch({
+      disposition: 'pending_approval',
+      proposal: { proposalId: 'p1', status: 'proposed' },
+    });
     const repo = new ApiActionProposalRepo(config);
     await RequestCredentialsStore.run({ bearerToken: 'TOK', impersonateTenantId: 'tenant-X' }, () =>
       repo.create({ tool: 'send_email', input: {}, surface: 'chat' }),

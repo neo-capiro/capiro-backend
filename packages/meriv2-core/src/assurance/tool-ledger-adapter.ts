@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import type { LedgerEntry } from '../grounding/auditor';
 import {
   buildAssuredClaimLedger,
@@ -17,8 +18,45 @@ export interface CitationLike {
   url?: string | null;
   snippet?: string | null;
   type?: string;
-  source?: { observedAt?: string };
-  documentEvidence?: { observedAt: string | null };
+  source?: {
+    recordId?: string;
+    clientId?: string;
+    section?: string;
+    version?: string;
+    observedAt?: string;
+  };
+  documentEvidence?: {
+    clientId: string;
+    documentId: string;
+    contentHash: string;
+    record: Record<string, unknown>;
+    coverage: Record<string, unknown>;
+    observedAt: string | null;
+  };
+}
+
+export interface ExactCitationBinding {
+  recordId: string;
+  text: string;
+  evidenceKind: 'source_passage' | 'structured_record';
+  acquisitionState: 'discovered' | 'consulted';
+  contentHash: string;
+  clientId?: string;
+  documentId?: string;
+  version?: string;
+  locator?: string;
+}
+
+/** Search/list owners that return discovery summaries rather than the source
+ * content. A page/content read tool is intentionally not inferred by name. */
+const DISCOVERY_ONLY_TOOLS: ReadonlySet<string> = new Set([
+  'search_public_web',
+  'search_intel_articles',
+  'search_legiwatch_news',
+]);
+
+export function acquisitionStateForTool(tool: string): 'discovered' | 'consulted' {
+  return DISCOVERY_ONLY_TOOLS.has(tool) ? 'discovered' : 'consulted';
 }
 
 const FORM_B_RE = /\[S:([a-zA-Z0-9_\-]+):([^\]\s]+)\]/g;
@@ -82,9 +120,11 @@ export function evidenceFromToolResults(
   options: { classification?: EvidenceClassification } = {},
 ): AssuredEvidence[] {
   const classification = options.classification ?? 'legacy';
-  const classify = classification === 'profiles' ? evidenceClassForTool : legacyEvidenceClassForTool;
+  const classify =
+    classification === 'profiles' ? evidenceClassForTool : legacyEvidenceClassForTool;
   const isPrimary = classification === 'profiles' ? primaryTool : legacyPrimaryTool;
-  const isAuthoritative = classification === 'profiles' ? authoritativeTool : legacyAuthoritativeTool;
+  const isAuthoritative =
+    classification === 'profiles' ? authoritativeTool : legacyAuthoritativeTool;
   const evidence: AssuredEvidence[] = [];
   const entryByTool = new Map<string, LedgerEntry[]>();
   for (const entry of ledgerEntries) {
@@ -94,8 +134,11 @@ export function evidenceFromToolResults(
   }
   for (const citation of citations) {
     const entries = entryByTool.get(citation.tool) ?? [];
-    const resolves = entries.some((entry) => entry.serialized.includes(citation.id));
-    const dates = deriveEvidenceDates({ citation: citation as Parameters<typeof deriveEvidenceDates>[0]['citation'] });
+    const binding = bindCitationToLedgerEntries(citation, entries);
+    const consulted = binding?.acquisitionState === 'consulted';
+    const dates = deriveEvidenceDates({
+      citation: citation as Parameters<typeof deriveEvidenceDates>[0]['citation'],
+    });
     evidence.push({
       id: citationEvidenceId(citation),
       sourceType: citation.tool,
@@ -106,8 +149,16 @@ export function evidenceFromToolResults(
       ...(dates.publishedAt ? { publishedAt: dates.publishedAt } : {}),
       ...(dates.effectiveAt ? { effectiveAt: dates.effectiveAt } : {}),
       ...(dates.retrievedAt ? { retrievedAt: dates.retrievedAt } : {}),
-      primary: isPrimary(citation.tool),
-      authoritative: resolves && isAuthoritative(citation.tool),
+      ...(binding?.version ? { version: binding.version } : {}),
+      ...(binding?.locator ? { locator: binding.locator } : {}),
+      ...(binding?.acquisitionState ? { acquisitionState: binding.acquisitionState } : {}),
+      ...(binding?.evidenceKind ? { evidenceKind: binding.evidenceKind } : {}),
+      ...(binding?.clientId ? { clientId: binding.clientId } : {}),
+      ...(binding?.documentId ? { documentId: binding.documentId } : {}),
+      ...(binding?.contentHash ? { contentHash: binding.contentHash } : {}),
+      ownerVerified: Boolean(binding),
+      primary: consulted && isPrimary(citation.tool),
+      authoritative: consulted && isAuthoritative(citation.tool),
       requirementIds: requirementIdsForTool(citation.tool, plan),
       // The ordinary citation extractor does not prove result-set completeness.
       // Negative/exhaustive claims therefore stay unsupported unless a future
@@ -116,7 +167,7 @@ export function evidenceFromToolResults(
         description: 'Cited record only; result-set completeness not established.',
         complete: false,
         truncated: false,
-        failedSources: resolves ? [] : [citation.tool],
+        failedSources: binding ? [] : [citation.tool],
       },
     });
   }
@@ -128,13 +179,23 @@ export function evidenceFromToolResults(
       if (tool !== entry.tool) continue;
       const id = `formb:${tool}:${sourceId}`;
       if (evidence.some((item) => item.id === id)) continue;
+      const binding = bindCitationToLedgerEntries({ n: 0, tool, id: sourceId }, [entry]);
+      const consulted = binding?.acquisitionState === 'consulted';
       evidence.push({
         id,
         sourceType: tool,
         sourceId,
         evidenceClass: classify(tool),
-        primary: isPrimary(tool),
-        authoritative: isAuthoritative(tool) && entry.serialized.includes(sourceId),
+        ...(binding?.version ? { version: binding.version } : {}),
+        ...(binding?.locator ? { locator: binding.locator } : {}),
+        ...(binding?.acquisitionState ? { acquisitionState: binding.acquisitionState } : {}),
+        ...(binding?.evidenceKind ? { evidenceKind: binding.evidenceKind } : {}),
+        ...(binding?.clientId ? { clientId: binding.clientId } : {}),
+        ...(binding?.documentId ? { documentId: binding.documentId } : {}),
+        ...(binding?.contentHash ? { contentHash: binding.contentHash } : {}),
+        ownerVerified: Boolean(binding),
+        primary: consulted && isPrimary(tool),
+        authoritative: consulted && isAuthoritative(tool),
         requirementIds: requirementIdsForTool(tool, plan),
         coverage: {
           description: 'Exact cited record; result-set completeness not established.',
@@ -375,6 +436,11 @@ function toolProfile(tool: string): ToolEvidenceProfile {
   return TOOL_EVIDENCE_PROFILES[tool] ?? CAPIRO_DERIVED;
 }
 
+/** Safe profile used by source-integrity adapters; unknown tools fail closed. */
+export function evidenceProfileForTool(tool: string): ToolEvidenceProfile {
+  return { ...toolProfile(tool) };
+}
+
 function evidenceClassForTool(tool: string): EvidenceClass {
   return toolProfile(tool).evidenceClass;
 }
@@ -455,10 +521,11 @@ export function compareEvidenceClassification(input: {
   const profileEvidence = new Map(profiles.evidence.map((item) => [item.id, item]));
   const changedEvidence = legacy.evidence.filter((item) => {
     const other = profileEvidence.get(item.id);
-    return Boolean(other) && (
-      item.evidenceClass !== other!.evidenceClass ||
-      item.primary !== other!.primary ||
-      item.authoritative !== other!.authoritative
+    return (
+      Boolean(other) &&
+      (item.evidenceClass !== other!.evidenceClass ||
+        item.primary !== other!.primary ||
+        item.authoritative !== other!.authoritative)
     );
   });
   const profileClaims = new Map(profiles.claims.map((claim) => [claim.id, claim]));
@@ -468,7 +535,8 @@ export function compareEvidenceClassification(input: {
   for (const claim of legacy.claims) {
     const other = profileClaims.get(claim.id);
     if (!other) continue;
-    if (Boolean(claim.unsupportedReason) !== Boolean(other.unsupportedReason)) claimSupportChanged += 1;
+    if (Boolean(claim.unsupportedReason) !== Boolean(other.unsupportedReason))
+      claimSupportChanged += 1;
     if (claim.confidence !== other.confidence) claimConfidenceChanged += 1;
     if (claim.primarySourcePresent !== other.primarySourcePresent) primarySourcePresentChanged += 1;
   }
@@ -503,6 +571,192 @@ function confidenceFromLanguage(text: string): 'high' | 'medium' | 'low' | 'unkn
 
 function citationEvidenceId(citation: CitationLike): string {
   return `citation:${citation.n}:${citation.tool}:${citation.id}`;
+}
+
+/**
+ * Binds a citation to one exact current owner row. This never searches serialized
+ * text, falls back to another row, or turns a citation number into a locator.
+ */
+export function bindCitationToLedgerEntries(
+  citation: CitationLike,
+  entries: readonly LedgerEntry[],
+  options: { expectedClientId?: string | null } = {},
+): ExactCitationBinding | null {
+  if (!citation.id) return null;
+  for (const entry of entries) {
+    if (entry.tool !== citation.tool) continue;
+    const result = resultRecord(entry);
+    if (!result || result.error || result.blocked) continue;
+    const document = record(result.document);
+    if (citation.tool === 'read_client_documents' && document) {
+      const ownerClientId = stringValue(result.clientId);
+      const documentId = stringValue(document.id);
+      const version = stringValue(document.contentHash);
+      const expected = options.expectedClientId ?? citation.documentEvidence?.clientId;
+      if (
+        !ownerClientId ||
+        !documentId ||
+        !version ||
+        (expected && ownerClientId !== expected) ||
+        (citation.documentEvidence &&
+          (citation.documentEvidence.clientId !== ownerClientId ||
+            citation.documentEvidence.documentId !== documentId ||
+            citation.documentEvidence.contentHash !== version))
+      ) {
+        continue;
+      }
+      const row = rows(result).find((candidate) => rowIdentity(candidate) === citation.id);
+      if (!row) continue;
+      const citedRecordId = rowIdentity(citation.documentEvidence?.record);
+      if (citedRecordId && citedRecordId !== citation.id) continue;
+      const text = passageText(row);
+      if (!text) continue;
+      return {
+        recordId: citation.id,
+        text,
+        evidenceKind: 'source_passage',
+        acquisitionState: 'consulted',
+        contentHash: sha256(text),
+        clientId: ownerClientId,
+        documentId,
+        version,
+        ...(ownerLocator(row) ? { locator: ownerLocator(row) } : {}),
+      };
+    }
+
+    // A canonical document row has no independent structured-record authority.
+    // If projection or a legacy caller removed its owner envelope, fail closed.
+    if (citation.tool === 'read_client_documents') continue;
+
+    const row = rows(result).find((candidate) => rowIdentity(candidate) === citation.id);
+    if (!row) continue;
+    const ownerClientId = ownerClient(row, result);
+    const expected = options.expectedClientId ?? citation.source?.clientId;
+    if (expected && ownerClientId && ownerClientId !== expected) continue;
+    const ownerVersion = sourceVersion(row);
+    if (citation.source?.version && ownerVersion && citation.source.version !== ownerVersion)
+      continue;
+    if (citation.source?.recordId && citation.source.recordId !== citation.id) continue;
+    const text = JSON.stringify(row);
+    if (!text) continue;
+    return {
+      recordId: citation.id,
+      text,
+      evidenceKind: 'structured_record',
+      acquisitionState: acquisitionStateForTool(citation.tool),
+      contentHash: sha256(text),
+      ...(ownerClientId ? { clientId: ownerClientId } : {}),
+      ...(ownerVersion ? { version: ownerVersion } : {}),
+      ...(ownerLocator(row) ? { locator: ownerLocator(row) } : {}),
+    };
+  }
+  return null;
+}
+
+function resultRecord(entry: LedgerEntry): Record<string, unknown> | null {
+  const direct = record(entry.result);
+  if (direct) return direct;
+  try {
+    return record(JSON.parse(entry.serialized));
+  } catch {
+    return null;
+  }
+}
+
+function record(value: unknown): Record<string, unknown> | null {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function rows(result: Record<string, unknown>): Record<string, unknown>[] {
+  const values = ['data', 'results', 'records', 'items', 'messages', 'tasks'].flatMap((key) =>
+    Array.isArray(result[key]) ? (result[key] as unknown[]) : [],
+  );
+  const nested = values
+    .map(record)
+    .filter((value): value is Record<string, unknown> => Boolean(value));
+  return rowIdentity(result) ? [result, ...nested] : nested;
+}
+
+function rowIdentity(value: unknown): string | undefined {
+  const row = record(value);
+  if (!row) return undefined;
+  for (const key of [
+    'recordId',
+    'id',
+    'billId',
+    'accessionNo',
+    'accessionNumber',
+    'identifier',
+    'billNumber',
+    'registrationNumber',
+    'docId',
+  ]) {
+    const value = stringValue(row[key]);
+    if (value) return value;
+  }
+  return undefined;
+}
+
+function passageText(row: Record<string, unknown>): string | undefined {
+  const payload = record(row.payload);
+  for (const value of [payload?.text, row.text, row.content]) {
+    const text = stringValue(value);
+    if (text) return text;
+  }
+  return undefined;
+}
+
+function ownerClient(
+  row: Record<string, unknown>,
+  result: Record<string, unknown>,
+): string | undefined {
+  const payload = record(row.payload);
+  return (
+    stringValue(row.clientId) ?? stringValue(payload?.clientId) ?? stringValue(result.clientId)
+  );
+}
+
+function sourceVersion(row: Record<string, unknown>): string | undefined {
+  const payload = record(row.payload);
+  const provenance = record(row.provenance);
+  const content = record(payload?.content ?? row.content);
+  return (
+    firstString(row, ['sourceVersion', 'version', 'contentHash', 'revision']) ??
+    firstString(payload, ['sourceVersion', 'version', 'contentHash', 'revision']) ??
+    firstString(provenance, ['sourceVersion', 'version']) ??
+    (stringValue(content?.hash) ? `content:${stringValue(content?.hash)}` : undefined)
+  );
+}
+
+function ownerLocator(row: Record<string, unknown>): string | undefined {
+  const payload = record(row.payload);
+  return (
+    firstString(row, ['sourceLocator', 'locator', 'section', 'page', 'chunkId']) ??
+    firstString(payload, ['sourceLocator', 'locator', 'section', 'page', 'chunkId'])
+  );
+}
+
+function firstString(
+  value: Record<string, unknown> | null,
+  keys: readonly string[],
+): string | undefined {
+  if (!value) return undefined;
+  for (const key of keys) {
+    const text = stringValue(value[key]);
+    if (text) return text;
+    if (typeof value[key] === 'number' && Number.isFinite(value[key])) return String(value[key]);
+  }
+  return undefined;
+}
+
+function stringValue(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+}
+
+function sha256(value: string): string {
+  return `sha256:${createHash('sha256').update(value, 'utf8').digest('hex')}`;
 }
 
 function sentences(text: string): string[] {

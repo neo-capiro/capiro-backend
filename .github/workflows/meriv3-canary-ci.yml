@@ -49,9 +49,13 @@ concurrency:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    env:
+      NODE_OPTIONS: --max-old-space-size=6144
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v7
         with:
@@ -100,9 +104,44 @@ jobs:
           "docs/runbooks/meriv3-capiro-internal-canary.md"
           ".github/workflows/meriv3-canary-ci.yml"
 
+      - name: Format gate — changed files in MeriV3 scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          # pull_request.base.sha is the base tip when the PR was opened and is
+          # not refreshed as main advances; format only this PR's own changes.
+          base=$(git merge-base origin/main HEAD 2>/dev/null || git rev-parse HEAD^)
+          changed_file_list=$(mktemp)
+          trap 'rm -f "$changed_file_list"' EXIT
+          git diff --name-only -z --diff-filter=ACMR "$base...HEAD" -- \
+            'apps/meriv2-orchestrator/src/meri/meriv3/**' \
+            'apps/meriv2-orchestrator/src/meri/meri.module.ts' \
+            'apps/api/src/meri/meriv3*.ts' \
+            'apps/api/src/meri/meri-managed-mcp*.ts' \
+            'apps/api/src/meri/meri-mcp-oauth.controller.ts' \
+            'apps/api/src/meri/meri.module.ts' \
+            'apps/api/src/common/meriv3*.ts' \
+            'apps/api/src/capiro-admin/meriv3*.ts' \
+            'apps/api/src/capiro-admin/capiro-admin.module.ts' \
+            'apps/api/src/users/users.controller.ts' \
+            'apps/web/src/components/chat/**' \
+            'apps/web/src/lib/me.ts' \
+            'docs/plans/meriv3-*' \
+            'docs/runbooks/meriv3-*' \
+            '.github/workflows/meriv3-canary-ci.yml' > "$changed_file_list"
+          mapfile -d '' -t files < "$changed_file_list"
+          if (( ${#files[@]} == 0 )); then
+            echo 'No changed files in the MeriV3 formatting scope.'
+          else
+            pnpm exec prettier --check "${files[@]}"
+          fi
+
       - name: Build shared package prerequisites
         run: |
           pnpm --filter @capiro/shared build
+          pnpm --filter @capiro/defense-contracts build
+          pnpm --filter @capiro/defense-domain build
+          pnpm --filter @capiro/defense-client build
           pnpm --filter @capiro/auth build
           pnpm --filter @capiro/meriv2-core build
           # meriv2-orchestrator's strategy module imports this package; without
@@ -140,6 +179,8 @@ jobs:
           src/common/meriv3-flags.spec.ts
 
       - name: Test capability, retrieval and conversation continuity contracts
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144 --experimental-vm-modules
         run: >
           pnpm --filter @capiro/api exec jest
           --runInBand --forceExit
@@ -178,7 +219,7 @@ jobs:
 
       - name: Test document section extraction
         env:
-          NODE_OPTIONS: --experimental-vm-modules
+          NODE_OPTIONS: --max-old-space-size=6144 --experimental-vm-modules
         run: >
           pnpm --filter @capiro/api exec jest
           --runInBand --forceExit
@@ -227,13 +268,15 @@ jobs:
           src/vnext/meri/meri-workspace-import.test.ts
           --testTimeout=20000 --hookTimeout=20000
 
+      - name: Test MeriV3 import boundary guard
+        run: node --test scripts/verify-meriv3-import-boundary.spec.mjs
+
       - name: Boundary guard — adjacent runtimes remain independent
         run: |
           set -e
-          if grep -Rin "meriv3" apps/workspace/src apps/api-strategy/src apps/intel-api/src --include='*.ts' --include='*.tsx'; then
-            echo "MeriV3 must not be imported into Workspace, Strategy or intel-api during the chat canary."
-            exit 1
-          fi
+          node scripts/verify-meriv3-import-boundary.mjs
+          node --test scripts/verify-meriv3-adjacent-import-boundary.spec.mjs
+          node scripts/verify-meriv3-adjacent-import-boundary.mjs
           if grep -Ein "type:[[:space:]]*['\"](thinking|reasoning)['\"]" \
             apps/meriv2-orchestrator/src/meri/meriv3/meriv3.controller.ts \
             apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts \

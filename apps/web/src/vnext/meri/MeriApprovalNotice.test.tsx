@@ -91,4 +91,17 @@ describe('MeriApprovalNotice', () => {
     fireEvent.click(screen.getByRole('button', { name: /Review it/ }));
     expect(onReview).toHaveBeenCalledTimes(1);
   });
+
+  test('does not describe an uncertain proposed action as awaiting approval', () => {
+    const message =
+      'Status checks paused. The approval outcome remains unconfirmed; do not approve again.';
+    render(
+      <MeriApprovalNotice
+        approvals={[approval({ approvalRecovery: { state: 'unavailable', message } })]}
+        onReview={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole('status')).toHaveTextContent(message);
+    expect(screen.queryByText(/needs your approval/)).toBeNull();
+  });
 });

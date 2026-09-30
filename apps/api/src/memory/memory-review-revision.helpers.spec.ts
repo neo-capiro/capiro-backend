@@ -2,9 +2,14 @@ import { describe, expect, it } from '@jest/globals';
 import { BadRequestException } from '@nestjs/common';
 import { prepareMemoryReviewRevision } from './memory-review-revision.helpers.js';
 
+const originalSections = [
+  { key: 'mission', heading: 'Mission', owner: 'human', body: 'Original' },
+  { key: 'voice', heading: 'Voice', owner: 'human', body: 'Measured' },
+];
+
 const payload = {
   key: 'settings-file:firm-soul:firm',
-  value: '[{"key":"mission","body":"Original"}]',
+  value: JSON.stringify(originalSections),
   source: 'settings_memory_editor',
   scope: 'firm',
   ownerUserId: null,
@@ -13,10 +18,7 @@ const payload = {
     type: 'firm-soul',
     slug: 'firm',
     title: 'Firm Soul',
-    sections: [
-      { key: 'mission', heading: 'Mission', owner: 'human', body: 'Original' },
-      { key: 'voice', heading: 'Voice', owner: 'human', body: 'Measured' },
-    ],
+    sections: originalSections,
   },
   versionProposal: {
     kind: 'correction',

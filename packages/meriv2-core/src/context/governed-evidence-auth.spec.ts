@@ -1,5 +1,7 @@
+import { createMeriTelemetryContext } from '../observability/meri-joined-telemetry';
 import type { MeriGovernedTurnContext } from '../registry/types';
 import { attestMeriGovernedContext, verifyMeriGovernedContext } from './governed-evidence-auth';
+import { createMeriResearchPlanExecutionEnvelope } from './research-plan-execution';
 
 const actor = { tenantId: 'tenant-1', userId: 'user-1' };
 const binding = {
@@ -41,6 +43,38 @@ function context(): MeriGovernedTurnContext {
   };
 }
 
+function procedure() {
+  return {
+    version: 1 as const,
+    tenantId: actor.tenantId,
+    identity: {
+      source: 'firm' as const,
+      recordId: 'procedure-row-1',
+      canonicalId: 'commitments_audit',
+      version: 4,
+    },
+    manifestDigest: 'a'.repeat(64),
+    instruction: 'Run the canonical read-only commitments audit.',
+    scope: 'client' as const,
+    clientId: binding.clientId ?? null,
+    clientRequired: true,
+    resolvedAt: now,
+    validUntil: now + 60_000,
+    policy: {
+      effectMode: 'read_only' as const,
+      allowedCapabilities: ['tasks.read'],
+      allowedTools: ['query_tasks'],
+      requiredTools: ['query_tasks'],
+    },
+    contract: {
+      outputFields: ['auditStatus'],
+      completionChecks: ['Report source coverage'],
+      coverageStates: ['checked'],
+      caseIds: ['CD-01'],
+    },
+  };
+}
+
 describe('authenticated governed evidence transport', () => {
   it('round trips the exact API payload through JSON under the resolved identity', () => {
     const signed = JSON.parse(
@@ -59,6 +93,21 @@ describe('authenticated governed evidence transport', () => {
       'authentication_failed',
     );
   });
+  it.each(['version', 'client', 'policy', 'tools'] as const)(
+    'rejects an altered served-procedure %s',
+    (field) => {
+      const source = context();
+      source.procedure = procedure();
+      const signed = attestMeriGovernedContext(source, binding, secret, now);
+      if (field === 'version') signed.procedure!.identity.version += 1;
+      if (field === 'client') signed.procedure!.clientId = 'client-2';
+      if (field === 'policy') signed.procedure!.policy.effectMode = 'approval_required';
+      if (field === 'tools') signed.procedure!.policy.allowedTools.push('send_email');
+      expect(() => verifyMeriGovernedContext(signed, binding, actor, secret, now)).toThrow(
+        'authentication_failed',
+      );
+    },
+  );
   it.each([
     { conversationId: 'conversation-2' },
     { clientId: 'client-2' },
@@ -78,6 +127,37 @@ describe('authenticated governed evidence transport', () => {
       ).toThrow('authentication_failed');
     },
   );
+  it.each(['version', 'hash', 'capability', 'session', 'run', 'lease'] as const)(
+    'rejects a changed authenticated research-plan %s',
+    (field) => {
+      const researchRun = { sessionId: 'session-1', runId: 'run-1', leaseEpoch: 4 };
+      const researchPlanExecution = createMeriResearchPlanExecutionEnvelope({
+        plan: { version: 1, title: 'Admitted', steps: [] },
+        scope: {
+          ...researchRun,
+          tenantId: actor.tenantId,
+          actorId: actor.userId,
+          clientId: binding.clientId,
+          conversationId: binding.conversationId,
+        },
+        allowedReadCapabilities: ['search_memory'],
+      });
+      const researchBinding = { ...binding, researchRun, researchPlanExecution };
+      const signed = attestMeriGovernedContext(context(), researchBinding, secret, now);
+      const changed = JSON.parse(JSON.stringify(researchBinding)) as typeof researchBinding;
+      if (field === 'version')
+        (changed.researchPlanExecution as { planVersion: number }).planVersion = 2;
+      if (field === 'hash') changed.researchPlanExecution.planSha256 = `sha256:${'0'.repeat(64)}`;
+      if (field === 'capability')
+        changed.researchPlanExecution.allowedReadCapabilities = ['get_client_context'];
+      if (field === 'session') changed.researchPlanExecution.scope.sessionId = 'session-2';
+      if (field === 'run') changed.researchRun.runId = 'run-2';
+      if (field === 'lease') changed.researchPlanExecution.scope.leaseEpoch += 1;
+      expect(() => verifyMeriGovernedContext(signed, changed, actor, secret, now)).toThrow(
+        'authentication_failed',
+      );
+    },
+  );
   it('rejects expired, future, unsigned and unconfigured contexts', () => {
     const signed = attestMeriGovernedContext(context(), binding, secret, now);
     for (const time of [now + 300_001, now - 30_001]) {
@@ -94,5 +174,35 @@ describe('authenticated governed evidence transport', () => {
     expect(() => attestMeriGovernedContext(context(), binding, undefined, now)).toThrow(
       'service_identity_unavailable',
     );
+  });
+});
+
+describe('signed telemetry carrier', () => {
+  test('binds trace linkage inside the existing authenticated context payload', () => {
+    const telemetryContext = createMeriTelemetryContext({
+      tenantId: actor.tenantId,
+      actorId: actor.userId,
+      conversationId: binding.conversationId,
+    });
+    const signed = attestMeriGovernedContext(
+      { ...context(), telemetryContext },
+      binding,
+      secret,
+      now,
+    );
+    expect(() => verifyMeriGovernedContext(signed, binding, actor, secret, now)).not.toThrow();
+    expect(() =>
+      verifyMeriGovernedContext(
+        { ...signed, telemetryContext: { ...telemetryContext, traceId: 'a'.repeat(32) } },
+        binding,
+        actor,
+        secret,
+        now,
+      ),
+    ).toThrow('authentication_failed');
+    const unsigned = attestMeriGovernedContext(context(), binding, secret, now);
+    expect(() =>
+      verifyMeriGovernedContext({ ...unsigned, telemetryContext }, binding, actor, secret, now),
+    ).toThrow('authentication_failed');
   });
 });

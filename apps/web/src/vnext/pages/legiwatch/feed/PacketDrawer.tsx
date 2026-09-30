@@ -25,7 +25,7 @@ import { LwStateLoading } from '../states/SystemStates.js';
 import { feedHearingDetailHref } from '../lib/feed-hearing-link.js';
 
 const MemoComposerDrawer = lazy(async () => ({
-  default: (await import('../../../../pages/clients/tracker/MemoComposerDrawer.js')).MemoComposerDrawer,
+  default: (await import('./MemoComposerDrawerVNext.js')).MemoComposerDrawer,
 }));
 
 interface PacketDrawerProps {

@@ -78,7 +78,9 @@ jobs:
         run: pnpm --filter @capiro/defense-api exec tsx --test src/budget-lifecycle/schedule/schedule-coordinator.spec.ts
 
       - name: Static schedule control-plane gate
-        run: node scripts/verify-phase8-session10.mjs
+        run: |
+          node --test scripts/verify-phase8-session10-change-scope.spec.mjs
+          node scripts/verify-phase8-session10.mjs
 
       - name: Authoritative apps/api Prisma validation and generation
         run: |

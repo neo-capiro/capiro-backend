@@ -16,56 +16,141 @@ import {
 } from './live-repair.service';
 
 const supported: EvidenceDecision = {
-  kind: 'outcome', outcome: 'supported', confidence: 0.9,
-  probabilities: { supported: 0.9, contradicted: 0.03, insufficient_evidence: 0.04, conflicting_evidence: 0.03 },
-  reasonCodes: [], evidenceIds: [], provider: { name: 'fake', model: 'fake', questionVersion: 'claim_support.v1' }, latencyMs: 1,
+  kind: 'outcome',
+  outcome: 'supported',
+  confidence: 0.9,
+  probabilities: {
+    supported: 0.9,
+    contradicted: 0.03,
+    insufficient_evidence: 0.04,
+    conflicting_evidence: 0.03,
+  },
+  reasonCodes: [],
+  evidenceIds: [],
+  provider: { name: 'fake', model: 'fake', questionVersion: 'claim_support.v1' },
+  latencyMs: 1,
 };
 const insufficient: EvidenceDecision = {
-  ...supported, outcome: 'insufficient_evidence', confidence: 0.9,
-  probabilities: { supported: 0.03, contradicted: 0.03, insufficient_evidence: 0.9, conflicting_evidence: 0.04 },
+  ...supported,
+  outcome: 'insufficient_evidence',
+  confidence: 0.9,
+  probabilities: {
+    supported: 0.03,
+    contradicted: 0.03,
+    insufficient_evidence: 0.9,
+    conflicting_evidence: 0.04,
+  },
 };
 const lowConfidence: EvidenceDecision = { ...insufficient, confidence: 0.4 };
 const failed: EvidenceDecision = {
-  kind: 'failure', state: 'judge_unavailable', reasonCodes: ['failed'],
-  provider: { name: 'fake', model: 'fake', questionVersion: 'claim_support.v1' }, latencyMs: 1,
+  kind: 'failure',
+  state: 'judge_unavailable',
+  reasonCodes: ['failed'],
+  provider: { name: 'fake', model: 'fake', questionVersion: 'claim_support.v1' },
+  latencyMs: 1,
 };
 const cascadeEnvelope: EvidenceEnvelope = {
-  envelopeVersion: 'meri-evidence-envelope-v1', claimId: 'claim', claimText: 'Claim', claimKind: 'fact',
-  claimCategory: 'general_background', tenantId: 'tenant', clientId: null, scopeQualifiers: [], asOf: null, sources: [],
+  envelopeVersion: 'meri-evidence-envelope-v1',
+  claimId: 'claim',
+  claimText: 'Claim',
+  claimKind: 'fact',
+  claimCategory: 'general_background',
+  tenantId: 'tenant',
+  clientId: null,
+  scopeQualifiers: [],
+  asOf: null,
+  sources: [],
 };
 const cascadeQuestion: EvidenceQuestion = { state: {}, questions: {} };
 function provider(decision: EvidenceDecision): DecisionProvider {
   return { name: 'fake', available: () => true, assess: jest.fn(async () => decision) };
 }
+function sequenceProvider(...decisions: EvidenceDecision[]): DecisionProvider {
+  let index = 0;
+  return {
+    name: 'fake-jev',
+    available: () => true,
+    assess: jest.fn(async () => decisions[Math.min(index++, decisions.length - 1)]!),
+  };
+}
 // Real read-only tool names: live repair classifies remedies with the shared capability registry.
 const plan = {
-  version: 'ga-evidence-plan-v1' as const, requestCategories: ['general_background' as const],
-  jurisdictions: [], requirements: [{
-    id: 'general', claimCategory: 'general_background' as const, level: 'required' as const,
-    evidenceClass: 'official_government_data' as const, toolFamilies: ['get_bill_status'],
-    freshness: 'same_turn' as const, reason: 'test', requiredFields: [],
-  }], requiredRequirementIds: ['general'], optionalRequirementIds: [], supplementalRequirementIds: [],
-  unresolvedFrameFields: [], incomplete: false,
+  version: 'ga-evidence-plan-v1' as const,
+  requestCategories: ['general_background' as const],
+  jurisdictions: [],
+  requirements: [
+    {
+      id: 'general',
+      claimCategory: 'general_background' as const,
+      level: 'required' as const,
+      evidenceClass: 'official_government_data' as const,
+      toolFamilies: ['get_bill_status'],
+      freshness: 'same_turn' as const,
+      reason: 'test',
+      requiredFields: [],
+    },
+  ],
+  requiredRequirementIds: ['general'],
+  optionalRequirementIds: [],
+  supplementalRequirementIds: [],
+  unresolvedFrameFields: [],
+  incomplete: false,
 };
 const documentPlan = {
-  ...plan, requestCategories: ['report_language' as const],
-  requirements: [{ ...plan.requirements[0]!, id: 'document', claimCategory: 'report_language' as const, toolFamilies: ['read_client_documents'] }],
+  ...plan,
+  requestCategories: ['report_language' as const],
+  requirements: [
+    {
+      ...plan.requirements[0]!,
+      id: 'document',
+      claimCategory: 'report_language' as const,
+      toolFamilies: ['read_client_documents'],
+    },
+  ],
   requiredRequirementIds: ['document'],
 };
 const ledger = {
-  version: 'ga-claim-ledger-v1' as const, claims: [], evidence: [], unsupportedClaimIds: [],
-  conflictedClaimIds: [], highRiskUnsupportedClaimIds: [], requiredEvidenceGaps: [], hash: 'h',
+  version: 'ga-claim-ledger-v1' as const,
+  claims: [],
+  evidence: [],
+  unsupportedClaimIds: [],
+  conflictedClaimIds: [],
+  highRiskUnsupportedClaimIds: [],
+  requiredEvidenceGaps: [],
+  hash: 'h',
 };
 const logger = { log: jest.fn(), warn: jest.fn() };
 const evidenceE1 = {
-  id: 'e1', sourceType: 'get_bill_status', sourceId: 'titan', evidenceClass: 'official_government_data' as const,
-  passage: 'TITAN entered production.', primary: true, authoritative: true, requirementIds: [],
+  id: 'e1',
+  sourceType: 'get_bill_status',
+  sourceId: 'titan',
+  evidenceClass: 'official_government_data' as const,
+  passage: 'TITAN entered production.',
+  primary: true,
+  authoritative: true,
+  requirementIds: [],
+  acquisitionState: 'consulted' as const,
+  ownerVerified: true,
 };
-function claim(id: string, category: 'general_background' | 'bill_status' | 'report_language' = 'general_background', text?: string) {
+function claim(
+  id: string,
+  category: 'general_background' | 'bill_status' | 'report_language' = 'general_background',
+  text?: string,
+) {
   return {
-    id, text: text ?? (id === 'promoted' ? 'TITAN is not in production.' : 'Unrelated content remains.'),
-    sentenceIndex: 0, clauseIndex: 0, kind: 'fact' as const, category, markers: [], evidenceIds: [] as string[],
-    uncited: true, compound: false, material: true, asOf: new Date().toISOString(),
+    id,
+    text:
+      text ?? (id === 'promoted' ? 'TITAN is not in production.' : 'Unrelated content remains.'),
+    sentenceIndex: 0,
+    clauseIndex: 0,
+    kind: 'fact' as const,
+    category,
+    markers: [],
+    evidenceIds: [] as string[],
+    uncited: true,
+    compound: false,
+    material: true,
+    asOf: new Date().toISOString(),
   };
 }
 /** A conversation id whose deterministic sample never cascades the given claims to the legacy judge. */
@@ -77,31 +162,51 @@ function unsampledConversation(...claimIds: string[]): string {
   throw new Error('no unsampled conversation id');
 }
 function failingExecutor() {
-  return { execute: jest.fn(async () => ({ ok: false as const, state: 'retrieval_failed' as const, reason: 'unavailable' })) };
+  return {
+    execute: jest.fn(async () => ({
+      ok: false as const,
+      state: 'retrieval_failed' as const,
+      reason: 'unavailable',
+    })),
+  };
 }
 function base(overrides: Record<string, unknown> = {}) {
   return {
-    released: 'TITAN is not in production. Unrelated content remains.', claims: [claim('promoted'), claim('other', 'bill_status')],
-    ledger, citations: [], passages: {}, evidencePlan: plan, tenantId: 'tenant', conversationId: 'conversation',
+    released: 'TITAN is not in production. Unrelated content remains.',
+    claims: [claim('promoted'), claim('other', 'bill_status')],
+    ledger,
+    citations: [],
+    passages: {},
+    evidencePlan: plan,
+    tenantId: 'tenant',
+    conversationId: 'conversation',
     providers: { jev: provider(insufficient), legacy: provider(supported) },
     executor: failingExecutor(),
-    generate: jest.fn(async () => ({ replacementText: 'TITAN entered production.', citedEvidenceIds: [] })),
+    generate: jest.fn(async () => ({
+      replacementText: 'TITAN entered production.',
+      citedEvidenceIds: [],
+    })),
     promotedCategories: new Set(['general_background' as const]),
     budget: { maxPasses: 1 as const, maxToolCalls: 3, maxMs: 8_000, maxInputTokens: 60_000 },
-    logger, ...overrides,
+    logger,
+    ...overrides,
   };
 }
 function entry(tool: string, result: unknown): LedgerEntry {
   return { tool, result, serialized: JSON.stringify(result) };
 }
 const contentRead = entry('read_client_documents', {
-  tool: 'read_client_documents', clientId: 'client-1',
+  tool: 'read_client_documents',
+  clientId: 'client-1',
   document: { id: 'doc-1', fileName: 'hearing.txt', contentHash: 'abc' },
   coverage: { complete: true, truncated: false },
-  records: [{ recordId: 'doc-1:abc:1:0-38', payload: { text: 'The chair promised action on the bill.' } }],
+  records: [
+    { recordId: 'doc-1:abc:1:0-38', payload: { text: 'The chair promised action on the bill.' } },
+  ],
 });
 const listing = entry('read_client_documents', {
-  tool: 'read_client_documents', clientId: 'client-1',
+  tool: 'read_client_documents',
+  clientId: 'client-1',
   coverage: { total: 2, returned: 2, truncated: false },
   documents: [
     { id: 'doc-2', fileName: 'memo.pdf', usable: false, extractionStatus: 'failed' },
@@ -112,35 +217,45 @@ const listing = entry('read_client_documents', {
 describe('live bounded repair', () => {
   it.each([
     ['Jev outcome without escalation', supported, null, supported],
-    ['historically non-escalated conflict', { ...insufficient, outcome: 'conflicting_evidence' as const }, null,
-      { ...insufficient, outcome: 'conflicting_evidence' as const }],
+    [
+      'historically non-escalated conflict',
+      { ...insufficient, outcome: 'conflicting_evidence' as const },
+      null,
+      { ...insufficient, outcome: 'conflicting_evidence' as const },
+    ],
     ['legacy outcome wins', supported, insufficient, insufficient],
     ['legacy failure falls back to Jev outcome', supported, failed, supported],
     ['both providers fail returns legacy failure', failed, failed, failed],
     ['unavailable Jev returns legacy outcome', null, supported, supported],
-  ])('preserves the original live-repair decision rule: %s', async (_label, jevDecision, legacyDecision, expected) => {
-    // Independent copy of the original selectDecision removed by the refactor.
-    const oldSelectDecision = (jev: EvidenceDecision | null, legacy: EvidenceDecision | null): EvidenceDecision => {
-      if (legacy?.kind === 'outcome') return legacy;
-      if (jev?.kind === 'outcome') return jev;
-      return legacy ?? jev ?? failed;
-    };
-    const result = await runCalibratedCascade({
-      claim: { id: 'claim', category: 'general_background', compound: legacyDecision !== null },
-      jev: jevDecision === null ? null : provider(jevDecision),
-      legacy: provider(legacyDecision ?? failed),
-      envelope: cascadeEnvelope,
-      question: cascadeQuestion,
-      registration: {
-        ...JEV_TASK_REGISTRY.claim_support,
-        cascade: { ...JEV_TASK_REGISTRY.claim_support.cascade!, auditSampleRate: 0 },
-      },
-      sampleKey: 'equivalence',
-      legacyLiveRepairCompatibility: true,
-    });
-    expect(result.decision).toEqual(oldSelectDecision(jevDecision, legacyDecision));
-    expect(result.decision).toEqual(expected);
-  });
+  ])(
+    'preserves the original live-repair decision rule: %s',
+    async (_label, jevDecision, legacyDecision, expected) => {
+      // Independent copy of the original selectDecision removed by the refactor.
+      const oldSelectDecision = (
+        jev: EvidenceDecision | null,
+        legacy: EvidenceDecision | null,
+      ): EvidenceDecision => {
+        if (legacy?.kind === 'outcome') return legacy;
+        if (jev?.kind === 'outcome') return jev;
+        return legacy ?? jev ?? failed;
+      };
+      const result = await runCalibratedCascade({
+        claim: { id: 'claim', category: 'general_background', compound: legacyDecision !== null },
+        jev: jevDecision === null ? null : provider(jevDecision),
+        legacy: provider(legacyDecision ?? failed),
+        envelope: cascadeEnvelope,
+        question: cascadeQuestion,
+        registration: {
+          ...JEV_TASK_REGISTRY.claim_support,
+          cascade: { ...JEV_TASK_REGISTRY.claim_support.cascade!, auditSampleRate: 0 },
+        },
+        sampleKey: 'equivalence',
+        legacyLiveRepairCompatibility: true,
+      });
+      expect(result.decision).toEqual(oldSelectDecision(jevDecision, legacyDecision));
+      expect(result.decision).toEqual(expected);
+    },
+  );
 
   it('assesses only promoted categories and preserves unrelated text byte-identically', async () => {
     const result = await applyLiveRepair(base());
@@ -149,22 +264,117 @@ describe('live bounded repair', () => {
   });
 
   it('corrects a promoted claim after bounded evidence retrieval', async () => {
-    const result = await applyLiveRepair(base({
-      providers: { jev: provider(insufficient), legacy: provider(supported) },
-      executor: { execute: jest.fn(async () => ({ ok: true as const, evidence: [evidenceE1] })) },
-      generate: async () => ({ replacementText: 'TITAN entered production.', citedEvidenceIds: ['e1'] }),
-    }));
+    const jev = sequenceProvider(insufficient, supported);
+    const result = await applyLiveRepair(
+      base({
+        providers: { jev, legacy: provider(supported) },
+        executor: {
+          execute: jest.fn(async () => ({
+            ok: true as const,
+            evidence: [
+              {
+                ...evidenceE1,
+                version: 'source-v7',
+                locator: 'section 4',
+                acquisitionState: 'consulted' as const,
+              },
+            ],
+          })),
+        },
+        generate: async () => ({
+          replacementText: 'TITAN entered production.',
+          citedEvidenceIds: ['e1'],
+        }),
+      }),
+    );
     expect(result.reply).toBe('TITAN entered production. Unrelated content remains.');
     expect(result.toolCalls).toBeLessThanOrEqual(3);
     expect(result.passes).toBe(1);
-    expect(result.metrics.repairs).toMatchObject({ attempted: 1, corrected: 1, qualified: 0, omitted: 0 });
+    expect(jev.assess).toHaveBeenCalledTimes(2);
+    expect((jev.assess as jest.Mock).mock.calls[1]?.[0]).toMatchObject({
+      sources: [
+        expect.objectContaining({
+          version: 'source-v7',
+          locator: 'section 4',
+          acquisitionState: 'consulted',
+        }),
+      ],
+    });
+    expect(result.metrics.repairs).toMatchObject({
+      attempted: 1,
+      corrected: 1,
+      qualified: 0,
+      omitted: 0,
+    });
+  });
+
+  it.each(['search_public_web', 'search_intel_articles'])(
+    'does not let a discovery-only %s summary become supported through a judge approval',
+    async (sourceType) => {
+      const discovery = {
+        ...evidenceE1,
+        id: 'discovery-1',
+        sourceType,
+        sourceId: 'web-1',
+        passage: 'The bill is in effect.',
+        acquisitionState: 'discovered' as const,
+        primary: true,
+        authoritative: true,
+      };
+      const approving = provider(supported);
+      const result = await applyLiveRepair(
+        base({
+          released: 'The bill is in effect. Unrelated content remains.',
+          claims: [
+            {
+              ...claim('discovery', 'general_background', 'The bill is in effect.'),
+              evidenceIds: [discovery.id],
+              uncited: false,
+            },
+          ],
+          ledger: { ...ledger, evidence: [discovery] },
+          passages: {
+            [discovery.id]: {
+              text: discovery.passage,
+              acquisitionState: 'discovered' as const,
+              ownerVerified: true,
+            },
+          },
+          promotedCategories: new Set(['general_background' as const]),
+          providers: { jev: approving, legacy: provider(supported) },
+          executor: failingExecutor(),
+        }),
+      );
+      expect((approving.assess as jest.Mock).mock.calls[0]?.[0].sources).toEqual([]);
+      expect(result.outcomes.discovery).toBe('insufficient_evidence');
+      expect(result.reply).toContain('Evidence limitation for “The bill is in effect”');
+      expect(result.reply).toContain('Unrelated content remains.');
+    },
+  );
+
+  it('localizes unresolved retrieval uncertainty and preserves the rest of the answer', async () => {
+    const result = await applyLiveRepair(
+      base({
+        providers: { jev: provider(insufficient), legacy: provider(supported) },
+        executor: failingExecutor(),
+      }),
+    );
+    expect(result.reply).toContain('Evidence limitation for “TITAN is not in production”');
+    expect(result.reply).toContain('Unrelated content remains.');
+    expect(result.reply).not.toBe('I cannot answer.');
+    expect(result.metrics.repairs).toMatchObject({ attempted: 1, qualified: 1 });
+    expect(result.toolCalls).toBeLessThanOrEqual(3);
   });
 
   it('deterministically samples exactly one tenth of stable claim ids', () => {
-    const values = Array.from({ length: 1000 }, (_, index) => sampled('conversation', String(index)));
+    const values = Array.from({ length: 1000 }, (_, index) =>
+      sampled('conversation', String(index)),
+    );
     expect(values.filter(Boolean).length).toBeGreaterThan(70);
     expect(values.filter(Boolean).length).toBeLessThan(130);
-    expect(values).toEqual(Array.from({ length: 1000 }, (_, index) => sampled('conversation', String(index))));
+    expect(values).toEqual(
+      Array.from({ length: 1000 }, (_, index) => sampled('conversation', String(index))),
+    );
   });
 
   it.each([
@@ -172,16 +382,20 @@ describe('live bounded repair', () => {
     ['compound claim', insufficient, true],
   ])('cascades %s assessments to the legacy provider', async (_label, jevDecision, compound) => {
     const legacy = provider(supported);
-    await applyLiveRepair(base({
-      claims: [{ ...claim('promoted'), compound }],
-      providers: { jev: provider(jevDecision), legacy },
-    }));
+    await applyLiveRepair(
+      base({
+        claims: [{ ...claim('promoted'), compound }],
+        providers: { jev: provider(jevDecision), legacy },
+      }),
+    );
     expect(legacy.assess).toHaveBeenCalledTimes(1);
   });
 
   it('leaves a high-risk category untouched when it is not promoted', async () => {
     const executor = { execute: jest.fn() };
-    const result = await applyLiveRepair(base({ claims: [claim('bill', 'bill_status')], executor }));
+    const result = await applyLiveRepair(
+      base({ claims: [claim('bill', 'bill_status')], executor }),
+    );
     expect(result.reply).toBe('TITAN is not in production. Unrelated content remains.');
     expect(result.outcomes).toEqual({});
     expect(executor.execute).not.toHaveBeenCalled();
@@ -189,95 +403,273 @@ describe('live bounded repair', () => {
 
   it('does not retrieve or change the reply when both providers fail', async () => {
     const executor = { execute: jest.fn() };
-    const result = await applyLiveRepair(base({
-      providers: { jev: provider(failed), legacy: provider(failed) }, executor,
-    }));
+    const result = await applyLiveRepair(
+      base({
+        providers: { jev: provider(failed), legacy: provider(failed) },
+        executor,
+      }),
+    );
     expect(result.reply).toBe('TITAN is not in production. Unrelated content remains.');
     expect(executor.execute).not.toHaveBeenCalled();
   });
 
   describe('document references', () => {
-    const documentClaim = claim('transcript', 'report_language', 'The transcript says the chair promised action.');
+    const documentClaim = claim(
+      'transcript',
+      'report_language',
+      'The transcript says the chair promised action.',
+    );
     const conversationId = unsampledConversation('transcript');
 
     it('reads a referenced readable document during repair instead of asking for it', async () => {
       const references = buildRepairDocumentReferences({
-        ledgerEntries: [contentRead], citations: [], selectedDocumentIds: ['doc-1'], clientId: 'client-1',
+        ledgerEntries: [contentRead],
+        citations: [],
+        selectedDocumentIds: ['doc-1'],
+        clientId: 'client-1',
       });
-      const jev = provider(insufficient);
+      const jev = sequenceProvider(insufficient, supported);
       const legacy = provider(supported);
-      const executor = { execute: jest.fn(async () => ({ ok: true as const, evidence: [{
-        ...evidenceE1, id: 'd1', sourceType: 'read_client_documents', sourceId: 'doc-1:abc:1:0-38',
+      const executor = {
+        execute: jest.fn(async () => ({
+          ok: true as const,
+          evidence: [
+            {
+              ...evidenceE1,
+              id: 'd1',
+              sourceType: 'read_client_documents',
+              sourceId: 'doc-1:abc:1:0-38',
+              passage: 'The chair promised action on the bill.',
+              clientId: 'client-1',
+              documentId: 'doc-1',
+              version: 'abc',
+              evidenceKind: 'source_passage' as const,
+            },
+          ],
+        })),
+      };
+      const result = await applyLiveRepair(
+        base({
+          released: `${documentClaim.text} Unrelated content remains.`,
+          claims: [documentClaim],
+          conversationId,
+          clientId: 'client-1',
+          promotedCategories: new Set(['report_language' as const]),
+          providers: { jev, legacy },
+          executor,
+          evidencePlan: documentPlan,
+          generate: async () => ({
+            replacementText: 'The transcript shows the chair promised action on the bill.',
+            citedEvidenceIds: ['d1'],
+          }),
+          documentReferences: references,
+        }),
+      );
+      expect(jev.assess).toHaveBeenCalledTimes(2);
+      expect((jev.assess as jest.Mock).mock.calls[1]?.[0].sources[0]).toMatchObject({
+        sourceId: 'doc-1:abc:1:0-38',
+        clientId: 'client-1',
+        documentId: 'doc-1',
+        version: 'abc',
         passage: 'The chair promised action on the bill.',
-      }] })) };
-      const result = await applyLiveRepair(base({
-        released: `${documentClaim.text} Unrelated content remains.`, claims: [documentClaim], conversationId, clientId: 'client-1',
-        promotedCategories: new Set(['report_language' as const]), providers: { jev, legacy }, executor, evidencePlan: documentPlan,
-        generate: async () => ({ replacementText: 'The transcript shows the chair promised action on the bill.', citedEvidenceIds: ['d1'] }),
-        documentReferences: references,
-      }));
-      expect(jev.assess).toHaveBeenCalledTimes(1);
+        evidenceKind: 'source_passage',
+        ownerVerified: true,
+      });
       expect(executor.execute).toHaveBeenCalledWith(
-        expect.objectContaining({ name: 'read_client_documents', args: expect.objectContaining({ documentId: 'doc-1' }) }),
+        expect.objectContaining({
+          name: 'read_client_documents',
+          args: expect.objectContaining({ documentId: 'doc-1' }),
+        }),
         expect.anything(),
       );
-      expect(result.reply).toBe('The transcript shows the chair promised action on the bill. Unrelated content remains.');
-      expect(result.metrics.repairs).toMatchObject({ attempted: 1, corrected: 1, documentRequested: 0 });
+      expect(result.reply).toBe(
+        'The transcript shows the chair promised action on the bill. Unrelated content remains.',
+      );
+      expect(result.metrics.repairs).toMatchObject({
+        attempted: 1,
+        corrected: 1,
+        documentRequested: 0,
+      });
     });
 
     it('requests the named document, without provider or tool calls, when the turn knows it is unreadable', async () => {
       const references = buildRepairDocumentReferences({
-        ledgerEntries: [listing], citations: [], selectedDocumentIds: ['doc-2'], clientId: 'client-1',
+        ledgerEntries: [listing],
+        citations: [],
+        selectedDocumentIds: ['doc-2'],
+        clientId: 'client-1',
       });
-      expect(references).toEqual([expect.objectContaining({ id: 'doc-2', filename: 'memo.pdf', readable: false, contentState: 'unsupported' })]);
+      expect(references).toEqual([
+        expect.objectContaining({
+          id: 'doc-2',
+          filename: 'memo.pdf',
+          readable: false,
+          contentState: 'unsupported',
+        }),
+      ]);
       const jev = provider(insufficient);
       const legacy = provider(supported);
       const executor = failingExecutor();
-      const result = await applyLiveRepair(base({
-        released: `${documentClaim.text} Unrelated content remains.`, claims: [documentClaim], conversationId, clientId: 'client-1',
-        promotedCategories: new Set(['report_language' as const]), providers: { jev, legacy }, executor, evidencePlan: documentPlan,
-        documentReferences: references,
-      }));
+      const result = await applyLiveRepair(
+        base({
+          released: `${documentClaim.text} Unrelated content remains.`,
+          claims: [documentClaim],
+          conversationId,
+          clientId: 'client-1',
+          promotedCategories: new Set(['report_language' as const]),
+          providers: { jev, legacy },
+          executor,
+          evidencePlan: documentPlan,
+          documentReferences: references,
+        }),
+      );
       expect(jev.assess).not.toHaveBeenCalled();
       expect(legacy.assess).not.toHaveBeenCalled();
       expect(executor.execute).not.toHaveBeenCalled();
-      expect(result.reply).toBe(`To confirm “${documentClaim.text}”, attach the 'memo.pdf' transcript. Unrelated content remains.`);
-      expect(result.metrics.repairs).toMatchObject({ attempted: 1, qualified: 1, documentRequested: 1 });
+      expect(result.reply).toBe(
+        `To confirm “${documentClaim.text}”, attach the 'memo.pdf' transcript. Unrelated content remains.`,
+      );
+      expect(result.metrics.repairs).toMatchObject({
+        attempted: 1,
+        qualified: 1,
+        documentRequested: 1,
+      });
     });
 
     it('assesses a document-flavoured claim normally when the turn touched no document', async () => {
       const jev = provider(insufficient);
       const legacy = provider(supported);
       const executor = failingExecutor();
-      const result = await applyLiveRepair(base({
-        released: `${documentClaim.text} Unrelated content remains.`, claims: [documentClaim], conversationId,
-        promotedCategories: new Set(['report_language' as const]), providers: { jev, legacy }, executor, evidencePlan: documentPlan,
-        documentReferences: buildRepairDocumentReferences({ ledgerEntries: [entry('get_bill_status', { data: [] })], citations: [] }),
-      }));
+      const result = await applyLiveRepair(
+        base({
+          released: `${documentClaim.text} Unrelated content remains.`,
+          claims: [documentClaim],
+          conversationId,
+          promotedCategories: new Set(['report_language' as const]),
+          providers: { jev, legacy },
+          executor,
+          evidencePlan: documentPlan,
+          documentReferences: buildRepairDocumentReferences({
+            ledgerEntries: [entry('get_bill_status', { data: [] })],
+            citations: [],
+          }),
+        }),
+      );
       expect(jev.assess).toHaveBeenCalledTimes(1);
       expect(result.reply).not.toMatch(/attach the/);
       expect(result.reply).toContain('Unrelated content remains.');
       expect(result.metrics.repairs.documentRequested).toBe(0);
+    });
+
+    it.each([
+      ['stale version', { clientId: 'client-1', version: 'current', readable: true }],
+      ['wrong client', { clientId: 'client-2', version: 'stale', readable: true }],
+      ['revoked owner read', { clientId: 'client-1', version: 'stale', readable: false }],
+    ])('does not release document support from %s authority', async (_label, authority) => {
+      const evidence = {
+        ...evidenceE1,
+        id: 'doc-evidence',
+        sourceType: 'read_client_documents',
+        sourceId: 'row-1',
+        passage: 'The transcript says the chair promised action.',
+        clientId: 'client-1',
+        documentId: 'doc-1',
+        version: 'stale',
+        evidenceKind: 'source_passage' as const,
+      };
+      const result = await applyLiveRepair(
+        base({
+          released: `${documentClaim.text} Unrelated content remains.`,
+          claims: [
+            {
+              ...documentClaim,
+              evidenceIds: [evidence.id],
+              uncited: false,
+            },
+          ],
+          clientId: 'client-1',
+          promotedCategories: new Set(['report_language' as const]),
+          ledger: { ...ledger, evidence: [evidence] },
+          passages: {
+            [evidence.id]: {
+              text: evidence.passage,
+              clientId: evidence.clientId,
+              documentId: evidence.documentId,
+              version: evidence.version,
+              acquisitionState: 'consulted' as const,
+              evidenceKind: 'source_passage' as const,
+              ownerVerified: true,
+            },
+          },
+          documentReferences: [
+            {
+              kind: 'client_document' as const,
+              id: 'doc-1',
+              filename: 'hearing.txt',
+              contentState: authority.readable ? ('ready' as const) : ('failed' as const),
+              readable: authority.readable,
+              version: authority.version,
+              clientId: authority.clientId,
+              requestedClientId: 'client-1',
+              relevantPassageIds: ['row-1'],
+              resolution: 'explicit_id' as const,
+            },
+          ],
+          providers: { jev: provider(supported), legacy: provider(supported) },
+          executor: failingExecutor(),
+          evidencePlan: documentPlan,
+        }),
+      );
+      expect(result.reply).not.toBe(`${documentClaim.text} Unrelated content remains.`);
+      expect(result.reply).toContain('Unrelated content remains.');
     });
   });
 
   describe('deterministic short-circuit', () => {
     const amountLedger = {
       ...ledger,
-      evidence: [{ id: 'e1', sourceType: 'get_pe_budget_timeline', sourceId: 'pe-1', evidenceClass: 'official_government_data' as const,
-        primary: true, authoritative: true, requirementIds: [] }],
+      evidence: [
+        {
+          id: 'e1',
+          sourceType: 'get_pe_budget_timeline',
+          sourceId: 'pe-1',
+          evidenceClass: 'official_government_data' as const,
+          primary: true,
+          authoritative: true,
+          requirementIds: [],
+          acquisitionState: 'consulted' as const,
+          ownerVerified: true,
+        },
+      ],
     };
 
     it('bypasses the judges only for an exact value contradicted by a passage bound to the claim', async () => {
-      const bound = { ...claim('amount', 'general_background', 'The House mark is $42M.'), evidenceIds: ['e1'], uncited: false, markers: [1] };
+      const bound = {
+        ...claim('amount', 'general_background', 'The House mark is $42M.'),
+        evidenceIds: ['e1'],
+        uncited: false,
+        markers: [1],
+      };
       const jev = provider(insufficient);
       const legacy = provider(supported);
       const executor = failingExecutor();
-      const result = await applyLiveRepair(base({
-        released: `${bound.text} Unrelated content remains.`, claims: [bound], ledger: amountLedger,
-        passages: { e1: { text: 'The House mark is $43M.' } }, providers: { jev, legacy }, executor,
-        conversationId: unsampledConversation('amount'),
-      }));
+      const result = await applyLiveRepair(
+        base({
+          released: `${bound.text} Unrelated content remains.`,
+          claims: [bound],
+          ledger: amountLedger,
+          passages: {
+            e1: {
+              text: 'The House mark is $43M.',
+              acquisitionState: 'consulted' as const,
+              ownerVerified: true,
+            },
+          },
+          providers: { jev, legacy },
+          executor,
+          conversationId: unsampledConversation('amount'),
+        }),
+      );
       expect(jev.assess).not.toHaveBeenCalled();
       expect(legacy.assess).not.toHaveBeenCalled();
       expect(result.outcomes).toEqual({ amount: 'contradicted' });
@@ -291,10 +683,15 @@ describe('live bounded repair', () => {
       const uncited = claim('uncited', 'general_background', 'The House mark is $42M.');
       const jev = provider(insufficient);
       const executor = failingExecutor();
-      const result = await applyLiveRepair(base({
-        released: `${uncited.text} Unrelated content remains.`, claims: [uncited],
-        providers: { jev, legacy: provider(supported) }, executor, conversationId: unsampledConversation('uncited'),
-      }));
+      const result = await applyLiveRepair(
+        base({
+          released: `${uncited.text} Unrelated content remains.`,
+          claims: [uncited],
+          providers: { jev, legacy: provider(supported) },
+          executor,
+          conversationId: unsampledConversation('uncited'),
+        }),
+      );
       expect(jev.assess).toHaveBeenCalledTimes(1);
       expect(result.outcomes).toEqual({ uncited: 'insufficient_evidence' });
       expect(result.reply).toContain('Unrelated content remains.');
@@ -303,10 +700,17 @@ describe('live bounded repair', () => {
 
   it('never plans a remedy through a mutating tool, even when the plan lists it first', async () => {
     const executor = { execute: jest.fn() };
-    const result = await applyLiveRepair(base({
-      evidencePlan: { ...plan, requirements: [{ ...plan.requirements[0]!, toolFamilies: ['save_note', 'get_bill_status'] }] },
-      executor,
-    }));
+    const result = await applyLiveRepair(
+      base({
+        evidencePlan: {
+          ...plan,
+          requirements: [
+            { ...plan.requirements[0]!, toolFamilies: ['save_note', 'get_bill_status'] },
+          ],
+        },
+        executor,
+      }),
+    );
     expect(executor.execute).not.toHaveBeenCalled();
     expect(result.reply).toContain('Unrelated content remains.');
     expect(result.reply).toContain('Evidence limitation for “TITAN is not in production”');
@@ -315,39 +719,113 @@ describe('live bounded repair', () => {
 
   it('reports one terminal outcome per attempted claim', async () => {
     const second = claim('second', 'general_background', 'Senate funding is 30.');
-    const executor = { execute: jest.fn(async (call: { args: Record<string, unknown> }) =>
-      (call.args.claimIds as string[])[0] === 'promoted'
-        ? { ok: true as const, evidence: [evidenceE1] }
-        : { ok: true as const, evidence: [] }) };
-    const result = await applyLiveRepair(base({
-      released: 'TITAN is not in production. Senate funding is 30. Unrelated content remains.',
-      claims: [claim('promoted'), second], conversationId: unsampledConversation('promoted', 'second'),
-      providers: { jev: provider(insufficient), legacy: provider(supported) }, executor,
-      generate: async () => ({ replacementText: 'TITAN entered production.', citedEvidenceIds: ['e1'] }),
-    }));
-    expect(result.metrics.repairs).toMatchObject({ attempted: 2, corrected: 1, qualified: 0, omitted: 0 });
+    const executor = {
+      execute: jest.fn(async (call: { args: Record<string, unknown> }) =>
+        (call.args.claimIds as string[])[0] === 'promoted'
+          ? { ok: true as const, evidence: [evidenceE1] }
+          : { ok: true as const, evidence: [] },
+      ),
+    };
+    const result = await applyLiveRepair(
+      base({
+        released: 'TITAN is not in production. Senate funding is 30. Unrelated content remains.',
+        claims: [claim('promoted'), second],
+        conversationId: unsampledConversation('promoted', 'second'),
+        providers: {
+          jev: sequenceProvider(insufficient, insufficient, supported),
+          legacy: provider(supported),
+        },
+        executor,
+        generate: async () => ({
+          replacementText: 'TITAN entered production.',
+          citedEvidenceIds: ['e1'],
+        }),
+      }),
+    );
+    expect(result.metrics.repairs).toMatchObject({
+      attempted: 2,
+      corrected: 1,
+      qualified: 0,
+      omitted: 0,
+    });
     expect(result.metrics.unresolved).toBe(1);
     expect(result.metrics.claimOutcomes).toEqual([
       { claimId: 'promoted', outcome: 'corrected' },
       { claimId: 'second', outcome: 'unresolved', reason: 'no_new_evidence' },
     ]);
-    expect(result.reply).toBe('TITAN entered production. Senate funding is 30. Unrelated content remains.');
+    expect(result.reply).toBe(
+      'TITAN entered production. Senate funding is 30. Unrelated content remains.',
+    );
   });
 
-  it('prices Jev tokens at the Jev rate and judge, recheck and revision tokens at the LLM rate', async () => {
-    const jevDecision: EvidenceDecision = { ...insufficient, usage: { inputTokens: 1000, outputTokens: 10 } };
-    const legacyDecision: EvidenceDecision = { ...supported, usage: { inputTokens: 500, outputTokens: 5 } };
-    const result = await applyLiveRepair(base({
-      providers: { jev: provider(jevDecision), legacy: provider(legacyDecision) },
-      executor: { execute: jest.fn(async () => ({ ok: true as const, evidence: [evidenceE1] })) },
-      generate: async () => ({ replacementText: 'TITAN entered production.', citedEvidenceIds: ['e1'], usage: { inputTokens: 300, outputTokens: 50 } }),
-      pricing: { llmModel: 'gpt-4.1-mini' },
-    }));
-    expect(result.metrics).toMatchObject({ jevInputTokens: 1000, recheckInputTokens: 500, revisionInputTokens: 300, revisionOutputTokens: 50 });
-    const expected = 1000 * JEV_COST_PER_INPUT_TOKEN_USD
-      + computeAiCostUsd('gpt-4.1-mini', result.metrics.legacyInputTokens + 500 + 300, 50);
+  it('prices configured Jev assessment and recheck tokens at the Jev rate', async () => {
+    const jevDecision: EvidenceDecision = {
+      ...insufficient,
+      usage: { inputTokens: 1000, outputTokens: 10 },
+    };
+    const legacyDecision: EvidenceDecision = {
+      ...supported,
+      usage: { inputTokens: 500, outputTokens: 5 },
+    };
+    const result = await applyLiveRepair(
+      base({
+        providers: {
+          jev: sequenceProvider(jevDecision, { ...supported, usage: jevDecision.usage }),
+          legacy: provider(legacyDecision),
+        },
+        executor: { execute: jest.fn(async () => ({ ok: true as const, evidence: [evidenceE1] })) },
+        generate: async () => ({
+          replacementText: 'TITAN entered production.',
+          citedEvidenceIds: ['e1'],
+          usage: { inputTokens: 300, outputTokens: 50 },
+        }),
+        pricing: { llmModel: 'gpt-4.1-mini' },
+      }),
+    );
+    expect(result.metrics).toMatchObject({
+      jevInputTokens: 1000,
+      recheckInputTokens: 1000,
+      revisionInputTokens: 300,
+      revisionOutputTokens: 50,
+    });
+    const expected =
+      2000 * JEV_COST_PER_INPUT_TOKEN_USD +
+      computeAiCostUsd('gpt-4.1-mini', result.metrics.legacyInputTokens + 300, 50);
     expect(result.metrics.estimatedCostUsd).toBeCloseTo(expected, 12);
-    expect(result.metrics.estimatedCostUsd).toBeGreaterThan(result.metrics.inputTokens * JEV_COST_PER_INPUT_TOKEN_USD);
+    expect(result.metrics.estimatedCostUsd).toBeGreaterThan(
+      result.metrics.inputTokens * JEV_COST_PER_INPUT_TOKEN_USD,
+    );
+  });
+
+  it('prices a fallback legacy recheck as LLM usage when Jev is not configured', async () => {
+    const legacy = sequenceProvider(
+      { ...insufficient, usage: { inputTokens: 1000, outputTokens: 10 } },
+      { ...supported, usage: { inputTokens: 700, outputTokens: 5 } },
+    );
+    const result = await applyLiveRepair(
+      base({
+        providers: { jev: null, legacy },
+        executor: { execute: jest.fn(async () => ({ ok: true as const, evidence: [evidenceE1] })) },
+        generate: async () => ({
+          replacementText: 'TITAN entered production.',
+          citedEvidenceIds: ['e1'],
+          usage: { inputTokens: 300, outputTokens: 50 },
+        }),
+        pricing: { llmModel: 'gpt-4.1-mini' },
+      }),
+    );
+    expect(legacy.assess).toHaveBeenCalledTimes(2);
+    expect(result.metrics).toMatchObject({
+      jevInputTokens: 0,
+      legacyInputTokens: 1000,
+      recheckInputTokens: 700,
+      revisionInputTokens: 300,
+      revisionOutputTokens: 50,
+    });
+    expect(result.metrics.estimatedCostUsd).toBeCloseTo(
+      computeAiCostUsd('gpt-4.1-mini', 1000 + 700 + 300, 50),
+      12,
+    );
   });
 
   it('returns the original reply on external abort', async () => {
@@ -373,56 +851,110 @@ describe('live bounded repair', () => {
     const result = await applyLiveRepair(base({ mode: 'shadow', executor }));
     expect(result.reply).toBe('TITAN is not in production. Unrelated content remains.');
     expect(executor.execute).not.toHaveBeenCalled();
-    expect(result.metrics.repairs).toMatchObject({ attempted: 0, corrected: 0, qualified: 0, omitted: 0 });
+    expect(result.metrics.repairs).toMatchObject({
+      attempted: 0,
+      corrected: 0,
+      qualified: 0,
+      omitted: 0,
+    });
     expect(result.metrics.wouldAttempt).toBe(1);
   });
 
   it('is an identity operation in off mode', async () => {
     const executor = { execute: jest.fn() };
     const result = await applyLiveRepair(base({ mode: 'off', executor }));
-    expect(result).toMatchObject({ reply: 'TITAN is not in production. Unrelated content remains.', changed: false, toolCalls: 0, passes: 0 });
+    expect(result).toMatchObject({
+      reply: 'TITAN is not in production. Unrelated content remains.',
+      changed: false,
+      toolCalls: 0,
+      passes: 0,
+    });
     expect(executor.execute).not.toHaveBeenCalled();
   });
 });
 
 describe('buildRepairDocumentReferences', () => {
   it('returns nothing when the turn touched no document', () => {
-    expect(buildRepairDocumentReferences({ ledgerEntries: [entry('get_bill_status', { data: [{ id: 'x' }] })], citations: [] })).toEqual([]);
+    expect(
+      buildRepairDocumentReferences({
+        ledgerEntries: [entry('get_bill_status', { data: [{ id: 'x' }] })],
+        citations: [],
+      }),
+    ).toEqual([]);
   });
 
   it('describes a content read as readable with its passage ids and a listing row as metadata only', () => {
     const references = buildRepairDocumentReferences({
       ledgerEntries: [contentRead, listing],
-      citations: [{ id: 'doc-1:abc:1:0-38', n: 1, tool: 'read_client_documents', type: 'document', title: 'hearing.txt', stableId: 'stable-1',
-        documentEvidence: { clientId: 'client-1', documentId: 'doc-1', contentHash: 'abc', record: {}, coverage: {}, observedAt: null } } as never],
+      citations: [
+        {
+          id: 'doc-1:abc:1:0-38',
+          n: 1,
+          tool: 'read_client_documents',
+          type: 'document',
+          title: 'hearing.txt',
+          stableId: 'stable-1',
+          documentEvidence: {
+            clientId: 'client-1',
+            documentId: 'doc-1',
+            contentHash: 'abc',
+            record: {},
+            coverage: {},
+            observedAt: null,
+          },
+        } as never,
+      ],
       selectedDocumentIds: ['doc-3'],
       request: 'Summarize hearing.txt',
       clientId: 'client-1',
     });
     expect(references).toEqual([
       expect.objectContaining({
-        kind: 'client_document', id: 'doc-1', filename: 'hearing.txt', version: 'abc', readable: true, contentState: 'ready',
-        relevantPassageIds: ['doc-1:abc:1:0-38', 'stable-1'], resolution: 'filename', clientId: 'client-1', requestedClientId: 'client-1',
+        kind: 'client_document',
+        id: 'doc-1',
+        filename: 'hearing.txt',
+        version: 'abc',
+        readable: true,
+        contentState: 'ready',
+        relevantPassageIds: ['doc-1:abc:1:0-38', 'stable-1'],
+        resolution: 'filename',
+        clientId: 'client-1',
+        requestedClientId: 'client-1',
       }),
       expect.objectContaining({
-        kind: 'client_document', id: 'doc-3', filename: 'budget.xlsx', readable: true, contentState: 'indexed_or_extracted',
-        relevantPassageIds: [], resolution: 'explicit_id',
+        kind: 'client_document',
+        id: 'doc-3',
+        filename: 'budget.xlsx',
+        readable: true,
+        contentState: 'indexed_or_extracted',
+        relevantPassageIds: [],
+        resolution: 'explicit_id',
       }),
     ]);
   });
 
   it('keeps a partially read document readable and marks an empty extraction failed', () => {
     const partial = entry('read_client_documents', {
-      tool: 'read_client_documents', clientId: 'client-1', document: { id: 'doc-4', fileName: 'long.pdf', contentHash: 'h4' },
+      tool: 'read_client_documents',
+      clientId: 'client-1',
+      document: { id: 'doc-4', fileName: 'long.pdf', contentHash: 'h4' },
       coverage: { complete: false, nextCursor: 'page:2' },
       records: [{ recordId: 'doc-4:h4:1:0-10', payload: { text: 'Page one.' } }],
     });
     const empty = entry('read_client_documents', {
-      tool: 'read_client_documents', clientId: 'client-1', document: { id: 'doc-5', fileName: 'scan.pdf', contentHash: 'h5' },
+      tool: 'read_client_documents',
+      clientId: 'client-1',
+      document: { id: 'doc-5', fileName: 'scan.pdf', contentHash: 'h5' },
       coverage: { extractedSectionEmpty: true, continuationBlocked: true, missingContent: true },
       records: [],
     });
-    expect(buildRepairDocumentReferences({ ledgerEntries: [partial, empty], citations: [], clientId: 'client-1' })).toEqual([
+    expect(
+      buildRepairDocumentReferences({
+        ledgerEntries: [partial, empty],
+        citations: [],
+        clientId: 'client-1',
+      }),
+    ).toEqual([
       expect.objectContaining({ id: 'doc-4', readable: true, contentState: 'partial' }),
       expect.objectContaining({ id: 'doc-5', readable: false, contentState: 'failed' }),
     ]);

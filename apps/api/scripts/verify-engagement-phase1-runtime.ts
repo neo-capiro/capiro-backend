@@ -6,13 +6,42 @@
  * exact local checkout and fails on the first missing prerequisite, stale
  * manifest, regression, build failure, skipped suite, or web-routing drift.
  */
-import { spawnSync } from 'node:child_process';
-import { existsSync, readdirSync, readFileSync, statSync, writeSync } from 'node:fs';
+import { spawn, spawnSync } from 'node:child_process';
+import {
+  closeSync,
+  existsSync,
+  openSync,
+  readdirSync,
+  readFileSync,
+  statSync,
+  writeSync,
+} from 'node:fs';
 import * as path from 'node:path';
 
 const API_DIR = path.resolve(__dirname, '..');
 const REPO_ROOT = path.resolve(API_DIR, '../..');
 const GIT = process.platform === 'win32' ? 'git.exe' : 'git';
+
+const writeRetryPause = new Int32Array(new SharedArrayBuffer(4));
+
+/**
+ * Synchronous, complete write. Output stays unbuffered for Windows teardown,
+ * but when a parent verifier reads through a non-blocking pipe (Linux CI),
+ * writeSync throws EAGAIN once the pipe is full and may write only part of a
+ * large relayed log; wait briefly and continue until every byte is written.
+ */
+function writeAll(fd: number, text: string): void {
+  const bytes = Buffer.from(text);
+  let offset = 0;
+  while (offset < bytes.length) {
+    try {
+      offset += writeSync(fd, bytes, offset, bytes.length - offset);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'EAGAIN') throw error;
+      Atomics.wait(writeRetryPause, 0, 0, 5);
+    }
+  }
+}
 
 const TEST_TARGETS = [
   'src/bootstrap/configure-api-http-app.spec.ts',
@@ -54,10 +83,61 @@ function resolvePnpm(args: string[]): { command: string; args: string[] } {
   return { command: 'pnpm', args };
 }
 
-function run(label: string, command: string, args: string[], cwd = REPO_ROOT): void {
-  console.log(`\n==> ${label}`);
+function runWindowsWebRegression(resolved: { command: string; args: string[] }): void {
+  const logPath = 'C:\\dev\\recovery-phase1-web-regression.log';
+  const fd = openSync(logPath, 'w');
+  const child = spawn(resolved.command, resolved.args, {
+    cwd: REPO_ROOT,
+    env: { ...process.env, CI: 'true' },
+    stdio: ['ignore', fd, fd],
+    windowsHide: true,
+  });
+  closeSync(fd);
+  const deadline = Date.now() + 900_000;
+  let greenSummary = false;
+  while (Date.now() < deadline) {
+    const output = readFileSync(logPath, 'utf8');
+    const hasGreenSummary =
+      /Test Files\s+.*\bpassed\b.*\(\d+\)/.test(output) &&
+      /Tests\s+.*\bpassed\b.*\(\d+\)/.test(output) &&
+      !/Test Files\s+.*\bfailed\b/.test(output) &&
+      !/Tests\s+.*\bfailed\b/.test(output);
+    if (hasGreenSummary) {
+      greenSummary = true;
+      if (child.exitCode === null) {
+        spawnSync('taskkill.exe', ['/F', '/T', '/PID', String(child.pid)], {
+          stdio: 'ignore',
+          windowsHide: true,
+        });
+      }
+      writeAll(1, output);
+      return;
+    }
+    if (child.exitCode !== null) break;
+    spawnSync(process.execPath, ['-e', 'Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,5000)'], {
+      stdio: 'ignore',
+      windowsHide: true,
+    });
+  }
+  const output = readFileSync(logPath, 'utf8');
+  if (!greenSummary) writeAll(1, output);
+  throw new Error(`Web regression suite failed or timed out; see ${logPath}`);
+}
+
+function run(
+  label: string,
+  command: string,
+  args: string[],
+  cwd = REPO_ROOT,
+  env: NodeJS.ProcessEnv = {},
+): void {
+  writeAll(1, `\n==> ${label}\n`);
   const resolved =
     command === 'pnpm' || command === 'pnpm.cmd' ? resolvePnpm(args) : { command, args };
+  if (process.platform === 'win32' && label === 'Web regression suite') {
+    runWindowsWebRegression(resolved);
+    return;
+  }
   // Windows nested spawn under the long Phase 2/4-6 verifier chain can
   // intermittently:
   //   - return STATUS_DLL_INIT_FAILED (0xC0000142 / 3221225794)
@@ -73,7 +153,7 @@ function run(label: string, command: string, args: string[], cwd = REPO_ROOT): v
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     const result = spawnSync(resolved.command, resolved.args, {
       cwd,
-      env: { ...process.env, CI: 'true' },
+      env: { ...process.env, CI: 'true', ...env },
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
       shell: useShell,
@@ -83,8 +163,8 @@ function run(label: string, command: string, args: string[], cwd = REPO_ROOT): v
     if (result.error) throw result.error;
     const stdout = result.stdout ?? '';
     const stderr = result.stderr ?? '';
-    if (stdout) process.stdout.write(stdout);
-    if (stderr) process.stderr.write(stderr);
+    if (stdout) writeAll(1, stdout);
+    if (stderr) writeAll(2, stderr);
     lastStatus = result.status;
     if (result.status === 0) return;
 
@@ -103,10 +183,14 @@ function run(label: string, command: string, args: string[], cwd = REPO_ROOT): v
       console.warn(
         `==> ${label}: infrastructure crash (status=${String(result.status)} worker=${String(isWorkerCrash)} dll=${String(isDllCrash)}) attempt ${attempt}/${maxAttempts}; retrying in ${delayMs}ms shell=${String(useShell)}`,
       );
-      spawnSync(process.execPath, ['-e', `Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,${delayMs})`], {
-        stdio: 'ignore',
-        windowsHide: true,
-      });
+      spawnSync(
+        process.execPath,
+        ['-e', `Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,${delayMs})`],
+        {
+          stdio: 'ignore',
+          windowsHide: true,
+        },
+      );
       continue;
     }
     throw new Error(`${label} failed with exit code ${String(result.status)}`);
@@ -133,11 +217,7 @@ function walk(dir: string): string[] {
 
 function assertNoWebPreviewRouting(): void {
   const webSource = path.join(REPO_ROOT, 'apps/web/src');
-  const forbidden = [
-    'VITE_ENGAGEMENT_API_URL',
-    'http://127.0.0.1:4500',
-    'http://localhost:4500',
-  ];
+  const forbidden = ['VITE_ENGAGEMENT_API_URL', 'http://127.0.0.1:4500', 'http://localhost:4500'];
   const findings: string[] = [];
   for (const filename of walk(webSource)) {
     if (!/\.(ts|tsx|js|jsx|mjs|cjs)$/.test(filename)) continue;
@@ -175,14 +255,17 @@ function main(): void {
     run(`Generate Prisma client: ${pkg}`, 'pnpm', ['--filter', pkg, 'exec', 'prisma', 'generate']);
   }
 
-  run('Build workspace packages required by API tests', 'pnpm', [
-    '--filter',
+  for (const pkg of [
     '@capiro/shared',
-    '--filter',
+    '@capiro/defense-contracts',
+    '@capiro/defense-domain',
+    '@capiro/auth',
+    // The web typecheck below imports it; not every calling workflow builds it.
+    '@capiro/strategy-verifier',
     '@capiro/meriv2-core',
-    'run',
-    'build',
-  ]);
+  ]) {
+    run(`Build workspace package: ${pkg}`, 'pnpm', ['--filter', pkg, 'run', 'build']);
+  }
 
   run('Phase 0 contract prerequisite', 'pnpm', [
     '--filter',
@@ -193,6 +276,9 @@ function main(): void {
   run(
     'Phase 1 manifests, runtime, route, timer, provider, bootstrap, health, and image-entrypoint tests',
     'pnpm',
+    // In-band on a 6 GB heap. In-band at 4 GB ran out of memory; a 1 GB
+    // idle limit restarts the worker after every suite (~30 s ts-jest reload
+    // each), which pushed this step past Phase 2's 25-minute Phase 1 deadline.
     [
       '--filter',
       '@capiro/api',
@@ -202,6 +288,8 @@ function main(): void {
       '--forceExit',
       ...TEST_TARGETS,
     ],
+    REPO_ROOT,
+    { NODE_OPTIONS: '--max-old-space-size=6144' },
   );
   run('Build API entrypoints', 'pnpm', ['--filter', '@capiro/api', 'run', 'build']);
 
@@ -225,19 +313,26 @@ function main(): void {
   run('Web regression suite', 'pnpm', ['--filter', '@capiro/web', 'test']);
   assertNoWebPreviewRouting();
   run('Committed diff whitespace validation', GIT, [
-    'diff', '--check', 'origin/main...HEAD', '--',
-    '.', ':(exclude)docs/plans/**/*.md',
+    'diff',
+    '--check',
+    'origin/main...HEAD',
+    '--',
+    '.',
+    ':(exclude)docs/plans/**/*.md',
   ]);
 
   // Write COMPLETE unbuffered so redirected nested logs see it before Windows
   // process teardown can hang the parent (stdbuf alone is not enough for Node).
-  writeSync(1, '\nENGAGEMENT_PHASE1_DB_FREE_COMPLETE\n');
+  writeAll(1, '\nENGAGEMENT_PHASE1_DB_FREE_COMPLETE\n');
+  // All checks have completed; exit explicitly so nested Windows callers do
+  // not remain alive on teardown handles after the completion marker.
+  process.exit(0);
 }
 
 try {
   main();
 } catch (error) {
-  writeSync(2, '\nENGAGEMENT_PHASE1_DB_FREE_FAILED\n');
-  console.error(error instanceof Error ? error.stack ?? error.message : String(error));
+  writeAll(2, '\nENGAGEMENT_PHASE1_DB_FREE_FAILED\n');
+  writeAll(2, `${error instanceof Error ? (error.stack ?? error.message) : String(error)}\n`);
   process.exit(1);
 }
