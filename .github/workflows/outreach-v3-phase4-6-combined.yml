@@ -30,7 +30,9 @@ jobs:
       NODE_OPTIONS: --max-old-space-size=6144
     # Phase 4 re-runs Phase 3, which re-runs Engagement Phase 1-3 (Phase 1
     # twice); the same budget as the Revised Phase 2/3 DB-free jobs.
-    timeout-minutes: 120
+    # Ran 120 min on PR #1905 and was killed during its last step (the full web
+    # suite, ~25 min), after every earlier step passed.
+    timeout-minutes: 150
     steps:
       - uses: actions/checkout@v4
         with:

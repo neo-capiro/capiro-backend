@@ -78,6 +78,11 @@ describe('Knowledge Plane Phase 26 production-readiness architecture', () => {
     expect(requestAt).toBeGreaterThan(-1);
     expect(gateAt).toBeLessThan(requestAt);
     expect(service).toContain('memoryAccessGrants');
+    // The wall decision is read off that actor-scoped envelope, never asserted.
+    expect(code(service)).not.toMatch(/ethicalWallAllowed\s*:\s*true\b/);
+    expect(service).toContain(
+      'ethicalWallAllowed: security.authorizedClientIds.includes(input.clientId)',
+    );
     expect(service).toContain('createdByUserId: user.id');
     expect(service).toContain('allowExternalLookup: false');
     const serviceCode = code(service);

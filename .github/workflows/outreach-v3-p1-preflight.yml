@@ -20,7 +20,8 @@ jobs:
   phase1-db-free-closeout:
     name: Revised Phase 1 DB-free closeout
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    # Ran 90 min on PR #1905 and was killed during the nested Phase 3 web suite.
+    timeout-minutes: 120
     # The focused Phase 1 Jest run is in-band over 37 suites, and the nested
     # Phase 3 regression runs nest build and the web build on this heap.
     env:
