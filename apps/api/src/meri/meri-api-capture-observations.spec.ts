@@ -109,7 +109,7 @@ describe('request-owned API capture observations', () => {
         sourceIds: ['source-9'],
       },
     ]);
-    expect(result.sources[0].toolCallId).toBe('provider-tool-17');
+    expect(result.sources[0]?.toolCallId).toBe('provider-tool-17');
     expect(result.releases.orchestrator.releaseRevision.status).toBe('NOT_RUN');
     expect(result.status).toBe('BLOCKED');
   });
@@ -216,7 +216,7 @@ describe('request-owned API capture observations', () => {
       },
     };
     observations.recordTool(call);
-    expect(readMeriApiCaptureObservations(observations, p).toolCalls[0].status).toBe('denied');
+    expect(readMeriApiCaptureObservations(observations, p).toolCalls[0]?.status).toBe('denied');
     expect(() => observations.recordTool(call)).toThrow('tool_observation_invalid');
     expect(() => observations.recordTool({ ...call, callId: '', name: 'unknown-tool' })).toThrow();
     expect(() => readMeriApiCaptureObservations({ ...observations }, p)).toThrow('owner_missing');

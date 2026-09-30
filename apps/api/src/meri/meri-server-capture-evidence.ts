@@ -74,7 +74,9 @@ export function buildApiOnlyMeriServerCaptureEvidence(args: {
     sources: args.citations.map((citation) => ({
       sourceId: citation.id,
       toolCallId:
-        sourceCalls.get(citation.id)?.length === 1 ? sourceCalls.get(citation.id)![0] : 'NOT_RUN',
+        sourceCalls.get(citation.id)?.length === 1
+          ? (sourceCalls.get(citation.id)?.[0] ?? 'NOT_RUN')
+          : 'NOT_RUN',
       tenantId: unknown('canonical_source_tenant_owner_not_bound_on_raw_path'),
       clientId:
         citation.documentEvidence?.clientId !== undefined || citation.source?.clientId !== undefined

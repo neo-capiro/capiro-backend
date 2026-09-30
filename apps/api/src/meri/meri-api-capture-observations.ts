@@ -77,7 +77,7 @@ export function createMeriApiCaptureObservations(
     }
   };
   assertBinding(policy);
-  const handle: MeriApiCaptureObservations = Object.freeze({
+  const handle = Object.freeze<MeriApiCaptureObservations>({
     startAnthropicRequest() {
       assertBinding();
       const round: Round = { model: null, started: false, finished: false, usage: {} };
@@ -167,14 +167,15 @@ export function createMeriApiCaptureObservations(
       return Number.isSafeInteger(sum) ? observed(sum) : unknown<number>('provider_usage_overflow');
     };
     const models = new Set(rounds.map((round) => round.model));
+    const firstModel = rounds[0]?.model;
     return {
       toolCalls: toolCalls.map((call) => ({ ...call, sourceIds: [...call.sourceIds] })),
       usage: {
         provider: rounds.length ? observed('anthropic') : notRun('provider_request_not_observed'),
         model: !rounds.length
           ? notRun('provider_request_not_observed')
-          : models.size === 1 && !models.has(null)
-            ? observed(rounds[0].model!)
+          : models.size === 1 && typeof firstModel === 'string'
+            ? observed(firstModel)
             : unknown('effective_provider_model_missing_or_mixed'),
         inputTokens: total('input_tokens'),
         outputTokens: total('output_tokens'),
