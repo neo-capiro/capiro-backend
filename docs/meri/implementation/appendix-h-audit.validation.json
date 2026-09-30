@@ -1,0 +1,22 @@
+{
+  "checkedAtUtc": "2026-09-30T20:42:47.0083739Z",
+  "verdict": "PASS",
+  "scope": "Audit integrity only; not product acceptance",
+  "commandExitCode": 0,
+  "originalRows": 26,
+  "uniqueHistoricalIds": 26,
+  "exactSourceBlobMatches": 48,
+  "servedPass": 0,
+  "applicationTestsExecuted": 0,
+  "applicationSourceEdited": false,
+  "files": [
+    {
+      "name": "appendix-h-audit.json",
+      "sha256": "c5be96a1e4d3a78cd0c026e5835bd80e2732a8920a22428e1c5c388f718ff3f1"
+    },
+    {
+      "name": "appendix-h-audit.md",
+      "sha256": "0982ee0bd3d817abe16439129d6a4d7bba64634e81fdcae31488c375f2fb49e1"
+    }
+  ]
+}

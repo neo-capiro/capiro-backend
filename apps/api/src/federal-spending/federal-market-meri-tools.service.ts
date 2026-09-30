@@ -3,7 +3,7 @@ import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { FederalMarketGeographyService } from './federal-market-geography.service.js';
 import { FederalMarketService } from './federal-market.service.js';
-import type { FederalMarketQuery } from './federal-market.types.js';
+import type { FederalMarketPage, FederalMarketQuery } from './federal-market.types.js';
 import { resolveEvidenceAccuracyModeForTenant } from '../common/meri-evidence-accuracy-flags.js';
 import { serializeFederalAwardDates } from '../common/federal-award-date-serialization.js';
 
@@ -17,6 +17,8 @@ interface JsonSchema {
   properties: Record<string, Record<string, unknown>>;
   required?: string[];
 }
+
+const MAX_TOOL_PAGE = 10_000;
 
 const commonProperties: JsonSchema['properties'] = {
   clientId: {
@@ -35,7 +37,18 @@ const commonProperties: JsonSchema['properties'] = {
     type: 'integer',
     description: 'Fiscal-year filter where the source supplies one.',
   },
-  limit: { type: 'integer', description: 'Maximum rows, 1–25. Default 10.' },
+  page: {
+    type: 'integer',
+    minimum: 1,
+    maximum: MAX_TOOL_PAGE,
+    description: 'Result page, starting at 1. Use nextPage to continue with the same filters.',
+  },
+  limit: {
+    type: 'integer',
+    minimum: 1,
+    maximum: 25,
+    description: 'Maximum rows, 1–25. Default 10.',
+  },
 };
 
 const schemas: Record<FederalMarketMeriToolName, JsonSchema> = {
@@ -43,6 +56,13 @@ const schemas: Record<FederalMarketMeriToolName, JsonSchema> = {
     type: 'object',
     properties: {
       ...commonProperties,
+      fiscalYear: {
+        type: 'integer',
+        minimum: 1900,
+        maximum: 2200,
+        description:
+          'Federal fiscal year of the stored award action date: October 1 of the prior year through September 30. Filters award records, not annual obligation totals.',
+      },
       recipient: { type: 'string', description: 'Recipient/contractor name filter.' },
       dateFrom: { type: 'string', description: 'Optional ISO date lower bound.' },
       dateTo: { type: 'string', description: 'Optional ISO date upper bound.' },
@@ -98,6 +118,32 @@ function limitOf(input: Record<string, unknown>): number {
   return parsed;
 }
 
+function pageOf(input: Record<string, unknown>): number {
+  const raw = input.page;
+  if (raw == null) return 1;
+  const parsed =
+    typeof raw === 'number'
+      ? raw
+      : typeof raw === 'string' && /^[1-9]\d*$/.test(raw)
+        ? Number(raw)
+        : NaN;
+  if (!Number.isInteger(parsed) || parsed < 1 || parsed > MAX_TOOL_PAGE) {
+    throw new BadRequestException(`page must be an integer from 1 to ${MAX_TOOL_PAGE}`);
+  }
+  return parsed;
+}
+
+function pageResult<T>(result: FederalMarketPage<T>) {
+  const hasMore = result.page * result.pageSize < result.total;
+  const paginationLimitReached = hasMore && result.page >= MAX_TOOL_PAGE;
+  return {
+    ...result,
+    hasMore,
+    nextPage: hasMore && !paginationLimitReached ? result.page + 1 : null,
+    paginationLimitReached,
+  };
+}
+
 function queryOf(input: Record<string, unknown>): FederalMarketQuery {
   const fiscalYearRaw = input.fiscalYear;
   const fiscalYear =
@@ -130,7 +176,7 @@ function queryOf(input: Record<string, unknown>): FederalMarketQuery {
     fiscalYear,
     dateFrom: optionalString(input, 'dateFrom'),
     dateTo: optionalString(input, 'dateTo'),
-    page: 1,
+    page: pageOf(input),
     pageSize: limitOf(input),
   };
 }
@@ -172,7 +218,7 @@ export class FederalMarketMeriToolsService {
         });
       }
       return {
-        ...result,
+        ...pageResult(result),
         items:
           mode === 'enforce'
             ? result.items.map((row) => serializeFederalAwardDates(row, true))
@@ -183,14 +229,14 @@ export class FederalMarketMeriToolsService {
     }
     if (name === 'search_federal_subawards') {
       return {
-        ...(await this.market.listSubawards(ctx.tenantId, query)),
+        ...pageResult(await this.market.listSubawards(ctx.tenantId, query)),
         tool: name,
         generatedAt,
       };
     }
     if (name === 'search_contract_vehicles') {
       return {
-        ...(await this.market.listVehicles(ctx.tenantId, query)),
+        ...pageResult(await this.market.listVehicles(ctx.tenantId, query)),
         tool: name,
         generatedAt,
       };
@@ -201,7 +247,7 @@ export class FederalMarketMeriToolsService {
       // it is not used to manufacture a client match here.
       const { clientId: _clientId, ...globalQuery } = query;
       return {
-        ...(await this.market.listForecasts(globalQuery)),
+        ...pageResult(await this.market.listForecasts(globalQuery)),
         tool: name,
         generatedAt,
       };

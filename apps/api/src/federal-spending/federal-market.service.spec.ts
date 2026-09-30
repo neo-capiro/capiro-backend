@@ -21,6 +21,56 @@ function harness() {
   return { service, internal };
 }
 
+describe('FederalMarketService contract fiscal-year filtering', () => {
+  it('applies the same half-open action-date year and explicit date intersection to count and rows', async () => {
+    const queries: Prisma.Sql[] = [];
+    const prisma = {
+      $queryRaw: jest.fn(async (query: Prisma.Sql) => {
+        queries.push(query);
+        return query.text.includes('COUNT(*)') ? [{ count: 0n, asOf: null }] : [];
+      }),
+    };
+    const service = new FederalMarketService(prisma as unknown as PrismaService);
+    const result = await service.listContracts('tenant-1', {
+      fiscalYear: 2026,
+      dateFrom: '2026-01-01',
+      dateTo: '2026-06-30',
+      page: 2,
+      pageSize: 7,
+    });
+    expect(queries).toHaveLength(2);
+    for (const query of queries) {
+      expect(query.text).toMatch(/action_date >= \$\d+.*action_date < \$\d+/s);
+      expect(query.values.filter((value) => value instanceof Date)).toEqual([
+        new Date('2025-10-01T00:00:00.000Z'),
+        new Date('2026-10-01T00:00:00.000Z'),
+        new Date('2026-01-01T00:00:00.000Z'),
+        new Date('2026-06-30T00:00:00.000Z'),
+      ]);
+    }
+    const rows = queries.find((query) => query.text.includes('LIMIT'))!;
+    expect(rows.values.slice(-2)).toEqual([7, 7]);
+    expect(result).toMatchObject({ page: 2, pageSize: 7, total: 0 });
+  });
+
+  it('does not add a year restriction when fiscalYear is omitted', async () => {
+    const queries: Prisma.Sql[] = [];
+    const prisma = {
+      $queryRaw: jest.fn(async (query: Prisma.Sql) => {
+        queries.push(query);
+        return query.text.includes('COUNT(*)') ? [{ count: 0n, asOf: null }] : [];
+      }),
+    };
+    await new FederalMarketService(prisma as unknown as PrismaService).listContracts(
+      'tenant-1',
+      {},
+    );
+    expect(queries).toHaveLength(2);
+    for (const query of queries)
+      expect(query.values.some((value) => value instanceof Date)).toBe(false);
+  });
+});
+
 describe('FederalMarketService geography composition', () => {
   it('keeps contracts, subawards, and future signals as separate facts', async () => {
     const { service, internal } = harness();

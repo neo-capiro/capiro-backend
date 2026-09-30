@@ -1,0 +1,225 @@
+{
+  "schemaVersion": 1,
+  "verdict": "BLOCKED",
+  "stage": "01_BLOCKED",
+  "checkedAtUtc": "2026-09-30T20:53:38.498130+00:00",
+  "sourceBaseline": "ac6b66aaf3d77c9b009ebdeb6a78b1394846580f",
+  "originalPlan": {
+    "path": "docs/meri/implementation/01-Meri-Foundation-and-Reliability.md",
+    "sha256": "77c55b7484343a766c3bd17047c513b50c7c5d045e2018f03ea9dd0c08b622bd",
+    "matchesUpload": true
+  },
+  "policy": {
+    "authoritativeMain": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+    "occupiedCheckout": "2f4c1bf166d9941a115a9fe8678f0a8c5808fd25",
+    "machineMapDate": "2026-09-30T00:21:48.2698715Z",
+    "machineMapSha256": "294d7449619e3b10913008e31d8d610075e6852ff0f0cc0d38de8f6a8c6369ab"
+  },
+  "offline": {
+    "python": {
+      "pass": 53,
+      "exitCode": 0
+    },
+    "node": {
+      "pass": 40,
+      "exitCode": 0
+    },
+    "promptfoo": {
+      "pass": 26,
+      "total": 26,
+      "exitCode": 0,
+      "verifierExitCode": 0,
+      "reportSha256": "7bf3e1f203e589bfce17492f44b9de0a4ca07cddb867f93ea4e7055110ec21cb",
+      "inputHashes": {
+        "config": "b2000ece2d0801a49538e7e5649fb1324e398cd00ce45b988c525bc37f0852b9",
+        "scorer": "0813d0356df6837a8946b46134251f6d93f0a59b84a11138760471199c7bbc55",
+        "provider": "b7eaa13d23949664593a62e9ad690d7f9fa7d388e727ad63ac2d249869328b1d",
+        "runner": "53f1d9c847b65359e89d8408743f4abaff288de3aae3b79808db13870cd9b65d",
+        "ga_fixture": "f3474d7d9ee178e224d2b130e32643bec09af5ae0804e808149ed7e08442e770"
+      }
+    },
+    "liveHarness": {
+      "initialPassed": 184,
+      "initialSetupFailures": 1,
+      "initialExitCode": 1,
+      "repairedSetupTestPass": 1,
+      "repairedSetupTestExitCode": 0,
+      "fullRerun": false
+    }
+  },
+  "acceptance": {
+    "baseline75": {
+      "pass": 0,
+      "fail": 0,
+      "notRun": 75,
+      "fullPredicateCount": 15,
+      "partialPredicateCount": 6,
+      "missingPredicateCount": 54
+    },
+    "cd": {
+      "notRun": 7
+    },
+    "requiredCw": {
+      "notRun": 8
+    },
+    "memory": "See 01-memory-strategy-acceptance.md; applicable cases NOT RUN",
+    "historicalJev": "See appendix-h-audit.json; 26 dispositions, zero served passes"
+  },
+  "repair": {
+    "scope": "Original section7.5 contract action-date fiscal-year filtering and tool pagination",
+    "productionFiles": [
+      {
+        "path": "apps/api/src/federal-spending/federal-market.service.ts",
+        "sha256": "9e7700ac112e9083b1eefa7cd3c53b1efa1f28b844861a02bd31bc272717512d"
+      },
+      {
+        "path": "apps/api/src/federal-spending/federal-market-meri-tools.service.ts",
+        "sha256": "34eebfce3d87968a8f70b55df6ef2cb3877a008bd655e0741b1285bab165570b"
+      }
+    ],
+    "unit": {
+      "pass": 40,
+      "exitCode": 0
+    },
+    "postgres": {
+      "pass": 6,
+      "exitCode": 0,
+      "ownerSqlQueries": 20,
+      "transactionRolledBack": true,
+      "cleanupVerified": true,
+      "identity": {
+        "ownerMatches": true,
+        "loopbackOnly": true,
+        "portMatches": true,
+        "dataDirectoryMatches": true
+      },
+      "limitation": "Controlled identity port; no production authentication or full RLS acceptance",
+      "portableTest": {
+        "path": "apps/api/src/federal-spending/federal-market-fiscal-year.postgres.spec.ts",
+        "sha256": "f214be64ef60dccf9f3ca5ba80ef4cf9d17aadf14362ad09fb8cd48e3223dfbe",
+        "pass": 6,
+        "exitCode": 0,
+        "typecheckDiagnostics": 0,
+        "typecheckExitCode": 0
+      },
+      "beforeRepair": {
+        "source": "ac6b66aaf3d77c9b009ebdeb6a78b1394846580f",
+        "pass": 1,
+        "fail": 5,
+        "exitCode": 1,
+        "expectedRegressionFailures": true,
+        "temporarySourceFilesRemoved": true
+      }
+    },
+    "independentReview": {
+      "provider": "bedrock",
+      "model": "moonshotai.kimi-k2.5",
+      "verdict": "PASS",
+      "exitCode": 0,
+      "scope": "Static source review of exact two production hashes; cited unit log belongs to lead, not separately counted reviewer execution; test optional-property fix came afterward"
+    },
+    "apiTypecheck": {
+      "exitCode": 0,
+      "heapMiB": 6144,
+      "prismaGenerated": true,
+      "limits": "Initial stale-client errors and default-heap exhaustion retained; new portable spec separately typechecked with transitive imports and Jest declarations."
+    }
+  },
+  "release": {
+    "deployedByThisAudit": false,
+    "currentMainChecks": "No check runs observed",
+    "actions": "startup_failure with zero jobs; underlying cause unproven",
+    "syntheticCohort": "Approved slugs absent from API and orchestrator allowlists",
+    "schemaCompatibility": "NOT_RUN for current main/live baseline",
+    "orchestrator": {
+      "taskRevision": 84,
+      "lastRolloutUtc": "2026-09-27T09:02:23Z",
+      "digest": "sha256:227550d5862037ef026b04e3a7cb8f77e3c3467f409e3ab5144ad0ce725018de"
+    }
+  },
+  "rawEvidence": {
+    "location": "Protected originating-host evidence root; raw files are not required to understand aggregate results",
+    "files": [
+      {
+        "name": "build-exit.json",
+        "sha256": "acf9796d1cfd9afe759518b969cbd6efb663891abf3ca615df31db3527259565"
+      },
+      {
+        "name": "python-exit.json",
+        "sha256": "1e523c15eb732778c52c9c8fe2def90c8e7f467b748e0752753471170b46068c"
+      },
+      {
+        "name": "node-exit.json",
+        "sha256": "1cd3dbe668d20b5be3e9558bad70f6dd2775914d3f878286c3c8aeb8d6e43dfa"
+      },
+      {
+        "name": "promptfoo-exit.json",
+        "sha256": "c2bf00cfac2ce8f96b957f0c8195ebe0022bc7111b6cb1747072d4d6c5b4c5e6"
+      },
+      {
+        "name": "meri-offline.summary.json",
+        "sha256": "9bfa8f429f02c3c7fb19cbbf1a5acce9d73f6ca22d1dea0de86484fd1b8a2034"
+      },
+      {
+        "name": "cd-acceptance-audit.json",
+        "sha256": "36b4be8a854901faf3c0c4ebd786e43f5c9f07850c4ccd4fd175e4c7d4542ca5"
+      },
+      {
+        "name": "fixture-provisioning-postgres-recheck.exit.json",
+        "sha256": "2f9954c3c7c934a85b9f57daed1e05a3a96136699f6a15248ac9e7d20b25480a"
+      },
+      {
+        "name": "owned-postgres-readback.json",
+        "sha256": "9bff06ec1bd8a344a67267aadf60dd8ca17ccf3441d0d59d17272a0d73a0c242"
+      },
+      {
+        "name": "federal-market-tests-exit.json",
+        "sha256": "eeecedb3a3ba12f8b5ae3ad038e5853190689fcd1d0e7ed497d9627bdaf85295"
+      },
+      {
+        "name": "federal-market-postgres-probe-isolated.exit.json",
+        "sha256": "79bf7a41dc7fe1fd19eaeb7842050893cbe12d117ead7b68ba7f8900e242e212"
+      },
+      {
+        "name": "federal-market-postgres-probe-receipt.json",
+        "sha256": "2d5dddea1eefa585f82b3482e5fa94f5c545134c83fac1fed1635762f7fe8dff"
+      },
+      {
+        "name": "federal-market-kimi-review.md",
+        "sha256": "4a9321994557ce4c6389ed185d1f23119d2b45a93012084892eb36cb81f58cc7"
+      },
+      {
+        "name": "federal-market-kimi-exit.json",
+        "sha256": "960f818672c7789f13a1afe923d7ec59cba822dec842283fb5c286298e0ba65e"
+      },
+      {
+        "name": "api-typecheck-6gb-exit.json",
+        "sha256": "3449654912a826522f0d083c578d57e5a3e732086948a3bc1ec0315b5a83017b"
+      },
+      {
+        "name": "release-audit.md",
+        "sha256": "e706582640714882022087dd70724c68583be398d5402ad19b00d1b5b844f03f"
+      },
+      {
+        "name": "actions-diagnostics.json",
+        "sha256": "50a2939d919dcaa43eb54e3d01e7f15a4757c5063023f45da445af83e681a792"
+      },
+      {
+        "name": "actionlint-exits.json",
+        "sha256": "69e091f1da43c574685fd4b5e42b06f42d7202ac961d6b3f329ec68947a81587"
+      },
+      {
+        "name": "federal-market-portable-postgres.exit.json",
+        "sha256": "bfa845edccdbb86a34afecc023fef3599a4d651a3147cd27db9238ccb4c3bc6c"
+      },
+      {
+        "name": "federal-market-portable-postgres-types-qualified.exit.json",
+        "sha256": "984aa3ecce2ba6f1b2917066d27788a05c631751eb3a588f3972d93d3c33c54b"
+      },
+      {
+        "name": "federal-market-baseline-postgres.exit.json",
+        "sha256": "e8f17b39e30ffe475dac419e2a2793ba8276d5b3cd6597c6980b0498739963a4"
+      }
+    ]
+  }
+}
