@@ -263,8 +263,11 @@ jobs:
       - name: Tests — apps/api LegiWatch scope
         env:
           DATABASE_URL: postgresql://legiwatch_test:legiwatch_test@localhost:5433/capiro
+        # One recycled worker: in-band, the suites' module graphs accumulated
+        # past the 4 GB heap.
         run: >
-          pnpm --filter @capiro/api exec jest --ci --silent --runInBand
+          pnpm --filter @capiro/api exec jest --ci --silent --maxWorkers=1
+          --workerIdleMemoryLimit=1GB
           --json --outputFile=$GITHUB_WORKSPACE/api-summary.json
           --testPathIgnorePatterns=legiwatch-saved-sessions-pg.integration.spec.ts
           --
