@@ -124,7 +124,13 @@ function runWindowsWebRegression(resolved: { command: string; args: string[] }):
   throw new Error(`Web regression suite failed or timed out; see ${logPath}`);
 }
 
-function run(label: string, command: string, args: string[], cwd = REPO_ROOT): void {
+function run(
+  label: string,
+  command: string,
+  args: string[],
+  cwd = REPO_ROOT,
+  env: NodeJS.ProcessEnv = {},
+): void {
   writeAll(1, `\n==> ${label}\n`);
   const resolved =
     command === 'pnpm' || command === 'pnpm.cmd' ? resolvePnpm(args) : { command, args };
@@ -147,7 +153,7 @@ function run(label: string, command: string, args: string[], cwd = REPO_ROOT): v
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     const result = spawnSync(resolved.command, resolved.args, {
       cwd,
-      env: { ...process.env, CI: 'true' },
+      env: { ...process.env, CI: 'true', ...env },
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
       shell: useShell,
@@ -271,7 +277,8 @@ function main(): void {
     'Phase 1 manifests, runtime, route, timer, provider, bootstrap, health, and image-entrypoint tests',
     'pnpm',
     // One recycled worker instead of --runInBand: the in-band process kept
-    // every suite's modules and exhausted CI's 4 GB heap.
+    // every suite's modules. On CI a single app-module suite also outgrew the
+    // 4 GB heap the calling workflows set, so the worker gets 6 GB.
     [
       '--filter',
       '@capiro/api',
@@ -282,6 +289,8 @@ function main(): void {
       '--forceExit',
       ...TEST_TARGETS,
     ],
+    REPO_ROOT,
+    { NODE_OPTIONS: '--max-old-space-size=6144' },
   );
   run('Build API entrypoints', 'pnpm', ['--filter', '@capiro/api', 'run', 'build']);
 
