@@ -1,0 +1,24 @@
+diff --git a/apps/api/src/clients/client-capabilities.service.ts b/apps/api/src/clients/client-capabilities.service.ts
+index d1730435c988695664f67ad0015e45695b831cee..54f86095f46b857789315b8d6a6ee1a6626b9358 100644
+--- a/apps/api/src/clients/client-capabilities.service.ts
++++ b/apps/api/src/clients/client-capabilities.service.ts
+@@ -112,11 +112,18 @@ export class ClientCapabilitiesService {
+     });
+   }
+ 
+-  async createCapability(ctx: TenantContext, clientId: string, input: CreateCapabilityInput) {
++  async createCapability(
++    ctx: TenantContext,
++    clientId: string,
++    input: CreateCapabilityInput,
++    /** Internal fixture-only primary key; public controllers never bind it. */
++    fixturePhysicalId?: string,
++  ) {
+     const created = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+       await this.assertClient(ctx.tenantId, clientId, tx as any);
+       const created = await tx.clientCapability.create({
+         data: {
++          ...(fixturePhysicalId ? { id: fixturePhysicalId } : {}),
+           tenantId: ctx.tenantId,
+           clientId,
+           name: input.name,

@@ -1,0 +1,229 @@
+{
+  "schemaVersion": 1,
+  "repository": "neo-capiro/capirov2",
+  "branch": "codex/meri-migration-closeout",
+  "policyCommit": "fe8adaa858ee2391b42697311ce91cf787e080b8",
+  "productCodeCommit": "c785e566321943470978d66325952ed916951346",
+  "archiveAndHandoverOnly": true,
+  "productAcceptance": "BLOCKED",
+  "createdAt": "2026-09-30T00:21:55.920Z",
+  "hashBasis": "Staged Git blob bytes; excludes this manifest itself. No local raw evidence is implied available.",
+  "files": [
+    {
+      "path": "docs/meri/handover/2026-09-30/README.md",
+      "gitBlob": "e14676293b9e97c64450fd7849e2872bc87adbe2",
+      "bytes": 14574,
+      "sha256": "828a61b209ff0d33cf0ff6977e3be8e82ea0513774624fe7cf7220ba20187717"
+    },
+    {
+      "path": "docs/meri/handover/2026-09-30/VERIFICATION.md",
+      "gitBlob": "ebc97ea38f9488b67b85af29fa4d79cd94b76c95",
+      "bytes": 3922,
+      "sha256": "8efcdcf78d69768e483b95b1de6666b88a526d45da8ae161dfa358fe0ec2314e"
+    },
+    {
+      "path": "docs/meri/handover/2026-09-30/ci/README.md",
+      "gitBlob": "ca8d18009c57f3d0d3a3cc91d8e828a6db69bff7",
+      "bytes": 17180,
+      "sha256": "53022f09f95751ffc521016a1edfbf6998f986386820c6a554620ae45ac20537"
+    },
+    {
+      "path": "docs/meri/handover/2026-09-30/ci/failures.json",
+      "gitBlob": "6605861225fce9af700825d89aaf4ef39164c0b5",
+      "bytes": 12314,
+      "sha256": "a0afa1865eccaf9df36bc0f029c34927f78b24fc80a18128aa4c6a997ec417ca"
+    },
+    {
+      "path": "docs/meri/handover/2026-09-30/ci/reproduce.md",
+      "gitBlob": "970ede1c0ad53118f9fb2a313901f433ea151433",
+      "bytes": 6973,
+      "sha256": "e2089f69d7f6c8c26d2de5bdc0745eb4d1ecfb076458e488ed3dc64fb52a3254"
+    },
+    {
+      "path": "docs/meri/handover/2026-09-30/ci/verify-api-shard-union.cjs",
+      "gitBlob": "e850b0512dce6c0035229cc3e43de87650c5b8ba",
+      "bytes": 3193,
+      "sha256": "4a2ba69a7c3d145a9d262911e9973e2a008f4cce04171a2a394adb88d1cd5e1f"
+    },
+    {
+      "path": "docs/meri/handover/2026-09-30/migration/.gitattributes",
+      "gitBlob": "ad416edc50899a9e3e57f50096f6cf4e4fd3f745",
+      "bytes": 145,
+      "sha256": "21f9015eaa4e14eb6b9728a7f5e6f18ace59f1842bac974e1b5b9dfbab01ff8a"
+    },
+    {
+      "path": "docs/meri/handover/2026-09-30/migration/README.md",
+      "gitBlob": "fe15e5b14f6139b802a4a217f44c5fc7e59a376c",
+      "bytes": 11145,
+      "sha256": "a395aafb4ec21fbbb71b5aa1ac4363d1a3cb9b8deef7cded1728047f5f62fccd"
+    },
+    {
+      "path": "docs/meri/handover/2026-09-30/migration/excluded-private-evidence.json",
+      "gitBlob": "89eaecf67ee8a801e382abe48ebeb2171f2ddf17",
+      "bytes": 5576,
+      "sha256": "68c3c356059cad588e570bcc934875a4b279e65b66c9452fc31e9e9744702694"
+    },
+    {
+      "path": "docs/meri/handover/2026-09-30/migration/historical-clone-decisions.json",
+      "gitBlob": "b156ff5e511e13b136267c8a1ab315754d7d90e7",
+      "bytes": 40753,
+      "sha256": "48d9b0b41aa2e2f8118e835a54bde8860beeca847e3f149bd8eb52925ee24b9c"
+    },
+    {
+      "path": "docs/meri/handover/2026-09-30/migration/reference-source/qualify-reconciliation-supplement.cjs.txt",
+      "gitBlob": "8cc73cb709870bde5e018c7852f85ccdfa1cf9e1",
+      "bytes": 19219,
+      "sha256": "e4c77e1d9b63f3508184ba3f656a0f672100e1af2c8b86ea77b3257efe86a275"
+    },
+    {
+      "path": "docs/meri/handover/2026-09-30/migration/reference-source/rehearse-api-deploy-once.cjs.txt",
+      "gitBlob": "3cdd2b6059cab910af5eea589c8a4dcb05045fb2",
+      "bytes": 12431,
+      "sha256": "d044ab138eac02c64b3ad797d5b9f35b9730565334b95d1f1605dd7336bc6c5e"
+    },
+    {
+      "path": "docs/meri/handover/2026-09-30/migration/reference-source/rehearse-full-reconciliation.cjs.txt",
+      "gitBlob": "737269963461669b2874cd22846632d093bced96",
+      "bytes": 43428,
+      "sha256": "8ae7313df4c83c3c3ee58e6dcb2355a0c68d7fedd88b514b6f0e96a0c109df42"
+    },
+    {
+      "path": "docs/meri/handover/2026-09-30/migration/reference-source/rehearse-integrated-reconciliation.cjs.txt",
+      "gitBlob": "b25ca3b423401de8bf6aa221589fa2ee3726375f",
+      "bytes": 21512,
+      "sha256": "f569c531f6d6ea2bc07c4f6b0c0757fe7c9a6495efe7a8bbf53a898bf8e45d5b"
+    },
+    {
+      "path": "docs/meri/handover/2026-09-30/migration/reference-source/rehearse-single-migration.cjs.txt",
+      "gitBlob": "d857fcba4057273175be77a5a1a542e7a32d6ef3",
+      "bytes": 21568,
+      "sha256": "89dee667f7ff4cdab26a1ced6da07f0667ab062a4f811de3efd0cefd0de9a310"
+    },
+    {
+      "path": "docs/meri/handover/2026-09-30/migration/reference-source/rehearse-workspace-once.cjs.txt",
+      "gitBlob": "c1fbce62d2d3b17251afa38f6789fb91d29990f9",
+      "bytes": 15509,
+      "sha256": "d2ba923e645380e815b89f6c6d6492b49c3e055bb64a78af8e4c9abfc52d34e9"
+    },
+    {
+      "path": "docs/meri/handover/2026-09-30/migration/reference-source/test-api-deploy-once-guards.cjs.txt",
+      "gitBlob": "48b58a596777c3d8c6f2b9e46e1f3e3db3a6ea40",
+      "bytes": 7851,
+      "sha256": "3caf852d68e946d3e0763eeb46d591be4713da47bf844d17d5e543ef5383dce2"
+    },
+    {
+      "path": "docs/meri/handover/2026-09-30/migration/reference-source/test-full-reconciliation-guards.cjs.txt",
+      "gitBlob": "64bda2316eef1b671c4e0fdbfce94a1300c9b886",
+      "bytes": 30070,
+      "sha256": "1f8318fdd957e6977fbd9dba62318148100e58718966016af1ae9e52525b7a47"
+    },
+    {
+      "path": "docs/meri/handover/2026-09-30/migration/reference-source/test-reconciliation-supplement-guards.cjs.txt",
+      "gitBlob": "2e9d50a45862e4c6997593ccdd5a0353388033b7",
+      "bytes": 21933,
+      "sha256": "ad3ba2e424fe3ed1964b60813d8c04d3df7931db7031546ecd637cb648d2c75e"
+    },
+    {
+      "path": "docs/meri/handover/2026-09-30/migration/reference-source/test-workspace-rehearsal-guards.cjs.txt",
+      "gitBlob": "34e6dbe5c511c82daeddafb662e1e574b1c804f9",
+      "bytes": 8986,
+      "sha256": "1c17f86a5b54b0acd82ed8e21210d334a4399e6f06afb07a359768aef99620df"
+    },
+    {
+      "path": "docs/meri/handover/2026-09-30/migration/result-summary.json",
+      "gitBlob": "d51e94ce1158b65de48966fdd8778a0f3f15c675",
+      "bytes": 4324,
+      "sha256": "6cccb70f27eecf946cee4c0ee2128085d3023df712a7081db526f6907ce9be59"
+    },
+    {
+      "path": "docs/meri/handover/2026-09-30/migration/source-byte-manifest.json",
+      "gitBlob": "2e863bad432d8534b6ce5fe3a84a3a4fb7506a3a",
+      "bytes": 3182,
+      "sha256": "2b97f81413de409969a4f69b8d0c1f5e014866ced61e06eba593a57286b614c9"
+    },
+    {
+      "path": "docs/meri/handover/2026-09-30/migration/verify-archive.cjs",
+      "gitBlob": "c4a3a7e8e8a3a5c0b065c792f39d362d61469139",
+      "bytes": 3092,
+      "sha256": "5dab2d6bd0e70e7d407da50319032c96ed17b08cd41ef03ec737204c54eff675"
+    },
+    {
+      "path": "docs/meri/handover/2026-09-30/preserved-work/.gitattributes",
+      "gitBlob": "dda98604939fd5c46423c952918b87e2856185d7",
+      "bytes": 202,
+      "sha256": "47b052cbf254bff4c66404ccb3d83f5a07d1911d757238a39f40e200f827d102"
+    },
+    {
+      "path": "docs/meri/handover/2026-09-30/preserved-work/01-native-business-development.patch",
+      "gitBlob": "7969577c135d55762d40388c8451e2ad9803a32d",
+      "bytes": 1528,
+      "sha256": "f9859c425606fc403246ec2b9b1e40ea9e789603bdc8211fa0bb9b43cd433959"
+    },
+    {
+      "path": "docs/meri/handover/2026-09-30/preserved-work/02-native-client-capabilities.patch",
+      "gitBlob": "0508357e45d6fc6c327791fdc08cf17bcb1f96cc",
+      "bytes": 1112,
+      "sha256": "42cdc752bdbc74e7b07b55b6d8a0f0d7c3f6796187c7163cda5f55710f1271da"
+    },
+    {
+      "path": "docs/meri/handover/2026-09-30/preserved-work/03-native-client-facilities.patch",
+      "gitBlob": "f906e0ec73d85707b339fed829e3f9bad3a7b355",
+      "bytes": 1229,
+      "sha256": "a05d0a69b6bb4b2b58ba7a61c905a4c0d15d333eed5d2e9d33e3f02c143d0c97"
+    },
+    {
+      "path": "docs/meri/handover/2026-09-30/preserved-work/04-native-engagement.patch",
+      "gitBlob": "8ae5d50a564543ef96f555aa7f12fe8f2fdde103",
+      "bytes": 3082,
+      "sha256": "e153b7bb8a1705cd2632a418eb30bf4eaa822d85391979422b4aa1f4baec97e1"
+    },
+    {
+      "path": "docs/meri/handover/2026-09-30/preserved-work/05-native-action-recommendation.patch",
+      "gitBlob": "e11ded41a49e85d619125cd8ff518918a9d03f8e",
+      "bytes": 2627,
+      "sha256": "efb462318be5e11b2ebfdf530ca658bf5581c5bb9aa0a841fe1573123fdfcd17"
+    },
+    {
+      "path": "docs/meri/handover/2026-09-30/preserved-work/06-native-research-portfolio.patch",
+      "gitBlob": "1b7686aadcdf08839929030147df885af81bcaf5",
+      "bytes": 2439,
+      "sha256": "26304e2e3bc0659a7d76927017bd1f5ffb699a83942df0aaca13f92371b93fe1"
+    },
+    {
+      "path": "docs/meri/handover/2026-09-30/preserved-work/07-final-await-probe-draft.patch",
+      "gitBlob": "b4575be54254da0228c10390871bc7908c449057",
+      "bytes": 18202,
+      "sha256": "b66e7dea1ce3ce5d137a43ffe664f4355063c0282635d347080feec9d2e88449"
+    },
+    {
+      "path": "docs/meri/handover/2026-09-30/preserved-work/README.md",
+      "gitBlob": "1b97844c6bcbdd4a3d9340286abd3c434449bb4f",
+      "bytes": 9052,
+      "sha256": "1b924e39889bb63ce676f3db8a0c26ebccf7d38b6327c7aff9a044a55a0c5b24"
+    },
+    {
+      "path": "docs/meri/handover/2026-09-30/preserved-work/archive-validation.json",
+      "gitBlob": "d1d1f84cd7e536fd5286695c16b364989a9335d2",
+      "bytes": 2026,
+      "sha256": "394905b5aa493a3e518244693d4fa55579e346e03e8e1a4e25a3666b55dd1034"
+    },
+    {
+      "path": "docs/meri/handover/2026-09-30/preserved-work/manifest.json",
+      "gitBlob": "2c4aaabb59e58dc45dcc7e133855dcefdcb6c1f7",
+      "bytes": 8437,
+      "sha256": "d8f9a5ecb915c6b5bc75c6b77d4bfc00faa6b7db805ede8bd2a0fb9627187163"
+    },
+    {
+      "path": "docs/meri/handover/2026-09-30/remaining-file01.md",
+      "gitBlob": "d64c294c804fa5070308b932d233d4ec07a6cc86",
+      "bytes": 7904,
+      "sha256": "0d1eb35de312c97bd2adfb3f6a701fb1969d6d207fe21237319dfff18549139b"
+    },
+    {
+      "path": "docs/meri/implementation/01-handover.md",
+      "gitBlob": "ba07e54449f038e436c94aac79443ddff74bf656",
+      "bytes": 1016,
+      "sha256": "0bf12d3280376ba7ec6dde3db00a25c32fd9bd57a14e19253e1ba8b8dd01f1ab"
+    }
+  ]
+}

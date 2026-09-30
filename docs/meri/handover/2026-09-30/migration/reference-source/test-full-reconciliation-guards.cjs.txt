@@ -1,0 +1,180 @@
+'use strict';
+// Pure offline guard tests. Does not call load(), AWS helpers, database helpers or a CLI entrypoint.
+const fs=require('node:fs'),crypto=require('node:crypto'),assert=require('node:assert/strict');
+const ROOT='C:/dev/cap-meri-foundation-evidence',SCRIPT=ROOT+'/rehearse-full-reconciliation.cjs';
+const hash=x=>crypto.createHash('sha256').update(x).digest('hex'),scriptHash=hash(fs.readFileSync(SCRIPT)),g=require(SCRIPT);
+const INTEGRATED=ROOT+'/rehearse-integrated-reconciliation.cjs',integratedHash=hash(fs.readFileSync(INTEGRATED)),integrated=require(INTEGRATED);
+const manifest=JSON.parse(fs.readFileSync(ROOT+'/clone-full-reconciliation-decision-manifest.json'));
+const prior=fs.readFileSync(ROOT+'/test-workspace-rehearsal-guards.cjs','utf8');
+const workspaceFixture=Function('require',prior.slice(0,prior.indexOf('\nconst tests=[];'))+'\nreturn fixture;')(require);
+const live=JSON.parse(fs.readFileSync(ROOT+'/api-pending-21-47-live-catalog.json')).catalog;
+const clean=JSON.parse(fs.readFileSync(ROOT+'/api-pending-21-47-clean-catalog.json')).catalog;
+const fresh=()=>structuredClone(manifest),tests=[];
+function check(name,expected,fn){try{fn();tests.push({name,expected,actual:'ACCEPT',passed:expected==='ACCEPT'});}catch(e){const actual=e.code||e.name;tests.push({name,expected,actual,passed:actual===expected});}}
+function rollbackFixture(){const f=workspaceFixture(),before=structuredClone(f.wsAfter),after=structuredClone(before),id=f.wsLogs.id;after.ledger.find(r=>r.id===id).rolled_back_at='2026-09-29T22:03:01.000Z';return {before,after,target:{id,name:'20260911160000_hillday_first_page_edits',checksum:'1ce43fc806e400a5e543686711cf2286d8c06d0d01f66874572852169033d10a'},execution:{exitCode:0,signal:null,timedOut:false,processErrorCode:null,startedAt:'2026-09-29T22:03:00.000Z',completedAt:'2026-09-29T22:03:03.000Z'},row:()=>after.ledger.find(r=>r.id===id)};}
+function additionFixture(steps=0){const f=rollbackFixture(),before=structuredClone(f.after.ledger),decisions=steps===0?[fresh().decisions.find(d=>d.service==='API'&&d.entry===2)]:fresh().decisions.filter(d=>d.recommendedAction==='LEAVE_PENDING_FOR_NORMAL_API_MIGRATE_DEPLOY'),after=structuredClone(before);for(let i=0;i<decisions.length;i++){const d=decisions[i];after.push({id:`e9e09c90-3c63-4a00-8dde-562c3d1356d${i}`,migration_name:d.migrationName,checksum:d.exactSourceSha256,started_at:'2026-09-29T22:04:01.000Z',finished_at:steps?'2026-09-29T22:04:02.000Z':'2026-09-29T22:04:01.000Z',rolled_back_at:null,applied_steps_count:steps,logsIsNull:steps===1,logsSha256:hash('')});}after.sort((a,b)=>a.id.localeCompare(b.id));return {before,after,decisions,steps,execution:{exitCode:0,signal:null,timedOut:false,processErrorCode:null,startedAt:'2026-09-29T22:04:00.000Z',completedAt:'2026-09-29T22:04:03.000Z'},row:()=>after.find(r=>r.id==='e9e09c90-3c63-4a00-8dde-562c3d1356d0')};}
+function addTest(name,edit,expected,steps=0){check(name,expected,()=>{const f=additionFixture(steps);edit(f);g.ledgerAddition(f.before,f.after,f.execution,f.decisions,f.steps);});}
+function rollTest(name,edit,expected){check(name,expected,()=>{const f=rollbackFixture();edit(f);g.validateWorkspaceRollback(f.before,f.after,f.execution,f.target);});}
+function manifestTest(name,edit,expected){check(name,expected,()=>{const m=fresh();edit(m);g.validateManifest(m);});}
+manifestTest('Pinned exact manifest accepted',()=>{},'ACCEPT');
+manifestTest('Wrong source commit rejected',m=>{m.sourceCommit='wrong';},'MANIFEST_SCOPE');
+manifestTest('Live execution permission rejected',m=>{m.liveProhibited=false;},'MANIFEST_SCOPE');
+manifestTest('Live host substitution rejected',m=>{m.target.host='live.example';},'MANIFEST_TARGET');
+manifestTest('Clone resource mismatch rejected',m=>{m.target.resourceId='wrong';},'MANIFEST_TARGET');
+manifestTest('Missing decision rejected',m=>{m.decisions.pop();},'MANIFEST_DECISION_SET');
+manifestTest('Duplicate migration rejected',m=>{m.decisions[1].migrationName=m.decisions[0].migrationName;},'MANIFEST_DECISION_SET');
+manifestTest('Additional normal migration rejected',m=>{m.decisions[1].recommendedAction='LEAVE_PENDING_FOR_NORMAL_API_MIGRATE_DEPLOY';},'MANIFEST_ACTIONS');
+manifestTest('Wrong normal four rejected',m=>{m.decisions.find(d=>d.recommendedAction==='LEAVE_PENDING_FOR_NORMAL_API_MIGRATE_DEPLOY').entry=18;},'MANIFEST_ACTIONS');
+manifestTest('Clone-only condition required',m=>{m.decisions[0].cloneOnly=false;},'MANIFEST_DECISION');
+manifestTest('No historical success rejected',m=>{m.decisions[0].historicalSuccessfulRows=[];},'MANIFEST_COMPLETION_PROOF');
+manifestTest('Historical incomplete row rejected',m=>{m.decisions[0].historicalSuccessfulRows[0].finished_at=null;},'MANIFEST_COMPLETION_PROOF');
+manifestTest('Historical rolled-back row rejected',m=>{m.decisions[0].historicalSuccessfulRows[0].rolled_back_at='2026-01-01';},'MANIFEST_COMPLETION_PROOF');
+manifestTest('Historical checksum mismatch rejected',m=>{m.decisions[0].historicalSuccessfulRows[0].sourceChecksumMatch='MISMATCH';},'MANIFEST_COMPLETION_PROOF');
+manifestTest('Retired Meri SQL execution forbidden',m=>{m.decisions.find(d=>d.service==='API'&&d.entry===21).sourceSqlMustNotExecute=false;},'MANIFEST_COMPLETION_PROOF');
+manifestTest('Retired Meri decision must exist',m=>{m.decisions.find(d=>d.service==='API'&&d.entry===21).entry=121;},'RETIRED_MERI_RESOLUTION_MISSING');
+addTest('Exact one-row resolve addition accepted',()=>{},'ACCEPT');
+addTest('Exactly four normal migrations accepted',()=>{},'ACCEPT',1);
+addTest('Command nonzero rejected',f=>{f.execution.exitCode=1;},'COMMAND_NONZERO');
+addTest('Command timeout rejected',f=>{f.execution.timedOut=true;},'COMMAND_NONZERO');
+addTest('Unresolved baseline rejected',f=>{f.before[0].finished_at=null;f.before[0].rolled_back_at=null;},'UNRESOLVED_LEDGER_ROW');
+addTest('Extra new row rejected',f=>{f.after.push({...f.row(),id:'f9e09c90-3c63-4a00-8dde-562c3d1356d0'});},'LEDGER_ADDITION_COUNT');
+addTest('Deleted prior row rejected',f=>{f.after.shift();},'LEDGER_ADDITION_COUNT');
+addTest('Reused prior ID rejected',f=>{f.row().id=f.before[0].id;},'LEDGER_ADDITION_COUNT');
+addTest('Unrelated ledger field mutation rejected',f=>{f.after.find(r=>r.id===f.before[0].id).logsSha256='wrong';},'PRIOR_LEDGER_CHANGED');
+addTest('Wrong migration name rejected',f=>{f.row().migration_name='unexpected';},'NEW_LEDGER_NAME_SET');
+addTest('Wrong checksum rejected',f=>{f.row().checksum='wrong';},'NEW_LEDGER_FIELDS');
+addTest('Wrong UUID version rejected',f=>{f.row().id='e9e09c90-3c63-1a00-8dde-562c3d1356d0';},'NEW_LEDGER_FIELDS');
+addTest('Wrong applied steps rejected',f=>{f.row().applied_steps_count=1;},'NEW_LEDGER_FIELDS');
+addTest('Out-of-window timestamp rejected',f=>{f.row().started_at='2026-09-29T22:05:00Z';},'NEW_LEDGER_TIME');
+addTest('Unequal resolve timestamps rejected',f=>{f.row().finished_at='2026-09-29T22:04:02Z';},'RESOLVE_ROW_FIELDS');
+addTest('Resolve NULL logs rejected',f=>{f.row().logsIsNull=true;},'RESOLVE_ROW_FIELDS');
+addTest('Nonempty new logs rejected',f=>{f.row().logsSha256=hash('changed');},'NEW_LEDGER_LOG');
+addTest('Deploy non-NULL logs rejected',f=>{f.row().logsIsNull=false;},'DEPLOY_ROW_LOG_NULLNESS',1);
+rollTest('Exact Workspace rollback accepted',()=>{},'ACCEPT');
+rollTest('Workspace rollback command failure rejected',f=>{f.execution.exitCode=1;},'COMMAND_NONZERO');
+rollTest('Wrong Workspace target name rejected',f=>{f.target.name='other';},'WORKSPACE_ROLLBACK_TARGET');
+rollTest('Wrong Workspace target checksum rejected',f=>{f.target.checksum='wrong';},'WORKSPACE_ROLLBACK_TARGET');
+rollTest('Wrong Workspace failed ID rejected',f=>{f.target.id='f9e09c90-3c63-4a00-8dde-562c3d1356d0';},'WORKSPACE_ROLLBACK_BEFORE');
+rollTest('Workspace row count change rejected',f=>{f.after.ledger.pop();},'WORKSPACE_ROLLBACK_COUNT');
+for(const [field,value] of [['logsSha256','changed'],['logsIsNull',true],['checksum','wrong'],['started_at','2026-01-01'],['finished_at','2026-09-29'],['applied_steps_count',1]])rollTest('Workspace original '+field+' preserved',f=>{f.row()[field]=value;},'WORKSPACE_ROLLBACK_FIELDS');
+rollTest('Workspace late rollback marker rejected',f=>{f.row().rolled_back_at='2026-09-29T22:09:00Z';},'WORKSPACE_ROLLBACK_FIELDS');
+rollTest('Workspace unrelated ledger change rejected',f=>{f.after.ledger[0].checksum='wrong';},'WORKSPACE_ROLLBACK_OTHER_ROWS');
+rollTest('Workspace data drift rejected',f=>{f.after.data.sha256='wrong';},'WORKSPACE_ROLLBACK_FINGERPRINT');
+rollTest('Workspace role drift rejected',f=>{f.after.roles[0].rolsuper=!f.after.roles[0].rolsuper;},'WORKSPACE_ROLLBACK_PHYSICAL');
+function secretFixture(){const secretArn='arn:aws:secretsmanager:us-east-1:967807252336:secret:/synthetic/offline-only-AbCdEf';return {binding:{username:'capiro_app',credential:{secretArn,encoding:'json-username-password',usernameKey:'username',passwordKey:'password'}},response:{ARN:secretArn,SecretString:JSON.stringify({username:'capiro_app',password:'SYNTHETIC_TEST_ONLY',host:'untrusted.live.example'})}};}
+function secretTest(name,edit,expected){check(name,expected,()=>{const f=secretFixture();edit(f);const parsed=g.parseRuntimeSecret(f.binding,f.response);assert.equal(parsed.username,'capiro_app');assert.equal(Object.hasOwn(parsed,'host'),false);});}
+secretTest('Runtime secret host ignored',()=>{},'ACCEPT');
+secretTest('Wrong secret ARN rejected',f=>{f.response.ARN='wrong';},'RUNTIME_SECRET_ARN');
+secretTest('Wrong runtime username rejected',f=>{f.binding.username='capiro_master';},'RUNTIME_SECRET_USERNAME');
+secretTest('Empty password rejected',f=>{f.response.SecretString=JSON.stringify({username:'capiro_app',password:''});},'RUNTIME_SECRET_USERNAME');
+secretTest('Unsupported credential format rejected',f=>{f.binding.credential.encoding='unknown';},'RUNTIME_SECRET_FORMAT');
+secretTest('Postgres URL credentials decoded without host retention',f=>{f.binding.credential.encoding='postgres-url';f.response.SecretString='postgresql://capiro_app:SYNTHETIC_TEST_ONLY@untrusted.live.example/db';},'ACCEPT');
+secretTest('Non-Postgres URL rejected',f=>{f.binding.credential.encoding='postgres-url';f.response.SecretString='https://capiro_app:SYNTHETIC_TEST_ONLY@untrusted.live.example/db';},'RUNTIME_SECRET_PROTOCOL');
+const retired=['legiwatch_saved_view','legiwatch_watch_backtest_job','legiwatch_watch_preset'],helper='legiwatch_watch_conditions_valid(conditions jsonb)';
+const dropMeta={retiredIndexes:[{name:'retired_index'}],helperDumpName:helper};
+for(const [name,type,schema,expected] of [['legiwatch_saved_view','TABLE','public',true],['legiwatch_saved_view extra','CONSTRAINT','public',true],['legiwatch_saved_view','TABLE','private',false],['legiwatch_saved_view_evil','TABLE','public',false],['business_records','TABLE','public',false],['retired_index','INDEX','public',true],['business_index','INDEX','public',false],[helper,'FUNCTION','public',true],['other_function()','FUNCTION','public',false],['TABLE legiwatch_saved_view','ACL','public',true],['TABLE business_records','ACL','public',false]])check(`Dropped block ${schema}.${name}/${type} => ${expected}`,'ACCEPT',()=>assert.equal(g.allowedDroppedBlock({name,type,schema},dropMeta),expected));
+function normalFixture(){
+ const block=(name,type)=>({key:name+'|'+type,name,type,schema:'public',owner:'capiro_master',sha256:hash(name+' synthetic DDL')}),cutoverName='enforce_legiwatch_cutover_transition()';
+ const parts=[...retired.map(t=>block(t,'TABLE')),block(helper,'FUNCTION'),block(cutoverName,'FUNCTION'),block('business_records','TABLE')];
+ const cutover=structuredClone(live.functions.find(f=>f.name==='enforce_legiwatch_cutover_transition'));delete cutover.lfDefinitionSha256;
+ const before={roles:[{rolname:'capiro_app',rolsuper:false}],memberships:[],subscriptions:[],extensions:[],security:[],schemaMap:{prologueSha256:hash('prologue'),epilogueSha256:hash('epilogue'),parts},dataAdjusted:{exitCode:0,sha256:hash('synthetic preserved full data'),bytes:99},targetMeta:{retiredRelations:retired.map(name=>({name,rowCount:0})),retiredIndexes:dropMeta.retiredIndexes,helperDumpName:helper,cutover,legacyPresent:[],view:[{definitionSha256:hash('unchanged view'),reloptions:['security_invoker=true'],owner:'capiro_master',acl:'unchanged'}],captureGateCount:0,dedup:{total:100,wouldDelete:0,nullKeys:0}}};
+ const after=structuredClone(before);after.schemaMap.parts=after.schemaMap.parts.filter(p=>p.name===cutoverName||p.name==='business_records');after.schemaMap.parts.find(p=>p.name===cutoverName).sha256=hash('new exact function synthetic dump block');after.targetMeta.retiredRelations=[];after.targetMeta.helperDumpName=null;after.targetMeta.cutover.definitionSha256=clean.functions.find(f=>f.name==='enforce_legiwatch_cutover_transition').definitionSha256;
+ return {before,after};
+}
+function normalTest(name,edit,expected){check(name,expected,()=>{const f=normalFixture();edit(f);g.validateNormalPhysical(f.before,f.after);});}
+normalTest('Exact normal physical change set accepted',()=>{},'ACCEPT');
+normalTest('Role change rejected',f=>{f.after.roles[0].rolsuper=true;},'NORMAL_SECURITY_CHANGE');
+normalTest('Default ACL change rejected',f=>{f.after.security.push({acl:'widened'});},'NORMAL_SECURITY_CHANGE');
+normalTest('Changed nonledger data rejected',f=>{f.after.dataAdjusted.sha256='wrong';},'UNCHANGED_COMPLETE_DATA');
+normalTest('Failed data dump rejected',f=>{f.after.dataAdjusted.exitCode=1;},'UNCHANGED_COMPLETE_DATA');
+normalTest('Schema prologue change rejected',f=>{f.after.schemaMap.prologueSha256='wrong';},'NORMAL_SCHEMA_PROLOGUE');
+normalTest('Schema epilogue change rejected',f=>{f.after.schemaMap.epilogueSha256='wrong';},'NORMAL_SCHEMA_PROLOGUE');
+normalTest('Unrelated table removal rejected',f=>{f.after.schemaMap.parts=f.after.schemaMap.parts.filter(p=>p.name!=='business_records');},'UNEXPECTED_SCHEMA_REMOVAL');
+normalTest('Unrelated schema body change rejected',f=>{f.after.schemaMap.parts.find(p=>p.name==='business_records').sha256='wrong';},'UNEXPECTED_SCHEMA_CHANGE');
+normalTest('Unexpected schema object addition rejected',f=>{f.after.schemaMap.parts.push({key:'new',name:'new',type:'TABLE',schema:'public',sha256:'new'});},'UNEXPECTED_SCHEMA_ADDITION');
+normalTest('Missing cutover function change rejected',f=>{f.after.schemaMap.parts[0].sha256=f.before.schemaMap.parts.find(p=>p.name===f.after.schemaMap.parts[0].name).sha256;},'EXPECTED_FUNCTION_CHANGE');
+normalTest('Missing intended empty-table drop rejected',f=>{f.after.schemaMap.parts.push(structuredClone(f.before.schemaMap.parts[0]));},'EXPECTED_DROP_SET');
+normalTest('Wrong final function hash rejected',f=>{f.after.targetMeta.cutover.definitionSha256='wrong';},'FINAL_FUNCTION_HASH');
+normalTest('Changed function owner rejected',f=>{f.after.targetMeta.cutover.owner='capiro_app';},'FUNCTION_SECURITY_CHANGE');
+normalTest('Changed function privilege rejected',f=>{f.after.targetMeta.cutover.acl='widened';},'FUNCTION_SECURITY_CHANGE');
+normalTest('Retired relation surviving rejected',f=>{f.after.targetMeta.retiredRelations.push({name:retired[0],rowCount:0});},'DROP_TARGETS_REMAIN');
+normalTest('Retired Meri recreated rejected',f=>{f.after.targetMeta.legacyPresent.push({relname:'meri_agent_runs'});},'DROP_TARGETS_REMAIN');
+normalTest('Retired Meri initially present rejected',f=>{f.before.targetMeta.legacyPresent.push({relname:'meri_agent_runs'});},'LEGACY_PRESENT_BEFORE');
+normalTest('View security change rejected',f=>{f.after.targetMeta.view[0].reloptions=[];},'VIEW_OR_CAPTURE_GATE_CHANGE');
+normalTest('Capture gate remaining rejected',f=>{f.after.targetMeta.captureGateCount=1;},'VIEW_OR_CAPTURE_GATE_CHANGE');
+normalTest('Nonempty retirement target rejected',f=>{f.before.targetMeta.retiredRelations[0].rowCount=1;},'NONZERO_DELETION');
+normalTest('Dedup would delete business row rejected',f=>{f.before.targetMeta.dedup.wouldDelete=1;},'NONZERO_DELETION');
+normalTest('Dedup total change rejected',f=>{f.after.targetMeta.dedup.total=99;},'NONZERO_DELETION');
+check('Catalog-only step explicitly defers full data proof','ACCEPT',()=>{const f=normalFixture();delete f.before.dataAdjusted;delete f.after.dataAdjusted;assert.equal(g.validateNormalPhysical(f.before,f.after,false).completeDataPreservation,'DEFERRED_TO_FINAL_BATCH_FINGERPRINT');});
+function fakeDump(){return 'SET synthetic = true;\n'+Array.from({length:11},(_,i)=>`--\n-- Name: table_${i}; Type: TABLE; Schema: public; Owner: capiro_master\n--\nCREATE TABLE table_${i} ();\n\n`).join('')+'--\n-- PostgreSQL database dump complete\n--\n\\unrestrict FIXEDKEY\n';}
+check('Schema parser separates footer from last object','ACCEPT',()=>{const text=fakeDump(),map=g.splitSchema(text),changed=g.splitSchema(text.replace('FIXEDKEY','CHANGEDKEY'));assert.equal(map.parts.length,11);assert.deepEqual(map.parts,changed.parts);assert.notEqual(map.epilogueSha256,changed.epilogueSha256);});
+check('Missing dump footer rejected','SCHEMA_DUMP_FOOTER',()=>g.splitSchema(fakeDump().replace('-- PostgreSQL database dump complete','-- missing')));
+check('Duplicate dump object key rejected','SCHEMA_DUPLICATE_BLOCK',()=>g.splitSchema(fakeDump().replace('Name: table_10;','Name: table_0;')));
+function sgFixture(){return {SecurityGroups:[{GroupId:'sg-0d4db7ef29d8e0d93',OwnerId:'967807252336',VpcId:'synthetic-vpc',IpPermissions:[{IpProtocol:'tcp',FromPort:5432,ToPort:5432,IpRanges:[],Ipv6Ranges:[],PrefixListIds:[],UserIdGroupPairs:[{GroupId:'sg-0d91894807f372a1e',UserId:'967807252336'}]}]}]};}
+function sgTest(name,edit,expected){check(name,expected,()=>{const s=sgFixture();edit(s);integrated.validateSecurityGroup(s);});}
+sgTest('Exact private jumpbox PostgreSQL ingress accepted',()=>{},'ACCEPT');
+sgTest('Additional security group rejected',s=>{s.SecurityGroups.push(structuredClone(s.SecurityGroups[0]));},'CLONE_GROUP_COUNT');
+sgTest('Wrong security group rejected',s=>{s.SecurityGroups[0].GroupId='wrong';},'CLONE_GROUP_IDENTITY');
+sgTest('Wrong security group owner rejected',s=>{s.SecurityGroups[0].OwnerId='wrong';},'CLONE_GROUP_IDENTITY');
+sgTest('Additional ingress rule rejected',s=>{s.SecurityGroups[0].IpPermissions.push(structuredClone(s.SecurityGroups[0].IpPermissions[0]));},'CLONE_INGRESS_RULE_COUNT');
+sgTest('All-protocol ingress rejected',s=>{s.SecurityGroups[0].IpPermissions[0].IpProtocol='-1';},'CLONE_INGRESS_PORT');
+sgTest('Wide port range rejected',s=>{s.SecurityGroups[0].IpPermissions[0].ToPort=65535;},'CLONE_INGRESS_PORT');
+sgTest('Public IPv4 ingress rejected',s=>{s.SecurityGroups[0].IpPermissions[0].IpRanges.push({CidrIp:'0.0.0.0/0'});},'CLONE_INGRESS_SOURCE_SET');
+sgTest('Public IPv6 ingress rejected',s=>{s.SecurityGroups[0].IpPermissions[0].Ipv6Ranges.push({CidrIpv6:'::/0'});},'CLONE_INGRESS_SOURCE_SET');
+sgTest('Prefix-list ingress rejected',s=>{s.SecurityGroups[0].IpPermissions[0].PrefixListIds.push({PrefixListId:'other'});},'CLONE_INGRESS_SOURCE_SET');
+sgTest('Wrong source security group rejected',s=>{s.SecurityGroups[0].IpPermissions[0].UserIdGroupPairs[0].GroupId='wrong';},'CLONE_INGRESS_JUMPBOX_ONLY');
+sgTest('Wrong source account rejected',s=>{s.SecurityGroups[0].IpPermissions[0].UserIdGroupPairs[0].UserId='wrong';},'CLONE_INGRESS_JUMPBOX_ONLY');
+const wrapLedger=rows=>({...normalFixture().before,schema:{sha256:hash('synthetic unchanged schema snapshot'),bytes:1200},ledger:structuredClone(rows)});
+function initialFixture(){const f=workspaceFixture(),rows=structuredClone(f.apiReceipt.before.ledger).filter(r=>r.id!=='b9e09c90-3c63-4a00-8dde-562c3d1356d2');rows.find(r=>r.id==='a8d775ac-d74d-4fc4-bd38-fd40b713bc53').rolled_back_at=null;return {before:wrapLedger(rows),after:wrapLedger(f.apiReceipt.before.ledger),execution:{exitCode:0,signal:null,timedOut:false,processErrorCode:null,startedAt:'2026-09-29T21:29:59Z',completedAt:'2026-09-29T21:30:03Z'},decision:fresh().decisions.find(d=>d.service==='API'&&d.entry===1)};}
+function initialTest(name,edit,expected){check(name,expected,()=>{const f=initialFixture();edit(f);integrated.initialResolve(g,f.before,f.after,f.execution,f.decision);});}
+initialTest('Integrated initial exact failed-row resolution accepted',()=>{},'ACCEPT');
+initialTest('Initial resolution prior checksum change rejected',f=>{f.after.ledger.find(r=>r.id==='a8d775ac-d74d-4fc4-bd38-fd40b713bc53').checksum='wrong';},'INITIAL_FAILED_FIELDS_CHANGED');
+initialTest('Initial rollback timestamp outside command rejected',f=>{f.after.ledger.find(r=>r.id==='a8d775ac-d74d-4fc4-bd38-fd40b713bc53').rolled_back_at='2026-09-29T23:00:00Z';},'INITIAL_ROLLBACK_TIME');
+initialTest('Initial wrong failed ID rejected',f=>{f.before.ledger.find(r=>r.id==='a8d775ac-d74d-4fc4-bd38-fd40b713bc53').migration_name='wrong';},'INITIAL_FAILED_ROW');
+initialTest('Initial process error rejected despite exit0',f=>{f.execution.processErrorCode='ERR_CHILD_PROCESS_STDIO_MAXBUFFER';},'COMMAND_NONZERO');
+initialTest('Initial schema drift rejected',f=>{f.after.schema={sha256:'changed',bytes:1};},'UNCHANGED_SCHEMA');
+function collisionFixture(){const f=workspaceFixture(),name=f.apiReceipt.preservation.failedMigration,checksum=f.apiReceipt.preservation.failedChecksum;return {before:wrapLedger(f.apiReceipt.before.ledger),after:wrapLedger(f.apiReceipt.after.ledger),execution:{...f.apiReceipt.execution,processErrorCode:null,sqlCodes:['42P07'],mentionedNames:[name],mentionedObjects:['official_hearing_transcript_revision']},spec:{name,checksum,sqlCode:'42P07',objects:['official_hearing_transcript_revision']},log:{id:f.apiReceipt.failedLog.id,logsSha256:f.apiReceipt.failedLog.logsSha256,sqlCode:'42P07',expectedObjects:true},id:f.apiReceipt.failedLog.id};}
+function collisionTest(name,edit,expected){check(name,expected,()=>{const f=collisionFixture();edit(f);integrated.expectedFailure(g,f.before,f.after,f.execution,f.spec,f.log);});}
+collisionTest('Integrated expected API collision accepted',()=>{},'ACCEPT');
+collisionTest('Collision spawn failure not treated as expected SQL failure',f=>{f.execution.processErrorCode='ENOENT';},'EXPECTED_FAILURE_COMMAND');
+collisionTest('Collision unexpected success rejected',f=>{f.execution.exitCode=0;},'EXPECTED_FAILURE_COMMAND');
+collisionTest('Collision wrong SQLSTATE rejected',f=>{f.execution.sqlCodes=['42701'];},'EXPECTED_FAILURE_COMMAND');
+collisionTest('Collision wrong named relation rejected',f=>{f.execution.mentionedObjects=[];},'EXPECTED_FAILURE_COMMAND');
+collisionTest('Collision new checksum mismatch rejected',f=>{f.after.ledger.find(r=>r.id===f.id).checksum='wrong';},'EXPECTED_FAILURE_FIELDS');
+collisionTest('Collision prior ledger logs preserved',f=>{f.after.ledger[0].logsSha256='wrong';},'NOOP_LEDGER_CHANGED');
+collisionTest('Collision log digest mismatch rejected',f=>{f.log.logsSha256='wrong';},'EXPECTED_FAILURE_LOG');
+collisionTest('Collision unexpected object mutation rejected',f=>{f.after.targetMeta.legacyPresent.push({relname:'meri_agent_runs'});},'UNCHANGED_TARGETMETA');
+function integratedRollTest(name,edit,expected){check(name,expected,()=>{const f=rollbackFixture();f.before=wrapLedger(f.before.ledger);f.after=wrapLedger(f.after.ledger);edit(f);integrated.rollbackFailure(g,f.before,f.after,f.execution,f.target);});}
+integratedRollTest('Integrated exact probe rollback accepted',()=>{},'ACCEPT');
+integratedRollTest('Integrated rollback wrong target rejected',f=>{f.target.checksum='wrong';},'PROBE_ROLLBACK_TARGET');
+integratedRollTest('Integrated rollback target logs preserved',f=>{f.after.ledger.find(r=>r.id===f.target.id).logsSha256='wrong';},'PROBE_ROLLBACK_IMMUTABLE');
+integratedRollTest('Integrated rollback prior rows preserved',f=>{f.after.ledger[0].logsSha256='wrong';},'NOOP_LEDGER_CHANGED');
+integratedRollTest('Integrated rollback marker time checked',f=>{f.after.ledger.find(r=>r.id===f.target.id).rolled_back_at=null;},'PROBE_ROLLBACK_TIME');
+function finalFixture(){const f=initialFixture(),initial=f.before.ledger,final=structuredClone(initial),probeIds=['f9e09c90-3c63-4a00-8dde-562c3d1356d0','f9e09c90-3c63-4a00-8dde-562c3d1356d1'];final.find(r=>r.id==='a8d775ac-d74d-4fc4-bd38-fd40b713bc53').rolled_back_at='2026-09-29T22:00:00Z';for(let i=0;i<manifest.decisions.length;i++){const d=manifest.decisions[i];final.push({id:'00000000-0000-4000-8000-'+(i+1).toString(16).padStart(12,'0'),migration_name:d.migrationName,checksum:d.exactSourceSha256,started_at:'2026-09-29T22:00:00Z',finished_at:'2026-09-29T22:00:00Z',rolled_back_at:null,applied_steps_count:d.recommendedAction==='LEAVE_PENDING_FOR_NORMAL_API_MIGRATE_DEPLOY'?1:0,logsIsNull:false,logsSha256:hash('')});}for(let i=0;i<probeIds.length;i++){const d=manifest.decisions.find(d=>i===0?d.service==='API'&&d.entry===2:d.service==='Workspace'&&d.entry===1);final.push({id:probeIds[i],migration_name:d.migrationName,checksum:d.exactSourceSha256,started_at:'2026-09-29T22:00:00Z',finished_at:null,rolled_back_at:'2026-09-29T22:00:01Z',applied_steps_count:0,logsIsNull:false,logsSha256:hash('synthetic probe failure')});}return {initial,final,x:{manifest:fresh()},probeIds};}
+function finalTest(name,edit,expected){check(name,expected,()=>{const f=finalFixture();edit(f);integrated.finalLedger(g,f.initial,f.final,f.x,f.probeIds);});}
+finalTest('Integrated 542 original + 60 complete + 2 retained probe rows accepted',()=>{},'ACCEPT');
+finalTest('Final original ledger fields preserved',f=>{f.final.find(r=>r.id===f.initial[0].id).checksum='wrong';},'INITIAL_LEDGER_CHANGED');
+finalTest('Final original failed marker retained',f=>{f.final.find(r=>r.id==='a8d775ac-d74d-4fc4-bd38-fd40b713bc53').rolled_back_at=null;},'ORIGINAL_FAILED_MARKER_ABSENT');
+finalTest('Final probe markers retained',f=>{f.final.find(r=>r.id===f.probeIds[0]).rolled_back_at=null;},'PROBE_FAILURE_NOT_RETAINED');
+finalTest('Final count must be604',f=>{f.final.pop();},'FINAL_LEDGER_COUNT');
+finalTest('Final each completion checksum exact',f=>{f.final.find(r=>r.id.startsWith('00000000')).checksum='wrong';},'DECISION_NOT_COMPLETE');
+check('API collision ordinary-table prerequisite accepted','ACCEPT',()=>integrated.validateProbePrecondition('20280913012000_legiwatch_official_transcript_revisions',[{relkind:'r'}]));
+check('API collision missing relation rejected','API_COLLISION_PRECONDITION',()=>integrated.validateProbePrecondition('20280913012000_legiwatch_official_transcript_revisions',[]));
+check('API collision view instead of table rejected','API_COLLISION_PRECONDITION',()=>integrated.validateProbePrecondition('20280913012000_legiwatch_official_transcript_revisions',[{relkind:'v'}]));
+check('API collision multiple objects rejected','API_COLLISION_PRECONDITION',()=>integrated.validateProbePrecondition('20280913012000_legiwatch_official_transcript_revisions',[{relkind:'r'},{relkind:'r'}]));
+check('Workspace collision nullable JSONB prerequisite accepted','ACCEPT',()=>integrated.validateProbePrecondition('20260911160000_hillday_first_page_edits',[{data_type:'jsonb',is_nullable:'YES',column_default:null}]));
+check('Workspace collision missing column rejected','WORKSPACE_COLLISION_PRECONDITION',()=>integrated.validateProbePrecondition('20260911160000_hillday_first_page_edits',[]));
+for(const [field,value] of [['data_type','json'],['is_nullable','NO'],['column_default',"'{}'::jsonb"]])check('Workspace collision wrong '+field+' rejected','WORKSPACE_COLLISION_PRECONDITION',()=>integrated.validateProbePrecondition('20260911160000_hillday_first_page_edits',[{data_type:'jsonb',is_nullable:'YES',column_default:null,[field]:value}]));
+check('Unknown collision probe rejected','UNKNOWN_PROBE_PRECONDITION',()=>integrated.validateProbePrecondition('unreviewed_migration',[{relkind:'r'}]));
+function archiveTest(name,edit,expected){check(name,expected,()=>{const a=workspaceFixture().apiReceipt.before,b=structuredClone(a);edit(b);integrated.archivedBaseline(g,a,b);});}
+archiveTest('Archived catalog baseline exact accepted',()=>{},'ACCEPT');
+archiveTest('Archived old data hash is deliberately not substituted',b=>{b.data.sha256='not reused';},'ACCEPT');
+archiveTest('Archived ledger drift rejected',b=>{b.ledger[0].logsSha256='changed';},'NOOP_LEDGER_CHANGED');
+archiveTest('Archived schema byte count drift rejected',b=>{b.schema.bytes++;},'INSPECTION_SCHEMA_DRIFT');
+archiveTest('Archived schema digest drift rejected',b=>{b.schema.sha256='wrong';},'INSPECTION_SCHEMA_DRIFT');
+archiveTest('Archived roles drift rejected',b=>{b.roles[0].rolsuper=!b.roles[0].rolsuper;},'INSPECTION_GLOBAL_OR_TARGET_DRIFT');
+archiveTest('Archived membership drift rejected',b=>{b.memberships.push({parent:'rds_superuser',member:'wrong'});},'INSPECTION_GLOBAL_OR_TARGET_DRIFT');
+archiveTest('Archived target constraint drift rejected',b=>{b.constraints[0].convalidated=false;},'INSPECTION_GLOBAL_OR_TARGET_DRIFT');
+archiveTest('Archived effective privilege drift rejected',b=>{b.effectivePrivileges[0].allowed=!b.effectivePrivileges[0].allowed;},'INSPECTION_GLOBAL_OR_TARGET_DRIFT');
+const endHash=hash(fs.readFileSync(SCRIPT)),integratedEndHash=hash(fs.readFileSync(INTEGRATED));const report={observedAt:new Date().toISOString(),mode:'OFFLINE_SYNTHETIC_GUARD_TESTS',scriptSha256:scriptHash,scriptUnchangedDuringTests:scriptHash===endHash,integratedScriptSha256:integratedHash,integratedScriptUnchangedDuringTests:integratedHash===integratedEndHash,manifestSha256:hash(fs.readFileSync(ROOT+'/clone-full-reconciliation-decision-manifest.json')),fixtureScriptSha256:hash(prior),cloudCalls:0,databaseCalls:0,businessRowsRead:0,syntheticFingerprintNote:'Uses existing sanitized ledger/catalog metadata and synthetic schema/data sentinels. Tests validate guard rejection, not actual clone mutation or preservation.',complete:tests.every(t=>t.passed)&&scriptHash===endHash&&integratedHash===integratedEndHash,passed:tests.filter(t=>t.passed).length,total:tests.length,tests};
+fs.writeFileSync(ROOT+'/full-reconciliation-guard-tests.json',JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify({complete:report.complete,passed:report.passed,total:report.total,scriptSha256:scriptHash,scriptUnchangedDuringTests:report.scriptUnchangedDuringTests,failures:tests.filter(t=>!t.passed)}));if(!report.complete)process.exitCode=1;

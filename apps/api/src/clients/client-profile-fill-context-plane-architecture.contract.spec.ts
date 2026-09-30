@@ -30,6 +30,13 @@ describe('Knowledge Plane Phase 23 CRM / Fill with Meri architecture contract', 
     expect(adapter).not.toContain('api.anthropic.com');
   });
 
+  test('the ethical-wall decision comes from the actor-scoped envelope, never a literal grant', () => {
+    const adapter = read(join(API_ROOT, 'src/clients/client-profile-fill-context-plane.service.ts'));
+
+    expect(adapter).not.toMatch(/ethicalWallAllowed\s*:\s*true\b/);
+    expect(adapter).toContain('ethicalWallAllowed: security.authorizedClientIds.includes(client.id)');
+  });
+
   test('only wired private domains are requested and external research stays outside the Context Plane', () => {
     const adapter = read(join(API_ROOT, 'src/clients/client-profile-fill-context-plane.service.ts'));
     const retrievalModule = read(join(API_ROOT, 'src/retrieval/retrieval.module.ts'));

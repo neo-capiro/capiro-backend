@@ -1,0 +1,109 @@
+'use strict';
+// One isolated-clone attempt with a new receipt contract. Original probe receipts are not fabricated.
+// Every command has exact ledger/catalog/security proof; complete data proof is ONLY before/after this entire attempt.
+const fs=require('node:fs'),path=require('node:path');
+const E='C:/dev/cap-meri-foundation-evidence',ROOT=E+'/isolated-migration-rehearsal';
+const LIB=E+'/rehearse-full-reconciliation.cjs';
+const LIB_HASH='8ae7313df4c83c3c3ee58e6dcb2355a0c68d7fedd88b514b6f0e96a0c109df42';
+const ROOT_MANIFEST='a76a0cb7135e4f09e3213070536fd773d39a300a55e0090ea28c3ff593a0c395';
+const INSPECTION_HASH='6f8099e202ae71a76e3dd92b4fa10a6adba442932452dd905341cfc82ed28837';
+const API=ROOT+'/frozen-api-25d1339c',WS=ROOT+'/frozen-workspace-25d1339c';
+const API1='20280913011000_legiwatch_record_checks',API2='20280913012000_legiwatch_official_transcript_revisions',W1='20260911160000_hillday_first_page_edits';
+const FAILED_ID='a8d775ac-d74d-4fc4-bd38-fd40b713bc53';
+const GROUP='sg-0d4db7ef29d8e0d93',JUMPBOX_GROUP='sg-0d91894807f372a1e';
+const crypto=require('node:crypto'),hash=b=>crypto.createHash('sha256').update(b).digest('hex'),jh=x=>hash(JSON.stringify(x));
+function guard(ok,code){if(!ok)throw Object.assign(new Error(code),{code});}
+function library(){guard(hash(fs.readFileSync(LIB))===LIB_HASH,'REVIEWED_LIBRARY_HASH');return require(LIB);}
+function validateSecurityGroup(raw){
+ guard(raw.SecurityGroups?.length===1,'CLONE_GROUP_COUNT');const s=raw.SecurityGroups[0];guard(s.GroupId===GROUP&&s.OwnerId==='967807252336','CLONE_GROUP_IDENTITY');
+ guard(s.IpPermissions?.length===1,'CLONE_INGRESS_RULE_COUNT');const p=s.IpPermissions[0];guard(p.IpProtocol==='tcp'&&p.FromPort===5432&&p.ToPort===5432,'CLONE_INGRESS_PORT');
+ guard((p.IpRanges||[]).length===0&&(p.Ipv6Ranges||[]).length===0&&(p.PrefixListIds||[]).length===0&&p.UserIdGroupPairs?.length===1,'CLONE_INGRESS_SOURCE_SET');
+ const source=p.UserIdGroupPairs[0];guard(source.GroupId===JUMPBOX_GROUP&&source.UserId==='967807252336','CLONE_INGRESS_JUMPBOX_ONLY');
+ return {groupId:s.GroupId,ownerId:s.OwnerId,vpcId:s.VpcId,protocol:'tcp',fromPort:5432,toPort:5432,sourceGroup:JUMPBOX_GROUP,sourceAccount:source.UserId,ingressSha256:jh(s.IpPermissions)};
+}
+function cloudGuard(x){const base=x.h.cloudGuard(),raw=x.h.aws(['ec2','describe-security-groups','--group-ids',GROUP]);return {...base,ingress:validateSecurityGroup(raw)};}
+function validateProbePrecondition(name,rows){
+ if(name===API2){guard(rows.length===1&&rows[0].relkind==='r','API_COLLISION_PRECONDITION');return {migration:name,relation:'public.official_hearing_transcript_revision',relkind:'r'};}
+ guard(name===W1,'UNKNOWN_PROBE_PRECONDITION');guard(rows.length===1&&rows[0].data_type==='jsonb'&&rows[0].is_nullable==='YES'&&rows[0].column_default===null,'WORKSPACE_COLLISION_PRECONDITION');return {migration:name,relation:'public.ws_hillday_document',column:'first_page',data_type:'jsonb',is_nullable:'YES',column_default:null};
+}
+function archivedBaseline(g,archived,fresh){
+ g.unchangedLedger(archived.ledger,fresh.ledger);guard(archived.schema.sha256===fresh.schema.sha256&&archived.schema.bytes===fresh.schema.bytes,'INSPECTION_SCHEMA_DRIFT');
+ for(const k of ['roles','memberships','subscriptions','extensions','columns','constraints','indexes','effectivePrivileges'])guard(jh(archived[k])===jh(fresh[k]),'INSPECTION_GLOBAL_OR_TARGET_DRIFT');
+ return {ledgerAndSchemaMatch:true,rolesMembershipsSubscriptionsExtensionsMatch:true,targetColumnsConstraintsIndexesPrivilegesMatch:true,originalUnadjustedDataHashNotReused:true};
+}
+function initialResolve(g,before,after,e,decision){
+ g.exitOK(e);g.physicalSame(before,after);guard(before.ledger.length===542&&after.ledger.length===543,'INITIAL_RESOLVE_COUNT');
+ const open=before.ledger.filter(r=>!r.finished_at&&!r.rolled_back_at),old=before.ledger.find(r=>r.id===FAILED_ID),now=after.ledger.find(r=>r.id===FAILED_ID);
+ guard(open.length===1&&open[0]===old&&old.migration_name===API1&&old.checksum===decision.exactSourceSha256&&old.rolled_back_at===null&&old.finished_at===null&&old.applied_steps_count===0,'INITIAL_FAILED_ROW');
+ guard(now&&g.commandWindow(now.rolled_back_at,e),'INITIAL_ROLLBACK_TIME');const omit=r=>Object.fromEntries(Object.entries(r).filter(([k])=>k!=='rolled_back_at'));guard(jh(omit(old))===jh(omit(now)),'INITIAL_FAILED_FIELDS_CHANGED');
+ const transformed=before.ledger.map(r=>r.id===FAILED_ID?{...r,rolled_back_at:now.rolled_back_at}:r),proof=g.ledgerAddition(transformed,after.ledger,e,[decision],0);
+ return {creditedDecision:decision.decisionId,originalFailedId:FAILED_ID,onlyOriginalChange:'rolled_back_at',...proof,fullBusinessDataProof:'DEFERRED_TO_FINAL_BATCH_SNAPSHOT'};
+}
+function expectedFailure(g,before,after,e,spec,log){
+ g.noOpen(before.ledger);g.physicalSame(before,after);guard(e.exitCode===1&&e.signal===null&&!e.timedOut&&!e.processErrorCode&&e.prismaCodes.includes('P3018')&&e.sqlCodes.includes(spec.sqlCode)&&e.mentionedNames.includes(spec.name)&&spec.objects.every(v=>e.mentionedObjects.includes(v)),'EXPECTED_FAILURE_COMMAND');
+ const oldIds=new Set(before.ledger.map(r=>r.id)),added=after.ledger.filter(r=>!oldIds.has(r.id));guard(added.length===1&&after.ledger.length===before.ledger.length+1,'EXPECTED_FAILURE_ROW_COUNT');const row=added[0];guard(g.uuid(row.id)&&row.migration_name===spec.name&&row.checksum===spec.checksum&&row.started_at!==null&&row.finished_at===null&&row.rolled_back_at===null&&row.applied_steps_count===0&&row.logsIsNull===false&&row.logsSha256!==g.hash(''),'EXPECTED_FAILURE_FIELDS');
+ guard(g.commandWindow(row.started_at,e)&&after.ledger.filter(r=>!r.finished_at&&!r.rolled_back_at).length===1&&after.ledger.filter(r=>r.migration_name===spec.name).length===1,'EXPECTED_FAILURE_EXACT_ROW');g.unchangedLedger(before.ledger,after.ledger.filter(r=>r.id!==row.id));
+ guard(log.id===row.id&&log.logsSha256===row.logsSha256&&log.sqlCode===spec.sqlCode&&log.expectedObjects===true,'EXPECTED_FAILURE_LOG');return {failedId:row.id,migration:spec.name,checksum:spec.checksum,expectedPrismaExit:1,unchangedEveryPriorRow:true,unchangedSchemaSecurity:true,fullBusinessDataProof:'DEFERRED_TO_FINAL_BATCH_SNAPSHOT'};
+}
+function rollbackFailure(g,before,after,e,target){
+ g.exitOK(e);g.physicalSame(before,after);guard(before.ledger.length===after.ledger.length,'PROBE_ROLLBACK_COUNT');const old=before.ledger.find(r=>r.id===target.id),row=after.ledger.find(r=>r.id===target.id),open=before.ledger.filter(r=>!r.finished_at&&!r.rolled_back_at);
+ guard(open.length===1&&open[0]===old&&old.migration_name===target.name&&old.checksum===target.checksum&&old.applied_steps_count===0&&old.finished_at===null&&old.rolled_back_at===null&&old.logsIsNull===false,'PROBE_ROLLBACK_TARGET');guard(row&&g.commandWindow(row.rolled_back_at,e),'PROBE_ROLLBACK_TIME');
+ const omit=r=>Object.fromEntries(Object.entries(r).filter(([k])=>k!=='rolled_back_at'));guard(jh(omit(old))===jh(omit(row)),'PROBE_ROLLBACK_IMMUTABLE');g.unchangedLedger(before.ledger.filter(r=>r.id!==target.id),after.ledger.filter(r=>r.id!==target.id));g.noOpen(after.ledger);
+ return {rolledBackId:target.id,onlyChange:'rolled_back_at',unchangedEveryOtherRow:true,unchangedSchemaSecurity:true,fullBusinessDataProof:'DEFERRED_TO_FINAL_BATCH_SNAPSHOT'};
+}
+function preconditions(g,s,x){
+ x.proof.validateBefore(s);guard(s.ledger.length===542,'INITIAL_LEDGER_COUNT');guard(s.targetMeta.retiredRelations.length===3&&s.targetMeta.retiredRelations.every(t=>t.rowCount===0)&&s.targetMeta.dedup.wouldDelete===0&&s.targetMeta.dedup.nullKeys===0&&s.targetMeta.legacyPresent.length===0,'INITIAL_DATA_PRECONDITION');
+ guard(jh(g.sourcePending(s.ledger,API))===jh(x.manifest.decisions.filter(d=>d.service==='API').map(d=>d.migrationName))&&jh(g.sourcePending(s.ledger,WS))===jh(x.manifest.decisions.filter(d=>d.service==='Workspace').map(d=>d.migrationName)),'INITIAL_PENDING_SETS');
+ guard(s.targetMeta.cutover.definitionSha256==='42f08ff7a818cb1dbfe656ea479c47090865a7c9d98d953500fd63b088e24e53','INITIAL_FUNCTION_HASH');
+}
+function finalLedger(g,initial,final,x,probeIds){
+ guard(initial.length===542&&final.length===604&&probeIds.length===2&&new Set(probeIds).size===2,'FINAL_LEDGER_COUNT');const initialIds=new Set(initial.map(r=>r.id));
+ const normalize=r=>r.id===FAILED_ID?{...r,rolled_back_at:null}:r;guard(jh(g.stableRows(initial.map(normalize)))===jh(g.stableRows(final.filter(r=>initialIds.has(r.id)).map(normalize))),'INITIAL_LEDGER_CHANGED');guard(final.find(r=>r.id===FAILED_ID)?.rolled_back_at,'ORIGINAL_FAILED_MARKER_ABSENT');
+ for(const id of probeIds){const row=final.find(r=>r.id===id);guard(row&&row.rolled_back_at&&row.finished_at===null&&row.applied_steps_count===0&&row.logsIsNull===false,'PROBE_FAILURE_NOT_RETAINED');}
+ const added=final.filter(r=>!initialIds.has(r.id)&&!probeIds.includes(r.id));guard(added.length===60&&added.every(r=>r.finished_at&&!r.rolled_back_at),'FINAL_COMPLETION_ROWS');g.serviceComplete(final,x);return {initial542IdsPreserved:true,onlyInitialFieldChange:'original API1 failed rolled_back_at',twoProbeFailuresRetained:true,all60CompletionsPresent:true,ledgerRows:604,allOtherServiceRowsUnchanged:true};
+}
+function functionEvidence(x){const file=E+'/api-pending-postconditions-21-47.json',report=JSON.parse(fs.readFileSync(file)),r=report.migrations.find(m=>m.number===31),check=r.checks.find(c=>c.category==='functions');guard(check.expected[0].lfDefinitionSha256==='260bc7c0cabc970668e83bc684f22141af1cc45ac21c3ebfe81fbc7852947de6'&&check.actual[0].lfDefinitionSha256==='42f08ff7a818cb1dbfe656ea479c47090865a7c9d98d953500fd63b088e24e53','FUNCTION_EVIDENCE_HASH');return {file,sha256:hash(fs.readFileSync(file)),selector:'migrations[number=31].checks[category=functions]',hashKind:'Full pg_get_functiondef LF bytes, distinct from normalized-body hashes',old:check.actual[0].lfDefinitionSha256,expected:check.expected[0].lfDefinitionSha256};}
+async function main(){
+ guard(process.argv.length===3&&['--check','--run-integrated'].includes(process.argv[2]),'MODE');const g=library(),x=g.load(),binding=g.runtimeBindings(),evidence=functionEvidence(x),scriptSha256=hash(fs.readFileSync(__filename));
+ if(process.argv[2]==='--check'){console.log(JSON.stringify({localCheck:'PASS',scriptSha256,librarySha256:LIB_HASH,manifestSha256:ROOT_MANIFEST,resolutions:56,normalMigrations:4,runtimePrincipals:binding.services.map(s=>({service:s.service,username:s.username})),cloudCalls:0,databaseCalls:0}));return;}
+ const prefix='integrated-full-reconciliation',active=path.join(ROOT,'full-reconciliation-active.lock'),lock=JSON.stringify({pid:process.pid,scriptSha256,startedAt:new Date().toISOString()});
+ guard(!fs.existsSync(path.join(ROOT,prefix+'.json'))&&!fs.existsSync(path.join(ROOT,prefix+'.lock')),'INTEGRATED_PRIOR_ATTEMPT');fs.writeFileSync(active,lock,{flag:'wx'});g.writeNew(prefix+'.lock',lock);
+ const r={contract:'INTEGRATED_CLONE_RECONCILIATION_V1',scriptSha256,librarySha256:LIB_HASH,manifestSha256:ROOT_MANIFEST,source:x.source,workspaceSource:x.workspaceSource,runtimeBindingSha256:hash(fs.readFileSync(E+'/runtime-database-bindings.json')),functionEvidence:evidence,startedAt:new Date().toISOString(),complete:false,rehearsalVerdict:'BLOCKED',releaseVerdict:'BLOCKED',liveAuthorized:false,steps:[],fullDataProof:'NOT_RUN',scope:'One fresh authoritative adjusted data baseline and final adjusted data proof; per-step ledger/catalog/security only'};
+ let db,master,current,stepNumber=0;const probeIds=[];
+ try{
+  const inspectionFile=path.join(ROOT,'inspection.json'),inspectionBytes=fs.readFileSync(inspectionFile),inspection=JSON.parse(inspectionBytes);guard(hash(inspectionBytes)===INSPECTION_HASH,'ARCHIVED_INSPECTION_HASH');guard(inspection.complete&&inspection.mode==='--inspect'&&inspection.scriptSha256==='89dee667f7ff4cdab26a1ced6da07f0667ab062a4f811de3efd0cefd0de9a310'&&jh(inspection.source)===jh(x.source),'ARCHIVED_INSPECTION_NOT_COMPLETE');r.archivedInspectionSha256=hash(inspectionBytes);r.inspectionUse='Archived independently; its unadjusted data fingerprint is NOT substituted for this attempt baseline';
+  x.cloud=cloudGuard(x);r.cloud=x.cloud;const sec=x.h.aws(['secretsmanager','get-secret-value','--secret-id',x.h.SECRET]);guard(sec.ARN===x.h.SECRET,'MASTER_SECRET_ARN');master=JSON.parse(sec.SecretString);sec.SecretString=null;guard(master.username==='capiro_master','MASTER_USERNAME');db=await x.h.connect(master);
+  r.before=await g.snapshot(x,db,master,'integrated_authoritative_before',true);preconditions(g,r.before,x);r.archivedBaselineProof=archivedBaseline(g,inspection.before,r.before);g.writeNew(prefix+'-before.json',r.before);current=r.before;
+  async function step(label,args,principal,validate,failedSpec){
+   const name='integrated-'+String(++stepNumber).padStart(3,'0')+'-'+label,before=current;
+   guard(jh(cloudGuard(x))===jh(x.cloud),'CLONE_OR_INGRESS_CHANGED');g.load();g.runtimeBindings();await x.h.ensureNoOtherClients(db);let precondition;
+   if(failedSpec){const rows=failedSpec.name===API2?(await db.query("SELECT c.relkind FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND c.relname='official_hearing_transcript_revision'")).rows:(await db.query("SELECT data_type,is_nullable,column_default FROM information_schema.columns WHERE table_schema='public' AND table_name='ws_hillday_document' AND column_name='first_page'")).rows;precondition=validateProbePrecondition(failedSpec.name,rows);g.writeNew(name+'-precondition.json',precondition);}
+   g.writeNew(name+'-before.json',before);await db.end();db=null;
+   const execution=await g.runCommand(x,principal,args,name);db=await x.h.connect(master);guard(jh(cloudGuard(x))===jh(x.cloud),'CLONE_OR_INGRESS_CHANGED_AFTER_COMMAND');const after=await g.snapshot(x,db,master,name+'_after',false);g.writeNew(name+'-after.json',after);let failedLog;
+   if(failedSpec){const rows=(await db.query('SELECT id,logs FROM public._prisma_migrations WHERE migration_name=$1',[failedSpec.name])).rows;guard(rows.length===1,'PROBE_FAILED_LOG_COUNT');const text=String(rows[0].logs||'');failedLog={id:rows[0].id,logsSha256:g.hash(text),sqlCode:text.includes(failedSpec.sqlCode)?failedSpec.sqlCode:null,expectedObjects:failedSpec.objects.every(v=>text.includes(v))};rows[0].logs=null;g.writeNew(name+'-failed-log-proof.json',failedLog);}
+   const proof=validate(before,after,execution,failedLog);const receipt={number:stepNumber,label,actualCommand:execution,proof,precondition,beforeSha256:hash(fs.readFileSync(path.join(ROOT,name+'-before.json'))),afterSha256:hash(fs.readFileSync(path.join(ROOT,name+'-after.json'))),executionSha256:hash(fs.readFileSync(path.join(ROOT,name+'-execution.json'))),fullDataProof:'DEFERRED_TO_FINAL_BATCH_SNAPSHOT'};g.writeNew(name+'-receipt.json',receipt);r.steps.push({number:stepNumber,label,file:name+'-receipt.json',sha256:hash(fs.readFileSync(path.join(ROOT,name+'-receipt.json'))),actualExit:execution.exitCode,proof});current=after;console.log(JSON.stringify({phase:label,actualExit:execution.exitCode,ledgerRows:after.ledger.length,fullDataProof:'PENDING_FINAL'}));return proof;
+  }
+  const resolveArgs=(name,dir,mark='--applied')=>[x.h.CLI,'migrate','resolve',mark,name,'--schema',dir+'/schema.prisma'],deployArgs=dir=>[x.h.CLI,'migrate','deploy','--schema',dir+'/schema.prisma'];
+  const first=x.resolve.find(d=>d.service==='API'&&d.entry===1);await step('api1-applied',resolveArgs(API1,API),master,(a,b,e)=>initialResolve(g,a,b,e,first));
+  const second=x.resolve.find(d=>d.service==='API'&&d.entry===2),specApi={name:API2,checksum:second.exactSourceSha256,sqlCode:'42P07',objects:['official_hearing_transcript_revision']};
+  const failApi=await step('api-collision-probe',deployArgs(API),master,(a,b,e,log)=>expectedFailure(g,a,b,e,specApi,log),specApi);probeIds.push(failApi.failedId);
+  await step('api-probe-rolled-back',resolveArgs(API2,API,'--rolled-back'),master,(a,b,e)=>rollbackFailure(g,a,b,e,{id:failApi.failedId,name:API2,checksum:second.exactSourceSha256}));
+  const work=x.resolve.find(d=>d.service==='Workspace'&&d.entry===1),specWs={name:W1,checksum:work.exactSourceSha256,sqlCode:'42701',objects:['ws_hillday_document','first_page']};
+  const failWs=await step('workspace-collision-probe',deployArgs(WS),master,(a,b,e,log)=>expectedFailure(g,a,b,e,specWs,log),specWs);probeIds.push(failWs.failedId);
+  await step('workspace-probe-rolled-back',resolveArgs(W1,WS,'--rolled-back'),master,(a,b,e)=>rollbackFailure(g,a,b,e,{id:failWs.failedId,name:W1,checksum:work.exactSourceSha256}));
+  const todo=x.resolve.filter(d=>!(d.service==='API'&&d.entry===1));guard(todo.length===55,'FIXED_MANIFEST_REMAINDER');
+  for(const decision of todo)await step('applied-'+decision.decisionId,resolveArgs(decision.migrationName,decision.service==='API'?API:WS),master,(a,b,e)=>{const proof=g.ledgerAddition(a.ledger,b.ledger,e,[decision],0);g.physicalSame(a,b);guard(b.targetMeta.legacyPresent.length===0,'RETIRED_MERI_RECREATED');return {...proof,unchangedSchemaSecurity:true,fullBusinessDataProof:'DEFERRED_TO_FINAL_BATCH_SNAPSHOT'};});
+  r.beforeNormal=current;guard(jh(g.sourcePending(current.ledger,API))===jh(x.deploy.map(d=>d.migrationName))&&!g.sourcePending(current.ledger,WS).length,'EXACT_NORMAL_FOUR_ONLY');guard(current.targetMeta.retiredRelations.length===3&&current.targetMeta.retiredRelations.every(t=>t.rowCount===0)&&current.targetMeta.dedup.wouldDelete===0&&current.targetMeta.dedup.nullKeys===0,'FRESH_ZERO_DELETE_TARGETS');
+  await step('four-normal-migrations',deployArgs(API),master,(a,b,e)=>({ledger:g.ledgerAddition(a.ledger,b.ledger,e,x.deploy,1),catalog:g.validateNormalPhysical(a,b,false)}));r.afterNormal=current;
+  const terminal=[];const terminalProof=(service,verb,actor)=>(a,b,e)=>{g.unchangedLedger(a.ledger,b.ledger);g.physicalSame(a,b);g.serviceComplete(b.ledger,x);let verdict;if(verb==='status')verdict=g.statusVerdict(e,b.ledger,x);else{g.exitOK(e);guard(e.noPendingMessage,'NOOP_PENDING_MESSAGE');verdict='PASS';}terminal.push({service,verb,actor,actualExit:e.exitCode,verdict});return {verdict,unchangedLedger:true,unchangedCatalogSecurity:true,fullBusinessDataProof:'DEFERRED_TO_FINAL_BATCH_SNAPSHOT'};};
+  for(const [service,dir]of [['API',API],['Workspace',WS]])for(const verb of ['status','deploy'])await step('master-'+service.toLowerCase()+'-'+verb,[x.h.CLI,'migrate',verb,'--schema',dir+'/schema.prisma'],master,terminalProof(service,verb,'capiro_master'));
+  r.runtimeIdentities=[];for(const b of binding.services){guard(jh(cloudGuard(x))===jh(x.cloud),'RUNTIME_CLOUD_CHANGED');const response=x.h.aws(['secretsmanager','get-secret-value','--secret-id',b.credential.secretArn]),runtime=g.parseRuntimeSecret(b,response);response.SecretString=null;try{await db.end();db=null;const identity=await g.runtimeIdentity(x,runtime);db=await x.h.connect(master);r.runtimeIdentities.push({service:b.service,taskDefinitionArn:b.taskDefinitionArn,identity});const dir=b.service==='API'?API:WS;for(const verb of ['status','deploy'])await step('runtime-'+b.service.toLowerCase()+'-'+verb,[x.h.CLI,'migrate',verb,'--schema',dir+'/schema.prisma'],runtime,terminalProof(b.service,verb,runtime.username));}finally{runtime.password=null;}}
+  guard(jh(cloudGuard(x))===jh(x.cloud),'FINAL_CLOUD_CHANGED');r.after=await g.snapshot(x,db,master,'integrated_authoritative_after',true);g.unchangedLedger(current.ledger,r.after.ledger);g.physicalSame(current,r.after);g.dataSame(r.before.dataAdjusted,r.after.dataAdjusted);r.finalCatalogProof=g.validateNormalPhysical(r.beforeNormal,r.after,false);r.finalLedgerProof=finalLedger(g,r.before.ledger,r.after.ledger,x,probeIds);r.fullDataProof='PASS';r.terminalChecks=terminal;r.probeIds=probeIds;
+  guard(r.steps.length===69&&terminal.length===8,'EXACT_OPERATION_COUNT');r.complete=true;r.rehearsalVerdict=terminal.every(t=>t.actualExit===0&&t.verdict==='PASS')?'PASS':'BLOCKED_STATUS_LIMITATION_REQUIRES_REVIEW';r.liveExceptionStillRequired=true;
+ }catch(e){r.failure={code:/^[A-Z0-9_]{3,90}$/.test(String(e.code))?e.code:'REDACTED_UNCLASSIFIED_ERROR'};if(e.dumpDiagnostics)r.dumpFailure=e.dumpDiagnostics;r.probeIds=probeIds;
+  if(master){try{if(db){try{await db.end();}catch{}}db=await x.h.connect(master);r.failureState=await g.snapshot(x,db,master,'integrated_failure_final_snapshot',true);if(r.before){try{g.dataSame(r.before.dataAdjusted,r.failureState.dataAdjusted);r.fullDataProof='PASS_DATA_ONLY_ATTEMPT_FAILED';}catch{r.fullDataProof='FAILED';}}}catch(err){r.failureSnapshotError={code:/^[A-Z0-9_]{3,90}$/.test(String(err.code))?err.code:'FAILED_SNAPSHOT'};}}
+ }finally{if(db){try{await db.query('ROLLBACK');}catch{}try{await db.end();}catch{}}if(master)master.password=null;}
+ r.finishedAt=new Date().toISOString();g.writeNew(prefix+'.json',r);if(fs.readFileSync(active,'utf8')===lock)fs.unlinkSync(active);console.log(JSON.stringify({complete:r.complete,rehearsalVerdict:r.rehearsalVerdict,releaseVerdict:r.releaseVerdict,fullDataProof:r.fullDataProof,failure:r.failure,receipt:path.join(ROOT,prefix+'.json')}));if(r.rehearsalVerdict!=='PASS')process.exitCode=1;
+}
+module.exports={validateSecurityGroup,initialResolve,expectedFailure,rollbackFailure,finalLedger,validateProbePrecondition,archivedBaseline};
+if(require.main===module)main().catch(e=>{console.error(JSON.stringify({complete:false,releaseVerdict:'BLOCKED',code:/^[A-Z0-9_]{3,90}$/.test(String(e.code))?e.code:'SETUP_FAILURE'}));process.exitCode=1;});

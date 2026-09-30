@@ -172,7 +172,7 @@ const createHarness = (opts: HarnessOptions = {}) => {
   } = opts;
 
   const prismaMock = {
-    withTenant: jest.fn(async (tenantId: string, fn: (tx: any) => Promise<any>) => {
+    withTenant: jest.fn(async (tenantId: string, fn: (tx: ReturnType<typeof createTransaction>) => Promise<any>) => {
       // Tenant-scoped transaction: each tenant sees only their own data
       const tx = createTransaction(
         canonical.filter((c) => !c.tenantId || c.tenantId === tenantId),
@@ -326,6 +326,15 @@ describe('Business Development RLS Verification', () => {
     jest.clearAllMocks();
   });
 
+  test('tenant-scoped transaction preserves the configured provider settings', async () => {
+    const tenantSettings = {
+      clioFeatureFlags: { 'businessDevelopment.provider.sam.enabled': true },
+    };
+    const h = createHarness({ tenantSettings });
+    const tenant = await h.prisma.withTenant(TENANT_A_ID, (tx) => tx.tenant.findUnique()) as { settings: Record<string, unknown> } | null;
+    expect(tenant?.settings).toEqual(tenantSettings);
+  });
+
   // ── P0-5a: Tenant A prospects are isolated from Tenant B ────────────────
 
   test('tenant A cannot see tenant B prospects', async () => {
@@ -400,7 +409,7 @@ describe('Business Development RLS Verification', () => {
     const watchlistA = await h.prisma.withTenant(
       TENANT_A_ID,
       (tx) => tx.watchlistItem.findMany({ where: { tenantId: TENANT_A_ID } }),
-    );
+    ) as WatchlistItem[];
     expect(watchlistA).toHaveLength(1);
     expect(watchlistA[0]!.tenantId).toBe(TENANT_A_ID);
 
@@ -408,7 +417,7 @@ describe('Business Development RLS Verification', () => {
     const watchlistB = await h.prisma.withTenant(
       TENANT_B_ID,
       (tx) => tx.watchlistItem.findMany({ where: { tenantId: TENANT_B_ID } }),
-    );
+    ) as WatchlistItem[];
     expect(watchlistB).toHaveLength(1);
     expect(watchlistB[0]!.tenantId).toBe(TENANT_B_ID);
 
@@ -448,7 +457,7 @@ describe('Business Development RLS Verification', () => {
     const alertsA = await h.prisma.withTenant(
       TENANT_A_ID,
       (tx) => tx.bellAlert.findMany({ where: { tenantId: TENANT_A_ID } }),
-    );
+    ) as BellAlert[];
     expect(alertsA).toHaveLength(1);
     expect(alertsA[0]!.tenantId).toBe(TENANT_A_ID);
 
@@ -456,7 +465,7 @@ describe('Business Development RLS Verification', () => {
     const alertsB = await h.prisma.withTenant(
       TENANT_B_ID,
       (tx) => tx.bellAlert.findMany({ where: { tenantId: TENANT_B_ID } }),
-    );
+    ) as BellAlert[];
     expect(alertsB).toHaveLength(1);
     expect(alertsB[0]!.tenantId).toBe(TENANT_B_ID);
 

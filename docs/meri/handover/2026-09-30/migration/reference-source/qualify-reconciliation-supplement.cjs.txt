@@ -1,0 +1,145 @@
+'use strict';
+// New, clone-only qualification receipt. Never replay a resolution or migration SQL.
+// The original attempt remains FAILED/BLOCKED and every original byte is immutable.
+const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
+const E='C:/dev/cap-meri-foundation-evidence',ROOT=E+'/isolated-migration-rehearsal';
+const LIB=E+'/rehearse-full-reconciliation.cjs',LIB_HASH='8ae7313df4c83c3c3ee58e6dcb2355a0c68d7fedd88b514b6f0e96a0c109df42';
+const ORIGINAL=E+'/rehearse-integrated-reconciliation.cjs',ORIGINAL_HASH='f569c531f6d6ea2bc07c4f6b0c0757fe7c9a6495efe7a8bbf53a898bf8e45d5b';
+const MANIFEST_HASH='a76a0cb7135e4f09e3213070536fd773d39a300a55e0090ea28c3ff593a0c395';
+const FAILED_RECEIPT=ROOT+'/integrated-full-reconciliation.json';
+// Original actual exit 1 and complete data-only failure proof; never rewritten to PASS.
+const FAILED_RECEIPT_HASH='3b81582f1ddb722e12cfc92eea3f35328e49025a14f426df73a984ed195eff83';
+const STEP61='integrated-061-four-normal-migrations';
+const STEP61_PINS={before:'74b468ce1a51252b23cf97494ab4f7e169862c97b59cc6d174d2a2ee5df70910',after:'3b42ddae67f7ee69de833ea75b083918e357438cf8b748994dbaf9c6d4486154',execution:'0b02816c08526efb477f1a4d2d691400849e2fa090866d557df939754c3e4e60'};
+const API=ROOT+'/frozen-api-25d1339c',WS=ROOT+'/frozen-workspace-25d1339c';
+const SQL17=API+'/migrations/20280917010000_drop_legiwatch_watch_presets/migration.sql';
+const SQL17_HASH='1c97b70c2f960de0283ed9e1aadc9766c515b3c38a118e75b4ae78dab025b281';
+const HELPER_DISPLAY='legiwatch_watch_conditions_valid(conditions jsonb)',HELPER_DUMP='legiwatch_watch_conditions_valid(jsonb)';
+const HELPER_BLOCK_HASH='7913f867aa342516ea2a2c5375563c58ca763920978ca0a3001928cb7473a4f0';
+const PREFIX='supplemental-reconciliation-qualification';
+const hash=v=>crypto.createHash('sha256').update(v).digest('hex'),jh=v=>hash(JSON.stringify(v));
+const guard=(ok,code)=>{if(!ok)throw Object.assign(new Error(code),{code});};
+function dependencies(){
+ guard(hash(fs.readFileSync(LIB))===LIB_HASH&&hash(fs.readFileSync(ORIGINAL))===ORIGINAL_HASH,'ORIGINAL_CODE_PINS');
+ return {g:require(LIB),i:require(ORIGINAL)};
+}
+function validateNoopArgs(args,cli){
+ guard(Array.isArray(args)&&args.length===5&&args[0]===cli&&args[1]==='migrate'&&['status','deploy'].includes(args[2])&&args[3]==='--schema'&&[API+'/schema.prisma',WS+'/schema.prisma'].includes(args[4]),'ONLY_EXACT_STATUS_OR_NOOP_DEPLOY');
+ return {verb:args[2],service:args[4]===API+'/schema.prisma'?'API':'Workspace'};
+}
+function correctedPhysical(g,before,after,sqlBytes){
+ guard(Buffer.isBuffer(sqlBytes)&&hash(sqlBytes)===SQL17_HASH&&!sqlBytes.includes(13),'EXACT_HELPER_DROP_SQL');
+ guard(sqlBytes.toString('utf8').split('\n').filter(s=>s==='DROP FUNCTION IF EXISTS public.legiwatch_watch_conditions_valid(jsonb);').length===1,'EXACT_HELPER_DROP_STATEMENT');
+ guard(before.targetMeta.helperDumpName===HELPER_DISPLAY&&after.targetMeta.helperDumpName===null,'EXACT_HELPER_CATALOG_DISPLAY');
+ const old=before.schemaMap.parts.filter(p=>p.type==='FUNCTION'&&p.schema==='public'&&p.name===HELPER_DUMP);
+ guard(old.length===1&&old[0].owner==='capiro_master'&&old[0].key===jh([HELPER_DUMP,'FUNCTION','public','capiro_master'])&&old[0].sha256===HELPER_BLOCK_HASH,'EXACT_HELPER_DUMP_BLOCK');
+ guard(!after.schemaMap.parts.some(p=>p.key===old[0].key||p.name===HELPER_DUMP||p.name===HELPER_DISPLAY),'HELPER_NOT_REMOVED');
+ const next=new Map(after.schemaMap.parts.map(p=>[p.key,p]));
+ const rejected=before.schemaMap.parts.filter(p=>!next.has(p.key)&&!g.allowedDroppedBlock(p,before.targetMeta));
+ guard(rejected.length===1&&jh(rejected[0])===jh(old[0]),'ONLY_KNOWN_SIGNATURE_MISMATCH');
+ // This explicit one-object display/header mapping is validated above. It is not
+ // generic stripping/normalization and does not modify the saved catalog bytes.
+ const projected={...before,targetMeta:{...before.targetMeta,helperDumpName:HELPER_DUMP}};
+ const proof=g.validateNormalPhysical(projected,after,false);
+ guard(proof.removedSchemaBlocks.length===28&&proof.changedSchemaBlocks.length===1,'EXACT_REHEARSED_SCHEMA_DELTA');
+ return {mapping:{catalogDisplay:HELPER_DISPLAY,dumpIdentity:HELPER_DUMP,sourceSqlSha256:SQL17_HASH,priorDumpBlockSha256:HELPER_BLOCK_HASH},...proof,originalValidatorAmended:false};
+}
+function matchBaseline(g,expected,fresh){
+ guard(expected.ledger.length===604&&fresh.ledger.length===604,'QUALIFICATION_LEDGER_COUNT');
+ g.unchangedLedger(expected.ledger,fresh.ledger);g.physicalSame(expected,fresh);
+ for(const k of ['identity','columns','constraints','indexes','effectivePrivileges','schemaMap'])guard(jh(expected[k])===jh(fresh[k]),'QUALIFICATION_BASELINE_DRIFT');
+ return {ledger604Unchanged:true,schemaCatalogSecurityUnchanged:true};
+}
+function terminalProof(g,before,after,e,x,expectedPrincipal){
+ guard(['capiro_master','capiro_app'].includes(expectedPrincipal)&&e.principal===expectedPrincipal,'TERMINAL_PRINCIPAL');
+ const command=validateNoopArgs(e.argv,x.h.CLI);g.serviceComplete(before.ledger,x);g.serviceComplete(after.ledger,x);matchBaseline(g,before,after);let verdict;
+ if(command.verb==='status')verdict=g.statusVerdict(e,after.ledger,x);
+ else{g.exitOK(e);guard(e.noPendingMessage===true,'NOOP_MESSAGE_REQUIRED');verdict='PASS';}
+ return {service:command.service,verb:command.verb,actualExit:e.exitCode,verdict,unchangedLedgerCatalogSecurity:true,fullDataProof:'DEFERRED_TO_FINAL_FULL_SNAPSHOT'};
+}
+function validatePrior(g,i,r,s,x){
+ guard(r.contract==='INTEGRATED_CLONE_RECONCILIATION_V1'&&r.scriptSha256===ORIGINAL_HASH&&r.librarySha256===LIB_HASH&&r.manifestSha256===MANIFEST_HASH,'FAILED_RECEIPT_CODE_PINS');
+ guard(r.complete===false&&r.rehearsalVerdict==='BLOCKED'&&r.releaseVerdict==='BLOCKED'&&r.liveAuthorized===false&&r.failure?.code==='UNEXPECTED_SCHEMA_REMOVAL','EXPECTED_FAILED_ATTEMPT_ONLY');
+ guard(r.fullDataProof==='PASS_DATA_ONLY_ATTEMPT_FAILED'&&r.failureState&&!r.failureSnapshotError&&r.finishedAt&&Date.parse(r.finishedAt)>=Date.parse(s.execution.completedAt),'COMPLETE_FAILURE_DATA_PROOF_REQUIRED');
+ guard(r.steps?.length===60&&!r.afterNormal&&!r.after&&!r.terminalChecks,'NO_TERMINAL_CHECKS_ALREADY_RUN');
+ guard(jh(r.source)===jh(x.source)&&jh(r.workspaceSource)===jh(x.workspaceSource),'PRIOR_FROZEN_SOURCE_PINS');
+ guard(r.runtimeBindingSha256===hash(fs.readFileSync(E+'/runtime-database-bindings.json')),'PRIOR_RUNTIME_BINDING');
+ guard(r.before.ledger.length===542&&r.beforeNormal.ledger.length===600&&jh(r.beforeNormal)===jh(s.before),'STEP61_BEFORE_BINDING');
+ g.exitOK(s.execution);guard(s.execution.principal==='capiro_master'&&jh(s.execution.argv)===jh([x.h.CLI,'migrate','deploy','--schema',API+'/schema.prisma']),'STEP61_EXACT_COMMAND');
+ const ledger=g.ledgerAddition(s.before.ledger,s.after.ledger,s.execution,x.deploy,1);
+ const physical=correctedPhysical(g,s.before,s.after,fs.readFileSync(SQL17));
+ matchBaseline(g,s.after,r.failureState);g.dataSame(r.before.dataAdjusted,r.failureState.dataAdjusted);
+ const finalLedger=i.finalLedger(g,r.before.ledger,r.failureState.ledger,x,r.probeIds);
+ return {originalAttemptStillFailed:true,actualNormalDeployExit0:true,ledger,physical,finalLedger,originalFinalFullDataProof:'PASS_DATA_ONLY_ATTEMPT_FAILED',outstandingTerminalChecks:8};
+}
+function savedJson(file,pin){const b=fs.readFileSync(file);if(pin)guard(hash(b)===pin,'SAVED_EVIDENCE_PIN');return {value:JSON.parse(b),sha256:hash(b)};}
+function commandEvidence(g,name,e){
+ const intent=savedJson(ROOT+'/'+name+'-intent.json').value;
+ guard(jh(intent.argv)===jh(e.argv)&&intent.principal===e.principal&&intent.startedAt===e.startedAt&&intent.target==='capiro-dev-meri-rehearsal-20260929.cluster-csryw28ai752.us-east-1.rds.amazonaws.com'&&intent.manifestSha256===MANIFEST_HASH,'COMMAND_INTENT_MISMATCH');
+ for(const stream of ['stdout','stderr'])guard(hash(fs.readFileSync(ROOT+'/'+name+'-'+stream+'-sanitized.log'))===e[stream+'Sha256'],'COMMAND_LOG_HASH');
+}
+function priorStepChain(g,i,r,x){
+ const first=x.resolve.find(d=>d.service==='API'&&d.entry===1),second=x.resolve.find(d=>d.service==='API'&&d.entry===2),work=x.resolve.find(d=>d.service==='Workspace'&&d.entry===1);
+ const todo=x.resolve.filter(d=>d!==first),labels=['api1-applied','api-collision-probe','api-probe-rolled-back','workspace-collision-probe','workspace-probe-rolled-back',...todo.map(d=>'applied-'+d.decisionId)];
+ guard(labels.length===60&&r.steps.length===60,'PRIOR_STEP_COUNT');let current=r.before;const probeIds=[];
+ for(let index=0;index<60;index++){
+  const n=index+1,label=labels[index],name='integrated-'+String(n).padStart(3,'0')+'-'+label,ref=r.steps[index];
+  guard(ref.number===n&&ref.label===label&&ref.file===name+'-receipt.json','PRIOR_STEP_IDENTITY');const receipt=savedJson(ROOT+'/'+ref.file,ref.sha256).value;guard(receipt.number===n&&receipt.label===label,'PRIOR_RECEIPT_IDENTITY');
+  const before=savedJson(ROOT+'/'+name+'-before.json',receipt.beforeSha256).value,after=savedJson(ROOT+'/'+name+'-after.json',receipt.afterSha256).value,e=savedJson(ROOT+'/'+name+'-execution.json',receipt.executionSha256).value;
+  guard(jh(current)===jh(before)&&jh(receipt.actualCommand)===jh(e)&&e.principal==='capiro_master','PRIOR_STEP_CHAIN');commandEvidence(g,name,e);let proof;
+  const selected=n===1?first:n===2||n===3?second:n===4||n===5?work:todo[n-6],dir=selected.service==='API'?API:WS;
+  const expectedArgs=n===2||n===4?[x.h.CLI,'migrate','deploy','--schema',dir+'/schema.prisma']:[x.h.CLI,'migrate','resolve',n===3||n===5?'--rolled-back':'--applied',selected.migrationName,'--schema',dir+'/schema.prisma'];
+  guard(jh(e.argv)===jh(expectedArgs),'PRIOR_EXACT_COMMAND');
+  if(n===1)proof=i.initialResolve(g,before,after,e,first);
+  else if(n===2||n===4){const d=n===2?second:work,spec={name:d.migrationName,checksum:d.exactSourceSha256,sqlCode:n===2?'42P07':'42701',objects:n===2?['official_hearing_transcript_revision']:['ws_hillday_document','first_page']};proof=i.expectedFailure(g,before,after,e,spec,savedJson(ROOT+'/'+name+'-failed-log-proof.json').value);probeIds.push(proof.failedId);}
+  else if(n===3||n===5){const d=n===3?second:work;proof=i.rollbackFailure(g,before,after,e,{id:probeIds[n===3?0:1],name:d.migrationName,checksum:d.exactSourceSha256});}
+  else{proof=g.ledgerAddition(before.ledger,after.ledger,e,[todo[n-6]],0);g.physicalSame(before,after);guard(after.targetMeta.legacyPresent.length===0,'PRIOR_RETIRED_MERI_RECREATED');proof={...proof,unchangedSchemaSecurity:true,fullBusinessDataProof:'DEFERRED_TO_FINAL_BATCH_SNAPSHOT'};}
+  guard(jh(proof)===jh(receipt.proof)&&jh(proof)===jh(ref.proof)&&ref.actualExit===e.exitCode,'PRIOR_STEP_PROOF');current=after;
+ }
+ guard(jh(current)===jh(r.beforeNormal)&&jh(probeIds)===jh(r.probeIds),'PRIOR_FINAL_CHAIN');return {verifiedOriginalCommandReceipts:60,originalAttemptNotRewritten:true};
+}
+function loadPrior(g,i,x){
+ guard(/^[a-f0-9]{64}$/.test(FAILED_RECEIPT_HASH),'COMPLETED_FAILED_RECEIPT_PIN_REQUIRED');
+ const prior=savedJson(FAILED_RECEIPT,FAILED_RECEIPT_HASH),s={};for(const key of Object.keys(STEP61_PINS))s[key]=savedJson(ROOT+'/'+STEP61+'-'+key+'.json',STEP61_PINS[key]).value;
+ guard(!fs.existsSync(ROOT+'/'+STEP61+'-receipt.json'),'ORIGINAL_STEP61_RECEIPT_MUST_REMAIN_ABSENT');commandEvidence(g,STEP61,s.execution);
+ const proof=validatePrior(g,i,prior.value,s,x),chain=priorStepChain(g,i,prior.value,x);
+ return {receipt:prior.value,sha256:prior.sha256,step61:s,proof,chain};
+}
+function cloudGuard(x,i){const base=x.h.cloudGuard(),raw=x.h.aws(['ec2','describe-security-groups','--group-ids','sg-0d4db7ef29d8e0d93']);return {...base,ingress:i.validateSecurityGroup(raw)};}
+async function main(){
+ guard(process.argv.length===3&&['--check','--qualify-clone'].includes(process.argv[2]),'MODE');const {g,i}=dependencies(),x=g.load(),binding=g.runtimeBindings(),prior=loadPrior(g,i,x),scriptSha256=hash(fs.readFileSync(__filename));
+ if(process.argv[2]==='--check'){console.log(JSON.stringify({offlineCheck:'PASS',scriptSha256,failedReceiptSha256:prior.sha256,priorProof:prior.proof,priorChain:prior.chain,cloudCalls:0,databaseCalls:0,outstandingCommands:8,migrationReplayAllowed:false}));return;}
+ const active=ROOT+'/full-reconciliation-active.lock',lock=JSON.stringify({pid:process.pid,scriptSha256,startedAt:new Date().toISOString(),contract:'SUPPLEMENTAL_CLONE_QUALIFICATION_V1'});
+ guard(!fs.existsSync(ROOT+'/'+PREFIX+'.json')&&!fs.existsSync(ROOT+'/'+PREFIX+'.lock'),'SUPPLEMENT_PRIOR_ATTEMPT');fs.writeFileSync(active,lock,{flag:'wx'});g.writeNew(PREFIX+'.lock',lock);
+ const r={contract:'SUPPLEMENTAL_CLONE_QUALIFICATION_V1',scriptSha256,originalRunnerSha256:ORIGINAL_HASH,librarySha256:LIB_HASH,originalFailedReceiptSha256:prior.sha256,manifestSha256:MANIFEST_HASH,startedAt:new Date().toISOString(),complete:false,qualificationVerdict:'BLOCKED',releaseVerdict:'BLOCKED',liveAuthorized:false,originalAttemptStillFailed:true,migrationSqlReplayed:false,resolutionsRun:0,source:x.source,workspaceSource:x.workspaceSource,priorProof:prior.proof,priorChain:prior.chain,steps:[],fullDataProof:'NOT_RUN'};
+ let db,master,current;
+ try{
+  x.cloud=cloudGuard(x,i);guard(jh(x.cloud)===jh(prior.receipt.cloud),'PRIOR_CLONE_CLOUD_DRIFT');r.cloud=x.cloud;
+  const response=x.h.aws(['secretsmanager','get-secret-value','--secret-id',x.h.SECRET]);guard(response.ARN===x.h.SECRET,'MASTER_SECRET_ARN');master=JSON.parse(response.SecretString);response.SecretString=null;guard(master.username==='capiro_master','MASTER_USERNAME');db=await x.h.connect(master);
+  current=await g.snapshot(x,db,master,'supplement_fresh_baseline',false);r.baselineProof=matchBaseline(g,prior.receipt.failureState,current);g.serviceComplete(current.ledger,x);r.before=current;g.writeNew(PREFIX+'-before.json',current);
+  async function step(service,verb,principal){
+   const dir=service==='API'?API:WS,args=[x.h.CLI,'migrate',verb,'--schema',dir+'/schema.prisma'];validateNoopArgs(args,x.h.CLI);
+   guard(jh(cloudGuard(x,i))===jh(x.cloud),'SUPPLEMENT_CLOUD_CHANGED');dependencies();g.load();g.runtimeBindings();guard(hash(fs.readFileSync(FAILED_RECEIPT))===prior.sha256,'ORIGINAL_RECEIPT_CHANGED');await x.h.ensureNoOtherClients(db);
+   const before=await g.snapshot(x,db,master,'supplement_fresh_precommand',false);matchBaseline(g,current,before);g.serviceComplete(before.ledger,x);guard(!g.sourcePending(before.ledger,API).length&&!g.sourcePending(before.ledger,WS).length,'NOOP_SOURCE_PENDING');
+   const number=r.steps.length+1,name='supplement-'+String(number).padStart(3,'0')+'-'+(principal.username==='capiro_master'?'master':'runtime')+'-'+service.toLowerCase()+'-'+verb;g.writeNew(name+'-before.json',before);await db.end();db=null;
+   const execution=await g.runCommand(x,principal,args,name);guard(execution.principal===principal.username,'TERMINAL_PRINCIPAL');db=await x.h.connect(master);guard(jh(cloudGuard(x,i))===jh(x.cloud),'SUPPLEMENT_CLOUD_CHANGED_AFTER');const after=await g.snapshot(x,db,master,name+'_after',false);g.writeNew(name+'-after.json',after);
+   const proof=terminalProof(g,before,after,execution,x,principal.username);const receipt={number,service,verb,principal:principal.username,execution,proof,beforeSha256:hash(fs.readFileSync(ROOT+'/'+name+'-before.json')),afterSha256:hash(fs.readFileSync(ROOT+'/'+name+'-after.json')),executionSha256:hash(fs.readFileSync(ROOT+'/'+name+'-execution.json'))};g.writeNew(name+'-receipt.json',receipt);r.steps.push({number,service,verb,principal:principal.username,actualExit:execution.exitCode,proof,file:name+'-receipt.json',sha256:hash(fs.readFileSync(ROOT+'/'+name+'-receipt.json'))});current=after;console.log(JSON.stringify({phase:name,actualExit:execution.exitCode,ledgerRows:after.ledger.length,fullDataProof:'PENDING_FINAL'}));
+  }
+  for(const service of ['API','Workspace'])for(const verb of ['status','deploy'])await step(service,verb,master);
+  r.runtimeIdentities=[];
+  for(const b of binding.services){
+   guard(jh(cloudGuard(x,i))===jh(x.cloud),'RUNTIME_CLOUD_CHANGED');const response=x.h.aws(['secretsmanager','get-secret-value','--secret-id',b.credential.secretArn]),runtime=g.parseRuntimeSecret(b,response);response.SecretString=null;
+   try{await db.end();db=null;const identity=await g.runtimeIdentity(x,runtime);db=await x.h.connect(master);r.runtimeIdentities.push({service:b.service,taskDefinitionArn:b.taskDefinitionArn,identity});for(const verb of ['status','deploy'])await step(b.service,verb,runtime);}finally{runtime.password=null;}
+  }
+  guard(r.steps.length===8&&r.steps.every(s=>(s.actualExit===0&&s.proof.verdict==='PASS')||(s.verb==='status'&&s.actualExit===1&&s.proof.verdict==='ACCEPTED_LIMITATION_FOREIGN_HISTORY_REQUIRES_REVIEW')),'EXACT_EIGHT_REVIEWED_CHECKS');
+  guard(jh(cloudGuard(x,i))===jh(x.cloud),'FINAL_CLOUD_CHANGED');dependencies();g.load();guard(hash(fs.readFileSync(FAILED_RECEIPT))===prior.sha256,'ORIGINAL_RECEIPT_CHANGED');
+  r.after=await g.snapshot(x,db,master,'supplement_authoritative_final_full',true);r.finalBaselineProof=matchBaseline(g,current,r.after);g.serviceComplete(r.after.ledger,x);g.dataSame(prior.receipt.failureState.dataAdjusted,r.after.dataAdjusted);g.dataSame(prior.receipt.before.dataAdjusted,r.after.dataAdjusted);
+  r.finalPhysicalProof=correctedPhysical(g,prior.step61.before,r.after,fs.readFileSync(SQL17));r.finalLedgerProof=i.finalLedger(g,prior.receipt.before.ledger,r.after.ledger,x,prior.receipt.probeIds);r.fullDataProof='PASS';r.complete=true;r.qualificationVerdict=r.steps.every(s=>s.actualExit===0&&s.proof.verdict==='PASS')?'PASS':'BLOCKED_STATUS_LIMITATION_REQUIRES_REVIEW';r.liveExceptionStillRequired=true;
+ }catch(e){
+  r.failure={code:/^[A-Z0-9_]{3,100}$/.test(String(e.code))?e.code:'REDACTED_UNCLASSIFIED_ERROR'};
+  if(master)try{if(db){try{await db.end();}catch{}}db=await x.h.connect(master);r.failureState=await g.snapshot(x,db,master,'supplement_failure_full_snapshot',true);try{g.dataSame(prior.receipt.failureState.dataAdjusted,r.failureState.dataAdjusted);r.fullDataProof='PASS_DATA_ONLY_SUPPLEMENT_FAILED';}catch{r.fullDataProof='FAILED';}}catch(err){r.failureSnapshotError={code:/^[A-Z0-9_]{3,100}$/.test(String(err.code))?err.code:'FAILURE_SNAPSHOT_FAILED'};}
+ }finally{if(db){try{await db.query('ROLLBACK');}catch{}try{await db.end();}catch{}}if(master)master.password=null;}
+ r.finishedAt=new Date().toISOString();g.writeNew(PREFIX+'.json',r);if(fs.readFileSync(active,'utf8')===lock)fs.unlinkSync(active);console.log(JSON.stringify({complete:r.complete,qualificationVerdict:r.qualificationVerdict,releaseVerdict:r.releaseVerdict,originalAttemptStillFailed:true,fullDataProof:r.fullDataProof,failure:r.failure,receipt:ROOT+'/'+PREFIX+'.json'}));if(r.qualificationVerdict!=='PASS')process.exitCode=1;
+}
+module.exports={correctedPhysical,validatePrior,validateNoopArgs,terminalProof,matchBaseline,priorStepChain,loadPrior,dependencies,constants:{E,ROOT,API,WS,LIB,LIB_HASH,ORIGINAL,ORIGINAL_HASH,FAILED_RECEIPT,FAILED_RECEIPT_HASH,STEP61_PINS,SQL17,SQL17_HASH,HELPER_DISPLAY,HELPER_DUMP,HELPER_BLOCK_HASH}};
+if(require.main===module)main().catch(e=>{console.error(JSON.stringify({complete:false,qualificationVerdict:'BLOCKED',releaseVerdict:'BLOCKED',code:/^[A-Z0-9_]{3,100}$/.test(String(e.code))?e.code:'SETUP_FAILURE'}));process.exitCode=1;});

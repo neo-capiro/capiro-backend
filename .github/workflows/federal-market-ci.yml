@@ -35,6 +35,7 @@ jobs:
           --health-retries 10
 
     env:
+      NODE_OPTIONS: --max-old-space-size=6144
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/capiro?schema=public
       PSQL_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/capiro
 
@@ -125,8 +126,6 @@ jobs:
 
       - name: Typecheck provider sync and apps
         if: steps.scope.outputs.in_scope == 'true'
-        env:
-          NODE_OPTIONS: --max-old-space-size=6144
         run: |
           pnpm --filter @capiro/api exec tsc -p tsconfig.funding-opportunities.json --noEmit
           pnpm turbo run typecheck --concurrency=1 --filter=@capiro/api --filter=@capiro/web

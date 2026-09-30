@@ -221,7 +221,7 @@ if (
 
 // ── 5. The frozen Session 7-9 surface is untouched ──────────────────────────
 //
-// The only permitted diff under budget-lifecycle/ against origin/main is the
+// For schedule product changes, the only permitted diff under budget-lifecycle/ is the
 // module registration file itself (expected to gain new providers — Session 8
 // already did) and the new schedule/ directory. Every other file Session 10
 // builds on (leases, cursors, the classifier, discovery) must be

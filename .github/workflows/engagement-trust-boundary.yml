@@ -146,6 +146,8 @@ jobs:
 
       - name: Tests — apps/api Engagement trust boundary
         id: api_tests
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
         run: >-
           pnpm --filter @capiro/api exec jest --ci --runInBand --silent
           --json --outputFile=$GITHUB_WORKSPACE/engagement-api-summary.json

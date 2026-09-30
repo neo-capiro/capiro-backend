@@ -1,6 +1,33 @@
 import { computeStateDeadlineRisk } from '@capiro/shared';
 
 describe('computeStateDeadlineRisk (Phase 1 M2.1/M2.3/M2.4, PD5)', () => {
+  it.each<[string, string, number]>([
+    ['2026-09-29', '2026-10-01', 2],
+    ['2026-01-30', '2026-02-01', 2],
+    ['2026-02-28', '2026-03-01', 1],
+    ['2028-02-28', '2028-03-01', 2],
+    ['2028-02-29', '2028-03-01', 1],
+    ['2026-12-31', '2027-01-01', 1],
+    ['2026-12-30', '2027-01-02', 3],
+    ['2026-03-01', '2026-02-28', -1],
+    ['2028-03-01', '2028-02-28', -2],
+    ['2026-05-30', '2026-06-01', 2],
+    ['2026-02-28', '2026-02-28', 0],
+    ['2026-03-07', '2026-03-09', 2],
+  ])('counts actual calendar days from %s to %s', (today, cutoff, expected) => {
+    const risk = computeStateDeadlineRisk({
+      status: 'committee',
+      session: { committeeCutoffDate: cutoff },
+      today,
+    });
+    expect(risk).toEqual({
+      daysUntil: expected,
+      cutoffDate: cutoff,
+      cutoffType: 'committeeCutoff',
+      isPastCutoff: expected < 0,
+    });
+  });
+
   const FULL_CALENDAR = {
     committeeCutoffDate: '2026-03-13',
     crossoverDate: '2026-04-17',

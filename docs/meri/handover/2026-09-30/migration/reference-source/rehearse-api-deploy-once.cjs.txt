@@ -1,0 +1,112 @@
+'use strict';
+// Clone-only diagnostic. Never resolves a row and never loops a failed deploy.
+const fs=require('node:fs'),path=require('node:path'),cp=require('node:child_process'),crypto=require('node:crypto');
+const SHARED='C:/dev/cap-meri-foundation-evidence/rehearse-single-migration.cjs';
+const SHARED_HASH='89dee667f7ff4cdab26a1ced6da07f0667ab062a4f811de3efd0cefd0de9a310';
+const ROOT='C:/dev/cap-meri-foundation-evidence/isolated-migration-rehearsal';
+const NEXT='20280913012000_legiwatch_official_transcript_revisions';
+const NEXT_HASH='a69aab9c6cc1044c815b4b5f502e4eb95182629a5c9dfa87c09e1b755e1289a6';
+const RELATION='official_hearing_transcript_revision';
+const FAILED_RECORD='a8d775ac-d74d-4fc4-bd38-fd40b713bc53';
+const RESOLVED='20280913011000_legiwatch_record_checks';
+const RESOLVED_HASH='1b4a32f192f50f54faa8e12ac49b68051b32682fd0e2d6e071f539a122411a1e';
+const HASH=x=>crypto.createHash('sha256').update(x).digest('hex');
+const GUARD=(ok,code)=>{if(!ok)throw Object.assign(new Error(code),{code});};
+const JSONHASH=x=>HASH(JSON.stringify(x));
+function loadReviewedHelpers(){
+ const bytes=fs.readFileSync(SHARED);GUARD(HASH(bytes)===SHARED_HASH,'REVIEWED_HELPER_HASH');
+ const source=bytes.toString('utf8'),marker='async function main(){',cut=source.indexOf(marker);
+ GUARD(cut>0&&cut===source.lastIndexOf(marker),'REVIEWED_HELPER_BOUNDARY');
+ // Evaluate definitions before main only. Neither the CLI entrypoint nor resolveOnly is exposed/called.
+ const selected=source.slice(0,cut)+'\nreturn {verifySource,cloudGuard,connect,snapshot,ensureNoOtherClients,aws,cleanEnv,redact,ROOT,SOURCE,HOST,SECRET,CLI,PRISMA_CA,CLUSTER,SHA};';
+ const h=Function('require','__filename',selected)(require,SHARED);
+ GUARD(h.ROOT===ROOT&&h.CLUSTER==='capiro-dev-meri-rehearsal-20260929'&&h.SHA==='25d1339c0c0e21fe0c3c0148787fad772e5096e8','HELPER_CONSTANTS');
+ return h;
+}
+function verifyFrozen(h){
+ const verified=h.verifySource();
+ const bytes=fs.readFileSync(path.join(h.SOURCE,'migrations',NEXT,'migration.sql'));
+ GUARD(HASH(bytes)===NEXT_HASH&&!bytes.includes(13),'NEXT_SOURCE_BYTES');
+ GUARD(bytes.toString('utf8').startsWith('CREATE TABLE official_hearing_transcript_revision ('),'NEXT_FIRST_STATEMENT');
+ return verified;
+}
+function prerequisite(h,source){
+ const raw=fs.readFileSync(path.join(ROOT,'resolution.json'));
+ const r=JSON.parse(raw);
+ GUARD(r.complete===true&&r.mode==='--resolve'&&r.scriptSha256===SHARED_HASH&&r.execution?.exitCode===0,'RESOLUTION_NOT_PASS');
+ GUARD(r.cloud?.cluster===h.CLUSTER&&r.cloud?.resourceId==='cluster-3PE7KKIRXQVJYXSXLBI5M2R7IY'&&r.cloud?.endpoint===h.HOST,'RESOLUTION_WRONG_CLONE');
+ GUARD(JSONHASH(r.source)===JSONHASH(source),'RESOLUTION_SOURCE_MISMATCH');
+ GUARD(r.preservation?.unchangedSchema===true&&r.preservation?.unchangedAllNonLedgerData===true&&r.preservation?.unchangedOtherLedgerRows===true&&r.preservation?.unchangedRolesAndMemberships===true,'RESOLUTION_PRESERVATION_REQUIRED');
+ validateBaseline(r.after,h.SOURCE);
+ return {receipt:r,sha256:HASH(raw)};
+}
+function validateBaseline(s,source){
+ GUARD(s.identity?.database==='capiro'&&s.identity?.role==='capiro_master'&&s.identity?.read_only==='on'&&s.identity?.tls===true,'BASELINE_IDENTITY');
+ GUARD(s.ledger.length===543&&!s.ledger.some(r=>!r.finished_at&&!r.rolled_back_at),'BASELINE_LEDGER');
+ const target=s.ledger.filter(r=>r.migration_name===RESOLVED);
+ GUARD(target.length===2&&target.every(r=>r.checksum===RESOLVED_HASH)&&target.some(r=>r.id===FAILED_RECORD&&!r.finished_at&&r.rolled_back_at)&&target.filter(r=>r.finished_at&&!r.rolled_back_at).length===1,'BASELINE_RESOLUTION');
+ GUARD(!s.ledger.some(r=>r.migration_name===NEXT),'NEXT_ROW_ALREADY_EXISTS');
+ const names=fs.readdirSync(path.join(source,'migrations'),{withFileTypes:true}).filter(d=>d.isDirectory()).map(d=>d.name).sort();
+ GUARD(names.length===445,'MIGRATION_COUNT');
+ const applied=new Set(s.ledger.filter(r=>r.finished_at&&!r.rolled_back_at).map(r=>r.migration_name));
+ GUARD(names.filter(n=>!applied.has(n))[0]===NEXT,'NEXT_PENDING_MIGRATION_CHANGED');
+}
+function assertNoDrift(a,b){
+ for(const k of ['ledger','roles','memberships','subscriptions','extensions','columns','constraints','indexes','effectivePrivileges'])GUARD(JSONHASH(a[k])===JSONHASH(b[k]),'BASELINE_DRIFT_'+k.toUpperCase());
+ for(const k of ['schema','data'])GUARD(a[k].sha256===b[k].sha256&&a[k].bytes===b[k].bytes,'BASELINE_DRIFT_'+k.toUpperCase());
+}
+function validateFailedTransition(before,after,execution,failedLog){
+ for(const k of ['roles','memberships','subscriptions','extensions','columns','constraints','indexes','effectivePrivileges'])GUARD(JSONHASH(before[k])===JSONHASH(after[k]),'CHANGED_'+k.toUpperCase());
+ for(const k of ['schema','data'])GUARD(before[k].sha256===after[k].sha256&&before[k].bytes===after[k].bytes,'CHANGED_'+k.toUpperCase()+'_FINGERPRINT');
+ GUARD(after.ledger.length===before.ledger.length+1,'LEDGER_DELTA_COUNT');
+ const added=after.ledger.filter(r=>!before.ledger.some(p=>p.id===r.id));GUARD(added.length===1,'NEW_LEDGER_ROW_COUNT');
+ const row=added[0];
+ GUARD(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(row.id),'FAILED_ROW_UUID');
+ GUARD(JSONHASH(before.ledger)===JSONHASH(after.ledger.filter(r=>r.id!==row.id)),'PRIOR_LEDGER_CHANGED');
+ GUARD(row.migration_name===NEXT&&row.checksum===NEXT_HASH&&row.finished_at===null&&row.rolled_back_at===null&&row.applied_steps_count===0&&row.logsIsNull===false&&row.logsSha256!==HASH(''),'FAILED_ROW_FIELDS');
+ GUARD(after.ledger.filter(r=>r.migration_name===NEXT).length===1&&after.ledger.filter(r=>!r.finished_at&&!r.rolled_back_at).length===1,'UNEXPECTED_PENDING_ROW');
+ const started=new Date(row.started_at).getTime(),begin=Date.parse(execution.startedAt),end=Date.parse(execution.completedAt);
+ GUARD(Number.isFinite(started)&&Number.isFinite(begin)&&Number.isFinite(end)&&end>=begin&&started>=begin-1000&&started<=end+1000,'FAILED_ROW_TIMESTAMP');
+ GUARD(execution.exitCode===1&&execution.signal===null&&execution.timedOut===false&&execution.prismaCodes.includes('P3018')&&execution.has42P07&&execution.hasExpectedMigration&&execution.hasExpectedRelation,'EXPECTED_DEPLOY_FAILURE');
+ GUARD(failedLog.id===row.id&&failedLog.logsSha256===row.logsSha256&&failedLog.has42P07&&failedLog.hasExpectedRelation,'EXPECTED_FAILED_ROW_LOG');
+ return {unchangedSchema:true,unchangedAllNonLedgerData:true,unchangedAllPriorLedgerRows:true,unchangedRolesAndMemberships:true,exactlyOneFailedRowAdded:true,failedMigration:NEXT,failedRowId:row.id,failedChecksum:row.checksum};
+}
+async function deployOnce(h,secret){
+ const url=new URL('postgresql://'+h.HOST+':5432/capiro');url.username='capiro_master';url.password=secret.password;
+ for(const[k,v]of Object.entries({schema:'public',sslmode:'require',sslaccept:'strict',sslcert:h.PRISMA_CA.replace(/\\/g,'/')}))url.searchParams.set(k,v);
+ GUARD(url.hostname==='capiro-dev-meri-rehearsal-20260929.cluster-csryw28ai752.us-east-1.rds.amazonaws.com'&&url.pathname==='/capiro'&&url.searchParams.get('schema')==='public','DEPLOY_TARGET');
+ const value=url.toString(),startedAt=new Date().toISOString();
+ const result=await new Promise(resolve=>cp.execFile(process.execPath,[h.CLI,'migrate','deploy','--schema',path.join(h.SOURCE,'schema.prisma')],{cwd:h.SOURCE,env:h.cleanEnv({DATABASE_URL:value}),windowsHide:true,timeout:180000,maxBuffer:4*1024*1024,encoding:'utf8'},(error,stdout,stderr)=>resolve({exitCode:error?(typeof error.code==='number'?error.code:1):0,signal:error?.signal||null,timedOut:!!error?.killed,stdout,stderr})));
+ const completedAt=new Date().toISOString(),redact=s=>h.redact(s,[secret.password,encodeURIComponent(secret.password),value]);
+ const stdout=redact(result.stdout),stderr=redact(result.stderr),both=stdout+'\n'+stderr;
+ fs.writeFileSync(path.join(ROOT,'deploy-once-stdout-sanitized.log'),stdout,{flag:'wx'});fs.writeFileSync(path.join(ROOT,'deploy-once-stderr-sanitized.log'),stderr,{flag:'wx'});
+ return {exitCode:result.exitCode,signal:result.signal,timedOut:result.timedOut,startedAt,completedAt,stdoutSha256:HASH(stdout),stderrSha256:HASH(stderr),prismaCodes:[...new Set(both.match(/\bP[0-9]{4}\b/g)||[])],has42P07:both.includes('42P07'),hasExpectedMigration:both.includes(NEXT),hasExpectedRelation:both.includes(RELATION)};
+}
+async function main(){
+ GUARD(process.argv.length===3&&['--check','--deploy-once'].includes(process.argv[2]),'MODE');
+ const h=loadReviewedHelpers(),source=verifyFrozen(h);
+ if(process.argv[2]==='--check'){console.log(JSON.stringify({localCheck:'PASS',source,reviewedHelperSha256:SHARED_HASH,nextMigration:NEXT,nextChecksum:NEXT_HASH,cloudOrDatabaseAccess:false}));return;}
+ for(const name of ['deploy-once.json','deploy-once.lock','deploy-once-stdout-sanitized.log','deploy-once-stderr-sanitized.log'])GUARD(!fs.existsSync(path.join(ROOT,name)),'PRIOR_ATTEMPT_EXISTS');
+ // Retained even on failure: an operator must review the receipt; this script never retries itself.
+ fs.writeFileSync(path.join(ROOT,'deploy-once.lock'),JSON.stringify({startedAt:new Date().toISOString(),scriptSha256:HASH(fs.readFileSync(__filename))})+'\n',{flag:'wx'});
+ const report={mode:'CLONE_ONLY_DEPLOY_ONCE',startedAt:new Date().toISOString(),scriptSha256:HASH(fs.readFileSync(__filename)),reviewedHelperSha256:SHARED_HASH,source,complete:false,rehearsalVerdict:'BLOCKED',releaseVerdict:'BLOCKED',mutations:[]};let secret,db;
+ try{
+  const prerequisiteResult=prerequisite(h,source);report.resolutionReceiptSha256=prerequisiteResult.sha256;report.cloud=h.cloudGuard();
+  const sec=h.aws(['secretsmanager','get-secret-value','--secret-id',h.SECRET]);GUARD(sec.ARN===h.SECRET,'SECRET_ARN');secret=JSON.parse(sec.SecretString);db=await h.connect(secret);
+  report.before=await h.snapshot(db,secret,'before_api_deploy_once');validateBaseline(report.before,h.SOURCE);assertNoDrift(prerequisiteResult.receipt.after,report.before);
+  const collision=(await db.query("SELECT c.relkind FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND c.relname=$1",[RELATION])).rows;
+  GUARD(collision.length===1&&collision[0].relkind==='r','EXPECTED_COLLISION_TABLE_ABSENT');report.expectedCollision={relation:RELATION,kind:collision[0].relkind};
+  GUARD(JSONHASH(verifyFrozen(h))===JSONHASH(source),'SOURCE_CHANGED');GUARD(JSONHASH(h.cloudGuard())===JSONHASH(report.cloud),'CLOUD_CHANGED');
+  await h.ensureNoOtherClients(db);await db.end();db=null;
+  report.command=['node','<pinned Prisma 5.22.0 CLI>','migrate','deploy','--schema','<frozen API schema>'];report.mutations.push({target:h.CLUSTER,operation:'ATTEMPT_EXACT_PRISMA_MIGRATE_DEPLOY_ONCE',expectedFailedMigration:NEXT});
+  report.execution=await deployOnce(h,secret);db=await h.connect(secret);
+  report.after=await h.snapshot(db,secret,'after_api_deploy_once');
+  const failed=(await db.query('SELECT id,logs FROM public._prisma_migrations WHERE migration_name=$1',[NEXT])).rows;GUARD(failed.length===1,'FAILED_LOG_ROW_COUNT');
+  report.failedLog={id:failed[0].id,logsSha256:HASH(failed[0].logs||''),has42P07:String(failed[0].logs).includes('42P07'),hasExpectedRelation:String(failed[0].logs).includes(RELATION)};failed[0].logs=null;
+  report.preservation=validateFailedTransition(report.before,report.after,report.execution,report.failedLog);report.complete=true;report.rehearsalVerdict='EXPECTED_FAILURE_CONFIRMED';
+ }catch(e){report.failure={code:/^[A-Z0-9_]{3,90}$/.test(String(e.code))?e.code:'REDACTED_UNCLASSIFIED_ERROR'};if(e.details)report.failure.details=h.redact(e.details,[secret?.password,secret?.password&&encodeURIComponent(secret.password)]);}
+ finally{if(db){try{await db.query('ROLLBACK')}catch{};try{await db.end()}catch{}}if(secret)secret.password=null;}
+ report.finishedAt=new Date().toISOString();fs.writeFileSync(path.join(ROOT,'deploy-once.json'),JSON.stringify(report,null,2)+'\n',{flag:'wx'});console.log(JSON.stringify({complete:report.complete,rehearsalVerdict:report.rehearsalVerdict,releaseVerdict:report.releaseVerdict,execution:report.execution,failure:report.failure,receipt:path.join(ROOT,'deploy-once.json')}));if(!report.complete)process.exitCode=1;
+}
+module.exports={loadReviewedHelpers,verifyFrozen,validateBaseline,assertNoDrift,validateFailedTransition};
+if(require.main===module)main().catch(e=>{console.error(JSON.stringify({complete:false,releaseVerdict:'BLOCKED',code:/^[A-Z0-9_]{3,90}$/.test(String(e.code))?e.code:'SETUP_FAILURE'}));process.exitCode=1;});

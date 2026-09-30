@@ -321,6 +321,36 @@ describe('StrategyContextPlaneService Phase 26', () => {
     },
   );
 
+  test('the wall decision is read off the actor-keyed wall filter, never asserted', async () => {
+    const h = harness();
+    h.gateway.requestContext.mockResolvedValue(
+      gatewayResult({ type: 'strategy_draft', id: CLIENT }),
+    );
+
+    await h.service.resolve({
+      tenantId: TENANT,
+      clerkUserId: 'user_test',
+      clientId: CLIENT,
+      mode: 'draft',
+    });
+
+    // Keyed on the RESOLVED internal user, not the Clerk id the bridge was sent.
+    const wall = [{ memoryWall: false }, { memoryAccessGrants: { some: { userId: USER } } }];
+    expect(h.tx.client.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ id: CLIENT, tenantId: TENANT, OR: wall }),
+      }),
+    );
+    expect(h.tx.client.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ tenantId: TENANT, OR: wall }) }),
+    );
+    expect(h.gateway.requestContext).toHaveBeenCalledWith(
+      expect.objectContaining({
+        contextRequest: expect.objectContaining({ userId: USER, ethicalWallAllowed: true }),
+      }),
+    );
+  });
+
   test('rejects a walled, archived, cross-tenant, or missing client before retrieval', async () => {
     const h = harness({ clientFound: false });
     await expect(
