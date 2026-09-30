@@ -285,9 +285,14 @@ jobs:
       # transition coverage remains in funding-opportunity-pipeline.spec.ts.
       - name: Typecheck — apps/api and apps/web
         if: steps.scope.outputs.in_scope == 'true'
+        # The API typecheck's first program alone now exceeds 4 GB. Run the
+        # projects one at a time through pnpm, which passes NODE_OPTIONS to the
+        # scripts; every workspace package was built above.
         env:
-          NODE_OPTIONS: --max-old-space-size=4096
-        run: pnpm turbo run typecheck --filter=@capiro/api --filter=@capiro/web --concurrency=1
+          NODE_OPTIONS: --max-old-space-size=6144
+        run: |
+          pnpm --filter @capiro/api typecheck
+          pnpm --filter @capiro/web typecheck
 
       # ---------------------------------------------------------------- api --
       # Every module this feature owns, enumerated. `--maxWorkers=1`

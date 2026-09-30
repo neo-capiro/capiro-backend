@@ -139,7 +139,16 @@ jobs:
       # 100+ errors in code this gate does not own. Generated clients and
       # typechecked packages must agree; these two lists are that agreement.
       - name: Typecheck (apps/api, apps/intel-api, apps/web)
-        run: pnpm turbo run typecheck --filter=@capiro/api --filter=@capiro/intel-api --filter=@capiro/web
+        # The API typecheck's first program alone now exceeds 4 GB. Build the
+        # workspace packages (turbo's ^build did this before), then run the
+        # projects one at a time through pnpm, which passes NODE_OPTIONS on.
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
+        run: |
+          pnpm --filter "./packages/*" build
+          pnpm --filter @capiro/api typecheck
+          pnpm --filter @capiro/intel-api typecheck
+          pnpm --filter @capiro/web typecheck
 
       - name: Tests — saved hearing association SQL
         env:
