@@ -53,6 +53,13 @@ const preview = {
     },
   ],
 };
+const oldApiPreview = {
+  portfolioId: portfolio.id,
+  legacyWatches: 0,
+  convertibleWatches: 0,
+  alreadyConverted: 0,
+  previewItems: [],
+};
 const receipt = {
   portfolioId: portfolio.id,
   idempotencyKey: 'echo-original',
@@ -69,6 +76,7 @@ const job: any = {
   artifact: { id: 'artifact-a', fileName: 'owned.csv', contentHash: 'a'.repeat(64), byteSize: 5 },
 };
 let client: QueryClient;
+let previewPayload: unknown;
 function tree(outputs = false) {
   return (
     <QueryClientProvider client={client}>
@@ -113,6 +121,7 @@ beforeEach(() => {
   client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
+  previewPayload = preview;
   api.get.mockReset().mockImplementation(async (url: string) => ({
     data: url.endsWith('/changes')
       ? { items: [], nextCursor: null }
@@ -120,11 +129,11 @@ beforeEach(() => {
         ? job
         : [],
   }));
-  api.post.mockReset().mockImplementation(async (url: string) => ({
+  api.post.mockReset().mockImplementation(async (url: string, body?: any) => ({
     data: url.endsWith('/watch-conversion/preview')
-      ? preview
+      ? previewPayload
       : url.endsWith('/watch-conversion/apply')
-        ? receipt
+        ? { ...receipt, idempotencyKey: body?.idempotencyKey }
         : url.endsWith('/client-files')
           ? {
               id: 'receipt-file',
@@ -140,6 +149,17 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 describe('explicit dormant watch conversion and closed-session recovery', () => {
+  it('shows an unavailable state and sends no conversion against an older API preview', async () => {
+    previewPayload = oldApiPreview;
+    render(tree());
+    fireEvent.click(screen.getByRole('button', { name: 'Preview my legacy watches' }));
+    expect(await screen.findByText(/Watch conversion is unavailable/)).toHaveAttribute(
+      'role',
+      'alert',
+    );
+    expect(screen.getByRole('button', { name: 'Create selected dormant watches' })).toBeDisabled();
+    expect(applyCalls()).toHaveLength(0);
+  });
   it('previews on request, requires selected eligible rows and explicit dormant confirmation, and sends exact DTO', async () => {
     render(tree());
     expect(api.post).not.toHaveBeenCalled();
@@ -173,10 +193,22 @@ describe('explicit dormant watch conversion and closed-session recovery', () => 
     const original = captured(applyCalls(), 0);
     first.unmount();
     sessionStorage.clear();
+    previewPayload = oldApiPreview;
     render(tree());
     await screen.findByRole('button', { name: 'Reconcile exact watch conversion' });
     expect(applyCalls()).toHaveLength(1);
-    expect(screen.getByRole('button', { name: 'Preview my legacy watches' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Reconcile exact watch conversion' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Preview my legacy watches' }));
+    expect(await screen.findByText(/Watch conversion is unavailable/)).toHaveAttribute(
+      'role',
+      'alert',
+    );
+    expect(screen.getByRole('button', { name: 'Reconcile exact watch conversion' })).toBeDisabled();
+    expect(applyCalls()).toHaveLength(1);
+    previewPayload = preview;
+    fireEvent.click(screen.getByRole('button', { name: 'Preview my legacy watches' }));
+    await screen.findByLabelText('Convert legacy watch for PE 0604115A');
+    expect(screen.getByRole('button', { name: 'Reconcile exact watch conversion' })).toBeEnabled();
     fireEvent.click(screen.getByRole('button', { name: 'Reconcile exact watch conversion' }));
     await screen.findByText('Created 1 dormant watches; skipped 0. No notifications were sent.');
     expect(captured(applyCalls(), 1)).toEqual(original);
@@ -190,6 +222,8 @@ describe('explicit dormant watch conversion and closed-session recovery', () => 
     const original = captured(applyCalls(), 0);
     first.unmount();
     render(tree());
+    fireEvent.click(screen.getByRole('button', { name: 'Preview my legacy watches' }));
+    await screen.findByLabelText('Convert legacy watch for PE 0604115A');
     api.post.mockRejectedValueOnce({ response: { status: 422 } });
     fireEvent.click(
       await screen.findByRole('button', { name: 'Reconcile exact watch conversion' }),
@@ -197,6 +231,18 @@ describe('explicit dormant watch conversion and closed-session recovery', () => 
     await screen.findByText(/Watch conversion is unconfirmed/);
     expect(captured(applyCalls(), 1)).toEqual(original);
     expect(screen.getByRole('button', { name: 'Reconcile exact watch conversion' })).toBeEnabled();
+  });
+  it('retains the exact request if an older API returns a bodyless no-op receipt', async () => {
+    render(tree());
+    await select();
+    api.post.mockResolvedValueOnce({
+      data: { portfolioId: portfolio.id, convertedCount: 0, skippedCount: 0 },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Create selected dormant watches' }));
+    await screen.findByText(/Watch conversion is unconfirmed/);
+    expect(applyCalls()).toHaveLength(1);
+    expect(screen.queryByText(/Created 0 dormant watches/)).not.toBeInTheDocument();
+    expect(localStorage.length).toBe(1);
   });
   it('storage quota stops conversion before POST', async () => {
     render(tree());
