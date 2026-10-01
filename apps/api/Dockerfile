@@ -12,7 +12,9 @@
 # files (which live under pnpm's symlinked store at .pnpm/@prisma+client@*/.prisma).
 # Instead, we prune dev deps in place and copy the whole workspace.
 
-ARG NODE_VERSION=20.16.0
+# sanitize-html in the frozen lockfile requires Node >=22.12.0. Keep build and
+# runtime on the same supported release so CommonJS can load its ESM parser.
+ARG NODE_VERSION=22.23.3
 
 # -------- base ----------------------------------------------------------------
 # Use the ECR Public mirror so release builds are not coupled to Docker Hub's
@@ -145,6 +147,8 @@ RUN chmod 0644 /usr/local/lib/capiro/entrypoint-legacy.sh \
 
 USER capiro
 WORKDIR /app/apps/api
+# Validate the pruned runtime dependency graph before publishing the image.
+RUN --network=none node -e "const assert=require('node:assert/strict'); const sanitize=require('sanitize-html'); assert.equal(sanitize('<strong>safe</strong><script>unsafe</script>'), '<strong>safe</strong>'); require('./dist/meri/meri-tools.service.js'); require('./dist/memory/memory-candidate.service.js');"
 EXPOSE 4000
 ENTRYPOINT ["/usr/bin/dumb-init", "--", "/usr/local/bin/entrypoint.sh"]
 CMD ["serve"]
