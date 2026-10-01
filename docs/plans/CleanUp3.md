@@ -37,9 +37,9 @@ All counts were measured against commit **`67bab09`** — the commit every `grap
 
 ## 3. Input — generated, not transcribed
 
-> **Re-validated at `c816b240c`.** The ledger (`cleanup2-dup-inventory.*`) is stamped `67bab09` and now
-> predates 984 commits, so the counts below are stale. Regenerate before use. The mirror note carried in
-> from CleanUp2 §3.2 is current at **730** mirrored `.ts` files.
+> **Regenerated at `a533ad1`.** The ledger was regenerated after a full graph refresh (the generator
+> reported `unresolved nodes: 0`), so the counts below are current. The mirror note carried in from
+> CleanUp2 §3.2 holds at **730** mirrored `.ts` files.
 
 ```bash
 git rev-parse HEAD                 # RUN_SHA
@@ -50,7 +50,7 @@ git status --porcelain
 Then work the **test-area** rows from `docs/plans/cleanup2-dup-status.md` — CleanUp2's status
 file *is* this plan's work list. Filter the ledger by `wave = CleanUp3`.
 
-Totals at `67bab09`: **488 groups / 8,590 lines** (367 STRICT-identical). By subject — and note
+Totals at `a533ad1`: **558 groups / 9,381 lines** (417 STRICT-identical; was 488 / 8,590 at `67bab09`). By subject — and note
 that **`apps/web` now leads, not `apps/api`**:
 
 | subject | groups | wasted lines |
@@ -230,7 +230,7 @@ Anything else blocks the merge. This single check is what makes the gate believa
 - [ ] Playwright visual comparison passes with zero diffs; no baseline regenerated.
 - [ ] CleanUp1 §8.4 route-coverage guard green.
 - [ ] **Coverage ≥ the CleanUp2 number for every package.** No threshold is added to config in this plan.
-- [ ] Line-count delta recorded (expect roughly **−8,590 test lines** at `67bab09`: `02-web` −4,040, `01-api` −3,892, plus the smaller subjects). Re-derive rather than quoting these.
+- [ ] Line-count delta recorded (expect roughly **−9,381 test lines** at `a533ad1`: `02-web` and `01-api` dominate, plus the smaller subjects). Re-derive rather than quoting these.
 - [ ] No `skip`, `only`, `todo`, `.skip` or `.only` added anywhere — verified by grepping the diff, not by review.
 - [ ] `scripts/check-duplicate-helpers.mjs` and the four architecture guards pass; the redundancy scan now reports duplication only in waived categories.
 

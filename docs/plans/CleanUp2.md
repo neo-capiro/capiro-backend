@@ -49,31 +49,31 @@ All counts were measured against commit **`67bab09`** — the commit every `grap
 
 ## 3. Inventory to be eliminated
 
-> **Re-validated at `c816b240c`.** The mirror grew from 378 to **730** mirrored `.ts` files (refreshed
-> below). The **ledger totals** here are stamped `generated_from_commit: 67bab09` and are now stale —
-> they predate 984 commits. Regenerate (§4.1) before quoting any count.
+> **Regenerated at `a533ad1`.** The ledger below was regenerated after a full graph refresh
+> (`.graphify_detect.py` → `.graphify_subjects.py --build all` → `.graphify_ledger.py`; the generator
+> reported `unresolved nodes: 0`). The mirror also grew from 378 to **730** mirrored `.ts` files.
 
 The ledger is **generated**, not transcribed: `docs/plans/cleanup2-dup-inventory.generated.md`
 plus `cleanup2-dup-inventory.json`, produced by `.graphify_ledger.py` across all eight code
 subject graphs. Re-run it (§4.1) rather than reading numbers out of this section.
 
-Totals from the generation at `67bab09`:
+Totals from the generation at `a533ad1` (previous `67bab09` figures in brackets):
 
 | | groups | wasted lines | STRICT-identical |
 |---|---:|---:|---:|
-| all areas | 1,559 | 20,856 | 1,309 |
-| **production (this plan)** | **1,071** | **12,266** | 942 |
-| test-area (to CleanUp3) | 488 | 8,590 | 367 |
+| all areas | 1,684 | 22,102 | 1,411 |
+| **production (this plan)** | **1,126** | **12,721** | 994 |
+| test-area (to CleanUp3) | 558 | 9,381 | 417 |
 
-By subject — note that **`02-web` is larger than `01-api`**:
+By subject — note that **`02-web` leads on wasted lines while `01-api` leads on group count**:
 
 | subject | groups | wasted lines | STRICT-identical |
 |---|---:|---:|---:|
-| `02-web` (`apps/web`) | 591 | 8,620 | 498 |
-| `01-api` (`apps/api`) | 625 | 8,188 | 527 |
-| `08-platform` (root `scripts/`, `packages/shared`, `infra/`) | 147 | 2,044 | 116 |
+| `02-web` (`apps/web`) | 632 | 9,248 | 536 |
+| `01-api` (`apps/api`) | 691 | 8,618 | 579 |
+| `08-platform` (root `scripts/`, `packages/shared`, `infra/`) | 140 | 1,980 | 111 |
+| `04-meri` | 79 | 787 | 62 |
 | `03-defense` (`apps/defense-api`, `apps/defense-budget-parser`) | 68 | 740 | 57 |
-| `04-meri` | 54 | 535 | 45 |
 | `05-strategy` | 34 | 465 | 29 |
 | `06-intel` | 19 | 138 | 19 |
 | `07-workspace-onboard` | 21 | 126 | 18 |
@@ -82,11 +82,11 @@ By wave and by language:
 
 | wave | groups | wasted lines | | language | groups | wasted lines |
 |---|---:|---:|---|---|---:|---:|
-| `1` (STRICT) | 907 | 9,362 | | TypeScript/JS | 1,515 | 20,200 |
-| `2` (LOOSE-only) | 119 | 2,247 | | Python | 44 | 656 |
-| `3` (Python) | 44 | 656 | | | | |
+| `1` (STRICT) | 963 | 9,899 | | TypeScript/JS | 1,644 | 21,526 |
+| `2` (LOOSE-only) | 122 | 2,245 | | Python | 40 | 576 |
+| `3` (Python) | 40 | 576 | | | | |
 | `5` (config) | 1 | 1 | | | | |
-| `CleanUp3` (test) | 488 | 8,590 | | | | |
+| `CleanUp3` (test) | 558 | 9,381 | | | | |
 
 **Two verification levels**, used throughout:
 
@@ -130,7 +130,7 @@ enforces it by **git tree-SHA equality** and is wired into 8 CI workflows.
 | `apps/api/src/program-element/program-element-change-outbox.service{,.spec}.ts` | mirror equivalent | blob content equality |
 | `apps/api/scripts/{phase6-stage-cycle,plan-defense-budget-promotion-v1,status-defense-budget-promotion-v1}.ts` | `apps/defense-api/runtime-source/operators/…` | blob content equality |
 
-Verified at `67bab09`: **378 mirrored `.ts` files byte-identical, 0 differing, 0 missing.** Re-verified at `c816b240c`: **730** mirrored `.ts` files byte-identical across the gated subtrees (the mirror grew substantially).
+Verified at `67bab09`: **378 mirrored `.ts` files byte-identical, 0 differing, 0 missing.** Re-verified at `a533ad1`: **730** mirrored `.ts` files byte-identical across the gated subtrees (the mirror grew substantially).
 
 **Three consequences for this plan:**
 
@@ -140,7 +140,7 @@ Verified at `67bab09`: **378 mirrored `.ts` files byte-identical, 0 differing, 0
    shadow, canary, rollback and decommission acceptance. → §11 waiver.
 2. **Mirror-only groups are excluded from the inventory** (163 groups at `67bab09`). Editing the
    mirror is never the fix; the fix lands in the source tree.
-3. **176 groups carry a mirror obligation** — the change must land on **both** sides in the
+3. **184 groups carry a mirror obligation** — the change must land on **both** sides in the
    **same commit**, including *newly added* files such as a `table-kernel-v1.ts`. The ledger
    marks these `mirror=yes`. This bites Waves 1b, 1e, 1f and 2 hardest, plus the three
    `apps/api/scripts` blobs in Wave 1a.
@@ -526,7 +526,7 @@ node scripts/diff-test-names.mjs --before /tmp/api-names-before.json --after /tm
 - [ ] `scripts/check-duplicate-helpers.mjs` runs in CI and passes.
 - [ ] §8 reference check run for every deleted CDP script; no `verify:*` script or workflow references a deleted file (verify by re-running the greps, not by memory).
 - [ ] §9 tsconfig deletions: every removed variant grepped for references first; `pnpm turbo run typecheck` green.
-- [ ] Line-count delta recorded per package (expect roughly **−12,266 production lines** total at `67bab09`: `01-api` −4,223, `02-web` −4,580, `08-platform` −1,936, `03-defense` −1,412, Python −656, plus the smaller subjects). Re-derive rather than quoting these.
+- [ ] Line-count delta recorded per package (expect roughly **−12,721 production lines** total at `a533ad1`: `01-api` and `02-web` dominate, plus `08-platform`, `03-defense`, Python). Re-derive rather than quoting these.
 - [ ] **Every group the ledger marks `mirror=yes` was changed on both sides in the same commit** — proven by `node scripts/verify-phase8-session4.mjs` passing, not by inspection.
 - [ ] `node scripts/verify-phase8-session4.mjs` is part of `pnpm gate:cleanup1` and passes.
 - [ ] Coverage has not dropped below the CleanUp1 baseline for any package.

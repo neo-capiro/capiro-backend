@@ -2,9 +2,9 @@
 
 Keyed by `group_id` from `cleanup2-dup-inventory.generated.md`. Regeneration never touches this file.
 
-> **Staleness note:** the `group_id`s below come from a ledger stamped `built_at_commit: 67bab09`.
-> Reconcile only after that ledger is regenerated (which requires a graph rebuild — see the banner in
-> `cleanup2-dup-inventory.generated.md`).
+> **Reconcile needed:** the ledger was regenerated at `a533ad1`, so the `group_id`s below may be absent,
+> renamed or obsolete. Reconcile per CleanUp2 §4.2 — any `open` id missing from the new ledger becomes
+> `obsolete`; any new id starts `open`.
 
 Reconcile after each regeneration: any `open` id absent from the regenerated inventory is `obsolete`; any new id starts `open`.
 

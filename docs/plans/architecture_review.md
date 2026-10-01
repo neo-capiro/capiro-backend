@@ -8,7 +8,7 @@ code cleaner, and (C) other **poor architecture** items.
 **Status:** review only. No code was changed, no service was contacted, no command was run against the
 apps. This document is the detailed evidence ledger.
 
-**Evidence commits:** findings were captured at `67bab09`; they were **re-verified against `c816b240c`**
+**Evidence commits:** findings were captured at `67bab09`; they were **re-verified against `a533ad1`**
 (984 commits later). Every finding is still live — none was resolved or removed — but counts, file sizes
 and several paths were refreshed and a few claims corrected. See “Re-validation” at the end.
 
@@ -36,7 +36,7 @@ exactly as `cleanup2-dup-inventory.generated.md` feeds CleanUp2.
 
 - `docs/plans/CleanUp1.md`, `CleanUp2.md`, `CleanUp3.md` and
   `docs/plans/cleanup2-dup-inventory.generated.md` already own the **duplicated-code inventory**
-  (1,559 groups / 20,856 wasted lines). This review does **not** restate that inventory; where a
+  (1,684 groups / 22,102 wasted lines at `a533ad1`, up from 1,559 / 20,856 at `67bab09`). This review does **not** restate that inventory; where a
   finding overlaps it, the finding is about *structure* (why the duplication exists, what abstraction
   removes the class of it), not the line-level ledger.
 - `docs/security/SECURITY_REVIEW.md` owns vulnerabilities. This review is structural; security is out
@@ -772,7 +772,7 @@ easy to misread. This appendix records the verification behind that reconciliati
 **Method:** every `$queryRawUnsafe`/`$executeRawUnsafe` call in `apps/api/src`, `apps/api/scripts` and
 `apps/defense-api/src` was parsed, its argument list split, and every `${…}` in the **first (SQL) argument**
 extracted and read. Interpolations in later (parameter) arguments are not SQL text and were excluded.
-Counts below were first taken at `67bab09` and **re-measured at `c816b240c`** (see the delta in the table).
+Counts below were first taken at `67bab09` and **re-measured at `a533ad1`** (see the delta in the table).
 
 ## A.1 The API distinction is the whole story
 
@@ -852,9 +852,9 @@ pattern from being broken by a future author. Do not schedule it as remediation 
 > regex-validated UUID arrays). It is a *robust convention*, not an *enforced invariant* — which is exactly
 > the gap CleanUp4 Wave 1 closes.
 
-# Re-validation (against `c816b240c`)
+# Re-validation (against `a533ad1`)
 
-The findings above were captured at `67bab09`. After 984 commits landed (`67bab09..c816b240c`, 737 files
+The findings above were captured at `67bab09`. After 984 commits landed (`67bab09..a533ad1`, 737 files
 changed in `apps/api/src` alone), every finding was re-checked against the current tree.
 
 **Method:** one read-only pass per changed app, each re-reading the cited files; plus a mechanical
@@ -873,7 +873,7 @@ re-measurement of every quantitative claim.
 
 ## Corrections applied
 
-| area | was (67bab09) | now (c816b240c) |
+| area | was (67bab09) | now (a533ad1) |
 |---|---|---|
 | `meri-tools.service.ts` / dispatch switch | 8,386 lines; 120 cases @ :1893-2131 | 10,252 lines; **132 cases** @ :2528-2841 |
 | `engagement.service.ts` | 11,544 lines @ :1029 | 12,229 lines @ :1042 |
@@ -917,13 +917,11 @@ re-measurement of every quantitative claim.
 
 ## Not re-derived (deliberately)
 
-* **`cleanup2-dup-inventory.generated.md` / `.json` / `cleanup2-dup-status.md`** are stamped
-  `generated_from_commit: 67bab09` and are **stale** relative to the current tree. They are machine-owned.
-  Regeneration is **not** a single command: `graphify-out/*/graph.json` must be rebuilt first
-  (`.graphify-venv/Scripts/python.exe .graphify_subjects.py --build all`), because `.graphify_ledger.py`
-  slices symbol bodies from the *current* files using line numbers stored in the graph — against a stale
-  graph it mis-slices every file that moved and produces incorrect groups. Until a rebuild is run, treat
-  the ledger as historical and re-derive at execution time (CleanUp2 §4.1).
+* **`cleanup2-dup-inventory.generated.md` / `.json` are current** — regenerated at `a533ad1` after a full
+  graph refresh (`.graphify_detect.py` → `.graphify_subjects.py --build all` → `.graphify_ledger.py`;
+  generator reported `unresolved nodes: 0`). Totals moved from 1,559 / 20,856 to **1,684 / 22,102**.
+  `cleanup2-dup-status.md` is human-owned and still needs reconciliation against the new `group_id`s
+  (CleanUp2 §4.2).
 * **Test-case counts** in `CleanUp1.md` §3 (e.g. the 16,747 / 5,124 `it` counts) were not re-run; the file
   counts around them were refreshed. Re-derive with the §2 Step 0 commands.
 * **`SECURITY_REVIEW.md`** was written at `67bab09` and is out of scope for this re-validation; its

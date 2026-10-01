@@ -229,8 +229,8 @@ Unchanged from CleanUp1 §3 / CleanUp2 §3.2. `apps/defense-api/runtime-source/*
 byte-identical copy** of parts of `apps/api`, enforced by **git tree-SHA equality** via
 `scripts/verify-phase8-session4.mjs` in 8 workflows.
 
-* **730** mirrored `.ts` files verified identical at re-verification (378 at the original review); **176** ledger groups carry a mirror
-  obligation; **163** mirror-only groups are excluded from the inventory.
+* **730** mirrored `.ts` files verified identical at re-verification (378 at the original review); **184** ledger groups carry a mirror
+  obligation; **169** mirror-only groups are excluded from the inventory.
 * **Both sides change in one commit**, including newly added files (e.g. a descriptor module introduced
   by Wave 2). A mirror miss is a gate failure, not a follow-up.
 * `apps/defense-api/src/runtime` is forbidden from importing anything under `apps/api` — so the mirror

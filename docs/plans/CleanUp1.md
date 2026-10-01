@@ -78,7 +78,7 @@ done
 
 ## 3. Baseline expectations at `67bab09`
 
-> **Re-validated at `c816b240c` (984 commits later).** The file counts in this section have been
+> **Re-validated at `a533ad1` (984 commits later).** The file counts in this section have been
 > refreshed (spec files, routes, mirror size, script count). The **test-case** counts (`16,747` / `5,124`
 > / `42,320`) are still the `67bab09` figures and were not re-run; re-derive them with the §2 Step 0
 > commands before relying on them.
@@ -110,8 +110,8 @@ Other expectations:
 * Untested duplication sites: **40** duplicated `src` files and **146** duplicated `script` files in `apps/api`.
 * Environment: pnpm 9.12.0, `engines.node >= 20.11`.
 * Four bypass guards exist; only `check-context-plane-new-bypasses.mjs` is wired.
-* **The duplication ledger is now complete across all eight code subjects** (`docs/plans/cleanup2-dup-inventory.generated.md`): 1,559 groups / 20,856 wasted lines at `67bab09`, of which 1,071 groups / 12,266 lines are production. `02-web` is the largest subject.
-* **`apps/defense-api/runtime-source/**` is a deliberate byte-identical mirror** of parts of `apps/api`, enforced by `scripts/verify-phase8-session4.mjs` (git tree-SHA equality) in 8 workflows. 378 mirrored `.ts` files verified identical at `67bab09` (**730** at re-verification `c816b240c`). Any edit inside a mirrored tree must land on both sides in the same commit.
+* **The duplication ledger is now complete across all eight code subjects** (`docs/plans/cleanup2-dup-inventory.generated.md`): 1,684 groups / 22,102 wasted lines at `a533ad1` (1,559 / 20,856 at `67bab09`), of which 1,126 groups / 12,721 lines are production. `02-web` is the largest subject.
+* **`apps/defense-api/runtime-source/**` is a deliberate byte-identical mirror** of parts of `apps/api`, enforced by `scripts/verify-phase8-session4.mjs` (git tree-SHA equality) in 8 workflows. 378 mirrored `.ts` files verified identical at `67bab09` (**730** at re-verification `a533ad1`). Any edit inside a mirrored tree must land on both sides in the same commit.
 
 ---
 
@@ -308,7 +308,7 @@ Root `package.json`:
 "gate:cleanup1:python": "cd apps/defense-budget-parser && uv run pytest"
 ```
 
-`pnpm turbo run test` covers every package that defines a `test` script, so a package added or renamed by another author is picked up automatically instead of being missed from a hand-maintained list (§2 R7). `verify-phase8-session4.mjs` is in the gate because CleanUp2 will edit files inside mirrored trees: `apps/defense-api/runtime-source/**` must stay a byte-identical copy of parts of `apps/api`, enforced by **git tree-SHA equality**, and 176 ledger groups carry that obligation. Without this clause in the gate, a mirror miss is only caught by one of 8 path-filtered workflows. CleanUp2 §3.2 has the detail.
+`pnpm turbo run test` covers every package that defines a `test` script, so a package added or renamed by another author is picked up automatically instead of being missed from a hand-maintained list (§2 R7). `verify-phase8-session4.mjs` is in the gate because CleanUp2 will edit files inside mirrored trees: `apps/defense-api/runtime-source/**` must stay a byte-identical copy of parts of `apps/api`, enforced by **git tree-SHA equality**, and 184 ledger groups carry that obligation. Without this clause in the gate, a mirror miss is only caught by one of 8 path-filtered workflows. CleanUp2 §3.2 has the detail.
 
 Wire both into CI on pull requests. This is the command CleanUp2 and CleanUp3 must keep green.
 
