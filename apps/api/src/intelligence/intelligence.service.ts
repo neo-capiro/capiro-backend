@@ -39,6 +39,10 @@ import {
   columnKeywordMatchSql,
   matchingBillIdsSql,
 } from './bill-keyword-match.helpers.js';
+import {
+  withBillKeywordProfileDeadline,
+  withBillKeywordSqlDeadline,
+} from './bill-keyword-deadline.js';
 import { commentDeadlineDedupeKey } from './comment-deadline.util.js';
 import { ClientPrepopulationService } from './client-prepopulation.service.js';
 import { OfficeRecommenderService } from './office-recommender.service.js';
@@ -417,8 +421,9 @@ export class IntelligenceService {
    * Prisma query, so a timed-out source still holds its connection until the
    * database returns. What this buys is that the REQUEST completes and the
    * offending source is named — turning a silent hang into a diagnosable
-   * warning. The connection-pool side of the same problem is addressed by the
-   * explicit `connection_limit=10` in scripts/entrypoint.sh.
+   * warning. Bill keyword COUNT/row owners also enforce a real server statement
+   * deadline within this profile's inherited budget; they cannot keep querying
+   * after this wrapper times out. Other sources remain non-cancelling here.
    */
   static readonly PROFILE_V1_SOURCE_BUDGET_MS = 20_000;
 
@@ -613,6 +618,16 @@ export class IntelligenceService {
   }
 
   async getClientProfileV1(clientId: string, tenantId: string, userId?: string) {
+    return withBillKeywordProfileDeadline(() =>
+      this.getClientProfileV1WithinBillDeadline(clientId, tenantId, userId),
+    );
+  }
+
+  private async getClientProfileV1WithinBillDeadline(
+    clientId: string,
+    tenantId: string,
+    userId?: string,
+  ) {
     const client = await this.prisma.withTenant(tenantId, (tx) =>
       tx.client.findFirst({
         where: { id: clientId },
@@ -2342,27 +2357,28 @@ export class IntelligenceService {
     const { lowerTerms, wordPatterns } = buildKeywordMatchTerms(allTerms);
     const matchingIds = matchingBillIdsSql(lowerTerms, wordPatterns);
 
-    const countRows = await this.prisma.$queryRaw<Array<{ total: bigint }>>(Prisma.sql`
+    return withBillKeywordSqlDeadline(this.prisma, async (query) => {
+      const countRows = await query<Array<{ total: bigint }>>(Prisma.sql`
       SELECT COUNT(*)::bigint AS total FROM ${matchingIds} AS m
     `);
 
-    const rows = await this.prisma.$queryRaw<
-      Array<{
-        id: string;
-        congress: number;
-        bill_type: string;
-        bill_number: string;
-        title: string;
-        introduced_date: Date | null;
-        sponsor_name: string | null;
-        sponsor_party: string | null;
-        sponsor_state: string | null;
-        latest_action_text: string | null;
-        latest_action_date: Date | null;
-        policy_area: string | null;
-        subjects: string[];
-      }>
-    >(Prisma.sql`
+      const rows = await query<
+        Array<{
+          id: string;
+          congress: number;
+          bill_type: string;
+          bill_number: string;
+          title: string;
+          introduced_date: Date | null;
+          sponsor_name: string | null;
+          sponsor_party: string | null;
+          sponsor_state: string | null;
+          latest_action_text: string | null;
+          latest_action_date: Date | null;
+          policy_area: string | null;
+          subjects: string[];
+        }>
+      >(Prisma.sql`
       SELECT cb.id, cb.congress, cb.bill_type, cb.bill_number, cb.title,
              cb.introduced_date, cb.sponsor_name, cb.sponsor_party, cb.sponsor_state,
              cb.latest_action_text, cb.latest_action_date, cb.policy_area, cb.subjects
@@ -2372,23 +2388,24 @@ export class IntelligenceService {
       LIMIT 25
     `);
 
-    const bills = rows.map((r) => ({
-      id: r.id,
-      congress: r.congress,
-      billType: r.bill_type,
-      billNumber: r.bill_number,
-      title: r.title,
-      introducedDate: r.introduced_date,
-      sponsorName: r.sponsor_name,
-      sponsorParty: r.sponsor_party,
-      sponsorState: r.sponsor_state,
-      latestActionText: r.latest_action_text,
-      latestActionDate: r.latest_action_date,
-      policyArea: r.policy_area,
-      subjects: r.subjects ?? [],
-    }));
+      const bills = rows.map((r) => ({
+        id: r.id,
+        congress: r.congress,
+        billType: r.bill_type,
+        billNumber: r.bill_number,
+        title: r.title,
+        introducedDate: r.introduced_date,
+        sponsorName: r.sponsor_name,
+        sponsorParty: r.sponsor_party,
+        sponsorState: r.sponsor_state,
+        latestActionText: r.latest_action_text,
+        latestActionDate: r.latest_action_date,
+        policyArea: r.policy_area,
+        subjects: r.subjects ?? [],
+      }));
 
-    return { total: Number(countRows[0]?.total ?? 0), bills };
+      return { total: Number(countRows[0]?.total ?? 0), bills };
+    });
   }
 
   /**
@@ -4623,23 +4640,24 @@ export class IntelligenceService {
     const { lowerTerms, wordPatterns } = buildKeywordMatchTerms(allTerms);
     const matchingIds = matchingBillIdsSql(lowerTerms, wordPatterns);
 
-    const countRows = await this.prisma.$queryRaw<Array<{ total: bigint }>>(Prisma.sql`
+    return withBillKeywordSqlDeadline(this.prisma, async (query) => {
+      const countRows = await query<Array<{ total: bigint }>>(Prisma.sql`
       SELECT COUNT(*)::bigint AS total FROM ${matchingIds} AS m
     `);
 
-    const bills = await this.prisma.$queryRaw<
-      Array<{
-        id: string;
-        title: string;
-        latest_action_date: Date | null;
-        latest_action_text: string | null;
-        status?: string | null;
-        action_texts?: string[];
-        sponsor_name: string | null;
-        sponsor_party: string | null;
-        subjects: string[];
-      }>
-    >(Prisma.sql`
+      const bills = await query<
+        Array<{
+          id: string;
+          title: string;
+          latest_action_date: Date | null;
+          latest_action_text: string | null;
+          status?: string | null;
+          action_texts?: string[];
+          sponsor_name: string | null;
+          sponsor_party: string | null;
+          subjects: string[];
+        }>
+      >(Prisma.sql`
       SELECT cb.id, cb.title, cb.latest_action_date, cb.latest_action_text, cb.status,
              ARRAY(SELECT a.text FROM congress_bill_action a WHERE a.bill_id = cb.id) AS action_texts,
              cb.sponsor_name, cb.sponsor_party, cb.subjects
@@ -4649,20 +4667,21 @@ export class IntelligenceService {
       LIMIT 50
     `);
 
-    return {
-      total: Number(countRows[0]?.total ?? 0),
-      bills: bills.map((b) => ({
-        identifier: b.id,
-        title: b.title,
-        latestActionDate: b.latest_action_date,
-        latestActionText: b.latest_action_text,
-        status: b.status,
-        actionTexts: b.action_texts,
-        sponsorName: b.sponsor_name,
-        sponsorParty: b.sponsor_party,
-        subjectNames: b.subjects ?? [],
-      })),
-    };
+      return {
+        total: Number(countRows[0]?.total ?? 0),
+        bills: bills.map((b) => ({
+          identifier: b.id,
+          title: b.title,
+          latestActionDate: b.latest_action_date,
+          latestActionText: b.latest_action_text,
+          status: b.status,
+          actionTexts: b.action_texts,
+          sponsorName: b.sponsor_name,
+          sponsorParty: b.sponsor_party,
+          subjectNames: b.subjects ?? [],
+        })),
+      };
+    });
   }
 
   /** Live competitor leaderboard per LDA issue code with new-entrant and shared-lobbyist signals */
