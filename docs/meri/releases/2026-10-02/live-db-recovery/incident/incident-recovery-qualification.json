@@ -1,0 +1,40 @@
+{
+  "kind": "meri-incident-recovery-readback",
+  "observedAt": "2026-10-02T13:39:41.894936+00:00",
+  "verdict": "PASS",
+  "meaning": "Shared database query-pressure cleared at observed time; user-level Meri acceptance belongs to root browser lane.",
+  "rootCancellation": {
+    "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/023195da2259400fa304c2b0cc88074b",
+    "taskExit": 0,
+    "signalsSent": 1,
+    "skippedChanged": 6,
+    "executedByThisLane": false
+  },
+  "freshReadOnly": {
+    "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/cc4bdf63643b4fbd945fe44f4c171245",
+    "operatorExit": 0,
+    "taskExit": 0,
+    "observedAt": "2026-10-02T13:37:24.227Z",
+    "matchedOldCounts": 0,
+    "activeSessions": 0,
+    "idleInTransactionSessions": 0,
+    "idleSessions": 44
+  },
+  "tests": {
+    "readonlyV2": {
+      "passed": 7,
+      "exit": 0
+    }
+  },
+  "noAuthOrProviderCallsByThisLane": true,
+  "noRawSqlOrCustomerValuesPersisted": true,
+  "evidence": {
+    "incident-bill-activity-execution.json": "945f5f965bc12299f1aa95a3fec31c25346ec6a0840795091495ed9cd597b246",
+    "incident-bill-cancel-execution.json": "c4a0028bfb2873313b291e6bdbc430fed3c4edd72bc5c898141f3cbd9b8d5216",
+    "incident-bill-activity-execution-v2.json": "0b78fb375299cd603fc69db1e99f5a164c8ac7cbd9c839cf6f836c279adfed4d",
+    "incident-post-capacity-133504.json": "7027f9ec98f91d488c0adeba6a146bed44f59e8416e4f6ca6b26dea1481fbf45",
+    "incident-post-cancel-errors-5min.json": "9195bcd2debdcd090ab6d7b780240649338d13122bd5fcf418a42a853ae08c2d",
+    "incident-bill-activity-oneoff-v2.py": "b46489a5f4a849682c4a799fefc5dc54fc6d8218c961372d73c1f33693ea0c8d",
+    "incident-bill-activity-v2-tests.log": "7167625c9a04eab6e80dc91a98b9c975f6a863233b693b00c83ed510f57ea0a5"
+  }
+}

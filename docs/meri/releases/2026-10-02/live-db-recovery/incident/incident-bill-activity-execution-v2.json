@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "status": "VERIFIED",
+  "planHash": "8603df6b9cf5c2d1761b06a4c3afe032cf8bd8b00f04e8cd11f0dd7a721b86d7",
+  "mode": "bill-activity-read",
+  "operationId": "82540568-1c2c-4398-883c-cd6643674534",
+  "sourceSha": "42780caa75fcabe4f83e619ad81c0f36fdda8fad",
+  "operatorHead": "d77cbe69da8329784c60135c1af7112d34c39900",
+  "liveAcceptance": "NOT_RUN",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-bill-activity-read:2",
+  "startedBy": "meri-c01-82540568-1c2c-4398-883c-",
+  "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/cc4bdf63643b4fbd945fe44f4c171245",
+  "containerExitCode": 0,
+  "logMessageCount": 1,
+  "ownerReceipts": [
+    {
+      "kind": "meri-bill-activity-readback",
+      "schemaVersion": 1,
+      "status": "READBACK_COMPLETE",
+      "readOnly": true,
+      "mutations": 0,
+      "sourceSha": "42780caa75fcabe4f83e619ad81c0f36fdda8fad",
+      "observedAt": "2026-10-02T13:37:24.227Z",
+      "roleSha256": "4b3814bb3ebcecb8a55b67680a3346b05b2354953e529cae43bb36be2df869c6",
+      "databaseSha256": "57d3c5d9524a655e84657a5d5f24bc03f19e79211902f6630eae30c80c02940c",
+      "tlsVerified": true,
+      "caBundleSha256": "b1711d12bae51838581281e23b6cb97b1074016873b4dafc80ed14002462dd77",
+      "aggregate": [
+        {
+          "state": "idle",
+          "wait_event_type": "Client",
+          "count": 44,
+          "max_active_age_seconds": 0
+        }
+      ],
+      "matchedQueries": [],
+      "queryTextPersisted": false
+    }
+  ]
+}

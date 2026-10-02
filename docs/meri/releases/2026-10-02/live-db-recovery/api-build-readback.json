@@ -1,0 +1,91 @@
+{
+  "service": "api",
+  "sourceSha": "d77cbe69da8329784c60135c1af7112d34c39900",
+  "buildId": "capiro-build-web-dev:84032b5b-6b63-44e5-bfe1-6185c5e86198",
+  "observedAt": "2026-10-02T13:42:17.954590+00:00",
+  "verdict": "PASS",
+  "externalWrites": 0,
+  "liveAcceptance": "NOT_RUN",
+  "buildStatus": "SUCCEEDED",
+  "phase": "COMPLETED",
+  "actualBuildspecSha256": "da170b85cff8f9a86753f414e1348dd9a07b18d36edbb88382eb8c305d106c96",
+  "resolvedSourceSha": "d77cbe69da8329784c60135c1af7112d34c39900",
+  "phases": [
+    {
+      "phase": "SUBMITTED",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "QUEUED",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "PROVISIONING",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "DOWNLOAD_SOURCE",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "INSTALL",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "PRE_BUILD",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "BUILD",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "POST_BUILD",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "UPLOAD_ARTIFACTS",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "FINALIZING",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "COMPLETED",
+      "status": null
+    }
+  ],
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:91bc1c313c2509150bf5c61e1483b42a4b8130f016e168a8846084dec930eb74",
+  "imageDigest": "sha256:91bc1c313c2509150bf5c61e1483b42a4b8130f016e168a8846084dec930eb74",
+  "executedMarkers": [
+    {
+      "timestamp": 1790948314411,
+      "line": "OFFLINE_RUNTIME_IMPORT_PASS"
+    },
+    {
+      "timestamp": 1790948314411,
+      "line": "OFFLINE_CASE01_CONTINUATION_IMPORT_PASS"
+    },
+    {
+      "timestamp": 1790948314411,
+      "line": "OFFLINE_CASE01_FIXTURE_PACKAGE_IMPORT_PASS"
+    },
+    {
+      "timestamp": 1790948316424,
+      "line": "EXACT_449_IMAGE_MIGRATION_HASHES_PASS"
+    },
+    {
+      "timestamp": 1790948412603,
+      "line": "LOCAL_REPODIGEST_ECR_MATCH_PASS"
+    },
+    {
+      "timestamp": 1790948412603,
+      "line": "CANDIDATE_API_SOURCE_SHA=d77cbe69da8329784c60135c1af7112d34c39900"
+    },
+    {
+      "timestamp": 1790948412603,
+      "line": "CANDIDATE_API_IMAGE=967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:91bc1c313c2509150bf5c61e1483b42a4b8130f016e168a8846084dec930eb74"
+    }
+  ]
+}

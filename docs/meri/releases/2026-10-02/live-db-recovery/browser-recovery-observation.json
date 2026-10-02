@@ -1,0 +1,23 @@
+{
+  "kind": "meri-live-incident-browser-observation",
+  "observedAt": "2026-10-02T13:34:00Z",
+  "observer": "Codex root using the owner's already-signed-in in-app browser",
+  "url": "https://os.capiro.ai/meri/t/2160f10d-4e0b-4083-9975-c0ba067f424e",
+  "apiSourceDuringObservation": "42780caa75fcabe4f83e619ad81c0f36fdda8fad",
+  "candidateSource": "d77cbe69da8329784c60135c1af7112d34c39900",
+  "candidateWasDeployed": false,
+  "checks": [
+    {"check": "New diagnostic conversation; arithmetic2+2", "result": "PASS", "visibleAnswer": "4", "visibleStatus": "Completed"},
+    {"check": "Pre-mitigation own-mailbox exact nonsense search", "result": "FAIL", "visibleTool": "search_emails", "visibleError": "503 Service Unavailable; database temporarily busy", "unexpectedReadTool": "search_floor_votes"},
+    {"check": "Post-capacity-and-targeted-cancellation own-mailbox exact nonsense search", "result": "PASS", "visibleTool": "search_emails", "visibleToolStatus": "Completed DONE", "visibleAnswer": "search_emails completed successfully.", "visibleStatus": "Completed"}
+  ],
+  "diagnosticMessageContent": "Arithmetic or unique nonsense search token only; no email contents requested or recorded",
+  "observedSideEffects": {"newDiagnosticConversations": 1, "submittedTurns": 3, "explicitBusinessWritesRequested": 0},
+  "customerDataOrAuthArchived": false,
+  "screenshot": "Captured and visually inspected in the in-app browser tool; no local screenshot artifact returned by that interface",
+  "limitations": [
+    "The existing two-memory-proposal badge was present before and after; database effects were not independently audited for this owner-browser diagnostic.",
+    "The reply still displays an overbroad evidence-limitation notice; this incident check establishes response/tool availability, not full answer-quality acceptance.",
+    "This is operational recovery on the previous API image, not acceptance of the candidate or the original Foundation File01 plan."
+  ]
+}

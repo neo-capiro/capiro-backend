@@ -1,0 +1,17 @@
+{
+  "service": "api",
+  "buildId": "capiro-build-web-dev:84032b5b-6b63-44e5-bfe1-6185c5e86198",
+  "sourceSha": "d77cbe69da8329784c60135c1af7112d34c39900",
+  "buildspecSha256": "da170b85cff8f9a86753f414e1348dd9a07b18d36edbb88382eb8c305d106c96",
+  "actionRun": {
+    "conclusion": "startup_failure",
+    "headSha": "d77cbe69da8329784c60135c1af7112d34c39900",
+    "jobs": [],
+    "url": "https://github.com/neo-capiro/capirov2/actions/runs/37013701563",
+    "workflowName": "api-image"
+  },
+  "callerArn": "arn:aws:iam::967807252336:user/hermes-cli",
+  "status": "IN_PROGRESS",
+  "startedAtEpoch": 1790948015.837785,
+  "scope": "Immutable candidate image publication only; no ECS service, database, migration or provider configuration mutation"
+}

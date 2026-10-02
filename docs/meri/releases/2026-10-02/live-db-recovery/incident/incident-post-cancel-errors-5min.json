@@ -1,0 +1,53 @@
+{
+  "observedAt": "2026-10-02T13:38:50.385079+00:00",
+  "startMs": 1790948030384,
+  "endMs": 1790948330384,
+  "services": [
+    {
+      "service": "capiro-dev-api",
+      "taskDefinition": "capiro-dev-api:499",
+      "streams": [
+        {
+          "taskId": "1fcaa9820a6643d699b2e3f2126b05ec",
+          "events": 1,
+          "classes": {},
+          "codes": {},
+          "modules": {},
+          "sourceClasses": {},
+          "jsonKeyShapes": [],
+          "firstErrorMs": null,
+          "lastErrorMs": null
+        },
+        {
+          "taskId": "e2b81791d2914be4aac6ed24f60a9e16",
+          "events": 0,
+          "classes": {},
+          "codes": {},
+          "modules": {},
+          "sourceClasses": {},
+          "jsonKeyShapes": [],
+          "firstErrorMs": null,
+          "lastErrorMs": null
+        }
+      ]
+    },
+    {
+      "service": "capiro-dev-meriv2-orchestrator",
+      "taskDefinition": "capiro-dev-meriv2-orchestrator:95",
+      "streams": [
+        {
+          "taskId": "e10968df7f1649258044d8a639e19338",
+          "events": 0,
+          "classes": {},
+          "codes": {},
+          "modules": {},
+          "sourceClasses": {},
+          "jsonKeyShapes": [],
+          "firstErrorMs": null,
+          "lastErrorMs": null
+        }
+      ]
+    }
+  ],
+  "rawLogsPersisted": false
+}

@@ -1,0 +1,101 @@
+{
+  "schemaVersion": 1,
+  "status": "VERIFIED",
+  "planHash": "5a1a2885589fbdddafd0869602cf5570e183f0c210b6b544697cc3991c24f6fd",
+  "mode": "bill-count-cancel",
+  "operationId": "d4c35033-270d-47d3-9df5-77d840ba0ea1",
+  "sourceSha": "42780caa75fcabe4f83e619ad81c0f36fdda8fad",
+  "operatorHead": "3d2ba9d844bc71830fc02fdda6e002f48fb96c2b",
+  "liveAcceptance": "NOT_RUN",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-bill-count-cancel:1",
+  "startedBy": "meri-c01-d4c35033-270d-47d3-9df5-",
+  "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/023195da2259400fa304c2b0cc88074b",
+  "containerExitCode": 0,
+  "logMessageCount": 3,
+  "ownerReceipts": [
+    {
+      "kind": "meri-bill-cancel-event",
+      "schemaVersion": 1,
+      "status": "CANCEL_INTENT",
+      "readbackSha256": "945f5f965bc12299f1aa95a3fec31c25346ec6a0840795091495ed9cd597b246",
+      "backendStart": "2026-10-02T12:47:34.863Z",
+      "pid": 17881,
+      "querySha256": "6239d92e09aa07bfc9327c2eb65ecdfa60d80f9ea688157319b7c2c4e582cf8d",
+      "queryStart": "2026-10-02T12:50:32.130Z"
+    },
+    {
+      "kind": "meri-bill-cancel-event",
+      "schemaVersion": 1,
+      "status": "CANCEL_RESULT",
+      "readbackSha256": "945f5f965bc12299f1aa95a3fec31c25346ec6a0840795091495ed9cd597b246",
+      "result": {
+        "backendStart": "2026-10-02T12:47:34.863Z",
+        "pid": 17881,
+        "querySha256": "6239d92e09aa07bfc9327c2eb65ecdfa60d80f9ea688157319b7c2c4e582cf8d",
+        "queryStart": "2026-10-02T12:50:32.130Z",
+        "status": "SIGNAL_SENT"
+      }
+    },
+    {
+      "kind": "meri-bill-cancel-result",
+      "schemaVersion": 1,
+      "status": "COMPLETE",
+      "sourceSha": "42780caa75fcabe4f83e619ad81c0f36fdda8fad",
+      "readbackSha256": "945f5f965bc12299f1aa95a3fec31c25346ec6a0840795091495ed9cd597b246",
+      "databaseRowsMutated": 0,
+      "queryTextPersisted": false,
+      "backendCancelCalls": 1,
+      "results": [
+        {
+          "backendStart": "2026-10-02T12:37:32.278Z",
+          "pid": 17249,
+          "querySha256": "6239d92e09aa07bfc9327c2eb65ecdfa60d80f9ea688157319b7c2c4e582cf8d",
+          "queryStart": "2026-10-02T12:39:19.220Z",
+          "status": "SKIPPED_CHANGED"
+        },
+        {
+          "backendStart": "2026-10-02T12:37:23.676Z",
+          "pid": 17239,
+          "querySha256": "6239d92e09aa07bfc9327c2eb65ecdfa60d80f9ea688157319b7c2c4e582cf8d",
+          "queryStart": "2026-10-02T12:39:28.970Z",
+          "status": "SKIPPED_CHANGED"
+        },
+        {
+          "backendStart": "2026-10-02T12:42:32.956Z",
+          "pid": 17567,
+          "querySha256": "6239d92e09aa07bfc9327c2eb65ecdfa60d80f9ea688157319b7c2c4e582cf8d",
+          "queryStart": "2026-10-02T12:44:35.430Z",
+          "status": "SKIPPED_CHANGED"
+        },
+        {
+          "backendStart": "2026-10-02T12:47:34.863Z",
+          "pid": 17881,
+          "querySha256": "6239d92e09aa07bfc9327c2eb65ecdfa60d80f9ea688157319b7c2c4e582cf8d",
+          "queryStart": "2026-10-02T12:50:32.130Z",
+          "status": "SIGNAL_SENT"
+        },
+        {
+          "backendStart": "2026-10-02T12:57:43.884Z",
+          "pid": 18504,
+          "querySha256": "fc222693754001dd639e5d746b91cbbd9cf01a5ef69c3b45d1c1a92ff41464ec",
+          "queryStart": "2026-10-02T12:59:47.094Z",
+          "status": "SKIPPED_CHANGED"
+        },
+        {
+          "backendStart": "2026-10-02T13:04:47.780Z",
+          "pid": 18959,
+          "querySha256": "fc222693754001dd639e5d746b91cbbd9cf01a5ef69c3b45d1c1a92ff41464ec",
+          "queryStart": "2026-10-02T13:05:18.934Z",
+          "status": "SKIPPED_CHANGED"
+        },
+        {
+          "backendStart": "2026-10-02T13:05:17.799Z",
+          "pid": 18993,
+          "querySha256": "6239d92e09aa07bfc9327c2eb65ecdfa60d80f9ea688157319b7c2c4e582cf8d",
+          "queryStart": "2026-10-02T13:06:57.886Z",
+          "status": "SKIPPED_CHANGED"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "sourceSha": "d77cbe69da8329784c60135c1af7112d34c39900",
+  "testedCodeSha": "afada905649b2fb790106466bc481060d6b05793",
+  "services": {
+    "api": {
+      "actionRunId": 37013701563,
+      "buildspecSha256": "da170b85cff8f9a86753f414e1348dd9a07b18d36edbb88382eb8c305d106c96",
+      "executedMarkers": [
+        "OFFLINE_RUNTIME_IMPORT_PASS",
+        "OFFLINE_CASE01_CONTINUATION_IMPORT_PASS",
+        "OFFLINE_CASE01_FIXTURE_PACKAGE_IMPORT_PASS",
+        "EXACT_449_IMAGE_MIGRATION_HASHES_PASS"
+      ]
+    }
+  }
+}

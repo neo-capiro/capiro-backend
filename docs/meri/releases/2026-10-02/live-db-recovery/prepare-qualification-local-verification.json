@@ -1,0 +1,34 @@
+{
+  "status": "PREPARED_LOCAL_PASS",
+  "preparedAt": "2026-10-02T13:36:14.207980+00:00",
+  "testedSourceSha": "afada905649b2fb790106466bc481060d6b05793",
+  "archiveCommit": "d77cbe69da8329784c60135c1af7112d34c39900",
+  "archivePath": "docs/meri/releases/2026-10-02/live-db-recovery/",
+  "tests": {
+    "command": "node --test C:\\dev\\cap-meri-foundation-evidence\\oct02-meri-incident-release\\prepare-qualification.test.mjs",
+    "passed": 14,
+    "failed": 0,
+    "skipped": 0,
+    "exitCode": 0,
+    "actualToolChunk": "fb0d27"
+  },
+  "filesSha256": {
+    "prepare-qualification.mjs": "716f060d1e76f84e524562e525c9ee73055c0af290d1e6fdc07a3d6eeb41c993",
+    "prepare-qualification.test.mjs": "9cad24140e17f6e3dc80e5cb8416f5c07381b5c0096c4d8682f7efefd24d8ec9",
+    "api.buildspec.yml": "da170b85cff8f9a86753f414e1348dd9a07b18d36edbb88382eb8c305d106c96",
+    "build-qualified-source.py": "bd4f71f1f77007f606f440948d4dfa6330f39f677eade42caedbacbd372a10ea"
+  },
+  "operationalQualification": "NOT_RUN",
+  "imageBuild": "NOT_RUN_BY_THIS_AGENT",
+  "cloudWrites": 0,
+  "mainMutations": 0,
+  "review": "Root peer review requested; this receipt is preparation only",
+  "constraints": [
+    "Requires clean local main equal origin/main and merged exact build source, with only docs changes after tested source",
+    "Pins 29 archived review/test artifacts plus nine exact source blobs",
+    "Both actual distinct Bedrock/Kimi review sessions exit0 and post-review source-delta evidence required",
+    "Actual native ARM observer hash, immutable ECR digest, exact source and seven marker lines bound; archived/local readback must match",
+    "Build readback maximum age4h; generated qualification expires4h; exclusive output creation",
+    "Full original live acceptance remains NOT_RUN"
+  ]
+}
