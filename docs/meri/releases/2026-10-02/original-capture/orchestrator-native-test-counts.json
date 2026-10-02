@@ -1,0 +1,16 @@
+{
+  "sourceSha": "15ed650f3bc56b6906cb0dbf7cb30602843f4a7b",
+  "buildId": "capiro-build-web-dev:f6a9c463-3f10-48d5-bcb9-132509d09eac",
+  "testCounts": {
+    "numTotalTests": 1412,
+    "numPassedTests": 1410,
+    "numFailedTests": 0,
+    "numPendingTests": 2,
+    "numTotalTestSuites": 126,
+    "numPassedTestSuites": 126,
+    "numFailedTestSuites": 0,
+    "numPendingTestSuites": 0
+  },
+  "source": "Actual successful build stdout marker",
+  "externalWrites": 0
+}
