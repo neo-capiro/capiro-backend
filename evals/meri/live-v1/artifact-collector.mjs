@@ -2,6 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { constants } from 'node:fs';
 import { link, lstat, mkdir, open, readdir, realpath, unlink } from 'node:fs/promises';
 import { isAbsolute, join, parse, relative, resolve, sep } from 'node:path';
+import { assertWindowsArtifactStorage } from './windows-artifact-storage.mjs';
 
 const SHA256 = /^[a-f0-9]{64}$/u;
 const SECRET_KEY = /(?:authorization|cookie|token|secret|password|api[_-]?key|session)/iu;
@@ -156,9 +157,10 @@ async function listFiles(root, rootIdentity, dir = root) {
 }
 
 export class ArtifactCollector {
-  constructor(root, owner, secretValues = []) {
+  constructor(root, owner, secretValues = [], { storage = null } = {}) {
     if (!isAbsolute(root)) throw new Error('owned run directory must be absolute');
-    if (owner?.provenance === 'LIVE_CAPTURE') {
+    if (storage) assertWindowsArtifactStorage(storage, root);
+    if (owner?.provenance === 'LIVE_CAPTURE' && !storage) {
       const error = new Error('portable Node path APIs cannot pin every parent directory handle; LIVE_CAPTURE artifact writes are unsafe and unsupported');
       error.code = 'LIVE_ARTIFACT_PATH_UNSAFE';
       throw error;
@@ -168,9 +170,20 @@ export class ArtifactCollector {
     this.secretValues = secretValues;
     this.entries = new Map();
     this.initialized = false;
+    this.storage = storage;
   }
 
   async init() {
+    if (this.storage) {
+      const descriptor = this.storage.init(
+        Buffer.from(`${JSON.stringify(redactSecrets(this.owner, this.secretValues), null, 2)}\n`, 'utf8'),
+        Buffer.from(`${this.owner.captureRunId}\n`, 'utf8'),
+      );
+      this.initialized = true;
+      this.entries.set(descriptor.ref, descriptor);
+      this.ownerSha256 = descriptor.sha256;
+      return descriptor;
+    }
     const parent = resolve(this.root, '..');
     await assertExistingPathHasNoLinks(parent, 'owned root parent');
     const parentBefore = await lstat(parent, { bigint: true });
@@ -188,6 +201,11 @@ export class ArtifactCollector {
 
   async writeBytes(ref, bytes, { declare = true } = {}) {
     if (!this.initialized) throw new Error('collector is not initialized');
+    if (this.storage) {
+      const descriptor = this.storage.writeBytes(ref, bytes);
+      if (declare) this.entries.set(descriptor.ref, descriptor);
+      return descriptor;
+    }
     const { parts, target } = safeRef(this.root, ref);
     await inspectRoot(this.root, this.rootIdentity);
     const snapshots = [await inspectDirectory(this.root, this.root)];
@@ -239,6 +257,7 @@ export class ArtifactCollector {
 
   readBytes(ref) {
     if (!this.initialized) throw new Error('collector is not initialized');
+    if (this.storage) return this.storage.readBytes(ref);
     return readOwnedFile(this.root, this.rootIdentity, ref);
   }
 
@@ -265,15 +284,17 @@ export class ArtifactCollector {
   }
 }
 
-export async function verifyCollectedArtifacts(root) {
+export async function verifyCollectedArtifacts(root, { storage = null } = {}) {
   const absolute = resolve(root);
+  if (storage) assertWindowsArtifactStorage(storage, absolute);
+  const read = (ref) => storage ? storage.readBytes(ref) : readOwnedFile(absolute, rootIdentity, ref);
   const errors = [];
   let rootIdentity;
   let manifestBytes = Buffer.alloc(0);
   let manifest = {};
   try {
-    rootIdentity = await inspectRoot(absolute);
-    manifestBytes = await readOwnedFile(absolute, rootIdentity, 'capture-manifest.json');
+    if (!storage) rootIdentity = await inspectRoot(absolute);
+    manifestBytes = await read('capture-manifest.json');
     const manifestText = new TextDecoder('utf-8', { fatal: true }).decode(manifestBytes);
     manifest = JSON.parse(manifestText);
   } catch (error) {
@@ -289,7 +310,7 @@ export async function verifyCollectedArtifacts(root) {
       continue;
     }
     try {
-      const bytes = await readOwnedFile(absolute, rootIdentity, ref);
+      const bytes = await read(ref);
       if (sha256Bytes(bytes) !== descriptor.sha256) errors.push(`${ref}: sha256 mismatch`);
       if (bytes.length !== descriptor.bytes) errors.push(`${ref}: byte count mismatch`);
     } catch (error) {
@@ -297,7 +318,7 @@ export async function verifyCollectedArtifacts(root) {
     }
   }
   try {
-    const actual = (await listFiles(absolute, rootIdentity)).filter((ref) => !['.capture-owned', 'capture-manifest.json'].includes(ref));
+    const actual = (storage ? storage.listFiles() : await listFiles(absolute, rootIdentity)).filter((ref) => !['.capture-owned', 'capture-manifest.json'].includes(ref));
     for (const ref of actual) if (!declared.has(ref)) errors.push(`${ref}: undeclared artifact`);
   } catch (error) {
     errors.push(`owned tree: ${error.message}`);

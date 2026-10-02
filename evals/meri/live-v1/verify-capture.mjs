@@ -235,7 +235,7 @@ function aggregateCaseResults(testCase, captures, evaluations) {
   return { caseId: testCase.id, status, reason: selected.reason, details: evaluations.flatMap((evaluation) => evaluation.details) };
 }
 
-export function verifyCaptureBundle(bundle = {}) {
+export function verifyCaptureBundle(bundle = {}, { artifactStorage = null } = {}) {
   const contract = validateContract();
   const errors = [...contract.errors];
   if (bundle.captures !== undefined && !Array.isArray(bundle.captures)) errors.push('capture bundle captures must be an array');
@@ -265,7 +265,7 @@ export function verifyCaptureBundle(bundle = {}) {
           fixtureVersion: frozenFixture.version,
           fixtureSha256: lock.fixtureSha256,
           contractSourceSha256: lock.contractSourceSha256,
-        });
+        }, { storage: artifactStorage });
       } catch (error) {
         errors.push(`artifact bundle ownership/integrity failure: ${error.message}`);
       }

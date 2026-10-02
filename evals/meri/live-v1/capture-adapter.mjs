@@ -51,6 +51,7 @@ export async function executeLiveCase({
   env = process.env,
   fetchImpl = fetch,
   controlledReceiptContext = null,
+  artifactStorage = null,
 }) {
   if (!config || typeof config !== 'object') throw new TypeError('config is required');
   if (typeof caseId !== 'string') throw new TypeError('caseId is required');
@@ -92,7 +93,9 @@ export async function executeLiveCase({
     contractSourceSha256: lock.contractSourceSha256,
     scopeMappingSha256: config.fixture?.mappingSha256 ?? null,
   };
-  const collector = new ArtifactCollector(runRoot, owner, secretValues);
+  const collector = new ArtifactCollector(runRoot, owner, secretValues, {
+    storage: artifactStorage,
+  });
   await collector.init();
   await collector.writeJson('scope-config-receipt.json', config);
   let result;
@@ -163,7 +166,7 @@ export async function executeLiveCase({
     caseId,
     gaps: result.gaps ?? [],
   });
-  const integrity = await verifyCollectedArtifacts(runRoot);
+  const integrity = await verifyCollectedArtifacts(runRoot, { storage: artifactStorage });
   if (!integrity.valid)
     throw new Error(`collector artifact integrity failure: ${integrity.errors.join('; ')}`);
   return { ...result, manifest: manifest.manifest, integrity };

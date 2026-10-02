@@ -1,6 +1,7 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { closeSync, constants, fstatSync, lstatSync, openSync, readSync, realpathSync } from 'node:fs';
 import { isAbsolute, parse, relative, resolve, sep } from 'node:path';
+import { assertWindowsArtifactStorage } from './windows-artifact-storage.mjs';
 
 const SHA256 = /^[a-f0-9]{64}$/u;
 const REMOTE_OR_FILE_URL = /^[a-z][a-z0-9+.-]*:/iu;
@@ -83,15 +84,20 @@ function safelyReadBoundedFile(path, ref) {
 }
 
 export class OwnedArtifactReader {
-  constructor(rootPath, expectedOwner) {
+  constructor(rootPath, expectedOwner, { storage = null } = {}) {
     if (typeof rootPath !== 'string' || !isAbsolute(rootPath) || isUrl(rootPath)) {
       throw new ArtifactIntegrityError('artifactRoot must be an absolute local filesystem path');
     }
-    assertNoSymlinkComponents(rootPath, 'artifactRoot');
-    const rootStats = lstatSync(rootPath, { throwIfNoEntry: false });
-    if (!rootStats?.isDirectory()) throw new ArtifactIntegrityError('artifactRoot is missing or is not a directory');
-    if (rootStats.isSymbolicLink()) throw new ArtifactIntegrityError('symlink artifactRoot refused');
-    this.root = realpathSync(rootPath);
+    this.storage = storage ? assertWindowsArtifactStorage(storage, rootPath) : null;
+    if (storage) {
+      this.root = resolve(rootPath);
+    } else {
+      assertNoSymlinkComponents(rootPath, 'artifactRoot');
+      const rootStats = lstatSync(rootPath, { throwIfNoEntry: false });
+      if (!rootStats?.isDirectory()) throw new ArtifactIntegrityError('artifactRoot is missing or is not a directory');
+      if (rootStats.isSymbolicLink()) throw new ArtifactIntegrityError('symlink artifactRoot refused');
+      this.root = realpathSync(rootPath);
+    }
     this.owner = this.readJson({ ref: 'bundle-owner.json', sha256: expectedOwner.ownerSha256 }, { allowOwner: true });
     const ownerKeys = ['captureRunId', 'contractSourceSha256', 'fixtureSha256', 'fixtureVersion', 'kind', 'provenance', 'schemaVersion'];
     if (JSON.stringify(Object.keys(this.owner ?? {}).sort()) !== JSON.stringify(ownerKeys)) {
@@ -116,6 +122,7 @@ export class OwnedArtifactReader {
   resolveRef(ref, { allowOwner = false } = {}) {
     const parts = assertOwnedRelativeRef(ref);
     if (!allowOwner && ref === 'bundle-owner.json') throw new ArtifactIntegrityError('owner marker cannot be reused as evidence');
+    if (this.storage) throw new ArtifactIntegrityError('native storage does not expose path-based artifact reads');
     let cursor = this.root;
     for (const part of parts) {
       cursor = resolve(cursor, part);
@@ -137,7 +144,19 @@ export class OwnedArtifactReader {
   readBytes(descriptor, options) {
     if (!descriptor || typeof descriptor !== 'object') throw new ArtifactIntegrityError('artifact descriptor is missing');
     if (!SHA256.test(descriptor.sha256 ?? '')) throw new ArtifactIntegrityError(`artifact hash is malformed: ${String(descriptor.ref)}`);
-    const bytes = safelyReadBoundedFile(this.resolveRef(descriptor.ref, options), descriptor.ref);
+    let bytes;
+    if (this.storage) {
+      assertOwnedRelativeRef(descriptor.ref);
+      if (!options?.allowOwner && descriptor.ref === 'bundle-owner.json') throw new ArtifactIntegrityError('owner marker cannot be reused as evidence');
+      try {
+        bytes = this.storage.readBytes(descriptor.ref);
+      } catch {
+        throw new ArtifactIntegrityError('native artifact integrity read failed closed');
+      }
+      if (bytes.length > MAX_ARTIFACT_BYTES) throw new ArtifactIntegrityError('artifact exceeds reader byte limit');
+    } else {
+      bytes = safelyReadBoundedFile(this.resolveRef(descriptor.ref, options), descriptor.ref);
+    }
     const actualSha256 = hashBytes(bytes);
     if (!hashesEqual(actualSha256, descriptor.sha256)) {
       throw new ArtifactIntegrityError(`artifact hash mismatch for ${descriptor.ref}: declared ${descriptor.sha256}, actual ${actualSha256}`);
