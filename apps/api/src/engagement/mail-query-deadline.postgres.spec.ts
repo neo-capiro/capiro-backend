@@ -36,15 +36,26 @@ const configPath = process.env.MERI_APPROVED_MEMORY_PG_CONFIG;
     const started = performance.now();
     const error = await withMailQueryDeadline(prisma, tenant, async query => {
       scans += 1; await query(Prisma.sql`SELECT 1 AS n FROM pg_sleep(2)`);
-      scans += 1; await query(Prisma.sql`SELECT 1 AS n FROM pg_sleep(8)`);
+      scans += 1; await query(Prisma.sql`SELECT 1 AS n FROM pg_sleep(15)`);
       scans += 1; return query(Prisma.sql`SELECT 1 AS n`);
     }).catch(e => e);
     const elapsed = performance.now() - started;
     expect(error).toBeInstanceOf(ServiceUnavailableException); expect((error as ServiceUnavailableException).getStatus()).toBe(503);
-    expect(scans).toBe(2); expect(elapsed).toBeGreaterThan(3000); expect(elapsed).toBeLessThan(4500);
+    expect(scans).toBe(2); expect(elapsed).toBeGreaterThan(9500); expect(elapsed).toBeLessThan(11500);
     const after = (await prisma.$queryRaw<Array<{ pid: number; timeout: string }>>`SELECT pg_backend_pid() AS pid,current_setting('statement_timeout') AS timeout`)[0]!;
     expect(after).toEqual(before);
     await expect(withMailQueryDeadline(prisma, tenant, query => query(Prisma.sql`SELECT 7 AS n`))).resolves.toEqual([{ n: 7 }]);
+  }, 20_000);
+
+  test('a healthy multi-scan read beyond the old 3.5-second limit completes intact', async () => {
+    const started = performance.now();
+    const result = await withMailQueryDeadline(prisma, tenant, async query => ({
+      count: await query(Prisma.sql`SELECT 2 AS n FROM pg_sleep(2)`),
+      page: await query(Prisma.sql`SELECT 'owned-message'::text AS id FROM pg_sleep(2)`),
+      coverage: await query(Prisma.sql`SELECT 3 AS synced`),
+    }));
+    expect(performance.now() - started).toBeGreaterThan(3900);
+    expect(result).toEqual({ count: [{ n: 2 }], page: [{ id: 'owned-message' }], coverage: [{ synced: 3 }] });
   }, 12_000);
 
   test('fast count/page/coverage results remain intact in one owned transaction', async () => {

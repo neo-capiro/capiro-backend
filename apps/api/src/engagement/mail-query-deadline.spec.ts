@@ -9,13 +9,13 @@ const now = performance.now as jest.Mock;
 
 function fixture() {
   const tx = { $executeRaw: jest.fn().mockResolvedValue(0), $queryRaw: jest.fn().mockResolvedValue([{ n: 1 }]) };
-  const withTenant = jest.fn(async (_tenant: string, fn: (tx: unknown) => unknown) => fn(tx));
+  const withTenant = jest.fn(async (_tenant: string, fn: (tx: unknown) => unknown, _opts?: { timeoutMs: number }) => fn(tx));
   return { tx, withTenant, prisma: { withTenant } as unknown as PrismaService };
 }
 beforeEach(() => now.mockReset());
 
 test('all scans share the remaining deadline and the same tenant transaction', async () => {
-  const f = fixture(); now.mockReturnValueOnce(100).mockReturnValueOnce(110).mockReturnValueOnce(1200).mockReturnValueOnce(3500);
+  const f = fixture(); now.mockReturnValueOnce(100).mockReturnValueOnce(110).mockReturnValueOnce(1200).mockReturnValueOnce(10000);
   const result = await withMailQueryDeadline(f.prisma, 'tenant-owned', async (query) => {
     const count = await query(Prisma.sql`SELECT 1`);
     const page = await query(Prisma.sql`SELECT 2`);
@@ -23,12 +23,13 @@ test('all scans share the remaining deadline and the same tenant transaction', a
     return { count, page, coverage };
   });
   expect(f.withTenant).toHaveBeenCalledTimes(1); expect(f.withTenant.mock.calls[0]![0]).toBe('tenant-owned');
-  expect(f.tx.$executeRaw.mock.calls.map(call => call[1])).toEqual(['3490ms', '2400ms', '100ms']);
+  expect(f.withTenant.mock.calls[0]![2]).toEqual({ timeoutMs: 12_000 });
+  expect(f.tx.$executeRaw.mock.calls.map(call => call[1])).toEqual(['9990ms', '8900ms', '100ms']);
   expect(f.tx.$queryRaw).toHaveBeenCalledTimes(3); expect(result.coverage).toEqual([{ n: 1 }]);
 });
 
 test('an exhausted shared budget starts no next scan and returns no partial data', async () => {
-  const f = fixture(); now.mockReturnValueOnce(0).mockReturnValueOnce(1).mockReturnValueOnce(3500);
+  const f = fixture(); now.mockReturnValueOnce(0).mockReturnValueOnce(1).mockReturnValueOnce(10000);
   const result = withMailQueryDeadline(f.prisma, 'tenant-owned', async query => {
     await query(Prisma.sql`SELECT 1`); return query(Prisma.sql`SELECT 2`);
   });
