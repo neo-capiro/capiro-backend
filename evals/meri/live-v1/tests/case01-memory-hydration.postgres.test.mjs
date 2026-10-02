@@ -20,6 +20,7 @@ import {
 } from '../fixture-provisioning/case01-memory-owner.mjs';
 import { sha256Stable } from '../artifact-collector.mjs';
 import { AUTHORIZED_TENANTS, FIXTURE_NAMESPACE } from '../fixture-provisioning/contract.mjs';
+import { readSyntheticMemoryCorpus } from '../../../../apps/api/scripts/meri-synthetic-read-budget.mjs';
 
 const require = createRequire(new URL('../../../../apps/api/package.json', import.meta.url));
 const source = (name) =>
@@ -152,6 +153,15 @@ it(
       assert.deepEqual(stored.unrelated, { text: 'keep  ' });
       assert.deepEqual(stored.meriFoundationFixture.captureEvidence, bound.binding);
       const corpus = await readCase01MemoryCorpusInTx(runtimeDeps, tx, ctx, CLIENT);
+      // Exercise the CLI's actual read dispatch over the same real canonical
+      // owner/owned PostgreSQL transaction; no installer or fixture mutation.
+      const readViaCli = (actor = ctx, clientId = CLIENT) => readSyntheticMemoryCorpus({
+        deps: runtimeDeps,
+        runWithTenant: async (selected, work) => { assert.deepEqual(selected, actor); return work(); },
+      }, { ctx: actor, clientId });
+      assert.deepEqual(await readViaCli(), { ...corpus, status: 'MEMORY_CORPUS_READ' });
+      await assert.rejects(readViaCli({ ...ctx, role: 'capiro_admin' }));
+      await assert.rejects(readViaCli(ctx, randomUUID()));
       assert.deepEqual(corpus, {
         ...qualification,
         evidenceKind: 'canonical-memory-corpus-readback',
@@ -216,7 +226,9 @@ it(
             const changed = await readCase01MemoryCorpusInTx(runtimeDeps, tx, ctx, CLIENT);
             assert.notEqual(changed.currentVerifySha256, corpus.currentVerifySha256);
             assert.equal(changed.captureAuthority, false);
+            assert.equal((await readViaCli()).currentVerifySha256, changed.currentVerifySha256);
           } else {
+            await assert.rejects(readViaCli(), mutation);
             await assert.rejects(
               readCase01MemoryCorpusInTx(runtimeDeps, tx, ctx, CLIENT),
               mutation,
