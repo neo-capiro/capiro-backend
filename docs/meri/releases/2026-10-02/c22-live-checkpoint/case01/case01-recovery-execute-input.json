@@ -1,0 +1,52 @@
+{
+  "recipe": {
+    "schemaVersion": 1,
+    "target": "capiro-dev",
+    "fixtureNamespace": "meri-foundation-20260928",
+    "ctx": {
+      "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+      "tenantSlug": "meri-foundation-20260928-t1",
+      "userId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+      "role": "standard_user"
+    },
+    "clerkUserId": "user_3Jw2FvWZkYGKmxWGx13tNJxFD2A",
+    "reviewerUserId": "fb218bf5-2674-4ced-bca3-7a5d0c01592f",
+    "captureRunId": "c6ffa5ad-dd9f-4912-bc31-a03231a9b903",
+    "previousFixtureInstanceId": "84a3a6a1-ddc8-4810-b120-9a5df0cf1ed9",
+    "currentFixtureInstanceId": "f6164496-9dac-4771-980f-2f362081942e",
+    "clients": {
+      "ASTER": {
+        "tenantId": "T1",
+        "physicalId": "41f9ec63-3963-479f-b747-59a3767ef44b"
+      },
+      "BLUEHAVEN": {
+        "tenantId": "T1",
+        "physicalId": "494f6834-d09e-4723-8a64-b2df57c683e8"
+      },
+      "CEDAR": {
+        "tenantId": "T2",
+        "physicalId": "d966c570-5729-44e6-9d28-8e9c1833aea1"
+      }
+    },
+    "actors": {
+      "PAT": {
+        "tenantId": "T1",
+        "physicalId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f"
+      },
+      "PRIYA": {
+        "tenantId": "T1",
+        "physicalId": "fb218bf5-2674-4ced-bca3-7a5d0c01592f"
+      },
+      "ELI": {
+        "tenantId": "T1",
+        "physicalId": "c81e97df-a6e8-4dea-9de0-33bc7b393ca8"
+      }
+    }
+  },
+  "expected": {
+    "originalClaimSha256": "5fdd382ee4332c3723f801d060c1462b9f4082e5a86fd945c7900fbba25be588",
+    "candidateRowVersion": "113340385"
+  },
+  "expectedPlanSha256": "129c75529f65ed0ab9f4d330e421c2b15b330fe44f9a029c2050d47b0dea615d",
+  "ownerPlanExecutionSha256": "023891a899740de3e469215c7d2ac0264e033488e64dd675ce06ec2a72732266"
+}

@@ -1,0 +1,22 @@
+{
+  "sourceSha": "c22d059e4fc8fd73f93e6928f7db3a1a4338f7f8",
+  "testedCodeSha": "7a03305030b734a39cce321a5b5aff36f6d19609",
+  "services": {
+    "api": {
+      "actionRunId": 36993559201,
+      "buildspecSha256": "ce090c61a57181e7c18c3ee33adc7568ec00d2d1de5fe727b9405ba62dac7d68",
+      "executedMarkers": [
+        "OFFLINE_RUNTIME_IMPORT_PASS",
+        "OFFLINE_CASE01_FIXTURE_PACKAGE_IMPORT_PASS",
+        "EXACT_449_IMAGE_MIGRATION_HASHES_PASS"
+      ]
+    },
+    "meriv2-orchestrator": {
+      "actionRunId": 36993561826,
+      "buildspecSha256": "dd3aaac45be1eada1a2451add262b6407313d699b390deb0c0707455c370af90",
+      "executedMarkers": [
+        "OFFLINE_PACKAGED_ENTRYPOINT_HEALTH_AUTH_PASS"
+      ]
+    }
+  }
+}

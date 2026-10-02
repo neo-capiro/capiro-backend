@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "kind": "meri-local-browser-operator-qualification",
+  "verdict": "PASS",
+  "recordedAt": "2026-10-02T10:17:24.4858488Z",
+  "policySha": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "machineMapSha256": "294d7449619e3b10913008e31d8d610075e6852ff0f0cc0d38de8f6a8c6369ab",
+  "sourceSha": "c22d059e4fc8fd73f93e6928f7db3a1a4338f7f8",
+  "testedCodeSha": "7a03305030b734a39cce321a5b5aff36f6d19609",
+  "webSourceSha": "78ad5805679a3045b1fc10fb19beafa7f76e4e64",
+  "sourceHashes": {
+    "live-operator-gates.mjs": "24fd0aa4650bf8251acda73af0b1d7dece81af5d561e82888cd6f27687f3600f",
+    "run-case17-authenticated-v4.mjs": "f55ea56ae6617257055ab42ac237d35aa1b2445eb938e97489bd03831eca6880",
+    "run-case01-authenticated-v2.mjs": "7cee59099798f32d12f9db33db6de75f9e5788a5a95471ee7e2a891923ffbbe0",
+    "seal-local-live-inputs.mjs": "ab51f67629df5deeaa574913efbbf7b70d299ace69681769959947b4f1076a7e",
+    "live-operator-gates.test.mjs": "490e5e237487abf8c575b5f184c01f94d40aefa6f743b4f1f49133786978fd84",
+    "LOCAL-BROWSER-OPERATORS.md": "adeca5572a097bbc735b07cc9eeb928b104ab179c07e1a7bce20563ff446ef91"
+  },
+  "offline": {
+    "passed": 8,
+    "tests": 8,
+    "earlierFailedAttempt": "live-operator-gates-tests.log retained; missing physicalMap hash join added then all8 passed",
+    "exitCode": 0,
+    "failed": 0,
+    "logSha256": "7b802ec0b61277e11176106d6cb9401c539cd4d4b5f9cb20b0a43620347f8652",
+    "skipped": 0,
+    "syntax": "PASS"
+  },
+  "review": {
+    "reportSha256": "c0cadcc157d6783e71642f7774b857050ea1bc8864cc25c95e41d702d3ae25e1",
+    "provider": "bedrock",
+    "adjudication": "No actionable blocker. Controlled key insertion makes same-release JSON comparison deterministic; canonical owner maps use sorted stable hashing.",
+    "exit": {
+      "exitCode": 0,
+      "started": 1790936137.4840057,
+      "finished": 1790936152.5772064,
+      "elapsedSeconds": 15.09
+    },
+    "model": "moonshotai.kimi-k2.5",
+    "verdict": "PASS",
+    "usage": {
+      "requestedModel": "moonshotai.kimi-k2.5",
+      "initializedModel": "moonshotai.kimi-k2.5",
+      "sessionId": "20261002_101540_161087",
+      "provider": "bedrock",
+      "reportedTokens": {
+        "input": 20289,
+        "output": 436,
+        "total": 20725,
+        "cache_read": 0,
+        "cache_write": 0
+      },
+      "reportedResultExit": 0,
+      "toolCalls": 0,
+      "billedCostUsd": null,
+      "costStatus": "not exposed by quiet stream output"
+    }
+  },
+  "live": {
+    "status": "NOT_RUN",
+    "authCalls": 0,
+    "awsCalls": 0,
+    "case17Scope": "Existing six canonical pending fixtures; no-turn UI slice only, full original prompt/human rubric NOT_RUN",
+    "releasePins": "NOT_SEALED until real build aliases PASS",
+    "humanTimeout": "Preserve actual deterministic capture and pending human review; no repeat turn or fabricated opaque capability",
+    "case01Prerequisites": "NOT_AVAILABLE until root recovery and budget receipts are complete",
+    "modelCaptureTurns": 0,
+    "dbCalls": 0
+  },
+  "rootNext": "Inspect LOCAL-BROWSER-OPERATORS.md; seal actual release pins only after successful readbacks. Root alone executes after promotion. Case01 local scope sealed only from actual recovery/budget receipts."
+}

@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "kind": "meri-live-repair-operator-pins",
+  "target": "https://os.capiro.ai",
+  "sourceSha": "c22d059e4fc8fd73f93e6928f7db3a1a4338f7f8",
+  "testedCodeSha": "7a03305030b734a39cce321a5b5aff36f6d19609",
+  "webSourceSha": "78ad5805679a3045b1fc10fb19beafa7f76e4e64",
+  "operatorHeadAtSeal": "5ad7b3693ba608b8545d3a34b5503bc80e807b7c",
+  "reviewedBuildInputSha256": "344db14421197691c869c92ec0080954cdac3d26a629ca597a1e42280f05cde6",
+  "buildReadbackSha256": {
+    "api": "09c64302c8bfe1606d3e569023f0f94adc5e146777b4cade08cf859073099e9d",
+    "meriv2-orchestrator": "c9b35e383c596bc77163ce7886a1825a3de422da6e9194116076fa61360f9b7d"
+  },
+  "gatesSha256": "24fd0aa4650bf8251acda73af0b1d7dece81af5d561e82888cd6f27687f3600f",
+  "driverSha256": {
+    "run-case17-authenticated-v4.mjs": "f55ea56ae6617257055ab42ac237d35aa1b2445eb938e97489bd03831eca6880",
+    "run-case01-authenticated-v2.mjs": "7cee59099798f32d12f9db33db6de75f9e5788a5a95471ee7e2a891923ffbbe0"
+  }
+}

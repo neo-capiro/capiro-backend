@@ -1,0 +1,9 @@
+{
+  "observedAt": "2026-10-02T10:25:59.3871805Z",
+  "url": "https://os.capiro.ai/api/me",
+  "status": 401,
+  "releaseSha": "",
+  "contentType": "application/json; charset=utf-8",
+  "authenticated": false,
+  "applicationWrites": 0
+}

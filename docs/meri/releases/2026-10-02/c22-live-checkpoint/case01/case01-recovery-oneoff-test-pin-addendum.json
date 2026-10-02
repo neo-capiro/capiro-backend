@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "status": "TEST_FIXTURE_PIN_UPDATED",
+  "operatorSha256": "c6c69d49da95b5e21f3eeae6670cf41c35ef875aaee1638facb31dd93366ca73",
+  "operatorChanged": false,
+  "testSourceSha256": "186192996ca4bff541c7b727fd6e781808821e996fa4ce58c048e7ed2cc93e82",
+  "testedProductionRef": "a7294bbbeafad76bdac5ad4a68b4a2e5ff97cba5",
+  "change": "Offline fake Git source fixture reads immutable git show a729 blob instead of mutable worktree file, so subsequent isolated branch reuse cannot invalidate historical source fixture.",
+  "passed": 15,
+  "skipped": 0,
+  "actualExit": 0,
+  "log": "case01-recovery-oneoff-tests-v4.log",
+  "previousQualificationSha256": "ef688eb2a0ed22f06ddfee4e141d0655611479cc71c2d7a4077195eacd1f875b",
+  "noAwsCalls": true
+}

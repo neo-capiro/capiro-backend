@@ -1,0 +1,20 @@
+{
+  "caseId": "17",
+  "sourceSha": "c22d059e4fc8fd73f93e6928f7db3a1a4338f7f8",
+  "webSourceSha": "78ad5805679a3045b1fc10fb19beafa7f76e4e64",
+  "operatorHead": "5ad7b3693ba608b8545d3a34b5503bc80e807b7c",
+  "pinsSha256": "23259cc5967cdaefdd2d93afdcee6061ce77ee6d779a1c766bc094e972a07e2a",
+  "captureRunId": "0c21a3a0-09f2-4b14-89d9-9f045d72524d",
+  "status": "BLOCKED",
+  "sessionCreated": true,
+  "sessionRevoked": true,
+  "synthesisSubmissionCount": 0,
+  "applicationWrites": 0,
+  "originalPromptSubmission": "NOT_RUN",
+  "humanRubric": "NOT_RUN",
+  "acceptanceScope": "NO_TURN_PENDING_MEMORY_UI_SLICE",
+  "fullOriginalRow17Acceptance": false,
+  "fullFile01Acceptance": false,
+  "failureCode": "CASE17_LIVE_CAPTURE_FAILED",
+  "completedAt": "2026-10-02T10:28:23.328Z"
+}

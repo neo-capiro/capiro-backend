@@ -1,0 +1,58 @@
+TAP version 13
+# Subtest: unit build evidence requires exact source, spec, immutable image and completed phases
+ok 1 - unit build evidence requires exact source, spec, immutable image and completed phases
+  ---
+  duration_ms: 2.0591
+  type: 'test'
+  ...
+# Subtest: documentation lineage only and immutable operator release binding
+ok 2 - documentation lineage only and immutable operator release binding
+  ---
+  duration_ms: 0.4076
+  type: 'test'
+  ...
+# Subtest: actual preserved three failed attempts and existing fixture receipt remain hash exact; local read only
+ok 3 - actual preserved three failed attempts and existing fixture receipt remain hash exact; local read only
+  ---
+  duration_ms: 1.876
+  type: 'test'
+  ...
+# Subtest: unit-only successful recovery, installation and source joins permit configuration only
+ok 4 - unit-only successful recovery, installation and source joins permit configuration only
+  ---
+  duration_ms: 1.9018
+  type: 'test'
+  ...
+# Subtest: setup or budget failure, wrong mode or stale source blocks before authentication
+ok 5 - setup or budget failure, wrong mode or stale source blocks before authentication
+  ---
+  duration_ms: 1.7504
+  type: 'test'
+  ...
+# Subtest: foreign conversation, actor, physical source and current owner/binding all fail
+ok 6 - foreign conversation, actor, physical source and current owner/binding all fail
+  ---
+  duration_ms: 0.8839
+  type: 'test'
+  ...
+# Subtest: explicit three dollar bound and rate lifetime covering the whole signed policy
+ok 7 - explicit three dollar bound and rate lifetime covering the whole signed policy
+  ---
+  duration_ms: 0.5501
+  type: 'test'
+  ...
+# Subtest: operators retain no-send17 and single source-owned01 call with cleanup before offline grading
+ok 8 - operators retain no-send17 and single source-owned01 call with cleanup before offline grading
+  ---
+  duration_ms: 0.8345
+  type: 'test'
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 8
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 101.6587

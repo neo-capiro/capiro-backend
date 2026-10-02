@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "account": "967807252336",
+  "region": "us-east-1",
+  "cluster": "capiro-dev",
+  "service": "api",
+  "preparedAt": "2026-10-02T10:22:26.647Z",
+  "qualification": {
+    "schemaVersion": 1,
+    "service": "api",
+    "sourceSha": "c22d059e4fc8fd73f93e6928f7db3a1a4338f7f8",
+    "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:5f06ac4c18e89bab68eedcac82e7a4984129985d5f083a8a671590d2480a702d",
+    "status": "qualified",
+    "reviewer": "Codex integration owner; independent Hermes/Bedrock Kimi source reviews and actual local PostgreSQL/regression checks, followed by source-bound native ARM64 build verification. Image-only promotion preserves current service settings. Original full live acceptance remains NOT_RUN.",
+    "reviewedAt": "2026-10-02T10:22:07.901Z",
+    "expiresAt": "2026-10-02T14:22:07.902Z",
+    "schemaChange": false,
+    "evidence": [
+      "https://github.com/neo-capiro/capirov2/blob/5ad7b3693ba608b8545d3a34b5503bc80e807b7c/docs/meri/releases/2026-10-02/live-repair-release/qualification.md",
+      "https://github.com/neo-capiro/capirov2/blob/5ad7b3693ba608b8545d3a34b5503bc80e807b7c/docs/meri/releases/2026-10-02/live-repair-release/qualification.json",
+      "https://github.com/neo-capiro/capirov2/blob/5ad7b3693ba608b8545d3a34b5503bc80e807b7c/docs/meri/releases/2026-10-02/live-repair-release/source-git-blob-hashes.json",
+      "https://github.com/neo-capiro/capirov2/blob/5ad7b3693ba608b8545d3a34b5503bc80e807b7c/docs/meri/releases/2026-10-02/live-repair-release/api-build-readback.json"
+    ],
+    "checks": [
+      {
+        "name": "build",
+        "status": "passed",
+        "sourceSha": "c22d059e4fc8fd73f93e6928f7db3a1a4338f7f8",
+        "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:5f06ac4c18e89bab68eedcac82e7a4984129985d5f083a8a671590d2480a702d",
+        "url": "https://github.com/neo-capiro/capirov2/blob/5ad7b3693ba608b8545d3a34b5503bc80e807b7c/docs/meri/releases/2026-10-02/live-repair-release/api-build-readback.json"
+      },
+      {
+        "name": "automated-tests",
+        "status": "passed",
+        "sourceSha": "c22d059e4fc8fd73f93e6928f7db3a1a4338f7f8",
+        "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:5f06ac4c18e89bab68eedcac82e7a4984129985d5f083a8a671590d2480a702d",
+        "url": "https://github.com/neo-capiro/capirov2/blob/5ad7b3693ba608b8545d3a34b5503bc80e807b7c/docs/meri/releases/2026-10-02/live-repair-release/qualification.json"
+      },
+      {
+        "name": "retirement-compatibility",
+        "status": "passed",
+        "sourceSha": "c22d059e4fc8fd73f93e6928f7db3a1a4338f7f8",
+        "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:5f06ac4c18e89bab68eedcac82e7a4984129985d5f083a8a671590d2480a702d",
+        "url": "https://github.com/neo-capiro/capirov2/blob/5ad7b3693ba608b8545d3a34b5503bc80e807b7c/docs/meri/releases/2026-10-02/live-repair-release/qualification.md"
+      }
+    ]
+  },
+  "baseline": {
+    "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:493",
+    "serviceHash": "70cd6f1ce1c91c975ba9274f7491111320deca09b0cd6ac97bab6b4b7d8ce898",
+    "configHash": "973748a2b134b388a6027df6c5c099055a7e24f7b746eafbaae8cebad077258a",
+    "taskHash": "f3e7400e832c501b94cbbe30ef7dce883cbcf743d9d8b1af53610ee833ce8f34",
+    "imageDigest": "sha256:2b9dee9bf4ac1fadd9d4192975c69ca985c25b7eba12b582dcdda699450630ff",
+    "desiredCount": 2
+  }
+}

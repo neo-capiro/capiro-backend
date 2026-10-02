@@ -1,0 +1,11 @@
+{
+  "observedAt": "2026-10-02T10:26:43.1555525Z",
+  "url": "https://os.capiro.ai/api/me",
+  "status": 401,
+  "headerName": "X-Capiro-Release-Sha",
+  "releaseSha": "c22d059e4fc8fd73f93e6928f7db3a1a4338f7f8",
+  "contentType": "application/json; charset=utf-8",
+  "authenticated": false,
+  "applicationWrites": 0,
+  "priorObservationLimitation": "Prior readback queried X-Release-Sha rather than the implemented X-Capiro-Release-Sha header."
+}

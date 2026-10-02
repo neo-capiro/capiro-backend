@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "status": "RECONCILIATION_REQUIRED",
+  "planHash": "bb3c1c96255187dd92e9b342546e7f0eb3c5d0dc5c2ccfa41456a95242d10fab",
+  "mode": "setup-recovery-execute",
+  "operationId": "767b49f5-ee01-4dc7-93f9-1d168b5f174e",
+  "sourceSha": "c22d059e4fc8fd73f93e6928f7db3a1a4338f7f8",
+  "operatorHead": "5ad7b3693ba608b8545d3a34b5503bc80e807b7c",
+  "liveAcceptance": "NOT_RUN",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-case01-operator:4",
+  "startedBy": "meri-c01-767b49f5-ee01-4dc7-93f9-",
+  "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/d2654fa526ac45d6843a6234d993074a",
+  "containerExitCode": 1,
+  "logMessageCount": 5,
+  "ownerReceipts": [
+    {
+      "stage": "RECOVERY_ADMISSION",
+      "phase": "INTENT",
+      "captureRunId": "c6ffa5ad-dd9f-4912-bc31-a03231a9b903"
+    },
+    {
+      "stage": "RECOVERY_ADMISSION",
+      "phase": "VERIFIED",
+      "captureRunId": "c6ffa5ad-dd9f-4912-bc31-a03231a9b903",
+      "claimSha256": "2d51c9ef4f90dbc9bd5e2a98c30c1e70dde09386fb5e6857b0ebb4f2c08d0bc9"
+    },
+    {
+      "stage": "FIRST_CANONICAL_APPROVAL",
+      "phase": "INTENT",
+      "captureRunId": "c6ffa5ad-dd9f-4912-bc31-a03231a9b903"
+    },
+    {
+      "stage": "FIRST_CANONICAL_APPROVAL",
+      "phase": "RECONCILIATION_REQUIRED",
+      "captureRunId": "c6ffa5ad-dd9f-4912-bc31-a03231a9b903",
+      "failure": {
+        "stage": "FIRST_CANONICAL_APPROVAL",
+        "errorClass": "PrismaClientKnownRequestError",
+        "prismaCode": "P2010",
+        "sqlState": null
+      }
+    }
+  ],
+  "code": "OWNER_PROCESS_FAILED"
+}

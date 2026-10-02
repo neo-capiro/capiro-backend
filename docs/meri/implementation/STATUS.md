@@ -1,4 +1,26 @@
-## Current checkpoint — 2026-10-02 10:00 UTC, live preflight repairs qualified
+## Current checkpoint — 2026-10-02 10:35 UTC, c22 deployed and live blockers captured
+
+**File01 remains incomplete; no original live row is complete.** PR1934/sourcec22
+is deployed and healthy at API495 and orchestrator95. Web VNext388/source78ad
+remains healthy at os.capiro.ai. Both promotions exited0 and the API release
+header now reports c22. No schema/migration-ledger change occurred.
+
+Actual case01 recovery-plan passed. Recovery-execute stopped after its separate
+claim at FIRST_CANONICAL_APPROVAL with PrismaP2010; its SQLSTATE was not retained
+by the existing safe allowlist. Both original and recovery claims remain intact.
+Investigate the canonical raw query and actual schema before any continuation;
+do not clear claims or repeat setup. Budget installation and model capture did not run.
+Case17v4's no-turn UI capture also stopped; its owned session was revoked and its
+original conversational row is still NOT_RUN. A bounded browser-step diagnostic is next.
+
+See [actual release, operator reviews and failed attempts](../releases/2026-10-02/c22-live-checkpoint/README.md).
+Three parallel lanes continue the exact database/UI diagnosis, original budget
+rows and governed export. Full75/CD7/CW8/applicable memory, variants and human
+grading remain open. Defense Chat and historical migration/PITR remain excluded.
+
+Shared policy39590a3bfc57ce03b0411ff7912a7c8d99deb70c; machine map2026-09-30T00:21:48Z.
+
+## Historical checkpoint — 2026-10-02 10:00 UTC, live preflight repairs qualified
 
 **File01 remains incomplete; no original live row is claimed complete.** PR1933/source78ad is deployed and healthy at API493, orchestrator93 and Web VNext388 on os.capiro.ai. Six owned case17 pending proposals exist. The browser attempts are preserved as BLOCKED, with every created authentication session revoked. They found missing artifact-storage initialization, missing native HTTP User-Agent, and absent main-API release-header provenance.
 
