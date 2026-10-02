@@ -1,0 +1,8 @@
+{
+  "sourceSha": "5aefd34e86c84293436b42b366d599e1867f4e94",
+  "files": {
+    "apps/api/scripts/meri-capture-provider-budget.mjs": "58adb4471c082c383ab62b230d33a09e6ddca965925820fb797c6d627413b2b5",
+    "evals/meri/live-v1/tests/capture-provider-budget-cli-harness.mjs": "de1294d1416caa220ae20fe86a6422ce829fd42b62054ae3e955a281f796f1e7",
+    "evals/meri/live-v1/tests/capture-provider-budget-install.postgres.test.mjs": "d14cf12b213e770a7141b89d801dc396bf3fe3edcd853aec029a6e5f6a828b77"
+  }
+}

@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "verdict": "PASS",
+  "sourceSha": "639ccc8efca87eaf705d4b956c32fe1d166316f8",
+  "baseSha": "15ed650f3bc56b6906cb0dbf7cb30602843f4a7b",
+  "branch": "codex/meri-budget-cli-scope-20261002",
+  "policySha": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "machineMapRevision": "2026-09-30",
+  "files": {
+    "apps/api/scripts/meri-capture-provider-budget.mjs": "58adb4471c082c383ab62b230d33a09e6ddca965925820fb797c6d627413b2b5",
+    "evals/meri/live-v1/tests/capture-provider-budget-cli-harness.mjs": "de1294d1416caa220ae20fe86a6422ce829fd42b62054ae3e955a281f796f1e7",
+    "evals/meri/live-v1/tests/capture-provider-budget-install.postgres.test.mjs": "d14cf12b213e770a7141b89d801dc396bf3fe3edcd853aec029a6e5f6a828b77"
+  },
+  "checks": {
+    "beforeRepair": {
+      "exitCode": 1,
+      "passed": 2,
+      "failed": 1,
+      "skipped": 0,
+      "log": "budget-cli-scope-before.log",
+      "classification": "actual CLI plan failure with explicit two-tenant cohort and foreign inherited ALS"
+    },
+    "afterRepair": {
+      "exitCode": 0,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "log": "budget-cli-scope-final-v2.log",
+      "scope": "owned local PostgreSQL rollback; actual CLI plan/install, canonical hydration/CAS, foreign user/tenant and missing cohort denials; projection sink inert"
+    },
+    "discardedTestExpectation": {
+      "exitCode": 1,
+      "passed": 2,
+      "failed": 1,
+      "log": "budget-cli-scope-final.log",
+      "classification": "unsupported test-only direct clerkUserId contract; canonical operator validates userId/membership/namespace; no production identity policy broadened"
+    },
+    "syntaxAndDiff": {
+      "exitCode": 0
+    }
+  },
+  "independentReview": {
+    "verdict": "PASS",
+    "provider": "bedrock",
+    "model": "moonshotai.kimi-k2.5",
+    "sessionId": "20261002_070944_c187c2",
+    "pid": 19392,
+    "exitCode": 0,
+    "toolCalls": 0,
+    "path": "budget-cli-kimi-review.md",
+    "qualification": "source-only review; actual PostgreSQL execution belongs to Codex lane; reviewer wording mocked DB refers to facade connection seam, while SQL ran on owned loopback PostgreSQL"
+  },
+  "logHashes": {
+    "budget-cli-scope-before.log": "734a09f5501221dfa91fb968b8cda475b49531507da2992e1f0eb36e43a0c746",
+    "budget-cli-scope-final-v2.log": "d4861877c9b559f925112632933b25ded8439b31f991b077182ec5b31cba5e99",
+    "budget-cli-kimi-review.md": "cee596bb5faed955414129d2fd4359129f817c895040cbd8fff2b7363cb1b694",
+    "budget-cli-kimi-exit.json": "8e1b6ea0f6494a0f4f7a2356a5f3f4b5486f964f9f2f97b8177cd972ea194549"
+  },
+  "externalEffects": "Only owned loopback rollback transactions and bounded Bedrock review; no AWS/product/live fixture writes, no main edits or pushes.",
+  "liveAcceptance": "NOT_RUN"
+}

@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "manifestHash": "336880cf39f6fbd2eb1999746c39ec68a318b3bdc071376d3567ea815a567c14",
+  "service": "meriv2-orchestrator",
+  "configHash": "3a4fabd2139e347cd8b45192579f2a3fbaaa6fc3678762b5252f727a4461951b",
+  "candidateImage": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:486bcf39b84361704e81752ee9b5f33797788d6f3ca27b4d2c1d2dd4464bed6d",
+  "candidateTaskHash": "7650856204c236e21322794f3d1aaf5a14718cc4d2cc8bd7927bb344fabbb5a0",
+  "rollbackTaskHash": "eef6a210665aa129a065f926d40dc6df618521a174cc642f78580cf2569aeb93",
+  "rollbackImage": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:94f49d77dd2770b4da93a1f1d8f7b112e7f4533c2c860be5eb42f1bbdddb095b",
+  "status": "ecs-healthy-manual-acceptance-required",
+  "awsMutation": true,
+  "rollbackTaskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:90",
+  "candidateTaskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:91",
+  "deploymentId": "ecs-svc/0180247681996024080"
+}

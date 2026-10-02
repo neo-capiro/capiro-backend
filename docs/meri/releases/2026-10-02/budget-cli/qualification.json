@@ -1,0 +1,61 @@
+{
+  "sourceSha": "5aefd34e86c84293436b42b366d599e1867f4e94",
+  "policySha": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "machineMapRevision": "2026-09-30T00:21:48Z",
+  "checks": [
+    {
+      "name": "node-budget-cli",
+      "sourceSha": "5aefd34e86c84293436b42b366d599e1867f4e94",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "--test",
+        "evals/meri/live-v1/tests/capture-provider-budget-install.postgres.test.mjs",
+        "evals/meri/live-v1/tests/capture-provider-budget.postgres.test.mjs",
+        "evals/meri/live-v1/tests/case01-operator-input.test.mjs",
+        "evals/meri/live-v1/tests/case01-execution-setup.postgres.test.mjs",
+        "evals/meri/live-v1/tests/case01-memory-hydration.postgres.test.mjs"
+      ],
+      "exitCode": 0,
+      "seconds": 23.94,
+      "logSha256": "c405316d18c878e63b1e578ee90aa0dddfff12337e4c54ecc0ff9085f077de5d"
+    },
+    {
+      "name": "promptfoo",
+      "sourceSha": "5aefd34e86c84293436b42b366d599e1867f4e94",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "node_modules/promptfoo/dist/src/entrypoint.js",
+        "eval",
+        "-c",
+        "evals/meri/promptfooconfig.yaml",
+        "--no-cache",
+        "--no-share",
+        "--no-write",
+        "--no-table",
+        "--no-progress-bar",
+        "-o",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-case01-release\\budget-cli-root-verification\\meri-offline.json"
+      ],
+      "exitCode": 0,
+      "seconds": 26.16,
+      "logSha256": "9ab5756a94c807e0b6b2a338784bc72df4104276dfae1f1a493493a979b69392"
+    },
+    {
+      "name": "custom-verifier",
+      "sourceSha": "5aefd34e86c84293436b42b366d599e1867f4e94",
+      "command": [
+        "C:\\ProgramData\\Hermes\\tools\\python-3.14.7+20260901-win32-x64\\python.exe",
+        "evals/meri/verify_report.py",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-case01-release\\budget-cli-root-verification\\meri-offline.json",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-case01-release\\budget-cli-root-verification\\meri-offline.summary.json"
+      ],
+      "exitCode": 0,
+      "seconds": 0.12,
+      "logSha256": "3d4f24979e2bfae22a8fb6323ea60906e7029928a787c780906e10f332721593"
+    }
+  ],
+  "sourceUnchanged": true,
+  "worktreeStatus": "",
+  "liveAcceptance": "NOT_RUN",
+  "exitCode": 0
+}
