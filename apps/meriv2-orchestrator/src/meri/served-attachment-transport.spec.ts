@@ -225,11 +225,11 @@ describe('served attachment executor transport', () => {
 });
 
 describe('bounded Research Portfolio current-conversation contract', () => {
-  it('matches all 18 RP capabilities in this checkout canonical registry, without inventing manage', () => {
+  it('matches all 19 RP capabilities in the canonical registry, including management', () => {
     const canonical = MERI_TOOL_NAMES.filter((name) => name.includes('research_portfolio')).sort();
     expect([...CURRENT_CONVERSATION_RESEARCH_PORTFOLIO_TOOLS].sort()).toEqual(canonical);
-    expect(canonical).toHaveLength(18);
-    expect(canonical).not.toContain('manage_research_portfolio');
+    expect(canonical).toHaveLength(19);
+    expect(canonical).toContain('manage_research_portfolio');
   });
 
   it.each(CURRENT_CONVERSATION_RESEARCH_PORTFOLIO_TOOLS)(
