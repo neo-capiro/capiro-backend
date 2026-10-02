@@ -48,7 +48,7 @@ try {
           receipt(packet.budgetPlanPath),
           read(packet.reviewedRatesPath),
         );
-      else if (stage === 'live-scope')
+      else if (stage === 'live-scope') {
         value = controlledReadLiveConfig(
           input,
           setup,
@@ -56,7 +56,8 @@ try {
           receipt(packet.budgetInstallReceiptPath),
           read(packet.deploymentPath),
         );
-      else throw new Error('CONTROLLED_READ_INPUT_STAGE');
+        value.aggregateCheckpoint = read(packet.aggregateCheckpointPath);
+      } else throw new Error('CONTROLLED_READ_INPUT_STAGE');
     }
   }
   writeFileSync(outPath, JSON.stringify(value, null, 2) + '\n', { flag: 'wx', mode: 0o600 });

@@ -50,7 +50,29 @@ Use a separate deployment JSON with the actual qualified API/orchestrator/Web so
 
 The placeholders are intentionally invalid. Use the current successful build/promotion receipts. Mixed immutable source revisions are allowed only when actually qualified; no old-head build substitutes. Fresh live AWS readback independently requires exact digests, running completed service/task configuration, healthy targets and source metadata. The browser additionally requires `os.capiro.ai`, `vnext`, exact Web release SHA and canonical Clerk host.
 
-Rates must be reviewed, unexpired for at least fifteen more minutes, and valid under the200,000-token ceiling. This operator fixes32 attempts, a3USD per-case enforced ceiling, one synthesis and concurrency1; it does not implement a30USD cross-case aggregate or alter runtime profiles/models. Server installation validates rates and native provider boundaries. Unknown usage/unsettled costs cannot pass.
+Rates must be reviewed, unexpired for at least fifteen more minutes, and valid under the200,000-token ceiling. This operator fixes32 provider attempts, a3USD per-case enforced ceiling, one synthesis and concurrency1. The separate native aggregate below reserves at most30USD for the explicit original capture slice. It does not change runtime profiles/models. Server installation validates rates and native provider boundaries. Unknown usage/unsettled costs cannot pass.
+
+The root operator must first review the actual original-slice inventory and initialize one native aggregate using `initializeCaptureSpendAggregate` from `capture-spend-aggregate.mjs`. Initialization is an explicit local action, never a fallback for a full, failed, or missing ledger. Its boundary names original case01 and its actual first `captureRunId`, a fresh slice UUID, and the SHA256 of the reviewed inventory. The current task's original first run is `c6ffa5ad-dd9f-4912-bc31-a03231a9b903`. Earlier diagnostic smoke calls are separately inventoried; they are not historical zero and are outside this explicitly declared original slice. If any original provider call occurred before initialization, the root must include its full prior reservation and a pinned terminal receipt; a still-running or uncertain prior attempt blocks initialization operationally until reconciled. `priorRuns` is trusted operator inventory, never a model/user assertion of readiness.
+
+```javascript
+const checkpoint = initializeCaptureSpendAggregate({
+  root: 'C:/evidence/owned-original-slice-spend', // new exclusive local directory
+  pythonExecutable: 'C:/ProgramData/Hermes/tools/python-3.14.7+20260901-win32-x64/python.exe',
+  inventory: {
+    sliceId: 'ACTUAL_SLICE_UUID_V4',
+    boundary: {
+      kind: 'original_file01_capture_slice', firstCaseId: '01',
+      firstCaptureRunId: 'c6ffa5ad-dd9f-4912-bc31-a03231a9b903',
+      inventorySha256: 'ACTUAL_REVIEWED_INVENTORY_64_HEX_HASH',
+    },
+    priorRuns: [], // only when the current reviewed inventory proves none
+  },
+});
+```
+
+Save the exact returned checkpoint durably outside Git, then pass its path as `aggregateCheckpointPath` in the local materializer packet. This is a real native Windows capability checkpoint; copying a guessed JSON result cannot authorize capture. The native helper reopens every ancestor/file identity, verifies bytes, locks the writer, and rejects extra/missing entries or stale state. The runner reserves the full3USD ceiling and flushes `aggregate-reserved-checkpoint.json` **before** auth, conversation creation or synthesis. Only one reservation can be unresolved. The native case01/14/controlled collectors each require its opaque reservation and revalidate it immediately before POST. Other one-shot wrappers must explicitly open the same owner, reserve and pass `spendReservation`; they cannot keep using this increment's collectors without that composition.
+
+After real authenticated receipt joins show a settled provider ledger, the collector records its actual charge and saves `aggregate-spend-checkpoint.json`; the controlled runner additionally saves `aggregate-final-checkpoint.json`. Pass the exact latest checkpoint to the next serial case. Full reservation ceilings are never refunded even when the observed charge is smaller: ten3USD reservations exhaust this slice. An unresolved provider result, lost checkpoint or interrupted journal write blocks further cases; do not create a replacement ledger or retry. The primitive journal's UNIT test settlements do not establish LIVE evidence. Initial inventory/positive LIVE settlement and full original evaluation remain NOT_RUN until root execution.
 
 ## Source-owned setup sequence
 
@@ -113,7 +135,7 @@ node evals/meri/live-v1/materialize-controlled-read.mjs budget-install --packet 
 node apps/api/scripts/meri-capture-provider-budget.mjs install --input-env MERI_CAPTURE_PROVIDER_BUDGET_INPUT --out /tmp/controlled-budget-install.json
 ```
 
-Set `budgetInstallInputPath`, `budgetInstallReceiptPath` (the actual verified execution) and `deploymentPath`. Then:
+Set `budgetInstallInputPath`, `budgetInstallReceiptPath` (the actual verified execution), `deploymentPath` and `aggregateCheckpointPath` (the exact latest native checkpoint). Then:
 
 ```powershell
 node evals/meri/live-v1/materialize-controlled-read.mjs live-scope --packet C:/evidence/case20/packet.json --out C:/evidence/case20/live-scope.json

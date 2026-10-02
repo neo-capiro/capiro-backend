@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, openSync, fsyncSync, closeSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -15,6 +15,7 @@ import {
 } from './controlled-read-live-capture.mjs';
 import { gradeControlledReadCapturedOutcome } from './grade-controlled-read-capture.mjs';
 import { createWindowsArtifactStorage } from './windows-artifact-storage.mjs';
+import { openCaptureSpendAggregate } from './capture-spend-aggregate.mjs';
 import {
   controlledReadSetupInput,
   inspectControlledReadSetupReceipt,
@@ -233,8 +234,14 @@ export async function runControlledReadOperator(args = process.argv.slice(2)) {
     const clerkSecret = process.env.CLERK_SECRET_KEY;
     // Do not pass this operator-only credential to Git, AWS or browser child processes.
     delete process.env.CLERK_SECRET_KEY;
-    const { config, setupReceipt, expectedWebSha, qualificationExpiresAt, operatorSourceSha } =
-      read(scopePath);
+    const {
+      config,
+      setupReceipt,
+      expectedWebSha,
+      qualificationExpiresAt,
+      operatorSourceSha,
+      aggregateCheckpoint,
+    } = read(scopePath);
     need(config?.conversationId === null, 'PRECREATED_OR_REPLAY_SCOPE_REJECTED');
     inspectControlledReadScope(
       { ...config, conversationId: config.captureRunId },
@@ -258,6 +265,10 @@ export async function runControlledReadOperator(args = process.argv.slice(2)) {
       'materialize-controlled-read.mjs',
       'run-controlled-read.mjs',
       'controlled-read-live-capture.mjs',
+      'case01-live-capture.mjs',
+      'capture-spend-aggregate.mjs',
+      'lib/windows-capture-spend.py',
+      'tests/capture-spend-aggregate.test.mjs',
       'CONTROLLED-READ-OPERATOR.md',
       'tests/controlled-read-operator.test.mjs',
     ]);
@@ -318,6 +329,30 @@ export async function runControlledReadOperator(args = process.argv.slice(2)) {
       fullFile01Acceptance: false,
     };
     persist();
+    const spendOwner = openCaptureSpendAggregate(aggregateCheckpoint, {
+      pythonExecutable: 'C:/ProgramData/Hermes/tools/python-3.14.7+20260901-win32-x64/python.exe',
+    });
+    const spendReservation = spendOwner.reserve({
+      caseId: config.caseId,
+      captureRunId: config.captureRunId,
+      ceilingMicros: config.limits.maxSpendUsd * 1000000,
+    });
+    const saveSpendCheckpoint = (name) => {
+      const file = join(outRoot, name);
+      writeFileSync(file, JSON.stringify(spendOwner.checkpoint(), null, 2) + '\n', {
+        flag: 'wx',
+        mode: 0o600,
+      });
+      const fd = openSync(file, 'r+');
+      try {
+        fsyncSync(fd);
+      } finally {
+        closeSync(fd);
+      }
+    };
+    // The reservation and its resumable identity checkpoint are durable before
+    // auth, conversation creation or any provider submission. No automatic refund.
+    saveSpendCheckpoint('aggregate-reserved-checkpoint.json');
     const { createClerkClient } = require('@clerk/backend');
     const { chromium } = require('C:/dev/node_modules/playwright');
     clerk = createClerkClient({ secretKey: clerkSecret });
@@ -473,11 +508,13 @@ export async function runControlledReadOperator(args = process.argv.slice(2)) {
       config,
       runRoot,
       artifactStorage: storage,
+      spendReservation,
       env: { MERI_LIVE_BEARER_TOKEN: bearer },
     });
     summary.capturePrepared = true;
     persist();
     const outcome = await executeControlledReadLiveCapture(capability);
+    saveSpendCheckpoint('aggregate-final-checkpoint.json');
     summary.outcome = outcome;
     persist();
     need(
