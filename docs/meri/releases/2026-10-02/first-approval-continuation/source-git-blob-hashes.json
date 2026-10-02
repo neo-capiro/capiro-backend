@@ -1,0 +1,10 @@
+{
+  "testedCodeSha": "823edc1110a02082a06a4ff90cbaaa71f83b4e15",
+  "files": {
+    "apps/api/scripts/meri-case01-setup.mjs": "61e666709d9a8e833fcc3d22c691a338749ec2c0a3e6d8a6f26536400d039bf4",
+    "evals/meri/live-v1/fixture-provisioning/case01-execution-setup.mjs": "208e13fa09c00e1da22076efeb02ca42ba3f7270434380914444afe1c6fd4580",
+    "evals/meri/live-v1/tests/case01-execution-setup.postgres.test.mjs": "5959b97edd9b77768bf34cdfbc78a272a4b748e8cca947bf185748a4355607d6",
+    "evals/meri/live-v1/tests/case01-memory-packaging.test.mjs": "342097fc25a9b573e00e4faa0a7c82316412d8309a9792b3175b26bf91b44332",
+    "evals/meri/live-v1/tests/case01-recovery-real-transactions.test.mjs": "37667ca4251d3389c3afc8cd936e1880206380d0abe2cde3177f85ba54c60f44"
+  }
+}

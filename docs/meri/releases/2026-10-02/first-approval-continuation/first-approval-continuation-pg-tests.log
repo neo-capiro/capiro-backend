@@ -1,0 +1,142 @@
+TAP version 13
+# (node:19332) [DEP0180] DeprecationWarning: fs.Stats constructor is deprecated.
+# (Use `node --trace-deprecation ...` to show where the warning was created)
+# [Nest] 19332  - 10/02/2026, 11:08:31 AM     LOG [MemoryCandidateService] memory_candidate cbbbc3f9-ed36-5cf9-87b5-9aa82c767da9 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# {"_aws":{"Timestamp":1790939311938,"CloudWatchMetrics":[{"Namespace":"Capiro/MeriV2Control","Dimensions":[["Environment"]],"Metrics":[{"Name":"SelfReviewDenials","Unit":"Count"}]}]},"Environment":"unknown","event":"meriv2.control.metrics","SelfReviewDenials":1}
+# Subtest: creates actual weekly-to-monthly immutable lineage through guarded canonical correction and approval
+ok 1 - creates actual weekly-to-monthly immutable lineage through guarded canonical correction and approval
+  ---
+  duration_ms: 3035.4652
+  type: 'test'
+  ...
+# [Nest] 19332  - 10/02/2026, 11:08:32 AM     LOG [MemoryCandidateService] memory_candidate 7f8b68db-d6ee-5de1-9cb3-8d162e27063c pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 19332  - 10/02/2026, 11:08:32 AM     LOG [MemoryCandidateService] memory_candidate 5f3e1d7c-c179-5e4e-bc5c-bb76942bf4f7 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 19332  - 10/02/2026, 11:08:32 AM     LOG [MemoryCandidateService] memory_candidate 3d4dfa04-4f68-5023-9f28-0508b3f4e11a pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 19332  - 10/02/2026, 11:08:32 AM     LOG [MemoryCandidateService] memory_candidate e10927dc-1993-57b3-8b98-9c1d6e98915b pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 19332  - 10/02/2026, 11:08:33 AM     LOG [MemoryCandidateService] memory_candidate be1410ec-7335-5c39-b787-2076991849ab pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 19332  - 10/02/2026, 11:08:33 AM     LOG [MemoryCandidateService] memory_candidate a7d2c77e-80bb-5c9d-aa7d-94dbaae4b7c6 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 19332  - 10/02/2026, 11:08:33 AM     LOG [MemoryCandidateService] memory_candidate 5606d7ba-ae01-5699-b1d5-631f9a942f4b pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 19332  - 10/02/2026, 11:08:33 AM     LOG [MemoryCandidateService] memory_candidate 36c3cce3-c982-5aff-a17a-d23313a5d0db pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# Subtest: seeds all five real case01 states, requires actual previous retirement, then binds the new instance atomically
+ok 2 - seeds all five real case01 states, requires actual previous retirement, then binds the new instance atomically
+  ---
+  duration_ms: 1686.5752
+  type: 'test'
+  ...
+# [Nest] 19332  - 10/02/2026, 11:08:49 AM     LOG [MemoryCandidateService] memory_candidate 9e2e403c-cb73-5562-b4e1-c4755d565c87 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 19332  - 10/02/2026, 11:08:49 AM     LOG [MemoryCandidateService] memory_candidate 1759822f-a64c-5570-80da-3868f65884dc pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 19332  - 10/02/2026, 11:08:49 AM     LOG [MemoryCandidateService] memory_candidate 1c643a6d-1d39-5bb8-a607-be645d0bb701 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 19332  - 10/02/2026, 11:08:50 AM     LOG [MemoryCandidateService] memory_candidate 57b1baef-9a36-5a43-bb26-cc679fb136fd pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 19332  - 10/02/2026, 11:08:50 AM     LOG [MemoryCandidateService] memory_candidate efb71408-c35e-57d2-bcd9-98643c76953a pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 19332  - 10/02/2026, 11:08:50 AM     LOG [MemoryCandidateService] memory_candidate 1174115c-946a-50ec-8c22-7d1e22f29d34 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 19332  - 10/02/2026, 11:08:50 AM     LOG [MemoryCandidateService] memory_candidate 3d76f9c8-0c2e-5976-8cfc-81268dae2446 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 19332  - 10/02/2026, 11:08:50 AM     LOG [MemoryCandidateService] memory_candidate 65da78ce-3672-5ebc-ab82-9d87e279d66b pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# Subtest: exact pending continuation completes canonical lifecycle and preserves both STARTED historical claims
+ok 3 - exact pending continuation completes canonical lifecycle and preserves both STARTED historical claims
+  ---
+  duration_ms: 17395.5459
+  type: 'test'
+  ...
+# [Nest] 19332  - 10/02/2026, 11:08:51 AM     LOG [MemoryCandidateService] memory_candidate 5ff62484-8ac7-5bb9-8a62-a1063f8efcce pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# Subtest: continuation refuses altered claims, stale plan, unauthorized reviewer and any downstream or candidate drift before admission
+ok 4 - continuation refuses altered claims, stale plan, unauthorized reviewer and any downstream or candidate drift before admission
+  ---
+  duration_ms: 1579.1266
+  type: 'test'
+  ...
+# [Nest] 19332  - 10/02/2026, 11:08:53 AM     LOG [MemoryCandidateService] memory_candidate fcaf7b66-aa53-551e-9174-9a421d890a91 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 19332  - 10/02/2026, 11:08:53 AM     LOG [MemoryCandidateService] memory_candidate 09f9cd11-a8fe-53cf-9085-2dd48d86c7b5 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 19332  - 10/02/2026, 11:08:53 AM     LOG [MemoryCandidateService] memory_candidate c028162c-cd95-5b63-a145-d5b410371b12 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 19332  - 10/02/2026, 11:08:54 AM     LOG [MemoryCandidateService] memory_candidate 2781fbb7-49dd-55a7-bd16-b425ba6d9328 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 19332  - 10/02/2026, 11:08:54 AM     LOG [MemoryCandidateService] memory_candidate f0554ff3-5de4-56c5-b732-6bf79fd5a4b7 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 19332  - 10/02/2026, 11:08:54 AM     LOG [MemoryCandidateService] memory_candidate 13dd162a-63de-59f0-a9df-5116da0e092d pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 19332  - 10/02/2026, 11:08:54 AM     LOG [MemoryCandidateService] memory_candidate 4f655d46-6aa4-5b64-a526-2aca618d274e pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 19332  - 10/02/2026, 11:08:54 AM     LOG [MemoryCandidateService] memory_candidate 19a69335-3000-5c61-8cf9-5ebb7709fe35 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# Subtest: continuation final CAS refuses changes to either historical claim and never reports completion
+ok 5 - continuation final CAS refuses changes to either historical claim and never reports completion
+  ---
+  duration_ms: 2365.2858
+  type: 'test'
+  ...
+# [Nest] 19332  - 10/02/2026, 11:08:55 AM     LOG [MemoryCandidateService] memory_candidate 5cfa8921-379f-5043-8c31-40dca120f45d pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 19332  - 10/02/2026, 11:08:56 AM     LOG [MemoryCandidateService] memory_candidate 1c38378a-fd2a-5f10-8405-2b241d292fe3 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 19332  - 10/02/2026, 11:08:56 AM     LOG [MemoryCandidateService] memory_candidate 7a8b9965-fd20-5f1d-a609-8f6d8f963f58 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 19332  - 10/02/2026, 11:08:56 AM     LOG [MemoryCandidateService] memory_candidate 6c229818-21d2-5023-babe-a748074c2774 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 19332  - 10/02/2026, 11:08:56 AM     LOG [MemoryCandidateService] memory_candidate dcc67dec-258f-53e4-898b-afe82d9109e5 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 19332  - 10/02/2026, 11:08:56 AM     LOG [MemoryCandidateService] memory_candidate 59248e18-d3f4-59d3-9d7e-75b335556969 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 19332  - 10/02/2026, 11:08:56 AM     LOG [MemoryCandidateService] memory_candidate 850fdeaa-f1b9-5682-8992-c3d7c45ecf74 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 19332  - 10/02/2026, 11:08:56 AM     LOG [MemoryCandidateService] memory_candidate c4a9f1b6-1bda-537b-ba11-2607041bf609 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# Subtest: one-shot pending recovery reuses the exact candidate and keeps the original failed claim immutable
+ok 6 - one-shot pending recovery reuses the exact candidate and keeps the original failed claim immutable
+  ---
+  duration_ms: 2186.2024
+  type: 'test'
+  ...
+# [Nest] 19332  - 10/02/2026, 11:08:57 AM     LOG [MemoryCandidateService] memory_candidate ecacadfc-33b8-53ff-949c-d5e1c89e2984 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# Subtest: pending recovery rejects stale version, source drift, original claim drift, downstream state and stale plan before new effects
+ok 7 - pending recovery rejects stale version, source drift, original claim drift, downstream state and stale plan before new effects
+  ---
+  duration_ms: 947.9899
+  type: 'test'
+  ...
+# [Nest] 19332  - 10/02/2026, 11:08:58 AM     LOG [MemoryCandidateService] memory_candidate 76078d8d-130c-5c08-9a04-995b608330b0 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# Subtest: failed canonical first approval keeps its recovery claim and emits safe source-owned error codes without raw messages
+ok 8 - failed canonical first approval keeps its recovery claim and emits safe source-owned error codes without raw messages
+  ---
+  duration_ms: 620.3669
+  type: 'test'
+  ...
+# [Nest] 19332  - 10/02/2026, 11:08:59 AM     LOG [MemoryCandidateService] memory_candidate 941654b4-6662-54af-93c3-ae1cc30fe886 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# Subtest: canonical first approval rejects candidate changes after the recovery claim and before its own row lock
+ok 9 - canonical first approval rejects candidate changes after the recovery claim and before its own row lock
+  ---
+  duration_ms: 628.2394
+  type: 'test'
+  ...
+# Subtest: ordinary reviewer needs current approve and revoke authority before plan or durable setup claim
+ok 10 - ordinary reviewer needs current approve and revoke authority before plan or durable setup claim
+  ---
+  duration_ms: 510.4407
+  type: 'test'
+  ...
+# [Nest] 19332  - 10/02/2026, 11:09:00 AM     LOG [MemoryCandidateService] memory_candidate 2b1a33a5-d8fc-5fec-bbd4-84dfde2d4854 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 19332  - 10/02/2026, 11:09:00 AM     LOG [MemoryCandidateService] memory_candidate 117749a9-3d43-5353-afbc-3a5c6b8a98ab pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 19332  - 10/02/2026, 11:09:00 AM     LOG [MemoryCandidateService] memory_candidate 22e7a941-373a-5a19-ac4f-98acbdc9e5e2 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 19332  - 10/02/2026, 11:09:00 AM     LOG [MemoryCandidateService] memory_candidate f6a7f94b-e5be-5980-bc11-f2c5bb358ca6 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 19332  - 10/02/2026, 11:09:01 AM     LOG [MemoryCandidateService] memory_candidate eff33009-8781-59a5-b024-cab6eb49600b pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 19332  - 10/02/2026, 11:09:01 AM     LOG [MemoryCandidateService] memory_candidate 7195875e-3284-5ad1-a3fe-7ffc8f2a4ecf pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 19332  - 10/02/2026, 11:09:01 AM     LOG [MemoryCandidateService] memory_candidate 2b236ec9-2624-517c-868d-80086584bb50 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 19332  - 10/02/2026, 11:09:01 AM     LOG [MemoryCandidateService] memory_candidate 168d239b-b106-55ad-9e31-a5d49a6e3f3a pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# Subtest: actual canonical setup composes retirement, binding, restart locator and actual owned empty Meri conversation; replay and stale plans stop
+ok 11 - actual canonical setup composes retirement, binding, restart locator and actual owned empty Meri conversation; replay and stale plans stop
+  ---
+  duration_ms: 2135.2997
+  type: 'test'
+  ...
+# [Nest] 19332  - 10/02/2026, 11:09:02 AM     LOG [MemoryCandidateService] memory_candidate d9a48092-5206-525e-b53d-7775d4be4792 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 19332  - 10/02/2026, 11:09:02 AM     LOG [MemoryCandidateService] memory_candidate 15bf8730-be7d-5071-919a-31eebfe3f161 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 19332  - 10/02/2026, 11:09:03 AM     LOG [MemoryCandidateService] memory_candidate 0f1579c9-1e58-52cf-9d34-78d140a5d57f pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 19332  - 10/02/2026, 11:09:03 AM     LOG [MemoryCandidateService] memory_candidate 879bbc26-03c4-5a33-9ced-f30c0692c948 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# Subtest: partial operation retains durable claim and refuses replay; invalid actor and wall fail before claim
+ok 12 - partial operation retains durable claim and refuses replay; invalid actor and wall fail before claim
+  ---
+  duration_ms: 931.5741
+  type: 'test'
+  ...
+# (node:18448) [DEP0180] DeprecationWarning: fs.Stats constructor is deprecated.
+# (Use `node --trace-deprecation ...` to show where the warning was created)
+# Subtest: actual factory and Prisma transactions serialize recovery claims, preserve rollback and expose safe SQLSTATE at canonical activation
+ok 13 - actual factory and Prisma transactions serialize recovery claims, preserve rollback and expose safe SQLSTATE at canonical activation
+  ---
+  duration_ms: 9957.6779
+  type: 'test'
+  ...
+1..13
+# tests 13
+# suites 0
+# pass 13
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 34374.686

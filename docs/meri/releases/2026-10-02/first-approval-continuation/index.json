@@ -1,0 +1,49 @@
+{
+  "entries": [
+    {
+      "file": "root-qualification.json",
+      "originalLocalSha256": "f8b4c2b933a06ce40156587ed39d1af9ae7fa72eee1da214d8fad25da08a98cb",
+      "archivedSha256": "0c0065f684ba38338bcb62bc965dd595b7682c65510655cc549e8f77b38c123e"
+    },
+    {
+      "file": "root-node-pg-ui.log",
+      "originalLocalSha256": "a83dc92eb3e3473f500e76257b3ed8c7e8ac37ff7070f9a10d89d63da05d2440",
+      "archivedSha256": "a83dc92eb3e3473f500e76257b3ed8c7e8ac37ff7070f9a10d89d63da05d2440"
+    },
+    {
+      "file": "root-offline26.json",
+      "originalLocalSha256": "d3863b29c8fba273051776645ade1f078df9559ac558aaeeea17573c9437e2e2",
+      "archivedSha256": "d204b0a92efd563ce0632e07ce03254dde9ba5cb1267c6e474e477a0d5d6b534"
+    },
+    {
+      "file": "root-offline26.summary.json",
+      "originalLocalSha256": "b6b1001933a78df927c8a1317cfaeffe2807d7c33fad45a20cdcc847531879ca",
+      "archivedSha256": "753c898e1afaa1e9bfc7948075b39f32cd7ac55eae510dfc6f179a27250f9e38"
+    },
+    {
+      "file": "first-approval-continuation-kimi-review.md",
+      "originalLocalSha256": "c5f319a288ce6f564c014ed6585eb249969d011a0586e75c2846fce4d646491d",
+      "archivedSha256": "50cc88029aeb0bb918c3d2d8819076f0195943ff96e221d3efc6d5c55e7434c2"
+    },
+    {
+      "file": "first-approval-continuation-kimi-exit.json",
+      "originalLocalSha256": "d7a0b19da793b6922a674fa5f8b1fac7facd4424089de3aaa352e22dfd35a904",
+      "archivedSha256": "b5e0474f5f7d69ab4dd4bec846539b22a27cbdcd79aa3f9a1d16e3b8e7b62268"
+    },
+    {
+      "file": "first-approval-continuation-kimi-usage.json",
+      "originalLocalSha256": "5687889a41803faf40f5d1034e4185849a8da0562de7606caa6c4d9c86797509",
+      "archivedSha256": "77395db8cdd0eb8a61f8191daeb2c61216e55f2cf839a0ad8f93b98393289494"
+    },
+    {
+      "file": "first-approval-continuation-pg-tests.log",
+      "originalLocalSha256": "c0809dafc880efd305a2529b361d4651cfcb674d7960df45dc528e9a9a70872c",
+      "archivedSha256": "05076188b5e773498a339fa1288998f8a8d7eb57c0a42050c0735a598d732938"
+    },
+    {
+      "file": "first-approval-continuation-cli-tests.log",
+      "originalLocalSha256": "428f21a4e30023171c05943b2b8b600bf5baaf3ff96730c6ceebbaffd5d365ee",
+      "archivedSha256": "44f7c1ccf0ce4eb4e8c1fbd272b097d05d2b5cb644d879a3113e49268c0a91ab"
+    }
+  ]
+}
