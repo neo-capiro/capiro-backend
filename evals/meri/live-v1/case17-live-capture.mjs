@@ -80,6 +80,7 @@ function nativeReads(config, bearer, deadline) {
           rejectUnauthorized: true,
           timeout: Math.min(15000, deadline - Date.now()),
           headers: {
+            'User-Agent': 'Capiro-Meri-Authorized-QA/1.0',
             Authorization: `Bearer ${bearer}`,
             'x-capiro-tenant': config.recipe.ctx.tenantSlug,
           },
