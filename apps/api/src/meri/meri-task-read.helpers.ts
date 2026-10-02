@@ -12,7 +12,8 @@ interface TaskCursor {
   sourceContract: typeof SOURCE_CONTRACT;
   tenantId: string;
   actorUserId: string;
-  clientId: string;
+  clientId: string | null;
+  ownerUserId?: string | null;
   taskId: string | null;
   status: string | null;
   dueBefore: string | null;
@@ -20,7 +21,8 @@ interface TaskCursor {
 }
 
 export interface MeriTaskReadSelection {
-  clientId: string;
+  clientId: string | null;
+  ownerUserId: string | null;
   taskId: string | null;
   status: EngagementTaskStatus | null;
   openOnly: boolean;
@@ -93,7 +95,8 @@ function decodeCursor(value: string): TaskCursor {
       cursor.sourceContract !== SOURCE_CONTRACT ||
       typeof cursor.tenantId !== 'string' ||
       typeof cursor.actorUserId !== 'string' ||
-      typeof cursor.clientId !== 'string' ||
+      !(cursor.clientId === null || typeof cursor.clientId === 'string') ||
+      !(cursor.ownerUserId == null || typeof cursor.ownerUserId === 'string') ||
       !(cursor.taskId === null || typeof cursor.taskId === 'string') ||
       !(cursor.status === null || typeof cursor.status === 'string') ||
       !(
@@ -117,9 +120,12 @@ function encodeCursor(cursor: TaskCursor): string {
 export function parseMeriTaskReadInput(
   ctx: TenantContext,
   input: Record<string, unknown>,
-  clientId: string,
+  clientId: string | null,
   statuses: readonly string[],
 ): MeriTaskReadSelection {
+  if (input.assignedToMe !== undefined && typeof input.assignedToMe !== 'boolean')
+    throw new BadRequestException('assignedToMe must be a boolean');
+  const ownerUserId = input.assignedToMe === true ? ctx.userId : null;
   const taskId = optionalText(input, 'taskId', 80);
   const statusInput = optionalText(input, 'status', 30)?.toLowerCase() ?? null;
   let status: EngagementTaskStatus | null = null;
@@ -131,21 +137,24 @@ export function parseMeriTaskReadInput(
     throw new BadRequestException(`status must be one of: open, overdue, ${statuses.join(', ')}`);
 
   const dueBeforeInput = optionalText(input, 'dueBefore', 80);
+  const cursorInput = optionalText(input, 'cursor', 4096);
+  const cursor = cursorInput ? decodeCursor(cursorInput) : null;
   let dueBefore = dueBeforeInput ? new Date(dueBeforeInput) : null;
   if (dueBefore && !Number.isFinite(dueBefore.getTime()))
     throw new BadRequestException('dueBefore must be an ISO date');
-  if (statusInput === 'overdue' && !dueBefore) dueBefore = new Date();
+  if (statusInput === 'overdue' && !dueBefore)
+    dueBefore =
+      cursor?.status === 'overdue' && cursor.dueBefore ? new Date(cursor.dueBefore) : new Date();
 
-  const cursorInput = optionalText(input, 'cursor', 4096);
   let offset = 0;
   let cursorApplied = false;
-  if (cursorInput) {
-    const cursor = decodeCursor(cursorInput);
+  if (cursor) {
     const dueBeforeIso = dueBefore?.toISOString() ?? null;
     if (
       cursor.tenantId !== ctx.tenantId ||
       cursor.actorUserId !== ctx.userId ||
       cursor.clientId !== clientId ||
+      (cursor.ownerUserId ?? null) !== ownerUserId ||
       cursor.taskId !== taskId ||
       cursor.status !== statusInput ||
       cursor.dueBefore !== dueBeforeIso
@@ -158,6 +167,7 @@ export function parseMeriTaskReadInput(
   }
   return {
     clientId,
+    ownerUserId,
     taskId,
     status,
     openOnly,
@@ -169,7 +179,7 @@ export function parseMeriTaskReadInput(
   };
 }
 
-function canonicalTask(row: MeriTaskOwnerRow) {
+function canonicalTask(row: MeriTaskOwnerRow, now: number | undefined) {
   const sourceVersion = row.updatedAt.toISOString();
   const task = {
     id: row.id,
@@ -192,6 +202,18 @@ function canonicalTask(row: MeriTaskOwnerRow) {
   };
   return {
     ...task,
+    // Preserve the ordinary portfolio response's derived flag. Client-scoped
+    // results can be durably replayed and retain only source-owned dates/status.
+    ...(now === undefined
+      ? {}
+      : {
+          overdue: Boolean(
+            row.dueDate &&
+            row.dueDate.getTime() < now &&
+            row.status !== 'done' &&
+            row.status !== 'canceled',
+          ),
+        }),
     recordKind: 'native_task' as const,
     recommendation: false,
     nativeCompletion: {
@@ -220,13 +242,25 @@ export function buildMeriTaskReadResult(
   selection: MeriTaskReadSelection,
   page: MeriTaskOwnerPage,
 ) {
+  const generatedAt = new Date();
   const seen = new Set<string>();
-  const tasks = page.rows.map(canonicalTask).filter((row) => {
-    if (seen.has(row.id)) return false;
-    seen.add(row.id);
-    return true;
-  });
-  if (tasks.length !== page.rows.length || tasks.some((row) => row.clientId !== selection.clientId))
+  const tasks = page.rows
+    .map((row) =>
+      canonicalTask(row, selection.clientId === null ? generatedAt.getTime() : undefined),
+    )
+    .filter((row) => {
+      if (seen.has(row.id)) return false;
+      seen.add(row.id);
+      return true;
+    });
+  if (
+    tasks.length !== page.rows.length ||
+    tasks.some(
+      (row) =>
+        (selection.clientId !== null && row.clientId !== selection.clientId) ||
+        (selection.ownerUserId !== null && row.ownerUserId !== selection.ownerUserId),
+    )
+  )
     throw new BadRequestException('Canonical task owner returned ambiguous or cross-client rows');
   const nextOffset = selection.offset + tasks.length;
   const hasMore = nextOffset < page.total;
@@ -237,6 +271,7 @@ export function buildMeriTaskReadResult(
         tenantId: ctx.tenantId,
         actorUserId: ctx.userId,
         clientId: selection.clientId,
+        ownerUserId: selection.ownerUserId,
         taskId: selection.taskId,
         status: selection.scopeStatus,
         dueBefore: selection.dueBefore?.toISOString() ?? null,
@@ -250,12 +285,16 @@ export function buildMeriTaskReadResult(
     tasks.length === page.total;
   return {
     tool: 'query_tasks',
-    generatedAt: new Date().toISOString(),
+    generatedAt: generatedAt.toISOString(),
     clientId: selection.clientId,
     total: page.total,
     returned: tasks.length,
     tasks,
     scope: {
+      kind: selection.clientId === null ? 'authorized_tasks' : 'client',
+      tenantId: ctx.tenantId,
+      actorUserId: ctx.userId,
+      ownerUserId: selection.ownerUserId,
       taskId: selection.taskId,
       status: selection.scopeStatus,
       dueBefore: selection.dueBefore?.toISOString() ?? null,
@@ -274,7 +313,7 @@ export function buildMeriTaskReadResult(
       totalIsExactForScope: true,
       absenceSupported: complete && tasks.length === 0,
       note: complete
-        ? 'All currently authorized native tasks in the declared client scope were returned.'
+        ? 'All currently authorized native tasks matching the declared scope and filters were returned.'
         : 'This is an exact bounded page. Follow nextCursor before inferring that a tracked task is absent.',
     },
   };

@@ -4932,11 +4932,12 @@ export class EngagementService {
     });
   }
 
-  /** Canonical client-scoped Meri task owner with exact counts and current wall checks. */
+  /** Canonical Meri task owner with exact counts, assignment filters and current wall checks. */
   async readMeriTasksExact(
     ctx: TenantContext,
     query: {
-      clientId: string;
+      clientId: string | null;
+      ownerUserId?: string | null;
       taskId: string | null;
       status: EngagementTaskStatus | null;
       openOnly: boolean;
@@ -4947,7 +4948,31 @@ export class EngagementService {
   ) {
     const where: Prisma.EngagementTaskWhereInput = {
       tenantId: ctx.tenantId,
-      clientId: query.clientId,
+      ...(query.clientId ? { clientId: query.clientId } : {}),
+      ...(query.ownerUserId ? { ownerUserId: query.ownerUserId } : {}),
+      ...(!query.clientId
+        ? {
+            OR: [
+              { clientId: null },
+              {
+                client: {
+                  is: {
+                    tenantId: ctx.tenantId,
+                    status: { not: 'archived' },
+                    OR: [
+                      { memoryWall: false },
+                      {
+                        memoryAccessGrants: {
+                          some: { tenantId: ctx.tenantId, userId: ctx.userId },
+                        },
+                      },
+                    ],
+                  },
+                },
+              },
+            ],
+          }
+        : {}),
       ...(query.taskId ? { id: query.taskId } : {}),
       ...(query.status
         ? { status: query.status }
@@ -4978,15 +5003,69 @@ export class EngagementService {
     } satisfies Prisma.MeetingSelect;
 
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      const authorize = async () => {
+      const authorize = async (clientId: string | null = query.clientId) => {
+        if (
+          !query.clientId &&
+          !(await tx.tenantMembership.findFirst({
+            where: { tenantId: ctx.tenantId, userId: ctx.userId, status: 'active' },
+            select: { id: true },
+          }))
+        )
+          throw new ForbiddenException('Active tenant membership required');
+        if (!clientId) return;
         const client = await tx.client.findFirst({
-          where: { id: query.clientId, tenantId: ctx.tenantId, status: { not: 'archived' } },
+          where: { id: clientId, tenantId: ctx.tenantId, status: { not: 'archived' } },
           select: { id: true },
         });
-        if (!client || !(await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, query.clientId)))
+        if (!client || !(await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, clientId)))
           throw new NotFoundException('Client not found');
       };
       await authorize();
+      // Research Portfolio tasks have source-level grants in addition to tenant
+      // ownership. Apply those grants to the count as well as the returned page.
+      const baseWhere = { ...where };
+      const portfolioIds = async () => {
+        const candidates = await tx.engagementTask.findMany({
+          where: {
+            ...baseWhere,
+            sourceType: RESEARCH_PORTFOLIO_TASK_SOURCE,
+            ownerUserId: ctx.userId,
+            createdByUserId: ctx.userId,
+          },
+          select: {
+            id: true,
+            tenantId: true,
+            ownerUserId: true,
+            createdByUserId: true,
+            sourceType: true,
+            sourceId: true,
+          },
+        });
+        const ids: string[] = [];
+        for (const task of candidates) {
+          try {
+            await assertOwnedResearchPortfolioTask(tx, ctx, task);
+            ids.push(task.id);
+          } catch (error) {
+            if (!(error instanceof ForbiddenException || error instanceof NotFoundException))
+              throw error;
+          }
+        }
+        return ids.sort();
+      };
+      const initialPortfolioIds = query.clientId ? [] : await portfolioIds();
+      const restrictPortfolio = (ids: string[]) => {
+        where.AND = [
+          {
+            OR: [
+              { sourceType: null },
+              { sourceType: { not: RESEARCH_PORTFOLIO_TASK_SOURCE } },
+              { id: { in: ids } },
+            ],
+          },
+        ];
+      };
+      if (!query.clientId) restrictPortfolio(initialPortfolioIds);
       const [candidates, initialTotal] = await Promise.all([
         tx.engagementTask.findMany({
           where,
@@ -5015,11 +5094,12 @@ export class EngagementService {
           where: { ...where, id: candidate.id },
           include,
         });
-        await authorize();
+        await authorize(current?.clientId ?? candidate.clientId);
         if (!current) {
           sourceChanged = true;
           continue;
         }
+        if (!query.clientId) await assertOwnedResearchPortfolioTask(tx, ctx, current);
         if (
           current.updatedAt.getTime() !== candidate.updatedAt.getTime() ||
           createHash('sha256').update(JSON.stringify(current)).digest('hex') !==
@@ -5039,7 +5119,7 @@ export class EngagementService {
           const meetingWhere: Prisma.MeetingWhereInput = {
             id: current.meetingId,
             tenantId: ctx.tenantId,
-            clientId: query.clientId,
+            clientId: current.clientId,
             isInternal: false,
             ...ownMeetingWhere(ctx.userId),
           };
@@ -5047,12 +5127,12 @@ export class EngagementService {
             where: meetingWhere,
             select: meetingSelect,
           });
-          await authorize();
+          await authorize(current.clientId);
           const linkedCurrent = await tx.meeting.findFirst({
             where: meetingWhere,
             select: meetingSelect,
           });
-          await authorize();
+          await authorize(current.clientId);
           if (!linkedCandidate || !linkedCurrent) {
             sourceChanged = true;
           } else {
@@ -5084,8 +5164,23 @@ export class EngagementService {
           linkedSourceProofs,
         });
       }
+      if (!query.clientId) {
+        const currentPortfolioIds = await portfolioIds();
+        if (JSON.stringify(currentPortfolioIds) !== JSON.stringify(initialPortfolioIds))
+          sourceChanged = true;
+        restrictPortfolio(currentPortfolioIds);
+        const allowed = new Set(currentPortfolioIds);
+        for (let i = rows.length - 1; i >= 0; i--) {
+          const row = rows[i];
+          if (row && row.sourceType === RESEARCH_PORTFOLIO_TASK_SOURCE && !allowed.has(row.id))
+            rows.splice(i, 1);
+        }
+      }
       const total = await tx.engagementTask.count({ where });
       if (total !== initialTotal) sourceChanged = true;
+      if (!query.clientId) {
+        for (const clientId of new Set(rows.map((row) => row.clientId))) await authorize(clientId);
+      }
       await authorize();
       return {
         rows,

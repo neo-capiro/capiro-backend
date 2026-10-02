@@ -304,7 +304,16 @@ function classifyNativeWorkRead(
   const rows = value?.[collection];
   if (
     value?.tool !== toolName ||
-    typeof value.clientId !== 'string' ||
+    !(
+      typeof value.clientId === 'string' ||
+      (toolName === 'query_tasks' &&
+        value.clientId === null &&
+        scope?.kind === 'authorized_tasks' &&
+        typeof scope.tenantId === 'string' &&
+        scope.tenantId.length > 0 &&
+        typeof scope.actorUserId === 'string' &&
+        scope.actorUserId.length > 0)
+    ) ||
     !scope ||
     !coverage ||
     !['healthy', 'degraded'].includes(String(coverage.sourceStatus)) ||

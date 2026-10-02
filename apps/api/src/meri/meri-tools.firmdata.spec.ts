@@ -655,6 +655,22 @@ describe('read_client_meetings', () => {
 });
 
 describe('query_tasks', () => {
+  it('uses exact authorized counts and the signed-in assignee without a selected client', async () => {
+    const m = makeMocks();
+    const result = (await m.service.execute(ctx, 'query_tasks', {
+      status: 'overdue', assignedToMe: true, dueBefore: '2026-10-02T00:00:00.000Z',
+    })) as any;
+    expect(m.engagement.listTasks).not.toHaveBeenCalled();
+    expect(m.engagement.readMeriTasksExact).toHaveBeenCalledWith(ctx, expect.objectContaining({
+      clientId: null, ownerUserId: ctx.userId, openOnly: true,
+      dueBefore: new Date('2026-10-02T00:00:00.000Z'),
+    }));
+    expect(result).toMatchObject({ clientId: null, total: 0, returned: 0,
+      scope: { kind: 'authorized_tasks', actorUserId: ctx.userId, ownerUserId: ctx.userId },
+      coverage: { complete: true, absenceSupported: true },
+    });
+  });
+
   it('maps the exact client-scoped canonical owner result with honest coverage', async () => {
     const m = makeMocks();
     m.engagement.readMeriTasksExact.mockResolvedValue({
@@ -710,7 +726,7 @@ describe('query_tasks', () => {
 
   it('derives overdue from past due date on open tasks only', async () => {
     const m = makeMocks();
-    m.engagement.listTasks.mockResolvedValue([
+    const rows = [
       {
         id: 'task-1',
         title: 'Past-due open task',
@@ -733,7 +749,9 @@ describe('query_tasks', () => {
         description: null,
         createdAt: new Date('2019-12-01'),
       },
-    ]);
+    ].map((row) => ({ ownerUserId: null, meetingId: null, contactId: null, mailThreadId: null,
+      sourceType: null, sourceId: null, createdByUserId: null, updatedAt: row.createdAt, ...row }));
+    m.engagement.readMeriTasksExact.mockResolvedValue({ rows, total: rows.length, sourceStatus: 'healthy', sourceReason: null });
     const result = (await m.service.execute(ctx, 'query_tasks', {})) as {
       tasks: Array<{ id: string; overdue: boolean }>;
     };
@@ -744,7 +762,7 @@ describe('query_tasks', () => {
   it('maps status=overdue to openOnly + dueBefore', async () => {
     const m = makeMocks();
     await m.service.execute(ctx, 'query_tasks', { status: 'overdue', limit: 10 });
-    const call = m.engagement.listTasks.mock.calls[0]!;
+    const call = m.engagement.readMeriTasksExact.mock.calls[0]!;
     expect(call[0]).toBe(ctx);
     expect(call[1]).toMatchObject({ openOnly: true, limit: 10 });
     expect(call[1].dueBefore).toBeInstanceOf(Date);

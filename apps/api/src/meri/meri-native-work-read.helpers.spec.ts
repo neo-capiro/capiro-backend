@@ -18,6 +18,94 @@ const ctx = { tenantId: 'tenant-1', userId: 'user-1' } as TenantContext;
 const clone = <T>(value: T): T => structuredClone(value);
 const statuses = ['todo', 'in_progress', 'done', 'blocked', 'canceled'];
 
+describe('authorized task scope across clients', () => {
+  it('keeps the overdue cutoff fixed when following a cursor without an explicit date', () => {
+    const selection = parseMeriTaskReadInput(ctx, { status: 'overdue', limit: 1 }, null, statuses);
+    selection.dueBefore = new Date('2026-10-02T00:00:00.000Z');
+    const result = buildMeriTaskReadResult(ctx, selection, {
+      rows: [task('task-1')],
+      total: 2,
+      sourceStatus: 'healthy',
+      sourceReason: null,
+    });
+    const next = parseMeriTaskReadInput(
+      ctx,
+      { status: 'overdue', cursor: result.coverage.nextCursor },
+      null,
+      statuses,
+    );
+    expect(next.dueBefore?.toISOString()).toBe('2026-10-02T00:00:00.000Z');
+    expect(next.offset).toBe(1);
+    expect(() =>
+      parseMeriTaskReadInput(
+        ctx,
+        {
+          status: 'overdue',
+          cursor: result.coverage.nextCursor,
+          dueBefore: '2026-10-03T00:00:00.000Z',
+        },
+        null,
+        statuses,
+      ),
+    ).toThrow();
+  });
+
+  it('preserves exact totals, binds pagination to the actor and assignment filter, and classifies the new shape', () => {
+    const selection = parseMeriTaskReadInput(ctx, { assignedToMe: true, limit: 1 }, null, statuses);
+    const first = buildMeriTaskReadResult(ctx, selection, {
+      rows: [task('task-1', { ownerUserId: ctx.userId })],
+      total: 2,
+      sourceStatus: 'healthy',
+      sourceReason: null,
+    });
+    expect(first.total).toBe(2);
+    expect(first.returned).toBe(1);
+    expect(classifyApiToolReadOutcome('query_tasks', first)).toMatchObject({ kind: 'partial' });
+    const cursor = first.coverage.nextCursor;
+    expect(
+      parseMeriTaskReadInput(ctx, { assignedToMe: true, limit: 1, cursor }, null, statuses).offset,
+    ).toBe(1);
+    expect(() =>
+      parseMeriTaskReadInput(ctx, { assignedToMe: false, cursor }, null, statuses),
+    ).toThrow();
+    expect(() =>
+      parseMeriTaskReadInput(
+        { ...ctx, userId: 'another-user' },
+        { assignedToMe: true, cursor },
+        null,
+        statuses,
+      ),
+    ).toThrow();
+    expect(() =>
+      parseMeriTaskReadInput(ctx, { assignedToMe: true, cursor }, 'client-1', statuses),
+    ).toThrow();
+    const complete = buildMeriTaskReadResult(ctx, selection, {
+      rows: [task('task-1', { ownerUserId: ctx.userId })],
+      total: 1,
+      sourceStatus: 'healthy',
+      sourceReason: null,
+    });
+    expect(classifyApiToolReadOutcome('query_tasks', complete)).toMatchObject({ kind: 'complete' });
+    const clientRead = buildMeriTaskReadResult(
+      ctx,
+      parseMeriTaskReadInput(ctx, {}, 'client-1', statuses),
+      { rows: [task('task-1')], total: 1, sourceStatus: 'healthy', sourceReason: null },
+    );
+    expect(clientRead.tasks[0]).not.toHaveProperty('overdue');
+    expect(classifyApiToolReadOutcome('query_tasks', { ...complete, scope: {} })).toMatchObject({
+      kind: 'failed',
+    });
+    expect(() =>
+      buildMeriTaskReadResult(ctx, selection, {
+        rows: [task('task-1', { ownerUserId: 'another-user' })],
+        total: 1,
+        sourceStatus: 'healthy',
+        sourceReason: null,
+      }),
+    ).toThrow();
+  });
+});
+
 function task(id: string, overrides: Record<string, unknown> = {}) {
   return {
     id,
@@ -324,6 +412,12 @@ describe('canonical native task/action-item reads', () => {
       $queryRawUnsafe: jest.fn().mockResolvedValue([{ allowed: true }]),
     };
     const execute = jest.fn().mockResolvedValue(clone(saved));
+    // This test exercises current task-owner replay authority. The durable
+    // reservation state machine is covered by meri-research-durable-replay.
+    const reserve = jest
+      .fn()
+      .mockResolvedValue({ dispatchAllowed: true, reservationId: 'proof-1' });
+    const completeAttempt = jest.fn().mockResolvedValue(undefined);
     const service = Object.assign(Object.create(MeriResearchService.prototype), {
       prisma: {
         withTenant: jest.fn(async (_tenant: string, fn: (value: typeof tx) => unknown) => fn(tx)),
@@ -331,8 +425,16 @@ describe('canonical native task/action-item reads', () => {
       tools: { execute },
       assertResearchPublicationAuthorized: jest.fn(),
       assertCurrentSafeReadPolicy: jest.fn(),
+      reserveBoundToolAttempt: reserve,
+      completeReservedAttempt: completeAttempt,
     }) as MeriResearchService;
-    const request = { leaseEpoch: 2, tool: 'query_tasks', toolVersion, input };
+    const request = {
+      leaseEpoch: 2,
+      providerCallId: 'replay-task-1',
+      tool: 'query_tasks',
+      toolVersion,
+      input,
+    };
     await expect(
       service.replaySafeReadOutcome(ctx, 'session-1', 'run-2', request),
     ).resolves.toMatchObject({
@@ -340,12 +442,14 @@ describe('canonical native task/action-item reads', () => {
       result: { tasks: [{ id: 'task-1' }] },
     });
     expect(execute).toHaveBeenCalledWith(ctx, 'query_tasks', input);
+    expect(reserve).toHaveBeenCalledTimes(1);
+    expect(completeAttempt).toHaveBeenCalledTimes(1);
 
     session.clientId = null;
     execute.mockClear();
     await expect(
       service.replaySafeReadOutcome(ctx, 'session-1', 'run-2', request),
-    ).resolves.toEqual({
+    ).resolves.toMatchObject({
       replayed: false,
     });
     expect(execute).not.toHaveBeenCalled();

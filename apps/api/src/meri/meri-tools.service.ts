@@ -1706,11 +1706,12 @@ export class MeriToolsService {
       cancel_scheduled_task: obj({ taskId: str('Scheduled task UUID') }, ['taskId']),
       query_tasks: obj({
         clientId: str('Optional client UUID'),
-        taskId: str('Optional exact native task UUID; requires clientId'),
+        taskId: str('Optional exact native task UUID'),
+        assignedToMe: { type: 'boolean', description: 'Set true for my tasks or tasks assigned to me; filters by the signed-in user. False or omitted returns currently authorized tasks.' },
         status: str('Optional: open | overdue | todo | in_progress | done | blocked | canceled'),
         dueBefore: str('Optional ISO date upper bound on due date'),
         limit: int('Max results (1-50)'),
-        cursor: str('Opaque nextCursor for exact client-scoped native task pagination'),
+        cursor: str('Opaque nextCursor for native task pagination; keep the same scope and filters'),
       }),
       query_action_items: obj({
         clientId: str('Optional client UUID filter'),
@@ -8188,88 +8189,24 @@ export class MeriToolsService {
 
   private async queryTasks(ctx: TenantContext, input: Record<string, unknown>) {
     let clientId = optionalString(input, 'clientId', 80);
-    if (clientId) {
-      clientId = await this.ensureClientVisible(ctx, clientId);
-      const selection = parseMeriTaskReadInput(
-        ctx,
-        input,
-        clientId,
-        Object.values(EngagementTaskStatus),
-      );
-      const page = await this.engagement.readMeriTasksExact(ctx, {
-        clientId,
-        taskId: selection.taskId,
-        status: selection.status,
-        openOnly: selection.openOnly,
-        dueBefore: selection.dueBefore,
-        offset: selection.offset,
-        limit: selection.limit,
-      });
-      return buildMeriTaskReadResult(ctx, selection, page);
-    }
-    if (input.cursor !== undefined || input.taskId !== undefined)
-      throw new BadRequestException(
-        'clientId is required for exact task identity or pagination reads',
-      );
-    const statusRaw = optionalString(input, 'status', 30)?.toLowerCase() ?? null;
-    const dueBeforeRaw = optionalString(input, 'dueBefore', 40);
-    const limit = clampInt(input.limit, 1, 50, 25);
-    const taskStatuses = Object.values(EngagementTaskStatus) as string[];
-    let status: EngagementTaskStatus | undefined;
-    let openOnly = false;
-    let dueBefore: Date | undefined;
-    if (statusRaw === 'open') {
-      openOnly = true;
-    } else if (statusRaw === 'overdue') {
-      openOnly = true;
-      dueBefore = new Date();
-    } else if (statusRaw && taskStatuses.includes(statusRaw)) {
-      status = statusRaw as EngagementTaskStatus;
-    } else if (statusRaw) {
-      throw new BadRequestException(
-        `status must be one of: open, overdue, ${taskStatuses.join(', ')}`,
-      );
-    }
-
-    if (dueBeforeRaw) {
-      const parsed = new Date(dueBeforeRaw);
-      if (Number.isNaN(parsed.getTime())) {
-        throw new BadRequestException('dueBefore must be an ISO date');
-      }
-      dueBefore = parsed;
-    }
-
-    const tasks = await this.engagement.listTasks(ctx, {
-      clientId: clientId ?? undefined,
-      status,
-      openOnly,
-      dueBefore,
-      limit,
+    if (clientId) clientId = await this.ensureClientVisible(ctx, clientId);
+    const selection = parseMeriTaskReadInput(
+      ctx,
+      input,
+      clientId,
+      Object.values(EngagementTaskStatus),
+    );
+    const page = await this.engagement.readMeriTasksExact(ctx, {
+      clientId,
+      ownerUserId: selection.ownerUserId,
+      taskId: selection.taskId,
+      status: selection.status,
+      openOnly: selection.openOnly,
+      dueBefore: selection.dueBefore,
+      offset: selection.offset,
+      limit: selection.limit,
     });
-
-    const now = Date.now();
-    return {
-      tool: 'query_tasks',
-      generatedAt: new Date().toISOString(),
-      total: tasks.length,
-      tasks: tasks.map((task) => ({
-        id: task.id,
-        title: task.title,
-        status: task.status,
-        dueDate: task.dueDate,
-        overdue: Boolean(
-          task.dueDate &&
-          task.dueDate.getTime() < now &&
-          task.status !== EngagementTaskStatus.done &&
-          task.status !== EngagementTaskStatus.canceled,
-        ),
-        clientId: task.clientId,
-        clientName: task.client?.name ?? null,
-        meeting: task.meeting,
-        description: summarizeText(task.description, 240),
-        createdAt: task.createdAt,
-      })),
-    };
+    return buildMeriTaskReadResult(ctx, selection, page);
   }
 
   private async queryActionItems(ctx: TenantContext, input: Record<string, unknown>) {
