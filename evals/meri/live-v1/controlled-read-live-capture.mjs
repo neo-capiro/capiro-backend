@@ -263,7 +263,7 @@ function privateBytes(value, bearer) {
   return Buffer.from(JSON.stringify(value, null, 2) + '\n', 'utf8');
 }
 
-function nativeTransport(scope, deadlineMs, collector) {
+function nativeTransport(scope, deadlineMs, collector, bearerSupplier) {
   const deadline = Date.now() + deadlineMs;
   let requests = 0,
     submitted = 0;
@@ -283,6 +283,31 @@ function nativeTransport(scope, deadlineMs, collector) {
       );
       submitted++;
     }
+    // Refresh only the same operator-owned session. The URL, one-submit bound,
+    // request count and total deadline have already been checked.
+    let refreshTimer;
+    let currentBearer;
+    try {
+      currentBearer = await Promise.race([
+        Promise.resolve().then(() => (bearerSupplier ? bearerSupplier() : scope.bearer)),
+        new Promise((_, reject) => {
+          refreshTimer = setTimeout(
+            () => reject(new Error('CONTROLLED_READ_DEADLINE')),
+            Math.max(1, deadline - Date.now()),
+          );
+        }),
+      ]);
+    } finally {
+      clearTimeout(refreshTimer);
+    }
+    need(
+      typeof currentBearer === 'string' && currentBearer.trim() && !/[\r\n]/u.test(currentBearer),
+      'CONTROLLED_READ_AUTH_MISSING',
+    );
+    need(Date.now() < deadline, 'CONTROLLED_READ_DEADLINE');
+    scope.bearer = currentBearer;
+    if (Array.isArray(collector.secretValues) && !collector.secretValues.includes(currentBearer))
+      collector.secretValues.push(currentBearer);
     return new Promise((resolve, reject) => {
       let hardTimer;
       const finish = (value) => {
@@ -300,7 +325,7 @@ function nativeTransport(scope, deadlineMs, collector) {
           rejectUnauthorized: true,
           headers: {
             'user-agent': 'Capiro-Meri-Authorized-QA/1.0',
-            authorization: `Bearer ${scope.bearer}`,
+            authorization: `Bearer ${currentBearer}`,
             'x-capiro-tenant': scope.tenant.slug,
             accept: body === undefined ? 'application/json' : 'text/event-stream',
             ...(body === undefined ? {} : { 'content-type': 'application/json' }),
@@ -329,7 +354,7 @@ function nativeTransport(scope, deadlineMs, collector) {
                     status: response.statusCode,
                     releaseSha: response.headers['x-capiro-release-sha'],
                   },
-                  scope.bearer,
+                  currentBearer,
                 );
               need(
                 response.statusCode >= 200 && response.statusCode < 300,
@@ -410,8 +435,13 @@ export async function prepareControlledReadLiveCapture({
   runRoot,
   artifactStorage,
   spendReservation,
+  bearerSupplier,
   env = process.env,
 }) {
+  need(
+    bearerSupplier === undefined || typeof bearerSupplier === 'function',
+    'CONTROLLED_READ_AUTH_MISSING',
+  );
   const scope = inspectControlledReadScope(config, env);
   const claim = [
     scope.expected.tenantId,
@@ -439,7 +469,7 @@ export async function prepareControlledReadLiveCapture({
   await collector.init();
   claimedRuns.add(claim);
   const builds = await readCase01BuildAuthority(config.deployment);
-  const transport = nativeTransport(scope, config.limits.deadlineMs, collector);
+  const transport = nativeTransport(scope, config.limits.deadlineMs, collector, bearerSupplier);
   const before = await currentAdmission(scope, transport);
   await collector.writeBytes('admission.json', privateBytes(before, scope.bearer));
   await collector.writeBytes('immutable-builds.json', privateBytes(builds, scope.bearer));
