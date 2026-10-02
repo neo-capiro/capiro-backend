@@ -392,7 +392,7 @@ export function safeCase01SetupFailure(error, stage = 'OPERATOR') {
   const prisma = new Set(['P1000', 'P1001', 'P1002', 'P1008', 'P1010', 'P1011', 'P1017',
     'P2000', 'P2002', 'P2003', 'P2004', 'P2006', 'P2010', 'P2011', 'P2014', 'P2021', 'P2022', 'P2024', 'P2025', 'P2028', 'P2034']);
   const sql = new Set(['08001', '08006', '08P01', '22001', '22P02', '23502', '23503', '23505', '23514',
-    '25006', '25P02', '40001', '40P01', '42501', '42703', '42P01', '57014', 'P0001']);
+    '25006', '25P02', '40001', '40P01', '42501', '42703', '42883', '42P01', '57014', 'P0001']);
   const stages = new Set(['OPERATOR', 'CLAIMED', 'PREVIOUS_SEED', 'PREVIOUS_RETIRE', 'CURRENT_SEED',
     'BIND', 'LOCATOR', 'CONVERSATION', 'READBACK', 'RECOVERY_ADMISSION', 'FIRST_CANONICAL_APPROVAL']);
   return {

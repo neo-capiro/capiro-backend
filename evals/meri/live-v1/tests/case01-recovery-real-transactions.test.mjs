@@ -9,7 +9,7 @@ import { memoryFixtureSchemaSql } from './approved-memory-schema.mjs';
 import { buildFixtureManifest } from '../fixture-provisioning/manifest.mjs';
 import { lifecycleSeedMemoryDefinitions } from '../fixture-provisioning/approved-memory-runtime.mjs';
 import { createMemoryCandidateOwnerPort } from '../fixture-provisioning/memory-candidate-owner.mjs';
-import { inspectCase01FirstApprovalRecovery, executeCase01FirstApprovalRecovery } from '../fixture-provisioning/case01-execution-setup.mjs';
+import { inspectCase01FirstApprovalRecovery, executeCase01FirstApprovalRecovery, safeCase01SetupFailure } from '../fixture-provisioning/case01-execution-setup.mjs';
 import { sha256Stable } from '../artifact-collector.mjs';
 import { AUTHORIZED_TENANTS, FIXTURE_NAMESPACE } from '../fixture-provisioning/contract.mjs';
 
@@ -73,6 +73,22 @@ test('actual factory and Prisma transactions serialize recovery claims, preserve
         return oldResolve.call(this, request, parent, ...rest);
       };
       factory = await (await import('../../../../apps/api/scripts/meri-case01-setup-dependencies.mjs')).createCase01SetupDependencies();
+      // Prisma binds interpolated strings as text. A node-pg facade leaves the
+      // parameter type unknown and does not reproduce PostgreSQL enum=text.
+      const reviewerRole = 'user_admin';
+      await assert.rejects(factory.deps.prisma.withTenantUser(AUTHORIZED_TENANTS.T1.id, PRIYA, tx => tx.$queryRaw`
+        SELECT user_id::text AS id FROM tenant_memberships
+        WHERE tenant_id=${AUTHORIZED_TENANTS.T1.id}::uuid AND user_id=${PRIYA}::uuid
+          AND status='active' AND role=${reviewerRole} FOR SHARE
+      `), error => {
+        assert.equal(error.code, 'P2010');
+        assert.equal(error.meta?.code, '42883');
+        assert.deepEqual(safeCase01SetupFailure(error, 'FIRST_CANONICAL_APPROVAL'), {
+          stage: 'FIRST_CANONICAL_APPROVAL', errorClass: 'PrismaClientKnownRequestError',
+          prismaCode: 'P2010', sqlState: '42883',
+        });
+        return true;
+      });
       const ctx = { tenantId: AUTHORIZED_TENANTS.T1.id, tenantSlug: AUTHORIZED_TENANTS.T1.slug, userId: PAT, role: 'standard_user' };
       const input = { schemaVersion: 1, target: 'capiro-dev', fixtureNamespace: FIXTURE_NAMESPACE, ctx,
         clerkUserId: 'user_synthetic_Pat', reviewerUserId: PRIYA, captureRunId: randomUUID(),

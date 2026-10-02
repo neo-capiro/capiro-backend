@@ -156,7 +156,7 @@ async function validateSyntheticApprovedMemoryInTx(
   const membership = await tx.$queryRaw<Array<{ id: string }>>`
     SELECT tm.user_id::text AS id FROM tenant_memberships tm JOIN tenants t ON t.id=tm.tenant_id
     WHERE tm.tenant_id=${ctx.tenantId}::uuid AND tm.user_id=${ctx.userId}::uuid
-      AND tm.status='active' AND tm.role=${ctx.role}
+      AND tm.status='active' AND tm.role::text=${ctx.role}
       AND t.slug=${expected.tenantSlug}
     FOR SHARE OF tm,t
   `;

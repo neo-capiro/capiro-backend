@@ -3,7 +3,8 @@ export function memoryFixtureSchemaSql(schema) {
   if (!/^meri_approved_[a-f0-9]{32}$/.test(schema)) throw new Error('Invalid owned schema');
   return `
       CREATE TABLE "${schema}".tenants(id uuid PRIMARY KEY, slug text);
-      CREATE TABLE "${schema}".tenant_memberships(tenant_id uuid, user_id uuid, status text, role text DEFAULT 'standard_user');
+      CREATE TYPE "${schema}".tenant_role AS ENUM ('capiro_admin','user_admin','standard_user','client_portal_user');
+      CREATE TABLE "${schema}".tenant_memberships(tenant_id uuid, user_id uuid, status text, role "${schema}".tenant_role DEFAULT 'standard_user');
       CREATE TABLE "${schema}".clients(id uuid PRIMARY KEY, tenant_id uuid, memory_wall boolean NOT NULL DEFAULT false, status text DEFAULT 'active');
       CREATE TABLE "${schema}".client_memory_access(tenant_id uuid, client_id uuid, user_id uuid);
       CREATE TABLE "${schema}".clio_memory(id uuid PRIMARY KEY, tenant_id uuid, scope text, key text, owner_user_id uuid, client_id uuid,

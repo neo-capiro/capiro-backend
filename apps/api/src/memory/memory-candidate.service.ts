@@ -520,7 +520,7 @@ export class MemoryCandidateService {
         const memberships = await tx.$queryRaw<Array<{ id: string }>>`
           SELECT user_id::text AS id FROM tenant_memberships
           WHERE tenant_id=${tenantId}::uuid AND user_id=${approverUserId}::uuid
-            AND status='active' AND role=${actorContext.role}
+            AND status='active' AND role::text=${actorContext.role}
           FOR SHARE
         `;
         if (memberships.length !== 1) {
