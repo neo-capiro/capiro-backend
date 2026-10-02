@@ -1,0 +1,134 @@
+{
+  "sourceSha": "7a03305030b734a39cce321a5b5aff36f6d19609",
+  "status": "PASS",
+  "results": [
+    {
+      "name": "root-core-build",
+      "command": [
+        "C:\\Program Files\\nodejs\\pnpm.cmd",
+        "--filter",
+        "@capiro/meriv2-core",
+        "build"
+      ],
+      "sourceSha": "7a03305030b734a39cce321a5b5aff36f6d19609",
+      "exitCode": 0,
+      "elapsedSeconds": 1.92
+    },
+    {
+      "name": "root-node-pg",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "--test",
+        "evals/meri/live-v1/tests/case01-execution-setup.postgres.test.mjs",
+        "evals/meri/live-v1/tests/case01-recovery-real-transactions.test.mjs",
+        "evals/meri/live-v1/tests/case01-memory-packaging.test.mjs",
+        "evals/meri/live-v1/tests/case01-operator-input.test.mjs",
+        "evals/meri/live-v1/tests/case14-capture.test.mjs",
+        "evals/meri/live-v1/tests/case14-memory-owner.postgres.test.mjs",
+        "evals/meri/live-v1/tests/case17-authority.test.mjs",
+        "evals/meri/live-v1/tests/case17-saved-checks.test.mjs",
+        "evals/meri/live-v1/tests/controlled-read-operator.test.mjs",
+        "evals/meri/live-v1/tests/controlled-read-authority.test.mjs"
+      ],
+      "sourceSha": "7a03305030b734a39cce321a5b5aff36f6d19609",
+      "exitCode": 0,
+      "elapsedSeconds": 33.4
+    },
+    {
+      "name": "root-api-jest",
+      "command": [
+        "C:\\Program Files\\nodejs\\pnpm.cmd",
+        "--filter",
+        "@capiro/api",
+        "exec",
+        "jest",
+        "--runInBand",
+        "src/bootstrap/configure-api-http-app.spec.ts",
+        "src/memory/case14-reviewer-preflight.spec.ts",
+        "src/meri/meri-capture-api-provider-scope.spec.ts",
+        "src/meri/meri-capture-provider-budget.spec.ts"
+      ],
+      "sourceSha": "7a03305030b734a39cce321a5b5aff36f6d19609",
+      "exitCode": 0,
+      "elapsedSeconds": 38.56
+    },
+    {
+      "name": "root-api-types",
+      "command": [
+        "C:\\Program Files\\nodejs\\pnpm.cmd",
+        "--filter",
+        "@capiro/api",
+        "exec",
+        "tsc",
+        "--noEmit"
+      ],
+      "sourceSha": "7a03305030b734a39cce321a5b5aff36f6d19609",
+      "exitCode": 0,
+      "elapsedSeconds": 44.01
+    },
+    {
+      "name": "root-orchestrator-types",
+      "command": [
+        "C:\\Program Files\\nodejs\\pnpm.cmd",
+        "--filter",
+        "@capiro/meriv2-orchestrator",
+        "exec",
+        "tsc",
+        "--noEmit"
+      ],
+      "sourceSha": "7a03305030b734a39cce321a5b5aff36f6d19609",
+      "exitCode": 0,
+      "elapsedSeconds": 13.42
+    },
+    {
+      "name": "root-offline26",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "node_modules/promptfoo/dist/src/entrypoint.js",
+        "eval",
+        "-c",
+        "evals/meri/promptfooconfig.yaml",
+        "--no-cache",
+        "--no-share",
+        "--no-write",
+        "--no-table",
+        "--no-progress-bar",
+        "-o",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-live-repair-release\\root-offline26.json"
+      ],
+      "sourceSha": "7a03305030b734a39cce321a5b5aff36f6d19609",
+      "exitCode": 0,
+      "elapsedSeconds": 32.55
+    },
+    {
+      "name": "root-offline26-verifier",
+      "command": [
+        "C:\\ProgramData\\Hermes\\tools\\python-3.14.7+20260901-win32-x64\\python.exe",
+        "evals/meri/verify_report.py",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-live-repair-release\\root-offline26.json",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-live-repair-release\\root-offline26.summary.json"
+      ],
+      "sourceSha": "7a03305030b734a39cce321a5b5aff36f6d19609",
+      "exitCode": 0,
+      "elapsedSeconds": 0.12
+    }
+  ],
+  "liveAcceptance": "NOT_RUN",
+  "schemaVersion": 1,
+  "exitCode": 0,
+  "schemaChange": false,
+  "policySha": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "machineMapRevision": "2026-09-30T00:21:48Z",
+  "nodePassed": 181,
+  "nodeFailed": 0,
+  "nodeSkipped": 0,
+  "apiPassed": 40,
+  "apiSuites": 4,
+  "offlineCases": 26,
+  "customVerifierExit": 0,
+  "fullFile01Acceptance": false,
+  "sourceFileCount": 113,
+  "priorComposedQualification": "../composed-release/qualification.json",
+  "case14Qualification": "case14-final-qualification.json",
+  "recoverQualification": "../live-repairs/case01/first-approval-recovery-verification.json"
+}

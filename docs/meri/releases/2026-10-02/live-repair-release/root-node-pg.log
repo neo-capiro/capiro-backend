@@ -1,0 +1,1140 @@
+TAP version 13
+# (node:9212) [DEP0180] DeprecationWarning: fs.Stats constructor is deprecated.
+# (Use `node --trace-deprecation ...` to show where the warning was created)
+# [Nest] 9212  - 10/02/2026, 9:58:28 AM     LOG [MemoryCandidateService] memory_candidate ed66b006-00b5-5c5a-80dd-a0c9f2ba0c1e pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# {"_aws":{"Timestamp":1790935108255,"CloudWatchMetrics":[{"Namespace":"Capiro/MeriV2Control","Dimensions":[["Environment"]],"Metrics":[{"Name":"SelfReviewDenials","Unit":"Count"}]}]},"Environment":"unknown","event":"meriv2.control.metrics","SelfReviewDenials":1}
+# Subtest: creates actual weekly-to-monthly immutable lineage through guarded canonical correction and approval
+ok 1 - creates actual weekly-to-monthly immutable lineage through guarded canonical correction and approval
+  ---
+  duration_ms: 4211.4282
+  type: 'test'
+  ...
+# [Nest] 9212  - 10/02/2026, 9:58:29 AM     LOG [MemoryCandidateService] memory_candidate 3f4df4ba-7a39-5de2-99b5-3f4a56445bce pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 9212  - 10/02/2026, 9:58:29 AM     LOG [MemoryCandidateService] memory_candidate a659b30b-72b4-5960-adfd-61310406536c pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 9212  - 10/02/2026, 9:58:29 AM     LOG [MemoryCandidateService] memory_candidate d60ad282-02df-5db5-9807-15e4b778029a pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 9212  - 10/02/2026, 9:58:29 AM     LOG [MemoryCandidateService] memory_candidate 645dd4f7-2055-58cf-8624-548791d92e0b pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 9212  - 10/02/2026, 9:58:30 AM     LOG [MemoryCandidateService] memory_candidate 8bb5e44f-2af4-5b36-a48b-e6985f263a26 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 9212  - 10/02/2026, 9:58:30 AM     LOG [MemoryCandidateService] memory_candidate e536c67a-d590-5f83-b6b9-a76f21709bef pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 9212  - 10/02/2026, 9:58:30 AM     LOG [MemoryCandidateService] memory_candidate 5317b8bc-9a93-5ab3-905e-4da2805885d0 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 9212  - 10/02/2026, 9:58:30 AM     LOG [MemoryCandidateService] memory_candidate 171ccd9a-bc72-5459-861d-37d0eeebd90f pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# Subtest: seeds all five real case01 states, requires actual previous retirement, then binds the new instance atomically
+ok 2 - seeds all five real case01 states, requires actual previous retirement, then binds the new instance atomically
+  ---
+  duration_ms: 2240.1307
+  type: 'test'
+  ...
+# [Nest] 9212  - 10/02/2026, 9:58:48 AM     LOG [MemoryCandidateService] memory_candidate d45b77ed-df51-57d7-97f4-6a585a389ed6 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 9212  - 10/02/2026, 9:58:49 AM     LOG [MemoryCandidateService] memory_candidate fc9645ab-ed5b-500c-acef-0488baae30e4 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 9212  - 10/02/2026, 9:58:49 AM     LOG [MemoryCandidateService] memory_candidate 91a12c1c-37e3-5154-a761-bf416151e2cb pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 9212  - 10/02/2026, 9:58:49 AM     LOG [MemoryCandidateService] memory_candidate ae4e57be-676e-57f4-9b6e-9037db5bb91b pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 9212  - 10/02/2026, 9:58:49 AM     LOG [MemoryCandidateService] memory_candidate 309f69c7-8d9f-5401-b8a4-76761153f542 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 9212  - 10/02/2026, 9:58:49 AM     LOG [MemoryCandidateService] memory_candidate 9292a503-848a-5001-a8ea-9a1143c5fdd8 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 9212  - 10/02/2026, 9:58:49 AM     LOG [MemoryCandidateService] memory_candidate 3961178e-3115-59ec-a747-1d3d539c4c1e pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 9212  - 10/02/2026, 9:58:49 AM     LOG [MemoryCandidateService] memory_candidate b6117e2c-f8a7-5efc-a32b-88626a1ba3c6 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# Subtest: one-shot pending recovery reuses the exact candidate and keeps the original failed claim immutable
+ok 3 - one-shot pending recovery reuses the exact candidate and keeps the original failed claim immutable
+  ---
+  duration_ms: 20141.203
+  type: 'test'
+  ...
+# [Nest] 9212  - 10/02/2026, 9:58:51 AM     LOG [MemoryCandidateService] memory_candidate 9b63aac1-2d47-5d1f-a466-551a9f8dc63f pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# Subtest: pending recovery rejects stale version, source drift, original claim drift, downstream state and stale plan before new effects
+ok 4 - pending recovery rejects stale version, source drift, original claim drift, downstream state and stale plan before new effects
+  ---
+  duration_ms: 1059.5458
+  type: 'test'
+  ...
+# [Nest] 9212  - 10/02/2026, 9:58:52 AM     LOG [MemoryCandidateService] memory_candidate c3f8c7c7-d401-577f-a95c-c772999fe3df pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# Subtest: failed canonical first approval keeps its recovery claim and emits safe source-owned error codes without raw messages
+ok 5 - failed canonical first approval keeps its recovery claim and emits safe source-owned error codes without raw messages
+  ---
+  duration_ms: 679.9937
+  type: 'test'
+  ...
+# [Nest] 9212  - 10/02/2026, 9:58:53 AM     LOG [MemoryCandidateService] memory_candidate dde37171-2ac4-5879-b1e8-c593795c88db pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# Subtest: canonical first approval rejects candidate changes after the recovery claim and before its own row lock
+ok 6 - canonical first approval rejects candidate changes after the recovery claim and before its own row lock
+  ---
+  duration_ms: 729.6013
+  type: 'test'
+  ...
+# Subtest: ordinary reviewer needs current approve and revoke authority before plan or durable setup claim
+ok 7 - ordinary reviewer needs current approve and revoke authority before plan or durable setup claim
+  ---
+  duration_ms: 599.9193
+  type: 'test'
+  ...
+# [Nest] 9212  - 10/02/2026, 9:58:54 AM     LOG [MemoryCandidateService] memory_candidate 6fca50fc-d03c-5fad-9b4b-57276b14fb8f pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 9212  - 10/02/2026, 9:58:54 AM     LOG [MemoryCandidateService] memory_candidate 330bf57f-4d2e-59dc-b570-d7a1705b98f1 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 9212  - 10/02/2026, 9:58:54 AM     LOG [MemoryCandidateService] memory_candidate 096d785c-81b7-5d6d-ba22-a553b85f4a82 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 9212  - 10/02/2026, 9:58:55 AM     LOG [MemoryCandidateService] memory_candidate fe8dd311-02cc-5102-8c23-d58a70699038 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 9212  - 10/02/2026, 9:58:55 AM     LOG [MemoryCandidateService] memory_candidate 569b58f8-764f-5e19-9ba5-f6904223e555 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 9212  - 10/02/2026, 9:58:55 AM     LOG [MemoryCandidateService] memory_candidate 6808da7a-a48d-51cb-b759-4c7b992264a3 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 9212  - 10/02/2026, 9:58:55 AM     LOG [MemoryCandidateService] memory_candidate fdc4ba42-52aa-57ae-a6a5-5ef32a94d93c pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 9212  - 10/02/2026, 9:58:55 AM     LOG [MemoryCandidateService] memory_candidate f6baf35e-eba0-593f-a0f5-5fbf363bac29 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# Subtest: actual canonical setup composes retirement, binding, restart locator and actual owned empty Meri conversation; replay and stale plans stop
+ok 8 - actual canonical setup composes retirement, binding, restart locator and actual owned empty Meri conversation; replay and stale plans stop
+  ---
+  duration_ms: 2419.5471
+  type: 'test'
+  ...
+# [Nest] 9212  - 10/02/2026, 9:58:57 AM     LOG [MemoryCandidateService] memory_candidate 80f33106-2659-5c49-b87d-d0d0276b0fc3 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 9212  - 10/02/2026, 9:58:57 AM     LOG [MemoryCandidateService] memory_candidate b88a918b-4125-53bf-92a6-c74568475428 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 9212  - 10/02/2026, 9:58:57 AM     LOG [MemoryCandidateService] memory_candidate 40fbd9be-b6ce-59a9-8db5-ad5c4055c975 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 9212  - 10/02/2026, 9:58:57 AM     LOG [MemoryCandidateService] memory_candidate ef6ac0ca-47f2-506f-ae0b-9a7243c4b99d pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# Subtest: partial operation retains durable claim and refuses replay; invalid actor and wall fail before claim
+ok 9 - partial operation retains durable claim and refuses replay; invalid actor and wall fail before claim
+  ---
+  duration_ms: 914.3861
+  type: 'test'
+  ...
+# Subtest: imports and verifies frozen assets using only the exact API Dockerfile fixture COPY graph
+ok 10 - imports and verifies frozen assets using only the exact API Dockerfile fixture COPY graph
+  ---
+  duration_ms: 232.8065
+  type: 'test'
+  ...
+# Subtest: only fixed bounded nonsecret JSON environment ingress is accepted
+ok 11 - only fixed bounded nonsecret JSON environment ingress is accepted
+  ---
+  duration_ms: 2.965
+  type: 'test'
+  ...
+# Subtest: entrypoint exposes the three fixed setup scripts with existing database composer
+ok 12 - entrypoint exposes the three fixed setup scripts with existing database composer
+  ---
+  duration_ms: 7.2569
+  type: 'test'
+  ...
+# (node:18028) [DEP0180] DeprecationWarning: fs.Stats constructor is deprecated.
+# (Use `node --trace-deprecation ...` to show where the warning was created)
+# Subtest: actual factory and Prisma transactions serialize recovery claims, preserve rollback and expose safe SQLSTATE at canonical activation
+ok 13 - actual factory and Prisma transactions serialize recovery claims, preserve rollback and expose safe SQLSTATE at canonical activation
+  ---
+  duration_ms: 13066.5483
+  type: 'test'
+  ...
+# Subtest: pure admission checks canonical current scope and exact server budget without creating authority
+ok 14 - pure admission checks canonical current scope and exact server budget without creating authority
+  ---
+  duration_ms: 6.0485
+  type: 'test'
+  ...
+# Subtest: serialized lookalikes cannot execute or bypass native storage before network
+ok 15 - serialized lookalikes cannot execute or bypass native storage before network
+  ---
+  duration_ms: 2.1995
+  type: 'test'
+  ...
+# Subtest: scope refuses wrong origin
+ok 16 - scope refuses wrong origin
+  ---
+  duration_ms: 2.4092
+  type: 'test'
+  ...
+# Subtest: scope refuses case20
+ok 17 - scope refuses case20
+  ---
+  duration_ms: 0.9063
+  type: 'test'
+  ...
+# Subtest: scope refuses unapproved tenant
+ok 18 - scope refuses unapproved tenant
+  ---
+  duration_ms: 0.852
+  type: 'test'
+  ...
+# Subtest: scope refuses admin actor
+ok 19 - scope refuses admin actor
+  ---
+  duration_ms: 0.8627
+  type: 'test'
+  ...
+# Subtest: scope refuses no conversation
+ok 20 - scope refuses no conversation
+  ---
+  duration_ms: 0.8476
+  type: 'test'
+  ...
+# Subtest: scope refuses over3USD
+ok 21 - scope refuses over3USD
+  ---
+  duration_ms: 0.9394
+  type: 'test'
+  ...
+# Subtest: scope refuses parallel
+ok 22 - scope refuses parallel
+  ---
+  duration_ms: 1.4322
+  type: 'test'
+  ...
+# Subtest: scope refuses stale contract
+ok 23 - scope refuses stale contract
+  ---
+  duration_ms: 1.3655
+  type: 'test'
+  ...
+# Subtest: admission refuses wrong actor
+ok 24 - admission refuses wrong actor
+  ---
+  duration_ms: 0.9234
+  type: 'test'
+  ...
+# Subtest: admission refuses wrong tenant
+ok 25 - admission refuses wrong tenant
+  ---
+  duration_ms: 1.5094
+  type: 'test'
+  ...
+# Subtest: admission refuses wrong client
+ok 26 - admission refuses wrong client
+  ---
+  duration_ms: 0.5509
+  type: 'test'
+  ...
+# Subtest: admission refuses expired
+ok 27 - admission refuses expired
+  ---
+  duration_ms: 0.5225
+  type: 'test'
+  ...
+# Subtest: admission refuses mutable dispatch
+ok 28 - admission refuses mutable dispatch
+  ---
+  duration_ms: 0.5177
+  type: 'test'
+  ...
+# Subtest: admission refuses wrong source
+ok 29 - admission refuses wrong source
+  ---
+  duration_ms: 0.5584
+  type: 'test'
+  ...
+# Subtest: admission refuses missing reset
+ok 30 - admission refuses missing reset
+  ---
+  duration_ms: 0.5092
+  type: 'test'
+  ...
+# Subtest: admission refuses no budget
+ok 31 - admission refuses no budget
+  ---
+  duration_ms: 0.531
+  type: 'test'
+  ...
+# Subtest: admission refuses server budget exceeds configured
+ok 32 - admission refuses server budget exceeds configured
+  ---
+  duration_ms: 0.6223
+  type: 'test'
+  ...
+# Subtest: admission refuses different owner version
+ok 33 - admission refuses different owner version
+  ---
+  duration_ms: 0.5584
+  type: 'test'
+  ...
+# Subtest: admission refuses wrong release
+ok 34 - admission refuses wrong release
+  ---
+  duration_ms: 0.4973
+  type: 'test'
+  ...
+# Subtest: complete signed/current-source joins are validation only and do not grant acceptance
+ok 35 - complete signed/current-source joins are validation only and do not grant acceptance
+  ---
+  duration_ms: 3.7062
+  type: 'test'
+  ...
+# Subtest: receipt joins refuse source tenant contradiction
+ok 36 - receipt joins refuse source tenant contradiction
+  ---
+  duration_ms: 4.6417
+  type: 'test'
+  ...
+# Subtest: receipt joins refuse source client contradiction
+ok 37 - receipt joins refuse source client contradiction
+  ---
+  duration_ms: 1.3724
+  type: 'test'
+  ...
+# Subtest: receipt joins refuse mutating tool
+ok 38 - receipt joins refuse mutating tool
+  ---
+  duration_ms: 1.2274
+  type: 'test'
+  ...
+# Subtest: receipt joins refuse unjoined tool
+ok 39 - receipt joins refuse unjoined tool
+  ---
+  duration_ms: 1.0927
+  type: 'test'
+  ...
+# Subtest: receipt joins refuse source bytes
+ok 40 - receipt joins refuse source bytes
+  ---
+  duration_ms: 0.9447
+  type: 'test'
+  ...
+# Subtest: receipt joins refuse source version
+ok 41 - receipt joins refuse source version
+  ---
+  duration_ms: 1.0945
+  type: 'test'
+  ...
+# Subtest: receipt joins refuse truncated source
+ok 42 - receipt joins refuse truncated source
+  ---
+  duration_ms: 1.794
+  type: 'test'
+  ...
+# Subtest: receipt joins refuse citation bytes
+ok 43 - receipt joins refuse citation bytes
+  ---
+  duration_ms: 1.1369
+  type: 'test'
+  ...
+# Subtest: receipt joins refuse current owner changed
+ok 44 - receipt joins refuse current owner changed
+  ---
+  duration_ms: 1.2453
+  type: 'test'
+  ...
+# Subtest: receipt joins refuse unsettled cost
+ok 45 - receipt joins refuse unsettled cost
+  ---
+  duration_ms: 1.042
+  type: 'test'
+  ...
+# Subtest: receipt joins refuse unaccounted provider
+ok 46 - receipt joins refuse unaccounted provider
+  ---
+  duration_ms: 2.5832
+  type: 'test'
+  ...
+# Subtest: receipt joins refuse cost exceeded
+ok 47 - receipt joins refuse cost exceeded
+  ---
+  duration_ms: 2.6816
+  type: 'test'
+  ...
+# Subtest: receipt joins refuse different budget
+ok 48 - receipt joins refuse different budget
+  ---
+  duration_ms: 1.4063
+  type: 'test'
+  ...
+# Subtest: receipt joins refuse unexpected write
+ok 49 - receipt joins refuse unexpected write
+  ---
+  duration_ms: 2.1913
+  type: 'test'
+  ...
+# Subtest: receipt joins refuse logical effect
+ok 50 - receipt joins refuse logical effect
+  ---
+  duration_ms: 2.0048
+  type: 'test'
+  ...
+# Subtest: receipt joins refuse message effect mismatch
+ok 51 - receipt joins refuse message effect mismatch
+  ---
+  duration_ms: 1.2424
+  type: 'test'
+  ...
+# Subtest: receipt joins refuse missing coverage
+ok 52 - receipt joins refuse missing coverage
+  ---
+  duration_ms: 1.2598
+  type: 'test'
+  ...
+# Subtest: receipt joins refuse wrong build
+ok 53 - receipt joins refuse wrong build
+  ---
+  duration_ms: 3.0543
+  type: 'test'
+  ...
+# Subtest: receipt joins refuse usage missing
+ok 54 - receipt joins refuse usage missing
+  ---
+  duration_ms: 1.2027
+  type: 'test'
+  ...
+# Subtest: receipt joins refuse expired authority
+ok 55 - receipt joins refuse expired authority
+  ---
+  duration_ms: 0.9578
+  type: 'test'
+  ...
+# Subtest: SSE and canonical receipt must match exact signed bytes
+ok 56 - SSE and canonical receipt must match exact signed bytes
+  ---
+  duration_ms: 0.5803
+  type: 'test'
+  ...
+# Subtest: exact answer bytes are required
+ok 57 - exact answer bytes are required
+  ---
+  duration_ms: 0.9167
+  type: 'test'
+  ...
+# Subtest: build comparison requires exact successful canonical source, recipe and served digest
+ok 58 - build comparison requires exact successful canonical source, recipe and served digest
+  ---
+  duration_ms: 0.9476
+  type: 'test'
+  ...
+# Subtest: build comparison refuses failed build
+ok 59 - build comparison refuses failed build
+  ---
+  duration_ms: 0.3133
+  type: 'test'
+  ...
+# Subtest: build comparison refuses wrong source
+ok 60 - build comparison refuses wrong source
+  ---
+  duration_ms: 0.1961
+  type: 'test'
+  ...
+# Subtest: build comparison refuses different recipe
+ok 61 - build comparison refuses different recipe
+  ---
+  duration_ms: 0.2241
+  type: 'test'
+  ...
+# Subtest: build comparison refuses different repository
+ok 62 - build comparison refuses different repository
+  ---
+  duration_ms: 0.1944
+  type: 'test'
+  ...
+# Subtest: build comparison refuses failed test phase
+ok 63 - build comparison refuses failed test phase
+  ---
+  duration_ms: 0.1648
+  type: 'test'
+  ...
+# Subtest: build comparison refuses wrong image
+ok 64 - build comparison refuses wrong image
+  ---
+  duration_ms: 0.1702
+  type: 'test'
+  ...
+# Subtest: build comparison refuses source label drift
+ok 65 - build comparison refuses source label drift
+  ---
+  duration_ms: 0.1918
+  type: 'test'
+  ...
+# Subtest: native memory QA transport identifies itself to the edge without caller-selected or newline headers
+ok 66 - native memory QA transport identifies itself to the edge without caller-selected or newline headers
+  ---
+  duration_ms: 0.4234
+  type: 'test'
+  ...
+# Subtest: case14 exact current approval/version uses shared signed memory receipt joins without relabeling case01
+ok 67 - case14 exact current approval/version uses shared signed memory receipt joins without relabeling case01
+  ---
+  duration_ms: 1.4572
+  type: 'test'
+  ...
+# Subtest: case14 refuses wrong case
+ok 68 - case14 refuses wrong case
+  ---
+  duration_ms: 1.2667
+  type: 'test'
+  ...
+# Subtest: case14 refuses wrong version
+ok 69 - case14 refuses wrong version
+  ---
+  duration_ms: 1.4347
+  type: 'test'
+  ...
+# Subtest: case14 refuses foreign decision actor
+ok 70 - case14 refuses foreign decision actor
+  ---
+  duration_ms: 1.4797
+  type: 'test'
+  ...
+# Subtest: case14 refuses missing audit
+ok 71 - case14 refuses missing audit
+  ---
+  duration_ms: 1.4214
+  type: 'test'
+  ...
+# Subtest: case14 refuses unapproved source
+ok 72 - case14 refuses unapproved source
+  ---
+  duration_ms: 1.377
+  type: 'test'
+  ...
+# Subtest: case14 refuses unknown cost
+ok 73 - case14 refuses unknown cost
+  ---
+  duration_ms: 1.7846
+  type: 'test'
+  ...
+# Subtest: copied case14 evidence cannot authorize approval, recall, UI or grading
+ok 74 - copied case14 evidence cannot authorize approval, recall, UI or grading
+  ---
+  duration_ms: 1.1577
+  type: 'test'
+  ...
+# Subtest: approval grading accepts actual Nest201 semantics and canonical decision joins only
+ok 75 - approval grading accepts actual Nest201 semantics and canonical decision joins only
+  ---
+  duration_ms: 8.6841
+  type: 'test'
+  ...
+# (node:22292) [DEP0180] DeprecationWarning: fs.Stats constructor is deprecated.
+# (Use `node --trace-deprecation ...` to show where the warning was created)
+# [Nest] 22292  - 10/02/2026, 9:58:28 AM     LOG [MemoryCandidateService] memory_candidate 5a21f945-9f03-5f3b-a47f-dec577e82b97 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# Subtest: case14 owner rehydrates pending and real canonical approval from current rows and exact transition audit
+ok 76 - case14 owner rehydrates pending and real canonical approval from current rows and exact transition audit
+  ---
+  duration_ms: 3976.8673
+  type: 'test'
+  ...
+# [Nest] 22292  - 10/02/2026, 9:58:28 AM     LOG [MemoryCandidateService] memory_candidate 216a2643-475d-51a4-a0e0-f5bd31ccfdb5 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# Subtest: case14 pending owner rejects altered current membership, identity, wall and source payload
+ok 77 - case14 pending owner rejects altered current membership, identity, wall and source payload
+  ---
+  duration_ms: 842.8219
+  type: 'test'
+  ...
+# [Nest] 22292  - 10/02/2026, 9:58:29 AM     LOG [MemoryCandidateService] memory_candidate ad532de6-cfbf-5352-aea7-9559b6fa0f01 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# Subtest: case14 approved owner refuses revoked, version-altered and foreign approved source state
+ok 78 - case14 approved owner refuses revoked, version-altered and foreign approved source state
+  ---
+  duration_ms: 775.4783
+  type: 'test'
+  ...
+# [Nest] 22292  - 10/02/2026, 9:58:30 AM     LOG [MemoryCandidateService] memory_candidate abc63dc6-3244-5850-a23d-8b5f18cfe99e pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# Subtest: case14 binding preserves canonical approval, requires current owner/CAS and invalidates old provider qualification
+ok 79 - case14 binding preserves canonical approval, requires current owner/CAS and invalidates old provider qualification
+  ---
+  duration_ms: 1103.5718
+  type: 'test'
+  ...
+# [Nest] 22292  - 10/02/2026, 9:58:31 AM     LOG [MemoryCandidateService] memory_candidate f057cba4-cc4f-5ca5-98f0-4719cfc66d67 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# Subtest: case14 provider installation re-reads the actual approved source and preserves the distinct rate/ledger qualification
+ok 80 - case14 provider installation re-reads the actual approved source and preserves the distinct rate/ledger qualification
+  ---
+  duration_ms: 1048.9289
+  type: 'test'
+  ...
+# Subtest: only approved existing-role proposer and no-turn read scope is accepted as data
+ok 81 - only approved existing-role proposer and no-turn read scope is accepted as data
+  ---
+  duration_ms: 4.8968
+  type: 'test'
+  ...
+# Subtest: fake storage, copied receipt, page and claimed readiness cannot mint live capture authority
+ok 82 - fake storage, copied receipt, page and claimed readiness cannot mint live capture authority
+  ---
+  duration_ms: 1.8353
+  type: 'test'
+  ...
+# Subtest: both API and Web require exact current successful build/source/recipe/digest binding
+ok 83 - both API and Web require exact current successful build/source/recipe/digest binding
+  ---
+  duration_ms: 2.9013
+  type: 'test'
+  ...
+# Subtest: saved visual review binds exact twelve saved screenshots, run, bytes and capture time
+ok 84 - saved visual review binds exact twelve saved screenshots, run, bytes and capture time
+  ---
+  duration_ms: 2.9054
+  type: 'test'
+  ...
+# Subtest: saved checks accept complete multiple pages and reorder after reload without minting authority
+ok 85 - saved checks accept complete multiple pages and reorder after reload without minting authority
+  ---
+  duration_ms: 100.2649
+  type: 'test'
+  ...
+# Subtest: missing/current/foreign/action/page/byte/write evidence fails closed
+ok 86 - missing/current/foreign/action/page/byte/write evidence fails closed
+  ---
+  duration_ms: 83.7569
+  type: 'test'
+  ...
+# Subtest: pure admission checks canonical current scope and exact server budget without creating authority
+ok 87 - pure admission checks canonical current scope and exact server budget without creating authority
+  ---
+  duration_ms: 6.3304
+  type: 'test'
+  ...
+# Subtest: serialized lookalikes cannot execute or bypass native storage before network
+ok 88 - serialized lookalikes cannot execute or bypass native storage before network
+  ---
+  duration_ms: 2.9924
+  type: 'test'
+  ...
+# Subtest: scope refuses wrong origin
+ok 89 - scope refuses wrong origin
+  ---
+  duration_ms: 0.9466
+  type: 'test'
+  ...
+# Subtest: scope refuses case20
+ok 90 - scope refuses case20
+  ---
+  duration_ms: 0.7346
+  type: 'test'
+  ...
+# Subtest: scope refuses unapproved tenant
+ok 91 - scope refuses unapproved tenant
+  ---
+  duration_ms: 0.943
+  type: 'test'
+  ...
+# Subtest: scope refuses admin actor
+ok 92 - scope refuses admin actor
+  ---
+  duration_ms: 0.7531
+  type: 'test'
+  ...
+# Subtest: scope refuses no conversation
+ok 93 - scope refuses no conversation
+  ---
+  duration_ms: 0.8507
+  type: 'test'
+  ...
+# Subtest: scope refuses over3USD
+ok 94 - scope refuses over3USD
+  ---
+  duration_ms: 0.9284
+  type: 'test'
+  ...
+# Subtest: scope refuses parallel
+ok 95 - scope refuses parallel
+  ---
+  duration_ms: 1.4938
+  type: 'test'
+  ...
+# Subtest: scope refuses stale contract
+ok 96 - scope refuses stale contract
+  ---
+  duration_ms: 1.3651
+  type: 'test'
+  ...
+# Subtest: admission refuses wrong actor
+ok 97 - admission refuses wrong actor
+  ---
+  duration_ms: 2.124
+  type: 'test'
+  ...
+# Subtest: admission refuses wrong tenant
+ok 98 - admission refuses wrong tenant
+  ---
+  duration_ms: 0.5561
+  type: 'test'
+  ...
+# Subtest: admission refuses wrong client
+ok 99 - admission refuses wrong client
+  ---
+  duration_ms: 0.5436
+  type: 'test'
+  ...
+# Subtest: admission refuses expired
+ok 100 - admission refuses expired
+  ---
+  duration_ms: 0.5277
+  type: 'test'
+  ...
+# Subtest: admission refuses mutable dispatch
+ok 101 - admission refuses mutable dispatch
+  ---
+  duration_ms: 0.4987
+  type: 'test'
+  ...
+# Subtest: admission refuses wrong source
+ok 102 - admission refuses wrong source
+  ---
+  duration_ms: 0.4943
+  type: 'test'
+  ...
+# Subtest: admission refuses missing reset
+ok 103 - admission refuses missing reset
+  ---
+  duration_ms: 0.5455
+  type: 'test'
+  ...
+# Subtest: admission refuses no budget
+ok 104 - admission refuses no budget
+  ---
+  duration_ms: 0.5488
+  type: 'test'
+  ...
+# Subtest: admission refuses server budget exceeds configured
+ok 105 - admission refuses server budget exceeds configured
+  ---
+  duration_ms: 0.5509
+  type: 'test'
+  ...
+# Subtest: admission refuses different owner version
+ok 106 - admission refuses different owner version
+  ---
+  duration_ms: 0.5114
+  type: 'test'
+  ...
+# Subtest: admission refuses wrong release
+ok 107 - admission refuses wrong release
+  ---
+  duration_ms: 0.5701
+  type: 'test'
+  ...
+# Subtest: complete signed/current-source joins are validation only and do not grant acceptance
+ok 108 - complete signed/current-source joins are validation only and do not grant acceptance
+  ---
+  duration_ms: 3.2765
+  type: 'test'
+  ...
+# Subtest: receipt joins refuse source tenant contradiction
+ok 109 - receipt joins refuse source tenant contradiction
+  ---
+  duration_ms: 2.3326
+  type: 'test'
+  ...
+# Subtest: receipt joins refuse source client contradiction
+ok 110 - receipt joins refuse source client contradiction
+  ---
+  duration_ms: 1.7744
+  type: 'test'
+  ...
+# Subtest: receipt joins refuse mutating tool
+ok 111 - receipt joins refuse mutating tool
+  ---
+  duration_ms: 1.2563
+  type: 'test'
+  ...
+# Subtest: receipt joins refuse unjoined tool
+ok 112 - receipt joins refuse unjoined tool
+  ---
+  duration_ms: 1.2463
+  type: 'test'
+  ...
+# Subtest: receipt joins refuse source bytes
+ok 113 - receipt joins refuse source bytes
+  ---
+  duration_ms: 1.3765
+  type: 'test'
+  ...
+# Subtest: receipt joins refuse source version
+ok 114 - receipt joins refuse source version
+  ---
+  duration_ms: 1.2125
+  type: 'test'
+  ...
+# Subtest: receipt joins refuse truncated source
+ok 115 - receipt joins refuse truncated source
+  ---
+  duration_ms: 1.1582
+  type: 'test'
+  ...
+# Subtest: receipt joins refuse citation bytes
+ok 116 - receipt joins refuse citation bytes
+  ---
+  duration_ms: 1.1521
+  type: 'test'
+  ...
+# Subtest: receipt joins refuse current owner changed
+ok 117 - receipt joins refuse current owner changed
+  ---
+  duration_ms: 1.2405
+  type: 'test'
+  ...
+# Subtest: receipt joins refuse unsettled cost
+ok 118 - receipt joins refuse unsettled cost
+  ---
+  duration_ms: 1.2951
+  type: 'test'
+  ...
+# Subtest: receipt joins refuse unaccounted provider
+ok 119 - receipt joins refuse unaccounted provider
+  ---
+  duration_ms: 1.3283
+  type: 'test'
+  ...
+# Subtest: receipt joins refuse cost exceeded
+ok 120 - receipt joins refuse cost exceeded
+  ---
+  duration_ms: 2.4348
+  type: 'test'
+  ...
+# Subtest: receipt joins refuse different budget
+ok 121 - receipt joins refuse different budget
+  ---
+  duration_ms: 1.2254
+  type: 'test'
+  ...
+# Subtest: receipt joins refuse unexpected write
+ok 122 - receipt joins refuse unexpected write
+  ---
+  duration_ms: 1.2205
+  type: 'test'
+  ...
+# Subtest: receipt joins refuse logical effect
+ok 123 - receipt joins refuse logical effect
+  ---
+  duration_ms: 1.1211
+  type: 'test'
+  ...
+# Subtest: receipt joins refuse message effect mismatch
+ok 124 - receipt joins refuse message effect mismatch
+  ---
+  duration_ms: 1.3019
+  type: 'test'
+  ...
+# Subtest: receipt joins refuse missing coverage
+ok 125 - receipt joins refuse missing coverage
+  ---
+  duration_ms: 1.1902
+  type: 'test'
+  ...
+# Subtest: receipt joins refuse wrong build
+ok 126 - receipt joins refuse wrong build
+  ---
+  duration_ms: 1.1322
+  type: 'test'
+  ...
+# Subtest: receipt joins refuse usage missing
+ok 127 - receipt joins refuse usage missing
+  ---
+  duration_ms: 1.5756
+  type: 'test'
+  ...
+# Subtest: receipt joins refuse expired authority
+ok 128 - receipt joins refuse expired authority
+  ---
+  duration_ms: 1.4025
+  type: 'test'
+  ...
+# Subtest: SSE and canonical receipt must match exact signed bytes
+ok 129 - SSE and canonical receipt must match exact signed bytes
+  ---
+  duration_ms: 0.7646
+  type: 'test'
+  ...
+# Subtest: exact answer bytes are required
+ok 130 - exact answer bytes are required
+  ---
+  duration_ms: 0.9189
+  type: 'test'
+  ...
+# Subtest: build comparison requires exact successful canonical source, recipe and served digest
+ok 131 - build comparison requires exact successful canonical source, recipe and served digest
+  ---
+  duration_ms: 1.005
+  type: 'test'
+  ...
+# Subtest: build comparison refuses failed build
+ok 132 - build comparison refuses failed build
+  ---
+  duration_ms: 0.3269
+  type: 'test'
+  ...
+# Subtest: build comparison refuses wrong source
+ok 133 - build comparison refuses wrong source
+  ---
+  duration_ms: 0.1901
+  type: 'test'
+  ...
+# Subtest: build comparison refuses different recipe
+ok 134 - build comparison refuses different recipe
+  ---
+  duration_ms: 0.2233
+  type: 'test'
+  ...
+# Subtest: build comparison refuses different repository
+ok 135 - build comparison refuses different repository
+  ---
+  duration_ms: 0.1721
+  type: 'test'
+  ...
+# Subtest: build comparison refuses failed test phase
+ok 136 - build comparison refuses failed test phase
+  ---
+  duration_ms: 0.1869
+  type: 'test'
+  ...
+# Subtest: build comparison refuses wrong image
+ok 137 - build comparison refuses wrong image
+  ---
+  duration_ms: 0.1973
+  type: 'test'
+  ...
+# Subtest: build comparison refuses source label drift
+ok 138 - build comparison refuses source label drift
+  ---
+  duration_ms: 0.1803
+  type: 'test'
+  ...
+# Subtest: case 20 fixed source, admission and signed owner joins pass only pure checks
+ok 139 - case 20 fixed source, admission and signed owner joins pass only pure checks
+  ---
+  duration_ms: 9.9677
+  type: 'test'
+  ...
+# Subtest: case 20 rejects foreign actor
+ok 140 - case 20 rejects foreign actor
+  ---
+  duration_ms: 1.7058
+  type: 'test'
+  ...
+# Subtest: case 20 rejects old run
+ok 141 - case 20 rejects old run
+  ---
+  duration_ms: 2.5731
+  type: 'test'
+  ...
+# Subtest: case 20 rejects display call identity
+ok 142 - case 20 rejects display call identity
+  ---
+  duration_ms: 2.2417
+  type: 'test'
+  ...
+# Subtest: case 20 rejects missing HTTP attempt
+ok 143 - case 20 rejects missing HTTP attempt
+  ---
+  duration_ms: 1.8417
+  type: 'test'
+  ...
+# Subtest: case 20 rejects HTTP 201
+ok 144 - case 20 rejects HTTP 201
+  ---
+  duration_ms: 1.9344
+  type: 'test'
+  ...
+# Subtest: case 20 rejects changed current fixture
+ok 145 - case 20 rejects changed current fixture
+  ---
+  duration_ms: 2.7394
+  type: 'test'
+  ...
+# Subtest: case 20 rejects unknown input usage
+ok 146 - case 20 rejects unknown input usage
+  ---
+  duration_ms: 2.0246
+  type: 'test'
+  ...
+# Subtest: case 20 rejects unsettled accounting
+ok 147 - case 20 rejects unsettled accounting
+  ---
+  duration_ms: 5.4807
+  type: 'test'
+  ...
+# Subtest: case 20 rejects wrong budget case
+ok 148 - case 20 rejects wrong budget case
+  ---
+  duration_ms: 1.998
+  type: 'test'
+  ...
+# Subtest: case 20 rejects unexpected write
+ok 149 - case 20 rejects unexpected write
+  ---
+  duration_ms: 1.8126
+  type: 'test'
+  ...
+# Subtest: case 20 rejects missing bound runtime
+ok 150 - case 20 rejects missing bound runtime
+  ---
+  duration_ms: 1.8041
+  type: 'test'
+  ...
+# Subtest: case 20 rejects unknown blocker
+ok 151 - case 20 rejects unknown blocker
+  ---
+  duration_ms: 4.69
+  type: 'test'
+  ...
+# Subtest: case 72 fixed source, admission and signed owner joins pass only pure checks
+ok 152 - case 72 fixed source, admission and signed owner joins pass only pure checks
+  ---
+  duration_ms: 3.4186
+  type: 'test'
+  ...
+# Subtest: case 72 rejects foreign actor
+ok 153 - case 72 rejects foreign actor
+  ---
+  duration_ms: 1.8807
+  type: 'test'
+  ...
+# Subtest: case 72 rejects old run
+ok 154 - case 72 rejects old run
+  ---
+  duration_ms: 4.3609
+  type: 'test'
+  ...
+# Subtest: case 72 rejects display call identity
+ok 155 - case 72 rejects display call identity
+  ---
+  duration_ms: 1.9542
+  type: 'test'
+  ...
+# Subtest: case 72 rejects missing HTTP attempt
+ok 156 - case 72 rejects missing HTTP attempt
+  ---
+  duration_ms: 1.676
+  type: 'test'
+  ...
+# Subtest: case 72 rejects HTTP 201
+ok 157 - case 72 rejects HTTP 201
+  ---
+  duration_ms: 1.7779
+  type: 'test'
+  ...
+# Subtest: case 72 rejects changed current fixture
+ok 158 - case 72 rejects changed current fixture
+  ---
+  duration_ms: 1.5996
+  type: 'test'
+  ...
+# Subtest: case 72 rejects unknown input usage
+ok 159 - case 72 rejects unknown input usage
+  ---
+  duration_ms: 1.715
+  type: 'test'
+  ...
+# Subtest: case 72 rejects unsettled accounting
+ok 160 - case 72 rejects unsettled accounting
+  ---
+  duration_ms: 1.6332
+  type: 'test'
+  ...
+# Subtest: case 72 rejects wrong budget case
+ok 161 - case 72 rejects wrong budget case
+  ---
+  duration_ms: 2.2811
+  type: 'test'
+  ...
+# Subtest: case 72 rejects unexpected write
+ok 162 - case 72 rejects unexpected write
+  ---
+  duration_ms: 1.4929
+  type: 'test'
+  ...
+# Subtest: case 72 rejects missing bound runtime
+ok 163 - case 72 rejects missing bound runtime
+  ---
+  duration_ms: 1.6705
+  type: 'test'
+  ...
+# Subtest: case 72 rejects unknown blocker
+ok 164 - case 72 rejects unknown blocker
+  ---
+  duration_ms: 1.6482
+  type: 'test'
+  ...
+# Subtest: 20 rejects title-only, altered full passage, foreign locator, and forged global authorization
+ok 165 - 20 rejects title-only, altered full passage, foreign locator, and forged global authorization
+  ---
+  duration_ms: 4.524
+  type: 'test'
+  ...
+# Subtest: 72 refuses error-as-source, false-complete classification and invented successful passages
+ok 166 - 72 refuses error-as-source, false-complete classification and invented successful passages
+  ---
+  duration_ms: 3.4507
+  type: 'test'
+  ...
+# Subtest: 72 actual early stop without repeated suppression is saved as deterministic failure, never PASS
+ok 167 - 72 actual early stop without repeated suppression is saved as deterministic failure, never PASS
+  ---
+  duration_ms: 2.1666
+  type: 'test'
+  ...
+# Subtest: 20 wrong amount/stage and 72 false success fail saved answer checks
+ok 168 - 20 wrong amount/stage and 72 false success fail saved answer checks
+  ---
+  duration_ms: 3.3645
+  type: 'test'
+  ...
+# Subtest: caller JSON cannot mint live capability, artifact owner or a grade
+ok 169 - caller JSON cannot mint live capability, artifact owner or a grade
+  ---
+  duration_ms: 4.0337
+  type: 'test'
+  ...
+# Subtest: scope rejects other rows, arbitrary physical maps, customer tenants, higher caps and parallelism
+ok 170 - scope rejects other rows, arbitrary physical maps, customer tenants, higher caps and parallelism
+  ---
+  duration_ms: 3.4046
+  type: 'test'
+  ...
+# Subtest: creation native HTTPS sends QA User-Agent and retains TLS, auth and one-write bounds
+ok 171 - creation native HTTPS sends QA User-Agent and retains TLS, auth and one-write bounds
+  ---
+  duration_ms: 5.5487
+  type: 'test'
+  ...
+# Subtest: capture native HTTPS sends QA User-Agent and retains TLS, auth and one-write bounds
+ok 172 - capture native HTTPS sends QA User-Agent and retains TLS, auth and one-write bounds
+  ---
+  duration_ms: 4.241
+  type: 'test'
+  ...
+# Subtest: case20 input chain preserves fixed source and exact owner/CAS/budget/build identities
+ok 173 - case20 input chain preserves fixed source and exact owner/CAS/budget/build identities
+  ---
+  duration_ms: 14.8603
+  type: 'test'
+  ...
+# Subtest: case72 input chain preserves fixed source and exact owner/CAS/budget/build identities
+ok 174 - case72 input chain preserves fixed source and exact owner/CAS/budget/build identities
+  ---
+  duration_ms: 4.6486
+  type: 'test'
+  ...
+# Subtest: rejects other cases/tenants and plans with modified fixed mappings or stale hash
+ok 175 - rejects other cases/tenants and plans with modified fixed mappings or stale hash
+  ---
+  duration_ms: 6.2682
+  type: 'test'
+  ...
+# Subtest: seed/reset proof rejects swapped run, actor, client, operation and fabricated source/hash
+ok 176 - seed/reset proof rejects swapped run, actor, client, operation and fabricated source/hash
+  ---
+  duration_ms: 6.8833
+  type: 'test'
+  ...
+# Subtest: rates/installation require current bounded exact CAS and qualification joins
+ok 177 - rates/installation require current bounded exact CAS and qualification joins
+  ---
+  duration_ms: 9.0981
+  type: 'test'
+  ...
+# Subtest: ordinary synthetic Clerk identity rejects wrong instance/org/member role and foreign user
+ok 178 - ordinary synthetic Clerk identity rejects wrong instance/org/member role and foreign user
+  ---
+  duration_ms: 4.8908
+  type: 'test'
+  ...
+# Subtest: browser cannot mutate application or leave canonical origin, while Clerk auth is allowed
+ok 179 - browser cannot mutate application or leave canonical origin, while Clerk auth is allowed
+  ---
+  duration_ms: 0.6803
+  type: 'test'
+  ...
+# Subtest: native conversation readback requires new exact owned empty active row with no previous ledger
+ok 180 - native conversation readback requires new exact owned empty active row with no previous ledger
+  ---
+  duration_ms: 3.5018
+  type: 'test'
+  ...
+# Subtest: materializer CLI refuses failed oneoff receipts and existing output; never starts auth on import
+ok 181 - materializer CLI refuses failed oneoff receipts and existing output; never starts auth on import
+  ---
+  duration_ms: 388.9368
+  type: 'test'
+  ...
+1..181
+# tests 181
+# suites 0
+# pass 181
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 33317.8611

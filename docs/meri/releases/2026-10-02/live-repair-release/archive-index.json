@@ -1,0 +1,50 @@
+{
+  "root-qualification.json": {
+    "originalLocalSha256": "3641fa3f66bb0ff42e29bd252017fe69621e1cdefb752e9d3245b62f80d54130",
+    "archivedSha256": "6b36969b00aa68e718a479359bc2a8cb6e915c9d89dd50278a359f0deb2f3468"
+  },
+  "root-offline26.json": {
+    "originalLocalSha256": "599f657066c43f0264c187a9893e3eca02924522cd4382e34c5525ac71c5e2b0",
+    "archivedSha256": "599f657066c43f0264c187a9893e3eca02924522cd4382e34c5525ac71c5e2b0"
+  },
+  "root-offline26.summary.json": {
+    "originalLocalSha256": "3c7a0a262678c0a7f0949da219a3d34c1922129d1373e53d5b1a480b4e0036c9",
+    "archivedSha256": "f4129eea28e960b1b200d975bd54cdd47b6df616b7cf066fbcef5d295d3589e0"
+  },
+  "root-node-pg.log": {
+    "originalLocalSha256": "8d553ab3e56002e4016fb482134f6c467badd97fbfd138ae16085bad4c8d603a",
+    "archivedSha256": "8d553ab3e56002e4016fb482134f6c467badd97fbfd138ae16085bad4c8d603a"
+  },
+  "root-api-jest.log": {
+    "originalLocalSha256": "1136e2288825912dd1c9c37ee5ceb2943e69b211010708a1dd2c63cf23e8844e",
+    "archivedSha256": "1136e2288825912dd1c9c37ee5ceb2943e69b211010708a1dd2c63cf23e8844e"
+  },
+  "api.buildspec.yml": {
+    "originalLocalSha256": "ce090c61a57181e7c18c3ee33adc7568ec00d2d1de5fe727b9405ba62dac7d68",
+    "archivedSha256": "ce090c61a57181e7c18c3ee33adc7568ec00d2d1de5fe727b9405ba62dac7d68"
+  },
+  "meriv2-orchestrator.buildspec.yml": {
+    "originalLocalSha256": "dd3aaac45be1eada1a2451add262b6407313d699b390deb0c0707455c370af90",
+    "archivedSha256": "dd3aaac45be1eada1a2451add262b6407313d699b390deb0c0707455c370af90"
+  },
+  "build-qualified-source.py": {
+    "originalLocalSha256": "bd4f71f1f77007f606f440948d4dfa6330f39f677eade42caedbacbd372a10ea",
+    "archivedSha256": "bd4f71f1f77007f606f440948d4dfa6330f39f677eade42caedbacbd372a10ea"
+  },
+  "case14-final-qualification.json": {
+    "originalLocalSha256": "a3def51ed9475e1d12201d2f5ca729e3f55321f261e1d757e3b4860ee1f54bea",
+    "archivedSha256": "72d4dd6ab46346630e173ee01c4235465a4b56bee3a68da6cf7b11febae0e652"
+  },
+  "case14-kimi-inline-review.md": {
+    "originalLocalSha256": "201a37d8fe4b490eb3bfeee4eb23f6c11c2701eed06ab3951f9b55254db23413",
+    "archivedSha256": "6dd02de35136c423ca0100199bd0acc0c6623ffef820804f4f4863ee23344b10"
+  },
+  "case14-kimi-inline-usage.json": {
+    "originalLocalSha256": "423fc594eaff09b76d1c01ada7052008c9060ba4c72aa9e5c2425d8663c7b468",
+    "archivedSha256": "9db680aff236e250bc7e748be80b7a84a38ffdfe3cb1c5c05a7b529eaccf9234"
+  },
+  "case14-kimi-inline-exit.json": {
+    "originalLocalSha256": "e911700dfe94ac1336f1d788a03de00b722bd6992dd4e7c22e6fe41fc513e1e7",
+    "archivedSha256": "e911700dfe94ac1336f1d788a03de00b722bd6992dd4e7c22e6fe41fc513e1e7"
+  }
+}

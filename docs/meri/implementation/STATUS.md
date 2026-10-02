@@ -1,4 +1,14 @@
-## Current checkpoint — 2026-10-02 09:00 UTC, targeted integration and fixture recovery
+## Current checkpoint — 2026-10-02 10:00 UTC, live preflight repairs qualified
+
+**File01 remains incomplete; no original live row is claimed complete.** PR1933/source78ad is deployed and healthy at API493, orchestrator93 and Web VNext388 on os.capiro.ai. Six owned case17 pending proposals exist. The browser attempts are preserved as BLOCKED, with every created authentication session revoked. They found missing artifact-storage initialization, missing native HTTP User-Agent, and absent main-API release-header provenance.
+
+The fixes and exact first-approval fixture recovery are integrated locally with case14 approval/recall and controlled20/72 operators. Current qualification passes181 Node/PostgreSQL and40 API assertions, full API/orchestrator types, core build and26 offline cases/custom verification. API/orchestrator publication and promotion for this increment are next; no new image is claimed here. See [qualification](../releases/2026-10-02/live-repair-release/qualification.md) and [live failure/deployment evidence](../releases/2026-10-02/live-repairs/README.md).
+
+Recovery must run before any controlled20/72 binding is installed because it preserves the original empty downstream state. Case20's read-only plan and prepared execute are retained; execute has not run. Case17's UI-only slice does not submit its original conversational prompt. Full75/CD7/CW8/applicable memory and variants, human grading, and case46 governed-write composition remain open. Defense Chat remains excluded; no historical migration/PITR or ledger work is reopened.
+
+Shared policy:39590a3bfc57ce03b0411ff7912a7c8d99deb70c; machine map revision2026-09-30T00:21:48Z. Earlier entries are historical checkpoints.
+
+## Historical checkpoint — 2026-10-02 09:00 UTC, targeted integration and fixture recovery
 
 **File01 remains incomplete. Original live cases executed: 0.** The separately
 verified two-tenant smoke is not the Appendix F evaluation. API491 is serving

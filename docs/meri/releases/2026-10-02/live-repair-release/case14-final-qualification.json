@@ -1,0 +1,144 @@
+{
+  "kind": "meri-case14-source-qualification",
+  "schemaVersion": 1,
+  "recordedAt": "2026-10-02T09:56:47.4243521Z",
+  "policySha": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "commit": "c40142fb7930f9b509c82707f2fdf5cfa83b4ec4",
+  "base": "c8c0b88be22d99d48a100682e8fdcaff5b92a138",
+  "worktree": "C:\\dev\\cap-meri-approval-recovery",
+  "branch": "codex/meri-case14-approval-capture-20261002",
+  "sourceHashes": {
+    "apps/api/Dockerfile": "8ae021d578da40e110c36ac877c848582db7ed058a4447b701308b7432569d93",
+    "apps/api/scripts/entrypoint.sh": "b22aaf3406cf5314341e3c41776db530bbc495cb3a9f0ecf96f2cde82f6cafcc",
+    "apps/api/scripts/meri-capture-provider-budget.mjs": "956c7544e058ef4dd4398ecda957f6de131b18460717e61af0d3a41913fe6dae",
+    "apps/api/scripts/meri-operator-json-input.mjs": "13064170cf0b256b1f14a870ddf136b42a240f62588008b1ab61dfc28b74e82e",
+    "apps/api/src/memory/memory-review-inbox.service.ts": "01ab21516e73e63ed9d4243bb6bfbe985b8689750626a19befeac8ba70f9d482",
+    "apps/api/src/meri/meri-capture-api-provider-scope.spec.ts": "cbae51f3c6b100299dd11ea37b0f650cb585792cdfda779780a3a54788d203d6",
+    "apps/api/src/meri/meri-capture-api-provider-scope.ts": "5b8a4c040f2ddc5cada10c5a744f0fca003a4657ec7a251be0edcdecaf45e41d",
+    "apps/api/src/meri/meri-capture-provider-budget-install.ts": "1437eaa36cf9ca6676ec58da86656e854e644f1bef23aef383cd8b2ecd54a72c",
+    "apps/api/src/meri/meri-capture-provider-budget-owner.ts": "fcc9340906e8c2b1a36266a42173d589073b37bca9b99a5a1080fc1890de1c87",
+    "apps/api/src/meri/meri-capture-provider-budget.spec.ts": "f4fef438875270c4dad0241b4b32983866a8252e68b1ad1973083314ec271baa",
+    "apps/api/src/meri/meri-capture-provider-budget.ts": "0d6aa1b3e99edc5dce5c6299fbc6be2fbd64c3113bd7143070b1c5362e785f2d",
+    "apps/api/src/meri/meri-server-readonly-capture.ts": "cd6a6e8d02995b6d66d44eacd17708856f222e4dc29ac43d67d7e33594796e1e",
+    "apps/api/src/meri/meri-tools.service.ts": "ffffdf7add7566c261a6f89f2b619662d55ec016013855adb1e7d784d87a4dbf",
+    "apps/api/src/meri/meri.service.ts": "9b82c82f2fcf57b5b3564c44d6faa8844ad2b801ae32f2ebb6b80f3359f912ad",
+    "evals/meri/live-v1/case01-live-capture.mjs": "fe1e09a2e95ffdc74b7ab2237076e8f4914b9f6c6351226988e6f96b4e2104f1",
+    "evals/meri/live-v1/case01-receipt-joins.mjs": "6d352b4b5817462cee3fafb858bb49b7dc75d478f95ac13de075d3207ada6ff8",
+    "evals/meri/live-v1/fixture-provisioning/memory-pending-execution.mjs": "ea14336f7405d857ebbb29201f210377db77eaf3ea4cbdc04c2f796205e81485",
+    "evals/meri/live-v1/tests/case01-memory-packaging.test.mjs": "1139a1dbb84b464d54b3745386f6372c44e39bf64f7d5030e684fe2696e765f2",
+    "packages/meriv2-core/src/context/capture-evidence-receipt.ts": "35877d86ecb5acabd859cb5a9942bce2547c907cf38868cd11f1e789f19135d8",
+    "apps/api/scripts/meri-case14-recall-setup.mjs": "0f9f34f5e43f9fe9550cfc1cb01f694df607f227b0b05c93320a243832577998",
+    "apps/api/src/memory/case14-fixture-evidence.ts": "94337f5deefb57a7ffdc5c205e20ca23d3e50856e46be1020f76f9bf9e67e300",
+    "apps/api/src/memory/case14-reviewer-preflight.spec.ts": "ad420b8174837754cb2dca88d5ff16b49e76d246de3a5c57cafe2d4b1548998e",
+    "apps/api/src/memory/case14-reviewer-preflight.ts": "4b2b3f830d9e9cc3027aa62e846914893644a78a1bc878b76393fe463d657189",
+    "apps/api/src/meri/meri-case14-capture-authority.ts": "6bc41c4107eec92466070088595240d7fc4868bc9b63b1a253b9d0ac14859f95",
+    "evals/meri/live-v1/case14-approval-capture.mjs": "e9510c01d119a1533fb6f7f41b6260553e6b5bde7e7a37ed5334f75cfb8b9ead",
+    "evals/meri/live-v1/fixture-provisioning/case14-memory-owner.mjs": "14ec0d38eb4d294e966400a68b6371965b47eb67544a6e2df5aaba04fb4a329d",
+    "evals/meri/live-v1/grade-case14-capture.mjs": "5e82810195e282d44b90a3cca920267939a560d3c33f4ecaf9a78570625e884f",
+    "evals/meri/live-v1/lib/native-http.mjs": "c31fa2d1e643c91517c9328f397c0cc311b4a2381606cf0589537d230256a64c",
+    "evals/meri/live-v1/tests/case14-capture.test.mjs": "f2cca91ddb340308cfec23e227897ad1c79eb833163a4f61ab384efb10dfe794",
+    "evals/meri/live-v1/tests/case14-memory-owner.postgres.test.mjs": "199bd661d83f4ab161f879ee9f418405f9b126580097cb82142b7a10b45c69ed"
+  },
+  "runbookSha256": "eb2b8161a1793ce5fee86116fb76aedf2a3df1c62f8df56fd376912d3ea03530",
+  "tests": [
+    {
+      "name": "node-case14-and-case01-regressions-packaging",
+      "file": "case14-node-final",
+      "exitCode": 0,
+      "tests": 133,
+      "logSha256": "52fd43ea440fb9c37e8a98769a3ea5d87f2116b96ff30d9acc8de835fd25f795"
+    },
+    {
+      "file": "case14-api-final",
+      "suites": 6,
+      "tests": 79,
+      "name": "api-targeted",
+      "exitCode": 0,
+      "logSha256": "8ca9bd23cc56f419472abbcc99e3a01d89ead822698212a069bcf01c2ab6cf9f"
+    },
+    {
+      "name": "actual-owned-loopback-postgres",
+      "file": "case14-provider-pg",
+      "exitCode": 0,
+      "tests": 5,
+      "logSha256": "f872236dca7f65543fae124f0f26a884b974e5084472f371071360d077c4ee9e"
+    },
+    {
+      "name": "core-signed-receipt",
+      "file": "case14-core-receipt-tests",
+      "exitCode": 0,
+      "tests": 9,
+      "logSha256": "49e2a1142daf8b0afa4c6412aabc666f59ede1fddcce39e8551da0cb05bb6c00"
+    },
+    {
+      "file": "case14-api-tsc-v2",
+      "name": "full-api-typecheck",
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "exitCode": 0
+    },
+    {
+      "file": "case14-orchestrator-tsc",
+      "name": "full-orchestrator-typecheck",
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "exitCode": 0
+    },
+    {
+      "file": "case14-core-build",
+      "name": "core-build",
+      "logSha256": "114789fa8ed304161bdf2ff7d71400e2c09bd09e74809da2edc112b2315a801c",
+      "exitCode": 0
+    }
+  ],
+  "hermesReview": {
+    "reviewSha256": "201a37d8fe4b490eb3bfeee4eb23f6c11c2701eed06ab3951f9b55254db23413",
+    "usage": {
+      "requestedModel": "moonshotai.kimi-k2.5",
+      "initializedModel": "moonshotai.kimi-k2.5",
+      "sessionId": "20261002_094745_205a1e",
+      "provider": "bedrock",
+      "reportedTokens": {
+        "input": 49831,
+        "output": 1858,
+        "total": 51689,
+        "cache_read": 0,
+        "cache_write": 0
+      },
+      "reportedResultExit": 0,
+      "toolCalls": 0,
+      "billedCostUsd": null,
+      "costStatus": "not exposed by quiet stream output"
+    },
+    "exit": {
+      "exitCode": 0,
+      "started": 1790934462.7056296,
+      "finished": 1790934489.9504304,
+      "elapsedSeconds": 27.24
+    },
+    "verdict": "PASS",
+    "process": {
+      "pid": 20016,
+      "started": 1790934462.7056296,
+      "requestedModel": "moonshotai.kimi-k2.5",
+      "provider": "bedrock",
+      "worktree": "C:\\dev\\cap-meri-approval-recovery"
+    },
+    "independentAdjudication": "No actionable blocker. Reviewer noted a base import absent from provided diff; actual export exists at memory-candidate-owner.mjs line374 and real packaging/PG tests passed. Some review prose paraphrases source loosely; qualification relies on actual source/tests, not that prose."
+  },
+  "implementation": {
+    "billedCostUsd": null,
+    "failedHermesActualExit": 1,
+    "reason": "No usable source patch; parent stopped repeated Qwen attempts",
+    "failedHermesStem": "C:\\dev\\cap-meri-foundation-evidence\\case14-reviewer-preflight-qwen",
+    "executor": "Codex under explicit failed-Hermes repair exception",
+    "failedHermesSession": "20261002_085449_73395e"
+  },
+  "acceptance": {
+    "liveModelCalls": 0,
+    "needs": "Qualified API and orchestrator images, exact canonical pending setup, one Meri approval, current source and provider rate installation, one native recall, read-only UI replay, saved human visual rubric",
+    "case17": "Prior no-turn UI slice is not submission of original row17 prompt; full original row acceptance and human rubric remain NOT_RUN",
+    "cloudWrites": 0,
+    "liveCase14": "NOT_RUN",
+    "authenticatedBrowserRuns": 0,
+    "fullFile01Acceptance": false
+  }
+}
