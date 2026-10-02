@@ -54,6 +54,16 @@ compose_database_url() {
 select_writable_tmpdir
 
 case "${1:-serve}" in
+  meri-case01-setup)
+    shift
+    compose_database_url
+    exec node scripts/meri-case01-setup.mjs "$@"
+    ;;
+  meri-capture-provider-budget)
+    shift
+    compose_database_url
+    exec node scripts/meri-capture-provider-budget.mjs "$@"
+    ;;
   migration-status)
     compose_database_url
     echo "Running prisma migrate status (READ-ONLY; migration history is never edited)"

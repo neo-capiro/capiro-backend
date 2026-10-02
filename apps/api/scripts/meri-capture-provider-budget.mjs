@@ -1,7 +1,8 @@
 #!/usr/bin/env node
-import { open, readFile } from 'node:fs/promises';
+import { open } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { isAbsolute } from 'node:path';
+import { readMeriOperatorInput } from './meri-operator-json-input.mjs';
 
 const require = createRequire(import.meta.url);
 const args = process.argv.slice(2);
@@ -28,13 +29,16 @@ try {
   if (
     !['plan', 'install'].includes(command) ||
     args.length !== 5 ||
-    inputFlag !== '--input' ||
+    !['--input', '--input-env'].includes(inputFlag) ||
     outputFlag !== '--out' ||
-    !isAbsolute(inputPath) ||
     !isAbsolute(outputPath)
   )
     reject('arguments_invalid');
-  const input = JSON.parse(await readFile(inputPath, 'utf8'));
+  const input = await readMeriOperatorInput(
+    inputFlag,
+    inputPath,
+    'MERI_CAPTURE_PROVIDER_BUDGET_INPUT',
+  );
   rejectSecrets(input);
   if (
     input.target !== 'capiro-dev' ||
@@ -109,6 +113,8 @@ try {
       ? await inspectCaptureProviderBudgetInstallation(dependencies, input)
       : await installCaptureProviderBudgetQualification(dependencies, input);
   await output.writeFile(`${JSON.stringify(receipt, null, 2)}\n`, 'utf8');
+  await output.sync();
+  process.stdout.write(`MERI_CAPTURE_PROVIDER_BUDGET_RECEIPT ${JSON.stringify(receipt)}\n`);
   process.stdout.write(
     `${JSON.stringify({ status: receipt.status, liveAcceptance: 'NOT_RUN' })}\n`,
   );

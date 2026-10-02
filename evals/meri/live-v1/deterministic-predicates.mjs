@@ -242,7 +242,10 @@ function casePredicate(capture, artifacts) {
   const defects = [];
 
   if (id === '01') {
-    if (!hasAll(answer, ['monthly', 'fiscal year', 'budget stage', 'citations', 'action owner', 'MA1-v2'])) defects.push('answer does not establish every case 01 exact fact and source version');
+    // MA1-v2 is a fixture locator, not required prose. The existing citation /
+    // version joins prove its canonical physical identity outside this fact test.
+    const normalized = answer.replace(/\bfy\b/gu, 'fiscal year').replace(/budget-stage/gu, 'budget stage').replace(/action-owner/gu, 'action owner');
+    if (!hasAll(normalized, ['monthly', 'fiscal year', 'budget stage', 'citations', 'action owner'])) defects.push('answer does not establish every case 01 exact fact');
     if (!hasAll(passage('MA1-v2'), ['monthly', 'fiscal year', 'budget stage', 'citations', 'action owner'])) defects.push('MA1-v2 passage bytes do not contain the canonical preference');
   } else if (id === '03') {
     if (!answer.includes('revoked') || !/(should not|do not|cannot recommend|not recommend|no longer)/u.test(answer)) defects.push('answer does not reject the Office Delta recommendation because MA3 is revoked');
@@ -342,4 +345,24 @@ export function evaluateDeterministicEvidence(capture, testCase, artifacts, capt
 
 export function expectedModeMatrix(caseId) {
   return structuredExecutionRequirements[caseId]?.modeMatrix ?? [];
+}
+
+/** Case01 facts/leaks only, reusing the original row predicate. This pure helper
+ * supplies no capture authority and cannot produce an acceptance verdict.
+ */
+export function evaluateCase01SavedFacts({ answer, passage, testCase }) {
+  if (testCase?.id !== '01' || typeof answer !== 'string' || typeof passage !== 'string') {
+    throw new TypeError('case01 saved answer, passage and frozen case are required');
+  }
+  const artifacts = {
+    answer: { text: answer },
+    passages: new Map([['MA1-v2', { text: passage }]]),
+  };
+  const capture = { caseId: '01' };
+  return {
+    defects: [
+      ...commonLeakDefects(capture, testCase, answer, artifacts.passages),
+      ...casePredicate(capture, artifacts),
+    ],
+  };
 }

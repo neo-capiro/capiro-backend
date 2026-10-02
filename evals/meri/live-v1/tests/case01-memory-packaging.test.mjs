@@ -36,6 +36,12 @@ it('imports and verifies frozen assets using only the exact API Dockerfile fixtu
       ).href
     );
     assert.equal(typeof owner.createHydratedCase01MemoryOwner, 'function');
+    const setup = await import(
+      pathToFileURL(
+        join(isolated, 'evals/meri/live-v1/fixture-provisioning/case01-execution-setup.mjs'),
+      ).href
+    );
+    assert.equal(typeof setup.executeCase01ExecutionSetup, 'function');
     const { buildFixtureManifest } = await import(
       pathToFileURL(join(isolated, 'evals/meri/live-v1/fixture-provisioning/manifest.mjs')).href
     );

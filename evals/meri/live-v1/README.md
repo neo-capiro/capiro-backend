@@ -85,6 +85,8 @@ Cases 40–45 retain lower-level structural checks for canonical source read rec
 
 Live behavior must be captured exactly once. Writes may occur only in a separately authorized disposable sink through a future live capture adapter. Offline grading then consumes saved records through `recorded-provider.mjs`; that provider has no network client and rejects embedded network/write/operation request fields. An evaluator must not repeat a write to obtain answer text.
 
+Source-owned setup and exact operator/receipt wiring are documented in [case01-execution.md](fixture-provisioning/case01-execution.md).
+
 ## Dedicated live read capture
 
 The general `capture-cli.mjs` cases 01/20 diagnostic retains `LIVE_SERVER_AUTHORITY_CONTRACT_MISSING` before HTTP or synthesis. Its `UNIT_FIXTURE_NOT_LIVE` mode is restricted to controlled loopback targets and never grants acceptance; its spend comparison is post-hoc.
@@ -97,7 +99,7 @@ The Windows build reader uses the installed AWS CLI and a fixed read-only allowl
 
 Execution refreshes actor/fixture/budget admission, records immutable submission intent, and submits the frozen case01 prompt once. Existing messages GET verifies the HMAC and current authorization inside the API. The collector joins that readback to the exact SSE envelope, persisted answer, canonical memory bytes/version, tool IDs, zero business effects, the exact separately joined provider-ledger accounting effect, expected message writes, served releases and settled provider ledger. It never receives `INTERNAL_SERVICE_SECRET`. Only the exact MA1-v2 canonical owner may reconcile initially unknown source-scope observations; all other producer gaps remain blocking.
 
-After submission, uncertainty retains the submission count and is never retried. `CAPTURE_COMPLETE` is a transport result, not an acceptance PASS. The owned `case01-evidence.json` still needs original row-predicate and human-adjudication composition. The generic bundle verifier remains closed; case20 and all unsupported rows remain blocked. Pure comparison helpers and caller JSON cannot mint a live capability.
+After submission, uncertainty retains the submission count and is never retried. `CAPTURE_COMPLETE` is a transport result, not an acceptance PASS. The owned `case01-evidence.json` is consumed by `gradeCase01CapturedOutcome` in the same process; original fact/leak checks plus physical citation/version joins run without another turn. Missing manual human adjudication remains NOT_RUN; only case01 can pass, never full File01. The generic bundle verifier remains closed; case20 and all unsupported rows remain blocked. Pure comparison helpers and caller JSON cannot mint a live capability.
 
 Portable Node path mode still refuses LIVE with `LIVE_ARTIFACT_PATH_UNSAFE`. The qualified Windows `createWindowsArtifactStorage` path uses native relative handles, pins directory identities, rejects reparse points/hardlinks, creates without overwrite and verifies bytes/current owner. Its capability is process-local, not WORM storage or restart adoption. Interrupted residue remains invalid and non-overwritable.
 
@@ -107,7 +109,8 @@ Portable Node path mode still refuses LIVE with `LIVE_ARTIFACT_PATH_UNSAFE`. The
 const storage = createWindowsArtifactStorage(runRoot, { pythonExecutable });
 const capability = await prepareCase01LiveCapture({ config, runRoot, artifactStorage: storage });
 const result = await executeCase01LiveCapture(capability);
-// Original grading consumes saved evidence; never submit another turn to grade it.
+const grade = gradeCase01CapturedOutcome(result); // NOT_RUN until manual rubric
+// Never submit another turn to grade it. Keep the native owner open for this read.
 ```
 
 No live result is implied by unit tests. Actual execution requires merged and deployed owners, a current canonical fixture binding, explicit operator configuration, and external evidence storage. Credentials, session state and raw live execution reports stay outside Git.

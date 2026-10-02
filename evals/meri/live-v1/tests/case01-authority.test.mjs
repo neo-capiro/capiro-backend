@@ -30,7 +30,7 @@ const unknown = () => ({
   value: null,
   reason: 'canonical owner readback required',
 });
-function fixture() {
+export function fixture() {
   const c = cases.find((row) => row.id === '01');
   const tenantId = 'f2d6cf8f-057c-479a-8110-62fe5086d43f';
   const text = 'Monthly reports contain fiscal year, budget stage, citations, and action owner.';
