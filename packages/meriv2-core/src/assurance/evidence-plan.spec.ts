@@ -7,6 +7,12 @@ const smokePrompt =
 
 const formattingRequests = [
   smokePrompt,
+  'Diagnostic check: reply with only 4 for 2 + 2. Do not search, use tools, create tasks, save or propose memories, or send any messages.',
+  'Post-correction diagnostic: search my own mailbox once for the exact nonsense string CAPIRO_MERI_DIAGNOSTIC_20261002_1409_NO_MATCH. Report only whether search_emails completed successfully or returned an error. Do not disclose email contents, run other tools, save memories, create tasks, or send messages.',
+  'Please respond with only -1.5 for 2.5 - 4.',
+  'Answer with only 6 for 2 * 3.',
+  'Reply with only 2 for 6 / 3.',
+  'Report only whether search_emails completed successfully.',
   'Reply only: Meri smoke check complete.',
   'Reply only.',
   'REPLY ONLY: Test',
@@ -22,6 +28,17 @@ const formattingRequests = [
 ];
 
 const factualRequests = [
+  'Report only whether all awards are expired.',
+  'Report only: No awards exist.',
+  'Report only whether only four awards are active.',
+  'Reply with only 4 awards.',
+  'Reply with only 4 for 2 + 2 awards.',
+  'Reply with only 4 for 2 + 2.5 awards.',
+  'Reply with only 4 for 2 + 2. Every award expired.',
+  'Reply with only 4 for 2 + 2, and list all awards.',
+  'The agencies report only whether awards exist.',
+  'Report only about awards.',
+  'Report only if an award exists.',
   'Only one award was granted.',
   'All contracts expired.',
   'Every relevant bill failed.',
