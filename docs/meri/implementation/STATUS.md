@@ -1,4 +1,35 @@
-## Current checkpoint — 2026-10-02 original capture source qualified
+## Current checkpoint — 2026-10-02 09:00 UTC, targeted integration and fixture recovery
+
+**File01 remains incomplete. Original live cases executed: 0.** The separately
+verified two-tenant smoke is not the Appendix F evaluation. API491 is serving
+source `c11c83fe1759183254b24d11a9087ccc89595a73`, orchestrator91 serves
+`15ed650f3bc56b6906cb0dbf7cb30602843f4a7b`, and Web VNext386 remains at `os.capiro.ai`.
+The two approved synthetic tenants now belong to the existing governance cohort;
+their existing roles and grants were not changed by the reconciliation.
+
+The first case01 setup stopped with one pending candidate. Its original STARTED
+claim and failure evidence remain intact. The deployed-image read-only v3 task
+exited 0: all 55 candidate predicates match, current approval is allowed through
+the existing grant, and both projection columns exist. This rules out those
+hypotheses, but does not establish the original transaction failure's cause.
+The next step is a separately claimed, narrowly admitted canonical recovery;
+never clear the original claim or rerun whole setup blindly.
+
+The integration branch contains case17's current-owner UI capture, controlled
+20/72 reads, six further budget definitions held from live admission, and text
+artifact/proposal receipt checks. These later changes are locally qualified,
+not yet claimed merged or deployed. See
+[retained checks and readback](../releases/2026-10-02/next-eval-checkpoints/README.md).
+API/orchestrator/Web native recipes are prepared; new builds have not run.
+Parallel work owns case01 recovery, case14 approval/recall, and the20/72 live
+operator. Cases12/46 and the rest of75/CD7/CW8/applicable memory/variant acceptance
+remain open. Defense Chat is excluded. Historical migration/PITR work remains
+closed; no new migration or ledger write is part of this increment.
+
+Shared policy: `39590a3bfc57ce03b0411ff7912a7c8d99deb70c`; machine map:
+`2026-09-30T00:21:48Z`. Entries below are historical checkpoints.
+
+## Historical checkpoint — 2026-10-02 original capture source qualified
 
 **Original live acceptance remains NOT RUN.** Tested source `1d54ac1a95c7a2fb5184cee5af944891a0dba255` now has
 the complete case01 setup, authenticated capture, deterministic grading and provider
