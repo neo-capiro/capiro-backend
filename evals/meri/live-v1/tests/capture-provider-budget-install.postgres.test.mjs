@@ -19,17 +19,28 @@ import {
 } from '../fixture-provisioning/case01-memory-owner.mjs';
 import { sha256Stable } from '../artifact-collector.mjs';
 import { AUTHORIZED_TENANTS, FIXTURE_NAMESPACE } from '../fixture-provisioning/contract.mjs';
+import { runBudgetCliInOwnedTransaction } from './capture-provider-budget-cli-harness.mjs';
 
 const require = createRequire(new URL('../../../../apps/api/package.json', import.meta.url));
 const source = (name) =>
   require(fileURLToPath(new URL(`../../../../apps/api/src/${name}.ts`, import.meta.url)));
 const config = process.env.MERI_APPROVED_MEMORY_PG_CONFIG;
 
+async function withExplicitCohort(work) {
+  return withOwnedApprovedMemory(config, (harness) => {
+    const { runWithMemoryGovernanceTenant } = source('memory/memory-governance-tenant-scope');
+    // The harness restores these flags; exercise the real two-tenant cohort,
+    // never the background-only `all` compatibility path.
+    process.env.MEMORY_GOVERNANCE_TENANTS = `${AUTHORIZED_TENANTS.T1.id},${AUTHORIZED_TENANTS.T2.id}`;
+    return runWithMemoryGovernanceTenant(TENANT, () => work(harness));
+  });
+}
+
 it(
   'installs reviewed provider qualification using actual hydrated source authority, CAS and rollback',
   { skip: !config },
   async () =>
-    withOwnedApprovedMemory(config, async ({ deps, tx, manifest, memoryStore }) => {
+    withExplicitCohort(async ({ deps, tx, manifest, memoryStore }) => {
       const versions = await versionDependencies(deps, tx, memoryStore);
       const dependencies = {
         ...deps,
@@ -109,16 +120,57 @@ it(
         expectedPriorLocatorSha256: sha256Stable(null),
         expectedTenantRowVersion: bound.tenantRowVersion,
       });
-      const {
-        inspectCaptureProviderBudgetInstallation,
-        installCaptureProviderBudgetQualification,
-      } = source('meri/meri-capture-provider-budget-install');
+      const { installCaptureProviderBudgetQualification } = source(
+        'meri/meri-capture-provider-budget-install',
+      );
       const { captureBudgetHash } = source('meri/meri-capture-provider-budget');
-      const plan = await inspectCaptureProviderBudgetInstallation(dependencies, {
+      const cliInput = {
+        target: 'capiro-dev',
+        fixtureNamespace: FIXTURE_NAMESPACE,
         ctx,
         clientId: CLIENT,
-      });
+      };
+      const cliPlan = await runBudgetCliInOwnedTransaction('plan', cliInput, deps.prisma);
+      assert.equal(cliPlan.exitCode, 0, `Actual CLI plan failed: ${cliPlan.receipt.code}`);
+      const plan = cliPlan.receipt;
       assert.equal(plan.status, 'READY_FOR_RATE_QUALIFICATION');
+      assert.ok(cliPlan.writes.includes('MERI_CAPTURE_PROVIDER_BUDGET_RECEIPT '));
+      const beforeScopeFaults = (
+        await tx.$queryRawUnsafe(
+          'SELECT settings_jsonb AS settings FROM tenants WHERE id=$1::uuid',
+          TENANT,
+        )
+      )[0].settings;
+      for (const badCtx of [
+        { ...ctx, userId: randomUUID() },
+        { ...ctx, tenantSlug: 'foreign-tenant' },
+      ]) {
+        const denied = await runBudgetCliInOwnedTransaction(
+          'plan',
+          { ...cliInput, ctx: badCtx },
+          deps.prisma,
+        );
+        assert.equal(denied.exitCode, 1);
+        assert.equal(denied.receipt.status, 'FAILED');
+      }
+      const configuredCohort = process.env.MEMORY_GOVERNANCE_TENANTS;
+      try {
+        process.env.MEMORY_GOVERNANCE_TENANTS = AUTHORIZED_TENANTS.T2.id;
+        const denied = await runBudgetCliInOwnedTransaction('plan', cliInput, deps.prisma);
+        assert.equal(denied.exitCode, 1);
+        assert.equal(denied.receipt.status, 'FAILED');
+      } finally {
+        process.env.MEMORY_GOVERNANCE_TENANTS = configuredCohort;
+      }
+      assert.deepEqual(
+        (
+          await tx.$queryRawUnsafe(
+            'SELECT settings_jsonb AS settings FROM tenants WHERE id=$1::uuid',
+            TENANT,
+          )
+        )[0].settings,
+        beforeScopeFaults,
+      );
       const rates = [
         {
           kind: 'openai_responses',
@@ -208,7 +260,17 @@ it(
       assert.deepEqual(await read(), before);
       await tx.$executeRawUnsafe('SAVEPOINT qualified_install_rollback');
       try {
-        const installed = await installCaptureProviderBudgetQualification(dependencies, input);
+        const cliInstall = await runBudgetCliInOwnedTransaction(
+          'install',
+          { ...cliInput, ...input },
+          deps.prisma,
+        );
+        assert.equal(
+          cliInstall.exitCode,
+          0,
+          `Actual CLI install failed: ${cliInstall.receipt.code}`,
+        );
+        const installed = cliInstall.receipt;
         assert.equal(installed.status, 'PROVIDER_QUALIFICATION_INSTALLED');
         assert.equal(installed.liveAcceptance, 'NOT_RUN');
         assert.equal(installed.qualificationSha256, captureBudgetHash(qualification));

@@ -56,6 +56,9 @@ try {
   // projection worker, provider client, secret lookup, or flag changes.
   const { PrismaService } = require('../dist/prisma/prisma.service.js');
   const { TenantContextStore } = require('../dist/tenant/tenant-context.store.js');
+  const {
+    runWithMemoryGovernanceTenant,
+  } = require('../dist/memory/memory-governance-tenant-scope.js');
   const { MemoryStoreService } = require('../dist/memory/memory-store.service.js');
   const { MemoryAuthorizationService } = require('../dist/memory/memory-authorization.service.js');
   const {
@@ -108,10 +111,14 @@ try {
     ),
   };
   await prisma.$connect();
-  const receipt =
+  // The canonical owner revalidates this ordinary actor, tenant and client in
+  // its transaction. Bind the same tenant for the explicit governance cohort;
+  // do not require or enable the background-only `all` scope.
+  const receipt = await runWithMemoryGovernanceTenant(input.ctx.tenantId, () =>
     command === 'plan'
-      ? await inspectCaptureProviderBudgetInstallation(dependencies, input)
-      : await installCaptureProviderBudgetQualification(dependencies, input);
+      ? inspectCaptureProviderBudgetInstallation(dependencies, input)
+      : installCaptureProviderBudgetQualification(dependencies, input),
+  );
   await output.writeFile(`${JSON.stringify(receipt, null, 2)}\n`, 'utf8');
   await output.sync();
   process.stdout.write(`MERI_CAPTURE_PROVIDER_BUDGET_RECEIPT ${JSON.stringify(receipt)}\n`);
