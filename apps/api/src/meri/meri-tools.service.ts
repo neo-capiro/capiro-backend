@@ -1,4 +1,4 @@
-import { assertTextArtifactCurrentProposal } from './meri-text-artifact-current-proposal.js';
+import { assertTextArtifactCurrentProposal, type TextArtifactCurrentAction } from './meri-text-artifact-current-proposal.js';
 import { researchPortfolioManagementSchema, parseResearchPortfolioManagementInput } from '../research-portfolios/research-portfolio-management.js';
 import { federalHearingWhere } from '../hearing-discovery/hearing-geography.js';
 import {
@@ -7667,7 +7667,7 @@ export class MeriToolsService {
     persistedBytes: Buffer | null;
     persistedSha256: string | null;
     byteAuthority: 'persisted_at_creation_v1' | 'regenerated_legacy' | 'regenerated_export';
-    operationReceipt?: TextArtifactCreation & { artifactId: string };
+    operationReceipt?: TextArtifactCreation & { artifactId: string; currentAction?: TextArtifactCurrentAction };
   } | null> {
     const artifact = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.clioArtifact.findFirst({
@@ -7782,9 +7782,9 @@ export class MeriToolsService {
       conversationId: artifact.conversationId, filename, mimeType: 'text/plain',
       sha256: persistedSha256!, byteLength: persistedBytes!.length,
     }) : undefined;
-    if (operationReceipt?.actionProposalId) {
-      await this.prisma.withTenant(ctx.tenantId, (tx) => assertTextArtifactCurrentProposal(tx, operationReceipt));
-    }
+    const currentAction = operationReceipt?.actionProposalId
+      ? await this.prisma.withTenant(ctx.tenantId, (tx) => assertTextArtifactCurrentProposal(tx, operationReceipt))
+      : null;
     return {
       format,
       specJson: artifact.bodyText,
@@ -7793,7 +7793,7 @@ export class MeriToolsService {
       persistedBytes,
       persistedSha256,
       byteAuthority,
-      ...(operationReceipt ? { operationReceipt } : {}),
+      ...(operationReceipt ? { operationReceipt: { ...operationReceipt, ...(currentAction ? { currentAction } : {}) } } : {}),
     };
   }
 
