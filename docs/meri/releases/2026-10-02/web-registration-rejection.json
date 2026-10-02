@@ -1,0 +1,9 @@
+{
+  "time": "2026-10-02T01:38:39Z",
+  "eventId": "0759030a-7efc-481d-9fb7-6b1e88e039b3",
+  "caller": "arn:aws:iam::967807252336:user/hermes-cli",
+  "errorCode": "ClientException",
+  "errorMessage": "Tags can not be empty.",
+  "family": "capiro-dev-web-vnext",
+  "taskDefinitionArn": null
+}

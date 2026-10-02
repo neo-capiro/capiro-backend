@@ -22,7 +22,7 @@ identity, PR1923 Web Node and synthetic-wrapper identity, and PR1924 catalog tes
 | --- | --- | --- | --- |
 | API | `83304d18e5a1ab647cf6f728392cf97b3058a832` | `sha256:1fbf675727041323c56c2330aebb7f27ae4129864cb413953b869bfffad80015` | `capiro-build-web-dev:dc4c281e-5372-4a7d-b667-2919a78125f1`, SUCCEEDED |
 | Web vNext | `940fe9354f95630c6acb0f20f75ced26ea9e75f4` | `sha256:bb114117e1ac5bad398a34c2272280b0b55abbcb0502cb5b6b95356f213bdfdb` | `capiro-build-web-dev:8e88dd66-21c6-46b0-a74a-d33c7563b08e`, SUCCEEDED |
-| Meri orchestrator | `39cea28f31be07def2f67ddf06ac4c44ef4ab792` | Not yet qualified in this record | `capiro-build-web-dev:8d17a8df-7779-416b-92f2-4875b722ca50`, build in progress |
+| Meri orchestrator | `39cea28f31be07def2f67ddf06ac4c44ef4ab792` | `sha256:1495f82a9c3c4dab04b7f0028761cf3549e6e726699f390563b7c7b2a3eb1550` | `capiro-build-web-dev:8d17a8df-7779-416b-92f2-4875b722ca50`, SUCCEEDED |
 
 All image repositories are beneath
 `967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/` with the service name
@@ -90,7 +90,7 @@ mocked-auth fixture is not authenticated production acceptance.
   custom verifier exited 0. The actual source was `4277eec813ccb78e339633406f15cafa10711fe4`,
   whose entire Git tree equals API candidate `83304d18`. Later changes affect
   build runtime, wrapper identity, test expectations and documentation only.
-- Release operator: 35/35 tests passed, including conservative drift checks,
+- Release operator: 36/36 tests passed, including conservative drift checks,
   uncertain writes, immutable rollback and source-identity preservation.
 - Synthetic flag wrapper: 24/24 tests passed after the T2 UUID correction; the
   image-owned flag command was already correct and unchanged.
@@ -104,7 +104,16 @@ mocked-auth fixture is not authenticated production acceptance.
   side-effect classification; 33/33 affected tests passed. Independent Kimi
   source review returned PASS, but its CLI exited 1 without an exposed cause.
   That process limitation is preserved; independent Codex source verification
-  found no issue. The new full ARM64 build must pass before orchestrator promotion.
+  found no issue. The new full ARM64 build completed successfully at 01:41:57 UTC:
+  124 suites and 1,401 tests passed, with two live-only tests skipped. The actual
+  packaged entrypoint health/auth smoke and immutable digest equality passed.
+  See `orchestrator-build-qualification.json` for executed markers and readback.
+- The first Web promotion stopped before changing the service: ECS rejected
+  the rollback registration with `Tags can not be empty.` CloudTrail confirmed
+  the rejection and no task revision was registered. The operator now omits an
+  empty user-tag list, retaining every nonempty user tag. Regression tests model
+  ECS's rejection. The original failed receipt is preserved; retry uses a fresh
+  manifest and receipt. See `web-registration-rejection.json`.
 
 ## Required promotion and acceptance conditions
 
