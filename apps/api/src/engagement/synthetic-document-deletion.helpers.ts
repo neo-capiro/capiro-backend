@@ -119,7 +119,7 @@ export async function guardSyntheticDocumentDeletionInTx(
   if (phase === 'inspect' && guard.expectedBucket !== bucket) deny();
   const membership = await tx.$queryRaw<Array<{ id: string }>>`
     SELECT tm.user_id::text AS id FROM tenant_memberships tm JOIN tenants t ON t.id=tm.tenant_id
-    WHERE tm.tenant_id=${ctx.tenantId}::uuid AND tm.user_id=${ctx.userId}::uuid AND tm.status='active' AND tm.role=${ctx.role}
+    WHERE tm.tenant_id=${ctx.tenantId}::uuid AND tm.user_id=${ctx.userId}::uuid AND tm.status='active' AND tm.role::text=${ctx.role}
       AND t.slug=${TENANTS[ctx.tenantId]} FOR SHARE OF tm,t`;
   if (membership.length !== 1) deny();
   await tx.$queryRaw`SELECT id FROM clients WHERE tenant_id=${ctx.tenantId}::uuid AND id=${guard.clientId}::uuid FOR SHARE`;
