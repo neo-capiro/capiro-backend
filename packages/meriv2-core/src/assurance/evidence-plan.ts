@@ -338,6 +338,25 @@ const REQUIREMENTS: Readonly<Record<ClaimCategory, readonly EvidenceRequirement[
   ],
 };
 
+/** Remove only the quantifier in a recognized response-format directive.
+ * Keep its payload and every other quantifier so mixed factual requests still
+ * require complete coverage. Unrecognized wording remains conservative. */
+function withoutResponseFormatOnly(request: string): string {
+  return request
+    .replace(
+      /(^|[.!?;:,\n]\s*)((?:please\s+)?(?:reply|respond|answer)\s+)only\b(?=\s*(?:[:.!?]|$)|\s+(?:(?:with|in)\s+(?:json|xml|yaml|markdown|bullets?|bullet\s+points?|plain\s+text)\b|whether\b))/gi,
+      '$1$2',
+    )
+    .replace(
+      /(^|[.!?;:,\n]\s*)((?:please\s+)?(?:reply|respond|answer)\s+(?:with|in)\s+(?:json|xml|yaml|markdown|bullets?|bullet\s+points?|plain\s+text))\s+only\b/gi,
+      '$1$2',
+    )
+    .replace(
+      /(^|[.!?;:,\n]\s*)((?:please\s+)?)only\s+((?:reply|respond|answer)\s+(?:with|in)\s+(?:json|xml|yaml|markdown|bullets?|bullet\s+points?|plain\s+text)\b)/gi,
+      '$1$2$3',
+    );
+}
+
 export function inferClaimCategories(request: string): ClaimCategory[] {
   const text = String(request ?? '');
   const categories: ClaimCategory[] = [];
@@ -432,7 +451,7 @@ export function inferClaimCategories(request: string): ClaimCategory[] {
   addIf(
     categories,
     /\b(?:no|none|only|all|every|never|nothing|nobody|no\s+evidence|does\s+not\s+exist)\b/i.test(
-      text,
+      withoutResponseFormatOnly(text),
     ),
     'negative_or_exhaustive',
   );
