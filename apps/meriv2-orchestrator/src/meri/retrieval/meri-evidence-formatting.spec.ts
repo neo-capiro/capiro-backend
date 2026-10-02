@@ -29,6 +29,19 @@ function finalizeWithoutReads(request: string, reply: string): string {
 }
 
 describe('response formatting through Meri evidence finalization', () => {
+  it('does not append a dataset warning to a read-only capabilities answer', () => {
+    const request =
+      'Read-only QA: list three things you can help me with besides email. Keep this under 60 words. Do not search, save memories, or change any records.';
+    const reply = 'Research legislation, analyze budget lines, and draft briefing materials.';
+    expect(finalizeWithoutReads(request, reply)).toBe(reply);
+  });
+
+  it('does not probe legislative sources when a mailbox lookup fails', () => {
+    const request = 'Search my mailbox once. If the search fails, report that it failed.';
+    const reply = 'The mailbox lookup failed, so I cannot report a result count.';
+    expect(finalizeWithoutReads(request, reply)).toBe(reply);
+  });
+
   it('preserves the exact arithmetic diagnostic without a coverage disclaimer', () => {
     const request =
       'Diagnostic check: reply with only 4 for 2 + 2. Do not search, use tools, create tasks, save or propose memories, or send any messages.';

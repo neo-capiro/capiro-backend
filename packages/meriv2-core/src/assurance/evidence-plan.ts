@@ -342,26 +342,28 @@ const REQUIREMENTS: Readonly<Record<ClaimCategory, readonly EvidenceRequirement[
  * Keep its payload and every other quantifier so mixed factual requests still
  * require complete coverage. Unrecognized wording remains conservative. */
 function withoutResponseFormatOnly(request: string): string {
-  return request
-    // A bare numeric reply to an explicit arithmetic expression is a format
-    // directive, not a restriction on a factual dataset. Require the expression
-    // to end the clause so units or factual objects remain conservative.
-    .replace(
-      /(^|[.!?;:,\n]\s*)((?:please\s+)?(?:reply|respond|answer)\s+with\s+)only\b(?=\s+[+-]?\d+(?:\.\d+)?\s+for\s+[+-]?\d+(?:\.\d+)?\s*[+*/-]\s*[+-]?\d+(?:\.\d+)?\s*(?:[.!?;,\n](?=\s|$)|$))/gi,
-      '$1$2',
-    )
-    .replace(
-      /(^|[.!?;:,\n]\s*)((?:please\s+)?(?:reply|respond|answer|report)\s+)only\b(?=\s*(?:[:.!?]|$)|\s+(?:(?:with|in)\s+(?:json|xml|yaml|markdown|bullets?|bullet\s+points?|plain\s+text)\b|whether\b))/gi,
-      '$1$2',
-    )
-    .replace(
-      /(^|[.!?;:,\n]\s*)((?:please\s+)?(?:reply|respond|answer)\s+(?:with|in)\s+(?:json|xml|yaml|markdown|bullets?|bullet\s+points?|plain\s+text))\s+only\b/gi,
-      '$1$2',
-    )
-    .replace(
-      /(^|[.!?;:,\n]\s*)((?:please\s+)?)only\s+((?:reply|respond|answer)\s+(?:with|in)\s+(?:json|xml|yaml|markdown|bullets?|bullet\s+points?|plain\s+text)\b)/gi,
-      '$1$2$3',
-    );
+  return (
+    request
+      // A bare numeric reply to an explicit arithmetic expression is a format
+      // directive, not a restriction on a factual dataset. Require the expression
+      // to end the clause so units or factual objects remain conservative.
+      .replace(
+        /(^|[.!?;:,\n]\s*)((?:please\s+)?(?:reply|respond|answer)\s+with\s+)only\b(?=\s+[+-]?\d+(?:\.\d+)?\s+for\s+[+-]?\d+(?:\.\d+)?\s*[+*/-]\s*[+-]?\d+(?:\.\d+)?\s*(?:[.!?;,\n](?=\s|$)|$))/gi,
+        '$1$2',
+      )
+      .replace(
+        /(^|[.!?;:,\n]\s*)((?:please\s+)?(?:reply|respond|answer|report)\s+)only\b(?=\s*(?:[:.!?]|$)|\s+(?:(?:with|in)\s+(?:json|xml|yaml|markdown|bullets?|bullet\s+points?|plain\s+text)\b|whether\b))/gi,
+        '$1$2',
+      )
+      .replace(
+        /(^|[.!?;:,\n]\s*)((?:please\s+)?(?:reply|respond|answer)\s+(?:with|in)\s+(?:json|xml|yaml|markdown|bullets?|bullet\s+points?|plain\s+text))\s+only\b/gi,
+        '$1$2',
+      )
+      .replace(
+        /(^|[.!?;:,\n]\s*)((?:please\s+)?)only\s+((?:reply|respond|answer)\s+(?:with|in)\s+(?:json|xml|yaml|markdown|bullets?|bullet\s+points?|plain\s+text)\b)/gi,
+        '$1$2$3',
+      )
+  );
 }
 
 /** An explicitly closed supplied-facts exercise has a premise, not an
@@ -399,14 +401,28 @@ function isClosedPremiseRequest(request: string): boolean {
 }
 
 export function inferClaimCategories(request: string): ClaimCategory[] {
-  const text = String(request ?? '');
+  // An access constraint is not a claim that a dataset contains "only" some
+  // records. Keep other quantifiers, including those in the same request.
+  const text = String(request ?? '').replace(
+    /\bread(?:[-\u2010-\u2015]+only\b|\s+only(?=\s+(?:access|mode)\b))/gi,
+    'read access',
+  );
   if (isClosedPremiseRequest(text)) return ['general_background'];
   const categories: ClaimCategory[] = [];
+  const legislativeSubject =
+    /\b(?:bills?|measures?|legislation|legislative|rulemaking|dockets?|ordinances?|resolutions?)\b|\b(?:H\.?\s*R\.?|H\.?B\.?|S\.?B\.?|S\.?)\s*\d+\b/i.test(
+      text,
+    );
+  const operationalStatus =
+    /\b(?:search(?:_[a-z]+)?|lookup|quer(?:y|ies)|sync|upload|download|connection|tasks?|jobs?|tools?|api|server)\s+(?:(?:has|have|had|is|are|was|were|did|does|do|will|can|may|might|not)\s+)*(?:status|fail(?:ed|s)?|pass(?:ed|es)?|dead|alive)\b|\bstatus\s+(?:of|for)\s+(?:(?:the|my|our|this|that)\s+)?(?:search|lookup|query|sync|upload|download|connection|tasks?|jobs?|tools?|api|server)\b/i.test(
+      text,
+    );
   addIf(
     categories,
-    /\b(?:status|where\s+(?:is|does).*(?:bill|measure)|advance[sd]?|pass(?:ed|es)?|fail(?:ed|s)?|dead|alive)\b/i.test(
-      text,
-    ),
+    (legislativeSubject || !operationalStatus) &&
+      /\b(?:status|where\s+(?:is|does).*(?:bill|measure)|advance[sd]?|pass(?:ed|es)?|fail(?:ed|s)?|dead|alive)\b/i.test(
+        text,
+      ),
     'bill_status',
   );
   addIf(

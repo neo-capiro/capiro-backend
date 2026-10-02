@@ -7,6 +7,8 @@ const smokePrompt =
 
 const formattingRequests = [
   smokePrompt,
+  'Read-only QA: list three things you can help me with besides email. Keep this under 60 words. Do not search, save memories, or change any records.',
+  'Use read only access to explain your capabilities.',
   'Diagnostic check: reply with only 4 for 2 + 2. Do not search, use tools, create tasks, save or propose memories, or send any messages.',
   'Post-correction diagnostic: search my own mailbox once for the exact nonsense string CAPIRO_MERI_DIAGNOSTIC_20261002_1409_NO_MATCH. Report only whether search_emails completed successfully or returned an error. Do not disclose email contents, run other tools, save memories, create tasks, or send messages.',
   'Please respond with only -1.5 for 2.5 - 4.',
@@ -28,6 +30,10 @@ const formattingRequests = [
 ];
 
 const factualRequests = [
+  'Read-only check: list all awards.',
+  'Using read-only access, verify that no awards exist.',
+  'Read only one award and explain why it is the only match.',
+  'Read only the awards from this year.',
   'Report only whether all awards are expired.',
   'Report only: No awards exist.',
   'Report only whether only four awards are active.',
@@ -99,6 +105,29 @@ describe('response formatting and factual coverage requirements', () => {
     expect(inferClaimCategories(`${factual} Reply only with JSON.`)).toEqual(
       inferClaimCategories(factual),
     );
+  });
+});
+
+describe('operational status is not legislative status', () => {
+  it.each([
+    'Search my mailbox once. If the search fails, say that it failed rather than treating it as no matches.',
+    'What is the status of my upload?',
+    'The database query failed. Explain the error.',
+    'Read-only: did the API request work? Report whether the connection failed.',
+  ])('does not schedule legislative evidence for %s', (request) => {
+    expect(inferClaimCategories(request)).not.toContain('bill_status');
+    expect(plan(request).requiredRequirementIds).not.toContain('bill-status.official-status');
+  });
+
+  it.each([
+    'Did it pass?',
+    'What is its status?',
+    'Did H.R. 123 pass?',
+    'The search failed. Verify whether the bill passed.',
+    'What is the status of SB123? The lookup failed.',
+    'The server failed, but is the measure still alive?',
+  ])('retains actual or unresolved legislative evidence for %s', (request) => {
+    expect(inferClaimCategories(request)).toContain('bill_status');
   });
 });
 
