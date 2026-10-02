@@ -197,14 +197,21 @@ test('prepare is read-only, secret-free and binds exact candidate to baseline', 
   assert(!JSON.stringify(m).includes('secret-arn'));
   assert(!JSON.stringify(m).includes('MERI_GLOBAL_OFF'));
 });
-test('one-service promotion preserves all non-image task fields and verifies actual task health', async () => {
+test('promotion binds release identity, preserves other task fields and verifies actual task health', async () => {
   const f = fixture();
   const m = await f.operator.prepare(qualification());
   const r = await f.operator.promote(m, fingerprint(m), f.record);
   assert.equal(r.status, 'ecs-healthy-manual-acceptance-required');
   const proposed = taskInput(f.definitions.get(r.candidateTaskDefinition));
+  const env = proposed.containerDefinitions[0].environment;
+  assert.equal(env.find((entry) => entry.name === 'GIT_SHA').value, sourceSha);
+  assert.equal(env.find((entry) => entry.name === 'RELEASE_SHA').value, sourceSha);
+  proposed.containerDefinitions[0].environment = env.filter(
+    (entry) => !['GIT_SHA', 'RELEASE_SHA'].includes(entry.name),
+  );
   proposed.containerDefinitions[0].image = uri(oldDigest);
   assert.deepEqual(proposed, taskInput(f.td));
+  assert.deepEqual(taskInput(f.definitions.get(r.rollbackTaskDefinition)), taskInput(f.td));
   assert.equal(f.mutations().length, 3);
   assert(f.calls.some((c) => c[0] === 'elbv2' && c[1] === 'describe-target-health'));
 });

@@ -212,7 +212,7 @@ export function assertStable(s, key) {
   )
     fail('Explicit alarm rollback settings required');
 }
-export function candidateTask(td, key, image) {
+export function candidateTask(td, key, image, sourceSha) {
   keyCheck(key);
   if (td.family !== `capiro-dev-${key}` || td.networkMode !== 'awsvpc')
     fail('Wrong task family/network mode');
@@ -243,6 +243,24 @@ export function candidateTask(td, key, image) {
       fail('Wrong vNext surface/port');
   }
   current.image = image;
+  // A promotion must report the source actually packaged in its immutable image.
+  // Rollback omits sourceSha and keeps the baseline's original identity fields.
+  if (sourceSha !== undefined) {
+    if (!/^[0-9a-f]{40}$/.test(sourceSha)) fail('Invalid release source SHA');
+    const names = ['GIT_SHA', 'RELEASE_SHA'];
+    if (key === 'web-vnext') names.push('CAPIRO_WEB_RELEASE_SHA');
+    const environment = current.environment ?? [];
+    for (const name of names) {
+      if (environment.filter((entry) => entry.name === name).length > 1)
+        fail(`Duplicate release identity field: ${name}`);
+      if ((current.secrets ?? []).some((entry) => entry.name === name))
+        fail(`Release identity conflicts with secret: ${name}`);
+      const existing = environment.find((entry) => entry.name === name);
+      if (existing) existing.value = sourceSha;
+      else environment.push({ name, value: sourceSha });
+    }
+    current.environment = environment;
+  }
   return copy;
 }
 export function assertBaseline(before, after) {
