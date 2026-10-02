@@ -1,5 +1,6 @@
 import { inspectPendingUiPage } from './case17-memory-ui.mjs';
 import { sha256Stable } from './lib/stable.mjs';
+import { inspectCase17WriteAccounting } from './case17-readonly-guard.mjs';
 
 const need = (ok, code) => {
   if (!ok) throw new Error(`CASE17_SAVED_${code}`);
@@ -15,11 +16,11 @@ export function inspectCase17SavedEvidence({
   synthesisSubmissionCount,
   applicationWrites,
   blockedWrites,
+  blockedPreferenceWrites,
+  blockedWriteRequests,
 }) {
-  need(
-    synthesisSubmissionCount === 0 && applicationWrites === 0 && blockedWrites === 0,
-    'READ_ONLY',
-  );
+  need(synthesisSubmissionCount === 0 && applicationWrites === 0, 'READ_ONLY');
+  inspectCase17WriteAccounting({ blockedWrites, blockedPreferenceWrites, blockedWriteRequests });
   need(sha256Stable(before) === sha256Stable(after), 'CURRENT_OWNER_CHANGED');
   need(
     Array.isArray(rounds) &&

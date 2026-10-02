@@ -13,7 +13,11 @@ import {
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import type { MeriGovernedTurnContext } from '@capiro/meriv2-core';
-import { verifyMeriGovernedContext } from '@capiro/meriv2-core';
+import {
+  verifyMeriGovernedContext,
+  validateMeriGovernedArtifactPolicy,
+  MERI_CASE46,
+} from '@capiro/meriv2-core';
 import { CurrentTenant } from '../../auth/current-tenant.decorator.js';
 import { TenantGuard } from '../../auth/tenant.guard.js';
 import type { OrchestratorTenantContext } from '../../auth/tenant-context.js';
@@ -440,6 +444,9 @@ function trustedCurrentTurnScope(
     ...(governed.serverReadonlyCapturePolicy
       ? { capturePolicy: governed.serverReadonlyCapturePolicy }
       : {}),
+    ...(governed.governedArtifactCapturePolicy
+      ? { governedArtifactPolicy: governed.governedArtifactCapturePolicy }
+      : {}),
   };
 }
 
@@ -448,6 +455,36 @@ function validateCapturePolicy(
   dto: MeriV3ChatInput,
   identity: { tenantId: string; userId: string },
 ): void {
+  if (governed.governedArtifactCapturePolicy) {
+    try {
+      if (!dto.conversationId || !dto.clientId) throw new Error('meri_case46_turn_scope');
+      const artifact = validateMeriGovernedArtifactPolicy(governed.governedArtifactCapturePolicy, {
+        tenantId: identity.tenantId,
+        actorUserId: identity.userId,
+        conversationId: dto.conversationId,
+        clientId: dto.clientId,
+      });
+      if (
+        governed.serverReadonlyCapturePolicy ||
+        !artifact.turnId ||
+        dto.researchRun ||
+        dto.researchPlanExecution ||
+        dto.toolPolicy ||
+        dto.pageWrite ||
+        dto.currentTurnImages?.length ||
+        dto.messages?.length !== 1 ||
+        dto.messages[0]?.role !== 'user' ||
+        dto.messages[0]?.text !== MERI_CASE46.prompt
+      )
+        throw new Error('meri_case46_turn_scope');
+    } catch {
+      throw new ForbiddenException({
+        statusCode: 403,
+        error: 'Current governed artifact authority required',
+        code: 'meri_governed_artifact_authentication_failed',
+      });
+    }
+  }
   const policy = governed.serverReadonlyCapturePolicy;
   if (!policy) return;
   try {

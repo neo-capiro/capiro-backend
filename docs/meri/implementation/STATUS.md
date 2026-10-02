@@ -1,4 +1,29 @@
-## Current checkpoint — 2026-10-02 12:08 UTC, continuation image deployed
+## Current checkpoint — 2026-10-02 12:47 UTC, UI slice verified
+
+**File01 remains incomplete; zero original live rows are complete.** The case17
+pending-memory UI slice passed deterministic checks and a Codex saved-image
+review of all six cards before and after reload. The synthetic session was
+revoked. Both navigation preference PUT attempts were aborted, the owner hash
+was unchanged, and synthesis submissions and application writes were zero.
+The original case17 prompt and human rubric remain NOT_RUN.
+
+Case01 read-only reconciliation now confirms that the first approval committed:
+one approved candidate, one active canonical item, and its exact pending outbox
+job with no canonical embedding. Tenant-only RLS hid that job from the fast
+path's system scope. The original three STARTED claims remain preserved. A
+tenant-scoped fast path and an exact post-approval resume are being qualified;
+neither is described here as deployed or executed. Never reapprove the first
+candidate or replay the earlier failed operators.
+
+API499 remains the last qualified deployment. No original01 model prompt,
+provider-budget installation or original aggregate initialization has run.
+Full75/CD7/CW8, applicable memory/variants and human rubric remain open.
+See [saved UI and database evidence](../releases/2026-10-02/case17-ui-and-projection-checkpoint/OUTCOME.md).
+Shared-policy checkout observed at743fd708c3484604e8a35ea1039adeca3b1e331f;
+required operating files match origin39590a3bfc57ce03b0411ff7912a7c8d99deb70c.
+Machine map revision2026-09-30. Historical checkpoints follow.
+
+## Prior checkpoint — 2026-10-02 12:08 UTC, continuation image deployed
 
 **File01 remains incomplete; zero original live rows are complete.** API499,
 source42780caa, is healthy at2/2 with the qualified5d6bc10 image. Promotion

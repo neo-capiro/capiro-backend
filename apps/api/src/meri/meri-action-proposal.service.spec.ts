@@ -7,6 +7,8 @@ import type { ConfigService } from '@nestjs/config';
 import type { AppConfig } from '../config/config.schema.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import { classifyMeriActionLogicalFailure } from './meri-action-logical-outcome.js';
+import * as case46Authority from './meri-case46-action-authority.js';
+import { case46BudgetTestFixture } from './meri-case46-provider-budget.spec-helper.js';
 import {
   MeriActionProposalService,
   type MeriActionProposalStatus,
@@ -400,6 +402,45 @@ function harness(
     setPolicy,
   };
 }
+
+describe('MeriActionProposalService — explicit governed artifact approval', () => {
+  // Current source/DB/effect authority is exercised by the real PG test. These
+  // tests isolate the existing policy/proposal lifecycle when that owner admits.
+  it('retains PASS policy evidence but waits for browser approval and executes only once', async () => {
+    const {p}=case46BudgetTestFixture();
+    const authority=jest.spyOn(case46Authority,'assertCase46ProposalAuthorityInTx').mockResolvedValue(p);
+    try {
+      const h=harness({row:null}); h.setPolicy({outcome:'PASS',reasons:['Allowed']});
+      const created=await h.service.create(ctx,{tool:'create_word',input:{format:'txt'},conversationId:p.conversationId,surface:'chat'},undefined,p);
+      expect(created.disposition).toBe('pending_approval');
+      expect(created.proposal.policy.decision).toBe('PASS');
+      expect(created.proposal.attemptCount).toBe(0);
+      expect(created.proposal.preview).not.toHaveProperty('governedArtifactCapture');
+      expect(h.tools.execute).not.toHaveBeenCalled();
+      await h.service.approveAndExecute(ctx,PROPOSAL);
+      expect(h.getRow()).toMatchObject({status:'succeeded',approvedBy:USER,attemptCount:1});
+      expect(h.tools.execute).toHaveBeenCalledTimes(1);
+      expect(authority.mock.calls.map(call=>call[4].phase)).toEqual(['create','approve','approve']);
+      await h.service.approveAndExecute(ctx,PROPOSAL);
+      expect(h.tools.execute).toHaveBeenCalledTimes(1);
+    } finally { authority.mockRestore(); }
+  });
+  it('never overrides BLOCK and refuses current-source loss before approval claim', async () => {
+    const {p}=case46BudgetTestFixture();
+    const authority=jest.spyOn(case46Authority,'assertCase46ProposalAuthorityInTx').mockResolvedValue(p);
+    try {
+      const blocked=harness({row:null}); blocked.setPolicy({outcome:'BLOCK',reasons:['Blocked']});
+      const result=await blocked.service.create(ctx,{tool:'create_word',input:{format:'txt'},conversationId:p.conversationId,surface:'chat'},undefined,p);
+      expect(result.disposition).toBe('blocked'); expect(blocked.tools.execute).not.toHaveBeenCalled();
+      const h=harness({row:null}); h.setPolicy({outcome:'PASS',reasons:['Allowed']});
+      await h.service.create(ctx,{tool:'create_word',input:{format:'txt'},conversationId:p.conversationId,surface:'chat'},undefined,p);
+      authority.mockRejectedValueOnce(new Error('meri_case46_current_binding_changed'));
+      await expect(h.service.approveAndExecute(ctx,PROPOSAL)).rejects.toThrow('current_binding_changed');
+      expect(h.getRow()).toMatchObject({status:'proposed',attemptCount:0});
+      expect(h.tools.execute).not.toHaveBeenCalled();
+    } finally { authority.mockRestore(); }
+  });
+});
 
 describe('MeriActionProposalService', () => {
   it('keeps a confirmed client note receipt without exposing its body', async () => {

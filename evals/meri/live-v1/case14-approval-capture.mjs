@@ -199,12 +199,51 @@ async function web(page, sha) {
   }));
   need(value.sha === sha && value.surface === 'vnext', 'WEB_SOURCE');
 }
-async function memoryPanel(page) {
+export async function openCase14MemoryPanel(page) {
+  await page.locator('[data-meri-context-rail]').waitFor({ state: 'visible', timeout: 15000 });
   const expand = page.getByRole('button', { name: 'Expand panel', exact: true });
   if (await expand.isVisible()) await expand.click();
   const context = page.getByRole('button', { name: 'Open Context and Memory', exact: true });
   if (await context.isVisible()) await context.click();
   await page.getByRole('button', { name: 'Memory', exact: true }).click({ timeout: 15000 });
+}
+
+/** The rail and its queries mount separately. Only inspect exact cards after
+ * the existing review/history query exposes a completed state. No mutation. */
+export async function waitForCase14MemoryQuery(page, kind) {
+  need(kind === 'review' || kind === 'history', 'QUERY_KIND');
+  const label = kind === 'review' ? 'NEEDS YOUR REVIEW ·' : 'DECISION RECEIPTS ·';
+  const loading = kind === 'review' ? 'Loading review queue…' : 'Loading decision receipts…';
+  const error =
+    kind === 'review'
+      ? 'The institutional review queue could not be loaded.'
+      : 'Decision receipts could not be loaded.';
+  const section = page
+    .locator('section')
+    .filter({ has: page.getByText(new RegExp(`^${label}`, 'u')) });
+  await section.waitFor({ state: 'visible', timeout: 15000 });
+  await page.waitForFunction(
+    ({ label, loading, error, kind }) => {
+      const section = [...document.querySelectorAll('section')].find((node) =>
+        node.textContent.includes(label),
+      );
+      return (
+        !!section &&
+        !section.textContent.includes(loading) &&
+        (section.querySelectorAll('article').length > 0 ||
+          section.textContent.includes(error) ||
+          (kind === 'review' &&
+            section.textContent.includes('Nothing is waiting for your review.')))
+      );
+    },
+    { label, loading, error, kind },
+    { timeout: 15000 },
+  );
+  need(
+    !(await section.getByText(error, { exact: true }).isVisible()),
+    kind === 'review' ? 'REVIEW_QUERY_FAILED' : 'HISTORY_QUERY_FAILED',
+  );
+  return section;
 }
 
 /** Only one existing canonical approval POST, clicked inside Meri. No model,
@@ -330,11 +369,9 @@ export async function collectCase14ApprovalCapture({
       'PENDING_OWNER',
     );
     await page.goto(ORIGIN + '/meri/new', { waitUntil: 'domcontentloaded' });
-    await memoryPanel(page);
+    await openCase14MemoryPanel(page);
     await web(page, config.deployment.webSha);
-    const section = page
-      .locator('section')
-      .filter({ has: page.getByText(/^NEEDS YOUR REVIEW ·/u) });
+    const section = await waitForCase14MemoryQuery(page, 'review');
     const card = section
       .locator('article')
       .filter({ has: page.getByText('Synthetic Aster candidate for approval', { exact: true }) });
@@ -387,11 +424,9 @@ export async function collectCase14ApprovalCapture({
     );
     const after = await get(`/api/memory/review/inbox/candidates/${candidateId}`);
     await page.reload({ waitUntil: 'domcontentloaded' });
-    await memoryPanel(page);
+    await openCase14MemoryPanel(page);
     await web(page, config.deployment.webSha);
-    const history = page
-      .locator('section')
-      .filter({ has: page.getByText(/^DECISION RECEIPTS ·/u) });
+    const history = await waitForCase14MemoryQuery(page, 'history');
     const receipt = history
       .locator('[aria-label="Memory decision receipt"]')
       .filter({ hasText: `Candidate: ${candidateId}` });

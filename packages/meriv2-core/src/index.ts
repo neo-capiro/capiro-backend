@@ -91,3 +91,4 @@ export * from './security/tool-result-wrap';
 export * from './observability/meri-joined-telemetry';
 
 export * from './tools/hearing/generate-editorial-brief';
+export * from './context/governed-artifact-capture';

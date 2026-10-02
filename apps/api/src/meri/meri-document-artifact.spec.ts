@@ -88,6 +88,10 @@ function harness(initialArtifacts: Artifact[] = []) {
       findFirst: jest.fn<Promise<Record<string, unknown> | null>, [unknown]>(async () => null),
     },
     clioArtifact: {
+      count: jest.fn(async ({ where }: { where: { tenantId: string; userId: string; conversationId: string; metadata: { equals: string } } }) =>
+        artifacts.filter((row) => row.tenantId === where.tenantId && row.userId === where.userId &&
+          row.conversationId === where.conversationId &&
+          (row.metadata?.textCreation as Record<string, unknown>)?.actionProposalId === where.metadata.equals).length),
       findFirst: jest.fn(async ({ where }: { where: Record<string, unknown> }) => {
         const row = artifacts.find((candidate) => Object.entries(where).every(([key, value]) => candidate[key] === value));
         return row ? { ...row, conversation } : null;
@@ -151,9 +155,20 @@ describe('native governed text artifact creation', () => {
     expect(result.operationReceipt.actionProposalId).toBe(actionProposalId);
     expect(result).toMatchObject({ artifactId, operationId: result.operationReceipt.operationId, sha256: result.operationReceipt.sha256, byteLength: 28 });
     await expect(h.service.getDocumentArtifact(ctx, artifactId)).rejects.toBeInstanceOf(UnprocessableEntityException);
-    const proposal = { input, resultSummary: { ok: true, artifactId, operationId: result.operationId, sha256: result.sha256, byteLength: result.byteLength, filename: result.filename }, executedAt: new Date(), attemptCount: 2 };
+    const proposal = { input, resultSummary: { ok: true, artifactId, operationId: result.operationId, sha256: result.sha256, byteLength: result.byteLength, filename: result.filename }, executedAt: new Date(), attemptCount: 2, approvedBy: ctx.userId, approvedAt: new Date() };
     h.tx.meriActionProposal.findFirst.mockResolvedValue(proposal);
-    expect((await h.service.getDocumentArtifact(ctx, artifactId))?.operationReceipt).toEqual(result.operationReceipt);
+    expect((await h.service.getDocumentArtifact(ctx, artifactId))?.operationReceipt).toMatchObject({ ...result.operationReceipt, currentAction: {
+      proposalId: actionProposalId, status: 'succeeded', artifactEffectCount: 1, attemptCount: 2, approvedBy: ctx.userId,
+    } });
+    expect(h.tx.clioArtifact.count).toHaveBeenLastCalledWith({ where: { tenantId: ctx.tenantId, userId: ctx.userId, conversationId, metadata: { path: ['textCreation', 'actionProposalId'], equals: actionProposalId } } });
+    // A duplicate actual effect remains downloadable but must be visible to the
+    // capture receipt; the attempt count is deliberately unchanged.
+    h.artifacts.push({ ...h.artifacts[0]!, id: 'duplicate-effect' });
+    expect((await h.service.getDocumentArtifact(ctx, artifactId))?.operationReceipt?.currentAction?.artifactEffectCount).toBe(2);
+    const response = downloadResponse();
+    await h.controller.downloadArtifact(ctx, artifactId, response.response);
+    const header = response.setHeader.mock.calls.find(([name]) => name === 'X-Capiro-Artifact-Creation-Receipt')?.[1];
+    expect(JSON.parse(Buffer.from(String(header), 'base64url').toString('utf8')).currentAction.artifactEffectCount).toBe(2);
     expect(h.tx.meriActionProposal.findFirst).toHaveBeenLastCalledWith(expect.objectContaining({ where: { id: actionProposalId, tenantId: ctx.tenantId, userId: ctx.userId, actorUserId: ctx.userId, conversationId, tool: 'create_word', surface: 'chat', status: 'succeeded' } }));
     for (const field of ['artifactId', 'operationId', 'sha256', 'byteLength', 'filename']) {
       h.tx.meriActionProposal.findFirst.mockResolvedValue({ ...proposal, resultSummary: { ...proposal.resultSummary, [field]: 'changed' } });

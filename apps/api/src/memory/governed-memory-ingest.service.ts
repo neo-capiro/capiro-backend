@@ -19,6 +19,13 @@ interface ExactProjectionJob {
   expected_content_hash: string;
 }
 
+/** Optional exact dispatch binding for an already admitted projection operation. */
+export interface ExactProjectionJobExpectation extends StrictProjectionExpectation {
+  id: string;
+  memoryItemId: string | null;
+  idempotencyKey: string;
+}
+
 /**
  * Live request-time projection implementation.
  *
@@ -49,8 +56,23 @@ export class GovernedMemoryIngestService extends MemoryIngestService {
     return this.strictProjector.projectClioMemoryStrict(tenantId, clioMemoryId, expected);
   }
 
-  override async projectClioMemory(tenantId: string, clioMemoryId: string): Promise<void> {
+  override async projectClioMemory(
+    tenantId: string,
+    clioMemoryId: string,
+    expectedJob?: ExactProjectionJobExpectation,
+  ): Promise<void> {
     const job = await this.loadExactPendingJob(tenantId, clioMemoryId);
+    if (
+      expectedJob &&
+      (!job ||
+        job.id !== expectedJob.id ||
+        job.memory_item_id !== expectedJob.memoryItemId ||
+        job.expected_source_version.toISOString() !== expectedJob.sourceVersion ||
+        job.expected_content_hash !== expectedJob.contentHash ||
+        job.idempotency_key !== expectedJob.idempotencyKey)
+    ) {
+      throw new Error('memory_projection_exact_job_changed');
+    }
     if (!job) throw new Error('memory_projection_exact_job_unavailable');
 
     const sourceVersion = job.expected_source_version.toISOString();
@@ -83,7 +105,9 @@ export class GovernedMemoryIngestService extends MemoryIngestService {
     tenantId: string,
     clioMemoryId: string,
   ): Promise<ExactProjectionJob | null> {
-    const rows = await this.exactPrisma.withSystem(
+    // The outbox policy requires app.current_tenant even for a system fast path.
+    const rows = await this.exactPrisma.withTenant(
+      tenantId,
       (tx) =>
         tx.$queryRaw<ExactProjectionJob[]>`
           SELECT id::text AS id,
@@ -133,7 +157,8 @@ export class GovernedMemoryIngestService extends MemoryIngestService {
     }
 
     const status = receipt.outcome === 'superseded' ? 'superseded' : 'completed';
-    await this.exactPrisma.withSystem(
+    await this.exactPrisma.withTenant(
+      receipt.tenantId,
       (tx) =>
         tx.$executeRaw`
           UPDATE memory_cleanup_outbox

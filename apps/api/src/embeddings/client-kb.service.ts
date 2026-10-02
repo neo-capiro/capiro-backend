@@ -162,6 +162,13 @@ export class ClientKbService {
     });
   }
 
+  /** Same configured index, with completion/error visible to an owned setup.
+   * Disabled indexing stays disabled; no success/indexed marker is invented. */
+  async indexAttachmentIfEnabled(tenantId: string, attachmentId: string): Promise<void> {
+    if (!this.enabled()) return;
+    await this.indexAttachment(tenantId, attachmentId);
+  }
+
   purgeFireAndForget(tenantId: string, sourceType: KbSourceType, sourceId: string): void {
     setImmediate(() => {
       this.purge(tenantId, sourceType, sourceId).catch((err) =>

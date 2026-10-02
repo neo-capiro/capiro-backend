@@ -2,6 +2,10 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { createHash } from 'node:crypto';
 import { MERI_CAPABILITY_REGISTRY } from '@capiro/shared';
 import type { MeriServerReadonlyCapturePolicy } from '@capiro/meriv2-core';
+import {
+  validateMeriGovernedArtifactPolicy,
+  type MeriGovernedArtifactCapturePolicy,
+} from '@capiro/meriv2-core';
 
 /**
  * Immutable identity/scope established by the V3 controller only after the
@@ -14,6 +18,7 @@ export interface TrustedCurrentTurnScope {
   conversationId: string | null;
   selectedClientId: string | null;
   capturePolicy?: MeriServerReadonlyCapturePolicy;
+  governedArtifactPolicy?: MeriGovernedArtifactCapturePolicy;
 }
 
 const storage = new AsyncLocalStorage<TrustedCurrentTurnScope>();
@@ -28,6 +33,22 @@ export function withTrustedCurrentTurnScope<T>(scope: TrustedCurrentTurnScope, r
 
 export function currentServerReadonlyCapturePolicy(): MeriServerReadonlyCapturePolicy | null {
   return currentTrustedCurrentTurnScope()?.capturePolicy ?? null;
+}
+
+/** Distinct governed write capability; never a read-only policy exemption. */
+export function currentGovernedArtifactCapturePolicy(): MeriGovernedArtifactCapturePolicy | null {
+  const current = currentTrustedCurrentTurnScope();
+  if (!current?.governedArtifactPolicy) return null;
+  if (current.capturePolicy || !current.conversationId || !current.selectedClientId)
+    throw new Error('meri_governed_artifact_scope_invalid');
+  const policy = validateMeriGovernedArtifactPolicy(current.governedArtifactPolicy, {
+    tenantId: current.tenantId,
+    actorUserId: current.userId,
+    conversationId: current.conversationId,
+    clientId: current.selectedClientId,
+  });
+  if (!policy.turnId) throw new Error('meri_governed_artifact_turn_unbound');
+  return policy;
 }
 
 export function validateServerReadonlyCapturePolicy(
