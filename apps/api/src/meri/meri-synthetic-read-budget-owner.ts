@@ -36,6 +36,52 @@ const scoped = (tx: Prisma.TransactionClient) =>
     withTenant: async (_id: string, work: (value: Prisma.TransactionClient) => unknown) => work(tx),
   }) as unknown as PrismaService;
 
+/** An owned conversation GET is not a new provider admission. In particular,
+ * a historical budget deadline must not prevent reading its saved metadata.
+ * The separate message reader still verifies terminal usage and saved receipts. */
+export async function authorizeSyntheticReadBudgetConversationReadback(args: {
+  prisma: PrismaService;
+  ctx: TenantContext;
+  conversationId: string;
+  clientId: string | null;
+  metadata: unknown;
+}): Promise<boolean> {
+  if (record(args.metadata).syntheticReadBudgetQualification === undefined) return false;
+  await args.prisma.withTenantUser(args.ctx.tenantId, args.ctx.userId, async (tx) => {
+    const row = await lockOwner(tx, args.ctx, args.conversationId);
+    const q = row.metadata.syntheticReadBudgetQualification as SyntheticReadProviderBudgetQualification;
+    if (row.clientId !== args.clientId || syntheticReadBudgetHash(row.metadata) !==
+        syntheticReadBudgetHash(args.metadata) || !q ||
+        ['serverCaptureProviderBudget', 'governedArtifactCapture', 'governedArtifactProviderBudget']
+          .some((key) => row.metadata[key] !== undefined))
+      fail('conversation_readback_scope');
+    validateSyntheticReadBudgetQualification(q, {
+      tenantId: args.ctx.tenantId,
+      actorUserId: args.ctx.userId,
+      conversationId: args.conversationId,
+      clientId: row.clientId,
+      expiresAt: Date.parse(q.deadlineAt),
+      caseId: null,
+      captureRunId: null,
+      fixtureVersion: null,
+      physicalMapSha256: null,
+      resetReceiptId: null,
+      seedReceiptId: null,
+      expectedCaptureWrites: ['context_packet_and_evidence', 'conversation_user_message',
+        'conversation_assistant_message', 'provider_budget_ledger'],
+      syntheticReadBudget: {
+        version: 1,
+        kind: 'synthetic_read_budget_only',
+        caseId: q.caseId as '01',
+        captureRunId: q.captureRunId,
+        aggregateReservationId: q.aggregateReservationId,
+        qualificationSha256: syntheticReadBudgetHash(q),
+      },
+    });
+  });
+  return true;
+}
+
 /** Read permission for an already saved budget-only answer. This does not issue
  * a policy, attest fixture authority, settle spend, or permit another dispatch. */
 export async function authorizeSyntheticReadBudgetMessageReadback(args: {

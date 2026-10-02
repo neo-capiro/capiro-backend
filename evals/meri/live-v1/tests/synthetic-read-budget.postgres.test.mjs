@@ -515,6 +515,55 @@ it(
         assert.equal(prior.syntheticReadBudgetQualification.maxCostMicros, 350);
         assert.equal(prior.syntheticReadProviderBudget.ledger.chargedCostMicros, 20);
       });
+      await t.test('actual conversation GET reads expired budget metadata without issuing new admission and keeps current ownership', async () => {
+        // Complete the canonical conversation columns used by the actual service
+        // query; no ensureConversation or admission function is mocked.
+        await admin.query(`ALTER TABLE clio_conversations
+          ADD COLUMN workspace_id uuid, ADD COLUMN workspace_key text DEFAULT 'workspace',
+          ADD COLUMN title text DEFAULT 'Owned local test', ADD COLUMN status text DEFAULT 'active',
+          ADD COLUMN nanoclaw_platform_id text, ADD COLUMN nanoclaw_agent_group_id text,
+          ADD COLUMN summary text, ADD COLUMN summary_up_to_message_id uuid,
+          ADD COLUMN summary_tokens integer, ADD COLUMN created_at timestamptz DEFAULT now(),
+          ADD COLUMN updated_at timestamptz DEFAULT now()`);
+        const { MeriService } = source('meri.service');
+        const service = Object.assign(Object.create(MeriService.prototype), { prisma });
+        const before = (await admin.query('SELECT metadata_jsonb FROM clio_conversations WHERE id=$1', [conversationId])).rows[0].metadata_jsonb;
+        const result = await service.getConversation(ctx, conversationId);
+        assert.deepEqual(result.metadata, before);
+        assert.equal(result.captureAdmission, undefined);
+        const realNow = Date.now;
+        try {
+          Date.now = () => policy.expiresAt + 60_000;
+          const historical = await service.getConversation(ctx, conversationId);
+          assert.deepEqual(historical.metadata, before);
+          assert.equal(historical.captureAdmission, undefined);
+          await assert.rejects(() => issueMeriServerReadonlyCapturePolicy({prisma,ctx,conversationId}),
+            error => error?.getResponse?.().reason === 'signed_policy_scope_or_contract_invalid');
+          await assert.rejects(() => service.getConversation({...ctx,userId:randomUUID()}, conversationId));
+          await assert.rejects(() => service.getConversation({...ctx,role:'user_admin'}, conversationId));
+          await assert.rejects(() => service.getConversation({...ctx,clerkUserId:'wrong'}, conversationId));
+          await admin.query("UPDATE tenant_memberships SET status='inactive' WHERE user_id=$1", [ctx.userId]);
+          await assert.rejects(() => service.getConversation(ctx, conversationId));
+          await admin.query("UPDATE tenant_memberships SET status='active' WHERE user_id=$1", [ctx.userId]);
+          await admin.query('UPDATE clients SET memory_wall=true WHERE id=$1', [clientId]);
+          await assert.rejects(() => service.getConversation(ctx, conversationId));
+          await admin.query('UPDATE clients SET memory_wall=false WHERE id=$1', [clientId]);
+          const malformed=structuredClone(before);malformed.syntheticReadBudgetQualification.actorUserId=randomUUID();
+          await admin.query('UPDATE clio_conversations SET metadata_jsonb=$1 WHERE id=$2', [malformed,conversationId]);
+          await assert.rejects(() => service.getConversation(ctx, conversationId));
+          await admin.query('UPDATE clio_conversations SET metadata_jsonb=$1 WHERE id=$2', [before,conversationId]);
+          assert.deepEqual((await service.getConversation(ctx, conversationId)).metadata,before);
+        } finally { Date.now=realNow; }
+        assert.deepEqual((await admin.query('SELECT metadata_jsonb FROM clio_conversations WHERE id=$1', [conversationId])).rows[0].metadata_jsonb,before);
+        // Ordinary conversations still take the previous read path and retain
+        // their DTO unchanged; no synthetic role/expiry contract is imposed.
+        const ordinaryCtx={...ctx,tenantId:randomUUID(),tenantSlug:'ordinary-test',role:'user_admin'};
+        const ordinaryId=randomUUID(), ordinaryMeta={custom:'unchanged'};
+        await admin.query('INSERT INTO clio_conversations(id,tenant_id,user_id,client_id,metadata_jsonb) VALUES($1,$2,$3,NULL,$4)',
+          [ordinaryId,ordinaryCtx.tenantId,ordinaryCtx.userId,ordinaryMeta]);
+        const ordinary=await service.getConversation(ordinaryCtx,ordinaryId);
+        assert.deepEqual(ordinary.metadata,ordinaryMeta);assert.equal(ordinary.captureAdmission,undefined);
+      });
     } finally {
       if (db) await db.$disconnect();
       await admin.query(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`);

@@ -5,6 +5,7 @@ import {
 import { bindResearchPortfolioToolConversation } from './meri-research-portfolio-tool-scope.js';
 import { isResearchPortfolioArtifact, authorizeResearchPortfolioArtifact, authorizeResearchPortfolioConversation } from '../research-portfolios/research-portfolio-artifact-authority.js';
 import { authorizeMeriCaptureMessageReadback } from './meri-capture-policy-readback.js';
+import { authorizeSyntheticReadBudgetConversationReadback } from './meri-synthetic-read-budget-owner.js';
 import { readMeriCase01CaptureAdmission, readMeriCase01CaptureReadback } from './meri-case01-capture-authority.js';
 import { readMeriCase14CaptureAdmission, readMeriCase14CaptureReadback } from './meri-case14-capture-authority.js';
 import { CASE46_AUTHORITY_DEPENDENCIES } from './meri-case46-action-authority.js';
@@ -570,6 +571,10 @@ export class MeriService implements MeriTurnMaintenance {
     // Exact links may discover an owned archived row so the user can explicitly
     // restore it. Transcript reads and new turns still require an active row.
     const conversation = await this.ensureConversationAnyStatus(ctx, conversationId);
+    if (await authorizeSyntheticReadBudgetConversationReadback({
+      prisma: this.prisma, ctx, conversationId, clientId: conversation.clientId,
+      metadata: conversation.metadata,
+    })) return { ...conversation, metadata: publicCase46ConversationMetadata(conversation.metadata) };
     const captureAdmission =
       (await readCase46CaptureAdmission({ prisma: this.prisma, deps: this.case46Dependencies, ctx,
         conversationId, conversationMetadata: conversation.metadata })) ??
