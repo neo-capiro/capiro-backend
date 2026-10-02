@@ -6,6 +6,20 @@ frozen fixture, source-map hash rules, capture trust guards, and generic owner
 availability are unchanged. A supporting record is not a new frozen acceptance
 case or a replacement expected response.
 
+For a bounded set of already-approved frozen sources, supply `sourceIds`, for
+example `['MA1-v2', 'MB1']`, instead of `distractorCount`. The same canonical
+approval, current authority, readback and retirement owners run for each source's
+actual client. Selection rejects pending, revoked, superseded, unknown and
+non-memory sources before any operation. The manifest's availability stays
+unchanged. Actual allocated item IDs and row versions remain authoritative.
+
+This selected-source composition qualifies the approved/current prerequisite of
+case01 only. The logical name `MA1-v2` does not prove a physical version2 or a
+MA1-v1→MA1-v2 supersession chain. Case01 remains NOT_RUN until the excluded
+pending/revoked/superseded fixtures, guarded supersession owner, current source
+readback and trusted capture are composed and executed. Do not activate a frozen
+revoked source through this entry point or relabel an approved row as superseded.
+
 Supply a validated fixture manifest with an instance UUID, the application's
 `MemoryCandidateService`, `MemoryStoreService`, `TenantContextStore`, tenant
 transaction port, `clientMemoryAllowed`, and configured proposer/reviewer UUID

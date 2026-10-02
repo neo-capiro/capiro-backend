@@ -12,6 +12,65 @@ const fail = (code, logicalId) => {
   throw new FixtureProvisioningError(code, logicalId);
 };
 
+function approvedCandidateDefinition(manifest, source, { logicalId, facts, supporting }) {
+  const ownership = ownedIdentity(
+    // Canonical synthetic candidate markers accept uppercase identifiers. Keep
+    // the frozen logical source ID unchanged in sourceLogicalId and receipts.
+    `APPROVED-${logicalId.toUpperCase()}`,
+    source.tenantId,
+    'memory_candidate',
+    manifest.fixtureVersion,
+    manifest.fixtureInstanceId,
+  );
+  const payload = {
+    fixtureKind: 'approved_memory_fixture',
+    facts,
+    sourceAsset: null,
+    sourceLogicalId: logicalId,
+    supporting,
+  };
+  return {
+    logicalId,
+    supporting,
+    proposedItemId: supporting ? null : source.physicalId,
+    candidate: {
+      ...source,
+      logicalId: ownership.marker.logicalId,
+      owner: 'memory_candidate',
+      physicalId: ownership.physicalId,
+      ownership,
+      payload,
+      payloadSha256: sha256Stable(payload),
+    },
+  };
+}
+
+/** A selected approved source is activated through the same canonical owner.
+ * Logical names such as MA1-v2 are not proof of a physical supersession chain.
+ * Non-approved frozen sources require separate lifecycle compositions.
+ */
+export function selectedApprovedMemoryDefinitions(manifest, sourceIds) {
+  assertManifest(manifest);
+  if (
+    !Array.isArray(sourceIds) ||
+    sourceIds.length < 1 ||
+    sourceIds.length > 20 ||
+    sourceIds.some((id) => typeof id !== 'string' || !id.trim()) ||
+    new Set(sourceIds).size !== sourceIds.length
+  )
+    fail('APPROVED_MEMORY_SOURCE_SELECTION_INVALID', 'sourceIds');
+  return sourceIds.map((logicalId) => {
+    const source = manifest.records.find((record) => record.logicalId === logicalId);
+    if (!source || source.owner !== 'memory_item' || source.payload.facts.lifecycle !== 'approved')
+      fail('APPROVED_MEMORY_SOURCE_INVALID', logicalId);
+    return approvedCandidateDefinition(manifest, source, {
+      logicalId,
+      facts: source.payload.facts,
+      supporting: false,
+    });
+  });
+}
+
 /**
  * This composition deliberately does not substitute the manifest's proposed
  * memory_item UUID for the UUID allocated by canonical approval. Its receipts
@@ -36,36 +95,7 @@ export function approvedMemoryDefinitions(manifest, { distractorCount = 509 } = 
       supporting: true,
     })),
   ];
-  return inputs.map(({ logicalId, facts, supporting }) => {
-    const ownership = ownedIdentity(
-      `APPROVED-${logicalId}`,
-      source.tenantId,
-      'memory_candidate',
-      manifest.fixtureVersion,
-      manifest.fixtureInstanceId,
-    );
-    const payload = {
-      fixtureKind: 'approved_memory_fixture',
-      facts,
-      sourceAsset: null,
-      sourceLogicalId: logicalId,
-      supporting,
-    };
-    return {
-      logicalId,
-      supporting,
-      proposedItemId: supporting ? null : source.physicalId,
-      candidate: {
-        ...source,
-        logicalId: ownership.marker.logicalId,
-        owner: 'memory_candidate',
-        physicalId: ownership.physicalId,
-        ownership,
-        payload,
-        payloadSha256: sha256Stable(payload),
-      },
-    };
-  });
+  return inputs.map((input) => approvedCandidateDefinition(manifest, source, input));
 }
 
 /**
@@ -77,6 +107,7 @@ export function approvedMemoryDefinitions(manifest, { distractorCount = 509 } = 
 export function createApprovedMemoryFixtureRuntime({
   manifest,
   distractorCount,
+  sourceIds,
   memoryCandidates,
   memoryStore,
   tenantContext,
@@ -88,7 +119,12 @@ export function createApprovedMemoryFixtureRuntime({
   // Keep the validated inventory private; later caller mutation must not change
   // the facts or actor/tenant bindings of an already constructed runtime.
   manifest = structuredClone(manifest);
-  const definitions = approvedMemoryDefinitions(manifest, { distractorCount });
+  if (sourceIds !== undefined && distractorCount !== undefined)
+    fail('APPROVED_MEMORY_SELECTION_OPTIONS_CONFLICT', 'sourceIds');
+  const definitions =
+    sourceIds === undefined
+      ? approvedMemoryDefinitions(manifest, { distractorCount })
+      : selectedApprovedMemoryDefinitions(manifest, sourceIds);
   const byLogicalId = new Map(definitions.map((definition) => [definition.logicalId, definition]));
   if (
     typeof memoryCandidates?.approveSyntheticFixture !== 'function' ||
