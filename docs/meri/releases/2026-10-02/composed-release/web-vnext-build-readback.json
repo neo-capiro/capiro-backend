@@ -1,0 +1,79 @@
+{
+  "service": "web-vnext",
+  "sourceSha": "78ad5805679a3045b1fc10fb19beafa7f76e4e64",
+  "buildId": "capiro-build-web-dev:f2d89683-bcc5-48dc-a4da-849ced167860",
+  "observedAt": "2026-10-02T09:19:15.993870+00:00",
+  "verdict": "PASS",
+  "externalWrites": 0,
+  "liveAcceptance": "NOT_RUN",
+  "buildStatus": "SUCCEEDED",
+  "phase": "COMPLETED",
+  "actualBuildspecSha256": "0fce5b86940b9599702942ff25c462a51977ef7e6106f6af59dfe22b54f1daf6",
+  "resolvedSourceSha": "78ad5805679a3045b1fc10fb19beafa7f76e4e64",
+  "phases": [
+    {
+      "phase": "SUBMITTED",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "QUEUED",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "PROVISIONING",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "DOWNLOAD_SOURCE",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "INSTALL",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "PRE_BUILD",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "BUILD",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "POST_BUILD",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "UPLOAD_ARTIFACTS",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "FINALIZING",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "COMPLETED",
+      "status": null
+    }
+  ],
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:a048aceec01c207b514f76fb447d4fb8bdb5ed17278642480008a1510a12de4c",
+  "imageDigest": "sha256:a048aceec01c207b514f76fb447d4fb8bdb5ed17278642480008a1510a12de4c",
+  "executedMarkers": [
+    {
+      "timestamp": 1790932211315,
+      "line": "NATIVE_WEB_SOURCE_TESTS_TYPES_BUILD_PASS"
+    },
+    {
+      "timestamp": 1790932480435,
+      "line": "LOCAL_REPODIGEST_ECR_MATCH_PASS"
+    },
+    {
+      "timestamp": 1790932480435,
+      "line": "CANDIDATE_WEB_SOURCE_SHA=78ad5805679a3045b1fc10fb19beafa7f76e4e64"
+    },
+    {
+      "timestamp": 1790932480435,
+      "line": "CANDIDATE_WEB_IMAGE=967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:a048aceec01c207b514f76fb447d4fb8bdb5ed17278642480008a1510a12de4c"
+    }
+  ]
+}
