@@ -1,0 +1,224 @@
+{
+  "schemaVersion": 1,
+  "reviewedAt": "2026-10-02T08:16:38.977506+00:00",
+  "policySha": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "checkpointSha": "7f904b64b244f92a9b6508a4afee4baa6ee0ae09",
+  "observedHead": "6fcc7109f48d7cc36d2073658e78583a746a8660",
+  "mode": "READ_ONLY_SOURCE_AND_RECEIPT_REVIEW",
+  "checkpointVerdict": "NO_ADDITIONAL_BLOCKING_FINDING_WITHIN_ARTIFACT_OWNER_SCOPE",
+  "liveCase46": "NOT_RUN",
+  "wipVerdict": "INCOMPLETE_WITH_REQUIRED_FIX",
+  "artifactHashes": [
+    {
+      "path": "api-tests-final.log",
+      "match": true
+    },
+    {
+      "path": "api-tests-final-exit.json",
+      "match": true
+    },
+    {
+      "path": "orchestrator-tests.log",
+      "match": true
+    },
+    {
+      "path": "orchestrator-tests-exit.json",
+      "match": true
+    },
+    {
+      "path": "web-tests-final.log",
+      "match": true
+    },
+    {
+      "path": "web-tests-final-exit.json",
+      "match": true
+    },
+    {
+      "path": "api-typecheck-final.log",
+      "match": true
+    },
+    {
+      "path": "api-typecheck-final-exit.json",
+      "match": true
+    },
+    {
+      "path": "web-typecheck.log",
+      "match": true
+    },
+    {
+      "path": "web-typecheck-exit.json",
+      "match": true
+    },
+    {
+      "path": "artifact-kimi-review.md",
+      "match": true
+    },
+    {
+      "path": "artifact-kimi-exit.json",
+      "match": true
+    },
+    {
+      "path": "artifact-kimi-source-hashes.json",
+      "match": true
+    },
+    {
+      "path": "artifact-kimi-usage.json",
+      "match": true
+    },
+    {
+      "path": "offline/exits.json",
+      "match": true
+    },
+    {
+      "path": "offline/meri-offline.json",
+      "match": true
+    },
+    {
+      "path": "offline/meri-offline.summary.json",
+      "match": true
+    }
+  ],
+  "reviewSourceBindings": [
+    {
+      "file": "apps/api/src/meri/meri-artifact-integrity.ts",
+      "reviewSha256": "8d48953def111ee5a4bdbabd730923f0925f6edb99ea596e847a1d86a5f02aad",
+      "matchesCheckpointAs": [
+        "gitBlob"
+      ]
+    },
+    {
+      "file": "apps/api/src/meri/meri-docgen.helpers.spec.ts",
+      "reviewSha256": "c5d041a80bedddad4d8aedd68aeb086b45917f2cfdac732fc065a22ab2ff04b2",
+      "matchesCheckpointAs": [
+        "gitBlob"
+      ]
+    },
+    {
+      "file": "apps/api/src/meri/meri-docgen.helpers.ts",
+      "reviewSha256": "fff219207d8bcabf2e63b0234885e5b87e4e4a1cf01c257e06d82015c80ec6a6",
+      "matchesCheckpointAs": [
+        "gitBlob"
+      ]
+    },
+    {
+      "file": "apps/api/src/meri/meri-document-artifact.spec.ts",
+      "reviewSha256": "b955f9430ec40b53a59137d69a40f23db1ae2c4c716891d0ec8f29139ef7d59b",
+      "matchesCheckpointAs": [
+        "gitBlob"
+      ]
+    },
+    {
+      "file": "apps/api/src/meri/meri-tools.service.ts",
+      "reviewSha256": "bc530bb7d18da4ccd0bc34890d104a28f0286b2f2ebf11978151e37ddcc4eb63",
+      "matchesCheckpointAs": [
+        "gitBlob"
+      ]
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "reviewSha256": "bc3a4a9a10f8d4f81ce6fd8ef28516f1e365be58a45378f118d51a223348f159",
+      "matchesCheckpointAs": [
+        "gitBlob"
+      ]
+    },
+    {
+      "file": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-semantic-compatibility-tools.spec.ts",
+      "reviewSha256": "ef40ae16c9871359e7a058158fcfe25479130ae7e12cb0bb8fb1ddb330045603",
+      "matchesCheckpointAs": [
+        "gitBlob"
+      ]
+    },
+    {
+      "file": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-semantic-compatibility-tools.ts",
+      "reviewSha256": "a0eef57eeedf342aa69a3e608ba19790efcfe676b27229937d56220ac341bdcc",
+      "matchesCheckpointAs": [
+        "gitBlob"
+      ]
+    },
+    {
+      "file": "apps/web/src/components/chat/MeriCanvas.tsx",
+      "reviewSha256": "6b2b55da193a013d02d9513493c19471f897ea8b75657e6ec634b2d629a8c244",
+      "matchesCheckpointAs": [
+        "gitBlob"
+      ]
+    },
+    {
+      "file": "apps/web/src/components/chat/meri-artifact-download.test.ts",
+      "reviewSha256": "bd643845846a99878147462ff5d6dd1d0d55a2f762de9e62ca2c99a0ce564b89",
+      "matchesCheckpointAs": [
+        "gitBlob"
+      ]
+    },
+    {
+      "file": "apps/web/src/components/chat/meri-artifact-download.ts",
+      "reviewSha256": "0354b6af9b7b3f6c5ea906503a7db9067b1f4e192108e8dc21bb0e3da0be0b94",
+      "matchesCheckpointAs": [
+        "gitBlob"
+      ]
+    },
+    {
+      "file": "apps/web/src/vnext/meri/MeriArtifactCanvas.test.tsx",
+      "reviewSha256": "8d436f8858f4fa37e41c37326e232dc67264d10acd169e37737be7d779c44d73",
+      "matchesCheckpointAs": [
+        "gitBlob"
+      ]
+    },
+    {
+      "file": "apps/web/src/vnext/meri/MeriArtifactCanvas.tsx",
+      "reviewSha256": "f632948a2d269479faa240c54cc6be5460c61c9e7803be03ee65e88f97a0a16f",
+      "matchesCheckpointAs": [
+        "gitBlob"
+      ]
+    },
+    {
+      "file": "packages/shared/src/index.ts",
+      "reviewSha256": "4f045c9b1503ea583cd2dc82474e3f51fcaef89c9691a26c7650f5af89cd58fa",
+      "matchesCheckpointAs": [
+        "gitBlob"
+      ]
+    },
+    {
+      "file": "apps/api/src/meri/meri-text-artifact-receipt.ts",
+      "reviewSha256": "593bf56fd53c6647342208a75011acb4c57b37c8b37962219947e4101dee4c4c",
+      "matchesCheckpointAs": [
+        "gitBlob"
+      ]
+    },
+    {
+      "file": "apps/api/src/meri/meri-text-artifact.helpers.spec.ts",
+      "reviewSha256": "393ac3a0bac8cdbc2e6173df59f3e64f1e4733c820797b36e35925310cf847c0",
+      "matchesCheckpointAs": [
+        "gitBlob"
+      ]
+    }
+  ],
+  "finding": {
+    "priority": 2,
+    "file": "apps/api/src/meri/meri-text-artifact-current-proposal.ts",
+    "line": 31,
+    "issue": "attemptCount===1 rejects valid successful authorized retries",
+    "authority": "meri-action-proposal.service.ts claimable failed_retryable; original policy authority retained at1083; attemptCount increment at1140",
+    "requiredFix": "Remove attempt-count restriction from ordinary download validity; join actual completed proposal and bytes. Check effect uniqueness separately in capture evidence. Add successful attempt2 download and mismatched/unauthorized result rejection tests.",
+    "ownerAcknowledged": true
+  },
+  "remaining": [
+    "Current canonical fixture briefing/context and exact immutable expected bytes",
+    "Distinct scoped case46 governed write admission, preserving read-only cases",
+    "Actual provider reservation and signed current artifact/proposal operation accounting; no UUID header alone as grant",
+    "Authenticated real V3 UI export/download, exact filename/hash/content/ownership, durable receipt after reload and negative tenant/client/proposal cases",
+    "Qualified affected API/orchestrator/Web builds and deployment; actual capture then grader"
+  ],
+  "performedMutations": {
+    "source": 0,
+    "cloud": 0,
+    "sharedDatabase": 0,
+    "liveChat": 0
+  },
+  "reviewCommandExits": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "note": "Earlier guessed file search paths returned path-not-found and were corrected; no validation was inferred from them. No new tests were run against incomplete WIP."
+}

@@ -1,0 +1,84 @@
+{
+  "schemaVersion": 1,
+  "candidateCommit": "d67a816a63aaeaeef913de5801ca62a48950b631",
+  "policyCommit": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "observedAt": "2026-10-02T07:26:31.433732+00:00",
+  "sourceWorktree": "C:\\dev\\cap-meri-approval-recovery",
+  "branch": "codex/meri-memory-ui-slices-20261002",
+  "sourceFiles": 17,
+  "checks": {
+    "nodePlusOwnedPostgres": {
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0,
+      "actualPostgresCases": 4,
+      "exitCode": 0,
+      "log": "final-node-pg-tests.log"
+    },
+    "baselineActualPostgres": {
+      "exitCode": 1,
+      "expectedFailure": "5 !== 6",
+      "log": "own-pending-baseline.log"
+    },
+    "apiJest": {
+      "passed": 9,
+      "exitCode": 0,
+      "log": "own-proposals-jest.log"
+    },
+    "webVitest": {
+      "passed": 35,
+      "exitCode": 0,
+      "log": "web-target-tests.log"
+    },
+    "apiTypecheck": {
+      "exitCode": 0
+    },
+    "webTypecheck": {
+      "exitCode": 0
+    },
+    "shellSyntax": {
+      "exitCode": 0
+    },
+    "gitDiffCheck": {
+      "exitCode": 0
+    }
+  },
+  "hermes": {
+    "implementation": {
+      "model": "qwen.qwen3-coder-next",
+      "provider": "bedrock",
+      "session": "20261002_065408_3731bf",
+      "actualExitCode": 1,
+      "status": "INVALID_INCOMPLETE_NO_PATCH",
+      "fallback": "previous user-authorized direct Codex repair"
+    },
+    "review": {
+      "model": "moonshotai.kimi-k2.5",
+      "provider": "bedrock",
+      "session": "20261002_072013_f59870",
+      "actualExitCode": 0,
+      "verdict": "PASS",
+      "toolCalls": 0,
+      "scope": "exact7 new source/test files; supplied test receipts not reviewer execution",
+      "adjudication": "Report line numbers and its claim changes confined to evals/scripts are imprecise; actual product diff separately reviewed below."
+    },
+    "productionDeltaReview": {
+      "model": "moonshotai.kimi-k2.5",
+      "provider": "bedrock",
+      "session": "20261002_072220_bc3f41",
+      "actualExitCode": 0,
+      "verdict": "PASS",
+      "toolCalls": 0
+    }
+  },
+  "live": {
+    "awsMutations": 0,
+    "sharedDatabaseWrites": 0,
+    "authenticatedBrowserRuns": 0,
+    "modelTurns": 0,
+    "case17": "NOT_RUN",
+    "case14": "NOT_RUN_PENDING_SETUP_ONLY",
+    "case12": "NOT_RUN_UNCHANGED",
+    "originalFile01Complete": false
+  }
+}

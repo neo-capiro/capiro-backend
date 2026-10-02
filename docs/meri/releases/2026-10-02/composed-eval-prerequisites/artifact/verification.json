@@ -1,0 +1,87 @@
+{
+  "schemaVersion": 1,
+  "sourceSha": "7f904b64b244f92a9b6508a4afee4baa6ee0ae09",
+  "baseSha": "46269ca9b9ca4b840d8c8cbaaeb19ea6ddaa1092",
+  "branch": "codex/meri-case46-artifact-owner-20261002",
+  "worktree": "C:\\dev\\cap-meri-doc-fidelity",
+  "policySha": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "status": "OWNER_AND_UI_QUALIFIED_OFFLINE",
+  "liveCase46": "NOT_RUN",
+  "originalPlan": "INCOMPLETE",
+  "checks": {
+    "api": {
+      "passed": 74,
+      "exitCode": 0
+    },
+    "orchestrator": {
+      "passed": 9,
+      "exitCode": 0
+    },
+    "web": {
+      "passed": 77,
+      "exitCode": 0
+    },
+    "apiPrimaryTypecheck": {
+      "exitCode": 0
+    },
+    "webTypecheck": {
+      "exitCode": 0
+    },
+    "offlinePromptfoo": {
+      "passed": 26,
+      "exitCode": 0
+    },
+    "offlineCustomVerifier": {
+      "exitCode": 0
+    }
+  },
+  "independentReview": {
+    "provider": "bedrock",
+    "model": "moonshotai.kimi-k2.5",
+    "sessionId": "20261002_073642_d7cdc3",
+    "pid": 3696,
+    "exitCode": 0,
+    "verdict": "PASS",
+    "scope": "Source-only, zero tool calls; test receipts are separate"
+  },
+  "implementationWorker": {
+    "provider": "bedrock",
+    "model": "qwen.qwen3-coder-next",
+    "pid": 21044,
+    "exitCode": 4294967295,
+    "status": "STOPPED_UNUSABLE_PARTIAL_PATCH",
+    "repair": "Direct Codex under previously authorized exception"
+  },
+  "frozenArtifact": {
+    "filename": "aster-synthetic-briefing.txt",
+    "sha256": "c26beebc62f179a568981d811784dc75ad7e2cad79c94165d6f4859dcb278c53",
+    "byteLength": 28
+  },
+  "limitations": [
+    "No live model/application/database/browser call executed for this candidate",
+    "Separate case46 write admission, provider accounting, current-owner capture authority and actual UI download grading remain",
+    "Existing serverReadonlyCapture remains unchanged",
+    "API and web-vnext qualified builds/deployments and authenticated Playwright required before live46",
+    "Live46 must bind V3 artifact linking path; legacy non-V3 copying path unchanged",
+    "Durable operation receipt is scoped database evidence, not a cryptographic authorization token"
+  ],
+  "artifacts": {
+    "api-tests-final.log": "6f495488db320d28b3deac5347de747816747f445b60b2e25046ad48ef9034a1",
+    "api-tests-final-exit.json": "ea61d7736f0b7ecb9b35158f03de77013db6b100cf1d36c957e78e6c8817c5b6",
+    "orchestrator-tests.log": "2f0ddfe997eb53285e42679e64381a86d9bb5d8cb24539d5ecb387560727e99a",
+    "orchestrator-tests-exit.json": "ea61d7736f0b7ecb9b35158f03de77013db6b100cf1d36c957e78e6c8817c5b6",
+    "web-tests-final.log": "546a0b6557019492b87c3c39894a3f42b39cd7b71d40f6b7ca8a63bca6236196",
+    "web-tests-final-exit.json": "ea61d7736f0b7ecb9b35158f03de77013db6b100cf1d36c957e78e6c8817c5b6",
+    "api-typecheck-final.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "api-typecheck-final-exit.json": "ea61d7736f0b7ecb9b35158f03de77013db6b100cf1d36c957e78e6c8817c5b6",
+    "web-typecheck.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "web-typecheck-exit.json": "ea61d7736f0b7ecb9b35158f03de77013db6b100cf1d36c957e78e6c8817c5b6",
+    "artifact-kimi-review.md": "2780a112487f7217be3891ad37ee47b4f4bf9da52415a6b3aedd622490cf9fd4",
+    "artifact-kimi-exit.json": "334dc97e11b28560f21a8d6c2b983e3cc94c956b2fa0da71e4192a41c16d3430",
+    "artifact-kimi-source-hashes.json": "08fa71bd8272961c470602228d415f9c4d3ed2853e4ea451b1786c2f8269f20b",
+    "artifact-kimi-usage.json": "3355fc6bf5f6d94e481c66c5d5b514647869a7f7a7181ee57c4917936e0eb5fb",
+    "offline/exits.json": "3e3902df3bd947c897d52e9a6293d57b89ec8521c21ba172fed309fd55a71c60",
+    "offline/meri-offline.json": "0d768046cb872f2487ffe792f1cc5f2f831973a77aaf1080825e77b24cffd0fa",
+    "offline/meri-offline.summary.json": "4bcb2f9a3b56cbae0ebf57d03216c1dfb981f4c8bde070b5f640ac7b0839a6ff"
+  }
+}

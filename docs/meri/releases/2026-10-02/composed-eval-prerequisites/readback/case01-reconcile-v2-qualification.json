@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "kind": "case01-readonly-reconciliation-tls-v2-qualification",
+  "observedAt": "2026-10-02T08:20:49.378285+00:00",
+  "policySha": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "status": "PASS",
+  "scope": "TLS trust repair only; fixed c11 image/source, original failed setup input and exact read-only SQL, new one-off operation. Root alone executes.",
+  "files": {
+    "case01-reconcile-readonly-v2.mjs": "45d5b87eb247031b32560e5286fa46626d8fba6ff680dfb7fddd2c1c9a1dbd65",
+    "case01-reconcile-oneoff-v2.py": "85325b8680f76f2d4ae6c57aefb6ab044fefc28e5b8b4346a9181da8b0a21214",
+    "case01-reconcile-oneoff-v2-tests.py": "58eb31fea512e36d5abf163b2c81d478573797bdd1c46dcdccdfed6611f32a03",
+    "case01-reconcile-tls.test.mjs": "2a68c9b71277d8e0b9eb475e8f9a9b4867e7b9a52958e9874b599c257427aa71",
+    "rds-us-east-1-bundle.pem": "b1711d12bae51838581281e23b6cb97b1074016873b4dafc80ed14002462dd77",
+    "case01-reconcile-oneoff-v2-tests.log": "3d7bf5f5cf2b675a8bbc81fc47cda1017cd4dca02ef3b240ee0d99dc857bf640",
+    "case01-reconcile-tls-tests.log": "758fceddd3bc8512b0a8a629a831bbe0abdd73f7409a28298f344d81f0b9f55c",
+    "case01-reconcile-v2-kimi-review.md": "02a6e271d03f9e017d8ee4abf7c9db7ae5e54023014eeab6fa572740840a07ae",
+    "case01-reconcile-v2-kimi-usage.json": "f6e4991b6449738c201d7ccf717ef2ebe74df6b47fe927c0c863d32e1051922d",
+    "case01-reconcile-v2-kimi-exit.json": "f2aba8176f2977bed952084fe1645ac1a51e4bd90f8ce97ce620bfd1d8feab7f"
+  },
+  "tls": {
+    "bundleUrl": "https://truststore.pki.rds.amazonaws.com/us-east-1/us-east-1-bundle.pem",
+    "bundleBytes": 4576,
+    "bundleSha256": "b1711d12bae51838581281e23b6cb97b1074016873b4dafc80ed14002462dd77",
+    "sources": [
+      "https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.SSL.html",
+      "https://node-postgres.com/features/ssl"
+    ],
+    "productionRejectUnauthorized": true,
+    "productionHostnameVerification": "Node tls.checkServerIdentity against composer RDS hostname",
+    "urlSslmodeRemoved": "require only; duplicate/unexpected SSL options refused",
+    "certificateCount": 3,
+    "caNames": [
+      "Amazon RDS us-east-1 Root CA RSA2048 G1",
+      "Amazon RDS us-east-1 Root CA RSA4096 G1",
+      "Amazon RDS us-east-1 Root CA ECC384 G1"
+    ]
+  },
+  "tests": {
+    "wrapperFaultTests": 7,
+    "tlsTests": 3,
+    "totalPass": 10,
+    "wrapperExit": 0,
+    "tlsExit": 0,
+    "tlsProof": "Actual pg.Client options preserve pinned CA/verify/hostname. Real owned-loopback TLS positive uses owned test CA; actual official production CA refuses that local leaf. Wrong hostname refused. No claim of live RDS success.",
+    "nodeSyntaxExit": 0,
+    "pythonCompileExit": 0
+  },
+  "review": {
+    "initializedModel": "moonshotai.kimi-k2.5",
+    "provider": "bedrock",
+    "sessionId": "20261002_081920_794947",
+    "exitCode": 0,
+    "elapsedSeconds": 19.25,
+    "toolCalls": 0,
+    "verdict": "PASS",
+    "adjudication": "Model CA naming included starfield inaccurately; actual parsed regional roots are RSA2048, RSA4096 and ECC384 as tested. Hashes independently calculated by orchestrator; model source review is not execution."
+  },
+  "externalSideEffectsByLane": {
+    "publicOfficialCaDownload": 1,
+    "loopbackOwnedTlsServers": 1,
+    "awsCalls": 0,
+    "sharedDatabaseCalls": 0
+  },
+  "liveAcceptance": "NOT_RUN"
+}

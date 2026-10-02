@@ -1,0 +1,172 @@
+{
+  "recordedAt": "2026-10-02T08:09:46.848525+00:00",
+  "commit": "3e1834dedc04d568f4fd7d6eeff683de8fab6962",
+  "base": "1d54ac1a95c7a2fb5184cee5af944891a0dba255",
+  "worktree": "C:\\dev\\cap-meri-capture-evidence",
+  "branch": "codex/meri-controlled-reads-20261002",
+  "clean": true,
+  "policyCommit": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "liveAcceptance": "NOT_RUN",
+  "cloudWrites": 0,
+  "sharedDatabaseWrites": 0,
+  "gitPush": false,
+  "modelsOrRoutingChanged": false,
+  "tests": [
+    {
+      "name": "API typecheck",
+      "command": "pnpm --filter @capiro/api exec tsc --noEmit --rootDir .",
+      "exitCode": 0,
+      "testsPassed": null,
+      "skipped": 0,
+      "log": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\controlled-read-api-tsc-final.log",
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "Orchestrator typecheck",
+      "command": "pnpm --filter @capiro/meriv2-orchestrator typecheck",
+      "exitCode": 0,
+      "testsPassed": null,
+      "skipped": 0,
+      "log": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\controlled-read-orchestrator-tsc-final.log",
+      "logSha256": "c12982a1437a52f325b0b6fffd7eb9c12a0c3a4ed42269c563710f7dcef418a2"
+    },
+    {
+      "name": "Node fixture/joins/grader/regressions",
+      "command": "node --test evals/meri/live-v1/tests/controlled-read-definitions.test.mjs evals/meri/live-v1/tests/controlled-read-owner.test.mjs evals/meri/live-v1/tests/controlled-read-authority.test.mjs evals/meri/live-v1/tests/grade-case01-capture.test.mjs",
+      "exitCode": 0,
+      "testsPassed": 173,
+      "skipped": 0,
+      "log": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\controlled-read-node-v3.log",
+      "logSha256": "f75adf27cff82cb9d4ea21865fa4fc6ced1e534c28c67bce89d24ddcd48e77da"
+    },
+    {
+      "name": "Actual owned PostgreSQL",
+      "command": "node --test evals/meri/live-v1/tests/controlled-read.postgres.test.mjs",
+      "exitCode": 0,
+      "testsPassed": 1,
+      "skipped": 0,
+      "log": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\controlled-read-postgres-v6.log",
+      "logSha256": "bf8f83a388cef567ea4cbfc26a513a18f70510e4d207e0791eacdc6c9c5591c0"
+    },
+    {
+      "name": "API existing regression",
+      "command": "pnpm --filter @capiro/api exec jest --runInBand --forceExit src/meri/meri-capture-api-provider-scope.spec.ts src/meri/meri-capture-provider-budget.spec.ts src/meri/meri-server-readonly-capture.spec.ts src/meri/meri-source.service.spec.ts src/meri/meri-source-outcome-contract.spec.ts src/meri/meri-tools.defense-budget.spec.ts src/meri/meri-case01-capture-authority.spec.ts",
+      "exitCode": 0,
+      "testsPassed": 117,
+      "skipped": 0,
+      "log": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\controlled-read-api-regression-initial.log",
+      "logSha256": "90cc6a6a0e0fd15c6f38871d0e0ee5ec393df47ac9aee45ef284a744bee130e9"
+    },
+    {
+      "name": "API actual planner/ingress final",
+      "command": "pnpm --filter @capiro/api exec jest --runInBand --forceExit src/meri/meri-capture-api-provider-scope.spec.ts",
+      "exitCode": 0,
+      "testsPassed": 9,
+      "skipped": 0,
+      "log": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\controlled-read-api-ingress-v3.log",
+      "logSha256": "7f19788d3f5dce3d7c247fdde445f3c129551b671d2c683e1410ba35fd8fdae0"
+    },
+    {
+      "name": "Orchestrator actual loopback HTTP/classifier/no-progress/capture regression",
+      "command": "pnpm --filter @capiro/meriv2-orchestrator exec jest --runInBand --forceExit src/meri/controlled-read-observations.spec.ts src/meri/api-tool-executor.repo.spec.ts src/meri/meriv3/meriv3-capture-evidence.spec.ts src/meri/meriv3/meriv3-run-budget.spec.ts",
+      "exitCode": 0,
+      "testsPassed": 48,
+      "skipped": 0,
+      "log": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\controlled-read-orchestrator-tests-v2.log",
+      "logSha256": "60df9252130d3903735a4406785a297c2dc55e67b4d0a4a7a7b4bf8c976a22d7"
+    },
+    {
+      "name": "Core receipt regression",
+      "command": "pnpm --filter @capiro/meriv2-core exec jest --runInBand --forceExit src/context/capture-evidence-receipt.spec.ts",
+      "exitCode": 0,
+      "testsPassed": 9,
+      "skipped": 0,
+      "log": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\controlled-read-core-tests.log",
+      "logSha256": "c764b18bedc73914bea2a9a842f82048e69fb3bd68a7ec9d6438e9a2c0a0dc93"
+    },
+    {
+      "name": "Web source locator",
+      "command": "pnpm --filter @capiro/web exec vitest run --poolOptions.threads.singleThread src/vnext/meri/meri-source-api.test.ts",
+      "exitCode": 0,
+      "testsPassed": 12,
+      "skipped": 0,
+      "log": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\controlled-read-web-tests-v2.log",
+      "logSha256": "e3b65abc0dfd189fe7411cb4471b6432e6504b826708d5eed334d311df3f6c0d"
+    },
+    {
+      "name": "Web focused source types",
+      "command": "pnpm --filter @capiro/web exec tsc -p C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\controlled-read-web-tsconfig.json --noEmit",
+      "exitCode": 0,
+      "testsPassed": null,
+      "skipped": 0,
+      "log": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\controlled-read-web-target-tsc-v2.log",
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "Isolated Docker fixture import closure",
+      "command": "node --test evals/meri/live-v1/tests/case01-memory-packaging.test.mjs",
+      "exitCode": 0,
+      "testsPassed": 1,
+      "skipped": 0,
+      "log": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\controlled-read-packaging.log",
+      "logSha256": "12521abc9d97b54c894d9afea9edd3c2de6a4ea46b2e5635f7281c1be8360ab3"
+    }
+  ],
+  "reviews": [
+    {
+      "scope": "controlled-read-backend-kimi",
+      "requestedModel": "moonshotai.kimi-k2.5",
+      "initializedModel": "moonshotai.kimi-k2.5",
+      "sessionId": "20261002_080231_7e4fcd",
+      "provider": "bedrock",
+      "reportedTokens": {
+        "input": 46218,
+        "output": 1881,
+        "total": 48099,
+        "cache_read": 0,
+        "cache_write": 0
+      },
+      "reportedResultExit": 0,
+      "toolCalls": 0,
+      "billedCostUsd": null,
+      "costStatus": "not exposed by quiet stream output",
+      "actualCliExit": 0,
+      "verdict": "PASS",
+      "report": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\controlled-read-backend-kimi-review.md",
+      "reportSha256": "a88627ea686d7154a85e714f2ffa71bccdcade5cece7b0b542df881df5c7151c",
+      "sourceHashes": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\controlled-read-backend-kimi-source-hashes.json"
+    },
+    {
+      "scope": "controlled-read-collector-kimi",
+      "requestedModel": "moonshotai.kimi-k2.5",
+      "initializedModel": "moonshotai.kimi-k2.5",
+      "sessionId": "20261002_080231_3ce199",
+      "provider": "bedrock",
+      "reportedTokens": {
+        "input": 34695,
+        "output": 592,
+        "total": 35287,
+        "cache_read": 0,
+        "cache_write": 0
+      },
+      "reportedResultExit": 0,
+      "toolCalls": 0,
+      "billedCostUsd": null,
+      "costStatus": "not exposed by quiet stream output",
+      "actualCliExit": 0,
+      "verdict": "PASS",
+      "report": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\controlled-read-collector-kimi-review.md",
+      "reportSha256": "8d47501e4823646b52fedec5fe6be7082ff0aa7913e577664206151ef29eaab8",
+      "sourceHashes": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\controlled-read-collector-kimi-source-hashes.json"
+    }
+  ],
+  "notes": [
+    "173 Node executions include imported case01 regression tests. Counts from separate commands overlap; do not sum as unique tests.",
+    "API regression117 was followed by final ingress9 including3new exact20/72 planner/74 refusal tests.",
+    "PostgreSQL is1composite real local owner/SQL/qualification/native handler test with no skips, not1livecase.",
+    "Local Node22.23.3 Windows; full canonical Linux ARM64 builds remain required after integration.",
+    "Web focused tsc uses existing Web config with owned shared declaration path override and explicit donated vitest/vite type paths; canonical full Web build remains required.",
+    "Read-only setup operation creates fixed locator/binding receipts; zero shared corpus writes.",
+    "Qwen requestedimplementation attempt actualexit1/noacceptedpatch; directCodexexception used, independent Kimi code reviews are actualexit0."
+  ]
+}

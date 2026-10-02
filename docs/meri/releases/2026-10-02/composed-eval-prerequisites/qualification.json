@@ -1,0 +1,208 @@
+{
+  "sourceSha": "eedcc3d3a34aaf1b3b68e8a5093644b20d98a908",
+  "policySha": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "machineMapRevision": "2026-09-30T00:21:48Z",
+  "checks": [
+    {
+      "name": "shared-build",
+      "sourceSha": "eedcc3d3a34aaf1b3b68e8a5093644b20d98a908",
+      "command": [
+        "C:\\Program Files\\nodejs\\pnpm.cmd",
+        "--filter",
+        "@capiro/shared",
+        "build"
+      ],
+      "exitCode": 0,
+      "seconds": 1.76,
+      "logSha256": "d089f90d4c09a976f5ec2ea3aaf21b4e4c6e8d6b671cf8a60058f6cea5be0882"
+    },
+    {
+      "name": "core-build",
+      "sourceSha": "eedcc3d3a34aaf1b3b68e8a5093644b20d98a908",
+      "command": [
+        "C:\\Program Files\\nodejs\\pnpm.cmd",
+        "--filter",
+        "@capiro/meriv2-core",
+        "build"
+      ],
+      "exitCode": 0,
+      "seconds": 4.1,
+      "logSha256": "fc776b328d414b6b35ed9d397fb6023b06037057d6936a00b1304b415164669c"
+    },
+    {
+      "name": "node-integration",
+      "sourceSha": "eedcc3d3a34aaf1b3b68e8a5093644b20d98a908",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "--test",
+        "evals/meri/live-v1/tests/controlled-read-definitions.test.mjs",
+        "evals/meri/live-v1/tests/controlled-read-owner.test.mjs",
+        "evals/meri/live-v1/tests/controlled-read-authority.test.mjs",
+        "evals/meri/live-v1/tests/grade-case01-capture.test.mjs",
+        "evals/meri/live-v1/tests/controlled-read.postgres.test.mjs",
+        "evals/meri/live-v1/tests/case01-execution-setup.postgres.test.mjs",
+        "evals/meri/live-v1/tests/capture-provider-budget-install.postgres.test.mjs",
+        "evals/meri/live-v1/tests/capture-provider-budget.postgres.test.mjs",
+        "evals/meri/live-v1/tests/case01-operator-input.test.mjs",
+        "evals/meri/live-v1/tests/case01-memory-packaging.test.mjs",
+        "evals/meri/live-v1/tests/case17-memory-ui.test.mjs",
+        "evals/meri/live-v1/tests/memory-pending-fixture-plan.test.mjs",
+        "evals/meri/live-v1/tests/memory-pending-execution.postgres.test.mjs",
+        "evals/meri/live-v1/tests/own-pending-proposals.postgres.test.mjs"
+      ],
+      "exitCode": 0,
+      "seconds": 25.87,
+      "logSha256": "b093868d62a2ed60e5da877bbf6fec0563e47e2e0a4718ad65e8c1233fc470b0"
+    },
+    {
+      "name": "api-types",
+      "sourceSha": "eedcc3d3a34aaf1b3b68e8a5093644b20d98a908",
+      "command": [
+        "C:\\Program Files\\nodejs\\pnpm.cmd",
+        "--filter",
+        "@capiro/api",
+        "exec",
+        "tsc",
+        "--noEmit",
+        "--rootDir",
+        "."
+      ],
+      "exitCode": 0,
+      "seconds": 55.85,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "orchestrator-types",
+      "sourceSha": "eedcc3d3a34aaf1b3b68e8a5093644b20d98a908",
+      "command": [
+        "C:\\Program Files\\nodejs\\pnpm.cmd",
+        "--filter",
+        "@capiro/meriv2-orchestrator",
+        "typecheck"
+      ],
+      "exitCode": 0,
+      "seconds": 10.48,
+      "logSha256": "401e428fdb91c6be6810d2cd5e5374f15d3ffe28046a1ea9d1b9119d3bc5a009"
+    },
+    {
+      "name": "api-regression",
+      "sourceSha": "eedcc3d3a34aaf1b3b68e8a5093644b20d98a908",
+      "command": [
+        "C:\\Program Files\\nodejs\\pnpm.cmd",
+        "--filter",
+        "@capiro/api",
+        "exec",
+        "jest",
+        "--runInBand",
+        "--forceExit",
+        "src/meri/meri-capture-api-provider-scope.spec.ts",
+        "src/meri/meri-capture-provider-budget.spec.ts",
+        "src/meri/meri-server-readonly-capture.spec.ts",
+        "src/meri/meri-source.service.spec.ts",
+        "src/meri/meri-source-outcome-contract.spec.ts",
+        "src/meri/meri-tools.defense-budget.spec.ts",
+        "src/meri/meri-case01-capture-authority.spec.ts",
+        "src/meri/meri-docgen.helpers.spec.ts",
+        "src/meri/meri-document-artifact.spec.ts",
+        "src/meri/meri-text-artifact.helpers.spec.ts",
+        "src/meri/meri-artifact-integrity.spec.ts",
+        "src/memory/governed-memory-candidate.service.spec.ts"
+      ],
+      "exitCode": 0,
+      "seconds": 56.79,
+      "logSha256": "ebe5d95b4edc6712ff8009a827559794cf55d078b1c2ad90ebbd7ea92884ac3d"
+    },
+    {
+      "name": "orchestrator-regression",
+      "sourceSha": "eedcc3d3a34aaf1b3b68e8a5093644b20d98a908",
+      "command": [
+        "C:\\Program Files\\nodejs\\pnpm.cmd",
+        "--filter",
+        "@capiro/meriv2-orchestrator",
+        "exec",
+        "jest",
+        "--runInBand",
+        "--forceExit",
+        "src/meri/controlled-read-observations.spec.ts",
+        "src/meri/api-tool-executor.repo.spec.ts",
+        "src/meri/meriv3/meriv3-capture-evidence.spec.ts",
+        "src/meri/meriv3/meriv3-run-budget.spec.ts",
+        "src/meri/meriv3/meriv3-semantic-compatibility-tools.spec.ts"
+      ],
+      "exitCode": 0,
+      "seconds": 15.48,
+      "logSha256": "c526e20273f643b7f26bb85faabfc5980156a12722bbf876d337ed32e247b485"
+    },
+    {
+      "name": "web-source",
+      "sourceSha": "eedcc3d3a34aaf1b3b68e8a5093644b20d98a908",
+      "command": [
+        "C:\\Program Files\\nodejs\\pnpm.cmd",
+        "--filter",
+        "@capiro/web",
+        "exec",
+        "vitest",
+        "run",
+        "--poolOptions.threads.singleThread",
+        "src/vnext/meri/meri-source-api.test.ts",
+        "src/vnext/meri/MeriMemoryTab.targets.test.tsx",
+        "src/vnext/meri/MeriArtifactCanvas.test.tsx",
+        "src/components/chat/meri-artifact-download.test.ts"
+      ],
+      "exitCode": 0,
+      "seconds": 5.59,
+      "logSha256": "8a9ac2c08ecdb69d113fc55af64f30f4d8f4d35a2fd03d04408589b7f0bc326e"
+    },
+    {
+      "name": "web-types",
+      "sourceSha": "eedcc3d3a34aaf1b3b68e8a5093644b20d98a908",
+      "command": [
+        "C:\\Program Files\\nodejs\\pnpm.cmd",
+        "--filter",
+        "@capiro/web",
+        "typecheck"
+      ],
+      "exitCode": 0,
+      "seconds": 82.31,
+      "logSha256": "d784f005d0a73391552de23d6a1f755bd7f80ca22dd439d72a99237c7363b9b3"
+    },
+    {
+      "name": "promptfoo",
+      "sourceSha": "eedcc3d3a34aaf1b3b68e8a5093644b20d98a908",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "node_modules/promptfoo/dist/src/entrypoint.js",
+        "eval",
+        "-c",
+        "evals/meri/promptfooconfig.yaml",
+        "--no-cache",
+        "--no-share",
+        "--no-write",
+        "--no-table",
+        "--no-progress-bar",
+        "-o",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-case01-release\\composed-ui-integration-verification\\meri-offline.json"
+      ],
+      "exitCode": 0,
+      "seconds": 27.63,
+      "logSha256": "5b7e5691ebd14d606f643e30ee03385e51865863a268a4b555e2720a31b1f490"
+    },
+    {
+      "name": "custom-verifier",
+      "sourceSha": "eedcc3d3a34aaf1b3b68e8a5093644b20d98a908",
+      "command": [
+        "C:\\ProgramData\\Hermes\\tools\\python-3.14.7+20260901-win32-x64\\python.exe",
+        "evals/meri/verify_report.py",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-case01-release\\composed-ui-integration-verification\\meri-offline.json",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-case01-release\\composed-ui-integration-verification\\meri-offline.summary.json"
+      ],
+      "exitCode": 0,
+      "seconds": 0.13,
+      "logSha256": "d652ee14b9b4b8b9b577c655b6fa3c5366c0f9363e854d6e98d8ab1752cb4e42"
+    }
+  ],
+  "sourceUnchanged": true,
+  "worktreeStatus": "",
+  "liveAcceptance": "NOT_RUN",
+  "exitCode": 0
+}

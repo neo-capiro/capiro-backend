@@ -1,0 +1,3 @@
+PASS. The diff matches the claimed behavior and introduces no blocking findings.
+
+The Docker/entrypoint/script changes are mechanical plumbing for the new fixture; the service change correctly extends scope to include personal rows while preserving the tenantId+proposedBy guard; the UI test validates the sourceLabel rendering and withdrawal action on personal-scope proposals; and the component changes align copy with the scope expansion and wire source display using the existing label utility.
