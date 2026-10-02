@@ -1,0 +1,34 @@
+{
+  "sourceSha": "a260004e9923ef5bbe7bd8f32bb4cbddd3c7be31",
+  "imageQualification": "API native build PASS; not deployed yet",
+  "files": [
+    {
+      "file": "api-build-start.json",
+      "sha256": "e6d977b706f90924a1b73f38788c5bc7594c132be1bb77f81e94bda58906abeb"
+    },
+    {
+      "file": "api-build-readback.json",
+      "sha256": "61cb976926771259b7a292e5d49e3d72c5e7dcdf8f2e71386429e963692cb0d3"
+    },
+    {
+      "file": "api.buildspec.yml",
+      "sha256": "1aece36ee3843498e5f42d3a3c5d7ed97285e363056529d731f7c28db5e5dd32"
+    },
+    {
+      "file": "build-qualified-source.py",
+      "sha256": "bd4f71f1f77007f606f440948d4dfa6330f39f677eade42caedbacbd372a10ea"
+    },
+    {
+      "file": "reviewed-build-input.json",
+      "sha256": "f95c6a143d9a0b035762acf4e4bbd6e374d6be23a871212bc4125728ef2d4723"
+    },
+    {
+      "file": "workflow-dispatch-receipts.json",
+      "sha256": "0333ff25d0f731c6158946cc2e6d2a9b82c4aaf00f0486287ef7b4d140ef6560"
+    },
+    {
+      "file": "api-oneoff-build-proof.json",
+      "sha256": "70f3c5d95fd9a9ad9c35af7db5a56c31a389119c2458286c981c9520997659db"
+    }
+  ]
+}

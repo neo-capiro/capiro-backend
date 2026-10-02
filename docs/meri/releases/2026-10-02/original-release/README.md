@@ -1,0 +1,7 @@
+# Original-plan API release candidate
+
+Source a260004e9923ef5bbe7bd8f32bb4cbddd3c7be31 is a documentation-only descendant of tested a472a7906561cf3192c99c7bc148ad29f00062a7. [Combined qualification](../original-integration/qualification.json) records 333 API tests (one existing unrelated skip), 176 orchestrator tests, 22 actual local PostgreSQL tests, 40 native checks, both primary typechecks and 26 verified offline cases. All source-review limitations remain in that archive.
+
+Actual native ARM64 API build c00caec1-7a1d-4ffe-9f71-79be37ed6ecb passed runtime, fixture, continuation and post-approval imports, all 449 exact migration hashes, and the local/ECR digest match. The image is pinned in api-build-readback.json. No schema, migration, provider, flag, or routing changes are part of this promotion. Prior API503 is retained for rollback. Web source is unchanged; Orc95 remains compatible for case01's existing read-only protocol, while the optional new governed46 protocol stays inactive without its exact owned qualification.
+
+The relevant API and orchestrator Actions runs failed before jobs started. Their actual source/name/job evidence is recorded; the approved fallback built this exact main commit. Orchestrator build and promotion are recorded separately when complete. This archive does not claim live acceptance or fixture completion. The first case01 approval is already committed and must never be replayed; only the qualified post-approval resume may proceed after deployment.
