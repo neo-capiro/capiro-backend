@@ -78,6 +78,7 @@ function creationTransport(config, bearer) {
           method: post ? 'POST' : 'GET',
           rejectUnauthorized: true,
           headers: {
+            'user-agent': 'Capiro-Meri-Authorized-QA/1.0',
             authorization: `Bearer ${bearer}`,
             'x-capiro-tenant': config.scope.tenants.T1.slug,
             accept: 'application/json',
@@ -249,12 +250,14 @@ export async function runControlledReadOperator(args = process.argv.slice(2)) {
     need(git('status', '--porcelain') === '', 'RUNNER_DIRTY');
     need(git('rev-parse', 'HEAD') === operatorSourceSha, 'REVIEWED_OPERATOR_SOURCE_REQUIRED');
     // New operator-only files need not trigger another backend release. Existing
-    // server, collector, fixture and pricing source must remain exactly released.
+    // server, fixture and pricing source must remain exactly released. The reviewed
+    // local-only collector delta adds the descriptive native HTTPS User-Agent.
     git('merge-base', '--is-ancestor', config.deployment.apiSha, 'HEAD');
     const operatorFiles = new Set([
       'controlled-read-operator-input.mjs',
       'materialize-controlled-read.mjs',
       'run-controlled-read.mjs',
+      'controlled-read-live-capture.mjs',
       'CONTROLLED-READ-OPERATOR.md',
       'tests/controlled-read-operator.test.mjs',
     ]);

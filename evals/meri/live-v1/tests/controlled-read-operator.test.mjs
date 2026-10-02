@@ -1,4 +1,6 @@
 import test from 'node:test';
+import vm from 'node:vm';
+import { EventEmitter } from 'node:events';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { mkdtempSync, writeFileSync, readFileSync } from 'node:fs';
@@ -28,6 +30,105 @@ import {
   assertControlledReadSyntheticIdentity,
   inspectControlledConversationReadback,
 } from '../run-controlled-read.mjs';
+
+// Exercise the actual private native transport bodies with fake HTTPS sockets.
+// No injectable transport or capability is exposed by the production collector.
+function localTransport(functionName, moduleName, endMarker) {
+  const source = readFileSync(new URL(`../${moduleName}`, import.meta.url), 'utf8');
+  const start = source.indexOf(`function ${functionName}(`);
+  const end = source.indexOf(endMarker, start);
+  assert.ok(start >= 0 && end > start);
+  const observed = [];
+  const https = {
+    request(url, options, callback) {
+      const req = new EventEmitter();
+      const call = { url: String(url), options, body: '' };
+      observed.push(call);
+      req.write = (body) => {
+        call.body += body;
+      };
+      req.setTimeout = () => {};
+      req.destroy = () => {};
+      req.end = () =>
+        queueMicrotask(() => {
+          const response = new EventEmitter();
+          response.statusCode = options.method === 'POST' ? 201 : 200;
+          response.headers = { 'x-capiro-release-sha': 'a'.repeat(40) };
+          callback(response);
+          response.emit('data', Buffer.from('{}'));
+          response.emit('end');
+        });
+      return req;
+    },
+  };
+  const need = (condition, code) => {
+    if (!condition) throw new Error(code);
+  };
+  const factory = vm.runInNewContext(`(${source.slice(start, end).trim()})`, {
+    https,
+    URL,
+    Buffer,
+    TextDecoder,
+    Date,
+    Math,
+    JSON,
+    Error,
+    Promise,
+    setTimeout,
+    clearTimeout,
+    need,
+    origin: 'https://os.capiro.ai',
+    ORIGIN: 'https://os.capiro.ai',
+  });
+  return { factory, observed };
+}
+
+for (const transportKind of ['creation', 'capture']) {
+  test(`${transportKind} native HTTPS sends QA User-Agent and retains TLS, auth and one-write bounds`, async () => {
+    const creation = transportKind === 'creation';
+    const { factory, observed } = creation
+      ? localTransport(
+          'creationTransport',
+          'run-controlled-read.mjs',
+          '\nexport function controlledReadBrowserRequestAllowed',
+        )
+      : localTransport(
+          'nativeTransport',
+          'controlled-read-live-capture.mjs',
+          '\nasync function currentAdmission',
+        );
+    const id = '12345678-1234-4234-8234-123456789012';
+    const slug = 'meri-foundation-20260928-t1';
+    const transport = creation
+      ? factory({ scope: { tenants: { T1: { slug } } } }, 'unit-only-placeholder')
+      : factory(
+          { bearer: 'unit-only-placeholder', tenant: { slug }, expected: { conversationId: id } },
+          10000,
+        );
+    const call = creation ? transport.call : transport.request;
+    await call('/api/me');
+    const postPath = creation ? '/api/clio/conversations' : `/api/clio/conversations/${id}/stream`;
+    await call(postPath, { message: 'unit-only' });
+    assert.equal(observed.length, 2);
+    for (const request of observed) {
+      assert.equal(new URL(request.url).origin, 'https://os.capiro.ai');
+      assert.equal(request.options.rejectUnauthorized, true);
+      assert.equal(request.options.headers['user-agent'], 'Capiro-Meri-Authorized-QA/1.0');
+      assert.equal(request.options.headers.authorization, 'Bearer unit-only-placeholder');
+      assert.equal(request.options.headers['x-capiro-tenant'], slug);
+    }
+    assert.equal(observed[0].options.headers.accept, 'application/json');
+    assert.equal(
+      observed[1].options.headers.accept,
+      creation ? 'application/json' : 'text/event-stream',
+    );
+    assert.equal(observed[1].options.headers['content-type'], 'application/json');
+    assert.equal(observed[1].body, JSON.stringify({ message: 'unit-only' }));
+    if (creation) assert.throws(() => call(postPath, {}), /CREATION_REQUEST_BOUND/u);
+    else await assert.rejects(call(postPath, {}), /CONTROLLED_READ_DUPLICATE_OR_UNAPPROVED_WRITE/u);
+    assert.equal(observed.length, 2);
+  });
+}
 
 // UNIT fixtures only: no mocked result here can mint collector or live authority.
 function sample(caseId = '20') {

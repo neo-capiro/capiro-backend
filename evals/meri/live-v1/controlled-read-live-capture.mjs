@@ -293,6 +293,7 @@ function nativeTransport(scope, deadlineMs) {
           method: body === undefined ? 'GET' : 'POST',
           rejectUnauthorized: true,
           headers: {
+            'user-agent': 'Capiro-Meri-Authorized-QA/1.0',
             authorization: `Bearer ${scope.bearer}`,
             'x-capiro-tenant': scope.tenant.slug,
             accept: body === undefined ? 'application/json' : 'text/event-stream',
