@@ -1,0 +1,17 @@
+{
+  "service": "meriv2-orchestrator",
+  "buildId": "capiro-build-web-dev:366bc412-f172-49cf-93e0-fe44cc5dfc50",
+  "sourceSha": "6be5a560d5addaa1844f0687898c34a249089f76",
+  "buildspecSha256": "d496bac387facf76216c755720a7e1f0d70918a02cd268bed8c9be4caa063803",
+  "actionRun": {
+    "conclusion": "startup_failure",
+    "headSha": "6be5a560d5addaa1844f0687898c34a249089f76",
+    "jobs": [],
+    "url": "https://github.com/neo-capiro/capirov2/actions/runs/37069098503",
+    "workflowName": "meriv2-orchestrator-image"
+  },
+  "callerArn": "arn:aws:iam::967807252336:user/hermes-cli",
+  "status": "IN_PROGRESS",
+  "startedAtEpoch": 1790977967.378921,
+  "scope": "Immutable candidate image publication only; no ECS service, database, migration or provider configuration mutation"
+}

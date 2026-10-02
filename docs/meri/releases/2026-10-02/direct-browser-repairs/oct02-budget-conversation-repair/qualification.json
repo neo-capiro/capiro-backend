@@ -1,0 +1,76 @@
+{
+  "kind": "meri-budget-conversation-readback-qualification",
+  "status": "PASS",
+  "observedAt": "2026-10-02T21:08:48.939533+00:00",
+  "sourceCommit": "f81157ec21fee99b9d45f33b527a6e653520363e",
+  "baseCommit": "b8eec8da8b841212bf34d518f16c7da3222d6168",
+  "policyHead": "743fd708c3484604e8a35ea1039adeca3b1e331f",
+  "files": {
+    "apps/api/src/meri/meri-synthetic-read-budget-owner.ts": {
+      "gitBlobSha256": "3b276fe638f0d9a2f85f4f4bea7fb102a4443c640ede3ea4b1ac247859e95d00",
+      "testedWorkingFileSha256": "3b276fe638f0d9a2f85f4f4bea7fb102a4443c640ede3ea4b1ac247859e95d00",
+      "byteEquivalence": "CRLF-to-LF only"
+    },
+    "apps/api/src/meri/meri.service.ts": {
+      "gitBlobSha256": "4ad881940cf928e858bd05bfc8a57efc6ba8fa8f0687a7ceef49ddcb186c9ed1",
+      "testedWorkingFileSha256": "4ad881940cf928e858bd05bfc8a57efc6ba8fa8f0687a7ceef49ddcb186c9ed1",
+      "byteEquivalence": "CRLF-to-LF only"
+    },
+    "evals/meri/live-v1/tests/synthetic-read-budget.postgres.test.mjs": {
+      "gitBlobSha256": "fa61d17c14c212f08688239317c113ba99ba0684c5914ca485f58654ec6b8395",
+      "testedWorkingFileSha256": "66827e746c5e86aa25426821769a513bbe1f9fa1ffb6e2e3b24fcdfd0d8717db",
+      "byteEquivalence": "CRLF-to-LF only"
+    }
+  },
+  "verification": {
+    "owned-pg": {
+      "exitCode": 0,
+      "logSha256": "b71a954c0486fa4d0c9f9839a470ff421afc696cf20c1fb56f9949d578efc46a",
+      "passed": 9,
+      "skipped": 0
+    },
+    "legacy-readback-jest": {
+      "exitCode": 0,
+      "logSha256": "97248385556a93bf370bfd58a1c0c0342ec8b67da430be4e69f9987bc776af7d",
+      "passed": 42,
+      "skipped": 0
+    },
+    "api-types": {
+      "exitCode": 0,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "independentHermes": {
+    "requestedModel": "moonshotai.kimi-k2.5",
+    "initializedModel": "moonshotai.kimi-k2.5",
+    "sessionId": "20261002_210648_ea54ae",
+    "provider": "bedrock",
+    "reportedTokens": {
+      "input": 17786,
+      "output": 3350,
+      "total": 21136,
+      "cache_read": 0,
+      "cache_write": 0
+    },
+    "reportedResultExit": 0,
+    "toolCalls": 0,
+    "billedCostUsd": null,
+    "costStatus": "not exposed by quiet stream output"
+  },
+  "hermesProcess": {
+    "exitCode": 0,
+    "started": 1790975205.7003598,
+    "finished": 1790975254.6429539,
+    "elapsedSeconds": 48.94
+  },
+  "reviewAdjudication": {
+    "verdict": "PASS",
+    "rawReviewSha256": "8ef0122b31fe27ec4c8b930597603e145471f90d5d2d038e315d28dec672af8a",
+    "note": "Review contains tentative BLOCK labels which it explicitly withdraws before final PASS. No unresolved blocker. Hash equality checks current snapshot consistency, not authorization alone; actual owner/qualification checks provide authorization. Model did not run tests; actual local test receipts are separate."
+  },
+  "limits": [
+    "API-only source patch; no live deployment/auth/provider/journal activity by this lane.",
+    "Current owner metadata read does not issue admission or change provider expiry.",
+    "Existing historical message-terminal checks and ordinary conversation read path unchanged."
+  ]
+}

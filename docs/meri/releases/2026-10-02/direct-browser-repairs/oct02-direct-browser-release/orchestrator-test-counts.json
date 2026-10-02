@@ -1,0 +1,15 @@
+{
+  "buildId": "capiro-build-web-dev:366bc412-f172-49cf-93e0-fe44cc5dfc50",
+  "sourceSha": "6be5a560d5addaa1844f0687898c34a249089f76",
+  "tests": {
+    "numTotalTests": 1460,
+    "numPassedTests": 1458,
+    "numFailedTests": 0,
+    "numPendingTests": 2,
+    "numTotalTestSuites": 129,
+    "numPassedTestSuites": 129,
+    "numFailedTestSuites": 0,
+    "numPendingTestSuites": 0
+  },
+  "evidence": "Exact successful test JSON emitted by executed reviewed recipe"
+}

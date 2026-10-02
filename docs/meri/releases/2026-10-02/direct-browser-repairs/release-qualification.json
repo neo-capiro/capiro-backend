@@ -1,0 +1,148 @@
+{
+  "kind": "meri-direct-browser-defect-release-qualification",
+  "status": "PASS",
+  "createdAt": "2026-10-02T22:04:20.256882+00:00",
+  "sourceSha": "6be5a560d5addaa1844f0687898c34a249089f76",
+  "services": {
+    "api": {
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:5e52f9b06658b0462672d070928e0c2afd6ea229b61c3b887371f3f66196c316",
+      "buildId": "capiro-build-web-dev:a49ad86d-b256-462a-a8a6-d17c5da7423e",
+      "receipt": "oct02-direct-browser-release/api-independent-20261002T215942443872Z.json"
+    },
+    "meriv2-orchestrator": {
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:4af969e3ce20e39fa789b98470250e0287a39ece24268204b8ec2e9a8a229a6f",
+      "buildId": "capiro-build-web-dev:366bc412-f172-49cf-93e0-fe44cc5dfc50",
+      "receipt": "oct02-direct-browser-release/meriv2-orchestrator-independent-20261002T220046779705Z.json"
+    }
+  },
+  "policySha": "b32b4803933760dc0a93fffdcd8fba30a89c3aac",
+  "publishedPolicySha": "b2b0ce8c2bf03817b81e671d968b7892985b8d06",
+  "machineMapRevision": "2026-09-30",
+  "checks": {
+    "apiPrimaryTypecheckExit": 0,
+    "taskJestUniquePassed": 82,
+    "taskJestExplanation": "75 firmdata tests and six helpers passed together; helpers reran after adding the seventh cursor regression. Both commands exited0.",
+    "postgresPassed": 15,
+    "postgresSkipped": 0,
+    "postgresExit": 0,
+    "offlinePassed": 26,
+    "offlineExit": 0,
+    "orchestrator": {
+      "numTotalTests": 1460,
+      "numPassedTests": 1458,
+      "numFailedTests": 0,
+      "numPendingTests": 2,
+      "numTotalTestSuites": 129,
+      "numPassedTestSuites": 129,
+      "numFailedTestSuites": 0,
+      "numPendingTestSuites": 0
+    },
+    "orchestratorTypesExit": 0,
+    "compiledImageAssertions": "PASS",
+    "exact451MigrationHashes": "PASS"
+  },
+  "review": "Codex root reviewed production changes, actual local exits/output, current membership/client-wall/portfolio authority, task cursor assignment binding, historical conversation ownership and unchanged execution deadlines. Earlier Kimi review applies only to the historical conversation repair, preserved here. No paid review worker was restarted.",
+  "retirementCompatibility": {
+    "status": "PASS",
+    "sourceSha": "6be5a560d5addaa1844f0687898c34a249089f76",
+    "schemaChange": false,
+    "baselineApiRevision": 513,
+    "baselineOrchestratorRevision": 101,
+    "baselineWebRevision": 388,
+    "note": "No schema/migration, runtime configuration, routing, model or web change. Additive task schema and canonical authorized-task response remain compatible with baseline orchestrator. Promote API then orchestrator. Each previous image is rollback-compatible. Historical GET adds no admission. Durable client-scoped task hashes retain source-owned fields."
+  },
+  "liveAcceptance": "INCOMPLETE",
+  "original75": {
+    "attemptedUniqueCases": 1,
+    "acceptedCases": 0,
+    "remainingUnrun": 74
+  },
+  "limitations": [
+    "Build/test qualification is not live acceptance.",
+    "Original75 mode/JEV variants, failure/approval/recovery cases, frozen semantic clock and human rubric remain unproved.",
+    "Browser smoke is recorded separately.",
+    "Unintegrated worker branches remain preserved."
+  ],
+  "artifacts": [
+    {
+      "path": "oct02-direct-browser-release/api-independent-20261002T215942443872Z.json",
+      "sha256": "6869ea45e388a32642800b9378143be3e853ba4b7beb41213e20e4888a5c58c0",
+      "bytes": 3224
+    },
+    {
+      "path": "oct02-direct-browser-release/meriv2-orchestrator-independent-20261002T220046779705Z.json",
+      "sha256": "d6c0d7b28b4322f4c5aa92533370ec4df4d937590efb433aebca7e51a0997950",
+      "bytes": 2336
+    },
+    {
+      "path": "oct02-direct-browser-release/api-build-start.json",
+      "sha256": "e1fc0fde038b1d553f88d9cb561d5c68a9d495b708bd4be96efcd22ea474a90b",
+      "bytes": 760
+    },
+    {
+      "path": "oct02-direct-browser-release/meriv2-orchestrator-build-start.json",
+      "sha256": "74f9e19ca9dec94b9a1d49eb3e805c13828892c1b73e47395f2182073b1b433c",
+      "bytes": 791
+    },
+    {
+      "path": "oct02-direct-browser-release/api.buildspec.yml",
+      "sha256": "64396afb7fce5b5932b721717927f43bd094e4ba13e25271539f35b232cd1386",
+      "bytes": 10431
+    },
+    {
+      "path": "oct02-direct-browser-release/meriv2-orchestrator.buildspec.yml",
+      "sha256": "d496bac387facf76216c755720a7e1f0d70918a02cd268bed8c9be4caa063803",
+      "bytes": 9695
+    },
+    {
+      "path": "oct02-direct-browser-release/reviewed-build-input.json",
+      "sha256": "215419ea611b80161f5ed0a5fb9f609f943b8918e82ee4f44c069de91ce7b19b",
+      "bytes": 1212
+    },
+    {
+      "path": "oct02-direct-browser-release/orchestrator-test-counts.json",
+      "sha256": "0afba5013b9fe8c5dbef025f0e9e9aa601ea75d2b63717e6c9686f77f07149ea",
+      "bytes": 478
+    },
+    {
+      "path": "oct02-direct-browser-fixes/api-types-final.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "oct02-direct-browser-fixes/postgres-final.log",
+      "sha256": "923a5e39e24347e8c2e9a1bc82e07bd8f717f079b5da0c8cb67e45072dafab52",
+      "bytes": 4327
+    },
+    {
+      "path": "oct02-direct-browser-fixes/task-tests-final.log",
+      "sha256": "230aa4568c40263cfe7dbefa82c9e023872191d2472acf06591fe966ced300b4",
+      "bytes": 2291
+    },
+    {
+      "path": "oct02-direct-browser-fixes/task-cursor-tests.log",
+      "sha256": "cf1616e1b99ca16b1cc8f10496fc05e26b787d702acd83bc8fab71f6ea67faa6",
+      "bytes": 1862
+    },
+    {
+      "path": "oct02-direct-browser-fixes/task-offline/exit.json",
+      "sha256": "eeb38b174e4a135c8a24d627134ac43fa36946475b7bd36caa79ec0d2183ef1e",
+      "bytes": 88
+    },
+    {
+      "path": "oct02-direct-browser-fixes/task-offline/meri-offline.summary.json",
+      "sha256": "31e5a6330dc8ce7689023144e775185f1038161d7fd7ad63b6dbbfe233700456",
+      "bytes": 3942
+    },
+    {
+      "path": "oct02-direct-browser-fixes/task-offline/meri-offline.json",
+      "sha256": "5453c0dc7a708ddcf19d0b02b9a14d1c321e6ec16806d89f394c9b86e58213ba",
+      "bytes": 146963
+    },
+    {
+      "path": "oct02-budget-conversation-repair/qualification.json",
+      "sha256": "7955cf7e22a5079d3b8e819d4f9e18a9d150a10201cc7bf933f1259dd7b810c3",
+      "bytes": 3207
+    }
+  ]
+}

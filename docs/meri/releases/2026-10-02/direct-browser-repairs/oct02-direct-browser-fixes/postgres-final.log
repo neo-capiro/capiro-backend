@@ -1,0 +1,107 @@
+TAP version 13
+# (node:23300) [DEP0180] DeprecationWarning: fs.Stats constructor is deprecated.
+# (Use `node --trace-deprecation ...` to show where the warning was created)
+# Subtest: budget-only real Prisma owner/enum/atomic reservation without source capture authority
+    # Subtest: install is absent-key CAS and preserves unrelated/global fixture settings
+    ok 1 - install is absent-key CAS and preserves unrelated/global fixture settings
+      ---
+      duration_ms: 182.691
+      type: 'test'
+      ...
+    # Subtest: all five frozen original prompts keep the ordinary planner and fit accounted retrieval
+    ok 2 - all five frozen original prompts keep the ordinary planner and fit accounted retrieval
+      ---
+      duration_ms: 16.3589
+      type: 'test'
+      ...
+    # Subtest: separate accounting leaves source bindings null and ordinary permissions current
+    ok 3 - separate accounting leaves source bindings null and ordinary permissions current
+      ---
+      duration_ms: 14.2134
+      type: 'test'
+      ...
+    # Subtest: two real database transactions cannot overspend the same conversation
+    ok 4 - two real database transactions cannot overspend the same conversation
+      ---
+      duration_ms: 66.2743
+      type: 'test'
+      ...
+    # Subtest: settlement ignores supplied pricing, finish binds actual assistant and prevents more dispatch
+        # Subtest: saved budget-only answer reads through real current owner without signed fixture evidence
+        ok 1 - saved budget-only answer reads through real current owner without signed fixture evidence
+          ---
+          duration_ms: 288.239
+          type: 'test'
+          ...
+        1..1
+    ok 5 - settlement ignores supplied pricing, finish binds actual assistant and prevents more dispatch
+      ---
+      duration_ms: 355.8
+      type: 'test'
+      ...
+    # Subtest: new reviewed500k/15USD qualification supports two actual transactional rounds while old admission stays unchanged
+    ok 6 - new reviewed500k/15USD qualification supports two actual transactional rounds while old admission stays unchanged
+      ---
+      duration_ms: 130.7171
+      type: 'test'
+      ...
+    # Subtest: actual conversation GET reads expired budget metadata without issuing new admission and keeps current ownership
+    ok 7 - actual conversation GET reads expired budget metadata without issuing new admission and keeps current ownership
+      ---
+      duration_ms: 6858.5645
+      type: 'test'
+      ...
+    1..7
+ok 1 - budget-only real Prisma owner/enum/atomic reservation without source capture authority
+  ---
+  duration_ms: 9786.771
+  type: 'test'
+  ...
+# (node:22964) [DEP0180] DeprecationWarning: fs.Stats constructor is deprecated.
+# (Use `node --trace-deprecation ...` to show where the warning was created)
+# Subtest: real task owner: actor assignment, client walls, exact counts and pagination
+    # Subtest: counts authorized assignments, not just the first page or other users
+    ok 1 - counts authorized assignments, not just the first page or other users
+      ---
+      duration_ms: 80.7208
+      type: 'test'
+      ...
+    # Subtest: all authorized owners still exclude another tenant, walls and revoked research sources
+    ok 2 - all authorized owners still exclude another tenant, walls and revoked research sources
+      ---
+      duration_ms: 27.2283
+      type: 'test'
+      ...
+    # Subtest: current wall grants affect both exact count and rows
+    ok 3 - current wall grants affect both exact count and rows
+      ---
+      duration_ms: 53.9104
+      type: 'test'
+      ...
+    # Subtest: archived clients are excluded from both counts and returned data
+    ok 4 - archived clients are excluded from both counts and returned data
+      ---
+      duration_ms: 17.4078
+      type: 'test'
+      ...
+    # Subtest: revoked membership refuses the read
+    ok 5 - revoked membership refuses the read
+      ---
+      duration_ms: 4.0807
+      type: 'test'
+      ...
+    1..5
+ok 2 - real task owner: actor assignment, client walls, exact counts and pagination
+  ---
+  duration_ms: 4858.7852
+  type: 'test'
+  ...
+1..2
+# tests 15
+# suites 0
+# pass 15
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 9934.7126

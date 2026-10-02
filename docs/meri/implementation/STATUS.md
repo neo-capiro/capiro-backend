@@ -1,4 +1,12 @@
-## Current checkpoint — 2026-10-02 19:29 UTC, test budget cause identified
+## Current checkpoint — 2026-10-02 22:01 UTC, direct browser repairs qualified
+
+Source `6be5a560d5addaa1844f0687898c34a249089f76` is in local main and GitHub main. Task assignment/counting, saved synthetic conversation reads and irrelevant assurance warnings are repaired. Both images passed the authorized AWS fallback after exact-source Actions startup failures. Checks include 82 focused task assertions, 15 actual PostgreSQL tests and 26 offline evals. The orchestrator passed 1,458 tests, with two existing live-only skips, and types. See [qualification](../releases/2026-10-02/direct-browser-repairs/README.md).
+
+Shared instructions require direct browser QA by default, no unrequested account comparison, and small batches against the original checklist. Paid Meri workers are stopped. API513/orchestrator101/WebVNext388 remain deployed until the qualified promotion is verified. No migration is required.
+
+**File01 remains incomplete: zero original live rows fully accepted; 74 not run.** Original01 produced a correct core answer; full variants, UI, failures, recovery, clock and human review remain outstanding. Defense Chat is excluded.
+
+## Prior checkpoint — 2026-10-02 19:29 UTC, test budget cause identified
 
 The original01 retest failed because its test reservation ceiling was too small:
 the API rejected the first answer-model reservation with
