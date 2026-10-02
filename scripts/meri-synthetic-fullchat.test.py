@@ -700,6 +700,39 @@ class RuntimeQualificationTests(unittest.TestCase):
         with self.assertRaisesRegex(fullchat.FullchatError, "entrypoint"):
             fullchat.capture_runtime(aws, self.Git())
 
+    def test_runtime_preserves_optional_empty_environment_values(self) -> None:
+        class OptionalEmpty(self.Aws):
+            def describe_task_definition(self, name: str) -> dict[str, Any]:
+                response = super().describe_task_definition(name)
+                response["taskDefinition"]["containerDefinitions"][0]["environment"].append(
+                    {"name": "OPTIONAL_TEST_SETTING", "value": ""}
+                )
+                return response
+
+        runtime = fullchat.capture_runtime(OptionalEmpty(), self.Git())
+        self.assertEqual(runtime["sourceCommit"], self.Aws.sha)
+
+    def test_empty_environment_opt_in_keeps_critical_identity_and_db_checks(self) -> None:
+        class EmptyCritical(self.Aws):
+            def __init__(self, field: str, target: str) -> None:
+                super().__init__()
+                self.field, self.target = field, target
+
+            def describe_task_definition(self, name: str) -> dict[str, Any]:
+                response = super().describe_task_definition(name)
+                if (fullchat.TASK_FAMILY in name) == (self.target == "diag"):
+                    container = response["taskDefinition"]["containerDefinitions"][0]
+                    values = container["secrets" if self.field == "DB_HOST" else "environment"]
+                    entry = next(item for item in values if item["name"] == self.field)
+                    entry["valueFrom" if self.field == "DB_HOST" else "value"] = ""
+                    container["dockerLabels"] = {"org.opencontainers.image.revision": self.sha}
+                return response
+
+        for field in ("DB_NAME", "GIT_SHA", "DB_HOST"):
+            for target in ("served", "diag"):
+                with self.subTest(field=field, target=target), self.assertRaises(fullchat.FullchatError):
+                    fullchat.capture_runtime(EmptyCritical(field, target), self.Git())
+
     def test_runtime_rejects_extra_containers_duplicate_names_and_plaintext_db_shadows(self) -> None:
         class Mutant(self.Aws):
             def __init__(self, mutation: Any) -> None:

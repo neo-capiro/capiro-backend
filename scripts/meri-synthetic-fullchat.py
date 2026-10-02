@@ -703,10 +703,12 @@ def source_commit(container: Mapping[str, Any]) -> str:
         if isinstance(value, str) and SHA_RE.fullmatch(value.lower()):
             candidates.add(value.lower())
     environment = unique_named_values(
-        container.get("environment"), "value", "container source environment"
+        container.get("environment"), "value", "container source environment", allow_empty_values=True
     )
     for name, raw_value in environment.items():
         if name in ("GIT_SHA", "RELEASE_SHA", "SOURCE_COMMIT"):
+            if not raw_value:
+                raise FullchatError("source identity environment values must be nonempty")
             value = raw_value.lower()
             if SHA_RE.fullmatch(value):
                 candidates.add(value)
@@ -719,6 +721,8 @@ def unique_named_values(
     values: Any,
     value_field: str,
     field: str,
+    *,
+    allow_empty_values: bool = False,
 ) -> dict[str, str]:
     if not isinstance(values, list):
         raise FullchatError(f"{field} must be a list")
@@ -732,7 +736,7 @@ def unique_named_values(
             not isinstance(name, str)
             or not name
             or not isinstance(value, str)
-            or not value
+            or (not value and not allow_empty_values)
             or name in result
         ):
             raise FullchatError(f"{field} names and values must be nonempty and unique")
@@ -874,10 +878,10 @@ def capture_runtime(aws: AwsCli, git: GitCli) -> dict[str, Any]:
     ):
         raise FullchatError("qualified one-off must reuse only the served API four-field DB credential mechanism")
     one_off_environment = unique_named_values(
-        container.get("environment"), "value", "qualified one-off environment"
+        container.get("environment"), "value", "qualified one-off environment", allow_empty_values=True
     )
     served_environment = unique_named_values(
-        service_containers[0].get("environment"), "value", "served API environment"
+        service_containers[0].get("environment"), "value", "served API environment", allow_empty_values=True
     )
     if (
         set(one_off_secrets) & set(one_off_environment)
