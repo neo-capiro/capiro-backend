@@ -1,4 +1,22 @@
-## Current checkpoint — 2026-10-02 11:09 UTC, deployed query cause verified
+## Current checkpoint — 2026-10-02 11:31 UTC, membership repair deployed
+
+**File01 remains incomplete; no original live row is complete.** PR1935/source975
+is healthy on API497 at2/2. Its image build, rollout and public release header
+are verified; current orchestrator95/sourcec22 and WebVNext388/source78ad remain
+healthy baseline images. [Actual rollout and failed UI attempt](../releases/2026-10-02/membership-live-checkpoint/README.md).
+
+Case17v5 reached the memory panel but stopped at UNIQUE_CARD; its session was
+revoked, with0 model turns and0 application writes. Proposal-loading readiness
+is being diagnosed. The separate first-approval continuation/source823 passes16
+PostgreSQL/CLI/packaging checks and26 offline/custom cases; source and fixed
+operator have independent Hermes/Kimi reviews. [Continuation qualification](../releases/2026-10-02/first-approval-continuation/qualification.md).
+Its new image and actual plan/execute remain pending. Both previous claims stay
+intact. Original01/17 prompts, full75/CD7/CW8, applicable memory/variants and human
+grading remain open. Defense Chat and historical migration/PITR remain excluded.
+
+Shared policy39590a3bfc57ce03b0411ff7912a7c8d99deb70c; map2026-09-30T00:21:48Z.
+
+## Historical checkpoint — 2026-10-02 11:09 UTC, deployed query cause verified
 
 **File01 remains incomplete; no original live row is complete.** Current healthy
 services remain API495 and orchestrator95/sourcec22, WebVNext388/source78ad.

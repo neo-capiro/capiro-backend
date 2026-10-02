@@ -1,0 +1,19 @@
+{
+  "verdict": "PASS",
+  "reviewer": "Codex root independent source comparison",
+  "observedAt": "2026-10-02T11:02:25.712343+00:00",
+  "delta": "TESTED_CODE pin ce66 to280 plus LF toCRLF in gate and test; no semantic difference beyond tested source pin. Exact earlier reviewed bytes reconstructed. Driver byte-identical.",
+  "verified": {
+    "case17-v5-gates.mjs": {
+      "currentSha256": "b4645fe573e553f90e6bc64f0cdacdbebcd563d821466753f0461345792920a8",
+      "reconstructedReviewedSha256": "dc72b4c3c2904a6e4c9dc067a95b6adcc1063d6f49085d78d012878754f4088f"
+    },
+    "case17-v5-gates.test.mjs": {
+      "currentSha256": "ee56103c5d53de24c74495ea227b0de040ecadaaff8c1d825e4b534623327b09",
+      "reconstructedReviewedSha256": "fbd1f0653f7d8981eaf8f18e69aa709910106afc2c0b8ea9401e25113b5065b0"
+    }
+  },
+  "priorRawHashAssertionFailure": "Raw reconstruction initially differed because subsequent writer changed LF toCRLF. Normalized reconstruction exactly matches both pinned original hashes and Kimi prompt.",
+  "liveRun": "NOT_RUN",
+  "seal": "NOT_SEALED"
+}
