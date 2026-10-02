@@ -1,0 +1,12 @@
+{
+  "command": [
+    "node",
+    "C:\\dev\\cap-meri-fixture-hardening\\packages\\meriv2-core\\node_modules\\jest\\bin\\jest.js",
+    "--config",
+    "C:\\dev\\cap-meri-fixture-hardening\\packages\\meriv2-core\\jest.config.cjs",
+    "--runInBand",
+    "src/assurance"
+  ],
+  "exitCode": 0,
+  "elapsedSeconds": 5.7
+}

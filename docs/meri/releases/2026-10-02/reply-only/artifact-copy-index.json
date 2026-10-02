@@ -1,0 +1,156 @@
+{
+  "sourceSha": "bae902c734eea220b4c6299423119e7bdaac2f6b",
+  "note": "Audit copies use repository LF line endings and trim Markdown trailing whitespace. Embedded historical hashes refer to original bytes; this index binds both. No credentials, auth state or raw model event streams are included.",
+  "files": [
+    {
+      "path": "reply-only-qualification.json",
+      "originalArtifactBytesSha256": "c22d197b7b28c53b91ddb7c662bb9a66414b5bd0866a0fc633e8131e0e4972cb",
+      "repositoryCopyBytesSha256": "96e8b217d7699f282271db3e78cfce082258c6a5e83cded9480f0245338ea1fa"
+    },
+    {
+      "path": "reply-only-handover.md",
+      "originalArtifactBytesSha256": "81edde1ef879597464fa7d683a885531dbbe4dab6c9785054658ee47ea921dea",
+      "repositoryCopyBytesSha256": "81edde1ef879597464fa7d683a885531dbbe4dab6c9785054658ee47ea921dea"
+    },
+    {
+      "path": "reply-only-kimi-inline-review.md",
+      "originalArtifactBytesSha256": "dbe7ac3dc25d802d885fc6ecb5e595a64387e4ac8fb0d9f6e0ce1b390605a514",
+      "repositoryCopyBytesSha256": "154cb79bf6864aa7a88a8a6c4515682624b0a7707acea0f9b9b99c63146bb9d8"
+    },
+    {
+      "path": "reply-only-kimi-inline-exit.json",
+      "originalArtifactBytesSha256": "b433e2fe6a4db592c99c0d2631179e7b55d41e5411bce09cebcc0511d41d6783",
+      "repositoryCopyBytesSha256": "b433e2fe6a4db592c99c0d2631179e7b55d41e5411bce09cebcc0511d41d6783"
+    },
+    {
+      "path": "reply-only-kimi-inline-usage.json",
+      "originalArtifactBytesSha256": "2b86bbdbf9f3df76c6f5392bb006c7b29eb1cfa220eeac9512e246ccfcafd68d",
+      "repositoryCopyBytesSha256": "d67731bb5d224d2e38d259adc7e24a0563cc44030bfe8d7bdd677826dfda1dfd"
+    },
+    {
+      "path": "qwen-attempt-verdict.json",
+      "originalArtifactBytesSha256": "6402af1cb572f797b63f0c86efb9790f3e50eadbc6fc048e330bec802b6c87e3",
+      "repositoryCopyBytesSha256": "838ac9458d9f30291be2b25e8696ab6c6de9c372c42d01e99d85f9c3bbade440"
+    },
+    {
+      "path": "core-assurance-tests-exit.json",
+      "originalArtifactBytesSha256": "0aa50239f515406392b0a8682f3ee7bbfdd689805add386b1bba30edf437cc5d",
+      "repositoryCopyBytesSha256": "841ea5cf8ddbc8f6ccca39a789cf6f501a275572ea0905d96f9d202920d72785"
+    },
+    {
+      "path": "core-assurance-tests.log",
+      "originalArtifactBytesSha256": "e52a470ff63cd9874bbebf78ce04f1ff7195d9fa1b1c2ca3d9e64916fc109ffe",
+      "repositoryCopyBytesSha256": "e52a470ff63cd9874bbebf78ce04f1ff7195d9fa1b1c2ca3d9e64916fc109ffe"
+    },
+    {
+      "path": "orchestrator-coverage-tests-exit.json",
+      "originalArtifactBytesSha256": "5404308f87171e385ef74f5daed5dea9ef428c8bd45b03659a6d2ea1e17cf4d5",
+      "repositoryCopyBytesSha256": "2ceaaf2ac29759a8555c671dd8878d92dadc57776f7c0792946fd1d7b7a4e4da"
+    },
+    {
+      "path": "orchestrator-coverage-tests.log",
+      "originalArtifactBytesSha256": "bab3c2db7ea06cd75014fae04eff1557dd9fb36cb116385c64b1280e15d87014",
+      "repositoryCopyBytesSha256": "bab3c2db7ea06cd75014fae04eff1557dd9fb36cb116385c64b1280e15d87014"
+    },
+    {
+      "path": "orchestrator-typecheck-exit.json",
+      "originalArtifactBytesSha256": "f9169d9344d0036c2baef0e648d790657ea76cc6f02122c370a8f9dcab76adbf",
+      "repositoryCopyBytesSha256": "972884a3ddd1057c6d3a244d1294af1039510adf9e2771c845f05bf82456df1a"
+    },
+    {
+      "path": "frozen-source-hashes.json",
+      "originalArtifactBytesSha256": "638a95c36b7f640ff9ed09c8dfa9a557fcdde4fe8da28ee5d85ec87198979044",
+      "repositoryCopyBytesSha256": "cda4da8e114f1203b93f4aee2a5b9ff60cbfebff0d8a4764f9e036ed4428c83d"
+    },
+    {
+      "path": "offline/exits.json",
+      "originalArtifactBytesSha256": "264006914b903fe486f5ef9727387719cecb6583c2482c752052c44051d56db9",
+      "repositoryCopyBytesSha256": "6bbed446b41aa7a86db5e0d79070229a3d70a00973209f8c55693c485fbb8ef4"
+    },
+    {
+      "path": "offline/independent-verification.json",
+      "originalArtifactBytesSha256": "30813ef354cc73f906f9e755585d495dd501808273e93be4765c262a485acd6c",
+      "repositoryCopyBytesSha256": "c59a8d5203ee175dabadca393a7585f35c9e9ff4716747a7a356c8d2ba8628c2"
+    },
+    {
+      "path": "offline/meri-offline.json",
+      "originalArtifactBytesSha256": "c62e39700aa9899fca915a72098ea368faade1cd119f56ca80474be372bc5033",
+      "repositoryCopyBytesSha256": "c62e39700aa9899fca915a72098ea368faade1cd119f56ca80474be372bc5033"
+    },
+    {
+      "path": "offline/meri-offline.summary.json",
+      "originalArtifactBytesSha256": "f5d42952681035f2248e0b27a33940a704a6c1d126e3565ac3d0cb9fe13981d1",
+      "repositoryCopyBytesSha256": "1fc406eb36e5649463ba5458820d7804324d1445eb0d41d12771868bacb8b706"
+    },
+    {
+      "path": "meriv2-orchestrator.buildspec.yml",
+      "originalArtifactBytesSha256": "dd3aaac45be1eada1a2451add262b6407313d699b390deb0c0707455c370af90",
+      "repositoryCopyBytesSha256": "dd3aaac45be1eada1a2451add262b6407313d699b390deb0c0707455c370af90"
+    },
+    {
+      "path": "codebuild-start.json",
+      "originalArtifactBytesSha256": "1276abb4373c6bc3d8c3d6a2a710b886df76000ad8337a88601fa3bc97edbbac",
+      "repositoryCopyBytesSha256": "1276abb4373c6bc3d8c3d6a2a710b886df76000ad8337a88601fa3bc97edbbac"
+    },
+    {
+      "path": "orchestrator-repair-independent-20261002T043923Z.json",
+      "originalArtifactBytesSha256": "e71d902576ee298a2ffaec335e943ba88024f8faf0af505507698f82757e263f",
+      "repositoryCopyBytesSha256": "32e161f81bd413d575d66913ace6509808b998cf4d631249a561a5a7fbe4ddc8"
+    },
+    {
+      "path": "observe-orchestrator-repair-readonly.py",
+      "originalArtifactBytesSha256": "3a162ab1718fe77e2b314fda72370a2b26a97238d4389bacbc874edad262663c",
+      "repositoryCopyBytesSha256": "3a162ab1718fe77e2b314fda72370a2b26a97238d4389bacbc874edad262663c"
+    },
+    {
+      "path": "synthetic-meri-ui-v7-smoke.cjs",
+      "originalArtifactBytesSha256": "2c3f931a11a696261166c219f73738043c4bfc355b4ea54114536473ffbe45e3",
+      "repositoryCopyBytesSha256": "2c3f931a11a696261166c219f73738043c4bfc355b4ea54114536473ffbe45e3"
+    },
+    {
+      "path": "run-synthetic-ui-v7-smoke.py",
+      "originalArtifactBytesSha256": "d9f1092710d749e44bf97fc25ad0022439cce51b524a346b7520d278d5ae0d4c",
+      "repositoryCopyBytesSha256": "d9f1092710d749e44bf97fc25ad0022439cce51b524a346b7520d278d5ae0d4c"
+    },
+    {
+      "path": "synthetic-meri-ui-v7-peer-review.json",
+      "originalArtifactBytesSha256": "76fb848a8c964fdd07a27910e19a44ea64168cac4762bff0931ae08d70318623",
+      "repositoryCopyBytesSha256": "202bdb4072775ecfd2f04b3786212a6f32a6be67618e303c052e606f9758f276"
+    },
+    {
+      "path": "read-release-for-smoke.mjs",
+      "originalArtifactBytesSha256": "384ad1fabdf0743e1b84658503f7518b96be667e2f93f86ff6b7b9aba43ac368",
+      "repositoryCopyBytesSha256": "384ad1fabdf0743e1b84658503f7518b96be667e2f93f86ff6b7b9aba43ac368"
+    },
+    {
+      "path": "read-release-for-smoke-independent-review.json",
+      "originalArtifactBytesSha256": "1f036e0cb3a315ddc9b81b11a4801afe7274e747edb1b69dda41f3e706d493d5",
+      "repositoryCopyBytesSha256": "575cb3d980e800c38c30f861b7522f51f4d0a59e1b8190becc7fb5ef589cc14b"
+    },
+    {
+      "path": "original-eval/original-eval-status.md",
+      "originalArtifactBytesSha256": "2a2cab27fc824ee823b1b440b0a1fcaed62bcbbe5ddbd04ee8bb06e07d15804d",
+      "repositoryCopyBytesSha256": "9a517bae2ef048f14ba53201bd4819d6b0c55119499a3d5b5388193f026787fe"
+    },
+    {
+      "path": "original-eval/original-live-readiness-907103583.md",
+      "originalArtifactBytesSha256": "0ea42da335402397cbda9ee8ca20073771e2dfe152e030525e5939395dbf053f",
+      "repositoryCopyBytesSha256": "0ea42da335402397cbda9ee8ca20073771e2dfe152e030525e5939395dbf053f"
+    },
+    {
+      "path": "original-eval/original-acceptance-inventory.json",
+      "originalArtifactBytesSha256": "9b893976b92fc3aa65fa7ca5ea30b57a6625318a8827b823e6d0804a8fab3d8a",
+      "repositoryCopyBytesSha256": "5e212b2bc0b815de83d04e55ac28b816b09fab868b37098286408f69f1e78a0e"
+    },
+    {
+      "path": "original-eval/independent-verification.json",
+      "originalArtifactBytesSha256": "daa65a8859aea6c6193b24c48dcaffd213cc9f7e06e43143e98d333191264774",
+      "repositoryCopyBytesSha256": "23f413d0b2da4a603fbe0a934a003bd343ce2df46d690782c5b40ff65e297fcf"
+    },
+    {
+      "path": "original-eval/live-contract-report.json",
+      "originalArtifactBytesSha256": "c93e0d3bc50c90f00182391637af879a2503810c07cb4539dcc01689b967eb7b",
+      "repositoryCopyBytesSha256": "c93e0d3bc50c90f00182391637af879a2503810c07cb4539dcc01689b967eb7b"
+    }
+  ]
+}

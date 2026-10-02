@@ -1,0 +1,21 @@
+{
+  "verdict": "PASS",
+  "checkedAtEpoch": 1790915325.3678234,
+  "sourceSha": "bae902c734eea220b4c6299423119e7bdaac2f6b",
+  "sourceTree": "99d6ec6e4a9c7996fefc7acabedb70a3cc8a210d",
+  "sharedBuildExit": 0,
+  "coreBuildExit": 0,
+  "promptfooExit": 0,
+  "verifierExit": 0,
+  "caseCount": 26,
+  "passCount": 26,
+  "failCount": 0,
+  "errorCount": 0,
+  "providerModelTokens": 0,
+  "allCommandLogHashesVerified": true,
+  "reportSha256": "c62e39700aa9899fca915a72098ea368faade1cd119f56ca80474be372bc5033",
+  "sourceAndWorktreeUnchanged": true,
+  "fullOriginalLiveAcceptance": "NOT_RUN",
+  "prior53Python40runtime186harnessSource": "9071035830bb557cad917df4022daa605bb2b99e",
+  "priorBroadTestsRepeated": false
+}

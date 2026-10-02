@@ -1,0 +1,1 @@
+{     "id": "capiro-build-web-dev:98fcfd2b-fc5e-4ca0-962c-32b9af96933f",     "arn": "arn:aws:codebuild:us-east-1:967807252336:build/capiro-build-web-dev:98fcfd2b-fc5e-4ca0-962c-32b9af96933f",     "buildStatus": "IN_PROGRESS",     "sourceVersion": "bae902c734eea220b4c6299423119e7bdaac2f6b",     "startTime": "2026-10-02T04:31:56.434000+00:00" }

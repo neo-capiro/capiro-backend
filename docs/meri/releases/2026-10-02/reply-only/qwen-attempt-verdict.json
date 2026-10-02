@@ -1,0 +1,13 @@
+{
+  "verdict": "INVALID_INCOMPLETE",
+  "exitCode": 1,
+  "sessionId": "20261002_041334_84754c",
+  "model": "qwen.qwen3-coder-next",
+  "provider": "bedrock",
+  "reasons": [
+    "Turn budget reached before verification",
+    "Patch lost regex escapes and introduced unreachable guard",
+    "Mixed all-awards test had incorrect expected result"
+  ],
+  "fallback": "Existing explicit user authorization for direct Codex repair after Hermes failure; independent review still required"
+}

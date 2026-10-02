@@ -1,0 +1,8 @@
+PASS apps/meriv2-orchestrator/src/meri/retrieval/meri-evidence-requirements.spec.ts (13.892 s)
+PASS apps/meriv2-orchestrator/src/meri/retrieval/meri-evidence-formatting.spec.ts
+
+Test Suites: 2 passed, 2 total
+Tests:       34 passed, 34 total
+Snapshots:   0 total
+Time:        14.548 s
+Ran all test suites within paths "C:\dev\cap-meri-fixture-hardening\apps\meriv2-orchestrator\src\meri\retrieval\meri-evidence-formatting.spec.ts", "C:\dev\cap-meri-fixture-hardening\apps\meriv2-orchestrator\src\meri\retrieval\meri-evidence-requirements.spec.ts".

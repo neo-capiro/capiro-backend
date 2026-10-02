@@ -1,0 +1,13 @@
+# 26 offline / 75 live baseline
+
+The offline preflight passed on source `9071035830bb557cad917df4022daa605bb2b99e`. This precedes the current reply-only disclaimer repair. It does not qualify that repair or count as live product acceptance.
+
+Actual Hermes Bedrock Qwen worker PID7892, session `20261002_041532_fa2926`, and the fixed runner both exited0. Shared/core builds passed. Python53/53, runtime40/40 and the non-PostgreSQL live-contract harness186/186 passed. Pinned Promptfoo0.123.1 passed26/26; the custom report verifier exited0 with26 exact IDs, no failures/errors and zero model tokens. Every command/log hash was independently checked. See `offline-exits.json`, `meri-offline.summary.json` and `independent-verification.json`.
+
+The frozen75-case manifest validated. Generated `live-contract-report.json` correctly reports75 NOT_RUN, zero PASS/FAIL/BLOCKED and no score. No live application/model/database calls or fixture provisioning were executed by this phase. Explicit PostgreSQL tests were excluded. The source worktree remains clean; no app commits or pushes were made.
+
+`original-acceptance-inventory.json` preserves all75 original prompts/setup/assertions, sevenCD contracts, CW01–12 with requiredCW01–08 marked, and20M contracts with applicability. The Foundation file is byte-identical to the original Downloads attachment. The full run additionally requires Standard/Deep cases01,20,22,42,49,51,59,74; JEV56–58 enabled/shadow; three repeats of critical/variable cases; authenticated in-Meri approvals, source/download bytes, disposable write effects and five-dimension human rubric (at least8/10, no zero dimension). M12–15 are conditional/later unless their editing boundary changes; preserve all other affected M requirements.
+
+Current source blockers are concrete: `capture-transport.mjs` supports only01/20 and refuses LIVE_CAPTURE before HTTP; its origin is still `app.capiro.ai`, inconsistent with the qualified current `os.capiro.ai` deployment. Caller overrides cannot remove the authority guard. Only15 original row predicates are qualified in source, six document rows lack source/parser/current-version qualification, and54 other row predicates are missing. Live artifact publication also remains guarded. Full fixture/source ownership, controlled faults and sinks, authenticated capture, source/effect receipts and recorded-output adjudication must be integrated before original live passes can be claimed. The existing smoke and unit response fixtures do not satisfy these requirements.
+
+Policy `39590a3bfc57ce03b0411ff7912a7c8d99deb70c`, machine map September30, were verified fresh. No provider/config changes. Full File01 acceptance remains incomplete.

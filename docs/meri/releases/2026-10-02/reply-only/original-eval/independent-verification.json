@@ -1,0 +1,22 @@
+{
+  "independentReadback": "PASS",
+  "sourceSha": "9071035830bb557cad917df4022daa605bb2b99e",
+  "policySha": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "checkedAtEpoch": 1790914778.9425719,
+  "actualHermesExit": 0,
+  "actualRunnerExit": 0,
+  "counts": {
+    "pythonTests": 53,
+    "runtimeTests": 40,
+    "liveContractHarnessTests": 186,
+    "offlineCasesPassed": 26,
+    "liveCasesNotRun": 75,
+    "CDNotRun": 7,
+    "requiredCWNotRun": 8,
+    "MContractsPreserved": 20
+  },
+  "reportSha256": "623f182689697b5b465cf3082703062fcd2671659ef2ed9c1e9d6f1e542f460d",
+  "allCommandLogHashesVerified": true,
+  "worktreeClean": true,
+  "fullFile01Acceptance": "NOT_COMPLETE"
+}

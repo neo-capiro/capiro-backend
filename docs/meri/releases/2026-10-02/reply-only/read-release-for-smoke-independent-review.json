@@ -1,0 +1,23 @@
+{
+  "schema": "meri-repair-release-smoke-readback-review-v1",
+  "verdict": "PASS_STATIC_REVIEW",
+  "reviewedAt": "2026-10-02T04:35:30.358742+00:00",
+  "helperSha256": "384ad1fabdf0743e1b84658503f7518b96be667e2f93f86ff6b7b9aba43ac368",
+  "uiScriptSha256": "2c3f931a11a696261166c219f73738043c4bfc355b4ea54114536473ffbe45e3",
+  "syntaxExitCode": 0,
+  "reviewedBindings": [
+    "Exact source bae902c734eea220b4c6299423119e7bdaac2f6b plus existing full qualification validation",
+    "Fixed previously shipped API83304 digest/task486 and Web940fe digest/task386; exact new orchestrator digest from qualification",
+    "Actual source-owned releaseOperator.snapshot verifies stable service/task identity and exact running image digests plus actual task IP/port ALB health",
+    "Live GIT_SHA and RELEASE_SHA equal expected image source; ECR source tag equals running digest",
+    "Promotion receipt binds exact new orchestrator candidate TD/image/primary deployment",
+    "Fresh exact synthetic cohort inclusion; historical successful two-distinct-approved-tenant flag readback explicitly freshDbQuery=false",
+    "Read-only AWS operation allowlist and exact hermes-cli caller/account; raw task/env state stays in memory",
+    "Exclusive proof output; v7 exact script hash, recent proof and two-turn scope guards remain intact"
+  ],
+  "resolvedFindings": [
+    "Pinned new runtime source independently of later documentation/main commit SHA",
+    "Historical flag receipt now requires exact sorted two-tenant set; duplicate approved slug cannot qualify"
+  ],
+  "scope": "Source review plus node syntax only. No helper execution, auth, browser or cloud mutation. Actual build/readback qualification is separate."
+}

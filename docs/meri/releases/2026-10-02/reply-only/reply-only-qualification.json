@@ -1,0 +1,146 @@
+{
+  "schema": "meri-reply-only-source-qualification-v1",
+  "recordedAt": "2026-10-02T04:29:08.453962+00:00",
+  "verdict": "PASS_LOCAL_SOURCE_QUALIFICATION",
+  "commit": "bae902c734eea220b4c6299423119e7bdaac2f6b",
+  "base": "9071035830bb557cad917df4022daa605bb2b99e",
+  "branch": "codex/meri-reply-only-coverage-20261002",
+  "worktreeClean": true,
+  "sourceHashes": {
+    "packages/meriv2-core/src/assurance/evidence-plan.ts": "50c777887b871ddc676d671972ca25e025c62d955ede2bef8c0de53660507f1e",
+    "packages/meriv2-core/src/assurance/evidence-plan.spec.ts": "bae8b4a12694054835a9e36802f46a6f8d94d587a5505af1c6d06f3641237f8f",
+    "apps/meriv2-orchestrator/src/meri/retrieval/meri-evidence-formatting.spec.ts": "05b9cd990f5e8767a27c672d2701e46dc8455a31409d7f435b98d4fc7c548b49"
+  },
+  "changes": "Only the only token in recognizable response-format directives is excluded from negative/exhaustive classification. Literal payload, other quantifiers, other categories and unrecognized wording are preserved. Disclosure policy unchanged.",
+  "testCounts": {
+    "coreAssuranceSuites": 12,
+    "coreAssuranceTests": 271,
+    "newCoreCases": 39,
+    "orchestratorCoverageSuites": 2,
+    "orchestratorCoverageTests": 34,
+    "newCallerCases": 4
+  },
+  "checks": {
+    "core-assurance-tests": {
+      "command": [
+        "node",
+        "C:\\dev\\cap-meri-fixture-hardening\\packages\\meriv2-core\\node_modules\\jest\\bin\\jest.js",
+        "--config",
+        "C:\\dev\\cap-meri-fixture-hardening\\packages\\meriv2-core\\jest.config.cjs",
+        "--runInBand",
+        "src/assurance"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 5.7,
+      "logSha256": "e52a470ff63cd9874bbebf78ce04f1ff7195d9fa1b1c2ca3d9e64916fc109ffe"
+    },
+    "shared-build": {
+      "command": [
+        "node",
+        "C:\\dev\\cap-meri-fixture-hardening\\packages\\meriv2-core\\node_modules\\typescript\\bin\\tsc",
+        "-p",
+        "C:\\dev\\cap-meri-fixture-hardening\\packages\\shared\\tsconfig.json"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 1.51,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "core-build": {
+      "command": [
+        "node",
+        "C:\\dev\\cap-meri-fixture-hardening\\packages\\meriv2-core\\node_modules\\typescript\\bin\\tsc",
+        "-p",
+        "C:\\dev\\cap-meri-fixture-hardening\\packages\\meriv2-core\\tsconfig.json"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 3.35,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "orchestrator-coverage-tests": {
+      "command": [
+        "node",
+        "C:\\dev\\cap-meri-fixture-hardening\\apps\\meriv2-orchestrator\\node_modules\\jest\\bin\\jest.js",
+        "--config",
+        "C:\\dev\\cap-meri-fixture-hardening\\apps\\meriv2-orchestrator\\jest.config.cjs",
+        "--runInBand",
+        "--runTestsByPath",
+        "C:\\dev\\cap-meri-fixture-hardening\\apps\\meriv2-orchestrator\\src\\meri\\retrieval\\meri-evidence-formatting.spec.ts",
+        "C:\\dev\\cap-meri-fixture-hardening\\apps\\meriv2-orchestrator\\src\\meri\\retrieval\\meri-evidence-requirements.spec.ts"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 15.55,
+      "logSha256": "bab3c2db7ea06cd75014fae04eff1557dd9fb36cb116385c64b1280e15d87014"
+    },
+    "orchestrator-typecheck": {
+      "command": [
+        "node",
+        "C:\\dev\\cap-meri-fixture-hardening\\apps\\meriv2-orchestrator\\node_modules\\typescript\\bin\\tsc",
+        "--noEmit",
+        "--incremental",
+        "false",
+        "-p",
+        "C:\\dev\\cap-meri-fixture-hardening\\apps\\meriv2-orchestrator\\tsconfig.json"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 10.56,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "format-check": {
+      "command": [
+        "node",
+        "C:\\dev\\cap-meri-fixture-hardening\\node_modules\\prettier\\bin\\prettier.cjs",
+        "--check",
+        "C:\\dev\\cap-meri-fixture-hardening\\packages\\meriv2-core\\src\\assurance\\evidence-plan.ts",
+        "C:\\dev\\cap-meri-fixture-hardening\\packages\\meriv2-core\\src\\assurance\\evidence-plan.spec.ts",
+        "C:\\dev\\cap-meri-fixture-hardening\\apps\\meriv2-orchestrator\\src\\meri\\retrieval\\meri-evidence-formatting.spec.ts"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 0.34,
+      "logSha256": "17aa973d3f004560237d9a95171210b0671deff23d61628eecf7322ff5938f20"
+    }
+  },
+  "hermesImplementation": {
+    "verdict": "INVALID_INCOMPLETE",
+    "sessionId": "20261002_041334_84754c",
+    "initializedModel": "qwen.qwen3-coder-next",
+    "provider": "bedrock",
+    "exitCode": 1,
+    "artifact": "qwen-attempt-verdict.json",
+    "repairProvenance": "Codex direct repair under explicit pre-existing user exception after actual Hermes failure"
+  },
+  "independentReview": {
+    "verdict": "PASS",
+    "reviewReport": "reply-only-kimi-inline-review.md",
+    "reportSha256": "dbe7ac3dc25d802d885fc6ecb5e595a64387e4ac8fb0d9f6e0ce1b390605a514",
+    "exit": {
+      "exitCode": 0,
+      "started": 1790915170.1824203,
+      "finished": 1790915184.7327752,
+      "elapsedSeconds": 14.55
+    },
+    "usage": {
+      "requestedModel": "moonshotai.kimi-k2.5",
+      "initializedModel": "moonshotai.kimi-k2.5",
+      "sessionId": "20261002_042613_ca9e61",
+      "provider": "bedrock",
+      "reportedTokens": {
+        "input": 15395,
+        "output": 364,
+        "total": 15759,
+        "cache_read": 0,
+        "cache_write": 0
+      },
+      "reportedResultExit": 0,
+      "toolCalls": 0,
+      "billedCostUsd": null,
+      "costStatus": "not exposed by quiet stream output"
+    },
+    "provenance": "Kimi reviewed exact inline files and caller functions. Launcher/this receipt verified hashes and actual logs; reviewer did not execute tests or calculate hashes. Earlier tool-enabled review exhausted12turnbudget with exit1, preserved separately."
+  },
+  "limitations": [
+    "Bounded lexical format patterns; unknown formatting requests may retain conservative false-positive coverage requirements.",
+    "Promptfoo/custom deterministic evaluation delegated to root/AB, not claimed by this receipt.",
+    "Live deployment and live browser validation NOT RUN by this lane; no merge/push/AWS writes.",
+    "Full original File01 acceptance is not implied."
+  ]
+}

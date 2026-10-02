@@ -1,0 +1,22 @@
+{
+  "verdict": "PASS_STATIC_REVIEW",
+  "reviewedAt": "2026-10-02T04:29:39.772010+00:00",
+  "scriptSha256": "2c3f931a11a696261166c219f73738043c4bfc355b4ea54114536473ffbe45e3",
+  "scope": "Read-only peer source review against prior v4 script; no browser/auth/readiness execution",
+  "observations": [
+    "Current root proof binds three service source/digest/task-definition/primary deployment/healthy fields, expires within900seconds and matches exact approved two tenant slugs.",
+    "Root gate self-binds exact reviewed script hash; repaired orchestrator source and loaded Web940fe source are checked.",
+    "Application mutations narrowed to exact https://os.capiro.ai origin; Clerk auth exact https://clerk.app.capiro.ai origin.",
+    "Two fixed ordinary synthetic actors; one new conversation and one new turn each; exclusive retained execution lock; counter increments before writes.",
+    "Strict persisted reply equality, visible expected reply, stream completion and no tools/errors assertions preserved.",
+    "New sessions revoked in finally, including browser close failure; private values/raw content not persisted.",
+    "Flags explicitly represented as last authoritative apply evidence, not a fresh database read. Current cohort readback and live identity/composer checks remain required.",
+    "--check-readiness returns before private manifest, secret loading, Clerk/browser/session or lock creation."
+  ],
+  "liveReadiness": "NOT RUN; root must supply actual fresh authoritative readback and signal execution.",
+  "priorSyntaxCheck": {
+    "sha256": "d7c3267093fdefd594ad1d1f99f786421709f2f25095e021116295cf2baa1d3f",
+    "exitCode": 0
+  },
+  "finalSyntaxCheck": "Reported exit0 by script-owning AB lane; this reviewer inspected final source/hash only."
+}

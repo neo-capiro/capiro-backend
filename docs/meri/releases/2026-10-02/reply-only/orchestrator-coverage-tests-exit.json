@@ -1,0 +1,14 @@
+{
+  "command": [
+    "node",
+    "C:\\dev\\cap-meri-fixture-hardening\\apps\\meriv2-orchestrator\\node_modules\\jest\\bin\\jest.js",
+    "--config",
+    "C:\\dev\\cap-meri-fixture-hardening\\apps\\meriv2-orchestrator\\jest.config.cjs",
+    "--runInBand",
+    "--runTestsByPath",
+    "C:\\dev\\cap-meri-fixture-hardening\\apps\\meriv2-orchestrator\\src\\meri\\retrieval\\meri-evidence-formatting.spec.ts",
+    "C:\\dev\\cap-meri-fixture-hardening\\apps\\meriv2-orchestrator\\src\\meri\\retrieval\\meri-evidence-requirements.spec.ts"
+  ],
+  "exitCode": 0,
+  "elapsedSeconds": 15.55
+}

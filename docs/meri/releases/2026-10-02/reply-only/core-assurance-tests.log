@@ -1,0 +1,18 @@
+PASS packages/meriv2-core/src/assurance/evidence-plan.spec.ts
+PASS packages/meriv2-core/src/assurance/assurance.spec.ts
+PASS packages/meriv2-core/src/assurance/tool-ledger-adapter.spec.ts
+PASS packages/meriv2-core/src/assurance/assurance-persistence.spec.ts
+PASS packages/meriv2-core/src/assurance/freshness-exact.spec.ts
+PASS packages/meriv2-core/src/assurance/envelope.spec.ts
+PASS packages/meriv2-core/src/assurance/eval-gate-wiring.spec.ts
+PASS packages/meriv2-core/src/assurance/control-metrics.spec.ts
+PASS packages/meriv2-core/src/assurance/rollout.spec.ts
+PASS packages/meriv2-core/src/assurance/release-switch.spec.ts
+PASS packages/meriv2-core/src/assurance/evidence-profile-control.spec.ts
+PASS packages/meriv2-core/src/assurance/request-scope.spec.ts
+
+Test Suites: 12 passed, 12 total
+Tests:       271 passed, 271 total
+Snapshots:   0 total
+Time:        4.946 s
+Ran all test suites matching /src\\assurance/i.

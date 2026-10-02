@@ -1,0 +1,5 @@
+{
+  "packages/meriv2-core/src/assurance/evidence-plan.ts": "50c777887b871ddc676d671972ca25e025c62d955ede2bef8c0de53660507f1e",
+  "packages/meriv2-core/src/assurance/evidence-plan.spec.ts": "bae8b4a12694054835a9e36802f46a6f8d94d587a5505af1c6d06f3641237f8f",
+  "apps/meriv2-orchestrator/src/meri/retrieval/meri-evidence-formatting.spec.ts": "05b9cd990f5e8767a27c672d2701e46dc8455a31409d7f435b98d4fc7c548b49"
+}

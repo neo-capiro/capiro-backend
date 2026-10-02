@@ -1,0 +1,100 @@
+{
+  "schema": "meri-reply-only-independent-codebuild-v1",
+  "observedAt": "2026-10-02T04:39:23.826851+00:00",
+  "verdict": "PASS",
+  "sourceSha": "bae902c734eea220b4c6299423119e7bdaac2f6b",
+  "buildId": "capiro-build-web-dev:98fcfd2b-fc5e-4ca0-962c-32b9af96933f",
+  "externalWrites": 0,
+  "scope": "Read-only exact-source build, executed offline tests, packaged runtime and ECR qualification; deployment/live acceptance excluded.",
+  "buildStatus": "SUCCEEDED",
+  "currentPhase": "COMPLETED",
+  "actualBuildspecSha256": "dd3aaac45be1eada1a2451add262b6407313d699b390deb0c0707455c370af90",
+  "resolvedSourceSha": "bae902c734eea220b4c6299423119e7bdaac2f6b",
+  "environmentType": "ARM_CONTAINER",
+  "environmentImage": "aws/codebuild/amazonlinux2-aarch64-standard:3.0",
+  "phases": [
+    {
+      "phase": "SUBMITTED",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "QUEUED",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "PROVISIONING",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "DOWNLOAD_SOURCE",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "INSTALL",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "PRE_BUILD",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "BUILD",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "POST_BUILD",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "UPLOAD_ARTIFACTS",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "FINALIZING",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "COMPLETED",
+      "status": null
+    }
+  ],
+  "actualTestCounts": {
+    "numTotalTests": 1407,
+    "numPassedTests": 1405,
+    "numFailedTests": 0,
+    "numPendingTests": 2,
+    "numTotalTestSuites": 125,
+    "numPassedTestSuites": 125,
+    "numFailedTestSuites": 0,
+    "numPendingTestSuites": 0
+  },
+  "executedMarkers": [
+    {
+      "timestamp": 1790915874300,
+      "line": "OFFLINE_PACKAGED_ENTRYPOINT_HEALTH_AUTH_PASS"
+    },
+    {
+      "timestamp": 1790915952329,
+      "line": "LOCAL_REPODIGEST_ECR_MATCH_PASS"
+    },
+    {
+      "timestamp": 1790915952329,
+      "line": "CANDIDATE_ORCHESTRATOR_SOURCE_SHA=bae902c734eea220b4c6299423119e7bdaac2f6b"
+    },
+    {
+      "timestamp": 1790915952329,
+      "line": "CANDIDATE_ORCHESTRATOR_IMAGE=967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:94f49d77dd2770b4da93a1f1d8f7b112e7f4533c2c860be5eb42f1bbdddb095b"
+    }
+  ],
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:94f49d77dd2770b4da93a1f1d8f7b112e7f4533c2c860be5eb42f1bbdddb095b",
+  "imageDigest": "sha256:94f49d77dd2770b4da93a1f1d8f7b112e7f4533c2c860be5eb42f1bbdddb095b",
+  "ociRevisionSourceSha": "bae902c734eea220b4c6299423119e7bdaac2f6b",
+  "labelProof": "SUCCEEDED exact reviewed buildspec asserts built OCI revision label equals exact source, ARM64 architecture and packaged Node v20.16.0 before publish.",
+  "liveAcceptance": "NOT_RUN; skipped live tests remain skipped",
+  "expectedCountComparison": {
+    "expectedPassed": 1405,
+    "expectedPending": 2,
+    "expectedSuites": 125,
+    "matchesExpected": true
+  }
+}
