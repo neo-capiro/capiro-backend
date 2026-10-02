@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "observedAtUtc": "2026-10-02T03:56:59.9530986Z",
+  "verdict": "PASS",
+  "scope": "Independent assertions of provider recovery and successful displayed/persisted expected phrase; not a full smoke PASS",
+  "verificationExitCode": 0,
+  "authorization": "User: Try again",
+  "providerRecovery": "PASS",
+  "exactOutputSmoke": "BLOCKED",
+  "reason": "Both replies include the expected phrase plus an Evidence limitation disclaimer. Strict equality assertions remain failed and unchanged.",
+  "newTurnsThisRetry": 2,
+  "cumulativeTurns": 4,
+  "remainingNewTurns": 0,
+  "checks": [
+    {
+      "attempt": "v4",
+      "tenant": "meri-foundation-20260928-t1",
+      "actualNodeExit": 1,
+      "replyDisplayed": true,
+      "replyPersisted": true,
+      "streamComplete": true,
+      "newTurns": 1,
+      "newConversations": 1,
+      "toolCalls": 0,
+      "streamErrors": 0,
+      "sessionRevoked": true,
+      "exactReplyEqual": false,
+      "resultFile": "synthetic-meri-ui-v4-smoke-result.json",
+      "originalResultSha256": "c7ff7aa415121a5c848228dbd5cbdbbcbdcd77da33d854e87fb5ffb8303a3dbd"
+    },
+    {
+      "attempt": "v5",
+      "tenant": "meri-foundation-20260928-t2",
+      "actualNodeExit": 1,
+      "replyDisplayed": true,
+      "replyPersisted": true,
+      "streamComplete": true,
+      "newTurns": 1,
+      "newConversations": 1,
+      "toolCalls": 0,
+      "streamErrors": 0,
+      "sessionRevoked": true,
+      "exactReplyEqual": false,
+      "resultFile": "synthetic-meri-ui-v5-smoke-result.json",
+      "originalResultSha256": "7d45074090d330c20b29ae3d27f311be4cda430ce61145583e251df3ba8215b9"
+    }
+  ],
+  "readonlyInspection": {
+    "newConversations": 0,
+    "sessionRevoked": true,
+    "newTurns": 0,
+    "knownReplyHashVerified": true
+  },
+  "newKnownSessionsRevokedThisRetry": 3,
+  "providerRuntimeReceipt": "synthetic-retry-provider-runtime-readback.json",
+  "fullFile01Acceptance": "NOT RUN",
+  "productOrProviderChanges": 0,
+  "policySha": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "machineMapDate": "2026-09-30"
+}

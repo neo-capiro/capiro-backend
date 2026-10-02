@@ -1,0 +1,12 @@
+{
+  "command": [
+    "node",
+    "C:\\dev\\cap-meri-foundation-evidence\\oct02-release-path\\synthetic-meri-ui-v4-smoke.cjs",
+    "--readiness",
+    "C:\\dev\\cap-meri-foundation-evidence\\oct02-release-path\\synthetic-meri-ui-v4-ready.json",
+    "--retry-two-synthetic-turns"
+  ],
+  "exitCode": 1,
+  "startedAtEpoch": 1790912756.549523,
+  "completedAtEpoch": 1790912769.1581912
+}

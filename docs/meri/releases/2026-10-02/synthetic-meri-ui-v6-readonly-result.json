@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "sourceSha": "7101b18cec99a193555f91305b65bdd1c465cf77",
+  "scriptSha256": "837f25ebb7d5c8303ef9bc1d3f6d0d1090f36219c582d8541f069ed617830715",
+  "startedAt": "2026-10-02T03:54:55.249Z",
+  "verdict": "BLOCKED",
+  "tenants": [
+    {
+      "tenant": "meri-foundation-20260928-t2",
+      "identityVerified": true,
+      "loadedWebReleaseSha": "940fe9354f95630c6acb0f20f75ced26ea9e75f4",
+      "webSurface": "vnext",
+      "composerVisible": true,
+      "conversationCreateRequests": 0,
+      "conversationsCreated": 0,
+      "turnsSent": 0,
+      "blockedMutationCount": 0,
+      "blockedEndpoints": [],
+      "authAttempt": {
+        "status": "complete",
+        "hasSession": true,
+        "missingFields": []
+      },
+      "streamStatus": null,
+      "doneReceived": false,
+      "toolCalls": 0,
+      "streamErrors": 0,
+      "expectedReplyVisible": true,
+      "sessionRevoked": true,
+      "verdict": "PERSISTED_REPLY_MISMATCH",
+      "savedAssistant": {
+        "userPromptMatches": true,
+        "assistantTextLength": 260,
+        "assistantTextSha256": "bb86fc4afca291f1607da7f33833acf49f49bbf0578e2f0ee31f5db539d4c155",
+        "assistantExpectedEqual": false,
+        "assistantExpectedSubstring": true
+      },
+      "conversationIdentitySha256": "0bfd2af476970183cb41cb2eb8f639c1ac31315f95b9ddc0d7aedcbd33cebf90"
+    }
+  ],
+  "priorTurnsSent": 4,
+  "maximumNewTurns": 0,
+  "fullFile01Acceptance": false,
+  "failureCode": "T1_READBACK_ASSERTION_FAILED",
+  "completedAt": "2026-10-02T03:54:59.088Z"
+}

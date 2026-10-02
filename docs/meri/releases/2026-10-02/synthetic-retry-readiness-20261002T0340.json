@@ -1,0 +1,176 @@
+{
+  "schemaVersion": 1,
+  "verdict": "PASS",
+  "startedAtUtc": "2026-10-02T03:42:00.491096+00:00",
+  "observedAtUtc": "2026-10-02T03:42:01.810881+00:00",
+  "policySha": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "machineMapDate": "2026-09-30",
+  "operatorHead": "7101b18cec99a193555f91305b65bdd1c465cf77",
+  "adapterSha256": "02098e0d9209f7313a66c4e73eb0689332af2edd7ba2a2ecf6e6daa58b0671f6",
+  "baselinePlanHash": "8c7c1d033a1b90a9c3c5a45775d683d9a7b88da89746536a1ca42972859cd6fe",
+  "completedCanaryReceiptHash": "d44c2e4a4179f802d92ee7fc45fdec87974aa22f764610f0d9a6b1c9a769bc9a",
+  "services": [
+    {
+      "service": "api",
+      "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:486",
+      "taskDefinitionHash": "fa377d72fe8845a6f69a0701416a9e696d37a89eb2bdfab867b57d427caa6eb5",
+      "serviceConfigHash": "d8a7608bb92597ca5647f94d2af0ce7905515e8566e8a8cd808f5b76316c3018",
+      "deploymentId": "ecs-svc/3432473802808415026",
+      "rolloutState": "COMPLETED",
+      "desired": 2,
+      "running": 2,
+      "pending": 0,
+      "imageDigest": "sha256:1fbf675727041323c56c2330aebb7f27ae4129864cb413953b869bfffad80015",
+      "sourceSha": "83304d18e5a1ab647cf6f728392cf97b3058a832",
+      "cohortChange": {
+        "beforeHash": "35beb92fa98b845567677d088057e7dd9e490fa87dd2f7a241d2c44b37321c19",
+        "afterHash": "21def1a7702a5acbfc9f9b86da07fac69c2248f9510c55df6417c66021823f0f",
+        "beforeCount": 9,
+        "afterCount": 11,
+        "added": [
+          "meri-foundation-20260928-t1",
+          "meri-foundation-20260928-t2"
+        ]
+      },
+      "rpFlag": {
+        "name": "RESEARCH_PORTFOLIO_MERI_TOOLS_ENABLED",
+        "observed": "absent",
+        "dark": true
+      },
+      "healthyActualTaskIpsMatchAlbTargets": true
+    },
+    {
+      "service": "meriv2-orchestrator",
+      "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:87",
+      "taskDefinitionHash": "64d4e5fb737979277e7e2584a056bdec93b16d2ffd5c15fb4f0d840edb9f51f6",
+      "serviceConfigHash": "b36599bb6fc37ca695d01ff37eb5ad0ce0d47dcc7232cfe01d11003ead93ad49",
+      "deploymentId": "ecs-svc/9025784135955678963",
+      "rolloutState": "COMPLETED",
+      "desired": 1,
+      "running": 1,
+      "pending": 0,
+      "imageDigest": "sha256:1495f82a9c3c4dab04b7f0028761cf3549e6e726699f390563b7c7b2a3eb1550",
+      "sourceSha": "39cea28f31be07def2f67ddf06ac4c44ef4ab792",
+      "cohortChange": {
+        "beforeHash": "35beb92fa98b845567677d088057e7dd9e490fa87dd2f7a241d2c44b37321c19",
+        "afterHash": "21def1a7702a5acbfc9f9b86da07fac69c2248f9510c55df6417c66021823f0f",
+        "beforeCount": 9,
+        "afterCount": 11,
+        "added": [
+          "meri-foundation-20260928-t1",
+          "meri-foundation-20260928-t2"
+        ]
+      },
+      "rpFlag": {
+        "name": "RESEARCH_PORTFOLIO_MERI_TOOLS_ENABLED",
+        "observed": "absent",
+        "dark": true
+      },
+      "healthyActualTaskIpsMatchAlbTargets": true
+    },
+    {
+      "service": "web-vnext",
+      "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web-vnext:386",
+      "taskDefinitionHash": "3cdba7113d1d640ab9a6e577ae9abd486db42c90495689d43b8d99929a402546",
+      "serviceConfigHash": "cba8cdf6347cf939726f3009ffc20badd990a4bbc9d76deb5310d510a37eb5cf",
+      "deploymentId": "ecs-svc/3490292933385052646",
+      "rolloutState": "COMPLETED",
+      "desired": 1,
+      "running": 1,
+      "pending": 0,
+      "imageDigest": "sha256:bb114117e1ac5bad398a34c2272280b0b55abbcb0502cb5b6b95356f213bdfdb",
+      "sourceSha": "940fe9354f95630c6acb0f20f75ced26ea9e75f4",
+      "rpFlag": {
+        "name": "RESEARCH_PORTFOLIO_MERI_TOOLS_ENABLED",
+        "observed": "absent",
+        "dark": true
+      },
+      "healthyActualTaskIpsMatchAlbTargets": true
+    }
+  ],
+  "scope": "Fresh deployed service and exact cohort/configuration readiness only. OpenAI credits and successful replies require the separately authorized retry; this helper makes no provider/chat/auth/database calls.",
+  "openAiFunding": "NOT QUERIED",
+  "liveRetryOutcome": "NOT RUN",
+  "fullFile01Acceptance": "NOT RUN",
+  "credentialsQueried": 0,
+  "externalWrites": 0,
+  "calls": [
+    {
+      "operation": "sts.get_caller_identity",
+      "exitCode": 0
+    },
+    {
+      "operation": "ecs.describe_services",
+      "exitCode": 0
+    },
+    {
+      "operation": "ecs.describe_task_definition",
+      "exitCode": 0
+    },
+    {
+      "operation": "ecs.list_tasks",
+      "exitCode": 0
+    },
+    {
+      "operation": "ecs.describe_tasks",
+      "exitCode": 0
+    },
+    {
+      "operation": "elbv2.describe_target_health",
+      "exitCode": 0
+    },
+    {
+      "operation": "ecs.describe_task_definition",
+      "exitCode": 0
+    },
+    {
+      "operation": "ecs.describe_services",
+      "exitCode": 0
+    },
+    {
+      "operation": "ecs.describe_task_definition",
+      "exitCode": 0
+    },
+    {
+      "operation": "ecs.list_tasks",
+      "exitCode": 0
+    },
+    {
+      "operation": "ecs.describe_tasks",
+      "exitCode": 0
+    },
+    {
+      "operation": "elbv2.describe_target_health",
+      "exitCode": 0
+    },
+    {
+      "operation": "ecs.describe_task_definition",
+      "exitCode": 0
+    },
+    {
+      "operation": "ecs.describe_services",
+      "exitCode": 0
+    },
+    {
+      "operation": "ecs.list_tasks",
+      "exitCode": 0
+    },
+    {
+      "operation": "ecs.describe_tasks",
+      "exitCode": 0
+    },
+    {
+      "operation": "ecs.describe_task_definition",
+      "exitCode": 0
+    },
+    {
+      "operation": "elbv2.describe_target_health",
+      "exitCode": 0
+    },
+    {
+      "operation": "ecs.describe_task_definition",
+      "exitCode": 0
+    }
+  ],
+  "verificationExitCode": 0
+}

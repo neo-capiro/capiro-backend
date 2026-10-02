@@ -1,0 +1,14 @@
+{
+  "provider": "bedrock",
+  "requestedModel": "qwen.qwen3-coder-next",
+  "initializedModel": "qwen.qwen3-coder-next",
+  "sessionId": "20261002_034539_d3354b",
+  "reportedTokens": {
+    "input": 171313,
+    "output": 983,
+    "total": 172296,
+    "cache_read": 0,
+    "cache_write": 0
+  },
+  "billedCostUsd": null
+}

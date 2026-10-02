@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "attemptId": "v4-user-authorized-credit-retry",
+  "recordedAtEpoch": 1790912835.8526595,
+  "scope": "Independent readback of actual v4 process receipts only",
+  "hermesCliExit": 0,
+  "nodeExit": 1,
+  "verdict": "BLOCKED_STRICT_REPLY_EQUALITY",
+  "newConversationsCreated": 1,
+  "newTurnsSent": 1,
+  "cumulativeConversationsCreated": 3,
+  "cumulativeTurnsSent": 3,
+  "t1": {
+    "identityAndWebSourceVerified": true,
+    "streamCompleted": true,
+    "toolCalls": 0,
+    "streamErrors": 0,
+    "expectedReplyVisible": true,
+    "streamContainsExpectedReply": true,
+    "savedAssistantContainsExpectedReply": true,
+    "savedAssistantEqualsExpectedReply": false,
+    "savedAssistantLength": 260,
+    "savedAssistantSha256": "bb86fc4afca291f1607da7f33833acf49f49bbf0578e2f0ee31f5db539d4c155",
+    "sessionRevoked": true
+  },
+  "t2": "NOT_RUN",
+  "authorizedV4TurnBudgetRemaining": 1,
+  "automaticRetryPerformed": false,
+  "fullOriginal75Acceptance": "NOT_RUN",
+  "limitations": [
+    "Additional assistant text is not persisted in evidence; underlying cause of extra text is not diagnosed.",
+    "T1 row verdict remains initial NOT RUN despite authoritative sent counters; overall BLOCKED and Node exit1 are authoritative.",
+    "No claim that provider or full Meri acceptance is fully repaired."
+  ],
+  "inputSha256": {
+    "synthetic-meri-ui-v4-smoke-result.json": "c7ff7aa415121a5c848228dbd5cbdbbcbdcd77da33d854e87fb5ffb8303a3dbd",
+    "synthetic-meri-ui-v4-command-exit.json": "b954872ace9f5f5c57052d40f1e90792efdb4e43e92f12612c7eb3cf257a488f",
+    "synthetic-meri-ui-v4-hermes-exit.json": "92bd12329962756a94e690ebf2ba30b4d4d8472f9471dc0dda6ec810fe6a02ab",
+    "synthetic-meri-ui-v4-hermes-usage.json": "3c549b8fcd0e12ca49487359441b43bdc4dcac9532376184627c612314cc566c"
+  }
+}

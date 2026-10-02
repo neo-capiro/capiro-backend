@@ -7,13 +7,13 @@ at 02:31:39 UTC verified the final synthetic-cohort configuration, exact immutab
 image digests and source labels, matching task definitions, and healthy ALB
 targets. It made 28 read-only calls and no writes.
 
-**Deployment: PASS. Live Meri reply check: BLOCKED by depleted OpenAI API
-credits.** Both authenticated synthetic turns reached the reasoning runtime but
-received OpenAI Responses HTTP 429: "You have no credits remaining. Add credits
-to continue using the API." Restore the deployed provider account's credits
-before rerunning a newly bounded live check. Healthy ECS services do not establish
-working model replies. This is separate from the Bedrock provider used by the
-Hermes operators. No production provider, model, or routing policy was changed.
+**Deployment: PASS. Provider recovery on retry: PASS. Strict exact-reply smoke:
+BLOCKED by an added evidence disclaimer.** After the owner requested "Try again,"
+both synthetic tenants received and displayed the expected reply and saved it.
+Each completed one OpenAI call with no credit error, model-loop failure, tool
+call, or stream error. The prior HTTP 429 credit failures remain preserved as
+historical evidence. No production provider, model, routing, or application code
+was changed for the retry. Full original-plan acceptance remains **NOT RUN**.
 
 | Service | Qualified source | Image deployment | Healthy count |
 | --- | --- | --- | --- |
@@ -27,6 +27,47 @@ newer commits. The exact digests and build/test records are in `qualification.md
 and `three-service-rollout-readback.json`. The final configuration readback is
 `synthetic-canary-independent-final-readback-v2.json`; it supersedes the earlier
 API 485 / orchestrator 86 task numbers without changing their images.
+
+## Credit recovery retry
+
+Fresh readback at 03:42:01 UTC confirmed the same three images, source labels,
+configuration, deployment IDs and healthy ALB targets. The user-authorized retry
+sent exactly two new turns: T1 at 03:45:57–03:46:09 and T2 at
+03:51:39–03:51:47 UTC. T1 ran through Hermes/Bedrock Qwen; root directly executed
+the remaining T2 wrapper. Both ordinary identities and the exact Web release
+were verified. Both streams completed HTTP 201 / done with zero tools, stream
+errors or blocked mutations; the expected phrase was visible and persisted.
+
+Independent bounded logs verify one completed OpenAI `gpt-6-astra` call per
+tenant, ten output tokens each, no partial/held/aborted result, and zero credit
+errors or model-loop failures. No account balance query was made. See
+`synthetic-retry-provider-runtime-readback.json` and its linked actual exit-0
+collectors; the independent assertion summary is `synthetic-retry-summary.json`.
+
+The saved response is 260 characters: the 26-character expected phrase plus an
+`Evidence limitation` disclaimer about no/none/only/all/every claims requiring
+source coverage. A read-only, exact-hash-bound inspection of the existing T2
+reply identified that text without sending again. This is an additional public
+disclaimer, not hidden metadata. Both original exact-equality assertions failed
+and exited 1; they have not been loosened or relabeled as complete smoke passes.
+The provider-credit blocker is resolved in the observed turns, while this
+response-quality discrepancy remains for follow-up.
+Source reconstruction reproduced the exact response hash: the claim-category
+matcher treats `only` in the formatting instruction `Reply only` as a negative
+or exhaustive factual claim. With no tool coverage, it appends the 232-character
+disclosure even though the answer is only an acknowledgment. See
+`synthetic-ui-v4-coverage-disclaimer-diagnosis.json` for exact deployed-source
+lines and the exit-0 reconstruction. A future fix must distinguish formatting
+instructions from factual absence/exhaustiveness claims while retaining real
+coverage warnings; no production guard was weakened during this retry.
+
+V4 consumed T1 only; V5 consumed the remaining T2 turn. V6 only inspected the
+existing T2 conversation and also retains the inherited strict-equality failure
+(its old error label mentions T1, but the actual row is T2). All three new known
+sessions were revoked. Across initial attempts and this retry, exactly four
+conversations/four turns were created; none remain in this retry's turn budget.
+The full 75-case acceptance suite was not run. Every earlier result and lock
+remains intact; new attempts have separate files and provenance.
 
 ## Database disposition
 

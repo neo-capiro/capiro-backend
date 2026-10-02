@@ -1,0 +1,120 @@
+{
+  "schemaVersion": 1,
+  "observedAtUtc": "2026-10-02T03:53:05.559211+00:00",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:87",
+  "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/7c2c0b85e6f346a5b3102ddf8eefa32c",
+  "windowStart": "2026-10-02T03:51:39.143+00:00",
+  "windowEnd": "2026-10-02T03:51:47.960+00:00",
+  "boundedPaginationComplete": true,
+  "eventCount": 12,
+  "safeMarkerCounts": {
+    "modelLoopFailure": 0,
+    "noCredits": 0,
+    "http429": 0,
+    "providerFailure": 0,
+    "fallback": 2,
+    "errorLike": 0,
+    "warningLike": 0,
+    "syntheticIdentityMatched": 7
+  },
+  "structuredTelemetry": [
+    {
+      "atUtc": "2026-10-02T03:51:45.350000+00:00",
+      "event": "meri.telemetry",
+      "syntheticTenantMatched": true,
+      "outcome": "accepted"
+    },
+    {
+      "atUtc": "2026-10-02T03:51:45.484000+00:00",
+      "event": "meri.semantic_tool_gateway.selection",
+      "syntheticTenantMatched": false
+    },
+    {
+      "atUtc": "2026-10-02T03:51:45.484000+00:00",
+      "event": "meri.telemetry",
+      "syntheticTenantMatched": true,
+      "provider": "openai",
+      "requestedModel": "gpt-6-astra",
+      "effectiveModel": "gpt-6-astra",
+      "outcome": "selected"
+    },
+    {
+      "atUtc": "2026-10-02T03:51:47.575000+00:00",
+      "event": "meri.telemetry",
+      "syntheticTenantMatched": true,
+      "provider": "openai",
+      "requestedModel": "gpt-6-astra",
+      "effectiveModel": "gpt-6-astra",
+      "outcome": "completed",
+      "durationMs": 2084
+    },
+    {
+      "atUtc": "2026-10-02T03:51:47.576000+00:00",
+      "event": "meri.coverage.turn",
+      "syntheticTenantMatched": false,
+      "durationMs": 0
+    },
+    {
+      "atUtc": "2026-10-02T03:51:47.577000+00:00",
+      "event": "meri.passage_selection",
+      "syntheticTenantMatched": false,
+      "model": "unavailable",
+      "inputTokens": 0
+    },
+    {
+      "atUtc": "2026-10-02T03:51:47.581000+00:00",
+      "event": "meri.canary.turn",
+      "syntheticTenantMatched": true,
+      "outcome": "released"
+    },
+    {
+      "atUtc": "2026-10-02T03:51:47.581000+00:00",
+      "event": "meriv3.turn",
+      "syntheticTenantMatched": true,
+      "model": "gpt-6-astra",
+      "rounds": 0,
+      "inputTokens": 27148,
+      "outputTokens": 10,
+      "durationMs": 2096,
+      "held": false,
+      "aborted": false,
+      "toolsUsedCount": 0,
+      "telemetry": {
+        "partial": false,
+        "finishReason": "completed",
+        "requestedModel": "gpt-6-astra",
+        "effectiveModel": "gpt-6-astra"
+      },
+      "providerCallCount": 1,
+      "providerCalls": [
+        {
+          "requestedModel": "gpt-6-astra",
+          "effectiveModel": "gpt-6-astra",
+          "finishReason": "completed",
+          "partial": false
+        }
+      ]
+    },
+    {
+      "atUtc": "2026-10-02T03:51:47.581000+00:00",
+      "event": "meri.telemetry",
+      "syntheticTenantMatched": true,
+      "provider": "openai",
+      "requestedModel": "gpt-6-astra",
+      "effectiveModel": "gpt-6-astra",
+      "outcome": "completed",
+      "durationMs": 2096
+    },
+    {
+      "atUtc": "2026-10-02T03:51:47.582000+00:00",
+      "event": "meri.telemetry",
+      "syntheticTenantMatched": true,
+      "outcome": "returned",
+      "durationMs": 2232
+    }
+  ],
+  "scope": "Only the authorized T2 retry window. Exact-prefix credit/fallback absence and actual completion telemetry are separate from persisted-reply UI assertions. No raw log/response/customer text retained.",
+  "readOnlyCalls": 4,
+  "externalWrites": 0,
+  "extraChats": 0
+}

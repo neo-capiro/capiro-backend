@@ -1,0 +1,9 @@
+{
+  "command": "node synthetic-meri-ui-v6-readonly.cjs --readiness synthetic-meri-ui-v6-ready.json --inspect-t2-readonly",
+  "startedAtUtc": "2026-10-02T03:54:54.6747512Z",
+  "completedAtUtc": "2026-10-02T03:54:59.1100275Z",
+  "exitCode": 1,
+  "scriptSha256": "837f25ebb7d5c8303ef9bc1d3f6d0d1090f36219c582d8541f069ed617830715",
+  "maximumNewTurns": 0,
+  "scope": "Read only exact previously hashed synthetic T2 public assistant response; no model or chat write"
+}

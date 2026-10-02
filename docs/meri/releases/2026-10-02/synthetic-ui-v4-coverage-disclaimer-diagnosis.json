@@ -1,0 +1,111 @@
+{
+  "schema": "meri-synthetic-coverage-disclaimer-diagnosis-v1",
+  "observedAt": "2026-10-02T03:57:05.662Z",
+  "policySha": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "machineMapModifiedUtc": "2026-09-30T00:21:48.2698715Z",
+  "scope": "source-only; no browser/model/cloud calls; evidence receipt only",
+  "classification": {
+    "providerRecovery": "PASS (parent authoritative live provider result: one successful call, 10 output tokens)",
+    "strictReply": "BLOCKED",
+    "cause": "Overbroad negative/exhaustive request classification matches the formatting instruction Reply only and adds a visible coverage disclaimer despite no factual absence/exhaustive claim in the final reply.",
+    "persistence": "Actual reply content; not hidden metadata",
+    "assertionRelaxation": "Not justified"
+  },
+  "sourceTrace": [
+    {
+      "path": "packages/meriv2-core/src/assurance/evidence-plan.ts",
+      "function": "inferClaimCategories",
+      "lines": [
+        432,
+        438
+      ],
+      "matchedToken": "only",
+      "matcher": "/\\b(?:no|none|only|all|every|never|nothing|nobody|no\\s+evidence|does\\s+not\\s+exist)\\b/i"
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/evidence-plan.ts",
+      "lines": [
+        305,
+        315
+      ],
+      "requirementId": "negative-claim.coverage",
+      "level": "required",
+      "toolFamilies": [
+        "domain_specific_tools"
+      ]
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/retrieval/meri-evidence-requirements.ts",
+      "function": "buildCoverageRequirements",
+      "lines": [
+        349,
+        359
+      ],
+      "essential": true
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/retrieval/meri-evidence-requirements.ts",
+      "function": "compareCoverage",
+      "lines": [
+        507,
+        523
+      ],
+      "status": "never_called"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts",
+      "lines": [
+        1981,
+        1984
+      ],
+      "mode": "enforce retains essential unsatisfied gaps"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts",
+      "function": "finalizeReply",
+      "lines": [
+        3869,
+        3876
+      ]
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/retrieval/meri-evidence-requirements.ts",
+      "function": "appendClaimTiedCoverageDisclosure",
+      "lines": [
+        640,
+        654
+      ],
+      "note": "Selects essential gap without checking a corresponding factual claim exists in final reply."
+    }
+  ],
+  "exactReconstruction": {
+    "expectedChars": 26,
+    "separatorChars": 2,
+    "footerChars": 232,
+    "persistedChars": 260,
+    "persistedSha256": "bb86fc4afca291f1607da7f33833acf49f49bbf0578e2f0ee31f5db539d4c155",
+    "matchesParentObservedHash": true,
+    "footer": "> **Evidence limitation:** No/none/only/all/every claims require explicit, non-truncated source coverage; an empty or failed query is not proof of absence; that part of the answer remains limited because the source was never called."
+  },
+  "sourceProofs": [
+    {
+      "path": "packages/meriv2-core/src/assurance/evidence-plan.ts",
+      "deployedSource": "39cea28f31be07def2f67ddf06ac4c44ef4ab792",
+      "currentGitBlobMatchesDeployed": true,
+      "sha256": "7f0739293e16e8e6e576bad09a0fd4d4759a8d1c5408afd84048a3e393d48f6e"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/retrieval/meri-evidence-requirements.ts",
+      "deployedSource": "39cea28f31be07def2f67ddf06ac4c44ef4ab792",
+      "currentGitBlobMatchesDeployed": true,
+      "sha256": "283fe236f5804b8f2fdc91bbed3515c6a59b10e101d91aa5389515edcc9debc9"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts",
+      "deployedSource": "39cea28f31be07def2f67ddf06ac4c44ef4ab792",
+      "currentGitBlobMatchesDeployed": true,
+      "sha256": "fa19df4c2c132e50e312b4d6ff366ad256049fed034195250ad7e2d83b28345b"
+    }
+  ],
+  "liveEvidenceAuthority": "Parent read-only T2 inspection with exact hash binding; this receipt independently reconstructs content solely from checked source."
+}

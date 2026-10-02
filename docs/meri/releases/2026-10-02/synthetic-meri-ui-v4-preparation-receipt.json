@@ -1,0 +1,22 @@
+{
+  "attemptId": "v4-user-authorized-credit-retry",
+  "preparedAtEpoch": 1790912736.438512,
+  "policySha": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "scriptSha256": "0fee9ae0bfed31bc77b109b74e6cc6273dee8bfce0a09972c534f70f1be923a8",
+  "files": {
+    "synthetic-meri-ui-v4-smoke.cjs": "0fee9ae0bfed31bc77b109b74e6cc6273dee8bfce0a09972c534f70f1be923a8",
+    "run-synthetic-ui-v4-smoke.py": "aa9da0f3c35b1b8e97d67c96f30f17ca7159713d20493f26ac043314238d54ae",
+    "launch-synthetic-ui-v4-hermes.py": "d9f70b8a1ce47bd1efd988dcbd9a345ddd4e905323b18ed6a5472a07768d2172",
+    "synthetic-meri-ui-v4-hermes-prompt.md": "e0528e4d185d43ddb25e6273c6de01122ea6eafceb02c705931db447104b3d9c",
+    "synthetic-meri-ui-v3-smoke-result.json": "ffc68907f922ab28a9a562540bb70892442ecb01f5ee159f56658ce55cf1b831"
+  },
+  "validation": {
+    "nodeSyntaxExit": 0,
+    "pythonAst": "PASS",
+    "independentRootReview": "PASS"
+  },
+  "priorTurnsSent": 2,
+  "authorizedNewTurns": 2,
+  "maximumPerActor": 1,
+  "fullOriginal75Acceptance": "NOT_RUN"
+}

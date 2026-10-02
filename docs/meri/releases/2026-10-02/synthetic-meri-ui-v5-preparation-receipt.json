@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "preparedAtEpoch": 1790913081.1992657,
+  "attemptId": "v5-remaining-t2-retry",
+  "rootExecutionRequired": true,
+  "executed": false,
+  "newTurnBudget": 1,
+  "actor": "t2",
+  "priorTurnsSent": 3,
+  "sameStrictReplyAssertion": true,
+  "validation": {
+    "nodeSyntaxExit": 0,
+    "pythonAst": "PASS"
+  },
+  "inputSha256": {
+    "synthetic-meri-ui-v5-smoke.cjs": "f6cb64fe0c90dadaf4f6328392d585585514b86a7d5303f9bc16a6b52d6aa54b",
+    "run-synthetic-ui-v5-smoke.py": "87dcf131016b283466671a3253195de09a3ca1d3c0726a28b2c8641ec6fd01ad",
+    "synthetic-meri-ui-v4-smoke-result.json": "c7ff7aa415121a5c848228dbd5cbdbbcbdcd77da33d854e87fb5ffb8303a3dbd"
+  }
+}
