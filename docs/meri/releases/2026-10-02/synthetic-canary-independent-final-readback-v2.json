@@ -1,0 +1,323 @@
+{
+  "verdict": "PASS",
+  "observedAtUtc": "2026-10-02T02:31:39.663209+00:00",
+  "policySha": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "machineMapDate": "2026-09-30",
+  "adapterSha256": "02098e0d9209f7313a66c4e73eb0689332af2edd7ba2a2ecf6e6daa58b0671f6",
+  "planHash": "8c7c1d033a1b90a9c3c5a45775d683d9a7b88da89746536a1ca42972859cd6fe",
+  "sourceReceipt": "C:\\dev\\cap-meri-foundation-evidence\\oct02-release-path\\synthetic-canary-apply-v4.json",
+  "sourceReceiptSha256": "8776ecff503a13b77883bed4f539a19fc64ddebdb6d11dcbd61e5cad909283aa",
+  "services": [
+    {
+      "service": "api",
+      "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:486",
+      "taskDefinitionHash": "fa377d72fe8845a6f69a0701416a9e696d37a89eb2bdfab867b57d427caa6eb5",
+      "deploymentId": "ecs-svc/3432473802808415026",
+      "rolloutState": "COMPLETED",
+      "desired": 2,
+      "running": 2,
+      "pending": 0,
+      "imageDigest": "sha256:1fbf675727041323c56c2330aebb7f27ae4129864cb413953b869bfffad80015",
+      "sourceSha": "83304d18e5a1ab647cf6f728392cf97b3058a832",
+      "cohortChange": {
+        "beforeHash": "35beb92fa98b845567677d088057e7dd9e490fa87dd2f7a241d2c44b37321c19",
+        "afterHash": "21def1a7702a5acbfc9f9b86da07fac69c2248f9510c55df6417c66021823f0f",
+        "beforeCount": 9,
+        "afterCount": 11,
+        "added": [
+          "meri-foundation-20260928-t1",
+          "meri-foundation-20260928-t2"
+        ]
+      },
+      "onlyTaskChange": "MERIV3_CANARY_TENANT_SLUGS adds the two explicitly approved synthetic slugs",
+      "rpFlag": {
+        "name": "RESEARCH_PORTFOLIO_MERI_TOOLS_ENABLED",
+        "observed": "absent",
+        "dark": true
+      },
+      "health": "Every actual running task IP matched the exact healthy application ALB target set"
+    },
+    {
+      "service": "meriv2-orchestrator",
+      "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:87",
+      "taskDefinitionHash": "64d4e5fb737979277e7e2584a056bdec93b16d2ffd5c15fb4f0d840edb9f51f6",
+      "deploymentId": "ecs-svc/9025784135955678963",
+      "rolloutState": "COMPLETED",
+      "desired": 1,
+      "running": 1,
+      "pending": 0,
+      "imageDigest": "sha256:1495f82a9c3c4dab04b7f0028761cf3549e6e726699f390563b7c7b2a3eb1550",
+      "sourceSha": "39cea28f31be07def2f67ddf06ac4c44ef4ab792",
+      "cohortChange": {
+        "beforeHash": "35beb92fa98b845567677d088057e7dd9e490fa87dd2f7a241d2c44b37321c19",
+        "afterHash": "21def1a7702a5acbfc9f9b86da07fac69c2248f9510c55df6417c66021823f0f",
+        "beforeCount": 9,
+        "afterCount": 11,
+        "added": [
+          "meri-foundation-20260928-t1",
+          "meri-foundation-20260928-t2"
+        ]
+      },
+      "onlyTaskChange": "MERIV3_CANARY_TENANT_SLUGS adds the two explicitly approved synthetic slugs",
+      "rpFlag": {
+        "name": "RESEARCH_PORTFOLIO_MERI_TOOLS_ENABLED",
+        "observed": "absent",
+        "dark": true
+      },
+      "health": "Every actual running task IP matched the exact healthy application ALB target set"
+    }
+  ],
+  "flagAuthority": {
+    "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api-diag:11",
+    "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/85e63bccbeed4413828e18afc76cbaa1",
+    "actualExitCode": 0,
+    "actualImageDigest": "sha256:1fbf675727041323c56c2330aebb7f27ae4129864cb413953b869bfffad80015",
+    "verifiedAgainstActualTaskDefinitionOverridesAndCloudWatchLogs": true,
+    "before": [
+      {
+        "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+        "tenantSlug": "meri-foundation-20260928-t1",
+        "flag": "meriv3.fullChat",
+        "state": {
+          "present": false
+        }
+      },
+      {
+        "tenantId": "52e91176-08f0-4d89-9633-bc212f5bdbbf",
+        "tenantSlug": "meri-foundation-20260928-t2",
+        "flag": "meriv3.fullChat",
+        "state": {
+          "present": false
+        }
+      }
+    ],
+    "after": [
+      {
+        "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+        "tenantSlug": "meri-foundation-20260928-t1",
+        "flag": "meriv3.fullChat",
+        "state": {
+          "present": true,
+          "value": true
+        }
+      },
+      {
+        "tenantId": "52e91176-08f0-4d89-9633-bc212f5bdbbf",
+        "tenantSlug": "meri-foundation-20260928-t2",
+        "flag": "meriv3.fullChat",
+        "state": {
+          "present": true,
+          "value": true
+        }
+      }
+    ],
+    "freshDbQuery": "NOT RUN; flags are proved by the successful fixed apply task log"
+  },
+  "webVnext": {
+    "unchanged": true,
+    "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web-vnext:386",
+    "imageDigest": "sha256:bb114117e1ac5bad398a34c2272280b0b55abbcb0502cb5b6b95356f213bdfdb",
+    "primaryDeployment": {
+      "id": "ecs-svc/3490292933385052646",
+      "status": "PRIMARY",
+      "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web-vnext:386",
+      "rolloutState": "COMPLETED",
+      "desiredCount": 1,
+      "networkConfiguration": {
+        "awsvpcConfiguration": {
+          "subnets": [
+            "subnet-0e38bd390f8961fef",
+            "subnet-0920665f91c905f01",
+            "subnet-06db79cd21239de19"
+          ],
+          "securityGroups": [
+            "sg-01def4e5c0fe44d4a"
+          ],
+          "assignPublicIp": "DISABLED"
+        }
+      },
+      "platformVersion": "1.4.0",
+      "capacityProviderStrategy": null,
+      "serviceConnectConfiguration": null,
+      "volumeConfigurations": null
+    },
+    "serviceConfigHash": "cba8cdf6347cf939726f3009ffc20badd990a4bbc9d76deb5310d510a37eb5cf",
+    "rpFlag": {
+      "name": "RESEARCH_PORTFOLIO_MERI_TOOLS_ENABLED",
+      "observed": "absent",
+      "dark": true
+    }
+  },
+  "scopePreservation": {
+    "web": {
+      "unchangedSince": "2026-10-02T01:58:15.972Z",
+      "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:145",
+      "taskHash": "b2714b3ae76d8d9465c1e3eb10c29996b4d1ba08fb8936b81c52a8fbe5d40ad0",
+      "configHash": "2286910727abcb389eaf084ed5fa20124bb60e013863eec3334b3062556cd41a",
+      "serviceHash": "0af5d4dcf65cbfec55597fa0e1a0a0b1fc199ed1a1fb314236cbb2788f67cb74",
+      "rpFlag": {
+        "name": "RESEARCH_PORTFOLIO_MERI_TOOLS_ENABLED",
+        "observed": "absent",
+        "dark": true
+      }
+    },
+    "engagement-api": {
+      "unchangedSince": "2026-10-02T01:58:15.972Z",
+      "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-engagement-api:129",
+      "taskHash": "05624046b4a204c56b72f99ea3d3a3fb7c6a6a2b3144f5e72a423e427b8f793b",
+      "configHash": "e9334676af8901afefb274207fbe152d2cc296ec0b6d6dc807639640e656fdc2",
+      "serviceHash": "2de1e788c4a9b03b93841196c02c0b206abb8ef31733425be3714441833df1a2",
+      "rpFlag": {
+        "name": "RESEARCH_PORTFOLIO_MERI_TOOLS_ENABLED",
+        "observed": "absent",
+        "dark": true
+      }
+    }
+  },
+  "rolloutHealth": "PASS",
+  "boundedUiQa": "NOT RUN",
+  "fullFile01Acceptance": "NOT RUN",
+  "externalWrites": 0,
+  "calls": [
+    {
+      "transport": "boto3",
+      "command": "sts.get_caller_identity",
+      "exitCode": 0
+    },
+    {
+      "transport": "boto3",
+      "command": "ecs.describe_services",
+      "exitCode": 0
+    },
+    {
+      "transport": "boto3",
+      "command": "ecs.describe_task_definition",
+      "exitCode": 0
+    },
+    {
+      "transport": "boto3",
+      "command": "ecs.list_tasks",
+      "exitCode": 0
+    },
+    {
+      "transport": "boto3",
+      "command": "ecs.describe_tasks",
+      "exitCode": 0
+    },
+    {
+      "transport": "boto3",
+      "command": "elbv2.describe_target_health",
+      "exitCode": 0
+    },
+    {
+      "transport": "boto3",
+      "command": "ecs.describe_task_definition",
+      "exitCode": 0
+    },
+    {
+      "transport": "boto3",
+      "command": "ecs.describe_services",
+      "exitCode": 0
+    },
+    {
+      "transport": "boto3",
+      "command": "ecs.describe_task_definition",
+      "exitCode": 0
+    },
+    {
+      "transport": "boto3",
+      "command": "ecs.list_tasks",
+      "exitCode": 0
+    },
+    {
+      "transport": "boto3",
+      "command": "ecs.describe_tasks",
+      "exitCode": 0
+    },
+    {
+      "transport": "boto3",
+      "command": "elbv2.describe_target_health",
+      "exitCode": 0
+    },
+    {
+      "transport": "boto3",
+      "command": "ecs.describe_task_definition",
+      "exitCode": 0
+    },
+    {
+      "transport": "boto3",
+      "command": "ecs.describe_task_definition",
+      "exitCode": 0
+    },
+    {
+      "transport": "boto3",
+      "command": "ecs.describe_tasks",
+      "exitCode": 0
+    },
+    {
+      "transport": "boto3",
+      "command": "logs.get_log_events",
+      "exitCode": 0
+    },
+    {
+      "transport": "boto3",
+      "command": "logs.get_log_events",
+      "exitCode": 0
+    },
+    {
+      "transport": "boto3",
+      "command": "logs.get_log_events",
+      "exitCode": 0
+    },
+    {
+      "transport": "boto3",
+      "command": "ecs.describe_services",
+      "exitCode": 0
+    },
+    {
+      "transport": "boto3",
+      "command": "ecs.list_tasks",
+      "exitCode": 0
+    },
+    {
+      "transport": "boto3",
+      "command": "ecs.describe_tasks",
+      "exitCode": 0
+    },
+    {
+      "transport": "boto3",
+      "command": "ecs.describe_task_definition",
+      "exitCode": 0
+    },
+    {
+      "transport": "boto3",
+      "command": "elbv2.describe_target_health",
+      "exitCode": 0
+    },
+    {
+      "transport": "boto3",
+      "command": "ecs.describe_task_definition",
+      "exitCode": 0
+    },
+    {
+      "transport": "aws-cli",
+      "command": "ecs.describe_services",
+      "exitCode": 0
+    },
+    {
+      "transport": "aws-cli",
+      "command": "ecs.describe_task_definition",
+      "exitCode": 0
+    },
+    {
+      "transport": "aws-cli",
+      "command": "ecs.describe_services",
+      "exitCode": 0
+    },
+    {
+      "transport": "aws-cli",
+      "command": "ecs.describe_task_definition",
+      "exitCode": 0
+    }
+  ]
+}

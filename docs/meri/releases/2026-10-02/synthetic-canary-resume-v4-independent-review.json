@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "reviewedAtUtc": "2026-10-02T02:26:12.9542923Z",
+  "policySha": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "verdict": "PASS",
+  "reviewMode": "Independent static review only",
+  "adapterSha256": "02098e0d9209f7313a66c4e73eb0689332af2edd7ba2a2ecf6e6daa58b0671f6",
+  "resumerSha256": "7724b3cff285c6ed7c6cb24f8cb7e5256435da0e9bc02f9382d667d5a4261c38",
+  "failedApplySha256": "1f774ede26145bb5b3af7bc10c6eebac89ca4892bcdfd5006ce1aeee3e352428",
+  "testEvidence": "Read26-test adapter log OK; focused resumer tests separately owned by CD; no independent rerun",
+  "findings": [
+    "Aws.call namespace rename removes collision while forwarding unchanged AWS service keyword.",
+    "Exact failed-apply bytes and exact namespace-only source delta required.",
+    "Old/new plan integrity and equal operator, qualification, image proofs, tenants, Web and both service snapshots required.",
+    "Existing apply task command/definition/digest/exit/log and absent-to-true before/after readback are authoritative; original priorStates retained.",
+    "No flag_job invocation or DB task/write path; API486 reused only after actual candidate definition hash qualification.",
+    "Each service update has fresh own baseline/config/primary, Web and TD hash checks; acknowledgements retained durably before next action.",
+    "API and orchestrator rollouts may overlap but final receipt requires both expected deployment IDs, task definitions, digests and health.",
+    "Original v3 receipt unchanged; new journal records explicit reuse provenance and remains compatible with original-state rollback."
+  ],
+  "cloudCalls": 0,
+  "cloudWrites": 0
+}

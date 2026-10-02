@@ -1,0 +1,49 @@
+{
+  "scope": "READ_ONLY",
+  "cloudMutations": 0,
+  "planHash": "690ea0b7df81a083213fe0379ff9b55c8ba97393cba916a394922f28f7dd6671",
+  "jobStatus": "REGISTERED",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api-diag:9",
+  "startedBy": "meri-cb-80ddd4cd612547e8acbc-plan",
+  "activeStartedByTasks": 0,
+  "stoppedTasksInspected": 0,
+  "stoppedStartedByTasks": 0,
+  "servedEnvironmentShape": {
+    "entryCount": 134,
+    "emptyStringValueCount": 7,
+    "emptyDbOrSourceValueCount": 0
+  },
+  "captureRuntime": "BLOCKED",
+  "errorClass": "FullchatError",
+  "safeReason": "container source environment names and values must be nonempty and unique",
+  "sourceFrames": [
+    {
+      "file": "diagnose-synthetic-canary-flag-plan.py",
+      "line": 18,
+      "function": "<module>"
+    },
+    {
+      "file": "synthetic-canary-codebuild.py",
+      "line": 380,
+      "function": "capture_codebuild_runtime"
+    },
+    {
+      "file": "meri-synthetic-fullchat.py",
+      "line": 840,
+      "function": "capture_runtime"
+    },
+    {
+      "file": "meri-synthetic-fullchat.py",
+      "line": 705,
+      "function": "source_commit"
+    },
+    {
+      "file": "meri-synthetic-fullchat.py",
+      "line": 738,
+      "function": "unique_named_values"
+    }
+  ],
+  "cloudTrailMatchingRunTaskEvents": [],
+  "cloudTrailPaginationRemaining": false,
+  "cloudTrailCaveat": "Event delivery may lag; absence alone is not proof. Journal reached REGISTERED and capture fails before RUN_INTENT."
+}

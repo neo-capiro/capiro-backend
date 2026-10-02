@@ -1,0 +1,43 @@
+{
+  "observedAt": "2026-10-02T02:01:01.094Z",
+  "verdict": "PASS",
+  "scope": "Receipt derivative integrity and actual guarded rollback preflight reads only; the first update-service command was intercepted before any CLI call",
+  "originalReceiptSha256": "2ba2efcd57b27d0e6485192403a0d3ba5a41385d0d4e0c9d5613e7421cf06118",
+  "reconciledReceiptSha256": "bf6e10edd5aab42a12b942e1b35053358c71482b53f3e8b3f0f2ae4f074d486c",
+  "reconciliationSha256": "e97591b73c48c89a776d6579e85dd958916478ae6f661eab7274e9dba9746608",
+  "receiptFingerprint": "9000ffa1dd6cd65f2584bb49f68c2d279539ede5c5a46bbbadc976154fb34b0c",
+  "changedReceiptFields": [
+    "configHash",
+    "status",
+    "readOnlyReconciliation"
+  ],
+  "rollbackPreflightPassed": true,
+  "cloudWritesExecuted": 0,
+  "completionClassification": "ECS healthy; manual acceptance still required",
+  "calls": [
+    {
+      "command": "sts get-caller-identity",
+      "exitCode": 0
+    },
+    {
+      "command": "ecs describe-task-definition",
+      "exitCode": 0
+    },
+    {
+      "command": "ecs describe-task-definition",
+      "exitCode": 0
+    },
+    {
+      "command": "ecr describe-images",
+      "exitCode": 0
+    },
+    {
+      "command": "ecs describe-services",
+      "exitCode": 0
+    },
+    {
+      "command": "ecs describe-services",
+      "exitCode": 0
+    }
+  ]
+}

@@ -1,0 +1,586 @@
+#!/usr/bin/env python3
+"""Task-local CodeBuild-provenance adapter for the two approved Meri tenants.
+
+No credentials or full task definitions are persisted. AWS calls are read-only
+unless an apply/flag-plan/rollback command is explicitly approved by plan hash.
+"""
+from __future__ import annotations
+import argparse, copy, hashlib, importlib.util, json, os, pathlib, re, subprocess, sys, time, types, uuid
+
+ACCOUNT = '967807252336'
+REGION = 'us-east-1'
+CLUSTER = 'capiro-dev'
+PROJECT = 'capiro-build-web-dev'
+REGISTRY = f'{ACCOUNT}.dkr.ecr.{REGION}.amazonaws.com'
+REPOSITORY = 'https://github.com/neo-capiro/capirov2'
+TARGETS = ('meri-foundation-20260928-t1', 'meri-foundation-20260928-t2')
+TENANTS = (('f2d6cf8f-057c-479a-8110-62fe5086d43f', TARGETS[0]), ('52e91176-08f0-4d89-9633-bc212f5bdbbf', TARGETS[1]))
+SERVICES = {'api': 'capiro-dev-api', 'meriv2-orchestrator': 'capiro-dev-meriv2-orchestrator'}
+ENV = 'MERIV3_CANARY_TENANT_SLUGS'
+SCHEMA = 'meri.synthetic-canary.codebuild.v1'
+OWNER_FILES = ('apps/api/scripts/set-tenant-flag.ts', 'apps/api/scripts/set-tenant-flag-foundation.ts', 'apps/api/scripts/entrypoint-dispatcher.inc')
+
+class Refusal(Exception):
+    pass
+
+def need(condition, reason):
+    if not condition:
+        raise Refusal(reason)
+
+def canonical(value):
+    return json.dumps(value, sort_keys=True, separators=(',', ':'), ensure_ascii=False)
+
+def digest(value):
+    return hashlib.sha256(canonical(value).encode()).hexdigest()
+
+def read_json(path):
+    def pairs(items):
+        out = {}
+        for key, value in items:
+            need(key not in out, 'duplicate JSON key')
+            out[key] = value
+        return out
+    return json.loads(pathlib.Path(path).read_text(encoding='utf-8-sig'), object_pairs_hook=pairs)
+
+def create_receipt(path, value):
+    # Atomic exclusive create: no two processes may own the same receipt.
+    with pathlib.Path(path).open('x', encoding='utf-8') as handle:
+        json.dump(value, handle, indent=2); handle.flush(); os.fsync(handle.fileno())
+
+def claim_operation(plan, mode):
+    need(re.fullmatch(r'[a-f0-9]{32}',plan.get('operationId','')), 'invalid operation identity')
+    lock = pathlib.Path(__file__).with_name('canary-' + plan['operationId'] + '-' + mode + '.lock')
+    create_receipt(lock, {'planHash':plan['planHash'],'mode':mode,'status':'CLAIMED'})
+
+def save(path, value):
+    target = pathlib.Path(path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    temporary = target.with_name(target.name + '.writing')
+    with temporary.open('w', encoding='utf-8') as handle:
+        json.dump(value, handle, indent=2); handle.flush(); os.fsync(handle.fileno())
+    temporary.replace(target)
+
+def git(repo, *args):
+    result = subprocess.run(['git', *args], cwd=repo, capture_output=True)
+    need(result.returncode == 0, 'source qualification failed')
+    return result.stdout
+
+def load_helpers(repo):
+    modules = []
+    for name in ('meri-synthetic-cohort', 'meri-synthetic-fullchat'):
+        spec = importlib.util.spec_from_file_location(name.replace('-', '_'), pathlib.Path(repo) / 'scripts' / (name + '.py'))
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        modules.append(module)
+    need(modules[1].TENANTS == TENANTS, 'fullChat wrapper must match canonical tenant identities')
+    return modules
+
+def unique(values, field):
+    result = {}
+    for item in values or []:
+        need(isinstance(item, dict) and isinstance(item.get('name'), str) and item['name'] not in result and isinstance(item.get(field), str), 'ambiguous named configuration')
+        result[item['name']] = item[field]
+    return result
+
+def union_value(raw):
+    need(isinstance(raw, str), 'canary cohort missing')
+    need(not raw or bool(raw.strip()), 'whitespace-only cohort is ambiguous')
+    old = [value.strip() for value in raw.split(',')] if raw.strip() else []
+    need(all(re.fullmatch(r'[a-z0-9][a-z0-9-]{0,63}', value or '') for value in old), 'wildcard or invalid cohort')
+    need(len(set(old)) == len(old), 'duplicate cohort entry')
+    missing = [value for value in TARGETS if value not in old]
+    return raw + ((',' if raw else '') + ','.join(missing) if missing else ''), missing
+
+def transform(helper, response, container_name):
+    request = helper.task_registration_request(response)
+    matches = [item for item in request['containerDefinitions'] if item['name'] == container_name]
+    need(len(matches) == 1, 'ambiguous target container')
+    env = unique(matches[0].get('environment'), 'value')
+    need(env.get('MERIV3_ENABLED') == 'true', 'global MeriV3 switch is not already true')
+    after, missing = union_value(env.get(ENV))
+    candidate = copy.deepcopy(request)
+    target = next(item for item in candidate['containerDefinitions'] if item['name'] == container_name)
+    for item in target['environment']:
+        if item['name'] == ENV:
+            item['value'] = after
+    # Comparing after reversing the sole field catches any accidental broad delta.
+    reversed_candidate = copy.deepcopy(candidate)
+    selected = next(item for item in reversed_candidate['containerDefinitions'] if item['name'] == container_name)
+    next(item for item in selected['environment'] if item['name'] == ENV)['value'] = env[ENV]
+    need(reversed_candidate == request, 'unapproved task definition delta')
+    return candidate, {'beforeHash': digest(env[ENV]), 'afterHash': digest(after), 'beforeCount':len([v for v in env[ENV].split(',') if v.strip()]), 'afterCount':len([v for v in after.split(',') if v.strip()]), 'added': missing}
+
+class Aws:
+    def __init__(self, profile):
+        import boto3
+        from botocore.config import Config
+        self.session = boto3.Session(profile_name=profile, region_name=REGION)
+        self.clients = {}
+        self.config = Config(retries={'total_max_attempts': 1}, connect_timeout=10, read_timeout=45)
+    def call(self, namespace, operation, **kwargs):
+        if namespace not in self.clients:
+            self.clients[namespace] = self.session.client(namespace, config=self.config)
+        try:
+            return getattr(self.clients[namespace], operation)(**kwargs)
+        except Exception as exc:
+            raise Refusal(f'{namespace}.{operation} failed or acknowledgement uncertain') from exc
+    def identity(self, expected_arn):
+        need(isinstance(expected_arn,str) and re.fullmatch(r'arn:aws:(?:iam|sts)::' + ACCOUNT + r':(?:user|assumed-role)/[A-Za-z0-9+=,.@_/-]+',expected_arn), 'expected task principal is invalid')
+        identity = self.call('sts', 'get_caller_identity')
+        need(identity.get('Account') == ACCOUNT and identity.get('Arn') == expected_arn, 'AWS identity differs from exact reviewed task principal/account')
+    def service(self, name):
+        result = self.call('ecs', 'describe_services', cluster=CLUSTER, services=[name])
+        need(not result.get('failures') and len(result.get('services', [])) == 1, 'service readback is not exact')
+        return result['services'][0]
+    def definition(self, arn):
+        return self.call('ecs', 'describe_task_definition', taskDefinition=arn, include=['TAGS'])
+    def task_arns(self, **kwargs):
+        out, token = [], None
+        while True:
+            args = {'cluster': CLUSTER, **kwargs}
+            if token:
+                args['nextToken'] = token
+            result = self.call('ecs', 'list_tasks', **args)
+            out.extend(result.get('taskArns', [])); token = result.get('nextToken')
+            need(len(out) <= 100, 'task enumeration exceeded bound')
+            if not token:
+                return out
+    def tasks(self, arns):
+        need(0 < len(arns) <= 100, 'task set is empty or unbounded')
+        result = self.call('ecs', 'describe_tasks', cluster=CLUSTER, tasks=arns)
+        need(not result.get('failures') and len(result.get('tasks', [])) == len(arns), 'task readback is not exact')
+        return result['tasks']
+    def logs(self, group, stream):
+        messages, token = [], None
+        for _ in range(100):
+            args = dict(logGroupName=group, logStreamName=stream, startFromHead=True, limit=1000)
+            if token:
+                args['nextToken'] = token
+            result = self.call('logs', 'get_log_events', **args)
+            messages.extend(item['message'] for item in result.get('events', []))
+            need(sum(len(m) for m in messages) <= 20 * 1024 * 1024, 'log read exceeds bound')
+            next_token = result.get('nextForwardToken')
+            if next_token == token or not next_token:
+                return messages
+            token = next_token
+        raise Refusal('log pagination exceeded bound')
+
+def qualify_build(aws, repo, service, expected):
+    need(re.fullmatch(r'[0-9a-f]{40}', expected.get('sourceSha', '')) and re.fullmatch(r'sha256:[0-9a-f]{64}', expected.get('imageDigest', '')), 'invalid source/digest')
+    need(expected.get('buildId', '').startswith(PROJECT + ':'), 'unexpected CodeBuild project')
+    response = aws.call('codebuild', 'batch_get_builds', ids=[expected['buildId']])
+    need(not response.get('buildsNotFound') and len(response.get('builds', [])) == 1, 'CodeBuild identity not exact')
+    build = response['builds'][0]
+    need(build.get('id') == expected['buildId'] and build.get('projectName') == PROJECT and build.get('buildStatus') == 'SUCCEEDED', 'CodeBuild did not succeed')
+    need(build.get('sourceVersion') == expected['sourceSha'] == build.get('resolvedSourceVersion'), 'CodeBuild source mismatch')
+    source = build.get('source') or {}
+    need(source.get('type') == 'GITHUB' and source.get('location', '').rstrip('/').removesuffix('.git') == REPOSITORY, 'noncanonical CodeBuild repository')
+    environment = build.get('environment') or {}
+    need(environment.get('type') == 'ARM_CONTAINER', 'CodeBuild platform is not ARM64')
+    recipe = pathlib.Path(expected['buildspecPath']).read_text(encoding='utf-8-sig').replace('\r\n', '\n')
+    recipe_hash = hashlib.sha256(recipe.encode()).hexdigest()
+    need(recipe_hash == expected.get('buildspecSha256LF') and (source.get('buildspec') or '').replace('\r\n', '\n') == recipe, 'reviewed CodeBuild recipe mismatch')
+    image = f'{REGISTRY}/capiro/dev/{service}@{expected["imageDigest"]}'
+    logs = build.get('logs') or {}
+    lines = [line.strip() for message in aws.logs(logs['groupName'], logs['streamName']) for line in message.splitlines()]
+    image_lines = [line for line in lines if re.fullmatch(r'CANDIDATE_[A-Z0-9_]+_IMAGE=' + re.escape(image), line)]
+    need(len(image_lines) == 1, 'CodeBuild log does not bind one exact candidate image')
+    prefix = image_lines[0].split('_IMAGE=', 1)[0]
+    need(lines.count(prefix + '_SOURCE_SHA=' + expected['sourceSha']) == 1 and 'LOCAL_REPODIGEST_ECR_MATCH_PASS' in lines, 'candidate source/registry proof missing')
+    if service == 'api':
+        need('OFFLINE_RUNTIME_IMPORT_PASS' in lines and 'EXACT_449_IMAGE_MIGRATION_HASHES_PASS' in lines, 'API packaged-runtime qualification missing')
+    found = aws.call('ecr', 'describe_images', registryId=ACCOUNT, repositoryName='capiro/dev/' + service, imageIds=[{'imageDigest': expected['imageDigest']}])
+    details = found.get('imageDetails', [])
+    need(len(details) == 1 and details[0].get('imageDigest') == expected['imageDigest'], 'ECR immutable image mismatch')
+    need(expected['sourceSha'] in details[0].get('imageTags', []), 'ECR candidate source tag no longer matches digest')
+    git(repo, 'merge-base', '--is-ancestor', expected['sourceSha'], 'HEAD')
+    if service == 'api':
+        for path in OWNER_FILES:
+            need(git(repo, 'show', expected['sourceSha'] + ':' + path) == git(repo, 'show', 'HEAD:' + path), 'image-owned flag command differs from operator source')
+    return {'provider': 'AWS_CODEBUILD', 'buildId': build['id'], 'sourceSha': expected['sourceSha'], 'imageDigest': expected['imageDigest'], 'image': image, 'buildspecSha256LF': recipe_hash}
+
+# Matches the conservative serviceConfig exclusions in meri-release-policy.mjs.
+SERVICE_VOLATILE = {'runningCount','pendingCount','events','createdAt','createdBy','taskSets','deployments','serviceArn','clusterArn','currentServiceDeployment','currentServiceRevisions'}
+
+def service_config(service):
+    return {key:value for key,value in service.items() if key not in SERVICE_VOLATILE and key != 'taskDefinition'}
+
+def primary_state(service):
+    primaries = [item for item in service.get('deployments',[]) if item.get('status') == 'PRIMARY']
+    need(len(primaries) == 1, 'primary deployment is ambiguous')
+    return {key:primaries[0].get(key) for key in ('id','status','taskDefinition','rolloutState','desiredCount','networkConfiguration','platformVersion','capacityProviderStrategy','serviceConnectConfiguration','volumeConfigurations')}
+
+def verify_web(aws, proof):
+    name = 'capiro-dev-web-vnext'; service = aws.service(name)
+    need(service.get('serviceArn') == f'arn:aws:ecs:{REGION}:{ACCOUNT}:service/{CLUSTER}/{name}' and service.get('clusterArn') == f'arn:aws:ecs:{REGION}:{ACCOUNT}:cluster/{CLUSTER}', 'Web identity mismatch')
+    primary = primary_state(service)
+    need(primary.get('taskDefinition') == service.get('taskDefinition') and primary.get('rolloutState') == 'COMPLETED' and len(service.get('deployments',[])) == 1, 'Web deployment not steady')
+    tasks = aws.tasks(aws.task_arns(serviceName=name,desiredStatus='RUNNING'))
+    need(service.get('desiredCount',0) > 0 and service.get('runningCount') == service.get('desiredCount') == len(tasks) and service.get('pendingCount') == 0, 'Web count not steady')
+    definition = aws.definition(service['taskDefinition'])['taskDefinition']
+    need(definition.get('taskDefinitionArn') == service['taskDefinition'], 'Web task definition identity mismatch')
+    names = {item.get('containerName') for item in service.get('loadBalancers',[])}
+    need(len(names) == 1 and all(isinstance(name,str) and name for name in names), 'Web application target binding is ambiguous')
+    container_name = next(iter(names))
+    application = [item for item in definition.get('containerDefinitions',[]) if item.get('name') == container_name]
+    need(len(application) == 1 and application[0].get('image') == proof['image'], 'Web target definition does not pin qualified image')
+    for task in tasks:
+        containers = [item for item in task.get('containers',[]) if item.get('name') == container_name]
+        need(task.get('clusterArn') == service['clusterArn'] and task.get('taskDefinitionArn') == service['taskDefinition'] and task.get('lastStatus') == 'RUNNING' and task.get('desiredStatus') == 'RUNNING' and len(containers) == 1 and containers[0].get('imageDigest') == proof['imageDigest'], 'new qualified Web application not served')
+    check_targets(aws,{'tasks':tasks,'service':service,'containerName':container_name})
+    return {'taskDefinition':service['taskDefinition'],'imageDigest':proof['imageDigest'],'primaryDeployment':primary,'serviceConfigHash':digest(service_config(service))}
+
+def snapshot(aws, helper, service, proof):
+    name = SERVICES[service]
+    svc = aws.service(name)
+    helper.assert_service_shape(svc, svc['taskDefinition'])
+    response = aws.definition(svc['taskDefinition']); td = response['taskDefinition']
+    need(td.get('taskDefinitionArn') == svc['taskDefinition'] and td.get('family') == name, 'task definition identity changed')
+    need(td.get('runtimePlatform', {}).get('cpuArchitecture') == 'ARM64', 'runtime architecture differs')
+    arns = aws.task_arns(serviceName=name, desiredStatus='RUNNING'); tasks = aws.tasks(arns)
+    need(len(tasks) == svc['desiredCount'], 'task count changed')
+    for task in tasks:
+        need(task.get('taskDefinitionArn') == svc['taskDefinition'] and task.get('clusterArn') == svc['clusterArn'], 'task belongs to another deployment')
+    container_name = helper.find_target_container(td, tasks, proof['imageDigest'])
+    container = next(item for item in td['containerDefinitions'] if item['name'] == container_name)
+    need(container['image'] == proof['image'], 'served definition must pin qualified candidate digest')
+    helper.relevant_source_label(container, proof['sourceSha'])
+    env = unique(container.get('environment'), 'value'); secrets = unique(container.get('secrets'), 'valueFrom')
+    need(not (set(env) & set(secrets)), 'plaintext environment shadows secret reference')
+    need(env.get('GIT_SHA') == proof['sourceSha'], 'served source metadata differs from image source')
+    candidate, change = transform(helper, response, container_name)
+    request = helper.task_registration_request(response)
+    config = service_config(svc)
+    fingerprint = digest({'taskDefinition': request, 'serviceConfig': config, 'deployment': primary_state(svc), 'runningTaskArns': sorted(arns)})
+    return {'service': svc, 'response': response, 'container': container, 'containerName': container_name, 'tasks': tasks, 'candidate': candidate,
+            'safe': {'service': name, 'taskDefinition': svc['taskDefinition'], 'taskDefinitionHash': digest(request), 'snapshotHash': fingerprint, 'serviceConfigHash':digest(config), 'primaryDeployment':primary_state(svc), 'desiredCount': svc['desiredCount'], 'candidateHash': digest(candidate), 'cohortChange': change, 'containerName': container_name, 'imageDigest': proof['imageDigest']}}
+
+def check_targets(aws, snap):
+    addresses = {detail['value'] for task in snap['tasks'] for attachment in task.get('attachments', []) for detail in attachment.get('details', []) if detail.get('name') == 'privateIPv4Address'}
+    need(len(addresses) == len(snap['tasks']), 'task network identities are not exact')
+    balancers = [entry for entry in snap['service'].get('loadBalancers', []) if entry.get('containerName') == snap['containerName']]
+    need(bool(balancers), 'no bounded application target group')
+    for entry in balancers:
+        status = aws.call('elbv2', 'describe_target_health', TargetGroupArn=entry['targetGroupArn'])
+        healthy = {item['Target']['Id'] for item in status.get('TargetHealthDescriptions', []) if item['TargetHealth']['State'] == 'healthy' and item['Target']['Port'] == entry['containerPort']}
+        need(healthy == addresses, 'target health does not match exact running task IPs')
+
+def prepare(aws, repo, helper, qualification):
+    need(qualification.get('schemaVersion') == SCHEMA and set(qualification.get('images', {})) == {'api','meriv2-orchestrator','web-vnext'}, 'qualification scope is not exact')
+    head = git(repo, 'rev-parse', 'HEAD').decode().strip()
+    need(head == qualification.get('operatorSourceSha') and not git(repo, 'status', '--porcelain=v1', '--untracked-files=all').strip(), 'operator checkout is not exact and clean')
+    aws.identity(qualification.get('expectedCallerArn'))
+    proofs = {name: qualify_build(aws, repo, name, expected) for name, expected in qualification['images'].items()}
+    # Web must already serve its newly qualified candidate before canary activation.
+    web = verify_web(aws,proofs['web-vnext'])
+    snaps = {name: snapshot(aws, helper, name, proofs[name]) for name in SERVICES}
+    for snap in snaps.values():
+        check_targets(aws, snap)
+    body = {'schemaVersion': SCHEMA, 'createdAtEpoch': time.time(), 'expiresAtEpoch': time.time() + 3600, 'operatorSourceSha': head,
+            'adapterSha256': hashlib.sha256(pathlib.Path(__file__).read_bytes()).hexdigest(), 'qualificationHash': digest(qualification),
+            'expectedCallerArn':qualification['expectedCallerArn'], 'web':web, 'proofs': proofs, 'services': {key: value['safe'] for key, value in snaps.items()}, 'tenants': [list(pair) for pair in TENANTS], 'operationId': uuid.uuid4().hex}
+    return {**body, 'planHash': digest(body)}, snaps
+
+def verify_plan(plan, qualification, repo, rollback=False):
+    body = {k:v for k,v in plan.items() if k != 'planHash'}
+    need(plan.get('schemaVersion') == SCHEMA and plan.get('planHash') == digest(body), 'plan integrity mismatch')
+    need(plan.get('qualificationHash') == digest(qualification), 'qualification changed since plan')
+    need(plan.get('adapterSha256') == hashlib.sha256(pathlib.Path(__file__).read_bytes()).hexdigest(), 'adapter changed since review')
+    need(plan.get('tenants') == [list(pair) for pair in TENANTS], 'tenant scope changed')
+    need(plan.get('operatorSourceSha') == git(repo, 'rev-parse', 'HEAD').decode().strip(), 'operator source changed')
+    need(not git(repo,'status','--porcelain=v1','--untracked-files=all').strip(), 'operator checkout changed after plan')
+    created, expires = plan.get('createdAtEpoch',0), plan.get('expiresAtEpoch',0)
+    need(isinstance(created,(int,float)) and isinstance(expires,(int,float)) and 0 < expires-created <= 3601 and created <= time.time()+5, 'plan freshness interval invalid')
+    need(rollback or time.time() <= plan.get('expiresAtEpoch', 0), 'plan expired')
+
+def diagnostic_request(helper, fullchat, snap, proof):
+    original = helper.task_registration_request(snap['response'])
+    required = ('taskRoleArn','executionRoleArn','networkMode','requiresCompatibilities','cpu','memory','runtimePlatform')
+    need(all(key in original for key in required), 'served API runtime fields missing')
+    need(original['networkMode'] == 'awsvpc' and original['requiresCompatibilities'] == ['FARGATE'], 'API one-off requires existing Fargate network')
+    request = {key:copy.deepcopy(original[key]) for key in required}
+    request['family'] = fullchat.TASK_FAMILY
+    api = snap['container']
+    environment = unique(api.get('environment'), 'value')
+    secret_refs = unique(api.get('secrets'), 'valueFrom')
+    need(all(name in secret_refs for name in fullchat.DB_SECRET_NAMES) and environment.get('DB_NAME'), 'served API DB references missing')
+    need(not (fullchat.DB_SECRET_NAMES & set(environment)) and 'DB_NAME' not in secret_refs, 'ambiguous database sources')
+    logs = copy.deepcopy(api.get('logConfiguration'))
+    need(isinstance(logs, dict) and logs.get('logDriver') == 'awslogs', 'bounded one-off logs missing')
+    request['containerDefinitions'] = [{
+        'name': fullchat.CONTAINER, 'image':proof['image'], 'essential':True,
+        'command':['set-tenant-flag','--foundation-fullchat'],
+        'environment':[{'name':'DB_NAME','value':environment['DB_NAME']},{'name':'TMPDIR','value':'/dev/shm'}],
+        'secrets':[{'name':name,'valueFrom':secret_refs[name]} for name in sorted(fullchat.DB_SECRET_NAMES)],
+        'dockerLabels':{'org.opencontainers.image.revision':proof['sourceSha'],'org.opencontainers.image.source':REPOSITORY},
+        'logConfiguration':logs,
+    }]
+    return request
+
+def diagnostic_projection(request):
+    # ECS adds these documented empty/default registration fields on readback.
+    # Retain every other field, including unknown fields, so changes fail closed.
+    value = copy.deepcopy(request)
+    for key in ('tags','volumes','placementConstraints'):
+        value.setdefault(key,[])
+    for container in value.get('containerDefinitions',[]):
+        container.setdefault('cpu',0)
+        for key in ('portMappings','mountPoints','volumesFrom','systemControls','environmentFiles'):
+            container.setdefault(key,[])
+    return value
+
+def registration_args(request):
+    # ECS rejects an explicitly empty Tags request although Describe returns [].
+    value = copy.deepcopy(request)
+    if value.get('tags') == []:
+        value.pop('tags')
+    return value
+
+
+class FlagBridge:
+    """Duck-typed transport for the existing, unchanged fullChat owner guards."""
+    def __init__(self, aws, fullchat, diag_arn):
+        self.aws, self.fullchat, self.diag_arn = aws, fullchat, diag_arn
+    def describe_service(self):
+        return {'services':[self.aws.service(SERVICES['api'])], 'failures':[]}
+    def describe_task_definition(self, name):
+        return self.aws.definition(self.diag_arn if name == self.fullchat.TASK_FAMILY else name)
+    def list_tasks(self, *args):
+        mapping = {'--service-name':'serviceName','--desired-status':'desiredStatus','--started-by':'startedBy'}
+        need(len(args) % 2 == 0 and all(args[i] in mapping for i in range(0,len(args),2)), 'unsupported task selector')
+        return self.aws.task_arns(**{mapping[args[i]]:args[i+1] for i in range(0,len(args),2)})
+    def describe_tasks(self, arns):
+        return {'tasks':self.aws.tasks(arns), 'failures':[]}
+    def log_events(self, group, stream):
+        try:
+            return self.aws.logs(group,stream)
+        except Refusal as exc:
+            raise self.fullchat.FullchatError('bounded log read not yet available') from exc
+
+
+class ScopedGit:
+    def __init__(self, repo):
+        self.repo = repo
+    def run(self, args):
+        return git(self.repo, *args).decode().strip()
+
+def capture_codebuild_runtime(bridge, fullchat, repo, proof):
+    # Preserve the existing runtime/role/DB/network guards, replacing only its
+    # obsolete Actions-producer ancestry assumption with verified CodeBuild source.
+    def validate_codebuild_source(_git, sha):
+        need(sha == proof['sourceSha'], 'runtime source differs from qualified CodeBuild source')
+        git(repo,'merge-base','--is-ancestor',sha,'HEAD')
+        for path in OWNER_FILES:
+            need(git(repo,'show',sha+':'+path) == git(repo,'show','HEAD:'+path), 'image-owned flag command differs from operator source')
+        checks = (('--foundation-fullchat',OWNER_FILES[0]),(fullchat.FLAG,OWNER_FILES[1]),('set-tenant-flag)',OWNER_FILES[2]))
+        for marker,path in checks:
+            need(marker.encode() in git(repo,'show',sha+':'+path), 'qualified source lacks fixed flag owner command')
+    original = fullchat.capture_runtime
+    guarded = types.FunctionType(original.__code__, {**original.__globals__,'validate_image_source':validate_codebuild_source}, original.__name__, original.__defaults__, original.__closure__)
+    return guarded(bridge,ScopedGit(repo))
+
+def read_flag_result(aws, helper, fullchat, plan, snapshot_api, job, mode, expected):
+    need(job.get('mode') == mode and job.get('status') == 'VERIFIED', 'authoritative flag job is not verified')
+    task_arn = job.get('taskArn',''); arn = job.get('taskDefinition','')
+    need(re.fullmatch(f'arn:aws:ecs:{REGION}:{ACCOUNT}:task/{CLUSTER}/[a-f0-9]{{32}}',task_arn) and fullchat.TD_ARN_RE.fullmatch(arn), 'flag task identity invalid')
+    request = diagnostic_request(helper,fullchat,snapshot_api,plan['proofs']['api'])
+    response = aws.definition(arn)
+    need(digest(diagnostic_projection(request)) == job.get('requestHash') == digest(diagnostic_projection(helper.task_registration_request(response))), 'flag owner definition does not match qualified API')
+    task = aws.tasks([task_arn])[0]; containers = task.get('containers') or []
+    need(task.get('taskArn') == task_arn and task.get('taskDefinitionArn') == arn and task.get('clusterArn') == f'arn:aws:ecs:{REGION}:{ACCOUNT}:cluster/{CLUSTER}' and task.get('lastStatus') == 'STOPPED' and len(containers) == 1, 'flag task readback differs')
+    container = containers[0]
+    need(container.get('name') == fullchat.CONTAINER and container.get('lastStatus') == 'STOPPED' and container.get('exitCode') == 0 and container.get('imageDigest') == plan['proofs']['api']['imageDigest'], 'flag task runtime or exit differs')
+    overrides = copy.deepcopy(task.get('overrides',{}))
+    if overrides.get('inferenceAcceleratorOverrides') == []:
+        overrides.pop('inferenceAcceleratorOverrides')
+    for override in overrides.get('containerOverrides',[]):
+        for key in ('environment','environmentFiles','resourceRequirements'):
+            if override.get(key) == []: override.pop(key)
+    need(overrides == {'containerOverrides':[{'name':fullchat.CONTAINER,'command':fullchat.command_for(mode,expected)}]}, 'flag task command/roles/environment differ from fixed owner command')
+    options = response['taskDefinition']['containerDefinitions'][0]['logConfiguration']['options']
+    stream = options['awslogs-stream-prefix'] + '/' + fullchat.CONTAINER + '/' + task_arn.rsplit('/',1)[1]
+    result,before,after = fullchat.parse_db_result(aws.logs(options['awslogs-group'],stream),mode)
+    need(result == job.get('result'), 'saved flag result differs from authoritative result')
+    return before,after
+
+
+def flag_job(aws, repo, helper, fullchat, plan, snapshot_api, mode, expected, journal, output):
+    request = diagnostic_request(helper, fullchat, snapshot_api, plan['proofs']['api'])
+    job = {'mode':mode,'requestHash':digest(diagnostic_projection(request)),'startedBy':'meri-cb-' + plan['operationId'][:20] + '-' + mode}
+    journal.setdefault('flagJobs',[]).append(job)
+    job['status'] = 'REGISTER_INTENT'; save(output, journal)
+    response = aws.call('ecs','register_task_definition',**registration_args(request))
+    arn = response.get('taskDefinition',{}).get('taskDefinitionArn','')
+    need(bool(fullchat.TD_ARN_RE.fullmatch(arn)), 'diagnostic task definition ARN invalid')
+    job['taskDefinition'] = arn; job['status'] = 'REGISTERED'; save(output,journal)
+    need(digest(diagnostic_projection(helper.task_registration_request(aws.definition(arn)))) == job['requestHash'], 'diagnostic registration changed fields')
+    bridge = FlagBridge(aws,fullchat,arn)
+    runtime = capture_codebuild_runtime(bridge,fullchat,repo,plan['proofs']['api'])
+    need(runtime['imageDigest'] == plan['proofs']['api']['imageDigest'] and runtime['sourceCommit'] == plan['proofs']['api']['sourceSha'], 'one-off differs from qualified API image')
+    command = fullchat.command_for(mode,expected)
+    need(not aws.task_arns(startedBy=job['startedBy']), 'existing startedBy task requires reconciliation; no resubmit')
+    job['status'] = 'RUN_INTENT'; save(output,journal)
+    try:
+        response = aws.call('ecs','run_task',cluster=CLUSTER,launchType='FARGATE',taskDefinition=arn,
+            networkConfiguration=runtime['network'],count=1,startedBy=job['startedBy'],
+            clientToken=hashlib.sha256((plan['planHash']+mode).encode()).hexdigest(),
+            overrides={'containerOverrides':[{'name':fullchat.CONTAINER,'command':command}]})
+        need(not response.get('failures') and len(response.get('tasks',[])) == 1,'one-off acknowledgement is not exact')
+        task_arn = response['tasks'][0]['taskArn']
+    except Exception:
+        observed = aws.task_arns(startedBy=job['startedBy'])
+        need(len(observed) == 1, 'one-off acknowledgement uncertain; no resubmit')
+        task_arn = observed[0]
+    job['taskArn'] = task_arn; job['status'] = 'RUNNING'; save(output,journal)
+    task = fullchat.wait_for_task(bridge,task_arn,600)
+    containers = task.get('containers') or []
+    need(task.get('taskDefinitionArn') == arn and len(containers) == 1 and containers[0].get('name') == fullchat.CONTAINER and containers[0].get('imageDigest') == runtime['imageDigest'] and containers[0].get('lastStatus') == 'STOPPED' and containers[0].get('exitCode') == 0, 'one-off exit/runtime identity mismatch')
+    stream = runtime['logPrefix'] + '/' + fullchat.CONTAINER + '/' + task_arn.rsplit('/',1)[1]
+    result, before, after = fullchat.parse_db_result(fullchat.wait_for_log_messages(bridge,runtime['logGroup'],stream),mode)
+    if mode == 'apply':
+        need(before == expected, 'flag apply prior-state mismatch')
+    if mode == 'rollback':
+        need(after == expected, 'flag rollback did not restore original state')
+    job['status'] = 'VERIFIED'; job['result'] = result; save(output,journal)
+    return before,after
+
+
+def wait_service(aws, helper, service, proof, expected_td, expected_hash, desired_count, config_hash, deployment_id):
+    deadline = time.monotonic() + 900
+    while time.monotonic() < deadline:
+        live = aws.service(SERVICES[service]); primary = primary_state(live)
+        need(live.get('taskDefinition') == expected_td and primary.get('id') == deployment_id and primary.get('taskDefinition') == expected_td and digest(service_config(live)) == config_hash, 'concurrent deployment or service configuration drift')
+        need(all(item.get('rolloutState') != 'FAILED' for item in live.get('deployments',[])), 'ECS deployment failed')
+        if len(live.get('deployments',[])) == 1 and primary.get('rolloutState') == 'COMPLETED' and live.get('runningCount') == desired_count and live.get('pendingCount') == 0:
+            value = snapshot(aws,helper,service,proof)
+            need(value['safe']['taskDefinition'] == expected_td and value['safe']['taskDefinitionHash'] == expected_hash and value['safe']['desiredCount'] == desired_count and value['safe']['serviceConfigHash'] == config_hash and value['safe']['primaryDeployment']['id'] == deployment_id, 'final service readback drift')
+            try:
+                check_targets(aws,value)
+                return value
+            except Refusal as exc:
+                # Only ALB health propagation is transient here; all config checks are above.
+                if str(exc) != 'target health does not match exact running task IPs':
+                    raise
+        time.sleep(5)
+    raise Refusal('service did not reach exact task/digest/health state within bound')
+
+
+def update_once(aws, service, target_arn, journal_entry, journal, output, expected_live):
+    journal_entry['status'] = 'UPDATE_INTENT'; save(output,journal)
+    current = aws.service(SERVICES[service])
+    need(digest(service_config(current)) == expected_live['serviceConfigHash'] and current.get('taskDefinition') == expected_live['taskDefinition'] and primary_state(current) == expected_live['primaryDeployment'], 'deployment drift immediately before update')
+    response = aws.call('ecs','update_service',cluster=CLUSTER,service=SERVICES[service],taskDefinition=target_arn)
+    returned = response.get('service') or {}; primary = primary_state(returned)
+    need(returned.get('taskDefinition') == target_arn and primary.get('taskDefinition') == target_arn and primary.get('id'), 'update acknowledgement requires reconciliation')
+    journal_entry['deploymentId'] = primary['id']; journal_entry['status'] = 'PROMOTING'; save(output,journal)
+    return primary['id']
+
+
+def same_snapshot(current, safe):
+    need(current['safe']['snapshotHash'] == safe['snapshotHash'], 'live baseline drifted since plan')
+
+
+def execute(aws, repo, helper, fullchat, qualification, plan, mode, approval, confirmation, flags_receipt, source_receipt, output):
+    verify_plan(plan,qualification,repo,rollback=mode=='rollback')
+    need(approval == plan['planHash'] and confirmation == 'EXECUTE_FIXED_SYNTHETIC_' + mode.upper().replace('-','_'), 'explicit reviewed-plan confirmation missing')
+    need(not pathlib.Path(output).exists(), 'receipt already exists; reconcile rather than repeat')
+    aws.identity(qualification.get('expectedCallerArn'))
+    for name in plan['proofs']:
+        need(qualify_build(aws,repo,name,qualification['images'][name]) == plan['proofs'][name], 'candidate provenance changed')
+    need(verify_web(aws,plan['proofs']['web-vnext']) == plan['web'], 'qualified Web baseline changed')
+    journal = {'schemaVersion':SCHEMA,'mode':mode,'planHash':plan['planHash'],'status':'EXECUTION_STARTED','startedAtEpoch':time.time(),'services':{},'flagJobs':[]}
+    claim_operation(plan,mode)
+    create_receipt(output,journal)
+    try:
+        snaps = {name:snapshot(aws,helper,name,plan['proofs'][name]) for name in SERVICES}
+        if mode in ('flag-plan','apply'):
+            for name in SERVICES:
+                same_snapshot(snaps[name],plan['services'][name]); check_targets(aws,snaps[name])
+        if mode == 'flag-plan':
+            before,_ = flag_job(aws,repo,helper,fullchat,plan,snaps['api'],'plan',None,journal,output)
+            journal['priorStates'] = before
+        elif mode == 'apply':
+            need(flags_receipt.get('schemaVersion') == SCHEMA and flags_receipt.get('mode') == 'flag-plan' and flags_receipt.get('planHash') == plan['planHash'] and flags_receipt.get('status') == 'VERIFIED', 'verified flag plan receipt required')
+            jobs = flags_receipt.get('flagJobs') or []
+            need(len(jobs) == 1 and jobs[0].get('status') == 'VERIFIED', 'flag plan result missing')
+            prior,after = read_flag_result(aws,helper,fullchat,plan,snaps['api'],jobs[0],'plan',None)
+            need(prior == after == flags_receipt.get('priorStates'), 'flag plan authority differs from saved receipt')
+            journal['priorStates'] = prior; save(output,journal)
+            flag_job(aws,repo,helper,fullchat,plan,snaps['api'],'apply',prior,journal,output)
+            for name in SERVICES:
+                current = snapshot(aws,helper,name,plan['proofs'][name]); same_snapshot(current,plan['services'][name])
+                safe = plan['services'][name]
+                if not safe['cohortChange']['added']:
+                    journal['services'][name] = {'status':'NO_CHANGE','beforeTaskDefinition':safe['taskDefinition'],'afterTaskDefinition':safe['taskDefinition']}; save(output,journal); continue
+                entry = {'status':'REGISTER_INTENT','beforeTaskDefinition':safe['taskDefinition'],'beforeHash':safe['taskDefinitionHash'],'afterHash':safe['candidateHash'],'desiredCount':safe['desiredCount']}
+                journal['services'][name] = entry; save(output,journal)
+                registered = aws.call('ecs','register_task_definition',**registration_args(current['candidate']))
+                arn = registered.get('taskDefinition',{}).get('taskDefinitionArn','')
+                helper.validate_new_td_arn(SERVICES[name],arn)
+                entry['afterTaskDefinition'] = arn; entry['status'] = 'REGISTERED'; save(output,journal)
+                need(digest(helper.task_registration_request(aws.definition(arn))) == safe['candidateHash'], 'registered cohort differs from reviewed delta')
+                same_snapshot(snapshot(aws,helper,name,plan['proofs'][name]),safe)
+                need(verify_web(aws,plan['proofs']['web-vnext']) == plan['web'], 'qualified Web baseline changed')
+                deployment_id = update_once(aws,name,arn,entry,journal,output,safe)
+                value = wait_service(aws,helper,name,plan['proofs'][name],arn,safe['candidateHash'],safe['desiredCount'],safe['serviceConfigHash'],deployment_id)
+                entry['status'] = 'VERIFIED'; entry['readback'] = value['safe']; save(output,journal)
+        else:
+            need(source_receipt.get('schemaVersion') == SCHEMA and source_receipt.get('mode') == 'apply' and source_receipt.get('planHash') == plan['planHash'], 'exact source apply receipt required')
+            need(source_receipt.get('priorStates'), 'rollback lacks original flag states')
+            jobs = source_receipt.get('flagJobs') or []
+            need(len(jobs) == 1, 'rollback requires one authoritative apply job')
+            prior,_ = read_flag_result(aws,helper,fullchat,plan,snaps['api'],jobs[0],'apply',source_receipt['priorStates'])
+            need(prior == source_receipt['priorStates'], 'rollback original states differ from actual apply authority')
+            # Restore exposure first, preserving the released image and original cohort.
+            for name in reversed(tuple(SERVICES)):
+                current = snapshot(aws,helper,name,plan['proofs'][name]); original = plan['services'][name]
+                change = source_receipt.get('services',{}).get(name,{})
+                if current['safe']['taskDefinition'] == original['taskDefinition']:
+                    need(current['safe']['taskDefinitionHash'] == original['taskDefinitionHash'] and current['safe']['serviceConfigHash'] == original['serviceConfigHash'] and current['safe']['desiredCount'] == original['desiredCount'] and current['safe']['primaryDeployment'] == original['primaryDeployment'], 'original deployment/configuration changed')
+                    continue
+                need(current['safe']['taskDefinition'] == change.get('afterTaskDefinition') and current['safe']['taskDefinitionHash'] == original['candidateHash'] and current['safe']['desiredCount'] == original['desiredCount'] and current['safe']['serviceConfigHash'] == original['serviceConfigHash'] and current['safe']['primaryDeployment']['id'] == change.get('deploymentId'), 'rollback refuses third-party configuration/deployment drift')
+                need(digest(helper.task_registration_request(aws.definition(original['taskDefinition']))) == original['taskDefinitionHash'], 'rollback source definition hash mismatch')
+                journal['services'][name] = {'status':'PREPARING','restoreTaskDefinition':original['taskDefinition']}; save(output,journal)
+                deployment_id = update_once(aws,name,original['taskDefinition'],journal['services'][name],journal,output,current['safe'])
+                wait_service(aws,helper,name,plan['proofs'][name],original['taskDefinition'],original['taskDefinitionHash'],original['desiredCount'],original['serviceConfigHash'],deployment_id)
+                journal['services'][name]['status'] = 'VERIFIED'; save(output,journal)
+            api = snapshot(aws,helper,'api',plan['proofs']['api'])
+            flag_job(aws,repo,helper,fullchat,plan,api,'rollback',source_receipt['priorStates'],journal,output)
+        journal['status'] = 'VERIFIED'; journal['completedAtEpoch'] = time.time(); journal['receiptHash'] = digest(journal); save(output,journal)
+        return journal
+    except Exception as exc:
+        journal['status'] = 'BLOCKED_RECONCILIATION_REQUIRED'; journal['errorClass'] = type(exc).__name__; save(output,journal)
+        raise
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('mode', choices=['prepare','flag-plan','apply','rollback'])
+    parser.add_argument('--repo', required=True)
+    parser.add_argument('--qualification', required=True)
+    parser.add_argument('--output', required=True)
+    parser.add_argument('--profile', default='default')
+    parser.add_argument('--plan')
+    parser.add_argument('--approve', default='')
+    parser.add_argument('--confirm', default='')
+    parser.add_argument('--flags-receipt')
+    parser.add_argument('--source-receipt')
+    args = parser.parse_args()
+    try:
+        cohort, fullchat = load_helpers(args.repo)
+        qualification = read_json(args.qualification)
+        if args.mode == 'prepare':
+            plan, _ = prepare(Aws(args.profile), args.repo, cohort, qualification)
+            save(args.output, plan)
+            print(json.dumps({'status':'PLAN_ONLY','planHash':plan['planHash'],'cloudMutations':0}))
+        else:
+            need(args.plan is not None, 'reviewed plan required')
+            result = execute(Aws(args.profile),args.repo,cohort,fullchat,qualification,read_json(args.plan),args.mode,args.approve,args.confirm,read_json(args.flags_receipt) if args.flags_receipt else {},read_json(args.source_receipt) if args.source_receipt else {},args.output)
+            print(json.dumps({'status':result['status'],'planHash':result['planHash'],'mode':args.mode}))
+        return 0
+    except Exception as exc:
+        print(json.dumps({'status':'BLOCKED','reason':str(exc) if isinstance(exc, Refusal) else type(exc).__name__}))
+        return 2
+
+if __name__ == '__main__':
+    raise SystemExit(main())

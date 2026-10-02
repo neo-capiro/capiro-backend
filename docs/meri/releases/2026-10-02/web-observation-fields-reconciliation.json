@@ -1,0 +1,89 @@
+{
+  "observedAt": "2026-10-02T01:52:55.589Z",
+  "verdict": "PASS",
+  "scope": "Read-only reconciliation of already-issued Web update; no update, rollback, registration or configuration write",
+  "legacyConfigHashExpected": "4bca81253897890e131ca00d42c8b17deaba0d391e4194b51d8fb4cf2f50f219",
+  "legacyConfigHashCurrent": "2588026f40b1f65b3d0b0f5b6549ca9e0944ded4502d73c3ce984fd7cbabd345",
+  "legacyConfigHashReconstructed": "4bca81253897890e131ca00d42c8b17deaba0d391e4194b51d8fb4cf2f50f219",
+  "normalizedConfigHash": "453a3d5aedc3da7d989370b97669abf0c1b14efbacd2d1597990b9cac7d50ab7",
+  "reconstruction": "Replace only currentServiceRevisions with historical completed target revision summary; omit currentServiceDeployment. Exact original config hash matches.",
+  "observationFieldsPresent": [
+    "currentServiceRevisions"
+  ],
+  "oldDeploymentArn": "arn:aws:ecs:us-east-1:967807252336:service-deployment/capiro-dev/capiro-dev-web-vnext/GBRVbkZdFuLtnqhIEq06G",
+  "oldRevisionSummary": {
+    "arn": "arn:aws:ecs:us-east-1:967807252336:service-revision/capiro-dev/capiro-dev-web-vnext/0141828733249441505",
+    "requestedTaskCount": 1,
+    "runningTaskCount": 1,
+    "pendingTaskCount": 0
+  },
+  "currentRevisionSummaries": [
+    {
+      "arn": "arn:aws:ecs:us-east-1:967807252336:service-revision/capiro-dev/capiro-dev-web-vnext/3490292933385052646",
+      "requestedTaskCount": 1,
+      "runningTaskCount": 1,
+      "pendingTaskCount": 0
+    }
+  ],
+  "candidateTaskHash": "105966e60d447373fc9356d4bfdbc0ea15a8992d8332e8d006184e1ae6d36e4c",
+  "expectedCandidateTaskHash": "105966e60d447373fc9356d4bfdbc0ea15a8992d8332e8d006184e1ae6d36e4c",
+  "service": {
+    "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web-vnext:386",
+    "desired": 1,
+    "running": 1,
+    "pending": 0,
+    "deployments": [
+      {
+        "id": "ecs-svc/3490292933385052646",
+        "status": "PRIMARY",
+        "rolloutState": "COMPLETED",
+        "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web-vnext:386"
+      }
+    ]
+  },
+  "tasks": [
+    {
+      "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web-vnext:386",
+      "lastStatus": "RUNNING",
+      "containers": [
+        {
+          "name": "web-vnext",
+          "lastStatus": "RUNNING",
+          "imageDigest": "sha256:bb114117e1ac5bad398a34c2272280b0b55abbcb0502cb5b6b95356f213bdfdb"
+        }
+      ]
+    }
+  ],
+  "targetHealth": [
+    {
+      "port": 8080,
+      "state": "healthy"
+    }
+  ],
+  "calls": [
+    {
+      "command": "ecs describe-services",
+      "exitCode": 0
+    },
+    {
+      "command": "ecs describe-service-deployments",
+      "exitCode": 0
+    },
+    {
+      "command": "ecs describe-task-definition",
+      "exitCode": 0
+    },
+    {
+      "command": "ecs list-tasks",
+      "exitCode": 0
+    },
+    {
+      "command": "ecs describe-tasks",
+      "exitCode": 0
+    },
+    {
+      "command": "elbv2 describe-target-health",
+      "exitCode": 0
+    }
+  ]
+}

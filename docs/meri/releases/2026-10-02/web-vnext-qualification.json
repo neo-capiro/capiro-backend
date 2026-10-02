@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "service": "web-vnext",
+  "sourceSha": "940fe9354f95630c6acb0f20f75ced26ea9e75f4",
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:bb114117e1ac5bad398a34c2272280b0b55abbcb0502cb5b6b95356f213bdfdb",
+  "status": "qualified",
+  "reviewer": "Codex release operator with independent source, schema and image reviewers",
+  "reviewedAt": "2026-10-02T01:37:58.5455806Z",
+  "expiresAt": "2026-10-02T05:37:58.5455806Z",
+  "schemaChange": false,
+  "evidence": [
+    "https://github.com/neo-capiro/capirov2/blob/eac2d521fae4833e440d37b231ae4384d7563a1e/docs/meri/releases/2026-10-02/qualification.md",
+    "https://github.com/neo-capiro/capirov2/blob/eac2d521fae4833e440d37b231ae4384d7563a1e/docs/meri/releases/2026-10-02/web-build-qualification.json"
+  ],
+  "checks": [
+    {
+      "name": "build",
+      "status": "passed",
+      "sourceSha": "940fe9354f95630c6acb0f20f75ced26ea9e75f4",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:bb114117e1ac5bad398a34c2272280b0b55abbcb0502cb5b6b95356f213bdfdb",
+      "url": "https://github.com/neo-capiro/capirov2/blob/eac2d521fae4833e440d37b231ae4384d7563a1e/docs/meri/releases/2026-10-02/web-build-qualification.json"
+    },
+    {
+      "name": "automated-tests",
+      "status": "passed",
+      "sourceSha": "940fe9354f95630c6acb0f20f75ced26ea9e75f4",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:bb114117e1ac5bad398a34c2272280b0b55abbcb0502cb5b6b95356f213bdfdb",
+      "url": "https://github.com/neo-capiro/capirov2/blob/eac2d521fae4833e440d37b231ae4384d7563a1e/docs/meri/releases/2026-10-02/web-build-qualification.json"
+    },
+    {
+      "name": "retirement-compatibility",
+      "status": "passed",
+      "sourceSha": "940fe9354f95630c6acb0f20f75ced26ea9e75f4",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:bb114117e1ac5bad398a34c2272280b0b55abbcb0502cb5b6b95356f213bdfdb",
+      "url": "https://github.com/neo-capiro/capirov2/blob/eac2d521fae4833e440d37b231ae4384d7563a1e/docs/meri/releases/2026-10-02/qualification.md"
+    }
+  ],
+  "dataIntegrityDisposition": "ACCEPTED LIMITATION: original whole-dump fingerprint remains unresolved; original blocked receipt preserved",
+  "conditions": [
+    "Web vNext before API",
+    "Research Portfolio Meri tools remain dark until Engagement qualification",
+    "No migration or ledger mutation",
+    "Bounded synthetic acceptance after promotion"
+  ]
+}

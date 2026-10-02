@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "preparedAtUtc": "2026-10-02T02:43:22.7539465Z",
+  "policySha": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "scriptSha256": "ac1ed00c33396338b13e45a126cb2098218e29732bb1a349dfd567abf9b72ca7",
+  "priorResultSha256": "40a3b0be56d4b6e473cbfd119269886d98ea7f1e52f44b10343044412873c87f",
+  "syntaxCommand": "node --check C:\\dev\\cap-meri-foundation-evidence\\oct02-release-path\\synthetic-meri-ui-v2-smoke.cjs",
+  "syntaxExitCode": 0,
+  "pythonParseExitCode": 0,
+  "observedClerkOrigin": "https://clerk.app.capiro.ai",
+  "publicBindingSha256": "3102b003b3aef13cf0f07e229892ddf6bda9229f483603936ea9253052f2d0cf",
+  "rootIndependentSourceReview": "PASS",
+  "authenticatedExecution": "NOT RUN",
+  "sessionsCreatedDuringPreparation": 0,
+  "applicationTurnsSentDuringPreparation": 0,
+  "maximumRemainingTurns": 2,
+  "priorFilesAndLockPreserved": true
+}

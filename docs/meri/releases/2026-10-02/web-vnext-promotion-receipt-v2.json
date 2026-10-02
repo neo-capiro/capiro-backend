@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "manifestHash": "d30969d8de126bc3e6b38de9aca91c5b584d15e73164b604ba70c999dcceceb5",
+  "service": "web-vnext",
+  "configHash": "4bca81253897890e131ca00d42c8b17deaba0d391e4194b51d8fb4cf2f50f219",
+  "candidateImage": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:bb114117e1ac5bad398a34c2272280b0b55abbcb0502cb5b6b95356f213bdfdb",
+  "candidateTaskHash": "105966e60d447373fc9356d4bfdbc0ea15a8992d8332e8d006184e1ae6d36e4c",
+  "rollbackTaskHash": "724fc0ed285e7fa53d8fbbe950006f411bc0909bb3cbfed9f57fa76371a729d1",
+  "rollbackImage": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:b2d8a2bd090874bce5db05d871dc930e5a4fb80e8a3dfb25e9badc24dfa90913",
+  "status": "promoting",
+  "awsMutation": true,
+  "rollbackTaskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web-vnext:385",
+  "candidateTaskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web-vnext:386",
+  "deploymentId": "ecs-svc/3490292933385052646"
+}

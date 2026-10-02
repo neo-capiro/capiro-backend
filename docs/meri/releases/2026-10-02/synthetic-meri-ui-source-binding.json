@@ -1,0 +1,94 @@
+{
+  "schemaVersion": 1,
+  "checkedAtUtc": "2026-10-02T02:30:46.7375495Z",
+  "provenance": "Exact source commits in synthetic-canary-qualification.json; parent owns actual deployed image readback",
+  "checks": [
+    {
+      "sourceSha": "940fe9354f95630c6acb0f20f75ced26ea9e75f4",
+      "path": "apps/web/src/vnext/meri/VNextMeriComposer.tsx",
+      "gitBlob": "0c8e754f2927dd23f8bdf3226cd7b6d77a0fdff1",
+      "requiredMarkers": [
+        "aria-label=\"Message Meri\"",
+        "aria-label=\"Send\""
+      ],
+      "verdict": "PASS"
+    },
+    {
+      "sourceSha": "940fe9354f95630c6acb0f20f75ced26ea9e75f4",
+      "path": "apps/web/src/vnext/meri/VNextMeriWorkspace.tsx",
+      "gitBlob": "0f692314b86f9ae66de5e9c8160769047fdd99bd",
+      "requiredMarkers": [
+        "location.pathname === '/meri/new'",
+        "First Send is the durable creation boundary"
+      ],
+      "verdict": "PASS"
+    },
+    {
+      "sourceSha": "940fe9354f95630c6acb0f20f75ced26ea9e75f4",
+      "path": "apps/web/src/components/chat/useMeriChatController.ts",
+      "gitBlob": "9d6386413bd32e1b8878856dd49a27a6c1bfab8f",
+      "requiredMarkers": [
+        "/api/clio/conversations",
+        "event.type === 'done'",
+        "event.type === 'error'",
+        "event.type === 'tool_call'"
+      ],
+      "verdict": "PASS"
+    },
+    {
+      "sourceSha": "83304d18e5a1ab647cf6f728392cf97b3058a832",
+      "path": "apps/api/src/meri/meri.controller.ts",
+      "gitBlob": "40ec9c200a625e5f28a6cba03a2a0b7821f3fad5",
+      "requiredMarkers": [
+        "@Controller('clio')",
+        "@Post('conversations')",
+        "@Post('conversations/:id/stream')"
+      ],
+      "verdict": "PASS"
+    },
+    {
+      "sourceSha": "83304d18e5a1ab647cf6f728392cf97b3058a832",
+      "path": "apps/api/src/meri/meriv3-proxy.service.ts",
+      "gitBlob": "833db0d14800205c35a6f5340b3c8ac29c14239a",
+      "requiredMarkers": [
+        "case 'tool_call':",
+        "case 'done':",
+        "case 'error':"
+      ],
+      "verdict": "PASS"
+    },
+    {
+      "sourceSha": "39cea28f31be07def2f67ddf06ac4c44ef4ab792",
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts",
+      "gitBlob": "3d752edbe1401f0dacb7b017f06032466d15eb28",
+      "requiredMarkers": [
+        "type: 'tool_call'"
+      ],
+      "verdict": "PASS"
+    },
+    {
+      "sourceSha": "940fe9354f95630c6acb0f20f75ced26ea9e75f4",
+      "path": "apps/web/src/env.ts",
+      "gitBlob": "2d07b9aa3d50cba2fdfe67cc4e00f88e302f18f4",
+      "requiredMarkers": [
+        "__CAPIRO_CONFIG__",
+        "releaseSha",
+        "webSurface"
+      ],
+      "verdict": "PASS"
+    },
+    {
+      "sourceSha": "940fe9354f95630c6acb0f20f75ced26ea9e75f4",
+      "path": "apps/web/nginx/entrypoint.sh",
+      "gitBlob": "f7492619f707be454103b005fc05c751bff3db16",
+      "requiredMarkers": [
+        "__CAPIRO_CONFIG__",
+        "releaseSha",
+        "webSurface"
+      ],
+      "verdict": "PASS"
+    }
+  ],
+  "authenticatedExecution": "NOT RUN",
+  "cloudQueries": 0
+}

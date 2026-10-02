@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "verdict": "BLOCKED",
+  "category": "OPENAI_CREDITS_EXHAUSTED",
+  "policySha": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "service": "capiro-dev-meriv2-orchestrator",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:87",
+  "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/7c2c0b85e6f346a5b3102ddf8eefa32c",
+  "provider": "OpenAI",
+  "endpointFamily": "Responses",
+  "httpStatus": 429,
+  "providerErrorCode": null,
+  "providerErrorCodeNote": "No separate structured provider error code appears in the observed model-loop error line.",
+  "safeProviderError": "OpenAI Responses HTTP 429: You have no credits remaining. Add credits to continue using the API.",
+  "redaction": "Provider billing URL omitted. No raw customer payload, credential, auth state or complete log stream retained.",
+  "messageSha256BeforeUrlRedaction": "07bbeeb217970ef6417fdb70f155b757cdf31c3f95f1acb5f2d92f9d1972401a",
+  "messageLengthBeforeUrlRedaction": 158,
+  "windows": [
+    {
+      "startUtc": "2026-10-02T02:44:08Z",
+      "endUtc": "2026-10-02T02:44:23Z",
+      "exactFailureUtc": "2026-10-02T02:44:22.456Z",
+      "exactFailureMarker": "MeriV3 model loop failed:",
+      "matchingMessageSha256": "07bbeeb217970ef6417fdb70f155b757cdf31c3f95f1acb5f2d92f9d1972401a",
+      "orchestratorEvents": 15,
+      "syntheticIdentityMatchedEvents": 9,
+      "boundedPaginationComplete": true
+    },
+    {
+      "startUtc": "2026-10-02T02:52:00Z",
+      "endUtc": "2026-10-02T02:52:48Z",
+      "exactFailureUtc": "2026-10-02T02:52:32.022Z",
+      "exactFailureMarker": "MeriV3 model loop failed:",
+      "matchingMessageSha256": "07bbeeb217970ef6417fdb70f155b757cdf31c3f95f1acb5f2d92f9d1972401a",
+      "orchestratorEvents": 15,
+      "syntheticIdentityMatchedEvents": 9,
+      "boundedPaginationComplete": true
+    }
+  ],
+  "scope": "Exact current API486 and orchestrator87 task streams in the two requested synthetic UI windows. The exact error line itself omits tenant identity; adjacent controller/provider-fallback events match the approved synthetic identities. No broader customer traffic investigation.",
+  "apiObservation": "Both API486 task streams were fully paginated in the two bounded windows; no matched error-like events or database error categories.",
+  "orchestratorObservation": "Both turns have the identical explicit OpenAI no-credits error and adjacent synthetic-associated fallback events. No matched database error categories in these windows.",
+  "conclusion": "The two observed chat failures are caused by exhausted OpenAI API credits. The service rollout health PASS does not qualify working reasoning responses. Hermes Bedrock worker funding is separate from the deployed OpenAI provider.",
+  "nextAction": "Restore funding for the deployed OpenAI account, then repeat only a separately authorized bounded synthetic validation. Any production provider/model change remains a separate reviewed configuration action.",
+  "evidence": [
+    {
+      "file": "synthetic-chat-log-categories.json",
+      "sha256": "96a84d1213ad3b842f28c9008b9bab0e047be6a24af4481d45fde8f95b190452",
+      "readCalls": 27,
+      "commandExitCode": 0
+    },
+    {
+      "file": "synthetic-model-loop-failure-categories.json",
+      "sha256": "b0a98b10bfebfbd8e6547c7adb0089312f445689ccad6ca3fd55c72e7d737f02",
+      "readCalls": 7,
+      "commandExitCode": 0
+    }
+  ],
+  "finalSafeErrorExtraction": {
+    "readCalls": 2,
+    "commandExitCode": 0,
+    "scope": "Same orchestrator task, 02:52:31–02:52:33 UTC; exact prefix only; billing URL removed and credential-shaped content rejected before output."
+  },
+  "externalWrites": 0,
+  "additionalTurnsSent": 0,
+  "providerModelConfigChanges": 0,
+  "credentialsQueried": 0,
+  "fullFile01Acceptance": "NOT RUN"
+}

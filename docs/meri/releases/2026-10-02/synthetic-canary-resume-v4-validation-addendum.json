@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "atUtc": "2026-10-02T02:31:26.9247741Z",
+  "independentReviewSha256": "5f44d5b11ca0724687bc5235aef6d2fd5793262f41cc56b29de6ad128387f84e",
+  "resumerSha256": "7724b3cff285c6ed7c6cb24f8cb7e5256435da0e9bc02f9382d667d5a4261c38",
+  "focusedTests": {
+    "observedLogCount": 6,
+    "observedLogVerdict": "OK",
+    "operatorReportedExitCode": 0,
+    "executedByThisReviewer": false,
+    "logSha256": "844123c32cbed4929ed7478818c1c3e698f88c54834c87ad1a3b50070d3a05a1"
+  },
+  "adapterTests": {
+    "observedLogCount": 26,
+    "observedLogVerdict": "OK",
+    "operatorReportedExitCode": 0,
+    "executedByThisReviewer": false
+  },
+  "readOnlyQualification": {
+    "observedReceiptExitCode": 0,
+    "executedByThisReviewer": false,
+    "cloudMutations": 0,
+    "newDatabaseTasks": 0,
+    "reportSha256": "552f40735826cce2e670f77d48c42deb8acc357f3b8163ada1c1b062ed8da24a"
+  },
+  "verdict": "PASS",
+  "liveCanaryApply": "Parent owns running operation; not attested here"
+}

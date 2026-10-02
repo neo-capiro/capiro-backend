@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "preparedAtUtc": "2026-10-02T02:51:16.4369686Z",
+  "policySha": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "scriptSha256": "ddd2e9df089e223e14a7c3f3d99905ccbf6f7557bf40ba410f7e988b50b8e519",
+  "syntaxCommand": "node --check C:\\dev\\cap-meri-foundation-evidence\\oct02-release-path\\synthetic-meri-ui-v3-smoke.cjs",
+  "syntaxExitCode": 0,
+  "wrapperParseExitCode": 0,
+  "priorV1ResultSha256": "40a3b0be56d4b6e473cbfd119269886d98ea7f1e52f44b10343044412873c87f",
+  "priorV2ResultSha256": "04d0c3401879e22b4d5f3dbaa700b27ade16546d69b3bcdf19d0976429615977",
+  "priorTurnsSent": 1,
+  "maximumNewTurns": 1,
+  "t1Mode": "Read-only existing uniquely matched conversation; write guard never armed",
+  "t2Mode": "One remaining new conversation and turn",
+  "endpointSource": "API83304 meri.controller.ts323/369 and meri.service.ts417/673 owner-scoped; Web940fe authHeaders template capiro and /meri/t/id",
+  "rawMessagesPersisted": false,
+  "authenticatedExecution": "NOT RUN",
+  "cloudMutationsDuringPreparation": 0
+}

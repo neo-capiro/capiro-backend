@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "sourceSha": "f1fd2d914a992aef005d2bef7e772b4535bef7a9",
+  "scriptSha256": "dd814fcf87be47f25eada375dc656388ccbbe16cb129078f20c68030b2065100",
+  "startedAt": "2026-10-02T02:33:04.374Z",
+  "verdict": "BLOCKED",
+  "tenants": [
+    {
+      "tenant": "meri-foundation-20260928-t1",
+      "identityVerified": false,
+      "loadedWebReleaseSha": null,
+      "webSurface": null,
+      "composerVisible": false,
+      "conversationCreateRequests": 0,
+      "conversationsCreated": 0,
+      "turnsSent": 0,
+      "blockedMutationCount": 1,
+      "streamStatus": null,
+      "doneReceived": false,
+      "toolCalls": 0,
+      "streamErrors": 0,
+      "expectedReplyVisible": false,
+      "sessionRevoked": null,
+      "verdict": "NOT RUN"
+    }
+  ],
+  "fullFile01Acceptance": false,
+  "failureCode": "SYNTHETIC_AUTHENTICATION_FAILED",
+  "completedAt": "2026-10-02T02:33:09.131Z"
+}

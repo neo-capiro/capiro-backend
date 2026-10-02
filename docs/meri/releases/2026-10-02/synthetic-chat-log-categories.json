@@ -1,0 +1,475 @@
+{
+  "observedAtUtc": "2026-10-02T02:56:02.117212+00:00",
+  "scope": "Exact current API486/orchestrator87 task log streams in the two bounded synthetic UI windows. Temporal association alone is not request identity. No raw logs, customer payloads or provider messages retained.",
+  "verdict": "DIAGNOSTIC_OBSERVATIONS",
+  "tasks": [
+    {
+      "service": "api",
+      "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:486",
+      "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/0760ef03e08a4153987f1a67a22030a0",
+      "windowStart": "2026-10-02T02:44:08+00:00",
+      "windowEnd": "2026-10-02T02:44:23+00:00",
+      "complete": true,
+      "eventCount": 19,
+      "syntheticIdentityMatchedEventCount": 7,
+      "warningLikeEventCount": 0,
+      "errorLikeEventCount": 0,
+      "categories": {
+        "accessDenied": 0,
+        "throttling": 0,
+        "budgetOrCredits": 0,
+        "validation": 0,
+        "missingProviderConfig": 0,
+        "inferenceProfile": 0,
+        "modelUnavailable": 0,
+        "timeout": 0,
+        "connection": 0,
+        "database": 0,
+        "providerFailure": 0,
+        "fallback": 0,
+        "missingRelation": 0
+      },
+      "errorClassCounts": {},
+      "loggerClassCounts": {
+        "MeriController": 6,
+        "MeriV3ProxyService": 1
+      },
+      "httpErrorStatusCounts": {},
+      "safeErrorEvents": []
+    },
+    {
+      "service": "api",
+      "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:486",
+      "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/0760ef03e08a4153987f1a67a22030a0",
+      "windowStart": "2026-10-02T02:52:00+00:00",
+      "windowEnd": "2026-10-02T02:52:48+00:00",
+      "complete": true,
+      "eventCount": 35,
+      "syntheticIdentityMatchedEventCount": 0,
+      "warningLikeEventCount": 0,
+      "errorLikeEventCount": 0,
+      "categories": {
+        "accessDenied": 0,
+        "throttling": 0,
+        "budgetOrCredits": 0,
+        "validation": 0,
+        "missingProviderConfig": 0,
+        "inferenceProfile": 0,
+        "modelUnavailable": 0,
+        "timeout": 0,
+        "connection": 0,
+        "database": 0,
+        "providerFailure": 0,
+        "fallback": 0,
+        "missingRelation": 0
+      },
+      "errorClassCounts": {},
+      "loggerClassCounts": {
+        "ClerkWebhookService": 1
+      },
+      "httpErrorStatusCounts": {},
+      "safeErrorEvents": []
+    },
+    {
+      "service": "api",
+      "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:486",
+      "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/1b8ba5aaa91341f998cb206f623d5284",
+      "windowStart": "2026-10-02T02:44:08+00:00",
+      "windowEnd": "2026-10-02T02:44:23+00:00",
+      "complete": true,
+      "eventCount": 14,
+      "syntheticIdentityMatchedEventCount": 0,
+      "warningLikeEventCount": 0,
+      "errorLikeEventCount": 0,
+      "categories": {
+        "accessDenied": 0,
+        "throttling": 0,
+        "budgetOrCredits": 0,
+        "validation": 0,
+        "missingProviderConfig": 0,
+        "inferenceProfile": 0,
+        "modelUnavailable": 0,
+        "timeout": 0,
+        "connection": 0,
+        "database": 0,
+        "providerFailure": 0,
+        "fallback": 0,
+        "missingRelation": 0
+      },
+      "errorClassCounts": {},
+      "loggerClassCounts": {
+        "ClerkWebhookService": 1
+      },
+      "httpErrorStatusCounts": {},
+      "safeErrorEvents": []
+    },
+    {
+      "service": "api",
+      "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:486",
+      "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/1b8ba5aaa91341f998cb206f623d5284",
+      "windowStart": "2026-10-02T02:52:00+00:00",
+      "windowEnd": "2026-10-02T02:52:48+00:00",
+      "complete": true,
+      "eventCount": 41,
+      "syntheticIdentityMatchedEventCount": 7,
+      "warningLikeEventCount": 0,
+      "errorLikeEventCount": 0,
+      "categories": {
+        "accessDenied": 0,
+        "throttling": 0,
+        "budgetOrCredits": 0,
+        "validation": 0,
+        "missingProviderConfig": 0,
+        "inferenceProfile": 0,
+        "modelUnavailable": 0,
+        "timeout": 0,
+        "connection": 0,
+        "database": 0,
+        "providerFailure": 0,
+        "fallback": 0,
+        "missingRelation": 0
+      },
+      "errorClassCounts": {},
+      "loggerClassCounts": {
+        "ClerkWebhookService": 2,
+        "MeriController": 6,
+        "MeriV3ProxyService": 1
+      },
+      "httpErrorStatusCounts": {},
+      "safeErrorEvents": []
+    },
+    {
+      "service": "meriv2-orchestrator",
+      "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:87",
+      "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/7c2c0b85e6f346a5b3102ddf8eefa32c",
+      "windowStart": "2026-10-02T02:44:08+00:00",
+      "windowEnd": "2026-10-02T02:44:23+00:00",
+      "complete": true,
+      "eventCount": 15,
+      "syntheticIdentityMatchedEventCount": 9,
+      "warningLikeEventCount": 2,
+      "errorLikeEventCount": 5,
+      "categories": {
+        "accessDenied": 0,
+        "throttling": 0,
+        "budgetOrCredits": 1,
+        "validation": 0,
+        "missingProviderConfig": 0,
+        "inferenceProfile": 0,
+        "modelUnavailable": 0,
+        "timeout": 0,
+        "connection": 0,
+        "database": 0,
+        "providerFailure": 1,
+        "fallback": 3,
+        "missingRelation": 0
+      },
+      "errorClassCounts": {},
+      "loggerClassCounts": {
+        "MeriV3Controller": 7,
+        "MeriV3AssistantService": 5
+      },
+      "httpErrorStatusCounts": {},
+      "safeErrorEvents": [
+        {
+          "atUtc": "2026-10-02T02:44:19.088000+00:00",
+          "syntheticIdentityMatched": true,
+          "categories": [],
+          "errorClasses": [],
+          "loggerClasses": [
+            "MeriV3Controller"
+          ],
+          "httpErrorStatuses": []
+        },
+        {
+          "atUtc": "2026-10-02T02:44:20.607000+00:00",
+          "syntheticIdentityMatched": true,
+          "categories": [],
+          "errorClasses": [],
+          "loggerClasses": [
+            "MeriV3Controller"
+          ],
+          "httpErrorStatuses": []
+        },
+        {
+          "atUtc": "2026-10-02T02:44:22.456000+00:00",
+          "syntheticIdentityMatched": true,
+          "categories": [],
+          "errorClasses": [],
+          "loggerClasses": [
+            "MeriV3Controller"
+          ],
+          "httpErrorStatuses": []
+        },
+        {
+          "atUtc": "2026-10-02T02:44:22.456000+00:00",
+          "syntheticIdentityMatched": false,
+          "categories": [],
+          "errorClasses": [],
+          "loggerClasses": [
+            "MeriV3AssistantService"
+          ],
+          "httpErrorStatuses": []
+        },
+        {
+          "atUtc": "2026-10-02T02:44:22.471000+00:00",
+          "syntheticIdentityMatched": false,
+          "categories": [
+            "fallback"
+          ],
+          "errorClasses": [],
+          "loggerClasses": [],
+          "httpErrorStatuses": []
+        },
+        {
+          "atUtc": "2026-10-02T02:44:22.472000+00:00",
+          "syntheticIdentityMatched": true,
+          "categories": [
+            "budgetOrCredits",
+            "fallback"
+          ],
+          "errorClasses": [],
+          "loggerClasses": [
+            "MeriV3AssistantService"
+          ],
+          "httpErrorStatuses": []
+        },
+        {
+          "atUtc": "2026-10-02T02:44:22.472000+00:00",
+          "syntheticIdentityMatched": true,
+          "categories": [
+            "providerFailure",
+            "fallback"
+          ],
+          "errorClasses": [],
+          "loggerClasses": [
+            "MeriV3AssistantService"
+          ],
+          "httpErrorStatuses": []
+        }
+      ]
+    },
+    {
+      "service": "meriv2-orchestrator",
+      "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:87",
+      "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/7c2c0b85e6f346a5b3102ddf8eefa32c",
+      "windowStart": "2026-10-02T02:52:00+00:00",
+      "windowEnd": "2026-10-02T02:52:48+00:00",
+      "complete": true,
+      "eventCount": 15,
+      "syntheticIdentityMatchedEventCount": 9,
+      "warningLikeEventCount": 2,
+      "errorLikeEventCount": 5,
+      "categories": {
+        "accessDenied": 0,
+        "throttling": 0,
+        "budgetOrCredits": 1,
+        "validation": 0,
+        "missingProviderConfig": 0,
+        "inferenceProfile": 0,
+        "modelUnavailable": 0,
+        "timeout": 0,
+        "connection": 0,
+        "database": 0,
+        "providerFailure": 1,
+        "fallback": 3,
+        "missingRelation": 0
+      },
+      "errorClassCounts": {},
+      "loggerClassCounts": {
+        "MeriV3Controller": 7,
+        "MeriV3AssistantService": 5
+      },
+      "httpErrorStatusCounts": {},
+      "safeErrorEvents": [
+        {
+          "atUtc": "2026-10-02T02:52:28.570000+00:00",
+          "syntheticIdentityMatched": true,
+          "categories": [],
+          "errorClasses": [],
+          "loggerClasses": [
+            "MeriV3Controller"
+          ],
+          "httpErrorStatuses": []
+        },
+        {
+          "atUtc": "2026-10-02T02:52:30.067000+00:00",
+          "syntheticIdentityMatched": true,
+          "categories": [],
+          "errorClasses": [],
+          "loggerClasses": [
+            "MeriV3Controller"
+          ],
+          "httpErrorStatuses": []
+        },
+        {
+          "atUtc": "2026-10-02T02:52:32.022000+00:00",
+          "syntheticIdentityMatched": true,
+          "categories": [],
+          "errorClasses": [],
+          "loggerClasses": [
+            "MeriV3Controller"
+          ],
+          "httpErrorStatuses": []
+        },
+        {
+          "atUtc": "2026-10-02T02:52:32.022000+00:00",
+          "syntheticIdentityMatched": false,
+          "categories": [],
+          "errorClasses": [],
+          "loggerClasses": [
+            "MeriV3AssistantService"
+          ],
+          "httpErrorStatuses": []
+        },
+        {
+          "atUtc": "2026-10-02T02:52:32.024000+00:00",
+          "syntheticIdentityMatched": false,
+          "categories": [
+            "fallback"
+          ],
+          "errorClasses": [],
+          "loggerClasses": [],
+          "httpErrorStatuses": []
+        },
+        {
+          "atUtc": "2026-10-02T02:52:32.024000+00:00",
+          "syntheticIdentityMatched": true,
+          "categories": [
+            "budgetOrCredits",
+            "fallback"
+          ],
+          "errorClasses": [],
+          "loggerClasses": [
+            "MeriV3AssistantService"
+          ],
+          "httpErrorStatuses": []
+        },
+        {
+          "atUtc": "2026-10-02T02:52:32.024000+00:00",
+          "syntheticIdentityMatched": true,
+          "categories": [
+            "providerFailure",
+            "fallback"
+          ],
+          "errorClasses": [],
+          "loggerClasses": [
+            "MeriV3AssistantService"
+          ],
+          "httpErrorStatuses": []
+        }
+      ]
+    }
+  ],
+  "calls": [
+    {
+      "operation": "sts.get_caller_identity",
+      "exitCode": 0
+    },
+    {
+      "operation": "ecs.describe_services",
+      "exitCode": 0
+    },
+    {
+      "operation": "ecs.describe_task_definition",
+      "exitCode": 0
+    },
+    {
+      "operation": "ecs.list_tasks",
+      "exitCode": 0
+    },
+    {
+      "operation": "ecs.describe_tasks",
+      "exitCode": 0
+    },
+    {
+      "operation": "logs.get_log_events",
+      "exitCode": 0
+    },
+    {
+      "operation": "logs.get_log_events",
+      "exitCode": 0
+    },
+    {
+      "operation": "logs.get_log_events",
+      "exitCode": 0
+    },
+    {
+      "operation": "logs.get_log_events",
+      "exitCode": 0
+    },
+    {
+      "operation": "logs.get_log_events",
+      "exitCode": 0
+    },
+    {
+      "operation": "logs.get_log_events",
+      "exitCode": 0
+    },
+    {
+      "operation": "logs.get_log_events",
+      "exitCode": 0
+    },
+    {
+      "operation": "logs.get_log_events",
+      "exitCode": 0
+    },
+    {
+      "operation": "logs.get_log_events",
+      "exitCode": 0
+    },
+    {
+      "operation": "logs.get_log_events",
+      "exitCode": 0
+    },
+    {
+      "operation": "logs.get_log_events",
+      "exitCode": 0
+    },
+    {
+      "operation": "logs.get_log_events",
+      "exitCode": 0
+    },
+    {
+      "operation": "ecs.describe_services",
+      "exitCode": 0
+    },
+    {
+      "operation": "ecs.describe_task_definition",
+      "exitCode": 0
+    },
+    {
+      "operation": "ecs.list_tasks",
+      "exitCode": 0
+    },
+    {
+      "operation": "ecs.describe_tasks",
+      "exitCode": 0
+    },
+    {
+      "operation": "logs.get_log_events",
+      "exitCode": 0
+    },
+    {
+      "operation": "logs.get_log_events",
+      "exitCode": 0
+    },
+    {
+      "operation": "logs.get_log_events",
+      "exitCode": 0
+    },
+    {
+      "operation": "logs.get_log_events",
+      "exitCode": 0
+    },
+    {
+      "operation": "logs.get_log_events",
+      "exitCode": 0
+    },
+    {
+      "operation": "logs.get_log_events",
+      "exitCode": 0
+    }
+  ],
+  "externalWrites": 0
+}

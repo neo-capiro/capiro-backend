@@ -1,0 +1,46 @@
+{
+  "observedAtUtc": "2026-10-02T02:57:23.830680+00:00",
+  "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/7c2c0b85e6f346a5b3102ddf8eefa32c",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:87",
+  "exactFailureEvents": [
+    {
+      "atUtc": "2026-10-02T02:44:22.456000+00:00",
+      "marker": "MeriV3 model loop failed:",
+      "messageSha256": "07bbeeb217970ef6417fdb70f155b757cdf31c3f95f1acb5f2d92f9d1972401a",
+      "httpStatuses": [
+        "429"
+      ],
+      "providersExplicitlyNamedInMessage": [
+        "OpenAI"
+      ],
+      "safeCodes": [],
+      "categories": [],
+      "safeParameterOrCauseTerms": [
+        "billing",
+        "credits"
+      ],
+      "messageLength": 158
+    },
+    {
+      "atUtc": "2026-10-02T02:52:32.022000+00:00",
+      "marker": "MeriV3 model loop failed:",
+      "messageSha256": "07bbeeb217970ef6417fdb70f155b757cdf31c3f95f1acb5f2d92f9d1972401a",
+      "httpStatuses": [
+        "429"
+      ],
+      "providersExplicitlyNamedInMessage": [
+        "OpenAI"
+      ],
+      "safeCodes": [],
+      "categories": [],
+      "safeParameterOrCauseTerms": [
+        "billing",
+        "credits"
+      ],
+      "messageLength": 158
+    }
+  ],
+  "readOnlyCalls": 7,
+  "externalWrites": 0,
+  "rawMessagesPersisted": false
+}

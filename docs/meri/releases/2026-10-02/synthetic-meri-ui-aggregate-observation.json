@@ -1,0 +1,76 @@
+{
+  "schemaVersion": 1,
+  "observedAtUtc": "2026-10-02T02:54:35.4796259Z",
+  "verdict": "BLOCKED",
+  "scope": "Bounded authenticated synthetic UI smoke; two approved tenants; exactly two total turns",
+  "policySha": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "attempts": [
+    {
+      "resultFile": "synthetic-meri-ui-smoke-result.json",
+      "resultSha256": "40a3b0be56d4b6e473cbfd119269886d98ea7f1e52f44b10343044412873c87f",
+      "scriptSha256": "dd814fcf87be47f25eada375dc656388ccbbe16cb129078f20c68030b2065100",
+      "actualNodeExitCode": 1,
+      "overallVerdict": "BLOCKED",
+      "conversationsCreated": 0.0,
+      "turnsSent": 0.0,
+      "knownSessionsRevoked": 0,
+      "knownSessionCleanupFailures": 0
+    },
+    {
+      "resultFile": "synthetic-meri-ui-v2-smoke-result.json",
+      "resultSha256": "04d0c3401879e22b4d5f3dbaa700b27ade16546d69b3bcdf19d0976429615977",
+      "scriptSha256": "ac1ed00c33396338b13e45a126cb2098218e29732bb1a349dfd567abf9b72ca7",
+      "actualNodeExitCode": 1,
+      "overallVerdict": "BLOCKED",
+      "conversationsCreated": 1.0,
+      "turnsSent": 1.0,
+      "knownSessionsRevoked": 1,
+      "knownSessionCleanupFailures": 0
+    },
+    {
+      "resultFile": "synthetic-meri-ui-v3-smoke-result.json",
+      "resultSha256": "ffc68907f922ab28a9a562540bb70892442ecb01f5ee159f56658ce55cf1b831",
+      "scriptSha256": "ddd2e9df089e223e14a7c3f3d99905ccbf6f7557bf40ba410f7e988b50b8e519",
+      "actualNodeExitCode": 1,
+      "overallVerdict": "BLOCKED",
+      "conversationsCreated": 1.0,
+      "turnsSent": 1.0,
+      "knownSessionsRevoked": 2,
+      "knownSessionCleanupFailures": 0
+    }
+  ],
+  "totalConversationsCreated": 2,
+  "totalTurnsSent": 2,
+  "remainingAuthorizedTurns": 0,
+  "t1V3ReadbackOnly": true,
+  "knownCreatedSessionsRevoked": 3,
+  "knownCleanupFailures": 0,
+  "v1SessionIdCaptured": false,
+  "approvedTenants": [
+    "meri-foundation-20260928-t1",
+    "meri-foundation-20260928-t2"
+  ],
+  "verifiedBoundaries": [
+    "Both ordinary synthetic identities and exact selected organizations verified.",
+    "Both loaded Web source940fe9354f95630c6acb0f20f75ced26ea9e75f4 with webSurface vnext.",
+    "Both composers visible; one owned conversation and one turn per tenant.",
+    "Both actual turn streams HTTP201 with done frame, zero observed tool calls and zero error frames.",
+    "V3 t1 only listed/read its uniquely matched prior conversation and sent no new turn.",
+    "All three known newly created authenticated sessions in v2/v3 revoked."
+  ],
+  "failedBoundary": {
+    "kind": "Persisted expected-reply mismatch",
+    "expectedPhrase": "Meri smoke check complete.",
+    "bothAssistantTextLength": 119,
+    "bothAssistantTextSha256": "5ba77f7c69f6a4776a4253c79aff36c243bbd44ac64303aaa3926a50be328703",
+    "bothSavedReplyContainsExpected": false,
+    "t2StreamContainsExpected": false,
+    "awaitedVisibilityPassed": false,
+    "conclusion": "Expected phrase absent from both saved replies; failure cannot be attributed solely to React commit timing. Source fallback classification belongs to separate CD investigation."
+  },
+  "reportingCaveat": "V3 t2 row verdict retained initial NOT RUN after failure; actual counters/stream evidence prove execution. Overall BLOCKED and Node exit1 are authoritative.",
+  "noFurtherBrowserOrModelRuns": true,
+  "fullOriginal75CaseAcceptance": "NOT RUN",
+  "originalLocksAndReceiptsPreserved": true,
+  "rawMessagesCredentialsSessionsPersisted": false
+}

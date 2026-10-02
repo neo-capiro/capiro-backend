@@ -1,0 +1,22 @@
+{
+  "observedAt": "2026-10-02T01:51:46.792Z",
+  "verdict": "PASS",
+  "scope": "Anonymous HTTPS health, VNext release identity and SPA delivery; authenticated QA is separate",
+  "expectedSha": "940fe9354f95630c6acb0f20f75ced26ea9e75f4",
+  "results": [
+    {
+      "route": "/healthz",
+      "status": 200
+    },
+    {
+      "route": "/runtime-config.js",
+      "status": 200,
+      "releaseSha": "940fe9354f95630c6acb0f20f75ced26ea9e75f4",
+      "webSurface": "vnext"
+    },
+    {
+      "route": "/meri",
+      "status": 200
+    }
+  ]
+}

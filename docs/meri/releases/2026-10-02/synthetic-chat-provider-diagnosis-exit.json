@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "recordedAtUtc": "2026-10-02T02:59:46.732495+00:00",
+  "exitProvenance": "Exit codes below were observed from the actual exec_command returns. This is a retrospective sanitized receipt, not an independently executed retry.",
+  "commands": [
+    {
+      "script": "diagnose-synthetic-chat-logs-readonly.py",
+      "exitCode": 0,
+      "readOnlyCalls": 27
+    },
+    {
+      "script": "diagnose-synthetic-model-failure-readonly.py",
+      "exitCode": 0,
+      "readOnlyCalls": 7
+    },
+    {
+      "commandKind": "Fixed Python inline exact-prefix error extraction, billing URL redaction and credential-pattern rejection",
+      "exitCode": 0,
+      "readOnlyCalls": 2
+    }
+  ],
+  "diagnosisFile": "synthetic-chat-provider-diagnosis.json",
+  "diagnosisSha256": "cc3bf1aafed1f7c61e89121e8352adf653013d3cf5114e3e93bf6f8102870f7d",
+  "evidenceIntegrityAssertions": "PASS",
+  "totalReadOnlyCalls": 36,
+  "externalWrites": 0,
+  "additionalTurnsSent": 0,
+  "credentialsQueried": 0
+}

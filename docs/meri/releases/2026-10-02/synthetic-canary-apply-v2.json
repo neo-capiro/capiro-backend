@@ -1,0 +1,10 @@
+{
+  "schemaVersion": "meri.synthetic-canary.codebuild.v1",
+  "mode": "apply",
+  "planHash": "7ab476ceaf99e2eeec249cac7c28a52ff1740f0cfb2b751ce8e121f7a0b5145d",
+  "status": "BLOCKED_RECONCILIATION_REQUIRED",
+  "startedAtEpoch": 1790907152.2712088,
+  "services": {},
+  "flagJobs": [],
+  "errorClass": "Refusal"
+}

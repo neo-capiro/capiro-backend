@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "manifestHash": "da0e2fd883e618db551fa2f88c22831c5681fceb62f62c1fe5af4366997cd4e3",
+  "service": "web-vnext",
+  "configHash": "4bca81253897890e131ca00d42c8b17deaba0d391e4194b51d8fb4cf2f50f219",
+  "candidateImage": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:bb114117e1ac5bad398a34c2272280b0b55abbcb0502cb5b6b95356f213bdfdb",
+  "candidateTaskHash": "3cdba7113d1d640ab9a6e577ae9abd486db42c90495689d43b8d99929a402546",
+  "rollbackTaskHash": "e3ce26f633bbda65f1cf5c156529bc7831a39fbd7d77b6a9041d8e62581894b9",
+  "rollbackImage": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:b2d8a2bd090874bce5db05d871dc930e5a4fb80e8a3dfb25e9badc24dfa90913",
+  "status": "registering",
+  "awsMutation": true
+}

@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "verdict": "PASS_SOURCE_REVIEW",
+  "scriptSha256": "ac1ed00c33396338b13e45a126cb2098218e29732bb1a349dfd567abf9b72ca7",
+  "reviewer": "Codex file01_cd_audit",
+  "policySha": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "publicDomainReceipt": "synthetic-ui-auth-public-domain-diagnosis.json",
+  "exactClerkOrigin": "https://clerk.app.capiro.ai",
+  "priorResultSha256": "40a3b0be56d4b6e473cbfd119269886d98ea7f1e52f44b10343044412873c87f",
+  "priorCountsIndependentlyVerifiedZero": true,
+  "maximumActors": 2,
+  "maximumTurnsPerActor": 1,
+  "sessionIdsOnlyInProcess": true,
+  "finallyRevokesOnlyNewSession": true,
+  "loadedWebSource": "940fe9354f95630c6acb0f20f75ced26ea9e75f4",
+  "browserOrAuthExecuted": false,
+  "sourceReviewOnly": true
+}

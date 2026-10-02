@@ -1,0 +1,8 @@
+{
+  "mode": "READ_ONLY_RECOVERY_QUALIFICATION",
+  "startedAt": "2026-10-02T02:26:36.9559172Z",
+  "completedAt": "2026-10-02T02:26:42.4334083Z",
+  "exitCode": 0,
+  "cloudMutations": 0,
+  "newDatabaseTasks": 0
+}

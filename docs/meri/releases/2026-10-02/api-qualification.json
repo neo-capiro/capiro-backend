@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "service": "api",
+  "sourceSha": "83304d18e5a1ab647cf6f728392cf97b3058a832",
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:1fbf675727041323c56c2330aebb7f27ae4129864cb413953b869bfffad80015",
+  "status": "qualified",
+  "reviewer": "Codex release operator with independent source, schema and image reviewers",
+  "reviewedAt": "2026-10-02T01:37:58.5455806Z",
+  "expiresAt": "2026-10-02T05:37:58.5455806Z",
+  "schemaChange": true,
+  "evidence": [
+    "https://github.com/neo-capiro/capirov2/blob/eac2d521fae4833e440d37b231ae4384d7563a1e/docs/meri/releases/2026-10-02/qualification.md",
+    "https://github.com/neo-capiro/capirov2/blob/eac2d521fae4833e440d37b231ae4384d7563a1e/docs/meri/releases/2026-10-02/api-build-qualification.json"
+  ],
+  "checks": [
+    {
+      "name": "build",
+      "status": "passed",
+      "sourceSha": "83304d18e5a1ab647cf6f728392cf97b3058a832",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:1fbf675727041323c56c2330aebb7f27ae4129864cb413953b869bfffad80015",
+      "url": "https://github.com/neo-capiro/capirov2/blob/eac2d521fae4833e440d37b231ae4384d7563a1e/docs/meri/releases/2026-10-02/api-build-qualification.json"
+    },
+    {
+      "name": "automated-tests",
+      "status": "passed",
+      "sourceSha": "83304d18e5a1ab647cf6f728392cf97b3058a832",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:1fbf675727041323c56c2330aebb7f27ae4129864cb413953b869bfffad80015",
+      "url": "https://github.com/neo-capiro/capirov2/blob/eac2d521fae4833e440d37b231ae4384d7563a1e/docs/meri/releases/2026-10-02/api-build-qualification.json"
+    },
+    {
+      "name": "retirement-compatibility",
+      "status": "passed",
+      "sourceSha": "83304d18e5a1ab647cf6f728392cf97b3058a832",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:1fbf675727041323c56c2330aebb7f27ae4129864cb413953b869bfffad80015",
+      "url": "https://github.com/neo-capiro/capirov2/blob/eac2d521fae4833e440d37b231ae4384d7563a1e/docs/meri/releases/2026-10-02/qualification.md"
+    }
+  ],
+  "dataIntegrityDisposition": "ACCEPTED LIMITATION: original whole-dump fingerprint remains unresolved; original blocked receipt preserved",
+  "conditions": [
+    "Web vNext before API",
+    "Research Portfolio Meri tools remain dark until Engagement qualification",
+    "No migration or ledger mutation",
+    "Bounded synthetic acceptance after promotion"
+  ],
+  "freshDatabase": {
+    "status": "passed",
+    "url": "https://github.com/neo-capiro/capirov2/blob/eac2d521fae4833e440d37b231ae4384d7563a1e/docs/meri/releases/2026-10-02/retirement-rolling-compatibility.json"
+  },
+  "retiredUpgrade": {
+    "status": "passed",
+    "url": "https://github.com/neo-capiro/capirov2/blob/eac2d521fae4833e440d37b231ae4384d7563a1e/docs/meri/releases/2026-10-02/retirement-rolling-compatibility.json"
+  },
+  "compatibility": {
+    "status": "passed",
+    "url": "https://github.com/neo-capiro/capirov2/blob/eac2d521fae4833e440d37b231ae4384d7563a1e/docs/meri/releases/2026-10-02/schema-qualification.json"
+  }
+}

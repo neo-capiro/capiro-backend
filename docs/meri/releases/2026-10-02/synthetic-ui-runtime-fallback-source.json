@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "observedAtUtc": "2026-10-02T02:57:03.2405990Z",
+  "verdict": "PASS_SOURCE_IDENTIFICATION",
+  "runtimeSmoke": "BLOCKED",
+  "sourceCommit": "39cea28f31be07def2f67ddf06ac4c44ef4ab792",
+  "sourceFile": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts",
+  "sourceLine": 2148,
+  "sourceMatchesDeployedCommit": true,
+  "responseLength": 119,
+  "responseSha256": "5ba77f7c69f6a4776a4253c79aff36c243bbd44ac64303aaa3926a50be328703",
+  "matchedStaticFallback": "I could not complete this turn because the MeriV3 reasoning runtime was unavailable. No unapproved action was executed.",
+  "errorLogPrefix": "MeriV3 model loop failed:",
+  "underlyingCause": "Pending bounded runtime log diagnosis; do not infer from this fallback alone"
+}

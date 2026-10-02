@@ -1,0 +1,30 @@
+{
+  "observedAt": "2026-10-02T01:48:12.9705597Z",
+  "reviewedBase": "eac2d521fae4833e440d37b231ae4384d7563a1e",
+  "policySha": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "verdict": "PASS",
+  "sourceFiles": [
+    {
+      "path": "scripts/lib/meri-release-policy.mjs",
+      "sha256": "e0ccb85b65423cbe3781f6a001331151807d38b0a37b046143032478a9cb3ad3"
+    },
+    {
+      "path": "scripts/lib/meri-release-policy.test.mjs",
+      "sha256": "47412d050614f0f75a2f6efed17c47005897e08cdc8866e9e209b80c9e2a4c87"
+    },
+    {
+      "path": "scripts/meri-release.test.mjs",
+      "sha256": "02ae97db44b8834e44d67d779200cea15e7110e78c56591ac9ad6b2338f1e7a5"
+    }
+  ],
+  "testCommand": "node --test scripts/lib/meri-release-policy.test.mjs scripts/meri-release.test.mjs",
+  "testExitCode": 0,
+  "passedTests": 36,
+  "failedTests": 0,
+  "skippedTests": 0,
+  "diffCheckExitCode": 0,
+  "testLog": "empty-tags-independent-tests.log",
+  "finding": "Omitting empty/reserved-only tags preserves user tags and source objects. Baseline snapshot, candidate and rollback registration/readback all use taskInput canonical normalization.",
+  "operatorRequirement": "Prepare a fresh manifest and approval fingerprint after merging this operator change; old task hashes containing tags:[] differ by design and must not be reused.",
+  "scope": "Independent source and mocked-AWS test review; no cloud mutation or image rebuild."
+}

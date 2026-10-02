@@ -1,0 +1,15 @@
+{
+  "observedAt": "2026-10-02T02:13:53.5982785Z",
+  "readOnly": true,
+  "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/87f1b0617e194a61a3d0b50e9cfd6228",
+  "keys": [
+    "containerOverrides",
+    "inferenceAcceleratorOverrides"
+  ],
+  "inferenceAcceleratorOverridesEmpty": true,
+  "containerName": "db-inspect",
+  "command": [
+    "set-tenant-flag",
+    "--foundation-fullchat"
+  ]
+}

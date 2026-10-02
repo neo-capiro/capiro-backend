@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "checkedAtUtc": "2026-10-02T02:34:20.5403236Z",
+  "verdict": "BLOCKED",
+  "category": "Synthetic authentication or request-guard setup; product defect unproven",
+  "actualHermesExitCode": 0,
+  "actualNodeExitCode": 1,
+  "failureCode": "SYNTHETIC_AUTHENTICATION_FAILED",
+  "conversationCreateRequests": 0,
+  "conversationsCreated": 0,
+  "turnsSent": 0,
+  "blockedBrowserMutationCount": 1,
+  "tenant2": "NOT RUN",
+  "knownSessionIdCaptured": false,
+  "rootReconciliationRequired": true,
+  "retryPerformed": false,
+  "sourceEditedAfterExecution": false,
+  "fullFile01Acceptance": "NOT RUN",
+  "scriptSha256": "dd814fcf87be47f25eada375dc656388ccbbe16cb129078f20c68030b2065100",
+  "resultSha256": "40a3b0be56d4b6e473cbfd119269886d98ea7f1e52f44b10343044412873c87f",
+  "commandExitSha256": "cbb97ba5d0c645ce11b326e79b9db49dbc4dc76d4949c81fd4e3f0c35654aea8",
+  "operatorExitSha256": "52564c18d3fc792a149b504aca3133630a4f051ec93fb75c0b8df5260fd44c9d"
+}

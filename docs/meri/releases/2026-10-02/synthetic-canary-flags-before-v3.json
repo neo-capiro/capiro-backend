@@ -1,0 +1,90 @@
+{
+  "schemaVersion": "meri.synthetic-canary.codebuild.v1",
+  "mode": "flag-plan",
+  "planHash": "e529bba8de8af5d66aabd3358446516587e89cbc180ed1c00a0bbb6dec7e2cbe",
+  "status": "VERIFIED",
+  "startedAtEpoch": 1790906996.1089544,
+  "services": {},
+  "flagJobs": [
+    {
+      "mode": "plan",
+      "requestHash": "777ca023744f125c6bc3bbdeac25ebd481459b11fe7b7ac2b76490bd47d4122b",
+      "startedBy": "meri-cb-83c6a2ff72ff4263982c-plan",
+      "status": "VERIFIED",
+      "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api-diag:10",
+      "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/87f1b0617e194a61a3d0b50e9cfd6228",
+      "result": {
+        "schemaVersion": 1,
+        "operation": "meri-foundation-fullchat",
+        "mode": "plan",
+        "result": "PLAN_ONLY",
+        "flag": "meriv3.fullChat",
+        "tenants": [
+          {
+            "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+            "tenantSlug": "meri-foundation-20260928-t1",
+            "before": {
+              "present": false
+            },
+            "after": {
+              "present": false
+            }
+          },
+          {
+            "tenantId": "52e91176-08f0-4d89-9633-bc212f5bdbbf",
+            "tenantSlug": "meri-foundation-20260928-t2",
+            "before": {
+              "present": false
+            },
+            "after": {
+              "present": false
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "priorStates": [
+    {
+      "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+      "tenantSlug": "meri-foundation-20260928-t1",
+      "flag": "meriv3.fullChat",
+      "state": {
+        "present": false
+      }
+    },
+    {
+      "tenantId": "52e91176-08f0-4d89-9633-bc212f5bdbbf",
+      "tenantSlug": "meri-foundation-20260928-t2",
+      "flag": "meriv3.fullChat",
+      "state": {
+        "present": false
+      }
+    }
+  ],
+  "completedAtEpoch": 1790907109.1425786,
+  "reconciliation": {
+    "schemaVersion": "meri.synthetic-flag-plan-reuse.v1",
+    "kind": "READ_ONLY_REUSE_EXISTING_TASK",
+    "sourcePlanHash": "7ab476ceaf99e2eeec249cac7c28a52ff1740f0cfb2b751ce8e121f7a0b5145d",
+    "sourceReceiptHash": "f35a16aa5c09180961ef9d7d251adb3fbc5fb4552caa49d71ebdd60690339d29",
+    "destinationPlanHash": "e529bba8de8af5d66aabd3358446516587e89cbc180ed1c00a0bbb6dec7e2cbe",
+    "oldAdapterSha256": "0808a638d8834072d5881f621f6cdee91d197e5061c4ec89d3d1cef7afaa1642",
+    "newAdapterSha256": "0d1e3c1350c5bae336ada16b5aa396e75d5e120b41ecdbdd1e63b4b05d3e739e",
+    "comparedEqualPlanFields": [
+      "expectedCallerArn",
+      "operatorSourceSha",
+      "proofs",
+      "qualificationHash",
+      "schemaVersion",
+      "services",
+      "tenants",
+      "web"
+    ],
+    "reusedTaskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/87f1b0617e194a61a3d0b50e9cfd6228",
+    "authoritativeReadbackAtEpoch": 1790907439.6436286,
+    "newTasksLaunched": 0,
+    "cloudMutations": 0
+  },
+  "receiptHash": "a2dcd401e5fcab08303dbe81987a8fa6d1b650045f388cce87ec61b02441e4aa"
+}

@@ -1,0 +1,12 @@
+{
+  "verdict": "PASS_SOURCE_REVIEW",
+  "scriptSha256": "0b5f30cfd8be10edbccdaa5a2ba68acf7778bbdc5e318418be5a193157047a67",
+  "policySha": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "reviewer": "Codex file01_cd_audit",
+  "maximumActors": 2,
+  "maximumTurnsPerActor": 1,
+  "liveExecuted": false,
+  "authExecuted": false,
+  "fullFile01Acceptance": false,
+  "notes": "synthetic-meri-ui-smoke-independent-review.md"
+}

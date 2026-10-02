@@ -1,0 +1,168 @@
+{
+  "schemaVersion": "meri.synthetic-canary.codebuild.v1",
+  "createdAtEpoch": 1790906943.4818323,
+  "expiresAtEpoch": 1790910543.4818325,
+  "operatorSourceSha": "f1fd2d914a992aef005d2bef7e772b4535bef7a9",
+  "adapterSha256": "0808a638d8834072d5881f621f6cdee91d197e5061c4ec89d3d1cef7afaa1642",
+  "qualificationHash": "d85484363cf957a04d1464461c7406de5316e2c78468368e0795ef05f926c05c",
+  "expectedCallerArn": "arn:aws:iam::967807252336:user/hermes-cli",
+  "web": {
+    "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web-vnext:386",
+    "imageDigest": "sha256:bb114117e1ac5bad398a34c2272280b0b55abbcb0502cb5b6b95356f213bdfdb",
+    "primaryDeployment": {
+      "id": "ecs-svc/3490292933385052646",
+      "status": "PRIMARY",
+      "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web-vnext:386",
+      "rolloutState": "COMPLETED",
+      "desiredCount": 1,
+      "networkConfiguration": {
+        "awsvpcConfiguration": {
+          "subnets": [
+            "subnet-0e38bd390f8961fef",
+            "subnet-0920665f91c905f01",
+            "subnet-06db79cd21239de19"
+          ],
+          "securityGroups": [
+            "sg-01def4e5c0fe44d4a"
+          ],
+          "assignPublicIp": "DISABLED"
+        }
+      },
+      "platformVersion": "1.4.0",
+      "capacityProviderStrategy": null,
+      "serviceConnectConfiguration": null,
+      "volumeConfigurations": null
+    },
+    "serviceConfigHash": "cba8cdf6347cf939726f3009ffc20badd990a4bbc9d76deb5310d510a37eb5cf"
+  },
+  "proofs": {
+    "api": {
+      "provider": "AWS_CODEBUILD",
+      "buildId": "capiro-build-web-dev:dc4c281e-5372-4a7d-b667-2919a78125f1",
+      "sourceSha": "83304d18e5a1ab647cf6f728392cf97b3058a832",
+      "imageDigest": "sha256:1fbf675727041323c56c2330aebb7f27ae4129864cb413953b869bfffad80015",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:1fbf675727041323c56c2330aebb7f27ae4129864cb413953b869bfffad80015",
+      "buildspecSha256LF": "14da23e0cae3235d2319d5303a5a28c10aad6d04d714e4b075c11a25588b81a5"
+    },
+    "web-vnext": {
+      "provider": "AWS_CODEBUILD",
+      "buildId": "capiro-build-web-dev:8e88dd66-21c6-46b0-a74a-d33c7563b08e",
+      "sourceSha": "940fe9354f95630c6acb0f20f75ced26ea9e75f4",
+      "imageDigest": "sha256:bb114117e1ac5bad398a34c2272280b0b55abbcb0502cb5b6b95356f213bdfdb",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:bb114117e1ac5bad398a34c2272280b0b55abbcb0502cb5b6b95356f213bdfdb",
+      "buildspecSha256LF": "185e3dfc2db588408cb824cbb55e41070be453f0471ea11235c5ea699046f1a3"
+    },
+    "meriv2-orchestrator": {
+      "provider": "AWS_CODEBUILD",
+      "buildId": "capiro-build-web-dev:8d17a8df-7779-416b-92f2-4875b722ca50",
+      "sourceSha": "39cea28f31be07def2f67ddf06ac4c44ef4ab792",
+      "imageDigest": "sha256:1495f82a9c3c4dab04b7f0028761cf3549e6e726699f390563b7c7b2a3eb1550",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:1495f82a9c3c4dab04b7f0028761cf3549e6e726699f390563b7c7b2a3eb1550",
+      "buildspecSha256LF": "dd3aaac45be1eada1a2451add262b6407313d699b390deb0c0707455c370af90"
+    }
+  },
+  "services": {
+    "api": {
+      "service": "capiro-dev-api",
+      "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:485",
+      "taskDefinitionHash": "2900046c107a385764222301eea19bef33d06e0bec67d88b70eec6874e43a9a5",
+      "snapshotHash": "2ba0321a56d9f9c0e76bc58102bbb5d946ad36872fa8d5ea49af46ae70239f96",
+      "serviceConfigHash": "d8a7608bb92597ca5647f94d2af0ce7905515e8566e8a8cd808f5b76316c3018",
+      "primaryDeployment": {
+        "id": "ecs-svc/4406520198966731688",
+        "status": "PRIMARY",
+        "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:485",
+        "rolloutState": "COMPLETED",
+        "desiredCount": 2,
+        "networkConfiguration": {
+          "awsvpcConfiguration": {
+            "subnets": [
+              "subnet-0e38bd390f8961fef",
+              "subnet-0920665f91c905f01",
+              "subnet-06db79cd21239de19"
+            ],
+            "securityGroups": [
+              "sg-01def4e5c0fe44d4a"
+            ],
+            "assignPublicIp": "DISABLED"
+          }
+        },
+        "platformVersion": "1.4.0",
+        "capacityProviderStrategy": null,
+        "serviceConnectConfiguration": null,
+        "volumeConfigurations": null
+      },
+      "desiredCount": 2,
+      "candidateHash": "fa377d72fe8845a6f69a0701416a9e696d37a89eb2bdfab867b57d427caa6eb5",
+      "cohortChange": {
+        "beforeHash": "35beb92fa98b845567677d088057e7dd9e490fa87dd2f7a241d2c44b37321c19",
+        "afterHash": "21def1a7702a5acbfc9f9b86da07fac69c2248f9510c55df6417c66021823f0f",
+        "beforeCount": 9,
+        "afterCount": 11,
+        "added": [
+          "meri-foundation-20260928-t1",
+          "meri-foundation-20260928-t2"
+        ]
+      },
+      "containerName": "api",
+      "imageDigest": "sha256:1fbf675727041323c56c2330aebb7f27ae4129864cb413953b869bfffad80015"
+    },
+    "meriv2-orchestrator": {
+      "service": "capiro-dev-meriv2-orchestrator",
+      "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:86",
+      "taskDefinitionHash": "960a666f94347ca9694ff784a5e98500c7f0c937b7b19db284304c52da0456e0",
+      "snapshotHash": "c5914485c70efd43b7640c22834b4e824d5a1d4d82c19478304a1bbdeb182899",
+      "serviceConfigHash": "b36599bb6fc37ca695d01ff37eb5ad0ce0d47dcc7232cfe01d11003ead93ad49",
+      "primaryDeployment": {
+        "id": "ecs-svc/1067196522484190038",
+        "status": "PRIMARY",
+        "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:86",
+        "rolloutState": "COMPLETED",
+        "desiredCount": 1,
+        "networkConfiguration": {
+          "awsvpcConfiguration": {
+            "subnets": [
+              "subnet-0e38bd390f8961fef",
+              "subnet-0920665f91c905f01",
+              "subnet-06db79cd21239de19"
+            ],
+            "securityGroups": [
+              "sg-01def4e5c0fe44d4a"
+            ],
+            "assignPublicIp": "DISABLED"
+          }
+        },
+        "platformVersion": "1.4.0",
+        "capacityProviderStrategy": null,
+        "serviceConnectConfiguration": null,
+        "volumeConfigurations": null
+      },
+      "desiredCount": 1,
+      "candidateHash": "64d4e5fb737979277e7e2584a056bdec93b16d2ffd5c15fb4f0d840edb9f51f6",
+      "cohortChange": {
+        "beforeHash": "35beb92fa98b845567677d088057e7dd9e490fa87dd2f7a241d2c44b37321c19",
+        "afterHash": "21def1a7702a5acbfc9f9b86da07fac69c2248f9510c55df6417c66021823f0f",
+        "beforeCount": 9,
+        "afterCount": 11,
+        "added": [
+          "meri-foundation-20260928-t1",
+          "meri-foundation-20260928-t2"
+        ]
+      },
+      "containerName": "meriv2-orchestrator",
+      "imageDigest": "sha256:1495f82a9c3c4dab04b7f0028761cf3549e6e726699f390563b7c7b2a3eb1550"
+    }
+  },
+  "tenants": [
+    [
+      "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+      "meri-foundation-20260928-t1"
+    ],
+    [
+      "52e91176-08f0-4d89-9633-bc212f5bdbbf",
+      "meri-foundation-20260928-t2"
+    ]
+  ],
+  "operationId": "83c6a2ff72ff4263982cff0d0af8bdab",
+  "planHash": "7ab476ceaf99e2eeec249cac7c28a52ff1740f0cfb2b751ce8e121f7a0b5145d"
+}

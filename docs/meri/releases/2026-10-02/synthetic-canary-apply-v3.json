@@ -1,0 +1,77 @@
+{
+  "schemaVersion": "meri.synthetic-canary.codebuild.v1",
+  "mode": "apply",
+  "planHash": "e529bba8de8af5d66aabd3358446516587e89cbc180ed1c00a0bbb6dec7e2cbe",
+  "status": "BLOCKED_RECONCILIATION_REQUIRED",
+  "startedAtEpoch": 1790907469.2747571,
+  "services": {
+    "api": {
+      "status": "UPDATE_INTENT",
+      "beforeTaskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:485",
+      "beforeHash": "2900046c107a385764222301eea19bef33d06e0bec67d88b70eec6874e43a9a5",
+      "afterHash": "fa377d72fe8845a6f69a0701416a9e696d37a89eb2bdfab867b57d427caa6eb5",
+      "desiredCount": 2,
+      "afterTaskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:486"
+    }
+  },
+  "flagJobs": [
+    {
+      "mode": "apply",
+      "requestHash": "777ca023744f125c6bc3bbdeac25ebd481459b11fe7b7ac2b76490bd47d4122b",
+      "startedBy": "meri-cb-b50def15a6a1498a95e3-apply",
+      "status": "VERIFIED",
+      "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api-diag:11",
+      "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/85e63bccbeed4413828e18afc76cbaa1",
+      "result": {
+        "schemaVersion": 1,
+        "operation": "meri-foundation-fullchat",
+        "mode": "apply",
+        "result": "APPLIED_AND_VERIFIED",
+        "flag": "meriv3.fullChat",
+        "tenants": [
+          {
+            "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+            "tenantSlug": "meri-foundation-20260928-t1",
+            "before": {
+              "present": false
+            },
+            "after": {
+              "present": true,
+              "value": true
+            }
+          },
+          {
+            "tenantId": "52e91176-08f0-4d89-9633-bc212f5bdbbf",
+            "tenantSlug": "meri-foundation-20260928-t2",
+            "before": {
+              "present": false
+            },
+            "after": {
+              "present": true,
+              "value": true
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "priorStates": [
+    {
+      "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+      "tenantSlug": "meri-foundation-20260928-t1",
+      "flag": "meriv3.fullChat",
+      "state": {
+        "present": false
+      }
+    },
+    {
+      "tenantId": "52e91176-08f0-4d89-9633-bc212f5bdbbf",
+      "tenantSlug": "meri-foundation-20260928-t2",
+      "flag": "meriv3.fullChat",
+      "state": {
+        "present": false
+      }
+    }
+  ],
+  "errorClass": "TypeError"
+}

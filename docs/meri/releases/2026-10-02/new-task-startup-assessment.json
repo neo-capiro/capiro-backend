@@ -1,0 +1,139 @@
+{
+  "observedAt": "2026-10-02T02:04:33.572Z",
+  "verdict": "ACCEPTED LIMITATION",
+  "scope": "Only the exact new API/orchestrator task streams from task creation through the pre-canary final rollout snapshot. Counts and fixed literal marker names only; no raw customer/provider logs saved. This cannot prove all DB paths or full plan acceptance.",
+  "tasks": [
+    {
+      "service": "api",
+      "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/51597308c8404960a632c0c8f498e523",
+      "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:485",
+      "windowStart": "2026-10-02T01:55:02.516Z",
+      "windowEnd": "2026-10-02T02:02:33.896Z",
+      "sampleCompleteWithinWindow": false,
+      "maxPages": 3,
+      "eventCount": 1392,
+      "warningLikeEventCount": 2,
+      "errorLikeEventCount": 2,
+      "databaseErrorLikeEventCount": 0,
+      "knownErrorClassCounts": {
+        "P1001": 0,
+        "P1002": 0,
+        "P2021": 0,
+        "P2022": 0,
+        "ECONNREFUSED": 0,
+        "missingRelation": 0,
+        "PrismaError": 0
+      },
+      "literalStartupMarkerCounts": {
+        "Nest application successfully started": 1,
+        "Capiro MeriV2 Orchestrator listening": 0
+      }
+    },
+    {
+      "service": "api",
+      "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/70d73c95f4444687af9424c185a9aaf5",
+      "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:485",
+      "windowStart": "2026-10-02T01:55:02.516Z",
+      "windowEnd": "2026-10-02T02:02:33.896Z",
+      "sampleCompleteWithinWindow": false,
+      "maxPages": 3,
+      "eventCount": 1388,
+      "warningLikeEventCount": 2,
+      "errorLikeEventCount": 0,
+      "databaseErrorLikeEventCount": 0,
+      "knownErrorClassCounts": {
+        "P1001": 0,
+        "P1002": 0,
+        "P2021": 0,
+        "P2022": 0,
+        "ECONNREFUSED": 0,
+        "missingRelation": 0,
+        "PrismaError": 0
+      },
+      "literalStartupMarkerCounts": {
+        "Nest application successfully started": 1,
+        "Capiro MeriV2 Orchestrator listening": 0
+      }
+    },
+    {
+      "service": "meriv2-orchestrator",
+      "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/ddf9ce1e5bd04a5f8fd4382344a47650",
+      "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:86",
+      "windowStart": "2026-10-02T01:58:52.851Z",
+      "windowEnd": "2026-10-02T02:02:33.896Z",
+      "sampleCompleteWithinWindow": true,
+      "maxPages": 3,
+      "eventCount": 43,
+      "warningLikeEventCount": 0,
+      "errorLikeEventCount": 0,
+      "databaseErrorLikeEventCount": 0,
+      "knownErrorClassCounts": {
+        "P1001": 0,
+        "P1002": 0,
+        "P2021": 0,
+        "P2022": 0,
+        "ECONNREFUSED": 0,
+        "missingRelation": 0,
+        "PrismaError": 0
+      },
+      "literalStartupMarkerCounts": {
+        "Nest application successfully started": 1,
+        "Capiro MeriV2 Orchestrator listening": 1
+      }
+    }
+  ],
+  "calls": [
+    {
+      "command": "ecs describe-task-definition",
+      "exitCode": 0
+    },
+    {
+      "command": "ecs describe-tasks",
+      "exitCode": 0
+    },
+    {
+      "command": "logs get-log-events",
+      "exitCode": 0
+    },
+    {
+      "command": "logs get-log-events",
+      "exitCode": 0
+    },
+    {
+      "command": "logs get-log-events",
+      "exitCode": 0
+    },
+    {
+      "command": "logs get-log-events",
+      "exitCode": 0
+    },
+    {
+      "command": "logs get-log-events",
+      "exitCode": 0
+    },
+    {
+      "command": "logs get-log-events",
+      "exitCode": 0
+    },
+    {
+      "command": "ecs describe-task-definition",
+      "exitCode": 0
+    },
+    {
+      "command": "ecs describe-tasks",
+      "exitCode": 0
+    },
+    {
+      "command": "logs get-log-events",
+      "exitCode": 0
+    },
+    {
+      "command": "logs get-log-events",
+      "exitCode": 0
+    },
+    {
+      "command": "logs get-log-events",
+      "exitCode": 0
+    }
+  ]
+}

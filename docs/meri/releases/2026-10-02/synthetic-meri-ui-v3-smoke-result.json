@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "sourceSha": "f1fd2d914a992aef005d2bef7e772b4535bef7a9",
+  "scriptSha256": "ddd2e9df089e223e14a7c3f3d99905ccbf6f7557bf40ba410f7e988b50b8e519",
+  "startedAt": "2026-10-02T02:52:00.933Z",
+  "verdict": "BLOCKED",
+  "tenants": [
+    {
+      "tenant": "meri-foundation-20260928-t1",
+      "identityVerified": true,
+      "loadedWebReleaseSha": "940fe9354f95630c6acb0f20f75ced26ea9e75f4",
+      "webSurface": "vnext",
+      "composerVisible": true,
+      "conversationCreateRequests": 0,
+      "conversationsCreated": 0,
+      "turnsSent": 0,
+      "blockedMutationCount": 0,
+      "blockedEndpoints": [],
+      "authAttempt": {
+        "status": "complete",
+        "hasSession": true,
+        "missingFields": []
+      },
+      "streamStatus": null,
+      "doneReceived": false,
+      "toolCalls": 0,
+      "streamErrors": 0,
+      "expectedReplyVisible": false,
+      "sessionRevoked": true,
+      "verdict": "PERSISTED_REPLY_MISMATCH",
+      "savedAssistant": {
+        "userPromptMatches": true,
+        "assistantTextLength": 119,
+        "assistantTextSha256": "5ba77f7c69f6a4776a4253c79aff36c243bbd44ac64303aaa3926a50be328703",
+        "assistantExpectedEqual": false,
+        "assistantExpectedSubstring": false
+      },
+      "conversationIdentitySha256": "94fe97a6d4b59c4b11f4fd032ce7efce8f7a64335523e0cd70f8e41e3cb924b5"
+    },
+    {
+      "tenant": "meri-foundation-20260928-t2",
+      "identityVerified": true,
+      "loadedWebReleaseSha": "940fe9354f95630c6acb0f20f75ced26ea9e75f4",
+      "webSurface": "vnext",
+      "composerVisible": true,
+      "conversationCreateRequests": 1,
+      "conversationsCreated": 1,
+      "turnsSent": 1,
+      "blockedMutationCount": 0,
+      "blockedEndpoints": [],
+      "authAttempt": {
+        "status": "complete",
+        "hasSession": true,
+        "missingFields": []
+      },
+      "streamStatus": 201,
+      "doneReceived": true,
+      "toolCalls": 0,
+      "streamErrors": 0,
+      "expectedReplyVisible": false,
+      "sessionRevoked": true,
+      "verdict": "NOT RUN",
+      "streamExpectedSubstring": false,
+      "savedAssistant": {
+        "userPromptMatches": true,
+        "assistantTextLength": 119,
+        "assistantTextSha256": "5ba77f7c69f6a4776a4253c79aff36c243bbd44ac64303aaa3926a50be328703",
+        "assistantExpectedEqual": false,
+        "assistantExpectedSubstring": false
+      }
+    }
+  ],
+  "priorTurnsSent": 1,
+  "maximumNewTurns": 1,
+  "fullFile01Acceptance": false,
+  "failureCode": "SMOKE_ASSERTION_FAILED",
+  "completedAt": "2026-10-02T02:52:47.923Z"
+}

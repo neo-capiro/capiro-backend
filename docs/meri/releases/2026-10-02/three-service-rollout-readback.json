@@ -1,0 +1,258 @@
+{
+  "observedAt": "2026-10-02T02:02:33.896Z",
+  "verdict": "PASS",
+  "rolloutHealth": "PASS",
+  "boundedUiQa": "NOT RUN",
+  "fullFile01Acceptance": "NOT RUN",
+  "acceptanceScope": "This helper verifies service rollout/configuration only; independent UI QA and full plan acceptance require their own receipts",
+  "canonicalWeb": {
+    "unchangedSince": "2026-10-02T01:58:15.972Z",
+    "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:145",
+    "desired": 1,
+    "running": 1,
+    "pending": 0,
+    "serviceHash": "0af5d4dcf65cbfec55597fa0e1a0a0b1fc199ed1a1fb314236cbb2788f67cb74",
+    "configHash": "2286910727abcb389eaf084ed5fa20124bb60e013863eec3334b3062556cd41a",
+    "taskHash": "b2714b3ae76d8d9465c1e3eb10c29996b4d1ba08fb8936b81c52a8fbe5d40ad0",
+    "actualDigests": [
+      "sha256:d8615c95d8b4174522eff2f03882e851db690f8d850bdbb47c86da33c42a66cb"
+    ]
+  },
+  "engagement": {
+    "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-engagement-api:129",
+    "rpFlag": {
+      "name": "RESEARCH_PORTFOLIO_MERI_TOOLS_ENABLED",
+      "observed": "absent",
+      "dark": true
+    },
+    "unchanged": true
+  },
+  "services": [
+    {
+      "service": "api",
+      "verdict": "PASS",
+      "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:485",
+      "deploymentId": "ecs-svc/4406520198966731688",
+      "rolloutState": "COMPLETED",
+      "desired": 2,
+      "running": 2,
+      "pending": 0,
+      "actualImageDigest": "sha256:1fbf675727041323c56c2330aebb7f27ae4129864cb413953b869bfffad80015",
+      "taskHash": "498b7e1c584864f02f16e48630389bb309b39ac0023ebfc0ebc8bb0e1fab4965",
+      "configHash": "973748a2b134b388a6027df6c5c099055a7e24f7b746eafbaae8cebad077258a",
+      "sourceMetadata": {
+        "GIT_SHA": "83304d18e5a1ab647cf6f728392cf97b3058a832",
+        "RELEASE_SHA": "83304d18e5a1ab647cf6f728392cf97b3058a832"
+      },
+      "rpFlag": {
+        "name": "RESEARCH_PORTFOLIO_MERI_TOOLS_ENABLED",
+        "observed": "absent",
+        "dark": true
+      },
+      "health": "Every actual running task IP matched a healthy ALB target via reviewed snapshot",
+      "tasks": [
+        {
+          "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/51597308c8404960a632c0c8f498e523",
+          "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:485",
+          "lastStatus": "RUNNING",
+          "containers": [
+            {
+              "name": "api",
+              "lastStatus": "RUNNING",
+              "imageDigest": "sha256:1fbf675727041323c56c2330aebb7f27ae4129864cb413953b869bfffad80015"
+            }
+          ]
+        },
+        {
+          "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/70d73c95f4444687af9424c185a9aaf5",
+          "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:485",
+          "lastStatus": "RUNNING",
+          "containers": [
+            {
+              "name": "api",
+              "lastStatus": "RUNNING",
+              "imageDigest": "sha256:1fbf675727041323c56c2330aebb7f27ae4129864cb413953b869bfffad80015"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "service": "web-vnext",
+      "verdict": "PASS",
+      "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web-vnext:386",
+      "deploymentId": "ecs-svc/3490292933385052646",
+      "rolloutState": "COMPLETED",
+      "desired": 1,
+      "running": 1,
+      "pending": 0,
+      "actualImageDigest": "sha256:bb114117e1ac5bad398a34c2272280b0b55abbcb0502cb5b6b95356f213bdfdb",
+      "taskHash": "105966e60d447373fc9356d4bfdbc0ea15a8992d8332e8d006184e1ae6d36e4c",
+      "configHash": "453a3d5aedc3da7d989370b97669abf0c1b14efbacd2d1597990b9cac7d50ab7",
+      "sourceMetadata": {
+        "GIT_SHA": "940fe9354f95630c6acb0f20f75ced26ea9e75f4",
+        "RELEASE_SHA": "940fe9354f95630c6acb0f20f75ced26ea9e75f4",
+        "CAPIRO_WEB_RELEASE_SHA": "940fe9354f95630c6acb0f20f75ced26ea9e75f4"
+      },
+      "rpFlag": {
+        "name": "RESEARCH_PORTFOLIO_MERI_TOOLS_ENABLED",
+        "observed": "absent",
+        "dark": true
+      },
+      "health": "Every actual running task IP matched a healthy ALB target via reviewed snapshot",
+      "tasks": [
+        {
+          "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/4d5331534711433985251ec9945e7630",
+          "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web-vnext:386",
+          "lastStatus": "RUNNING",
+          "containers": [
+            {
+              "name": "web-vnext",
+              "lastStatus": "RUNNING",
+              "imageDigest": "sha256:bb114117e1ac5bad398a34c2272280b0b55abbcb0502cb5b6b95356f213bdfdb"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "service": "meriv2-orchestrator",
+      "verdict": "PASS",
+      "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:86",
+      "deploymentId": "ecs-svc/1067196522484190038",
+      "rolloutState": "COMPLETED",
+      "desired": 1,
+      "running": 1,
+      "pending": 0,
+      "actualImageDigest": "sha256:1495f82a9c3c4dab04b7f0028761cf3549e6e726699f390563b7c7b2a3eb1550",
+      "taskHash": "7f7a20ec40822789b7094e1b5627089c6494ae73869a3c932555d06d19a81998",
+      "configHash": "3a4fabd2139e347cd8b45192579f2a3fbaaa6fc3678762b5252f727a4461951b",
+      "sourceMetadata": {
+        "GIT_SHA": "39cea28f31be07def2f67ddf06ac4c44ef4ab792",
+        "RELEASE_SHA": "39cea28f31be07def2f67ddf06ac4c44ef4ab792"
+      },
+      "rpFlag": {
+        "name": "RESEARCH_PORTFOLIO_MERI_TOOLS_ENABLED",
+        "observed": "absent",
+        "dark": true
+      },
+      "health": "Every actual running task IP matched a healthy ALB target via reviewed snapshot",
+      "tasks": [
+        {
+          "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/ddf9ce1e5bd04a5f8fd4382344a47650",
+          "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:86",
+          "lastStatus": "RUNNING",
+          "containers": [
+            {
+              "name": "meriv2-orchestrator",
+              "lastStatus": "RUNNING",
+              "imageDigest": "sha256:1495f82a9c3c4dab04b7f0028761cf3549e6e726699f390563b7c7b2a3eb1550"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "calls": [
+    {
+      "command": "sts get-caller-identity",
+      "exitCode": 0
+    },
+    {
+      "command": "ecs describe-services",
+      "exitCode": 0
+    },
+    {
+      "command": "ecs describe-task-definition",
+      "exitCode": 0
+    },
+    {
+      "command": "ecs list-tasks",
+      "exitCode": 0
+    },
+    {
+      "command": "ecs describe-tasks",
+      "exitCode": 0
+    },
+    {
+      "command": "elbv2 describe-target-groups",
+      "exitCode": 0
+    },
+    {
+      "command": "elbv2 describe-target-health",
+      "exitCode": 0
+    },
+    {
+      "command": "ecs describe-services",
+      "exitCode": 0
+    },
+    {
+      "command": "ecs describe-task-definition",
+      "exitCode": 0
+    },
+    {
+      "command": "ecs list-tasks",
+      "exitCode": 0
+    },
+    {
+      "command": "ecs describe-tasks",
+      "exitCode": 0
+    },
+    {
+      "command": "elbv2 describe-target-groups",
+      "exitCode": 0
+    },
+    {
+      "command": "elbv2 describe-target-health",
+      "exitCode": 0
+    },
+    {
+      "command": "ecs describe-services",
+      "exitCode": 0
+    },
+    {
+      "command": "ecs describe-task-definition",
+      "exitCode": 0
+    },
+    {
+      "command": "ecs list-tasks",
+      "exitCode": 0
+    },
+    {
+      "command": "ecs describe-tasks",
+      "exitCode": 0
+    },
+    {
+      "command": "elbv2 describe-target-groups",
+      "exitCode": 0
+    },
+    {
+      "command": "elbv2 describe-target-health",
+      "exitCode": 0
+    },
+    {
+      "command": "ecs describe-services",
+      "exitCode": 0
+    },
+    {
+      "command": "ecs describe-task-definition",
+      "exitCode": 0
+    },
+    {
+      "command": "ecs list-tasks",
+      "exitCode": 0
+    },
+    {
+      "command": "ecs describe-tasks",
+      "exitCode": 0
+    },
+    {
+      "command": "ecs describe-services",
+      "exitCode": 0
+    },
+    {
+      "command": "ecs describe-task-definition",
+      "exitCode": 0
+    }
+  ]
+}

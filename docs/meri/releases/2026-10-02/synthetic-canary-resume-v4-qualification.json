@@ -1,0 +1,19 @@
+{
+  "status": "QUALIFIED_READ_ONLY",
+  "planHash": "8c7c1d033a1b90a9c3c5a45775d683d9a7b88da89746536a1ca42972859cd6fe",
+  "reusedApiTaskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:486",
+  "reusedFlagTaskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/85e63bccbeed4413828e18afc76cbaa1",
+  "comparedEqualPlanFields": [
+    "expectedCallerArn",
+    "operatorSourceSha",
+    "proofs",
+    "qualificationHash",
+    "schemaVersion",
+    "services",
+    "tenants",
+    "web"
+  ],
+  "newDatabaseTasks": 0,
+  "cloudMutations": 0,
+  "observedAtEpoch": 1790908002.3537412
+}

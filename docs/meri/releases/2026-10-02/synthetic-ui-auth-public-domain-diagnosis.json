@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "observedUTC": "2026-10-02T02:40:16.0786814Z",
+  "url": "https://os.capiro.ai/runtime-config.js",
+  "httpStatus": 200,
+  "derivedPublicClerkHost": "clerk.app.capiro.ai",
+  "webSourceSha": "940fe9354f95630c6acb0f20f75ced26ea9e75f4",
+  "method": "Read unauthenticated public runtime-config.js; decode publishable-key host in process; persist only derived host and release SHA",
+  "v1AllowedHost": false,
+  "rawKeyPersisted": false,
+  "rawConfigPersisted": false,
+  "authOrBrowserExecuted": false,
+  "diagnosis": "v1 browser mutation filter excludes actual Clerk frontend host; observed blocked request is consistent with this source mismatch"
+}

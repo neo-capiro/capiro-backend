@@ -1,0 +1,21 @@
+{
+  "scope": "READ_ONLY",
+  "cloudMutations": 0,
+  "planHash": "690ea0b7df81a083213fe0379ff9b55c8ba97393cba916a394922f28f7dd6671",
+  "jobStatus": "REGISTERED",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api-diag:9",
+  "startedBy": "meri-cb-80ddd4cd612547e8acbc-plan",
+  "activeStartedByTasks": 0,
+  "stoppedTasksInspected": 0,
+  "stoppedStartedByTasks": 0,
+  "servedEnvironmentShape": {
+    "entryCount": 134,
+    "emptyStringValueCount": 7,
+    "emptyDbOrSourceValueCount": 0
+  },
+  "captureRuntime": "PASS",
+  "runtimeDigestMatches": true,
+  "cloudTrailMatchingRunTaskEvents": [],
+  "cloudTrailPaginationRemaining": false,
+  "cloudTrailCaveat": "Event delivery may lag; absence alone is not proof. Original failed journal reached REGISTERED before RUN_INTENT; fixed-helper read-only capture now passes."
+}

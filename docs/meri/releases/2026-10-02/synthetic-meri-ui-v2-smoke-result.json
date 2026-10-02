@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "sourceSha": "f1fd2d914a992aef005d2bef7e772b4535bef7a9",
+  "scriptSha256": "ac1ed00c33396338b13e45a126cb2098218e29732bb1a349dfd567abf9b72ca7",
+  "startedAt": "2026-10-02T02:44:08.005Z",
+  "verdict": "BLOCKED",
+  "tenants": [
+    {
+      "tenant": "meri-foundation-20260928-t1",
+      "identityVerified": true,
+      "loadedWebReleaseSha": "940fe9354f95630c6acb0f20f75ced26ea9e75f4",
+      "webSurface": "vnext",
+      "composerVisible": true,
+      "conversationCreateRequests": 1,
+      "conversationsCreated": 1,
+      "turnsSent": 1,
+      "blockedMutationCount": 0,
+      "blockedEndpoints": [],
+      "authAttempt": {
+        "status": "complete",
+        "hasSession": true,
+        "missingFields": []
+      },
+      "streamStatus": 201,
+      "doneReceived": true,
+      "toolCalls": 0,
+      "streamErrors": 0,
+      "expectedReplyVisible": false,
+      "sessionRevoked": true,
+      "verdict": "NOT RUN"
+    }
+  ],
+  "fullFile01Acceptance": false,
+  "failureCode": "SMOKE_ASSERTION_FAILED",
+  "completedAt": "2026-10-02T02:44:22.763Z"
+}

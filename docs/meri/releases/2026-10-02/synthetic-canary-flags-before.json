@@ -1,0 +1,18 @@
+{
+  "schemaVersion": "meri.synthetic-canary.codebuild.v1",
+  "mode": "flag-plan",
+  "planHash": "690ea0b7df81a083213fe0379ff9b55c8ba97393cba916a394922f28f7dd6671",
+  "status": "BLOCKED_RECONCILIATION_REQUIRED",
+  "startedAtEpoch": 1790906609.2020981,
+  "services": {},
+  "flagJobs": [
+    {
+      "mode": "plan",
+      "requestHash": "777ca023744f125c6bc3bbdeac25ebd481459b11fe7b7ac2b76490bd47d4122b",
+      "startedBy": "meri-cb-80ddd4cd612547e8acbc-plan",
+      "status": "REGISTERED",
+      "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api-diag:9"
+    }
+  ],
+  "errorClass": "FullchatError"
+}

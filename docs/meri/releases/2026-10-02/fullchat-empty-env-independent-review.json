@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "command": "python scripts/meri-synthetic-fullchat.test.py",
+  "cwd": "C:\\dev\\cap-meri-migration-history-guard",
+  "sourceHead": "f4917394893f19f6e864de0ca5bafac3a54c72d4",
+  "startedAtUtc": "2026-10-02T02:07:05.3713582Z",
+  "completedAtUtc": "2026-10-02T02:07:06.8006087Z",
+  "exitCode": 0,
+  "sourceSha256": "b1a28dcede509f706483d2c0b61f45559f00cd5f1a73cbaa4b50b90ed4db2700",
+  "testsSha256": "3736a9b2da2e9cd78c9b5a7130e3c37e05b318e5851164ad53d9723815fbf763",
+  "logSha256": "e93e15ffa6dd641699df4b428bf5b7302e458201ae45a00a40264392707658ba",
+  "cloudCalls": 0,
+  "verdict": "PASS",
+  "review": "Only explicit environment call sites permit empty strings. Names, duplicate and entry-shape guards remain; secret valueFrom has no opt-in. Present empty source SHA fields explicitly refuse even with a valid Docker label; DB_NAME remains nonempty and equal. New tests include full runtime positive and six critical negative subcases."
+}

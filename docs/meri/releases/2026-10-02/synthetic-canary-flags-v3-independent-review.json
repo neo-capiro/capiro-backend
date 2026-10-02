@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "reviewedAtUtc": "2026-10-02T02:16:55.1696634Z",
+  "policySha": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "verdict": "PASS",
+  "adapterSha256": "0d1e3c1350c5bae336ada16b5aa396e75d5e120b41ecdbdd1e63b4b05d3e739e",
+  "reconcilerSha256": "33a60265019e96f231a52bbdefc4b7cb7fd65e4eaa25f0ae8fa18d75a681de1e",
+  "reviewMode": "Independent static source review; no AWS calls or execution",
+  "testEvidence": "Read adapter test log:25tests OK; no independent test rerun; reconciliation guard tests pending separate operator evidence",
+  "findings": [
+    "Only inferenceAcceleratorOverrides:[] is omitted; nonempty, null and unknown overrides remain rejected.",
+    "Both plan hashes and original verified receipt hash are validated; source delta must be exactly reviewed two-line normalization.",
+    "Operator source, qualification, proofs, tenant scope, Web and API/orchestrator snapshots must be identical.",
+    "Old blocked apply must have no flag jobs or service mutation journal entries.",
+    "Current clean operator, exact caller, actual snapshots and health, and original task definition, command, digest, exit and logs are revalidated.",
+    "Derived receipt preserves original task/timestamps, old plan/receipt hashes and fresh readback time with explicit reuse provenance.",
+    "No registration, task launch, service update, DB mutation or source overwrite exists in reconciler.",
+    "Future apply retains transactional prior-state compare and fresh provenance checks."
+  ],
+  "existingV2ReceiptSha256": "6ecfbd1a7b0ee950d1c041cf3d09f8c3cf48ce28110dd3f9eb3e42ff8212f03c",
+  "existingV2BlockedApplySha256": "9ba94d2edaad9afe919c56752c6d1af130778a5e3ea54a6c597900137e4cb06e",
+  "cloudCalls": 0,
+  "cloudWrites": 0
+}

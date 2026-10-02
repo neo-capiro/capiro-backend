@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "preparedAtUtc": "2026-10-02T02:30:46.4610051Z",
+  "policySha": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "scriptSha256": "dd814fcf87be47f25eada375dc656388ccbbe16cb129078f20c68030b2065100",
+  "command": "node --check C:\\dev\\cap-meri-foundation-evidence\\oct02-release-path\\synthetic-meri-ui-smoke.cjs",
+  "exitCode": 0,
+  "authenticatedExecution": "NOT RUN",
+  "authSessionsCreated": 0,
+  "turnsSent": 0,
+  "cloudWrites": 0,
+  "independentSourceReview": "CD lane reviewed request budgets, identity binding, redaction, new-conversation path, redirect guard, and session cleanup; requested fixes applied.",
+  "existingPlaywrightPackage": true,
+  "existingClerkPackage": true,
+  "loadedWebSourceBinding": "Exact window.__CAPIRO_CONFIG__.releaseSha=940fe9354f95630c6acb0f20f75ced26ea9e75f4 and webSurface=vnext before authentication, after authenticated navigation, and immediately before Send. No other runtime config fields read."
+}

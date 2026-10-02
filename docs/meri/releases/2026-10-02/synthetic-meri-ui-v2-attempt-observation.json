@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "checkedAtUtc": "2026-10-02T02:45:29.2743415Z",
+  "verdict": "BLOCKED",
+  "actualHermesExitCode": 0,
+  "actualNodeExitCode": 1,
+  "failureCode": "SMOKE_ASSERTION_FAILED",
+  "tenant1": {
+    "identityVerified": true,
+    "loadedWebReleaseSha": "940fe9354f95630c6acb0f20f75ced26ea9e75f4",
+    "webSurface": "vnext",
+    "composerVisible": true,
+    "conversationsCreated": 1,
+    "turnsSent": 1,
+    "streamStatus": 201,
+    "doneReceived": true,
+    "toolCalls": 0,
+    "streamErrors": 0,
+    "expectedReplyVisible": false,
+    "sessionRevoked": true
+  },
+  "tenant2": "NOT RUN",
+  "remainingAuthorizedTurnBudget": 1,
+  "repeatTenant1TurnAuthorized": false,
+  "retryPerformed": false,
+  "sourceEditedAfterExecution": false,
+  "rootReconciliationRequired": true,
+  "limitation": "Exact reply visibility failed; response content and raw DOM not retained. Distinguishing rendering timing, text mismatch, or product behavior requires bounded read-only follow-up, not a resend.",
+  "fullFile01Acceptance": "NOT RUN",
+  "resultSha256": "04d0c3401879e22b4d5f3dbaa700b27ade16546d69b3bcdf19d0976429615977",
+  "commandExitSha256": "2035a07e6b9dd9eabb7c8127009f4f3950284ca7645a5b81be43d22f2ec2c3d8",
+  "operatorExitSha256": "71e1fd698e2c4765c3cc81bcbc3288cecac86074f919b381743be39078363e34"
+}
