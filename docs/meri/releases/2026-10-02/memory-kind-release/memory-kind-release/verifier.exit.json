@@ -1,0 +1,15 @@
+{
+  "name": "verifier",
+  "sourceSha": "42988dae5fb7bc2fff3af582ca15a0836a4477c5",
+  "command": [
+    "C:\\ProgramData\\Hermes\\tools\\python-3.14.7+20260901-win32-x64\\python.exe",
+    "evals/meri/verify_report.py",
+    "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-release\\meri-offline.json",
+    "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-release\\meri-offline.summary.json"
+  ],
+  "cwd": "C:\\dev\\cap-meri-fixture-hardening",
+  "exitCode": 0,
+  "elapsedSeconds": 0.12,
+  "logSha256": "cd7ee77fb56c570551e133debd9fc6c0f3306084e7e8129c59787446a1db98a9",
+  "sourceUnchanged": true
+}

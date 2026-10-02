@@ -1,0 +1,415 @@
+{
+  "kind": "meri-memory-kind-qualified-source-archive",
+  "sourceSha": "42988dae5fb7bc2fff3af582ca15a0836a4477c5",
+  "files": [
+    {
+      "path": ".gitattributes",
+      "sha256": "a59ed1aaca9a9a3393a20caf1e137a8a2b21b2ccf917537d40cc8b1ac737d29a",
+      "bytes": 176
+    },
+    {
+      "path": "case46-operator/case46-operator-gates.mjs",
+      "sha256": "fc71828747a13d1ae21daa4437b3c297e92508bccaaeb262ed64866a6b4151bc",
+      "bytes": 6414
+    },
+    {
+      "path": "case46-operator/case46-operator-gates.test.mjs",
+      "sha256": "66af802ea94751e9ba33f21a09041ee2e5fb1a3de21cc7cfe5de326ea908e656",
+      "bytes": 3540
+    },
+    {
+      "path": "case46-operator/case46-ready.template.json",
+      "sha256": "0aa2f6c4ecefb806626fd57b307c0ef7f5cdf4f4bc77754ed326e61c27c7262a",
+      "bytes": 779
+    },
+    {
+      "path": "case46-operator/combined-c9-tests-exit.json",
+      "sha256": "9cc0bde11fb56d8de8116973e8ff466af3f76d9aed3c926ad1a7d569fbf3aad7",
+      "bytes": 1061
+    },
+    {
+      "path": "case46-operator/combined-qualification.json",
+      "sha256": "2f5eb481e297a5799e22910844eee9565d96dfae6a6b11e3c6818259e06425e8",
+      "bytes": 4312
+    },
+    {
+      "path": "case46-operator/HANDOVER.md",
+      "sha256": "b1a5a0168895563b114d5eafb5190b301f4d4b6ad82b86b5911fa0f40280dde7",
+      "bytes": 3710
+    },
+    {
+      "path": "case46-operator/native-kimi-exit.json",
+      "sha256": "61240e809940aafba091dfb0b23f5a3b261d367bdd9c56f43593f8e1652ad4f9",
+      "bytes": 103
+    },
+    {
+      "path": "case46-operator/native-kimi-review.md",
+      "sha256": "85e83f0453d63a4190d7f7f0d7b0d516fafb472e9fc2c4c9a938a8b311412efa",
+      "bytes": 2714
+    },
+    {
+      "path": "case46-operator/native-kimi-usage.json",
+      "sha256": "03034ac5a517f3262ae198fa299a74289049832a22a879ccea5528ba71c44777",
+      "bytes": 426
+    },
+    {
+      "path": "case46-operator/operator-preparation.json",
+      "sha256": "b6cb726cceb724d06fba9fd75989af9bddc984c3d7730066b265f673ae482dca",
+      "bytes": 808
+    },
+    {
+      "path": "case46-operator/qualification.json",
+      "sha256": "530812555ac1737ef331a12c54959457cd382cbbeb40a637f73164c62c6d46cb",
+      "bytes": 2640
+    },
+    {
+      "path": "case46-operator/run-case46-authenticated.mjs",
+      "sha256": "d4a8a3155ca4e86021707275fb7ce21790a47aaa41b51b2fdaf01097b49e3c6e",
+      "bytes": 11240
+    },
+    {
+      "path": "format-directive/independent-kimi-v2-exit.json",
+      "sha256": "c77703bfc6c9ccdbb121cd6cbdfcc82fbf16446575476bda448fa3982475256c",
+      "bytes": 102
+    },
+    {
+      "path": "format-directive/independent-kimi-v2-review.md",
+      "sha256": "110e7934e2d69de2f06a131c5f0d94d2caa343253bd188bd15400543d6a8bcf3",
+      "bytes": 1147
+    },
+    {
+      "path": "format-directive/independent-kimi-v2-usage.json",
+      "sha256": "b1258b29ea2bdccf33d1b637a6406ee0055a30f08b725688937a529d7e3e24dd",
+      "bytes": 426
+    },
+    {
+      "path": "format-directive/qualification.json",
+      "sha256": "8faa65845ad1a7c183ad92b29d895284361b00a740ae4cba79c7468f6b80c1c6",
+      "bytes": 8827
+    },
+    {
+      "path": "memory-kind-release/api-build-readback.json",
+      "sha256": "cf21cb785baa46cd7abc57c78f14cc34ca96bfe629d4f6ef052fafa502b0ad15",
+      "bytes": 2682
+    },
+    {
+      "path": "memory-kind-release/api-build-start.json",
+      "sha256": "ef98c45ef0cf9a0b9e563fb90ba9bf5ebfe6e52f70c37bb486e4b97ac5033f5c",
+      "bytes": 759
+    },
+    {
+      "path": "memory-kind-release/api.buildspec.yml",
+      "sha256": "addeee6814682cefea45e2123d59b792ffcbedb115203a720758f318592762fb",
+      "bytes": 7218
+    },
+    {
+      "path": "memory-kind-release/bind-forward-compatibility.py",
+      "sha256": "8ea250629b76d614ff306e920e1a3b7346fd83fe53d83cbd439f1666da216099",
+      "bytes": 6638
+    },
+    {
+      "path": "memory-kind-release/build-qualified-source.py",
+      "sha256": "bd4f71f1f77007f606f440948d4dfa6330f39f677eade42caedbacbd372a10ea",
+      "bytes": 8774
+    },
+    {
+      "path": "memory-kind-release/candidate-retirement-rolling-compatibility.json",
+      "sha256": "c6e9b466a08fc7a7890a089f7c6643deaa20b768528e7d6879a1930b33e2a207",
+      "bytes": 11895
+    },
+    {
+      "path": "memory-kind-release/combined-source-qualification.json",
+      "sha256": "f448f3609b26e183aa80aeb09b2f9bfd89156bb07382810bbb7b6b56b679eaea",
+      "bytes": 12410
+    },
+    {
+      "path": "memory-kind-release/core-build.exit.json",
+      "sha256": "7d210175760fcb952a75b8329b537cdbbbed92c21809688b06193036a21ba6b1",
+      "bytes": 429
+    },
+    {
+      "path": "memory-kind-release/core-evidence-tests.exit.json",
+      "sha256": "bc4354270e7e7e6413471a196626c3e4f794e602c2b8f1f73d9b67d1797c18bf",
+      "bytes": 660
+    },
+    {
+      "path": "memory-kind-release/meri-offline.summary.json",
+      "sha256": "358624db28fc6b78393671c3b77ee4fb40a4f44c3375e4cea3092e6643066f24",
+      "bytes": 3927
+    },
+    {
+      "path": "memory-kind-release/meriv2-orchestrator-build-readback.json",
+      "sha256": "a7b7cda4e84b37c6bc1212933003b2367140f16157614eeab44bbef62a740e1d",
+      "bytes": 2233
+    },
+    {
+      "path": "memory-kind-release/meriv2-orchestrator-build-start.json",
+      "sha256": "5f3347eb671b6a86adc49146c139c3b176606e3c844edaaf9b433c1f69111bbf",
+      "bytes": 791
+    },
+    {
+      "path": "memory-kind-release/meriv2-orchestrator-test-counts.json",
+      "sha256": "e680ef8e631a1ede3932ac39d266dbfd6fff31ed671dfa85274aba97b5e70637",
+      "bytes": 814
+    },
+    {
+      "path": "memory-kind-release/meriv2-orchestrator.buildspec.yml",
+      "sha256": "dd3aaac45be1eada1a2451add262b6407313d699b390deb0c0707455c370af90",
+      "bytes": 9009
+    },
+    {
+      "path": "memory-kind-release/native-capture-tests-v2.exit.json",
+      "sha256": "9fe3586e85a389ef2125692425a7e483a9b03dbb8e5643dbb14fd63b05bafc19",
+      "bytes": 1620
+    },
+    {
+      "path": "memory-kind-release/native-capture-tests.exit.json",
+      "sha256": "4244f96c8ccc442482ef483b7a7c777aee816fd793798f6a83747e0df5faf572",
+      "bytes": 1617
+    },
+    {
+      "path": "memory-kind-release/owned-postgres-tests.exit.json",
+      "sha256": "ffac0afdb02a94602369a9c6c59ab97b9ac355e3c445cd5acc4d2b3063008570",
+      "bytes": 864
+    },
+    {
+      "path": "memory-kind-release/promptfoo.exit.json",
+      "sha256": "9a0f060d64975cf73091ef01a4fb8c3e6cd2bba1d74c5be8c89259664bb63ab0",
+      "bytes": 682
+    },
+    {
+      "path": "memory-kind-release/reviewed-build-input.json",
+      "sha256": "8c54604b7c6d988e31cff6de6b03133db209dc44280ef661cded650153909c20",
+      "bytes": 895
+    },
+    {
+      "path": "memory-kind-release/shared-build.exit.json",
+      "sha256": "e9b902c4053c1bb3863bd713a63066ed90420956756c9294fb809479f274932b",
+      "bytes": 427
+    },
+    {
+      "path": "memory-kind-release/verifier.exit.json",
+      "sha256": "97b4ca2488788878a0da0dd852eca1290f44a92e693524b12d62d19f9d2de80e",
+      "bytes": 626
+    },
+    {
+      "path": "memory-kind-release/verify-combined-v2.py",
+      "sha256": "e9be5e6c0abba74f41a3fc22acdf341a53c55046b383c2af9d4c501865867e51",
+      "bytes": 3579
+    },
+    {
+      "path": "memory-kind-release/verify-combined.py",
+      "sha256": "f225e8f987e066e60550705bdd50fbbae24ff2b74bb973ae902a1de02dd02e10",
+      "bytes": 3525
+    },
+    {
+      "path": "memory-kind-release/workflow-dispatch-receipts.json",
+      "sha256": "1070a617f9c5d5bd7761c614183f6990738aa7e9692aa13db8cbf55c5c8b8334",
+      "bytes": 497
+    },
+    {
+      "path": "memory-kind-repair/assess-forward-compatibility.py",
+      "sha256": "2395ee02ce10a1f509245b2ba4a51e990a4ea134fb363a4c204f2e758cd6b7c0",
+      "bytes": 9909
+    },
+    {
+      "path": "memory-kind-repair/constraint-catalog-bounded.json",
+      "sha256": "2091bf772cb87240614d0c28f60afbc1901f142f5e1900d85de99019ce947767",
+      "bytes": 4303
+    },
+    {
+      "path": "memory-kind-repair/forward-compatibility-assessment.json",
+      "sha256": "a53137bdea7c03545c57b866f6ee5983ef7a3758381f0c0d339f157261faf335",
+      "bytes": 7688
+    },
+    {
+      "path": "memory-kind-repair/forward-fresh-54761a7fa78b.json",
+      "sha256": "8bbbdb86bab6882b272363d95362a3e3c5fa8556c102f54f5ebf652efbf19ac1",
+      "bytes": 1306
+    },
+    {
+      "path": "memory-kind-repair/forward-upgrade-54761a7fa78b.json",
+      "sha256": "2ba54b682e47546eaffa836a5a30da4dbcb776a688a3915cbd5b6cca1690efa4",
+      "bytes": 1163
+    },
+    {
+      "path": "memory-kind-repair/forward-v2-fresh-42988dae5fb7.json",
+      "sha256": "4ba90132a6bf956cb7fb6b26b26cf6ab401789b02a7180b37a9485abe58550fc",
+      "bytes": 3199
+    },
+    {
+      "path": "memory-kind-repair/forward-v2-fresh-42988dae5fb7.log",
+      "sha256": "14f3abd6ebc097b4e8787be28ab5b78404c178965b55febd4e932ce32b1eed08",
+      "bytes": 64687
+    },
+    {
+      "path": "memory-kind-repair/forward-v2-upgrade-42988dae5fb7.json",
+      "sha256": "ebee9e4a7f7dedc76a6314823a5fdeae102619e4016bb37be017f03c7831d302",
+      "bytes": 3056
+    },
+    {
+      "path": "memory-kind-repair/forward-v2-upgrade-42988dae5fb7.log",
+      "sha256": "0b9b83623c29e2ec8a7c20c91d6cbd5d08474c77f33787583e2b6dade54fe26f",
+      "bytes": 569
+    },
+    {
+      "path": "memory-kind-repair/forward450-independent-peer-review.json",
+      "sha256": "a7f6e874c0c6e38baad2a88f6035877a791fb4db6a4cae14a94cfdce921206d3",
+      "bytes": 2700
+    },
+    {
+      "path": "memory-kind-repair/forward450-input-provenance.json",
+      "sha256": "45e2be81dd2950707dcdba6538e012ce241a5a487e0f2fae7a9d97400b0f1629",
+      "bytes": 2002
+    },
+    {
+      "path": "memory-kind-repair/forward450-input.json",
+      "sha256": "d2befd1dd0491bdbcb4e8d1091bad97859c46445e9b8fabb90c0bb5dfb2e3216",
+      "bytes": 1195
+    },
+    {
+      "path": "memory-kind-repair/forward450-local-qualification.json",
+      "sha256": "856c5929c8c7a16de852a56e92899977e197f15975f583039f2dd6d7d4ffa803",
+      "bytes": 2060
+    },
+    {
+      "path": "memory-kind-repair/forward450-oneoff-tests.py",
+      "sha256": "3fbbe6b05c7785e1714d08669029c6a044c707bf28ce24efb9465bf87182272d",
+      "bytes": 10076
+    },
+    {
+      "path": "memory-kind-repair/forward450-oneoff.py",
+      "sha256": "03f5c2eb792a7cc9abd8aecf923268f6a5b1fc0989c4c68f1a47a5508dc8ae9f",
+      "bytes": 13945
+    },
+    {
+      "path": "memory-kind-repair/forward450-peer-node.log",
+      "sha256": "f1fa61b5ce40c5adfa38f9aea796a192ce609fbe8b6eed8975d38ebe78e2a105",
+      "bytes": 1047
+    },
+    {
+      "path": "memory-kind-repair/forward450-peer-python.log",
+      "sha256": "aabbe3332d1db4b0a061f15f4d569c89144d35931f6bf79549da762c24b89aad",
+      "bytes": 117
+    },
+    {
+      "path": "memory-kind-repair/forward450-proof.json",
+      "sha256": "26607cb8f7f04e49d626be06bfdf3e52e716ab733d394eccc2a5c37facdfcabb",
+      "bytes": 1472
+    },
+    {
+      "path": "memory-kind-repair/forward450-runner.mjs",
+      "sha256": "0162ca9979d3876baedbabd1e11b62c191baf7d61abd4320e813392ac43769d4",
+      "bytes": 17144
+    },
+    {
+      "path": "memory-kind-repair/forward450-runner.test.mjs",
+      "sha256": "638e5bbdcbae84bee39858e777441d3c4ce6a235f003018ff0f5e929587ba322",
+      "bytes": 7194
+    },
+    {
+      "path": "memory-kind-repair/independent-migration-kimi-exit.json",
+      "sha256": "536091b511bbb367a1cb63528f56ec275242548511c226e5eb59c9ed4c053eec",
+      "bytes": 103
+    },
+    {
+      "path": "memory-kind-repair/independent-migration-kimi-review.md",
+      "sha256": "0ca0bb272c659ceb975ffa09cd9d221fa72a9e14e31a4eb996a4f915a2857485",
+      "bytes": 1170
+    },
+    {
+      "path": "memory-kind-repair/independent-migration-kimi-usage.json",
+      "sha256": "d2c14f0d9ccaad8d2a49e9c83cdeb531aa11b1213c1b37019150eb9de4310cf9",
+      "bytes": 426
+    },
+    {
+      "path": "memory-kind-repair/migration-bounded-transaction.test.exit.json",
+      "sha256": "6041df3e9b345d68be886f995c452395674ea950cd3ca9992c13b64f3aa9cbd0",
+      "bytes": 14
+    },
+    {
+      "path": "memory-kind-repair/migration-bounded-transaction.test.log",
+      "sha256": "2187a0c396cb423120116a7b8a356351382808a061f807430b32cfba19bd256a",
+      "bytes": 5468
+    },
+    {
+      "path": "memory-kind-repair/migration-timeouts-kimi-exit.json",
+      "sha256": "49a0184dcca503db2014e02bcc83fc94a2b3e699fa9594f8759c7562e5ab52a6",
+      "bytes": 103
+    },
+    {
+      "path": "memory-kind-repair/migration-timeouts-kimi-review.md",
+      "sha256": "73f9f213ea7d010be60bd44f38325456054d3b76fa0ae7032cb382e87238c621",
+      "bytes": 1504
+    },
+    {
+      "path": "memory-kind-repair/migration-timeouts-kimi-usage.json",
+      "sha256": "355f2f0dc82fe5fee672a02f8ce042fbca5d25d4d55d8f6193ebea58545d15ee",
+      "bytes": 426
+    },
+    {
+      "path": "memory-kind-repair/payload-null-proof.json",
+      "sha256": "ae59f682856bc85725f034ac0877175bab23bb333ff52e0fa78d0db8f4d74460",
+      "bytes": 423
+    },
+    {
+      "path": "memory-kind-repair/qualification.json",
+      "sha256": "783567d8b8bc669d0e52dde0edff92121c3fa111ede26ff72a3cc24150a9b055",
+      "bytes": 7544
+    },
+    {
+      "path": "memory-kind-repair/rehearse-forward-migration-v2.cjs",
+      "sha256": "c6e514db749e297e009ca5e84a8e8d1c1747da4452691c7fdb3486d4e287697c",
+      "bytes": 8709
+    },
+    {
+      "path": "memory-kind-repair/rehearse-forward-migration.cjs",
+      "sha256": "c9ac645c6a2baf438ad6c3a2800253eefffe5559a47721e103e99682947ef2b5",
+      "bytes": 8180
+    },
+    {
+      "path": "memory-kind-repair/source-schema-assessment.md",
+      "sha256": "42671b70ad50d86b5a48a8155b0081debfa29909ecd66d7454e5978cc3c922a3",
+      "bytes": 6119
+    },
+    {
+      "path": "memory-kind-repair/synthetic-canary-codebuild-450.py",
+      "sha256": "1f4fa1401571361db593db9372aa7bec635a397d57383096bff3e65a529b3822",
+      "bytes": 43134
+    },
+    {
+      "path": "post-seed-resume/final-pg-packaging.exit.json",
+      "sha256": "e413acda3855363440d2497396812cf250273b9f4be74c48832d10850afade16",
+      "bytes": 372
+    },
+    {
+      "path": "post-seed-resume/post-seed-kimi-inline-exit.json",
+      "sha256": "c255bccbdfe003a0c26da468c023cc278b8b5e7717adeb22cf78c7eafd71626b",
+      "bytes": 102
+    },
+    {
+      "path": "post-seed-resume/post-seed-kimi-inline-review.md",
+      "sha256": "91ceb81bcebc049e95d28ca8496d21d3602c1465f75f3a0bdd03cbb14eb693a8",
+      "bytes": 1449
+    },
+    {
+      "path": "post-seed-resume/post-seed-kimi-inline-usage.json",
+      "sha256": "2753489d82d71077db816eef74489af1f5d444eb0a049d2c4e8cf6caa1847a6d",
+      "bytes": 426
+    },
+    {
+      "path": "post-seed-resume/qualification.json",
+      "sha256": "dc76de5fa1dd543c0807652a0fec95eeb34aa24020853e0c928358aab7a3f116",
+      "bytes": 3076
+    },
+    {
+      "path": "README.md",
+      "sha256": "674f8814ae8717ca8fa75bf7657cb72fa7da98f88cb29708f0bdb0a9dd631590",
+      "bytes": 2847
+    }
+  ],
+  "builds": "PASS",
+  "sharedMigration": "NOT_RUN",
+  "servicePromotion": "NOT_RUN",
+  "liveAcceptance": "NOT_RUN"
+}

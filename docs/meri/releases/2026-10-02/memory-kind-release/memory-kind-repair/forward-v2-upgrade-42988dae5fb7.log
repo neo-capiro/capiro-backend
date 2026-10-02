@@ -1,0 +1,14 @@
+Prisma schema loaded from ..\..\..\cap-meri-foundation-evidence\oct02-memory-kind-repair\forward-v2-upgrade-42988dae5fb7-source\schema.prisma
+Datasource "db": PostgreSQL database "meri_kind_upgrade_v2_20261002", schema "public" at "127.0.0.1:55435"
+
+450 migrations found in prisma/migrations
+
+Applying migration `20281005010000_memory_version_candidate_source_kinds`
+
+The following migration(s) have been applied:
+
+migrations/
+  └─ 20281005010000_memory_version_candidate_source_kinds/
+    └─ migration.sql
+      
+All migrations have been successfully applied.

@@ -1,0 +1,23 @@
+{
+  "kind": "forward450-root-review-input-materialization",
+  "status": "PREPARED_FOR_ROOT_REVIEW",
+  "sourceSha": "42988dae5fb7bc2fff3af582ca15a0836a4477c5",
+  "inputSha256": "d2befd1dd0491bdbcb4e8d1091bad97859c46445e9b8fabb90c0bb5dfb2e3216",
+  "proofSha256": "26607cb8f7f04e49d626be06bfdf3e52e716ab733d394eccc2a5c37facdfcabb",
+  "runnerSha256": "0162ca9979d3876baedbabd1e11b62c191baf7d61abd4320e813392ac43769d4",
+  "wrapperSha256": "03f5c2eb792a7cc9abd8aecf923268f6a5b1fc0989c4c68f1a47a5508dc8ae9f",
+  "provenance": {
+    "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-repair\\forward450-input.template.json": "d2befd1dd0491bdbcb4e8d1091bad97859c46445e9b8fabb90c0bb5dfb2e3216",
+    "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-release\\api-build-readback.json": "cf21cb785baa46cd7abc57c78f14cc34ca96bfe629d4f6ef052fafa502b0ad15",
+    "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-release\\api-oneoff-build-proof.json": "70f3c5d95fd9a9ad9c35af7db5a56c31a389119c2458286c981c9520997659db",
+    "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-release\\api-build-readback.json": "61cb976926771259b7a292e5d49e3d72c5e7dcdf8f2e71386429e963692cb0d3",
+    "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-repair\\forward-v2-fresh-42988dae5fb7.json": "4ba90132a6bf956cb7fb6b26b26cf6ab401789b02a7180b37a9485abe58550fc",
+    "C:\\dev\\cap-meri-foundation-evidence\\oct02-case01-release\\case01-seed-constraint-execution.json": "ef65e44c853728349ad6bde798868ea6914bb9e71cf3a9990dee502cad92f14b",
+    "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-repair\\forward450-independent-peer-review.json": "a7f6e874c0c6e38baad2a88f6035877a791fb4db6a4cae14a94cfdce921206d3",
+    "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-repair\\forward450-proof.template.json": "aad3e8ee29c2166b93b8fc8ce507f8894ea5764f20e4183cb9c58eafd7d39665"
+  },
+  "awsWrites": 0,
+  "databaseConnections": 0,
+  "taskSubmission": "NOT_RUN",
+  "liveSchemaPreflight": "NOT_RUN"
+}

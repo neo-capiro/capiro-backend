@@ -1,0 +1,23 @@
+{
+  "name": "promptfoo",
+  "sourceSha": "42988dae5fb7bc2fff3af582ca15a0836a4477c5",
+  "command": [
+    "C:\\Program Files\\nodejs\\node.exe",
+    "node_modules/promptfoo/dist/src/entrypoint.js",
+    "eval",
+    "-c",
+    "evals/meri/promptfooconfig.yaml",
+    "--no-cache",
+    "--no-share",
+    "--no-write",
+    "--no-table",
+    "--no-progress-bar",
+    "-o",
+    "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-release\\meri-offline.json"
+  ],
+  "cwd": "C:\\dev\\cap-meri-fixture-hardening",
+  "exitCode": 0,
+  "elapsedSeconds": 28.39,
+  "logSha256": "fc2517841150c8e0232dce535fdf079c41080890b3c1ad4fedde0afd60541845",
+  "sourceUnchanged": true
+}

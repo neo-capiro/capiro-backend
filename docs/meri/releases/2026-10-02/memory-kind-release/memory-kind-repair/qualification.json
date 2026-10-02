@@ -1,0 +1,144 @@
+{
+  "kind": "memory-version-kind-source-qualification",
+  "status": "PASS",
+  "sourceSha": "620cf0b5afd297ec7fb5e6e7bd55256e46c26236",
+  "baseSha": "a260004e9923ef5bbe7bd8f32bb4cbddd3c7be31",
+  "commits": [
+    "8c7a7020ce44e25991c52f7b07146891478700f9",
+    "620cf0b5afd297ec7fb5e6e7bd55256e46c26236"
+  ],
+  "worktree": "C:\\dev\\cap-meri-bill-deadline",
+  "worktreeClean": true,
+  "policySha": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "machineMapDate": "2026-09-30",
+  "sourceGitBlobSha256": {
+    "apps/api/prisma/migrations/20281005010000_memory_version_candidate_source_kinds/migration.sql": "a8be392c1de78038b1fc584e5a2293183d736f7732890737402833c864e2c6ce",
+    "apps/api/prisma/schema.prisma": "41fb55c8f2357b9bc2246de813d1e093e3e0bd240538048bbb514c5a4d4fe1d2",
+    "apps/api/scripts/verify-memory-version-kind-migration.test.mjs": "706d2a0cc238bbeb7e7134bde4b81672b583d6aa6f288d6e8cfcb0fbd00dbbd9"
+  },
+  "schemaChange": true,
+  "migrationCountBefore": 449,
+  "migrationCountAfter": 450,
+  "allHistoricalApiMigrationsByteIdentical": true,
+  "tests": {
+    "command": "node --test apps/api/scripts/verify-memory-version-kind-migration.test.mjs",
+    "requiredEnvironment": "MERI_APPROVED_MEMORY_PG_CONFIG=<existing private owned-loopback config path>",
+    "exitCode": 0,
+    "passed": 28,
+    "failed": 0,
+    "skipped": 0,
+    "actualOwnedPostgres": true,
+    "lockContentionElapsedMs": 5112,
+    "productionSqlTransactionExecutedVerbatim": true,
+    "ownedSchemasRemoved": true
+  },
+  "results": [
+    {
+      "name": "history-integrity",
+      "command": [
+        "C:/Program Files/nodejs/node.exe",
+        "scripts/check-migration-integrity.mjs",
+        "--base",
+        "a260004e9923ef5bbe7bd8f32bb4cbddd3c7be31"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 0.5,
+      "logSha256": "a3deb80784bfc043c0f9ca5c0981721389b2e36c2a7eb51036a752545ee49e31"
+    },
+    {
+      "name": "timestamps",
+      "command": [
+        "C:/Program Files/nodejs/node.exe",
+        "scripts/check-migration-timestamps.mjs",
+        "--base",
+        "a260004e9923ef5bbe7bd8f32bb4cbddd3c7be31"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 1.06,
+      "logSha256": "031f49ae9c4d237a4ac65534eabb1196026cf614429f8b657964d7905124dc8d"
+    }
+  ],
+  "reviews": [
+    {
+      "stem": "independent-migration-kimi",
+      "provider": "bedrock",
+      "model": "moonshotai.kimi-k2.5",
+      "sessionId": "20261002_152735_df5165",
+      "processExit": 0,
+      "toolCalls": 0,
+      "reportedTokens": {
+        "input": 17988,
+        "output": 217,
+        "total": 18205,
+        "cache_read": 0,
+        "cache_write": 0
+      },
+      "billedCostUsd": null
+    },
+    {
+      "stem": "migration-timeouts-kimi",
+      "provider": "bedrock",
+      "model": "moonshotai.kimi-k2.5",
+      "sessionId": "20261002_153336_242417",
+      "processExit": 0,
+      "toolCalls": 0,
+      "reportedTokens": {
+        "input": 18693,
+        "output": 320,
+        "total": 19013,
+        "cache_read": 0,
+        "cache_write": 0
+      },
+      "billedCostUsd": null
+    }
+  ],
+  "reviewAdjudication": "Initial reviewer conflated the independently reproduced NULL-acceptance hole with the live source-kind23514 failure. They are distinct defects; live rejection is corrected by adding3kinds and adjacent intended payload guard is closed by IS TRUE. Followup reviewer was explicitly informed. Source-only verdicts PASS; test counts from actual logs, not model claims.",
+  "constraintCatalog": {
+    "receipt": "constraint-catalog-bounded.json",
+    "sourceKindSha256": "4585194700c4539c5f62d01610ed8f9b3b78b0618e39b40cd04b8b7b80f3c4a5",
+    "payloadSha256": "6a3164098759e2c2f6e6cf0caf80db29b8529c714158b9a8490ce9d477dc422c",
+    "bothValidated": true
+  },
+  "productionQualification": {
+    "status": "PENDING_ROOT",
+    "freshDatabase": "NOT_RUN_BY_THIS_LANE",
+    "retiredUpgrade": "NOT_RUN_BY_THIS_LANE",
+    "compatibility": "FOCUSED_CONSTRAINT_TESTS_ONLY",
+    "image450": "NOT_BUILT_BY_THIS_LANE",
+    "sharedMigrationApplied": false
+  },
+  "limits": [
+    "Owned PostgreSQL tests execute exact historical constraint/activation SQL against minimal prerequisite tables; not full fresh450 schema or RLS qualification.",
+    "Root must supply schemaChange:true release evidence and new450 source-to-image hash proof before deployment.",
+    "No shared database, migration ledger, cloud, model, route or permission changes executed in this lane.",
+    "Preserve widenedconstraint on applicationrollback after new kinds exist; no destructive downmigration supplied.",
+    "Do not reuse the original owned-catalog diagnostic after transaction wrapper change; current bounded catalog receipt is authoritative."
+  ],
+  "recordedAt": "2026-10-02T15:37:30.866044+00:00",
+  "artifactSha256": {
+    "constraint-catalog-bounded.json": "2091bf772cb87240614d0c28f60afbc1901f142f5e1900d85de99019ce947767",
+    "constraint-catalog.json": "d62201fdfa0b8e37f5eef6633cb8c4841cffe2bb10d2f940f129f754c77d9320",
+    "history-integrity.exit.json": "2cdf6b2c8162ece8d767d2175fc794942e54665abf0ab725454e1455e8ae9681",
+    "history-integrity.log": "a3deb80784bfc043c0f9ca5c0981721389b2e36c2a7eb51036a752545ee49e31",
+    "independent-migration-kimi-exit.json": "536091b511bbb367a1cb63528f56ec275242548511c226e5eb59c9ed4c053eec",
+    "independent-migration-kimi-process.json": "136e7e00d7689df75d01056f1d4fd73b442a3cdfa4aee3281b5228dc9d12782d",
+    "independent-migration-kimi-review.md": "0ca0bb272c659ceb975ffa09cd9d221fa72a9e14e31a4eb996a4f915a2857485",
+    "independent-migration-kimi-source-hashes.json": "db3053de14614a58705e68b7ea32acb0b67b112eb5c64d6ade16e185a3562295",
+    "independent-migration-kimi-usage.json": "d2c14f0d9ccaad8d2a49e9c83cdeb531aa11b1213c1b37019150eb9de4310cf9",
+    "migration-bounded-transaction.test.exit.json": "6041df3e9b345d68be886f995c452395674ea950cd3ca9992c13b64f3aa9cbd0",
+    "migration-bounded-transaction.test.log": "2187a0c396cb423120116a7b8a356351382808a061f807430b32cfba19bd256a",
+    "migration-constraints-final.test.exit.json": "6041df3e9b345d68be886f995c452395674ea950cd3ca9992c13b64f3aa9cbd0",
+    "migration-constraints-final.test.log": "5c40e79dc21ff5a187fb70a39494cdb90b2ed7884ee127a5e9f50d524fec58af",
+    "migration-constraints.test.exit.json": "6041df3e9b345d68be886f995c452395674ea950cd3ca9992c13b64f3aa9cbd0",
+    "migration-constraints.test.log": "802821a2a692d5f5807b142860db84dfe448b44a40d119e9dd7a922da14523eb",
+    "migration-timeouts-kimi-exit.json": "49a0184dcca503db2014e02bcc83fc94a2b3e699fa9594f8759c7562e5ab52a6",
+    "migration-timeouts-kimi-process.json": "41c2aac1bc04245f282cc4b78a4469d557833456682d05234b543ec6144eba54",
+    "migration-timeouts-kimi-review.md": "73f9f213ea7d010be60bd44f38325456054d3b76fa0ae7032cb382e87238c621",
+    "migration-timeouts-kimi-source-hashes.json": "777367fb9313f30972f9c7c4c8c1ff48e72e15852a10709d5f5e64451f8abd89",
+    "migration-timeouts-kimi-usage.json": "355f2f0dc82fe5fee672a02f8ce042fbca5d25d4d55d8f6193ebea58545d15ee",
+    "payload-null-proof.json": "ae59f682856bc85725f034ac0877175bab23bb333ff52e0fa78d0db8f4d74460",
+    "source-schema-assessment.md": "42671b70ad50d86b5a48a8155b0081debfa29909ecd66d7454e5978cc3c922a3",
+    "timestamps.exit.json": "a286f4073c5761fbae7d9360343bcdb34f963d765ebb0f8332290a93706baff2",
+    "timestamps.log": "031f49ae9c4d237a4ac65534eabb1196026cf614429f8b657964d7905124dc8d"
+  }
+}

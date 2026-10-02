@@ -1,0 +1,19 @@
+{
+  "status": "PREPARED_NOT_RUN",
+  "sourceSha": "a7c73cf70799c32593d0b38f2539966ee775b718",
+  "files": {
+    "case46-operator-gates.mjs": "fc71828747a13d1ae21daa4437b3c297e92508bccaaeb262ed64866a6b4151bc",
+    "run-case46-authenticated.mjs": "d4a8a3155ca4e86021707275fb7ce21790a47aaa41b51b2fdaf01097b49e3c6e",
+    "case46-operator-gates.test.mjs": "66af802ea94751e9ba33f21a09041ee2e5fb1a3de21cc7cfe5de326ea908e656",
+    "case46-ready.template.json": "0aa2f6c4ecefb806626fd57b307c0ef7f5cdf4f4bc77754ed326e61c27c7262a"
+  },
+  "localReadinessAttempt": {
+    "exitCode": 1,
+    "status": "BLOCKED",
+    "reason": "No sealed root readiness exists; stopped before private data/auth/browser"
+  },
+  "authCalls": 0,
+  "liveProviderCalls": 0,
+  "cloudWrites": 0,
+  "fullFile01Acceptance": false
+}

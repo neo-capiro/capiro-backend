@@ -1,0 +1,46 @@
+{
+  "kind": "forward450-local-qualification",
+  "status": "PASS",
+  "scope": "local tests only; no migration execution, service promotion, or live database queries",
+  "policyOriginMain": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "policyCheckout": "743fd708c3484604e8a35ea1039adeca3b1e331f",
+  "machineMapRevision": "2026-09-30",
+  "runs": [
+    {
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "--test",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-repair\\forward450-runner.test.mjs"
+      ],
+      "startedAt": "2026-10-02T15:59:45.827862+00:00",
+      "exitCode": 0,
+      "passed": 4,
+      "logSha256": "37f9fe10f593b14c11625dfec453b4a3dae673481a24299030d7dee1a82be1e2",
+      "liveOrAwsCalls": 0
+    },
+    {
+      "command": [
+        "C:\\ProgramData\\Hermes\\tools\\python-3.14.7+20260901-win32-x64\\python.exe",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-repair\\forward450-oneoff-tests.py"
+      ],
+      "startedAt": "2026-10-02T15:59:46.213197+00:00",
+      "exitCode": 0,
+      "passed": 13,
+      "logSha256": "2075abd161d6501d34950fff7621ef7dc2e2698cdac4544ab8ae56b3d363efac",
+      "liveOrAwsCalls": 0
+    }
+  ],
+  "files": {
+    "forward450-runner.mjs": "0162ca9979d3876baedbabd1e11b62c191baf7d61abd4320e813392ac43769d4",
+    "forward450-oneoff.py": "03f5c2eb792a7cc9abd8aecf923268f6a5b1fc0989c4c68f1a47a5508dc8ae9f",
+    "synthetic-canary-codebuild-450.py": "1f4fa1401571361db593db9372aa7bec635a397d57383096bff3e65a529b3822",
+    "forward450-runner.test.mjs": "638e5bbdcbae84bee39858e777441d3c4ce6a235f003018ff0f5e929587ba322",
+    "forward450-oneoff-tests.py": "3fbbe6b05c7785e1714d08669029c6a044c707bf28ce24efb9465bf87182272d"
+  },
+  "limitations": [
+    "Prisma child against real RDS has NOT RUN.",
+    "Owned PostgreSQL test substitutes isolated schema names; production statements and transaction-readonly/lock checks execute.",
+    "Python ECS tests use fake AWS responses.",
+    "Final qualified450 image/proof and root-reviewed input are mandatory."
+  ]
+}

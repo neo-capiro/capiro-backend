@@ -1,0 +1,12 @@
+{
+  "kind": "owned-pg-memory-version-payload-null-proof",
+  "status": "CONFIRMED",
+  "existingConstraintAcceptsMissingVersionProposal": true,
+  "sourceSha": "a260004e9923ef5bbe7bd8f32bb4cbddd3c7be31",
+  "historicalMigrationSha256": "0bcf1c7d74f0e719c74d859756906635d83ccf37b03dd4c1ecbdf2f0742c576e",
+  "ownedLoopback": true,
+  "sharedDatabaseTouched": false,
+  "rolledBack": true,
+  "residualSchemas": 0,
+  "exitCode": 0
+}

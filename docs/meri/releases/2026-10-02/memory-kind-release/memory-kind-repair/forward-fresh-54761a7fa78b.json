@@ -1,0 +1,34 @@
+{
+  "kind": "meri-memory-version-forward-migration-rehearsal",
+  "sourceSha": "54761a7fa78b3812136e61362a3d14d51219d2c5",
+  "mode": "fresh",
+  "startedAt": "2026-10-02T15:37:12.458Z",
+  "scope": "owned local loopback database only",
+  "sharedDatabaseTouched": false,
+  "manualMigrationLedgerEdits": false,
+  "database": "meri_kind_fresh_20261002",
+  "migrationManifestSha256": "47210deecafc7d4a39bddde4b36f6dc85b0b370507bd539b305e57155e8b435e",
+  "newMigration": {
+    "name": "20281005010000_memory_version_candidate_source_kinds",
+    "sha256": "a8be392c1de78038b1fc584e5a2293183d736f7732890737402833c864e2c6ce"
+  },
+  "identityVerified": true,
+  "databaseCreated": true,
+  "prerequisites": [
+    {
+      "file": "scripts/ci/disposable-capiro-worker-prerequisite.sql",
+      "sha256": "3a41c019f98cf79d460bf4568ffcd70672b6a961998cbd2f15cb7f0febe4be36"
+    },
+    {
+      "file": "scripts/ci/research-portfolio-append-only-prerequisite.sql",
+      "sha256": "cd47f004f0b6255648797bfa972a57192d34c59adc7eb7bf6e0de49bc82f78ac"
+    }
+  ],
+  "stage": "prisma migrate deploy",
+  "migrationExitCode": 1,
+  "logSha256": "944868f1dfbe663eb74de58ebaf67f4dcf9f32a33d2380134e775ca108013cd3",
+  "exitCode": 1,
+  "errorClass": "AssertionError",
+  "code": "ERR_ASSERTION",
+  "completedAt": "2026-10-02T15:38:12.225Z"
+}

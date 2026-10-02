@@ -1,0 +1,18 @@
+{
+  "name": "owned-postgres-tests",
+  "sourceSha": "42988dae5fb7bc2fff3af582ca15a0836a4477c5",
+  "command": [
+    "C:\\Program Files\\nodejs\\node.exe",
+    "--test",
+    "--test-concurrency=1",
+    "C:\\dev\\cap-meri-fixture-hardening\\evals\\meri\\live-v1\\tests\\case01-execution-setup.postgres.test.mjs",
+    "C:\\dev\\cap-meri-fixture-hardening\\evals\\meri\\live-v1\\tests\\case01-recovery-real-transactions.test.mjs",
+    "C:\\dev\\cap-meri-fixture-hardening\\evals\\meri\\live-v1\\tests\\case01-memory-packaging.test.mjs",
+    "C:\\dev\\cap-meri-fixture-hardening\\apps\\api\\scripts\\verify-memory-version-kind-migration.test.mjs"
+  ],
+  "cwd": "C:\\dev\\cap-meri-fixture-hardening",
+  "exitCode": 0,
+  "elapsedSeconds": 66.46,
+  "logSha256": "a307f44bac26db4ad33249cc46383ce07de221df274de7722a6222562c62cc12",
+  "sourceUnchanged": true
+}

@@ -1,0 +1,68 @@
+{
+  "kind": "meri-case01-post-seed-resume-qualification",
+  "status": "PASS",
+  "sourceSha": "f5be016b15d2060e3a4b1f77ba91b4e2ed011b43",
+  "sourceFiles": {
+    "evals/meri/live-v1/fixture-provisioning/case01-execution-setup.mjs": "4c00fd6add2cd92f4e51c95d5f43e0fef7b66da8d2f40c8299b3b92f8b8366a3",
+    "apps/api/scripts/meri-case01-setup.mjs": "6790a5b44820d89a9fa89cf0ec0c532f8c4b561f9211db4cffc8b0c380022242",
+    "evals/meri/live-v1/tests/case01-execution-setup.postgres.test.mjs": "e87c75ec724cf5b045f2b037c02625601510e7f4c6f43ebfa9d19c8ff6b0d04c",
+    "evals/meri/live-v1/tests/case01-memory-packaging.test.mjs": "cd60649778c2a98e50654e215aed101d0701c55382ad13d0fa63adb811f69e4a"
+  },
+  "dependencyCommits": [
+    "8c7a7020ce44e25991c52f7b07146891478700f9",
+    "620cf0b5afd297ec7fb5e6e7bd55256e46c26236"
+  ],
+  "observedAt": "2026-10-02T15:39:36.501154+00:00",
+  "scope": "Guarded setup operator only. No LIVE acceptance or provider submission.",
+  "checks": {
+    "combinedOwnedPgRealTransactionPackaging": {
+      "passed": 20,
+      "failed": 0,
+      "skipped": 0,
+      "exitCode": 0
+    },
+    "offlinePromptfoo": {
+      "passed": 26,
+      "failed": 0,
+      "tokens": 0,
+      "exitCode": 0,
+      "customVerifierExit": 0
+    },
+    "syntax": 0,
+    "gitDiffCheck": 0
+  },
+  "review": {
+    "requestedModel": "moonshotai.kimi-k2.5",
+    "initializedModel": "moonshotai.kimi-k2.5",
+    "sessionId": "20261002_153551_27944a",
+    "provider": "bedrock",
+    "reportedTokens": {
+      "input": 39436,
+      "output": 300,
+      "total": 39736,
+      "cache_read": 0,
+      "cache_write": 0
+    },
+    "reportedResultExit": 0,
+    "toolCalls": 0,
+    "billedCostUsd": null,
+    "costStatus": "not exposed by quiet stream output"
+  },
+  "reviewAdjudication": [
+    "PASS accepted against actual source and executions. The first-job embedding counter does not count later inert fixture version sinks. Only the new fifth-claim finalCAS is asserted to preserve all four historical claims; earlier modes remain unchanged.",
+    "New tests reproduce actual canonical correction insertion P2010/23514 using production VARCHAR24 and exact historical guards, then apply exact repaired atomic ALTER in a rollback-only namespace. They do not execute a production migration envelope inside the outer test transaction; separate migration lane qualifies BEGIN/COMMIT/deadlines.",
+    "First run failures were local type-conversion xmin drift; exact current row version read fixed test setup, failing evidence retained."
+  ],
+  "testSourceProvenance": {
+    "commitAtRun": "489a3966e0ca485cb739e520ab81f50455e1b38d",
+    "candidateFilesUncommittedAtRun": true,
+    "allTestedAndReviewedFileHashesEqualFinalCommit": true,
+    "offlineReportPreservedWithoutRetagging": true
+  },
+  "liveWrites": 0,
+  "liveModelTurns": 0,
+  "liveAcceptance": "NOT_RUN",
+  "policyHead": "743fd708c3484604e8a35ea1039adeca3b1e331f",
+  "policyOrigin": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "policyRequiredFilesUnchanged": true
+}

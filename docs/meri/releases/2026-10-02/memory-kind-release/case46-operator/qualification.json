@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "verdict": "PASS",
+  "scope": "offline originalcase46 native capture composition only",
+  "sourceBase": "404fad45ebb19b5cadca989d74008a00dee6bf5a",
+  "candidateSourceHashes": {
+    "C:\\dev\\cap-meri-mail-deadline\\evals\\meri\\live-v1\\case46-receipt-joins.mjs": "68f3d4404359091ced225f79ea09b7a2f504a57d2fefd9d7fcf0d1bcf562823e",
+    "C:\\dev\\cap-meri-mail-deadline\\evals\\meri\\live-v1\\case46-live-capture.mjs": "925f926a5c2f72ad9b6bb114847d7140cd769a6e510d85c5fe80d0c6656a2b66",
+    "C:\\dev\\cap-meri-mail-deadline\\evals\\meri\\live-v1\\grade-case46-capture.mjs": "39aac7cd4b8e97dee2d09d3e6531a00d031727e3ea19f784a7aba24a756c1371",
+    "C:\\dev\\cap-meri-mail-deadline\\evals\\meri\\live-v1\\capture-spend-aggregate.mjs": "d8d1c88e747d852c4785649a42cfdc29298d562d219525bdce443e935ac9b141",
+    "C:\\dev\\cap-meri-mail-deadline\\evals\\meri\\live-v1\\case46-artifact-ui.mjs": "edc53ae170faf64bd242f2a7552e1dc985d8c89e0d7a359d4a29a96dc656ec28",
+    "C:\\dev\\cap-meri-mail-deadline\\evals\\meri\\live-v1\\case46-artifact-evidence.mjs": "9abd6c2e10421cffbf937052271fe3b87bc6af08b82ec9654dc101372e33b06c",
+    "C:\\dev\\cap-meri-foundation-evidence\\oct02-case46-operator\\case46-operator-gates.mjs": "fc71828747a13d1ae21daa4437b3c297e92508bccaaeb262ed64866a6b4151bc",
+    "C:\\dev\\cap-meri-foundation-evidence\\oct02-case46-operator\\run-case46-authenticated.mjs": "d4a8a3155ca4e86021707275fb7ce21790a47aaa41b51b2fdaf01097b49e3c6e"
+  },
+  "tests": {
+    "exitCode": 0,
+    "tests": 54,
+    "pass": 54,
+    "fail": 0,
+    "skip": 0,
+    "receipt": "focused-tests-exit.json",
+    "receiptSha256": "81070df346f40a868f668409992a9518e68384e2cf00b98c13d44e6ee0aece99"
+  },
+  "review": {
+    "model": "moonshotai.kimi-k2.5",
+    "provider": "bedrock",
+    "session": "20261002_152453_de0aef",
+    "exitCode": 0,
+    "verdict": "PASS",
+    "rawReviewSha256": "85e83f0453d63a4190d7f7f0d7b0d516fafb472e9fc2c4c9a938a8b311412efa",
+    "limitation": "source-only review, inline line references are prompt-relative; no executed test/live proof"
+  },
+  "qwen": {
+    "session": "20261002_144932_4dba0c",
+    "exitCode": 1,
+    "outcome": "unusable syntax/contract patch; stopped owned process tree; preserved draft; direct Codex exception used",
+    "reportedTokens": null
+  },
+  "liveAcceptance": "NOT_RUN",
+  "externalEffects": {
+    "authentication": 0,
+    "liveProviderCalls": 0,
+    "cloudWrites": 0,
+    "sharedDatabaseWrites": 0
+  },
+  "readiness": "UNSEALED: actual setup, release, original settledcase01 journal prerequisite pending",
+  "fullFile01Acceptance": false
+}

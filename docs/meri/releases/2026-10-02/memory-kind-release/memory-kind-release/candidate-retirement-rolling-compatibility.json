@@ -1,0 +1,249 @@
+{
+  "kind": "candidate-bound-forward450-retirement-rolling-compatibility",
+  "recordedAt": "2026-10-02T16:03:02.092566+00:00",
+  "reviewer": "/root/file01_release_audit",
+  "sourceSha": "42988dae5fb7bc2fff3af582ca15a0836a4477c5",
+  "status": "QUALIFIED_CANDIDATE_MIGRATION_PENDING",
+  "schemaChange": true,
+  "retirementCompatibility": "PASS_BOUNDED_SOURCE_REVIEW",
+  "fresh450Qualification": "PASS_ACTUAL_OWNED_DATABASE",
+  "forward449To450Qualification": "PASS_ACTUAL_OWNED_DATABASE",
+  "rollingCompatibility": "PASS_BOUNDED_SOURCE_CONSTRAINT_AND_NATIVE_IMAGE_CHECKS",
+  "preliminaryBridge": {
+    "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-repair\\forward-compatibility-assessment.json",
+    "sha256": "a53137bdea7c03545c57b866f6ee5983ef7a3758381f0c0d339f157261faf335"
+  },
+  "sourceQualification": {
+    "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-release\\combined-source-qualification.json",
+    "sha256": "f448f3609b26e183aa80aeb09b2f9bfd89156bb07382810bbb7b6b56b679eaea"
+  },
+  "allSourceBlobReceiptLogAndJoinedQualificationHashesVerified": true,
+  "historical449Prefix": {
+    "5e72da28863112ef3f5257caf4a480784f18720a": {
+      "historical449ExactGitBlobIdentity": true,
+      "count": 449,
+      "additions": []
+    },
+    "a260004e9923ef5bbe7bd8f32bb4cbddd3c7be31": {
+      "historical449ExactGitBlobIdentity": true,
+      "count": 449,
+      "additions": []
+    },
+    "620cf0b5afd297ec7fb5e6e7bd55256e46c26236": {
+      "historical449ExactGitBlobIdentity": true,
+      "count": 450,
+      "additions": [
+        "apps/api/prisma/migrations/20281005010000_memory_version_candidate_source_kinds/migration.sql"
+      ]
+    },
+    "42988dae5fb7bc2fff3af582ca15a0836a4477c5": {
+      "historical449ExactGitBlobIdentity": true,
+      "count": 450,
+      "additions": [
+        "apps/api/prisma/migrations/20281005010000_memory_version_candidate_source_kinds/migration.sql"
+      ]
+    }
+  },
+  "workspaceMigrationsUnchanged": {
+    "83304d18e5a1ab647cf6f728392cf97b3058a832": "67bc0ff5cca758e38673b54bf913211d191697d9",
+    "a260004e9923ef5bbe7bd8f32bb4cbddd3c7be31": "67bc0ff5cca758e38673b54bf913211d191697d9",
+    "42988dae5fb7bc2fff3af582ca15a0836a4477c5": "67bc0ff5cca758e38673b54bf913211d191697d9"
+  },
+  "migrationSha256": "a8be392c1de78038b1fc584e5a2293183d736f7732890737402833c864e2c6ce",
+  "rehearsals": [
+    {
+      "mode": "fresh",
+      "receipt": {
+        "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-repair\\forward-v2-fresh-42988dae5fb7.json",
+        "sha256": "4ba90132a6bf956cb7fb6b26b26cf6ab401789b02a7180b37a9485abe58550fc"
+      },
+      "log": {
+        "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-repair\\forward-v2-fresh-42988dae5fb7.log",
+        "sha256": "14f3abd6ebc097b4e8787be28ab5b78404c178965b55febd4e932ce32b1eed08"
+      },
+      "sourceSha": "42988dae5fb7bc2fff3af582ca15a0836a4477c5",
+      "exitCode": 0,
+      "exact450Ledger": true,
+      "retiredTablesAbsent": true
+    },
+    {
+      "mode": "upgrade",
+      "receipt": {
+        "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-repair\\forward-v2-upgrade-42988dae5fb7.json",
+        "sha256": "ebee9e4a7f7dedc76a6314823a5fdeae102619e4016bb37be017f03c7831d302"
+      },
+      "log": {
+        "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-repair\\forward-v2-upgrade-42988dae5fb7.log",
+        "sha256": "0b9b83623c29e2ec8a7c20c91d6cbd5d08474c77f33787583e2b6dade54fe26f"
+      },
+      "sourceSha": "42988dae5fb7bc2fff3af582ca15a0836a4477c5",
+      "exitCode": 0,
+      "exact450Ledger": true,
+      "retiredTablesAbsent": true
+    }
+  ],
+  "retiredRuntimeScans": [
+    {
+      "sourceSha": "a260004e9923ef5bbe7bd8f32bb4cbddd3c7be31",
+      "activeRetiredTableReferences": [],
+      "commentOnlyMatches": [
+        {
+          "path": "apps/api/src/live-hearings/legiwatch-wave2.controller.ts",
+          "line": 12
+        }
+      ],
+      "apiServeSeparateFromMigration": true,
+      "grepExitCode": 0
+    },
+    {
+      "sourceSha": "42988dae5fb7bc2fff3af582ca15a0836a4477c5",
+      "activeRetiredTableReferences": [],
+      "commentOnlyMatches": [
+        {
+          "path": "apps/api/src/live-hearings/legiwatch-wave2.controller.ts",
+          "line": 12
+        }
+      ],
+      "apiServeSeparateFromMigration": true,
+      "grepExitCode": 0
+    }
+  ],
+  "historical65StepQualification": {
+    "receipt": {
+      "path": "C:\\dev\\cap-inplace-aws-release-20260930\\reviewed-private-evidence-v2-20261001\\reviewed-split-qualification-v4.json",
+      "sha256": "f2902b1bdc25a68cb1e07716eeb7a0b26c88ac72941a4850243bccb8992f4341"
+    },
+    "verifiedByPriorReportOnlyThisTurn": true,
+    "replayedThisTurn": false,
+    "preservedPriorVerdicts": {
+      "prefix": "BLOCKED",
+      "supplement": "BLOCKED_CATALOG_REVIEW",
+      "finalQualifiedRehearsal": "PASS",
+      "release": "BLOCKED"
+    },
+    "dataPreservation": "PASS only at this isolated clone baseline. Not the original live data fingerprint comparison.",
+    "limitations": [
+      "Preexisting GRANT ALL on three Research Portfolio tables remains.",
+      "Application compatibility, live actor coordination, authorization, and deployment gates require separate review."
+    ],
+    "notAuthorization": "Historical resolve/ledger operations are evidence only and must not be repeated by the forward450 operator."
+  },
+  "images": {
+    "api": {
+      "sourceSha": "42988dae5fb7bc2fff3af582ca15a0836a4477c5",
+      "imageDigest": "sha256:f792a39e889c7572811dd1335b6f12501d3878701caef3888ae7f120bd6e6f25",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:f792a39e889c7572811dd1335b6f12501d3878701caef3888ae7f120bd6e6f25",
+      "buildId": "capiro-build-web-dev:6cdc8d22-6dee-4963-9535-ca771159d133",
+      "buildspecSha256": "addeee6814682cefea45e2123d59b792ffcbedb115203a720758f318592762fb",
+      "readback": {
+        "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-release\\api-build-readback.json",
+        "sha256": "cf21cb785baa46cd7abc57c78f14cc34ca96bfe629d4f6ef052fafa502b0ad15"
+      },
+      "executedMarkers": [
+        {
+          "timestamp": 1790956373880,
+          "line": "OFFLINE_RUNTIME_IMPORT_PASS"
+        },
+        {
+          "timestamp": 1790956373880,
+          "line": "OFFLINE_CASE01_CONTINUATION_IMPORT_PASS"
+        },
+        {
+          "timestamp": 1790956373880,
+          "line": "OFFLINE_CASE01_POSTAPPROVAL_IMPORT_PASS"
+        },
+        {
+          "timestamp": 1790956373880,
+          "line": "OFFLINE_CASE01_POSTSEED_IMPORT_PASS"
+        },
+        {
+          "timestamp": 1790956373880,
+          "line": "OFFLINE_CASE01_FIXTURE_PACKAGE_IMPORT_PASS"
+        },
+        {
+          "timestamp": 1790956375894,
+          "line": "EXACT_450_IMAGE_MIGRATION_HASHES_PASS"
+        },
+        {
+          "timestamp": 1790956473262,
+          "line": "LOCAL_REPODIGEST_ECR_MATCH_PASS"
+        },
+        {
+          "timestamp": 1790956473262,
+          "line": "CANDIDATE_API_SOURCE_SHA=42988dae5fb7bc2fff3af582ca15a0836a4477c5"
+        },
+        {
+          "timestamp": 1790956473262,
+          "line": "CANDIDATE_API_IMAGE=967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:f792a39e889c7572811dd1335b6f12501d3878701caef3888ae7f120bd6e6f25"
+        }
+      ]
+    },
+    "meriv2-orchestrator": {
+      "sourceSha": "42988dae5fb7bc2fff3af582ca15a0836a4477c5",
+      "imageDigest": "sha256:758a96f5722e0679513f0f0621a5ba12d733f83d00d6ed4bdeb0f83fbc872f3a",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:758a96f5722e0679513f0f0621a5ba12d733f83d00d6ed4bdeb0f83fbc872f3a",
+      "buildId": "capiro-build-web-dev:73fdc195-f3ca-463c-acff-151c7607d04a",
+      "buildspecSha256": "dd3aaac45be1eada1a2451add262b6407313d699b390deb0c0707455c370af90",
+      "readback": {
+        "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-release\\meriv2-orchestrator-build-readback.json",
+        "sha256": "a7b7cda4e84b37c6bc1212933003b2367140f16157614eeab44bbef62a740e1d"
+      },
+      "executedMarkers": [
+        {
+          "timestamp": 1790956441589,
+          "line": "OFFLINE_PACKAGED_ENTRYPOINT_HEALTH_AUTH_PASS"
+        },
+        {
+          "timestamp": 1790956519796,
+          "line": "LOCAL_REPODIGEST_ECR_MATCH_PASS"
+        },
+        {
+          "timestamp": 1790956519796,
+          "line": "CANDIDATE_ORCHESTRATOR_SOURCE_SHA=42988dae5fb7bc2fff3af582ca15a0836a4477c5"
+        },
+        {
+          "timestamp": 1790956519796,
+          "line": "CANDIDATE_ORCHESTRATOR_IMAGE=967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:758a96f5722e0679513f0f0621a5ba12d733f83d00d6ed4bdeb0f83fbc872f3a"
+        }
+      ]
+    }
+  },
+  "nativeOrchestratorTestCounts": {
+    "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-release\\meriv2-orchestrator-test-counts.json",
+    "sha256": "e680ef8e631a1ede3932ac39d266dbfd6fff31ed671dfa85274aba97b5e70637"
+  },
+  "nativeOrchestratorCounts": {
+    "suitesPassed": 129,
+    "testsPassed": 1443,
+    "testsSkipped": 2,
+    "testsTotal": 1445
+  },
+  "migrationOperatorPeerReview": {
+    "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-repair\\forward450-independent-peer-review.json",
+    "sha256": "a7f6e874c0c6e38baad2a88f6035877a791fb4db6a4cae14a94cfdce921206d3"
+  },
+  "rollingAssessment": {
+    "status": "PASS_BOUNDED_STATIC_AND_CONSTRAINT_TESTS",
+    "existingWriters": "All six prior source-kind values and ordinary payload behavior remain accepted. No column, relation, result, permission or route shape changes.",
+    "immutableWriters": "Existing canonical correction/restore/contradiction dispatch becomes admissible; exact typed payload and same-tenant immutable activation guards remain enforced.",
+    "rollback": "Retain forward schema when rolling application images back. Dropping the three new kinds after writes could reject existing rows; no downmigration is supplied.",
+    "limits": "No new mixed-image live execution or original-live fingerprint comparison is asserted; each image and effective flags require current release qualification."
+  },
+  "releaseConditions": [
+    "Run the reviewed forward450 oneoff only after current exact449 ledger/catalog/four-claim and servedAPI505 baseline checks. No retired restore path, resolve/reset, direct shared-ledger DML or workflow seed dispatch.",
+    "Actual normal Prisma deploy must exit0; independently retain exact450 source checksums, no failed history, exact validated two CHECKs and unchanged prior449 history/four claims before marking shared migration complete.",
+    "Promote only these digest-bound merged candidates using the existing guarded release operator; verify service source/digest/health and effective feature/cohort configuration.",
+    "Keep current Web78ad and ResearchPortfolio Meri tools dark; preserve existing routes/provider/model settings and all nativeV3/tenant gates.",
+    "Retain forward schema for application rollback; do not reintroduce six-only constraint after immutable-version writes.",
+    "This joins actual local fresh450 and449upgrade rehearsal plus source/native-image qualification. It does not redo or widen the historical65-step retirement rehearsal or claim an original-live data fingerprint comparison."
+  ],
+  "sharedMigration": "NOT_RUN_BY_THIS_REVIEWER",
+  "servicePromotion": "NOT_RUN_BY_THIS_REVIEWER",
+  "liveAcceptance": "NOT_RUN",
+  "externalEffects": {
+    "databaseQueries": 0,
+    "databaseWrites": 0,
+    "cloudWrites": 0,
+    "providerCalls": 0
+  }
+}

@@ -1,0 +1,4 @@
+* -text
+# Preserve exact independently produced review bytes, including original whitespace.
+memory-kind-repair/migration-timeouts-kimi-review.md -whitespace
+*.log -whitespace

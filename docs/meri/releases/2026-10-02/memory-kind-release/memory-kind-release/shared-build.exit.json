@@ -1,0 +1,16 @@
+{
+  "name": "shared-build",
+  "sourceSha": "42988dae5fb7bc2fff3af582ca15a0836a4477c5",
+  "command": [
+    "C:\\Program Files\\nodejs\\pnpm.cmd",
+    "--filter",
+    "@capiro/shared",
+    "run",
+    "build"
+  ],
+  "cwd": "C:\\dev\\cap-meri-fixture-hardening",
+  "exitCode": 0,
+  "elapsedSeconds": 1.43,
+  "logSha256": "28f31dd4def844b4f82106f9450ce7b46d972dd21d6cef15544a4bed4c5f1fd0",
+  "sourceUnchanged": true
+}

@@ -1,0 +1,23 @@
+{
+  "kind": "native-orchestrator-build-test-count-readback",
+  "sourceSha": "42988dae5fb7bc2fff3af582ca15a0836a4477c5",
+  "buildId": "capiro-build-web-dev:73fdc195-f3ca-463c-acff-151c7607d04a",
+  "imageDigest": "sha256:758a96f5722e0679513f0f0621a5ba12d733f83d00d6ed4bdeb0f83fbc872f3a",
+  "buildReadbackSha256": "a7b7cda4e84b37c6bc1212933003b2367140f16157614eeab44bbef62a740e1d",
+  "observedAt": "2026-10-02T15:59:07.342394+00:00",
+  "actualLogCounters": [
+    {
+      "timestamp": 1790956290357,
+      "line": "Test Suites: 129 passed, 129 total"
+    },
+    {
+      "timestamp": 1790956290357,
+      "line": "Tests:       2 skipped, 1443 passed, 1445 total"
+    }
+  ],
+  "verdict": "PASS",
+  "exitCode": 0,
+  "cloudWrites": 0,
+  "rawServiceLogsSaved": false,
+  "liveAcceptance": "NOT_RUN"
+}

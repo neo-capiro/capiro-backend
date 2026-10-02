@@ -1,0 +1,31 @@
+{
+  "kind": "meri-memory-version-forward-migration-rehearsal",
+  "sourceSha": "54761a7fa78b3812136e61362a3d14d51219d2c5",
+  "mode": "upgrade",
+  "startedAt": "2026-10-02T15:37:12.459Z",
+  "scope": "owned local loopback database only",
+  "sharedDatabaseTouched": false,
+  "manualMigrationLedgerEdits": false,
+  "database": "meri_kind_upgrade_20261002",
+  "migrationManifestSha256": "47210deecafc7d4a39bddde4b36f6dc85b0b370507bd539b305e57155e8b435e",
+  "newMigration": {
+    "name": "20281005010000_memory_version_candidate_source_kinds",
+    "sha256": "a8be392c1de78038b1fc584e5a2293183d736f7732890737402833c864e2c6ce"
+  },
+  "identityVerified": true,
+  "baselineHistory": {
+    "count": 449,
+    "exactSourceChecksums": true,
+    "unfinished": 0,
+    "unexpected": 0
+  },
+  "baselineReceiptSha256": "9c2420efd598509f4a8d7714d3ccbbe718b46fcffd1687c5cb6d8debe61d042c",
+  "databaseCreated": true,
+  "stage": "prisma migrate deploy",
+  "migrationExitCode": 1,
+  "logSha256": "ab25507e25189880fb3bd9c604f1b36bd5627010b8f3c7c0a748c1300db0ed8c",
+  "exitCode": 1,
+  "errorClass": "AssertionError",
+  "code": "ERR_ASSERTION",
+  "completedAt": "2026-10-02T15:38:01.674Z"
+}

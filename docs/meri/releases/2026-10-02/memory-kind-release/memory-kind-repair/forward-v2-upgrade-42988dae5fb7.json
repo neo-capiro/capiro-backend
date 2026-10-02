@@ -1,0 +1,48 @@
+{
+  "kind": "meri-memory-version-forward-migration-rehearsal",
+  "sourceSha": "42988dae5fb7bc2fff3af582ca15a0836a4477c5",
+  "mode": "upgrade",
+  "startedAt": "2026-10-02T15:40:54.434Z",
+  "scope": "owned local loopback database only",
+  "sharedDatabaseTouched": false,
+  "manualMigrationLedgerEdits": false,
+  "database": "meri_kind_upgrade_v2_20261002",
+  "migrationManifestSha256": "47210deecafc7d4a39bddde4b36f6dc85b0b370507bd539b305e57155e8b435e",
+  "newMigration": {
+    "name": "20281005010000_memory_version_candidate_source_kinds",
+    "sha256": "a8be392c1de78038b1fc584e5a2293183d736f7732890737402833c864e2c6ce"
+  },
+  "identityVerified": true,
+  "baselineHistory": {
+    "count": 449,
+    "exactSourceChecksums": true,
+    "unfinished": 0,
+    "unexpected": 0
+  },
+  "baselineReceiptSha256": "9c2420efd598509f4a8d7714d3ccbbe718b46fcffd1687c5cb6d8debe61d042c",
+  "databaseCreated": true,
+  "stage": "complete",
+  "migrationExitCode": 0,
+  "logSha256": "0b9b83623c29e2ec8a7c20c91d6cbd5d08474c77f33787583e2b6dade54fe26f",
+  "history": {
+    "count": 450,
+    "exactSourceChecksums": true,
+    "unfinished": 0,
+    "unexpected": 0
+  },
+  "constraints": [
+    {
+      "name": "memory_candidate_source_kind_chk",
+      "validated": true,
+      "definition": "CHECK (((source_kind)::text = ANY ((ARRAY['explicit_user'::character varying, 'workflow_event'::character varying, 'artifact_approval'::character varying, 'model_extraction'::character varying, 'settings_sections'::character varying, 'learning_signal'::character varying, 'memory_correction'::character varying, 'memory_restore'::character varying, 'memory_contradiction'::character varying])::text[])))"
+    },
+    {
+      "name": "memory_candidate_version_payload_check",
+      "validated": true,
+      "definition": "CHECK ((((source_kind)::text <> ALL ((ARRAY['memory_correction'::character varying, 'memory_restore'::character varying, 'memory_contradiction'::character varying])::text[])) OR (((jsonb_typeof((payload_jsonb -> 'versionProposal'::text)) = 'object'::text) AND ((payload_jsonb #>> '{versionProposal,kind}'::text[]) = ANY (ARRAY['correction'::text, 'restore'::text, 'contradiction'::text])) AND ((payload_jsonb #>> '{versionProposal,sourceItemId}'::text[]) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'::text) AND (((payload_jsonb #>> '{versionProposal,targetItemId}'::text[]) IS NULL) OR ((payload_jsonb #>> '{versionProposal,targetItemId}'::text[]) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'::text)) AND ((((source_kind)::text = 'memory_correction'::text) AND ((payload_jsonb #>> '{versionProposal,kind}'::text[]) = 'correction'::text)) OR (((source_kind)::text = 'memory_restore'::text) AND ((payload_jsonb #>> '{versionProposal,kind}'::text[]) = 'restore'::text)) OR (((source_kind)::text = 'memory_contradiction'::text) AND ((payload_jsonb #>> '{versionProposal,kind}'::text[]) = 'contradiction'::text)))) IS TRUE)))"
+    }
+  ],
+  "retiredTablesAbsent": true,
+  "exitCode": 0,
+  "completedAt": "2026-10-02T15:41:42.807Z"
+}

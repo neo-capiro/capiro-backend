@@ -1,0 +1,188 @@
+{
+  "kind": "meri-format-directive-source-qualification",
+  "status": "PASS",
+  "sourceSha": "f72747b3a62c17bee07f47df8a6182d89290cb60",
+  "baseSha": "a260004e9923ef5bbe7bd8f32bb4cbddd3c7be31",
+  "branch": "codex/meri-format-directive-20261002",
+  "worktree": "C:\\dev\\cap-meri-bill-deadline",
+  "worktreeClean": true,
+  "policySha": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "opsCheckoutSha": "743fd708c3484604e8a35ea1039adeca3b1e331f",
+  "machineMapDate": "2026-09-30",
+  "sourceGitBlobSha256": {
+    "packages/meriv2-core/src/assurance/evidence-plan.ts": "1acb7106479b5d31300b15a7150323ad8a98e735f993bd3d24c8c12f9383a621",
+    "packages/meriv2-core/src/assurance/evidence-plan.spec.ts": "e060162f2d31251bc7f2f6b33b30d86b08d644a100bfdb5cf28ab1383e17fa6a",
+    "apps/meriv2-orchestrator/src/meri/retrieval/meri-evidence-formatting.spec.ts": "440417feaabad7f2f6945c8ba2743d5a8e6f1c6dea056c52c0fb247473af20ff"
+  },
+  "scope": "One parser helper and two existing regression suites; no footer, prompt, routing, provider, permission or configuration edits",
+  "counts": {
+    "coreJest": 81,
+    "orchestratorFormattingJest": 10,
+    "jestSkips": 0,
+    "offlinePromptfoo": 26,
+    "offlineVerifierExit": 0
+  },
+  "results": [
+    {
+      "name": "shared-build",
+      "command": [
+        "C:\\Program Files\\nodejs\\pnpm.cmd",
+        "--filter",
+        "@capiro/shared",
+        "run",
+        "build"
+      ],
+      "cwd": "C:\\dev\\cap-meri-bill-deadline",
+      "pid": 8212,
+      "exitCode": 0,
+      "elapsedSeconds": 1.92,
+      "logSha256": "7d579d1edd6f6ceec0a42ea8ee2124c1e7e6824b7f7d4cff462e0f240956fe9c"
+    },
+    {
+      "name": "core-build",
+      "command": [
+        "C:\\Program Files\\nodejs\\pnpm.cmd",
+        "--filter",
+        "@capiro/meriv2-core",
+        "run",
+        "build"
+      ],
+      "cwd": "C:\\dev\\cap-meri-bill-deadline",
+      "pid": 23888,
+      "exitCode": 0,
+      "elapsedSeconds": 4.69,
+      "logSha256": "2b80ff311c7346837c34fb9b6a9be49e6ca1ae86ca68c8cb554e315eace510b3"
+    },
+    {
+      "name": "core-tests",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "C:\\dev\\cap-meri-bill-deadline\\packages\\meriv2-core\\node_modules\\jest\\bin\\jest.js",
+        "--config",
+        "C:\\dev\\cap-meri-bill-deadline\\packages\\meriv2-core\\jest.config.cjs",
+        "--runInBand",
+        "--runTestsByPath",
+        "C:\\dev\\cap-meri-bill-deadline\\packages\\meriv2-core\\src\\assurance\\evidence-plan.spec.ts",
+        "C:\\dev\\cap-meri-bill-deadline\\packages\\meriv2-core\\src\\assurance\\assurance.spec.ts"
+      ],
+      "cwd": "C:\\dev\\cap-meri-bill-deadline",
+      "pid": 16404,
+      "exitCode": 0,
+      "elapsedSeconds": 3.45,
+      "logSha256": "eb6a59bd552a6c6c3d81fc749deb60d943b28d6ce37937686244dbb699e70903"
+    },
+    {
+      "name": "orchestrator-format-tests",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "C:\\dev\\cap-meri-bill-deadline\\apps\\meriv2-orchestrator\\node_modules\\jest\\bin\\jest.js",
+        "--config",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-format-directive\\jest-orchestrator-current-core.cjs",
+        "--runInBand",
+        "--runTestsByPath",
+        "C:\\dev\\cap-meri-bill-deadline\\apps\\meriv2-orchestrator\\src\\meri\\retrieval\\meri-evidence-formatting.spec.ts"
+      ],
+      "cwd": "C:\\dev\\cap-meri-bill-deadline",
+      "pid": 22312,
+      "exitCode": 0,
+      "elapsedSeconds": 12.55,
+      "logSha256": "4afc75edef32f167b9111b423407313b025ba06cae5927d22add18dead985af9"
+    },
+    {
+      "name": "promptfoo-exact-head",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "C:\\dev\\cap-meri-bill-deadline\\node_modules\\promptfoo\\dist\\src\\entrypoint.js",
+        "eval",
+        "-c",
+        "evals/meri/promptfooconfig.yaml",
+        "--no-cache",
+        "--no-share",
+        "--no-write",
+        "--no-table",
+        "--no-progress-bar",
+        "-o",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-format-directive\\meri-offline-exact-head.json"
+      ],
+      "cwd": "C:\\dev\\cap-meri-bill-deadline",
+      "pid": 21728,
+      "exitCode": 0,
+      "elapsedSeconds": 27.04,
+      "logSha256": "8170815f6e368d6cfdd292c1886ddc1438f8ff317509dae524689da5079cdef4"
+    },
+    {
+      "name": "verifier-exact-head",
+      "command": [
+        "C:\\ProgramData\\Hermes\\tools\\python-3.14.7+20260901-win32-x64\\python.exe",
+        "evals/meri/verify_report.py",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-format-directive\\meri-offline-exact-head.json",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-format-directive\\meri-offline-exact-head.summary.json"
+      ],
+      "cwd": "C:\\dev\\cap-meri-bill-deadline",
+      "pid": 24976,
+      "exitCode": 0,
+      "elapsedSeconds": 0.12,
+      "logSha256": "5d773e7107f44f42d95aa0524f594179ccd28af59461c507b149c468663b6f81"
+    }
+  ],
+  "review": {
+    "verdict": "PASS",
+    "provider": "bedrock",
+    "model": "moonshotai.kimi-k2.5",
+    "sessionId": "20261002_150146_1782fb",
+    "processExit": 0,
+    "toolCalls": 0,
+    "reportedTokens": {
+      "input": 14155,
+      "output": 242,
+      "total": 14397,
+      "cache_read": 0,
+      "cache_write": 0
+    },
+    "billedCostUsd": null,
+    "sourceHashesReverified": true,
+    "adjudication": "Review line numbers are excerpt-relative and its 45/45 formatting count is incorrect. Actual logs and assertions above are authoritative. Substantive source verdict independently checked by Codex."
+  },
+  "preservedInitialReview": {
+    "processExit": 1,
+    "verdictText": "PASS",
+    "unwantedTool": "tool_search",
+    "acceptance": "Not accepted as a successful review execution",
+    "sourceChangedBetweenReviews": false,
+    "additionalCorrection": "Its comma/control reasoning was imprecise; removing directive only leaves factual all/Every intact."
+  },
+  "schemaChange": false,
+  "externalMutations": 0,
+  "mainOrGithubWrites": false,
+  "liveAcceptance": "NOT_RUN",
+  "limits": [
+    "Runtime deployment and actual post-repair browser validation remain root-owned and NOT_RUN.",
+    "Parser deliberately retains conservative behavior for unrecognized formatting forms.",
+    "All75 original cases and human acceptance remain incomplete.",
+    "Jest/build ran before commit against identical verified file bytes; Promptfoo/verifier additionally reran on exact clean committed HEAD."
+  ],
+  "artifactSha256": {
+    "independent-kimi-source-hashes.json": "7c69398581b0be2b405c975c3a5d69e34c70a3584f1fc7c6abcb4bdee5993e8c",
+    "independent-kimi-review.md": "4eb49edbb7da86ecf17581bdb02c69a3cc2a144a998eada6d1c4645904990a9e",
+    "independent-kimi-exit.json": "ddd6bf4d2d427f209ddfc320969149441f5e39150d4697043c0b49cb21f86dbd",
+    "independent-kimi-usage.json": "9de34fc0cafe26a9e345adc37846fef55065c2fee37d116f2f8b0fe79c73c649",
+    "independent-kimi-v2-review.md": "110e7934e2d69de2f06a131c5f0d94d2caa343253bd188bd15400543d6a8bcf3",
+    "independent-kimi-v2-exit.json": "c77703bfc6c9ccdbb121cd6cbdfcc82fbf16446575476bda448fa3982475256c",
+    "independent-kimi-v2-usage.json": "b1258b29ea2bdccf33d1b637a6406ee0055a30f08b725688937a529d7e3e24dd",
+    "meri-offline-exact-head.json": "87fb4f32e8cfc4956e8e074a7acae86a79de3eb0311a05af52c66775aa1b7df3",
+    "meri-offline-exact-head.summary.json": "92bb2f2dbde1d56b1de6de4f4597b204f3f2ae0e920a78fc8a80003cc71f8d4b",
+    "shared-build.log": "7d579d1edd6f6ceec0a42ea8ee2124c1e7e6824b7f7d4cff462e0f240956fe9c",
+    "shared-build.exit.json": "c72cf2669cf9da65d795033c44b2255103d62b2b3005d760b5ad8c07c10f2d12",
+    "core-build.log": "2b80ff311c7346837c34fb9b6a9be49e6ca1ae86ca68c8cb554e315eace510b3",
+    "core-build.exit.json": "4372d81963f99e7e8a70c3f07851e3f1d8f2face0e326174ac41e21cc39b2773",
+    "core-tests.log": "eb6a59bd552a6c6c3d81fc749deb60d943b28d6ce37937686244dbb699e70903",
+    "core-tests.exit.json": "0107d1ab2b42a0cd2825305c45c8d9c41fc6cd1012ce849da8c09c555e55eb4c",
+    "orchestrator-format-tests.log": "4afc75edef32f167b9111b423407313b025ba06cae5927d22add18dead985af9",
+    "orchestrator-format-tests.exit.json": "52b2bd78e887ec897fd9872d748d69c7e398376a63539d8edaabb26d15b63a9a",
+    "promptfoo-exact-head.log": "8170815f6e368d6cfdd292c1886ddc1438f8ff317509dae524689da5079cdef4",
+    "promptfoo-exact-head.exit.json": "6b2d390dc95494be303db9f3860cea5a48b63ae7d030ff1ca213b90c90252336",
+    "verifier-exact-head.log": "5d773e7107f44f42d95aa0524f594179ccd28af59461c507b149c468663b6f81",
+    "verifier-exact-head.exit.json": "d68c2bdc6c2ea35d8259bff4f870cc1d5983004ed988ccbe13fba97f40197f9f"
+  },
+  "recordedAt": "2026-10-02T15:05:01.799458+00:00"
+}

@@ -1,0 +1,39 @@
+{
+  "kind": "owned-pg-memory-kind-constraint-catalog",
+  "exitCode": 0,
+  "migration": "20281005010000_memory_version_candidate_source_kinds",
+  "migrationSha256": "a8be392c1de78038b1fc584e5a2293183d736f7732890737402833c864e2c6ce",
+  "sourceColumnType": "character varying(24)",
+  "before": [
+    {
+      "conname": "memory_candidate_source_kind_chk",
+      "convalidated": true,
+      "definition": "CHECK (((source_kind)::text = ANY ((ARRAY['explicit_user'::character varying, 'workflow_event'::character varying, 'artifact_approval'::character varying, 'model_extraction'::character varying, 'settings_sections'::character varying, 'learning_signal'::character varying])::text[])))",
+      "definitionSha256": "1b02929420ab5de75e29a9396f3a207bdc91c2f49e50308169def52c4427ac3f"
+    },
+    {
+      "conname": "memory_candidate_version_payload_check",
+      "convalidated": true,
+      "definition": "CHECK ((((source_kind)::text <> ALL ((ARRAY['memory_correction'::character varying, 'memory_restore'::character varying, 'memory_contradiction'::character varying])::text[])) OR ((jsonb_typeof((payload_jsonb -> 'versionProposal'::text)) = 'object'::text) AND ((payload_jsonb #>> '{versionProposal,kind}'::text[]) = ANY (ARRAY['correction'::text, 'restore'::text, 'contradiction'::text])) AND ((payload_jsonb #>> '{versionProposal,sourceItemId}'::text[]) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'::text) AND (((payload_jsonb #>> '{versionProposal,targetItemId}'::text[]) IS NULL) OR ((payload_jsonb #>> '{versionProposal,targetItemId}'::text[]) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'::text)) AND ((((source_kind)::text = 'memory_correction'::text) AND ((payload_jsonb #>> '{versionProposal,kind}'::text[]) = 'correction'::text)) OR (((source_kind)::text = 'memory_restore'::text) AND ((payload_jsonb #>> '{versionProposal,kind}'::text[]) = 'restore'::text)) OR (((source_kind)::text = 'memory_contradiction'::text) AND ((payload_jsonb #>> '{versionProposal,kind}'::text[]) = 'contradiction'::text))))))",
+      "definitionSha256": "35c42df118d64e546727118df0c9b8297c4867d6b45eb0822694e0a02a283dd1"
+    }
+  ],
+  "after": [
+    {
+      "conname": "memory_candidate_source_kind_chk",
+      "convalidated": true,
+      "definition": "CHECK (((source_kind)::text = ANY ((ARRAY['explicit_user'::character varying, 'workflow_event'::character varying, 'artifact_approval'::character varying, 'model_extraction'::character varying, 'settings_sections'::character varying, 'learning_signal'::character varying, 'memory_correction'::character varying, 'memory_restore'::character varying, 'memory_contradiction'::character varying])::text[])))",
+      "definitionSha256": "4585194700c4539c5f62d01610ed8f9b3b78b0618e39b40cd04b8b7b80f3c4a5"
+    },
+    {
+      "conname": "memory_candidate_version_payload_check",
+      "convalidated": true,
+      "definition": "CHECK ((((source_kind)::text <> ALL ((ARRAY['memory_correction'::character varying, 'memory_restore'::character varying, 'memory_contradiction'::character varying])::text[])) OR (((jsonb_typeof((payload_jsonb -> 'versionProposal'::text)) = 'object'::text) AND ((payload_jsonb #>> '{versionProposal,kind}'::text[]) = ANY (ARRAY['correction'::text, 'restore'::text, 'contradiction'::text])) AND ((payload_jsonb #>> '{versionProposal,sourceItemId}'::text[]) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'::text) AND (((payload_jsonb #>> '{versionProposal,targetItemId}'::text[]) IS NULL) OR ((payload_jsonb #>> '{versionProposal,targetItemId}'::text[]) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'::text)) AND ((((source_kind)::text = 'memory_correction'::text) AND ((payload_jsonb #>> '{versionProposal,kind}'::text[]) = 'correction'::text)) OR (((source_kind)::text = 'memory_restore'::text) AND ((payload_jsonb #>> '{versionProposal,kind}'::text[]) = 'restore'::text)) OR (((source_kind)::text = 'memory_contradiction'::text) AND ((payload_jsonb #>> '{versionProposal,kind}'::text[]) = 'contradiction'::text)))) IS TRUE)))",
+      "definitionSha256": "6a3164098759e2c2f6e6cf0caf80db29b8529c714158b9a8490ce9d477dc422c"
+    }
+  ],
+  "sharedDatabaseTouched": false,
+  "productionTransaction": true,
+  "ownedNamespaceDropped": true,
+  "residualSchemas": 0
+}

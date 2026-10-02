@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "verdict": "PASS",
+  "sourceSha": "a7c73cf70799c32593d0b38f2539966ee775b718",
+  "branch": "codex/meri-case46-native-operator-20261002",
+  "base": "404fad45ebb19b5cadca989d74008a00dee6bf5a",
+  "clean": true,
+  "diffCheckExit": 0,
+  "sourcePaths": {
+    "evals/meri/live-v1/CONTROLLED-READ-OPERATOR.md": "8788a81d597c6b40e59ae603feebead29a3893980731e5f31efc2d93ec08a066",
+    "evals/meri/live-v1/capture-spend-aggregate.mjs": "d8d1c88e747d852c4785649a42cfdc29298d562d219525bdce443e935ac9b141",
+    "evals/meri/live-v1/case01-live-capture.mjs": "80e0102b7a61f46fa7f2012be3052c0396580c2cf326a7ae10a8e644e499c068",
+    "evals/meri/live-v1/case46-live-capture.mjs": "925f926a5c2f72ad9b6bb114847d7140cd769a6e510d85c5fe80d0c6656a2b66",
+    "evals/meri/live-v1/case46-native-capture.md": "59b42e8e62ab0bc185e35693d86ad4bf0b664c691acc30f6a5113cc10f6ebc2b",
+    "evals/meri/live-v1/case46-receipt-joins.mjs": "68f3d4404359091ced225f79ea09b7a2f504a57d2fefd9d7fcf0d1bcf562823e",
+    "evals/meri/live-v1/controlled-read-live-capture.mjs": "67f44523ff939ba5c0b246bb80559a3977f2bac5a8fabba12f72a94563b5e17d",
+    "evals/meri/live-v1/grade-case46-capture.mjs": "39aac7cd4b8e97dee2d09d3e6531a00d031727e3ea19f784a7aba24a756c1371",
+    "evals/meri/live-v1/lib/windows-capture-spend.py": "97a638045355590ba271ccb0b0f732554446912d27acd4237a325e0559948d53",
+    "evals/meri/live-v1/materialize-controlled-read.mjs": "af1f7d6bbb29c220e861566a8771613cdbe16c0c9a86d09c96fed9b808ce15a3",
+    "evals/meri/live-v1/run-controlled-read.mjs": "0a0f4b7e7d661d766c23912a487652ee5c1729a1c229a3eb8bbc073374c96931",
+    "evals/meri/live-v1/tests/capture-spend-aggregate.test.mjs": "7a50b23cf2c1fd232a4fc81ac7695117863e06ed4559492d7f4f8a92e30a58a6",
+    "evals/meri/live-v1/tests/case46-fixture.mjs": "83c25d721a3e16d917406731b73d69b1bb37fd3c629954ea765e664b8de1b8c5",
+    "evals/meri/live-v1/tests/case46-native-composition.test.mjs": "d1edefe123c3174c9536e56d3ecb7798cabc8708d11ded5c4a501a681c9cf58b",
+    "evals/meri/live-v1/tests/case46-receipt-joins.test.mjs": "4acde27012bba324e8b53efb2d547b4ec472775124c50a29867224431ce49e5b"
+  },
+  "priorAggregateCommit": "c9dae31d1e50b6560d58319baa620a14ab505c7f",
+  "priorAggregateSixUnchangedFiles": {
+    "evals/meri/live-v1/CONTROLLED-READ-OPERATOR.md": "8788a81d597c6b40e59ae603feebead29a3893980731e5f31efc2d93ec08a066",
+    "evals/meri/live-v1/case01-live-capture.mjs": "80e0102b7a61f46fa7f2012be3052c0396580c2cf326a7ae10a8e644e499c068",
+    "evals/meri/live-v1/controlled-read-live-capture.mjs": "67f44523ff939ba5c0b246bb80559a3977f2bac5a8fabba12f72a94563b5e17d",
+    "evals/meri/live-v1/materialize-controlled-read.mjs": "af1f7d6bbb29c220e861566a8771613cdbe16c0c9a86d09c96fed9b808ce15a3",
+    "evals/meri/live-v1/run-controlled-read.mjs": "0a0f4b7e7d661d766c23912a487652ee5c1729a1c229a3eb8bbc073374c96931",
+    "evals/meri/live-v1/tests/capture-spend-aggregate.test.mjs": "7a50b23cf2c1fd232a4fc81ac7695117863e06ed4559492d7f4f8a92e30a58a6"
+  },
+  "priorAggregateResolution": "17 additive JS lines (import + distinct46 settlement branch); Python only46 allowlist addition; no otherdelta",
+  "checks": {
+    "tests": 146,
+    "pass": 146,
+    "fail": 0,
+    "skip": 0,
+    "exitCode": 0,
+    "receiptSha256": "9cc0bde11fb56d8de8116973e8ff466af3f76d9aed3c926ad1a7d569fbf3aad7"
+  },
+  "independentReview": {
+    "session": "20261002_152453_de0aef",
+    "provider": "bedrock",
+    "model": "moonshotai.kimi-k2.5",
+    "exitCode": 0,
+    "verdict": "PASS",
+    "reviewedNativeSourceUnchanged": true,
+    "reviewSha256": "85e83f0453d63a4190d7f7f0d7b0d516fafb472e9fc2c4c9a938a8b311412efa"
+  },
+  "liveAcceptance": "NOT_RUN",
+  "fullFile01Acceptance": false,
+  "operatorPreparation": "UNSEALED - no readyfile, no auth, no live or cloud call",
+  "applicationFilesChanged": 0,
+  "privateInputsCopied": 0,
+  "requiredNext": [
+    "root integration/publish order",
+    "qualified API/orchestrator release including governed46 + existing compatible Web",
+    "actual source-owned case46 setup plan/execute through reviewed fixed oneoff",
+    "existing originalcase01 settled $30journal with fresh checkpoint",
+    "fresh root readiness and one authenticated46 capture",
+    "same-process actual human/visual adjudication"
+  ]
+}

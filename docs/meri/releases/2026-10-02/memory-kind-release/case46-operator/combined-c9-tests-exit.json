@@ -1,0 +1,18 @@
+{
+  "sourceSha": "a7c73cf70799c32593d0b38f2539966ee775b718",
+  "command": [
+    "C:\\Program Files\\nodejs\\node.exe",
+    "--experimental-test-module-mocks",
+    "--test",
+    "C:\\dev\\cap-meri-mail-deadline\\evals\\meri\\live-v1\\tests\\case46-receipt-joins.test.mjs",
+    "C:\\dev\\cap-meri-mail-deadline\\evals\\meri\\live-v1\\tests\\case46-native-composition.test.mjs",
+    "C:\\dev\\cap-meri-mail-deadline\\evals\\meri\\live-v1\\tests\\case46-artifact-evidence.test.mjs",
+    "C:\\dev\\cap-meri-mail-deadline\\evals\\meri\\live-v1\\tests\\case46-artifact-ui.test.mjs",
+    "C:\\dev\\cap-meri-mail-deadline\\evals\\meri\\live-v1\\tests\\capture-spend-aggregate.test.mjs",
+    "C:\\dev\\cap-meri-foundation-evidence\\oct02-case46-operator\\case46-operator-gates.test.mjs"
+  ],
+  "exitCode": 0,
+  "elapsedSeconds": 9.376634359359741,
+  "logSha256": "ba0c86ed6ff592d7ac1d6473f3c932ea776da35d5acb46f61412d09460fb0980",
+  "network": "all composition network/browser/build responses explicitly mocked; real local NTFS journals/storage only"
+}

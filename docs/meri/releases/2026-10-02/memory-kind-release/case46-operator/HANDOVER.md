@@ -1,0 +1,18 @@
+# Case46 native capture handover
+
+Source: `a7c73cf70799c32593d0b38f2539966ee775b718` on `codex/meri-case46-native-operator-20261002` in `C:\dev\cap-meri-mail-deadline`, clean. Parent integrates; worker has not pushed or changed main.
+
+Commits in order: `24aa95412dee3885b0cbe9220f6386232c17f35f` (native46), `bfa84e6d6442d137dbc51bb72a9dc5d8378a0854` (reviewed originalc9 aggregate capture), `a7c73cf70799c32593d0b38f2539966ee775b718` (test-only EOF whitespace). Root can merge this branch, or cherry-pick these three in order. If c9 was separately integrated, retain the case46 aggregate superset and compare the six other files against originalc9. The original occupied c9 checkout/journal were never changed.
+
+`combined-qualification.json` records exact Git blob hashes, six c9 byte-equivalence proofs and combined146/146 tests (zero skips), exit0. `combined-c9-tests-exit.json` contains exact command/loghash/source. Node test module mocks fake build/HTTPS/browser only; real native NTFS storage/journal operations are local disposable tests. They are not LIVE evidence. The actual separate Kimi session `20261002_152453_de0aef` returned source-review PASS, CLIexit0. Raw review and usage are preserved. Qwen attempt `20261002_144932_4dba0c` produced an unusable patch; its owned process tree was stopped (exit1), original draft preserved, and authorized direct Codex repair was used. Reported Qwen total tokens unavailable.
+
+The isolated source adds only eval modules/tests/docs. It sends the original frozen46 prompt once, expects exactly one create_word proposal, performs one ordinary UI approval, requires one current artifact effect, downloads exact28bytes/name both before and after reload, joins actual saved owner/provider usage, settles the existing aggregate ledger, and requires actual human/visual adjudication before case46 PASS. Readonly capture authority is not borrowed. Review screenshots include approval card and both download views. Original full75/File01 remains incomplete.
+
+Prepared external root operator: `run-case46-authenticated.mjs`; local gates: `case46-operator-gates.mjs`; template remains `case46-ready.template.json` with UNSEALED fields. No `case46-ready.json` has been invented. `--check-readiness` correctly returns exit1 before any private inputs/auth/network. Root must provide actual setup execution receipt (fixed source-owned CLI journal9entries and COMPLETE), exact source/config/build hashes, fresh10minute root release readiness and original journal checkpoint. The operator binds journal native root/owner/directory identity to the original v5 initial checkpoint; first01 must already be settled. It cannot initialize a replacement $30 ledger. Root still needs the fixed case46 ECS setup oneoff adapter; this lane only prepares capture/grading.
+
+After review/sealing, root command is:
+`node C:\dev\cap-meri-foundation-evidence\oct02-case46-operator\run-case46-authenticated.mjs --execute-original-case46-once`
+
+The process revokes its new Clerk session, saves the human-adjudication request, then waits up to20minutes for `GRADE_SAVED_CASE46_HUMAN_ADJUDICATION` on stdin. Supply the actual reviewer file `case46-human-adjudication.json` with the five original0–2 rubric dimensions, visual observations and bound hashes. An exit loses opaque grader authority and never authorizes a resubmission. Any uncertain send/approval preserves its claim and budget reservation.
+
+No auth, shared database, AWS mutation, setup, real provider submission or live46 acceptance occurred in this lane. Root must run release/full integration policy checks before shipping source. Current app/budget/main changes outside this eval-only branch were not modified.

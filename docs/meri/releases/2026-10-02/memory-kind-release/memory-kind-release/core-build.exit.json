@@ -1,0 +1,16 @@
+{
+  "name": "core-build",
+  "sourceSha": "42988dae5fb7bc2fff3af582ca15a0836a4477c5",
+  "command": [
+    "C:\\Program Files\\nodejs\\pnpm.cmd",
+    "--filter",
+    "@capiro/meriv2-core",
+    "run",
+    "build"
+  ],
+  "cwd": "C:\\dev\\cap-meri-fixture-hardening",
+  "exitCode": 0,
+  "elapsedSeconds": 2.8,
+  "logSha256": "c33c9fbba9e4fb869cdabefdb7b6d6f18c857aefe5e9b18e9adef55b97b3445f",
+  "sourceUnchanged": true
+}

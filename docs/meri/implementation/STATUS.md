@@ -1,4 +1,24 @@
-## Current checkpoint — 2026-10-02 15:23 UTC, API505 live response verified
+## Current checkpoint — 2026-10-02 16:05 UTC, forward repair qualified
+
+Source42988 is in local main and GitHub main. Both API and orchestrator images
+passed their native ARM64 builds. The combined source passed 450 focused tests
+and 26 offline eval cases; the orchestrator image passed 1,443 tests with two
+existing live-only tests skipped. Fresh and prior449 database rehearsals each
+applied all450 migrations with exact checksums and validated constraints.
+See [qualified source, images and rehearsal evidence](../releases/2026-10-02/memory-kind-release/README.md).
+
+The new forward migration admits immutable memory-version source kinds and
+requires their typed payload. Guarded post-seed continuation, governed case46
+capture and the misleading evidence-footer repair are included. The shared
+migration and service promotions have not run at this checkpoint. API505 remains
+the verified live response baseline. Temporary database maximum16ACU remains.
+
+**File01 is incomplete: zero original live rows complete.** Budget installation,
+original aggregate initialization, full75/CD7/CW8, applicable variants and human
+rubric remain open. Defense Chat remains excluded. Prior failures and historical
+migration limitations remain preserved; no claim or ledger reset is authorized.
+
+## Prior checkpoint — 2026-10-02 15:23 UTC, API505 live response verified
 
 API505/sourcea260 is deployed and healthy at2/2. The signed-in owner browser
 completed another bounded mailbox diagnostic, with one successful tool and a

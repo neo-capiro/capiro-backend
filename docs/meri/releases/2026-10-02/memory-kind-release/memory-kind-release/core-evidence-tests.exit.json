@@ -1,0 +1,19 @@
+{
+  "name": "core-evidence-tests",
+  "sourceSha": "42988dae5fb7bc2fff3af582ca15a0836a4477c5",
+  "command": [
+    "C:\\Program Files\\nodejs\\node.exe",
+    "packages/meriv2-core/node_modules/jest/bin/jest.js",
+    "--config",
+    "packages/meriv2-core/jest.config.cjs",
+    "--runInBand",
+    "--runTestsByPath",
+    "packages/meriv2-core/src/assurance/evidence-plan.spec.ts",
+    "packages/meriv2-core/src/assurance/assurance.spec.ts"
+  ],
+  "cwd": "C:\\dev\\cap-meri-fixture-hardening",
+  "exitCode": 0,
+  "elapsedSeconds": 3.79,
+  "logSha256": "0febd37ced82a165a3e1fe754bca808a2a72a4f4deb8f2622b48166abade4da7",
+  "sourceUnchanged": true
+}

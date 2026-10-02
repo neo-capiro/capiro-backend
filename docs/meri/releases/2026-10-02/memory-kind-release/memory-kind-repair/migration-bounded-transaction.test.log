@@ -1,0 +1,179 @@
+TAP version 13
+# Subtest: repair SQL bounds its transaction around one atomic ALTER and remains LF-exact
+ok 1 - repair SQL bounds its transaction around one atomic ALTER and remains LF-exact
+  ---
+  duration_ms: 4.4992
+  type: 'test'
+  ...
+# Subtest: actual historical constraints reproduce rejection/null hole, then repaired kinds retain immutable activation
+    # Subtest: historical six-kind check rejects canonical correction
+    ok 1 - historical six-kind check rejects canonical correction
+      ---
+      duration_ms: 2.2216
+      type: 'test'
+      ...
+    # Subtest: historical six-kind check rejects canonical restore
+    ok 2 - historical six-kind check rejects canonical restore
+      ---
+      duration_ms: 1.6269
+      type: 'test'
+      ...
+    # Subtest: historical six-kind check rejects canonical contradiction
+    ok 3 - historical six-kind check rejects canonical contradiction
+      ---
+      duration_ms: 1.2298
+      type: 'test'
+      ...
+    # Subtest: the historical payload guard alone accepts missing versionProposal as UNKNOWN
+    ok 4 - the historical payload guard alone accepts missing versionProposal as UNKNOWN
+      ---
+      duration_ms: 2.1508
+      type: 'test'
+      ...
+    # Subtest: preserves existing explicit_user
+    ok 5 - preserves existing explicit_user
+      ---
+      duration_ms: 1.6934
+      type: 'test'
+      ...
+    # Subtest: preserves existing workflow_event
+    ok 6 - preserves existing workflow_event
+      ---
+      duration_ms: 1.4275
+      type: 'test'
+      ...
+    # Subtest: preserves existing artifact_approval
+    ok 7 - preserves existing artifact_approval
+      ---
+      duration_ms: 1.6052
+      type: 'test'
+      ...
+    # Subtest: preserves existing model_extraction
+    ok 8 - preserves existing model_extraction
+      ---
+      duration_ms: 1.54
+      type: 'test'
+      ...
+    # Subtest: preserves existing settings_sections
+    ok 9 - preserves existing settings_sections
+      ---
+      duration_ms: 1.5322
+      type: 'test'
+      ...
+    # Subtest: preserves existing learning_signal
+    ok 10 - preserves existing learning_signal
+      ---
+      duration_ms: 1.5217
+      type: 'test'
+      ...
+    # Subtest: accepts typed correction and preserves dedicated activation guard
+    ok 11 - accepts typed correction and preserves dedicated activation guard
+      ---
+      duration_ms: 7.7083
+      type: 'test'
+      ...
+    # Subtest: accepts typed restore and preserves dedicated activation guard
+    ok 12 - accepts typed restore and preserves dedicated activation guard
+      ---
+      duration_ms: 5.0257
+      type: 'test'
+      ...
+    # Subtest: accepts typed contradiction and preserves dedicated activation guard
+    ok 13 - accepts typed contradiction and preserves dedicated activation guard
+      ---
+      duration_ms: 5.5551
+      type: 'test'
+      ...
+    # Subtest: rejects absent object
+    ok 14 - rejects absent object
+      ---
+      duration_ms: 1.2556
+      type: 'test'
+      ...
+    # Subtest: rejects JSON null object
+    ok 15 - rejects JSON null object
+      ---
+      duration_ms: 1.0952
+      type: 'test'
+      ...
+    # Subtest: rejects array object
+    ok 16 - rejects array object
+      ---
+      duration_ms: 1.0675
+      type: 'test'
+      ...
+    # Subtest: rejects missing kind
+    ok 17 - rejects missing kind
+      ---
+      duration_ms: 1.9174
+      type: 'test'
+      ...
+    # Subtest: rejects wrong kind
+    ok 18 - rejects wrong kind
+      ---
+      duration_ms: 1.1371
+      type: 'test'
+      ...
+    # Subtest: rejects missing source
+    ok 19 - rejects missing source
+      ---
+      duration_ms: 0.9102
+      type: 'test'
+      ...
+    # Subtest: rejects invalid source
+    ok 20 - rejects invalid source
+      ---
+      duration_ms: 0.8692
+      type: 'test'
+      ...
+    # Subtest: rejects invalid target
+    ok 21 - rejects invalid target
+      ---
+      duration_ms: 1.1619
+      type: 'test'
+      ...
+    # Subtest: unknown kinds remain rejected
+    ok 22 - unknown kinds remain rejected
+      ---
+      duration_ms: 1.2301
+      type: 'test'
+      ...
+    # Subtest: missing optional target stays supported
+    ok 23 - missing optional target stays supported
+      ---
+      duration_ms: 1.7165
+      type: 'test'
+      ...
+    # Subtest: cross-tenant committed lineage stays rejected
+    ok 24 - cross-tenant committed lineage stays rejected
+      ---
+      duration_ms: 3.9459
+      type: 'test'
+      ...
+    1..24
+ok 2 - actual historical constraints reproduce rejection/null hole, then repaired kinds retain immutable activation
+  ---
+  duration_ms: 165.6155
+  type: 'test'
+  ...
+# Subtest: fresh empty history upgrades; missing expected guard fails atomically without widening source kinds
+ok 3 - fresh empty history upgrades; missing expected guard fails atomically without widening source kinds
+  ---
+  duration_ms: 90.9348
+  type: 'test'
+  ...
+# Subtest: production transaction cancels table-lock acquisition at five seconds without partial change or leaked limits
+ok 4 - production transaction cancels table-lock acquisition at five seconds without partial change or leaked limits
+  ---
+  duration_ms: 5112.1509
+  type: 'test'
+  ...
+1..4
+# tests 28
+# suites 0
+# pass 28
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 5507.2072

@@ -1,0 +1,12 @@
+{
+  "name": "final-pg-packaging",
+  "exitCode": 0,
+  "elapsedSeconds": 49.64,
+  "args": [
+    "C:/Program Files/nodejs/node.exe",
+    "--test",
+    "evals/meri/live-v1/tests/case01-execution-setup.postgres.test.mjs",
+    "evals/meri/live-v1/tests/case01-recovery-real-transactions.test.mjs",
+    "evals/meri/live-v1/tests/case01-memory-packaging.test.mjs"
+  ]
+}

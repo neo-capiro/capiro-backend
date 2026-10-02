@@ -1,0 +1,227 @@
+{
+  "kind": "meri-memory-kind-combined-source-qualification",
+  "status": "PASS",
+  "sourceSha": "42988dae5fb7bc2fff3af582ca15a0836a4477c5",
+  "createdAt": "2026-10-02T15:46:17.670143+00:00",
+  "sourceBlobs": {
+    "packages/meriv2-core/src/assurance/evidence-plan.ts": "1acb7106479b5d31300b15a7150323ad8a98e735f993bd3d24c8c12f9383a621",
+    "packages/meriv2-core/src/assurance/evidence-plan.spec.ts": "e060162f2d31251bc7f2f6b33b30d86b08d644a100bfdb5cf28ab1383e17fa6a",
+    "apps/meriv2-orchestrator/src/meri/retrieval/meri-evidence-formatting.spec.ts": "440417feaabad7f2f6945c8ba2743d5a8e6f1c6dea056c52c0fb247473af20ff",
+    "apps/api/prisma/migrations/20281005010000_memory_version_candidate_source_kinds/migration.sql": "a8be392c1de78038b1fc584e5a2293183d736f7732890737402833c864e2c6ce",
+    "apps/api/prisma/schema.prisma": "41fb55c8f2357b9bc2246de813d1e093e3e0bd240538048bbb514c5a4d4fe1d2",
+    "apps/api/scripts/verify-memory-version-kind-migration.test.mjs": "706d2a0cc238bbeb7e7134bde4b81672b583d6aa6f288d6e8cfcb0fbd00dbbd9",
+    "evals/meri/live-v1/fixture-provisioning/case01-execution-setup.mjs": "4c00fd6add2cd92f4e51c95d5f43e0fef7b66da8d2f40c8299b3b92f8b8366a3",
+    "apps/api/scripts/meri-case01-setup.mjs": "6790a5b44820d89a9fa89cf0ec0c532f8c4b561f9211db4cffc8b0c380022242",
+    "evals/meri/live-v1/tests/case01-execution-setup.postgres.test.mjs": "e87c75ec724cf5b045f2b037c02625601510e7f4c6f43ebfa9d19c8ff6b0d04c",
+    "evals/meri/live-v1/tests/case01-memory-packaging.test.mjs": "cd60649778c2a98e50654e215aed101d0701c55382ad13d0fa63adb811f69e4a",
+    "evals/meri/live-v1/CONTROLLED-READ-OPERATOR.md": "8788a81d597c6b40e59ae603feebead29a3893980731e5f31efc2d93ec08a066",
+    "evals/meri/live-v1/capture-spend-aggregate.mjs": "d8d1c88e747d852c4785649a42cfdc29298d562d219525bdce443e935ac9b141",
+    "evals/meri/live-v1/case01-live-capture.mjs": "80e0102b7a61f46fa7f2012be3052c0396580c2cf326a7ae10a8e644e499c068",
+    "evals/meri/live-v1/case46-live-capture.mjs": "925f926a5c2f72ad9b6bb114847d7140cd769a6e510d85c5fe80d0c6656a2b66",
+    "evals/meri/live-v1/case46-native-capture.md": "59b42e8e62ab0bc185e35693d86ad4bf0b664c691acc30f6a5113cc10f6ebc2b",
+    "evals/meri/live-v1/case46-receipt-joins.mjs": "68f3d4404359091ced225f79ea09b7a2f504a57d2fefd9d7fcf0d1bcf562823e",
+    "evals/meri/live-v1/controlled-read-live-capture.mjs": "67f44523ff939ba5c0b246bb80559a3977f2bac5a8fabba12f72a94563b5e17d",
+    "evals/meri/live-v1/grade-case46-capture.mjs": "39aac7cd4b8e97dee2d09d3e6531a00d031727e3ea19f784a7aba24a756c1371",
+    "evals/meri/live-v1/lib/windows-capture-spend.py": "97a638045355590ba271ccb0b0f732554446912d27acd4237a325e0559948d53",
+    "evals/meri/live-v1/materialize-controlled-read.mjs": "af1f7d6bbb29c220e861566a8771613cdbe16c0c9a86d09c96fed9b808ce15a3",
+    "evals/meri/live-v1/run-controlled-read.mjs": "0a0f4b7e7d661d766c23912a487652ee5c1729a1c229a3eb8bbc073374c96931",
+    "evals/meri/live-v1/tests/capture-spend-aggregate.test.mjs": "7a50b23cf2c1fd232a4fc81ac7695117863e06ed4559492d7f4f8a92e30a58a6",
+    "evals/meri/live-v1/tests/case46-fixture.mjs": "83c25d721a3e16d917406731b73d69b1bb37fd3c629954ea765e664b8de1b8c5",
+    "evals/meri/live-v1/tests/case46-native-composition.test.mjs": "d1edefe123c3174c9536e56d3ecb7798cabc8708d11ded5c4a501a681c9cf58b",
+    "evals/meri/live-v1/tests/case46-receipt-joins.test.mjs": "4acde27012bba324e8b53efb2d547b4ec472775124c50a29867224431ce49e5b"
+  },
+  "joinedQualifications": [
+    {
+      "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-format-directive\\qualification.json",
+      "sha256": "8faa65845ad1a7c183ad92b29d895284361b00a740ae4cba79c7468f6b80c1c6",
+      "sourceSha": "f72747b3a62c17bee07f47df8a6182d89290cb60"
+    },
+    {
+      "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-repair\\qualification.json",
+      "sha256": "783567d8b8bc669d0e52dde0edff92121c3fa111ede26ff72a3cc24150a9b055",
+      "sourceSha": "620cf0b5afd297ec7fb5e6e7bd55256e46c26236"
+    },
+    {
+      "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-post-seed-resume\\qualification.json",
+      "sha256": "dc76de5fa1dd543c0807652a0fec95eeb34aa24020853e0c928358aab7a3f116",
+      "sourceSha": "f5be016b15d2060e3a4b1f77ba91b4e2ed011b43"
+    },
+    {
+      "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-case46-operator\\combined-qualification.json",
+      "sha256": "2f5eb481e297a5799e22910844eee9565d96dfae6a6b11e3c6818259e06425e8",
+      "sourceSha": "a7c73cf70799c32593d0b38f2539966ee775b718"
+    }
+  ],
+  "checks": [
+    {
+      "name": "shared-build",
+      "receiptSha256": "e9b902c4053c1bb3863bd713a63066ed90420956756c9294fb809479f274932b",
+      "sourceSha": "42988dae5fb7bc2fff3af582ca15a0836a4477c5",
+      "command": [
+        "C:\\Program Files\\nodejs\\pnpm.cmd",
+        "--filter",
+        "@capiro/shared",
+        "run",
+        "build"
+      ],
+      "cwd": "C:\\dev\\cap-meri-fixture-hardening",
+      "exitCode": 0,
+      "elapsedSeconds": 1.43,
+      "logSha256": "28f31dd4def844b4f82106f9450ce7b46d972dd21d6cef15544a4bed4c5f1fd0",
+      "sourceUnchanged": true
+    },
+    {
+      "name": "core-build",
+      "receiptSha256": "7d210175760fcb952a75b8329b537cdbbbed92c21809688b06193036a21ba6b1",
+      "sourceSha": "42988dae5fb7bc2fff3af582ca15a0836a4477c5",
+      "command": [
+        "C:\\Program Files\\nodejs\\pnpm.cmd",
+        "--filter",
+        "@capiro/meriv2-core",
+        "run",
+        "build"
+      ],
+      "cwd": "C:\\dev\\cap-meri-fixture-hardening",
+      "exitCode": 0,
+      "elapsedSeconds": 2.8,
+      "logSha256": "c33c9fbba9e4fb869cdabefdb7b6d6f18c857aefe5e9b18e9adef55b97b3445f",
+      "sourceUnchanged": true
+    },
+    {
+      "name": "core-evidence-tests",
+      "receiptSha256": "bc4354270e7e7e6413471a196626c3e4f794e602c2b8f1f73d9b67d1797c18bf",
+      "sourceSha": "42988dae5fb7bc2fff3af582ca15a0836a4477c5",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "packages/meriv2-core/node_modules/jest/bin/jest.js",
+        "--config",
+        "packages/meriv2-core/jest.config.cjs",
+        "--runInBand",
+        "--runTestsByPath",
+        "packages/meriv2-core/src/assurance/evidence-plan.spec.ts",
+        "packages/meriv2-core/src/assurance/assurance.spec.ts"
+      ],
+      "cwd": "C:\\dev\\cap-meri-fixture-hardening",
+      "exitCode": 0,
+      "elapsedSeconds": 3.79,
+      "logSha256": "0febd37ced82a165a3e1fe754bca808a2a72a4f4deb8f2622b48166abade4da7",
+      "sourceUnchanged": true
+    },
+    {
+      "name": "native-capture-tests-v2",
+      "receiptSha256": "9fe3586e85a389ef2125692425a7e483a9b03dbb8e5643dbb14fd63b05bafc19",
+      "sourceSha": "42988dae5fb7bc2fff3af582ca15a0836a4477c5",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "--experimental-test-module-mocks",
+        "--test",
+        "--test-concurrency=1",
+        "C:\\dev\\cap-meri-fixture-hardening\\evals\\meri\\live-v1\\tests\\case46-receipt-joins.test.mjs",
+        "C:\\dev\\cap-meri-fixture-hardening\\evals\\meri\\live-v1\\tests\\case46-native-composition.test.mjs",
+        "C:\\dev\\cap-meri-fixture-hardening\\evals\\meri\\live-v1\\tests\\case46-artifact-evidence.test.mjs",
+        "C:\\dev\\cap-meri-fixture-hardening\\evals\\meri\\live-v1\\tests\\case46-artifact-ui.test.mjs",
+        "C:\\dev\\cap-meri-fixture-hardening\\evals\\meri\\live-v1\\tests\\capture-spend-aggregate.test.mjs",
+        "C:\\dev\\cap-meri-fixture-hardening\\evals\\meri\\live-v1\\tests\\controlled-read-operator.test.mjs",
+        "C:\\dev\\cap-meri-fixture-hardening\\evals\\meri\\live-v1\\tests\\controlled-read-authority.test.mjs",
+        "C:\\dev\\cap-meri-fixture-hardening\\evals\\meri\\live-v1\\tests\\controlled-read-owner.test.mjs",
+        "C:\\dev\\cap-meri-fixture-hardening\\evals\\meri\\live-v1\\tests\\case01-operator-input.test.mjs",
+        "C:\\dev\\cap-meri-fixture-hardening\\evals\\meri\\live-v1\\tests\\grade-case01-capture.test.mjs",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-case46-operator\\case46-operator-gates.test.mjs"
+      ],
+      "cwd": "C:\\dev\\cap-meri-fixture-hardening",
+      "exitCode": 0,
+      "elapsedSeconds": 18.44,
+      "logSha256": "348ba6e7de2517673082b432db9ff4061c96353a00d35a922ebf0b474bff9232",
+      "sourceUnchanged": true
+    },
+    {
+      "name": "owned-postgres-tests",
+      "receiptSha256": "ffac0afdb02a94602369a9c6c59ab97b9ac355e3c445cd5acc4d2b3063008570",
+      "sourceSha": "42988dae5fb7bc2fff3af582ca15a0836a4477c5",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "--test",
+        "--test-concurrency=1",
+        "C:\\dev\\cap-meri-fixture-hardening\\evals\\meri\\live-v1\\tests\\case01-execution-setup.postgres.test.mjs",
+        "C:\\dev\\cap-meri-fixture-hardening\\evals\\meri\\live-v1\\tests\\case01-recovery-real-transactions.test.mjs",
+        "C:\\dev\\cap-meri-fixture-hardening\\evals\\meri\\live-v1\\tests\\case01-memory-packaging.test.mjs",
+        "C:\\dev\\cap-meri-fixture-hardening\\apps\\api\\scripts\\verify-memory-version-kind-migration.test.mjs"
+      ],
+      "cwd": "C:\\dev\\cap-meri-fixture-hardening",
+      "exitCode": 0,
+      "elapsedSeconds": 66.46,
+      "logSha256": "a307f44bac26db4ad33249cc46383ce07de221df274de7722a6222562c62cc12",
+      "sourceUnchanged": true
+    },
+    {
+      "name": "promptfoo",
+      "receiptSha256": "9a0f060d64975cf73091ef01a4fb8c3e6cd2bba1d74c5be8c89259664bb63ab0",
+      "sourceSha": "42988dae5fb7bc2fff3af582ca15a0836a4477c5",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "node_modules/promptfoo/dist/src/entrypoint.js",
+        "eval",
+        "-c",
+        "evals/meri/promptfooconfig.yaml",
+        "--no-cache",
+        "--no-share",
+        "--no-write",
+        "--no-table",
+        "--no-progress-bar",
+        "-o",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-release\\meri-offline.json"
+      ],
+      "cwd": "C:\\dev\\cap-meri-fixture-hardening",
+      "exitCode": 0,
+      "elapsedSeconds": 28.39,
+      "logSha256": "fc2517841150c8e0232dce535fdf079c41080890b3c1ad4fedde0afd60541845",
+      "sourceUnchanged": true
+    },
+    {
+      "name": "verifier",
+      "receiptSha256": "97b4ca2488788878a0da0dd852eca1290f44a92e693524b12d62d19f9d2de80e",
+      "sourceSha": "42988dae5fb7bc2fff3af582ca15a0836a4477c5",
+      "command": [
+        "C:\\ProgramData\\Hermes\\tools\\python-3.14.7+20260901-win32-x64\\python.exe",
+        "evals/meri/verify_report.py",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-release\\meri-offline.json",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-release\\meri-offline.summary.json"
+      ],
+      "cwd": "C:\\dev\\cap-meri-fixture-hardening",
+      "exitCode": 0,
+      "elapsedSeconds": 0.12,
+      "logSha256": "cd7ee77fb56c570551e133debd9fc6c0f3306084e7e8129c59787446a1db98a9",
+      "sourceUnchanged": true
+    }
+  ],
+  "counts": {
+    "coreJest": 81,
+    "nativeCapture": 321,
+    "ownedPostgresAndPackaging": 48,
+    "offlinePromptfoo": 26,
+    "fail": 0,
+    "skip": 0
+  },
+  "rehearsals": {
+    "fresh": {
+      "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-repair\\forward-v2-fresh-42988dae5fb7.json",
+      "sha256": "4ba90132a6bf956cb7fb6b26b26cf6ab401789b02a7180b37a9485abe58550fc"
+    },
+    "upgrade": {
+      "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-repair\\forward-v2-upgrade-42988dae5fb7.json",
+      "sha256": "ebee9e4a7f7dedc76a6314823a5fdeae102619e4016bb37be017f03c7831d302"
+    }
+  },
+  "schemaChange": true,
+  "preservedFailures": [
+    "Initial fresh/upgrade used local checkout with an empty untracked migration directory; both stopped P3015. V2 uses exact Git-sourced files and new owned databases.",
+    "First native run had318pass/3fail because its required parent directory was not created before UI tests. V2 creates the owned test parent; identicalsource321pass."
+  ],
+  "liveAcceptance": "NOT_RUN",
+  "deployment": "NOT_RUN",
+  "limits": [
+    "Source qualification only; exact image and runtime qualification still required.",
+    "No original model turn or budget initialized.",
+    "Retirement bridge is a separate source/rehearsal attestation."
+  ]
+}

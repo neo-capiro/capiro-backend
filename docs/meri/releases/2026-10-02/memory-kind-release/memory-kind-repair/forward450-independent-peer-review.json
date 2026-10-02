@@ -1,0 +1,51 @@
+{
+  "status": "PASS",
+  "reviewer": "/root/file01_release_audit",
+  "recordedAt": "2026-10-02T15:59:58.340608+00:00",
+  "sourceSha256": {
+    "forward450-runner.mjs": "0162ca9979d3876baedbabd1e11b62c191baf7d61abd4320e813392ac43769d4",
+    "forward450-oneoff.py": "03f5c2eb792a7cc9abd8aecf923268f6a5b1fc0989c4c68f1a47a5508dc8ae9f",
+    "synthetic-canary-codebuild-450.py": "1f4fa1401571361db593db9372aa7bec635a397d57383096bff3e65a529b3822"
+  },
+  "results": [
+    {
+      "name": "node",
+      "command": [
+        "C:/Program Files/nodejs/node.exe",
+        "--test",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-repair\\forward450-runner.test.mjs"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 0.361,
+      "logFile": "forward450-peer-node.log",
+      "logSha256": "f1fa61b5ce40c5adfa38f9aea796a192ce609fbe8b6eed8975d38ebe78e2a105"
+    },
+    {
+      "name": "python",
+      "command": [
+        "C:\\ProgramData\\Hermes\\tools\\python-3.14.7+20260901-win32-x64\\python.exe",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-repair\\forward450-oneoff-tests.py"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 0.471,
+      "logFile": "forward450-peer-python.log",
+      "logSha256": "aabbe3332d1db4b0a061f15f4d569c89144d35931f6bf79549da762c24b89aad"
+    }
+  ],
+  "nodeActualOwnedPostgresTests": 1,
+  "pythonOfflineTests": 13,
+  "cloudWrites": 0,
+  "sharedDatabaseCalls": 0,
+  "limits": [
+    "Local minimal PG schema proves readonly catalog/ledger/claim guards and actual lock refusal, not actual shared Prisma deploy.",
+    "Strict RDS TLS settings are source-reviewed; actual encrypted RDS connections and normal Prisma450 execution are runtime gates.",
+    "No proof/input materialized by reviewer; root must bind current qualified source/image and readback at prepare."
+  ],
+  "nodeTests": 4,
+  "findings": [
+    "PASS: exact449 preflight and450 postcheck, all prior ledger columns preserved including timestamp microseconds via ::text, both validated CHECK hashes and four synthetic claims held exact.",
+    "PASS: role/DB endpoint/image/source separation binds qualified candidate450 to existing API505 health/network and reviewed migrate135 master secret references; no new provider secrets.",
+    "PASS: subprocess invokes only packaged Prisma migrate deploy, never workflow seeding or resolve/reset/ledger SQL; actual migration supplies one atomic5s lock/30s statement transaction.",
+    "PASS: strict TLS/CA in pg and child Prisma URL, no raw URL/Prisma outputs copied, source-owned safe receipts only; ambiguous execution remains reconciliation-required with no automatic retry."
+  ]
+}
