@@ -1,4 +1,23 @@
-## Current checkpoint — 2026-10-02 18:49 UTC, planner repair deployed
+## Current checkpoint — 2026-10-02 19:09 UTC, original01 runtime failure
+
+The fresh original01 retest reached the runtime but failed before an answer-model
+call. Its persisted assistant response says the reasoning runtime was unavailable.
+An authenticated readback verified two messages, no citations and one settled
+embedding attempt with11 tokens/one micro-dollar. Both synthetic sessions were
+revoked. Exact logs identify a provider-budget reservation HTTP500; diagnosis is
+in progress. See [the actual retest receipts and result](../releases/2026-10-02/original75-retest/README.md).
+
+The collector also failed to retain the response before its citation assertion.
+Raw-failure retention and terminal spend accounting independent of answer grade
+are being repaired. The same native journal retains the old$3 UNKNOWN plus the
+retest$3 ceiling; no refund, replacement journal or resend occurred. Original20's
+read-only setup plan is verified; no20 fixture mutation or model submission yet.
+
+**File01 remains incomplete: zero original live rows fully accepted.** API509,
+orchestrator99 and WebVNext388 remain deployed. Full75, applicable variants and
+human review remain open. Defense Chat is excluded.
+
+## Prior checkpoint — 2026-10-02 18:49 UTC, planner repair deployed
 
 API509/source324195 is deployed and independently healthy at2/2, with two
 healthy owned ALB targets. Orchestrator99/sourceddb55 and WebVNext388/source78ad

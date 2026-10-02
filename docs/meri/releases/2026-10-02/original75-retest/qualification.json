@@ -1,0 +1,63 @@
+{
+  "kind": "case01-canonical-retest-local-qualification",
+  "observedAt": "2026-10-02T18:38:50.338015+00:00",
+  "status": "PASS_LOCAL_REVIEW_ROOT_EXECUTION_PENDING",
+  "sourceSha": "324195f120df830efc9c7e9f557898304b5467dd",
+  "files": {
+    "retest-owner.mjs": "cd2c6f38cc5fd0c339c0fb4df085cf861b7c7808c319adee446c9dd6c5edbe64",
+    "retest-oneoff.py": "90ed06ad360933cad689f1c22ca4a7625783f8a2a34323921c04cdc9eb34286b",
+    "retest-plan-input.json": "9e1c32b160ede0668f437fee229b0c6f960a606555d033129735b628946c0112",
+    "retest-owner.test.mjs": "b811c341734deb74dc53b64b56c7e1f26593d196b4aa09811e3c463f8640aa55",
+    "retest-oneoff.test.py": "4c00da1060877b04eba693d5fa81071ba651bfa1141b2cafab7e25841834f3ae"
+  },
+  "proofSha256": "f1a4c4666fc8e2ec0dd73a207fa1d6265806bf379861b8ab50d0ee7c3b69f415",
+  "checks": [
+    {
+      "name": "fixed scope and actual Prisma binding/conversation transaction",
+      "pass": 2,
+      "fail": 0,
+      "skip": 0,
+      "exitCode": 0,
+      "logSha256": "f2f4e6894492faea7fd203ce9fac5738453e163a452882fff548c88f8fe3ae9f",
+      "limits": "Current-source qualification is a labeled UNIT port in the local SQL test; real canonical hydration is used by the packaged operation and retains separately qualified source tests."
+    },
+    {
+      "name": "fixed oneoff inputs/closure/source/receipt/DB-only-task gates",
+      "pass": 8,
+      "fail": 0,
+      "exitCode": 0,
+      "logSha256": "b5ee6a972d3c420d5cb959c4fcc73649716de1ead704dcca9db8fa7b7263517e"
+    }
+  ],
+  "hermes": {
+    "requestedModel": "moonshotai.kimi-k2.5",
+    "initializedModel": "moonshotai.kimi-k2.5",
+    "sessionId": "20261002_183529_6cb524",
+    "provider": "bedrock",
+    "reportedTokens": {
+      "input": 12712,
+      "output": 337,
+      "total": 13049,
+      "cache_read": 0,
+      "cache_write": 0
+    },
+    "reportedResultExit": 0,
+    "toolCalls": 0,
+    "billedCostUsd": null,
+    "costStatus": "not exposed by quiet stream output"
+  },
+  "hermesExit": {
+    "exitCode": 0,
+    "started": 1790966127.0177453,
+    "finished": 1790966142.842775,
+    "elapsedSeconds": 15.83
+  },
+  "hermesVerdict": "PASS",
+  "reviewAdjudication": "Reviewer attributes currentVerify comparison to validateInput, but it occurs in the locked runRetest transaction. No blocker. Tests and review do not establish live corpus or retest acceptance.",
+  "externalApplicationWrites": 0,
+  "cloudWrites": 0,
+  "authCalls": 0,
+  "modelSubmissions": 0,
+  "ledgerWrites": 0,
+  "liveAcceptance": "NOT_RUN"
+}

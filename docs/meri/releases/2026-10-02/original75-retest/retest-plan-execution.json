@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "status": "VERIFIED",
+  "planHash": "9968511ae8e134b706bdb4502b085110ff88b8ff57d4f973e939c8183bb2536a",
+  "mode": "retest-plan",
+  "operationId": "fe842435-ebe9-459f-aa4f-78cceab3a8d9",
+  "sourceSha": "324195f120df830efc9c7e9f557898304b5467dd",
+  "operatorHead": "12e759e137a73a341fca073a609995e8002e7181",
+  "liveAcceptance": "NOT_RUN",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-case01-retest:1",
+  "startedBy": "meri-c01-fe842435-ebe9-459f-aa4f-",
+  "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/cfd6d5b83c2e4f7b972d3ceef0401de5",
+  "containerExitCode": 0,
+  "logMessageCount": 1,
+  "ownerReceipts": [
+    {
+      "kind": "meri-case01-retest-plan",
+      "schemaVersion": 1,
+      "status": "READY",
+      "sourceSha": "324195f120df830efc9c7e9f557898304b5467dd",
+      "captureRunId": "6a88e8c5-ab38-405f-a282-82aa58d54e0c",
+      "priorCaptureRunId": "c6ffa5ad-dd9f-4912-bc31-a03231a9b903",
+      "priorConversationId": "d7a74b15-873b-4256-a1d1-c6b4da3f8e1f",
+      "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+      "actorUserId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+      "closureSha256": "f21d61892033061574bf312c249986445aba2947aaaea17b5d30e74212707da4",
+      "oldConversationSha256": "d53e31e591c3bbcbaf674b78d366efa7fc6a53c5f2dba8a8bbab30a8da7aa350",
+      "preservedSettingsSha256": "19213988b4736d0096460285c844a8929546cbd6715ac17ddf1254e7b724cb1a",
+      "expectedTenantRowVersion": "113661754",
+      "expectedPriorBindingSha256": "d25b06fe7c2c301be7075767e2ddceccc235fec7d5a5f8ca6a8bd6f69ed5c6cc",
+      "currentVerifySha256": "177bf9befa20f94f7e0a7318e259155915401b128c1e917d4c71cc4e3d96825b",
+      "physicalMapSha256": "cf61a870caf2099fd53f36c849189eef1188237191f2e7e9e2c6d9c4c6511974",
+      "locatorSha256": "a3d23869a7e0b76e89f679e76d2e1cb8ca1be1b1f27ad5abe62fe81c1b8e82ce",
+      "liveAcceptance": "NOT_RUN",
+      "synthesisSubmissionCount": 0,
+      "planSha256": "ae7f2c2515e1fb64fe4379d3f09186c37fe7081652ddff39729b35176318a838"
+    }
+  ]
+}

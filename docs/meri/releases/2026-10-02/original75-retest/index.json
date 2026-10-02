@@ -1,0 +1,50 @@
+{
+  "kind": "original01-retest-evidence",
+  "files": [
+    {
+      "path": "qualification.json",
+      "sha256": "e4496fc594921d296756a3748557be1b1ce0c2aa80627239e8ccfc5bc6fc1761",
+      "bytes": 2561
+    },
+    {
+      "path": "retest-budget-qualification.json",
+      "sha256": "7071d628b79da88628a0253c398654b5688925c7fb27f7248517cbb922b4ab08",
+      "bytes": 1910
+    },
+    {
+      "path": "retest-capture-qualification.json",
+      "sha256": "979ea8a9463966084ab068396c3b6390ae5229a29b379321656ccb0184905b50",
+      "bytes": 4616
+    },
+    {
+      "path": "retest-plan-execution.json",
+      "sha256": "7f8d81418dbc43a0e1ab26c3a42ec82774d50a8f949f131983a9363c1075fd92",
+      "bytes": 2104
+    },
+    {
+      "path": "retest-execute-execution.json",
+      "sha256": "48fff3fb95e8d8af672b46c69605123b052240e13e5058800fae8bbe70c8079c",
+      "bytes": 3730
+    },
+    {
+      "path": "budget-plan-retest-execution.json",
+      "sha256": "0513d3c779eb8f8a34549ba494526e9ced8b0d626d80159ebba0c9414c33642d",
+      "bytes": 1241
+    },
+    {
+      "path": "budget-install-retest-execution.json",
+      "sha256": "fc592838c3bd75c1e492f85a9aa6be97d06f596b3881aa6467df0b2037253760",
+      "bytes": 1631
+    },
+    {
+      "path": "case01-live-execution-planner-retest.json",
+      "sha256": "b62aab6888cec5ddd072541a9327b4091988680330698d4f046086aa0a6f7747",
+      "bytes": 3571
+    },
+    {
+      "path": "retest-capture-final-tests-exit.json",
+      "sha256": "36e4ae3ece8cc448117ba0d79519c11ca71c72200d4bb37058f6f4f57a7785da",
+      "bytes": 108
+    }
+  ]
+}

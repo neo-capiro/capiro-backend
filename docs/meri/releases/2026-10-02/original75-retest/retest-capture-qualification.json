@@ -1,0 +1,91 @@
+{
+  "kind": "meri-case01-retest-capture-qualification",
+  "observedAt": "2026-10-02T19:04:20.968235+00:00",
+  "status": "OFFLINE_COMPOSITION_QUALIFIED_LIVE_CASE_FAILED",
+  "sharedPolicyObservedHead": "743fd708c3484604e8a35ea1039adeca3b1e331f",
+  "sharedPolicyOrigin": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "sourceHashes": {
+    "retest-capture-gates.mjs": "b8af3c8dda0df1b0db06bcb2070f15ac7926e7d0ebdf9188a76a5b0723f6cd98",
+    "retest-capture-inputs.mjs": "3ee2c290cca1fcc76cc7b71a7c886152feb5c06c6f847d77df2b214633577325",
+    "materialize-retest-capture.mjs": "95bae504fefd48fef39b7fc6c7b09e0305c1d1bef38c34b421896def5b79a4a6",
+    "run-case01-retest.mjs": "40b0e4b75f13c77d5fe693a68e7be343ac097fbd80d97ed20c2c6e672d636ee0"
+  },
+  "sourcePinsSha256": "948c1cca5c0d3300e94ef8bdefa18debb005d8ffaf3343e7eea59d89f9ce6fab",
+  "tests": {
+    "count": 14,
+    "passed": 14,
+    "skipped": 0,
+    "exitCode": 0,
+    "logSha256": "50146f289b656b1f584f56b18d423055d71d661cef20353a124a2c3f6cd40b6b",
+    "exitSha256": "36e4ae3ece8cc448117ba0d79519c11ca71c72200d4bb37058f6f4f57a7785da",
+    "scope": "13 local/UNIT safety checks plus actual saved setup+budget plan/receipt join and native scope validation; no auth/provider/journal writes by test"
+  },
+  "review": {
+    "model": {
+      "requestedModel": "moonshotai.kimi-k2.5",
+      "initializedModel": "moonshotai.kimi-k2.5",
+      "sessionId": "20261002_185957_84d4e9",
+      "provider": "bedrock",
+      "reportedTokens": {
+        "input": 15187,
+        "output": 576,
+        "total": 15763,
+        "cache_read": 0,
+        "cache_write": 0
+      },
+      "reportedResultExit": 0,
+      "toolCalls": 0,
+      "billedCostUsd": null,
+      "costStatus": "not exposed by quiet stream output"
+    },
+    "actualProcessExit": 0,
+    "rawVerdict": "BLOCKED",
+    "rawReviewSha256": "d8b0af99521c1885ee58b8b7e0fc4d3fa8cb572f5f9063313c1c948254434a6c",
+    "adjudication": "No concrete new composition blocker identified; raw BLOCK preserved, not relabeled model PASS",
+    "findings": [
+      {
+        "claim": "Offline fixture package import marker contradicts live browser",
+        "finding": "FALSE_PREMISE",
+        "evidence": "Marker proves image modules import without network during build; native capture separately verifies actual live owner/auth/build. It does not designate UNIT fixtures."
+      },
+      {
+        "claim": "Clerk credential use/sessionCreated boolean leaks authentication",
+        "finding": "FALSE_PREMISE",
+        "evidence": "Secret/token are used in process by approved auth flow; neither is saved. sessionCreated and sessionRevoked are booleans. Owned session is revoked in finally."
+      },
+      {
+        "claim": "Durable reservation before auth may remain uncertain after crash",
+        "finding": "EXPECTED_FAIL_CLOSED_BEHAVIOR",
+        "evidence": "Intentional full-ceiling durable reservation precedes any provider possibility; ambiguity blocks further cases until reconciliation. No refund or auto-retry."
+      },
+      {
+        "claim": "Reload screenshot may not prove exact synthesized response",
+        "finding": "NO_NEW_COMPOSITION_BLOCKER",
+        "evidence": "Existing source-owned collector requires saved assistant body.trim() equals SSE answer.trim() before CAPTURE_COMPLETE at case01-live-capture.mjs574-587. Screenshot is separate subsequent UI observation, not capture authority. A concurrent later UI mutation is not excluded by this screenshot alone; no UI screenshot occurred in this failed attempt."
+      },
+      {
+        "claim": "Human NOT_RUN and missing adjudication file are blockers",
+        "finding": "FALSE_PREMISE",
+        "evidence": "No human result exists. EOF preserves capture with HUMAN_REVIEW_PENDING. Explicit adjudication command alone attempts file read; missing file fails rather than inventing review."
+      }
+    ],
+    "independentRootSourceReview": "Parent read all four frozen files and reported no blocker before execution"
+  },
+  "actualRootExecution": {
+    "path": "case01-live-execution-planner-retest.json",
+    "sha256": "b62aab6888cec5ddd072541a9327b4091988680330698d4f046086aa0a6f7747",
+    "status": "CAPTURE_UNCERTAIN",
+    "reason": "CASE01_CITATION_MISSING",
+    "synthesisSubmissionCount": 1,
+    "sessionRevoked": true,
+    "acceptance": "NOT_PASS",
+    "instruction": "No resubmission/reset; read-only saved answer and provider ledger reconciliation prepared separately"
+  },
+  "laneEffects": {
+    "sourceEdits": "outside-repository operator only",
+    "authCalls": 0,
+    "providerCalls": 0,
+    "cloudWrites": 0,
+    "journalWrites": 0
+  }
+}

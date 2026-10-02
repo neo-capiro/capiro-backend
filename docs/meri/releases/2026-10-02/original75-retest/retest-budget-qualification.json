@@ -1,0 +1,48 @@
+{
+  "status": "LOCAL_TESTS_AND_ACTUAL_SETUP_SHAPE_PASS",
+  "operatorSha256": "deeb67a02815284cb51ff72a24572e478d4d63366c4bbeda0307998e41db5b6b",
+  "actualTests": 13,
+  "testExit": {
+    "exitCode": 0,
+    "elapsedSeconds": 0.62,
+    "logSha256": "89c989f745ff0602c4bfee582c489d81c11f880abf49673fc729dd96255ed985",
+    "networkCalls": 0,
+    "providerCalls": 0,
+    "sharedDatabaseWrites": 0
+  },
+  "retestOwnerSha256": "90ed06ad360933cad689f1c22ca4a7625783f8a2a34323921c04cdc9eb34286b",
+  "actualSetupExecutionSha256": "48fff3fb95e8d8af672b46c69605123b052240e13e5058800fae8bbe70c8079c",
+  "actualSetupStatus": "RETEST_SETUP_COMPLETE",
+  "actualSourceSha": "324195f120df830efc9c7e9f557898304b5467dd",
+  "actualCaptureRunId": "6a88e8c5-ab38-405f-a282-82aa58d54e0c",
+  "actualConversationId": "e3bc5bd4-6912-4cd2-bfde-f50499afd08e",
+  "liveBudgetSetup": "NOT_RUN",
+  "localInputMaterialized": false,
+  "cloudCalls": 0,
+  "databaseCalls": 0,
+  "authCalls": 0,
+  "providerCalls": 0,
+  "review": {
+    "initialOperatorSha256": "f842f5b07d8faeafbe6ef8ae182316dd38487b9661fa788fffeee7a56d17a25f",
+    "initialKimiStatus": "PASS",
+    "actualUsage": {
+      "requestedModel": "moonshotai.kimi-k2.5",
+      "initializedModel": "moonshotai.kimi-k2.5",
+      "sessionId": "20261002_184859_029e6b",
+      "provider": "bedrock",
+      "reportedTokens": {
+        "input": 31220,
+        "output": 710,
+        "total": 31930,
+        "cache_read": 0,
+        "cache_write": 0
+      },
+      "reportedResultExit": 0,
+      "toolCalls": 0,
+      "billedCostUsd": null,
+      "costStatus": "not exposed by quiet stream output"
+    },
+    "rawReviewSha256": "830647855f49d9abae4dc69dac1cb5eee598c4b1c1b09685cf4822eadd6a9ee0",
+    "finalDelta": "Preserve actual current prior qualification hash rather than assume null; root identified, final peer review separately recorded."
+  }
+}
