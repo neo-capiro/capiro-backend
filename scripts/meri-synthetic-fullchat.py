@@ -39,7 +39,7 @@ IMAGE_REPOSITORY = f"{ACCOUNT_ID}.dkr.ecr.{REGION}.amazonaws.com/capiro/dev/api"
 FLAG = "meriv3.fullChat"
 TENANTS = (
     ("f2d6cf8f-057c-479a-8110-62fe5086d43f", "meri-foundation-20260928-t1"),
-    ("52e91176-08f-4d89-9633-bc212f5bdbbf", "meri-foundation-20260928-t2"),
+    ("52e91176-08f0-4d89-9633-bc212f5bdbbf", "meri-foundation-20260928-t2"),
 )
 APPLY_CONFIRMATION = "APPLY_FIXED_MERI_FOUNDATION_FULLCHAT"
 ROLLBACK_CONFIRMATION = "ROLLBACK_FIXED_MERI_FOUNDATION_FULLCHAT"

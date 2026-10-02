@@ -9,10 +9,12 @@ import http.server
 import importlib.util
 import json
 import os
+import re
 import sys
 import tempfile
 import threading
 import unittest
+import uuid
 import zipfile
 from pathlib import Path
 from typing import Any, Sequence
@@ -24,6 +26,51 @@ assert SPEC and SPEC.loader
 fullchat = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = fullchat
 SPEC.loader.exec_module(fullchat)
+
+
+
+# Deliberately independent of the wrapper constants: these are the approved
+# identities used by the image-owned TypeScript flag command.
+CANONICAL_TENANTS = (
+    ("f2d6cf8f-057c-479a-8110-62fe5086d43f", "meri-foundation-20260928-t1"),
+    ("52e91176-08f0-4d89-9633-bc212f5bdbbf", "meri-foundation-20260928-t2"),
+)
+
+
+class FixedTenantIdentityTests(unittest.TestCase):
+    def test_wrapper_matches_canonical_image_owner_identities(self) -> None:
+        owner = SCRIPT.parents[1] / "apps/api/scripts/set-tenant-flag-foundation.ts"
+        source = owner.read_text(encoding="utf-8")
+        definition = source.split("export const FOUNDATION_FULLCHAT_TENANTS = [", 1)[1].split("] as const;", 1)[0]
+        owner_pairs = tuple(re.findall(r"id: '([^']+)',\s*slug: '([^']+)'", definition))
+        self.assertEqual(owner_pairs, CANONICAL_TENANTS)
+        self.assertEqual(fullchat.TENANTS, CANONICAL_TENANTS)
+        for tenant_id, _ in fullchat.TENANTS:
+            self.assertEqual(str(uuid.UUID(tenant_id)), tenant_id)
+
+    def test_accepts_actual_owner_receipt_with_canonical_tenant_ids(self) -> None:
+        receipt = {
+            "schemaVersion": 1,
+            "operation": "meri-foundation-fullchat",
+            "mode": "plan",
+            "result": "PLAN_ONLY",
+            "flag": "meriv3.fullChat",
+            "tenants": [
+                {
+                    "tenantId": tenant_id,
+                    "tenantSlug": slug,
+                    "before": {"present": False},
+                    "after": {"present": False},
+                }
+                for tenant_id, slug in CANONICAL_TENANTS
+            ],
+        }
+        actual, before, after = fullchat.parse_db_result(
+            ["MERI_FOUNDATION_FULLCHAT_RESULT=" + json.dumps(receipt)], "plan"
+        )
+        self.assertEqual(actual, receipt)
+        self.assertEqual(before, after)
+        self.assertEqual(tuple((item["tenantId"], item["tenantSlug"]) for item in before), CANONICAL_TENANTS)
 
 
 def states(first: Any = None, second: Any = False) -> list[dict[str, Any]]:

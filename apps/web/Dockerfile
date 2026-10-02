@@ -10,7 +10,8 @@
 # Runtime config (Clerk publishable key, API base URL) is injected at container
 # start by entrypoint.sh, so the same image promotes through environments.
 
-ARG NODE_VERSION=20.16.0
+# Match the locked jsdom/toolchain engine floor (Node >=22.13) and API build runtime.
+ARG NODE_VERSION=22.23.3
 ARG NGINX_VERSION=1.27.1-alpine
 
 # -------- base ----------------------------------------------------------------
