@@ -1,0 +1,35 @@
+{
+  "kind": "meri-memory-read-interrupted-spend-qualification",
+  "sourceSha": "82467d0fd15e5f285005bd62148f11f31aa9eadc",
+  "sourceSha256": {
+    "evals/meri/live-v1/capture-spend-reconciliation.mjs": "fee573186e368a44e837345a8e18aee4d3c25bc28530603527d304f58c1a8b8a",
+    "evals/meri/live-v1/tests/memory-read-reconciliation.test.mjs": "36bd07fbc7f70107899ba4cea5d330aad79723ca4999f05a5cb9e1f3d708f7db"
+  },
+  "tests": {
+    "passed": 13,
+    "failed": 0,
+    "skipped": 0,
+    "exitCode": 0,
+    "logSha256": "57c5074f3d945f8aee0baa7857635369eb2bd0681642e8e8cbad8af25db18208",
+    "exitSha256": "ea61d7736f0b7ecb9b35158f03de77013db6b100cf1d36c957e78e6c8817c5b6"
+  },
+  "review": {
+    "type": "independent source peer",
+    "reviewer": "file01_release_audit",
+    "verdict": "PASS",
+    "reviewedSourceSha256": "fee573186e368a44e837345a8e18aee4d3c25bc28530603527d304f58c1a8b8a",
+    "testRerunByPeer": false,
+    "scope": "Classifier, trust boundary, source separation, rate/terminal joins, existing native one-close semantics."
+  },
+  "operator": {
+    "file": "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-read-recovery\\reconcile-shared-case01.mjs",
+    "sha256": "2d7f77325f2009864af0e7f32ed3711cf5ef9ce7193b4d6303ba7ad63a0353d3",
+    "executed": false,
+    "pending": "Root source review and actual authenticated two-GET readback from the qualified repair API."
+  },
+  "liveJournalWrites": 0,
+  "providerSubmissions": 0,
+  "originalCaseAcceptance": "NOT_EVALUATED",
+  "historicalSource": "fecce92b0f9880fea720c755e7c5defde1af69a9",
+  "readbackApiSource": "MUST_BE_SUPPLIED_FROM_ACTUAL_REPAIR_RELEASE"
+}

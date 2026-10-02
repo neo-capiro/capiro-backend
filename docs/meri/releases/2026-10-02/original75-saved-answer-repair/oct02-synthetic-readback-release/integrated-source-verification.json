@@ -1,0 +1,44 @@
+{
+  "kind": "root-integrated-readback-source-verification",
+  "sourceSha": "240f378094be1ee8f722560173e68dc4936aaef0",
+  "sourceBlobBridge": "PASS",
+  "commands": [
+    {
+      "name": "owned-pg",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "--test",
+        "evals/meri/live-v1/tests/synthetic-read-budget.postgres.test.mjs"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 3.03,
+      "logSha256": "386f7aef16c87e19d315ef38f2c3d2eb73784f731266802414f40612c9329d25"
+    },
+    {
+      "name": "recovery",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "--test",
+        "evals/meri/live-v1/tests/memory-read-reconciliation.test.mjs"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 1.57,
+      "logSha256": "553a51188eb0d28bd89fae8843f2e85c0be4a35bcf3045c4aafb78832d9ffdc7"
+    },
+    {
+      "name": "api-primary-types",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "apps/api/node_modules/typescript/bin/tsc",
+        "-p",
+        "apps/api/tsconfig.json",
+        "--noEmit"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 37.91,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "exitCode": 0,
+  "sourceUnchanged": true
+}

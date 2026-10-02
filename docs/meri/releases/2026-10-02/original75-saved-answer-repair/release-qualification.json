@@ -1,0 +1,155 @@
+{
+  "kind": "meri-completed-synthetic-answer-release-qualification",
+  "status": "PASS",
+  "createdAt": "2026-10-02T20:49:11.282743+00:00",
+  "sourceSha": "240f378094be1ee8f722560173e68dc4936aaef0",
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:9da63160063d9a711b2c7625803919d91803d96284037ecd097c24bedcbdacbd",
+  "policySha": "743fd708c3484604e8a35ea1039adeca3b1e331f",
+  "machineMapRevision": "2026-09-30",
+  "checks": {
+    "exactSourceOfflineCases": 26,
+    "rootIntegratedOwnedPostgres": 8,
+    "rootInterruptedRecovery": 4,
+    "apiPrimaryTypecheckExit": 0,
+    "legacyReadbackTests": 37,
+    "independentHermesReview": "PASS",
+    "compiledReadbackOwnerImport": "PASS",
+    "exact451MigrationHashes": "PASS"
+  },
+  "review": "Root reviewed production source, recovery classifier, actual integration test exits and exact source byte bridge. Independent Bedrock Kimi final review passed. Legacy37 tests preceded final historical-read delta; final owned PostgreSQL tests cover that delta.",
+  "liveAcceptance": "INCOMPLETE",
+  "original75": {
+    "attemptedUniqueCases": 1,
+    "acceptedCases": 0,
+    "remainingUnrun": 74,
+    "case01": "Correct core answer returned; saved messages GET403 before this repair. No resubmission authorized by this receipt."
+  },
+  "retirementCompatibility": {
+    "status": "PASS",
+    "sourceSha": "240f378094be1ee8f722560173e68dc4936aaef0",
+    "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:9da63160063d9a711b2c7625803919d91803d96284037ecd097c24bedcbdacbd",
+    "schemaChange": false,
+    "previousApiTaskDefinition": 511,
+    "orchestratorTaskDefinition": 101,
+    "orchestratorSourceSha": "fecce92b0f9880fea720c755e7c5defde1af69a9",
+    "webTaskDefinition": 388,
+    "note": "API-only repair reads existing completed budget-only synthetic messages using current tenant/member/client/owned-conversation checks and settled in-window terminal records. No migration, new admission authority, model, routing, environment or web change. Signed capture expiry remains unchanged. Existing API511 is compatible rollback; tests stop rather than replay on rollback."
+  },
+  "limitations": [
+    "Full original75 live acceptance and human rubric are incomplete.",
+    "Task lookup and mail-response quality spot-check failures remain open.",
+    "Frozen September26 evaluation clock and paired modes are not yet proved."
+  ],
+  "artifacts": [
+    {
+      "path": "oct02-synthetic-readback-release/api-independent-20261002T204900047832Z.json",
+      "sha256": "54ab6c9826487e06a4d51cf14889a6e5e52b5d65d71623b2f1227fb1f5c997bd",
+      "bytes": 3121
+    },
+    {
+      "path": "oct02-synthetic-readback-release/api-build-start.json",
+      "sha256": "4ac69218303e1b5f4c6d87e75a17627285e0af06dbc2776c96d5a7d288725abb",
+      "bytes": 760
+    },
+    {
+      "path": "oct02-synthetic-readback-release/api.buildspec.yml",
+      "sha256": "3197b661360ee4a02e35e9657541c055bd152f72e7c2f243b1000d43c3f66481",
+      "bytes": 9741
+    },
+    {
+      "path": "oct02-synthetic-readback-release/reviewed-build-input.json",
+      "sha256": "507f47b417328e46fc8bb381cc3170f001339fea4567a0fc4306f75a347c5e60",
+      "bytes": 856
+    },
+    {
+      "path": "oct02-synthetic-readback-release/integrated-source-verification.json",
+      "sha256": "e03a9a07b7f630e9a51fddf38357e1ba83c66861e6a0343df458876c1254a7da",
+      "bytes": 1320
+    },
+    {
+      "path": "oct02-synthetic-readback-release/owned-pg.log",
+      "sha256": "386f7aef16c87e19d315ef38f2c3d2eb73784f731266802414f40612c9329d25",
+      "bytes": 2434
+    },
+    {
+      "path": "oct02-synthetic-readback-release/recovery.log",
+      "sha256": "553a51188eb0d28bd89fae8843f2e85c0be4a35bcf3045c4aafb78832d9ffdc7",
+      "bytes": 1213
+    },
+    {
+      "path": "oct02-synthetic-readback-release/api-primary-types.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "oct02-synthetic-readback-release/offline/exits.json",
+      "sha256": "b013b5d8900b3c343259aaeb9037c5c5bb6e2e05b9e3e7236396d276e7ffa4eb",
+      "bytes": 2948
+    },
+    {
+      "path": "oct02-synthetic-readback-release/offline/meri-offline.summary.json",
+      "sha256": "8ef39653cae3deaf68dda06058ffb49700641752b1803f7637a0d6ddaae0aca7",
+      "bytes": 3943
+    },
+    {
+      "path": "oct02-budget-readback-repair/qualification.json",
+      "sha256": "da4d7c2dc8beeff1baa2790c0d08732866f913f5f607ce565141ac8c44227aa6",
+      "bytes": 2952
+    },
+    {
+      "path": "oct02-budget-readback-repair/readback-final-kimi-review.md",
+      "sha256": "937ea4b94386cdb369055f0fe1faf5f4ab2ec9e037dd8ef71d0c6aa6aedb5a96",
+      "bytes": 2907
+    },
+    {
+      "path": "oct02-budget-readback-repair/readback-final-kimi-exit.json",
+      "sha256": "e791dcae78d9a72adb9eb3ad30202a2f6a52a84bbf7e1ba3e4c398002ccdacce",
+      "bytes": 103
+    },
+    {
+      "path": "oct02-budget-readback-repair/readback-final-kimi-usage.json",
+      "sha256": "bdc48b1bf1f86793ac1038b543ca166639bb57c26847c2468f9982009aab5b04",
+      "bytes": 426
+    },
+    {
+      "path": "oct02-budget-readback-repair/owned-pg-final.log",
+      "sha256": "d492db636b19850aabf563da4354b33f220eaa675510803291aebbd0382e1814",
+      "bytes": 2494
+    },
+    {
+      "path": "oct02-budget-readback-repair/readback-jest-v2.log",
+      "sha256": "b474cbf58bbb57a492843605e954d744ee46a5890e3f0468f6fe4226ed7008e5",
+      "bytes": 35525
+    },
+    {
+      "path": "oct02-budget-readback-repair/api-types-final.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "oct02-memory-read-recovery/qualification.json",
+      "sha256": "c093477e5efce850944bdb184b1591ad400ab47c52e22b981f2bf297ae1efa9c",
+      "bytes": 1653
+    },
+    {
+      "path": "oct02-shared-budget-release/api-promotion-receipt.json",
+      "sha256": "9a62d8406737b9a4371e26c3a27e897271bb29ac5c36b86006be9030d7b2d309",
+      "bytes": 1034
+    },
+    {
+      "path": "oct02-shared-budget-release/api-independent-promotion-readback.json",
+      "sha256": "d908dbb2faf9cef492922365ef37999a89a4e91a035400a0d01800cbd9b74581",
+      "bytes": 2988
+    },
+    {
+      "path": "oct02-shared-budget-release/meriv2-orchestrator-promotion-receipt.json",
+      "sha256": "06787635eec1ea336365bde2a2a11e1165d722057c3d2e667c04d22ffd39f5e1",
+      "bytes": 1114
+    },
+    {
+      "path": "oct02-shared-budget-release/meriv2-orchestrator-independent-promotion-readback.json",
+      "sha256": "805a0b6e744acb236fc82ab456db71208fb8855bfe59f777d9153f2f65b48185",
+      "bytes": 2703
+    }
+  ]
+}

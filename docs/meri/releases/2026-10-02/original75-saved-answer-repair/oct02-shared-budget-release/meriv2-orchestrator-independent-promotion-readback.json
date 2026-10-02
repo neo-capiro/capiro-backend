@@ -1,0 +1,67 @@
+{
+  "kind": "independent-orchestrator-promotion-readback",
+  "status": "PASS",
+  "observedAt": "2026-10-02T20:10:08.877476+00:00",
+  "sourceSha": "fecce92b0f9880fea720c755e7c5defde1af69a9",
+  "imageDigest": "sha256:2e5030104ad34d40b1854b755be829c8a822e53c58508baa78f40bc39dd8f670",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:101",
+  "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/5500c413de404336a08bbe0c95df4033",
+  "deploymentId": "ecs-svc/6014388069355477133",
+  "rolloutState": "COMPLETED",
+  "desiredCount": 1,
+  "runningCount": 1,
+  "pendingCount": 0,
+  "taskHealth": "HEALTHY",
+  "ownedHealthyAlbTargets": 1,
+  "sourceMetadata": {
+    "RELEASE_SHA": "fecce92b0f9880fea720c755e7c5defde1af69a9",
+    "GIT_SHA": "fecce92b0f9880fea720c755e7c5defde1af69a9"
+  },
+  "canonicalInspect": {
+    "action": "inspected-not-qualified",
+    "observedAt": "2026-10-02T20:10:08.408Z",
+    "service": "meriv2-orchestrator",
+    "baseline": {
+      "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:101",
+      "serviceHash": "28f65b82b339358510c093c136868367dfeda24f8db537dfc0bf089727f2ded9",
+      "configHash": "3a4fabd2139e347cd8b45192579f2a3fbaaa6fc3678762b5252f727a4461951b",
+      "taskHash": "3333fbbca7a38b5cb27141789ac82c966e452e8d228370b9a5bfefb1dd64b819",
+      "imageDigest": "sha256:2e5030104ad34d40b1854b755be829c8a822e53c58508baa78f40bc39dd8f670",
+      "desiredCount": 1
+    },
+    "taskImage": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:2e5030104ad34d40b1854b755be829c8a822e53c58508baa78f40bc39dd8f670",
+    "deploymentConfiguration": {
+      "deploymentCircuitBreaker": {
+        "enable": true,
+        "rollback": true,
+        "resetOnHealthyTask": true,
+        "thresholdConfiguration": {
+          "type": "BOUNDED_PERCENT",
+          "value": 50
+        }
+      },
+      "maximumPercent": 200,
+      "minimumHealthyPercent": 100,
+      "strategy": "ROLLING",
+      "bakeTimeInMinutes": 0
+    },
+    "awsMutation": false
+  },
+  "canonicalInspectCommand": [
+    "C:/Program Files/nodejs/node.exe",
+    "scripts/meri-release.mjs",
+    "inspect",
+    "--service",
+    "meriv2-orchestrator",
+    "--profile",
+    "default"
+  ],
+  "canonicalInspectExitCode": 0,
+  "promotionReceiptSha256": "06787635eec1ea336365bde2a2a11e1165d722057c3d2e667c04d22ffd39f5e1",
+  "awsWrites": 0,
+  "databaseCalls": 0,
+  "liveAcceptance": "NOT_RUN",
+  "limits": [
+    "Verifies rollout/source/digest/health only; original evaluation and shared migration remain separate."
+  ]
+}

@@ -1,0 +1,68 @@
+{
+  "kind": "meri-synthetic-budget-readback-repair-qualification",
+  "status": "PASS",
+  "observedAt": "2026-10-02T20:38:20.203606+00:00",
+  "sourceCommit": "76df128c8e1a2541cd11a739303e5a561ce7eab5",
+  "policyHead": "743fd708c3484604e8a35ea1039adeca3b1e331f",
+  "sourceBlobs": {
+    "apps/api/src/meri/meri-capture-policy-readback.ts": "ec5430c92530b12a6d2ae124091baf3d153bf1a7a58dd3c48920419f8da329c3",
+    "apps/api/src/meri/meri-synthetic-read-budget-owner.ts": "83fc54a182fdbd1b2c473f7647ba201b86126954baaa6b1c221f0256247cc4c8",
+    "apps/api/src/meri/meri-synthetic-read-budget.ts": "79a18eb3afd24af775efc05b9b5fd08285e9714ce495ab8185d20f130c1e2462",
+    "evals/meri/live-v1/tests/synthetic-read-budget.postgres.test.mjs": "0e04e1fd0b078e187fd58290161d53390036b5626d7dbe324f14eea7e7979ebc"
+  },
+  "verification": {
+    "coreBuild": {
+      "exitCode": 0,
+      "logSha256": "423fd4f55d301063db88431c063c2f773dc4c004da5bc993b3151ca46ece0f7a"
+    },
+    "ownedPostgres": {
+      "exitCode": 0,
+      "passed": 8,
+      "skipped": 0,
+      "logSha256": "d492db636b19850aabf563da4354b33f220eaa675510803291aebbd0382e1814"
+    },
+    "fullApiTypecheck": {
+      "exitCode": 0,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "legacyReadbackJest": {
+      "exitCode": 0,
+      "passed": 37,
+      "logSha256": "b474cbf58bbb57a492843605e954d744ee46a5890e3f0468f6fe4226ed7008e5",
+      "scope": "Executed before final historical-only read delta; final PostgreSQL tests cover that delta."
+    },
+    "independentHermes": {
+      "requestedModel": "moonshotai.kimi-k2.5",
+      "initializedModel": "moonshotai.kimi-k2.5",
+      "sessionId": "20261002_203653_c7354a",
+      "provider": "bedrock",
+      "reportedTokens": {
+        "input": 18665,
+        "output": 584,
+        "total": 19249,
+        "cache_read": 0,
+        "cache_write": 0
+      },
+      "reportedResultExit": 0,
+      "toolCalls": 0,
+      "billedCostUsd": null,
+      "costStatus": "not exposed by quiet stream output"
+    },
+    "hermesProcess": {
+      "exitCode": 0,
+      "started": 1790973410.9683976,
+      "finished": 1790973427.4063761,
+      "elapsedSeconds": 16.44
+    }
+  },
+  "limits": [
+    "No auth, provider, cloud, app, or journal actions by this lane.",
+    "This authorizes reading completed private history, not capture authority or accounting settlement.",
+    "Admission and legacy signed capture expiry unchanged.",
+    "Initial stale core build/test and nested test scheduling failures preserved; corrected final test exit is authoritative."
+  ],
+  "reviewAdjudication": {
+    "verdict": "PASS",
+    "note": "Final model wording calls TypeScript Pick a relaxation; runtime qualification predicates are unchanged. Full signed policy guard remains strict. Final current owner locked and rechecked; completed timing/settled attempts enforced."
+  }
+}
