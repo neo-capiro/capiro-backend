@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "verdict": "QUALIFIED_SOURCE_AND_UI_SUBSTEP_ONLY",
+  "sourceSha": "ffbfa942a924369f716f4c0513526e6ff73f4b86",
+  "baseSha": "b3bb62a21bccde3b79478165b32aee98b8da365f",
+  "branch": "codex/meri-case46-capture-20261002",
+  "policySha": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "files": {
+    "apps/api/src/meri/meri-document-artifact.spec.ts": "60c28103fb10ef12b94e2484cd80171a53ea766e3ba05b75081068319ac67f25",
+    "apps/api/src/meri/meri-text-artifact-current-proposal.ts": "344338ed2d7314ed57a9bf1b55c9be5a97aab4866693bee07ee352aafcf68b8a",
+    "apps/api/src/meri/meri-tools.service.ts": "ef9eeda751c253ca685751459204a3f966d2edabf7897a127a7e63ee2484162c",
+    "evals/meri/live-v1/case46-artifact-evidence.mjs": "9abd6c2e10421cffbf937052271fe3b87bc6af08b82ec9654dc101372e33b06c",
+    "evals/meri/live-v1/case46-artifact-ui.md": "c05a2060e569a0dc4e78dc99bcad4febac1b6d9c557cbe3837684f9ce6e976ae",
+    "evals/meri/live-v1/case46-artifact-ui.mjs": "edc53ae170faf64bd242f2a7552e1dc985d8c89e0d7a359d4a29a96dc656ec28",
+    "evals/meri/live-v1/tests/case46-artifact-evidence.test.mjs": "11648ef8eb1cf265caeefe7fe4bd8b18870f20a20876ed982b69667314ef264a",
+    "evals/meri/live-v1/tests/case46-artifact-ui.test.mjs": "44df80dcee18c6a42d6b034c54301d8f697162833c5460d95ad04eb9e4d2ab66"
+  },
+  "tests": [
+    {
+      "command": "pnpm exec jest --runInBand --forceExit src/meri/meri-document-artifact.spec.ts",
+      "passed": 31,
+      "skipped": 0,
+      "actualExit": 0,
+      "log": "current-effect-api-tests.log",
+      "scope": "Actual product artifact/receipt/controller paths; unit persistence port."
+    },
+    {
+      "command": "node --test evals/meri/live-v1/tests/case46-artifact-ui.test.mjs",
+      "passed": 7,
+      "skipped": 0,
+      "actualExit": 0,
+      "log": "native-ui-tests.log",
+      "scope": "Four deterministic predicate tests plus three actual native-storage tests with fake browser/network; no live UI/auth."
+    },
+    {
+      "command": "pnpm exec tsc --noEmit --rootDir .",
+      "actualExit": 0,
+      "log": "current-effect-types.log",
+      "scope": "Primary API typecheck."
+    }
+  ],
+  "independentReview": {
+    "provider": "bedrock",
+    "model": "moonshotai.kimi-k2.5",
+    "sessionId": "20261002_095805_214563",
+    "actualExit": 0,
+    "toolCalls": 0,
+    "verdict": "PASS",
+    "review": "capture-substep-kimi-review.md",
+    "postReviewDelta": "Documentation only, no production/test source change."
+  },
+  "behavior": [
+    "Authenticated txt download joins current canonical succeeded proposal and actual owned artifact-row count; attempt count is independent and duplicates remain visible.",
+    "One-shot UI substep permits only one exact approve request; no prompt/proposal creation, real download event/HTTP/frozen byte checks, reload consistency and exclusive durable local claim.",
+    "Outputs retain UI_SUBSTEP_ONLY / deterministic-only / liveAcceptance NOT_RUN; read-only capture guards untouched."
+  ],
+  "liveCase46": "NOT_RUN",
+  "remaining": [
+    "Source-owned known briefing fixture and frozen original synthesis turn.",
+    "Distinct governed-write capture admission, provider accounting and current capture/effect authority; readonly14 owner is not a valid substitute.",
+    "Native authenticated operator composition and session cleanup around this UI substep.",
+    "Qualified API image with current action readback/source header, then actual UI run and human visual grading."
+  ],
+  "cloudWrites": 0,
+  "liveAuthCalls": 0,
+  "liveModelCalls": 0
+}

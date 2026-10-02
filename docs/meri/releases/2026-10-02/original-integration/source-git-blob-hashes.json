@@ -1,0 +1,449 @@
+{
+  "sourceSha": "a472a7906561cf3192c99c7bc148ad29f00062a7",
+  "historicalCheckpoints": [
+    {
+      "commit": "ffbfa942a924369f716f4c0513526e6ff73f4b86",
+      "file": "apps/api/src/meri/meri-document-artifact.spec.ts",
+      "gitBlobSha256": "60c28103fb10ef12b94e2484cd80171a53ea766e3ba05b75081068319ac67f25",
+      "recordedSourceSha256": "60c28103fb10ef12b94e2484cd80171a53ea766e3ba05b75081068319ac67f25"
+    },
+    {
+      "commit": "ffbfa942a924369f716f4c0513526e6ff73f4b86",
+      "file": "apps/api/src/meri/meri-text-artifact-current-proposal.ts",
+      "gitBlobSha256": "344338ed2d7314ed57a9bf1b55c9be5a97aab4866693bee07ee352aafcf68b8a",
+      "recordedSourceSha256": "344338ed2d7314ed57a9bf1b55c9be5a97aab4866693bee07ee352aafcf68b8a"
+    },
+    {
+      "commit": "ffbfa942a924369f716f4c0513526e6ff73f4b86",
+      "file": "apps/api/src/meri/meri-tools.service.ts",
+      "gitBlobSha256": "ef9eeda751c253ca685751459204a3f966d2edabf7897a127a7e63ee2484162c",
+      "recordedSourceSha256": "ef9eeda751c253ca685751459204a3f966d2edabf7897a127a7e63ee2484162c"
+    },
+    {
+      "commit": "ffbfa942a924369f716f4c0513526e6ff73f4b86",
+      "file": "evals/meri/live-v1/case46-artifact-evidence.mjs",
+      "gitBlobSha256": "9abd6c2e10421cffbf937052271fe3b87bc6af08b82ec9654dc101372e33b06c",
+      "recordedSourceSha256": "9abd6c2e10421cffbf937052271fe3b87bc6af08b82ec9654dc101372e33b06c"
+    },
+    {
+      "commit": "ffbfa942a924369f716f4c0513526e6ff73f4b86",
+      "file": "evals/meri/live-v1/case46-artifact-ui.md",
+      "gitBlobSha256": "c05a2060e569a0dc4e78dc99bcad4febac1b6d9c557cbe3837684f9ce6e976ae",
+      "recordedSourceSha256": "c05a2060e569a0dc4e78dc99bcad4febac1b6d9c557cbe3837684f9ce6e976ae"
+    },
+    {
+      "commit": "ffbfa942a924369f716f4c0513526e6ff73f4b86",
+      "file": "evals/meri/live-v1/case46-artifact-ui.mjs",
+      "gitBlobSha256": "edc53ae170faf64bd242f2a7552e1dc985d8c89e0d7a359d4a29a96dc656ec28",
+      "recordedSourceSha256": "edc53ae170faf64bd242f2a7552e1dc985d8c89e0d7a359d4a29a96dc656ec28"
+    },
+    {
+      "commit": "ffbfa942a924369f716f4c0513526e6ff73f4b86",
+      "file": "evals/meri/live-v1/tests/case46-artifact-evidence.test.mjs",
+      "gitBlobSha256": "11648ef8eb1cf265caeefe7fe4bd8b18870f20a20876ed982b69667314ef264a",
+      "recordedSourceSha256": "11648ef8eb1cf265caeefe7fe4bd8b18870f20a20876ed982b69667314ef264a"
+    },
+    {
+      "commit": "ffbfa942a924369f716f4c0513526e6ff73f4b86",
+      "file": "evals/meri/live-v1/tests/case46-artifact-ui.test.mjs",
+      "gitBlobSha256": "44df80dcee18c6a42d6b034c54301d8f697162833c5460d95ad04eb9e4d2ab66",
+      "recordedSourceSha256": "44df80dcee18c6a42d6b034c54301d8f697162833c5460d95ad04eb9e4d2ab66"
+    },
+    {
+      "commit": "870d4b52ceb71deced4127086729d2d74adde38c",
+      "file": "apps/api/src/meri/meri-case46-authority.ts",
+      "gitBlobSha256": "100b7e47079d0d552b06aa6d82ad3e3e7c60af0aaa5bda16538071e8e68126e0",
+      "recordedSourceSha256": "100b7e47079d0d552b06aa6d82ad3e3e7c60af0aaa5bda16538071e8e68126e0"
+    },
+    {
+      "commit": "870d4b52ceb71deced4127086729d2d74adde38c",
+      "file": "apps/api/src/meri/meri-case46-provider-budget-owner.ts",
+      "gitBlobSha256": "da96e9134ece26056991804120543509c4567276cffcb74ab2aa235ac0bbc295",
+      "recordedSourceSha256": "da96e9134ece26056991804120543509c4567276cffcb74ab2aa235ac0bbc295"
+    },
+    {
+      "commit": "870d4b52ceb71deced4127086729d2d74adde38c",
+      "file": "apps/api/src/meri/meri-case46-provider-budget.spec-helper.ts",
+      "gitBlobSha256": "6a34593227bb4287da68e1f2205326cb2fed9629def9af98647bca6baba5af4c",
+      "recordedSourceSha256": "6a34593227bb4287da68e1f2205326cb2fed9629def9af98647bca6baba5af4c"
+    },
+    {
+      "commit": "870d4b52ceb71deced4127086729d2d74adde38c",
+      "file": "apps/api/src/meri/meri-case46-provider-budget.spec.ts",
+      "gitBlobSha256": "bc848d4c8a241365c77ea37aae26d6e63485dbca2200c640890baeef65a02005",
+      "recordedSourceSha256": "bc848d4c8a241365c77ea37aae26d6e63485dbca2200c640890baeef65a02005"
+    },
+    {
+      "commit": "870d4b52ceb71deced4127086729d2d74adde38c",
+      "file": "apps/api/src/meri/meri-case46-provider-budget.ts",
+      "gitBlobSha256": "57f6783ffcea4cc3cfcb1ba6fef0fc78923051224279d5540447d6d93097c879",
+      "recordedSourceSha256": "57f6783ffcea4cc3cfcb1ba6fef0fc78923051224279d5540447d6d93097c879"
+    },
+    {
+      "commit": "870d4b52ceb71deced4127086729d2d74adde38c",
+      "file": "evals/meri/live-v1/case46-governed-capture.md",
+      "gitBlobSha256": "96df3a4a2c4986a0ca164bbdb497dc019878256b3f737fba08cf291f727073fd",
+      "recordedSourceSha256": "96df3a4a2c4986a0ca164bbdb497dc019878256b3f737fba08cf291f727073fd"
+    },
+    {
+      "commit": "870d4b52ceb71deced4127086729d2d74adde38c",
+      "file": "evals/meri/live-v1/tests/case46-provider-budget.postgres.test.mjs",
+      "gitBlobSha256": "898307b04d6f7f277a1d17402e09270913589b450bbbafb3333d8db6c3bbb53c",
+      "recordedSourceSha256": "898307b04d6f7f277a1d17402e09270913589b450bbbafb3333d8db6c3bbb53c"
+    },
+    {
+      "commit": "870d4b52ceb71deced4127086729d2d74adde38c",
+      "file": "packages/meriv2-core/src/context/governed-artifact-capture.spec.ts",
+      "gitBlobSha256": "761ffc0dd9c52fd2fe4cdba5d99d82a04191fb4332faf39d8f28b0157108dc91",
+      "recordedSourceSha256": "761ffc0dd9c52fd2fe4cdba5d99d82a04191fb4332faf39d8f28b0157108dc91"
+    },
+    {
+      "commit": "870d4b52ceb71deced4127086729d2d74adde38c",
+      "file": "packages/meriv2-core/src/context/governed-artifact-capture.ts",
+      "gitBlobSha256": "a4519f7f143a5dc4737e3eb0a5047ff96aafa278b1ba476c918f015597a539a5",
+      "recordedSourceSha256": "a4519f7f143a5dc4737e3eb0a5047ff96aafa278b1ba476c918f015597a539a5"
+    },
+    {
+      "commit": "870d4b52ceb71deced4127086729d2d74adde38c",
+      "file": "packages/meriv2-core/src/index.ts",
+      "gitBlobSha256": "0f4a861de893f8926ce5525026ee1721ab475d8d9c499dc48dd2717f4304dbb3",
+      "recordedSourceSha256": "0f4a861de893f8926ce5525026ee1721ab475d8d9c499dc48dd2717f4304dbb3"
+    },
+    {
+      "commit": "9ce4561e68d92f75ce1107b3d419461578b78413",
+      "file": "apps/api/src/engagement/synthetic-document-deletion.helpers.ts",
+      "gitBlobSha256": "917346f6ef74cad4610b27c4e66e0b092cd0be9140d039aa423edd242504b2fb",
+      "recordedSourceSha256": "917346f6ef74cad4610b27c4e66e0b092cd0be9140d039aa423edd242504b2fb"
+    },
+    {
+      "commit": "9ce4561e68d92f75ce1107b3d419461578b78413",
+      "file": "evals/meri/live-v1/tests/synthetic-document-deletion-enum.postgres.test.mjs",
+      "gitBlobSha256": "eae8cf0caf6e9508cec3078fa7705550c0e469baad619eff1bb2dbcf7fee8f43",
+      "recordedSourceSha256": "eae8cf0caf6e9508cec3078fa7705550c0e469baad619eff1bb2dbcf7fee8f43"
+    },
+    {
+      "commit": "2206be1d9e000b995f96d469917635d3e7b3bdb1",
+      "file": "apps/api/src/meri/meri-case46-action-authority.ts",
+      "gitBlobSha256": "f22dc4a30be2e8e4fed2d2032d4bacc46115f9090076a43f212c3041bbc211f2",
+      "recordedSourceSha256": "f22dc4a30be2e8e4fed2d2032d4bacc46115f9090076a43f212c3041bbc211f2"
+    },
+    {
+      "commit": "2206be1d9e000b995f96d469917635d3e7b3bdb1",
+      "file": "apps/api/src/meri/meri-case46-action-authority.spec.ts",
+      "gitBlobSha256": "7047790cbc781c336bdba3d2fe403a6796671f05a7f47f061f5fef7bc6057126",
+      "recordedSourceSha256": "7047790cbc781c336bdba3d2fe403a6796671f05a7f47f061f5fef7bc6057126"
+    },
+    {
+      "commit": "2206be1d9e000b995f96d469917635d3e7b3bdb1",
+      "file": "apps/api/src/meri/meri-case46-provider-budget-owner.ts",
+      "gitBlobSha256": "227a02ab7125313ad096f52243cb5599913b0ef6fa7c1c0230fde99754e54c6a",
+      "recordedSourceSha256": "227a02ab7125313ad096f52243cb5599913b0ef6fa7c1c0230fde99754e54c6a"
+    },
+    {
+      "commit": "2206be1d9e000b995f96d469917635d3e7b3bdb1",
+      "file": "apps/api/src/meri/meri-action-proposal.controller.ts",
+      "gitBlobSha256": "622f6ef5810c8952a897d95e49fdedc3a5c82dacefaed78f3c21b092551211d1",
+      "recordedSourceSha256": "622f6ef5810c8952a897d95e49fdedc3a5c82dacefaed78f3c21b092551211d1"
+    },
+    {
+      "commit": "2206be1d9e000b995f96d469917635d3e7b3bdb1",
+      "file": "apps/api/src/meri/meri-action-proposal.service.ts",
+      "gitBlobSha256": "ab004b95d6e559047a62a35ce2f8f6895b3dcbe321d9bfaf6069c25fdf412738",
+      "recordedSourceSha256": "ab004b95d6e559047a62a35ce2f8f6895b3dcbe321d9bfaf6069c25fdf412738"
+    },
+    {
+      "commit": "2206be1d9e000b995f96d469917635d3e7b3bdb1",
+      "file": "apps/api/src/meri/meri-action-proposal.service.spec.ts",
+      "gitBlobSha256": "3218138d84e4c2f7c367e5202db0e6e8577074196b09b243ce7f212db8fe6c6c",
+      "recordedSourceSha256": "3218138d84e4c2f7c367e5202db0e6e8577074196b09b243ce7f212db8fe6c6c"
+    },
+    {
+      "commit": "2206be1d9e000b995f96d469917635d3e7b3bdb1",
+      "file": "apps/api/src/meri/meri-action-proposal.http.spec.ts",
+      "gitBlobSha256": "06fcc7b25c836fbf39997f06f6888acb5399126c00173dc3fed04df80d433ac4",
+      "recordedSourceSha256": "06fcc7b25c836fbf39997f06f6888acb5399126c00173dc3fed04df80d433ac4"
+    },
+    {
+      "commit": "2206be1d9e000b995f96d469917635d3e7b3bdb1",
+      "file": "apps/api/src/meri/meri-tools.service.ts",
+      "gitBlobSha256": "2fd6658a7d6d221903f3a7031f8e03e911f4f5aa45c1ac27c9047dd82e0916fb",
+      "recordedSourceSha256": "2fd6658a7d6d221903f3a7031f8e03e911f4f5aa45c1ac27c9047dd82e0916fb"
+    },
+    {
+      "commit": "2206be1d9e000b995f96d469917635d3e7b3bdb1",
+      "file": "apps/api/src/meri/meri.module.ts",
+      "gitBlobSha256": "a58e8b2389b9502ae17f296248bfac89b4478a222b1c4f1cdb65951a8a417c7e",
+      "recordedSourceSha256": "a58e8b2389b9502ae17f296248bfac89b4478a222b1c4f1cdb65951a8a417c7e"
+    },
+    {
+      "commit": "2206be1d9e000b995f96d469917635d3e7b3bdb1",
+      "file": "evals/meri/live-v1/tests/case46-provider-budget.postgres.test.mjs",
+      "gitBlobSha256": "95ffb8a4b597c3bc641aa9096d473f6bffde5a34229bfa874b2e51b7fe801e55",
+      "recordedSourceSha256": "95ffb8a4b597c3bc641aa9096d473f6bffde5a34229bfa874b2e51b7fe801e55"
+    },
+    {
+      "commit": "2206be1d9e000b995f96d469917635d3e7b3bdb1",
+      "file": "evals/meri/live-v1/case46-governed-capture.md",
+      "gitBlobSha256": "72557a36b7d9b8d6588e3974393a08f1faf3f6b3df4a296b12930de8e6dd8025",
+      "recordedSourceSha256": "72557a36b7d9b8d6588e3974393a08f1faf3f6b3df4a296b12930de8e6dd8025"
+    },
+    {
+      "commit": "9d55c92d6a0df6108e178c493b41f0dc174e3ea0",
+      "file": "apps/api/src/meri/meri-capture-api-provider-scope.ts",
+      "gitBlobSha256": "a815f4e0da886dae76ee0f908e6dfaae72040c10f9b5f594afe6f3333e974501",
+      "recordedSourceSha256": "a815f4e0da886dae76ee0f908e6dfaae72040c10f9b5f594afe6f3333e974501"
+    },
+    {
+      "commit": "9d55c92d6a0df6108e178c493b41f0dc174e3ea0",
+      "file": "apps/api/src/meri/meri-capture-provider-budget.controller.ts",
+      "gitBlobSha256": "571c6173ce5b2f6a2913751066179c95e25c2c4a7782f68d53607ee5a82cec9c",
+      "recordedSourceSha256": "571c6173ce5b2f6a2913751066179c95e25c2c4a7782f68d53607ee5a82cec9c"
+    },
+    {
+      "commit": "9d55c92d6a0df6108e178c493b41f0dc174e3ea0",
+      "file": "apps/api/src/meri/meri-context-plane-runtime.ts",
+      "gitBlobSha256": "a3f2ed23cc86e560fc93438a1fbad4b89078ac4a6be6b5ec3379716b2298f83a",
+      "recordedSourceSha256": "a3f2ed23cc86e560fc93438a1fbad4b89078ac4a6be6b5ec3379716b2298f83a"
+    },
+    {
+      "commit": "9d55c92d6a0df6108e178c493b41f0dc174e3ea0",
+      "file": "apps/api/src/meri/meriv3-proxy.service.ts",
+      "gitBlobSha256": "0b49ff46dcecc6f6111e565ac9591077dc35c4fbe87abf6d46faf196662dbfef",
+      "recordedSourceSha256": "0b49ff46dcecc6f6111e565ac9591077dc35c4fbe87abf6d46faf196662dbfef"
+    },
+    {
+      "commit": "9d55c92d6a0df6108e178c493b41f0dc174e3ea0",
+      "file": "apps/api/src/meri/meriv3-runtime.proxy.ts",
+      "gitBlobSha256": "6fe94e511646a6a80bbf34fbbe0dfa790a461471ad43d8da7f125256c4702a81",
+      "recordedSourceSha256": "6fe94e511646a6a80bbf34fbbe0dfa790a461471ad43d8da7f125256c4702a81"
+    },
+    {
+      "commit": "9d55c92d6a0df6108e178c493b41f0dc174e3ea0",
+      "file": "apps/meriv2-orchestrator/src/meri/api-action-proposal.repo.ts",
+      "gitBlobSha256": "73df833654eedd9d2b5ae140735e2c190b405693dcc400aa4faec8acdfceb4f7",
+      "recordedSourceSha256": "73df833654eedd9d2b5ae140735e2c190b405693dcc400aa4faec8acdfceb4f7"
+    },
+    {
+      "commit": "9d55c92d6a0df6108e178c493b41f0dc174e3ea0",
+      "file": "apps/meriv2-orchestrator/src/meri/api-tool-executor.repo.ts",
+      "gitBlobSha256": "f5e3793f4dd88193e9955e22018cec308a66140dfdf82d0e16246d8d359e4cc0",
+      "recordedSourceSha256": "f5e3793f4dd88193e9955e22018cec308a66140dfdf82d0e16246d8d359e4cc0"
+    },
+    {
+      "commit": "9d55c92d6a0df6108e178c493b41f0dc174e3ea0",
+      "file": "apps/meriv2-orchestrator/src/meri/chat/chat.controller.ts",
+      "gitBlobSha256": "7fe7db2c29078dff7295603e76dc84e85a7e71bbff3bc5515156d172832d2967",
+      "recordedSourceSha256": "7fe7db2c29078dff7295603e76dc84e85a7e71bbff3bc5515156d172832d2967"
+    },
+    {
+      "commit": "9d55c92d6a0df6108e178c493b41f0dc174e3ea0",
+      "file": "apps/meriv2-orchestrator/src/meri/meriv3/api-managed-mcp.repo.ts",
+      "gitBlobSha256": "34d4089352303762e1ebf89dc1de63ccb8cfb91692ba11146f058d7dfb9f2c32",
+      "recordedSourceSha256": "34d4089352303762e1ebf89dc1de63ccb8cfb91692ba11146f058d7dfb9f2c32"
+    },
+    {
+      "commit": "9d55c92d6a0df6108e178c493b41f0dc174e3ea0",
+      "file": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.spec.ts",
+      "gitBlobSha256": "735d29895d7f710ed86dd5829ad99363126d42d16aee2081cc5435c1c45ab104",
+      "recordedSourceSha256": "735d29895d7f710ed86dd5829ad99363126d42d16aee2081cc5435c1c45ab104"
+    },
+    {
+      "commit": "9d55c92d6a0df6108e178c493b41f0dc174e3ea0",
+      "file": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts",
+      "gitBlobSha256": "ecd2487c8d9a4aaaa3065983cc23b7ae302e9460d6e201b176280909391d4de3",
+      "recordedSourceSha256": "ecd2487c8d9a4aaaa3065983cc23b7ae302e9460d6e201b176280909391d4de3"
+    },
+    {
+      "commit": "9d55c92d6a0df6108e178c493b41f0dc174e3ea0",
+      "file": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3.controller.ts",
+      "gitBlobSha256": "317d4f87e2cee67de8b8d8c7ab61a250453f50cb90a0b32b403784ac2d1fba7a",
+      "recordedSourceSha256": "317d4f87e2cee67de8b8d8c7ab61a250453f50cb90a0b32b403784ac2d1fba7a"
+    },
+    {
+      "commit": "9d55c92d6a0df6108e178c493b41f0dc174e3ea0",
+      "file": "apps/meriv2-orchestrator/src/request/trusted-current-turn-scope.ts",
+      "gitBlobSha256": "424e5453970f6ea69f17f9d69aa0fa323c6a38356d44f872636ba92538da1b13",
+      "recordedSourceSha256": "424e5453970f6ea69f17f9d69aa0fa323c6a38356d44f872636ba92538da1b13"
+    },
+    {
+      "commit": "9d55c92d6a0df6108e178c493b41f0dc174e3ea0",
+      "file": "evals/meri/live-v1/case46-governed-capture.md",
+      "gitBlobSha256": "efa0a05c5a70c77e851c1aa00f047f8fa4ca75f01441f6e57992145c0e7a4bb9",
+      "recordedSourceSha256": "efa0a05c5a70c77e851c1aa00f047f8fa4ca75f01441f6e57992145c0e7a4bb9"
+    },
+    {
+      "commit": "9d55c92d6a0df6108e178c493b41f0dc174e3ea0",
+      "file": "evals/meri/live-v1/tests/case46-provider-budget.postgres.test.mjs",
+      "gitBlobSha256": "bbd1b5def74f25edfd4645a76312c12983edc9783e1e82a0be5438c23d6eedbf",
+      "recordedSourceSha256": "bbd1b5def74f25edfd4645a76312c12983edc9783e1e82a0be5438c23d6eedbf"
+    },
+    {
+      "commit": "9d55c92d6a0df6108e178c493b41f0dc174e3ea0",
+      "file": "packages/meriv2-core/src/context/governed-artifact-capture.spec.ts",
+      "gitBlobSha256": "b88787ba8e09dd321e085bd184daa6200be47809d097f6dd3430628354bce97e",
+      "recordedSourceSha256": "b88787ba8e09dd321e085bd184daa6200be47809d097f6dd3430628354bce97e"
+    },
+    {
+      "commit": "9d55c92d6a0df6108e178c493b41f0dc174e3ea0",
+      "file": "packages/meriv2-core/src/context/governed-artifact-capture.ts",
+      "gitBlobSha256": "7a7eebed2b7e44a1bdbc0e96e9fae7591be0db4dccacaf5d3c4c4cd48e305011",
+      "recordedSourceSha256": "7a7eebed2b7e44a1bdbc0e96e9fae7591be0db4dccacaf5d3c4c4cd48e305011"
+    },
+    {
+      "commit": "9d55c92d6a0df6108e178c493b41f0dc174e3ea0",
+      "file": "packages/meriv2-core/src/registry/types.ts",
+      "gitBlobSha256": "2403045363bf8661003cf2f236d4ad5d22bd59d16207c9af0735b8f2f175393c",
+      "recordedSourceSha256": "2403045363bf8661003cf2f236d4ad5d22bd59d16207c9af0735b8f2f175393c"
+    },
+    {
+      "commit": "9d55c92d6a0df6108e178c493b41f0dc174e3ea0",
+      "file": "apps/api/src/meri/meri-case46-api-provider-scope.ts",
+      "gitBlobSha256": "4150c63535afdb3997d6e34dff6887a8968282a6173b1424958f5546a402e624",
+      "recordedSourceSha256": "4150c63535afdb3997d6e34dff6887a8968282a6173b1424958f5546a402e624"
+    },
+    {
+      "commit": "9d55c92d6a0df6108e178c493b41f0dc174e3ea0",
+      "file": "apps/api/src/meri/meri-case46-turn-owner.ts",
+      "gitBlobSha256": "27c4b8b28d28344e683f2ede329086f288ee0b7457c08e22e8bda91330c3c51a",
+      "recordedSourceSha256": "27c4b8b28d28344e683f2ede329086f288ee0b7457c08e22e8bda91330c3c51a"
+    },
+    {
+      "commit": "9d55c92d6a0df6108e178c493b41f0dc174e3ea0",
+      "file": "apps/api/src/meri/meri-case46-turn-wiring.spec.ts",
+      "gitBlobSha256": "72ae1e5b2257ab55739fe16e30cb5a5ca5d2138f4c33a97f8db62d7407b52893",
+      "recordedSourceSha256": "72ae1e5b2257ab55739fe16e30cb5a5ca5d2138f4c33a97f8db62d7407b52893"
+    },
+    {
+      "commit": "9d55c92d6a0df6108e178c493b41f0dc174e3ea0",
+      "file": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-governed-artifact-budget.spec.ts",
+      "gitBlobSha256": "8e1e5999559607932a68641be536fcb7a6ec1f71a5f4c751648aebd95acb4673",
+      "recordedSourceSha256": "8e1e5999559607932a68641be536fcb7a6ec1f71a5f4c751648aebd95acb4673"
+    },
+    {
+      "commit": "9d55c92d6a0df6108e178c493b41f0dc174e3ea0",
+      "file": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-governed-artifact-budget.ts",
+      "gitBlobSha256": "25c08d3e9de17406531b03556539d534c314e78accfac5bd585e2592064120aa",
+      "recordedSourceSha256": "25c08d3e9de17406531b03556539d534c314e78accfac5bd585e2592064120aa"
+    },
+    {
+      "commit": "9d55c92d6a0df6108e178c493b41f0dc174e3ea0",
+      "file": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-governed-artifact-dispatch.spec.ts",
+      "gitBlobSha256": "e8a49182f15200afead261bf518e505a22a9fe923fddebf2a03111738fa78533",
+      "recordedSourceSha256": "e8a49182f15200afead261bf518e505a22a9fe923fddebf2a03111738fa78533"
+    },
+    {
+      "commit": "9d55c92d6a0df6108e178c493b41f0dc174e3ea0",
+      "file": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-governed-artifact.spec-helper.ts",
+      "gitBlobSha256": "7ec92536416f28c8f0f8ee434432505d588b23dab98cdf8f9fc3044bcceb20a3",
+      "recordedSourceSha256": "7ec92536416f28c8f0f8ee434432505d588b23dab98cdf8f9fc3044bcceb20a3"
+    },
+    {
+      "commit": "be07d351488f73709c31c7f11c1c033ec3664705",
+      "file": "apps/api/scripts/entrypoint.sh",
+      "gitBlobSha256": "1073f7d7e97f2a6144698c4f0d1ed4c0c6cd7013b44f02b05e2069ae47629b9d",
+      "recordedSourceSha256": "1073f7d7e97f2a6144698c4f0d1ed4c0c6cd7013b44f02b05e2069ae47629b9d"
+    },
+    {
+      "commit": "be07d351488f73709c31c7f11c1c033ec3664705",
+      "file": "apps/api/src/embeddings/client-kb.service.ts",
+      "gitBlobSha256": "37b3be16b4afaf3e5d0133451c5e61b2b1a1ce8bfbf4867ab4599d64b27801a4",
+      "recordedSourceSha256": "37b3be16b4afaf3e5d0133451c5e61b2b1a1ce8bfbf4867ab4599d64b27801a4"
+    },
+    {
+      "commit": "be07d351488f73709c31c7f11c1c033ec3664705",
+      "file": "apps/api/src/engagement/engagement.client-filing.spec.ts",
+      "gitBlobSha256": "2a4f6ed501fc4bea4ce67420dc998e04bfd815d3ef91c99d0236b490a319f39a",
+      "recordedSourceSha256": "022b8a39deff3832ee5d4ac40859b655ce63493fc0426649c3eb343097869a5d"
+    },
+    {
+      "commit": "be07d351488f73709c31c7f11c1c033ec3664705",
+      "file": "apps/api/src/engagement/engagement.service.ts",
+      "gitBlobSha256": "7b5303e9ecbf3ec66d70a2dc3d8f77b74d5c4c265c22a273b1d1c99bb385006a",
+      "recordedSourceSha256": "7b5303e9ecbf3ec66d70a2dc3d8f77b74d5c4c265c22a273b1d1c99bb385006a"
+    },
+    {
+      "commit": "be07d351488f73709c31c7f11c1c033ec3664705",
+      "file": "apps/api/src/meri/meri-case46-authority.ts",
+      "gitBlobSha256": "dd3bd28ed1e9999e057599d40942dcbaaac5a5ae829c71863857e7137641af80",
+      "recordedSourceSha256": "dd3bd28ed1e9999e057599d40942dcbaaac5a5ae829c71863857e7137641af80"
+    },
+    {
+      "commit": "be07d351488f73709c31c7f11c1c033ec3664705",
+      "file": "evals/meri/live-v1/case46-governed-capture.md",
+      "gitBlobSha256": "e8642439036b3e04417a57c2c11f630035d5a264beb91c9611c85f89a0bb9b26",
+      "recordedSourceSha256": "e8642439036b3e04417a57c2c11f630035d5a264beb91c9611c85f89a0bb9b26"
+    },
+    {
+      "commit": "be07d351488f73709c31c7f11c1c033ec3664705",
+      "file": "evals/meri/live-v1/tests/case46-provider-budget.postgres.test.mjs",
+      "gitBlobSha256": "6267efe458f70554c71b931c0777466731bd648de3fd5553c4fb317c795f1112",
+      "recordedSourceSha256": "4f019abd8a6e42101387a9168acb7448fb809ae80a747fc7bdd320bd744ab792"
+    },
+    {
+      "commit": "be07d351488f73709c31c7f11c1c033ec3664705",
+      "file": "apps/api/scripts/meri-case46-setup.mjs",
+      "gitBlobSha256": "e4fa491967637a2323bb0939a311cd72289bf59b5af928732c2753e68687dbf4",
+      "recordedSourceSha256": "e4fa491967637a2323bb0939a311cd72289bf59b5af928732c2753e68687dbf4"
+    },
+    {
+      "commit": "be07d351488f73709c31c7f11c1c033ec3664705",
+      "file": "apps/api/scripts/meri-case46-setup.test.mjs",
+      "gitBlobSha256": "14451fb1d89a144ce6e4b67e4fa2a7dd57a4a7c3727bec7970306fd0607ab70d",
+      "recordedSourceSha256": "14451fb1d89a144ce6e4b67e4fa2a7dd57a4a7c3727bec7970306fd0607ab70d"
+    },
+    {
+      "commit": "be07d351488f73709c31c7f11c1c033ec3664705",
+      "file": "apps/api/src/client-documents/case46-source-indexing.ts",
+      "gitBlobSha256": "53d56e77aad9a2766e9c1bffd335e50f118dc7c21a663ec4fb1669adbc5d7eab",
+      "recordedSourceSha256": "53d56e77aad9a2766e9c1bffd335e50f118dc7c21a663ec4fb1669adbc5d7eab"
+    },
+    {
+      "commit": "be07d351488f73709c31c7f11c1c033ec3664705",
+      "file": "apps/api/src/embeddings/client-kb-await-source.spec.ts",
+      "gitBlobSha256": "3273b759a936618e419ea5d352ca4dd7c4790f82aed040fc40bc68be229dc7d6",
+      "recordedSourceSha256": "3273b759a936618e419ea5d352ca4dd7c4790f82aed040fc40bc68be229dc7d6"
+    },
+    {
+      "commit": "be07d351488f73709c31c7f11c1c033ec3664705",
+      "file": "apps/api/src/meri/meri-case46-setup-dependencies.spec.ts",
+      "gitBlobSha256": "e5e03b4bca2bf5f79e390f80c5d2dcfd39cb1ce37021f0275cd1ee979f98c755",
+      "recordedSourceSha256": "e5e03b4bca2bf5f79e390f80c5d2dcfd39cb1ce37021f0275cd1ee979f98c755"
+    },
+    {
+      "commit": "be07d351488f73709c31c7f11c1c033ec3664705",
+      "file": "apps/api/src/meri/meri-case46-setup-dependencies.ts",
+      "gitBlobSha256": "6b1e05627732b1f7529e120d62f0b12658ffc480773b305f25162cadd5e0241c",
+      "recordedSourceSha256": "6b1e05627732b1f7529e120d62f0b12658ffc480773b305f25162cadd5e0241c"
+    },
+    {
+      "commit": "be07d351488f73709c31c7f11c1c033ec3664705",
+      "file": "apps/api/src/meri/meri-case46-setup-owner.ts",
+      "gitBlobSha256": "94af626d54afef2ca1f8b5cd838464e7ebaffe231a57a27183cb306ade3066cf",
+      "recordedSourceSha256": "94af626d54afef2ca1f8b5cd838464e7ebaffe231a57a27183cb306ade3066cf"
+    },
+    {
+      "commit": "3ea011ca2af24a12cd8591090c8546a6b3f4683d",
+      "file": "apps/api/src/meri/meri-case46-capture-readback.ts",
+      "gitBlobSha256": "262379d5cfbd530b42f7ab9c739b452b3286e24bdad866a2506daad69b47da5f",
+      "recordedSourceSha256": "262379d5cfbd530b42f7ab9c739b452b3286e24bdad866a2506daad69b47da5f"
+    },
+    {
+      "commit": "3ea011ca2af24a12cd8591090c8546a6b3f4683d",
+      "file": "apps/api/src/meri/meri.service.ts",
+      "gitBlobSha256": "2d3f8804b4a33fcd69afa5949deb0c80e44668506b8407eb14acc57cbae0260d",
+      "recordedSourceSha256": "2d3f8804b4a33fcd69afa5949deb0c80e44668506b8407eb14acc57cbae0260d"
+    },
+    {
+      "commit": "3ea011ca2af24a12cd8591090c8546a6b3f4683d",
+      "file": "apps/api/src/meri/meri-case46-capture-readback.spec.ts",
+      "gitBlobSha256": "fd7b6b7ffe4c43269972c0e5345527e3350f7e7bd46b3663b18d5b546e4cad7e",
+      "recordedSourceSha256": "fd7b6b7ffe4c43269972c0e5345527e3350f7e7bd46b3663b18d5b546e4cad7e"
+    },
+    {
+      "commit": "3ea011ca2af24a12cd8591090c8546a6b3f4683d",
+      "file": "evals/meri/live-v1/tests/case46-provider-budget.postgres.test.mjs",
+      "gitBlobSha256": "d33aba75db2e98c73db46d76963e2d18dbd6d6cf6d07e263219c643abd40c6dd",
+      "recordedSourceSha256": "78961ce8f49d45b0c49ea30ad48d19ae740973d68f393a2230da8452ccdbbcb5"
+    }
+  ]
+}

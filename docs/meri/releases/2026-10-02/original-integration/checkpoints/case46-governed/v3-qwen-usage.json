@@ -1,0 +1,17 @@
+{
+  "requestedModel": "qwen.qwen3-coder-next",
+  "initializedModel": "qwen.qwen3-coder-next",
+  "sessionId": "20261002_111559_79146d",
+  "provider": "bedrock",
+  "reportedTokens": {
+    "input": 414707,
+    "output": 1688,
+    "total": 416395,
+    "cache_read": 0,
+    "cache_write": 0
+  },
+  "reportedResultExit": 1,
+  "toolCalls": 27,
+  "billedCostUsd": null,
+  "costStatus": "not exposed by quiet stream output"
+}

@@ -1,0 +1,32 @@
+{
+  "reviewer": "Codex root peer review",
+  "verdict": "PASS",
+  "scope": "Post-Kimi source delta only; full original live acceptance NOT_RUN",
+  "files": [
+    {
+      "file": "packages/meriv2-core/src/context/governed-artifact-capture.ts",
+      "reviewedSha256": "a4519f7f143a5dc4737e3eb0a5047ff96aafa278b1ba476c918f015597a539a5",
+      "currentSha256": "a4519f7f143a5dc4737e3eb0a5047ff96aafa278b1ba476c918f015597a539a5",
+      "delta": "unchanged"
+    },
+    {
+      "file": "apps/api/src/meri/meri-case46-provider-budget.ts",
+      "reviewedSha256": "57f6783ffcea4cc3cfcb1ba6fef0fc78923051224279d5540447d6d93097c879",
+      "currentSha256": "57f6783ffcea4cc3cfcb1ba6fef0fc78923051224279d5540447d6d93097c879",
+      "delta": "unchanged"
+    },
+    {
+      "file": "apps/api/src/meri/meri-case46-authority.ts",
+      "reviewedSha256": "32d465206cd72168e012911d63caf41e8eaea198acc7fca75a960f1c460d876c",
+      "currentSha256": "100b7e47079d0d552b06aa6d82ad3e3e7c60af0aaa5bda16538071e8e68126e0",
+      "delta": "function declaration for TypeScript never narrowing only"
+    },
+    {
+      "file": "apps/api/src/meri/meri-case46-provider-budget-owner.ts",
+      "reviewedSha256": "da96e9134ece26056991804120543509c4567276cffcb74ab2aa235ac0bbc295",
+      "currentSha256": "da96e9134ece26056991804120543509c4567276cffcb74ab2aa235ac0bbc295",
+      "delta": "unchanged"
+    }
+  ],
+  "testOnlyDelta": "Metadata reads use type-only Record<string, unknown> assertions; runtime property accesses unchanged."
+}

@@ -1,0 +1,24 @@
+{
+  "name": "promptfoo",
+  "sourceSha": "a472a7906561cf3192c99c7bc148ad29f00062a7",
+  "cwd": "C:\\dev\\cap-meri-mail-deadline",
+  "command": [
+    "C:\\Program Files\\nodejs\\node.exe",
+    "node_modules/promptfoo/dist/src/entrypoint.js",
+    "eval",
+    "-c",
+    "evals/meri/promptfooconfig.yaml",
+    "--no-cache",
+    "--no-share",
+    "--no-write",
+    "--no-table",
+    "--no-progress-bar",
+    "-o",
+    "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-integration\\meri-offline.json"
+  ],
+  "pid": 11828,
+  "exitCode": 0,
+  "elapsedSeconds": 26.53,
+  "logSha256": "80202e98851d95cae5831f0f902be970e931d1613293461066c7a4d92bada6e3",
+  "sourceUnchanged": true
+}

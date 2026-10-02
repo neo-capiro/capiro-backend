@@ -1,0 +1,16 @@
+{
+  "kind": "sanitized-numeric-log-excerpt",
+  "originalRawSha256": "4bd3eaaa2c7bdc5510d4a2cd21386b5e4dcf76b7af4784c8eb910191b620c82f",
+  "originalBytes": 10182,
+  "rawLogArchived": false,
+  "numericSummaryLines": [
+    "# tests 40",
+    "# suites 0",
+    "# pass 40",
+    "# fail 0",
+    "# cancelled 0",
+    "# skipped 0",
+    "# todo 0"
+  ],
+  "note": "Exact raw log retained locally and hash-verified; no synthetic payload or session output copied."
+}

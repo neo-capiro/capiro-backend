@@ -1,0 +1,425 @@
+{
+  "baseSha": "991b5b15fa134d64579c96853dc92e9a00fa8520",
+  "integratedSha": "a472a7906561cf3192c99c7bc148ad29f00062a7",
+  "donors": [
+    {
+      "sha": "cd19ce13a74ec83b12bc31901a2c2f7273c4e53f",
+      "sourceCount": 19,
+      "mismatches": [],
+      "files": [
+        {
+          "path": "apps/api/scripts/meri-case01-setup-dependencies.mjs",
+          "donorBlob": "f56fdc9353e7224b453b84c67915a9caf92bccad",
+          "integratedBlob": "f56fdc9353e7224b453b84c67915a9caf92bccad"
+        },
+        {
+          "path": "apps/api/scripts/meri-case01-setup-dependencies.test.mjs",
+          "donorBlob": "66b45c8eb69b4f9005560c7cc9042de2d73f2829",
+          "integratedBlob": "66b45c8eb69b4f9005560c7cc9042de2d73f2829"
+        },
+        {
+          "path": "apps/api/scripts/meri-case01-setup.mjs",
+          "donorBlob": "8e9d2c8b96a04e223ee672e6976f43e179f08f54",
+          "integratedBlob": "8e9d2c8b96a04e223ee672e6976f43e179f08f54"
+        },
+        {
+          "path": "apps/api/src/memory/governed-memory-ingest.postgres.spec.ts",
+          "donorBlob": "ed748836e9b5538d6c08392e9b75ece180e462f0",
+          "integratedBlob": "ed748836e9b5538d6c08392e9b75ece180e462f0"
+        },
+        {
+          "path": "apps/api/src/memory/governed-memory-ingest.service.spec.ts",
+          "donorBlob": "9d8da0084fac961ef0ef01ccaa34f20b47605686",
+          "integratedBlob": "9d8da0084fac961ef0ef01ccaa34f20b47605686"
+        },
+        {
+          "path": "apps/api/src/memory/governed-memory-ingest.service.ts",
+          "donorBlob": "decc8a2ec558fd46527880db0da9fc04b293612e",
+          "integratedBlob": "decc8a2ec558fd46527880db0da9fc04b293612e"
+        },
+        {
+          "path": "evals/meri/live-v1/case14-approval-capture.mjs",
+          "donorBlob": "181fe3a2660c608c9d7d67f2aa8bd99e881294c6",
+          "integratedBlob": "181fe3a2660c608c9d7d67f2aa8bd99e881294c6"
+        },
+        {
+          "path": "evals/meri/live-v1/case17-live-capture.mjs",
+          "donorBlob": "8d0bd7ed6e68a75449524fb26d5ecf8c43e6c214",
+          "integratedBlob": "8d0bd7ed6e68a75449524fb26d5ecf8c43e6c214"
+        },
+        {
+          "path": "evals/meri/live-v1/case17-memory-ui.mjs",
+          "donorBlob": "f48fedea49e422b362a315c4b5759451ba43bb44",
+          "integratedBlob": "f48fedea49e422b362a315c4b5759451ba43bb44"
+        },
+        {
+          "path": "evals/meri/live-v1/case17-readonly-guard.mjs",
+          "donorBlob": "21f9df02660fe6a61427f9a2d80f36e0868ae9ac",
+          "integratedBlob": "21f9df02660fe6a61427f9a2d80f36e0868ae9ac"
+        },
+        {
+          "path": "evals/meri/live-v1/case17-saved-checks.mjs",
+          "donorBlob": "d0d3026e241683b85c9589820e38734059d4134c",
+          "integratedBlob": "d0d3026e241683b85c9589820e38734059d4134c"
+        },
+        {
+          "path": "evals/meri/live-v1/fixture-provisioning/case01-execution-setup.mjs",
+          "donorBlob": "850005296fdc0d2e78eb639443dcf91de9d89ee8",
+          "integratedBlob": "850005296fdc0d2e78eb639443dcf91de9d89ee8"
+        },
+        {
+          "path": "evals/meri/live-v1/tests/case01-execution-setup.postgres.test.mjs",
+          "donorBlob": "b5be28f464b2bcf204450bcf4d515a0fe85ca021",
+          "integratedBlob": "b5be28f464b2bcf204450bcf4d515a0fe85ca021"
+        },
+        {
+          "path": "evals/meri/live-v1/tests/case01-memory-packaging.test.mjs",
+          "donorBlob": "e7af5660427eb55078ae47f9784dc9fe680452c3",
+          "integratedBlob": "e7af5660427eb55078ae47f9784dc9fe680452c3"
+        },
+        {
+          "path": "evals/meri/live-v1/tests/case01-recovery-real-transactions.test.mjs",
+          "donorBlob": "99898fde01f78b63401b35f6fe5469a4045f63bd",
+          "integratedBlob": "99898fde01f78b63401b35f6fe5469a4045f63bd"
+        },
+        {
+          "path": "evals/meri/live-v1/tests/case14-delayed-query.test.mjs",
+          "donorBlob": "02d17425e0b374a62dee38e51fdcceb160bf82f8",
+          "integratedBlob": "02d17425e0b374a62dee38e51fdcceb160bf82f8"
+        },
+        {
+          "path": "evals/meri/live-v1/tests/case17-memory-ui-query.test.mjs",
+          "donorBlob": "e3f688aa1005b2a5e0c37ed42e9456a06055e2a4",
+          "integratedBlob": "e3f688aa1005b2a5e0c37ed42e9456a06055e2a4"
+        },
+        {
+          "path": "evals/meri/live-v1/tests/case17-readonly-guard.test.mjs",
+          "donorBlob": "ec6525337c1c849e3b4b09812d2223fc26df55fb",
+          "integratedBlob": "ec6525337c1c849e3b4b09812d2223fc26df55fb"
+        },
+        {
+          "path": "evals/meri/live-v1/tests/case17-saved-checks.test.mjs",
+          "donorBlob": "0d451bc514d66a2023bb7fff69421e1bf96eb901",
+          "integratedBlob": "0d451bc514d66a2023bb7fff69421e1bf96eb901"
+        }
+      ]
+    },
+    {
+      "sha": "3ea011ca2af24a12cd8591090c8546a6b3f4683d",
+      "sourceCount": 62,
+      "mismatches": [],
+      "files": [
+        {
+          "path": "apps/api/scripts/entrypoint.sh",
+          "donorBlob": "68abe3bcd08cce5cf0b4dd13d568c8c4f9a04615",
+          "integratedBlob": "68abe3bcd08cce5cf0b4dd13d568c8c4f9a04615"
+        },
+        {
+          "path": "apps/api/scripts/meri-case46-setup.mjs",
+          "donorBlob": "231ae6f00941a34a1de1452d4f8ac01212e0ad7b",
+          "integratedBlob": "231ae6f00941a34a1de1452d4f8ac01212e0ad7b"
+        },
+        {
+          "path": "apps/api/scripts/meri-case46-setup.test.mjs",
+          "donorBlob": "4d6d4896f98b0ec4af2526099c38cf2421faa9c2",
+          "integratedBlob": "4d6d4896f98b0ec4af2526099c38cf2421faa9c2"
+        },
+        {
+          "path": "apps/api/src/client-documents/case46-source-indexing.ts",
+          "donorBlob": "a5952b92a4194189ba28568c0537577bb5a37b38",
+          "integratedBlob": "a5952b92a4194189ba28568c0537577bb5a37b38"
+        },
+        {
+          "path": "apps/api/src/embeddings/client-kb-await-source.spec.ts",
+          "donorBlob": "c9c279d5736b61bed08474cd3228a15f393cdad8",
+          "integratedBlob": "c9c279d5736b61bed08474cd3228a15f393cdad8"
+        },
+        {
+          "path": "apps/api/src/embeddings/client-kb.service.ts",
+          "donorBlob": "b1868f72facb2c6005b357a392e24c9018c71696",
+          "integratedBlob": "b1868f72facb2c6005b357a392e24c9018c71696"
+        },
+        {
+          "path": "apps/api/src/engagement/engagement.client-filing.spec.ts",
+          "donorBlob": "a34d1a5f2b519a414ed6d7a7a0674491cd0525fc",
+          "integratedBlob": "a34d1a5f2b519a414ed6d7a7a0674491cd0525fc"
+        },
+        {
+          "path": "apps/api/src/engagement/engagement.service.ts",
+          "donorBlob": "f0c324d5c8a6d866cfdadd4d8c3da5ddba26a3c7",
+          "integratedBlob": "f0c324d5c8a6d866cfdadd4d8c3da5ddba26a3c7"
+        },
+        {
+          "path": "apps/api/src/engagement/synthetic-document-deletion.helpers.ts",
+          "donorBlob": "09e800abb91a0834dd31632e08f3443c8221e983",
+          "integratedBlob": "09e800abb91a0834dd31632e08f3443c8221e983"
+        },
+        {
+          "path": "apps/api/src/meri/meri-action-proposal.controller.ts",
+          "donorBlob": "1e05b2cad3a2b2f6bbbad7e9d8f2d564f31a648b",
+          "integratedBlob": "1e05b2cad3a2b2f6bbbad7e9d8f2d564f31a648b"
+        },
+        {
+          "path": "apps/api/src/meri/meri-action-proposal.http.spec.ts",
+          "donorBlob": "d9e3f869a52d23f2fcfc214023336a495a27d96b",
+          "integratedBlob": "d9e3f869a52d23f2fcfc214023336a495a27d96b"
+        },
+        {
+          "path": "apps/api/src/meri/meri-action-proposal.service.spec.ts",
+          "donorBlob": "bbd3847cd0ff5413824d9aedb52a627e611d9e2c",
+          "integratedBlob": "bbd3847cd0ff5413824d9aedb52a627e611d9e2c"
+        },
+        {
+          "path": "apps/api/src/meri/meri-action-proposal.service.ts",
+          "donorBlob": "f34ece8e16cae335f57ce762fcc092e52c316b07",
+          "integratedBlob": "f34ece8e16cae335f57ce762fcc092e52c316b07"
+        },
+        {
+          "path": "apps/api/src/meri/meri-capture-api-provider-scope.ts",
+          "donorBlob": "cba38b096b56baa5f678856043032d6401bb2fe1",
+          "integratedBlob": "cba38b096b56baa5f678856043032d6401bb2fe1"
+        },
+        {
+          "path": "apps/api/src/meri/meri-capture-provider-budget.controller.ts",
+          "donorBlob": "a65582f68c091ec385d40f8f1af6ddf789722b9e",
+          "integratedBlob": "a65582f68c091ec385d40f8f1af6ddf789722b9e"
+        },
+        {
+          "path": "apps/api/src/meri/meri-case46-action-authority.spec.ts",
+          "donorBlob": "396c2e5972042c2b6ff574297bcaf700f3256146",
+          "integratedBlob": "396c2e5972042c2b6ff574297bcaf700f3256146"
+        },
+        {
+          "path": "apps/api/src/meri/meri-case46-action-authority.ts",
+          "donorBlob": "20c1bccd87206a220b7a27d063a90043bf6ef72a",
+          "integratedBlob": "20c1bccd87206a220b7a27d063a90043bf6ef72a"
+        },
+        {
+          "path": "apps/api/src/meri/meri-case46-api-provider-scope.ts",
+          "donorBlob": "336a0354868fc781dbe9760aa6a4e6af8e991891",
+          "integratedBlob": "336a0354868fc781dbe9760aa6a4e6af8e991891"
+        },
+        {
+          "path": "apps/api/src/meri/meri-case46-authority.ts",
+          "donorBlob": "fb1b7d0d466ef0a1552a94c2f65464be7c1c5a66",
+          "integratedBlob": "fb1b7d0d466ef0a1552a94c2f65464be7c1c5a66"
+        },
+        {
+          "path": "apps/api/src/meri/meri-case46-capture-readback.spec.ts",
+          "donorBlob": "580063ed17c635fc41c76b20cf88c0f8bf1006d8",
+          "integratedBlob": "580063ed17c635fc41c76b20cf88c0f8bf1006d8"
+        },
+        {
+          "path": "apps/api/src/meri/meri-case46-capture-readback.ts",
+          "donorBlob": "c562b5265ad6be2eea8a0f5ad4fd61654121b02e",
+          "integratedBlob": "c562b5265ad6be2eea8a0f5ad4fd61654121b02e"
+        },
+        {
+          "path": "apps/api/src/meri/meri-case46-provider-budget-owner.ts",
+          "donorBlob": "480e2bd3043a6afd361358e9b924eabc5779e2fa",
+          "integratedBlob": "480e2bd3043a6afd361358e9b924eabc5779e2fa"
+        },
+        {
+          "path": "apps/api/src/meri/meri-case46-provider-budget.spec-helper.ts",
+          "donorBlob": "e153553fff25688cf296a12057fee6bb01b7ebde",
+          "integratedBlob": "e153553fff25688cf296a12057fee6bb01b7ebde"
+        },
+        {
+          "path": "apps/api/src/meri/meri-case46-provider-budget.spec.ts",
+          "donorBlob": "11463dbb401d1d2244be58ebed9872e57c91d965",
+          "integratedBlob": "11463dbb401d1d2244be58ebed9872e57c91d965"
+        },
+        {
+          "path": "apps/api/src/meri/meri-case46-provider-budget.ts",
+          "donorBlob": "5a57207cc1023df9bd6c27ee5ec92606e7529177",
+          "integratedBlob": "5a57207cc1023df9bd6c27ee5ec92606e7529177"
+        },
+        {
+          "path": "apps/api/src/meri/meri-case46-setup-dependencies.spec.ts",
+          "donorBlob": "4c5f6e29df1e26ee4c09bd8085a112caead26fcc",
+          "integratedBlob": "4c5f6e29df1e26ee4c09bd8085a112caead26fcc"
+        },
+        {
+          "path": "apps/api/src/meri/meri-case46-setup-dependencies.ts",
+          "donorBlob": "eb47d5d43a371d2149d31e8902ee45a9a5107210",
+          "integratedBlob": "eb47d5d43a371d2149d31e8902ee45a9a5107210"
+        },
+        {
+          "path": "apps/api/src/meri/meri-case46-setup-owner.ts",
+          "donorBlob": "fa0155df7a31a60e7c03dcfba4705aafa6ee3c62",
+          "integratedBlob": "fa0155df7a31a60e7c03dcfba4705aafa6ee3c62"
+        },
+        {
+          "path": "apps/api/src/meri/meri-case46-turn-owner.ts",
+          "donorBlob": "e62ff7073388d40c68a1c9e8f6586d31f8daa406",
+          "integratedBlob": "e62ff7073388d40c68a1c9e8f6586d31f8daa406"
+        },
+        {
+          "path": "apps/api/src/meri/meri-case46-turn-wiring.spec.ts",
+          "donorBlob": "c687190a03d5788c586bba72ba6852e030256a73",
+          "integratedBlob": "c687190a03d5788c586bba72ba6852e030256a73"
+        },
+        {
+          "path": "apps/api/src/meri/meri-context-plane-runtime.ts",
+          "donorBlob": "e6dba0be69fe2141837f20712e29b762c946a261",
+          "integratedBlob": "e6dba0be69fe2141837f20712e29b762c946a261"
+        },
+        {
+          "path": "apps/api/src/meri/meri-document-artifact.spec.ts",
+          "donorBlob": "be019a2d47da2a2942ea2c8e51a86e57ba806800",
+          "integratedBlob": "be019a2d47da2a2942ea2c8e51a86e57ba806800"
+        },
+        {
+          "path": "apps/api/src/meri/meri-text-artifact-current-proposal.ts",
+          "donorBlob": "14206b3c9c1d9804ff1bd5f1b9b03c36653677e3",
+          "integratedBlob": "14206b3c9c1d9804ff1bd5f1b9b03c36653677e3"
+        },
+        {
+          "path": "apps/api/src/meri/meri-tools.service.ts",
+          "donorBlob": "6586c7cb70bbd6be0c284249803777ce15a7949a",
+          "integratedBlob": "6586c7cb70bbd6be0c284249803777ce15a7949a"
+        },
+        {
+          "path": "apps/api/src/meri/meri.module.ts",
+          "donorBlob": "f0cf9e8a663e4aab24aa68ef1819bb8eeb7a9e80",
+          "integratedBlob": "f0cf9e8a663e4aab24aa68ef1819bb8eeb7a9e80"
+        },
+        {
+          "path": "apps/api/src/meri/meri.service.ts",
+          "donorBlob": "425c7f1638dfe8c4fb68d9c95774e4e9e03a3bc0",
+          "integratedBlob": "425c7f1638dfe8c4fb68d9c95774e4e9e03a3bc0"
+        },
+        {
+          "path": "apps/api/src/meri/meriv3-proxy.service.ts",
+          "donorBlob": "4576b92cd74c5a6e1aa07e31ee67f6e14b39db2e",
+          "integratedBlob": "4576b92cd74c5a6e1aa07e31ee67f6e14b39db2e"
+        },
+        {
+          "path": "apps/api/src/meri/meriv3-runtime.proxy.ts",
+          "donorBlob": "bb24c9e1059ead404f93f82e7dd783379e24a27b",
+          "integratedBlob": "bb24c9e1059ead404f93f82e7dd783379e24a27b"
+        },
+        {
+          "path": "apps/meriv2-orchestrator/src/meri/api-action-proposal.repo.ts",
+          "donorBlob": "2ced3f4860ac28bcfddaa5a93f3cb390c0aedb8b",
+          "integratedBlob": "2ced3f4860ac28bcfddaa5a93f3cb390c0aedb8b"
+        },
+        {
+          "path": "apps/meriv2-orchestrator/src/meri/api-tool-executor.repo.ts",
+          "donorBlob": "1cbd28152c5cfd3b72b4574234d614cc377f910e",
+          "integratedBlob": "1cbd28152c5cfd3b72b4574234d614cc377f910e"
+        },
+        {
+          "path": "apps/meriv2-orchestrator/src/meri/chat/chat.controller.ts",
+          "donorBlob": "6c15326ac7feec11c215b5b767d362e0fc20fc14",
+          "integratedBlob": "6c15326ac7feec11c215b5b767d362e0fc20fc14"
+        },
+        {
+          "path": "apps/meriv2-orchestrator/src/meri/meriv3/api-managed-mcp.repo.ts",
+          "donorBlob": "fed69aefeb987df929b58bde32cac11a5c02dc89",
+          "integratedBlob": "fed69aefeb987df929b58bde32cac11a5c02dc89"
+        },
+        {
+          "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.spec.ts",
+          "donorBlob": "ed49759021a252b1586dfe950c305d0b05f83613",
+          "integratedBlob": "ed49759021a252b1586dfe950c305d0b05f83613"
+        },
+        {
+          "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts",
+          "donorBlob": "e38dd463b86f8da355aa8fb6d888763213226796",
+          "integratedBlob": "e38dd463b86f8da355aa8fb6d888763213226796"
+        },
+        {
+          "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-governed-artifact-budget.spec.ts",
+          "donorBlob": "2bad38178f50ab89a31d2e7bda1ef649e42c269e",
+          "integratedBlob": "2bad38178f50ab89a31d2e7bda1ef649e42c269e"
+        },
+        {
+          "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-governed-artifact-budget.ts",
+          "donorBlob": "bc57f9c566dcdc4ce94da024e302acc857430675",
+          "integratedBlob": "bc57f9c566dcdc4ce94da024e302acc857430675"
+        },
+        {
+          "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-governed-artifact-dispatch.spec.ts",
+          "donorBlob": "bb7a7e35034fd76353cfe2390167c9f2dca0083b",
+          "integratedBlob": "bb7a7e35034fd76353cfe2390167c9f2dca0083b"
+        },
+        {
+          "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-governed-artifact.spec-helper.ts",
+          "donorBlob": "9bdcd02d57698740b0868b5ee4c215af55c7635b",
+          "integratedBlob": "9bdcd02d57698740b0868b5ee4c215af55c7635b"
+        },
+        {
+          "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3.controller.ts",
+          "donorBlob": "7d002b65244df0b8ee1a860b90392e434076d383",
+          "integratedBlob": "7d002b65244df0b8ee1a860b90392e434076d383"
+        },
+        {
+          "path": "apps/meriv2-orchestrator/src/request/trusted-current-turn-scope.ts",
+          "donorBlob": "85944347ed0705588550d8031cd0cea25d0a94cc",
+          "integratedBlob": "85944347ed0705588550d8031cd0cea25d0a94cc"
+        },
+        {
+          "path": "evals/meri/live-v1/case46-artifact-evidence.mjs",
+          "donorBlob": "4f70f04b7763d82a7833dc1e4ba63edfef2dbbda",
+          "integratedBlob": "4f70f04b7763d82a7833dc1e4ba63edfef2dbbda"
+        },
+        {
+          "path": "evals/meri/live-v1/case46-artifact-ui.md",
+          "donorBlob": "5e1cef9fdf1a880f5d667612a077b7ed6399ff19",
+          "integratedBlob": "5e1cef9fdf1a880f5d667612a077b7ed6399ff19"
+        },
+        {
+          "path": "evals/meri/live-v1/case46-artifact-ui.mjs",
+          "donorBlob": "a10a479503f68d1bdb2b08f97b255d564d99e7ec",
+          "integratedBlob": "a10a479503f68d1bdb2b08f97b255d564d99e7ec"
+        },
+        {
+          "path": "evals/meri/live-v1/case46-governed-capture.md",
+          "donorBlob": "3d504d97fcd5bef0cb15bc824a0e59816484ab78",
+          "integratedBlob": "3d504d97fcd5bef0cb15bc824a0e59816484ab78"
+        },
+        {
+          "path": "evals/meri/live-v1/tests/case46-artifact-evidence.test.mjs",
+          "donorBlob": "b7463cdeb617b81f8c239439cf9a12ef00263d5a",
+          "integratedBlob": "b7463cdeb617b81f8c239439cf9a12ef00263d5a"
+        },
+        {
+          "path": "evals/meri/live-v1/tests/case46-artifact-ui.test.mjs",
+          "donorBlob": "7a5fd4e8d6356d21e967357b6ec8d9c78cdd1f19",
+          "integratedBlob": "7a5fd4e8d6356d21e967357b6ec8d9c78cdd1f19"
+        },
+        {
+          "path": "evals/meri/live-v1/tests/case46-provider-budget.postgres.test.mjs",
+          "donorBlob": "cd550699b03b096e80cfbb496c802986502c6f9e",
+          "integratedBlob": "cd550699b03b096e80cfbb496c802986502c6f9e"
+        },
+        {
+          "path": "evals/meri/live-v1/tests/synthetic-document-deletion-enum.postgres.test.mjs",
+          "donorBlob": "c53a5e40bb44f23ceb91d851e0dd8c1e274cf403",
+          "integratedBlob": "c53a5e40bb44f23ceb91d851e0dd8c1e274cf403"
+        },
+        {
+          "path": "packages/meriv2-core/src/context/governed-artifact-capture.spec.ts",
+          "donorBlob": "45120f31358a9e6770bc80ccf0f6d9da69b1d058",
+          "integratedBlob": "45120f31358a9e6770bc80ccf0f6d9da69b1d058"
+        },
+        {
+          "path": "packages/meriv2-core/src/context/governed-artifact-capture.ts",
+          "donorBlob": "99d25711a65594e59cbdfa2106310f2d85703453",
+          "integratedBlob": "99d25711a65594e59cbdfa2106310f2d85703453"
+        },
+        {
+          "path": "packages/meriv2-core/src/index.ts",
+          "donorBlob": "654562a0fd4cbffc5d5d5b3a71033c88d5f77660",
+          "integratedBlob": "654562a0fd4cbffc5d5d5b3a71033c88d5f77660"
+        },
+        {
+          "path": "packages/meriv2-core/src/registry/types.ts",
+          "donorBlob": "b90b45644fe13239d7d2f33323201f7e51eea06a",
+          "integratedBlob": "b90b45644fe13239d7d2f33323201f7e51eea06a"
+        }
+      ]
+    }
+  ]
+}

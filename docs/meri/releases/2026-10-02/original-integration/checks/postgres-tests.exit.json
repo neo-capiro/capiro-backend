@@ -1,0 +1,18 @@
+{
+  "name": "postgres-tests",
+  "sourceSha": "a472a7906561cf3192c99c7bc148ad29f00062a7",
+  "cwd": "C:\\dev\\cap-meri-mail-deadline",
+  "command": [
+    "C:\\Program Files\\nodejs\\node.exe",
+    "--test",
+    "--test-concurrency=1",
+    "evals/meri/live-v1/tests/case46-provider-budget.postgres.test.mjs",
+    "evals/meri/live-v1/tests/case01-execution-setup.postgres.test.mjs",
+    "evals/meri/live-v1/tests/case01-recovery-real-transactions.test.mjs"
+  ],
+  "pid": 24064,
+  "exitCode": 0,
+  "elapsedSeconds": 56.41,
+  "logSha256": "795cd62cb46e2e50ca48e6711b77abe7e10c208ff28db7e92a31d0ca80115102",
+  "sourceUnchanged": true
+}

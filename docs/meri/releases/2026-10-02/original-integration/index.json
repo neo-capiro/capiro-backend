@@ -1,0 +1,328 @@
+{
+  "sourceSha": "a472a7906561cf3192c99c7bc148ad29f00062a7",
+  "liveAcceptance": "NOT_RUN",
+  "fullFile01Acceptance": false,
+  "files": [
+    {
+      "file": ".gitattributes",
+      "sha256": "705fd4d6451a31d36b3df7de96f83f30ac976c9b4a6d1e51671d8e2f33e2d0da",
+      "bytes": 8
+    },
+    {
+      "file": "README.md",
+      "sha256": "f7e0801d072014507835a90635dc6822051b1e25f64df38a4045929a5cea7603",
+      "bytes": 1959
+    },
+    {
+      "file": "checkpoints/case46-artifact/capture-substep-kimi-exit.json",
+      "sha256": "0df770c78fa992f2d6fab458ccc092e4d03cbb1edf55007da2a536d4c591c768",
+      "bytes": 102
+    },
+    {
+      "file": "checkpoints/case46-artifact/capture-substep-kimi-review.md",
+      "sha256": "4bfe6b112c28df5e262dc23738d57daded1f9b321526e1cfd0e85c91f528d703",
+      "bytes": 3141
+    },
+    {
+      "file": "checkpoints/case46-artifact/capture-substep-kimi-usage.json",
+      "sha256": "a1e27139b65446c37d084bca48525bd524172b336f17339ae8f741522dc37fea",
+      "bytes": 426
+    },
+    {
+      "file": "checkpoints/case46-artifact/capture-substep-qualification.json",
+      "sha256": "44adba51e075fc4fe7e74f6ee6b560ccb56b5f8f08f129f0a77edbafb39313c9",
+      "bytes": 3597
+    },
+    {
+      "file": "checkpoints/case46-governed/action-kimi-exit.json",
+      "sha256": "4c3acd4eda105c8628fad850ddc1b74e57b8f5c698228e54da171e93c976a92c",
+      "bytes": 101
+    },
+    {
+      "file": "checkpoints/case46-governed/action-kimi-review.md",
+      "sha256": "4150348e5a067fc66e9697399033f6a921f887ad3e4598856d76b743a9932d1e",
+      "bytes": 18890
+    },
+    {
+      "file": "checkpoints/case46-governed/action-kimi-usage.json",
+      "sha256": "51898aaaec5c1433781e5208e4c52a4d4c67c2e5d1f5f86f80be7abaeeffd4c2",
+      "bytes": 427
+    },
+    {
+      "file": "checkpoints/case46-governed/action-qualification.json",
+      "sha256": "a513e7e0a539a2934b3eb9a15538e92128a7fef9a130e3122bbbbe5f0d43a904",
+      "bytes": 5143
+    },
+    {
+      "file": "checkpoints/case46-governed/document-enum-kimi-exit.json",
+      "sha256": "f00093bda4b3a15791383990ddc087cf147279e4ba569d67109480976b3c61b4",
+      "bytes": 102
+    },
+    {
+      "file": "checkpoints/case46-governed/document-enum-kimi-review.md",
+      "sha256": "43081102807c17bd04fafc67d8b098b18f575c14a9772fdd0490af27c6e9b25b",
+      "bytes": 2151
+    },
+    {
+      "file": "checkpoints/case46-governed/document-enum-kimi-usage.json",
+      "sha256": "fe6caa8df718de12ce6432573d0c7f432a5da61135a921e924ba2b7aba9d19e2",
+      "bytes": 425
+    },
+    {
+      "file": "checkpoints/case46-governed/document-enum-qualification.json",
+      "sha256": "b815df8c478b9d9184848b88c3bfcc249e37300125b30ebb722de57cbc495675",
+      "bytes": 2083
+    },
+    {
+      "file": "checkpoints/case46-governed/document-enum-root-peer-review.json",
+      "sha256": "43052e69002810c32ac299d983a5f0ea3d8a96152d05ba9b451a13c4ecc60115",
+      "bytes": 721
+    },
+    {
+      "file": "checkpoints/case46-governed/governed-owner-kimi-exit.json",
+      "sha256": "4c1e0f337c8bc31cf86dbd5b0ad4613605cb44e641aaebcf59fcddc5ca71b4eb",
+      "bytes": 101
+    },
+    {
+      "file": "checkpoints/case46-governed/governed-owner-kimi-review.md",
+      "sha256": "04cb67baa3557d3a4537517f452d2f374c3f7658fc678abf5cc5e308d97f21b1",
+      "bytes": 4068
+    },
+    {
+      "file": "checkpoints/case46-governed/governed-owner-kimi-usage.json",
+      "sha256": "b4e25d339faedeae3667a8f252940deab6c5f56db3b709e36b46554dde1b6c59",
+      "bytes": 426
+    },
+    {
+      "file": "checkpoints/case46-governed/governed-owner-root-post-review.json",
+      "sha256": "bc7c6238dddefa4b3978f160540634aff73baad8dcc22ed70aee91e014dbb3ac",
+      "bytes": 1534
+    },
+    {
+      "file": "checkpoints/case46-governed/qualification.json",
+      "sha256": "7b93220375f2667b924bacb85940b9a892b038724f9f83f850849d388d64d0b8",
+      "bytes": 4324
+    },
+    {
+      "file": "checkpoints/case46-governed/readback-kimi-exit.json",
+      "sha256": "529661846ce866a5fe2059b2d9584d0e19b235dc1995f5d9ae0a9cff755fa8db",
+      "bytes": 103
+    },
+    {
+      "file": "checkpoints/case46-governed/readback-kimi-review.md",
+      "sha256": "7e9073b2867258fea48eb1e15e10897d65228cf9abf53fb6eff1f9c745c6b660",
+      "bytes": 5444
+    },
+    {
+      "file": "checkpoints/case46-governed/readback-kimi-usage.json",
+      "sha256": "86118585e013db7a1c16db12f789069498f7f069e6c7e885d56d0153a091507d",
+      "bytes": 427
+    },
+    {
+      "file": "checkpoints/case46-governed/readback-qualification.json",
+      "sha256": "050e8521bb95210ea06a8580c2057721951b9db2d8a214a263370cca3e6c8106",
+      "bytes": 6107
+    },
+    {
+      "file": "checkpoints/case46-governed/setup-kimi-exit.json",
+      "sha256": "19c5d4eb809b86167a4346965e7fbd0b86d57a2ba776b7047df5abfa52a5b77a",
+      "bytes": 103
+    },
+    {
+      "file": "checkpoints/case46-governed/setup-kimi-review.md",
+      "sha256": "b562291cd672a561c795e2a2be4da052b2bd9a09435be323dd74fcf30328bd9b",
+      "bytes": 8911
+    },
+    {
+      "file": "checkpoints/case46-governed/setup-kimi-usage.json",
+      "sha256": "6354ab923f082cbb47534b91b162cf02fed913a2151a0a7d629097d4c046f317",
+      "bytes": 427
+    },
+    {
+      "file": "checkpoints/case46-governed/setup-qualification.json",
+      "sha256": "f9b133665ee4229ecdda68e7b859f690a72608949ef047467995b5e7a1a67107",
+      "bytes": 3638
+    },
+    {
+      "file": "checkpoints/case46-governed/turn-kimi-exit.json",
+      "sha256": "17b3a2d9e8f994f0c64dc03a9499fe5232a8c97bd00ade22864a15e052abc73a",
+      "bytes": 102
+    },
+    {
+      "file": "checkpoints/case46-governed/turn-kimi-review.md",
+      "sha256": "377be95c6574bca275b2e77a313dad58a9b690297675e4b646f021b98d28669d",
+      "bytes": 7857
+    },
+    {
+      "file": "checkpoints/case46-governed/turn-kimi-usage.json",
+      "sha256": "d7841683637a6b17a12cdeb2a21dfa99b9e19936ff3b3ebd82bc47c542dcc355",
+      "bytes": 427
+    },
+    {
+      "file": "checkpoints/case46-governed/turn-qualification.json",
+      "sha256": "7a3c74bd7b4f696a32e5df9b166d4744604258464a5a8df7aefca2f8878cfff3",
+      "bytes": 5924
+    },
+    {
+      "file": "checkpoints/case46-governed/turn-review-adjudication.md",
+      "sha256": "cd849aa1be8be2e9ca21c015e4b042955f28f19bda65cce0f33faad878f1fbe0",
+      "bytes": 3813
+    },
+    {
+      "file": "checkpoints/case46-governed/v3-qwen-exit.json",
+      "sha256": "081ecb273ad96ea21bd0381268988d46f079bea3f25ebfa4f54e5dd98a5d6952",
+      "bytes": 101
+    },
+    {
+      "file": "checkpoints/case46-governed/v3-qwen-review.md",
+      "sha256": "629e6ed6edf3db2df73c4b31bce705835dfc884967a1710a2ce658b359837282",
+      "bytes": 2560
+    },
+    {
+      "file": "checkpoints/case46-governed/v3-qwen-usage.json",
+      "sha256": "1e91c30df6cf535ea44772d073e5d3398f08e64af1a8f0347089bb53ee20afb6",
+      "bytes": 432
+    },
+    {
+      "file": "checks/api-tests.exit.json",
+      "sha256": "5c72977545a5c0c96cbef6de386e0f79251d7c3f9d8792fd0b3edc2a22f5f1d5",
+      "bytes": 1858
+    },
+    {
+      "file": "checks/api-tests.log-summary.json",
+      "sha256": "907a08e8acf30e5437428bc77145e2283a14b8160e598da51ed53d7fd312f67d",
+      "bytes": 453
+    },
+    {
+      "file": "checks/api-types.exit.json",
+      "sha256": "3532682237076077270331908859cb4090390c62e2775b3f02734ef6d27aa037",
+      "bytes": 509
+    },
+    {
+      "file": "checks/api-types.log-summary.json",
+      "sha256": "f4dcdac41ddb95979c5e930eed4b5faffa38928dd341ab0225d54d6adb1ff1ea",
+      "bytes": 326
+    },
+    {
+      "file": "checks/core-build.exit.json",
+      "sha256": "e9c3e0a88f620dc98b2e863a38fe1e375b9f6ef1d678578560baef43d9534870",
+      "bytes": 443
+    },
+    {
+      "file": "checks/core-build.log-summary.json",
+      "sha256": "b3c67cafc4e55074cab96ceb50ba2515cf95c72d90ba799b02b09609e5bee899",
+      "bytes": 327
+    },
+    {
+      "file": "checks/node-tests-initial-failed.log-summary.json",
+      "sha256": "3e3192318de98a75d47fd0aae92f4198aefe7adc8c7ebd9dfc646a45e15ffb58",
+      "bytes": 456
+    },
+    {
+      "file": "checks/node-tests-native.exit.json",
+      "sha256": "c977b3272222809b1cb434bed3c828953a8efbd02b37f7d50ac54ac53e4c5e88",
+      "bytes": 1179
+    },
+    {
+      "file": "checks/node-tests-native.log-summary.json",
+      "sha256": "946ef2372393b0ca887a9d9d361f999d2dd81d443666e34d8a1a28e17d0d065e",
+      "bytes": 456
+    },
+    {
+      "file": "checks/orchestrator-tests.exit.json",
+      "sha256": "7afa45ee28b4bc8830588a387a6d1d3fafe7a57c79b028ebfd321cabcf77538b",
+      "bytes": 1220
+    },
+    {
+      "file": "checks/orchestrator-tests.log-summary.json",
+      "sha256": "27be01b2abe4c7087cc41f510bcb81854e729554f36df7ce0da2e8dc2d90affc",
+      "bytes": 440
+    },
+    {
+      "file": "checks/orchestrator-types.exit.json",
+      "sha256": "87b305cc1a701cf53b2db94e6455050bf5cdad70f208eae1f2dec325fa740263",
+      "bytes": 531
+    },
+    {
+      "file": "checks/orchestrator-types.log-summary.json",
+      "sha256": "7b210ba42dea79a4229f5b7750cce28cf324e6c003514401fa119f9e9502dde1",
+      "bytes": 326
+    },
+    {
+      "file": "checks/postgres-tests.exit.json",
+      "sha256": "50f59ab3d687ff57d8e2a0a0ac5258cb128b7da249c877145f0285420866fd03",
+      "bytes": 645
+    },
+    {
+      "file": "checks/postgres-tests.log-summary.json",
+      "sha256": "4eb385739ccb553c3badbf5a2986e0e8af12863c4919bc45d23cfe6d080391f1",
+      "bytes": 456
+    },
+    {
+      "file": "checks/promptfoo.exit.json",
+      "sha256": "e61e7637eb531d4e6b0041120f9c93fda39cbe2f2e869a8022e80820b5cbd951",
+      "bytes": 696
+    },
+    {
+      "file": "checks/promptfoo.log-summary.json",
+      "sha256": "9107204cb63711aa6b336e15a83ec1f35cc992baa2a396acd17a5eb2e92dfe52",
+      "bytes": 327
+    },
+    {
+      "file": "checks/shared-build.exit.json",
+      "sha256": "4f5f90014062eb22fcc97b4f396cd4437172eed162fe92282ad21c1dcc9d6698",
+      "bytes": 440
+    },
+    {
+      "file": "checks/shared-build.log-summary.json",
+      "sha256": "ba4bdae783e8352c540dc89970d4dc1b258add6697bc11dcab0034f5adcb0822",
+      "bytes": 327
+    },
+    {
+      "file": "checks/verifier.exit.json",
+      "sha256": "9b7987f6c772ccede1f9501cc3954e862be9160942f8f581f005522db3d6e465",
+      "bytes": 641
+    },
+    {
+      "file": "checks/verifier.log-summary.json",
+      "sha256": "c1acaf8973dd33b2887750fa2b9390f645d592ecef2f18349bc976bd4d8ececc",
+      "bytes": 327
+    },
+    {
+      "file": "input-provenance.json",
+      "sha256": "ee4780ff197adb82051b38e7030d9fc074bb9116754c5c44166b0c0ce1a2ea21",
+      "bytes": 15810
+    },
+    {
+      "file": "merge-source-identity.json",
+      "sha256": "1e29a67f564206166e6f4c63d7a427133f2a8ca44044b92319ea858a9aa71222",
+      "bytes": 19802
+    },
+    {
+      "file": "meri-offline.summary.json",
+      "sha256": "55e918fdafeeb07a257060d1ba1f5d299591c36da5c3649d9d6fcdb4f076d130",
+      "bytes": 3928
+    },
+    {
+      "file": "node-tests.exit.json",
+      "sha256": "19952eb45d9c86ab8e804715001b5633c77ac08ce02289087a0f2373b269709c",
+      "bytes": 1173
+    },
+    {
+      "file": "prior-checkpoint-source-audit.json",
+      "sha256": "ae9a161acd2d7323ecb8cd4cab266c2982663ad1d13d02076efe21c35d5ee76a",
+      "bytes": 2640
+    },
+    {
+      "file": "qualification.json",
+      "sha256": "791d6e07ec2f785cb7d7df8a03accfff7ce51fd7affed4625d7b326f40b039fa",
+      "bytes": 18815
+    },
+    {
+      "file": "source-git-blob-hashes.json",
+      "sha256": "2876b9783ebf95b73d1557f2bff8e5210a6a1983668cc12d26d0c6db79d92e8c",
+      "bytes": 24688
+    }
+  ],
+  "secretScreening": "Fixed input allowlist; sensitive-value patterns; numeric-only log excerpts; no private fixture/session/report payload copies."
+}

@@ -1,0 +1,27 @@
+{
+  "name": "node-tests",
+  "sourceSha": "a472a7906561cf3192c99c7bc148ad29f00062a7",
+  "cwd": "C:\\dev\\cap-meri-mail-deadline",
+  "command": [
+    "C:\\Program Files\\nodejs\\node.exe",
+    "--test",
+    "--test-concurrency=1",
+    "evals/meri/live-v1/tests/case46-artifact-evidence.test.mjs",
+    "evals/meri/live-v1/tests/case46-artifact-ui.test.mjs",
+    "evals/meri/live-v1/tests/case14-delayed-query.test.mjs",
+    "evals/meri/live-v1/tests/case17-authority.test.mjs",
+    "evals/meri/live-v1/tests/case17-memory-ui-delayed-mount.test.mjs",
+    "evals/meri/live-v1/tests/case17-memory-ui-query.test.mjs",
+    "evals/meri/live-v1/tests/case17-memory-ui.test.mjs",
+    "evals/meri/live-v1/tests/case17-readonly-guard.test.mjs",
+    "evals/meri/live-v1/tests/case17-saved-checks.test.mjs",
+    "evals/meri/live-v1/tests/case01-memory-packaging.test.mjs",
+    "apps/api/scripts/meri-case46-setup.test.mjs",
+    "apps/api/scripts/meri-case01-setup-dependencies.test.mjs"
+  ],
+  "pid": 20324,
+  "exitCode": 1,
+  "elapsedSeconds": 15.92,
+  "logSha256": "db985393ed62d85d251f74ce446d2afbc1f94171b1f38ced63f75ea86749616c",
+  "sourceUnchanged": true
+}

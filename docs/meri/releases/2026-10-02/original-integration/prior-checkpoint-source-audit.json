@@ -1,0 +1,58 @@
+[
+  {
+    "qualificationPath": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\case46-artifact\\capture-substep-qualification.json",
+    "sha256": "44adba51e075fc4fe7e74f6ee6b560ccb56b5f8f08f129f0a77edbafb39313c9",
+    "commit": "ffbfa942a924369f716f4c0513526e6ff73f4b86",
+    "sourceHashCount": 8,
+    "mismatches": [],
+    "reviewLimitationsPreserved": true
+  },
+  {
+    "qualificationPath": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\case46-governed\\qualification.json",
+    "sha256": "7b93220375f2667b924bacb85940b9a892b038724f9f83f850849d388d64d0b8",
+    "commit": "870d4b52ceb71deced4127086729d2d74adde38c",
+    "sourceHashCount": 10,
+    "mismatches": [],
+    "reviewLimitationsPreserved": true
+  },
+  {
+    "qualificationPath": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\case46-governed\\document-enum-qualification.json",
+    "sha256": "b815df8c478b9d9184848b88c3bfcc249e37300125b30ebb722de57cbc495675",
+    "commit": "9ce4561e68d92f75ce1107b3d419461578b78413",
+    "sourceHashCount": 2,
+    "mismatches": [],
+    "reviewLimitationsPreserved": true
+  },
+  {
+    "qualificationPath": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\case46-governed\\action-qualification.json",
+    "sha256": "a513e7e0a539a2934b3eb9a15538e92128a7fef9a130e3122bbbbe5f0d43a904",
+    "commit": "2206be1d9e000b995f96d469917635d3e7b3bdb1",
+    "sourceHashCount": 11,
+    "mismatches": [],
+    "reviewLimitationsPreserved": true
+  },
+  {
+    "qualificationPath": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\case46-governed\\turn-qualification.json",
+    "sha256": "7a3c74bd7b4f696a32e5df9b166d4744604258464a5a8df7aefca2f8878cfff3",
+    "commit": "9d55c92d6a0df6108e178c493b41f0dc174e3ea0",
+    "sourceHashCount": 25,
+    "mismatches": [],
+    "reviewLimitationsPreserved": true
+  },
+  {
+    "qualificationPath": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\case46-governed\\setup-qualification.json",
+    "sha256": "f9b133665ee4229ecdda68e7b859f690a72608949ef047467995b5e7a1a67107",
+    "commit": "be07d351488f73709c31c7f11c1c033ec3664705",
+    "sourceHashCount": 14,
+    "mismatches": [],
+    "reviewLimitationsPreserved": true
+  },
+  {
+    "qualificationPath": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\case46-governed\\readback-qualification.json",
+    "sha256": "050e8521bb95210ea06a8580c2057721951b9db2d8a214a263370cca3e6c8106",
+    "commit": "3ea011ca2af24a12cd8591090c8546a6b3f4683d",
+    "sourceHashCount": 4,
+    "mismatches": [],
+    "reviewLimitationsPreserved": true
+  }
+]

@@ -1,0 +1,17 @@
+{
+  "name": "shared-build",
+  "sourceSha": "a472a7906561cf3192c99c7bc148ad29f00062a7",
+  "cwd": "C:\\dev\\cap-meri-mail-deadline",
+  "command": [
+    "C:\\Program Files\\nodejs\\pnpm.cmd",
+    "--filter",
+    "@capiro/shared",
+    "run",
+    "build"
+  ],
+  "pid": 19512,
+  "exitCode": 0,
+  "elapsedSeconds": 1.97,
+  "logSha256": "0750841b9b4877c8a85dc60c1a779a9d0c4a8c0e277454b1e551977daa6a00b3",
+  "sourceUnchanged": true
+}

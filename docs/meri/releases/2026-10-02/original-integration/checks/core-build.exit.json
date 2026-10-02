@@ -1,0 +1,17 @@
+{
+  "name": "core-build",
+  "sourceSha": "a472a7906561cf3192c99c7bc148ad29f00062a7",
+  "cwd": "C:\\dev\\cap-meri-mail-deadline",
+  "command": [
+    "C:\\Program Files\\nodejs\\pnpm.cmd",
+    "--filter",
+    "@capiro/meriv2-core",
+    "run",
+    "build"
+  ],
+  "pid": 22768,
+  "exitCode": 0,
+  "elapsedSeconds": 4.73,
+  "logSha256": "d280c1ebf51df2b98b0b6cda3c9dcfbfe9ed9c60b57df4f4303ed1c8cf9efa84",
+  "sourceUnchanged": true
+}

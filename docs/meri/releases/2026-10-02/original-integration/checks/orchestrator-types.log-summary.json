@@ -1,0 +1,8 @@
+{
+  "kind": "sanitized-numeric-log-excerpt",
+  "originalRawSha256": "5a53e7e47e4e84d064358ec4624ac04bce87683f4fd2941d7b0cc1c6a081d0ab",
+  "originalBytes": 27,
+  "rawLogArchived": false,
+  "numericSummaryLines": [],
+  "note": "Exact raw log retained locally and hash-verified; no synthetic payload or session output copied."
+}

@@ -1,0 +1,12 @@
+{
+  "kind": "sanitized-numeric-log-excerpt",
+  "originalRawSha256": "78e4f3e391ff77b9de3310793881ec3dde6b50d10a89b320aee2fc5991691409",
+  "originalBytes": 330766,
+  "rawLogArchived": false,
+  "numericSummaryLines": [
+    "Test Suites: 20 passed, 20 total",
+    "Tests:       1 skipped, 333 passed, 334 total",
+    "Snapshots:   0 total"
+  ],
+  "note": "Exact raw log retained locally and hash-verified; no synthetic payload or session output copied."
+}

@@ -1,0 +1,15 @@
+{
+  "name": "api-types",
+  "sourceSha": "a472a7906561cf3192c99c7bc148ad29f00062a7",
+  "cwd": "C:\\dev\\cap-meri-mail-deadline",
+  "command": [
+    "C:\\Program Files\\nodejs\\node.exe",
+    "--max-old-space-size=12288",
+    "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-integration\\typecheck-current-core.cjs"
+  ],
+  "pid": 19772,
+  "exitCode": 0,
+  "elapsedSeconds": 60.65,
+  "logSha256": "437495690f32946778bb4effb6c77e43faa344a42a99f8ede1a673336c9848f8",
+  "sourceUnchanged": true
+}

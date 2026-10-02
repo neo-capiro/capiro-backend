@@ -1,0 +1,422 @@
+{
+  "schemaVersion": 1,
+  "verdict": "PASS",
+  "scope": "Combined original-plan source integration and bounded local checks; not live acceptance",
+  "sourceSha": "a472a7906561cf3192c99c7bc148ad29f00062a7",
+  "sourceTree": "f11ef8886dcf2bfcbdb581381cf1d1add1bf4e15",
+  "branch": "codex/meri-original-eval-integration-20261002",
+  "worktree": "C:\\dev\\cap-meri-mail-deadline",
+  "worktreeStatus": "",
+  "baseSha": "991b5b15fa134d64579c96853dc92e9a00fa8520",
+  "mergeOrder": [
+    {
+      "donor": "cd19ce13a74ec83b12bc31901a2c2f7273c4e53f",
+      "mergeCommit": "70917a878d9ccc2561dabe34ab0bab9c45fa1c22",
+      "exactRetainedSourceFiles": 19
+    },
+    {
+      "donor": "3ea011ca2af24a12cd8591090c8546a6b3f4683d",
+      "mergeCommit": "a472a7906561cf3192c99c7bc148ad29f00062a7",
+      "exactRetainedSourceFiles": 62
+    }
+  ],
+  "conflicts": 0,
+  "mainOrGithubMutation": false,
+  "cloudOrAuthCalls": false,
+  "liveDatabaseCalls": false,
+  "policySha": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "opsCheckoutSha": "743fd708c3484604e8a35ea1039adeca3b1e331f",
+  "operatingRulesIdentical": true,
+  "machineMapDate": "2026-09-30",
+  "counts": {
+    "api": {
+      "passed": 333,
+      "skipped": 1,
+      "suites": 20,
+      "skipReason": "Existing Research Portfolio proposal test needs RP_PROPOSAL_CLAIM_TEST_DATABASE_URL; unchanged test, not this scope"
+    },
+    "orchestrator": {
+      "passed": 176,
+      "skipped": 0,
+      "suites": 7
+    },
+    "ownedPostgres": {
+      "passed": 22,
+      "skipped": 0
+    },
+    "nativeNode": {
+      "passed": 40,
+      "skipped": 0
+    },
+    "offlinePromptfoo": {
+      "passed": 26,
+      "modelTokens": 0,
+      "verifierExit": 0
+    },
+    "apiTypecheck": {
+      "diagnostics": 0
+    },
+    "orchestratorTypecheck": {
+      "diagnostics": 0
+    }
+  },
+  "results": [
+    {
+      "name": "shared-build",
+      "sourceSha": "a472a7906561cf3192c99c7bc148ad29f00062a7",
+      "cwd": "C:\\dev\\cap-meri-mail-deadline",
+      "command": [
+        "C:\\Program Files\\nodejs\\pnpm.cmd",
+        "--filter",
+        "@capiro/shared",
+        "run",
+        "build"
+      ],
+      "pid": 19512,
+      "exitCode": 0,
+      "elapsedSeconds": 1.97,
+      "logSha256": "0750841b9b4877c8a85dc60c1a779a9d0c4a8c0e277454b1e551977daa6a00b3",
+      "sourceUnchanged": true
+    },
+    {
+      "name": "core-build",
+      "sourceSha": "a472a7906561cf3192c99c7bc148ad29f00062a7",
+      "cwd": "C:\\dev\\cap-meri-mail-deadline",
+      "command": [
+        "C:\\Program Files\\nodejs\\pnpm.cmd",
+        "--filter",
+        "@capiro/meriv2-core",
+        "run",
+        "build"
+      ],
+      "pid": 22768,
+      "exitCode": 0,
+      "elapsedSeconds": 4.73,
+      "logSha256": "d280c1ebf51df2b98b0b6cda3c9dcfbfe9ed9c60b57df4f4303ed1c8cf9efa84",
+      "sourceUnchanged": true
+    },
+    {
+      "name": "api-tests",
+      "sourceSha": "a472a7906561cf3192c99c7bc148ad29f00062a7",
+      "cwd": "C:\\dev\\cap-meri-mail-deadline",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "--max-old-space-size=12288",
+        "apps/api/node_modules/jest/bin/jest.js",
+        "--config",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-integration\\jest-current-core.cjs",
+        "--runInBand",
+        "--runTestsByPath",
+        "apps/api/src/engagement/mail-query.spec.ts",
+        "apps/api/src/engagement/mail-query-deadline.spec.ts",
+        "apps/api/src/memory/governed-memory-ingest.service.spec.ts",
+        "apps/api/src/memory/governed-memory-ingest.postgres.spec.ts",
+        "apps/api/src/memory/strict-memory-projector.service.spec.ts",
+        "apps/api/src/memory/exact-memory-cleanup-outbox.service.spec.ts",
+        "apps/api/src/memory/synthetic-memory-settlement.spec.ts",
+        "apps/api/src/meri/meri-action-proposal.service.spec.ts",
+        "apps/api/src/meri/meri-action-proposal.http.spec.ts",
+        "apps/api/src/meri/meri-document-artifact.spec.ts",
+        "apps/api/src/meri/meri-case46-provider-budget.spec.ts",
+        "apps/api/src/meri/meri-case46-action-authority.spec.ts",
+        "apps/api/src/meri/meri-case46-turn-wiring.spec.ts",
+        "apps/api/src/meri/meri-case46-setup-dependencies.spec.ts",
+        "apps/api/src/meri/meri-case46-capture-readback.spec.ts",
+        "apps/api/src/meri/meri-capture-api-provider-scope.spec.ts",
+        "apps/api/src/meri/meriv3-runtime.proxy.spec.ts",
+        "apps/api/src/meri/meriv3-proxy.service.spec.ts",
+        "apps/api/src/engagement/engagement.client-filing.spec.ts",
+        "apps/api/src/embeddings/client-kb-await-source.spec.ts"
+      ],
+      "pid": 21288,
+      "exitCode": 0,
+      "elapsedSeconds": 95.71,
+      "logSha256": "78e4f3e391ff77b9de3310793881ec3dde6b50d10a89b320aee2fc5991691409",
+      "sourceUnchanged": true
+    },
+    {
+      "name": "orchestrator-tests",
+      "sourceSha": "a472a7906561cf3192c99c7bc148ad29f00062a7",
+      "cwd": "C:\\dev\\cap-meri-mail-deadline",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "--max-old-space-size=12288",
+        "apps/meriv2-orchestrator/node_modules/jest/bin/jest.js",
+        "--config",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-integration\\jest-orchestrator-current-core.cjs",
+        "--runInBand",
+        "--runTestsByPath",
+        "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-governed-artifact-budget.spec.ts",
+        "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-governed-artifact-dispatch.spec.ts",
+        "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.spec.ts",
+        "apps/meriv2-orchestrator/src/meri/api-action-proposal.repo.spec.ts",
+        "apps/meriv2-orchestrator/src/meri/api-tool-executor.repo.spec.ts",
+        "apps/meriv2-orchestrator/src/meri/api-tool-executor-cancellation.spec.ts",
+        "apps/meriv2-orchestrator/src/meri/api-tool-executor-mail-retry.spec.ts"
+      ],
+      "pid": 6832,
+      "exitCode": 0,
+      "elapsedSeconds": 26.92,
+      "logSha256": "7b67c056efa59d558a9a86f2e3c3247d83a89a372a8000a4f4b036b82ed8d53b",
+      "sourceUnchanged": true
+    },
+    {
+      "name": "api-types",
+      "sourceSha": "a472a7906561cf3192c99c7bc148ad29f00062a7",
+      "cwd": "C:\\dev\\cap-meri-mail-deadline",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "--max-old-space-size=12288",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-integration\\typecheck-current-core.cjs"
+      ],
+      "pid": 19772,
+      "exitCode": 0,
+      "elapsedSeconds": 60.65,
+      "logSha256": "437495690f32946778bb4effb6c77e43faa344a42a99f8ede1a673336c9848f8",
+      "sourceUnchanged": true
+    },
+    {
+      "name": "orchestrator-types",
+      "sourceSha": "a472a7906561cf3192c99c7bc148ad29f00062a7",
+      "cwd": "C:\\dev\\cap-meri-mail-deadline",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "--max-old-space-size=12288",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-integration\\typecheck-orchestrator-current-core.cjs"
+      ],
+      "pid": 19500,
+      "exitCode": 0,
+      "elapsedSeconds": 11.04,
+      "logSha256": "5a53e7e47e4e84d064358ec4624ac04bce87683f4fd2941d7b0cc1c6a081d0ab",
+      "sourceUnchanged": true
+    },
+    {
+      "name": "postgres-tests",
+      "sourceSha": "a472a7906561cf3192c99c7bc148ad29f00062a7",
+      "cwd": "C:\\dev\\cap-meri-mail-deadline",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "--test",
+        "--test-concurrency=1",
+        "evals/meri/live-v1/tests/case46-provider-budget.postgres.test.mjs",
+        "evals/meri/live-v1/tests/case01-execution-setup.postgres.test.mjs",
+        "evals/meri/live-v1/tests/case01-recovery-real-transactions.test.mjs"
+      ],
+      "pid": 24064,
+      "exitCode": 0,
+      "elapsedSeconds": 56.41,
+      "logSha256": "795cd62cb46e2e50ca48e6711b77abe7e10c208ff28db7e92a31d0ca80115102",
+      "sourceUnchanged": true
+    },
+    {
+      "name": "node-tests-native",
+      "sourceSha": "a472a7906561cf3192c99c7bc148ad29f00062a7",
+      "cwd": "C:\\dev\\cap-meri-mail-deadline",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "--test",
+        "--test-concurrency=1",
+        "evals/meri/live-v1/tests/case46-artifact-evidence.test.mjs",
+        "evals/meri/live-v1/tests/case46-artifact-ui.test.mjs",
+        "evals/meri/live-v1/tests/case14-delayed-query.test.mjs",
+        "evals/meri/live-v1/tests/case17-authority.test.mjs",
+        "evals/meri/live-v1/tests/case17-memory-ui-delayed-mount.test.mjs",
+        "evals/meri/live-v1/tests/case17-memory-ui-query.test.mjs",
+        "evals/meri/live-v1/tests/case17-memory-ui.test.mjs",
+        "evals/meri/live-v1/tests/case17-readonly-guard.test.mjs",
+        "evals/meri/live-v1/tests/case17-saved-checks.test.mjs",
+        "evals/meri/live-v1/tests/case01-memory-packaging.test.mjs",
+        "apps/api/scripts/meri-case46-setup.test.mjs",
+        "apps/api/scripts/meri-case01-setup-dependencies.test.mjs"
+      ],
+      "pid": 23740,
+      "exitCode": 0,
+      "elapsedSeconds": 26.7,
+      "logSha256": "4bd3eaaa2c7bdc5510d4a2cd21386b5e4dcf76b7af4784c8eb910191b620c82f",
+      "sourceUnchanged": true
+    },
+    {
+      "name": "promptfoo",
+      "sourceSha": "a472a7906561cf3192c99c7bc148ad29f00062a7",
+      "cwd": "C:\\dev\\cap-meri-mail-deadline",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "node_modules/promptfoo/dist/src/entrypoint.js",
+        "eval",
+        "-c",
+        "evals/meri/promptfooconfig.yaml",
+        "--no-cache",
+        "--no-share",
+        "--no-write",
+        "--no-table",
+        "--no-progress-bar",
+        "-o",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-integration\\meri-offline.json"
+      ],
+      "pid": 11828,
+      "exitCode": 0,
+      "elapsedSeconds": 26.53,
+      "logSha256": "80202e98851d95cae5831f0f902be970e931d1613293461066c7a4d92bada6e3",
+      "sourceUnchanged": true
+    },
+    {
+      "name": "verifier",
+      "sourceSha": "a472a7906561cf3192c99c7bc148ad29f00062a7",
+      "cwd": "C:\\dev\\cap-meri-mail-deadline",
+      "command": [
+        "C:\\ProgramData\\Hermes\\tools\\python-3.14.7+20260901-win32-x64\\python.exe",
+        "evals/meri/verify_report.py",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-integration\\meri-offline.json",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-integration\\meri-offline.summary.json"
+      ],
+      "pid": 24732,
+      "exitCode": 0,
+      "elapsedSeconds": 0.15,
+      "logSha256": "0f507878e2ea14711a7de45e48b89d41c463bc179a0a280d47254529d8a2a49b",
+      "sourceUnchanged": true
+    }
+  ],
+  "priorCheckpointQualifications": [
+    {
+      "qualificationPath": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\case46-artifact\\capture-substep-qualification.json",
+      "sha256": "44adba51e075fc4fe7e74f6ee6b560ccb56b5f8f08f129f0a77edbafb39313c9",
+      "commit": "ffbfa942a924369f716f4c0513526e6ff73f4b86",
+      "sourceHashCount": 8,
+      "mismatches": [],
+      "reviewLimitationsPreserved": true
+    },
+    {
+      "qualificationPath": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\case46-governed\\qualification.json",
+      "sha256": "7b93220375f2667b924bacb85940b9a892b038724f9f83f850849d388d64d0b8",
+      "commit": "870d4b52ceb71deced4127086729d2d74adde38c",
+      "sourceHashCount": 10,
+      "mismatches": [],
+      "reviewLimitationsPreserved": true
+    },
+    {
+      "qualificationPath": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\case46-governed\\document-enum-qualification.json",
+      "sha256": "b815df8c478b9d9184848b88c3bfcc249e37300125b30ebb722de57cbc495675",
+      "commit": "9ce4561e68d92f75ce1107b3d419461578b78413",
+      "sourceHashCount": 2,
+      "mismatches": [],
+      "reviewLimitationsPreserved": true
+    },
+    {
+      "qualificationPath": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\case46-governed\\action-qualification.json",
+      "sha256": "a513e7e0a539a2934b3eb9a15538e92128a7fef9a130e3122bbbbe5f0d43a904",
+      "commit": "2206be1d9e000b995f96d469917635d3e7b3bdb1",
+      "sourceHashCount": 11,
+      "mismatches": [],
+      "reviewLimitationsPreserved": true
+    },
+    {
+      "qualificationPath": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\case46-governed\\turn-qualification.json",
+      "sha256": "7a3c74bd7b4f696a32e5df9b166d4744604258464a5a8df7aefca2f8878cfff3",
+      "commit": "9d55c92d6a0df6108e178c493b41f0dc174e3ea0",
+      "sourceHashCount": 25,
+      "mismatches": [],
+      "reviewLimitationsPreserved": true
+    },
+    {
+      "qualificationPath": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\case46-governed\\setup-qualification.json",
+      "sha256": "f9b133665ee4229ecdda68e7b859f690a72608949ef047467995b5e7a1a67107",
+      "commit": "be07d351488f73709c31c7f11c1c033ec3664705",
+      "sourceHashCount": 14,
+      "mismatches": [],
+      "reviewLimitationsPreserved": true
+    },
+    {
+      "qualificationPath": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\case46-governed\\readback-qualification.json",
+      "sha256": "050e8521bb95210ea06a8580c2057721951b9db2d8a214a263370cca3e6c8106",
+      "commit": "3ea011ca2af24a12cd8591090c8546a6b3f4683d",
+      "sourceHashCount": 4,
+      "mismatches": [],
+      "reviewLimitationsPreserved": true
+    }
+  ],
+  "reviewProvenance": "All reviewed source blobs retained exactly; prior raw Kimi BLOCK/adjudication for turn and enum worker exit1 limitations remain in original receipts. Merge itself makes no new source edits.",
+  "preservedFailedAttempt": {
+    "name": "node-tests",
+    "exitCode": 1,
+    "passed": 36,
+    "failed": 1,
+    "skipped": 3,
+    "cause": "Missing explicit owned Windows native-storage test root/Python variables in initial runner; no source defect",
+    "resolution": "Fresh node-tests-native run sets those trusted local paths;40/40pass zero skips"
+  },
+  "limits": [
+    "Actual local PostgreSQL only; storage/provider boundaries remain mocked where documented; not production RLS/S3/provider proof",
+    "Node browser tests use controlled fake pages/routes, no real authentication or customer data",
+    "Typechecks cover full primary API and orchestrator, not every chained auxiliary project",
+    "No migrations or schema changes introduced by either merge",
+    "Case46 full native authenticated operator/grader integration and deployed live turn/download remain incomplete",
+    "Original75/CD/CW/M acceptance remains incomplete; offline26 does not imply live pass",
+    "Root must merge through C-drive main/GitHub and qualify API/orchestrator/Web before any live case46"
+  ],
+  "artifacts": {
+    "shared-build.exit.json": {
+      "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-integration\\shared-build.exit.json",
+      "sha256": "4f5f90014062eb22fcc97b4f396cd4437172eed162fe92282ad21c1dcc9d6698"
+    },
+    "core-build.exit.json": {
+      "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-integration\\core-build.exit.json",
+      "sha256": "e9c3e0a88f620dc98b2e863a38fe1e375b9f6ef1d678578560baef43d9534870"
+    },
+    "api-tests.exit.json": {
+      "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-integration\\api-tests.exit.json",
+      "sha256": "5c72977545a5c0c96cbef6de386e0f79251d7c3f9d8792fd0b3edc2a22f5f1d5"
+    },
+    "orchestrator-tests.exit.json": {
+      "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-integration\\orchestrator-tests.exit.json",
+      "sha256": "7afa45ee28b4bc8830588a387a6d1d3fafe7a57c79b028ebfd321cabcf77538b"
+    },
+    "api-types.exit.json": {
+      "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-integration\\api-types.exit.json",
+      "sha256": "3532682237076077270331908859cb4090390c62e2775b3f02734ef6d27aa037"
+    },
+    "orchestrator-types.exit.json": {
+      "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-integration\\orchestrator-types.exit.json",
+      "sha256": "87b305cc1a701cf53b2db94e6455050bf5cdad70f208eae1f2dec325fa740263"
+    },
+    "postgres-tests.exit.json": {
+      "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-integration\\postgres-tests.exit.json",
+      "sha256": "50f59ab3d687ff57d8e2a0a0ac5258cb128b7da249c877145f0285420866fd03"
+    },
+    "node-tests-native.exit.json": {
+      "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-integration\\node-tests-native.exit.json",
+      "sha256": "c977b3272222809b1cb434bed3c828953a8efbd02b37f7d50ac54ac53e4c5e88"
+    },
+    "promptfoo.exit.json": {
+      "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-integration\\promptfoo.exit.json",
+      "sha256": "e61e7637eb531d4e6b0041120f9c93fda39cbe2f2e869a8022e80820b5cbd951"
+    },
+    "verifier.exit.json": {
+      "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-integration\\verifier.exit.json",
+      "sha256": "9b7987f6c772ccede1f9501cc3954e862be9160942f8f581f005522db3d6e465"
+    },
+    "merge-source-identity.json": {
+      "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-integration\\merge-source-identity.json",
+      "sha256": "1e29a67f564206166e6f4c63d7a427133f2a8ca44044b92319ea858a9aa71222"
+    },
+    "prior-checkpoint-source-audit.json": {
+      "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-integration\\prior-checkpoint-source-audit.json",
+      "sha256": "ae9a161acd2d7323ecb8cd4cab266c2982663ad1d13d02076efe21c35d5ee76a"
+    },
+    "meri-offline.json": {
+      "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-integration\\meri-offline.json",
+      "sha256": "525d0f14b5ddf8dd7b80c06deab63d813d5eb6c8a92f1d942cbdd6da8cad1a7e"
+    },
+    "meri-offline.summary.json": {
+      "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-integration\\meri-offline.summary.json",
+      "sha256": "55e918fdafeeb07a257060d1ba1f5d299591c36da5c3649d9d6fcdb4f076d130"
+    },
+    "node-tests.exit.json": {
+      "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-integration\\node-tests.exit.json",
+      "sha256": "19952eb45d9c86ab8e804715001b5633c77ac08ce02289087a0f2373b269709c"
+    },
+    "node-tests.log": {
+      "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-integration\\node-tests.log",
+      "sha256": "db985393ed62d85d251f74ce446d2afbc1f94171b1f38ced63f75ea86749616c"
+    }
+  }
+}

@@ -1,0 +1,84 @@
+{
+  "schemaVersion": 1,
+  "verdict": "PASS",
+  "scope": "inactive case46 source capability and provider owner checkpoint only",
+  "sourceCommit": "870d4b52ceb71deced4127086729d2d74adde38c",
+  "baseCommit": "c22d059e4fc8fd73f93e6928f7db3a1a4338f7f8",
+  "priorUiCheckpoint": "a343c681615ab8a5aada42714434e745ab664b70",
+  "policySha": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "files": {
+    "apps/api/src/meri/meri-case46-authority.ts": "100b7e47079d0d552b06aa6d82ad3e3e7c60af0aaa5bda16538071e8e68126e0",
+    "apps/api/src/meri/meri-case46-provider-budget-owner.ts": "da96e9134ece26056991804120543509c4567276cffcb74ab2aa235ac0bbc295",
+    "apps/api/src/meri/meri-case46-provider-budget.spec-helper.ts": "6a34593227bb4287da68e1f2205326cb2fed9629def9af98647bca6baba5af4c",
+    "apps/api/src/meri/meri-case46-provider-budget.spec.ts": "bc848d4c8a241365c77ea37aae26d6e63485dbca2200c640890baeef65a02005",
+    "apps/api/src/meri/meri-case46-provider-budget.ts": "57f6783ffcea4cc3cfcb1ba6fef0fc78923051224279d5540447d6d93097c879",
+    "evals/meri/live-v1/case46-governed-capture.md": "96df3a4a2c4986a0ca164bbdb497dc019878256b3f737fba08cf291f727073fd",
+    "evals/meri/live-v1/tests/case46-provider-budget.postgres.test.mjs": "898307b04d6f7f277a1d17402e09270913589b450bbbafb3333d8db6c3bbb53c",
+    "packages/meriv2-core/src/context/governed-artifact-capture.spec.ts": "761ffc0dd9c52fd2fe4cdba5d99d82a04191fb4332faf39d8f28b0157108dc91",
+    "packages/meriv2-core/src/context/governed-artifact-capture.ts": "a4519f7f143a5dc4737e3eb0a5047ff96aafa278b1ba476c918f015597a539a5",
+    "packages/meriv2-core/src/index.ts": "0f4a861de893f8926ce5525026ee1721ab475d8d9c499dc48dd2717f4304dbb3"
+  },
+  "checks": [
+    {
+      "name": "core-tests-final",
+      "tests": 9,
+      "passed": 9,
+      "skipped": 0,
+      "exitCode": 0,
+      "logSha256": "0c2c62941f00236aa178ac3bfe52e97beaf3e4007de569de28de567da1cc5797"
+    },
+    {
+      "name": "budget-tests-final",
+      "tests": 9,
+      "passed": 9,
+      "skipped": 0,
+      "exitCode": 0,
+      "logSha256": "4347f798bf0dfd1b80de16c6c3bfa39873af40bbc0a1c27670fc81d5df2f8bd1"
+    },
+    {
+      "name": "owner-postgres-final",
+      "tests": 1,
+      "passed": 1,
+      "skipped": 0,
+      "exitCode": 0,
+      "logSha256": "6e1e2711a6d088a19f01ff85e71d0d1d745b2c2e2e7fdb64eeba944e9ce11689"
+    }
+  ],
+  "primaryApiTypecheck": {
+    "exitCode": 0,
+    "diagnostics": 0,
+    "logSha256": "c43a0a64f0a00ce97597bb95e9e28a12e00e95902a65dafb8ad12d09b57bdb0b",
+    "scope": "primary API project; chained auxiliary typechecks not run",
+    "resolution": "current checkout built core path override; donor junction not mutated"
+  },
+  "independentReview": {
+    "provider": "bedrock",
+    "model": "moonshotai.kimi-k2.5",
+    "sessionId": "20261002_103357_aedd1b",
+    "processExitCode": 0,
+    "tools": 0,
+    "verdict": "PASS",
+    "reviewSha256": "04cb67baa3557d3a4537517f452d2f374c3f7658fc678abf5cc5e308d97f21b1",
+    "postReviewDelta": "never-throw helper converted from arrow to declared function for control-flow narrowing; two test-only metadata casts; source note added",
+    "reviewLimits": "source review only; line anchors and absolute deadlock claims in raw model review are not runtime proof",
+    "postReviewPeerVerdict": "PASS",
+    "postReviewPeerReceiptSha256": "bc7c6238dddefa4b3978f160540634aff73baad8dcc22ed70aee91e014dbb3ac"
+  },
+  "liveCase46": "NOT_RUN",
+  "original75": "INCOMPLETE",
+  "externalEffects": "none; only owned loopback PostgreSQL disposable schema created and removed",
+  "limitations": [
+    "No production route/runtime activation, fixture seed, model turn, proposal, approval, artifact effect or browser download by this checkpoint",
+    "PostgreSQL storage port mocked; not actual S3 or production RLS qualification",
+    "Declared proposal/effect ceilings await canonical dispatch enforcement",
+    "API/orchestrator/Web release and actual Playwright required after completion"
+  ],
+  "preservedFailures": [
+    "budget-tests-pre-export-build.log",
+    "budget-tests-donor-resolution.log",
+    "owner-postgres-initial-scope-failure.log",
+    "api-types-default-heap-failure.log",
+    "api-types-missing-project-root.log",
+    "api-types-three-source-diagnostics.log"
+  ]
+}

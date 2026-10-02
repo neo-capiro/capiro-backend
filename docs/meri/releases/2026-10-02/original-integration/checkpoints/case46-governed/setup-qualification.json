@@ -1,0 +1,75 @@
+{
+  "sourceSha": "be07d351488f73709c31c7f11c1c033ec3664705",
+  "policySha": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "files": {
+    "apps/api/scripts/entrypoint.sh": "1073f7d7e97f2a6144698c4f0d1ed4c0c6cd7013b44f02b05e2069ae47629b9d",
+    "apps/api/src/embeddings/client-kb.service.ts": "37b3be16b4afaf3e5d0133451c5e61b2b1a1ce8bfbf4867ab4599d64b27801a4",
+    "apps/api/src/engagement/engagement.client-filing.spec.ts": "022b8a39deff3832ee5d4ac40859b655ce63493fc0426649c3eb343097869a5d",
+    "apps/api/src/engagement/engagement.service.ts": "7b5303e9ecbf3ec66d70a2dc3d8f77b74d5c4c265c22a273b1d1c99bb385006a",
+    "apps/api/src/meri/meri-case46-authority.ts": "dd3bd28ed1e9999e057599d40942dcbaaac5a5ae829c71863857e7137641af80",
+    "evals/meri/live-v1/case46-governed-capture.md": "e8642439036b3e04417a57c2c11f630035d5a264beb91c9611c85f89a0bb9b26",
+    "evals/meri/live-v1/tests/case46-provider-budget.postgres.test.mjs": "4f019abd8a6e42101387a9168acb7448fb809ae80a747fc7bdd320bd744ab792",
+    "apps/api/scripts/meri-case46-setup.mjs": "e4fa491967637a2323bb0939a311cd72289bf59b5af928732c2753e68687dbf4",
+    "apps/api/scripts/meri-case46-setup.test.mjs": "14451fb1d89a144ce6e4b67e4fa2a7dd57a4a7c3727bec7970306fd0607ab70d",
+    "apps/api/src/client-documents/case46-source-indexing.ts": "53d56e77aad9a2766e9c1bffd335e50f118dc7c21a663ec4fb1669adbc5d7eab",
+    "apps/api/src/embeddings/client-kb-await-source.spec.ts": "3273b759a936618e419ea5d352ca4dd7c4790f82aed040fc40bc68be229dc7d6",
+    "apps/api/src/meri/meri-case46-setup-dependencies.spec.ts": "e5e03b4bca2bf5f79e390f80c5d2dcfd39cb1ce37021f0275cd1ee979f98c755",
+    "apps/api/src/meri/meri-case46-setup-dependencies.ts": "6b1e05627732b1f7529e120d62f0b12658ffc480773b305f25162cadd5e0241c",
+    "apps/api/src/meri/meri-case46-setup-owner.ts": "94af626d54afef2ca1f8b5cd838464e7ebaffe231a57a27183cb306ade3066cf"
+  },
+  "tests": [
+    {
+      "log": "setup-composed-tests-final.log",
+      "sha256": "e1841397e910db8b88afdb5d4bc5216a42b74b0c4786043c3be50dc9d3ccb480",
+      "passed": 18,
+      "skipped": 0,
+      "exitCode": 0
+    },
+    {
+      "log": "setup-cli-tests.log",
+      "sha256": "0e2221d1c83a739ac8e4f8980ebe55245198f3f471d79a578f585da058405bdb",
+      "passed": 6,
+      "skipped": 0,
+      "exitCode": 0
+    },
+    {
+      "log": "setup-pg-composed.log",
+      "sha256": "77bb45b10278b3b7e1f8573cca25c416ab50b7adfebbd372d47c03826737e8e6",
+      "passed": 5,
+      "skipped": 0,
+      "exitCode": 0
+    }
+  ],
+  "typecheck": {
+    "scope": "primary API current-core",
+    "exitCode": 0,
+    "diagnostics": 0,
+    "log": "setup-api-types-sealed.log"
+  },
+  "independentReview": {
+    "provider": "bedrock",
+    "model": "moonshotai.kimi-k2.5",
+    "verdict": "PASS",
+    "processExitCode": 0,
+    "sessionId": "20261002_124040_215295",
+    "toolCalls": 0,
+    "reportedTokens": {
+      "input": 27957,
+      "output": 2031,
+      "total": 29988,
+      "cache_read": 0,
+      "cache_write": 0
+    },
+    "rawReview": "setup-kimi-review.md"
+  },
+  "limits": [
+    "No shared DB/AWS/auth/browser/provider calls",
+    "Actual owned loopback PG PrismaService and canonical owners; in-memory S3 only; configured index disabled in positive PG",
+    "Unit awaited-index tests use controlled provider completion/failure, not live embedding proof",
+    "No output/messages/proposals seeded; full original model/proposal/effect/browser capture remains to compose",
+    "No production RLS/storage/deployment qualification inferred"
+  ],
+  "liveCase46": "NOT_RUN",
+  "live75": "NOT_RUN",
+  "worktreeStatus": ""
+}

@@ -1,0 +1,372 @@
+{
+  "sourceSha": "a472a7906561cf3192c99c7bc148ad29f00062a7",
+  "manifestSha256": "c39b873051fb047651215c54ee827ed96b8a6a4dcf0abba28376df61379a8877",
+  "inputs": [
+    {
+      "input": "oct02-original-integration/qualification.json",
+      "sha256": "791d6e07ec2f785cb7d7df8a03accfff7ce51fd7affed4625d7b326f40b039fa",
+      "mode": "copy",
+      "output": "qualification.json"
+    },
+    {
+      "input": "oct02-original-integration/merge-source-identity.json",
+      "sha256": "1e29a67f564206166e6f4c63d7a427133f2a8ca44044b92319ea858a9aa71222",
+      "mode": "copy",
+      "output": "merge-source-identity.json"
+    },
+    {
+      "input": "oct02-original-integration/prior-checkpoint-source-audit.json",
+      "sha256": "ae9a161acd2d7323ecb8cd4cab266c2982663ad1d13d02076efe21c35d5ee76a",
+      "mode": "copy",
+      "output": "prior-checkpoint-source-audit.json"
+    },
+    {
+      "input": "oct02-original-integration/meri-offline.summary.json",
+      "sha256": "55e918fdafeeb07a257060d1ba1f5d299591c36da5c3649d9d6fcdb4f076d130",
+      "mode": "copy",
+      "output": "meri-offline.summary.json"
+    },
+    {
+      "input": "oct02-original-integration/node-tests.exit.json",
+      "sha256": "19952eb45d9c86ab8e804715001b5633c77ac08ce02289087a0f2373b269709c",
+      "mode": "copy",
+      "output": "node-tests.exit.json"
+    },
+    {
+      "input": "oct02-original-integration/shared-build.exit.json",
+      "sha256": "4f5f90014062eb22fcc97b4f396cd4437172eed162fe92282ad21c1dcc9d6698",
+      "mode": "copy",
+      "output": "checks/shared-build.exit.json"
+    },
+    {
+      "input": "oct02-original-integration/shared-build.log",
+      "sha256": "0750841b9b4877c8a85dc60c1a779a9d0c4a8c0e277454b1e551977daa6a00b3",
+      "mode": "log-summary",
+      "output": "checks/shared-build.log-summary.json"
+    },
+    {
+      "input": "oct02-original-integration/core-build.exit.json",
+      "sha256": "e9c3e0a88f620dc98b2e863a38fe1e375b9f6ef1d678578560baef43d9534870",
+      "mode": "copy",
+      "output": "checks/core-build.exit.json"
+    },
+    {
+      "input": "oct02-original-integration/core-build.log",
+      "sha256": "d280c1ebf51df2b98b0b6cda3c9dcfbfe9ed9c60b57df4f4303ed1c8cf9efa84",
+      "mode": "log-summary",
+      "output": "checks/core-build.log-summary.json"
+    },
+    {
+      "input": "oct02-original-integration/api-tests.exit.json",
+      "sha256": "5c72977545a5c0c96cbef6de386e0f79251d7c3f9d8792fd0b3edc2a22f5f1d5",
+      "mode": "copy",
+      "output": "checks/api-tests.exit.json"
+    },
+    {
+      "input": "oct02-original-integration/api-tests.log",
+      "sha256": "78e4f3e391ff77b9de3310793881ec3dde6b50d10a89b320aee2fc5991691409",
+      "mode": "log-summary",
+      "output": "checks/api-tests.log-summary.json"
+    },
+    {
+      "input": "oct02-original-integration/orchestrator-tests.exit.json",
+      "sha256": "7afa45ee28b4bc8830588a387a6d1d3fafe7a57c79b028ebfd321cabcf77538b",
+      "mode": "copy",
+      "output": "checks/orchestrator-tests.exit.json"
+    },
+    {
+      "input": "oct02-original-integration/orchestrator-tests.log",
+      "sha256": "7b67c056efa59d558a9a86f2e3c3247d83a89a372a8000a4f4b036b82ed8d53b",
+      "mode": "log-summary",
+      "output": "checks/orchestrator-tests.log-summary.json"
+    },
+    {
+      "input": "oct02-original-integration/api-types.exit.json",
+      "sha256": "3532682237076077270331908859cb4090390c62e2775b3f02734ef6d27aa037",
+      "mode": "copy",
+      "output": "checks/api-types.exit.json"
+    },
+    {
+      "input": "oct02-original-integration/api-types.log",
+      "sha256": "437495690f32946778bb4effb6c77e43faa344a42a99f8ede1a673336c9848f8",
+      "mode": "log-summary",
+      "output": "checks/api-types.log-summary.json"
+    },
+    {
+      "input": "oct02-original-integration/orchestrator-types.exit.json",
+      "sha256": "87b305cc1a701cf53b2db94e6455050bf5cdad70f208eae1f2dec325fa740263",
+      "mode": "copy",
+      "output": "checks/orchestrator-types.exit.json"
+    },
+    {
+      "input": "oct02-original-integration/orchestrator-types.log",
+      "sha256": "5a53e7e47e4e84d064358ec4624ac04bce87683f4fd2941d7b0cc1c6a081d0ab",
+      "mode": "log-summary",
+      "output": "checks/orchestrator-types.log-summary.json"
+    },
+    {
+      "input": "oct02-original-integration/postgres-tests.exit.json",
+      "sha256": "50f59ab3d687ff57d8e2a0a0ac5258cb128b7da249c877145f0285420866fd03",
+      "mode": "copy",
+      "output": "checks/postgres-tests.exit.json"
+    },
+    {
+      "input": "oct02-original-integration/postgres-tests.log",
+      "sha256": "795cd62cb46e2e50ca48e6711b77abe7e10c208ff28db7e92a31d0ca80115102",
+      "mode": "log-summary",
+      "output": "checks/postgres-tests.log-summary.json"
+    },
+    {
+      "input": "oct02-original-integration/node-tests-native.exit.json",
+      "sha256": "c977b3272222809b1cb434bed3c828953a8efbd02b37f7d50ac54ac53e4c5e88",
+      "mode": "copy",
+      "output": "checks/node-tests-native.exit.json"
+    },
+    {
+      "input": "oct02-original-integration/node-tests-native.log",
+      "sha256": "4bd3eaaa2c7bdc5510d4a2cd21386b5e4dcf76b7af4784c8eb910191b620c82f",
+      "mode": "log-summary",
+      "output": "checks/node-tests-native.log-summary.json"
+    },
+    {
+      "input": "oct02-original-integration/promptfoo.exit.json",
+      "sha256": "e61e7637eb531d4e6b0041120f9c93fda39cbe2f2e869a8022e80820b5cbd951",
+      "mode": "copy",
+      "output": "checks/promptfoo.exit.json"
+    },
+    {
+      "input": "oct02-original-integration/promptfoo.log",
+      "sha256": "80202e98851d95cae5831f0f902be970e931d1613293461066c7a4d92bada6e3",
+      "mode": "log-summary",
+      "output": "checks/promptfoo.log-summary.json"
+    },
+    {
+      "input": "oct02-original-integration/verifier.exit.json",
+      "sha256": "9b7987f6c772ccede1f9501cc3954e862be9160942f8f581f005522db3d6e465",
+      "mode": "copy",
+      "output": "checks/verifier.exit.json"
+    },
+    {
+      "input": "oct02-original-integration/verifier.log",
+      "sha256": "0f507878e2ea14711a7de45e48b89d41c463bc179a0a280d47254529d8a2a49b",
+      "mode": "log-summary",
+      "output": "checks/verifier.log-summary.json"
+    },
+    {
+      "input": "oct02-original-integration/node-tests.log",
+      "sha256": "db985393ed62d85d251f74ce446d2afbc1f94171b1f38ced63f75ea86749616c",
+      "mode": "log-summary",
+      "output": "checks/node-tests-initial-failed.log-summary.json"
+    },
+    {
+      "input": "oct02-original-integration/meri-offline.json",
+      "sha256": "525d0f14b5ddf8dd7b80c06deab63d813d5eb6c8a92f1d942cbdd6da8cad1a7e",
+      "mode": "validate-only",
+      "output": null
+    },
+    {
+      "input": "oct02-original-eval/case46-artifact/capture-substep-qualification.json",
+      "sha256": "44adba51e075fc4fe7e74f6ee6b560ccb56b5f8f08f129f0a77edbafb39313c9",
+      "mode": "copy",
+      "output": "checkpoints/case46-artifact/capture-substep-qualification.json"
+    },
+    {
+      "input": "oct02-original-eval/case46-governed/qualification.json",
+      "sha256": "7b93220375f2667b924bacb85940b9a892b038724f9f83f850849d388d64d0b8",
+      "mode": "copy",
+      "output": "checkpoints/case46-governed/qualification.json"
+    },
+    {
+      "input": "oct02-original-eval/case46-governed/document-enum-qualification.json",
+      "sha256": "b815df8c478b9d9184848b88c3bfcc249e37300125b30ebb722de57cbc495675",
+      "mode": "copy",
+      "output": "checkpoints/case46-governed/document-enum-qualification.json"
+    },
+    {
+      "input": "oct02-original-eval/case46-governed/action-qualification.json",
+      "sha256": "a513e7e0a539a2934b3eb9a15538e92128a7fef9a130e3122bbbbe5f0d43a904",
+      "mode": "copy",
+      "output": "checkpoints/case46-governed/action-qualification.json"
+    },
+    {
+      "input": "oct02-original-eval/case46-governed/turn-qualification.json",
+      "sha256": "7a3c74bd7b4f696a32e5df9b166d4744604258464a5a8df7aefca2f8878cfff3",
+      "mode": "copy",
+      "output": "checkpoints/case46-governed/turn-qualification.json"
+    },
+    {
+      "input": "oct02-original-eval/case46-governed/setup-qualification.json",
+      "sha256": "f9b133665ee4229ecdda68e7b859f690a72608949ef047467995b5e7a1a67107",
+      "mode": "copy",
+      "output": "checkpoints/case46-governed/setup-qualification.json"
+    },
+    {
+      "input": "oct02-original-eval/case46-governed/readback-qualification.json",
+      "sha256": "050e8521bb95210ea06a8580c2057721951b9db2d8a214a263370cca3e6c8106",
+      "mode": "copy",
+      "output": "checkpoints/case46-governed/readback-qualification.json"
+    },
+    {
+      "input": "oct02-original-eval/case46-artifact/capture-substep-kimi-review.md",
+      "sha256": "4bfe6b112c28df5e262dc23738d57daded1f9b321526e1cfd0e85c91f528d703",
+      "mode": "copy",
+      "output": "checkpoints/case46-artifact/capture-substep-kimi-review.md"
+    },
+    {
+      "input": "oct02-original-eval/case46-artifact/capture-substep-kimi-exit.json",
+      "sha256": "0df770c78fa992f2d6fab458ccc092e4d03cbb1edf55007da2a536d4c591c768",
+      "mode": "copy",
+      "output": "checkpoints/case46-artifact/capture-substep-kimi-exit.json"
+    },
+    {
+      "input": "oct02-original-eval/case46-artifact/capture-substep-kimi-usage.json",
+      "sha256": "a1e27139b65446c37d084bca48525bd524172b336f17339ae8f741522dc37fea",
+      "mode": "copy",
+      "output": "checkpoints/case46-artifact/capture-substep-kimi-usage.json"
+    },
+    {
+      "input": "oct02-original-eval/case46-governed/governed-owner-kimi-review.md",
+      "sha256": "04cb67baa3557d3a4537517f452d2f374c3f7658fc678abf5cc5e308d97f21b1",
+      "mode": "copy",
+      "output": "checkpoints/case46-governed/governed-owner-kimi-review.md"
+    },
+    {
+      "input": "oct02-original-eval/case46-governed/governed-owner-kimi-exit.json",
+      "sha256": "4c1e0f337c8bc31cf86dbd5b0ad4613605cb44e641aaebcf59fcddc5ca71b4eb",
+      "mode": "copy",
+      "output": "checkpoints/case46-governed/governed-owner-kimi-exit.json"
+    },
+    {
+      "input": "oct02-original-eval/case46-governed/governed-owner-kimi-usage.json",
+      "sha256": "b4e25d339faedeae3667a8f252940deab6c5f56db3b709e36b46554dde1b6c59",
+      "mode": "copy",
+      "output": "checkpoints/case46-governed/governed-owner-kimi-usage.json"
+    },
+    {
+      "input": "oct02-original-eval/case46-governed/document-enum-kimi-review.md",
+      "sha256": "43081102807c17bd04fafc67d8b098b18f575c14a9772fdd0490af27c6e9b25b",
+      "mode": "copy",
+      "output": "checkpoints/case46-governed/document-enum-kimi-review.md"
+    },
+    {
+      "input": "oct02-original-eval/case46-governed/document-enum-kimi-exit.json",
+      "sha256": "f00093bda4b3a15791383990ddc087cf147279e4ba569d67109480976b3c61b4",
+      "mode": "copy",
+      "output": "checkpoints/case46-governed/document-enum-kimi-exit.json"
+    },
+    {
+      "input": "oct02-original-eval/case46-governed/document-enum-kimi-usage.json",
+      "sha256": "fe6caa8df718de12ce6432573d0c7f432a5da61135a921e924ba2b7aba9d19e2",
+      "mode": "copy",
+      "output": "checkpoints/case46-governed/document-enum-kimi-usage.json"
+    },
+    {
+      "input": "oct02-original-eval/case46-governed/action-kimi-review.md",
+      "sha256": "4150348e5a067fc66e9697399033f6a921f887ad3e4598856d76b743a9932d1e",
+      "mode": "copy",
+      "output": "checkpoints/case46-governed/action-kimi-review.md"
+    },
+    {
+      "input": "oct02-original-eval/case46-governed/action-kimi-exit.json",
+      "sha256": "4c3acd4eda105c8628fad850ddc1b74e57b8f5c698228e54da171e93c976a92c",
+      "mode": "copy",
+      "output": "checkpoints/case46-governed/action-kimi-exit.json"
+    },
+    {
+      "input": "oct02-original-eval/case46-governed/action-kimi-usage.json",
+      "sha256": "51898aaaec5c1433781e5208e4c52a4d4c67c2e5d1f5f86f80be7abaeeffd4c2",
+      "mode": "copy",
+      "output": "checkpoints/case46-governed/action-kimi-usage.json"
+    },
+    {
+      "input": "oct02-original-eval/case46-governed/turn-kimi-review.md",
+      "sha256": "377be95c6574bca275b2e77a313dad58a9b690297675e4b646f021b98d28669d",
+      "mode": "copy",
+      "output": "checkpoints/case46-governed/turn-kimi-review.md"
+    },
+    {
+      "input": "oct02-original-eval/case46-governed/turn-kimi-exit.json",
+      "sha256": "17b3a2d9e8f994f0c64dc03a9499fe5232a8c97bd00ade22864a15e052abc73a",
+      "mode": "copy",
+      "output": "checkpoints/case46-governed/turn-kimi-exit.json"
+    },
+    {
+      "input": "oct02-original-eval/case46-governed/turn-kimi-usage.json",
+      "sha256": "d7841683637a6b17a12cdeb2a21dfa99b9e19936ff3b3ebd82bc47c542dcc355",
+      "mode": "copy",
+      "output": "checkpoints/case46-governed/turn-kimi-usage.json"
+    },
+    {
+      "input": "oct02-original-eval/case46-governed/setup-kimi-review.md",
+      "sha256": "b562291cd672a561c795e2a2be4da052b2bd9a09435be323dd74fcf30328bd9b",
+      "mode": "copy",
+      "output": "checkpoints/case46-governed/setup-kimi-review.md"
+    },
+    {
+      "input": "oct02-original-eval/case46-governed/setup-kimi-exit.json",
+      "sha256": "19c5d4eb809b86167a4346965e7fbd0b86d57a2ba776b7047df5abfa52a5b77a",
+      "mode": "copy",
+      "output": "checkpoints/case46-governed/setup-kimi-exit.json"
+    },
+    {
+      "input": "oct02-original-eval/case46-governed/setup-kimi-usage.json",
+      "sha256": "6354ab923f082cbb47534b91b162cf02fed913a2151a0a7d629097d4c046f317",
+      "mode": "copy",
+      "output": "checkpoints/case46-governed/setup-kimi-usage.json"
+    },
+    {
+      "input": "oct02-original-eval/case46-governed/readback-kimi-review.md",
+      "sha256": "7e9073b2867258fea48eb1e15e10897d65228cf9abf53fb6eff1f9c745c6b660",
+      "mode": "copy",
+      "output": "checkpoints/case46-governed/readback-kimi-review.md"
+    },
+    {
+      "input": "oct02-original-eval/case46-governed/readback-kimi-exit.json",
+      "sha256": "529661846ce866a5fe2059b2d9584d0e19b235dc1995f5d9ae0a9cff755fa8db",
+      "mode": "copy",
+      "output": "checkpoints/case46-governed/readback-kimi-exit.json"
+    },
+    {
+      "input": "oct02-original-eval/case46-governed/readback-kimi-usage.json",
+      "sha256": "86118585e013db7a1c16db12f789069498f7f069e6c7e885d56d0153a091507d",
+      "mode": "copy",
+      "output": "checkpoints/case46-governed/readback-kimi-usage.json"
+    },
+    {
+      "input": "oct02-original-eval/case46-governed/governed-owner-root-post-review.json",
+      "sha256": "bc7c6238dddefa4b3978f160540634aff73baad8dcc22ed70aee91e014dbb3ac",
+      "mode": "copy",
+      "output": "checkpoints/case46-governed/governed-owner-root-post-review.json"
+    },
+    {
+      "input": "oct02-original-eval/case46-governed/document-enum-root-peer-review.json",
+      "sha256": "43052e69002810c32ac299d983a5f0ea3d8a96152d05ba9b451a13c4ecc60115",
+      "mode": "copy",
+      "output": "checkpoints/case46-governed/document-enum-root-peer-review.json"
+    },
+    {
+      "input": "oct02-original-eval/case46-governed/turn-review-adjudication.md",
+      "sha256": "cd849aa1be8be2e9ca21c015e4b042955f28f19bda65cce0f33faad878f1fbe0",
+      "mode": "copy",
+      "output": "checkpoints/case46-governed/turn-review-adjudication.md"
+    },
+    {
+      "input": "oct02-original-eval/case46-governed/v3-qwen-review.md",
+      "sha256": "629e6ed6edf3db2df73c4b31bce705835dfc884967a1710a2ce658b359837282",
+      "mode": "copy",
+      "output": "checkpoints/case46-governed/v3-qwen-review.md"
+    },
+    {
+      "input": "oct02-original-eval/case46-governed/v3-qwen-exit.json",
+      "sha256": "081ecb273ad96ea21bd0381268988d46f079bea3f25ebfa4f54e5dd98a5d6952",
+      "mode": "copy",
+      "output": "checkpoints/case46-governed/v3-qwen-exit.json"
+    },
+    {
+      "input": "oct02-original-eval/case46-governed/v3-qwen-usage.json",
+      "sha256": "1e91c30df6cf535ea44772d073e5d3398f08e64af1a8f0347089bb53ee20afb6",
+      "mode": "copy",
+      "output": "checkpoints/case46-governed/v3-qwen-usage.json"
+    }
+  ]
+}

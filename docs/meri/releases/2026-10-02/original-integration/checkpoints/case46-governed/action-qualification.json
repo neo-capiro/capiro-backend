@@ -1,0 +1,99 @@
+{
+  "version": 1,
+  "kind": "meri-case46-api-proposal-effect-checkpoint",
+  "status": "PASS",
+  "policySha": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "machineMapRevision": "2026-09-30",
+  "parentSourceSha": "9ce4561e68d92f75ce1107b3d419461578b78413",
+  "sourceFiles": {
+    "apps/api/src/meri/meri-case46-action-authority.ts": "f22dc4a30be2e8e4fed2d2032d4bacc46115f9090076a43f212c3041bbc211f2",
+    "apps/api/src/meri/meri-case46-action-authority.spec.ts": "7047790cbc781c336bdba3d2fe403a6796671f05a7f47f061f5fef7bc6057126",
+    "apps/api/src/meri/meri-case46-provider-budget-owner.ts": "227a02ab7125313ad096f52243cb5599913b0ef6fa7c1c0230fde99754e54c6a",
+    "apps/api/src/meri/meri-action-proposal.controller.ts": "622f6ef5810c8952a897d95e49fdedc3a5c82dacefaed78f3c21b092551211d1",
+    "apps/api/src/meri/meri-action-proposal.service.ts": "ab004b95d6e559047a62a35ce2f8f6895b3dcbe321d9bfaf6069c25fdf412738",
+    "apps/api/src/meri/meri-action-proposal.service.spec.ts": "3218138d84e4c2f7c367e5202db0e6e8577074196b09b243ce7f212db8fe6c6c",
+    "apps/api/src/meri/meri-action-proposal.http.spec.ts": "06fcc7b25c836fbf39997f06f6888acb5399126c00173dc3fed04df80d433ac4",
+    "apps/api/src/meri/meri-tools.service.ts": "2fd6658a7d6d221903f3a7031f8e03e911f4f5aa45c1ac27c9047dd82e0916fb",
+    "apps/api/src/meri/meri.module.ts": "a58e8b2389b9502ae17f296248bfac89b4478a222b1c4f1cdb65951a8a417c7e",
+    "evals/meri/live-v1/tests/case46-provider-budget.postgres.test.mjs": "95ffb8a4b597c3bc641aa9096d473f6bffde5a34229bfa874b2e51b7fe801e55",
+    "evals/meri/live-v1/case46-governed-capture.md": "72557a36b7d9b8d6588e3974393a08f1faf3f6b3df4a296b12930de8e6dd8025"
+  },
+  "tests": [
+    {
+      "log": "action-jest-v2.log",
+      "exitCode": 0,
+      "passed": 161,
+      "skipped": 1,
+      "scope": "6 targeted API Jest suites; existing optional PG skip"
+    },
+    {
+      "log": "action-pg.log",
+      "exitCode": 0,
+      "passed": 2,
+      "skipped": 0,
+      "scope": "actual owned PG55433 Prisma transactions/rowlocking/rollback; source storage port mocked"
+    },
+    {
+      "log": "action-http-final.log",
+      "exitCode": 0,
+      "passed": 13,
+      "skipped": 0,
+      "scope": "HTTP suite rerun after adding one DTO/guard assertion, overlaps prior12 tests"
+    },
+    {
+      "log": "action-types-v2.log",
+      "exitCode": 0,
+      "diagnostics": 0,
+      "scope": "entire primary API TypeScript project with own built core; chained auxiliary projects not run"
+    }
+  ],
+  "review": {
+    "model": "moonshotai.kimi-k2.5",
+    "provider": "bedrock",
+    "session": "20261002_111559_f021e1",
+    "verdict": "PASS",
+    "processExit": 0,
+    "toolCalls": 0,
+    "rawReview": "action-kimi-review.md",
+    "limitations": [
+      "Raw analysis includes speculative/self-corrected findings and nonexistent max-attempt code. No such ceiling is relied on; actual effect count and row locks enforce one effect.",
+      "settledCase46ProviderReceipt is a pure validation/projection, not a state mutation.",
+      "Only later change is new HTTP test and documentation; reviewed production bytes remain identical."
+    ]
+  },
+  "failedWorker": {
+    "requestedModel": "qwen.qwen3-coder-next",
+    "provider": "bedrock",
+    "session": "20261002_111559_79146d",
+    "processExit": 1,
+    "filesChanged": 0,
+    "reportedTokens": 416395,
+    "report": "v3-qwen-review.md",
+    "noRepeat": true
+  },
+  "preservedFailures": [
+    "action-jest.log default4GB Node heap exhausted exit134",
+    "action-types.log two test Request cast diagnostics exit1"
+  ],
+  "limits": [
+    "No AWS/auth/browser/shared database writes.",
+    "No live S3 or production RLS evidence.",
+    "Full chat/V3 forwarding and fixed setup/operator not yet integrated.",
+    "Original row46 and75 live matrix NOT_RUN."
+  ],
+  "evidenceHashes": {
+    "action-jest-v2.log": "0992b9885915f0eee736516b73fa760bdb932eddc920b9d6e5fd10edc94bef5f",
+    "action-jest-v2.exit": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+    "action-pg.log": "0d82fddcbd0a9e4ec5cb83196abee3e64600322b8637238eaa9110887367f700",
+    "action-pg.exit": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+    "action-types-v2.log": "c43a0a64f0a00ce97597bb95e9e28a12e00e95902a65dafb8ad12d09b57bdb0b",
+    "action-types-v2.exit": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+    "action-http-final.log": "0e57f5e0b7a25201a87850ad092e5961e5393410387557dccd3a703e28e41d64",
+    "action-http-final.exit": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+    "action-kimi-review.md": "4150348e5a067fc66e9697399033f6a921f887ad3e4598856d76b743a9932d1e",
+    "action-kimi-exit.json": "4c3acd4eda105c8628fad850ddc1b74e57b8f5c698228e54da171e93c976a92c",
+    "action-kimi-usage.json": "51898aaaec5c1433781e5208e4c52a4d4c67c2e5d1f5f86f80be7abaeeffd4c2",
+    "v3-qwen-exit.json": "081ecb273ad96ea21bd0381268988d46f079bea3f25ebfa4f54e5dd98a5d6952",
+    "v3-qwen-usage.json": "1e91c30df6cf535ea44772d073e5d3398f08e64af1a8f0347089bb53ee20afb6"
+  }
+}

@@ -1,0 +1,126 @@
+{
+  "verdict": "PASS",
+  "scope": "Case46 current persisted readback and public DTO increment; local qualification only",
+  "sourceSha": "3ea011ca2af24a12cd8591090c8546a6b3f4683d",
+  "sourceTree": "ac09480b3ee15f02c239ea4ab72b10e5b6289575",
+  "branch": "codex/meri-case46-governed-capture-20261002",
+  "worktree": "C:\\dev\\cap-meri-doc-fidelity",
+  "parentSourceSha": "be07d351488f73709c31c7f11c1c033ec3664705",
+  "policy": {
+    "remoteMain": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+    "localHead": "743fd708c3484604e8a35ea1039adeca3b1e331f",
+    "operatingRulesByteEqual": true,
+    "machineMapDate": "2026-09-30"
+  },
+  "sourceHashes": {
+    "apps/api/src/meri/meri-case46-capture-readback.ts": "262379d5cfbd530b42f7ab9c739b452b3286e24bdad866a2506daad69b47da5f",
+    "apps/api/src/meri/meri.service.ts": "2d3f8804b4a33fcd69afa5949deb0c80e44668506b8407eb14acc57cbae0260d",
+    "apps/api/src/meri/meri-case46-capture-readback.spec.ts": "fd7b6b7ffe4c43269972c0e5345527e3350f7e7bd46b3663b18d5b546e4cad7e",
+    "evals/meri/live-v1/tests/case46-provider-budget.postgres.test.mjs": "78961ce8f49d45b0c49ea30ad48d19ae740973d68f393a2230da8452ccdbbcb5"
+  },
+  "tests": [
+    {
+      "kind": "Jest",
+      "passed": 19,
+      "suites": 3,
+      "exitCode": 0,
+      "authorityPorts": "mocked for DTO/callsite tests"
+    },
+    {
+      "kind": "Owned local PostgreSQL through actual Prisma",
+      "passed": 6,
+      "skipped": 0,
+      "exitCode": 0,
+      "limitations": "Canonical external storage is a bounded test port; no live S3/provider/auth/AWS call"
+    },
+    {
+      "kind": "Full primary API typecheck against own built core",
+      "diagnostics": 0,
+      "exitCode": 0
+    },
+    {
+      "kind": "Deterministic Promptfoo plus custom verifier",
+      "passed": 26,
+      "exitCode": 0,
+      "coverage": "Offline mechanism assertions only, not live acceptance"
+    }
+  ],
+  "review": {
+    "kind": "actual Hermes Bedrock Kimi source-only review",
+    "verdict": "PASS",
+    "exitCode": 0,
+    "sessionId": "20261002_134953_91041d",
+    "toolCalls": 0,
+    "elapsedSeconds": 27.32,
+    "tokens": {
+      "input": 27229,
+      "output": 1297,
+      "total": 28526,
+      "cache_read": 0,
+      "cache_write": 0
+    },
+    "postReviewSourceUnchanged": true,
+    "limitation": "Review references supplied test evidence; it did not execute tests"
+  },
+  "artifacts": {
+    "readback-jest.log": {
+      "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\case46-governed\\readback-jest.log",
+      "sha256": "a65472aa49988fe16afed2784eb2403b639aa0e9e9754c40f3e99557fa2bcbee"
+    },
+    "readback-jest.exit": {
+      "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\case46-governed\\readback-jest.exit",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354"
+    },
+    "readback-pg.log": {
+      "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\case46-governed\\readback-pg.log",
+      "sha256": "833f7b7c33d2974bf49ba2bd8c19a08dac8df8b7e4df559b3cf333ef9339f5f6"
+    },
+    "readback-pg.exit": {
+      "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\case46-governed\\readback-pg.exit",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354"
+    },
+    "readback-api-typecheck.log": {
+      "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\case46-governed\\readback-api-typecheck.log",
+      "sha256": "c43a0a64f0a00ce97597bb95e9e28a12e00e95902a65dafb8ad12d09b57bdb0b"
+    },
+    "readback-api-typecheck.exit": {
+      "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\case46-governed\\readback-api-typecheck.exit",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354"
+    },
+    "readback-kimi-review.md": {
+      "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\case46-governed\\readback-kimi-review.md",
+      "sha256": "7e9073b2867258fea48eb1e15e10897d65228cf9abf53fb6eff1f9c745c6b660"
+    },
+    "readback-kimi-exit.json": {
+      "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\case46-governed\\readback-kimi-exit.json",
+      "sha256": "529661846ce866a5fe2059b2d9584d0e19b235dc1995f5d9ae0a9cff755fa8db"
+    },
+    "readback-kimi-usage.json": {
+      "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\case46-governed\\readback-kimi-usage.json",
+      "sha256": "86118585e013db7a1c16db12f789069498f7f069e6c7e885d56d0153a091507d"
+    },
+    "readback-review-source-hashes.json": {
+      "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\case46-governed\\readback-review-source-hashes.json",
+      "sha256": "c81020e06253d20ec542fe0e22a113116fa3cc1bd5a5131997241485bbdc49a1"
+    },
+    "offline-readback/exits.json": {
+      "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\case46-governed\\offline-readback\\exits.json",
+      "sha256": "b31802dee83862d953f644326c7dd4fdc48c16ab0897339431a8342412fef306"
+    },
+    "offline-readback/meri-offline.json": {
+      "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\case46-governed\\offline-readback\\meri-offline.json",
+      "sha256": "70bf1773fe9881c3301b595def4bcab2dec7fb2da468145c2590187fdff38cea"
+    },
+    "offline-readback/meri-offline.summary.json": {
+      "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\case46-governed\\offline-readback\\meri-offline.summary.json",
+      "sha256": "ff24675673e643aa4cb003b27e104391b1987fbf05c5ad8ba51aa710bc312a06"
+    }
+  },
+  "liveCase46": "NOT_RUN",
+  "externalSideEffects": [],
+  "remaining": [
+    "Root integration of accumulated case46 dependencies and exact qualified API/orchestrator/Web deployment",
+    "Finish native one-shot operator/collector and grade original proposal approval plus actual browser download against current receipt",
+    "Authorized root-only setup and one original live turn; no case46 success seeded"
+  ]
+}

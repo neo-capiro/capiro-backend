@@ -1,0 +1,107 @@
+{
+  "version": 1,
+  "kind": "meri-case46-governed-turn-provider-checkpoint",
+  "status": "PASS_WITH_REVIEW_ADJUDICATION",
+  "sourceParentSha": "2206be1d9e000b995f96d469917635d3e7b3bdb1",
+  "policySha": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "machineMapRevision": "2026-09-30",
+  "sourceFiles": {
+    "apps/api/src/meri/meri-capture-api-provider-scope.ts": "a815f4e0da886dae76ee0f908e6dfaae72040c10f9b5f594afe6f3333e974501",
+    "apps/api/src/meri/meri-capture-provider-budget.controller.ts": "571c6173ce5b2f6a2913751066179c95e25c2c4a7782f68d53607ee5a82cec9c",
+    "apps/api/src/meri/meri-context-plane-runtime.ts": "a3f2ed23cc86e560fc93438a1fbad4b89078ac4a6be6b5ec3379716b2298f83a",
+    "apps/api/src/meri/meriv3-proxy.service.ts": "0b49ff46dcecc6f6111e565ac9591077dc35c4fbe87abf6d46faf196662dbfef",
+    "apps/api/src/meri/meriv3-runtime.proxy.ts": "6fe94e511646a6a80bbf34fbbe0dfa790a461471ad43d8da7f125256c4702a81",
+    "apps/meriv2-orchestrator/src/meri/api-action-proposal.repo.ts": "73df833654eedd9d2b5ae140735e2c190b405693dcc400aa4faec8acdfceb4f7",
+    "apps/meriv2-orchestrator/src/meri/api-tool-executor.repo.ts": "f5e3793f4dd88193e9955e22018cec308a66140dfdf82d0e16246d8d359e4cc0",
+    "apps/meriv2-orchestrator/src/meri/chat/chat.controller.ts": "7fe7db2c29078dff7295603e76dc84e85a7e71bbff3bc5515156d172832d2967",
+    "apps/meriv2-orchestrator/src/meri/meriv3/api-managed-mcp.repo.ts": "34d4089352303762e1ebf89dc1de63ccb8cfb91692ba11146f058d7dfb9f2c32",
+    "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.spec.ts": "735d29895d7f710ed86dd5829ad99363126d42d16aee2081cc5435c1c45ab104",
+    "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts": "ecd2487c8d9a4aaaa3065983cc23b7ae302e9460d6e201b176280909391d4de3",
+    "apps/meriv2-orchestrator/src/meri/meriv3/meriv3.controller.ts": "317d4f87e2cee67de8b8d8c7ab61a250453f50cb90a0b32b403784ac2d1fba7a",
+    "apps/meriv2-orchestrator/src/request/trusted-current-turn-scope.ts": "424e5453970f6ea69f17f9d69aa0fa323c6a38356d44f872636ba92538da1b13",
+    "evals/meri/live-v1/case46-governed-capture.md": "efa0a05c5a70c77e851c1aa00f047f8fa4ca75f01441f6e57992145c0e7a4bb9",
+    "evals/meri/live-v1/tests/case46-provider-budget.postgres.test.mjs": "bbd1b5def74f25edfd4645a76312c12983edc9783e1e82a0be5438c23d6eedbf",
+    "packages/meriv2-core/src/context/governed-artifact-capture.spec.ts": "b88787ba8e09dd321e085bd184daa6200be47809d097f6dd3430628354bce97e",
+    "packages/meriv2-core/src/context/governed-artifact-capture.ts": "7a7eebed2b7e44a1bdbc0e96e9fae7591be0db4dccacaf5d3c4c4cd48e305011",
+    "packages/meriv2-core/src/registry/types.ts": "2403045363bf8661003cf2f236d4ad5d22bd59d16207c9af0735b8f2f175393c",
+    "apps/api/src/meri/meri-case46-api-provider-scope.ts": "4150c63535afdb3997d6e34dff6887a8968282a6173b1424958f5546a402e624",
+    "apps/api/src/meri/meri-case46-turn-owner.ts": "27c4b8b28d28344e683f2ede329086f288ee0b7457c08e22e8bda91330c3c51a",
+    "apps/api/src/meri/meri-case46-turn-wiring.spec.ts": "72ae1e5b2257ab55739fe16e30cb5a5ca5d2138f4c33a97f8db62d7407b52893",
+    "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-governed-artifact-budget.spec.ts": "8e1e5999559607932a68641be536fcb7a6ec1f71a5f4c751648aebd95acb4673",
+    "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-governed-artifact-budget.ts": "25c08d3e9de17406531b03556539d534c314e78accfac5bd585e2592064120aa",
+    "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-governed-artifact-dispatch.spec.ts": "e8a49182f15200afead261bf518e505a22a9fe923fddebf2a03111738fa78533",
+    "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-governed-artifact.spec-helper.ts": "7ec92536416f28c8f0f8ee434432505d588b23dab98cdf8f9fc3044bcceb20a3"
+  },
+  "checks": [
+    {
+      "log": "turn-api-tests.log",
+      "exitCode": 0,
+      "passed": 78,
+      "skipped": 0
+    },
+    {
+      "log": "turn-wiring-final.log",
+      "exitCode": 0,
+      "passed": 5,
+      "skipped": 0
+    },
+    {
+      "log": "turn-orchestrator-tests-v2.log",
+      "exitCode": 0,
+      "passed": 36,
+      "skipped": 0
+    },
+    {
+      "log": "turn-assistant-tests-final.log",
+      "exitCode": 0,
+      "passed": 116,
+      "skipped": 0
+    },
+    {
+      "log": "turn-core-tests.log",
+      "exitCode": 0,
+      "passed": 9,
+      "skipped": 0
+    },
+    {
+      "log": "turn-pg-final.log",
+      "exitCode": 0,
+      "passed": 3,
+      "skipped": 0
+    }
+  ],
+  "overlap": "Final wiring5 includes four tests already in API78; no sum is presented.",
+  "typechecks": {
+    "primaryApi": {
+      "exitCode": 0,
+      "diagnostics": 0,
+      "log": "turn-api-types-sealed.log"
+    },
+    "orchestrator": {
+      "exitCode": 0,
+      "diagnostics": 0,
+      "log": "turn-orchestrator-types-sealed.log"
+    }
+  },
+  "independentReview": {
+    "provider": "bedrock",
+    "model": "moonshotai.kimi-k2.5",
+    "sessionId": "20261002_115317_6e2ff8",
+    "processExitCode": 0,
+    "rawVerdict": "BLOCK",
+    "toolCalls": 0,
+    "rawReview": "turn-kimi-review.md",
+    "adjudication": "turn-review-adjudication.md",
+    "integrationOwnerPeerReview": "PASS: root independently confirmed six disputed premises and strict empty-sections compatibility; inspected PG concurrency and test receipts"
+  },
+  "limits": [
+    "No live model/browser/auth/AWS or shared DB calls",
+    "PG uses real Prisma/two-backend locking on owned55433, bounded mock storage, not production RLS/S3",
+    "Provider/assistant test responses are doubles, not actual live answer evidence",
+    "Fixed setup and complete authenticated original prompt/approval/download capture remain to compose",
+    "Final integrated release still needs deterministic evaluation and all deployed API/orchestrator/Web qualification"
+  ],
+  "liveCase46": "NOT_RUN",
+  "live75": "NOT_RUN",
+  "sourceSha": "9d55c92d6a0df6108e178c493b41f0dc174e3ea0"
+}

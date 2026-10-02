@@ -1,0 +1,26 @@
+{
+  "name": "orchestrator-tests",
+  "sourceSha": "a472a7906561cf3192c99c7bc148ad29f00062a7",
+  "cwd": "C:\\dev\\cap-meri-mail-deadline",
+  "command": [
+    "C:\\Program Files\\nodejs\\node.exe",
+    "--max-old-space-size=12288",
+    "apps/meriv2-orchestrator/node_modules/jest/bin/jest.js",
+    "--config",
+    "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-integration\\jest-orchestrator-current-core.cjs",
+    "--runInBand",
+    "--runTestsByPath",
+    "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-governed-artifact-budget.spec.ts",
+    "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-governed-artifact-dispatch.spec.ts",
+    "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.spec.ts",
+    "apps/meriv2-orchestrator/src/meri/api-action-proposal.repo.spec.ts",
+    "apps/meriv2-orchestrator/src/meri/api-tool-executor.repo.spec.ts",
+    "apps/meriv2-orchestrator/src/meri/api-tool-executor-cancellation.spec.ts",
+    "apps/meriv2-orchestrator/src/meri/api-tool-executor-mail-retry.spec.ts"
+  ],
+  "pid": 6832,
+  "exitCode": 0,
+  "elapsedSeconds": 26.92,
+  "logSha256": "7b67c056efa59d558a9a86f2e3c3247d83a89a372a8000a4f4b036b82ed8d53b",
+  "sourceUnchanged": true
+}

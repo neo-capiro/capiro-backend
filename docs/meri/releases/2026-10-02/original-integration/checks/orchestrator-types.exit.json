@@ -1,0 +1,15 @@
+{
+  "name": "orchestrator-types",
+  "sourceSha": "a472a7906561cf3192c99c7bc148ad29f00062a7",
+  "cwd": "C:\\dev\\cap-meri-mail-deadline",
+  "command": [
+    "C:\\Program Files\\nodejs\\node.exe",
+    "--max-old-space-size=12288",
+    "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-integration\\typecheck-orchestrator-current-core.cjs"
+  ],
+  "pid": 19500,
+  "exitCode": 0,
+  "elapsedSeconds": 11.04,
+  "logSha256": "5a53e7e47e4e84d064358ec4624ac04bce87683f4fd2941d7b0cc1c6a081d0ab",
+  "sourceUnchanged": true
+}
