@@ -1,0 +1,16 @@
+{
+  "sourceSha": "9751be7f497a76aa3e008ec81b1ff1388731e52e",
+  "actualRawReadback": "api-independent-20261002T111855414650Z.json",
+  "entries": [
+    {
+      "file": "api-build-readback.json",
+      "originalLocalSha256": "9d684ddad97d36109c812a43030f89cef85a608ed4d17856930a04f2ea365d12",
+      "archivedSha256": "be64817db82810445c9c549fb5b0efb102e78ac88062026b15ca939f8bd3ce7f"
+    },
+    {
+      "file": "reviewed-build-input.json",
+      "originalLocalSha256": "4018f3ab73e97327bc99484fc863fa778420958e5085e101dc3f3ec4cd25c10e",
+      "archivedSha256": "751843051dc4602691f1317b44af4d4b277b678829d05c4048450353ba685adb"
+    }
+  ]
+}
