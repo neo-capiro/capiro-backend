@@ -3,7 +3,7 @@
   "provenance": "LIVE_CAPTURE",
   "target": {
     "environment": "capiro-dev",
-    "apiOrigin": "https://app.capiro.ai"
+    "apiOrigin": "https://os.capiro.ai"
   },
   "contract": {
     "fixtureSha256": "2a8159d45d512f325539eb700907700ecc16cbc2d6536277adf85d8f49368e61",

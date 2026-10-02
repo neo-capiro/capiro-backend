@@ -1,6 +1,7 @@
 import { bindResearchPortfolioToolConversation } from './meri-research-portfolio-tool-scope.js';
 import { isResearchPortfolioArtifact, authorizeResearchPortfolioArtifact, authorizeResearchPortfolioConversation } from '../research-portfolios/research-portfolio-artifact-authority.js';
 import { authorizeMeriCaptureMessageReadback } from './meri-capture-policy-readback.js';
+import { readMeriCase01CaptureAdmission, readMeriCase01CaptureReadback } from './meri-case01-capture-authority.js';
 import { prepareAnthropicRequest, anthropicResponseText } from '@capiro/shared/ai-model-policy';
 import {
   assertAttachmentConversation,
@@ -556,7 +557,9 @@ export class MeriService implements MeriTurnMaintenance {
   async getConversation(ctx: TenantContext, conversationId: string) {
     // Exact links may discover an owned archived row so the user can explicitly
     // restore it. Transcript reads and new turns still require an active row.
-    return this.ensureConversationAnyStatus(ctx, conversationId);
+    const conversation = await this.ensureConversationAnyStatus(ctx, conversationId);
+    const captureAdmission = await readMeriCase01CaptureAdmission({ prisma: this.prisma, ctx, conversationId });
+    return captureAdmission ? { ...conversation, captureAdmission } : conversation;
   }
 
   async updateConversation(
@@ -691,6 +694,15 @@ export class MeriService implements MeriTurnMaintenance {
         conversationId,
         message,
       });
+      const captureAuthority = await readMeriCase01CaptureReadback({
+        prisma: this.prisma, ctx, conversationId, message,
+      });
+      if (captureAuthority) {
+        message.metadata = {
+          ...(message.metadata as Prisma.JsonObject),
+          case01CaptureAuthority: JSON.parse(JSON.stringify(captureAuthority)) as Prisma.JsonValue,
+        };
+      }
     }
     return this.authorizeOrdinaryReportMessages(
       ctx,
@@ -1018,6 +1030,13 @@ export class MeriService implements MeriTurnMaintenance {
     // they route legacy and this stays unused — threaded for the eventual flip.
     impersonateTenantId?: string,
   ) {
+    if (
+      (currentMeriServerReadonlyCapturePolicy()?.expectedCaptureWrites as
+        | readonly string[]
+        | undefined)?.[3] === 'provider_budget_ledger'
+    ) {
+      throw new ForbiddenException('meri_case01_provider_budget_legacy_path_not_qualified');
+    }
     const browserSse = sse;
     const conversation = await this.ensureConversation(ctx, conversationId);
     // Phase 4 prospect-scope authorization re-check: BEFORE any user-message

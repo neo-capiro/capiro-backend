@@ -2,7 +2,7 @@
 
 ## Status
 
-This directory defines the first canonical contract and fail-closed reporting foundation for the Appendix F 75-case live benchmark. It does not implement or claim authenticated capture, server/provider fault injection, browser automation, live writes, or product passes.
+This directory defines the first canonical contract and fail-closed reporting foundation for the Appendix F 75-case live benchmark. The general collector remains fail-closed. A separate case01-only authenticated capture path joins canonical fixture ownership, server-verified receipts, immutable build readback and provider reservations. This implementation is not evidence of a live execution or product pass; the other original rows, fault injection and full browser acceptance remain separate obligations.
 
 The existing `evals/meri/` 26-case offline suite is separate and unchanged. `CD-01`–`CD-07` and `CW-01`–`CW-08` remain separate future namespaces; they are not renumbered into these 75 cases.
 
@@ -79,7 +79,7 @@ Artifact references are relative to an absolute owned bundle root containing a h
 
 Cases 13–18 require canonical saved memory state/decision receipts. Those receipts bind the frozen candidate and proposal, current actor role/wall, selected tenant/client, source and tool call, exact `/meri` action order, decision payload, revision, sink receipt/effect and recall/list result. Case 16 requires a role-bound 403, a still-pending candidate and zero payload/receipt/effect. Case 18 requires two same-actor scoped session receipts, a zero-effect stale-revision rejection and one current-version approval; an edited or stale pending value is not eligible merely because a UI label says approved.
 
-Cases 40–45 retain lower-level structural checks for canonical source read receipts rather than accepting answer substrings as document content. Applicable rows join owned raw bytes to a byte hash and readback receipt, parser identity/version, source call, current version, locator and extracted section/cell hash; every declared read range must resolve to an actual authorized trace call with the same source, version and range locator. Case 42 additionally binds the three-turn pointer, compaction state and exact cell range. Case 45 requires ordered page 1–80 range coverage for a complete result; its partial branch must retain bounded missing-range evidence and cannot claim “every.” These checks do not qualify the original rows as implemented: mutually consistent declarations do not independently prove binary source identity, trusted parser output, or current-version authority. The frozen fixture does not contain valid PDF/PPTX/XLSX binaries. Unit artifacts therefore identify themselves as `UNIT_FIXTURE_NOT_LIVE`; only a future authoritative capture reader may establish those missing qualifications. The current authority gate still returns `NOT_RUN` for the former and `BLOCKED` for purported live evidence.
+Cases 40–45 retain lower-level structural checks for canonical source read receipts rather than accepting answer substrings as document content. Applicable rows join owned raw bytes to a byte hash and readback receipt, parser identity/version, source call, current version, locator and extracted section/cell hash; every declared read range must resolve to an actual authorized trace call with the same source, version and range locator. Case 42 additionally binds the three-turn pointer, compaction state and exact cell range. Case 45 requires ordered page 1–80 range coverage for a complete result; its partial branch must retain bounded missing-range evidence and cannot claim “every.” These checks do not qualify the original rows as implemented: mutually consistent declarations do not independently prove binary source identity, trusted parser output, or current-version authority. Valid synthetic PDF/PPTX/XLSX bytes now exist under `source-binaries/`; their manifest alone does not prove current application identity, parser output or access authority. Unit artifacts therefore identify themselves as `UNIT_FIXTURE_NOT_LIVE`; only a future authoritative capture reader may establish those missing qualifications. The current authority gate still returns `NOT_RUN` for the former and `BLOCKED` for purported live evidence.
 
 ## Offline grading safety
 
@@ -87,41 +87,30 @@ Live behavior must be captured exactly once. Writes may occur only in a separate
 
 ## Dedicated live read capture
 
-This slice is an interim capture guard, not completion of the mandatory live-75 run or a server receipt. `LIVE_CAPTURE` currently returns `LIVE_SERVER_AUTHORITY_CONTRACT_MISSING` before any HTTP request, conversation creation, or synthesis. The guard is unconditional because the existing server does not expose authority for all of these preconditions:
+The general `capture-cli.mjs` cases 01/20 diagnostic retains `LIVE_SERVER_AUTHORITY_CONTRACT_MISSING` before HTTP or synthesis. Its `UNIT_FIXTURE_NOT_LIVE` mode is restricted to controlled loopback targets and never grants acceptance; its spend comparison is post-hoc.
 
-1. predispatch read-only tool enforcement plus suppression or sandboxing of incidental after-turn writes;
-2. a server-authored current fixture/source ownership and version receipt for the authenticated actor, tenant, client, and frozen-to-physical mapping;
-3. the exact served API and orchestrator release identities; and
-4. a server/provider-enforced cost reservation.
+The separate `case01-live-capture.mjs` entry points prepare and consume an in-process live capability. Preparation requires the frozen scope, an already-created owned synthetic conversation, explicit concurrency/deadline/cost, and verified Windows artifact storage. It uses only `https://os.capiro.ai`, the ordinary synthetic bearer in `MERI_LIVE_BEARER_TOKEN`, and authenticated `/api/me`, `/api/clio/status`, and existing conversation GET. It does not create conversations or accept an injected fetch response, serialized authority, or internal service secret.
 
-A caller-owned boolean, `expectedOperation`, scope-file SHA, configured release SHA, model instruction, or absence of late SSE write events cannot satisfy the guard. `maxSpendUsd` is only a configured post-hoc comparison threshold in the current controlled collector. It is not a provider ceiling or reservation, and an over-threshold observation can only be reported after cost has been incurred. Do not run the CLI with a live bearer while this guard is present.
+The API admission re-qualifies its registered canonical fixture owner: source map, current version, prior retirement/reset, actor/client and physical content hash. The API bootstrap hydrates this owner from actual canonical rows after restart. Provider qualification must already be installed by its separate trusted owner; this collector cannot install it. The explicit case ceiling must exactly match the server-enforced ceiling and cannot exceed 3 USD. No default amount or global slice ledger is implied.
 
-`UNIT_FIXTURE_NOT_LIVE` remains available as a controlled loopback diagnostic for cases 01 and 20. Its raw HTTP transport is module-internal; every exported capture entry point validates provenance and `LIVE_CAPTURE` remains unconditionally blocked before HTTP. The diagnostic exercises the reviewed `/health`, `/api/me`, `/api/clio/status`, `/api/clients`, conversation, stream, message-readback, and supported source-readback sequence, but it remains `NOT_RUN`. It submits synthesis at most once and never retries an ambiguous submission. Once submission starts, parser, redaction, canonical-readback, and network failures retain the observed submission count and return `CAPTURE_UNCERTAIN`; they are not rewritten as zero-submission `BLOCKED` results. Redirects are never followed. Strict UTF-8, a 4,096-frame SSE bound, complete frame termination, exactly one terminal event, and no post-terminal event are required. Structural stream defects are classified `CAPTURE_UNCERTAIN` before post-terminal text can affect the answer or canonical readback. The only permitted live API origin is `https://app.capiro.ai`; `https://os.capiro.ai` is UI-only.
+The Windows build reader uses the installed AWS CLI and a fixed read-only allowlist. It joins actual successful canonical-repository CodeBuild source/buildspec, ECR source-tag digest, current task image/source labels and deployment/ALB health through the existing release snapshot. This narrow provenance path supports the reviewed CodeBuild fallback; it does not invent an Actions record.
 
-The UNIT diagnostic does not prevent effects or cost at a remote service and must not be pointed at one: its target validation is loopback-only. Event inspection and `maxSpendUsd` are post-hoc observations, not predispatch effect enforcement, provider authorization, reservation, or a cost ceiling.
+Execution refreshes actor/fixture/budget admission, records immutable submission intent, and submits the frozen case01 prompt once. Existing messages GET verifies the HMAC and current authorization inside the API. The collector joins that readback to the exact SSE envelope, persisted answer, canonical memory bytes/version, tool IDs, zero business effects, the exact separately joined provider-ledger accounting effect, expected message writes, served releases and settled provider ledger. It never receives `INTERNAL_SERVICE_SECRET`. Only the exact MA1-v2 canonical owner may reconcile initially unknown source-scope observations; all other producer gaps remain blocking.
 
-Controlled artifact writes reject linked roots, parents, refs, dangling destinations, root/parent identity changes, and external same-byte substitutions. New files use a temporary plain file plus an atomic no-replace hard-link commit and are checked before and after access. These checks are not claimed to be fully race-proof: portable Node path APIs do not pin every traversed directory handle, especially across Windows reparse substitution. `ArtifactCollector` therefore refuses `LIVE_CAPTURE` path mode with `LIVE_ARTIFACT_PATH_UNSAFE`; only the controlled diagnostic uses this writer.
+After submission, uncertainty retains the submission count and is never retried. `CAPTURE_COMPLETE` is a transport result, not an acceptance PASS. The owned `case01-evidence.json` still needs original row-predicate and human-adjudication composition. The generic bundle verifier remains closed; case20 and all unsupported rows remain blocked. Pure comparison helpers and caller JSON cannot mint a live capability.
 
-Copy `capture-scope.example.json` outside the repository, replace every placeholder with the existing synthetic fixture's physical IDs and current seed/deployment receipts, then bind the mapping:
+Portable Node path mode still refuses LIVE with `LIVE_ARTIFACT_PATH_UNSAFE`. The qualified Windows `createWindowsArtifactStorage` path uses native relative handles, pins directory identities, rejects reparse points/hardlinks, creates without overwrite and verifies bytes/current owner. Its capability is process-local, not WORM storage or restart adoption. Interrupted residue remains invalid and non-overwritable.
 
-```bash
-node evals/meri/live-v1/capture-cli.mjs --scope-hash C:/path/to/scope.json
-# Put the printed hash in fixture.mappingSha256.
-# LIVE_CAPTURE execution remains blocked; do not supply a live bearer.
+`case01-scope.example.json` gives the exact scope shape and an explicit 3 USD example. All placeholders must be replaced from actual canonical operator and approved release receipts; its source-map hash must equal the owner binding. A prepared operator can import the entry points as follows (this is not an instruction to run against an unqualified release):
+
+```js
+const storage = createWindowsArtifactStorage(runRoot, { pythonExecutable });
+const capability = await prepareCase01LiveCapture({ config, runRoot, artifactStorage: storage });
+const result = await executeCase01LiveCapture(capability);
+// Original grading consumes saved evidence; never submit another turn to grade it.
 ```
 
-The bearer is read only from `MERI_LIVE_BEARER_TOKEN`; credentials, cookies, provider headers, JWT-shaped values, and exact known secret values are redacted before controlled persistence. This is bounded redaction, not a categorical guarantee for unknown secret forms or caller-provided logging. Do not put tokens in the scope file. The CLI creates a fresh owned run directory under `--out`; it refuses an existing run path. Exit 0 is reserved for `CAPTURE_COMPLETE` only. `BLOCKED` exits 2, `CAPTURE_UNCERTAIN` exits 3, and `CAPTURE_INCOMPLETE` exits 4. No collector exit is acceptance.
-
-Current server integration gaps remain explicit. The main API source does not emit the release SHA, public stream events do not expose an authoritative orchestrator identity, server trace ID, durable tool-call IDs, logical-effect audit, or complete model/token/cost receipt, and budget citations have no supported `/api/clio/sources` owner readback. Missing authority remains `BLOCKED`; it is never converted to PASS. The existing verifier's all-live source/auth authority gate and human rubric are unchanged.
-
-The precise next integration is an extension of existing API ownership paths, not a new evaluation framework:
-
-1. `/health` must expose the actual served API SHA, and authenticated `/api/clio/status` must return a server-authored, short-lived capture-readiness receipt. Its bytes must bind the served orchestrator SHA, authenticated actor/tenant/client, exact allowed read-tool registry, dispatch-boundary write denial, incidental-job policy, and a server/provider cost reservation amount and identity. A readiness boolean is insufficient.
-2. Before conversation creation, the existing `/api/clio/sources` owner path must return a current authority receipt for each mapped physical source, binding frozen ID, owner tenant/client, canonical version, locator, and content/passage hash. The owner must add equivalent budget-record support for case 20; until then that case remains blocked.
-3. The existing conversation/stream request contract must consume the single-use readiness receipt, reject stale or mismatched scope before assistant dispatch, and emit a durable terminal receipt binding API/orchestrator identities, request/trace/tool-call IDs, effective model, token and actual cost records, source versions/locators/passage hashes, and a zero-logical-effect audit covering incidental writes.
-4. The collector can then validate those server-authored receipts before conversation creation and after the one stream submission. It must not accept scope-config declarations as substitutes. The portable LIVE artifact path still requires an owner implementation that can pin directory handles or an equivalently safe existing storage primitive.
-
-No endpoint or trusted config switch is fabricated in this collector. App/API owners must implement the above on the existing contracts before the unconditional guard can be removed.
+No live result is implied by unit tests. Actual execution requires merged and deployed owners, a current canonical fixture binding, explicit operator configuration, and external evidence storage. Credentials, session state and raw live execution reports stay outside Git.
 
 ## Narrow local commands
 
@@ -157,7 +146,7 @@ The generator performs no network, API, browser, cloud, database or sink work. `
 
 Before any live case can be scored:
 
-1. Add dedicated eval-tenant fixture seed/reset without the destructive fixed-ID Phase 19 seed.
+1. Qualify the canonical case01 seed/retirement/reset operator in the approved synthetic namespace; extend source-owned fixtures for other rows.
 2. Acquire and prove the existing synthetic Clerk users/roles without storing auth state in Git.
 3. Inspect and implement the actual governed V3 API/SSE protocol and `/meri` browser controls.
 4. Add run-keyed adapter/model/worker fault injection rather than replacing final browser text.
@@ -166,6 +155,6 @@ Before any live case can be scored:
 7. Add human adjudication and version-pinned recorded-output Promptfoo configuration without write execution.
 8. Extract CD and affected CW contracts into separate namespaces when their harness work starts.
 
-The repaired verifier currently has qualified row-specific predicates for cases 01, 03, 12–20, 46, 51, 56 and 72. Cases 40–45 have useful lower-level receipt, join and content-claim checks but remain explicitly unimplemented at original-row coverage because source-byte identity, trusted parsing and current-version authority are not proven. Other rows remain explicitly `NOT_RUN` rather than inheriting caller assertions. Case 12 still requires a saved setup artifact containing 500 distinct newer eligible distractor rows; `fixture.mjs` is only a specification and does not supply that seeded corpus. Cases 40–45 likewise require a future authoritative reader because the fixture records exact facts but does not embed valid binary Office/PDF source documents.
+The repaired verifier currently has qualified row-specific predicates for cases 01, 03, 12–20, 46, 51, 56 and 72. Cases 40–45 have useful lower-level receipt, join and content-claim checks but remain explicitly unimplemented at original-row coverage because source-byte identity, trusted parsing and current-version authority are not proven. Other rows remain explicitly `NOT_RUN` rather than inheriting caller assertions. Case 12 still requires a saved setup artifact containing 500 distinct newer eligible distractor rows; `fixture.mjs` is only a specification and does not supply that seeded corpus. Cases 40–45 still require a qualified canonical application reader even though valid synthetic binary inputs now exist.
 
 No live API/cloud/provider/browser/write execution, shared-AWS fault, deployment, Phase 19 destructive seed, global budget/bill mutation, merge, or push is part of this foundation.

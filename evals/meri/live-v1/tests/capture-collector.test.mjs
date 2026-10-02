@@ -396,9 +396,9 @@ test('artifact integrity detects tampering', async () => {
 test('LIVE_CAPTURE fails closed on missing server authority before any request, conversation, or synthesis', async () => {
   const fixture = await server();
   const scratch = await mkdtemp(join(tmpdir(), 'meri-live-guard-'));
-  const value = config('https://app.capiro.ai', {
+  const value = config('https://os.capiro.ai', {
     provenance: 'LIVE_CAPTURE',
-    target: { environment: 'capiro-dev', apiOrigin: 'https://app.capiro.ai' },
+    target: { environment: 'capiro-dev', apiOrigin: 'https://os.capiro.ai' },
   });
   value.fixture.mappingSha256 = sourceMappingDigest(value);
   try {
@@ -428,11 +428,11 @@ test('LIVE_CAPTURE fails closed on missing server authority before any request, 
   }
 });
 
-test('LIVE_CAPTURE rejects the UI-only os.capiro.ai origin before readiness evaluation', async () => {
+test('LIVE_CAPTURE rejects the unapproved app.capiro.ai origin before readiness evaluation', async () => {
   const scratch = await mkdtemp(join(tmpdir(), 'meri-live-origin-'));
-  const value = config('https://os.capiro.ai', {
+  const value = config('https://app.capiro.ai', {
     provenance: 'LIVE_CAPTURE',
-    target: { environment: 'capiro-dev', apiOrigin: 'https://os.capiro.ai' },
+    target: { environment: 'capiro-dev', apiOrigin: 'https://app.capiro.ai' },
   });
   try {
     const result = await executeLiveCase({

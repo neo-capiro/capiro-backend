@@ -9,7 +9,7 @@ import { cases } from './cases.mjs';
 import { frozenFixture } from './fixture.mjs';
 import { sha256Bytes, sha256Stable, redactSecrets } from './artifact-collector.mjs';
 
-export const APPROVED_LIVE_ORIGINS = Object.freeze(['https://app.capiro.ai']);
+export const APPROVED_LIVE_ORIGINS = Object.freeze(['https://os.capiro.ai']);
 export const AUTHORIZED_TENANTS = Object.freeze({
   'meri-foundation-20260928-t1': 'f2d6cf8f-057c-479a-8110-62fe5086d43f',
   'meri-foundation-20260928-t2': '52e91176-08f0-4d89-9633-bc212f5bdbbf',
@@ -77,7 +77,7 @@ export function assertLiveCaptureReadiness(config) {
   requireValue(
     APPROVED_LIVE_ORIGINS.includes(origin),
     'TARGET_NOT_APPROVED',
-    'live API origin must be exactly https://app.capiro.ai',
+    'live API origin must be exactly https://os.capiro.ai',
   );
   throw new CaptureBlockedError(
     'LIVE_SERVER_AUTHORITY_CONTRACT_MISSING',
@@ -348,7 +348,7 @@ function parseJson(bytes, label) {
   }
 }
 
-function parseSse(body) {
+export function parseCaptureSse(body) {
   const normalized = body.replace(/\r\n?/gu, '\n');
   const chunks = normalized.split('\n\n');
   const trailing = chunks.pop() ?? '';
@@ -515,7 +515,7 @@ class CaptureTransport {
       accept: 'text/event-stream',
       purpose,
     });
-    const parsed = parseSse(result.body);
+    const parsed = parseCaptureSse(result.body);
     return { ...result, events: parsed.events, parseIssues: parsed.issues };
   }
 }
