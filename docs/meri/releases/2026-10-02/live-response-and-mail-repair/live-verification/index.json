@@ -2,149 +2,154 @@
   "createdAt": "2026-10-02T17:43:07.550927+00:00",
   "files": [
     {
+      "path": ".gitattributes",
+      "bytes": 29,
+      "sha256": "730a35ae3d558080083c3103d9ac8100c3f6561678092abe341701dfa331eb1d"
+    },
+    {
       "path": "hypothetical-release/live-owner-quality-results.json",
-      "sha256": "2d8dc644f9fe3f2716a4868e2ec7c0815fbd87c84a0f6637d4d1487b896778d7",
-      "bytes": 6653
+      "bytes": 6653,
+      "sha256": "2d8dc644f9fe3f2716a4868e2ec7c0815fbd87c84a0f6637d4d1487b896778d7"
     },
     {
       "path": "hypothetical-release/orchestrator-independent-promotion-readback.json",
-      "sha256": "eaf460b31b16a36cb0994ebdfeb3f5dfc8f7bc92b8092767fd4a2bae4b127e42",
-      "bytes": 2701
+      "bytes": 2701,
+      "sha256": "eaf460b31b16a36cb0994ebdfeb3f5dfc8f7bc92b8092767fd4a2bae4b127e42"
     },
     {
       "path": "hypothetical-release/orchestrator-promotion-plan.json",
-      "sha256": "4c56e99f41a20ee8003aa9f21eb6f06dd3d8fde6b5b5ba431dc32cf4e44cb6b7",
-      "bytes": 3391
+      "bytes": 3391,
+      "sha256": "4c56e99f41a20ee8003aa9f21eb6f06dd3d8fde6b5b5ba431dc32cf4e44cb6b7"
     },
     {
       "path": "hypothetical-release/orchestrator-promotion-receipt.json",
-      "sha256": "96eec84dedb632114e936709f019296854bfc1ef2c7695489d42f06a1996f909",
-      "bytes": 1112
+      "bytes": 1112,
+      "sha256": "96eec84dedb632114e936709f019296854bfc1ef2c7695489d42f06a1996f909"
     },
     {
       "path": "hypothetical-release/orchestrator-qualification.json",
-      "sha256": "f3adcb764c92d64d198c5e9a7aaaa3e0ff45a26b0811c69057279d0734c35c1c",
-      "bytes": 2641
+      "bytes": 2641,
+      "sha256": "f3adcb764c92d64d198c5e9a7aaaa3e0ff45a26b0811c69057279d0734c35c1c"
     },
     {
       "path": "hypothetical-release/owner-qa-metadata-20261002T174102.json",
-      "sha256": "1668b253415ee27056a33a2ee166863329bbd5de14fa1fce7d171bba6d3cd8f0",
-      "bytes": 39890
+      "bytes": 39890,
+      "sha256": "1668b253415ee27056a33a2ee166863329bbd5de14fa1fce7d171bba6d3cd8f0"
     },
     {
       "path": "hypothetical-release/owner-qa-metadata-20261002T174222.json",
-      "sha256": "dc525a38997886d2002da075db913507382b8490337e602d69b1790192a15761",
-      "bytes": 34136
+      "bytes": 34136,
+      "sha256": "dc525a38997886d2002da075db913507382b8490337e602d69b1790192a15761"
     },
     {
       "path": "mail-index-release/forward451-execution.json",
-      "sha256": "d21fec65d492c15b4ddb1eceac98ae17099708c41da21fcedddbd7bcc396c3f9",
-      "bytes": 3729
+      "bytes": 3729,
+      "sha256": "d21fec65d492c15b4ddb1eceac98ae17099708c41da21fcedddbd7bcc396c3f9"
     },
     {
       "path": "mail-index-release/forward451-independent-actual-readback.json",
-      "sha256": "6b9ec8214d804b872d9701842042357875315c5f09e7d5bb8370ed9ecd779c0d",
-      "bytes": 2702
+      "bytes": 2702,
+      "sha256": "6b9ec8214d804b872d9701842042357875315c5f09e7d5bb8370ed9ecd779c0d"
     },
     {
       "path": "mail-index-release/forward451-independent-peer-review.json",
-      "sha256": "15f6daa12f41f2afe6122d178415df06ae8bec2dd3b56317c183868600d55965",
-      "bytes": 2545
+      "bytes": 2545,
+      "sha256": "15f6daa12f41f2afe6122d178415df06ae8bec2dd3b56317c183868600d55965"
     },
     {
       "path": "mail-index-release/forward451-input.json",
-      "sha256": "26bcdba1aa4f66c920951c82175766f85c1c3ebafc822471398a3c24db78ca7c",
-      "bytes": 789
+      "bytes": 789,
+      "sha256": "26bcdba1aa4f66c920951c82175766f85c1c3ebafc822471398a3c24db78ca7c"
     },
     {
       "path": "mail-index-release/forward451-local-qualification.json",
-      "sha256": "efaf86d1c1f23b7eaf3ea4dadcc3dd74cbe58365c56bf969f3731f480917f110",
-      "bytes": 4657
+      "bytes": 4657,
+      "sha256": "efaf86d1c1f23b7eaf3ea4dadcc3dd74cbe58365c56bf969f3731f480917f110"
     },
     {
       "path": "mail-index-release/forward451-oneoff.py.txt",
-      "sha256": "c80b8c02dccce65147f643b7eef48412ab6ae0cbc98dca17ad43705ef7a10d89",
-      "bytes": 18587
+      "bytes": 18587,
+      "sha256": "c80b8c02dccce65147f643b7eef48412ab6ae0cbc98dca17ad43705ef7a10d89"
     },
     {
       "path": "mail-index-release/forward451-proof.json",
-      "sha256": "f92caa455ea88e357703066390e5a90dc3a175ae492de6e4f37f0a75df6df5f9",
-      "bytes": 1500
+      "bytes": 1500,
+      "sha256": "f92caa455ea88e357703066390e5a90dc3a175ae492de6e4f37f0a75df6df5f9"
     },
     {
       "path": "mail-index-release/FORWARD451-ROOT-STEPS.md",
-      "sha256": "65aea1a1f445aeecb686490f9e7fd4f134276dfdd792d9b08acdcc2dedfaafc2",
-      "bytes": 3758
+      "bytes": 3758,
+      "sha256": "65aea1a1f445aeecb686490f9e7fd4f134276dfdd792d9b08acdcc2dedfaafc2"
     },
     {
       "path": "mail-index-release/forward451-runner.mjs.txt",
-      "sha256": "3dc354e6e65fe549644339ba3ef1a8d921ccdc9852405f382efb35483d00d581",
-      "bytes": 21869
+      "bytes": 21869,
+      "sha256": "3dc354e6e65fe549644339ba3ef1a8d921ccdc9852405f382efb35483d00d581"
     },
     {
       "path": "mail-index-release/forward451-sealed-binding.json",
-      "sha256": "18be4109060d828d7261ea13a16912e5701ff18925d70fec8ac25abd96d83696",
-      "bytes": 2402
+      "bytes": 2402,
+      "sha256": "18be4109060d828d7261ea13a16912e5701ff18925d70fec8ac25abd96d83696"
     },
     {
       "path": "mail-index-release/forward451-task-plan.json",
-      "sha256": "1fee4075ac039f450c0ddd361e631012045def42266b56c1b4041eb4b889dd26",
-      "bytes": 2322
+      "bytes": 2322,
+      "sha256": "1fee4075ac039f450c0ddd361e631012045def42266b56c1b4041eb4b889dd26"
     },
     {
       "path": "mail-index-release/synthetic-canary-codebuild-451.py.txt",
-      "sha256": "cfd0ef178dc03c4a460f1eac0aec12fcf71850059f16aa155aec00bc0365ede4",
-      "bytes": 43134
+      "bytes": 43134,
+      "sha256": "cfd0ef178dc03c4a460f1eac0aec12fcf71850059f16aa155aec00bc0365ede4"
     },
     {
       "path": "mail-postindex/api-served-build-proof.json",
-      "sha256": "082e1501edfca2b0ae715498f1f9276671301b84062e9dfe8bde8edb5bdf70d2",
-      "bytes": 425
+      "bytes": 425,
+      "sha256": "082e1501edfca2b0ae715498f1f9276671301b84062e9dfe8bde8edb5bdf70d2"
     },
     {
       "path": "mail-postindex/local-qualification-final.json",
-      "sha256": "2268ba3b98d1ae4edb93197ac128372b679f88c775bda7ede5fb1b70f63c1a51",
-      "bytes": 3047
+      "bytes": 3047,
+      "sha256": "2268ba3b98d1ae4edb93197ac128372b679f88c775bda7ede5fb1b70f63c1a51"
     },
     {
       "path": "mail-postindex/mail-plan-oneoff.py.txt",
-      "sha256": "803246d8d0b22d62cba9bd6d1d1ae3884011b13e54068ddc581c30f5f319e615",
-      "bytes": 11201
+      "bytes": 11201,
+      "sha256": "803246d8d0b22d62cba9bd6d1d1ae3884011b13e54068ddc581c30f5f319e615"
     },
     {
       "path": "mail-postindex/mail-plan-readonly.mjs.txt",
-      "sha256": "5bd8ec5ae963c43273023eea5f4f29451669a6e295d7d5a22cdc26a65dafe1f6",
-      "bytes": 15757
+      "bytes": 15757,
+      "sha256": "5bd8ec5ae963c43273023eea5f4f29451669a6e295d7d5a22cdc26a65dafe1f6"
     },
     {
       "path": "mail-postindex/mail-postindex-execution.json",
-      "sha256": "e978b2e47bd060d6ca74e6fe961ae5302e1e0e1d8d26e5f01836f73ef179e3ac",
-      "bytes": 13583
+      "bytes": 13583,
+      "sha256": "e978b2e47bd060d6ca74e6fe961ae5302e1e0e1d8d26e5f01836f73ef179e3ac"
     },
     {
       "path": "mail-postindex/mail-postindex-independent-verification.json",
-      "sha256": "a1f2d5bc69017510ac21930b58d5a52752124566f5714b07c5f6a59a41778411",
-      "bytes": 2661
+      "bytes": 2661,
+      "sha256": "a1f2d5bc69017510ac21930b58d5a52752124566f5714b07c5f6a59a41778411"
     },
     {
       "path": "mail-postindex/mail-postindex-task-plan.json",
-      "sha256": "cdb2ada5e63952b1c2b86edc6d28276def9f62273f37f2ec48456568ad95895c",
-      "bytes": 1938
+      "bytes": 1938,
+      "sha256": "cdb2ada5e63952b1c2b86edc6d28276def9f62273f37f2ec48456568ad95895c"
     },
     {
       "path": "mail-postindex/post451-mail-plan-ab-peer-review.json",
-      "sha256": "46fc617562619787437aa47f90689cea0aaae855dc3a40226bb0b4e1b1fad209",
-      "bytes": 2113
+      "bytes": 2113,
+      "sha256": "46fc617562619787437aa47f90689cea0aaae855dc3a40226bb0b4e1b1fad209"
     },
     {
       "path": "mail-postindex/ROOT-COMMANDS.md",
-      "sha256": "cb8764e30e97b4e30826274cf85badc16ff97a141681a2c9bf9979369985d490",
-      "bytes": 2255
+      "bytes": 2255,
+      "sha256": "cb8764e30e97b4e30826274cf85badc16ff97a141681a2c9bf9979369985d490"
     },
     {
       "path": "README.md",
-      "sha256": "23e08cd8fb6970a0e92b50026b08dccf6c6fdf14107bb7fb087ae7b31b8f93d6",
-      "bytes": 2166
+      "bytes": 2166,
+      "sha256": "23e08cd8fb6970a0e92b50026b08dccf6c6fdf14107bb7fb087ae7b31b8f93d6"
     }
   ],
   "privateActorInputExcluded": true,
