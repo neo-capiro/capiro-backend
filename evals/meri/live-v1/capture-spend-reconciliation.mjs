@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { isAbsolute } from 'node:path';
 import { sha256Stable } from './lib/stable.mjs';
 import { AUTHORIZED_TENANTS, FIXTURE_NAMESPACE } from './fixture-provisioning/contract.mjs';
+import { inspectMemoryReadServerBudget } from './memory-read-budget-authority.mjs';
 
 const authorities = new WeakMap();
 const hash = value => createHash('sha256').update(value).digest('hex');
@@ -127,4 +128,62 @@ export function prepareReviewedCaptureSpendReconciliation({ readbackPath, readba
 }
 export function currentReviewedCaptureSpendReconciliation(capability) {
   const proof = authorities.get(capability); need(proof); return structuredClone(proof);
+}
+
+/** Interrupted budget-only collector recovery. Root independently authenticates
+ * the two GETs and pins their saved bytes. Original executed source and the
+ * current readback API release are intentionally separate. No capture/source
+ * approval, answer PASS, replay or new reservation is manufactured here. */
+export function inspectMemoryReadSpendTerminalReadback(readback, expected, now = Date.now()) {
+  need(['01', '02', '03', '04', '05'].includes(expected.caseId));
+  for (const key of ['turnApiSourceSha', 'readbackApiSourceSha']) need(/^[a-f0-9]{40}$/u.test(expected[key]));
+  for (const key of ['captureRunId', 'conversationId', 'userId', 'clientId', 'reservationId']) need(UUID.test(expected[key]));
+  for (const key of ['promptSha256', 'priorExecutionSha256', 'qualificationSha256', 'rateEvidenceSha256']) need(HASH.test(expected[key]));
+  need(expected.tenantId === AUTHORIZED_TENANTS.T1.id && integer(expected.ceilingMicros) && expected.ceilingMicros > 0 && expected.ceilingMicros <= 15000000);
+  need(readback?.kind === 'meri-memory-read-terminal-owned-api-readback' && readback.status === 'READBACK_CAPTURED' &&
+    readback.applicationWrites === 0 && readback.modelSubmissions === 0 && readback.sessionRevoked === true);
+  for (const key of ['captureRunId', 'conversationId', 'tenantId', 'userId', 'clientId', 'priorExecutionSha256', 'turnApiSourceSha', 'readbackApiSourceSha']) need(readback[key] === expected[key]);
+  const observedAtMs = Date.parse(readback.observedAt);
+  need(Number.isSafeInteger(observedAtMs) && observedAtMs <= now + 30000 && now - observedAtMs <= 3600000);
+  need(readback.reads?.length === 2);
+  for (const [index, suffix] of ['', '/messages'].entries()) {
+    const row = readback.reads[index];
+    need(row.path === `/api/clio/conversations/${expected.conversationId}${suffix}` && row.status === 200 && row.apiReleaseSha === expected.readbackApiSourceSha && HASH.test(row.bodySha256));
+  }
+  need(readback.messageCount === 2 && readback.messages?.length === 2);
+  for (const message of readback.messages) need(typeof message.body === 'string' && message.bodySha256 === hash(message.body));
+  const metadata = readback.conversation?.metadata, q = metadata?.syntheticReadBudgetQualification,
+    state = metadata?.syntheticReadProviderBudget, terminal = metadata?.syntheticReadBudgetTerminal;
+  need(q && sha256Stable(q) === expected.qualificationSha256 && q.rateEvidenceSha256 === expected.rateEvidenceSha256 &&
+    q.priceKind === 'qualified_text_token_upper_bound' && integer(q.maxTokens) && q.maxTokens > 0 && q.maxTokens <= 500000 &&
+    integer(q.maxAttempts) && q.maxAttempts > 0 && q.maxAttempts <= 32 && Array.isArray(q.rates) && q.rates.length > 0 &&
+    q.rates.every(rate => integer(rate.inputMicrosPerMillion) && integer(rate.outputMicrosPerMillion)));
+  const plan = {...expected, actorUserId: expected.userId, maxCostMicros: expected.ceilingMicros};
+  const observation = inspectMemoryReadServerBudget(readback.conversation, readback.messages, plan,
+    {reservationId: expected.reservationId, ceilingMicros: expected.ceilingMicros}, {terminal: true});
+  const completedAtMs = Date.parse(terminal.completedAt), providerDeadlineAtMs = Date.parse(q.deadlineAt);
+  need(Number.isSafeInteger(completedAtMs) && completedAtMs > 0 && completedAtMs <= observedAtMs &&
+    Number.isSafeInteger(providerDeadlineAtMs) && providerDeadlineAtMs > 0 && HASH.test(state.policySha256) &&
+    UUID.test(state.admissionId) && UUID.test(state.turnId) && UUID.test(terminal.assistantMessageId));
+  for (const attempt of state.ledger.attempts) {
+    const rate = q.rates.find(rate => rate.kind === attempt.kind && rate.provider === attempt.provider && rate.model === attempt.model);
+    need(UUID.test(attempt.attemptId) && integer(attempt.reservedInputTokens) && integer(attempt.reservedOutputTokens));
+    const reservedCost = Math.max(1, Math.ceil((attempt.reservedInputTokens * rate.inputMicrosPerMillion + attempt.reservedOutputTokens * rate.outputMicrosPerMillion) / 1000000));
+    need(attempt.reservedCostMicros === reservedCost && Number.isFinite(Date.parse(attempt.settledAt)) && Date.parse(attempt.settledAt) <= completedAtMs);
+  }
+  return {...expected, disposition: 'SETTLED', chargedCostMicros: observation.chargedCostMicros,
+    ledgerSha256: observation.ledgerSha256, envelopeSha256: observation.envelopeSha256,
+    completedAtMs, observedAtMs, providerDeadlineAtMs, pendingProviderAttempts: 0,
+    providerAttempts: state.ledger.attempts.length, answerGrade: 'NOT_EVALUATED', captureAuthority: false};
+}
+
+/** Explicit reviewed-byte trust is the same operator boundary as legacy
+ * recovery. Any uncertain/inflight/unjoined state refuses and leaves the full
+ * active ceiling untouched; only positive settled state reaches the reducer. */
+export function prepareReviewedMemoryReadSpendReconciliation({readbackPath, readbackSha256, expected, invocation}) {
+  need(invocation === 'PREPARE_ROOT_REVIEWED_MEMORY_READ_TERMINAL_SPEND' && isAbsolute(readbackPath) && HASH.test(readbackSha256));
+  const bytes = readFileSync(readbackPath); need(hash(bytes) === readbackSha256);
+  const proof = {...inspectMemoryReadSpendTerminalReadback(JSON.parse(bytes.toString('utf8')), structuredClone(expected)), readbackSha256};
+  const capability = Object.freeze({kind: 'reviewed_memory_read_terminal_spend_reconciliation'});
+  authorities.set(capability, proof); return capability;
 }
