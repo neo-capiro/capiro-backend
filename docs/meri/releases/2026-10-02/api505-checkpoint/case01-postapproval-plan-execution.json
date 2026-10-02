@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "status": "VERIFIED",
+  "planHash": "032168741964f79d6fb6e381006e2c6ff8899b56d6a40640276ebf5329248cfb",
+  "mode": "setup-postapproval-plan",
+  "operationId": "9abbdaa9-436e-4f7c-b55a-3b424fc130da",
+  "sourceSha": "a260004e9923ef5bbe7bd8f32bb4cbddd3c7be31",
+  "operatorHead": "bb2aad3c52cc3d345ffe7c3ddcc5a39ad82b2305",
+  "liveAcceptance": "NOT_RUN",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-case01-operator:7",
+  "startedBy": "meri-c01-9abbdaa9-436e-4f7c-b55a-",
+  "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/a18a865c65ae4c1e95ba478736b31314",
+  "containerExitCode": 0,
+  "logMessageCount": 2,
+  "ownerReceipts": [
+    {
+      "kind": "meri-case01-post-approval-resume-plan",
+      "schemaVersion": 1,
+      "recipeSha256": "29cc20de9afb70ec31e009afd0b7c3226482f1372b05d2ccec7e86a835ec0142",
+      "captureRunId": "c6ffa5ad-dd9f-4912-bc31-a03231a9b903",
+      "candidateRowVersion": "113459135",
+      "clioRowVersion": "113459160",
+      "continuationClaimSha256": "28138f575b12c2d05a7f6ae5acc3496af9479eb4a4e29c0feab7a000dc2ef824",
+      "itemRowVersion": "113459135",
+      "originalClaimSha256": "5fdd382ee4332c3723f801d060c1462b9f4082e5a86fd945c7900fbba25be588",
+      "projectionJobId": "5e139f9c-3b32-434c-84a1-f043cca4b70f",
+      "recoveryClaimSha256": "2d51c9ef4f90dbc9bd5e2a98c30c1e70dde09386fb5e6857b0ebb4f2c08d0bc9",
+      "projection": {
+        "candidateId": "557b5b98-f591-50ce-83ea-2ca44d44567a",
+        "itemId": "5e9d3ad4-b37d-4997-be47-55b00528c085",
+        "clioId": "f662e810-1798-4ddb-97fc-fe4e406c1beb",
+        "jobId": "5e139f9c-3b32-434c-84a1-f043cca4b70f",
+        "contentHash": "4a411c1afa8b23bce2db5d5ee3b6214d22e696c49e4e15e3b922ebef568eeadc",
+        "sourceVersion": "2026-10-02T12:03:55.793Z",
+        "idempotencyKeySha256": "6bf8596dd3d58ad1eb498c958bae3ecc4a6fe4980aa683056a9ecc5ad528d9fd"
+      },
+      "previousManifestSha256": "8fa4872e189cc9bc4aad967487ff7d3456e3bd3e49a174c63805fe44afcf7056",
+      "currentManifestSha256": "fa06fed8bb19d65a67adc3695e04e3f03ab1ec7e6d2fb3cdd9fc40b94264f260",
+      "tenantRowVersion": "113459134",
+      "priorSettingsSha256": "519bda8c6a5419e5c76af967e2fe283ab759de47e34e14b3da7b2faaf9894c7e",
+      "liveAcceptance": "NOT_RUN",
+      "planSha256": "ab074fe9fa3e3649129ef195a93f5fd611ffbcba23110ebc179f487ce0559f89"
+    }
+  ]
+}

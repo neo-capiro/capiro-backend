@@ -1,0 +1,147 @@
+{
+  "schemaVersion": 1,
+  "status": "VERIFIED",
+  "planHash": "5e8a27ddc1d3b25fcc0430752f47404f47ceef72110192c9e998b395f6e20706",
+  "mode": "seed-constraint-read",
+  "operationId": "25f85972-f3c8-4f78-a3a5-deba4f446502",
+  "sourceSha": "a260004e9923ef5bbe7bd8f32bb4cbddd3c7be31",
+  "operatorHead": "bb2aad3c52cc3d345ffe7c3ddcc5a39ad82b2305",
+  "liveAcceptance": "NOT_RUN",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-case01-seed-constraint:1",
+  "startedBy": "meri-c01-25f85972-f3c8-4f78-a3a5-",
+  "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/2068c0e33f7d47eab08847c87bb085e1",
+  "containerExitCode": 0,
+  "logMessageCount": 1,
+  "ownerReceipts": [
+    {
+      "kind": "meri-case01-seed-constraint-readback",
+      "schemaVersion": 1,
+      "status": "READBACK_COMPLETE",
+      "readOnly": true,
+      "mutations": 0,
+      "liveAcceptance": "NOT_RUN",
+      "sourceSha": "a260004e9923ef5bbe7bd8f32bb4cbddd3c7be31",
+      "captureRunId": "c6ffa5ad-dd9f-4912-bc31-a03231a9b903",
+      "transport": {
+        "tlsVerified": true,
+        "caBundleSha256": "b1711d12bae51838581281e23b6cb97b1074016873b4dafc80ed14002462dd77"
+      },
+      "claims": {
+        "originalClaimSha256": "5fdd382ee4332c3723f801d060c1462b9f4082e5a86fd945c7900fbba25be588",
+        "recoveryClaimSha256": "2d51c9ef4f90dbc9bd5e2a98c30c1e70dde09386fb5e6857b0ebb4f2c08d0bc9",
+        "continuationClaimSha256": "28138f575b12c2d05a7f6ae5acc3496af9479eb4a4e29c0feab7a000dc2ef824",
+        "postApprovalClaimSha256": "cbf4e668005d83d3d3613ff1de3d11d7541e813d61ccd7de2b86a4e0c052acec"
+      },
+      "locatorPresent": false,
+      "bindingPresent": false,
+      "state": {
+        "candidate": {
+          "id": "557b5b98-f591-50ce-83ea-2ca44d44567a",
+          "status": "approved",
+          "governed_status": "active",
+          "row_version": "113459135",
+          "clio_id": "f662e810-1798-4ddb-97fc-fe4e406c1beb",
+          "item_id": "5e9d3ad4-b37d-4997-be47-55b00528c085",
+          "decided_by": "fb218bf5-2674-4ced-bca3-7a5d0c01592f",
+          "approved_by": "fb218bf5-2674-4ced-bca3-7a5d0c01592f"
+        },
+        "clio": [
+          {
+            "id": "f662e810-1798-4ddb-97fc-fe4e406c1beb",
+            "row_version": "113459160",
+            "legacy_embedding_present": true,
+            "source_version": "2026-10-02T12:03:55.793Z",
+            "content_sha256": "28db3a2c662a894c7af8309c11ef055b6dafe7cf0378abe99bd16a0a5a3e618e"
+          }
+        ],
+        "items": [
+          {
+            "id": "5e9d3ad4-b37d-4997-be47-55b00528c085",
+            "row_version": "113459135",
+            "status": "active",
+            "governed_status": "active",
+            "approved_by": "fb218bf5-2674-4ced-bca3-7a5d0c01592f",
+            "source_version_sha256": "71da5ef9c9595a210f492b1ab917ea178804c6f59b85614856ee49d5a04105cc",
+            "source_content_hash_sha256": "fd4c5ddd5fd2435f82bed644479ade61bc14ccda3b4d8853341f7b1bd53dd532",
+            "projection_content_sha256": "4a411c1afa8b23bce2db5d5ee3b6214d22e696c49e4e15e3b922ebef568eeadc"
+          }
+        ],
+        "outbox": [
+          {
+            "id": "5e139f9c-3b32-434c-84a1-f043cca4b70f",
+            "item_id": "5e9d3ad4-b37d-4997-be47-55b00528c085",
+            "clio_id": "f662e810-1798-4ddb-97fc-fe4e406c1beb",
+            "operation": "index_memory_item",
+            "status": "completed",
+            "attempts": 0,
+            "expected_content_hash": "4a411c1afa8b23bce2db5d5ee3b6214d22e696c49e4e15e3b922ebef568eeadc",
+            "lease_present": false,
+            "expected_source_version": "2026-10-02T12:03:55.793Z",
+            "completed_at": "2026-10-02T15:03:53.416Z",
+            "superseded_at": null,
+            "idempotency_key_sha256": "aa280c209834088432824023ef1e58dd60612955ae40cec5137b79831b358ba5",
+            "idempotency_matches": true,
+            "error_present": false,
+            "error_sha256": null
+          }
+        ],
+        "embeddings": [
+          {
+            "id": "8a778a95-45d6-4a2b-9614-f97277dea8f5",
+            "source_id": "5e9d3ad4-b37d-4997-be47-55b00528c085",
+            "content_hash": "4a411c1afa8b23bce2db5d5ee3b6214d22e696c49e4e15e3b922ebef568eeadc",
+            "embedding_present": true,
+            "model_sha256": "3956762368b4a470debdd4e3663248d07e591c57d4370a4e6f97340291f12cf7",
+            "model_is_titan_v2": true,
+            "matches_item_content": true
+          }
+        ],
+        "audits": [
+          {
+            "id": "de42f077-756a-42b9-b775-2bf0ec1973ff",
+            "from_status": "suggested",
+            "to_status": "pending_review",
+            "actor_id": "fb218bf5-2674-4ced-bca3-7a5d0c01592f",
+            "item_id": null
+          },
+          {
+            "id": "30a6e192-5859-4720-bbdb-46928e2d62a9",
+            "from_status": "pending_review",
+            "to_status": "active",
+            "actor_id": "fb218bf5-2674-4ced-bca3-7a5d0c01592f",
+            "item_id": null
+          }
+        ]
+      },
+      "seed": {
+        "checks": [
+          {
+            "name": "memory_candidate_source_kind_chk",
+            "validated": true,
+            "definition": "CHECK (((source_kind)::text = ANY ((ARRAY['explicit_user'::character varying, 'workflow_event'::character varying, 'artifact_approval'::character varying, 'model_extraction'::character varying, 'settings_sections'::character varying, 'learning_signal'::character varying])::text[])))",
+            "definition_sha256": "1b02929420ab5de75e29a9396f3a207bdc91c2f49e50308169def52c4427ac3f"
+          },
+          {
+            "name": "memory_candidate_version_payload_check",
+            "validated": true,
+            "definition": "CHECK ((((source_kind)::text <> ALL ((ARRAY['memory_correction'::character varying, 'memory_restore'::character varying, 'memory_contradiction'::character varying])::text[])) OR ((jsonb_typeof((payload_jsonb -> 'versionProposal'::text)) = 'object'::text) AND ((payload_jsonb #>> '{versionProposal,kind}'::text[]) = ANY (ARRAY['correction'::text, 'restore'::text, 'contradiction'::text])) AND ((payload_jsonb #>> '{versionProposal,sourceItemId}'::text[]) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'::text) AND (((payload_jsonb #>> '{versionProposal,targetItemId}'::text[]) IS NULL) OR ((payload_jsonb #>> '{versionProposal,targetItemId}'::text[]) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'::text)) AND ((((source_kind)::text = 'memory_correction'::text) AND ((payload_jsonb #>> '{versionProposal,kind}'::text[]) = 'correction'::text)) OR (((source_kind)::text = 'memory_restore'::text) AND ((payload_jsonb #>> '{versionProposal,kind}'::text[]) = 'restore'::text)) OR (((source_kind)::text = 'memory_contradiction'::text) AND ((payload_jsonb #>> '{versionProposal,kind}'::text[]) = 'contradiction'::text))))))",
+            "definition_sha256": "35c42df118d64e546727118df0c9b8297c4867d6b45eb0822694e0a02a283dd1"
+          }
+        ],
+        "triggers": [
+          {
+            "table_name": "memory_candidate",
+            "name": "memory_candidate_version_activation_guard",
+            "enabled": "O"
+          },
+          {
+            "table_name": "memory_items",
+            "name": "memory_items_immutable_version_insert_guard",
+            "enabled": "O"
+          }
+        ],
+        "corrections": []
+      }
+    }
+  ]
+}

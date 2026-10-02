@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "kind": "meri-orchestrator-source-test-count-readback",
+  "observedAt": "2026-10-02T14:56:15.031975+00:00",
+  "sourceSha": "a260004e9923ef5bbe7bd8f32bb4cbddd3c7be31",
+  "buildId": "capiro-build-web-dev:57ec4123-37c4-47bb-9f89-8bf1bcf8cecd",
+  "buildStatus": "SUCCEEDED",
+  "actualBuildspecSha256": "dd3aaac45be1eada1a2451add262b6407313d699b390deb0c0707455c370af90",
+  "imageDigest": "sha256:c2a603d7b6235eb517feed5af9aebb34fb02f8e64cbfe1cfe401a980771be703",
+  "sourceReadbackSha256": "53b708f582e058ed1118757631724122ee15bb5d778f2b7c9862c68ddc7bc4cb",
+  "aliasByteIdentical": true,
+  "alias": "meriv2-orchestrator-build-readback.json",
+  "markerOccurrences": 1,
+  "marker": {
+    "timestampMs": 1790952410643,
+    "counts": {
+      "numTotalTests": 1439,
+      "numPassedTests": 1437,
+      "numFailedTests": 0,
+      "numPendingTests": 2,
+      "numTotalTestSuites": 129,
+      "numPassedTestSuites": 129,
+      "numFailedTestSuites": 0,
+      "numPendingTestSuites": 0
+    },
+    "markerSha256": "5b9c3b4e34e1ed7a8a3f5a06db0725470cceef12031f126fdedec12bd4add954"
+  },
+  "logEventsRead": 2437,
+  "rawLogsPersisted": false,
+  "awsMutationCalls": 0,
+  "liveAcceptance": "NOT_RUN"
+}

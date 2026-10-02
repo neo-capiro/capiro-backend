@@ -1,4 +1,27 @@
-## Current checkpoint — 2026-10-02 14:35 UTC, live responses restored
+## Current checkpoint — 2026-10-02 15:23 UTC, API505 live response verified
+
+API505/sourcea260 is deployed and healthy at2/2. The signed-in owner browser
+completed another bounded mailbox diagnostic, with one successful tool and a
+visible completed answer. See the [actual deployment and diagnostic evidence](../releases/2026-10-02/api505-checkpoint/README.md).
+
+The original01 memory projection completed successfully. The following seed
+step failed PostgreSQL23514. A separate read-only task confirmed that the
+validated source-kind constraint rejects the three immutable-version kinds
+already written by the service. No correction candidate committed. All four
+STARTED claims, the first approval and completed projection remain preserved.
+A forward migration and exact continuation are being qualified; none has run.
+
+The a260 orchestrator image is built and tested (1437 passed, two live-only
+placeholders pending) but not promoted. Orchestrator95 and WebVNext388 remain
+live. The evidence-warning fix is separately qualified but not merged/deployed.
+Temporary database maximum16ACU remains; no rollback was applied.
+
+**File01 remains incomplete; zero original live rows are complete.** Provider
+budget installation, original aggregate initialization and original model
+submissions remain NOT RUN. Full75/CD7/CW8, applicable memory/variants and human
+rubric remain open; case17 UI slice alone is verified. Defense Chat is excluded.
+
+## Prior checkpoint — 2026-10-02 14:35 UTC, live responses restored
 
 **File01 remains incomplete; zero original live rows are complete.** API503,
 source991b5b15fa134d64579c96853dc92e9a00fa8520, is deployed and healthy at2/2.

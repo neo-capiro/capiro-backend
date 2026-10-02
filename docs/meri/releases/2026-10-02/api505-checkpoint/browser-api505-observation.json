@@ -1,0 +1,25 @@
+{
+  "kind": "meri-owner-browser-response-observation",
+  "observedAt": "2026-10-02T15:16:13Z",
+  "status": "PASS",
+  "scope": "One bounded diagnostic in the owner's already authenticated os.capiro.ai browser",
+  "url": "https://os.capiro.ai/meri/t/2160f10d-4e0b-4083-9975-c0ba067f424e",
+  "diagnosticMarker": "CAPIRO_MERI_DIAGNOSTIC_20261002_1508_NO_MATCH",
+  "visibleResponse": "search_emails completed successfully.",
+  "visibleTurnState": "COMPLETED",
+  "visibleToolExecution": "1 TOOL Searched emails Completed DONE",
+  "visibleModel": "gpt-6-astra",
+  "visibleEffort": "medium",
+  "apiTaskDefinition": "capiro-dev-api:505",
+  "apiSourceSha": "a260004e9923ef5bbe7bd8f32bb4cbddd3c7be31",
+  "apiImageDigest": "sha256:f9505afe6319f814a770fbafc128daa567041226ebdba3b3751f64a839c584d6",
+  "deploymentEvidence": "api-promotion-receipt.json",
+  "requestedBusinessWrites": 0,
+  "customerEmailBodiesCaptured": 0,
+  "limits": [
+    "The misleading evidence-limitation footer remains visible; its source fix is qualified but not deployed.",
+    "This diagnostic is not a pass for any original File01 acceptance case.",
+    "No numeric latency was exposed in the inspected UI.",
+    "No independent assertion that the product made zero indirect writes is made."
+  ]
+}

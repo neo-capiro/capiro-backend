@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "kind": "meri-orchestrator-pending-test-disposition",
+  "sourceSha": "a260004e9923ef5bbe7bd8f32bb4cbddd3c7be31",
+  "buildId": "capiro-build-web-dev:57ec4123-37c4-47bb-9f89-8bf1bcf8cecd",
+  "countsReceiptSha256": "a4c998cb93493cd0018823a7c5efe87efc82a22ea15c5c20ea0813d95e54f0b7",
+  "sourcePath": "apps/meriv2-orchestrator/test/scoping-parity.e2e-spec.ts",
+  "sourceSha256": "04d02a75da389e778f89f5d79f3454d297c13064cc7a67e2eba33d3bf48fa345",
+  "pendingTests": [
+    "cross-tenant token (tenant-A JWT, tenant-B clientId) → 403",
+    "returns exactly the rows current Meri returns for each fixed (user, tenant)"
+  ],
+  "classification": "NOT_RUN_LIVE_PLACEHOLDERS",
+  "reason": "MERIV2_E2E_LIVE is not enabled in the network-disabled source-test container. These two test bodies deliberately throw instructions to provide a seeded DB, actual API and real Clerk JWTs; they do not implement or prove those live assertions.",
+  "evidenceBasis": "Exact successful CodeBuild count marker says two pending; exact built source contains the corresponding two explicitly gated test bodies. No per-test Jest JSON was fetched.",
+  "noSkipGateChanged": true,
+  "liveAcceptance": "NOT_RUN",
+  "awsMutationCalls": 0,
+  "rawLogsPersisted": false
+}

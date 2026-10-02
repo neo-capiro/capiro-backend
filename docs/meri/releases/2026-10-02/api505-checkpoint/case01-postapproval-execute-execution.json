@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "status": "RECONCILIATION_REQUIRED",
+  "planHash": "af23d6e87f1450858d83d2e6e59dbbab95ffb096ffd1328d19234daf262183f4",
+  "mode": "setup-postapproval-execute",
+  "operationId": "1714d749-0dc1-4262-b514-874b754c6709",
+  "sourceSha": "a260004e9923ef5bbe7bd8f32bb4cbddd3c7be31",
+  "operatorHead": "bb2aad3c52cc3d345ffe7c3ddcc5a39ad82b2305",
+  "liveAcceptance": "NOT_RUN",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-case01-operator:8",
+  "startedBy": "meri-c01-1714d749-0dc1-4262-b514-",
+  "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/efc6ff9edac84b52840c2f5c5fba3ec4",
+  "containerExitCode": 1,
+  "logMessageCount": 7,
+  "ownerReceipts": [
+    {
+      "stage": "POST_APPROVAL_ADMISSION",
+      "phase": "INTENT",
+      "captureRunId": "c6ffa5ad-dd9f-4912-bc31-a03231a9b903"
+    },
+    {
+      "stage": "POST_APPROVAL_ADMISSION",
+      "phase": "VERIFIED",
+      "captureRunId": "c6ffa5ad-dd9f-4912-bc31-a03231a9b903",
+      "claimSha256": "cbf4e668005d83d3d3613ff1de3d11d7541e813d61ccd7de2b86a4e0c052acec"
+    },
+    {
+      "stage": "FIRST_CANONICAL_PROJECTION",
+      "phase": "INTENT",
+      "captureRunId": "c6ffa5ad-dd9f-4912-bc31-a03231a9b903"
+    },
+    {
+      "stage": "FIRST_CANONICAL_PROJECTION",
+      "phase": "VERIFIED",
+      "captureRunId": "c6ffa5ad-dd9f-4912-bc31-a03231a9b903",
+      "resultSha256": "676f5355a1535f642fa9cb31cc24cd71dc7d39a571aafa0681d16d877f021ac8"
+    },
+    {
+      "stage": "PREVIOUS_SEED",
+      "phase": "INTENT",
+      "captureRunId": "c6ffa5ad-dd9f-4912-bc31-a03231a9b903"
+    },
+    {
+      "stage": "PREVIOUS_SEED",
+      "phase": "RECONCILIATION_REQUIRED",
+      "captureRunId": "c6ffa5ad-dd9f-4912-bc31-a03231a9b903",
+      "failure": {
+        "stage": "PREVIOUS_SEED",
+        "errorClass": "PrismaClientKnownRequestError",
+        "prismaCode": "P2010",
+        "sqlState": "23514"
+      }
+    }
+  ],
+  "code": "OWNER_PROCESS_FAILED"
+}
