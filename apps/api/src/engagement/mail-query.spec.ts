@@ -74,7 +74,7 @@ function makeService(input: { count?: number; rows?: unknown[]; coverage?: unkno
     .mockResolvedValueOnce(input.coverage ?? []);
   const prisma = {
     withTenant: (_tenantId: string, fn: (tx: unknown) => Promise<unknown>) =>
-      fn({ $queryRaw: queryRaw }),
+      fn({ $queryRaw: queryRaw, $executeRaw: jest.fn().mockResolvedValue(0) }),
   };
   const searchEmails: SearchEmails = (ctx, input) =>
     queryMailMessages(prisma as unknown as PrismaService, ctx, input);

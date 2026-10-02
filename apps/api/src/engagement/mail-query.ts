@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import type { TenantContext } from '@capiro/shared';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import { getMailSyncCoverage } from './mail-sync-coverage.js';
+import { withMailQueryDeadline } from './mail-query-deadline.js';
 
 const MAIL_PROVIDERS = ['microsoft_365', 'google_workspace'];
 
@@ -130,8 +131,8 @@ export async function queryMailMessages(
   if (folder === 'sent')
     conds.push(Prisma.sql`lower(m.metadata_jsonb->>'folder') IN ('sent', 'sentitems')`);
   const where = Prisma.join(conds, ' AND ');
-  const { total, rows, coverage } = await prisma.withTenant(ctx.tenantId, async (tx) => {
-    const counted = await tx.$queryRaw<Array<{ n: number }>>(Prisma.sql`
+  const { total, rows, coverage } = await withMailQueryDeadline(prisma, ctx.tenantId, async (query) => {
+    const counted = await query<Array<{ n: number }>>(Prisma.sql`
       SELECT count(DISTINCT (m.connection_id, COALESCE(NULLIF(m.metadata_jsonb->>'internetMessageId', ''), m.id::text)))::int AS n
       FROM mail_messages m
       JOIN engagement_connections c ON c.id = m.connection_id
@@ -140,7 +141,7 @@ export async function queryMailMessages(
     `);
     // Deduplicate BEFORE paginating: folder copies cannot consume the page or
     // hide later distinct messages. Keep copies in different owned mailboxes.
-    const rows = await tx.$queryRaw<MailRow[]>(Prisma.sql`
+    const rows = await query<MailRow[]>(Prisma.sql`
       SELECT * FROM (
         SELECT DISTINCT ON (m.connection_id, COALESCE(NULLIF(m.metadata_jsonb->>'internetMessageId', ''), m.id::text))
           m.id::text AS id, m.thread_id::text AS thread_id,
@@ -162,7 +163,7 @@ export async function queryMailMessages(
       ORDER BY COALESCE(received_at, sent_at) DESC NULLS LAST, id DESC
       LIMIT ${limit} OFFSET ${offset}
     `);
-    const coverage = await tx.$queryRaw<
+    const coverage = await query<
       Array<{
         account_email: string | null;
         connection_id: string;
