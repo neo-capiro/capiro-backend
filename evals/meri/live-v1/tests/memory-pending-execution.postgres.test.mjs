@@ -1,10 +1,14 @@
 import assert from 'node:assert/strict';
 import { it } from 'node:test';
 import { randomUUID } from 'node:crypto';
+import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
 import {
   inspectPendingMemorySetup,
   executePendingMemorySetup,
   readPendingMemorySetup,
+  readPendingMemoryEvidenceForActor,
+  runWithPendingMemorySetupActor,
 } from '../fixture-provisioning/memory-pending-execution.mjs';
 import { AUTHORIZED_TENANTS, FIXTURE_NAMESPACE } from '../fixture-provisioning/contract.mjs';
 import {
@@ -16,6 +20,7 @@ import {
 } from './approved-memory-postgres-harness.mjs';
 
 const config = process.env.MERI_APPROVED_MEMORY_PG_CONFIG;
+const require = createRequire(new URL('../../../../apps/api/package.json', import.meta.url));
 async function prepare(h, caseId = '17') {
   await h.tx.$executeRawUnsafe(
     "ALTER TABLE tenants ADD COLUMN settings_jsonb jsonb DEFAULT '{}'::jsonb",
@@ -31,7 +36,10 @@ async function prepare(h, caseId = '17') {
   await h.tx.$executeRawUnsafe(
     'CREATE TABLE users(id uuid PRIMARY KEY,clerk_user_id text,email text,first_name text,last_name text)',
   );
-  await h.tx.$executeRawUnsafe("UPDATE tenant_memberships SET role='standard_user'");
+  await h.tx.$executeRawUnsafe(
+    "UPDATE tenant_memberships SET role='user_admin' WHERE user_id=$1::uuid",
+    REVIEWER,
+  );
   for (const [id, name] of [
     [PROPOSER, 'Pat'],
     [REVIEWER, 'Priya'],
@@ -53,7 +61,7 @@ async function prepare(h, caseId = '17') {
       tenantId: TENANT,
       tenantSlug: AUTHORIZED_TENANTS.T1.slug,
       userId: caseId === '17' ? REVIEWER : PROPOSER,
-      role: 'standard_user',
+      role: caseId === '17' ? 'user_admin' : 'standard_user',
     },
     clerkUserId: caseId === '17' ? 'user_Priya' : 'user_Pat',
     fixtureInstanceId: randomUUID(),
@@ -65,6 +73,132 @@ async function prepare(h, caseId = '17') {
   };
   return input;
 }
+
+it(
+  'source-owned case17 locator rehydrates through the actual authenticated GET after restart, with current actor and canonical row checks',
+  { skip: !config },
+  async () => {
+    await withOwnedApprovedMemory(config, async (h) => {
+      process.env.MEMORY_CLIENT_REVIEW = 'enforce';
+      const input = await prepare(h);
+      await h.tx.$executeRawUnsafe(
+        "ALTER TABLE clients ADD COLUMN name text DEFAULT 'Synthetic client'",
+      );
+      const plan = await inspectPendingMemorySetup(h.deps, input);
+      await executePendingMemorySetup(h.deps, input, {
+        expectedPlanSha256: plan.planSha256,
+        journal: async () => {},
+      });
+      const { GovernedMemoryCandidateService } = require(
+        fileURLToPath(
+          new URL(
+            '../../../../apps/api/src/memory/governed-memory-candidate.service.ts',
+            import.meta.url,
+          ),
+        ),
+      );
+      const { MemoryProposalController } = require(
+        fileURLToPath(
+          new URL('../../../../apps/api/src/memory/memory-proposal.controller.ts', import.meta.url),
+        ),
+      );
+      // A fresh service/controller instance has no setup process state or receipts.
+      const service = Object.assign(Object.create(GovernedMemoryCandidateService.prototype), {
+        governedPrisma: h.deps.prisma,
+      });
+      const controller = new MemoryProposalController(service, {});
+      const ctx = { ...input.ctx, clerkUserId: input.clerkUserId };
+      const { runWithMemoryGovernanceTenant } = require(
+        fileURLToPath(
+          new URL(
+            '../../../../apps/api/src/memory/memory-governance-tenant-scope.ts',
+            import.meta.url,
+          ),
+        ),
+      );
+      const actualDeps = { ...h.deps, runWithMemoryGovernanceTenant };
+      await runWithPendingMemorySetupActor(actualDeps, input, async () => {
+        assert.equal(h.deps.tenantContext.get().role, 'user_admin');
+      });
+      await assert.rejects(
+        runWithPendingMemorySetupActor(
+          actualDeps,
+          { ...input, ctx: { ...input.ctx, role: 'standard_user' } },
+          async () => {},
+        ),
+        /RECIPE_INVALID/,
+      );
+      await h.tx.$executeRawUnsafe(
+        "UPDATE tenant_memberships SET role='standard_user' WHERE user_id=$1::uuid",
+        ctx.userId,
+      );
+      await assert.rejects(
+        runWithPendingMemorySetupActor(actualDeps, input, async () => {
+          throw new Error('must not run');
+        }),
+        /ACTOR_INVALID/,
+      );
+      await h.tx.$executeRawUnsafe(
+        "UPDATE tenant_memberships SET role='user_admin' WHERE user_id=$1::uuid",
+        ctx.userId,
+      );
+      const pages = [];
+      let cursor;
+      do {
+        const page = await controller.listOwnProposals(ctx, cursor, '2');
+        pages.push(page);
+        cursor = page.nextCursor;
+        assert.ok(pages.length <= 3);
+      } while (cursor);
+      assert.equal(pages.length, 3);
+      assert.equal(pages.flatMap((page) => page.candidates).length, 6);
+      assert.equal(pages[0].fixtureEvidence.records.length, 6);
+      assert.deepEqual(
+        pages.map((page) => page.fixtureEvidence),
+        Array(3).fill(pages[0].fixtureEvidence),
+      );
+      assert.deepEqual(await readPendingMemorySetup(h.deps, input), pages[0].fixtureEvidence);
+      const ordinary = await controller.listOwnProposals({
+        ...ctx,
+        userId: PROPOSER,
+        clerkUserId: 'user_Pat',
+      });
+      assert.equal(Object.hasOwn(ordinary, 'fixtureEvidence'), false);
+      assert.equal(
+        await readPendingMemoryEvidenceForActor(h.deps, {
+          ...ctx,
+          tenantId: AUTHORIZED_TENANTS.T2.id,
+        }),
+        null,
+      );
+      await assert.rejects(
+        controller.listOwnProposals({ ...ctx, clerkUserId: 'user_forged' }),
+        /CURRENT_ACTOR_MISMATCH/,
+      );
+      await h.tx.$executeRawUnsafe(
+        "UPDATE tenant_memberships SET status='inactive' WHERE user_id=$1::uuid",
+        ctx.userId,
+      );
+      await assert.rejects(controller.listOwnProposals(ctx), /ACTOR_INVALID/);
+      await h.tx.$executeRawUnsafe(
+        "UPDATE tenant_memberships SET status='active' WHERE user_id=$1::uuid",
+        ctx.userId,
+      );
+      await h.tx.$executeRawUnsafe('UPDATE clients SET memory_wall=true WHERE id=$1::uuid', CLIENT);
+      await assert.rejects(controller.listOwnProposals(ctx), /CLIENT_WALL/);
+      await h.tx.$executeRawUnsafe(
+        'UPDATE clients SET memory_wall=false WHERE id=$1::uuid',
+        CLIENT,
+      );
+      const first = pages[0].fixtureEvidence.records[0].physicalId;
+      await h.tx.$executeRawUnsafe(
+        "UPDATE memory_candidate SET payload_jsonb=jsonb_set(payload_jsonb,'{value}','\"tampered\"'::jsonb) WHERE id=$1::uuid",
+        first,
+      );
+      await assert.rejects(controller.listOwnProposals(ctx), /MEMORY_CANDIDATE|OWNER_READBACK/);
+    });
+  },
+);
 
 for (const caseId of ['17', '14'])
   it(

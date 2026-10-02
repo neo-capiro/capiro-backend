@@ -6,6 +6,7 @@ import {
   inspectPendingMemorySetup,
   executePendingMemorySetup,
   readPendingMemorySetup,
+  runWithPendingMemorySetupActor,
 } from '../../../evals/meri/live-v1/fixture-provisioning/memory-pending-execution.mjs';
 
 const [command, inputFlag, inputPath, outFlag, outputPath] = process.argv.slice(2);
@@ -37,23 +38,20 @@ try {
   };
   const { createCase01SetupDependencies } = await import('./meri-case01-setup-dependencies.mjs');
   factory = await createCase01SetupDependencies();
-  await factory.runWithTenant(
-    { ...input.recipe.ctx, clerkUserId: input.recipe.clerkUserId },
-    async () => {
-      if (command === 'execute')
-        await executePendingMemorySetup(factory.deps, input.recipe, {
-          expectedPlanSha256: input.expectedPlanSha256,
-          journal,
-        });
-      else
-        await journal(
-          await (command === 'plan' ? inspectPendingMemorySetup : readPendingMemorySetup)(
-            factory.deps,
-            input.recipe,
-          ),
-        );
-    },
-  );
+  await runWithPendingMemorySetupActor(factory.deps, input.recipe, async () => {
+    if (command === 'execute')
+      await executePendingMemorySetup(factory.deps, input.recipe, {
+        expectedPlanSha256: input.expectedPlanSha256,
+        journal,
+      });
+    else
+      await journal(
+        await (command === 'plan' ? inspectPendingMemorySetup : readPendingMemorySetup)(
+          factory.deps,
+          input.recipe,
+        ),
+      );
+  });
 } catch (error) {
   const code = /^PENDING_MEMORY_[A-Z_]+$/u.test(error?.message ?? '')
     ? error.message

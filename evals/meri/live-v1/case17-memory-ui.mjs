@@ -43,7 +43,9 @@ export function inspectPendingUiPage({ selection, owner, pages }) {
     }
   }
   need(
-    owner.records.length === 6 && new Set(owner.records.map((row) => row.physicalId)).size === 6,
+    rows.length === 6 &&
+      owner.records.length === 6 &&
+      new Set(owner.records.map((row) => row.physicalId)).size === 6,
     'OWNER_ROW_COUNT',
   );
   return selection.records.map((record) => {
@@ -99,19 +101,21 @@ export function inspectPendingUiPage({ selection, owner, pages }) {
   });
 }
 
-/** The operator supplies its NEW ordinary synthetic authenticated page and fresh
+/** The native collector supplies its new approved synthetic authenticated page and fresh
  * source-owned canonical read function. No login, model turn, mutation or LIVE
  * acceptance verdict is performed here. Saved bytes are graded separately. */
 export async function collectCase17MemoryUi({
   page,
   recipe,
   readCurrentOwner,
+  readApi,
   expectedApiSha,
   expectedWebSha,
   artifactStorage,
 }) {
   need(
     typeof readCurrentOwner === 'function' &&
+      typeof readApi === 'function' &&
       /^[a-f0-9]{40}$/u.test(expectedApiSha ?? '') &&
       /^[a-f0-9]{40}$/u.test(expectedWebSha ?? ''),
     'QUALIFIED_OPERATOR_REQUIRED',
@@ -129,13 +133,18 @@ export async function collectCase17MemoryUi({
   const guard = async (route) => {
     const request = route.request(),
       url = new URL(request.url());
-    if (!['GET', 'HEAD', 'OPTIONS'].includes(request.method())) {
+    if (
+      !['GET', 'HEAD', 'OPTIONS'].includes(request.method()) &&
+      url.origin !== 'https://clerk.app.capiro.ai'
+    ) {
       blockedWrites++;
       return route.abort();
     }
     if (
       request.isNavigationRequest() &&
-      (url.origin !== origin || !url.pathname.startsWith('/meri'))
+      (request.frame() === page.mainFrame()
+        ? url.origin !== origin || !url.pathname.startsWith('/meri')
+        : ![origin, 'https://clerk.app.capiro.ai'].includes(url.origin))
     )
       return route.abort();
     return route.fallback();
@@ -151,26 +160,7 @@ export async function collectCase17MemoryUi({
         /^\/api\/memory\/proposals\?limit=50(?:&cursor=[A-Za-z0-9%_-]+)?$/u.test(path),
       'READ_ROUTE',
     );
-    const value = await page.evaluate(
-      async ({ path, tenantSlug }) => {
-        const token = await window.Clerk?.session?.getToken();
-        if (!token) return { status: 401 };
-        const response = await fetch(path, {
-          method: 'GET',
-          headers: { Authorization: `Bearer ${token}`, 'x-capiro-tenant': tenantSlug },
-          redirect: 'error',
-          signal: AbortSignal.timeout(15000),
-        });
-        const text = await response.text();
-        return {
-          status: response.status,
-          releaseSha: response.headers.get('x-capiro-release-sha'),
-          bytes: text.length,
-          value: text.length <= 262144 ? JSON.parse(text) : null,
-        };
-      },
-      { path, tenantSlug: recipe.ctx.tenantSlug },
-    );
+    const value = await readApi(path);
     need(
       value.status === 200 && value.bytes <= 262144 && value.releaseSha === expectedApiSha,
       'AUTHENTICATED_READ',
@@ -200,7 +190,7 @@ export async function collectCase17MemoryUi({
           me.user.clerkUserId === recipe.clerkUserId &&
           me.tenant?.id === recipe.ctx.tenantId &&
           me.tenant.slug === recipe.ctx.tenantSlug &&
-          me.role === 'standard_user',
+          me.role === recipe.ctx.role,
         'CURRENT_ACTOR',
       );
       const pages = [],
@@ -212,6 +202,10 @@ export async function collectCase17MemoryUi({
             (cursor ? '&cursor=' + encodeURIComponent(cursor) : ''),
         );
         pages.push(pageResult);
+        need(
+          sha256Stable(pageResult.fixtureEvidence) === sha256Stable(before),
+          'PAGE_OWNER_CHANGED',
+        );
         cursor = pageResult.nextCursor;
         need(pages.length <= 10 && (!cursor || !cursors.has(cursor)), 'PAGE_BOUND');
         if (cursor) cursors.add(cursor);
@@ -285,6 +279,7 @@ export async function collectCase17MemoryUi({
         phase,
         apiPageCount: pages.length,
         pageHashes: pages.map(sha256Stable),
+        pages,
         uiLoadMoreCount: loads,
         cards,
       });
@@ -318,7 +313,19 @@ export async function collectCase17MemoryUi({
       sha256Stable(JSON.parse(artifactStorage.readBytes(descriptor.ref))) === sha256Stable(receipt),
       'STORAGE_READBACK',
     );
-    return { receipt, descriptor };
+    return {
+      receipt,
+      descriptor,
+      evidence: {
+        selection,
+        before,
+        after,
+        rounds,
+        synthesisSubmissionCount: 0,
+        applicationWrites: 0,
+        blockedWrites,
+      },
+    };
   } finally {
     await page.unroute('**/*', guard);
   }

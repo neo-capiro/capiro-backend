@@ -24,7 +24,7 @@ async function select(input) {
       .join('|') !== 'role|tenantId|tenantSlug|userId' ||
     value.ctx.tenantId !== AUTHORIZED_TENANTS.T1.id ||
     value.ctx.tenantSlug !== AUTHORIZED_TENANTS.T1.slug ||
-    value.ctx.role !== 'standard_user' ||
+    value.ctx.role !== (value.caseId === '17' ? 'user_admin' : 'standard_user') ||
     !UUID.test(value.ctx.userId ?? '') ||
     typeof value.clerkUserId !== 'string' ||
     !value.clerkUserId.startsWith('user_')
@@ -64,7 +64,7 @@ async function current(tx, deps, spec) {
   const actor = rows[0];
   if (
     rows.length !== 1 ||
-    actor.role !== 'standard_user' ||
+    actor.role !== ctx.role ||
     actor.clerk_user_id !== input.clerkUserId ||
     typeof actor.email !== 'string' ||
     !actor.email.toLowerCase().includes(FIXTURE_NAMESPACE) ||
@@ -106,6 +106,24 @@ function planned(spec, row) {
 
 const port = (deps, spec) =>
   createMemoryCandidateOwnerPort({ ...deps, actorForTenant: () => spec.selection.proposerUserId });
+
+/** Operator-only context composition for existing source actors. Case17 Priya
+ * retains her current reviewer role; case14 Pat remains an ordinary proposer.
+ * The current database membership must match before either ALS is installed. */
+export async function runWithPendingMemorySetupActor(deps, input, work) {
+  const spec = await select(input),
+    { ctx } = spec.input;
+  if (
+    typeof work !== 'function' ||
+    typeof deps.runWithMemoryGovernanceTenant !== 'function' ||
+    typeof deps.tenantContext?.run !== 'function'
+  )
+    fail('CONTEXT_PORTS_REQUIRED');
+  await deps.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) => current(tx, deps, spec));
+  return deps.runWithMemoryGovernanceTenant(ctx.tenantId, () =>
+    deps.tenantContext.run({ ...ctx, clerkUserId: input.clerkUserId }, work),
+  );
+}
 
 async function readRows(owner, spec) {
   const records = [];
@@ -165,6 +183,9 @@ export async function executePendingMemorySetup(deps, input, { expectedPlanSha25
     recipeSha256: sha256Stable(spec.input),
     fixtureInstanceId: input.fixtureInstanceId,
     planSha256: expectedPlanSha256,
+    // Source-validated locator only. Restart reads must revalidate canonical rows;
+    // this stored recipe is never accepted as an owner receipt or readiness flag.
+    locator: spec.input,
   };
   await deps.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
     const row = await current(tx, deps, spec);
@@ -280,4 +301,40 @@ export async function readPendingMemorySetup(deps, input) {
     currentVerifySha256: sha256Stable(records),
     liveAcceptance: 'NOT_RUN',
   };
+}
+
+/** Existing authenticated own-proposal GET only. Ordinary callers are unchanged;
+ * only a completed source-owned case17 operation supplies a restart locator. */
+export async function readPendingMemoryEvidenceForActor(deps, ctx) {
+  if (
+    process.env.MERI_SYNTHETIC_FIXTURE_NAMESPACE !== FIXTURE_NAMESPACE ||
+    ctx?.tenantId !== AUTHORIZED_TENANTS.T1.id ||
+    ctx.tenantSlug !== AUTHORIZED_TENANTS.T1.slug ||
+    ctx.role !== 'user_admin'
+  )
+    return null;
+  const rows = await deps.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
+    tx.$queryRawUnsafe(
+      `SELECT settings_jsonb #> '{meriFoundationFixture,pendingMemorySetups,17}' AS operation
+      FROM tenants WHERE id=$1::uuid AND slug=$2`,
+      ctx.tenantId,
+      ctx.tenantSlug,
+    ),
+  );
+  const operation = rows[0]?.operation;
+  if (
+    !operation ||
+    operation.status !== 'SETUP_COMPLETE' ||
+    operation.locator?.ctx?.userId !== ctx.userId
+  )
+    return null;
+  if (
+    operation.locator.caseId !== '17' ||
+    operation.locator.ctx.tenantId !== ctx.tenantId ||
+    operation.locator.ctx.tenantSlug !== ctx.tenantSlug ||
+    operation.locator.ctx.role !== ctx.role ||
+    operation.locator.clerkUserId !== ctx.clerkUserId
+  )
+    fail('CURRENT_ACTOR_MISMATCH');
+  return readPendingMemorySetup(deps, operation.locator);
 }

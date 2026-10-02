@@ -40,14 +40,16 @@ export class MemoryProposalController {
   }
 
   @Get()
-  listOwnProposals(
+  async listOwnProposals(
     @CurrentTenant() ctx: TenantContext,
     @Query('cursor') cursor?: string,
     @Query('limit') limit?: string,
   ) {
-    return cursor !== undefined || limit !== undefined
+    const result = await (cursor !== undefined || limit !== undefined
       ? this.candidates.listOwnProposals(ctx, { cursor, limit })
-      : this.candidates.listOwnProposals(ctx);
+      : this.candidates.listOwnProposals(ctx));
+    const fixtureEvidence = await this.candidates.readOwnPendingFixtureEvidence(ctx);
+    return fixtureEvidence ? { ...result, fixtureEvidence } : result;
   }
 
   @Post(':id/withdraw')

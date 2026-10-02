@@ -135,6 +135,7 @@ export async function createCase01SetupDependencies() {
       memoryVersions: app.get(ImmutableMemoryVersionService),
       memoryAuthorization: app.get(MemoryAuthorizationService),
       clientMemoryAllowed,
+      runWithMemoryGovernanceTenant,
       assertSyntheticCandidateWithdrawalInTx,
       assertSyntheticApprovedMemoryInTx,
       readSyntheticMemoryRetirementInTx,

@@ -29,6 +29,7 @@ import {
   type LegacyCandidateScope,
 } from './memory-governance-lifecycle.helpers.js';
 import { memoryReviewSurfaceEnabled } from './memory-review-switch.js';
+import { readOwnPendingMemoryFixtureEvidence } from './pending-memory-fixture-evidence.js';
 import type { MemorySection } from './memory.types.js';
 import {
   assertSyntheticCandidateWithdrawalInTx,
@@ -130,6 +131,10 @@ export class GovernedMemoryCandidateService extends MemoryCandidateService {
       cleanupOutbox,
       governedAuthorization,
     );
+  }
+
+  readOwnPendingFixtureEvidence(ctx: TenantContext): Promise<unknown | null> {
+    return readOwnPendingMemoryFixtureEvidence(this.governedPrisma, this, ctx);
   }
 
   /** Reviewer rejection is never a substitute for withdrawing one's own proposal. */
