@@ -20,7 +20,7 @@ export function inspectCaptureSpendTerminalReadback(readback, expected, now = Da
     need(UUID.test(expected[key]));
   need(Object.values(AUTHORIZED_TENANTS).some(t => t.id === expected.tenantId) &&
     HASH.test(expected.promptSha256) && HASH.test(expected.priorExecutionSha256) &&
-    integer(expected.ceilingMicros) && expected.ceilingMicros > 0 && expected.ceilingMicros <= 3000000);
+    integer(expected.ceilingMicros) && expected.ceilingMicros > 0 && expected.ceilingMicros <= 15000000);
   need(['meri-original01-terminal-owned-api-readback', 'meri-capture-terminal-owned-api-readback'].includes(readback?.kind) &&
     readback.status === 'READBACK_CAPTURED' && readback.applicationWrites === 0 &&
     readback.modelSubmissions === 0 && readback.sessionRevoked === true &&

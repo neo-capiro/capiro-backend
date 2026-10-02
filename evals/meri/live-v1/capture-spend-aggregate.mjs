@@ -248,7 +248,7 @@ export function reviseCaptureSpendProtocol(
       kind: 'revise_protocol',
       protocolVersion: 2,
       maxCostMicros: 30000000,
-      perCaseMaxCostMicros: 3000000,
+      perCaseMaxCostMicros: 15000000,
       concurrency: 1,
       settlementAuthority: 'server_settled_provider_ledger',
       uncertainDisposition: 'full_ceiling_no_refund',

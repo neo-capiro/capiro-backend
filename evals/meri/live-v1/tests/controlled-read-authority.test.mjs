@@ -291,7 +291,7 @@ test('scope rejects other rows, arbitrary physical maps, customer tenants, highe
     (c) => (c.caseId = '74'),
     (c) => (c.scope.sources['R2-27'].physicalId = c.conversationId),
     (c) => (c.scope.tenants.T1.physicalId = c.conversationId),
-    (c) => (c.limits.maxSpendUsd = 3.01),
+    (c) => (c.limits.maxSpendUsd = 15.01),
     (c) => (c.limits.concurrency = 2),
   ]) {
     const h = fixture('20');

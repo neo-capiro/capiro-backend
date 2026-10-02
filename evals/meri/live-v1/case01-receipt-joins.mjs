@@ -302,7 +302,7 @@ function assertMemoryReceiptJoins(
       budget.chargedCostMicros <= budget.maxCostMicros &&
       budget.maxCostMicros === expected.maxSpendMicros &&
       budget.maxCostMicros > 0 &&
-      budget.maxCostMicros <= 3_000_000 &&
+      budget.maxCostMicros <= 15_000_000 &&
       budget.qualificationSha256 === admission.providerBudget?.qualificationSha256 &&
       budget.qualificationSha256 === authority.providerBudget?.qualificationSha256,
     'CASE01_PROVIDER_RESERVATION_UNPROVED',

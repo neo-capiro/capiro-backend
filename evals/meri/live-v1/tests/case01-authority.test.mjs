@@ -341,9 +341,9 @@ for (const [name, change] of [
     },
   ],
   [
-    'over3USD',
+    'over15USD',
     (h) => {
-      h.config.limits.maxSpendUsd = 3.000001;
+      h.config.limits.maxSpendUsd = 15.000001;
     },
   ],
   [

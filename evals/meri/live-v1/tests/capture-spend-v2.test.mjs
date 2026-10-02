@@ -149,11 +149,25 @@ test('expiry, excess ceiling, bad proof hash, undeclared cases and stale checkpo
   ])
     assert.throws(() => reviseCaptureSpendProtocol(p, { ...opts(), ...change }));
   const v = reviseCaptureSpendProtocol(p, opts());
-  assert.equal(call(v, 'reserve', { ...reserve(), ceilingMicros: 3000001 }).exit, 1);
+  assert.equal(call(v, 'reserve', { ...reserve(), ceilingMicros: 15000001 }).exit, 1);
   assert.equal(call(v, 'reserve', { ...reserve(), caseId: '75' }).exit, 1);
   const n = call(v, 'reserve', reserve());
   assert.equal(n.exit, 0);
   assert.equal(call(v, 'read').exit, 1);
+});
+test('v2 fifteen-dollar reservations keep the same thirty-dollar total and never refund legacy holds', () => {
+  const old = closed();
+  assert.equal(call(old, 'reserve', { ...reserve(), caseId: '01', ceilingMicros: 3000001 }).exit, 1);
+  let p = reviseCaptureSpendProtocol(old, opts());
+  const e = { ...reserve(), ceilingMicros: 15000000 };
+  p = call(p, 'reserve', e); assert.equal(p.exit, 0);
+  assert.equal(p.snapshot.remainingReservationMicros, 12000000);
+  assert.equal(call(p, 'reserve', reserve()).exit, 1, 'one active run');
+  p = call(p, 'settle', { ...settle(e), chargedCostMicros: 13707600 });
+  assert.equal(p.exit, 0); assert.equal(p.snapshot.remainingReservationMicros, 13292400);
+  assert.equal(p.snapshot.terminalUnknownConservativeCostMicros, 3000000);
+  assert.equal(call(p, 'reserve', { ...reserve(), ceilingMicros: 15000000 }).exit, 1, 'same total30 cap');
+  assert.equal(call(p, 'reserve', { ...reserve(), ceilingMicros: 13292400 }).exit, 0);
 });
 test('protocol revision permits multiple completed failures while retaining every old unknown ceiling', () => {
   let p = closed();

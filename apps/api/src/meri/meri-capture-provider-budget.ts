@@ -89,7 +89,7 @@ export function validateCaptureBudgetQualification(
     !integer(q.maxTokens, true) ||
     q.maxTokens > 1_000_000 ||
     !integer(q.maxCostMicros, true) ||
-    q.maxCostMicros > 3_000_000 ||
+    q.maxCostMicros > 15_000_000 ||
     !Array.isArray(q.rates) ||
     !q.rates.length ||
     q.rates.length > 32

@@ -14,6 +14,7 @@ native = protocol['native']
 CASES = {'01', '14', '20', '26', '27', '46', '72'}
 V2_CASES = CASES | {'02', '03', '04', '05'}
 MAX_TOTAL, MAX_CASE = 30_000_000, 3_000_000
+MAX_V2_CASE = 15_000_000
 UUID = re.compile(r'[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}')
 HASH = re.compile(r'[a-f0-9]{64}')
 TERMINAL_CASE01_RUN = 'c6ffa5ad-dd9f-4912-bc31-a03231a9b903'
@@ -40,8 +41,8 @@ def run_key(value, cases=CASES):
     return value['caseId'] + ':' + value['captureRunId']
 
 
-def ceiling(value):
-    require(type(value) is int and 0 < value <= MAX_CASE)
+def ceiling(value, maximum=MAX_CASE):
+    require(type(value) is int and 0 < value <= maximum)
     return value
 
 
@@ -73,7 +74,7 @@ def reduce_journal(owner, entries):
             require(runs.get('01:' + TERMINAL_CASE01_RUN, {}).get('kind') == 'close_terminal_uncertain')
             require(boundary['inventorySha256'] == TERMINAL_CASE01_INVENTORY)
             require(event.get('protocolVersion') == 2 and event.get('maxCostMicros') == MAX_TOTAL)
-            require(event.get('perCaseMaxCostMicros') == MAX_CASE and event.get('concurrency') == 1)
+            require(event.get('perCaseMaxCostMicros') == MAX_V2_CASE and event.get('concurrency') == 1)
             require(event.get('settlementAuthority') == 'server_settled_provider_ledger')
             require(event.get('uncertainDisposition') == 'full_ceiling_no_refund')
             require(HASH.fullmatch(event.get('reviewSha256', '')))
@@ -86,7 +87,9 @@ def reduce_journal(owner, entries):
             require(active is None and key not in runs)
             if not runs:
                 require(event['caseId'] == boundary['firstCaseId'] and event['captureRunId'] == boundary['firstCaptureRunId'])
-            cost = ceiling(event.get('ceilingMicros'))
+            # The unchanged owner/prior/v1 records keep their original3USD cap.
+            # Governed46 still has its separately reviewed3USD product contract.
+            cost = ceiling(event.get('ceilingMicros'), MAX_V2_CASE if version == 2 and event['caseId'] != '46' else MAX_CASE)
             require(UUID.fullmatch(event.get('reservationId', '')))
             runs[key] = dict(event)
             if version == 2:
@@ -182,6 +185,7 @@ def reduce_journal(owner, entries):
     if version == 2:
         result.update({'protocolVersion': 2, 'releasedUnusedCeilingMicros': released,
                        'committedCostMicros': reserved-released, 'deadlineAtMs': deadline,
+                       'perCaseMaxCostMicros': MAX_V2_CASE,
                        'unusedCeilingRelease': 'new_v2_runs_only_after_server_settlement'})
     return result
 

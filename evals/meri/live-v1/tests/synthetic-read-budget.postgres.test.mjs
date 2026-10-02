@@ -339,6 +339,44 @@ it(
           assert.equal(meta.serverCaptureProviderBudget, undefined);
         },
       );
+      await t.test('new reviewed500k/15USD qualification supports two actual transactional rounds while old admission stays unchanged', async () => {
+        const nextConversation = randomUUID(), nextUser = randomUUID();
+        await admin.query('INSERT INTO clio_conversations VALUES($1,$2,$3,$4,NULL,\'{"unrelated":true}\')',
+          [nextConversation, ctx.tenantId, ctx.userId, clientId]);
+        const nextRate = { ...rate, inputMicrosPerMillion: 25000000, outputMicrosPerMillion: 75000000 };
+        const nextEvidence = { ...evidence, maxTokens: 500000, rates: [nextRate] };
+        const nextQ = { ...q, captureRunId: randomUUID(), aggregateReservationId: randomUUID(),
+          conversationId: nextConversation, maxTokens: 500000, maxCostMicros: 15000000, maxAttempts: 3,
+          rates: [nextRate], rateEvidenceSha256: hash(nextEvidence) };
+        await assert.rejects(() => installSyntheticReadBudget({ prisma, ctx,
+          qualification: { ...nextQ, maxCostMicros: 15000001 }, rateEvidence: nextEvidence }));
+        await installSyntheticReadBudget({ prisma, ctx, qualification: nextQ, rateEvidence: nextEvidence });
+        let nextPolicy = await issueMeriServerReadonlyCapturePolicy({ prisma, ctx, conversationId: nextConversation });
+        const nextOp = operation => syntheticReadBudgetOwner({ prisma, ctx, policy: nextPolicy, operation });
+        await nextOp({ kind: 'admit', prompt });
+        await admin.query("INSERT INTO clio_messages VALUES($1,$2,$3,$4,$5,'user',$6)",
+          [nextUser, ctx.tenantId, ctx.userId, clientId, nextConversation, prompt]);
+        nextPolicy = { ...nextPolicy, turnId: nextUser };
+        await nextOp({ kind: 'admit' });
+        for (const [i, inputTokens] of [200000, 250000].entries()) {
+          const binding = { logicalOperationId: `long-${i}`, attemptId: `long-${i}`, retryOfAttemptId: null,
+            kind: 'openai_responses', phase: 'synthesis', provider: 'openai', model: 'test-only',
+            maxInputTokens: inputTokens, maxOutputTokens: 16384 };
+          const reserved = await nextOp({ kind: 'reserve', binding });
+          await nextOp({ kind: 'settle', input: { reservationId: reserved.reservationId, binding,
+            outcome: { kind: 'known', inputTokens, outputTokens: 16384 } } });
+        }
+        const current = await nextOp({ kind: 'read' });
+        assert.equal(current.state.ledger.chargedCostMicros, 13707600);
+        assert.equal(current.state.ledger.chargedTokens, 482768);
+        await assert.rejects(() => nextOp({ kind: 'reserve', binding: {
+          logicalOperationId: 'long-3', attemptId: 'long-3', retryOfAttemptId: null,
+          kind: 'openai_responses', phase: 'synthesis', provider: 'openai', model: 'test-only',
+          maxInputTokens: 20000, maxOutputTokens: 16384 } }), /tokens_exhausted/);
+        const prior = (await admin.query('SELECT metadata_jsonb FROM clio_conversations WHERE id=$1', [conversationId])).rows[0].metadata_jsonb;
+        assert.equal(prior.syntheticReadBudgetQualification.maxCostMicros, 350);
+        assert.equal(prior.syntheticReadProviderBudget.ledger.chargedCostMicros, 20);
+      });
     } finally {
       if (db) await db.$disconnect();
       await admin.query(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`);

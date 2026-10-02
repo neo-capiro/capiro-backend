@@ -54,7 +54,7 @@ export function inspectControlledReadScope(config, env = process.env) {
   );
   const maxSpendMicros = config.limits.maxSpendUsd * 1000000;
   need(
-    Number.isSafeInteger(maxSpendMicros) && maxSpendMicros > 0 && maxSpendMicros <= 3000000,
+    Number.isSafeInteger(maxSpendMicros) && maxSpendMicros > 0 && maxSpendMicros <= 15000000,
     'CONTROLLED_READ_COST_LIMIT_INVALID',
   );
   need(

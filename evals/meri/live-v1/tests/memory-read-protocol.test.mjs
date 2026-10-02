@@ -98,17 +98,17 @@ function unit(caseId = '02') {
   return { config, plan, ports, records, calls, observations, proof, me };
 }
 
-test('four plans use exact frozen original prompts, not case01 relabeling', () => {
-  assert.deepEqual(memoryReadCaseIds, ['02', '03', '04', '05']);
+test('five plans use exact frozen original prompts with distinct case/run identities', () => {
+  assert.deepEqual(memoryReadCaseIds, ['01', '02', '03', '04', '05']);
   for (const id of memoryReadCaseIds) {
     const { plan } = unit(id);
     assert.equal(plan.prompt, cases.find((row) => row.id === id).prompt);
     assert.equal(plan.caseId, id);
     assert.equal(plan.liveAcceptance, 'NOT_RUN');
   }
-  assert.throws(() => unit('01'), /CASE_INVALID/);
+  assert.throws(() => unit('06'), /CASE_INVALID/);
   assert.throws(
-    () => prepareMemoryReadCase({ ...unit().config, maxCostMicros: 3000001 }),
+    () => prepareMemoryReadCase({ ...unit().config, maxCostMicros: 15000001 }),
     /COST_INVALID/,
   );
   assert.throws(

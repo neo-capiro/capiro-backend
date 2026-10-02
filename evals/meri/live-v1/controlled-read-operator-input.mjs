@@ -164,7 +164,7 @@ export function controlledReadBudgetInstallInput(input, setup, plan, rates, now 
     rates?.kind === 'meri-capture-reviewed-provider-rates' &&
       rates.version === 1 &&
       rates.priceKind === 'qualified_text_token_upper_bound' &&
-      rates.maxTokens === 200000 &&
+      [200000, 500000].includes(rates.maxTokens) &&
       Number.isFinite(Date.parse(rates.observedAt)) &&
       Date.parse(rates.observedAt) <= now &&
       Date.parse(rates.expiresAt) > now + 900000 &&
@@ -186,7 +186,7 @@ export function controlledReadBudgetInstallInput(input, setup, plan, rates, now 
       priceKind: rates.priceKind,
       maxAttempts: 32,
       maxTokens: rates.maxTokens,
-      maxCostMicros: 3000000,
+      maxCostMicros: rates.maxTokens === 500000 ? 15000000 : 3000000,
       rates: rates.rates,
     },
     rateEvidence: rates,
@@ -212,8 +212,9 @@ export function controlledReadLiveConfig(
     q?.caseId === input.caseId &&
       q.captureRunId === input.captureRunId &&
       q.currentVerifySha256 === setup.currentVerifySha256 &&
-      q.maxCostMicros === 3000000 &&
-      q.maxTokens === 200000 &&
+      [200000, 500000].includes(q.maxTokens) &&
+      q.maxCostMicros === (q.maxTokens === 500000 ? 15000000 : 3000000) &&
+      q.maxTokens === installInput.rateEvidence.maxTokens &&
       q.maxAttempts === 32 &&
       q.priceKind === 'qualified_text_token_upper_bound' &&
       q.rateEvidenceSha256 === sha256Stable(installInput.rateEvidence) &&
@@ -258,7 +259,7 @@ export function controlledReadLiveConfig(
     provenance: 'LIVE_CAPTURE',
     caseId: input.caseId,
     target: { apiOrigin: 'https://os.capiro.ai', environment: 'capiro-dev' },
-    limits: { concurrency: 1, deadlineMs: 600000, maxSpendUsd: 3 },
+    limits: { concurrency: 1, deadlineMs: 600000, maxSpendUsd: q.maxCostMicros / 1000000 },
     contract: {
       fixtureSha256: lock.fixtureSha256,
       contractSourceSha256: lock.contractSourceSha256,

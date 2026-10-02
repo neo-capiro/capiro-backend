@@ -76,7 +76,7 @@ function inspectMemoryScope(config, env, caseId) {
   );
   const maxSpendMicros = config.limits.maxSpendUsd * 1000000;
   need(
-    Number.isSafeInteger(maxSpendMicros) && maxSpendMicros > 0 && maxSpendMicros <= 3000000,
+    Number.isSafeInteger(maxSpendMicros) && maxSpendMicros > 0 && maxSpendMicros <= 15000000,
     'CASE01_COST_LIMIT_INVALID',
   );
   need(

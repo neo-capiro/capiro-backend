@@ -5,7 +5,7 @@ import { sha256Stable } from './artifact-collector.mjs';
 import { AUTHORIZED_TENANTS } from './fixture-provisioning/contract.mjs';
 import { readCase01MemoryCorpusInTx } from './fixture-provisioning/case01-memory-owner.mjs';
 
-export const memoryReadCaseIds = Object.freeze(['02', '03', '04', '05']);
+export const memoryReadCaseIds = Object.freeze(['01', '02', '03', '04', '05']);
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/iu;
 const SHA = /^[a-f0-9]{40}$/u;
 const hash = (text) => createHash('sha256').update(text, 'utf8').digest('hex');
@@ -53,7 +53,7 @@ export function prepareMemoryReadCase(config) {
   need(
     Number.isSafeInteger(config.maxCostMicros) &&
       config.maxCostMicros > 0 &&
-      config.maxCostMicros <= 3_000_000,
+      config.maxCostMicros <= 15_000_000,
     'MEMORY_READ_COST_INVALID',
   );
   need(

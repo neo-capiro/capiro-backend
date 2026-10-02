@@ -67,7 +67,7 @@ describe('ordinary capture durable provider budget', () => {
         ],
       }),
     ).toThrow('rate_invalid');
-    expect(() => admitCaptureProviderBudget({}, p, { ...q, maxCostMicros: 3_000_001 })).toThrow(
+    expect(() => admitCaptureProviderBudget({}, p, { ...q, maxCostMicros: 15_000_001 })).toThrow(
       'qualification_missing',
     );
     expect(
@@ -210,5 +210,32 @@ describe('ordinary capture durable provider budget', () => {
         logicalOperationId: 'fourth',
       }),
     ).toThrow('attempts_exhausted');
+  });
+  test('reviewed long-context ceiling permits two bounded rounds without repricing or resetting prior state', () => {
+    const long = { ...q, maxTokens: 500_000, maxCostMicros: 15_000_000,
+      rates: q.rates.map(rate => ({ ...rate, inputMicrosPerMillion: 25_000_000, outputMicrosPerMillion: 75_000_000 })) };
+    let metadata = admitCaptureProviderBudget({}, p, long).metadata;
+    for (const [i, inputTokens] of [200_000, 250_000].entries()) {
+      const binding = { ...b, attemptId: `long-${i}`, logicalOperationId: `long-${i}`,
+        maxInputTokens: inputTokens, maxOutputTokens: 16_384 };
+      const reserved = reserveCaptureProviderAttempt(metadata, p, long, binding);
+      const settled = settleCaptureProviderAttempt(reserved.metadata, p, long, {
+        reservationId: reserved.reservationId, binding,
+        outcome: { kind: 'known', inputTokens, outputTokens: 16_384 },
+      });
+      metadata = settled.metadata;
+    }
+    expect(readCaptureProviderBudget(metadata, p, long)!.ledger).toMatchObject({
+      chargedAttempts: 2, chargedTokens: 482_768, chargedCostMicros: 13_707_600,
+    });
+    expect(() => reserveCaptureProviderAttempt(metadata, p, long, { ...b, attemptId: 'long-3',
+      logicalOperationId: 'long-3', maxInputTokens: 20_000, maxOutputTokens: 16_384 })).toThrow('tokens_exhausted');
+    expect(() => readCaptureProviderBudget(metadata, p, { ...long, maxCostMicros: 3_000_000 })).toThrow();
+    const legacy = { ...q, maxTokens: 200_000, maxCostMicros: 3_000_000,
+      rates: q.rates.map(rate => ({ ...rate, inputMicrosPerMillion: 12_500_000, outputMicrosPerMillion: 50_000_000 })) };
+    const prior = admitCaptureProviderBudget({}, p, legacy);
+    expect(() => reserveCaptureProviderAttempt(prior.metadata, p, legacy, { ...b,
+      maxInputTokens: 174_465, maxOutputTokens: 16_384 })).toThrow('cost_exhausted');
+    expect(prior.state.ledger.limits).toMatchObject({ maxTokens: 200_000, maxCostMicros: 3_000_000 });
   });
 });

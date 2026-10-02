@@ -9,6 +9,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { sha256Stable } from '../artifact-collector.mjs';
+import { writeCaptureHttpObservation } from '../capture-http-observation.mjs';
 import { frozenFixture } from '../fixture.mjs';
 import { createControlledReadDefinition } from '../fixture-provisioning/controlled-read-definitions.mjs';
 import {
@@ -77,6 +78,7 @@ function localTransport(functionName, moduleName, endMarker) {
     setTimeout,
     clearTimeout,
     need,
+    writeCaptureHttpObservation,
     origin: 'https://os.capiro.ai',
     ORIGIN: 'https://os.capiro.ai',
   });
@@ -99,17 +101,25 @@ for (const transportKind of ['creation', 'capture']) {
         );
     const id = '12345678-1234-4234-8234-123456789012';
     const slug = 'meri-foundation-20260928-t1';
+    const saved = [];
     const transport = creation
       ? factory({ scope: { tenants: { T1: { slug } } } }, 'unit-only-placeholder')
       : factory(
           { bearer: 'unit-only-placeholder', tenant: { slug }, expected: { conversationId: id } },
           10000,
+          { writeBytes: async (ref, bytes) => saved.push({ ref, value: JSON.parse(bytes) }) },
         );
     const call = creation ? transport.call : transport.request;
     await call('/api/me');
     const postPath = creation ? '/api/clio/conversations' : `/api/clio/conversations/${id}/stream`;
     await call(postPath, { message: 'unit-only' });
     assert.equal(observed.length, 2);
+    if (!creation) {
+      assert.equal(saved.length, 1);
+      assert.equal(saved[0].ref, 'stream-response-observation.json');
+      assert.equal(saved[0].value.status, 201);
+      assert.equal(saved[0].value.captureAuthority, false);
+    }
     for (const request of observed) {
       assert.equal(new URL(request.url).origin, 'https://os.capiro.ai');
       assert.equal(request.options.rejectUnauthorized, true);
@@ -314,6 +324,21 @@ for (const caseId of ['20', '72'])
     assert.equal(s.live.expectedWebSha, s.deployment.webSha);
     assert.deepEqual(s.live.config.scope.sources, s.setup.sourceMap);
   });
+test('new reviewed500k rate sheet selects15USD while prior200k qualification remains3USD', () => {
+  const s = sample();
+  const rates = { ...s.rates, maxTokens: 500000, rates: s.rates.rates.map(r => ({
+    ...r, inputMicrosPerMillion: 25000000, outputMicrosPerMillion: 75000000 })) };
+  const input = controlledReadBudgetInstallInput(s.input, s.setup, s.budgetPlan, rates, s.now);
+  assert.equal(input.qualification.maxCostMicros, 15000000);
+  assert.equal(input.qualification.maxTokens, 500000);
+  const installed = { ...s.installed, maxCostMicros: 15000000,
+    qualificationSha256: sha256Stable(input.qualification), rateEvidenceSha256: sha256Stable(rates) };
+  const live = controlledReadLiveConfig(s.input, s.setup, input, installed, s.deployment, s.now);
+  assert.equal(live.config.limits.maxSpendUsd, 15);
+  assert.equal(s.installInput.qualification.maxCostMicros, 3000000);
+  assert.equal(s.live.config.limits.maxSpendUsd, 3);
+  assert.throws(() => controlledReadLiveConfig(s.input, s.setup, input, s.installed, s.deployment, s.now));
+});
 test('rejects other cases/tenants and plans with modified fixed mappings or stale hash', () => {
   const s = sample();
   for (const caseId of ['01', '21', '26', '74'])
