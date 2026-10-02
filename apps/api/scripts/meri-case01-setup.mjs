@@ -5,6 +5,9 @@ import { readMeriOperatorInput } from './meri-operator-json-input.mjs';
 import {
   inspectCase01ExecutionSetup,
   executeCase01ExecutionSetup,
+  inspectCase01FirstApprovalRecovery,
+  executeCase01FirstApprovalRecovery,
+  safeCase01SetupFailure,
 } from '../../../evals/meri/live-v1/fixture-provisioning/case01-execution-setup.mjs';
 
 const [command, inputFlag, inputPath, outFlag, outputPath] = process.argv.slice(2);
@@ -14,7 +17,7 @@ const fail = () => {
 };
 try {
   if (
-    !['plan', 'execute'].includes(command) ||
+    !['plan', 'execute', 'recover-plan', 'recover-execute'].includes(command) ||
     process.argv.length !== 7 ||
     outFlag !== '--out' ||
     !isAbsolute(outputPath)
@@ -37,7 +40,10 @@ try {
     // tenant ALS scopes; the wrapper repeats locked preflight before its claim.
     const operatorContext = { ...input.recipe.ctx, clerkUserId: input.recipe.clerkUserId };
     await factory.runWithTenant(operatorContext, () =>
-      executeCase01ExecutionSetup(factory.deps, input.recipe, {
+      command === 'recover-plan'
+        ? inspectCase01FirstApprovalRecovery(factory.deps, input.recipe, input.expected).then(journal)
+        : (command === 'recover-execute' ? executeCase01FirstApprovalRecovery : executeCase01ExecutionSetup)(factory.deps, input.recipe,
+          ...(command === 'recover-execute' ? [input.expected] : []), {
         expectedPlanSha256: input.expectedPlanSha256,
         createConversation: (ctx, args) =>
           factory.createConversation({ ...ctx, clerkUserId: input.recipe.clerkUserId }, args),
@@ -47,7 +53,7 @@ try {
   }
   process.stdout.write(
     JSON.stringify({
-      status: command === 'plan' ? 'PLAN_WRITTEN' : 'SETUP_COMPLETE',
+      status: command.endsWith('plan') ? 'PLAN_WRITTEN' : 'SETUP_COMPLETE',
       liveAcceptance: 'NOT_RUN',
       synthesisSubmissionCount: 0,
     }) + '\n',
@@ -58,7 +64,7 @@ try {
     : 'CASE01_SETUP_FAILED';
   if (output) {
     await output.writeFile(
-      JSON.stringify({ status: 'RECONCILIATION_REQUIRED', code, liveAcceptance: 'NOT_RUN' }) + '\n',
+      JSON.stringify({ status: 'RECONCILIATION_REQUIRED', code, failure: safeCase01SetupFailure(error), liveAcceptance: 'NOT_RUN' }) + '\n',
     );
     await output.sync();
   }

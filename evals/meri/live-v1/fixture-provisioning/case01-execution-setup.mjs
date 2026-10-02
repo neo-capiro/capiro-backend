@@ -1,3 +1,5 @@
+import { lifecycleSeedMemoryDefinitions, selectedApprovedMemoryDefinitions } from './approved-memory-runtime.mjs';
+import { expectedMemoryCandidatePayload } from './memory-candidate-owner.mjs';
 import { buildFixtureManifest } from './manifest.mjs';
 import { createCase01MemoryFixtureRuntime } from './case01-memory-runtime.mjs';
 import { createCaptureBindingOwner } from './capture-binding-owner.mjs';
@@ -95,9 +97,6 @@ async function inspectInTx(tx, spec, memoryAuthorization) {
     fixture?.fixtureNamespace !== FIXTURE_NAMESPACE
   )
     fail('TENANT_INVALID');
-  if (fixture.case01ExecutionSetup) fail('EXISTING_OPERATION_REQUIRES_RECONCILIATION');
-  if (fixture.case01MemoryOwner || fixture.captureEvidence)
-    fail('EXISTING_OWNER_REQUIRES_RECONCILIATION');
   const rows = await tx.$queryRawUnsafe(
     `SELECT u.id::text,u.clerk_user_id,u.email,u.first_name,u.last_name,tm.role
     FROM users u JOIN tenant_memberships tm ON tm.user_id=u.id
@@ -171,7 +170,7 @@ async function inspectInTx(tx, spec, memoryAuthorization) {
       if (decision?.allowed !== true) fail('REVIEWER_AUTHORITY_REQUIRED');
     }
   }
-  return { version: tenant.version, settings: tenant.settings, fixture };
+  return { version: tenant.version, settings: tenant.settings, fixture, reviewer };
 }
 
 function planFor(spec, row) {
@@ -190,10 +189,16 @@ function planFor(spec, row) {
   return { ...body, planSha256: sha256Stable(body) };
 }
 
+function assertFresh(row) {
+  if (row.fixture.case01ExecutionSetup || row.fixture.case01ExecutionSetupRecovery) fail('EXISTING_OPERATION_REQUIRES_RECONCILIATION');
+  if (row.fixture.case01MemoryOwner || row.fixture.captureEvidence) fail('EXISTING_OWNER_REQUIRES_RECONCILIATION');
+  return row;
+}
+
 export async function inspectCase01ExecutionSetup(deps, input) {
   const spec = await recipe(input);
   return deps.prisma.withTenantUser(spec.input.ctx.tenantId, spec.input.ctx.userId, async (tx) =>
-    planFor(spec, await inspectInTx(tx, spec, deps.memoryAuthorization)),
+    planFor(spec, assertFresh(await inspectInTx(tx, spec, deps.memoryAuthorization))),
   );
 }
 
@@ -211,8 +216,7 @@ export async function executeCase01ExecutionSetup(
   const spec = await recipe(input),
     { ctx } = spec.input;
   input = spec.input;
-  let stage = 'CLAIM',
-    claimed = false;
+  const stage = 'CLAIM';
   const operation = {
     kind: 'meri-case01-execution-setup',
     captureRunId: input.captureRunId,
@@ -222,7 +226,7 @@ export async function executeCase01ExecutionSetup(
   };
   await journal({ stage, phase: 'INTENT', ...operation });
   await deps.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
-    const row = await inspectInTx(tx, spec, deps.memoryAuthorization);
+    const row = assertFresh(await inspectInTx(tx, spec, deps.memoryAuthorization));
     if (planFor(spec, row).planSha256 !== expectedPlanSha256) fail('STALE_PLAN');
     const changed = await tx.$queryRawUnsafe(
       `UPDATE tenants SET settings_jsonb=jsonb_set(settings_jsonb,'{meriFoundationFixture,case01ExecutionSetup}',$1::jsonb,true)
@@ -234,7 +238,13 @@ export async function executeCase01ExecutionSetup(
     );
     if (changed.length !== 1) fail('CLAIM_CAS_FAILED');
   });
-  claimed = true;
+  return continueClaimedSetup(deps, spec, { createConversation, journal, operation, claimKey: 'case01ExecutionSetup', originalOperation: operation });
+}
+
+async function continueClaimedSetup(deps, spec, { createConversation, journal, operation, claimKey, originalOperation }) {
+  const input = spec.input, { ctx } = input;
+  let stage = 'CLAIMED';
+  if (!['case01ExecutionSetup', 'case01ExecutionSetupRecovery'].includes(claimKey)) fail('CLAIM_KEY_INVALID');
   try {
     const runtimeDeps = {
       ...deps,
@@ -350,8 +360,9 @@ export async function executeCase01ExecutionSetup(
     };
     await deps.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
       const changed = await tx.$queryRawUnsafe(
-        `UPDATE tenants SET settings_jsonb=jsonb_set(settings_jsonb,'{meriFoundationFixture,case01ExecutionSetup}',$1::jsonb,true)
-        WHERE id=$2::uuid AND settings_jsonb->'meriFoundationFixture'->'case01ExecutionSetup'=$3::jsonb RETURNING id::text`,
+        `UPDATE tenants SET settings_jsonb=jsonb_set(settings_jsonb,$4::text[],$1::jsonb,true)
+        WHERE id=$2::uuid AND settings_jsonb#>$4::text[]=$3::jsonb
+          AND settings_jsonb->'meriFoundationFixture'->'case01ExecutionSetup'=$5::jsonb RETURNING id::text`,
         stableJson({
           ...operation,
           status: 'SETUP_COMPLETE',
@@ -359,6 +370,8 @@ export async function executeCase01ExecutionSetup(
         }),
         ctx.tenantId,
         stableJson(operation),
+        ['meriFoundationFixture', claimKey],
+        stableJson(originalOperation),
       );
       if (changed.length !== 1) fail('FINAL_CLAIM_CHANGED');
     });
@@ -366,8 +379,140 @@ export async function executeCase01ExecutionSetup(
     return receipt;
   } catch (error) {
     // Never clear the claim, repeat canonical writes, or turn uncertain setup into success.
-    if (claimed)
-      await journal({ stage, phase: 'RECONCILIATION_REQUIRED', captureRunId: input.captureRunId });
+    await journal({ stage, phase: 'RECONCILIATION_REQUIRED', captureRunId: input.captureRunId, failure: safeCase01SetupFailure(error, stage) });
     throw error;
   }
+}
+
+/** Safe operator diagnostics: never serialize Error, message, query, meta or cause. */
+export function safeCase01SetupFailure(error, stage = 'OPERATOR') {
+  const classes = new Set(['Error', 'FixtureProvisioningError', 'ForbiddenException', 'BadRequestException',
+    'NotFoundException', 'ConflictException', 'PrismaClientKnownRequestError', 'PrismaClientUnknownRequestError',
+    'PrismaClientInitializationError', 'PrismaClientValidationError']);
+  const prisma = new Set(['P1000', 'P1001', 'P1002', 'P1008', 'P1010', 'P1011', 'P1017',
+    'P2000', 'P2002', 'P2003', 'P2004', 'P2006', 'P2010', 'P2011', 'P2014', 'P2021', 'P2022', 'P2024', 'P2025', 'P2028', 'P2034']);
+  const sql = new Set(['08001', '08006', '08P01', '22001', '22P02', '23502', '23503', '23505', '23514',
+    '25006', '25P02', '40001', '40P01', '42501', '42703', '42P01', '57014', 'P0001']);
+  const stages = new Set(['OPERATOR', 'CLAIMED', 'PREVIOUS_SEED', 'PREVIOUS_RETIRE', 'CURRENT_SEED',
+    'BIND', 'LOCATOR', 'CONVERSATION', 'READBACK', 'RECOVERY_ADMISSION', 'FIRST_CANONICAL_APPROVAL']);
+  return {
+    stage: stages.has(stage) ? stage : 'OPERATOR',
+    errorClass: classes.has(error?.constructor?.name) ? error.constructor.name : 'UnknownError',
+    prismaCode: prisma.has(error?.code) ? error.code : null,
+    sqlState: sql.has(error?.meta?.code) ? error.meta.code : sql.has(error?.code) ? error.code : null,
+  };
+}
+
+function originalOperationFor(spec) {
+  return { kind: 'meri-case01-execution-setup', captureRunId: spec.input.captureRunId,
+    recipeSha256: sha256Stable(spec.input), status: 'STARTED', liveAcceptance: 'NOT_RUN' };
+}
+
+async function firstApprovalPendingInTx(deps, tx, spec, expected) {
+  if (!expected || Object.keys(expected).sort().join('|') !== 'candidateRowVersion|originalClaimSha256' ||
+    !/^[a-f0-9]{64}$/u.test(expected.originalClaimSha256 ?? '') ||
+    !/^[0-9]{1,15}$/u.test(expected.candidateRowVersion ?? '')) fail('RECOVERY_EXPECTATION_INVALID');
+  const row = await inspectInTx(tx, spec, deps.memoryAuthorization);
+  const originalOperation = originalOperationFor(spec);
+  if (sha256Stable(row.fixture.case01ExecutionSetup) !== sha256Stable(originalOperation) ||
+    sha256Stable(originalOperation) !== expected.originalClaimSha256) fail('RECOVERY_ORIGINAL_CLAIM_CHANGED');
+  if (['case01ExecutionSetupRecovery', 'case01MemoryOwner', 'captureEvidence'].some(
+    key => Object.hasOwn(row.fixture, key))) fail('RECOVERY_DOWNSTREAM_OWNER_PRESENT');
+  const definitions = [spec.previous, spec.current].flatMap(manifest => [
+    ...lifecycleSeedMemoryDefinitions(manifest, ['MA1-v1', 'MA3']).map(entry => entry.candidate),
+    ...selectedApprovedMemoryDefinitions(manifest, ['MB1']).map(entry => entry.candidate),
+    manifest.records.find(record => record.logicalId === 'MA2'),
+  ]);
+  const first = definitions[0], ids = definitions.map(record => record.physicalId);
+  const payloads = definitions.map(record => expectedMemoryCandidatePayload(record, spec.input.ctx.userId,
+    stableJson({ ownership: record.ownership, payload: record.payload })));
+  const keys = payloads.map(payload => payload.key), markers = definitions.map(record => record.ownership.markerSha256);
+  // Include a rebound id with the same source marker/key, not just expected ids.
+  const candidates = await tx.$queryRawUnsafe(
+    `SELECT id::text,xmin::text AS version FROM memory_candidate WHERE tenant_id=$1::uuid
+      AND (id=ANY($2::uuid[]) OR source_id=ANY($3::text[]) OR payload_jsonb->>'key'=ANY($4::text[]))
+      ORDER BY id FOR UPDATE`, spec.input.ctx.tenantId, ids, markers, keys);
+  if (candidates.length !== 1 || candidates[0].id !== first.physicalId ||
+    candidates[0].version !== expected.candidateRowVersion) fail('RECOVERY_NOT_FIRST_APPROVAL_PENDING');
+  const guard = { expectedRowVersion: expected.candidateRowVersion, expectedPayload: payloads[0] };
+  await deps.assertSyntheticCandidateWithdrawalInTx(tx, spec.input.ctx.tenantId, spec.input.ctx.userId, first.physicalId, guard);
+  const legacy = await tx.$queryRawUnsafe(
+    'SELECT id::text FROM clio_memory WHERE tenant_id=$1::uuid AND key=ANY($2::text[]) ORDER BY id FOR UPDATE',
+    spec.input.ctx.tenantId, keys);
+  const items = await tx.$queryRawUnsafe(
+    `SELECT id::text FROM memory_items WHERE tenant_id=$1::uuid
+      AND (title=ANY($2::text[]) OR source_id=ANY($3::text[])) ORDER BY id FOR UPDATE`,
+    spec.input.ctx.tenantId, keys, [...ids, ...markers]);
+  const audits = await tx.$queryRawUnsafe(
+    'SELECT id::text FROM memory_transition_audit WHERE tenant_id=$1::uuid AND memory_candidate_id=ANY($2::uuid[]) LIMIT 1',
+    spec.input.ctx.tenantId, ids);
+  const conversations = await tx.$queryRawUnsafe(
+    'SELECT id::text FROM clio_conversations WHERE tenant_id=$1::uuid AND title=$2 LIMIT 1',
+    spec.input.ctx.tenantId, `${FIXTURE_NAMESPACE} case01 ${spec.input.captureRunId}`);
+  if (legacy.length || items.length || audits.length || conversations.length) fail('RECOVERY_DOWNSTREAM_STATE_PRESENT');
+  return { ...row, originalOperation, first, guard };
+}
+
+function recoveryPlan(spec, row) {
+  const body = { kind: 'meri-case01-first-approval-recovery-plan', schemaVersion: 1,
+    recoveryMode: 'FIRST_APPROVAL_PENDING', recipeSha256: sha256Stable(spec.input),
+    captureRunId: spec.input.captureRunId, originalClaimSha256: sha256Stable(row.originalOperation),
+    candidateId: row.first.physicalId, candidateRowVersion: row.guard.expectedRowVersion,
+    candidatePayloadSha256: sha256Stable(row.guard.expectedPayload),
+    previousManifestSha256: spec.previous.contentSha256, currentManifestSha256: spec.current.contentSha256,
+    tenantRowVersion: row.version, priorSettingsSha256: sha256Stable(row.settings), liveAcceptance: 'NOT_RUN' };
+  return { ...body, planSha256: sha256Stable(body) };
+}
+
+export async function inspectCase01FirstApprovalRecovery(deps, input, expected) {
+  const spec = await recipe(input);
+  return deps.prisma.withTenantUser(spec.input.ctx.tenantId, spec.input.ctx.userId, async tx =>
+    recoveryPlan(spec, await firstApprovalPendingInTx(deps, tx, spec, expected)));
+}
+
+/** Separate one-shot recovery claim. The original failed operation is immutable.
+ * The first canonical service receives the admitted exact version again under
+ * its own pending-row lock; an inspect/claim/write race cannot substitute it. */
+export async function executeCase01FirstApprovalRecovery(deps, input, expected,
+  { expectedPlanSha256, createConversation, journal }) {
+  if (typeof createConversation !== 'function' || typeof journal !== 'function') fail('PORTS_REQUIRED');
+  const spec = await recipe(input), { ctx } = spec.input;
+  let admitted, operation;
+  await journal({ stage: 'RECOVERY_ADMISSION', phase: 'INTENT', captureRunId: spec.input.captureRunId });
+  await deps.prisma.withTenantUser(ctx.tenantId, ctx.userId, async tx => {
+    admitted = await firstApprovalPendingInTx(deps, tx, spec, expected);
+    const plan = recoveryPlan(spec, admitted);
+    if (plan.planSha256 !== expectedPlanSha256) fail('RECOVERY_STALE_PLAN');
+    operation = { kind: 'meri-case01-first-approval-recovery', schemaVersion: 1,
+      recoveryMode: 'FIRST_APPROVAL_PENDING', status: 'STARTED', captureRunId: spec.input.captureRunId,
+      originalClaimSha256: plan.originalClaimSha256, recipeSha256: plan.recipeSha256,
+      planSha256: plan.planSha256, candidateId: plan.candidateId, candidateRowVersion: plan.candidateRowVersion,
+      liveAcceptance: 'NOT_RUN' };
+    const changed = await tx.$queryRawUnsafe(
+      `UPDATE tenants SET settings_jsonb=jsonb_set(settings_jsonb,'{meriFoundationFixture,case01ExecutionSetupRecovery}',$1::jsonb,true)
+        WHERE id=$2::uuid AND xmin::text=$3 AND settings_jsonb=$4::jsonb RETURNING id::text`,
+      stableJson(operation), ctx.tenantId, admitted.version, stableJson(admitted.settings));
+    if (changed.length !== 1) fail('RECOVERY_CLAIM_CAS_FAILED');
+  });
+  await journal({ stage: 'RECOVERY_ADMISSION', phase: 'VERIFIED', captureRunId: spec.input.captureRunId,
+    claimSha256: sha256Stable(operation) });
+  const canonicalCandidates = deps.memoryCandidates;
+  await journal({ stage: 'FIRST_CANONICAL_APPROVAL', phase: 'INTENT', captureRunId: spec.input.captureRunId });
+  try {
+    const result = await canonicalCandidates.approveSyntheticFixture(ctx.tenantId, admitted.first.physicalId,
+      spec.input.reviewerUserId, admitted.reviewer, admitted.guard);
+    await journal({ stage: 'FIRST_CANONICAL_APPROVAL', phase: 'VERIFIED', captureRunId: spec.input.captureRunId,
+      resultSha256: sha256Stable(result) });
+  } catch (error) {
+    await journal({ stage: 'FIRST_CANONICAL_APPROVAL', phase: 'RECONCILIATION_REQUIRED',
+      captureRunId: spec.input.captureRunId, failure: safeCase01SetupFailure(error, 'FIRST_CANONICAL_APPROVAL') });
+    throw error;
+  }
+  const scopedCandidates = Object.create(canonicalCandidates);
+  scopedCandidates.approveSyntheticFixture = (tenantId, candidateId, ...args) => {
+    if (candidateId === admitted.first.physicalId) fail('RECOVERY_FIRST_APPROVAL_ALREADY_ATTEMPTED');
+    return canonicalCandidates.approveSyntheticFixture(tenantId, candidateId, ...args);
+  };
+  return continueClaimedSetup({ ...deps, memoryCandidates: scopedCandidates }, spec,
+    { createConversation, journal, operation, claimKey: 'case01ExecutionSetupRecovery', originalOperation: admitted.originalOperation });
 }
