@@ -1,4 +1,5 @@
 import { assertTextArtifactCurrentProposal, type TextArtifactCurrentAction } from './meri-text-artifact-current-proposal.js';
+import { assertCase46ArtifactEffectInTx } from './meri-case46-action-authority.js';
 import { researchPortfolioManagementSchema, parseResearchPortfolioManagementInput } from '../research-portfolios/research-portfolio-management.js';
 import { federalHearingWhere } from '../hearing-discovery/hearing-geography.js';
 import {
@@ -9545,8 +9546,9 @@ export class MeriToolsService {
       };
     }
     await this.ensureConversationForTool(ctx, input.conversationId, input.clientId ?? null);
-    return this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.clioArtifact.create({
+    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      await assertCase46ArtifactEffectInTx(tx, { prisma: this.prisma, engagement: this.engagement }, ctx, input);
+      return tx.clioArtifact.create({
         data: {
           tenantId: ctx.tenantId,
           userId: ctx.userId,
@@ -9558,8 +9560,8 @@ export class MeriToolsService {
           bodyText: input.bodyText,
           metadata: input.metadata ?? {},
         },
-      }),
-    );
+      });
+    });
   }
 
   private async meetingForTool(ctx: TenantContext, meetingId: string) {

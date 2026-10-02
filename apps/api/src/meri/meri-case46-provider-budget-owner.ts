@@ -1,4 +1,5 @@
 import type { TenantContext } from '@capiro/shared';
+import type { Prisma } from '@prisma/client';
 import {
   MERI_CASE46,
   validateMeriGovernedArtifactPolicy,
@@ -27,6 +28,39 @@ export type Case46BudgetOperation =
   | { kind: 'reserve'; binding: ResearchProviderReservationBinding }
   | { kind: 'settle'; input: Case46ProviderSettlement };
 
+/** Shared only by the two case46 owners, in their already-open transaction. */
+export async function readCase46BoundAuthorityInTx(
+  tx: Prisma.TransactionClient,
+  deps: Case46AuthorityDependencies,
+  ctx: TenantContext,
+  policy: MeriGovernedArtifactCapturePolicy,
+) {
+  validateMeriGovernedArtifactPolicy(policy, { tenantId: ctx.tenantId, actorUserId: ctx.userId });
+  const current = await readCase46CurrentAuthorityInTx(tx, deps, ctx, policy);
+  const sealed = readSealedCase46Binding(current.metadata, ctx, policy.conversationId);
+  if (
+    !sealed ||
+    case46BudgetHash(sealed.policy) !== case46BudgetHash({ ...policy, turnId: null }) ||
+    current.currentVerifySha256 !== policy.currentVerifySha256 ||
+    case46BudgetHash(current.source) !== case46BudgetHash(policy.source)
+  )
+    throw new Error('meri_case46_current_binding_changed');
+  if (policy.turnId !== null) {
+    const turns = await tx.$queryRaw<
+      Array<{ id: string; body: string }>
+    >`SELECT id::text,body FROM clio_messages
+      WHERE tenant_id=${ctx.tenantId}::uuid AND user_id=${ctx.userId}::uuid AND conversation_id=${policy.conversationId}::uuid
+        AND client_id=${policy.clientId}::uuid AND role='user' ORDER BY created_at,id FOR SHARE`;
+    if (
+      turns.length !== 1 ||
+      turns[0]!.id !== policy.turnId ||
+      turns[0]!.body !== MERI_CASE46.prompt
+    )
+      throw new Error('meri_case46_owned_original_turn_missing');
+  }
+  return { ...current, sealed };
+}
+
 /** Every write locks the actual owned conversation and revalidates the MAC,
  * current ordinary actor/wall, exact source row and actual storage bytes in the
  * same transaction. HTTP bodies supply an attempt, never their own authority. */
@@ -41,28 +75,13 @@ export async function case46ProviderBudgetOwner(
   const { ctx, policy, operation } = args;
   validateMeriGovernedArtifactPolicy(policy, { tenantId: ctx.tenantId, actorUserId: ctx.userId });
   return deps.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
-    const current = await readCase46CurrentAuthorityInTx(tx, deps, ctx, policy);
-    const sealed = readSealedCase46Binding(current.metadata, ctx, policy.conversationId);
+    const current = await readCase46BoundAuthorityInTx(tx, deps, ctx, policy);
+    const { sealed } = current;
     if (
-      !sealed ||
-      case46BudgetHash(sealed.policy) !== case46BudgetHash({ ...policy, turnId: null }) ||
-      current.currentVerifySha256 !== policy.currentVerifySha256 ||
-      case46BudgetHash(current.source) !== case46BudgetHash(policy.source)
-    )
-      throw new Error('meri_case46_current_binding_changed');
-    if (policy.turnId !== null) {
-      const turns = await tx.$queryRaw<
-        Array<{ id: string; body: string }>
-      >`SELECT id::text,body FROM clio_messages
-        WHERE tenant_id=${ctx.tenantId}::uuid AND user_id=${ctx.userId}::uuid AND conversation_id=${policy.conversationId}::uuid
-          AND client_id=${policy.clientId}::uuid AND role='user' ORDER BY created_at,id FOR SHARE`;
-      if (
-        turns.length !== 1 ||
-        turns[0]!.id !== policy.turnId ||
-        turns[0]!.body !== MERI_CASE46.prompt
-      )
-        throw new Error('meri_case46_owned_original_turn_missing');
-    } else if (operation.kind === 'reserve' && operation.binding.phase !== 'api_retrieval') {
+      policy.turnId === null &&
+      operation.kind === 'reserve' &&
+      operation.binding.phase !== 'api_retrieval'
+    ) {
       throw new Error('meri_case46_model_turn_unbound');
     }
     const { metadata } = current;

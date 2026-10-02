@@ -15,7 +15,7 @@ const configPath = process.env.MERI_APPROVED_MEMORY_PG_CONFIG;
 it(
   'case46 actual PG authority/CAS/lock/rollback; canonical storage is a bounded test port, not live S3',
   { skip: !configPath, timeout: 60_000 },
-  async () => {
+  async (t) => {
     assert.ok(isAbsolute(configPath));
     const config = JSON.parse(await readFile(configPath, 'utf8'));
     assert.equal(config.host, '127.0.0.1');
@@ -82,6 +82,11 @@ it(
         readSealedCase46Binding,
       } = source('meri-case46-authority');
       const { case46ProviderBudgetOwner } = source('meri-case46-provider-budget-owner');
+      const {
+        assertCase46ProposalAuthorityInTx,
+        assertCase46ArtifactEffectInTx,
+        case46ProposalMarker,
+      } = source('meri-case46-action-authority');
       const { case46BudgetTestFixture } = source('meri-case46-provider-budget.spec-helper');
       const { case46BudgetHash } = source('meri-case46-provider-budget');
       const { MERI_CASE46: f } = core;
@@ -127,7 +132,8 @@ it(
         CREATE TABLE client_memory_access(id uuid,tenant_id uuid,client_id uuid,user_id uuid);
         CREATE TABLE clio_conversations(id uuid PRIMARY KEY,tenant_id uuid,user_id uuid,client_id uuid,title text,status text,archived_at timestamptz,metadata_jsonb jsonb);
         CREATE TABLE clio_messages(id uuid PRIMARY KEY,tenant_id uuid,user_id uuid,conversation_id uuid,client_id uuid,role text,body text,created_at timestamptz DEFAULT now());
-        CREATE TABLE meri_action_proposals(id uuid,tenant_id uuid,conversation_id uuid);
+        CREATE TABLE meri_action_proposals(id uuid,tenant_id uuid,user_id uuid,conversation_id uuid,
+          tool text,input_jsonb jsonb,preview_jsonb jsonb,surface text,status text,approved_at timestamptz,approved_by uuid,expires_at timestamptz);
         CREATE TABLE clio_artifacts(id uuid,tenant_id uuid,conversation_id uuid);
         CREATE TABLE engagement_attachments(id uuid PRIMARY KEY,tenant_id uuid,client_id uuid,uploaded_by_user_id uuid,meeting_id uuid,mail_message_id uuid,
           source text,source_entity_type text,source_entity_id text,source_version int,source_content_hash text,calculated_sha256 text,
@@ -356,6 +362,162 @@ it(
         },
       });
       assert.equal((await call({ kind: 'receipt' })).receipt.costMicros, 20);
+      await t.test(
+        'actual PG proposal and effect locks refuse duplicates, missing approval, stale source and changed bytes',
+        async () => {
+          const request = {
+            tool: 'create_word',
+            surface: 'chat',
+            conversationId: p.conversationId,
+            input: {
+              title: f.title,
+              format: 'txt',
+              text: f.text,
+              clientId: f.clientId,
+              conversationId: p.conversationId,
+            },
+          };
+          const proposalId = randomUUID(),
+            marker = { governedArtifactCapture: case46ProposalMarker(policy) };
+          const guard = (tx, admission = { phase: 'create', policy }) =>
+            assertCase46ProposalAuthorityInTx(tx, deps, ctx, request, admission);
+          await assert.rejects(
+            prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
+              guard(tx, { phase: 'create', policy: null }),
+            ),
+            /transport_missing/,
+          );
+          let unlocked, locked;
+          const ready = new Promise((resolve) => {
+            locked = resolve;
+          });
+          const releaseLock = new Promise((resolve) => {
+            unlocked = resolve;
+          });
+          let proposalPid;
+          const createFirst = prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+            await guard(tx);
+            proposalPid = (await tx.$queryRaw`SELECT pg_backend_pid() AS pid`)[0].pid;
+            locked();
+            await releaseLock;
+            await tx.$executeRaw`INSERT INTO meri_action_proposals(id,tenant_id,user_id,conversation_id,tool,input_jsonb,preview_jsonb,surface,status,expires_at)
+            VALUES(${proposalId}::uuid,${ctx.tenantId}::uuid,${ctx.userId}::uuid,${p.conversationId}::uuid,'create_word',${JSON.stringify(request.input)}::jsonb,${JSON.stringify(marker)}::jsonb,'chat','proposed',now()+interval '10 minutes')`;
+          });
+          pending.push(createFirst);
+          await ready;
+          const createSecond = prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) => guard(tx));
+          pending.push(createSecond);
+          const duplicate = assert.rejects(createSecond, /proposal_count_changed/);
+          let proposalBlocked = false;
+          try {
+            for (let i = 0; i < 100 && !proposalBlocked; i++) {
+              await delay(10);
+              if (latestPid !== proposalPid)
+                proposalBlocked =
+                  (
+                    await admin.query('SELECT 1 FROM pg_locks WHERE pid=$1 AND granted=false', [
+                      latestPid,
+                    ])
+                  ).rowCount > 0;
+            }
+            assert.equal(
+              proposalBlocked,
+              true,
+              'second proposal is blocked on the owned conversation row',
+            );
+          } finally {
+            unlocked();
+          }
+          await createFirst;
+          await duplicate;
+          const approval = { phase: 'approve', proposalId, preview: marker };
+          await prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) => guard(tx, approval));
+          await assert.rejects(
+            prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
+              guard(tx, { ...approval, preview: {} }),
+            ),
+            /capability_invalid|marker_changed/,
+          );
+          const artifact = {
+            conversationId: p.conversationId,
+            clientId: f.clientId,
+            title: f.title,
+            kind: 'text_document',
+            bodyText: f.text,
+            metadata: {
+              tool: 'create_word',
+              docFormat: 'txt',
+              filename: f.filename,
+              mimeType: 'text/plain',
+              documentBytesBase64: Buffer.from(f.text).toString('base64'),
+              documentSha256: f.sha256,
+              documentByteLength: 28,
+              documentByteFormat: 'txt',
+              documentByteAuthority: 'persisted_at_creation_v1',
+              textCreation: {
+                version: 1,
+                kind: 'meri_text_artifact_creation',
+                operationId: randomUUID(),
+                actionProposalId: proposalId,
+                tenantId: ctx.tenantId,
+                userId: ctx.userId,
+                clientId: f.clientId,
+                conversationId: p.conversationId,
+                filename: f.filename,
+                mimeType: 'text/plain',
+                sha256: f.sha256,
+                byteLength: 28,
+              },
+            },
+          };
+          const effect = (tx, value = artifact) =>
+            assertCase46ArtifactEffectInTx(tx, deps, ctx, value);
+          await assert.rejects(
+            prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) => effect(tx)),
+            /approved_effect_owner_missing/,
+          );
+          await admin.query(
+            "UPDATE meri_action_proposals SET status='executing',approved_by=$1,approved_at=now() WHERE id=$2",
+            [ctx.userId, proposalId],
+          );
+          await assert.rejects(
+            prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
+              effect(tx, { ...artifact, bodyText: 'changed' }),
+            ),
+            /effect_bytes_or_identity_changed/,
+          );
+          bytesChanged = true;
+          await assert.rejects(
+            prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) => effect(tx)),
+            /current_source_bytes_changed/,
+          );
+          bytesChanged = false;
+          await assert.rejects(
+            prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+              await effect(tx);
+              await tx.$executeRaw`INSERT INTO clio_artifacts VALUES(${randomUUID()}::uuid,${ctx.tenantId}::uuid,${p.conversationId}::uuid)`;
+              throw new Error('effect transaction rollback');
+            }),
+            /effect transaction rollback/,
+          );
+          assert.equal(
+            (await admin.query('SELECT count(*)::int AS n FROM clio_artifacts')).rows[0].n,
+            0,
+          );
+          await prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+            await effect(tx);
+            await tx.$executeRaw`INSERT INTO clio_artifacts VALUES(${randomUUID()}::uuid,${ctx.tenantId}::uuid,${p.conversationId}::uuid)`;
+          });
+          await assert.rejects(
+            prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) => effect(tx)),
+            /effect_already_present/,
+          );
+          assert.equal(
+            (await admin.query('SELECT count(*)::int AS n FROM clio_artifacts')).rows[0].n,
+            1,
+          );
+        },
+      );
       bytesChanged = true;
       await assert.rejects(call({ kind: 'read' }), /current_source_bytes_changed/);
       bytesChanged = false;
