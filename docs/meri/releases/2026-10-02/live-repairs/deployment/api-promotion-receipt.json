@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "manifestHash": "f095cdba2cd37b73f1253f8e11ee57a1c1fa30762aaf713e5760fbd968eb7621",
+  "service": "api",
+  "configHash": "973748a2b134b388a6027df6c5c099055a7e24f7b746eafbaae8cebad077258a",
+  "candidateImage": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:2b9dee9bf4ac1fadd9d4192975c69ca985c25b7eba12b582dcdda699450630ff",
+  "candidateTaskHash": "f3e7400e832c501b94cbbe30ef7dce883cbcf743d9d8b1af53610ee833ce8f34",
+  "rollbackTaskHash": "5a896044643c0d6abcadcafe1ccd2c0216e16b1bf20c6295a02d9f9685d78b21",
+  "rollbackImage": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:591204c86cd00d9173929b9c598035f74ca3c11eaf6ddf82aeba392434e61a33",
+  "status": "ecs-healthy-manual-acceptance-required",
+  "awsMutation": true,
+  "rollbackTaskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:492",
+  "candidateTaskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:493",
+  "deploymentId": "ecs-svc/6102341634128239713"
+}

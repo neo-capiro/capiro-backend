@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "status": "VERIFIED",
+  "planHash": "739bd6eba256cf4b22b571a86581ccc1f3e294db6fe1e0be7efa0054c287911e",
+  "mode": "pending-plan",
+  "operationId": "881bf940-860c-4eac-840c-346550d7a452",
+  "sourceSha": "78ad5805679a3045b1fc10fb19beafa7f76e4e64",
+  "operatorHead": "b3bb62a21bccde3b79478165b32aee98b8da365f",
+  "liveAcceptance": "NOT_RUN",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-case17-operator:1",
+  "startedBy": "meri-c01-881bf940-860c-4eac-840c-",
+  "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/e8f9fe67e265484da91713161d558cfd",
+  "containerExitCode": 0,
+  "logMessageCount": 1,
+  "ownerReceipts": [
+    {
+      "kind": "meri-pending-memory-setup-plan",
+      "schemaVersion": 1,
+      "caseId": "17",
+      "recipeSha256": "853dbf7f1e839639658e6cb9e2575fd4ef31fccf9d67b339d8ae4894537807d6",
+      "manifestContentSha256": "91a034dcf6def6888e47ecb1e410f86eed6723ed85f6f2df2759204eff3b563f",
+      "tenantRowVersion": "113340364",
+      "priorSettingsSha256": "59b2a32aad34d38d102a1c1b876aeedd94a202f57f94571421a1a8a882899e17",
+      "sourceIds": [
+        "MEM-PENDING-17-A",
+        "MEM-PENDING-17-B",
+        "MEM-PENDING-17-C",
+        "MEM-PENDING-17-D",
+        "MEM-PENDING-17-E",
+        "MEM-PENDING-17-F"
+      ],
+      "liveAcceptance": "NOT_RUN",
+      "planSha256": "89bd1266efd6b96d6d4fce72a14616c06f6d02045bb7d89fce31dd854906e481"
+    }
+  ]
+}

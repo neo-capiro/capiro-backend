@@ -1,0 +1,32 @@
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+PASS src/bootstrap/configure-api-http-app.spec.ts (26.148 s)
+  configureApiHttpApp
+    main API options
+      √ identifies a configured main API release without an Engagement service identity (478 ms)
+      √ sets the global prefix to /api excluding /health and /webhooks/* (8 ms)
+      √ does NOT add engagement-api identity headers (6 ms)
+      √ registers the Clerk raw-body parser on /webhooks/clerk (8 ms)
+      √ registers the email-signature large body parser (32mb) (17 ms)
+    engagement-api options
+      √ adds exact service and release identity on every response (6 ms)
+      √ adds both identity headers even on 404s (5 ms)
+      √ does NOT register the Clerk raw-body parser (13 ms)
+      √ does NOT register the email-signature large body parser (8 ms)
+    resolvedAllowedOrigins
+      √ includes localhost when WEB_ORIGIN is unset (1 ms)
+      √ includes the production web surfaces
+      √ uses WEB_ORIGIN when provided (1 ms)
+      √ handles comma-separated origins
+      √ denies an origin not in the allowlist (1 ms)
+    configureApiHttpServerTimeouts
+      √ keeps keepAliveTimeout above the 4000s ALB idle timeout
+      √ keeps headersTimeout above keepAliveTimeout
+      √ disables requestTimeout so long generations are not cut off
+
+Test Suites: 1 passed, 1 total
+Tests:       17 passed, 17 total
+Snapshots:   0 total
+Time:        26.453 s
+Ran all test suites matching /src\\bootstrap\\configure-api-http-app.spec.ts/i.

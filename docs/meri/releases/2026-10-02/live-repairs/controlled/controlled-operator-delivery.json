@@ -1,0 +1,179 @@
+{
+  "kind": "meri-controlled-read-operator-qualification",
+  "version": 1,
+  "createdAt": "2026-10-02T09:30:46.660779+00:00",
+  "verdict": "PASS",
+  "sourceSha": "89c98a3f69488e24414c43c22515dc4bcbf343be",
+  "deployedRuntimeBase": "78ad5805679a3045b1fc10fb19beafa7f76e4e64",
+  "opsSha": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "worktree": "C:\\dev\\cap-meri-capture-evidence",
+  "clean": true,
+  "files": {
+    "controlled-read-operator-input.mjs": "e36a5486c2922e4f581bf679e5085a6642d47e2d31d09ae680f916bdfbf46de0",
+    "materialize-controlled-read.mjs": "bbec7885a75b340bd0c3d6e7c0f4da41aa7716dc54a8c2d0defb99e0ae47fde6",
+    "run-controlled-read.mjs": "795459a3b3175be77c8a1564b8df7438466a0b2678aaabfdf47f9bb5824de324",
+    "tests/controlled-read-operator.test.mjs": "3060f68210adfdc98ca672895d5d84b46bd3b18550a43deaf863f0d7247014ea",
+    "CONTROLLED-READ-OPERATOR.md": "15f1eefa30033ed2706aeb123bd6a4de3c9001b236fa63e65a4e50d5407ab1a2"
+  },
+  "tests": {
+    "nodeExecutions": 147,
+    "newOperatorTests": 9,
+    "nodeFailures": 0,
+    "nodeSkips": 0,
+    "ownedPostgresCompositeTests": 1,
+    "ownedPostgresFailures": 0,
+    "ownedPostgresSkips": 0,
+    "oneoffTests": 19,
+    "oneoffFailures": 0,
+    "deterministicPromptfooRows": 26,
+    "promptfooFailures": 0
+  },
+  "commands": {
+    "controlled-operator-node-final": {
+      "command": [
+        "C:/Program Files/nodejs/node.exe",
+        "--test",
+        "evals/meri/live-v1/tests/controlled-read-operator.test.mjs",
+        "evals/meri/live-v1/tests/controlled-read-owner.test.mjs",
+        "evals/meri/live-v1/tests/controlled-read-definitions.test.mjs",
+        "evals/meri/live-v1/tests/controlled-read-authority.test.mjs",
+        "evals/meri/live-v1/tests/controlled-capture-receipt.test.mjs"
+      ],
+      "cwd": "C:\\dev\\cap-meri-capture-evidence",
+      "pid": 22340,
+      "started": 1790932801.0261967,
+      "finished": 1790932801.6747973,
+      "exitCode": 0
+    },
+    "controlled-operator-owned-postgres": {
+      "command": [
+        "C:/Program Files/nodejs/node.exe",
+        "--test",
+        "evals/meri/live-v1/tests/controlled-read.postgres.test.mjs"
+      ],
+      "cwd": "C:\\dev\\cap-meri-capture-evidence",
+      "pid": 16636,
+      "started": 1790932801.022808,
+      "finished": 1790932812.2346058,
+      "exitCode": 0
+    },
+    "controlled-oneoff-tests": {
+      "command": [
+        "C:/ProgramData/Hermes/tools/python-3.14.7+20260901-win32-x64/python.exe",
+        "C:/dev/cap-meri-foundation-evidence/oct02-controlled-read/controlled-read-oneoff-tests.py"
+      ],
+      "cwd": "C:\\dev\\cap-meri-capture-evidence",
+      "pid": 22200,
+      "started": 1790933269.5321412,
+      "finished": 1790933270.0413227,
+      "exitCode": 0
+    },
+    "controlled-operator-offline26": {
+      "command": [
+        "C:/Program Files/nodejs/node.exe",
+        "node_modules/promptfoo/dist/src/entrypoint.js",
+        "eval",
+        "-c",
+        "evals/meri/promptfooconfig.yaml",
+        "--no-cache",
+        "--no-share",
+        "--no-write",
+        "--no-table",
+        "--no-progress-bar",
+        "-o",
+        "C:/dev/cap-meri-foundation-evidence/oct02-original-eval/controlled-operator-offline26.json"
+      ],
+      "cwd": "C:\\dev\\cap-meri-capture-evidence",
+      "pid": 20436,
+      "started": 1790933269.5298717,
+      "finished": 1790933295.9046488,
+      "exitCode": 0
+    },
+    "controlled-operator-offline26-verify": {
+      "command": [
+        "C:/ProgramData/Hermes/tools/python-3.14.7+20260901-win32-x64/python.exe",
+        "evals/meri/verify_report.py",
+        "C:/dev/cap-meri-foundation-evidence/oct02-original-eval/controlled-operator-offline26.json",
+        "C:/dev/cap-meri-foundation-evidence/oct02-original-eval/controlled-operator-offline26.summary.json"
+      ],
+      "cwd": "C:\\dev\\cap-meri-capture-evidence",
+      "pid": 2684,
+      "started": 1790933351.2180424,
+      "finished": 1790933351.340262,
+      "exitCode": 0
+    }
+  },
+  "reviews": [
+    {
+      "review": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\controlled-operator-kimi-review.md",
+      "reviewSha256": "4e18116e54640a345078ce1af060c51f0ba26215de54db8b0b14565bffc94d12",
+      "requestedModel": "moonshotai.kimi-k2.5",
+      "initializedModel": "moonshotai.kimi-k2.5",
+      "sessionId": "20261002_091939_2a5a7a",
+      "provider": "bedrock",
+      "reportedTokens": {
+        "input": 37502,
+        "output": 2532,
+        "total": 40034,
+        "cache_read": 0,
+        "cache_write": 0
+      },
+      "reportedResultExit": 0,
+      "toolCalls": 0,
+      "billedCostUsd": null,
+      "costStatus": "not exposed by quiet stream output",
+      "exitCode": 0
+    },
+    {
+      "review": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\controlled-oneoff-kimi-review.md",
+      "reviewSha256": "0836a6632d5b959284030b6deeaceb6246832806631931fab45b6db4bf02d20f",
+      "requestedModel": "moonshotai.kimi-k2.5",
+      "initializedModel": "moonshotai.kimi-k2.5",
+      "sessionId": "20261002_092644_026c77",
+      "provider": "bedrock",
+      "reportedTokens": {
+        "input": 26553,
+        "output": 925,
+        "total": 27478,
+        "cache_read": 0,
+        "cache_write": 0
+      },
+      "reportedResultExit": 0,
+      "toolCalls": 0,
+      "billedCostUsd": null,
+      "costStatus": "not exposed by quiet stream output",
+      "exitCode": 0
+    }
+  ],
+  "operatorArtifacts": {
+    "controlled-read-oneoff.py": "a3b7dcf6cac40708da50c54145ac46b9f16cdc6b86631dcada87fecb468b23f2",
+    "controlled-read-oneoff-tests.py": "671a80506e2e1a030db09d08accff17831091dcba9efdc14fbe96cf22bc69816",
+    "controlled-read-oneoff.diff": "89bdb112cfc9ece7aaea575ece6ba27158b892ac969017e27742296861ab3941",
+    "oneoff-source-provenance.json": "71025d57feebf4475636eaf105aa155448eb5a8f8635f69ac609ecb795b437e1"
+  },
+  "externalSideEffects": {
+    "AWSWrites": 0,
+    "sharedDatabaseWrites": 0,
+    "authSessionsCreated": 0,
+    "liveChatTurns": 0,
+    "providerModelConfigChanges": 0,
+    "gitPushes": 0
+  },
+  "liveAcceptance": "NOT_RUN",
+  "remainingDynamicProof": [
+    "Actual successful qualified API/orchestrator/Web immutable build and promotion receipts for runtime78ad (or another byte-compatible reviewed source)",
+    "New case20/72 captureRunId and actual owned Aster client ID from current operator binding; private synthetic manifest in process",
+    "Actual setup plan/execute and provider plan/install owner receipts from one-off executions with0 exits",
+    "Current reviewed unexpired rate evidence, enforced3USD/200000-token/32-attempt qualification",
+    "Exact reviewed operator checkout HEAD and matching clean localmain/originmain for oneoff; only listed driver/docs delta from runtime",
+    "Fresh canonical Clerk/API/AWS/Web readback, one journaled native conversation POST, real empty conversation readback, one original turn and final session revocation",
+    "Actual deterministic capture grading plus separate human rubric; preserve current proof before next binding replaces this run"
+  ],
+  "limitations": [
+    "No live case was run by this lane. Local/unit PostgreSQL and Promptfoo evidence is not LIVE acceptance.",
+    "147 is actual Node test executions including imported regression declarations, not147 unique original plan rows.",
+    "Hard interruption after Clerk session creation but before its ID is returned can require authorized private Clerk reconciliation; never revoke other sessions by guess.",
+    "A durable claim/creation intent is never deleted to retry after ambiguous POST; reconcile read-only.",
+    "Case74 and budget expansion cases remain outside this operator.30USD aggregate not implemented."
+  ]
+}

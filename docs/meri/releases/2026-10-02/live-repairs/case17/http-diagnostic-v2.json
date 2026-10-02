@@ -1,0 +1,53 @@
+{
+  "caseId": "17",
+  "sourceSha": "78ad5805679a3045b1fc10fb19beafa7f76e4e64",
+  "captureRunId": "6412d145-4d50-4543-950b-ca1eed229607",
+  "status": "READ_ONLY_DIAGNOSED",
+  "sessionCreated": true,
+  "sessionRevoked": true,
+  "synthesisSubmissionCount": 0,
+  "applicationWrites": 0,
+  "fullFile01Acceptance": false,
+  "diagnostic": {
+    "kind": "read-only-case17-http-diagnostic",
+    "applicationWrites": 0,
+    "modelTurns": 0,
+    "reads": [
+      {
+        "path": "/api/me",
+        "status": 200,
+        "releaseSha": null,
+        "requestId": null,
+        "json": true,
+        "topLevelKeys": [
+          "user",
+          "tenant",
+          "role",
+          "billingAdmin",
+          "entitlements",
+          "features"
+        ],
+        "code": null,
+        "bytes": 1225,
+        "sha256": "53cbd0e8e5e95c9f7bb3d66772d29b6ca2877cfbaf33d79f8f3eedb215073578"
+      },
+      {
+        "path": "/api/memory/proposals?limit=50",
+        "status": 200,
+        "releaseSha": null,
+        "requestId": null,
+        "json": true,
+        "topLevelKeys": [
+          "enabled",
+          "candidates",
+          "nextCursor",
+          "fixtureEvidence"
+        ],
+        "code": null,
+        "bytes": 6359,
+        "sha256": "d70e06f77dc4efa81d92ec9135c545fb38bf412bf320dcf943acc899faaacbb0"
+      }
+    ]
+  },
+  "completedAt": "2026-10-02T09:46:51.360Z"
+}

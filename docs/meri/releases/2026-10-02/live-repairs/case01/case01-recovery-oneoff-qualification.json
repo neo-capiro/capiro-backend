@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "status": "PREPARED_NOT_EXECUTED",
+  "policySha": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "sourceRecoveryCommit": "a7294bbbeafad76bdac5ad4a68b4a2e5ff97cba5",
+  "operatorSha256": "c6c69d49da95b5e21f3eeae6670cf41c35ef875aaee1638facb31dd93366ca73",
+  "sourceBlobPins": {
+    "apps/api/scripts/meri-case01-setup.mjs": "a60b740024569e8740ae16c0040de84b8882279cc59e09ee3c606a713145df55",
+    "evals/meri/live-v1/fixture-provisioning/case01-execution-setup.mjs": "e7d7ceadfe6c224ecff48e1a99d9ab10fa46e60e2fa37daef6d54212f5b7fb96"
+  },
+  "allowedModes": [
+    "setup-recovery-plan",
+    "setup-recovery-execute"
+  ],
+  "fixedCaptureRunId": "c6ffa5ad-dd9f-4912-bc31-a03231a9b903",
+  "fixedCandidateId": "557b5b98-f591-50ce-83ea-2ca44d44567a",
+  "candidateRowVersion": "113340385",
+  "tests": {
+    "command": "& C:\\ProgramData\\Hermes\\tools\\python-3.14.7+20260901-win32-x64\\python.exe case01-recovery-oneoff-tests.py",
+    "passed": 15,
+    "failed": 0,
+    "skipped": 0,
+    "actualExit": 0,
+    "log": "case01-recovery-oneoff-tests-v3.log",
+    "executionKind": "offline fake AWS; actual inherited lifecycle and real wrapper qualification exercised"
+  },
+  "independentModelReview": {
+    "provider": "bedrock",
+    "model": "moonshotai.kimi-k2.5",
+    "actualPid": 7208,
+    "sessionId": "20261002_093447_ebffbf",
+    "actualExit": 0,
+    "toolCalls": 0,
+    "verdict": "BLOCK on original hash-then-reread local JSON",
+    "reviewedSha256": "bf53386ad40949078aa9a7a6396c333bdaa86fc5264459b7ca9a4799d3f44406",
+    "elapsedSeconds": 21.26
+  },
+  "finalPeerAdjudication": {
+    "reviewer": "/root/file01_cd_audit",
+    "verdict": "PASS",
+    "reviewedSha256": "c6c69d49da95b5e21f3eeae6670cf41c35ef875aaee1638facb31dd93366ca73",
+    "scope": "Whole original operator and final receipt joins passed; sole subsequent correction hashes and parses original recipe/failure/V3 from same bytes with duplicate-key rejection, resolving Kimi finding without authority expansion."
+  },
+  "qualificationLimits": [
+    "No AWS writes, live DB calls or auth by this lane.",
+    "Image source/build/digest/service qualification is dynamic and not yet executed.",
+    "Root must serialize case17/20/72 tenant settings work before fresh plan then execute.",
+    "No automatic replay, resume or clearing original/recovery claims.",
+    "A successful fixture setup is not live acceptance or projection qualification."
+  ],
+  "preservedOriginalEvidence": {
+    "case01-oneoff.py": "4df33cccadd3fdc15711872de3c0ffe2602249a8765c0e6ff36d05488085d36a",
+    "setup-execute-input.json": "2abd45698d1ca98629e060178b702a21bfe0c7c56ec790258f6e1653aab5ab8c",
+    "setup-execute-execution.json": "391f4e6afb7026847745c4503f10a520b6196309be54c37724fddd0f8d242b93",
+    "case01-reconcile-v3-execution.json": "ef091a69683a0f2229928f964da7cbb9a6863c3f72c43f1b709f6dc50436e7b0"
+  },
+  "files": {
+    "case01-recovery-oneoff.py": "c6c69d49da95b5e21f3eeae6670cf41c35ef875aaee1638facb31dd93366ca73",
+    "case01-recovery-oneoff-tests.py": "6c852d38d42f0b6a9599fa4ecc0fa585557c9db6b4b123788a2a9a24dbec4f37",
+    "case01-recovery-root-commands.md": "cca4d0d68c59a2b70e4e610fb5d8415dd5cc7e6c73dda1b1cb631be82502747a",
+    "case01-recovery-plan-input.json": "18d066b6e7e9837d779d05cd85c6581ba6bd82bf5dd51ee95f56866744ad9c54",
+    "case01-recovery-oneoff-tests-v3.log": "29a15d9381b51da46c55320ff57acb29273cdbfc379e8a7e6ed7701f2c724f83",
+    "case01-recovery-oneoff-tests-v3.exit": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+    "recovery-oneoff-kimi-review.md": "61f793eb1f8e61c5be48fb70ad76a70500632439c665544a30c96bec6910710e",
+    "recovery-oneoff-kimi-exit.json": "022e2294413032173158a9378f0ab3dbab006c5ede3b507dcb6070c6708484dc",
+    "recovery-oneoff-kimi-usage.json": "1ade8498cb28888579d0134baf70bc67f50ac93b72b8ec4c9910a2b7b99dfc6f"
+  }
+}

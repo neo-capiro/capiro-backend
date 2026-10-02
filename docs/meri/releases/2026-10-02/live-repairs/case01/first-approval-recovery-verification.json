@@ -1,0 +1,87 @@
+{
+  "verdict": "PASS_PREPARED_SOURCE_ONLY",
+  "commit": "a7294bbbeafad76bdac5ad4a68b4a2e5ff97cba5",
+  "base": "758dd54a279c64d27593f0fcae0e327fb654015c",
+  "branch": "codex/meri-case01-pending-recovery-20261002",
+  "worktree": "C:\\dev\\cap-meri-doc-fidelity",
+  "policySha": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "sourceHashes": {
+    "apps/api/scripts/meri-case01-setup.mjs": "a60b740024569e8740ae16c0040de84b8882279cc59e09ee3c606a713145df55",
+    "evals/meri/live-v1/fixture-provisioning/case01-execution-setup.mjs": "e7d7ceadfe6c224ecff48e1a99d9ab10fa46e60e2fa37daef6d54212f5b7fb96",
+    "evals/meri/live-v1/tests/case01-execution-setup.postgres.test.mjs": "f6394647c98e784487251593a09810961de70fc159fadbe90a490161d8ab41a6",
+    "evals/meri/live-v1/tests/case01-recovery-real-transactions.test.mjs": "194b763ed4cfaaf98b9437c6e26c078664d30149a706895ffd20e56629e8b767"
+  },
+  "qualification": [
+    {
+      "log": "recovery-pg-v1.log",
+      "passed": 8,
+      "skipped": 0,
+      "exitCode": 0,
+      "scope": "Actual canonical lifecycle, authorization, SQL, audit, outbox on owned rollback schema; projection inert and connection facade uses savepoints",
+      "logSha256": "5f13a8bae66dca4d3be9ec52edeb659541d7913cc63421ca617bda2847732307"
+    },
+    {
+      "log": "recovery-real-transactions-v1.log",
+      "passed": 1,
+      "skipped": 0,
+      "exitCode": 0,
+      "scope": "Real Nest factory and unmodified PrismaService scoped transactions; committed disposable schema, concurrent recovery CAS; local42501 activationtrigger forces canonical rollback; providerboundarystop fallback neverreached",
+      "logSha256": "bab1e67c560215e8cdf4255f2eb4efdff25d6cf79c05f7b2c47fb0dc9cc25606"
+    },
+    {
+      "log": "recovery-candidate-race.log",
+      "passed": 1,
+      "skipped": 0,
+      "exitCode": 0,
+      "scope": "Actual guard rejects changed source after recovery claim beforeapprovallock; noitem",
+      "logSha256": "4357295810682aad050608b95eb1b879c59030acd6eef891fd92784408a5f3ea"
+    },
+    {
+      "log": "recovery-packaging-input-v1.log",
+      "passed": 3,
+      "skipped": 0,
+      "exitCode": 0,
+      "scope": "Existing fixed module packaging and operator inputs/entrypoint",
+      "logSha256": "3564c6a19d3865d6b0f1482fa9e1629b8d0b4a06ceed3247ffb95c772aab6baa"
+    }
+  ],
+  "independentReview": {
+    "provider": "bedrock",
+    "model": "moonshotai.kimi-k2.5",
+    "sessionId": "20261002_091122_06b1ec",
+    "pid": 20192,
+    "exitCode": 0,
+    "toolCalls": 0,
+    "verdict": "PASS",
+    "review": "first-approval-recovery-kimi-review.md",
+    "reviewSha256": "c48470c1bf9a8900e944e623761926715601a12cc3c4894cee1307b44f6db67c",
+    "postPacketDelta": "Root peer-reviewed candidate-after-claim race test PASS; production source unchanged"
+  },
+  "operator": {
+    "entrypoint": "meri-case01-setup",
+    "commands": [
+      "recover-plan",
+      "recover-execute"
+    ],
+    "input": "{recipe:<same source-validated original recipe>,expected:{originalClaimSha256:<hash of exact original STARTED claim>,candidateRowVersion:\"113340385\"},expectedPlanSha256:<fresh recovery plan hash for execute>}",
+    "originalClaimPreserved": "tenant.settings.meriFoundationFixture.case01ExecutionSetup",
+    "newClaim": "tenant.settings.meriFoundationFixture.case01ExecutionSetupRecovery",
+    "mutations": "Only after explicit execute and current-source admitted pending corpus; one canonical first approval, then original bounded lifecycle/setup stages",
+    "retries": "Refused after any durable recovery claim; reconciliation required on error/ambiguous state"
+  },
+  "limitations": [
+    "No AWS/sharedDB/browser/model calls executed by this lane",
+    "No AWS cause is claimed; v3rules out candidate guards/authorization/two checked columns, remaining transaction/role/trigger differences unknown",
+    "Realtransactiontest uses only task-owned loopback PostgreSQL and localtrigger; not fullproduction schema/RLS parity",
+    "Projection does not run in localqualification; actualfixtureprojection remains sourceowned and awaited",
+    "No original LIVE case01 or broader75acceptance claimed"
+  ],
+  "next": [
+    "Root independent source/integration validation",
+    "Exact API image build/qualification/promotion",
+    "Fresh recovery plan/current precondition readback on deployed image",
+    "Root-owned one-shot recovery execution preserving oldreceipts",
+    "Case01 provider qualification thenbounded actualcapture if setupcomplete"
+  ],
+  "recordedAt": "2026-10-02T09:15:43.029602+00:00"
+}

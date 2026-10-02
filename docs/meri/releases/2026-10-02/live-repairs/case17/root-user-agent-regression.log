@@ -1,0 +1,46 @@
+TAP version 13
+# Subtest: only approved existing-role proposer and no-turn read scope is accepted as data
+ok 1 - only approved existing-role proposer and no-turn read scope is accepted as data
+  ---
+  duration_ms: 3.134
+  type: 'test'
+  ...
+# Subtest: fake storage, copied receipt, page and claimed readiness cannot mint live capture authority
+ok 2 - fake storage, copied receipt, page and claimed readiness cannot mint live capture authority
+  ---
+  duration_ms: 1.1077
+  type: 'test'
+  ...
+# Subtest: both API and Web require exact current successful build/source/recipe/digest binding
+ok 3 - both API and Web require exact current successful build/source/recipe/digest binding
+  ---
+  duration_ms: 1.8322
+  type: 'test'
+  ...
+# Subtest: saved visual review binds exact twelve saved screenshots, run, bytes and capture time
+ok 4 - saved visual review binds exact twelve saved screenshots, run, bytes and capture time
+  ---
+  duration_ms: 2.0717
+  type: 'test'
+  ...
+# Subtest: saved checks accept complete multiple pages and reorder after reload without minting authority
+ok 5 - saved checks accept complete multiple pages and reorder after reload without minting authority
+  ---
+  duration_ms: 57.3392
+  type: 'test'
+  ...
+# Subtest: missing/current/foreign/action/page/byte/write evidence fails closed
+ok 6 - missing/current/foreign/action/page/byte/write evidence fails closed
+  ---
+  duration_ms: 45.6504
+  type: 'test'
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 6
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 206.2588

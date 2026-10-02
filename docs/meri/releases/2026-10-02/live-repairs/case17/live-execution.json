@@ -1,0 +1,13 @@
+{
+  "caseId": "17",
+  "sourceSha": "78ad5805679a3045b1fc10fb19beafa7f76e4e64",
+  "captureRunId": "0b7175f8-618b-49ee-997d-86cc4cd3dc77",
+  "status": "BLOCKED",
+  "sessionCreated": false,
+  "sessionRevoked": false,
+  "synthesisSubmissionCount": 0,
+  "applicationWrites": 0,
+  "fullFile01Acceptance": false,
+  "failureCode": "Error",
+  "completedAt": "2026-10-02T09:36:07.544Z"
+}

@@ -1,0 +1,13 @@
+{
+  "caseId": "17",
+  "sourceSha": "78ad5805679a3045b1fc10fb19beafa7f76e4e64",
+  "captureRunId": "09e0da42-86d0-48b7-ba68-fb925257cb1d",
+  "status": "BLOCKED",
+  "sessionCreated": true,
+  "sessionRevoked": true,
+  "synthesisSubmissionCount": 0,
+  "applicationWrites": 0,
+  "fullFile01Acceptance": false,
+  "failureCode": "CASE17_LIVE_READ_INVALID",
+  "completedAt": "2026-10-02T09:39:23.893Z"
+}

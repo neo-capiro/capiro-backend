@@ -1,0 +1,94 @@
+{
+  "kind": "meri-controlled-read-native-ua-qualification",
+  "version": 1,
+  "observedAt": "2026-10-02T09:53:59.728385+00:00",
+  "driverSourceSha": "54472a6880780474ddc2cb516643b560e1bd2351",
+  "priorDriverSourceSha": "89c98a3f69488e24414c43c22515dc4bcbf343be",
+  "runtimeSourceSha": "78ad5805679a3045b1fc10fb19beafa7f76e4e64",
+  "sourceReview": "PASS",
+  "liveReadiness": "HOLD_API_RELEASE_HEADER_REPAIR_AND_FRESH_BUILD_PROOF",
+  "clean": true,
+  "changedPathsVsRuntime": [
+    "evals/meri/live-v1/CONTROLLED-READ-OPERATOR.md",
+    "evals/meri/live-v1/controlled-read-live-capture.mjs",
+    "evals/meri/live-v1/controlled-read-operator-input.mjs",
+    "evals/meri/live-v1/materialize-controlled-read.mjs",
+    "evals/meri/live-v1/run-controlled-read.mjs",
+    "evals/meri/live-v1/tests/controlled-read-operator.test.mjs"
+  ],
+  "driverFileHashes": {
+    "evals/meri/live-v1/CONTROLLED-READ-OPERATOR.md": "15f1eefa30033ed2706aeb123bd6a4de3c9001b236fa63e65a4e50d5407ab1a2",
+    "evals/meri/live-v1/controlled-read-live-capture.mjs": "d3a687e17f79e8af7991c12cd1819778b5d1a06392cdaf328fb25d6ffe19aca1",
+    "evals/meri/live-v1/controlled-read-operator-input.mjs": "e36a5486c2922e4f581bf679e5085a6642d47e2d31d09ae680f916bdfbf46de0",
+    "evals/meri/live-v1/materialize-controlled-read.mjs": "bbec7885a75b340bd0c3d6e7c0f4da41aa7716dc54a8c2d0defb99e0ae47fde6",
+    "evals/meri/live-v1/run-controlled-read.mjs": "f29d6b4c4340948caf25f3d02b835bc04d0834a4fdd5fe8551185d99f1022e9f",
+    "evals/meri/live-v1/tests/controlled-read-operator.test.mjs": "be14c604eaf6b74051798f59fcb581977f7e330a8015e91cda3bae76b7295d6f"
+  },
+  "collectorDeltaExactlyOneUserAgentHeader": true,
+  "remainingTrackedRuntimeFilesIdentical": true,
+  "notCopiedOrImportedByApiOrchestratorWebRuntime": true,
+  "checks": {
+    "controlled-ua-node": {
+      "exitCode": 0,
+      "receipt": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\controlled-ua-node-exit.json"
+    },
+    "controlled-ua-promptfoo": {
+      "exitCode": 0,
+      "receipt": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\controlled-ua-promptfoo-exit.json"
+    },
+    "controlled-ua-verifier": {
+      "exitCode": 0,
+      "receipt": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\controlled-ua-verifier-exit.json"
+    }
+  },
+  "focusedTests": {
+    "pass": 130,
+    "fail": 0,
+    "skip": 0
+  },
+  "offlineEval": {
+    "pass": 26,
+    "fail": 0
+  },
+  "hermesReview": {
+    "requestedModel": "moonshotai.kimi-k2.5",
+    "initializedModel": "moonshotai.kimi-k2.5",
+    "sessionId": "20261002_095108_9c5769",
+    "provider": "bedrock",
+    "reportedTokens": {
+      "input": 23688,
+      "output": 338,
+      "total": 24026,
+      "cache_read": 0,
+      "cache_write": 0
+    },
+    "reportedResultExit": 0,
+    "toolCalls": 0,
+    "billedCostUsd": null,
+    "costStatus": "not exposed by quiet stream output"
+  },
+  "reviewPath": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\controlled-ua-kimi-review.md",
+  "reviewScopeNote": "Review item8 describes operational hold; collector code enforces actual release headers, not a hardcoded future release. Root owns release qualification.",
+  "deploymentPinPath": "C:\\dev\\cap-meri-foundation-evidence\\oct02-controlled-read\\deployment78ad-driver544.json",
+  "packets": [
+    {
+      "caseId": "20",
+      "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-controlled-read\\case20-packet-driver544.json",
+      "sha256": "a03fd3565d98e3cd38cc1f24315f6ed0bd654e2a0c315b3dfa9f0bc11eb36d7a",
+      "priorSetupInputsUnchanged": true
+    },
+    {
+      "caseId": "72",
+      "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-controlled-read\\case72-packet-driver544.json",
+      "sha256": "8b73b181aef108f99db39c01d71c864a5ce18c30a03eabeb17c8ffaac2c47c5c",
+      "priorSetupInputsUnchanged": true
+    }
+  ],
+  "oldPacketsAndOneoffUnchanged": true,
+  "requiredRefresh": "After parent qualifies new API source, merge that exact source into driver checkout preserving this fix, requalify exact changed paths, and derive fresh API proof/pins/setup CAS from actual evidence. Do not claim source ancestry or source headers without readback.",
+  "cloudWrites": 0,
+  "authCalls": 0,
+  "chatCalls": 0,
+  "sharedDatabaseWrites": 0,
+  "fullFile01Acceptance": "NOT_RUN"
+}

@@ -1,0 +1,6 @@
+{
+  "status": "PASS",
+  "uninitializedFailureReproduced": true,
+  "initializedWriteReadback": true,
+  "externalSideEffects": 0
+}

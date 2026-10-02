@@ -1,0 +1,191 @@
+{
+  "schemaVersion": 1,
+  "status": "VERIFIED",
+  "planHash": "34a142549238713d9821111861f2a638c6b47d2c2af176696cb0574a1b420e09",
+  "mode": "pending-execute",
+  "operationId": "71cc8d23-9040-4c84-809b-871e11625f23",
+  "sourceSha": "78ad5805679a3045b1fc10fb19beafa7f76e4e64",
+  "operatorHead": "b3bb62a21bccde3b79478165b32aee98b8da365f",
+  "liveAcceptance": "NOT_RUN",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-case17-operator:2",
+  "startedBy": "meri-c01-71cc8d23-9040-4c84-809b-",
+  "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/2c536179b8df413cae5937b200e0c837",
+  "containerExitCode": 0,
+  "logMessageCount": 14,
+  "ownerReceipts": [
+    {
+      "stage": "CLAIM",
+      "phase": "VERIFIED",
+      "caseId": "17",
+      "fixtureInstanceId": "63c7bb50-1971-49df-96b9-c6c94c562078"
+    },
+    {
+      "stage": "CREATE_PENDING",
+      "phase": "INTENT",
+      "logicalSourceId": "MEM-PENDING-17-A",
+      "physicalId": "699f4be9-d695-575f-90cf-9258042863b4"
+    },
+    {
+      "stage": "CREATE_PENDING",
+      "phase": "ACKNOWLEDGED",
+      "logicalSourceId": "MEM-PENDING-17-A",
+      "physicalId": "699f4be9-d695-575f-90cf-9258042863b4"
+    },
+    {
+      "stage": "CREATE_PENDING",
+      "phase": "INTENT",
+      "logicalSourceId": "MEM-PENDING-17-B",
+      "physicalId": "b69db0bf-c7b2-510f-8a88-92a534131f38"
+    },
+    {
+      "stage": "CREATE_PENDING",
+      "phase": "ACKNOWLEDGED",
+      "logicalSourceId": "MEM-PENDING-17-B",
+      "physicalId": "b69db0bf-c7b2-510f-8a88-92a534131f38"
+    },
+    {
+      "stage": "CREATE_PENDING",
+      "phase": "INTENT",
+      "logicalSourceId": "MEM-PENDING-17-C",
+      "physicalId": "04513000-505b-5d47-aaa5-d7b887ba0782"
+    },
+    {
+      "stage": "CREATE_PENDING",
+      "phase": "ACKNOWLEDGED",
+      "logicalSourceId": "MEM-PENDING-17-C",
+      "physicalId": "04513000-505b-5d47-aaa5-d7b887ba0782"
+    },
+    {
+      "stage": "CREATE_PENDING",
+      "phase": "INTENT",
+      "logicalSourceId": "MEM-PENDING-17-D",
+      "physicalId": "73fe64d2-70aa-5362-b4b4-9e2cec14628f"
+    },
+    {
+      "stage": "CREATE_PENDING",
+      "phase": "ACKNOWLEDGED",
+      "logicalSourceId": "MEM-PENDING-17-D",
+      "physicalId": "73fe64d2-70aa-5362-b4b4-9e2cec14628f"
+    },
+    {
+      "stage": "CREATE_PENDING",
+      "phase": "INTENT",
+      "logicalSourceId": "MEM-PENDING-17-E",
+      "physicalId": "62e8f254-ab62-551d-92ae-89786a4c2ea4"
+    },
+    {
+      "stage": "CREATE_PENDING",
+      "phase": "ACKNOWLEDGED",
+      "logicalSourceId": "MEM-PENDING-17-E",
+      "physicalId": "62e8f254-ab62-551d-92ae-89786a4c2ea4"
+    },
+    {
+      "stage": "CREATE_PENDING",
+      "phase": "INTENT",
+      "logicalSourceId": "MEM-PENDING-17-F",
+      "physicalId": "3e9bd676-66a0-5bd8-8890-8692d5e12c16"
+    },
+    {
+      "stage": "CREATE_PENDING",
+      "phase": "ACKNOWLEDGED",
+      "logicalSourceId": "MEM-PENDING-17-F",
+      "physicalId": "3e9bd676-66a0-5bd8-8890-8692d5e12c16"
+    },
+    {
+      "stage": "COMPLETE",
+      "phase": "VERIFIED",
+      "receipt": {
+        "kind": "meri-pending-memory-setup-receipt",
+        "schemaVersion": 1,
+        "caseId": "17",
+        "status": "SETUP_COMPLETE",
+        "recipeSha256": "853dbf7f1e839639658e6cb9e2575fd4ef31fccf9d67b339d8ae4894537807d6",
+        "manifestContentSha256": "91a034dcf6def6888e47ecb1e410f86eed6723ed85f6f2df2759204eff3b563f",
+        "fixtureInstanceId": "63c7bb50-1971-49df-96b9-c6c94c562078",
+        "ctx": {
+          "role": "user_admin",
+          "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+          "tenantSlug": "meri-foundation-20260928-t1",
+          "userId": "fb218bf5-2674-4ced-bca3-7a5d0c01592f"
+        },
+        "records": [
+          {
+            "logicalSourceId": "MEM-PENDING-17-A",
+            "physicalId": "699f4be9-d695-575f-90cf-9258042863b4",
+            "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+            "proposerUserId": "fb218bf5-2674-4ced-bca3-7a5d0c01592f",
+            "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+            "scope": "client",
+            "status": "pending",
+            "rowVersion": "113387344",
+            "payloadSha256": "58d0bd06daa9f8ca75c2061ada9497ce77220701663566c3cd604e6678640ff3",
+            "ownershipMarkerSha256": "8ac2698c598f066e24b7d71885453d9f6d97c4125fd46b6e68c8fda373410455"
+          },
+          {
+            "logicalSourceId": "MEM-PENDING-17-B",
+            "physicalId": "b69db0bf-c7b2-510f-8a88-92a534131f38",
+            "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+            "proposerUserId": "fb218bf5-2674-4ced-bca3-7a5d0c01592f",
+            "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+            "scope": "client",
+            "status": "pending",
+            "rowVersion": "113387345",
+            "payloadSha256": "58d0bd06daa9f8ca75c2061ada9497ce77220701663566c3cd604e6678640ff3",
+            "ownershipMarkerSha256": "8714ac75c85680f954400a5dd2694357393530bec47c0a32d1fcaba1ff56f957"
+          },
+          {
+            "logicalSourceId": "MEM-PENDING-17-C",
+            "physicalId": "04513000-505b-5d47-aaa5-d7b887ba0782",
+            "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+            "proposerUserId": "fb218bf5-2674-4ced-bca3-7a5d0c01592f",
+            "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+            "scope": "client",
+            "status": "pending",
+            "rowVersion": "113387346",
+            "payloadSha256": "58d0bd06daa9f8ca75c2061ada9497ce77220701663566c3cd604e6678640ff3",
+            "ownershipMarkerSha256": "238f2c5c1e41238d8211c289cfe7357c223de6d0081b4cd3c136a49c45e307d4"
+          },
+          {
+            "logicalSourceId": "MEM-PENDING-17-D",
+            "physicalId": "73fe64d2-70aa-5362-b4b4-9e2cec14628f",
+            "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+            "proposerUserId": "fb218bf5-2674-4ced-bca3-7a5d0c01592f",
+            "clientId": "494f6834-d09e-4723-8a64-b2df57c683e8",
+            "scope": "client",
+            "status": "pending",
+            "rowVersion": "113387347",
+            "payloadSha256": "58d0bd06daa9f8ca75c2061ada9497ce77220701663566c3cd604e6678640ff3",
+            "ownershipMarkerSha256": "9e80674ef6127e8f016cda7f23303d8680650e0d28357b86b265a0945f361b40"
+          },
+          {
+            "logicalSourceId": "MEM-PENDING-17-E",
+            "physicalId": "62e8f254-ab62-551d-92ae-89786a4c2ea4",
+            "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+            "proposerUserId": "fb218bf5-2674-4ced-bca3-7a5d0c01592f",
+            "clientId": null,
+            "scope": "firm",
+            "status": "pending",
+            "rowVersion": "113387348",
+            "payloadSha256": "9c9fccf63143af5c85afb25f5601e51bee2dfe6bba43be22fa9911ceb7ac42d9",
+            "ownershipMarkerSha256": "5c141d1b234f0a98a9759e51fc98ab04e39d9ef967c5329a6538a9db127845d6"
+          },
+          {
+            "logicalSourceId": "MEM-PENDING-17-F",
+            "physicalId": "3e9bd676-66a0-5bd8-8890-8692d5e12c16",
+            "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+            "proposerUserId": "fb218bf5-2674-4ced-bca3-7a5d0c01592f",
+            "clientId": null,
+            "scope": "personal",
+            "status": "pending",
+            "rowVersion": "113387349",
+            "payloadSha256": "aa904921554858a8f9f79bf1087cb474835163a1569121304c2917c6accee563",
+            "ownershipMarkerSha256": "0cf256951ae750fdc1d31a8a98a5413f3b3cfc8f42f84f4de0f125a6d851c966"
+          }
+        ],
+        "synthesisSubmissionCount": 0,
+        "liveAcceptance": "NOT_RUN",
+        "receiptSha256": "f7256dfd5443dfbf6941aa497665b46213ae84b39f9285e212abfd9902e0525f"
+      }
+    }
+  ]
+}

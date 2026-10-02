@@ -1,0 +1,41 @@
+{
+  "caseId": "17",
+  "sourceSha": "78ad5805679a3045b1fc10fb19beafa7f76e4e64",
+  "captureRunId": "3f6c2003-90f5-4e30-bfe1-ce052d4df4ca",
+  "status": "READ_ONLY_DIAGNOSED",
+  "sessionCreated": true,
+  "sessionRevoked": true,
+  "synthesisSubmissionCount": 0,
+  "applicationWrites": 0,
+  "fullFile01Acceptance": false,
+  "diagnostic": {
+    "kind": "read-only-case17-http-diagnostic",
+    "applicationWrites": 0,
+    "modelTurns": 0,
+    "reads": [
+      {
+        "path": "/api/me",
+        "status": 403,
+        "releaseSha": null,
+        "requestId": null,
+        "json": false,
+        "topLevelKeys": [],
+        "code": null,
+        "bytes": 118,
+        "sha256": "58bf2215b395dcac74c009aa98701854e43cbe54a1cd3a95fee6a647ca9910d4"
+      },
+      {
+        "path": "/api/memory/proposals?limit=50",
+        "status": 403,
+        "releaseSha": null,
+        "requestId": null,
+        "json": false,
+        "topLevelKeys": [],
+        "code": null,
+        "bytes": 118,
+        "sha256": "58bf2215b395dcac74c009aa98701854e43cbe54a1cd3a95fee6a647ca9910d4"
+      }
+    ]
+  },
+  "completedAt": "2026-10-02T09:41:33.998Z"
+}
