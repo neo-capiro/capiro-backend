@@ -101,3 +101,44 @@ describe('response formatting and factual coverage requirements', () => {
     );
   });
 });
+
+const hypotheticalRequests = [
+  'Quality check using hypothetical facts only: Aster has a Thursday demo. Maya owns the slides, due Tuesday. Lee owns the technical review, due Wednesday; it depends on Maya finishing the slides. The rehearsal has no owner or scheduled time. Write exactly three concise bullets: the critical path, the main delivery risk, and the next action. Use only these facts. Do not search, use tools, save memories, create tasks, or send messages.',
+  'Update to the hypothetical example: the slides will now be ready Wednesday afternoon. Keep the other facts unchanged. In exactly two sentences, explain what this changes and what I should confirm next. Do not assume the demo has been delayed. Do not use tools, save memories, create tasks, or send messages.',
+  'Based only on the hypothetical facts in this conversation, what exact time is the rehearsal, and has Lee approved the slides? If either is unknown, say so clearly. Do not infer that a scheduled review means approval happened. Do not search, use tools, save memories, create tasks, or send messages.',
+  "Using only these fictional notes, prepare two bullets: Maya's slides are due Tuesday; Lee's review is now due Wednesday and depends on the slides; there is no rehearsal owner. Explain the risk and next action. Do not use tools.",
+  "In this hypothetical scenario, Aster demos Thursday. Maya's slides are now due Wednesday afternoon, and Lee owns the review due Wednesday. No rehearsal time is supplied. Use only the facts supplied here. Explain the critical path and uncertainty in two sentences. Do not search or use tools.",
+];
+
+describe('explicit closed hypothetical facts', () => {
+  it.each(hypotheticalRequests)('does not require external proof for %s', (request) => {
+    expect(plan(request).requiredRequirementIds).toEqual([]);
+  });
+  it.each([
+    'Using provided notes only: the review is now due Wednesday; no owner is named. Summarize the uncertainty.',
+    'Based only on these supplied facts: no rehearsal time is specified. Explain what remains unknown.',
+    'Revision to this fictional scenario: the slides are now due Wednesday. Leave the remaining details unchanged. Explain the impact.',
+    'Use only the information given above. Now explain why no deadline can be inferred.',
+  ])('recognizes the exclusive premise boundary across wording: %s', (request) => {
+    expect(plan(request).requiredRequirementIds).toEqual([]);
+  });
+  it.each([
+    'Who is the current committee chair? Do not use tools.',
+    'There are no federal awards for Aster. Do not use tools.',
+    'Using hypothetical facts only, write three bullets. Also verify who is the current committee chair. Do not use tools.',
+    'Based only on the hypothetical facts in this conversation, compare them to the actual current roster. Do not use tools.',
+    'Update to the hypothetical example: keep the other facts unchanged. Search for all actual awards. Do not use tools.',
+    'Using hypothetical facts only, list all real grants for Aster. Do not use tools.',
+    'Using hypothetical facts only, write three bullets. Also list all grants for Aster. Do not use tools.',
+    'Based only on the hypothetical facts in this conversation, verify that no awards exist. Do not use tools.',
+    'Update to the hypothetical example: keep the other facts unchanged. Who is the committee chair? Do not use tools.',
+    'Using hypothetical facts only, write three bullets. Do not search, but verify every award.',
+    'A fictional client has no awards. What is its current funding status? Do not use tools.',
+    'Using only these fictional notes, explain the risk. Also verify the current committee chair. Do not use tools.',
+    'In this hypothetical scenario, no rehearsal is scheduled. Use only the facts supplied here. Also list all awards for Aster.',
+    'Using provided notes only, summarize the example and compare it to the actual current roster.',
+    'Use only the information given above, but verify that no real grants exist.',
+  ])('retains external coverage for real or mixed requests: %s', (request) => {
+    expect(plan(request).requiredRequirementIds.length).toBeGreaterThan(0);
+  });
+});

@@ -364,8 +364,43 @@ function withoutResponseFormatOnly(request: string): string {
     );
 }
 
+/** An explicitly closed supplied-facts exercise has a premise, not an
+ * assertion about an external dataset. A tool prohibition alone is insufficient.
+ * Conflicting verification/real-world wording keeps the ordinary evidence rules. */
+function isClosedPremiseRequest(request: string): boolean {
+  const closedFrame =
+    /\b(?:using|use|based\s+on)\s+(?:hypothetical|fictional|supplied|provided)\s+(?:facts|notes|details|premises|information)\s+only\b/i.test(
+      request,
+    ) ||
+    /\b(?:using|use|based)\s+only\s+(?:on\s+)?(?:(?:these|the)\s+)?(?:hypothetical|fictional|supplied|provided)\s+(?:facts|notes|details|premises|information)\b/i.test(
+      request,
+    ) ||
+    /\b(?:use|using)\s+only\s+(?:the|these)\s+(?:facts|notes|details|premises|information)\s+(?:supplied|provided|given)\s+(?:here|above|in\s+(?:this|the)\s+conversation)\b/i.test(
+      request,
+    ) ||
+    (/\b(?:update|revision|change)\s+to\s+(?:the|this)\s+(?:hypothetical|fictional)\s+(?:example|scenario)\b/i.test(
+      request,
+    ) &&
+      /\b(?:keep|leave)\s+(?:the\s+)?(?:other|remaining)\s+(?:facts|notes|details)\s+unchanged\b/i.test(
+        request,
+      ));
+  if (!closedFrame) return false;
+
+  // Remove only a standalone prohibition whose entire verb list is known.
+  // An appended positive request (e.g. ", but verify the current roster") is
+  // preserved and therefore cannot be mistaken for part of the prohibition.
+  const intent = request.replace(
+    /(^|[.!?]\s*)do\s+not\s+(?:(?:search|use\s+tools|save\s+memories|create\s+tasks|send\s+messages)(?:\s*,\s*|\s*,?\s*or\s+)?)+\s*(?=[.!?]|$)/gi,
+    '$1',
+  );
+  return !/\b(?:verify|validate|fact[- ]?check|look\s+up|search|retrieve|consult|research|list|find|identify|who\s+(?:is|are|chairs|leads|represents)|actual|real(?:[- ]world)?|official|current(?:ly)?|today|latest|external|online|database|sources?|roster)\b/i.test(
+    intent,
+  );
+}
+
 export function inferClaimCategories(request: string): ClaimCategory[] {
   const text = String(request ?? '');
+  if (isClosedPremiseRequest(text)) return ['general_background'];
   const categories: ClaimCategory[] = [];
   addIf(
     categories,
