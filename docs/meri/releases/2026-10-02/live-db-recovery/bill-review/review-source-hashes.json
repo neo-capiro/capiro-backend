@@ -1,0 +1,6 @@
+{
+  "apps/api/src/intelligence/bill-keyword-deadline.ts": "2e66c4886c497e278158f58dfaad9534b0c04ee6d8e48f0d426727669f86f59e",
+  "apps/api/src/intelligence/intelligence.service.ts": "4209c92c7aabf8aa0abb9773bed900021d28f38f64d092770e03638fe467fb77",
+  "apps/api/src/intelligence/bill-keyword-deadline.spec.ts": "0dc4a5269072cce06466e35b85f561c2cd16856771d5384296b6c0a491de3dde",
+  "apps/api/scripts/test-bill-keyword-deadline.postgres.mjs": "d955734a6b382ae2ecb1d8fdc30109530758e070a5732fb39d61a0124119fca0"
+}

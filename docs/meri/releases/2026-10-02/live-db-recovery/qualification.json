@@ -1,0 +1,108 @@
+{
+  "sourceSha": "afada905649b2fb790106466bc481060d6b05793",
+  "baseSha": "3d2ba9d844bc71830fc02fdda6e002f48fb96c2b",
+  "status": "PASS",
+  "schemaChange": false,
+  "results": [
+    {
+      "name": "integrated-tests",
+      "sourceSha": "afada905649b2fb790106466bc481060d6b05793",
+      "command": [
+        "C:/Program Files/nodejs/node.exe",
+        "apps/api/node_modules/jest/bin/jest.js",
+        "--config",
+        "apps/api/jest.config.cjs",
+        "--runInBand",
+        "--runTestsByPath",
+        "apps/api/src/engagement/mail-query.spec.ts",
+        "apps/api/src/engagement/mail-query-deadline.spec.ts",
+        "apps/api/src/engagement/mail-query-deadline.postgres.spec.ts",
+        "apps/api/src/intelligence/bill-keyword-deadline.spec.ts",
+        "apps/api/src/intelligence/intelligence.profile-v1-source-budget.spec.ts",
+        "apps/api/src/intelligence/portfolio-alerts-timeout.spec.ts",
+        "apps/api/src/intelligence/intelligence.profile-v1.spec.ts",
+        "apps/api/src/intelligence/intelligence.controller.profile-v1.spec.ts"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 50.05,
+      "logSha256": "53329d63a8650a25beb20c179800fd9e633e1ed908a2fe8079b9150cc9e81a29"
+    },
+    {
+      "name": "integrated-bill-postgres",
+      "sourceSha": "afada905649b2fb790106466bc481060d6b05793",
+      "command": [
+        "C:/Program Files/nodejs/node.exe",
+        "apps/api/scripts/test-bill-keyword-deadline.postgres.mjs"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 1.47,
+      "logSha256": "b85d7c6ddf6c4be076e7d02a83408859009399c67d6722202653484983dea138"
+    },
+    {
+      "name": "integrated-types",
+      "sourceSha": "afada905649b2fb790106466bc481060d6b05793",
+      "command": [
+        "C:/Program Files/nodejs/node.exe",
+        "../../node_modules/typescript/bin/tsc",
+        "--noEmit",
+        "--pretty",
+        "false"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 28.68,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "integrated-offline26",
+      "sourceSha": "afada905649b2fb790106466bc481060d6b05793",
+      "command": [
+        "C:/Program Files/nodejs/node.exe",
+        "node_modules/promptfoo/dist/src/entrypoint.js",
+        "eval",
+        "-c",
+        "evals/meri/promptfooconfig.yaml",
+        "--no-cache",
+        "--no-share",
+        "--no-write",
+        "--no-table",
+        "--no-progress-bar",
+        "-o",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-meri-incident-release\\integrated-offline26.json"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 27.9,
+      "logSha256": "22aee0482813c76c3866cfcaabb7e1efd8b84d6e643c2aa27865ef8ba550f6ea"
+    },
+    {
+      "name": "integrated-offline26-verifier",
+      "sourceSha": "afada905649b2fb790106466bc481060d6b05793",
+      "command": [
+        "C:/ProgramData/Hermes/tools/python-3.14.7+20260901-win32-x64/python.exe",
+        "evals/meri/verify_report.py",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-meri-incident-release\\integrated-offline26.json",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-meri-incident-release\\integrated-offline26.summary.json"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 0.12,
+      "logSha256": "4db05026a837b9ca4aa44f51cc122d4fb093f77734c45751cfa172a04f999403"
+    }
+  ],
+  "sourceGitBlobSha256": {
+    "apps/api/scripts/test-bill-keyword-deadline.postgres.mjs": "d955734a6b382ae2ecb1d8fdc30109530758e070a5732fb39d61a0124119fca0",
+    "apps/api/src/engagement/mail-query-deadline.postgres.spec.ts": "e0def6976f9a15f921a161f1c21945e7db32d9e35588f11b9ebf21a74352f20c",
+    "apps/api/src/engagement/mail-query-deadline.spec.ts": "19b873c44363fbdf170850cd94ab3c4ab072ba0beba2a5ee078d4570e58cf1e7",
+    "apps/api/src/engagement/mail-query-deadline.ts": "cc8685381c5e6ef4a4c97fec2c158d0afc66bffc49996d7e2c8eefaada9d0ed7",
+    "apps/api/src/engagement/mail-query.spec.ts": "6fdf20cdba6a1c2cb5d7690439abdb71376331eb22927817aa42f99cb15024da",
+    "apps/api/src/engagement/mail-query.ts": "b32e25f106e3a2d9e69ac50e37b6fde8b26cea51a08be24adcdf5cfc69ad34c8",
+    "apps/api/src/intelligence/bill-keyword-deadline.spec.ts": "01572884f3f70637830a1b225b4b10efe57cddb4c16bc57c379f333c77d3a66d",
+    "apps/api/src/intelligence/bill-keyword-deadline.ts": "2e66c4886c497e278158f58dfaad9534b0c04ee6d8e48f0d426727669f86f59e",
+    "apps/api/src/intelligence/intelligence.service.ts": "f7cfe0f3257e2a75c43c7a70ce66de3939d79f0e0fbc336028970b68146b7096"
+  },
+  "liveAcceptance": "NOT_RUN",
+  "jestPassed": 65,
+  "jestSkipped": 0,
+  "actualBillPostgresChecks": 5,
+  "actualMailPostgresTests": 2,
+  "offlineCases": 26,
+  "customVerifierExit": 0
+}

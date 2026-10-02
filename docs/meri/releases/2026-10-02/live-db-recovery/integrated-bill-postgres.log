@@ -1,0 +1,1 @@
+{"status":"PASS","passed":5,"checks":["count cancellation and pool reuse","rows share remaining count budget","successful count and row result preserved","late fallback cannot outlive profile scope","serial work resumes only after cancelled query settled"],"skipped":0,"cluster":"owned loopback55433","databaseWrites":0,"sharedDatabaseAccess":false}

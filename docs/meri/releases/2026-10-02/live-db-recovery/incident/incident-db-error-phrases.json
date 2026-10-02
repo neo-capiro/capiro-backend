@@ -1,0 +1,71 @@
+{
+  "observedAt": "2026-10-02T13:03:44.894201+00:00",
+  "safeOnly": true,
+  "cloudWrites": false,
+  "tasks": [
+    {
+      "id": "fd15ce7b60e44d32a130515510cce344",
+      "taskDefinition": "capiro-dev-api:499",
+      "status": "RUNNING",
+      "desiredStatus": "RUNNING",
+      "health": "HEALTHY",
+      "startedAt": "2026-10-02 11:56:26.334000+00:00",
+      "stoppedAt": "None",
+      "stopCode": null,
+      "knownErrorPhrases": {
+        "P2028_start_wait": 483,
+        "P2024_pool_timeout": 44,
+        "P2028_expired": 3
+      },
+      "poolNumbers": {
+        "connection limit:\\s*(\\d+):10": 44,
+        "pool timeout:\\s*(\\d+):10": 44,
+        "timeout:\\s*(\\d+):10": 44
+      },
+      "prismaMethods": {
+        "committeeHearing.findMany": 6
+      }
+    },
+    {
+      "id": "1fcaa9820a6643d699b2e3f2126b05ec",
+      "taskDefinition": "capiro-dev-api:499",
+      "status": "RUNNING",
+      "desiredStatus": "RUNNING",
+      "health": "HEALTHY",
+      "startedAt": "2026-10-02 12:59:09.898000+00:00",
+      "stoppedAt": "None",
+      "stopCode": null,
+      "knownErrorPhrases": {},
+      "poolNumbers": {},
+      "prismaMethods": {}
+    },
+    {
+      "id": "e2b81791d2914be4aac6ed24f60a9e16",
+      "taskDefinition": "capiro-dev-api:499",
+      "status": "RUNNING",
+      "desiredStatus": "RUNNING",
+      "health": "UNKNOWN",
+      "startedAt": "2026-10-02 13:03:22.133000+00:00",
+      "stoppedAt": "None",
+      "stopCode": null,
+      "knownErrorPhrases": {},
+      "poolNumbers": {},
+      "prismaMethods": {}
+    },
+    {
+      "id": "e10968df7f1649258044d8a639e19338",
+      "taskDefinition": "capiro-dev-meriv2-orchestrator:95",
+      "status": "RUNNING",
+      "desiredStatus": "RUNNING",
+      "health": "HEALTHY",
+      "startedAt": "2026-10-02 10:25:02.505000+00:00",
+      "stoppedAt": "None",
+      "stopCode": null,
+      "knownErrorPhrases": {
+        "orchestrator_api_503": 7
+      },
+      "poolNumbers": {},
+      "prismaMethods": {}
+    }
+  ]
+}

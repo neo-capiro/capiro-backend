@@ -1,0 +1,26 @@
+{
+  "productionUnchanged": true,
+  "testTypeOnlyErasureEqual": true,
+  "files": [
+    {
+      "file": "apps/api/src/engagement/mail-query-deadline.ts",
+      "sha256": "cc8685381c5e6ef4a4c97fec2c158d0afc66bffc49996d7e2c8eefaada9d0ed7",
+      "reviewedSha256": "cc8685381c5e6ef4a4c97fec2c158d0afc66bffc49996d7e2c8eefaada9d0ed7"
+    },
+    {
+      "file": "apps/api/src/engagement/mail-query.ts",
+      "sha256": "b32e25f106e3a2d9e69ac50e37b6fde8b26cea51a08be24adcdf5cfc69ad34c8",
+      "reviewedSha256": "b32e25f106e3a2d9e69ac50e37b6fde8b26cea51a08be24adcdf5cfc69ad34c8"
+    },
+    {
+      "file": "apps/api/src/engagement/mail-query-deadline.spec.ts",
+      "sha256": "19b873c44363fbdf170850cd94ab3c4ab072ba0beba2a5ee078d4570e58cf1e7",
+      "reviewedSha256": "58fcce3952f80b98de1b7e2de8b1acb344a5f6eb19239c7fc7b8a0a3435cf183"
+    },
+    {
+      "file": "apps/api/src/engagement/mail-query-deadline.postgres.spec.ts",
+      "sha256": "e0def6976f9a15f921a161f1c21945e7db32d9e35588f11b9ebf21a74352f20c",
+      "reviewedSha256": "4fb6d883c372422fecc1942863fa7334164959a00e8eb685258ab736deeb2c99"
+    }
+  ]
+}

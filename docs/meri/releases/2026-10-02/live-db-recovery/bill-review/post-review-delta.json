@@ -1,0 +1,17 @@
+{
+  "status": "EXACT_DELTA_VERIFIED",
+  "reviewSession": "20261002_132142_4b8571",
+  "reviewExitCode": 0,
+  "changesAfterModelReview": [
+    "Requested correction of stale non-cancellation comment only",
+    "Test-only explicit countSql/rowsSql observation guard resolving TypeScript noUncheckedIndexedAccess diagnostics"
+  ],
+  "productionRuntimeBehaviorChangedAfterModelReview": false,
+  "exactReverseDeltaMatchesEveryReviewedHash": true,
+  "currentSourceHashes": {
+    "apps/api/src/intelligence/bill-keyword-deadline.ts": "2e66c4886c497e278158f58dfaad9534b0c04ee6d8e48f0d426727669f86f59e",
+    "apps/api/src/intelligence/intelligence.service.ts": "f7cfe0f3257e2a75c43c7a70ce66de3939d79f0e0fbc336028970b68146b7096",
+    "apps/api/src/intelligence/bill-keyword-deadline.spec.ts": "01572884f3f70637830a1b225b4b10efe57cddb4c16bc57c379f333c77d3a66d",
+    "apps/api/scripts/test-bill-keyword-deadline.postgres.mjs": "d955734a6b382ae2ecb1d8fdc30109530758e070a5732fb39d61a0124119fca0"
+  }
+}

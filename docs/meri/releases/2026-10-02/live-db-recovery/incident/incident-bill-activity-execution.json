@@ -1,0 +1,136 @@
+{
+  "schemaVersion": 1,
+  "status": "VERIFIED",
+  "planHash": "0e978d1f1627b90da4def2dfa12fe348dd0d1518ab36f7bb553f116b2c0bb52c",
+  "mode": "bill-activity-read",
+  "operationId": "efd1c365-b715-4e22-8a77-8563ca01ed8c",
+  "sourceSha": "42780caa75fcabe4f83e619ad81c0f36fdda8fad",
+  "operatorHead": "3d2ba9d844bc71830fc02fdda6e002f48fb96c2b",
+  "liveAcceptance": "NOT_RUN",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-bill-activity-read:1",
+  "startedBy": "meri-c01-efd1c365-b715-4e22-8a77-",
+  "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/2e331a8575484de1a5667695900a75ee",
+  "containerExitCode": 0,
+  "logMessageCount": 1,
+  "ownerReceipts": [
+    {
+      "kind": "meri-bill-activity-readback",
+      "schemaVersion": 1,
+      "status": "READBACK_COMPLETE",
+      "readOnly": true,
+      "mutations": 0,
+      "sourceSha": "42780caa75fcabe4f83e619ad81c0f36fdda8fad",
+      "observedAt": "2026-10-02T13:21:42.178Z",
+      "roleSha256": "4b3814bb3ebcecb8a55b67680a3346b05b2354953e529cae43bb36be2df869c6",
+      "databaseSha256": "57d3c5d9524a655e84657a5d5f24bc03f19e79211902f6630eae30c80c02940c",
+      "tlsVerified": true,
+      "caBundleSha256": "b1711d12bae51838581281e23b6cb97b1074016873b4dafc80ed14002462dd77",
+      "aggregate": [
+        {
+          "state": "active",
+          "wait_event_type": "IPC",
+          "count": 1,
+          "max_active_age_seconds": 1595
+        },
+        {
+          "state": "active",
+          "wait_event_type": null,
+          "count": 8,
+          "max_active_age_seconds": 2543
+        },
+        {
+          "state": "idle",
+          "wait_event_type": "Client",
+          "count": 40,
+          "max_active_age_seconds": 0
+        },
+        {
+          "state": "idle in transaction",
+          "wait_event_type": "Client",
+          "count": 2,
+          "max_active_age_seconds": 0
+        }
+      ],
+      "matchedQueries": [
+        {
+          "pid": 17249,
+          "state": "active",
+          "wait_event_type": null,
+          "wait_event": null,
+          "age_seconds": 2543,
+          "backendStart": "2026-10-02T12:37:32.278Z",
+          "queryStart": "2026-10-02T12:39:19.220Z",
+          "querySha256": "6239d92e09aa07bfc9327c2eb65ecdfa60d80f9ea688157319b7c2c4e582cf8d",
+          "exactCountShape": true
+        },
+        {
+          "pid": 17239,
+          "state": "active",
+          "wait_event_type": null,
+          "wait_event": null,
+          "age_seconds": 2533,
+          "backendStart": "2026-10-02T12:37:23.676Z",
+          "queryStart": "2026-10-02T12:39:28.970Z",
+          "querySha256": "6239d92e09aa07bfc9327c2eb65ecdfa60d80f9ea688157319b7c2c4e582cf8d",
+          "exactCountShape": true
+        },
+        {
+          "pid": 17567,
+          "state": "active",
+          "wait_event_type": null,
+          "wait_event": null,
+          "age_seconds": 2227,
+          "backendStart": "2026-10-02T12:42:32.956Z",
+          "queryStart": "2026-10-02T12:44:35.430Z",
+          "querySha256": "6239d92e09aa07bfc9327c2eb65ecdfa60d80f9ea688157319b7c2c4e582cf8d",
+          "exactCountShape": true
+        },
+        {
+          "pid": 17881,
+          "state": "active",
+          "wait_event_type": null,
+          "wait_event": null,
+          "age_seconds": 1870,
+          "backendStart": "2026-10-02T12:47:34.863Z",
+          "queryStart": "2026-10-02T12:50:32.130Z",
+          "querySha256": "6239d92e09aa07bfc9327c2eb65ecdfa60d80f9ea688157319b7c2c4e582cf8d",
+          "exactCountShape": true
+        },
+        {
+          "pid": 18504,
+          "state": "active",
+          "wait_event_type": null,
+          "wait_event": null,
+          "age_seconds": 1315,
+          "backendStart": "2026-10-02T12:57:43.884Z",
+          "queryStart": "2026-10-02T12:59:47.094Z",
+          "querySha256": "fc222693754001dd639e5d746b91cbbd9cf01a5ef69c3b45d1c1a92ff41464ec",
+          "exactCountShape": true
+        },
+        {
+          "pid": 18959,
+          "state": "active",
+          "wait_event_type": null,
+          "wait_event": null,
+          "age_seconds": 983,
+          "backendStart": "2026-10-02T13:04:47.780Z",
+          "queryStart": "2026-10-02T13:05:18.934Z",
+          "querySha256": "fc222693754001dd639e5d746b91cbbd9cf01a5ef69c3b45d1c1a92ff41464ec",
+          "exactCountShape": true
+        },
+        {
+          "pid": 18993,
+          "state": "active",
+          "wait_event_type": null,
+          "wait_event": null,
+          "age_seconds": 884,
+          "backendStart": "2026-10-02T13:05:17.799Z",
+          "queryStart": "2026-10-02T13:06:57.886Z",
+          "querySha256": "6239d92e09aa07bfc9327c2eb65ecdfa60d80f9ea688157319b7c2c4e582cf8d",
+          "exactCountShape": true
+        }
+      ],
+      "queryTextPersisted": false
+    }
+  ]
+}

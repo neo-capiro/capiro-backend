@@ -1,0 +1,14 @@
+{
+  "name": "integrated-types",
+  "sourceSha": "afada905649b2fb790106466bc481060d6b05793",
+  "command": [
+    "C:/Program Files/nodejs/node.exe",
+    "../../node_modules/typescript/bin/tsc",
+    "--noEmit",
+    "--pretty",
+    "false"
+  ],
+  "exitCode": 0,
+  "elapsedSeconds": 28.68,
+  "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

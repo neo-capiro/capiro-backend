@@ -1,0 +1,139 @@
+{
+  "status": "PASS",
+  "qualifiedAt": "2026-10-02T13:26:06.635569+00:00",
+  "sourceSha": "98e3acb7415004b2ff4ce25fd9d63c3bb6f9e041",
+  "baseSha": "3d2ba9d844bc71830fc02fdda6e002f48fb96c2b",
+  "worktree": "C:\\dev\\cap-meri-bill-deadline",
+  "clean": true,
+  "policyHead": "743fd708c3484604e8a35ea1039adeca3b1e331f",
+  "policyOriginMain": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "policyRequiredFilesEqual": true,
+  "sourceHashes": {
+    "apps/api/src/intelligence/bill-keyword-deadline.ts": "2e66c4886c497e278158f58dfaad9534b0c04ee6d8e48f0d426727669f86f59e",
+    "apps/api/src/intelligence/intelligence.service.ts": "f7cfe0f3257e2a75c43c7a70ce66de3939d79f0e0fbc336028970b68146b7096",
+    "apps/api/src/intelligence/bill-keyword-deadline.spec.ts": "01572884f3f70637830a1b225b4b10efe57cddb4c16bc57c379f333c77d3a66d",
+    "apps/api/scripts/test-bill-keyword-deadline.postgres.mjs": "d955734a6b382ae2ecb1d8fdc30109530758e070a5732fb39d61a0124119fca0"
+  },
+  "tests": [
+    {
+      "kind": "Jest",
+      "suites": [
+        "bill-keyword-deadline.spec.ts",
+        "intelligence.profile-v1-source-budget.spec.ts",
+        "portfolio-alerts-timeout.spec.ts"
+      ],
+      "passed": 18,
+      "failed": 0,
+      "skipped": 0,
+      "exitCode": 0,
+      "toolChunk": "b86386"
+    },
+    {
+      "kind": "Jest",
+      "suites": [
+        "intelligence.profile-v1.spec.ts",
+        "intelligence.controller.profile-v1.spec.ts"
+      ],
+      "passed": 19,
+      "failed": 0,
+      "skipped": 0,
+      "exitCode": 0,
+      "toolChunk": "e5b379",
+      "log": "profile-regression.log"
+    },
+    {
+      "kind": "Jest final test-only typeguard delta",
+      "suites": [
+        "bill-keyword-deadline.spec.ts"
+      ],
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0,
+      "exitCode": 0,
+      "toolChunk": "1de2e3",
+      "log": "deadline-final.log",
+      "includedInUniqueTotal": true
+    },
+    {
+      "kind": "Actual Prisma/PostgreSQL owned127.0.0.1:55433",
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0,
+      "exitCode": 0,
+      "toolChunk": "c2ab1e",
+      "command": "node apps/api/scripts/test-bill-keyword-deadline.postgres.mjs with explicit MERI_APPROVED_MEMORY_PG_CONFIG",
+      "checks": [
+        "serverSQLSTATE57014 cancelscount andpreventsrow",
+        "samebackend reused andstatement_timeout restored",
+        "rows getremaining countbudget andcancel",
+        "all count/rowresults preservedonsuccess",
+        "expiredparent refusesconnection; serialnextquery startsafterrollback"
+      ],
+      "databaseWrites": 0
+    }
+  ],
+  "uniqueJestTests": 37,
+  "typecheck": {
+    "command": "pnpm --filter @capiro/api exec tsc --noEmit --rootDir .",
+    "nodeMaxOldSpaceSizeMb": 6144,
+    "exitCode": 0,
+    "toolChunk": "0c1d27",
+    "log": "api-typecheck-final.log",
+    "initialFailurePreserved": {
+      "exitCode": 2,
+      "toolExitCode": 1,
+      "toolChunk": "1bd03c",
+      "diagnostics": 4,
+      "kind": "test-only optionalmockindexedvalues TS18048",
+      "repair": "Explicit missing-SQL assertion; all4 resolved"
+    }
+  },
+  "review": {
+    "verdict": "PASS",
+    "actualProvider": "bedrock",
+    "actualModel": "moonshotai.kimi-k2.5",
+    "sessionId": "20261002_132142_4b8571",
+    "exitCode": 0,
+    "toolCalls": 0,
+    "tokens": {
+      "input": 17165,
+      "output": 1104,
+      "total": 18269,
+      "cache_read": 0,
+      "cache_write": 0
+    },
+    "report": "bill-keyword-deadline-kimi-review.md",
+    "postReviewDelta": "post-review-delta.json",
+    "note": "Model review did not run tests. Two later nonbehavioraldeltas have exactreversehashproof and were reported for rootpeer review."
+  },
+  "runtimeBounds": {
+    "sqlCountAndRowsMs": 5000,
+    "poolAcquireMaxMs": 1000,
+    "transactionCleanupMarginMs": 1000,
+    "profileBillDeadlineMs": 15000,
+    "otherProfileSources": "existing20snoncancellingwrappersunchanged"
+  },
+  "preserved": [
+    "globalcatalog access",
+    "tenant/auth/caller checks",
+    "all126testterms withouttruncation",
+    "COUNTandrows querybodies/order/limits/resultmapping",
+    "SQLerrorsreject ratherthanfalseempty"
+  ],
+  "remaining": [
+    "Root integration checks and relevant deterministicPromptfoo",
+    "Qualifiedimagebuild/deploy",
+    "Actual postdeploysamebehavior/loadreadback",
+    "Writerheadroom is separatetemporarymitigation; unrelatedprofile sourcesstillnotcancelled here"
+  ],
+  "sideEffects": {
+    "gitPush": false,
+    "mainMerged": false,
+    "cloudWrites": 0,
+    "sharedDatabaseWrites": 0,
+    "authSessions": 0,
+    "providerCalls": 0,
+    "hermesBedrockReviewCalls": 1,
+    "localOwnedPostgresQueries": true
+  }
+}

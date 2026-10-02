@@ -1,0 +1,99 @@
+{
+  "kind": "meri-incident-capacity-mitigation-independent-review",
+  "observedAt": "2026-10-02T13:12:59.468141+00:00",
+  "verdict": "PASS",
+  "scope": "Exact temporary Aurora ServerlessV2 CPU headroom change; behavior and root-cause repair remain separately qualified",
+  "rootMutationReceiptSha256": "582052b27d3fafbbf411eadc624d4efd7c49c490e0794b763a6fa98d08a267c5",
+  "metricsReceiptSha256": "fa695807708bc80ed80e16b41ee31cb82a61c55861408801d14b9202983b6ca8",
+  "account": "967807252336",
+  "cluster": "capiro-dev-data-auroracluster23d869c0-ltmz40k47ewv",
+  "before": {
+    "MinCapacity": 1,
+    "MaxCapacity": 8
+  },
+  "requested": {
+    "MinCapacity": 1,
+    "MaxCapacity": 16
+  },
+  "independentReadback": {
+    "toolChunk": "f1843c",
+    "exitCode": 0,
+    "scaling": {
+      "MinCapacity": 1,
+      "MaxCapacity": 16
+    },
+    "status": "modifying",
+    "pendingModifiedValues": null,
+    "bothMemberParameterStatus": "pending-reboot"
+  },
+  "evidence": [
+    "Writer CPU100percent at8ACU100percentcapacity and DBLoadCPU18.32; live mailbox503 after automatic API taskreplacement.",
+    "API ordinary chat/core code unchanged c22to427; no protocol mismatch or app release caused by this headroom operation."
+  ],
+  "limitations": [
+    "Headroom does not repair initiating expensive queries.",
+    "AWS can leave max_connections derived static parameter pending-reboot; do not reboot during incident just to clear it. No claim max_connections increased.",
+    "Cluster range affects writer and reader; source reader scaleWithWriter true, current reader promotionTier1; cost can increase on both.",
+    "No claim originalFile01 acceptance or live behaviorPASS from capacityreadback."
+  ],
+  "iacDrift": {
+    "source": "42780caa75fcabe4f83e619ad81c0f36fdda8fad",
+    "paths": [
+      "infra/cdk/lib/config.ts:166",
+      "infra/cdk/lib/data-stack.ts:156"
+    ],
+    "declaredMin": 1,
+    "declaredMax": 8,
+    "temporaryLiveMax": 16,
+    "action": "Retain bounded incident drift and avoid CDK overwrite until explicit reconcile or guarded rollback; no IaC edit made."
+  },
+  "rollback": {
+    "requires": [
+      "Current exactcluster available and scaling Min1/Max16 unchanged; no unrelated pending changes.",
+      "Measured sustained workload fits8ACU with CPUheadroom and same real Meri/mailbox probe passes; no forceddownscale while saturated.",
+      "Root/operator owns execution and records actualreadback."
+    ],
+    "command": [
+      "aws",
+      "rds",
+      "modify-db-cluster",
+      "--db-cluster-identifier",
+      "capiro-dev-data-auroracluster23d869c0-ltmz40k47ewv",
+      "--serverless-v2-scaling-configuration",
+      "MinCapacity=1,MaxCapacity=8",
+      "--apply-immediately",
+      "--region",
+      "us-east-1"
+    ],
+    "warning": "Immediate rollback under same workload can reproduce outage; do not auto rollback solely because configurationapplypassed."
+  },
+  "sources": [
+    {
+      "url": "https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/aurora-serverless-v2-administration.html",
+      "finding": "Capacity range takes effect immediately and applies to all ServerlessV2 instances in cluster."
+    },
+    {
+      "url": "https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/aurora-serverless-v2.setting-capacity.html",
+      "finding": "Derived static max_connections needs reboot to change; scaling capacity can change before that."
+    }
+  ],
+  "queryInvestigation": {
+    "status": "SOURCE_AMPLIFIER_IDENTIFIED_INITIATING_SQL_NOT_FULLY_MAPPED",
+    "files": [
+      "apps/api/src/intelligence/intelligence.service.ts:428",
+      "apps/api/src/intelligence/intelligence.service.ts:813",
+      "apps/api/src/intelligence/intelligence.service.ts:2346",
+      "apps/api/src/intelligence/intelligence.service.ts:4627",
+      "apps/api/src/intelligence/intelligence.service.ts:7463"
+    ],
+    "finding": "Profile source20s Promise.race does not cancel query. Serial portfolio loop can launch nextclient after wrapper settles while prior billquery still runs, so actual expensive queries overlap across client iterations. Portfolio12s response timeout also leaves fullcompute running.",
+    "candidateRepair": "Bound actual expensive keyword owner SQL with transaction-local statement_timeout and actualsettlement; stop newbatch admission after explicit workdeadline; preserve degraded coverage and tenant semantics. Verify physicalfunctionalGINindexes before assuming queryplanner safety. No source repair authored in this lane."
+  },
+  "sideEffectsByReviewer": {
+    "cloudWrites": 0,
+    "databaseWrites": 0,
+    "authCalls": 0,
+    "modelCalls": 0,
+    "sourceEdits": 0
+  }
+}

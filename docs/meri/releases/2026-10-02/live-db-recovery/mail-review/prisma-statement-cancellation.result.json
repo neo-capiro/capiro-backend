@@ -1,0 +1,32 @@
+{
+  "verdict": "PASS",
+  "sourceRef": "42780caa75fcabe4f83e619ad81c0f36fdda8fad",
+  "prismaSourceSha256": "fb3886df5f2732a0412342627a3a6156f159718913479cdc2325fa602bfdd86e",
+  "scope": "Owned loopback55433, actual PrismaService; SELECT only, read-only transactions; no application data/schema/provider/cloud actions",
+  "defaultExpiry": {
+    "expectedTimeoutMs": 5000,
+    "observedAtMs": 5600,
+    "backend": {
+      "state": "active",
+      "wait_event_type": "Timeout",
+      "wait_event": "PgSleep"
+    },
+    "result": {
+      "errorClass": "PrismaClientKnownRequestError",
+      "code": "P2028",
+      "sqlState": null
+    },
+    "elapsedMs": 8017
+  },
+  "explicitStatementDeadline": {
+    "timeoutMs": 1500,
+    "result": {
+      "errorClass": "PrismaClientKnownRequestError",
+      "code": "P2010",
+      "sqlState": "57014"
+    },
+    "elapsedMs": 1509
+  },
+  "poolReusableAfterBoth": true,
+  "limits": "Demonstrates missing server cancellation, not live incident query attribution or default production pool sizing"
+}

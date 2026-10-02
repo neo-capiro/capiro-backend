@@ -1,0 +1,21 @@
+{
+  "name": "integrated-offline26",
+  "sourceSha": "afada905649b2fb790106466bc481060d6b05793",
+  "command": [
+    "C:/Program Files/nodejs/node.exe",
+    "node_modules/promptfoo/dist/src/entrypoint.js",
+    "eval",
+    "-c",
+    "evals/meri/promptfooconfig.yaml",
+    "--no-cache",
+    "--no-share",
+    "--no-write",
+    "--no-table",
+    "--no-progress-bar",
+    "-o",
+    "C:\\dev\\cap-meri-foundation-evidence\\oct02-meri-incident-release\\integrated-offline26.json"
+  ],
+  "exitCode": 0,
+  "elapsedSeconds": 27.9,
+  "logSha256": "22aee0482813c76c3866cfcaabb7e1efd8b84d6e643c2aa27865ef8ba550f6ea"
+}

@@ -1,0 +1,82 @@
+{
+  "observedAt": "2026-10-02T13:02:33.744506+00:00",
+  "startMs": 1790944953743,
+  "endMs": 1790946153743,
+  "services": [
+    {
+      "service": "capiro-dev-api",
+      "taskDefinition": "capiro-dev-api:499",
+      "streams": [
+        {
+          "taskId": "1fcaa9820a6643d699b2e3f2126b05ec",
+          "events": 1454,
+          "classes": {
+            "error": 2
+          },
+          "codes": {},
+          "modules": {},
+          "sourceClasses": {},
+          "jsonKeyShapes": [],
+          "firstErrorMs": 1790946108378,
+          "lastErrorMs": 1790946108408
+        },
+        {
+          "taskId": "e2b81791d2914be4aac6ed24f60a9e16",
+          "events": 0,
+          "classes": {},
+          "codes": {},
+          "modules": {},
+          "sourceClasses": {},
+          "jsonKeyShapes": [],
+          "firstErrorMs": null,
+          "lastErrorMs": null
+        },
+        {
+          "taskId": "fd15ce7b60e44d32a130515510cce344",
+          "events": 915,
+          "classes": {
+            "transaction_timeout": 486,
+            "error": 548,
+            "pool_timeout": 44,
+            "timeout": 47,
+            "http503": 193,
+            "query_timeout": 3
+          },
+          "codes": {
+            "P2024": 37,
+            "P2028": 156,
+            "22529": 1,
+            "22522": 1
+          },
+          "modules": {},
+          "sourceClasses": {},
+          "jsonKeyShapes": [],
+          "firstErrorMs": 1790945178541,
+          "lastErrorMs": 1790946098689
+        }
+      ]
+    },
+    {
+      "service": "capiro-dev-meriv2-orchestrator",
+      "taskDefinition": "capiro-dev-meriv2-orchestrator:95",
+      "streams": [
+        {
+          "taskId": "e10968df7f1649258044d8a639e19338",
+          "events": 88,
+          "classes": {
+            "http503": 7,
+            "error": 15,
+            "timeout": 2
+          },
+          "codes": {},
+          "modules": {},
+          "sourceClasses": {},
+          "jsonKeyShapes": [],
+          "firstErrorMs": 1790945438237,
+          "lastErrorMs": 1790945686261
+        }
+      ]
+    }
+  ],
+  "rawLogsPersisted": false
+}

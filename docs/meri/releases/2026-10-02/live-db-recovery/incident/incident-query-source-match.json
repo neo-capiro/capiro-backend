@@ -1,0 +1,65 @@
+{
+  "observedAt": "2026-10-02T13:12:05.515684+00:00",
+  "sourceShapeChecks": [
+    {
+      "sqlId": "FD92EE484FF5ED94EAEF2DD12CDA3000A99ED397",
+      "length": 500,
+      "exactCountSubqueryPrefix": true,
+      "policyAreaEqualsAny": true,
+      "explicitPolicyRegexCount": 11,
+      "hasCrossTableLeftJoin": false,
+      "hasScalarRegexAny": false
+    },
+    {
+      "sqlId": "5151D8B2B5313F317A7602E44F0660F6EF6092D9",
+      "length": 4095,
+      "exactCountSubqueryPrefix": true,
+      "policyAreaEqualsAny": true,
+      "explicitPolicyRegexCount": 126,
+      "hasCrossTableLeftJoin": false,
+      "hasScalarRegexAny": false
+    }
+  ],
+  "hostAttribution": [
+    {
+      "sqlId": "FD92EE484FF5ED94EAEF2DD12CDA3000A99ED397",
+      "hosts": [
+        {
+          "taskId": "6d19b019d1a44140a43fb01e57b8bf57",
+          "hostHash": "e78d8646784eee09bba26c7ecd8da18cf5e7e7e517da319c7038d6806ad70d78",
+          "dbLoadAverage": 4.4816666666666665
+        },
+        {
+          "taskId": "fd15ce7b60e44d32a130515510cce344",
+          "hostHash": "a247d768e46b1a0ad8553ae9f18ebda73e30ae6a0fd8cfbe4ab24a937c4c9214",
+          "dbLoadAverage": 4.43
+        },
+        {
+          "taskId": "1fcaa9820a6643d699b2e3f2126b05ec",
+          "hostHash": "c8c71c66dae3609ec088fcc4bcbaa18799fa8728678e81cb40a3c4dadfcf4a9c",
+          "dbLoadAverage": 0.335
+        }
+      ]
+    },
+    {
+      "sqlId": "5151D8B2B5313F317A7602E44F0660F6EF6092D9",
+      "hosts": [
+        {
+          "taskId": "6d19b019d1a44140a43fb01e57b8bf57",
+          "hostHash": "e78d8646784eee09bba26c7ecd8da18cf5e7e7e517da319c7038d6806ad70d78",
+          "dbLoadAverage": 4.0
+        },
+        {
+          "taskId": "fd15ce7b60e44d32a130515510cce344",
+          "hostHash": "a247d768e46b1a0ad8553ae9f18ebda73e30ae6a0fd8cfbe4ab24a937c4c9214",
+          "dbLoadAverage": 2.9466666666666668
+        },
+        {
+          "taskId": "1fcaa9820a6643d699b2e3f2126b05ec",
+          "hostHash": "c8c71c66dae3609ec088fcc4bcbaa18799fa8728678e81cb40a3c4dadfcf4a9c",
+          "dbLoadAverage": 0.25333333333333335
+        }
+      ]
+    }
+  ]
+}

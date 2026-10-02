@@ -1,0 +1,55 @@
+{
+  "observedAt": "2026-10-02T13:10:12.426065+00:00",
+  "status": "CONFIGURATION_VERIFIED_BEHAVIOR_PENDING",
+  "account": "967807252336",
+  "actor": "arn:aws:iam::967807252336:user/hermes-cli",
+  "cluster": "capiro-dev-data-auroracluster23d869c0-ltmz40k47ewv",
+  "before": {
+    "MinCapacity": 1.0,
+    "MaxCapacity": 8.0
+  },
+  "requested": {
+    "MinCapacity": 1.0,
+    "MaxCapacity": 16.0
+  },
+  "rollback": {
+    "MinCapacity": 1.0,
+    "MaxCapacity": 8.0
+  },
+  "reason": "Live Meri mailbox503; Aurora writer sustained100percentCPU at8ACU cap; API tasks auto-replaced without restoring mailbox search.",
+  "cpuLastFiveMinutes": [
+    {
+      "at": "2026-10-02T13:05:00+00:00",
+      "average": 100.0
+    },
+    {
+      "at": "2026-10-02T13:06:00+00:00",
+      "average": 100.0
+    },
+    {
+      "at": "2026-10-02T13:07:00+00:00",
+      "average": 100.0
+    },
+    {
+      "at": "2026-10-02T13:08:00+00:00",
+      "average": 100.0
+    },
+    {
+      "at": "2026-10-02T13:09:00+00:00",
+      "average": 100.0
+    }
+  ],
+  "noApplicationReleaseOrRoutingChange": true,
+  "requestId": "b581f474-23d4-4643-92f2-ec97742c8056",
+  "acceptedConfiguration": {
+    "MinCapacity": 1.0,
+    "MaxCapacity": 16.0
+  },
+  "readback": {
+    "status": "available",
+    "capacity": {
+      "MinCapacity": 1.0,
+      "MaxCapacity": 16.0
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "testedCodeSha": "afada905649b2fb790106466bc481060d6b05793",
+  "files": {
+    "apps/api/scripts/test-bill-keyword-deadline.postgres.mjs": "d955734a6b382ae2ecb1d8fdc30109530758e070a5732fb39d61a0124119fca0",
+    "apps/api/src/engagement/mail-query-deadline.postgres.spec.ts": "e0def6976f9a15f921a161f1c21945e7db32d9e35588f11b9ebf21a74352f20c",
+    "apps/api/src/engagement/mail-query-deadline.spec.ts": "19b873c44363fbdf170850cd94ab3c4ab072ba0beba2a5ee078d4570e58cf1e7",
+    "apps/api/src/engagement/mail-query-deadline.ts": "cc8685381c5e6ef4a4c97fec2c158d0afc66bffc49996d7e2c8eefaada9d0ed7",
+    "apps/api/src/engagement/mail-query.spec.ts": "6fdf20cdba6a1c2cb5d7690439abdb71376331eb22927817aa42f99cb15024da",
+    "apps/api/src/engagement/mail-query.ts": "b32e25f106e3a2d9e69ac50e37b6fde8b26cea51a08be24adcdf5cfc69ad34c8",
+    "apps/api/src/intelligence/bill-keyword-deadline.spec.ts": "01572884f3f70637830a1b225b4b10efe57cddb4c16bc57c379f333c77d3a66d",
+    "apps/api/src/intelligence/bill-keyword-deadline.ts": "2e66c4886c497e278158f58dfaad9534b0c04ee6d8e48f0d426727669f86f59e",
+    "apps/api/src/intelligence/intelligence.service.ts": "f7cfe0f3257e2a75c43c7a70ce66de3939d79f0e0fbc336028970b68146b7096"
+  }
+}

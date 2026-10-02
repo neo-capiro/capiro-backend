@@ -1,0 +1,68 @@
+{
+  "verdict": "PASS",
+  "sourceSha": "2b2ec431574cb9f3474365df36fcf9e4a2bd1be5",
+  "baseSha": "3d2ba9d844bc71830fc02fdda6e002f48fb96c2b",
+  "branch": "codex/meri-mail-statement-deadline-20261002",
+  "worktree": "C:\\dev\\cap-meri-mail-deadline",
+  "clean": true,
+  "policy": {
+    "remoteMain": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+    "localHead": "743fd708c3484604e8a35ea1039adeca3b1e331f",
+    "AGENTS_BOOTSTRAP_HermesRulesUnchanged": true,
+    "difference": "Four unrelated QA documents only; local branch preserved"
+  },
+  "change": "One shared3500ms SQL execution budget for unchanged mailbox count/page/coverage SQL; transaction-local statement timeout cancels work; deadline exhaustion maps to sanitized503 without partial results. No global pool limit or database schema changes.",
+  "tests": {
+    "command": "node --max-old-space-size=8192 apps/api/node_modules/jest/bin/jest.js --config apps/api/jest.config.cjs --runInBand --runTestsByPath apps/api/src/engagement/mail-query.spec.ts apps/api/src/engagement/mail-query-deadline.spec.ts apps/api/src/engagement/mail-query-deadline.postgres.spec.ts",
+    "passed": 28,
+    "failed": 0,
+    "skipped": 0,
+    "suites": 3,
+    "actualPostgresTests": 2,
+    "exit": 0,
+    "scope": "Owned loopback55433; actual PrismaService; SELECT/GUC only, no application rows or schema writes"
+  },
+  "types": {
+    "command": "node --max-old-space-size=12288 apps/api/node_modules/typescript/bin/tsc -p apps/api/tsconfig.json --noEmit --incremental false",
+    "exit": 0,
+    "diagnostics": 0,
+    "initialFailure": "Three test-only unknown narrowing diagnostics; preserved initialexit2, final casts erase identically"
+  },
+  "review": {
+    "provider": "bedrock",
+    "model": "moonshotai.kimi-k2.5",
+    "sessionId": "20261002_131642_dcfe29",
+    "actualExit": 0,
+    "finalVerdict": "PASS",
+    "toolCalls": 0,
+    "elapsedSeconds": 37.26,
+    "tokens": {
+      "input": 17583,
+      "output": 3249,
+      "total": 20832,
+      "cache_read": 0,
+      "cache_write": 0
+    },
+    "qualification": "Raw review contains self-corrected speculative premises. Final verdict plus source/tests independently checked. No live proof claimed."
+  },
+  "limits": [
+    "Does not prove mailbox query caused actual incident100%CPU.",
+    "Budget starts after obtaining the transaction; pool wait retains existing Prisma settings.",
+    "Slow legitimate searches now receive503; tenant/user/filter/dedup/count/page/coverage semantics unchanged.",
+    "No external caller AbortSignal plumbing/global admission controller added.",
+    "No deployment/live/provider/auth calls in this lane. Root must run integrated deterministic26 before release."
+  ],
+  "evidenceSha256": {
+    "mail-deadline-tests.log": "b43c9edaf511216fca964f186f46f672057e5da47740d0e61025ec3ae4bdf8e9",
+    "mail-deadline-tests.exit": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+    "mail-deadline-types.log": "53eca483e28dfd752c3f850972b27ee18004211d398c1587a695a2ac1b7f085e",
+    "mail-deadline-types.exit": "df4e26a04a444901b95afef44e4a96cfae34690fff2ad2c66389c70079cdff2b",
+    "mail-deadline-types-final.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "mail-deadline-types-final.exit": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+    "mail-deadline-kimi-review.md": "b7d5851c16c5b6149b6d78b04fed8195c995f743a42190b5cd7046552e622ed0",
+    "mail-deadline-kimi-exit.json": "f04aeda69b1b58215878612fd404ad5331bebacf362593ed24ddc394e01b4547",
+    "mail-deadline-kimi-usage.json": "3e657a7ad6e90b21c5284299684c735fda68287f589205ed1eb9a7f4a15ae194",
+    "mail-deadline-post-review-delta.json": "efaea98414b209966f276b17e78ed62270efb606c8016cc0d2a5bb78ce8d87f9",
+    "prisma-statement-cancellation.result.json": "3c0b826cc95f72b2e4c96cea49122c8e83f30e7049aedb7d6368e93124061909"
+  }
+}
