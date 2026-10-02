@@ -130,6 +130,12 @@ COPY --chown=capiro:capiro --from=build /workspace/apps/api/package.json /app/ap
 # resolves at runtime — the compiled dist/ alone does not satisfy those imports.
 COPY --chown=capiro:capiro --from=build /workspace/apps/api/scripts /app/apps/api/scripts
 COPY --chown=capiro:capiro --from=build /workspace/apps/api/src /app/apps/api/src
+# Case01 restart qualification uses only this fixed source-owned module graph.
+# No eval runners, provider adapters, tests, or external configuration are copied.
+COPY --chown=capiro:capiro evals/meri/live-v1/artifact-collector.mjs evals/meri/live-v1/fixture.mjs evals/meri/live-v1/contract-lock.json /app/evals/meri/live-v1/
+COPY --chown=capiro:capiro evals/meri/live-v1/lib/stable.mjs /app/evals/meri/live-v1/lib/
+COPY --chown=capiro:capiro evals/meri/live-v1/fixture-provisioning/case01-memory-owner.mjs evals/meri/live-v1/fixture-provisioning/case01-memory-runtime.mjs evals/meri/live-v1/fixture-provisioning/case01-memory-hydration.mjs evals/meri/live-v1/fixture-provisioning/manifest.mjs evals/meri/live-v1/fixture-provisioning/contract.mjs evals/meri/live-v1/fixture-provisioning/canonical-owner-adapter.mjs evals/meri/live-v1/fixture-provisioning/approved-memory-runtime.mjs evals/meri/live-v1/fixture-provisioning/approved-memory-retirement-owner.mjs evals/meri/live-v1/fixture-provisioning/memory-candidate-owner.mjs /app/evals/meri/live-v1/fixture-provisioning/
+COPY --chown=capiro:capiro evals/meri/live-v1/source-binaries/asset-manifest.json evals/meri/live-v1/source-binaries/D-A-1.pdf evals/meri/live-v1/source-binaries/DECK-A-1.pptx evals/meri/live-v1/source-binaries/FILE-B-1-restricted.pdf evals/meri/live-v1/source-binaries/PDF-PENDING-1.pdf evals/meri/live-v1/source-binaries/REPORT-A-v1.pdf evals/meri/live-v1/source-binaries/REPORT-A-v2.pdf evals/meri/live-v1/source-binaries/SHEET-A-1.xlsx /app/evals/meri/live-v1/source-binaries/
 # tsx (used by entrypoint.sh for sync-entity-resolution, which boots the full
 # NestJS AppModule) needs a tsconfig with experimentalDecorators/emitDecoratorMetadata
 # at runtime; without it esbuild fails NestJS controllers with

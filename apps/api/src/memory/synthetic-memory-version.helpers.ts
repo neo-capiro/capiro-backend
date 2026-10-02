@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { ForbiddenException } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
@@ -16,6 +17,16 @@ export interface SyntheticMemoryCorrectionGuard {
   expectedContent: string;
   proposerUserId: string;
   expectedCandidateRowVersion?: string;
+}
+
+export interface SyntheticCorrectionAudit {
+  syntheticFixtureCandidateId: string;
+  syntheticFixtureMarkerSha256: string;
+  syntheticFixtureCandidateRowVersion: string;
+  syntheticFixtureItemRowVersion: string;
+  syntheticFixtureRootItemId: string;
+  syntheticFixtureCorrectionCandidateRowVersion: string;
+  syntheticFixtureContentSha256: string;
 }
 
 export interface SyntheticCorrectionRetirementGuard {
@@ -124,6 +135,20 @@ async function readSyntheticCorrectionStateInTx(
         'versionProposal',${JSON.stringify({ kind: 'correction', sourceItemId: guard.sourceItemId, targetItemId: guard.sourceItemId })}::jsonb)
       AND c.provenance_jsonb=${JSON.stringify({ kind: 'correction', sourceItemId: guard.sourceItemId })}::jsonb
       AND c.conflict_status='none' AND c.legal_hold=false AND c.instructions_allowed=false
+      AND av.metadata_jsonb->>'syntheticFixtureCandidateId'=${guard.source.candidateId}
+      AND av.metadata_jsonb->>'syntheticFixtureMarkerSha256'=${root.syntheticFixtureMarkerSha256}
+      AND av.metadata_jsonb->>'syntheticFixtureCandidateRowVersion'=${guard.source.expectedRowVersion}
+      AND av.metadata_jsonb->>'syntheticFixtureItemRowVersion'=${guard.source.expectedItemRowVersion}
+      AND av.metadata_jsonb->>'syntheticFixtureRootItemId'=${guard.sourceItemId}
+      AND av.metadata_jsonb->>'syntheticFixtureCorrectionCandidateRowVersion'=${guard.expectedCandidateRowVersion}
+      AND av.metadata_jsonb->>'syntheticFixtureContentSha256'=${createHash('sha256').update(guard.expectedContent).digest('hex')}
+      AND ar.metadata_jsonb->>'syntheticFixtureCandidateId'=${guard.source.candidateId}
+      AND ar.metadata_jsonb->>'syntheticFixtureMarkerSha256'=${root.syntheticFixtureMarkerSha256}
+      AND ar.metadata_jsonb->>'syntheticFixtureCandidateRowVersion'=${guard.source.expectedRowVersion}
+      AND ar.metadata_jsonb->>'syntheticFixtureItemRowVersion'=${guard.source.expectedItemRowVersion}
+      AND ar.metadata_jsonb->>'syntheticFixtureRootItemId'=${guard.sourceItemId}
+      AND ar.metadata_jsonb->>'syntheticFixtureCorrectionCandidateRowVersion'=${guard.expectedCandidateRowVersion}
+      AND ar.metadata_jsonb->>'syntheticFixtureContentSha256'=${createHash('sha256').update(guard.expectedContent).digest('hex')}
     FOR UPDATE OF r,v,c,o,av,ar,ac
   `;
   if (rows.length !== 1 || !rows[0])
@@ -201,7 +226,7 @@ export async function assertSyntheticCorrectionInTx(
   content: string,
   guard: SyntheticMemoryCorrectionGuard,
   candidateId?: string,
-): Promise<void> {
+): Promise<SyntheticCorrectionAudit | undefined> {
   const deny = (): never => {
     throw new ForbiddenException('Synthetic immutable correction guard does not match');
   };
@@ -221,7 +246,7 @@ export async function assertSyntheticCorrectionInTx(
     deny();
   // Locks and verifies original owned candidate, item, client/wall dependencies
   // and projection, including their expected versions and exact synthetic data.
-  await assertSyntheticApprovedMemoryInTx(tx, ctx, sourceItemId, guard.source);
+  const proof = await assertSyntheticApprovedMemoryInTx(tx, ctx, sourceItemId, guard.source);
   if (candidateId === undefined) return;
   if (
     !/^[0-9]{1,10}$/u.test(guard.expectedCandidateRowVersion ?? '') ||
@@ -270,4 +295,10 @@ export async function assertSyntheticCorrectionInTx(
     FOR UPDATE
   `;
   if (rows.length !== 1) deny();
+  return {
+    ...proof,
+    syntheticFixtureRootItemId: sourceItemId,
+    syntheticFixtureCorrectionCandidateRowVersion: guard.expectedCandidateRowVersion!,
+    syntheticFixtureContentSha256: createHash('sha256').update(content).digest('hex'),
+  };
 }

@@ -1,3 +1,4 @@
+import { readCase01HydrationInputsInTx } from './case01-memory-hydration.mjs';
 import { sha256Stable as evidenceHash } from '../artifact-collector.mjs';
 import { sha256Stable, stableJson } from '../lib/stable.mjs';
 import { assertManifest } from './manifest.mjs';
@@ -303,51 +304,105 @@ export function createCase01MemoryFixtureRuntime({
       const current = await prisma.withTenantUser(tenant.id, proposer.userId, (tx) =>
         currentInTx(tx, proposer),
       );
-      seeded.receipt = receiptWithHash({
-        kind: 'meri-synthetic-fixture-seed-receipt',
-        scope: 'case01-canonical-memory',
-        status: 'complete',
-        fixtureInstanceId: manifest.fixtureInstanceId,
-        manifestContentSha256: manifest.contentSha256,
-        configurationSha256,
-        tenantId: tenant.id,
-        records: [
-          {
-            logicalId: 'MA1-v1',
-            physicalId: original.physicalId,
-            lifecycle: 'superseded',
-            evidence: current.correction,
-          },
-          {
-            logicalId: 'MA1-v2',
-            physicalId: corrected.memoryItemId,
-            lifecycle: 'approved',
-            evidence: current.correction,
-          },
-          {
-            logicalId: 'MA2',
-            physicalId: pendingRecord.physicalId,
-            lifecycle: 'pending',
-            evidence: current.proposed,
-          },
-          {
-            logicalId: 'MA3',
-            physicalId: revoked.physicalId,
-            lifecycle: 'revoked',
-            evidence: current.revoked,
-          },
-          {
-            logicalId: 'MB1',
-            physicalId: other.physicalId,
-            lifecycle: 'approved',
-            evidence: current.approved,
-          },
-        ],
-        liveAcceptance: 'NOT_RUN',
-      });
+      seeded.receipt = seedReceipt();
       return clone(seeded.receipt);
     } catch (error) {
       error.unknownCommit = true;
+      throw error;
+    }
+  }
+
+  // Version two is reconstructible from canonical identity and guarded preimage
+  // versions. Mutable current readback remains in currentVerify, never in a
+  // caller-provided checkpoint. Every receipt is exposed only after readback.
+  function seedReceipt() {
+    const identity = (binding) => ({
+      candidateId: binding.candidateId,
+      candidateRowVersion: binding.candidateRowVersion,
+      itemBeforeLifecycleRowVersion: binding.itemRowVersion,
+    });
+    return receiptWithHash({
+      kind: 'meri-synthetic-fixture-seed-receipt',
+      formatVersion: 2,
+      scope: 'case01-canonical-memory',
+      status: 'complete',
+      fixtureInstanceId: manifest.fixtureInstanceId,
+      manifestContentSha256: manifest.contentSha256,
+      configurationSha256,
+      tenantId: tenant.id,
+      proposerUserId: seeded.proposerId,
+      records: [
+        {
+          logicalId: 'MA1-v1',
+          physicalId: seeded.original.physicalId,
+          lifecycle: 'superseded',
+          evidence: identity(seeded.original),
+        },
+        {
+          logicalId: 'MA1-v2',
+          physicalId: seeded.correctedItemId,
+          lifecycle: 'approved',
+          evidence: {
+            candidateId: seeded.correctionCandidateId,
+            candidateBeforeApprovalRowVersion: seeded.correctionGuard.expectedCandidateRowVersion,
+            contentSha256: sha256Stable(content),
+          },
+        },
+        {
+          logicalId: 'MA2',
+          physicalId: pendingRecord.physicalId,
+          lifecycle: 'pending',
+          evidence: {
+            candidateBeforeWithdrawalRowVersion: seeded.pendingGuard.expectedRowVersion,
+            ownershipMarkerSha256: pendingRecord.ownership.markerSha256,
+          },
+        },
+        {
+          logicalId: 'MA3',
+          physicalId: seeded.revoked.physicalId,
+          lifecycle: 'revoked',
+          evidence: identity(seeded.revoked),
+        },
+        {
+          logicalId: 'MB1',
+          physicalId: seeded.bluehaven.physicalId,
+          lifecycle: 'approved',
+          evidence: identity(seeded.bluehaven),
+        },
+      ],
+      liveAcceptance: 'NOT_RUN',
+    });
+  }
+
+  async function hydrateInTx(tx, ctx, { lifecycle }) {
+    if (
+      operationStarted ||
+      seeded ||
+      !['current', 'retired'].includes(lifecycle) ||
+      ctx.tenantId !== tenant.id
+    )
+      fail('CASE01_HYDRATION_SCOPE_MISMATCH');
+    operationStarted = true;
+    try {
+      const proposerId = await proposerForTenant(tenant.id);
+      seeded = await readCase01HydrationInputsInTx(tx, {
+        tenantId: tenant.id,
+        definitions: defs,
+        pendingRecord,
+        proposerId,
+        content,
+        retired: lifecycle === 'retired',
+      });
+      retired = lifecycle === 'retired';
+      retirementStarted = retired;
+      seeded.receipt = seedReceipt();
+      if (retired) await retirementInTx(tx, ctx);
+      else await currentInTx(tx, ctx);
+      return clone(seeded.receipt);
+    } catch (error) {
+      // A failed reconstruction cannot be reused or promoted to readiness.
+      seeded = null;
+      retired = true;
       throw error;
     }
   }
@@ -427,6 +482,7 @@ export function createCase01MemoryFixtureRuntime({
   return Object.freeze({
     seed,
     retire,
+    hydrateInTx,
     readResetInTx: retirementInTx,
     async qualifyInTx(tx, ctx, { caseId, clientId }) {
       if (caseId !== '01' || clientId !== client.physicalId || ctx.tenantId !== tenant.id)

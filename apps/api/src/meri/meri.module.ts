@@ -86,6 +86,7 @@ import { MeriVNextLibraryController } from './meri-vnext-library.controller.js';
 import { MeriVNextLibraryService } from './meri-vnext-library.service.js';
 import { createMeriRuntimeService, RAW_MERI_SERVICE } from './meriv3-runtime.proxy.js';
 import { MeriOtelLifecycleProvider } from './meri-otel-lifecycle.provider.js';
+import { MeriCase01FixtureBootstrapProvider } from './meri-case01-fixture-bootstrap.provider.js';
 
 @Module({
   imports: [
@@ -262,6 +263,7 @@ import { MeriOtelLifecycleProvider } from './meri-otel-lifecycle.provider.js';
       ],
     },
     MeriOtelLifecycleProvider,
+    MeriCase01FixtureBootstrapProvider,
   ],
   exports: [MeriToolsService, MeriFeatureFlagsService],
 })

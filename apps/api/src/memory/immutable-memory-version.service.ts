@@ -21,6 +21,7 @@ import { payloadToSaveRequest } from './memory-candidate.service.js';
 import {
   assertSyntheticCorrectionInTx,
   type SyntheticMemoryCorrectionGuard,
+  type SyntheticCorrectionAudit,
 } from './synthetic-memory-version.helpers.js';
 import {
   classifyMemoryVersionActivation,
@@ -232,10 +233,11 @@ export class ImmutableMemoryVersionService {
       const candidate = await this.lockCandidate(tx, ctx.tenantId, candidateId);
       const payload = parsePayload(candidate.payload_jsonb);
       const kind = payload.versionProposal.kind;
+      let fixtureAudit: SyntheticCorrectionAudit | undefined;
       if (fixtureGuard) {
         if (kind !== 'correction')
           throw new ForbiddenException('Synthetic correction kind does not match');
-        await assertSyntheticCorrectionInTx(
+        fixtureAudit = await assertSyntheticCorrectionInTx(
           tx,
           ctx,
           payload.versionProposal.sourceItemId,
@@ -337,8 +339,9 @@ export class ImmutableMemoryVersionService {
         governedStatus: 'active',
         conflictStatus: 'none',
         conflictGroupId: null,
+        fixtureAudit,
       });
-      if (target) await this.supersedeOne(tx, ctx, target, created.id, candidateId);
+      if (target) await this.supersedeOne(tx, ctx, target, created.id, candidateId, fixtureAudit);
       await this.finishCandidate(tx, ctx, candidate, created.id, null, null);
       return {
         result: {
@@ -919,6 +922,7 @@ export class ImmutableMemoryVersionService {
       governedStatus: 'active' | 'conflicted';
       conflictStatus: 'none' | 'open';
       conflictGroupId: string | null;
+      fixtureAudit?: SyntheticCorrectionAudit;
     },
   ): Promise<ItemRow> {
     const text = textFromSections(input.sections);
@@ -999,6 +1003,7 @@ export class ImmutableMemoryVersionService {
         kind: input.kind,
         parentId: input.parentId,
         contradictsId: input.contradictsId,
+        ...input.fixtureAudit,
       },
     });
     return created;
@@ -1010,6 +1015,7 @@ export class ImmutableMemoryVersionService {
     target: ItemRow,
     replacementId: string,
     proposalId: string,
+    fixtureAudit?: SyntheticCorrectionAudit,
   ): Promise<void> {
     const changed = await tx.$executeRaw`
       UPDATE memory_items
@@ -1031,7 +1037,7 @@ export class ImmutableMemoryVersionService {
       sourceType: 'approved_document_edit',
       sourceId: replacementId,
       proposalId,
-      metadata: { supersededByItemId: replacementId },
+      metadata: { supersededByItemId: replacementId, ...fixtureAudit },
     });
     await this.cleanupOutbox.enqueue(tx, ctx.tenantId, {
       memoryItemId: target.id,
