@@ -1,0 +1,125 @@
+{
+  "kind": "original75-planner-and-terminal-evidence",
+  "files": [
+    {
+      "path": "oct02-case01-retrieval-plan/qualification.json",
+      "sha256": "92569355877fcc8d2d04c9f54c2bfec9e98fe634767d1b5df46609e5d80b22f1",
+      "bytes": 4828
+    },
+    {
+      "path": "oct02-case01-retrieval-plan/baseline-tests.exit.json",
+      "sha256": "c34bc644b4dfc96082e294ccb49ac40bdf34a3c659c956ffef43981ed30b2234",
+      "bytes": 23
+    },
+    {
+      "path": "oct02-case01-retrieval-plan/focused-tests-final.exit.json",
+      "sha256": "ea61d7736f0b7ecb9b35158f03de77013db6b100cf1d36c957e78e6c8817c5b6",
+      "bytes": 23
+    },
+    {
+      "path": "oct02-case01-retrieval-plan/api-typecheck.exit.json",
+      "sha256": "ea61d7736f0b7ecb9b35158f03de77013db6b100cf1d36c957e78e6c8817c5b6",
+      "bytes": 23
+    },
+    {
+      "path": "oct02-case01-retrieval-plan/offline.exit.json",
+      "sha256": "ea61d7736f0b7ecb9b35158f03de77013db6b100cf1d36c957e78e6c8817c5b6",
+      "bytes": 23
+    },
+    {
+      "path": "oct02-case01-retrieval-plan/offline-verifier.exit.json",
+      "sha256": "ea61d7736f0b7ecb9b35158f03de77013db6b100cf1d36c957e78e6c8817c5b6",
+      "bytes": 23
+    },
+    {
+      "path": "oct02-case01-retrieval-plan/meri-offline.summary.json",
+      "sha256": "6c43a23889271f385e1f0c6e73c77599effec1b4cc66f3bc7bbfba259724e9b1",
+      "bytes": 3929
+    },
+    {
+      "path": "oct02-case01-retrieval-plan/retrieval-plan-kimi-inline-review.md",
+      "sha256": "83457fa70024cd2b8d8a045f00325726ee3edf2740f41c0ffee58ff0d9105275",
+      "bytes": 3320
+    },
+    {
+      "path": "oct02-case01-retrieval-plan/retrieval-plan-kimi-inline-usage.json",
+      "sha256": "44869e58327ce2766cb4977c57c5036827f5e9745885ac6db0344c9786849740",
+      "bytes": 426
+    },
+    {
+      "path": "oct02-case01-planner-release/api-build-start.json",
+      "sha256": "e3f2ba6f0cd2b95d49b70410a1261bbf641c675c7604a48d59973491d4768090",
+      "bytes": 759
+    },
+    {
+      "path": "oct02-case01-planner-release/api-independent-20261002T182550369448Z.json",
+      "sha256": "b295032279ab85d80d6b312e0c9cc772ced5f86a9d47fb6ae9189faf9e015b2a",
+      "bytes": 2907
+    },
+    {
+      "path": "oct02-case01-planner-release/api.buildspec.yml",
+      "sha256": "307879955805ea5f94a1799a2385acf72d11be98113e91d1a6eb58b395f4f98f",
+      "bytes": 8668
+    },
+    {
+      "path": "oct02-case01-planner-release/reviewed-build-input.json",
+      "sha256": "2dcbbaa645c6f86542da6176b4782baf6429efc9426cbaf92f7020b98773c9d8",
+      "bytes": 750
+    },
+    {
+      "path": "oct02-case01-planner-release/recipe-syntax-qualification.json",
+      "sha256": "4c7a010ce053382d8f725bfaaa958831ac95ba5a091aab34cbe04f60dff0a11a",
+      "bytes": 332
+    },
+    {
+      "path": "oct02-case01-planner-release/forward451-independent-actual-readback.json",
+      "sha256": "6b9ec8214d804b872d9701842042357875315c5f09e7d5bb8370ed9ecd779c0d",
+      "bytes": 2702
+    },
+    {
+      "path": "oct02-terminal-budget-reconciliation/qualification.json",
+      "sha256": "9118662b648873ab746095e73d22f87a830475b4cf51a569ec9fefea3719a872",
+      "bytes": 2611
+    },
+    {
+      "path": "oct02-terminal-budget-reconciliation/closure-execution.json",
+      "sha256": "f21d61892033061574bf312c249986445aba2947aaaea17b5d30e74212707da4",
+      "bytes": 2425
+    },
+    {
+      "path": "oct02-terminal-budget-reconciliation/closure-independent-readback.json",
+      "sha256": "55a59ebc47a46db373cbb5012f70f3c8597114b52865e2139df94ec9842f4a75",
+      "bytes": 2031
+    },
+    {
+      "path": "oct02-terminal-budget-reconciliation/native-tests.exit.json",
+      "sha256": "1270b884fb2b431b65b1558c12911b5a58ee54f9fb66a35f25876003ae958fd9",
+      "bytes": 167
+    },
+    {
+      "path": "oct02-terminal-budget-reconciliation/merged-tests.exit.json",
+      "sha256": "420d0b86662fc0dc3d1e287aaca3ac7117756ff7ce8b6b72238d3f92e9a4a48b",
+      "bytes": 16
+    },
+    {
+      "path": "oct02-terminal-budget-reconciliation/terminal-kimi-review.md",
+      "sha256": "893149d7b44b82e4fd55e81f271fd988703f475942748639a37fd69a246b2136",
+      "bytes": 8023
+    },
+    {
+      "path": "oct02-memory-read-protocol/qualification.json",
+      "sha256": "01351cbfcef98f350c3eb4a2f31a544498b8be00c7249ddfa20042bea5fd37f5",
+      "bytes": 2077
+    },
+    {
+      "path": "oct02-memory-read-protocol/tests-exit.json",
+      "sha256": "ee90114d5fdd82356861e0747bac298720802f422bcdb31ba9e5b8ceba94dd94",
+      "bytes": 217
+    },
+    {
+      "path": "oct02-memory-read-protocol/memory-read-kimi-review.md",
+      "sha256": "f90769d33b1beb406d0095db4cc32373a285bd04d701277e8dfbb41276a5ce4c",
+      "bytes": 2023
+    }
+  ]
+}

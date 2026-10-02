@@ -1,0 +1,34 @@
+{
+  "kind": "meri-selected-client-planner-release-qualification",
+  "status": "QUALIFIED_IMAGE_NOT_PROMOTED",
+  "sourceSha": "324195f120df830efc9c7e9f557898304b5467dd",
+  "testedSourceSha": "e38f7202320939a8706a4b3964eedb7dd429ab1c",
+  "sourceBlobBridgeVerified": true,
+  "service": "api",
+  "imageDigest": "sha256:3a7a67105998d88c44a43fd2c1edb6f8b301ab1e95413ee5def37ec849bcc722",
+  "schemaChange": false,
+  "productionScope": "One ordinary client-subject planner; selected full name or unique authorized whole-word shorthand. No fixture-specific override, permission, tool, provider, model or routing policy changes.",
+  "tests": {
+    "finalFocusedPassed": 111,
+    "finalFocusedFailed": 0,
+    "apiTypesExit": 0,
+    "offlinePassed": 26,
+    "offlineFailed": 0,
+    "preFinalRestrictionBridge": {
+      "baseline": "new actual-planner assertion fails against unchanged production source at base6921; exact original prompt/native guard path",
+      "preFinalRestriction": "108 focused, full API typecheck, offline26/custom and Kimi use listed preFinalRestrictionHashes with uncommitted implementation, not unchanged base6921",
+      "final": "111 focused tests ran exact committed bytes; only subsequent production delta rejects multi-clause/also shortcut",
+      "reverseProductionDeltaMatchesPreReviewSha256": true,
+      "requiresNoProviderOrSharedDatabase": true
+    },
+    "compiledFinalImageSmoke": "PASS"
+  },
+  "review": "Independent Hermes/Bedrock Kimi PASS on pre-final restrictive guard; root reviewed full final change. Source hashes and exact scope in qualification.",
+  "database": "451 already applied and independently verified; image packages same451 hashes; all607 predecessor rows preserved. No new SQL or migration run.",
+  "rollingCompatibility": "No protocol/schema/config change. Current API507 and repaired planner image share the same ordinary client permission checks and provider/capture contracts. Orchestrator99 and WebVNext388 unchanged.",
+  "originalEval": "Original01 failed before provider/answer; attempt reconciled, full$3 unknown-cost reservation preserved. Retest NOT_RUN; full75 NOT_RUN.",
+  "sharedPolicySha": "743fd708c3484604e8a35ea1039adeca3b1e331f",
+  "machineMapRevision": "2026-09-30",
+  "previousQualifiedBaseSourceSha": "ddb55a5a3e6bbf1c3f567119b66e18e0a92e60ab",
+  "priorQualifiedChangesIncluded": "Relative to served API429, this candidate also packages prior reviewed hypothetical-assurance changes and already-applied migration451; their original qualifications remain in live-response-and-mail-repair. Only new runtime change beyond that qualified base is the client-subject planner."
+}

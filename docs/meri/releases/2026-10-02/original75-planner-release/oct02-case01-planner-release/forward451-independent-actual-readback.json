@@ -1,0 +1,59 @@
+{
+  "kind": "forward451-independent-actual-readback",
+  "status": "PASS",
+  "observedAt": "2026-10-02T17:32:17.550982+00:00",
+  "sourceSha": "ddb55a5a3e6bbf1c3f567119b66e18e0a92e60ab",
+  "operatorHead": "7a9f80710c4afa687e50869a4030da20f4a1bb1c",
+  "imageDigest": "sha256:0b81994627394b6c4558c11e996c7d787a70a5dd2ed92dca65ffff028ebeaf55",
+  "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/712140b5444d4263b58efbfd4786429d",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-forward451:1",
+  "containerExitCode": 0,
+  "taskDefinitionHash": "8bc0ec48a31997b33e5fb3233cf79889ac680c802e860485e58ff0db2d475dd3",
+  "actualInlineRunnerSha256": "3dc354e6e65fe549644339ba3ef1a8d921ccdc9852405f382efb35483d00d581",
+  "executionSha256": "d21fec65d492c15b4ddb1eceac98ae17099708c41da21fcedddbd7bcc396c3f9",
+  "planFileSha256": "1fee4075ac039f450c0ddd361e631012045def42266b56c1b4041eb4b889dd26",
+  "planHash": "80d70709a9ed3eb66ecd49dd6768363baa2bc2b678c2550a40735cd118be6e9e",
+  "ownerReceiptsMatchActualCloudWatch": true,
+  "receiptCount": 3,
+  "ledgerBefore": 607,
+  "ledgerAfter": 608,
+  "activeFinishedBefore": 507,
+  "activeFinishedAfter": 508,
+  "rolledBackUnchanged": 100,
+  "apiSourceMigrations": 451,
+  "all607PreviousRowsUnchanged": true,
+  "previous607LedgerSha256": "06cbe255e877d8087490ea6ec5c93380f249e2ce5972e3c80bf1c4d3e6a620d2",
+  "legacy606LedgerSha256": "e06c88cf3a42626966b1949c5c297ee71aa7e90ba413bfc153bd6b61afbe5766",
+  "newMigration": "20281006010000_mail_threads_owned_connection_covering",
+  "migrationSha256": "de0d73ca70787ceeb1d133aa539f2d291e6589bebb386210c7d4f3c8a7477915",
+  "manifestSha256": "e440f1780623ca7ca4fd32fbc2d98327472a84cbf7284652020ba395d693beac",
+  "index": {
+    "present": true,
+    "definitionSha256": "7097d64ec1650dfa8e004e89a1e2f6f267cb7924e869993bb44fb235e9716c9e",
+    "method": "btree",
+    "keyColumns": [
+      "tenant_id",
+      "connection_id",
+      "id"
+    ],
+    "includeColumns": [
+      "client_id"
+    ],
+    "unique": false,
+    "valid": true,
+    "ready": true,
+    "noPredicate": true,
+    "noExpression": true
+  },
+  "memoryChecksUnchanged": true,
+  "prismaExitCode": 0,
+  "tlsVerified": true,
+  "awsWrites": 0,
+  "databaseCallsByReviewer": 0,
+  "authCalls": 0,
+  "liveApplicationAcceptance": "NOT_RUN",
+  "limitations": [
+    "Actual database checks are executed by the pinned in-image runner, independently joined here to ECS exit, task definition, input overrides, digest and CloudWatch; this reviewer does not open another DB connection.",
+    "Meri original75 acceptance and mail performance observation remain separate."
+  ]
+}

@@ -1,0 +1,47 @@
+{
+  "status": "PASS",
+  "qualificationScope": "isolated eval collector source and UNIT tests only",
+  "sourceSha": "fbbb95bdfc94974a539cbc9d380d5ebd0e150354",
+  "testsPassed": 14,
+  "testsFailed": 0,
+  "testsSkipped": 0,
+  "sourceSha256": {
+    "evals/meri/live-v1/memory-read-protocol.mjs": "bedf8cc152bd92284a0dc9a71d8adb90ac75bb4297b57de5d7397ba70dd483c2",
+    "evals/meri/live-v1/memory-read-http.mjs": "2c6ccd2cb8e0ff882958ff02e598def969ce48ff50f03eb06b6cc74368a4342c",
+    "evals/meri/live-v1/tests/memory-read-protocol.test.mjs": "9a0e7f486befa10e61d7801c5778f1f9bd3e8b0e4413e6d723a79c389c563648",
+    "evals/meri/live-v1/MEMORY-READ-PROTOCOL.md": "425af698048bf0ef5cd39089cd6654c873d99589da0296d56a194b570396ec3d"
+  },
+  "review": {
+    "provider": "bedrock",
+    "model": "moonshotai.kimi-k2.5",
+    "sessionId": "20261002_181616_5ce406",
+    "processExit": 0,
+    "reportedExit": 0,
+    "toolCalls": 0,
+    "tokens": {
+      "input": 20415,
+      "output": 467,
+      "total": 20882,
+      "cache_read": 0,
+      "cache_write": 0
+    }
+  },
+  "artifacts": {
+    "tests.log": "fe9eb38d524b455213bcd4b1faf9ce01466488d6ec5e484fd87c47fb5fce478c",
+    "tests-exit.json": "ee90114d5fdd82356861e0747bac298720802f422bcdb31ba9e5b8ceba94dd94",
+    "memory-read-kimi-prompt.txt": "147b54132b2ffc5b1f616c9f4a527d5ab7f50ce4366ce9cc9428650106cc0e77",
+    "memory-read-kimi-review.md": "f90769d33b1beb406d0095db4cc32373a285bd04d701277e8dfbb41276a5ce4c",
+    "memory-read-kimi-exit.json": "8a43b72bcd8968a81dff0d7f38099157139ec5765658e5b96edc6d1af7a0ea16",
+    "memory-read-kimi-usage.json": "865377069ff27fc61904561b6da7cf30bd3c84dcbbe302f19418ab422168415e"
+  },
+  "liveAcceptance": "NOT_RUN",
+  "remainingExecutionDependency": "actual shared enforced budget-only owner adapter; current deployed source and fixture-owner readbacks; root session lifecycle",
+  "sideEffects": {
+    "sourceCommitOnly": true,
+    "awsWrites": 0,
+    "databaseCalls": 0,
+    "authCalls": 0,
+    "modelEvaluationTurns": 0,
+    "reviewerModelCalls": 1
+  }
+}

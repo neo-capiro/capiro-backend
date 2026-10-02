@@ -1,0 +1,9 @@
+{
+  "exitCode": 0,
+  "command": [
+    "node",
+    "--test",
+    "evals/meri/live-v1/tests/memory-read-protocol.test.mjs"
+  ],
+  "logSha256": "fe9eb38d524b455213bcd4b1faf9ce01466488d6ec5e484fd87c47fb5fce478c"
+}

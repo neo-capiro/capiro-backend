@@ -1,0 +1,113 @@
+{
+  "kind": "meri-selected-client-possessive-planner-qualification",
+  "version": 1,
+  "status": "PASS_SOURCE_CANDIDATE",
+  "observedAt": "2026-10-02T18:13:51.873184+00:00",
+  "sourceSha": "e38f7202320939a8706a4b3964eedb7dd429ab1c",
+  "baseSha": "6921bcbcd9a54cfaaac3a84bb842804e77ad2629",
+  "clean": true,
+  "files": {
+    "apps/api/src/meri/meri-context-plane.service.ts": "f0f2b82aff762e4f5a35fe27d787f355c3cab8576506b31d96681784c1bb76f9",
+    "apps/api/src/meri/meri-context-plane.service.spec.ts": "3aa7dc9b04f8e51677ec7e97403977fe0922a8d3a89d4850635a265d1b8677c7",
+    "apps/api/src/meri/meri-capture-api-provider-scope.spec.ts": "b649bca64ae3c3ba7316aae542bede3cae4af103558b9a36d5f02d04a4ed95b1"
+  },
+  "preFinalRestrictionHashes": {
+    "apps/api/src/meri/meri-context-plane.service.ts": "3029161cb4c6eb8d5d16b139bb93faf7ec326cd77c62a6c8649989565e33e7c4",
+    "apps/api/src/meri/meri-context-plane.service.spec.ts": "3a6f959ee2568cd230055b2a65040c0ad3e7299dd77eeb477a825cdb4bcc6f00",
+    "apps/api/src/meri/meri-capture-api-provider-scope.spec.ts": "b649bca64ae3c3ba7316aae542bede3cae4af103558b9a36d5f02d04a4ed95b1"
+  },
+  "productionDelta": "Ordinary possessive memory-attribute subject planning; current server-owned authorized client names disambiguate whole-word shorthand. Original prompt, strict capture guard, provider accounting and canonical client authorization unchanged. No original-row special case.",
+  "testSourceBridge": {
+    "baseline": "new actual-planner assertion fails against unchanged production source at base6921; exact original prompt/native guard path",
+    "preFinalRestriction": "108 focused, full API typecheck, offline26/custom and Kimi use listed preFinalRestrictionHashes with uncommitted implementation, not unchanged base6921",
+    "final": "111 focused tests ran exact committed bytes; only subsequent production delta rejects multi-clause/also shortcut",
+    "reverseProductionDeltaMatchesPreReviewSha256": true,
+    "requiresNoProviderOrSharedDatabase": true
+  },
+  "checks": [
+    {
+      "name": "baseline-tests",
+      "exitCode": 1,
+      "counts": {
+        "pass": 10,
+        "fail": 1
+      },
+      "logSha256": "8f24e3e08472a138dd33d00a2fbdc369a9e2b0563dfb60682d065c4f8ceeafe5"
+    },
+    {
+      "name": "focused-tests",
+      "exitCode": 0,
+      "counts": {
+        "pass": 108,
+        "fail": 0
+      },
+      "logSha256": "2e6f99803ac9524b305057cbb38679ee37a7c9d2067e23c1d376377650474b26"
+    },
+    {
+      "name": "focused-tests-final",
+      "exitCode": 0,
+      "counts": {
+        "pass": 111,
+        "fail": 0
+      },
+      "logSha256": "67d6ae8417e55034a45a5d2da9dca7a62e736382aa76d6d437c0824d96b2e93d"
+    },
+    {
+      "name": "api-typecheck",
+      "exitCode": 0,
+      "counts": null,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "offline",
+      "exitCode": 0,
+      "counts": {
+        "pass": 26,
+        "fail": 0
+      },
+      "logSha256": "92e21d305b60d142c19278a80c2a036f82dadf6a8a19de7f87c1f137e414ae22"
+    },
+    {
+      "name": "offline-verifier",
+      "exitCode": 0,
+      "counts": null,
+      "logSha256": "f3678daebd4bba1d905db4f77deef2a9bc0ce2e16bb5b0e25eb9c5dfcede4927"
+    }
+  ],
+  "review": {
+    "verdict": "PASS",
+    "requestedModel": "moonshotai.kimi-k2.5",
+    "initializedModel": "moonshotai.kimi-k2.5",
+    "sessionId": "20261002_180935_0d52ca",
+    "provider": "bedrock",
+    "reportedTokens": {
+      "input": 13464,
+      "output": 675,
+      "total": 14139,
+      "cache_read": 0,
+      "cache_write": 0
+    },
+    "reportedResultExit": 0,
+    "toolCalls": 0,
+    "billedCostUsd": null,
+    "costStatus": "not exposed by quiet stream output",
+    "actualProcessExit": 0,
+    "reportSha256": "83457fa70024cd2b8d8a045f00325726ee3edf2740f41c0ffee58ff0d9105275",
+    "scope": "Pre-final-restriction three-file diff/functions supplied inline; no reviewer test execution",
+    "adjudication": "No concrete blocking issue. Broad competitor wording in review applies to tested nested possessive/foreign/mixed exclusions, not a universal entity resolver. Final restrictive multi-clause delta sent root for peer review; raw review preserved."
+  },
+  "deployment": "NOT_RUN",
+  "originalCase01": "FAIL_CAPTURE_UNCERTAIN preserved; zero attempts positively read back by root, no retry/resend/claim reset by this lane",
+  "sideEffects": {
+    "applicationWrites": 0,
+    "providerCalls": 0,
+    "cloudWrites": 0,
+    "gitMainWrites": 0,
+    "hermesReviewCalls": 1
+  },
+  "policy": {
+    "localHead": "743fd708c3484604e8a35ea1039adeca3b1e331f",
+    "originHead": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+    "requiredPolicyFilesUnchanged": true
+  }
+}

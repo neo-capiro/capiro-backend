@@ -1,0 +1,4 @@
+{
+  "exitCode": 0,
+  "command": "node --test evals/meri/live-v1/tests/capture-spend-terminal.test.mjs evals/meri/live-v1/tests/capture-spend-aggregate.test.mjs"
+}

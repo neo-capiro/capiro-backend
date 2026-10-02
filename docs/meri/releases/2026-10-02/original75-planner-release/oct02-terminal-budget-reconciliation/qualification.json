@@ -1,0 +1,43 @@
+{
+  "kind": "original01-terminal-uncertain-closure-qualification",
+  "observedAt": "2026-10-02T18:17:05.678082+00:00",
+  "verdict": "PASS_PREPARED_NOT_EXECUTED",
+  "sourceSha": "9bfb0763172154f21e7eede50c993c7991d12fb9",
+  "worktree": "C:\\dev\\cap-meri-mail-deadline",
+  "tests": {
+    "command": "node --test evals/meri/live-v1/tests/capture-spend-terminal.test.mjs evals/meri/live-v1/tests/capture-spend-aggregate.test.mjs",
+    "actualExitCode": 0,
+    "passed": 99,
+    "failed": 0,
+    "skipped": 0,
+    "includesImportedExistingSuites": true,
+    "newNamedTests": 7,
+    "nativeWrites": "Only random disposable local test roots, never original ledger"
+  },
+  "review": {
+    "provider": "bedrock",
+    "model": "moonshotai.kimi-k2.5",
+    "actualExitCode": 0,
+    "sessionId": "20261002_181414_95e9ea",
+    "toolCalls": 0,
+    "verdict": "PASS",
+    "adjudication": "Final review incorrectly names429 as rootCLI required commit.429 is deployed API evidence source; CLI actually requires supplied exact clean closure commit9bfb. This clerical claim does not change code. Source review is not live execution proof."
+  },
+  "artifactSha256": {
+    "native-tests.log": "996b915bf914b946c1a8b8eea2839f644aa285c99cf9e79ad78705f952bb590d",
+    "native-tests.exit.json": "1270b884fb2b431b65b1558c12911b5a58ee54f9fb66a35f25876003ae958fd9",
+    "terminal-kimi-review.md": "893149d7b44b82e4fd55e81f271fd988703f475942748639a37fd69a246b2136",
+    "terminal-kimi-exit.json": "0e5bb4fa2cec3d6c132d8cffb00e1a88b39391c02b8758836dea888635e9ce23",
+    "terminal-kimi-usage.json": "010ca7494debef205456a08b2be2774a7b5634a5a5d6dc5b1a96c19a1f1f8788",
+    "terminal-kimi-source-hashes.json": "f90650d4459764838f63f25562755f5a2bc69f7b727e77a2909bf4caa3d93f01",
+    "close-original01-terminal.mjs": "3635aaaf01a2e20bb774e51f14e59c5db99322c4ea07bd26b5f7009e50fe8a96"
+  },
+  "rootCommand": "& 'C:\\Program Files\\nodejs\\node.exe' C:\\dev\\cap-meri-foundation-evidence\\oct02-terminal-budget-reconciliation\\close-original01-terminal.mjs --close-original01-terminal-uncertain-once 9bfb0763172154f21e7eede50c993c7991d12fb9",
+  "outputCheckpoint": "C:/dev/cap-meri-foundation-evidence/oct02-original-aggregate-operator-v6/case01-terminal-closed-checkpoint.json",
+  "effect": "One append-only terminal unknown event; full3000000 ceiling remains consumed, known billed cost staysUNKNOWN; oldrun cannotreserve/settle/close again; no new submission",
+  "originalLedgerTouched": false,
+  "authCalls": 0,
+  "awsCalls": 0,
+  "providerCallsByImplementation": 0,
+  "reviewModelCallSeparate": true
+}

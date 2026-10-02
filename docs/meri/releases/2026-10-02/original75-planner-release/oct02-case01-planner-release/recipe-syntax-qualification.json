@@ -1,0 +1,7 @@
+{
+  "kind": "api-recipe-js-syntax-qualification",
+  "nodeCheckExit": 0,
+  "runtimeSmokeExecuted": false,
+  "buildspecSha256": "307879955805ea5f94a1799a2385acf72d11be98113e91d1a6eb58b395f4f98f",
+  "yamlParser": "NOT_RUN_LOCAL_MODULE_UNAVAILABLE; unchanged literal block context plus one fixed command verified by source diff"
+}
