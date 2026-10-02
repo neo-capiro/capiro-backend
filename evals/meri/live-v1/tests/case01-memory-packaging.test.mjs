@@ -42,6 +42,8 @@ it('imports and verifies frozen assets using only the exact API Dockerfile fixtu
       ).href
     );
     assert.equal(typeof setup.executeCase01ExecutionSetup, 'function');
+    assert.equal(typeof setup.inspectCase01FirstApprovalContinuation, 'function');
+    assert.equal(typeof setup.executeCase01FirstApprovalContinuation, 'function');
     const controlled = await import(pathToFileURL(join(isolated,
       'evals/meri/live-v1/fixture-provisioning/controlled-read-owner.mjs')).href);
     assert.equal(typeof controlled.qualifyControlledReadInTx, 'function');

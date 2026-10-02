@@ -1,15 +1,15 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { readFile } from 'node:fs/promises';
+import { readFile, mkdtemp, rm } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { createRequire, Module } from 'node:module';
-import { fileURLToPath } from 'node:url';
-import { resolve } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { resolve, join, dirname } from 'node:path';
 import { memoryFixtureSchemaSql } from './approved-memory-schema.mjs';
 import { buildFixtureManifest } from '../fixture-provisioning/manifest.mjs';
 import { lifecycleSeedMemoryDefinitions } from '../fixture-provisioning/approved-memory-runtime.mjs';
 import { createMemoryCandidateOwnerPort } from '../fixture-provisioning/memory-candidate-owner.mjs';
-import { inspectCase01FirstApprovalRecovery, executeCase01FirstApprovalRecovery, safeCase01SetupFailure } from '../fixture-provisioning/case01-execution-setup.mjs';
+import { inspectCase01FirstApprovalRecovery, executeCase01FirstApprovalRecovery, inspectCase01FirstApprovalContinuation, executeCase01FirstApprovalContinuation, safeCase01SetupFailure } from '../fixture-provisioning/case01-execution-setup.mjs';
 import { sha256Stable } from '../artifact-collector.mjs';
 import { AUTHORIZED_TENANTS, FIXTURE_NAMESPACE } from '../fixture-provisioning/contract.mjs';
 
@@ -128,6 +128,51 @@ test('actual factory and Prisma transactions serialize recovery claims, preserve
       assert.deepEqual(counts, { pending: 1, legacy: 0, items: 0, outbox: 0 });
       assert.equal(projectionCalls, 0);
       assert.equal(Object.hasOwn(factory.deps.prisma, 'withTenantUser'), false, 'Actual Prisma method is not replaced');
+      // Preserve the real failed recovery, then race two continuations through
+      // actual independent Prisma transactions. Only one can claim/approve.
+      const recovery = actual.meriFoundationFixture.case01ExecutionSetupRecovery;
+      const continuationExpected = { ...expected, recoveryClaimSha256: sha256Stable(recovery) };
+      const continuationPlan = await run(() => inspectCase01FirstApprovalContinuation(factory.deps, input, continuationExpected));
+      // Execute the actual fixed CLI and actual dependency factory on the owned
+      // cluster. Only its dist→source loader mapping above is used; no CLI or
+      // canonical operation is replaced. continue-plan must perform no writes.
+      const outputRoot = resolve(process.env.MERI_TEST_EVIDENCE_ROOT || process.cwd());
+      const directory = await mkdtemp(join(outputRoot, '.meri-continuation-cli-'));
+      const outputPath = join(directory, 'plan.jsonl');
+      const oldCli = { argv: process.argv, exitCode: process.exitCode, input: process.env.MERI_CASE01_SETUP_INPUT,
+        stdout: process.stdout.write, stderr: process.stderr.write };
+      let cliText = '';
+      try {
+        process.argv = [process.execPath, resolve(api, 'scripts/meri-case01-setup.mjs'), 'continue-plan', '--input-env', 'MERI_CASE01_SETUP_INPUT', '--out', outputPath];
+        process.env.MERI_CASE01_SETUP_INPUT = JSON.stringify({ recipe: input, expected: continuationExpected });
+        process.exitCode = undefined;
+        process.stdout.write = text => { cliText += String(text); return true; };
+        process.stderr.write = () => true;
+        await import(pathToFileURL(resolve(api, 'scripts/meri-case01-setup.mjs')).href + '?owned-plan=' + randomUUID());
+        assert.equal(process.exitCode || 0, 0);
+        assert.deepEqual(JSON.parse((await readFile(outputPath, 'utf8')).trim()), continuationPlan);
+        assert.ok(cliText.includes('MERI_CASE01_SETUP_RECEIPT '));
+      } finally {
+        process.argv = oldCli.argv;process.exitCode = oldCli.exitCode;process.stdout.write = oldCli.stdout;process.stderr.write = oldCli.stderr;
+        oldCli.input === undefined ? delete process.env.MERI_CASE01_SETUP_INPUT : process.env.MERI_CASE01_SETUP_INPUT = oldCli.input;
+        assert.equal(dirname(directory), outputRoot);await rm(directory, { recursive: true });
+      }
+      const continuationJournals = [[], []];
+      const continuations = await Promise.allSettled(continuationJournals.map(journal => run(() =>
+        executeCase01FirstApprovalContinuation(factory.deps, input, continuationExpected,
+          { expectedPlanSha256: continuationPlan.planSha256, createConversation: factory.createConversation,
+            journal: async entry => journal.push(entry) }))));
+      assert.ok(continuations.every(result => result.status === 'rejected'));
+      assert.equal(continuationJournals.flat().filter(row => row.stage === 'FIRST_CANONICAL_APPROVAL' && row.phase === 'INTENT').length, 1);
+      const continuationFailure = continuationJournals.flat().find(row => row.phase === 'RECONCILIATION_REQUIRED');
+      assert.equal(continuationFailure.failure.sqlState, '42501');
+      const retained = (await db.query('SELECT settings_jsonb AS s FROM tenants WHERE id=$1', [ctx.tenantId])).rows[0].s;
+      assert.deepEqual(retained.meriFoundationFixture.case01ExecutionSetup, original);
+      assert.deepEqual(retained.meriFoundationFixture.case01ExecutionSetupRecovery, recovery);
+      assert.equal(retained.meriFoundationFixture.case01ExecutionSetupContinuation.status, 'STARTED');
+      assert.deepEqual((await db.query("SELECT (SELECT count(*)::int FROM memory_candidate WHERE status='pending') AS pending,(SELECT count(*)::int FROM clio_memory) AS legacy,(SELECT count(*)::int FROM memory_items) AS items,(SELECT count(*)::int FROM memory_cleanup_outbox) AS outbox")).rows[0], counts);
+      await assert.rejects(run(() => inspectCase01FirstApprovalContinuation(factory.deps, input, continuationExpected)), /DOWNSTREAM_OWNER/);
+      assert.equal(projectionCalls, 0);
     } finally {
       await factory?.close();
       Module._resolveFilename = oldResolve;

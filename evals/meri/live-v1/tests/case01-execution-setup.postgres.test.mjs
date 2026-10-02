@@ -16,6 +16,8 @@ import {
   executeCase01ExecutionSetup,
   inspectCase01FirstApprovalRecovery,
   executeCase01FirstApprovalRecovery,
+  inspectCase01FirstApprovalContinuation,
+  executeCase01FirstApprovalContinuation,
   safeCase01SetupFailure,
 } from '../fixture-provisioning/case01-execution-setup.mjs';
 import { buildFixtureManifest } from '../fixture-provisioning/manifest.mjs';
@@ -129,6 +131,85 @@ async function preparePendingRecovery(h) {
   };
   return { ...prepared, first, original, expected, run };
 }
+
+async function preparePendingContinuation(h) {
+  const p = await preparePendingRecovery(h);
+  const plan = await p.run(() => inspectCase01FirstApprovalRecovery(p.actual, p.input, p.expected));
+  const owner = Object.create(p.actual.memoryCandidates);
+  owner.approveSyntheticFixture = async () => { throw new Error('Owned failed first approval'); };
+  await assert.rejects(p.run(() => executeCase01FirstApprovalRecovery({ ...p.actual, memoryCandidates: owner }, p.input, p.expected,
+    { expectedPlanSha256: plan.planSha256, createConversation: p.createConversation, journal: async () => {} })), /Owned failed/);
+  const settings = (await h.tx.$queryRawUnsafe('SELECT settings_jsonb AS s FROM tenants WHERE id=$1::uuid', TENANT))[0].s;
+  const recovery = settings.meriFoundationFixture.case01ExecutionSetupRecovery;
+  return { ...p, recovery, expected: { ...p.expected, recoveryClaimSha256: sha256Stable(recovery) } };
+}
+
+it('exact pending continuation completes canonical lifecycle and preserves both STARTED historical claims',
+  { skip: !config }, async () => withOwnedApprovedMemory(config, async h => {
+    const p = await preparePendingContinuation(h), journal = [];
+    const plan = await p.run(() => inspectCase01FirstApprovalContinuation(p.actual, p.input, p.expected));
+    assert.equal(plan.kind, 'meri-case01-first-approval-continuation-plan');
+    assert.equal(plan.recoveryClaimSha256, sha256Stable(p.recovery));
+    const result = await p.run(() => executeCase01FirstApprovalContinuation(p.actual, p.input, p.expected,
+      { expectedPlanSha256: plan.planSha256, createConversation: p.createConversation, journal: async row => journal.push(row) }));
+    assert.equal(result.status, 'SETUP_COMPLETE');assert.equal(result.synthesisSubmissionCount, 0);
+    const settings = (await h.tx.$queryRawUnsafe('SELECT settings_jsonb AS s FROM tenants WHERE id=$1::uuid', TENANT))[0].s;
+    assert.deepEqual(settings.meriFoundationFixture.case01ExecutionSetup, p.original);
+    assert.deepEqual(settings.meriFoundationFixture.case01ExecutionSetupRecovery, p.recovery);
+    assert.equal(settings.meriFoundationFixture.case01ExecutionSetupContinuation.status, 'SETUP_COMPLETE');
+    assert.equal(journal.filter(row => row.stage === 'FIRST_CANONICAL_APPROVAL' && row.phase === 'INTENT').length, 1);
+    assert.equal(journal.filter(row => row.stage === 'FIRST_CANONICAL_APPROVAL' && row.phase === 'VERIFIED').length, 1);
+    await assert.rejects(p.run(() => inspectCase01FirstApprovalContinuation(p.actual, p.input, p.expected)), /DOWNSTREAM_OWNER/);
+    await assert.rejects(p.run(() => executeCase01FirstApprovalContinuation(p.actual, p.input, p.expected,
+      { expectedPlanSha256: plan.planSha256, createConversation: p.createConversation, journal: async () => {} })), /DOWNSTREAM_OWNER/);
+  }));
+
+it('continuation refuses altered claims, stale plan, unauthorized reviewer and any downstream or candidate drift before admission',
+  { skip: !config }, async () => withOwnedApprovedMemory(config, async h => {
+    const p = await preparePendingContinuation(h);
+    const inspect = () => p.run(() => inspectCase01FirstApprovalContinuation(p.actual, p.input, p.expected));
+    const plan = await inspect();
+    await assert.rejects(p.run(() => inspectCase01FirstApprovalContinuation(p.actual, p.input,
+      { ...p.expected, recoveryClaimSha256: '0'.repeat(64) })), /RECOVERY_CLAIM_CHANGED/);
+    await assert.rejects(p.run(() => inspectCase01FirstApprovalContinuation(p.actual, p.input,
+      { ...p.expected, candidateRowVersion: '0' })), /RECOVERY_CLAIM_CHANGED|NOT_FIRST_APPROVAL/);
+    await assert.rejects(p.run(() => executeCase01FirstApprovalContinuation(p.actual, p.input, p.expected,
+      { expectedPlanSha256: '0'.repeat(64), createConversation: p.createConversation, journal: async () => {} })), /CONTINUATION_STALE_PLAN/);
+    for (const sql of [
+      "UPDATE memory_candidate SET payload_jsonb=jsonb_set(payload_jsonb,'{value}','\"changed\"')",
+      "UPDATE tenants SET settings_jsonb=jsonb_set(settings_jsonb,'{meriFoundationFixture,case01ExecutionSetup,status}','\"CHANGED\"')",
+      "UPDATE tenants SET settings_jsonb=jsonb_set(settings_jsonb,'{meriFoundationFixture,case01ExecutionSetupRecovery,status}','\"SETUP_COMPLETE\"')",
+      "UPDATE tenants SET settings_jsonb=jsonb_set(settings_jsonb,'{meriFoundationFixture,case01ExecutionSetupRecovery,extra}','true')",
+      "UPDATE tenants SET settings_jsonb=jsonb_set(settings_jsonb,'{meriFoundationFixture,case01ExecutionSetupContinuation}','{}')",
+      "UPDATE tenants SET settings_jsonb=jsonb_set(settings_jsonb,'{meriFoundationFixture,captureEvidence}','{}')",
+      "UPDATE tenants SET settings_jsonb=jsonb_set(settings_jsonb,'{meriFoundationFixture,case01MemoryOwner}','{}')",
+      `UPDATE tenant_memberships SET role='standard_user' WHERE user_id='${REVIEWER}'`,
+      `INSERT INTO clio_conversations(id,tenant_id,title) VALUES('${randomUUID()}','${TENANT}','${FIXTURE_NAMESPACE} case01 ${p.input.captureRunId}')`,
+    ]) {
+      await h.tx.$executeRawUnsafe('SAVEPOINT continuation_fault');await h.tx.$executeRawUnsafe(sql);
+      await assert.rejects(inspect());
+      await h.tx.$executeRawUnsafe('ROLLBACK TO SAVEPOINT continuation_fault');await h.tx.$executeRawUnsafe('RELEASE SAVEPOINT continuation_fault');
+    }
+    assert.equal((await inspect()).planSha256, plan.planSha256);
+    const counts = (await h.tx.$queryRawUnsafe('SELECT (SELECT count(*)::int FROM memory_candidate) AS candidates,(SELECT count(*)::int FROM memory_items) AS items'))[0];
+    assert.deepEqual(counts, { candidates: 1, items: 0 });
+  }));
+
+it('continuation final CAS refuses changes to either historical claim and never reports completion',
+  { skip: !config }, async () => withOwnedApprovedMemory(config, async h => {
+    const p = await preparePendingContinuation(h), journal = [];
+    const plan = await p.run(() => inspectCase01FirstApprovalContinuation(p.actual, p.input, p.expected));
+    await assert.rejects(p.run(() => executeCase01FirstApprovalContinuation(p.actual, p.input, p.expected,
+      { expectedPlanSha256: plan.planSha256, createConversation: p.createConversation, journal: async row => {
+        journal.push(row);
+        if (row.stage === 'READBACK' && row.phase === 'VERIFIED')
+          await h.tx.$executeRawUnsafe("UPDATE tenants SET settings_jsonb=jsonb_set(settings_jsonb,'{meriFoundationFixture,case01ExecutionSetupRecovery,status}','\"externally changed\"') WHERE id=$1::uuid", TENANT);
+      } })), /FINAL_CLAIM_CHANGED/);
+    assert.equal(journal.filter(row => row.stage === 'COMPLETE').length, 0);
+    const settings = (await h.tx.$queryRawUnsafe('SELECT settings_jsonb AS s FROM tenants WHERE id=$1::uuid', TENANT))[0].s;
+    assert.deepEqual(settings.meriFoundationFixture.case01ExecutionSetup, p.original);
+    assert.equal(settings.meriFoundationFixture.case01ExecutionSetupContinuation.status, 'STARTED');
+  }));
 
 it('one-shot pending recovery reuses the exact candidate and keeps the original failed claim immutable',
   { skip: !config }, async () => withOwnedApprovedMemory(config, async h => {

@@ -7,6 +7,8 @@ import {
   executeCase01ExecutionSetup,
   inspectCase01FirstApprovalRecovery,
   executeCase01FirstApprovalRecovery,
+  inspectCase01FirstApprovalContinuation,
+  executeCase01FirstApprovalContinuation,
   safeCase01SetupFailure,
 } from '../../../evals/meri/live-v1/fixture-provisioning/case01-execution-setup.mjs';
 
@@ -17,7 +19,7 @@ const fail = () => {
 };
 try {
   if (
-    !['plan', 'execute', 'recover-plan', 'recover-execute'].includes(command) ||
+    !['plan', 'execute', 'recover-plan', 'recover-execute', 'continue-plan', 'continue-execute'].includes(command) ||
     process.argv.length !== 7 ||
     outFlag !== '--out' ||
     !isAbsolute(outputPath)
@@ -39,11 +41,14 @@ try {
     // The factory verifies the current synthetic actor before binding both real
     // tenant ALS scopes; the wrapper repeats locked preflight before its claim.
     const operatorContext = { ...input.recipe.ctx, clerkUserId: input.recipe.clerkUserId };
+    const pendingPlan = command === 'continue-plan' ? inspectCase01FirstApprovalContinuation : inspectCase01FirstApprovalRecovery;
+    const execute = command === 'continue-execute' ? executeCase01FirstApprovalContinuation
+      : command === 'recover-execute' ? executeCase01FirstApprovalRecovery : executeCase01ExecutionSetup;
     await factory.runWithTenant(operatorContext, () =>
-      command === 'recover-plan'
-        ? inspectCase01FirstApprovalRecovery(factory.deps, input.recipe, input.expected).then(journal)
-        : (command === 'recover-execute' ? executeCase01FirstApprovalRecovery : executeCase01ExecutionSetup)(factory.deps, input.recipe,
-          ...(command === 'recover-execute' ? [input.expected] : []), {
+      command.endsWith('-plan')
+        ? pendingPlan(factory.deps, input.recipe, input.expected).then(journal)
+        : execute(factory.deps, input.recipe,
+          ...(command !== 'execute' ? [input.expected] : []), {
         expectedPlanSha256: input.expectedPlanSha256,
         createConversation: (ctx, args) =>
           factory.createConversation({ ...ctx, clerkUserId: input.recipe.clerkUserId }, args),
