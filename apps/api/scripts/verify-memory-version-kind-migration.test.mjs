@@ -82,7 +82,7 @@ async function withOwnedSchema(work) {
     connectionTimeoutMillis: 3000,
   });
   const schema = `meri_kind_${randomUUID().replaceAll('-', '')}`;
-  let begun = false;
+  let created = false;
   try {
     await db.connect();
     const actual = (
@@ -98,11 +98,10 @@ async function withOwnedSchema(work) {
       actual.directory.replaceAll('\\', '/'),
       config.dataDirectory.replaceAll('\\', '/'),
     );
-    await db.query('BEGIN');
-    begun = true;
     await db.query(`CREATE SCHEMA ${schema}`);
-    await db.query(`SET LOCAL search_path TO ${schema}`);
-    await db.query("SET LOCAL lock_timeout='2s'; SET LOCAL statement_timeout='10s'");
+    created = true;
+    await db.query(`SET search_path TO ${schema}`);
+    await db.query("SET lock_timeout='2s'; SET statement_timeout='10s'");
     await db.query(`CREATE TABLE memory_candidate(
       id uuid PRIMARY KEY, tenant_id uuid NOT NULL, source_kind varchar(24) NOT NULL,
       payload_jsonb jsonb NOT NULL, status varchar(16) NOT NULL DEFAULT 'pending',
@@ -114,20 +113,39 @@ async function withOwnedSchema(work) {
     const sql = await historicalSql();
     for (const part of [sql.initial, sql.settings, sql.kindSql, sql.payloadSql, sql.activationSql])
       await db.query(part);
-    const result = await work(db, schema);
-    await db.query('ROLLBACK');
-    begun = false;
-    assert.equal(
-      Number(
-        (await db.query('SELECT count(*) AS n FROM pg_namespace WHERE nspname=$1', [schema]))
-          .rows[0].n,
-      ),
-      0,
+    return await work(
+      db,
+      schema,
+      () =>
+        new Client({
+          host: config.host,
+          port: config.port,
+          user: config.user,
+          password: config.password,
+          database: config.database,
+          connectionTimeoutMillis: 3000,
+        }),
     );
-    return result;
   } finally {
-    if (begun) await db.query('ROLLBACK');
-    await db.end();
+    try {
+      if (created) {
+        // Production migration owns its BEGIN/COMMIT. Cleanup therefore uses
+        // the verified random namespace, never an enclosing test transaction.
+        await db.query('ROLLBACK');
+        await db.query('SET search_path TO pg_catalog');
+        assert.match(schema, /^meri_kind_[a-f0-9]{32}$/u);
+        await db.query(`DROP SCHEMA ${schema} CASCADE`);
+        assert.equal(
+          Number(
+            (await db.query('SELECT count(*) AS n FROM pg_namespace WHERE nspname=$1', [schema]))
+              .rows[0].n,
+          ),
+          0,
+        );
+      }
+    } finally {
+      await db.end();
+    }
   }
 }
 
@@ -141,7 +159,7 @@ async function insert(db, kind, value = {}) {
 }
 
 async function rejected(db, operation, code, constraint) {
-  await db.query('SAVEPOINT expected_rejection');
+  await db.query('BEGIN');
   try {
     await assert.rejects(operation, (error) => {
       assert.equal(error.code, code);
@@ -149,20 +167,27 @@ async function rejected(db, operation, code, constraint) {
       return true;
     });
   } finally {
-    await db.query('ROLLBACK TO SAVEPOINT expected_rejection');
-    await db.query('RELEASE SAVEPOINT expected_rejection');
+    await db.query('ROLLBACK');
   }
 }
 
-test('repair SQL remains a single atomic ALTER and LF-exact', async () => {
+test('repair SQL bounds its transaction around one atomic ALTER and remains LF-exact', async () => {
   const bytes = await readFile(repairPath);
   assert.equal(bytes.includes(13), false);
   const sql = bytes
     .toString('utf8')
     .replace(/^--.*$/gmu, '')
     .trim();
-  assert.equal(sql.split(';').filter((part) => part.trim()).length, 1);
-  assert.match(sql, /^ALTER TABLE "memory_candidate"/u);
+  const statements = sql
+    .split(';')
+    .map((part) => part.trim())
+    .filter(Boolean);
+  assert.equal(statements.length, 5);
+  assert.equal(statements[0], 'BEGIN');
+  assert.equal(statements[1], "SET LOCAL lock_timeout = '5s'");
+  assert.equal(statements[2], "SET LOCAL statement_timeout = '30s'");
+  assert.match(statements[3], /^ALTER TABLE "memory_candidate"/u);
+  assert.equal(statements[4], 'COMMIT');
   assert.equal((sql.match(/DROP CONSTRAINT/gu) ?? []).length, 2);
   assert.equal((sql.match(/ADD CONSTRAINT/gu) ?? []).length, 2);
 });
@@ -186,13 +211,12 @@ test(
       await t.test(
         'the historical payload guard alone accepts missing versionProposal as UNKNOWN',
         async () => {
-          await db.query('SAVEPOINT demonstrate_null');
+          await db.query('BEGIN');
           await db.query(
             'ALTER TABLE memory_candidate DROP CONSTRAINT memory_candidate_source_kind_chk',
           );
           await insert(db, 'memory_correction', {});
-          await db.query('ROLLBACK TO SAVEPOINT demonstrate_null');
-          await db.query('RELEASE SAVEPOINT demonstrate_null');
+          await db.query('ROLLBACK');
         },
       );
       const unchanged = async () =>
@@ -201,7 +225,18 @@ test(
       WHERE tgrelid='memory_candidate'::regclass AND NOT tgisinternal ORDER BY tgname`)
         ).rows;
       const triggers = await unchanged();
+      const limits = await db.query(
+        "SELECT current_setting('lock_timeout') AS lock,current_setting('statement_timeout') AS statement",
+      );
       await db.query(await readFile(repairPath, 'utf8'));
+      assert.deepEqual(
+        (
+          await db.query(
+            "SELECT current_setting('lock_timeout') AS lock,current_setting('statement_timeout') AS statement",
+          )
+        ).rows,
+        limits.rows,
+      );
       assert.deepEqual(await unchanged(), triggers);
       assert.equal(
         Number((await db.query('SELECT count(*) AS n FROM memory_candidate')).rows[0].n),
@@ -235,12 +270,12 @@ test(
             kind === 'contradiction' ? sourceId : null,
             conflict,
           ]);
-          await db.query("SELECT set_config('app.memory_version_activation','on',true)");
+          await db.query("BEGIN; SELECT set_config('app.memory_version_activation','on',true)");
           await db.query(
             "UPDATE memory_candidate SET status='approved',committed_memory_item_id=$2 WHERE id=$1",
             [id, committed],
           );
-          await db.query("SELECT set_config('app.memory_version_activation','off',true)");
+          await db.query('COMMIT');
           const row = (
             await db.query(
               'SELECT source_kind,status,conflict_status FROM memory_candidate WHERE id=$1',
@@ -296,17 +331,17 @@ test(
           randomUUID(),
           sourceId,
         ]);
-        await db.query("SELECT set_config('app.memory_version_activation','on',true)");
         await rejected(
           db,
-          () =>
-            db.query(
+          async () => {
+            await db.query("SELECT set_config('app.memory_version_activation','on',true)");
+            return db.query(
               "UPDATE memory_candidate SET status='approved',committed_memory_item_id=$2 WHERE id=$1",
               [id, committed],
-            ),
+            );
+          },
           '55000',
         );
-        await db.query("SELECT set_config('app.memory_version_activation','off',true)");
       });
       assert.match(schema, /^meri_kind_[a-f0-9]{32}$/u);
     }),
@@ -322,11 +357,14 @@ test(
           "SELECT pg_get_constraintdef(oid) AS definition FROM pg_constraint WHERE conrelid='memory_candidate'::regclass AND conname='memory_candidate_source_kind_chk'",
         )
       ).rows[0];
-      await db.query('SAVEPOINT missing_guard');
       await db.query(
         'ALTER TABLE memory_candidate DROP CONSTRAINT memory_candidate_version_payload_check',
       );
-      await rejected(db, async () => db.query(await readFile(repairPath, 'utf8')), '42704');
+      try {
+        await assert.rejects(db.query(await readFile(repairPath, 'utf8')), { code: '42704' });
+      } finally {
+        await db.query('ROLLBACK');
+      }
       assert.deepEqual(
         (
           await db.query(
@@ -335,9 +373,54 @@ test(
         ).rows[0],
         before,
       );
-      await db.query('ROLLBACK TO SAVEPOINT missing_guard');
-      await db.query('RELEASE SAVEPOINT missing_guard');
+      await db.query((await historicalSql()).payloadSql);
       await db.query(await readFile(repairPath, 'utf8'));
       for (const kind of versionKinds) await insert(db, `memory_${kind}`, payload(kind));
+    }),
+);
+
+test(
+  'production transaction cancels table-lock acquisition at five seconds without partial change or leaked limits',
+  { skip: !configPath, timeout: 15_000 },
+  async () =>
+    withOwnedSchema(async (db, schema, peer) => {
+      const holder = peer();
+      try {
+        await holder.connect();
+        await holder.query('BEGIN');
+        await holder.query(`LOCK TABLE ${schema}.memory_candidate IN ACCESS SHARE MODE`);
+        const before = (
+          await db.query(
+            "SELECT conname,pg_get_constraintdef(oid) AS definition FROM pg_constraint WHERE conrelid='memory_candidate'::regclass ORDER BY conname",
+          )
+        ).rows;
+        const started = performance.now();
+        try {
+          await assert.rejects(db.query(await readFile(repairPath, 'utf8')), { code: '55P03' });
+        } finally {
+          await db.query('ROLLBACK');
+        }
+        const elapsed = performance.now() - started;
+        assert.ok(elapsed >= 4_800 && elapsed < 8_000, `bounded lock timeout: ${elapsed}`);
+        assert.deepEqual(
+          (
+            await db.query(
+              "SELECT conname,pg_get_constraintdef(oid) AS definition FROM pg_constraint WHERE conrelid='memory_candidate'::regclass ORDER BY conname",
+            )
+          ).rows,
+          before,
+        );
+        assert.deepEqual(
+          (
+            await db.query(
+              "SELECT current_setting('lock_timeout') AS lock,current_setting('statement_timeout') AS statement",
+            )
+          ).rows,
+          [{ lock: '2s', statement: '10s' }],
+        );
+      } finally {
+        await holder.query('ROLLBACK');
+        await holder.end();
+      }
     }),
 );

@@ -6,6 +6,10 @@
 -- Replace both checks in ONE atomic statement. The typed payload must evaluate
 -- TRUE: PostgreSQL otherwise accepts UNKNOWN for a missing versionProposal.
 -- Do not narrow this allowlist on application rollback after version rows exist.
+BEGIN;
+SET LOCAL lock_timeout = '5s';
+SET LOCAL statement_timeout = '30s';
+
 ALTER TABLE "memory_candidate"
   DROP CONSTRAINT "memory_candidate_source_kind_chk",
   ADD CONSTRAINT "memory_candidate_source_kind_chk"
@@ -38,3 +42,5 @@ ALTER TABLE "memory_candidate"
         )
       ) IS TRUE
     );
+
+COMMIT;
