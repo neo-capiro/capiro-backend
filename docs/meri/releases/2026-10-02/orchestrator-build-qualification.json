@@ -1,0 +1,101 @@
+{
+  "observedAt": "2026-10-02T01:42:06.6075669Z",
+  "buildReadExitCode": 0,
+  "logsReadExitCode": 0,
+  "scope": "Source tests and immutable packaged runtime image only; no ECS deployment or live acceptance",
+  "actualBuildspecSha256": "dd3aaac45be1eada1a2451add262b6407313d699b390deb0c0707455c370af90",
+  "build": {
+    "id": "capiro-build-web-dev:8d17a8df-7779-416b-92f2-4875b722ca50",
+    "status": "SUCCEEDED",
+    "phase": "COMPLETED",
+    "start": "2026-10-02T01:34:42.215+00:00",
+    "end": "2026-10-02T01:41:57.53+00:00",
+    "source": "39cea28f31be07def2f67ddf06ac4c44ef4ab792",
+    "resolved": "39cea28f31be07def2f67ddf06ac4c44ef4ab792",
+    "environmentType": "ARM_CONTAINER",
+    "environmentImage": "aws/codebuild/amazonlinux2-aarch64-standard:3.0",
+    "phases": [
+      {
+        "type": "SUBMITTED",
+        "status": "SUCCEEDED"
+      },
+      {
+        "type": "QUEUED",
+        "status": "SUCCEEDED"
+      },
+      {
+        "type": "PROVISIONING",
+        "status": "SUCCEEDED"
+      },
+      {
+        "type": "DOWNLOAD_SOURCE",
+        "status": "SUCCEEDED"
+      },
+      {
+        "type": "INSTALL",
+        "status": "SUCCEEDED"
+      },
+      {
+        "type": "PRE_BUILD",
+        "status": "SUCCEEDED"
+      },
+      {
+        "type": "BUILD",
+        "status": "SUCCEEDED"
+      },
+      {
+        "type": "POST_BUILD",
+        "status": "SUCCEEDED"
+      },
+      {
+        "type": "UPLOAD_ARTIFACTS",
+        "status": "SUCCEEDED"
+      },
+      {
+        "type": "FINALIZING",
+        "status": "SUCCEEDED"
+      },
+      {
+        "type": "COMPLETED",
+        "status": null
+      }
+    ]
+  },
+  "selectedLogLines": [
+    "[Container] 2026/10/02 01:35:01.694795 Phase complete: DOWNLOAD_SOURCE State: SUCCEEDED",
+    "[Container] 2026/10/02 01:35:01.832715 Phase complete: INSTALL State: SUCCEEDED",
+    "[Container] 2026/10/02 01:35:28.821829 Phase complete: PRE_BUILD State: SUCCEEDED",
+    "Test Suites: 124 passed, 124 total",
+    "Tests:       2 skipped, 1401 passed, 1403 total",
+    "ORCHESTRATOR_SOURCE_TEST_COUNTS={\"numTotalTests\": 1403, \"numPassedTests\": 1401, \"numFailedTests\": 0, \"numPendingTests\": 2, \"numTotalTestSuites\": 124, \"numPassedTestSuites\": 124, \"numFailedTestSuites\": 0, \"numPendingTestSuites\": 0}",
+    "OFFLINE_PACKAGED_ENTRYPOINT_HEALTH_AUTH_PASS",
+    "[Container] 2026/10/02 01:40:44.040451 Phase complete: BUILD State: SUCCEEDED",
+    "LOCAL_REPODIGEST_ECR_MATCH_PASS",
+    "CANDIDATE_ORCHESTRATOR_SOURCE_SHA=39cea28f31be07def2f67ddf06ac4c44ef4ab792",
+    "CANDIDATE_ORCHESTRATOR_IMAGE=967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:1495f82a9c3c4dab04b7f0028761cf3549e6e726699f390563b7c7b2a3eb1550",
+    "[Container] 2026/10/02 01:41:56.553214 Phase complete: POST_BUILD State: SUCCEEDED",
+    "[Container] 2026/10/02 01:41:57.177624 Phase complete: UPLOAD_ARTIFACTS State: SUCCEEDED"
+  ],
+  "actualTestCounts": {
+    "numTotalTests": 1403,
+    "numPassedTests": 1401,
+    "numFailedTests": 0,
+    "numPendingTests": 2,
+    "numTotalTestSuites": 124,
+    "numPassedTestSuites": 124,
+    "numFailedTestSuites": 0,
+    "numPendingTestSuites": 0
+  },
+  "verdict": "PASS",
+  "liveAcceptance": "NOT RUN; two explicitly skipped live tests remain skipped",
+  "ecrReadExitCode": 0,
+  "ecr": {
+    "digest": "sha256:1495f82a9c3c4dab04b7f0028761cf3549e6e726699f390563b7c7b2a3eb1550",
+    "tags": [
+      "39cea28f31be07def2f67ddf06ac4c44ef4ab792"
+    ],
+    "pushed": "2026-10-02T01:41:55.577+00:00",
+    "bytes": 824629303,
+    "manifestMediaType": "application/vnd.docker.distribution.manifest.v2+json"
+  }
+}

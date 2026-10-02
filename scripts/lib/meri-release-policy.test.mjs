@@ -51,6 +51,19 @@ test('taskInput clone/read-only/unknown', () => {
   assert.throws(() => taskInput({ bar: 1, containerDefinitions: [] }), /Unknown/);
 });
 
+test('task registration omits empty or AWS-only tags and preserves user tags', () => {
+  const td = { family: 'f', containerDefinitions: [{ name: 'c', image: 'x' }] };
+  for (const tags of [undefined, [], [{ key: 'aws:managed', value: 'yes' }]]) {
+    const input = taskInput({ ...td, tags });
+    assert.equal(Object.hasOwn(input, 'tags'), false);
+    assert.equal(fingerprint(input), fingerprint(taskInput(td)));
+  }
+  const tags = [{ key: 'aws:managed', value: 'yes' }, { key: 'owner', value: 'meri' }];
+  const input = taskInput({ ...td, tags });
+  assert.deepEqual(input.tags, [{ key: 'owner', value: 'meri' }]);
+  assert.deepEqual(tags, [{ key: 'aws:managed', value: 'yes' }, { key: 'owner', value: 'meri' }]);
+});
+
 test('qualification valid vs wrong repo/expiry/missingreview/check', () => {
   assert.ok(validateQualification(QUAL, KEY, IMG, NOW));
   const wrongImage = IMG.replace('/api@', '/api-evil@');

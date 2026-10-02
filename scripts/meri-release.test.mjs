@@ -151,6 +151,8 @@ function fixture() {
         };
       case 'ecs register-task-definition': {
         const proposed = JSON.parse(value('--cli-input-json'));
+        if (Object.hasOwn(proposed, 'tags') && !proposed.tags.length)
+          throw new Error('Tags can not be empty.');
         const newArn = arn(++state.revision);
         const stored = {
           ...proposed,

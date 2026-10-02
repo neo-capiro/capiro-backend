@@ -80,7 +80,10 @@ export function taskInput(td) {
     !copy.containerDefinitions.length
   )
     fail('Incomplete task definition');
-  copy.tags = (copy.tags ?? []).filter((t) => !t.key.startsWith('aws:'));
+  const tags = (copy.tags ?? []).filter((t) => !t.key.startsWith('aws:'));
+  // ECS rejects an explicitly empty tags list on RegisterTaskDefinition.
+  if (tags.length) copy.tags = tags;
+  else delete copy.tags;
   return copy;
 }
 const evidenceUrl = (url) =>
