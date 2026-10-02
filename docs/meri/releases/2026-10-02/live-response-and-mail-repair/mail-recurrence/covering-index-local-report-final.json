@@ -1,0 +1,207 @@
+{
+  "status": "PASS",
+  "checks": [
+    {
+      "name": "actual nonowner/NOBYPASSRLS role executes original FORCE-RLS policy",
+      "passed": true
+    },
+    {
+      "name": "actual source preserves ownership, zero-result, paging, Unicode, literal escapes and six-field matches before migration",
+      "passed": true
+    },
+    {
+      "name": "actual conflicting writer causes bounded lock refusal with no index left behind",
+      "passed": true
+    },
+    {
+      "name": "exact bounded migration creates a valid covering index without policy changes",
+      "passed": true
+    },
+    {
+      "name": "ordinary FORCE-RLS planner uses new connection covering index and reduces thread heap work",
+      "passed": true
+    },
+    {
+      "name": "all actual source query outputs stay identical and tenant isolation remains enforced",
+      "passed": true
+    }
+  ],
+  "sourceHashes": {
+    "apps/api/src/engagement/mail-query.ts": "b32e25f106e3a2d9e69ac50e37b6fde8b26cea51a08be24adcdf5cfc69ad34c8",
+    "apps/api/src/engagement/mail-sync-coverage.ts": "fdad6a158c7fc61b9c8a15cf06ba57b73d829bc219b369c6593e6e31b1e310e1",
+    "apps/api/src/engagement/mail-query-deadline.ts": "cb90d145a96d006785ad4c0a5a768ddeddf843b351638db199aad360850c138b"
+  },
+  "migrationSha256": "de0d73ca70787ceeb1d133aa539f2d291e6589bebb386210c7d4f3c8a7477915",
+  "fixtureThreads": 100000,
+  "fixtureMessages": 100002,
+  "migrationMs": 403.75800000000163,
+  "beforePlan": {
+    "executionMs": 165.449,
+    "totalCost": 27634.78,
+    "nodes": [
+      {
+        "node": "Aggregate",
+        "relation": null,
+        "index": null,
+        "actualRows": 1,
+        "loops": 1,
+        "heapFetches": null,
+        "sharedHits": 3388,
+        "sharedReads": 0
+      },
+      {
+        "node": "Sort",
+        "relation": null,
+        "index": null,
+        "actualRows": 0,
+        "loops": 1,
+        "heapFetches": null,
+        "sharedHits": 3388,
+        "sharedReads": 0
+      },
+      {
+        "node": "Nested Loop",
+        "relation": null,
+        "index": null,
+        "actualRows": 0,
+        "loops": 1,
+        "heapFetches": null,
+        "sharedHits": 3388,
+        "sharedReads": 0
+      },
+      {
+        "node": "Nested Loop",
+        "relation": null,
+        "index": null,
+        "actualRows": 0,
+        "loops": 1,
+        "heapFetches": null,
+        "sharedHits": 3388,
+        "sharedReads": 0
+      },
+      {
+        "node": "Index Scan",
+        "relation": "engagement_connections",
+        "index": "engagement_connections_pkey",
+        "actualRows": 1,
+        "loops": 1,
+        "heapFetches": null,
+        "sharedHits": 2,
+        "sharedReads": 0
+      },
+      {
+        "node": "Bitmap Heap Scan",
+        "relation": "mail_messages",
+        "index": null,
+        "actualRows": 0,
+        "loops": 1,
+        "heapFetches": null,
+        "sharedHits": 3386,
+        "sharedReads": 0
+      },
+      {
+        "node": "Bitmap Index Scan",
+        "relation": null,
+        "index": "mail_messages_tenant_received_idx",
+        "actualRows": 30012,
+        "loops": 1,
+        "heapFetches": null,
+        "sharedHits": 25,
+        "sharedReads": 0
+      },
+      {
+        "node": "Index Scan",
+        "relation": "mail_threads",
+        "index": "mail_threads_pkey",
+        "actualRows": 0,
+        "loops": 0,
+        "heapFetches": null,
+        "sharedHits": 0,
+        "sharedReads": 0
+      }
+    ]
+  },
+  "afterPlan": {
+    "executionMs": 10.447,
+    "totalCost": 24145.98,
+    "nodes": [
+      {
+        "node": "Aggregate",
+        "relation": null,
+        "index": null,
+        "actualRows": 1,
+        "loops": 1,
+        "heapFetches": null,
+        "sharedHits": 4015,
+        "sharedReads": 0
+      },
+      {
+        "node": "Sort",
+        "relation": null,
+        "index": null,
+        "actualRows": 0,
+        "loops": 1,
+        "heapFetches": null,
+        "sharedHits": 4015,
+        "sharedReads": 0
+      },
+      {
+        "node": "Nested Loop",
+        "relation": null,
+        "index": null,
+        "actualRows": 0,
+        "loops": 1,
+        "heapFetches": null,
+        "sharedHits": 4015,
+        "sharedReads": 0
+      },
+      {
+        "node": "Nested Loop",
+        "relation": null,
+        "index": null,
+        "actualRows": 1000,
+        "loops": 1,
+        "heapFetches": null,
+        "sharedHits": 14,
+        "sharedReads": 0
+      },
+      {
+        "node": "Seq Scan",
+        "relation": "engagement_connections",
+        "index": null,
+        "actualRows": 1,
+        "loops": 1,
+        "heapFetches": null,
+        "sharedHits": 1,
+        "sharedReads": 0
+      },
+      {
+        "node": "Index Only Scan",
+        "relation": "mail_threads",
+        "index": "mail_threads_tenant_connection_id_cover_idx",
+        "actualRows": 1000,
+        "loops": 1,
+        "heapFetches": 0,
+        "sharedHits": 13,
+        "sharedReads": 0
+      },
+      {
+        "node": "Index Scan",
+        "relation": "mail_messages",
+        "index": "mail_messages_thread_removed_received_idx",
+        "actualRows": 0,
+        "loops": 1000,
+        "heapFetches": null,
+        "sharedHits": 4001,
+        "sharedReads": 0
+      }
+    ]
+  },
+  "awsCalls": 0,
+  "sharedDatabaseCalls": 0,
+  "limits": [
+    "Owned local warm-cache fixture; live cold-I/O latency not measured.",
+    "No production EXPLAIN or query executed by this script.",
+    "No GIN, leakproof declaration, policy change or search semantic change."
+  ]
+}

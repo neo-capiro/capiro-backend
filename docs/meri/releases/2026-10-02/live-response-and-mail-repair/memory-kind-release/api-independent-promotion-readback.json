@@ -1,0 +1,47 @@
+{
+  "kind": "independent-api-promotion-readback",
+  "status": "PASS",
+  "observedAt": "2026-10-02T16:59:22.573141+00:00",
+  "sourceSha": "42988dae5fb7bc2fff3af582ca15a0836a4477c5",
+  "imageDigest": "sha256:f792a39e889c7572811dd1335b6f12501d3878701caef3888ae7f120bd6e6f25",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:507",
+  "taskArns": [
+    "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/3779b73436a14e9fb6d2d8194be29ba3",
+    "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/cf6f8a56d76a4b9dba0b145da1fca53b"
+  ],
+  "deploymentId": "ecs-svc/5175227872439016584",
+  "rolloutState": "COMPLETED",
+  "desiredCount": 2,
+  "runningCount": 2,
+  "pendingCount": 0,
+  "taskHealth": "HEALTHY",
+  "ownedHealthyAlbTargets": 2,
+  "sourceMetadata": {
+    "RELEASE_SHA": "42988dae5fb7bc2fff3af582ca15a0836a4477c5",
+    "GIT_SHA": "42988dae5fb7bc2fff3af582ca15a0836a4477c5"
+  },
+  "canonicalInspectBaseline": {
+    "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:507",
+    "taskHash": "1ad56d1d23d66d806d28c6b40a7f7774ad2549b2dff821879a47a2ace0ca2cf5",
+    "configHash": "973748a2b134b388a6027df6c5c099055a7e24f7b746eafbaae8cebad077258a",
+    "imageDigest": "sha256:f792a39e889c7572811dd1335b6f12501d3878701caef3888ae7f120bd6e6f25"
+  },
+  "canonicalInspectCommand": [
+    "C:/Program Files/nodejs/node.exe",
+    "scripts/meri-release.mjs",
+    "inspect",
+    "--service",
+    "api",
+    "--profile",
+    "default"
+  ],
+  "canonicalInspectExitCode": 0,
+  "promotionReceiptSha256": "a3af353c3ff5d9ab5b34714200409c85c95f9b8ecb6768d97c42517b5095e18e",
+  "awsWrites": 0,
+  "databaseCalls": 0,
+  "authCalls": 0,
+  "liveAcceptance": "NOT_RUN",
+  "limits": [
+    "Independent rollout/source/digest/health verification only; original evaluation acceptance remains separate."
+  ]
+}

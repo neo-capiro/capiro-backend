@@ -1,0 +1,153 @@
+{
+  "schemaVersion": 1,
+  "status": "VERIFIED",
+  "planHash": "90da54bd9c488e5e0759744f48f5ce1fafd3e5a7a6e80f815169e0659de1e725",
+  "mode": "setup-postseed-execute",
+  "operationId": "e232bb52-ffa7-49c2-bb2e-dfe1997f74a7",
+  "sourceSha": "42988dae5fb7bc2fff3af582ca15a0836a4477c5",
+  "operatorHead": "6ca312d16e9d61e9375eb292f0e54355f1e85ddf",
+  "liveAcceptance": "NOT_RUN",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-case01-operator:10",
+  "startedBy": "meri-c01-e232bb52-ffa7-49c2-bb2e-",
+  "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/360a8c3cf5f14fd2b21d78524f86292a",
+  "containerExitCode": 0,
+  "logMessageCount": 18,
+  "ownerReceipts": [
+    {
+      "stage": "POST_SEED_ADMISSION",
+      "phase": "INTENT",
+      "captureRunId": "c6ffa5ad-dd9f-4912-bc31-a03231a9b903"
+    },
+    {
+      "stage": "POST_SEED_ADMISSION",
+      "phase": "VERIFIED",
+      "captureRunId": "c6ffa5ad-dd9f-4912-bc31-a03231a9b903",
+      "claimSha256": "42408e1cbdf0c0c3c7a36125cd37e26acf634ee77001d7300d5004e9458dcaa3"
+    },
+    {
+      "stage": "PREVIOUS_SEED",
+      "phase": "INTENT",
+      "captureRunId": "c6ffa5ad-dd9f-4912-bc31-a03231a9b903"
+    },
+    {
+      "stage": "PREVIOUS_SEED",
+      "phase": "VERIFIED",
+      "resultSha256": "1d0e28646bd3441775093ea00b5aa210c8a9312a2c53caac87b0ec76b6dc869e",
+      "captureRunId": "c6ffa5ad-dd9f-4912-bc31-a03231a9b903"
+    },
+    {
+      "stage": "PREVIOUS_RETIRE",
+      "phase": "INTENT",
+      "captureRunId": "c6ffa5ad-dd9f-4912-bc31-a03231a9b903"
+    },
+    {
+      "stage": "PREVIOUS_RETIRE",
+      "phase": "VERIFIED",
+      "resultSha256": "d8b2a0ea10f4f83b301e1deafb40c90961ec2d69b2174d9ddf9ccf728914539a",
+      "captureRunId": "c6ffa5ad-dd9f-4912-bc31-a03231a9b903"
+    },
+    {
+      "stage": "CURRENT_SEED",
+      "phase": "INTENT",
+      "captureRunId": "c6ffa5ad-dd9f-4912-bc31-a03231a9b903"
+    },
+    {
+      "stage": "CURRENT_SEED",
+      "phase": "VERIFIED",
+      "resultSha256": "5b16b6d724cca2361004122dea90a34aae0f51ada7c3414263bc7708136192da",
+      "captureRunId": "c6ffa5ad-dd9f-4912-bc31-a03231a9b903"
+    },
+    {
+      "stage": "BIND",
+      "phase": "INTENT",
+      "captureRunId": "c6ffa5ad-dd9f-4912-bc31-a03231a9b903"
+    },
+    {
+      "stage": "BIND",
+      "phase": "VERIFIED",
+      "resultSha256": "29e86dac86386154d2dabcb85fe9996e0a2f8be2a5167d5d22d9915f6ec94889",
+      "captureRunId": "c6ffa5ad-dd9f-4912-bc31-a03231a9b903"
+    },
+    {
+      "stage": "LOCATOR",
+      "phase": "INTENT",
+      "captureRunId": "c6ffa5ad-dd9f-4912-bc31-a03231a9b903"
+    },
+    {
+      "stage": "LOCATOR",
+      "phase": "VERIFIED",
+      "resultSha256": "4e372b55a0742a780136e9b8b5aefd3db292c6992293845354166084c6e09fe8",
+      "captureRunId": "c6ffa5ad-dd9f-4912-bc31-a03231a9b903"
+    },
+    {
+      "stage": "CONVERSATION",
+      "phase": "INTENT",
+      "captureRunId": "c6ffa5ad-dd9f-4912-bc31-a03231a9b903"
+    },
+    {
+      "stage": "CONVERSATION",
+      "phase": "VERIFIED",
+      "resultSha256": "a64e7f1b3021a2e6e69754d8456c098446002b1532751e2586636bacd35ee438",
+      "captureRunId": "c6ffa5ad-dd9f-4912-bc31-a03231a9b903"
+    },
+    {
+      "stage": "READBACK",
+      "phase": "INTENT",
+      "captureRunId": "c6ffa5ad-dd9f-4912-bc31-a03231a9b903"
+    },
+    {
+      "stage": "READBACK",
+      "phase": "VERIFIED",
+      "resultSha256": "f20c10bdd62ad4dcc505121e85e6ef5b116ebaa2d22dc9ebab5f3890ffe9ef78",
+      "captureRunId": "c6ffa5ad-dd9f-4912-bc31-a03231a9b903"
+    },
+    {
+      "stage": "COMPLETE",
+      "phase": "VERIFIED",
+      "receipt": {
+        "kind": "meri-case01-execution-setup-receipt",
+        "schemaVersion": 1,
+        "status": "SETUP_COMPLETE",
+        "captureRunId": "c6ffa5ad-dd9f-4912-bc31-a03231a9b903",
+        "conversationId": "d7a74b15-873b-4256-a1d1-c6b4da3f8e1f",
+        "ctx": {
+          "role": "standard_user",
+          "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+          "tenantSlug": "meri-foundation-20260928-t1",
+          "userId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f"
+        },
+        "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+        "binding": {
+          "caseId": "01",
+          "captureRunId": "c6ffa5ad-dd9f-4912-bc31-a03231a9b903",
+          "fixtureVersion": "meri-live-v1-2026-09-26.1",
+          "physicalMapSha256": "cf61a870caf2099fd53f36c849189eef1188237191f2e7e9e2c6d9c4c6511974",
+          "seedReceiptId": "meri-synthetic-fixture-seed-receipt:sha256:daea43730b9946592d7e66073dfc6f789d34948ed7980992d42f7b74a9bf2c62",
+          "resetReceiptId": "meri-synthetic-fixture-reset-receipt:sha256:53f42f2e20e820546a078ffbfd6f7794b8acab158d2c69ed1eae5fdb331a5763",
+          "fixtureNamespace": "meri-foundation-20260928",
+          "actorUserId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+          "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+          "currentVerifySha256": "177bf9befa20f94f7e0a7318e259155915401b128c1e917d4c71cc4e3d96825b"
+        },
+        "bindingSha256": "d25b06fe7c2c301be7075767e2ddceccc235fec7d5a5f8ca6a8bd6f69ed5c6cc",
+        "locatorSha256": "a3d23869a7e0b76e89f679e76d2e1cb8ca1be1b1f27ad5abe62fe81c1b8e82ce",
+        "sourceMap": {
+          "MA1-v2": {
+            "frozenFixtureId": "MA1-v2",
+            "physicalId": "422b4ca9-10a8-4680-a713-3e61273a14ff",
+            "tenantPhysicalId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+            "clientPhysicalId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+            "kind": "memory",
+            "version": "memory-version:a5397fba-1d91-4ba9-8006-bf1fdaa90f67"
+          }
+        },
+        "currentVerifySha256": "177bf9befa20f94f7e0a7318e259155915401b128c1e917d4c71cc4e3d96825b",
+        "seedReceiptId": "meri-synthetic-fixture-seed-receipt:sha256:daea43730b9946592d7e66073dfc6f789d34948ed7980992d42f7b74a9bf2c62",
+        "resetReceiptId": "meri-synthetic-fixture-reset-receipt:sha256:53f42f2e20e820546a078ffbfd6f7794b8acab158d2c69ed1eae5fdb331a5763",
+        "projectionStatus": "CANONICAL_OUTBOX_RECORDED_NOT_QUALIFIED",
+        "liveAcceptance": "NOT_RUN",
+        "synthesisSubmissionCount": 0
+      }
+    }
+  ]
+}

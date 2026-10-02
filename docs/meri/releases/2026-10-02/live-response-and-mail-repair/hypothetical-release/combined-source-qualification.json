@@ -1,0 +1,49 @@
+{
+  "status": "PASS_COMBINED_SOURCE_BUILD_PENDING",
+  "sourceSha": "ddb55a5a3e6bbf1c3f567119b66e18e0a92e60ab",
+  "observedAt": "2026-10-02T17:04:55.426734+00:00",
+  "files": [
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.spec.ts",
+      "sha256": "ab5347e12f6d5ed73550bb8df9d4dc5e03e230566bb16c606270361381910999",
+      "qualifiedSource": "49b3bbcf18337652addf2d82857d41b9161cf7ba"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/retrieval/meri-evidence-formatting.spec.ts",
+      "sha256": "2baef8bf2c8db15664f9e8db10bc3549854a734d31af086ecc10df2ece2b3890",
+      "qualifiedSource": "49b3bbcf18337652addf2d82857d41b9161cf7ba"
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/evidence-plan.spec.ts",
+      "sha256": "4157733742858009808afb89ddee666aea1a37e9fc802085f98dc57a4d13226c",
+      "qualifiedSource": "49b3bbcf18337652addf2d82857d41b9161cf7ba"
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/evidence-plan.ts",
+      "sha256": "e13ab98b0a42d7277159df83643ff7502fa4f60d02799e05a1efd7007484edd0",
+      "qualifiedSource": "49b3bbcf18337652addf2d82857d41b9161cf7ba"
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281006010000_mail_threads_owned_connection_covering/migration.sql",
+      "sha256": "de0d73ca70787ceeb1d133aa539f2d291e6589bebb386210c7d4f3c8a7477915",
+      "qualifiedSource": "54ae778c681eeafd77bae7388d0fd874dcd782f5"
+    },
+    {
+      "path": "apps/api/scripts/verify-mail-thread-covering-index.cjs",
+      "sha256": "2f8a0ec3e8f904670f63ea8b079d199f362d92d7aeb71b8e2df2b38e4489292a",
+      "qualifiedSource": "54ae778c681eeafd77bae7388d0fd874dcd782f5"
+    }
+  ],
+  "assuranceQualificationSha256": "491c1e9bb6511ce9648bfcbcbe7a07a153e82dd57a1b16c0e0c0bdd9fbf4a945",
+  "mailLocalReportSha256": "6c0eabb5043bace13c14d00198b67a5ed23ad1c5a9b2cfc5935c82b3ce6af82b",
+  "tests": {
+    "core": 312,
+    "orchestrator": 167,
+    "offlinePromptfoo": 26,
+    "mailPostgresChecks": 6,
+    "allExits": 0
+  },
+  "rationale": "Exact independently qualified source bytes retained; only core assurance and additive index plus tests changed. Full native merged-image qualification and migration rehearsals remain separate.",
+  "awsWrites": 0,
+  "liveRetest": "NOT_RUN"
+}

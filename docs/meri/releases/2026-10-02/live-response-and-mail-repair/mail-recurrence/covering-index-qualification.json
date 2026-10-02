@@ -1,0 +1,67 @@
+{
+  "status": "SOURCE_QUALIFIED_RELEASE_PENDING",
+  "sourceSha": "54ae778c681eeafd77bae7388d0fd874dcd782f5",
+  "baseSha": "180e8077da0e829bfad96c8a862cec1039d88904",
+  "observedAt": "2026-10-02T17:02:11.392405+00:00",
+  "schemaChange": true,
+  "priorMigrationCount": 450,
+  "priorMigrationBlobsUnchanged": true,
+  "candidateMigrationCount": 451,
+  "changedFiles": {
+    "apps/api/prisma/migrations/20281006010000_mail_threads_owned_connection_covering/migration.sql": "de0d73ca70787ceeb1d133aa539f2d291e6589bebb386210c7d4f3c8a7477915",
+    "apps/api/scripts/verify-mail-thread-covering-index.cjs": "2f8a0ec3e8f904670f63ea8b079d199f362d92d7aeb71b8e2df2b38e4489292a"
+  },
+  "actualOwnedPostgresChecks": 6,
+  "actualSearchScenariosCompared": 10,
+  "fixtureThreads": 100000,
+  "fixtureMessages": 100002,
+  "testExitCode": 0,
+  "independentReview": {
+    "model": "moonshotai.kimi-k2.5",
+    "provider": "bedrock",
+    "sessionId": "20261002_165828_64a40f",
+    "toolCalls": 0,
+    "exitCode": 0,
+    "verdict": "PASS"
+  },
+  "artifacts": {
+    "covering-index-local-report-final.json": "6c0eabb5043bace13c14d00198b67a5ed23ad1c5a9b2cfc5935c82b3ce6af82b",
+    "covering-index-local-tests-final.log": "886279b8c0684ec0012e149bc28213f5c28a034897d42a1e28b7db55d4a5911c",
+    "covering-index-local-tests-final.exit.json": "6041df3e9b345d68be886f995c452395674ea950cd3ca9992c13b64f3aa9cbd0",
+    "covering-index-kimi-review.md": "b3ebee074b32424e14f3027bead27cfa4069578125d67c122822723829c1d6c2",
+    "covering-index-kimi-exit.json": "e126656104d871f65c0edbed579cf6a650dd2e11dc3dae87ec5c15199a78b548",
+    "covering-index-kimi-usage.json": "be6287aa5442fdfe2ae69836e855cc0faa8a54004c76323f2a4b75afdceba2dd",
+    "covering-index-kimi-source-hashes.json": "d2bcc659a9dca4efd672471f8e1f287f5ffa5f905c54675870ffdb517b73b842",
+    "mail-plan-execution.json": "dde8456abfcfe10df39002e7bf2ae87a4a9647509ab583531e3947962ad1758b",
+    "mail-plan-independent-execution-verification.json": "76dc6e849a7ef54dbdd72633fb303f931f1f81661c278899677c338cc5c92b6a",
+    "mail-count-wait-sampling.json": "702f4917dbb7ecbcec9b75dd539798ae60ea181e258982741d6bcb9d24e1215a",
+    "mail-recurrence-20261002T162809Z.json": "50410ac1e881609809f71da3bcdde623b3bc3fa7968d765668a82c126e1afbdd"
+  },
+  "observedLiveDefect": "COUNT query IO:DataFileRead sampled continuously for10s; healthy nonsaturated writer; actual plan expensive owned-thread join.",
+  "localPerformance": {
+    "beforeMs": 165.449,
+    "afterMs": 10.447,
+    "beforeCost": 27634.78,
+    "afterCost": 24145.98,
+    "migrationMs": 403.75800000000163
+  },
+  "rolloutImpact": {
+    "lockTimeoutSeconds": 5,
+    "statementTimeoutSeconds": 30,
+    "conventionalIndexBuild": true,
+    "writesToMailThreadsMayBlock": true,
+    "readsRemainAllowed": true,
+    "failureAtomicRollback": true,
+    "noIfNotExists": true
+  },
+  "limitations": [
+    "Local fixture was warm cache and its baseline plan differs from the observed live thread heap plan.",
+    "This index does not index body substring search; very large owned mailboxes may retain additional cost.",
+    "Full451 fresh/450upgrade/retired-runtime qualification, normalPrisma forward operator, image build and shared migration NOT_RUN.",
+    "Live postmigration EXPLAIN and authorized mailbox success retest required.",
+    "Initial local harness failed tagged-$executeRaw adaptation; failure preserved and final actual test reran successfully."
+  ],
+  "awsWrites": 0,
+  "sharedDatabaseWrites": 0,
+  "liveAcceptance": "NOT_RUN"
+}

@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "status": "PASS",
+  "observedAt": "2026-10-02T17:08:50.126234+00:00",
+  "scope": "independent-read-only-existing-postseed-task-and-source-owned-logs",
+  "executionSha256": "dd2a15c7cbb94ba75ea07d33abf7a348955386db045cc09b38ebfc052660b192",
+  "planHash": "90da54bd9c488e5e0759744f48f5ce1fafd3e5a7a6e80f815169e0659de1e725",
+  "sourceSha": "42988dae5fb7bc2fff3af582ca15a0836a4477c5",
+  "imageDigest": "sha256:f792a39e889c7572811dd1335b6f12501d3878701caef3888ae7f120bd6e6f25",
+  "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/360a8c3cf5f14fd2b21d78524f86292a",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-case01-operator:10",
+  "containerExitCode": 0,
+  "taskDefinitionHashMatched": true,
+  "exactOverridesMatched": true,
+  "orderedJournalEntryCount": 17,
+  "journalSha256": "34e3baba883ea454a0ccf75a52490521922db7b77a3e731edcb4643a3cf1673b",
+  "setupStatus": "SETUP_COMPLETE",
+  "synthesisSubmissionCount": 0,
+  "liveAcceptance": "NOT_RUN",
+  "mutations": 0,
+  "rawLogsPersisted": false
+}

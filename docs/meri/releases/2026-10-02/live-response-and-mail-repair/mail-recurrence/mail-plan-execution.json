@@ -1,0 +1,364 @@
+{
+  "schemaVersion": 1,
+  "status": "VERIFIED",
+  "planHash": "6be2ce534a8e362c943f1fa29d63a81d85416f589cf15fbb2d65865f7d83ef75",
+  "mode": "mail-plan-read",
+  "operationId": "394a4242-d399-4906-95ff-60afd4da4336",
+  "sourceSha": "a260004e9923ef5bbe7bd8f32bb4cbddd3c7be31",
+  "operatorHead": "180e8077da0e829bfad96c8a862cec1039d88904",
+  "liveAcceptance": "NOT_RUN",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-mail-plan-read:1",
+  "startedBy": "meri-c01-394a4242-d399-4906-95ff-",
+  "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/eee095bc5bbe46f79bc2b6ff2d09fe28",
+  "containerExitCode": 0,
+  "logMessageCount": 1,
+  "ownerReceipts": [
+    {
+      "kind": "meri-mail-plan-readback",
+      "schemaVersion": 1,
+      "status": "READBACK_COMPLETE",
+      "readOnly": true,
+      "mutations": 0,
+      "sourceSha": "a260004e9923ef5bbe7bd8f32bb4cbddd3c7be31",
+      "observedAt": "2026-10-02T16:45:52.675Z",
+      "roleSha256": "4b3814bb3ebcecb8a55b67680a3346b05b2354953e529cae43bb36be2df869c6",
+      "databaseSha256": "57d3c5d9524a655e84657a5d5f24bc03f19e79211902f6630eae30c80c02940c",
+      "tlsVerified": true,
+      "caBundleSha256": "b1711d12bae51838581281e23b6cb97b1074016873b4dafc80ed14002462dd77",
+      "relations": [
+        {
+          "relname": "engagement_connections",
+          "relrowsecurity": true,
+          "relforcerowsecurity": true,
+          "estimated_rows": 38,
+          "relpages": 43,
+          "owns_relation": false,
+          "rolsuper": false,
+          "rolbypassrls": false
+        },
+        {
+          "relname": "mail_messages",
+          "relrowsecurity": true,
+          "relforcerowsecurity": true,
+          "estimated_rows": 184546,
+          "relpages": 34815,
+          "owns_relation": false,
+          "rolsuper": false,
+          "rolbypassrls": false
+        },
+        {
+          "relname": "mail_threads",
+          "relrowsecurity": true,
+          "relforcerowsecurity": true,
+          "estimated_rows": 106617,
+          "relpages": 31093,
+          "owns_relation": false,
+          "rolsuper": false,
+          "rolbypassrls": false
+        }
+      ],
+      "indexes": [
+        {
+          "table_name": "engagement_connections",
+          "index_name": "engagement_connections_pkey",
+          "method": "btree",
+          "indisvalid": true,
+          "indisready": true,
+          "definitionSha256": "4157a44ecaafe057ca46fd6a1b378d2926a1c05d353c22cb5dcb3c5b7772ab48",
+          "predicateSha256": null,
+          "removedOnly": false,
+          "trigram": false,
+          "fields": []
+        },
+        {
+          "table_name": "engagement_connections",
+          "index_name": "engagement_connections_tenant_provider_account_key",
+          "method": "btree",
+          "indisvalid": true,
+          "indisready": true,
+          "definitionSha256": "f0b223fc27eacfc064c6423b30329fe75fcddc185bab3d6ab18169c6a8003bc9",
+          "predicateSha256": null,
+          "removedOnly": false,
+          "trigram": false,
+          "fields": [
+            "tenant_id"
+          ]
+        },
+        {
+          "table_name": "engagement_connections",
+          "index_name": "engagement_connections_tenant_status_idx",
+          "method": "btree",
+          "indisvalid": true,
+          "indisready": true,
+          "definitionSha256": "042ceb3dfec08eb2d773d3a5ced5c89ef431fefd9b41690d5051919e37fa396d",
+          "predicateSha256": null,
+          "removedOnly": false,
+          "trigram": false,
+          "fields": [
+            "tenant_id"
+          ]
+        },
+        {
+          "table_name": "mail_messages",
+          "index_name": "mail_messages_pkey",
+          "method": "btree",
+          "indisvalid": true,
+          "indisready": true,
+          "definitionSha256": "28d42c147e833f75b970fc14948ce96804cf5a7e2037274e5dc68b0f6927f67e",
+          "predicateSha256": null,
+          "removedOnly": false,
+          "trigram": false,
+          "fields": []
+        },
+        {
+          "table_name": "mail_messages",
+          "index_name": "mail_messages_tenant_from_idx",
+          "method": "btree",
+          "indisvalid": true,
+          "indisready": true,
+          "definitionSha256": "f9dad1ab0dabe1b82add124dda8a7e2175151cfe9d7acf87fe506b4c532c745b",
+          "predicateSha256": null,
+          "removedOnly": false,
+          "trigram": false,
+          "fields": [
+            "tenant_id",
+            "from_email"
+          ]
+        },
+        {
+          "table_name": "mail_messages",
+          "index_name": "mail_messages_tenant_received_idx",
+          "method": "btree",
+          "indisvalid": true,
+          "indisready": true,
+          "definitionSha256": "172473b49b7342132b2830f7248a545901696b13872d4efd37786e9654836ef9",
+          "predicateSha256": null,
+          "removedOnly": false,
+          "trigram": false,
+          "fields": [
+            "tenant_id",
+            "received_at"
+          ]
+        },
+        {
+          "table_name": "mail_messages",
+          "index_name": "mail_messages_tenant_sent_idx",
+          "method": "btree",
+          "indisvalid": true,
+          "indisready": true,
+          "definitionSha256": "4dcdc589394ae42c910cce4490c034cdd1455bcc8fa43d1066668162062e2451",
+          "predicateSha256": null,
+          "removedOnly": false,
+          "trigram": false,
+          "fields": [
+            "tenant_id",
+            "sent_at"
+          ]
+        },
+        {
+          "table_name": "mail_messages",
+          "index_name": "mail_messages_tenant_source_external_key",
+          "method": "btree",
+          "indisvalid": true,
+          "indisready": true,
+          "definitionSha256": "a319cbfdd324ef5f98213ec4cd5b635f086386f6170ca959c7f3f5847e6312cb",
+          "predicateSha256": null,
+          "removedOnly": false,
+          "trigram": false,
+          "fields": [
+            "tenant_id"
+          ]
+        },
+        {
+          "table_name": "mail_messages",
+          "index_name": "mail_messages_thread_removed_received_idx",
+          "method": "btree",
+          "indisvalid": true,
+          "indisready": true,
+          "definitionSha256": "9ddf8a98e610497371ccf9c1beacdc78e27ed5da878eec20f318c6a7a1fdb8a0",
+          "predicateSha256": null,
+          "removedOnly": false,
+          "trigram": false,
+          "fields": [
+            "thread_id",
+            "removed_at",
+            "received_at"
+          ]
+        },
+        {
+          "table_name": "mail_threads",
+          "index_name": "mail_threads_client_id_lookup_idx",
+          "method": "btree",
+          "indisvalid": true,
+          "indisready": true,
+          "definitionSha256": "c69adbe7e56fbca93ee81e76b3c2e177c01a185de6ea5a34aa3225ab2266f1e8",
+          "predicateSha256": "b92a85326ba1c5ed3622ac0d26554a6f7b4853a08ae86381add2edbd3575834d",
+          "removedOnly": false,
+          "trigram": false,
+          "fields": []
+        },
+        {
+          "table_name": "mail_threads",
+          "index_name": "mail_threads_pkey",
+          "method": "btree",
+          "indisvalid": true,
+          "indisready": true,
+          "definitionSha256": "71497961ee1eb9397d8cb04460322c19a219e96215ebb672217cd106f335bc24",
+          "predicateSha256": null,
+          "removedOnly": false,
+          "trigram": false,
+          "fields": []
+        },
+        {
+          "table_name": "mail_threads",
+          "index_name": "mail_threads_subject_trgm_idx",
+          "method": "gin",
+          "indisvalid": true,
+          "indisready": true,
+          "definitionSha256": "6437ab52361b48956ca53dcfe95104de64ee769fdd2f5b6a74c7f59de0020a1a",
+          "predicateSha256": null,
+          "removedOnly": false,
+          "trigram": true,
+          "fields": [
+            "subject"
+          ]
+        },
+        {
+          "table_name": "mail_threads",
+          "index_name": "mail_threads_tenant_client_last_idx",
+          "method": "btree",
+          "indisvalid": true,
+          "indisready": true,
+          "definitionSha256": "94d63f52e6ef95339c5cd0717600f2fc777656179a68390ca39e0c78462d37ad",
+          "predicateSha256": null,
+          "removedOnly": false,
+          "trigram": false,
+          "fields": [
+            "tenant_id"
+          ]
+        },
+        {
+          "table_name": "mail_threads",
+          "index_name": "mail_threads_tenant_source_external_key",
+          "method": "btree",
+          "indisvalid": true,
+          "indisready": true,
+          "definitionSha256": "7dea39518bb62dfeab2e32cd31363d77fb2ac71cce70a9661ffd573c37fbf898",
+          "predicateSha256": null,
+          "removedOnly": false,
+          "trigram": false,
+          "fields": [
+            "tenant_id"
+          ]
+        }
+      ],
+      "plan": {
+        "Node Type": "Aggregate",
+        "Strategy": "Plain",
+        "Startup Cost": 54179.89,
+        "Total Cost": 54179.9,
+        "Plan Rows": 1,
+        "Plan Width": 4,
+        "Parallel Aware": false,
+        "Async Capable": false,
+        "Plans": [
+          {
+            "Node Type": "Sort",
+            "Parent Relationship": "Outer",
+            "Startup Cost": 54179.87,
+            "Total Cost": 54179.88,
+            "Plan Rows": 1,
+            "Plan Width": 451,
+            "Parallel Aware": false,
+            "Async Capable": false,
+            "Plans": [
+              {
+                "Node Type": "Nested Loop",
+                "Join Type": "Inner",
+                "Parent Relationship": "Outer",
+                "Startup Cost": 1804.17,
+                "Total Cost": 54179.86,
+                "Plan Rows": 1,
+                "Plan Width": 451,
+                "Parallel Aware": false,
+                "Async Capable": false,
+                "Inner Unique": false,
+                "Plans": [
+                  {
+                    "Node Type": "Nested Loop",
+                    "Join Type": "Inner",
+                    "Parent Relationship": "Outer",
+                    "Startup Cost": 1803.75,
+                    "Total Cost": 50106.72,
+                    "Plan Rows": 427,
+                    "Plan Width": 80,
+                    "Parallel Aware": false,
+                    "Async Capable": false,
+                    "Inner Unique": false,
+                    "Plans": [
+                      {
+                        "Node Type": "Index Scan",
+                        "Parent Relationship": "Outer",
+                        "Scan Direction": "Forward",
+                        "Startup Cost": 0.14,
+                        "Total Cost": 128.95,
+                        "Plan Rows": 1,
+                        "Plan Width": 32,
+                        "Parallel Aware": false,
+                        "Async Capable": false,
+                        "Relation Name": "engagement_connections",
+                        "Index Name": "engagement_connections_pkey"
+                      },
+                      {
+                        "Node Type": "Bitmap Heap Scan",
+                        "Parent Relationship": "Inner",
+                        "Startup Cost": 1803.61,
+                        "Total Cost": 49775.12,
+                        "Plan Rows": 16212,
+                        "Plan Width": 48,
+                        "Parallel Aware": false,
+                        "Async Capable": false,
+                        "Relation Name": "mail_threads",
+                        "Plans": [
+                          {
+                            "Node Type": "Bitmap Index Scan",
+                            "Parent Relationship": "Outer",
+                            "Startup Cost": 0,
+                            "Total Cost": 1799.56,
+                            "Plan Rows": 30819,
+                            "Plan Width": 0,
+                            "Parallel Aware": false,
+                            "Async Capable": false,
+                            "Index Name": "mail_threads_tenant_client_last_idx"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "Node Type": "Index Scan",
+                    "Parent Relationship": "Inner",
+                    "Scan Direction": "Forward",
+                    "Startup Cost": 0.42,
+                    "Total Cost": 9.53,
+                    "Plan Rows": 1,
+                    "Plan Width": 483,
+                    "Parallel Aware": false,
+                    "Async Capable": false,
+                    "Relation Name": "mail_messages",
+                    "Index Name": "mail_messages_thread_removed_received_idx"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "explainSqlSha256": "4ff9839157176ddc5f7b99197deed5c26980a013d33fb6cccf3430c459fcb3dc",
+      "scopeSha256": "3024b5ed6079eed11465ba744c70bef52e60ab9a83f10b65c2081827cb7f7494",
+      "analyze": false,
+      "customerRowsRead": 0,
+      "conditionsPersisted": false
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "command": [
+    "C:\\Program Files\\nodejs\\node.exe",
+    "C:\\dev\\cap-meri-migration-history-guard\\node_modules\\promptfoo\\dist\\src\\entrypoint.js",
+    "eval",
+    "-c",
+    "evals/meri/promptfooconfig.yaml",
+    "--no-cache",
+    "--no-share",
+    "--no-write",
+    "--no-table",
+    "--no-progress-bar",
+    "-o",
+    "C:\\dev\\cap-meri-foundation-evidence\\oct02-hypothetical-assurance\\paraphrase-meri-offline-exact-head.json"
+  ],
+  "cwd": "C:\\dev\\cap-meri-migration-history-guard",
+  "pid": 4768,
+  "exitCode": 0,
+  "elapsedSeconds": 24.44,
+  "logSha256": "5b6e1284a1fc4b193a23eded3a0c5b1b321309df43977255311f8f1cb9417d24"
+}

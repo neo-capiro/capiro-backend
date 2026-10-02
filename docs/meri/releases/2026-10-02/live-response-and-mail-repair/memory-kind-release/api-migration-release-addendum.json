@@ -1,0 +1,12 @@
+{
+  "status": "APPROVED_FOR_EXISTING_QUALIFIED_API_PROMOTION",
+  "reviewedAt": "2026-10-02T16:50:07.326965+00:00",
+  "sourceSha": "42988dae5fb7bc2fff3af582ca15a0836a4477c5",
+  "candidateImageDigest": "sha256:f792a39e889c7572811dd1335b6f12501d3878701caef3888ae7f120bd6e6f25",
+  "originalManifestPreserved": true,
+  "manifestHash": "67c926cd556a63c553af40fef1a30d3b550abd9dddcb634a4b78cc958c08af25",
+  "supersedingMigrationCompatibility": "https://github.com/neo-capiro/capirov2/blob/6ca312d16e9d61e9375eb292f0e54355f1e85ddf/docs/meri/releases/2026-10-02/memory-kind-release/forward450-verified/compatibility-addendum.json",
+  "addendumSha256": "68e24ac7c85dd26394e4403fd90437839dec1c3938674978e7fafc4a509f9770",
+  "reason": "Normal Prisma deploy and independently verified old-history preservation satisfy forward migration precondition; immutable prior local449/450 rehearsals retain their scope. Existing image, source, service configuration and test qualification unchanged.",
+  "liveAcceptance": "NOT_RUN"
+}

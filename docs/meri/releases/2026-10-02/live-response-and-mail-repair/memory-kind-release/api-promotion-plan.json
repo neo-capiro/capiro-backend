@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "account": "967807252336",
+  "region": "us-east-1",
+  "cluster": "capiro-dev",
+  "service": "api",
+  "preparedAt": "2026-10-02T16:08:12.871Z",
+  "qualification": {
+    "schemaVersion": 1,
+    "service": "api",
+    "sourceSha": "42988dae5fb7bc2fff3af582ca15a0836a4477c5",
+    "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:f792a39e889c7572811dd1335b6f12501d3878701caef3888ae7f120bd6e6f25",
+    "status": "qualified",
+    "reviewer": "Codex root independently verified exact merged source, image receipts, owned fresh450/449-upgrade rehearsals and separate source/operator reviews. Bounded retirement compatibility; original live acceptance NOT_RUN.",
+    "reviewedAt": "2026-10-02T16:07:46.431841+00:00",
+    "expiresAt": "2026-10-02T20:07:46.431841+00:00",
+    "schemaChange": true,
+    "evidence": [
+      "https://github.com/neo-capiro/capirov2/blob/ceb97079d4520631238583cf64ec96d6a67ce5e5/docs/meri/releases/2026-10-02/memory-kind-release/memory-kind-release/api-build-readback.json",
+      "https://github.com/neo-capiro/capirov2/blob/ceb97079d4520631238583cf64ec96d6a67ce5e5/docs/meri/releases/2026-10-02/memory-kind-release/memory-kind-release/combined-source-qualification.json",
+      "https://github.com/neo-capiro/capirov2/blob/ceb97079d4520631238583cf64ec96d6a67ce5e5/docs/meri/releases/2026-10-02/memory-kind-release/memory-kind-release/candidate-retirement-rolling-compatibility.json"
+    ],
+    "checks": [
+      {
+        "name": "build",
+        "status": "passed",
+        "sourceSha": "42988dae5fb7bc2fff3af582ca15a0836a4477c5",
+        "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:f792a39e889c7572811dd1335b6f12501d3878701caef3888ae7f120bd6e6f25",
+        "url": "https://github.com/neo-capiro/capirov2/blob/ceb97079d4520631238583cf64ec96d6a67ce5e5/docs/meri/releases/2026-10-02/memory-kind-release/memory-kind-release/api-build-readback.json"
+      },
+      {
+        "name": "automated-tests",
+        "status": "passed",
+        "sourceSha": "42988dae5fb7bc2fff3af582ca15a0836a4477c5",
+        "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:f792a39e889c7572811dd1335b6f12501d3878701caef3888ae7f120bd6e6f25",
+        "url": "https://github.com/neo-capiro/capirov2/blob/ceb97079d4520631238583cf64ec96d6a67ce5e5/docs/meri/releases/2026-10-02/memory-kind-release/memory-kind-release/combined-source-qualification.json"
+      },
+      {
+        "name": "retirement-compatibility",
+        "status": "passed",
+        "sourceSha": "42988dae5fb7bc2fff3af582ca15a0836a4477c5",
+        "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:f792a39e889c7572811dd1335b6f12501d3878701caef3888ae7f120bd6e6f25",
+        "url": "https://github.com/neo-capiro/capirov2/blob/ceb97079d4520631238583cf64ec96d6a67ce5e5/docs/meri/releases/2026-10-02/memory-kind-release/memory-kind-release/candidate-retirement-rolling-compatibility.json"
+      }
+    ],
+    "freshDatabase": {
+      "status": "passed",
+      "url": "https://github.com/neo-capiro/capirov2/blob/ceb97079d4520631238583cf64ec96d6a67ce5e5/docs/meri/releases/2026-10-02/memory-kind-release/memory-kind-repair/forward-v2-fresh-42988dae5fb7.json"
+    },
+    "retiredUpgrade": {
+      "status": "passed",
+      "url": "https://github.com/neo-capiro/capirov2/blob/ceb97079d4520631238583cf64ec96d6a67ce5e5/docs/meri/releases/2026-10-02/memory-kind-release/memory-kind-repair/forward-v2-upgrade-42988dae5fb7.json"
+    },
+    "compatibility": {
+      "status": "passed",
+      "url": "https://github.com/neo-capiro/capirov2/blob/ceb97079d4520631238583cf64ec96d6a67ce5e5/docs/meri/releases/2026-10-02/memory-kind-release/memory-kind-release/candidate-retirement-rolling-compatibility.json"
+    }
+  },
+  "baseline": {
+    "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:505",
+    "serviceHash": "753e85eea4636ab38836c286c2e29ecdf368e17b28020d46056f0f07a2c236ed",
+    "configHash": "973748a2b134b388a6027df6c5c099055a7e24f7b746eafbaae8cebad077258a",
+    "taskHash": "fae322ed9fa79ff4d57dbe4b0a28d674eeb2d94ba994a35f1e117c0c5dc281cf",
+    "imageDigest": "sha256:f9505afe6319f814a770fbafc128daa567041226ebdba3b3751f64a839c584d6",
+    "desiredCount": 2
+  }
+}

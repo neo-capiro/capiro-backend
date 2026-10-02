@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "status": "VERIFIED",
+  "planHash": "74b4f327f2917d780a5313b2a019fd859994518a2c3e71f2b8ba619ab66319e4",
+  "mode": "budget-plan",
+  "operationId": "96782d10-9021-4623-999c-889de15f6153",
+  "sourceSha": "42988dae5fb7bc2fff3af582ca15a0836a4477c5",
+  "operatorHead": "6ca312d16e9d61e9375eb292f0e54355f1e85ddf",
+  "liveAcceptance": "NOT_RUN",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-case01-operator:11",
+  "startedBy": "meri-c01-96782d10-9021-4623-999c-",
+  "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/24dadb48127b414ca81bd336bf5dafc9",
+  "containerExitCode": 0,
+  "logMessageCount": 2,
+  "ownerReceipts": [
+    {
+      "status": "READY_FOR_RATE_QUALIFICATION",
+      "caseId": "01",
+      "captureRunId": "c6ffa5ad-dd9f-4912-bc31-a03231a9b903",
+      "currentVerifySha256": "177bf9befa20f94f7e0a7318e259155915401b128c1e917d4c71cc4e3d96825b",
+      "captureBindingSha256": "d25b06fe7c2c301be7075767e2ddceccc235fec7d5a5f8ca6a8bd6f69ed5c6cc",
+      "priorQualificationSha256": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+      "tenantRowVersion": "113660294",
+      "liveAcceptance": "NOT_RUN"
+    }
+  ]
+}

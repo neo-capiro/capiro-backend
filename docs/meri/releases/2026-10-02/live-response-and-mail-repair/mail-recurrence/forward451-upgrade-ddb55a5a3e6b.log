@@ -1,0 +1,14 @@
+Prisma schema loaded from ..\..\..\cap-meri-foundation-evidence\oct02-mail-recurrence\forward451-upgrade-ddb55a5a3e6b-source\schema.prisma
+Datasource "db": PostgreSQL database "meri_mail_index_upgrade_20261002", schema "public" at "127.0.0.1:55435"
+
+451 migrations found in prisma/migrations
+
+Applying migration `20281006010000_mail_threads_owned_connection_covering`
+
+The following migration(s) have been applied:
+
+migrations/
+  └─ 20281006010000_mail_threads_owned_connection_covering/
+    └─ migration.sql
+      
+All migrations have been successfully applied.

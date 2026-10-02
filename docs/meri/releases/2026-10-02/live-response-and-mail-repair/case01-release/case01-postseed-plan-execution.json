@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "status": "VERIFIED",
+  "planHash": "fad4efe59fd69351b5001052a536e824c553a78806b1b53e3fc78773eca74c56",
+  "mode": "setup-postseed-plan",
+  "operationId": "d36a1c44-c63e-48c7-b20c-074500448dda",
+  "sourceSha": "42988dae5fb7bc2fff3af582ca15a0836a4477c5",
+  "operatorHead": "6ca312d16e9d61e9375eb292f0e54355f1e85ddf",
+  "liveAcceptance": "NOT_RUN",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-case01-operator:9",
+  "startedBy": "meri-c01-d36a1c44-c63e-48c7-b20c-",
+  "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/feec6694cb7d4d1697fb242256fc6a4e",
+  "containerExitCode": 0,
+  "logMessageCount": 2,
+  "ownerReceipts": [
+    {
+      "kind": "meri-case01-post-seed-resume-plan",
+      "schemaVersion": 1,
+      "recipeSha256": "29cc20de9afb70ec31e009afd0b7c3226482f1372b05d2ccec7e86a835ec0142",
+      "captureRunId": "c6ffa5ad-dd9f-4912-bc31-a03231a9b903",
+      "candidateRowVersion": "113459135",
+      "clioRowVersion": "113459160",
+      "continuationClaimSha256": "28138f575b12c2d05a7f6ae5acc3496af9479eb4a4e29c0feab7a000dc2ef824",
+      "itemRowVersion": "113459135",
+      "originalClaimSha256": "5fdd382ee4332c3723f801d060c1462b9f4082e5a86fd945c7900fbba25be588",
+      "postApprovalClaimSha256": "cbf4e668005d83d3d3613ff1de3d11d7541e813d61ccd7de2b86a4e0c052acec",
+      "projectionJobId": "5e139f9c-3b32-434c-84a1-f043cca4b70f",
+      "recoveryClaimSha256": "2d51c9ef4f90dbc9bd5e2a98c30c1e70dde09386fb5e6857b0ebb4f2c08d0bc9",
+      "projection": {
+        "candidateId": "557b5b98-f591-50ce-83ea-2ca44d44567a",
+        "itemId": "5e9d3ad4-b37d-4997-be47-55b00528c085",
+        "clioId": "f662e810-1798-4ddb-97fc-fe4e406c1beb",
+        "jobId": "5e139f9c-3b32-434c-84a1-f043cca4b70f",
+        "contentHash": "4a411c1afa8b23bce2db5d5ee3b6214d22e696c49e4e15e3b922ebef568eeadc",
+        "sourceVersion": "2026-10-02T12:03:55.793Z",
+        "idempotencyKeySha256": "6bf8596dd3d58ad1eb498c958bae3ecc4a6fe4980aa683056a9ecc5ad528d9fd"
+      },
+      "previousManifestSha256": "8fa4872e189cc9bc4aad967487ff7d3456e3bd3e49a174c63805fe44afcf7056",
+      "currentManifestSha256": "fa06fed8bb19d65a67adc3695e04e3f03ab1ec7e6d2fb3cdd9fc40b94264f260",
+      "tenantRowVersion": "113598666",
+      "priorSettingsSha256": "6a403fa1d6428fc0e993dca766249e96e9788d91ffa5ae01d2a93ceeed0fdf5b",
+      "liveAcceptance": "NOT_RUN",
+      "schemaSha256": "7e053248a64f6dd7878243779aca74753945e48fc251cf6499178baa6e3f02b4",
+      "planSha256": "7884e5feebc54013088e514ad35df753812ce1183e51e6bf98a4ed714a8c110c"
+    }
+  ]
+}

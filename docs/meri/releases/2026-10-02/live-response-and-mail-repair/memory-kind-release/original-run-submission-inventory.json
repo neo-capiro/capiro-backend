@@ -1,0 +1,549 @@
+{
+  "kind": "original-evaluation-submission-inventory",
+  "schemaVersion": 1,
+  "observedAt": "2026-10-02T17:02:04.297948+00:00",
+  "captureRunId": "c6ffa5ad-dd9f-4912-bc31-a03231a9b903",
+  "runIdentityEvidence": {
+    "path": "oct02-case01-release\\case01-postseed-plan-input.json",
+    "sha256": "9790a842ba259e4f65768e86f390accb9868c191fe936f54e940e5f6a077fc44"
+  },
+  "scope": "Reviewed case01 owner setup chain and versioned V6 authenticated aggregate operator only.",
+  "originalAcceptance": "NOT_RUN",
+  "recordedOriginalCaptureSubmissionReceipts": 0,
+  "basis": [
+    "The four earlier owner executions stopped before setup completion. The latest successful postseed COMPLETE receipt explicitly reports synthesisSubmissionCount=0 and SETUP_COMPLETE for this exact captureRunId.",
+    "V6 source admission requires an actual successful postseed COMPLETE receipt with synthesisSubmissionCount=0 and an actual successful matching provider-budget installation before authentication or capture submission.",
+    "Recorded V5 local preflight/readiness commands explicitly performed no authentication/provider submissions. Missing files are corroborating observations, not standalone proof of zero generation."
+  ],
+  "setupExecutions": [
+    {
+      "path": "oct02-case01-release\\setup-execute-execution.json",
+      "sha256": "391f4e6afb7026847745c4503f10a520b6196309be54c37724fddd0f8d242b93",
+      "mode": "setup-execute",
+      "status": "RECONCILIATION_REQUIRED",
+      "containerExitCode": 1,
+      "sourceSha": "c11c83fe1759183254b24d11a9087ccc89595a73",
+      "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/69867ce349464296a6c613aaa6b08960",
+      "journal": [
+        {
+          "stage": "CLAIM",
+          "phase": "INTENT"
+        },
+        {
+          "stage": "PREVIOUS_SEED",
+          "phase": "INTENT"
+        },
+        {
+          "stage": "PREVIOUS_SEED",
+          "phase": "RECONCILIATION_REQUIRED"
+        }
+      ],
+      "completeReceipts": []
+    },
+    {
+      "path": "oct02-case01-release\\case01-recovery-execute-execution.json",
+      "sha256": "9ac310b1ed66877cdb9e3fb3a444e955c4fa067b0436ed401951441a541d45c7",
+      "mode": "setup-recovery-execute",
+      "status": "RECONCILIATION_REQUIRED",
+      "containerExitCode": 1,
+      "sourceSha": "c22d059e4fc8fd73f93e6928f7db3a1a4338f7f8",
+      "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/d2654fa526ac45d6843a6234d993074a",
+      "journal": [
+        {
+          "stage": "RECOVERY_ADMISSION",
+          "phase": "INTENT"
+        },
+        {
+          "stage": "RECOVERY_ADMISSION",
+          "phase": "VERIFIED"
+        },
+        {
+          "stage": "FIRST_CANONICAL_APPROVAL",
+          "phase": "INTENT"
+        },
+        {
+          "stage": "FIRST_CANONICAL_APPROVAL",
+          "phase": "RECONCILIATION_REQUIRED"
+        }
+      ],
+      "completeReceipts": []
+    },
+    {
+      "path": "oct02-case01-release\\case01-continuation-execute-execution.json",
+      "sha256": "7684813edfc1448edaab208fd15caed578c001c01c45de1c8cf513844a4be733",
+      "mode": "setup-continuation-execute",
+      "status": "RECONCILIATION_REQUIRED",
+      "containerExitCode": 1,
+      "sourceSha": "42780caa75fcabe4f83e619ad81c0f36fdda8fad",
+      "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/fa59a06ba49b4366b7b7cc84ac91e959",
+      "journal": [
+        {
+          "stage": "CONTINUATION_ADMISSION",
+          "phase": "INTENT"
+        },
+        {
+          "stage": "CONTINUATION_ADMISSION",
+          "phase": "VERIFIED"
+        },
+        {
+          "stage": "FIRST_CANONICAL_APPROVAL",
+          "phase": "INTENT"
+        },
+        {
+          "stage": "FIRST_CANONICAL_APPROVAL",
+          "phase": "RECONCILIATION_REQUIRED"
+        }
+      ],
+      "completeReceipts": []
+    },
+    {
+      "path": "oct02-case01-release\\case01-postapproval-execute-execution.json",
+      "sha256": "68c69863162500360f8846ceb2ee3ff018d1ebabb2001f879370bb62a04d7302",
+      "mode": "setup-postapproval-execute",
+      "status": "RECONCILIATION_REQUIRED",
+      "containerExitCode": 1,
+      "sourceSha": "a260004e9923ef5bbe7bd8f32bb4cbddd3c7be31",
+      "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/efc6ff9edac84b52840c2f5c5fba3ec4",
+      "journal": [
+        {
+          "stage": "POST_APPROVAL_ADMISSION",
+          "phase": "INTENT"
+        },
+        {
+          "stage": "POST_APPROVAL_ADMISSION",
+          "phase": "VERIFIED"
+        },
+        {
+          "stage": "FIRST_CANONICAL_PROJECTION",
+          "phase": "INTENT"
+        },
+        {
+          "stage": "FIRST_CANONICAL_PROJECTION",
+          "phase": "VERIFIED"
+        },
+        {
+          "stage": "PREVIOUS_SEED",
+          "phase": "INTENT"
+        },
+        {
+          "stage": "PREVIOUS_SEED",
+          "phase": "RECONCILIATION_REQUIRED"
+        }
+      ],
+      "completeReceipts": []
+    },
+    {
+      "path": "oct02-case01-release\\case01-postseed-execute-execution.json",
+      "sha256": "dd2a15c7cbb94ba75ea07d33abf7a348955386db045cc09b38ebfc052660b192",
+      "mode": "setup-postseed-execute",
+      "status": "VERIFIED",
+      "containerExitCode": 0,
+      "sourceSha": "42988dae5fb7bc2fff3af582ca15a0836a4477c5",
+      "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/360a8c3cf5f14fd2b21d78524f86292a",
+      "journal": [
+        {
+          "stage": "POST_SEED_ADMISSION",
+          "phase": "INTENT"
+        },
+        {
+          "stage": "POST_SEED_ADMISSION",
+          "phase": "VERIFIED"
+        },
+        {
+          "stage": "PREVIOUS_SEED",
+          "phase": "INTENT"
+        },
+        {
+          "stage": "PREVIOUS_SEED",
+          "phase": "VERIFIED"
+        },
+        {
+          "stage": "PREVIOUS_RETIRE",
+          "phase": "INTENT"
+        },
+        {
+          "stage": "PREVIOUS_RETIRE",
+          "phase": "VERIFIED"
+        },
+        {
+          "stage": "CURRENT_SEED",
+          "phase": "INTENT"
+        },
+        {
+          "stage": "CURRENT_SEED",
+          "phase": "VERIFIED"
+        },
+        {
+          "stage": "BIND",
+          "phase": "INTENT"
+        },
+        {
+          "stage": "BIND",
+          "phase": "VERIFIED"
+        },
+        {
+          "stage": "LOCATOR",
+          "phase": "INTENT"
+        },
+        {
+          "stage": "LOCATOR",
+          "phase": "VERIFIED"
+        },
+        {
+          "stage": "CONVERSATION",
+          "phase": "INTENT"
+        },
+        {
+          "stage": "CONVERSATION",
+          "phase": "VERIFIED"
+        },
+        {
+          "stage": "READBACK",
+          "phase": "INTENT"
+        },
+        {
+          "stage": "READBACK",
+          "phase": "VERIFIED"
+        },
+        {
+          "stage": "COMPLETE",
+          "phase": "VERIFIED"
+        }
+      ],
+      "completeReceipts": [
+        {
+          "captureRunId": "c6ffa5ad-dd9f-4912-bc31-a03231a9b903",
+          "status": "SETUP_COMPLETE",
+          "synthesisSubmissionCount": 0
+        }
+      ]
+    }
+  ],
+  "sourceAdmission": [
+    {
+      "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-aggregate-operator-v6\\case01-input-gates.mjs",
+      "sha256": "d95ba1b592e17fc69938ce0356b0c56c9223ca7dfa9a6c7cf81a482cf4483e38"
+    },
+    {
+      "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-aggregate-operator-v6\\run-case01-authenticated-aggregate-v6.mjs",
+      "sha256": "cb4df0325ac8b7eb78d9fe635d4f30dae18f352f6dbed3ee69009770df646709"
+    },
+    {
+      "path": "C:\\dev\\cap-meri-outcomes-validation\\evals\\meri\\live-v1\\fixture-provisioning\\case01-execution-setup.mjs",
+      "sha256": "4c00fd6add2cd92f4e51c95d5f43e0fef7b66da8d2f40c8299b3b92f8b8366a3"
+    }
+  ],
+  "explicitLocalCommandEvidence": [
+    {
+      "path": "oct02-original-aggregate-operator-v5\\a260-operator-local-preflight.json",
+      "sha256": "8d4d2edf789c588f998d6279e2611de7f633ca85c7fa7818b4a50cefcc464bea",
+      "status": "PASS",
+      "observedAt": "2026-10-02T14:42:56.164382+00:00",
+      "sourceSha": "a260004e9923ef5bbe7bd8f32bb4cbddd3c7be31",
+      "scope": "LOCAL_SOURCE_HISTORICAL_INPUTS_ONLY",
+      "awsCalls": 0,
+      "authCalls": 0,
+      "databaseCalls": 0,
+      "providerCalls": 0,
+      "inputMaterializationCalls": 0,
+      "liveAcceptance": "NOT_RUN"
+    },
+    {
+      "path": "oct02-original-aggregate-operator-v5\\actual-release-local-readiness.json",
+      "sha256": "69091efe87bc9b852da13c4f9c3bc9eefc4aeda0c12962e99356366338889e23",
+      "status": "PASS",
+      "observedAt": "2026-10-02T15:00:57.039Z",
+      "sourceSha": "a260004e9923ef5bbe7bd8f32bb4cbddd3c7be31",
+      "awsCalls": 0,
+      "authCalls": 0,
+      "materializerExecuted": false,
+      "liveAcceptance": "NOT_RUN"
+    }
+  ],
+  "v6FileObservations": [
+    {
+      "path": "oct02-original-aggregate-operator-v6\\case01-live-execution-aggregate-v6.json",
+      "presentAtObservation": false
+    },
+    {
+      "path": "oct02-original-aggregate-operator-v6\\case01-live-execution-aggregate-v6.lock",
+      "presentAtObservation": false
+    },
+    {
+      "path": "oct02-original-aggregate-operator-v6\\case01-operator-input-pins.json",
+      "presentAtObservation": false
+    },
+    {
+      "path": "oct02-original-aggregate-operator-v6\\postseed-execute-execution.json",
+      "presentAtObservation": false
+    },
+    {
+      "path": "oct02-original-aggregate-operator-v6\\budget-install-execution.json",
+      "presentAtObservation": false
+    },
+    {
+      "path": "oct02-original-aggregate-operator-v6\\aggregate-initial-checkpoint.json",
+      "presentAtObservation": false
+    },
+    {
+      "path": "oct02-original-aggregate-operator-v6\\case01-aggregate-reserved-checkpoint.json",
+      "presentAtObservation": false
+    },
+    {
+      "path": "oct02-original-aggregate-operator-v6\\case01-aggregate-final-checkpoint.json",
+      "presentAtObservation": false
+    }
+  ],
+  "historicalSmoke": {
+    "newChatTurnsRecorded": 7,
+    "conversationsCreatedRecorded": 7,
+    "countedAsOriginal75Acceptance": false,
+    "allVerifiedSyntheticSessionsRevoked": true,
+    "attempts": [
+      {
+        "path": "oct02-release-path\\synthetic-meri-ui-smoke-result.json",
+        "sha256": "40a3b0be56d4b6e473cbfd119269886d98ea7f1e52f44b10343044412873c87f",
+        "startedAt": "2026-10-02T02:33:04.374Z",
+        "completedAt": "2026-10-02T02:33:09.131Z",
+        "verdict": "BLOCKED",
+        "failureCode": "SYNTHETIC_AUTHENTICATION_FAILED",
+        "actors": [
+          {
+            "tenant": "meri-foundation-20260928-t1",
+            "identityVerified": false,
+            "conversationCreateRequests": 0,
+            "conversationsCreated": 0,
+            "turnsSent": 0,
+            "doneReceived": false,
+            "toolCalls": 0,
+            "streamErrors": 0,
+            "sessionRevoked": null,
+            "verdict": "NOT RUN"
+          }
+        ]
+      },
+      {
+        "path": "oct02-release-path\\synthetic-meri-ui-v2-smoke-result.json",
+        "sha256": "04d0c3401879e22b4d5f3dbaa700b27ade16546d69b3bcdf19d0976429615977",
+        "startedAt": "2026-10-02T02:44:08.005Z",
+        "completedAt": "2026-10-02T02:44:22.763Z",
+        "verdict": "BLOCKED",
+        "failureCode": "SMOKE_ASSERTION_FAILED",
+        "actors": [
+          {
+            "tenant": "meri-foundation-20260928-t1",
+            "identityVerified": true,
+            "conversationCreateRequests": 1,
+            "conversationsCreated": 1,
+            "turnsSent": 1,
+            "doneReceived": true,
+            "toolCalls": 0,
+            "streamErrors": 0,
+            "sessionRevoked": true,
+            "verdict": "NOT RUN"
+          }
+        ]
+      },
+      {
+        "path": "oct02-release-path\\synthetic-meri-ui-v3-smoke-result.json",
+        "sha256": "ffc68907f922ab28a9a562540bb70892442ecb01f5ee159f56658ce55cf1b831",
+        "startedAt": "2026-10-02T02:52:00.933Z",
+        "completedAt": "2026-10-02T02:52:47.923Z",
+        "verdict": "BLOCKED",
+        "failureCode": "SMOKE_ASSERTION_FAILED",
+        "actors": [
+          {
+            "tenant": "meri-foundation-20260928-t1",
+            "identityVerified": true,
+            "conversationCreateRequests": 0,
+            "conversationsCreated": 0,
+            "turnsSent": 0,
+            "doneReceived": false,
+            "toolCalls": 0,
+            "streamErrors": 0,
+            "sessionRevoked": true,
+            "verdict": "PERSISTED_REPLY_MISMATCH"
+          },
+          {
+            "tenant": "meri-foundation-20260928-t2",
+            "identityVerified": true,
+            "conversationCreateRequests": 1,
+            "conversationsCreated": 1,
+            "turnsSent": 1,
+            "doneReceived": true,
+            "toolCalls": 0,
+            "streamErrors": 0,
+            "sessionRevoked": true,
+            "verdict": "NOT RUN"
+          }
+        ]
+      },
+      {
+        "path": "oct02-release-path\\synthetic-meri-ui-v4-smoke-result.json",
+        "sha256": "c7ff7aa415121a5c848228dbd5cbdbbcbdcd77da33d854e87fb5ffb8303a3dbd",
+        "startedAt": "2026-10-02T03:45:57.134Z",
+        "completedAt": "2026-10-02T03:46:09.134Z",
+        "verdict": "BLOCKED",
+        "failureCode": "SMOKE_ASSERTION_FAILED",
+        "actors": [
+          {
+            "tenant": "meri-foundation-20260928-t1",
+            "identityVerified": true,
+            "conversationCreateRequests": 1,
+            "conversationsCreated": 1,
+            "turnsSent": 1,
+            "doneReceived": true,
+            "toolCalls": 0,
+            "streamErrors": 0,
+            "sessionRevoked": true,
+            "verdict": "NOT RUN"
+          }
+        ]
+      },
+      {
+        "path": "oct02-release-path\\synthetic-meri-ui-v5-smoke-result.json",
+        "sha256": "7d45074090d330c20b29ae3d27f311be4cda430ce61145583e251df3ba8215b9",
+        "startedAt": "2026-10-02T03:51:39.143Z",
+        "completedAt": "2026-10-02T03:51:47.960Z",
+        "verdict": "BLOCKED",
+        "failureCode": "SMOKE_ASSERTION_FAILED",
+        "actors": [
+          {
+            "tenant": "meri-foundation-20260928-t2",
+            "identityVerified": true,
+            "conversationCreateRequests": 1,
+            "conversationsCreated": 1,
+            "turnsSent": 1,
+            "doneReceived": true,
+            "toolCalls": 0,
+            "streamErrors": 0,
+            "sessionRevoked": true,
+            "verdict": "NOT RUN"
+          }
+        ]
+      },
+      {
+        "path": "oct02-release-path\\synthetic-meri-ui-v6-readonly-result.json",
+        "sha256": "3e7231120fbf0ec8ce846d89b93efb43a7035a7e0c0327d16a3f391b9930fd3c",
+        "startedAt": "2026-10-02T03:54:55.249Z",
+        "completedAt": "2026-10-02T03:54:59.088Z",
+        "verdict": "BLOCKED",
+        "failureCode": "T1_READBACK_ASSERTION_FAILED",
+        "actors": [
+          {
+            "tenant": "meri-foundation-20260928-t2",
+            "identityVerified": true,
+            "conversationCreateRequests": 0,
+            "conversationsCreated": 0,
+            "turnsSent": 0,
+            "doneReceived": false,
+            "toolCalls": 0,
+            "streamErrors": 0,
+            "sessionRevoked": true,
+            "verdict": "PERSISTED_REPLY_MISMATCH"
+          }
+        ]
+      },
+      {
+        "path": "oct02-reply-only\\synthetic-meri-ui-v7-smoke-result.json",
+        "sha256": "c76ea9cc12d57effef39e19b770cc266726c81ab20c10f09c277704342603542",
+        "startedAt": "2026-10-02T04:54:08.256Z",
+        "completedAt": "2026-10-02T04:54:35.340Z",
+        "attemptId": "v7-reply-only-repair",
+        "verdict": "BLOCKED",
+        "failureCode": "READBACK_HTTP_FAILURE",
+        "actors": [
+          {
+            "tenant": "meri-foundation-20260928-t1",
+            "identityVerified": true,
+            "conversationCreateRequests": 1,
+            "conversationsCreated": 1,
+            "turnsSent": 1,
+            "doneReceived": true,
+            "toolCalls": 0,
+            "streamErrors": 1,
+            "sessionRevoked": true,
+            "verdict": "NOT RUN"
+          }
+        ]
+      },
+      {
+        "path": "oct02-reply-only\\synthetic-meri-ui-v8-smoke-result.json",
+        "sha256": "96541453ed0f841e7cf6ce22656b1d2cec6fbd576ecf21ce6d1a7d59f7af1393",
+        "startedAt": "2026-10-02T05:33:43.508Z",
+        "completedAt": "2026-10-02T05:33:55.430Z",
+        "attemptId": "v8-jsonb-repair",
+        "verdict": "BLOCKED",
+        "failureCode": "SMOKE_ASSERTION_FAILED",
+        "actors": [
+          {
+            "tenant": "meri-foundation-20260928-t1",
+            "identityVerified": true,
+            "conversationCreateRequests": 1,
+            "conversationsCreated": 1,
+            "turnsSent": 1,
+            "doneReceived": true,
+            "toolCalls": 0,
+            "streamErrors": 0,
+            "sessionRevoked": true,
+            "verdict": "NOT RUN"
+          }
+        ]
+      },
+      {
+        "path": "oct02-reply-only\\synthetic-meri-ui-v9-readonly-result.json",
+        "sha256": "93101c82560044fb8b252a817c7f1ca40ae91ee81b085b2fba13acba0a15670e",
+        "startedAt": "2026-10-02T05:39:49.797Z",
+        "completedAt": "2026-10-02T05:39:57.430Z",
+        "attemptId": "v9-readonly-v8",
+        "verdict": "PASS",
+        "actors": [
+          {
+            "tenant": "meri-foundation-20260928-t1",
+            "identityVerified": true,
+            "conversationCreateRequests": 0,
+            "conversationsCreated": 0,
+            "turnsSent": 0,
+            "doneReceived": false,
+            "toolCalls": 0,
+            "streamErrors": 0,
+            "sessionRevoked": true,
+            "verdict": "PASS"
+          }
+        ]
+      },
+      {
+        "path": "oct02-reply-only\\synthetic-meri-ui-v10-smoke-result.json",
+        "sha256": "ad20a675fb1c3412046d67136b429aef365418e5cacfae71c37d6ab061a4446f",
+        "startedAt": "2026-10-02T05:43:06.771Z",
+        "completedAt": "2026-10-02T05:43:14.135Z",
+        "attemptId": "v10-remaining-t2",
+        "verdict": "PASS",
+        "actors": [
+          {
+            "tenant": "meri-foundation-20260928-t2",
+            "identityVerified": true,
+            "conversationCreateRequests": 1,
+            "conversationsCreated": 1,
+            "turnsSent": 1,
+            "doneReceived": true,
+            "toolCalls": 0,
+            "streamErrors": 0,
+            "sessionRevoked": true,
+            "verdict": "PASS"
+          }
+        ]
+      }
+    ]
+  },
+  "limitations": [
+    "This is a point-in-time inventory; root is continuing setup and must add later receipts.",
+    "Fixture approval/projection performed real embedding work. Zero original capture submissions does not mean zero provider activity or zero cost.",
+    "Historical synthetic smoke, owner manual browser diagnostics, offline tests and original75 acceptance are distinct. No account-wide or unrecorded-manual activity claim is made.",
+    "No provider usage API or live conversation database was queried by this inventory."
+  ],
+  "awsWrites": 0,
+  "authCalls": 0,
+  "databaseCalls": 0,
+  "providerCalls": 0
+}

@@ -1,0 +1,150 @@
+{
+  "version": 1,
+  "kind": "meri-closed-hypothetical-assurance-qualification",
+  "status": "PASS",
+  "observedAt": "2026-10-02T16:41:48.027334+00:00",
+  "sourceSha": "20994cbc91c2ed00d318568938d39e6056addba8",
+  "baseSha": "42988dae5fb7bc2fff3af582ca15a0836a4477c5",
+  "branch": "codex/meri-hypothetical-assurance-20261002",
+  "clean": true,
+  "policy": {
+    "observedCheckout": "743fd708c3484604e8a35ea1039adeca3b1e331f",
+    "originMain": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+    "requiredPolicyFilesUnchanged": true
+  },
+  "productionChange": "25 added lines in core evidence-plan.ts distinguish explicit closed hypothetical premises from external claims; known conflicting verification wording retains ordinary requirements. No API runtime/routing/provider/permission changes.",
+  "files": {
+    "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.spec.ts": "693b2a3eda5855f3a060d30055effe936328a08e351c63fd67df163ce9bef4d5",
+    "apps/meriv2-orchestrator/src/meri/retrieval/meri-evidence-formatting.spec.ts": "9af510406f1d7d63dfc8d848a7f2b1f212a73dca6438a09413128d1105acd476",
+    "packages/meriv2-core/src/assurance/evidence-plan.spec.ts": "4975853954ae46f562426a2cc1c6cbcd0a06a7928b850e0691e3c2c145f43f8e",
+    "packages/meriv2-core/src/assurance/evidence-plan.ts": "2e8132cc4cd1130d9aca1d489701b461cc040a0b60d8eed342effbe104a5581b"
+  },
+  "baseline": {
+    "core": {
+      "exitCode": 1,
+      "failed": 3,
+      "passed": 62,
+      "logSha256": "3fc2f55b2e1f9740c8a2cfe169e2e07c13debadda8277d1067689d768d2e26fc"
+    },
+    "actualAssistantWithMockProvider": {
+      "exitCode": 1,
+      "failed": 3,
+      "skippedExisting": 116,
+      "logSha256": "bf203e95e10b62d83cbe626db929f4e4f46d159a5625d2f92df88cbb7c18bb0b",
+      "unexpectedRosterCallReproduced": true
+    },
+    "setupFailuresPreserved": [
+      "initial pnpm test argument invocation failed before tests",
+      "first assistant baseline failed compilation due stale core dist; rebuilt current core, then reproduced actual regressions"
+    ]
+  },
+  "checks": [
+    {
+      "name": "core-assurance-final",
+      "exitCode": 0,
+      "testsPassed": 302,
+      "suitesPassed": 12,
+      "logSha256": "96d56eea7bb649ee2af7baaee8a7fb5d3a8b425dc6592f7eb74fa9a0b0e71114"
+    },
+    {
+      "name": "orchestrator-final",
+      "exitCode": 0,
+      "testsPassed": 163,
+      "suitesPassed": 3,
+      "logSha256": "a9894d8f3dc1b92bd96bba87a2fb7fbc3d5acfa17502992d8cccba05c4b87da3"
+    },
+    {
+      "name": "orchestrator-typecheck",
+      "exitCode": 0,
+      "testsPassed": null,
+      "suitesPassed": null,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "core-exact-head-build",
+      "command": [
+        "C:\\Program Files\\nodejs\\pnpm.cmd",
+        "exec",
+        "tsc",
+        "-p",
+        "tsconfig.json"
+      ],
+      "cwd": "C:\\dev\\cap-meri-migration-history-guard\\packages\\meriv2-core",
+      "pid": 9892,
+      "exitCode": 0,
+      "elapsedSeconds": 1.73,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "promptfoo-exact-head",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "C:\\dev\\cap-meri-migration-history-guard\\node_modules\\promptfoo\\dist\\src\\entrypoint.js",
+        "eval",
+        "-c",
+        "evals/meri/promptfooconfig.yaml",
+        "--no-cache",
+        "--no-share",
+        "--no-write",
+        "--no-table",
+        "--no-progress-bar",
+        "-o",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-hypothetical-assurance\\meri-offline-exact-head.json"
+      ],
+      "cwd": "C:\\dev\\cap-meri-migration-history-guard",
+      "pid": 3416,
+      "exitCode": 0,
+      "elapsedSeconds": 25.44,
+      "logSha256": "dab3e5084f02db870f71a45e9dafe84bdb07ce5c14f4d0f8878dcdab0e1ab905"
+    },
+    {
+      "name": "verifier-exact-head",
+      "command": [
+        "C:\\ProgramData\\Hermes\\tools\\python-3.14.7+20260901-win32-x64\\python.exe",
+        "evals/meri/verify_report.py",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-hypothetical-assurance\\meri-offline-exact-head.json",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-hypothetical-assurance\\meri-offline-exact-head.summary.json"
+      ],
+      "cwd": "C:\\dev\\cap-meri-migration-history-guard",
+      "pid": 21000,
+      "exitCode": 0,
+      "elapsedSeconds": 0.11,
+      "logSha256": "b54faad30a98b9f8f773168221fe9c4c800be4f593238602518be872a558c011"
+    }
+  ],
+  "offline": {
+    "passed": 26,
+    "verifierExit": 0,
+    "summarySha256": "e457e685cf22bb513a84e736ec70a90b6088fc5ce81b92b1e66e585d5df655a4",
+    "liveApis": false,
+    "db": false,
+    "modelCalls": false
+  },
+  "independentReview": {
+    "verdict": "PASS",
+    "adjudication": "Reviewed concrete regex/plan/caller findings against frozen bytes; no blocker found. No claim of live behavior from model review.",
+    "requestedModel": "moonshotai.kimi-k2.5",
+    "initializedModel": "moonshotai.kimi-k2.5",
+    "sessionId": "20261002_163806_270ab5",
+    "provider": "bedrock",
+    "reportedTokens": {
+      "input": 19501,
+      "output": 526,
+      "total": 20027,
+      "cache_read": 0,
+      "cache_write": 0
+    },
+    "reportedResultExit": 0,
+    "toolCalls": 0,
+    "billedCostUsd": null,
+    "costStatus": "not exposed by quiet stream output",
+    "actualProcessExit": 0,
+    "reportSha256": "ef17e0769f3311093d02ea389f5baeddbf0fc8707e5507476ed4d10dc40b1074"
+  },
+  "limitations": [
+    "Explicit recognized hypothetical frames only; ambiguous/unrecognized phrasing remains conservatively subject to existing assurance rules.",
+    "This does not globally disable tools when any prompt says no tools; real factual evidence requirements remain intact.",
+    "Provider behavior is mocked in assistant tests; deployed live retest NOT_RUN by this lane.",
+    "No main merge/push, cloud changes, authenticated browser calls, or application/provider calls."
+  ]
+}

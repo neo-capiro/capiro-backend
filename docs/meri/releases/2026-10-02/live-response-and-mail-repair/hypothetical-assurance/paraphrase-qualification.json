@@ -1,0 +1,143 @@
+{
+  "version": 1,
+  "kind": "meri-closed-premise-paraphrase-qualification",
+  "status": "PASS",
+  "observedAt": "2026-10-02T17:00:39.185769+00:00",
+  "sourceSha": "49b3bbcf18337652addf2d82857d41b9161cf7ba",
+  "parentSha": "20994cbc91c2ed00d318568938d39e6056addba8",
+  "combinedBaseSha": "42988dae5fb7bc2fff3af582ca15a0836a4477c5",
+  "clean": true,
+  "files": {
+    "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.spec.ts": "ab5347e12f6d5ed73550bb8df9d4dc5e03e230566bb16c606270361381910999",
+    "apps/meriv2-orchestrator/src/meri/retrieval/meri-evidence-formatting.spec.ts": "2baef8bf2c8db15664f9e8db10bc3549854a734d31af086ecc10df2ece2b3890",
+    "packages/meriv2-core/src/assurance/evidence-plan.spec.ts": "4157733742858009808afb89ddee666aea1a37e9fc802085f98dc57a4d13226c",
+    "packages/meriv2-core/src/assurance/evidence-plan.ts": "e13ab98b0a42d7277159df83643ff7502fa4f60d02799e05a1efd7007484edd0"
+  },
+  "productionChange": "Explicit exclusive hypothetical/fictional/supplied/provided premise patterns generalized across noun/verb order; real-world and mixed verification exclusions unchanged. Unknown wording remains conservative.",
+  "baseline": {
+    "core": {
+      "sourceSha": "20994cbc91c2ed00d318568938d39e6056addba8",
+      "failed": 2,
+      "passed": 70,
+      "exitCode": 1,
+      "logSha256": "a7a4268696e25d3065916cd8d9a7433fd72727901b400d3dd415eb65929c644d"
+    },
+    "actualAssistantWithMockProvider": {
+      "failed": 2,
+      "passed": 3,
+      "skippedExisting": 116,
+      "exitCode": 1,
+      "logSha256": "1172c4f733043dbd498b95433e5b9ef65307086480cc0281984c0d10390ae176"
+    }
+  },
+  "checks": [
+    {
+      "name": "paraphrase-core-final",
+      "exitCode": 0,
+      "testsPassed": 312,
+      "suitesPassed": 12,
+      "logSha256": "4da4ac53baef743308882cb0726a722c197cd3e6323275c63e4055685b1260da"
+    },
+    {
+      "name": "paraphrase-orchestrator-final",
+      "exitCode": 0,
+      "testsPassed": 167,
+      "suitesPassed": 3,
+      "logSha256": "56a73d4551e55d4cc2f6e8ede8b1b83e7928ca501ecd853e86ab159d4734b290"
+    },
+    {
+      "name": "paraphrase-orchestrator-typecheck",
+      "exitCode": 0,
+      "testsPassed": null,
+      "suitesPassed": null,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "paraphrase-core-exact-head-build",
+      "command": [
+        "C:\\Program Files\\nodejs\\pnpm.cmd",
+        "exec",
+        "tsc",
+        "-p",
+        "tsconfig.json"
+      ],
+      "cwd": "C:\\dev\\cap-meri-migration-history-guard\\packages\\meriv2-core",
+      "pid": 21040,
+      "exitCode": 0,
+      "elapsedSeconds": 1.55,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "paraphrase-promptfoo-exact-head",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "C:\\dev\\cap-meri-migration-history-guard\\node_modules\\promptfoo\\dist\\src\\entrypoint.js",
+        "eval",
+        "-c",
+        "evals/meri/promptfooconfig.yaml",
+        "--no-cache",
+        "--no-share",
+        "--no-write",
+        "--no-table",
+        "--no-progress-bar",
+        "-o",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-hypothetical-assurance\\paraphrase-meri-offline-exact-head.json"
+      ],
+      "cwd": "C:\\dev\\cap-meri-migration-history-guard",
+      "pid": 4768,
+      "exitCode": 0,
+      "elapsedSeconds": 24.44,
+      "logSha256": "5b6e1284a1fc4b193a23eded3a0c5b1b321309df43977255311f8f1cb9417d24"
+    },
+    {
+      "name": "paraphrase-verifier-exact-head",
+      "command": [
+        "C:\\ProgramData\\Hermes\\tools\\python-3.14.7+20260901-win32-x64\\python.exe",
+        "evals/meri/verify_report.py",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-hypothetical-assurance\\paraphrase-meri-offline-exact-head.json",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-hypothetical-assurance\\paraphrase-meri-offline-exact-head.summary.json"
+      ],
+      "cwd": "C:\\dev\\cap-meri-migration-history-guard",
+      "pid": 8780,
+      "exitCode": 0,
+      "elapsedSeconds": 0.1,
+      "logSha256": "a751a571deb261a165ba05a689fb1b6ea8e3ecebb9c746106ccaedb4d4143819"
+    }
+  ],
+  "offline": {
+    "passed": 26,
+    "verifierExit": 0,
+    "summarySha256": "5a1835191bf98f6a16e8a01c2d6cdd68e4dcaf94bfefad4ab7a1e44b2c92b4cb",
+    "liveApis": false,
+    "database": false,
+    "applicationModelCalls": false
+  },
+  "independentReview": {
+    "verdict": "PASS",
+    "requestedModel": "moonshotai.kimi-k2.5",
+    "initializedModel": "moonshotai.kimi-k2.5",
+    "sessionId": "20261002_165756_5e4d44",
+    "provider": "bedrock",
+    "reportedTokens": {
+      "input": 18091,
+      "output": 105,
+      "total": 18196,
+      "cache_read": 0,
+      "cache_write": 0
+    },
+    "reportedResultExit": 0,
+    "toolCalls": 0,
+    "billedCostUsd": null,
+    "costStatus": "not exposed by quiet stream output",
+    "actualProcessExit": 0,
+    "reportSha256": "b34f74a150ed666c6911d080df515a7592cd2af30b6e761d7689b083ccdf3160",
+    "adjudication": "Reviewed semantic delta and negative coverage tests. Reviewer text typo219944 refers to supplied baseline20994; reviewer did not independently execute tests, lane did. No blocker found."
+  },
+  "preservedPriorQualificationSha256": "8467d9e7a541bc71b82bfe4ece84ceaac6fc76afd04ab7cc7346847fc4756e87",
+  "limits": [
+    "No main merge or deployment",
+    "Deployed retest NOT_RUN",
+    "No blanket no-tools bypass; external factual categories still require actual evidence",
+    "Source tree intentionally isolated while root executes frozen429 setup operations"
+  ]
+}

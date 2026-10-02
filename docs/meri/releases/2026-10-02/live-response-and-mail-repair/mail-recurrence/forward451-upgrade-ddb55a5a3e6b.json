@@ -1,0 +1,69 @@
+{
+  "kind": "meri-mail-index-forward-migration-rehearsal",
+  "sourceSha": "ddb55a5a3e6bbf1c3f567119b66e18e0a92e60ab",
+  "mode": "upgrade",
+  "startedAt": "2026-10-02T17:04:32.636Z",
+  "scope": "owned local loopback database only",
+  "sharedDatabaseTouched": false,
+  "manualMigrationLedgerEdits": false,
+  "database": "meri_mail_index_upgrade_20261002",
+  "migrationManifestSha256": "e440f1780623ca7ca4fd32fbc2d98327472a84cbf7284652020ba395d693beac",
+  "newMigration": {
+    "name": "20281006010000_mail_threads_owned_connection_covering",
+    "sha256": "de0d73ca70787ceeb1d133aa539f2d291e6589bebb386210c7d4f3c8a7477915"
+  },
+  "identityVerified": true,
+  "baselineHistory": {
+    "count": 450,
+    "exactSourceChecksums": true,
+    "unfinished": 0,
+    "unexpected": 0
+  },
+  "baselineReceiptSha256": "4ba90132a6bf956cb7fb6b26b26cf6ab401789b02a7180b37a9485abe58550fc",
+  "databaseCreated": true,
+  "stage": "complete",
+  "migrationExitCode": 0,
+  "logSha256": "63c018facdcbd74c4000a2145b17a22c9e44b8e3ef22af452ce2248f12fbe695",
+  "history": {
+    "count": 451,
+    "exactSourceChecksums": true,
+    "unfinished": 0,
+    "unexpected": 0
+  },
+  "constraints": [
+    {
+      "name": "memory_candidate_source_kind_chk",
+      "validated": true,
+      "definition": "CHECK (((source_kind)::text = ANY ((ARRAY['explicit_user'::character varying, 'workflow_event'::character varying, 'artifact_approval'::character varying, 'model_extraction'::character varying, 'settings_sections'::character varying, 'learning_signal'::character varying, 'memory_correction'::character varying, 'memory_restore'::character varying, 'memory_contradiction'::character varying])::text[])))"
+    },
+    {
+      "name": "memory_candidate_version_payload_check",
+      "validated": true,
+      "definition": "CHECK ((((source_kind)::text <> ALL ((ARRAY['memory_correction'::character varying, 'memory_restore'::character varying, 'memory_contradiction'::character varying])::text[])) OR (((jsonb_typeof((payload_jsonb -> 'versionProposal'::text)) = 'object'::text) AND ((payload_jsonb #>> '{versionProposal,kind}'::text[]) = ANY (ARRAY['correction'::text, 'restore'::text, 'contradiction'::text])) AND ((payload_jsonb #>> '{versionProposal,sourceItemId}'::text[]) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'::text) AND (((payload_jsonb #>> '{versionProposal,targetItemId}'::text[]) IS NULL) OR ((payload_jsonb #>> '{versionProposal,targetItemId}'::text[]) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'::text)) AND ((((source_kind)::text = 'memory_correction'::text) AND ((payload_jsonb #>> '{versionProposal,kind}'::text[]) = 'correction'::text)) OR (((source_kind)::text = 'memory_restore'::text) AND ((payload_jsonb #>> '{versionProposal,kind}'::text[]) = 'restore'::text)) OR (((source_kind)::text = 'memory_contradiction'::text) AND ((payload_jsonb #>> '{versionProposal,kind}'::text[]) = 'contradiction'::text)))) IS TRUE)))"
+    }
+  ],
+  "retiredTablesAbsent": true,
+  "index": {
+    "name": "mail_threads_tenant_connection_id_cover_idx",
+    "method": "btree",
+    "valid": true,
+    "ready": true,
+    "unique": false,
+    "key_count": 3,
+    "total_count": 4,
+    "no_predicate": true,
+    "no_expression": true,
+    "attributes": [
+      "tenant_id",
+      "connection_id",
+      "id",
+      "client_id"
+    ],
+    "definition": "CREATE INDEX mail_threads_tenant_connection_id_cover_idx ON public.mail_threads USING btree (tenant_id, connection_id, id) INCLUDE (client_id)",
+    "definitionSha256": "7097d64ec1650dfa8e004e89a1e2f6f267cb7924e869993bb44fb235e9716c9e"
+  },
+  "priorLedgerPreserved": true,
+  "priorFullLedgerSha256": "50df368bf2626570eda09d187e57b1a31f52bd6fe4d762c2041deb6e3f51f853",
+  "exitCode": 0,
+  "completedAt": "2026-10-02T17:05:22.438Z"
+}

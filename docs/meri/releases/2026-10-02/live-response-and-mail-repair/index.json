@@ -1,0 +1,240 @@
+{
+  "kind": "meri-live-response-and-mail-source-setup-checkpoint",
+  "sourceSha": "ddb55a5a3e6bbf1c3f567119b66e18e0a92e60ab",
+  "createdAt": "2026-10-02T17:17:26.711156+00:00",
+  "files": [
+    {
+      "path": ".gitattributes",
+      "sha256": "53628631f02c7e369369c2efd12a62076bec4e44f2ecdf1216102be3e2c7e484",
+      "bytes": 28
+    },
+    {
+      "path": "case01-release/budget-install-postseed-execution.json",
+      "sha256": "c7f323ffed56210200afb264edfd851d7d315e8eb36fe30b235f6754a20b7056",
+      "bytes": 1631
+    },
+    {
+      "path": "case01-release/budget-install-postseed-independent-verification.json",
+      "sha256": "afe9153ad083fa89ce786e1bec57748a68ec98a2f5c62791743e9f63cb0614fe",
+      "bytes": 1196
+    },
+    {
+      "path": "case01-release/budget-install-postseed-task-plan.json",
+      "sha256": "9e990994f1126198b5555a7c3fde69e6c5e78ea3e4aa7aca1c688fb1c8364169",
+      "bytes": 1933
+    },
+    {
+      "path": "case01-release/budget-plan-postseed-execution.json",
+      "sha256": "14fcb4ed8ec71b51636ddd73a887b34dae50d953d6c23ed89effe8df970b2e46",
+      "bytes": 1241
+    },
+    {
+      "path": "case01-release/budget-plan-postseed-task-plan.json",
+      "sha256": "489d38127ede876be02265fde2b1a9bec273440b9042d9140d3bc797e03af2bc",
+      "bytes": 1930
+    },
+    {
+      "path": "case01-release/case01-postseed-execute-execution.json",
+      "sha256": "dd2a15c7cbb94ba75ea07d33abf7a348955386db045cc09b38ebfc052660b192",
+      "bytes": 6283
+    },
+    {
+      "path": "case01-release/case01-postseed-execute-independent-verification.json",
+      "sha256": "749d4b113a9a5dcb46c6cbcdf66705572c028472f83c28890de785ec882836ba",
+      "bytes": 1092
+    },
+    {
+      "path": "case01-release/case01-postseed-execute-task-plan.json",
+      "sha256": "3c4d721018cf9effd688b0f267933f130be05e525de00a1ddab862f7904e3510",
+      "bytes": 1941
+    },
+    {
+      "path": "case01-release/case01-postseed-plan-execution.json",
+      "sha256": "b06951fd702a0a0203ca87100fadff41f3d578df94740ced6ad3a901abdac464",
+      "bytes": 2629
+    },
+    {
+      "path": "case01-release/case01-postseed-plan-task-plan.json",
+      "sha256": "6b25b70291b9e0c9fc7228131073e81a2a756185e9f0ba2ce9ac79d6fc888638",
+      "bytes": 1938
+    },
+    {
+      "path": "hypothetical-assurance/paraphrase-core-final.exit",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "bytes": 3
+    },
+    {
+      "path": "hypothetical-assurance/paraphrase-core-final.log",
+      "sha256": "4da4ac53baef743308882cb0726a722c197cd3e6323275c63e4055685b1260da",
+      "bytes": 702
+    },
+    {
+      "path": "hypothetical-assurance/paraphrase-meri-offline-exact-head.summary.json",
+      "sha256": "5a1835191bf98f6a16e8a01c2d6cdd68e4dcaf94bfefad4ab7a1e44b2c92b4cb",
+      "bytes": 3952
+    },
+    {
+      "path": "hypothetical-assurance/paraphrase-orchestrator-final.exit",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "bytes": 3
+    },
+    {
+      "path": "hypothetical-assurance/paraphrase-orchestrator-final.log",
+      "sha256": "56a73d4551e55d4cc2f6e8ede8b1b83e7928ca501ecd853e86ab159d4734b290",
+      "bytes": 373183
+    },
+    {
+      "path": "hypothetical-assurance/paraphrase-orchestrator-typecheck.exit",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "bytes": 3
+    },
+    {
+      "path": "hypothetical-assurance/paraphrase-promptfoo-exact-head.exit.json",
+      "sha256": "ffe73b0ce1f1d9504f87e06bc08c2489cd7544f960fc52a9bf705e9dc6ec77ba",
+      "bytes": 664
+    },
+    {
+      "path": "hypothetical-assurance/paraphrase-qualification.json",
+      "sha256": "491c1e9bb6511ce9648bfcbcbe7a07a153e82dd57a1b16c0e0c0bdd9fbf4a945",
+      "bytes": 5764
+    },
+    {
+      "path": "hypothetical-assurance/qualification.json",
+      "sha256": "8467d9e7a541bc71b82bfe4ece84ceaac6fc76afd04ab7cc7346847fc4756e87",
+      "bytes": 6142
+    },
+    {
+      "path": "hypothetical-release/api-build-start.json",
+      "sha256": "cba71a1bd2c86a872dc062b41b606f1e75d6bd1b2a9e2322e8fe7c4059709b3c",
+      "bytes": 759
+    },
+    {
+      "path": "hypothetical-release/api.buildspec.yml",
+      "sha256": "0000f08568ec1f6bcb8b2ad7c23301e1f43269bb0ade75b04d362c90d759ad16",
+      "bytes": 7455
+    },
+    {
+      "path": "hypothetical-release/combined-source-qualification.json",
+      "sha256": "d8ce9e00f85d83ace96c49bd99082ca50507f05369b10b16a97f19a0224620bd",
+      "bytes": 2320
+    },
+    {
+      "path": "hypothetical-release/meriv2-orchestrator-build-start.json",
+      "sha256": "2a3ed8e0d8b3ad3f5f93da1dc8e9b556acb9ceae0eb7c96a8707be834c9c7c03",
+      "bytes": 792
+    },
+    {
+      "path": "hypothetical-release/meriv2-orchestrator.buildspec.yml",
+      "sha256": "dd3aaac45be1eada1a2451add262b6407313d699b390deb0c0707455c370af90",
+      "bytes": 9009
+    },
+    {
+      "path": "hypothetical-release/reviewed-build-input.json",
+      "sha256": "71b8c19c5c18eb7e746df2767d1585e4f202f62e3b48e4ddc291640ba8aefbd9",
+      "bytes": 961
+    },
+    {
+      "path": "mail-recurrence/covering-index-kimi-exit.json",
+      "sha256": "e126656104d871f65c0edbed579cf6a650dd2e11dc3dae87ec5c15199a78b548",
+      "bytes": 103
+    },
+    {
+      "path": "mail-recurrence/covering-index-kimi-review.md",
+      "sha256": "b3ebee074b32424e14f3027bead27cfa4069578125d67c122822723829c1d6c2",
+      "bytes": 1334
+    },
+    {
+      "path": "mail-recurrence/covering-index-local-report-final.json",
+      "sha256": "6c0eabb5043bace13c14d00198b67a5ed23ad1c5a9b2cfc5935c82b3ce6af82b",
+      "bytes": 5485
+    },
+    {
+      "path": "mail-recurrence/covering-index-local-tests-final.exit.json",
+      "sha256": "6041df3e9b345d68be886f995c452395674ea950cd3ca9992c13b64f3aa9cbd0",
+      "bytes": 14
+    },
+    {
+      "path": "mail-recurrence/covering-index-qualification.json",
+      "sha256": "7f2cbc0329dfec1299f5bff0d27b2705f38e9bc8cd063b7cc2ee5559b2bc2c8f",
+      "bytes": 3573
+    },
+    {
+      "path": "mail-recurrence/forward451-combined-qualification.json",
+      "sha256": "f5af38c2482f9b846ab69bfa4c537ef832a2667d8fc1d749ad063a69bc4a3035",
+      "bytes": 2875
+    },
+    {
+      "path": "mail-recurrence/forward451-fresh-ddb55a5a3e6b.json",
+      "sha256": "0c7439a2daa1613f13078836f7783ba9f9027fa032970f9985d3efa8d6fcb7ef",
+      "bytes": 3807
+    },
+    {
+      "path": "mail-recurrence/forward451-fresh-ddb55a5a3e6b.log",
+      "sha256": "a3b2be818404e34efd202a85d671ec4080dad19a891fb8cabbd323fcb69cca07",
+      "bytes": 64851
+    },
+    {
+      "path": "mail-recurrence/forward451-upgrade-ddb55a5a3e6b.json",
+      "sha256": "8c5e0be4c4010ad358d7fae92556061a63d44a4aa18146a3ab87b27eb1f35977",
+      "bytes": 3791
+    },
+    {
+      "path": "mail-recurrence/forward451-upgrade-ddb55a5a3e6b.log",
+      "sha256": "63c018facdcbd74c4000a2145b17a22c9e44b8e3ef22af452ce2248f12fbe695",
+      "bytes": 571
+    },
+    {
+      "path": "mail-recurrence/mail-count-wait-sampling.json",
+      "sha256": "702f4917dbb7ecbcec9b75dd539798ae60ea181e258982741d6bcb9d24e1215a",
+      "bytes": 2485
+    },
+    {
+      "path": "mail-recurrence/mail-plan-execution.json",
+      "sha256": "dde8456abfcfe10df39002e7bf2ae87a4a9647509ab583531e3947962ad1758b",
+      "bytes": 13331
+    },
+    {
+      "path": "mail-recurrence/mail-plan-independent-execution-verification.json",
+      "sha256": "76dc6e849a7ef54dbdd72633fb303f931f1f81661c278899677c338cc5c92b6a",
+      "bytes": 1078
+    },
+    {
+      "path": "mail-recurrence/rehearse-forward451.cjs.txt",
+      "sha256": "692cef8c74c562178067227cc63f654faf5f60a25cc30fcb94072b4d4c69457a",
+      "bytes": 10973
+    },
+    {
+      "path": "memory-kind-release/api-independent-promotion-readback.json",
+      "sha256": "8f1be0e08ef389883cb8e1e5d5cb6df98f913ad2b9f4efc40a8439c69fa7c082",
+      "bytes": 1897
+    },
+    {
+      "path": "memory-kind-release/api-migration-release-addendum.json",
+      "sha256": "1ac89ea0377ca2ad3ef2f2827007497beb7b07579b55f4fcae5331db6ba99863",
+      "bytes": 1023
+    },
+    {
+      "path": "memory-kind-release/api-promotion-plan.json",
+      "sha256": "853658bbc60f0011e1f618a52e573ea806ab560bd9d8194e704e9678df400bd1",
+      "bytes": 4291
+    },
+    {
+      "path": "memory-kind-release/api-promotion-receipt.json",
+      "sha256": "a3af353c3ff5d9ab5b34714200409c85c95f9b8ecb6768d97c42517b5095e18e",
+      "bytes": 1034
+    },
+    {
+      "path": "memory-kind-release/original-run-submission-inventory.json",
+      "sha256": "e5fbce77356a16d96854fddfaeb88aabeba911d164abb614989954302251b56a",
+      "bytes": 19559
+    },
+    {
+      "path": "README.md",
+      "sha256": "df66f04864fc85c798d59f334b570ffc5d06c5f80b1661c32b4d6492c1505d17",
+      "bytes": 2987
+    }
+  ],
+  "privateActorInputExcluded": true,
+  "originalAcceptance": "NOT_RUN",
+  "candidateDeployment": "BUILDING_NOT_YET_PROMOTED"
+}

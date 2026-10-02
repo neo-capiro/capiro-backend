@@ -1,0 +1,52 @@
+{
+  "kind": "meri-forward451-source-and-rehearsal-qualification",
+  "status": "PASS",
+  "sourceSha": "ddb55a5a3e6bbf1c3f567119b66e18e0a92e60ab",
+  "observedAt": "2026-10-02T17:12:23.584658+00:00",
+  "schemaChange": true,
+  "migrationCount": 451,
+  "prior450SourceBlobsUnchanged": true,
+  "sourceBlobJoinToReviewed54ae": true,
+  "fresh451ExitCode": 0,
+  "upgrade450to451ExitCode": 0,
+  "upgradePriorLedgerPreserved": true,
+  "retiredTablesRemainAbsent": true,
+  "exactIndexDefinitionSha256": "7097d64ec1650dfa8e004e89a1e2f6f267cb7924e869993bb44fb235e9716c9e",
+  "migrationManifestSha256": "e440f1780623ca7ca4fd32fbc2d98327472a84cbf7284652020ba395d693beac",
+  "artifacts": {
+    "forward451-fresh-ddb55a5a3e6b.json": "0c7439a2daa1613f13078836f7783ba9f9027fa032970f9985d3efa8d6fcb7ef",
+    "forward451-fresh-ddb55a5a3e6b.log": "a3b2be818404e34efd202a85d671ec4080dad19a891fb8cabbd323fcb69cca07",
+    "forward451-upgrade-ddb55a5a3e6b.json": "8c5e0be4c4010ad358d7fae92556061a63d44a4aa18146a3ab87b27eb1f35977",
+    "forward451-upgrade-ddb55a5a3e6b.log": "63c018facdcbd74c4000a2145b17a22c9e44b8e3ef22af452ce2248f12fbe695",
+    "covering-index-qualification.json": "7f2cbc0329dfec1299f5bff0d27b2705f38e9bc8cd063b7cc2ee5559b2bc2c8f",
+    "rehearse-forward451.cjs": "692cef8c74c562178067227cc63f654faf5f60a25cc30fcb94072b4d4c69457a",
+    "api-451.buildspec.yml": "0000f08568ec1f6bcb8b2ad7c23301e1f43269bb0ade75b04d362c90d759ad16"
+  },
+  "apiRecipeSha256": "0000f08568ec1f6bcb8b2ad7c23301e1f43269bb0ade75b04d362c90d759ad16",
+  "apiRecipeStructureInheritedFromQualifiedRecipe": true,
+  "apiRecipeDelta": "Only450\u2192451 count/marker plus exact new SQL hash and package marker; all prior native/import/runtime gates unchanged.",
+  "stagedInputSha256": "3deeed684e55c168952184797e319649b8a6843af9c9e7fec98d30d6af9bbddb",
+  "stagedSourceAndActions": "UNSEALED",
+  "rolloutImpact": {
+    "lockTimeoutSeconds": 5,
+    "statementTimeoutSeconds": 30,
+    "conventionalIndexBuild": true,
+    "writesToMailThreadsMayBlock": true,
+    "readsRemainAllowed": true,
+    "failureAtomicRollback": true,
+    "noIfNotExists": true
+  },
+  "limitations": [
+    "Owned local fresh/upgrade results do not replace fresh shared607-row ledger preflight.",
+    "Previous retirement rolling-compatibility evidence is inherited; no retired historical runtime replay repeated here.",
+    "Local warm-cache timing is not production performance proof.",
+    "Qualified image build, guarded shared migration, and live mailbox retest remain pending."
+  ],
+  "awsWrites": 0,
+  "sharedDatabaseWrites": 0,
+  "liveAcceptance": "NOT_RUN",
+  "preparationCommandFailures": [
+    "Earlier PowerShell nested-quote ParserError occurred before Python.",
+    "File-based validation initially lacked optional PyYAML; removed dependency and verified exact reverse delta to qualified recipe without claiming a new parser run."
+  ]
+}

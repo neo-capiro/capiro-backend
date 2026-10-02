@@ -1,0 +1,20 @@
+{
+  "status": "PASS",
+  "observedAt": "2026-10-02T16:48:25.256022+00:00",
+  "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/eee095bc5bbe46f79bc2b6ff2d09fe28",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-mail-plan-read:1",
+  "imageDigest": "sha256:f9505afe6319f814a770fbafc128daa567041226ebdba3b3751f64a839c584d6",
+  "sourceSha": "a260004e9923ef5bbe7bd8f32bb4cbddd3c7be31",
+  "containerExitCode": 0,
+  "lastStatus": "STOPPED",
+  "exactTaskDefinitionHash": "dc7690b21a1fcab84393b7975f511f0ac5432e73e83c412038c0bb5390f933de",
+  "logReceiptEqualsSaved": true,
+  "ownerReceiptCount": 1,
+  "planHash": "6be2ce534a8e362c943f1fa29d63a81d85416f589cf15fbb2d65865f7d83ef75",
+  "receiptSha256": "dde8456abfcfe10df39002e7bf2ae87a4a9647509ab583531e3947962ad1758b",
+  "scriptSha256": "9d633528808bb20238fc043e7864299a3ce377f2456cb7b0b93712b25fa9508f",
+  "wrapperSha256": "f7872d70025adbfa23f7296ef2c251b62808dc75116bcfbd74414c6a93924a05",
+  "awsWrites": 0,
+  "databaseQueries": 0,
+  "liveMailSuccess": "NOT_RUN"
+}
