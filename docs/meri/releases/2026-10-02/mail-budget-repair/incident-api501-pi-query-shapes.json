@@ -1,0 +1,341 @@
+{
+  "observedAt": "2026-10-02T13:53:32.618101+00:00",
+  "windowStart": "2026-10-02T13:48:00+00:00",
+  "queries": [
+    {
+      "sqlId": "C7A9CC34C88AC32AA2EC86C269562F7C27E5097A",
+      "sqlSha256": "7d2858293cca4e58992d616999d163ca42f1c2f7f344f3b20499ba6a538ef103",
+      "dbLoadAverage": 0.08333333333333333,
+      "fullStatementAvailable": true,
+      "statementLength": 246,
+      "knownTables": [
+        "engagement_contacts"
+      ],
+      "knownFields": [
+        "email",
+        "engagement_contacts",
+        "id",
+        "tenant_id"
+      ],
+      "operators": [
+        "offset"
+      ],
+      "placeholders": 4
+    },
+    {
+      "sqlId": "C0815B3B43638B7F6E502A4FB2A4389CCAFB18D1",
+      "sqlSha256": "79663c1d3b43ceaf9ee728e501c64b57ae2e4d6cb36ff5c65eddcda1de27342f",
+      "dbLoadAverage": 0.02,
+      "fullStatementAvailable": true,
+      "statementLength": 6,
+      "knownTables": [],
+      "knownFields": [],
+      "operators": [],
+      "placeholders": 0
+    },
+    {
+      "sqlId": "EA922D2D667987D0B986567EDEAD4FE38FA80483",
+      "sqlSha256": "d538e0a3c358a95314f884f465af0d4882d326df598e2214ddd23b8f5005f6ec",
+      "dbLoadAverage": 0.016666666666666666,
+      "fullStatementAvailable": true,
+      "statementLength": 2297,
+      "knownTables": [
+        "engagement_connections",
+        "meeting_attendees",
+        "meetings"
+      ],
+      "knownFields": [
+        "association_reason",
+        "association_score",
+        "association_signals_jsonb",
+        "client_id",
+        "connection_id",
+        "created_at",
+        "created_by_user_id",
+        "description",
+        "email",
+        "ends_at",
+        "engagement_connections",
+        "external_id",
+        "ical_uid",
+        "id",
+        "is_internal",
+        "is_virtual",
+        "join_link",
+        "location",
+        "meeting_attendees",
+        "meeting_id",
+        "meetings",
+        "metadata_jsonb",
+        "organizer_email",
+        "organizer_name",
+        "provider",
+        "raw_jsonb",
+        "shared_at",
+        "shared_by_user_id",
+        "source",
+        "starts_at",
+        "status",
+        "subject",
+        "tenant_id",
+        "text",
+        "time_zone",
+        "transcript_s3_key",
+        "updated_at",
+        "visibility"
+      ],
+      "operators": [
+        "offset",
+        "array",
+        "jsonb",
+        "join",
+        "not in"
+      ],
+      "placeholders": 22
+    },
+    {
+      "sqlId": "AEF4B837C7FACBD56D0E04D06F5B56476BE77239",
+      "sqlSha256": "684c0e802667fcc2a4e308872929ae2a75b9e253d00f74c01a6e89ab57724f38",
+      "dbLoadAverage": 0.016666666666666666,
+      "fullStatementAvailable": true,
+      "statementLength": 2289,
+      "knownTables": [
+        "engagement_connections",
+        "meeting_attendees",
+        "meetings"
+      ],
+      "knownFields": [
+        "association_reason",
+        "association_score",
+        "association_signals_jsonb",
+        "client_id",
+        "connection_id",
+        "created_at",
+        "created_by_user_id",
+        "description",
+        "email",
+        "ends_at",
+        "engagement_connections",
+        "external_id",
+        "ical_uid",
+        "id",
+        "is_internal",
+        "is_virtual",
+        "join_link",
+        "location",
+        "meeting_attendees",
+        "meeting_id",
+        "meetings",
+        "metadata_jsonb",
+        "organizer_email",
+        "organizer_name",
+        "provider",
+        "raw_jsonb",
+        "shared_at",
+        "shared_by_user_id",
+        "source",
+        "starts_at",
+        "status",
+        "subject",
+        "tenant_id",
+        "text",
+        "time_zone",
+        "transcript_s3_key",
+        "updated_at",
+        "visibility"
+      ],
+      "operators": [
+        "offset",
+        "array",
+        "jsonb",
+        "join",
+        "not in"
+      ],
+      "placeholders": 20
+    },
+    {
+      "sqlId": "B213B3BD39D288EF6A7A8CFF3BEEA2C6C95827C5",
+      "sqlSha256": "6d0e01090c0486a27af57ceb1f1f64c7968f04e90d90a3dd2c29f16d2e9fae8d",
+      "dbLoadAverage": 0.013333333333333334,
+      "fullStatementAvailable": true,
+      "statementLength": 802,
+      "knownTables": [
+        "engagement_connections",
+        "mail_messages",
+        "mail_threads"
+      ],
+      "knownFields": [
+        "body_text",
+        "cc_recipients_jsonb",
+        "connection_id",
+        "created_at",
+        "created_by_user_id",
+        "engagement_connections",
+        "from_email",
+        "from_name",
+        "id",
+        "mail_messages",
+        "mail_threads",
+        "metadata_jsonb",
+        "provider",
+        "received_at",
+        "removed_at",
+        "sent_at",
+        "subject",
+        "tenant_id",
+        "text",
+        "thread_id",
+        "to_recipients_jsonb"
+      ],
+      "operators": [
+        "ilike",
+        "count",
+        "distinct",
+        "coalesce",
+        "join"
+      ],
+      "placeholders": 14
+    },
+    {
+      "sqlId": "79C43ED6FE59B69585A42151A70317E7AA4A5318",
+      "sqlSha256": "f0720da65fa920be414da21689d186fc69503b72cc3d348c9544f63afa19f52e",
+      "dbLoadAverage": 0.013333333333333334,
+      "fullStatementAvailable": true,
+      "statementLength": 405,
+      "knownTables": [
+        "meeting_attendees",
+        "meetings"
+      ],
+      "knownFields": [
+        "client_id",
+        "email",
+        "id",
+        "meeting_attendees",
+        "meeting_id",
+        "meetings",
+        "tenant_id"
+      ],
+      "operators": [
+        "order by",
+        "limit",
+        "offset"
+      ],
+      "placeholders": 4
+    },
+    {
+      "sqlId": "FE9A39A0DD06C4C7CA23422A407B742233B58960",
+      "sqlSha256": "0b75f8a8cc836b346718f47cfe2daaf0d245bafb648b40155afe11d12790fde6",
+      "dbLoadAverage": 0.01,
+      "fullStatementAvailable": true,
+      "statementLength": 1025,
+      "knownTables": [
+        "engagement_connections",
+        "mail_messages",
+        "mail_threads"
+      ],
+      "knownFields": [
+        "body_text",
+        "client_id",
+        "connection_id",
+        "created_by_user_id",
+        "engagement_connections",
+        "from_email",
+        "from_name",
+        "id",
+        "mail_messages",
+        "mail_threads",
+        "removed_at",
+        "subject",
+        "tenant_id",
+        "thread_id"
+      ],
+      "operators": [
+        "ilike",
+        "count",
+        "offset",
+        "join"
+      ],
+      "placeholders": 67
+    },
+    {
+      "sqlId": "24BA3B2CDD6E86E95BF2C58801145E3CF0034D44",
+      "sqlSha256": "0e9e2b302113a439f43fa2828d5d705d48db8eaaa2307838c9598dc5113c99d7",
+      "dbLoadAverage": 0.01,
+      "fullStatementAvailable": true,
+      "statementLength": 411,
+      "knownTables": [
+        "meeting_attendees",
+        "meetings"
+      ],
+      "knownFields": [
+        "client_id",
+        "email",
+        "id",
+        "meeting_attendees",
+        "meeting_id",
+        "meetings",
+        "tenant_id"
+      ],
+      "operators": [
+        "order by",
+        "limit",
+        "offset"
+      ],
+      "placeholders": 6
+    },
+    {
+      "sqlId": "ED74EC34BE040D64027C59F26C80AEBF5DBAD0C8",
+      "sqlSha256": "ad14759ed88dfbf682b484fdc112608a618e3fb3736c267c4ccad5621a6904fe",
+      "dbLoadAverage": 0.006666666666666667,
+      "fullStatementAvailable": true,
+      "statementLength": 417,
+      "knownTables": [
+        "meeting_attendees",
+        "meetings"
+      ],
+      "knownFields": [
+        "client_id",
+        "email",
+        "id",
+        "meeting_attendees",
+        "meeting_id",
+        "meetings",
+        "tenant_id"
+      ],
+      "operators": [
+        "order by",
+        "limit",
+        "offset"
+      ],
+      "placeholders": 8
+    },
+    {
+      "sqlId": "A2D338BC6BC1C2414746D28F0AD8E9BBCC7CCC91",
+      "sqlSha256": "ef96ec11e587d11f2ad42e3fd98db53c93f765dd65a6952c0f30961d14d8c1f8",
+      "dbLoadAverage": 0.006666666666666667,
+      "fullStatementAvailable": true,
+      "statementLength": 414,
+      "knownTables": [
+        "meeting_attendees",
+        "meetings"
+      ],
+      "knownFields": [
+        "client_id",
+        "email",
+        "id",
+        "meeting_attendees",
+        "meeting_id",
+        "meetings",
+        "tenant_id"
+      ],
+      "operators": [
+        "order by",
+        "limit",
+        "offset"
+      ],
+      "placeholders": 7
+    }
+  ],
+  "rawSqlPersisted": false,
+  "customerValuesPersisted": false
+}

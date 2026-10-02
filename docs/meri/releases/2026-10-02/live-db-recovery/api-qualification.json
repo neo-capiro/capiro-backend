@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "service": "api",
+  "sourceSha": "d77cbe69da8329784c60135c1af7112d34c39900",
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:91bc1c313c2509150bf5c61e1483b42a4b8130f016e168a8846084dec930eb74",
+  "status": "qualified",
+  "reviewer": "Codex integration owner; independent actual Hermes/Bedrock Kimi mail and bill reviews, 65 integrated Jest tests including 2 real mail PostgreSQL tests, 5 additional real bill PostgreSQL checks, typecheck, and 26 verified offline cases. Source-bound native ARM64 build passed. Image-only incident repair; full original live acceptance remains NOT_RUN.",
+  "reviewedAt": "2026-10-02T13:43:52.079Z",
+  "expiresAt": "2026-10-02T17:43:52.079Z",
+  "schemaChange": false,
+  "evidence": [
+    "https://github.com/neo-capiro/capirov2/blob/6e829e479b0f1311f6d7e624fbc917ce136d9bb3/docs/meri/releases/2026-10-02/live-db-recovery/qualification.md",
+    "https://github.com/neo-capiro/capirov2/blob/6e829e479b0f1311f6d7e624fbc917ce136d9bb3/docs/meri/releases/2026-10-02/live-db-recovery/qualification.json",
+    "https://github.com/neo-capiro/capirov2/blob/6e829e479b0f1311f6d7e624fbc917ce136d9bb3/docs/meri/releases/2026-10-02/live-db-recovery/source-git-blob-hashes.json",
+    "https://github.com/neo-capiro/capirov2/blob/6e829e479b0f1311f6d7e624fbc917ce136d9bb3/docs/meri/releases/2026-10-02/live-db-recovery/api-build-readback.json"
+  ],
+  "checks": [
+    {
+      "name": "build",
+      "status": "passed",
+      "sourceSha": "d77cbe69da8329784c60135c1af7112d34c39900",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:91bc1c313c2509150bf5c61e1483b42a4b8130f016e168a8846084dec930eb74",
+      "url": "https://github.com/neo-capiro/capirov2/blob/6e829e479b0f1311f6d7e624fbc917ce136d9bb3/docs/meri/releases/2026-10-02/live-db-recovery/api-build-readback.json"
+    },
+    {
+      "name": "automated-tests",
+      "status": "passed",
+      "sourceSha": "d77cbe69da8329784c60135c1af7112d34c39900",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:91bc1c313c2509150bf5c61e1483b42a4b8130f016e168a8846084dec930eb74",
+      "url": "https://github.com/neo-capiro/capirov2/blob/6e829e479b0f1311f6d7e624fbc917ce136d9bb3/docs/meri/releases/2026-10-02/live-db-recovery/qualification.json"
+    },
+    {
+      "name": "retirement-compatibility",
+      "status": "passed",
+      "sourceSha": "d77cbe69da8329784c60135c1af7112d34c39900",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:91bc1c313c2509150bf5c61e1483b42a4b8130f016e168a8846084dec930eb74",
+      "url": "https://github.com/neo-capiro/capirov2/blob/6e829e479b0f1311f6d7e624fbc917ce136d9bb3/docs/meri/releases/2026-10-02/live-db-recovery/qualification.md"
+    }
+  ]
+}

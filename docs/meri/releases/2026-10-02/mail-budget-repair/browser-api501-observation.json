@@ -1,0 +1,15 @@
+{
+  "kind": "meri-live-incident-browser-observation",
+  "observedAt": "2026-10-02T13:49:45Z",
+  "observer": "Codex root using the owner's already-signed-in in-app browser",
+  "url": "https://os.capiro.ai/meri/t/2160f10d-4e0b-4083-9975-c0ba067f424e",
+  "apiSourceDuringObservation": "d77cbe69da8329784c60135c1af7112d34c39900",
+  "candidateWasDeployed": true,
+  "apiTaskDefinition": "capiro-dev-api:501",
+  "checks": [{"check": "Own-mailbox exact nonsense search after rollout", "result": "FAIL", "visibleTool": "search_emails", "visibleToolStatus": "FAILED", "visibleAnswer": "search_emails returned an error.", "visibleError": "503 Service Unavailable: Mail search is temporarily busy. Please retry.", "visibleStatus": "Completed"}],
+  "submittedTurns": 1,
+  "explicitBusinessWritesRequested": 0,
+  "customerDataOrAuthArchived": false,
+  "interpretation": "API service health passed but mailbox live acceptance failed. Same-task telemetry records a 3517ms tool duration, consistent with the 3500ms shared SQL deadline. The logs do not expose the original SQLSTATE. Database load was low; no saturation recurrence was observed.",
+  "nextAction": "Qualify a bounded 10000ms shared mail SQL budget with a 12000ms transaction timeout; preserve bill deadline and all query/authorization predicates. Keep temporary capacity headroom until actual live mailbox success."
+}

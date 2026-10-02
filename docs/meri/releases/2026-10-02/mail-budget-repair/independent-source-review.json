@@ -1,0 +1,75 @@
+{
+  "verdict": "PASS",
+  "sourceSha": "991b5b15fa134d64579c96853dc92e9a00fa8520",
+  "reviewKind": "Independent source review plus separately observed owner-run test receipts",
+  "reviewedFiles": {
+    "apps/api/src/engagement/mail-query-deadline.ts": "cb90d145a96d006785ad4c0a5a768ddeddf843b351638db199aad360850c138b",
+    "apps/api/src/engagement/mail-query-deadline.spec.ts": "fa223109aa0cd68c57eaa8d6f800dba8cba8baffa84ced08606d42a84c72bffe",
+    "apps/api/src/engagement/mail-query-deadline.postgres.spec.ts": "8b986eb4a803f99af837157a9a26794d579aeff95aff57325171f08dba84949f",
+    "apps/api/src/engagement/mail-query.ts": "b32e25f106e3a2d9e69ac50e37b6fde8b26cea51a08be24adcdf5cfc69ad34c8",
+    "apps/api/src/prisma/prisma.service.ts": "fb3886df5f2732a0412342627a3a6156f159718913479cdc2325fa602bfdd86e"
+  },
+  "sourceUnchangedSinceModelReview": true,
+  "actualHermes": {
+    "provider": "bedrock",
+    "model": "moonshotai.kimi-k2.5",
+    "sessionId": "20261002_135450_694b53",
+    "exitCode": 0,
+    "elapsedSeconds": 24.09,
+    "toolCalls": 0,
+    "reportedTokens": {
+      "input": 22913,
+      "output": 1138,
+      "total": 24051,
+      "cache_read": 0,
+      "cache_write": 0
+    }
+  },
+  "sourceFindings": [
+    "One monotonic ten-second deadline shared across unchanged count/page/coverage SQL",
+    "PostgreSQL LOCAL statement_timeout resets automatically at transaction end",
+    "Explicit twelve-second Prisma transaction timeout allows server cancellation before transaction expiry",
+    "Current tenant/owner/filter/dedup semantics and non57014 errors unchanged",
+    "Tests assert actual healthy four-second success and ten-second cancellation with same backend and no timeout leakage"
+  ],
+  "testObservation": {
+    "executor": "root",
+    "passed": 66,
+    "suites": 8,
+    "exitCode": 0,
+    "mailRealPgTests": 3,
+    "rerunByReviewer": false
+  },
+  "limits": [
+    "Source/model review is not live verification",
+    "Ten seconds is a bounded availability tradeoff and does not prove every mailbox query completes",
+    "Kimi prose calls legislative bill deadline billing; unchanged bill code was not modified by this three-file commit",
+    "No cloud/auth/provider/browser/DB calls by this review lane"
+  ],
+  "artifacts": {
+    "independent-kimi-review.md": {
+      "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-mail-budget-repair\\independent-kimi-review.md",
+      "sha256": "01535094633cee13bc95dac8ba96a37be618636a575b4e68f291b40e97213df6"
+    },
+    "independent-kimi-exit.json": {
+      "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-mail-budget-repair\\independent-kimi-exit.json",
+      "sha256": "8e91283d15204387973e9f4b7fcd34b4011b7702186227dff048b827992873bc"
+    },
+    "independent-kimi-usage.json": {
+      "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-mail-budget-repair\\independent-kimi-usage.json",
+      "sha256": "d4bad0c21e096ac43b2422360f57f13ea281c41bdfd2dc54d01363ebfb7cedbd"
+    },
+    "independent-kimi-source-hashes.json": {
+      "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-mail-budget-repair\\independent-kimi-source-hashes.json",
+      "sha256": "cb04985d7d9719cc9f745be5b1a23997843c0a13da948c631440a880cb61a4b7"
+    },
+    "integrated-tests.exit.json": {
+      "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-mail-budget-repair\\integrated-tests.exit.json",
+      "sha256": "6394213ae3fcec4ca5e4ec654152ba111751d60e06030edfba3f906d1e2cb1fb"
+    },
+    "integrated-tests.log": {
+      "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-mail-budget-repair\\integrated-tests.log",
+      "sha256": "62d3218f6389cc966ce18a29451889b958daac71c8b534c8461c634da5664ce8"
+    }
+  }
+}

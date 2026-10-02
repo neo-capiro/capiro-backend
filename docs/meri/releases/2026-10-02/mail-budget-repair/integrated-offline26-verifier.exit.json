@@ -1,0 +1,13 @@
+{
+  "name": "integrated-offline26-verifier",
+  "sourceSha": "991b5b15fa134d64579c96853dc92e9a00fa8520",
+  "command": [
+    "C:/ProgramData/Hermes/tools/python-3.14.7+20260901-win32-x64/python.exe",
+    "evals/meri/verify_report.py",
+    "C:\\dev\\cap-meri-foundation-evidence\\oct02-mail-budget-repair\\integrated-offline26.json",
+    "C:\\dev\\cap-meri-foundation-evidence\\oct02-mail-budget-repair\\integrated-offline26.summary.json"
+  ],
+  "exitCode": 0,
+  "elapsedSeconds": 0.11,
+  "logSha256": "8a6d5048912b38340ce08bb033e31a84974e49c4520475b3c649cb3a4f1808c1"
+}

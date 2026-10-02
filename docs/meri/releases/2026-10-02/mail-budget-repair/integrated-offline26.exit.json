@@ -1,0 +1,21 @@
+{
+  "name": "integrated-offline26",
+  "sourceSha": "991b5b15fa134d64579c96853dc92e9a00fa8520",
+  "command": [
+    "C:/Program Files/nodejs/node.exe",
+    "node_modules/promptfoo/dist/src/entrypoint.js",
+    "eval",
+    "-c",
+    "evals/meri/promptfooconfig.yaml",
+    "--no-cache",
+    "--no-share",
+    "--no-write",
+    "--no-table",
+    "--no-progress-bar",
+    "-o",
+    "C:\\dev\\cap-meri-foundation-evidence\\oct02-mail-budget-repair\\integrated-offline26.json"
+  ],
+  "exitCode": 0,
+  "elapsedSeconds": 25.13,
+  "logSha256": "20bf400544128f459f5d99e912644d5887b844b98e3e781430b82295ddf2497d"
+}

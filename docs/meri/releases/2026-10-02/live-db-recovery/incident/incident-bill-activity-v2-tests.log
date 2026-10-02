@@ -1,0 +1,12 @@
+test_current_exact_main_and_served_dependencies (__main__.Tests.test_current_exact_main_and_served_dependencies) ... ok
+test_fixed_bytes (__main__.Tests.test_fixed_bytes) ... ok
+test_no_cancel_or_dml_path (__main__.Tests.test_no_cancel_or_dml_path) ... ok
+test_refuse_content_or_mutation (__main__.Tests.test_refuse_content_or_mutation) ... ok
+test_refuse_fresh_or_duplicate (__main__.Tests.test_refuse_fresh_or_duplicate) ... ok
+test_representative_receipt_actual_sanitizer (__main__.Tests.test_representative_receipt_actual_sanitizer) ... ok
+test_tls_exact_copy (__main__.Tests.test_tls_exact_copy) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 0.011s
+
+OK

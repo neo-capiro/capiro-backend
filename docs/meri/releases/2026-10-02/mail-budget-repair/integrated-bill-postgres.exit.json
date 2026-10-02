@@ -1,0 +1,11 @@
+{
+  "name": "integrated-bill-postgres",
+  "sourceSha": "991b5b15fa134d64579c96853dc92e9a00fa8520",
+  "command": [
+    "C:/Program Files/nodejs/node.exe",
+    "apps/api/scripts/test-bill-keyword-deadline.postgres.mjs"
+  ],
+  "exitCode": 0,
+  "elapsedSeconds": 1.11,
+  "logSha256": "b85d7c6ddf6c4be076e7d02a83408859009399c67d6722202653484983dea138"
+}

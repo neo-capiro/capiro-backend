@@ -1,0 +1,23 @@
+{
+  "name": "integrated-tests",
+  "sourceSha": "991b5b15fa134d64579c96853dc92e9a00fa8520",
+  "command": [
+    "C:/Program Files/nodejs/node.exe",
+    "apps/api/node_modules/jest/bin/jest.js",
+    "--config",
+    "apps/api/jest.config.cjs",
+    "--runInBand",
+    "--runTestsByPath",
+    "apps/api/src/engagement/mail-query.spec.ts",
+    "apps/api/src/engagement/mail-query-deadline.spec.ts",
+    "apps/api/src/engagement/mail-query-deadline.postgres.spec.ts",
+    "apps/api/src/intelligence/bill-keyword-deadline.spec.ts",
+    "apps/api/src/intelligence/intelligence.profile-v1-source-budget.spec.ts",
+    "apps/api/src/intelligence/portfolio-alerts-timeout.spec.ts",
+    "apps/api/src/intelligence/intelligence.profile-v1.spec.ts",
+    "apps/api/src/intelligence/intelligence.controller.profile-v1.spec.ts"
+  ],
+  "exitCode": 0,
+  "elapsedSeconds": 43.51,
+  "logSha256": "62d3218f6389cc966ce18a29451889b958daac71c8b534c8461c634da5664ce8"
+}

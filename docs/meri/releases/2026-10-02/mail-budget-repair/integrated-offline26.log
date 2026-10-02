@@ -1,0 +1,15 @@
+(node:24444) ExperimentalWarning: DecompressInterceptor is experimental and subject to change
+(Use `node --trace-warnings ...` to show where the warning was created)
+Cache is disabled.
+Starting evaluation eval-ZeI-2026-10-02T13:54:08
+Running 26 test cases (up to 4 at a time)...
+✓ Eval complete
+
+
+Results:
+  ✓ 26 passed (100%)
+  0 failed (0%)
+  0 errors (0%)
+Duration: 22s (concurrency: 4)
+
+Writing output to C:\dev\cap-meri-foundation-evidence\oct02-mail-budget-repair\integrated-offline26.json

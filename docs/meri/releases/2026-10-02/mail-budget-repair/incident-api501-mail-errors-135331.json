@@ -1,0 +1,95 @@
+{
+  "observedAt": "2026-10-02T13:53:31.162849+00:00",
+  "startMs": 1790948880000,
+  "endMs": 1790949210955,
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:501",
+  "desired": 2,
+  "running": 2,
+  "pending": 0,
+  "rawLogsPersisted": false,
+  "streams": [
+    {
+      "taskId": "a588dbddca544aeab66bc4f1c28cb207",
+      "events": 9,
+      "counts": {
+        "error": 2,
+        "mail_tool": 2
+      },
+      "codes": {},
+      "modules": {},
+      "observations": [
+        {
+          "atMs": 1790948945824,
+          "classes": [
+            "error"
+          ],
+          "codes": [],
+          "sourceModules": [],
+          "sourceClasses": [],
+          "allowedLabels": {},
+          "jsonKeys": []
+        },
+        {
+          "atMs": 1790948952011,
+          "classes": [
+            "mail_tool"
+          ],
+          "codes": [],
+          "sourceModules": [],
+          "sourceClasses": [],
+          "allowedLabels": {},
+          "jsonKeys": []
+        },
+        {
+          "atMs": 1790948955528,
+          "classes": [
+            "mail_tool",
+            "error"
+          ],
+          "codes": [],
+          "sourceModules": [],
+          "sourceClasses": [],
+          "allowedLabels": {
+            "durationMs": 3517.0
+          },
+          "jsonKeys": []
+        }
+      ]
+    },
+    {
+      "taskId": "aff67386479e4f2c85b5c6e481072421",
+      "events": 16,
+      "counts": {
+        "mail_tool": 2
+      },
+      "codes": {},
+      "modules": {},
+      "observations": [
+        {
+          "atMs": 1790948951901,
+          "classes": [
+            "mail_tool"
+          ],
+          "codes": [],
+          "sourceModules": [],
+          "sourceClasses": [],
+          "allowedLabels": {},
+          "jsonKeys": []
+        },
+        {
+          "atMs": 1790948962870,
+          "classes": [
+            "mail_tool"
+          ],
+          "codes": [],
+          "sourceModules": [],
+          "sourceClasses": [],
+          "allowedLabels": {
+            "durationMs": 18257.0
+          },
+          "jsonKeys": []
+        }
+      ]
+    }
+  ]
+}

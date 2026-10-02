@@ -1,0 +1,46 @@
+PASS apps/api/src/intelligence/intelligence.profile-v1.spec.ts (12.732 s)
+[Nest] 24780  - 10/02/2026, 1:54:19 PM    WARN [IntelligenceService] getOverdueCommentAlerts failed for 00000000-0000-0000-0000-000000000010: Cannot read properties of undefined (reading 'findMany')
+[Nest] 24780  - 10/02/2026, 1:54:19 PM    WARN [IntelligenceService] getOverdueCommentAlerts failed for 00000000-0000-0000-0000-000000000010: Cannot read properties of undefined (reading 'findMany')
+[Nest] 24780  - 10/02/2026, 1:54:19 PM    WARN [IntelligenceService] getOverdueCommentAlerts failed for 00000000-0000-0000-0000-000000000010: Cannot read properties of undefined (reading 'findMany')
+[Nest] 24780  - 10/02/2026, 1:54:19 PM    WARN [IntelligenceService] profile-v1 source "engagementHealth" failed for client 00000000-0000-0000-0000-000000000010: computeEngagementHealth exceeded its budget
+[Nest] 24780  - 10/02/2026, 1:54:19 PM    WARN [IntelligenceService] getOverdueCommentAlerts failed for 00000000-0000-0000-0000-000000000010: Cannot read properties of undefined (reading 'findMany')
+[Nest] 24780  - 10/02/2026, 1:54:19 PM    WARN [IntelligenceService] profile-v1 source "lobbyingRoi" failed for client 00000000-0000-0000-0000-000000000010: getLobbyingRoi exceeded its budget
+[Nest] 24780  - 10/02/2026, 1:54:19 PM    WARN [IntelligenceService] getOverdueCommentAlerts failed for 00000000-0000-0000-0000-000000000010: Cannot read properties of undefined (reading 'findMany')
+[Nest] 24780  - 10/02/2026, 1:54:19 PM    WARN [IntelligenceService] profile-v1 source "roiQuarterSeries" failed for client 00000000-0000-0000-0000-000000000010: buildRoiQuarterSeries exceeded its budget
+[Nest] 24780  - 10/02/2026, 1:54:19 PM    WARN [IntelligenceService] getOverdueCommentAlerts failed for 00000000-0000-0000-0000-000000000010: Cannot read properties of undefined (reading 'findMany')
+[Nest] 24780  - 10/02/2026, 1:54:19 PM    WARN [IntelligenceService] profile-v1 source "fecMoneyFlow" failed for client 00000000-0000-0000-0000-000000000010: getFecMoneyFlow exceeded its budget
+[Nest] 24780  - 10/02/2026, 1:54:19 PM    WARN [IntelligenceService] getOverdueCommentAlerts failed for 00000000-0000-0000-0000-000000000010: Cannot read properties of undefined (reading 'findMany')
+[Nest] 24780  - 10/02/2026, 1:54:19 PM    WARN [IntelligenceService] profile-v1 source "districtNexus" failed for client 00000000-0000-0000-0000-000000000010: getDistrictNexus exceeded its budget
+[Nest] 24780  - 10/02/2026, 1:54:19 PM    WARN [IntelligenceService] getHearingAlerts failed for 00000000-0000-0000-0000-000000000010: getTrackedBills exceeded its budget
+[Nest] 24780  - 10/02/2026, 1:54:19 PM    WARN [IntelligenceService] getOverdueCommentAlerts failed for 00000000-0000-0000-0000-000000000010: Cannot read properties of undefined (reading 'findMany')
+[Nest] 24780  - 10/02/2026, 1:54:19 PM    WARN [IntelligenceService] profile-v1 source "trackedBills" failed for client 00000000-0000-0000-0000-000000000010: getTrackedBills exceeded its budget
+[Nest] 24780  - 10/02/2026, 1:54:19 PM    WARN [IntelligenceService] getOverdueCommentAlerts failed for 00000000-0000-0000-0000-000000000010: Cannot read properties of undefined (reading 'findMany')
+[Nest] 24780  - 10/02/2026, 1:54:19 PM    WARN [IntelligenceService] profile-v1 source "billRegulationLinks" failed for client 00000000-0000-0000-0000-000000000010: getBillRegulationLinks exceeded its budget
+[Nest] 24780  - 10/02/2026, 1:54:19 PM    WARN [IntelligenceService] getOverdueCommentAlerts failed for 00000000-0000-0000-0000-000000000010: Cannot read properties of undefined (reading 'findMany')
+[Nest] 24780  - 10/02/2026, 1:54:19 PM    WARN [IntelligenceService] getOverdueCommentAlerts failed for 00000000-0000-0000-0000-000000000010: Cannot read properties of undefined (reading 'findMany')
+[Nest] 24780  - 10/02/2026, 1:54:19 PM    WARN [IntelligenceService] profile-v1 source "exStaffers" failed for client 00000000-0000-0000-0000-000000000010: getExStaffers exceeded its budget
+[Nest] 24780  - 10/02/2026, 1:54:19 PM    WARN [IntelligenceService] getOverdueCommentAlerts failed for 00000000-0000-0000-0000-000000000010: Cannot read properties of undefined (reading 'findMany')
+[Nest] 24780  - 10/02/2026, 1:54:19 PM    WARN [IntelligenceService] profile-v1 source "commentAlerts" failed for client 00000000-0000-0000-0000-000000000010: getCommentPeriodAlerts exceeded its budget
+[Nest] 24780  - 10/02/2026, 1:54:19 PM    WARN [IntelligenceService] getOverdueCommentAlerts failed for 00000000-0000-0000-0000-000000000010: Cannot read properties of undefined (reading 'findMany')
+[Nest] 24780  - 10/02/2026, 1:54:19 PM    WARN [IntelligenceService] profile-v1 source "billRegulationLinks" failed for client 00000000-0000-0000-0000-000000000010: exceeded its 20000ms budget (still running)
+[Nest] 24780  - 10/02/2026, 1:54:19 PM    WARN [IntelligenceService] getOverdueCommentAlerts failed for 00000000-0000-0000-0000-000000000010: Cannot read properties of undefined (reading 'findMany')
+[Nest] 24780  - 10/02/2026, 1:54:19 PM    WARN [IntelligenceService] getOverdueCommentAlerts failed for 00000000-0000-0000-0000-000000000010: Cannot read properties of undefined (reading 'findMany')
+ts-jest[config] (WARN) [94mmessage[0m[90m TS151002: [0mUsing hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) [94mmessage[0m[90m TS151002: [0mUsing hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+PASS apps/api/src/engagement/mail-query-deadline.postgres.spec.ts (23.392 s)
+PASS apps/api/src/intelligence/intelligence.controller.profile-v1.spec.ts
+PASS apps/api/src/intelligence/bill-keyword-deadline.spec.ts
+PASS apps/api/src/intelligence/intelligence.profile-v1-source-budget.spec.ts
+PASS apps/api/src/intelligence/portfolio-alerts-timeout.spec.ts
+ts-jest[config] (WARN) [94mmessage[0m[90m TS151002: [0mUsing hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) [94mmessage[0m[90m TS151002: [0mUsing hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+[Nest] 24780  - 10/02/2026, 1:54:46 PM    WARN [IntelligenceService] portfolio-alerts: exceeded 30ms request budget for 00000000-0000-0000-0000-000000000001:user_test:30:40; failing open
+PASS apps/api/src/engagement/mail-query.spec.ts
+ts-jest[config] (WARN) [94mmessage[0m[90m TS151002: [0mUsing hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+PASS apps/api/src/engagement/mail-query-deadline.spec.ts
+
+Test Suites: 8 passed, 8 total
+Tests:       66 passed, 66 total
+Snapshots:   0 total
+Time:        42.198 s, estimated 49 s
+Ran all test suites within paths "apps/api/src/engagement/mail-query.spec.ts", "apps/api/src/engagement/mail-query-deadline.spec.ts", "apps/api/src/engagement/mail-query-deadline.postgres.spec.ts", "apps/api/src/intelligence/bill-keyword-deadline.spec.ts", "apps/api/src/intelligence/intelligence.profile-v1-source-budget.spec.ts", "apps/api/src/intelligence/portfolio-alerts-timeout.spec.ts", "apps/api/src/intelligence/intelligence.profile-v1.spec.ts", "apps/api/src/intelligence/intelligence.controller.profile-v1.spec.ts".

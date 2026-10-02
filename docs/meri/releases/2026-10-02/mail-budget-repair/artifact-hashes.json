@@ -1,0 +1,28 @@
+{
+  "sourceSha": "991b5b15fa134d64579c96853dc92e9a00fa8520",
+  "files": {
+    ".gitattributes": "88e9eed76bdd5fc9090a63c4726f8884d76a9166a7055636a16ff237f826f560",
+    "browser-api501-observation.json": "0982c5187cd0e1d774a9bd133d6688d9609545cb35441073075d2700edc7a880",
+    "independent-kimi-exit.json": "8e91283d15204387973e9f4b7fcd34b4011b7702186227dff048b827992873bc",
+    "independent-kimi-review.md": "01535094633cee13bc95dac8ba96a37be618636a575b4e68f291b40e97213df6",
+    "independent-kimi-source-hashes.json": "cb04985d7d9719cc9f745be5b1a23997843c0a13da948c631440a880cb61a4b7",
+    "independent-kimi-usage.json": "d4bad0c21e096ac43b2422360f57f13ea281c41bdfd2dc54d01363ebfb7cedbd",
+    "independent-source-review.json": "a4ae70f42221d50e75b3392ee19c773b71d6b5b01885fec1837e17e317b83591",
+    "integrated-bill-postgres.exit.json": "da7ee0aad2b64e768daebb25fbf86438297ec4736fc3229cfbb9efae79b85ea4",
+    "integrated-bill-postgres.log": "b85d7c6ddf6c4be076e7d02a83408859009399c67d6722202653484983dea138",
+    "integrated-offline26-verifier.exit.json": "7d9da698ee4459a8ff8ae540cdaff76393a00f2932cc8b10dab3091b8d7eb09f",
+    "integrated-offline26-verifier.log": "8a6d5048912b38340ce08bb033e31a84974e49c4520475b3c649cb3a4f1808c1",
+    "integrated-offline26.exit.json": "47e1963230719c04ac78e7ad7b4045ca16a2eae1d02a7f34e4a6c2fc9ff391f5",
+    "integrated-offline26.json": "5cc6705ead5d15008d2cc35798f7035b63cc306997eba7ac97b0c2a1294e8d73",
+    "integrated-offline26.log": "20bf400544128f459f5d99e912644d5887b844b98e3e781430b82295ddf2497d",
+    "integrated-offline26.summary.json": "4ccaa3ef75adf511f31768d0b2a2cb5b156eb4740215a5c690615bd51850661a",
+    "integrated-qualification.json": "3e64e398823120342cc18d4013b93fac98b5f38e6c774be07268078b46391d98",
+    "integrated-tests.exit.json": "6394213ae3fcec4ca5e4ec654152ba111751d60e06030edfba3f906d1e2cb1fb",
+    "integrated-tests.log": "62d3218f6389cc966ce18a29451889b958daac71c8b534c8461c634da5664ce8",
+    "integrated-types.exit.json": "dd67f4364f9d54c3518139282bf9b611f38699f8f83bff9bfc5d134fd0936d60",
+    "integrated-types.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "qualification.json": "d5b66420ef70c17eb7507a383d65b5eecfdbe357361e55bb581e9d721cf983a1",
+    "qualification.md": "3d506e97d24390a536f3cee16ff7584e269f15846f3124434ba4365f1387c91f",
+    "source-git-blob-hashes.json": "2cd7325574a22faaf531b7f7c0b5e3b987ffd3a9dfbb2a7ee96c6a54217ab071"
+  }
+}

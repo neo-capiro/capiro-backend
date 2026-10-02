@@ -1,0 +1,10 @@
+{
+  "sourceSha": "991b5b15fa134d64579c96853dc92e9a00fa8520",
+  "files": {
+    "apps/api/src/engagement/mail-query-deadline.ts": "cb90d145a96d006785ad4c0a5a768ddeddf843b351638db199aad360850c138b",
+    "apps/api/src/engagement/mail-query-deadline.spec.ts": "fa223109aa0cd68c57eaa8d6f800dba8cba8baffa84ced08606d42a84c72bffe",
+    "apps/api/src/engagement/mail-query-deadline.postgres.spec.ts": "8b986eb4a803f99af837157a9a26794d579aeff95aff57325171f08dba84949f",
+    "apps/api/src/engagement/mail-query.ts": "b32e25f106e3a2d9e69ac50e37b6fde8b26cea51a08be24adcdf5cfc69ad34c8",
+    "apps/api/src/prisma/prisma.service.ts": "fb3886df5f2732a0412342627a3a6156f159718913479cdc2325fa602bfdd86e"
+  }
+}
