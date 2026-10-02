@@ -577,7 +577,16 @@ export class MemoryCandidateService {
       } satisfies ActivatedCandidate;
     });
 
-    this.dispatchProjectionFastPath(tenantId, activated.memoryId, activated.record);
+    // Fixture reset/retirement may immediately follow approval. Wait for the
+    // actual fast path so it cannot later repopulate a retired synthetic row.
+    // Ordinary approval keeps its existing asynchronous durable-outbox behavior.
+    const projection = this.dispatchProjectionFastPath(
+      tenantId,
+      activated.memoryId,
+      activated.record,
+      Boolean(fixtureGuard),
+    );
+    if (fixtureGuard) await projection;
     return { memoryId: activated.memoryId };
   }
 
@@ -880,13 +889,29 @@ export class MemoryCandidateService {
     tenantId: string,
     memoryId: string,
     record: MemorySaveRequest,
-  ): void {
-    void Promise.all([
-      this.embedMemory(tenantId, memoryId, record.key, record.value),
+    requireSettlement = false,
+  ): Promise<void> {
+    const tasks = [
+      this.embedMemory(tenantId, memoryId, record.key, record.value, requireSettlement),
       this.memoryIngest.projectClioMemory(tenantId, memoryId),
-    ])
+    ];
+    // Even a failed synthetic fast path must settle both branches before the
+    // operator can close its connection or start guarded reconciliation.
+    const completion = requireSettlement
+      ? Promise.allSettled(tasks).then((results) => {
+          if (results.some((result) => result.status === 'rejected')) {
+            throw new Error('Synthetic memory projection branch failed');
+          }
+        })
+      : Promise.all(tasks).then(() => undefined);
+    return completion
       .then(() => this.cleanupOutbox.markIndexedOnFastPath(tenantId, memoryId))
       .catch((err: unknown) => {
+        if (requireSettlement) {
+          // The canonical transaction already committed; callers must reconcile
+          // its existing rows/outbox, never blindly retry approval or seed.
+          throw new Error('Synthetic memory projection did not settle after approval');
+        }
         this.logger.warn(
           `fast-path projection failed for clio_memory ${memoryId}; left queued for the ` +
             `cleanup drain: ${(err as Error).message}`,
@@ -899,6 +924,7 @@ export class MemoryCandidateService {
     memoryId: string,
     key: string,
     value: string,
+    requireSettlement = false,
   ): Promise<void> {
     const openaiKey = this.config.get('OPENAI_API_KEY', { infer: true });
     if (!openaiKey) return;
@@ -906,6 +932,9 @@ export class MemoryCandidateService {
       method: 'POST',
       headers: { Authorization: `Bearer ${openaiKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ model: 'text-embedding-3-small', input: `${key}: ${value}` }),
+      // The optional legacy Clio vector is not institutional-index authority.
+      // A guarded fixture caller nevertheless must not hang on this side branch.
+      ...(requireSettlement ? { signal: AbortSignal.timeout(20_000) } : {}),
     });
     if (!res.ok) return;
     const json = (await res.json()) as { data?: Array<{ embedding?: number[] }> };

@@ -354,7 +354,10 @@ export class ImmutableMemoryVersionService {
       } satisfies TransactionOutcome<VersionCandidateDecisionResult>;
     });
 
-    if (outcome.embed) this.embedAfterCommit(outcome.embed);
+    if (outcome.embed) {
+      const embedding = this.embedAfterCommit(outcome.embed, Boolean(fixtureGuard));
+      if (fixtureGuard) await embedding;
+    }
     return outcome.result;
   }
 
@@ -1154,8 +1157,8 @@ export class ImmutableMemoryVersionService {
     }
   }
 
-  private embedAfterCommit(input: PendingEmbed): void {
-    void embedAndUpsert(this.prisma, {
+  private embedAfterCommit(input: PendingEmbed, requireSettlement = false): Promise<void> {
+    return embedAndUpsert(this.prisma, {
       tenantId: input.tenantId,
       clientId: input.clientId,
       ownerUserId: input.ownerUserId,
@@ -1163,7 +1166,10 @@ export class ImmutableMemoryVersionService {
       sourceId: input.memoryItemId,
       text: `${input.title}: ${input.body}`,
       bypassRls: true,
-    }).catch((error: unknown) => {
+    }).then(() => undefined).catch((error: unknown) => {
+      if (requireSettlement) {
+        throw new Error('Synthetic memory correction embedding did not settle after approval');
+      }
       this.logger.warn(
         `immutable memory embed failed; projection recovery remains available: ${(error as Error).message}`,
       );
