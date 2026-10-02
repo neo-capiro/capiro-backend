@@ -21,7 +21,9 @@
   },
   "controlled/controlled-read-backend-kimi-review.md": {
     "originalLocalSha256": "a88627ea686d7154a85e714f2ffa71bccdcade5cece7b0b542df881df5c7151c",
-    "archivedSha256": "1373786833919bb2eb78793bea1cdcad70c9f16ea4e723a35ad124d71ded1805"
+    "archivedSha256": "f4cf078b087b4a76a0aba33c318a98f26cd4279f56a657f2f9246364581c9e15",
+    "previousArchivedSha256": "1373786833919bb2eb78793bea1cdcad70c9f16ea4e723a35ad124d71ded1805",
+    "archiveNormalization": "LF and line-end spaces removed"
   },
   "controlled/controlled-read-backend-kimi-usage.json": {
     "originalLocalSha256": "8cb809ee0beba25e6f6ed7ba90493b7f3822a171547ce88a461c1faa8db61b0b",

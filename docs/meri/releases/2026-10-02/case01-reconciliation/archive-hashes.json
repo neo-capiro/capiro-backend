@@ -41,7 +41,9 @@
   },
   "case01-reconcile-kimi-review.md": {
     "originalLocalSha256": "c23e6039d905e2b056c77b44613f4b0f2d313d7879130b9f91debdb9cd5dcf1c",
-    "archivedSha256": "9f2eabe6a4f6b3962cb2cd64e1e1873974bfbd4edf041d69a78e7de68cc62217"
+    "archivedSha256": "4cf541d06832bd1c99b7051a3de7ff89fc19628a30ac266c70bec31135d268f9",
+    "previousArchivedSha256": "9f2eabe6a4f6b3962cb2cd64e1e1873974bfbd4edf041d69a78e7de68cc62217",
+    "archiveNormalization": "LF and line-end spaces removed"
   },
   "case01-reconcile-kimi-usage.json": {
     "originalLocalSha256": "446a7fb50df5b5747d9d88e0dba497053439a0ec384af185d7245ab06691e3a5",

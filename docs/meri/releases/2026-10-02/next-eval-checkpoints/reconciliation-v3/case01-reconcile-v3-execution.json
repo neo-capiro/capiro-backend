@@ -1,0 +1,194 @@
+{
+  "schemaVersion": 1,
+  "status": "VERIFIED",
+  "planHash": "cfa877fff178da9e8bf0e6a619a97d5fea9472d405ee24a94398c60d49103d2b",
+  "mode": "reconcile-read",
+  "operationId": "2e3bd949-136f-4416-a82c-98fc3b14419d",
+  "sourceSha": "c11c83fe1759183254b24d11a9087ccc89595a73",
+  "operatorHead": "e2ba56f8c779685aed5e44fadec86b4db9776868",
+  "liveAcceptance": "NOT_RUN",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-case01-reconcile:3",
+  "startedBy": "meri-c01-2e3bd949-136f-4416-a82c-",
+  "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/9452a0ae070047a4a76a5328abc66126",
+  "containerExitCode": 0,
+  "logMessageCount": 1,
+  "ownerReceipts": [
+    {
+      "kind": "meri-case01-readonly-reconciliation",
+      "schemaVersion": 1,
+      "status": "READBACK_COMPLETE",
+      "transport": {
+        "tlsVerified": true,
+        "caBundleSha256": "b1711d12bae51838581281e23b6cb97b1074016873b4dafc80ed14002462dd77"
+      },
+      "captureRunId": "c6ffa5ad-dd9f-4912-bc31-a03231a9b903",
+      "readOnly": true,
+      "mutations": 0,
+      "claim": {
+        "status": "STARTED",
+        "recipeSha256": "29cc20de9afb70ec31e009afd0b7c3226482f1372b05d2ccec7e86a835ec0142",
+        "locatorPresent": false,
+        "bindingPresent": false
+      },
+      "guardAudit": {
+        "kind": "deployed_pending_candidate_predicate_comparison",
+        "candidateId": "557b5b98-f591-50ce-83ea-2ca44d44567a",
+        "rowVersion": "113340385",
+        "identityValidated": true,
+        "predicateCount": 55,
+        "mismatchFields": [],
+        "expectedPayloadSha256": "2efc94e34cf48bc3854f4166a631329fdef1329ae7a376d4a1384a8c3ec4eec9",
+        "actualPayloadSha256": "2efc94e34cf48bc3854f4166a631329fdef1329ae7a376d4a1384a8c3ec4eec9",
+        "expectedProvenanceSha256": "301a4341605af5984679dc7495da6369874559c7d0ca7f2ff9e9a494f0475d0d",
+        "actualProvenanceSha256": "301a4341605af5984679dc7495da6369874559c7d0ca7f2ff9e9a494f0475d0d",
+        "predicateMatch": true,
+        "canonicalGuardExecuted": false
+      },
+      "currentPolicyDecision": {
+        "owner": "MemoryAuthorizationService.evaluateInTx",
+        "operation": "approve",
+        "allowed": true,
+        "basis": "explicit_grant",
+        "emitDenialMetrics": false,
+        "capabilityIssued": false,
+        "governanceTenantBound": true
+      },
+      "outboxProjectionColumns": [
+        {
+          "name": "expected_source_version",
+          "exists": true,
+          "type": "timestamp with time zone",
+          "nullable": true,
+          "defaultPresent": false,
+          "defaultSql": null,
+          "defaultSha256": null
+        },
+        {
+          "name": "expected_content_hash",
+          "exists": true,
+          "type": "character varying(64)",
+          "nullable": true,
+          "defaultPresent": false,
+          "defaultSql": null,
+          "defaultSha256": null
+        }
+      ],
+      "actors": [
+        {
+          "id": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+          "role": "standard_user",
+          "status": "active"
+        },
+        {
+          "id": "fb218bf5-2674-4ced-bca3-7a5d0c01592f",
+          "role": "user_admin",
+          "status": "active"
+        }
+      ],
+      "grants": [
+        {
+          "id": "ba51e124-c076-4dbd-a0cc-672407dcd40a",
+          "user_id": "fb218bf5-2674-4ced-bca3-7a5d0c01592f",
+          "client_id": "41f9ec63-3963-479f-b747-59a3767ef44b",
+          "permissions": [
+            "review",
+            "approve",
+            "confirm",
+            "mark_stale",
+            "revoke",
+            "resolve_conflict"
+          ],
+          "status": "active",
+          "expires_at": "2026-12-27T01:08:29.577Z",
+          "unexpired": true,
+          "reason_present": true
+        },
+        {
+          "id": "1fe3e479-4665-4952-b8fd-58f190d4e7ae",
+          "user_id": "fb218bf5-2674-4ced-bca3-7a5d0c01592f",
+          "client_id": "494f6834-d09e-4723-8a64-b2df57c683e8",
+          "permissions": [
+            "review",
+            "approve",
+            "confirm",
+            "mark_stale",
+            "revoke",
+            "resolve_conflict"
+          ],
+          "status": "active",
+          "expires_at": "2026-12-27T01:08:29.577Z",
+          "unexpired": true,
+          "reason_present": true
+        }
+      ],
+      "walls": [
+        {
+          "client_id": "494f6834-d09e-4723-8a64-b2df57c683e8",
+          "user_id": "b1f758fc-17bd-40f8-bef2-fa2d2380300f"
+        },
+        {
+          "client_id": "494f6834-d09e-4723-8a64-b2df57c683e8",
+          "user_id": "fb218bf5-2674-4ced-bca3-7a5d0c01592f"
+        }
+      ],
+      "expectedCandidates": [
+        {
+          "generation": "previous",
+          "logicalId": "MA1-v1",
+          "id": "557b5b98-f591-50ce-83ea-2ca44d44567a"
+        },
+        {
+          "generation": "previous",
+          "logicalId": "MA3",
+          "id": "aecb886a-f0dc-5ba2-bf42-26bf4781c441"
+        },
+        {
+          "generation": "previous",
+          "logicalId": "MB1",
+          "id": "1d92abdf-5fa7-5963-8e92-5df8aa6ebb87"
+        },
+        {
+          "generation": "previous",
+          "logicalId": "MA2",
+          "id": "df57e3e0-54b6-5561-a245-44a66f21224b"
+        },
+        {
+          "generation": "current",
+          "logicalId": "MA1-v1",
+          "id": "a9de2fb9-0015-58b3-a0b1-8c1dc88797b0"
+        },
+        {
+          "generation": "current",
+          "logicalId": "MA3",
+          "id": "f6915255-4f53-5228-ba62-553fd1455d6c"
+        },
+        {
+          "generation": "current",
+          "logicalId": "MB1",
+          "id": "6e550ca2-20b2-5aca-be2a-254fb0b0f32b"
+        },
+        {
+          "generation": "current",
+          "logicalId": "MA2",
+          "id": "dc61a9a5-5130-5c67-a7e8-19906259c34f"
+        }
+      ],
+      "candidates": [
+        {
+          "id": "557b5b98-f591-50ce-83ea-2ca44d44567a",
+          "proposed_by": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+          "client_id": "41f9ec63-3963-479f-b747-59a3767ef44b",
+          "status": "pending",
+          "governed_status": "suggested",
+          "committed_memory_id": null,
+          "committed_memory_item_id": null,
+          "row_version": "113340385"
+        }
+      ],
+      "items": [],
+      "outbox": [],
+      "embeddings": [],
+      "liveAcceptance": "NOT_RUN"
+    }
+  ]
+}

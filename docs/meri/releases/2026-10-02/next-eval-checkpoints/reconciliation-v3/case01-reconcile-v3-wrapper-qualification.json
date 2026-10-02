@@ -1,0 +1,46 @@
+{
+  "kind": "meri-case01-reconciliation-v3-qualification",
+  "observedAt": "2026-10-02T08:52:47.097808+00:00",
+  "status": "PREPARED_NOT_EXECUTED",
+  "diagnosticSha256": "a5d6f35aa1e0df5bbab5fb4de601ced1152300494d59b6f2eb52bb070f031565",
+  "wrapperSha256": "ae05188291bc3e96ad5190466206b0823cc86952ab3e8fcee0612ee4730ec139",
+  "genericSanitizer": "UNCHANGED; no override or exception",
+  "wrapperTests": {
+    "passed": 13,
+    "exitCode": 0,
+    "representativeReceipt": "Actual prior v2 structured rows plus offline representative V3 fields; not new DB observation"
+  },
+  "scriptTests": {
+    "purePassed": 5,
+    "actualOwnedPostgresPassed": 1,
+    "exitCode": 0
+  },
+  "hermesReview": {
+    "requestedModel": "moonshotai.kimi-k2.5",
+    "initializedModel": "moonshotai.kimi-k2.5",
+    "sessionId": "20261002_085041_0fe48a",
+    "provider": "bedrock",
+    "reportedTokens": {
+      "input": 23447,
+      "output": 3913,
+      "total": 27360,
+      "cache_read": 0,
+      "cache_write": 0
+    },
+    "reportedResultExit": 0,
+    "toolCalls": 0,
+    "billedCostUsd": null,
+    "costStatus": "not exposed by quiet stream output"
+  },
+  "hermesExit": {
+    "exitCode": 0,
+    "started": 1790931038.0078268,
+    "finished": 1790931095.6125715,
+    "elapsedSeconds": 57.6
+  },
+  "hermesFinalVerdict": "PASS",
+  "independentAdjudication": "PASS; reviewer self-corrected speculative claims. JSON command arrays are not shell expansion; base mode map is explicitly replaced; exact byte hash binds the script; source authorizer suppresses metrics/capability writes. No concrete final finding.",
+  "cloudExecution": "NOT_RUN",
+  "liveAcceptance": "NOT_RUN",
+  "scope": "Exact pending candidate113340385 and current policy decision plus two outbox column metadata records; original TLS/read-only scope unchanged"
+}

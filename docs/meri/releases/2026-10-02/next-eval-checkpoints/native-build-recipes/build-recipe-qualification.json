@@ -1,0 +1,37 @@
+{
+  "policySha": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "kind": "three-service-native-build-recipe-source-review",
+  "status": "PASS",
+  "files": {
+    "api.buildspec.yml": "7e4011b4116a8e1d9ba535af95b70d35396e1ecf9c387919ee47eef6dbfcafb1",
+    "meriv2-orchestrator.buildspec.yml": "dd3aaac45be1eada1a2451add262b6407313d699b390deb0c0707455c370af90",
+    "web-vnext.buildspec.yml": "0fce5b86940b9599702942ff25c462a51977ef7e6106f6af59dfe22b54f1daf6",
+    "build-qualified-source.py": "bd4f71f1f77007f606f440948d4dfa6330f39f677eade42caedbacbd372a10ea",
+    "recipe-source-checks.json": "df4605d8473719b8b0e2e291dc045d5574cd31d0ab844ebc5a90e591d5312a94",
+    "composed-build-kimi-review.md": "6d830705df829074abee32ffc913ba7c473082294c18f40c0f615a7996efda51",
+    "composed-build-kimi-usage.json": "9c1bbfc2f6c958f5a0cd895c5195636a2ae7ba897f9bf69669d194b97e363ab6",
+    "composed-build-kimi-exit.json": "de16958bdf311c87370dbb0d7fe0625b5106a3893a934e6fb95896ea6d6f9b84"
+  },
+  "review": {
+    "requestedModel": "moonshotai.kimi-k2.5",
+    "initializedModel": "moonshotai.kimi-k2.5",
+    "sessionId": "20261002_083157_0f19f0",
+    "provider": "bedrock",
+    "reportedTokens": {
+      "input": 13884,
+      "output": 429,
+      "total": 14313,
+      "cache_read": 0,
+      "cache_write": 0
+    },
+    "reportedResultExit": 0,
+    "toolCalls": 0,
+    "billedCostUsd": null,
+    "costStatus": "not exposed by quiet stream output"
+  },
+  "actualCliExit": 0,
+  "rootAdjudication": "The reviewer mislabeled the two new API pure imports. Actual new imports are memory-pending-execution.executePendingMemorySetup and controlled-read-owner.executeControlledReadSetup; existing case01 owner and manifest imports were retained. Source hashes, YAML parsing and all shell command syntax verified independently. This is source review, not a build result.",
+  "awsWrites": 0,
+  "builds": "NOT_RUN",
+  "liveAcceptance": "NOT_RUN"
+}

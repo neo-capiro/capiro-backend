@@ -1,0 +1,47 @@
+{
+  "kind": "case01-pending-candidate-readonly-diagnostic",
+  "script": "case01-reconcile-readonly-v3.mjs",
+  "scriptSha256": "a5d6f35aa1e0df5bbab5fb4de601ced1152300494d59b6f2eb52bb070f031565",
+  "sourceSha": "c11c83fe1759183254b24d11a9087ccc89595a73",
+  "candidateId": "557b5b98-f591-50ce-83ea-2ca44d44567a",
+  "expectedRowVersion": "113340385",
+  "scope": "Exact failed fixture; source-computed payload/provenance and scalar predicate comparison; actual authorization owner SELECT-only simulation under source tenant ALS; only2 outbox catalog columns",
+  "governance": "Qualified snapshot namespace and four enforce flags plus strict explicit cohort required; no defaults",
+  "readOnly": true,
+  "sharedMutations": 0,
+  "liveExecution": "NOT_RUN",
+  "validation": {
+    "testPassed": 5,
+    "testFailed": 0,
+    "testExit": 0,
+    "testLog": "case01-reconcile-v3-renamed-tests.log",
+    "testLogSha256": "d673659c74e0db79a7132956e224795a1397617b3eb748d23e24c9797c5e48f3",
+    "limitations": "Offline predicate/facade/catalog/TLS contract tests; cloud/database execution not performed by this lane",
+    "syntaxExit": 0,
+    "testSkipped": 0
+  },
+  "actualSourceModuleValidation": {
+    "passed": 1,
+    "failed": 0,
+    "skipped": 0,
+    "exitCode": 0,
+    "test": "case01-reconcile-v3-real-modules.test.mjs",
+    "logSha256": "8bbaed4ff30137ad8e020300feca3d1d66ded17935a0598bd3aea64f0fbfbc97",
+    "qualification": "Actual source identity/namespace and ALS/selector plus MemoryAuthorizationService through exact SELECT-only facade backed by owned rollback PostgreSQL; no shared DB/provider",
+    "sourceCompilation": "ts-node in-process; involved source unchanged vs deployed c11 confirmed by git diff",
+    "actualSelectCount": 3,
+    "capabilityIssued": false,
+    "log": "case01-reconcile-v3-renamed-real-modules.log"
+  },
+  "publicWireRename": {
+    "previousScriptSha256": "989ea18356473aca8fec5c7fff368436d96eaac3b66c95626454d57254459692",
+    "changes": [
+      "currentAuthorization -> currentPolicyDecision",
+      "canonicalWithdrawalGuardExecuted -> canonicalGuardExecuted"
+    ],
+    "semanticsUnchanged": true,
+    "reason": "Use harmless public names directly; no sanitizer aliases required",
+    "preserved": "case01-reconcile-readonly-v3-before-field-rename-989ea.mjs"
+  },
+  "recordedAt": "2026-10-02T08:50:11.306250+00:00"
+}

@@ -1,0 +1,95 @@
+{
+  "kind": "meri-case17-owned-ui-qualification",
+  "observedAt": "2026-10-02T08:47:40.592440+00:00",
+  "policySha": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "baseSha": "d67a816a63aaeaeef913de5801ca62a48950b631",
+  "sourceHashes": {
+    "apps/api/src/memory/pending-memory-fixture-evidence.ts": "0d135b50c3255d9a4ca1d41443f23e83dee49a2f9e9fc1752299b56563faa60e",
+    "evals/meri/live-v1/fixture-provisioning/memory-pending-execution.mjs": "8c83737e8249f8685d38b8f98fac780ab052131f1a3e97208fe0d33a9c2ed46a",
+    "evals/meri/live-v1/case17-memory-ui.mjs": "fbf86f9c840109f1fe862922051142fff4631a8bac96c85de5661c118cfbf7cb",
+    "evals/meri/live-v1/case17-build-authority.mjs": "4b38c0384b804c94f96b5bef67d75101eae2c8f289d17b2092c858c3c9c547e9",
+    "evals/meri/live-v1/case17-live-capture.mjs": "72a125b64e2b1ff6735b96d26bf121c6d71b5f05d6cd1f4691ef01ec02124dfc",
+    "evals/meri/live-v1/case17-saved-checks.mjs": "79a865faa75924e3cc2ae0ec6a97fb845bd231745af66114fcd7a9d1605c1640",
+    "evals/meri/live-v1/grade-case17-capture.mjs": "13586eda4b84f83aaf335ed6262e9e8a4b9456ede942692c032466e878550be5",
+    "evals/meri/live-v1/tests/case17-authority.test.mjs": "474e3ab45e7fdce9ac23b65074fd3933dfc7ca9225c8bf17a0c49358069ebd1a",
+    "evals/meri/live-v1/tests/case17-saved-checks.test.mjs": "4b4af4dce6e181518f81b3f124cd7c21e15f2f021bfdd3c9702b29733ec1ba4d",
+    "evals/meri/live-v1/tests/memory-pending-execution.postgres.test.mjs": "f4ddb23e89e2091c44d582f5801b1a26378bef36c22b098cf4d0b997198da202",
+    "apps/api/scripts/meri-case01-setup-dependencies.mjs": "92a02a694acadefc6a623220aaa6fcb3a81f3bc8ec7fdb4a57901e3d7e4b1332",
+    "apps/api/scripts/meri-pending-memory-setup.mjs": "5b960d3ef811bdeba712ab852becc8da0e528146b576e971b548cf106a5177d2",
+    "apps/api/src/memory/governed-memory-candidate.service.ts": "2398f65d7ebe1aab59f95644b3089b19d17d67d0ed99f21d17c75716fa73cf76",
+    "apps/api/src/memory/memory-proposal.controller.ts": "c13450f0b5a3dc6d8677d9ae59681117f8c28cc22b961778c1508da59d124eb7",
+    "apps/api/src/memory/memory-proposal.controller.spec.ts": "d0019b30d611a67fa2dc7cfe6e97136bda42e5738f9d4d748eb123a5a3858648",
+    "docs/meri/implementation/case17-owned-ui-capture.md": "5a143217cded41146740cb063627f6c089a7b68484e72a9a7e1e4a238fcca80d"
+  },
+  "checks": [
+    {
+      "scope": "pure joins/scope/immutable authority negatives",
+      "passed": 11,
+      "exitCode": 0,
+      "log": "case17-node-sealed.log",
+      "sha256": "d4522cc1374ee7dda88699b6a15aaff54b1a30b6d8f67d7332d0a3a8d2150e12"
+    },
+    {
+      "scope": "actual owned PostgreSQL setup/restart/GET/role",
+      "passed": 4,
+      "exitCode": 0,
+      "log": "pending-role-pg-v2.log",
+      "sha256": "0c446e6dc5d2c6eca28941d9930f1e68e420c004f53df402dc64330dc1b444fc"
+    },
+    {
+      "scope": "actual API controller/service",
+      "passed": 12,
+      "exitCode": 0,
+      "log": "case17-jest-final.log",
+      "sha256": "40712ca44a4a25416cf01f56e5fc1e47fad63e265ed4d4af72919b40ac743c3f"
+    },
+    {
+      "scope": "full primary API typecheck",
+      "passed": null,
+      "exitCode": 0,
+      "log": "case17-api-tsc-final.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "scope": "exact Docker closure and actual factory including owned PostgreSQL",
+      "passed": 5,
+      "exitCode": 0,
+      "log": "case17-package-factory-final.log",
+      "sha256": "461c7b84ae894735e080cd69aa620085da9eb8d01bb0c41b386cdea6cd96dd0f"
+    }
+  ],
+  "implementation": {
+    "qwenStatus": "INVALID",
+    "qwenSession": "20261002_075158_3fafb7",
+    "qwenExitCode": 1,
+    "repair": "Direct Codex under existing authorized repair exception"
+  },
+  "review": {
+    "requestedModel": "moonshotai.kimi-k2.5",
+    "initializedModel": "moonshotai.kimi-k2.5",
+    "sessionId": "20261002_084505_6fd289",
+    "provider": "bedrock",
+    "reportedTokens": {
+      "input": 27135,
+      "output": 1780,
+      "total": 28915,
+      "cache_read": 0,
+      "cache_write": 0
+    },
+    "reportedResultExit": 0,
+    "toolCalls": 0,
+    "billedCostUsd": null,
+    "costStatus": "not exposed by quiet stream output"
+  },
+  "reviewVerdict": "PASS",
+  "reviewCaveats": [
+    "Deep current-owner validation throws; early non-synthetic scope returns null.",
+    "Bearer response leak check is in native collector, not pure UI checker."
+  ],
+  "liveBrowser": "NOT_RUN",
+  "sharedDatabaseWrites": "NOT_RUN",
+  "cloudMutations": "NOT_RUN",
+  "case14ReviewAndRecall": "NOT_RUN",
+  "case12Corpus": "NOT_RUN",
+  "fullFile01Acceptance": false
+}

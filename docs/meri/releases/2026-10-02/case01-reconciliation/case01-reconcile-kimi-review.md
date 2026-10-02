@@ -4,8 +4,8 @@ Based on my analysis of the three exact source files provided, here is my read-o
 
 ## REVIEW REPORT: case01-reconcile-oneoff.py wrapper
 
-**Reviewer:** Bedrock moonshotai.kimi-k2.5  
-**Scope:** New wrapper (`case01-reconcile-oneoff.py`) + fixed read-only script (`case01-reconcile-readonly.mjs`) interactions with frozen base (`case01-oneoff.py`)  
+**Reviewer:** Bedrock moonshotai.kimi-k2.5
+**Scope:** New wrapper (`case01-reconcile-oneoff.py`) + fixed read-only script (`case01-reconcile-readonly.mjs`) interactions with frozen base (`case01-oneoff.py`)
 **Constraint:** No tools invoked; evaluation based on exact provided source only
 
 ---

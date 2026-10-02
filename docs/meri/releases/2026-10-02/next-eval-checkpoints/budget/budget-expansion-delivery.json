@@ -1,0 +1,284 @@
+{
+  "recordedAt": "2026-10-02T08:52:00.335431+00:00",
+  "sourceSha": "f3ef93d3c214fb1e24b5a1fa0102686aa342c521",
+  "baseSha": "eedcc3d3a34aaf1b3b68e8a5093644b20d98a908",
+  "policySha": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "worktree": "C:\\dev\\cap-meri-capture-evidence",
+  "branch": "codex/meri-budget-capture-20261002",
+  "clean": true,
+  "status": "OFFLINE_QUALIFIED_LIVE_HELD",
+  "newCases": [
+    "21",
+    "22",
+    "23",
+    "24",
+    "26",
+    "27"
+  ],
+  "liveAcceptance": "NOT_RUN",
+  "fullFile01Acceptance": false,
+  "checks": [
+    {
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "--test",
+        "evals/meri/live-v1/tests/controlled-budget-definitions.test.mjs",
+        "evals/meri/live-v1/tests/controlled-budget-receipts.test.mjs",
+        "evals/meri/live-v1/tests/controlled-read-owner.test.mjs",
+        "evals/meri/live-v1/tests/case01-memory-packaging.test.mjs"
+      ],
+      "cwd": "C:\\dev\\cap-meri-capture-evidence",
+      "pid": 21900,
+      "started": 1790930898.6438515,
+      "finished": 1790930899.1112764,
+      "exitCode": 0,
+      "passed": 125,
+      "log": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\budget-node-final.log",
+      "logSha256": "043fad68f6beb4598726cde244762b24f949e34187430e7cf155ccbd27f0c5b1"
+    },
+    {
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "--test",
+        "evals/meri/live-v1/tests/controlled-budget.postgres.test.mjs"
+      ],
+      "cwd": "C:\\dev\\cap-meri-capture-evidence",
+      "pid": 13920,
+      "started": 1790930642.071216,
+      "finished": 1790930645.1323152,
+      "exitCode": 0,
+      "passed": 1,
+      "log": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\budget-postgres-v2.log",
+      "logSha256": "56d20daec4a18b4fcb6059a5d3458db2344ea1f8896a6d9fbe3a676a700e71db"
+    },
+    {
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "--test",
+        "evals/meri/live-v1/tests/controlled-read.postgres.test.mjs"
+      ],
+      "cwd": "C:\\dev\\cap-meri-capture-evidence",
+      "pid": 21508,
+      "started": 1790930898.6435432,
+      "finished": 1790930909.644635,
+      "exitCode": 0,
+      "passed": 1,
+      "log": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\budget-old-postgres-regression.log",
+      "logSha256": "fe718deae47605a57c3fcd72f5f6733db2d6bb30c3554cd007963cbcb9709fda"
+    },
+    {
+      "command": [
+        "C:\\Program Files\\nodejs\\pnpm.cmd",
+        "--filter",
+        "@capiro/api",
+        "exec",
+        "jest",
+        "--runInBand",
+        "--forceExit",
+        "src/meri/meri-server-readonly-capture.spec.ts",
+        "src/meri/meri-tools.defense-budget.spec.ts"
+      ],
+      "cwd": "C:\\dev\\cap-meri-capture-evidence",
+      "pid": 18536,
+      "started": 1790930642.069406,
+      "finished": 1790930683.9496603,
+      "exitCode": 0,
+      "passed": 44,
+      "log": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\budget-api-regression-v1.log",
+      "logSha256": "c92607ede79172c870759657b16d5144380cee2e324307b44f7bedadcc07532a"
+    },
+    {
+      "command": [
+        "C:\\Program Files\\nodejs\\pnpm.cmd",
+        "--filter",
+        "@capiro/meriv2-orchestrator",
+        "exec",
+        "jest",
+        "--runInBand",
+        "--forceExit",
+        "src/meri/controlled-read-observations.spec.ts",
+        "src/meri/meriv3/meriv3-capture-evidence.spec.ts"
+      ],
+      "cwd": "C:\\dev\\cap-meri-capture-evidence",
+      "pid": 12192,
+      "started": 1790930465.7178595,
+      "finished": 1790930480.6655648,
+      "exitCode": 0,
+      "passed": 22,
+      "log": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\budget-orchestrator-v1.log",
+      "logSha256": "9b6a5575b33039946eca51a5f2a5f55d1c56668b49f65048b535368a0259b04a"
+    },
+    {
+      "command": [
+        "C:\\Program Files\\nodejs\\pnpm.cmd",
+        "--filter",
+        "@capiro/api",
+        "exec",
+        "tsc",
+        "--noEmit",
+        "--rootDir",
+        "."
+      ],
+      "cwd": "C:\\dev\\cap-meri-capture-evidence",
+      "pid": 20768,
+      "started": 1790930465.7177975,
+      "finished": 1790930518.9917662,
+      "exitCode": 0,
+      "passed": null,
+      "log": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\budget-api-types-v1.log",
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "command": [
+        "C:\\Program Files\\nodejs\\pnpm.cmd",
+        "--filter",
+        "@capiro/meriv2-orchestrator",
+        "typecheck"
+      ],
+      "cwd": "C:\\dev\\cap-meri-capture-evidence",
+      "pid": 22396,
+      "started": 1790930642.0771508,
+      "finished": 1790930652.2887123,
+      "exitCode": 0,
+      "passed": null,
+      "log": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\budget-orchestrator-types-v1.log",
+      "logSha256": "ee0d9cbb5d477a7986476dbdb094a6b73130e690e135a2c1efb9992d9b34b7a0"
+    },
+    {
+      "command": [
+        "C:\\Program Files\\nodejs\\pnpm.cmd",
+        "--filter",
+        "@capiro/shared",
+        "run",
+        "build"
+      ],
+      "cwd": "C:\\dev\\cap-meri-capture-evidence",
+      "pid": 21512,
+      "started": 1790930623.4544296,
+      "finished": 1790930625.2085714,
+      "exitCode": 0,
+      "passed": null,
+      "log": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\budget-shared-build-v2.log",
+      "logSha256": "11ae3ad9679950b5b3c18871e2e0d4be8726592a122992e0706890e9c36f6f3a"
+    },
+    {
+      "command": [
+        "C:\\Program Files\\nodejs\\pnpm.cmd",
+        "--filter",
+        "@capiro/meriv2-core",
+        "run",
+        "build"
+      ],
+      "cwd": "C:\\dev\\cap-meri-capture-evidence",
+      "pid": 15308,
+      "started": 1790930438.8601038,
+      "finished": 1790930442.9077256,
+      "exitCode": 0,
+      "passed": null,
+      "log": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\budget-core-build.log",
+      "logSha256": "8b3f420bb38c980903bba5787c93f1d63fa808a628814d42cd8780db5a02a152"
+    },
+    {
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "node_modules/promptfoo/dist/src/entrypoint.js",
+        "eval",
+        "-c",
+        "evals/meri/promptfooconfig.yaml",
+        "--no-cache",
+        "--no-share",
+        "--no-write",
+        "--no-table",
+        "--no-progress-bar",
+        "-o",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\budget-offline26.json"
+      ],
+      "cwd": "C:\\dev\\cap-meri-capture-evidence",
+      "pid": 2884,
+      "started": 1790930997.675991,
+      "finished": 1790931025.479036,
+      "exitCode": 0,
+      "passed": 26,
+      "log": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\budget-offline26.log",
+      "logSha256": "c6d2e0d0a9a733fb5bd95b4403ca225a62229e74105b78413df5e06e20e11bb6"
+    },
+    {
+      "command": [
+        "C:\\ProgramData\\Hermes\\tools\\python-3.14.7+20260901-win32-x64\\python.exe",
+        "evals/meri/verify_report.py",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\budget-offline26.json",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\budget-offline26.summary.json"
+      ],
+      "cwd": "C:\\dev\\cap-meri-capture-evidence",
+      "pid": 20856,
+      "started": 1790931044.9683542,
+      "finished": 1790931045.0937538,
+      "exitCode": 0,
+      "passed": null,
+      "log": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\budget-offline26-verify.log",
+      "logSha256": "b30c2c09cbb3df364150c2c89f24e3ba31a46c5e9ef5ac0e6796ff7856dbe41c"
+    }
+  ],
+  "testCountNote": "125 Node executions include imported existing-case regressions; do not sum as125 unique original cases. Two PostgreSQL tests are composites, one covering all6 new cases and one existing20/72.",
+  "review": {
+    "requestedModel": "moonshotai.kimi-k2.5",
+    "initializedModel": "moonshotai.kimi-k2.5",
+    "sessionId": "20261002_084740_0dccec",
+    "provider": "bedrock",
+    "reportedTokens": {
+      "input": 42284,
+      "output": 2571,
+      "total": 44855,
+      "cache_read": 0,
+      "cache_write": 0
+    },
+    "reportedResultExit": 0,
+    "toolCalls": 0,
+    "billedCostUsd": null,
+    "costStatus": "not exposed by quiet stream output",
+    "exitCode": 0,
+    "verdict": "PASS",
+    "reportPath": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\budget-expansion-kimi-review.md",
+    "reportSha256": "9d190e4f066f6203e47417175a9ebfb4b4c1506bdb0592a7cbc4ba1ed87471c7"
+  },
+  "implementationWorker": {
+    "requestedModel": "qwen.qwen3-coder-next",
+    "initializedModel": "qwen.qwen3-coder-next",
+    "sessionId": "20261002_082416_9d0a63",
+    "provider": "bedrock",
+    "tokens": {
+      "input": 67635,
+      "output": 195,
+      "total": 67830,
+      "cache_read": 0,
+      "cache_write": 0
+    },
+    "toolCalls": 4,
+    "billedCostUsd": null
+  },
+  "workerExit": 1,
+  "workerAcceptedChanges": 0,
+  "directRepairAuthorization": "Existing user exception after unusable Hermes work",
+  "preservedFailures": [
+    "budget-definitions-qwen.jsonl",
+    "budget-node-v1.log (test file encoding + attempted mutation of immutable test data; repaired)",
+    "budget-postgres-v1.log (test initially unwalled; walled+actualgrant now verifies revocation)"
+  ],
+  "liveHolds": [
+    "Server issue policy rejects six cases explicitly",
+    "CLI/live collector and provider qualification allowlists remain existing cases only",
+    "After deployed20 readback, actual ingress/provider setup and multi-source live collector must be qualified before activation",
+    "This-PE prompts need actual conversation context; no synthetic final-answer injection",
+    "Human five-dimension rubric >=8/no0 and row22mode comparison remain",
+    "No implemented cross-case30USD aggregate is claimed"
+  ],
+  "sideEffects": {
+    "sourceCommitOnly": true,
+    "push": false,
+    "mainMutation": false,
+    "awsWrites": 0,
+    "sharedDatabaseWrites": 0,
+    "liveChatCalls": 0,
+    "localPostgresOwnedRollbackTests": 2
+  }
+}

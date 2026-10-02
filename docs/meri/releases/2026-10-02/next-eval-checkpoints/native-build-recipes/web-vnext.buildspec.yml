@@ -1,0 +1,73 @@
+version: 0.2
+env:
+  shell: bash
+phases:
+  pre_build:
+    on-failure: ABORT
+    commands:
+      - |
+        set -euo pipefail
+        : "${EXPECTED_SHA:?start-build must pass the exact merged-main SHA}"
+        [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]]
+        test "${CODEBUILD_SOURCE_VERSION:-}" = "$EXPECTED_SHA"
+        test "${CODEBUILD_RESOLVED_SOURCE_VERSION:-}" = "$EXPECTED_SHA"
+        test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+        test -z "$(git status --porcelain --untracked-files=no)"
+        test "$(uname -m)" = aarch64
+        test "$(aws sts get-caller-identity --query Account --output text)" = 967807252336
+        test "$(aws ecr list-images --region us-east-1 --repository-name capiro/dev/web-vnext --filter tagStatus=TAGGED --query "length(imageIds[?imageTag=='${EXPECTED_SHA}'])" --output json)" = 0
+        sha256sum apps/web/Dockerfile pnpm-lock.yaml
+        docker pull public.ecr.aws/docker/library/node:22.23.3-bookworm-slim
+        docker tag public.ecr.aws/docker/library/node:22.23.3-bookworm-slim node:22.23.3-bookworm-slim
+        docker pull public.ecr.aws/nginx/nginx-unprivileged:1.27.1-alpine
+        docker tag public.ecr.aws/nginx/nginx-unprivileged:1.27.1-alpine nginxinc/nginx-unprivileged:1.27.1-alpine
+        aws ecr get-login-password --region us-east-1 |
+          docker login --username AWS --password-stdin 967807252336.dkr.ecr.us-east-1.amazonaws.com
+  build:
+    on-failure: ABORT
+    commands:
+      - |
+        set -euo pipefail
+        docker run --rm -e CI=1 -e NODE_OPTIONS=--max-old-space-size=6144 \
+          -v "${CODEBUILD_SRC_DIR}:/workspace" -w /workspace \
+          public.ecr.aws/docker/library/node:22.23.3-bookworm-slim bash -lc '
+            set -euo pipefail
+            corepack enable
+            corepack prepare pnpm@9.12.0 --activate
+            pnpm install --frozen-lockfile
+            pnpm --filter @capiro/shared build
+            pnpm --filter @capiro/strategy-verifier build
+            pnpm --filter @capiro/web exec vitest run src/vnext/app/presentation.test.ts src/vnext/foundation-contract.test.ts src/vnext/figma-strategy-legiwatch-contract.test.ts src/vnext/meri/meri-install.test.ts src/vnext/meri/meri-pwa.contract.test.ts src/vnext/meri/meri-route-state.test.ts src/vnext/pages/research-portfolios/ResearchPortfolioWatchConversion.test.tsx src/vnext/meri/meri-source-api.test.ts src/vnext/meri/MeriMemoryTab.targets.test.tsx src/vnext/meri/MeriArtifactCanvas.test.tsx src/components/chat/meri-artifact-download.test.ts --poolOptions.threads.singleThread
+            pnpm --filter @capiro/web typecheck
+            CAPIRO_WEB_BUILD_SURFACE=vnext pnpm --filter @capiro/web build
+          '
+        echo NATIVE_WEB_SOURCE_TESTS_TYPES_BUILD_PASS
+        python3 scripts/validate-meri-build-isolation.py
+        image="967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext:${EXPECTED_SHA}"
+        docker build --platform linux/arm64 -f apps/web/Dockerfile \
+          --label "org.opencontainers.image.revision=$EXPECTED_SHA" \
+          --label 'org.opencontainers.image.source=https://github.com/neo-capiro/capirov2' \
+          --build-arg "GIT_SHA=${EXPECTED_SHA}" \
+          --build-arg CAPIRO_WEB_BUILD_SURFACE=vnext -t "$image" .
+        test "$(docker image inspect "$image" --format '{{.Architecture}}')" = arm64
+        test "$(docker image inspect "$image" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')" = "$EXPECTED_SHA"
+  post_build:
+    on-failure: ABORT
+    commands:
+      - |
+        set -euo pipefail
+        test "${CODEBUILD_BUILD_SUCCEEDING:-0}" = 1
+        image="967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext:${EXPECTED_SHA}"
+        docker push "$image"
+        docker image inspect "$image" --format '{{json .RepoDigests}}' > pushed-repo-digests.json
+        digest="$(aws ecr describe-images --region us-east-1 --repository-name capiro/dev/web-vnext --image-ids "imageTag=${EXPECTED_SHA}" --query 'imageDetails[0].imageDigest' --output text)"
+        [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+        python3 - "$digest" <<'PY'
+        import json,sys
+        digest=sys.argv[1]
+        target='967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@'+digest
+        assert target in json.load(open('pushed-repo-digests.json'))
+        print('LOCAL_REPODIGEST_ECR_MATCH_PASS')
+        PY
+        echo "CANDIDATE_WEB_SOURCE_SHA=$EXPECTED_SHA"
+        echo "CANDIDATE_WEB_IMAGE=967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@$digest"

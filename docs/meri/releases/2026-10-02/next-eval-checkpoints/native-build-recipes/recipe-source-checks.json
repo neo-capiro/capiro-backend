@@ -1,0 +1,21 @@
+{
+  "checks": [
+    {
+      "file": "api.buildspec.yml",
+      "sha256": "7e4011b4116a8e1d9ba535af95b70d35396e1ecf9c387919ee47eef6dbfcafb1",
+      "yamlAndShellSyntaxExit": 0
+    },
+    {
+      "file": "meriv2-orchestrator.buildspec.yml",
+      "sha256": "dd3aaac45be1eada1a2451add262b6407313d699b390deb0c0707455c370af90",
+      "yamlAndShellSyntaxExit": 0
+    },
+    {
+      "file": "web-vnext.buildspec.yml",
+      "sha256": "0fce5b86940b9599702942ff25c462a51977ef7e6106f6af59dfe22b54f1daf6",
+      "yamlAndShellSyntaxExit": 0
+    }
+  ],
+  "awsWrites": 0,
+  "liveAcceptance": "NOT_RUN"
+}

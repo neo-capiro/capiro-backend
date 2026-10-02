@@ -1,0 +1,190 @@
+{
+  "sourceSha": "758dd54a279c64d27593f0fcae0e327fb654015c",
+  "policySha": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "machineMapRevision": "2026-09-30T00:21:48Z",
+  "rootVerification": {
+    "case17": {
+      "nodePassed": 11,
+      "apiPassed": 12,
+      "apiTypecheckExit": 0,
+      "exitCode": 0
+    },
+    "budget": {
+      "nodePassed": 119,
+      "sharedAndCoreBuildExit": 0,
+      "exitCode": 0
+    },
+    "readOnlyDiagnosticV3": {
+      "wrapperTestsPassed": 13,
+      "wrapperExit": 0,
+      "taskExit": 0,
+      "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/9452a0ae070047a4a76a5328abc66126",
+      "candidateGuardPredicatesMatched": 55,
+      "currentApprovalAllowed": true,
+      "outboxColumnsPresent": true,
+      "databaseMutations": 0
+    }
+  },
+  "originalLiveCasesExecuted": 0,
+  "fullFile01Acceptance": false,
+  "originalSetup": "RECONCILIATION_REQUIRED; original claim unchanged",
+  "nativeBuilds": "NOT_RUN; recipes are qualified source only",
+  "archivePurpose": "Reference evidence only. Operator copies are not runnable authority; no private manifests, credentials, auth state, or raw service logs are archived.",
+  "files": [
+    {
+      "path": "case17/case17-final-qualification.json",
+      "originalLocalSha256": "7cb7d048e28d6dc6749cb0561d66a3fe2f8403fc69b3b1d47a82a70d4ec75491",
+      "archivedSha256": "19d0741735f8ebbd0a637a56ee1765a3b92d696fa25d2e6e217aeaa07495e975"
+    },
+    {
+      "path": "case17/case17-authority-kimi-inline-review.md",
+      "originalLocalSha256": "21694437acada0fbcc2a6de2fe0bd72f1c2211e3b41d1424154a11cee1eff69f",
+      "archivedSha256": "36cbfdf5ac1f0d75817e5826eb3669358a274f93248b9209ca284e90b9fce70c"
+    },
+    {
+      "path": "case17/case17-authority-kimi-inline-usage.json",
+      "originalLocalSha256": "d39ef355a4f252cdcdb1c7990b6ad50167b36dddfc66569fafa8bb1a395f5a7a",
+      "archivedSha256": "2b016c5d7af7a2f6c9c3b400cabebde4d5b3eb6e701f5d95b27d9daba490e959"
+    },
+    {
+      "path": "case17/case17-authority-kimi-inline-exit.json",
+      "originalLocalSha256": "5c0b8cb3e306909d80e9da7bb825e3076ab74f586be126e1fdb19b4d6b76d3de",
+      "archivedSha256": "5c0b8cb3e306909d80e9da7bb825e3076ab74f586be126e1fdb19b4d6b76d3de"
+    },
+    {
+      "path": "case17/root-case17-integration-node.log",
+      "originalLocalSha256": "b6b598ae988fef6230a6f35581e7a0123f65f6572d3bf730909d9523eda1b557",
+      "archivedSha256": "7a43c71564ad06f14fa38c17b1b5d62644ba248a28d0c30eeeeafab643b8c12b"
+    },
+    {
+      "path": "case17/root-case17-integration-api.log",
+      "originalLocalSha256": "dbac7eac0f21e8eaf051063444b99e331adf4fbcff12a42aeec5276d70dce254",
+      "archivedSha256": "964a7e74008c152a1e753e3afbf44d3b98317fc072a4a5b655f7060b7db3dc52"
+    },
+    {
+      "path": "case17/root-case17-integration-types.log",
+      "originalLocalSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "archivedSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "budget/budget-expansion-delivery.json",
+      "originalLocalSha256": "1101ebfc0a3a29bc1ab78ccb0c74e0f4275ab0d319d1fd3ec4f91eda9bec77f4",
+      "archivedSha256": "8107317748ad180ed13bddefe0a7a8382319959bed4dc88be3fb5e49df2e1b0c"
+    },
+    {
+      "path": "budget/budget-expansion-handover.md",
+      "originalLocalSha256": "5bd5e10f752a705644c26e8d7b91a6b7cade637dc4111b5c6548e4338d3ffe29",
+      "archivedSha256": "7760cfdf50d2cc352a3c9419ad35ad8dc947394e5911db9ab1b07330f1ed6341"
+    },
+    {
+      "path": "budget/budget-expansion-kimi-review.md",
+      "originalLocalSha256": "9d190e4f066f6203e47417175a9ebfb4b4c1506bdb0592a7cbc4ba1ed87471c7",
+      "archivedSha256": "30f28643a780fcb8bf4d0b076fe9f46d4d37947a4c11b04a311f2ba26e23b391"
+    },
+    {
+      "path": "budget/budget-offline26.summary.json",
+      "originalLocalSha256": "2cd260c270d7d52b8830bf4d369ba11c3925982bc89f502db62c15568efc1923",
+      "archivedSha256": "692d5ccde2e0951cb37fd4263d830bdadd27e82c3d89c2efbe7efec239bd4866"
+    },
+    {
+      "path": "budget/root-budget-integration-node.log",
+      "originalLocalSha256": "e12e431a471ca469678a499c03ff8269361c219d5da5f7c6c0df565389d285ee",
+      "archivedSha256": "4c4167b09cb5ea6c493b27ff0e00e33aec42459f107a6923817dbf1dff46ae22"
+    },
+    {
+      "path": "budget/root-budget-shared-build.log",
+      "originalLocalSha256": "bab9720e59ab6f73960189531f39e4ca664a2e4173aae24bf11ce35ea06dea4d",
+      "archivedSha256": "d089f90d4c09a976f5ec2ea3aaf21b4e4c6e8d6b671cf8a60058f6cea5be0882"
+    },
+    {
+      "path": "budget/root-budget-core-build.log",
+      "originalLocalSha256": "423fd4f55d301063db88431c063c2f773dc4c004da5bc993b3151ca46ece0f7a",
+      "archivedSha256": "fc776b328d414b6b35ed9d397fb6023b06037057d6936a00b1304b415164669c"
+    },
+    {
+      "path": "reconciliation-v3/case01-reconcile-readonly-v3.mjs",
+      "originalLocalSha256": "a5d6f35aa1e0df5bbab5fb4de601ced1152300494d59b6f2eb52bb070f031565",
+      "archivedSha256": "1ade60198ecacf763ce5ef5f12a755540b84ca3069d51beff6cc162a2876dee5"
+    },
+    {
+      "path": "reconciliation-v3/case01-reconcile-oneoff-v3.py",
+      "originalLocalSha256": "ae05188291bc3e96ad5190466206b0823cc86952ab3e8fcee0612ee4730ec139",
+      "archivedSha256": "cfd8f323551b4cd610082fd4748b215626cffcc75ca4d84e3eda6b09db6f6163"
+    },
+    {
+      "path": "reconciliation-v3/case01-reconcile-oneoff-v3-tests.py",
+      "originalLocalSha256": "30414ee585a88aa83068bf5a3e387a491bdaed2c4a222c0f4665043f10ac4f95",
+      "archivedSha256": "338248e58aa078d90376141d9e9b7e0cc6ad6f1dce1d05c326d45f2614441684"
+    },
+    {
+      "path": "reconciliation-v3/case01-reconcile-oneoff-v3-tests.log",
+      "originalLocalSha256": "fcbf76332a9bcfd05f607d9eb096a83f5c8c7b2c210baf5eaa7dbbff78e674ff",
+      "archivedSha256": "8c3801b9407239513558c2df00afe60799d06bcdc2269c52cda52eefcb471e68"
+    },
+    {
+      "path": "reconciliation-v3/case01-reconcile-v3-renamed-script-qualification.json",
+      "originalLocalSha256": "a2012b95ec570ad74b2349877b16a2e6d67e660576982e4af434e57ae45a6c4a",
+      "archivedSha256": "e1a931c3984805d372fb2e1ffabe5e6caa6eb9dd2c75794105e37fa391b1d66a"
+    },
+    {
+      "path": "reconciliation-v3/case01-reconcile-v3-wrapper-qualification.json",
+      "originalLocalSha256": "7897bb1dad79f34d477186878b0d61ee081756a4ceb027d42db98a9223425a6b",
+      "archivedSha256": "cb04e761f51eac738e718e907c87fdf322f112ca2fb2c46b374474994747f3bc"
+    },
+    {
+      "path": "reconciliation-v3/case01-reconcile-v3-operation.json",
+      "originalLocalSha256": "12eb3295c86545bceec44c499a842e38617c7c6dc5605b39e5a3196bc9b3fa34",
+      "archivedSha256": "2a1f7c8568d303c8ddd4f00b4a4dbc6c91a97adf64711450b626b4f7e4c2b8bb"
+    },
+    {
+      "path": "reconciliation-v3/case01-reconcile-v3-execution.json",
+      "originalLocalSha256": "ef091a69683a0f2229928f964da7cbb9a6863c3f72c43f1b709f6dc50436e7b0",
+      "archivedSha256": "deaebd54300d121a2abbcb7ed78a30cd715eeeb26c369ea047288f7c676a0340"
+    },
+    {
+      "path": "native-build-recipes/api.buildspec.yml",
+      "originalLocalSha256": "7e4011b4116a8e1d9ba535af95b70d35396e1ecf9c387919ee47eef6dbfcafb1",
+      "archivedSha256": "7e4011b4116a8e1d9ba535af95b70d35396e1ecf9c387919ee47eef6dbfcafb1"
+    },
+    {
+      "path": "native-build-recipes/meriv2-orchestrator.buildspec.yml",
+      "originalLocalSha256": "dd3aaac45be1eada1a2451add262b6407313d699b390deb0c0707455c370af90",
+      "archivedSha256": "dd3aaac45be1eada1a2451add262b6407313d699b390deb0c0707455c370af90"
+    },
+    {
+      "path": "native-build-recipes/web-vnext.buildspec.yml",
+      "originalLocalSha256": "0fce5b86940b9599702942ff25c462a51977ef7e6106f6af59dfe22b54f1daf6",
+      "archivedSha256": "0fce5b86940b9599702942ff25c462a51977ef7e6106f6af59dfe22b54f1daf6"
+    },
+    {
+      "path": "native-build-recipes/build-qualified-source.py",
+      "originalLocalSha256": "bd4f71f1f77007f606f440948d4dfa6330f39f677eade42caedbacbd372a10ea",
+      "archivedSha256": "bd4f71f1f77007f606f440948d4dfa6330f39f677eade42caedbacbd372a10ea"
+    },
+    {
+      "path": "native-build-recipes/recipe-source-checks.json",
+      "originalLocalSha256": "df4605d8473719b8b0e2e291dc045d5574cd31d0ab844ebc5a90e591d5312a94",
+      "archivedSha256": "df4605d8473719b8b0e2e291dc045d5574cd31d0ab844ebc5a90e591d5312a94"
+    },
+    {
+      "path": "native-build-recipes/build-recipe-qualification.json",
+      "originalLocalSha256": "2f2ecd132849a9d044a0a834517789a6543f12e0241afb78bdcc1174ba55ed3f",
+      "archivedSha256": "9541a2ffa3aa876dfcdbbbb5a9ff9c2ba6addc827b8f72c15795c986591825e3"
+    },
+    {
+      "path": "native-build-recipes/composed-build-kimi-review.md",
+      "originalLocalSha256": "6d830705df829074abee32ffc913ba7c473082294c18f40c0f615a7996efda51",
+      "archivedSha256": "e094f3663dcd2ef3108531f2ec0e968bb35f080639a9df60c7a6026fb53cb82d"
+    },
+    {
+      "path": "native-build-recipes/composed-build-kimi-usage.json",
+      "originalLocalSha256": "9c1bbfc2f6c958f5a0cd895c5195636a2ae7ba897f9bf69669d194b97e363ab6",
+      "archivedSha256": "f8295527eeb664436a83bbb4dd95f69c8534daf60d9d60761c63a606a9639427"
+    },
+    {
+      "path": "native-build-recipes/composed-build-kimi-exit.json",
+      "originalLocalSha256": "de16958bdf311c87370dbb0d7fe0625b5106a3893a934e6fb95896ea6d6f9b84",
+      "archivedSha256": "de16958bdf311c87370dbb0d7fe0625b5106a3893a934e6fb95896ea6d6f9b84"
+    }
+  ]
+}
