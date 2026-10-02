@@ -298,6 +298,77 @@ describe('MeriContextPlaneService Phase 19 planning', () => {
     });
   });
 
+  test.each([
+    ['What do we know about Aster’s briefing preferences?', 'Aster Defense'],
+    ["Tell me about Acme's writing preferences", 'Acme Systems'],
+    ['What do you remember about Meridian’s communication preferences?', 'Meridian Robotics'],
+    ["Tell me about Acme Systems's tone", 'Acme Systems'],
+  ])('possessive memory attributes retain an unambiguous selected client: %s', (task, name) => {
+    const plan = planMeriTurn({
+      task, uiClientId: 'selected', uiClientName: name,
+      authorizedClientNames: [name, 'Unrelated Holdings'],
+    });
+    expect(plan).toMatchObject({ subjectScope: 'client', targetHint: null });
+  });
+
+  test.each([
+    ["What do we know about Aster's preferences?", ['Aster Defense', 'Aster Robotics']],
+    ["What do we know about Aster's preferences?", ['Aster Defense', 'Aster Defense']],
+    ["What do we know about Aster's preferences?", []],
+    ["What do we know about Ast's preferences?", ['Aster Defense']],
+    ["What do we know about Bluehaven's preferences?", ['Aster Defense', 'Bluehaven Robotics']],
+    ["What do we know about Aster's preferences and Bluehaven's preferences?", ['Aster Defense']],
+    ["Tell me about Aster's competitor's preferences", ['Aster Defense']],
+    ["Tell me about Aster's preferences. Research RTX instead.", ['Aster Defense']],
+    ["What do we know about Aster's preferences? Research RTX.", ['Aster Defense']],
+    ["Tell me about Aster's preferences, research RTX", ['Aster Defense']],
+    ["Tell me about Aster's preferences\nResearch RTX", ['Aster Defense']],
+  ])('ambiguous, foreign or mixed possessives cannot acquire selected-client scope: %s', (task, names) => {
+    expect(planMeriTurn({ task, uiClientId: 'selected', uiClientName: 'Aster Defense',
+      authorizedClientNames: names }).subjectScope).toBe('external_entity');
+  });
+
+  test('possessive matching cannot create selected-client scope without a selected client', () => {
+    expect(planMeriTurn({ task: "What do we know about Aster's preferences?", uiClientId: null,
+      uiClientName: null, authorizedClientNames: ['Aster Defense'] }).subjectScope).toBe('external_entity');
+  });
+
+  test('real chat planner uses only current server-scoped names and keeps the original request', async () => {
+    const task = 'What do we know about Aster’s briefing preferences?';
+    const boundary = new Error('STOP_BEFORE_CONTEXT_OR_PROVIDER');
+    const requestContext = jest.fn(async () => { throw boundary; });
+    const tx = {
+      clioConversation: { findFirst: jest.fn(async () => ({ clientId: 'selected' })) },
+      client: {
+        findFirst: jest.fn(async () => ({ name: 'Aster Defense' })),
+        findMany: jest.fn(async () => [{ id: 'selected', name: 'Aster Defense' },
+          { id: 'other', name: 'Bluehaven Robotics' }]),
+      },
+      integrationConnection: { findMany: jest.fn(async () => []) },
+    };
+    const prisma = {
+      withTenant: jest.fn(async (_tenant: string, fn: (value: unknown) => unknown) => fn(tx)),
+      withTenantUser: jest.fn(async (_tenant: string, _actor: string, fn: (value: unknown) => unknown) => fn(tx)),
+    };
+    const service = new MeriContextPlaneService(prisma as never, { requestContext } as never);
+    await expect(service.resolveChat({ tenantId: 'tenant', userId: 'actor' } as never,
+      { conversationId: 'conversation', task })).rejects.toBe(boundary);
+    expect(tx.client.findMany).toHaveBeenCalledWith({
+      where: { tenantId: 'tenant', OR: [{ memoryWall: false },
+        { memoryAccessGrants: { some: { userId: 'actor' } } }] },
+      select: { id: true, name: true }, orderBy: { id: 'asc' },
+    });
+    expect(requestContext).toHaveBeenCalledWith(expect.objectContaining({
+      resolverRequest: expect.objectContaining({ task, clientId: 'selected', subjectScope: 'client',
+        retrieval: expect.objectContaining({ requestedDomains: ['institutional_knowledge'], query: task }),
+        securityScope: { authorizedClientIds: ['selected', 'other'], allowExternalLookup: true },
+      }),
+    }));
+    // Names are planner-only context; other security-envelope consumers retain their contract.
+    expect(await service.securityEnvelope({ tenantId: 'tenant', userId: 'actor' } as never))
+      .toEqual({ authorizedClientIds: ['selected', 'other'], authorizedMailboxConnectionIds: [] });
+  });
+
   test('explicit external memory questions are not silently attributed to the selected client', () => {
     const plan = planMeriTurn({
       task: 'What do you remember about RTX?',

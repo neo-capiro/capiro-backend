@@ -114,6 +114,20 @@ test('case14 next-turn recall uses the real memory-only plan and cannot admit ap
     expect(()=>assertCaptureApiRetrievalPlan({subjectScope:'client',requestedDomains:['mail']})).toThrow('unqualified');
   });
 });
+test('original case01 briefing preference prompt stays on its selected client memory rail', async () => {
+  const nativePlan = planMeriTurn({
+    task: 'What do we know about Aster’s briefing preferences?',
+    uiClientId: '33333333-3333-4333-8333-333333333333',
+    uiClientName: 'Aster Defense',
+    authorizedClientNames: ['Aster Defense', 'Bluehaven Robotics'],
+  });
+  expect(nativePlan).toMatchObject({
+    subjectScope: 'client',
+    targetHint: null,
+    requestedDomains: ['institutional_knowledge'],
+  });
+  await run(async () => expect(() => assertCaptureApiRetrievalPlan(nativePlan)).not.toThrow());
+});
 test('real chat runtime admits before activating scope around context resolution', async () => {
   const downstream = jest.fn();
   const contextPlane = {
