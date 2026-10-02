@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "service": "api",
+  "sourceSha": "991b5b15fa134d64579c96853dc92e9a00fa8520",
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:a2955480990e5f1ce37e0d29d6a0db38f49e86a935a17ea358fd261ab9634c47",
+  "status": "qualified",
+  "reviewer": "Codex integration owner; new independent actual Hermes/Bedrock Kimi ten-second mail-budget review, 66 integrated Jest tests including 3 real mail PostgreSQL tests, 5 additional real bill PostgreSQL checks, typecheck, and 26 verified offline cases. Source-bound native ARM64 build passed. Image-only incident repair; full original live acceptance remains NOT_RUN.",
+  "reviewedAt": "2026-10-02T14:05:07.105Z",
+  "expiresAt": "2026-10-02T18:05:07.105Z",
+  "schemaChange": false,
+  "evidence": [
+    "https://github.com/neo-capiro/capirov2/blob/56aa8727224ec85e921eaa2a2b37aba151fefd38/docs/meri/releases/2026-10-02/mail-budget-repair/qualification.md",
+    "https://github.com/neo-capiro/capirov2/blob/56aa8727224ec85e921eaa2a2b37aba151fefd38/docs/meri/releases/2026-10-02/mail-budget-repair/qualification.json",
+    "https://github.com/neo-capiro/capirov2/blob/56aa8727224ec85e921eaa2a2b37aba151fefd38/docs/meri/releases/2026-10-02/mail-budget-repair/source-git-blob-hashes.json",
+    "https://github.com/neo-capiro/capirov2/blob/56aa8727224ec85e921eaa2a2b37aba151fefd38/docs/meri/releases/2026-10-02/mail-budget-repair/api-build-readback.json"
+  ],
+  "checks": [
+    {
+      "name": "build",
+      "status": "passed",
+      "sourceSha": "991b5b15fa134d64579c96853dc92e9a00fa8520",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:a2955480990e5f1ce37e0d29d6a0db38f49e86a935a17ea358fd261ab9634c47",
+      "url": "https://github.com/neo-capiro/capirov2/blob/56aa8727224ec85e921eaa2a2b37aba151fefd38/docs/meri/releases/2026-10-02/mail-budget-repair/api-build-readback.json"
+    },
+    {
+      "name": "automated-tests",
+      "status": "passed",
+      "sourceSha": "991b5b15fa134d64579c96853dc92e9a00fa8520",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:a2955480990e5f1ce37e0d29d6a0db38f49e86a935a17ea358fd261ab9634c47",
+      "url": "https://github.com/neo-capiro/capirov2/blob/56aa8727224ec85e921eaa2a2b37aba151fefd38/docs/meri/releases/2026-10-02/mail-budget-repair/qualification.json"
+    },
+    {
+      "name": "retirement-compatibility",
+      "status": "passed",
+      "sourceSha": "991b5b15fa134d64579c96853dc92e9a00fa8520",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:a2955480990e5f1ce37e0d29d6a0db38f49e86a935a17ea358fd261ab9634c47",
+      "url": "https://github.com/neo-capiro/capirov2/blob/56aa8727224ec85e921eaa2a2b37aba151fefd38/docs/meri/releases/2026-10-02/mail-budget-repair/qualification.md"
+    }
+  ]
+}

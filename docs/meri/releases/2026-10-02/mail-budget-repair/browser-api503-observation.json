@@ -1,0 +1,15 @@
+{
+  "kind": "meri-live-incident-browser-observation",
+  "observedAt": "2026-10-02T14:10:55Z",
+  "observer": "Codex root using the owner's already-signed-in in-app browser",
+  "url": "https://os.capiro.ai/meri/t/2160f10d-4e0b-4083-9975-c0ba067f424e",
+  "apiSourceDuringObservation": "991b5b15fa134d64579c96853dc92e9a00fa8520",
+  "candidateSource": "991b5b15fa134d64579c96853dc92e9a00fa8520",
+  "candidateWasDeployed": true,
+  "apiTaskDefinition": "capiro-dev-api:503",
+  "checks": [{"check": "Own-mailbox exact nonsense search after corrected rollout", "result": "PASS", "visibleTool": "search_emails", "visibleToolStatus": "Completed DONE", "visibleAnswer": "search_emails completed successfully.", "visibleStatus": "Completed"}],
+  "submittedTurns": 1,
+  "explicitBusinessWritesRequested": 0,
+  "customerDataOrAuthArchived": false,
+  "limitations": ["An overbroad evidence-limitation notice still appears; this verifies response and tool availability, not full answer-quality acceptance.", "Existing two-memory-proposal badge remains; indirect database effects of owner-browser diagnostics were not independently audited.", "The original Foundation File01 live and human evaluation remains incomplete."]
+}
