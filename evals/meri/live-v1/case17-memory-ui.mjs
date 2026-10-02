@@ -115,6 +115,34 @@ export async function openCase17MemoryPanel(page) {
   await page.getByRole('button', { name: 'Memory', exact: true }).click({ timeout: 15000 });
 }
 
+// The section mounts while its owned-proposals query is still loading. Wait for
+// the actual query state before inspecting pagination or exact card identities.
+export async function waitForCase17ProposalQuery(page) {
+  const section = page.locator('section').filter({ has: page.getByText(/^YOUR PROPOSALS ·/u) });
+  await section.waitFor({ state: 'visible', timeout: 15000 });
+  await page.waitForFunction(
+    () => {
+      const section = [...document.querySelectorAll('section')].find((node) =>
+        node.textContent.includes('YOUR PROPOSALS ·'),
+      );
+      return (
+        !!section &&
+        !section.textContent.includes('Loading your proposals…') &&
+        (section.querySelectorAll('article').length > 0 ||
+          section.textContent.includes('Your proposal history could not be loaded.') ||
+          section.textContent.includes('You have not proposed an institutional memory change.'))
+      );
+    },
+    null,
+    { timeout: 15000 },
+  );
+  need(
+    !(await section.getByText('Your proposal history could not be loaded.', { exact: true }).isVisible()),
+    'PROPOSALS_QUERY_FAILED',
+  );
+  return section;
+}
+
 export async function collectCase17MemoryUi({
   page,
   recipe,
@@ -223,8 +251,7 @@ export async function collectCase17MemoryUi({
       } while (cursor);
       const rows = inspectPendingUiPage({ selection, owner: before, pages });
       await openCase17MemoryPanel(page);
-      const section = page.locator('section').filter({ has: page.getByText(/^YOUR PROPOSALS ·/u) });
-      await section.waitFor({ state: 'visible', timeout: 15000 });
+      const section = await waitForCase17ProposalQuery(page);
       let loads = 0;
       while (
         await section.getByRole('button', { name: 'Load more proposals', exact: true }).count()
