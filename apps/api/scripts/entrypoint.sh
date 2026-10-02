@@ -69,6 +69,11 @@ case "${1:-serve}" in
     compose_database_url
     exec node scripts/meri-case01-setup.mjs "$@"
     ;;
+  meri-synthetic-read-budget)
+    shift
+    compose_database_url
+    exec node scripts/meri-synthetic-read-budget.mjs "$@"
+    ;;
   meri-capture-provider-budget)
     shift
     compose_database_url
