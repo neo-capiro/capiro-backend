@@ -241,12 +241,13 @@ export async function executeCase01ExecutionSetup(
   return continueClaimedSetup(deps, spec, { createConversation, journal, operation, claimKey: 'case01ExecutionSetup', originalOperation: operation });
 }
 
-async function continueClaimedSetup(deps, spec, { createConversation, journal, operation, claimKey, originalOperation, originalRecoveryOperation = null, originalContinuationOperation = null }) {
+async function continueClaimedSetup(deps, spec, { createConversation, journal, operation, claimKey, originalOperation, originalRecoveryOperation = null, originalContinuationOperation = null, originalPostApprovalOperation = null }) {
   const input = spec.input, { ctx } = input;
   let stage = 'CLAIMED';
-  if (!['case01ExecutionSetup', 'case01ExecutionSetupRecovery', 'case01ExecutionSetupContinuation', 'case01ExecutionSetupPostApproval'].includes(claimKey) ||
+  if (!['case01ExecutionSetup', 'case01ExecutionSetupRecovery', 'case01ExecutionSetupContinuation', 'case01ExecutionSetupPostApproval', 'case01ExecutionSetupPostSeed'].includes(claimKey) ||
     (claimKey === 'case01ExecutionSetupContinuation' && !originalRecoveryOperation) ||
-    (claimKey === 'case01ExecutionSetupPostApproval' && (!originalRecoveryOperation || !originalContinuationOperation))) fail('CLAIM_KEY_INVALID');
+    (claimKey === 'case01ExecutionSetupPostApproval' && (!originalRecoveryOperation || !originalContinuationOperation)) ||
+    (claimKey === 'case01ExecutionSetupPostSeed' && (!originalRecoveryOperation || !originalContinuationOperation || !originalPostApprovalOperation))) fail('CLAIM_KEY_INVALID');
   try {
     const runtimeDeps = {
       ...deps,
@@ -367,6 +368,7 @@ async function continueClaimedSetup(deps, spec, { createConversation, journal, o
           AND settings_jsonb->'meriFoundationFixture'->'case01ExecutionSetup'=$5::jsonb
           AND ($6::jsonb IS NULL OR settings_jsonb->'meriFoundationFixture'->'case01ExecutionSetupRecovery'=$6::jsonb)
           AND ($7::jsonb IS NULL OR settings_jsonb->'meriFoundationFixture'->'case01ExecutionSetupContinuation'=$7::jsonb)
+          AND ($8::jsonb IS NULL OR settings_jsonb->'meriFoundationFixture'->'case01ExecutionSetupPostApproval'=$8::jsonb)
           RETURNING id::text`,
         stableJson({
           ...operation,
@@ -379,6 +381,7 @@ async function continueClaimedSetup(deps, spec, { createConversation, journal, o
         stableJson(originalOperation),
         originalRecoveryOperation ? stableJson(originalRecoveryOperation) : null,
         originalContinuationOperation ? stableJson(originalContinuationOperation) : null,
+        originalPostApprovalOperation ? stableJson(originalPostApprovalOperation) : null,
       );
       if (changed.length !== 1) fail('FINAL_CLAIM_CHANGED');
     });
@@ -401,7 +404,7 @@ export function safeCase01SetupFailure(error, stage = 'OPERATOR') {
   const sql = new Set(['08001', '08006', '08P01', '22001', '22P02', '23502', '23503', '23505', '23514',
     '25006', '25P02', '40001', '40P01', '42501', '42703', '42883', '42P01', '57014', 'P0001']);
   const stages = new Set(['OPERATOR', 'CLAIMED', 'PREVIOUS_SEED', 'PREVIOUS_RETIRE', 'CURRENT_SEED',
-    'BIND', 'LOCATOR', 'CONVERSATION', 'READBACK', 'RECOVERY_ADMISSION', 'CONTINUATION_ADMISSION', 'FIRST_CANONICAL_APPROVAL', 'POST_APPROVAL_ADMISSION', 'FIRST_CANONICAL_PROJECTION']);
+    'BIND', 'LOCATOR', 'CONVERSATION', 'READBACK', 'RECOVERY_ADMISSION', 'CONTINUATION_ADMISSION', 'FIRST_CANONICAL_APPROVAL', 'POST_APPROVAL_ADMISSION', 'FIRST_CANONICAL_PROJECTION', 'POST_SEED_ADMISSION']);
   return {
     stage: stages.has(stage) ? stage : 'OPERATOR',
     errorClass: classes.has(error?.constructor?.name) ? error.constructor.name : 'UnknownError',
@@ -934,5 +937,190 @@ export async function executeCase01PostApprovalResume(
     originalOperation: admitted.originalOperation,
     originalRecoveryOperation: admitted.originalRecoveryOperation,
     originalContinuationOperation: admitted.originalContinuationOperation,
+  });
+}
+
+const postSeedClaimKey = 'case01ExecutionSetupPostSeed';
+const versionSourceKinds = [
+  'explicit_user',
+  'workflow_event',
+  'artifact_approval',
+  'model_extraction',
+  'settings_sections',
+  'learning_signal',
+  'memory_correction',
+  'memory_restore',
+  'memory_contradiction',
+];
+const versionSourceKindCheck = `CHECK (((source_kind)::text = ANY ((ARRAY[${versionSourceKinds.map((kind) => `'${kind}'::character varying`).join(', ')}])::text[])))`;
+// The exact additive migration's PostgreSQL catalog form, not a caller receipt.
+const versionPayloadCheckSha256 =
+  '157ebbb046e29f7835cbf4ea4927ba3a167c8c88d01d17f7d9c651c4a35bc7b0';
+
+async function postSeedInTx(deps, tx, spec, expected, operation = null) {
+  if (!expected || !/^[a-f0-9]{64}$/u.test(expected.postApprovalClaimSha256 ?? ''))
+    fail('POST_SEED_EXPECTATION_INVALID');
+  const { postApprovalClaimSha256, ...approvalExpected } = expected;
+  const rows = await tx.$queryRawUnsafe(
+    'SELECT settings_jsonb AS settings FROM tenants WHERE id=$1::uuid FOR UPDATE',
+    spec.input.ctx.tenantId,
+  );
+  const fixture = rows[0]?.settings?.meriFoundationFixture;
+  const prior = fixture?.[postApprovalClaimKey];
+  if (
+    rows.length !== 1 ||
+    sha256Stable(prior ?? null) !== postApprovalClaimSha256 ||
+    prior?.kind !== 'meri-case01-post-approval-resume' ||
+    prior.schemaVersion !== 1 ||
+    prior.status !== 'STARTED' ||
+    prior.captureRunId !== spec.input.captureRunId ||
+    prior.recipeSha256 !== sha256Stable(spec.input) ||
+    prior.liveAcceptance !== 'NOT_RUN' ||
+    ['originalClaimSha256', 'recoveryClaimSha256', 'continuationClaimSha256'].some(
+      (key) => prior[key] !== expected[key],
+    )
+  )
+    fail('POST_SEED_HISTORICAL_CLAIM_CHANGED');
+  if (
+    operation
+      ? sha256Stable(fixture[postSeedClaimKey] ?? null) !== sha256Stable(operation)
+      : Object.hasOwn(fixture, postSeedClaimKey)
+  )
+    fail('POST_SEED_EXISTING_OPERATION');
+  // Reuse the real projected-state owner: exact first approval, completed job,
+  // matching Titan vector, immutable source bytes, reviewer rights, and no owner.
+  const row = await postApprovalInTx(deps, tx, spec, approvalExpected, {
+    operation: prior,
+    projected: true,
+  });
+  if (sha256Stable(row.projection) !== sha256Stable(prior.projection))
+    fail('POST_SEED_PROJECTION_CHANGED');
+  const corrections = await tx.$queryRawUnsafe(
+    `SELECT id::text FROM memory_candidate WHERE tenant_id=$1::uuid
+     AND (source_id=$2 OR payload_jsonb #>> '{versionProposal,sourceItemId}'=$2)
+     AND source_kind IN ('memory_correction','memory_restore','memory_contradiction')
+     ORDER BY id LIMIT 1 FOR UPDATE`,
+    spec.input.ctx.tenantId,
+    row.projection.itemId,
+  );
+  if (corrections.length) fail('POST_SEED_CORRECTION_PRESENT');
+  const checks = await tx.$queryRawUnsafe(
+    `SELECT conname AS name,convalidated AS validated,pg_get_constraintdef(oid) AS definition
+     FROM pg_constraint WHERE conrelid='memory_candidate'::regclass AND contype='c'
+       AND conname IN ('memory_candidate_source_kind_chk','memory_candidate_version_payload_check') ORDER BY conname`,
+  );
+  if (
+    checks.length !== 2 ||
+    checks.some((check) => check.validated !== true) ||
+    checks.find((check) => check.name === 'memory_candidate_source_kind_chk')?.definition !==
+      versionSourceKindCheck ||
+    sha256Stable(
+      checks.find((check) => check.name === 'memory_candidate_version_payload_check')?.definition ??
+        null,
+    ) !== versionPayloadCheckSha256
+  )
+    fail('POST_SEED_SCHEMA_NOT_REPAIRED');
+  const triggers = await tx.$queryRawUnsafe(
+    `SELECT tgname AS name,tgenabled AS enabled FROM pg_trigger WHERE NOT tgisinternal AND
+      ((tgrelid='memory_candidate'::regclass AND tgname='memory_candidate_version_activation_guard') OR
+       (tgrelid='memory_items'::regclass AND tgname='memory_items_immutable_version_insert_guard')) ORDER BY tgname`,
+  );
+  if (triggers.length !== 2 || triggers.some((trigger) => trigger.enabled !== 'O'))
+    fail('POST_SEED_VERSION_GUARDS_REQUIRED');
+  return {
+    ...row,
+    originalPostApprovalOperation: prior,
+    schemaSha256: sha256Stable({ checks, triggers }),
+  };
+}
+
+function postSeedPlan(spec, row, expected) {
+  const body = {
+    ...postApprovalPlan(spec, row, expected),
+    kind: 'meri-case01-post-seed-resume-plan',
+    schemaSha256: row.schemaSha256,
+  };
+  delete body.planSha256;
+  return { ...body, planSha256: sha256Stable(body) };
+}
+
+export async function inspectCase01PostSeedResume(deps, input, expected) {
+  const spec = await recipe(input);
+  return deps.prisma.withTenantUser(spec.input.ctx.tenantId, spec.input.ctx.userId, async (tx) =>
+    postSeedPlan(spec, await postSeedInTx(deps, tx, spec, expected), expected),
+  );
+}
+
+/** Continue only the failed correction INSERT boundary. Four historical claims
+ * stay unchanged; neither first approval nor its completed projection is called. */
+export async function executeCase01PostSeedResume(
+  deps,
+  input,
+  expected,
+  { expectedPlanSha256, createConversation, journal },
+) {
+  if (typeof createConversation !== 'function' || typeof journal !== 'function')
+    fail('PORTS_REQUIRED');
+  const spec = await recipe(input),
+    { ctx } = spec.input;
+  let admitted, operation;
+  await journal({
+    stage: 'POST_SEED_ADMISSION',
+    phase: 'INTENT',
+    captureRunId: spec.input.captureRunId,
+  });
+  await deps.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+    admitted = await postSeedInTx(deps, tx, spec, expected);
+    const plan = postSeedPlan(spec, admitted, expected);
+    if (plan.planSha256 !== expectedPlanSha256) fail('POST_SEED_STALE_PLAN');
+    operation = {
+      kind: 'meri-case01-post-seed-resume',
+      schemaVersion: 1,
+      status: 'STARTED',
+      captureRunId: spec.input.captureRunId,
+      recipeSha256: plan.recipeSha256,
+      originalClaimSha256: expected.originalClaimSha256,
+      recoveryClaimSha256: expected.recoveryClaimSha256,
+      continuationClaimSha256: expected.continuationClaimSha256,
+      postApprovalClaimSha256: expected.postApprovalClaimSha256,
+      projection: admitted.projection,
+      schemaSha256: admitted.schemaSha256,
+      planSha256: plan.planSha256,
+      liveAcceptance: 'NOT_RUN',
+    };
+    const changed = await tx.$queryRawUnsafe(
+      `UPDATE tenants SET settings_jsonb=jsonb_set(settings_jsonb,'{meriFoundationFixture,case01ExecutionSetupPostSeed}',$1::jsonb,true)
+       WHERE id=$2::uuid AND xmin::text=$3 AND settings_jsonb=$4::jsonb RETURNING id::text`,
+      stableJson(operation),
+      ctx.tenantId,
+      admitted.version,
+      stableJson(admitted.settings),
+    );
+    if (changed.length !== 1) fail('POST_SEED_CLAIM_CAS_FAILED');
+  });
+  await journal({
+    stage: 'POST_SEED_ADMISSION',
+    phase: 'VERIFIED',
+    captureRunId: spec.input.captureRunId,
+    claimSha256: sha256Stable(operation),
+  });
+  await deps.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
+    postSeedInTx(deps, tx, spec, expected, operation),
+  );
+  const canonicalCandidates = deps.memoryCandidates,
+    scopedCandidates = Object.create(canonicalCandidates);
+  scopedCandidates.approveSyntheticFixture = (tenantId, candidateId, ...args) => {
+    if (candidateId === admitted.first.physicalId) fail('POST_SEED_MUST_NOT_REAPPROVE');
+    return canonicalCandidates.approveSyntheticFixture(tenantId, candidateId, ...args);
+  };
+  return continueClaimedSetup({ ...deps, memoryCandidates: scopedCandidates }, spec, {
+    createConversation,
+    journal,
+    operation,
+    claimKey: postSeedClaimKey,
+    originalOperation: admitted.originalOperation,
+    originalRecoveryOperation: admitted.originalRecoveryOperation,
+    originalContinuationOperation: admitted.originalContinuationOperation,
+    originalPostApprovalOperation: admitted.originalPostApprovalOperation,
   });
 }

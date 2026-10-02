@@ -11,6 +11,8 @@ import {
   executeCase01FirstApprovalContinuation,
   inspectCase01PostApprovalResume,
   executeCase01PostApprovalResume,
+  inspectCase01PostSeedResume,
+  executeCase01PostSeedResume,
   safeCase01SetupFailure,
 } from '../../../evals/meri/live-v1/fixture-provisioning/case01-execution-setup.mjs';
 
@@ -30,6 +32,8 @@ try {
       'continue-execute',
       'resume-plan',
       'resume-execute',
+      'seed-resume-plan',
+      'seed-resume-execute',
     ].includes(command) ||
     process.argv.length !== 7 ||
     outFlag !== '--out' ||
@@ -53,19 +57,23 @@ try {
     // tenant ALS scopes; the wrapper repeats locked preflight before its claim.
     const operatorContext = { ...input.recipe.ctx, clerkUserId: input.recipe.clerkUserId };
     const pendingPlan =
-      command === 'resume-plan'
-        ? inspectCase01PostApprovalResume
-        : command === 'continue-plan'
-          ? inspectCase01FirstApprovalContinuation
-          : inspectCase01FirstApprovalRecovery;
+      command === 'seed-resume-plan'
+        ? inspectCase01PostSeedResume
+        : command === 'resume-plan'
+          ? inspectCase01PostApprovalResume
+          : command === 'continue-plan'
+            ? inspectCase01FirstApprovalContinuation
+            : inspectCase01FirstApprovalRecovery;
     const execute =
-      command === 'resume-execute'
-        ? executeCase01PostApprovalResume
-        : command === 'continue-execute'
-          ? executeCase01FirstApprovalContinuation
-          : command === 'recover-execute'
-            ? executeCase01FirstApprovalRecovery
-            : executeCase01ExecutionSetup;
+      command === 'seed-resume-execute'
+        ? executeCase01PostSeedResume
+        : command === 'resume-execute'
+          ? executeCase01PostApprovalResume
+          : command === 'continue-execute'
+            ? executeCase01FirstApprovalContinuation
+            : command === 'recover-execute'
+              ? executeCase01FirstApprovalRecovery
+              : executeCase01ExecutionSetup;
     await factory.runWithTenant(operatorContext, () =>
       command.endsWith('-plan')
         ? pendingPlan(factory.deps, input.recipe, input.expected).then(journal)

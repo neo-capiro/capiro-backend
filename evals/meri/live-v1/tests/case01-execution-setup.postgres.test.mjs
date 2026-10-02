@@ -3,6 +3,7 @@ import { it } from 'node:test';
 import { randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
+import { readFile } from 'node:fs/promises';
 import { versionDependencies } from './case01-memory-lifecycle.postgres.test.mjs';
 import {
   withOwnedApprovedMemory,
@@ -20,6 +21,8 @@ import {
   executeCase01FirstApprovalContinuation,
   inspectCase01PostApprovalResume,
   executeCase01PostApprovalResume,
+  inspectCase01PostSeedResume,
+  executeCase01PostSeedResume,
   safeCase01SetupFailure,
 } from '../fixture-provisioning/case01-execution-setup.mjs';
 import { buildFixtureManifest } from '../fixture-provisioning/manifest.mjs';
@@ -230,6 +233,239 @@ async function prepareCommittedFirstApproval(h) {
   };
   return { ...p, expected, owned, fixture, embeddingCalls: () => embeddingCalls };
 }
+
+async function productionVersionConstraints(tx) {
+  const readMigration = (name) =>
+    readFile(
+      new URL(`../../../../apps/api/prisma/migrations/${name}/migration.sql`, import.meta.url),
+      'utf8',
+    );
+  await tx.$executeRawUnsafe(
+    'ALTER TABLE memory_candidate ALTER COLUMN source_kind TYPE VARCHAR(24)',
+  );
+  const version = await readMigration('20260812010000_memory_immutable_versions');
+  await tx.$executeRawUnsafe(version.match(/DO \$\$ BEGIN[\s\S]+?END \$\$;/u)[0]);
+  await tx.$executeRawUnsafe(
+    'ALTER TABLE memory_candidate VALIDATE CONSTRAINT memory_candidate_version_payload_check',
+  );
+  for (const match of version.matchAll(/CREATE OR REPLACE FUNCTION [\s\S]+?\$\$;/gu))
+    await tx.$executeRawUnsafe(match[0]);
+  for (const match of version.matchAll(/CREATE TRIGGER [\s\S]+?EXECUTE FUNCTION [^;]+;/gu))
+    await tx.$executeRawUnsafe(match[0]);
+  const sixKinds = await readMigration('20261213010000_learning_signal_candidate_generation');
+  await tx.$executeRawUnsafe(
+    sixKinds.match(
+      /ALTER TABLE "memory_candidate" ADD CONSTRAINT "memory_candidate_source_kind_chk"[\s\S]+?;/u,
+    )[0],
+  );
+  // Execute the exact atomic ALTER inside this harness's rollback-only owner
+  // transaction. The migration's production BEGIN/COMMIT envelope is qualified
+  // separately; committing it here would invalidate disposable-test isolation.
+  return async () =>
+    tx.$executeRawUnsafe(
+      (await readMigration('20281005010000_memory_version_candidate_source_kinds')).match(
+        /ALTER TABLE "memory_candidate"[\s\S]*?\n    \);/u,
+      )[0],
+    );
+}
+
+async function prepareProjectedSeedFailure(h) {
+  const p = await prepareCommittedFirstApproval(h),
+    journal = [];
+  const repairSchema = await productionVersionConstraints(h.tx);
+  // Moving the minimal test column to its production VARCHAR type rewrites the
+  // local row. Admission must use its actual new xmin, never an old test value.
+  p.expected.candidateRowVersion = (
+    await h.tx.$queryRawUnsafe(
+      'SELECT xmin::text AS version FROM memory_candidate WHERE id=$1::uuid',
+      p.first.physicalId,
+    )
+  )[0].version;
+  const plan = await p.run(() => inspectCase01PostApprovalResume(p.actual, p.input, p.expected));
+  await assert.rejects(
+    p.run(() =>
+      executeCase01PostApprovalResume(p.actual, p.input, p.expected, {
+        expectedPlanSha256: plan.planSha256,
+        createConversation: p.createConversation,
+        journal: async (r) => journal.push(r),
+      }),
+    ),
+    (error) => error.code === 'P2010' && error.meta?.code === '23514',
+  );
+  assert.equal(journal.length, 6);
+  assert.equal(journal[3].stage, 'FIRST_CANONICAL_PROJECTION');
+  assert.equal(journal[3].phase, 'VERIFIED');
+  assert.equal(journal[5].stage, 'PREVIOUS_SEED');
+  assert.equal(journal[5].failure.sqlState, '23514');
+  assert.equal(p.embeddingCalls(), 1);
+  const fixture = (
+    await h.tx.$queryRawUnsafe('SELECT settings_jsonb AS s FROM tenants WHERE id=$1::uuid', TENANT)
+  )[0].s.meriFoundationFixture;
+  assert.equal(
+    (
+      await h.tx.$queryRawUnsafe(
+        "SELECT id FROM memory_candidate WHERE source_kind='memory_correction'",
+      )
+    ).length,
+    0,
+  );
+  return {
+    ...p,
+    repairSchema,
+    fixture,
+    expected: {
+      ...p.expected,
+      postApprovalClaimSha256: sha256Stable(fixture.case01ExecutionSetupPostApproval),
+    },
+  };
+}
+
+it(
+  'post-seed resume reproduces actual canonical CHECK failure then completes with production guards and no repeated approval/projection',
+  { skip: !config },
+  async () =>
+    withOwnedApprovedMemory(config, async (h) => {
+      const p = await prepareProjectedSeedFailure(h),
+        journal = [];
+      const inspect = () => p.run(() => inspectCase01PostSeedResume(p.actual, p.input, p.expected));
+      await assert.rejects(inspect(), /SCHEMA_NOT_REPAIRED/);
+      await p.repairSchema();
+      const plan = await inspect();
+      assert.equal(plan.kind, 'meri-case01-post-seed-resume-plan');
+      const approve = p.actual.memoryCandidates.approveSyntheticFixture.bind(
+        p.actual.memoryCandidates,
+      );
+      p.actual.memoryCandidates.approveSyntheticFixture = (...args) => {
+        assert.notEqual(args[1], p.first.physicalId);
+        return approve(...args);
+      };
+      p.actual.memoryIngest.projectClioMemory = () =>
+        assert.fail('Completed first projection must not be dispatched');
+      const result = await p.run(() =>
+        executeCase01PostSeedResume(p.actual, p.input, p.expected, {
+          expectedPlanSha256: plan.planSha256,
+          createConversation: p.createConversation,
+          journal: async (r) => journal.push(r),
+        }),
+      );
+      assert.equal(result.status, 'SETUP_COMPLETE');
+      assert.equal(result.synthesisSubmissionCount, 0);
+      assert.equal(journal.length, 17);
+      assert.equal(p.embeddingCalls(), 1);
+      assert.equal(
+        journal.some(
+          (r) => r.stage === 'FIRST_CANONICAL_APPROVAL' || r.stage === 'FIRST_CANONICAL_PROJECTION',
+        ),
+        false,
+      );
+      const actual = (
+        await h.tx.$queryRawUnsafe(
+          'SELECT settings_jsonb AS s FROM tenants WHERE id=$1::uuid',
+          TENANT,
+        )
+      )[0].s.meriFoundationFixture;
+      for (const key of [
+        'case01ExecutionSetup',
+        'case01ExecutionSetupRecovery',
+        'case01ExecutionSetupContinuation',
+        'case01ExecutionSetupPostApproval',
+      ])
+        assert.deepEqual(actual[key], p.fixture[key]);
+      assert.equal(actual.case01ExecutionSetupPostSeed.status, 'SETUP_COMPLETE');
+      await assert.rejects(inspect(), /EXISTING_OPERATION/);
+    }),
+);
+
+it(
+  'post-seed preflight rejects stale claims, existing correction, unfinished projection, weakened guards and lost authority before admission',
+  { skip: !config },
+  async () =>
+    withOwnedApprovedMemory(config, async (h) => {
+      const p = await prepareProjectedSeedFailure(h);
+      await p.repairSchema();
+      const inspect = () => p.run(() => inspectCase01PostSeedResume(p.actual, p.input, p.expected));
+      const plan = await inspect();
+      for (const key of Object.keys(p.expected)) {
+        const expected = {
+          ...p.expected,
+          [key]: key.endsWith('Sha256')
+            ? '0'.repeat(64)
+            : key === 'projectionJobId'
+              ? randomUUID()
+              : '0',
+        };
+        await assert.rejects(p.run(() => inspectCase01PostSeedResume(p.actual, p.input, expected)));
+      }
+      await assert.rejects(
+        p.run(() =>
+          executeCase01PostSeedResume(p.actual, p.input, p.expected, {
+            expectedPlanSha256: '0'.repeat(64),
+            createConversation: p.createConversation,
+            journal: async () => {},
+          }),
+        ),
+        /STALE_PLAN/,
+      );
+      for (const sql of [
+        "UPDATE memory_cleanup_outbox SET status='pending',completed_at=null",
+        "UPDATE context_embeddings SET content_hash='wrong'",
+        'ALTER TABLE memory_candidate DISABLE TRIGGER memory_candidate_version_activation_guard',
+        'ALTER TABLE memory_candidate DROP CONSTRAINT memory_candidate_version_payload_check',
+        "UPDATE tenants SET settings_jsonb=jsonb_set(settings_jsonb,'{meriFoundationFixture,case01ExecutionSetupPostSeed}','{}')",
+        "UPDATE tenants SET settings_jsonb=jsonb_set(settings_jsonb,'{meriFoundationFixture,case01ExecutionSetupPostApproval,status}','\"changed\"')",
+        `UPDATE tenant_memberships SET role='standard_user' WHERE user_id='${REVIEWER}'`,
+        `INSERT INTO memory_candidate(id,tenant_id,proposed_by,source_kind,source_id,payload_jsonb)
+       VALUES('${randomUUID()}','${TENANT}','${PROPOSER}','memory_correction','${p.owned.item_id}',
+       '{"versionProposal":{"kind":"correction","sourceItemId":"${p.owned.item_id}"}}')`,
+      ]) {
+        await h.tx.$executeRawUnsafe('SAVEPOINT post_seed_fault');
+        await h.tx.$executeRawUnsafe(sql);
+        await assert.rejects(inspect());
+        await h.tx.$executeRawUnsafe('ROLLBACK TO SAVEPOINT post_seed_fault');
+        await h.tx.$executeRawUnsafe('RELEASE SAVEPOINT post_seed_fault');
+      }
+      assert.equal((await inspect()).planSha256, plan.planSha256);
+      assert.equal(p.embeddingCalls(), 1);
+    }),
+);
+
+it(
+  'post-seed final CAS preserves the fourth claim and a failed fifth admission is never replayable',
+  { skip: !config },
+  async () =>
+    withOwnedApprovedMemory(config, async (h) => {
+      const p = await prepareProjectedSeedFailure(h);
+      await p.repairSchema();
+      const plan = await p.run(() => inspectCase01PostSeedResume(p.actual, p.input, p.expected));
+      await assert.rejects(
+        p.run(() =>
+          executeCase01PostSeedResume(p.actual, p.input, p.expected, {
+            expectedPlanSha256: plan.planSha256,
+            createConversation: p.createConversation,
+            journal: async (row) => {
+              if (row.stage === 'READBACK' && row.phase === 'VERIFIED')
+                await h.tx.$executeRawUnsafe(
+                  "UPDATE tenants SET settings_jsonb=jsonb_set(settings_jsonb,'{meriFoundationFixture,case01ExecutionSetupPostApproval,status}','\"changed\"')",
+                );
+            },
+          }),
+        ),
+        /FINAL_CLAIM_CHANGED/,
+      );
+      const fixture = (
+        await h.tx.$queryRawUnsafe(
+          'SELECT settings_jsonb AS s FROM tenants WHERE id=$1::uuid',
+          TENANT,
+        )
+      )[0].s.meriFoundationFixture;
+      assert.equal(fixture.case01ExecutionSetupPostSeed.status, 'STARTED');
+      await assert.rejects(
+        p.run(() => inspectCase01PostSeedResume(p.actual, p.input, p.expected)),
+        /HISTORICAL_CLAIM_CHANGED/,
+      );
+      assert.equal(p.embeddingCalls(), 1);
+    }),
+);
 
 it(
   'post-approval resume projects the committed first item exactly once and completes without reapproving it',
