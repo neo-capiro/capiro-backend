@@ -1,0 +1,64 @@
+{
+  "sourceSHA": "4277eec813ccb78e339633406f15cafa10711fe4",
+  "equivalentMainSHA": "83304d18e5a1ab647cf6f728392cf97b3058a832",
+  "entireTreeEquality": "d4f0a5f586f738ba23a9a4c2d3274b2b99a2a785",
+  "cwd": "C:\\dev\\cap-meri-migration-history-guard",
+  "commands": [
+    {
+      "name": "promptfoo",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "node_modules/promptfoo/dist/src/entrypoint.js",
+        "eval",
+        "-c",
+        "evals/meri/promptfooconfig.yaml",
+        "--no-cache",
+        "--no-share",
+        "--no-write",
+        "--no-table",
+        "--no-progress-bar",
+        "-o",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-release\\meri-offline.json",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-release\\meri-offline.html",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-release\\meri-offline.junit.xml"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 55.1
+    },
+    {
+      "name": "verifier",
+      "command": [
+        "C:\\ProgramData\\Hermes\\tools\\python-3.14.7+20260901-win32-x64\\python.exe",
+        "evals/meri/verify_report.py",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-release\\meri-offline.json",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-release\\meri-offline.summary.json"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 0.2
+    }
+  ],
+  "sourceDiffVsSep30Main": [
+    "apps/api/Dockerfile",
+    "apps/web/src/vnext/pages/research-portfolios/ResearchPortfolioWatchConversion.test.tsx",
+    "apps/web/src/vnext/pages/research-portfolios/ResearchPortfolioWatchConversionPanel.tsx",
+    "docs/plans/CleanUp1.md",
+    "docs/plans/CleanUp2.md",
+    "docs/plans/CleanUp3.md",
+    "docs/plans/CleanUp4.md",
+    "docs/plans/architecture_review.md",
+    "docs/plans/cleanup2-dup-inventory.generated.md",
+    "docs/plans/cleanup2-dup-inventory.json",
+    "docs/plans/cleanup2-dup-status.md",
+    "docs/security/SECURITY_REVIEW.md",
+    "scripts/lib/meri-release-policy.mjs",
+    "scripts/lib/meri-release-policy.test.mjs",
+    "scripts/meri-release.mjs",
+    "scripts/meri-release.test.mjs"
+  ],
+  "environment": "Provider/database credentials and NODE_OPTIONS removed; telemetry and remote generation disabled",
+  "scope": "26-case deterministic offline suite, no live provider/database/customer data. Report retains actual4277source; main83304 has identical full Git tree.",
+  "reportSHA256": "5a257e4d7ad748765acffaf13d64ab85074bd86805545183b2d6e8651651d810",
+  "summarySHA256": "288fb9261db58e1022d36a9cf96de2558f916cff618a0186936e97bfaa70d7ea",
+  "exitCode": 0,
+  "completedUtc": "2026-10-02T01:15:21Z"
+}

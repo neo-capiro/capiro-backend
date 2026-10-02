@@ -1,0 +1,64 @@
+{
+  "commit": "4e8db74b30c7ca9e38cc04c4a5509f7aa1a5bd06",
+  "base": "83304d18e5a1ab647cf6f728392cf97b3058a832",
+  "branch": "codex/meri-orchestrator-catalog-20261002",
+  "worktree": "C:\\dev\\cap-meri-doc-fidelity",
+  "clean": true,
+  "scope": [
+    "apps/meriv2-orchestrator/src/meri/full-chat-read-tools.catalog.spec.ts",
+    "apps/meriv2-orchestrator/src/meri/write-tools.catalog.spec.ts",
+    "apps/meriv2-orchestrator/src/meri/served-attachment-transport.spec.ts"
+  ],
+  "patchSha256": "3203cce08b09e4386b667b513471a34ffd2128a75e95cf96ad737df6fe30878c",
+  "tests": {
+    "baseSourceSha": "83304d18e5a1ab647cf6f728392cf97b3058a832",
+    "scope": [
+      "apps/meriv2-orchestrator/src/meri/full-chat-read-tools.catalog.spec.ts",
+      "apps/meriv2-orchestrator/src/meri/write-tools.catalog.spec.ts",
+      "apps/meriv2-orchestrator/src/meri/served-attachment-transport.spec.ts"
+    ],
+    "diffSha256": "3203cce08b09e4386b667b513471a34ffd2128a75e95cf96ad737df6fe30878c",
+    "command": [
+      "C:\\Program Files\\nodejs\\node.exe",
+      "node_modules/jest/bin/jest.js",
+      "--runInBand",
+      "--runTestsByPath",
+      "src/meri/full-chat-read-tools.catalog.spec.ts",
+      "src/meri/write-tools.catalog.spec.ts",
+      "src/meri/served-attachment-transport.spec.ts",
+      "--json",
+      "--outputFile",
+      "C:\\dev\\cap-meri-foundation-evidence\\oct02-release\\orchestrator-catalog-jest-results.json"
+    ],
+    "cwd": "C:\\dev\\cap-meri-doc-fidelity\\apps\\meriv2-orchestrator",
+    "exitCode": 0,
+    "elapsedSeconds": 26.8,
+    "logSha256": "ebc45fce8d019211e06ff5aa6f07bfc9719c7d3513477773d37bcba8e06a720c",
+    "environment": "Provider/database credentials removed. Existing node_modules reused through task-owned junction; no installs.",
+    "counts": {
+      "numTotalTests": 33,
+      "numPassedTests": 33,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTotalTestSuites": 3,
+      "numPassedTestSuites": 3,
+      "numFailedTestSuites": 0,
+      "success": true
+    },
+    "resultsSha256": "832ea65ec88f834535991d5b276f86f6368d56d11b703cab09988ec255ecab7b"
+  },
+  "localNode": "22.23.3 on Windows",
+  "independentReview": {
+    "provider": "bedrock",
+    "model": "moonshotai.kimi-k2.5",
+    "sessionId": "20261002_012917_453953",
+    "textVerdict": "PASS",
+    "actualCliExit": 1,
+    "reportPath": "C:\\dev\\cap-meri-foundation-evidence\\oct02-release\\orchestrator-catalog-review.md",
+    "reportSha256": "73519bb9ae083a21bb363c070481e94510702253cd4004356d6e7b8399144bd0",
+    "limitation": "Completed detailed independent review; CLI nonzero is not classified as a green process.36 tool calls under20-turn bound, no explicit termination reason. No retry or second model turn."
+  },
+  "remainingGate": "Full native ARM64 Jest/build on integrated main; local targeted33 is not the whole1403-test build suite.",
+  "productionChanges": false,
+  "externalWrites": false
+}

@@ -1,0 +1,20 @@
+{
+  "observedAt": "2026-10-02T01:25:31.0489238Z",
+  "status": "PASS",
+  "buildId": "capiro-build-web-dev:dc4c281e-5372-4a7d-b667-2919a78125f1",
+  "sourceSha": "83304d18e5a1ab647cf6f728392cf97b3058a832",
+  "actualBuildspecSha256": "14da23e0cae3235d2319d5303a5a28c10aad6d04d714e4b075c11a25588b81a5",
+  "reviewedBuildspecSha256": "14da23e0cae3235d2319d5303a5a28c10aad6d04d714e4b075c11a25588b81a5",
+  "sourceRepository": "https://github.com/neo-capiro/capirov2.git",
+  "environment": "ARM_CONTAINER",
+  "verifiedMarkers": [
+    "OFFLINE_RUNTIME_IMPORT_PASS",
+    "EXACT_449_IMAGE_MIGRATION_HASHES_PASS",
+    "LOCAL_REPODIGEST_ECR_MATCH_PASS"
+  ],
+  "candidateLines": [
+    "CANDIDATE_API_SOURCE_SHA=83304d18e5a1ab647cf6f728392cf97b3058a832",
+    "CANDIDATE_API_IMAGE=967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:1fbf675727041323c56c2330aebb7f27ae4129864cb413953b869bfffad80015"
+  ],
+  "scope": "Exact API build publication and packaged runtime tests; not deployment"
+}

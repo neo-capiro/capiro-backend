@@ -1,0 +1,24 @@
+{
+  "recordedAt": "2026-10-02T01:14:21.5993521Z",
+  "sourceSha": "83304d18e5a1ab647cf6f728392cf97b3058a832",
+  "sharedPolicySha": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "userInstruction": "Can we just get it all deployed and move on? If we see issues with the date base after the m deployment and migration well fix them as we see them",
+  "persistentScope": "C-drive local main, GitHub main, AWS release of Meri; web-vnext at os.capiro.ai; approved two synthetic tenants and bounded live QA",
+  "actionsInfrastructureFailure": "Three current exact-source build workflows failed before any jobs; reviewed canonical builds will run in existing ARM64 CodeBuild project",
+  "services": [
+    "web-vnext",
+    "api",
+    "meriv2-orchestrator"
+  ],
+  "migrationAction": "NONE; current API449/449 and Workspace13/13 completed, no unfinished migration",
+  "dataLimitation": "ACCEPTED LIMITATION under owner direction: unexplained original whole-dump fingerprint; later681-section snapshot-to-current preservation PASS. Original blocked receipt retained unchanged.",
+  "constraints": [
+    "no rerun completed migrations",
+    "no shared ledger changes",
+    "no PITR provisioning",
+    "preserve product flags except separately approved two-tenant enablement",
+    "no customer QA data",
+    "qualified immutable images and pinned rollback",
+    "Web before API"
+  ]
+}

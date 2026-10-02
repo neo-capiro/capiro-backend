@@ -1,0 +1,229 @@
+{
+  "observedAt": "2026-10-02T01:04:29.158Z",
+  "sourceSha": "1d44d882ae885249daa132b806a811be1b4a4b0d",
+  "pr1921SourceSha": "7bb6809360c6229dce33ce9e800a7b7c3721f756",
+  "policySha": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "targetedStructuralReadiness": "PASS",
+  "nextMigrationAction": "NONE",
+  "ledger": {
+    "total": 606,
+    "activeFinished": 506,
+    "rolledBack": 100,
+    "unfinished": 0
+  },
+  "chains": {
+    "apps/api/prisma": {
+      "count": 449,
+      "counts": {
+        "MATCH": 388,
+        "MISSING": 0,
+        "HISTORICAL_CHECKSUM_DIFFERENCE": 61
+      }
+    },
+    "apps/workspace/prisma": {
+      "count": 13,
+      "counts": {
+        "MATCH": 13,
+        "MISSING": 0,
+        "HISTORICAL_CHECKSUM_DIFFERENCE": 0
+      }
+    }
+  },
+  "migrationTreeIds": {
+    "apps/api/prisma": {
+      "0e294fde727580f25ceece2ea9124f0247380443": "8c3dcb0021eb8a3bba936f94e2b4472a25405393",
+      "1d44d882ae885249daa132b806a811be1b4a4b0d": "8c3dcb0021eb8a3bba936f94e2b4472a25405393",
+      "7bb6809360c6229dce33ce9e800a7b7c3721f756": "8c3dcb0021eb8a3bba936f94e2b4472a25405393"
+    },
+    "apps/workspace/prisma": {
+      "0e294fde727580f25ceece2ea9124f0247380443": "67bc0ff5cca758e38673b54bf913211d191697d9",
+      "1d44d882ae885249daa132b806a811be1b4a4b0d": "67bc0ff5cca758e38673b54bf913211d191697d9",
+      "7bb6809360c6229dce33ce9e800a7b7c3721f756": "67bc0ff5cca758e38673b54bf913211d191697d9"
+    }
+  },
+  "previouslyMissingTables": {
+    "research_portfolio_fit_versions": 11,
+    "research_portfolio_client_filing_jobs": 18,
+    "defense_saved_comparisons": 10,
+    "defense_saved_comparison_versions": 19,
+    "defense_saved_comparison_events": 11
+  },
+  "rlsAndForcedRlsPresent": [
+    "research_portfolio_fit_versions",
+    "research_portfolio_client_filing_jobs",
+    "defense_saved_comparisons",
+    "defense_saved_comparison_versions",
+    "defense_saved_comparison_events",
+    "research_portfolio_bookmarks",
+    "research_portfolio_tour_states",
+    "research_portfolio_review_notes",
+    "research_portfolio_subscription_deliveries"
+  ],
+  "invalidCollectedConstraints": [],
+  "invalidCollectedIndexes": [],
+  "effectiveAppPrivileges": [
+    {
+      "relname": "defense_saved_comparison_events",
+      "privilege": "DELETE",
+      "allowed": false
+    },
+    {
+      "relname": "defense_saved_comparison_events",
+      "privilege": "INSERT",
+      "allowed": true
+    },
+    {
+      "relname": "defense_saved_comparison_events",
+      "privilege": "SELECT",
+      "allowed": true
+    },
+    {
+      "relname": "defense_saved_comparison_events",
+      "privilege": "TRUNCATE",
+      "allowed": false
+    },
+    {
+      "relname": "defense_saved_comparison_events",
+      "privilege": "UPDATE",
+      "allowed": false
+    },
+    {
+      "relname": "defense_saved_comparison_versions",
+      "privilege": "DELETE",
+      "allowed": false
+    },
+    {
+      "relname": "defense_saved_comparison_versions",
+      "privilege": "INSERT",
+      "allowed": true
+    },
+    {
+      "relname": "defense_saved_comparison_versions",
+      "privilege": "SELECT",
+      "allowed": true
+    },
+    {
+      "relname": "defense_saved_comparison_versions",
+      "privilege": "TRUNCATE",
+      "allowed": false
+    },
+    {
+      "relname": "defense_saved_comparison_versions",
+      "privilege": "UPDATE",
+      "allowed": false
+    },
+    {
+      "relname": "defense_saved_comparisons",
+      "privilege": "DELETE",
+      "allowed": false
+    },
+    {
+      "relname": "defense_saved_comparisons",
+      "privilege": "INSERT",
+      "allowed": true
+    },
+    {
+      "relname": "defense_saved_comparisons",
+      "privilege": "SELECT",
+      "allowed": true
+    },
+    {
+      "relname": "defense_saved_comparisons",
+      "privilege": "TRUNCATE",
+      "allowed": false
+    },
+    {
+      "relname": "defense_saved_comparisons",
+      "privilege": "UPDATE",
+      "allowed": true
+    },
+    {
+      "relname": "research_portfolio_client_filing_jobs",
+      "privilege": "DELETE",
+      "allowed": false
+    },
+    {
+      "relname": "research_portfolio_client_filing_jobs",
+      "privilege": "INSERT",
+      "allowed": true
+    },
+    {
+      "relname": "research_portfolio_client_filing_jobs",
+      "privilege": "SELECT",
+      "allowed": true
+    },
+    {
+      "relname": "research_portfolio_client_filing_jobs",
+      "privilege": "TRUNCATE",
+      "allowed": false
+    },
+    {
+      "relname": "research_portfolio_client_filing_jobs",
+      "privilege": "UPDATE",
+      "allowed": true
+    },
+    {
+      "relname": "research_portfolio_fit_versions",
+      "privilege": "DELETE",
+      "allowed": false
+    },
+    {
+      "relname": "research_portfolio_fit_versions",
+      "privilege": "INSERT",
+      "allowed": true
+    },
+    {
+      "relname": "research_portfolio_fit_versions",
+      "privilege": "SELECT",
+      "allowed": true
+    },
+    {
+      "relname": "research_portfolio_fit_versions",
+      "privilege": "TRUNCATE",
+      "allowed": false
+    },
+    {
+      "relname": "research_portfolio_fit_versions",
+      "privilege": "UPDATE",
+      "allowed": false
+    }
+  ],
+  "dataPreservationDisposition": "ACCEPTED LIMITATION",
+  "dispositionBasis": "Parent supplied latest owner instruction to deploy and address residual database issues after deployment, and explicitly directed this risk disposition after reviewing the data-gap packet. This records that release decision; it does not change evidence verdicts.",
+  "originalReceipt": {
+    "sha256": "ccd219722b6c989df2ae21538ca8b0bc34311075a9ffe804fc18ff2dedc8da40",
+    "selectedVerdicts": {
+      "databaseVerdict": "BLOCKED",
+      "releaseVerdict": "BLOCKED"
+    }
+  },
+  "supplementalReceipt": {
+    "sha256": "19fe1977c598a3add37f1dfd96638395e80a364d0ce4ae254be4da0620419f69",
+    "selectedVerdicts": {
+      "releaseVerdict": "BLOCKED",
+      "verdict": "PASS"
+    }
+  },
+  "supplementalScope": "Earlier prewrite snapshot to current: 681 ordered sections match. This does not prove equality with the missing original 19:39 whole-dump stream.",
+  "originalGap": "Equal 24,292,079,456-byte streams had differing whole-stream hashes. Original raw stream and section hashes were not retained. The reviewed evidence identifies no specific lost or corrupted customer row, but does not prove original data equality.",
+  "remainingApplicationConditions": [
+    "Qualify exact candidate image digest/source and runtime; API Node22 fix is required.",
+    "Promote compatible Web vNext before API for watch-conversion contract.",
+    "Keep RESEARCH_PORTFOLIO_MERI_TOOLS_ENABLED absent/false until separately owned Engagement compatibility is qualified.",
+    "Root owns exact-image, promotion and post-deployment acceptance evidence."
+  ],
+  "scopeLimit": "Targeted structural and historical migration qualification only. No new Prisma migration/status command, data comparison, application runtime or UI test was performed by this audit.",
+  "method": "Approved collector consumed app credential only in process memory, used verified TLS and startup plus transaction read-only settings, catalog/ledger SELECTs, then ROLLBACK. No business rows, AWS mutation, shared-ledger mutation, clone, recovery or migration run.",
+  "collectorExitCode": 0,
+  "evidence": {
+    "readback": {
+      "path": "C:\\dev\\cap-meri-foundation-evidence\\migration-recheck-20261002\\current-readonly.json",
+      "sha256": "1f48b521034591390de69c8c70e6e29c2d7a1704fe797b10f3849eb3ed3524c7"
+    },
+    "assessment": {
+      "path": "C:\\dev\\cap-meri-foundation-evidence\\migration-recheck-20261002\\assessment.json",
+      "sha256": "15674111dc6f9b07d14d6759715d57ab3040febf53dcda45acd83ef9f36b8787"
+    }
+  },
+  "supersedesDecisionOnly": "RECOVERY-NEXT.md step3 and assessment.releaseVerdict assumed no residual-risk disposition. This addendum records the current release disposition; original files remain unchanged."
+}

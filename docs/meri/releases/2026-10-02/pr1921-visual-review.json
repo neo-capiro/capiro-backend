@@ -1,0 +1,38 @@
+{
+  "head": "7bb6809360c6229dce33ce9e800a7b7c3721f756",
+  "referenceSource": "fc8133d50a41d10f5549f1cf7f73787ffc7e4965",
+  "reference": "existing deployed Research Portfolio CSS and error/button/checkbox conventions",
+  "referenceCssBlob": "012494e574ee959f39926c199b6322848ace89fd",
+  "headCssBlob": "012494e574ee959f39926c199b6322848ace89fd",
+  "identicalCss": true,
+  "screenshots": [
+    {
+      "name": "desktop",
+      "sha256Matches": true,
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      }
+    },
+    {
+      "name": "mobile",
+      "sha256Matches": true,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    }
+  ],
+  "actualImagesViewed": true,
+  "observations": [
+    "Desktop warning is legible and wraps within panel",
+    "Mobile390px warning and confirmation label wrap without horizontal clipping",
+    "Preview remains available; confirmation and Apply appear disabled in the old-contract state",
+    "No new layout design or CSS is introduced by this diff"
+  ],
+  "verdict": "PASS_FOR_EXISTING_STYLE_COMPATIBILITY",
+  "limitation": "New conditional alert state has no historical screenshot; local mocked auth/API fixture is not live integration proof. No new per-screenshot owner approval is inferred.",
+  "reviewer": "Codex parent verification of actual images",
+  "sharedPolicySha": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "checkedAtEpoch": 1790903411.7520254
+}

@@ -1,0 +1,44 @@
+{
+  "observedAt": "2026-10-02T01:33:34.9367142Z",
+  "buildReadExitCode": 0,
+  "logsReadExitCode": 0,
+  "scope": "Image build/publication only; no deployment or live acceptance",
+  "actualBuildspecSha256": "185e3dfc2db588408cb824cbb55e41070be453f0471ea11235c5ea699046f1a3",
+  "build": {
+    "id": "capiro-build-web-dev:8e88dd66-21c6-46b0-a74a-d33c7563b08e",
+    "status": "SUCCEEDED",
+    "phase": "COMPLETED",
+    "start": "2026-10-02T01:24:15.283+00:00",
+    "end": "2026-10-02T01:33:30.122+00:00",
+    "source": "940fe9354f95630c6acb0f20f75ced26ea9e75f4",
+    "resolved": "940fe9354f95630c6acb0f20f75ced26ea9e75f4",
+    "environmentType": "ARM_CONTAINER",
+    "environmentImage": "aws/codebuild/amazonlinux2-aarch64-standard:3.0"
+  },
+  "selectedLogLines": [
+    "[Container] 2026/10/02 01:24:33.919865 Phase complete: DOWNLOAD_SOURCE State: SUCCEEDED",
+    "[Container] 2026/10/02 01:24:34.053141 Phase complete: INSTALL State: SUCCEEDED",
+    "[Container] 2026/10/02 01:24:52.939712 Phase complete: PRE_BUILD State: SUCCEEDED",
+    " Test Files  7 passed (7)",
+    "      Tests  54 passed (54)",
+    "✓ built in 35.70s",
+    "#29 144.7 ✓ built in 35.79s",
+    "[Container] 2026/10/02 01:33:25.269469 Phase complete: BUILD State: SUCCEEDED",
+    "LOCAL_REPODIGEST_ECR_MATCH_PASS",
+    "CANDIDATE_WEB_SOURCE_SHA=940fe9354f95630c6acb0f20f75ced26ea9e75f4",
+    "CANDIDATE_WEB_IMAGE=967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:bb114117e1ac5bad398a34c2272280b0b55abbcb0502cb5b6b95356f213bdfdb",
+    "[Container] 2026/10/02 01:33:28.205666 Phase complete: POST_BUILD State: SUCCEEDED",
+    "[Container] 2026/10/02 01:33:29.739121 Phase complete: UPLOAD_ARTIFACTS State: SUCCEEDED"
+  ],
+  "verdict": "PASS",
+  "ecrReadExitCode": 0,
+  "ecr": {
+    "digest": "sha256:bb114117e1ac5bad398a34c2272280b0b55abbcb0502cb5b6b95356f213bdfdb",
+    "tags": [
+      "940fe9354f95630c6acb0f20f75ced26ea9e75f4"
+    ],
+    "pushed": "2026-10-02T01:33:27.088+00:00",
+    "bytes": 25862103,
+    "manifestMediaType": "application/vnd.docker.distribution.manifest.v2+json"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "verdict": "PASS - reviewed bytes equal committed candidate and merged main",
+  "reviewedBase": "7bb6809360c6229dce33ce9e800a7b7c3721f756",
+  "candidate": "4277eec813ccb78e339633406f15cafa10711fe4",
+  "mergedMain": "83304d18e5a1ab647cf6f728392cf97b3058a832",
+  "candidateAndMainEntireTree": "d4f0a5f586f738ba23a9a4c2d3274b2b99a2a785",
+  "exactFourFileDiffSha256": "1835189e050ea029080fea211ad78759136dc8fd1c363d0d626cb3053898dd18",
+  "reviewedFileHashes": {
+    "scripts/lib/meri-release-policy.mjs": "8888e7b7c0a3e7d0f24ace9804bf8e4eebdf8ee1785395a4b14669e4a288b168",
+    "scripts/lib/meri-release-policy.test.mjs": "7b24fc68c8adff7e48392c8b80db237f42b3fa6d7b8f0193a61214730f91ab3c",
+    "scripts/meri-release.mjs": "2fece407aa0f08795ac6d5d1feef99211412ab28ea6bc76125c1c49eae4412f6",
+    "scripts/meri-release.test.mjs": "da13c686fc0cf81fa55c468a66c455742cd5742a527c495175776bf9dc893c9f"
+  },
+  "migrationTreesUnchanged": {
+    "apps/api/prisma/migrations": {
+      "1d44d882ae885249daa132b806a811be1b4a4b0d": "8c3dcb0021eb8a3bba936f94e2b4472a25405393",
+      "83304d18e5a1ab647cf6f728392cf97b3058a832": "8c3dcb0021eb8a3bba936f94e2b4472a25405393"
+    },
+    "apps/workspace/prisma/migrations": {
+      "1d44d882ae885249daa132b806a811be1b4a4b0d": "67bc0ff5cca758e38673b54bf913211d191697d9",
+      "83304d18e5a1ab647cf6f728392cf97b3058a832": "67bc0ff5cca758e38673b54bf913211d191697d9"
+    }
+  },
+  "scope": "Metadata identity operator patch only; schema qualification remains bound to unchanged migration source at merged main.",
+  "provenanceNote": "Commit occurred between initial source review and initial receipt serialization. That receipt captured a clean4277HEAD and empty working-tree diff hash; this binding records the nonempty explicit7bb-to4277reviewed diff and asserts exact reviewed-file bytes at4277and83304. Original receipt is preserved."
+}

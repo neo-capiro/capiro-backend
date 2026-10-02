@@ -1,0 +1,24 @@
+{
+  "observedAt": "2026-10-02T01:24:09.0712203Z",
+  "verdict": "PASS",
+  "scope": "Image publication only; not ECS promotion or live acceptance",
+  "buildReadExitCode": 0,
+  "ecrReadExitCode": 0,
+  "build": {
+    "id": "capiro-build-web-dev:dc4c281e-5372-4a7d-b667-2919a78125f1",
+    "status": "SUCCEEDED",
+    "phase": "COMPLETED",
+    "start": "2026-10-02T01:16:29.769+00:00",
+    "end": "2026-10-02T01:22:55.978+00:00",
+    "source": "83304d18e5a1ab647cf6f728392cf97b3058a832",
+    "resolved": "83304d18e5a1ab647cf6f728392cf97b3058a832"
+  },
+  "image": {
+    "digest": "sha256:1fbf675727041323c56c2330aebb7f27ae4129864cb413953b869bfffad80015",
+    "tags": [
+      "83304d18e5a1ab647cf6f728392cf97b3058a832"
+    ],
+    "pushed": "2026-10-02T01:22:54.434+00:00",
+    "bytes": 1113853096
+  }
+}

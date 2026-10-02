@@ -1,0 +1,929 @@
+{
+  "reviewedAt": "2026-10-02T01:26:09.225148+00:00",
+  "reviewer": "/root/file01_ab_audit",
+  "sourceSha": "83304d18e5a1ab647cf6f728392cf97b3058a832",
+  "policySha": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "retirementCompatibility": "PASS (bounded source review)",
+  "rollingCompatibility": "PASS subject to listed release conditions; static source and historical rehearsal evidence, not a new mixed-image execution",
+  "retirement": {
+    "scanRoots": [
+      "apps/api/src",
+      "apps/meriv2-orchestrator/src",
+      "apps/web/src",
+      "packages/shared/src",
+      "packages/meriv2-core/src"
+    ],
+    "retiredTables": [
+      "meri_agent_interactions",
+      "meri_agent_run_events",
+      "meri_agent_profile_leases",
+      "meri_agent_admission_slots",
+      "meri_agent_run_reservations",
+      "meri_agent_budget_periods",
+      "meri_agent_runs",
+      "meri_execution_scopes",
+      "legiwatch_saved_view",
+      "legiwatch_watch_preset",
+      "legiwatch_watch_backtest_job"
+    ],
+    "activeRuntimeReferences": [],
+    "commentOnlyMatches": [
+      {
+        "path": "apps/api/src/live-hearings/legiwatch-wave2.controller.ts",
+        "line": 12,
+        "classification": "comment only"
+      }
+    ],
+    "remainingHermesLabels": "MeriService RUNTIME_NAME is status/conversation metadata, not an imported Hermes runtime. ResearchClarifyForm comment and procedure source provenance also remain. No retired Hermes module import found.",
+    "oldSourceCrossCheck": "Read-only Git searches of prior API/Web fc8133d and prior orchestrator c2bc41a found no retired persistence runtime access; LegiWatch controller/test comments remain."
+  },
+  "startup": "API Docker CMD serve -> wrapper fallback -> legacy dispatcher -> node dist/main.js. Prisma onModuleInit connects only. Explicit migration commands are separate; serving API and orchestrator do not auto-migrate.",
+  "migrationTreeEquivalence": {
+    "apps/api/prisma/migrations": {
+      "5e72da28863112ef3f5257caf4a480784f18720a": "8c3dcb0021eb8a3bba936f94e2b4472a25405393",
+      "23bb03e6188d0e8dc030dce2858fd397146c533a": "8c3dcb0021eb8a3bba936f94e2b4472a25405393",
+      "83304d18e5a1ab647cf6f728392cf97b3058a832": "8c3dcb0021eb8a3bba936f94e2b4472a25405393"
+    },
+    "apps/workspace/prisma/migrations": {
+      "5e72da28863112ef3f5257caf4a480784f18720a": "67bc0ff5cca758e38673b54bf913211d191697d9",
+      "23bb03e6188d0e8dc030dce2858fd397146c533a": "67bc0ff5cca758e38673b54bf913211d191697d9",
+      "83304d18e5a1ab647cf6f728392cf97b3058a832": "67bc0ff5cca758e38673b54bf913211d191697d9"
+    }
+  },
+  "freshRehearsal": {
+    "receipt": {
+      "path": "C:\\dev\\cap-meri-foundation-evidence\\file01-parallel-20260930\\local-full-migration-replay-attempt2.json",
+      "sha256": "9c2420efd598509f4a8d7714d3ccbbe718b46fcffd1687c5cb6d8debe61d042c"
+    },
+    "log": {
+      "path": "C:\\dev\\cap-meri-foundation-evidence\\file01-parallel-20260930\\local-full-migration-replay-attempt2.log",
+      "sha256": "12d46b7a4b065982fae60bac73bd3ea662cb320cec6960d3ca665e49fe3e5afb"
+    },
+    "source": "5e72da28863112ef3f5257caf4a480784f18720a",
+    "exitCode": 0,
+    "applied": 449,
+    "expected": 449,
+    "scope": "new owned local File01 database only",
+    "prerequisites": [
+      {
+        "file": "scripts/ci/disposable-capiro-worker-prerequisite.sql",
+        "sha256": "3a41c019f98cf79d460bf4568ffcd70672b6a961998cbd2f15cb7f0febe4be36"
+      },
+      {
+        "file": "scripts/ci/research-portfolio-append-only-prerequisite.sql",
+        "sha256": "cd47f004f0b6255648797bfa972a57192d34c59adc7eb7bf6e0de49bc82f78ac"
+      }
+    ],
+    "limitation": "Historical owned local DB execution; dependency/image equivalence is not asserted. No migration was rerun."
+  },
+  "upgradeRehearsal": {
+    "qualification": {
+      "path": "C:\\dev\\cap-inplace-aws-release-20260930\\reviewed-private-evidence-v2-20261001\\reviewed-split-qualification-v4.json",
+      "sha256": "f2902b1bdc25a68cb1e07716eeb7a0b26c88ac72941a4850243bccb8992f4341"
+    },
+    "prefixRun": {
+      "path": "C:\\dev\\cap-inplace-aws-release-20260930\\reviewed-private-evidence-v2-20261001\\reviewed-run.json",
+      "sha256": "695908104b72f48c2ee32d0cc13c978f7891fa07d49910847caf354f87eb63f4"
+    },
+    "supplementRun": {
+      "path": "C:\\dev\\cap-inplace-aws-release-20260930\\reviewed-supplemental-evidence-v3-20261001\\supplemental-run.json",
+      "sha256": "4de59ed16368ca09fd4adc97caff909a9698e8f1f40b539c73c7f1843b26dc1f"
+    },
+    "frozenSourceManifest": {
+      "path": "C:\\dev\\cap-inplace-aws-release-20260930\\current-frozen-source-manifest.json",
+      "sha256": "be4ff83cf440df998a3e45f3d3984267c5c1f563128718edbcc324bf182e8ffd"
+    },
+    "frozenFilesVerifiedAgainstTargetGitBlobs": 466,
+    "stepReceiptsHashAndExecutionExitVerified": 65,
+    "steps": [
+      {
+        "number": 1,
+        "operation": {
+          "verb": "resolve",
+          "service": "API",
+          "principal": "capiro_master",
+          "name": "20280913011000_legiwatch_record_checks"
+        },
+        "exitCode": 0,
+        "receiptSha256": "7e65ddd5200ad1fa7b3020496dd5b0541f59bb30928b78d2a41afae653d73008"
+      },
+      {
+        "number": 2,
+        "operation": {
+          "verb": "resolve",
+          "service": "API",
+          "principal": "capiro_master",
+          "name": "20280913012000_legiwatch_official_transcript_revisions"
+        },
+        "exitCode": 0,
+        "receiptSha256": "ab06e6ee7123ea6f6fd2c141e4f9524b413e66fb24ba3b9c096e7d00fa10c6c5"
+      },
+      {
+        "number": 3,
+        "operation": {
+          "verb": "resolve",
+          "service": "API",
+          "principal": "capiro_master",
+          "name": "20280913013000_legiwatch_record_commit_boundary"
+        },
+        "exitCode": 0,
+        "receiptSha256": "6a9e05d688847862853051cd4828e750988ab6dddbd90460ba5ef39022a7f425"
+      },
+      {
+        "number": 4,
+        "operation": {
+          "verb": "resolve",
+          "service": "API",
+          "principal": "capiro_master",
+          "name": "20280913014000_legiwatch_record_documents"
+        },
+        "exitCode": 0,
+        "receiptSha256": "ee73e8576482311263a466a5e8a9ce4d1439891d7d69fbddbd608efc4e572e8f"
+      },
+      {
+        "number": 5,
+        "operation": {
+          "verb": "resolve",
+          "service": "API",
+          "principal": "capiro_master",
+          "name": "20280913015000_legiwatch_record_inbox"
+        },
+        "exitCode": 0,
+        "receiptSha256": "12e5459b1e3a18796a72ecd76ac2233ed64a43eaebce7f1e510242dbdfd1c4ab"
+      },
+      {
+        "number": 6,
+        "operation": {
+          "verb": "resolve",
+          "service": "API",
+          "principal": "capiro_master",
+          "name": "20280913016000_legiwatch_record_refresh"
+        },
+        "exitCode": 0,
+        "receiptSha256": "cf68b8c4ca0c660ee70d35335ca2244831f4aa08d51cea2ed6d0caa82861b3b4"
+      },
+      {
+        "number": 7,
+        "operation": {
+          "verb": "resolve",
+          "service": "API",
+          "principal": "capiro_master",
+          "name": "20280913017000_legiwatch_transcript_checks"
+        },
+        "exitCode": 0,
+        "receiptSha256": "3b9f0f8a3a2af67a10400373cd329af35ee8e6ea19400d61a9aba98f035c2c0a"
+      },
+      {
+        "number": 8,
+        "operation": {
+          "verb": "resolve",
+          "service": "API",
+          "principal": "capiro_master",
+          "name": "20280913018000_legiwatch_govinfo_checkpoints"
+        },
+        "exitCode": 0,
+        "receiptSha256": "003cbe6cb27427e53deac4169228ba40b1da3249be66ba54ca1cadc79ecec87b"
+      },
+      {
+        "number": 9,
+        "operation": {
+          "verb": "resolve",
+          "service": "API",
+          "principal": "capiro_master",
+          "name": "20280913019000_legiwatch_source_observations"
+        },
+        "exitCode": 0,
+        "receiptSha256": "1b64d4aa6b444f4b8b4eb88c73e556e71605ca22635be03c795f231964e5d494"
+      },
+      {
+        "number": 10,
+        "operation": {
+          "verb": "resolve",
+          "service": "API",
+          "principal": "capiro_master",
+          "name": "20280913020000_legiwatch_keyword_source_projection"
+        },
+        "exitCode": 0,
+        "receiptSha256": "ab0c760a871f4eb76778ef943b897d8cb99a2aecd988277f86df07000847a007"
+      },
+      {
+        "number": 11,
+        "operation": {
+          "verb": "resolve",
+          "service": "API",
+          "principal": "capiro_master",
+          "name": "20280913021000_legiwatch_workflow_source_projection"
+        },
+        "exitCode": 0,
+        "receiptSha256": "86efbcec5ea9619be8104dfd70badfb3980ab50a941de47cf8a33185c86afd59"
+      },
+      {
+        "number": 12,
+        "operation": {
+          "verb": "resolve",
+          "service": "API",
+          "principal": "capiro_master",
+          "name": "20280913022000_legiwatch_keyword_inbox"
+        },
+        "exitCode": 0,
+        "receiptSha256": "4cde5ceb7edc3c10d9f6d3bb77c887c1dca9fae85295960a3b24787f82732d10"
+      },
+      {
+        "number": 13,
+        "operation": {
+          "verb": "resolve",
+          "service": "API",
+          "principal": "capiro_master",
+          "name": "20280913030000_legiwatch_research_evidence"
+        },
+        "exitCode": 0,
+        "receiptSha256": "05e220843fd52e880021fcf312010b3fe2fba190e434c3d35eed0d8d34b3aaa9"
+      },
+      {
+        "number": 14,
+        "operation": {
+          "verb": "resolve",
+          "service": "API",
+          "principal": "capiro_master",
+          "name": "20280914030000_legiwatch_news_fiscal"
+        },
+        "exitCode": 0,
+        "receiptSha256": "8808c9f61343e1d807f5e75d660b771ea7a5e5481f8812c6b2bb0b9360171844"
+      },
+      {
+        "number": 15,
+        "operation": {
+          "verb": "resolve",
+          "service": "API",
+          "principal": "capiro_master",
+          "name": "20280915010000_hearing_canonical_alias"
+        },
+        "exitCode": 0,
+        "receiptSha256": "965a5e60bfb21aa3de8c118949c48be35873f7c58091db6210d00e26a1ed9400"
+      },
+      {
+        "number": 16,
+        "operation": {
+          "verb": "resolve",
+          "service": "API",
+          "principal": "capiro_master",
+          "name": "20280918010000_procurement_line_canonical"
+        },
+        "exitCode": 0,
+        "receiptSha256": "75ed2085ab68c5640dd9201583abf187893be0fac4253015a89bb680165de574"
+      },
+      {
+        "number": 17,
+        "operation": {
+          "verb": "resolve",
+          "service": "API",
+          "principal": "capiro_master",
+          "name": "20280919010000_committee_follow_alerts"
+        },
+        "exitCode": 0,
+        "receiptSha256": "05290948210f963ffaf14c2078e11f067501a9dce8d95e5d70ad9daaa8f5213b"
+      },
+      {
+        "number": 18,
+        "operation": {
+          "verb": "resolve",
+          "service": "API",
+          "principal": "capiro_master",
+          "name": "20280919020000_approval_replacement_commit_guards"
+        },
+        "exitCode": 0,
+        "receiptSha256": "ed214fa303fb89957513164bf5c6dd7be70c139165d289644b6550dd79a30e2f"
+      },
+      {
+        "number": 19,
+        "operation": {
+          "verb": "resolve",
+          "service": "API",
+          "principal": "capiro_master",
+          "name": "20280920010000_meri_hermes_durable_runs"
+        },
+        "exitCode": 0,
+        "receiptSha256": "54c84bffe40726711f45d3753d738fe94cad635370737b34d99c8ea6d3d7a0c8"
+      },
+      {
+        "number": 20,
+        "operation": {
+          "verb": "resolve",
+          "service": "API",
+          "principal": "capiro_master",
+          "name": "20280920020000_meri_hermes_admission_fencing"
+        },
+        "exitCode": 0,
+        "receiptSha256": "78e3f893b1f6668218a1a6eda824f97edd56926fbce4c08381148365adc79bbd"
+      },
+      {
+        "number": 21,
+        "operation": {
+          "verb": "resolve",
+          "service": "API",
+          "principal": "capiro_master",
+          "name": "20280920030000_meri_hermes_cross_replica_coordination"
+        },
+        "exitCode": 0,
+        "receiptSha256": "a7f8523d436272189e5db9735683c77d1bb5ba32ab7f2f6e71bf25803b949f68"
+      },
+      {
+        "number": 22,
+        "operation": {
+          "verb": "resolve",
+          "service": "API",
+          "principal": "capiro_master",
+          "name": "20280920040000_meri_hermes_scaling_controls"
+        },
+        "exitCode": 0,
+        "receiptSha256": "e7ef7c3380a534a64be6e8feb12d77e248b69f869c92228351cb8de1d99168b0"
+      },
+      {
+        "number": 23,
+        "operation": {
+          "verb": "resolve",
+          "service": "API",
+          "principal": "capiro_master",
+          "name": "20280920050000_meri_hermes_profile_state"
+        },
+        "exitCode": 0,
+        "receiptSha256": "9a212d9f9536415bd2770d3ab9e4c5f4e279d1d4555700cc023736449d882f7c"
+      },
+      {
+        "number": 24,
+        "operation": {
+          "verb": "resolve",
+          "service": "API",
+          "principal": "capiro_master",
+          "name": "20280920060000_florida_directory_pdf_enrichment"
+        },
+        "exitCode": 0,
+        "receiptSha256": "0be8d59495b9f2534a99c2d82e1265101b2e14f8112daa00618ce4150be4233f"
+      },
+      {
+        "number": 25,
+        "operation": {
+          "verb": "resolve",
+          "service": "API",
+          "principal": "capiro_master",
+          "name": "20280920060000_governed_ingestion_manifest_v1"
+        },
+        "exitCode": 0,
+        "receiptSha256": "5044ed0dd4a7686d35d63f68e7f96d98e36989316a6bf7abc3eec69eedcedb0b"
+      },
+      {
+        "number": 26,
+        "operation": {
+          "verb": "resolve",
+          "service": "API",
+          "principal": "capiro_master",
+          "name": "20280920060100_budget_line_relationship_lineage"
+        },
+        "exitCode": 0,
+        "receiptSha256": "2d17f22b953fb44267a6f97eb66a8a06160e99e9f0f87c57d4cd542dea45f340"
+      },
+      {
+        "number": 27,
+        "operation": {
+          "verb": "resolve",
+          "service": "API",
+          "principal": "capiro_master",
+          "name": "20280920070000_legiwatch_florida_runtime_jobs"
+        },
+        "exitCode": 0,
+        "receiptSha256": "fc01916b57a2c18bb1cdc1b0c8f76eb77c894c95656f69e4e7e27c847cc3c944"
+      },
+      {
+        "number": 28,
+        "operation": {
+          "verb": "resolve",
+          "service": "API",
+          "principal": "capiro_master",
+          "name": "20280921000100_federal_award_date_semantics"
+        },
+        "exitCode": 0,
+        "receiptSha256": "8afff3a8d0b6203a08bcd98ac557f63f461a46299ea3fcd76aefe300cfbf39b4"
+      },
+      {
+        "number": 29,
+        "operation": {
+          "verb": "resolve",
+          "service": "API",
+          "principal": "capiro_master",
+          "name": "20280922100100_public_hearing_speaker"
+        },
+        "exitCode": 0,
+        "receiptSha256": "5eb948408bda37058d205354ca679c418a3d97b81d0df7953eda25a438931acc"
+      },
+      {
+        "number": 30,
+        "operation": {
+          "verb": "resolve",
+          "service": "API",
+          "principal": "capiro_master",
+          "name": "20280923010000_meri_mobile_device_tokens"
+        },
+        "exitCode": 0,
+        "receiptSha256": "f3dcff3d36ac583801d0e2a5421d630d0b2e834bee1cfb73bcb876ce714ee608"
+      },
+      {
+        "number": 31,
+        "operation": {
+          "verb": "resolve",
+          "service": "API",
+          "principal": "capiro_master",
+          "name": "20280924010000_business_development_phase1"
+        },
+        "exitCode": 0,
+        "receiptSha256": "da9d0ad8ed4dece9f3edc23c3f33174a5c1c2b11a17489135dee5d83a4393fa0"
+      },
+      {
+        "number": 32,
+        "operation": {
+          "verb": "resolve",
+          "service": "API",
+          "principal": "capiro_master",
+          "name": "20280924020000_governed_ingestion_manifest_member_guard_v1"
+        },
+        "exitCode": 0,
+        "receiptSha256": "49a38f016c8f6ee5896d71a35e12bdff05cf44cd1fddeef41f951c9a5ef991e0"
+      },
+      {
+        "number": 33,
+        "operation": {
+          "verb": "resolve",
+          "service": "API",
+          "principal": "capiro_master",
+          "name": "20280924030000_federal_legislative_evidence"
+        },
+        "exitCode": 0,
+        "receiptSha256": "7686fca7ab979123ed29bf58f5b71e6b4747618d0c4b6ca02a1ef9fe0a03c493"
+      },
+      {
+        "number": 34,
+        "operation": {
+          "verb": "resolve",
+          "service": "API",
+          "principal": "capiro_master",
+          "name": "20280924040000_district_actions"
+        },
+        "exitCode": 0,
+        "receiptSha256": "46f3c0d9a30d2acee38377d0bcb287a2dfed20c9955e5a90f8513a9073aebd14"
+      },
+      {
+        "number": 35,
+        "operation": {
+          "verb": "resolve",
+          "service": "API",
+          "principal": "capiro_master",
+          "name": "20280924040000_district_nexus_r5_meeting_prep_reviewed"
+        },
+        "exitCode": 0,
+        "receiptSha256": "09fb84863632554efaec398bbd9bfc916f262ea9c5817de0b4ea08d0489024ac"
+      },
+      {
+        "number": 36,
+        "operation": {
+          "verb": "resolve",
+          "service": "API",
+          "principal": "capiro_master",
+          "name": "20280924040000_program_identity_continuity"
+        },
+        "exitCode": 0,
+        "receiptSha256": "d3f13b9c2d9a585a42e8e5d3ad694284d9488f45e7ce2c11533e094fbe8f94dd"
+      },
+      {
+        "number": 37,
+        "operation": {
+          "verb": "resolve",
+          "service": "API",
+          "principal": "capiro_master",
+          "name": "20280924050000_acquisition_continuity_ledger"
+        },
+        "exitCode": 0,
+        "receiptSha256": "d361d07a9cc57189778de74a7c2f5aa9da5efbf9118383022cc31e6e5bc2933e"
+      },
+      {
+        "number": 38,
+        "operation": {
+          "verb": "resolve",
+          "service": "API",
+          "principal": "capiro_master",
+          "name": "20280924050000_district_nexus_alert_payload"
+        },
+        "exitCode": 0,
+        "receiptSha256": "bef10fcb9d35c22277562c37470b9765a5d4959226365a7f356385a188b7a1f7"
+      },
+      {
+        "number": 39,
+        "operation": {
+          "verb": "resolve",
+          "service": "API",
+          "principal": "capiro_master",
+          "name": "20280924060000_package6_funding_execution_accounting"
+        },
+        "exitCode": 0,
+        "receiptSha256": "1d449ac8644c6dad10624b460e7acd344afbf3aa8789a1c1b749ea3ec5810e60"
+      },
+      {
+        "number": 40,
+        "operation": {
+          "verb": "resolve",
+          "service": "API",
+          "principal": "capiro_master",
+          "name": "20280924070000_package7_client_budget_watch"
+        },
+        "exitCode": 0,
+        "receiptSha256": "1420225588332f5ac37e9eb6fd0545dde6a7c549ec45d3a57d3887d94ae54168"
+      },
+      {
+        "number": 41,
+        "operation": {
+          "verb": "resolve",
+          "service": "API",
+          "principal": "capiro_master",
+          "name": "20280925010000_business_development_phase3_jev"
+        },
+        "exitCode": 0,
+        "receiptSha256": "3da971fa30f1096f8a64518e151ec503cd2d7dbe4833dd95a7a3db2a86160c07"
+      },
+      {
+        "number": 42,
+        "operation": {
+          "verb": "resolve",
+          "service": "API",
+          "principal": "capiro_master",
+          "name": "20280925020000_package9_source_bundle_reader_grant"
+        },
+        "exitCode": 0,
+        "receiptSha256": "29c8ca08c489e1b1b83663d6ff90f79747f210088f2f083417cb68fa4c4b8195"
+      },
+      {
+        "number": 43,
+        "operation": {
+          "verb": "resolve",
+          "service": "API",
+          "principal": "capiro_master",
+          "name": "20280926010000_business_development_phase3_shadow_null_recovery"
+        },
+        "exitCode": 0,
+        "receiptSha256": "96dfdc101c37661997cf9eeb52c254c9e3c523d5e672a916cae0a665a5f7fc0f"
+      },
+      {
+        "number": 44,
+        "operation": {
+          "verb": "resolve",
+          "service": "API",
+          "principal": "capiro_master",
+          "name": "20280927010000_business_development_phase4_brief"
+        },
+        "exitCode": 0,
+        "receiptSha256": "759593adbb53ce9dad6e860269f9ba5b5ca43fd0d2de2934a4b7ce8f288f9cfd"
+      },
+      {
+        "number": 45,
+        "operation": {
+          "verb": "resolve",
+          "service": "API",
+          "principal": "capiro_master",
+          "name": "20280928010000_business_development_phase5_watch_alerts"
+        },
+        "exitCode": 0,
+        "receiptSha256": "f3d250425f12948860e722bd5c5d9e4fb8d8b0539c3a138d1033f5f924ea4bf4"
+      },
+      {
+        "number": 46,
+        "operation": {
+          "verb": "resolve",
+          "service": "API",
+          "principal": "capiro_master",
+          "name": "20280929010000_remove_meri_hermes_runtime"
+        },
+        "exitCode": 0,
+        "receiptSha256": "e53c223064c23e2649e87351a4124cc76f71cb91f003bba20dd24e14415e5c25"
+      },
+      {
+        "number": 47,
+        "operation": {
+          "verb": "resolve",
+          "service": "API",
+          "principal": "capiro_master",
+          "name": "20280929010000_research_portfolios_phase1"
+        },
+        "exitCode": 0,
+        "receiptSha256": "959c252740f68e233681301f3c3b094d3d8d9d781944a582b507bbc64a7ed0ad"
+      },
+      {
+        "number": 48,
+        "operation": {
+          "verb": "resolve",
+          "service": "API",
+          "principal": "capiro_master",
+          "name": "20280929020000_research_portfolios_phase2_rules"
+        },
+        "exitCode": 0,
+        "receiptSha256": "834a483be63c6d60b55404c13e57b1b93ea59712a539631d4c410014be854193"
+      },
+      {
+        "number": 49,
+        "operation": {
+          "verb": "resolve",
+          "service": "API",
+          "principal": "capiro_master",
+          "name": "20280929040000_defense_context_documents"
+        },
+        "exitCode": 0,
+        "receiptSha256": "38481ac114aabf5b1860dc3a9538319ea68496d6d83e0154f0a96837cb697c52"
+      },
+      {
+        "number": 50,
+        "operation": {
+          "verb": "resolve",
+          "service": "API",
+          "principal": "capiro_master",
+          "name": "20280930010000_business_development_watch_scan_checkpoint"
+        },
+        "exitCode": 0,
+        "receiptSha256": "a70da687c66c65c0af5ce3f34097af46483d9669e1339bb235c598c906d3567c"
+      },
+      {
+        "number": 51,
+        "operation": {
+          "verb": "resolve",
+          "service": "API",
+          "principal": "capiro_master",
+          "name": "20280930010000_research_portfolios_phase7_reviews_imports_continuity"
+        },
+        "exitCode": 0,
+        "receiptSha256": "67bd58004f848e70aa587ae1e428937da715481fc16d3023d26b374b4307a880"
+      },
+      {
+        "number": 52,
+        "operation": {
+          "verb": "resolve",
+          "service": "API",
+          "principal": "capiro_master",
+          "name": "20281001010000_research_portfolios_phase9_analytics_outputs"
+        },
+        "exitCode": 0,
+        "receiptSha256": "1b9dcb54362a8e74b3bbcd3cf25607aeffa92f976b46c9808c5955a1ec240621"
+      },
+      {
+        "number": 53,
+        "operation": {
+          "verb": "resolve",
+          "service": "API",
+          "principal": "capiro_master",
+          "name": "20281002010000_research_portfolios_phase10_watch_delivery"
+        },
+        "exitCode": 0,
+        "receiptSha256": "a16621c1932dbd7f980e270bb0410014ca76c2f20663881519bab504362c76a5"
+      },
+      {
+        "number": 54,
+        "operation": {
+          "verb": "resolve",
+          "service": "API",
+          "principal": "capiro_master",
+          "name": "20281003010000_research_portfolios_phase11_bookmarks_tour_notes"
+        },
+        "exitCode": 0,
+        "receiptSha256": "8bc2ed397961723e038c6c3e4288904d80e551d62304a72f6062d61a64889484"
+      },
+      {
+        "number": 55,
+        "operation": {
+          "verb": "resolve",
+          "service": "Workspace",
+          "principal": "capiro_master",
+          "name": "20260911160000_hillday_first_page_edits"
+        },
+        "exitCode": 0,
+        "receiptSha256": "4cc285c6f73e99a1ce1896ce424fda8b61b17aeb0b73dfdb719ac7926e83d301"
+      },
+      {
+        "number": 56,
+        "operation": {
+          "verb": "resolve",
+          "service": "Workspace",
+          "principal": "capiro_master",
+          "name": "20260913020000_legiwatch_preparation_actions"
+        },
+        "exitCode": 0,
+        "receiptSha256": "167a70842486fd0ff27ec4c82e6c0c48f4becbed1e6baf7d079a04a76c2a3ace"
+      },
+      {
+        "number": 57,
+        "operation": {
+          "verb": "deploy",
+          "service": "API",
+          "principal": "capiro_master"
+        },
+        "exitCode": 0,
+        "receiptSha256": "9a86534c6d5163acaf849cb3a75ff626f89efb8c14987bdced52108700a22eab"
+      },
+      {
+        "number": 58,
+        "operation": {
+          "verb": "status",
+          "service": "API",
+          "principal": "capiro_master"
+        },
+        "exitCode": 0,
+        "receiptSha256": "1bf8d656845f4a61c38a3474f1983c90c3484b277d270e4457ad4ba4cd4b836c"
+      },
+      {
+        "number": 59,
+        "operation": {
+          "verb": "deploy",
+          "service": "API",
+          "principal": "capiro_master"
+        },
+        "exitCode": 0,
+        "receiptSha256": "e8dd109141553d9e6d57b99dc105fb18901c0876ea3960be25b89a2d23741572"
+      },
+      {
+        "number": 60,
+        "operation": {
+          "verb": "status",
+          "service": "Workspace",
+          "principal": "capiro_master"
+        },
+        "exitCode": 0,
+        "receiptSha256": "481eaa6dad80be2a9d4f48b9d196f55fe1f21317f4d4da4c663936ecdd5dc315"
+      },
+      {
+        "number": 61,
+        "operation": {
+          "verb": "deploy",
+          "service": "Workspace",
+          "principal": "capiro_master"
+        },
+        "exitCode": 0,
+        "receiptSha256": "ccc4978027d1717c73dfdf59afc186c5a68c96cceeaaec5870ab14a2786ecd64"
+      },
+      {
+        "number": 62,
+        "operation": {
+          "verb": "status",
+          "service": "API",
+          "principal": "capiro_app"
+        },
+        "exitCode": 0,
+        "receiptSha256": "e3ba5dea0ca0a7ae94241b78c99163b84a339a998a9bd73b5b795e513bbccddf"
+      },
+      {
+        "number": 63,
+        "operation": {
+          "verb": "deploy",
+          "service": "API",
+          "principal": "capiro_app"
+        },
+        "exitCode": 0,
+        "receiptSha256": "52cb375d7a6d47c5e53a0eb092964ca5519d17f80209ad895734b5555295cc6d"
+      },
+      {
+        "number": 64,
+        "operation": {
+          "verb": "status",
+          "service": "Workspace",
+          "principal": "capiro_app"
+        },
+        "exitCode": 0,
+        "receiptSha256": "b359c92384a94be02fa079942f0f5d4d8b0bd542dbbf0ddea8e0e108307685f7"
+      },
+      {
+        "number": 65,
+        "operation": {
+          "verb": "deploy",
+          "service": "Workspace",
+          "principal": "capiro_app"
+        },
+        "exitCode": 0,
+        "receiptSha256": "36cd59aa061c84524db9e7284efd661a963a1c4a9eb806069afb4147fb02a4c4"
+      }
+    ],
+    "ledger": {
+      "original542IdsPreserved": true,
+      "originalOnlyChange": "failed row rolled_back_at",
+      "resolveCompletions": 56,
+      "normalCompletions": 8,
+      "finalRows": 606,
+      "noProbes": true
+    },
+    "catalog": {
+      "verdict": "PASS",
+      "exactCatalogDeltaCount": 108,
+      "added": 75,
+      "changed": 5,
+      "removed": 28,
+      "preexistingGrantAllLimitation": true
+    },
+    "terminalChecks": 8,
+    "dataPreservation": "PASS only at this isolated clone baseline. Not the original live data fingerprint comparison.",
+    "preservedPriorVerdicts": {
+      "prefix": "BLOCKED",
+      "supplement": "BLOCKED_CATALOG_REVIEW",
+      "finalQualifiedRehearsal": "PASS",
+      "release": "BLOCKED"
+    },
+    "limitations": [
+      "Preexisting GRANT ALL on three Research Portfolio tables remains.",
+      "Application compatibility, live actor coordination, authorization, and deployment gates require separate review."
+    ]
+  },
+  "rollingReview": {
+    "webBeforeApi": true,
+    "currentWebOldApi": "Old fc8133d preview lacks current revision/hash. Current Web refuses incomplete previews and refetches before any new request or retained retry. Old fc8133d Apply implementation is a no-op returning counts without receipt identity; if a mixed-roll request reaches it, current Web rejects that incomplete response and retains the exact request.",
+    "oldWebNewApi": "Bodyless old Web request is rejected by strict current API DTO validation; transient failure is possible for cached old clients. Refresh/retry using current Web, rather than treating this as successful conversion.",
+    "currentWebCurrentApi": "Bounded selection + expected revision + preview hash + idempotency key; API checks fingerprints and prior-operation replay.",
+    "engagement": "Only ResearchPortfolioMeriToolsService invokes private institutional writer. Meri tools gate both manifest and dispatch on RESEARCH_PORTFOLIO_MERI_TOOLS_ENABLED exactly true. Keep absent/false until separately qualified Engagement owner/source filtering is deployed.",
+    "orchestrator": "Current source retains native V3 and governed API repository adapters with no retired Hermes persistence imports. This audit does not qualify all current Meri outcomes with the old running orchestrator; orchestrator image execution and behavior remain separately bound release evidence."
+  },
+  "releaseConditions": [
+    "Exact candidate image digest/source and Linux runtime import/build qualification must pass for each promoted service.",
+    "Deploy Web vNext before API; retain forward schema on application rollback.",
+    "Keep RESEARCH_PORTFOLIO_MERI_TOOLS_ENABLED absent/false while old Engagement serves; verify effective configuration at prepare and after promotion.",
+    "Preserve all existing native V3 environment/cohort/tenant gates; environment false dominates tenant opt-in. No feature activation is authorized by this attestation.",
+    "Use current ledger/catalog readback and accepted original-fingerprint limitation in schema-qualification.json; do not relabel original BLOCKED evidence."
+  ],
+  "sourceEvidence": {
+    "apps/api/Dockerfile": {
+      "sha256": "caa3fd95bb4f51ac41904f872e79e92ee80462d5d476e7dd78eb17baae09f69c",
+      "url": "https://github.com/neo-capiro/capirov2/blob/83304d18e5a1ab647cf6f728392cf97b3058a832/apps/api/Dockerfile"
+    },
+    "apps/api/scripts/entrypoint.sh": {
+      "sha256": "14be0fc411f171ce5f372870172ec5c01cc48953c2126b134e43ecdd0666c42b",
+      "url": "https://github.com/neo-capiro/capirov2/blob/83304d18e5a1ab647cf6f728392cf97b3058a832/apps/api/scripts/entrypoint.sh"
+    },
+    "apps/api/scripts/entrypoint-legacy.sh": {
+      "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a",
+      "url": "https://github.com/neo-capiro/capirov2/blob/83304d18e5a1ab647cf6f728392cf97b3058a832/apps/api/scripts/entrypoint-legacy.sh"
+    },
+    "apps/api/scripts/entrypoint-dispatcher.inc": {
+      "sha256": "0bbc8748d7a3e467ec78fe2a9ffacba1b8629d539e59f9d5bd1c2d0eba65f61a",
+      "url": "https://github.com/neo-capiro/capirov2/blob/83304d18e5a1ab647cf6f728392cf97b3058a832/apps/api/scripts/entrypoint-dispatcher.inc"
+    },
+    "apps/api/src/main.ts": {
+      "sha256": "1481233e03797d30f4d9e7d22f56227a0e6cbb40ba4e5fc5c761b21bdfbbadfb",
+      "url": "https://github.com/neo-capiro/capirov2/blob/83304d18e5a1ab647cf6f728392cf97b3058a832/apps/api/src/main.ts"
+    },
+    "apps/api/src/app.module.ts": {
+      "sha256": "fdc9837b44d4e555f7e38702e391d3f8c0371127d2c3bbde98ba962a96da2ee7",
+      "url": "https://github.com/neo-capiro/capirov2/blob/83304d18e5a1ab647cf6f728392cf97b3058a832/apps/api/src/app.module.ts"
+    },
+    "apps/api/src/meri/meri.module.ts": {
+      "sha256": "d56d2c1353862e606f36e38a68be8dce7a2c93c9f4828b911e6f73a78b0add76",
+      "url": "https://github.com/neo-capiro/capirov2/blob/83304d18e5a1ab647cf6f728392cf97b3058a832/apps/api/src/meri/meri.module.ts"
+    },
+    "apps/api/src/meri/meri.service.ts": {
+      "sha256": "08c30b2545c054f8cd423c262f6315ee72329df2a4decf04e0cbe54a037a3bea",
+      "url": "https://github.com/neo-capiro/capirov2/blob/83304d18e5a1ab647cf6f728392cf97b3058a832/apps/api/src/meri/meri.service.ts"
+    },
+    "apps/api/src/prisma/prisma.service.ts": {
+      "sha256": "fb3886df5f2732a0412342627a3a6156f159718913479cdc2325fa602bfdd86e",
+      "url": "https://github.com/neo-capiro/capirov2/blob/83304d18e5a1ab647cf6f728392cf97b3058a832/apps/api/src/prisma/prisma.service.ts"
+    },
+    "apps/meriv2-orchestrator/src/app.module.ts": {
+      "sha256": "b986497043fecf8108c35e6ba7834df63cb8058d46aabaf89fbeb7c7f4a34c2b",
+      "url": "https://github.com/neo-capiro/capirov2/blob/83304d18e5a1ab647cf6f728392cf97b3058a832/apps/meriv2-orchestrator/src/app.module.ts"
+    },
+    "apps/meriv2-orchestrator/src/meri/meri.module.ts": {
+      "sha256": "db90a96a16d7080698c4ff8c281e23a5cfc232f8e42c6a0364bb6566afe504b2",
+      "url": "https://github.com/neo-capiro/capirov2/blob/83304d18e5a1ab647cf6f728392cf97b3058a832/apps/meriv2-orchestrator/src/meri/meri.module.ts"
+    },
+    "apps/meriv2-orchestrator/scripts/entrypoint.sh": {
+      "sha256": "fc0372951a87c9ea4c922b307c6703020f7e068512bafcdb9706e9de20793bf4",
+      "url": "https://github.com/neo-capiro/capirov2/blob/83304d18e5a1ab647cf6f728392cf97b3058a832/apps/meriv2-orchestrator/scripts/entrypoint.sh"
+    },
+    "apps/api/src/meri/meri-tools.service.ts": {
+      "sha256": "082f82abffa55ee404d7abbf1b092155891cd7dafcd8379d0ab1abe2286012f6",
+      "url": "https://github.com/neo-capiro/capirov2/blob/83304d18e5a1ab647cf6f728392cf97b3058a832/apps/api/src/meri/meri-tools.service.ts"
+    },
+    "apps/api/src/research-portfolios/research-portfolio-meri-tools.service.ts": {
+      "sha256": "adaf540aca6c9f757558d7cf50faf0c487f47a5e76fa146af2e93371842598d5",
+      "url": "https://github.com/neo-capiro/capirov2/blob/83304d18e5a1ab647cf6f728392cf97b3058a832/apps/api/src/research-portfolios/research-portfolio-meri-tools.service.ts"
+    },
+    "apps/api/src/research-portfolios/research-portfolio-phase11.service.ts": {
+      "sha256": "28f0f17db2342a575d89ef38255a4506d85e28ca13e3a3993c17ed0ef0301770",
+      "url": "https://github.com/neo-capiro/capirov2/blob/83304d18e5a1ab647cf6f728392cf97b3058a832/apps/api/src/research-portfolios/research-portfolio-phase11.service.ts"
+    },
+    "apps/web/src/vnext/pages/research-portfolios/ResearchPortfolioWatchConversionPanel.tsx": {
+      "sha256": "563af81f45edbbaae03d6380e62fffa39830c589be9eb2aa8495aa826fda444c",
+      "url": "https://github.com/neo-capiro/capirov2/blob/83304d18e5a1ab647cf6f728392cf97b3058a832/apps/web/src/vnext/pages/research-portfolios/ResearchPortfolioWatchConversionPanel.tsx"
+    },
+    "apps/api/src/common/meriv3-flags.ts": {
+      "sha256": "5bef1d00d1ff8bdb67ac9327ddfcb0f5913f2d570245ea9b75c974b51096be37",
+      "url": "https://github.com/neo-capiro/capirov2/blob/83304d18e5a1ab647cf6f728392cf97b3058a832/apps/api/src/common/meriv3-flags.ts"
+    },
+    "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-access.service.ts": {
+      "sha256": "4dfa81cd5fca941b77b245f67b68be512a8a09bad5cbf740365de20b81d9dd7e",
+      "url": "https://github.com/neo-capiro/capirov2/blob/83304d18e5a1ab647cf6f728392cf97b3058a832/apps/meriv2-orchestrator/src/meri/meriv3/meriv3-access.service.ts"
+    }
+  },
+  "notExecuted": [
+    "No new migration, database query, provider call, AWS mutation, old/new image database rehearsal or full product acceptance test.",
+    "No dependency reinstall or repeat test suites."
+  ],
+  "candidateDigest": "Not provided to this audit. Root must bind this source review to each actual qualified immutable image in qualification checks, not fabricate a build result."
+}
