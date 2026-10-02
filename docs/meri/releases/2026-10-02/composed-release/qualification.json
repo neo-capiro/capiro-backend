@@ -1,0 +1,83 @@
+{
+  "schemaVersion": 1,
+  "sourceSha": "b88e1b54875d4b7016685a3359e3fb6253c4e160",
+  "status": "PASS",
+  "exitCode": 0,
+  "policySha": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "machineMapRevision": "2026-09-30T00:21:48Z",
+  "scope": "Current composed source and unchanged previous verification plus focused changed-file regressions; native images and original live acceptance not yet run",
+  "checks": [
+    {
+      "name": "previous-composed-full-checks",
+      "sourceSha": "eedcc3d3a34aaf1b3b68e8a5093644b20d98a908",
+      "evidence": "../composed-eval-prerequisites/qualification.json",
+      "exitCode": 0,
+      "nodePassed": 195,
+      "apiPassed": 203,
+      "orchestratorPassed": 57,
+      "webPassed": 119,
+      "fullApiOrchestratorWebTypes": true,
+      "offlineCases": 26
+    },
+    {
+      "name": "case17-delta",
+      "sourceSha": "65bced9dc95419651d5e3d4afd8ac4dc7187f27d",
+      "nodePassed": 11,
+      "apiPassed": 12,
+      "fullApiTypes": true,
+      "exitCode": 0
+    },
+    {
+      "name": "budget-delta",
+      "sourceSha": "758dd54a279c64d27593f0fcae0e327fb654015c",
+      "nodePassed": 119,
+      "apiPassed": 44,
+      "orchestratorPassed": 22,
+      "fullApiOrchestratorTypes": true,
+      "sharedCoreBuilds": true,
+      "offlineCases": 26,
+      "customVerifier": true,
+      "exitCode": 0
+    },
+    {
+      "name": "artifact-receipt-delta",
+      "sourceSha": "237257507b0ed9dff2fc8dbf653c89b2f50abb02",
+      "apiPassed": 140,
+      "existingSkipped": 1,
+      "fullApiTypes": true,
+      "exitCode": 0
+    }
+  ],
+  "humanReview": "Independent Hermes Bedrock Kimi reviews retained; no original live human rubric result claimed",
+  "schemaChange": false,
+  "migrationWrites": 0,
+  "originalLiveCasesExecuted": 0,
+  "fullFile01Acceptance": false,
+  "nativeBuilds": "NOT_RUN",
+  "files": {
+    "budget-qualification.json": {
+      "originalLocalSha256": "c7faa2d2dd517db7af9a7f4e64eb1cc4104d0bde915cc6c860fe007a769008de",
+      "archivedSha256": "85accaa03729125dac391cc53ce44c74624da974858ae55c22e443d776a3deb6"
+    },
+    "meri-offline.json": {
+      "originalLocalSha256": "136dfda3b9f5f5890071b28d6f3881c69d63ebe04ebf5fd2f5baf7168c2eca76",
+      "archivedSha256": "136dfda3b9f5f5890071b28d6f3881c69d63ebe04ebf5fd2f5baf7168c2eca76"
+    },
+    "meri-offline.summary.json": {
+      "originalLocalSha256": "0138e37596d4b44b6f5fa4cb0db78bec04a83a3eaf5947d1c968e670591b1c50",
+      "archivedSha256": "0a356783e98be922c30fd133bdeb5ad428daa989ded63c1e39a61af242d7f010"
+    },
+    "artifact-api.log": {
+      "originalLocalSha256": "399abe5f9d2f23020d431841531deed26e35f230577ed82b0fc1a7541a8f6836",
+      "archivedSha256": "81f2990cbbc957ca955bfaa2058dc6fe3db41928030051ec428c2359aff7b502"
+    },
+    "artifact-types.log": {
+      "originalLocalSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "archivedSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "artifact-qualification.json": {
+      "originalLocalSha256": "95ebab6b26bbcb54859b952de0ee38d1d9e236b79ea20605e31a45ec381fa58a",
+      "archivedSha256": "d40a4f929b5928475a45edfa93fc660508e015bb5f50ca0287af788ed1463fb8"
+    }
+  }
+}

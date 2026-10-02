@@ -1,0 +1,95 @@
+{
+  "sourceSha": "758dd54a279c64d27593f0fcae0e327fb654015c",
+  "checks": [
+    {
+      "name": "api-types",
+      "command": [
+        "C:\\Program Files\\nodejs\\pnpm.cmd",
+        "--filter",
+        "@capiro/api",
+        "exec",
+        "tsc",
+        "--noEmit",
+        "--rootDir",
+        "."
+      ],
+      "exitCode": 0,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "orchestrator-types",
+      "command": [
+        "C:\\Program Files\\nodejs\\pnpm.cmd",
+        "--filter",
+        "@capiro/meriv2-orchestrator",
+        "typecheck"
+      ],
+      "exitCode": 0,
+      "logSha256": "401e428fdb91c6be6810d2cd5e5374f15d3ffe28046a1ea9d1b9119d3bc5a009"
+    },
+    {
+      "name": "api-regression",
+      "command": [
+        "C:\\Program Files\\nodejs\\pnpm.cmd",
+        "--filter",
+        "@capiro/api",
+        "exec",
+        "jest",
+        "--runInBand",
+        "--forceExit",
+        "src/meri/meri-server-readonly-capture.spec.ts",
+        "src/meri/meri-tools.defense-budget.spec.ts"
+      ],
+      "exitCode": 0,
+      "logSha256": "a22faeb302eaf691d40c61cec17318a1bd7b3f256bcd3d839a4f348222227131"
+    },
+    {
+      "name": "orchestrator-regression",
+      "command": [
+        "C:\\Program Files\\nodejs\\pnpm.cmd",
+        "--filter",
+        "@capiro/meriv2-orchestrator",
+        "exec",
+        "jest",
+        "--runInBand",
+        "--forceExit",
+        "src/meri/controlled-read-observations.spec.ts",
+        "src/meri/meriv3/meriv3-capture-evidence.spec.ts"
+      ],
+      "exitCode": 0,
+      "logSha256": "569b211d7086c40039a5fe7f8a9918253bfac7ca2dc6734d73bdf738e5853845"
+    },
+    {
+      "name": "promptfoo",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "node_modules/promptfoo/dist/src/entrypoint.js",
+        "eval",
+        "-c",
+        "evals/meri/promptfooconfig.yaml",
+        "--no-cache",
+        "--no-share",
+        "--no-write",
+        "--no-table",
+        "--no-progress-bar",
+        "-o",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\budget-composed-verification\\meri-offline.json"
+      ],
+      "exitCode": 0,
+      "logSha256": "5c722d64924859a78be02dfd8fd175cd8ca98117f526997ccfc1a94525030eca"
+    },
+    {
+      "name": "custom-verifier",
+      "command": [
+        "C:\\ProgramData\\Hermes\\tools\\python-3.14.7+20260901-win32-x64\\python.exe",
+        "evals/meri/verify_report.py",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\budget-composed-verification\\meri-offline.json",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\budget-composed-verification\\meri-offline.summary.json"
+      ],
+      "exitCode": 0,
+      "logSha256": "a657c3cf4806b8bc72f694f0a9b924a8603b94c2f0bb22959b7d2c73ae5b687f"
+    }
+  ],
+  "liveAcceptance": "NOT_RUN",
+  "exitCode": 0
+}

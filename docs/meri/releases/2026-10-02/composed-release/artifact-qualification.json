@@ -1,0 +1,57 @@
+{
+  "verdict": "PASS_SOURCE_CHECKPOINT_ONLY",
+  "sourceFiles": {
+    "apps/api/src/meri/meri-action-proposal.service.ts": "992ba2928786d3f6fbfac6f107afa174b239782604c1c718a45e5535410f772e",
+    "apps/api/src/meri/meri-action-proposal.service.spec.ts": "e6188c0bcabf6d177e558c0708300f56c6d759a628d71e889b92040b978bba83",
+    "apps/api/src/meri/meri-document-artifact.spec.ts": "a3d4384830dba47b90e8e8054361dae4ec731dd0532fba034815a74378567d9a",
+    "apps/api/src/meri/meri-text-artifact-receipt.ts": "906939cdcdb596fbea214c5b8b5c9e66fb7e5767fa5492e2920e7c673e4e3993",
+    "apps/api/src/meri/meri-tools.service.ts": "344fec63037548063edfef5d0c74181204d7cbbb634d591541bab9fad091bbae",
+    "apps/api/src/meri/meri.controller.ts": "5c4a8a6e4ae591b8384fbbee07043618e1c28d47e7f55bfeeb80591d97d296c4",
+    "apps/api/src/meri/meri-text-artifact-current-proposal.ts": "2dbd69df5c861564e4ae69261b12024fddbe4d61b9e837f251a8a1659eec9417"
+  },
+  "tests": [
+    {
+      "command": "pnpm exec jest --runInBand --forceExit src/meri/meri-document-artifact.spec.ts src/meri/meri-action-proposal.service.spec.ts",
+      "passed": 139,
+      "skipped": 1,
+      "exitCode": 0,
+      "log": "proposal-receipt-tests-v1.log"
+    },
+    {
+      "command": "pnpm exec jest --runInBand --forceExit src/meri/meri-action-proposal.service.spec.ts --testNamePattern retains text artifact effect identity",
+      "passed": 1,
+      "excluded": 109,
+      "exitCode": 0,
+      "log": "proposal-summary-regression.log"
+    },
+    {
+      "command": "pnpm exec tsc --noEmit --rootDir .",
+      "exitCode": 0,
+      "log": "proposal-receipt-typecheck-v2.log"
+    }
+  ],
+  "review": {
+    "provider": "bedrock",
+    "model": "moonshotai.kimi-k2.5",
+    "session": "20261002_085105_d15f34",
+    "exitCode": 0,
+    "toolCalls": 0,
+    "verdict": "PASS",
+    "postReviewTestOnlyDelta": "Root independently reviewed 22-line durable summary test PASS"
+  },
+  "reviewAdjudication": [
+    "Kimi prose overstates live case46 capture readiness; distinct governed write capture is not implemented",
+    "attemptCount does not establish effect count; completed input/result/owner joins remain checked"
+  ],
+  "live46": "NOT_RUN",
+  "remaining": [
+    "distinct governed-write admission and bounded provider accounting",
+    "source-owned capture composition and actual UI download grading",
+    "API and web-vnext qualified build/deploy",
+    "actual frozen case46 execution"
+  ],
+  "failedRunsPreserved": [
+    "proposal-receipt-typecheck-v1.log"
+  ],
+  "lineEndings": "Normalized CRLF to LF before commit; no semantic change"
+}
