@@ -20,7 +20,7 @@ After careful analysis of the source code against the shared policy and the spec
 def fixed_inputs():
     for path, expected in [(BASE, BASE_SHA), (ORIGINAL_INPUT, ORIGINAL_INPUT_SHA), (FAILED, FAILED_SHA), (READBACK, READBACK_SHA)]:
         m.need(m.file_sha(path) == expected, 'ORIGINAL_EVIDENCE_CHANGED')
-    # ... 
+    # ...
     recipe = m.read_json(ORIGINAL_INPUT)['recipe']  # <- Reads mutable file
     m.need(recipe['captureRunId'] == RUN and recipe['ctx']['tenantId'] == m.T1
            and m.digest(recipe) == owner['claim']['recipeSha256'], 'ORIGINAL_RECIPE_CHANGED')

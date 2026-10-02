@@ -1,174 +1,303 @@
 {
   "deployment/api-promotion-receipt.json": {
-    "sha256": "46fb1bfea3d763e429f0bc758b399a893cace3b27d2c5e2ea29aea1983cd8e21",
-    "bytes": 1034
+    "bytes": 1034,
+    "originalLocalSha256": "46fb1bfea3d763e429f0bc758b399a893cace3b27d2c5e2ea29aea1983cd8e21",
+    "archivedSha256": "46fb1bfea3d763e429f0bc758b399a893cace3b27d2c5e2ea29aea1983cd8e21",
+    "archivedBytes": 1034,
+    "normalization": "LF; markdown/log trailing whitespace removed"
   },
   "deployment/meriv2-orchestrator-promotion-receipt.json": {
-    "sha256": "8d752d5a0f5157d437d02ef379ac8e730444d5ab533df4ecde3add7921eaf5b6",
-    "bytes": 1112
+    "bytes": 1112,
+    "originalLocalSha256": "8d752d5a0f5157d437d02ef379ac8e730444d5ab533df4ecde3add7921eaf5b6",
+    "archivedSha256": "8d752d5a0f5157d437d02ef379ac8e730444d5ab533df4ecde3add7921eaf5b6",
+    "archivedBytes": 1112,
+    "normalization": "LF; markdown/log trailing whitespace removed"
   },
   "deployment/web-vnext-promotion-receipt.json": {
-    "sha256": "421a8d2db32811945742cdcc72f8c7004f8e2c9174cc88d9b095581db1e4585d",
-    "bytes": 1064
+    "bytes": 1064,
+    "originalLocalSha256": "421a8d2db32811945742cdcc72f8c7004f8e2c9174cc88d9b095581db1e4585d",
+    "archivedSha256": "421a8d2db32811945742cdcc72f8c7004f8e2c9174cc88d9b095581db1e4585d",
+    "archivedBytes": 1064,
+    "normalization": "LF; markdown/log trailing whitespace removed"
   },
   "case17/setup-plan-execution.json": {
-    "sha256": "7af3982794bfbf2dd4763ba8b7d6aaaa7dc4b40ec296fd5e4ebed7b5eacde75c",
-    "bytes": 1488
+    "bytes": 1488,
+    "originalLocalSha256": "7af3982794bfbf2dd4763ba8b7d6aaaa7dc4b40ec296fd5e4ebed7b5eacde75c",
+    "archivedSha256": "c764b561ffef616412c4da796b22c36b91b36c504c848a5ab8537c3365939f80",
+    "archivedBytes": 1453,
+    "normalization": "LF; markdown/log trailing whitespace removed"
   },
   "case17/setup-execute-execution.json": {
-    "sha256": "b7240a5bf3a0de1d9f91e698901002f0f66a87a47ee2d464911ab951133e129b",
-    "bytes": 7910
+    "bytes": 7910,
+    "originalLocalSha256": "b7240a5bf3a0de1d9f91e698901002f0f66a87a47ee2d464911ab951133e129b",
+    "archivedSha256": "82f464cede96b39ef05fc4eebc26e359ccafebf120f281ecd5cafa5df883de1b",
+    "archivedBytes": 7720,
+    "normalization": "LF; markdown/log trailing whitespace removed"
   },
   "case17/live-execution.json": {
-    "sha256": "91af3b3ae751cf0965aea6f197cafb4e76debc1458a49de7e67e79d19ca98f77",
-    "bytes": 378
+    "bytes": 378,
+    "originalLocalSha256": "91af3b3ae751cf0965aea6f197cafb4e76debc1458a49de7e67e79d19ca98f77",
+    "archivedSha256": "91af3b3ae751cf0965aea6f197cafb4e76debc1458a49de7e67e79d19ca98f77",
+    "archivedBytes": 378,
+    "normalization": "LF; markdown/log trailing whitespace removed"
   },
   "case17/live-execution-v2.json": {
-    "sha256": "b7a5700baff310ee82f86ce70c4095f43430a8a14f4d3a118da8b2d94fe56ef1",
-    "bytes": 395
+    "bytes": 395,
+    "originalLocalSha256": "b7a5700baff310ee82f86ce70c4095f43430a8a14f4d3a118da8b2d94fe56ef1",
+    "archivedSha256": "b7a5700baff310ee82f86ce70c4095f43430a8a14f4d3a118da8b2d94fe56ef1",
+    "archivedBytes": 395,
+    "normalization": "LF; markdown/log trailing whitespace removed"
   },
   "case17/live-execution-v3.json": {
-    "sha256": "793eaad76079664ed5de425e3e9c14a24bcb321d8e3c60178649a182db60ce8f",
-    "bytes": 395
+    "bytes": 395,
+    "originalLocalSha256": "793eaad76079664ed5de425e3e9c14a24bcb321d8e3c60178649a182db60ce8f",
+    "archivedSha256": "793eaad76079664ed5de425e3e9c14a24bcb321d8e3c60178649a182db60ce8f",
+    "archivedBytes": 395,
+    "normalization": "LF; markdown/log trailing whitespace removed"
   },
   "case17/http-diagnostic.json": {
-    "sha256": "8393b979e5e201e553d174e05e1fe3c6db59a15c527c43770cd822f326270e1a",
-    "bytes": 1129
+    "bytes": 1129,
+    "originalLocalSha256": "8393b979e5e201e553d174e05e1fe3c6db59a15c527c43770cd822f326270e1a",
+    "archivedSha256": "8393b979e5e201e553d174e05e1fe3c6db59a15c527c43770cd822f326270e1a",
+    "archivedBytes": 1129,
+    "normalization": "LF; markdown/log trailing whitespace removed"
   },
   "case17/http-diagnostic-v2.json": {
-    "sha256": "4e4759bec2d3e4b8904c0a92e1c28aa04e27cab33fae523e71251a07451cc1af",
-    "bytes": 1373
+    "bytes": 1373,
+    "originalLocalSha256": "4e4759bec2d3e4b8904c0a92e1c28aa04e27cab33fae523e71251a07451cc1af",
+    "archivedSha256": "4e4759bec2d3e4b8904c0a92e1c28aa04e27cab33fae523e71251a07451cc1af",
+    "archivedBytes": 1373,
+    "normalization": "LF; markdown/log trailing whitespace removed"
   },
   "case17/storage-regression.json": {
-    "sha256": "8f5ce7f6e6174d9520e358f9f37e100b492895a6f2b523fb0bbdc32a76f937c0",
-    "bytes": 129
+    "bytes": 129,
+    "originalLocalSha256": "8f5ce7f6e6174d9520e358f9f37e100b492895a6f2b523fb0bbdc32a76f937c0",
+    "archivedSha256": "8f5ce7f6e6174d9520e358f9f37e100b492895a6f2b523fb0bbdc32a76f937c0",
+    "archivedBytes": 129,
+    "normalization": "LF; markdown/log trailing whitespace removed"
   },
   "case17/root-user-agent-regression.log": {
-    "sha256": "35fbf0c8d7654dd947d7e5b1d2e13a4d036ce251c8239264ba974e35a4ae626d",
-    "bytes": 1580
+    "bytes": 1580,
+    "originalLocalSha256": "35fbf0c8d7654dd947d7e5b1d2e13a4d036ce251c8239264ba974e35a4ae626d",
+    "archivedSha256": "94b4573c11d026b6fb0bd5cd8c7087e04c924084b800fc1e4254846d5ab6c00f",
+    "archivedBytes": 1534,
+    "normalization": "LF; markdown/log trailing whitespace removed"
   },
   "case17/root-api-release-header-jest.log": {
-    "sha256": "8810d1218750b127fc3e5261364ebe908ff033aab3392d4b29ab5ccd55759a60",
-    "bytes": 2656
+    "bytes": 2656,
+    "originalLocalSha256": "8810d1218750b127fc3e5261364ebe908ff033aab3392d4b29ab5ccd55759a60",
+    "archivedSha256": "24eaf09c2bc9bf1dfa4f63a8e791fdc35d5b5d310d90029ee45c89fcf8856fd2",
+    "archivedBytes": 2624,
+    "normalization": "LF; markdown/log trailing whitespace removed"
   },
   "case17/case17-transport-header-kimi-review.md": {
-    "sha256": "5eb4b8c4e87749bb94775f3371ef136f18d1c598d2c0fe1faef0e74bbd243547",
-    "bytes": 5
+    "bytes": 5,
+    "originalLocalSha256": "5eb4b8c4e87749bb94775f3371ef136f18d1c598d2c0fe1faef0e74bbd243547",
+    "archivedSha256": "5eb4b8c4e87749bb94775f3371ef136f18d1c598d2c0fe1faef0e74bbd243547",
+    "archivedBytes": 5,
+    "normalization": "LF; markdown/log trailing whitespace removed"
   },
   "case17/case17-transport-header-kimi-usage.json": {
-    "sha256": "327215eb3a54f2b85754ce49afbbe31fa3a70f9816e36da833652dceeb6562e0",
-    "bytes": 422
+    "bytes": 422,
+    "originalLocalSha256": "327215eb3a54f2b85754ce49afbbe31fa3a70f9816e36da833652dceeb6562e0",
+    "archivedSha256": "5b1d17aabe814d39d1bdb266924a6747e5c80d4ec4fc0f7121383a90d4aac450",
+    "archivedBytes": 406,
+    "normalization": "LF; markdown/log trailing whitespace removed"
   },
   "case17/case17-transport-header-kimi-exit.json": {
-    "sha256": "751560c10be5c396b5518dd280ce26bc5b6e11398e9517e2c6513d7c2cfe729c",
-    "bytes": 103
+    "bytes": 103,
+    "originalLocalSha256": "751560c10be5c396b5518dd280ce26bc5b6e11398e9517e2c6513d7c2cfe729c",
+    "archivedSha256": "751560c10be5c396b5518dd280ce26bc5b6e11398e9517e2c6513d7c2cfe729c",
+    "archivedBytes": 103,
+    "normalization": "LF; markdown/log trailing whitespace removed"
   },
   "case17/case17-transport-header-kimi-v2-review.md": {
-    "sha256": "2a627591ae70a37d801e8e2ea120c1e92816e8fa06bd407f897246b31dc63cfd",
-    "bytes": 2318
+    "bytes": 2318,
+    "originalLocalSha256": "2a627591ae70a37d801e8e2ea120c1e92816e8fa06bd407f897246b31dc63cfd",
+    "archivedSha256": "327211942564e7764ea331e4f35fe5835661d74c32bf74d0aa5fd3a1237d5fad",
+    "archivedBytes": 2279,
+    "normalization": "LF; markdown/log trailing whitespace removed"
   },
   "case17/case17-transport-header-kimi-v2-usage.json": {
-    "sha256": "18b6ce49b21e2cfc111a5ff64a90eebaef00c4cd0b535377ab3452fbeef59b46",
-    "bytes": 424
+    "bytes": 424,
+    "originalLocalSha256": "18b6ce49b21e2cfc111a5ff64a90eebaef00c4cd0b535377ab3452fbeef59b46",
+    "archivedSha256": "cfcae860210fe2a7ead146f47e6dc0ec0868160b0d562b7c3e4051560475d299",
+    "archivedBytes": 408,
+    "normalization": "LF; markdown/log trailing whitespace removed"
   },
   "case17/case17-transport-header-kimi-v2-exit.json": {
-    "sha256": "3d6ddbd36c5d093bae3c5690cd75bccf0c66becef105642c6e938c2fab21d05e",
-    "bytes": 102
+    "bytes": 102,
+    "originalLocalSha256": "3d6ddbd36c5d093bae3c5690cd75bccf0c66becef105642c6e938c2fab21d05e",
+    "archivedSha256": "3d6ddbd36c5d093bae3c5690cd75bccf0c66becef105642c6e938c2fab21d05e",
+    "archivedBytes": 102,
+    "normalization": "LF; markdown/log trailing whitespace removed"
   },
   "case01/first-approval-recovery-verification.json": {
-    "sha256": "76b69955c63ecbb43e947786467e5dce766905af66892cf4c4fca47955372091",
-    "bytes": 4608
+    "bytes": 4608,
+    "originalLocalSha256": "76b69955c63ecbb43e947786467e5dce766905af66892cf4c4fca47955372091",
+    "archivedSha256": "e6b810598dfe30341d1bd79f96dda2d9c39cbb8ad57cb49ee384b3d3ae6bb1b0",
+    "archivedBytes": 4521,
+    "normalization": "LF; markdown/log trailing whitespace removed"
   },
   "case01/first-approval-recovery-kimi-review.md": {
-    "sha256": "c48470c1bf9a8900e944e623761926715601a12cc3c4894cee1307b44f6db67c",
-    "bytes": 4893
+    "bytes": 4893,
+    "originalLocalSha256": "c48470c1bf9a8900e944e623761926715601a12cc3c4894cee1307b44f6db67c",
+    "archivedSha256": "d80d30bc2636aba8f36135b04985be14c05dc8d96b02bb33adc97c8893475484",
+    "archivedBytes": 4813,
+    "normalization": "LF; markdown/log trailing whitespace removed"
   },
   "case01/first-approval-recovery-kimi-usage.json": {
-    "sha256": "f0607763c19437f73f7c9c9e390eadc0837b4357a23063460470096d0ce11271",
-    "bytes": 427
+    "bytes": 427,
+    "originalLocalSha256": "f0607763c19437f73f7c9c9e390eadc0837b4357a23063460470096d0ce11271",
+    "archivedSha256": "3d7060274aa2bf81d29e40286124b081b1e0e8ba70c2cc15a2fecc98e5249674",
+    "archivedBytes": 411,
+    "normalization": "LF; markdown/log trailing whitespace removed"
   },
   "case01/first-approval-recovery-kimi-exit.json": {
-    "sha256": "c26e1d21171dae57857c2baa1520191ef6f571f85edbfea92e8436cc4c1b229a",
-    "bytes": 102
+    "bytes": 102,
+    "originalLocalSha256": "c26e1d21171dae57857c2baa1520191ef6f571f85edbfea92e8436cc4c1b229a",
+    "archivedSha256": "c26e1d21171dae57857c2baa1520191ef6f571f85edbfea92e8436cc4c1b229a",
+    "archivedBytes": 102,
+    "normalization": "LF; markdown/log trailing whitespace removed"
   },
   "case01/root-recovery-integration.log": {
-    "sha256": "75637b558cf304fa59d0cad6440515bb7f4b271b2170dcbabfeb70865107f209",
-    "bytes": 11597
+    "bytes": 11597,
+    "originalLocalSha256": "75637b558cf304fa59d0cad6440515bb7f4b271b2170dcbabfeb70865107f209",
+    "archivedSha256": "c7475d54ead89d057cb67d2746b62a791370c138354c5931efb55250e2dcb42d",
+    "archivedBytes": 11472,
+    "normalization": "LF; markdown/log trailing whitespace removed"
   },
   "case01/root-recovery-offline26.summary.json": {
-    "sha256": "6a35727f574605a3cbe8d0beab7602dd123034319415aa49474b2576e1121c29",
-    "bytes": 3933
+    "bytes": 3933,
+    "originalLocalSha256": "6a35727f574605a3cbe8d0beab7602dd123034319415aa49474b2576e1121c29",
+    "archivedSha256": "491b48997e3d9ea142bfc95c12ec40f8d0b426033c54dd16bcb4a1b3c91c26c6",
+    "archivedBytes": 3820,
+    "normalization": "LF; markdown/log trailing whitespace removed"
   },
   "case01/root-recovery-offline26.json": {
-    "sha256": "620ec584a59a3a56b37adaa98a6c553accc2b21ca02fc3f75fbd5d28d1d43107",
-    "bytes": 146733
+    "bytes": 146733,
+    "originalLocalSha256": "620ec584a59a3a56b37adaa98a6c553accc2b21ca02fc3f75fbd5d28d1d43107",
+    "archivedSha256": "620ec584a59a3a56b37adaa98a6c553accc2b21ca02fc3f75fbd5d28d1d43107",
+    "archivedBytes": 146733,
+    "normalization": "LF; markdown/log trailing whitespace removed"
   },
   "case01/case01-recovery-oneoff.py": {
-    "sha256": "c6c69d49da95b5e21f3eeae6670cf41c35ef875aaee1638facb31dd93366ca73",
-    "bytes": 20540
+    "bytes": 20540,
+    "originalLocalSha256": "c6c69d49da95b5e21f3eeae6670cf41c35ef875aaee1638facb31dd93366ca73",
+    "archivedSha256": "c6c69d49da95b5e21f3eeae6670cf41c35ef875aaee1638facb31dd93366ca73",
+    "archivedBytes": 20540,
+    "normalization": "LF; markdown/log trailing whitespace removed"
   },
   "case01/case01-recovery-oneoff-tests.py": {
-    "sha256": "6c852d38d42f0b6a9599fa4ecc0fa585557c9db6b4b123788a2a9a24dbec4f37",
-    "bytes": 15663
+    "bytes": 15663,
+    "originalLocalSha256": "6c852d38d42f0b6a9599fa4ecc0fa585557c9db6b4b123788a2a9a24dbec4f37",
+    "archivedSha256": "6c852d38d42f0b6a9599fa4ecc0fa585557c9db6b4b123788a2a9a24dbec4f37",
+    "archivedBytes": 15663,
+    "normalization": "LF; markdown/log trailing whitespace removed"
   },
   "case01/case01-recovery-oneoff-qualification.json": {
-    "sha256": "ef688eb2a0ed22f06ddfee4e141d0655611479cc71c2d7a4077195eacd1f875b",
-    "bytes": 3924
+    "bytes": 3924,
+    "originalLocalSha256": "ef688eb2a0ed22f06ddfee4e141d0655611479cc71c2d7a4077195eacd1f875b",
+    "archivedSha256": "e057ad36e5a20920353c1ea28b4088cedf5ab0fba1a0f72e5e93dee1b200ffc5",
+    "archivedBytes": 3856,
+    "normalization": "LF; markdown/log trailing whitespace removed"
   },
   "case01/case01-recovery-root-commands.md": {
-    "sha256": "cca4d0d68c59a2b70e4e610fb5d8415dd5cc7e6c73dda1b1cb631be82502747a",
-    "bytes": 6052
+    "bytes": 6052,
+    "originalLocalSha256": "cca4d0d68c59a2b70e4e610fb5d8415dd5cc7e6c73dda1b1cb631be82502747a",
+    "archivedSha256": "cca4d0d68c59a2b70e4e610fb5d8415dd5cc7e6c73dda1b1cb631be82502747a",
+    "archivedBytes": 6052,
+    "normalization": "LF; markdown/log trailing whitespace removed"
   },
   "case01/case01-recovery-oneoff-tests-v3.log": {
-    "sha256": "29a15d9381b51da46c55320ff57acb29273cdbfc379e8a7e6ed7701f2c724f83",
-    "bytes": 119
+    "bytes": 119,
+    "originalLocalSha256": "29a15d9381b51da46c55320ff57acb29273cdbfc379e8a7e6ed7701f2c724f83",
+    "archivedSha256": "1f0aebc4312c732a75780015f089e678d25448978c7aacf010dae81fc6d42a97",
+    "archivedBytes": 114,
+    "normalization": "LF; markdown/log trailing whitespace removed"
   },
   "case01/case01-recovery-oneoff-tests-v3.exit": {
-    "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
-    "bytes": 3
+    "bytes": 3,
+    "originalLocalSha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+    "archivedSha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "archivedBytes": 2,
+    "normalization": "LF; markdown/log trailing whitespace removed"
   },
   "case01/recovery-oneoff-kimi-review.md": {
-    "sha256": "61f793eb1f8e61c5be48fb70ad76a70500632439c665544a30c96bec6910710e",
-    "bytes": 6650
+    "bytes": 6650,
+    "originalLocalSha256": "61f793eb1f8e61c5be48fb70ad76a70500632439c665544a30c96bec6910710e",
+    "archivedSha256": "4ac4bd28a6d0ce7d84b22a404fe1dabcc4feb279773a588ab95038d16e047f03",
+    "archivedBytes": 6532,
+    "normalization": "LF; markdown/log trailing whitespace removed"
   },
   "case01/recovery-oneoff-kimi-usage.json": {
-    "sha256": "1ade8498cb28888579d0134baf70bc67f50ac93b72b8ec4c9910a2b7b99dfc6f",
-    "bytes": 427
+    "bytes": 427,
+    "originalLocalSha256": "1ade8498cb28888579d0134baf70bc67f50ac93b72b8ec4c9910a2b7b99dfc6f",
+    "archivedSha256": "34f0868c6b6aee7471dad559726cf2ed8688e97897113bb0f318a3f16cc9237f",
+    "archivedBytes": 411,
+    "normalization": "LF; markdown/log trailing whitespace removed"
   },
   "case01/recovery-oneoff-kimi-exit.json": {
-    "sha256": "022e2294413032173158a9378f0ab3dbab006c5ede3b507dcb6070c6708484dc",
-    "bytes": 103
+    "bytes": 103,
+    "originalLocalSha256": "022e2294413032173158a9378f0ab3dbab006c5ede3b507dcb6070c6708484dc",
+    "archivedSha256": "022e2294413032173158a9378f0ab3dbab006c5ede3b507dcb6070c6708484dc",
+    "archivedBytes": 103,
+    "normalization": "LF; markdown/log trailing whitespace removed"
   },
   "controlled/controlled-operator-delivery.json": {
-    "sha256": "f9069d3e9936b78be2d6afeb88187fa234d2b619cea4bf97f6e2e82b6fb61932",
-    "bytes": 7866
+    "bytes": 7866,
+    "originalLocalSha256": "f9069d3e9936b78be2d6afeb88187fa234d2b619cea4bf97f6e2e82b6fb61932",
+    "archivedSha256": "ae78fe41189850262dc3beb7508bad7b85605f0221b607606242050a085f0cde",
+    "archivedBytes": 7687,
+    "normalization": "LF; markdown/log trailing whitespace removed"
   },
   "controlled/controlled-operator-handover.md": {
-    "sha256": "5d69ad31ff86e4c52791d99a51e232d399a0aacf213e93ea82826d37f28f13b3",
-    "bytes": 3472
+    "bytes": 3472,
+    "originalLocalSha256": "5d69ad31ff86e4c52791d99a51e232d399a0aacf213e93ea82826d37f28f13b3",
+    "archivedSha256": "b5f3708e5e5854fc92d32fa2ed3d700f957ec7d259c388315f963b5e8b3cb2a1",
+    "archivedBytes": 3459,
+    "normalization": "LF; markdown/log trailing whitespace removed"
   },
   "controlled/controlled-operator-kimi-review.md": {
-    "sha256": "4e18116e54640a345078ce1af060c51f0ba26215de54db8b0b14565bffc94d12",
-    "bytes": 11185
+    "bytes": 11185,
+    "originalLocalSha256": "4e18116e54640a345078ce1af060c51f0ba26215de54db8b0b14565bffc94d12",
+    "archivedSha256": "282dc19044c7ad186ba44f4de4d899e083d1e668de27b2aff7f5430a72204790",
+    "archivedBytes": 11020,
+    "normalization": "LF; markdown/log trailing whitespace removed"
   },
   "controlled/controlled-operator-kimi-usage.json": {
-    "sha256": "9250f1e530f756accff4c69424da9940a6e8fe711bb41bc63bba183ab8377337",
-    "bytes": 427
+    "bytes": 427,
+    "originalLocalSha256": "9250f1e530f756accff4c69424da9940a6e8fe711bb41bc63bba183ab8377337",
+    "archivedSha256": "54914ab03e82e7eb73dd637473e6391ea8596c02f69dd6a0322c66daa05f2dd6",
+    "archivedBytes": 411,
+    "normalization": "LF; markdown/log trailing whitespace removed"
   },
   "controlled/controlled-oneoff-kimi-review.md": {
-    "sha256": "0836a6632d5b959284030b6deeaceb6246832806631931fab45b6db4bf02d20f",
-    "bytes": 4018
+    "bytes": 4018,
+    "originalLocalSha256": "0836a6632d5b959284030b6deeaceb6246832806631931fab45b6db4bf02d20f",
+    "archivedSha256": "31b5b361dfb7e8465469aa34ad423c489901109a51ce2164e11a8402193b93d6",
+    "archivedBytes": 3965,
+    "normalization": "LF; markdown/log trailing whitespace removed"
   },
   "controlled/controlled-oneoff-kimi-usage.json": {
-    "sha256": "9cc042c80d947f1eeb187f08db33f07958ba4f558e1adb3a0c5387f5c6d76d27",
-    "bytes": 426
+    "bytes": 426,
+    "originalLocalSha256": "9cc042c80d947f1eeb187f08db33f07958ba4f558e1adb3a0c5387f5c6d76d27",
+    "archivedSha256": "48fbb7cfaee3354a0ae4e5eccf630eb4d627228e7a2e3ca93de5fc28de13c519",
+    "archivedBytes": 410,
+    "normalization": "LF; markdown/log trailing whitespace removed"
   },
   "controlled/controlled-operator-offline26.summary.json": {
-    "sha256": "f81421935b6c03dcb1f0c91989fdbc67847d7cb37330ee4a97ad3080f9fa44ab",
-    "bytes": 3934
+    "bytes": 3934,
+    "originalLocalSha256": "f81421935b6c03dcb1f0c91989fdbc67847d7cb37330ee4a97ad3080f9fa44ab",
+    "archivedSha256": "58a8edb43250a38083ce8922ed063ba71ecb16b290319618ecc5007bb2600c5a",
+    "archivedBytes": 3821,
+    "normalization": "LF; markdown/log trailing whitespace removed"
   },
   "controlled-header/driver544-qualification.json": {
-    "sha256": "91e4c9db34ba7ddd56839ac7919b590e5fb804cceddb78489fd78b6f9fd3e0f4",
-    "bytes": 4386
+    "bytes": 4386,
+    "originalLocalSha256": "91e4c9db34ba7ddd56839ac7919b590e5fb804cceddb78489fd78b6f9fd3e0f4",
+    "archivedSha256": "2928260898d9bdaf15ab1c2cd15415cfc9a97815306d4700059c5eab1bca003a",
+    "archivedBytes": 4293,
+    "normalization": "LF; markdown/log trailing whitespace removed"
   }
 }
