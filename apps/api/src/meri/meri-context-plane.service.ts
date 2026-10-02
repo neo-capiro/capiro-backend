@@ -56,6 +56,8 @@ interface ChatConversationScope {
 
 interface SecurityEnvelope {
   authorizedClientIds: string[];
+  /** Server-owned names for conservative selected-client shorthand disambiguation. */
+  authorizedClientNames?: string[];
   authorizedMailboxConnectionIds: string[];
 }
 
@@ -212,11 +214,12 @@ export class MeriContextPlaneService {
       ref: Record<string, string | null | undefined>;
     },
   ): Promise<MeriGovernedTurnContext> {
-    const security = await this.securityEnvelope(ctx);
+    const security = await this.securityEnvelope(ctx, true);
     const plan = planMeriTurn({
       task: input.task,
       uiClientId: input.uiClientId,
       uiClientName: input.uiClientName,
+      authorizedClientNames: security.authorizedClientNames,
     });
     assertCaptureApiRetrievalPlan(plan);
 
@@ -386,7 +389,7 @@ export class MeriContextPlaneService {
 
   /** Server-only access resolver, shared by automatic context and on-demand
    * retrieval tools. Model/browser input must never supply this envelope. */
-  async securityEnvelope(ctx: TenantContext): Promise<SecurityEnvelope> {
+  async securityEnvelope(ctx: TenantContext, includeClientNames = false): Promise<SecurityEnvelope> {
     return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
       const [clients, mailboxes] = await Promise.all([
         tx.client.findMany({
@@ -394,7 +397,7 @@ export class MeriContextPlaneService {
             tenantId: ctx.tenantId,
             OR: [{ memoryWall: false }, { memoryAccessGrants: { some: { userId: ctx.userId } } }],
           },
-          select: { id: true },
+          select: { id: true, name: true },
           orderBy: { id: 'asc' },
         }),
         tx.integrationConnection.findMany({
@@ -409,6 +412,7 @@ export class MeriContextPlaneService {
       ]);
       return {
         authorizedClientIds: clients.map((client) => client.id),
+        ...(includeClientNames ? { authorizedClientNames: clients.map((client) => client.name) } : {}),
         authorizedMailboxConnectionIds: mailboxes.map((mailbox) => mailbox.id),
       };
     });
@@ -419,6 +423,7 @@ export function planMeriTurn(input: {
   task: string;
   uiClientId: string | null;
   uiClientName: string | null;
+  authorizedClientNames?: readonly string[];
   now?: Date;
 }): ResolvedTurnPlan {
   const task = input.task.trim();
@@ -445,7 +450,8 @@ export function planMeriTurn(input: {
   const targetIsUiClient =
     !!explicitTarget &&
     !!input.uiClientName &&
-    normalizeEntityName(explicitTarget) === normalizeEntityName(input.uiClientName);
+    (normalizeEntityName(explicitTarget) === normalizeEntityName(input.uiClientName) ||
+      isSelectedClientMemoryPossessive({ ...input, task, explicitTarget }));
   const subjectScope: ContextSubjectScope = explicitTarget
     ? targetIsUiClient && input.uiClientId
       ? 'client'
@@ -1159,6 +1165,36 @@ function buildMeriContextPrompt(input: {
 
 function normalizeEntityName(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+/** A possessive memory attribute names its owner, not a new organization.
+ * Shorthand needs a unique whole-word prefix in current authorized names; it
+ * cannot manufacture an alias from the selected name alone or widen access. */
+function isSelectedClientMemoryPossessive(input: {
+  task: string;
+  explicitTarget: string;
+  uiClientName: string | null;
+  authorizedClientNames?: readonly string[];
+}): boolean {
+  if (
+    !input.uiClientName ||
+    /\b(?:and|or|but|also|compare|versus|vs|instead|rather|except|not)\b/i.test(input.task) ||
+    /[,;\r\n]|[.!?]\s*\S/u.test(input.task)
+  )
+    return false;
+  const owner = /^(.+?)['’]s\s+(?:[\p{L}\p{N}-]+\s+){0,3}(?:preferences?|nickname|voice|tone|memor(?:y|ies))$/iu.exec(
+    input.explicitTarget,
+  )?.[1];
+  if (!owner) return false;
+  const words = (value: string) => value.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+  const ownerName = words(owner);
+  const selectedName = words(input.uiClientName);
+  if (ownerName === selectedName) return true;
+  if (ownerName.length < 3 || !selectedName.startsWith(`${ownerName} `)) return false;
+  const matches = (input.authorizedClientNames ?? []).filter((name) =>
+    typeof name === 'string' && (words(name) === ownerName || words(name).startsWith(`${ownerName} `)),
+  );
+  return matches.length === 1 && words(matches[0]!) === selectedName;
 }
 
 function compatibilitySourceStatus(
