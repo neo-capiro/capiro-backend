@@ -343,8 +343,15 @@ const REQUIREMENTS: Readonly<Record<ClaimCategory, readonly EvidenceRequirement[
  * require complete coverage. Unrecognized wording remains conservative. */
 function withoutResponseFormatOnly(request: string): string {
   return request
+    // A bare numeric reply to an explicit arithmetic expression is a format
+    // directive, not a restriction on a factual dataset. Require the expression
+    // to end the clause so units or factual objects remain conservative.
     .replace(
-      /(^|[.!?;:,\n]\s*)((?:please\s+)?(?:reply|respond|answer)\s+)only\b(?=\s*(?:[:.!?]|$)|\s+(?:(?:with|in)\s+(?:json|xml|yaml|markdown|bullets?|bullet\s+points?|plain\s+text)\b|whether\b))/gi,
+      /(^|[.!?;:,\n]\s*)((?:please\s+)?(?:reply|respond|answer)\s+with\s+)only\b(?=\s+[+-]?\d+(?:\.\d+)?\s+for\s+[+-]?\d+(?:\.\d+)?\s*[+*/-]\s*[+-]?\d+(?:\.\d+)?\s*(?:[.!?;,\n](?=\s|$)|$))/gi,
+      '$1$2',
+    )
+    .replace(
+      /(^|[.!?;:,\n]\s*)((?:please\s+)?(?:reply|respond|answer|report)\s+)only\b(?=\s*(?:[:.!?]|$)|\s+(?:(?:with|in)\s+(?:json|xml|yaml|markdown|bullets?|bullet\s+points?|plain\s+text)\b|whether\b))/gi,
       '$1$2',
     )
     .replace(
