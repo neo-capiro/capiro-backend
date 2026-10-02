@@ -104,4 +104,3 @@ try {
   console.log(PREFIX+JSON.stringify({kind:'meri-case01-membership-enum-readback',schemaVersion:1,status:'READBACK_FAILED',readOnly:true,mutations:0,liveAcceptance:'NOT_RUN',stage,code}));
   process.exitCode=1;
 } finally { await client?.end().catch(()=>{}); }
-

@@ -130,14 +130,14 @@
     {
       "file": "case01-membership-enum-readonly.mjs",
       "originalLocalSha256": "d6a3202c8ca5cc7515961cd5ae65639a08ad0423889f0c0cc8415299a1beb3ba",
-      "archivedSha256": "6c5afc32ef5b346d8c482b8ed3273c3396d8daa58fc703eddbbc0ed22b31e412",
-      "bytes": 14490
+      "archivedSha256": "271543035ea570688db9a58344b775f75308578f72faacca359c2983fa662d11",
+      "bytes": 14489
     },
     {
       "file": "case01-membership-enum-oneoff.py",
       "originalLocalSha256": "4c86bc772dbf222e04eb052dc6e77c3a3074aae13a0890a0b60c6ccbd5464b9d",
-      "archivedSha256": "1190d61c532fb470d5d9f161d23b353c325c2c75f44374e0f5a04af88b7fb338",
-      "bytes": 9201
+      "archivedSha256": "692488c9c16444d57abebb44942bc7913fe2376428f555300f27a7856a28de5c",
+      "bytes": 9200
     },
     {
       "file": "case01-membership-enum-diagnostic-qualification.json",
@@ -160,14 +160,14 @@
     {
       "file": "case01-membership-enum-readonly-v2.mjs",
       "originalLocalSha256": "e05d626bf82746d2bc81a10458a36cad559b0a348d16635fab685f4530260fcc",
-      "archivedSha256": "56b5cc9631e62d093340d243e83ef7998dd5f9f60a973a36cead7117bcec4332",
-      "bytes": 14496
+      "archivedSha256": "e433744ea827784cc72f1e5e8fa9a683836d68820841e254c2b496532648e92b",
+      "bytes": 14495
     },
     {
       "file": "case01-membership-enum-oneoff-v2.py",
       "originalLocalSha256": "d22ab9703a4f7a631392559303e7cc2a634c00f21699d99aa7c3c1b3f3c725bd",
-      "archivedSha256": "c19c323609d6c4e0f0bb79865b8f6648e69fc9020c59ddf9dd3e0ede929ad02d",
-      "bytes": 10012
+      "archivedSha256": "7b489e141286370827993cd2db94dc5fb1b7b116685fe60fecc701218d9565ff",
+      "bytes": 10011
     },
     {
       "file": "case01-membership-enum-v2-qualification.json",

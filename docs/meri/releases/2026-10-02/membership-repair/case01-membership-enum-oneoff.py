@@ -128,4 +128,3 @@ def main():
     except Exception:
         print(json.dumps({'status':'BLOCKED','code':'FIXED_ENUM_DIAGNOSTIC_REFUSED'}));return 1
 if __name__=='__main__':raise SystemExit(main())
-
