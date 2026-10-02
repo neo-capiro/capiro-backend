@@ -1,0 +1,40 @@
+{
+  "kind": "meri-case01-setup-reviewer-authority-preflight",
+  "sourceBase": "7f904b64b244f92a9b6508a4afee4baa6ee0ae09",
+  "policySha": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "scope": "Read actual reviewer approve and revoke authorization before setup plan or durable claim; no grant writes and no recovery retry",
+  "sourceSha256": {
+    "evals/meri/live-v1/fixture-provisioning/case01-execution-setup.mjs": "463675d99a623238f3903c7ddc0057ae9d8e7496bc9db02611088a694cb14710",
+    "evals/meri/live-v1/tests/case01-execution-setup.postgres.test.mjs": "2566846b61567c91e5c8056536d45ed50f2a1696def53217e443c87ca9cf3e5d"
+  },
+  "postgres": {
+    "logSha256": "fa846e8b0e82ace877de9d206505eb780704f1dca40550671cbc8b7210b4e1e6",
+    "failed": 0,
+    "exitCode": 0,
+    "passed": 5,
+    "configuration": "Owned local PostgreSQL 127.0.0.1:55433; private config injected without output",
+    "command": "node --test evals/meri/live-v1/tests/case01-execution-setup.postgres.test.mjs",
+    "skipped": 0
+  },
+  "review": {
+    "provider": "bedrock",
+    "model": "moonshotai.kimi-k2.5",
+    "kind": "independent source review; no test execution",
+    "verdict": "PASS",
+    "reportSha256": "153ca5297140cda1439c10c171cfdbdcf1c0284c7652c1002783d5a7f4ff6bb3",
+    "exitCode": 0,
+    "pid": 20376
+  },
+  "reproduction": {
+    "realFactoryExitCode": 0,
+    "canonical": "REPRODUCED missing_grant, pending candidate 1, items 0, outbox 0",
+    "canonicalExitCode": 0,
+    "realFactory": "REPRODUCED_REAL_FACTORY missing_grant before projection or provider"
+  },
+  "limitations": [
+    "Live cause requires separate authoritative readback",
+    "Does not resume or reset failed live setup",
+    "Does not count as live case01 acceptance",
+    "Paused case46 changes excluded"
+  ]
+}

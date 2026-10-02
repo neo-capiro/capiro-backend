@@ -1,0 +1,66 @@
+{
+  "setup-plan-operation.json": {
+    "originalLocalSha256": "eb50ee4f68992bfe1ef8ee65fa3bac86a8328545ff8633d4fb07e430d522b073",
+    "archivedSha256": "f901da8cac54ea78cb0fb243c13db39bbb2ef8c31c3918205bc44edd498077d2"
+  },
+  "setup-plan-execution.json": {
+    "originalLocalSha256": "f1cfce7f8876b55895c0bffe5f451a4b303f6ffc339ec3018f6a5cf58aa8b874",
+    "archivedSha256": "3c7075ad89a5675a7711d137d6a27cc61100986630cfef19133909465f3eb8b0"
+  },
+  "setup-execute-operation.json": {
+    "originalLocalSha256": "a88115059e58526fe17a7a42c8e03120841a1f67247f0e3d79e492af7221e72b",
+    "archivedSha256": "34839bb135d416c366827b6b66d311fb1d1c2d4b3b58ecd4e08d94114897707f"
+  },
+  "setup-execute-execution.json": {
+    "originalLocalSha256": "391f4e6afb7026847745c4503f10a520b6196309be54c37724fddd0f8d242b93",
+    "archivedSha256": "07c6d365278449d8b34e1a79ffd900b54644a83f6d2fcd3aaf2526e4c98927b2"
+  },
+  "case01-reconcile-operation.json": {
+    "originalLocalSha256": "60547fe3b2ff13f4ab04f3d79ddcf7a21559a700a7379682beda07f3af44c192",
+    "archivedSha256": "3539c1c0bb6590860b0aaecec6ce5cc9639a7e1163d9b80b801df2e174f385ed"
+  },
+  "case01-reconcile-execution.json": {
+    "originalLocalSha256": "018f191b71be80a1f702c794f2b02d1a564fff06cdfcbb33a966a0a52a52519b",
+    "archivedSha256": "e5f9e5fbff515afed9b7162eae450d96e07e1ec927335bca103d2335d7b5da0e"
+  },
+  "case01-reconcile-readonly.mjs": {
+    "originalLocalSha256": "fbfa5799b1cee3b5619af545ef3d115dfc1a19b9498374c7092e5ba3f39aded3",
+    "archivedSha256": "fbfa5799b1cee3b5619af545ef3d115dfc1a19b9498374c7092e5ba3f39aded3"
+  },
+  "case01-reconcile-oneoff.py": {
+    "originalLocalSha256": "05089b79ee33596e4ec6e4ef4c6c26fee6596b652b41cf9b482e6f3d5e7c8f87",
+    "archivedSha256": "c46e176a35c7142955556a9ba6862b146b24bd071506f037396bdd8744f7f2d6"
+  },
+  "case01-reconcile-oneoff-tests.py": {
+    "originalLocalSha256": "1bb3c0643356f67979528d669149d1c60b8376774a541b6e4c3a95919aee694a",
+    "archivedSha256": "376eac13668c99d2d10a6247596a4980c2446e09580ea2e6941fb27199d61e3a"
+  },
+  "case01-reconcile-qualification.json": {
+    "originalLocalSha256": "64554cc0402318ab7d1a0cad9c55e5b36867f1b9f8721d42db906e142c7bfbdc",
+    "archivedSha256": "b9a3201497b61ccb24183cf60f8d7d594eb9cd2a89b884f02df621851f9dda09"
+  },
+  "case01-reconcile-kimi-review.md": {
+    "originalLocalSha256": "c23e6039d905e2b056c77b44613f4b0f2d313d7879130b9f91debdb9cd5dcf1c",
+    "archivedSha256": "9f2eabe6a4f6b3962cb2cd64e1e1873974bfbd4edf041d69a78e7de68cc62217"
+  },
+  "case01-reconcile-kimi-usage.json": {
+    "originalLocalSha256": "446a7fb50df5b5747d9d88e0dba497053439a0ec384af185d7245ab06691e3a5",
+    "archivedSha256": "32019673b4b02b659efd3fe02c51505fa0d76e7ebb67e26eaabda10e8a797135"
+  },
+  "case01-reconcile-kimi-exit.json": {
+    "originalLocalSha256": "063f006fc6a2f435905127eb60492054181dc23735ad6004ebd79148e644a7c4",
+    "archivedSha256": "063f006fc6a2f435905127eb60492054181dc23735ad6004ebd79148e644a7c4"
+  },
+  "setup-authority-preflight-verification.json": {
+    "originalLocalSha256": "5e079dbb9350577af8a5a86b15440cb7b990b4daf4b36244ffeabb5a66694afb",
+    "archivedSha256": "ae856b1a748fc26a61edb821674878e803a37f1a9107fcf964ef65bf44fe8c34"
+  },
+  "setup-preflight-kimi-review.md": {
+    "originalLocalSha256": "153ca5297140cda1439c10c171cfdbdcf1c0284c7652c1002783d5a7f4ff6bb3",
+    "archivedSha256": "6ff43a45114ecb3f2deb22062e5a7adddfbda6452437cacbadd031d4717b81e2"
+  },
+  "api-promotion-receipt.json": {
+    "originalLocalSha256": "1c5d3821b0219f998c4137ba565ea55068261015548d1b74235749450debbb57",
+    "archivedSha256": "1c5d3821b0219f998c4137ba565ea55068261015548d1b74235749450debbb57"
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "status": "RECONCILIATION_REQUIRED",
+  "planHash": "151afd3b281e7e59825b5a0bb9d0b7afa908e27ccf945fe9bc3de27edc06efed",
+  "mode": "setup-execute",
+  "operationId": "f5045f06-3d67-4d99-ad11-60c3096403e5",
+  "sourceSha": "c11c83fe1759183254b24d11a9087ccc89595a73",
+  "operatorHead": "e2ba56f8c779685aed5e44fadec86b4db9776868",
+  "liveAcceptance": "NOT_RUN",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-case01-operator:2",
+  "startedBy": "meri-c01-f5045f06-3d67-4d99-ad11-",
+  "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/69867ce349464296a6c613aaa6b08960",
+  "containerExitCode": 1,
+  "logMessageCount": 4,
+  "ownerReceipts": [
+    {
+      "stage": "CLAIM",
+      "phase": "INTENT",
+      "kind": "meri-case01-execution-setup",
+      "captureRunId": "c6ffa5ad-dd9f-4912-bc31-a03231a9b903",
+      "recipeSha256": "29cc20de9afb70ec31e009afd0b7c3226482f1372b05d2ccec7e86a835ec0142",
+      "status": "STARTED",
+      "liveAcceptance": "NOT_RUN"
+    },
+    {
+      "stage": "PREVIOUS_SEED",
+      "phase": "INTENT",
+      "captureRunId": "c6ffa5ad-dd9f-4912-bc31-a03231a9b903"
+    },
+    {
+      "stage": "PREVIOUS_SEED",
+      "phase": "RECONCILIATION_REQUIRED",
+      "captureRunId": "c6ffa5ad-dd9f-4912-bc31-a03231a9b903"
+    }
+  ],
+  "code": "OWNER_PROCESS_FAILED"
+}

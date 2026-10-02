@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "status": "RECONCILIATION_REQUIRED",
+  "planHash": "d3029610baaca0d2608487e09d179f5bc59a977c3ea90e607cea6113c4326c96",
+  "mode": "reconcile-read",
+  "operationId": "a98d3629-93a9-4f49-b9c8-5a1c3e2a35db",
+  "sourceSha": "c11c83fe1759183254b24d11a9087ccc89595a73",
+  "operatorHead": "e2ba56f8c779685aed5e44fadec86b4db9776868",
+  "liveAcceptance": "NOT_RUN",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-case01-reconcile:1",
+  "startedBy": "meri-c01-a98d3629-93a9-4f49-b9c8-",
+  "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/687007f2d36d4a8da63e7e92de083eb7",
+  "containerExitCode": 1,
+  "logMessageCount": 8,
+  "ownerReceipts": [
+    {
+      "kind": "meri-case01-readonly-reconciliation",
+      "schemaVersion": 1,
+      "status": "READBACK_FAILED",
+      "stage": "CONNECT",
+      "code": "UNABLE_TO_GET_ISSUER_CERT_LOCALLY",
+      "readOnly": true,
+      "mutations": 0,
+      "liveAcceptance": "NOT_RUN"
+    }
+  ],
+  "code": "OWNER_PROCESS_FAILED"
+}

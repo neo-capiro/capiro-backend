@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "kind": "case01-fixed-readonly-reconciliation-qualification",
+  "observedAt": "2026-10-02T08:06:34.973649+00:00",
+  "scope": "Fixed read-only canonical reconciliation of failed setup run c6ffa5ad-dd9f-4912-bc31-a03231a9b903; root exclusively owns ECS execution",
+  "policySha": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "status": "PASS",
+  "files": {
+    "case01-reconcile-oneoff.py": "05089b79ee33596e4ec6e4ef4c6c26fee6596b652b41cf9b482e6f3d5e7c8f87",
+    "case01-reconcile-oneoff-tests.py": "1bb3c0643356f67979528d669149d1c60b8376774a541b6e4c3a95919aee694a",
+    "case01-reconcile-readonly.mjs": "fbfa5799b1cee3b5619af545ef3d115dfc1a19b9498374c7092e5ba3f39aded3",
+    "case01-oneoff.py": "4df33cccadd3fdc15711872de3c0ffe2602249a8765c0e6ff36d05488085d36a",
+    "case01-reconcile-oneoff-tests.log": "befd4f9d4897801f8925717cf6e7a93f83e06d0e411d95af18511cd809092601",
+    "case01-reconcile-kimi-review.md": "c23e6039d905e2b056c77b44613f4b0f2d313d7879130b9f91debdb9cd5dcf1c",
+    "case01-reconcile-kimi-usage.json": "446a7fb50df5b5747d9d88e0dba497053439a0ec384af185d7245ab06691e3a5",
+    "case01-reconcile-kimi-exit.json": "063f006fc6a2f435905127eb60492054181dc23735ad6004ebd79148e644a7c4"
+  },
+  "tests": {
+    "offlineFaultTests": 7,
+    "passed": 7,
+    "exitCode": 0,
+    "nodeSyntaxExit": 0,
+    "pythonCompileExit": 0
+  },
+  "review": {
+    "provider": "bedrock",
+    "initializedModel": "moonshotai.kimi-k2.5",
+    "sessionId": "20261002_080444_33c40b",
+    "exitCode": 0,
+    "verdict": "PASS",
+    "toolCalls": 1,
+    "adjudication": "One unexpected tool_search metadata discovery only; no shell/file/browser/AWS/DB calls. Model claim of no tools is corrected. Model no-mutation wording applies to database/provider; intended one-off ECS register/run is explicit."
+  },
+  "cloudCallsByThisLane": 0,
+  "databaseCallsByThisLane": 0,
+  "liveAcceptance": "NOT_RUN"
+}
