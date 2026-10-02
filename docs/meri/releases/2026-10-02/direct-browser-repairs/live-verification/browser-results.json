@@ -1,0 +1,71 @@
+{
+  "kind": "direct-browser-meri-regression-results",
+  "observedAt": "2026-10-02T22:17:57.150560+00:00",
+  "deploymentSourceSha": "6be5a560d5addaa1844f0687898c34a249089f76",
+  "apiRevision": 515,
+  "orchestratorRevision": 103,
+  "webRevision": 388,
+  "host": "os.capiro.ai",
+  "method": "Actual signed-in IAB browser, normal textbox and product controls. One approved existing account; no account comparison.",
+  "customerData": "No mail bodies, task titles, client names, personal details or exact customer task counts stored.",
+  "cases": [
+    {
+      "id": "browser-capabilities",
+      "status": "PASS",
+      "prompt": "Read-only QA: list three things you can help me with besides email. Keep this under 60 words. Do not search, save memories, or change any records.",
+      "actual": "Three concise items: legislative research, budget analysis, meeting preparation. No irrelevant evidence footer. Completed response.",
+      "observedCompletionUpperBoundMs": 19943
+    },
+    {
+      "id": "browser-task-count",
+      "status": "BLOCKED",
+      "assertions": {
+        "taskLookupCompletes": "PASS",
+        "formerResultContractFailureAbsent": "PASS",
+        "countAndScopeReturnedWithoutNames": "PASS",
+        "noContradictoryFooter": "BLOCKED"
+      },
+      "actual": "Task work showed Completed and a scoped overdue count. Footer incorrectly said the source was never called.",
+      "observedCompletionUpperBoundMs": 24951
+    },
+    {
+      "id": "browser-mail-search",
+      "status": "BLOCKED",
+      "assertions": {
+        "searchAvailable": "BLOCKED",
+        "truthfulFailureAndUnknownCount": "PASS",
+        "noRetry": "PASS",
+        "unrelatedLegislativeLookupAbsent": "PASS",
+        "noContradictoryFooter": "BLOCKED"
+      },
+      "actual": "One search_emails returned503 Mail search is temporarily busy. Answer truthfully reported failure, unknown count and no retry. Generic footer incorrectly said source never called. No search_floor_votes appeared.",
+      "observedCompletionUpperBoundMs": 23300
+    }
+  ],
+  "reloadPersistence": "PASS: all three saved prompts, answers and outcome labels remained after a real browser reload; no regeneration requested.",
+  "latencyLimits": "Upper bounds at observation, not measured first-useful time or acceptance percentiles.",
+  "liveOriginal75": "Unchanged: 1 unique original case attempted,0 fully accepted,74 not run. These three browser regressions are not original75 seeded cases.",
+  "openDefects": [
+    "Generic negative/exhaustive assurance coverage does not recognize task/mail execution correctly; contradictory footer.",
+    "Mail search still returns503 in the actual owner browser. No automatic retry requested or made."
+  ],
+  "externalEffects": "Three conversational submissions and one reload. No business record write, send or approval was requested or shown. This is UI observation, not exhaustive backend write-count proof.",
+  "artifacts": [
+    {
+      "path": "api-promotion-receipt.json",
+      "sha256": "0a93276aca91e094631236f3f0938f3bc87657bd6409f30f235029b01cf1aa37"
+    },
+    {
+      "path": "api-independent-promotion-readback.json",
+      "sha256": "63af2e206572264c028c93c911ef4bc53d978deeefdf1bd2af5e128ad27e3180"
+    },
+    {
+      "path": "meriv2-orchestrator-promotion-receipt.json",
+      "sha256": "00060869aed1ac703b08dbfb43fc461bf5c763104a9c2cbf0691de223cfebdaf"
+    },
+    {
+      "path": "meriv2-orchestrator-independent-promotion-readback.json",
+      "sha256": "a82362f885d9331d64f362efd0bc1874498a39cf723d0bcb94a982b0bf300d8b"
+    }
+  ]
+}

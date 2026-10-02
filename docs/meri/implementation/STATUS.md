@@ -1,4 +1,12 @@
-## Current checkpoint — 2026-10-02 22:01 UTC, direct browser repairs qualified
+## Current checkpoint — 2026-10-02 22:18 UTC, deployed and direct browser tested
+
+API515 and orchestrator103 now run source `6be5a560d5addaa1844f0687898c34a249089f76`; independent source/digest/health checks passed at2/2 and1/1. WebVNext388 is unchanged. Both mains contain the qualified fixes and evidence. No migration or runtime configuration change.
+
+Three direct browser regressions ran in the approved signed-in account, without account comparison. The concise non-email response passed. Task lookup now completes and returns a scoped count. Two defects remain: contradictory generic evidence footers on task/mail responses, and a503 from mail search. The failure was honestly reported without retry or an unrelated legislative lookup. All three responses survived reload. [Actual results](../releases/2026-10-02/direct-browser-repairs/live-verification/README.md).
+
+Shared instructions now make direct browser QA the default. **File01 remains incomplete: zero original live rows fully accepted;74 not run.** The three browser regressions do not replace the original75, additional variants, failure/recovery cases, frozen semantic clock or human review. Preserve stopped worker branches and the existing aggregate journal.
+
+## Prior checkpoint — 2026-10-02 22:01 UTC, direct browser repairs qualified
 
 Source `6be5a560d5addaa1844f0687898c34a249089f76` is in local main and GitHub main. Task assignment/counting, saved synthetic conversation reads and irrelevant assurance warnings are repaired. Both images passed the authorized AWS fallback after exact-source Actions startup failures. Checks include 82 focused task assertions, 15 actual PostgreSQL tests and 26 offline evals. The orchestrator passed 1,458 tests, with two existing live-only skips, and types. See [qualification](../releases/2026-10-02/direct-browser-repairs/README.md).
 
