@@ -364,16 +364,26 @@ function withoutResponseFormatOnly(request: string): string {
     );
 }
 
-/** An explicitly closed hypothetical exercise has a supplied premise, not an
+/** An explicitly closed supplied-facts exercise has a premise, not an
  * assertion about an external dataset. A tool prohibition alone is insufficient.
  * Conflicting verification/real-world wording keeps the ordinary evidence rules. */
-function isClosedHypotheticalRequest(request: string): boolean {
+function isClosedPremiseRequest(request: string): boolean {
   const closedFrame =
-    /\b(?:using\s+hypothetical\s+facts\s+only|based\s+only\s+on\s+the\s+hypothetical\s+facts\s+in\s+this\s+conversation)\b/i.test(
+    /\b(?:using|use|based\s+on)\s+(?:hypothetical|fictional|supplied|provided)\s+(?:facts|notes|details|premises|information)\s+only\b/i.test(
       request,
     ) ||
-    (/\bupdate\s+to\s+the\s+hypothetical\s+example\b/i.test(request) &&
-      /\bkeep\s+the\s+other\s+facts\s+unchanged\b/i.test(request));
+    /\b(?:using|use|based)\s+only\s+(?:on\s+)?(?:(?:these|the)\s+)?(?:hypothetical|fictional|supplied|provided)\s+(?:facts|notes|details|premises|information)\b/i.test(
+      request,
+    ) ||
+    /\b(?:use|using)\s+only\s+(?:the|these)\s+(?:facts|notes|details|premises|information)\s+(?:supplied|provided|given)\s+(?:here|above|in\s+(?:this|the)\s+conversation)\b/i.test(
+      request,
+    ) ||
+    (/\b(?:update|revision|change)\s+to\s+(?:the|this)\s+(?:hypothetical|fictional)\s+(?:example|scenario)\b/i.test(
+      request,
+    ) &&
+      /\b(?:keep|leave)\s+(?:the\s+)?(?:other|remaining)\s+(?:facts|notes|details)\s+unchanged\b/i.test(
+        request,
+      ));
   if (!closedFrame) return false;
 
   // Remove only a standalone prohibition whose entire verb list is known.
@@ -390,7 +400,7 @@ function isClosedHypotheticalRequest(request: string): boolean {
 
 export function inferClaimCategories(request: string): ClaimCategory[] {
   const text = String(request ?? '');
-  if (isClosedHypotheticalRequest(text)) return ['general_background'];
+  if (isClosedPremiseRequest(text)) return ['general_background'];
   const categories: ClaimCategory[] = [];
   addIf(
     categories,
