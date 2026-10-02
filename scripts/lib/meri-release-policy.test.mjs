@@ -97,6 +97,55 @@ test('candidateTask exact only-image edit preserves env', () => {
   assert.throws(() => candidateTask({ ...td, family: 'bad' }, KEY, IMG), /family/);
 });
 
+test('Web promotion refreshes only release identity and rollback preserves baseline values', () => {
+  const key = 'web-vnext';
+  const prefix = PFX.replace('/api', '/web-vnext');
+  const td = {
+    family: `capiro-dev-${key}`,
+    networkMode: 'awsvpc',
+    containerDefinitions: [
+      {
+        name: key,
+        image: `${prefix}@sha256:${'d'.repeat(64)}`,
+        portMappings: [{ containerPort: 8080 }],
+        environment: [
+          { name: 'WEB_SURFACE', value: 'vnext' },
+          { name: 'GIT_SHA', value: 'old' },
+          { name: 'CAPIRO_WEB_RELEASE_SHA', value: 'old' },
+          { name: 'RESEARCH_PORTFOLIO_MERI_TOOLS_ENABLED', value: 'false' },
+        ],
+      },
+    ],
+  };
+  const before = structuredClone(td);
+  const out = candidateTask(td, key, IMG.replace('/api@', '/web-vnext@'), SHA);
+  const environment = out.containerDefinitions[0].environment;
+  for (const name of ['GIT_SHA', 'RELEASE_SHA', 'CAPIRO_WEB_RELEASE_SHA'])
+    assert.equal(environment.find((entry) => entry.name === name).value, SHA);
+  assert.equal(environment.find((entry) => entry.name === 'WEB_SURFACE').value, 'vnext');
+  assert.equal(
+    environment.find((entry) => entry.name === 'RESEARCH_PORTFOLIO_MERI_TOOLS_ENABLED').value,
+    'false',
+  );
+  assert.deepEqual(td, before);
+  assert.deepEqual(
+    candidateTask(td, key, td.containerDefinitions[0].image).containerDefinitions,
+    td.containerDefinitions,
+  );
+  assert.throws(
+    () => candidateTask(td, key, IMG.replace('/api@', '/web-vnext@'), 'bad'),
+    /source SHA/,
+  );
+  td.containerDefinitions[0].environment.push({ name: 'GIT_SHA', value: 'duplicate' });
+  assert.throws(
+    () => candidateTask(td, key, IMG.replace('/api@', '/web-vnext@'), SHA),
+    /Duplicate/,
+  );
+  td.containerDefinitions[0].environment.pop();
+  td.containerDefinitions[0].secrets = [{ name: 'RELEASE_SHA', valueFrom: 'reference' }];
+  assert.throws(() => candidateTask(td, key, IMG.replace('/api@', '/web-vnext@'), SHA), /secret/);
+});
+
 test('stable exactly one deployment', () => {
   const svc = {
     serviceName: `capiro-dev-${KEY}`,

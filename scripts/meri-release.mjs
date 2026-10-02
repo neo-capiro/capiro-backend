@@ -235,7 +235,7 @@ export function releaseOperator({
     await identity();
     await candidate(q);
     const live = await snapshot(q.service);
-    candidateTask(live.task, q.service, q.image); // fail closed on unsupported task config
+    candidateTask(live.task, q.service, q.image, q.sourceSha); // fail closed on unsupported task config
     await digest(q.service, `imageDigest=${live.baseline.imageDigest}`, live.baseline.imageDigest);
     return {
       schemaVersion: 1,
@@ -290,7 +290,12 @@ export function releaseOperator({
       m.service,
       imageFor(m.service, m.baseline.imageDigest),
     );
-    const proposed = candidateTask(live.task, m.service, m.qualification.image);
+    const proposed = candidateTask(
+      live.task,
+      m.service,
+      m.qualification.image,
+      m.qualification.sourceSha,
+    );
     const receipt = {
       schemaVersion: 1,
       manifestHash: approvedHash,
