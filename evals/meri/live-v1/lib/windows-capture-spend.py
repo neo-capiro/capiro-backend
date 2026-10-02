@@ -14,6 +14,10 @@ CASES = {'01', '14', '20', '26', '27', '46', '72'}
 MAX_TOTAL, MAX_CASE = 30_000_000, 3_000_000
 UUID = re.compile(r'[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}')
 HASH = re.compile(r'[a-f0-9]{64}')
+TERMINAL_CASE01_RUN = 'c6ffa5ad-dd9f-4912-bc31-a03231a9b903'
+TERMINAL_CASE01_RESERVATION = 'd63fd741-aac6-4d3d-9c4d-1276b96bd1a3'
+TERMINAL_CASE01_INVENTORY = '113c55d76637edfd807e5e3efced931e2b2dd73052dabba4d2e0607aff6e57b8'
+TERMINAL_CASE01_PROOF = 'd8555b206bf7d47630838885f8fe4fce0e8fb5f25fda851e3b8e07e54b17314f'
 
 
 def require(condition):
@@ -47,7 +51,7 @@ def reduce_journal(owner, entries):
     require(set(boundary) == {'kind', 'firstCaseId', 'firstCaptureRunId', 'inventorySha256'})
     require(boundary['kind'] == 'original_file01_capture_slice' and boundary['firstCaseId'] == '01')
     require(UUID.fullmatch(boundary['firstCaptureRunId']) and HASH.fullmatch(boundary['inventorySha256']))
-    runs, active, reserved, known = {}, None, 0, 0
+    runs, active, reserved, known, closed_unknown = {}, None, 0, 0, 0
     prior = owner.get('priorRuns')
     require(type(prior) is list and len(prior) <= 30)
     for row in prior:
@@ -71,6 +75,38 @@ def reduce_journal(owner, entries):
             runs[key] = dict(event)
             active = key
             reserved += cost
+        elif event.get('kind') == 'close_terminal_uncertain':
+            # A one-off disposition for the original rejected request. It keeps
+            # the entire ceiling consumed and never asserts a billed-zero result.
+            require(active == key and event['caseId'] == '01')
+            require(event['captureRunId'] == TERMINAL_CASE01_RUN)
+            require(boundary['inventorySha256'] == TERMINAL_CASE01_INVENTORY)
+            require(event.get('reservationId') == TERMINAL_CASE01_RESERVATION)
+            row = runs[key]
+            require(row['reservationId'] == event['reservationId'] and row['ceilingMicros'] == MAX_CASE)
+            require(event.get('disposition') == 'TERMINAL_SETUP_REJECTION_COST_UNKNOWN')
+            require(event.get('actualCostMicros', 'missing') is None)
+            proof = event.get('proof', {})
+            require(digest(data(proof)) == TERMINAL_CASE01_PROOF)
+            require(set(proof) == {'failedExecutionSha256', 'terminalLogSha256', 'authenticatedReadbackSha256',
+                                  'reconciliationSha256', 'requestIdSha256', 'ledgerSha256',
+                                  'finalizedAtMs', 'readbackAtMs', 'providerDeadlineAtMs',
+                                  'turnId', 'providerAttempts', 'pendingProviderAttempts', 'messageCount',
+                                  'requestOutcome', 'failureReason'})
+            for field in ('failedExecutionSha256', 'terminalLogSha256', 'authenticatedReadbackSha256',
+                          'reconciliationSha256', 'requestIdSha256', 'ledgerSha256'):
+                require(HASH.fullmatch(proof.get(field, '')))
+            for field in ('finalizedAtMs', 'readbackAtMs', 'providerDeadlineAtMs'):
+                require(type(proof.get(field)) is int and proof[field] > 0)
+            require(proof['readbackAtMs'] >= proof['finalizedAtMs'])
+            require(proof['turnId'] is None and proof['providerAttempts'] == [] and
+                    type(proof['pendingProviderAttempts']) is int and proof['pendingProviderAttempts'] == 0 and
+                    type(proof['messageCount']) is int and proof['messageCount'] == 0)
+            require(proof['requestOutcome'] == 'error' and
+                    proof['failureReason'] == 'meri_capture_provider_budget_unqualified_retrieval_plan')
+            runs[key] = {**row, **event, 'conservativeCostMicros': row['ceilingMicros']}
+            closed_unknown += row['ceilingMicros']
+            active = None
         else:
             require(event.get('kind') == 'settle' and active == key)
             row = runs[key]
@@ -83,10 +119,14 @@ def reduce_journal(owner, entries):
             active = None
         require(reserved <= MAX_TOTAL)
     require(reserved <= MAX_TOTAL)
-    return {'reservedCeilingsMicros': reserved, 'knownSettledCostMicros': known,
+    result = {'reservedCeilingsMicros': reserved, 'knownSettledCostMicros': known,
             'remainingReservationMicros': MAX_TOTAL - reserved, 'activeRun': active,
             'runs': runs, 'eventCount': len(entries), 'refundsAllowed': False,
             'priorActualCostUnknownCount': len(prior), 'billedTotalStatus': 'UNKNOWN'}
+    if closed_unknown:
+        result['terminalUnknownConservativeCostMicros'] = closed_unknown
+        result['terminalUnknownCostCount'] = 1
+    return result
 
 
 def execute(request):
@@ -104,7 +144,7 @@ def execute(request):
         result = protocol['execute']({'op': 'write', 'root': request['root'],
             'state': result['state'], 'ref': '.spend-lock', 'bytes': ''})
         return {'state': result['state'], 'snapshot': snapshot}
-    require(op in {'read', 'reserve', 'settle'})
+    require(op in {'read', 'reserve', 'settle', 'close_terminal_uncertain'})
     state = json.loads(json.dumps(request['state']))
     require(state.get('root') == request['root'])
     drive, parts = protocol['components'](request['root'], root=True)
@@ -143,7 +183,9 @@ def execute(request):
             return {'state': state, 'snapshot': snapshot}
         event = dict(request['event'])
         fields = {'kind', 'caseId', 'captureRunId', 'reservationId', 'sequence'}
-        fields |= {'ceilingMicros'} if op == 'reserve' else {'chargedCostMicros', 'ledgerSha256', 'envelopeSha256'}
+        fields |= ({'ceilingMicros'} if op == 'reserve' else
+                   {'disposition', 'actualCostMicros', 'proof'} if op == 'close_terminal_uncertain' else
+                   {'chargedCostMicros', 'ledgerSha256', 'envelopeSha256'})
         require(set(event) == fields - {'sequence'} and event['kind'] == op)
         event['sequence'] = len(entries) + 1
         next_snapshot = reduce_journal(owner, [*entries, event])
