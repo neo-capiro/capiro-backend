@@ -23,6 +23,7 @@ import {
   type SyntheticReadProviderSettlement,
 } from './meri-synthetic-read-budget.js';
 import type { ResearchProviderReservationBinding } from './meri-research-tool-budget.js';
+import { readResearchProviderBudget } from './meri-research-tool-budget.js';
 
 const record = (v: unknown): Record<string, unknown> =>
   v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {};
@@ -34,6 +35,173 @@ const scoped = (tx: Prisma.TransactionClient) =>
   ({
     withTenant: async (_id: string, work: (value: Prisma.TransactionClient) => unknown) => work(tx),
   }) as unknown as PrismaService;
+
+/** Read permission for an already saved budget-only answer. This does not issue
+ * a policy, attest fixture authority, settle spend, or permit another dispatch. */
+export async function authorizeSyntheticReadBudgetMessageReadback(args: {
+  prisma: PrismaService;
+  ctx: TenantContext;
+  conversationId: string;
+  message: {
+    id: string;
+    role: string;
+    tenantId: string;
+    userId: string;
+    conversationId: string;
+    clientId: string | null;
+    metadata: unknown;
+  };
+}): Promise<void> {
+  const { ctx, message } = args;
+  if (
+    ctx.role !== 'standard_user' ||
+    message.role !== 'assistant' ||
+    message.tenantId !== ctx.tenantId ||
+    message.userId !== ctx.userId ||
+    message.conversationId !== args.conversationId
+  )
+    fail('readback_scope');
+  await args.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+    await lockOwner(tx, ctx, args.conversationId);
+    const current = await currentCaptureAuthorityRows(scoped(tx), ctx, args.conversationId);
+    if (!current) return fail('readback_scope');
+    const metadata = record(current?.metadata);
+    const q = metadata.syntheticReadBudgetQualification as SyntheticReadProviderBudgetQualification;
+    const state = record(metadata.syntheticReadProviderBudget);
+    const terminal = record(metadata.syntheticReadBudgetTerminal);
+    const receipt = record(record(message.metadata).serverReadonlyCaptureReceipt);
+    const now = Date.now();
+    if (
+      !q ||
+      !current ||
+      current.clientId !== message.clientId ||
+      !Number.isSafeInteger(receipt.issuedAt) ||
+      !Number.isSafeInteger(receipt.expiresAt) ||
+      (receipt.issuedAt as number) > now + 30_000 ||
+      (receipt.expiresAt as number) <= (receipt.issuedAt as number) ||
+      (receipt.expiresAt as number) - (receipt.issuedAt as number) > 30 * 60_000 ||
+      !/^[a-f0-9-]{20,100}$/i.test(String(receipt.policyId))
+    )
+      fail('readback_receipt');
+    const expectedWrites = [
+      'context_packet_and_evidence',
+      'conversation_user_message',
+      'conversation_assistant_message',
+      'provider_budget_ledger',
+    ] as const;
+    const expectedReceipt = {
+      version: 1,
+      policyId: receipt.policyId,
+      fixtureNamespace: 'meri-foundation-20260928',
+      authority: 'server_current',
+      tenantId: ctx.tenantId,
+      actorUserId: ctx.userId,
+      conversationId: args.conversationId,
+      clientId: current.clientId,
+      issuedAt: receipt.issuedAt,
+      expiresAt: receipt.expiresAt,
+      toolCatalogSha256: meriReadonlyCaptureCatalogSha256(),
+      dispatchBoundary: 'read_only_enforced',
+      dynamicMcpAllowed: false,
+      incidentalWriters: 'suppressed',
+      expectedCaptureWrites: expectedWrites,
+    };
+    if (syntheticReadBudgetHash(receipt) !== syntheticReadBudgetHash(expectedReceipt))
+      fail('readback_receipt');
+    // Only fields actually retained by the accounting owner are checked here;
+    // request/trace identities and signed capture evidence are never fabricated.
+    validateSyntheticReadBudgetQualification(q, {
+      tenantId: ctx.tenantId,
+      actorUserId: ctx.userId,
+      conversationId: args.conversationId,
+      clientId: current.clientId,
+      expiresAt: receipt.expiresAt as number,
+      caseId: null,
+      captureRunId: null,
+      fixtureVersion: null,
+      physicalMapSha256: null,
+      resetReceiptId: null,
+      seedReceiptId: null,
+      expectedCaptureWrites: expectedWrites,
+      syntheticReadBudget: {
+        version: 1,
+        kind: 'synthetic_read_budget_only',
+        caseId: q.caseId as '01',
+        captureRunId: q.captureRunId,
+        aggregateReservationId: q.aggregateReservationId,
+        qualificationSha256: syntheticReadBudgetHash(q),
+      },
+    });
+    const ledger = readResearchProviderBudget({ researchProviderBudget: state.ledger });
+    if (
+      state.version !== 1 ||
+      !/^[a-f0-9]{64}$/.test(String(state.policySha256)) ||
+      typeof state.turnId !== 'string' ||
+      !state.turnId ||
+      state.qualificationSha256 !== syntheticReadBudgetHash(q) ||
+      syntheticReadBudgetHash(state.qualification) !== state.qualificationSha256 ||
+      !ledger ||
+      ledger.limits.maxAttempts !== q.maxAttempts ||
+      ledger.limits.maxTokens !== q.maxTokens ||
+      ledger.limits.maxCostMicros !== q.maxCostMicros ||
+      ledger.limits.deadlineAt !== q.deadlineAt ||
+      terminal.kind !== 'synthetic_read_budget_terminal' ||
+      terminal.version !== 1 ||
+      terminal.policySha256 !== state.policySha256 ||
+      terminal.turnId !== state.turnId ||
+      terminal.assistantMessageId !== message.id ||
+      terminal.captureAuthority !== false ||
+      terminal.ledgerSha256 !== syntheticReadBudgetHash(ledger) ||
+      terminal.chargedCostMicros !== ledger.chargedCostMicros ||
+      terminal.allAttemptsSettled !== true ||
+      ledger.attempts.length === 0 ||
+      !ledger.attempts.every((a) =>
+        (a.status === 'settled' || a.status === 'rejected') &&
+        Date.parse(a.reservedAt) >= (receipt.issuedAt as number) &&
+        a.settledAt !== null && Date.parse(a.settledAt) >= Date.parse(a.reservedAt) &&
+        Date.parse(a.settledAt) <= Date.parse(String(terminal.completedAt))) ||
+      !Number.isFinite(Date.parse(String(terminal.completedAt))) ||
+      Date.parse(String(terminal.completedAt)) < (receipt.issuedAt as number) ||
+      Date.parse(String(terminal.completedAt)) > (receipt.expiresAt as number) ||
+      Date.parse(String(terminal.completedAt)) > now + 30_000
+    )
+      fail('readback_terminal');
+    const user = await tx.clioMessage.findFirst({
+      where: {
+        id: state.turnId as string,
+        role: 'user',
+        tenantId: ctx.tenantId,
+        userId: ctx.userId,
+        conversationId: args.conversationId,
+        clientId: current.clientId,
+      },
+      select: { body: true },
+    });
+    const assistant = await tx.clioMessage.findFirst({
+      where: {
+        id: message.id,
+        role: 'assistant',
+        tenantId: ctx.tenantId,
+        userId: ctx.userId,
+        conversationId: args.conversationId,
+        clientId: current.clientId,
+      },
+      select: { metadata: true },
+    });
+    if (
+      !user ||
+      hashText(user.body) !== q.promptSha256 ||
+      !assistant ||
+      syntheticReadBudgetHash(record(assistant.metadata).serverReadonlyCaptureReceipt) !==
+        syntheticReadBudgetHash(receipt)
+    )
+      fail('readback_messages');
+    const final = await currentCaptureAuthorityRows(scoped(tx), ctx, args.conversationId);
+    if (!final || final.clientId !== current.clientId ||
+        syntheticReadBudgetHash(final.metadata) !== syntheticReadBudgetHash(current.metadata))
+      fail('readback_current_owner_changed');
+  });
+}
 
 async function lockOwner(tx: Prisma.TransactionClient, ctx: TenantContext, conversationId: string) {
   if (ctx.role !== 'standard_user') fail('ordinary_actor_required');

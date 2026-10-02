@@ -66,6 +66,9 @@ it(
         assertMeriServerReadonlyCaptureToolAllowed,
       } = source('meri-server-readonly-capture');
       const {planMeriTurn}=source('meri-context-plane.service');
+      const {authorizeMeriCaptureMessageReadback,validateMeriCapturePolicyPair}=source('meri-capture-policy-readback');
+      const {meriServerReadonlyCaptureReceipt}=source('meri-server-readonly-capture');
+      const {buildApiOnlyMeriServerCaptureEvidence}=source('meri-server-capture-evidence');
       const {withCaptureApiProviderScope,assertCaptureApiRetrievalPlan}=source('meri-capture-api-provider-scope');
       const {cases}=await import('../cases.mjs');
       await admin.query(`CREATE SCHEMA "${schema}"; SET search_path TO "${schema}";
@@ -307,7 +310,7 @@ it(
       );
       await t.test(
         'settlement ignores supplied pricing, finish binds actual assistant and prevents more dispatch',
-        async () => {
+        async (settlementTest) => {
           await op({
             kind: 'settle',
             input: {
@@ -337,6 +340,141 @@ it(
             .metadata_jsonb;
           assert.equal(meta.unrelated, true);
           assert.equal(meta.serverCaptureProviderBudget, undefined);
+          await settlementTest.test(
+            'saved budget-only answer reads through real current owner without signed fixture evidence',
+            async () => {
+              await admin.query('ALTER TABLE clio_messages ADD COLUMN metadata_jsonb jsonb');
+              const messageMetadata = {
+                serverReadonlyCaptureReceipt: meriServerReadonlyCaptureReceipt(policy),
+              };
+              await admin.query('UPDATE clio_messages SET metadata_jsonb=$1 WHERE id=$2', [
+                messageMetadata,
+                assistant,
+              ]);
+              const message = {
+                id: assistant,
+                role: 'assistant',
+                tenantId: ctx.tenantId,
+                userId: ctx.userId,
+                clientId,
+                conversationId,
+                metadata: messageMetadata,
+              };
+              const check = (changes = {}) =>
+                authorizeMeriCaptureMessageReadback({
+                  prisma,
+                  ctx,
+                  conversationId,
+                  message,
+                  ...changes,
+                });
+              await check();
+              const originalNow = Date.now;
+              try {
+                Date.now = () => policy.expiresAt + 60_000;
+                await check(); // Completed within deadline; no new admission is granted.
+                await assert.rejects(() => op({kind:'reserve', binding}));
+                await admin.query("UPDATE tenant_memberships SET status='inactive' WHERE user_id=$1",[ctx.userId]);
+                await assert.rejects(()=>check());
+                await admin.query("UPDATE tenant_memberships SET status='active' WHERE user_id=$1",[ctx.userId]);
+              } finally { Date.now = originalNow; }
+              assert.equal((await op({ kind: 'read' })).state.ledger.chargedCostMicros, 20);
+              assert.deepEqual(
+                (
+                  await admin.query('SELECT metadata_jsonb FROM clio_conversations WHERE id=$1', [
+                    conversationId,
+                  ])
+                ).rows[0].metadata_jsonb,
+                meta,
+              );
+              await assert.rejects(() => check({ ctx: { ...ctx, userId: randomUUID() } }));
+              await admin.query(
+                "UPDATE tenant_memberships SET status='inactive' WHERE user_id=$1",
+                [ctx.userId],
+              );
+              await assert.rejects(() => check());
+              await admin.query("UPDATE tenant_memberships SET status='active' WHERE user_id=$1", [
+                ctx.userId,
+              ]);
+              await admin.query('UPDATE clients SET memory_wall=true WHERE id=$1', [clientId]);
+              await assert.rejects(() => check());
+              await admin.query('UPDATE clients SET memory_wall=false WHERE id=$1', [clientId]);
+              for (const mutate of [
+                (m) => (m.syntheticReadBudgetTerminal.assistantMessageId = randomUUID()),
+                (m) => (m.syntheticReadBudgetTerminal.turnId = randomUUID()),
+                (m) => (m.syntheticReadBudgetTerminal.ledgerSha256 = '0'.repeat(64)),
+                (m) => (m.syntheticReadBudgetTerminal.policySha256 = '0'.repeat(64)),
+                (m) => (m.syntheticReadBudgetQualification.promptSha256 = '0'.repeat(64)),
+                (m) => (m.syntheticReadProviderBudget.qualificationSha256 = '0'.repeat(64)),
+                (m) => (m.syntheticReadBudgetTerminal.completedAt = new Date(policy.expiresAt + 1).toISOString()),
+                (m) => {m.syntheticReadProviderBudget.ledger.attempts[0].settledAt=new Date(Date.parse(m.syntheticReadBudgetTerminal.completedAt)+1).toISOString();m.syntheticReadBudgetTerminal.ledgerSha256=hash(m.syntheticReadProviderBudget.ledger);},
+                (m) => {m.syntheticReadProviderBudget.ledger.attempts[0].status='uncertain';m.syntheticReadBudgetTerminal.allAttemptsSettled=false;m.syntheticReadBudgetTerminal.ledgerSha256=hash(m.syntheticReadProviderBudget.ledger);},
+                (m) => delete m.syntheticReadBudgetTerminal,
+              ]) {
+                const changed = structuredClone(meta);
+                mutate(changed);
+                await admin.query('UPDATE clio_conversations SET metadata_jsonb=$1 WHERE id=$2', [
+                  changed,
+                  conversationId,
+                ]);
+                await assert.rejects(() => check());
+              }
+              await admin.query('UPDATE clio_conversations SET metadata_jsonb=$1 WHERE id=$2', [
+                meta,
+                conversationId,
+              ]);
+              for (const mutate of [
+                (r) => (r.expiresAt = Date.now() - 1),
+                (r) => (r.extra = 'unexpected'),
+                (r) => (r.clientId = randomUUID()),
+              ]) {
+                const altered = structuredClone(message);
+                mutate(altered.metadata.serverReadonlyCaptureReceipt);
+                await assert.rejects(() => check({ message: altered }));
+              }
+              await assert.rejects(() =>
+                check({
+                  message: {
+                    ...message,
+                    metadata: { ...messageMetadata, serverCaptureEvidenceReceipt: {} },
+                  },
+                }),
+              );
+              const secretBefore = process.env.INTERNAL_SERVICE_SECRET;
+              process.env.INTERNAL_SERVICE_SECRET = 'unit-budget-readback';
+              try {
+                const signed = buildApiOnlyMeriServerCaptureEvidence({
+                  policy,
+                  userMessageId: user,
+                  assistantMessageId: assistant,
+                  citations: [],
+                  usage: null,
+                });
+                assert.equal(validateMeriCapturePolicyPair(policy, signed), policy);
+                assert.throws(()=>validateMeriCapturePolicyPair(policy,signed,policy.expiresAt+1));
+                assert.throws(() =>
+                  validateMeriCapturePolicyPair({ ...policy, extra: true }, signed),
+                );
+                assert.throws(() =>
+                  validateMeriCapturePolicyPair(
+                    {
+                      ...policy,
+                      syntheticReadBudget: { ...policy.syntheticReadBudget, extra: true },
+                    },
+                    signed,
+                  ),
+                );
+                assert.throws(() =>
+                  validateMeriCapturePolicyPair({ ...policy, fixtureVersion: 'invented' }, signed),
+                );
+              } finally {
+                if (secretBefore === undefined) delete process.env.INTERNAL_SERVICE_SECRET;
+                else process.env.INTERNAL_SERVICE_SECRET = secretBefore;
+              }
+              await check();
+              await admin.query('ALTER TABLE clio_messages DROP COLUMN metadata_jsonb');
+            },
+          );
         },
       );
       await t.test('new reviewed500k/15USD qualification supports two actual transactional rounds while old admission stays unchanged', async () => {

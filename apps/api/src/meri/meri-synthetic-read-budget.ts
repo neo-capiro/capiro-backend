@@ -81,7 +81,22 @@ export function syntheticReadBudgetHash(value: unknown): string {
 
 export function validateSyntheticReadBudgetQualification(
   value: unknown,
-  policy: MeriServerReadonlyCapturePolicy,
+  policy: Pick<
+    MeriServerReadonlyCapturePolicy,
+    | 'syntheticReadBudget'
+    | 'caseId'
+    | 'captureRunId'
+    | 'fixtureVersion'
+    | 'physicalMapSha256'
+    | 'resetReceiptId'
+    | 'seedReceiptId'
+    | 'expectedCaptureWrites'
+    | 'tenantId'
+    | 'actorUserId'
+    | 'conversationId'
+    | 'clientId'
+    | 'expiresAt'
+  >,
 ): SyntheticReadProviderBudgetQualification {
   validateMeriSyntheticReadBudgetGuard(policy);
   const binding = policy.syntheticReadBudget;

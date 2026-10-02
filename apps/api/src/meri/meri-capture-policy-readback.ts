@@ -2,6 +2,7 @@ import { ForbiddenException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import {
   verifyMeriCaptureEvidenceReceipt,
+  validateMeriSyntheticReadBudgetGuard,
   type MeriServerReadonlyCapturePolicy,
   type SignedMeriCaptureEvidenceReceipt,
 } from '@capiro/meriv2-core';
@@ -9,6 +10,7 @@ import type { PrismaService } from '../prisma/prisma.service.js';
 import { assertMeriServerReadonlyCaptureCurrentAuthority } from './meri-server-readonly-capture.js';
 import { captureProviderBudgetOwner } from './meri-capture-provider-budget-owner.js';
 import { captureBudgetHash } from './meri-capture-provider-budget.js';
+import { authorizeSyntheticReadBudgetMessageReadback } from './meri-synthetic-read-budget-owner.js';
 
 const POLICY_FIELDS = [
   'version',
@@ -52,7 +54,11 @@ export function validateMeriCapturePolicyPair(
   try {
     if (!value || typeof value !== 'object' || Array.isArray(value)) denied();
     const policy = value as MeriServerReadonlyCapturePolicy;
-    if (JSON.stringify(Object.keys(value).sort()) !== JSON.stringify(POLICY_FIELDS)) denied();
+    const fields = Object.hasOwn(value, 'syntheticReadBudget')
+      ? [...POLICY_FIELDS, 'syntheticReadBudget'].sort()
+      : POLICY_FIELDS;
+    if (JSON.stringify(Object.keys(value).sort()) !== JSON.stringify(fields)) denied();
+    validateMeriSyntheticReadBudgetGuard(policy);
     if (
       !Number.isSafeInteger(policy.issuedAt) ||
       !Number.isSafeInteger(policy.expiresAt) ||
@@ -126,6 +132,20 @@ export async function authorizeMeriCaptureMessageReadback(args: {
     ].some((key) => Object.hasOwn(metadata, key))
   )
     return;
+  // Budget-only turns deliberately persist a public dispatch receipt, not a
+  // signed fixture/capture receipt. Re-read their separate current owner.
+  if (
+    Object.hasOwn(metadata, 'serverReadonlyCaptureReceipt') &&
+    !Object.hasOwn(metadata, 'serverReadonlyCapturePolicy') &&
+    !Object.hasOwn(metadata, 'serverCaptureEvidenceReceipt')
+  ) {
+    try {
+      await authorizeSyntheticReadBudgetMessageReadback(args);
+      return;
+    } catch {
+      return denied();
+    }
+  }
   const policy = validateMeriCapturePolicyPair(
     metadata.serverReadonlyCapturePolicy,
     metadata.serverCaptureEvidenceReceipt,
