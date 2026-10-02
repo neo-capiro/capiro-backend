@@ -1,0 +1,14 @@
+{
+  "sourceSha": "7c04ca368fbccc84d33c720ce7a20b9201bf6e99",
+  "buildId": "capiro-build-web-dev:9289dea1-633f-4144-b92e-23039a2e6543",
+  "tests": {
+    "numTotalTests": 1491,
+    "numPassedTests": 1489,
+    "numFailedTests": 0,
+    "numPendingTests": 2,
+    "numTotalTestSuites": 129,
+    "numPassedTestSuites": 129,
+    "numFailedTestSuites": 0,
+    "numPendingTestSuites": 0
+  }
+}
