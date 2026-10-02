@@ -40,6 +40,10 @@ import {
   type SyntheticMemoryRevocationAudit,
   type SyntheticMemoryRetirementProof,
 } from './synthetic-approved-memory.helpers.js';
+import {
+  assertSyntheticCorrectionRetirementInTx,
+  type SyntheticCorrectionRetirementGuard,
+} from './synthetic-memory-version.helpers.js';
 
 /** Result shape returned by the Phase 1 (1D) user-facing memory verbs. */
 export interface MemoryVerbResult {
@@ -826,6 +830,21 @@ export class MemoryStoreService {
     return this.forgetMemoryGuarded(itemId, 'Retire owned Meri synthetic fixture', guard);
   }
 
+  /** Exact descendant of an owned synthetic correction; ordinary revoke still runs. */
+  async forgetSyntheticCorrection(
+    itemId: string,
+    guard: SyntheticCorrectionRetirementGuard,
+  ): Promise<MemoryVerbResult> {
+    if (!guard || !memoryGovernanceCenterEnabled())
+      throw new ForbiddenException('Synthetic correction retirement is not enabled');
+    return this.forgetMemoryGuarded(
+      itemId,
+      'Retire owned Meri synthetic correction',
+      undefined,
+      structuredClone(guard),
+    );
+  }
+
   /** Internal evidence readback; current canonical read policy still applies. */
   async inspectSyntheticFixture(
     itemId: string,
@@ -876,12 +895,15 @@ export class MemoryStoreService {
     itemId: string,
     reason?: string,
     fixtureGuard?: SyntheticApprovedMemoryGuard,
+    correctionGuard?: SyntheticCorrectionRetirementGuard,
   ): Promise<MemoryVerbResult> {
     const ctx = this.tenantCtx.require();
     return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
-      const fixtureAudit = fixtureGuard
-        ? await assertSyntheticApprovedMemoryInTx(tx, ctx, itemId, fixtureGuard)
-        : undefined;
+      const fixtureAudit = correctionGuard
+        ? await assertSyntheticCorrectionRetirementInTx(tx, ctx, itemId, correctionGuard)
+        : fixtureGuard
+          ? await assertSyntheticApprovedMemoryInTx(tx, ctx, itemId, fixtureGuard)
+          : undefined;
       const rows = await tx.$queryRaw<
         Array<{
           title: string;
@@ -949,7 +971,7 @@ export class MemoryStoreService {
       // If this item was projected from a clio_memory KV row, delete that
       // source too — otherwise semanticMemorySearch (which reads clio_memory
       // directly) keeps returning it and the nightly refresh re-projects it.
-      const clioId = row.slug.startsWith('clio:') ? row.slug.slice('clio:'.length) : null;
+      const clioId = clioIdFromSlug(row.slug);
       if (clioId) {
         await tx.$executeRaw`
           DELETE FROM clio_memory WHERE id = ${clioId}::uuid AND tenant_id = ${ctx.tenantId}::uuid

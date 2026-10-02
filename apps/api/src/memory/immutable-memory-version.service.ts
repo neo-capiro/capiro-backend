@@ -19,6 +19,10 @@ import { isMemoryReviewAdminRole } from './memory-review-admin-policy.js';
 import { MemoryTransitionAuditService } from './memory-transition-audit.service.js';
 import { payloadToSaveRequest } from './memory-candidate.service.js';
 import {
+  assertSyntheticCorrectionInTx,
+  type SyntheticMemoryCorrectionGuard,
+} from './synthetic-memory-version.helpers.js';
+import {
   classifyMemoryVersionActivation,
   immutableMemoryVersionSlug,
   isMemoryVersionKind,
@@ -177,6 +181,17 @@ export class ImmutableMemoryVersionService {
     return this.proposeOrActivate(ctx, itemId, 'correction', body);
   }
 
+  /** Internal fixture owner; ordinary correction and approval policy still run. */
+  async proposeSyntheticCorrection(
+    ctx: TenantContext,
+    itemId: string,
+    newContent: string,
+    guard: SyntheticMemoryCorrectionGuard,
+  ): Promise<MemoryVersionResult> {
+    if (!guard) throw new ForbiddenException('Synthetic correction guard is required');
+    return this.proposeOrActivate(ctx, itemId, 'correction', newContent, structuredClone(guard));
+  }
+
   async proposeContradiction(
     ctx: TenantContext,
     itemId: string,
@@ -195,11 +210,40 @@ export class ImmutableMemoryVersionService {
     ctx: TenantContext,
     candidateId: string,
   ): Promise<VersionCandidateDecisionResult> {
+    return this.approveCandidateGuarded(ctx, candidateId);
+  }
+
+  async approveSyntheticCorrection(
+    ctx: TenantContext,
+    candidateId: string,
+    guard: SyntheticMemoryCorrectionGuard,
+  ): Promise<VersionCandidateDecisionResult> {
+    if (!guard) throw new ForbiddenException('Synthetic correction guard is required');
+    return this.approveCandidateGuarded(ctx, candidateId, structuredClone(guard));
+  }
+
+  private async approveCandidateGuarded(
+    ctx: TenantContext,
+    candidateId: string,
+    fixtureGuard?: SyntheticMemoryCorrectionGuard,
+  ): Promise<VersionCandidateDecisionResult> {
     this.requireLifecycle();
     const outcome = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
       const candidate = await this.lockCandidate(tx, ctx.tenantId, candidateId);
       const payload = parsePayload(candidate.payload_jsonb);
       const kind = payload.versionProposal.kind;
+      if (fixtureGuard) {
+        if (kind !== 'correction')
+          throw new ForbiddenException('Synthetic correction kind does not match');
+        await assertSyntheticCorrectionInTx(
+          tx,
+          ctx,
+          payload.versionProposal.sourceItemId,
+          textFromSections(payload.canonicalItem.sections),
+          fixtureGuard,
+          candidateId,
+        );
+      }
       if (candidate.source_kind !== VERSION_SOURCE_KIND[kind]) {
         throw new BadRequestException('Version candidate source kind does not match its payload.');
       }
@@ -545,11 +589,18 @@ export class ImmutableMemoryVersionService {
     sourceItemId: string,
     kind: MemoryVersionKind,
     newContent: string | null,
+    fixtureGuard?: SyntheticMemoryCorrectionGuard,
   ): Promise<MemoryVersionResult> {
     this.requireLifecycle();
     const outcome = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
       const source = await this.loadItem(tx, ctx.tenantId, sourceItemId);
       if (!source) return { result: { status: 'not_found' } as MemoryVersionResult };
+
+      if (fixtureGuard) {
+        if (kind !== 'correction' || newContent === null)
+          throw new ForbiddenException('Synthetic correction kind does not match');
+        await assertSyntheticCorrectionInTx(tx, ctx, sourceItemId, newContent, fixtureGuard);
+      }
 
       if (kind === 'restore') {
         if (!isTerminal(source)) {

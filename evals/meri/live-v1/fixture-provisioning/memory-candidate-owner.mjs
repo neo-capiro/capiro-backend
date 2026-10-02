@@ -124,14 +124,14 @@ export function createMemoryCandidateOwnerPort({
     }
   }
 
-  async function readRetirement(record) {
+  async function readRetirement(record, suppliedTx) {
     assertRecord(record);
     const userId = await actor(record);
-    return prisma.withTenantUser(record.tenantId, userId, async (tx) => {
+    const read = async (tx) => {
       await assertMembership(tx, record, userId);
       const rows = await tx.$queryRawUnsafe(
         `SELECT mc.*, mc.xmin::text AS row_version FROM memory_candidate mc
-         WHERE mc.tenant_id=$1::uuid AND mc.id=$2::uuid`,
+         WHERE mc.tenant_id=$1::uuid AND mc.id=$2::uuid FOR UPDATE`,
         record.tenantId,
         record.physicalId,
       );
@@ -173,7 +173,7 @@ export function createMemoryCandidateOwnerPort({
          WHERE tenant_id=$1::uuid AND memory_candidate_id=$2::uuid AND actor_user_id=$3::uuid
            AND reason_code='withdrawn_by_proposer' AND to_status='rejected'
            AND metadata_jsonb->>'syntheticFixtureMarkerSha256'=$4
-           AND metadata_jsonb->>'syntheticFixtureDecisionAt'=$5`,
+           AND metadata_jsonb->>'syntheticFixtureDecisionAt'=$5 FOR UPDATE`,
         record.tenantId,
         record.physicalId,
         userId,
@@ -199,10 +199,12 @@ export function createMemoryCandidateOwnerPort({
         transitionAuditId: audits[0].id,
         priorRowVersion: audits[0].prior_version,
       };
-    });
+    };
+    return suppliedTx ? read(suppliedTx) : prisma.withTenantUser(record.tenantId, userId, read);
   }
 
   return {
+    readRetirementInTx: (tx, record) => readRetirement(record, tx),
     async readForRetirement(record) {
       return (await approvedRetirement?.inspect(record)) ?? this.read(record);
     },

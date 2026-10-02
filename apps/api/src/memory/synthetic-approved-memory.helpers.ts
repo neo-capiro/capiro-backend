@@ -56,7 +56,7 @@ export async function readSyntheticMemoryRetirementInTx(
   itemId: string,
   guard: SyntheticApprovedMemoryGuard,
 ): Promise<SyntheticMemoryRetirementProof> {
-  const audit = await validateSyntheticApprovedMemoryInTx(tx, ctx, itemId, guard, true);
+  const audit = await validateSyntheticApprovedMemoryInTx(tx, ctx, itemId, guard, 'revoked');
   const proofs = await tx.$queryRaw<
     Array<{ rowVersion: string; transitionAuditId: string; cleanupIntentId: string }>
   >`
@@ -92,13 +92,26 @@ export async function readSyntheticMemoryRetirementInTx(
   };
 }
 
+/** Original owned version only; never admits a descendant as a generic fixture.
+ * The immutable-version reader separately proves the replacement and its audits.
+ */
+export async function assertSyntheticSupersededRootInTx(
+  tx: Prisma.TransactionClient,
+  ctx: TenantContext,
+  itemId: string,
+  guard: SyntheticApprovedMemoryGuard,
+): Promise<SyntheticMemoryRevocationAudit> {
+  return validateSyntheticApprovedMemoryInTx(tx, ctx, itemId, guard, 'superseded');
+}
+
 async function validateSyntheticApprovedMemoryInTx(
   tx: Prisma.TransactionClient,
   ctx: TenantContext,
   itemId: string,
   guard: SyntheticApprovedMemoryGuard,
-  retired = false,
+  lifecycle: 'active' | 'revoked' | 'superseded' = 'active',
 ): Promise<SyntheticMemoryRevocationAudit> {
+  const retired = lifecycle !== 'active';
   if (
     !guard ||
     !UUID.test(guard.candidateId ?? '') ||
@@ -194,7 +207,7 @@ async function validateSyntheticApprovedMemoryInTx(
     SELECT id FROM memory_items WHERE id=${itemId}::uuid AND tenant_id=${ctx.tenantId}::uuid
       AND ((${retired}=false AND xmin::text=${guard.expectedItemRowVersion})
         OR (${retired}=true AND xmin::text<>${guard.expectedItemRowVersion}))
-      AND status=${retired ? 'revoked' : 'active'} AND governed_status=${retired ? 'revoked' : 'active'}
+      AND status=${lifecycle} AND governed_status=${lifecycle}
       AND slug=${`clio:${candidate.clioId}`} AND type=${governance.canonicalType} AND title=${record.key}
       AND visibility=${record.scope === 'user_private' ? 'user' : 'tenant'}
       AND owner_user_id IS NOT DISTINCT FROM ${record.ownerUserId}::uuid
@@ -216,7 +229,7 @@ async function validateSyntheticApprovedMemoryInTx(
     FOR UPDATE
   `;
   if (items.length !== 1) deny();
-  if (retired) {
+  if (lifecycle === 'revoked') {
     const remaining = await tx.$queryRaw<Array<{ id: string }>>`
       SELECT id FROM clio_memory WHERE id=${candidate.clioId}::uuid AND tenant_id=${ctx.tenantId}::uuid
       FOR UPDATE
@@ -239,7 +252,15 @@ async function validateSyntheticApprovedMemoryInTx(
       AND metadata_jsonb->'governance'->>'sourceVersion'=${governance.sourceVersion}
     FOR UPDATE
   `;
-  if (projections.length !== 1) deny();
+  // Supersession suppresses recall synchronously and queues projection cleanup.
+  // Either the exact old projection remains or its canonical cleanup removed it.
+  // An altered projection never counts as a successful absence.
+  if (lifecycle === 'superseded' && projections.length === 0) {
+    const remaining = await tx.$queryRaw<Array<{ id: string }>>`
+      SELECT id FROM clio_memory WHERE tenant_id=${ctx.tenantId}::uuid AND id=${candidate.clioId}::uuid FOR UPDATE
+    `;
+    if (remaining.length !== 0) deny();
+  } else if (projections.length !== 1) deny();
   return {
     syntheticFixtureCandidateId: guard.candidateId,
     syntheticFixtureMarkerSha256: expected.markerSha256,
