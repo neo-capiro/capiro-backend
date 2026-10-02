@@ -1,4 +1,5 @@
 import https from 'node:https';
+import { writeCaptureHttpObservation } from './capture-http-observation.mjs';
 import {
   claimCaptureSpendReservation,
   assertCaptureSpendReservation,
@@ -298,7 +299,7 @@ function privateBytes(value, bearer) {
   return Buffer.from(JSON.stringify(value, null, 2) + '\n', 'utf8');
 }
 
-function nativeTransport(scope, deadlineMs) {
+function nativeTransport(scope, deadlineMs, collector) {
   const deadline = Date.now() + deadlineMs;
   let requests = 0,
     submitted = 0;
@@ -349,10 +350,23 @@ function nativeTransport(scope, deadlineMs) {
               stop(new Error('CASE01_RESPONSE_LIMIT'));
             } else chunks.push(chunk);
           });
-          response.on('end', () => {
+          response.on('end', async () => {
+            clearTimeout(hardTimer);
             try {
+              const bytes = Buffer.concat(chunks);
+              if (body !== undefined)
+                await writeCaptureHttpObservation(
+                  collector,
+                  'stream-response-observation.json',
+                  {
+                    bytes,
+                    status: response.statusCode,
+                    releaseSha: response.headers['x-capiro-release-sha'],
+                  },
+                  scope.bearer,
+                );
               need(response.statusCode >= 200 && response.statusCode < 300, 'CASE01_HTTP_REJECTED');
-              const text = new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(chunks));
+              const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
               finish({
                 text,
                 releaseSha: response.headers['x-capiro-release-sha'],
@@ -468,7 +482,7 @@ async function prepareMemoryLiveCapture(
   await collector.init();
   claimedRuns.add(claim);
   const builds = await readCase01BuildAuthority(config.deployment);
-  const transport = nativeTransport(scope, config.limits.deadlineMs);
+  const transport = nativeTransport(scope, config.limits.deadlineMs, collector);
   const before = await currentAdmission(scope, transport);
   await collector.writeBytes('admission.json', privateBytes(before, scope.bearer));
   await collector.writeBytes('immutable-builds.json', privateBytes(builds, scope.bearer));
@@ -573,6 +587,12 @@ async function executeMemoryLiveCapture(capability) {
     const source = await transport.json(`/api/clio/sources?${query}`);
     const messages = await transport.json(
       `/api/clio/conversations/${config.conversationId}/messages`,
+    );
+    await writeCaptureHttpObservation(
+      collector,
+      'saved-messages-observation.json',
+      messages,
+      scope.bearer,
     );
     need(Array.isArray(messages.value), 'CASE01_MESSAGES_INVALID');
     const rows = messages.value.filter(

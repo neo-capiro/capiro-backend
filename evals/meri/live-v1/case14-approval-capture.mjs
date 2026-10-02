@@ -1,3 +1,4 @@
+import { writeCaptureHttpObservation } from './capture-http-observation.mjs';
 import https from 'node:https';
 import { createRequire } from 'node:module';
 import { buildFixtureManifest } from './fixture-provisioning/manifest.mjs';
@@ -404,9 +405,20 @@ export async function collectCase14ApprovalCapture({
     await button.click();
     const response = await pending;
     armed = false;
-    need(response.status() >= 200 && response.status() < 300, 'APPROVAL_HTTP');
     const bytes = await response.body();
-    need(bytes.length <= 262144 && !bytes.toString().includes(bearer), 'RESPONSE_BOUND');
+    need(bytes.length <= 262144, 'RESPONSE_BOUND');
+    await writeCaptureHttpObservation(
+      artifactStorage,
+      'case14-approval/approval-response-observation.json',
+      {
+        bytes,
+        status: response.status(),
+        releaseSha: response.headers()['x-capiro-release-sha'],
+      },
+      bearer,
+    );
+    need(response.status() >= 200 && response.status() < 300, 'APPROVAL_HTTP');
+    need(!bytes.toString().includes(bearer), 'RESPONSE_BOUND');
     const ack = {
       status: response.status(),
       releaseSha: response.headers()['x-capiro-release-sha'],
