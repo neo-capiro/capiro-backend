@@ -9,6 +9,8 @@ import {
   executeCase01FirstApprovalRecovery,
   inspectCase01FirstApprovalContinuation,
   executeCase01FirstApprovalContinuation,
+  inspectCase01PostApprovalResume,
+  executeCase01PostApprovalResume,
   safeCase01SetupFailure,
 } from '../../../evals/meri/live-v1/fixture-provisioning/case01-execution-setup.mjs';
 
@@ -19,7 +21,16 @@ const fail = () => {
 };
 try {
   if (
-    !['plan', 'execute', 'recover-plan', 'recover-execute', 'continue-plan', 'continue-execute'].includes(command) ||
+    ![
+      'plan',
+      'execute',
+      'recover-plan',
+      'recover-execute',
+      'continue-plan',
+      'continue-execute',
+      'resume-plan',
+      'resume-execute',
+    ].includes(command) ||
     process.argv.length !== 7 ||
     outFlag !== '--out' ||
     !isAbsolute(outputPath)
@@ -41,19 +52,29 @@ try {
     // The factory verifies the current synthetic actor before binding both real
     // tenant ALS scopes; the wrapper repeats locked preflight before its claim.
     const operatorContext = { ...input.recipe.ctx, clerkUserId: input.recipe.clerkUserId };
-    const pendingPlan = command === 'continue-plan' ? inspectCase01FirstApprovalContinuation : inspectCase01FirstApprovalRecovery;
-    const execute = command === 'continue-execute' ? executeCase01FirstApprovalContinuation
-      : command === 'recover-execute' ? executeCase01FirstApprovalRecovery : executeCase01ExecutionSetup;
+    const pendingPlan =
+      command === 'resume-plan'
+        ? inspectCase01PostApprovalResume
+        : command === 'continue-plan'
+          ? inspectCase01FirstApprovalContinuation
+          : inspectCase01FirstApprovalRecovery;
+    const execute =
+      command === 'resume-execute'
+        ? executeCase01PostApprovalResume
+        : command === 'continue-execute'
+          ? executeCase01FirstApprovalContinuation
+          : command === 'recover-execute'
+            ? executeCase01FirstApprovalRecovery
+            : executeCase01ExecutionSetup;
     await factory.runWithTenant(operatorContext, () =>
       command.endsWith('-plan')
         ? pendingPlan(factory.deps, input.recipe, input.expected).then(journal)
-        : execute(factory.deps, input.recipe,
-          ...(command !== 'execute' ? [input.expected] : []), {
-        expectedPlanSha256: input.expectedPlanSha256,
-        createConversation: (ctx, args) =>
-          factory.createConversation({ ...ctx, clerkUserId: input.recipe.clerkUserId }, args),
-        journal,
-      }),
+        : execute(factory.deps, input.recipe, ...(command !== 'execute' ? [input.expected] : []), {
+            expectedPlanSha256: input.expectedPlanSha256,
+            createConversation: (ctx, args) =>
+              factory.createConversation({ ...ctx, clerkUserId: input.recipe.clerkUserId }, args),
+            journal,
+          }),
     );
   }
   process.stdout.write(
@@ -69,7 +90,12 @@ try {
     : 'CASE01_SETUP_FAILED';
   if (output) {
     await output.writeFile(
-      JSON.stringify({ status: 'RECONCILIATION_REQUIRED', code, failure: safeCase01SetupFailure(error), liveAcceptance: 'NOT_RUN' }) + '\n',
+      JSON.stringify({
+        status: 'RECONCILIATION_REQUIRED',
+        code,
+        failure: safeCase01SetupFailure(error),
+        liveAcceptance: 'NOT_RUN',
+      }) + '\n',
     );
     await output.sync();
   }

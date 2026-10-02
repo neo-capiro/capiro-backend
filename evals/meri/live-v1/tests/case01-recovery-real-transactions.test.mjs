@@ -8,10 +8,13 @@ import { resolve, join, dirname } from 'node:path';
 import { memoryFixtureSchemaSql } from './approved-memory-schema.mjs';
 import { buildFixtureManifest } from '../fixture-provisioning/manifest.mjs';
 import { lifecycleSeedMemoryDefinitions } from '../fixture-provisioning/approved-memory-runtime.mjs';
-import { createMemoryCandidateOwnerPort } from '../fixture-provisioning/memory-candidate-owner.mjs';
+import { createMemoryCandidateOwnerPort, expectedMemoryCandidatePayload } from '../fixture-provisioning/memory-candidate-owner.mjs';
 import { inspectCase01FirstApprovalRecovery, executeCase01FirstApprovalRecovery, inspectCase01FirstApprovalContinuation, executeCase01FirstApprovalContinuation, safeCase01SetupFailure } from '../fixture-provisioning/case01-execution-setup.mjs';
 import { sha256Stable } from '../artifact-collector.mjs';
 import { AUTHORIZED_TENANTS, FIXTURE_NAMESPACE } from '../fixture-provisioning/contract.mjs';
+
+import { inspectCase01PostApprovalResume, executeCase01PostApprovalResume } from '../fixture-provisioning/case01-execution-setup.mjs';
+import { stableJson } from '../lib/stable.mjs';
 
 const configPath = process.env.MERI_APPROVED_MEMORY_PG_CONFIG;
 const api = fileURLToPath(new URL('../../../../apps/api/', import.meta.url));
@@ -136,6 +139,7 @@ test('actual factory and Prisma transactions serialize recovery claims, preserve
       // Execute the actual fixed CLI and actual dependency factory on the owned
       // cluster. Only its dist→source loader mapping above is used; no CLI or
       // canonical operation is replaced. continue-plan must perform no writes.
+      async function checkCliPlan(command, recipeExpected, planExpected) {
       const outputRoot = resolve(process.env.MERI_TEST_EVIDENCE_ROOT || process.cwd());
       const directory = await mkdtemp(join(outputRoot, '.meri-continuation-cli-'));
       const outputPath = join(directory, 'plan.jsonl');
@@ -143,20 +147,22 @@ test('actual factory and Prisma transactions serialize recovery claims, preserve
         stdout: process.stdout.write, stderr: process.stderr.write };
       let cliText = '';
       try {
-        process.argv = [process.execPath, resolve(api, 'scripts/meri-case01-setup.mjs'), 'continue-plan', '--input-env', 'MERI_CASE01_SETUP_INPUT', '--out', outputPath];
-        process.env.MERI_CASE01_SETUP_INPUT = JSON.stringify({ recipe: input, expected: continuationExpected });
+        process.argv = [process.execPath, resolve(api, 'scripts/meri-case01-setup.mjs'), command, '--input-env', 'MERI_CASE01_SETUP_INPUT', '--out', outputPath];
+        process.env.MERI_CASE01_SETUP_INPUT = JSON.stringify({ recipe: input, expected: recipeExpected });
         process.exitCode = undefined;
         process.stdout.write = text => { cliText += String(text); return true; };
         process.stderr.write = () => true;
         await import(pathToFileURL(resolve(api, 'scripts/meri-case01-setup.mjs')).href + '?owned-plan=' + randomUUID());
         assert.equal(process.exitCode || 0, 0);
-        assert.deepEqual(JSON.parse((await readFile(outputPath, 'utf8')).trim()), continuationPlan);
+        assert.deepEqual(JSON.parse((await readFile(outputPath, 'utf8')).trim()), planExpected);
         assert.ok(cliText.includes('MERI_CASE01_SETUP_RECEIPT '));
       } finally {
         process.argv = oldCli.argv;process.exitCode = oldCli.exitCode;process.stdout.write = oldCli.stdout;process.stderr.write = oldCli.stderr;
         oldCli.input === undefined ? delete process.env.MERI_CASE01_SETUP_INPUT : process.env.MERI_CASE01_SETUP_INPUT = oldCli.input;
         assert.equal(dirname(directory), outputRoot);await rm(directory, { recursive: true });
       }
+      }
+      await checkCliPlan('continue-plan', continuationExpected, continuationPlan);
       const continuationJournals = [[], []];
       const continuations = await Promise.allSettled(continuationJournals.map(journal => run(() =>
         executeCase01FirstApprovalContinuation(factory.deps, input, continuationExpected,
@@ -173,6 +179,117 @@ test('actual factory and Prisma transactions serialize recovery claims, preserve
       assert.deepEqual((await db.query("SELECT (SELECT count(*)::int FROM memory_candidate WHERE status='pending') AS pending,(SELECT count(*)::int FROM clio_memory) AS legacy,(SELECT count(*)::int FROM memory_items) AS items,(SELECT count(*)::int FROM memory_cleanup_outbox) AS outbox")).rows[0], counts);
       await assert.rejects(run(() => inspectCase01FirstApprovalContinuation(factory.deps, input, continuationExpected)), /DOWNSTREAM_OWNER/);
       assert.equal(projectionCalls, 0);
+      // Reproduce the different, post-commit boundary with the real approval on
+      // this owned schema. The deliberately broken projection port stops before
+      // any external provider; canonical approval/outbox/audits must survive.
+      await db.query('DROP TRIGGER owned_activation_fault ON memory_items');
+      await db.query(`ALTER TABLE clio_memory ADD COLUMN embedding text`);
+      await db.query(`ALTER TABLE memory_cleanup_outbox ADD COLUMN attempts int DEFAULT 0,
+        ADD COLUMN last_error text,ADD COLUMN completed_at timestamptz,ADD COLUMN superseded_at timestamptz,
+        ADD COLUMN lease_owner text,ADD COLUMN lease_expires_at timestamptz,ADD COLUMN created_at timestamptz DEFAULT now()`);
+      await db.query(`ALTER TABLE context_embeddings ADD COLUMN tenant_id uuid,
+        ADD COLUMN model text,ADD COLUMN content_hash text,ADD COLUMN embedding text`);
+      await assert.rejects(
+        run(() =>
+          factory.deps.memoryCandidates.approveSyntheticFixture(
+            ctx.tenantId,
+            first.physicalId,
+            PRIYA,
+            { tenantId: ctx.tenantId, userId: PRIYA, role: 'user_admin' },
+            {
+              expectedRowVersion: pending.rowVersion,
+              expectedPayload: expectedMemoryCandidatePayload(
+                first,
+                PAT,
+                stableJson({ ownership: first.ownership, payload: first.payload }),
+              ),
+            },
+          ),
+        ),
+        /OWNED_PROVIDER_BOUNDARY_STOP/,
+      );
+      assert.equal(projectionCalls, 1);
+      await db.query("UPDATE clio_memory SET embedding='owned-test-legacy-vector'");
+      const committed = (
+        await db.query(
+          `SELECT c.xmin::text AS candidate_version,i.xmin::text AS item_version,
+        m.xmin::text AS clio_version,o.id::text AS job_id,i.id::text AS item_id FROM memory_candidate c
+        JOIN clio_memory m ON m.id=c.committed_memory_id JOIN memory_items i ON i.id=c.committed_memory_item_id
+        JOIN memory_cleanup_outbox o ON o.memory_item_id=i.id WHERE c.id=$1`,
+          [first.physicalId],
+        )
+      ).rows[0];
+      const resumeExpected = {
+        originalClaimSha256: expected.originalClaimSha256,
+        recoveryClaimSha256: continuationExpected.recoveryClaimSha256,
+        continuationClaimSha256: sha256Stable(
+          retained.meriFoundationFixture.case01ExecutionSetupContinuation,
+        ),
+        candidateRowVersion: committed.candidate_version,
+        itemRowVersion: committed.item_version,
+        clioRowVersion: committed.clio_version,
+        projectionJobId: committed.job_id,
+      };
+      const resumePlan = await run(() =>
+        inspectCase01PostApprovalResume(factory.deps, input, resumeExpected),
+      );
+      await checkCliPlan('resume-plan', resumeExpected, resumePlan);
+      assert.equal(factory.deps.memoryIngest, factory.deps.memoryCandidates.memoryIngest);
+      let canonicalEmbeddings = 0;
+      // Inert external vector sink only; actual factory/Prisma/strict projector,
+      // exact outbox lookup and completion are unmodified source methods.
+      factory.deps.memoryIngest.strictProjector.writeEmbedding = async (value) => {
+        canonicalEmbeddings++;
+        const { projectionContentHash } = source('memory/strict-memory-projector.service');
+        await db.query(
+          `INSERT INTO context_embeddings(tenant_id,source_type,source_id,model,content_hash,embedding)
+          VALUES($1,'memory_item',$2,'amazon.titan-embed-text-v2:0',$3,'owned-test-canonical-vector')`,
+          [value.tenantId, value.sourceId, projectionContentHash(value.text)],
+        );
+      };
+      const resumeJournals = [[], []];
+      const resumed = await Promise.allSettled(
+        resumeJournals.map((journal) =>
+          run(() =>
+            executeCase01PostApprovalResume(factory.deps, input, resumeExpected, {
+              expectedPlanSha256: resumePlan.planSha256,
+              createConversation: factory.createConversation,
+              journal: async (entry) => {
+                journal.push(entry);
+                if (entry.stage === 'PREVIOUS_SEED') throw new Error('OWNED_DOWNSTREAM_STOP');
+              },
+            }),
+          ),
+        ),
+      );
+      assert.ok(resumed.every((r) => r.status === 'rejected'));
+      assert.equal(canonicalEmbeddings, 1);
+      assert.equal(projectionCalls, 1, 'No second canonical approval dispatch');
+      assert.equal(
+        resumeJournals
+          .flat()
+          .filter((r) => r.stage === 'FIRST_CANONICAL_PROJECTION' && r.phase === 'VERIFIED').length,
+        1,
+      );
+      const finished = (
+        await db.query('SELECT settings_jsonb AS s FROM tenants WHERE id=$1', [ctx.tenantId])
+      ).rows[0].s;
+      for (const key of [
+        'case01ExecutionSetup',
+        'case01ExecutionSetupRecovery',
+        'case01ExecutionSetupContinuation',
+      ])
+        assert.deepEqual(finished.meriFoundationFixture[key], retained.meriFoundationFixture[key]);
+      assert.equal(
+        finished.meriFoundationFixture.case01ExecutionSetupPostApproval.status,
+        'STARTED',
+      );
+      assert.equal(
+        (await db.query('SELECT status FROM memory_cleanup_outbox WHERE id=$1', [committed.job_id]))
+          .rows[0].status,
+        'completed',
+      );
+      assert.equal((await db.query('SELECT count(*)::int AS n FROM memory_items')).rows[0].n, 1);
     } finally {
       await factory?.close();
       Module._resolveFilename = oldResolve;

@@ -241,11 +241,12 @@ export async function executeCase01ExecutionSetup(
   return continueClaimedSetup(deps, spec, { createConversation, journal, operation, claimKey: 'case01ExecutionSetup', originalOperation: operation });
 }
 
-async function continueClaimedSetup(deps, spec, { createConversation, journal, operation, claimKey, originalOperation, originalRecoveryOperation = null }) {
+async function continueClaimedSetup(deps, spec, { createConversation, journal, operation, claimKey, originalOperation, originalRecoveryOperation = null, originalContinuationOperation = null }) {
   const input = spec.input, { ctx } = input;
   let stage = 'CLAIMED';
-  if (!['case01ExecutionSetup', 'case01ExecutionSetupRecovery', 'case01ExecutionSetupContinuation'].includes(claimKey) ||
-    (claimKey === 'case01ExecutionSetupContinuation' && !originalRecoveryOperation)) fail('CLAIM_KEY_INVALID');
+  if (!['case01ExecutionSetup', 'case01ExecutionSetupRecovery', 'case01ExecutionSetupContinuation', 'case01ExecutionSetupPostApproval'].includes(claimKey) ||
+    (claimKey === 'case01ExecutionSetupContinuation' && !originalRecoveryOperation) ||
+    (claimKey === 'case01ExecutionSetupPostApproval' && (!originalRecoveryOperation || !originalContinuationOperation))) fail('CLAIM_KEY_INVALID');
   try {
     const runtimeDeps = {
       ...deps,
@@ -365,6 +366,7 @@ async function continueClaimedSetup(deps, spec, { createConversation, journal, o
         WHERE id=$2::uuid AND settings_jsonb#>$4::text[]=$3::jsonb
           AND settings_jsonb->'meriFoundationFixture'->'case01ExecutionSetup'=$5::jsonb
           AND ($6::jsonb IS NULL OR settings_jsonb->'meriFoundationFixture'->'case01ExecutionSetupRecovery'=$6::jsonb)
+          AND ($7::jsonb IS NULL OR settings_jsonb->'meriFoundationFixture'->'case01ExecutionSetupContinuation'=$7::jsonb)
           RETURNING id::text`,
         stableJson({
           ...operation,
@@ -376,6 +378,7 @@ async function continueClaimedSetup(deps, spec, { createConversation, journal, o
         ['meriFoundationFixture', claimKey],
         stableJson(originalOperation),
         originalRecoveryOperation ? stableJson(originalRecoveryOperation) : null,
+        originalContinuationOperation ? stableJson(originalContinuationOperation) : null,
       );
       if (changed.length !== 1) fail('FINAL_CLAIM_CHANGED');
     });
@@ -398,7 +401,7 @@ export function safeCase01SetupFailure(error, stage = 'OPERATOR') {
   const sql = new Set(['08001', '08006', '08P01', '22001', '22P02', '23502', '23503', '23505', '23514',
     '25006', '25P02', '40001', '40P01', '42501', '42703', '42883', '42P01', '57014', 'P0001']);
   const stages = new Set(['OPERATOR', 'CLAIMED', 'PREVIOUS_SEED', 'PREVIOUS_RETIRE', 'CURRENT_SEED',
-    'BIND', 'LOCATOR', 'CONVERSATION', 'READBACK', 'RECOVERY_ADMISSION', 'CONTINUATION_ADMISSION', 'FIRST_CANONICAL_APPROVAL']);
+    'BIND', 'LOCATOR', 'CONVERSATION', 'READBACK', 'RECOVERY_ADMISSION', 'CONTINUATION_ADMISSION', 'FIRST_CANONICAL_APPROVAL', 'POST_APPROVAL_ADMISSION', 'FIRST_CANONICAL_PROJECTION']);
   return {
     stage: stages.has(stage) ? stage : 'OPERATOR',
     errorClass: classes.has(error?.constructor?.name) ? error.constructor.name : 'UnknownError',
@@ -580,4 +583,356 @@ export async function executeCase01FirstApprovalContinuation(deps, input, expect
   await journal({ stage: 'CONTINUATION_ADMISSION', phase: 'VERIFIED', captureRunId: spec.input.captureRunId,
     claimSha256: sha256Stable(operation) });
   return approveFirstAndContinue(deps, spec, admitted, operation, 'case01ExecutionSetupContinuation', { createConversation, journal });
+}
+
+const postApprovalClaimKey = 'case01ExecutionSetupPostApproval';
+
+/** Reconcile only the already committed first approval. No payload, approval
+ * result, projection receipt or readiness assertion is accepted from the caller. */
+async function postApprovalInTx(
+  deps,
+  tx,
+  spec,
+  expected,
+  { operation = null, projected = false } = {},
+) {
+  const keys = [
+    'originalClaimSha256',
+    'recoveryClaimSha256',
+    'continuationClaimSha256',
+    'candidateRowVersion',
+    'itemRowVersion',
+    'clioRowVersion',
+    'projectionJobId',
+  ];
+  if (
+    !expected ||
+    Object.keys(expected).sort().join('|') !== keys.sort().join('|') ||
+    keys
+      .filter((k) => k.endsWith('Sha256'))
+      .some((k) => !/^[a-f0-9]{64}$/u.test(expected[k] ?? '')) ||
+    keys
+      .filter((k) => k.endsWith('RowVersion'))
+      .some((k) => !/^[0-9]{1,10}$/u.test(expected[k] ?? '')) ||
+    !uuid.test(expected.projectionJobId ?? '') ||
+    typeof deps.canonicalProjectionSnapshot !== 'function' ||
+    typeof deps.assertSyntheticApprovedMemoryInTx !== 'function' ||
+    typeof deps.memoryIngest?.projectClioMemory !== 'function'
+  )
+    fail('POST_APPROVAL_EXPECTATION_INVALID');
+  const row = await inspectInTx(tx, spec, deps.memoryAuthorization),
+    { ctx } = spec.input;
+  const originalOperation = originalOperationFor(spec);
+  const originalRecoveryOperation = row.fixture.case01ExecutionSetupRecovery;
+  const originalContinuationOperation = row.fixture.case01ExecutionSetupContinuation;
+  if (
+    sha256Stable(row.fixture.case01ExecutionSetup ?? null) !== sha256Stable(originalOperation) ||
+    sha256Stable(originalOperation) !== expected.originalClaimSha256 ||
+    sha256Stable(originalRecoveryOperation ?? null) !== expected.recoveryClaimSha256 ||
+    sha256Stable(originalContinuationOperation ?? null) !== expected.continuationClaimSha256
+  )
+    fail('POST_APPROVAL_HISTORICAL_CLAIM_CHANGED');
+  for (const [claim, kind] of [
+    [originalRecoveryOperation, 'meri-case01-first-approval-recovery'],
+    [originalContinuationOperation, 'meri-case01-first-approval-continuation'],
+  ]) {
+    if (
+      claim?.kind !== kind ||
+      claim.status !== 'STARTED' ||
+      claim.schemaVersion !== 1 ||
+      claim.captureRunId !== spec.input.captureRunId ||
+      claim.recipeSha256 !== sha256Stable(spec.input) ||
+      claim.originalClaimSha256 !== expected.originalClaimSha256 ||
+      claim.liveAcceptance !== 'NOT_RUN'
+    )
+      fail('POST_APPROVAL_HISTORICAL_CLAIM_INVALID');
+  }
+  if (
+    originalContinuationOperation.recoveryClaimSha256 !== expected.recoveryClaimSha256 ||
+    originalContinuationOperation.candidateId !== originalRecoveryOperation.candidateId ||
+    originalContinuationOperation.candidateRowVersion !==
+      originalRecoveryOperation.candidateRowVersion
+  )
+    fail('POST_APPROVAL_HISTORICAL_CLAIM_INVALID');
+  if (
+    ['case01MemoryOwner', 'captureEvidence'].some((k) => Object.hasOwn(row.fixture, k)) ||
+    (operation
+      ? sha256Stable(row.fixture[postApprovalClaimKey] ?? null) !== sha256Stable(operation)
+      : Object.hasOwn(row.fixture, postApprovalClaimKey))
+  )
+    fail('POST_APPROVAL_DOWNSTREAM_OWNER_PRESENT');
+
+  const definitions = [spec.previous, spec.current].flatMap((manifest) => [
+    ...lifecycleSeedMemoryDefinitions(manifest, ['MA1-v1', 'MA3']).map((entry) => entry.candidate),
+    ...selectedApprovedMemoryDefinitions(manifest, ['MB1']).map((entry) => entry.candidate),
+    manifest.records.find((record) => record.logicalId === 'MA2'),
+  ]);
+  const first = definitions[0],
+    ids = definitions.map((r) => r.physicalId),
+    markers = definitions.map((r) => r.ownership.markerSha256),
+    payloads = definitions.map((record) =>
+      expectedMemoryCandidatePayload(
+        record,
+        ctx.userId,
+        stableJson({ ownership: record.ownership, payload: record.payload }),
+      ),
+    ),
+    sourceKeys = payloads.map((p) => p.key);
+  const candidates = await tx.$queryRawUnsafe(
+    `SELECT id::text,xmin::text AS version,committed_memory_id::text AS clio_id,
+       committed_memory_item_id::text AS item_id,approved_by_user_id::text AS approved_by
+     FROM memory_candidate WHERE tenant_id=$1::uuid
+       AND (id=ANY($2::uuid[]) OR source_id=ANY($3::text[]) OR payload_jsonb->>'key'=ANY($4::text[]))
+     ORDER BY id FOR UPDATE`,
+    ctx.tenantId,
+    ids,
+    markers,
+    sourceKeys,
+  );
+  const candidate = candidates[0];
+  if (
+    candidates.length !== 1 ||
+    candidate.id !== first.physicalId ||
+    candidate.id !== originalContinuationOperation.candidateId ||
+    candidate.version !== expected.candidateRowVersion ||
+    candidate.approved_by !== spec.input.reviewerUserId
+  )
+    fail('POST_APPROVAL_NOT_EXACT_FIRST');
+  const items = await tx.$queryRawUnsafe(
+    `SELECT id::text,xmin::text AS version,title,sections_jsonb AS sections FROM memory_items
+     WHERE tenant_id=$1::uuid AND (id=$2::uuid OR title=ANY($3::text[]) OR source_id=ANY($4::text[]))
+     ORDER BY id FOR UPDATE`,
+    ctx.tenantId,
+    candidate.item_id,
+    sourceKeys,
+    [...ids, ...markers],
+  );
+  if (
+    items.length !== 1 ||
+    items[0].id !== candidate.item_id ||
+    items[0].version !== expected.itemRowVersion
+  )
+    fail('POST_APPROVAL_ITEM_CHANGED');
+  await deps.assertSyntheticApprovedMemoryInTx(tx, row.reviewer, candidate.item_id, {
+    candidateId: candidate.id,
+    expectedRowVersion: expected.candidateRowVersion,
+    expectedItemRowVersion: expected.itemRowVersion,
+    expectedPayload: payloads[0],
+  });
+  const legacy = await tx.$queryRawUnsafe(
+    `SELECT id::text,xmin::text AS version,updated_at AS source_version,embedding IS NOT NULL AS embedded
+     FROM clio_memory WHERE tenant_id=$1::uuid AND (id=$2::uuid OR key=ANY($3::text[])) ORDER BY id FOR UPDATE`,
+    ctx.tenantId,
+    candidate.clio_id,
+    sourceKeys,
+  );
+  if (
+    legacy.length !== 1 ||
+    legacy[0].id !== candidate.clio_id ||
+    legacy[0].version !== expected.clioRowVersion ||
+    !legacy[0].embedded
+  )
+    fail('POST_APPROVAL_CLIO_CHANGED');
+  const contentHash = deps.canonicalProjectionSnapshot(items[0]).contentHash;
+  const sourceVersion = new Date(legacy[0].source_version).toISOString();
+  const idempotencyKey = `index_memory_item:${candidate.clio_id}:${sourceVersion}:${contentHash}`;
+  const jobs = await tx.$queryRawUnsafe(
+    `SELECT id::text,memory_item_id::text AS item_id,operation,status,attempts,idempotency_key,
+       expected_source_version,expected_content_hash,last_error,completed_at,superseded_at,
+       lease_owner,lease_expires_at FROM memory_cleanup_outbox
+     WHERE tenant_id=$1::uuid AND (clio_memory_id=$2::uuid OR memory_item_id=$3::uuid) ORDER BY id FOR UPDATE`,
+    ctx.tenantId,
+    candidate.clio_id,
+    candidate.item_id,
+  );
+  const job = jobs[0];
+  if (
+    jobs.length !== 1 ||
+    job.id !== expected.projectionJobId ||
+    job.item_id !== candidate.item_id ||
+    job.operation !== 'index_memory_item' ||
+    job.status !== (projected ? 'completed' : 'pending') ||
+    job.attempts !== 0 ||
+    job.idempotency_key !== idempotencyKey ||
+    new Date(job.expected_source_version).toISOString() !== sourceVersion ||
+    job.expected_content_hash !== contentHash ||
+    job.last_error !== null ||
+    job.superseded_at !== null ||
+    job.lease_owner !== null ||
+    job.lease_expires_at !== null ||
+    (projected ? !job.completed_at : job.completed_at !== null)
+  )
+    fail('POST_APPROVAL_JOB_CHANGED');
+  const embeddings = await tx.$queryRawUnsafe(
+    `SELECT model,content_hash,embedding IS NOT NULL AS embedded FROM context_embeddings
+     WHERE tenant_id=$1::uuid AND source_type='memory_item' AND source_id=$2 FOR UPDATE`,
+    ctx.tenantId,
+    candidate.item_id,
+  );
+  if (
+    projected
+      ? embeddings.length !== 1 ||
+        embeddings[0].model !== 'amazon.titan-embed-text-v2:0' ||
+        embeddings[0].content_hash !== contentHash ||
+        !embeddings[0].embedded
+      : embeddings.length !== 0
+  )
+    fail('POST_APPROVAL_EMBEDDING_CHANGED');
+  const audits = await tx.$queryRawUnsafe(
+    `SELECT from_status,to_status,actor_user_id::text AS actor FROM memory_transition_audit
+     WHERE tenant_id=$1::uuid AND memory_candidate_id=ANY($2::uuid[]) ORDER BY occurred_at,id`,
+    ctx.tenantId,
+    ids,
+  );
+  if (
+    audits.length !== 2 ||
+    audits.some((a) => a.actor !== spec.input.reviewerUserId) ||
+    !audits.some((a) => a.from_status === 'suggested' && a.to_status === 'pending_review') ||
+    !audits.some((a) => a.from_status === 'pending_review' && a.to_status === 'active')
+  )
+    fail('POST_APPROVAL_AUDIT_CHANGED');
+  const conversations = await tx.$queryRawUnsafe(
+    'SELECT id::text FROM clio_conversations WHERE tenant_id=$1::uuid AND title=$2 LIMIT 1',
+    ctx.tenantId,
+    `${FIXTURE_NAMESPACE} case01 ${spec.input.captureRunId}`,
+  );
+  if (conversations.length) fail('POST_APPROVAL_CONVERSATION_PRESENT');
+  return {
+    ...row,
+    originalOperation,
+    originalRecoveryOperation,
+    originalContinuationOperation,
+    first,
+    projection: {
+      candidateId: candidate.id,
+      itemId: candidate.item_id,
+      clioId: candidate.clio_id,
+      jobId: job.id,
+      contentHash,
+      sourceVersion,
+      idempotencyKeySha256: sha256Stable(idempotencyKey),
+    },
+  };
+}
+
+function postApprovalPlan(spec, row, expected) {
+  const body = {
+    kind: 'meri-case01-post-approval-resume-plan',
+    schemaVersion: 1,
+    recipeSha256: sha256Stable(spec.input),
+    captureRunId: spec.input.captureRunId,
+    ...expected,
+    projection: row.projection,
+    previousManifestSha256: spec.previous.contentSha256,
+    currentManifestSha256: spec.current.contentSha256,
+    tenantRowVersion: row.version,
+    priorSettingsSha256: sha256Stable(row.settings),
+    liveAcceptance: 'NOT_RUN',
+  };
+  return { ...body, planSha256: sha256Stable(body) };
+}
+
+export async function inspectCase01PostApprovalResume(deps, input, expected) {
+  const spec = await recipe(input);
+  return deps.prisma.withTenantUser(spec.input.ctx.tenantId, spec.input.ctx.userId, async (tx) =>
+    postApprovalPlan(spec, await postApprovalInTx(deps, tx, spec, expected), expected),
+  );
+}
+
+export async function executeCase01PostApprovalResume(
+  deps,
+  input,
+  expected,
+  { expectedPlanSha256, createConversation, journal },
+) {
+  if (typeof createConversation !== 'function' || typeof journal !== 'function')
+    fail('PORTS_REQUIRED');
+  const spec = await recipe(input),
+    { ctx } = spec.input;
+  let admitted, operation;
+  await journal({
+    stage: 'POST_APPROVAL_ADMISSION',
+    phase: 'INTENT',
+    captureRunId: spec.input.captureRunId,
+  });
+  await deps.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+    admitted = await postApprovalInTx(deps, tx, spec, expected);
+    const plan = postApprovalPlan(spec, admitted, expected);
+    if (plan.planSha256 !== expectedPlanSha256) fail('POST_APPROVAL_STALE_PLAN');
+    operation = {
+      kind: 'meri-case01-post-approval-resume',
+      schemaVersion: 1,
+      status: 'STARTED',
+      captureRunId: spec.input.captureRunId,
+      recipeSha256: plan.recipeSha256,
+      originalClaimSha256: expected.originalClaimSha256,
+      recoveryClaimSha256: expected.recoveryClaimSha256,
+      continuationClaimSha256: expected.continuationClaimSha256,
+      projection: admitted.projection,
+      planSha256: plan.planSha256,
+      liveAcceptance: 'NOT_RUN',
+    };
+    const changed = await tx.$queryRawUnsafe(
+      `UPDATE tenants SET settings_jsonb=jsonb_set(settings_jsonb,'{meriFoundationFixture,case01ExecutionSetupPostApproval}',$1::jsonb,true)
+       WHERE id=$2::uuid AND xmin::text=$3 AND settings_jsonb=$4::jsonb RETURNING id::text`,
+      stableJson(operation),
+      ctx.tenantId,
+      admitted.version,
+      stableJson(admitted.settings),
+    );
+    if (changed.length !== 1) fail('POST_APPROVAL_CLAIM_CAS_FAILED');
+  });
+  await journal({
+    stage: 'POST_APPROVAL_ADMISSION',
+    phase: 'VERIFIED',
+    captureRunId: spec.input.captureRunId,
+    claimSha256: sha256Stable(operation),
+  });
+  const stage = 'FIRST_CANONICAL_PROJECTION';
+  await journal({ stage, phase: 'INTENT', captureRunId: spec.input.captureRunId });
+  try {
+    await deps.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
+      postApprovalInTx(deps, tx, spec, expected, { operation }),
+    );
+    const projection = admitted.projection;
+    await deps.memoryIngest.projectClioMemory(ctx.tenantId, projection.clioId, {
+      id: projection.jobId,
+      memoryItemId: projection.itemId,
+      sourceVersion: projection.sourceVersion,
+      contentHash: projection.contentHash,
+      idempotencyKey: `index_memory_item:${projection.clioId}:${projection.sourceVersion}:${projection.contentHash}`,
+    });
+    const readback = await deps.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
+      postApprovalInTx(deps, tx, spec, expected, { operation, projected: true }),
+    );
+    await journal({
+      stage,
+      phase: 'VERIFIED',
+      captureRunId: spec.input.captureRunId,
+      resultSha256: sha256Stable(readback.projection),
+    });
+  } catch (error) {
+    await journal({
+      stage,
+      phase: 'RECONCILIATION_REQUIRED',
+      captureRunId: spec.input.captureRunId,
+      failure: safeCase01SetupFailure(error, stage),
+    });
+    throw error;
+  }
+  const canonicalCandidates = deps.memoryCandidates;
+  const scopedCandidates = Object.create(canonicalCandidates);
+  scopedCandidates.approveSyntheticFixture = (tenantId, candidateId, ...args) => {
+    if (candidateId === admitted.first.physicalId) fail('POST_APPROVAL_MUST_NOT_REAPPROVE');
+    return canonicalCandidates.approveSyntheticFixture(tenantId, candidateId, ...args);
+  };
+  return continueClaimedSetup({ ...deps, memoryCandidates: scopedCandidates }, spec, {
+    createConversation,
+    journal,
+    operation,
+    claimKey: postApprovalClaimKey,
+    originalOperation: admitted.originalOperation,
+    originalRecoveryOperation: admitted.originalRecoveryOperation,
+    originalContinuationOperation: admitted.originalContinuationOperation,
+  });
 }

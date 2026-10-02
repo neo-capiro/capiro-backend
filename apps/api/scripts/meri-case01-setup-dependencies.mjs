@@ -60,7 +60,9 @@ export async function createCase01SetupDependencies() {
   const { GovernedMemoryIngestService } = source('memory/governed-memory-ingest.service');
   const { MemoryCleanupOutboxService } = source('memory/memory-cleanup-outbox.service');
   const { ExactMemoryCleanupOutboxService } = source('memory/exact-memory-cleanup-outbox.service');
-  const { StrictMemoryProjectorService } = source('memory/strict-memory-projector.service');
+  const { StrictMemoryProjectorService, canonicalProjectionSnapshot } = source(
+    'memory/strict-memory-projector.service',
+  );
   const { ImmutableMemoryVersionService } = source('memory/immutable-memory-version.service');
   const { GovernedMemoryCandidateService } = source('memory/governed-memory-candidate.service');
   const { SettingsAwareMemoryCandidateService } = source(
@@ -133,6 +135,8 @@ export async function createCase01SetupDependencies() {
       memoryCandidates: app.get(GovernedMemoryCandidateService),
       memoryStore: app.get(MemoryStoreService),
       memoryVersions: app.get(ImmutableMemoryVersionService),
+      memoryIngest: app.get(MemoryIngestService),
+      canonicalProjectionSnapshot,
       memoryAuthorization: app.get(MemoryAuthorizationService),
       clientMemoryAllowed,
       runWithMemoryGovernanceTenant,
