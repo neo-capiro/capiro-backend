@@ -22,6 +22,7 @@ async function bootstrap() {
 
   configureApiHttpApp(app, {
     serviceHeader: undefined,
+    releaseShaHeader: process.env.RELEASE_SHA ?? process.env.GIT_SHA,
     includeClerkRawBody: true,
     includeRecallRawBody: true,
     includeTangoRawBody: true,

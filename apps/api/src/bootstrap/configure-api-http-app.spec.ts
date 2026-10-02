@@ -44,6 +44,15 @@ describe('configureApiHttpApp', () => {
       defaultJsonLimit: '1mb',
     };
 
+    it('identifies a configured main API release without an Engagement service identity', async () => {
+      const releaseSha = 'b'.repeat(40);
+      app = await createApp({ ...mainOpts, releaseShaHeader: releaseSha });
+      const res = await request(app.getHttpServer()).get('/api/nonexistent');
+      expect(res.status).toBe(404);
+      expect(res.headers['x-capiro-release-sha']).toBe(releaseSha);
+      expect(res.headers['x-capiro-service']).toBeUndefined();
+    }, nestBootTimeoutMs);
+
     it(
       'sets the global prefix to /api excluding /health and /webhooks/*',
       async () => {
