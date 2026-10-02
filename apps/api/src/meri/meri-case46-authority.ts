@@ -80,17 +80,12 @@ function actor(ctx: TenantContext): void {
     fail('actor_denied');
 }
 
-/** Caller holds the same transaction through admission/reservation/effect. No
- * receipt or caller boolean substitutes for the actual current rows and bytes. */
-export async function readCase46CurrentAuthorityInTx(
+/** Shared current-actor gate for the internal setup and every capture read. */
+export async function assertCase46CurrentActorInTx(
   tx: Prisma.TransactionClient,
-  deps: Case46AuthorityDependencies,
   ctx: TenantContext,
-  scope: { conversationId: string; captureRunId: string },
-) {
+): Promise<void> {
   actor(ctx);
-  if (!UUID.test(scope.conversationId)) fail('conversation_identity_invalid');
-  const identity = case46SourceIdentity(scope.captureRunId);
   // Stable lock order also fences current membership/wall deletion while the
   // provider reservation or one-shot binding is committed.
   await tx.$queryRaw`SELECT id FROM tenants WHERE id=${ctx.tenantId}::uuid FOR SHARE`;
@@ -126,6 +121,20 @@ export async function readCase46CurrentAuthorityInTx(
     !(await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, MERI_CASE46.clientId))
   )
     fail('current_actor_or_wall_denied');
+}
+
+/** Caller holds the same transaction through admission/reservation/effect. No
+ * receipt or caller boolean substitutes for the actual current rows and bytes. */
+export async function readCase46CurrentAuthorityInTx(
+  tx: Prisma.TransactionClient,
+  deps: Case46AuthorityDependencies,
+  ctx: TenantContext,
+  scope: { conversationId: string; captureRunId: string },
+) {
+  actor(ctx);
+  if (!UUID.test(scope.conversationId)) fail('conversation_identity_invalid');
+  const identity = case46SourceIdentity(scope.captureRunId);
+  await assertCase46CurrentActorInTx(tx, ctx);
   const conversations = await tx.$queryRaw<Array<{ metadata: unknown; title: string }>>`
     SELECT metadata_jsonb AS metadata,title FROM clio_conversations
     WHERE id=${scope.conversationId}::uuid AND tenant_id=${ctx.tenantId}::uuid AND user_id=${ctx.userId}::uuid

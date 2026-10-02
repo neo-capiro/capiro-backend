@@ -5,7 +5,7 @@ import { createRequire } from 'node:module';
 import { isAbsolute } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
-import { it } from 'node:test';
+import { it, mock } from 'node:test';
 import { clientDocumentPhysicalId } from '../fixture-provisioning/canonical-owner-adapter.mjs';
 import { ownedIdentity } from '../fixture-provisioning/contract.mjs';
 import { FIXTURE_VERSION } from '../fixture.mjs';
@@ -41,6 +41,9 @@ it(
       'INTERNAL_SERVICE_SECRET',
       'MERI_SYNTHETIC_FIXTURE_NAMESPACE',
       'ASSETS_BUCKET',
+      'DATABASE_URL', 'CLIO_CLIENT_KB_ENABLED', 'ENGAGEMENT_ATTACHMENT_SCAN_REQUIRED',
+      'CAPIRO_SERVICE_NAME', 'ENGAGEMENT_PROCESS_MODE', 'ENGAGEMENT_EXTERNAL_ACTIONS',
+      'ENGAGEMENT_BACKGROUND_OWNER', 'ENGAGEMENT_CALLBACKS_ENABLED', 'ENGAGEMENT_RECALL_WEBHOOK_ENABLED',
     ];
     const prior = Object.fromEntries(envKeys.map((k) => [k, process.env[k]]));
     let db, release;
@@ -96,7 +99,7 @@ it(
         tenantId: f.tenantId,
         tenantSlug: f.tenantSlug,
         userId: f.actorUserId,
-        clerkUserId: 'case46-local-only',
+        clerkUserId: 'user_case46_local_only',
         role: 'standard_user',
       };
       process.env.INTERNAL_SERVICE_SECRET = 'case46-owned-test-key-only';
@@ -609,6 +612,170 @@ it(
       ]);
       await assert.rejects(call({ kind: 'read' }), /current_binding_changed/);
       assert.ok(sourceReads >= 8);
+      await t.test(
+        'setup plan drift refuses effects and concurrent one-shot execution retains exactly one durable failed claim',
+        async () => {
+          const { planCase46Setup, executeCase46Setup } = source('meri-case46-setup-owner');
+          const recipe = {
+            version: 1,
+            caseId: '46',
+            fixtureNamespace: f.namespace,
+            captureRunId: randomUUID(),
+            ctx,
+            rateEvidence: {
+              version: 1,
+              caseId: '46',
+              expiresAt: q.rateEvidenceExpiresAt,
+              priceKind: q.priceKind,
+              maxAttempts: q.maxAttempts,
+              maxTokens: q.maxTokens,
+              maxCostMicros: q.maxCostMicros,
+              rates: q.rates,
+            },
+          };
+          const journals = [];
+          let sourceCalls = 0,
+            entered,
+            leave;
+          const started = new Promise((resolve) => {
+            entered = resolve;
+          });
+          const stop = new Promise((resolve) => {
+            leave = resolve;
+          });
+          const runtime = {
+            deps,
+            async createSource() {
+              sourceCalls++;
+              entered();
+              await stop;
+              throw new Error('bounded injected source failure');
+            },
+            async createConversation() {
+              assert.fail('source failure cannot create a conversation');
+            },
+          };
+          const plan = await planCase46Setup(runtime, recipe);
+          await admin.query(
+            `UPDATE tenants SET settings_jsonb=jsonb_set(settings_jsonb,'{meriFoundationFixture,preserved}', '"other-case-owned"'::jsonb) WHERE id=$1`,
+            [ctx.tenantId],
+          );
+          await assert.rejects(
+            executeCase46Setup(runtime, recipe, plan.planSha256, (e) => journals.push(e)),
+            /reconciliation_required/,
+          );
+          assert.equal(sourceCalls, 0);
+          assert.equal(
+            (
+              await admin.query(
+                `SELECT settings_jsonb#>'{meriFoundationFixture,case46ExecutionSetup}' AS claim FROM tenants WHERE id=$1`,
+                [ctx.tenantId],
+              )
+            ).rows[0].claim,
+            null,
+          );
+          const fresh = await planCase46Setup(runtime, recipe);
+          const first = executeCase46Setup(runtime, recipe, fresh.planSha256, (e) =>
+            journals.push(e),
+          );
+          const firstFailure = assert.rejects(first, /reconciliation_required/);
+          await started;
+          try {
+            await assert.rejects(
+              executeCase46Setup(runtime, recipe, fresh.planSha256, (e) => journals.push(e)),
+              /reconciliation_required/,
+            );
+            assert.equal(sourceCalls, 1);
+          } finally {
+            leave();
+          }
+          await firstFailure;
+          const fixture = (
+            await admin.query(
+              `SELECT settings_jsonb->'meriFoundationFixture' AS fixture FROM tenants WHERE id=$1`,
+              [ctx.tenantId],
+            )
+          ).rows[0].fixture;
+          assert.equal(fixture.preserved, 'other-case-owned');
+          assert.equal(fixture.case46ExecutionSetup.status, 'STARTED');
+          assert.equal(fixture.case46ExecutionSetup.recipeSha256, case46BudgetHash(recipe));
+          assert.equal(
+            journals.filter((e) => e.stage === 'CLAIM' && e.phase === 'VERIFIED').length,
+            1,
+          );
+          assert.equal(
+            journals.filter(
+              (e) => e.stage === 'INPUT_SOURCE' && e.phase === 'RECONCILIATION_REQUIRED',
+            ).length,
+            1,
+          );
+          await assert.rejects(
+            planCase46Setup(runtime, recipe),
+            /existing_claim_requires_reconciliation/,
+          );
+        },
+      );
+      await t.test('actual PrismaService plus canonical document/conversation factory composes complete setup; S3 is a test port only', async () => {
+        // Separate owned test fixture; never a production recovery/reset API.
+        await admin.query(`UPDATE tenants SET settings_jsonb=jsonb_set(settings_jsonb,'{meriFoundationFixture}',(settings_jsonb->'meriFoundationFixture')-'case46ExecutionSetup') WHERE id=$1`, [ctx.tenantId]);
+        await admin.query(`ALTER TABLE clients ADD COLUMN status text DEFAULT 'active';
+          ALTER TABLE engagement_attachments ADD COLUMN checksum_sha256 text, ADD COLUMN folder varchar(120),
+            ADD COLUMN indexed_at timestamptz, ADD COLUMN created_at timestamptz DEFAULT now(),
+            ADD COLUMN verified_content_type text, ADD COLUMN scan_provider text, ADD COLUMN scan_result_at timestamptz,
+            ADD COLUMN extraction_status text, ADD COLUMN extraction_metadata_jsonb jsonb DEFAULT '{}';
+          ALTER TABLE engagement_attachments ALTER COLUMN viewer_mode SET DEFAULT 'all', ALTER COLUMN viewer_user_ids SET DEFAULT '{}';
+          ALTER TABLE clio_conversations ADD COLUMN workspace_id uuid, ADD COLUMN workspace_key text DEFAULT 'workspace',
+            ADD COLUMN nanoclaw_platform_id text, ADD COLUMN nanoclaw_agent_group_id text,
+            ADD COLUMN summary text, ADD COLUMN summary_up_to_message_id uuid, ADD COLUMN summary_tokens integer,
+            ADD COLUMN created_at timestamptz DEFAULT now(), ADD COLUMN updated_at timestamptz DEFAULT now();
+          ALTER TABLE clio_conversations ALTER COLUMN status SET DEFAULT 'active';
+          CREATE TYPE "TenantRole" AS ENUM ('standard_user','user_admin','firm_admin');
+          ALTER TABLE tenant_memberships ALTER COLUMN role TYPE "TenantRole" USING role::"TenantRole";`);
+        Object.assign(process.env, { DATABASE_URL: url.href, CLIO_CLIENT_KB_ENABLED: 'false',
+          ENGAGEMENT_ATTACHMENT_SCAN_REQUIRED: 'false', CAPIRO_SERVICE_NAME: 'api',
+          ENGAGEMENT_PROCESS_MODE: 'active', ENGAGEMENT_EXTERNAL_ACTIONS: 'enabled',
+          ENGAGEMENT_BACKGROUND_OWNER: 'api', ENGAGEMENT_CALLBACKS_ENABLED: 'true', ENGAGEMENT_RECALL_WEBHOOK_ENABLED: 'true' });
+        const { S3Client } = require('@aws-sdk/client-s3');
+        const objects = new Map(); let puts = 0, gets = 0;
+        const send = mock.method(S3Client.prototype, 'send', async command => {
+          const { Bucket, Key, Body } = command.input;
+          assert.equal(Bucket, process.env.ASSETS_BUCKET);
+          if (command.constructor.name === 'PutObjectCommand') {
+            puts++; assert.equal(objects.has(Key), false); assert.equal(Buffer.from(Body).toString('utf8'), f.text);
+            objects.set(Key, Buffer.from(Body)); return {};
+          }
+          assert.equal(command.constructor.name, 'GetObjectCommand'); gets++;
+          assert.ok(objects.has(Key)); return { Body: { transformToByteArray: async () => Buffer.from(objects.get(Key)) } };
+        });
+        let runtime;
+        try {
+          const { createCase46SetupDependencies } = source('meri-case46-setup-dependencies');
+          const { planCase46Setup, executeCase46Setup } = source('meri-case46-setup-owner');
+          runtime = await createCase46SetupDependencies();
+          const recipe = { version: 1, caseId: '46', fixtureNamespace: f.namespace, captureRunId: randomUUID(), ctx,
+            rateEvidence: { version: 1, caseId: '46', expiresAt: q.rateEvidenceExpiresAt,
+              priceKind: q.priceKind, maxAttempts: q.maxAttempts, maxTokens: q.maxTokens,
+              maxCostMicros: q.maxCostMicros, rates: q.rates } };
+          const plan = await planCase46Setup(runtime, recipe); const journal = [];
+          const receipt = await executeCase46Setup(runtime, recipe, plan.planSha256, e => journal.push(e));
+          assert.equal(puts, 1); assert.ok(gets >= 2);
+          assert.equal(receipt.chatTurns, 0); assert.equal(receipt.outputArtifacts, 0);
+          assert.equal(receipt.source.id, case46SourceIdentity(recipe.captureRunId).physicalId);
+          assert.equal(journal.at(-1).stage, 'COMPLETE'); assert.equal(journal.at(-1).phase, 'VERIFIED');
+          const saved = (await admin.query('SELECT metadata_jsonb AS metadata FROM clio_conversations WHERE id=$1', [receipt.conversationId])).rows[0];
+          const bound = readSealedCase46Binding(saved.metadata, ctx, receipt.conversationId);
+          assert.equal(bound.policy.turnId, null); assert.equal(bound.policy.source.physicalId, receipt.source.id);
+          assert.equal(bound.qualification.rateEvidenceSha256, case46BudgetHash(recipe.rateEvidence));
+          const empty = (await admin.query(`SELECT
+            (SELECT count(*)::int FROM clio_messages WHERE conversation_id=$1) AS messages,
+            (SELECT count(*)::int FROM meri_action_proposals WHERE conversation_id=$1) AS proposals,
+            (SELECT count(*)::int FROM clio_artifacts WHERE conversation_id=$1) AS artifacts`, [receipt.conversationId])).rows[0];
+          assert.deepEqual(empty, { messages: 0, proposals: 0, artifacts: 0 });
+          assert.equal((await admin.query(`SELECT settings_jsonb#>>'{meriFoundationFixture,case46ExecutionSetup,status}' AS status FROM tenants WHERE id=$1`, [ctx.tenantId])).rows[0].status, 'COMPLETE');
+          await assert.rejects(executeCase46Setup(runtime, recipe, plan.planSha256, e => journal.push(e)), /reconciliation_required/);
+          assert.equal(puts, 1);
+        } finally { send.mock.restore(); await runtime?.close(); }
+      });
     } finally {
       release?.();
       await Promise.allSettled(pending);

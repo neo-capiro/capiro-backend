@@ -92,3 +92,47 @@ specific premises conflict with the actual source (existing parent row lock,
 lowercase headers, correct `format` schema, and existing nullable ordinary-scope
 contract); the raw review and factual adjudication are retained in task evidence
 for independent integration-owner review. Do not represent that review as PASS.
+
+## Fixed setup operator
+
+The image now has `meri-case46-setup plan` and `meri-case46-setup execute` verbs.
+The entrypoint composes the existing database URL and runs only the fixed operator.
+`MERI_CASE46_SETUP_INPUT` is a maximum6000-byte JSON envelope with `recipe` and,
+for execute, `expectedPlanSha256`. The strict recipe fixes case46, namespace,
+ordinary Pat and Aster; it supplies a fresh capture-run UUID, current Clerk identity,
+and independently reviewed provider rate evidence/expiry and integer limits.
+The operator does not obtain credentials or modify provider configuration.
+
+Plan verifies current actor, wall, namespace and absent source/conversation/claim.
+Execute repeats those reads under the tenant row lock and compares the actual
+plan hash. A durable exclusive claim precedes source storage or conversation
+creation. Unrelated tenant settings remain intact. An error preserves the claim
+and emits the stage and bounded error codes; there is no automatic retry/reset.
+
+The minimal runtime uses the real PrismaService, canonical Engagement document
+writer/reader, attachment scanner/content services and configured ClientKb index.
+Unrelated Engagement collaborators refuse access; no AppModule or background
+worker starts. An internal exact-input scope awaits the actual source index when
+enabled, so its metadata update finishes before the current source version is
+sealed. Ordinary document creation still indexes in the background. Disabled
+indexing stays disabled and required-but-unavailable scanning remains blocked.
+
+Only the INPUT briefing is created. The actual product method creates an empty
+owned conversation; a fresh current-source read then installs the sealed binding
+and qualification. No message, proposal, generated artifact or success is seeded.
+The binding expires15minutes after installation: prepare the browser operation
+before executing setup. A completed/failed claim cannot be silently reused.
+
+Validation:18 targeted canonical document/index/factory tests,6 fixed-CLI tests,
+and5 owned PostgreSQL tests passed, with zero skips; primary API typecheck passed.
+The PostgreSQL positive setup uses the actual PrismaService tenant/transaction
+methods and a TenantRole enum, real document/conversation services and binding
+install. S3 is an in-memory test transport and indexing is explicitly disabled
+in that test. Separate tests exercise awaited-index failure propagation and
+current-actor checks. This does not qualify production RLS, live storage or a model.
+Independent Hermes/Bedrock Kimi source review completed PASS with process exit0;
+source review is separate from the actual test receipts.
+
+Full authenticated original-prompt/proposal/current-effect capture composition,
+qualified API/orchestrator/Web deployment and actual browser download remain
+required. Original row46 and the75-case live matrix remain **NOT RUN**.
