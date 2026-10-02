@@ -49,4 +49,3 @@ export function case46Sample() {
     rounds: [{ phase: 'initial', checked: structuredClone(checked) }, { phase: 'after-reload', checked: structuredClone(checked) }] };
   return { scope, before, proposed, after, assistant, ui, now };
 }
-
