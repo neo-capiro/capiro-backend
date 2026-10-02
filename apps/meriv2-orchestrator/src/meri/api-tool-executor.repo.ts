@@ -13,6 +13,7 @@ import { classifyApiToolReadOutcome } from './api-tool-read-outcome.js';
 import { RequestCredentialsStore } from '../request/request-credentials.store.js';
 import {
   assertServerReadonlyCaptureToolAllowed,
+  currentGovernedArtifactCapturePolicy,
   currentTrustedCurrentTurnScope,
 } from '../request/trusted-current-turn-scope.js';
 import {
@@ -121,6 +122,8 @@ export class ApiToolExecutorRepo implements ToolExecutor {
       throw new Error(`No forwarded credential available for delegated tool "${toolName}"`);
     }
     const currentTurn = currentTrustedCurrentTurnScope();
+    if (currentGovernedArtifactCapturePolicy())
+      throw new Error('meri_case46_canonical_proposal_required');
     assertServerReadonlyCaptureToolAllowed(toolName);
     const boundedInput = bindCurrentConversationToolInput(toolName, input, currentTurn);
     const researchPortfolioTool = isCurrentConversationResearchPortfolioTool(toolName);

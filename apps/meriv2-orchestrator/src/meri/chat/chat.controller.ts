@@ -171,6 +171,8 @@ function authenticateGovernedContext(
 ): void {
   try {
     verifyMeriGovernedContext(governed, dto, identity, process.env.INTERNAL_SERVICE_SECRET);
+    if (governed.governedArtifactCapturePolicy)
+      throw new Error('meri_case46_qualified_v3_required');
     if (governed.serverReadonlyCapturePolicy) {
       validateServerReadonlyCapturePolicy(governed.serverReadonlyCapturePolicy, {
         tenantId: identity.tenantId,

@@ -1,9 +1,11 @@
-import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Post, Req, UseGuards, Inject, Optional } from '@nestjs/common';
 import type { Request } from 'express';
 import type { TenantContext } from '@capiro/shared';
 import {
   decodeAndVerifyMeriCapturePolicyTransport,
   MERI_CAPTURE_POLICY_HEADER,
+  MERI_GOVERNED_ARTIFACT_HEADER,
+  decodeMeriGovernedArtifactTransport,
 } from '@capiro/meriv2-core';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
@@ -13,12 +15,52 @@ import { MeriV3InternalServiceGuard } from './meri-v3-internal-service.guard.js'
 import { captureProviderBudgetOwner } from './meri-capture-provider-budget-owner.js';
 import type { ResearchProviderReservationBinding } from './meri-research-tool-budget.js';
 import type { CaptureProviderSettlement } from './meri-capture-provider-budget.js';
+import { CASE46_AUTHORITY_DEPENDENCIES } from './meri-case46-action-authority.js';
+import type { Case46AuthorityDependencies } from './meri-case46-authority.js';
+import {
+  case46ProviderBudgetOwner,
+  type Case46BudgetOperation,
+} from './meri-case46-provider-budget-owner.js';
 
 @Controller('clio/capture-provider-budget')
 @UseGuards(RolesGuard, MeriV3InternalServiceGuard)
 @Roles('standard_user')
 export class MeriCaptureProviderBudgetController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional()
+    @Inject(CASE46_AUTHORITY_DEPENDENCIES)
+    private readonly case46?: Case46AuthorityDependencies,
+  ) {}
+
+  private operation(
+    ctx: TenantContext,
+    req: Request,
+    operation: Extract<Case46BudgetOperation, { kind: 'reserve' | 'settle' }>,
+  ) {
+    const value = req.headers[MERI_GOVERNED_ARTIFACT_HEADER];
+    if (value !== undefined) {
+      if (
+        typeof value !== 'string' ||
+        req.headers[MERI_CAPTURE_POLICY_HEADER] !== undefined ||
+        !this.case46
+      )
+        throw new Error('meri_case46_provider_transport_invalid');
+      const policy = decodeMeriGovernedArtifactTransport(
+        value,
+        { purpose: 'provider_budget', tenantId: ctx.tenantId, actorUserId: ctx.userId },
+        process.env.INTERNAL_SERVICE_SECRET,
+      );
+      if (!policy.turnId) throw new Error('meri_case46_provider_turn_unbound');
+      return case46ProviderBudgetOwner(this.case46, { ctx, policy, operation });
+    }
+    return captureProviderBudgetOwner({
+      prisma: this.prisma,
+      ctx,
+      policy: this.policy(ctx, req),
+      operation,
+    });
+  }
 
   private policy(ctx: TenantContext, req: Request) {
     const value = req.headers[MERI_CAPTURE_POLICY_HEADER];
@@ -34,12 +76,7 @@ export class MeriCaptureProviderBudgetController {
     @Req() req: Request,
     @Body() binding: ResearchProviderReservationBinding,
   ) {
-    const result = await captureProviderBudgetOwner({
-      prisma: this.prisma,
-      ctx,
-      policy: this.policy(ctx, req),
-      operation: { kind: 'reserve', binding },
-    });
+    const result = await this.operation(ctx, req, { kind: 'reserve', binding });
     if (!('reservationId' in result) || !('dispatchAllowed' in result) || !('deadlineAt' in result))
       throw new Error('meri_capture_provider_budget_reservation_missing');
     return {
@@ -54,12 +91,7 @@ export class MeriCaptureProviderBudgetController {
     @Req() req: Request,
     @Body() input: CaptureProviderSettlement,
   ) {
-    await captureProviderBudgetOwner({
-      prisma: this.prisma,
-      ctx,
-      policy: this.policy(ctx, req),
-      operation: { kind: 'settle', input },
-    });
+    await this.operation(ctx, req, { kind: 'settle', input });
     return { settled: true };
   }
 }

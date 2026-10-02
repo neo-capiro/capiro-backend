@@ -3,6 +3,8 @@ import { Module } from '@nestjs/common';
 import { ManagedMcpModule } from './managed-mcp.module.js';
 import { ConfigService } from '@nestjs/config';
 import { EngagementModule } from '../engagement/engagement.module.js';
+import { EngagementService } from '../engagement/engagement.service.js';
+import { CASE46_AUTHORITY_DEPENDENCIES } from './meri-case46-action-authority.js';
 import { ClientDocumentsModule } from '../client-documents/client-documents.module.js';
 import { MeriClientFilingService } from './meri-client-filing.service.js';
 import { AiCredentialsModule } from '../ai-credentials/ai-credentials.module.js';
@@ -132,6 +134,11 @@ import { MeriCase01FixtureBootstrapProvider } from './meri-case01-fixture-bootst
     MeriVNextLibraryController,
   ],
   providers: [
+    {
+      provide: CASE46_AUTHORITY_DEPENDENCIES,
+      useFactory: (prisma: PrismaService, engagement: EngagementService) => ({ prisma, engagement }),
+      inject: [PrismaService, EngagementService],
+    },
     MeriClientFilingService,
     MeriChatAttachmentReadService,
     MeriSourceService,

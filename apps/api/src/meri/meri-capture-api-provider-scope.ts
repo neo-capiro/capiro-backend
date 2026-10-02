@@ -9,13 +9,18 @@ import {
 } from './meri-capture-provider-budget.js';
 import { captureProviderBudgetOwner } from './meri-capture-provider-budget-owner.js';
 import type { ResearchProviderReservationBinding } from './meri-research-tool-budget.js';
+import {
+  case46ApiProviderScopeActive,
+  reserveCase46ApiProviderAttempt,
+  settleCase46ApiProviderAttempt,
+} from './meri-case46-api-provider-scope.js';
 const scope = new AsyncLocalStorage<{
   prisma: PrismaService;
   ctx: TenantContext;
   policy: MeriServerReadonlyCapturePolicy;
 }>();
 export function captureApiProviderScopeActive(): boolean {
-  return !!scope.getStore();
+  return !!scope.getStore() || case46ApiProviderScopeActive();
 }
 export function withCaptureApiProviderScope<T>(
   prisma: PrismaService,
@@ -33,7 +38,7 @@ export function assertCaptureApiRetrievalPlan(plan: {
     scope.getStore() &&
     !(
       plan.subjectScope === 'client' &&
-      (['01','14'].includes(scope.getStore()!.policy.caseId ?? '')
+      (['01', '14'].includes(scope.getStore()!.policy.caseId ?? '')
         ? plan.requestedDomains.length === 1 &&
           plan.requestedDomains[0] === 'institutional_knowledge'
         : ['20', '72'].includes(scope.getStore()!.policy.caseId ?? '') &&
@@ -53,7 +58,8 @@ export async function reserveCaptureApiProviderAttempt(input: {
   inputBytes: number;
 }) {
   const current = scope.getStore();
-  if (!current) return null;
+  if (!current) return reserveCase46ApiProviderAttempt(input);
+  if (case46ApiProviderScopeActive()) throw new Error('meri_capture_provider_scope_ambiguous');
   const attemptId = randomUUID();
   const binding: ResearchProviderReservationBinding = {
     ...input,
@@ -81,6 +87,10 @@ export async function settleCaptureApiProviderAttempt(
   reservation: Awaited<ReturnType<typeof reserveCaptureApiProviderAttempt>>,
   outcome: CaptureProviderSettlement['outcome'],
 ): Promise<void> {
+  if (reservation && 'case46' in reservation) {
+    await settleCase46ApiProviderAttempt(reservation, outcome);
+    return;
+  }
   if (reservation)
     await captureProviderBudgetOwner({
       ...reservation,

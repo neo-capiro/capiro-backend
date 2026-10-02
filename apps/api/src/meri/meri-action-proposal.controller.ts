@@ -22,6 +22,7 @@ import { MeriActionProposalService } from './meri-action-proposal.service.js';
 import { ToolServiceSecretGuard } from './tool-service-secret.guard.js';
 import { admitMeriActionProposalTransport } from './meri-rp-action-proposal-transport.js';
 import { admitMeriServerReadonlyCaptureTransport } from './meri-server-readonly-capture.js';
+import { admitCase46ProposalTransport } from './meri-case46-action-authority.js';
 import {
   admitMeriInternalTelemetry,
   emitMeriApiTelemetry,
@@ -95,7 +96,8 @@ export class MeriActionProposalController {
     @Body() body: CreateMeriActionProposalDto,
     @Req() req: Request,
   ) {
-    admitMeriServerReadonlyCaptureTransport({
+    const capturePolicy = admitCase46ProposalTransport(ctx, req, body as Parameters<typeof admitCase46ProposalTransport>[2]);
+    if (!capturePolicy) admitMeriServerReadonlyCaptureTransport({
       ctx,
       req,
       purpose: 'action_proposal',
@@ -110,8 +112,10 @@ export class MeriActionProposalController {
         const startedAt = Date.now();
         try {
           const result = await withMeriToolRequestControl(req, () =>
-            admitted.trustedTurn
-              ? this.proposals.create(ctx, admitted.request, admitted.trustedTurn)
+            capturePolicy
+              ? this.proposals.create(ctx, admitted.request, admitted.trustedTurn, capturePolicy)
+              : admitted.trustedTurn
+                ? this.proposals.create(ctx, admitted.request, admitted.trustedTurn)
               : this.proposals.create(ctx, admitted.request),
           );
           emitMeriApiTelemetry({

@@ -7,6 +7,9 @@ import { isResearchPortfolioArtifact, authorizeResearchPortfolioArtifact, author
 import { authorizeMeriCaptureMessageReadback } from './meri-capture-policy-readback.js';
 import { readMeriCase01CaptureAdmission, readMeriCase01CaptureReadback } from './meri-case01-capture-authority.js';
 import { readMeriCase14CaptureAdmission, readMeriCase14CaptureReadback } from './meri-case14-capture-authority.js';
+import { CASE46_AUTHORITY_DEPENDENCIES } from './meri-case46-action-authority.js';
+import type { Case46AuthorityDependencies } from './meri-case46-authority.js';
+import { publicCase46ConversationMetadata, readCase46CaptureAdmission, readCase46CaptureMessage } from './meri-case46-capture-readback.js';
 import { prepareAnthropicRequest, anthropicResponseText } from '@capiro/shared/ai-model-policy';
 import {
   assertAttachmentConversation,
@@ -19,6 +22,7 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Inject,
   Logger,
   NotFoundException,
   Optional,
@@ -398,6 +402,8 @@ export class MeriService implements MeriTurnMaintenance {
     @Optional() private readonly bizdevScope?: BizDevMeriScopeService,
     @Optional() private readonly researchPortfolioScope?: ResearchPortfolioMeriScopeService,
     @Optional() private readonly contextPlane?: MeriContextPlaneService,
+    @Optional() @Inject(CASE46_AUTHORITY_DEPENDENCIES)
+    private readonly case46Dependencies?: Case46AuthorityDependencies,
   ) {}
 
   async status(ctx: TenantContext) {
@@ -454,6 +460,7 @@ export class MeriService implements MeriTurnMaintenance {
     return Promise.all(
       conversations.map(async (conversation) => ({
         ...conversation,
+        metadata: publicCase46ConversationMetadata(conversation.metadata),
         summary: await this.authorizeOrdinaryConversationSummary(
           ctx,
           { conversationId: conversation.id, clientId: conversation.clientId },
@@ -564,10 +571,13 @@ export class MeriService implements MeriTurnMaintenance {
     // restore it. Transcript reads and new turns still require an active row.
     const conversation = await this.ensureConversationAnyStatus(ctx, conversationId);
     const captureAdmission =
+      (await readCase46CaptureAdmission({ prisma: this.prisma, deps: this.case46Dependencies, ctx,
+        conversationId, conversationMetadata: conversation.metadata })) ??
       (await readMeriControlledCaptureAdmission({ prisma: this.prisma, ctx, conversationId })) ??
       (await readMeriCase14CaptureAdmission({ prisma: this.prisma, ctx, conversationId })) ??
       (await readMeriCase01CaptureAdmission({ prisma: this.prisma, ctx, conversationId }));
-    return captureAdmission ? { ...conversation, captureAdmission } : conversation;
+    const visible = { ...conversation, metadata: publicCase46ConversationMetadata(conversation.metadata) };
+    return captureAdmission ? { ...visible, captureAdmission } : visible;
   }
 
   async updateConversation(
@@ -599,7 +609,7 @@ export class MeriService implements MeriTurnMaintenance {
     }
 
     if (!Object.keys(data).length) {
-      return conversation;
+      return { ...conversation, metadata: publicCase46ConversationMetadata(conversation.metadata) };
     }
 
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
@@ -654,7 +664,7 @@ export class MeriService implements MeriTurnMaintenance {
         ]);
       }
 
-      return updated;
+      return { ...updated, metadata: publicCase46ConversationMetadata(updated.metadata) };
     });
   }
 
@@ -671,14 +681,15 @@ export class MeriService implements MeriTurnMaintenance {
 
   async restoreConversation(ctx: TenantContext, conversationId: string) {
     const conversation = await this.ensureConversationAnyStatus(ctx, conversationId);
-    if (!conversation.archivedAt) return conversation;
-    return this.prisma.withTenant(ctx.tenantId, (tx) =>
+    if (!conversation.archivedAt) return { ...conversation, metadata: publicCase46ConversationMetadata(conversation.metadata) };
+    const restored = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.clioConversation.update({
         where: { id: conversationId },
         data: { archivedAt: null, status: 'active', updatedAt: new Date() },
         include: { client: { select: { id: true, name: true } } },
       }),
     );
+    return { ...restored, metadata: publicCase46ConversationMetadata(restored.metadata) };
   }
 
   async listMessages(ctx: TenantContext, conversationId: string) {
@@ -729,6 +740,10 @@ export class MeriService implements MeriTurnMaintenance {
       }
       const case14Authority=await readMeriCase14CaptureReadback({prisma:this.prisma,ctx,conversationId,message});
       if(case14Authority) message.metadata={...(message.metadata as Prisma.JsonObject),case14CaptureAuthority:JSON.parse(JSON.stringify(case14Authority)) as Prisma.JsonValue};
+      const case46Authority = await readCase46CaptureMessage({ prisma: this.prisma, deps: this.case46Dependencies,
+        ctx, conversationId, conversationMetadata: conversation.metadata, message });
+      if (case46Authority) message.metadata = { ...(message.metadata as Prisma.JsonObject),
+        case46CaptureAuthority: JSON.parse(JSON.stringify(case46Authority)) as Prisma.JsonValue };
     }
     return this.authorizeOrdinaryReportMessages(
       ctx,

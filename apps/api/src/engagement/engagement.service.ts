@@ -73,6 +73,7 @@ import type { PlanValidationIssue } from './generation/message-plan.schema.js';
 import { extractXlsxText, isSpreadsheetAttachment } from './xlsx-extract.js';
 import { extractPptxText, isPowerPointAttachment } from './pptx-extract.js';
 import { createHash, randomUUID } from 'node:crypto';
+import { assertCase46SourceWriteInTx, case46SourceIndexingRequired } from '../client-documents/case46-source-indexing.js';
 import { currentMeetingPrepExecution } from './meeting-prep-job-runtime.js';
 import { currentMeetingGovernedContext } from './meeting-context-runtime.js';
 import { assertSavedMeetingPrepAccess,filterResearchPortfolioMeetingPreps } from './meeting-prep-source-access.js';
@@ -7951,6 +7952,7 @@ export class EngagementService {
     indexedAt?: Date | null;
     reused?: boolean;
   }> {
+    const awaitSyntheticIndex = case46SourceIndexingRequired(ctx, input);
     if (!this.bucket) throw new ServiceUnavailableException('ASSETS_BUCKET is not configured');
     if (!isAllowedAttachmentContentType(input.contentType)) {
       throw new BadRequestException(
@@ -8040,6 +8042,7 @@ export class EngagementService {
       (initialScan === 'scanner_not_required' && !this.scanner.scanRequired);
     const attachment = await this.prisma
       .withTenant(ctx.tenantId, async (tx) => {
+        if (awaitSyntheticIndex) await assertCase46SourceWriteInTx(tx, ctx, input);
         const clientId = await this.attachmentClientAtWrite(tx, ctx, input);
         const data = {
           ...(stableId ? { id: stableId } : {}),
@@ -8104,7 +8107,15 @@ export class EngagementService {
         throw error;
       });
     if (attachment.clientId && !input.privateToUploader && (!input.untrustedUpload || scanReady)) {
-      this.clientKb.indexAttachmentFireAndForget(ctx.tenantId, attachment.id);
+      if (awaitSyntheticIndex) {
+        // The operator seals this input's current row version after creation.
+        // Await the real configured index so its later metadata write cannot
+        // invalidate that seal. Failures propagate after the durable insert;
+        // the one-shot operator records ambiguity and never retries a mutation.
+        await this.clientKb.indexAttachmentIfEnabled(ctx.tenantId, attachment.id);
+      } else {
+        this.clientKb.indexAttachmentFireAndForget(ctx.tenantId, attachment.id);
+      }
     }
     return {
       id: attachment.id,
