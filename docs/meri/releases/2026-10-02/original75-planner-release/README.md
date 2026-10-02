@@ -2,7 +2,10 @@
 
 The API image for source `324195f120df830efc9c7e9f557898304b5467dd` is
 qualified at digest `sha256:3a7a67105998d88c44a43fd2c1edb6f8b301ab1e95413ee5def37ec849bcc722`.
-Promotion and the repaired-version live retest remain pending at this checkpoint.
+It is now deployed as API509. Independent readback at18:36UTC verified both
+healthy tasks, both healthy owned ALB targets, the exact digest and source
+header, and unchanged service configuration. The repaired-version live retest
+remains pending. The original pre-promotion qualification is preserved below.
 
 The planner now recognizes a selected client's possessive memory attributes,
 including an abbreviated name only when it uniquely matches current authorized
@@ -20,7 +23,7 @@ hashes, and matched the published ECR digest. GitHub Actions failed before any j
 the previously authorized AWS fallback built the exact merged main source.
 
 This candidate builds on the already qualified combined source `ddb55a5a3e6bbf1c3f567119b66e18e0a92e60ab`.
-Compared with the currently served API429 source, it also includes the previously
+Compared with the predecessor API429 source, it also includes the previously
 qualified hypothetical-assurance changes and migration451, which is already
 applied. The included independent database receipt preserves all607 predecessor
 rows. This release requires no new migration, provider setting or service config.
@@ -35,5 +38,5 @@ targeted tests passed; the earlier closure suite passed99 tests including existi
 suites, and the collector passed14. These are harness checks, not live benchmark
 passes. The general bounded spending adapter remains under implementation.
 
-Full75 acceptance is still incomplete. The24 indexed evidence files preserve
+Full75 acceptance is still incomplete. The26 indexed evidence files preserve
 their original bytes; credentials and native journal capabilities are excluded.

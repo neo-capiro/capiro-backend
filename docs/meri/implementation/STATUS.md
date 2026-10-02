@@ -1,4 +1,26 @@
-## Current checkpoint — 2026-10-02 18:05 UTC, original case01 attempted
+## Current checkpoint — 2026-10-02 18:49 UTC, planner repair deployed
+
+API509/source324195 is deployed and independently healthy at2/2, with two
+healthy owned ALB targets. Orchestrator99/sourceddb55 and WebVNext388/source78ad
+remain unchanged. The ordinary selected-client memory planner repair passed111
+focused tests and a compiled-image smoke. API types and26 offline cases passed
+before its final restrictive guard; the exact source bridge is recorded in the
+[qualified release and actual promotion evidence](../releases/2026-10-02/original75-planner-release/README.md).
+
+The original case01 failure remains recorded. Its native aggregate entry was
+closed after authoritative terminal readback, retaining the full$3 conservative
+charge and UNKNOWN actual billing; $27 remains. The old conversation and all
+setup history remain intact. The read-only retest plan verified the unchanged
+five-source corpus; creation of a fresh conversation is in progress. No repaired
+case01 answer or new original-case completion is claimed at this checkpoint.
+
+**File01 remains incomplete: zero original live rows fully accepted.** The full75,
+applicable mode/JEV variants and human review remain open. Parallel workers are
+preparing shared bounded execution and missing fixture groups. Owner task-count
+and unrelated legislative-tool/footer defects also remain open. Defense Chat is
+excluded. No new migration ran; temporary database maximum16ACU is unchanged.
+
+## Prior checkpoint — 2026-10-02 18:05 UTC, original case01 attempted
 
 API507/source42988 and orchestrator99/sourceddb55 are deployed and independently
 healthy. WebVNext388/source78ad remains at os.capiro.ai. Forward migrations450

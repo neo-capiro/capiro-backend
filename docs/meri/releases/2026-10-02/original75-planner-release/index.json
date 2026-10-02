@@ -120,6 +120,16 @@
       "path": "oct02-memory-read-protocol/memory-read-kimi-review.md",
       "sha256": "f90769d33b1beb406d0095db4cc32373a285bd04d701277e8dfbb41276a5ce4c",
       "bytes": 2023
+    },
+    {
+      "path": "oct02-case01-planner-release/api-promotion-receipt.json",
+      "sha256": "1a338e1c03959157ba82aa78da286a04cffd7d4585c48a1e99285deffe7aeb85",
+      "bytes": 1034
+    },
+    {
+      "path": "oct02-case01-planner-release/api-independent-promotion-readback.json",
+      "sha256": "43f433cdcf5e07466a9abd4b9e0fb5f697fc5365cc344790b6684f945f207af7",
+      "bytes": 2988
     }
   ]
 }

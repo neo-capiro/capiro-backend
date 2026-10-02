@@ -1,0 +1,82 @@
+{
+  "kind": "independent-api-promotion-readback",
+  "status": "PASS",
+  "observedAt": "2026-10-02T18:36:56.313662+00:00",
+  "sourceSha": "324195f120df830efc9c7e9f557898304b5467dd",
+  "imageDigest": "sha256:3a7a67105998d88c44a43fd2c1edb6f8b301ab1e95413ee5def37ec849bcc722",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:509",
+  "tasks": [
+    {
+      "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/ed0f23cb7704468bbfc2c040827b2b5a",
+      "health": "HEALTHY"
+    },
+    {
+      "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/f45d0bba4162432b85583a2e27c2351b",
+      "health": "HEALTHY"
+    }
+  ],
+  "deploymentId": "ecs-svc/8687338845810229807",
+  "rolloutState": "COMPLETED",
+  "desiredCount": 2,
+  "runningCount": 2,
+  "pendingCount": 0,
+  "taskHealth": "HEALTHY",
+  "ownedHealthyAlbTargets": 2,
+  "sourceMetadata": {
+    "RELEASE_SHA": "324195f120df830efc9c7e9f557898304b5467dd",
+    "GIT_SHA": "324195f120df830efc9c7e9f557898304b5467dd"
+  },
+  "publicRead": {
+    "path": "/api/me",
+    "status": 401,
+    "releaseSha": "324195f120df830efc9c7e9f557898304b5467dd",
+    "authenticated": false
+  },
+  "canonicalInspect": {
+    "action": "inspected-not-qualified",
+    "observedAt": "2026-10-02T18:36:55.765Z",
+    "service": "api",
+    "baseline": {
+      "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:509",
+      "serviceHash": "646280ac785c4945bfc7a4fe5983ac267e47df1fd3994f1d9c793f83f9786d03",
+      "configHash": "973748a2b134b388a6027df6c5c099055a7e24f7b746eafbaae8cebad077258a",
+      "taskHash": "c157fc9c22a22d9c01386a5e1c5ca9c708b87696c4f06f6d1362dfbdb4205579",
+      "imageDigest": "sha256:3a7a67105998d88c44a43fd2c1edb6f8b301ab1e95413ee5def37ec849bcc722",
+      "desiredCount": 2
+    },
+    "taskImage": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:3a7a67105998d88c44a43fd2c1edb6f8b301ab1e95413ee5def37ec849bcc722",
+    "deploymentConfiguration": {
+      "deploymentCircuitBreaker": {
+        "enable": false,
+        "rollback": false,
+        "resetOnHealthyTask": true,
+        "thresholdConfiguration": {
+          "type": "BOUNDED_PERCENT",
+          "value": 50
+        }
+      },
+      "maximumPercent": 200,
+      "minimumHealthyPercent": 100,
+      "strategy": "ROLLING",
+      "bakeTimeInMinutes": 0
+    },
+    "awsMutation": false
+  },
+  "canonicalInspectCommand": [
+    "C:/Program Files/nodejs/node.exe",
+    "scripts/meri-release.mjs",
+    "inspect",
+    "--service",
+    "api",
+    "--profile",
+    "default"
+  ],
+  "canonicalInspectExitCode": 0,
+  "promotionReceiptSha256": "1a338e1c03959157ba82aa78da286a04cffd7d4585c48a1e99285deffe7aeb85",
+  "awsWrites": 0,
+  "databaseCalls": 0,
+  "liveAcceptance": "NOT_RUN",
+  "limits": [
+    "Verifies rollout/source/digest/health only; original evaluation and shared migration remain separate."
+  ]
+}
