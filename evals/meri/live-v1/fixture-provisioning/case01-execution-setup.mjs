@@ -80,7 +80,7 @@ async function recipe(input) {
   return { input: value, previous, current };
 }
 
-async function inspectInTx(tx, spec) {
+async function inspectInTx(tx, spec, memoryAuthorization) {
   const { input, current } = spec;
   const { ctx } = input;
   const tenants = await tx.$queryRawUnsafe(
@@ -120,6 +120,13 @@ async function inspectInTx(tx, spec) {
     rows.find((row) => row.id === ctx.userId)?.clerk_user_id !== input.clerkUserId
   )
     fail('ACTORS_INVALID');
+  if (typeof memoryAuthorization?.evaluateInTx !== 'function')
+    fail('CANONICAL_AUTHORIZATION_REQUIRED');
+  const reviewer = {
+    tenantId: ctx.tenantId,
+    userId: input.reviewerUserId,
+    role: rows.find((row) => row.id === input.reviewerUserId).role,
+  };
   for (const key of ['ASTER', 'BLUEHAVEN']) {
     const clientId = current.clients[key].physicalId;
     const clients = await tx.$queryRawUnsafe(
@@ -136,6 +143,32 @@ async function inspectInTx(tx, spec) {
         [ctx.userId, input.reviewerUserId],
       );
       if (new Set(grants.map((row) => row.user_id)).size !== 2) fail('CLIENT_WALL');
+    }
+    // Visibility alone is not approval or retirement authority. Read the real
+    // current policy before the durable operation claim or first candidate write.
+    // The subject is a fixed prospective fixture; this is only a preflight, not
+    // an authorization capability. Canonical lifecycle commands recheck later.
+    const subject = {
+      id: current.records.find((record) => record.logicalId === (key === 'ASTER' ? 'MA3' : 'MB1')).physicalId,
+      tenantId: ctx.tenantId,
+      clientId,
+      ownerUserId: ctx.userId,
+      proposedByUserId: ctx.userId,
+      memoryClass: 'client_steering',
+      scope: 'client',
+      status: 'pending_review',
+      legalHold: false,
+      clientStatus: clients[0].status,
+    };
+    for (const operation of ['approve', 'revoke']) {
+      const decision = await memoryAuthorization.evaluateInTx(
+        tx,
+        reviewer,
+        { ...subject, status: operation === 'revoke' ? 'active' : 'pending_review' },
+        operation,
+        { emitDenialMetrics: false },
+      );
+      if (decision?.allowed !== true) fail('REVIEWER_AUTHORITY_REQUIRED');
     }
   }
   return { version: tenant.version, settings: tenant.settings, fixture };
@@ -160,7 +193,7 @@ function planFor(spec, row) {
 export async function inspectCase01ExecutionSetup(deps, input) {
   const spec = await recipe(input);
   return deps.prisma.withTenantUser(spec.input.ctx.tenantId, spec.input.ctx.userId, async (tx) =>
-    planFor(spec, await inspectInTx(tx, spec)),
+    planFor(spec, await inspectInTx(tx, spec, deps.memoryAuthorization)),
   );
 }
 
@@ -189,7 +222,7 @@ export async function executeCase01ExecutionSetup(
   };
   await journal({ stage, phase: 'INTENT', ...operation });
   await deps.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
-    const row = await inspectInTx(tx, spec);
+    const row = await inspectInTx(tx, spec, deps.memoryAuthorization);
     if (planFor(spec, row).planSha256 !== expectedPlanSha256) fail('STALE_PLAN');
     const changed = await tx.$queryRawUnsafe(
       `UPDATE tenants SET settings_jsonb=jsonb_set(settings_jsonb,'{meriFoundationFixture,case01ExecutionSetup}',$1::jsonb,true)

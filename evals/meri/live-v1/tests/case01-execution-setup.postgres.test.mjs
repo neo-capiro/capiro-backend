@@ -100,6 +100,33 @@ async function prepare(h) {
   return { actual, input, createConversation: meri.createConversation.bind(meri) };
 }
 
+it('ordinary reviewer needs current approve and revoke authority before plan or durable setup claim',
+  { skip: !config }, async () => withOwnedApprovedMemory(config, async (h) => {
+    const { actual, input, createConversation } = await prepare(h);
+    await h.tx.$executeRawUnsafe(
+      "UPDATE tenant_memberships SET role='standard_user' WHERE tenant_id=$1::uuid AND user_id=$2::uuid",
+      TENANT, REVIEWER,
+    );
+    const before = (await h.tx.$queryRawUnsafe('SELECT settings_jsonb AS settings FROM tenants WHERE id=$1::uuid', TENANT))[0].settings;
+    await assert.rejects(inspectCase01ExecutionSetup(actual, input), /REVIEWER_AUTHORITY_REQUIRED/);
+    await assert.rejects(executeScoped(actual, input, {
+      expectedPlanSha256: '0'.repeat(64), createConversation, journal: async () => {},
+    }), /REVIEWER_AUTHORITY_REQUIRED/);
+    assert.deepEqual((await h.tx.$queryRawUnsafe('SELECT settings_jsonb AS settings FROM tenants WHERE id=$1::uuid', TENANT))[0].settings, before);
+    assert.equal((await h.tx.$queryRawUnsafe('SELECT count(*)::int AS count FROM memory_candidate'))[0].count, 0);
+    for (const client of ['ASTER', 'BLUEHAVEN']) await h.tx.$executeRawUnsafe(
+      `INSERT INTO memory_access_grant(id,tenant_id,client_id,user_id,permissions,status,expires_at,reason)
+       VALUES($1::uuid,$2::uuid,$3::uuid,$4::uuid,ARRAY['approve'],'active',now()+interval '1 hour','Owned local fixture qualification')`,
+      randomUUID(), TENANT, input.clients[client].physicalId, REVIEWER,
+    );
+    await assert.rejects(inspectCase01ExecutionSetup(actual, input), /REVIEWER_AUTHORITY_REQUIRED/);
+    await h.tx.$executeRawUnsafe("UPDATE memory_access_grant SET permissions=ARRAY['approve','revoke'] WHERE user_id=$1::uuid", REVIEWER);
+    assert.equal((await inspectCase01ExecutionSetup(actual, input)).kind, 'meri-case01-execution-setup-plan');
+    await h.tx.$executeRawUnsafe("UPDATE memory_access_grant SET expires_at=now()-interval '1 second' WHERE user_id=$1::uuid", REVIEWER);
+    await assert.rejects(inspectCase01ExecutionSetup(actual, input), /REVIEWER_AUTHORITY_REQUIRED/);
+    assert.deepEqual((await h.tx.$queryRawUnsafe('SELECT settings_jsonb AS settings FROM tenants WHERE id=$1::uuid', TENANT))[0].settings, before);
+  }));
+
 it(
   'actual canonical setup composes retirement, binding, restart locator and actual owned empty Meri conversation; replay and stale plans stop',
   { skip: !config },
