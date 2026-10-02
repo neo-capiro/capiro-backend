@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { sha256Stable } from './artifact-collector.mjs';
 import { currentControlledReadCaptureAuthority } from './controlled-read-live-capture.mjs';
 import { currentCase46CaptureAuthority } from './case46-live-capture.mjs';
+import { CASE01_TERMINAL_SCOPE, currentOriginalCase01TerminalClosure } from './case01-terminal-spend-authority.mjs';
 import {
   currentCase01CaptureAuthority,
   currentCase14RecallAuthority,
@@ -154,6 +155,21 @@ export function openCaptureSpendAggregate(prior, { pythonExecutable }) {
     },
   });
   return owner;
+}
+
+/** Explicit root-only disposition of the one rejected original01 request.
+ * Full ceiling stays consumed, actual billing remains UNKNOWN, and the old run
+ * cannot be reserved/claimed/settled again. This does not submit a new request. */
+export function closeOriginalCase01TerminalUncertain(prior, { pythonExecutable, authority, invocation }) {
+  need(invocation === 'CLOSE_ORIGINAL01_TERMINAL_COST_UNKNOWN_ONCE');
+  need(prior?.kind === 'meri-original-capture-spend-checkpoint' && prior.version === 1);
+  const proof = currentOriginalCase01TerminalClosure(authority);
+  const scope = CASE01_TERMINAL_SCOPE;
+  const value = native(prior.state.root, pythonExecutable, { op: 'close_terminal_uncertain', state: prior.state,
+    event: { kind: 'close_terminal_uncertain', caseId: scope.caseId, captureRunId: scope.captureRunId,
+      reservationId: scope.reservationId, disposition: 'TERMINAL_SETUP_REJECTION_COST_UNKNOWN',
+      actualCostMicros: null, proof } });
+  return checkpoint(value);
 }
 
 /** One native collector may claim one reservation. JSON lookalikes and a second
