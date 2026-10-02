@@ -1,0 +1,74 @@
+{
+  "kind": "meri-fixed-synthetic-governance-plan",
+  "version": 1,
+  "account": "967807252336",
+  "region": "us-east-1",
+  "cluster": "capiro-dev",
+  "service": "capiro-dev-api",
+  "operatorSourceSha": "c11c83fe1759183254b24d11a9087ccc89595a73",
+  "callerPrincipal": "arn:aws:iam::967807252336:user/hermes-cli",
+  "preparedAt": "2026-10-02T07:23:23.756Z",
+  "tenants": [
+    "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+    "52e91176-08f0-4d89-9633-bc212f5bdbbf"
+  ],
+  "namespace": "meri-foundation-20260928",
+  "qualification": {
+    "schemaVersion": 1,
+    "service": "api",
+    "sourceSha": "4aad73b881c2f33ebb0bc41ddf61514a34010ad7",
+    "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:046691b41f6578df41a5cac1bb1e2dee561517463c68ce391cd9450e82489496",
+    "status": "qualified",
+    "reviewer": "Codex integration owner: verified existing immutable API488 qualification and independent Hermes/Bedrock Kimi review. This attestation permits only the separately authorized fixed synthetic governance cohort and namespace transformation; all other configuration, customer data, schema, ledger, provider and model settings must remain unchanged. Original live acceptance remains incomplete.",
+    "reviewedAt": "2026-10-02T05:26:42.795Z",
+    "expiresAt": "2026-10-02T09:26:42.796Z",
+    "schemaChange": false,
+    "evidence": [
+      "https://github.com/neo-capiro/capirov2/blob/087ce120496cb329629074dcf12e9066667f4345/docs/meri/releases/2026-10-02/signed-receipt/qualification.md",
+      "https://github.com/neo-capiro/capirov2/blob/087ce120496cb329629074dcf12e9066667f4345/docs/meri/releases/2026-10-02/signed-receipt/api-jsonb-v2-independent-20261002T052314Z.json",
+      "https://github.com/neo-capiro/capirov2/blob/087ce120496cb329629074dcf12e9066667f4345/docs/meri/releases/2026-10-02/signed-receipt/assertion-summary.json"
+    ],
+    "checks": [
+      {
+        "name": "build",
+        "status": "passed",
+        "sourceSha": "4aad73b881c2f33ebb0bc41ddf61514a34010ad7",
+        "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:046691b41f6578df41a5cac1bb1e2dee561517463c68ce391cd9450e82489496",
+        "url": "https://github.com/neo-capiro/capirov2/blob/087ce120496cb329629074dcf12e9066667f4345/docs/meri/releases/2026-10-02/signed-receipt/api-jsonb-v2-independent-20261002T052314Z.json"
+      },
+      {
+        "name": "automated-tests",
+        "status": "passed",
+        "sourceSha": "4aad73b881c2f33ebb0bc41ddf61514a34010ad7",
+        "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:046691b41f6578df41a5cac1bb1e2dee561517463c68ce391cd9450e82489496",
+        "url": "https://github.com/neo-capiro/capirov2/blob/087ce120496cb329629074dcf12e9066667f4345/docs/meri/releases/2026-10-02/signed-receipt/assertion-summary.json"
+      },
+      {
+        "name": "retirement-compatibility",
+        "status": "passed",
+        "sourceSha": "4aad73b881c2f33ebb0bc41ddf61514a34010ad7",
+        "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:046691b41f6578df41a5cac1bb1e2dee561517463c68ce391cd9450e82489496",
+        "url": "https://github.com/neo-capiro/capirov2/blob/087ce120496cb329629074dcf12e9066667f4345/docs/meri/releases/2026-10-02/signed-receipt/qualification.md"
+      }
+    ]
+  },
+  "baseline": {
+    "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:488",
+    "serviceHash": "a3af632452f65a0a36364abe6b6dce7d83343ecffbd64d38d0ebab65db6d2564",
+    "configHash": "973748a2b134b388a6027df6c5c099055a7e24f7b746eafbaae8cebad077258a",
+    "taskHash": "fd977e98913489165442952c701400d9d905b6e19246bb14c8a04d359bbb7b0e",
+    "imageDigest": "sha256:046691b41f6578df41a5cac1bb1e2dee561517463c68ce391cd9450e82489496",
+    "desiredCount": 2
+  },
+  "candidateTaskHash": "ba89c011c0be84fb4e93200add1ac7f2ad97513efbaa1ad80aeccea93aabefc9",
+  "changes": {
+    "addedTenantIds": [
+      "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+      "52e91176-08f0-4d89-9633-bc212f5bdbbf"
+    ],
+    "namespaceAdded": true,
+    "priorCohortCount": 9,
+    "priorCohortSha256": "c619bab0be8f23af3bdf230a09201b627a132965823720fcb2b8a452c1fcfa27"
+  },
+  "changed": true
+}

@@ -1,0 +1,14 @@
+{
+  "kind": "meri-governance-489-recovery-receipt",
+  "version": 1,
+  "planHash": "ea4eb498236019e9e19d0cf028d9ad32037b8ce65c8bb9ff6f6049fbb37baecd",
+  "status": "ecs-healthy",
+  "candidateTaskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:489",
+  "originalPlanSha256": "df9ecf9666ae2a540409435597eecb8182192c2fdf60b3f895b6f67be0f36c81",
+  "originalReceiptSha256": "6e2dcafc6357b4fefb46910a65c3005566e4a6169efd6bd81c06214f883493a7",
+  "operatorHead": "edc21afc604a2a179956c9e292461f2d51527595",
+  "liveAcceptance": "NOT_RUN",
+  "updateSubmissions": 1,
+  "deploymentId": "ecs-svc/8070401144030337802",
+  "verifiedAt": "2026-10-02T07:40:55.139Z"
+}

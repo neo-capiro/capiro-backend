@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "observedAt": "2026-10-02T07:40:29.195511+00:00",
+  "scope": "Existing API489 governance recovery plus witnessed environment-order normalization in fixed case01 one-off helper",
+  "sourceHashes": {
+    "recover-governance-489.mjs": "62b1aeb134990913110e027595314dd0a36e414cbc82c9d385f75ffc90395375",
+    "recover-governance-489.test.mjs": "a9d235539ffecbd21a88e54b8e03c22f16dc7e3dc7c251c8c7c3d827c771b412",
+    "recover-governance-489-tests.log": "7b672613c3c9abe70dc4a75e017cf447467f00c958be9e02fdba9d94a6e0c13f",
+    "recover-governance-489-tests.exit": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+    "recovery-kimi-inline-review.md": "8a3c2db86a4a041a37a6bfc65b57bcc9772268d2ef4e5968dc98a4fdd99bb2d9",
+    "recovery-kimi-inline-exit.json": "921c694d7f155f652b5744a45fe3b0715c243a9628ae19de65994c2748e071df",
+    "recovery-kimi-inline-usage.json": "28ec18434c37b37b73b71170b7ced0884033eb7b5f7e6c0005533731d3d2feba",
+    "case01-oneoff.py": "4df33cccadd3fdc15711872de3c0ffe2602249a8765c0e6ff36d05488085d36a",
+    "case01-oneoff-tests.py": "4f95eebf3d1799ce6e5bc050e2b89ab8f548fe6daa40901d13edc159be144847",
+    "case01-oneoff-tests-v3.log": "502d36aedb01c1b4176d20221790649668537d64c62b7e7110e057aad55f74df",
+    "case01-oneoff-tests-v3.exit": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+    "oneoff-env-kimi-inline-review.md": "95ec351fe1b0f21d0fcc85c0a5d5fb0ee5e79a71b2ef036d27e73ba0a2b9f22e",
+    "oneoff-env-kimi-inline-exit.json": "4b0fe041fd724df1177a271dabe587ead99fa96d0d767fb4d025e255e8bec3ec",
+    "oneoff-env-kimi-inline-usage.json": "980d70bab6d3e9120ec4ab0f83c24132ef20f17ae5d5ebbab321b0608ddf10c8",
+    "governance-registration-independent-diagnosis.json": "5d244c49587b00aa2c48386ebff3ba6107c2397575b2dac735e531ef8a14bf3a"
+  },
+  "verification": {
+    "recoveryOfflineTests": {
+      "passed": 5,
+      "failed": 0,
+      "exitCode": 0
+    },
+    "oneoffOfflineTests": {
+      "passed": 16,
+      "failed": 0,
+      "exitCode": 0
+    },
+    "recoveryKimi": {
+      "model": "moonshotai.kimi-k2.5",
+      "provider": "bedrock",
+      "session": "20261002_073622_1ce762",
+      "exitCode": 0,
+      "verdict": "PASS",
+      "scope": "inline exact source/test read; no reviewer test execution",
+      "adjudication": "Review phrase full rollback capture refers to retained original baseline; helper does not provide automatic rollback."
+    },
+    "oneoffKimi": {
+      "model": "moonshotai.kimi-k2.5",
+      "provider": "bedrock",
+      "session": "20261002_073839_eddff1",
+      "exitCode": 0,
+      "verdict": "PASS",
+      "scope": "inline exactdelta/test read; no reviewer test execution"
+    }
+  },
+  "invariants": {
+    "pinnedCanaryAdapterUnchanged": true,
+    "adapterSha256": "02098e0d9209f7313a66c4e73eb0689332af2edd7ba2a2ecf6e6daa58b0671f6",
+    "environmentValuesOrFieldsChanged": false,
+    "otherListOrderingNormalized": false,
+    "awsWritesByThisLane": 0,
+    "actualReadOnlyDiagnosticCalls": 4,
+    "rootOwnsExecution": true,
+    "liveAcceptance": "NOT_RUN"
+  }
+}

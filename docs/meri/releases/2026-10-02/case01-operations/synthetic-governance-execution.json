@@ -1,0 +1,8 @@
+{
+  "kind": "meri-fixed-synthetic-governance-receipt",
+  "version": 1,
+  "manifestHash": "f68d1ca65bccafcaaa9ef1b9fe4c9445a629f2e1894fea80a1474dfce8b2de72",
+  "status": "register-outcome-unknown",
+  "rollback": false,
+  "candidateTaskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:489"
+}

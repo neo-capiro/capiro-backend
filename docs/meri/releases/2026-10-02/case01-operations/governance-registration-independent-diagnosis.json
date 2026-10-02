@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "observedAt": "2026-10-02T07:28:20.225Z",
+  "mode": "READ_ONLY",
+  "awsCalls": 4,
+  "awsMutations": 0,
+  "baselinePlanHashMatches": true,
+  "expectedPlanHashMatches": true,
+  "actualRegisteredHashMatches": false,
+  "expectedHash": "ba89c011c0be84fb4e93200add1ac7f2ad97513efbaa1ad80aeccea93aabefc9",
+  "actualHash": "324017d21e9679c010601fe20693cc80660fbcace368911220cd6826b3edaf2d",
+  "differences": [
+    {
+      "path": "/containerDefinitions/api/environment",
+      "kind": "named-array-order-only",
+      "count": 135,
+      "allNamedEntriesEqual": true
+    }
+  ],
+  "live": {
+    "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:488",
+    "desiredCount": 2,
+    "runningCount": 2,
+    "pendingCount": 0,
+    "deployments": [
+      {
+        "id": "ecs-svc/0575914014235051077",
+        "status": "PRIMARY",
+        "rolloutState": "COMPLETED",
+        "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:488"
+      }
+    ]
+  }
+}

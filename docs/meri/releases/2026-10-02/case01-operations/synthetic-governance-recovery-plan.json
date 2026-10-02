@@ -1,0 +1,17 @@
+{
+  "kind": "meri-governance-489-recovery-plan",
+  "version": 1,
+  "createdAt": 1790926609041,
+  "expiresAt": 1790928409041,
+  "operatorHead": "edc21afc604a2a179956c9e292461f2d51527595",
+  "sourceSha": "c11c83fe1759183254b24d11a9087ccc89595a73",
+  "operatorSha256": "62b1aeb134990913110e027595314dd0a36e414cbc82c9d385f75ffc90395375",
+  "originalPlanSha256": "df9ecf9666ae2a540409435597eecb8182192c2fdf60b3f895b6f67be0f36c81",
+  "originalReceiptSha256": "6e2dcafc6357b4fefb46910a65c3005566e4a6169efd6bd81c06214f883493a7",
+  "originalManifestHash": "f68d1ca65bccafcaaa9ef1b9fe4c9445a629f2e1894fea80a1474dfce8b2de72",
+  "candidateTaskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:489",
+  "baselineTaskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:488",
+  "normalizedCandidateHash": "ef3a2d96f1e13b67c29a628b79511f2ddfd7126d55ce07115058cb05db2a6a01",
+  "registeredRawHash": "324017d21e9679c010601fe20693cc80660fbcace368911220cd6826b3edaf2d",
+  "liveAcceptance": "NOT_RUN"
+}

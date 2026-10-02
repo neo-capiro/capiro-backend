@@ -1,0 +1,20 @@
+{
+  "governance-recovery-oneoff-qualification.json": "63f2d7b3211d18fa8669a6052255a25f7c37113e8374411cbd8fd853f3a6a329",
+  "governance-registration-independent-diagnosis.json": "5d244c49587b00aa2c48386ebff3ba6107c2397575b2dac735e531ef8a14bf3a",
+  "synthetic-governance-plan.json": "df9ecf9666ae2a540409435597eecb8182192c2fdf60b3f895b6f67be0f36c81",
+  "synthetic-governance-execution.json": "6e2dcafc6357b4fefb46910a65c3005566e4a6169efd6bd81c06214f883493a7",
+  "synthetic-governance-recovery-plan.json": "b7328e14d0c1008dc8e855835964341def2f85659017c7704613cca7dec70df4",
+  "synthetic-governance-recovery-execution.json": "342b1c77fff778bd4b106597b35ac97de88241744fa9831eb229faadc8a36cc9",
+  "recover-governance-489.mjs": "62b1aeb134990913110e027595314dd0a36e414cbc82c9d385f75ffc90395375",
+  "recover-governance-489.test.mjs": "a9d235539ffecbd21a88e54b8e03c22f16dc7e3dc7c251c8c7c3d827c771b412",
+  "recovery-kimi-inline-review.md": "8a3c2db86a4a041a37a6bfc65b57bcc9772268d2ef4e5968dc98a4fdd99bb2d9",
+  "recovery-kimi-inline-exit.json": "921c694d7f155f652b5744a45fe3b0715c243a9628ae19de65994c2748e071df",
+  "case01-oneoff.py": "4df33cccadd3fdc15711872de3c0ffe2602249a8765c0e6ff36d05488085d36a",
+  "case01-oneoff-tests.py": "4f95eebf3d1799ce6e5bc050e2b89ab8f548fe6daa40901d13edc159be144847",
+  "case01-oneoff-runbook.md": "e647a409437173f45f912e10d59bf698c89206c6e5ef1fdf59ba9113209cfb4f",
+  "oneoff-env-kimi-inline-review.md": "95ec351fe1b0f21d0fcc85c0a5d5fb0ee5e79a71b2ef036d27e73ba0a2b9f22e",
+  "oneoff-env-kimi-inline-exit.json": "4b0fe041fd724df1177a271dabe587ead99fa96d0d767fb4d025e255e8bec3ec",
+  "run-case01-authenticated.mjs": "b08ba31793f3e09423b53141d57f7c2b3586e7aea082f960755eeb7da4381bd3",
+  "api-case01-build-proof.json": "25319717ea7a4b2665e93cff71f2d45eb5ac5417be2770214398899594ef6236",
+  "live-runtime-binding.json": "c53f226889b53c1d46c964aea6e4093c2c5f01086bed7329f098de398b35a94f"
+}
