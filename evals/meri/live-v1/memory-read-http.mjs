@@ -9,8 +9,7 @@ import { AUTHORIZED_TENANTS } from './fixture-provisioning/contract.mjs';
  * No auth/bootstrap, redirect following, request injection or retry is provided. */
 export function createMemoryReadHttp({ bearer, conversationId, timeoutMs }) {
   if (
-    typeof bearer !== 'string' ||
-    !bearer.trim() ||
+    !((typeof bearer === 'string' && bearer.trim()) || typeof bearer === 'function') ||
     !/^[a-f0-9-]{36}$/iu.test(conversationId) ||
     !Number.isInteger(timeoutMs) ||
     timeoutMs < 1000 ||
@@ -32,56 +31,77 @@ export function createMemoryReadHttp({ bearer, conversationId, timeoutMs }) {
       )
         throw new Error('MEMORY_READ_TRANSPORT_BOUND');
       if (body !== undefined) attempted = true;
-      return new Promise((resolve, reject) => {
-        const request = https.request(
-          new URL(path, origin),
-          {
-            method: body === undefined ? 'GET' : 'POST',
-            rejectUnauthorized: true,
-            headers: {
-              ...nativeMeriCaptureHeaders(bearer, AUTHORIZED_TENANTS.T1.slug),
-              accept: body === undefined ? 'application/json' : 'text/event-stream',
-              ...(body === undefined ? {} : { 'content-type': 'application/json' }),
+      return (async () => {
+        // A trusted operator may refresh the same owned session per request.
+        // Refresh changes no URL, authority, request limit, or overall deadline.
+        let refreshTimer;
+        let currentBearer;
+        try {
+          currentBearer = await Promise.race([
+            Promise.resolve().then(() => (typeof bearer === 'function' ? bearer() : bearer)),
+            new Promise((_, reject) => {
+              refreshTimer = setTimeout(
+                () => reject(new Error('MEMORY_READ_DEADLINE')),
+                Math.max(1, deadline - Date.now()),
+              );
+            }),
+          ]);
+        } finally {
+          clearTimeout(refreshTimer);
+        }
+        const identityHeaders = nativeMeriCaptureHeaders(currentBearer, AUTHORIZED_TENANTS.T1.slug);
+        if (Date.now() >= deadline) throw new Error('MEMORY_READ_DEADLINE');
+        return new Promise((resolve, reject) => {
+          const request = https.request(
+            new URL(path, origin),
+            {
+              method: body === undefined ? 'GET' : 'POST',
+              rejectUnauthorized: true,
+              headers: {
+                ...identityHeaders,
+                accept: body === undefined ? 'application/json' : 'text/event-stream',
+                ...(body === undefined ? {} : { 'content-type': 'application/json' }),
+              },
             },
-          },
-          (response) => {
-            const chunks = [];
-            let length = 0;
-            response.on('data', (chunk) => {
-              length += chunk.length;
-              if (length > 8 * 1024 * 1024)
-                request.destroy(new Error('MEMORY_READ_RESPONSE_LIMIT'));
-              else chunks.push(chunk);
-            });
-            response.on('end', () => {
-              clearTimeout(timer);
-              try {
-                resolve({
-                  status: response.statusCode,
-                  releaseSha: response.headers['x-capiro-release-sha'],
-                  text: new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(chunks)),
-                });
-              } catch {
-                reject(new Error('MEMORY_READ_RESPONSE_ENCODING'));
-              }
-            });
-            response.on('error', () => {
-              clearTimeout(timer);
-              reject(new Error('MEMORY_READ_RESPONSE_INTERRUPTED'));
-            });
-          },
-        );
-        const timer = setTimeout(
-          () => request.destroy(new Error('MEMORY_READ_DEADLINE')),
-          Math.max(1, deadline - Date.now()),
-        );
-        request.on('error', () => {
-          clearTimeout(timer);
-          reject(new Error('MEMORY_READ_NETWORK_FAILED'));
+            (response) => {
+              const chunks = [];
+              let length = 0;
+              response.on('data', (chunk) => {
+                length += chunk.length;
+                if (length > 8 * 1024 * 1024)
+                  request.destroy(new Error('MEMORY_READ_RESPONSE_LIMIT'));
+                else chunks.push(chunk);
+              });
+              response.on('end', () => {
+                clearTimeout(timer);
+                try {
+                  resolve({
+                    status: response.statusCode,
+                    releaseSha: response.headers['x-capiro-release-sha'],
+                    text: new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(chunks)),
+                  });
+                } catch {
+                  reject(new Error('MEMORY_READ_RESPONSE_ENCODING'));
+                }
+              });
+              response.on('error', () => {
+                clearTimeout(timer);
+                reject(new Error('MEMORY_READ_RESPONSE_INTERRUPTED'));
+              });
+            },
+          );
+          const timer = setTimeout(
+            () => request.destroy(new Error('MEMORY_READ_DEADLINE')),
+            Math.max(1, deadline - Date.now()),
+          );
+          request.on('error', () => {
+            clearTimeout(timer);
+            reject(new Error('MEMORY_READ_NETWORK_FAILED'));
+          });
+          if (body !== undefined) request.write(JSON.stringify(body));
+          request.end();
         });
-        if (body !== undefined) request.write(JSON.stringify(body));
-        request.end();
-      });
+      })();
     },
   });
 }
