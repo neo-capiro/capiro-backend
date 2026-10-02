@@ -1,0 +1,299 @@
+{
+  "schemaVersion": 1,
+  "kind": "meri-reviewed-evidence-archive",
+  "planSha256": "a8a58f198a7781871c4c08e73df734f71babf004bf2b7d207483d09065517ca2",
+  "files": [
+    {
+      "source": "C:\\dev\\cap-meri-foundation-evidence\\oct02-case17-v7\\case17-live-execution-v7.json",
+      "destination": "case17-live-execution-v7.json",
+      "sha256": "c1afdfab586ee90d78923af5a2abedb3f2760935ee2866532357de47b7940d9c",
+      "bytes": 1585
+    },
+    {
+      "source": "C:\\dev\\cap-meri-foundation-evidence\\oct02-case17-v7\\case17-saved-visual-review-v7.json",
+      "destination": "case17-saved-visual-review-v7.json",
+      "sha256": "b4f6319bbfeb90c8542a42c44d2bc326cedb89b69952a95c5679950928067265",
+      "bytes": 1944
+    },
+    {
+      "source": "C:\\dev\\cap-meri-foundation-evidence\\oct02-case17-v7\\case17-saved-visual-review-request-v7.json",
+      "destination": "case17-saved-visual-review-request-v7.json",
+      "sha256": "f0a3932e117d88346111a9f086e530401f632a980749ac8f6e7ac9ea80e01175",
+      "bytes": 3190
+    },
+    {
+      "source": "C:\\dev\\cap-meri-foundation-evidence\\oct02-case17-v7\\case17-v7-gates.mjs",
+      "destination": "case17-v7-gates.mjs",
+      "sha256": "fe4c4b9f289a61de0812fc2f4381d506aa5af66fb0f4184e4d45809481c056b3",
+      "bytes": 9557
+    },
+    {
+      "source": "C:\\dev\\cap-meri-foundation-evidence\\oct02-case17-v7\\case17-v7-gates.test.mjs",
+      "destination": "case17-v7-gates.test.mjs",
+      "sha256": "f6dff7ed6be3cdda93f46e35daeda8fb2559f4d0e0f5a03844ab05d772150510",
+      "bytes": 4907
+    },
+    {
+      "source": "C:\\dev\\cap-meri-foundation-evidence\\oct02-case17-v7\\run-case17-authenticated-v7.mjs",
+      "destination": "run-case17-authenticated-v7.mjs",
+      "sha256": "79911ccad9ed2735d43923f17b734a90868deeeaea8f28f63b817368a957426e",
+      "bytes": 8880
+    },
+    {
+      "source": "C:\\dev\\cap-meri-foundation-evidence\\oct02-case17-v7\\case17-v7-release-pins.json",
+      "destination": "case17-v7-release-pins.json",
+      "sha256": "279848f91da35cda112a93f1ee1cc35a37c77cffbb562f39f3434f675bd3113e",
+      "bytes": 829
+    },
+    {
+      "source": "C:\\dev\\cap-meri-foundation-evidence\\oct02-case17-v7\\source-hashes.json",
+      "destination": "source-hashes.json",
+      "sha256": "b66800a1731160ab9135e13cf23fe7d1839948c292f40cb8b86d76bb4aeef951",
+      "bytes": 705
+    },
+    {
+      "source": "C:\\dev\\cap-meri-foundation-evidence\\oct02-case17-v7\\api-build-readback.json",
+      "destination": "api-build-readback.json",
+      "sha256": "b40c2ebeac0af845434eae72d492cc89da4f7973cc8541ee5466f1cfa5666d35",
+      "bytes": 2472
+    },
+    {
+      "source": "C:\\dev\\cap-meri-foundation-evidence\\oct02-case17-v7\\api-promotion-receipt.json",
+      "destination": "api-promotion-receipt.json",
+      "sha256": "b5d344d4014ec2a0350846b8ea2a0e1263b2b36aff67d3a93e1d21b2bfe6d519",
+      "bytes": 1034
+    },
+    {
+      "source": "C:\\dev\\cap-meri-foundation-evidence\\oct02-case17-v7\\reviewed-build-input.json",
+      "destination": "reviewed-build-input.json",
+      "sha256": "0ee2ad2724911749b4f4d0a8591fcf639e226a932783afef1d55fbaa232a4f55",
+      "bytes": 518
+    },
+    {
+      "source": "C:\\dev\\cap-meri-foundation-evidence\\oct02-case17-v7\\case17-artifacts-v7\\case17\\attempt.json",
+      "destination": "case17-artifacts-v7/case17/attempt.json",
+      "sha256": "75a4361babf315fb339ca06f3509971821f4424d976ee7e9c4c3a3c8e7b40da5",
+      "bytes": 169
+    },
+    {
+      "source": "C:\\dev\\cap-meri-foundation-evidence\\oct02-case17-v7\\case17-artifacts-v7\\case17\\receipt.json",
+      "destination": "case17-artifacts-v7/case17/receipt.json",
+      "sha256": "64de1014da5450a3c13b005532fce4d31aead2dc1f8ba84f2a1a2c985cbb99dd",
+      "bytes": 18279
+    },
+    {
+      "source": "C:\\dev\\cap-meri-foundation-evidence\\oct02-case17-v7\\case17-artifacts-v7\\case17\\evidence.json",
+      "destination": "case17-artifacts-v7/case17/evidence.json",
+      "sha256": "1ddc03c596f800ab30f849b0dafbd7b04c21ce16280653e5286b476b1a4a1202",
+      "bytes": 34008
+    },
+    {
+      "source": "C:\\dev\\cap-meri-foundation-evidence\\oct02-case17-v7\\case17-artifacts-v7\\case17\\readonly-guard-diagnostic.json",
+      "destination": "case17-artifacts-v7/case17/readonly-guard-diagnostic.json",
+      "sha256": "7692ae5e08de21b24bd8c73abe9ae8beadd51ab70929facf01a855829a724000",
+      "bytes": 599
+    },
+    {
+      "source": "C:\\dev\\cap-meri-foundation-evidence\\oct02-case17-v7\\case17-artifacts-v7\\case17\\native-write-guard-diagnostic.json",
+      "destination": "case17-artifacts-v7/case17/native-write-guard-diagnostic.json",
+      "sha256": "476ab88fc6b5690130d4d46df4f3505d6c0d3c1b21bef0bbc8929cea9f417a79",
+      "bytes": 430
+    },
+    {
+      "source": "C:\\dev\\cap-meri-foundation-evidence\\oct02-case17-v7\\case17-artifacts-v7\\case17\\initial\\MEM-PENDING-17-A.png",
+      "destination": "case17-artifacts-v7/case17/initial/MEM-PENDING-17-A.png",
+      "sha256": "f797e247677f0e1fc25fe5f9c6a1d49fbc4aa30174bd3c2ec1f07cf90c1c8298",
+      "bytes": 20688
+    },
+    {
+      "source": "C:\\dev\\cap-meri-foundation-evidence\\oct02-case17-v7\\case17-artifacts-v7\\case17\\initial\\MEM-PENDING-17-B.png",
+      "destination": "case17-artifacts-v7/case17/initial/MEM-PENDING-17-B.png",
+      "sha256": "b485105ce2c9b55fd444ef36cf877e7b7a176b2065e7e1f198185690e1407a29",
+      "bytes": 20596
+    },
+    {
+      "source": "C:\\dev\\cap-meri-foundation-evidence\\oct02-case17-v7\\case17-artifacts-v7\\case17\\initial\\MEM-PENDING-17-C.png",
+      "destination": "case17-artifacts-v7/case17/initial/MEM-PENDING-17-C.png",
+      "sha256": "aa917881747c65a85608c1a7f87461b66f62629d40cc1ae4cf3cda2e75b8d3d8",
+      "bytes": 20752
+    },
+    {
+      "source": "C:\\dev\\cap-meri-foundation-evidence\\oct02-case17-v7\\case17-artifacts-v7\\case17\\initial\\MEM-PENDING-17-D.png",
+      "destination": "case17-artifacts-v7/case17/initial/MEM-PENDING-17-D.png",
+      "sha256": "cb41972d67565ce2ad0816d13f436f60e3552ed368c79649c3c0485d3b518fcd",
+      "bytes": 20953
+    },
+    {
+      "source": "C:\\dev\\cap-meri-foundation-evidence\\oct02-case17-v7\\case17-artifacts-v7\\case17\\initial\\MEM-PENDING-17-E.png",
+      "destination": "case17-artifacts-v7/case17/initial/MEM-PENDING-17-E.png",
+      "sha256": "dfeccebc3e53df401fcb557032de995ac3322941710e8e974a24573c685e09c9",
+      "bytes": 20066
+    },
+    {
+      "source": "C:\\dev\\cap-meri-foundation-evidence\\oct02-case17-v7\\case17-artifacts-v7\\case17\\initial\\MEM-PENDING-17-F.png",
+      "destination": "case17-artifacts-v7/case17/initial/MEM-PENDING-17-F.png",
+      "sha256": "ac32c33de7c630f4edf4e74c06acb7785399e5848185d113185cb22999abd9f9",
+      "bytes": 21152
+    },
+    {
+      "source": "C:\\dev\\cap-meri-foundation-evidence\\oct02-case17-v7\\case17-artifacts-v7\\case17\\afterReload\\MEM-PENDING-17-A.png",
+      "destination": "case17-artifacts-v7/case17/afterReload/MEM-PENDING-17-A.png",
+      "sha256": "38aa434150e5e0a14a642554d5b334b8836888ea2bcdef720ff1f6fac94bc118",
+      "bytes": 20695
+    },
+    {
+      "source": "C:\\dev\\cap-meri-foundation-evidence\\oct02-case17-v7\\case17-artifacts-v7\\case17\\afterReload\\MEM-PENDING-17-B.png",
+      "destination": "case17-artifacts-v7/case17/afterReload/MEM-PENDING-17-B.png",
+      "sha256": "b485105ce2c9b55fd444ef36cf877e7b7a176b2065e7e1f198185690e1407a29",
+      "bytes": 20596
+    },
+    {
+      "source": "C:\\dev\\cap-meri-foundation-evidence\\oct02-case17-v7\\case17-artifacts-v7\\case17\\afterReload\\MEM-PENDING-17-C.png",
+      "destination": "case17-artifacts-v7/case17/afterReload/MEM-PENDING-17-C.png",
+      "sha256": "aa917881747c65a85608c1a7f87461b66f62629d40cc1ae4cf3cda2e75b8d3d8",
+      "bytes": 20752
+    },
+    {
+      "source": "C:\\dev\\cap-meri-foundation-evidence\\oct02-case17-v7\\case17-artifacts-v7\\case17\\afterReload\\MEM-PENDING-17-D.png",
+      "destination": "case17-artifacts-v7/case17/afterReload/MEM-PENDING-17-D.png",
+      "sha256": "cb41972d67565ce2ad0816d13f436f60e3552ed368c79649c3c0485d3b518fcd",
+      "bytes": 20953
+    },
+    {
+      "source": "C:\\dev\\cap-meri-foundation-evidence\\oct02-case17-v7\\case17-artifacts-v7\\case17\\afterReload\\MEM-PENDING-17-E.png",
+      "destination": "case17-artifacts-v7/case17/afterReload/MEM-PENDING-17-E.png",
+      "sha256": "dfeccebc3e53df401fcb557032de995ac3322941710e8e974a24573c685e09c9",
+      "bytes": 20066
+    },
+    {
+      "source": "C:\\dev\\cap-meri-foundation-evidence\\oct02-case17-v7\\case17-artifacts-v7\\case17\\afterReload\\MEM-PENDING-17-F.png",
+      "destination": "case17-artifacts-v7/case17/afterReload/MEM-PENDING-17-F.png",
+      "sha256": "ac32c33de7c630f4edf4e74c06acb7785399e5848185d113185cb22999abd9f9",
+      "bytes": 21152
+    },
+    {
+      "source": "C:\\dev\\cap-meri-foundation-evidence\\oct02-case17-write-accounting\\qualification.json",
+      "destination": "collector-qualification/qualification.json",
+      "sha256": "70f94dba5cdddb6aa071ac2e49aa5098e065e20a4df2015ef8b68c19a494b83b",
+      "bytes": 4620
+    },
+    {
+      "source": "C:\\dev\\cap-meri-foundation-evidence\\oct02-case17-write-accounting\\HANDOVER.md",
+      "destination": "collector-qualification/HANDOVER.md",
+      "sha256": "48d97f3d518c5269eb91cb86ff11b0f63f26dd7fa1fcfb58ac58e388520a1097",
+      "bytes": 3079
+    },
+    {
+      "source": "C:\\dev\\cap-meri-foundation-evidence\\oct02-case17-write-accounting\\final-checks.json",
+      "destination": "collector-qualification/final-checks.json",
+      "sha256": "5b54f299529d6b5005280a67738c4582e0b3915a0000fdc823a0f97e85a58fbe",
+      "bytes": 1033
+    },
+    {
+      "source": "C:\\dev\\cap-meri-foundation-evidence\\oct02-case17-write-accounting\\final-check-0.log",
+      "destination": "collector-qualification/final-check-0.log",
+      "sha256": "6352d1f9ee8eb27775844ed7f9f4fb17d69b3d665f8c2a9525b1db8c150677de",
+      "bytes": 4341
+    },
+    {
+      "source": "C:\\dev\\cap-meri-foundation-evidence\\oct02-case17-write-accounting\\final-check-1.log",
+      "destination": "collector-qualification/final-check-1.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "C:\\dev\\cap-meri-foundation-evidence\\oct02-case17-write-accounting\\reviewed-source-hashes.json",
+      "destination": "collector-qualification/reviewed-source-hashes.json",
+      "sha256": "a2706f3a992a550d0d4862f1be3924ce7bc5ec75114b3aa21833e199d7676539",
+      "bytes": 728
+    },
+    {
+      "source": "C:\\dev\\cap-meri-foundation-evidence\\oct02-case17-write-accounting\\case17-write-accounting-kimi-review.md",
+      "destination": "collector-qualification/case17-write-accounting-kimi-review.md",
+      "sha256": "f05d827ab3522ceebdc9bc9a6ee92c9a126ffae208b717b7cefca27e35739d6f",
+      "bytes": 4314
+    },
+    {
+      "source": "C:\\dev\\cap-meri-foundation-evidence\\oct02-case17-write-accounting\\case17-write-accounting-kimi-usage.json",
+      "destination": "collector-qualification/case17-write-accounting-kimi-usage.json",
+      "sha256": "18f7e531670057f8e0289de1e058d774af22f82b497ce9adca7ce710d3d11e52",
+      "bytes": 426
+    },
+    {
+      "source": "C:\\dev\\cap-meri-foundation-evidence\\oct02-case17-write-accounting\\case17-write-accounting-kimi-exit.json",
+      "destination": "collector-qualification/case17-write-accounting-kimi-exit.json",
+      "sha256": "990ee58bf2608b81ee84f009c5fd34b43018fdbf60d89d0a4ac5df690564fd64",
+      "bytes": 103
+    },
+    {
+      "source": "C:\\dev\\cap-meri-foundation-evidence\\oct02-case01-release\\case01-projection-execution.json",
+      "destination": "projection/case01-projection-execution.json",
+      "sha256": "de6f3fc3a036a406d1665533bce41411fcf2f4257f2d06ca3e9eac9c4de8f39d",
+      "bytes": 7542
+    },
+    {
+      "source": "C:\\dev\\cap-meri-foundation-evidence\\oct02-case01-release\\case01-projection-readonly.mjs",
+      "destination": "projection/case01-projection-readonly.mjs",
+      "sha256": "4a233fdde82cb5a5f7120ac55771db7a8d283408ff3cbcf4188a2935c24f4570",
+      "bytes": 19781
+    },
+    {
+      "source": "C:\\dev\\cap-meri-foundation-evidence\\oct02-case01-release\\case01-projection-readonly.test.mjs",
+      "destination": "projection/case01-projection-readonly.test.mjs",
+      "sha256": "35b1440ebbdf3a72703081caf203e037903346a45fc88985cbadd45cafe7ea35",
+      "bytes": 9098
+    },
+    {
+      "source": "C:\\dev\\cap-meri-foundation-evidence\\oct02-case01-release\\case01-projection-readonly-tests-v2.log",
+      "destination": "projection/case01-projection-readonly-tests-v2.log",
+      "sha256": "f84402958751a7bfdeaa64cf3f1efffb332a3aa6242b5ebfe2ff6a98cc859808",
+      "bytes": 428
+    },
+    {
+      "source": "C:\\dev\\cap-meri-foundation-evidence\\oct02-case01-release\\case01-projection-readonly-tests-v2.exit",
+      "destination": "projection/case01-projection-readonly-tests-v2.exit",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "bytes": 1
+    },
+    {
+      "source": "C:\\dev\\cap-meri-foundation-evidence\\oct02-case01-release\\case01-projection-oneoff.py",
+      "destination": "projection/case01-projection-oneoff.py",
+      "sha256": "0bde2d2fad73c62150a6c1f8138a35ff4b124e0362edaaee25aad22efe2c60b7",
+      "bytes": 12529
+    },
+    {
+      "source": "C:\\dev\\cap-meri-foundation-evidence\\oct02-case01-release\\case01-projection-oneoff.test.py",
+      "destination": "projection/case01-projection-oneoff.test.py",
+      "sha256": "c231bc592838b737b4a9fed97d070f3c3fc9414e07d96104f789ba2553c4c7bb",
+      "bytes": 4024
+    },
+    {
+      "source": "C:\\dev\\cap-meri-foundation-evidence\\oct02-case01-release\\case01-projection-oneoff-tests.log",
+      "destination": "projection/case01-projection-oneoff-tests.log",
+      "sha256": "8673184a4721b39481895c29a13975aafc5256ec8fa8eee0b794fb4f08801e31",
+      "bytes": 117
+    },
+    {
+      "source": "C:\\dev\\cap-meri-foundation-evidence\\oct02-case01-release\\case01-projection-oneoff-tests.exit",
+      "destination": "projection/case01-projection-oneoff-tests.exit",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "bytes": 1
+    },
+    {
+      "source": "C:\\dev\\cap-meri-foundation-evidence\\oct02-case17-archive-preparation\\operator-preparation-test-receipt.json",
+      "destination": "operator-preparation-test-receipt.json",
+      "sha256": "40bedb8faba2d14a39d3365ed068b250fa79e21b78bc2d4728c33bac98592b8a",
+      "bytes": 1249
+    },
+    {
+      "source": "C:\\dev\\cap-meri-foundation-evidence\\oct02-case17-archive-preparation\\OUTCOME-proposal.md",
+      "destination": "OUTCOME.md",
+      "sha256": "bd3e82840ae7690f886ecebb3e25bfddc76d012c2873b6b7c78187cd6fa3a0f6",
+      "bytes": 2301
+    }
+  ],
+  "case17RunId": "932af6e9-f9d7-4f73-b644-c524943da10b",
+  "status": "BYTE_COPY_VERIFIED",
+  "fullOriginalRow17Acceptance": false,
+  "fullFile01Acceptance": false
+}

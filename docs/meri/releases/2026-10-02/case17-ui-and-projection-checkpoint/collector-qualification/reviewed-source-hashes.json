@@ -1,0 +1,8 @@
+{
+  "evals/meri/live-v1/case17-readonly-guard.mjs": "6c8d3e5e0dfafba4a0132a2ff3151fcfce245e9b4cc0ad0c2b0a05ac38636b09",
+  "evals/meri/live-v1/case17-live-capture.mjs": "7957589436d62483246b23a29d96c5d4a5d017789f83b9f0dee594498c46b18b",
+  "evals/meri/live-v1/case17-memory-ui.mjs": "351af0ae5ab6a5ce78f1e8642985c02384f02bd24bab36fbe52f8a8cbc5b706b",
+  "evals/meri/live-v1/case17-saved-checks.mjs": "cd5d8b8bb91099928508f4aaa5db74275c3c874388d51042f21bd98f567dd301",
+  "evals/meri/live-v1/tests/case17-readonly-guard.test.mjs": "848f2f956274fbf2dfb894f3c8e2a6142850d2ea602c9ac0e8bd81c59d98250a",
+  "evals/meri/live-v1/tests/case17-saved-checks.test.mjs": "dcde29e294fcca447291387a442d69fd297a03786122b973d0822a78f432a1a3"
+}

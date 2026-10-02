@@ -1,0 +1,109 @@
+{
+  "schemaVersion": 1,
+  "status": "PASS",
+  "scope": "isolated case17 evaluation collector only",
+  "commit": "88e489f2939172de90c432b84fd037f273a1d4f0",
+  "parent": "b673848069d4d63da159177bee4cd436d2328878",
+  "driverBase": "823edc1110a02082a06a4ff90cbaaa71f83b4e15",
+  "driverDeltaPaths": [
+    "evals/meri/live-v1/case17-live-capture.mjs",
+    "evals/meri/live-v1/case17-memory-ui.mjs",
+    "evals/meri/live-v1/case17-readonly-guard.mjs",
+    "evals/meri/live-v1/case17-saved-checks.mjs",
+    "evals/meri/live-v1/tests/case17-memory-ui-query.test.mjs",
+    "evals/meri/live-v1/tests/case17-readonly-guard.test.mjs",
+    "evals/meri/live-v1/tests/case17-saved-checks.test.mjs"
+  ],
+  "worktree": "C:\\dev\\cap-meri-approval-recovery",
+  "branch": "codex/meri-case17-preference-accounting-20261002",
+  "clean": true,
+  "policy": {
+    "occupiedHead": "743fd708c3484604e8a35ea1039adeca3b1e331f",
+    "originMain": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+    "requiredFilesDiff": "none",
+    "machineMapDateFromParent": "2026-09-30"
+  },
+  "checks": [
+    {
+      "command": [
+        "node",
+        "--test",
+        "evals\\meri\\live-v1\\tests\\case17-authority.test.mjs",
+        "evals\\meri\\live-v1\\tests\\case17-memory-ui-delayed-mount.test.mjs",
+        "evals\\meri\\live-v1\\tests\\case17-memory-ui-query.test.mjs",
+        "evals\\meri\\live-v1\\tests\\case17-memory-ui.test.mjs",
+        "evals\\meri\\live-v1\\tests\\case17-readonly-guard.test.mjs",
+        "evals\\meri\\live-v1\\tests\\case17-saved-checks.test.mjs"
+      ],
+      "exitCode": 0,
+      "seconds": 10.56,
+      "log": "C:\\dev\\cap-meri-foundation-evidence\\oct02-case17-write-accounting\\final-check-0.log",
+      "logSha256": "6352d1f9ee8eb27775844ed7f9f4fb17d69b3d665f8c2a9525b1db8c150677de"
+    },
+    {
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exitCode": 0,
+      "seconds": 0.11,
+      "log": "C:\\dev\\cap-meri-foundation-evidence\\oct02-case17-write-accounting\\final-check-1.log",
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "tests": {
+    "pass": 16,
+    "fail": 0,
+    "skip": 0,
+    "actualChromium": true,
+    "actualWindowsArtifactStorage": true
+  },
+  "sourceHashes": {
+    "evals/meri/live-v1/case17-readonly-guard.mjs": "6c8d3e5e0dfafba4a0132a2ff3151fcfce245e9b4cc0ad0c2b0a05ac38636b09",
+    "evals/meri/live-v1/case17-live-capture.mjs": "7957589436d62483246b23a29d96c5d4a5d017789f83b9f0dee594498c46b18b",
+    "evals/meri/live-v1/case17-memory-ui.mjs": "351af0ae5ab6a5ce78f1e8642985c02384f02bd24bab36fbe52f8a8cbc5b706b",
+    "evals/meri/live-v1/case17-saved-checks.mjs": "cd5d8b8bb91099928508f4aaa5db74275c3c874388d51042f21bd98f567dd301",
+    "evals/meri/live-v1/tests/case17-readonly-guard.test.mjs": "848f2f956274fbf2dfb894f3c8e2a6142850d2ea602c9ac0e8bd81c59d98250a",
+    "evals/meri/live-v1/tests/case17-saved-checks.test.mjs": "dcde29e294fcca447291387a442d69fd297a03786122b973d0822a78f432a1a3"
+  },
+  "independentReview": {
+    "requestedModel": "moonshotai.kimi-k2.5",
+    "initializedModel": "moonshotai.kimi-k2.5",
+    "sessionId": "20261002_122725_9160f2",
+    "provider": "bedrock",
+    "reportedTokens": {
+      "input": 24660,
+      "output": 926,
+      "total": 25586,
+      "cache_read": 0,
+      "cache_write": 0
+    },
+    "reportedResultExit": 0,
+    "toolCalls": 0,
+    "billedCostUsd": null,
+    "costStatus": "not exposed by quiet stream output"
+  },
+  "reviewExit": 0,
+  "reviewVerdict": "PASS",
+  "reviewFactualCorrections": [
+    "Page route handles request before context route; abort stops fallback so accounting occurs once (actual Chromium regression).",
+    "UI owner diagnostic is written before final guard, not in finally; native aggregate write diagnostic is written in finally after cleanup.",
+    "Known preference requests are never exempted from abort; only their bounded denied-attempt category is accepted."
+  ],
+  "sideEffects": {
+    "aws": 0,
+    "sharedDatabase": 0,
+    "authSessions": 0,
+    "liveBrowser": 0,
+    "providerCalls": 0,
+    "mainPushMerge": 0,
+    "localCommit": 1
+  },
+  "liveAcceptance": "NOT_RUN",
+  "limitations": [
+    "v6 counter versus owner-change cause remains unknown; new diagnostics are for the next serial run.",
+    "Live card D must be independently reviewed again; local scroll/clipping regression does not prove its live pixels.",
+    "No operator v7 has been sealed and no original aggregate/budget scope has been initialized."
+  ]
+}

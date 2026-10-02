@@ -1,0 +1,76 @@
+import assert from 'node:assert/strict';
+import {test} from 'node:test';
+import {readFile} from 'node:fs/promises';
+import {createRequire} from 'node:module';
+import {createHash,randomUUID} from 'node:crypto';
+import {sha256Stable} from 'file:///C:/dev/cap-meri-outcomes-validation/evals/meri/live-v1/artifact-collector.mjs';
+const require=createRequire('C:/dev/cap-meri-migration-history-guard/apps/api/package.json');
+const {Client}=require('pg');
+const source=await readFile(new URL('./case01-projection-readonly.mjs',import.meta.url),'utf8');
+const block=source.split('// BEGIN FIXED CURRENT APPROVAL READBACK (executed verbatim on owned PG).')[1].split('// END FIXED CURRENT APPROVAL READBACK')[0];
+const {currentApprovalReadback,SYSTEM_JOB_SQL}=new Function('assert','createHash','sha256Stable',block+';return {currentApprovalReadback,SYSTEM_JOB_SQL};')(assert,createHash,sha256Stable);
+
+test('actual fixed readback observes pending then committed approval; nonowner role reproduces outbox system-scope gap',{skip:!process.env.MERI_APPROVED_MEMORY_PG_CONFIG},async()=>{
+ const cfg=JSON.parse(await readFile(process.env.MERI_APPROVED_MEMORY_PG_CONFIG,'utf8'));
+ assert.equal(cfg.scope,'owned local disposable test cluster; no AWS connection');assert.equal(cfg.host,'127.0.0.1');assert.equal(cfg.port,55433);
+ const connection={host:cfg.host,port:cfg.port,database:cfg.database,user:cfg.user,password:cfg.password};
+ const db=new Client(connection),system=new Client(connection);const id=randomUUID().replaceAll('-','');
+ const schema='meri_projection_'+id,role='meri_projection_role_'+id;
+ const tenant=randomUUID(),candidate=randomUUID(),proposer=randomUUID(),reviewer=randomUUID(),clio=randomUUID(),item=randomUUID(),job=randomUUID();
+ let schemaCreated=false,roleCreated=false;
+ await db.connect();
+ try{
+  const identity=(await db.query("SELECT current_user=$1 AS owner_matches,host(inet_server_addr()) AS host,inet_server_port() AS port,current_setting('data_directory') AS directory",[cfg.user])).rows[0];
+  assert.equal(identity.owner_matches,true);assert.equal(identity.host,cfg.host);assert.equal(identity.port,cfg.port);assert.equal(identity.directory.replaceAll('\\','/'),cfg.dataDirectory.replaceAll('\\','/'));
+  await db.query(`CREATE ROLE "${role}" NOLOGIN NOSUPERUSER NOBYPASSRLS`);roleCreated=true;
+  await db.query(`CREATE SCHEMA "${schema}"`);schemaCreated=true;await db.query(`SET search_path TO "${schema}"`);
+  await db.query(`CREATE TABLE memory_candidate(id uuid,tenant_id uuid,proposed_by uuid,status text,governed_status text,committed_memory_id uuid,committed_memory_item_id uuid,decided_by uuid,approved_by_user_id uuid);
+   CREATE TABLE clio_memory(id uuid,tenant_id uuid,updated_at timestamptz,embedding text,key text,value text,metadata_jsonb jsonb);
+   CREATE TABLE memory_items(id uuid,tenant_id uuid,status text,governed_status text,approved_by_user_id uuid,title text,sections_jsonb jsonb,source_version text,source_content_hash text);
+   CREATE TABLE memory_cleanup_outbox(id uuid,tenant_id uuid,memory_item_id uuid,clio_memory_id uuid,operation text,status text,attempts int,idempotency_key text,expected_source_version timestamptz,expected_content_hash text,last_error text,completed_at timestamptz,superseded_at timestamptz,lease_owner text,created_at timestamptz);
+   CREATE TABLE context_embeddings(id uuid,tenant_id uuid,source_type text,source_id text,model text,content_hash text,embedding text);
+   CREATE TABLE memory_transition_audit(id uuid,tenant_id uuid,memory_candidate_id uuid,from_status text,to_status text,actor_user_id uuid,memory_item_id uuid,occurred_at timestamptz);
+   ALTER TABLE memory_cleanup_outbox ENABLE ROW LEVEL SECURITY;
+   ALTER TABLE memory_cleanup_outbox FORCE ROW LEVEL SECURITY;
+   CREATE POLICY memory_cleanup_outbox_tenant_isolation ON memory_cleanup_outbox USING(tenant_id=current_setting('app.current_tenant',true)::uuid) WITH CHECK(tenant_id=current_setting('app.current_tenant',true)::uuid)`);
+  await db.query(`GRANT USAGE ON SCHEMA "${schema}" TO "${role}";GRANT SELECT ON ALL TABLES IN SCHEMA "${schema}" TO "${role}"`);
+  await db.query("INSERT INTO memory_candidate(id,tenant_id,proposed_by,status,governed_status) VALUES($1,$2,$3,'pending','suggested')",[candidate,tenant,proposer]);
+  await db.query(`SET ROLE "${role}"`);await db.query('BEGIN READ ONLY');await db.query("SELECT set_config('app.current_tenant',$1,true)",[tenant]);
+  const pending=await currentApprovalReadback(db,tenant,candidate,proposer);assert.equal(pending.candidate.status,'pending');assert.equal(pending.clio.length,0);assert.equal(pending.outbox.length,0);
+  await db.query('ROLLBACK');await db.query('RESET ROLE');
+  const stamp='2026-10-02T12:00:00.000Z',hash=createHash('sha256').update('Test Heading: safe synthetic').digest('hex');
+  await db.query('BEGIN');
+  await db.query("UPDATE memory_candidate SET status='approved',governed_status='active',committed_memory_id=$1,committed_memory_item_id=$2,decided_by=$3,approved_by_user_id=$3 WHERE id=$4",[clio,item,reviewer,candidate]);
+  await db.query("INSERT INTO clio_memory VALUES($1,$2,$3,null,'private-key-sentinel','private-value-sentinel','{}')",[clio,tenant,stamp]);
+  await db.query("INSERT INTO memory_items VALUES($1,$2,'active','active',$3,'Test',$4::jsonb,null,null)",[item,tenant,reviewer,JSON.stringify([{owner:'human',heading:'Heading',body:'safe synthetic'}])]);
+  await db.query("INSERT INTO memory_cleanup_outbox VALUES($1,$2,$3,$4,'index_memory_item','pending',0,$5,$6,$7,'private-error-sentinel',null,null,null,$6)",[job,tenant,item,clio,`index_memory_item:${clio}:${stamp}:${hash}`,stamp,hash]);
+  await db.query("INSERT INTO memory_transition_audit VALUES($1,$2,$3,'pending_review','active',$4,$5,$6)",[randomUUID(),tenant,candidate,reviewer,item,stamp]);
+  await db.query('COMMIT');
+  await db.query(`SET ROLE "${role}"`);await db.query('BEGIN READ ONLY');await db.query("SELECT set_config('app.current_tenant',$1,true)",[tenant]);
+  const actual=await currentApprovalReadback(db,tenant,candidate,proposer);assert.equal(actual.candidate.status,'approved');assert.equal(actual.items.length,1);assert.equal(actual.outbox[0].idempotency_matches,true);assert.equal(actual.outbox[0].error_present,true);assert.equal(actual.embeddings.length,0);assert.equal(actual.audits.length,1);
+  assert.equal((await db.query(SYSTEM_JOB_SQL,[tenant,clio])).rows.length,1);assert.equal((await db.query('SHOW transaction_read_only')).rows[0].transaction_read_only,'on');
+  const serialized=JSON.stringify(actual);for(const hidden of ['private-key-sentinel','private-value-sentinel','private-error-sentinel','safe synthetic'])assert.equal(serialized.includes(hidden),false);
+  await db.query('ROLLBACK');await db.query('RESET ROLE');
+  await system.connect();await system.query(`SET search_path TO "${schema}"`);await system.query(`SET ROLE "${role}"`);
+  const actualRole=(await system.query('SELECT rolsuper,rolbypassrls FROM pg_roles WHERE rolname=current_user')).rows[0];assert.deepEqual(actualRole,{rolsuper:false,rolbypassrls:false});
+  assert.equal((await system.query("SELECT pg_get_userbyid(relowner)=current_user AS owns FROM pg_class WHERE oid='memory_cleanup_outbox'::regclass")).rows[0].owns,false);
+  await system.query('BEGIN READ ONLY');await system.query("SELECT set_config('app.bypass_rls','on',true)");
+  assert.equal((await system.query("SELECT current_setting('app.current_tenant',true) AS tenant")).rows[0].tenant,null);
+  assert.equal((await system.query(SYSTEM_JOB_SQL,[tenant,clio])).rows.length,0);
+  await system.query('ROLLBACK');
+  // Same real nonowner role and exact SQL succeed with explicit tenant scope.
+  await system.query('BEGIN READ ONLY');await system.query("SELECT set_config('app.current_tenant',$1,true)",[tenant]);assert.equal((await system.query(SYSTEM_JOB_SQL,[tenant,clio])).rows[0].id,job);await system.query('ROLLBACK');
+  await system.query('BEGIN READ ONLY');await system.query("SELECT set_config('app.bypass_rls','on',true)");
+  assert.equal((await system.query("SELECT current_setting('app.current_tenant',true) AS tenant")).rows[0].tenant,'');
+  await assert.rejects(system.query(SYSTEM_JOB_SQL,[tenant,clio]),error=>error.code==='22P02');await system.query('ROLLBACK');
+  await system.query('BEGIN READ ONLY');await system.query("SELECT set_config('app.current_tenant',$1,true)",[randomUUID()]);assert.equal((await system.query(SYSTEM_JOB_SQL,[tenant,clio])).rows.length,0);await system.query('ROLLBACK');
+ }finally{
+  await system.end().catch(()=>{});await db.query('ROLLBACK').catch(()=>{});await db.query('RESET ROLE');
+  assert.match(schema,/^meri_projection_[a-f0-9]{32}$/u);assert.match(role,/^meri_projection_role_[a-f0-9]{32}$/u);
+  if(schemaCreated)await db.query(`DROP SCHEMA "${schema}" CASCADE`);
+  if(roleCreated)await db.query(`DROP ROLE "${role}"`);
+  assert.equal((await db.query('SELECT count(*)::int AS n FROM pg_namespace WHERE nspname=$1',[schema])).rows[0].n,0);
+  assert.equal((await db.query('SELECT count(*)::int AS n FROM pg_roles WHERE rolname=$1',[role])).rows[0].n,0);
+  await db.end();
+ }
+});

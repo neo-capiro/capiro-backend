@@ -1,0 +1,29 @@
+[
+  {
+    "command": [
+      "node",
+      "--test",
+      "evals\\meri\\live-v1\\tests\\case17-authority.test.mjs",
+      "evals\\meri\\live-v1\\tests\\case17-memory-ui-delayed-mount.test.mjs",
+      "evals\\meri\\live-v1\\tests\\case17-memory-ui-query.test.mjs",
+      "evals\\meri\\live-v1\\tests\\case17-memory-ui.test.mjs",
+      "evals\\meri\\live-v1\\tests\\case17-readonly-guard.test.mjs",
+      "evals\\meri\\live-v1\\tests\\case17-saved-checks.test.mjs"
+    ],
+    "exitCode": 0,
+    "seconds": 10.56,
+    "log": "C:\\dev\\cap-meri-foundation-evidence\\oct02-case17-write-accounting\\final-check-0.log",
+    "logSha256": "6352d1f9ee8eb27775844ed7f9f4fb17d69b3d665f8c2a9525b1db8c150677de"
+  },
+  {
+    "command": [
+      "git",
+      "diff",
+      "--check"
+    ],
+    "exitCode": 0,
+    "seconds": 0.11,
+    "log": "C:\\dev\\cap-meri-foundation-evidence\\oct02-case17-write-accounting\\final-check-1.log",
+    "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+]

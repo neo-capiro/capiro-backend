@@ -1,0 +1,93 @@
+{
+  "caseId": "17",
+  "captureRunId": "932af6e9-f9d7-4f73-b644-c524943da10b",
+  "evidenceSha256": "1ddc03c596f800ab30f849b0dafbd7b04c21ce16280653e5286b476b1a4a1202",
+  "completedAt": 1790944609450,
+  "screenshots": [
+    {
+      "phase": "initial",
+      "logicalSourceId": "MEM-PENDING-17-A",
+      "bytes": 20688,
+      "ref": "case17/initial/MEM-PENDING-17-A.png",
+      "sha256": "f797e247677f0e1fc25fe5f9c6a1d49fbc4aa30174bd3c2ec1f07cf90c1c8298"
+    },
+    {
+      "phase": "initial",
+      "logicalSourceId": "MEM-PENDING-17-B",
+      "bytes": 20596,
+      "ref": "case17/initial/MEM-PENDING-17-B.png",
+      "sha256": "b485105ce2c9b55fd444ef36cf877e7b7a176b2065e7e1f198185690e1407a29"
+    },
+    {
+      "phase": "initial",
+      "logicalSourceId": "MEM-PENDING-17-C",
+      "bytes": 20752,
+      "ref": "case17/initial/MEM-PENDING-17-C.png",
+      "sha256": "aa917881747c65a85608c1a7f87461b66f62629d40cc1ae4cf3cda2e75b8d3d8"
+    },
+    {
+      "phase": "initial",
+      "logicalSourceId": "MEM-PENDING-17-D",
+      "bytes": 20953,
+      "ref": "case17/initial/MEM-PENDING-17-D.png",
+      "sha256": "cb41972d67565ce2ad0816d13f436f60e3552ed368c79649c3c0485d3b518fcd"
+    },
+    {
+      "phase": "initial",
+      "logicalSourceId": "MEM-PENDING-17-E",
+      "bytes": 20066,
+      "ref": "case17/initial/MEM-PENDING-17-E.png",
+      "sha256": "dfeccebc3e53df401fcb557032de995ac3322941710e8e974a24573c685e09c9"
+    },
+    {
+      "phase": "initial",
+      "logicalSourceId": "MEM-PENDING-17-F",
+      "bytes": 21152,
+      "ref": "case17/initial/MEM-PENDING-17-F.png",
+      "sha256": "ac32c33de7c630f4edf4e74c06acb7785399e5848185d113185cb22999abd9f9"
+    },
+    {
+      "phase": "afterReload",
+      "logicalSourceId": "MEM-PENDING-17-A",
+      "bytes": 20695,
+      "ref": "case17/afterReload/MEM-PENDING-17-A.png",
+      "sha256": "38aa434150e5e0a14a642554d5b334b8836888ea2bcdef720ff1f6fac94bc118"
+    },
+    {
+      "phase": "afterReload",
+      "logicalSourceId": "MEM-PENDING-17-B",
+      "bytes": 20596,
+      "ref": "case17/afterReload/MEM-PENDING-17-B.png",
+      "sha256": "b485105ce2c9b55fd444ef36cf877e7b7a176b2065e7e1f198185690e1407a29"
+    },
+    {
+      "phase": "afterReload",
+      "logicalSourceId": "MEM-PENDING-17-C",
+      "bytes": 20752,
+      "ref": "case17/afterReload/MEM-PENDING-17-C.png",
+      "sha256": "aa917881747c65a85608c1a7f87461b66f62629d40cc1ae4cf3cda2e75b8d3d8"
+    },
+    {
+      "phase": "afterReload",
+      "logicalSourceId": "MEM-PENDING-17-D",
+      "bytes": 20953,
+      "ref": "case17/afterReload/MEM-PENDING-17-D.png",
+      "sha256": "cb41972d67565ce2ad0816d13f436f60e3552ed368c79649c3c0485d3b518fcd"
+    },
+    {
+      "phase": "afterReload",
+      "logicalSourceId": "MEM-PENDING-17-E",
+      "bytes": 20066,
+      "ref": "case17/afterReload/MEM-PENDING-17-E.png",
+      "sha256": "dfeccebc3e53df401fcb557032de995ac3322941710e8e974a24573c685e09c9"
+    },
+    {
+      "phase": "afterReload",
+      "logicalSourceId": "MEM-PENDING-17-F",
+      "bytes": 21152,
+      "ref": "case17/afterReload/MEM-PENDING-17-F.png",
+      "sha256": "ac32c33de7c630f4edf4e74c06acb7785399e5848185d113185cb22999abd9f9"
+    }
+  ],
+  "humanRubric": "NOT_RUN"
+}

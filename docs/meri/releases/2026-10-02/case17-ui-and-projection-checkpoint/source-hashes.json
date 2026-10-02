@@ -1,0 +1,9 @@
+{
+  "case17-v7-gates.mjs": "fe4c4b9f289a61de0812fc2f4381d506aa5af66fb0f4184e4d45809481c056b3",
+  "run-case17-authenticated-v7.mjs": "79911ccad9ed2735d43923f17b734a90868deeeaea8f28f63b817368a957426e",
+  "case17-v7-gates.test.mjs": "f6dff7ed6be3cdda93f46e35daeda8fb2559f4d0e0f5a03844ab05d772150510",
+  "case17-v7-release-pins.json": "279848f91da35cda112a93f1ee1cc35a37c77cffbb562f39f3434f675bd3113e",
+  "reviewed-build-input.json": "0ee2ad2724911749b4f4d0a8591fcf639e226a932783afef1d55fbaa232a4f55",
+  "api-build-readback.json": "b40c2ebeac0af845434eae72d492cc89da4f7973cc8541ee5466f1cfa5666d35",
+  "api-promotion-receipt.json": "b5d344d4014ec2a0350846b8ea2a0e1263b2b36aff67d3a93e1d21b2bfe6d519"
+}

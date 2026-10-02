@@ -1,0 +1,43 @@
+{
+  "caseId": "17",
+  "sourceSha": "42780caa75fcabe4f83e619ad81c0f36fdda8fad",
+  "webSourceSha": "78ad5805679a3045b1fc10fb19beafa7f76e4e64",
+  "driverSourceSha": "88e489f2939172de90c432b84fd037f273a1d4f0",
+  "operatorHead": "3d2ba9d844bc71830fc02fdda6e002f48fb96c2b",
+  "pinsSha256": "279848f91da35cda112a93f1ee1cc35a37c77cffbb562f39f3434f675bd3113e",
+  "captureRunId": "932af6e9-f9d7-4f73-b644-c524943da10b",
+  "status": "UI_SLICE_PASS",
+  "sessionCreated": true,
+  "sessionRevoked": true,
+  "synthesisSubmissionCount": 0,
+  "applicationWrites": 0,
+  "originalPromptSubmission": "NOT_RUN",
+  "humanRubric": "NOT_RUN",
+  "acceptanceScope": "NO_TURN_PENDING_MEMORY_UI_SLICE",
+  "fullOriginalRow17Acceptance": false,
+  "fullFile01Acceptance": false,
+  "outcome": {
+    "caseId": "17",
+    "captureRunId": "932af6e9-f9d7-4f73-b644-c524943da10b",
+    "status": "CAPTURE_COMPLETE",
+    "evidence": {
+      "ref": "case17/evidence.json",
+      "sha256": "1ddc03c596f800ab30f849b0dafbd7b04c21ce16280653e5286b476b1a4a1202",
+      "bytes": 34008
+    },
+    "synthesisSubmissionCount": 0
+  },
+  "grading": {
+    "caseId": "17",
+    "captureRunId": "932af6e9-f9d7-4f73-b644-c524943da10b",
+    "evidenceSha256": "1ddc03c596f800ab30f849b0dafbd7b04c21ce16280653e5286b476b1a4a1202",
+    "deterministicStatus": "PASS",
+    "synthesisSubmissionCount": 0,
+    "applicationWrites": 0,
+    "fullFile01Acceptance": false,
+    "status": "PASS",
+    "reason": "CASE17_ONLY"
+  },
+  "visualReviewer": "Codex root, saved-image visual inspection; not human rubric",
+  "completedAt": "2026-10-02T12:37:56.386Z"
+}
