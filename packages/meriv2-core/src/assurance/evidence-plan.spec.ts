@@ -101,3 +101,30 @@ describe('response formatting and factual coverage requirements', () => {
     );
   });
 });
+
+const hypotheticalRequests = [
+  'Quality check using hypothetical facts only: Aster has a Thursday demo. Maya owns the slides, due Tuesday. Lee owns the technical review, due Wednesday; it depends on Maya finishing the slides. The rehearsal has no owner or scheduled time. Write exactly three concise bullets: the critical path, the main delivery risk, and the next action. Use only these facts. Do not search, use tools, save memories, create tasks, or send messages.',
+  'Update to the hypothetical example: the slides will now be ready Wednesday afternoon. Keep the other facts unchanged. In exactly two sentences, explain what this changes and what I should confirm next. Do not assume the demo has been delayed. Do not use tools, save memories, create tasks, or send messages.',
+  'Based only on the hypothetical facts in this conversation, what exact time is the rehearsal, and has Lee approved the slides? If either is unknown, say so clearly. Do not infer that a scheduled review means approval happened. Do not search, use tools, save memories, create tasks, or send messages.',
+];
+
+describe('explicit closed hypothetical facts', () => {
+  it.each(hypotheticalRequests)('does not require external proof for %s', (request) => {
+    expect(plan(request).requiredRequirementIds).toEqual([]);
+  });
+  it.each([
+    'Who is the current committee chair? Do not use tools.',
+    'There are no federal awards for Aster. Do not use tools.',
+    'Using hypothetical facts only, write three bullets. Also verify who is the current committee chair. Do not use tools.',
+    'Based only on the hypothetical facts in this conversation, compare them to the actual current roster. Do not use tools.',
+    'Update to the hypothetical example: keep the other facts unchanged. Search for all actual awards. Do not use tools.',
+    'Using hypothetical facts only, list all real grants for Aster. Do not use tools.',
+    'Using hypothetical facts only, write three bullets. Also list all grants for Aster. Do not use tools.',
+    'Based only on the hypothetical facts in this conversation, verify that no awards exist. Do not use tools.',
+    'Update to the hypothetical example: keep the other facts unchanged. Who is the committee chair? Do not use tools.',
+    'Using hypothetical facts only, write three bullets. Do not search, but verify every award.',
+    'A fictional client has no awards. What is its current funding status? Do not use tools.',
+  ])('retains external coverage for real or mixed requests: %s', (request) => {
+    expect(plan(request).requiredRequirementIds.length).toBeGreaterThan(0);
+  });
+});

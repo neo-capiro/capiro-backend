@@ -1781,6 +1781,44 @@ describe('MeriV3AssistantService', () => {
     ).toEqual(['house-senate-comparison.house', 'house-senate-comparison.senate']);
   });
 
+  test.each([
+    'Quality check using hypothetical facts only: Aster has a Thursday demo. Maya owns the slides, due Tuesday. Lee owns the technical review, due Wednesday; it depends on Maya finishing the slides. The rehearsal has no owner or scheduled time. Write exactly three concise bullets: the critical path, the main delivery risk, and the next action. Use only these facts. Do not search, use tools, save memories, create tasks, or send messages.',
+    'Update to the hypothetical example: the slides will now be ready Wednesday afternoon. Keep the other facts unchanged. In exactly two sentences, explain what this changes and what I should confirm next. Do not assume the demo has been delayed. Do not use tools, save memories, create tasks, or send messages.',
+    'Based only on the hypothetical facts in this conversation, what exact time is the rehearsal, and has Lee approved the slides? If either is unknown, say so clearly. Do not infer that a scheduled review means approval happened. Do not search, use tools, save memories, create tasks, or send messages.',
+  ])('closed hypothetical turn does not execute an automatic roster read: %s', async (request) => {
+    process.env.MERI_COVERAGE_RETRIEVAL_MODE = 'enforce';
+    process.env.MERI_COVERAGE_RETRIEVAL_TENANTS = '11111111-1111-4111-8111-111111111111';
+    process.env.MERI_COVERAGE_RETRIEVAL_SURFACES = 'chat';
+    const text = 'The rehearsal time is unknown from the supplied facts.';
+    const complete = jest.fn().mockResolvedValue(response({ outputText: text }));
+    const invoke = jest.fn(async () => ({ members: [] }));
+    const assistant = build(registry([{ name: 'list_members', readOnly: true }], invoke), complete);
+    global.fetch = jest.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            schemas: [
+              {
+                name: 'list_members',
+                description: 'Read current members',
+                input_schema: { type: 'object', properties: {} },
+              },
+            ],
+          }),
+          { status: 200 },
+        ),
+    ) as typeof fetch;
+    const result = await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+      assistant.run(
+        { ...context, tenantId: '11111111-1111-4111-8111-111111111111' },
+        { conversationId: 'closed-hypothetical', messages: [{ role: 'user', text: request }] },
+      ),
+    );
+    expect(invoke).not.toHaveBeenCalled();
+    expect(complete).toHaveBeenCalledTimes(1);
+    expect(result.reply).toBe(text);
+  });
+
   test('coverage enforce executes one read-only follow-up per chamber and re-synthesizes over both', async () => {
     process.env.MERI_COVERAGE_RETRIEVAL_MODE = 'enforce';
     process.env.MERI_COVERAGE_RETRIEVAL_TENANTS = '11111111-1111-4111-8111-111111111111';

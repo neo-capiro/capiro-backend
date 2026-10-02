@@ -6,6 +6,7 @@ import {
   appendClaimTiedCoverageDisclosure,
   buildCoverageRequirements,
   compareCoverage,
+  planFollowUp,
 } from './meri-evidence-requirements';
 
 /** The same planning, coverage comparison, and disclosure functions used by
@@ -75,6 +76,80 @@ describe('response formatting through Meri evidence finalization', () => {
   ])('retains a disclosure for an unsupported factual request: %s', (request, reply) => {
     expect(finalizeWithoutReads(request, reply)).toBe(
       `${reply}\n\n> **Evidence limitation:** No/none/only/all/every claims require explicit, non-truncated source coverage; an empty or failed query is not proof of absence; that part of the answer remains limited because the source was never called.`,
+    );
+  });
+});
+
+const hypotheticalRequests = [
+  'Quality check using hypothetical facts only: Aster has a Thursday demo. Maya owns the slides, due Tuesday. Lee owns the technical review, due Wednesday; it depends on Maya finishing the slides. The rehearsal has no owner or scheduled time. Write exactly three concise bullets: the critical path, the main delivery risk, and the next action. Use only these facts. Do not search, use tools, save memories, create tasks, or send messages.',
+  'Update to the hypothetical example: the slides will now be ready Wednesday afternoon. Keep the other facts unchanged. In exactly two sentences, explain what this changes and what I should confirm next. Do not assume the demo has been delayed. Do not use tools, save memories, create tasks, or send messages.',
+  'Based only on the hypothetical facts in this conversation, what exact time is the rehearsal, and has Lee approved the slides? If either is unknown, say so clearly. Do not infer that a scheduled review means approval happened. Do not search, use tools, save memories, create tasks, or send messages.',
+];
+
+describe('closed hypothetical facts through the real coverage planner', () => {
+  it.each(hypotheticalRequests)('does not probe or qualify supplied context: %s', (request) => {
+    const frame = resolveGovernmentAffairsOperatingFrame({ request });
+    const plan = planGovernmentAffairsEvidence({ request, frame, surface: 'chat' });
+    const requirements = buildCoverageRequirements({ request, frame, plan, clientId: null });
+    const gaps = compareCoverage({
+      requirements,
+      toolsUsed: [],
+      receipts: [],
+      ledgerEntries: [],
+      citations: [],
+    });
+    expect(
+      planFollowUp({
+        gaps,
+        requirements,
+        request,
+        frame,
+        toolSchemas: [
+          {
+            name: 'list_members',
+            readOnly: true,
+            input_schema: { type: 'object', properties: {} },
+          },
+        ],
+      }),
+    ).toBeNull();
+    expect(
+      appendClaimTiedCoverageDisclosure(
+        'The rehearsal time is unknown from the supplied facts.',
+        gaps,
+        requirements,
+      ),
+    ).toBe('The rehearsal time is unknown from the supplied facts.');
+  });
+  it('still schedules a real current-role lookup and discloses a missing source', () => {
+    const request = 'Who is the current committee chair?';
+    const frame = resolveGovernmentAffairsOperatingFrame({ request });
+    const plan = planGovernmentAffairsEvidence({ request, frame, surface: 'chat' });
+    const requirements = buildCoverageRequirements({ request, frame, plan, clientId: null });
+    const gaps = compareCoverage({
+      requirements,
+      toolsUsed: [],
+      receipts: [],
+      ledgerEntries: [],
+      citations: [],
+    });
+    expect(
+      planFollowUp({
+        gaps,
+        requirements,
+        request,
+        frame,
+        toolSchemas: [
+          {
+            name: 'list_members',
+            readOnly: true,
+            input_schema: { type: 'object', properties: {} },
+          },
+        ],
+      })?.calls[0]?.name,
+    ).toBe('list_members');
+    expect(appendClaimTiedCoverageDisclosure('Unknown.', gaps, requirements)).toContain(
+      'Evidence limitation',
     );
   });
 });

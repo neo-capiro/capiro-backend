@@ -364,8 +364,33 @@ function withoutResponseFormatOnly(request: string): string {
     );
 }
 
+/** An explicitly closed hypothetical exercise has a supplied premise, not an
+ * assertion about an external dataset. A tool prohibition alone is insufficient.
+ * Conflicting verification/real-world wording keeps the ordinary evidence rules. */
+function isClosedHypotheticalRequest(request: string): boolean {
+  const closedFrame =
+    /\b(?:using\s+hypothetical\s+facts\s+only|based\s+only\s+on\s+the\s+hypothetical\s+facts\s+in\s+this\s+conversation)\b/i.test(
+      request,
+    ) ||
+    (/\bupdate\s+to\s+the\s+hypothetical\s+example\b/i.test(request) &&
+      /\bkeep\s+the\s+other\s+facts\s+unchanged\b/i.test(request));
+  if (!closedFrame) return false;
+
+  // Remove only a standalone prohibition whose entire verb list is known.
+  // An appended positive request (e.g. ", but verify the current roster") is
+  // preserved and therefore cannot be mistaken for part of the prohibition.
+  const intent = request.replace(
+    /(^|[.!?]\s*)do\s+not\s+(?:(?:search|use\s+tools|save\s+memories|create\s+tasks|send\s+messages)(?:\s*,\s*|\s*,?\s*or\s+)?)+\s*(?=[.!?]|$)/gi,
+    '$1',
+  );
+  return !/\b(?:verify|validate|fact[- ]?check|look\s+up|search|retrieve|consult|research|list|find|identify|who\s+(?:is|are|chairs|leads|represents)|actual|real(?:[- ]world)?|official|current(?:ly)?|today|latest|external|online|database|sources?|roster)\b/i.test(
+    intent,
+  );
+}
+
 export function inferClaimCategories(request: string): ClaimCategory[] {
   const text = String(request ?? '');
+  if (isClosedHypotheticalRequest(text)) return ['general_background'];
   const categories: ClaimCategory[] = [];
   addIf(
     categories,
