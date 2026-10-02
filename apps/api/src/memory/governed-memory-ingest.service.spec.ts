@@ -49,7 +49,12 @@ function harness(
     }),
   } as unknown as Prisma.TransactionClient;
   const prisma = {
-    withSystem: jest.fn(async <T>(fn: (arg: Prisma.TransactionClient) => Promise<T>) => fn(tx)),
+    withTenant: jest.fn(
+      async <T>(tenantId: string, fn: (arg: Prisma.TransactionClient) => Promise<T>) => {
+        expect(tenantId).toBe(TENANT);
+        return fn(tx);
+      },
+    ),
   } as unknown as PrismaService;
   const projector = {
     projectClioMemoryStrict: jest.fn(async () => {

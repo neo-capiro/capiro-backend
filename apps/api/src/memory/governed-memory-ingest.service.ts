@@ -83,7 +83,9 @@ export class GovernedMemoryIngestService extends MemoryIngestService {
     tenantId: string,
     clioMemoryId: string,
   ): Promise<ExactProjectionJob | null> {
-    const rows = await this.exactPrisma.withSystem(
+    // The outbox policy requires app.current_tenant even for a system fast path.
+    const rows = await this.exactPrisma.withTenant(
+      tenantId,
       (tx) =>
         tx.$queryRaw<ExactProjectionJob[]>`
           SELECT id::text AS id,
@@ -133,7 +135,8 @@ export class GovernedMemoryIngestService extends MemoryIngestService {
     }
 
     const status = receipt.outcome === 'superseded' ? 'superseded' : 'completed';
-    await this.exactPrisma.withSystem(
+    await this.exactPrisma.withTenant(
+      receipt.tenantId,
       (tx) =>
         tx.$executeRaw`
           UPDATE memory_cleanup_outbox
