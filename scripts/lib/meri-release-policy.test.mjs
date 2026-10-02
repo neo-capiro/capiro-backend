@@ -58,10 +58,16 @@ test('task registration omits empty or AWS-only tags and preserves user tags', (
     assert.equal(Object.hasOwn(input, 'tags'), false);
     assert.equal(fingerprint(input), fingerprint(taskInput(td)));
   }
-  const tags = [{ key: 'aws:managed', value: 'yes' }, { key: 'owner', value: 'meri' }];
+  const tags = [
+    { key: 'aws:managed', value: 'yes' },
+    { key: 'owner', value: 'meri' },
+  ];
   const input = taskInput({ ...td, tags });
   assert.deepEqual(input.tags, [{ key: 'owner', value: 'meri' }]);
-  assert.deepEqual(tags, [{ key: 'aws:managed', value: 'yes' }, { key: 'owner', value: 'meri' }]);
+  assert.deepEqual(tags, [
+    { key: 'aws:managed', value: 'yes' },
+    { key: 'owner', value: 'meri' },
+  ]);
 });
 
 test('qualification valid vs wrong repo/expiry/missingreview/check', () => {
@@ -201,6 +207,30 @@ test('service fingerprint capacity/network/desired drift vs timestamps', () => {
   const f3 = serviceConfigFingerprint(base);
   const f4 = serviceConfigFingerprint({ ...base, desiredCount: 2 });
   assert.notStrictEqual(f3, f4);
+});
+
+test('ECS deployment summaries are observations while deployment identity and unknown config stay guarded', () => {
+  const base = {
+    desiredCount: 1,
+    deployments: [{ id: 'd1', status: 'PRIMARY' }],
+    currentServiceDeployment: 'arn:old',
+    currentServiceRevisions: [{ arn: 'revision-old', runningTaskCount: 1 }],
+  };
+  const updated = {
+    ...base,
+    currentServiceDeployment: 'arn:new',
+    currentServiceRevisions: [{ arn: 'revision-new', runningTaskCount: 0, pendingTaskCount: 1 }],
+  };
+  assert.equal(serviceConfigFingerprint(base), serviceConfigFingerprint(updated));
+  assert.equal(serviceFingerprint(base), serviceFingerprint(updated));
+  assert.notEqual(
+    serviceFingerprint(base),
+    serviceFingerprint({ ...updated, deployments: [{ id: 'd2', status: 'PRIMARY' }] }),
+  );
+  assert.notEqual(
+    serviceConfigFingerprint(base),
+    serviceConfigFingerprint({ ...updated, futureWritableSetting: true }),
+  );
 });
 
 test('baseline missing/hash drift', () => {

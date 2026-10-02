@@ -69,6 +69,8 @@ function fixture() {
       desiredCount: 1,
       runningCount: 1,
       pendingCount: 0,
+      currentServiceDeployment: 'service-deployment-old',
+      currentServiceRevisions: [{ arn: 'revision-old', runningTaskCount: 1, pendingTaskCount: 0 }],
       taskDefinition: arn(1),
       deployments: [
         {
@@ -166,6 +168,10 @@ function fixture() {
       case 'ecs update-service': {
         const target = value('--task-definition');
         state.s.taskDefinition = target;
+        state.s.currentServiceDeployment = `service-deployment-${state.calls.length}`;
+        state.s.currentServiceRevisions = [
+          { arn: target, runningTaskCount: 1, pendingTaskCount: 0 },
+        ];
         state.s.deployments = [
           {
             id: `deployment-${state.calls.length}`,
