@@ -209,10 +209,12 @@ function WatchConversionContent({ portfolioId, canEdit }: Props) {
         Preview my legacy watches
       </button>
       {preview.error ? (
-        <p role="alert">The current watch conversion preview is unavailable. Retry the preview.</p>
+        <p className="rp-error" role="alert">
+          The current watch conversion preview is unavailable. Retry the preview.
+        </p>
       ) : null}
       {preview.data && !currentPreview ? (
-        <p role="alert">
+        <p className="rp-error" role="alert">
           Watch conversion is unavailable until the API provides a complete preview. No conversion
           request was sent; any retained exact request is preserved.
         </p>
@@ -282,9 +284,9 @@ function WatchConversionContent({ portfolioId, canEdit }: Props) {
         {attempt ? 'Reconcile exact watch conversion' : 'Create selected dormant watches'}
       </button>
       {!canEdit ? <p>Current portfolio edit access is required to convert watches.</p> : null}
-      {storageError ? <p role="alert">{storageError}</p> : null}
+      {storageError ? <p className="rp-error" role="alert">{storageError}</p> : null}
       {apply.error ? (
-        <p role="alert">
+        <p className="rp-error" role="alert">
           {attempt
             ? 'Watch conversion is unconfirmed. Retry the retained exact request; a replacement selection is not sent.'
             : 'Watch conversion was not sent. Review a fresh preview and retry.'}

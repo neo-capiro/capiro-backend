@@ -175,10 +175,7 @@ describe('explicit dormant watch conversion and closed-session recovery', () => 
     previewPayload = oldApiPreview;
     render(tree());
     fireEvent.click(screen.getByRole('button', { name: 'Preview my legacy watches' }));
-    expect(await screen.findByText(/Watch conversion is unavailable/)).toHaveAttribute(
-      'role',
-      'alert',
-    );
+    expect(await screen.findByText(/Watch conversion is unavailable/)).toHaveClass('rp-error');
     expect(screen.getByRole('button', { name: 'Create selected dormant watches' })).toBeDisabled();
     expect(
       screen.getByLabelText('I confirm creating dormant watches without sending notifications.'),
