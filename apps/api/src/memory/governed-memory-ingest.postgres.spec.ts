@@ -211,7 +211,13 @@ postgresSuite('governed fast-path outbox with a real non-owner PostgreSQL role',
     const otherBefore = (
       await owner.query('SELECT * FROM memory_cleanup_outbox WHERE id=$1', [otherJob])
     ).rows[0];
-    await service.projectClioMemory(tenant, clio);
+    await service.projectClioMemory(tenant, clio, {
+      id: job,
+      memoryItemId: item,
+      sourceVersion: version,
+      contentHash: hash,
+      idempotencyKey: key,
+    });
     expect(scopes).toEqual([tenant, tenant]);
     expect(projected).toHaveBeenCalledWith(tenant, clio, {
       sourceVersion: version,
@@ -229,6 +235,39 @@ postgresSuite('governed fast-path outbox with a real non-owner PostgreSQL role',
     expect(
       (await owner.query('SELECT * FROM memory_cleanup_outbox WHERE id=$1', [otherJob])).rows[0],
     ).toEqual(otherBefore);
+  });
+
+  test('a newer pending job cannot replace the admitted job before provider dispatch', async () => {
+    const newerVersion = '2026-10-02T12:01:00.000Z';
+    const newerHash = 'b'.repeat(64);
+    await owner.query(
+      `INSERT INTO memory_cleanup_outbox(id,tenant_id,memory_item_id,clio_memory_id,operation,idempotency_key,expected_source_version,expected_content_hash,status)
+      VALUES($1,$2,$3,$4,'index_memory_item',$5,$6,$7,'pending')`,
+      [
+        randomUUID(),
+        tenant,
+        item,
+        clio,
+        exactProjectionIdempotencyKey(clio, newerVersion, newerHash),
+        newerVersion,
+        newerHash,
+      ],
+    );
+    const before = (await owner.query('SELECT * FROM memory_cleanup_outbox ORDER BY id')).rows;
+    const calls = projected.mock.calls.length;
+    await expect(
+      service.projectClioMemory(tenant, clio, {
+        id: job,
+        memoryItemId: item,
+        sourceVersion: version,
+        contentHash: hash,
+        idempotencyKey: key,
+      }),
+    ).rejects.toThrow('memory_projection_exact_job_changed');
+    expect(projected.mock.calls).toHaveLength(calls);
+    expect((await owner.query('SELECT * FROM memory_cleanup_outbox ORDER BY id')).rows).toEqual(
+      before,
+    );
   });
 
   test('missing or wrong tenant scope cannot project or complete any job; pooled empty scope reproduces 22P02', async () => {
