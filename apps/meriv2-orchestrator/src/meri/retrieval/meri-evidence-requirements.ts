@@ -19,6 +19,8 @@ export interface CoverageRequirement {
   requirementId: string;
   claimCategory: ClaimCategory;
   toolFamilies: string[];
+  /** Alternatives within a source; every source must complete an exhaustive read. */
+  coverageToolGroups?: string[][];
   essential: boolean;
   rationale: string;
   template?: CoverageTemplate;
@@ -83,7 +85,16 @@ const object = (value: unknown): Record<string, unknown> | null =>
     ? (value as Record<string, unknown>)
     : null;
 
-const arrays = ['records', 'results', 'data', 'items', 'documents', 'messages', 'rows'] as const;
+const arrays = [
+  'records',
+  'results',
+  'data',
+  'items',
+  'documents',
+  'messages',
+  'rows',
+  'tasks',
+] as const;
 
 function payloadHasUsableContent(value: unknown): boolean {
   if (typeof value === 'string') return value.trim().length > 0;
@@ -213,6 +224,151 @@ function receiptIsComplete(receipt: MeriToolCoverageReceipt): boolean {
   );
 }
 
+function isContinuationPage(value: unknown): boolean {
+  const page = object(value);
+  return Boolean(
+    page &&
+    ((page.offset != null && page.offset !== 0) ||
+      page.cursorApplied === true ||
+      (page.cursor != null && page.cursor !== '') ||
+      (page.pageToken != null && page.pageToken !== '')),
+  );
+}
+
+/** A terminal page proves no following page, not that the prefix was read.
+ * Individual receipts reach this comparison without a whole-query coalescer. */
+function hasUnprovenQueryCoverage(
+  entries: readonly LedgerEntry[],
+  receipts: readonly MeriToolCoverageReceipt[],
+): boolean {
+  return (
+    entries.some((entry) => {
+      const result = object(entry.result);
+      return [result, result?.scope, result?.pagination, object(result?.coverage)?.pagination].some(
+        isContinuationPage,
+      );
+    }) ||
+    receipts.some(
+      (receipt) =>
+        isContinuationPage(receipt.requestRoute) ||
+        (receipt.mailPage?.offset ?? 0) > 0 ||
+        Boolean(
+          receipt.documentPage &&
+          (receipt.documentPage.section > 1 || receipt.documentPage.start > 0),
+        ) ||
+        (receipt.recordsMatched != null &&
+          receipt.recordsReturned != null &&
+          receipt.recordsMatched > receipt.recordsReturned),
+    )
+  );
+}
+
+function exhaustiveScopeKey(entry: LedgerEntry, receipt: MeriToolCoverageReceipt): string | null {
+  const result = object(entry.result);
+  const route = Object.entries(receipt.requestRoute ?? {}).sort(([a], [b]) => a.localeCompare(b));
+  // Canonical result scope includes filters omitted from requestRoute (for
+  // example task owner/status and mailbox search terms). Retain page coordinates:
+  // a completed last page does not recover a failed or skipped earlier page.
+  const scope = object(result?.scope) ?? object(result?.queryScope);
+  if (scope) {
+    const fields = Object.entries(scope);
+    if (
+      ['query_tasks', 'search_emails', 'list_emails'].includes(entry.tool) &&
+      scope.offset === undefined &&
+      result?.offset === undefined &&
+      receipt.mailPage?.offset === undefined &&
+      !route.some(([key]) => ['offset', 'cursor', 'pageToken'].includes(key))
+    )
+      return null;
+    if (
+      fields.length &&
+      fields.every(
+        ([, value]) => value === null || ['string', 'number', 'boolean'].includes(typeof value),
+      )
+    )
+      return `payload:${safeJson([
+        fields.sort(([a], [b]) => a.localeCompare(b)),
+        route,
+        result?.offset ?? null,
+        receipt.mailPage?.offset ?? null,
+      ])}`;
+    return null;
+  }
+  if (receipt.mailPage)
+    return `mail:${safeJson([receipt.mailPage.key, receipt.mailPage.offset, route])}`;
+  if (receipt.documentPage)
+    return `document:${safeJson([
+      receipt.documentPage.documentId,
+      receipt.documentPage.contentHash,
+      receipt.documentPage.query,
+      receipt.documentPage.section,
+      receipt.documentPage.start,
+      receipt.documentPage.end,
+      route,
+    ])}`;
+  // Operational route metadata currently omits query/owner filters. A client id
+  // alone cannot establish that a task/mail retry covered the same query.
+  if (['query_tasks', 'search_emails', 'list_emails'].includes(entry.tool)) return null;
+  return route.length ? `route:${safeJson(route)}` : null;
+}
+
+function currentExhaustiveReads(
+  entries: readonly LedgerEntry[],
+  receipts: readonly MeriToolCoverageReceipt[],
+): { entries: LedgerEntry[]; receipts: MeriToolCoverageReceipt[] } {
+  const currentEntries: LedgerEntry[] = [];
+  const currentReceipts: MeriToolCoverageReceipt[] = [];
+  for (const tool of new Set([
+    ...entries.map((entry) => entry.tool),
+    ...receipts.map((read) => read.tool),
+  ])) {
+    const toolEntries = entries.filter((entry) => entry.tool === tool);
+    const toolReceipts = receipts.filter((read) => read.tool === tool);
+    // Both streams preserve invocation order, but composite tools may emit
+    // several receipts per result. Without an unambiguous pairing, fail closed.
+    if (
+      toolEntries.length !== toolReceipts.length ||
+      new Set(toolReceipts.map((read) => read.source)).size !== 1
+    ) {
+      currentEntries.push(...toolEntries);
+      currentReceipts.push(...toolReceipts);
+      continue;
+    }
+    const reads = toolEntries.map((entry, index) => ({
+      entry,
+      receipt: toolReceipts[index]!,
+      scope: exhaustiveScopeKey(entry, toolReceipts[index]!),
+    }));
+    reads.forEach((read, index) => {
+      const result = object(read.entry.result);
+      const incomplete =
+        !receiptIsComplete(read.receipt) ||
+        read.receipt.paginationComplete !== true ||
+        Boolean(result?.error || result?.blocked) ||
+        payloadReadIncomplete(read.entry.result);
+      const superseded =
+        incomplete &&
+        read.scope !== null &&
+        reads.slice(index + 1).some((later) => {
+          const result = object(later.entry.result);
+          return (
+            later.scope === read.scope &&
+            receiptIsComplete(later.receipt) &&
+            later.receipt.paginationComplete === true &&
+            !result?.error &&
+            !result?.blocked &&
+            !payloadReadIncomplete(later.entry.result)
+          );
+        });
+      if (!superseded) {
+        currentEntries.push(read.entry);
+        currentReceipts.push(read.receipt);
+      }
+    });
+  }
+  return { entries: currentEntries, receipts: currentReceipts };
+}
+
 /** An incomplete read closes only after a later terminal receipt for that source. */
 function hasOpenIncompleteRead(
   tool: string,
@@ -336,6 +492,23 @@ function documentRequirement(
   };
 }
 
+function negativeCoverageToolGroups(plan: DomainEvidencePlan, request: string): string[][] {
+  // A prohibited write or explicitly excluded source is not a requested read.
+  // Keep the sentinel itself in toolFamilies: resolving observed evidence must
+  // not schedule new reads or turn a private/official requirement into a wildcard.
+  const subject = request
+    .replace(/\b(?:do not|don't|never)\b[^.!?;\n]*/gi, '')
+    .replace(/\bnot\s+(?:e-?mails?|mail|mailbox|inbox|tasks?|to[- ]?dos?)\b/gi, '');
+  const groups = plan.requirements
+    .filter((item) => plan.requiredRequirementIds.includes(item.id))
+    .map((item) => item.toolFamilies.filter((tool) => tool !== 'domain_specific_tools'))
+    .filter((tools) => tools.length > 0);
+  if (/\b(?:query_tasks|tasks?|to[- ]?dos?)\b/i.test(subject)) groups.push(['query_tasks']);
+  if (/\b(?:search_emails|list_emails|e-?mails?|mail|mailbox|inbox)\b/i.test(subject))
+    groups.push(['search_emails', 'list_emails']);
+  return groups;
+}
+
 export function buildCoverageRequirements(input: {
   plan: DomainEvidencePlan;
   request: string;
@@ -354,6 +527,10 @@ export function buildCoverageRequirements(input: {
       requirementId: requirement.id,
       claimCategory: requirement.claimCategory,
       toolFamilies: [...requirement.toolFamilies],
+      ...(requirement.id === 'negative-claim.coverage' &&
+      requirement.toolFamilies.includes('domain_specific_tools')
+        ? { coverageToolGroups: negativeCoverageToolGroups(input.plan, input.request) }
+        : {}),
       essential: true,
       rationale: requirement.reason,
     });
@@ -488,9 +665,16 @@ export function compareCoverage(input: {
   citations: readonly MeriCitation[];
 }): CoverageGap[] {
   return input.requirements.map((requirement) => {
-    const called = requirement.toolFamilies.filter((tool) => input.toolsUsed.includes(tool));
-    const receipts = input.receipts.filter((receipt) => called.includes(receipt.tool));
-    const entries = input.ledgerEntries.filter((entry) => called.includes(entry.tool));
+    const exhaustive = requirement.claimCategory === 'negative_or_exhaustive';
+    const groups = requirement.coverageToolGroups ?? [requirement.toolFamilies];
+    const called = [...new Set(groups.flat())].filter((tool) => input.toolsUsed.includes(tool));
+    const observed = {
+      receipts: input.receipts.filter((receipt) => called.includes(receipt.tool)),
+      entries: input.ledgerEntries.filter((entry) => called.includes(entry.tool)),
+    };
+    const { receipts, entries } = exhaustive
+      ? currentExhaustiveReads(observed.entries, observed.receipts)
+      : observed;
     const usable = entries.filter((entry) => entryProvidesEvidence(entry, requirement));
     const unavailable = receipts.some((receipt) => receipt.status === 'unavailable');
     const failed =
@@ -499,23 +683,59 @@ export function compareCoverage(input: {
         const result = object(entry.result);
         return Boolean(result?.error || result?.blocked);
       });
-    const openIncomplete = called.some((tool) =>
-      hasOpenIncompleteRead(tool, entries, receipts, requirement),
-    );
+    const openIncomplete =
+      called.some((tool) => hasOpenIncompleteRead(tool, entries, receipts, requirement)) ||
+      (exhaustive &&
+        (receipts.some((receipt) => receipt.status === 'partial') ||
+          hasUnprovenQueryCoverage(entries, receipts)));
+    const completeCoverage =
+      exhaustive &&
+      groups.length > 0 &&
+      groups.every((group) =>
+        group.some((tool) => {
+          const reads = receipts.filter((receipt) => receipt.tool === tool);
+          if (
+            !reads.length ||
+            !reads.every(
+              (receipt) => receiptIsComplete(receipt) && receipt.paginationComplete === true,
+            )
+          )
+            return false;
+          return entries.some((entry) => {
+            if (entry.tool !== tool) return false;
+            if (entryProvidesEvidence(entry, requirement)) return true;
+            // Zero rows are useful evidence only with explicit completed coverage
+            // for this source and an actual empty result, never a failure/receipt alone.
+            const result = object(entry.result);
+            return Boolean(
+              result &&
+              !result.error &&
+              !result.blocked &&
+              reads.every((receipt) => receipt.recordsReturned === 0) &&
+              arrays.some((key) => Array.isArray(result[key]) && result[key].length === 0),
+            );
+          });
+        }),
+      );
+    const satisfied = exhaustive ? completeCoverage && !failed && !unavailable : usable.length > 0;
     // Usable content and a completed read are separate facts. A partial page
     // can contain evidence while still leaving the required read unresolved.
     const status: CoverageGapStatus =
       called.length === 0
         ? 'never_called'
-        : usable.length && !openIncomplete
-          ? 'satisfied'
-          : openIncomplete
-            ? 'truncated'
-            : unavailable
-              ? 'unavailable'
-              : failed
-                ? 'extraction_failed'
-                : 'called_no_usable_content';
+        : exhaustive && unavailable
+          ? 'unavailable'
+          : exhaustive && failed
+            ? 'extraction_failed'
+            : satisfied && !openIncomplete
+              ? 'satisfied'
+              : openIncomplete
+                ? 'truncated'
+                : unavailable
+                  ? 'unavailable'
+                  : failed
+                    ? 'extraction_failed'
+                    : 'called_no_usable_content';
     return {
       requirementId: requirement.requirementId,
       essential: requirement.essential,

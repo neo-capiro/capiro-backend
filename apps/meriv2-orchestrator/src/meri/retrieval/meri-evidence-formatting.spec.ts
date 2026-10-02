@@ -8,6 +8,7 @@ import {
   compareCoverage,
   planFollowUp,
 } from './meri-evidence-requirements';
+import { observeMeriTurnToolCoverage } from '../meriv3/meriv3-turn-coverage';
 
 /** The same planning, coverage comparison, and disclosure functions used by
  * MeriV3 finalization, with the observed no-tool smoke turn as input. */
@@ -166,5 +167,209 @@ describe('closed hypothetical facts through the real coverage planner', () => {
     expect(appendClaimTiedCoverageDisclosure('Unknown.', gaps, requirements)).toContain(
       'Evidence limitation',
     );
+  });
+});
+
+describe('observed operational reads through evidence finalization', () => {
+  const taskRequest =
+    'Read-only task check: look at the open tasks assigned to me and report how many are overdue as of October 2, 2026. Return only the count and any limits on what you checked; do not show task titles, client names, or personal details. Use the task system, not email. Do not create or change tasks, send messages, or save memories. If you cannot determine a reliable count, say so.';
+  const mailRequest =
+    'For this read-only reliability check, search my connected mailbox once for the exact unique phrase CAPIRO_MERI_DIAGNOSTIC_20261002_1616_NO_MATCH. Report whether the search completed and how many matches were returned; do not display any message contents or personal details. Do not retry the search, send anything, create tasks, or save memories. If the search fails, say that it failed rather than treating it as no matches.';
+  const emptyTasks = {
+    tool: 'query_tasks',
+    total: 0,
+    returned: 0,
+    tasks: [],
+    scope: {
+      kind: 'authorized_tasks',
+      tenantId: 'tenant-1',
+      actorUserId: 'user-1',
+      ownerUserId: 'user-1',
+      status: 'open',
+      dueBefore: '2026-10-02T00:00:00.000Z',
+      offset: 0,
+      limit: 50,
+      cursorApplied: false,
+    },
+    coverage: {
+      sourceStatus: 'healthy',
+      complete: true,
+      partial: false,
+      paginationComplete: true,
+      hasMore: false,
+      nextCursor: null,
+      totalIsExactForScope: true,
+      absenceSupported: true,
+    },
+  };
+
+  function finalize(request: string, tool: string, result: unknown, reply: string) {
+    const frame = resolveGovernmentAffairsOperatingFrame({ request });
+    const plan = planGovernmentAffairsEvidence({ request, frame, surface: 'chat' });
+    const requirements = buildCoverageRequirements({ request, frame, plan, clientId: null });
+    const ledgerEntries = [{ tool, result, serialized: JSON.stringify(result) }];
+    const gaps = compareCoverage({
+      requirements,
+      toolsUsed: [tool],
+      receipts: observeMeriTurnToolCoverage(tool, result),
+      ledgerEntries,
+      citations: [],
+    });
+    return {
+      requirements,
+      gap: gaps.find((item) => item.requirementId === 'negative-claim.coverage'),
+      reply: appendClaimTiedCoverageDisclosure(reply, gaps, requirements),
+      followUp: planFollowUp({
+        gaps,
+        requirements,
+        request,
+        frame,
+        ledgerEntries,
+        toolSchemas: [
+          { name: 'query_tasks', readOnly: true, input_schema: { properties: {} } },
+          { name: 'search_emails', readOnly: true, input_schema: { properties: {} } },
+        ],
+      }),
+    };
+  }
+
+  it('accepts explicit complete empty canonical task coverage and keeps the count unchanged', () => {
+    const result = finalize(
+      taskRequest,
+      'query_tasks',
+      emptyTasks,
+      '0 overdue tasks in the checked scope.',
+    );
+    expect(result.gap?.status).toBe('satisfied');
+    expect(result.reply).toBe('0 overdue tasks in the checked scope.');
+    expect(result.followUp).toBeNull();
+    expect(
+      result.requirements.find((item) => item.requirementId === 'negative-claim.coverage'),
+    ).toMatchObject({
+      toolFamilies: ['domain_specific_tools'],
+      coverageToolGroups: [['query_tasks']],
+    });
+  });
+
+  it.each([
+    [
+      'partial',
+      {
+        ...emptyTasks.coverage,
+        complete: false,
+        partial: true,
+        hasMore: true,
+        paginationComplete: false,
+      },
+      'truncated',
+    ],
+    ['unknown', {}, 'truncated'],
+  ])('retains the limitation for %s task coverage', (_name, coverage, status) => {
+    const result = finalize(
+      taskRequest,
+      'query_tasks',
+      { ...emptyTasks, coverage },
+      'The count is not established.',
+    );
+    expect(result.gap?.status).toBe(status);
+    expect(result.reply).toContain('Evidence limitation');
+    expect(result.reply).not.toContain('never called');
+    expect(result.followUp).toBeNull();
+  });
+
+  it('reports the observed mailbox failure without calling it an uncalled source', () => {
+    const result = finalize(
+      mailRequest,
+      'search_emails',
+      { error: 'HTTP 503: unavailable' },
+      'The mailbox search failed.',
+    );
+    expect(result.gap?.status).toBe('extraction_failed');
+    expect(result.reply).toContain('Evidence limitation');
+    expect(result.reply).toContain('extraction failed');
+    expect(result.reply).not.toContain('never called');
+    expect(result.followUp).toBeNull();
+    expect(
+      result.requirements.find((item) => item.requirementId === 'negative-claim.coverage'),
+    ).toMatchObject({ coverageToolGroups: [['search_emails', 'list_emails']] });
+  });
+
+  it.each([
+    [0, 1, 'satisfied'],
+    [10, 11, 'truncated'],
+    [0, 11, 'truncated'],
+  ])(
+    'requires full query coverage for observed mail offset %s of %s matches',
+    (offset, totalMatches, status) => {
+      const payload = {
+        returned: 1,
+        totalMatches,
+        offset,
+        hasMore: false,
+        results: [{ id: 'mail-11' }],
+        queryScope: {
+          query: 'CAPIRO_MERI_DIAGNOSTIC_20261002_1616_NO_MATCH',
+          from: null,
+          participant: null,
+          clientId: null,
+          folder: null,
+          withinDays: null,
+          asOf: '2026-10-02T00:00:00.000Z',
+        },
+        searchedMailboxes: [
+          { provider: 'synthetic', status: 'connected', mailCoverage: { sourceStatus: 'healthy' } },
+        ],
+      };
+      // The actual observer marks a healthy terminal page complete even when
+      // earlier offsets were not observed. Finalization must retain that gap.
+      expect(observeMeriTurnToolCoverage('search_emails', payload)[0]).toMatchObject({
+        status: 'complete',
+        paginationComplete: true,
+        recordsReturned: 1,
+        recordsMatched: totalMatches,
+      });
+      const result = finalize(
+        mailRequest,
+        'search_emails',
+        payload,
+        'The search returned one match.',
+      );
+      expect(result.gap?.status).toBe(status);
+      if (status === 'satisfied') expect(result.reply).toBe('The search returned one match.');
+      else expect(result.reply).toContain('Evidence limitation');
+      expect(result.followUp).toBeNull();
+    },
+  );
+
+  it.each([
+    { offset: 10, cursorApplied: false },
+    { offset: 0, cursorApplied: true },
+  ])('does not treat an observed task continuation as whole-scope coverage: %j', (scope) => {
+    const payload = { ...emptyTasks, scope: { ...emptyTasks.scope, ...scope } };
+    expect(observeMeriTurnToolCoverage('query_tasks', payload)[0]).toMatchObject({
+      status: 'complete',
+      paginationComplete: true,
+    });
+    const result = finalize(taskRequest, 'query_tasks', payload, '0 overdue tasks.');
+    expect(result.gap?.status).toBe('truncated');
+    expect(result.reply).toContain('Evidence limitation');
+    expect(result.followUp).toBeNull();
+  });
+
+  it('does not let a complete unrelated task read satisfy a mailbox claim', () => {
+    const result = finalize(mailRequest, 'query_tasks', emptyTasks, 'No matches.');
+    expect(result.gap?.status).toBe('never_called');
+    expect(result.reply).toContain('Evidence limitation');
+  });
+
+  it('requires both sources for an exhaustive task and mailbox request', () => {
+    const result = finalize(
+      'List all open tasks and emails in my mailbox.',
+      'query_tasks',
+      emptyTasks,
+      'No tasks or emails.',
+    );
+    expect(result.gap?.status).toBe('called_no_usable_content');
+    expect(result.reply).toContain('Evidence limitation');
   });
 });

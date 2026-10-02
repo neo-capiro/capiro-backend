@@ -309,6 +309,351 @@ describe('coverage requirements', () => {
 });
 
 describe('coverage comparison', () => {
+  const exhaustive: CoverageRequirement = {
+    ...requirement,
+    claimCategory: 'negative_or_exhaustive',
+  };
+
+  it.each(['partial', 'error', 'unavailable'] as const)(
+    'closes an earlier %s read only after a complete retry of the same source, scope and page',
+    (status) => {
+      const first = receipt({
+        status,
+        paginationComplete: false,
+        requestRoute: { clientId: 'client-1', offset: 0 },
+      });
+      const final = receipt({ requestRoute: { offset: 0, clientId: 'client-1' } });
+      const entries = [
+        entry(
+          'read_source',
+          status === 'partial'
+            ? { records: [{ id: 'a' }], coverage: { complete: false, nextCursor: 'page-2' } }
+            : { error: 'temporarily unavailable' },
+        ),
+        entry('read_source', { records: [{ id: 'a' }, { id: 'b' }], coverage: { complete: true } }),
+      ];
+      const compare = (receipts: MeriToolCoverageReceipt[]) =>
+        compareCoverage({
+          requirements: [exhaustive],
+          toolsUsed: ['read_source'],
+          receipts,
+          ledgerEntries: entries,
+          citations: [],
+        })[0]?.status;
+      expect(compare([first, final])).toBe('satisfied');
+      for (const other of [
+        { ...final, source: 'other-source' },
+        { ...final, requestRoute: { clientId: 'client-2' } },
+        { ...final, requestRoute: { clientId: 'client-1', offset: 10 } },
+        { ...final, requestRoute: { clientId: 'client-1', cursor: 'page-2' } },
+        { ...final, requestRoute: undefined },
+      ]) {
+        expect(compare([first, other])).toBe(
+          status === 'partial'
+            ? 'truncated'
+            : status === 'error'
+              ? 'extraction_failed'
+              : 'unavailable',
+        );
+      }
+    },
+  );
+
+  it.each(['partial', 'error'] as const)(
+    'does not infer recovery from two unscoped reads after %s',
+    (status) => {
+      expect(
+        compareCoverage({
+          requirements: [exhaustive],
+          toolsUsed: ['read_source'],
+          receipts: [receipt({ status, paginationComplete: false }), receipt()],
+          ledgerEntries: [
+            entry(
+              'read_source',
+              status === 'error' ? { error: 'failed' } : { records: [{ id: 'a' }] },
+            ),
+            entry('read_source', { records: [{ id: 'b' }] }),
+          ],
+          citations: [],
+        })[0]?.status,
+      ).toBe(status === 'partial' ? 'truncated' : 'extraction_failed');
+    },
+  );
+
+  it('keeps ambiguous receipt-to-result pairing unresolved', () => {
+    expect(
+      compareCoverage({
+        requirements: [exhaustive],
+        toolsUsed: ['read_source'],
+        receipts: [
+          receipt({ status: 'partial', requestRoute: { clientId: 'client-1' } }),
+          receipt({ requestRoute: { clientId: 'client-1' } }),
+        ],
+        ledgerEntries: [entry('read_source', { records: [{ id: 'a' }] })],
+        citations: [],
+      })[0]?.status,
+    ).toBe('truncated');
+  });
+
+  it.each(['partial', 'error'] as const)(
+    'uses the canonical task scope and same page for %s recovery',
+    (status) => {
+      const scope = {
+        kind: 'authorized_tasks',
+        tenantId: 'tenant-1',
+        actorUserId: 'user-1',
+        ownerUserId: 'user-1',
+        status: 'open',
+        dueBefore: '2026-10-02T00:00:00.000Z',
+        offset: 0,
+        limit: 10,
+        cursorApplied: false,
+      };
+      const first = entry('query_tasks', {
+        scope,
+        ...(status === 'error'
+          ? { error: 'temporarily unavailable' }
+          : { tasks: [{ id: 'task-1' }], coverage: { complete: false } }),
+      });
+      const finalScope = { ...scope };
+      const compare = (nextScope: object) =>
+        compareCoverage({
+          requirements: [{ ...exhaustive, toolFamilies: ['query_tasks'] }],
+          toolsUsed: ['query_tasks'],
+          receipts: [
+            receipt({
+              tool: 'query_tasks',
+              status,
+              paginationComplete: false,
+              requestRoute: { offset: 0 },
+            }),
+            receipt({ tool: 'query_tasks', requestRoute: { offset: 0 } }),
+          ],
+          ledgerEntries: [
+            first,
+            entry('query_tasks', {
+              scope: nextScope,
+              tasks: [{ id: 'task-1' }],
+              coverage: { complete: true },
+            }),
+          ],
+          citations: [],
+        })[0]?.status;
+      expect(compare(finalScope)).toBe('satisfied');
+      for (const otherScope of [
+        { ...finalScope, tenantId: 'tenant-2' },
+        { ...finalScope, actorUserId: 'user-2' },
+        { ...finalScope, ownerUserId: 'user-2' },
+        { ...finalScope, status: 'completed' },
+        { ...finalScope, dueBefore: '2026-10-03T00:00:00.000Z' },
+        { ...finalScope, offset: 10, cursorApplied: true },
+      ])
+        expect(compare(otherScope)).toBe(status === 'partial' ? 'truncated' : 'extraction_failed');
+    },
+  );
+
+  it('does not let another mailbox query recover a failed query in the same client route', () => {
+    const queryScope = { query: 'alpha', clientId: 'client-1', asOf: '2026-10-02T00:00:00.000Z' };
+    const compare = (query: string) =>
+      compareCoverage({
+        requirements: [{ ...exhaustive, toolFamilies: ['search_emails'] }],
+        toolsUsed: ['search_emails'],
+        receipts: [
+          receipt({
+            tool: 'search_emails',
+            status: 'error',
+            paginationComplete: false,
+            requestRoute: { clientId: 'client-1' },
+          }),
+          receipt({
+            tool: 'search_emails',
+            recordsReturned: 0,
+            requestRoute: { clientId: 'client-1' },
+          }),
+        ],
+        ledgerEntries: [
+          entry('search_emails', { queryScope, offset: 0, error: 'failed' }),
+          entry('search_emails', {
+            queryScope: { ...queryScope, query },
+            offset: 0,
+            results: [],
+            coverage: { complete: true },
+          }),
+        ],
+        citations: [],
+      })[0]?.status;
+    expect(compare('alpha')).toBe('satisfied');
+    expect(compare('beta')).toBe('extraction_failed');
+  });
+
+  it.each([
+    ['failed first page', 'error', 10, 'extraction_failed'],
+    ['skipped intermediate page', 'partial', 20, 'truncated'],
+    ['contiguous pages without whole-query proof', 'partial', 10, 'truncated'],
+  ] as const)(
+    'does not use a final mail page to close %s',
+    (_name, firstStatus, lastOffset, expected) => {
+      const queryScope = { query: 'alpha', clientId: 'client-1', asOf: '2026-10-02T00:00:00.000Z' };
+      const mailPage = (offset: number) => ({
+        key: 'same-query',
+        offset,
+        recordIds: [`mail-${offset}`],
+        sourceComplete: true,
+        contentTruncated: false,
+      });
+      const gaps = compareCoverage({
+        requirements: [{ ...exhaustive, toolFamilies: ['search_emails'] }],
+        toolsUsed: ['search_emails'],
+        receipts: [
+          receipt({
+            tool: 'search_emails',
+            source: 'mail',
+            status: firstStatus,
+            paginationComplete: false,
+            mailPage: mailPage(0),
+          }),
+          receipt({
+            tool: 'search_emails',
+            source: 'mail',
+            status: 'complete',
+            paginationComplete: true,
+            mailPage: mailPage(lastOffset),
+          }),
+        ],
+        ledgerEntries: [
+          entry('search_emails', {
+            queryScope,
+            offset: 0,
+            ...(firstStatus === 'error'
+              ? { error: 'failed' }
+              : { results: [{ id: 'mail-0' }], hasMore: true }),
+          }),
+          entry('search_emails', {
+            queryScope,
+            offset: lastOffset,
+            results: [{ id: `mail-${lastOffset}` }],
+            hasMore: false,
+          }),
+        ],
+        citations: [],
+      });
+      expect(gaps[0]?.status).toBe(expected);
+    },
+  );
+
+  it('preserves previously complete evidence when the same page is read again', () => {
+    expect(
+      compareCoverage({
+        requirements: [exhaustive],
+        toolsUsed: ['read_source'],
+        receipts: [
+          receipt({ requestRoute: { clientId: 'client-1', offset: 0 } }),
+          receipt({ requestRoute: { clientId: 'client-1', offset: 0 } }),
+        ],
+        ledgerEntries: [
+          entry('read_source', { records: [{ id: 'a', text: 'complete evidence' }] }),
+          entry('read_source', { coverage: { complete: true } }),
+        ],
+        citations: [],
+      })[0]?.status,
+    ).toBe('satisfied');
+  });
+
+  it('does not assume the page coordinates of an unpositioned mail retry', () => {
+    const queryScope = { query: 'alpha', clientId: 'client-1' };
+    expect(
+      compareCoverage({
+        requirements: [{ ...exhaustive, toolFamilies: ['search_emails'] }],
+        toolsUsed: ['search_emails'],
+        receipts: [
+          receipt({ tool: 'search_emails', status: 'error' }),
+          receipt({ tool: 'search_emails' }),
+        ],
+        ledgerEntries: [
+          entry('search_emails', { queryScope, error: 'failed' }),
+          entry('search_emails', { queryScope, results: [{ id: 'mail-1' }] }),
+        ],
+        citations: [],
+      })[0]?.status,
+    ).toBe('extraction_failed');
+  });
+
+  it.each([
+    ['missing receipt', [], { tasks: [] }, 'called_no_usable_content'],
+    [
+      'receipt without results',
+      [receipt({ tool: 'query_tasks', recordsReturned: 0 })],
+      {},
+      'called_no_usable_content',
+    ],
+    [
+      'failed result with complete receipt',
+      [receipt({ tool: 'query_tasks', recordsReturned: 0 })],
+      { tasks: [], error: 'failed' },
+      'extraction_failed',
+    ],
+    [
+      'partial nonempty result',
+      [receipt({ tool: 'query_tasks', status: 'partial' })],
+      { tasks: [{ id: 'task-1' }] },
+      'truncated',
+    ],
+    [
+      'complete nonempty result',
+      [receipt({ tool: 'query_tasks' })],
+      { tasks: [{ id: 'task-1' }] },
+      'satisfied',
+    ],
+  ])(
+    'requires explicit healthy coverage for negative claims: %s',
+    (_name, receipts, result, status) => {
+      const negative: CoverageRequirement = {
+        ...requirement,
+        claimCategory: 'negative_or_exhaustive',
+        toolFamilies: ['domain_specific_tools'],
+        coverageToolGroups: [['query_tasks']],
+      };
+      expect(
+        compareCoverage({
+          requirements: [negative],
+          toolsUsed: ['query_tasks'],
+          receipts: receipts as MeriToolCoverageReceipt[],
+          ledgerEntries: [entry('query_tasks', result)],
+          citations: [],
+        })[0]?.status,
+      ).toBe(status);
+    },
+  );
+
+  it('does not promote operational evidence into official or private requirements', () => {
+    const requirements: CoverageRequirement[] = [
+      {
+        ...requirement,
+        requirementId: 'client-recommendation.policy-basis',
+        toolFamilies: ['domain_specific_tools'],
+      },
+      {
+        ...requirement,
+        requirementId: 'client-recommendation.approved-direction',
+        toolFamilies: ['get_client_context', 'search_memory'],
+      },
+      {
+        ...requirement,
+        requirementId: 'bill-status.official-status',
+        toolFamilies: ['get_bill_status'],
+      },
+    ];
+    expect(
+      compareCoverage({
+        requirements,
+        toolsUsed: ['query_tasks'],
+        receipts: [receipt({ tool: 'query_tasks' })],
+        ledgerEntries: [entry('query_tasks', { tasks: [{ id: 'task-1' }] })],
+        citations: [],
+      }).map((gap) => gap.status),
+    ).toEqual(['never_called', 'never_called', 'never_called']);
+  });
+
   it.each<[CoverageGapStatus, string[], unknown, unknown]>([
     ['never_called', [], [], undefined],
     ['called_no_usable_content', ['read_source'], [], { records: [] }],

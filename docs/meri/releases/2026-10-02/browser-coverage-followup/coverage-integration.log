@@ -1,0 +1,10 @@
+PASS src/meri/meriv3/meriv3-turn-coverage.spec.ts (6.479 s)
+PASS src/meri/retrieval/meri-evidence-formatting.spec.ts
+PASS src/meri/retrieval/meri-evidence-requirements.spec.ts
+PASS src/meri/retrieval/meri-retrieval-coverage.spec.ts
+
+Test Suites: 4 passed, 4 total
+Tests:       113 passed, 113 total
+Snapshots:   0 total
+Time:        7.143 s, estimated 24 s
+Ran all test suites matching /src\\meri\\retrieval\\meri-evidence-requirements.spec.ts|src\\meri\\retrieval\\meri-evidence-formatting.spec.ts|src\\meri\\meriv3\\meriv3-turn-coverage.spec.ts|src\\meri\\retrieval\\meri-retrieval-coverage.spec.ts/i.

@@ -1,0 +1,4 @@
+
+> @capiro/meriv2-orchestrator@0.0.0 typecheck C:\dev\cap-meri-fixture-hardening\apps\meriv2-orchestrator
+> tsc --noEmit
+

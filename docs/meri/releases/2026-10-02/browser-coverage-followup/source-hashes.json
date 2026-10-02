@@ -1,0 +1,14 @@
+[
+  {
+    "Path": "C:\\dev\\cap-meri-fixture-hardening\\apps\\meriv2-orchestrator\\src\\meri\\retrieval\\meri-evidence-requirements.ts",
+    "Hash": "8BDD303A7E8DF4B035342EE0A2B5F36C38528EB8F0CEB03288C6F88A1FCB59B1"
+  },
+  {
+    "Path": "C:\\dev\\cap-meri-fixture-hardening\\apps\\meriv2-orchestrator\\src\\meri\\retrieval\\meri-evidence-requirements.spec.ts",
+    "Hash": "BD3340F07260CE93B445A85C26F187ACDC9D10DEF568E0E43241145C4DA960A4"
+  },
+  {
+    "Path": "C:\\dev\\cap-meri-fixture-hardening\\apps\\meriv2-orchestrator\\src\\meri\\retrieval\\meri-evidence-formatting.spec.ts",
+    "Hash": "5245C2E0B2BF453F8A724AAF36C83EF47F415FA9E594B3685B11E427AF0BC2EB"
+  }
+]
