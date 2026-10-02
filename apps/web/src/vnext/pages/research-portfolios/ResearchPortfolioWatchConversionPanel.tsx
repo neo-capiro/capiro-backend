@@ -262,7 +262,7 @@ function WatchConversionContent({ portfolioId, canEdit }: Props) {
           <input
             type="checkbox"
             checked={confirmed}
-            disabled={!canEdit}
+            disabled={!canEdit || !currentPreview}
             onChange={(event) => setConfirmed(event.target.checked)}
           />
           I confirm creating dormant watches without sending notifications.

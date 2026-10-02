@@ -180,6 +180,9 @@ describe('explicit dormant watch conversion and closed-session recovery', () => 
       'alert',
     );
     expect(screen.getByRole('button', { name: 'Create selected dormant watches' })).toBeDisabled();
+    expect(
+      screen.getByLabelText('I confirm creating dormant watches without sending notifications.'),
+    ).toBeDisabled();
     expect(applyCalls()).toHaveLength(0);
   });
   it('previews on request, requires selected eligible rows and explicit dormant confirmation, and sends exact DTO', async () => {
