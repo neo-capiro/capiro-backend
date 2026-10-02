@@ -75,7 +75,7 @@ export function validateCaptureBudgetQualification(
   if (
     !q ||
     q.version !== 1 ||
-    !['01', '20', '72'].includes(q.caseId) ||
+    !['01', '14', '20', '72'].includes(q.caseId) ||
     q.caseId !== policy.caseId ||
     q.captureRunId !== policy.captureRunId ||
     !HASH.test(q.currentVerifySha256) ||
@@ -315,8 +315,9 @@ export function settleCaptureProviderAttempt(
 /** Only paths whose native ingress/tool boundaries are accounted by this owner. */
 export function captureProviderBudgetCoverage(
   caseId: string | null,
-): 'case01_memory_turn' | 'case20_controlled_read_turn' | 'case72_controlled_read_turn' {
+): 'case01_memory_turn' | 'case14_memory_turn' | 'case20_controlled_read_turn' | 'case72_controlled_read_turn' {
   if (caseId === '01') return 'case01_memory_turn';
+  if (caseId === '14') return 'case14_memory_turn';
   if (caseId === '20') return 'case20_controlled_read_turn';
   if (caseId === '72') return 'case72_controlled_read_turn';
   return fail('case_unqualified');

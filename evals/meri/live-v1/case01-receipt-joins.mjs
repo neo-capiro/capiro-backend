@@ -27,29 +27,50 @@ const observedString = (value) =>
 /** Pure joins only. This function cannot establish HTTP/auth/build authority or
  * turn caller objects into an acceptance capability. The transport owns that.
  */
-export function assertCase01ReceiptJoins({
-  expected,
-  admission,
-  authority,
-  policy,
-  envelope,
-  doneEnvelope,
-  answer,
-  sourceReadback,
-  citations,
-  now = Date.now(),
-}) {
+export function assertCase01ReceiptJoins(input) {
+  return assertMemoryReceiptJoins(input, '01', 'MA1-v2');
+}
+export function assertCase14ReceiptJoins(input) {
+  const result = assertMemoryReceiptJoins(input, '14', 'MEM-PROPOSAL-14');
+  const fixture = input.authority.fixture;
+  need(
+    UUID.test(fixture.candidateId ?? '') &&
+      fixture.decision?.decision === 'approved' &&
+      UUID.test(fixture.decision.transitionAuditId ?? '') &&
+      fixture.decision.actorUserId === input.expected.actorUserId &&
+      fixture.approvedText === 'Synthetic Aster candidate for approval' &&
+      result.source.sourceVersion === `candidate:${fixture.candidateId}`,
+    'CASE14_CANONICAL_DECISION_UNPROVED',
+  );
+  return result;
+}
+function assertMemoryReceiptJoins(
+  {
+    expected,
+    admission,
+    authority,
+    policy,
+    envelope,
+    doneEnvelope,
+    answer,
+    sourceReadback,
+    citations,
+    now = Date.now(),
+  },
+  caseId,
+  logicalSourceId,
+) {
   const receipt = envelope?.receipt;
   need(
-    expected?.caseId === '01' && receipt && policy && authority && admission,
+    expected?.caseId === caseId && receipt && policy && authority && admission,
     'CASE01_JOIN_INPUT_MISSING',
   );
   need(
     admission.schemaVersion === 1 &&
-      admission.kind === 'meri-case01-authenticated-admission' &&
+      admission.kind === `meri-case${caseId}-authenticated-admission` &&
       admission.status === 'READY' &&
       authority.schemaVersion === 1 &&
-      authority.kind === 'meri-case01-authenticated-readback',
+      authority.kind === `meri-case${caseId}-authenticated-readback`,
     'CASE01_AUTHORITY_SHAPE_INVALID',
   );
   for (const key of [
@@ -149,7 +170,7 @@ export function assertCase01ReceiptJoins({
   );
   const source = fixture.sources[0];
   need(
-    source.logicalId === 'MA1-v2' &&
+    source.logicalId === logicalSourceId &&
       UUID.test(source.physicalId ?? '') &&
       source.tenantId === expected.tenantId &&
       source.clientId === expected.clientId &&
@@ -262,7 +283,7 @@ export function assertCase01ReceiptJoins({
   const budget = receipt.providerBudget;
   need(
     budget?.version === 1 &&
-      budget.boundary === 'case01_memory_turn' &&
+      budget.boundary === `case${caseId}_memory_turn` &&
       budget.status === 'SETTLED' &&
       typeof budget.admissionId === 'string' &&
       budget.admissionId.length > 0 &&

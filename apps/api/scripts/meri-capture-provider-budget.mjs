@@ -45,7 +45,7 @@ try {
     input.fixtureNamespace !== namespace ||
     process.env.MERI_SYNTHETIC_FIXTURE_NAMESPACE !== namespace ||
     !process.env.DATABASE_URL ||
-    input.ctx?.role !== 'standard_user'
+    !(input.ctx?.role === 'standard_user' || (input.ctx?.role === 'user_admin' && input.caseId === '14'))
   )
     reject('scope_invalid');
   // Claim the receipt path before any database work; never overwrite an older

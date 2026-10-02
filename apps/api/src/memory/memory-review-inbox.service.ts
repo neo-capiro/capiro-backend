@@ -22,6 +22,7 @@ import {
 } from './memory-review-inbox.helpers.js';
 import { settingsMemoryReviewEnabledForTenant } from './memory-settings-review-readiness.service.js';
 import type { MemorySection } from './memory.types.js';
+import { readCase14FixtureEvidenceInTx, type Case14MemoryEvidence } from './case14-fixture-evidence.js';
 
 const MAX_SUMMARY_SCAN = 1_000;
 const MAX_NOTIFICATION_SCAN = 1_000;
@@ -178,6 +179,7 @@ export interface MemoryReviewProposalContent {
 }
 
 export interface MemoryReviewDetail extends MemoryReviewInboxItem {
+  fixtureEvidence?: Case14MemoryEvidence;
   proposal: MemoryReviewProposalContent;
   feedbackReason: string | null;
   eligibleReviewers: Array<MemoryReviewIdentity & { role: TenantRole }>;
@@ -369,8 +371,10 @@ export class MemoryReviewInboxService {
       const timeline = await this.loadTimelineInTx(tx, ctx.tenantId, row.rootCandidateId);
       const publicStatus = memoryReviewStatusFromDb(row.workflowStatus);
       const canSeeFeedback = participant || isAdmin(viewer.role);
+      const fixtureEvidence = await readCase14FixtureEvidenceInTx(tx,ctx,this.authorization,row.candidateId);
       return {
         ...item,
+        ...(fixtureEvidence ? {fixtureEvidence} : {}),
         proposal: proposalFromPayload(row.payload),
         feedbackReason:
           canSeeFeedback && (publicStatus === 'changes_requested' || publicStatus === 'rejected')

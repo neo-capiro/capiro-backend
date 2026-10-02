@@ -341,6 +341,11 @@ case "${1:-serve}" in
     echo "Running qualify-defense-budget-drain-image-v1 (isolated Postgres+MinIO only; never touches production)"
     exec ./node_modules/.bin/tsx scripts/qualify-defense-budget-drain-image-v1.ts "$@"
     ;;
+  meri-case14-recall-setup)
+    shift
+    compose_database_url
+    exec node scripts/meri-case14-recall-setup.mjs "$@"
+    ;;
   *)
     exec /bin/sh /usr/local/lib/capiro/entrypoint-legacy.sh "$@"
     ;;

@@ -4,6 +4,7 @@ import {
   readCaptureProviderBudget,
   reserveCaptureProviderAttempt,
   settleCaptureProviderAttempt,
+  captureProviderBudgetCoverage,
 } from './meri-capture-provider-budget.js';
 import {
   captureBudgetTestPolicy,
@@ -12,6 +13,13 @@ import {
 } from './meri-capture-provider-budget.spec-helper.js';
 
 describe('ordinary capture durable provider budget', () => {
+  test('case14 requires its own explicit qualification and accounting boundary',()=>{
+    const policy={...captureBudgetTestPolicy(),caseId:'14'};
+    const qualified={...captureBudgetTestQualification(policy),caseId:'14'};
+    expect(captureProviderBudgetCoverage('14')).toBe('case14_memory_turn');
+    expect(admitCaptureProviderBudget({},policy,qualified).state.qualification.caseId).toBe('14');
+    expect(()=>admitCaptureProviderBudget({},policy,{...qualified,caseId:'01'})).toThrow('qualification_missing');
+  });
   const p = captureBudgetTestPolicy(),
     q = captureBudgetTestQualification(p),
     b = captureBudgetTestBinding();

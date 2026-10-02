@@ -6,14 +6,32 @@ import { assertWindowsArtifactStorage } from './windows-artifact-storage.mjs';
 import { AUTHORIZED_TENANTS, parseCaptureSse } from './capture-transport.mjs';
 import { frozenFixture } from './fixture.mjs';
 import { cases } from './cases.mjs';
-import { assertCase01ReceiptJoins } from './case01-receipt-joins.mjs';
+import { assertCase01ReceiptJoins, assertCase14ReceiptJoins } from './case01-receipt-joins.mjs';
 import { readCase01BuildAuthority } from './case01-build-authority.mjs';
+import { nativeMeriCaptureHeaders } from './lib/native-http.mjs';
 
 const ORIGIN = 'https://os.capiro.ai';
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/iu;
 const HASH = /^[a-f0-9]{64}$/u;
 const lock = JSON.parse(readFileSync(new URL('./contract-lock.json', import.meta.url), 'utf8'));
 const testCase = cases.find((row) => row.id === '01');
+export const CASE14_RECALL_PROMPT = 'What is the recently approved Aster memory? Cite its source.';
+const fixedCases = Object.freeze({
+  '01': Object.freeze({
+    actor: testCase.actor,
+    client: testCase.client,
+    role: 'standard_user',
+    logicalId: 'MA1-v2',
+    prompt: testCase.prompt,
+  }),
+  14: Object.freeze({
+    actor: 'PRIYA',
+    client: 'ASTER',
+    role: 'user_admin',
+    logicalId: 'MEM-PROPOSAL-14',
+    prompt: CASE14_RECALL_PROMPT,
+  }),
+});
 const sessions = new WeakMap();
 const outcomes = new WeakMap();
 const claimedRuns = new Set();
@@ -28,8 +46,15 @@ const need = (condition, code) => {
 
 /** Static scope checks do not create live authority. */
 export function inspectCase01Scope(config, env = process.env) {
+  return inspectMemoryScope(config, env, '01');
+}
+export function inspectCase14RecallScope(config, env = process.env) {
+  return inspectMemoryScope(config, env, '14');
+}
+function inspectMemoryScope(config, env, caseId) {
+  const selected = fixedCases[caseId];
   need(
-    config?.schemaVersion === 1 && config.provenance === 'LIVE_CAPTURE' && config.caseId === '01',
+    config?.schemaVersion === 1 && config.provenance === 'LIVE_CAPTURE' && config.caseId === caseId,
     'CASE01_ONLY',
   );
   need(
@@ -57,15 +82,15 @@ export function inspectCase01Scope(config, env = process.env) {
       config.fixture.mappingSha256 === sha256Stable(config.scope?.sources),
     'CASE01_FROZEN_CONTRACT_MISMATCH',
   );
-  const actor = config.scope?.actors?.[testCase.actor],
-    tenant = config.scope?.tenants?.[frozenFixture.actors[testCase.actor].tenantId],
-    client = config.scope?.clients?.[testCase.client];
+  const actor = config.scope?.actors?.[selected.actor],
+    tenant = config.scope?.tenants?.[frozenFixture.actors[selected.actor].tenantId],
+    client = config.scope?.clients?.[selected.client];
   need(
     actor &&
       tenant &&
       client &&
       AUTHORIZED_TENANTS[tenant.slug] === tenant.physicalId &&
-      actor.role === 'standard_user' &&
+      actor.role === selected.role &&
       actor.tenantPhysicalId === tenant.physicalId &&
       client.tenantPhysicalId === tenant.physicalId &&
       UUID.test(actor.userId) &&
@@ -78,11 +103,11 @@ export function inspectCase01Scope(config, env = process.env) {
     UUID.test(config.captureRunId ?? '') && UUID.test(config.conversationId ?? ''),
     'CASE01_PRECREATED_CONVERSATION_REQUIRED',
   );
-  const source = config.scope.sources?.['MA1-v2'];
+  const source = config.scope.sources?.[selected.logicalId];
   need(
-    Object.keys(config.scope.sources).join(',') === 'MA1-v2' &&
+    Object.keys(config.scope.sources).join(',') === selected.logicalId &&
       UUID.test(source?.physicalId ?? '') &&
-      source.frozenFixtureId === 'MA1-v2' &&
+      source.frozenFixtureId === selected.logicalId &&
       source.kind === 'memory' &&
       source.tenantPhysicalId === tenant.physicalId &&
       source.clientPhysicalId === client.physicalId &&
@@ -101,13 +126,14 @@ export function inspectCase01Scope(config, env = process.env) {
   const bearer = env.MERI_LIVE_BEARER_TOKEN?.trim();
   need(typeof bearer === 'string' && bearer.length > 0, 'CASE01_AUTH_MISSING');
   return {
+    selected,
     actor,
     tenant,
     client,
     source,
     bearer,
     expected: {
-      caseId: '01',
+      caseId,
       captureRunId: config.captureRunId,
       conversationId: config.conversationId,
       tenantId: tenant.physicalId,
@@ -134,13 +160,30 @@ export function inspectCase01Admission({
   apiReleaseSha,
   now = Date.now(),
 }) {
+  need(scope.expected.caseId === '01', 'CASE01_ONLY');
+  return inspectMemoryAdmission({ scope, admission, me, status, conversation, apiReleaseSha, now });
+}
+export function inspectCase14RecallAdmission(input) {
+  need(input.scope.expected.caseId === '14', 'CASE14_ONLY');
+  return inspectMemoryAdmission(input);
+}
+function inspectMemoryAdmission({
+  scope,
+  admission,
+  me,
+  status,
+  conversation,
+  apiReleaseSha,
+  now = Date.now(),
+}) {
   const { expected, actor, tenant, client, source } = scope;
+  const selected = fixedCases[expected.caseId];
   need(
     me?.tenant?.id === tenant.physicalId &&
       me.tenant.slug === tenant.slug &&
       me.user?.id === actor.userId &&
       me.user.clerkUserId === actor.clerkUserId &&
-      me.role === 'standard_user' &&
+      me.role === selected.role &&
       me.features?.meriv3Chat === true,
     'CASE01_CURRENT_ACTOR_MISMATCH',
   );
@@ -152,7 +195,7 @@ export function inspectCase01Admission({
     conversation?.id === expected.conversationId &&
       conversation.clientId === client.physicalId &&
       admission?.schemaVersion === 1 &&
-      admission.kind === 'meri-case01-authenticated-admission' &&
+      admission.kind === `meri-case${expected.caseId}-authenticated-admission` &&
       admission.status === 'READY',
     'CASE01_ADMISSION_MISSING',
   );
@@ -186,7 +229,7 @@ export function inspectCase01Admission({
         (key) => fixture[key] === expected[key],
       ) &&
       fixture.sources?.length === 1 &&
-      fixture.sources[0].logicalId === 'MA1-v2' &&
+      fixture.sources[0].logicalId === selected.logicalId &&
       fixture.sources[0].physicalId === source.physicalId &&
       fixture.sources[0].tenantId === expected.tenantId &&
       fixture.sources[0].clientId === expected.clientId &&
@@ -197,7 +240,7 @@ export function inspectCase01Admission({
   const budget = admission.providerBudget;
   need(
     budget?.ready === true &&
-      budget.coverage === 'case01_memory_turn' &&
+      budget.coverage === `case${expected.caseId}_memory_turn` &&
       HASH.test(budget.qualificationSha256 ?? '') &&
       budget.currentVerifySha256 === fixture.currentVerifySha256 &&
       budget.maxCostMicros === expected.maxSpendMicros,
@@ -286,8 +329,7 @@ function nativeTransport(scope, deadlineMs) {
           method: body === undefined ? 'GET' : 'POST',
           rejectUnauthorized: true,
           headers: {
-            authorization: `Bearer ${scope.bearer}`,
-            'x-capiro-tenant': scope.tenant.slug,
+            ...nativeMeriCaptureHeaders(scope.bearer, scope.tenant.slug),
             accept: body === undefined ? 'application/json' : 'text/event-stream',
             ...(body === undefined ? {} : { 'content-type': 'application/json' }),
           },
@@ -350,7 +392,7 @@ async function currentAdmission(scope, transport) {
   const conversation = await transport.json(
     `/api/clio/conversations/${scope.expected.conversationId}`,
   );
-  const admission = inspectCase01Admission({
+  const admission = inspectMemoryAdmission({
     scope,
     me: me.value,
     status: status.value,
@@ -381,7 +423,16 @@ export async function prepareCase01LiveCapture({
   artifactStorage,
   env = process.env,
 }) {
-  const scope = inspectCase01Scope(config, env);
+  return prepareMemoryLiveCapture({ config, runRoot, artifactStorage, env }, '01');
+}
+export async function prepareCase14RecallCapture(input) {
+  return prepareMemoryLiveCapture(input, '14');
+}
+async function prepareMemoryLiveCapture(
+  { config, runRoot, artifactStorage, env = process.env },
+  caseId,
+) {
+  const scope = inspectMemoryScope(config, env, caseId);
   const claim = [
     scope.expected.tenantId,
     scope.expected.conversationId,
@@ -393,10 +444,10 @@ export async function prepareCase01LiveCapture({
     runRoot,
     {
       schemaVersion: 1,
-      kind: 'meri-case01-authenticated-capture',
+      kind: `meri-case${caseId}-authenticated-capture`,
       provenance: 'LIVE_CAPTURE',
       captureRunId: config.captureRunId,
-      caseId: '01',
+      caseId,
       fixtureVersion: frozenFixture.version,
       fixtureSha256: lock.fixtureSha256,
       contractSourceSha256: lock.contractSourceSha256,
@@ -411,7 +462,7 @@ export async function prepareCase01LiveCapture({
   const before = await currentAdmission(scope, transport);
   await collector.writeBytes('admission.json', privateBytes(before, scope.bearer));
   await collector.writeBytes('immutable-builds.json', privateBytes(builds, scope.bearer));
-  const capability = Object.freeze({ kind: 'meri-case01-live-session' });
+  const capability = Object.freeze({ kind: `meri-case${caseId}-live-session` });
   sessions.set(capability, {
     scope,
     config: structuredClone(config),
@@ -425,10 +476,26 @@ export async function prepareCase01LiveCapture({
 }
 
 export async function executeCase01LiveCapture(capability) {
+  need(
+    sessions.get(capability)?.scope.expected.caseId === '01',
+    'CASE01_AUTHENTICATED_CAPABILITY_REQUIRED',
+  );
+  return executeMemoryLiveCapture(capability);
+}
+export async function executeCase14RecallCapture(capability) {
+  need(
+    sessions.get(capability)?.scope.expected.caseId === '14',
+    'CASE14_AUTHENTICATED_CAPABILITY_REQUIRED',
+  );
+  return executeMemoryLiveCapture(capability);
+}
+async function executeMemoryLiveCapture(capability) {
   const state = sessions.get(capability);
   need(state && !state.consumed, 'CASE01_AUTHENTICATED_CAPABILITY_REQUIRED');
   state.consumed = true;
   const { scope, config, collector, transport, before, builds } = state;
+  const caseId = scope.expected.caseId,
+    selected = fixedCases[caseId];
   let outcome;
   try {
     need(Date.now() - builds.observedAt <= 60000, 'CASE01_BUILD_PROOF_STALE');
@@ -439,10 +506,10 @@ export async function executeCase01LiveCapture(capability) {
       'CASE01_PREDISPATCH_OWNER_DRIFT',
     );
     await collector.writeJson('submission-intent.json', {
-      caseId: '01',
+      caseId,
       captureRunId: config.captureRunId,
       conversationId: config.conversationId,
-      promptSha256: sha256Bytes(testCase.prompt),
+      promptSha256: sha256Bytes(selected.prompt),
       maxCostMicros: scope.expected.maxSpendMicros,
     });
     const previous = await transport.json(
@@ -458,7 +525,7 @@ export async function executeCase01LiveCapture(capability) {
     );
     const stream = await transport.request(
       `/api/clio/conversations/${config.conversationId}/stream`,
-      { body: testCase.prompt },
+      { body: selected.prompt },
     );
     const parsed = parseCaptureSse(stream.text),
       events = parsed.events;
@@ -510,7 +577,7 @@ export async function executeCase01LiveCapture(capability) {
     const inputs = {
       expected: { ...scope.expected, assistantMessageId: message.id },
       admission: current.admission,
-      authority: metadata.case01CaptureAuthority,
+      authority: metadata[`case${caseId}CaptureAuthority`],
       policy: metadata.serverReadonlyCapturePolicy,
       envelope: metadata.serverCaptureEvidenceReceipt,
       doneEnvelope: done.serverCaptureEvidenceReceipt,
@@ -518,10 +585,11 @@ export async function executeCase01LiveCapture(capability) {
       sourceReadback: source.value,
       citations,
     };
-    const joins = assertCase01ReceiptJoins(inputs);
+    const joins =
+      caseId === '14' ? assertCase14ReceiptJoins(inputs) : assertCase01ReceiptJoins(inputs);
     const evidence = {
       schemaVersion: 1,
-      kind: 'meri-case01-authenticated-evidence',
+      kind: `meri-case${caseId}-authenticated-evidence`,
       provenance: 'LIVE_CAPTURE',
       inputs,
       builds,
@@ -531,7 +599,7 @@ export async function executeCase01LiveCapture(capability) {
       ...transport.counts(),
     };
     const descriptor = await collector.writeBytes(
-      'case01-evidence.json',
+      `case${caseId}-evidence.json`,
       privateBytes(evidence, scope.bearer),
     );
     outcome = Object.freeze({
@@ -539,7 +607,7 @@ export async function executeCase01LiveCapture(capability) {
       acceptanceStatus: 'NOT_RUN',
       acceptanceReason:
         'Canonical authenticated capture complete; original deterministic row checks and human adjudication still required',
-      caseId: '01',
+      caseId,
       captureRunId: config.captureRunId,
       conversationId: config.conversationId,
       evidence: descriptor,
@@ -554,7 +622,7 @@ export async function executeCase01LiveCapture(capability) {
       reason: /^CASE01_[A-Z_]+$/u.test(error?.code ?? error?.message ?? '')
         ? (error.code ?? error.message)
         : 'CASE01_CAPTURE_REJECTED',
-      caseId: '01',
+      caseId,
       captureRunId: config.captureRunId,
       ...counts,
     });
@@ -568,6 +636,14 @@ export async function executeCase01LiveCapture(capability) {
  * row/adjudication adapter; serialized lookalikes and pure join results fail.
  */
 export function currentCase01CaptureAuthority(outcome) {
+  need(outcome?.caseId === '01', 'CASE01_AUTHENTICATED_OUTCOME_REQUIRED');
+  return currentMemoryCaptureAuthority(outcome);
+}
+export function currentCase14RecallAuthority(outcome) {
+  need(outcome?.caseId === '14', 'CASE14_AUTHENTICATED_OUTCOME_REQUIRED');
+  return currentMemoryCaptureAuthority(outcome);
+}
+function currentMemoryCaptureAuthority(outcome) {
   const state = outcomes.get(outcome);
   need(state, 'CASE01_AUTHENTICATED_OUTCOME_REQUIRED');
   need(

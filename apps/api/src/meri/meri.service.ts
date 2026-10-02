@@ -6,6 +6,7 @@ import { bindResearchPortfolioToolConversation } from './meri-research-portfolio
 import { isResearchPortfolioArtifact, authorizeResearchPortfolioArtifact, authorizeResearchPortfolioConversation } from '../research-portfolios/research-portfolio-artifact-authority.js';
 import { authorizeMeriCaptureMessageReadback } from './meri-capture-policy-readback.js';
 import { readMeriCase01CaptureAdmission, readMeriCase01CaptureReadback } from './meri-case01-capture-authority.js';
+import { readMeriCase14CaptureAdmission, readMeriCase14CaptureReadback } from './meri-case14-capture-authority.js';
 import { prepareAnthropicRequest, anthropicResponseText } from '@capiro/shared/ai-model-policy';
 import {
   assertAttachmentConversation,
@@ -564,6 +565,7 @@ export class MeriService implements MeriTurnMaintenance {
     const conversation = await this.ensureConversationAnyStatus(ctx, conversationId);
     const captureAdmission =
       (await readMeriControlledCaptureAdmission({ prisma: this.prisma, ctx, conversationId })) ??
+      (await readMeriCase14CaptureAdmission({ prisma: this.prisma, ctx, conversationId })) ??
       (await readMeriCase01CaptureAdmission({ prisma: this.prisma, ctx, conversationId }));
     return captureAdmission ? { ...conversation, captureAdmission } : conversation;
   }
@@ -725,6 +727,8 @@ export class MeriService implements MeriTurnMaintenance {
           case01CaptureAuthority: JSON.parse(JSON.stringify(captureAuthority)) as Prisma.JsonValue,
         };
       }
+      const case14Authority=await readMeriCase14CaptureReadback({prisma:this.prisma,ctx,conversationId,message});
+      if(case14Authority) message.metadata={...(message.metadata as Prisma.JsonObject),case14CaptureAuthority:JSON.parse(JSON.stringify(case14Authority)) as Prisma.JsonValue};
     }
     return this.authorizeOrdinaryReportMessages(
       ctx,

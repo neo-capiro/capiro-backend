@@ -2528,7 +2528,7 @@ export class MeriToolsService {
     const policy = currentMeriToolCapturePolicy() ?? currentMeriServerReadonlyCapturePolicy();
     if (
       captureBudgetRequired(policy) &&
-      !(policy?.caseId === '01' && name === 'search_memory') &&
+      !(['01','14'].includes(policy?.caseId ?? '') && name === 'search_memory') &&
       !controlledReadToolAllowed(policy?.caseId ?? null, name)
     ) {
       throw new Error('meri_capture_provider_budget_unqualified_tool');

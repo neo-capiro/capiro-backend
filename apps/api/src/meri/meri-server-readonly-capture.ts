@@ -120,7 +120,7 @@ export async function issueMeriServerReadonlyCapturePolicy(args: {
   if (['21', '22', '23', '24', '26', '27'].includes(conversation?.captureBinding.caseId ?? ''))
     throw captureDenied('controlled_budget_expansion_not_live_qualified');
   if (
-    ['20', '72'].includes(conversation?.captureBinding.caseId ?? '') &&
+    ['14', '20', '72'].includes(conversation?.captureBinding.caseId ?? '') &&
     !conversation?.captureBudgetQualified
   )
     throw captureDenied('controlled_provider_qualification_required');

@@ -33,7 +33,7 @@ export function assertCaptureApiRetrievalPlan(plan: {
     scope.getStore() &&
     !(
       plan.subjectScope === 'client' &&
-      (scope.getStore()!.policy.caseId === '01'
+      (['01','14'].includes(scope.getStore()!.policy.caseId ?? '')
         ? plan.requestedDomains.length === 1 &&
           plan.requestedDomains[0] === 'institutional_knowledge'
         : ['20', '72'].includes(scope.getStore()!.policy.caseId ?? '') &&

@@ -2,6 +2,7 @@ import {
   isMeriControlledReadCase,
   qualifyMeriControlledReadInTx,
 } from './meri-controlled-read-fixture.js';
+import { qualifyMeriCase14RecallInTx } from './meri-case14-capture-authority.js';
 import type { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import {
@@ -105,7 +106,9 @@ async function currentState(
   const fixture = record(record(rows[0]!.settings).meriFoundationFixture);
   const binding = record(fixture.captureEvidence);
   const qualified = record(
-    isMeriControlledReadCase(binding.caseId)
+    binding.caseId === '14'
+      ? await qualifyMeriCase14RecallInTx(dependencies.prisma, tx, ctx, { caseId:'14',clientId,captureRunId:String(binding.captureRunId??'') })
+      : isMeriControlledReadCase(binding.caseId)
       ? await qualifyMeriControlledReadInTx(tx, ctx, {
           caseId: binding.caseId,
           clientId,
@@ -123,7 +126,7 @@ async function currentState(
   )
     fail('current_fixture_not_ready');
   if (
-    !['01', '20', '72'].includes(String(binding.caseId)) ||
+    !['01', '14', '20', '72'].includes(String(binding.caseId)) ||
     binding.actorUserId !== ctx.userId ||
     binding.clientId !== clientId ||
     typeof binding.captureRunId !== 'string' ||

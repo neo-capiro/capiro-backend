@@ -9,7 +9,7 @@ const fail = (code) => {
 };
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/u;
 
-async function select(input) {
+export async function resolvePendingMemorySetupRecipe(input) {
   const value = structuredClone(input);
   if (
     !value ||
@@ -39,6 +39,7 @@ async function select(input) {
   if (plan.proposerUserId !== value.ctx.userId) fail('PROPOSER_MISMATCH');
   return { input: value, manifest, selection: plan };
 }
+const select = resolvePendingMemorySetupRecipe;
 
 async function current(tx, deps, spec) {
   const { input, selection } = spec,

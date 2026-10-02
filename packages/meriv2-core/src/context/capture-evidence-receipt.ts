@@ -159,7 +159,7 @@ export interface MeriCaptureEvidenceReceipt {
   /** API-owned durable ledger; a primary-model usage estimate is not this proof. */
   providerBudget?: {
     version: 1;
-    boundary: 'case01_memory_turn' | 'case20_controlled_read_turn' | 'case72_controlled_read_turn';
+    boundary: 'case01_memory_turn' | 'case14_memory_turn' | 'case20_controlled_read_turn' | 'case72_controlled_read_turn';
     status: 'SETTLED' | 'UNSETTLED';
     admissionId: string;
     turnId: string;
@@ -222,6 +222,7 @@ export function meriCaptureReceiptBlockers(
       budget.version !== 1 ||
       !(
         (receipt.caseId === '01' && budget.boundary === 'case01_memory_turn') ||
+        (receipt.caseId === '14' && budget.boundary === 'case14_memory_turn') ||
         (receipt.caseId === '20' && budget.boundary === 'case20_controlled_read_turn') ||
         (receipt.caseId === '72' && budget.boundary === 'case72_controlled_read_turn')
       ) ||

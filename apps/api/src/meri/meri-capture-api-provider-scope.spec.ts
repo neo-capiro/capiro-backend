@@ -105,6 +105,15 @@ test('case74 cannot reuse controlled-read provider ingress', async () => {
     ).toThrow('unqualified');
   });
 });
+test('case14 next-turn recall uses the real memory-only plan and cannot admit approval or mail retrieval', async()=>{
+  await withCaptureApiProviderScope({} as never,ctx,{...policy,caseId:'14'},async()=>{
+    const nativePlan=planMeriTurn({task:'What is the recently approved Aster memory? Cite its source.',uiClientId:'33333333-3333-4333-8333-333333333333',uiClientName:'Aster Defense'});
+    expect(nativePlan.subjectScope).toBe('client');
+    expect(nativePlan.requestedDomains).toEqual(['institutional_knowledge']);
+    expect(()=>assertCaptureApiRetrievalPlan(nativePlan)).not.toThrow();
+    expect(()=>assertCaptureApiRetrievalPlan({subjectScope:'client',requestedDomains:['mail']})).toThrow('unqualified');
+  });
+});
 test('real chat runtime admits before activating scope around context resolution', async () => {
   const downstream = jest.fn();
   const contextPlane = {

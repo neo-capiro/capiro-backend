@@ -3,6 +3,7 @@ import {
   assertMeriControlledReadBindingInTx,
 } from './meri-controlled-read-fixture.js';
 import type { TenantContext } from '@capiro/shared';
+import { assertMeriCase14BindingInTx } from './meri-case14-capture-authority.js';
 import type { MeriServerReadonlyCapturePolicy } from '@capiro/meriv2-core';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import { assertMeriServerReadonlyCaptureCurrentAuthority } from './meri-server-readonly-capture.js';
@@ -38,6 +39,8 @@ export async function inspectCaptureProviderBudgetReadiness(args: {
   return args.prisma.withTenantUser(args.ctx.tenantId, args.ctx.userId, async (tx) => {
     if (isMeriControlledReadCase(args.policy.caseId))
       await assertMeriControlledReadBindingInTx(tx, args.ctx, args.policy);
+    if (args.policy.caseId === '14')
+      await assertMeriCase14BindingInTx(args.prisma,tx,args.ctx,args.policy);
     const tenant = await tx.tenant.findUnique({
       where: { id: args.ctx.tenantId },
       select: { settings: true },
@@ -96,6 +99,8 @@ export async function captureProviderBudgetOwner(args: {
     await assertMeriServerReadonlyCaptureCurrentAuthority({ prisma: scoped, ctx, policy });
     if (isMeriControlledReadCase(args.policy.caseId))
       await assertMeriControlledReadBindingInTx(tx, args.ctx, args.policy);
+    if (args.policy.caseId === '14')
+      await assertMeriCase14BindingInTx(args.prisma,tx,args.ctx,args.policy);
     const tenant = await tx.tenant.findUnique({
       where: { id: ctx.tenantId },
       select: { settings: true },
