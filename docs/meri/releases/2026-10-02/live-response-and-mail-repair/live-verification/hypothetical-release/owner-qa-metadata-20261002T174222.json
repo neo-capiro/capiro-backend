@@ -1,0 +1,626 @@
+{
+  "kind": "bounded-owner-qa-telemetry-readback",
+  "observedAt": "2026-10-02T17:42:22.959895+00:00",
+  "windowStart": "2026-10-02T17:20:00+00:00",
+  "windowEnd": "2026-10-02T17:42:22.959895+00:00",
+  "conversationSha256": "4ea76db00f39c73c851332d8b691aa0a40f47bbb851c9b0c9fe8d575a7421d04",
+  "services": [
+    {
+      "service": "api",
+      "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:507",
+      "sourceSha": "42988dae5fb7bc2fff3af582ca15a0836a4477c5",
+      "streamCount": 2,
+      "pages": 2,
+      "matchedStructuredEvents": 26,
+      "events": [
+        {
+          "atMs": 1790962684469,
+          "name": "meri.api.request.received",
+          "eventSha256": "9e4d490bf439f70d9c964d6f640574bb69f7f79d4e4ee4d80715b67be89e1b45",
+          "requestIdSha256": "74c2cfa211d1f834c25322874d20d87ff8b65f4cd6dc0a6c835620e5fa8c00df",
+          "serverTurnIdSha256": "c55c6a59b58b77df25615a79f6ca492d0dcf0cb4e5f10f179262863471981e19",
+          "runIdSha256": "615ac5552acf3f24f5fe06c912129a83746b3f60f40d7bcdffba02050b156d1d",
+          "traceIdSha256": "88d36782435c4970e60c7637bd81126a5e1d6ee90ab44566c028057087b5523b"
+        },
+        {
+          "atMs": 1790962685050,
+          "name": "meri.api.turn.dispatch",
+          "eventSha256": "9cb9321cbe9d6e465fbae102141415db4f7f5e81e9cc39cb5f94d17195bb58fd",
+          "requestIdSha256": "74c2cfa211d1f834c25322874d20d87ff8b65f4cd6dc0a6c835620e5fa8c00df",
+          "serverTurnIdSha256": "c55c6a59b58b77df25615a79f6ca492d0dcf0cb4e5f10f179262863471981e19",
+          "runIdSha256": "615ac5552acf3f24f5fe06c912129a83746b3f60f40d7bcdffba02050b156d1d",
+          "traceIdSha256": "88d36782435c4970e60c7637bd81126a5e1d6ee90ab44566c028057087b5523b",
+          "outcome": "started"
+        },
+        {
+          "atMs": 1790962686977,
+          "name": "meri.api.runtime.observed",
+          "eventSha256": "1077f7c8d3d0370c3f8522e6afe5e15c0e0528280f59f12e87fa66506446d167",
+          "requestIdSha256": "74c2cfa211d1f834c25322874d20d87ff8b65f4cd6dc0a6c835620e5fa8c00df",
+          "serverTurnIdSha256": "c55c6a59b58b77df25615a79f6ca492d0dcf0cb4e5f10f179262863471981e19",
+          "runIdSha256": "615ac5552acf3f24f5fe06c912129a83746b3f60f40d7bcdffba02050b156d1d",
+          "traceIdSha256": "88d36782435c4970e60c7637bd81126a5e1d6ee90ab44566c028057087b5523b"
+        },
+        {
+          "atMs": 1790962690309,
+          "name": "meri.api.runtime.observed",
+          "eventSha256": "3d2834d29a374c265e2dcf30787648f5094b26bbf7034650c1242cc1cd39f305",
+          "requestIdSha256": "74c2cfa211d1f834c25322874d20d87ff8b65f4cd6dc0a6c835620e5fa8c00df",
+          "serverTurnIdSha256": "c55c6a59b58b77df25615a79f6ca492d0dcf0cb4e5f10f179262863471981e19",
+          "runIdSha256": "615ac5552acf3f24f5fe06c912129a83746b3f60f40d7bcdffba02050b156d1d",
+          "traceIdSha256": "88d36782435c4970e60c7637bd81126a5e1d6ee90ab44566c028057087b5523b",
+          "outcome": "completed"
+        },
+        {
+          "atMs": 1790962690310,
+          "name": "meri.api.tool.observed",
+          "eventSha256": "da59c370761d9861beda3cb8fa2dd2f54da3894b33361122679b87d47b176b0d",
+          "requestIdSha256": "74c2cfa211d1f834c25322874d20d87ff8b65f4cd6dc0a6c835620e5fa8c00df",
+          "serverTurnIdSha256": "c55c6a59b58b77df25615a79f6ca492d0dcf0cb4e5f10f179262863471981e19",
+          "runIdSha256": "615ac5552acf3f24f5fe06c912129a83746b3f60f40d7bcdffba02050b156d1d",
+          "traceIdSha256": "88d36782435c4970e60c7637bd81126a5e1d6ee90ab44566c028057087b5523b",
+          "outcome": "started",
+          "invokedToolCount": 1,
+          "knownDiagnosticTools": [
+            "query_tasks"
+          ]
+        },
+        {
+          "atMs": 1790962690332,
+          "name": "meri.api.tool.started",
+          "eventSha256": "9cfc14959d6d65a3e52af77f640a8d0f7e0d611dba4232f2a0bc149e44962da8",
+          "requestIdSha256": "74c2cfa211d1f834c25322874d20d87ff8b65f4cd6dc0a6c835620e5fa8c00df",
+          "serverTurnIdSha256": "c55c6a59b58b77df25615a79f6ca492d0dcf0cb4e5f10f179262863471981e19",
+          "runIdSha256": "615ac5552acf3f24f5fe06c912129a83746b3f60f40d7bcdffba02050b156d1d",
+          "traceIdSha256": "88d36782435c4970e60c7637bd81126a5e1d6ee90ab44566c028057087b5523b",
+          "outcome": "started",
+          "invokedToolCount": 1,
+          "knownDiagnosticTools": [
+            "query_tasks"
+          ]
+        },
+        {
+          "atMs": 1790962690345,
+          "name": "meri.api.tool.finalized",
+          "eventSha256": "c7b7106be40200f19a90118992b9baa7f1239ba767bc41f5711a1158c1f39949",
+          "requestIdSha256": "74c2cfa211d1f834c25322874d20d87ff8b65f4cd6dc0a6c835620e5fa8c00df",
+          "serverTurnIdSha256": "c55c6a59b58b77df25615a79f6ca492d0dcf0cb4e5f10f179262863471981e19",
+          "runIdSha256": "615ac5552acf3f24f5fe06c912129a83746b3f60f40d7bcdffba02050b156d1d",
+          "traceIdSha256": "88d36782435c4970e60c7637bd81126a5e1d6ee90ab44566c028057087b5523b",
+          "durationMs": 13,
+          "outcome": "failed",
+          "invokedToolCount": 1,
+          "knownDiagnosticTools": [
+            "query_tasks"
+          ]
+        },
+        {
+          "atMs": 1790962694877,
+          "name": "meri.api.runtime.observed",
+          "eventSha256": "fc552008b04f313bafe859b668625c25ad188f30d1253244abb33ddeedd52896",
+          "requestIdSha256": "74c2cfa211d1f834c25322874d20d87ff8b65f4cd6dc0a6c835620e5fa8c00df",
+          "serverTurnIdSha256": "c55c6a59b58b77df25615a79f6ca492d0dcf0cb4e5f10f179262863471981e19",
+          "runIdSha256": "615ac5552acf3f24f5fe06c912129a83746b3f60f40d7bcdffba02050b156d1d",
+          "traceIdSha256": "88d36782435c4970e60c7637bd81126a5e1d6ee90ab44566c028057087b5523b",
+          "outcome": "completed"
+        },
+        {
+          "atMs": 1790962695064,
+          "name": "meri.api.runtime.observed",
+          "eventSha256": "5f59ac0de69c252f05b72ecd65a8e8d99168a92e1057aaf112ddb69f5ecf1e15",
+          "requestIdSha256": "74c2cfa211d1f834c25322874d20d87ff8b65f4cd6dc0a6c835620e5fa8c00df",
+          "serverTurnIdSha256": "c55c6a59b58b77df25615a79f6ca492d0dcf0cb4e5f10f179262863471981e19",
+          "runIdSha256": "615ac5552acf3f24f5fe06c912129a83746b3f60f40d7bcdffba02050b156d1d",
+          "traceIdSha256": "88d36782435c4970e60c7637bd81126a5e1d6ee90ab44566c028057087b5523b",
+          "outcome": "completed"
+        },
+        {
+          "atMs": 1790962695085,
+          "name": "meri.api.turn.finalized",
+          "eventSha256": "c9e789bbd87d349a1fec634535f7f800d08b517e62037dbcb390073a89c07dce",
+          "requestIdSha256": "74c2cfa211d1f834c25322874d20d87ff8b65f4cd6dc0a6c835620e5fa8c00df",
+          "serverTurnIdSha256": "c55c6a59b58b77df25615a79f6ca492d0dcf0cb4e5f10f179262863471981e19",
+          "runIdSha256": "615ac5552acf3f24f5fe06c912129a83746b3f60f40d7bcdffba02050b156d1d",
+          "traceIdSha256": "88d36782435c4970e60c7637bd81126a5e1d6ee90ab44566c028057087b5523b",
+          "durationMs": 10036,
+          "outcome": "completed",
+          "invokedToolCount": 1,
+          "knownDiagnosticTools": [
+            "query_tasks"
+          ]
+        },
+        {
+          "atMs": 1790962695085,
+          "name": "meri.api.request.finalized",
+          "eventSha256": "336829d44fd3190160427c59cf29b5661c05d6ae2dcd90a460daa7c31a8ac84a",
+          "requestIdSha256": "74c2cfa211d1f834c25322874d20d87ff8b65f4cd6dc0a6c835620e5fa8c00df",
+          "serverTurnIdSha256": "c55c6a59b58b77df25615a79f6ca492d0dcf0cb4e5f10f179262863471981e19",
+          "runIdSha256": "615ac5552acf3f24f5fe06c912129a83746b3f60f40d7bcdffba02050b156d1d",
+          "traceIdSha256": "88d36782435c4970e60c7637bd81126a5e1d6ee90ab44566c028057087b5523b",
+          "durationMs": 10616,
+          "outcome": "completed"
+        },
+        {
+          "atMs": 1790962836408,
+          "name": "meri.api.request.received",
+          "eventSha256": "ac375bfd950628df2c4ee72cda227f66fc0f12aabd6b561ca705501df57681f5",
+          "requestIdSha256": "7f2b6d58dbb4b06cac8cabc86343561cadde507d0af82cce15f13d39b373c11a",
+          "serverTurnIdSha256": "0c7fd36d3c2370bfc5ca4e3d08851f3a0be83d637b30a258cbd067a480abfc0c",
+          "runIdSha256": "79caa1a3393a435c3cf32297212a3b191d3ae56c469ff3fc5fb5662b9aea8282",
+          "traceIdSha256": "529c0d09c8e1464843608f956a73525c4a69fcf4fcce3b307e025547a5cb33b3"
+        },
+        {
+          "atMs": 1790962836565,
+          "name": "meri.api.turn.dispatch",
+          "eventSha256": "e9e1ccac9914adb27de5f7db147d7f6ec5ffae6171eff92c1df8d144942ca89c",
+          "requestIdSha256": "7f2b6d58dbb4b06cac8cabc86343561cadde507d0af82cce15f13d39b373c11a",
+          "serverTurnIdSha256": "0c7fd36d3c2370bfc5ca4e3d08851f3a0be83d637b30a258cbd067a480abfc0c",
+          "runIdSha256": "79caa1a3393a435c3cf32297212a3b191d3ae56c469ff3fc5fb5662b9aea8282",
+          "traceIdSha256": "529c0d09c8e1464843608f956a73525c4a69fcf4fcce3b307e025547a5cb33b3",
+          "outcome": "started"
+        },
+        {
+          "atMs": 1790962836865,
+          "name": "meri.api.runtime.observed",
+          "eventSha256": "6297460413549081ab5153de75807b501d090506f3fc5f8979e6dd9f9d1f2b2a",
+          "requestIdSha256": "7f2b6d58dbb4b06cac8cabc86343561cadde507d0af82cce15f13d39b373c11a",
+          "serverTurnIdSha256": "0c7fd36d3c2370bfc5ca4e3d08851f3a0be83d637b30a258cbd067a480abfc0c",
+          "runIdSha256": "79caa1a3393a435c3cf32297212a3b191d3ae56c469ff3fc5fb5662b9aea8282",
+          "traceIdSha256": "529c0d09c8e1464843608f956a73525c4a69fcf4fcce3b307e025547a5cb33b3"
+        },
+        {
+          "atMs": 1790962840925,
+          "name": "meri.api.runtime.observed",
+          "eventSha256": "0be5807146c6a507bae26d54eaae498ff6979d7b4b9767d39bd9fa9c58474e82",
+          "requestIdSha256": "7f2b6d58dbb4b06cac8cabc86343561cadde507d0af82cce15f13d39b373c11a",
+          "serverTurnIdSha256": "0c7fd36d3c2370bfc5ca4e3d08851f3a0be83d637b30a258cbd067a480abfc0c",
+          "runIdSha256": "79caa1a3393a435c3cf32297212a3b191d3ae56c469ff3fc5fb5662b9aea8282",
+          "traceIdSha256": "529c0d09c8e1464843608f956a73525c4a69fcf4fcce3b307e025547a5cb33b3",
+          "outcome": "completed"
+        },
+        {
+          "atMs": 1790962840926,
+          "name": "meri.api.tool.observed",
+          "eventSha256": "3dbdf970e3685d9a991ac63dcd38596c6ab686b39682a4add65dcdfb7c3f978e",
+          "requestIdSha256": "7f2b6d58dbb4b06cac8cabc86343561cadde507d0af82cce15f13d39b373c11a",
+          "serverTurnIdSha256": "0c7fd36d3c2370bfc5ca4e3d08851f3a0be83d637b30a258cbd067a480abfc0c",
+          "runIdSha256": "79caa1a3393a435c3cf32297212a3b191d3ae56c469ff3fc5fb5662b9aea8282",
+          "traceIdSha256": "529c0d09c8e1464843608f956a73525c4a69fcf4fcce3b307e025547a5cb33b3",
+          "outcome": "started",
+          "invokedToolCount": 1,
+          "knownDiagnosticTools": [
+            "search_emails"
+          ]
+        },
+        {
+          "atMs": 1790962840940,
+          "name": "meri.api.tool.started",
+          "eventSha256": "0acbf2ac23029f714ab0d5253d250e42e15a5838a018d9710e8e02e7786ce30d",
+          "requestIdSha256": "7f2b6d58dbb4b06cac8cabc86343561cadde507d0af82cce15f13d39b373c11a",
+          "serverTurnIdSha256": "0c7fd36d3c2370bfc5ca4e3d08851f3a0be83d637b30a258cbd067a480abfc0c",
+          "runIdSha256": "79caa1a3393a435c3cf32297212a3b191d3ae56c469ff3fc5fb5662b9aea8282",
+          "traceIdSha256": "529c0d09c8e1464843608f956a73525c4a69fcf4fcce3b307e025547a5cb33b3",
+          "outcome": "started",
+          "invokedToolCount": 1,
+          "knownDiagnosticTools": [
+            "search_emails"
+          ]
+        },
+        {
+          "atMs": 1790962848797,
+          "name": "meri.api.tool.finalized",
+          "eventSha256": "ff6b5c69b96cf77eef5a705acc9facf46846226643921a1f8d9d7f039cacbbf4",
+          "requestIdSha256": "7f2b6d58dbb4b06cac8cabc86343561cadde507d0af82cce15f13d39b373c11a",
+          "serverTurnIdSha256": "0c7fd36d3c2370bfc5ca4e3d08851f3a0be83d637b30a258cbd067a480abfc0c",
+          "runIdSha256": "79caa1a3393a435c3cf32297212a3b191d3ae56c469ff3fc5fb5662b9aea8282",
+          "traceIdSha256": "529c0d09c8e1464843608f956a73525c4a69fcf4fcce3b307e025547a5cb33b3",
+          "durationMs": 7857,
+          "invokedToolCount": 1,
+          "knownDiagnosticTools": [
+            "search_emails"
+          ]
+        },
+        {
+          "atMs": 1790962853517,
+          "name": "meri.api.runtime.observed",
+          "eventSha256": "9afcf44375b790e9f797c39d15d175a196bb123bbe74d5590e0f7a1a16242518",
+          "requestIdSha256": "7f2b6d58dbb4b06cac8cabc86343561cadde507d0af82cce15f13d39b373c11a",
+          "serverTurnIdSha256": "0c7fd36d3c2370bfc5ca4e3d08851f3a0be83d637b30a258cbd067a480abfc0c",
+          "runIdSha256": "79caa1a3393a435c3cf32297212a3b191d3ae56c469ff3fc5fb5662b9aea8282",
+          "traceIdSha256": "529c0d09c8e1464843608f956a73525c4a69fcf4fcce3b307e025547a5cb33b3",
+          "outcome": "completed"
+        },
+        {
+          "atMs": 1790962853517,
+          "name": "meri.api.tool.observed",
+          "eventSha256": "e48198cbb92060d3b59328ae6cf25ca36671c3ee00def89fd5f97a7733c98b0e",
+          "requestIdSha256": "7f2b6d58dbb4b06cac8cabc86343561cadde507d0af82cce15f13d39b373c11a",
+          "serverTurnIdSha256": "0c7fd36d3c2370bfc5ca4e3d08851f3a0be83d637b30a258cbd067a480abfc0c",
+          "runIdSha256": "79caa1a3393a435c3cf32297212a3b191d3ae56c469ff3fc5fb5662b9aea8282",
+          "traceIdSha256": "529c0d09c8e1464843608f956a73525c4a69fcf4fcce3b307e025547a5cb33b3",
+          "outcome": "started",
+          "invokedToolCount": 1,
+          "knownDiagnosticTools": [
+            "search_floor_votes"
+          ]
+        },
+        {
+          "atMs": 1790962853551,
+          "name": "meri.api.tool.started",
+          "eventSha256": "213f5326ccc49464cade7b6e9d0fea7b5c828739899e4b2eb39efccbb691cd3d",
+          "requestIdSha256": "7f2b6d58dbb4b06cac8cabc86343561cadde507d0af82cce15f13d39b373c11a",
+          "serverTurnIdSha256": "0c7fd36d3c2370bfc5ca4e3d08851f3a0be83d637b30a258cbd067a480abfc0c",
+          "runIdSha256": "79caa1a3393a435c3cf32297212a3b191d3ae56c469ff3fc5fb5662b9aea8282",
+          "traceIdSha256": "529c0d09c8e1464843608f956a73525c4a69fcf4fcce3b307e025547a5cb33b3",
+          "outcome": "started",
+          "invokedToolCount": 1,
+          "knownDiagnosticTools": [
+            "search_floor_votes"
+          ]
+        },
+        {
+          "atMs": 1790962853577,
+          "name": "meri.api.tool.finalized",
+          "eventSha256": "fca9363c6acdb2ba2f50ebabee1d03b72dd4d81004a2667f18cbf8af04a77058",
+          "requestIdSha256": "7f2b6d58dbb4b06cac8cabc86343561cadde507d0af82cce15f13d39b373c11a",
+          "serverTurnIdSha256": "0c7fd36d3c2370bfc5ca4e3d08851f3a0be83d637b30a258cbd067a480abfc0c",
+          "runIdSha256": "79caa1a3393a435c3cf32297212a3b191d3ae56c469ff3fc5fb5662b9aea8282",
+          "traceIdSha256": "529c0d09c8e1464843608f956a73525c4a69fcf4fcce3b307e025547a5cb33b3",
+          "durationMs": 26,
+          "invokedToolCount": 1,
+          "knownDiagnosticTools": [
+            "search_floor_votes"
+          ]
+        },
+        {
+          "atMs": 1790962865849,
+          "name": "meri.api.runtime.observed",
+          "eventSha256": "55f1e05f713db819b8666932d1110e31d344415d250d7e03247e17e52703f9d7",
+          "requestIdSha256": "7f2b6d58dbb4b06cac8cabc86343561cadde507d0af82cce15f13d39b373c11a",
+          "serverTurnIdSha256": "0c7fd36d3c2370bfc5ca4e3d08851f3a0be83d637b30a258cbd067a480abfc0c",
+          "runIdSha256": "79caa1a3393a435c3cf32297212a3b191d3ae56c469ff3fc5fb5662b9aea8282",
+          "traceIdSha256": "529c0d09c8e1464843608f956a73525c4a69fcf4fcce3b307e025547a5cb33b3",
+          "outcome": "completed"
+        },
+        {
+          "atMs": 1790962865849,
+          "name": "meri.api.runtime.observed",
+          "eventSha256": "55f1e05f713db819b8666932d1110e31d344415d250d7e03247e17e52703f9d7",
+          "requestIdSha256": "7f2b6d58dbb4b06cac8cabc86343561cadde507d0af82cce15f13d39b373c11a",
+          "serverTurnIdSha256": "0c7fd36d3c2370bfc5ca4e3d08851f3a0be83d637b30a258cbd067a480abfc0c",
+          "runIdSha256": "79caa1a3393a435c3cf32297212a3b191d3ae56c469ff3fc5fb5662b9aea8282",
+          "traceIdSha256": "529c0d09c8e1464843608f956a73525c4a69fcf4fcce3b307e025547a5cb33b3",
+          "outcome": "completed"
+        },
+        {
+          "atMs": 1790962865862,
+          "name": "meri.api.turn.finalized",
+          "eventSha256": "a00306fdd6c629c653828c078cdfcec841b9c6550d12109f2cbc0559230d3d35",
+          "requestIdSha256": "7f2b6d58dbb4b06cac8cabc86343561cadde507d0af82cce15f13d39b373c11a",
+          "serverTurnIdSha256": "0c7fd36d3c2370bfc5ca4e3d08851f3a0be83d637b30a258cbd067a480abfc0c",
+          "runIdSha256": "79caa1a3393a435c3cf32297212a3b191d3ae56c469ff3fc5fb5662b9aea8282",
+          "traceIdSha256": "529c0d09c8e1464843608f956a73525c4a69fcf4fcce3b307e025547a5cb33b3",
+          "durationMs": 29298,
+          "outcome": "completed",
+          "invokedToolCount": 3,
+          "knownDiagnosticTools": [
+            "search_emails",
+            "search_floor_votes"
+          ]
+        },
+        {
+          "atMs": 1790962865863,
+          "name": "meri.api.request.finalized",
+          "eventSha256": "d0f8bf1cd2d67231b7369dedf0628f646887f28ad6fb87a328671021bf3c9a72",
+          "requestIdSha256": "7f2b6d58dbb4b06cac8cabc86343561cadde507d0af82cce15f13d39b373c11a",
+          "serverTurnIdSha256": "0c7fd36d3c2370bfc5ca4e3d08851f3a0be83d637b30a258cbd067a480abfc0c",
+          "runIdSha256": "79caa1a3393a435c3cf32297212a3b191d3ae56c469ff3fc5fb5662b9aea8282",
+          "traceIdSha256": "529c0d09c8e1464843608f956a73525c4a69fcf4fcce3b307e025547a5cb33b3",
+          "durationMs": 29455,
+          "outcome": "completed"
+        }
+      ]
+    },
+    {
+      "service": "meriv2-orchestrator",
+      "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:99",
+      "sourceSha": "ddb55a5a3e6bbf1c3f567119b66e18e0a92e60ab",
+      "streamCount": 1,
+      "pages": 2,
+      "matchedStructuredEvents": 20,
+      "events": [
+        {
+          "atMs": 1790962686785,
+          "name": "meri.orchestrator.request.received",
+          "eventSha256": "5f146dd28093fb276be3590881e755550fd2cdb5157ee50dbf6fbe697eef0fd7",
+          "requestIdSha256": "74c2cfa211d1f834c25322874d20d87ff8b65f4cd6dc0a6c835620e5fa8c00df",
+          "serverTurnIdSha256": "c55c6a59b58b77df25615a79f6ca492d0dcf0cb4e5f10f179262863471981e19",
+          "runIdSha256": "615ac5552acf3f24f5fe06c912129a83746b3f60f40d7bcdffba02050b156d1d",
+          "traceIdSha256": "88d36782435c4970e60c7637bd81126a5e1d6ee90ab44566c028057087b5523b"
+        },
+        {
+          "atMs": 1790962686962,
+          "name": "meri.orchestrator.tools.selected",
+          "eventSha256": "18e67daad18139ad09e9b2ee0176a0c118a93ad26dd3d2f2f8b2a4938a3c3559",
+          "requestIdSha256": "74c2cfa211d1f834c25322874d20d87ff8b65f4cd6dc0a6c835620e5fa8c00df",
+          "serverTurnIdSha256": "c55c6a59b58b77df25615a79f6ca492d0dcf0cb4e5f10f179262863471981e19",
+          "runIdSha256": "615ac5552acf3f24f5fe06c912129a83746b3f60f40d7bcdffba02050b156d1d",
+          "traceIdSha256": "88d36782435c4970e60c7637bd81126a5e1d6ee90ab44566c028057087b5523b"
+        },
+        {
+          "atMs": 1790962690305,
+          "name": "meri.provider.attempt.finalized",
+          "eventSha256": "81056948ba6c900bda199ede59567a8a596a91fd64f957e90301fdb66ef4025a",
+          "requestIdSha256": "74c2cfa211d1f834c25322874d20d87ff8b65f4cd6dc0a6c835620e5fa8c00df",
+          "serverTurnIdSha256": "c55c6a59b58b77df25615a79f6ca492d0dcf0cb4e5f10f179262863471981e19",
+          "runIdSha256": "615ac5552acf3f24f5fe06c912129a83746b3f60f40d7bcdffba02050b156d1d",
+          "traceIdSha256": "88d36782435c4970e60c7637bd81126a5e1d6ee90ab44566c028057087b5523b",
+          "durationMs": 3332,
+          "attempt": 1,
+          "outcome": "completed"
+        },
+        {
+          "atMs": 1790962690306,
+          "name": "meri.tool.step.started",
+          "eventSha256": "7eda8e378c89ec8c828b1d274cb909a3ecee9c76f92542c392d4aeba415d0338",
+          "requestIdSha256": "74c2cfa211d1f834c25322874d20d87ff8b65f4cd6dc0a6c835620e5fa8c00df",
+          "serverTurnIdSha256": "c55c6a59b58b77df25615a79f6ca492d0dcf0cb4e5f10f179262863471981e19",
+          "runIdSha256": "615ac5552acf3f24f5fe06c912129a83746b3f60f40d7bcdffba02050b156d1d",
+          "traceIdSha256": "88d36782435c4970e60c7637bd81126a5e1d6ee90ab44566c028057087b5523b",
+          "outcome": "started",
+          "invokedToolCount": 1,
+          "knownDiagnosticTools": [
+            "query_tasks"
+          ]
+        },
+        {
+          "atMs": 1790962690358,
+          "name": "meri.tool.attempt.finalized",
+          "eventSha256": "3d719b7ca16a1d800e2569694bd07babf71d86b3da6ffbfa51a099af750326af",
+          "requestIdSha256": "74c2cfa211d1f834c25322874d20d87ff8b65f4cd6dc0a6c835620e5fa8c00df",
+          "serverTurnIdSha256": "c55c6a59b58b77df25615a79f6ca492d0dcf0cb4e5f10f179262863471981e19",
+          "runIdSha256": "615ac5552acf3f24f5fe06c912129a83746b3f60f40d7bcdffba02050b156d1d",
+          "traceIdSha256": "88d36782435c4970e60c7637bd81126a5e1d6ee90ab44566c028057087b5523b",
+          "durationMs": 52,
+          "attempt": 1,
+          "outcome": "failed",
+          "invokedToolCount": 1,
+          "knownDiagnosticTools": [
+            "query_tasks"
+          ]
+        },
+        {
+          "atMs": 1790962690359,
+          "name": "meri.tool.step.finalized",
+          "eventSha256": "a3bcd3a5b7a73663a19edf28d3711ab30be61eb3740019229ad864eb2b13aede",
+          "requestIdSha256": "74c2cfa211d1f834c25322874d20d87ff8b65f4cd6dc0a6c835620e5fa8c00df",
+          "serverTurnIdSha256": "c55c6a59b58b77df25615a79f6ca492d0dcf0cb4e5f10f179262863471981e19",
+          "runIdSha256": "615ac5552acf3f24f5fe06c912129a83746b3f60f40d7bcdffba02050b156d1d",
+          "traceIdSha256": "88d36782435c4970e60c7637bd81126a5e1d6ee90ab44566c028057087b5523b",
+          "durationMs": 53,
+          "outcome": "failed",
+          "invokedToolCount": 1,
+          "knownDiagnosticTools": [
+            "query_tasks"
+          ]
+        },
+        {
+          "atMs": 1790962694870,
+          "name": "meri.provider.attempt.finalized",
+          "eventSha256": "65a251aae82f21d0702e57c9c033bbf5a16e3f50746c9ae2ed906f7869d069e3",
+          "requestIdSha256": "74c2cfa211d1f834c25322874d20d87ff8b65f4cd6dc0a6c835620e5fa8c00df",
+          "serverTurnIdSha256": "c55c6a59b58b77df25615a79f6ca492d0dcf0cb4e5f10f179262863471981e19",
+          "runIdSha256": "615ac5552acf3f24f5fe06c912129a83746b3f60f40d7bcdffba02050b156d1d",
+          "traceIdSha256": "88d36782435c4970e60c7637bd81126a5e1d6ee90ab44566c028057087b5523b",
+          "durationMs": 4215,
+          "attempt": 1,
+          "outcome": "completed"
+        },
+        {
+          "atMs": 1790962695061,
+          "name": "meri.orchestrator.turn.finalized",
+          "eventSha256": "40d372af07aadf821696a7da631fb6807a79e1c59717cfb47ec080867afafe20",
+          "requestIdSha256": "74c2cfa211d1f834c25322874d20d87ff8b65f4cd6dc0a6c835620e5fa8c00df",
+          "serverTurnIdSha256": "c55c6a59b58b77df25615a79f6ca492d0dcf0cb4e5f10f179262863471981e19",
+          "runIdSha256": "615ac5552acf3f24f5fe06c912129a83746b3f60f40d7bcdffba02050b156d1d",
+          "traceIdSha256": "88d36782435c4970e60c7637bd81126a5e1d6ee90ab44566c028057087b5523b",
+          "durationMs": 8098,
+          "outcome": "completed",
+          "invokedToolCount": 1,
+          "knownDiagnosticTools": [
+            "query_tasks"
+          ]
+        },
+        {
+          "atMs": 1790962695062,
+          "name": "meri.orchestrator.request.finalized",
+          "eventSha256": "133953303d98f2d4ba1481d5bfe87aa37022995bd1becd132ac19848176dd4b1",
+          "requestIdSha256": "74c2cfa211d1f834c25322874d20d87ff8b65f4cd6dc0a6c835620e5fa8c00df",
+          "serverTurnIdSha256": "c55c6a59b58b77df25615a79f6ca492d0dcf0cb4e5f10f179262863471981e19",
+          "runIdSha256": "615ac5552acf3f24f5fe06c912129a83746b3f60f40d7bcdffba02050b156d1d",
+          "traceIdSha256": "88d36782435c4970e60c7637bd81126a5e1d6ee90ab44566c028057087b5523b",
+          "durationMs": 8277
+        },
+        {
+          "atMs": 1790962836655,
+          "name": "meri.orchestrator.request.received",
+          "eventSha256": "d6862231d97dff3ade06fe5e70c7254ab04bc910f8f0d9adabdb55663466d8e0",
+          "requestIdSha256": "7f2b6d58dbb4b06cac8cabc86343561cadde507d0af82cce15f13d39b373c11a",
+          "serverTurnIdSha256": "0c7fd36d3c2370bfc5ca4e3d08851f3a0be83d637b30a258cbd067a480abfc0c",
+          "runIdSha256": "79caa1a3393a435c3cf32297212a3b191d3ae56c469ff3fc5fb5662b9aea8282",
+          "traceIdSha256": "529c0d09c8e1464843608f956a73525c4a69fcf4fcce3b307e025547a5cb33b3"
+        },
+        {
+          "atMs": 1790962836788,
+          "name": "meri.orchestrator.tools.selected",
+          "eventSha256": "e7ccbce0c6c6fcc486c1d7ede8e5b061c51a7370db18262899f98122d5d57bcb",
+          "requestIdSha256": "7f2b6d58dbb4b06cac8cabc86343561cadde507d0af82cce15f13d39b373c11a",
+          "serverTurnIdSha256": "0c7fd36d3c2370bfc5ca4e3d08851f3a0be83d637b30a258cbd067a480abfc0c",
+          "runIdSha256": "79caa1a3393a435c3cf32297212a3b191d3ae56c469ff3fc5fb5662b9aea8282",
+          "traceIdSha256": "529c0d09c8e1464843608f956a73525c4a69fcf4fcce3b307e025547a5cb33b3"
+        },
+        {
+          "atMs": 1790962840921,
+          "name": "meri.provider.attempt.finalized",
+          "eventSha256": "82a90f653f4c383df8d5b529284f78237d104eecccea257857bcddae2417d9e5",
+          "requestIdSha256": "7f2b6d58dbb4b06cac8cabc86343561cadde507d0af82cce15f13d39b373c11a",
+          "serverTurnIdSha256": "0c7fd36d3c2370bfc5ca4e3d08851f3a0be83d637b30a258cbd067a480abfc0c",
+          "runIdSha256": "79caa1a3393a435c3cf32297212a3b191d3ae56c469ff3fc5fb5662b9aea8282",
+          "traceIdSha256": "529c0d09c8e1464843608f956a73525c4a69fcf4fcce3b307e025547a5cb33b3",
+          "durationMs": 4059,
+          "attempt": 1,
+          "outcome": "completed"
+        },
+        {
+          "atMs": 1790962840923,
+          "name": "meri.tool.step.started",
+          "eventSha256": "d9ba2520dedae3033ac5dd2b76c513a54f0937d4063990b87b5de75e98fbc925",
+          "requestIdSha256": "7f2b6d58dbb4b06cac8cabc86343561cadde507d0af82cce15f13d39b373c11a",
+          "serverTurnIdSha256": "0c7fd36d3c2370bfc5ca4e3d08851f3a0be83d637b30a258cbd067a480abfc0c",
+          "runIdSha256": "79caa1a3393a435c3cf32297212a3b191d3ae56c469ff3fc5fb5662b9aea8282",
+          "traceIdSha256": "529c0d09c8e1464843608f956a73525c4a69fcf4fcce3b307e025547a5cb33b3",
+          "outcome": "started",
+          "invokedToolCount": 1,
+          "knownDiagnosticTools": [
+            "search_emails"
+          ]
+        },
+        {
+          "atMs": 1790962853510,
+          "name": "meri.provider.attempt.finalized",
+          "eventSha256": "e08629ecb961103b8437cebb6179e0f238e7cae5129bea1de2045327d5c628ec",
+          "requestIdSha256": "7f2b6d58dbb4b06cac8cabc86343561cadde507d0af82cce15f13d39b373c11a",
+          "serverTurnIdSha256": "0c7fd36d3c2370bfc5ca4e3d08851f3a0be83d637b30a258cbd067a480abfc0c",
+          "runIdSha256": "79caa1a3393a435c3cf32297212a3b191d3ae56c469ff3fc5fb5662b9aea8282",
+          "traceIdSha256": "529c0d09c8e1464843608f956a73525c4a69fcf4fcce3b307e025547a5cb33b3",
+          "durationMs": 4696,
+          "attempt": 1,
+          "outcome": "completed"
+        },
+        {
+          "atMs": 1790962853512,
+          "name": "meri.tool.step.started",
+          "eventSha256": "77851e46c84115b9c2762cf7c8d6ffc732ed307fc02d309a98c75b4b4dcc74ee",
+          "requestIdSha256": "7f2b6d58dbb4b06cac8cabc86343561cadde507d0af82cce15f13d39b373c11a",
+          "serverTurnIdSha256": "0c7fd36d3c2370bfc5ca4e3d08851f3a0be83d637b30a258cbd067a480abfc0c",
+          "runIdSha256": "79caa1a3393a435c3cf32297212a3b191d3ae56c469ff3fc5fb5662b9aea8282",
+          "traceIdSha256": "529c0d09c8e1464843608f956a73525c4a69fcf4fcce3b307e025547a5cb33b3",
+          "outcome": "started",
+          "invokedToolCount": 1,
+          "knownDiagnosticTools": [
+            "search_floor_votes"
+          ]
+        },
+        {
+          "atMs": 1790962853580,
+          "name": "meri.tool.attempt.finalized",
+          "eventSha256": "80fcceb4b364c1bf334fca080f9961564c866d46a4ea7e8162e5e948dbe6f717",
+          "requestIdSha256": "7f2b6d58dbb4b06cac8cabc86343561cadde507d0af82cce15f13d39b373c11a",
+          "serverTurnIdSha256": "0c7fd36d3c2370bfc5ca4e3d08851f3a0be83d637b30a258cbd067a480abfc0c",
+          "runIdSha256": "79caa1a3393a435c3cf32297212a3b191d3ae56c469ff3fc5fb5662b9aea8282",
+          "traceIdSha256": "529c0d09c8e1464843608f956a73525c4a69fcf4fcce3b307e025547a5cb33b3",
+          "durationMs": 68,
+          "attempt": 1,
+          "outcome": "completed",
+          "invokedToolCount": 1,
+          "knownDiagnosticTools": [
+            "search_floor_votes"
+          ]
+        },
+        {
+          "atMs": 1790962853581,
+          "name": "meri.tool.step.finalized",
+          "eventSha256": "dbd23093e58e2fd0004ae72b6d90a5b9a4ce75718ace62ce5cca262f0aa1d760",
+          "requestIdSha256": "7f2b6d58dbb4b06cac8cabc86343561cadde507d0af82cce15f13d39b373c11a",
+          "serverTurnIdSha256": "0c7fd36d3c2370bfc5ca4e3d08851f3a0be83d637b30a258cbd067a480abfc0c",
+          "runIdSha256": "79caa1a3393a435c3cf32297212a3b191d3ae56c469ff3fc5fb5662b9aea8282",
+          "traceIdSha256": "529c0d09c8e1464843608f956a73525c4a69fcf4fcce3b307e025547a5cb33b3",
+          "durationMs": 69,
+          "invokedToolCount": 1,
+          "knownDiagnosticTools": [
+            "search_floor_votes"
+          ]
+        },
+        {
+          "atMs": 1790962865836,
+          "name": "meri.provider.attempt.finalized",
+          "eventSha256": "0643765c606c5617ff0897e835829e93d8d90398c02e881328bd934153e99bc9",
+          "requestIdSha256": "7f2b6d58dbb4b06cac8cabc86343561cadde507d0af82cce15f13d39b373c11a",
+          "serverTurnIdSha256": "0c7fd36d3c2370bfc5ca4e3d08851f3a0be83d637b30a258cbd067a480abfc0c",
+          "runIdSha256": "79caa1a3393a435c3cf32297212a3b191d3ae56c469ff3fc5fb5662b9aea8282",
+          "traceIdSha256": "529c0d09c8e1464843608f956a73525c4a69fcf4fcce3b307e025547a5cb33b3",
+          "durationMs": 12001,
+          "attempt": 1,
+          "outcome": "completed"
+        },
+        {
+          "atMs": 1790962865846,
+          "name": "meri.orchestrator.turn.finalized",
+          "eventSha256": "cb991bcd08f1ce5f80f3eab0104a214c7d2b254b6eaecb7fe0cba5c659f3945a",
+          "requestIdSha256": "7f2b6d58dbb4b06cac8cabc86343561cadde507d0af82cce15f13d39b373c11a",
+          "serverTurnIdSha256": "0c7fd36d3c2370bfc5ca4e3d08851f3a0be83d637b30a258cbd067a480abfc0c",
+          "runIdSha256": "79caa1a3393a435c3cf32297212a3b191d3ae56c469ff3fc5fb5662b9aea8282",
+          "traceIdSha256": "529c0d09c8e1464843608f956a73525c4a69fcf4fcce3b307e025547a5cb33b3",
+          "durationMs": 29057,
+          "outcome": "completed",
+          "invokedToolCount": 2,
+          "knownDiagnosticTools": [
+            "search_emails",
+            "search_floor_votes"
+          ]
+        },
+        {
+          "atMs": 1790962865847,
+          "name": "meri.orchestrator.request.finalized",
+          "eventSha256": "077acd65564f474e2a188c8bc3e1e1dbfa725756ebc564382adb44d76c57c81c",
+          "requestIdSha256": "7f2b6d58dbb4b06cac8cabc86343561cadde507d0af82cce15f13d39b373c11a",
+          "serverTurnIdSha256": "0c7fd36d3c2370bfc5ca4e3d08851f3a0be83d637b30a258cbd067a480abfc0c",
+          "runIdSha256": "79caa1a3393a435c3cf32297212a3b191d3ae56c469ff3fc5fb5662b9aea8282",
+          "traceIdSha256": "529c0d09c8e1464843608f956a73525c4a69fcf4fcce3b307e025547a5cb33b3",
+          "durationMs": 29192
+        }
+      ]
+    }
+  ],
+  "finalizedTurnCount": 2,
+  "finalizedTurns": [
+    {
+      "atMs": 1790962695061,
+      "name": "meri.orchestrator.turn.finalized",
+      "eventSha256": "40d372af07aadf821696a7da631fb6807a79e1c59717cfb47ec080867afafe20",
+      "requestIdSha256": "74c2cfa211d1f834c25322874d20d87ff8b65f4cd6dc0a6c835620e5fa8c00df",
+      "serverTurnIdSha256": "c55c6a59b58b77df25615a79f6ca492d0dcf0cb4e5f10f179262863471981e19",
+      "runIdSha256": "615ac5552acf3f24f5fe06c912129a83746b3f60f40d7bcdffba02050b156d1d",
+      "traceIdSha256": "88d36782435c4970e60c7637bd81126a5e1d6ee90ab44566c028057087b5523b",
+      "durationMs": 8098,
+      "outcome": "completed",
+      "invokedToolCount": 1,
+      "knownDiagnosticTools": [
+        "query_tasks"
+      ]
+    },
+    {
+      "atMs": 1790962865846,
+      "name": "meri.orchestrator.turn.finalized",
+      "eventSha256": "cb991bcd08f1ce5f80f3eab0104a214c7d2b254b6eaecb7fe0cba5c659f3945a",
+      "requestIdSha256": "7f2b6d58dbb4b06cac8cabc86343561cadde507d0af82cce15f13d39b373c11a",
+      "serverTurnIdSha256": "0c7fd36d3c2370bfc5ca4e3d08851f3a0be83d637b30a258cbd067a480abfc0c",
+      "runIdSha256": "79caa1a3393a435c3cf32297212a3b191d3ae56c469ff3fc5fb5662b9aea8282",
+      "traceIdSha256": "529c0d09c8e1464843608f956a73525c4a69fcf4fcce3b307e025547a5cb33b3",
+      "durationMs": 29057,
+      "outcome": "completed",
+      "invokedToolCount": 2,
+      "knownDiagnosticTools": [
+        "search_emails",
+        "search_floor_votes"
+      ]
+    }
+  ],
+  "rawLogsPersisted": false,
+  "ownerTenantOrActorPersisted": false,
+  "customerTextPersisted": false,
+  "awsWrites": 0,
+  "databaseQueries": 0,
+  "newChatCalls": 0,
+  "limit": "Structured telemetry only; missing events or unrecognized tools do not establish absence. Original acceptance remains separate."
+}

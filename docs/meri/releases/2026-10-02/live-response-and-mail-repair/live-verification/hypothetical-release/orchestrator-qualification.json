@@ -1,0 +1,38 @@
+{
+  "reviewer": "Codex root: inspected exact source, deterministic tests and native image receipts with independent Hermes/Kimi and agent reviews. Actual browser acceptance pending.",
+  "schemaChange": false,
+  "sourceSha": "ddb55a5a3e6bbf1c3f567119b66e18e0a92e60ab",
+  "expiresAt": "2026-10-02T21:28:45.7905416Z",
+  "checks": [
+    {
+      "name": "build",
+      "sourceSha": "ddb55a5a3e6bbf1c3f567119b66e18e0a92e60ab",
+      "status": "passed",
+      "url": "https://github.com/neo-capiro/capirov2/blob/7a9f80710c4afa687e50869a4030da20f4a1bb1c/docs/meri/releases/2026-10-02/live-response-and-mail-repair/qualified-builds/meriv2-orchestrator-independent-20261002T172200186614Z.json",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:3ffbd4fbced44f33a9c525c67f8fd6dcd1c46c68c75983e9bffd81f19c90ed47"
+    },
+    {
+      "name": "automated-tests",
+      "sourceSha": "ddb55a5a3e6bbf1c3f567119b66e18e0a92e60ab",
+      "status": "passed",
+      "url": "https://github.com/neo-capiro/capirov2/blob/7a9f80710c4afa687e50869a4030da20f4a1bb1c/docs/meri/releases/2026-10-02/live-response-and-mail-repair/qualified-builds/independent-build-verification.json",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:3ffbd4fbced44f33a9c525c67f8fd6dcd1c46c68c75983e9bffd81f19c90ed47"
+    },
+    {
+      "name": "retirement-compatibility",
+      "sourceSha": "ddb55a5a3e6bbf1c3f567119b66e18e0a92e60ab",
+      "status": "passed",
+      "url": "https://github.com/neo-capiro/capirov2/blob/7a9f80710c4afa687e50869a4030da20f4a1bb1c/docs/meri/releases/2026-10-02/live-response-and-mail-repair/qualified-builds/release-qualification.json",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:3ffbd4fbced44f33a9c525c67f8fd6dcd1c46c68c75983e9bffd81f19c90ed47"
+    }
+  ],
+  "reviewedAt": "2026-10-02T17:28:45.7905416Z",
+  "status": "qualified",
+  "service": "meriv2-orchestrator",
+  "schemaVersion": 1,
+  "evidence": [
+    "https://github.com/neo-capiro/capirov2/blob/7a9f80710c4afa687e50869a4030da20f4a1bb1c/docs/meri/releases/2026-10-02/live-response-and-mail-repair/qualified-builds/release-qualification.json",
+    "https://github.com/neo-capiro/capirov2/blob/7a9f80710c4afa687e50869a4030da20f4a1bb1c/docs/meri/releases/2026-10-02/live-response-and-mail-repair/qualified-builds/independent-build-verification.json"
+  ],
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:3ffbd4fbced44f33a9c525c67f8fd6dcd1c46c68c75983e9bffd81f19c90ed47"
+}

@@ -1,0 +1,115 @@
+"""One root-owned read-only catalog/EXPLAIN task; import/tests never call AWS."""
+import argparse,hashlib,importlib.util,json,pathlib,re
+ROOT=pathlib.Path(__file__).resolve().parent
+BASE=ROOT.parent/'oct02-case01-release'/'case01-oneoff.py'
+BASE_SHA='4df33cccadd3fdc15711872de3c0ffe2602249a8765c0e6ff36d05488085d36a'
+SCRIPT=ROOT/'mail-plan-readonly.mjs'
+SCRIPT_SHA='5bd8ec5ae963c43273023eea5f4f29451669a6e295d7d5a22cdc26a65dafe1f6'
+INPUT=ROOT.parent/'private'/'mail-recurrence-owner-input.json'
+INPUT_SHA='b5eeada6fed170256afe8ec9b904426ee083521963e6063719ea2faddb7dd04f'
+SOURCE='42988dae5fb7bc2fff3af582ca15a0836a4477c5'
+INPUT_SOURCE='a260004e9923ef5bbe7bd8f32bb4cbddd3c7be31'
+REVIEWED_CODE='ddb55a5a3e6bbf1c3f567119b66e18e0a92e60ab'
+SOURCE_PINS={'apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.spec.ts': 'ab5347e12f6d5ed73550bb8df9d4dc5e03e230566bb16c606270361381910999', 'apps/meriv2-orchestrator/src/meri/retrieval/meri-evidence-formatting.spec.ts': '2baef8bf2c8db15664f9e8db10bc3549854a734d31af086ecc10df2ece2b3890', 'packages/meriv2-core/src/assurance/evidence-plan.spec.ts': '4157733742858009808afb89ddee666aea1a37e9fc802085f98dc57a4d13226c', 'packages/meriv2-core/src/assurance/evidence-plan.ts': 'e13ab98b0a42d7277159df83643ff7502fa4f60d02799e05a1efd7007484edd0', 'apps/api/prisma/migrations/20281006010000_mail_threads_owned_connection_covering/migration.sql': 'de0d73ca70787ceeb1d133aa539f2d291e6589bebb386210c7d4f3c8a7477915', 'apps/api/scripts/verify-mail-thread-covering-index.cjs': '2f8a0ec3e8f904670f63ea8b079d199f362d92d7aeb71b8e2df2b38e4489292a'}
+MODE='mail-postindex-read';FAMILY='capiro-dev-meri-mail-postindex-read';CONTAINER='meri-mail-postindex-read';VARIABLE='MERI_MAIL_PLAN_INPUT';PREFIX='MERI_MAIL_POSTINDEX_RECEIPT '
+TABLES={'mail_messages','mail_threads','engagement_connections'}
+def load_operator():
+ assert hashlib.sha256(BASE.read_bytes()).hexdigest()==BASE_SHA
+ spec=importlib.util.spec_from_file_location('mail_plan_base',BASE);m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
+ original_request,original_qualify,original_snapshot=m.task_request,m.qualify,m.snapshot
+ m.ADAPTER=ROOT.parent/'oct02-memory-kind-repair'/'synthetic-canary-codebuild-450.py';m.ADAPTER_SHA='1f4fa1401571361db593db9372aa7bec635a397d57383096bff3e65a529b3822'
+ m.__file__=__file__;m.ROOT=ROOT;m.FAMILY=FAMILY;m.CONTAINER=CONTAINER;m.MODES={MODE:('node','read-only',VARIABLE)}
+ def fixed_files():
+  script_bytes,input_bytes=SCRIPT.read_bytes(),INPUT.read_bytes()
+  m.need(m.sha(script_bytes)==SCRIPT_SHA and m.sha(input_bytes)==INPUT_SHA,'FIXED_FILES_CHANGED')
+  def pairs(items):
+   result={}
+   for key,item in items:m.need(key not in result,'DUPLICATE_JSON_KEY');result[key]=item
+   return result
+  value=json.loads(input_bytes.decode('utf-8-sig'),object_pairs_hook=pairs);m.need(set(value)=={'kind','sourceSha','tenantId','userId','asOf'} and value['kind']=='meri-mail-plan-read' and value['sourceSha']==INPUT_SOURCE and value['asOf']=='2026-10-02T16:17:22.000Z','FIXED_INPUT_SCOPE')
+  for name in ('tenantId','userId'):m.need(re.fullmatch(r'[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}',value[name]),'OWNER_UUID')
+  return value,script_bytes.decode('utf-8-sig')
+ def source_check(a,repo,source):
+  fixed_files();m.need(source==SOURCE,'FIXED_SERVED_SOURCE')
+  head=a.git(repo,'rev-parse','HEAD').decode().strip()
+  m.need(head==a.git(repo,'rev-parse','origin/main').decode().strip(),'EXACT_REVIEWED_MAIN')
+  m.need(a.git(repo,'merge-base',REVIEWED_CODE,head).decode().strip()==REVIEWED_CODE,'REVIEWED_CODE_NOT_ANCESTOR')
+  m.need(not a.git(repo,'status','--porcelain=v1','--untracked-files=all').strip(),'DIRTY_OPERATOR_SOURCE')
+  m.need(a.git(repo,'remote','get-url','origin').decode().strip().removesuffix('.git')=='https://github.com/neo-capiro/capirov2','NONCANONICAL_REPOSITORY')
+  m.need(a.git(repo,'merge-base',SOURCE,head).decode().strip()==SOURCE,'SERVED_SOURCE_NOT_ANCESTOR')
+  paths=a.git(repo,'diff','--name-only','--no-renames','-z',SOURCE,head).decode().split('\0')
+  changed={p for p in paths if p and not p.startswith('docs/')}
+  m.need(changed==set(SOURCE_PINS),'UNREVIEWED_RUNTIME_DELTA')
+  for path,expected in SOURCE_PINS.items():m.need(m.sha(a.git(repo,'show',head+':'+path))==expected,'REVIEWED_RUNTIME_BLOB_CHANGED')
+  return head
+ def snapshot(a,helper,aws,proof):
+  snap=original_snapshot(a,helper,aws,proof)
+  m.need(snap['safe']['taskDefinition']=='arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:507','FIXED_SERVED_REVISION')
+  return snap
+ def input_binding(mode,path,expected_hash):
+  value,_=fixed_files();m.need(mode==MODE and pathlib.Path(path).resolve()==INPUT and expected_hash==INPUT_SHA,'FIXED_INPUT_ONLY')
+  text=m.canonical(value);m.need(len(text.encode())<=6000,'INPUT_LIMIT')
+  return value,{'containerOverrides':[{'name':CONTAINER,'command':[],'environment':[{'name':VARIABLE,'value':text}]}]}
+ def task_request(a,snap,proof,mode):
+  _,script=fixed_files();m.need(mode==MODE and proof['sourceSha']==SOURCE,'FIXED_READ_ONLY_MODE')
+  request=original_request(a,snap,proof,mode);container=request['containerDefinitions'][0]
+  m.need({r['name'] for r in container['secrets']}==m.DB_REFS,'DATABASE_REFERENCES_ONLY')
+  env=a.unique(snap['container'].get('environment'),'value');names={'DB_NAME','GIT_SHA','RELEASE_SHA'};m.need(names<=set(env),'ENV_MISSING')
+  container['environment']=[{'name':n,'value':env[n]} for n in sorted(names)]+[{'name':'TMPDIR','value':'/dev/shm'}]
+  container['entryPoint']=['node','--input-type=module','--eval',script];container['command']=[];return request
+ def validate_plan(node,depth=0):
+  m.need(isinstance(node,dict) and depth<20,'PLAN_DEPTH')
+  stringkeys={'Node Type','Strategy','Join Type','Parent Relationship','Scan Direction'};numbers={'Startup Cost','Total Cost','Plan Rows','Plan Width'};booleans={'Parallel Aware','Async Capable','Inner Unique'}
+  m.need(set(node)<=stringkeys|numbers|booleans|{'Relation Name','Index Name','Plans'},'PLAN_UNREDACTED_FIELD')
+  for key,value in node.items():
+   if key in stringkeys:m.need(isinstance(value,str) and re.fullmatch('[A-Za-z ]{1,60}',value),'PLAN_ENUM')
+   elif key in numbers:m.need(type(value) in (int,float) and 0<=value<1e20,'PLAN_ESTIMATE')
+   elif key in booleans:m.need(type(value) is bool,'PLAN_BOOLEAN')
+   elif key=='Relation Name':m.need(value in TABLES,'PLAN_RELATION')
+   elif key=='Index Name':m.need(isinstance(value,str) and re.fullmatch('[A-Za-z0-9_]{1,200}',value),'INDEX_NAME')
+   else:
+    m.need(isinstance(value,list) and len(value)<=20,'PLAN_CHILDREN')
+    for child in value:validate_plan(child,depth+1)
+ def owner_receipts(messages,mode,require_success=True):
+  m.need(mode==MODE,'FIXED_MODE');rows=[]
+  for msg in messages:
+   for line in msg.splitlines():
+    if not line.startswith(PREFIX):continue
+    m.need(len(line.encode())<=60000,'RECEIPT_SIZE');r=json.loads(line[len(PREFIX):]);m.sanitize(r)
+    m.need(r.get('kind')=='meri-mail-plan-readback' and r.get('schemaVersion')==1 and r.get('readOnly') is True and r.get('mutations')==0,'READONLY_SCOPE')
+    if r.get('status')=='READBACK_FAILED':
+     m.need(set(r)=={'kind','schemaVersion','status','readOnly','mutations','stage','code'},'FAILURE_FIELDS')
+     m.need(r['stage'] in ('INPUT','CONNECT','CATALOG_EXPLAIN') and r['code'] in ('42501','57014','ETIMEDOUT','ECONNREFUSED','ERR_ASSERTION','UNABLE_TO_GET_ISSUER_CERT_LOCALLY','ERR_TLS_CERT_ALTNAME_INVALID','READBACK_REFUSED'),'FAILURE_CATEGORY')
+    else:
+     m.need(set(r)=={'kind','schemaVersion','status','readOnly','mutations','sourceSha','observedAt','coveringIndexQualified','roleSha256','databaseSha256','tlsVerified','caBundleSha256','relations','indexes','plan','explainSqlSha256','scopeSha256','analyze','customerRowsRead','conditionsPersisted'},'READBACK_FIELDS')
+     m.need(r['status']=='READBACK_COMPLETE' and r['sourceSha']==SOURCE and r['tlsVerified'] is True and r['analyze'] is False and r['coveringIndexQualified'] is True and r['customerRowsRead']==0 and r['conditionsPersisted'] is False,'READBACK_SCOPE')
+     for k in ('roleSha256','databaseSha256','caBundleSha256','explainSqlSha256','scopeSha256'):m.need(re.fullmatch('[a-f0-9]{64}',r[k]),'READBACK_HASH')
+     m.need(r['scopeSha256']==m.digest(fixed_files()[0]),'OWNER_SCOPE_CHANGED')
+     m.need(r['roleSha256']=='4b3814bb3ebcecb8a55b67680a3346b05b2354953e529cae43bb36be2df869c6' and r['caBundleSha256']=='b1711d12bae51838581281e23b6cb97b1074016873b4dafc80ed14002462dd77','ROLE_TLS_BINDING')
+     m.need(isinstance(r['relations'],list) and len(r['relations'])==3 and {x['relname'] for x in r['relations']}==TABLES,'RELATIONS')
+     for x in r['relations']:m.need(set(x)=={'relname','relrowsecurity','relforcerowsecurity','estimated_rows','relpages','owns_relation','rolsuper','rolbypassrls'},'RELATION_FIELDS')
+     m.need(isinstance(r['indexes'],list) and len(r['indexes'])<=100,'INDEX_LIMIT')
+     for x in r['indexes']:
+      m.need(set(x)=={'table_name','index_name','method','indisvalid','indisready','definitionSha256','predicateSha256','removedOnly','trigram','fields'} and x['table_name'] in TABLES,'INDEX_FIELDS')
+      m.need(re.fullmatch('[A-Za-z0-9_]{1,200}',x['index_name']) and re.fullmatch('[a-z]{1,30}',x['method']),'INDEX_ID')
+      m.need(isinstance(x['fields'],list) and set(x['fields'])<=set('id client_id tenant_id connection_id thread_id removed_at subject body_text from_email from_name to_recipients_jsonb cc_recipients_jsonb received_at sent_at created_by_user_id'.split()),'INDEX_FIELD_SCOPE')
+     validate_plan(r['plan'])
+    rows.append(r)
+  m.need(len(rows)<=1,'READBACK_COUNT')
+  if require_success:m.need(len(rows)==1 and rows[0]['status']=='READBACK_COMPLETE','READBACK_NOT_COMPLETE')
+  return rows
+ def qualify(a,repo,aws,proof_file,proof_hash):fixed_files();return original_qualify(a,repo,aws,proof_file,proof_hash)
+ m.snapshot=snapshot;m.fixed_files=fixed_files;m.source_check=source_check;m.input_binding=input_binding;m.task_request=task_request;m.owner_receipts=owner_receipts;m.qualify=qualify;m.validate_plan=validate_plan
+ return m
+def main():
+ parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('action',choices=['prepare','run'])
+ for n in ('repo','proof','proof-sha256','out'):parser.add_argument('--'+n,required=True)
+ for n in ('plan','plan-sha256','confirm'):parser.add_argument('--'+n)
+ args=parser.parse_args()
+ try:
+  m=load_operator();args.mode=MODE;args.input=str(INPUT);args.input_sha256=INPUT_SHA
+  m.need(pathlib.Path(args.out).resolve()==ROOT/('mail-postindex-task-plan.json' if args.action=='prepare' else 'mail-postindex-execution.json'),'FIXED_OUTPUT')
+  if args.action=='run':m.need(args.confirm=='RUN_ONE_READONLY_POSTINDEX_MAIL_EXPLAIN','FIXED_CONFIRMATION');args.confirm='RUN_ONE_REVIEWED_CASE01_TASK'
+  a=m.adapter();helper,_=a.load_helpers(args.repo);aws=a.Aws('default');print(json.dumps(m.prepare(a,helper,aws,args) if args.action=='prepare' else m.run(a,helper,aws,args)));return 0
+ except Exception as e:print(json.dumps({'status':'BLOCKED','code':str(e) if 'm' in locals() and isinstance(e,m.Refusal) else 'MAIL_PLAN_REFUSED'}));return 1
+if __name__=='__main__':raise SystemExit(main())

@@ -1,0 +1,35 @@
+{
+  "kind": "post451-mail-plan-independent-source-peer-review",
+  "status": "PASS",
+  "observedAt": "2026-10-02T17:35:23.747642+00:00",
+  "sourceSha256": {
+    "mail-plan-readonly.mjs": "5bd8ec5ae963c43273023eea5f4f29451669a6e295d7d5a22cdc26a65dafe1f6",
+    "mail-plan-oneoff.py": "803246d8d0b22d62cba9bd6d1d1ae3884011b13e54068ddc581c30f5f319e615"
+  },
+  "scope": "Read-only source review; no actual task execution or repeated tests by reviewer.",
+  "correctedFinding": "fixed_files now hashes and parses/decodes the same once-read input/script buffers, rejects duplicate JSON keys, and cannot execute a later path reread. Original draft preserved.",
+  "verifiedProperties": [
+    "Fixed original owner/asOf/private-input hash and known no-match pattern retained. No customer message content or parameters emitted.",
+    "Only fixed catalog SELECT and EXPLAIN ANALYZE FALSE under BEGIN READ ONLY with statement/idle deadlines; no providers, auth, DDL, DML or ANALYZE.",
+    "Current API507/source429 qualification kept separate from clean reviewed ddb55 main; exact6 permitted non-doc blob changes are checked.",
+    "Actual covering index must be present/valid/ready and match exact7097 definition before EXPLAIN.",
+    "TLS hostname/CA and actual DB-role hash retained; task roles/network/secret-reference scope and inherited task/receipt checks unchanged.",
+    "Plan redaction excludes filter/join-condition literals; output consists of bounded node enums/index identities/estimates and hashes."
+  ],
+  "reportedTests": {
+    "node": 6,
+    "python": 7,
+    "bothExitCode": 0,
+    "nodeReceiptSha256": "420d0b86662fc0dc3d1e287aaca3ac7117756ff7ce8b6b72238d3f92e9a4a48b",
+    "pythonReceiptSha256": "420d0b86662fc0dc3d1e287aaca3ac7117756ff7ce8b6b72238d3f92e9a4a48b",
+    "rerunByReviewer": false
+  },
+  "awsCalls": 0,
+  "databaseCalls": 0,
+  "authCalls": 0,
+  "providerCalls": 0,
+  "liveProbe": "NOT_RUN",
+  "limitations": [
+    "EXPLAIN estimates do not establish actual query duration; any claimed performance improvement requires separate observed runtime evidence."
+  ]
+}

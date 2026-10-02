@@ -1,0 +1,68 @@
+{
+  "status": "PASS",
+  "observedAt": "2026-10-02T17:41:03.773678+00:00",
+  "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/756c9531e221400aa141472738ca0e81",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-mail-postindex-read:1",
+  "imageDigest": "sha256:f792a39e889c7572811dd1335b6f12501d3878701caef3888ae7f120bd6e6f25",
+  "sourceSha": "42988dae5fb7bc2fff3af582ca15a0836a4477c5",
+  "containerExitCode": 0,
+  "lastStatus": "STOPPED",
+  "exactTaskDefinitionHash": "4b3693182391df42fcab695dcb3183bbd48cf5c703875d49a07150c567a6c94a",
+  "logReceiptEqualsSaved": true,
+  "ownerReceiptCount": 1,
+  "planHash": "327abe888cd4871e1315814f7db3872bfb51c9978a48d4f0722c62ecde0286f3",
+  "receiptSha256": "e978b2e47bd060d6ca74e6fe961ae5302e1e0e1d8d26e5f01836f73ef179e3ac",
+  "scriptSha256": "5bd8ec5ae963c43273023eea5f4f29451669a6e295d7d5a22cdc26a65dafe1f6",
+  "wrapperSha256": "803246d8d0b22d62cba9bd6d1d1ae3884011b13e54068ddc581c30f5f319e615",
+  "sameOwnerScopeAndSql": true,
+  "rlsAndForceEnabledNonowner": true,
+  "plannerComparison": {
+    "beforeTotalCost": 54179.9,
+    "afterTotalCost": 8464.83,
+    "beforeThreadNode": {
+      "Node Type": "Bitmap Heap Scan",
+      "Parent Relationship": "Inner",
+      "Startup Cost": 1803.61,
+      "Total Cost": 49775.12,
+      "Plan Rows": 16212,
+      "Plan Width": 48,
+      "Parallel Aware": false,
+      "Async Capable": false,
+      "Relation Name": "mail_threads",
+      "Plans": [
+        {
+          "Node Type": "Bitmap Index Scan",
+          "Parent Relationship": "Outer",
+          "Startup Cost": 0,
+          "Total Cost": 1799.56,
+          "Plan Rows": 30819,
+          "Plan Width": 0,
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Index Name": "mail_threads_tenant_client_last_idx"
+        }
+      ]
+    },
+    "afterThreadNode": {
+      "Node Type": "Index Only Scan",
+      "Parent Relationship": "Inner",
+      "Scan Direction": "Forward",
+      "Startup Cost": 0.42,
+      "Total Cost": 1083.6,
+      "Plan Rows": 901,
+      "Plan Width": 48,
+      "Parallel Aware": false,
+      "Async Capable": false,
+      "Relation Name": "mail_threads",
+      "Index Name": "mail_threads_tenant_connection_id_cover_idx"
+    },
+    "isEstimatedNotMeasuredLatency": true
+  },
+  "awsWrites": 0,
+  "databaseQueries": 0,
+  "liveMailSuccess": "NOT_RUN",
+  "limits": [
+    "EXPLAIN planner estimates, no ANALYZE; actual mailbox execution test remains separate.",
+    "Catalog thread row estimate changed since before probe; same query and owner scope retained."
+  ]
+}

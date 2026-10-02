@@ -1,0 +1,115 @@
+{
+  "kind": "forward451-local-operator-qualification",
+  "schemaVersion": 1,
+  "observedAt": "2026-10-02T17:17:34.532405+00:00",
+  "status": "PASS",
+  "liveReadiness": "BLOCKED_UNSEALED_CANDIDATE",
+  "migrationName": "20281006010000_mail_threads_owned_connection_covering",
+  "migrationSha256": "de0d73ca70787ceeb1d133aa539f2d291e6589bebb386210c7d4f3c8a7477915",
+  "manifest451Sha256": "e440f1780623ca7ca4fd32fbc2d98327472a84cbf7284652020ba395d693beac",
+  "sourceSha": "UNSEALED",
+  "imageDigest": "UNSEALED",
+  "tests": [
+    {
+      "kind": "Node",
+      "count": 5,
+      "exitCode": 0,
+      "includes": "actual owned-loopback PostgreSQL read-only preflight, real covering-index DDL and historical607\u2192608 guard checks; ledger insertion modeled locally, no Prisma child execution by this test"
+    },
+    {
+      "kind": "Python",
+      "count": 13,
+      "exitCode": 0,
+      "includes": "fixed inputs/secret-ref roles/definition checks/actual inherited lifecycle against fake AWS, honest nonzero and uncertain outcomes, operation-wide no-repeat guard"
+    }
+  ],
+  "initialFailure": {
+    "status": "PRESERVED",
+    "count": "4/5",
+    "exitCode": 1,
+    "cause": "PostgreSQL name[] returned as string by pg; changed catalog projection to attname::text so text[] decodes to array. Final actual PG test passed."
+  },
+  "inheritance": {
+    "baseOneoffSha256": "4df33cccadd3fdc15711872de3c0ffe2602249a8765c0e6ff36d05488085d36a",
+    "prior450WrapperSha256": "dba521c1f142e68f10138bd685463f82f6414f77d02c3b830a82834abc6fa62c",
+    "prior450ExecutionSha256": "f73295658d7c0a72b6915e4cf8e29f14d775915a8653442209c89b5c1de2b6f1"
+  },
+  "historicalLedger": "Preserve authoritative legacy606 including100 rolledbacks; require completed450 exactchecksum; read/hash all607 immediately before Prisma; require all607 byte-identical after exactlyone451 addition. No resolve/reset/ledger rewriting.",
+  "indexContract": {
+    "schema": "public",
+    "table": "mail_threads",
+    "name": "mail_threads_tenant_connection_id_cover_idx",
+    "method": "btree",
+    "keys": [
+      "tenant_id",
+      "connection_id",
+      "id"
+    ],
+    "include": [
+      "client_id"
+    ],
+    "unique": false,
+    "valid": true,
+    "ready": true,
+    "definitionSha256": "7097d64ec1650dfa8e004e89a1e2f6f267cb7924e869993bb44fb235e9716c9e"
+  },
+  "operationalRisk": "Nonconcurrent CREATE INDEX holds a write-blocking lock while building. SourceSQL sets lock_timeout5s and statement_timeout30s; failure is reported and never automatically retried or repaired through ledger edits.",
+  "awsCalls": 0,
+  "authCalls": 0,
+  "sharedDatabaseCalls": 0,
+  "localOwnedDatabaseWrites": true,
+  "files": [
+    {
+      "name": "forward451-runner.mjs",
+      "sha256": "3dc354e6e65fe549644339ba3ef1a8d921ccdc9852405f382efb35483d00d581"
+    },
+    {
+      "name": "forward451-oneoff.py",
+      "sha256": "c80b8c02dccce65147f643b7eef48412ab6ae0cbc98dca17ad43705ef7a10d89"
+    },
+    {
+      "name": "synthetic-canary-codebuild-451.py",
+      "sha256": "cfd0ef178dc03c4a460f1eac0aec12fcf71850059f16aa155aec00bc0365ede4"
+    },
+    {
+      "name": "forward451-runner.test.mjs",
+      "sha256": "74b2b12713de55f8fcdf51e1438d9c084e07dff39b67f87ed068da496ce45720"
+    },
+    {
+      "name": "forward451-oneoff-tests.py",
+      "sha256": "e7013d368573371b31554302309a0d909eee6e4ee8635dc5a3f581a8605e62b6"
+    },
+    {
+      "name": "forward451-node-tests-final.log",
+      "sha256": "1962dd28cdf59b28c2320d4d1e9802d7b272c6f31d3abbda1e74f00ef97e3cbe"
+    },
+    {
+      "name": "forward451-node-tests-final.exit",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354"
+    },
+    {
+      "name": "forward451-python-tests-final.log",
+      "sha256": "b1081ce5086070513865e7011cbe1069a9ead29567e98775eb012b7736a321a5"
+    },
+    {
+      "name": "forward451-python-tests-final.exit",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354"
+    },
+    {
+      "name": "forward451-node-tests-initial.log",
+      "sha256": "9e7867d661829cd1ff5aea7a8576741a3f633a35b2a6c94a96c592405d33b133"
+    },
+    {
+      "name": "forward451-node-tests-initial.exit",
+      "sha256": "f1b2f662800122bed0ff255693df89c4487fbdcf453d3524a42d4ec20c3d9c04"
+    },
+    {
+      "name": "forward451-input-template.json",
+      "sha256": "83901c2781ea33a368416fa4b70a9f6a1d5ac27ac34cec1f4b32ed45933d490e"
+    },
+    {
+      "name": "forward451-proof-template.json",
+      "sha256": "f0cb3e46424d4a225b79c6b3d141c0371179d856ff00c904273159b402b2e8c9"
+    }
+  ]
+}

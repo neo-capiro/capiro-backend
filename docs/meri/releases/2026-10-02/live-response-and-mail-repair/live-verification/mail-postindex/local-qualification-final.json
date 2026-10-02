@@ -1,0 +1,55 @@
+{
+  "status": "LOCAL_PREPARATION_PASS",
+  "observedAt": "2026-10-02T17:35:56.592466+00:00",
+  "servedSource": "42988dae5fb7bc2fff3af582ca15a0836a4477c5",
+  "servedTaskDefinition": "capiro-dev-api:507",
+  "reviewedMainCode": "ddb55a5a3e6bbf1c3f567119b66e18e0a92e60ab",
+  "mainPolicy": "Clean origin/main descendant of reviewed code; exact6 reviewed non-doc blobs, docs-only additional changes.",
+  "nodeTests": 6,
+  "pythonTests": 7,
+  "actualOwnedPostgresTests": 1,
+  "testExits": [
+    0,
+    0
+  ],
+  "sourceAndEvidenceHashes": {
+    "mail-plan-readonly.mjs": "5bd8ec5ae963c43273023eea5f4f29451669a6e295d7d5a22cdc26a65dafe1f6",
+    "mail-plan-oneoff.py": "803246d8d0b22d62cba9bd6d1d1ae3884011b13e54068ddc581c30f5f319e615",
+    "mail-plan.test.mjs": "81f4673b2557a84f0a414998935d321a706646adb8c2f551705722c07c431bbe",
+    "mail-plan-tests.py": "034f0643fafd7b18d00b7a8fa67cd4b964b6890879a1eb9cd154da63708e71ca",
+    "node-tests.log": "28880ece3c2a5eaa49e7308b0668369346f9efe237abebc460f5e654337a7204",
+    "node-tests.exit.json": "420d0b86662fc0dc3d1e287aaca3ac7117756ff7ce8b6b72238d3f92e9a4a48b",
+    "python-tests.log": "8cdfc1db1344980e5cf9cb4b2177e956e5e1d1fe2f326c59134d08756f78e198",
+    "python-tests.exit.json": "420d0b86662fc0dc3d1e287aaca3ac7117756ff7ce8b6b72238d3f92e9a4a48b",
+    "api-served-build-proof.json": "082e1501edfca2b0ae715498f1f9276671301b84062e9dfe8bde8edb5bdf70d2",
+    "python-tests-final.log": "696e9adfe40fc907cc7bf1a003a31fe46a787dd5e8178afdeed9ef9bd26a99a7",
+    "python-tests-final.exit.json": "420d0b86662fc0dc3d1e287aaca3ac7117756ff7ce8b6b72238d3f92e9a4a48b"
+  },
+  "priorActualProbeSha256": "dde8456abfcfe10df39002e7bf2ae87a4a9647509ab583531e3947962ad1758b",
+  "privateOwnerInputSha256": "b5eeada6fed170256afe8ec9b904426ee083521963e6063719ea2faddb7dd04f",
+  "privateInputBytesChanged": false,
+  "countSqlFunctionUnchanged": true,
+  "tlsFunctionUnchanged": true,
+  "fixedSearchLiteral": "CAPIRO_MERI_DIAGNOSTIC_20261002_1616_NO_MATCH",
+  "indexRequired": {
+    "name": "mail_threads_tenant_connection_id_cover_idx",
+    "definitionSha256": "7097d64ec1650dfa8e004e89a1e2f6f267cb7924e869993bb44fb235e9716c9e",
+    "valid": true,
+    "ready": true
+  },
+  "awsCalls": 0,
+  "sharedDatabaseCalls": 0,
+  "liveProbe": "NOT_RUN",
+  "limits": [
+    "EXPLAIN without ANALYZE; estimated plan only, no customer row retrieval.",
+    "Fixed16:17:22Z asOf cutoff remains the original diagnostic reconstruction.",
+    "Root must complete verified451 migration before running; owner readback requires index but never creates it.",
+    "Served API507 is preserved; this does not publish or deploy an API image."
+  ],
+  "cachedByteCorrection": {
+    "reviewer": "/root/file01_ab_audit",
+    "description": "Each script/input file is read once; hash and parse/decode consume the same buffers; duplicate keys remain rejected.",
+    "preservedDraftQualificationSha256": "10bc0b1b1592f3f1869597373127c28e8beb55d21187954235f332399499865f",
+    "actualReadOnceRegression": "PASS"
+  }
+}

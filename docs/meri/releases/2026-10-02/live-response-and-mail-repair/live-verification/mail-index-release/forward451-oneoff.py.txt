@@ -1,0 +1,207 @@
+"""Fixed root-only forward451 Prisma task. Import and offline tests perform no AWS calls."""
+import argparse, copy, hashlib, importlib.util, json, pathlib, re
+
+ROOT=pathlib.Path(__file__).resolve().parent
+BASE=ROOT.parent/'oct02-case01-release'/'case01-oneoff.py'
+BASE_SHA='4df33cccadd3fdc15711872de3c0ffe2602249a8765c0e6ff36d05488085d36a'
+OLD_ADAPTER=ROOT.parent/'oct02-memory-kind-repair'/'synthetic-canary-codebuild-450.py'
+OLD_SHA='1f4fa1401571361db593db9372aa7bec635a397d57383096bff3e65a529b3822'
+NEW_ADAPTER=ROOT/'synthetic-canary-codebuild-451.py'
+SCRIPT=ROOT/'forward451-runner.mjs'
+INPUT=ROOT/'forward451-input.json'
+MODE='forward451-deploy'
+FAMILY='capiro-dev-meri-forward451'
+CONTAINER='meri-forward451'
+VARIABLE='MERI_FORWARD451_INPUT'
+PREFIX='MERI_FORWARD451_RECEIPT '
+MIGRATE_TD='arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api-migrate:135'
+LIVE_TD='arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:507'
+MIGRATION='20281006010000_mail_threads_owned_connection_covering'
+MIGRATION_SHA='de0d73ca70787ceeb1d133aa539f2d291e6589bebb386210c7d4f3c8a7477915'
+CHECKS=('memory_candidate_source_kind_chk','memory_candidate_version_payload_check')
+
+def load(path,name):
+    spec=importlib.util.spec_from_file_location(name,path)
+    module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module);return module
+
+def load_operator():
+    if hashlib.sha256(BASE.read_bytes()).hexdigest()!=BASE_SHA:raise RuntimeError('BASE_CHANGED')
+    m=load(BASE,'forward451_base')
+    old=OLD_ADAPTER.read_bytes()
+    m.need(m.sha(old)==OLD_SHA and old.count(b'EXACT_450_IMAGE_MIGRATION_HASHES_PASS')==1,'OLD_ADAPTER_CHANGED')
+    expected=old.replace(b'EXACT_450_IMAGE_MIGRATION_HASHES_PASS',b'EXACT_451_IMAGE_MIGRATION_HASHES_PASS')
+    m.need(NEW_ADAPTER.read_bytes()==expected,'451_ADAPTER_NOT_EXACT_MARKER_DELTA')
+    original_snapshot,original_source=m.snapshot,m.source_check
+    a449=load(OLD_ADAPTER,'forward451_original449_adapter')
+    m.ROOT=ROOT;m.__file__=__file__;m.ADAPTER=NEW_ADAPTER;m.ADAPTER_SHA=m.sha(expected)
+    m.FAMILY=FAMILY;m.CONTAINER=CONTAINER;m.MODES={MODE:('node','fixed-migrate',VARIABLE)}
+    bound_input_hash=None
+
+    def parsed(data):
+        def pairs(items):
+            value={}
+            for key,item in items:
+                m.need(key not in value,'DUPLICATE_JSON_KEY');value[key]=item
+            return value
+        return json.loads(data.decode('utf-8-sig'),object_pairs_hook=pairs)
+
+    def proof_input(path,expected_hash):
+        data=pathlib.Path(path).read_bytes();m.need(m.sha(data)==expected_hash,'PROOF_CHANGED')
+        value=parsed(data)
+        m.need(value.get('version')==1 and value.get('kind')=='meri-forward451-qualified-candidate' and value.get('status')=='READY','FORWARD451_UNSEALED')
+        m.need(value.get('migrationTaskDefinition')==MIGRATE_TD and value.get('servedTaskDefinition')==LIVE_TD,'FIXED_RUNTIME_BASELINE')
+        for name in ('runnerSha256','inputSha256','migrationTaskDefinitionSha256'):
+            m.need(isinstance(value.get(name),str) and re.fullmatch(r'[a-f0-9]{64}',value[name]),'REVIEW_PIN_REQUIRED')
+        m.need(m.file_sha(SCRIPT)==value['runnerSha256'] and m.file_sha(INPUT)==value['inputSha256'],'REVIEWED_SOURCE_INPUT_CHANGED')
+        return value
+
+    def input_binding(mode,path,expected_hash):
+        nonlocal bound_input_hash
+        m.need(mode==MODE and pathlib.Path(path).resolve()==INPUT,'FIXED_INPUT_REQUIRED')
+        data=INPUT.read_bytes();m.need(m.sha(data)==expected_hash,'INPUT_CHANGED')
+        m.need(bound_input_hash is None or bound_input_hash==expected_hash,'INPUT_REBIND_REFUSED')
+        bound_input_hash=expected_hash
+        value=parsed(data)
+        m.sanitize(value)
+        m.need(set(value)=={'version','sourceSha','migrationSha256','manifestSha256','checkSha256','baseline'},'FIXED_INPUT_FIELDS')
+        m.need(value['version']==1 and re.fullmatch(r'[a-f0-9]{40}',value['sourceSha']) and value['migrationSha256']==MIGRATION_SHA,'FIXED_MIGRATION_INPUT')
+        for key,names in [('checkSha256',CHECKS)]:
+            m.need(set(value[key])==set(names) and all(re.fullmatch(r'[a-f0-9]{64}',v) for v in value[key].values()),'CATALOG_OR_CLAIM_PINS')
+        m.need(re.fullmatch(r'[a-f0-9]{64}',value['manifestSha256']),'MANIFEST_PIN')
+        baseline=value['baseline']
+        m.need(set(baseline)=={'total','activeFinished','rolledBack','fullLedgerSha256','apiHistorySha256'} and baseline['total']==606 and baseline['activeFinished']==506 and baseline['rolledBack']==100,'ESTABLISHED_HISTORY_COUNTS')
+        m.need(baseline['fullLedgerSha256']=='e06c88cf3a42626966b1949c5c297ee71aa7e90ba413bfc153bd6b61afbe5766' and re.fullmatch('[a-f0-9]{64}',baseline['apiHistorySha256']),'ESTABLISHED_HISTORY_PIN')
+        text=m.canonical(value);m.need(len(text.encode())<=6000,'INPUT_LIMIT')
+        overrides={'containerOverrides':[{'name':CONTAINER,'command':[],'environment':[{'name':VARIABLE,'value':text}]}]}
+        m.need(len(m.canonical(overrides).encode())<=8192,'OVERRIDE_LIMIT')
+        return value,overrides
+
+    def qualify(a,repo,aws,proof_file,proof_hash):
+        document=proof_input(proof_file,proof_hash)
+        candidate,served=document['candidate'],document['served']
+        head=original_source(a,repo,candidate.get('sourceSha'));aws.identity(m.CALLER)
+        proof=a.qualify_build(aws,repo,'api',candidate)
+        previous=a449.qualify_build(aws,repo,'api',served)
+        value,_=input_binding(MODE,INPUT,document['inputSha256'])
+        m.need(value['sourceSha']==proof['sourceSha'] and previous['sourceSha']!=proof['sourceSha'],'CANDIDATE_SERVED_SEPARATION')
+        sql=a.git(repo,'show',proof['sourceSha']+':apps/api/prisma/migrations/'+MIGRATION+'/migration.sql')
+        m.need(m.sha(sql)==MIGRATION_SHA,'CANDIDATE_SQL_CHANGED')
+        verify_previous(a,repo,aws,proof,value)
+        return dict(proof,operatorHead=head,servedProof=previous,reviewed=document)
+
+    def verify_previous(a,repo,aws,proof,value):
+        previous_root=ROOT.parent/'oct02-memory-kind-repair'
+        path=previous_root/'forward450-oneoff-v2.py'
+        m.need(m.file_sha(path)=='dba521c1f142e68f10138bd685463f82f6414f77d02c3b830a82834abc6fa62c','PREVIOUS_OPERATOR_CHANGED')
+        d=load(path,'sealed_forward450');prior=d.load_operator()
+        receipt_bytes=(previous_root/'forward450-execution-v2.json').read_bytes()
+        m.need(m.sha(receipt_bytes)=='f73295658d7c0a72b6915e4cf8e29f14d775915a8653442209c89b5c1de2b6f1','PREVIOUS_RECEIPT_CHANGED')
+        receipt=parsed(receipt_bytes);plan=parsed((previous_root/'forward450-task-plan-v2.json').read_bytes());body=dict(plan);claimed=body.pop('planHash')
+        m.need(m.digest(body)==claimed==receipt['planHash'] and receipt['status']=='VERIFIED' and receipt['containerExitCode']==0 and receipt['sourceSha']=='42988dae5fb7bc2fff3af582ca15a0836a4477c5','PREVIOUS_PLAN_CHANGED')
+        row=receipt['ownerReceipts'][-1]
+        m.need(len(receipt['ownerReceipts'])==3 and row['stage']=='COMPLETE' and row['oldLedgerUnchanged'] is True and row['ledgerRows']==607 and row['oldLedgerSha256']==value['baseline']['fullLedgerSha256'] and row['apiHistorySha256']==value['baseline']['apiHistorySha256'] and row['checks']==value['checkSha256'],'PREVIOUS_BASELINE_CHANGED')
+        _,overrides=prior.input_binding(d.MODE,d.INPUT,plan['inputSha256'])
+        tasks=aws.tasks([receipt['taskArn']]);m.need(len(tasks)==1,'PREVIOUS_TASK_MISSING')
+        container=prior.task_identity(tasks[0],receipt['taskArn'],receipt['taskDefinition'],overrides,plan['imageDigest'])
+        m.need(tasks[0]['lastStatus']=='STOPPED' and container['exitCode']==0,'PREVIOUS_TASK_FAILED')
+        helper,_=a.load_helpers(repo);request=helper.task_registration_request(aws.definition(receipt['taskDefinition']))
+        m.need(m.digest(m.definition_projection(a,request))==plan['oneOffDefinitionHash'],'PREVIOUS_DEFINITION_CHANGED')
+        options=request['containerDefinitions'][0]['logConfiguration']['options'];stream=options['awslogs-stream-prefix']+'/'+prior.CONTAINER+'/'+receipt['taskArn'].rsplit('/',1)[1]
+        m.need(prior.owner_receipts(aws.logs(options['awslogs-group'],stream),d.MODE)==receipt['ownerReceipts'],'PREVIOUS_LOGS_CHANGED')
+
+    def snapshot(a,helper,aws,proof):
+        snap=original_snapshot(a,helper,aws,proof['servedProof'])
+        m.need(snap['safe']['taskDefinition']==LIVE_TD,'SERVED_BASELINE_CHANGED')
+        response=aws.definition(MIGRATE_TD);definition=helper.task_registration_request(response)
+        m.need(m.digest(m.definition_projection(a,definition))==proof['reviewed']['migrationTaskDefinitionSha256'],'MIGRATION_TEMPLATE_CHANGED')
+        m.need(response['taskDefinition']['taskDefinitionArn']==MIGRATE_TD,'MIGRATION_TEMPLATE_ID')
+        for name in ('taskRoleArn','executionRoleArn','networkMode','requiresCompatibilities','runtimePlatform'):
+            m.need(definition.get(name)==snap['definition'].get(name),'MIGRATION_RUNTIME_ROLE_DRIFT')
+        m.need(len(definition.get('containerDefinitions',[]))==1,'MIGRATION_CONTAINER_AMBIGUOUS')
+        container=definition['containerDefinitions'][0]
+        m.need(container.get('command')==['migrate'] and not container.get('environmentFiles'),'APPROVED_MIGRATION_TEMPLATE_REQUIRED')
+        snap['migrationDefinition']=definition;snap['migrationContainer']=container
+        snap['safe'].update(servedSourceSha=proof['servedProof']['sourceSha'],servedImageDigest=proof['servedProof']['imageDigest'],
+          migrationTaskDefinition=MIGRATE_TD,migrationTaskDefinitionHash=proof['reviewed']['migrationTaskDefinitionSha256'])
+        return snap
+
+    def task_request(a,snap,proof,mode):
+        m.need(mode==MODE,'FIXED_MODE')
+        api=snap['container'];template=snap['migrationContainer'];original=snap['migrationDefinition']
+        env,refs=a.unique(template.get('environment'),'value'),a.unique(template.get('secrets'),'valueFrom')
+        api_env,api_refs=a.unique(api.get('environment'),'value'),a.unique(api.get('secrets'),'valueFrom')
+        m.need(m.DB_REFS<=set(refs) and not(m.DB_REFS&set(env)) and not(set(env)&set(refs)),'MIGRATION_DATABASE_REFS')
+        m.need(env.get('DB_NAME')==api_env.get('DB_NAME') and bool(env.get('DB_NAME')),'DATABASE_NAME_CHANGED')
+        m.need(all(refs[k]==api_refs[k] for k in ('DB_HOST','DB_PORT')),'DATABASE_ENDPOINT_CHANGED')
+        m.need(refs['DB_USER']!=api_refs['DB_USER'] and refs['DB_PASSWORD']!=api_refs['DB_PASSWORD'],'MIGRATION_ROLE_REQUIRED')
+        fields=('taskRoleArn','executionRoleArn','networkMode','requiresCompatibilities','cpu','memory','runtimePlatform')
+        m.need(all(k in original for k in fields) and original['runtimePlatform'].get('cpuArchitecture')=='ARM64','MIGRATION_PLATFORM')
+        logs=copy.deepcopy(api.get('logConfiguration'));m.need(logs and logs.get('logDriver')=='awslogs','CURRENT_LOGS_REQUIRED')
+        m.need(logs.get('options',{}).get('awslogs-region')==m.REGION,'LOG_REGION')
+        script=SCRIPT.read_bytes();m.need(m.sha(script)==proof['reviewed']['runnerSha256'],'RUNNER_CHANGED')
+        result={k:copy.deepcopy(original[k]) for k in fields}
+        result.update(family=FAMILY,containerDefinitions=[{'name':CONTAINER,'image':proof['image'],'essential':True,
+          'entryPoint':['node','--input-type=module','--eval',script.decode()], 'command':[],
+          'environment':[{'name':'DB_NAME','value':env['DB_NAME']},{'name':'GIT_SHA','value':proof['sourceSha']},{'name':'RELEASE_SHA','value':proof['sourceSha']},{'name':'TMPDIR','value':'/dev/shm'}],
+          'secrets':[{'name':k,'valueFrom':refs[k]} for k in sorted(m.DB_REFS)],'logConfiguration':logs,
+          'dockerLabels':{'org.opencontainers.image.revision':proof['sourceSha'],'org.opencontainers.image.source':a.REPOSITORY}}])
+        return result
+
+    def owner_receipts(messages,mode,require_success=True):
+        m.need(mode==MODE and bound_input_hash is not None,'FIXED_INPUT_REQUIRED');value,_=input_binding(MODE,INPUT,bound_input_hash);entries=[]
+        for message in messages:
+            for line in message.splitlines():
+                if not line.startswith(PREFIX):continue
+                m.need(len(line.encode())<=10000,'RECEIPT_SIZE');row=json.loads(line[len(PREFIX):]);m.sanitize(row)
+                m.need(row.get('version')==1 and row.get('kind')=='meri-forward451','FIXED_RECEIPT')
+                if row.get('status') in ('BLOCKED','RECONCILIATION_REQUIRED'):
+                    m.need(set(row)=={'version','kind','stage','status','code','guard','prismaFailure','prismaAttempted','retryAllowed'} and row['retryAllowed'] is False,'FAILURE_FIELDS')
+                    facts=row['prismaFailure']
+                    if facts is not None:
+                        m.need(set(facts)=={'prismaExitCode','timedOut','prismaCode','sqlState','outputSha256'} and (facts['prismaExitCode'] is None or type(facts['prismaExitCode']) is int) and type(facts['timedOut']) is bool,'PRISMA_FACT_FIELDS')
+                        m.need(facts['prismaCode'] in (None,'P1000','P1001','P1002','P1010','P1011','P1012','P1013','P1017','P3005','P3006','P3008','P3009','P3018') and facts['sqlState'] in (None,'23514','42883','42501','55P03','57014','40P01','40001','42P01','42703') and re.fullmatch('[a-f0-9]{64}',facts['outputSha256']),'PRISMA_FACT_ENUMS')
+                    m.need(row['guard'] in ('INPUT','MANIFEST','TLS_CONNECT','LEDGER_BASELINE','CHECKS','INDEX','OWNERSHIP','LOCKS','PRISMA_DEPLOY'),'FAILURE_GUARD')
+                    m.need(row['stage'] in ('INPUT','PREFLIGHT','PRISMA_DEPLOY','POSTCHECK') and type(row['prismaAttempted']) is bool and row['code'] in
+                      ('23514','42883','42501','55P03','57014','40P01','40001','42P01','42703','P3009','P3018','ETIMEDOUT','ERR_ASSERTION','FORWARD451_REFUSED'),'FAILURE_ENUM')
+                elif row.get('stage')=='PREFLIGHT':
+                    m.need(set(row)=={'version','kind','stage','status','sourceSha','ledgerRows','activeFinished','rolledBack','apiSourceMigrations','apiHistorySha256','oldLedgerSha256','legacyLedgerSha256','checks','index','tlsVerified'},'PREFLIGHT_FIELDS')
+                    m.need(row['status']=='VERIFIED' and row['ledgerRows']==607 and row['activeFinished']==507 and row['rolledBack']==100 and row['apiSourceMigrations']==450 and row['legacyLedgerSha256']==value['baseline']['fullLedgerSha256'] and row['checks']==value['checkSha256'] and row['index']=={'present':False} and row['tlsVerified'] is True,'PREFLIGHT_SCOPE')
+                elif row.get('stage')=='PRISMA_DEPLOY':
+                    m.need(set(row)=={'version','kind','stage','status','sourceSha','migrationSha256'} and row['status']=='INTENT' and row['migrationSha256']==MIGRATION_SHA,'DEPLOY_INTENT')
+                elif row.get('stage')=='COMPLETE':
+                    m.need(set(row)=={'version','kind','stage','status','sourceSha','ledgerRows','activeFinished','rolledBack','apiSourceMigrations','apiHistorySha256','newMigration','migrationSha256','manifestSha256','oldLedgerSha256','oldLedgerUnchanged','legacyLedgerSha256','checks','index','prismaExitCode','prismaOutputSha256','tlsVerified'},'COMPLETE_FIELDS')
+                    m.need(row['status']=='VERIFIED' and row['ledgerRows']==608 and row['activeFinished']==508 and row['rolledBack']==100 and row['apiSourceMigrations']==451 and row['legacyLedgerSha256']==value['baseline']['fullLedgerSha256'] and row['newMigration']==MIGRATION and row['migrationSha256']==MIGRATION_SHA and row['manifestSha256']==value['manifestSha256'] and row['checks']==value['checkSha256'] and row['prismaExitCode']==0 and all(row[k] is True for k in ('oldLedgerUnchanged','tlsVerified')),'COMPLETE_SCOPE')
+                    expected={'present':True,'method':'btree','keyColumns':['tenant_id','connection_id','id'],'includeColumns':['client_id'],'unique':False,'valid':True,'ready':True,'noPredicate':True,'noExpression':True}
+                    m.need(set(row['index'])==set(expected)|{'definitionSha256'} and all(row['index'][k]==v for k,v in expected.items()) and row['index']['definitionSha256']=='7097d64ec1650dfa8e004e89a1e2f6f267cb7924e869993bb44fb235e9716c9e','INDEX_SCOPE')
+                else:raise m.Refusal('UNEXPECTED_STAGE')
+                if 'sourceSha' in row:m.need(row['sourceSha']==value['sourceSha'],'RECEIPT_SOURCE')
+                for name in ('oldLedgerSha256','prismaOutputSha256','apiHistorySha256','legacyLedgerSha256'):
+                    if name in row:m.need(isinstance(row[name],str) and re.fullmatch(r'[a-f0-9]{64}',row[name]),'RECEIPT_HASH')
+                entries.append(row)
+        m.need(len(entries)<=3,'RECEIPT_COUNT')
+        if require_success:
+            m.need([(r.get('stage'),r.get('status')) for r in entries]==[('PREFLIGHT','VERIFIED'),('PRISMA_DEPLOY','INTENT'),('COMPLETE','VERIFIED')],'MIGRATION_NOT_VERIFIED')
+            m.need(entries[0]['oldLedgerSha256']==entries[2]['oldLedgerSha256'] and entries[0]['apiHistorySha256']==entries[2]['apiHistorySha256'],'OLD_LEDGER_CHANGED')
+        return entries
+
+    m.input_binding=input_binding;m.qualify=qualify;m.snapshot=snapshot;m.task_request=task_request;m.owner_receipts=owner_receipts
+    return m
+
+def main():
+    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('action',choices=['prepare','run'])
+    for name in ('repo','proof','proof-sha256','input-sha256','out'):parser.add_argument('--'+name,required=True)
+    for name in ('plan','plan-sha256','confirm'):parser.add_argument('--'+name)
+    args=parser.parse_args()
+    try:
+        m=load_operator();args.mode,args.input=MODE,str(INPUT)
+        if args.action=='run':
+            m.need(args.confirm=='RUN_ONE_FORWARD451_PRISMA_DEPLOY','CONFIRMATION_REQUIRED')
+            # Fixed across all plans: no second DDL task after an ambiguous acknowledgement.
+            m.create(ROOT/'forward451-operation-once.json',{'status':'CLAIMED','planHash':args.plan_sha256})
+            args.confirm='RUN_ONE_REVIEWED_CASE01_TASK'
+        a=m.adapter();helper,_=a.load_helpers(args.repo);aws=a.Aws('default')
+        result=m.prepare(a,helper,aws,args) if args.action=='prepare' else m.run(a,helper,aws,args)
+        print(json.dumps(result));return 0
+    except Exception:
+        print(json.dumps({'status':'BLOCKED','code':'FORWARD451_OPERATOR_REFUSED'}));return 1
+if __name__=='__main__':raise SystemExit(main())

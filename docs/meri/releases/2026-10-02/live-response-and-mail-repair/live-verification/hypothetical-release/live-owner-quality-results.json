@@ -1,0 +1,73 @@
+{
+  "kind": "meri-owner-browser-quality-retest",
+  "target": "https://os.capiro.ai",
+  "date": "2026-10-02",
+  "orchestratorSource": "ddb55a5a3e6bbf1c3f567119b66e18e0a92e60ab",
+  "orchestratorTaskDefinition": "capiro-dev-meriv2-orchestrator:99",
+  "apiTaskDefinition": "capiro-dev-api:507",
+  "migration451": "VERIFIED",
+  "method": "Signed-in owner browser via CUA; one submission per case, visible completed response reviewed by root. No regeneration or retries.",
+  "writingConversation": "aadd4cae-495e-4649-9ad8-ad4f8cbc540e",
+  "cases": [
+    {
+      "id": "planning",
+      "prompt": "Quality check using hypothetical facts only: Aster has a Thursday demo. Maya owns the slides, due Tuesday. Lee owns the technical review, due Wednesday; it depends on Maya finishing the slides. The rehearsal has no owner or scheduled time. Write exactly three concise bullets: the critical path, the main delivery risk, and the next action. Use only these facts. Do not search, use tools, save memories, create tasks, or send messages.",
+      "response": ["Critical path: Maya finishes slides Tuesday → Lee completes the technical review Wednesday → Aster demos Thursday.", "Main delivery risk: A slide delay would hold up the dependent technical review before Thursday’s demo.", "Next action: Assign a rehearsal owner and schedule the rehearsal."],
+      "verdict": "PASS",
+      "checks": "Exactly three bullets, correct dependency, concrete risk and next action, no invented facts, no irrelevant evidence footer or visible tool activity."
+    },
+    {
+      "id": "deadline-followup",
+      "prompt": "Update to the hypothetical example: the slides will now be ready Wednesday afternoon. Keep the other facts unchanged. In exactly two sentences, explain what this changes and what I should confirm next. Do not assume the demo has been delayed. Do not use tools, save memories, create tasks, or send messages.",
+      "response": "With the slides now ready Wednesday afternoon, Lee has less time to complete the dependent technical review by its unchanged Wednesday deadline; the demo remains Thursday. Confirm whether Lee can still finish Wednesday, and who will own the rehearsal and when it will take place.",
+      "verdict": "PASS",
+      "checks": "Exactly two sentences, retained Thursday demo, correctly compressed review window, no unwanted roster lookup visible, no irrelevant evidence footer."
+    },
+    {
+      "id": "unknown-information",
+      "prompt": "Based only on the hypothetical facts in this conversation, what exact time is the rehearsal, and has Lee approved the slides? If either is unknown, say so clearly. Do not infer that a scheduled review means approval happened. Do not search, use tools, save memories, create tasks, or send messages.",
+      "response": ["Rehearsal time: Unknown. Your hypothetical states that it has no scheduled time.", "Lee’s approval: Unknown. Your hypothetical assigns Lee the technical review but does not say Lee has approved the slides."],
+      "verdict": "PASS",
+      "checks": "Both unknowns stated correctly; no invented time or approval; no irrelevant evidence footer or visible tool activity."
+    },
+    {
+      "id": "independent-paraphrase",
+      "prompt": "Based only on these fictional details, write exactly two sentences: Talia's draft is now due Friday morning; Omar's review is due Friday afternoon and depends on that draft; the launch stays Monday; no rehearsal time is given. Explain the dependency and the next scheduling question. Do not use tools, save memories, create tasks, or send messages.",
+      "response": "Omar’s Friday-afternoon review depends on Talia delivering the draft Friday morning, while the launch remains Monday. What time should the rehearsal take place, since none is specified?",
+      "verdict": "PASS",
+      "checks": "Exactly two sentences, independent fictional names and wording, correct dependency/Monday launch and missing rehearsal, no irrelevant evidence footer or visible tool activity."
+    }
+  ],
+  "limitations": [
+    "Ad hoc owner QA is separate from the original synthetic75/CD7/CW8 acceptance; that full suite remains NOT_RUN.",
+    "Tool absence currently records the visible UI; independent trace metadata, if available, is separate.",
+    "A two-pending-memory-proposals badge predated this run; proposals were not opened or approved.",
+    "Customer message contents, owner identifiers and auth/session state are excluded."
+  ],
+  "additionalCases": [
+    {
+      "id": "task-system-lookup",
+      "conversation": "e7f454f3-8cd5-4b96-b517-c35ad95397cf",
+      "prompt": "Read-only task check: look at the open tasks assigned to me and report how many are overdue as of October 2, 2026. Return only the count and any limits on what you checked; do not show task titles, client names, or personal details. Use the task system, not email. Do not create or change tasks, send messages, or save memories. If you cannot determine a reliable count, say so.",
+      "visibleToolError": "Delegated read query_tasks failed: query_tasks_result_contract_invalid",
+      "response": "Unable to determine a reliable count. The task-system lookup failed, so I could not verify your open assignments or how many were overdue as of October 2, 2026.",
+      "verdict": "FAIL",
+      "honesty": "PASS: no fabricated count",
+      "footerIssue": "Said source was never called despite visible failed task lookup."
+    },
+    {
+      "id": "mail-search-reliability",
+      "conversation": "e7f454f3-8cd5-4b96-b517-c35ad95397cf",
+      "prompt": "For this read-only reliability check, search my connected mailbox once for the exact unique phrase CAPIRO_MERI_DIAGNOSTIC_20261002_1616_NO_MATCH. Report whether the search completed and how many matches were returned; do not display any message contents or personal details. Do not retry the search, send anything, create tasks, or save memories. If the search fails, say that it failed rather than treating it as no matches.",
+      "response": "The mailbox search completed successfully and returned 0 matches. It covered synced active mail, excluding junk/spam, deleted/trash, and drafts.",
+      "visibleTools": ["Searched emails", "Ran search_floor_votes"],
+      "searchReliability": "PASS",
+      "responseQuality": "FAIL",
+      "verdict": "FAIL",
+      "qualityIssue": "Unrelated search_floor_votes and irrelevant bill/rule-status evidence limitation footer. Correctly reported actual successful no-match mailbox result."
+    }
+  ],
+  "spotCheckTotals": {"completed": 6, "fullyPassed": 4, "failed": 2},
+  "userRequestedOriginal75InsteadOfStop": true,
+  "original75Status": "NOT_RUN"
+}

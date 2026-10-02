@@ -1,0 +1,40 @@
+{
+  "verdict": "PASS",
+  "reviewer": "Codex independent source peer /root/file01_release_audit",
+  "observedAt": "2026-10-02T17:18:04.478771+00:00",
+  "sourceHashes": {
+    "forward451-runner.mjs": "3dc354e6e65fe549644339ba3ef1a8d921ccdc9852405f382efb35483d00d581",
+    "forward451-oneoff.py": "c80b8c02dccce65147f643b7eef48412ab6ae0cbc98dca17ad43705ef7a10d89",
+    "synthetic-canary-codebuild-451.py": "cfd0ef178dc03c4a460f1eac0aec12fcf71850059f16aa155aec00bc0365ede4"
+  },
+  "actualTestArtifacts": {
+    "forward451-node-tests-final.log": "1962dd28cdf59b28c2320d4d1e9802d7b272c6f31d3abbda1e74f00ef97e3cbe",
+    "forward451-node-tests-final.exit": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+    "forward451-python-tests-final.log": "b1081ce5086070513865e7011cbe1069a9ead29567e98775eb012b7736a321a5",
+    "forward451-python-tests-final.exit": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354"
+  },
+  "observedTests": {
+    "node": 5,
+    "python": 13,
+    "bothExitCode": 0,
+    "rerunByReviewer": false
+  },
+  "findings": [],
+  "verifiedProperties": [
+    "Strict RDS CA and hostname verification retained for pg; Prisma child uses sslmode=require/sslaccept=strict and fixed CA.",
+    "Only packaged normal Prisma migrate deploy is invoked; no seed/reset/resolve or direct ledger DML.",
+    "Preflight binds previously accepted606 legacy rows and current successful450 row, requires no unfinished migrations and only451 absent.",
+    "Postcheck compares all607 preflight rows including full timestamp-text precision and verifies exactly one451 plus exact valid/ready covering index definition.",
+    "App507 health/network baseline and migrate135 role refs are separated from candidate image; source/build/digest verification retained.",
+    "Fixed operation-wide and task-local claims prevent automatic retry after unknown acknowledgement; task definition/override/digest/log receipts remain joined.",
+    "No claims or business-row content is read by this migration task."
+  ],
+  "limits": [
+    "Candidate image/input/proof were UNSEALED at review; this is source readiness, not execution approval or live result.",
+    "Conventional index build permits reads but may block mail_threads writes; SQL bounds lock acquisition5s and statement30s with atomic rollback.",
+    "Initial ownedPG name[] decode test failure is preserved; final explicit text cast and all18 tests passed."
+  ],
+  "awsWrites": 0,
+  "sharedDatabaseWrites": 0,
+  "liveMigration": "NOT_RUN"
+}
