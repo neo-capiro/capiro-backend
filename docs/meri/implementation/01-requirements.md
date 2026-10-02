@@ -1,5 +1,18 @@
 # File 01 requirements ledger
 
+## Current reconciliation — 2026-10-02
+
+The [current status](STATUS.md) and [deployed repair outcome](../releases/2026-10-02/repaired-smoke/OUTCOME.md)
+supersede historical unmerged/deployment statements below. Reply-format and
+signed-receipt fixes are deployed and pass the two-tenant regression smoke.
+PR1930 fixture/binding/Windows-storage prerequisites are merged and locally
+qualified, with no claimed live75 result. Every required original acceptance ID
+remains in scope:75 primary rows,CD01–07,CW01–08, applicable M rows, stated
+mode/JEV variants and required repeats. Defense Chat alone remains removed.
+No requirement is promoted to complete by source presence, merge, health check,
+offline tests or the narrow no-tool smoke. Remaining fixture/provider/capture
+composition and actual original evaluation continue in parallel.
+
 ## Current reconciliation — 2026-09-30
 
 Read the [current completion audit](01-completion-audit-2026-09-30.md) for source `ac6b66aaf3d77c9b009ebdeb6a78b1394846580f` before interpreting the historical candidate/merge columns below. The original uploaded plan is exact in main; #1905/#1908/#1915 are merged, but full File01 remains `01_BLOCKED`. This reconciliation preserves every requirement and acceptance ID. No NOT_RUN row is promoted by source presence, a merge or an offline test. Current code gaps, acceptance coverage, fresh test exits and deployment identities are recorded separately in the audit.

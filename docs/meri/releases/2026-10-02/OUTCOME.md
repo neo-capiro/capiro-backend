@@ -1,5 +1,18 @@
 # Meri production release — October 2, 2026
 
+## Current outcome at05:45 UTC
+
+**API repair deployed; reconciled exact-reply smoke PASS for both synthetic
+tenants.** API task488 serves signed-receipt repair4aad; orchestrator89 serves
+reply-format repairbae902; Web VNext386 is unchanged. All are independently
+healthy. The T1 assertion failure was an ambiguous page-wide test locator;
+read-only diagnosis verified the saved reply inside the actual assistant turn.
+T2 then passed with the scoped selector. Exactly two turns were sent and all
+three browser sessions were revoked. See [the final repair outcome](repaired-smoke/OUTCOME.md)
+for actual exits, immutable digests, preserved failures and bounded provider logs.
+Full original File01 acceptance is still incomplete. Later prerequisite source
+in PR1930 is merged, tested and not yet deployed.
+
 ## Current repair qualification at05:23 UTC
 
 The reply-format correction (PR1928, source`bae902c734eea220b4c6299423119e7bdaac2f6b`)

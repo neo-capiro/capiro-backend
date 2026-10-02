@@ -1,0 +1,156 @@
+{
+  "verdict": "PASS",
+  "environment": "capiro-dev",
+  "origin": "https://os.capiro.ai",
+  "attemptId": "v8-jsonb-repair",
+  "mergedSourceSha": "087ce120496cb329629074dcf12e9066667f4345",
+  "observedAtEpoch": 1790919116.608,
+  "policySha": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "machineMapDate": "2026-09-30",
+  "approvedTenantSlugs": [
+    "meri-foundation-20260928-t1",
+    "meri-foundation-20260928-t2"
+  ],
+  "syntheticCohortsVerified": true,
+  "syntheticFlagEvidence": {
+    "status": "LAST_AUTHORITATIVE_APPLY",
+    "receiptSha256": "3fffae41fa39f99a75664b92c4c794dd98202867e5115d666a1bd31e15c5b911",
+    "freshDbQuery": false
+  },
+  "services": {
+    "api": {
+      "sourceSha": "4aad73b881c2f33ebb0bc41ddf61514a34010ad7",
+      "imageDigest": "sha256:046691b41f6578df41a5cac1bb1e2dee561517463c68ce391cd9450e82489496",
+      "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:488",
+      "primaryDeploymentId": "ecs-svc/0575914014235051077",
+      "healthy": true,
+      "desired": 2,
+      "running": 2,
+      "pending": 0,
+      "taskArns": [
+        "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/23f95932f53c462b89847178fa13dfc3",
+        "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/e5dafdae0a8746dc97a73bf8a98fc638"
+      ],
+      "rpToolsDark": true
+    },
+    "meriv2-orchestrator": {
+      "sourceSha": "bae902c734eea220b4c6299423119e7bdaac2f6b",
+      "imageDigest": "sha256:94f49d77dd2770b4da93a1f1d8f7b112e7f4533c2c860be5eb42f1bbdddb095b",
+      "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:89",
+      "primaryDeploymentId": "ecs-svc/4509841024724620491",
+      "healthy": true,
+      "desired": 1,
+      "running": 1,
+      "pending": 0,
+      "taskArns": [
+        "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/54c3f376f29841d1b27a05eabbf85f0a"
+      ],
+      "rpToolsDark": true
+    },
+    "web-vnext": {
+      "sourceSha": "940fe9354f95630c6acb0f20f75ced26ea9e75f4",
+      "imageDigest": "sha256:bb114117e1ac5bad398a34c2272280b0b55abbcb0502cb5b6b95356f213bdfdb",
+      "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web-vnext:386",
+      "primaryDeploymentId": "ecs-svc/3490292933385052646",
+      "healthy": true,
+      "desired": 1,
+      "running": 1,
+      "pending": 0,
+      "taskArns": [
+        "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/4d5331534711433985251ec9945e7630"
+      ],
+      "rpToolsDark": true
+    }
+  },
+  "calls": [
+    {
+      "operation": "sts get-caller-identity",
+      "exitCode": 0
+    },
+    {
+      "operation": "ecs describe-services",
+      "exitCode": 0
+    },
+    {
+      "operation": "ecs describe-task-definition",
+      "exitCode": 0
+    },
+    {
+      "operation": "ecs list-tasks",
+      "exitCode": 0
+    },
+    {
+      "operation": "ecs describe-tasks",
+      "exitCode": 0
+    },
+    {
+      "operation": "elbv2 describe-target-groups",
+      "exitCode": 0
+    },
+    {
+      "operation": "elbv2 describe-target-health",
+      "exitCode": 0
+    },
+    {
+      "operation": "ecr describe-images",
+      "exitCode": 0
+    },
+    {
+      "operation": "ecs describe-services",
+      "exitCode": 0
+    },
+    {
+      "operation": "ecs describe-task-definition",
+      "exitCode": 0
+    },
+    {
+      "operation": "ecs list-tasks",
+      "exitCode": 0
+    },
+    {
+      "operation": "ecs describe-tasks",
+      "exitCode": 0
+    },
+    {
+      "operation": "elbv2 describe-target-groups",
+      "exitCode": 0
+    },
+    {
+      "operation": "elbv2 describe-target-health",
+      "exitCode": 0
+    },
+    {
+      "operation": "ecr describe-images",
+      "exitCode": 0
+    },
+    {
+      "operation": "ecs describe-services",
+      "exitCode": 0
+    },
+    {
+      "operation": "ecs describe-task-definition",
+      "exitCode": 0
+    },
+    {
+      "operation": "ecs list-tasks",
+      "exitCode": 0
+    },
+    {
+      "operation": "ecs describe-tasks",
+      "exitCode": 0
+    },
+    {
+      "operation": "elbv2 describe-target-groups",
+      "exitCode": 0
+    },
+    {
+      "operation": "elbv2 describe-target-health",
+      "exitCode": 0
+    },
+    {
+      "operation": "ecr describe-images",
+      "exitCode": 0
+    }
+  ],
+  "externalWrites": 0
+}

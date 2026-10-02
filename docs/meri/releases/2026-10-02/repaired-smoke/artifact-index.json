@@ -1,0 +1,150 @@
+{
+  "normalization": "Text UTF8 LF; original hashes preserved; assistant-only screenshot visually reviewed",
+  "artifacts": [
+    {
+      "file": "api-jsonb-qualification.json",
+      "originalSha256": "b7c1902a86cbaec9ca1ac50d1aa86f07096001525ad344b84f6764509b708d0c",
+      "archivedSha256": "b7c1902a86cbaec9ca1ac50d1aa86f07096001525ad344b84f6764509b708d0c"
+    },
+    {
+      "file": "api-jsonb-release-manifest.json",
+      "originalSha256": "ac59666add174cd66f0b340b698bb9a55d1cebe3c5a1e52e8b23be9f5478098b",
+      "archivedSha256": "ac59666add174cd66f0b340b698bb9a55d1cebe3c5a1e52e8b23be9f5478098b"
+    },
+    {
+      "file": "api-jsonb-promotion-receipt.json",
+      "originalSha256": "74666a024a67391e4975835f451295bde47fd69b804921e408f51d9dc7a81335",
+      "archivedSha256": "74666a024a67391e4975835f451295bde47fd69b804921e408f51d9dc7a81335"
+    },
+    {
+      "file": "repaired-two-tenant-smoke-reconciliation.json",
+      "originalSha256": "61f301673337e5a180df73b306fd72756ce11b5170dee5dd16b7cdb689ad155b",
+      "archivedSha256": "61f301673337e5a180df73b306fd72756ce11b5170dee5dd16b7cdb689ad155b"
+    },
+    {
+      "file": "reconcile-repaired-smoke.py",
+      "originalSha256": "6cbfe312ecffd92f5fe5dd5479e41c9a9ab4c2bb86379f9126ab8a04a4fcee62",
+      "archivedSha256": "6cbfe312ecffd92f5fe5dd5479e41c9a9ab4c2bb86379f9126ab8a04a4fcee62"
+    },
+    {
+      "file": "synthetic-meri-ui-v8-release-readback.json",
+      "originalSha256": "27ef659711eba083aa7134c1ef270b9291ccff63a8fbfd700b160cbbb8802d94",
+      "archivedSha256": "27ef659711eba083aa7134c1ef270b9291ccff63a8fbfd700b160cbbb8802d94"
+    },
+    {
+      "file": "synthetic-meri-ui-v8-smoke-result.json",
+      "originalSha256": "96541453ed0f841e7cf6ce22656b1d2cec6fbd576ecf21ce6d1a7d59f7af1393",
+      "archivedSha256": "96541453ed0f841e7cf6ce22656b1d2cec6fbd576ecf21ce6d1a7d59f7af1393"
+    },
+    {
+      "file": "synthetic-meri-ui-v8-command-exit.json",
+      "originalSha256": "aacb88c1009164f8362742bd0724540b97c69827280783eb71548501e5348fde",
+      "archivedSha256": "7e6b01e03d9624a0a26d4b80b4f1f73ead9db27bfa92af01ae58575d33af0439"
+    },
+    {
+      "file": "synthetic-meri-ui-v8-hermes-exit.json",
+      "originalSha256": "449dd1608b3c6ca260dcbcf20212c96f023c2b70fc2455c2e9a16f075df5da86",
+      "archivedSha256": "323a496675d7cbbac0566ff6a030893af0c2929a40046be1a9f7cd7d9641e70a"
+    },
+    {
+      "file": "synthetic-meri-ui-v8-hermes-usage.json",
+      "originalSha256": "90430d3c2754864d898d8d4477ebf31d267e7a5cfe2b336e02f329842f88ca7e",
+      "archivedSha256": "0331db8b2dc9c59a2af1799ea1d2e2bdad8e7b8aeb2ad6d9010fff3c5c7928d9"
+    },
+    {
+      "file": "synthetic-meri-ui-v9-readonly.cjs",
+      "originalSha256": "f1ed2883cab7c1ab6b7986b9f33d9c5e1d5c24cf39fafe0939e4f90ba73290ff",
+      "archivedSha256": "f1ed2883cab7c1ab6b7986b9f33d9c5e1d5c24cf39fafe0939e4f90ba73290ff"
+    },
+    {
+      "file": "synthetic-meri-ui-v9-readonly-result.json",
+      "originalSha256": "93101c82560044fb8b252a817c7f1ca40ae91ee81b085b2fba13acba0a15670e",
+      "archivedSha256": "93101c82560044fb8b252a817c7f1ca40ae91ee81b085b2fba13acba0a15670e"
+    },
+    {
+      "file": "synthetic-meri-ui-v9-readonly-exit.json",
+      "originalSha256": "46fc2b4fc802d542808eecb5267ed8f327ba2294eb06e52878fd5f705a094be2",
+      "archivedSha256": "4df9de058eaa634a1c952f806b6218d2a0e3ff2c46e5def289621e0b6f43d3fa"
+    },
+    {
+      "file": "synthetic-meri-ui-v9-release-readback.json",
+      "originalSha256": "5a5546b93c728f61fc4f77a91ca922a69acd9fc1af6dfe72db3b3a3d0acb60f1",
+      "archivedSha256": "5a5546b93c728f61fc4f77a91ca922a69acd9fc1af6dfe72db3b3a3d0acb60f1"
+    },
+    {
+      "file": "synthetic-meri-ui-v9-independent-review.json",
+      "originalSha256": "6f120d79726c8e43bf2eb16cbe4266459ca24c6f7013a351b51346684f675daf",
+      "archivedSha256": "6327e71e6d2a2771999957c5f99f4bdff5243e8ced64d91f48242fc1cdbd8c99"
+    },
+    {
+      "file": "read-release-for-v9-smoke.mjs",
+      "originalSha256": "ca18a61fd25893784ad7176958e030bb46c31e74c71cafdda68349f37f4e0f56",
+      "archivedSha256": "ca18a61fd25893784ad7176958e030bb46c31e74c71cafdda68349f37f4e0f56"
+    },
+    {
+      "file": "synthetic-meri-ui-v10-smoke.cjs",
+      "originalSha256": "ed8d9b79a6569839f134c9231bc871d491bfd7e3481573b226ec5acdbab6859d",
+      "archivedSha256": "ed8d9b79a6569839f134c9231bc871d491bfd7e3481573b226ec5acdbab6859d"
+    },
+    {
+      "file": "synthetic-meri-ui-v10-smoke-result.json",
+      "originalSha256": "ad20a675fb1c3412046d67136b429aef365418e5cacfae71c37d6ab061a4446f",
+      "archivedSha256": "ad20a675fb1c3412046d67136b429aef365418e5cacfae71c37d6ab061a4446f"
+    },
+    {
+      "file": "synthetic-meri-ui-v10-command-exit.json",
+      "originalSha256": "bfd13d360ea477f7ad90cfd1b88ad3a1704f2b5eff6f211307454297f74c99c0",
+      "archivedSha256": "45d0770a400c60917679008165cce5234e4d32021f70800615783e603d7d570d"
+    },
+    {
+      "file": "synthetic-meri-ui-v10-hermes-exit.json",
+      "originalSha256": "efcafe56cc83230e403f6bfb339873e60de0981fdc71589e0dff4c9708f9ee62",
+      "archivedSha256": "d5428549d6ce46239f0be0139a9f4a2020cf3dc8b2f708293ef421a2dc4147a5"
+    },
+    {
+      "file": "synthetic-meri-ui-v10-hermes-usage.json",
+      "originalSha256": "065ea0d8d704d97ec6241fd7d5f28f469048d95bd5a411722f62e66d37a4e456",
+      "archivedSha256": "91ca523972e4106f1b2521b589d61bcdd84338b9a31ccb0f557488e9e9ac369c"
+    },
+    {
+      "file": "synthetic-meri-ui-v10-release-readback.json",
+      "originalSha256": "86ecd7b36e05f2600eafb9d5b3c1a5d3c4e547aa07991dac5c322a9e41144c73",
+      "archivedSha256": "86ecd7b36e05f2600eafb9d5b3c1a5d3c4e547aa07991dac5c322a9e41144c73"
+    },
+    {
+      "file": "synthetic-meri-ui-v10-t2-assistant.png",
+      "originalSha256": "cd6ebe802b95da2110d2a15ffa2a0933cf5042a1e161febc90c6c60e1e9f6f1e",
+      "archivedSha256": "cd6ebe802b95da2110d2a15ffa2a0933cf5042a1e161febc90c6c60e1e9f6f1e"
+    },
+    {
+      "file": "read-release-for-v10-smoke.mjs",
+      "originalSha256": "c7fbceb50fe59e2efee331a36fd9012879de6f8b50d78cc17572b25dabe644b4",
+      "archivedSha256": "c7fbceb50fe59e2efee331a36fd9012879de6f8b50d78cc17572b25dabe644b4"
+    },
+    {
+      "file": "run-synthetic-ui-v10-smoke.py",
+      "originalSha256": "6e21d74703e9c4040af38a8839f9752934fbfe9a6c2ba31051062febfa4be305",
+      "archivedSha256": "6e21d74703e9c4040af38a8839f9752934fbfe9a6c2ba31051062febfa4be305"
+    },
+    {
+      "file": "launch-synthetic-ui-v10-hermes.py",
+      "originalSha256": "cb4520d9ba30b91e48ef9f0d6ee0384f56d7cca4b128fdb26f05093cdfb2f67b",
+      "archivedSha256": "cb4520d9ba30b91e48ef9f0d6ee0384f56d7cca4b128fdb26f05093cdfb2f67b"
+    },
+    {
+      "file": "synthetic-meri-ui-v10-hermes-prompt.md",
+      "originalSha256": "3d35a2713d2189c5751cde7b15016245e821df8c954273c01706991e4e588d7c",
+      "archivedSha256": "3d35a2713d2189c5751cde7b15016245e821df8c954273c01706991e4e588d7c"
+    },
+    {
+      "file": "synthetic-v8-t1-provider-log-readback.json",
+      "originalSha256": "ab929192e8e0a142e734e41d0ea44098a85861529db22a95ba521e8c352becf9",
+      "archivedSha256": "084c57688028238bbc9da5671126d7eec8509a60bf9c669939fe0e3079f74d86"
+    },
+    {
+      "file": "synthetic-v10-t2-provider-log-readback.json",
+      "originalSha256": "fdc8b3ec002029cd7438a3bfa20c1aa51e71348c6c3b935b8d5b5b9315c4f6ac",
+      "archivedSha256": "9bfcb4703c28471babae827de3bcfd7866a558297822b8547a86ad41eadfa647"
+    }
+  ]
+}

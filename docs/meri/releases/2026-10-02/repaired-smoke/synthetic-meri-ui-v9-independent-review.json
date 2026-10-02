@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "verdict": "PASS",
+  "scope": "independent source-only review; no authentication, browser, cloud calls, or source changes",
+  "reviewedAt": "2026-10-02T05:41:28.236247+00:00",
+  "sourceHashes": {
+    "synthetic-meri-ui-v9-readonly.cjs": "f1ed2883cab7c1ab6b7986b9f33d9c5e1d5c24cf39fafe0939e4f90ba73290ff",
+    "read-release-for-v9-smoke.mjs": "ca18a61fd25893784ad7176958e030bb46c31e74c71cafdda68349f37f4e0f56"
+  },
+  "checks": [
+    "exact current API qualification/promotion and fixed orchestrator/Web deployments",
+    "ordinary task-owned synthetic T1 identity only",
+    "existing exact V8 conversation and saved synthetic prompt/reply binding",
+    "no app POST/write route allowed and no send/fill/click/route.fetch",
+    "global and assistant-scoped exact locator counts and sanitized strict-mode classification",
+    "known session captured before activation and revoked in finally"
+  ],
+  "policySha": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c"
+}

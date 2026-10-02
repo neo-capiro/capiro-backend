@@ -1,3 +1,33 @@
+## Current checkpoint — 2026-10-02 deployed repair and original evaluation
+
+**File01 remains incomplete; production repair and two-tenant smoke PASS.**
+API488/source4aad and orchestrator89/sourcebae902 are qualified and deployed;
+Web VNext386/source940fe remains healthy at `https://os.capiro.ai`. Both approved
+synthetic tenants returned the exact saved and visible no-tool reply after the
+formatting and signed-number persistence repairs. The original T1 selector failure
+is preserved and independently diagnosed; no T1 resend occurred. See the
+[repair outcome](../releases/2026-10-02/repaired-smoke/OUTCOME.md).
+
+PR1930 is merged through C-drive local main to GitHub main
+`95f3de76cb4c026a8710dd0d14c098a208791d64`. It qualifies real case01 memory lifecycle
+and atomic binding, fixes immutable-memory retirement UUID handling, and adds
+native Windows artifact storage. Combined126 Node tests,64 API tests, full API
+typecheck and26 Promptfoo/custom-verifier cases passed. See the
+[prerequisite qualification](../releases/2026-10-02/original-eval-prerequisites/qualification.md).
+These later prerequisites are not claimed deployed or live acceptance.
+
+Three parallel lanes are completing restart-safe canonical fixture registration,
+provider accounting before context retrieval and across subsequent attempts,
+and authenticated capture/source authority. The original75/CD7/CW8 and applicable
+memory acceptance remain NOT RUN. The nine-case vertical slice must precede the
+full live baseline. Only the approved synthetic namespaces may be seeded. Current
+API governance flags are enforce, but their tenant cohort still needs the exact
+two synthetic IDs before canonical fixture operations; no customer cohort change
+is authorized by that setup. Historical database migration/PITR work must not be
+restarted. Defense Chat remains excluded; existing Meri domain evals remain required.
+
+The entries below are historical and retain their original evidence and limits.
+
 ## Current checkpoint — 2026-09-30 original-plan completion audit
 
 **File01 remains `01_BLOCKED`.** The [current completion audit](01-completion-audit-2026-09-30.md) verifies the original attachment's exact bytes and reconciles A/B/C/D, all acceptance namespaces, current main and deployed components. Local/GitHub main were both `ac6b66aaf3d77c9b009ebdeb6a78b1394846580f`; #1905/#1908/#1915 are merged. Older candidate/unmerged statements below are historical.

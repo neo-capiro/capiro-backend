@@ -1,0 +1,69 @@
+{
+  "verdict": "PASS",
+  "scope": "Exact no-tool reply visible and persisted for both approved synthetic tenants after reply-format and signed-number fixes",
+  "observedAt": "2026-10-02T05:45:58.237212+00:00",
+  "sourceServices": {
+    "api": {
+      "sourceSha": "4aad73b881c2f33ebb0bc41ddf61514a34010ad7",
+      "imageDigest": "sha256:046691b41f6578df41a5cac1bb1e2dee561517463c68ce391cd9450e82489496",
+      "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:488",
+      "primaryDeploymentId": "ecs-svc/0575914014235051077",
+      "healthy": true
+    },
+    "meriv2-orchestrator": {
+      "sourceSha": "bae902c734eea220b4c6299423119e7bdaac2f6b",
+      "imageDigest": "sha256:94f49d77dd2770b4da93a1f1d8f7b112e7f4533c2c860be5eb42f1bbdddb095b",
+      "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:89",
+      "primaryDeploymentId": "ecs-svc/4509841024724620491",
+      "healthy": true
+    },
+    "web-vnext": {
+      "sourceSha": "940fe9354f95630c6acb0f20f75ced26ea9e75f4",
+      "imageDigest": "sha256:bb114117e1ac5bad398a34c2272280b0b55abbcb0502cb5b6b95356f213bdfdb",
+      "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web-vnext:386",
+      "primaryDeploymentId": "ecs-svc/3490292933385052646",
+      "healthy": true
+    }
+  },
+  "newConversations": 2,
+  "newTurns": 2,
+  "extraT1RetryTurns": 0,
+  "sessionsCreatedAndRevoked": 3,
+  "providerCalls": [
+    {
+      "source": "synthetic-v8-t1-provider-log-readback.json",
+      "model": "gpt-6-astra",
+      "inputTokens": 27172,
+      "outputTokens": 10,
+      "providerCallCount": 1,
+      "completed": true
+    },
+    {
+      "source": "synthetic-v10-t2-provider-log-readback.json",
+      "model": "gpt-6-astra",
+      "inputTokens": 27180,
+      "outputTokens": 10,
+      "providerCallCount": 1,
+      "completed": true
+    }
+  ],
+  "v8HistoricalVerdictPreserved": "BLOCKED / exit1; strict page-wide locator matched5; V9 zero-turn diagnosis proves1 actual assistant match",
+  "v9Readonly": "PASS / exit0",
+  "v10RemainingT2": "PASS / exit0",
+  "uiVisualReview": "Root inspected synthetic assistant screenshot: expected acknowledgment and completion controls visible",
+  "fullFile01Acceptance": false,
+  "original75LiveCasesRun": 0,
+  "migrationOrLedgerChanges": 0,
+  "modelRoutingChanges": 0,
+  "inputs": {
+    "api-jsonb-promotion-receipt.json": "74666a024a67391e4975835f451295bde47fd69b804921e408f51d9dc7a81335",
+    "synthetic-meri-ui-v8-command-exit.json": "aacb88c1009164f8362742bd0724540b97c69827280783eb71548501e5348fde",
+    "synthetic-meri-ui-v8-smoke-result.json": "96541453ed0f841e7cf6ce22656b1d2cec6fbd576ecf21ce6d1a7d59f7af1393",
+    "synthetic-meri-ui-v9-readonly-exit.json": "46fc2b4fc802d542808eecb5267ed8f327ba2294eb06e52878fd5f705a094be2",
+    "synthetic-meri-ui-v9-readonly-result.json": "93101c82560044fb8b252a817c7f1ca40ae91ee81b085b2fba13acba0a15670e",
+    "synthetic-meri-ui-v10-command-exit.json": "bfd13d360ea477f7ad90cfd1b88ad3a1704f2b5eff6f211307454297f74c99c0",
+    "synthetic-meri-ui-v10-smoke-result.json": "ad20a675fb1c3412046d67136b429aef365418e5cacfae71c37d6ab061a4446f",
+    "synthetic-meri-ui-v10-t2-assistant.png": "cd6ebe802b95da2110d2a15ffa2a0933cf5042a1e161febc90c6c60e1e9f6f1e"
+  },
+  "telemetryCaveat": "Generic fallback marker count2 is not an observed fallback; actual one-call completion telemetry is used."
+}

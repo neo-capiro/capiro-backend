@@ -1,0 +1,76 @@
+{
+  "schemaVersion": 1,
+  "sourceSha": "95f3de76cb4c026a8710dd0d14c098a208791d64",
+  "scriptSha256": "ed8d9b79a6569839f134c9231bc871d491bfd7e3481573b226ec5acdbab6859d",
+  "startedAt": "2026-10-02T05:43:06.771Z",
+  "verdict": "PASS",
+  "tenants": [
+    {
+      "tenant": "meri-foundation-20260928-t2",
+      "identityVerified": true,
+      "loadedWebReleaseSha": "940fe9354f95630c6acb0f20f75ced26ea9e75f4",
+      "webSurface": "vnext",
+      "composerVisible": true,
+      "conversationCreateRequests": 1,
+      "conversationsCreated": 1,
+      "turnsSent": 1,
+      "blockedMutationCount": 0,
+      "blockedEndpoints": [],
+      "authAttempt": {
+        "status": "complete",
+        "hasSession": true,
+        "missingFields": []
+      },
+      "streamStatus": 201,
+      "doneReceived": true,
+      "toolCalls": 0,
+      "streamErrors": 0,
+      "expectedReplyVisible": true,
+      "sessionRevoked": true,
+      "verdict": "PASS",
+      "conversationId": "a8e7dda0-ddb2-4955-b7e9-f42a1b8d27c4",
+      "streamExpectedSubstring": true,
+      "savedAssistant": {
+        "userPromptMatches": true,
+        "assistantTextLength": 26,
+        "assistantTextSha256": "b372f30b8260e3c2167ec08ea8506c32d466148b413041bf7bb6dcb1eb249f63",
+        "assistantExpectedEqual": true,
+        "assistantExpectedSubstring": true
+      }
+    }
+  ],
+  "attemptId": "v10-remaining-t2",
+  "maximumNewTurns": 1,
+  "syntheticFlagEvidence": {
+    "status": "LAST_AUTHORITATIVE_APPLY",
+    "receiptSha256": "3fffae41fa39f99a75664b92c4c794dd98202867e5115d666a1bd31e15c5b911",
+    "freshDbQuery": false
+  },
+  "readinessProofSha256": "86ecd7b36e05f2600eafb9d5b3c1a5d3c4e547aa07991dac5c322a9e41144c73",
+  "repairedRuntimeSourceSha": "bae902c734eea220b4c6299423119e7bdaac2f6b",
+  "deployedServices": {
+    "api": {
+      "sourceSha": "4aad73b881c2f33ebb0bc41ddf61514a34010ad7",
+      "imageDigest": "sha256:046691b41f6578df41a5cac1bb1e2dee561517463c68ce391cd9450e82489496",
+      "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:488",
+      "primaryDeploymentId": "ecs-svc/0575914014235051077",
+      "healthy": true
+    },
+    "meriv2-orchestrator": {
+      "sourceSha": "bae902c734eea220b4c6299423119e7bdaac2f6b",
+      "imageDigest": "sha256:94f49d77dd2770b4da93a1f1d8f7b112e7f4533c2c860be5eb42f1bbdddb095b",
+      "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:89",
+      "primaryDeploymentId": "ecs-svc/4509841024724620491",
+      "healthy": true
+    },
+    "web-vnext": {
+      "sourceSha": "940fe9354f95630c6acb0f20f75ced26ea9e75f4",
+      "imageDigest": "sha256:bb114117e1ac5bad398a34c2272280b0b55abbcb0502cb5b6b95356f213bdfdb",
+      "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web-vnext:386",
+      "primaryDeploymentId": "ecs-svc/3490292933385052646",
+      "healthy": true
+    }
+  },
+  "fullFile01Acceptance": false,
+  "completedAt": "2026-10-02T05:43:14.135Z"
+}

@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "account": "967807252336",
+  "region": "us-east-1",
+  "cluster": "capiro-dev",
+  "service": "api",
+  "preparedAt": "2026-10-02T05:26:50.853Z",
+  "qualification": {
+    "schemaVersion": 1,
+    "service": "api",
+    "sourceSha": "4aad73b881c2f33ebb0bc41ddf61514a34010ad7",
+    "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:046691b41f6578df41a5cac1bb1e2dee561517463c68ce391cd9450e82489496",
+    "status": "qualified",
+    "reviewer": "Codex integration owner with independent Hermes/Bedrock Kimi source review and exact native-image readback",
+    "reviewedAt": "2026-10-02T05:26:42.795Z",
+    "expiresAt": "2026-10-02T09:26:42.796Z",
+    "schemaChange": false,
+    "evidence": [
+      "https://github.com/neo-capiro/capirov2/blob/087ce120496cb329629074dcf12e9066667f4345/docs/meri/releases/2026-10-02/signed-receipt/qualification.md",
+      "https://github.com/neo-capiro/capirov2/blob/087ce120496cb329629074dcf12e9066667f4345/docs/meri/releases/2026-10-02/signed-receipt/api-jsonb-v2-independent-20261002T052314Z.json",
+      "https://github.com/neo-capiro/capirov2/blob/087ce120496cb329629074dcf12e9066667f4345/docs/meri/releases/2026-10-02/signed-receipt/assertion-summary.json"
+    ],
+    "checks": [
+      {
+        "name": "build",
+        "status": "passed",
+        "sourceSha": "4aad73b881c2f33ebb0bc41ddf61514a34010ad7",
+        "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:046691b41f6578df41a5cac1bb1e2dee561517463c68ce391cd9450e82489496",
+        "url": "https://github.com/neo-capiro/capirov2/blob/087ce120496cb329629074dcf12e9066667f4345/docs/meri/releases/2026-10-02/signed-receipt/api-jsonb-v2-independent-20261002T052314Z.json"
+      },
+      {
+        "name": "automated-tests",
+        "status": "passed",
+        "sourceSha": "4aad73b881c2f33ebb0bc41ddf61514a34010ad7",
+        "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:046691b41f6578df41a5cac1bb1e2dee561517463c68ce391cd9450e82489496",
+        "url": "https://github.com/neo-capiro/capirov2/blob/087ce120496cb329629074dcf12e9066667f4345/docs/meri/releases/2026-10-02/signed-receipt/assertion-summary.json"
+      },
+      {
+        "name": "retirement-compatibility",
+        "status": "passed",
+        "sourceSha": "4aad73b881c2f33ebb0bc41ddf61514a34010ad7",
+        "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:046691b41f6578df41a5cac1bb1e2dee561517463c68ce391cd9450e82489496",
+        "url": "https://github.com/neo-capiro/capirov2/blob/087ce120496cb329629074dcf12e9066667f4345/docs/meri/releases/2026-10-02/signed-receipt/qualification.md"
+      }
+    ],
+    "conditions": [
+      "Preserve every current non-image setting and exact two approved synthetic tenants",
+      "No migration or ledger change; schema remains forward-compatible",
+      "Fresh rollout readback then one strict no-tool smoke per approved tenant with session cleanup",
+      "Full original File01 live acceptance remains incomplete"
+    ]
+  },
+  "baseline": {
+    "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:486",
+    "serviceHash": "a182bab56e7336610817a1aa81e0f99ad86abb2d79738ce403f3757a9b7faa77",
+    "configHash": "973748a2b134b388a6027df6c5c099055a7e24f7b746eafbaae8cebad077258a",
+    "taskHash": "3cb2a2593df3a9d1e19db28b88772594e468df233aaa4e5e6bd0a5c91668448e",
+    "imageDigest": "sha256:1fbf675727041323c56c2330aebb7f27ae4129864cb413953b869bfffad80015",
+    "desiredCount": 2
+  }
+}

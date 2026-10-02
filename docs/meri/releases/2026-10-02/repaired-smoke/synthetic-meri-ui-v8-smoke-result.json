@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 1,
+  "sourceSha": "087ce120496cb329629074dcf12e9066667f4345",
+  "scriptSha256": "0acb79a3282c6bb7cd0214e4daf9cbf9353857917156accc7c2d5a506b1e5712",
+  "startedAt": "2026-10-02T05:33:43.508Z",
+  "verdict": "BLOCKED",
+  "tenants": [
+    {
+      "tenant": "meri-foundation-20260928-t1",
+      "identityVerified": true,
+      "loadedWebReleaseSha": "940fe9354f95630c6acb0f20f75ced26ea9e75f4",
+      "webSurface": "vnext",
+      "composerVisible": true,
+      "conversationCreateRequests": 1,
+      "conversationsCreated": 1,
+      "turnsSent": 1,
+      "blockedMutationCount": 0,
+      "blockedEndpoints": [],
+      "authAttempt": {
+        "status": "complete",
+        "hasSession": true,
+        "missingFields": []
+      },
+      "streamStatus": 201,
+      "doneReceived": true,
+      "toolCalls": 0,
+      "streamErrors": 0,
+      "expectedReplyVisible": false,
+      "sessionRevoked": true,
+      "verdict": "NOT RUN",
+      "conversationId": "2b0a2ed6-b223-415c-8fee-722f3faba238",
+      "streamExpectedSubstring": true,
+      "savedAssistant": {
+        "userPromptMatches": true,
+        "assistantTextLength": 26,
+        "assistantTextSha256": "b372f30b8260e3c2167ec08ea8506c32d466148b413041bf7bb6dcb1eb249f63",
+        "assistantExpectedEqual": true,
+        "assistantExpectedSubstring": true
+      }
+    }
+  ],
+  "attemptId": "v8-jsonb-repair",
+  "maximumNewTurns": 2,
+  "syntheticFlagEvidence": {
+    "status": "LAST_AUTHORITATIVE_APPLY",
+    "receiptSha256": "3fffae41fa39f99a75664b92c4c794dd98202867e5115d666a1bd31e15c5b911",
+    "freshDbQuery": false
+  },
+  "readinessProofSha256": "27ef659711eba083aa7134c1ef270b9291ccff63a8fbfd700b160cbbb8802d94",
+  "repairedRuntimeSourceSha": "bae902c734eea220b4c6299423119e7bdaac2f6b",
+  "deployedServices": {
+    "api": {
+      "sourceSha": "4aad73b881c2f33ebb0bc41ddf61514a34010ad7",
+      "imageDigest": "sha256:046691b41f6578df41a5cac1bb1e2dee561517463c68ce391cd9450e82489496",
+      "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:488",
+      "primaryDeploymentId": "ecs-svc/0575914014235051077",
+      "healthy": true
+    },
+    "meriv2-orchestrator": {
+      "sourceSha": "bae902c734eea220b4c6299423119e7bdaac2f6b",
+      "imageDigest": "sha256:94f49d77dd2770b4da93a1f1d8f7b112e7f4533c2c860be5eb42f1bbdddb095b",
+      "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:89",
+      "primaryDeploymentId": "ecs-svc/4509841024724620491",
+      "healthy": true
+    },
+    "web-vnext": {
+      "sourceSha": "940fe9354f95630c6acb0f20f75ced26ea9e75f4",
+      "imageDigest": "sha256:bb114117e1ac5bad398a34c2272280b0b55abbcb0502cb5b6b95356f213bdfdb",
+      "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web-vnext:386",
+      "primaryDeploymentId": "ecs-svc/3490292933385052646",
+      "healthy": true
+    }
+  },
+  "fullFile01Acceptance": false,
+  "failureCode": "SMOKE_ASSERTION_FAILED",
+  "completedAt": "2026-10-02T05:33:55.430Z"
+}
