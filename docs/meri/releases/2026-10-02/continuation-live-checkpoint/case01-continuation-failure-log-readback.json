@@ -1,0 +1,32 @@
+{
+  "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/fa59a06ba49b4366b7b7cc84ac91e959",
+  "entries": [
+    {
+      "timestamp": 1790942635503,
+      "sha256": "17f44414377251a20af94799aba2886d579f12a3d95a365708a1def0b53dff84",
+      "kind": "ownerReceipt"
+    },
+    {
+      "timestamp": 1790942635760,
+      "sha256": "9367a70c5164288648654374f51beea67351718d1373a0baddecb01ece6bffad",
+      "kind": "ownerReceipt"
+    },
+    {
+      "timestamp": 1790942635760,
+      "sha256": "3b4b4cfba4ce13ba26d8bd8586d1e4f985317eb5fab01ca5bb4a1d6759a10669",
+      "kind": "ownerReceipt"
+    },
+    {
+      "timestamp": 1790942637240,
+      "sha256": "65e7469a009311897d0d8177806c6232bc82cb70ed2f7e8ffca4fcddda705fab",
+      "kind": "ownerReceipt"
+    },
+    {
+      "timestamp": 1790942637240,
+      "sha256": "509c61e75ffbd6fd8bb3d6a88cb5c01effc2cc5cf07a4d189848d2e805a5d38b",
+      "code": "CASE01_SETUP_FAILED"
+    }
+  ],
+  "readOnly": true,
+  "rawMessageBodiesSaved": false
+}

@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "kind": "meri-case17-v6-release-pins",
+  "target": "https://os.capiro.ai",
+  "testedCodeSha": "823edc1110a02082a06a4ff90cbaaa71f83b4e15",
+  "sourceSha": "42780caa75fcabe4f83e619ad81c0f36fdda8fad",
+  "driverSourceSha": "b673848069d4d63da159177bee4cd436d2328878",
+  "webSourceSha": "78ad5805679a3045b1fc10fb19beafa7f76e4e64",
+  "gatesSha256": "1e6ecfeafe0aa60da9203cd302f4b99f56aa5eabfaa86b87c923bbcbb7ce81e1",
+  "driverSha256": "5678fef15c7d02cb57356d3e1f81be4d85cca0482c448eb4ed5f7c3e03b0ae10",
+  "reviewedBuildInputSha256": "0ee2ad2724911749b4f4d0a8591fcf639e226a932783afef1d55fbaa232a4f55",
+  "apiBuildReadbackSha256": "b40c2ebeac0af845434eae72d492cc89da4f7973cc8541ee5466f1cfa5666d35"
+}

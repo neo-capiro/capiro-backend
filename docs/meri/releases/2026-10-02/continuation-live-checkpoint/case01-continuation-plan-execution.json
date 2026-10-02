@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "status": "VERIFIED",
+  "planHash": "6405b527a930dbde8d3d700209f856a2f4dd303918b663139a7a22f0537d3a72",
+  "mode": "setup-continuation-plan",
+  "operationId": "aea59d6e-2afd-42b5-ac21-018db929749b",
+  "sourceSha": "42780caa75fcabe4f83e619ad81c0f36fdda8fad",
+  "operatorHead": "1fa2c034e4c26d6f777b1d37ffc6d0be36660c06",
+  "liveAcceptance": "NOT_RUN",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-case01-operator:5",
+  "startedBy": "meri-c01-aea59d6e-2afd-42b5-ac21-",
+  "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/b1eab63cad374f3b89ea4028ae00c6ac",
+  "containerExitCode": 0,
+  "logMessageCount": 2,
+  "ownerReceipts": [
+    {
+      "kind": "meri-case01-first-approval-continuation-plan",
+      "schemaVersion": 1,
+      "recoveryMode": "FIRST_APPROVAL_PENDING",
+      "recipeSha256": "29cc20de9afb70ec31e009afd0b7c3226482f1372b05d2ccec7e86a835ec0142",
+      "captureRunId": "c6ffa5ad-dd9f-4912-bc31-a03231a9b903",
+      "originalClaimSha256": "5fdd382ee4332c3723f801d060c1462b9f4082e5a86fd945c7900fbba25be588",
+      "candidateId": "557b5b98-f591-50ce-83ea-2ca44d44567a",
+      "candidateRowVersion": "113340385",
+      "candidatePayloadSha256": "2efc94e34cf48bc3854f4166a631329fdef1329ae7a376d4a1384a8c3ec4eec9",
+      "previousManifestSha256": "8fa4872e189cc9bc4aad967487ff7d3456e3bd3e49a174c63805fe44afcf7056",
+      "currentManifestSha256": "fa06fed8bb19d65a67adc3695e04e3f03ab1ec7e6d2fb3cdd9fc40b94264f260",
+      "tenantRowVersion": "113421039",
+      "priorSettingsSha256": "32e574ba131e5c5b627aa5e567bd24fc6d1c7abf67caf2e758f85322428463fa",
+      "liveAcceptance": "NOT_RUN",
+      "recoveryClaimSha256": "2d51c9ef4f90dbc9bd5e2a98c30c1e70dde09386fb5e6857b0ebb4f2c08d0bc9",
+      "planSha256": "6b6043972f631cb3ff0c1a7669768d6990b711d31a2e7b7f86df7f02240afcd1"
+    }
+  ]
+}

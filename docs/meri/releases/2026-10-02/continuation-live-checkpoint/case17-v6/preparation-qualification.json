@@ -1,0 +1,67 @@
+{
+  "status": "LOCAL_PREPARATION_PASS",
+  "sharedPolicySha": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "runtimeSourceSha": "42780caa75fcabe4f83e619ad81c0f36fdda8fad",
+  "testedRuntimeCodeSha": "823edc1110a02082a06a4ff90cbaaa71f83b4e15",
+  "driverSourceSha": "b673848069d4d63da159177bee4cd436d2328878",
+  "webSourceSha": "78ad5805679a3045b1fc10fb19beafa7f76e4e64",
+  "expectedApiBuild": "capiro-build-web-dev:5a08bc24-ebee-4088-bf5e-e6e16946924b",
+  "checks": [
+    {
+      "name": "syntax-gates",
+      "command": [
+        "node",
+        "--check",
+        "case17-v6-gates.mjs"
+      ],
+      "exitCode": 0,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "syntax-runner",
+      "command": [
+        "node",
+        "--check",
+        "run-case17-authenticated-v6.mjs"
+      ],
+      "exitCode": 0,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "tests",
+      "command": [
+        "node",
+        "--test",
+        "case17-v6-gates.test.mjs"
+      ],
+      "exitCode": 0,
+      "logSha256": "2931527fa7f67ddd264970697901625782f6844982a4fdbebe37b7e1f17bbe1e"
+    }
+  ],
+  "actualTests": 6,
+  "sourceHashes": {
+    "case17-v6-gates.mjs": "1e6ecfeafe0aa60da9203cd302f4b99f56aa5eabfaa86b87c923bbcbb7ce81e1",
+    "run-case17-authenticated-v6.mjs": "5678fef15c7d02cb57356d3e1f81be4d85cca0482c448eb4ed5f7c3e03b0ae10",
+    "case17-v6-gates.test.mjs": "3f4954cf876cf405a27836e555c347cd902e6e82e27338ad2019c5d74dc9c979"
+  },
+  "sourceReview": "root peer review pending; reused reviewed v5 auth/grading and Kimi-reviewed b673 collector",
+  "sourceCollectorEvidence": "../oct02-case17-query-wait/qualification.json",
+  "live": "NOT_RUN",
+  "fullOriginalRow17Acceptance": false,
+  "newProviderCalls": 0,
+  "authCalls": 0,
+  "cloudCalls": 0,
+  "applicationWrites": 0,
+  "sealed": false,
+  "remaining": [
+    "actual successful API build readback and reviewedbuild input",
+    "root seals exactpins after qualified rollout",
+    "root one-shot no-turn capture and saved visual review"
+  ],
+  "preserved": [
+    "failedv5",
+    "actual card diagnostic",
+    "all older attempts",
+    "clean c9 first01 driver"
+  ]
+}

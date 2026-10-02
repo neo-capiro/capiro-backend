@@ -1,0 +1,134 @@
+{
+  "entries": [
+    {
+      "file": "api-promotion-receipt.json",
+      "originalLocalSha256": "b5d344d4014ec2a0350846b8ea2a0e1263b2b36aff67d3a93e1d21b2bfe6d519",
+      "archivedSha256": "b5d344d4014ec2a0350846b8ea2a0e1263b2b36aff67d3a93e1d21b2bfe6d519"
+    },
+    {
+      "file": "api-promotion-manifest.json",
+      "originalLocalSha256": "4778946aa248b77b3e3297163f48fba33c118bad469ddcb7ec4d676f52beec94",
+      "archivedSha256": "4778946aa248b77b3e3297163f48fba33c118bad469ddcb7ec4d676f52beec94"
+    },
+    {
+      "file": "api-qualification.json",
+      "originalLocalSha256": "7c1efe3ba3bfafcdcf46783b48400f4dae53ba8c7c891f044028834932084fa9",
+      "archivedSha256": "7c1efe3ba3bfafcdcf46783b48400f4dae53ba8c7c891f044028834932084fa9"
+    },
+    {
+      "file": "api-oneoff-build-proof.json",
+      "originalLocalSha256": "a457292c76ebe525785698d5835468af4038cfaebbbae945cab4f917e7e970a7",
+      "archivedSha256": "a457292c76ebe525785698d5835468af4038cfaebbbae945cab4f917e7e970a7"
+    },
+    {
+      "file": "case01-continuation-plan-task-plan.json",
+      "originalLocalSha256": "dd7ae3a85ea1635c75c147f7761040d03ae365942ae85420cefaa24ab4837a77",
+      "archivedSha256": "e685a46f6c74ffea8f33d13fdd9ff654c0c4c8ec861be11db7bcf456905638e1"
+    },
+    {
+      "file": "case01-continuation-plan-execution.json",
+      "originalLocalSha256": "83f6861fe84e6f4812d3d81fe1e7129dc3a4a3152551790ac875753b02be658f",
+      "archivedSha256": "bb4e2b6ba00fc41b2e59606eee68a3d254e00f23884f56824af09cf487faf406"
+    },
+    {
+      "file": "case01-continuation-execute-task-plan.json",
+      "originalLocalSha256": "d14b390a0dc1adafce2ce8daf1f11a3c8ea55bba842067991feadd25b1c1c50f",
+      "archivedSha256": "6f8f4e7c61c52a37127436e05d3150526d276ac7c8ba82bb8c472648c7dc83d5"
+    },
+    {
+      "file": "case01-continuation-execute-execution.json",
+      "originalLocalSha256": "7684813edfc1448edaab208fd15caed578c001c01c45de1c8cf513844a4be733",
+      "archivedSha256": "4609c9fcba4c38ed31f1e80d824fae9f574d769698fddf8a864576722dfd9eea"
+    },
+    {
+      "file": "case01-continuation-failure-log-readback.json",
+      "originalLocalSha256": "11a7e30c97b44a1a0bcb99b702fdf98a4ed7017a1008bd36c277545339376586",
+      "archivedSha256": "cf69a0ccd358935597ce3282ef7b63d5ddca4e0ab9cd0247e1c94611c0aa23b1"
+    },
+    {
+      "file": "case17-v6/case17-v6-gates.mjs",
+      "originalLocalSha256": "1e6ecfeafe0aa60da9203cd302f4b99f56aa5eabfaa86b87c923bbcbb7ce81e1",
+      "archivedSha256": "1e6ecfeafe0aa60da9203cd302f4b99f56aa5eabfaa86b87c923bbcbb7ce81e1"
+    },
+    {
+      "file": "case17-v6/run-case17-authenticated-v6.mjs",
+      "originalLocalSha256": "5678fef15c7d02cb57356d3e1f81be4d85cca0482c448eb4ed5f7c3e03b0ae10",
+      "archivedSha256": "5678fef15c7d02cb57356d3e1f81be4d85cca0482c448eb4ed5f7c3e03b0ae10"
+    },
+    {
+      "file": "case17-v6/case17-v6-release-pins.json",
+      "originalLocalSha256": "afd545df669ec6e5643d7c5c4871b31186ad7db9a7fd7ad4a5934625f28e53ff",
+      "archivedSha256": "afd545df669ec6e5643d7c5c4871b31186ad7db9a7fd7ad4a5934625f28e53ff"
+    },
+    {
+      "file": "case17-v6/preparation-qualification.json",
+      "originalLocalSha256": "aa00bcdc11b00ad03b8ec7be7ab13306fde1edd9c5d55527e66e8b65cd34bf4e",
+      "archivedSha256": "c5941e50e4ab31ba44c1a65d9044f43ac341e93828702c48d48060675a034229"
+    },
+    {
+      "file": "case17-v6/case17-live-execution-v6.json",
+      "originalLocalSha256": "c9557d78401f173f746df7b579b5a45f36b8dae26cafe840ea9ffa4e321c4d44",
+      "archivedSha256": "c9557d78401f173f746df7b579b5a45f36b8dae26cafe840ea9ffa4e321c4d44"
+    },
+    {
+      "file": "case17-v6/case17/afterReload/MEM-PENDING-17-A.png",
+      "originalLocalSha256": "242c6fe4797ca4fa971d901592b0621fb358022aabed09a31aa8d1846152a61a",
+      "archivedSha256": "242c6fe4797ca4fa971d901592b0621fb358022aabed09a31aa8d1846152a61a"
+    },
+    {
+      "file": "case17-v6/case17/afterReload/MEM-PENDING-17-B.png",
+      "originalLocalSha256": "b485105ce2c9b55fd444ef36cf877e7b7a176b2065e7e1f198185690e1407a29",
+      "archivedSha256": "b485105ce2c9b55fd444ef36cf877e7b7a176b2065e7e1f198185690e1407a29"
+    },
+    {
+      "file": "case17-v6/case17/afterReload/MEM-PENDING-17-C.png",
+      "originalLocalSha256": "fec9fc36877ada42f81e3f205f5e156d6f4289af825f56dd7b0a1558a99cb1b9",
+      "archivedSha256": "fec9fc36877ada42f81e3f205f5e156d6f4289af825f56dd7b0a1558a99cb1b9"
+    },
+    {
+      "file": "case17-v6/case17/afterReload/MEM-PENDING-17-D.png",
+      "originalLocalSha256": "bfec9579ac2791ced5d0aa3de5d67408cbe78ce90d898e7e32961f455ce2f5af",
+      "archivedSha256": "bfec9579ac2791ced5d0aa3de5d67408cbe78ce90d898e7e32961f455ce2f5af"
+    },
+    {
+      "file": "case17-v6/case17/afterReload/MEM-PENDING-17-E.png",
+      "originalLocalSha256": "dfeccebc3e53df401fcb557032de995ac3322941710e8e974a24573c685e09c9",
+      "archivedSha256": "dfeccebc3e53df401fcb557032de995ac3322941710e8e974a24573c685e09c9"
+    },
+    {
+      "file": "case17-v6/case17/afterReload/MEM-PENDING-17-F.png",
+      "originalLocalSha256": "8eac776243d1a69ac79003442a8decaefbcd31129ef38fd5bc25a8e5dcff98fc",
+      "archivedSha256": "8eac776243d1a69ac79003442a8decaefbcd31129ef38fd5bc25a8e5dcff98fc"
+    },
+    {
+      "file": "case17-v6/case17/initial/MEM-PENDING-17-A.png",
+      "originalLocalSha256": "242c6fe4797ca4fa971d901592b0621fb358022aabed09a31aa8d1846152a61a",
+      "archivedSha256": "242c6fe4797ca4fa971d901592b0621fb358022aabed09a31aa8d1846152a61a"
+    },
+    {
+      "file": "case17-v6/case17/initial/MEM-PENDING-17-B.png",
+      "originalLocalSha256": "b485105ce2c9b55fd444ef36cf877e7b7a176b2065e7e1f198185690e1407a29",
+      "archivedSha256": "b485105ce2c9b55fd444ef36cf877e7b7a176b2065e7e1f198185690e1407a29"
+    },
+    {
+      "file": "case17-v6/case17/initial/MEM-PENDING-17-C.png",
+      "originalLocalSha256": "fec9fc36877ada42f81e3f205f5e156d6f4289af825f56dd7b0a1558a99cb1b9",
+      "archivedSha256": "fec9fc36877ada42f81e3f205f5e156d6f4289af825f56dd7b0a1558a99cb1b9"
+    },
+    {
+      "file": "case17-v6/case17/initial/MEM-PENDING-17-D.png",
+      "originalLocalSha256": "bfec9579ac2791ced5d0aa3de5d67408cbe78ce90d898e7e32961f455ce2f5af",
+      "archivedSha256": "bfec9579ac2791ced5d0aa3de5d67408cbe78ce90d898e7e32961f455ce2f5af"
+    },
+    {
+      "file": "case17-v6/case17/initial/MEM-PENDING-17-E.png",
+      "originalLocalSha256": "dfeccebc3e53df401fcb557032de995ac3322941710e8e974a24573c685e09c9",
+      "archivedSha256": "dfeccebc3e53df401fcb557032de995ac3322941710e8e974a24573c685e09c9"
+    },
+    {
+      "file": "case17-v6/case17/initial/MEM-PENDING-17-F.png",
+      "originalLocalSha256": "8eac776243d1a69ac79003442a8decaefbcd31129ef38fd5bc25a8e5dcff98fc",
+      "archivedSha256": "8eac776243d1a69ac79003442a8decaefbcd31129ef38fd5bc25a8e5dcff98fc"
+    }
+  ]
+}

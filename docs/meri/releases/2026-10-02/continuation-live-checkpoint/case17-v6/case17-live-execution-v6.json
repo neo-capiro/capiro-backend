@@ -1,0 +1,21 @@
+{
+  "caseId": "17",
+  "sourceSha": "42780caa75fcabe4f83e619ad81c0f36fdda8fad",
+  "webSourceSha": "78ad5805679a3045b1fc10fb19beafa7f76e4e64",
+  "driverSourceSha": "b673848069d4d63da159177bee4cd436d2328878",
+  "operatorHead": "1fa2c034e4c26d6f777b1d37ffc6d0be36660c06",
+  "pinsSha256": "afd545df669ec6e5643d7c5c4871b31186ad7db9a7fd7ad4a5934625f28e53ff",
+  "captureRunId": "b971d6a1-578c-47af-a457-a7a704f6dc28",
+  "status": "BLOCKED",
+  "sessionCreated": true,
+  "sessionRevoked": true,
+  "synthesisSubmissionCount": 0,
+  "applicationWrites": 0,
+  "originalPromptSubmission": "NOT_RUN",
+  "humanRubric": "NOT_RUN",
+  "acceptanceScope": "NO_TURN_PENDING_MEMORY_UI_SLICE",
+  "fullOriginalRow17Acceptance": false,
+  "fullFile01Acceptance": false,
+  "failureCode": "CASE17_UI_OWNER_OR_WRITE_CHANGED",
+  "completedAt": "2026-10-02T12:01:07.774Z"
+}

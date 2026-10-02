@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "service": "api",
+  "sourceSha": "42780caa75fcabe4f83e619ad81c0f36fdda8fad",
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:5d6bc10e3b1b86eab539bf8f97001a59c6c8bf7c016112bdc3fef75948ccba5b",
+  "status": "qualified",
+  "reviewer": "Codex integration owner; independent Hermes/Bedrock Kimi source reviews and actual local PostgreSQL/regression checks, followed by source-bound native ARM64 build verification. Image-only promotion preserves current service settings. Original full live acceptance remains NOT_RUN.",
+  "reviewedAt": "2026-10-02T11:53:48.080Z",
+  "expiresAt": "2026-10-02T15:53:48.081Z",
+  "schemaChange": false,
+  "evidence": [
+    "https://github.com/neo-capiro/capirov2/blob/1fa2c034e4c26d6f777b1d37ffc6d0be36660c06/docs/meri/releases/2026-10-02/first-approval-continuation/qualification.md",
+    "https://github.com/neo-capiro/capirov2/blob/1fa2c034e4c26d6f777b1d37ffc6d0be36660c06/docs/meri/releases/2026-10-02/first-approval-continuation/qualification.json",
+    "https://github.com/neo-capiro/capirov2/blob/1fa2c034e4c26d6f777b1d37ffc6d0be36660c06/docs/meri/releases/2026-10-02/first-approval-continuation/source-git-blob-hashes.json",
+    "https://github.com/neo-capiro/capirov2/blob/1fa2c034e4c26d6f777b1d37ffc6d0be36660c06/docs/meri/releases/2026-10-02/first-approval-continuation/api-build-readback.json"
+  ],
+  "checks": [
+    {
+      "name": "build",
+      "status": "passed",
+      "sourceSha": "42780caa75fcabe4f83e619ad81c0f36fdda8fad",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:5d6bc10e3b1b86eab539bf8f97001a59c6c8bf7c016112bdc3fef75948ccba5b",
+      "url": "https://github.com/neo-capiro/capirov2/blob/1fa2c034e4c26d6f777b1d37ffc6d0be36660c06/docs/meri/releases/2026-10-02/first-approval-continuation/api-build-readback.json"
+    },
+    {
+      "name": "automated-tests",
+      "status": "passed",
+      "sourceSha": "42780caa75fcabe4f83e619ad81c0f36fdda8fad",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:5d6bc10e3b1b86eab539bf8f97001a59c6c8bf7c016112bdc3fef75948ccba5b",
+      "url": "https://github.com/neo-capiro/capirov2/blob/1fa2c034e4c26d6f777b1d37ffc6d0be36660c06/docs/meri/releases/2026-10-02/first-approval-continuation/qualification.json"
+    },
+    {
+      "name": "retirement-compatibility",
+      "status": "passed",
+      "sourceSha": "42780caa75fcabe4f83e619ad81c0f36fdda8fad",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:5d6bc10e3b1b86eab539bf8f97001a59c6c8bf7c016112bdc3fef75948ccba5b",
+      "url": "https://github.com/neo-capiro/capirov2/blob/1fa2c034e4c26d6f777b1d37ffc6d0be36660c06/docs/meri/releases/2026-10-02/first-approval-continuation/qualification.md"
+    }
+  ]
+}
