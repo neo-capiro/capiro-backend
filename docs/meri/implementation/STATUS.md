@@ -1,4 +1,42 @@
-## Current checkpoint — 2026-10-02 12:47 UTC, UI slice verified
+## Current checkpoint — 2026-10-02 14:35 UTC, live responses restored
+
+**File01 remains incomplete; zero original live rows are complete.** API503,
+source991b5b15fa134d64579c96853dc92e9a00fa8520, is deployed and healthy at2/2.
+The owner's authenticated browser completed an exact nonsense mailbox search
+at14:10:55 with one successful search_emails call. The previous API501 check
+failed at its3.5s mail deadline; that failure is preserved. The deployed repair
+uses a shared10s SQL budget and bounded12s transaction. Legislative bill COUNT
+and row queries retain their shared5s SQL deadline. See the actual
+[release and browser receipts](../releases/2026-10-02/mail-budget-repair/browser-api503-observation.json).
+
+The temporary Aurora maximum remains16ACU (previous8); no capacity rollback
+has run. Latest14:27 read-back found healthy API tasks and low average database
+load after brief CPU peaks. Conservative rollback checks refused the reduction.
+Do not use the obsolete first capacity helper or describe this as a full
+stability or original-plan acceptance pass. An overbroad evidence-limitation
+notice remains an observed answer-quality defect.
+
+Combined original-plan source a472a7906561cf3192c99c7bc148ad29f00062a7 is
+integrated into the release checkout, with only documentation differences:
+333API tests,176orchestrator tests,22actual local-PostgreSQL tests,40native
+checks, both primary typechecks, and26offline eval cases passed. One unchanged
+Research Portfolio test needs its separate database and was skipped. The
+post-approval memory resume and governed case46 source still need their new
+qualified API/orchestrator images and actual live evidence. WebVNext388 and
+orchestrator95 remain the current baseline images. No migration changes.
+
+Case01's first approval is already committed. Preserve all three prior STARTED
+claims; use only a newly qualified same-image resume-plan/execute sequence.
+Provider-budget installation, original aggregate initialization, and original
+model submissions remain NOT_RUN. Full75/CD7/CW8, applicable memory/variants
+and human rubric remain open; the case17 UI slice alone is verified. Defense
+Chat and historical migration/PITR remain excluded.
+
+Shared-policy checkout743fd708c3484604e8a35ea1039adeca3b1e331f; required files
+match fetched origin39590a3bfc57ce03b0411ff7912a7c8d99deb70c. Machine-map
+revision2026-09-30. Historical checkpoints below retain their original state.
+
+## Prior checkpoint — 2026-10-02 12:47 UTC, UI slice verified
 
 **File01 remains incomplete; zero original live rows are complete.** The case17
 pending-memory UI slice passed deterministic checks and a Codex saved-image
