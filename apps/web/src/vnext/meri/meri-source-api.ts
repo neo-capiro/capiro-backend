@@ -6,10 +6,31 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export function normalizeMeriSourceLocator(value: unknown): MeriSourceLocator | undefined {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
   const row = value as Record<string, unknown>;
-  if (!['email', 'client', 'memory', 'document'].includes(String(row.kind)) || typeof row.recordId !== 'string' || !UUID.test(row.recordId)) return undefined;
-  const result: MeriSourceLocator = { kind: row.kind as MeriSourceLocator['kind'], recordId: row.recordId };
-  for (const field of ['threadId', 'clientId'] as const) if (typeof row[field] === 'string' && UUID.test(row[field])) result[field] = row[field];
-  for (const field of ['section', 'observedAt', 'version'] as const) if (typeof row[field] === 'string' && row[field].length <= 200) result[field] = row[field];
+  if (
+    !['email', 'client', 'memory', 'document', 'controlled_read'].includes(String(row.kind)) ||
+    typeof row.recordId !== 'string' ||
+    !UUID.test(row.recordId)
+  )
+    return undefined;
+  if (
+    row.kind === 'controlled_read' &&
+    (typeof row.clientId !== 'string' ||
+      !UUID.test(row.clientId) ||
+      typeof row.conversationId !== 'string' ||
+      !UUID.test(row.conversationId) ||
+      row.version !== 'v1' ||
+      row.section !== 'page 14')
+  )
+    return undefined;
+  const result: MeriSourceLocator = {
+    kind: row.kind as MeriSourceLocator['kind'],
+    recordId: row.recordId,
+  };
+  for (const field of ['threadId', 'clientId'] as const)
+    if (typeof row[field] === 'string' && UUID.test(row[field])) result[field] = row[field];
+  if (row.kind === 'controlled_read') result.conversationId = row.conversationId as string;
+  for (const field of ['section', 'observedAt', 'version'] as const)
+    if (typeof row[field] === 'string' && row[field].length <= 200) result[field] = row[field];
   return result;
 }
 
@@ -65,7 +86,8 @@ export async function readMeriSource(
   signal?: AbortSignal,
 ): Promise<MeriFullSource> {
   const params = new URLSearchParams({ kind: locator.kind, recordId: locator.recordId });
-  for (const field of ['threadId', 'clientId', 'section', 'version'] as const) if (locator[field]) params.set(field, locator[field]);
+  for (const field of ['threadId', 'clientId', 'section', 'version', 'conversationId'] as const)
+    if (locator[field]) params.set(field, locator[field]);
   if (cursor) params.set('cursor', cursor);
   const request = new AbortController();
   const abort = () => request.abort(signal?.reason ?? new Error('Source read cancelled.'));

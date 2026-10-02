@@ -6,6 +6,7 @@ import {
   withCaptureApiProviderScope,
 } from './meri-capture-api-provider-scope.js';
 import { MeriContextPlaneRuntimeService } from './meri-context-plane-runtime.js';
+import { planMeriTurn } from './meri-context-plane.service.js';
 import {
   captureBudgetTestContext as ctx,
   captureBudgetTestPolicy,
@@ -51,6 +52,55 @@ test('rejects non-memory or unscoped plans only inside armed capture', async () 
       assertCaptureApiRetrievalPlan({
         subjectScope: 'general',
         requestedDomains: ['institutional_knowledge'],
+      }),
+    ).toThrow('unqualified');
+  });
+});
+test.each(['20', '72'])(
+  'case %s admits only the existing selected-client analysis context plan',
+  async (caseId) => {
+    await withCaptureApiProviderScope({} as never, ctx, { ...policy, caseId }, async () => {
+      const task =
+        caseId === '20'
+          ? 'Find PE 0912345T and give me its FY27 request.'
+          : 'Read Aster’s latest memo.';
+      const nativePlan = planMeriTurn({
+        task,
+        uiClientId: '33333333-3333-4333-8333-333333333333',
+        uiClientName: 'Aster Defense',
+      });
+      expect(nativePlan.subjectScope).toBe('client');
+      expect(nativePlan.requestedDomains).toEqual([
+        'clients',
+        'contacts',
+        'strategies_work',
+        'institutional_knowledge',
+      ]);
+      expect(() => assertCaptureApiRetrievalPlan(nativePlan)).not.toThrow();
+      for (const requestedDomains of [
+        ['mail'],
+        ['institutional_knowledge'],
+        ['contacts', 'contacts', 'institutional_knowledge'],
+        ['contacts', 'strategies_work', 'mail'],
+      ])
+        expect(() =>
+          assertCaptureApiRetrievalPlan({ subjectScope: 'client', requestedDomains }),
+        ).toThrow('unqualified');
+      expect(() =>
+        assertCaptureApiRetrievalPlan({
+          subjectScope: 'general',
+          requestedDomains: ['contacts', 'strategies_work', 'institutional_knowledge'],
+        }),
+      ).toThrow('unqualified');
+    });
+  },
+);
+test('case74 cannot reuse controlled-read provider ingress', async () => {
+  await withCaptureApiProviderScope({} as never, ctx, { ...policy, caseId: '74' }, async () => {
+    expect(() =>
+      assertCaptureApiRetrievalPlan({
+        subjectScope: 'client',
+        requestedDomains: ['contacts', 'strategies_work', 'institutional_knowledge'],
       }),
     ).toThrow('unqualified');
   });

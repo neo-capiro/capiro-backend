@@ -8,6 +8,32 @@ beforeEach(() => { vi.stubGlobal('fetch', vi.fn()); });
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
 
 describe('full source transport and locator contract', () => {
+  it('preserves the controlled source owner conversation and full-passage locator on the existing authenticated route', async () => {
+    const controlled = {
+      kind: 'controlled_read' as const,
+      recordId: id,
+      clientId: '50000000-0000-4000-8000-000000000002',
+      conversationId: '50000000-0000-4000-8000-000000000003',
+      version: 'v1',
+      section: 'page 14',
+    };
+    expect(normalizeMeriSourceLocator(controlled)).toEqual(controlled);
+    for (const changed of [
+      { conversationId: undefined },
+      { clientId: 'bad' },
+      { version: 'v2' },
+      { section: 'page 1' },
+    ])
+      expect(normalizeMeriSourceLocator({ ...controlled, ...changed })).toBeUndefined();
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify({ kind: 'controlled_read', recordId: id, status: 'available' })),
+    );
+    await readMeriSource(controlled, auth);
+    const actualUrl = new URL(String(vi.mocked(fetch).mock.calls[0]?.[0]));
+    expect(actualUrl.pathname).toBe('/api/clio/sources');
+    expect(actualUrl.searchParams.get('conversationId')).toBe(controlled.conversationId);
+    expect(actualUrl.searchParams.get('section')).toBe('page 14');
+  });
   it('uses only configured API origin with bearer headers, no redirects/cache, and exact IDs', async () => {
     vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({ kind: 'email', recordId: id, status: 'available' })));
     await readMeriSource(locator, auth, 'source-cursor');

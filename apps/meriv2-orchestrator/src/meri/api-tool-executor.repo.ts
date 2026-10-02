@@ -1,3 +1,4 @@
+import { observeControlledReadHttpResponse } from './controlled-read-observations.js';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
@@ -229,6 +230,7 @@ export class ApiToolExecutorRepo implements ToolExecutor {
             }
             if (res.ok) {
               const payload = (await res.json()) as unknown;
+              observeControlledReadHttpResponse(toolName, res.status, payload);
               const outcome = classifyApiToolReadOutcome(toolName, payload);
               if (outcome?.kind === 'failed' || outcome?.kind === 'unavailable') {
                 emitMeriOrchestratorTelemetry({

@@ -1,3 +1,7 @@
+import {
+  readMeriControlledCaptureAdmission,
+  readMeriControlledCaptureReadback,
+} from './meri-controlled-read-capture-authority.js';
 import { bindResearchPortfolioToolConversation } from './meri-research-portfolio-tool-scope.js';
 import { isResearchPortfolioArtifact, authorizeResearchPortfolioArtifact, authorizeResearchPortfolioConversation } from '../research-portfolios/research-portfolio-artifact-authority.js';
 import { authorizeMeriCaptureMessageReadback } from './meri-capture-policy-readback.js';
@@ -558,7 +562,9 @@ export class MeriService implements MeriTurnMaintenance {
     // Exact links may discover an owned archived row so the user can explicitly
     // restore it. Transcript reads and new turns still require an active row.
     const conversation = await this.ensureConversationAnyStatus(ctx, conversationId);
-    const captureAdmission = await readMeriCase01CaptureAdmission({ prisma: this.prisma, ctx, conversationId });
+    const captureAdmission =
+      (await readMeriControlledCaptureAdmission({ prisma: this.prisma, ctx, conversationId })) ??
+      (await readMeriCase01CaptureAdmission({ prisma: this.prisma, ctx, conversationId }));
     return captureAdmission ? { ...conversation, captureAdmission } : conversation;
   }
 
@@ -694,8 +700,24 @@ export class MeriService implements MeriTurnMaintenance {
         conversationId,
         message,
       });
+      const controlledAuthority = await readMeriControlledCaptureReadback({
+        prisma: this.prisma,
+        ctx,
+        conversationId,
+        message,
+      });
+      if (controlledAuthority)
+        message.metadata = {
+          ...(message.metadata as Prisma.JsonObject),
+          controlledReadCaptureAuthority: JSON.parse(
+            JSON.stringify(controlledAuthority),
+          ) as Prisma.JsonValue,
+        };
       const captureAuthority = await readMeriCase01CaptureReadback({
-        prisma: this.prisma, ctx, conversationId, message,
+        prisma: this.prisma,
+        ctx,
+        conversationId,
+        message,
       });
       if (captureAuthority) {
         message.metadata = {
@@ -902,7 +924,7 @@ export class MeriService implements MeriTurnMaintenance {
 
   private async ensureConversation(ctx: TenantContext, conversationId: string) {
     const conversation = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      const row=await tx.clioConversation.findFirst({
+      const row = await tx.clioConversation.findFirst({
         where: {
           id: conversationId,
           tenantId: ctx.tenantId,
@@ -911,7 +933,7 @@ export class MeriService implements MeriTurnMaintenance {
         },
         include: { client: { select: { id: true, name: true } } },
       });
-      if(row)await authorizeResearchPortfolioConversation(tx,ctx,row);
+      if (row) await authorizeResearchPortfolioConversation(tx, ctx, row);
       return row;
     });
     if (!conversation) throw new NotFoundException('Meri conversation not found');
@@ -920,7 +942,7 @@ export class MeriService implements MeriTurnMaintenance {
 
   private async ensureConversationAnyStatus(ctx: TenantContext, conversationId: string) {
     const conversation = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      const row=await tx.clioConversation.findFirst({
+      const row = await tx.clioConversation.findFirst({
         where: {
           id: conversationId,
           tenantId: ctx.tenantId,
@@ -928,7 +950,7 @@ export class MeriService implements MeriTurnMaintenance {
         },
         include: { client: { select: { id: true, name: true } } },
       });
-      if(row)await authorizeResearchPortfolioConversation(tx,ctx,row);
+      if (row) await authorizeResearchPortfolioConversation(tx, ctx, row);
       return row;
     });
     if (!conversation) throw new NotFoundException('Meri conversation not found');
@@ -5615,8 +5637,6 @@ export class MeriService implements MeriTurnMaintenance {
         return tx.clioArtifact.create({data:{tenantId:ctx.tenantId,userId:ctx.userId,clientId:null,conversationId:current.conversationId,parentArtifactId:current.id,title:current.title,kind:current.kind,contentType:current.contentType,bodyText,metadata:{...metadata,versionOf:current.id,editedBy:ctx.userId,reviewStatus:'unreviewed_edit',editedAt:new Date().toISOString()}}});
       });
     }
-
-
 
     return this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.clioArtifact.create({

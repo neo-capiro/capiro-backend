@@ -1,5 +1,9 @@
 import { researchPortfolioManagementSchema, parseResearchPortfolioManagementInput } from '../research-portfolios/research-portfolio-management.js';
 import { federalHearingWhere } from '../hearing-discovery/hearing-geography.js';
+import {
+  controlledReadToolAllowed,
+  tryExecuteMeriControlledRead,
+} from './meri-controlled-read-fixture.js';
 import { captureBudgetRequired } from './meri-capture-provider-budget.js';
 import { withCaptureApiProviderScope } from './meri-capture-api-provider-scope.js';
 import {
@@ -2518,7 +2522,11 @@ export class MeriToolsService {
     execution?: { actionProposalId?: string },
   ) {
     const policy = currentMeriToolCapturePolicy() ?? currentMeriServerReadonlyCapturePolicy();
-    if (captureBudgetRequired(policy) && (policy?.caseId !== '01' || name !== 'search_memory')) {
+    if (
+      captureBudgetRequired(policy) &&
+      !(policy?.caseId === '01' && name === 'search_memory') &&
+      !controlledReadToolAllowed(policy?.caseId ?? null, name)
+    ) {
       throw new Error('meri_capture_provider_budget_unqualified_tool');
     }
     return withCaptureApiProviderScope(this.prisma, ctx, policy, () => this.executeScoped(ctx, name, input, execution));
@@ -2540,6 +2548,8 @@ export class MeriToolsService {
       policy: capturePolicy,
     });
     assertMeriToolRequestActive();
+    const controlled = await tryExecuteMeriControlledRead(this.prisma, ctx, name, input);
+    if (controlled !== undefined) return controlled;
     switch (name) {
       case 'manage_research_portfolio':
       case 'get_research_portfolio':

@@ -1,3 +1,7 @@
+import {
+  isMeriControlledReadCase,
+  qualifyMeriControlledReadInTx,
+} from './meri-controlled-read-fixture.js';
 import type { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import {
@@ -94,10 +98,23 @@ async function currentState(
   ctx: TenantContext,
   clientId: string,
 ) {
-  // The fixed loader reconstructs canonical seed/reset/source owners from the
-  // stored locator. No caller-supplied readiness callback or ready bit exists.
-  const owner = await loadHydratedCase01FixtureOwner(dependencies);
-  const qualified = record(await owner.qualifyInTx(tx, ctx, { caseId: '01', clientId }));
+  const rows = await tx.$queryRaw<Array<{ settings: unknown; version: string }>>`
+    SELECT settings_jsonb AS settings, xmin::text AS version FROM tenants
+    WHERE id = ${ctx.tenantId}::uuid FOR UPDATE`;
+  if (rows.length !== 1) fail('tenant_missing');
+  const fixture = record(record(rows[0]!.settings).meriFoundationFixture);
+  const binding = record(fixture.captureEvidence);
+  const qualified = record(
+    isMeriControlledReadCase(binding.caseId)
+      ? await qualifyMeriControlledReadInTx(tx, ctx, {
+          caseId: binding.caseId,
+          clientId,
+          captureRunId: String(binding.captureRunId ?? ''),
+        })
+      : await (
+          await loadHydratedCase01FixtureOwner(dependencies)
+        ).qualifyInTx(tx, ctx, { caseId: '01', clientId }),
+  );
   if (
     qualified.fixtureReady !== true ||
     !Array.isArray(qualified.missing) ||
@@ -105,14 +122,8 @@ async function currentState(
     typeof qualified.currentVerifySha256 !== 'string'
   )
     fail('current_fixture_not_ready');
-  const rows = await tx.$queryRaw<Array<{ settings: unknown; version: string }>>`
-    SELECT settings_jsonb AS settings, xmin::text AS version FROM tenants
-    WHERE id = ${ctx.tenantId}::uuid FOR UPDATE`;
-  if (rows.length !== 1) fail('tenant_missing');
-  const fixture = record(record(rows[0]!.settings).meriFoundationFixture);
-  const binding = record(fixture.captureEvidence);
   if (
-    binding.caseId !== '01' ||
+    !['01', '20', '72'].includes(String(binding.caseId)) ||
     binding.actorUserId !== ctx.userId ||
     binding.clientId !== clientId ||
     typeof binding.captureRunId !== 'string' ||
@@ -121,6 +132,7 @@ async function currentState(
   )
     fail('current_binding_missing');
   return {
+    caseId: binding.caseId as string,
     captureRunId: binding.captureRunId,
     currentVerifySha256: qualified.currentVerifySha256,
     captureBindingSha256: captureBudgetHash(binding),
@@ -165,7 +177,7 @@ export async function installCaptureProviderBudgetQualification(
     )
       fail('compare_and_swap_conflict');
     const q = validateCaptureBudgetQualification(args.qualification, {
-      caseId: '01',
+      caseId: current.caseId,
       captureRunId: current.captureRunId,
       expiresAt: Date.now(),
     });

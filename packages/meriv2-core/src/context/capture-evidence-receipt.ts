@@ -1,3 +1,24 @@
+export interface MeriControlledReadAttempt {
+  callId: string;
+  tool: string;
+  httpStatus: number;
+  logicalError: string | null;
+  caseId: string;
+  captureRunId: string;
+  requestId: string;
+  traceId: string;
+  turnId: string;
+  sourceId: string;
+  logicalSourceId: string;
+  sourceVersion: string;
+  currentVerifySha256: string;
+  contentSha256: string;
+  responseSha256: string;
+  sourceTenantId: string;
+  sourceClientId: string | null;
+  fullRead: boolean;
+  passageSha256: string | null;
+}
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import { canonicalJson } from '../repair/plan-remedy';
 import type { MeriServerReadonlyCapturePolicy } from './server-readonly-capture';
@@ -113,11 +134,19 @@ export interface MeriCaptureEvidenceReceipt {
       status: 'observed' | 'unknown_outcome' | 'unexpected';
     }>;
   };
+  controlledReadAttempts?: MeriControlledReadAttempt[];
+  boundedRuntime?: {
+    acquisitionStopped: boolean;
+    stopReason: string | null;
+    toolCalls: number;
+    modelCalls: number;
+    retryCalls: number;
+  };
   predecessorAttestationSha256: string | null;
   /** API-owned durable ledger; a primary-model usage estimate is not this proof. */
   providerBudget?: {
     version: 1;
-    boundary: 'case01_memory_turn';
+    boundary: 'case01_memory_turn' | 'case20_controlled_read_turn' | 'case72_controlled_read_turn';
     status: 'SETTLED' | 'UNSETTLED';
     admissionId: string;
     turnId: string;
@@ -178,8 +207,11 @@ export function meriCaptureReceiptBlockers(
     const budget = receipt.providerBudget;
     if (
       budget.version !== 1 ||
-      budget.boundary !== 'case01_memory_turn' ||
-      receipt.caseId !== '01' ||
+      !(
+        (receipt.caseId === '01' && budget.boundary === 'case01_memory_turn') ||
+        (receipt.caseId === '20' && budget.boundary === 'case20_controlled_read_turn') ||
+        (receipt.caseId === '72' && budget.boundary === 'case72_controlled_read_turn')
+      ) ||
       !budget.admissionId ||
       !/^[a-f0-9]{64}$/.test(budget.ledgerSha256) ||
       !/^[a-f0-9]{64}$/.test(budget.qualificationSha256) ||

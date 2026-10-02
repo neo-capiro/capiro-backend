@@ -7,8 +7,9 @@ import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
 import { MeriSourceService, type MeriSourceKind } from './meri-source.service.js';
 
 class SourceQuery {
-  @IsIn(['email', 'client', 'memory', 'document']) kind!: MeriSourceKind;
+  @IsIn(['email', 'client', 'memory', 'document', 'controlled_read']) kind!: MeriSourceKind;
   @IsUUID() recordId!: string;
+  @IsOptional() @IsUUID() conversationId?: string;
   @IsOptional() @IsUUID() threadId?: string;
   @IsOptional() @IsUUID() clientId?: string;
   @IsOptional() @IsString() @MaxLength(100) section?: string;

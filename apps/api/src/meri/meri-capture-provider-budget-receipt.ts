@@ -7,7 +7,11 @@ import {
 import type { TenantContext } from '@capiro/shared';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import { captureProviderBudgetOwner } from './meri-capture-provider-budget-owner.js';
-import { captureBudgetHash, captureBudgetRequired } from './meri-capture-provider-budget.js';
+import {
+  captureBudgetHash,
+  captureBudgetRequired,
+  captureProviderBudgetCoverage,
+} from './meri-capture-provider-budget.js';
 
 /** Compose only an actual current owner readback, never an orchestrator claim. */
 export async function bindCaptureProviderBudgetReceipt(args: {
@@ -21,7 +25,7 @@ export async function bindCaptureProviderBudgetReceipt(args: {
   const budget = state.ledger;
   const providerBudget = {
     version: 1 as const,
-    boundary: 'case01_memory_turn' as const,
+    boundary: captureProviderBudgetCoverage(args.policy.caseId),
     status:
       budget.attempts.length &&
       budget.attempts.every((attempt) => ['settled', 'rejected'].includes(attempt.status))
@@ -35,8 +39,8 @@ export async function bindCaptureProviderBudgetReceipt(args: {
     chargedTokens: budget.chargedTokens,
     chargedCostMicros: budget.chargedCostMicros,
     maxCostMicros: budget.limits.maxCostMicros,
-    // Admission and API plan/tool guards restrict this version to memory-only
-    // case01. Native Titan/NVIDIA ingress shares the pre-context ledger.
+    // Exact case-specific API plan/tool guards prevent unaccounted native
+    // dispatch. Titan/NVIDIA ingress shares the pre-context ledger.
     unaccountedBoundaries: [] as const,
   };
   const receipt = completeMeriCaptureEvidenceReceipt({

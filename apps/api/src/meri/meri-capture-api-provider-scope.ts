@@ -31,9 +31,18 @@ export function assertCaptureApiRetrievalPlan(plan: {
 }): void {
   if (
     scope.getStore() &&
-    (plan.subjectScope !== 'client' ||
-      plan.requestedDomains.length !== 1 ||
-      plan.requestedDomains[0] !== 'institutional_knowledge')
+    !(
+      plan.subjectScope === 'client' &&
+      (scope.getStore()!.policy.caseId === '01'
+        ? plan.requestedDomains.length === 1 &&
+          plan.requestedDomains[0] === 'institutional_knowledge'
+        : ['20', '72'].includes(scope.getStore()!.policy.caseId ?? '') &&
+          plan.requestedDomains.length === 4 &&
+          new Set(plan.requestedDomains).size === 4 &&
+          plan.requestedDomains.every((domain) =>
+            ['clients', 'contacts', 'strategies_work', 'institutional_knowledge'].includes(domain),
+          ))
+    )
   )
     throw new Error('meri_capture_provider_budget_unqualified_retrieval_plan');
 }

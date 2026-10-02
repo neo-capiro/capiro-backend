@@ -1,6 +1,10 @@
 import { readFile } from 'node:fs/promises';
 import { isAbsolute } from 'node:path';
-const allowed = new Set(['MERI_CASE01_SETUP_INPUT', 'MERI_CAPTURE_PROVIDER_BUDGET_INPUT']);
+const allowed = new Set([
+  'MERI_CASE01_SETUP_INPUT',
+  'MERI_CAPTURE_PROVIDER_BUDGET_INPUT',
+  'MERI_CONTROLLED_READ_SETUP_INPUT',
+]);
 const fail = () => {
   throw new Error('CASE01_OPERATOR_INPUT_INVALID');
 };

@@ -35,6 +35,7 @@ import {
 } from 'class-validator';
 import type { Request, Response } from 'express';
 import type { TenantContext } from '@capiro/shared';
+import { meriControlledReadHttpStatus } from './meri-controlled-read-fixture.js';
 import { classifyApiToolReadOutcome } from '@capiro/shared/meri-read-outcome';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
@@ -553,6 +554,8 @@ export class MeriController {
             outcome: classifyApiToolReadOutcome(name, result)?.kind ?? 'returned',
             durationMs: Date.now() - startedAt,
           });
+          const controlledStatus = meriControlledReadHttpStatus(result);
+          if (controlledStatus !== undefined) req.res?.status(controlledStatus);
           return result;
         } catch (error) {
           emitMeriApiTelemetry({

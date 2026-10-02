@@ -2870,7 +2870,8 @@ export const MERI_COMPLIANCE_GUARDRAILS = [
 // ─────────────────────────────────────────────────────────────────────────
 
 export interface MeriSourceLocator {
-  kind: 'email' | 'client' | 'memory' | 'document';
+  kind: 'email' | 'client' | 'memory' | 'document' | 'controlled_read';
+  conversationId?: string;
   recordId: string;
   threadId?: string;
   clientId?: string;
@@ -3094,6 +3095,13 @@ function federalMarketCitationRows(
 }
 
 function citationRowsOf(tool: string, payload: Record<string, unknown>): unknown[] | null {
+  if (
+    citationObject(payload.controlledRead) &&
+    payload.controlledRead.owner === 'meri_controlled_read_v1' &&
+    payload.controlledRead.caseId === '20' &&
+    Array.isArray(payload.records)
+  )
+    return payload.records;
   if (isMeriMailReadTool(tool) && Array.isArray(payload.messages)) {
     return payload.messages.filter(citationObject).flatMap((message) => {
       const id = firstCitationString(message, ['id']);
@@ -3174,6 +3182,25 @@ function sourceLocatorForCitation(
   const exact = (value: unknown) =>
     typeof value === 'string' && uuid.test(value) ? value : undefined;
   const observedAt = typeof result.generatedAt === 'string' ? result.generatedAt : undefined;
+  const controlled = citationObject(result.controlledRead) ? result.controlledRead : null;
+  if (
+    controlled?.owner === 'meri_controlled_read_v1' &&
+    controlled.caseId === '20' &&
+    controlled.sourceId === id &&
+    exact(id) &&
+    exact(controlled.clientId) &&
+    exact(controlled.conversationId) &&
+    controlled.sourceVersion === 'v1'
+  ) {
+    return {
+      kind: 'controlled_read',
+      recordId: id,
+      clientId: String(controlled.clientId),
+      conversationId: String(controlled.conversationId),
+      version: 'v1',
+      section: 'page 14',
+    };
+  }
   if (tool === 'read_client_documents' && citationObject(result.document)) {
     const recordId = exact(result.document.id),
       clientId = exact(result.clientId);

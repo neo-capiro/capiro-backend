@@ -1,4 +1,8 @@
 import {
+  withControlledReadInvocation,
+  readControlledReadHttpObservations,
+} from '../controlled-read-observations.js';
+import {
   MERI_CAPABILITY_REGISTRY,
   selectMeriCapabilitySchemas,
   isMeriMailReadTool,
@@ -2648,6 +2652,10 @@ export class MeriV3AssistantService {
       ...(currentServerReadonlyCapturePolicy()
         ? {
             captureEvidence: {
+              controlledReadAttempts: readControlledReadHttpObservations(),
+              ...(readControlledReadHttpObservations()
+                ? { boundedRuntime: runtimeBudget.snapshot() }
+                : {}),
               toolCalls: captureToolCalls,
               sources: captureSources,
               usage: currentMeriTaskUsage(),
@@ -3714,7 +3722,9 @@ export class MeriV3AssistantService {
           )
             throw new Error('Research tool attempt was not admitted for dispatch.');
           dispatchedReservationId = reservation.reservationId;
-          result = await this.registry.invoke(args.name, args.input, args.ctx, args.control);
+          result = await withControlledReadInvocation(args.providerCallId, () =>
+            this.registry.invoke(args.name, args.input, args.ctx, args.control),
+          );
           const classification = classifyApiToolReadOutcome(args.name, result);
           if (
             !classification ||
@@ -3754,7 +3764,9 @@ export class MeriV3AssistantService {
         }
       } else {
         await this.assertCurrentProcedureAuthority(args.conversationId, args.name, args.control);
-        result = await this.registry.invoke(args.name, args.input, args.ctx, args.control);
+        result = await withControlledReadInvocation(args.providerCallId, () =>
+          this.registry.invoke(args.name, args.input, args.ctx, args.control),
+        );
       }
       if (durableSafeRead) args.captureDurableSafeRead(durableSafeRead);
       args.steps.push({ tool: args.name, label, status: 'done', durableSafeRead });

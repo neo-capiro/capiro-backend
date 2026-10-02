@@ -115,6 +115,11 @@ export async function issueMeriServerReadonlyCapturePolicy(args: {
     args.ctx,
     args.conversationId,
   );
+  if (
+    ['20', '72'].includes(conversation?.captureBinding.caseId ?? '') &&
+    !conversation?.captureBudgetQualified
+  )
+    throw captureDenied('controlled_provider_qualification_required');
   const policy: MeriServerReadonlyCapturePolicy = {
     version: 1,
     kind: 'server_readonly_acceptance_capture',

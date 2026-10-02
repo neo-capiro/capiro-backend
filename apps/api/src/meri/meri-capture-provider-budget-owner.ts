@@ -1,3 +1,7 @@
+import {
+  isMeriControlledReadCase,
+  assertMeriControlledReadBindingInTx,
+} from './meri-controlled-read-fixture.js';
 import type { TenantContext } from '@capiro/shared';
 import type { MeriServerReadonlyCapturePolicy } from '@capiro/meriv2-core';
 import type { PrismaService } from '../prisma/prisma.service.js';
@@ -5,6 +9,7 @@ import { assertMeriServerReadonlyCaptureCurrentAuthority } from './meri-server-r
 import {
   admitCaptureProviderBudget,
   captureBudgetHash,
+  captureProviderBudgetCoverage,
   readCaptureProviderBudget,
   reserveCaptureProviderAttempt,
   settleCaptureProviderAttempt,
@@ -31,6 +36,8 @@ export async function inspectCaptureProviderBudgetReadiness(args: {
   if (args.policy.expectedCaptureWrites[3] !== 'provider_budget_ledger')
     throw new Error('meri_capture_provider_budget_not_qualified');
   return args.prisma.withTenantUser(args.ctx.tenantId, args.ctx.userId, async (tx) => {
+    if (isMeriControlledReadCase(args.policy.caseId))
+      await assertMeriControlledReadBindingInTx(tx, args.ctx, args.policy);
     const tenant = await tx.tenant.findUnique({
       where: { id: args.ctx.tenantId },
       select: { settings: true },
@@ -50,7 +57,7 @@ export async function inspectCaptureProviderBudgetReadiness(args: {
       qualificationSha256: captureBudgetHash(q),
       currentVerifySha256: q.currentVerifySha256,
       maxCostMicros: q.maxCostMicros,
-      coverage: 'case01_memory_turn' as const,
+      coverage: captureProviderBudgetCoverage(args.policy.caseId),
     };
   });
 }
@@ -87,6 +94,8 @@ export async function captureProviderBudgetOwner(args: {
       withTenant: async (_tenant: string, fn: (inner: typeof tx) => unknown) => fn(tx),
     } as unknown as PrismaService;
     await assertMeriServerReadonlyCaptureCurrentAuthority({ prisma: scoped, ctx, policy });
+    if (isMeriControlledReadCase(args.policy.caseId))
+      await assertMeriControlledReadBindingInTx(tx, args.ctx, args.policy);
     const tenant = await tx.tenant.findUnique({
       where: { id: ctx.tenantId },
       select: { settings: true },

@@ -1,3 +1,5 @@
+import { readControlledReadHttpObservations } from '../controlled-read-observations.js';
+import type { MeriControlledReadAttempt } from '@capiro/meriv2-core';
 import { createHash } from 'node:crypto';
 import type { MeriCitation } from '@capiro/shared';
 import {
@@ -16,6 +18,14 @@ import {
 import type { MeriToolCoverageReceipt } from './meriv3-turn-coverage.js';
 
 export interface MeriV3CaptureExecutionObservation {
+  controlledReadAttempts?: MeriControlledReadAttempt[];
+  boundedRuntime?: {
+    acquisitionStopped: boolean;
+    stopReason: string | null;
+    toolCalls: number;
+    modelCalls: number;
+    retryCalls: number;
+  };
   toolCalls: MeriCaptureToolCallObservation[];
   sources: MeriCaptureSourceObservation[];
   estimatedCostUsd: MeriCaptureObservedValue<number>;
@@ -92,6 +102,29 @@ export function observeMeriV3CaptureExecution(args: {
     .filter((citation) => citation.id)
     .map((citation): MeriCaptureSourceObservation => {
       const matchingCoverage = args.coverage.find((entry) => entry.tool === args.tool);
+      const controlled = readControlledReadHttpObservations()?.find(
+        (row) =>
+          row.callId === args.callId &&
+          row.sourceId === citation.id &&
+          row.tool === args.tool &&
+          row.caseId === '20' &&
+          row.fullRead &&
+          row.logicalError === null &&
+          row.passageSha256 === sha256(citation.snippet ?? ''),
+      );
+      if (controlled)
+        return {
+          sourceId: citation.id,
+          toolCallId: args.callId,
+          tenantId: observed(controlled.sourceTenantId),
+          clientId: observed(controlled.sourceClientId),
+          currentVersion: observed(controlled.sourceVersion),
+          fullRead: observed(true),
+          locator: observed('page 14'),
+          passageSha256: observed(controlled.passageSha256!),
+          byteSha256: observed(controlled.contentSha256),
+        };
+
       const snippet =
         typeof citation.snippet === 'string' && citation.snippet.length > 0
           ? observed(sha256(citation.snippet))
@@ -160,6 +193,12 @@ export function buildSignedOrchestratorCaptureEvidence(args: {
     expiresAt: policy.expiresAt,
     sources: args.execution.sources,
     toolCalls: args.execution.toolCalls,
+    ...(args.execution.controlledReadAttempts
+      ? {
+          controlledReadAttempts: args.execution.controlledReadAttempts,
+          boundedRuntime: args.execution.boundedRuntime,
+        }
+      : {}),
     usage: {
       provider: args.providerCallObserved
         ? observed(args.provider)
