@@ -1,0 +1,32 @@
+{
+  "kind": "actual-orchestrator-image-test-summary",
+  "status": "PASS",
+  "sourceSha": "fecce92b0f9880fea720c755e7c5defde1af69a9",
+  "buildId": "capiro-build-web-dev:11196d6b-6cba-4444-8669-33e96f0b9546",
+  "buildStatus": "SUCCEEDED",
+  "observedAt": "2026-10-02T19:56:08.281269+00:00",
+  "summaries": [
+    {
+      "timestamp": 1790970533679,
+      "line": "Test Suites: 129 passed, 129 total"
+    },
+    {
+      "timestamp": 1790970533679,
+      "line": "Tests:       2 skipped, 1456 passed, 1458 total"
+    },
+    {
+      "timestamp": 1790970533679,
+      "line": "Snapshots:   0 total"
+    },
+    {
+      "timestamp": 1790970533679,
+      "line": "Time:        76.804 s"
+    },
+    {
+      "timestamp": 1790970684558,
+      "line": "OFFLINE_PACKAGED_ENTRYPOINT_HEALTH_AUTH_PASS"
+    }
+  ],
+  "externalWrites": 0,
+  "liveAcceptance": "NOT_RUN"
+}

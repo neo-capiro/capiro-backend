@@ -1,0 +1,160 @@
+{
+  "kind": "meri-shared-read-cap-local-qualification",
+  "sourceSha": "8a1b3075e5c02480c6c993a6232a4568ceb1e0e3",
+  "parentSha": "35642b8cb7ea82ff594a78a5e96690cfe90ff95c",
+  "scope": "Accounting limits only; unchanged model/provider/output/tool/routing/permissions. Adds original01 to existing shared01-05 collector. Governed46 retains3m.",
+  "sourceHashes": {
+    "apps/api/src/meri/meri-capture-provider-budget.spec.ts": "93d145c2d58637a91140484b6065d5013447e9dc9a97f6ddd4b8d07edcaeb511",
+    "apps/api/src/meri/meri-capture-provider-budget.ts": "29e6ab4ed50291a2626c132c8298ae0fb93eeac3d6a9f9f3d8c4953a56df614e",
+    "apps/api/src/meri/meri-synthetic-read-budget.ts": "291da53a8457975a830975b68fe9cf1d15d1c5db56d1d246bf50730015f0e6ca",
+    "evals/meri/live-v1/SHARED-READ-BUDGET.md": "5cf856844baf134450dfb9f30777e839560c38424d8fb4db3160adf3cc37dccc",
+    "evals/meri/live-v1/capture-spend-aggregate.mjs": "34ef5770cd123f4249944a73a56dd2dbedcc235a92359c92d26625ccb271b73b",
+    "evals/meri/live-v1/capture-spend-reconciliation.mjs": "89367647c3e218e642d5456f5ec714ba9fe87d74493b7974e8b45b2ac9866626",
+    "evals/meri/live-v1/case01-live-capture.mjs": "4136d20e10ec9e0e635fefc0ccf8a4609f12a36a410dba3f3eb4f828469ea029",
+    "evals/meri/live-v1/case01-receipt-joins.mjs": "c4556ba2da76c5c83de511c852f1f403f81dd4bf44160cbf8e6e14115e448aa9",
+    "evals/meri/live-v1/controlled-read-live-capture.mjs": "0f387af194d48a8b8d50ab058254b104cae6dfa58ae90ddc5ee0e2d743f8a770",
+    "evals/meri/live-v1/controlled-read-operator-input.mjs": "ce6244bb6ffc52e0c1661779290995aad53ab287023f0706480509414ee5ef2a",
+    "evals/meri/live-v1/controlled-read-receipt-joins.mjs": "d09ecb5f4fd4dee86bab14f1b2e257dd9d66c83f21405c3bad1989657686a273",
+    "evals/meri/live-v1/lib/windows-capture-spend.py": "1347fb536fe697877ae336f35042b6a500de6a38ddbb99cd9f3aedf8ae2d39a7",
+    "evals/meri/live-v1/memory-read-protocol.mjs": "aaa9e781af07d72aa90bb16601b9bb1058ca7c087cc9d17f3911d69e1e46491f",
+    "evals/meri/live-v1/tests/capture-spend-v2.test.mjs": "890a6fa44d588fcb8c1f1844744560b617f3221b4bb993a03c65db996cb2ccf2",
+    "evals/meri/live-v1/tests/case01-authority.test.mjs": "4deaf24f46934de83277cc5fa5cf311407e192d91d950141f9f63bc21c9f5c5e",
+    "evals/meri/live-v1/tests/controlled-read-authority.test.mjs": "54e0e87d81b70ead3b4a131dea9950caef8e014c598e9647d7f3f78379692b99",
+    "evals/meri/live-v1/tests/controlled-read-operator.test.mjs": "a63fd62f8c4ab42c367d3b9258f4c903f3441b42396eae914533fedb53c59fc1",
+    "evals/meri/live-v1/tests/memory-read-protocol.test.mjs": "26247d894471a678409e65b0d09de8f32e6d8cb9a7b32407f39f2751ae0ec396",
+    "evals/meri/live-v1/tests/synthetic-read-budget.postgres.test.mjs": "7beb9b6f80043ffc429a971320e5cd585136116ee06f534d25fc961fab0e6569"
+  },
+  "sourceHashManifest": {
+    "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-shared-read-budget\\cap-frozen-hashes.json",
+    "sha256": "571013cefe36d4974056d4d64634db3eb71572b5b43a75f97f3b5f2c45cd9c98"
+  },
+  "checks": [
+    {
+      "name": "combinedNode",
+      "passed": 279,
+      "exitCode": 0,
+      "log": {
+        "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-shared-read-budget\\cap-node-tests-v2.log",
+        "sha256": "11e3a92d0fa4d14b7dc8be2b14652aa2913d8400e73821b74d6d3fcebc6595fe"
+      },
+      "exit": {
+        "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-shared-read-budget\\cap-node-tests-v2.exit.json",
+        "sha256": "ea61d7736f0b7ecb9b35158f03de77013db6b100cf1d36c957e78e6c8817c5b6"
+      }
+    },
+    {
+      "name": "fiveOriginalPromptCollector",
+      "passed": 15,
+      "exitCode": 0,
+      "log": {
+        "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-shared-read-budget\\cap-five-read-tests.log",
+        "sha256": "f0c12f1773382239e5fe4f8ec6b66dc57a736cfb5d547e11d5a01079ce7c5782"
+      },
+      "exit": {
+        "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-shared-read-budget\\cap-five-read-tests.exit.json",
+        "sha256": "ea61d7736f0b7ecb9b35158f03de77013db6b100cf1d36c957e78e6c8817c5b6"
+      }
+    },
+    {
+      "name": "apiJest",
+      "passed": 111,
+      "exitCode": 0,
+      "log": {
+        "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-shared-read-budget\\cap-api-tests-v2.log",
+        "sha256": "26384d86bbbbf5b2f56ce442b95a78753b4c96df9cbd015a58bcde57d54d92be"
+      },
+      "exit": {
+        "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-shared-read-budget\\cap-api-tests-v2.exit.json",
+        "sha256": "ea61d7736f0b7ecb9b35158f03de77013db6b100cf1d36c957e78e6c8817c5b6"
+      }
+    },
+    {
+      "name": "apiPrimaryTypecheck",
+      "passed": null,
+      "exitCode": 0,
+      "log": {
+        "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-shared-read-budget\\cap-api-types.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "exit": {
+        "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-shared-read-budget\\cap-api-types.exit.json",
+        "sha256": "ea61d7736f0b7ecb9b35158f03de77013db6b100cf1d36c957e78e6c8817c5b6"
+      }
+    }
+  ],
+  "rates": [
+    {
+      "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-case01-planner-retest\\reviewed-rate-evidence-long-context-20261002.json",
+      "sha256": "faa547bda9a29c7d41378ea5498b3a677498c255264a0f4756f493bdbcb4b32d"
+    },
+    {
+      "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-case01-planner-retest\\provider-rate-primary-source-review.json",
+      "sha256": "fb697e089f5ca14191a92a3ece4a3216d78e13f47c982c472c3639a5b975bfa5"
+    },
+    {
+      "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-case01-planner-retest\\provider-two-round-bound-repro.json",
+      "sha256": "3fc09a4854ce07fffab5f9d90e6973a257996ac5b9ba93c06f0eca710cc0a152"
+    }
+  ],
+  "policy": {
+    "aggregateMaxMicros": 30000000,
+    "newReadPerCaseMaxMicros": 15000000,
+    "newCumulativeTokens": 500000,
+    "concurrency": 1,
+    "oldV1PerCaseMaxMicros": 3000000,
+    "governed46PerCaseMaxMicros": 3000000,
+    "v2Activation": "NOT_RUN",
+    "legacyRefunds": false,
+    "uncertainDisposition": "full_ceiling_no_refund",
+    "newV2UnusedCeilingRelease": "only after authoritative server settled usage"
+  },
+  "independentReview": {
+    "verdict": "ACCEPTED_LIMITATION",
+    "rootPeerReview": "PASS: independently reviewed source guards, legacy replay, bounds and actual test exits; no blocking finding.",
+    "workerProcessExit": 1,
+    "workerFinalProse": "PASS (not a successful worker review)",
+    "workerEffects": "Four read_file calls only: shared AGENTS/bootstrap and two app budget modules; all19 frozen hashes unchanged after review. No edits or private configuration reads.",
+    "limitations": [
+      "Worker process was unsuccessful; no repeat requested to obtain green prose.",
+      "Final prose said16 changed files; actual19.",
+      "Two-round prose omitted existing11-token/1micro embedding; separate frozen7-case owner reproduction includes it."
+    ],
+    "files": [
+      {
+        "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-shared-read-budget\\cap-kimi-process.json",
+        "sha256": "d7066866502ea1f36beeb07247d84dfba8bf5892b58be2ee3628ffd5c466412e"
+      },
+      {
+        "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-shared-read-budget\\cap-kimi-exit.json",
+        "sha256": "9e15fa31ab332052749baa662b3fbd5fab1cc21af5ae6b7a26b2a7f1d9e41d7b"
+      },
+      {
+        "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-shared-read-budget\\cap-kimi-usage.json",
+        "sha256": "f20f623595bc7b9524144093d232a2e0dc5ba13cc81e67c9c0802a133fc23698"
+      },
+      {
+        "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-shared-read-budget\\cap-kimi-review.md",
+        "sha256": "526299d8f0b4391fbaab503aa38361a86273303e6ffef76b32d22099e6e15df0"
+      },
+      {
+        "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-shared-read-budget\\cap-kimi.jsonl",
+        "sha256": "a7af4540a14acb078305d1fbef512ea73c7fccd3700fb9b88abf7aa4d8e03b53"
+      }
+    ]
+  },
+  "preservedFailedRuns": [
+    {
+      "prefix": "cap-node-tests",
+      "reason": "Initial old-limit negative expectations and recorder VM dependency gaps, repaired in final279."
+    },
+    {
+      "prefix": "cap-api-tests",
+      "reason": "4GB heap process134; final bounded8GB rerun111pass0."
+    }
+  ],
+  "limitations": [
+    "Local tests do not prove live acceptance or75 cases.",
+    "Exact final integrated offline26 is owned by root after cap and CLI integration.",
+    "Root alone may append reviewed v2 activation; old real event4 and6m legacy holds are unchanged."
+  ]
+}

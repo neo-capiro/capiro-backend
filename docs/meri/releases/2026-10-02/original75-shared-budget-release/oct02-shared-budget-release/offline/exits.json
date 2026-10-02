@@ -1,0 +1,80 @@
+{
+  "sourceSha": "fecce92b0f9880fea720c755e7c5defde1af69a9",
+  "sourceTree": "1103de22f4d99f5a204f18cd3bc4f4960210f917",
+  "cwd": "C:\\dev\\cap-meri-fixture-hardening",
+  "policySha": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "scope": "Final repair candidate deterministic offline26; no live application/provider/database/fixture calls",
+  "startedAtEpoch": 1790970154.087054,
+  "commands": [
+    {
+      "name": "shared-build",
+      "command": [
+        "C:\\Program Files\\nodejs\\pnpm.cmd",
+        "--filter",
+        "@capiro/shared",
+        "run",
+        "build"
+      ],
+      "pid": 19612,
+      "exitCode": 0,
+      "elapsedSeconds": 1.31,
+      "logSha256": "28f31dd4def844b4f82106f9450ce7b46d972dd21d6cef15544a4bed4c5f1fd0"
+    },
+    {
+      "name": "core-build",
+      "command": [
+        "C:\\Program Files\\nodejs\\pnpm.cmd",
+        "--filter",
+        "@capiro/meriv2-core",
+        "run",
+        "build"
+      ],
+      "pid": 10712,
+      "exitCode": 0,
+      "elapsedSeconds": 2.54,
+      "logSha256": "c33c9fbba9e4fb869cdabefdb7b6d6f18c857aefe5e9b18e9adef55b97b3445f"
+    },
+    {
+      "name": "promptfoo",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "node_modules/promptfoo/dist/src/entrypoint.js",
+        "eval",
+        "-c",
+        "evals/meri/promptfooconfig.yaml",
+        "--no-cache",
+        "--no-share",
+        "--no-write",
+        "--no-table",
+        "--no-progress-bar",
+        "-o",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-shared-budget-release\\offline\\meri-offline.json",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-shared-budget-release\\offline\\meri-offline.html",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-shared-budget-release\\offline\\meri-offline.junit.xml"
+      ],
+      "pid": 22900,
+      "exitCode": 0,
+      "elapsedSeconds": 25.47,
+      "logSha256": "3a83bee50fb7d779f5649ecf83019d3c98067a7769b22b3a510fbd9a3052db70"
+    },
+    {
+      "name": "verifier",
+      "command": [
+        "C:\\ProgramData\\Hermes\\tools\\python-3.14.7+20260901-win32-x64\\python.exe",
+        "evals/meri/verify_report.py",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-shared-budget-release\\offline\\meri-offline.json",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-shared-budget-release\\offline\\meri-offline.summary.json"
+      ],
+      "pid": 23644,
+      "exitCode": 0,
+      "elapsedSeconds": 0.12,
+      "logSha256": "15b2db703ec21ccace972b7a53d89ba463a816c2601407db863602396e95f56a"
+    }
+  ],
+  "completedAtEpoch": 1790970183.6771126,
+  "sourceUnchanged": true,
+  "worktreeStatus": "",
+  "exitCode": 0,
+  "meri-offline.jsonSha256": "ee760b2aaa9ea2a3ab8b4763fd0997eb4ec70d9153fa9fd6c6888e3a2176df69",
+  "meri-offline.summary.jsonSha256": "a31d6cf0292711c5497b819c3c6efbd774eb6cc58a6c3c6f4e53a056533168e4"
+}

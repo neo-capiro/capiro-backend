@@ -1,0 +1,120 @@
+{
+  "sourceSha": "fecce92b0f9880fea720c755e7c5defde1af69a9",
+  "candidateSha": "8a1b3075e5c02480c6c993a6232a4568ceb1e0e3",
+  "files": [
+    {
+      "file": "apps/api/src/meri/meri-capture-provider-budget.spec.ts",
+      "candidateBlobEqualsMergedBlob": true,
+      "workingBytesEqualReviewedHash": true,
+      "mergedBlobSha256": "93d145c2d58637a91140484b6065d5013447e9dc9a97f6ddd4b8d07edcaeb511"
+    },
+    {
+      "file": "apps/api/src/meri/meri-capture-provider-budget.ts",
+      "candidateBlobEqualsMergedBlob": true,
+      "workingBytesEqualReviewedHash": true,
+      "mergedBlobSha256": "29e6ab4ed50291a2626c132c8298ae0fb93eeac3d6a9f9f3d8c4953a56df614e"
+    },
+    {
+      "file": "apps/api/src/meri/meri-synthetic-read-budget.ts",
+      "candidateBlobEqualsMergedBlob": true,
+      "workingBytesEqualReviewedHash": true,
+      "mergedBlobSha256": "291da53a8457975a830975b68fe9cf1d15d1c5db56d1d246bf50730015f0e6ca"
+    },
+    {
+      "file": "evals/meri/live-v1/SHARED-READ-BUDGET.md",
+      "candidateBlobEqualsMergedBlob": true,
+      "workingBytesEqualReviewedHash": true,
+      "mergedBlobSha256": "5cf856844baf134450dfb9f30777e839560c38424d8fb4db3160adf3cc37dccc"
+    },
+    {
+      "file": "evals/meri/live-v1/capture-spend-aggregate.mjs",
+      "candidateBlobEqualsMergedBlob": true,
+      "workingBytesEqualReviewedHash": true,
+      "mergedBlobSha256": "34ef5770cd123f4249944a73a56dd2dbedcc235a92359c92d26625ccb271b73b"
+    },
+    {
+      "file": "evals/meri/live-v1/capture-spend-reconciliation.mjs",
+      "candidateBlobEqualsMergedBlob": true,
+      "workingBytesEqualReviewedHash": true,
+      "mergedBlobSha256": "89367647c3e218e642d5456f5ec714ba9fe87d74493b7974e8b45b2ac9866626"
+    },
+    {
+      "file": "evals/meri/live-v1/case01-live-capture.mjs",
+      "candidateBlobEqualsMergedBlob": true,
+      "workingBytesEqualReviewedHash": true,
+      "mergedBlobSha256": "4136d20e10ec9e0e635fefc0ccf8a4609f12a36a410dba3f3eb4f828469ea029"
+    },
+    {
+      "file": "evals/meri/live-v1/case01-receipt-joins.mjs",
+      "candidateBlobEqualsMergedBlob": true,
+      "workingBytesEqualReviewedHash": true,
+      "mergedBlobSha256": "c4556ba2da76c5c83de511c852f1f403f81dd4bf44160cbf8e6e14115e448aa9"
+    },
+    {
+      "file": "evals/meri/live-v1/controlled-read-live-capture.mjs",
+      "candidateBlobEqualsMergedBlob": true,
+      "workingBytesEqualReviewedHash": true,
+      "mergedBlobSha256": "0f387af194d48a8b8d50ab058254b104cae6dfa58ae90ddc5ee0e2d743f8a770"
+    },
+    {
+      "file": "evals/meri/live-v1/controlled-read-operator-input.mjs",
+      "candidateBlobEqualsMergedBlob": true,
+      "workingBytesEqualReviewedHash": true,
+      "mergedBlobSha256": "ce6244bb6ffc52e0c1661779290995aad53ab287023f0706480509414ee5ef2a"
+    },
+    {
+      "file": "evals/meri/live-v1/controlled-read-receipt-joins.mjs",
+      "candidateBlobEqualsMergedBlob": true,
+      "workingBytesEqualReviewedHash": true,
+      "mergedBlobSha256": "d09ecb5f4fd4dee86bab14f1b2e257dd9d66c83f21405c3bad1989657686a273"
+    },
+    {
+      "file": "evals/meri/live-v1/lib/windows-capture-spend.py",
+      "candidateBlobEqualsMergedBlob": true,
+      "workingBytesEqualReviewedHash": true,
+      "mergedBlobSha256": "1347fb536fe697877ae336f35042b6a500de6a38ddbb99cd9f3aedf8ae2d39a7"
+    },
+    {
+      "file": "evals/meri/live-v1/memory-read-protocol.mjs",
+      "candidateBlobEqualsMergedBlob": true,
+      "workingBytesEqualReviewedHash": true,
+      "mergedBlobSha256": "aaa9e781af07d72aa90bb16601b9bb1058ca7c087cc9d17f3911d69e1e46491f"
+    },
+    {
+      "file": "evals/meri/live-v1/tests/capture-spend-v2.test.mjs",
+      "candidateBlobEqualsMergedBlob": true,
+      "workingBytesEqualReviewedHash": true,
+      "mergedBlobSha256": "890a6fa44d588fcb8c1f1844744560b617f3221b4bb993a03c65db996cb2ccf2"
+    },
+    {
+      "file": "evals/meri/live-v1/tests/case01-authority.test.mjs",
+      "candidateBlobEqualsMergedBlob": true,
+      "workingBytesEqualReviewedHash": true,
+      "mergedBlobSha256": "4deaf24f46934de83277cc5fa5cf311407e192d91d950141f9f63bc21c9f5c5e"
+    },
+    {
+      "file": "evals/meri/live-v1/tests/controlled-read-authority.test.mjs",
+      "candidateBlobEqualsMergedBlob": true,
+      "workingBytesEqualReviewedHash": true,
+      "mergedBlobSha256": "54e0e87d81b70ead3b4a131dea9950caef8e014c598e9647d7f3f78379692b99"
+    },
+    {
+      "file": "evals/meri/live-v1/tests/controlled-read-operator.test.mjs",
+      "candidateBlobEqualsMergedBlob": true,
+      "workingBytesEqualReviewedHash": true,
+      "mergedBlobSha256": "a63fd62f8c4ab42c367d3b9258f4c903f3441b42396eae914533fedb53c59fc1"
+    },
+    {
+      "file": "evals/meri/live-v1/tests/memory-read-protocol.test.mjs",
+      "candidateBlobEqualsMergedBlob": true,
+      "workingBytesEqualReviewedHash": true,
+      "mergedBlobSha256": "26247d894471a678409e65b0d09de8f32e6d8cb9a7b32407f39f2751ae0ec396"
+    },
+    {
+      "file": "evals/meri/live-v1/tests/synthetic-read-budget.postgres.test.mjs",
+      "candidateBlobEqualsMergedBlob": true,
+      "workingBytesEqualReviewedHash": true,
+      "mergedBlobSha256": "7beb9b6f80043ffc429a971320e5cd585136116ee06f534d25fc961fab0e6569"
+    }
+  ]
+}

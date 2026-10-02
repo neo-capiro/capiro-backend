@@ -1,0 +1,28 @@
+{
+  "kind": "meri-shared-budget-source-qualification",
+  "status": "PASS",
+  "sourceSha": "fecce92b0f9880fea720c755e7c5defde1af69a9",
+  "policySha": "743fd708c3484604e8a35ea1039adeca3b1e331f",
+  "machineMapRevision": "2026-09-30",
+  "schemaChange": false,
+  "sourceReviewedBy": "Codex root",
+  "candidateSourceBridges": {
+    "cap": "8a1b3075e5c02480c6c993a6232a4568ceb1e0e3",
+    "canonicalCorpusCli": "92455739df5073703d97754e3c45df6faa7ee2f0",
+    "fixedEntrypoint": "5a6b87c17a63cd13f5d7aafa1da2a05754ab52de"
+  },
+  "checks": {
+    "capNode": 279,
+    "fivePromptCollector": 15,
+    "api": 111,
+    "apiTypecheckExit": 0,
+    "canonicalCorpusCli": 5,
+    "fixedEntrypoint": 3,
+    "exactCombinedOffline": 26,
+    "offlineVerifierExit": 0
+  },
+  "capHermesReview": "ACCEPTED_LIMITATION: process1; prosePASS is not counted as successful worker review; root independently reviewed final source",
+  "sourceBoundary": "Synthetic owned read accounting and fixed operator only; existing model/provider/tool/output configuration unchanged. Read-only guards, ordinary client/actor checks and source provenance retained. New cap15USD and500k tokens require reviewed qualification; native total30USD/concurrency1 preserved.",
+  "liveAcceptance": "NOT_RUN",
+  "builds": "IN_PROGRESS"
+}

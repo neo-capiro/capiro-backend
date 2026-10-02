@@ -1,0 +1,79 @@
+{
+  "service": "meriv2-orchestrator",
+  "sourceSha": "fecce92b0f9880fea720c755e7c5defde1af69a9",
+  "buildId": "capiro-build-web-dev:11196d6b-6cba-4444-8669-33e96f0b9546",
+  "observedAt": "2026-10-02T19:53:58.208336+00:00",
+  "verdict": "PASS",
+  "externalWrites": 0,
+  "liveAcceptance": "NOT_RUN",
+  "buildStatus": "SUCCEEDED",
+  "phase": "COMPLETED",
+  "actualBuildspecSha256": "dd3aaac45be1eada1a2451add262b6407313d699b390deb0c0707455c370af90",
+  "resolvedSourceSha": "fecce92b0f9880fea720c755e7c5defde1af69a9",
+  "phases": [
+    {
+      "phase": "SUBMITTED",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "QUEUED",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "PROVISIONING",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "DOWNLOAD_SOURCE",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "INSTALL",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "PRE_BUILD",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "BUILD",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "POST_BUILD",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "UPLOAD_ARTIFACTS",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "FINALIZING",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "COMPLETED",
+      "status": null
+    }
+  ],
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:2e5030104ad34d40b1854b755be829c8a822e53c58508baa78f40bc39dd8f670",
+  "imageDigest": "sha256:2e5030104ad34d40b1854b755be829c8a822e53c58508baa78f40bc39dd8f670",
+  "executedMarkers": [
+    {
+      "timestamp": 1790970684558,
+      "line": "OFFLINE_PACKAGED_ENTRYPOINT_HEALTH_AUTH_PASS"
+    },
+    {
+      "timestamp": 1790970762457,
+      "line": "LOCAL_REPODIGEST_ECR_MATCH_PASS"
+    },
+    {
+      "timestamp": 1790970762457,
+      "line": "CANDIDATE_ORCHESTRATOR_SOURCE_SHA=fecce92b0f9880fea720c755e7c5defde1af69a9"
+    },
+    {
+      "timestamp": 1790970762457,
+      "line": "CANDIDATE_ORCHESTRATOR_IMAGE=967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:2e5030104ad34d40b1854b755be829c8a822e53c58508baa78f40bc39dd8f670"
+    }
+  ]
+}

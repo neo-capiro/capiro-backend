@@ -1,0 +1,129 @@
+{
+  "kind": "meri-shared-budget-release-qualification",
+  "status": "PASS",
+  "createdAt": "2026-10-02T19:57:23.524265+00:00",
+  "sourceSha": "fecce92b0f9880fea720c755e7c5defde1af69a9",
+  "policySha": "743fd708c3484604e8a35ea1039adeca3b1e331f",
+  "machineMapRevision": "2026-09-30",
+  "images": {
+    "api": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:67655880203120ad9e362b2227c4e46e36c9dc8cc70fef4a4f6ca48757d57a4a",
+    "meriv2-orchestrator": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:2e5030104ad34d40b1854b755be829c8a822e53c58508baa78f40bc39dd8f670"
+  },
+  "checks": {
+    "apiImportMarkers": "PASS",
+    "exact451MigrationHashes": "PASS",
+    "orchestratorSuites": 129,
+    "orchestratorPassed": 1456,
+    "orchestratorSkipped": 2,
+    "packagedOrchestratorHealthAndAuth": "PASS",
+    "combinedOfflineCases": 26,
+    "componentCapNode": 279,
+    "fivePromptCollector": 15,
+    "apiFocused": 111,
+    "canonicalCorpusCli": 5,
+    "entrypointDispatch": 3
+  },
+  "review": "Root independently checked component source hash bridges, actual process exits, full final source qualification, build execution markers, resolved source and ECR digests. Cap Hermes exit1 is recorded as ACCEPTED LIMITATION and is not counted as successful worker review.",
+  "offlinePolicyMetadata": "Raw offline runner inherited origin policySHA39590; actual root policy is743fd70 whose only extra commit changes QA context docs; operating files are identical. Raw receipt retained unchanged.",
+  "liveAcceptance": "NOT_RUN",
+  "original75Accepted": 0,
+  "retirementCompatibility": {
+    "status": "PASS",
+    "sourceSha": "fecce92b0f9880fea720c755e7c5defde1af69a9",
+    "schemaChange": false,
+    "images": {
+      "api": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:67655880203120ad9e362b2227c4e46e36c9dc8cc70fef4a4f6ca48757d57a4a",
+      "meriv2-orchestrator": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:2e5030104ad34d40b1854b755be829c8a822e53c58508baa78f40bc39dd8f670"
+    },
+    "evidence": "Exact compiled API synthetic accounting/corpus operator imports and all451 migration hashes; full orchestrator1456 passed,2 skipped,129 suites and packaged health/auth smoke. Component tests and offline26 passed.",
+    "compatibility": "Ordinary policy remains compatible because additional syntheticReadBudget is absent; no models, provider profiles, routes, grants, environment, schema or web changes. API509 and orchestrator99 remain rollback candidates. New synthetic-read qualification must wait until both services are healthy on these images; tests stop and are not replayed on rollback.",
+    "limitations": "Original75 live cases remain incomplete; no acceptance claimed by build or offline tests."
+  },
+  "artifacts": [
+    {
+      "path": "oct02-shared-budget-release/api-independent-20261002T195358210422Z.json",
+      "sha256": "1f7306b0f4e03e6c50ae33d91b5c99068a6112caa454d1edd7aad102b535cc75",
+      "bytes": 3121
+    },
+    {
+      "path": "oct02-shared-budget-release/meriv2-orchestrator-independent-20261002T195358208336Z.json",
+      "sha256": "bea334787949de111a55a207b26edd65f840f66b846f4ac01fc32704f6c67f48",
+      "bytes": 2233
+    },
+    {
+      "path": "oct02-shared-budget-release/actual-orchestrator-build-tests.json",
+      "sha256": "aab9cca829aecc9dd3c1ad5fd464e9344d74eab2b8eca31be669454cc144d160",
+      "bytes": 883
+    },
+    {
+      "path": "oct02-shared-budget-release/api.buildspec.yml",
+      "sha256": "235328ef6d9ec7a25488d80733be199a2e9763fe0e50840e394ae4c8e414171c",
+      "bytes": 9663
+    },
+    {
+      "path": "oct02-shared-budget-release/meriv2-orchestrator.buildspec.yml",
+      "sha256": "dd3aaac45be1eada1a2451add262b6407313d699b390deb0c0707455c370af90",
+      "bytes": 9009
+    },
+    {
+      "path": "oct02-shared-budget-release/combined-source-qualification.json",
+      "sha256": "c956866f89dbfaf89b6700b22091ed56a52159382cd894b965e4d84fd53cb6cc",
+      "bytes": 1278
+    },
+    {
+      "path": "oct02-shared-budget-release/cap-source-integration-check.json",
+      "sha256": "19ae1f5000d321b842a39ddf7d091062366fbee859fb099775dfde8ce432c558",
+      "bytes": 5159
+    },
+    {
+      "path": "oct02-shared-budget-release/retirement-compatibility-source.json",
+      "sha256": "2acbd12387a4a7335297e107d0bbe2a8eb09f61e9a07cba16d18123d72c303c5",
+      "bytes": 1192
+    },
+    {
+      "path": "oct02-shared-budget-release/reviewed-build-input.json",
+      "sha256": "e8bbaa018ad02092deaec13fe9cda0fd34f7a62647178c268d325f858e7d3a54",
+      "bytes": 1088
+    },
+    {
+      "path": "oct02-shared-budget-release/recipe-syntax-qualification-v2.json",
+      "sha256": "4d94348e0fb0a8fed35b007414c47285e79566cadb5fccf73c53b13298d153a2",
+      "bytes": 337
+    },
+    {
+      "path": "oct02-shared-budget-release/api-build-start.json",
+      "sha256": "b95fe3fcf1102ba76ff48cde6dd0b9f67a4439de130b0b36665ea64e834df649",
+      "bytes": 759
+    },
+    {
+      "path": "oct02-shared-budget-release/meriv2-orchestrator-build-start.json",
+      "sha256": "267c1c00c5d5308d2b5447681f900cb03ba6470ee1037ab774bfb3b1adf53cf3",
+      "bytes": 792
+    },
+    {
+      "path": "oct02-shared-budget-release/offline/exits.json",
+      "sha256": "299759dd6e1a8a3ecec670ed32717c67d415a784bcb30dddede13c4c73d22888",
+      "bytes": 2925
+    },
+    {
+      "path": "oct02-shared-budget-release/offline/meri-offline.summary.json",
+      "sha256": "a31d6cf0292711c5497b819c3c6efbd774eb6cc58a6c3c6f4e53a056533168e4",
+      "bytes": 3938
+    },
+    {
+      "path": "oct02-shared-read-budget/cap-qualification.json",
+      "sha256": "ffc93a1b2a02f95fb9b545df99488457adad918a7adb8279db89b803012f9f0d",
+      "bytes": 8766
+    },
+    {
+      "path": "oct02-shared-read-budget/shared-spend-v2-activation-execution.json",
+      "sha256": "9d66248b547f21b37edfe8b3ca5f1bc07fd8aeffdd939b2ca7bd168fa5c57ada",
+      "bytes": 1028
+    },
+    {
+      "path": "oct02-shared-memory-runner/read-corpus-qualification.json",
+      "sha256": "e5c8498668be5fb40f13a17cb5a8051285027ad145593c1bc33cd89079737db1",
+      "bytes": 2465
+    }
+  ]
+}

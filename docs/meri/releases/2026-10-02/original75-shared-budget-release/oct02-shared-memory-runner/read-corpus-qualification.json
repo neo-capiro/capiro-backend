@@ -1,0 +1,56 @@
+{
+  "kind": "meri-shared-memory-corpus-cli-qualification",
+  "status": "PASS",
+  "sourceCommit": "92455739df5073703d97754e3c45df6faa7ee2f0",
+  "sourceFiles": [
+    {
+      "path": "apps/api/scripts/meri-operator-json-input.mjs",
+      "sha256": "bbc9ba768eef8aa29b281bd56ab1f9d6aec15bf5202bbdb3329587cded8d6678"
+    },
+    {
+      "path": "apps/api/scripts/meri-synthetic-read-budget.mjs",
+      "sha256": "21fec2a49da5faaea34f3ea12c6cff016cc5468dc64eb007b2906efc36317aa1"
+    },
+    {
+      "path": "apps/api/scripts/meri-synthetic-read-budget.test.mjs",
+      "sha256": "3759225c8b29f05a96cd027a3970773b2d4e556f3ffb7b5ca53f61ffcefe4778"
+    },
+    {
+      "path": "evals/meri/live-v1/tests/case01-memory-hydration.postgres.test.mjs",
+      "sha256": "f5de9bb90608e5001a9b43f4bd6270b4605c01e110606f7e01c78840585099dd"
+    }
+  ],
+  "actualTests": {
+    "exitCode": 0,
+    "passed": 5,
+    "skipped": 0,
+    "logSha256": "324ad88c25a99dc0a3da0a00ee4d66570bb1e07fc6b1ef88688ce1d37a9eb951",
+    "scope": [
+      "actual fixed CLI input parser env and file modes",
+      "actual canonical source reconstruction through readSyntheticMemoryCorpus dispatch against owned disposable PostgreSQL; wrong actor/client and source-change refusals",
+      "existing exact Docker fixture asset graph"
+    ],
+    "limits": "PG test supplies same-transaction operator port over the real canonical owner; it does not claim a new production factory/network execution."
+  },
+  "review": {
+    "provider": "bedrock",
+    "model": "moonshotai.kimi-k2.5",
+    "sessionId": "20261002_193515_2fcba5",
+    "actualExit": 0,
+    "toolCalls": 0,
+    "reportedTokens": 13054,
+    "verdict": "PASS",
+    "rawSha256": "25f4f417448fb520464145bcb932a40ddaa78e3576af1b252c19af1839d5651b",
+    "adjudication": "No concrete blocker. Reviewer phrase all verification before database access applies only to input validation; canonical current actor/client/source validation correctly reads the actual database."
+  },
+  "runtimeChanges": [
+    "Fixed read-corpus command returns current canonical evidence with captureAuthority false. No seed/approval/projection/provider operations invoked.",
+    "Install command fixed environment name now in exact shared parser allowlist."
+  ],
+  "notPerformed": [
+    "shared database or AWS mutation",
+    "authentication or model submission",
+    "native shared spend mutation",
+    "main merge or push"
+  ]
+}

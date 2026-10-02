@@ -1,0 +1,22 @@
+{
+  "status": "VERIFIED",
+  "sourceSha": "8a1b3075e5c02480c6c993a6232a4568ceb1e0e3",
+  "priorCheckpointSha256": "2aef68893a7343f18fa122e330289d673e0a76ac9396bc060bb9277d366a8d37",
+  "reviewedQualificationSha256": "ffc93a1b2a02f95fb9b545df99488457adad918a7adb8279db89b803012f9f0d",
+  "reviewedRateEvidenceSha256": "faa547bda9a29c7d41378ea5498b3a677498c255264a0f4756f493bdbcb4b32d",
+  "deadlineAt": "2026-10-03T06:08:00.000Z",
+  "aggregateMaxCostMicros": 30000000,
+  "newReadPerCaseMaxCostMicros": 15000000,
+  "concurrency": 1,
+  "legacyReservedCeilingsMicros": 6000000,
+  "legacyUnknownCostStatus": "UNKNOWN",
+  "applicationWrites": 0,
+  "providerSubmissions": 0,
+  "newReservations": 0,
+  "checkpointPath": "C:/dev/cap-meri-foundation-evidence/oct02-original-aggregate-operator-v6/shared-spend-v2-checkpoint.json",
+  "checkpointSha256": "7f9e69b4dffb07344337e9cb4c62d8b6b495c54ae956bcc399cffd3b3cd88cb5",
+  "eventCount": 5,
+  "remainingReservationMicros": 24000000,
+  "journalMutations": 1,
+  "at": "2026-10-02T19:47:38.115Z"
+}

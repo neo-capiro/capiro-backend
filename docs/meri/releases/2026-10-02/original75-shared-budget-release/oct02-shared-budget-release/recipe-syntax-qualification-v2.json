@@ -1,0 +1,19 @@
+{
+  "kind": "api-recipe-cli-addition-syntax-only",
+  "buildspecSha256": "235328ef6d9ec7a25488d80733be199a2e9763fe0e50840e394ae4c8e414171c",
+  "bashChecks": [
+    {
+      "phase": 0,
+      "exit": 0
+    },
+    {
+      "phase": 1,
+      "exit": 0
+    },
+    {
+      "phase": 2,
+      "exit": 0
+    }
+  ],
+  "runtimeSmokeExecuted": false
+}

@@ -1,0 +1,13 @@
+{
+  "kind": "meri-shared-budget-retirement-compatibility",
+  "sourceSha": "fecce92b0f9880fea720c755e7c5defde1af69a9",
+  "status": "SOURCE_QUALIFIED_IMAGE_PENDING",
+  "schemaChange": false,
+  "migrationCount": 451,
+  "migrationSourceUnchangedFrom": "324195f120df830efc9c7e9f557898304b5467dd",
+  "ordinaryTraffic": "The additional syntheticReadBudget member is absent on existing policies; prior signed policy fields and ordinary traffic paths remain compatible. Existing v1 journal records retain3USD ceiling and are not refunded.",
+  "rolloutCondition": "No new syntheticReadBudget qualification or test submission until both API and orchestrator run the reviewed new images. WebVNext388 unchanged.",
+  "scopeAndRouting": "No environment/feature flag, grant, provider model/profile, route or database schema change.",
+  "rollback": "Retain prepromotion API509 and orchestrator99 immutable images. New synthetic-only conversations may refuse on rollback; stop tests, preserve their records and do not replay. Existing ordinary traffic uses unchanged metadata contract.",
+  "remaining": "Actual candidate image source/digest/import/fullorchestrator tests and service promotion verification."
+}

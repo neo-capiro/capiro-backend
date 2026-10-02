@@ -1,0 +1,2 @@
+*.json -text whitespace=cr-at-eol
+*.yml -text whitespace=cr-at-eol
