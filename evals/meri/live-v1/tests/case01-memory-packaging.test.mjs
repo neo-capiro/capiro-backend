@@ -46,6 +46,12 @@ it('imports and verifies frozen assets using only the exact API Dockerfile fixtu
       'evals/meri/live-v1/fixture-provisioning/controlled-read-owner.mjs')).href);
     assert.equal(typeof controlled.qualifyControlledReadInTx, 'function');
     assert.equal(typeof controlled.executeControlledReadSetup, 'function');
+    const pending = await import(
+      pathToFileURL(
+        join(isolated, 'evals/meri/live-v1/fixture-provisioning/memory-pending-execution.mjs'),
+      ).href
+    );
+    assert.equal(typeof pending.executePendingMemorySetup, 'function');
     const { buildFixtureManifest } = await import(
       pathToFileURL(join(isolated, 'evals/meri/live-v1/fixture-provisioning/manifest.mjs')).href
     );

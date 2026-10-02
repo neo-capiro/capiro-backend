@@ -172,6 +172,21 @@ describe('Meri governed proposal targets', () => {
     return { ...rendered, selectClient: (id: string) => rendered.rerender(tree(id)) };
   }
 
+  it('renders personal proposer history with its actual source and withdrawal action after remount', async () => {
+    review = [];
+    proposals = [owned('own-private', { scope: 'personal', clientId: null, clientName: null, sourceKind: 'model_extraction' })];
+    const first = show();
+    await screen.findByText('Proposal own-private');
+    expect(card('Proposal own-private').getByText('PERSONAL MEMORY · PENDING REVIEW')).toBeInTheDocument();
+    expect(card('Proposal own-private').getByText('Source: model extraction')).toBeInTheDocument();
+    expect(card('Proposal own-private').getByRole('button', { name: 'Withdraw' })).toBeEnabled();
+    first.unmount();
+    show();
+    await screen.findByText('Proposal own-private');
+    expect(card('Proposal own-private').getByText('Source: model extraction')).toBeInTheDocument();
+    expect(mocks.api.post).not.toHaveBeenCalled();
+  });
+
   it('keeps both actual client labels across picker/context changes without client-filtering requests', async () => {
     const view = show();
     await screen.findByText('Proposal l3-review');

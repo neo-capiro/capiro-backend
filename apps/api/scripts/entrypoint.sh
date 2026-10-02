@@ -54,6 +54,11 @@ compose_database_url() {
 select_writable_tmpdir
 
 case "${1:-serve}" in
+  meri-pending-memory-setup)
+    shift
+    compose_database_url
+    exec node scripts/meri-pending-memory-setup.mjs "$@"
+    ;;
   meri-case01-setup)
     shift
     compose_database_url

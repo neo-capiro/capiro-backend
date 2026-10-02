@@ -980,7 +980,7 @@ export function MeriMemoryTab({ packet }: { packet: MeriContextPacket | null }) 
           YOUR PROPOSALS · {ownedProposals.length}
         </div>
         <p style={{ margin: '0 0 10px', color: '#667085', fontSize: 12, lineHeight: 1.55 }}>
-          Your proposals across clients and firm memory, independent of the client picker.
+          Your proposals across clients, firm memory, and personal memory, independent of the client picker.
         </p>
         {proposals.isLoading ? <MeriPanelState tone="loading">Loading your proposals…</MeriPanelState> : null}
         {proposals.isError ? (
@@ -1022,6 +1022,9 @@ export function MeriMemoryTab({ packet }: { packet: MeriContextPacket | null }) 
                   </div>
                 ))
               )}
+              <div style={{ marginTop: 8, color: '#667085', fontSize: 10.5 }}>
+                Source: {sourceLabel(candidate.sourceKind)}
+              </div>
               {candidate.status !== 'pending' ? (
                 <div
                   aria-label="Memory decision receipt"

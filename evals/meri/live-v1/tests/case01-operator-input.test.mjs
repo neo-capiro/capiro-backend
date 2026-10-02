@@ -27,12 +27,16 @@ test('only fixed bounded nonsecret JSON environment ingress is accepted', async 
     else process.env[key] = before;
   }
 });
-test('entrypoint exposes exactly the two fixed setup scripts with existing database composer', async () => {
+test('entrypoint exposes the three fixed setup scripts with existing database composer', async () => {
   const shell = await readFile(
     new URL('../../../../apps/api/scripts/entrypoint.sh', import.meta.url),
     'utf8',
   );
-  for (const verb of ['meri-case01-setup', 'meri-capture-provider-budget']) {
+  for (const verb of [
+    'meri-case01-setup',
+    'meri-capture-provider-budget',
+    'meri-pending-memory-setup',
+  ]) {
     const escaped = verb.replaceAll('-', '\\-');
     const matches = shell.match(
       new RegExp(

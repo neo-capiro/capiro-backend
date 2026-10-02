@@ -201,7 +201,8 @@ export class GovernedMemoryCandidateService extends MemoryCandidateService {
   }
 
   /**
-   * Bounded shared-proposal history. Client proposal bodies are redacted whenever
+   * Bounded proposer-owned history, including the proposer's private proposals.
+   * Client proposal bodies are redacted whenever
    * the proposer no longer passes the current ethical wall, while status and the
    * ability to withdraw a still-pending row remain visible.
    */
@@ -230,7 +231,7 @@ export class GovernedMemoryCandidateService extends MemoryCandidateService {
         where: {
           tenantId: ctx.tenantId,
           proposedBy: ctx.userId,
-          scope: { in: ['firm', 'client'] },
+          scope: { in: ['firm', 'client', 'personal'] },
           ...(cursor
             ? {
                 OR: [
