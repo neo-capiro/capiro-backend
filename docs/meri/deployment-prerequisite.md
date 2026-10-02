@@ -71,7 +71,9 @@ Only account `967807252336`, region `us-east-1`, cluster `capiro-dev` are suppor
 No separate staging environment is assumed. Supported service keys are `api`,
 `meriv2-orchestrator`, `workspace`, `api-strategy`, `web`, `web-vnext`,
 `engagement-api`, `intel-api`, and `onboard-api`. Each invocation changes at most
-one service, and changes only the target container's image. It does not reset
+one service, and changes the target container's image and source identity. A promotion
+sets `GIT_SHA` and `RELEASE_SHA` to the qualified source SHA; Web vNext also sets
+`CAPIRO_WEB_RELEASE_SHA`. Rollback retains the original baseline identity. It does not reset
 flags or modify roles, secrets, scaling, network settings, load balancers,
 service discovery, schedules, or databases.
 
@@ -85,7 +87,7 @@ service discovery, schedules, or databases.
 3. `promote` requires an approved manifest fingerprint and exact production/service
    confirmation. It validates qualification, account, candidate bytes, healthy
    running tasks, and full baseline fingerprints before any registration. It clones
-   live task definitions in memory, changes only images, and registers pinned
+   live task definitions in memory, changes the image and qualified release identity, and registers pinned
    rollback/candidate revisions. It verifies registered contents, rechecks the
    baseline after registration, and reads it again immediately before UpdateService.
 4. Health readback binds the exact deployment ID, revision, task hash, running
