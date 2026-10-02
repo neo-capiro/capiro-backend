@@ -24,6 +24,7 @@ export interface CaptureProviderBudgetQualification {
   captureRunId: string;
   currentVerifySha256: string;
   rateEvidenceSha256: string;
+  rateEvidenceExpiresAt: string;
   priceKind: 'qualified_text_token_upper_bound';
   maxAttempts: number;
   maxTokens: number;
@@ -68,7 +69,7 @@ export function captureBudgetHash(value: unknown): string {
 
 export function validateCaptureBudgetQualification(
   value: unknown,
-  policy: MeriServerReadonlyCapturePolicy,
+  policy: Pick<MeriServerReadonlyCapturePolicy, 'caseId' | 'captureRunId' | 'expiresAt'>,
 ): CaptureProviderBudgetQualification {
   const q = value as CaptureProviderBudgetQualification | undefined;
   if (
@@ -79,6 +80,9 @@ export function validateCaptureBudgetQualification(
     q.captureRunId !== policy.captureRunId ||
     !HASH.test(q.currentVerifySha256) ||
     !HASH.test(q.rateEvidenceSha256) ||
+    typeof q.rateEvidenceExpiresAt !== 'string' ||
+    !Number.isFinite(Date.parse(q.rateEvidenceExpiresAt)) ||
+    Date.parse(q.rateEvidenceExpiresAt) < policy.expiresAt ||
     q.priceKind !== 'qualified_text_token_upper_bound' ||
     !integer(q.maxAttempts, true) ||
     q.maxAttempts > 64 ||
@@ -107,6 +111,8 @@ export function validateCaptureBudgetQualification(
       !integer(r.inputMicrosPerMillion) ||
       !integer(r.outputMicrosPerMillion) ||
       r.inputMicrosPerMillion + r.outputMicrosPerMillion <= 0 ||
+      (['bedrock_embeddings', 'nvidia_rerank'].includes(r.kind) &&
+        (r.inputMicrosPerMillion <= 0 || r.outputMicrosPerMillion !== 0)) ||
       !Number.isSafeInteger(r.inputMicrosPerMillion * q.maxTokens) ||
       !Number.isSafeInteger(r.outputMicrosPerMillion * q.maxTokens)
     )

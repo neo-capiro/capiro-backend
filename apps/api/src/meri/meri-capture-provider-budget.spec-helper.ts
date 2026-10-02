@@ -53,6 +53,7 @@ export function captureBudgetTestQualification(
     captureRunId: policy.captureRunId!,
     currentVerifySha256: '1'.repeat(64),
     rateEvidenceSha256: '2'.repeat(64),
+    rateEvidenceExpiresAt: new Date(policy.expiresAt + 3_600_000).toISOString(),
     priceKind: 'qualified_text_token_upper_bound',
     maxAttempts: 3,
     maxTokens: 1000,

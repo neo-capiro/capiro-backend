@@ -39,6 +39,26 @@ describe('ordinary capture durable provider budget', () => {
   });
   test('requires qualified bounds and preserves metadata and immutable admission', () => {
     expect(() => admitCaptureProviderBudget({}, p, null)).toThrow('qualification_missing');
+    expect(() =>
+      admitCaptureProviderBudget({}, p, {
+        ...q,
+        rateEvidenceExpiresAt: new Date(p.expiresAt - 1).toISOString(),
+      }),
+    ).toThrow('qualification_missing');
+    expect(() =>
+      admitCaptureProviderBudget({}, p, {
+        ...q,
+        rates: [
+          {
+            kind: 'bedrock_embeddings',
+            provider: 'aws-bedrock',
+            model: 'test-only',
+            inputMicrosPerMillion: 0,
+            outputMicrosPerMillion: 1,
+          },
+        ],
+      }),
+    ).toThrow('rate_invalid');
     expect(() => admitCaptureProviderBudget({}, p, { ...q, maxCostMicros: 3_000_001 })).toThrow(
       'qualification_missing',
     );

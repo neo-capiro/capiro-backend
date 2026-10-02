@@ -211,6 +211,42 @@ describe('OpenAiResponsesClient', () => {
     expect(result.telemetry.effectiveReasoningEffort).toBe('high');
   });
 
+  test('reserves the actual wire output ceiling after model policy raises a smaller profile', async () => {
+    process.env.OPENAI_API_KEY = 'unit-only-key';
+    const reserve = jest.fn(async () => ({
+      reservationId: 'unit-reservation',
+      dispatchAllowed: true,
+      deadlineAt: new Date(Date.now() + 60_000).toISOString(),
+    }));
+    const budget = MeriRunBudget.fromToolRoundCeiling(
+      10,
+      {},
+      {
+        reserve,
+        settle: jest.fn(async () => {}),
+      },
+    );
+    const fetchMock = jest.fn(async (..._args: Parameters<typeof fetch>) => {
+      expect(reserve).toHaveBeenCalledTimes(1);
+      return new Response(JSON.stringify(responseBody), { status: 200 });
+    });
+    global.fetch = fetchMock as typeof fetch;
+    const profile = resolveMeriV3ReasoningProfile('standard', {
+      MERIV3_STANDARD_MAX_OUTPUT_TOKENS: '2048',
+    });
+    expect(profile.maxOutputTokens).toBe(2048);
+    await new OpenAiResponsesClient().complete({
+      profile,
+      instructions: 'synthetic',
+      input: [{ role: 'user', content: 'synthetic memory' }],
+      tools: [],
+      budget,
+    });
+    const wire = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
+    expect(wire.max_output_tokens).toBe(8192);
+    expect(reserve).toHaveBeenCalledWith(expect.objectContaining({ maxOutputTokens: 8192 }));
+  });
+
   test('retries once without reasoning when the provider rejects reasoning.effort, then succeeds', async () => {
     process.env.OPENAI_API_KEY = 'global-openai-key';
     const rejection = JSON.stringify({

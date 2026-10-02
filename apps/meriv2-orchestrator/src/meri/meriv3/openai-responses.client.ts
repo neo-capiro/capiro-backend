@@ -378,28 +378,36 @@ export class OpenAiResponsesClient {
             parallel_tool_calls: true,
           }
         : {};
-      const requestBody = JSON.stringify(
-        prepareOpenAiResponsesRequest(
-          {
-            model,
-            instructions: params.instructions,
-            input: params.input,
-            ...toolFields,
-            ...(reasoningUnsupported
-              ? {}
-              : {
-                  reasoning: {
-                    effort: activeReasoningEffort,
-                    summary: 'auto',
-                  },
-                }),
-            max_output_tokens: params.profile.maxOutputTokens,
-            store: false,
-            ...(params.safetyIdentifier ? { safety_identifier: params.safetyIdentifier } : {}),
-          },
-          { defaultReasoning: !reasoningUnsupported },
-        ),
+      const preparedRequest = prepareOpenAiResponsesRequest(
+        {
+          model,
+          instructions: params.instructions,
+          input: params.input,
+          ...toolFields,
+          ...(reasoningUnsupported
+            ? {}
+            : {
+                reasoning: {
+                  effort: activeReasoningEffort,
+                  summary: 'auto',
+                },
+              }),
+          max_output_tokens: params.profile.maxOutputTokens,
+          store: false,
+          ...(params.safetyIdentifier ? { safety_identifier: params.safetyIdentifier } : {}),
+        },
+        { defaultReasoning: !reasoningUnsupported },
       );
+      const requestBody = JSON.stringify(preparedRequest);
+      // Reserve the final wire ceiling: model policy can raise a smaller
+      // configured output limit before dispatch (for example GPT-6's minimum).
+      const wireMaxOutputTokens = preparedRequest.max_output_tokens;
+      if (
+        typeof wireMaxOutputTokens !== 'number' ||
+        !Number.isSafeInteger(wireMaxOutputTokens) ||
+        wireMaxOutputTokens <= 0
+      )
+        throw new Error('openai_responses_output_bound_invalid');
       const attemptId = `${logicalOperationId}:${wireAttempts}`;
       const providerReservation = params.budget
         ? await params.budget.reserveProviderAttempt({
@@ -411,7 +419,7 @@ export class OpenAiResponsesClient {
             provider: 'openai',
             model,
             maxInputTokens: Buffer.byteLength(requestBody, 'utf8'),
-            maxOutputTokens: params.profile.maxOutputTokens,
+            maxOutputTokens: wireMaxOutputTokens,
             retry: wireAttempts > 0,
           })
         : null;
