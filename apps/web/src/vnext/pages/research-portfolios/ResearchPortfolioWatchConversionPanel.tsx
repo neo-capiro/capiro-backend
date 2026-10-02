@@ -150,6 +150,17 @@ function WatchConversionContent({ portfolioId, canEdit }: Props) {
       if (!currentPreview)
         throw Error('A complete current API preview is required before any conversion request');
       if (!request) throw Error('Preview, select and confirm dormant watch creation first');
+      // A cached preview can survive a failed refetch while the API rolls back.
+      // Check the server again before either a new write or an exact retry.
+      const freshPreview = await previewResearchPortfolioWatchConversion(api, portfolioId);
+      if (!hasCurrentPreview(freshPreview, portfolioId))
+        throw Error('The current API cannot confirm a complete watch conversion preview');
+      if (
+        !attempt &&
+        (freshPreview.expectedRevision !== request.expectedRevision ||
+          freshPreview.previewHash !== request.previewHash)
+      )
+        throw Error('Watch conversion preview changed; review a fresh preview before applying');
       try {
         localStorage.setItem(storageKey, JSON.stringify(request));
       } catch {
@@ -274,8 +285,9 @@ function WatchConversionContent({ portfolioId, canEdit }: Props) {
       {storageError ? <p role="alert">{storageError}</p> : null}
       {apply.error ? (
         <p role="alert">
-          Watch conversion is unconfirmed. Retry the retained exact request; a replacement selection
-          is not sent.
+          {attempt
+            ? 'Watch conversion is unconfirmed. Retry the retained exact request; a replacement selection is not sent.'
+            : 'Watch conversion was not sent. Review a fresh preview and retry.'}
         </p>
       ) : null}
       {receipt ? (

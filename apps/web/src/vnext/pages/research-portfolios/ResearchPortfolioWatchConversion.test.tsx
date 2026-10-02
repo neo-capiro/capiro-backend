@@ -77,6 +77,9 @@ const job: any = {
 };
 let client: QueryClient;
 let previewPayload: unknown;
+let previewFailure: unknown | null;
+let applyFailure: unknown | null;
+let applyResponse: unknown | null;
 function tree(outputs = false) {
   return (
     <QueryClientProvider client={client}>
@@ -122,6 +125,9 @@ beforeEach(() => {
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
   previewPayload = preview;
+  previewFailure = null;
+  applyFailure = null;
+  applyResponse = null;
   api.get.mockReset().mockImplementation(async (url: string) => ({
     data: url.endsWith('/changes')
       ? { items: [], nextCursor: null }
@@ -129,20 +135,36 @@ beforeEach(() => {
         ? job
         : [],
   }));
-  api.post.mockReset().mockImplementation(async (url: string, body?: any) => ({
-    data: url.endsWith('/watch-conversion/preview')
-      ? previewPayload
-      : url.endsWith('/watch-conversion/apply')
-        ? { ...receipt, idempotencyKey: body?.idempotencyKey }
-        : url.endsWith('/client-files')
-          ? {
-              id: 'receipt-file',
-              attachmentName: 'Owned.csv',
-              scanStatus: 'clean',
-              openPath: '/clients',
-            }
-          : job,
-  }));
+  api.post.mockReset().mockImplementation(async (url: string, body?: any) => {
+    if (url.endsWith('/watch-conversion/preview')) {
+      if (previewFailure) {
+        const error = previewFailure;
+        previewFailure = null;
+        throw error;
+      }
+      return { data: previewPayload };
+    }
+    if (url.endsWith('/watch-conversion/apply')) {
+      if (applyFailure) {
+        const error = applyFailure;
+        applyFailure = null;
+        throw error;
+      }
+      const data = applyResponse ?? { ...receipt, idempotencyKey: body?.idempotencyKey };
+      applyResponse = null;
+      return { data };
+    }
+    return {
+      data: url.endsWith('/client-files')
+        ? {
+            id: 'receipt-file',
+            attachmentName: 'Owned.csv',
+            scanStatus: 'clean',
+            openPath: '/clients',
+          }
+        : job,
+    };
+  });
 });
 afterEach(() => {
   cleanup();
@@ -184,10 +206,37 @@ describe('explicit dormant watch conversion and closed-session recovery', () => 
       api.get.mock.calls.filter((call) => String(call[0]).endsWith('/subscriptions')).length,
     ).toBeGreaterThan(1);
   });
+  it('does not POST Apply when a current preview is cached but the API has rolled back', async () => {
+    render(tree());
+    await select();
+    previewPayload = oldApiPreview;
+    fireEvent.click(screen.getByRole('button', { name: 'Create selected dormant watches' }));
+    await screen.findByText('Watch conversion was not sent. Review a fresh preview and retry.');
+    expect(applyCalls()).toHaveLength(0);
+    expect(localStorage.length).toBe(0);
+  });
+  it('does not POST Apply when the fresh preview request fails', async () => {
+    render(tree());
+    await select();
+    previewFailure = { response: { status: 503 } };
+    fireEvent.click(screen.getByRole('button', { name: 'Create selected dormant watches' }));
+    await screen.findByText('Watch conversion was not sent. Review a fresh preview and retry.');
+    expect(applyCalls()).toHaveLength(0);
+    expect(localStorage.length).toBe(0);
+  });
+  it('does not POST Apply when the fresh revision or preview hash changed', async () => {
+    render(tree());
+    await select();
+    previewPayload = { ...preview, previewHash: 'b'.repeat(64) };
+    fireEvent.click(screen.getByRole('button', { name: 'Create selected dormant watches' }));
+    await screen.findByText('Watch conversion was not sent. Review a fresh preview and retry.');
+    expect(applyCalls()).toHaveLength(0);
+    expect(localStorage.length).toBe(0);
+  });
   it('keeps original selection/hash/revision/key after uncertain response and session close without autosend', async () => {
     const first = render(tree());
     await select();
-    api.post.mockRejectedValueOnce({ response: { status: 503 } });
+    applyFailure = { response: { status: 503 } };
     fireEvent.click(screen.getByRole('button', { name: 'Create selected dormant watches' }));
     await waitFor(() => expect(applyCalls()).toHaveLength(1));
     const original = captured(applyCalls(), 0);
@@ -209,6 +258,12 @@ describe('explicit dormant watch conversion and closed-session recovery', () => 
     fireEvent.click(screen.getByRole('button', { name: 'Preview my legacy watches' }));
     await screen.findByLabelText('Convert legacy watch for PE 0604115A');
     expect(screen.getByRole('button', { name: 'Reconcile exact watch conversion' })).toBeEnabled();
+    previewPayload = oldApiPreview;
+    fireEvent.click(screen.getByRole('button', { name: 'Reconcile exact watch conversion' }));
+    await screen.findByText(/Watch conversion is unconfirmed/);
+    expect(applyCalls()).toHaveLength(1);
+    expect(JSON.parse(localStorage.getItem(localStorage.key(0) ?? '') ?? 'null')).toEqual(original);
+    previewPayload = preview;
     fireEvent.click(screen.getByRole('button', { name: 'Reconcile exact watch conversion' }));
     await screen.findByText('Created 1 dormant watches; skipped 0. No notifications were sent.');
     expect(captured(applyCalls(), 1)).toEqual(original);
@@ -216,7 +271,7 @@ describe('explicit dormant watch conversion and closed-session recovery', () => 
   it('retains unknown selection after a later definitive rejection', async () => {
     const first = render(tree());
     await select();
-    api.post.mockRejectedValueOnce({ response: { status: 503 } });
+    applyFailure = { response: { status: 503 } };
     fireEvent.click(screen.getByRole('button', { name: 'Create selected dormant watches' }));
     await waitFor(() => expect(applyCalls()).toHaveLength(1));
     const original = captured(applyCalls(), 0);
@@ -224,7 +279,7 @@ describe('explicit dormant watch conversion and closed-session recovery', () => 
     render(tree());
     fireEvent.click(screen.getByRole('button', { name: 'Preview my legacy watches' }));
     await screen.findByLabelText('Convert legacy watch for PE 0604115A');
-    api.post.mockRejectedValueOnce({ response: { status: 422 } });
+    applyFailure = { response: { status: 422 } };
     fireEvent.click(
       await screen.findByRole('button', { name: 'Reconcile exact watch conversion' }),
     );
@@ -235,9 +290,7 @@ describe('explicit dormant watch conversion and closed-session recovery', () => 
   it('retains the exact request if an older API returns a bodyless no-op receipt', async () => {
     render(tree());
     await select();
-    api.post.mockResolvedValueOnce({
-      data: { portfolioId: portfolio.id, convertedCount: 0, skippedCount: 0 },
-    });
+    applyResponse = { portfolioId: portfolio.id, convertedCount: 0, skippedCount: 0 };
     fireEvent.click(screen.getByRole('button', { name: 'Create selected dormant watches' }));
     await screen.findByText(/Watch conversion is unconfirmed/);
     expect(applyCalls()).toHaveLength(1);
@@ -257,9 +310,12 @@ describe('explicit dormant watch conversion and closed-session recovery', () => 
   it('actor scope switch hides old retained selection and cannot reconcile another actor operation', async () => {
     const view = render(tree());
     await select();
-    api.post.mockRejectedValueOnce({ response: { status: 503 } });
+    applyFailure = { response: { status: 503 } };
     fireEvent.click(screen.getByRole('button', { name: 'Create selected dormant watches' }));
     await waitFor(() => expect(applyCalls()).toHaveLength(1));
+    const previewCallsBeforeActorSwitch = api.post.mock.calls.filter((call) =>
+      String(call[0]).endsWith('/watch-conversion/preview'),
+    ).length;
     authority.userId = 'actor-b';
     view.rerender(tree());
     expect(
@@ -268,7 +324,7 @@ describe('explicit dormant watch conversion and closed-session recovery', () => 
     expect(screen.queryByLabelText('Convert legacy watch for PE 0604115A')).not.toBeInTheDocument();
     expect(
       api.post.mock.calls.filter((call) => String(call[0]).endsWith('/watch-conversion/preview')),
-    ).toHaveLength(1);
+    ).toHaveLength(previewCallsBeforeActorSwitch);
   });
   it('viewer can inspect own preview but cannot send a conversion', async () => {
     render(
