@@ -155,3 +155,21 @@ test('expiry, excess ceiling, bad proof hash, undeclared cases and stale checkpo
   assert.equal(n.exit, 0);
   assert.equal(call(v, 'read').exit, 1);
 });
+test('protocol revision permits multiple completed failures while retaining every old unknown ceiling', () => {
+  let p = closed();
+  const e = { ...reserve(), caseId: '01' };
+  p = call(p, 'reserve', e);
+  assert.equal(p.exit, 0);
+  const now = Date.now();
+  p = call(p, 'reconcile_terminal', { kind: 'reconcile_terminal', caseId: e.caseId,
+    captureRunId: e.captureRunId, reservationId: e.reservationId, disposition: 'COST_UNKNOWN',
+    chargedCostMicros: null, proof: { readbackSha256: 'a'.repeat(64), ledgerSha256: 'b'.repeat(64),
+      envelopeSha256: 'c'.repeat(64), conversationId: randomUUID(), completedAtMs: now - 1000,
+      observedAtMs: now, providerDeadlineAtMs: now - 500, pendingProviderAttempts: 0,
+      providerAttempts: 1, answerGrade: 'NOT_EVALUATED' } });
+  assert.equal(p.exit, 0);
+  const next = reviseCaptureSpendProtocol({ kind: 'meri-original-capture-spend-checkpoint', version: 1, ...p }, opts());
+  assert.equal(next.snapshot.remainingReservationMicros, 24000000);
+  assert.equal(next.snapshot.terminalUnknownConservativeCostMicros, 6000000);
+  assert.equal(next.snapshot.terminalUnknownCostCount, 2);
+});

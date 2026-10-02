@@ -53,7 +53,7 @@ def reduce_journal(owner, entries):
     require(set(boundary) == {'kind', 'firstCaseId', 'firstCaptureRunId', 'inventorySha256'})
     require(boundary['kind'] == 'original_file01_capture_slice' and boundary['firstCaseId'] == '01')
     require(UUID.fullmatch(boundary['firstCaptureRunId']) and HASH.fullmatch(boundary['inventorySha256']))
-    runs, active, reserved, known, closed_unknown = {}, None, 0, 0, 0
+    runs, active, reserved, known, closed_unknown, unknown_count = {}, None, 0, 0, 0, 0
     version, released, deadline = 1, 0, None
     prior = owner.get('priorRuns')
     require(type(prior) is list and len(prior) <= 30)
@@ -69,7 +69,8 @@ def reduce_journal(owner, entries):
     for sequence, event in enumerate(entries, 1):
         require(event.get('sequence') == sequence)
         if event.get('kind') == 'revise_protocol':
-            require(version == 1 and active is None and closed_unknown == MAX_CASE)
+            require(version == 1 and active is None)
+            require(runs.get('01:' + TERMINAL_CASE01_RUN, {}).get('kind') == 'close_terminal_uncertain')
             require(boundary['inventorySha256'] == TERMINAL_CASE01_INVENTORY)
             require(event.get('protocolVersion') == 2 and event.get('maxCostMicros') == MAX_TOTAL)
             require(event.get('perCaseMaxCostMicros') == MAX_CASE and event.get('concurrency') == 1)
@@ -124,6 +125,38 @@ def reduce_journal(owner, entries):
                     proof['failureReason'] == 'meri_capture_provider_budget_unqualified_retrieval_plan')
             runs[key] = {**row, **event, 'conservativeCostMicros': row['ceilingMicros']}
             closed_unknown += row['ceilingMicros']
+            unknown_count += 1
+            active = None
+        elif event.get('kind') == 'reconcile_terminal':
+            require(active == key)
+            row = runs[key]
+            require(event.get('reservationId') == row['reservationId'])
+            proof = event.get('proof', {})
+            require(set(proof) == {'readbackSha256', 'ledgerSha256', 'envelopeSha256',
+                                  'conversationId', 'completedAtMs', 'observedAtMs',
+                                  'providerDeadlineAtMs', 'pendingProviderAttempts',
+                                  'providerAttempts', 'answerGrade'})
+            for field in ('readbackSha256', 'ledgerSha256', 'envelopeSha256'):
+                require(HASH.fullmatch(proof.get(field, '')))
+            require(UUID.fullmatch(proof.get('conversationId', '')))
+            for field in ('completedAtMs', 'observedAtMs', 'providerDeadlineAtMs'):
+                require(type(proof.get(field)) is int and proof[field] > 0)
+            require(proof['completedAtMs'] <= proof['observedAtMs'])
+            require(type(proof['pendingProviderAttempts']) is int and proof['pendingProviderAttempts'] == 0)
+            require(type(proof['providerAttempts']) is int and proof['providerAttempts'] > 0)
+            require(proof['answerGrade'] == 'NOT_EVALUATED')
+            actual = event.get('chargedCostMicros')
+            if event.get('disposition') == 'SETTLED':
+                require(type(actual) is int and 0 <= actual <= row['ceilingMicros'])
+                known += actual
+                if row.get('protocolVersion') == 2:
+                    released += row['ceilingMicros'] - actual
+            else:
+                require(event.get('disposition') == 'COST_UNKNOWN' and actual is None)
+                require(proof['providerDeadlineAtMs'] <= proof['observedAtMs'])
+                closed_unknown += row['ceilingMicros']
+                unknown_count += 1
+            runs[key] = {**row, **event, 'conservativeCostMicros': row['ceilingMicros'] if actual is None else actual}
             active = None
         else:
             require(event.get('kind') == 'settle' and active == key)
@@ -145,7 +178,7 @@ def reduce_journal(owner, entries):
             'priorActualCostUnknownCount': len(prior), 'billedTotalStatus': 'UNKNOWN'}
     if closed_unknown:
         result['terminalUnknownConservativeCostMicros'] = closed_unknown
-        result['terminalUnknownCostCount'] = 1
+        result['terminalUnknownCostCount'] = unknown_count
     if version == 2:
         result.update({'protocolVersion': 2, 'releasedUnusedCeilingMicros': released,
                        'committedCostMicros': reserved-released, 'deadlineAtMs': deadline,
@@ -168,7 +201,7 @@ def execute(request):
         result = protocol['execute']({'op': 'write', 'root': request['root'],
             'state': result['state'], 'ref': '.spend-lock', 'bytes': ''})
         return {'state': result['state'], 'snapshot': snapshot}
-    require(op in {'read', 'reserve', 'settle', 'close_terminal_uncertain', 'revise_protocol'})
+    require(op in {'read', 'reserve', 'settle', 'close_terminal_uncertain', 'revise_protocol', 'reconcile_terminal'})
     state = json.loads(json.dumps(request['state']))
     require(state.get('root') == request['root'])
     drive, parts = protocol['components'](request['root'], root=True)
@@ -213,6 +246,7 @@ def execute(request):
         fields = {'kind', 'caseId', 'captureRunId', 'reservationId', 'sequence'}
         fields |= ({'ceilingMicros'} if op == 'reserve' else
                    {'disposition', 'actualCostMicros', 'proof'} if op == 'close_terminal_uncertain' else
+                   {'disposition', 'chargedCostMicros', 'proof'} if op == 'reconcile_terminal' else
                    {'chargedCostMicros', 'ledgerSha256', 'envelopeSha256'})
         if op == 'reserve' and snapshot.get('protocolVersion') == 2:
             fields.add('reservedAtMs')

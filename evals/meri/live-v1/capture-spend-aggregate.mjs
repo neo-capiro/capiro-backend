@@ -10,6 +10,7 @@ import {
   currentOriginalCase01TerminalClosure,
 } from './case01-terminal-spend-authority.mjs';
 import { currentMemoryReadUsageAuthority } from './memory-read-budget-authority.mjs';
+import { currentReviewedCaptureSpendReconciliation } from './capture-spend-reconciliation.mjs';
 import {
   currentCase01CaptureAuthority,
   currentCase14RecallAuthority,
@@ -255,6 +256,27 @@ export function reviseCaptureSpendProtocol(
       activatedAtMs: Date.now(),
       deadlineAtMs,
     },
+  });
+  return checkpoint(value);
+}
+
+/** Root-only recovery of the currently active run, without re-creating a lost
+ * reservation capability, grading the answer, or sending another request. */
+export function reconcileCaptureSpendTerminal(prior, { pythonExecutable, authority, invocation }) {
+  need(invocation === 'RECONCILE_ACTIVE_TERMINAL_SPEND_ONCE');
+  need(prior?.kind === 'meri-original-capture-spend-checkpoint' && prior.version === 1);
+  const p = currentReviewedCaptureSpendReconciliation(authority);
+  const current = native(prior.state.root, pythonExecutable, { op: 'read', state: prior.state });
+  const key = `${p.caseId}:${p.captureRunId}`, row = current.snapshot.runs[key];
+  need(current.snapshot.activeRun === key && row?.reservationId === p.reservationId && row.ceilingMicros === p.ceilingMicros);
+  const value = native(prior.state.root, pythonExecutable, {
+    op: 'reconcile_terminal', state: current.state,
+    event: { kind: 'reconcile_terminal', caseId: p.caseId, captureRunId: p.captureRunId,
+      reservationId: p.reservationId, disposition: p.disposition, chargedCostMicros: p.chargedCostMicros,
+      proof: { readbackSha256: p.readbackSha256, ledgerSha256: p.ledgerSha256, envelopeSha256: p.envelopeSha256,
+        conversationId: p.conversationId, completedAtMs: p.completedAtMs, observedAtMs: p.observedAtMs,
+        providerDeadlineAtMs: p.providerDeadlineAtMs, pendingProviderAttempts: p.pendingProviderAttempts,
+        providerAttempts: p.providerAttempts, answerGrade: 'NOT_EVALUATED' } },
   });
   return checkpoint(value);
 }
