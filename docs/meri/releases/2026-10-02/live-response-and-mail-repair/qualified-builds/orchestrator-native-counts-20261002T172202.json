@@ -1,0 +1,25 @@
+{
+  "sourceSha": "ddb55a5a3e6bbf1c3f567119b66e18e0a92e60ab",
+  "buildId": "capiro-build-web-dev:53b1459b-36f8-4468-8dc7-f370e370f601",
+  "observedAt": "2026-10-02T17:22:02.224615+00:00",
+  "buildStatus": "SUCCEEDED",
+  "phase": "COMPLETED",
+  "countMarker": {
+    "timestamp": 1790961441099,
+    "counts": {
+      "numTotalTests": 1456,
+      "numPassedTests": 1454,
+      "numFailedTests": 0,
+      "numPendingTests": 2,
+      "numTotalTestSuites": 129,
+      "numPassedTestSuites": 129,
+      "numFailedTestSuites": 0,
+      "numPendingTestSuites": 0
+    },
+    "lineSha256": "3cdf7b3926e32b1e7b0668ab56d00238d8ecc8109ff60d6a2e67f28f0258460f"
+  },
+  "sourceTests": "PASS",
+  "fullBuildQualification": "SEPARATE_MARKER_AND_DIGEST_RECEIPT_REQUIRED",
+  "awsWrites": 0,
+  "liveAcceptance": "NOT_RUN"
+}

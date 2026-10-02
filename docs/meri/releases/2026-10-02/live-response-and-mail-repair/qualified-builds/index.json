@@ -1,0 +1,34 @@
+{
+  "files": [
+    {
+      "path": "api-independent-20261002T172004349915Z.json",
+      "sha256": "4c1ecace79359b53c8558f55a865e7e8d74064f9251eeafb39202f92e6a11b14",
+      "bytes": 2799
+    },
+    {
+      "path": "combined-source-qualification.json",
+      "sha256": "d8ce9e00f85d83ace96c49bd99082ca50507f05369b10b16a97f19a0224620bd",
+      "bytes": 2320
+    },
+    {
+      "path": "independent-build-verification.json",
+      "sha256": "9af0ae9a20455359ae45ef8308e13466378f9cd1ed78861cba2f5c4f34de661b",
+      "bytes": 2187
+    },
+    {
+      "path": "meriv2-orchestrator-independent-20261002T172200186614Z.json",
+      "sha256": "585aad8690ae23277b4674d367612756af56f2ef51d3edb428c3d0911b566a64",
+      "bytes": 2233
+    },
+    {
+      "path": "orchestrator-native-counts-20261002T172202.json",
+      "sha256": "b5269f012f3a7c71df86ecb11973969767c53703ee830eff36d77d220281c448",
+      "bytes": 823
+    },
+    {
+      "path": "release-qualification.json",
+      "sha256": "429eba0942c506fdd21b740d7deb3d2e61d2c47762c8ccd068905e17f6c40f08",
+      "bytes": 1445
+    }
+  ]
+}

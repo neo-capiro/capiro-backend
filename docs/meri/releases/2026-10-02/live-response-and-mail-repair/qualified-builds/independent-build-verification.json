@@ -1,0 +1,47 @@
+{
+  "kind": "meri-independent-exact-source-image-verification",
+  "verdict": "PASS",
+  "sourceSha": "ddb55a5a3e6bbf1c3f567119b66e18e0a92e60ab",
+  "observedAt": "2026-10-02T17:22:39.672052+00:00",
+  "services": {
+    "api": {
+      "buildId": "capiro-build-web-dev:2b05586a-91ea-411d-8e61-9675a8839415",
+      "imageDigest": "sha256:0b81994627394b6c4558c11e996c7d787a70a5dd2ed92dca65ffff028ebeaf55",
+      "recipeSha256": "0000f08568ec1f6bcb8b2ad7c23301e1f43269bb0ade75b04d362c90d759ad16",
+      "receipt": "api-independent-20261002T172004349915Z.json",
+      "receiptSha256": "4c1ecace79359b53c8558f55a865e7e8d74064f9251eeafb39202f92e6a11b14",
+      "actualObserverExitCode": 0,
+      "executedMarkerCount": 10
+    },
+    "meriv2-orchestrator": {
+      "buildId": "capiro-build-web-dev:53b1459b-36f8-4468-8dc7-f370e370f601",
+      "imageDigest": "sha256:3ffbd4fbced44f33a9c525c67f8fd6dcd1c46c68c75983e9bffd81f19c90ed47",
+      "recipeSha256": "dd3aaac45be1eada1a2451add262b6407313d699b390deb0c0707455c370af90",
+      "receipt": "meriv2-orchestrator-independent-20261002T172200186614Z.json",
+      "receiptSha256": "585aad8690ae23277b4674d367612756af56f2ef51d3edb428c3d0911b566a64",
+      "actualObserverExitCode": 0,
+      "executedMarkerCount": 4
+    }
+  },
+  "nativeOrchestratorTests": {
+    "numTotalTests": 1456,
+    "numPassedTests": 1454,
+    "numFailedTests": 0,
+    "numPendingTests": 2,
+    "numTotalTestSuites": 129,
+    "numPassedTestSuites": 129,
+    "numFailedTestSuites": 0,
+    "numPendingTestSuites": 0
+  },
+  "countReceipt": "orchestrator-native-counts-20261002T172202.json",
+  "countReceiptSha256": "b5269f012f3a7c71df86ecb11973969767c53703ee830eff36d77d220281c448",
+  "countsCommandExitCode": 0,
+  "apiPurpose": "Migration451 candidate only; servedAPI507 retained by root plan",
+  "operatorReview": "../oct02-mail-index-release/forward451-independent-peer-review.json",
+  "sharedPolicyHead": "743fd708c3484604e8a35ea1039adeca3b1e331f",
+  "sharedPolicyOrigin": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "requiredPolicyFilesIdentical": true,
+  "awsWrites": 0,
+  "sharedDatabaseWrites": 0,
+  "liveAcceptance": "NOT_RUN"
+}

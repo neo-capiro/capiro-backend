@@ -1,0 +1,103 @@
+{
+  "service": "api",
+  "sourceSha": "ddb55a5a3e6bbf1c3f567119b66e18e0a92e60ab",
+  "buildId": "capiro-build-web-dev:2b05586a-91ea-411d-8e61-9675a8839415",
+  "observedAt": "2026-10-02T17:20:04.349915+00:00",
+  "verdict": "PASS",
+  "externalWrites": 0,
+  "liveAcceptance": "NOT_RUN",
+  "buildStatus": "SUCCEEDED",
+  "phase": "COMPLETED",
+  "actualBuildspecSha256": "0000f08568ec1f6bcb8b2ad7c23301e1f43269bb0ade75b04d362c90d759ad16",
+  "resolvedSourceSha": "ddb55a5a3e6bbf1c3f567119b66e18e0a92e60ab",
+  "phases": [
+    {
+      "phase": "SUBMITTED",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "QUEUED",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "PROVISIONING",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "DOWNLOAD_SOURCE",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "INSTALL",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "PRE_BUILD",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "BUILD",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "POST_BUILD",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "UPLOAD_ARTIFACTS",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "FINALIZING",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "COMPLETED",
+      "status": null
+    }
+  ],
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:0b81994627394b6c4558c11e996c7d787a70a5dd2ed92dca65ffff028ebeaf55",
+  "imageDigest": "sha256:0b81994627394b6c4558c11e996c7d787a70a5dd2ed92dca65ffff028ebeaf55",
+  "executedMarkers": [
+    {
+      "timestamp": 1790961498841,
+      "line": "OFFLINE_RUNTIME_IMPORT_PASS"
+    },
+    {
+      "timestamp": 1790961500855,
+      "line": "OFFLINE_CASE01_CONTINUATION_IMPORT_PASS"
+    },
+    {
+      "timestamp": 1790961500855,
+      "line": "OFFLINE_CASE01_POSTAPPROVAL_IMPORT_PASS"
+    },
+    {
+      "timestamp": 1790961500855,
+      "line": "OFFLINE_CASE01_POSTSEED_IMPORT_PASS"
+    },
+    {
+      "timestamp": 1790961500855,
+      "line": "OFFLINE_CASE01_FIXTURE_PACKAGE_IMPORT_PASS"
+    },
+    {
+      "timestamp": 1790961502868,
+      "line": "EXACT_451_IMAGE_MIGRATION_HASHES_PASS"
+    },
+    {
+      "timestamp": 1790961502868,
+      "line": "MAIL_THREAD_COVERING_INDEX_MIGRATION_PACKAGE_PASS"
+    },
+    {
+      "timestamp": 1790961598594,
+      "line": "LOCAL_REPODIGEST_ECR_MATCH_PASS"
+    },
+    {
+      "timestamp": 1790961598594,
+      "line": "CANDIDATE_API_SOURCE_SHA=ddb55a5a3e6bbf1c3f567119b66e18e0a92e60ab"
+    },
+    {
+      "timestamp": 1790961598594,
+      "line": "CANDIDATE_API_IMAGE=967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:0b81994627394b6c4558c11e996c7d787a70a5dd2ed92dca65ffff028ebeaf55"
+    }
+  ]
+}
