@@ -1,0 +1,37 @@
+{
+  "files": [
+    {
+      "path": "apps/api/scripts/meri-case01-setup-dependencies.mjs",
+      "sha256": "47619a83d436272a1cd93894acc6c4564855489ec06b78c067abee8edc843b50"
+    },
+    {
+      "path": "apps/api/scripts/meri-case01-setup-dependencies.test.mjs",
+      "sha256": "8ab5cc665b135b44e8bf60939adf086929e20e786a27be1164b32832f5604f1a"
+    },
+    {
+      "path": "apps/api/scripts/meri-case01-setup.mjs",
+      "sha256": "170964104321e910b8c6b53daa9d461e713185f4c4a9175d49cf07ff910bde31"
+    },
+    {
+      "path": "docs/meri/implementation/STATUS.md",
+      "sha256": "4c87d053aff9b14960d31e31d2671a7f200d502f92a74963b527ca12c9466ace"
+    },
+    {
+      "path": "evals/meri/live-v1/fixture-provisioning/case01-execution-setup.mjs",
+      "sha256": "dbec70de5c518a1ce6af9c22d434ca792b9885f1f2199a1064a3062ea8d4ace9"
+    },
+    {
+      "path": "evals/meri/live-v1/tests/case01-execution-setup.postgres.test.mjs",
+      "sha256": "70afc917bc0ae2aabe7081f89abfd7fea2c3f173dc1cb889d14076f3a4c26a26"
+    },
+    {
+      "path": "evals/meri/live-v1/tests/case01-memory-packaging.test.mjs",
+      "sha256": "45ac12d89263e2df701652c991ce9e278c3a997f4cf48fbe65e299b9603bc98d"
+    },
+    {
+      "path": "evals/meri/live-v1/tests/case01-recovery-real-transactions.test.mjs",
+      "sha256": "582c3d012a6e23e76ce40d64bc885863d0c7ae55605a6123b65304b9a456ad8b"
+    }
+  ],
+  "baseSha": "6871b52c8b75dcb867ba20bd8c7e439d5ac59805"
+}

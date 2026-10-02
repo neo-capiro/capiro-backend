@@ -1,0 +1,24 @@
+{
+  "testedCodeSha": "cd19ce13a74ec83b12bc31901a2c2f7273c4e53f",
+  "files": {
+    "apps/api/scripts/meri-case01-setup-dependencies.mjs": "47619a83d436272a1cd93894acc6c4564855489ec06b78c067abee8edc843b50",
+    "apps/api/scripts/meri-case01-setup-dependencies.test.mjs": "8ab5cc665b135b44e8bf60939adf086929e20e786a27be1164b32832f5604f1a",
+    "apps/api/scripts/meri-case01-setup.mjs": "170964104321e910b8c6b53daa9d461e713185f4c4a9175d49cf07ff910bde31",
+    "apps/api/src/memory/governed-memory-ingest.postgres.spec.ts": "d274f86ade7e0cc199f1bd52b4a7e29cf0bb58d7012405e79f1e09faf1a66db1",
+    "apps/api/src/memory/governed-memory-ingest.service.spec.ts": "e8a7f0a896a2e428abd772428e2f1412f801e58735fd50ea2bbe292e9f361321",
+    "apps/api/src/memory/governed-memory-ingest.service.ts": "122164ca67d8e47d0037a1e1ab2fa606e1ddea036810f42877c1cbe3f63cf612",
+    "evals/meri/live-v1/case14-approval-capture.mjs": "588e2c8e764b59d7d54fb5b117fb2f0ba449336b8414b610fd6852e331b3ef52",
+    "evals/meri/live-v1/case17-live-capture.mjs": "7957589436d62483246b23a29d96c5d4a5d017789f83b9f0dee594498c46b18b",
+    "evals/meri/live-v1/case17-memory-ui.mjs": "351af0ae5ab6a5ce78f1e8642985c02384f02bd24bab36fbe52f8a8cbc5b706b",
+    "evals/meri/live-v1/case17-readonly-guard.mjs": "6c8d3e5e0dfafba4a0132a2ff3151fcfce245e9b4cc0ad0c2b0a05ac38636b09",
+    "evals/meri/live-v1/case17-saved-checks.mjs": "cd5d8b8bb91099928508f4aaa5db74275c3c874388d51042f21bd98f567dd301",
+    "evals/meri/live-v1/fixture-provisioning/case01-execution-setup.mjs": "dbec70de5c518a1ce6af9c22d434ca792b9885f1f2199a1064a3062ea8d4ace9",
+    "evals/meri/live-v1/tests/case01-execution-setup.postgres.test.mjs": "70afc917bc0ae2aabe7081f89abfd7fea2c3f173dc1cb889d14076f3a4c26a26",
+    "evals/meri/live-v1/tests/case01-memory-packaging.test.mjs": "45ac12d89263e2df701652c991ce9e278c3a997f4cf48fbe65e299b9603bc98d",
+    "evals/meri/live-v1/tests/case01-recovery-real-transactions.test.mjs": "582c3d012a6e23e76ce40d64bc885863d0c7ae55605a6123b65304b9a456ad8b",
+    "evals/meri/live-v1/tests/case14-delayed-query.test.mjs": "32d495d2504960cb1a0a129885d12b8c8317a1323b6950a1ac5feab920f7fbff",
+    "evals/meri/live-v1/tests/case17-memory-ui-query.test.mjs": "a48e14a96246554f9db461aed87e609269d5ce352982a98e93fb5d18be9b42a8",
+    "evals/meri/live-v1/tests/case17-readonly-guard.test.mjs": "848f2f956274fbf2dfb894f3c8e2a6142850d2ea602c9ac0e8bd81c59d98250a",
+    "evals/meri/live-v1/tests/case17-saved-checks.test.mjs": "dcde29e294fcca447291387a442d69fd297a03786122b973d0822a78f432a1a3"
+  }
+}

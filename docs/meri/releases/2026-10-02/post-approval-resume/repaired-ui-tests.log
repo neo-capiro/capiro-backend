@@ -1,0 +1,118 @@
+TAP version 13
+# Subtest: case14 waits for real browser rail mount and delayed review/history results
+ok 1 - case14 waits for real browser rail mount and delayed review/history results
+  ---
+  duration_ms: 911.7826
+  type: 'test'
+  ...
+# Subtest: actual settled query errors remain failures; empty review is not an approval
+ok 2 - actual settled query errors remain failures; empty review is not an approval
+  ---
+  duration_ms: 298.9509
+  type: 'test'
+  ...
+# Subtest: only approved existing-role proposer and no-turn read scope is accepted as data
+ok 3 - only approved existing-role proposer and no-turn read scope is accepted as data
+  ---
+  duration_ms: 4.6849
+  type: 'test'
+  ...
+# Subtest: fake storage, copied receipt, page and claimed readiness cannot mint live capture authority
+ok 4 - fake storage, copied receipt, page and claimed readiness cannot mint live capture authority
+  ---
+  duration_ms: 1.303
+  type: 'test'
+  ...
+# Subtest: both API and Web require exact current successful build/source/recipe/digest binding
+ok 5 - both API and Web require exact current successful build/source/recipe/digest binding
+  ---
+  duration_ms: 1.9936
+  type: 'test'
+  ...
+# Subtest: saved visual review binds exact twelve saved screenshots, run, bytes and capture time
+ok 6 - saved visual review binds exact twelve saved screenshots, run, bytes and capture time
+  ---
+  duration_ms: 2.401
+  type: 'test'
+  ...
+# Subtest: real browser reproduces pre-mount skip and corrected collector waits before choosing controls
+ok 7 - real browser reproduces pre-mount skip and corrected collector waits before choosing controls
+  ---
+  duration_ms: 1748.8666
+  type: 'test'
+  ...
+# Subtest: visible section can precede the query; collector waits for exact cards before counting
+ok 8 - visible section can precede the query; collector waits for exact cards before counting
+  ---
+  duration_ms: 659.2911
+  type: 'test'
+  ...
+# Subtest: failed query rejects; actual empty result remains empty for unchanged strict card assertions
+ok 9 - failed query rejects; actual empty result remains empty for unchanged strict card assertions
+  ---
+  duration_ms: 306.1865
+  type: 'test'
+  ...
+# Subtest: joins all six actual physical source mappings across complete pages, without asserting acceptance
+ok 10 - joins all six actual physical source mappings across complete pages, without asserting acceptance
+  ---
+  duration_ms: 80.2983
+  type: 'test'
+  ...
+# Subtest: rejects absent private proposal, duplicate pages, incomplete traversal, incorrect actor/version/provenance and non-actionable rows
+ok 11 - rejects absent private proposal, duplicate pages, incomplete traversal, incorrect actor/version/provenance and non-actionable rows
+  ---
+  duration_ms: 47.8765
+  type: 'test'
+  ...
+# Subtest: real Chromium aborts the navigation preference PUT and a business POST; nested guards count once
+ok 12 - real Chromium aborts the navigation preference PUT and a business POST; nested guards count once
+  ---
+  duration_ms: 459.0178
+  type: 'test'
+  ...
+# Subtest: only bounded exact same-origin PUTs within each panel round qualify; all other writes remain denied
+ok 13 - only bounded exact same-origin PUTs within each panel round qualify; all other writes remain denied
+  ---
+  duration_ms: 1.0535
+  type: 'test'
+  ...
+# Subtest: card screenshot restores real nested scroll visibility and rejects a card wider than its clipping ancestor
+ok 14 - card screenshot restores real nested scroll visibility and rejects a card wider than its clipping ancestor
+  ---
+  duration_ms: 464.6754
+  type: 'test'
+  ...
+# Subtest: saved checks accept complete multiple pages and reorder after reload without minting authority
+ok 15 - saved checks accept complete multiple pages and reorder after reload without minting authority
+  ---
+  duration_ms: 82.0687
+  type: 'test'
+  ...
+# Subtest: saved checks accept only accounted blocked panel preferences and still reject owner changes
+ok 16 - saved checks accept only accounted blocked panel preferences and still reject owner changes
+  ---
+  duration_ms: 40.4326
+  type: 'test'
+  ...
+# Subtest: missing/current/foreign/action/page/byte/write evidence fails closed
+ok 17 - missing/current/foreign/action/page/byte/write evidence fails closed
+  ---
+  duration_ms: 80.6558
+  type: 'test'
+  ...
+# Subtest: real collector persists redacted owner/count diagnostics before each final guard, including failures
+ok 18 - real collector persists redacted owner/count diagnostics before each final guard, including failures
+  ---
+  duration_ms: 10847.8691
+  type: 'test'
+  ...
+1..18
+# tests 18
+# suites 0
+# pass 18
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 11281.1668

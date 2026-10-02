@@ -1,0 +1,26 @@
+{
+  "kind": "meri-exact-projection-dispatch-qualification",
+  "sourceSha": "b24f05f48cdbc448fdc822958495e359b2d28576",
+  "baseSha": "6eaebb67f60d5be3297796fc04de2ae2cb29f2fd",
+  "tests": {
+    "jestExit": 0,
+    "apiTypecheckExit": 0,
+    "jestTests": 16,
+    "jestSuites": 2,
+    "actualPostgresTests": 4,
+    "skips": 0
+  },
+  "change": "Optional third expectedJob compares id, memoryItemId, sourceVersion, contentHash, idempotencyKey before dispatch; two-argument behavior and SQL unchanged",
+  "independentReview": {
+    "reportedTokens": 9719,
+    "toolCalls": 0,
+    "processExit": 0,
+    "model": "moonshotai.kimi-k2.5",
+    "billedCostUsd": null,
+    "provider": "bedrock",
+    "verdict": "PASS",
+    "sessionId": "20261002_124347_93ca34",
+    "adjudication": "Canonical ISO sourceVersion equality is intentional fail-closed behavior; no concrete blocking finding."
+  },
+  "liveAcceptance": "NOT_RUN"
+}

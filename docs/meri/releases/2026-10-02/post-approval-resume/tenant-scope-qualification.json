@@ -1,0 +1,68 @@
+{
+  "kind": "meri-projection-tenant-scope-qualification",
+  "schemaVersion": 1,
+  "createdAt": "2026-10-02T12:31:08.6383992Z",
+  "sourceSha": "6eaebb67f60d5be3297796fc04de2ae2cb29f2fd",
+  "baseSha": "3d2ba9d844bc71830fc02fdda6e002f48fb96c2b",
+  "policySha": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "observedOpsHead": "743fd708c3484604e8a35ea1039adeca3b1e331f",
+  "policyNote": "Parent verified required BOOTSTRAP AGENTS Hermes OPERATING unchanged; other QA docs advanced",
+  "files": [
+    {
+      "path": "apps/api/src/memory/governed-memory-ingest.service.ts",
+      "sha256": "283d84cc70284ca823c81a34023062de1d6c190a6708445ee13a27060a44ba22"
+    },
+    {
+      "path": "apps/api/src/memory/governed-memory-ingest.service.spec.ts",
+      "sha256": "ea52d2ad37e1a3d562d121e4caf95caaa115557c76a5899af80aab76e9b97b9f"
+    },
+    {
+      "path": "apps/api/src/memory/governed-memory-ingest.postgres.spec.ts",
+      "sha256": "ce8719941e64492ab9d586ea3f27e1c43ca09d5737b0714cdb9c5485cd3c457c"
+    }
+  ],
+  "sourceChange": "Exactly two governed fast-path outbox operations now use tenant context; SQL filters and RLS policies unchanged",
+  "validation": {
+    "offline": {
+      "verifierExitCode": 0,
+      "note": "Executed on exact final file bytes before commit; report records precommit HEAD",
+      "summary": "offline26.summary.json",
+      "testedHead": "3d2ba9d844bc71830fc02fdda6e002f48fb96c2b",
+      "exitCode": 0,
+      "cases": 26
+    },
+    "apiTypecheck": {
+      "exitCode": 0,
+      "log": "api-typecheck.log"
+    },
+    "localReadbackRegression": {
+      "exitCode": 0,
+      "log": "../oct02-case01-release/case01-projection-readonly-tests-v2.log",
+      "tests": 1,
+      "scope": "Random owned local schema and NOSUPERUSER NOBYPASSRLS nonowner role; cleanup absence verified; fresh missing tenant sees0, pooled empty tenant22P02, exacttenant1, wrongtenant0",
+      "skips": 0
+    },
+    "targetedJest": {
+      "skips": 0,
+      "tests": 27,
+      "includesActualNonownerPgTests": 3,
+      "log": "targeted-jest-v2.log",
+      "exitCode": 0,
+      "suites": 5
+    }
+  },
+  "independentReview": {
+    "provider": "bedrock",
+    "reportedTokens": 14242,
+    "model": "moonshotai.kimi-k2.5",
+    "verdict": "PASS",
+    "billedCostUsd": null,
+    "sessionId": "20261002_122815_5fdad0",
+    "exitCode": 0,
+    "toolCalls": 0,
+    "report": "projection-tenant-kimi-review.md"
+  },
+  "liveAcceptance": "NOT_RUN",
+  "noApprovalReplay": true,
+  "operationalNotes": "Third continuation committed canonical approval but failed projection; this patch alone does not authorize rerunning approval or resetting any claim."
+}

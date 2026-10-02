@@ -1,0 +1,21 @@
+{
+  "name": "repaired-offline26",
+  "sourceSha": "cd19ce13a74ec83b12bc31901a2c2f7273c4e53f",
+  "command": [
+    "C:/Program Files/nodejs/node.exe",
+    "node_modules/promptfoo/dist/src/entrypoint.js",
+    "eval",
+    "-c",
+    "evals/meri/promptfooconfig.yaml",
+    "--no-cache",
+    "--no-share",
+    "--no-write",
+    "--no-table",
+    "--no-progress-bar",
+    "-o",
+    "C:\\dev\\cap-meri-foundation-evidence\\oct02-projection-repair\\repaired-offline26.json"
+  ],
+  "exitCode": 0,
+  "elapsedSeconds": 29.52,
+  "logSha256": "eb0bd12398c98ab6dfa9acdea9b92b529a75de1c903762c53ac11436ac2f013a"
+}

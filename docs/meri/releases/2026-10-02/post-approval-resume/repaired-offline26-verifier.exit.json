@@ -1,0 +1,13 @@
+{
+  "name": "repaired-offline26-verifier",
+  "sourceSha": "cd19ce13a74ec83b12bc31901a2c2f7273c4e53f",
+  "command": [
+    "C:/ProgramData/Hermes/tools/python-3.14.7+20260901-win32-x64/python.exe",
+    "evals/meri/verify_report.py",
+    "C:\\dev\\cap-meri-foundation-evidence\\oct02-projection-repair\\repaired-offline26.json",
+    "C:\\dev\\cap-meri-foundation-evidence\\oct02-projection-repair\\repaired-offline26.summary.json"
+  ],
+  "exitCode": 0,
+  "elapsedSeconds": 0.12,
+  "logSha256": "0eb56675898a87c1a5e439e96de6cedab1f46eede5fba09563e98e5c869f4835"
+}
