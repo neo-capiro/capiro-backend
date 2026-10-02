@@ -3,7 +3,10 @@ import { ConfigService } from '@nestjs/config';
 import { RequestCredentialsStore } from '../../request/request-credentials.store.js';
 import type { ToolExecutionControl } from '@capiro/meriv2-core';
 import { createMeriExecutionControl } from '../meri-execution-control.js';
-import { currentServerReadonlyCapturePolicy } from '../../request/trusted-current-turn-scope.js';
+import {
+  currentServerReadonlyCapturePolicy,
+  currentGovernedArtifactCapturePolicy,
+} from '../../request/trusted-current-turn-scope.js';
 
 export interface ManagedMcpToolSchema {
   name: string;
@@ -31,7 +34,7 @@ export class ApiManagedMcpRepo {
   }
 
   async schemas(control?: ToolExecutionControl): Promise<ManagedMcpToolSchema[]> {
-    if (currentServerReadonlyCapturePolicy()) return [];
+    if (currentServerReadonlyCapturePolicy() || currentGovernedArtifactCapturePolicy()) return [];
     const creds = RequestCredentialsStore.get();
     if (!creds?.bearerToken) return [];
     try {
@@ -58,7 +61,7 @@ export class ApiManagedMcpRepo {
     input: Record<string, unknown>,
     control?: ToolExecutionControl,
   ): Promise<unknown> {
-    if (currentServerReadonlyCapturePolicy()) {
+    if (currentServerReadonlyCapturePolicy() || currentGovernedArtifactCapturePolicy()) {
       throw new Error('Server-owned read-only capture denies dynamic MCP dispatch.');
     }
     const creds = RequestCredentialsStore.get();

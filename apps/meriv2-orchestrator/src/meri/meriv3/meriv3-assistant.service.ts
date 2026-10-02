@@ -25,6 +25,7 @@ import {
 } from '@capiro/shared';
 import {
   AUTO_CORRECTION_CAPABILITY,
+  assertMeriCase46ToolInput,
   bindCitationToLedgerEntries,
   COVERAGE_RETRIEVAL_CAPABILITY,
   PASSAGE_SELECTION_CAPABILITY,
@@ -83,6 +84,7 @@ import { RequestCredentialsStore } from '../../request/request-credentials.store
 import {
   assertServerReadonlyCaptureToolAllowed,
   currentServerReadonlyCapturePolicy,
+  currentGovernedArtifactCapturePolicy,
 } from '../../request/trusted-current-turn-scope.js';
 import { ApiActionProposalRepo } from '../api-action-proposal.repo.js';
 import { MeriRegistryService } from '../meri-registry.service.js';
@@ -108,6 +110,7 @@ import {
 } from './meriv3-turn-coverage.js';
 import { observeMeriV3CaptureExecution } from './meriv3-capture-evidence.js';
 import { captureProviderAccounting } from './meriv3-capture-provider-budget.js';
+import { governedArtifactProviderAccounting } from './meriv3-governed-artifact-budget.js';
 import {
   OpenAiResponsesClient,
   anthropicSchemaToResponsesTool,
@@ -929,15 +932,25 @@ export class MeriV3AssistantService {
       opts,
       dto.researchRun
         ? this.durableProviderAccounting(dto.researchRun, opts)
-        : captureProviderAccounting({
-            policy: currentServerReadonlyCapturePolicy(),
-            apiBaseUrl: this.apiBaseUrl,
-            serviceSecret: this.serviceSecret,
-            bearerToken: RequestCredentialsStore.get()?.bearerToken,
-            impersonateTenantId: RequestCredentialsStore.get()?.impersonateTenantId,
-            headers: meriOrchestratorTelemetryHeaders(),
-            control: opts,
-          }),
+        : currentGovernedArtifactCapturePolicy()
+          ? governedArtifactProviderAccounting({
+              policy: currentGovernedArtifactCapturePolicy(),
+              apiBaseUrl: this.apiBaseUrl,
+              serviceSecret: this.serviceSecret,
+              bearerToken: RequestCredentialsStore.get()?.bearerToken,
+              impersonateTenantId: RequestCredentialsStore.get()?.impersonateTenantId,
+              headers: meriOrchestratorTelemetryHeaders(),
+              control: opts,
+            })
+          : captureProviderAccounting({
+              policy: currentServerReadonlyCapturePolicy(),
+              apiBaseUrl: this.apiBaseUrl,
+              serviceSecret: this.serviceSecret,
+              bearerToken: RequestCredentialsStore.get()?.bearerToken,
+              impersonateTenantId: RequestCredentialsStore.get()?.impersonateTenantId,
+              headers: meriOrchestratorTelemetryHeaders(),
+              control: opts,
+            }),
     );
     const budgetScope: MeriToolSignatureScope = {
       actorId: ctx.userId,
@@ -1088,6 +1101,7 @@ export class MeriV3AssistantService {
         : (await this.fetchToolSchemas(opts)).filter(
             (schema) =>
               (dto.toolPolicy !== 'read-only' || readOnlyNames.has(schema.name)) &&
+              (!currentGovernedArtifactCapturePolicy() || schema.name === 'create_word') &&
               (!admittedReadCapabilities || admittedReadCapabilities.has(schema.name)),
           );
     // This tool reads a research snapshot, not client Files. Its session comes
@@ -1147,6 +1161,7 @@ export class MeriV3AssistantService {
                     canonical &&
                     canonical.readOnly === definition.readOnly &&
                     (dto.toolPolicy !== 'read-only' || definition.readOnly === true) &&
+                    (!currentGovernedArtifactCapturePolicy() || schema.name === 'create_word') &&
                     (!currentAdmitted || currentAdmitted.has(schema.name)) &&
                     (schema.name !== 'get_research_evidence' || dto.researchRun) &&
                     (!currentServerReadonlyCapturePolicy() || schema.name !== 'run_analysis'),
@@ -1198,6 +1213,7 @@ export class MeriV3AssistantService {
           canonical.readOnly !== definition.readOnly ||
           dto.toolPolicy === 'none' ||
           (dto.toolPolicy === 'read-only' && definition.readOnly !== true) ||
+          (currentGovernedArtifactCapturePolicy() && schema.name !== 'create_word') ||
           (admittedReadCapabilities && !admittedReadCapabilities.has(schema.name)) ||
           (schema.name === 'get_research_evidence' && !dto.researchRun) ||
           (currentServerReadonlyCapturePolicy() && schema.name === 'run_analysis')
@@ -2388,7 +2404,12 @@ export class MeriV3AssistantService {
       emit({ type: 'text', text: released.reply });
       canary.noteTextEmitted();
     }
-    if (!currentServerReadonlyCapturePolicy() && matchLabelMode === 'shadow' && released.reply) {
+    if (
+      !currentServerReadonlyCapturePolicy() &&
+      !currentGovernedArtifactCapturePolicy() &&
+      matchLabelMode === 'shadow' &&
+      released.reply
+    ) {
       const reply = released.reply;
       const releasedCitations = released.citations;
       const started = Date.now();
@@ -2450,7 +2471,11 @@ export class MeriV3AssistantService {
     this.logStructured('log', 'meri.canary.turn', { ...canaryEvent });
     // Always schedule after text emission. Stage 1 enforce is intentionally
     // shadow-only: this cannot hold, delay, retrieve for, or rewrite the answer.
-    if (!currentServerReadonlyCapturePolicy() && claimAssessmentMode !== 'off') {
+    if (
+      !currentServerReadonlyCapturePolicy() &&
+      !currentGovernedArtifactCapturePolicy() &&
+      claimAssessmentMode !== 'off'
+    ) {
       const asOf = new Date().toISOString();
       scheduleClaimInventoryShadow({
         conversationId: dto.conversationId,
@@ -2512,6 +2537,7 @@ export class MeriV3AssistantService {
     // Shadow starts only after text emission and is deliberately not awaited.
     if (
       !currentServerReadonlyCapturePolicy() &&
+      !currentGovernedArtifactCapturePolicy() &&
       statusProvenanceMode === 'shadow' &&
       released.reply
     ) {
@@ -3280,6 +3306,8 @@ export class MeriV3AssistantService {
         this.prepareArtifactInput(call.name, parsed, args.citations, args.ledgerEntries),
         schema,
       );
+      const artifactCapture = currentGovernedArtifactCapturePolicy();
+      if (artifactCapture) assertMeriCase46ToolInput(artifactCapture, call.name, augmented.input);
       if (call.name === 'get_research_evidence' && args.dto.researchRun) {
         augmented.input.sessionId = args.dto.researchRun.sessionId;
       }
@@ -4282,7 +4310,7 @@ export class MeriV3AssistantService {
     usage: ProviderUsage,
     usedTenantKey: boolean,
   ): Promise<void> {
-    if (currentServerReadonlyCapturePolicy()) return;
+    if (currentServerReadonlyCapturePolicy() || currentGovernedArtifactCapturePolicy()) return;
     try {
       await recordAiUsageEvent(
         { prisma: this.prisma, logger: this.logger },
@@ -4303,7 +4331,7 @@ export class MeriV3AssistantService {
     verdict: ReturnType<typeof runAuditor>,
     reply: string,
   ): Promise<void> {
-    if (currentServerReadonlyCapturePolicy()) return;
+    if (currentServerReadonlyCapturePolicy() || currentGovernedArtifactCapturePolicy()) return;
     try {
       await this.prisma.withTenant(tenantId, (tx) =>
         tx.meriAuditLedger.create({

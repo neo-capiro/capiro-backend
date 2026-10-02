@@ -51,6 +51,7 @@ import type { MeriGovernedTurnContext } from '@capiro/meriv2-core';
 import { MeriService } from './meri.service.js';
 import {
   currentMeriGovernedRuntime,
+  currentMeriGovernedArtifactCapturePolicy,
   MeriContextPlaneRuntimeService,
 } from './meri-context-plane-runtime.js';
 import { MeriV3ProxyService } from './meriv3-proxy.service.js';
@@ -137,6 +138,8 @@ export function createMeriRuntimeService(
                 signal?.throwIfAborted();
                 const useV3 = await meriv3.shouldHandle(ctx);
                 signal?.throwIfAborted();
+                if (currentMeriGovernedArtifactCapturePolicy() && !useV3)
+                  throw new Error('meri_case46_qualified_v3_required');
                 return useV3
                   ? meriv3.streamMessage(...forwarded)
                   : target.streamMessage(...forwarded);

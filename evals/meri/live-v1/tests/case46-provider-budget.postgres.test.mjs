@@ -89,6 +89,7 @@ it(
       } = source('meri-case46-action-authority');
       const { case46BudgetTestFixture } = source('meri-case46-provider-budget.spec-helper');
       const { case46BudgetHash } = source('meri-case46-provider-budget');
+      const { assertCase46NewTurnInTx, case46TurnReceiptInTx } = source('meri-case46-turn-owner');
       const { MERI_CASE46: f } = core;
       const { p, q, b } = case46BudgetTestFixture();
       const ctx = {
@@ -316,11 +317,71 @@ it(
       );
       assert.deepEqual(await saved(), installed);
       await call({ kind: 'admit' }, { ...policy, turnId: null });
-      await admin.query(
-        "INSERT INTO clio_messages(id,tenant_id,user_id,conversation_id,client_id,role,body) VALUES($1,$2,$3,$4,$5,'user',$6)",
-        [p.turnId, ctx.tenantId, ctx.userId, p.conversationId, f.clientId, f.prompt],
+      await prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
+        assertCase46NewTurnInTx(tx, deps, ctx, { ...policy, turnId: null }),
+      );
+      await t.test(
+        'actual guarded turn insertion serializes two PostgreSQL backends and rejects the loser',
+        async () => {
+          let releaseTurn, turnLocked;
+          const turnReady = new Promise((resolve) => {
+            turnLocked = resolve;
+          });
+          const turnContinue = new Promise((resolve) => {
+            releaseTurn = resolve;
+          });
+          let firstTurnPid;
+          const firstTurn = prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+            await assertCase46NewTurnInTx(tx, deps, ctx, { ...policy, turnId: null });
+            firstTurnPid = latestPid;
+            turnLocked();
+            await turnContinue;
+            await tx.$executeRaw`INSERT INTO clio_messages(id,tenant_id,user_id,conversation_id,client_id,role,body)
+            VALUES(${p.turnId}::uuid,${ctx.tenantId}::uuid,${ctx.userId}::uuid,${p.conversationId}::uuid,${f.clientId}::uuid,'user',${f.prompt})`;
+          });
+          pending.push(firstTurn);
+          try {
+            await turnReady;
+            const secondTurn = prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
+              assertCase46NewTurnInTx(tx, deps, ctx, { ...policy, turnId: null }),
+            );
+            pending.push(secondTurn);
+            const denied = assert.rejects(secondTurn, /turn_already_started/);
+            let waiting = false;
+            for (let i = 0; i < 100 && !waiting; i++) {
+              await delay(10);
+              if (latestPid !== firstTurnPid)
+                waiting =
+                  (
+                    await admin.query('SELECT 1 FROM pg_locks WHERE pid=$1 AND granted=false', [
+                      latestPid,
+                    ])
+                  ).rowCount > 0;
+            }
+            assert.equal(
+              waiting,
+              true,
+              'second actual backend waits on the current authority conversation lock',
+            );
+            releaseTurn();
+            await firstTurn;
+            await denied;
+            assert.equal(
+              (await admin.query('SELECT count(*)::int AS n FROM clio_messages')).rows[0].n,
+              1,
+            );
+          } finally {
+            releaseTurn();
+          }
+        },
       );
       await call({ kind: 'admit' });
+      await assert.rejects(
+        prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
+          assertCase46NewTurnInTx(tx, deps, ctx, { ...policy, turnId: null }),
+        ),
+        /turn_already_started/,
+      );
       const before = await saved();
       failWrite = true;
       await assert.rejects(call({ kind: 'reserve', binding: b }), /injected rollback/);
@@ -352,6 +413,12 @@ it(
       const reserved = await first;
       await secondRejected;
       assert.equal(reserved.dispatchAllowed, true);
+      await assert.rejects(
+        prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
+          case46TurnReceiptInTx(tx, deps, ctx, policy),
+        ),
+        /settled_usage_required/,
+      );
       assert.equal((await call({ kind: 'reserve', binding: b })).dispatchAllowed, false);
       await call({
         kind: 'settle',
@@ -362,6 +429,14 @@ it(
         },
       });
       assert.equal((await call({ kind: 'receipt' })).receipt.costMicros, 20);
+      assert.equal(
+        (
+          await prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
+            case46TurnReceiptInTx(tx, deps, ctx, policy),
+          )
+        ).costMicros,
+        20,
+      );
       await t.test(
         'actual PG proposal and effect locks refuse duplicates, missing approval, stale source and changed bytes',
         async () => {

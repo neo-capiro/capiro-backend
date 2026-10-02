@@ -1,6 +1,15 @@
 import { persistMeriServerCaptureEvidenceReceipt } from './meri-server-capture-evidence.js';
 import { captureBudgetRequired } from './meri-capture-provider-budget.js';
 import { captureProviderBudgetOwner } from './meri-capture-provider-budget-owner.js';
+import { case46ProviderBudgetOwner } from './meri-case46-provider-budget-owner.js';
+import { CASE46_AUTHORITY_DEPENDENCIES } from './meri-case46-action-authority.js';
+import type { Case46AuthorityDependencies } from './meri-case46-authority.js';
+import {
+  assertCase46OriginalInput,
+  assertCase46NewTurnInTx,
+  case46TurnReceiptInTx,
+  requireCase46Owner,
+} from './meri-case46-turn-owner.js';
 import { bindCaptureProviderBudgetReceipt } from './meri-capture-provider-budget-receipt.js';
 import { captureMeriTurnScope } from './meri-turn-scope.js';
 import {
@@ -78,6 +87,8 @@ import { resolveEvidenceAccuracyModeForTenant } from '../common/meri-evidence-ac
 import { MeriResearchService } from './meri-research.service.js';
 import {
   bindCurrentMeriCaptureTurn,
+  bindCurrentCase46Turn,
+  currentMeriGovernedArtifactCapturePolicy,
   currentMeriCaptureEvidenceReceipt,
   currentMeriServerReadonlyCapturePolicy,
   currentMeriServerReadonlyCaptureReceipt,
@@ -154,6 +165,9 @@ export class MeriV3ProxyService {
     @Optional()
     @Inject(ResearchPortfolioMeriScopeService)
     private readonly researchPortfolioScope?: ResearchPortfolioMeriScopeService,
+    @Optional()
+    @Inject(CASE46_AUTHORITY_DEPENDENCIES)
+    private readonly case46?: Case46AuthorityDependencies,
   ) {}
 
   async shouldHandle(ctx: TenantContext): Promise<boolean> {
@@ -244,6 +258,11 @@ export class MeriV3ProxyService {
       conversation.metadata,
     );
     let capturePolicy = currentMeriServerReadonlyCapturePolicy();
+    let artifactPolicy = currentMeriGovernedArtifactCapturePolicy();
+    if (artifactPolicy) {
+      if (capturePolicy || !bearerToken) throw new Error('meri_case46_transport_ambiguous');
+      assertCase46OriginalInput(artifactPolicy, { body, mode, attachmentIds, impersonateTenantId });
+    }
     assertMeriServerReadonlyCaptureTurnInput({ policy: capturePolicy, mode, attachmentIds });
     await assertMeriServerReadonlyCaptureCurrentAuthority({
       prisma: this.prisma,
@@ -274,6 +293,15 @@ export class MeriV3ProxyService {
         );
       }
       sourceMessageId = await this.persistUserMessage(ctx, conversation, content, attachmentIds);
+      if (artifactPolicy) {
+        artifactPolicy = bindCurrentCase46Turn(sourceMessageId);
+        if (!artifactPolicy) throw new Error('meri_case46_turn_binding_missing');
+        await case46ProviderBudgetOwner(requireCase46Owner(this.case46), {
+          ctx,
+          policy: artifactPolicy,
+          operation: { kind: 'admit' },
+        });
+      }
       if (capturePolicy && sourceMessageId) {
         capturePolicy = bindCurrentMeriCaptureTurn(sourceMessageId) ?? capturePolicy;
         if (captureBudgetRequired(capturePolicy)) {
@@ -539,6 +567,7 @@ export class MeriV3ProxyService {
           return;
         case 'artifact':
           assertMeriServerReadonlyCaptureNoArtifactWrites(capturePolicy, [event.artifact.id]);
+          if (artifactPolicy) throw new Error('meri_case46_artifact_requires_browser_approval');
           artifactIds.push(event.artifact.id);
           emitMeriApiTelemetry({
             name: 'meri.api.artifact.observed',
@@ -895,6 +924,11 @@ export class MeriV3ProxyService {
     attachmentIds: string[],
   ): Promise<string> {
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const artifactPolicy = currentMeriGovernedArtifactCapturePolicy();
+      if (artifactPolicy) {
+        assertCase46OriginalInput(artifactPolicy, { body: content, mode: 'new', attachmentIds });
+        await assertCase46NewTurnInTx(tx, requireCase46Owner(this.case46), ctx, artifactPolicy);
+      }
       let rows: Array<{
         id: string;
         filename: string;
@@ -1050,6 +1084,7 @@ export class MeriV3ProxyService {
         const initial = describeAttachmentContentState(document);
         if (
           !currentMeriServerReadonlyCapturePolicy() &&
+          !currentMeriGovernedArtifactCapturePolicy() &&
           enforceContentState &&
           !initial.readable &&
           document.data
@@ -1198,8 +1233,12 @@ export class MeriV3ProxyService {
       policy: currentMeriServerReadonlyCapturePolicy(),
     });
     const captureReceipt = currentMeriServerReadonlyCaptureReceipt();
-    const message = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.clioMessage.create({
+    const message = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const artifactPolicy = currentMeriGovernedArtifactCapturePolicy();
+      const artifactReceipt = artifactPolicy
+        ? await case46TurnReceiptInTx(tx, requireCase46Owner(this.case46), ctx, artifactPolicy)
+        : null;
+      return tx.clioMessage.create({
         data: {
           tenantId: ctx.tenantId,
           userId: ctx.userId,
@@ -1210,12 +1249,13 @@ export class MeriV3ProxyService {
           metadata: {
             ...metadata,
             ...(captureReceipt ? { serverReadonlyCaptureReceipt: captureReceipt } : {}),
+            ...(artifactReceipt ? { governedArtifactCaptureReceipt: artifactReceipt } : {}),
           } as Prisma.InputJsonValue,
         },
         select: { id: true },
-      }),
-    );
-    if (!currentMeriServerReadonlyCapturePolicy()) {
+      });
+    });
+    if (!currentMeriServerReadonlyCapturePolicy() && !currentMeriGovernedArtifactCapturePolicy()) {
       this.maintenance.scheduleAfterTurnMaintenance(ctx, conversationId);
     }
     return message;

@@ -126,6 +126,9 @@ describe('separate case46 governed capability', () => {
       clientId: p.clientId,
     };
     expect(() => assertMeriCase46ToolInput(p, 'create_word', input)).not.toThrow();
+    expect(() =>
+      assertMeriCase46ToolInput(p, 'create_word', { ...input, sections: [] }),
+    ).not.toThrow();
     for (const changed of [
       { ...input, text: MERI_CASE46.text.trimEnd() },
       { ...input, format: 'docx' },
@@ -133,6 +136,7 @@ describe('separate case46 governed capability', () => {
       { ...input, clientId: randomUUID() },
       { ...input, conversationId: randomUUID() },
       { ...input, recipient: 'unexpected' },
+      { ...input, sections: [{ heading: 'changed' }] },
     ])
       expect(() => assertMeriCase46ToolInput(p, 'create_word', changed)).toThrow();
     expect(() => assertMeriCase46ToolInput({ ...p, turnId: null }, 'create_word', input)).toThrow();

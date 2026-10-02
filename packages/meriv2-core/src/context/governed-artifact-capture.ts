@@ -171,6 +171,7 @@ export function assertMeriCase46ToolInput(
     .object({
       title: z.literal(MERI_CASE46.title),
       format: z.literal('txt'),
+      sections: z.tuple([]).optional(),
       text: z.literal(MERI_CASE46.text),
       conversationId: z.literal(p.conversationId),
       clientId: z.literal(MERI_CASE46.clientId),

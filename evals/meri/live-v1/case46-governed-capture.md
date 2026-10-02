@@ -6,7 +6,7 @@ The fixed original prompt is `Export that briefing and give me the file.` The ex
 
 ## Current source contracts
 
-- `packages/meriv2-core/src/context/governed-artifact-capture.ts` defines a separate MAC-authenticated capability for this case only: the approved T1/Pat/Aster identities, one `create_word` proposal and artifact, canonical current-user approval, exact text input, no dynamic MCP, suppressed incidental writers, and a maximum 15-minute validity. Its transport cannot be decoded as read-only capture authority. The API proposal and artifact insert owners enforce these ceilings; chat/V3 dispatch remains to be integrated.
+- `packages/meriv2-core/src/context/governed-artifact-capture.ts` defines a separate MAC-authenticated capability for this case only: the approved T1/Pat/Aster identities, one `create_word` proposal and artifact, canonical current-user approval, exact text input, no dynamic MCP, suppressed incidental writers, and a maximum 15-minute validity. Its transport cannot be decoded as read-only capture authority. The API proposal and artifact insert owners enforce these ceilings; the current chat/V3 path carries this separate authority.
 - `apps/api/src/meri/meri-case46-authority.ts` reads the actual current ordinary actor, Clerk identity, active membership, client wall, owned conversation, canonical input document row and current storage hash. The source identity matches the existing client-document writer and fixture ownership algorithm. The input is an Engagement attachment, separate from the clio artifact the export must create. It must be ready under the canonical attachment owner; no scan/lifecycle override is provided.
 - `installCase46CaptureBinding(deps, args)` is an internal operator function, with no HTTP endpoint. It locks and requires an empty owned conversation and an exact prior metadata hash, re-reads current source authority, and atomically installs a sealed binding while retaining unrelated metadata. The externally qualified rate sheet must match the current verification hash. The actual service secret is required through the existing process environment; no default or guessed key is supplied. It creates no message, proposal or output artifact.
 - `apps/api/src/meri/meri-case46-provider-budget.ts` uses the existing research reservation arithmetic in its own `governedArtifactProviderBudget` metadata field. A policy binds the full qualification hash, current source verification and rate expiry. Unknown prices or output bounds fail closed; reservation replay does not grant another dispatch; uncertain usage retains its charge and cannot yield a successful usage receipt.
@@ -23,8 +23,8 @@ The existing `case46-artifact-ui.mjs` is a separately reviewed approval/download
 ## Required continuation before any live case 46
 
 1. Compose a fixed operator using the real ClientDocumentWriter/Engagement owner to create only the namespaced input briefing and an empty owned conversation. Read current source bytes and install the qualified sealed binding. Preserve exact source/recipe/operation receipts and stop on an ambiguous write; never prepopulate a successful generated clio artifact or assistant response.
-2. Add the separate capability to the authenticated governed context and current-turn scopes, choose it only after current server admission, and bind its one persisted user turn. Account for API retrieval and every V3 provider attempt before dispatch. Do not add case 46 to the read-only policy/receipt unions or permit an unaccounted fallback path.
-3. Complete the authenticated capture readback joining the real proposal, operation, output artifact and settled usage. Canonical creation/approval/insert guards are implemented below; they still need the final chat/V3 path and full live qualification.
+2. Qualify the implemented separate current-turn/provider transport on the final integrated images. It requires the existing V3 route and refuses an unaccounted legacy fallback. Case46 remains outside every read-only capture union.
+3. Complete the authenticated capture readback joining the real proposal, operation, output artifact and settled usage. Canonical creation/approval/insert guards and chat/V3 forwarding are implemented below; they still need full live qualification.
 4. Have the fixed native capture operator send the original prompt once, consume the actual admitted proposal, and run the reviewed UI substep. Persist only sanitized authority/usage/effect/download evidence. Require the qualified API, orchestrator and Web releases and fresh root readiness. A new text MIME path still needs the matching deployed Web and actual Playwright verification.
 5. Run the deterministic Meri evaluation on the final integrated source, then the authorized live case. Any pending source, provider, approval, byte, scope or durable-receipt condition keeps case 46 blocked. Do not count this checkpoint toward the live 75-case pass total.
 ## Canonical proposal/effect checkpoint
@@ -53,6 +53,42 @@ The storage read port is mocked in this suite; it does not prove live S3/RLS.
 Primary API typecheck passed. Independent Kimi source review completed with
 PASS/exit0; its raw speculative analysis is not test evidence.
 
-Full chat/V3 forwarding, fixed setup and the composed original-prompt/download
-operator still require integration and qualification. Original row46 and the
+Fixed setup and the composed original-prompt/download operator still require
+integration and qualification. Original row46 and the
 75-case live matrix remain **NOT RUN**, not passed by these tests.
+
+## Governed turn and provider transport checkpoint
+
+The actual Context Plane runtime now re-reads the sealed source owner before
+retrieval, admits a separately priced budget, and binds the one actual persisted
+user-message ID. The user-message insert repeats the current owner checks and
+empty-conversation requirement while holding the same conversation row lock.
+The verified input briefing is added as source data; no output is prepopulated.
+
+The existing V3 transport authenticates the separate policy under the governed
+context MAC. The controller requires the exact original prompt, selected client,
+one message, no image/page-write/research overlay, and a bound turn. The assistant
+exposes only `create_word`, revalidates its exact input at dispatch, and routes it
+through the canonical proposal owner. Direct tools and dynamic MCP are denied.
+The actual schema's optional empty `sections` array is accepted for txt; nonempty
+sections, alternate bytes/format/name and other tool inputs remain denied.
+
+API retrieval and V3 model attempts use the existing reservation arithmetic
+through a separate current authority and ledger. The provider ingress rejects
+mixed MAC audiences. Failed/uncertain settlements cannot produce a saved successful
+usage receipt or approve the export. A saved assistant message receives the
+server-owned settled receipt, and incidental maintenance/audit/shadow writers are
+suppressed for this exact capability. Ordinary turns retain their existing flow.
+
+Local validation: API78 tests, orchestrator bridge36, assistant116, and core9
+passed. The final five-test wiring run includes four of those API tests plus an
+explicit dual-scope refusal. Actual owned PostgreSQL3/3 checks include two
+concurrent turn inserts, provider reservation contention, rollback and canonical
+effect guards. Primary API and orchestrator typechecks passed. Test doubles do
+not establish live storage, provider usage, production RLS, browser or acceptance.
+
+Independent Kimi source review ran with exit0 and returned BLOCK findings. Its
+specific premises conflict with the actual source (existing parent row lock,
+lowercase headers, correct `format` schema, and existing nullable ordinary-scope
+contract); the raw review and factual adjudication are retained in task evidence
+for independent integration-owner review. Do not represent that review as PASS.

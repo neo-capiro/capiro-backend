@@ -6,11 +6,13 @@ import { MERI_CAPABILITY_REGISTRY } from '@capiro/shared';
 import type { MeriContext, ToolRegistry } from '@capiro/meriv2-core';
 import {
   createMeriResearchPlanExecutionEnvelope,
+  MERI_CASE46,
   MERI_GOVERNMENT_AFFAIRS_OUTPUT_CONTRACT,
   readCanaryEvents,
   readShadowEvents,
   type MeriServerReadonlyCapturePolicy,
 } from '@capiro/meriv2-core';
+import { governedArtifactTestPolicy } from './meriv3-governed-artifact.spec-helper.js';
 import { runWithGovernedMeriContext } from '../meri-governed-context.runtime.js';
 import type { MeriGovernedTurnContext } from '@capiro/meriv2-core';
 import { RequestCredentialsStore } from '../../request/request-credentials.store.js';
@@ -2014,6 +2016,110 @@ describe('MeriV3AssistantService', () => {
     expect(createProposal).toHaveBeenCalledTimes(1);
     expect(result.pendingApprovals).toEqual([
       expect.objectContaining({ proposalId: 'proposal-opaque-1', tool: 'send_email' }),
+    ]);
+  });
+
+  test('case46 original export uses only canonical approval with exact source bytes and no artifact effect', async () => {
+    const p = governedArtifactTestPolicy();
+    const input = { title: MERI_CASE46.title, format: 'txt', text: MERI_CASE46.text, sections: [] };
+    const call = {
+      type: 'function_call',
+      call_id: 'case46-call',
+      name: 'create_word',
+      arguments: JSON.stringify(input),
+    };
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(response({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValueOnce(response({ outputText: 'The export is awaiting your approval.' }));
+    const invoke = jest.fn();
+    const createProposal = jest.fn(async (_request: unknown) => ({
+      disposition: 'pending_approval',
+      proposal: {
+        proposalId: 'case46-proposal',
+        status: 'proposed',
+        reason: 'Current user approval required',
+        expiresAt: new Date(p.expiresAt).toISOString(),
+        riskTier: 'low',
+        policy: { decision: 'PASS' },
+        preview: { label: 'Export briefing', fields: {}, counts: {} },
+      },
+    }));
+    const assistant = build(
+      registry(
+        [
+          { name: 'create_word', readOnly: false },
+          { name: 'send_email', readOnly: false },
+        ],
+        invoke,
+      ),
+      complete,
+      createProposal,
+      {},
+      { INTERNAL_SERVICE_SECRET: 'case46-unit-only' },
+    );
+    global.fetch = jest.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            schemas: [
+              {
+                name: 'create_word',
+                description: 'Create document',
+                input_schema: {
+                  type: 'object',
+                  properties: {
+                    title: { type: 'string' },
+                    format: { type: 'string' },
+                    text: { type: 'string' },
+                    sections: { type: 'array', items: { type: 'object' } },
+                    clientId: { type: 'string' },
+                    conversationId: { type: 'string' },
+                  },
+                  required: ['title', 'sections'],
+                },
+              },
+              {
+                name: 'send_email',
+                description: 'Send email',
+                input_schema: { type: 'object', properties: {} },
+              },
+            ],
+          }),
+          { status: 200 },
+        ),
+    ) as typeof fetch;
+    const result = await RequestCredentialsStore.run({ bearerToken: 'unit-only' }, () =>
+      withTrustedCurrentTurnScope(
+        {
+          tenantId: p.tenantId,
+          userId: p.actorUserId,
+          conversationId: p.conversationId,
+          selectedClientId: p.clientId,
+          governedArtifactPolicy: p,
+        },
+        () =>
+          assistant.run(
+            { ...context, tenantId: p.tenantId, userId: p.actorUserId },
+            {
+              conversationId: p.conversationId,
+              clientId: p.clientId,
+              messages: [{ role: 'user', text: MERI_CASE46.prompt }],
+            },
+          ),
+      ),
+    );
+    expect(createProposal).toHaveBeenCalledTimes(1);
+    expect(createProposal.mock.calls[0]?.[0]).toEqual({
+      tool: 'create_word',
+      surface: 'chat',
+      conversationId: p.conversationId,
+      input: { ...input, clientId: p.clientId, conversationId: p.conversationId },
+    });
+    expect(invoke).not.toHaveBeenCalled();
+    expect(result.artifacts ?? []).toEqual([]);
+    expect(result.pendingApprovals).toEqual([
+      expect.objectContaining({ proposalId: 'case46-proposal', tool: 'create_word' }),
     ]);
   });
 

@@ -4,6 +4,7 @@ import type { MeriCitation, TenantRole } from '@capiro/shared';
 import type { MemoryAuthority } from '../memory/governance';
 import type { ToolExecutionMetadata } from './tool-execution-metadata';
 import type { MeriServerReadonlyCapturePolicy } from '../context/server-readonly-capture';
+import type { MeriGovernedArtifactCapturePolicy } from '../context/governed-artifact-capture';
 
 export type MeriContextScope = 'personal' | 'client' | 'firm';
 
@@ -84,6 +85,8 @@ export interface MeriGovernedTurnContext {
   procedure?: MeriGovernedProcedureBinding;
   /** API-issued, actor/conversation-bound capture authority. Never accepted from a client. */
   serverReadonlyCapturePolicy?: MeriServerReadonlyCapturePolicy;
+  /** Separate fixed-case authority, authenticated by the whole-context MAC. */
+  governedArtifactCapturePolicy?: MeriGovernedArtifactCapturePolicy;
   attestation?: { version: 1; issuedAt: number; signature: string };
   contextPacket: MeriContextPacketSummary;
   retrieval: {
