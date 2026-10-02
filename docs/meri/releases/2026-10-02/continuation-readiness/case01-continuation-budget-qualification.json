@@ -1,0 +1,79 @@
+{
+  "kind": "case01-continuation-budget-operator-qualification",
+  "observedAt": "2026-10-02T11:39:55.0029236Z",
+  "status": "PASS",
+  "preparedOnly": true,
+  "policySha": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "machineMapLastWriteUtc": "2026-09-30T00:21:48.2698715Z",
+  "operator": {
+    "sha256": "85771211089b7e8fd63d57f1d619132517b6ff2e316823aa671dabd4aab03748",
+    "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-case01-release\\case01-continuation-budget-oneoff.py"
+  },
+  "tests": {
+    "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-case01-release\\case01-continuation-budget-oneoff.test.py",
+    "logSha256": "23c97a76c5739fbbcf06254da7c7120863255118d0825ac610dff4853d339a79",
+    "skipped": 0,
+    "log": "C:\\dev\\cap-meri-foundation-evidence\\oct02-case01-release\\case01-continuation-budget-tests-v3.log",
+    "passed": 12,
+    "priorSetupFailure": "Initial10-test run had a test-only mismatch between two loaded Refusal classes; no production weakening; preserved case01-continuation-budget-tests.log/exit.",
+    "sha256": "edd3853fdde85d20eb2198e46e7fedd9513d6e074de6064dc487f2cdff3265cc",
+    "count": 12,
+    "exitCode": 0,
+    "scope": "Offline fake-AWS lifecycle and authority tests. No actual AWS, PostgreSQL, browser or provider calls."
+  },
+  "review": {
+    "peerVerdict": "PASS",
+    "model": {
+      "requestedModel": "moonshotai.kimi-k2.5",
+      "initializedModel": "moonshotai.kimi-k2.5",
+      "sessionId": "20261002_113645_98147f",
+      "provider": "bedrock",
+      "reportedTokens": {
+        "input": 13391,
+        "output": 615,
+        "total": 14006,
+        "cache_read": 0,
+        "cache_write": 0
+      },
+      "reportedResultExit": 0,
+      "toolCalls": 0,
+      "billedCostUsd": null,
+      "costStatus": "not exposed by quiet stream output"
+    },
+    "peer": "file01_ab_audit",
+    "report": "C:\\dev\\cap-meri-foundation-evidence\\oct02-live-repair-release\\continuation-budget-kimi-review.md",
+    "adjudication": "No concrete blocker. Correct a review wording imprecision: source_check is assigned from the continuation helper; input_binding itself does not perform Git reads. Authority/task/CloudWatch readback occurs in qualify. Review is not live execution evidence.",
+    "verdict": "PASS",
+    "reportSha256": "bdc0afdc2434cc5def4dbed5cd2936a955838d0ad4422501baac8cb00d78a6ae",
+    "peerScope": "Independent source read; no rerun or AWS",
+    "process": {
+      "exitCode": 0,
+      "started": 1790941002.5913577,
+      "finished": 1790941019.4945078,
+      "elapsedSeconds": 16.9
+    }
+  },
+  "runbook": {
+    "sha256": "f6334cf044ae745754757d8c77871bdd567f86caba7998a27b1c961d95b51801",
+    "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-case01-release\\CASE01-CONTINUATION-BUDGET-ROOT-COMMANDS.md"
+  },
+  "effects": {
+    "cloudCalls": 0,
+    "databaseCalls": 0,
+    "browserCalls": 0,
+    "applicationSourceChanges": 0,
+    "providerCalls": 0,
+    "materializedLiveInputs": 0
+  },
+  "dependencies": {
+    "maxAttempts": 32,
+    "rateExpiry": "2026-10-03T06:08:00.000Z",
+    "continuation": "Actual VERIFIED setup-continuation-execute receipt with complete19 canonical journal, currently not executed",
+    "maxTokens": 200000,
+    "budgetPlan": "Actual new canonical plan task and CAS readback required",
+    "limitMicros": 3000000,
+    "apiImage": "Actual same-source/same-digest continuation image; exact four source blobs pinned; tested combined823",
+    "aggregate": "Separate aggregate-v4 admission remains required"
+  },
+  "liveAcceptance": "NOT_RUN"
+}

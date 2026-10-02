@@ -1,0 +1,35 @@
+{
+  "status": "READ_ONLY_DIAGNOSTIC_COMPLETE",
+  "receiptSha256": "8c5b04df235b287aaedbfd134e669652b1a25d70c44e22c09872717f42c68b75",
+  "apiSource": "9751be7f497a76aa3e008ec81b1ff1388731e52e",
+  "webSource": "78ad5805679a3045b1fc10fb19beafa7f76e4e64",
+  "sessionRevoked": true,
+  "applicationWrites": 0,
+  "modelTurns": 0,
+  "observations": [
+    {
+      "checkpoint": "cards_at_first_section_visibility",
+      "articleCount": 6,
+      "sixUniqueExactOwnedCards": true,
+      "loadingVisible": false,
+      "loadMoreCount": 0
+    },
+    {
+      "checkpoint": "cards_after_query_settlement",
+      "articleCount": 6,
+      "sixUniqueExactOwnedCards": true,
+      "loadingVisible": false,
+      "loadMoreCount": 0
+    }
+  ],
+  "conclusion": "Persistent DOM/source-key mismatch not reproduced. Both observations were already settled; live timing-race cause remains inference supported by source and local delayed-query regression, not directly observed in this diagnostic.",
+  "screenshot": {
+    "path": "C:/dev/cap-meri-foundation-evidence/oct02-case17-card-diagnostic/case17-card-diagnostic-v1.png",
+    "bytes": 87342,
+    "sha256": "6066bae228d02f7ca10bb4098e142576b95be67425e36dcf512166b628ff4d7b",
+    "scope": "OWNED_SYNTHETIC_ACTOR_AND_SIX_PROPOSALS_VERIFIED"
+  },
+  "visualReview": "Actually opened section PNG: visible synthetic firm/client proposal cards with exact frozen labels and Withdraw actions. Nested scrolling clips some cards; image alone does not show all six. Six-card claim comes from actual DOM observations, not pixel inference.",
+  "fullOriginalRow17Acceptance": false,
+  "fullFile01Acceptance": false
+}

@@ -1,0 +1,60 @@
+{
+  "status": "PREPARED_LOCAL_PASS",
+  "sharedPolicySha": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "runtimeApi": "9751be7f497a76aa3e008ec81b1ff1388731e52e",
+  "runtimeWeb": "78ad5805679a3045b1fc10fb19beafa7f76e4e64",
+  "checks": [
+    {
+      "name": "syntax-helper",
+      "command": [
+        "node",
+        "--check",
+        "case17-card-diagnostic.mjs"
+      ],
+      "exitCode": 0,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "syntax-runner",
+      "command": [
+        "node",
+        "--check",
+        "run-case17-card-diagnostic-v1.mjs"
+      ],
+      "exitCode": 0,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "tests",
+      "command": [
+        "node",
+        "--test",
+        "case17-card-diagnostic.test.mjs"
+      ],
+      "exitCode": 0,
+      "logSha256": "1ad21a92ca6bce3f2a4f9f2fe6946bd3033c3cbe372f1ec1782f5854caefa443"
+    },
+    {
+      "name": "readiness",
+      "command": [
+        "node",
+        "run-case17-card-diagnostic-v1.mjs",
+        "--check-readiness"
+      ],
+      "exitCode": 0,
+      "logSha256": "963a80a1391bbfa5bcb588206f41265c75c74c965d54a7e91a89e18b4d5da9b3"
+    }
+  ],
+  "actualTests": 7,
+  "sourcePins": {
+    "kind": "case17-card-diagnostic-local-source-pins",
+    "runnerSha256": "6e5626e9ac9631f89dfce8c3ee19c045d3b499a2e752d5a134103989afc4b69e",
+    "helperSha256": "5f481b3bd069161025577407b6dc8b4c5223824d0101f983b971692664080291"
+  },
+  "liveDiagnostic": "NOT_RUN",
+  "cloudCalls": 0,
+  "authCalls": 0,
+  "modelCalls": 0,
+  "applicationWrites": 0,
+  "review": "root independent peer found UTF8 decoding error; fixed literal middle-dot/ellipsis in helper/test; actual real browser covers panel and delayed proposal query. Before-fix receipts preserved."
+}

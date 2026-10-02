@@ -1,0 +1,454 @@
+{
+  "caseId": "17",
+  "sourceSha": "9751be7f497a76aa3e008ec81b1ff1388731e52e",
+  "webSourceSha": "78ad5805679a3045b1fc10fb19beafa7f76e4e64",
+  "operatorHead": "d325d8c366c6178d7fcd1cf706c5ac46d43c0172",
+  "pinsSha256": "3c1d1e87c36630256330cfed310fdba4e8c8f2372bf82d1ed722119103222a70",
+  "captureRunId": "7fa0c9df-58ab-401b-bcdd-e562bf0259d4",
+  "status": "READ_ONLY_DIAGNOSTIC_COMPLETE",
+  "sessionCreated": true,
+  "sessionRevoked": true,
+  "synthesisSubmissionCount": 0,
+  "applicationWrites": 0,
+  "originalPromptSubmission": "NOT_RUN",
+  "humanRubric": "NOT_RUN",
+  "acceptanceScope": "NO_TURN_PENDING_MEMORY_UI_SLICE",
+  "fullOriginalRow17Acceptance": false,
+  "fullFile01Acceptance": false,
+  "diagnostic": {
+    "kind": "meri-case17-readonly-ui-diagnostic",
+    "caseId": "17",
+    "captureRunId": "7fa0c9df-58ab-401b-bcdd-e562bf0259d4",
+    "apiSha": "9751be7f497a76aa3e008ec81b1ff1388731e52e",
+    "webSha": "78ad5805679a3045b1fc10fb19beafa7f76e4e64",
+    "startedAt": "2026-10-02T11:35:33.442Z",
+    "stages": [
+      {
+        "name": "current_builds",
+        "startedAt": "2026-10-02T11:35:33.443Z",
+        "status": "PASS",
+        "observation": {
+          "observedAt": 1790940948403,
+          "services": [
+            {
+              "service": "api",
+              "sourceSha": "9751be7f497a76aa3e008ec81b1ff1388731e52e",
+              "imageDigest": "sha256:ba3f726576916d0ee4d42372e978a76720a3e9c11e781d612ad19253bfc1fe85",
+              "buildId": "capiro-build-web-dev:ba0d9dcc-b135-42ea-8fd1-56215ee730eb",
+              "buildspecSha256": "ce090c61a57181e7c18c3ee33adc7568ec00d2d1de5fe727b9405ba62dac7d68",
+              "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:497",
+              "primaryDeploymentId": "ecs-svc/1474747083456082906",
+              "baselineSha256": "569377aa076916a1c1e5d86be187ad55cc9c8a7dac99e29eaa4fec3fe17a829b"
+            },
+            {
+              "service": "web-vnext",
+              "sourceSha": "78ad5805679a3045b1fc10fb19beafa7f76e4e64",
+              "imageDigest": "sha256:a048aceec01c207b514f76fb447d4fb8bdb5ed17278642480008a1510a12de4c",
+              "buildId": "capiro-build-web-dev:f2d89683-bcc5-48dc-a4da-849ced167860",
+              "buildspecSha256": "0fce5b86940b9599702942ff25c462a51977ef7e6106f6af59dfe22b54f1daf6",
+              "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web-vnext:388",
+              "primaryDeploymentId": "ecs-svc/2451414755928290434",
+              "baselineSha256": "569891aa635a37a2bcfae07adfc5186923ab67fcc75f2bc3d9f12036c9b90d91"
+            }
+          ]
+        }
+      },
+      {
+        "name": "launch_browser",
+        "startedAt": "2026-10-02T11:35:48.403Z",
+        "status": "PASS"
+      },
+      {
+        "name": "sign_in_page",
+        "startedAt": "2026-10-02T11:35:48.833Z",
+        "status": "PASS"
+      },
+      {
+        "name": "clerk_loaded",
+        "startedAt": "2026-10-02T11:35:52.191Z",
+        "status": "PASS"
+      },
+      {
+        "name": "web_identity",
+        "startedAt": "2026-10-02T11:35:52.527Z",
+        "status": "PASS",
+        "observation": {
+          "releaseSha": "78ad5805679a3045b1fc10fb19beafa7f76e4e64",
+          "surface": "vnext",
+          "clerkHost": "clerk.app.capiro.ai"
+        }
+      },
+      {
+        "name": "create_owned_session",
+        "startedAt": "2026-10-02T11:35:52.532Z",
+        "status": "PASS",
+        "observation": {
+          "complete": true
+        }
+      },
+      {
+        "name": "set_active_organization",
+        "startedAt": "2026-10-02T11:35:53.520Z",
+        "status": "PASS"
+      },
+      {
+        "name": "wait_active_identity",
+        "startedAt": "2026-10-02T11:35:53.643Z",
+        "status": "PASS"
+      },
+      {
+        "name": "read_ephemeral_token",
+        "startedAt": "2026-10-02T11:35:53.648Z",
+        "status": "PASS"
+      },
+      {
+        "name": "native_current_actor",
+        "startedAt": "2026-10-02T11:35:53.750Z",
+        "status": "PASS",
+        "observation": {
+          "exactActor": true,
+          "exactTenant": true,
+          "exactRole": true
+        }
+      },
+      {
+        "name": "native_current_proposals",
+        "startedAt": "2026-10-02T11:35:53.856Z",
+        "status": "PASS",
+        "observation": {
+          "currentOwnedRows": 6,
+          "ownerSha256": "d239fa97f531d493d7b986acd5419429418a4a37897f89645afdc3dd59ea2c92"
+        }
+      },
+      {
+        "name": "navigate_meri",
+        "startedAt": "2026-10-02T11:35:54.245Z",
+        "status": "PASS"
+      },
+      {
+        "name": "wait_context_rail",
+        "startedAt": "2026-10-02T11:35:54.589Z",
+        "status": "PASS"
+      },
+      {
+        "name": "selectors_before_panel",
+        "startedAt": "2026-10-02T11:35:55.407Z",
+        "status": "PASS",
+        "observation": {
+          "Expand panel": {
+            "count": 0,
+            "visible": []
+          },
+          "Open Context and Memory": {
+            "count": 1,
+            "visible": [
+              true
+            ]
+          },
+          "Memory": {
+            "count": 0,
+            "visible": []
+          },
+          "proposalsSections": 0,
+          "proposalArticleCount": 0
+        }
+      },
+      {
+        "name": "optional_expand_panel",
+        "startedAt": "2026-10-02T11:35:55.429Z",
+        "status": "PASS"
+      },
+      {
+        "name": "selectors_after_expand",
+        "startedAt": "2026-10-02T11:35:55.433Z",
+        "status": "PASS",
+        "observation": {
+          "Expand panel": {
+            "count": 0,
+            "visible": []
+          },
+          "Open Context and Memory": {
+            "count": 1,
+            "visible": [
+              true
+            ]
+          },
+          "Memory": {
+            "count": 0,
+            "visible": []
+          },
+          "proposalsSections": 0,
+          "proposalArticleCount": 0
+        }
+      },
+      {
+        "name": "optional_open_context",
+        "startedAt": "2026-10-02T11:35:55.448Z",
+        "status": "PASS"
+      },
+      {
+        "name": "selectors_before_memory",
+        "startedAt": "2026-10-02T11:35:55.492Z",
+        "status": "PASS",
+        "observation": {
+          "Expand panel": {
+            "count": 0,
+            "visible": []
+          },
+          "Open Context and Memory": {
+            "count": 0,
+            "visible": []
+          },
+          "Memory": {
+            "count": 1,
+            "visible": [
+              true
+            ]
+          },
+          "proposalsSections": 0,
+          "proposalArticleCount": 0
+        }
+      },
+      {
+        "name": "click_memory",
+        "startedAt": "2026-10-02T11:35:55.507Z",
+        "status": "PASS"
+      },
+      {
+        "name": "wait_proposals_section",
+        "startedAt": "2026-10-02T11:35:55.573Z",
+        "status": "PASS",
+        "observation": {
+          "Expand panel": {
+            "count": 0,
+            "visible": []
+          },
+          "Open Context and Memory": {
+            "count": 0,
+            "visible": []
+          },
+          "Memory": {
+            "count": 1,
+            "visible": [
+              true
+            ]
+          },
+          "proposalsSections": 1,
+          "proposalArticleCount": 6
+        }
+      },
+      {
+        "name": "cards_at_first_section_visibility",
+        "startedAt": "2026-10-02T11:35:55.596Z",
+        "status": "PASS",
+        "observation": {
+          "sectionCount": 1,
+          "articleCount": 6,
+          "loadingVisible": false,
+          "errorVisible": false,
+          "emptyVisible": false,
+          "loadMoreCount": 0,
+          "cards": [
+            {
+              "logicalSourceId": "MEM-PENDING-17-A",
+              "count": 1,
+              "exactTextCount": 1,
+              "withdrawButtonCount": 1,
+              "visible": true,
+              "pendingLabelCount": 3,
+              "sourceLabelCount": 1
+            },
+            {
+              "logicalSourceId": "MEM-PENDING-17-B",
+              "count": 1,
+              "exactTextCount": 1,
+              "withdrawButtonCount": 1,
+              "visible": true,
+              "pendingLabelCount": 3,
+              "sourceLabelCount": 1
+            },
+            {
+              "logicalSourceId": "MEM-PENDING-17-C",
+              "count": 1,
+              "exactTextCount": 1,
+              "withdrawButtonCount": 1,
+              "visible": true,
+              "pendingLabelCount": 3,
+              "sourceLabelCount": 1
+            },
+            {
+              "logicalSourceId": "MEM-PENDING-17-D",
+              "count": 1,
+              "exactTextCount": 1,
+              "withdrawButtonCount": 1,
+              "visible": true,
+              "pendingLabelCount": 3,
+              "sourceLabelCount": 1
+            },
+            {
+              "logicalSourceId": "MEM-PENDING-17-E",
+              "count": 1,
+              "exactTextCount": 1,
+              "withdrawButtonCount": 1,
+              "visible": true,
+              "pendingLabelCount": 3,
+              "sourceLabelCount": 1
+            },
+            {
+              "logicalSourceId": "MEM-PENDING-17-F",
+              "count": 1,
+              "exactTextCount": 1,
+              "withdrawButtonCount": 1,
+              "visible": true,
+              "pendingLabelCount": 3,
+              "sourceLabelCount": 1
+            }
+          ]
+        }
+      },
+      {
+        "name": "wait_proposal_query_settlement",
+        "startedAt": "2026-10-02T11:35:55.690Z",
+        "status": "PASS"
+      },
+      {
+        "name": "cards_after_query_settlement",
+        "startedAt": "2026-10-02T11:35:55.705Z",
+        "status": "PASS",
+        "observation": {
+          "sectionCount": 1,
+          "articleCount": 6,
+          "loadingVisible": false,
+          "errorVisible": false,
+          "emptyVisible": false,
+          "loadMoreCount": 0,
+          "cards": [
+            {
+              "logicalSourceId": "MEM-PENDING-17-A",
+              "count": 1,
+              "exactTextCount": 1,
+              "withdrawButtonCount": 1,
+              "visible": true,
+              "pendingLabelCount": 3,
+              "sourceLabelCount": 1
+            },
+            {
+              "logicalSourceId": "MEM-PENDING-17-B",
+              "count": 1,
+              "exactTextCount": 1,
+              "withdrawButtonCount": 1,
+              "visible": true,
+              "pendingLabelCount": 3,
+              "sourceLabelCount": 1
+            },
+            {
+              "logicalSourceId": "MEM-PENDING-17-C",
+              "count": 1,
+              "exactTextCount": 1,
+              "withdrawButtonCount": 1,
+              "visible": true,
+              "pendingLabelCount": 3,
+              "sourceLabelCount": 1
+            },
+            {
+              "logicalSourceId": "MEM-PENDING-17-D",
+              "count": 1,
+              "exactTextCount": 1,
+              "withdrawButtonCount": 1,
+              "visible": true,
+              "pendingLabelCount": 3,
+              "sourceLabelCount": 1
+            },
+            {
+              "logicalSourceId": "MEM-PENDING-17-E",
+              "count": 1,
+              "exactTextCount": 1,
+              "withdrawButtonCount": 1,
+              "visible": true,
+              "pendingLabelCount": 3,
+              "sourceLabelCount": 1
+            },
+            {
+              "logicalSourceId": "MEM-PENDING-17-F",
+              "count": 1,
+              "exactTextCount": 1,
+              "withdrawButtonCount": 1,
+              "visible": true,
+              "pendingLabelCount": 3,
+              "sourceLabelCount": 1
+            }
+          ]
+        }
+      }
+    ],
+    "reads": [
+      {
+        "path": "/api/me",
+        "status": 200,
+        "bytes": 1225,
+        "sha256": "53cbd0e8e5e95c9f7bb3d66772d29b6ca2877cfbaf33d79f8f3eedb215073578",
+        "json": true,
+        "releaseSha": "9751be7f497a76aa3e008ec81b1ff1388731e52e",
+        "candidateCount": null,
+        "hasFixtureEvidence": false
+      },
+      {
+        "path": "/api/memory/proposals?limit=50",
+        "status": 200,
+        "bytes": 6359,
+        "sha256": "d70e06f77dc4efa81d92ec9135c545fb38bf412bf320dcf943acc899faaacbb0",
+        "json": true,
+        "releaseSha": "9751be7f497a76aa3e008ec81b1ff1388731e52e",
+        "candidateCount": 6,
+        "hasFixtureEvidence": true
+      }
+    ],
+    "browserApiReads": [
+      {
+        "path": "/api/me",
+        "method": "GET",
+        "status": 200
+      },
+      {
+        "path": "/api/memory/proposals",
+        "method": "GET",
+        "status": 200
+      }
+    ],
+    "blockedWrites": 2,
+    "blockedNavigations": 1,
+    "pageErrorCategories": [],
+    "applicationWrites": 0,
+    "modelTurns": 0,
+    "acceptance": "NOT_RUN",
+    "currentStage": "cards_after_query_settlement",
+    "status": "READ_ONLY_DIAGNOSTIC_COMPLETE",
+    "finalSelectors": {
+      "Expand panel": {
+        "count": 0,
+        "visible": []
+      },
+      "Open Context and Memory": {
+        "count": 0,
+        "visible": []
+      },
+      "Memory": {
+        "count": 1,
+        "visible": [
+          true
+        ]
+      },
+      "proposalsSections": 1,
+      "proposalArticleCount": 6
+    },
+    "screenshot": {
+      "path": "C:/dev/cap-meri-foundation-evidence/oct02-case17-card-diagnostic/case17-card-diagnostic-v1.png",
+      "bytes": 87342,
+      "sha256": "6066bae228d02f7ca10bb4098e142576b95be67425e36dcf512166b628ff4d7b",
+      "scope": "OWNED_SYNTHETIC_ACTOR_AND_SIX_PROPOSALS_VERIFIED"
+    },
+    "browserSignOutAttempted": true,
+    "completedAt": "2026-10-02T11:35:56.215Z"
+  },
+  "completedAt": "2026-10-02T11:35:57.360Z"
+}

@@ -1,0 +1,74 @@
+{
+  "entries": [
+    {
+      "file": "case01-continuation-budget-oneoff.py",
+      "originalLocalSha256": "85771211089b7e8fd63d57f1d619132517b6ff2e316823aa671dabd4aab03748",
+      "archivedSha256": "85771211089b7e8fd63d57f1d619132517b6ff2e316823aa671dabd4aab03748"
+    },
+    {
+      "file": "case01-continuation-budget-qualification.json",
+      "originalLocalSha256": "236000b397a0eef40da310e6747b67245e95a73b64405e409c8864a6858201aa",
+      "archivedSha256": "54be0f62c7eddec15aa9c7333022ef021871a344dd38fde2d6e9cb039f90a8be"
+    },
+    {
+      "file": "CASE01-CONTINUATION-BUDGET-ROOT-COMMANDS.md",
+      "originalLocalSha256": "f6334cf044ae745754757d8c77871bdd567f86caba7998a27b1c961d95b51801",
+      "archivedSha256": "f6334cf044ae745754757d8c77871bdd567f86caba7998a27b1c961d95b51801"
+    },
+    {
+      "file": "case01-continuation-budget-tests-v3.log",
+      "originalLocalSha256": "23c97a76c5739fbbcf06254da7c7120863255118d0825ac610dff4853d339a79",
+      "archivedSha256": "44fd354a223d5f2b1a9d9b5954e7d102d03f779568ef1faa25d66ca7e2417ef5"
+    },
+    {
+      "file": "continuation-budget-kimi-review.md",
+      "originalLocalSha256": "bdc0afdc2434cc5def4dbed5cd2936a955838d0ad4422501baac8cb00d78a6ae",
+      "archivedSha256": "ae5b8ae44951ba643c55a0e483cc933a519167039f0badec903b37bb1530ef96"
+    },
+    {
+      "file": "continuation-budget-kimi-exit.json",
+      "originalLocalSha256": "7d24185712339d9e852bc36ee105884226566576f31268bc28450b8670b92640",
+      "archivedSha256": "8ae969d700b4fabbe86de0ea37acfc7052a59a698480ee2b57eca70ec85650fe"
+    },
+    {
+      "file": "continuation-budget-kimi-usage.json",
+      "originalLocalSha256": "cf7c6cafdd4667eaba4ebf662edb80b21fce98ab09eb9b3e58757399db8cd628",
+      "archivedSha256": "d102d755566c7c6bc8c6b4c0ee34ef6a60583bd8c397cedb30f3c612dc038d31"
+    },
+    {
+      "file": "run-case17-card-diagnostic-v1.mjs",
+      "originalLocalSha256": "6e5626e9ac9631f89dfce8c3ee19c045d3b499a2e752d5a134103989afc4b69e",
+      "archivedSha256": "6e5626e9ac9631f89dfce8c3ee19c045d3b499a2e752d5a134103989afc4b69e"
+    },
+    {
+      "file": "case17-card-diagnostic.mjs",
+      "originalLocalSha256": "5f481b3bd069161025577407b6dc8b4c5223824d0101f983b971692664080291",
+      "archivedSha256": "5f481b3bd069161025577407b6dc8b4c5223824d0101f983b971692664080291"
+    },
+    {
+      "file": "case17-card-diagnostic-pins.json",
+      "originalLocalSha256": "715d1238c4a977c2c9975a159cedefa02438a4fe700a24dcff4bede042744b0b",
+      "archivedSha256": "46c05c4a80a1e2f56105b3bfa0dc375687cde6a509b0ef5afbaf3c9bd12920f6"
+    },
+    {
+      "file": "preparation-qualification.json",
+      "originalLocalSha256": "720c6857bee3dd22019c410e1c2946c1c3fc14e8bc86c0ee8e6a9eba3b71c062",
+      "archivedSha256": "da15f2df3acb2394a2a50a1649c18ae7cefffeedae18b8380dd0b51112de66e1"
+    },
+    {
+      "file": "case17-card-diagnostic-v1.json",
+      "originalLocalSha256": "8c5b04df235b287aaedbfd134e669652b1a25d70c44e22c09872717f42c68b75",
+      "archivedSha256": "8c5b04df235b287aaedbfd134e669652b1a25d70c44e22c09872717f42c68b75"
+    },
+    {
+      "file": "case17-card-diagnostic-v1.png",
+      "originalLocalSha256": "6066bae228d02f7ca10bb4098e142576b95be67425e36dcf512166b628ff4d7b",
+      "archivedSha256": "6066bae228d02f7ca10bb4098e142576b95be67425e36dcf512166b628ff4d7b"
+    },
+    {
+      "file": "readonly-findings.json",
+      "originalLocalSha256": "91d748f937e141ca9ee57244ad915eade41d48dd65bee5b9c14d23500aff6621",
+      "archivedSha256": "af5f83e028d296a1d95391c20071aa3fecda7c682de31dfcbcb36a55f7ec8550"
+    }
+  ]
+}
