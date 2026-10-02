@@ -1,0 +1,24 @@
+{
+  "verdict": "PASS",
+  "kind": "independent-source-review",
+  "observedAt": "2026-10-02T05:23:25.151431+00:00",
+  "driverSha256": "0acb79a3282c6bb7cd0214e4daf9cbf9353857917156accc7c2d5a506b1e5712",
+  "helperSha256": "dea0482095ecb8205f495e4315f6092eda850a6350b6e33712fd1e0feb68c7f2",
+  "apiSource": "4aad73b881c2f33ebb0bc41ddf61514a34010ad7",
+  "orchestratorSource": "bae902c734eea220b4c6299423119e7bdaac2f6b",
+  "orchestratorTaskRevision": 89,
+  "webSource": "940fe9354f95630c6acb0f20f75ced26ea9e75f4",
+  "webTaskRevision": 386,
+  "checks": [
+    "API qualification and exact promotion current deployment matched",
+    "Fixed orchestrator and Web source/digest/task definitions",
+    "Current release readback hash and age <=900 seconds checked immediately before Send",
+    "Exactly two ordinary synthetic member identities; <=1 conversation and <=1 turn each",
+    "Exact HTTPS application and Clerk origins; other mutations refused",
+    "Permanent execution lock and unchanged strict reply assertions",
+    "Known session IDs revoked in finally; no browser/session/raw reply persistence"
+  ],
+  "authenticated": false,
+  "browserRuns": 0,
+  "externalWrites": 0
+}

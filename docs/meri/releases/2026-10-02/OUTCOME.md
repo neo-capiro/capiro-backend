@@ -1,5 +1,20 @@
 # Meri production release — October 2, 2026
 
+## Current repair qualification at05:23 UTC
+
+The reply-format correction (PR1928, source`bae902c734eea220b4c6299423119e7bdaac2f6b`)
+is deployed in orchestrator task definition89. Its subsequent strict T1 browser
+check exposed signed-receipt number rounding in the API; T2 was not run and the
+T1 session was revoked. PR1929 fixes the reproduced Prisma JSON persistence
+defect without relaxing signature or authority checks. Source
+`4aad73b881c2f33ebb0bc41ddf61514a34010ad7` is merged and its API image is qualified,
+but API promotion and the next live check are not yet claimed complete here.
+See [the repair qualification](signed-receipt/qualification.md) for actual56 API
+tests,2 PostgreSQL regressions, full typecheck,26 offline cases and successful
+native AWS build. Full original-plan live acceptance remains incomplete.
+
+The following sections retain the earlier release history and failed attempts.
+
 The three Meri service images were deployed to the sole `capiro-dev` AWS environment.
 Web serves `https://os.capiro.ai` through `web-vnext`. Independent readback at
 02:02:33 UTC verified the three image promotions. A second independent readback

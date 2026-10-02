@@ -1,0 +1,17 @@
+{
+  "buildId": "capiro-build-web-dev:992139f7-00c4-478d-b369-3d5e6b28d109",
+  "selectedLogLines": [
+    ": \"${EXPECTED_SHA:?start-build must pass the exact merged-main SHA}\"",
+    "python3 scripts/validate-meri-build-isolation.py",
+    ": \"${EXPECTED_SHA:?start-build must pass the exact merged-main SHA}\"",
+    "python3 scripts/validate-meri-build-isolation.py",
+    " exit status 1",
+    "[Container] 2026/10/02 05:12:21.417628 Phase complete: PRE_BUILD State: FAILED_WITH_ABORT",
+    "[Container] 2026/10/02 05:12:21.417647 Phase context status code: COMMAND_EXECUTION_ERROR Message: Error while executing command: set -euo pipefail",
+    ": \"${EXPECTED_SHA:?start-build must pass the exact merged-main SHA}\"",
+    "python3 scripts/validate-meri-build-isolation.py",
+    ". Reason: exit status 1"
+  ],
+  "scope": "Sanitized build diagnostic lines; echoed commands are not execution proof",
+  "externalWrites": 0
+}

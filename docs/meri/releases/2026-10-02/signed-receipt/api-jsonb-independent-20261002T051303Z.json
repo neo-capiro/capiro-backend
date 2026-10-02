@@ -1,0 +1,48 @@
+{
+  "sourceSha": "4aad73b881c2f33ebb0bc41ddf61514a34010ad7",
+  "buildId": "capiro-build-web-dev:992139f7-00c4-478d-b369-3d5e6b28d109",
+  "observedAt": "2026-10-02T05:13:03.377696+00:00",
+  "verdict": "BLOCKED",
+  "externalWrites": 0,
+  "liveAcceptance": "NOT_RUN",
+  "buildStatus": "FAILED",
+  "phase": "COMPLETED",
+  "actualBuildspecSha256": "2734858d2ddc08eff19a242ab53a2cdaf72b30266e442ec448f9965a2f0f798b",
+  "resolvedSourceSha": "4aad73b881c2f33ebb0bc41ddf61514a34010ad7",
+  "environmentType": "ARM_CONTAINER",
+  "phases": [
+    {
+      "phase": "SUBMITTED",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "QUEUED",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "PROVISIONING",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "DOWNLOAD_SOURCE",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "INSTALL",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "PRE_BUILD",
+      "status": "FAILED"
+    },
+    {
+      "phase": "FINALIZING",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "COMPLETED",
+      "status": null
+    }
+  ],
+  "failureCode": "BUILD_NOT_SUCCEEDED"
+}

@@ -1,0 +1,12 @@
+{
+  "command": [
+    "C:\\Program Files\\nodejs\\pnpm.cmd",
+    "--filter",
+    "@capiro/api",
+    "typecheck"
+  ],
+  "cwd": "C:\\dev\\cap-meri-migration-history-guard",
+  "exitCode": 0,
+  "startedAtEpoch": 1790917568.8423946,
+  "completedAtEpoch": 1790917768.1146784
+}

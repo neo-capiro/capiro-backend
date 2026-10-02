@@ -1,0 +1,19 @@
+{
+  "command": [
+    "C:\\Program Files\\nodejs\\pnpm.cmd",
+    "--filter",
+    "@capiro/api",
+    "exec",
+    "jest",
+    "--runInBand",
+    "--forceExit",
+    "src/meri/meri-server-readonly-capture.spec.ts",
+    "src/meri/meri-api-capture-lifecycle.spec.ts",
+    "src/meri/meri-api-capture-observations.spec.ts",
+    "src/prisma/tenant-scope-guard.spec.ts"
+  ],
+  "cwd": "C:\\dev\\cap-meri-migration-history-guard",
+  "exitCode": 0,
+  "startedAtEpoch": 1790917568.8421302,
+  "completedAtEpoch": 1790917626.4873338
+}

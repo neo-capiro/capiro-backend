@@ -1,0 +1,41 @@
+{
+  "schemaVersion": "meri.synthetic-ui-readiness.v2",
+  "ready": false,
+  "attemptId": "v8-jsonb-repair",
+  "authorizedNewTurns": 2,
+  "expiresAtEpoch": 0,
+  "environment": "capiro-dev",
+  "origin": "https://os.capiro.ai",
+  "mergedSourceSha": "ROOT_FILL_CURRENT_MAIN",
+  "repairedRuntimeSourceSha": "ROOT_FILL_NEW_RUNTIME_SOURCE",
+  "expectedScriptSha256": "0acb79a3282c6bb7cd0214e4daf9cbf9353857917156accc7c2d5a506b1e5712",
+  "approvedTenantSlugs": [
+    "meri-foundation-20260928-t1",
+    "meri-foundation-20260928-t2"
+  ],
+  "independentVerificationPath": "C:\\dev\\cap-meri-foundation-evidence\\oct02-reply-only\\synthetic-meri-ui-v8-release-readback.json",
+  "independentVerificationSha256": "ROOT_FILL_READBACK_HASH",
+  "services": {
+    "api": {
+      "sourceSha": "ROOT_FILL_ACTUAL_SERVED_40_HEX",
+      "imageDigest": "ROOT_FILL_ACTUAL_QUALIFIED_DIGEST",
+      "taskDefinitionArn": "ROOT_FILL_ACTUAL_TASK_DEFINITION_ARN",
+      "primaryDeploymentId": "ROOT_FILL_ACTUAL_PRIMARY_DEPLOYMENT_ID",
+      "healthy": false
+    },
+    "meriv2-orchestrator": {
+      "sourceSha": "ROOT_FILL_ACTUAL_SERVED_40_HEX",
+      "imageDigest": "ROOT_FILL_ACTUAL_QUALIFIED_DIGEST",
+      "taskDefinitionArn": "ROOT_FILL_ACTUAL_TASK_DEFINITION_ARN",
+      "primaryDeploymentId": "ROOT_FILL_ACTUAL_PRIMARY_DEPLOYMENT_ID",
+      "healthy": false
+    },
+    "web-vnext": {
+      "sourceSha": "940fe9354f95630c6acb0f20f75ced26ea9e75f4",
+      "imageDigest": "ROOT_FILL_ACTUAL_QUALIFIED_DIGEST",
+      "taskDefinitionArn": "ROOT_FILL_ACTUAL_TASK_DEFINITION_ARN",
+      "primaryDeploymentId": "ROOT_FILL_ACTUAL_PRIMARY_DEPLOYMENT_ID",
+      "healthy": false
+    }
+  }
+}

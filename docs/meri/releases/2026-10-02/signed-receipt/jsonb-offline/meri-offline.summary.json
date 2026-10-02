@@ -1,0 +1,114 @@
+{
+  "success": true,
+  "exit_code": 0,
+  "report_path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-reply-only\\jsonb-offline\\meri-offline.json",
+  "report_sha256": "f0cdc1f0e7ada2202d59ccf06cdf5673fa2cf8458553eca6f08ac2741fbc3e1d",
+  "suite_contract_sha256": "25be466136f4d47fc141e4b024f732a5ee1c1a477cc084700208c7b2826c052d",
+  "input_sha256": {
+    "config": "b2000ece2d0801a49538e7e5649fb1324e398cd00ce45b988c525bc37f0852b9",
+    "scorer": "0813d0356df6837a8946b46134251f6d93f0a59b84a11138760471199c7bbc55",
+    "provider": "b7eaa13d23949664593a62e9ad690d7f9fa7d388e727ad63ac2d249869328b1d",
+    "runner": "53f1d9c847b65359e89d8408743f4abaff288de3aae3b79808db13870cd9b65d",
+    "ga_fixture": "f3474d7d9ee178e224d2b130e32643bec09af5ae0804e808149ed7e08442e770"
+  },
+  "expected_count": 26,
+  "found_count": 26,
+  "evaluated_rows": 26,
+  "pass_count": 26,
+  "fail_count": 0,
+  "error_count": 0,
+  "threshold": 1.0,
+  "category_counts": {
+    "core": 11,
+    "ga": 6,
+    "plan": 5,
+    "sequence": 2,
+    "calibration": 2
+  },
+  "checks": {
+    "aggregate_stats": true,
+    "config_assertion": true,
+    "private_uncached": true,
+    "contract_ids": true,
+    "uniform_source_sha": true,
+    "current_source_sha": true,
+    "fixture_hash": true,
+    "current_harness_inputs": true
+  },
+  "stats": {
+    "successes": 26,
+    "failures": 0,
+    "errors": 0,
+    "tokenUsage": {
+      "prompt": 0,
+      "completion": 0,
+      "cached": 0,
+      "total": 0,
+      "numRequests": 26,
+      "completionDetails": {
+        "reasoning": 0,
+        "acceptedPrediction": 0,
+        "rejectedPrediction": 0,
+        "cacheReadInputTokens": 0,
+        "cacheCreationInputTokens": 0
+      },
+      "assertions": {
+        "total": 0,
+        "prompt": 0,
+        "completion": 0,
+        "cached": 0,
+        "numRequests": 0,
+        "completionDetails": {
+          "reasoning": 0,
+          "acceptedPrediction": 0,
+          "rejectedPrediction": 0,
+          "cacheReadInputTokens": 0,
+          "cacheCreationInputTokens": 0
+        }
+      }
+    },
+    "durationMs": 23379,
+    "evaluationDurationMs": 23379
+  },
+  "missing_ids": [],
+  "duplicate_ids": [],
+  "extra_ids": [],
+  "errors": [],
+  "provenance": {
+    "baseSha": "81c7c9c58a4fc3c1e34ab9714614882d74a60c9d",
+    "checkoutGitSha": "4aad73b881c2f33ebb0bc41ddf61514a34010ad7",
+    "sourceGitSha": "4aad73b881c2f33ebb0bc41ddf61514a34010ad7",
+    "fixtureVersion": "2026-09-06.1",
+    "datasetVersion": "meri-offline-v1",
+    "suiteContractIds": [
+      "calibration/bad-citation",
+      "calibration/tenant-leak",
+      "core/compliance.gate.enforcement",
+      "core/entity.grounding.canonical-ids",
+      "core/government-affairs-assurance-ga-goldens-v1.0.0",
+      "core/grounding.claim-evidence",
+      "core/leakage.cross-tenant.matrix",
+      "core/legislation.bill-status.hr8800-rule-failed",
+      "core/legislation.committee-roster.never-guess",
+      "core/legislation.federal-state-mixed.no-cross-contamination",
+      "core/legislation.multi-state-comparison.order-independent",
+      "core/legislation.state-bill-status.crossover-dead",
+      "core/legislation.state-rule-status.no-fabrication",
+      "ga/ga-budget-stage-and-units",
+      "ga/ga-executive-consistent-deliverable",
+      "ga/ga-funding-eligibility-and-forecast",
+      "ga/ga-hearing-statement-versus-decision",
+      "ga/ga-legislation-current-version",
+      "ga/ga-meeting-history-and-role",
+      "plan/c2-strategies-mail-history",
+      "plan/kindetic-industries-research",
+      "plan/overland-ai-profile",
+      "plan/portfolio-changes",
+      "plan/selected-client-priorities",
+      "sequence/cleared-prior-target",
+      "sequence/portfolio-overlap-with-target"
+    ],
+    "evaluatorVersion": "meri-offline-v1",
+    "baseline": "not accepted; offline mechanisms only"
+  }
+}

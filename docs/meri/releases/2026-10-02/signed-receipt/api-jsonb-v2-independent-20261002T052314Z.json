@@ -1,0 +1,85 @@
+{
+  "sourceSha": "4aad73b881c2f33ebb0bc41ddf61514a34010ad7",
+  "buildId": "capiro-build-web-dev:a3c11764-78a5-4c32-bfa7-08950c5415b6",
+  "observedAt": "2026-10-02T05:23:14.654402+00:00",
+  "verdict": "PASS",
+  "externalWrites": 0,
+  "liveAcceptance": "NOT_RUN",
+  "buildStatus": "SUCCEEDED",
+  "phase": "COMPLETED",
+  "actualBuildspecSha256": "14da23e0cae3235d2319d5303a5a28c10aad6d04d714e4b075c11a25588b81a5",
+  "resolvedSourceSha": "4aad73b881c2f33ebb0bc41ddf61514a34010ad7",
+  "environmentType": "ARM_CONTAINER",
+  "phases": [
+    {
+      "phase": "SUBMITTED",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "QUEUED",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "PROVISIONING",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "DOWNLOAD_SOURCE",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "INSTALL",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "PRE_BUILD",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "BUILD",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "POST_BUILD",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "UPLOAD_ARTIFACTS",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "FINALIZING",
+      "status": "SUCCEEDED"
+    },
+    {
+      "phase": "COMPLETED",
+      "status": null
+    }
+  ],
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:046691b41f6578df41a5cac1bb1e2dee561517463c68ce391cd9450e82489496",
+  "imageDigest": "sha256:046691b41f6578df41a5cac1bb1e2dee561517463c68ce391cd9450e82489496",
+  "executedMarkers": [
+    {
+      "timestamp": 1790918414263,
+      "line": "OFFLINE_RUNTIME_IMPORT_PASS"
+    },
+    {
+      "timestamp": 1790918416277,
+      "line": "EXACT_449_IMAGE_MIGRATION_HASHES_PASS"
+    },
+    {
+      "timestamp": 1790918512889,
+      "line": "LOCAL_REPODIGEST_ECR_MATCH_PASS"
+    },
+    {
+      "timestamp": 1790918512889,
+      "line": "CANDIDATE_API_SOURCE_SHA=4aad73b881c2f33ebb0bc41ddf61514a34010ad7"
+    },
+    {
+      "timestamp": 1790918512889,
+      "line": "CANDIDATE_API_IMAGE=967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:046691b41f6578df41a5cac1bb1e2dee561517463c68ce391cd9450e82489496"
+    }
+  ],
+  "immutableSourceProof": "Exact reviewed successful recipe asserts source revision, native ARM64 architecture, OCI revision label, Node22.23.3 and packaged imports; 449 migration hashes match source without applying any migration.",
+  "automatedTestEvidence": "Local exact-source 56 API tests, 2 actual PostgreSQL regressions, full API typecheck,26 Promptfoo plus verifier are separate receipts; this build does not claim to rerun them."
+}

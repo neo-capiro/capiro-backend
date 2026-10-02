@@ -1,0 +1,47 @@
+{
+  "scope": "owned loopback PostgreSQL55433 SELECT only; no schema or data mutations",
+  "results": [
+    {
+      "input": 0.27223,
+      "pg": 0.27223,
+      "prisma": 0.27223,
+      "pgEqual": true,
+      "prismaEqual": true
+    },
+    {
+      "input": 0.27222999999999997,
+      "pg": 0.27222999999999997,
+      "prisma": 0.27222999999999997,
+      "pgEqual": true,
+      "prismaEqual": true
+    },
+    {
+      "input": 0.27223,
+      "pg": 0.27223,
+      "prisma": 0.27223,
+      "pgEqual": true,
+      "prismaEqual": true
+    },
+    {
+      "input": 0.0009750000000000001,
+      "pg": 0.0009750000000000001,
+      "prisma": 0.0009750000000000001,
+      "pgEqual": true,
+      "prismaEqual": true
+    },
+    {
+      "input": 0.27173,
+      "pg": 0.27173,
+      "prisma": 0.27173,
+      "pgEqual": true,
+      "prismaEqual": true
+    },
+    {
+      "input": 0.30000000000000004,
+      "pg": 0.30000000000000004,
+      "prisma": 0.30000000000000004,
+      "pgEqual": true,
+      "prismaEqual": true
+    }
+  ]
+}

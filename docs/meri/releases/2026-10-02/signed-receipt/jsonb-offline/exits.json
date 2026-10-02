@@ -1,0 +1,52 @@
+{
+  "sourceSha": "4aad73b881c2f33ebb0bc41ddf61514a34010ad7",
+  "sourceTree": "3a64907fcd53ad40eff5d34d9d903cc560163556",
+  "cwd": "C:\\dev\\cap-meri-migration-history-guard",
+  "policySha": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "scope": "Final repair candidate deterministic offline26; no live application/provider/database/fixture calls",
+  "startedAtEpoch": 1790917761.8381083,
+  "commands": [
+    {
+      "name": "promptfoo",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "node_modules/promptfoo/dist/src/entrypoint.js",
+        "eval",
+        "-c",
+        "evals/meri/promptfooconfig.yaml",
+        "--no-cache",
+        "--no-share",
+        "--no-write",
+        "--no-table",
+        "--no-progress-bar",
+        "-o",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-reply-only\\jsonb-offline\\meri-offline.json",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-reply-only\\jsonb-offline\\meri-offline.html",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-reply-only\\jsonb-offline\\meri-offline.junit.xml"
+      ],
+      "pid": 18448,
+      "exitCode": 0,
+      "elapsedSeconds": 26.03,
+      "logSha256": "2d69c3821ec6e880daac5df2f100ef2a6acaf3e937bf3b2dd129c27b125b54bf"
+    },
+    {
+      "name": "verifier",
+      "command": [
+        "C:\\ProgramData\\Hermes\\tools\\python-3.14.7+20260901-win32-x64\\python.exe",
+        "evals/meri/verify_report.py",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-reply-only\\jsonb-offline\\meri-offline.json",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-reply-only\\jsonb-offline\\meri-offline.summary.json"
+      ],
+      "pid": 19788,
+      "exitCode": 0,
+      "elapsedSeconds": 0.12,
+      "logSha256": "1577f0562ed8177bd1740e7ad2328a39b364baeae814234a9cca30131a4bedc5"
+    }
+  ],
+  "completedAtEpoch": 1790917788.0636342,
+  "sourceUnchanged": true,
+  "worktreeStatus": "",
+  "exitCode": 0,
+  "meri-offline.jsonSha256": "f0cdc1f0e7ada2202d59ccf06cdf5673fa2cf8458553eca6f08ac2741fbc3e1d",
+  "meri-offline.summary.jsonSha256": "f3ad520873c253c97fb2796b45758b86b39649c5700d69614291c6d8a8daa0e9"
+}

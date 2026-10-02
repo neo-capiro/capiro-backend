@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "sourceSha": "2584b9a1737c35f79828981736404cdff297cec9",
+  "scriptSha256": "2c3f931a11a696261166c219f73738043c4bfc355b4ea54114536473ffbe45e3",
+  "startedAt": "2026-10-02T04:54:08.256Z",
+  "verdict": "BLOCKED",
+  "tenants": [
+    {
+      "tenant": "meri-foundation-20260928-t1",
+      "identityVerified": true,
+      "loadedWebReleaseSha": "940fe9354f95630c6acb0f20f75ced26ea9e75f4",
+      "webSurface": "vnext",
+      "composerVisible": true,
+      "conversationCreateRequests": 1,
+      "conversationsCreated": 1,
+      "turnsSent": 1,
+      "blockedMutationCount": 0,
+      "blockedEndpoints": [],
+      "authAttempt": {
+        "status": "complete",
+        "hasSession": true,
+        "missingFields": []
+      },
+      "streamStatus": 201,
+      "doneReceived": true,
+      "toolCalls": 0,
+      "streamErrors": 1,
+      "expectedReplyVisible": false,
+      "sessionRevoked": true,
+      "verdict": "NOT RUN",
+      "streamExpectedSubstring": false
+    }
+  ],
+  "attemptId": "v7-reply-only-repair",
+  "maximumNewTurns": 2,
+  "syntheticFlagEvidence": {
+    "status": "LAST_AUTHORITATIVE_APPLY",
+    "receiptSha256": "3fffae41fa39f99a75664b92c4c794dd98202867e5115d666a1bd31e15c5b911",
+    "freshDbQuery": false
+  },
+  "readinessProofSha256": "11131feb40d4423344efa36628ea4279085d737c53f8a0d7b43e9f6b70f5e673",
+  "repairedRuntimeSourceSha": "bae902c734eea220b4c6299423119e7bdaac2f6b",
+  "deployedServices": {
+    "api": {
+      "sourceSha": "83304d18e5a1ab647cf6f728392cf97b3058a832",
+      "imageDigest": "sha256:1fbf675727041323c56c2330aebb7f27ae4129864cb413953b869bfffad80015",
+      "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:486",
+      "primaryDeploymentId": "ecs-svc/3432473802808415026",
+      "healthy": true
+    },
+    "meriv2-orchestrator": {
+      "sourceSha": "bae902c734eea220b4c6299423119e7bdaac2f6b",
+      "imageDigest": "sha256:94f49d77dd2770b4da93a1f1d8f7b112e7f4533c2c860be5eb42f1bbdddb095b",
+      "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:89",
+      "primaryDeploymentId": "ecs-svc/4509841024724620491",
+      "healthy": true
+    },
+    "web-vnext": {
+      "sourceSha": "940fe9354f95630c6acb0f20f75ced26ea9e75f4",
+      "imageDigest": "sha256:bb114117e1ac5bad398a34c2272280b0b55abbcb0502cb5b6b95356f213bdfdb",
+      "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web-vnext:386",
+      "primaryDeploymentId": "ecs-svc/3490292933385052646",
+      "healthy": true
+    }
+  },
+  "fullFile01Acceptance": false,
+  "failureCode": "READBACK_HTTP_FAILURE",
+  "completedAt": "2026-10-02T04:54:35.340Z"
+}

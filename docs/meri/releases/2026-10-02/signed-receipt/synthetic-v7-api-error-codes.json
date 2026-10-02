@@ -1,0 +1,31 @@
+{
+  "observedAtUtc": "2026-10-02T04:57:06.775979+00:00",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:486",
+  "boundedEventCount": 17,
+  "codeInventorySize": 76,
+  "events": [
+    {
+      "atUtc": "2026-10-02T04:54:20.110000+00:00",
+      "knownSourceCodes": [
+        "meri_capture_receipt_readback_mismatch"
+      ],
+      "messageSha256": "ec21e268ed56c69b271d8f3da5777e71aeed3129f8725f7f00723b755b9e9d0d",
+      "messageLength": 200,
+      "safeStackFunctions": [],
+      "safeStackFiles": []
+    },
+    {
+      "atUtc": "2026-10-02T04:54:20.111000+00:00",
+      "knownSourceCodes": [
+        "meri_capture_receipt_readback_mismatch"
+      ],
+      "messageSha256": "37d9f86714669e900ffc1ad70c41e2f60de85048ccfda195f257eb15a03f0cd9",
+      "messageLength": 45,
+      "safeStackFunctions": [],
+      "safeStackFiles": []
+    }
+  ],
+  "rawLogsPersisted": false,
+  "externalWrites": 0,
+  "extraChats": 0
+}

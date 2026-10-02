@@ -1,0 +1,11 @@
+{
+  "command": [
+    "node",
+    "--test",
+    "evals/meri/live-v1/tests/capture-receipt-jsonb.postgres.test.mjs"
+  ],
+  "cwd": "C:\\dev\\cap-meri-migration-history-guard",
+  "exitCode": 0,
+  "startedAtEpoch": 1790917568.841804,
+  "completedAtEpoch": 1790917571.7977543
+}

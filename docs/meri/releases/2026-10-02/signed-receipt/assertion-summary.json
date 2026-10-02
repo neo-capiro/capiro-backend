@@ -1,0 +1,32 @@
+{
+  "sourceSha": "4aad73b881c2f33ebb0bc41ddf61514a34010ad7",
+  "api": {
+    "suites": 4,
+    "passed": 56,
+    "failed": 0,
+    "exitCode": 0,
+    "originalLogSha256": "de1019abe4ad080c88fc0a3d3707263faa22db56d6d7cba1b29caa423ad149b1"
+  },
+  "postgres": {
+    "passed": 2,
+    "skipped": 0,
+    "failed": 0,
+    "exitCode": 0,
+    "originalLogSha256": "40abdcd2aa0fc4bbbfbbd4665b7a5e45444fb926dddc30d12c2bcb2afe28b4ad"
+  },
+  "typecheck": {
+    "exitCode": 0,
+    "originalLogSha256": "1c37778cbc0fcfd247c0c6643fda6f1d084bd099a081e6dd430cf8811fa50005"
+  },
+  "offline": {
+    "passed": 26,
+    "failed": 0,
+    "promptfooExitCode": 0,
+    "customVerifierExitCode": 0
+  },
+  "kimi": {
+    "exitCode": 0,
+    "verdict": "PASS; factual explanatory errors corrected in qualification.md"
+  },
+  "liveAcceptance": "NOT_RUN after repair"
+}

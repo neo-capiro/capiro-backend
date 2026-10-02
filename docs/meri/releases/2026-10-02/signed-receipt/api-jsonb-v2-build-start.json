@@ -1,0 +1,15 @@
+{
+  "buildId": "capiro-build-web-dev:a3c11764-78a5-4c32-bfa7-08950c5415b6",
+  "sourceSha": "4aad73b881c2f33ebb0bc41ddf61514a34010ad7",
+  "buildspecSha256": "14da23e0cae3235d2319d5303a5a28c10aad6d04d714e4b075c11a25588b81a5",
+  "actionRun": {
+    "conclusion": "startup_failure",
+    "headSha": "4aad73b881c2f33ebb0bc41ddf61514a34010ad7",
+    "jobs": [],
+    "url": "https://github.com/neo-capiro/capirov2/actions/runs/36967762919"
+  },
+  "callerArn": "arn:aws:iam::967807252336:user/hermes-cli",
+  "status": "IN_PROGRESS",
+  "startedAtEpoch": 1790918127.9889028,
+  "scope": "API image build/publication only; no deployment, migration, config or provider changes"
+}
