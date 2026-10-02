@@ -1,0 +1,17 @@
+{
+  "requestedModel": "moonshotai.kimi-k2.5",
+  "initializedModel": "moonshotai.kimi-k2.5",
+  "sessionId": "20261002_111926_5bcda1",
+  "provider": "bedrock",
+  "reportedTokens": {
+    "input": 12243,
+    "output": 930,
+    "total": 13173,
+    "cache_read": 0,
+    "cache_write": 0
+  },
+  "reportedResultExit": 0,
+  "toolCalls": 0,
+  "billedCostUsd": null,
+  "costStatus": "not exposed by quiet stream output"
+}

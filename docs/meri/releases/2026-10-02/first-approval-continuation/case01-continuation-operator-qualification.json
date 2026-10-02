@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "kind": "case01-continuation-operator-qualification",
+  "operatorSha256": "040e448a656e17a8c9e9d99cd8c97a74c7ef3ace51be3517e383520ee697785e",
+  "sourceCommit": "40e01fbca613c1bd1fc78643c81134fc31501293",
+  "baseOperatorSha256": "4df33cccadd3fdc15711872de3c0ffe2602249a8765c0e6ff36d05488085d36a",
+  "actualReadbackSha256": "1771d7c38caf4b7856e8cb34ffb2d6fcab5d95b59e2ccec2d4418a1afbe98147",
+  "tests": {
+    "log": "case01-continuation-oneoff-tests-v3.log",
+    "count": 16,
+    "exitCode": 0
+  },
+  "independentReview": {
+    "requestedModel": "moonshotai.kimi-k2.5",
+    "initializedModel": "moonshotai.kimi-k2.5",
+    "sessionId": "20261002_111926_5bcda1",
+    "provider": "bedrock",
+    "reportedTokens": {
+      "input": 12243,
+      "output": 930,
+      "total": 13173,
+      "cache_read": 0,
+      "cache_write": 0
+    },
+    "reportedResultExit": 0,
+    "toolCalls": 0,
+    "billedCostUsd": null,
+    "costStatus": "not exposed by quiet stream output"
+  },
+  "reviewVerdict": "PASS",
+  "peerReview": {
+    "agent": "file01_ab_audit",
+    "scope": "independent source delta only",
+    "verdict": "PASS"
+  },
+  "adjudication": "Model wording boards-only is inapplicable. Current-state admission and zero-downstream proof are enforced by the canonical owner; frozen readback is a locator. Prepare performs AWS read-only calls; run registers and starts fixed ECS tasks only under parent execution.",
+  "inputsMaterialized": false,
+  "awsCalls": 0,
+  "liveAcceptance": "NOT_RUN"
+}

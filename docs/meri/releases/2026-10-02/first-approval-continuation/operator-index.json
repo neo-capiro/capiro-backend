@@ -1,0 +1,55 @@
+{
+  "entries": [
+    {
+      "file": "case01-continuation-oneoff.py",
+      "originalLocalSha256": "040e448a656e17a8c9e9d99cd8c97a74c7ef3ace51be3517e383520ee697785e",
+      "archivedSha256": "040e448a656e17a8c9e9d99cd8c97a74c7ef3ace51be3517e383520ee697785e"
+    },
+    {
+      "file": "case01-continuation-operator-qualification.json",
+      "originalLocalSha256": "7b68bb30b3b4481e25c973ecb52a26fa6cbad6e43cf7576928148004b4c70dec",
+      "archivedSha256": "a37d78d6883f9d3375944a157f3e2eacc4352c8465d227b10c09bd6de1de9562"
+    },
+    {
+      "file": "CASE01-CONTINUATION-ROOT-COMMANDS.md",
+      "originalLocalSha256": "10107eb9a9815d1a9b962c7606ee3b34716a4811dbadd1c2457e4cd91174d756",
+      "archivedSha256": "10107eb9a9815d1a9b962c7606ee3b34716a4811dbadd1c2457e4cd91174d756"
+    },
+    {
+      "file": "case01-continuation-oneoff-tests-v3.log",
+      "originalLocalSha256": "92e08b9ffa46088d8cfcb7f724d0a9aa21c0085bb83f113ab6aca397ce1142e5",
+      "archivedSha256": "2172fb67d20d40a313c9380f746e50e250d8b44531e81e595f90fd9931701376"
+    },
+    {
+      "file": "case01-continuation-plan-input.json",
+      "originalLocalSha256": "a033d371a6662a0400e0a1ab3d0b49c51a33e7934d011f7fde057fff203c3acc",
+      "archivedSha256": "3f64807018cff99875b283d7cc2b199ec60db3f6d90aeb851d7d526b32aab248"
+    },
+    {
+      "file": "api.buildspec.yml",
+      "originalLocalSha256": "da170b85cff8f9a86753f414e1348dd9a07b18d36edbb88382eb8c305d106c96",
+      "archivedSha256": "da170b85cff8f9a86753f414e1348dd9a07b18d36edbb88382eb8c305d106c96"
+    },
+    {
+      "file": "build-qualified-source.py",
+      "originalLocalSha256": "bd4f71f1f77007f606f440948d4dfa6330f39f677eade42caedbacbd372a10ea",
+      "archivedSha256": "bd4f71f1f77007f606f440948d4dfa6330f39f677eade42caedbacbd372a10ea"
+    },
+    {
+      "file": "continuation-operator-kimi-review.md",
+      "originalLocalSha256": "c1c66fc133549a54853c7e43540a455844f32cf95e520bbc5b0e184eb46e0554",
+      "archivedSha256": "f24a7431958973456b920f7487db6178ce579d1c665feba605f1a305c1c46196"
+    },
+    {
+      "file": "continuation-operator-kimi-exit.json",
+      "originalLocalSha256": "71e76bf12612efc7844b87d5fcb57a3c8c24c073fb6cc18a222778d9bd6e1f67",
+      "archivedSha256": "f4e62458d140c991e81cf4cbadaf5a6daa650575025bc3f60f1fb21ff45c94bb"
+    },
+    {
+      "file": "continuation-operator-kimi-usage.json",
+      "originalLocalSha256": "0dc50811dc593055e77b4959e06426ee00bc3ecab46d64293f1d09fa85cc3a0b",
+      "archivedSha256": "3fc37c9ced3bc8c67d28cc62f95a3c4039565e584617ae2e0187bc9ed8f3fcd6"
+    }
+  ],
+  "scope": "Reviewed preparation only. Plan input materialized locally after qualification, no AWS or database action. Future API recipe adds exact new continuation-export offline import checks; no deployment bypass."
+}
