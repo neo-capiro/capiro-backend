@@ -5,7 +5,11 @@ import { fileURLToPath } from 'node:url';
 import { sha256Stable } from './artifact-collector.mjs';
 import { currentControlledReadCaptureAuthority } from './controlled-read-live-capture.mjs';
 import { currentCase46CaptureAuthority } from './case46-live-capture.mjs';
-import { CASE01_TERMINAL_SCOPE, currentOriginalCase01TerminalClosure } from './case01-terminal-spend-authority.mjs';
+import {
+  CASE01_TERMINAL_SCOPE,
+  currentOriginalCase01TerminalClosure,
+} from './case01-terminal-spend-authority.mjs';
+import { currentMemoryReadUsageAuthority } from './memory-read-budget-authority.mjs';
 import {
   currentCase01CaptureAuthority,
   currentCase14RecallAuthority,
@@ -50,7 +54,8 @@ export function initializeCaptureSpendAggregate({ root, inventory, pythonExecuta
 
 /** A trusted operator passes the pinned last checkpoint, not model/user content.
  * Native handles fence identity/content/entry-set changes and concurrent writers.
- * Full ceilings are never refunded, even when a smaller final cost is observed. */
+ * Legacy ceilings remain consumed. Protocol v2 releases a NEW reservation's
+ * unused ceiling only through the existing server-authoritative settlement. */
 export function openCaptureSpendAggregate(prior, { pythonExecutable }) {
   need(prior?.kind === 'meri-original-capture-spend-checkpoint' && prior.version === 1);
   const root = prior.state?.root;
@@ -107,14 +112,28 @@ export function openCaptureSpendAggregate(prior, { pythonExecutable }) {
         const authority = currentCase46CaptureAuthority(outcome);
         const { expected, inputs } = authority.evidence;
         const usage = inputs.after.providerUsage;
-        need(sha256Stable(expected) === binding.expected && expected.caseId === '46' &&
-          expected.captureRunId === reservation.captureRunId && expected.maxSpendMicros === reservation.ceilingMicros &&
-          usage.kind === 'governed_artifact_provider_usage' && usage.caseId === '46' &&
-          usage.captureRunId === reservation.captureRunId && usage.allAttemptsSettled === true &&
-          Number.isSafeInteger(usage.costMicros) && usage.costMicros >= 0 && usage.costMicros <= reservation.ceilingMicros);
-        const result = advance('settle', { kind: 'settle', caseId: '46', captureRunId: reservation.captureRunId,
-          reservationId: reservation.reservationId, chargedCostMicros: usage.costMicros,
-          ledgerSha256: usage.ledgerSha256, envelopeSha256: sha256Stable(inputs.after) });
+        need(
+          sha256Stable(expected) === binding.expected &&
+            expected.caseId === '46' &&
+            expected.captureRunId === reservation.captureRunId &&
+            expected.maxSpendMicros === reservation.ceilingMicros &&
+            usage.kind === 'governed_artifact_provider_usage' &&
+            usage.caseId === '46' &&
+            usage.captureRunId === reservation.captureRunId &&
+            usage.allAttemptsSettled === true &&
+            Number.isSafeInteger(usage.costMicros) &&
+            usage.costMicros >= 0 &&
+            usage.costMicros <= reservation.ceilingMicros,
+        );
+        const result = advance('settle', {
+          kind: 'settle',
+          caseId: '46',
+          captureRunId: reservation.captureRunId,
+          reservationId: reservation.reservationId,
+          chargedCostMicros: usage.costMicros,
+          ledgerSha256: usage.ledgerSha256,
+          envelopeSha256: sha256Stable(inputs.after),
+        });
         binding.settled = true;
         return result;
       }
@@ -153,6 +172,34 @@ export function openCaptureSpendAggregate(prior, { pythonExecutable }) {
       binding.settled = true;
       return result;
     },
+    settleMemoryRead(reservation, authority) {
+      const binding = reservations.get(reservation);
+      need(binding?.owner === owner && !binding.settled && binding.expected);
+      binding.recheck();
+      need(
+        value.snapshot.protocolVersion === 2 &&
+          ['01', '02', '03', '04', '05'].includes(reservation.caseId),
+      );
+      const proof = currentMemoryReadUsageAuthority(authority);
+      need(
+        proof.caseId === reservation.caseId &&
+          proof.captureRunId === reservation.captureRunId &&
+          proof.reservationId === reservation.reservationId &&
+          proof.chargedCostMicros <= reservation.ceilingMicros &&
+          proof.expectedSha256 === binding.expected,
+      );
+      const result = advance('settle', {
+        kind: 'settle',
+        caseId: proof.caseId,
+        captureRunId: proof.captureRunId,
+        reservationId: proof.reservationId,
+        chargedCostMicros: proof.chargedCostMicros,
+        ledgerSha256: proof.ledgerSha256,
+        envelopeSha256: proof.envelopeSha256,
+      });
+      binding.settled = true;
+      return result;
+    },
   });
   return owner;
 }
@@ -160,15 +207,55 @@ export function openCaptureSpendAggregate(prior, { pythonExecutable }) {
 /** Explicit root-only disposition of the one rejected original01 request.
  * Full ceiling stays consumed, actual billing remains UNKNOWN, and the old run
  * cannot be reserved/claimed/settled again. This does not submit a new request. */
-export function closeOriginalCase01TerminalUncertain(prior, { pythonExecutable, authority, invocation }) {
+export function closeOriginalCase01TerminalUncertain(
+  prior,
+  { pythonExecutable, authority, invocation },
+) {
   need(invocation === 'CLOSE_ORIGINAL01_TERMINAL_COST_UNKNOWN_ONCE');
   need(prior?.kind === 'meri-original-capture-spend-checkpoint' && prior.version === 1);
   const proof = currentOriginalCase01TerminalClosure(authority);
   const scope = CASE01_TERMINAL_SCOPE;
-  const value = native(prior.state.root, pythonExecutable, { op: 'close_terminal_uncertain', state: prior.state,
-    event: { kind: 'close_terminal_uncertain', caseId: scope.caseId, captureRunId: scope.captureRunId,
-      reservationId: scope.reservationId, disposition: 'TERMINAL_SETUP_REJECTION_COST_UNKNOWN',
-      actualCostMicros: null, proof } });
+  const value = native(prior.state.root, pythonExecutable, {
+    op: 'close_terminal_uncertain',
+    state: prior.state,
+    event: {
+      kind: 'close_terminal_uncertain',
+      caseId: scope.caseId,
+      captureRunId: scope.captureRunId,
+      reservationId: scope.reservationId,
+      disposition: 'TERMINAL_SETUP_REJECTION_COST_UNKNOWN',
+      actualCostMicros: null,
+      proof,
+    },
+  });
+  return checkpoint(value);
+}
+
+/** Explicit reviewed root operation, never automatic initialization or upgrade.
+ * Old entries/UNKNOWN charges remain immutable; one journal still owns all runs. */
+export function reviseCaptureSpendProtocol(
+  prior,
+  { pythonExecutable, invocation, reviewSha256, deadlineAtMs },
+) {
+  need(invocation === 'ACTIVATE_SHARED_SPEND_V2_SERVER_SETTLEMENT_ONCE');
+  need(prior?.kind === 'meri-original-capture-spend-checkpoint' && prior.version === 1);
+  need(/^[a-f0-9]{64}$/.test(reviewSha256));
+  const value = native(prior.state.root, pythonExecutable, {
+    op: 'revise_protocol',
+    state: prior.state,
+    event: {
+      kind: 'revise_protocol',
+      protocolVersion: 2,
+      maxCostMicros: 30000000,
+      perCaseMaxCostMicros: 3000000,
+      concurrency: 1,
+      settlementAuthority: 'server_settled_provider_ledger',
+      uncertainDisposition: 'full_ceiling_no_refund',
+      reviewSha256,
+      activatedAtMs: Date.now(),
+      deadlineAtMs,
+    },
+  });
   return checkpoint(value);
 }
 
@@ -200,4 +287,10 @@ export function settleCaptureSpendReservation(reservation, outcome) {
   const binding = reservations.get(reservation);
   need(binding && !binding.settled);
   return binding.owner.settleCaptured(reservation, outcome);
+}
+
+export function settleMemoryReadSpendReservation(reservation, authority) {
+  const binding = reservations.get(reservation);
+  need(binding && !binding.settled);
+  return binding.owner.settleMemoryRead(reservation, authority);
 }

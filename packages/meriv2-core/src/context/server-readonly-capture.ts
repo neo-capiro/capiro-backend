@@ -1,10 +1,16 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
+import {
+  validateMeriSyntheticReadBudgetGuard,
+  type MeriSyntheticReadBudgetBinding,
+} from './synthetic-read-budget.js';
 
 export const MERI_CAPTURE_POLICY_VERSION = 1 as const;
 export const MERI_CAPTURE_POLICY_NAMESPACE = 'meri-foundation-20260928' as const;
 export const MERI_CAPTURE_POLICY_HEADER = 'x-meri-server-readonly-capture' as const;
 
 export interface MeriServerReadonlyCapturePolicy {
+  /** Independent accounting identity; all source/fixture fields remain null. */
+  syntheticReadBudget?: MeriSyntheticReadBudgetBinding;
   version: typeof MERI_CAPTURE_POLICY_VERSION;
   kind: 'server_readonly_acceptance_capture';
   policyId: string;
@@ -169,5 +175,6 @@ export function decodeAndVerifyMeriCapturePolicyTransport(
   if (supplied.length !== expected.length || !timingSafeEqual(expected, supplied)) {
     throw new Error('meri_capture_transport_authentication_failed');
   }
+  validateMeriSyntheticReadBudgetGuard(policy);
   return policy;
 }

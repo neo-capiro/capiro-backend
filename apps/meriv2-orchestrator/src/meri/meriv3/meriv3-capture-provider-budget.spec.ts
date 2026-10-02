@@ -54,6 +54,66 @@ const args = {
   serviceSecret: 'unit-only-secret',
   bearerToken: 'unit-only-bearer',
 };
+test('budget-only accounting is signed separately from null fixture fields and rejects source authority injection', async () => {
+  const readPolicy: MeriServerReadonlyCapturePolicy = {
+    ...policy,
+    caseId: null,
+    captureRunId: null,
+    fixtureVersion: null,
+    physicalMapSha256: null,
+    seedReceiptId: null,
+    resetReceiptId: null,
+    syntheticReadBudget: {
+      version: 1,
+      kind: 'synthetic_read_budget_only',
+      caseId: '02',
+      captureRunId: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+      aggregateReservationId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+      qualificationSha256: 'a'.repeat(64),
+    },
+  };
+  let header = '';
+  const accounting = captureProviderAccounting({
+    ...args,
+    policy: readPolicy,
+    fetchImpl: (async (_url, init) => {
+      header = new Headers(init?.headers).get(MERI_CAPTURE_POLICY_HEADER)!;
+      return new Response(
+        JSON.stringify({
+          reservationId: 'real-owner-reservation',
+          dispatchAllowed: true,
+          deadlineAt: new Date(policy.expiresAt).toISOString(),
+        }),
+      );
+    }) as typeof fetch,
+  })!;
+  await accounting.reserve(binding);
+  const observed = decodeAndVerifyMeriCapturePolicyTransport(
+    header,
+    { purpose: 'provider_budget', tenantId: 'tenant', actorUserId: 'actor' },
+    args.serviceSecret,
+  );
+  expect(observed.syntheticReadBudget?.caseId).toBe('02');
+  expect(observed.caseId).toBeNull();
+  expect(observed.fixtureVersion).toBeNull();
+  expect(() =>
+    captureProviderAccounting({ ...args, policy: { ...readPolicy, caseId: '02' } }),
+  ).toThrow('guard_invalid');
+  expect(() =>
+    decodeAndVerifyMeriCapturePolicyTransport(
+      header,
+      { purpose: 'tool', tenantId: 'tenant', actorUserId: 'actor' },
+      args.serviceSecret,
+    ),
+  ).toThrow();
+  expect(() =>
+    decodeAndVerifyMeriCapturePolicyTransport(
+      header,
+      { purpose: 'provider_budget', tenantId: 'tenant', actorUserId: 'another' },
+      args.serviceSecret,
+    ),
+  ).toThrow();
+});
 test('ordinary and unarmed diagnostic turns retain existing accounting selection', () => {
   expect(captureProviderAccounting({ ...args, policy: null })).toBeUndefined();
   expect(

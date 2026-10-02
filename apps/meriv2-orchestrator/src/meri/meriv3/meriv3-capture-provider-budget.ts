@@ -3,6 +3,7 @@ import {
   MERI_CAPTURE_POLICY_HEADER,
   type MeriServerReadonlyCapturePolicy,
   type ToolExecutionControl,
+  validateMeriSyntheticReadBudgetGuard,
 } from '@capiro/meriv2-core';
 import type { MeriDurableProviderAccounting } from './meriv3-run-budget.js';
 
@@ -19,10 +20,10 @@ export function captureProviderAccounting(args: {
 }): MeriDurableProviderAccounting | undefined {
   const policy = args.policy;
   if (!policy || policy.expectedCaptureWrites[3] !== 'provider_budget_ledger') return undefined;
+  validateMeriSyntheticReadBudgetGuard(policy);
   if (
     !policy.turnId ||
-    !policy.caseId ||
-    !policy.captureRunId ||
+    (!policy.syntheticReadBudget && (!policy.caseId || !policy.captureRunId)) ||
     !args.serviceSecret ||
     !args.bearerToken
   )

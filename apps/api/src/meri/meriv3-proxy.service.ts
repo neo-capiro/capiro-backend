@@ -11,6 +11,7 @@ import {
   requireCase46Owner,
 } from './meri-case46-turn-owner.js';
 import { bindCaptureProviderBudgetReceipt } from './meri-capture-provider-budget-receipt.js';
+import { syntheticReadBudgetOwner } from './meri-synthetic-read-budget-owner.js';
 import { captureMeriTurnScope } from './meri-turn-scope.js';
 import {
   authorizeMeriProspectScope,
@@ -305,7 +306,11 @@ export class MeriV3ProxyService {
       if (capturePolicy && sourceMessageId) {
         capturePolicy = bindCurrentMeriCaptureTurn(sourceMessageId) ?? capturePolicy;
         if (captureBudgetRequired(capturePolicy)) {
-          await captureProviderBudgetOwner({
+          await (
+            capturePolicy.syntheticReadBudget
+              ? syntheticReadBudgetOwner
+              : captureProviderBudgetOwner
+          )({
             prisma: this.prisma,
             ctx,
             policy: capturePolicy,
@@ -819,7 +824,20 @@ export class MeriV3ProxyService {
         },
       );
       assistantMessageId = message.id;
-      if (capturePolicy && sourceMessageId && orchestratorCaptureEvidence) {
+      if (capturePolicy?.syntheticReadBudget && sourceMessageId) {
+        await syntheticReadBudgetOwner({
+          prisma: this.prisma,
+          ctx,
+          policy: capturePolicy,
+          operation: { kind: 'finish', assistantMessageId },
+        });
+      }
+      if (
+        capturePolicy &&
+        !capturePolicy.syntheticReadBudget &&
+        sourceMessageId &&
+        orchestratorCaptureEvidence
+      ) {
         await this.persistCaptureEvidenceReceipt({
           ctx,
           conversationId,

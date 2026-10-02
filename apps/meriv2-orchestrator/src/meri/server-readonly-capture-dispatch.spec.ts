@@ -10,6 +10,7 @@ import { RequestCredentialsStore } from '../request/request-credentials.store.js
 import {
   validateServerReadonlyCapturePolicy,
   withTrustedCurrentTurnScope,
+  assertServerReadonlyCaptureToolAllowed,
 } from '../request/trusted-current-turn-scope.js';
 import { ApiActionProposalRepo } from './api-action-proposal.repo.js';
 import { ApiToolExecutorRepo } from './api-tool-executor.repo.js';
@@ -69,6 +70,58 @@ function policy(
     ...overrides,
   };
 }
+
+test('budget-only discriminant keeps ordinary read-only dispatch and current conversation scope', () => {
+  const p = policy({
+    caseId: null,
+    captureRunId: null,
+    fixtureVersion: null,
+    physicalMapSha256: null,
+    seedReceiptId: null,
+    resetReceiptId: null,
+    expectedCaptureWrites: [
+      'context_packet_and_evidence',
+      'conversation_user_message',
+      'conversation_assistant_message',
+      'provider_budget_ledger',
+    ],
+    syntheticReadBudget: {
+      version: 1,
+      kind: 'synthetic_read_budget_only',
+      caseId: '03',
+      captureRunId: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+      aggregateReservationId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+      qualificationSha256: 'a'.repeat(64),
+    },
+  });
+  const binding = {
+    tenantId: TENANT_ID,
+    actorUserId: ACTOR_ID,
+    conversationId: CONVERSATION_ID,
+    clientId: CLIENT_ID,
+  };
+  expect(() => validateServerReadonlyCapturePolicy(p, binding)).not.toThrow();
+  for (const change of [
+    { conversationId: 'other' },
+    { clientId: 'other' },
+    { actorUserId: 'other' },
+  ])
+    expect(() => validateServerReadonlyCapturePolicy(p, { ...binding, ...change })).toThrow();
+  withTrustedCurrentTurnScope(
+    {
+      tenantId: TENANT_ID,
+      userId: ACTOR_ID,
+      conversationId: CONVERSATION_ID,
+      selectedClientId: CLIENT_ID,
+      capturePolicy: p,
+    },
+    () => {
+      expect(() => assertServerReadonlyCaptureToolAllowed('search_memory')).not.toThrow();
+      for (const name of ['send_email', 'create_word', 'run_analysis', 'unknown_tool'])
+        expect(() => assertServerReadonlyCaptureToolAllowed(name)).toThrow();
+    },
+  );
+});
 
 function config(): ConfigService {
   const values: Record<string, string> = {

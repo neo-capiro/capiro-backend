@@ -17,9 +17,15 @@ import {
   signMeriCaptureEvidenceReceipt,
   type MeriCaptureTransportPurpose,
   unknown,
+  validateMeriSyntheticReadBudgetGuard,
   verifyMeriCaptureEvidenceReceipt,
 } from '@capiro/meriv2-core';
 import type { PrismaService } from '../prisma/prisma.service.js';
+import {
+  syntheticReadBudgetHash,
+  validateSyntheticReadBudgetQualification,
+  type SyntheticReadProviderBudgetQualification,
+} from './meri-synthetic-read-budget.js';
 
 const SYNTHETIC_TENANTS: ReadonlyMap<
   string,
@@ -115,11 +121,17 @@ export async function issueMeriServerReadonlyCapturePolicy(args: {
     args.ctx,
     args.conversationId,
   );
+  const budgetOnly = asRecord(conversation?.metadata)?.syntheticReadBudgetQualification as
+    SyntheticReadProviderBudgetQualification | undefined;
   // These source-owned definitions/receipt joins are qualified offline first.
   // Keep live admission closed until the deployed case20 path is verified.
-  if (['21', '22', '23', '24', '26', '27'].includes(conversation?.captureBinding.caseId ?? ''))
+  if (
+    !budgetOnly &&
+    ['21', '22', '23', '24', '26', '27'].includes(conversation?.captureBinding.caseId ?? '')
+  )
     throw captureDenied('controlled_budget_expansion_not_live_qualified');
   if (
+    !budgetOnly &&
     ['14', '20', '72'].includes(conversation?.captureBinding.caseId ?? '') &&
     !conversation?.captureBudgetQualified
   )
@@ -162,6 +174,31 @@ export async function issueMeriServerReadonlyCapturePolicy(args: {
           'conversation_assistant_message',
         ],
   };
+  if (budgetOnly) {
+    policy.syntheticReadBudget = {
+      version: 1,
+      kind: 'synthetic_read_budget_only',
+      caseId: budgetOnly.caseId as '01',
+      captureRunId: budgetOnly.captureRunId,
+      aggregateReservationId: budgetOnly.aggregateReservationId,
+      qualificationSha256: syntheticReadBudgetHash(budgetOnly),
+    };
+    policy.caseId =
+      policy.captureRunId =
+      policy.fixtureVersion =
+      policy.physicalMapSha256 =
+      policy.resetReceiptId =
+      policy.seedReceiptId =
+        null;
+    policy.expiresAt = Date.parse(budgetOnly.deadlineAt);
+    policy.expectedCaptureWrites = [
+      'context_packet_and_evidence',
+      'conversation_user_message',
+      'conversation_assistant_message',
+      'provider_budget_ledger',
+    ];
+    validateSyntheticReadBudgetQualification(budgetOnly, policy);
+  }
   await assertMeriServerReadonlyCaptureCurrentAuthority({
     prisma: args.prisma,
     ctx: args.ctx,
@@ -185,6 +222,15 @@ export async function assertMeriServerReadonlyCaptureCurrentAuthority(args: {
     args.ctx,
     policy.conversationId,
   );
+  if (policy.syntheticReadBudget) {
+    validateSyntheticReadBudgetQualification(
+      asRecord(conversation?.metadata)?.syntheticReadBudgetQualification,
+      policy,
+    );
+    if (!conversation || conversation.clientId !== policy.clientId)
+      throw captureDenied('server_current_conversation_or_client_authority_missing');
+    return { client: conversation.client };
+  }
   if (
     !conversation ||
     conversation.clientId !== policy.clientId ||
@@ -386,7 +432,7 @@ function asRecord(value: unknown): Record<string, unknown> | null {
     : null;
 }
 
-async function currentCaptureAuthorityRows(
+export async function currentCaptureAuthorityRows(
   prisma: PrismaService,
   ctx: TenantContext,
   conversationId: string,
@@ -394,6 +440,7 @@ async function currentCaptureAuthorityRows(
   clientId: string | null;
   client: { id: string; name: string } | null;
   captureBudgetQualified: boolean;
+  metadata: unknown;
   captureBinding: {
     caseId: string | null;
     captureRunId: string | null;
@@ -425,6 +472,7 @@ async function currentCaptureAuthorityRows(
           archivedAt: null,
         },
         select: {
+          metadata: true,
           clientId: true,
           client: {
             select: {
@@ -467,6 +515,7 @@ async function currentCaptureAuthorityRows(
       throw captureDenied('server_current_fixture_authority_missing');
     }
     return {
+      metadata: conversation.metadata,
       clientId: conversation.clientId,
       client: client ? { id: client.id, name: client.name } : null,
       captureBudgetQualified: asRecord(fixture?.captureProviderBudget) !== null,
@@ -493,6 +542,7 @@ function assertExactCapturePolicy(
   ctx: TenantContext,
   now = Date.now(),
 ): void {
+  validateMeriSyntheticReadBudgetGuard(policy);
   if (
     policy.version !== 1 ||
     policy.kind !== 'server_readonly_acceptance_capture' ||
@@ -504,6 +554,8 @@ function assertExactCapturePolicy(
     policy.tenantSlug !== ctx.tenantSlug ||
     policy.actorUserId !== ctx.userId ||
     policy.expiresAt <= now ||
+    (policy.syntheticReadBudget &&
+      (policy.expiresAt - policy.issuedAt > POLICY_TTL_MS || policy.issuedAt > now + 30_000)) ||
     policy.toolAuthority !== 'shared_static_registry_read_only' ||
     policy.toolCatalogSha256 !== meriReadonlyCaptureCatalogSha256() ||
     policy.dynamicMcpAllowed !== false ||

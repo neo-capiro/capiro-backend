@@ -43,9 +43,9 @@ function fail(reason: string): never {
   throw new Error(`meri_capture_provider_budget_install_${reason}`);
 }
 
-function assertRateEvidence(
+export function assertRateEvidence(
   evidence: ReviewedCaptureProviderRates,
-  qualification: CaptureProviderBudgetQualification,
+  qualification: Pick<CaptureProviderBudgetQualification, 'priceKind' | 'rateEvidenceExpiresAt' | 'maxTokens' | 'rateEvidenceSha256' | 'rates'>,
 ) {
   const now = Date.now();
   if (

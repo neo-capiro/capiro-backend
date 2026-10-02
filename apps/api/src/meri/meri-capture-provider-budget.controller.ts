@@ -13,6 +13,7 @@ import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MeriV3InternalServiceGuard } from './meri-v3-internal-service.guard.js';
 import { captureProviderBudgetOwner } from './meri-capture-provider-budget-owner.js';
+import { syntheticReadBudgetOwner } from './meri-synthetic-read-budget-owner.js';
 import type { ResearchProviderReservationBinding } from './meri-research-tool-budget.js';
 import type { CaptureProviderSettlement } from './meri-capture-provider-budget.js';
 import { CASE46_AUTHORITY_DEPENDENCIES } from './meri-case46-action-authority.js';
@@ -54,10 +55,13 @@ export class MeriCaptureProviderBudgetController {
       if (!policy.turnId) throw new Error('meri_case46_provider_turn_unbound');
       return case46ProviderBudgetOwner(this.case46, { ctx, policy, operation });
     }
-    return captureProviderBudgetOwner({
+    const policy = this.policy(ctx, req);
+    if (policy.syntheticReadBudget && !policy.turnId)
+      throw new Error('meri_synthetic_read_budget_turn_unbound');
+    return (policy.syntheticReadBudget ? syntheticReadBudgetOwner : captureProviderBudgetOwner)({
       prisma: this.prisma,
       ctx,
-      policy: this.policy(ctx, req),
+      policy,
       operation,
     });
   }

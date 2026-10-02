@@ -30,6 +30,7 @@ import { planTurnRerun } from './meri-turn.helpers.js';
 import { MeriContextPlaneService } from './meri-context-plane.service.js';
 import { captureBudgetRequired } from './meri-capture-provider-budget.js';
 import { captureProviderBudgetOwner } from './meri-capture-provider-budget-owner.js';
+import { syntheticReadBudgetOwner } from './meri-synthetic-read-budget-owner.js';
 import { withCaptureApiProviderScope } from './meri-capture-api-provider-scope.js';
 import {
   assertMeriServerReadonlyCaptureCurrentAuthority,
@@ -124,12 +125,20 @@ export class MeriContextPlaneRuntimeService {
         mode: input.mode,
         attachmentIds: [],
       });
-      await captureProviderBudgetOwner({
-        prisma: this.prisma,
-        ctx,
-        policy: prepared.capturePolicy,
-        operation: { kind: 'admit' },
-      });
+      if (prepared.capturePolicy.syntheticReadBudget)
+        await syntheticReadBudgetOwner({
+          prisma: this.prisma,
+          ctx,
+          policy: prepared.capturePolicy,
+          operation: { kind: 'admit', prompt: prepared.task },
+        });
+      else
+        await captureProviderBudgetOwner({
+          prisma: this.prisma,
+          ctx,
+          policy: prepared.capturePolicy,
+          operation: { kind: 'admit' },
+        });
     }
     if (prepared.artifactPolicy)
       await case46ProviderBudgetOwner(requireCase46Owner(this.case46), {

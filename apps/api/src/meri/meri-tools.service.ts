@@ -2529,6 +2529,7 @@ export class MeriToolsService {
     const policy = currentMeriToolCapturePolicy() ?? currentMeriServerReadonlyCapturePolicy();
     if (
       captureBudgetRequired(policy) &&
+      !(policy?.syntheticReadBudget && name === 'search_memory') &&
       !(['01','14'].includes(policy?.caseId ?? '') && name === 'search_memory') &&
       !controlledReadToolAllowed(policy?.caseId ?? null, name)
     ) {

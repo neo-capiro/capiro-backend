@@ -8,6 +8,7 @@ import {
   type CaptureProviderSettlement,
 } from './meri-capture-provider-budget.js';
 import { captureProviderBudgetOwner } from './meri-capture-provider-budget-owner.js';
+import { syntheticReadBudgetOwner } from './meri-synthetic-read-budget-owner.js';
 import type { ResearchProviderReservationBinding } from './meri-research-tool-budget.js';
 import {
   case46ApiProviderScopeActive,
@@ -38,15 +39,23 @@ export function assertCaptureApiRetrievalPlan(plan: {
     scope.getStore() &&
     !(
       plan.subjectScope === 'client' &&
-      (['01', '14'].includes(scope.getStore()!.policy.caseId ?? '')
-        ? plan.requestedDomains.length === 1 &&
-          plan.requestedDomains[0] === 'institutional_knowledge'
-        : ['20', '72'].includes(scope.getStore()!.policy.caseId ?? '') &&
-          plan.requestedDomains.length === 4 &&
-          new Set(plan.requestedDomains).size === 4 &&
+      (scope.getStore()!.policy.syntheticReadBudget
+        ? plan.requestedDomains.length > 0 &&
+          new Set(plan.requestedDomains).size === plan.requestedDomains.length &&
           plan.requestedDomains.every((domain) =>
             ['clients', 'contacts', 'strategies_work', 'institutional_knowledge'].includes(domain),
-          ))
+          )
+        : ['01', '14'].includes(scope.getStore()!.policy.caseId ?? '')
+          ? plan.requestedDomains.length === 1 &&
+            plan.requestedDomains[0] === 'institutional_knowledge'
+          : ['20', '72'].includes(scope.getStore()!.policy.caseId ?? '') &&
+            plan.requestedDomains.length === 4 &&
+            new Set(plan.requestedDomains).size === 4 &&
+            plan.requestedDomains.every((domain) =>
+              ['clients', 'contacts', 'strategies_work', 'institutional_knowledge'].includes(
+                domain,
+              ),
+            ))
     )
   )
     throw new Error('meri_capture_provider_budget_unqualified_retrieval_plan');
@@ -70,7 +79,9 @@ export async function reserveCaptureApiProviderAttempt(input: {
     maxInputTokens: input.inputBytes,
     maxOutputTokens: 0,
   };
-  const result = await captureProviderBudgetOwner({
+  const result = await (
+    current.policy.syntheticReadBudget ? syntheticReadBudgetOwner : captureProviderBudgetOwner
+  )({
     ...current,
     operation: { kind: 'reserve', binding },
   });
@@ -92,7 +103,9 @@ export async function settleCaptureApiProviderAttempt(
     return;
   }
   if (reservation)
-    await captureProviderBudgetOwner({
+    await (
+      reservation.policy.syntheticReadBudget ? syntheticReadBudgetOwner : captureProviderBudgetOwner
+    )({
       ...reservation,
       operation: {
         kind: 'settle',

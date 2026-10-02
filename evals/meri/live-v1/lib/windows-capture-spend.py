@@ -7,10 +7,12 @@ import pathlib
 import re
 import runpy
 import sys
+import time
 
 protocol = runpy.run_path(str(pathlib.Path(__file__).with_name('windows-artifact-protocol.py')))
 native = protocol['native']
 CASES = {'01', '14', '20', '26', '27', '46', '72'}
+V2_CASES = CASES | {'02', '03', '04', '05'}
 MAX_TOTAL, MAX_CASE = 30_000_000, 3_000_000
 UUID = re.compile(r'[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}')
 HASH = re.compile(r'[a-f0-9]{64}')
@@ -33,8 +35,8 @@ def digest(value):
     return hashlib.sha256(value).hexdigest()
 
 
-def run_key(value):
-    require(value.get('caseId') in CASES and UUID.fullmatch(value.get('captureRunId', '')))
+def run_key(value, cases=CASES):
+    require(value.get('caseId') in cases and UUID.fullmatch(value.get('captureRunId', '')))
     return value['caseId'] + ':' + value['captureRunId']
 
 
@@ -52,6 +54,7 @@ def reduce_journal(owner, entries):
     require(boundary['kind'] == 'original_file01_capture_slice' and boundary['firstCaseId'] == '01')
     require(UUID.fullmatch(boundary['firstCaptureRunId']) and HASH.fullmatch(boundary['inventorySha256']))
     runs, active, reserved, known, closed_unknown = {}, None, 0, 0, 0
+    version, released, deadline = 1, 0, None
     prior = owner.get('priorRuns')
     require(type(prior) is list and len(prior) <= 30)
     for row in prior:
@@ -65,7 +68,19 @@ def reduce_journal(owner, entries):
         runs[key] = dict(row)
     for sequence, event in enumerate(entries, 1):
         require(event.get('sequence') == sequence)
-        key = run_key(event)
+        if event.get('kind') == 'revise_protocol':
+            require(version == 1 and active is None and closed_unknown == MAX_CASE)
+            require(boundary['inventorySha256'] == TERMINAL_CASE01_INVENTORY)
+            require(event.get('protocolVersion') == 2 and event.get('maxCostMicros') == MAX_TOTAL)
+            require(event.get('perCaseMaxCostMicros') == MAX_CASE and event.get('concurrency') == 1)
+            require(event.get('settlementAuthority') == 'server_settled_provider_ledger')
+            require(event.get('uncertainDisposition') == 'full_ceiling_no_refund')
+            require(HASH.fullmatch(event.get('reviewSha256', '')))
+            require(type(event.get('activatedAtMs')) is int and type(event.get('deadlineAtMs')) is int)
+            require(0 < event['activatedAtMs'] < event['deadlineAtMs'] <= event['activatedAtMs'] + 24*60*60*1000)
+            version, deadline = 2, event['deadlineAtMs']
+            continue
+        key = run_key(event, V2_CASES if version == 2 else CASES)
         if event.get('kind') == 'reserve':
             require(active is None and key not in runs)
             if not runs:
@@ -73,6 +88,9 @@ def reduce_journal(owner, entries):
             cost = ceiling(event.get('ceilingMicros'))
             require(UUID.fullmatch(event.get('reservationId', '')))
             runs[key] = dict(event)
+            if version == 2:
+                require(type(event.get('reservedAtMs')) is int and event['reservedAtMs'] < deadline)
+                runs[key]['protocolVersion'] = 2
             active = key
             reserved += cost
         elif event.get('kind') == 'close_terminal_uncertain':
@@ -115,17 +133,23 @@ def reduce_journal(owner, entries):
             require(type(actual) is int and 0 <= actual <= row['ceilingMicros'])
             require(HASH.fullmatch(event.get('ledgerSha256', '')) and HASH.fullmatch(event.get('envelopeSha256', '')))
             known += actual
+            if row.get('protocolVersion') == 2:
+                released += row['ceilingMicros'] - actual
             runs[key] = {**row, **event}
             active = None
-        require(reserved <= MAX_TOTAL)
-    require(reserved <= MAX_TOTAL)
+        require(reserved - released <= MAX_TOTAL)
+    require(reserved - released <= MAX_TOTAL)
     result = {'reservedCeilingsMicros': reserved, 'knownSettledCostMicros': known,
-            'remainingReservationMicros': MAX_TOTAL - reserved, 'activeRun': active,
+            'remainingReservationMicros': MAX_TOTAL - reserved + released, 'activeRun': active,
             'runs': runs, 'eventCount': len(entries), 'refundsAllowed': False,
             'priorActualCostUnknownCount': len(prior), 'billedTotalStatus': 'UNKNOWN'}
     if closed_unknown:
         result['terminalUnknownConservativeCostMicros'] = closed_unknown
         result['terminalUnknownCostCount'] = 1
+    if version == 2:
+        result.update({'protocolVersion': 2, 'releasedUnusedCeilingMicros': released,
+                       'committedCostMicros': reserved-released, 'deadlineAtMs': deadline,
+                       'unusedCeilingRelease': 'new_v2_runs_only_after_server_settlement'})
     return result
 
 
@@ -144,7 +168,7 @@ def execute(request):
         result = protocol['execute']({'op': 'write', 'root': request['root'],
             'state': result['state'], 'ref': '.spend-lock', 'bytes': ''})
         return {'state': result['state'], 'snapshot': snapshot}
-    require(op in {'read', 'reserve', 'settle', 'close_terminal_uncertain'})
+    require(op in {'read', 'reserve', 'settle', 'close_terminal_uncertain', 'revise_protocol'})
     state = json.loads(json.dumps(request['state']))
     require(state.get('root') == request['root'])
     drive, parts = protocol['components'](request['root'], root=True)
@@ -182,10 +206,21 @@ def execute(request):
         if op == 'read':
             return {'state': state, 'snapshot': snapshot}
         event = dict(request['event'])
+        if op == 'reserve' and snapshot.get('protocolVersion') == 2:
+            require(int(time.time()*1000) < snapshot['deadlineAtMs'])
+            require('reservedAtMs' not in event)
+            event['reservedAtMs'] = int(time.time()*1000)
         fields = {'kind', 'caseId', 'captureRunId', 'reservationId', 'sequence'}
         fields |= ({'ceilingMicros'} if op == 'reserve' else
                    {'disposition', 'actualCostMicros', 'proof'} if op == 'close_terminal_uncertain' else
                    {'chargedCostMicros', 'ledgerSha256', 'envelopeSha256'})
+        if op == 'reserve' and snapshot.get('protocolVersion') == 2:
+            fields.add('reservedAtMs')
+        if op == 'revise_protocol':
+            fields = {'kind', 'sequence', 'protocolVersion', 'maxCostMicros', 'perCaseMaxCostMicros',
+                      'concurrency', 'settlementAuthority', 'uncertainDisposition', 'reviewSha256',
+                      'activatedAtMs', 'deadlineAtMs'}
+            require(abs(int(time.time()*1000) - event.get('activatedAtMs', 0)) < 60_000)
         require(set(event) == fields - {'sequence'} and event['kind'] == op)
         event['sequence'] = len(entries) + 1
         next_snapshot = reduce_journal(owner, [*entries, event])

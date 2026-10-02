@@ -4,6 +4,7 @@ import { MERI_CAPABILITY_REGISTRY } from '@capiro/shared';
 import type { MeriServerReadonlyCapturePolicy } from '@capiro/meriv2-core';
 import {
   validateMeriGovernedArtifactPolicy,
+  validateMeriSyntheticReadBudgetGuard,
   type MeriGovernedArtifactCapturePolicy,
 } from '@capiro/meriv2-core';
 
@@ -61,6 +62,7 @@ export function validateServerReadonlyCapturePolicy(
   },
   now = Date.now(),
 ): void {
+  validateMeriSyntheticReadBudgetGuard(policy);
   const catalogSha256 = createHash('sha256')
     .update(
       MERI_CAPABILITY_REGISTRY.filter((tool) => tool.readOnly === true)
