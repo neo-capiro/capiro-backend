@@ -4,6 +4,10 @@ import { selectPendingMemoryFixturePlan } from './fixture-provisioning/memory-pe
 import { fixtureRecordKey } from './fixture-provisioning/contract.mjs';
 import { sha256Stable, stableJson } from './lib/stable.mjs';
 import { assertWindowsArtifactStorage } from './windows-artifact-storage.mjs';
+import {
+  createCase17WriteAccounting,
+  inspectCase17WriteAccounting,
+} from './case17-readonly-guard.mjs';
 
 const origin = 'https://os.capiro.ai';
 const need = (ok, code) => {
@@ -137,10 +141,49 @@ export async function waitForCase17ProposalQuery(page) {
     { timeout: 15000 },
   );
   need(
-    !(await section.getByText('Your proposal history could not be loaded.', { exact: true }).isVisible()),
+    !(await section
+      .getByText('Your proposal history could not be loaded.', { exact: true })
+      .isVisible()),
     'PROPOSALS_QUERY_FAILED',
   );
   return section;
+}
+
+/** Center the real card within its scroll ancestors, then reject clipped pixels.
+ * This changes scroll offsets only, never layout, text, or screenshot bytes. */
+export async function screenshotCase17Card(card) {
+  await card.evaluate((node) =>
+    node.scrollIntoView({ block: 'center', inline: 'center', behavior: 'instant' }),
+  );
+  const fullyVisible = await card.evaluate((node) => {
+    const rect = node.getBoundingClientRect();
+    let left = 0,
+      top = 0,
+      right = innerWidth,
+      bottom = innerHeight;
+    for (let parent = node.parentElement; parent; parent = parent.parentElement) {
+      const css = getComputedStyle(parent),
+        bounds = parent.getBoundingClientRect();
+      if (/(auto|scroll|hidden|clip)/u.test(css.overflowX)) {
+        left = Math.max(left, bounds.left + parent.clientLeft);
+        right = Math.min(right, bounds.left + parent.clientLeft + parent.clientWidth);
+      }
+      if (/(auto|scroll|hidden|clip)/u.test(css.overflowY)) {
+        top = Math.max(top, bounds.top + parent.clientTop);
+        bottom = Math.min(bottom, bounds.top + parent.clientTop + parent.clientHeight);
+      }
+    }
+    return (
+      rect.width > 0 &&
+      rect.height > 0 &&
+      rect.left >= left - 0.5 &&
+      rect.top >= top - 0.5 &&
+      rect.right <= right + 0.5 &&
+      rect.bottom <= bottom + 0.5
+    );
+  });
+  need(fullyVisible, 'CARD_SCREENSHOT_CLIPPED');
+  return card.screenshot();
 }
 
 export async function collectCase17MemoryUi({
@@ -151,6 +194,7 @@ export async function collectCase17MemoryUi({
   expectedApiSha,
   expectedWebSha,
   artifactStorage,
+  writeAccounting = createCase17WriteAccounting(),
 }) {
   need(
     typeof readCurrentOwner === 'function' &&
@@ -167,18 +211,11 @@ export async function collectCase17MemoryUi({
   });
   const selection = selectPendingMemoryFixturePlan(manifest, '17');
   need(recipe.caseId === '17' && recipe.ctx?.userId === selection.proposerUserId, 'RECIPE_SCOPE');
-  let blockedWrites = 0,
-    requests = 0;
+  let requests = 0;
   const guard = async (route) => {
     const request = route.request(),
       url = new URL(request.url());
-    if (
-      !['GET', 'HEAD', 'OPTIONS'].includes(request.method()) &&
-      url.origin !== 'https://clerk.app.capiro.ai'
-    ) {
-      blockedWrites++;
-      return route.abort();
-    }
+    if (writeAccounting.deny(request)) return route.abort();
     if (
       request.isNavigationRequest() &&
       (request.frame() === page.mainFrame()
@@ -211,6 +248,7 @@ export async function collectCase17MemoryUi({
     const before = await readCurrentOwner();
     for (const phase of ['initial', 'afterReload']) {
       bounded();
+      writeAccounting.panelPhase(phase);
       if (phase === 'initial')
         await page.goto(origin + '/meri', { waitUntil: 'domcontentloaded', timeout: 30000 });
       else await page.reload({ waitUntil: 'domcontentloaded', timeout: 30000 });
@@ -294,7 +332,7 @@ export async function collectCase17MemoryUi({
             (!row.clientName || text.includes(row.clientName)),
           'VISIBLE_PROVENANCE',
         );
-        const bytes = await card.screenshot();
+        const bytes = await screenshotCase17Card(card);
         const descriptor = artifactStorage.writeBytes(
           `case17/${phase}/${row.logicalSourceId}.png`,
           bytes,
@@ -317,12 +355,28 @@ export async function collectCase17MemoryUi({
         uiLoadMoreCount: loads,
         cards,
       });
+      writeAccounting.panelPhase('outsidePanel');
     }
     const after = await readCurrentOwner();
-    need(
-      sha256Stable(before) === sha256Stable(after) && blockedWrites === 0,
-      'OWNER_OR_WRITE_CHANGED',
+    const writeCounts = writeAccounting.snapshot();
+    // Persist the safe reason before checking it, including on guard failure.
+    artifactStorage.writeBytes(
+      'case17/readonly-guard-diagnostic.json',
+      Buffer.from(
+        stableJson({
+          kind: 'meri-case17-readonly-guard-diagnostic',
+          schemaVersion: 1,
+          ownerBeforeSha256: sha256Stable(before),
+          ownerAfterSha256: sha256Stable(after),
+          ownerUnchanged: sha256Stable(before) === sha256Stable(after),
+          applicationWrites: 0,
+          synthesisSubmissionCount: 0,
+          ...writeCounts,
+        }),
+      ),
     );
+    inspectCase17WriteAccounting(writeCounts);
+    need(sha256Stable(before) === sha256Stable(after), 'OWNER_OR_WRITE_CHANGED');
     const receipt = {
       kind: 'meri-case17-ui-readonly-receipt',
       schemaVersion: 1,
@@ -334,7 +388,7 @@ export async function collectCase17MemoryUi({
       expectedWebSha,
       rounds,
       authenticatedReadCount: requests,
-      blockedWrites,
+      ...writeCounts,
       synthesisSubmissionCount: 0,
       applicationWrites: 0,
       liveAcceptance: 'NOT_RUN',
@@ -357,10 +411,11 @@ export async function collectCase17MemoryUi({
         rounds,
         synthesisSubmissionCount: 0,
         applicationWrites: 0,
-        blockedWrites,
+        ...writeCounts,
       },
     };
   } finally {
+    writeAccounting.panelPhase('outsidePanel');
     await page.unroute('**/*', guard);
   }
 }
