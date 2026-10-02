@@ -1,0 +1,11 @@
+{
+  "command": [
+    "C:\\Program Files\\nodejs\\node.exe",
+    "--test",
+    "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-repair\\forward450-runner-v2.test.mjs"
+  ],
+  "exitCode": 0,
+  "passed": 4,
+  "logSha256": "81fa91ee87d8c4698dbfc055be4f23ccaa6012103c3e63b2d38478775d3b700d",
+  "awsCalls": 0
+}

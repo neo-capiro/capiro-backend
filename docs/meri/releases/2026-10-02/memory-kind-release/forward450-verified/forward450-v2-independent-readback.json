@@ -1,0 +1,47 @@
+{
+  "kind": "forward450-v2-independent-task-readback",
+  "status": "PASS",
+  "sourceSha": "42988dae5fb7bc2fff3af582ca15a0836a4477c5",
+  "operatorHead": "180e8077da0e829bfad96c8a862cec1039d88904",
+  "imageDigest": "sha256:f792a39e889c7572811dd1335b6f12501d3878701caef3888ae7f120bd6e6f25",
+  "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/64bfbfec4e80470da8906fb5d765704e",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-forward450-v2:1",
+  "containerExitCode": 0,
+  "planHash": "bb7de74a7880358a3c9d0d56e5507d1c938556017d8efea0b6f9549d86017200",
+  "executionSha256": "f73295658d7c0a72b6915e4cf8e29f14d775915a8653442209c89b5c1de2b6f1",
+  "ownerReceiptsSha256": "6a660b95cfdf377f3e546dc4ff0c47ed9ce4d7fc06b735551fabaccfb0d3d069",
+  "registeredRunnerSha256": "f6db90d48dfecbef0afb2c16aaab3fed4cc6bed315026a3b3b9337b942204603",
+  "taskDefinitionOverridesDigestAndLogsMatched": true,
+  "ledgerRowsBefore": 606,
+  "ledgerRowsAfter": 607,
+  "activeFinishedBefore": 506,
+  "activeFinishedAfter": 507,
+  "rolledBackPreserved": 100,
+  "allOldRowsUnchanged": true,
+  "oldLedgerSha256": "e06c88cf3a42626966b1949c5c297ee71aa7e90ba413bfc153bd6b61afbe5766",
+  "oldApi449CoverageUnchangedSha256": "bab85dc1df5f9c33e0f882eee49b0346543cad867697e24456f3c3d18ac294ac",
+  "apiSourceMigrationsAfter": 450,
+  "exactNewMigration": "20281005010000_memory_version_candidate_source_kinds",
+  "exactNewMigrationSha256": "a8be392c1de78038b1fc584e5a2293183d736f7732890737402833c864e2c6ce",
+  "beforeCheckSha256": {
+    "memory_candidate_source_kind_chk": "1b02929420ab5de75e29a9396f3a207bdc91c2f49e50308169def52c4427ac3f",
+    "memory_candidate_version_payload_check": "35c42df118d64e546727118df0c9b8297c4867d6b45eb0822694e0a02a283dd1"
+  },
+  "afterCheckSha256": {
+    "memory_candidate_source_kind_chk": "4585194700c4539c5f62d01610ed8f9b3b78b0618e39b40cd04b8b7b80f3c4a5",
+    "memory_candidate_version_payload_check": "6a3164098759e2c2f6e6cf0caf80db29b8529c714158b9a8490ce9d477dc422c"
+  },
+  "fourFixtureClaimsUnchanged": true,
+  "claimSha256": {
+    "case01ExecutionSetup": "5fdd382ee4332c3723f801d060c1462b9f4082e5a86fd945c7900fbba25be588",
+    "case01ExecutionSetupContinuation": "28138f575b12c2d05a7f6ae5acc3496af9479eb4a4e29c0feab7a000dc2ef824",
+    "case01ExecutionSetupPostApproval": "cbf4e668005d83d3d3613ff1de3d11d7541e813d61ccd7de2b86a4e0c052acec",
+    "case01ExecutionSetupRecovery": "2d51c9ef4f90dbc9bd5e2a98c30c1e70dde09386fb5e6857b0ebb4f2c08d0bc9"
+  },
+  "prismaExitCode": 0,
+  "prismaOutputSha256": "56fef6773f678503d63cb6c923e686fd9c437b2d179fbb375e394e21d7d41cc8",
+  "tlsVerified": true,
+  "awsWritesByReviewer": 0,
+  "databaseConnectionsByReviewer": 0,
+  "limitation": "Independent ECS/CloudWatch provenance readback of the actual source-owned database pre/postchecks, not an additional database connection or application acceptance test."
+}

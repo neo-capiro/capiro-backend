@@ -1,0 +1,132 @@
+import copy, importlib.util, io, json, pathlib, tempfile, types, unittest
+from contextlib import redirect_stdout
+from unittest.mock import patch
+
+PATH=pathlib.Path(__file__).with_name('forward450-oneoff-v2.py')
+spec=importlib.util.spec_from_file_location('forward450',PATH)
+w=importlib.util.module_from_spec(spec);spec.loader.exec_module(w)
+fixture=w.load(w.BASE.with_name('case01-oneoff-tests.py'),'old_fixtures')
+SOURCE='a'*40
+
+class Tests(unittest.TestCase):
+ def setUp(self):
+  self.temp=tempfile.TemporaryDirectory(prefix='forward450-test-',dir=w.ROOT)
+  self.root=pathlib.Path(self.temp.name).resolve();self.original_root=w.ROOT
+  self.patches=[patch.object(w,'INPUT',self.root/'forward450-input-v2.json')]
+  for p in self.patches:p.start()
+  self.m=w.load_operator();self.m.ROOT=self.root;self.a=self.m.adapter()
+  self.value={'baseline':{'total':606,'activeFinished':506,'rolledBack':100,'fullLedgerSha256':'e06c88cf3a42626966b1949c5c297ee71aa7e90ba413bfc153bd6b61afbe5766','apiHistorySha256':'9'*64},'version':1,'sourceSha':SOURCE,'migrationSha256':w.MIGRATION_SHA,'manifestSha256':'3'*64,
+   'beforeCheckSha256':dict.fromkeys(w.CHECKS,'4'*64),'afterCheckSha256':dict.fromkeys(w.CHECKS,'5'*64),'claimSha256':dict.fromkeys(w.CLAIMS,'6'*64)}
+  w.INPUT.write_text(json.dumps(self.value))
+  self.proof=dict(fixture.PROOF,reviewed={'runnerSha256':self.m.file_sha(w.SCRIPT)})
+  self.snapshot=fixture.snap();self.snapshot['safe']['taskDefinition']=w.LIVE_TD
+  self.snapshot['migrationDefinition']=copy.deepcopy(self.snapshot['definition'])
+  self.snapshot['migrationContainer']=copy.deepcopy(self.snapshot['container'])
+  for row in self.snapshot['migrationContainer']['secrets']:
+   if row['name'] in ('DB_USER','DB_PASSWORD'):row['valueFrom']+='-migration'
+ def tearDown(self):
+  for p in reversed(self.patches):p.stop()
+  self.assertEqual(self.root.parent,self.original_root);self.temp.cleanup()
+ def args(self):return types.SimpleNamespace(repo='unused',proof='unused',proof_sha256='f'*64,input=str(w.INPUT),input_sha256=self.m.file_sha(w.INPUT),mode=w.MODE,out=str(self.root/'plan.json'))
+ def receipts(self):
+  common={'version':1,'kind':'meri-forward450','sourceSha':SOURCE}
+  return [dict(common,stage='PREFLIGHT',status='VERIFIED',ledgerRows=606,activeFinished=506,rolledBack=100,apiSourceMigrations=449,apiHistorySha256='9'*64,oldLedgerSha256=self.value['baseline']['fullLedgerSha256'],checks=self.value['beforeCheckSha256'],claimSha256=self.value['claimSha256'],tlsVerified=True),
+   dict(common,stage='PRISMA_DEPLOY',status='INTENT',migrationSha256=w.MIGRATION_SHA),
+   dict(common,stage='COMPLETE',status='VERIFIED',ledgerRows=607,activeFinished=507,rolledBack=100,apiSourceMigrations=450,apiHistorySha256='9'*64,newMigration=w.MIGRATION,migrationSha256=w.MIGRATION_SHA,manifestSha256=self.value['manifestSha256'],oldLedgerSha256=self.value['baseline']['fullLedgerSha256'],oldLedgerUnchanged=True,checks=self.value['afterCheckSha256'],claimSha256=self.value['claimSha256'],prismaExitCode=0,prismaOutputSha256='8'*64,fixtureClaimsUnchanged=True,tlsVerified=True)]
+ def bind(self):return self.m.input_binding(w.MODE,w.INPUT,self.m.file_sha(w.INPUT))
+ def request(self):return self.m.task_request(self.a,self.snapshot,self.proof,w.MODE)
+ def fake(self):
+  m=self.m
+  class Aws(fixture.FakeAws):
+   def tasks(s,arns):
+    rows=super().tasks(arns);rows[0]['taskDefinitionArn']=f'arn:aws:ecs:{m.REGION}:{m.ACCOUNT}:task-definition/{w.FAMILY}:1';rows[0]['containers'][0]['name']=w.CONTAINER;return rows
+   def call(s,namespace,operation,**kwargs):
+    result=super().call(namespace,operation,**kwargs)
+    if operation=='register_task_definition':result['taskDefinition']['taskDefinitionArn']=f'arn:aws:ecs:{m.REGION}:{m.ACCOUNT}:task-definition/{w.FAMILY}:1'
+    return result
+  aws=Aws();aws.logs_override=['unprefixed private log ignored']+[w.PREFIX+json.dumps(r) for r in self.receipts()];return aws
+ def prepared(self):
+  args=self.args();aws=self.fake()
+  with patch.object(self.m,'qualify',return_value=self.proof),patch.object(self.m,'snapshot',return_value=self.snapshot):self.m.prepare(self.a,fixture.Helper(),aws,args)
+  plan=self.m.read_json(args.out);args.plan=args.out;args.plan_sha256=plan['planHash'];args.out=str(self.root/'run.json');args.confirm='RUN_ONE_REVIEWED_CASE01_TASK'
+  return args,aws
+ def run_fake(self,args,aws):
+  with patch.object(self.m,'qualify',return_value=self.proof),patch.object(self.m,'source_check',return_value=SOURCE),patch.object(self.m,'snapshot',return_value=self.snapshot),patch.object(self.m.time,'sleep'):
+   return self.m.run(self.a,fixture.Helper(),aws,args)
+ def test_adapter_delta_is_exact_and_old_unchanged(self):
+  self.assertEqual(self.m.file_sha(w.OLD_ADAPTER),w.OLD_SHA)
+  self.assertEqual(w.NEW_ADAPTER.read_bytes(),w.OLD_ADAPTER.read_bytes().replace(b'EXACT_449_IMAGE_MIGRATION_HASHES_PASS',b'EXACT_450_IMAGE_MIGRATION_HASHES_PASS'))
+ def test_fixed_input_and_duplicate_json_refusal(self):
+  value,overrides=self.bind();self.assertEqual(value,self.value)
+  self.assertEqual(overrides['containerOverrides'][0]['command'],[])
+  self.assertLess(len(json.dumps(overrides).encode()),8192)
+  with self.assertRaises(self.m.Refusal):self.m.input_binding('migrate-reset',w.INPUT,self.m.file_sha(w.INPUT))
+  w.INPUT.write_text('{"version":1,"version":1}')
+  self.m=w.load_operator()
+  with self.assertRaises(self.m.Refusal):self.bind()
+ def test_input_cannot_rebind_or_add_command(self):
+  self.bind();self.value['command']='migrate reset';w.INPUT.write_text(json.dumps(self.value))
+  with self.assertRaises(self.m.Refusal):self.bind()
+  self.m=w.load_operator()
+  with self.assertRaises(self.m.Refusal):self.bind()
+ def test_new_image_and_migration_role_separate_from_served_baseline(self):
+  before=copy.deepcopy(self.snapshot);request=self.request();container=request['containerDefinitions'][0]
+  self.assertEqual(self.snapshot,before);self.assertEqual(container['image'],self.proof['image'])
+  self.assertEqual(container['entryPoint'][:3],['node','--input-type=module','--eval'])
+  self.assertEqual(container['command'],[])
+  self.assertEqual({x['name'] for x in container['secrets']},self.m.DB_REFS)
+  self.assertEqual({x['name'] for x in container['environment']},{'DB_NAME','GIT_SHA','RELEASE_SHA','TMPDIR'})
+  self.assertTrue(next(x['valueFrom'] for x in container['secrets'] if x['name']=='DB_USER').endswith('-migration'))
+ def test_database_role_endpoint_or_plaintext_shadow_refused(self):
+  for key in ['DB_USER','DB_PASSWORD','DB_HOST']:
+   original=copy.deepcopy(self.snapshot)
+   for row in self.snapshot['migrationContainer']['secrets']:
+    if row['name']==key:row['valueFrom']=next(x['valueFrom'] for x in self.snapshot['container']['secrets'] if x['name']==key) if key!='DB_HOST' else 'changed'
+   with self.assertRaises(self.m.Refusal):self.request()
+   self.snapshot=original
+  self.snapshot['migrationContainer']['environment'].append({'name':'DB_USER','value':'not-a-secret'})
+  with self.assertRaises(self.m.Refusal):self.request()
+ def test_receipts_exact_counts_source_catalog_claims_and_no_raw_logs(self):
+  self.bind();rows=self.receipts();messages=['raw private log']+[w.PREFIX+json.dumps(r) for r in rows]
+  self.assertEqual(self.m.owner_receipts(messages,w.MODE),rows)
+  for field,value in [('sourceSha','f'*40),('ledgerRows',606),('oldLedgerSha256','9'*64),('tlsVerified',False),('prismaExitCode',1),('extra','untrusted')]:
+   changed=copy.deepcopy(rows);changed[-1][field]=value
+   with self.assertRaises(self.m.Refusal):self.m.owner_receipts([w.PREFIX+json.dumps(r) for r in changed],w.MODE)
+  with self.assertRaises(self.m.Refusal):self.m.owner_receipts(messages[1:2],w.MODE)
+ def test_failure_is_partial_not_verified(self):
+  self.bind();row={'version':1,'kind':'meri-forward450','stage':'PRISMA_DEPLOY','status':'RECONCILIATION_REQUIRED','code':'P3009','guard':'PRISMA_DEPLOY','prismaFailure':{'prismaExitCode':1,'timedOut':False,'prismaCode':'P3009','sqlState':None,'outputSha256':'a'*64},'prismaAttempted':True,'retryAllowed':False}
+  logs=[w.PREFIX+json.dumps(row)];self.assertEqual(self.m.owner_receipts(logs,w.MODE,False),[row])
+  with self.assertRaises(self.m.Refusal):self.m.owner_receipts(logs,w.MODE)
+ def test_inherited_actual_lifecycle_one_run_and_actual_receipts(self):
+  args,aws=self.prepared();result=self.run_fake(args,aws)
+  self.assertEqual(result['status'],'VERIFIED');self.assertEqual(result['receiptCount'],3)
+  self.assertEqual(aws.calls.count(('ecs','run_task')),1)
+  self.assertNotIn('private log',pathlib.Path(args.out).read_text())
+ def test_unknown_ack_preserved_and_no_retry(self):
+  args,aws=self.prepared();aws.run_error=True
+  with self.assertRaises(self.m.Refusal):self.run_fake(args,aws)
+  self.assertEqual(self.m.read_json(args.out)['status'],'RECONCILIATION_REQUIRED')
+  with self.assertRaises(FileExistsError):self.run_fake(args,aws)
+  self.assertEqual(aws.calls.count(('ecs','run_task')),1)
+ def test_drift_or_nonzero_never_green(self):
+  args,aws=self.prepared();self.snapshot['safe']['primaryDeploymentId']='new'
+  with self.assertRaises(self.m.Refusal):self.run_fake(args,aws)
+  self.assertNotIn(('ecs','register_task_definition'),aws.calls)
+ def test_nonzero_exit_refuses_even_complete_looking_logs(self):
+  args,aws=self.prepared();aws.exit=1
+  with self.assertRaises(self.m.Refusal):self.run_fake(args,aws)
+  receipt=self.m.read_json(args.out);self.assertEqual(receipt['containerExitCode'],1);self.assertEqual(receipt['status'],'RECONCILIATION_REQUIRED')
+ def test_unsealed_proof_refuses_before_any_aws_call(self):
+  path=self.root/'unsealed.json';path.write_text(json.dumps({'version':1,'kind':'meri-forward450-qualified-candidate','status':'UNSEALED'}))
+  aws=self.fake()
+  with self.assertRaises(self.m.Refusal):self.m.qualify(self.a,'unused',aws,path,self.m.file_sha(path))
+  self.assertEqual(aws.calls,[])
+ def test_operation_wide_claim_blocks_different_second_plan(self):
+  base=['forward450-oneoff.py','run','--repo','unused','--proof','unused','--proof-sha256','a'*64,'--input-sha256','b'*64,'--out','unused','--confirm','RUN_ONE_FORWARD450_V2_PRISMA_DEPLOY']
+  with patch.object(w,'ROOT',self.root),patch.object(w,'load_operator',return_value=self.m),patch.object(self.m,'adapter',side_effect=RuntimeError('stopped before AWS')) as adapter,redirect_stdout(io.StringIO()):
+   for plan in ('c'*64,'d'*64):
+    with patch('sys.argv',base+['--plan-sha256',plan]):self.assertEqual(w.main(),1)
+   self.assertEqual(adapter.call_count,1)
+  self.assertEqual(json.loads((self.root/'forward450-v2-operation-once.json').read_text())['planHash'],'c'*64)
+
+if __name__=='__main__':unittest.main()

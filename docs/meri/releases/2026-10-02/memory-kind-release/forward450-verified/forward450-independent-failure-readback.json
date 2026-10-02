@@ -1,0 +1,27 @@
+{
+  "kind": "forward450-independent-task-readback",
+  "status": "BLOCKED_BEFORE_PRISMA",
+  "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/237b3678b71847aebf2d3faa092bb792",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-forward450:1",
+  "imageDigest": "sha256:f792a39e889c7572811dd1335b6f12501d3878701caef3888ae7f120bd6e6f25",
+  "sourceSha": "42988dae5fb7bc2fff3af582ca15a0836a4477c5",
+  "containerExitCode": 1,
+  "planHash": "279dd1611e672cc9ad588f0ba8f2e693243c81a399157f6f80bf2acda4042731",
+  "executionSha256": "c69da8bdbeb8e7c6a2bdc82cce2566a9c5dbcbbdb54510f1e925f3b5a60117bc",
+  "taskDefinitionMatched": true,
+  "overridesMatched": true,
+  "actualLogReceiptsMatched": true,
+  "ownerReceipts": [
+    {
+      "version": 1,
+      "kind": "meri-forward450",
+      "stage": "PREFLIGHT",
+      "status": "BLOCKED",
+      "code": "ERR_ASSERTION",
+      "prismaAttempted": false,
+      "retryAllowed": false
+    }
+  ],
+  "awsWrites": 0,
+  "databaseConnections": 0
+}

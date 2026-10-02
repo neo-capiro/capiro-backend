@@ -1,0 +1,200 @@
+{
+  "kind": "verified-forward450-byte-preserved-archive",
+  "sourceSha": "42988dae5fb7bc2fff3af582ca15a0836a4477c5",
+  "archiveBaseHead": "180e8077da0e829bfad96c8a862cec1039d88904",
+  "files": {
+    ".gitattributes": {
+      "sha256": "705fd4d6451a31d36b3df7de96f83f30ac976c9b4a6d1e51671d8e2f33e2d0da",
+      "bytes": 8,
+      "original": "preserve exact evidence bytes"
+    },
+    "README.md": {
+      "sha256": "5d8ec45b26e397b4970242202893503c6264efb6c3a054aaea673857750c32a5",
+      "bytes": 2123,
+      "original": "generated summary"
+    },
+    "compatibility-addendum.json": {
+      "sha256": "68e24ac7c85dd26394e4403fd90437839dec1c3938674978e7fafc4a509f9770",
+      "bytes": 2760,
+      "original": "generated from verified receipts"
+    },
+    "forward450-diagnostic-execution.json": {
+      "sha256": "30894da06068eba1f557fdcf72246e8f0069c20f3f888bffe2113c17da252261",
+      "bytes": 30662,
+      "original": "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-repair\\forward450-diagnostic-execution.json"
+    },
+    "forward450-diagnostic-independent-peer-review.json": {
+      "sha256": "bf7554c2287a80475b067666d0d962401caf2c59a0b6222eeb2b49962fcd2201",
+      "bytes": 2632,
+      "original": "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-repair\\forward450-diagnostic-independent-peer-review.json"
+    },
+    "forward450-diagnostic-local-qualification.json": {
+      "sha256": "7b7e5f1a8a612e89a6b5325553146184f722b3c17d9ae5cfba6d98200fad5044",
+      "bytes": 1771,
+      "original": "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-repair\\forward450-diagnostic-local-qualification.json"
+    },
+    "forward450-diagnostic-oneoff.py.txt": {
+      "sha256": "501daf291ef11bd6f7792fb70a4533a6c58e00800ed9f28baa8cea0aa2c8388e",
+      "bytes": 7494,
+      "original": "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-repair\\forward450-diagnostic-oneoff.py"
+    },
+    "forward450-diagnostic-proof.json": {
+      "sha256": "271ed6513cfe9ab84fc197f2134d8890af8b692c6d90f4a37ce6b7ce5fb60b44",
+      "bytes": 1472,
+      "original": "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-repair\\forward450-diagnostic-proof.json"
+    },
+    "forward450-diagnostic-task-plan.json": {
+      "sha256": "eab8c4968c8be194828fa7587e40bcb7c50b24c49363d2a17a9cd1db43636ff8",
+      "bytes": 2335,
+      "original": "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-repair\\forward450-diagnostic-task-plan.json"
+    },
+    "forward450-diagnostic.mjs.txt": {
+      "sha256": "4a100583c9691782050573daa985cc26e4aa98ab1430655f46bf4f9dce664184",
+      "bytes": 18161,
+      "original": "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-repair\\forward450-diagnostic.mjs"
+    },
+    "forward450-execution-v2.json": {
+      "sha256": "f73295658d7c0a72b6915e4cf8e29f14d775915a8653442209c89b5c1de2b6f1",
+      "bytes": 3981,
+      "original": "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-repair\\forward450-execution-v2.json"
+    },
+    "forward450-execution.json": {
+      "sha256": "c69da8bdbeb8e7c6a2bdc82cce2566a9c5dbcbbdb54510f1e925f3b5a60117bc",
+      "bytes": 987,
+      "original": "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-repair\\forward450-execution.json"
+    },
+    "forward450-independent-diagnostic-readback.json": {
+      "sha256": "d76666288a7ee31af05da989e889c7327a2c21ca4347482324271fd3c21a5d6f",
+      "bytes": 1746,
+      "original": "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-repair\\forward450-independent-diagnostic-readback.json"
+    },
+    "forward450-independent-failure-readback.json": {
+      "sha256": "9d9324240375fcf900c424d2b47bd2ea8842f87e79ce30bc2493f1f8c6286da7",
+      "bytes": 1048,
+      "original": "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-repair\\forward450-independent-failure-readback.json"
+    },
+    "forward450-input-provenance.json": {
+      "sha256": "45e2be81dd2950707dcdba6538e012ce241a5a487e0f2fae7a9d97400b0f1629",
+      "bytes": 2002,
+      "original": "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-repair\\forward450-input-provenance.json"
+    },
+    "forward450-input-v2.json": {
+      "sha256": "28d6bcdcfe85acd018c47f27ca9df2fe943c4d44da65744528879d9721fe2881",
+      "bytes": 1467,
+      "original": "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-repair\\forward450-input-v2.json"
+    },
+    "forward450-input.json": {
+      "sha256": "d2befd1dd0491bdbcb4e8d1091bad97859c46445e9b8fabb90c0bb5dfb2e3216",
+      "bytes": 1195,
+      "original": "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-repair\\forward450-input.json"
+    },
+    "forward450-migration-template-readback.json": {
+      "sha256": "d23626173166380cbe90288f5a97cf4364b7516ae78c1120b99e67e249a00d69",
+      "bytes": 708,
+      "original": "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-repair\\forward450-migration-template-readback.json"
+    },
+    "forward450-oneoff-v2-tests.py.txt": {
+      "sha256": "204467667b29e42d55fabf5514867023c64ef4a1eb8f97d583feb2365e65b566",
+      "bytes": 10630,
+      "original": "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-repair\\forward450-oneoff-v2-tests.py"
+    },
+    "forward450-oneoff-v2.py.txt": {
+      "sha256": "dba521c1f142e68f10138bd685463f82f6414f77d02c3b830a82834abc6fa62c",
+      "bytes": 18128,
+      "original": "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-repair\\forward450-oneoff-v2.py"
+    },
+    "forward450-oneoff.py.txt": {
+      "sha256": "03f5c2eb792a7cc9abd8aecf923268f6a5b1fc0989c4c68f1a47a5508dc8ae9f",
+      "bytes": 13945,
+      "original": "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-repair\\forward450-oneoff.py"
+    },
+    "forward450-operation-once.json": {
+      "sha256": "516200f75170d0f3dbdd522e77784a3d9ba4529e45be05ac58d3a1834ac920f2",
+      "bytes": 110,
+      "original": "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-repair\\forward450-operation-once.json"
+    },
+    "forward450-proof-v2.json": {
+      "sha256": "90d1fea049a4e8008d30b43f4c8b930c1612fb704826a83999eeabb9f96b80ba",
+      "bytes": 1472,
+      "original": "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-repair\\forward450-proof-v2.json"
+    },
+    "forward450-proof.json": {
+      "sha256": "26607cb8f7f04e49d626be06bfdf3e52e716ab733d394eccc2a5c37facdfcabb",
+      "bytes": 1472,
+      "original": "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-repair\\forward450-proof.json"
+    },
+    "forward450-runner-v2.mjs.txt": {
+      "sha256": "f6db90d48dfecbef0afb2c16aaab3fed4cc6bed315026a3b3b9337b942204603",
+      "bytes": 20089,
+      "original": "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-repair\\forward450-runner-v2.mjs"
+    },
+    "forward450-runner-v2.test.mjs.txt": {
+      "sha256": "254c74c338c4d451935ea1801a18f6b15252090d040b929674238bd7d5d76fef",
+      "bytes": 8826,
+      "original": "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-repair\\forward450-runner-v2.test.mjs"
+    },
+    "forward450-runner.mjs.txt": {
+      "sha256": "0162ca9979d3876baedbabd1e11b62c191baf7d61abd4320e813392ac43769d4",
+      "bytes": 17144,
+      "original": "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-repair\\forward450-runner.mjs"
+    },
+    "forward450-task-plan-v2.json": {
+      "sha256": "933c62eaa2f4c1838e5af083c0ff3b6fa24586582fda46a6398cd2b2f150492f",
+      "bytes": 2325,
+      "original": "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-repair\\forward450-task-plan-v2.json"
+    },
+    "forward450-v2-independent-peer-review.json": {
+      "sha256": "96335c4069fb3ed1e5b270e3aef9bf6b1a5e4a18e0984652b7c889bcca7d22c5",
+      "bytes": 967,
+      "original": "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-repair\\forward450-v2-independent-peer-review.json"
+    },
+    "forward450-v2-independent-readback.json": {
+      "sha256": "1dd51ab444b34e6d5e74053f769294cb154d12420c784137e9a241cac86877da",
+      "bytes": 2934,
+      "original": "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-repair\\forward450-v2-independent-readback.json"
+    },
+    "forward450-v2-local-qualification.json": {
+      "sha256": "641610737b65e8c1afb7e87cdf6c15a22fedc5f3b4ef58e38fdd9d393108438b",
+      "bytes": 2204,
+      "original": "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-repair\\forward450-v2-local-qualification.json"
+    },
+    "forward450-v2-node-tests-exit.json": {
+      "sha256": "2804a74c64b70684e09c38138592c8730c3fe9a3747ec18080605ee95b48487b",
+      "bytes": 313,
+      "original": "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-repair\\forward450-v2-node-tests-exit.json"
+    },
+    "forward450-v2-node-tests.log": {
+      "sha256": "81fa91ee87d8c4698dbfc055be4f23ccaa6012103c3e63b2d38478775d3b700d",
+      "bytes": 1091,
+      "original": "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-repair\\forward450-v2-node-tests.log"
+    },
+    "forward450-v2-operation-once.json": {
+      "sha256": "e31f536707c97fe3784c2a94c6b908d866708656a1f1148b74a37e3f1efd9228",
+      "bytes": 110,
+      "original": "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-repair\\forward450-v2-operation-once.json"
+    },
+    "forward450-v2-python-tests-exit.json": {
+      "sha256": "4c5fb289395b945a91efcaca11ca9a6d4cd88bc984ac5c94b8ad340bdebb6b22",
+      "bytes": 341,
+      "original": "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-repair\\forward450-v2-python-tests-exit.json"
+    },
+    "forward450-v2-python-tests.log": {
+      "sha256": "2075abd161d6501d34950fff7621ef7dc2e2698cdac4544ab8ae56b3d363efac",
+      "bytes": 117,
+      "original": "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-repair\\forward450-v2-python-tests.log"
+    },
+    "synthetic-canary-codebuild-450.py.txt": {
+      "sha256": "1f4fa1401571361db593db9372aa7bec635a397d57383096bff3e65a529b3822",
+      "bytes": 43134,
+      "original": "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-repair\\synthetic-canary-codebuild-450.py"
+    }
+  },
+  "screening": {
+    "status": "PASS",
+    "scope": "fixed metadata/source/test receipt allowlist and credential-value pattern scan; fixture IDs/hashes only",
+    "privateConfigurationsCopied": false,
+    "credentialsCopied": false,
+    "customerMessagesCopied": false
+  },
+  "liveAcceptance": "NOT_FULLY_COMPLETE"
+}

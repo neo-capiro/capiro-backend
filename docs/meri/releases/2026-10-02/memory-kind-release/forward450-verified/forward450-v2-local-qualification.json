@@ -1,0 +1,45 @@
+{
+  "status": "PASS_LOCAL_PREPARED_FOR_ROOT_REVIEW",
+  "runs": [
+    {
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "--test",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-repair\\forward450-runner-v2.test.mjs"
+      ],
+      "exitCode": 0,
+      "passed": 4,
+      "logSha256": "81fa91ee87d8c4698dbfc055be4f23ccaa6012103c3e63b2d38478775d3b700d",
+      "awsCalls": 0
+    },
+    {
+      "command": [
+        "C:\\ProgramData\\Hermes\\tools\\python-3.14.7+20260901-win32-x64\\python.exe",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-repair\\forward450-oneoff-v2-tests.py"
+      ],
+      "exitCode": 0,
+      "passed": 13,
+      "logSha256": "2075abd161d6501d34950fff7621ef7dc2e2698cdac4544ab8ae56b3d363efac",
+      "awsCalls": 0
+    }
+  ],
+  "runnerSha256": "f6db90d48dfecbef0afb2c16aaab3fed4cc6bed315026a3b3b9337b942204603",
+  "wrapperSha256": "dba521c1f142e68f10138bd685463f82f6414f77d02c3b830a82834abc6fa62c",
+  "inputSha256": "28d6bcdcfe85acd018c47f27ca9df2fe943c4d44da65744528879d9721fe2881",
+  "proofSha256": "90d1fea049a4e8008d30b43f4c8b930c1612fb704826a83999eeabb9f96b80ba",
+  "diagnosticExecutionSha256": "30894da06068eba1f557fdcf72246e8f0069c20f3f888bffe2113c17da252261",
+  "priorAssessmentSha256": "15674111dc6f9b07d14d6759715d57ab3040febf53dcda45acd83ef9f36b8787",
+  "manifestSha256": "47210deecafc7d4a39bddde4b36f6dc85b0b370507bd539b305e57155e8b435e",
+  "baseline": {
+    "total": 606,
+    "activeFinished": 506,
+    "rolledBack": 100,
+    "fullLedgerSha256": "e06c88cf3a42626966b1949c5c297ee71aa7e90ba413bfc153bd6b61afbe5766",
+    "apiHistorySha256": "bab85dc1df5f9c33e0f882eee49b0346543cad867697e24456f3c3d18ac294ac"
+  },
+  "historicalDifferencesExactlyPreserved": 61,
+  "originalFailedMutationOperatorUnchanged": "03f5c2eb792a7cc9abd8aecf923268f6a5b1fc0989c4c68f1a47a5508dc8ae9f",
+  "initialFailurePreserved": "Initial v2 Node run was3/4 exit1: case-sensitive safe SQLSTATE label parser missed lowercase Database error code; fixed bounded label matching, final4/4 exit0.",
+  "limitation": "LocalPG test models Prisma successful new ledger row; no shared migration/task execution performed by lane.",
+  "awsWrites": 0
+}

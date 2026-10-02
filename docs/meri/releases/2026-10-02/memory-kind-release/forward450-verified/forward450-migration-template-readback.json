@@ -1,0 +1,18 @@
+{
+  "kind": "forward450-existing-migration-template-metadata",
+  "readOnly": true,
+  "migrationTaskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api-migrate:135",
+  "servedTaskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:505",
+  "migrationTaskDefinitionSha256": "ca4e1ce8e295d4cb46e6a362d79ed35fd6af4f46c062469a08af30ace390e7f0",
+  "migrationContainerCount": 1,
+  "command": [
+    "migrate"
+  ],
+  "migrationDbNamePresent": true,
+  "apiDbNamePresent": true,
+  "dbNameMatches": true,
+  "sameDbHostPortRefs": true,
+  "distinctMigrationUserPasswordRefs": true,
+  "sameRolesAndPlatform": true,
+  "environmentFilesAbsent": true
+}

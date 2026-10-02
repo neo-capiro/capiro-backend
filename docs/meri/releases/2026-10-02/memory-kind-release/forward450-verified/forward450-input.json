@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "sourceSha": "42988dae5fb7bc2fff3af582ca15a0836a4477c5",
+  "migrationSha256": "a8be392c1de78038b1fc584e5a2293183d736f7732890737402833c864e2c6ce",
+  "manifestSha256": "47210deecafc7d4a39bddde4b36f6dc85b0b370507bd539b305e57155e8b435e",
+  "beforeCheckSha256": {
+    "memory_candidate_source_kind_chk": "1b02929420ab5de75e29a9396f3a207bdc91c2f49e50308169def52c4427ac3f",
+    "memory_candidate_version_payload_check": "35c42df118d64e546727118df0c9b8297c4867d6b45eb0822694e0a02a283dd1"
+  },
+  "afterCheckSha256": {
+    "memory_candidate_source_kind_chk": "4585194700c4539c5f62d01610ed8f9b3b78b0618e39b40cd04b8b7b80f3c4a5",
+    "memory_candidate_version_payload_check": "6a3164098759e2c2f6e6cf0caf80db29b8529c714158b9a8490ce9d477dc422c"
+  },
+  "claimSha256": {
+    "case01ExecutionSetup": "5fdd382ee4332c3723f801d060c1462b9f4082e5a86fd945c7900fbba25be588",
+    "case01ExecutionSetupRecovery": "2d51c9ef4f90dbc9bd5e2a98c30c1e70dde09386fb5e6857b0ebb4f2c08d0bc9",
+    "case01ExecutionSetupContinuation": "28138f575b12c2d05a7f6ae5acc3496af9479eb4a4e29c0feab7a000dc2ef824",
+    "case01ExecutionSetupPostApproval": "cbf4e668005d83d3d3613ff1de3d11d7541e813d61ccd7de2b86a4e0c052acec"
+  }
+}

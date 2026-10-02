@@ -1,0 +1,71 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {createRequire} from 'node:module';
+import {randomUUID} from 'node:crypto';
+import {hash,validateInput,checkEstablishedLedger,readState,LEDGER_SQL,prismaFailureFacts} from './forward450-runner-v2.mjs';
+const NAME='20281005010000_memory_version_candidate_source_kinds';
+const canonical=v=>v===null||typeof v!=='object'?JSON.stringify(v):Array.isArray(v)?`[${v.map(canonical).join(',')}]`:`{${Object.keys(v).sort().map(k=>JSON.stringify(k)+':'+canonical(v[k])).join(',')}}`;
+const stable=v=>hash(canonical(v));
+const claims=['case01ExecutionSetup','case01ExecutionSetupRecovery','case01ExecutionSetupContinuation','case01ExecutionSetupPostApproval'];
+const checks=['memory_candidate_source_kind_chk','memory_candidate_version_payload_check'];
+const manifest=Array.from({length:449},(_,i)=>({name:'20000101_'+String(i).padStart(3,'0'),sha256:'a'.repeat(64)}));manifest.push({name:NAME,sha256:'c'.repeat(64)});
+function history(){
+ const row=(name,checksum,rolled=false)=>({id:name,migration_name:name,checksum,started_at:'2026-10-02 00:00:00.000001+00',finished_at:rolled?null:'2026-10-02 00:00:00.000002+00',rolled_back_at:rolled?'2026-10-02 00:00:00.000003+00':null,applied_steps_count:rolled?0:1});
+ return [...manifest.slice(0,-1).map((m,i)=>row(m.name,(i<61?'b':'a').repeat(64))),...Array.from({length:57},(_,i)=>row('19000101_extra_'+i,'d'.repeat(64))),...Array.from({length:100},(_,i)=>row('19000101_rollback_'+i,'e'.repeat(64),true))].sort((a,b)=>a.migration_name.localeCompare(b.migration_name));
+}
+function input(rows=history()){
+ const active=rows.filter(r=>r.finished_at!==null&&r.rolled_back_at===null);
+ return {version:1,sourceSha:'a'.repeat(40),manifestSha256:'b'.repeat(64),migrationSha256:'c'.repeat(64),
+  beforeCheckSha256:Object.fromEntries(checks.map(n=>[n,'d'.repeat(64)])),afterCheckSha256:Object.fromEntries(checks.map(n=>[n,'e'.repeat(64)])),claimSha256:Object.fromEntries(claims.map(n=>[n,'f'.repeat(64)])),
+  baseline:{total:606,activeFinished:506,rolledBack:100,fullLedgerSha256:stable(rows),apiHistorySha256:stable(manifest.slice(0,-1).map(m=>({name:m.name,appliedSha256:active.find(r=>r.migration_name===m.name).checksum})))}};
+}
+test('exact input binds606 historical rows and immutable API449 coverage',()=>{
+ validateInput(input());for(const alter of [x=>x.command='reset',x=>x.baseline.total=449,x=>x.baseline.fullLedgerSha256='UNSEALED',x=>x.baseline.extra=true]){const x=input();alter(x);assert.throws(()=>validateInput(x));}
+});
+test('exact old606 plus one new row passes while any old-row rewrite/duplicate/missing/pending fails',()=>{
+ const old=history(),q=input(old),before=JSON.stringify(old);checkEstablishedLedger(old,manifest,q,false);assert.equal(JSON.stringify(old),before);
+ const added={id:'new',migration_name:NAME,checksum:q.migrationSha256,started_at:'2026-10-02 00:01:00.000001+00',finished_at:'2026-10-02 00:01:01.000001+00',rolled_back_at:null,applied_steps_count:1};
+ checkEstablishedLedger([...old,added],manifest,q,true);
+ for(const alter of [r=>r[0].checksum='0'.repeat(64),r=>r[0].finished_at='changed',r=>r.pop(),r=>r.push(r[0]),r=>r[0].finished_at=null,r=>r[0].id=r[1].id]){const r=structuredClone(old);alter(r);assert.throws(()=>checkEstablishedLedger(r,manifest,q,false));}
+ for(const alter of [r=>r.checksum='0'.repeat(64),r=>r.finished_at=null,r=>r.rolled_back_at='time',r=>r.applied_steps_count=0]){const row=structuredClone(added);alter(row);assert.throws(()=>checkEstablishedLedger([...old,row],manifest,q,true));}
+ const wrong=structuredClone(q);wrong.baseline.apiHistorySha256='0'.repeat(64);assert.throws(()=>checkEstablishedLedger(old,manifest,wrong,false));
+});
+test('Prisma failure telemetry exposes only known enums, numeric status, timeout and output hash',()=>{
+ const output='Error: P3018\nDatabase error code: 23514\nprivate password postgres://never-print';
+ const facts=prismaFailureFacts({status:1,stderr:output});assert.equal(facts.prismaCode,'P3018');assert.equal(facts.sqlState,'23514');assert.equal(facts.prismaExitCode,1);assert.equal(facts.outputSha256,hash(output));assert.ok(!JSON.stringify(facts).includes('private'));
+ const unknown=prismaFailureFacts({status:null,error:{code:'ETIMEDOUT'},stderr:'P9999 SQLSTATE: AAAAA Bearer private'});assert.equal(unknown.prismaCode,null);assert.equal(unknown.sqlState,null);assert.equal(unknown.timedOut,true);assert.equal(unknown.prismaExitCode,null);
+});
+test('real owned PostgreSQL preserves every606 timestamp/rolledback row; postcheck admits only new607th',async()=>{
+ const require=createRequire('C:/dev/cap-meri-mail-deadline/apps/api/package.json'),{Client}=require('pg');
+ const c=JSON.parse(readFileSync('C:/dev/cap-meri-foundation-evidence/private/local-postgres.json','utf8'));
+ assert.equal(c.host,'127.0.0.1');assert.equal(c.port,55433);assert.equal(c.scope,'owned local disposable test cluster; no AWS connection');
+ const options={host:c.host,port:c.port,user:c.user,password:c.password,database:c.database};
+ const admin=new Client(options),reader=new Client(options),blocker=new Client(options);let made=false;
+ const schema='forward450_v2_'+randomUUID().replaceAll('-','');assert.match(schema,/^forward450_v2_[a-f0-9]{32}$/u);
+ try{
+  await admin.connect();const id=(await admin.query("SELECT current_user=$1 AS owned,host(inet_server_addr()) AS host,inet_server_port() AS port,current_setting('data_directory') AS directory",[c.user])).rows[0];
+  assert.equal(id.owned,true);assert.equal(id.host,c.host);assert.equal(id.port,c.port);assert.equal(id.directory.replaceAll('\\','/'),c.dataDirectory.replaceAll('\\','/'));
+  await admin.query(`CREATE SCHEMA ${schema}`);made=true;
+  await admin.query(`CREATE TABLE ${schema}._prisma_migrations(id text,migration_name text,checksum text,started_at timestamptz,finished_at timestamptz,rolled_back_at timestamptz,applied_steps_count int)`);
+  await admin.query(`CREATE TABLE ${schema}.memory_candidate(source_kind text,CONSTRAINT memory_candidate_source_kind_chk CHECK(source_kind IN ('old')),CONSTRAINT memory_candidate_version_payload_check CHECK(source_kind IS NOT NULL))`);
+  await admin.query(`CREATE TABLE ${schema}.tenants(id uuid,slug text,settings_jsonb jsonb)`);
+  const fixture={fixtureNamespace:'meri-foundation-20260928',...Object.fromEntries(claims.map(n=>[n,{status:'STARTED',ownedTest:n}]))};
+  await admin.query(`INSERT INTO ${schema}.tenants VALUES($1::uuid,$2,$3::jsonb)`,['f2d6cf8f-057c-479a-8110-62fe5086d43f','meri-foundation-20260928-t1',JSON.stringify({meriFoundationFixture:fixture})]);
+  await admin.query(`INSERT INTO ${schema}._prisma_migrations SELECT * FROM jsonb_to_recordset($1::jsonb) AS x(id text,migration_name text,checksum text,started_at timestamptz,finished_at timestamptz,rolled_back_at timestamptz,applied_steps_count int)`,[JSON.stringify(history())]);
+  await reader.connect();await blocker.connect();
+  const adapt=sql=>sql.replaceAll('public._prisma_migrations',schema+'._prisma_migrations').replaceAll('public.memory_candidate',schema+'.memory_candidate').replace('FROM tenants','FROM '+schema+'.tenants');
+  const facade={query:async(sql,args)=>{if(sql.startsWith('SELECT id,migration_name'))assert.equal((await reader.query('SHOW transaction_read_only')).rows[0].transaction_read_only,'on');return reader.query(adapt(sql),args);}};
+  const rows=(await reader.query(adapt(LEDGER_SQL))).rows,q=input(rows);
+  const catalog=(await reader.query(`SELECT conname AS name,pg_get_constraintdef(oid) AS definition FROM pg_constraint WHERE conrelid='${schema}.memory_candidate'::regclass ORDER BY conname`)).rows;
+  q.beforeCheckSha256=q.afterCheckSha256=Object.fromEntries(catalog.map(r=>[r.name,hash(r.definition)]));q.claimSha256=Object.fromEntries(claims.map(n=>[n,stable(fixture[n])]));
+  const before=await readState(facade,q,manifest,false);assert.equal(before.ledger.length,606);
+  await blocker.query('BEGIN');await blocker.query(`SELECT 1 FROM ${schema}.memory_candidate`);await assert.rejects(readState(facade,q,manifest,false));await blocker.query('ROLLBACK');
+  await admin.query(`INSERT INTO ${schema}._prisma_migrations VALUES('new',$1,$2,now(),now(),NULL,1)`,[NAME,q.migrationSha256]);
+  const after=await readState(facade,q,manifest,true);assert.equal(after.ledger.length,607);assert.deepEqual(after.ledger.filter(r=>r.migration_name!==NAME),before.ledger);
+  await admin.query(`UPDATE ${schema}._prisma_migrations SET started_at=started_at+interval '1 microsecond' WHERE id=$1`,[rows[0].id]);await assert.rejects(readState(facade,q,manifest,true));
+ }finally{
+  await blocker.query('ROLLBACK').catch(()=>{});await blocker.end().catch(()=>{});await reader.end().catch(()=>{});
+  if(made)await admin.query(`DROP SCHEMA ${schema} CASCADE`);await admin.end();
+ }
+});

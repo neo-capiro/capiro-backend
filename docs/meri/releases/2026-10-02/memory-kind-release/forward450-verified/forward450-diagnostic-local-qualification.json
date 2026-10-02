@@ -1,0 +1,38 @@
+{
+  "status": "PASS",
+  "scope": "SELECT-only diagnostic preparation; no AWS or liveDB calls",
+  "source": {
+    "forward450-diagnostic.mjs": "4a100583c9691782050573daa985cc26e4aa98ab1430655f46bf4f9dce664184",
+    "forward450-diagnostic-oneoff.py": "501daf291ef11bd6f7792fb70a4533a6c58e00800ed9f28baa8cea0aa2c8388e",
+    "forward450-diagnostic.test.mjs": "607a98c436d43531508a8be5f5e014be04bb871ff429fea5b2be55f38ee47401",
+    "forward450-diagnostic-oneoff-tests.py": "f20a1dfb7ddc53819a0626c8bae6c66f664a6e3c5fa0b04c455ab9be732c1a78"
+  },
+  "runs": [
+    {
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "--test",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-repair\\forward450-diagnostic.test.mjs"
+      ],
+      "exitCode": 0,
+      "passed": 5,
+      "logSha256": "9c86acb03e0ce461d847a96c58834a63d88bce9d27c1a9cd1199cbd4b989fb29",
+      "liveOrAwsCalls": 0
+    },
+    {
+      "command": [
+        "C:\\ProgramData\\Hermes\\tools\\python-3.14.7+20260901-win32-x64\\python.exe",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-repair\\forward450-diagnostic-oneoff-tests.py"
+      ],
+      "exitCode": 0,
+      "passed": 5,
+      "logSha256": "0075300485da1b92245527031644b6d8a918015d909dc329d34a22a462b4aac8",
+      "liveOrAwsCalls": 0
+    }
+  ],
+  "proofSha256": "271ed6513cfe9ab84fc197f2134d8890af8b692c6d90f4a37ce6b7ce5fb60b44",
+  "priorFailureSha256": "c69da8bdbeb8e7c6a2bdc82cce2566a9c5dbcbbdb54510f1e925f3b5a60117bc",
+  "inputSha256": "d2befd1dd0491bdbcb4e8d1091bad97859c46445e9b8fabb90c0bb5dfb2e3216",
+  "mutationOperatorUnchangedSha256": "03f5c2eb792a7cc9abd8aecf923268f6a5b1fc0989c4c68f1a47a5508dc8ae9f",
+  "migrationExecution": "NOT_RUN_BY_DIAGNOSTIC"
+}
