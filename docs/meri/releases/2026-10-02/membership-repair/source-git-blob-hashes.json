@@ -1,0 +1,14 @@
+{
+  "testedCodeSha": "280828b3256af2e1b69662b0867290239943cb6a",
+  "files": {
+    "apps/api/src/engagement/synthetic-document-deletion.helpers.ts": "917346f6ef74cad4610b27c4e66e0b092cd0be9140d039aa423edd242504b2fb",
+    "apps/api/src/memory/memory-candidate.service.ts": "411f943b59aa74f2791acd68c32b6eae5fec587bf2e2b669e0dadfde0be776ce",
+    "apps/api/src/memory/synthetic-approved-memory.helpers.ts": "8451534ad56fdda936c7ce5c1961c68e0172d61ab2be45872e6d1b93da21ba22",
+    "evals/meri/live-v1/case17-memory-ui.mjs": "aebc8b6dde35aa7c821dd588e36f2ebb9c35e20a97b30ca5d45d0c4c7539aa20",
+    "evals/meri/live-v1/fixture-provisioning/case01-execution-setup.mjs": "ca640a324f06de4ab8e95c4c408ca628a6c08bca5a3c63947b313cd9e5dc7bc9",
+    "evals/meri/live-v1/tests/approved-memory-schema.mjs": "bc2e6335e69a1fc233917e462469f2baeca88589c125cfe264cc10477c78fa7c",
+    "evals/meri/live-v1/tests/case01-recovery-real-transactions.test.mjs": "f446bd80d0804f6ac71845ed95f86c9537c3998b3849061e47270f1c46767662",
+    "evals/meri/live-v1/tests/case17-memory-ui-delayed-mount.test.mjs": "939ca062ba2309adf1ed54293a86a6337e7048ed59d5ef95944fab37c7fe6336",
+    "evals/meri/live-v1/tests/synthetic-document-deletion-enum.postgres.test.mjs": "eae8cf0caf6e9508cec3078fa7705550c0e469baad619eff1bb2dbcf7fee8f43"
+  }
+}

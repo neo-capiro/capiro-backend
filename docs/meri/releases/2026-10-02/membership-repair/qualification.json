@@ -1,0 +1,101 @@
+{
+  "sourceSha": "280828b3256af2e1b69662b0867290239943cb6a",
+  "status": "PASS",
+  "schemaChange": false,
+  "results": [
+    {
+      "name": "root-node-pg-ui",
+      "command": [
+        "C:/Program Files/nodejs/node.exe",
+        "--test",
+        "evals/meri/live-v1/tests/case01-execution-setup.postgres.test.mjs",
+        "evals/meri/live-v1/tests/case01-recovery-real-transactions.test.mjs",
+        "evals/meri/live-v1/tests/case01-memory-lifecycle.postgres.test.mjs",
+        "evals/meri/live-v1/tests/case17-memory-ui.test.mjs",
+        "evals/meri/live-v1/tests/case17-memory-ui-delayed-mount.test.mjs",
+        "evals/meri/live-v1/tests/case17-saved-checks.test.mjs",
+        "evals/meri/live-v1/tests/case17-authority.test.mjs",
+        "evals/meri/live-v1/tests/synthetic-document-deletion-enum.postgres.test.mjs"
+      ],
+      "sourceSha": "280828b3256af2e1b69662b0867290239943cb6a",
+      "exitCode": 0,
+      "elapsedSeconds": 31.25
+    },
+    {
+      "name": "root-api-jest",
+      "command": [
+        "C:/Program Files/nodejs/pnpm.cmd",
+        "--filter",
+        "@capiro/api",
+        "exec",
+        "jest",
+        "--runInBand",
+        "src/memory/memory-candidate.governance.spec.ts",
+        "src/memory/memory-candidate.client-review.spec.ts",
+        "src/memory/memory-candidate.atomicity.spec.ts",
+        "src/memory/synthetic-memory-settlement.spec.ts"
+      ],
+      "sourceSha": "280828b3256af2e1b69662b0867290239943cb6a",
+      "exitCode": 0,
+      "elapsedSeconds": 37.54
+    },
+    {
+      "name": "root-api-types",
+      "command": [
+        "C:/Program Files/nodejs/pnpm.cmd",
+        "--filter",
+        "@capiro/api",
+        "exec",
+        "tsc",
+        "--noEmit"
+      ],
+      "sourceSha": "280828b3256af2e1b69662b0867290239943cb6a",
+      "exitCode": 0,
+      "elapsedSeconds": 36.71
+    },
+    {
+      "name": "root-offline26",
+      "command": [
+        "C:/Program Files/nodejs/node.exe",
+        "node_modules/promptfoo/dist/src/entrypoint.js",
+        "eval",
+        "-c",
+        "evals/meri/promptfooconfig.yaml",
+        "--no-cache",
+        "--no-share",
+        "--no-write",
+        "--no-table",
+        "--no-progress-bar",
+        "-o",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-membership-repair-release\\root-offline26.json"
+      ],
+      "sourceSha": "280828b3256af2e1b69662b0867290239943cb6a",
+      "exitCode": 0,
+      "elapsedSeconds": 30.71
+    },
+    {
+      "name": "root-offline26-verifier",
+      "command": [
+        "C:/ProgramData/Hermes/tools/python-3.14.7+20260901-win32-x64/python.exe",
+        "evals/meri/verify_report.py",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-membership-repair-release\\root-offline26.json",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-membership-repair-release\\root-offline26.summary.json"
+      ],
+      "sourceSha": "280828b3256af2e1b69662b0867290239943cb6a",
+      "exitCode": 0,
+      "elapsedSeconds": 0.12
+    }
+  ],
+  "liveAcceptance": "NOT_RUN",
+  "schemaVersion": 1,
+  "exitCode": 0,
+  "nodePassed": 25,
+  "nodeSkipped": 0,
+  "apiPassed": 27,
+  "apiSuites": 4,
+  "offlineCases": 26,
+  "customVerifierExit": 0,
+  "policySha": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "machineMapRevision": "2026-09-30T00:21:48Z",
+  "fullFile01Acceptance": false
+}

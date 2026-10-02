@@ -1,0 +1,16 @@
+{
+  "kind": "actual-prisma-owned-membership-enum-probe",
+  "networkScope": "verified owned127.0.0.1:55433 only",
+  "sharedWrites": 0,
+  "approvalCalls": 0,
+  "providerCalls": 0,
+  "original": {
+    "errorClass": "PrismaClientKnownRequestError",
+    "prismaCode": "P2010",
+    "sqlState": "42883"
+  },
+  "explicitColumnTextCastPass": true,
+  "nativePgUnknownParameterPass": true,
+  "verdict": "PASS",
+  "cleanupAbsenceVerified": true
+}

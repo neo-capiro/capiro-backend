@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "status": "RECONCILIATION_REQUIRED",
+  "planHash": "3222d5a1b20b29f063e9700c03b8d7041ccd1be5b302f9312f73e1b12efe923a",
+  "mode": "membership-enum-read",
+  "operationId": "1e5f95b3-98b6-48f6-b393-de3fb4fc1038",
+  "sourceSha": "c22d059e4fc8fd73f93e6928f7db3a1a4338f7f8",
+  "operatorHead": "ad1ed34fa4d7cd20dacb2144cd2e587848a5a351",
+  "liveAcceptance": "NOT_RUN",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-case01-enum-reconcile:1",
+  "startedBy": "meri-c01-1e5f95b3-98b6-48f6-b393-",
+  "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/e9659e09b5994a6d82a6874c250e19c8",
+  "containerExitCode": 1,
+  "logMessageCount": 1,
+  "ownerReceipts": [
+    {
+      "kind": "meri-case01-membership-enum-readback",
+      "schemaVersion": 1,
+      "status": "READBACK_FAILED",
+      "readOnly": true,
+      "mutations": 0,
+      "liveAcceptance": "NOT_RUN",
+      "stage": "COLUMN_TYPE",
+      "code": "ERR_ASSERTION"
+    }
+  ],
+  "code": "OWNER_PROCESS_FAILED"
+}

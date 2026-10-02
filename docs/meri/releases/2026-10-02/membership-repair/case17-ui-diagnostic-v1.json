@@ -1,0 +1,285 @@
+{
+  "caseId": "17",
+  "sourceSha": "c22d059e4fc8fd73f93e6928f7db3a1a4338f7f8",
+  "webSourceSha": "78ad5805679a3045b1fc10fb19beafa7f76e4e64",
+  "operatorHead": "ad1ed34fa4d7cd20dacb2144cd2e587848a5a351",
+  "pinsSha256": "23259cc5967cdaefdd2d93afdcee6061ce77ee6d779a1c766bc094e972a07e2a",
+  "captureRunId": "e1047427-1bb8-4b72-85aa-0cd8100ea4b5",
+  "status": "READ_ONLY_DIAGNOSTIC_FAILED",
+  "sessionCreated": true,
+  "sessionRevoked": true,
+  "synthesisSubmissionCount": 0,
+  "applicationWrites": 0,
+  "originalPromptSubmission": "NOT_RUN",
+  "humanRubric": "NOT_RUN",
+  "acceptanceScope": "NO_TURN_PENDING_MEMORY_UI_SLICE",
+  "fullOriginalRow17Acceptance": false,
+  "fullFile01Acceptance": false,
+  "diagnostic": {
+    "kind": "meri-case17-readonly-ui-diagnostic",
+    "caseId": "17",
+    "captureRunId": "e1047427-1bb8-4b72-85aa-0cd8100ea4b5",
+    "apiSha": "c22d059e4fc8fd73f93e6928f7db3a1a4338f7f8",
+    "webSha": "78ad5805679a3045b1fc10fb19beafa7f76e4e64",
+    "startedAt": "2026-10-02T10:41:38.317Z",
+    "stages": [
+      {
+        "name": "current_builds",
+        "startedAt": "2026-10-02T10:41:38.318Z",
+        "status": "PASS",
+        "observation": {
+          "observedAt": 1790937713107,
+          "services": [
+            {
+              "service": "api",
+              "sourceSha": "c22d059e4fc8fd73f93e6928f7db3a1a4338f7f8",
+              "imageDigest": "sha256:5f06ac4c18e89bab68eedcac82e7a4984129985d5f083a8a671590d2480a702d",
+              "buildId": "capiro-build-web-dev:3498c216-5032-4b14-9c98-71790ffafbc0",
+              "buildspecSha256": "ce090c61a57181e7c18c3ee33adc7568ec00d2d1de5fe727b9405ba62dac7d68",
+              "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:495",
+              "primaryDeploymentId": "ecs-svc/6403933411415641790",
+              "baselineSha256": "22428cf61e41692b96fe8730cd7466ab020a1963df81af9502e902a2204297dd"
+            },
+            {
+              "service": "web-vnext",
+              "sourceSha": "78ad5805679a3045b1fc10fb19beafa7f76e4e64",
+              "imageDigest": "sha256:a048aceec01c207b514f76fb447d4fb8bdb5ed17278642480008a1510a12de4c",
+              "buildId": "capiro-build-web-dev:f2d89683-bcc5-48dc-a4da-849ced167860",
+              "buildspecSha256": "0fce5b86940b9599702942ff25c462a51977ef7e6106f6af59dfe22b54f1daf6",
+              "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web-vnext:388",
+              "primaryDeploymentId": "ecs-svc/2451414755928290434",
+              "baselineSha256": "569891aa635a37a2bcfae07adfc5186923ab67fcc75f2bc3d9f12036c9b90d91"
+            }
+          ]
+        }
+      },
+      {
+        "name": "launch_browser",
+        "startedAt": "2026-10-02T10:41:53.107Z",
+        "status": "PASS"
+      },
+      {
+        "name": "sign_in_page",
+        "startedAt": "2026-10-02T10:41:53.541Z",
+        "status": "PASS"
+      },
+      {
+        "name": "clerk_loaded",
+        "startedAt": "2026-10-02T10:41:56.822Z",
+        "status": "PASS"
+      },
+      {
+        "name": "web_identity",
+        "startedAt": "2026-10-02T10:41:57.150Z",
+        "status": "PASS",
+        "observation": {
+          "releaseSha": "78ad5805679a3045b1fc10fb19beafa7f76e4e64",
+          "surface": "vnext",
+          "clerkHost": "clerk.app.capiro.ai"
+        }
+      },
+      {
+        "name": "create_owned_session",
+        "startedAt": "2026-10-02T10:41:57.153Z",
+        "status": "PASS",
+        "observation": {
+          "complete": true
+        }
+      },
+      {
+        "name": "set_active_organization",
+        "startedAt": "2026-10-02T10:41:58.143Z",
+        "status": "PASS"
+      },
+      {
+        "name": "wait_active_identity",
+        "startedAt": "2026-10-02T10:41:58.265Z",
+        "status": "PASS"
+      },
+      {
+        "name": "read_ephemeral_token",
+        "startedAt": "2026-10-02T10:41:58.271Z",
+        "status": "PASS"
+      },
+      {
+        "name": "native_current_actor",
+        "startedAt": "2026-10-02T10:41:58.365Z",
+        "status": "PASS",
+        "observation": {
+          "exactActor": true,
+          "exactTenant": true,
+          "exactRole": true
+        }
+      },
+      {
+        "name": "native_current_proposals",
+        "startedAt": "2026-10-02T10:41:58.530Z",
+        "status": "PASS",
+        "observation": {
+          "currentOwnedRows": 6,
+          "ownerSha256": "d239fa97f531d493d7b986acd5419429418a4a37897f89645afdc3dd59ea2c92"
+        }
+      },
+      {
+        "name": "navigate_meri",
+        "startedAt": "2026-10-02T10:41:58.843Z",
+        "status": "PASS"
+      },
+      {
+        "name": "selectors_before_panel",
+        "startedAt": "2026-10-02T10:41:59.183Z",
+        "status": "PASS",
+        "observation": {
+          "Expand panel": {
+            "count": 0,
+            "visible": []
+          },
+          "Open Context and Memory": {
+            "count": 0,
+            "visible": []
+          },
+          "Memory": {
+            "count": 0,
+            "visible": []
+          },
+          "proposalsSections": 0,
+          "proposalArticleCount": 0
+        }
+      },
+      {
+        "name": "optional_expand_panel",
+        "startedAt": "2026-10-02T10:41:59.212Z",
+        "status": "PASS"
+      },
+      {
+        "name": "selectors_after_expand",
+        "startedAt": "2026-10-02T10:41:59.216Z",
+        "status": "PASS",
+        "observation": {
+          "Expand panel": {
+            "count": 0,
+            "visible": []
+          },
+          "Open Context and Memory": {
+            "count": 0,
+            "visible": []
+          },
+          "Memory": {
+            "count": 0,
+            "visible": []
+          },
+          "proposalsSections": 0,
+          "proposalArticleCount": 0
+        }
+      },
+      {
+        "name": "optional_open_context",
+        "startedAt": "2026-10-02T10:41:59.223Z",
+        "status": "PASS"
+      },
+      {
+        "name": "selectors_before_memory",
+        "startedAt": "2026-10-02T10:41:59.226Z",
+        "status": "PASS",
+        "observation": {
+          "Expand panel": {
+            "count": 0,
+            "visible": []
+          },
+          "Open Context and Memory": {
+            "count": 0,
+            "visible": []
+          },
+          "Memory": {
+            "count": 0,
+            "visible": []
+          },
+          "proposalsSections": 0,
+          "proposalArticleCount": 0
+        }
+      },
+      {
+        "name": "click_memory",
+        "startedAt": "2026-10-02T10:41:59.235Z",
+        "status": "FAIL",
+        "error": {
+          "class": "TimeoutError",
+          "category": "TIMEOUT"
+        }
+      }
+    ],
+    "reads": [
+      {
+        "path": "/api/me",
+        "status": 200,
+        "bytes": 1225,
+        "sha256": "53cbd0e8e5e95c9f7bb3d66772d29b6ca2877cfbaf33d79f8f3eedb215073578",
+        "json": true,
+        "releaseSha": "c22d059e4fc8fd73f93e6928f7db3a1a4338f7f8",
+        "candidateCount": null,
+        "hasFixtureEvidence": false
+      },
+      {
+        "path": "/api/memory/proposals?limit=50",
+        "status": 200,
+        "bytes": 6359,
+        "sha256": "d70e06f77dc4efa81d92ec9135c545fb38bf412bf320dcf943acc899faaacbb0",
+        "json": true,
+        "releaseSha": "c22d059e4fc8fd73f93e6928f7db3a1a4338f7f8",
+        "candidateCount": 6,
+        "hasFixtureEvidence": true
+      }
+    ],
+    "browserApiReads": [
+      {
+        "path": "/api/me",
+        "method": "GET",
+        "status": 200
+      },
+      {
+        "path": "/api/memory/proposals",
+        "method": "GET",
+        "status": 200
+      }
+    ],
+    "blockedWrites": 0,
+    "blockedNavigations": 1,
+    "pageErrorCategories": [],
+    "applicationWrites": 0,
+    "modelTurns": 0,
+    "acceptance": "NOT_RUN",
+    "currentStage": "click_memory",
+    "status": "READ_ONLY_DIAGNOSTIC_FAILED",
+    "error": {
+      "class": "TimeoutError",
+      "category": "TIMEOUT"
+    },
+    "finalSelectors": {
+      "Expand panel": {
+        "count": 0,
+        "visible": []
+      },
+      "Open Context and Memory": {
+        "count": 1,
+        "visible": [
+          true
+        ]
+      },
+      "Memory": {
+        "count": 0,
+        "visible": []
+      },
+      "proposalsSections": 0,
+      "proposalArticleCount": 0
+    },
+    "screenshot": {
+      "path": "C:/dev/cap-meri-foundation-evidence/oct02-live-repair-release/case17-ui-diagnostic-v1.png",
+      "bytes": 158530,
+      "sha256": "36338687059193ef74aa37690e15cad795ba5aa7f95c692925ff516cca00cde4",
+      "scope": "OWNED_SYNTHETIC_ACTOR_AND_SIX_PROPOSALS_VERIFIED"
+    },
+    "browserSignOutAttempted": true,
+    "completedAt": "2026-10-02T10:42:14.551Z"
+  },
+  "completedAt": "2026-10-02T10:42:15.479Z"
+}

@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "kind": "fixed-readonly-membership-enum-diagnostic-qualification",
+  "scriptSha256": "d6a3202c8ca5cc7515961cd5ae65639a08ad0423889f0c0cc8415299a1beb3ba",
+  "wrapperSha256": "4c86bc772dbf222e04eb052dc6e77c3a3074aae13a0890a0b60c6ccbd5464b9d",
+  "runtimeSource": "c22d059e4fc8fd73f93e6928f7db3a1a4338f7f8",
+  "ownedPgTests": {
+    "exitCode": 0,
+    "count": 2,
+    "log": "case01-membership-enum-readonly-tests-v3.log"
+  },
+  "offlineWrapperTests": {
+    "exitCode": 0,
+    "count": 10,
+    "log": "case01-membership-enum-oneoff-tests-v2.log"
+  },
+  "independentModel": {
+    "requestedModel": "moonshotai.kimi-k2.5",
+    "initializedModel": "moonshotai.kimi-k2.5",
+    "sessionId": "20261002_105552_5ffb83",
+    "provider": "bedrock",
+    "reportedTokens": {
+      "input": 11009,
+      "output": 382,
+      "total": 11391,
+      "cache_read": 0,
+      "cache_write": 0
+    },
+    "reportedResultExit": 0,
+    "toolCalls": 0,
+    "billedCostUsd": null,
+    "costStatus": "not exposed by quiet stream output"
+  },
+  "modelVerdict": "PASS",
+  "adjudication": "Review wording no infrastructure writes is inaccurate: run intentionally registers and runs one fixed ECS task under root authorization. Database uses READ ONLY; no approval/provider call.",
+  "priorFailedTestLogsPreserved": true,
+  "liveExecuted": false
+}

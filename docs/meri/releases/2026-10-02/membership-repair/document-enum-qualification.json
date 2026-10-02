@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "sourceCommit": "9ce4561e68d92f75ce1107b3d419461578b78413",
+  "verdict": "PASS",
+  "scope": "one-line canonical synthetic document cleanup role enum/text predicate correction",
+  "sourceHashes": {
+    "apps/api/src/engagement/synthetic-document-deletion.helpers.ts": "917346f6ef74cad4610b27c4e66e0b092cd0be9140d039aa423edd242504b2fb",
+    "evals/meri/live-v1/tests/synthetic-document-deletion-enum.postgres.test.mjs": "eae8cf0caf6e9508cec3078fa7705550c0e469baad619eff1bb2dbcf7fee8f43"
+  },
+  "tests": {
+    "command": "MERI_APPROVED_MEMORY_PG_CONFIG=<explicit owned loopback config> node --test evals/meri/live-v1/tests/synthetic-document-deletion-enum.postgres.test.mjs",
+    "before": {
+      "exitCode": 1,
+      "passed": 1,
+      "failed": 3,
+      "oldPrismaCode": "P2010",
+      "oldSqlState": "42883",
+      "logSha256": "1cee3c8bd9149ef3ca2f4a313bd8a4b68e9c41e214edc5306877bcdc3616749d"
+    },
+    "after": {
+      "exitCode": 0,
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "logSha256": "0a20057d2e49d27ec0d783df5576d4c784b788179afcbd0c8715d808a8422443"
+    }
+  },
+  "reviews": {
+    "kimiSourceVerdict": "PASS",
+    "processExitCode": 1,
+    "reportedResultExit": 1,
+    "sessionId": "20261002_104643_0830cd",
+    "toolCalls": 1,
+    "limitation": "Worker read only shared hermes/OPERATING.md, exhausted bounded1toolturn; final source review PASS but worker exit1 retained. No model retry.",
+    "rootIndependentPeerVerdict": "PASS",
+    "rootPeerScope": "exact one-line cast and real Prisma enum fixture source",
+    "reviewSha256": "43081102807c17bd04fafc67d8b098b18f575c14a9772fdd0490af27c6e9b25b"
+  },
+  "productionEffects": "NONE",
+  "liveVerdict": "NOT_RUN",
+  "limits": [
+    "Local real Prisma tagged SQL and actual TenantRole enum; no production database role/RLS or AWS query",
+    "Canonical helper inspect/claim/finish + negative current role/client wall/namespace; not S3 deletion proof",
+    "Deployment required before live synthetic cleanup can use correction"
+  ]
+}

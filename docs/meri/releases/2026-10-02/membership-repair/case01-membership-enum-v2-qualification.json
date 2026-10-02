@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "status": "PASS",
+  "reviewer": "Codex root independent exact diff and actual result review",
+  "observedAt": "2026-10-02T11:07:49.132076+00:00",
+  "scriptSha256": "e05d626bf82746d2bc81a10458a36cad559b0a348d16635fab685f4530260fcc",
+  "wrapperSha256": "d22ab9703a4f7a631392559303e7cc2a634c00f21699d99aa7c3c1b3f3c725bd",
+  "catalogTests": {
+    "exitCode": 0,
+    "actualPassed": 2,
+    "skipped": 0,
+    "original": "pg name[] OID1003 decoded as string",
+    "corrected": "pg text[] OID1009 decoded as four exact labels"
+  },
+  "wrapperTests": {
+    "exitCode": 0,
+    "actualPassed": 11
+  },
+  "scope": "Only catalog enumlabel::text; wrapper pins new script and prior readonly failure. Same exact source, fixture, READ ONLY and no-ANALYZE query, role values, receipt validator and AWS lifecycle. Previous failure retained.",
+  "independentReview": "Prior Hermes Kimi source/lifecycle PASS retained; narrow version2 delta independently reviewed by root. No new model review claimed.",
+  "liveAcceptance": "NOT_RUN"
+}

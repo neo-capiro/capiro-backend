@@ -1,4 +1,28 @@
-## Current checkpoint — 2026-10-02 10:35 UTC, c22 deployed and live blockers captured
+## Current checkpoint — 2026-10-02 11:09 UTC, deployed query cause verified
+
+**File01 remains incomplete; no original live row is complete.** Current healthy
+services remain API495 and orchestrator95/sourcec22, WebVNext388/source78ad.
+The deployed-image read-only diagnostic exited0: tenant_memberships.role is the
+expected enum, the original Prisma text comparison fails SQLSTATE42883, and
+role::text plans successfully. Both STARTED fixture claims and the pending
+candidate version are unchanged. No database mutation or provider call occurred.
+The first diagnostic's pg catalog array parsing failure is also retained.
+
+Candidate280 fixes the three affected membership guards, preserves safe42883
+classification, and waits for the mounted browser context rail in the case17
+collector. Qualification:25 PostgreSQL/browser checks,27 API tests, API types,
+and26 offline/custom evaluations all pass. API release is pending; these results
+do not claim the fix is deployed. See [qualification and actual diagnostics](../releases/2026-10-02/membership-repair/qualification.md).
+
+A narrowly admitted continuation is being implemented for case01, preserving
+both failed claims. Budget and original model capture remain NOT_RUN. Case17's
+no-turn UI slice must run against the next qualified release. Remaining original
+75/CD7/CW8/applicable memory, variants and human grading stay open. Defense Chat
+and historical migration/PITR remain excluded.
+
+Shared policy39590a3bfc57ce03b0411ff7912a7c8d99deb70c; machine map2026-09-30T00:21:48Z.
+
+## Historical checkpoint — 2026-10-02 10:35 UTC, c22 deployed and live blockers captured
 
 **File01 remains incomplete; no original live row is complete.** PR1934/sourcec22
 is deployed and healthy at API495 and orchestrator95. Web VNext388/source78ad

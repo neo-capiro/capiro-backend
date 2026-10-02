@@ -1,0 +1,191 @@
+{
+  "normalization": "UTF-8/LF/trailing whitespace removed; PNG unchanged; local originals retained",
+  "entries": [
+    {
+      "file": "root-qualification.json",
+      "originalLocalSha256": "024bcd419a4d64cfe1a4d1312cfd6b5a3c805c5d9d3b0aee7525ae6914a56fbb",
+      "archivedSha256": "272e0c90b6b342432d51da16b08fb6c7e14329f43228850ffe07924dd9b48ed1",
+      "bytes": 3001
+    },
+    {
+      "file": "root-node-pg-ui.log",
+      "originalLocalSha256": "c35b39f013a8989dc2ed22d94625a9ace9f49bc502edb8583a134fc807fe6f0f",
+      "archivedSha256": "c35b39f013a8989dc2ed22d94625a9ace9f49bc502edb8583a134fc807fe6f0f",
+      "bytes": 17206
+    },
+    {
+      "file": "root-api-jest.log",
+      "originalLocalSha256": "0f07575717f32cfde7acbc6c6ac47e05f00672e68bc16ba85806cdf9f7a1427b",
+      "archivedSha256": "0f07575717f32cfde7acbc6c6ac47e05f00672e68bc16ba85806cdf9f7a1427b",
+      "bytes": 7360
+    },
+    {
+      "file": "root-api-types.log",
+      "originalLocalSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "archivedSha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+      "bytes": 1
+    },
+    {
+      "file": "root-offline26.json",
+      "originalLocalSha256": "d3d808e902eca63826ece40a01b6e585345fd52685df8d5d4f9510cdb2c076a1",
+      "archivedSha256": "60b4fa06031d8b08bf78ea9da2330abc4c5a857b4405f605af76628af47a0d5a",
+      "bytes": 146745
+    },
+    {
+      "file": "root-offline26.summary.json",
+      "originalLocalSha256": "7545c13d60cd80e279ac2dea1f80265509be7b637abda35270d1a0362afac6ae",
+      "archivedSha256": "3a6c11b9feee7e8660fe74c23dab5e68d0e5a4cdf7038ab93f666153a5c185f6",
+      "bytes": 3823
+    },
+    {
+      "file": "api.buildspec.yml",
+      "originalLocalSha256": "ce090c61a57181e7c18c3ee33adc7568ec00d2d1de5fe727b9405ba62dac7d68",
+      "archivedSha256": "ce090c61a57181e7c18c3ee33adc7568ec00d2d1de5fe727b9405ba62dac7d68",
+      "bytes": 6460
+    },
+    {
+      "file": "build-qualified-source.py",
+      "originalLocalSha256": "bd4f71f1f77007f606f440948d4dfa6330f39f677eade42caedbacbd372a10ea",
+      "archivedSha256": "bd4f71f1f77007f606f440948d4dfa6330f39f677eade42caedbacbd372a10ea",
+      "bytes": 8774
+    },
+    {
+      "file": "membership-enum-local-result.json",
+      "originalLocalSha256": "030f0c45bad81a1fb7d5fde22a21dcdc930c76226bac74ddb5c73868e94d9c7b",
+      "archivedSha256": "030f0c45bad81a1fb7d5fde22a21dcdc930c76226bac74ddb5c73868e94d9c7b",
+      "bytes": 435
+    },
+    {
+      "file": "membership-enum-kimi-review.md",
+      "originalLocalSha256": "4541c161d465550c030d8dbcb55cd2ff41ec9bd326166d6eeae031f0fe083ddd",
+      "archivedSha256": "6a0bcdbec21415f2fd4dd845860974d031474942810228ba34d6cc4185ee38f0",
+      "bytes": 1506
+    },
+    {
+      "file": "membership-enum-kimi-exit.json",
+      "originalLocalSha256": "a114d651be44ed7d58eee92d49dc94a9dc45000acf47b8438a38edd9f4c62ad7",
+      "archivedSha256": "6627cc83870f589f0748f71e42a19e0a6d8fcb06aca1631e64ac121bfb8c7fe8",
+      "bytes": 104
+    },
+    {
+      "file": "membership-enum-kimi-usage.json",
+      "originalLocalSha256": "f2ad858126cadff98d08abd31b920036643dc5b87e483f8b520f1b06146b2f14",
+      "archivedSha256": "769bc74fbd545c8be41d96f115e98cd1b6e822145a68fc1be2484522bba1233d",
+      "bytes": 409
+    },
+    {
+      "file": "case17-delayed-mount-kimi-review.md",
+      "originalLocalSha256": "d5701d9857605b619fb05f800b1e78f84160463fc963e2f5042d0deaf1ae2140",
+      "archivedSha256": "b2c5459b775c18064967ae2b9baa19eb3ca4ba9c5556fabb8c3a3351c67b1a46",
+      "bytes": 2039
+    },
+    {
+      "file": "case17-delayed-mount-kimi-exit.json",
+      "originalLocalSha256": "ffc67ace78b58cbc5e51f01d0348a003c4e9bdc601a1e990b832ff08deaf82fc",
+      "archivedSha256": "613ec7b94d2402c0222c75164e3a6efe0c3a57335f4c5330cfcdbc512fe344d3",
+      "bytes": 104
+    },
+    {
+      "file": "case17-delayed-mount-kimi-usage.json",
+      "originalLocalSha256": "f9a5b01bdd28219c3b6d4d0024274b1052d576b6021f1981af03c907b26be65f",
+      "archivedSha256": "bd07256e7ac8b9d9894f67bbca8a50139c356eaaa263384622559d79f11ae798",
+      "bytes": 411
+    },
+    {
+      "file": "case17-ui-diagnostic-v1.json",
+      "originalLocalSha256": "2afc0a74afcd443f84b8fb015f572625fa53d5bbaa0cceab3d38dd64fe1b17a7",
+      "archivedSha256": "2afc0a74afcd443f84b8fb015f572625fa53d5bbaa0cceab3d38dd64fe1b17a7",
+      "bytes": 8689
+    },
+    {
+      "file": "case17-ui-diagnostic-v1.png",
+      "originalLocalSha256": "36338687059193ef74aa37690e15cad795ba5aa7f95c692925ff516cca00cde4",
+      "archivedSha256": "36338687059193ef74aa37690e15cad795ba5aa7f95c692925ff516cca00cde4",
+      "bytes": 158530
+    },
+    {
+      "file": "document-enum-qualification.json",
+      "originalLocalSha256": "b815df8c478b9d9184848b88c3bfcc249e37300125b30ebb722de57cbc495675",
+      "archivedSha256": "8c1ebf5bf7135705feb1e93bff478a8116b2a0ad1517715d6bb885783e372867",
+      "bytes": 2039
+    },
+    {
+      "file": "document-enum-root-peer-review.json",
+      "originalLocalSha256": "43052e69002810c32ac299d983a5f0ea3d8a96152d05ba9b451a13c4ecc60115",
+      "archivedSha256": "dd27d60fe9321f4f03416698bc3cee82f358c94623affc66e15815352625cf13",
+      "bytes": 711
+    },
+    {
+      "file": "document-enum-before-fix.log",
+      "originalLocalSha256": "1cee3c8bd9149ef3ca2f4a313bd8a4b68e9c41e214edc5306877bcdc3616749d",
+      "archivedSha256": "b99b1e385db5abcbdcb515197e1f955db6f4667d05cfa7e26cde9cfe76755e88",
+      "bytes": 6461
+    },
+    {
+      "file": "document-enum-after-fix.log",
+      "originalLocalSha256": "0a20057d2e49d27ec0d783df5576d4c784b788179afcbd0c8715d808a8422443",
+      "archivedSha256": "dab27f0e3b95a97b7df655cb6de89b540d34c87fd3996b84a132849f0b2d4d48",
+      "bytes": 1247
+    },
+    {
+      "file": "case01-membership-enum-readonly.mjs",
+      "originalLocalSha256": "d6a3202c8ca5cc7515961cd5ae65639a08ad0423889f0c0cc8415299a1beb3ba",
+      "archivedSha256": "6c5afc32ef5b346d8c482b8ed3273c3396d8daa58fc703eddbbc0ed22b31e412",
+      "bytes": 14490
+    },
+    {
+      "file": "case01-membership-enum-oneoff.py",
+      "originalLocalSha256": "4c86bc772dbf222e04eb052dc6e77c3a3074aae13a0890a0b60c6ccbd5464b9d",
+      "archivedSha256": "1190d61c532fb470d5d9f161d23b353c325c2c75f44374e0f5a04af88b7fb338",
+      "bytes": 9201
+    },
+    {
+      "file": "case01-membership-enum-diagnostic-qualification.json",
+      "originalLocalSha256": "409a33eb13051446e6f9a139730da57d851f82b83bd56b83439445e898479f5f",
+      "archivedSha256": "57d6b8861c41f6455a588479836e9fd94052de34086a2c2954124ee9816a8e8d",
+      "bytes": 1339
+    },
+    {
+      "file": "case01-membership-enum-task-plan.json",
+      "originalLocalSha256": "02d55c04fa1ba2d3c2ddc91031f7dd99c4ebaf6151073f247932b290f76c4d18",
+      "archivedSha256": "584081991d0d4ec5d689edf6349fa3d85554662aca70afb7cae58e745aec0cba",
+      "bytes": 1909
+    },
+    {
+      "file": "case01-membership-enum-execution.json",
+      "originalLocalSha256": "11fce0d22d986259a8324f2cac1cd33585fadcda270622c456e3a5ea87034b24",
+      "archivedSha256": "fdbcefceab7eb4c9deb345c440330c3736453346c048cc16754291d445225e4a",
+      "bytes": 1033
+    },
+    {
+      "file": "case01-membership-enum-readonly-v2.mjs",
+      "originalLocalSha256": "e05d626bf82746d2bc81a10458a36cad559b0a348d16635fab685f4530260fcc",
+      "archivedSha256": "56b5cc9631e62d093340d243e83ef7998dd5f9f60a973a36cead7117bcec4332",
+      "bytes": 14496
+    },
+    {
+      "file": "case01-membership-enum-oneoff-v2.py",
+      "originalLocalSha256": "d22ab9703a4f7a631392559303e7cc2a634c00f21699d99aa7c3c1b3f3c725bd",
+      "archivedSha256": "c19c323609d6c4e0f0bb79865b8f6648e69fc9020c59ddf9dd3e0ede929ad02d",
+      "bytes": 10012
+    },
+    {
+      "file": "case01-membership-enum-v2-qualification.json",
+      "originalLocalSha256": "f427050f8d36841838f3f00ad82068d1e2aa588de525c1fdeb5ef2c44cea0d51",
+      "archivedSha256": "58cce7bf1a84614a9da7ab4f613415beab2eb86ccad36f8fbfc822037b5f8408",
+      "bytes": 1042
+    },
+    {
+      "file": "case01-membership-enum-task-plan-v2.json",
+      "originalLocalSha256": "4310358aa5e2d834bb39519dafee11bd9b0b36a810325861d0bda8a4de630ddf",
+      "archivedSha256": "f789397d87759e2acfe3981356007da96abbe4157efd8354fe88775ebf842586",
+      "bytes": 1909
+    },
+    {
+      "file": "case01-membership-enum-execution-v2.json",
+      "originalLocalSha256": "1771d7c38caf4b7856e8cb34ffb2d6fcab5d95b59e2ccec2d4418a1afbe98147",
+      "archivedSha256": "99dff577327cbd0dc707f983b24a0b5c4a44a21abc942ee2767a7309136f6b41",
+      "bytes": 2459
+    }
+  ]
+}

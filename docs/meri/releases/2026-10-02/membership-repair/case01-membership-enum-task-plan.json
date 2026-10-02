@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "mode": "membership-enum-read",
+  "operationId": "1e5f95b3-98b6-48f6-b393-de3fb4fc1038",
+  "createdAt": 1790938844,
+  "expiresAt": 1790940644,
+  "sourceSha": "c22d059e4fc8fd73f93e6928f7db3a1a4338f7f8",
+  "operatorHead": "ad1ed34fa4d7cd20dacb2144cd2e587848a5a351",
+  "imageDigest": "sha256:5f06ac4c18e89bab68eedcac82e7a4984129985d5f083a8a671590d2480a702d",
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:5f06ac4c18e89bab68eedcac82e7a4984129985d5f083a8a671590d2480a702d",
+  "inputSha256": "2abd45698d1ca98629e060178b702a21bfe0c7c56ec790258f6e1653aab5ab8c",
+  "proofSha256": "fcb9f085721fb17c33ef01f8005304f6478168b2dbef008c15e762a4deca446c",
+  "operatorSha256": "4c86bc772dbf222e04eb052dc6e77c3a3074aae13a0890a0b60c6ccbd5464b9d",
+  "adapterSha256": "02098e0d9209f7313a66c4e73eb0689332af2edd7ba2a2ecf6e6daa58b0671f6",
+  "caller": "arn:aws:iam::967807252336:user/hermes-cli",
+  "baseline": {
+    "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:495",
+    "taskDefinitionHash": "e9a2564266de7d517f97d0d81163960d62a48b463d71e5be85a30819e09cb0b6",
+    "serviceConfigHash": "d8a7608bb92597ca5647f94d2af0ce7905515e8566e8a8cd808f5b76316c3018",
+    "primaryDeploymentId": "ecs-svc/6403933411415641790",
+    "runningTaskArns": [
+      "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/93b8f4cdc73f42358cf59ffb80a73e96",
+      "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/944e34f64a434f7f859e294850f8b195"
+    ]
+  },
+  "oneOffDefinitionHash": "18449e6d3d2765af48857aa9c6aedeff62d2e529e5d27b760be65e1254e8e394",
+  "overridesHash": "bbac2ba852dd8f9d954843099563cf71418a4877d3834e313bd8daae87ddacbe",
+  "networkHash": "d9b19901352dd52023da1ccb3f3fc72bbd468f53dbe6d617fbd158306dfd162f",
+  "waitSeconds": 900,
+  "liveAcceptance": "NOT_RUN",
+  "planHash": "3222d5a1b20b29f063e9700c03b8d7041ccd1be5b302f9312f73e1b12efe923a"
+}
