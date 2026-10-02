@@ -1,0 +1,18 @@
+test_authorization_receipt_does_not_claim_mutation_or_unbound_selection (__main__.Tests.test_authorization_receipt_does_not_claim_mutation_or_unbound_selection) ... ok
+test_bad_runtime_authority_or_exit_or_receipt_cannot_pass (__main__.Tests.test_bad_runtime_authority_or_exit_or_receipt_cannot_pass) ... ok
+test_bound_source_files_cannot_change (__main__.Tests.test_bound_source_files_cannot_change) ... ok
+test_catalog_receipt_only_fixed_two_columns_masked_defaults (__main__.Tests.test_catalog_receipt_only_fixed_two_columns_masked_defaults) ... ok
+test_changed_registered_script_never_runs (__main__.Tests.test_changed_registered_script_never_runs) ... ok
+test_exact_current_service_governance_environment_not_reconstructed (__main__.Tests.test_exact_current_service_governance_environment_not_reconstructed) ... ok
+test_exact_readonly_task_once_and_authoritative_receipt (__main__.Tests.test_exact_readonly_task_once_and_authoritative_receipt) ... ok
+test_fixed_minimal_request_and_input (__main__.Tests.test_fixed_minimal_request_and_input) ... ok
+test_guard_receipt_is_literal_names_hashes_exact_candidate_and_safe_booleans (__main__.Tests.test_guard_receipt_is_literal_names_hashes_exact_candidate_and_safe_booleans) ... ok
+test_prior_success_readback_is_immutable (__main__.Tests.test_prior_success_readback_is_immutable) ... ok
+test_raw_or_sensitive_or_duplicate_receipts_refused (__main__.Tests.test_raw_or_sensitive_or_duplicate_receipts_refused) ... ok
+test_representative_v3_receipt_keeps_actual_prior_rows_and_unchanged_base_sanitizer (__main__.Tests.test_representative_v3_receipt_keeps_actual_prior_rows_and_unchanged_base_sanitizer) ... ok
+test_unknown_acknowledgement_does_not_retry (__main__.Tests.test_unknown_acknowledgement_does_not_retry) ... ok
+
+----------------------------------------------------------------------
+Ran 13 tests in 0.465s
+
+OK

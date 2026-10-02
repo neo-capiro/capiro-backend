@@ -1,0 +1,728 @@
+TAP version 13
+# Subtest: imports and verifies frozen assets using only the exact API Dockerfile fixture COPY graph
+ok 1 - imports and verifies frozen assets using only the exact API Dockerfile fixture COPY graph
+  ---
+  duration_ms: 144.2073
+  type: 'test'
+  ...
+# Subtest: budget21 preserves frozen facts, distinct physical identities and complete passages
+ok 2 - budget21 preserves frozen facts, distinct physical identities and complete passages
+  ---
+  duration_ms: 4.4601
+  type: 'test'
+  ...
+# Subtest: budget22 preserves frozen facts, distinct physical identities and complete passages
+ok 3 - budget22 preserves frozen facts, distinct physical identities and complete passages
+  ---
+  duration_ms: 0.8885
+  type: 'test'
+  ...
+# Subtest: budget23 preserves frozen facts, distinct physical identities and complete passages
+ok 4 - budget23 preserves frozen facts, distinct physical identities and complete passages
+  ---
+  duration_ms: 1.6284
+  type: 'test'
+  ...
+# Subtest: budget24 preserves frozen facts, distinct physical identities and complete passages
+ok 5 - budget24 preserves frozen facts, distinct physical identities and complete passages
+  ---
+  duration_ms: 0.6163
+  type: 'test'
+  ...
+# Subtest: budget26 preserves frozen facts, distinct physical identities and complete passages
+ok 6 - budget26 preserves frozen facts, distinct physical identities and complete passages
+  ---
+  duration_ms: 0.5516
+  type: 'test'
+  ...
+# Subtest: budget27 preserves frozen facts, distinct physical identities and complete passages
+ok 7 - budget27 preserves frozen facts, distinct physical identities and complete passages
+  ---
+  duration_ms: 0.3444
+  type: 'test'
+  ...
+# Subtest: row26 invents neither fiscal year nor stage nor committee; row22 preserves exact report wording
+ok 8 - row26 invents neither fiscal year nor stage nor committee; row22 preserves exact report wording
+  ---
+  duration_ms: 0.9391
+  type: 'test'
+  ...
+# Subtest: absence is explicit complete frozen coverage, not a missing response
+ok 9 - absence is explicit complete frozen coverage, not a missing response
+  ---
+  duration_ms: 0.4307
+  type: 'test'
+  ...
+# Subtest: budget definition fails closed {"caseId":"25"}
+ok 10 - budget definition fails closed {"caseId":"25"}
+  ---
+  duration_ms: 0.4605
+  type: 'test'
+  ...
+# Subtest: budget definition fails closed {"tenantId":"52e91176-08f0-4d89-9633-bc212f5bdbbf"}
+ok 11 - budget definition fails closed {"tenantId":"52e91176-08f0-4d89-9633-bc212f5bdbbf"}
+  ---
+  duration_ms: 0.3416
+  type: 'test'
+  ...
+# Subtest: budget definition fails closed {"clientId":"other"}
+ok 12 - budget definition fails closed {"clientId":"other"}
+  ---
+  duration_ms: 0.1296
+  type: 'test'
+  ...
+# Subtest: budget definition fails closed {"captureRunId":"stale"}
+ok 13 - budget definition fails closed {"captureRunId":"stale"}
+  ---
+  duration_ms: 0.0613
+  type: 'test'
+  ...
+# Subtest: pure admission checks canonical current scope and exact server budget without creating authority
+ok 14 - pure admission checks canonical current scope and exact server budget without creating authority
+  ---
+  duration_ms: 4.858
+  type: 'test'
+  ...
+# Subtest: serialized lookalikes cannot execute or bypass native storage before network
+ok 15 - serialized lookalikes cannot execute or bypass native storage before network
+  ---
+  duration_ms: 1.3915
+  type: 'test'
+  ...
+# Subtest: scope refuses wrong origin
+ok 16 - scope refuses wrong origin
+  ---
+  duration_ms: 0.6323
+  type: 'test'
+  ...
+# Subtest: scope refuses case20
+ok 17 - scope refuses case20
+  ---
+  duration_ms: 0.469
+  type: 'test'
+  ...
+# Subtest: scope refuses unapproved tenant
+ok 18 - scope refuses unapproved tenant
+  ---
+  duration_ms: 0.5547
+  type: 'test'
+  ...
+# Subtest: scope refuses admin actor
+ok 19 - scope refuses admin actor
+  ---
+  duration_ms: 0.469
+  type: 'test'
+  ...
+# Subtest: scope refuses no conversation
+ok 20 - scope refuses no conversation
+  ---
+  duration_ms: 0.5382
+  type: 'test'
+  ...
+# Subtest: scope refuses over3USD
+ok 21 - scope refuses over3USD
+  ---
+  duration_ms: 0.5419
+  type: 'test'
+  ...
+# Subtest: scope refuses parallel
+ok 22 - scope refuses parallel
+  ---
+  duration_ms: 1.6709
+  type: 'test'
+  ...
+# Subtest: scope refuses stale contract
+ok 23 - scope refuses stale contract
+  ---
+  duration_ms: 0.8213
+  type: 'test'
+  ...
+# Subtest: admission refuses wrong actor
+ok 24 - admission refuses wrong actor
+  ---
+  duration_ms: 0.4944
+  type: 'test'
+  ...
+# Subtest: admission refuses wrong tenant
+ok 25 - admission refuses wrong tenant
+  ---
+  duration_ms: 0.3014
+  type: 'test'
+  ...
+# Subtest: admission refuses wrong client
+ok 26 - admission refuses wrong client
+  ---
+  duration_ms: 0.3116
+  type: 'test'
+  ...
+# Subtest: admission refuses expired
+ok 27 - admission refuses expired
+  ---
+  duration_ms: 0.2681
+  type: 'test'
+  ...
+# Subtest: admission refuses mutable dispatch
+ok 28 - admission refuses mutable dispatch
+  ---
+  duration_ms: 0.261
+  type: 'test'
+  ...
+# Subtest: admission refuses wrong source
+ok 29 - admission refuses wrong source
+  ---
+  duration_ms: 0.271
+  type: 'test'
+  ...
+# Subtest: admission refuses missing reset
+ok 30 - admission refuses missing reset
+  ---
+  duration_ms: 0.2843
+  type: 'test'
+  ...
+# Subtest: admission refuses no budget
+ok 31 - admission refuses no budget
+  ---
+  duration_ms: 0.3065
+  type: 'test'
+  ...
+# Subtest: admission refuses server budget exceeds configured
+ok 32 - admission refuses server budget exceeds configured
+  ---
+  duration_ms: 0.3839
+  type: 'test'
+  ...
+# Subtest: admission refuses different owner version
+ok 33 - admission refuses different owner version
+  ---
+  duration_ms: 0.2974
+  type: 'test'
+  ...
+# Subtest: admission refuses wrong release
+ok 34 - admission refuses wrong release
+  ---
+  duration_ms: 1.0021
+  type: 'test'
+  ...
+# Subtest: complete signed/current-source joins are validation only and do not grant acceptance
+ok 35 - complete signed/current-source joins are validation only and do not grant acceptance
+  ---
+  duration_ms: 2.2202
+  type: 'test'
+  ...
+# Subtest: receipt joins refuse source tenant contradiction
+ok 36 - receipt joins refuse source tenant contradiction
+  ---
+  duration_ms: 0.7898
+  type: 'test'
+  ...
+# Subtest: receipt joins refuse source client contradiction
+ok 37 - receipt joins refuse source client contradiction
+  ---
+  duration_ms: 0.7499
+  type: 'test'
+  ...
+# Subtest: receipt joins refuse mutating tool
+ok 38 - receipt joins refuse mutating tool
+  ---
+  duration_ms: 0.6578
+  type: 'test'
+  ...
+# Subtest: receipt joins refuse unjoined tool
+ok 39 - receipt joins refuse unjoined tool
+  ---
+  duration_ms: 0.6623
+  type: 'test'
+  ...
+# Subtest: receipt joins refuse source bytes
+ok 40 - receipt joins refuse source bytes
+  ---
+  duration_ms: 0.684
+  type: 'test'
+  ...
+# Subtest: receipt joins refuse source version
+ok 41 - receipt joins refuse source version
+  ---
+  duration_ms: 1.1411
+  type: 'test'
+  ...
+# Subtest: receipt joins refuse truncated source
+ok 42 - receipt joins refuse truncated source
+  ---
+  duration_ms: 0.8416
+  type: 'test'
+  ...
+# Subtest: receipt joins refuse citation bytes
+ok 43 - receipt joins refuse citation bytes
+  ---
+  duration_ms: 0.8192
+  type: 'test'
+  ...
+# Subtest: receipt joins refuse current owner changed
+ok 44 - receipt joins refuse current owner changed
+  ---
+  duration_ms: 0.7
+  type: 'test'
+  ...
+# Subtest: receipt joins refuse unsettled cost
+ok 45 - receipt joins refuse unsettled cost
+  ---
+  duration_ms: 0.7028
+  type: 'test'
+  ...
+# Subtest: receipt joins refuse unaccounted provider
+ok 46 - receipt joins refuse unaccounted provider
+  ---
+  duration_ms: 1.2559
+  type: 'test'
+  ...
+# Subtest: receipt joins refuse cost exceeded
+ok 47 - receipt joins refuse cost exceeded
+  ---
+  duration_ms: 1.0459
+  type: 'test'
+  ...
+# Subtest: receipt joins refuse different budget
+ok 48 - receipt joins refuse different budget
+  ---
+  duration_ms: 0.8253
+  type: 'test'
+  ...
+# Subtest: receipt joins refuse unexpected write
+ok 49 - receipt joins refuse unexpected write
+  ---
+  duration_ms: 0.7094
+  type: 'test'
+  ...
+# Subtest: receipt joins refuse logical effect
+ok 50 - receipt joins refuse logical effect
+  ---
+  duration_ms: 0.644
+  type: 'test'
+  ...
+# Subtest: receipt joins refuse message effect mismatch
+ok 51 - receipt joins refuse message effect mismatch
+  ---
+  duration_ms: 0.5981
+  type: 'test'
+  ...
+# Subtest: receipt joins refuse missing coverage
+ok 52 - receipt joins refuse missing coverage
+  ---
+  duration_ms: 0.7143
+  type: 'test'
+  ...
+# Subtest: receipt joins refuse wrong build
+ok 53 - receipt joins refuse wrong build
+  ---
+  duration_ms: 0.8154
+  type: 'test'
+  ...
+# Subtest: receipt joins refuse usage missing
+ok 54 - receipt joins refuse usage missing
+  ---
+  duration_ms: 0.8639
+  type: 'test'
+  ...
+# Subtest: receipt joins refuse expired authority
+ok 55 - receipt joins refuse expired authority
+  ---
+  duration_ms: 0.7632
+  type: 'test'
+  ...
+# Subtest: SSE and canonical receipt must match exact signed bytes
+ok 56 - SSE and canonical receipt must match exact signed bytes
+  ---
+  duration_ms: 0.499
+  type: 'test'
+  ...
+# Subtest: exact answer bytes are required
+ok 57 - exact answer bytes are required
+  ---
+  duration_ms: 0.6796
+  type: 'test'
+  ...
+# Subtest: build comparison requires exact successful canonical source, recipe and served digest
+ok 58 - build comparison requires exact successful canonical source, recipe and served digest
+  ---
+  duration_ms: 1.3083
+  type: 'test'
+  ...
+# Subtest: build comparison refuses failed build
+ok 59 - build comparison refuses failed build
+  ---
+  duration_ms: 0.2229
+  type: 'test'
+  ...
+# Subtest: build comparison refuses wrong source
+ok 60 - build comparison refuses wrong source
+  ---
+  duration_ms: 0.1296
+  type: 'test'
+  ...
+# Subtest: build comparison refuses different recipe
+ok 61 - build comparison refuses different recipe
+  ---
+  duration_ms: 0.141
+  type: 'test'
+  ...
+# Subtest: build comparison refuses different repository
+ok 62 - build comparison refuses different repository
+  ---
+  duration_ms: 0.1367
+  type: 'test'
+  ...
+# Subtest: build comparison refuses failed test phase
+ok 63 - build comparison refuses failed test phase
+  ---
+  duration_ms: 0.1061
+  type: 'test'
+  ...
+# Subtest: build comparison refuses wrong image
+ok 64 - build comparison refuses wrong image
+  ---
+  duration_ms: 0.0925
+  type: 'test'
+  ...
+# Subtest: build comparison refuses source label drift
+ok 65 - build comparison refuses source label drift
+  ---
+  duration_ms: 0.1278
+  type: 'test'
+  ...
+# Subtest: case 20 fixed source, admission and signed owner joins pass only pure checks
+ok 66 - case 20 fixed source, admission and signed owner joins pass only pure checks
+  ---
+  duration_ms: 7.1916
+  type: 'test'
+  ...
+# Subtest: case 20 rejects foreign actor
+ok 67 - case 20 rejects foreign actor
+  ---
+  duration_ms: 1.1528
+  type: 'test'
+  ...
+# Subtest: case 20 rejects old run
+ok 68 - case 20 rejects old run
+  ---
+  duration_ms: 1.4341
+  type: 'test'
+  ...
+# Subtest: case 20 rejects display call identity
+ok 69 - case 20 rejects display call identity
+  ---
+  duration_ms: 1.2961
+  type: 'test'
+  ...
+# Subtest: case 20 rejects missing HTTP attempt
+ok 70 - case 20 rejects missing HTTP attempt
+  ---
+  duration_ms: 1.2049
+  type: 'test'
+  ...
+# Subtest: case 20 rejects HTTP 201
+ok 71 - case 20 rejects HTTP 201
+  ---
+  duration_ms: 1.2024
+  type: 'test'
+  ...
+# Subtest: case 20 rejects changed current fixture
+ok 72 - case 20 rejects changed current fixture
+  ---
+  duration_ms: 1.3397
+  type: 'test'
+  ...
+# Subtest: case 20 rejects unknown input usage
+ok 73 - case 20 rejects unknown input usage
+  ---
+  duration_ms: 2.1819
+  type: 'test'
+  ...
+# Subtest: case 20 rejects unsettled accounting
+ok 74 - case 20 rejects unsettled accounting
+  ---
+  duration_ms: 2.4462
+  type: 'test'
+  ...
+# Subtest: case 20 rejects wrong budget case
+ok 75 - case 20 rejects wrong budget case
+  ---
+  duration_ms: 1.9862
+  type: 'test'
+  ...
+# Subtest: case 20 rejects unexpected write
+ok 76 - case 20 rejects unexpected write
+  ---
+  duration_ms: 1.1435
+  type: 'test'
+  ...
+# Subtest: case 20 rejects missing bound runtime
+ok 77 - case 20 rejects missing bound runtime
+  ---
+  duration_ms: 1.1675
+  type: 'test'
+  ...
+# Subtest: case 20 rejects unknown blocker
+ok 78 - case 20 rejects unknown blocker
+  ---
+  duration_ms: 1.4309
+  type: 'test'
+  ...
+# Subtest: case 72 fixed source, admission and signed owner joins pass only pure checks
+ok 79 - case 72 fixed source, admission and signed owner joins pass only pure checks
+  ---
+  duration_ms: 1.7124
+  type: 'test'
+  ...
+# Subtest: case 72 rejects foreign actor
+ok 80 - case 72 rejects foreign actor
+  ---
+  duration_ms: 1.2814
+  type: 'test'
+  ...
+# Subtest: case 72 rejects old run
+ok 81 - case 72 rejects old run
+  ---
+  duration_ms: 0.9772
+  type: 'test'
+  ...
+# Subtest: case 72 rejects display call identity
+ok 82 - case 72 rejects display call identity
+  ---
+  duration_ms: 0.9654
+  type: 'test'
+  ...
+# Subtest: case 72 rejects missing HTTP attempt
+ok 83 - case 72 rejects missing HTTP attempt
+  ---
+  duration_ms: 0.9492
+  type: 'test'
+  ...
+# Subtest: case 72 rejects HTTP 201
+ok 84 - case 72 rejects HTTP 201
+  ---
+  duration_ms: 1.0278
+  type: 'test'
+  ...
+# Subtest: case 72 rejects changed current fixture
+ok 85 - case 72 rejects changed current fixture
+  ---
+  duration_ms: 1.0675
+  type: 'test'
+  ...
+# Subtest: case 72 rejects unknown input usage
+ok 86 - case 72 rejects unknown input usage
+  ---
+  duration_ms: 0.9568
+  type: 'test'
+  ...
+# Subtest: case 72 rejects unsettled accounting
+ok 87 - case 72 rejects unsettled accounting
+  ---
+  duration_ms: 1.7416
+  type: 'test'
+  ...
+# Subtest: case 72 rejects wrong budget case
+ok 88 - case 72 rejects wrong budget case
+  ---
+  duration_ms: 1.1375
+  type: 'test'
+  ...
+# Subtest: case 72 rejects unexpected write
+ok 89 - case 72 rejects unexpected write
+  ---
+  duration_ms: 1.1346
+  type: 'test'
+  ...
+# Subtest: case 72 rejects missing bound runtime
+ok 90 - case 72 rejects missing bound runtime
+  ---
+  duration_ms: 0.9776
+  type: 'test'
+  ...
+# Subtest: case 72 rejects unknown blocker
+ok 91 - case 72 rejects unknown blocker
+  ---
+  duration_ms: 1.0242
+  type: 'test'
+  ...
+# Subtest: 20 rejects title-only, altered full passage, foreign locator, and forged global authorization
+ok 92 - 20 rejects title-only, altered full passage, foreign locator, and forged global authorization
+  ---
+  duration_ms: 4.3368
+  type: 'test'
+  ...
+# Subtest: 72 refuses error-as-source, false-complete classification and invented successful passages
+ok 93 - 72 refuses error-as-source, false-complete classification and invented successful passages
+  ---
+  duration_ms: 4.7699
+  type: 'test'
+  ...
+# Subtest: 72 actual early stop without repeated suppression is saved as deterministic failure, never PASS
+ok 94 - 72 actual early stop without repeated suppression is saved as deterministic failure, never PASS
+  ---
+  duration_ms: 1.4966
+  type: 'test'
+  ...
+# Subtest: 20 wrong amount/stage and 72 false success fail saved answer checks
+ok 95 - 20 wrong amount/stage and 72 false success fail saved answer checks
+  ---
+  duration_ms: 3.4418
+  type: 'test'
+  ...
+# Subtest: caller JSON cannot mint live capability, artifact owner or a grade
+ok 96 - caller JSON cannot mint live capability, artifact owner or a grade
+  ---
+  duration_ms: 2.0073
+  type: 'test'
+  ...
+# Subtest: scope rejects other rows, arbitrary physical maps, customer tenants, higher caps and parallelism
+ok 97 - scope rejects other rows, arbitrary physical maps, customer tenants, higher caps and parallelism
+  ---
+  duration_ms: 2.8148
+  type: 'test'
+  ...
+# Subtest: budget21 one HTTP invocation joins every real source independently
+ok 98 - budget21 one HTTP invocation joins every real source independently
+  ---
+  duration_ms: 3.724
+  type: 'test'
+  ...
+# Subtest: budget22 one HTTP invocation joins every real source independently
+ok 99 - budget22 one HTTP invocation joins every real source independently
+  ---
+  duration_ms: 2.6065
+  type: 'test'
+  ...
+# Subtest: budget23 one HTTP invocation joins every real source independently
+ok 100 - budget23 one HTTP invocation joins every real source independently
+  ---
+  duration_ms: 2.5503
+  type: 'test'
+  ...
+# Subtest: budget24 one HTTP invocation joins every real source independently
+ok 101 - budget24 one HTTP invocation joins every real source independently
+  ---
+  duration_ms: 2.3053
+  type: 'test'
+  ...
+# Subtest: budget26 one HTTP invocation joins every real source independently
+ok 102 - budget26 one HTTP invocation joins every real source independently
+  ---
+  duration_ms: 2.1245
+  type: 'test'
+  ...
+# Subtest: budget27 one HTTP invocation joins every real source independently
+ok 103 - budget27 one HTTP invocation joins every real source independently
+  ---
+  duration_ms: 3.0295
+  type: 'test'
+  ...
+# Subtest: budget multi-source rejects missing second passage
+ok 104 - budget multi-source rejects missing second passage
+  ---
+  duration_ms: 2.9727
+  type: 'test'
+  ...
+# Subtest: budget multi-source rejects duplicate passage
+ok 105 - budget multi-source rejects duplicate passage
+  ---
+  duration_ms: 2.0126
+  type: 'test'
+  ...
+# Subtest: budget multi-source rejects swapped hash
+ok 106 - budget multi-source rejects swapped hash
+  ---
+  duration_ms: 1.8704
+  type: 'test'
+  ...
+# Subtest: budget multi-source rejects invented second call
+ok 107 - budget multi-source rejects invented second call
+  ---
+  duration_ms: 1.5595
+  type: 'test'
+  ...
+# Subtest: budget multi-source rejects source never cited
+ok 108 - budget multi-source rejects source never cited
+  ---
+  duration_ms: 1.7086
+  type: 'test'
+  ...
+# Subtest: budget multi-source rejects source never opened
+ok 109 - budget multi-source rejects source never opened
+  ---
+  duration_ms: 1.9391
+  type: 'test'
+  ...
+# Subtest: budget multi-source rejects cross-run
+ok 110 - budget multi-source rejects cross-run
+  ---
+  duration_ms: 1.3407
+  type: 'test'
+  ...
+# Subtest: budget multi-source rejects foreign source
+ok 111 - budget multi-source rejects foreign source
+  ---
+  duration_ms: 1.1925
+  type: 'test'
+  ...
+# Subtest: budget multi-source rejects unproved null client
+ok 112 - budget multi-source rejects unproved null client
+  ---
+  duration_ms: 1.3356
+  type: 'test'
+  ...
+# Subtest: budget multi-source rejects unaccounted cost
+ok 113 - budget multi-source rejects unaccounted cost
+  ---
+  duration_ms: 1.7697
+  type: 'test'
+  ...
+# Subtest: budget23 rejects missing/partial/wrong negative coverage
+ok 114 - budget23 rejects missing/partial/wrong negative coverage
+  ---
+  duration_ms: 4.9636
+  type: 'test'
+  ...
+# Subtest: budget27 rejects missing/partial/wrong negative coverage
+ok 115 - budget27 rejects missing/partial/wrong negative coverage
+  ---
+  duration_ms: 3.7582
+  type: 'test'
+  ...
+# Subtest: all six live transport scopes remain closed while data-only grading is available
+ok 116 - all six live transport scopes remain closed while data-only grading is available
+  ---
+  duration_ms: 2.7705
+  type: 'test'
+  ...
+# Subtest: wrong arithmetic and unknown-as-zero cannot pass saved predicates
+ok 117 - wrong arithmetic and unknown-as-zero cannot pass saved predicates
+  ---
+  duration_ms: 8.3624
+  type: 'test'
+  ...
+# (node:21632) [DEP0180] DeprecationWarning: fs.Stats constructor is deprecated.
+# (Use `node --trace-deprecation ...` to show where the warning was created)
+# Subtest: real owned PostgreSQL six budget definitions install/current-read/CAS/revocation and typed response shape; outer rollback
+ok 118 - real owned PostgreSQL six budget definitions install/current-read/CAS/revocation and typed response shape; outer rollback
+  ---
+  duration_ms: 2728.6895
+  type: 'test'
+  ...
+# (node:20088) [DEP0180] DeprecationWarning: fs.Stats constructor is deprecated.
+# (Use `node --trace-deprecation ...` to show where the warning was created)
+# Subtest: actual PostgreSQL controlled20/72 owner, provider install, dispatch and current revocation
+ok 119 - actual PostgreSQL controlled20/72 owner, provider install, dispatch and current revocation
+  ---
+  duration_ms: 10278.0917
+  type: 'test'
+  ...
+1..119
+# tests 119
+# suites 0
+# pass 119
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 10485.3697

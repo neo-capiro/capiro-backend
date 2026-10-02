@@ -1,0 +1,92 @@
+TAP version 13
+# Subtest: imports and verifies frozen assets using only the exact API Dockerfile fixture COPY graph
+ok 1 - imports and verifies frozen assets using only the exact API Dockerfile fixture COPY graph
+  ---
+  duration_ms: 141.8212
+  type: 'test'
+  ...
+# Subtest: only approved existing-role proposer and no-turn read scope is accepted as data
+ok 2 - only approved existing-role proposer and no-turn read scope is accepted as data
+  ---
+  duration_ms: 3.4148
+  type: 'test'
+  ...
+# Subtest: fake storage, copied receipt, page and claimed readiness cannot mint live capture authority
+ok 3 - fake storage, copied receipt, page and claimed readiness cannot mint live capture authority
+  ---
+  duration_ms: 1.2468
+  type: 'test'
+  ...
+# Subtest: both API and Web require exact current successful build/source/recipe/digest binding
+ok 4 - both API and Web require exact current successful build/source/recipe/digest binding
+  ---
+  duration_ms: 1.8963
+  type: 'test'
+  ...
+# Subtest: saved visual review binds exact twelve saved screenshots, run, bytes and capture time
+ok 5 - saved visual review binds exact twelve saved screenshots, run, bytes and capture time
+  ---
+  duration_ms: 2.0096
+  type: 'test'
+  ...
+# Subtest: saved checks accept complete multiple pages and reorder after reload without minting authority
+ok 6 - saved checks accept complete multiple pages and reorder after reload without minting authority
+  ---
+  duration_ms: 61.786
+  type: 'test'
+  ...
+# Subtest: missing/current/foreign/action/page/byte/write evidence fails closed
+ok 7 - missing/current/foreign/action/page/byte/write evidence fails closed
+  ---
+  duration_ms: 55.3673
+  type: 'test'
+  ...
+# (node:20560) [DEP0180] DeprecationWarning: fs.Stats constructor is deprecated.
+# (Use `node --trace-deprecation ...` to show where the warning was created)
+# [Nest] 20560  - 10/02/2026, 8:49:09 AM     LOG [MemoryCandidateService] memory_candidate d24dccb3-f029-5cef-bb0f-7aa387461f68 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 20560  - 10/02/2026, 8:49:09 AM     LOG [MemoryCandidateService] memory_candidate 2c8253cf-5aeb-5b7a-948b-0e8eb17a36c1 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 20560  - 10/02/2026, 8:49:09 AM     LOG [MemoryCandidateService] memory_candidate 14420016-8f8c-50b1-9c27-8e962d1e63fe pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 20560  - 10/02/2026, 8:49:09 AM     LOG [MemoryCandidateService] memory_candidate 11f132bc-1c90-5974-8a32-c5d0dcceaa49 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 20560  - 10/02/2026, 8:49:09 AM     LOG [MemoryCandidateService] memory_candidate 45d4fbd4-4774-56c2-a816-695a98bbe6c4 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 20560  - 10/02/2026, 8:49:09 AM     LOG [MemoryCandidateService] memory_candidate b5d5dc64-9e03-5e35-8cc6-1d7e9b3178bb pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# Subtest: source-owned case17 locator rehydrates through the actual authenticated GET after restart, with current actor and canonical row checks
+ok 8 - source-owned case17 locator rehydrates through the actual authenticated GET after restart, with current actor and canonical row checks
+  ---
+  duration_ms: 3589.3996
+  type: 'test'
+  ...
+# [Nest] 20560  - 10/02/2026, 8:49:10 AM     LOG [MemoryCandidateService] memory_candidate 7bf3499b-c02b-5a43-b85c-245e6f3652d3 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 20560  - 10/02/2026, 8:49:10 AM     LOG [MemoryCandidateService] memory_candidate 0ffb8905-4080-5b92-ad3b-c55a96157944 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 20560  - 10/02/2026, 8:49:10 AM     LOG [MemoryCandidateService] memory_candidate 931410a2-9dc0-5b3f-a030-698429e76e42 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 20560  - 10/02/2026, 8:49:10 AM     LOG [MemoryCandidateService] memory_candidate 017a43b6-391d-5126-89d9-86a6d9c1c6ef pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 20560  - 10/02/2026, 8:49:10 AM     LOG [MemoryCandidateService] memory_candidate 5fe8836a-9866-5fd8-925e-eb9e595b6e8d pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# [Nest] 20560  - 10/02/2026, 8:49:10 AM     LOG [MemoryCandidateService] memory_candidate 113104b1-a49b-5549-ae2e-a98345e69551 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# Subtest: case17 canonical pending operator claims once and rehydrates actual owner state without a model
+ok 9 - case17 canonical pending operator claims once and rehydrates actual owner state without a model
+  ---
+  duration_ms: 705.8091
+  type: 'test'
+  ...
+# [Nest] 20560  - 10/02/2026, 8:49:11 AM     LOG [MemoryCandidateService] memory_candidate 8c75e370-bbdb-5512-ae37-903b12fd4a66 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# Subtest: case14 canonical pending operator claims once and rehydrates actual owner state without a model
+ok 10 - case14 canonical pending operator claims once and rehydrates actual owner state without a model
+  ---
+  duration_ms: 609.159
+  type: 'test'
+  ...
+# [Nest] 20560  - 10/02/2026, 8:49:11 AM     LOG [MemoryCandidateService] memory_candidate cd6148ba-0cb8-55c9-8d6b-7b9a097189b4 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+# Subtest: partial canonical creation retains the durable claim and refuses retries, altered identity and stale plans
+ok 11 - partial canonical creation retains the durable claim and refuses retries, altered identity and stale plans
+  ---
+  duration_ms: 659.4724
+  type: 'test'
+  ...
+1..11
+# tests 11
+# suites 0
+# pass 11
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 5744.6203
