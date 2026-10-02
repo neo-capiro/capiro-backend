@@ -237,6 +237,25 @@ function controllerWithSink(sink: jest.Mock, actualToolBoundary = false, prisma?
 describe('server-owned read-only acceptance capture boundary', () => {
   const originalSecret = process.env.INTERNAL_SERVICE_SECRET;
 
+  test.each(['21', '22', '23', '24', '26', '27'])(
+    'budget expansion %s cannot mint live policy',
+    async (caseId) => {
+      const { prisma, tx } = authorityHarness();
+      const tenant = await tx.tenant.findUnique();
+      tenant.settings.meriFoundationFixture.captureEvidence.caseId = caseId;
+      tx.tenant.findUnique.mockResolvedValue(tenant);
+      await expect(
+        issueMeriServerReadonlyCapturePolicy({
+          prisma: prisma as never,
+          ctx: captureCtx,
+          conversationId: CONVERSATION_ID,
+        }),
+      ).rejects.toMatchObject({
+        response: { reason: 'controlled_budget_expansion_not_live_qualified' },
+      });
+    },
+  );
+
   beforeEach(() => {
     process.env.INTERNAL_SERVICE_SECRET = SECRET;
   });

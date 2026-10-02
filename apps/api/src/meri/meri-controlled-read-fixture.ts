@@ -15,6 +15,7 @@ import {
 } from './meri-tool-request-control.js';
 import { currentMeriServerReadonlyCapturePolicy } from './meri-context-plane-runtime.js';
 import { parseDocumentReadInput } from './meri-document-read.helpers.js';
+import { createControlledBudgetToolResult } from './meri-controlled-budget-result.js';
 import {
   fundingClaimsForModel,
   modelBudgetLineMetadata,
@@ -38,7 +39,7 @@ export interface ControlledReadFixtureProof {
   tenantId: string;
   actorUserId: string;
   clientId: string;
-  caseId: '20' | '72';
+  caseId: ControlledReadCase;
   captureRunId: string;
   sourceMap: Record<string, Record<string, unknown>>;
   physicalMapSha256: string;
@@ -46,7 +47,11 @@ export interface ControlledReadFixtureProof {
   currentVerifySha256: string;
   seedReceiptId: string;
   resetReceiptId: string;
-  definition: { reads: Read[]; physicalMapSha256: string };
+  definition: {
+    reads: Read[];
+    physicalMapSha256: string;
+    coverage?: Record<string, unknown> | null;
+  };
 }
 interface OwnerModule {
   qualifyControlledReadInTx(
@@ -56,8 +61,11 @@ interface OwnerModule {
   ): Promise<ControlledReadFixtureProof>;
 }
 let ownerModule: Promise<OwnerModule> | undefined;
-export function isMeriControlledReadCase(caseId: unknown): caseId is '20' | '72' {
-  return caseId === '20' || caseId === '72';
+type ControlledReadCase = '20' | '21' | '22' | '23' | '24' | '26' | '27' | '72';
+export function isMeriControlledReadCase(caseId: unknown): caseId is ControlledReadCase {
+  return (
+    typeof caseId === 'string' && ['20', '21', '22', '23', '24', '26', '27', '72'].includes(caseId)
+  );
 }
 function denied(reason: string): never {
   throw new Error(`meri_controlled_read_${reason}`);
@@ -144,7 +152,7 @@ export function meriControlledReadHttpStatus(value: unknown): 200 | undefined {
   return value !== null && typeof value === 'object' && http200Results.has(value) ? 200 : undefined;
 }
 export function controlledReadToolAllowed(caseId: string | null, tool: string): boolean {
-  return caseId === '20'
+  return isMeriControlledReadCase(caseId) && caseId !== '72'
     ? ['search_program_elements', 'get_program_element', 'get_pe_budget_timeline'].includes(tool)
     : caseId === '72' && tool === 'read_client_documents';
 }
@@ -180,7 +188,7 @@ export async function tryExecuteMeriControlledRead(
     actorUserId: ctx.userId,
     clientId: policy.clientId,
     sourceTenantId: ctx.tenantId,
-    sourceClientId: policy.caseId === '20' ? null : policy.clientId,
+    sourceClientId: policy.caseId === '72' ? policy.clientId : null,
     physicalMapSha256: proof.physicalMapSha256,
     currentVerifySha256: proof.currentVerifySha256,
     sourceId: read.physicalId,
@@ -189,7 +197,9 @@ export async function tryExecuteMeriControlledRead(
     contentSha256: read.contentSha256,
   };
   let result: Record<string, unknown>;
-  if (policy.caseId === '72') {
+  if (policy.caseId !== '20' && policy.caseId !== '72') {
+    result = createControlledBudgetToolResult(proof, tool, input, provenance);
+  } else if (policy.caseId === '72') {
     if (
       input.clientId !== policy.clientId ||
       Object.keys(input).some(
@@ -329,11 +339,17 @@ export async function readMeriControlledSource(
     ctx,
     conversationId: input.conversationId,
   });
-  if (!policy || policy.caseId !== '20' || policy.clientId !== input.clientId)
+  if (
+    !policy ||
+    !isMeriControlledReadCase(policy.caseId) ||
+    policy.caseId === '72' ||
+    policy.clientId !== input.clientId
+  )
     denied('source_scope_invalid');
   const proof = await readMeriControlledFixture({ prisma, ctx, policy });
   const read = proof.definition.reads.find((row) => row.physicalId === input.recordId);
-  if (!read || input.version !== read.version || input.section !== 'page 14')
+  const section = read?.facts.page ? `page ${read.facts.page}` : read?.logicalId;
+  if (!read || input.version !== read.version || input.section !== section)
     denied('source_locator_invalid');
   return {
     kind: 'controlled_read',
@@ -346,7 +362,7 @@ export async function readMeriControlledSource(
     clientId: input.clientId,
     conversationId: input.conversationId,
     title: read.logicalId,
-    section: 'page 14',
+    section,
     text: read.content,
     offset: 0,
     nextCursor: null,

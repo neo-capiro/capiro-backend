@@ -25,7 +25,7 @@ function scope(ctx, input) {
     !UUID.test(ctx.userId ?? '') ||
     typeof ctx.clerkUserId !== 'string' ||
     !ctx.clerkUserId ||
-    !['20', '72'].includes(input?.caseId) ||
+    !['20', '21', '22', '23', '24', '26', '27', '72'].includes(input?.caseId) ||
     !UUID.test(input.clientId ?? '') ||
     !UUID.test(input.captureRunId ?? '')
   )

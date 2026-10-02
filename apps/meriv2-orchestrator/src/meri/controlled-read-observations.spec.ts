@@ -119,6 +119,103 @@ describe('controlled read actual HTTP observations', () => {
       server = undefined;
     }
   });
+  function multiPayload(p: MeriServerReadonlyCapturePolicy): any {
+    const original = payload(policy('20'));
+    const sourceReads = [8, 9].map((n) => ({
+      sourceId: id(n),
+      logicalSourceId: n === 8 ? 'ENACT-26' : 'R2-27',
+      sourceVersion: 'v1',
+      sourceTenantId: p.tenantId,
+      sourceClientId: null,
+      contentSha256: hash(`actual passage ${n}`),
+    }));
+    return {
+      tool: 'get_pe_budget_timeline',
+      records: sourceReads.map((s, i) => ({
+        id: s.sourceId,
+        sourceId: s.sourceId,
+        sourceVersion: s.sourceVersion,
+        contentSha256: s.contentSha256,
+        text: `actual passage ${i + 8}`,
+      })),
+      controlledRead: {
+        ...original.controlledRead,
+        ...Object.fromEntries(
+          [
+            'caseId',
+            'captureRunId',
+            'requestId',
+            'traceId',
+            'turnId',
+            'tenantId',
+            'actorUserId',
+            'clientId',
+            'conversationId',
+            'physicalMapSha256',
+          ].map((k) => [k, (p as any)[k]]),
+        ),
+        ...sourceReads[0],
+        sourceReads,
+        coverage: null,
+      },
+    };
+  }
+  test('one actual loopback HTTP response captures two independent passages under one provider call', async () => {
+    const p = policy('21'),
+      body = multiPayload(p);
+    let hits = 0;
+    server = createServer((req, res) => {
+      hits++;
+      req.resume();
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(JSON.stringify(body));
+    });
+    await new Promise<void>((resolve) => server!.listen(0, '127.0.0.1', resolve));
+    const port = (server.address() as { port: number }).port;
+    const repo = new ApiToolExecutorRepo({
+      get: (k: string) =>
+        (
+          ({
+            MERIV2_API_BASE_URL: `http://127.0.0.1:${port}`,
+            INTERNAL_SERVICE_SECRET: 'synthetic-test-secret',
+          }) as any
+        )[k],
+    } as never);
+    await scope(p, () =>
+      RequestCredentialsStore.run({ bearerToken: 'synthetic-test-bearer' }, async () => {
+        await withControlledReadInvocation('one-provider-call', () =>
+          repo.execute({} as MeriContext, 'get_pe_budget_timeline', { peCode: '0912345T' }),
+        );
+        const observed = readControlledReadHttpObservations()!;
+        expect(observed).toHaveLength(1);
+        expect(observed[0]!.callId).toBe('one-provider-call');
+        expect(observed[0]!.sourceReads).toHaveLength(2);
+        expect(new Set(observed[0]!.sourceReads!.map((s) => s.passageSha256)).size).toBe(2);
+      }),
+    );
+    expect(hits).toBe(1);
+  });
+  test.each(['duplicate', 'missing', 'hash', 'foreign', 'coverage'])(
+    'multi-source observation refuses %s before recording anything',
+    async (fault) => {
+      const p = policy('21'),
+        body = multiPayload(p);
+      if (fault === 'duplicate')
+        body.controlledRead.sourceReads[1] = body.controlledRead.sourceReads[0];
+      if (fault === 'missing') body.records.pop();
+      if (fault === 'hash') body.records[1].text += ' modified';
+      if (fault === 'foreign') body.controlledRead.sourceReads[1].sourceTenantId = id(9);
+      if (fault === 'coverage') body.controlledRead.coverage = { complete: true, sourceIds: [] };
+      await scope(p, () =>
+        withControlledReadInvocation('call', async () => {
+          expect(() =>
+            observeControlledReadHttpResponse('get_pe_budget_timeline', 200, body),
+          ).toThrow();
+          expect(readControlledReadHttpObservations()).toEqual([]);
+        }),
+      );
+    },
+  );
   test('native API executor observes HTTP200 logical errors before failure and native no-progress suppresses call four', async () => {
     const p = policy(),
       body = payload(p);

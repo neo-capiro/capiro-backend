@@ -31,7 +31,7 @@ async function current(args: {
       logicalId: read.logicalId,
       physicalId: read.physicalId,
       tenantId: args.ctx.tenantId,
-      clientId: args.policy.caseId === '20' ? null : args.policy.clientId,
+      clientId: args.policy.caseId === '72' ? args.policy.clientId : null,
       sourceVersion: read.version,
       contentSha256: read.contentSha256,
       kind: read.kind,
@@ -40,6 +40,7 @@ async function current(args: {
         ? { fault: { httpStatus: 200, error: 'document unavailable', repeated: true } }
         : {}),
     })),
+    ...(proof.definition.coverage !== undefined ? { coverage: proof.definition.coverage } : {}),
   };
 }
 export async function readMeriControlledCaptureAdmission(args: {

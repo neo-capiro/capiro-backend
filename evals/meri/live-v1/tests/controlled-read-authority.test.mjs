@@ -22,7 +22,7 @@ const refresh = (j) => {
   j.authority.envelopeSha256 = sha256Stable(j.envelope);
   j.authority.answerSha256 = sha256Bytes(j.answer);
 };
-function fixture(caseId) {
+export function fixture(caseId) {
   const h = memoryFixture(),
     c = h.config,
     j = h.joins;

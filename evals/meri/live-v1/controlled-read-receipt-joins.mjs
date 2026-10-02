@@ -1,5 +1,6 @@
 import { isDeepStrictEqual } from 'node:util';
 import { sha256Bytes, sha256Stable } from './artifact-collector.mjs';
+import { createControlledReadDefinition } from './fixture-provisioning/controlled-read-definitions.mjs';
 
 const HASH = /^[a-f0-9]{64}$/u;
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/iu;
@@ -41,7 +42,11 @@ export function assertControlledReadReceiptJoins({
 }) {
   const receipt = envelope?.receipt;
   need(
-    ['20', '72'].includes(expected?.caseId) && receipt && policy && authority && admission,
+    ['20', '21', '22', '23', '24', '26', '27', '72'].includes(expected?.caseId) &&
+      receipt &&
+      policy &&
+      authority &&
+      admission,
     'CONTROLLED_READ_JOIN_INPUT_MISSING',
   );
   need(
@@ -143,23 +148,54 @@ export function assertControlledReadReceiptJoins({
       'CONTROLLED_READ_FIXTURE_BINDING_MISMATCH',
     );
   }
+  const definition = createControlledReadDefinition({
+    caseId: expected.caseId,
+    tenantId: expected.tenantId,
+    clientId: expected.clientId,
+    captureRunId: expected.captureRunId,
+  });
   need(
-    Array.isArray(fixture.sources) && fixture.sources.length === 1,
+    definition.physicalMapSha256 === expected.physicalMapSha256,
+    'CONTROLLED_READ_FROZEN_MAP_MISMATCH',
+  );
+  const isBudget = expected.caseId !== '72';
+  const expanded = !['20', '72'].includes(expected.caseId);
+  const sources = fixture.sources;
+  need(
+    Array.isArray(sources) &&
+      sources.length === definition.reads.length &&
+      new Set(sources.map((s) => s?.physicalId)).size === sources.length,
     'CONTROLLED_READ_SOURCE_OWNER_MISSING',
   );
-  const source = fixture.sources[0];
-  const isBudget = expected.caseId === '20';
+  const source = sources[0];
+  const byId = new Map(sources.map((s) => [s.physicalId, s]));
+  const sections = new Map(
+    definition.reads.map((r) => [
+      r.physicalId,
+      r.facts.page ? `page ${r.facts.page}` : r.logicalId,
+    ]),
+  );
   need(
-    source.logicalId === (isBudget ? 'R2-27' : 'MEMO-A-LATEST') &&
-      UUID.test(source.physicalId ?? '') &&
-      source.tenantId === expected.tenantId &&
-      source.clientId === (isBudget ? null : expected.clientId) &&
-      source.sourceVersion === 'v1' &&
-      source.kind === (isBudget ? 'budget_document' : 'memo') &&
-      source.sourceStorage === 'immutable_source_owned_controlled_adapter' &&
-      HASH.test(source.contentSha256 ?? ''),
+    definition.reads.every((read) => {
+      const s = byId.get(read.physicalId);
+      return (
+        s &&
+        s.logicalId === read.logicalId &&
+        s.tenantId === expected.tenantId &&
+        s.clientId === (isBudget ? null : expected.clientId) &&
+        s.sourceVersion === read.version &&
+        s.kind === read.kind &&
+        s.sourceStorage === 'immutable_source_owned_controlled_adapter' &&
+        s.contentSha256 === read.contentSha256
+      );
+    }),
     'CONTROLLED_READ_SOURCE_OWNER_INVALID',
   );
+  if (expanded)
+    need(
+      isDeepStrictEqual(fixture.coverage, definition.coverage),
+      'CONTROLLED_READ_CANONICAL_COVERAGE_MISMATCH',
+    );
   const calls = receipt.toolCalls,
     attempts = receipt.controlledReadAttempts;
   const tools = new Set(
@@ -179,41 +215,63 @@ export function assertControlledReadReceiptJoins({
           tools.has(c.name) &&
           ['complete', 'failed', 'partial', 'unavailable'].includes(c.status) &&
           Array.isArray(c.sourceIds) &&
-          c.sourceIds.every((id) => id === source.physicalId),
+          new Set(c.sourceIds).size === c.sourceIds.length &&
+          c.sourceIds.every((id) => byId.has(id)),
       ),
     'CONTROLLED_READ_TOOL_AUTHORITY_UNPROVED',
   );
+  const passages = (a) => (expanded ? a.sourceReads : [a]);
   need(
     Array.isArray(attempts) &&
       attempts.length > 0 &&
       new Set(attempts.map((a) => a.callId)).size === attempts.length &&
-      attempts.every(
-        (a) =>
+      attempts.every((a) => {
+        const seen = passages(a);
+        return (
           calls.some((c) => c.callId === a.callId && c.name === a.tool) &&
           ['caseId', 'captureRunId', 'requestId', 'traceId', 'turnId'].every(
-            (key) => a[key] === policy[key],
+            (k) => a[k] === policy[k],
           ) &&
           a.httpStatus === 200 &&
-          a.sourceId === source.physicalId &&
-          a.logicalSourceId === source.logicalId &&
-          a.sourceTenantId === expected.tenantId &&
-          a.sourceClientId === source.clientId &&
           a.currentVerifySha256 === fixture.currentVerifySha256 &&
-          a.sourceVersion === source.sourceVersion &&
-          a.contentSha256 === source.contentSha256 &&
           HASH.test(a.responseSha256 ?? '') &&
-          (isBudget
-            ? a.logicalError === null &&
-              a.fullRead === true &&
-              a.passageSha256 === source.contentSha256
-            : [null, 'document unavailable'].includes(a.logicalError) &&
-              a.fullRead === false &&
-              a.passageSha256 === null),
-      ),
+          Array.isArray(seen) &&
+          seen.length === sources.length &&
+          new Set(seen.map((r) => r.sourceId)).size === sources.length &&
+          (!expanded ||
+            (isDeepStrictEqual(a.coverage, definition.coverage) &&
+              [
+                'sourceId',
+                'logicalSourceId',
+                'sourceVersion',
+                'contentSha256',
+                'sourceTenantId',
+                'sourceClientId',
+                'fullRead',
+                'passageSha256',
+              ].every((k) => a[k] === seen[0]?.[k]))) &&
+          seen.every((r) => {
+            const s = byId.get(r.sourceId);
+            return (
+              s &&
+              r.logicalSourceId === s.logicalId &&
+              r.sourceVersion === s.sourceVersion &&
+              r.sourceTenantId === expected.tenantId &&
+              r.sourceClientId === s.clientId &&
+              r.contentSha256 === s.contentSha256 &&
+              (isBudget
+                ? a.logicalError === null &&
+                  r.fullRead === true &&
+                  r.passageSha256 === s.contentSha256
+                : [null, 'document unavailable'].includes(a.logicalError) &&
+                  r.fullRead === false &&
+                  r.passageSha256 === null)
+            );
+          })
+        );
+      }),
     'CONTROLLED_READ_HTTP_JOIN_UNPROVED',
   );
-  // Every observed tool invocation must join its actual HTTP attempt. A missing
-  // network response remains unqualified; no attempt is inferred from a label.
   need(calls.length === attempts.length, 'CONTROLLED_READ_HTTP_ATTEMPT_MISSING');
   need(
     Array.isArray(receipt.sources) && Array.isArray(citations),
@@ -221,63 +279,88 @@ export function assertControlledReadReceiptJoins({
   );
   if (isBudget) {
     need(
-      receipt.sources.length > 0 &&
-        receipt.sources.every(
-          (capture) =>
-            capture.sourceId === source.physicalId &&
+      receipt.sources.length >= sources.length &&
+        sources.every((s) => receipt.sources.some((r) => r.sourceId === s.physicalId)) &&
+        receipt.sources.every((capture) => {
+          const s = byId.get(capture.sourceId);
+          return (
+            s &&
             attempts.some(
               (a) =>
                 a.callId === capture.toolCallId &&
-                a.fullRead &&
-                a.passageSha256 === source.contentSha256,
+                passages(a).some(
+                  (r) =>
+                    r.sourceId === s.physicalId &&
+                    r.fullRead &&
+                    r.passageSha256 === s.contentSha256,
+                ),
             ) &&
             calls.some(
               (c) =>
                 c.callId === capture.toolCallId &&
                 c.status === 'complete' &&
-                c.sourceIds.includes(source.physicalId),
+                c.sourceIds.includes(s.physicalId),
             ) &&
-            observed(capture.tenantId, source.tenantId) &&
+            observed(capture.tenantId, s.tenantId) &&
             observed(capture.clientId, null) &&
-            observed(capture.currentVersion, source.sourceVersion) &&
+            observed(capture.currentVersion, s.sourceVersion) &&
             observed(capture.fullRead, true) &&
-            observed(capture.passageSha256, source.contentSha256) &&
-            observed(capture.byteSha256, source.contentSha256) &&
-            observed(capture.locator, 'page 14'),
-        ),
+            observed(capture.passageSha256, s.contentSha256) &&
+            observed(capture.byteSha256, s.contentSha256) &&
+            observed(capture.locator, sections.get(s.physicalId))
+          );
+        }),
       'CONTROLLED_READ_FULL_PASSAGE_UNPROVED',
     );
+    const opened = expanded ? sourceReadback : [sourceReadback];
     need(
-      sourceReadback?.kind === 'controlled_read' &&
-        sourceReadback.status === 'available' &&
-        sourceReadback.recordId === source.physicalId &&
-        sourceReadback.sourceVersion === source.sourceVersion &&
-        sourceReadback.tenantId === expected.tenantId &&
-        sourceReadback.clientId === expected.clientId &&
-        sourceReadback.conversationId === expected.conversationId &&
-        sourceReadback.section === 'page 14' &&
-        sourceReadback.nextCursor === null &&
-        sourceReadback.offset === 0 &&
-        sourceReadback.controlled === true &&
-        typeof sourceReadback.text === 'string' &&
-        sha256Bytes(sourceReadback.text) === source.contentSha256,
+      Array.isArray(opened) &&
+        opened.length === sources.length &&
+        new Set(opened.map((r) => r?.recordId)).size === sources.length &&
+        opened.every((r) => {
+          const s = byId.get(r?.recordId);
+          return (
+            s &&
+            r.kind === 'controlled_read' &&
+            r.status === 'available' &&
+            r.sourceVersion === s.sourceVersion &&
+            r.tenantId === expected.tenantId &&
+            r.clientId === expected.clientId &&
+            r.conversationId === expected.conversationId &&
+            r.section === sections.get(s.physicalId) &&
+            r.nextCursor === null &&
+            r.offset === 0 &&
+            r.controlled === true &&
+            typeof r.text === 'string' &&
+            sha256Bytes(r.text) === s.contentSha256
+          );
+        }),
       'CONTROLLED_READ_CANONICAL_SOURCE_BYTES_MISMATCH',
     );
     need(
-      citations.length === 1 &&
-        citations.every(
-          (c) =>
-            c.id === source.physicalId &&
+      citations.length === sources.length &&
+        new Set(citations.map((c) => c.id)).size === sources.length &&
+        citations.every((c) => {
+          const s = byId.get(c.id);
+          return (
+            s &&
             tools.has(c.tool) &&
             typeof c.snippet === 'string' &&
-            sha256Bytes(c.snippet) === source.contentSha256 &&
+            sha256Bytes(c.snippet) === s.contentSha256 &&
             c.source?.kind === 'controlled_read' &&
-            c.source.recordId === source.physicalId &&
-            c.source.version === source.sourceVersion &&
-            c.source.section === 'page 14' &&
+            c.source.recordId === s.physicalId &&
+            c.source.version === s.sourceVersion &&
+            c.source.section === sections.get(s.physicalId) &&
             c.source.conversationId === expected.conversationId &&
-            c.source.clientId === expected.clientId,
-        ),
+            c.source.clientId === expected.clientId &&
+            calls.some(
+              (call) =>
+                call.name === c.tool &&
+                call.status === 'complete' &&
+                call.sourceIds.includes(s.physicalId),
+            )
+          );
+        }),
       'CONTROLLED_READ_CITATION_BYTES_MISMATCH',
     );
   } else {
@@ -413,7 +496,7 @@ export function assertControlledReadReceiptJoins({
   // Reconcile only this exact owner-proved null-client blocker, never arbitrary
   // source scope gaps or failures. Memo failure has no successfully read sources.
   const reconciledBlockers = new Set(
-    isBudget ? [`source_client_authority_unproved:${source.physicalId}`] : [],
+    isBudget ? sources.map((s) => `source_client_authority_unproved:${s.physicalId}`) : [],
   );
   need(
     Array.isArray(receipt.blockers) &&
@@ -426,6 +509,8 @@ export function assertControlledReadReceiptJoins({
     observedBusinessEffectCount: 0,
     receiptSha256,
     source,
+    sources,
+    coverage: definition.coverage ?? null,
     policyId: policy.policyId,
     requestId: policy.requestId,
     traceId: policy.traceId,

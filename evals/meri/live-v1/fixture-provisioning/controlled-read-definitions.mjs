@@ -2,6 +2,10 @@ import { createHash } from 'node:crypto';
 import { frozenFixture } from '../fixture.mjs';
 import { sha256Stable } from '../artifact-collector.mjs';
 import { AUTHORIZED_TENANTS, ownedIdentity } from './contract.mjs';
+import {
+  CONTROLLED_BUDGET_CASES,
+  createControlledBudgetDefinition,
+} from './controlled-budget-definitions.mjs';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u;
 const hash = (text) => createHash('sha256').update(text, 'utf8').digest('hex');
@@ -21,6 +25,8 @@ const freeze = (value) => {
  * Runtime admission must independently verify the signed current capture binding.
  */
 export function createControlledReadDefinition({ caseId, tenantId, clientId, captureRunId }) {
+  if (CONTROLLED_BUDGET_CASES.includes(caseId))
+    return createControlledBudgetDefinition({ caseId, tenantId, clientId, captureRunId });
   if (
     !['20', '72', '74'].includes(caseId) ||
     tenantId !== AUTHORIZED_TENANTS.T1.id ||

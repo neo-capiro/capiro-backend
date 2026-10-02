@@ -18,6 +18,19 @@ export interface MeriControlledReadAttempt {
   sourceClientId: string | null;
   fullRead: boolean;
   passageSha256: string | null;
+  /** Additional complete source set from ONE actual HTTP response. The legacy
+   * scalar fields identify its first source; they never add another tool call. */
+  sourceReads?: Array<{
+    sourceId: string;
+    logicalSourceId: string;
+    sourceVersion: string;
+    contentSha256: string;
+    sourceTenantId: string;
+    sourceClientId: string | null;
+    fullRead: true;
+    passageSha256: string;
+  }>;
+  coverage?: Record<string, unknown> | null;
 }
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import { canonicalJson } from '../repair/plan-remedy';

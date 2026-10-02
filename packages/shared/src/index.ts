@@ -3098,7 +3098,7 @@ function citationRowsOf(tool: string, payload: Record<string, unknown>): unknown
   if (
     citationObject(payload.controlledRead) &&
     payload.controlledRead.owner === 'meri_controlled_read_v1' &&
-    payload.controlledRead.caseId === '20' &&
+    ['20', '21', '22', '23', '24', '26', '27'].includes(String(payload.controlledRead.caseId)) &&
     Array.isArray(payload.records)
   )
     return payload.records;
@@ -3183,10 +3183,18 @@ function sourceLocatorForCitation(
     typeof value === 'string' && uuid.test(value) ? value : undefined;
   const observedAt = typeof result.generatedAt === 'string' ? result.generatedAt : undefined;
   const controlled = citationObject(result.controlledRead) ? result.controlledRead : null;
+  const budgetSource =
+    controlled &&
+    ['21', '22', '23', '24', '26', '27'].includes(String(controlled.caseId)) &&
+    Array.isArray(controlled.sourceReads)
+      ? controlled.sourceReads.find(
+          (source) =>
+            citationObject(source) && source.sourceId === id && source.sourceVersion === 'v1',
+        )
+      : undefined;
   if (
     controlled?.owner === 'meri_controlled_read_v1' &&
-    controlled.caseId === '20' &&
-    controlled.sourceId === id &&
+    ((controlled.caseId === '20' && controlled.sourceId === id) || budgetSource) &&
     exact(id) &&
     exact(controlled.clientId) &&
     exact(controlled.conversationId) &&
@@ -3198,7 +3206,10 @@ function sourceLocatorForCitation(
       clientId: String(controlled.clientId),
       conversationId: String(controlled.conversationId),
       version: 'v1',
-      section: 'page 14',
+      section:
+        controlled.caseId === '20'
+          ? 'page 14'
+          : (firstCitationString(row, ['section']) ?? undefined),
     };
   }
   if (tool === 'read_client_documents' && citationObject(result.document)) {

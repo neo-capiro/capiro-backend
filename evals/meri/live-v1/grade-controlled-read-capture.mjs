@@ -1,6 +1,7 @@
 import { currentControlledReadCaptureAuthority } from './controlled-read-live-capture.mjs';
 import { assertControlledReadReceiptJoins } from './controlled-read-receipt-joins.mjs';
 import { sha256Bytes } from './artifact-collector.mjs';
+import { inspectControlledBudgetSavedEvidence } from './controlled-budget-predicates.mjs';
 
 const dimensions = Object.freeze([
   'factual_support',
@@ -12,6 +13,8 @@ const dimensions = Object.freeze([
 
 /** Pure saved-data checks. These do not confer LIVE authority or acceptance. */
 export function inspectControlledReadSavedEvidence(inputs) {
+  if (['21', '22', '23', '24', '26', '27'].includes(inputs?.expected?.caseId))
+    return inspectControlledBudgetSavedEvidence(inputs);
   const joins = assertControlledReadReceiptJoins(inputs);
   const caseId = inputs.expected.caseId,
     defects = [];
