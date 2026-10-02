@@ -1,4 +1,9 @@
 import https from 'node:https';
+import {
+  claimCaptureSpendReservation,
+  assertCaptureSpendReservation,
+  settleCaptureSpendReservation,
+} from './capture-spend-aggregate.mjs';
 import { isDeepStrictEqual } from 'node:util';
 import { readFileSync } from 'node:fs';
 import { ArtifactCollector, sha256Bytes, sha256Stable } from './artifact-collector.mjs';
@@ -421,15 +426,19 @@ export async function prepareCase01LiveCapture({
   config,
   runRoot,
   artifactStorage,
+  spendReservation,
   env = process.env,
 }) {
-  return prepareMemoryLiveCapture({ config, runRoot, artifactStorage, env }, '01');
+  return prepareMemoryLiveCapture(
+    { config, runRoot, artifactStorage, spendReservation, env },
+    '01',
+  );
 }
 export async function prepareCase14RecallCapture(input) {
   return prepareMemoryLiveCapture(input, '14');
 }
 async function prepareMemoryLiveCapture(
-  { config, runRoot, artifactStorage, env = process.env },
+  { config, runRoot, artifactStorage, spendReservation, env = process.env },
   caseId,
 ) {
   const scope = inspectMemoryScope(config, env, caseId);
@@ -440,6 +449,7 @@ async function prepareMemoryLiveCapture(
   ].join(':');
   need(!claimedRuns.has(claim), 'CASE01_RUN_ALREADY_CLAIMED');
   assertWindowsArtifactStorage(artifactStorage, runRoot);
+  claimCaptureSpendReservation(spendReservation, scope.expected);
   const collector = new ArtifactCollector(
     runRoot,
     {
@@ -470,6 +480,7 @@ async function prepareMemoryLiveCapture(
     transport,
     before,
     builds,
+    spendReservation,
     consumed: false,
   });
   return capability;
@@ -493,7 +504,7 @@ async function executeMemoryLiveCapture(capability) {
   const state = sessions.get(capability);
   need(state && !state.consumed, 'CASE01_AUTHENTICATED_CAPABILITY_REQUIRED');
   state.consumed = true;
-  const { scope, config, collector, transport, before, builds } = state;
+  const { scope, config, collector, transport, before, builds, spendReservation } = state;
   const caseId = scope.expected.caseId,
     selected = fixedCases[caseId];
   let outcome;
@@ -523,6 +534,7 @@ async function executeMemoryLiveCapture(capability) {
       Date.now() < current.admission.expiresAt && Date.now() - builds.observedAt <= 60000,
       'CASE01_PRESUBMIT_AUTHORITY_STALE',
     );
+    assertCaptureSpendReservation(spendReservation, scope.expected);
     const stream = await transport.request(
       `/api/clio/conversations/${config.conversationId}/stream`,
       { body: selected.prompt },
@@ -614,6 +626,13 @@ async function executeMemoryLiveCapture(capability) {
       ...transport.counts(),
     });
     outcomes.set(outcome, { joins, evidence, collector, descriptor });
+    try {
+      const checkpoint = settleCaptureSpendReservation(spendReservation, outcome);
+      await collector.writeJson('aggregate-spend-checkpoint.json', checkpoint);
+    } catch (error) {
+      outcomes.delete(outcome);
+      throw error;
+    }
   } catch (error) {
     const counts = transport.counts();
     outcome = Object.freeze({

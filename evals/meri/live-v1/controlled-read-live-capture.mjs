@@ -1,4 +1,9 @@
 import https from 'node:https';
+import {
+  claimCaptureSpendReservation,
+  assertCaptureSpendReservation,
+  settleCaptureSpendReservation,
+} from './capture-spend-aggregate.mjs';
 import { isDeepStrictEqual } from 'node:util';
 import { readFileSync } from 'node:fs';
 import { ArtifactCollector, sha256Bytes, sha256Stable } from './artifact-collector.mjs';
@@ -390,6 +395,7 @@ export async function prepareControlledReadLiveCapture({
   config,
   runRoot,
   artifactStorage,
+  spendReservation,
   env = process.env,
 }) {
   const scope = inspectControlledReadScope(config, env);
@@ -400,6 +406,7 @@ export async function prepareControlledReadLiveCapture({
   ].join(':');
   need(!claimedRuns.has(claim), 'CONTROLLED_READ_RUN_ALREADY_CLAIMED');
   assertWindowsArtifactStorage(artifactStorage, runRoot);
+  claimCaptureSpendReservation(spendReservation, scope.expected);
   const collector = new ArtifactCollector(
     runRoot,
     {
@@ -430,6 +437,7 @@ export async function prepareControlledReadLiveCapture({
     transport,
     before,
     builds,
+    spendReservation,
     consumed: false,
   });
   return capability;
@@ -439,7 +447,7 @@ export async function executeControlledReadLiveCapture(capability) {
   const state = sessions.get(capability);
   need(state && !state.consumed, 'CONTROLLED_READ_AUTHENTICATED_CAPABILITY_REQUIRED');
   state.consumed = true;
-  const { scope, config, collector, transport, before, builds } = state;
+  const { scope, config, collector, transport, before, builds, spendReservation } = state;
   const testCase = selectedCase(config.caseId);
   let outcome;
   try {
@@ -468,6 +476,7 @@ export async function executeControlledReadLiveCapture(capability) {
       Date.now() < current.admission.expiresAt && Date.now() - builds.observedAt <= 60000,
       'CONTROLLED_READ_PRESUBMIT_AUTHORITY_STALE',
     );
+    assertCaptureSpendReservation(spendReservation, scope.expected);
     const stream = await transport.request(
       `/api/clio/conversations/${config.conversationId}/stream`,
       { body: testCase.prompt },
@@ -570,6 +579,13 @@ export async function executeControlledReadLiveCapture(capability) {
       ...transport.counts(),
     });
     outcomes.set(outcome, { joins, evidence, collector, descriptor });
+    try {
+      const checkpoint = settleCaptureSpendReservation(spendReservation, outcome);
+      await collector.writeJson('aggregate-spend-checkpoint.json', checkpoint);
+    } catch (error) {
+      outcomes.delete(outcome);
+      throw error;
+    }
   } catch (error) {
     const counts = transport.counts();
     outcome = Object.freeze({
