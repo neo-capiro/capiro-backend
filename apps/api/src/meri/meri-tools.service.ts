@@ -1,3 +1,4 @@
+import { assertTextArtifactCurrentProposal } from './meri-text-artifact-current-proposal.js';
 import { researchPortfolioManagementSchema, parseResearchPortfolioManagementInput } from '../research-portfolios/research-portfolio-management.js';
 import { federalHearingWhere } from '../hearing-discovery/hearing-geography.js';
 import {
@@ -2742,7 +2743,7 @@ export class MeriToolsService {
         if (input.format !== undefined && input.format !== 'docx' && input.format !== 'pdf' && input.format !== 'txt') {
           throw new BadRequestException('Document format must be docx, pdf or txt');
         }
-        return this.createDocument(ctx, input, input.format === 'txt' ? 'txt' : input.format === 'pdf' ? 'pdf' : 'docx');
+        return this.createDocument(ctx, input, input.format === 'txt' ? 'txt' : input.format === 'pdf' ? 'pdf' : 'docx', execution?.actionProposalId);
       case 'create_excel':
         return this.createDocument(ctx, input, 'xlsx');
       case 'create_powerpoint':
@@ -7484,6 +7485,7 @@ export class MeriToolsService {
     ctx: TenantContext,
     input: Record<string, unknown>,
     format: DocFormat,
+    actionProposalId?: string,
   ) {
     let clientId = optionalString(input, 'clientId', 80) ?? null;
     const conversationId = optionalString(input, 'conversationId', 80);
@@ -7588,7 +7590,7 @@ export class MeriToolsService {
             : 'powerpoint_deck';
     const filename = `${slugifyDocName(title)}.${format}`;
     const textCreation: TextArtifactCreation | undefined = format === 'txt' ? {
-      version: 1, kind: 'meri_text_artifact_creation', operationId: randomUUID(),
+      version: 1, kind: 'meri_text_artifact_creation', operationId: randomUUID(), actionProposalId: actionProposalId ?? null,
       tenantId: ctx.tenantId, userId: ctx.userId, clientId, conversationId: conversationId!,
       filename, mimeType: 'text/plain', sha256: documentSha256, byteLength: generatedBuffer.length,
     } : undefined;
@@ -7626,7 +7628,7 @@ export class MeriToolsService {
       filename,
       mimeType: mimeForFormat(format),
       artifact,
-      ...(textCreation && artifactId ? { operationReceipt: readTextArtifactCreation(textCreation, {
+      ...(textCreation && artifactId ? { artifactId, operationId: textCreation.operationId, sha256: documentSha256, byteLength: generatedBuffer.length, operationReceipt: readTextArtifactCreation(textCreation, {
         artifactId, tenantId: ctx.tenantId, userId: ctx.userId, clientId, conversationId: conversationId!,
         filename, mimeType: 'text/plain', sha256: documentSha256, byteLength: generatedBuffer.length,
       }) } : {}),
@@ -7774,6 +7776,15 @@ export class MeriToolsService {
         byteAuthority = 'persisted_at_creation_v1';
       }
     }
+    const operationReceipt = nativeFormat === 'txt' ? readTextArtifactCreation(meta.textCreation, {
+      artifactId: artifact.id,
+      tenantId: ctx.tenantId, userId: ctx.userId, clientId: artifact.clientId,
+      conversationId: artifact.conversationId, filename, mimeType: 'text/plain',
+      sha256: persistedSha256!, byteLength: persistedBytes!.length,
+    }) : undefined;
+    if (operationReceipt?.actionProposalId) {
+      await this.prisma.withTenant(ctx.tenantId, (tx) => assertTextArtifactCurrentProposal(tx, operationReceipt));
+    }
     return {
       format,
       specJson: artifact.bodyText,
@@ -7782,11 +7793,7 @@ export class MeriToolsService {
       persistedBytes,
       persistedSha256,
       byteAuthority,
-      ...(nativeFormat === 'txt' ? { operationReceipt: readTextArtifactCreation(meta.textCreation, {
-        artifactId: artifact.id, tenantId: ctx.tenantId, userId: ctx.userId,
-        clientId: artifact.clientId, conversationId: artifact.conversationId,
-        filename, mimeType: 'text/plain', sha256: persistedSha256!, byteLength: persistedBytes!.length,
-      }) } : {}),
+      ...(operationReceipt ? { operationReceipt } : {}),
     };
   }
 

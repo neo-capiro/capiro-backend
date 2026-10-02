@@ -84,6 +84,9 @@ function harness(initialArtifacts: Artifact[] = []) {
     archivedAt: null, clientId: null,
   };
   const tx = {
+    meriActionProposal: {
+      findFirst: jest.fn<Promise<Record<string, unknown> | null>, [unknown]>(async () => null),
+    },
     clioArtifact: {
       findFirst: jest.fn(async ({ where }: { where: Record<string, unknown> }) => {
         const row = artifacts.find((candidate) => Object.entries(where).every(([key, value]) => candidate[key] === value));
@@ -136,8 +139,29 @@ describe('native governed text artifact creation', () => {
     await h.controller.downloadArtifact(ctx, artifactId, response.response);
     expect(response.send).toHaveBeenCalledWith(Buffer.from(textInput().text));
     expect(response.setHeader).toHaveBeenCalledWith('X-Capiro-Artifact-Operation-Id', result.operationReceipt.operationId);
+    expect(response.setHeader).toHaveBeenCalledWith('X-Capiro-Artifact-Creation-Receipt', Buffer.from(JSON.stringify(result.operationReceipt)).toString('base64url'));
     expect(h.buildDocx).not.toHaveBeenCalled();
     expect(h.buildPdf).not.toHaveBeenCalled();
+  });
+  it('binds a completed canonical proposal and permits an authorized retry without trusting attempt count', async () => {
+    const h = harness();
+    const actionProposalId = '713b7393-e35e-4c26-940b-2e10ea94eb70';
+    const input = textInput();
+    const result = await h.service.execute(ctx, 'create_word', input, { actionProposalId }) as any;
+    expect(result.operationReceipt.actionProposalId).toBe(actionProposalId);
+    expect(result).toMatchObject({ artifactId, operationId: result.operationReceipt.operationId, sha256: result.operationReceipt.sha256, byteLength: 28 });
+    await expect(h.service.getDocumentArtifact(ctx, artifactId)).rejects.toBeInstanceOf(UnprocessableEntityException);
+    const proposal = { input, resultSummary: { ok: true, artifactId, operationId: result.operationId, sha256: result.sha256, byteLength: result.byteLength, filename: result.filename }, executedAt: new Date(), attemptCount: 2 };
+    h.tx.meriActionProposal.findFirst.mockResolvedValue(proposal);
+    expect((await h.service.getDocumentArtifact(ctx, artifactId))?.operationReceipt).toEqual(result.operationReceipt);
+    expect(h.tx.meriActionProposal.findFirst).toHaveBeenLastCalledWith(expect.objectContaining({ where: { id: actionProposalId, tenantId: ctx.tenantId, userId: ctx.userId, actorUserId: ctx.userId, conversationId, tool: 'create_word', surface: 'chat', status: 'succeeded' } }));
+    for (const field of ['artifactId', 'operationId', 'sha256', 'byteLength', 'filename']) {
+      h.tx.meriActionProposal.findFirst.mockResolvedValue({ ...proposal, resultSummary: { ...proposal.resultSummary, [field]: 'changed' } });
+      await expect(h.service.getDocumentArtifact(ctx, artifactId)).rejects.toBeInstanceOf(UnprocessableEntityException);
+    }
+    h.tx.meriActionProposal.findFirst.mockResolvedValue({ ...proposal, input: { ...input, text: 'changed' } });
+    await expect(h.service.getDocumentArtifact(ctx, artifactId)).rejects.toBeInstanceOf(UnprocessableEntityException);
+    expect(h.tx.clioArtifact.create).toHaveBeenCalledTimes(1);
   });
   it('requires actual conversation/client authority and rejects changed receipt ownership/bytes', async () => {
     const h = harness();

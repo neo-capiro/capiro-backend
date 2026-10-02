@@ -633,6 +633,28 @@ describe('MeriActionProposalService', () => {
     expect(result.attemptCount).toBe(1);
   });
 
+  it('retains text artifact effect identity in the durable proposal result without copying document bytes', async () => {
+    const input = { format: 'txt', title: 'Aster Synthetic Briefing', text: 'Synthetic Aster briefing v1\n' };
+    const effect = {
+      ok: true,
+      artifactId: '44444444-4444-4444-8444-444444444444',
+      operationId: '55555555-5555-4555-8555-555555555555',
+      filename: 'aster-synthetic-briefing.txt',
+      sha256: 'c26beebc62f179a568981d811784dc75ad7e2cad79c94165d6f4859dcb278c53',
+      byteLength: 28,
+    };
+    const h = harness({
+      row: makeRow({ tool: 'create_word', input }),
+      executeResult: { ...effect, documentBytes: Buffer.from(input.text), text: input.text },
+    });
+    h.setPolicy({ outcome: 'WARN', reasons: ['Requires approval'] });
+    const first = await h.service.approveAndExecute(ctx, PROPOSAL);
+    const readback = await h.service.approveAndExecute(ctx, PROPOSAL);
+    expect(first.resultSummary).toEqual(effect);
+    expect(readback.resultSummary).toEqual(effect);
+    expect(h.tools.execute).toHaveBeenCalledTimes(1);
+  });
+
   it.each(['PASS', 'WARN'] as const)(
     'keeps ambiguous send_email %s outcome unknown without retry',
     async (outcome) => {
