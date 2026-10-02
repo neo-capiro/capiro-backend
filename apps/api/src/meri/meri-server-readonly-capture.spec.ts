@@ -113,6 +113,21 @@ function authorityHarness() {
     messages: [] as any[],
   };
   const tx = {
+    $executeRaw: jest.fn(async (_sql: TemplateStringsArray, ...values: any[]) => {
+      const [metadata, id, tenantId, userId, conversationId, clientId] = values;
+      const row = state.messages.find(
+        (candidate) =>
+          candidate.id === id &&
+          candidate.tenantId === tenantId &&
+          candidate.userId === userId &&
+          candidate.conversationId === conversationId &&
+          candidate.clientId === clientId &&
+          candidate.role === 'assistant',
+      );
+      if (!row) return 0;
+      row.metadata = { ...row.metadata, ...JSON.parse(metadata) };
+      return 1;
+    }),
     tenant: {
       findUnique: jest.fn(async () => ({
         id: TENANT_ID,
@@ -344,12 +359,13 @@ describe('server-owned read-only acceptance capture boundary', () => {
                   .map(([key, item]) => [key, reorder(item)]),
               )
             : value;
-      const update = tx.clioMessage.update.getMockImplementation()!;
+      const update = tx.$executeRaw.getMockImplementation()!;
       let tamper = false;
-      tx.clioMessage.update.mockImplementation(async (args: any) => {
-        const result = await update(args);
-        result.metadata = reorder(result.metadata);
-        if (tamper) result.metadata.serverCaptureEvidenceReceipt.receipt.traceId = 'tampered';
+      tx.$executeRaw.mockImplementation(async (sql: TemplateStringsArray, ...values: any[]) => {
+        const result = await update(sql, ...values);
+        const row = state.messages[0];
+        row.metadata = reorder(row.metadata);
+        if (tamper) row.metadata.serverCaptureEvidenceReceipt.receipt.traceId = 'tampered';
         return result;
       });
       const proxy = Object.assign(Object.create(MeriV3ProxyService.prototype), { prisma }) as any;

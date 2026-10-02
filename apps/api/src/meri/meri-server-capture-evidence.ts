@@ -205,22 +205,28 @@ export async function persistMeriServerCaptureEvidenceReceipt(args: {
       clientId: args.policy.clientId,
       role: 'assistant',
     } as const;
-    const current = await tx.clioMessage.findFirst({ where, select: { metadata: true } });
+    const current = await tx.clioMessage.findFirst({ where, select: { id: true } });
     if (!current) throw new Error('meri_capture_assistant_message_readback_missing');
-    const metadata =
-      current.metadata && typeof current.metadata === 'object' && !Array.isArray(current.metadata)
-        ? (current.metadata as Record<string, unknown>)
-        : {};
-    await tx.clioMessage.update({
-      where: { id: args.assistantMessageId },
-      data: {
-        metadata: {
-          ...metadata,
-          serverCaptureEvidenceReceipt: args.receipt,
-          serverReadonlyCapturePolicy: policy,
-        } as unknown as import('@prisma/client').Prisma.InputJsonValue,
-      },
+    // Prisma's JSON input conversion can round finite numbers before PostgreSQL
+    // sees them. A signed receipt must retain its exact numeric values. Bind JSON
+    // text directly, preserving unrelated metadata in the same scoped update.
+    const signedMetadata = JSON.stringify({
+      serverCaptureEvidenceReceipt: args.receipt,
+      serverReadonlyCapturePolicy: policy,
     });
+    const updated = await tx.$executeRaw`
+      UPDATE clio_messages
+      SET metadata_jsonb =
+        (CASE WHEN jsonb_typeof(metadata_jsonb) = 'object'
+          THEN metadata_jsonb ELSE '{}'::jsonb END) || ${signedMetadata}::jsonb
+      WHERE id = ${args.assistantMessageId}::uuid
+        AND tenant_id = ${args.ctx.tenantId}::uuid
+        AND user_id = ${args.ctx.userId}::uuid
+        AND conversation_id = ${args.policy.conversationId}::uuid
+        AND client_id IS NOT DISTINCT FROM ${args.policy.clientId}::uuid
+        AND role = 'assistant'
+    `;
+    if (updated !== 1) throw new Error('meri_capture_assistant_message_readback_missing');
     const readback = await tx.clioMessage.findFirst({ where, select: { metadata: true } });
     const readbackMetadata =
       readback?.metadata &&
