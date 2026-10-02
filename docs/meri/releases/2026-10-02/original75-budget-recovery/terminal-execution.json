@@ -1,0 +1,14 @@
+{
+  "status": "VERIFIED",
+  "sourceSha": "e05d35710187939fd71aedc56ba47dc1d7f0213e",
+  "checkpointSha256": "2aef68893a7343f18fa122e330289d673e0a76ac9396bc060bb9277d366a8d37",
+  "checkpointPath": "C:/dev/cap-meri-foundation-evidence/oct02-original-aggregate-operator-v6/case01-retest-settled-checkpoint.json",
+  "readbackSha256": "f602c3dd80de236f6f8d0386be2ae93ffde1e23d6f3c9b6cada0f2205b09c470",
+  "chargedCostMicros": 1,
+  "legacyReservedCeilingsMicros": 6000000,
+  "remainingReservationMicros": 24000000,
+  "answerGrade": "NOT_EVALUATED",
+  "applicationWrites": 0,
+  "providerSubmissions": 0,
+  "at": "2026-10-02T19:23:14.627Z"
+}

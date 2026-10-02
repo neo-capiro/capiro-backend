@@ -1,4 +1,31 @@
-## Current checkpoint — 2026-10-02 19:09 UTC, original01 runtime failure
+## Current checkpoint — 2026-10-02 19:29 UTC, test budget cause identified
+
+The original01 retest failed because its test reservation ceiling was too small:
+the API rejected the first answer-model reservation with
+`research_provider_budget_cost_exhausted`. No answer-model request ran. This was
+an undersized synthetic test limit, not evidence of exhausted provider credits.
+The authenticated terminal readback accounts for one embedding, 11 tokens and
+one micro-dollar. Root appended a terminal settlement to the same native journal
+and independently reopened it: event 4, no active run, known settled cost 1
+micro-dollar. Both legacy $3 ceilings remain consumed, including the first
+attempt's UNKNOWN billing; $24 of the unchanged $30 aggregate remains available.
+
+The integrated response recorder now preserves redacted failure output before
+quality assertions (215 tests, independent Hermes/Kimi review exit 0). The shared
+memory-read accounting bridge passed 113 native/owner/planner checks, 110 API
+checks, 10 orchestrator checks, types and the separate 26-case offline suite.
+Its Hermes review process exited 1; root source review is recorded separately,
+and its prose is not counted as a successful worker review. Generic terminal
+reconciliation passed 17 checks. These changes are not yet deployed.
+
+The next qualification increases only the synthetic per-case reservation and
+cumulative token limits, using independently verified conservative long-context
+pricing. Model, provider, tools and output settings stay unchanged. No new live
+case has run. The 75 cases, mode/JEV variants and human review remain incomplete;
+zero original live rows are fully accepted. API509, orchestrator99 and WebVNext388
+remain deployed. Defense Chat is excluded.
+
+## Prior checkpoint — 2026-10-02 19:09 UTC, original01 runtime failure
 
 The fresh original01 retest reached the runtime but failed before an answer-model
 call. Its persisted assistant response says the reasoning runtime was unavailable.

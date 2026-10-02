@@ -1,0 +1,154 @@
+{
+  "kind": "provider-two-round-reservation-source-repro",
+  "status": "PASS",
+  "tests": 7,
+  "outcomes": [
+    {
+      "name": "current200k fails second round even after modest actual use",
+      "tokens": 200000,
+      "cost": 4000000,
+      "price": {
+        "inputPerM": 12.5,
+        "outputPerM": 50
+      },
+      "b1": 174464,
+      "b2": 174464,
+      "u1": [
+        20000,
+        500
+      ],
+      "expect": "research_provider_budget_tokens_exhausted",
+      "observed": "research_provider_budget_tokens_exhausted",
+      "chargedTokens": null,
+      "chargedCostMicros": null
+    },
+    {
+      "name": "same observed maximum twice with upper tier rates",
+      "tokens": 500000,
+      "cost": 15000000,
+      "price": {
+        "inputPerM": 25,
+        "outputPerM": 75
+      },
+      "b1": 183605,
+      "b2": 183605,
+      "u1": [
+        183605,
+        16384
+      ],
+      "expect": "RESERVED",
+      "expectedTokens": 399989,
+      "expectedMicros": 11637851,
+      "observed": "RESERVED",
+      "chargedTokens": 399989,
+      "chargedCostMicros": 11637851
+    },
+    {
+      "name": "two200k requests with long tier margin",
+      "tokens": 500000,
+      "cost": 15000000,
+      "price": {
+        "inputPerM": 25,
+        "outputPerM": 75
+      },
+      "b1": 200000,
+      "b2": 200000,
+      "u1": [
+        200000,
+        16384
+      ],
+      "expect": "RESERVED",
+      "expectedTokens": 432779,
+      "expectedMicros": 12457601,
+      "observed": "RESERVED",
+      "chargedTokens": 432779,
+      "chargedCostMicros": 12457601
+    },
+    {
+      "name": "second round grows by50k after tool response",
+      "tokens": 500000,
+      "cost": 15000000,
+      "price": {
+        "inputPerM": 25,
+        "outputPerM": 75
+      },
+      "b1": 200000,
+      "b2": 250000,
+      "u1": [
+        200000,
+        16384
+      ],
+      "expect": "RESERVED",
+      "expectedTokens": 482779,
+      "expectedMicros": 13707601,
+      "observed": "RESERVED",
+      "chargedTokens": 482779,
+      "chargedCostMicros": 13707601
+    },
+    {
+      "name": "10USD lacks worst-case two-round long-tier reserve",
+      "tokens": 500000,
+      "cost": 10000000,
+      "price": {
+        "inputPerM": 25,
+        "outputPerM": 75
+      },
+      "b1": 200000,
+      "b2": 200000,
+      "u1": [
+        200000,
+        16384
+      ],
+      "expect": "research_provider_budget_cost_exhausted",
+      "observed": "research_provider_budget_cost_exhausted",
+      "chargedTokens": null,
+      "chargedCostMicros": null
+    },
+    {
+      "name": "larger requests still fail total token ceiling",
+      "tokens": 500000,
+      "cost": 15000000,
+      "price": {
+        "inputPerM": 25,
+        "outputPerM": 75
+      },
+      "b1": 250000,
+      "b2": 250000,
+      "u1": [
+        250000,
+        16384
+      ],
+      "expect": "research_provider_budget_tokens_exhausted",
+      "observed": "research_provider_budget_tokens_exhausted",
+      "chargedTokens": null,
+      "chargedCostMicros": null
+    },
+    {
+      "name": "short tier arithmetic needs separate enforced request ceiling",
+      "tokens": 500000,
+      "cost": 8000000,
+      "price": {
+        "inputPerM": 12.5,
+        "outputPerM": 50
+      },
+      "b1": 200000,
+      "b2": 200000,
+      "u1": [
+        200000,
+        16384
+      ],
+      "expect": "RESERVED",
+      "expectedTokens": 432779,
+      "expectedMicros": 6638401,
+      "observed": "RESERVED",
+      "chargedTokens": 432779,
+      "chargedCostMicros": 6638401
+    }
+  ],
+  "networkCalls": 0,
+  "dbCalls": 0,
+  "providerCalls": 0,
+  "scope": "Arithmetic and real owner reservation/settlement only; does not install qualification or prove all cases fit.",
+  "source": "apps/api/src/meri/meri-research-tool-budget.ts",
+  "sourceSha256": "04c3fef0a7c3ba027fa0619273240b18f33e581cb6fd3fbd21e391eb6f306174"
+}

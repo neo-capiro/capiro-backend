@@ -1,0 +1,133 @@
+{
+  "schemaVersion": 1,
+  "kind": "shared-synthetic-read-budget-local-qualification",
+  "sourceSha": "9e75d2cd967fc4fddd74468ad7ae4028b5e4d2ad",
+  "corpusDependencyCherryPick": "07a4125f128e0a5550375b46e72a9481bea9c7e8",
+  "policySha": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "machineMapRevision": "2026-09-30",
+  "sourceManifestSha256": "c244cd89f29c8db3a4e82ae3f119169efbfa4ea2351d47cada39c3c013872181",
+  "checks": [
+    {
+      "name": "API legacy compatibility",
+      "count": 110,
+      "exitCode": 0,
+      "log": "api-tests.log",
+      "logSha256": "8bdcae801ea1ffb7e025186320a25da585d0b2c28a0ed5f9c281fea7c51ed1da",
+      "exitReceipt": "api-tests.exit.json",
+      "exitReceiptSha256": "ea61d7736f0b7ecb9b35158f03de77013db6b100cf1d36c957e78e6c8817c5b6"
+    },
+    {
+      "name": "orchestrator signed transport and read-only dispatch",
+      "count": 10,
+      "exitCode": 0,
+      "log": "orc-tests-v2.log",
+      "logSha256": "4084b6dd896fdd67ebd64de1ad175c741e84c5c869679f875137252489108ef0",
+      "exitReceipt": "orc-tests-v2.exit.json",
+      "exitReceiptSha256": "ea61d7736f0b7ecb9b35158f03de77013db6b100cf1d36c957e78e6c8817c5b6"
+    },
+    {
+      "name": "native aggregate, terminal, reader, actual owned PostgreSQL and five original planners",
+      "count": 113,
+      "exitCode": 0,
+      "log": "final-node-tests.log",
+      "logSha256": "51a5d6775343cbd2ee2bda25c866f5438dfac465e33ed0f33abe618cea79272f",
+      "exitReceipt": "final-node-tests.exit.json",
+      "exitReceiptSha256": "ea61d7736f0b7ecb9b35158f03de77013db6b100cf1d36c957e78e6c8817c5b6"
+    },
+    {
+      "name": "full API primary typecheck",
+      "count": null,
+      "exitCode": 0,
+      "log": "api-types-v5.log",
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "exitReceipt": "api-types-v5.exit.json",
+      "exitReceiptSha256": "ea61d7736f0b7ecb9b35158f03de77013db6b100cf1d36c957e78e6c8817c5b6"
+    },
+    {
+      "name": "full orchestrator typecheck",
+      "count": null,
+      "exitCode": 0,
+      "log": "orc-types.log",
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "exitReceipt": "orc-types.exit.json",
+      "exitReceiptSha256": "ea61d7736f0b7ecb9b35158f03de77013db6b100cf1d36c957e78e6c8817c5b6"
+    }
+  ],
+  "offline": {
+    "count": 26,
+    "pass": 26,
+    "fail": 0,
+    "exitCode": 0,
+    "providerTokens": 0,
+    "receipt": "offline/exits.json",
+    "receiptSha256": "9770ffc543c3fd8380f1a663e0d857c8c3520b1c14917087ce5b48ac5f34c34c",
+    "reportSha256": "6e266130b93d78d4452dda1551898db47bc276a1d7eb42877a5e00624d4ef39f"
+  },
+  "review": {
+    "model": "moonshotai.kimi-k2.5",
+    "provider": "bedrock",
+    "session": "20261002_185647_bd0c40",
+    "processExitCode": 1,
+    "finalProseVerdict": "PASS",
+    "successfulWorkerReview": false,
+    "toolCalls": [
+      {
+        "name": "read_file",
+        "input": {
+          "path": "C:\\dev\\capiro-agent-ops\\BOOTSTRAP.md"
+        }
+      },
+      {
+        "name": "read_file",
+        "input": {
+          "path": "C:\\dev\\capiro-agent-ops\\AGENTS.md"
+        }
+      },
+      {
+        "name": "read_file",
+        "input": {
+          "path": "C:\\dev\\capiro-agent-ops\\hermes\\OPERATING.md"
+        }
+      }
+    ],
+    "sourceWrites": 0,
+    "rawReviewSha256": "b26058fdaef96406dd56c6bfd8b87bb62e41fc74f51f13b25dc8ae7e01f862b0",
+    "transcriptSha256": "9e4ee4baf92593adcf7261d2a0b973ac97cdfd243f4e6c094ae25865cf8ecf63",
+    "limitation": "Worker used one turn to read policy and exited1; final prose is not successful worker review evidence. Prose incorrectly says no tools, misnames one file/type anchor, has per-case field typo and calls30million microdollars30M dollars. Actual total is30USD. Parent independently reviewed source and requires factual limits preserved."
+  },
+  "runtimeFiles": [
+    "apps/api/scripts/meri-synthetic-read-budget.mjs",
+    "apps/api/src/meri/meri-capture-api-provider-scope.ts",
+    "apps/api/src/meri/meri-capture-provider-budget-install.ts",
+    "apps/api/src/meri/meri-capture-provider-budget.controller.ts",
+    "apps/api/src/meri/meri-context-plane-runtime.ts",
+    "apps/api/src/meri/meri-server-readonly-capture.ts",
+    "apps/api/src/meri/meri-synthetic-read-budget-owner.ts",
+    "apps/api/src/meri/meri-synthetic-read-budget.ts",
+    "apps/api/src/meri/meri-tools.service.ts",
+    "apps/api/src/meri/meriv3-proxy.service.ts",
+    "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-capture-provider-budget.spec.ts",
+    "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-capture-provider-budget.ts",
+    "apps/meriv2-orchestrator/src/meri/server-readonly-capture-dispatch.spec.ts",
+    "apps/meriv2-orchestrator/src/request/trusted-current-turn-scope.ts",
+    "evals/meri/live-v1/SHARED-READ-BUDGET.md",
+    "evals/meri/live-v1/capture-spend-aggregate.mjs",
+    "evals/meri/live-v1/lib/windows-capture-spend.py",
+    "evals/meri/live-v1/memory-read-budget-authority.mjs",
+    "evals/meri/live-v1/memory-read-spend.mjs",
+    "evals/meri/live-v1/tests/capture-spend-v2.test.mjs",
+    "evals/meri/live-v1/tests/memory-read-budget.test.mjs",
+    "evals/meri/live-v1/tests/synthetic-read-budget.postgres.test.mjs",
+    "packages/meriv2-core/src/context/server-readonly-capture.ts",
+    "packages/meriv2-core/src/context/synthetic-read-budget.ts",
+    "packages/meriv2-core/src/index.ts"
+  ],
+  "liveEvaluation": "NOT_RUN",
+  "nativeActualJournalMutation": "NOT_RUN",
+  "remaining": [
+    "Separate generic terminal reconciliation delta pending parent source review; does not alter production files.",
+    "Explicit root-only ceiling protocol decision pending actual reservation sizing; no activation yet.",
+    "Root integration, exact API/orchestrator image qualification/deployment, ordinary synthetic actual runs remain required."
+  ],
+  "scope": "Accounting only; existing signed read-only guard and actual ordinary permissions preserved. Null fixture fields never confer capture/source authority. Exact original01-05 planner cases locally qualified."
+}

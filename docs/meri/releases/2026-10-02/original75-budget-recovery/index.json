@@ -1,0 +1,37 @@
+[
+  {
+    "file": "shared-read-qualification.json",
+    "sha256": "aeb8a113fdb10d96dc62a3e2531b8f1ce777e91417176e9acb640eb4b200136c",
+    "source": "oct02-shared-read-budget/qualification.json"
+  },
+  {
+    "file": "terminal-qualification.json",
+    "sha256": "ccfd6a0b51424007ef03259a4ee3d38afa22e013116746a2b23087092d786345",
+    "source": "oct02-shared-read-budget/terminal-qualification.json"
+  },
+  {
+    "file": "terminal-execution.json",
+    "sha256": "4e3833f88f6cb02dfc444b3917fe8b53e76e28de688226ca99e6615bd458445a",
+    "source": "oct02-shared-read-budget/retest-reconciliation-execution.json"
+  },
+  {
+    "file": "recorder-qualification.json",
+    "sha256": "017be8391c52b048f0eceb6ffc37547054d3bb9fa2a99b2f307deaa0c936a71a",
+    "source": "oct02-capture-response-preservation/qualification.json"
+  },
+  {
+    "file": "rate-primary-source-review.json",
+    "sha256": "fb697e089f5ca14191a92a3ece4a3216d78e13f47c982c472c3639a5b975bfa5",
+    "source": "oct02-case01-planner-retest/provider-rate-primary-source-review.json"
+  },
+  {
+    "file": "reviewed-rates-long-context.json",
+    "sha256": "faa547bda9a29c7d41378ea5498b3a677498c255264a0f4756f493bdbcb4b32d",
+    "source": "oct02-case01-planner-retest/reviewed-rate-evidence-long-context-20261002.json"
+  },
+  {
+    "file": "two-round-reservation-repro.json",
+    "sha256": "3fc09a4854ce07fffab5f9d90e6973a257996ac5b9ba93c06f0eca710cc0a152",
+    "source": "oct02-case01-planner-retest/provider-two-round-bound-repro.json"
+  }
+]

@@ -1,0 +1,72 @@
+{
+  "status": "PASS",
+  "scope": "eval-only response observation persistence; no acceptance or spending settlement authority",
+  "sourceSha": "47e1f32c6f55341ccfde2b5c90fa061d1537b48f",
+  "baseSha": "fc73de265e731cbebf2228c8e00fa3bcf7879d0b",
+  "sourceSha256": {
+    "evals/meri/live-v1/capture-http-observation.mjs": "bdf0f4f96aef5e57eed34e6076e111b82d38f6b92e638b6ae4a43147d00b671c",
+    "evals/meri/live-v1/case01-live-capture.mjs": "990c651d53b2afd5f11e054d9a784e41953fd446906291a2abe9b13d4f15db51",
+    "evals/meri/live-v1/case14-approval-capture.mjs": "6ee87a40e0bca6a8a9f1e0030ff92b2d241dbf7b2374b681ff889471ef5482b3",
+    "evals/meri/live-v1/controlled-read-live-capture.mjs": "99cf8c2103ee3d313fbf12c64af0df233e6b545b9b1c6e8d0e96f068a9a351d2",
+    "evals/meri/live-v1/tests/capture-http-observation.test.mjs": "2a15ff44d4ad2a6f61dafe5b09f40b9b16560f0a40339c183b1850e42ed7f389"
+  },
+  "testsPassed": 215,
+  "testsSkipped": 0,
+  "newFocusedTests": 17,
+  "tests": {
+    "exitCode": 0,
+    "argv": [
+      "C:\\Program Files\\nodejs\\node.exe",
+      "--test",
+      "evals/meri/live-v1/tests/capture-http-observation.test.mjs",
+      "evals/meri/live-v1/tests/case01-authority.test.mjs",
+      "evals/meri/live-v1/tests/case14-capture.test.mjs",
+      "evals/meri/live-v1/tests/controlled-read-authority.test.mjs"
+    ]
+  },
+  "independentReview": {
+    "requestedModel": "moonshotai.kimi-k2.5",
+    "initializedModel": "moonshotai.kimi-k2.5",
+    "sessionId": "20261002_191343_a64594",
+    "provider": "bedrock",
+    "reportedTokens": {
+      "input": 45278,
+      "output": 950,
+      "total": 46228,
+      "cache_read": 0,
+      "cache_write": 0
+    },
+    "reportedResultExit": 0,
+    "toolCalls": 0,
+    "billedCostUsd": null,
+    "costStatus": "not exposed by quiet stream output"
+  },
+  "reviewProcessExit": 0,
+  "policy": {
+    "originMain": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+    "occupiedHead": "743fd708c3484604e8a35ea1039adeca3b1e331f",
+    "requiredFilesIdentical": true,
+    "machineMapRevision": "2026-09-30"
+  },
+  "artifacts": {
+    "tests.log": "fb21cf6b458a3075b20a5fc6bcd0d4b4f6a78e9988b2e550eda04c73c89f918b",
+    "tests-exit.json": "1f0ec1262c9f1d4474033f29d88101c8eb738b66e206e217633f567d4a1aa643",
+    "source-hashes.json": "d6a02787fef9dce75cd097307b252d960b2370064d6b6595b1b3e7c6ef38ccac",
+    "capture-kimi-prompt.txt": "b7591cb21e80eefd272c58efc645f4468bee4cbc7013ebcdb7bba3f724636c4d",
+    "capture-kimi-review.md": "4a18ed34e58f41085eaa52a49f963fa18848664f4a4a9b572da1822c15123d5b",
+    "capture-kimi-exit.json": "8e1ec5e19377d5f8a1a738438c42b442c652b650725e08f8bb17444abe810bd3",
+    "capture-kimi-usage.json": "396a909f34b7a25f4ecaab49f9d4012b3e6a2ecfd72220e2a698295d458a9473"
+  },
+  "limitations": [
+    "Oversize or interrupted responses may lack completed body; no automatic resubmit",
+    "Saved observations do not settle pending spend or mint valid capture/grade authority",
+    "No original live evaluation executed; prior failed attempts remain immutable"
+  ],
+  "sideEffects": {
+    "awsWrites": 0,
+    "authCalls": 0,
+    "databaseCalls": 0,
+    "liveProviderTurns": 0,
+    "reviewerModelSessions": 1
+  }
+}

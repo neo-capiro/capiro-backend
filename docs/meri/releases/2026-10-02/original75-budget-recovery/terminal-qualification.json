@@ -1,0 +1,45 @@
+{
+  "kind": "terminal-spend-reconciliation-local-qualification",
+  "baseSourceSha": "9e75d2cd967fc4fddd74468ad7ae4028b5e4d2ad",
+  "sourceHashes": {
+    "evals/meri/live-v1/capture-spend-reconciliation.mjs": "0e60635d65464c811c0fd801a815b0da3ff7d3c8ee50d7769599b9c9f399215f",
+    "evals/meri/live-v1/capture-spend-aggregate.mjs": "b202f16b66ebd7247f8e962115d8f3826823efeeb1966394099562d3a1c3d1c8",
+    "evals/meri/live-v1/lib/windows-capture-spend.py": "3fed17ed989a9cb9df5103ee867514592123e97e534c713d3712ffded85f4abb",
+    "evals/meri/live-v1/tests/capture-spend-reconciliation.test.mjs": "50bf481d00e2f728a2da06fd095d09bfb49089a3464dc6fe4a74358e9aa4b675",
+    "evals/meri/live-v1/tests/capture-spend-v2.test.mjs": "5c99bec4fa40a6f448409efc596e86fc7080c3973ae4733b2d2c09236700e8f2",
+    "evals/meri/live-v1/SHARED-READ-BUDGET.md": "2dff23de1b41ff99836df5b8f2fb83df6028d594a7e4e82f41108c690b14ff76"
+  },
+  "testCount": 17,
+  "passCount": 17,
+  "failCount": 0,
+  "skipCount": 0,
+  "exitCode": 0,
+  "testLogSha256": "f17e9ee1d4ed979827e34333e302a74416b956cdd0a7757ce382abce13be459d",
+  "testExitSha256": "ea61d7736f0b7ecb9b35158f03de77013db6b100cf1d36c957e78e6c8817c5b6",
+  "actualReadback": {
+    "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-case01-planner-retest\\case01-retest-terminal-api-readback.json",
+    "sha256": "f602c3dd80de236f6f8d0386be2ae93ffde1e23d6f3c9b6cada0f2205b09c470",
+    "inspection": "PASS",
+    "chargedCostMicros": 1,
+    "answerGrade": "NOT_EVALUATED"
+  },
+  "actualCheckpoint": {
+    "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-aggregate-operator-v6\\case01-retest-final-checkpoint.json",
+    "sha256": "d8658a416f58c10d6f99e94444b0128f8846ae5534638b36e0c52c675e86aa09",
+    "eventCount": 3,
+    "reservedCeilingsMicros": 6000000,
+    "remainingReservationMicros": 24000000
+  },
+  "effect": "NOT_RUN: root-only entrypoint would append one SETTLED event; legacy6000000 ceiling remains consumed, old3000000 UNKNOWN remains untouched.",
+  "trustBoundary": "Root independently authenticates and reviews readback provenance, then supplies its exact hash. This does not claim arbitrary local JSON authenticates itself. Cached bytes, scope/policy/actual terminal ledger joins and arithmetic are independently checked.",
+  "tests": "UNIT-only generated readback objects and actual disposable native NTFS journals; no cloud, auth, application, provider or real aggregate writes.",
+  "review": "PASS independent source review by release lane and root. No additional model run; reviewers did not claim a test rerun.",
+  "sourceSha": "e05d35710187939fd71aedc56ba47dc1d7f0213e",
+  "operator": {
+    "syntaxExit": 0,
+    "prepareExit": 0,
+    "sha256": "997e261f7efb120a5174f7a61c868d98fce03cda6a482a51402d93eee95a2787",
+    "executed": false,
+    "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-shared-read-budget\\reconcile-retest.mjs"
+  }
+}
