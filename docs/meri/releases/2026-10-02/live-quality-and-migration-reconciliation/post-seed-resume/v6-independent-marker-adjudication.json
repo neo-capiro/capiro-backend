@@ -1,0 +1,45 @@
+{
+  "kind": "v6-independent-marker-finding-adjudication",
+  "reviewer": "/root/file01_release_audit",
+  "status": "PASS_DISPUTED_FINDING_ONLY",
+  "recordedAt": "2026-10-02T16:08:00.056499+00:00",
+  "originalModelVerdict": "BLOCKED_PRESERVED",
+  "modelFindingDisposition": "FALSE_PREMISE",
+  "sourceSha256": {
+    "aggregate-operator-gates.mjs": "04ee25b014df72d321b3577d07148d1cb4eec7941a8bcc730a24d4fdc05b87f2",
+    "seal-case01-postseed-v6.mjs": "08f220968245ecebb0b26034f51878032ba11250b979fa5328153a1ba811623c"
+  },
+  "reviewArtifacts": {
+    "postseed-operator-kimi-inline-review.md": "874f9f9cda42b16cf5903f7a7b22569c36951b6527071969ba53de9eb41a156d",
+    "postseed-operator-kimi-inline-exit.json": "c1f95074ae454fb1aa7c554c853971c31f9eb9f673ead3407e83e4c7a3312c37",
+    "postseed-operator-kimi-inline-usage.json": "6253542896fa716cecfb55f7d8d5b28de60482049164763bf6f094b484fd8ff4",
+    "postseed-operator-kimi-inline-prompt.txt": "0c1a63f201316ad762422f253efb29b6c69c064d39f7237bb4ac89d4f62b5e75"
+  },
+  "evidence": [
+    "Exact reviewed prompt diff already includes mandatory OFFLINE_CASE01_POSTSEED_IMPORT_PASS; no production source edits followed review.",
+    "aggregate-operator-gates.mjs182 requires marker in reviewed expected list;183 passes full expected list to inspectBuildReadback.",
+    "Original shared inspectBuildReadback33-34 rejects any missing marker and permits additional valid markers.",
+    "seal-case01-postseed-v6.mjs110-112 separately requires marker in reviewed input and actual successful build receipt.",
+    "Actual429 API and Orchestrator positive readbacks pass; removing postseed marker fails BUILD_MARKER_MISSING; oldOrc source fails."
+  ],
+  "focusedTest": {
+    "command": [
+      "C:/Program Files/nodejs/node.exe",
+      "--test",
+      "--test-name-pattern=actual429 build readbacks",
+      "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-aggregate-operator-v6\\aggregate-operator.test.mjs"
+    ],
+    "exitCode": 0,
+    "passed": 1,
+    "failed": 0,
+    "elapsedSeconds": 0.159,
+    "logSha256": "826d40977b9023cb2ddc18f05118b543edf9047fdcfab94d6963330cb6207748",
+    "skipped": 0
+  },
+  "limits": [
+    "Adjudicates this single inaccurate source-review allegation; does not replace untouched raw Kimi BLOCK or claim runtime capture PASS.",
+    "Actual postseed completion, budget installation, signed scope materialization and live acceptance remain separate root-owned gates."
+  ],
+  "sourceEdits": 0,
+  "authProviderDatabaseCloudCalls": 0
+}

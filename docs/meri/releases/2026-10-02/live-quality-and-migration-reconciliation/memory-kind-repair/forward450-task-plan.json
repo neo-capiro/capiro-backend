@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "mode": "forward450-deploy",
+  "operationId": "430af443-3b39-4181-8978-73132b06e2ca",
+  "createdAt": 1790957160,
+  "expiresAt": 1790958960,
+  "sourceSha": "42988dae5fb7bc2fff3af582ca15a0836a4477c5",
+  "operatorHead": "ceb97079d4520631238583cf64ec96d6a67ce5e5",
+  "imageDigest": "sha256:f792a39e889c7572811dd1335b6f12501d3878701caef3888ae7f120bd6e6f25",
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:f792a39e889c7572811dd1335b6f12501d3878701caef3888ae7f120bd6e6f25",
+  "inputSha256": "d2befd1dd0491bdbcb4e8d1091bad97859c46445e9b8fabb90c0bb5dfb2e3216",
+  "proofSha256": "26607cb8f7f04e49d626be06bfdf3e52e716ab733d394eccc2a5c37facdfcabb",
+  "operatorSha256": "03f5c2eb792a7cc9abd8aecf923268f6a5b1fc0989c4c68f1a47a5508dc8ae9f",
+  "adapterSha256": "1f4fa1401571361db593db9372aa7bec635a397d57383096bff3e65a529b3822",
+  "caller": "arn:aws:iam::967807252336:user/hermes-cli",
+  "baseline": {
+    "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:505",
+    "taskDefinitionHash": "f74b313f292691cc859602117f6ebd1599f1d4fd32ac5203db4a6ae3a03d2d1e",
+    "serviceConfigHash": "d8a7608bb92597ca5647f94d2af0ce7905515e8566e8a8cd808f5b76316c3018",
+    "primaryDeploymentId": "ecs-svc/0849065370341469967",
+    "runningTaskArns": [
+      "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/e7a199eb0ee74a0b98a153f1ec64acd9",
+      "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/fc93eaa8526846ae83d7c5d2a6b7da42"
+    ],
+    "servedSourceSha": "a260004e9923ef5bbe7bd8f32bb4cbddd3c7be31",
+    "servedImageDigest": "sha256:f9505afe6319f814a770fbafc128daa567041226ebdba3b3751f64a839c584d6",
+    "migrationTaskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api-migrate:135",
+    "migrationTaskDefinitionHash": "ca4e1ce8e295d4cb46e6a362d79ed35fd6af4f46c062469a08af30ace390e7f0"
+  },
+  "oneOffDefinitionHash": "41dce5ce91bdbffb4722fae0a0c8fbea605b77baccc58e9aed1ec73843448834",
+  "overridesHash": "c54f6e8397db870f6ccc698d0d87f6d77d11fdba765d7603e238a436395c5135",
+  "networkHash": "d9b19901352dd52023da1ccb3f3fc72bbd468f53dbe6d617fbd158306dfd162f",
+  "waitSeconds": 900,
+  "liveAcceptance": "NOT_RUN",
+  "planHash": "279dd1611e672cc9ad588f0ba8f2e693243c81a399157f6f80bf2acda4042731"
+}

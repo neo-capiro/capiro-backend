@@ -1,0 +1,106 @@
+{
+  "kind": "forward450-preflight-historical-ledger-diagnosis-and-independent-orchestrator-assessment",
+  "recordedAt": "2026-10-02T16:14:23.873126+00:00",
+  "reviewer": "/root/file01_release_audit",
+  "migration": {
+    "status": "SAVED_BASELINE_CONTRADICTS_RUNNER_GUARD",
+    "exactCurrentFailureAssertion": "PENDING_NEW_READONLY_PROBE",
+    "failedExecution": {
+      "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-repair\\forward450-execution.json",
+      "sha256": "c69da8bdbeb8e7c6a2bdc82cce2566a9c5dbcbbdb54510f1e925f3b5a60117bc"
+    },
+    "prismaAttempted": false,
+    "priorLiveSchemaEvidence": {
+      "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-release\\schema-qualification.json",
+      "sha256": "c2e999ebfe858c3dde03e47338356e868d6019be4c7940a8a9abe08ef3c8e783"
+    },
+    "priorObservedAt": "2026-10-02T01:04:29.158Z",
+    "priorLedger": {
+      "total": 606,
+      "activeFinished": 506,
+      "rolledBack": 100,
+      "unfinished": 0
+    },
+    "priorApiSourceCoverage": {
+      "MATCH": 388,
+      "MISSING": 0,
+      "HISTORICAL_CHECKSUM_DIFFERENCE": 61
+    },
+    "priorApiSourceNames": 449,
+    "priorWorkspaceSourceNames": 13,
+    "defect": "checkLedger compares all shared history rows to one449-file API manifest and requires everychecksum exact. Actual previouslyaccepted606row history with100rolledbacks and61known differences cannot satisfy this preflight. This is an operator assumption defect, not evidence that the database should be rewritten.",
+    "reviewCorrection": "Prior reviewer approved source/local guards without joining the saved shared-ledger topology. Fresh449 and cloned449 rehearsal proofs remain true but do not establish that shared history has exactly449rows. Originalreview/evidence preserved.",
+    "correctedGuardRequirements": [
+      "First use the new readonly diagnostic to freeze actual current fullhistory and accepted historical checksum sets; never infer current counts from an old receipt.",
+      "Retain every existing row, ID, checksum, timestamp atfullprecision, rollback/completion state andstepcount; optionallyhash logs withoutprinting them. Reject global unfinished+unrolledback history.",
+      "Require all449 source names covered by activefinished history; permit only exact historicallyaccepted checksum differences evidenced and pinned in the baseline, no new differences. Preserve workspace/retired history aswell.",
+      "Beforeexecution new450 name mustbeabsent and onlythat newmigration pending in fixed450image; old449 sourceSQLbytes unchanged.",
+      "AfternormalpackagedPrismadeploy require one newactivefinished450row with exactSQLchecksum and unchanged fulloldrows. If confirmedbaseline606, finaltotal607 with507activefinished/100rolledback, APIcoverage450. No ledgerrewrites/resolve/reset/historicalreplay.",
+      "Retain failedoperationreceipt and no-retry claim; any revisedexecution needs a separatelyreviewedversion bound to provenprePrismafailure and freshcurrentstate."
+    ]
+  },
+  "orchestrator": {
+    "status": "PASS_SCHEMA_INDEPENDENT_OF_NEW_MIGRATION",
+    "liveBaselineSource": "c22d059e4fc8fd73f93e6928f7db3a1a4338f7f8",
+    "candidateSource": "42988dae5fb7bc2fff3af582ca15a0836a4477c5",
+    "currentApiSource": "a260004e9923ef5bbe7bd8f32bb4cbddd3c7be31",
+    "currentApiDefinition": "capiro-dev-api:505",
+    "candidateImageDigest": "sha256:758a96f5722e0679513f0f0621a5ba12d733f83d00d6ed4bdeb0f83fbc872f3a",
+    "candidateBuildReadback": {
+      "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-memory-kind-release\\meriv2-orchestrator-build-readback.json",
+      "sha256": "a7b7cda4e84b37c6bc1212933003b2367140f16157614eeab44bbef62a740e1d"
+    },
+    "liveToCandidateRelevantChangedPaths": [
+      "apps/api/prisma/schema.prisma",
+      "apps/meriv2-orchestrator/src/meri/api-action-proposal.repo.ts",
+      "apps/meriv2-orchestrator/src/meri/api-tool-executor.repo.ts",
+      "apps/meriv2-orchestrator/src/meri/chat/chat.controller.ts",
+      "apps/meriv2-orchestrator/src/meri/meriv3/api-managed-mcp.repo.ts",
+      "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.spec.ts",
+      "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts",
+      "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-governed-artifact-budget.spec.ts",
+      "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-governed-artifact-budget.ts",
+      "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-governed-artifact-dispatch.spec.ts",
+      "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-governed-artifact.spec-helper.ts",
+      "apps/meriv2-orchestrator/src/meri/meriv3/meriv3.controller.ts",
+      "apps/meriv2-orchestrator/src/meri/retrieval/meri-evidence-formatting.spec.ts",
+      "apps/meriv2-orchestrator/src/request/trusted-current-turn-scope.ts",
+      "packages/meriv2-core/src/assurance/evidence-plan.spec.ts",
+      "packages/meriv2-core/src/assurance/evidence-plan.ts",
+      "packages/meriv2-core/src/context/governed-artifact-capture.spec.ts",
+      "packages/meriv2-core/src/context/governed-artifact-capture.ts",
+      "packages/meriv2-core/src/index.ts",
+      "packages/meriv2-core/src/registry/types.ts"
+    ],
+    "allCandidateApiSrcByteIdenticalToLiveApi": true,
+    "prismaSchemasEqualIgnoringOnlyComments": true,
+    "case46ContractsAlreadyPresentInLiveApi": true,
+    "onlyProductionCoreOrOrchestratorDeltaBeyondCurrentApiSource": [
+      "apps/meriv2-orchestrator/src/meri/retrieval/meri-evidence-formatting.spec.ts",
+      "packages/meriv2-core/src/assurance/evidence-plan.spec.ts",
+      "packages/meriv2-core/src/assurance/evidence-plan.ts"
+    ],
+    "serveDoesNotMigrate": true,
+    "sourceGitBlobSha256": {
+      "apps/meriv2-orchestrator/Dockerfile": "1f4ec2752e99bfbce75877f27d36894678cc8d5bf3e504f5cc9404d1961d9d0c",
+      "apps/meriv2-orchestrator/scripts/entrypoint.sh": "fc0372951a87c9ea4c922b307c6703020f7e068512bafcdb9706e9de20793bf4",
+      "apps/meriv2-orchestrator/src/meri/meriv3/meriv3.controller.ts": "317d4f87e2cee67de8b8d8c7ab61a250453f50cb90a0b32b403784ac2d1fba7a",
+      "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-governed-artifact-budget.ts": "25c08d3e9de17406531b03556539d534c314e78accfac5bd585e2592064120aa",
+      "packages/meriv2-core/src/context/governed-artifact-capture.ts": "7a7eebed2b7e44a1bdbc0e96e9fae7591be0db4dccacaf5d3c4c4cd48e305011",
+      "packages/meriv2-core/src/assurance/evidence-plan.ts": "1acb7106479b5d31300b15a7150323ad8a98e735f993bd3d24c8c12f9383a621",
+      "apps/api/prisma/schema.prisma": "41fb55c8f2357b9bc2246de813d1e093e3e0bd240538048bbb514c5a4d4fe1d2"
+    },
+    "conditions": [
+      "Useexistingguardedpromotionandfreshservicebaseline; immutablecandidatealreadyqualified129suites1443pass2skip pluspackagedhealth/auth marker.",
+      "Preserveallprovider/model/routing/flags/cohorts and currentAPI505/Web; no case46fixture activation or newcapture isauthorizedbythiscompatibilityassessment.",
+      "Meri API migration andpostseed acceptance remain held separately; anOrc rollout alone doesnotcomplete File01.",
+      "Applicationrollback retainspreviousOrcimage/config; noDBrollback isneeded for this sourcechange."
+    ]
+  },
+  "externalCalls": {
+    "aws": 0,
+    "database": 0,
+    "authOrProvider": 0
+  },
+  "sourceOrCloudMutations": 0
+}

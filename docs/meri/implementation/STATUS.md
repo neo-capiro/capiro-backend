@@ -1,4 +1,24 @@
-## Current checkpoint — 2026-10-02 16:05 UTC, forward repair qualified
+## Current checkpoint — 2026-10-02, orchestrator97 live; quality defects found
+
+Orchestrator97/source42988 is deployed and independently healthy. API505/a260
+remains live. Three supplied-fact writing examples gave accurate answers and
+handled unknown information correctly. Live QA also found inappropriate assurance
+footers, one unwanted roster lookup and a mailbox query timeout under low database
+load. Repairs and query-plan diagnosis are in progress. These examples are not
+original File01 acceptance.
+
+The forward migration stopped before Prisma due to an incorrect fresh-ledger
+assumption. A successful read-only reconciliation confirmed all606 historical
+rows,61 accepted checksum differences, four fixture claims and old constraints;
+zero unfinished migrations and no new migration record. The corrected operator
+must preserve that exact history. Shared migration/API429 promotion remain pending.
+See [actual receipts and QA findings](../releases/2026-10-02/live-quality-and-migration-reconciliation/README.md).
+
+**File01 is incomplete: zero original live rows complete.** Budget installation,
+aggregate initialization, full75/CD7/CW8, variants and human rubric remain open.
+Defense Chat is excluded. Temporary maximum16ACU remains unchanged.
+
+## Prior checkpoint — 2026-10-02 16:05 UTC, forward repair qualified
 
 Source42988 is in local main and GitHub main. Both API and orchestrator images
 passed their native ARM64 builds. The combined source passed 450 focused tests

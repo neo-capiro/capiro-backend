@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "service": "meriv2-orchestrator",
+  "sourceSha": "42988dae5fb7bc2fff3af582ca15a0836a4477c5",
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:758a96f5722e0679513f0f0621a5ba12d733f83d00d6ed4bdeb0f83fbc872f3a",
+  "status": "qualified",
+  "reviewer": "Codex root independently verified exact merged source, image receipts, owned fresh450/449-upgrade rehearsals and separate source/operator reviews. Bounded retirement compatibility; original live acceptance NOT_RUN.",
+  "reviewedAt": "2026-10-02T16:07:46.431841+00:00",
+  "expiresAt": "2026-10-02T20:07:46.431841+00:00",
+  "schemaChange": false,
+  "evidence": [
+    "https://github.com/neo-capiro/capirov2/blob/ceb97079d4520631238583cf64ec96d6a67ce5e5/docs/meri/releases/2026-10-02/memory-kind-release/memory-kind-release/meriv2-orchestrator-build-readback.json",
+    "https://github.com/neo-capiro/capirov2/blob/ceb97079d4520631238583cf64ec96d6a67ce5e5/docs/meri/releases/2026-10-02/memory-kind-release/memory-kind-release/combined-source-qualification.json",
+    "https://github.com/neo-capiro/capirov2/blob/ceb97079d4520631238583cf64ec96d6a67ce5e5/docs/meri/releases/2026-10-02/memory-kind-release/memory-kind-release/candidate-retirement-rolling-compatibility.json"
+  ],
+  "checks": [
+    {
+      "name": "build",
+      "status": "passed",
+      "sourceSha": "42988dae5fb7bc2fff3af582ca15a0836a4477c5",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:758a96f5722e0679513f0f0621a5ba12d733f83d00d6ed4bdeb0f83fbc872f3a",
+      "url": "https://github.com/neo-capiro/capirov2/blob/ceb97079d4520631238583cf64ec96d6a67ce5e5/docs/meri/releases/2026-10-02/memory-kind-release/memory-kind-release/meriv2-orchestrator-build-readback.json"
+    },
+    {
+      "name": "automated-tests",
+      "status": "passed",
+      "sourceSha": "42988dae5fb7bc2fff3af582ca15a0836a4477c5",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:758a96f5722e0679513f0f0621a5ba12d733f83d00d6ed4bdeb0f83fbc872f3a",
+      "url": "https://github.com/neo-capiro/capirov2/blob/ceb97079d4520631238583cf64ec96d6a67ce5e5/docs/meri/releases/2026-10-02/memory-kind-release/memory-kind-release/combined-source-qualification.json"
+    },
+    {
+      "name": "retirement-compatibility",
+      "status": "passed",
+      "sourceSha": "42988dae5fb7bc2fff3af582ca15a0836a4477c5",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:758a96f5722e0679513f0f0621a5ba12d733f83d00d6ed4bdeb0f83fbc872f3a",
+      "url": "https://github.com/neo-capiro/capirov2/blob/ceb97079d4520631238583cf64ec96d6a67ce5e5/docs/meri/releases/2026-10-02/memory-kind-release/memory-kind-release/candidate-retirement-rolling-compatibility.json"
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "kind": "forward450-independent-diagnostic-readback",
+  "status": "PASS_READONLY_RECONCILIATION",
+  "sourceSha": "42988dae5fb7bc2fff3af582ca15a0836a4477c5",
+  "imageDigest": "sha256:f792a39e889c7572811dd1335b6f12501d3878701caef3888ae7f120bd6e6f25",
+  "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/e5607b03af294c758cd764ccaef1c2b0",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-forward450-readonly:1",
+  "containerExitCode": 0,
+  "planHash": "22de1d05f83f87f0e3e3bad49668734cb800559833b398a0a4814933170ec0cb",
+  "executionSha256": "30894da06068eba1f557fdcf72246e8f0069c20f3f888bffe2113c17da252261",
+  "ownerReceiptSha256": "48e865df347012cd82578adc78c3e263827679d59ebf655b0009552865cb7011",
+  "fullLedgerSha256": "e06c88cf3a42626966b1949c5c297ee71aa7e90ba413bfc153bd6b61afbe5766",
+  "topology": {
+    "total": 606,
+    "activeFinished": 506,
+    "rolledBack": 100,
+    "unfinished": 0,
+    "apiExpected": 449,
+    "apiExact": 388,
+    "apiHistorical": 61,
+    "newMigrationRows": 0
+  },
+  "prior61HistoricalChecksumPairsEqual": true,
+  "prior57OutsideApiActivePairsEqual": true,
+  "guards": {
+    "fresh449Exact": false,
+    "allApiNamesPresent": true,
+    "newMigrationAbsent": true,
+    "noUnfinished": true,
+    "checksMatch": true,
+    "fixtureNamespaceMatches": true,
+    "fixtureClaimsMatch": true,
+    "migrationOwnsTables": true,
+    "noOtherRelationLocks": true
+  },
+  "taskDefinitionOverridesDigestAndLogsMatched": true,
+  "awsWrites": 0,
+  "databaseConnectionsByReviewer": 0,
+  "migrationApplied": false,
+  "exactFailure": "Operator incorrectly required fresh449 ledger topology; all other observed preflight predicates passed."
+}

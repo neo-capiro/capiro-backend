@@ -1,0 +1,71 @@
+{
+  "kind": "owner-browser-live-meri-quality-check",
+  "observedAt": "2026-10-02T16:23:00Z",
+  "target": "https://os.capiro.ai",
+  "qualityThread": "38aabc4b-c7e8-41d7-a115-bbe2cd60d096",
+  "mailDiagnosticThread": "2160f10d-4e0b-4083-9975-c0ba067f424e",
+  "api": {"taskDefinition": 505, "sourceSha": "a260004e9923ef5bbe7bd8f32bb4cbddd3c7be31"},
+  "orchestrator": {"taskDefinition": 97, "sourceSha": "42988dae5fb7bc2fff3af582ca15a0836a4477c5"},
+  "modelObservedInTurnInspector": "gpt-6-astra",
+  "effort": "medium",
+  "originalFile01Acceptance": "NOT_RUN",
+  "status": "DEFECTS_FOUND",
+  "cases": [
+    {
+      "name": "bounded-mail-search",
+      "prompt": "Deployment verification: search my own mailbox once for the exact nonsense string CAPIRO_MERI_DIAGNOSTIC_20261002_1616_NO_MATCH. Report only whether search_emails completed successfully or returned an error. Do not disclose email contents, run other tools, save memories, create tasks, or send messages.",
+      "response": "search_emails returned an error.",
+      "visibleTool": "Searched emails",
+      "visibleToolOutcome": "503 Mail search is temporarily busy. Please retry.",
+      "completed": true,
+      "bogusEvidenceFooter": false,
+      "verdict": "FAIL_TOOL_RELIABILITY",
+      "assessment": "Answer honestly reported the error without disclosing mailbox contents. The mail operation timed out; this is not a successful tool check."
+    },
+    {
+      "name": "supplied-facts-summary",
+      "prompt": "Quality check using hypothetical facts only: Aster has a Thursday demo. Maya owns the slides, due Tuesday. Lee owns the technical review, due Wednesday; it depends on Maya finishing the slides. The rehearsal has no owner or scheduled time. Write exactly three concise bullets: the critical path, the main delivery risk, and the next action. Use only these facts. Do not search, use tools, save memories, create tasks, or send messages.",
+      "response": [
+        "Critical path: Maya’s slides due Tuesday → Lee’s technical review due Wednesday → Aster’s Thursday demo.",
+        "Main delivery risk: Late slides would delay the dependent technical review; the rehearsal also has no owner or scheduled time.",
+        "Next action: Assign a rehearsal owner and schedule it before Thursday’s demo."
+      ],
+      "completed": true,
+      "visibleTools": [],
+      "contentAssessment": "Accurate supplied facts, three requested bullets, useful next action, no invented deadline.",
+      "bogusEvidenceFooter": "No/none/only/all/every claims require explicit, non-truncated source coverage; an empty or failed query is not proof of absence; that part of the answer remains limited because the source was never called.",
+      "verdict": "PASS_CONTENT_FAIL_ASSURANCE_FOOTER"
+    },
+    {
+      "name": "follow-up-context",
+      "prompt": "Update to the hypothetical example: the slides will now be ready Wednesday afternoon. Keep the other facts unchanged. In exactly two sentences, explain what this changes and what I should confirm next. Do not assume the demo has been delayed. Do not use tools, save memories, create tasks, or send messages.",
+      "response": "With slides now arriving Wednesday afternoon, Lee has less time to complete the dependent technical review by Wednesday; the demo remains Thursday. Confirm whether Lee can still meet that deadline, and who will own the rehearsal and when it will happen before the demo.",
+      "completed": true,
+      "visibleTools": ["list_members"],
+      "visibleToolOutcome": "Completed",
+      "contentAssessment": "Correct context retention, two sentences, recognizes reduced review time without falsely changing the demo date.",
+      "bogusEvidenceFooter": "Current office, committee, chair, and staff-role claims require a dated current roster; that part of the answer remains limited because the source was called no usable content.",
+      "verdict": "PASS_CONTENT_FAIL_UNREQUESTED_TOOL_AND_FOOTER"
+    },
+    {
+      "name": "missing-information",
+      "prompt": "Based only on the hypothetical facts in this conversation, what exact time is the rehearsal, and has Lee approved the slides? If either is unknown, say so clearly. Do not infer that a scheduled review means approval happened. Do not search, use tools, save memories, create tasks, or send messages.",
+      "response": [
+        "Rehearsal time: Unknown. No time has been scheduled in the hypothetical facts.",
+        "Lee’s approval: Unknown. Lee owns the technical review, but nothing states that Lee has approved the slides."
+      ],
+      "completed": true,
+      "visibleTools": [],
+      "contentAssessment": "Correctly distinguishes absence of information from completed approval; does not invent a time.",
+      "bogusEvidenceFooter": "No/none/only/all/every claims require explicit, non-truncated source coverage; an empty or failed query is not proof of absence; that part of the answer remains limited because the source was never called.",
+      "verdict": "PASS_CONTENT_FAIL_ASSURANCE_FOOTER"
+    }
+  ],
+  "limits": [
+    "These are owner-authorized live product examples, separate from the original synthetic evaluation and its aggregate budget.",
+    "Visible tool lists and turn inspector were inspected; no assertion of zero indirect application writes is made.",
+    "The two pending memory proposal badge entries predated these checks; proposals were not opened or approved.",
+    "CUA captured inline screenshots; no invented local screenshot path is recorded.",
+    "No retries or regenerations were submitted for these four cases. Initial Send click left the mail prompt in the composer; Enter submitted it once after the unchanged transcript was inspected."
+  ]
+}

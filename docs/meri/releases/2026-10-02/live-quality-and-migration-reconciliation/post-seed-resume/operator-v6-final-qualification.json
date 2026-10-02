@@ -1,0 +1,100 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-10-02T16:08:51.084379+00:00",
+  "scope": "fixed postseed owner, budget derivative, original01 V6 capture preparation only",
+  "testedCodeSha": "42988dae5fb7bc2fff3af582ca15a0836a4477c5",
+  "apiSourceSha": "42988dae5fb7bc2fff3af582ca15a0836a4477c5",
+  "orchestratorSourceSha": "42988dae5fb7bc2fff3af582ca15a0836a4477c5",
+  "webSourceSha": "78ad5805679a3045b1fc10fb19beafa7f76e4e64",
+  "nativeDriverSha": "c9dae31d1e50b6560d58319baa620a14ab505c7f",
+  "files": {
+    "oct02-case01-release\\case01-postseed-oneoff.py": "d4813204b1822ccc9f1c1c31a4ecbde8da6b3ab61e76766661cc253141e5373a",
+    "oct02-case01-release\\case01-postseed-oneoff-tests.py": "1f3d1307427d49f7fdcb5a7adbe08e835e94a5cfb4a6a376549a626f1e242149",
+    "oct02-case01-release\\case01-postseed-budget-oneoff.py": "262bd03aeba4015067ab691511260d30da3ef8cd6d928cc399bd6b14ce13ad5a",
+    "oct02-case01-release\\case01-postseed-budget-oneoff.test.py": "cdbeff77eea93e9103e02256999f111f0bd8d0970525eac4a52d8e583b271444",
+    "oct02-original-aggregate-operator-v6\\aggregate-operator-gates.mjs": "04ee25b014df72d321b3577d07148d1cb4eec7941a8bcc730a24d4fdc05b87f2",
+    "oct02-original-aggregate-operator-v6\\case01-input-gates.mjs": "d95ba1b592e17fc69938ce0356b0c56c9223ca7dfa9a6c7cf81a482cf4483e38",
+    "oct02-original-aggregate-operator-v6\\initialize-original-slice.mjs": "109ebb2fd6df4ca0758a9a4c2a371d4f07c6c1cedf6dd1f3dca7d56350a9e247",
+    "oct02-original-aggregate-operator-v6\\run-case01-authenticated-aggregate-v6.mjs": "cb4df0325ac8b7eb78d9fe635d4f30dae18f352f6dbed3ee69009770df646709",
+    "oct02-original-aggregate-operator-v6\\seal-case01-postseed-v6.mjs": "08f220968245ecebb0b26034f51878032ba11250b979fa5328153a1ba811623c",
+    "oct02-original-aggregate-operator-v6\\aggregate-operator.test.mjs": "269f2ee8e8489e65d12368c69d7cddacd2134a9593f39eb4676af05e0f0b1fbd",
+    "oct02-original-aggregate-operator-v6\\seal-case01-postseed-v6.test.mjs": "7c1f8ff2375d7abbc16c7f20284091a809354dc804de1efd04f79e9153832a84",
+    "oct02-original-aggregate-operator-v6\\ROOT-STEPS.md": "f48b72d7d3311e284a4b9abc987772a013beeedf057110a031e4be11b9002ede"
+  },
+  "actualTests": [
+    {
+      "name": "oneoff-offline-sealed-tests",
+      "tests": 22,
+      "exitCode": 0,
+      "logSha256": "8891dbd83408865e130ab3db4d646a956a6c22114a846ee4c96db20e00bf346d"
+    },
+    {
+      "name": "v6-adjudication-tests",
+      "tests": 21,
+      "exitCode": 0,
+      "logSha256": "8a734eab87d284fb55a4120e879df34fafcd94adb77bd86617e2ac129a2bf33a"
+    }
+  ],
+  "budgetLaneReceipt": {
+    "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-case01-release\\case01-postseed-budget-final-tests.exit.json",
+    "sha256": "d3fd19a202867960cdabcd5998106a83a171cd956132cedb955756f28d5f5675",
+    "tests": 14,
+    "exitCode": 0,
+    "executedBy": "release_audit"
+  },
+  "independentModel": {
+    "requestedModel": "moonshotai.kimi-k2.5",
+    "initializedModel": "moonshotai.kimi-k2.5",
+    "sessionId": "20261002_160113_37fed8",
+    "provider": "bedrock",
+    "reportedTokens": {
+      "input": 31514,
+      "output": 139,
+      "total": 31653,
+      "cache_read": 0,
+      "cache_write": 0
+    },
+    "reportedResultExit": 0,
+    "toolCalls": 0,
+    "billedCostUsd": null,
+    "costStatus": "not exposed by quiet stream output",
+    "processExitCode": 0,
+    "rawVerdict": "BLOCK",
+    "rawReportSha256": "874f9f9cda42b16cf5903f7a7b22569c36951b6527071969ba53de9eb41a156d",
+    "adjudication": "False-premise missing-marker finding: frozen aggregate gates line182 explicitly require OFFLINE_CASE01_POSTSEED_IMPORT_PASS and pass full executedMarkers to actual inspectBuildReadback; actual429 receipt positive/missing-marker negative test passed. Separate peer confirmation requested; raw BLOCK preserved."
+  },
+  "readiness": "LOCAL_SOURCE_QUALIFIED; actual live gates not materialized",
+  "checkedAbsentAtReceipt": {
+    "oct02-original-aggregate-operator-v6\\aggregate-operator-release-pins.json": true,
+    "oct02-original-aggregate-operator-v6\\case01-operator-input-pins.json": true,
+    "oct02-original-aggregate-operator-v6\\original-slice-inventory.json": true,
+    "oct02-original-aggregate-operator-v6\\original-spend-journal": true,
+    "oct02-original-aggregate-operator-v6\\case01-live-scope.json": true,
+    "oct02-original-aggregate-operator-v6\\case01-live-execution-aggregate-v6.json": true,
+    "oct02-case01-release\\case01-postseed-execute-execution.json": true,
+    "oct02-case01-release\\budget-install-postseed-execution.json": true
+  },
+  "commandsDocument": "oct02-original-aggregate-operator-v6/ROOT-STEPS.md",
+  "providerBudgetInstalled": false,
+  "aggregateInitialized": false,
+  "originalProviderSubmissions": 0,
+  "liveAcceptance": "NOT_RUN",
+  "humanRubric": "NOT_RUN",
+  "fullFile01Acceptance": false,
+  "cloudCallsDuringPreparation": 0,
+  "authCallsDuringPreparation": 0,
+  "providerCallsDuringPreparation": 0,
+  "reviewModelCalls": 1,
+  "independentPeerAdjudication": {
+    "path": "v6-independent-marker-adjudication.json",
+    "sha256": "8f5768f7cc3c16d5c2b67e461ec475469c5aa98f59953af73566ab78975f9ca0",
+    "status": "FALSE_PREMISE_FINDING_DISMISSED",
+    "actualFocusedTests": 1,
+    "exitCode": 0,
+    "rawModelBlockPreserved": true
+  },
+  "supersedes": {
+    "path": "operator-v6-qualification.json",
+    "sha256": "14db56b231251cf791d9349eb486a780e2e2b65b9e2ccc122eb4ccc2d4478c84"
+  }
+}

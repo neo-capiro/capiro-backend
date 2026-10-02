@@ -1,0 +1,1180 @@
+{
+  "observedAt": "2026-10-02T16:28:09.006558+00:00",
+  "windowStart": "2026-10-02T16:14:00+00:00",
+  "windowEnd": "2026-10-02T16:20:00+00:00",
+  "awsWrites": 0,
+  "databaseQueries": 0,
+  "rawLogsPersisted": false,
+  "rawSqlPersisted": false,
+  "customerValuesPersisted": false,
+  "results": {
+    "rdsMetrics": {
+      "status": "PASS",
+      "data": {
+        "observedAt": "2026-10-02T16:28:09.006558+00:00",
+        "cluster": "capiro-dev-data-auroracluster23d869c0-ltmz40k47ewv",
+        "writer": "capiro-dev-data-auroraclusterwriter499c523e-wdt4fdggqtfh",
+        "capacity": {
+          "MinCapacity": 1.0,
+          "MaxCapacity": 16.0
+        },
+        "metrics": [
+          {
+            "metric": "CPUUtilization",
+            "points": [
+              {
+                "at": "2026-10-02T16:08:00+00:00",
+                "average": 3.621075175554549,
+                "maximum": 15.258620689655173
+              },
+              {
+                "at": "2026-10-02T16:09:00+00:00",
+                "average": 3.6623319945837545,
+                "maximum": 15.404040404040403
+              },
+              {
+                "at": "2026-10-02T16:10:00+00:00",
+                "average": 8.63315886573772,
+                "maximum": 26.51762795611845
+              },
+              {
+                "at": "2026-10-02T16:11:00+00:00",
+                "average": 22.58291539287537,
+                "maximum": 48.685567010309285
+              },
+              {
+                "at": "2026-10-02T16:12:00+00:00",
+                "average": 3.651253047223427,
+                "maximum": 14.824120603015075
+              },
+              {
+                "at": "2026-10-02T16:13:00+00:00",
+                "average": 3.664228061256664,
+                "maximum": 15.46134663341646
+              },
+              {
+                "at": "2026-10-02T16:14:00+00:00",
+                "average": 4.450290630453011,
+                "maximum": 15.64254580301693
+              },
+              {
+                "at": "2026-10-02T16:15:00+00:00",
+                "average": 3.785156590785998,
+                "maximum": 16.20954353842708
+              },
+              {
+                "at": "2026-10-02T16:16:00+00:00",
+                "average": 4.080061035015499,
+                "maximum": 18.629405761875763
+              },
+              {
+                "at": "2026-10-02T16:17:00+00:00",
+                "average": 8.59356702728126,
+                "maximum": 32.66949152542373
+              },
+              {
+                "at": "2026-10-02T16:18:00+00:00",
+                "average": 3.681136988068976,
+                "maximum": 15.25
+              },
+              {
+                "at": "2026-10-02T16:19:00+00:00",
+                "average": 3.740948234462308,
+                "maximum": 15.037593984962406
+              },
+              {
+                "at": "2026-10-02T16:20:00+00:00",
+                "average": 3.9681103085726877,
+                "maximum": 16.048775319721013
+              },
+              {
+                "at": "2026-10-02T16:21:00+00:00",
+                "average": 4.346936644089795,
+                "maximum": 15.89615685492894
+              },
+              {
+                "at": "2026-10-02T16:22:00+00:00",
+                "average": 3.984906844182581,
+                "maximum": 15.404040404040403
+              },
+              {
+                "at": "2026-10-02T16:23:00+00:00",
+                "average": 9.281563340655811,
+                "maximum": 34.14881292228743
+              },
+              {
+                "at": "2026-10-02T16:24:00+00:00",
+                "average": 5.72064635306151,
+                "maximum": 35.396039603960396
+              },
+              {
+                "at": "2026-10-02T16:25:00+00:00",
+                "average": 10.276805763652199,
+                "maximum": 32.46077104199633
+              },
+              {
+                "at": "2026-10-02T16:26:00+00:00",
+                "average": 4.411209776320939,
+                "maximum": 23.06981546291401
+              },
+              {
+                "at": "2026-10-02T16:27:00+00:00",
+                "average": 3.8337343968909985,
+                "maximum": 14.785416622069988
+              }
+            ]
+          },
+          {
+            "metric": "DBLoad",
+            "points": [
+              {
+                "at": "2026-10-02T16:08:00+00:00",
+                "average": 0.03333333333333333,
+                "maximum": 1.0
+              },
+              {
+                "at": "2026-10-02T16:09:00+00:00",
+                "average": 0.03333333333333333,
+                "maximum": 1.0
+              },
+              {
+                "at": "2026-10-02T16:10:00+00:00",
+                "average": 0.1864406779661017,
+                "maximum": 1.0
+              },
+              {
+                "at": "2026-10-02T16:11:00+00:00",
+                "average": 0.7333333333333333,
+                "maximum": 2.0
+              },
+              {
+                "at": "2026-10-02T16:12:00+00:00",
+                "average": 0.01694915254237288,
+                "maximum": 1.0
+              },
+              {
+                "at": "2026-10-02T16:13:00+00:00",
+                "average": 0.016666666666666666,
+                "maximum": 1.0
+              },
+              {
+                "at": "2026-10-02T16:14:00+00:00",
+                "average": 0.1,
+                "maximum": 1.0
+              },
+              {
+                "at": "2026-10-02T16:15:00+00:00",
+                "average": 0.03333333333333333,
+                "maximum": 1.0
+              },
+              {
+                "at": "2026-10-02T16:16:00+00:00",
+                "average": 0.03333333333333333,
+                "maximum": 1.0
+              },
+              {
+                "at": "2026-10-02T16:17:00+00:00",
+                "average": 0.288135593220339,
+                "maximum": 1.0
+              },
+              {
+                "at": "2026-10-02T16:18:00+00:00",
+                "average": 0.03389830508474576,
+                "maximum": 1.0
+              },
+              {
+                "at": "2026-10-02T16:19:00+00:00",
+                "average": 0.05,
+                "maximum": 1.0
+              },
+              {
+                "at": "2026-10-02T16:20:00+00:00",
+                "average": 0.06779661016949153,
+                "maximum": 1.0
+              },
+              {
+                "at": "2026-10-02T16:21:00+00:00",
+                "average": 0.13333333333333333,
+                "maximum": 2.0
+              },
+              {
+                "at": "2026-10-02T16:22:00+00:00",
+                "average": 0.05,
+                "maximum": 1.0
+              },
+              {
+                "at": "2026-10-02T16:23:00+00:00",
+                "average": 0.23728813559322035,
+                "maximum": 1.0
+              },
+              {
+                "at": "2026-10-02T16:24:00+00:00",
+                "average": 0.1016949152542373,
+                "maximum": 1.0
+              },
+              {
+                "at": "2026-10-02T16:25:00+00:00",
+                "average": 0.2833333333333333,
+                "maximum": 1.0
+              },
+              {
+                "at": "2026-10-02T16:26:00+00:00",
+                "average": 0.07547169811320754,
+                "maximum": 1.0
+              }
+            ]
+          },
+          {
+            "metric": "DBLoadCPU",
+            "points": [
+              {
+                "at": "2026-10-02T16:08:00+00:00",
+                "average": 0.03333333333333333,
+                "maximum": 1.0
+              },
+              {
+                "at": "2026-10-02T16:09:00+00:00",
+                "average": 0.03333333333333333,
+                "maximum": 1.0
+              },
+              {
+                "at": "2026-10-02T16:10:00+00:00",
+                "average": 0.1694915254237288,
+                "maximum": 1.0
+              },
+              {
+                "at": "2026-10-02T16:11:00+00:00",
+                "average": 0.65,
+                "maximum": 2.0
+              },
+              {
+                "at": "2026-10-02T16:12:00+00:00",
+                "average": 0.01694915254237288,
+                "maximum": 1.0
+              },
+              {
+                "at": "2026-10-02T16:13:00+00:00",
+                "average": 0.016666666666666666,
+                "maximum": 1.0
+              },
+              {
+                "at": "2026-10-02T16:14:00+00:00",
+                "average": 0.03333333333333333,
+                "maximum": 1.0
+              },
+              {
+                "at": "2026-10-02T16:15:00+00:00",
+                "average": 0.03333333333333333,
+                "maximum": 1.0
+              },
+              {
+                "at": "2026-10-02T16:16:00+00:00",
+                "average": 0.03333333333333333,
+                "maximum": 1.0
+              },
+              {
+                "at": "2026-10-02T16:17:00+00:00",
+                "average": 0.01694915254237288,
+                "maximum": 1.0
+              },
+              {
+                "at": "2026-10-02T16:18:00+00:00",
+                "average": 0.03389830508474576,
+                "maximum": 1.0
+              },
+              {
+                "at": "2026-10-02T16:19:00+00:00",
+                "average": 0.03333333333333333,
+                "maximum": 1.0
+              },
+              {
+                "at": "2026-10-02T16:20:00+00:00",
+                "average": 0.03389830508474576,
+                "maximum": 1.0
+              },
+              {
+                "at": "2026-10-02T16:21:00+00:00",
+                "average": 0.08333333333333333,
+                "maximum": 2.0
+              },
+              {
+                "at": "2026-10-02T16:22:00+00:00",
+                "average": 0.016666666666666666,
+                "maximum": 1.0
+              },
+              {
+                "at": "2026-10-02T16:23:00+00:00",
+                "average": 0.23728813559322035,
+                "maximum": 1.0
+              },
+              {
+                "at": "2026-10-02T16:24:00+00:00",
+                "average": 0.0847457627118644,
+                "maximum": 1.0
+              },
+              {
+                "at": "2026-10-02T16:25:00+00:00",
+                "average": 0.26666666666666666,
+                "maximum": 1.0
+              },
+              {
+                "at": "2026-10-02T16:26:00+00:00",
+                "average": 0.05660377358490566,
+                "maximum": 1.0
+              }
+            ]
+          },
+          {
+            "metric": "ServerlessDatabaseCapacity",
+            "points": [
+              {
+                "at": "2026-10-02T16:08:00+00:00",
+                "average": 4.0,
+                "maximum": 4.0
+              },
+              {
+                "at": "2026-10-02T16:09:00+00:00",
+                "average": 4.0,
+                "maximum": 4.0
+              },
+              {
+                "at": "2026-10-02T16:10:00+00:00",
+                "average": 4.016666666666667,
+                "maximum": 4.5
+              },
+              {
+                "at": "2026-10-02T16:11:00+00:00",
+                "average": 5.55,
+                "maximum": 8.0
+              },
+              {
+                "at": "2026-10-02T16:12:00+00:00",
+                "average": 5.5,
+                "maximum": 5.5
+              },
+              {
+                "at": "2026-10-02T16:13:00+00:00",
+                "average": 5.641666666666667,
+                "maximum": 14.0
+              },
+              {
+                "at": "2026-10-02T16:14:00+00:00",
+                "average": 5.5,
+                "maximum": 5.5
+              },
+              {
+                "at": "2026-10-02T16:15:00+00:00",
+                "average": 5.5,
+                "maximum": 5.5
+              },
+              {
+                "at": "2026-10-02T16:16:00+00:00",
+                "average": 4.35,
+                "maximum": 16.0
+              },
+              {
+                "at": "2026-10-02T16:17:00+00:00",
+                "average": 2.8666666666666667,
+                "maximum": 5.5
+              },
+              {
+                "at": "2026-10-02T16:18:00+00:00",
+                "average": 2.5,
+                "maximum": 2.5
+              },
+              {
+                "at": "2026-10-02T16:19:00+00:00",
+                "average": 2.5,
+                "maximum": 2.5
+              },
+              {
+                "at": "2026-10-02T16:20:00+00:00",
+                "average": 2.5083333333333333,
+                "maximum": 3.0
+              },
+              {
+                "at": "2026-10-02T16:21:00+00:00",
+                "average": 2.5083333333333333,
+                "maximum": 3.0
+              },
+              {
+                "at": "2026-10-02T16:22:00+00:00",
+                "average": 2.5,
+                "maximum": 2.5
+              },
+              {
+                "at": "2026-10-02T16:23:00+00:00",
+                "average": 2.775,
+                "maximum": 5.5
+              },
+              {
+                "at": "2026-10-02T16:24:00+00:00",
+                "average": 4.05,
+                "maximum": 6.0
+              },
+              {
+                "at": "2026-10-02T16:25:00+00:00",
+                "average": 4.041666666666667,
+                "maximum": 5.5
+              },
+              {
+                "at": "2026-10-02T16:26:00+00:00",
+                "average": 4.0,
+                "maximum": 4.0
+              },
+              {
+                "at": "2026-10-02T16:27:00+00:00",
+                "average": 4.0,
+                "maximum": 4.0
+              }
+            ]
+          },
+          {
+            "metric": "DatabaseConnections",
+            "points": [
+              {
+                "at": "2026-10-02T16:08:00+00:00",
+                "average": 44.0,
+                "maximum": 44.0
+              },
+              {
+                "at": "2026-10-02T16:09:00+00:00",
+                "average": 44.0,
+                "maximum": 44.0
+              },
+              {
+                "at": "2026-10-02T16:10:00+00:00",
+                "average": 44.0,
+                "maximum": 44.0
+              },
+              {
+                "at": "2026-10-02T16:11:00+00:00",
+                "average": 44.0,
+                "maximum": 44.0
+              },
+              {
+                "at": "2026-10-02T16:12:00+00:00",
+                "average": 47.0,
+                "maximum": 47.0
+              },
+              {
+                "at": "2026-10-02T16:13:00+00:00",
+                "average": 44.0,
+                "maximum": 44.0
+              },
+              {
+                "at": "2026-10-02T16:14:00+00:00",
+                "average": 46.0,
+                "maximum": 46.0
+              },
+              {
+                "at": "2026-10-02T16:15:00+00:00",
+                "average": 42.0,
+                "maximum": 42.0
+              },
+              {
+                "at": "2026-10-02T16:16:00+00:00",
+                "average": 42.0,
+                "maximum": 42.0
+              },
+              {
+                "at": "2026-10-02T16:17:00+00:00",
+                "average": 43.0,
+                "maximum": 43.0
+              },
+              {
+                "at": "2026-10-02T16:18:00+00:00",
+                "average": 43.0,
+                "maximum": 43.0
+              },
+              {
+                "at": "2026-10-02T16:19:00+00:00",
+                "average": 43.0,
+                "maximum": 43.0
+              },
+              {
+                "at": "2026-10-02T16:20:00+00:00",
+                "average": 43.0,
+                "maximum": 43.0
+              },
+              {
+                "at": "2026-10-02T16:21:00+00:00",
+                "average": 43.0,
+                "maximum": 43.0
+              },
+              {
+                "at": "2026-10-02T16:22:00+00:00",
+                "average": 43.0,
+                "maximum": 43.0
+              },
+              {
+                "at": "2026-10-02T16:23:00+00:00",
+                "average": 43.0,
+                "maximum": 43.0
+              },
+              {
+                "at": "2026-10-02T16:24:00+00:00",
+                "average": 43.0,
+                "maximum": 43.0
+              },
+              {
+                "at": "2026-10-02T16:25:00+00:00",
+                "average": 43.0,
+                "maximum": 43.0
+              },
+              {
+                "at": "2026-10-02T16:26:00+00:00",
+                "average": 44.0,
+                "maximum": 44.0
+              },
+              {
+                "at": "2026-10-02T16:27:00+00:00",
+                "average": 43.0,
+                "maximum": 43.0
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "orchestrator": {
+      "status": "PASS",
+      "data": {
+        "service": "meriv2-orchestrator",
+        "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:97",
+        "sourceSha": "42988dae5fb7bc2fff3af582ca15a0836a4477c5",
+        "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:758a96f5722e0679513f0f0621a5ba12d733f83d00d6ed4bdeb0f83fbc872f3a",
+        "desired": 1,
+        "running": 1,
+        "pending": 0,
+        "streams": [
+          {
+            "taskId": "701ffb542ea04234a7d4a547d2ef43eb",
+            "health": "HEALTHY",
+            "events": 21,
+            "counts": {
+              "mail_tool": 9,
+              "http503": 1,
+              "error": 3
+            },
+            "observations": [
+              {
+                "atMs": 1790957837440,
+                "classes": [
+                  "mail_tool"
+                ],
+                "codes": [],
+                "sourceModules": [],
+                "sourceClasses": [],
+                "numericLabels": {}
+              },
+              {
+                "atMs": 1790957837443,
+                "classes": [
+                  "mail_tool"
+                ],
+                "codes": [],
+                "sourceModules": [],
+                "sourceClasses": [],
+                "numericLabels": {}
+              },
+              {
+                "atMs": 1790957842603,
+                "classes": [
+                  "mail_tool"
+                ],
+                "codes": [],
+                "sourceModules": [],
+                "sourceClasses": [],
+                "numericLabels": {}
+              },
+              {
+                "atMs": 1790957852725,
+                "classes": [
+                  "mail_tool",
+                  "http503"
+                ],
+                "codes": [],
+                "sourceModules": [],
+                "sourceClasses": [],
+                "numericLabels": {}
+              },
+              {
+                "atMs": 1790957852726,
+                "classes": [
+                  "mail_tool",
+                  "error"
+                ],
+                "codes": [],
+                "sourceModules": [],
+                "sourceClasses": [],
+                "numericLabels": {
+                  "durationMs": 10049.0
+                }
+              },
+              {
+                "atMs": 1790957852726,
+                "classes": [
+                  "mail_tool",
+                  "error"
+                ],
+                "codes": [],
+                "sourceModules": [],
+                "sourceClasses": [],
+                "numericLabels": {}
+              },
+              {
+                "atMs": 1790957852730,
+                "classes": [
+                  "mail_tool",
+                  "error"
+                ],
+                "codes": [],
+                "sourceModules": [],
+                "sourceClasses": [],
+                "numericLabels": {
+                  "durationMs": 10127.0
+                }
+              },
+              {
+                "atMs": 1790957861714,
+                "classes": [
+                  "mail_tool"
+                ],
+                "codes": [],
+                "sourceModules": [],
+                "sourceClasses": [],
+                "numericLabels": {
+                  "durationMs": 24271.0
+                }
+              },
+              {
+                "atMs": 1790957861715,
+                "classes": [
+                  "mail_tool"
+                ],
+                "codes": [],
+                "sourceModules": [],
+                "sourceClasses": [],
+                "numericLabels": {
+                  "durationMs": 24272.0
+                }
+              }
+            ],
+            "allPagesRead": true
+          }
+        ]
+      }
+    },
+    "api": {
+      "status": "PASS",
+      "data": {
+        "service": "api",
+        "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:505",
+        "sourceSha": "a260004e9923ef5bbe7bd8f32bb4cbddd3c7be31",
+        "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:f9505afe6319f814a770fbafc128daa567041226ebdba3b3751f64a839c584d6",
+        "desired": 2,
+        "running": 2,
+        "pending": 0,
+        "streams": [
+          {
+            "taskId": "e7a199eb0ee74a0b98a153f1ec64acd9",
+            "health": "HEALTHY",
+            "events": 13,
+            "counts": {
+              "mail_tool": 2,
+              "error": 1
+            },
+            "observations": [
+              {
+                "atMs": 1790957842708,
+                "classes": [
+                  "mail_tool"
+                ],
+                "codes": [],
+                "sourceModules": [],
+                "sourceClasses": [],
+                "numericLabels": {}
+              },
+              {
+                "atMs": 1790957852719,
+                "classes": [
+                  "mail_tool",
+                  "error"
+                ],
+                "codes": [],
+                "sourceModules": [],
+                "sourceClasses": [],
+                "numericLabels": {
+                  "durationMs": 10010.0
+                }
+              }
+            ],
+            "allPagesRead": true
+          },
+          {
+            "taskId": "fc93eaa8526846ae83d7c5d2a6b7da42",
+            "health": "HEALTHY",
+            "events": 22,
+            "counts": {
+              "error": 1,
+              "mail_tool": 2
+            },
+            "observations": [
+              {
+                "atMs": 1790957836638,
+                "classes": [
+                  "error"
+                ],
+                "codes": [],
+                "sourceModules": [],
+                "sourceClasses": [],
+                "numericLabels": {}
+              },
+              {
+                "atMs": 1790957842682,
+                "classes": [
+                  "mail_tool"
+                ],
+                "codes": [],
+                "sourceModules": [],
+                "sourceClasses": [],
+                "numericLabels": {}
+              },
+              {
+                "atMs": 1790957861740,
+                "classes": [
+                  "mail_tool"
+                ],
+                "codes": [],
+                "sourceModules": [],
+                "sourceClasses": [],
+                "numericLabels": {
+                  "durationMs": 26590.0
+                }
+              }
+            ],
+            "allPagesRead": true
+          }
+        ]
+      }
+    },
+    "piQueryShapes": {
+      "status": "PASS",
+      "data": [
+        {
+          "sqlId": "B213B3BD39D288EF6A7A8CFF3BEEA2C6C95827C5",
+          "sqlSha256": "6d0e01090c0486a27af57ceb1f1f64c7968f04e90d90a3dd2c29f16d2e9fae8d",
+          "dbLoadAverage": 0.027855153203342618,
+          "statementLength": 802,
+          "fullStatementAvailable": true,
+          "knownTables": [
+            "engagement_connections",
+            "mail_messages",
+            "mail_threads"
+          ],
+          "knownFields": [
+            "body_text",
+            "cc_recipients_jsonb",
+            "connection_id",
+            "created_at",
+            "created_by_user_id",
+            "engagement_connections",
+            "from_email",
+            "from_name",
+            "id",
+            "mail_messages",
+            "mail_threads",
+            "metadata_jsonb",
+            "provider",
+            "received_at",
+            "removed_at",
+            "sent_at",
+            "subject",
+            "tenant_id",
+            "text",
+            "thread_id",
+            "to_recipients_jsonb"
+          ],
+          "operators": [
+            "coalesce",
+            "count",
+            "distinct",
+            "ilike",
+            "join"
+          ],
+          "placeholders": 14
+        },
+        {
+          "sqlId": "7D86EBC15149BC82C66223ECA3DB3451E25DD152",
+          "sqlSha256": "a590f9b38b77acdb401b93648eb27bbd2d7beeb032a19e54444870791dc29c1d",
+          "dbLoadAverage": 0.016713091922005572,
+          "statementLength": 2329,
+          "fullStatementAvailable": true,
+          "knownTables": [
+            "engagement_connections",
+            "meeting_attendees",
+            "meetings"
+          ],
+          "knownFields": [
+            "association_reason",
+            "association_score",
+            "association_signals_jsonb",
+            "client_id",
+            "connection_id",
+            "created_at",
+            "created_by_user_id",
+            "description",
+            "email",
+            "ends_at",
+            "engagement_connections",
+            "external_id",
+            "ical_uid",
+            "id",
+            "is_internal",
+            "is_virtual",
+            "join_link",
+            "location",
+            "meeting_attendees",
+            "meeting_id",
+            "meetings",
+            "metadata_jsonb",
+            "organizer_email",
+            "organizer_name",
+            "provider",
+            "raw_jsonb",
+            "shared_at",
+            "shared_by_user_id",
+            "source",
+            "starts_at",
+            "status",
+            "subject",
+            "tenant_id",
+            "text",
+            "time_zone",
+            "transcript_s3_key",
+            "updated_at",
+            "visibility"
+          ],
+          "operators": [
+            "array",
+            "join",
+            "jsonb",
+            "offset"
+          ],
+          "placeholders": 30
+        },
+        {
+          "sqlId": "15A4B4F986000BF22BC8899AC0CF25BB0FFF1E71",
+          "sqlSha256": "a4ae617aa7be456ea7260e78cf349d575ac853bc89d53676afd9a8db9e946dea",
+          "dbLoadAverage": 0.013927576601671309,
+          "statementLength": 185,
+          "fullStatementAvailable": true,
+          "knownTables": [
+            "sam_opportunity"
+          ],
+          "knownFields": [
+            "agency",
+            "id",
+            "sam_opportunity"
+          ],
+          "operators": [
+            "limit",
+            "offset",
+            "order by"
+          ],
+          "placeholders": 3
+        },
+        {
+          "sqlId": "FE9A39A0DD06C4C7CA23422A407B742233B58960",
+          "sqlSha256": "0b75f8a8cc836b346718f47cfe2daaf0d245bafb648b40155afe11d12790fde6",
+          "dbLoadAverage": 0.005571030640668524,
+          "statementLength": 1025,
+          "fullStatementAvailable": true,
+          "knownTables": [
+            "engagement_connections",
+            "mail_messages",
+            "mail_threads"
+          ],
+          "knownFields": [
+            "body_text",
+            "client_id",
+            "connection_id",
+            "created_by_user_id",
+            "engagement_connections",
+            "from_email",
+            "from_name",
+            "id",
+            "mail_messages",
+            "mail_threads",
+            "removed_at",
+            "subject",
+            "tenant_id",
+            "thread_id"
+          ],
+          "operators": [
+            "count",
+            "ilike",
+            "join",
+            "offset"
+          ],
+          "placeholders": 67
+        },
+        {
+          "sqlId": "CD2E0F48AF4DEDF0A5179C47F8593301E485E92A",
+          "sqlSha256": "c0143463d597aeb99e7dccdd5f531c5f4e8b1f1407e5d05b25f9793023a932d7",
+          "dbLoadAverage": 0.005571030640668524,
+          "statementLength": 4095,
+          "fullStatementAvailable": true,
+          "knownTables": [
+            "context_embeddings"
+          ],
+          "knownFields": [
+            "client_id",
+            "content_hash",
+            "content_text",
+            "context_embeddings",
+            "embedding",
+            "model",
+            "source_id",
+            "source_type",
+            "tenant_id"
+          ],
+          "operators": [],
+          "placeholders": 7
+        },
+        {
+          "sqlId": "23FCDD6A15F1549664A97CA16200FD963ACB9DAA",
+          "sqlSha256": "f389778d403ec43d39ee0fa1c6a28fba02033f2585cfb2805b9bf63b12cd534e",
+          "dbLoadAverage": 0.005571030640668524,
+          "statementLength": 2305,
+          "fullStatementAvailable": true,
+          "knownTables": [
+            "engagement_connections",
+            "meeting_attendees",
+            "meetings"
+          ],
+          "knownFields": [
+            "association_reason",
+            "association_score",
+            "association_signals_jsonb",
+            "client_id",
+            "connection_id",
+            "created_at",
+            "created_by_user_id",
+            "description",
+            "email",
+            "ends_at",
+            "engagement_connections",
+            "external_id",
+            "ical_uid",
+            "id",
+            "is_internal",
+            "is_virtual",
+            "join_link",
+            "location",
+            "meeting_attendees",
+            "meeting_id",
+            "meetings",
+            "metadata_jsonb",
+            "organizer_email",
+            "organizer_name",
+            "provider",
+            "raw_jsonb",
+            "shared_at",
+            "shared_by_user_id",
+            "source",
+            "starts_at",
+            "status",
+            "subject",
+            "tenant_id",
+            "text",
+            "time_zone",
+            "transcript_s3_key",
+            "updated_at",
+            "visibility"
+          ],
+          "operators": [
+            "array",
+            "join",
+            "jsonb",
+            "offset"
+          ],
+          "placeholders": 24
+        },
+        {
+          "sqlId": "E4DF62DF133CF28B5EF7CF998A446E159981951A",
+          "sqlSha256": "66ce201544e557642f87dc35f2e398358f4f8601185153633f767cb50189fd30",
+          "dbLoadAverage": 0.002785515320334262,
+          "statementLength": 3138,
+          "fullStatementAvailable": true,
+          "knownTables": [
+            "memory_items"
+          ],
+          "knownFields": [
+            "approvedAt",
+            "approvedByUserId",
+            "approved_at",
+            "approved_by_user_id",
+            "asOf",
+            "as_of",
+            "assertedByUserId",
+            "asserted_by_user_id",
+            "authority",
+            "clientId",
+            "client_id",
+            "confidence",
+            "conflictGroupId",
+            "conflictStatus",
+            "conflict_group_id",
+            "conflict_status",
+            "controllingItemId",
+            "controlling_item_id",
+            "effectiveFrom",
+            "effective_from",
+            "expiresAt",
+            "expires_at",
+            "governedStatus",
+            "governed_status",
+            "id",
+            "instructionsAllowed",
+            "instructions_allowed",
+            "last_confirmed_at",
+            "memoryClass",
+            "memory_authority",
+            "memory_class",
+            "memory_items",
+            "originContextPacketId",
+            "originModel",
+            "originPromptVersion",
+            "originSurface",
+            "originTraceId",
+            "origin_context_packet_id",
+            "origin_model",
+            "origin_prompt_version",
+            "origin_surface",
+            "origin_trace_id",
+            "ownerUserId",
+            "owner_user_id",
+            "provenance",
+            "reviewDueAt",
+            "reviewState",
+            "review_due_at",
+            "review_state",
+            "secondApprovedAt",
+            "secondApprovedByUserId",
+            "second_approved_at",
+            "second_approved_by_user_id",
+            "sections",
+            "sections_jsonb",
+            "sensitivity",
+            "slug",
+            "sourceContentHash",
+            "sourceId",
+            "sourceRef",
+            "sourceType",
+            "sourceVersion",
+            "source_content_hash",
+            "source_id",
+            "source_ref",
+            "source_type",
+            "source_version",
+            "status",
+            "title",
+            "type",
+            "updatedAt",
+            "updated_at",
+            "validUntil",
+            "valid_until",
+            "visibility"
+          ],
+          "operators": [
+            "any",
+            "coalesce",
+            "order by"
+          ],
+          "placeholders": 29
+        },
+        {
+          "sqlId": "80B25B1C4D2FA7DE09C9358681097CF8793F974C",
+          "sqlSha256": "8e212aa63e42d65b3b830c4280ffc9dd79cfc7da668b5cdd1287a6d2ce3ce33f",
+          "dbLoadAverage": 0.002785515320334262,
+          "statementLength": 1653,
+          "fullStatementAvailable": true,
+          "knownTables": [],
+          "knownFields": [
+            "attempts",
+            "capture_id",
+            "completed_at",
+            "conflict",
+            "created_at",
+            "dedupe_key",
+            "due_at",
+            "hearing_id",
+            "last_error",
+            "lease_expires_at",
+            "lease_owner",
+            "payload",
+            "status",
+            "updated_at"
+          ],
+          "operators": [
+            "jsonb"
+          ],
+          "placeholders": 16
+        },
+        {
+          "sqlId": "2A8637A22388215C83E35BCB7B2C163E8D8BE14F",
+          "sqlSha256": "f795c2eb235648538dcc5dab6f3cc73f3f07bc8b2be64679a4d21cfea6ff266c",
+          "dbLoadAverage": 0.002785515320334262,
+          "statementLength": 4095,
+          "fullStatementAvailable": true,
+          "knownTables": [
+            "context_embeddings"
+          ],
+          "knownFields": [
+            "client_id",
+            "content_hash",
+            "content_text",
+            "context_embeddings",
+            "embedding",
+            "model",
+            "source_id",
+            "source_type",
+            "tenant_id"
+          ],
+          "operators": [],
+          "placeholders": 7
+        },
+        {
+          "sqlId": "1F85C9C04ACBAF619FFC7C4ED235E63E2FC55748",
+          "sqlSha256": "5f9687a242352b9d8609d83b9f5aaba3517446bff35318735d2dc1db13800be7",
+          "dbLoadAverage": 0.002785515320334262,
+          "statementLength": 2645,
+          "fullStatementAvailable": true,
+          "knownTables": [
+            "clio_messages"
+          ],
+          "knownFields": [
+            "body",
+            "client_id",
+            "clio_messages",
+            "conversation_id",
+            "created_at",
+            "id",
+            "metadata_jsonb",
+            "nanoclaw_id",
+            "role",
+            "tenant_id",
+            "user_id"
+          ],
+          "operators": [
+            "offset",
+            "order by"
+          ],
+          "placeholders": 446
+        }
+      ]
+    }
+  }
+}

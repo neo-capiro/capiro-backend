@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "status": "RECONCILIATION_REQUIRED",
+  "planHash": "279dd1611e672cc9ad588f0ba8f2e693243c81a399157f6f80bf2acda4042731",
+  "mode": "forward450-deploy",
+  "operationId": "430af443-3b39-4181-8978-73132b06e2ca",
+  "sourceSha": "42988dae5fb7bc2fff3af582ca15a0836a4477c5",
+  "operatorHead": "ceb97079d4520631238583cf64ec96d6a67ce5e5",
+  "liveAcceptance": "NOT_RUN",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-forward450:1",
+  "startedBy": "meri-c01-430af443-3b39-4181-8978-",
+  "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/237b3678b71847aebf2d3faa092bb792",
+  "containerExitCode": 1,
+  "logMessageCount": 1,
+  "ownerReceipts": [
+    {
+      "version": 1,
+      "kind": "meri-forward450",
+      "stage": "PREFLIGHT",
+      "status": "BLOCKED",
+      "code": "ERR_ASSERTION",
+      "prismaAttempted": false,
+      "retryAllowed": false
+    }
+  ],
+  "code": "OWNER_PROCESS_FAILED"
+}

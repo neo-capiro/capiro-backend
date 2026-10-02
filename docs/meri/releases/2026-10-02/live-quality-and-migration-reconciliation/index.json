@@ -1,0 +1,127 @@
+{
+  "recordedAt": "2026-10-02T16:31:59.984403+00:00",
+  "files": [
+    {
+      "path": ".gitattributes",
+      "sha256": "155348a89d5e749f50d336f8f164a39bf8415179177b36e8b51766f3ab9a16d3",
+      "bytes": 26
+    },
+    {
+      "path": "mail-recurrence/mail-recurrence-20261002T162809Z.json",
+      "sha256": "50410ac1e881609809f71da3bcdde623b3bc3fa7968d765668a82c126e1afbdd",
+      "bytes": 36540
+    },
+    {
+      "path": "memory-kind-release/live-quality-examples-20261002.json",
+      "sha256": "3fd7cb1f940855d690c3ddcf038defa84ffc35548362c65786b1e873350e79af",
+      "bytes": 5707
+    },
+    {
+      "path": "memory-kind-release/meriv2-orchestrator-independent-promotion-readback.json",
+      "sha256": "1f70a91bc3baaf3db194b87146d98f02da19fb98c50ad26f2196b28ee0099760",
+      "bytes": 2701
+    },
+    {
+      "path": "memory-kind-release/meriv2-orchestrator-promotion-plan.json",
+      "sha256": "41700936523f7d1bb70934b24e147346e33492e71ca259590cb529f407b27101",
+      "bytes": 3638
+    },
+    {
+      "path": "memory-kind-release/meriv2-orchestrator-promotion-receipt.json",
+      "sha256": "5fd7913108b8f3d7328fc1e73430105e325d8501ce5ca1d396e0925d96e3bd87",
+      "bytes": 1112
+    },
+    {
+      "path": "memory-kind-release/meriv2-orchestrator-qualification.json",
+      "sha256": "9e165dd121b094ec42806213caead9090a13b2bdb35854bc6fe306162c6039f3",
+      "bytes": 2849
+    },
+    {
+      "path": "memory-kind-repair/forward450-diagnostic-execution.json",
+      "sha256": "30894da06068eba1f557fdcf72246e8f0069c20f3f888bffe2113c17da252261",
+      "bytes": 30662
+    },
+    {
+      "path": "memory-kind-repair/forward450-diagnostic-independent-peer-review.json",
+      "sha256": "bf7554c2287a80475b067666d0d962401caf2c59a0b6222eeb2b49962fcd2201",
+      "bytes": 2632
+    },
+    {
+      "path": "memory-kind-repair/forward450-diagnostic-local-qualification.json",
+      "sha256": "7b7e5f1a8a612e89a6b5325553146184f722b3c17d9ae5cfba6d98200fad5044",
+      "bytes": 1771
+    },
+    {
+      "path": "memory-kind-repair/forward450-diagnostic-oneoff-tests.py",
+      "sha256": "f20a1dfb7ddc53819a0626c8bae6c66f664a6e3c5fa0b04c455ab9be732c1a78",
+      "bytes": 3514
+    },
+    {
+      "path": "memory-kind-repair/forward450-diagnostic-oneoff.py",
+      "sha256": "501daf291ef11bd6f7792fb70a4533a6c58e00800ed9f28baa8cea0aa2c8388e",
+      "bytes": 7494
+    },
+    {
+      "path": "memory-kind-repair/forward450-diagnostic-proof.json",
+      "sha256": "271ed6513cfe9ab84fc197f2134d8890af8b692c6d90f4a37ce6b7ce5fb60b44",
+      "bytes": 1472
+    },
+    {
+      "path": "memory-kind-repair/forward450-diagnostic-task-plan.json",
+      "sha256": "eab8c4968c8be194828fa7587e40bcb7c50b24c49363d2a17a9cd1db43636ff8",
+      "bytes": 2335
+    },
+    {
+      "path": "memory-kind-repair/forward450-diagnostic.mjs",
+      "sha256": "4a100583c9691782050573daa985cc26e4aa98ab1430655f46bf4f9dce664184",
+      "bytes": 18161
+    },
+    {
+      "path": "memory-kind-repair/forward450-diagnostic.test.mjs",
+      "sha256": "607a98c436d43531508a8be5f5e014be04bb871ff429fea5b2be55f38ee47401",
+      "bytes": 8732
+    },
+    {
+      "path": "memory-kind-repair/forward450-execution.json",
+      "sha256": "c69da8bdbeb8e7c6a2bdc82cce2566a9c5dbcbbdb54510f1e925f3b5a60117bc",
+      "bytes": 987
+    },
+    {
+      "path": "memory-kind-repair/forward450-independent-diagnostic-readback.json",
+      "sha256": "d76666288a7ee31af05da989e889c7327a2c21ca4347482324271fd3c21a5d6f",
+      "bytes": 1746
+    },
+    {
+      "path": "memory-kind-repair/forward450-independent-failure-readback.json",
+      "sha256": "9d9324240375fcf900c424d2b47bd2ea8842f87e79ce30bc2493f1f8c6286da7",
+      "bytes": 1048
+    },
+    {
+      "path": "memory-kind-repair/forward450-task-plan.json",
+      "sha256": "477b17866089e3ff6a5221da1e75a7c2736dd5fdffb7f071eda885746c7eeb84",
+      "bytes": 2322
+    },
+    {
+      "path": "memory-kind-repair/preflight-ledger-and-orchestrator-independence.json",
+      "sha256": "a5be2ad415e9ac61bd81b22e83c2b0c3b7f5e12aa58fc699e4afa4c5fa42e8e5",
+      "bytes": 7385
+    },
+    {
+      "path": "post-seed-resume/operator-v6-final-qualification.json",
+      "sha256": "c87293ceafde4b73934ae4fca45c0e06e0b5e7bf8fe27abc6e3398876f8221d8",
+      "bytes": 5506
+    },
+    {
+      "path": "post-seed-resume/v6-independent-marker-adjudication.json",
+      "sha256": "8f5768f7cc3c16d5c2b67e461ec475469c5aa98f59953af73566ab78975f9ca0",
+      "bytes": 2543
+    },
+    {
+      "path": "README.md",
+      "sha256": "640785579abc6b95d06d4bdec04fcc4a00e516e31f18decba8c2b5f25f0ea187",
+      "bytes": 2932
+    }
+  ],
+  "status": "DEFECTS_FOUND_RECONCILED_HISTORY",
+  "liveAcceptance": "NOT_RUN"
+}
