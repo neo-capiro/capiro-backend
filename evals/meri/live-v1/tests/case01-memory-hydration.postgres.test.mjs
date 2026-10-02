@@ -15,6 +15,7 @@ import { buildFixtureManifest } from '../fixture-provisioning/manifest.mjs';
 import { createCaptureBindingOwner } from '../fixture-provisioning/capture-binding-owner.mjs';
 import {
   createHydratedCase01MemoryOwner,
+  readCase01MemoryCorpusInTx,
   case01MemoryOwnerLocator,
 } from '../fixture-provisioning/case01-memory-owner.mjs';
 import { sha256Stable } from '../artifact-collector.mjs';
@@ -150,6 +151,31 @@ it(
       )[0].settings;
       assert.deepEqual(stored.unrelated, { text: 'keep  ' });
       assert.deepEqual(stored.meriFoundationFixture.captureEvidence, bound.binding);
+      const corpus = await readCase01MemoryCorpusInTx(runtimeDeps, tx, ctx, CLIENT);
+      assert.deepEqual(corpus, {
+        ...qualification,
+        evidenceKind: 'canonical-memory-corpus-readback',
+        captureAuthority: false,
+      });
+      // Switching the active controlled-read binding does not change this
+      // corpus. It must still prevent case01 capture admission.
+      await tx.$executeRawUnsafe('SAVEPOINT capture_binding_switch');
+      try {
+        await tx.$executeRawUnsafe(
+          "UPDATE tenants SET settings_jsonb=jsonb_set(settings_jsonb,'{meriFoundationFixture,captureEvidence}',$1::jsonb) WHERE id=$2::uuid",
+          JSON.stringify({ ...bound.binding, caseId: '20', captureRunId: randomUUID() }),
+          TENANT,
+        );
+        assert.deepEqual(await readCase01MemoryCorpusInTx(runtimeDeps, tx, ctx, CLIENT), corpus);
+        await assert.rejects(owner.qualifyInTx(tx, ctx, scope), /CASE01_LOCATOR_BINDING_MISMATCH/);
+      } finally {
+        await tx.$executeRawUnsafe('ROLLBACK TO SAVEPOINT capture_binding_switch');
+        await tx.$executeRawUnsafe('RELEASE SAVEPOINT capture_binding_switch');
+      }
+      await assert.rejects(
+        readCase01MemoryCorpusInTx(runtimeDeps, tx, { ...ctx, role: 'capiro_admin' }, CLIENT),
+      );
+      await assert.rejects(readCase01MemoryCorpusInTx(runtimeDeps, tx, ctx, randomUUID()));
       await assert.rejects(
         owner.installLocatorInTx(tx, ctx, {
           locator,
@@ -183,6 +209,19 @@ it(
           assert.ok((await tx.$executeRawUnsafe(mutation)) > 0);
           await assert.rejects(restart(), mutation);
           await assert.rejects(owner.qualifyInTx(tx, ctx, scope), mutation);
+          if (mutation.includes('syntheticFixtureItemRowVersion')) {
+            // A valid historical audit version can be reconstructed, but it is
+            // changed evidence, not the old capture binding. The shared protocol
+            // detects this hash change across its before/after readbacks.
+            const changed = await readCase01MemoryCorpusInTx(runtimeDeps, tx, ctx, CLIENT);
+            assert.notEqual(changed.currentVerifySha256, corpus.currentVerifySha256);
+            assert.equal(changed.captureAuthority, false);
+          } else {
+            await assert.rejects(
+              readCase01MemoryCorpusInTx(runtimeDeps, tx, ctx, CLIENT),
+              mutation,
+            );
+          }
         } finally {
           await tx.$executeRawUnsafe('ROLLBACK TO SAVEPOINT hydration_tamper');
           await tx.$executeRawUnsafe('RELEASE SAVEPOINT hydration_tamper');

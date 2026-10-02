@@ -3,7 +3,7 @@ import { cases } from './cases.mjs';
 import { parseCaptureSse } from './capture-transport.mjs';
 import { sha256Stable } from './artifact-collector.mjs';
 import { AUTHORIZED_TENANTS } from './fixture-provisioning/contract.mjs';
-import { createHydratedCase01MemoryOwner } from './fixture-provisioning/case01-memory-owner.mjs';
+import { readCase01MemoryCorpusInTx } from './fixture-provisioning/case01-memory-owner.mjs';
 
 export const memoryReadCaseIds = Object.freeze(['02', '03', '04', '05']);
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/iu;
@@ -82,9 +82,8 @@ export function prepareMemoryReadCase(config) {
  * nor creates a provider admission, receipt, fixture or claim. Run with the
  * existing minimal factory's runWithTenant and deps, never AppModule. */
 export async function readCurrentMemoryCorpus(deps, ctx, clientId) {
-  const owner = createHydratedCase01MemoryOwner(deps);
   return deps.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
-    owner.qualifyInTx(tx, ctx, { caseId: '01', clientId }),
+    readCase01MemoryCorpusInTx(deps, tx, ctx, clientId),
   );
 }
 

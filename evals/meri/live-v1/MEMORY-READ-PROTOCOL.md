@@ -46,11 +46,14 @@ that rows remain current. Capture the complete fresh proof before and after each
 turn. The one-entry MA1-v2 `sourceMap` alone is insufficient: the current proof
 also verifies the pending/revoked/superseded/Bluehaven corpus.
 
-If the original captureEvidence/locator is replaced by another case's setup,
-this reader deliberately fails instead of reconstructing from arbitrary saved
-JSON. Finish this shared corpus slice before replacing those setup bindings, or
-use a separately reviewed current-owner composition. Do not restore stale tenant
-settings just to make the reader work.
+The readback reconstructs from the current canonical locator and rows even when
+another case has replaced `captureEvidence`. It explicitly returns
+`captureAuthority: false`; existing case01 capture admission still requires its
+own exact binding. A missing/changed locator or invalid current actor, source or
+lifecycle refuses. A reconstructable historical audit-version change produces
+a different current hash, so the protocol detects before/after drift; it is not
+a claim that the original binding still matches. Do not restore stale tenant
+settings or treat this corpus evidence as provider admission.
 
 The frozen specification says reset relevant state before each case. For these
 read-only rows, a fresh unchanged-baseline readback may be recorded as such; it

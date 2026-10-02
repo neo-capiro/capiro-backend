@@ -148,6 +148,25 @@ async function tenantInTx(tx, ctx) {
   return row;
 }
 
+/** Operator evidence only: the canonical five-source corpus can outlive the
+ * active conversation capture binding. Keep every namespace, actor, lifecycle,
+ * source-version and permission check; grant no capture or provider authority. */
+export async function readCase01MemoryCorpusInTx(deps, tx, ctx, clientId) {
+  const row = await tenantInTx(tx, ctx);
+  const qualified = await reconstruct(
+    tx,
+    ctx,
+    { caseId: '01', clientId },
+    row.settings.meriFoundationFixture.case01MemoryOwner,
+    deps,
+  );
+  return {
+    ...qualified,
+    evidenceKind: 'canonical-memory-corpus-readback',
+    captureAuthority: false,
+  };
+}
+
 /** Internal server port. Qualifies inside the existing authenticated transaction.
  * Reconstruct each time, so neither tenant configuration nor row versions cache
  * across requests or restarts. Canonical helpers hold the current source locks.
