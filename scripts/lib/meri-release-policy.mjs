@@ -152,6 +152,8 @@ const VOLATILE = new Set([
   'createdBy',
   'taskSets',
   'deployments',
+  'currentServiceDeployment',
+  'currentServiceRevisions',
   'serviceArn',
   'clusterArn',
 ]);
