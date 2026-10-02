@@ -1,0 +1,76 @@
+{
+  "verdict": "PASS",
+  "scope": "Source-only ordinary case01 provider accounting and source-owned qualification installer",
+  "policyCommit": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "machineMapSha256": "294d7449619e3b10913008e31d8d610075e6852ff0f0cc0d38de8f6a8c6369ab",
+  "baseImplementationCommit": "0c8b50085c846f07f05210f619d3cc2013ac1490",
+  "followupCommit": "85420cf7daa01383760c322d0d4b906dc6bba7a8",
+  "tests": [
+    {
+      "log": "capture-budget-installer-jest.log",
+      "sha256": "35f77948aa95fb4306a23691cb8a2f09f2670358d5cb9ece38277fa0d70b5cde",
+      "passed": 14,
+      "suites": 2,
+      "exitCode": 0
+    },
+    {
+      "log": "capture-budget-wire-output-final.log",
+      "sha256": "ed90eb61c787e39e19abe455c53c26649633fa50410dbb71e2c50f1ef63fc27b",
+      "passed": 45,
+      "suites": 3,
+      "exitCode": 0
+    },
+    {
+      "log": "capture-budget-installer-postgres-final.log",
+      "sha256": "21fb1610ca08d73cb52403d3c7a6d05562a63c4abaa0e573e77a20a8d91c516c",
+      "passed": 3,
+      "suites": null,
+      "exitCode": 0
+    }
+  ],
+  "typechecks": {
+    "apiExit": 0,
+    "orchestratorExit": 0
+  },
+  "independentHermesReview": {
+    "requestedModel": "moonshotai.kimi-k2.5",
+    "initializedModel": "moonshotai.kimi-k2.5",
+    "sessionId": "20261002_061342_9959e4",
+    "provider": "bedrock",
+    "reportedTokens": {
+      "input": 21375,
+      "output": 923,
+      "total": 22298,
+      "cache_read": 0,
+      "cache_write": 0
+    },
+    "reportedResultExit": 0,
+    "toolCalls": 0,
+    "billedCostUsd": null,
+    "costStatus": "not exposed by quiet stream output",
+    "verdict": "PASS",
+    "actualProcessExitCode": 0,
+    "reportSha256": "c562ae15dc30b9e068c3b5c8fb2b5acc8f8b3dde9b61ea08d1258b347d3fd7d3"
+  },
+  "preservedNonqualifyingAttempts": [
+    "Qwen implementation session20261002_045517_b2b8eb exit1 no usable edits",
+    "Kimi initial source allegations retained and independently adjudicated against actual source/tests",
+    "Kimi install review session20261002_060522_21b54f sourcePASS but process exit1; not final green evidence"
+  ],
+  "externalSideEffects": {
+    "cloudWrites": 0,
+    "liveCaptures": 0,
+    "sharedDatabaseWrites": 0,
+    "sourcePushes": 0,
+    "localPostgres": "Owned loopback55433 disposable rollback/schema tests only"
+  },
+  "setupContract": "evals/meri/live-v1/fixture-provisioning/capture-provider-budget.md",
+  "remaining": [
+    "Parent release qualification and deployment",
+    "Canonical synthetic lifecycle, binding and restart locator installation",
+    "Explicit reviewed rate qualification installation via source CLI",
+    "Actual server-owned bounded case01 capture and exact predicate/human review"
+  ],
+  "liveAcceptance": "NOT_RUN",
+  "thirtyDollarAggregateLedger": "NOT_IMPLEMENTED"
+}

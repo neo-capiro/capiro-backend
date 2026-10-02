@@ -1,0 +1,99 @@
+{
+  "status": "PASS_PREPARED_ONLY",
+  "createdAt": "2026-10-02T06:15:02.310734+00:00",
+  "sourceSha": "1a912880b9d5406fc086f6c3d5fba3f5b73ed5ae",
+  "branch": "codex/meri-synthetic-governance-20261002",
+  "policySha": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "machineMapDate": "2026-09-30",
+  "files": {
+    "scripts/meri-synthetic-governance.mjs": "b5103d600e3fe8e17909a648d64b411e4d9ed505685c1c17a67e2081394059df",
+    "scripts/meri-synthetic-governance.test.mjs": "7ab906ccb35c1ed7e5023fc60cd9cd9dcd63a12f31337d05662b458124a26b40",
+    "scripts/meri-synthetic-governance-transform.test.mjs": "6d906ef60180b97e0e836b3d8de620c7717bfd7b02f5f9acb502eef255234f2b",
+    ".github/workflows/meri-synthetic-governance.yml": "c5fe9faaecf6ca07725b7b32fdb8c049aaf5e1c529d17c6077c67b34699c354f"
+  },
+  "clean": true,
+  "validation": {
+    "command": "node --test scripts/meri-synthetic-governance.test.mjs scripts/meri-synthetic-governance-transform.test.mjs",
+    "environment": "simulated GITHUB_ACTIONS=true with fake repo/ref/SHA; no authentication",
+    "passed": 27,
+    "failed": 0,
+    "skipped": 0,
+    "exitCode": 0,
+    "log": {
+      "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\synthetic-governance\\ci-environment-final.log",
+      "sha256": "a77bfae333bfd7340e891bcf1cedfabfdbe9ccd8f06cd26d2c6e7f46baca1152"
+    },
+    "exit": {
+      "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\synthetic-governance\\ci-environment-final-exit.json",
+      "sha256": "ea61d7736f0b7ecb9b35158f03de77013db6b100cf1d36c957e78e6c8817c5b6"
+    },
+    "workflowSyntax": "Prettier YAML parse/format exit0; no GitHub workflow run",
+    "initialCiEnvironmentFailurePreserved": {
+      "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\synthetic-governance\\ci-environment-before.log",
+      "sha256": "bdfe98b8284735a4ffafb18b0d15ce2044c4b6ed4a38fe1bd2d2444526366843"
+    }
+  },
+  "review": {
+    "finalVerdict": "PASS",
+    "report": {
+      "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\synthetic-governance\\governance-kimi-review.md",
+      "sha256": "b70155e87ce44d44da911b85338bcfe243bec16ea5e318211f62cefd8a9defd4"
+    },
+    "exit": {
+      "exitCode": 0,
+      "started": 1790921416.0198216,
+      "finished": 1790921444.0882485,
+      "elapsedSeconds": 28.07
+    },
+    "usage": {
+      "requestedModel": "moonshotai.kimi-k2.5",
+      "initializedModel": "moonshotai.kimi-k2.5",
+      "sessionId": "20261002_061019_fcb695",
+      "provider": "bedrock",
+      "reportedTokens": {
+        "input": 29082,
+        "output": 1292,
+        "total": 30374,
+        "cache_read": 0,
+        "cache_write": 0
+      },
+      "reportedResultExit": 0,
+      "toolCalls": 0,
+      "billedCostUsd": null,
+      "costStatus": "not exposed by quiet stream output"
+    },
+    "qualification": "Review body labeled a mode-validation style item BLOCK but explicitly says it is functionally correct/nonmaterial; final verdict PASS. No source changed for that observation.",
+    "postReviewDelta": "Only fake source-proof test now sets/restores4GHA env variables in finally and covers foreignref/repo/SHA. Root independently reviewed PASS. Operator/workflow/puretransformer hashes unchanged."
+  },
+  "qwen": {
+    "process": {
+      "pid": 19768,
+      "started": 1790920932.3472185,
+      "model": "qwen.qwen3-coder-next",
+      "provider": "bedrock"
+    },
+    "exit": {
+      "exitCode": 0,
+      "seconds": 298.93
+    },
+    "verdict": "INVALID_TEST_FIXTURES; not passed work. Corrected under existing direct repair exception.",
+    "preservedSource": {
+      "path": "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\synthetic-governance\\qwen-produced-transform.test.mjs.txt",
+      "sha256": "a0ac0421fa9d62cc933149361390e9db5d1f12a55b803ec0e283c8c9d0518e97"
+    }
+  },
+  "awsCalls": 0,
+  "awsMutations": 0,
+  "mainPushes": 0,
+  "actualFreshPlan": "NOT_RUN",
+  "apply": "NOT_RUN",
+  "rollback": "NOT_RUN",
+  "originalEvalAcceptance": "NOT_RUN",
+  "limitations": [
+    "Current image/source/task baseline is discovered only during later root-owned plan after combinedrelease.",
+    "Plan expires1hour; qualification expires at most24hours. Apply/rollback require exact current main source matching operatorSourceSha.",
+    "ECS UpdateService has no CAS: exclusive API change window remains required alongside drift checks.",
+    "Use merged main workflow. CLI fallback only after relevant workflow infrastructure outage is established under existing task authority.",
+    "All tests use no-auth fakeAWS, not live rollout evidence."
+  ]
+}

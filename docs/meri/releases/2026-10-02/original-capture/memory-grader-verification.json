@@ -1,0 +1,91 @@
+{
+  "verdict": "PASS",
+  "scope": "Source-only reusable original memory row evaluators; no runtime/coverage registration",
+  "commit": "d4f399e73965036bd72d11ede37ff5b3e2c9d242",
+  "parentCommit": "85420cf7daa01383760c322d0d4b906dc6bba7a8",
+  "caseIds": [
+    "02",
+    "04",
+    "05",
+    "06",
+    "07",
+    "08",
+    "09",
+    "10",
+    "11"
+  ],
+  "policyCommit": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "tests": [
+    {
+      "command": "node --test evals/meri/live-v1/tests/memory-row-predicates.test.mjs",
+      "exitCode": 0,
+      "passed": 72,
+      "failed": 0,
+      "skipped": 0,
+      "log": "memory-row-tests-final.log",
+      "sha256": "0f245e8bef94ba7c5b26bfc93e6cfaa78575274055c3c76f6d575c6f7cdf7669"
+    },
+    {
+      "command": "node --test evals/meri/live-v1/tests/contract.test.mjs",
+      "exitCode": 0,
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "log": "memory-row-contract-regression.log",
+      "sha256": "90268b07db6959b7ddddac79d47cf91d7e585a92c152cd637e1a379f035c2ba5"
+    }
+  ],
+  "checks": [
+    "Both Node syntax checks exit0",
+    "git diff --cached --check exit0",
+    "Reviewed source hashes unchanged through commit",
+    "Final worktree clean"
+  ],
+  "hermesImplementation": {
+    "session": "20261002_062542_5f7266",
+    "provider": "bedrock",
+    "model": "qwen.qwen3-coder-next",
+    "verdict": "INVALID",
+    "exitCode": 1,
+    "reason": "Actual terminal cwd failed required worktree check; only confirmed owned PID21628 stopped; no source edits accepted"
+  },
+  "review": {
+    "initial": {
+      "session": "20261002_063804_8b9a74",
+      "exitCode": 0,
+      "verdict": "FAIL_PRESERVED",
+      "finding": "Incorrect premise that captureRunId is absent from saved auth/trace schemas"
+    },
+    "adjudication": {
+      "requestedModel": "moonshotai.kimi-k2.5",
+      "initializedModel": "moonshotai.kimi-k2.5",
+      "sessionId": "20261002_064020_297be7",
+      "provider": "bedrock",
+      "reportedTokens": {
+        "input": 24994,
+        "output": 637,
+        "total": 25631,
+        "cache_read": 0,
+        "cache_write": 0
+      },
+      "reportedResultExit": 0,
+      "toolCalls": 0,
+      "billedCostUsd": null,
+      "costStatus": "not exposed by quiet stream output",
+      "actualExitCode": 0,
+      "verdict": "PASS",
+      "reportSha256": "7fdeb504236c405857dd0d7b70d6a5f7a1963fa4e662a5405cf9613219ec2ce6"
+    }
+  },
+  "integrationRequirements": [
+    "Retain common artifact/authorization verifier and qualified current-source owner: this helper cannot grant that authority",
+    "Logical fixture IDs must be joined to physical sources through actual immutable owner mapping before evaluation",
+    "Provide separately saved comparison capture08 and previous Aster capture10; each runs full local binding checks",
+    "Save actual user-visible deliveredTrace bytes separately from internal denied-request trace",
+    "For negative fixtures with no public content in frozen spec supply qualified controlled forbiddenCorpus text/title/links",
+    "Keep human rubric mandatory; deterministic natural-language checks do not establish all semantic support",
+    "Existing deterministic-predicates and LIVE readiness/coverage flags unchanged"
+  ],
+  "externalWrites": 0,
+  "liveAcceptance": "NOT_RUN"
+}

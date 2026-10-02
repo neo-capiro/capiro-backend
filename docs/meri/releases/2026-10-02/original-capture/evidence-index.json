@@ -1,0 +1,42 @@
+[
+  {
+    "file": "qualification.json",
+    "sha256": "58c1b7fdf9bb8074fdd3ceee52327acca4b53fdec8c3f1b29a2f7a30de5a3b7f"
+  },
+  {
+    "file": "offline-summary.json",
+    "sha256": "d15021f888a07d2f8bd674aa3b96ee7c5ab0be68d4ebf4665ed8f8589f062d4b"
+  },
+  {
+    "file": "factory-verification.json",
+    "sha256": "d8d3d19482cc412a4d4958443033e41bd2ebaa794b744ed1723b09e0979527cd"
+  },
+  {
+    "file": "provider-verification.json",
+    "sha256": "9e2dd627fdd15e1b578c995adeb25548072e8a661003c9517367455c0ca8ec53"
+  },
+  {
+    "file": "memory-grader-verification.json",
+    "sha256": "90a0772a6453f6e3da5462fbc8fbfaded4bc3de19c3a40bb14b87e77f2b02258"
+  },
+  {
+    "file": "governance-verification.json",
+    "sha256": "6049312e4d0d30e17d1cf376ea74e0ae8e3435c4e738869586db021cd1623210"
+  },
+  {
+    "file": "pricing-review.json",
+    "sha256": "e3812c574180a80a1e2c880d7732e19fca4715633edea448de23ae6ea406c223"
+  },
+  {
+    "file": "api-buildspec-review.json",
+    "sha256": "81f0843853b9ccbdce72a80e8f3fe37a756cc97eac7c807e200640ab14a64574"
+  },
+  {
+    "file": "api.buildspec.yml",
+    "sha256": "6ae93b647a990ec2adad1f333cd443b54430c60fd58953af6ed61c3969072cb1"
+  },
+  {
+    "file": "meriv2-orchestrator.buildspec.yml",
+    "sha256": "dd3aaac45be1eada1a2451add262b6407313d699b390deb0c0707455c370af90"
+  }
+]

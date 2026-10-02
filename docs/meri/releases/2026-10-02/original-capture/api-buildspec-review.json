@@ -1,0 +1,13 @@
+{
+  "verdict": "PASS",
+  "recipeSha256": "6ae93b647a990ec2adad1f333cd443b54430c60fd58953af6ed61c3969072cb1",
+  "yamlParser": "installed Prettier3.9.6 parser yaml",
+  "bash": "Git bash -n all3 extracted literal phase blocks",
+  "exitCode": 0,
+  "addedImports": [
+    "/app/apps/api/scripts/meri-case01-setup-dependencies.mjs",
+    "/app/evals/meri/live-v1/fixture-provisioning/case01-execution-setup.mjs"
+  ],
+  "sourceSafety": "fixed modules imported/function type checked only; no factory/setup calls; --network none; entrypoint node",
+  "scope": "static syntax and fixed source-path review only; no AWS/Docker/provider/database execution"
+}

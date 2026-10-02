@@ -1,0 +1,78 @@
+{
+  "kind": "meri-case01-execution-source-qualification",
+  "status": "SOURCE_QUALIFIED",
+  "tests": [
+    {
+      "name": "Node grading+authority+generic verifier+input+packaging",
+      "passed": 110,
+      "failed": 0,
+      "skipped": 0,
+      "exit": 0,
+      "log": "final-node-regression.log"
+    },
+    {
+      "name": "Owned PostgreSQL canonical whole setup with exact2tenantcohort",
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "exit": 0,
+      "log": "setup-postgres-final.log",
+      "includesInheritedLifecycleTests": 2,
+      "scope": "random own schema; actual SQL and canonical lifecycle methods; rollback/schemaabsence; projection intercepted by existing test harness only, not LIVE"
+    },
+    {
+      "name": "Combined actual factory+canonical setup",
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0,
+      "exit": 0,
+      "log": "combined-factory-setup-tests.log",
+      "scope": "3 factory constructor checks, 1 actual factory PG, 2 inherited actual canonical lifecycle PG and 2 actual setup PG; every local schema rolled back and absence proved"
+    },
+    {
+      "name": "Final exact Docker fixture graph+CLI fixed input/entrypoint",
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "exit": 0,
+      "log": "combined-packaging-cli.log"
+    }
+  ],
+  "contractCases": 75,
+  "contractValid": true,
+  "liveAcceptance": "NOT_RUN",
+  "liveTurns": 0,
+  "cloudMutations": 0,
+  "hermesImplementation": {
+    "provider": "bedrock",
+    "model": "qwen.qwen3-coder-next",
+    "pid": 3640,
+    "exit": 1,
+    "status": "INVALID_NO_PATCH",
+    "fallback": "explicit prior user exception"
+  },
+  "hermesReview": {
+    "provider": "bedrock",
+    "model": "moonshotai.kimi-k2.5",
+    "pid": 9856,
+    "exit": 0,
+    "verdict": "PASS",
+    "scope": "inline source review only; actual test receipts supplied, reviewer did not execute tests",
+    "reportedTokens": 20091
+  },
+  "postReviewDelta": [
+    "bind actual factory tenant context with separate clerkUserId at both factory seams",
+    "existing case01 locator/binding refuses before first claim (root reviewed)",
+    "sanitize close failure",
+    "documentation and formatting",
+    "explicit cohort PostgreSQL regression"
+  ],
+  "fullFile01Acceptance": false,
+  "candidateCommit": "6772aaf12119755b1da29ae344236b020551129f",
+  "factoryDependencyCommit": "a3442a5809a6933f623a46102db223cff7e5d1a2",
+  "combinedPrimaryApiTypecheck": {
+    "exit": 0,
+    "log": "combined-api-tsc.log"
+  },
+  "bashSyntaxExit": 0
+}

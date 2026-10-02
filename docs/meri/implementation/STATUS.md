@@ -1,3 +1,16 @@
+## Current checkpoint — 2026-10-02 original capture source qualified
+
+**Original live acceptance remains NOT RUN.** Tested source `1d54ac1a95c7a2fb5184cee5af944891a0dba255` now has
+the complete case01 setup, authenticated capture, deterministic grading and provider
+ceiling composition. Combined329 Node/PostgreSQL assertions,100 API assertions,
+27 configuration assertions, full API typecheck and26 Promptfoo/custom cases pass.
+Independent Hermes/Kimi reviews pass. See
+[source qualification](../releases/2026-10-02/original-capture/qualification.md).
+Release, exact synthetic governance application, actual fixture/setup readback and
+the original live vertical slice remain the next operations. Current API488,
+orchestrator89 and Web VNext386 retain their separately verified repaired smoke.
+No migration, customer cohort or production provider policy change is included.
+
 ## Current checkpoint — 2026-10-02 deployed repair and original evaluation
 
 **File01 remains incomplete; production repair and two-tenant smoke PASS.**

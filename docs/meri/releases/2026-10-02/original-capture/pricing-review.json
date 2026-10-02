@@ -1,0 +1,43 @@
+{
+  "verdict": "PASS",
+  "scope": "Independent source and official-source review of conservative case01 accounting qualification, not rate installation or live acceptance",
+  "observedAt": "2026-10-02T06:22:56.540050+00:00",
+  "sourceCommit": "85420cf7daa01383760c322d0d4b906dc6bba7a8",
+  "rateEvidenceSha256": "2b5a3dc5565d1202d2905e9768689ed67174282d1f6263002b294b7b3b4f0f9d",
+  "officialSourcesOpened": [
+    {
+      "url": "https://developers.openai.com/api/docs/models/gpt-6-astra",
+      "finding": "USD10 input, USD12.5 cache writes, USD50 output per million tokens; input over272K doubles input/cache and multiplies output1.5; Fast2x. Qualified12.5/50 bound applies only to standard short-context text requests."
+    },
+    {
+      "url": "https://aws.amazon.com/blogs/machine-learning/optimizing-costs-of-generative-ai-applications-on-aws/",
+      "finding": "Official AWS example states Titan Text EmbeddingsV2 On-Demand USD0.02 per million input tokens."
+    },
+    {
+      "url": "https://docs.api.nvidia.com/nim/docs/run-anywhere",
+      "finding": "Developer hosted endpoints free for prototyping. USD1/M is a conservative positive accounting allowance, not a billed rate or qualification for paid deployments."
+    }
+  ],
+  "verifiedSourceProperties": [
+    "Fixed OpenAI Responses URL; no service_tier in request or request-policy builder",
+    "Reservation uses actual prepared max_output_tokens after shared policy, full serialized UTF8 input bytes",
+    "Installer binds exact reviewed maxTokens and expiry to qualification; runtime expiry covers full policy deadline",
+    "Case01 provider maximum USD3; selected qualification200000 aggregate token ceiling below long-context threshold",
+    "Native adapter uncertain usage retained; unknown tuples or bounds rejected before dispatch"
+  ],
+  "standardFirstAttemptArithmetic": {
+    "outputTokens": 16384,
+    "outputReserveMicros": 819200,
+    "remainingInputMicrosBeforeOtherSpend": 2180800,
+    "maxSerializedInputBytesBeforeOtherSpend": 174464
+  },
+  "limitations": [
+    "Actual prompt fit is not established. Prior embedding/JEV/other charges shrink remaining allowance; oversized attempt rejects before dispatch. No promise all Standard turns or retries fit.",
+    "Generic JEV transport reserves jev/jev/registry-model, not the spare jev/openai/gpt-6-astra rate entry; unsupported tuple fails closed. Native OpenAI verifier calls are covered only when actual openai_responses/openai/gpt-6-astra tuple matches.",
+    "Reranker default is off when RETRIEVAL_RERANK_ENABLED is absent. Root independently reported fresh AWS plain-env and secret-name absence; this peer checked source only. If enabled later, missing trustworthy NIM usage remains unsettled and blocks proof.",
+    "USD30 cross-case aggregate ledger is not implemented. Run one case at a time with explicit USD3 qualification. Full original acceptance NOT_RUN.",
+    "Rate evidence expires2026-10-03T06:08Z and must cover admission policy expiry. Re-review if provider/model/endpoint/tier/context qualification changes."
+  ],
+  "cloudWrites": 0,
+  "liveAcceptance": "NOT_RUN"
+}

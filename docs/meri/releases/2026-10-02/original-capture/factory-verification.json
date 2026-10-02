@@ -1,0 +1,83 @@
+{
+  "version": 1,
+  "verdict": "PASS",
+  "sourceSha": "a3442a5809a6933f623a46102db223cff7e5d1a2",
+  "baseSha": "6ae134540a32bd123308e3bf68b2ba1514ed3086",
+  "worktree": "C:\\dev\\cap-meri-doc-fidelity",
+  "branch": "codex/meri-case01-setup-factory-20261002",
+  "clean": true,
+  "policySha": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "machineMapRevision": "2026-09-30",
+  "files": {
+    "apps/api/scripts/meri-case01-setup-dependencies.mjs": {
+      "workingSha256": "88f429150dce3374655d2a96dd1a853ae8900c01b006dfcf507f0440f8d0028a",
+      "committedSha256": "88f429150dce3374655d2a96dd1a853ae8900c01b006dfcf507f0440f8d0028a"
+    },
+    "apps/api/scripts/meri-case01-setup-dependencies.test.mjs": {
+      "workingSha256": "28cd1cf548630d62e89b2772b3b9dd3018ce44cb686c764ba67ae70142e606d2",
+      "committedSha256": "28cd1cf548630d62e89b2772b3b9dd3018ce44cb686c764ba67ae70142e606d2"
+    },
+    "apps/api/src/memory/memory-candidate.service.ts": {
+      "workingSha256": "404b4aae92e6d22726bddb41adb93f979291b2d653de9f9605a69e5bc98423b1",
+      "committedSha256": "404b4aae92e6d22726bddb41adb93f979291b2d653de9f9605a69e5bc98423b1"
+    },
+    "apps/api/src/memory/immutable-memory-version.service.ts": {
+      "workingSha256": "a43fcc710e909dc03de0d3733a45ae110a9ad03b3dc98da8dcdeda8516b302f1",
+      "committedSha256": "a43fcc710e909dc03de0d3733a45ae110a9ad03b3dc98da8dcdeda8516b302f1"
+    },
+    "apps/api/src/memory/synthetic-memory-settlement.spec.ts": {
+      "workingSha256": "6d27fe732514cfe73fe73ec4750e4669fc4bba2552774cff2511ac3ef636ebea",
+      "committedSha256": "6d27fe732514cfe73fe73ec4750e4669fc4bba2552774cff2511ac3ef636ebea"
+    }
+  },
+  "checks": {
+    "factory": {
+      "passed": 4,
+      "skipped": 0,
+      "exitCode": 0,
+      "scope": "3 no-network constructor/control tests plus1 real owned55433 PostgreSQL actor and conversation write/readback; complete rollback"
+    },
+    "settlement": {
+      "passed": 24,
+      "suites": 4,
+      "exitCode": 0,
+      "scope": "7 new promise-order/abort regressions and17 existing candidate/version tests; mocked providers"
+    },
+    "canonicalPostgreSql": {
+      "passed": 3,
+      "skipped": 0,
+      "exitCode": 0,
+      "scope": "existing real seed/reset/hydration guard tests, inert projection sink explicit; no embedding proof"
+    },
+    "primaryApiTypecheck": {
+      "exitCode": 0,
+      "scope": "tsc --noEmit --rootDir . only"
+    },
+    "syntaxAndDiff": {
+      "exitCode": 0
+    }
+  },
+  "independentReview": {
+    "provider": "bedrock",
+    "model": "moonshotai.kimi-k2.5",
+    "sessionId": "20261002_063827_a4bae3",
+    "pid": 19652,
+    "exitCode": 0,
+    "toolCalls": 0,
+    "finalVerdict": "PASS",
+    "rawReport": "setup-kimi-review.md",
+    "rawMixedAnalysisPreserved": true,
+    "postReviewChangedFiles": [
+      "apps/api/scripts/meri-case01-setup-dependencies.test.mjs"
+    ],
+    "postReviewChange": "test-only owned PostgreSQL actor/conversation integration; no production source change"
+  },
+  "externalEffects": "No AWS/product/provider calls, live seed, main edits, or pushes. Only bounded Bedrock review and owned loopback rollback tests.",
+  "limitations": [
+    "This prepares case01; not live case01 or original75/CD/CW/M acceptance.",
+    "Legacy Clio1536 embedding remains optional and is not institutional index proof; synthetic fetch has20s abort. Governed projector uses actual Titan1024 and exact stored embedding verification; guarded correction awaits actual embedAndUpsert.",
+    "Existing Titan SDK has no newly introduced overall request deadline. Execution supervisor must use bounded process deadline and preserve ambiguous postcommit state, never automatically retry writes.",
+    "Synthetic settlement error follows committed canonical activation; operator journal/reconciliation is mandatory; no claim rollback of committed approval.",
+    "Fresh exact image import/build + integrated execution wrapper qualification still required."
+  ]
+}
