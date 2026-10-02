@@ -140,11 +140,18 @@ export async function issueMeriServerReadonlyCapturePolicy(args: {
     toolCatalogSha256: meriReadonlyCaptureCatalogSha256(),
     dynamicMcpAllowed: false,
     incidentalWriters: 'suppressed',
-    expectedCaptureWrites: [
-      'context_packet_and_evidence',
-      'conversation_user_message',
-      'conversation_assistant_message',
-    ] as const,
+    expectedCaptureWrites: conversation?.captureBudgetQualified
+      ? [
+          'context_packet_and_evidence',
+          'conversation_user_message',
+          'conversation_assistant_message',
+          'provider_budget_ledger',
+        ]
+      : [
+          'context_packet_and_evidence',
+          'conversation_user_message',
+          'conversation_assistant_message',
+        ],
   };
   await assertMeriServerReadonlyCaptureCurrentAuthority({
     prisma: args.prisma,
@@ -377,6 +384,7 @@ async function currentCaptureAuthorityRows(
 ): Promise<{
   clientId: string | null;
   client: { id: string; name: string } | null;
+  captureBudgetQualified: boolean;
   captureBinding: {
     caseId: string | null;
     captureRunId: string | null;
@@ -452,6 +460,7 @@ async function currentCaptureAuthorityRows(
     return {
       clientId: conversation.clientId,
       client: client ? { id: client.id, name: client.name } : null,
+      captureBudgetQualified: asRecord(fixture?.captureProviderBudget) !== null,
       captureBinding: {
         caseId: captureString(captureBinding?.caseId, /^(0[1-9]|[1-6][0-9]|7[0-5])$/),
         captureRunId: captureString(captureBinding?.captureRunId),
@@ -490,7 +499,9 @@ function assertExactCapturePolicy(
     policy.toolCatalogSha256 !== meriReadonlyCaptureCatalogSha256() ||
     policy.dynamicMcpAllowed !== false ||
     policy.incidentalWriters !== 'suppressed' ||
-    policy.expectedCaptureWrites.length !== 3 ||
+    (policy.expectedCaptureWrites.length !== 3 &&
+      (policy.expectedCaptureWrites.length !== 4 ||
+        policy.expectedCaptureWrites[3] !== 'provider_budget_ledger')) ||
     policy.expectedCaptureWrites[0] !== 'context_packet_and_evidence' ||
     policy.expectedCaptureWrites[1] !== 'conversation_user_message' ||
     policy.expectedCaptureWrites[2] !== 'conversation_assistant_message'

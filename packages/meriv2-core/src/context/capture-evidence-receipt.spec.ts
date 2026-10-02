@@ -65,6 +65,20 @@ function receipt(): MeriCaptureEvidenceReceipt {
     startedAt: NOW - 500,
     completedAt: NOW,
     expiresAt: p.expiresAt,
+    providerBudget: {
+      version: 1,
+      boundary: 'case01_memory_turn',
+      status: 'SETTLED',
+      admissionId: 'unit-admission',
+      turnId: p.turnId!,
+      ledgerSha256: 'f'.repeat(64),
+      qualificationSha256: '1'.repeat(64),
+      attempts: 1,
+      chargedTokens: 150,
+      chargedCostMicros: 3000,
+      maxCostMicros: 1_000_000,
+      unaccountedBoundaries: [],
+    },
     sources: [
       {
         sourceId: 'document:canonical-1',
@@ -176,6 +190,34 @@ describe('trusted server capture evidence receipt', () => {
     expect(() =>
       verifyMeriCaptureEvidenceReceipt(signed, policy(), SECRET, policy().expiresAt + 1),
     ).toThrow('meri_capture_evidence_authentication_failed');
+  });
+
+  it('cannot complete missing, uncertain, over-budget or unaccounted provider evidence', () => {
+    const base = receipt();
+    expect(
+      completeMeriCaptureEvidenceReceipt({ ...base, providerBudget: undefined }).blockers,
+    ).toContain('provider_budget_not_run');
+    expect(
+      completeMeriCaptureEvidenceReceipt({
+        ...base,
+        providerBudget: { ...base.providerBudget!, status: 'UNSETTLED' },
+      }).blockers,
+    ).toContain('provider_budget_usage_unsettled');
+    expect(
+      completeMeriCaptureEvidenceReceipt({
+        ...base,
+        providerBudget: { ...base.providerBudget!, chargedCostMicros: 1_000_001 },
+      }).blockers,
+    ).toContain('provider_budget_malformed');
+    expect(
+      completeMeriCaptureEvidenceReceipt({
+        ...base,
+        providerBudget: {
+          ...base.providerBudget!,
+          unaccountedBoundaries: ['unknown_api_provider'],
+        },
+      }).blockers,
+    ).toContain('provider_budget_api_ingress_unaccounted');
   });
 
   it('rejects a current-authority tuple mismatch', () => {

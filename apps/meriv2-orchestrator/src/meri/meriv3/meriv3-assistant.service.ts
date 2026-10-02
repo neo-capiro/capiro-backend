@@ -103,6 +103,7 @@ import {
   type MeriToolCoverageReceipt,
 } from './meriv3-turn-coverage.js';
 import { observeMeriV3CaptureExecution } from './meriv3-capture-evidence.js';
+import { captureProviderAccounting } from './meriv3-capture-provider-budget.js';
 import {
   OpenAiResponsesClient,
   anthropicSchemaToResponsesTool,
@@ -922,7 +923,17 @@ export class MeriV3AssistantService {
     const runtimeBudget = MeriRunBudget.fromToolRoundCeiling(
       profile.maxToolRounds,
       opts,
-      dto.researchRun ? this.durableProviderAccounting(dto.researchRun, opts) : undefined,
+      dto.researchRun
+        ? this.durableProviderAccounting(dto.researchRun, opts)
+        : captureProviderAccounting({
+            policy: currentServerReadonlyCapturePolicy(),
+            apiBaseUrl: this.apiBaseUrl,
+            serviceSecret: this.serviceSecret,
+            bearerToken: RequestCredentialsStore.get()?.bearerToken,
+            impersonateTenantId: RequestCredentialsStore.get()?.impersonateTenantId,
+            headers: meriOrchestratorTelemetryHeaders(),
+            control: opts,
+          }),
     );
     const budgetScope: MeriToolSignatureScope = {
       actorId: ctx.userId,

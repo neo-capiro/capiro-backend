@@ -1,5 +1,7 @@
 import { researchPortfolioManagementSchema, parseResearchPortfolioManagementInput } from '../research-portfolios/research-portfolio-management.js';
 import { federalHearingWhere } from '../hearing-discovery/hearing-geography.js';
+import { captureBudgetRequired } from './meri-capture-provider-budget.js';
+import { withCaptureApiProviderScope } from './meri-capture-api-provider-scope.js';
 import {
   deadlineStatus as structuredDeadlineStatus,
   daysUntil as structuredDaysUntil,
@@ -2510,6 +2512,19 @@ export class MeriToolsService {
   }
 
   async execute(
+    ctx: TenantContext,
+    name: MeriToolName,
+    input: Record<string, unknown>,
+    execution?: { actionProposalId?: string },
+  ) {
+    const policy = currentMeriToolCapturePolicy() ?? currentMeriServerReadonlyCapturePolicy();
+    if (captureBudgetRequired(policy) && (policy?.caseId !== '01' || name !== 'search_memory')) {
+      throw new Error('meri_capture_provider_budget_unqualified_tool');
+    }
+    return withCaptureApiProviderScope(this.prisma, ctx, policy, () => this.executeScoped(ctx, name, input, execution));
+  }
+
+  private async executeScoped(
     ctx: TenantContext,
     name: MeriToolName,
     input: Record<string, unknown>,

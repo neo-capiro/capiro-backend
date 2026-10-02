@@ -74,7 +74,8 @@ export class ResearchToolBudgetError extends Error {
   }
 }
 
-export type ResearchProviderAttemptKind = 'openai_responses' | 'anthropic_messages' | 'jev';
+export type ResearchProviderAttemptKind =
+  'openai_responses' | 'anthropic_messages' | 'jev' | 'bedrock_embeddings' | 'nvidia_rerank';
 
 export interface ResearchProviderBudgetLimitsV1 {
   maxAttempts: number;
@@ -753,7 +754,13 @@ function parseProviderAttempt(value: unknown): ResearchProviderAttemptV1 {
     !boundedString(logicalOperationId, MAX_ATTEMPT_KEY_CHARS) ||
     !boundedString(value.attemptId, MAX_ATTEMPT_KEY_CHARS) ||
     !(retryOfAttemptId === null || boundedString(retryOfAttemptId, MAX_ATTEMPT_KEY_CHARS)) ||
-    !['openai_responses', 'anthropic_messages', 'jev'].includes(String(value.kind)) ||
+    ![
+      'openai_responses',
+      'anthropic_messages',
+      'jev',
+      'bedrock_embeddings',
+      'nvidia_rerank',
+    ].includes(String(value.kind)) ||
     !boundedString(value.phase, 64) ||
     !boundedString(value.provider, 64) ||
     !boundedString(value.model, 160) ||
@@ -807,7 +814,13 @@ function validateProviderBinding(binding: ResearchProviderReservationBinding): v
       binding.retryOfAttemptId === null ||
       boundedString(binding.retryOfAttemptId, MAX_ATTEMPT_KEY_CHARS)
     ) ||
-    !['openai_responses', 'anthropic_messages', 'jev'].includes(binding.kind) ||
+    ![
+      'openai_responses',
+      'anthropic_messages',
+      'jev',
+      'bedrock_embeddings',
+      'nvidia_rerank',
+    ].includes(binding.kind) ||
     !boundedString(binding.phase, 64) ||
     !boundedString(binding.provider, 64) ||
     !boundedString(binding.model, 160) ||

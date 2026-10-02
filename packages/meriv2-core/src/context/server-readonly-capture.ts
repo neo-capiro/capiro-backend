@@ -36,6 +36,7 @@ export interface MeriServerReadonlyCapturePolicy {
     'context_packet_and_evidence',
     'conversation_user_message',
     'conversation_assistant_message',
+    'provider_budget_ledger'?,
   ];
 }
 
@@ -57,7 +58,7 @@ export interface MeriServerReadonlyCaptureReceipt {
   expectedCaptureWrites: MeriServerReadonlyCapturePolicy['expectedCaptureWrites'];
 }
 
-export type MeriCaptureTransportPurpose = 'tool' | 'action_proposal';
+export type MeriCaptureTransportPurpose = 'tool' | 'action_proposal' | 'provider_budget';
 
 interface MeriCapturePolicyTransport {
   version: 1;

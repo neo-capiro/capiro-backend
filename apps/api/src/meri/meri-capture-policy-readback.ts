@@ -7,6 +7,8 @@ import {
 } from '@capiro/meriv2-core';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import { assertMeriServerReadonlyCaptureCurrentAuthority } from './meri-server-readonly-capture.js';
+import { captureProviderBudgetOwner } from './meri-capture-provider-budget-owner.js';
+import { captureBudgetHash } from './meri-capture-provider-budget.js';
 
 const POLICY_FIELDS = [
   'version',
@@ -158,6 +160,30 @@ export async function authorizeMeriCaptureMessageReadback(args: {
   if (!userMessage) denied();
   const receipt = (metadata.serverCaptureEvidenceReceipt as SignedMeriCaptureEvidenceReceipt)
     .receipt;
+  if (receipt.providerBudget) {
+    const { state } = await captureProviderBudgetOwner({
+      prisma: args.prisma,
+      ctx: args.ctx,
+      policy,
+      operation: { kind: 'read' },
+    });
+    if (
+      receipt.providerBudget.ledgerSha256 !== captureBudgetHash(state) ||
+      receipt.providerBudget.admissionId !== state.admissionId ||
+      receipt.providerBudget.turnId !== policy.turnId
+    )
+      denied();
+    const ledgerWrites = receipt.effects.writes.filter(
+      (write) => write.kind === 'provider_budget_ledger',
+    );
+    if (
+      policy.expectedCaptureWrites[3] !== 'provider_budget_ledger' ||
+      ledgerWrites.length !== 1 ||
+      ledgerWrites[0]?.recordId !== policy.conversationId ||
+      ledgerWrites[0].status !== 'observed'
+    )
+      denied();
+  }
   for (const [kind, expectedId] of [
     ['conversation_user_message', policy.turnId],
     ['conversation_assistant_message', row.id],

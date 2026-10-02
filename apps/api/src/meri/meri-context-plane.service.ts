@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import { assertCaptureApiRetrievalPlan } from './meri-capture-api-provider-scope.js';
 import { createHash } from 'node:crypto';
 import type { TenantContext } from '@capiro/shared';
 import { isMeriDocumentLocationClarification, resolveMeriDocumentRequest } from '@capiro/shared';
@@ -92,6 +93,7 @@ export class MeriContextPlaneService {
     }
     const { clientId, ...retrieval } = input;
     const subjectScope = clientId ? ('client' as const) : ('general' as const);
+    assertCaptureApiRetrievalPlan({ subjectScope, requestedDomains: input.requestedDomains });
     const result = await this.contextPlane.requestContext({
       operationId: 'meri.chat',
       resolverRequest: {
@@ -216,6 +218,7 @@ export class MeriContextPlaneService {
       uiClientId: input.uiClientId,
       uiClientName: input.uiClientName,
     });
+    assertCaptureApiRetrievalPlan(plan);
 
     const subjectClientId = plan.subjectScope === 'client' ? input.uiClientId : null;
     const resolverRequest: ContextResolutionRequest = {

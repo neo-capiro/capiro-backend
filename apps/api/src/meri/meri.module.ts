@@ -37,6 +37,7 @@ import { ReviewsModule } from '../reviews/reviews.module.js';
 import { ReviewsService } from '../reviews/reviews.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MeriController } from './meri.controller.js';
+import { MeriCaptureProviderBudgetController } from './meri-capture-provider-budget.controller.js';
 import { MeriSourceController } from './meri-source.controller.js';
 import { MeriSourceService } from './meri-source.service.js';
 import { MeriSkillsController } from './meri-skills.controller.js';
@@ -117,6 +118,7 @@ import { MeriOtelLifecycleProvider } from './meri-otel-lifecycle.provider.js';
     DistrictNexusModule,
   ],
   controllers: [
+    MeriCaptureProviderBudgetController,
     MeriController,
     MeriSourceController,
     MeriSkillsController,

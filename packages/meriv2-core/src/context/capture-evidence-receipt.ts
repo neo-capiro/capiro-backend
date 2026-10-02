@@ -63,6 +63,7 @@ export interface MeriCaptureWriteObservation {
     | 'conversation_user_message'
     | 'conversation_assistant_message'
     | 'assistant_receipt_metadata'
+    | 'provider_budget_ledger'
     | 'unexpected_write';
   phase: 'before' | 'during' | 'after';
   status: 'observed' | 'pending' | 'unexpected';
@@ -113,6 +114,21 @@ export interface MeriCaptureEvidenceReceipt {
     }>;
   };
   predecessorAttestationSha256: string | null;
+  /** API-owned durable ledger; a primary-model usage estimate is not this proof. */
+  providerBudget?: {
+    version: 1;
+    boundary: 'case01_memory_turn';
+    status: 'SETTLED' | 'UNSETTLED';
+    admissionId: string;
+    turnId: string;
+    ledgerSha256: string;
+    qualificationSha256: string;
+    attempts: number;
+    chargedTokens: number;
+    chargedCostMicros: number;
+    maxCostMicros: number;
+    unaccountedBoundaries: readonly string[];
+  };
 }
 
 export interface SignedMeriCaptureEvidenceReceipt {
@@ -158,6 +174,33 @@ export function meriCaptureReceiptBlockers(
   if (!receipt.caseId) blockers.add('case_id_missing');
   if (!receipt.captureRunId) blockers.add('capture_run_id_missing');
   if (!receipt.turnId) blockers.add('turn_id_missing');
+  if (receipt.providerBudget) {
+    const budget = receipt.providerBudget;
+    if (
+      budget.version !== 1 ||
+      budget.boundary !== 'case01_memory_turn' ||
+      receipt.caseId !== '01' ||
+      !budget.admissionId ||
+      !/^[a-f0-9]{64}$/.test(budget.ledgerSha256) ||
+      !/^[a-f0-9]{64}$/.test(budget.qualificationSha256) ||
+      ![
+        budget.attempts,
+        budget.chargedTokens,
+        budget.chargedCostMicros,
+        budget.maxCostMicros,
+      ].every((value) => Number.isSafeInteger(value) && value >= 0) ||
+      budget.maxCostMicros <= 0 ||
+      budget.maxCostMicros > 3_000_000 ||
+      budget.chargedCostMicros > budget.maxCostMicros
+    )
+      blockers.add('provider_budget_malformed');
+    if (budget.status !== 'SETTLED') blockers.add('provider_budget_usage_unsettled');
+    if (budget.turnId !== receipt.turnId) blockers.add('provider_budget_turn_mismatch');
+    if (budget.unaccountedBoundaries.length)
+      blockers.add('provider_budget_api_ingress_unaccounted');
+  } else if (receipt.caseId) {
+    blockers.add('provider_budget_not_run');
+  }
   for (const [name, value] of requiredValues) {
     if (value.status !== 'OBSERVED' || value.value === null) blockers.add(`${name}_unproved`);
   }

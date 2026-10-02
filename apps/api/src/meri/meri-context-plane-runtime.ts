@@ -10,6 +10,9 @@ import type {
 import { PrismaService } from '../prisma/prisma.service.js';
 import { planTurnRerun } from './meri-turn.helpers.js';
 import { MeriContextPlaneService } from './meri-context-plane.service.js';
+import { captureBudgetRequired } from './meri-capture-provider-budget.js';
+import { captureProviderBudgetOwner } from './meri-capture-provider-budget-owner.js';
+import { withCaptureApiProviderScope } from './meri-capture-api-provider-scope.js';
 import {
   assertMeriServerReadonlyCaptureCurrentAuthority,
   assertMeriServerReadonlyCaptureTurnInput,
@@ -80,32 +83,47 @@ export class MeriContextPlaneRuntimeService {
     input.signal?.throwIfAborted();
     const prepared = await this.prepareTurn(ctx, input);
     input.signal?.throwIfAborted();
-    const resolved = await this.contextPlane.resolveChat(ctx, {
-      conversationId: input.conversationId,
-      task: prepared.task,
+    if (prepared.capturePolicy && captureBudgetRequired(prepared.capturePolicy)) {
+      assertMeriServerReadonlyCaptureTurnInput({
+        policy: prepared.capturePolicy,
+        mode: input.mode,
+        attachmentIds: [],
+      });
+      await captureProviderBudgetOwner({
+        prisma: this.prisma,
+        ctx,
+        policy: prepared.capturePolicy,
+        operation: { kind: 'admit' },
+      });
+    }
+    return withCaptureApiProviderScope(this.prisma, ctx, prepared.capturePolicy, async () => {
+      const resolved = await this.contextPlane.resolveChat(ctx, {
+        conversationId: input.conversationId,
+        task: prepared.task,
+      });
+      // Retrieval owns its database work. Stop must prevent the next stage from
+      // starting, even when that work finishes after the browser disconnected.
+      input.signal?.throwIfAborted();
+      assertMeriServerReadonlyCaptureTurnInput({
+        policy: prepared.capturePolicy,
+        mode: input.mode,
+        attachmentIds: [],
+      });
+      const currentAuthority = await assertMeriServerReadonlyCaptureCurrentAuthority({
+        prisma: this.prisma,
+        ctx,
+        policy: prepared.capturePolicy,
+      });
+      input.signal?.throwIfAborted();
+      const activeClient =
+        resolved.retrieval.plan.subjectScope === 'client'
+          ? (currentAuthority?.client ?? prepared.client)
+          : null;
+      const context = prepared.capturePolicy
+        ? { ...resolved, serverReadonlyCapturePolicy: prepared.capturePolicy }
+        : resolved;
+      return runtime.run({ context, activeClient, capturePolicy: prepared.capturePolicy }, fn);
     });
-    // Retrieval owns its database work. Stop must prevent the next stage from
-    // starting, even when that work finishes after the browser disconnected.
-    input.signal?.throwIfAborted();
-    assertMeriServerReadonlyCaptureTurnInput({
-      policy: prepared.capturePolicy,
-      mode: input.mode,
-      attachmentIds: [],
-    });
-    const currentAuthority = await assertMeriServerReadonlyCaptureCurrentAuthority({
-      prisma: this.prisma,
-      ctx,
-      policy: prepared.capturePolicy,
-    });
-    input.signal?.throwIfAborted();
-    const activeClient =
-      resolved.retrieval.plan.subjectScope === 'client'
-        ? (currentAuthority?.client ?? prepared.client)
-        : null;
-    const context = prepared.capturePolicy
-      ? { ...resolved, serverReadonlyCapturePolicy: prepared.capturePolicy }
-      : resolved;
-    return runtime.run({ context, activeClient, capturePolicy: prepared.capturePolicy }, fn);
   }
 
   private async prepareTurn(

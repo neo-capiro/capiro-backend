@@ -1,4 +1,7 @@
 import { persistMeriServerCaptureEvidenceReceipt } from './meri-server-capture-evidence.js';
+import { captureBudgetRequired } from './meri-capture-provider-budget.js';
+import { captureProviderBudgetOwner } from './meri-capture-provider-budget-owner.js';
+import { bindCaptureProviderBudgetReceipt } from './meri-capture-provider-budget-receipt.js';
 import { captureMeriTurnScope } from './meri-turn-scope.js';
 import {
   authorizeMeriProspectScope,
@@ -273,6 +276,14 @@ export class MeriV3ProxyService {
       sourceMessageId = await this.persistUserMessage(ctx, conversation, content, attachmentIds);
       if (capturePolicy && sourceMessageId) {
         capturePolicy = bindCurrentMeriCaptureTurn(sourceMessageId) ?? capturePolicy;
+        if (captureBudgetRequired(capturePolicy)) {
+          await captureProviderBudgetOwner({
+            prisma: this.prisma,
+            ctx,
+            policy: capturePolicy,
+            operation: { kind: 'admit' },
+          });
+        }
       }
     } else {
       const prior = await this.prisma.withTenant(ctx.tenantId, (tx) =>
@@ -1224,11 +1235,17 @@ export class MeriV3ProxyService {
       ctx: args.ctx,
       policy: args.policy,
     });
-    const receipt = finalizeMeriServerCaptureEvidence({
+    const envelope = finalizeMeriServerCaptureEvidence({
       policy: args.policy,
       orchestrator: args.orchestrator,
       userMessageId: args.userMessageId,
       assistantMessageId: args.assistantMessageId,
+    });
+    const receipt = await bindCaptureProviderBudgetReceipt({
+      prisma: this.prisma,
+      ctx: args.ctx,
+      policy: args.policy,
+      envelope,
     });
     if (
       args.conversationId !== args.policy.conversationId ||
