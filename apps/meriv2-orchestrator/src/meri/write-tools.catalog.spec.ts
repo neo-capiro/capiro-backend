@@ -30,6 +30,9 @@ const EXPECTED_WRITE_TOOLS = [
   'update_task',
   'update_client_profile',
   'save_business_development_brief',
+  'manage_research_portfolio',
+  'prepare_research_portfolio_brief',
+  'prepare_research_portfolio_meeting',
   'add_research_portfolio_review_note',
   'create_research_portfolio_bookmark',
   'create_research_portfolio_snapshot',
@@ -40,10 +43,10 @@ const EXPECTED_WRITE_TOOLS = [
 ].sort();
 
 describe('WRITE_DELEGATED_TOOLS catalog', () => {
-  it('matches apps/api SIDE_EFFECTING_TOOLS exactly (31 tools)', () => {
+  it('matches apps/api SIDE_EFFECTING_TOOLS exactly (34 tools)', () => {
     const names = WRITE_DELEGATED_TOOLS.map((t) => t.name).sort();
     expect(names).toEqual(EXPECTED_WRITE_TOOLS);
-    expect(WRITE_DELEGATED_TOOLS).toHaveLength(31);
+    expect(WRITE_DELEGATED_TOOLS).toHaveLength(34);
   });
 
   it('is ALL write (readOnly:false) — the gate must fire for every one', () => {
