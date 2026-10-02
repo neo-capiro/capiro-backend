@@ -1,0 +1,77 @@
+{
+  "kind": "case01-failed-http-readonly-log-diagnosis",
+  "observedAt": "2026-10-02T17:58:50.752710+00:00",
+  "begin": "2026-10-02T17:48:00+00:00",
+  "end": "2026-10-02T17:52:00+00:00",
+  "conversationSha256": "69b14efb335f221dff19e62d1a47995cef24ba544db0f0ef3d5d5f33b0c0edc8",
+  "services": [
+    {
+      "service": "api",
+      "sourceSha": "42988dae5fb7bc2fff3af582ca15a0836a4477c5",
+      "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:507",
+      "rawMatchedEventCount": 3,
+      "events": [
+        {
+          "atMs": 1790963370066,
+          "eventSha256": "507a12d2f1eb4fe3559a61d5d9f256a02983c5eff0128c7f1cb1d8a4cdcf0a0a",
+          "streamSha256": "00937a9e76c74393cf18bb884575dab3d378791261512f69ed31efa3be582f3a",
+          "event": "meri.telemetry",
+          "name": "meri.api.request.received",
+          "traceIdSha256": "7f872a4fea09b9a19687d2b2d53d920fe2c8fed0d08ac4e92deb59da021352db",
+          "requestIdSha256": "f6e630bcbdccc28db3a03c51ff58d90c14aa3588494df70063a55bb8f877a12c",
+          "serverTurnIdSha256": "49cd397415b6b5349adf0fba76b2200773782884c580a4fae1bdbbd77b8f40bf",
+          "runIdSha256": "667149bfb9f5bf2ebd228287cbde09d32a6ad2072cadf1722e85d52762409750",
+          "safeCodes": [],
+          "knownStaticReasons": [],
+          "stackLocations": [],
+          "httpStatuses": []
+        },
+        {
+          "atMs": 1790963370267,
+          "eventSha256": "ab1a6a27c4fa5421b36a6c05d6facd4b4455796e8c49e22eb348d02969debefe",
+          "streamSha256": "00937a9e76c74393cf18bb884575dab3d378791261512f69ed31efa3be582f3a",
+          "safeCodes": [
+            "MERI_STREAM_SETUP_ERROR"
+          ],
+          "knownStaticReasons": [
+            "meri_capture_provider_budget_unqualified_retrieval_plan"
+          ],
+          "stackLocations": [],
+          "httpStatuses": []
+        },
+        {
+          "atMs": 1790963370267,
+          "eventSha256": "5bb5f725d29ccf776fed9de7de42cbfe254bbe3526ac8b58d80282a693d6cd5b",
+          "streamSha256": "00937a9e76c74393cf18bb884575dab3d378791261512f69ed31efa3be582f3a",
+          "event": "meri.telemetry",
+          "name": "meri.api.request.finalized",
+          "traceIdSha256": "7f872a4fea09b9a19687d2b2d53d920fe2c8fed0d08ac4e92deb59da021352db",
+          "requestIdSha256": "f6e630bcbdccc28db3a03c51ff58d90c14aa3588494df70063a55bb8f877a12c",
+          "serverTurnIdSha256": "49cd397415b6b5349adf0fba76b2200773782884c580a4fae1bdbbd77b8f40bf",
+          "runIdSha256": "667149bfb9f5bf2ebd228287cbde09d32a6ad2072cadf1722e85d52762409750",
+          "outcome": "error",
+          "durationMs": 203,
+          "safeCodes": [],
+          "knownStaticReasons": [],
+          "stackLocations": [],
+          "httpStatuses": []
+        }
+      ],
+      "pages": 2
+    },
+    {
+      "service": "meriv2-orchestrator",
+      "sourceSha": "ddb55a5a3e6bbf1c3f567119b66e18e0a92e60ab",
+      "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:99",
+      "rawMatchedEventCount": 0,
+      "events": [],
+      "pages": 1
+    }
+  ],
+  "rawLogSaved": false,
+  "authCalls": 0,
+  "providerCalls": 0,
+  "databaseQueries": 0,
+  "awsWrites": 0,
+  "limit": "Conversation-filtered logs only; absent telemetry does not prove no provider attempt."
+}

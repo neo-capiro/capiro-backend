@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "kind": "meri-case01-postseed-capture-inputs",
+  "sourceSha": "42988dae5fb7bc2fff3af582ca15a0836a4477c5",
+  "scopeSha256": "b91bbd6b5a8260d6a498e282c4015dcabd971d9e9177b9509f7107bcf80e3a3f",
+  "postseedExecutionSha256": "dd2a15c7cbb94ba75ea07d33abf7a348955386db045cc09b38ebfc052660b192",
+  "budgetExecutionSha256": "c7f323ffed56210200afb264edfd851d7d315e8eb36fe30b235f6754a20b7056"
+}

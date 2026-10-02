@@ -1,0 +1,42 @@
+{
+  "kind": "meri-v7-reviewed-runtime-source-seal",
+  "status": "SOURCE_PINNED_INPUTS_NOT_MATERIALIZED",
+  "observedAt": "2026-10-02T17:43:51.730757+00:00",
+  "apiSourceSha": "42988dae5fb7bc2fff3af582ca15a0836a4477c5",
+  "orchestratorSourceSha": "ddb55a5a3e6bbf1c3f567119b66e18e0a92e60ab",
+  "orchestratorAssuranceTestedCodeSha": "49b3bbcf18337652addf2d82857d41b9161cf7ba",
+  "combinedTestedCodeSha": "ddb55a5a3e6bbf1c3f567119b66e18e0a92e60ab",
+  "buildIndependentReceiptSha256": "9af0ae9a20455359ae45ef8308e13466378f9cd1ed78861cba2f5c4f34de661b",
+  "promotionIndependentReceiptSha256": "eaf460b31b16a36cb0994ebdfeb3f5dfc8f7bc92b8092767fd4a2bae4b127e42",
+  "sourceHashes": {
+    "aggregate-operator-gates.mjs": "4ae8fde5582196f7f36536bd35fac169573752750637dd66f43540f99888073d",
+    "case01-input-gates.mjs": "e5e0a2a3c23db0de887ac7daf1caa8c5d2caa6edf587f65447ed61419055afa3",
+    "initialize-original-slice.mjs": "b21d7423abc7066e7378cd71934d24a525dbf504dcfacfa90096c27914c328af",
+    "run-case01-authenticated-aggregate-v7.mjs": "9eba9a0c58d9a7b06b236c506f2136ca1e0a3098306931969bfbffdc4bd103c7",
+    "seal-case01-postseed-v7.mjs": "e964501bcefa6724c3fdb1a0f4a712cd89f3fb5a9cc33bc9e70947879031deeb"
+  },
+  "tests": {
+    "passed": 26,
+    "failed": 0,
+    "skipped": 0,
+    "exitCode": 0,
+    "receiptSha256": "7c12846df3bba310bb3ef2ad6c2172a45ecf122cc5ffb04e127f305bf5e53d08"
+  },
+  "peerDeltaReviewSha256": "4ffdbed31fa69450532e776febcc27ea4ad19f9835f059ef5dcdaff4de62d841",
+  "deltaAfterPeer": "Only ORC_SOURCE UNSEALED to independently built/promoted ddb55 plus dependent local gates hash. Tests updated to use unsealed scratch copies, preventing accidental real initialization during future test reruns.",
+  "localState": {
+    "aliasesCopied": false,
+    "inputsMaterialized": false,
+    "aggregateInitialized": false,
+    "authCalls": 0,
+    "providerCalls": 0,
+    "cloudWrites": 0
+  },
+  "sharedPolicy": {
+    "head": "743fd708c3484604e8a35ea1039adeca3b1e331f",
+    "origin": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+    "requiredFilesMatch": true,
+    "machineMapSha256": "294d7449619e3b10913008e31d8d610075e6852ff0f0cc0d38de8f6a8c6369ab"
+  },
+  "originalAcceptance": "NOT_RUN"
+}

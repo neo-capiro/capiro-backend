@@ -1,0 +1,70 @@
+// Read only the already submitted synthetic conversation; never dispatch a turn.
+import {readFileSync,writeFileSync,existsSync} from 'node:fs';
+import {createRequire} from 'node:module';
+import {createHash} from 'node:crypto';
+const base='C:/dev/cap-meri-foundation-evidence/oct02-original-aggregate-operator-v7';
+const output=base+'/case01-terminal-api-readback-v2.json';
+const req=createRequire('C:/dev/cap-meri-fixture-hardening/apps/api/package.json');
+const read=p=>JSON.parse(readFileSync(p,'utf8').replace(/^\uFEFF/,''));
+const hash=x=>createHash('sha256').update(typeof x==='string'?x:JSON.stringify(x)).digest('hex');
+const need=(v,c)=>{if(!v)throw new Error(c);};
+let clerk,browser,sessionId;
+const receipt={kind:'meri-original01-terminal-owned-api-readback',startedAt:new Date().toISOString(),status:'NOT_RUN',applicationWrites:0,modelSubmissions:0,sessionRevoked:false,reads:[]};
+const persist=()=>writeFileSync(output,JSON.stringify(receipt,null,2)+'\n');
+try{
+  need(process.argv[2]==='--read-existing-case01-only'&&process.argv.length===3,'EXACT_COMMAND_REQUIRED');
+  need(!existsSync(output),'PRESERVE_EXISTING_READBACK');
+  const manifest=read('C:/dev/cap-meri-foundation-evidence/private/meri-foundation-20260928.manifest.json');
+  const old=read(base+'/case01-live-execution-aggregate-v7.json');
+  need(manifest.target==='capiro-dev'&&manifest.status==='ready'&&manifest.namespace==='meri-foundation-20260928','FIXTURE_SCOPE');
+  need(old.captureRunId==='c6ffa5ad-dd9f-4912-bc31-a03231a9b903'&&old.conversationId==='d7a74b15-873b-4256-a1d1-c6b4da3f8e1f'&&old.outcome.synthesisSubmissionCount===1,'PRIOR_ATTEMPT');
+  const actor=manifest.ids.users.pat,tenant=manifest.ids.tenants.t1;
+  receipt.captureRunId=old.captureRunId;receipt.conversationId=old.conversationId;receipt.priorExecutionSha256=hash(readFileSync(base+'/case01-live-execution-aggregate-v7.json','utf8'));
+  const secrets=readFileSync('C:/ProgramData/Hermes/.env','utf8').split(/\r?\n/).filter(x=>/^CLERK_SECRET_KEY\s*=/.test(x)).map(x=>x.slice(x.indexOf('=')+1).trim().replace(/^['"]|['"]$/g,''));
+  need(secrets.length===1&&secrets[0],'SECRET_UNAVAILABLE');
+  clerk=req('@clerk/backend').createClerkClient({secretKey:secrets[0]});
+  need((await clerk.instance.get()).id===manifest.targetBinding.clerkInstanceId,'CLERK_INSTANCE');
+  const user=await clerk.users.getUser(actor.clerkUserId);
+  const org=await clerk.organizations.getOrganization({organizationId:tenant.clerkOrgId});
+  const memberships=await clerk.users.getOrganizationMembershipList({userId:actor.clerkUserId,limit:100});
+  need(user.publicMetadata?.fixtureNamespace===manifest.namespace&&user.emailAddresses.some(x=>x.emailAddress===manifest.handles.users.pat),'SYNTHETIC_ACTOR');
+  need(org.slug===manifest.namespace+'-t1'&&org.publicMetadata?.fixtureNamespace===manifest.namespace,'SYNTHETIC_ORG');
+  need(memberships.totalCount===1&&memberships.data[0].organization.id===tenant.clerkOrgId&&memberships.data[0].role==='org:member','ORDINARY_MEMBER');
+  browser=await req('C:/dev/node_modules/playwright').chromium.launch({headless:true});
+  const context=await browser.newContext({serviceWorkers:'block'});const page=await context.newPage();
+  await context.route('**/*',async route=>{const r=route.request(),u=new URL(r.url());if(['GET','HEAD','OPTIONS'].includes(r.method())||u.origin==='https://clerk.app.capiro.ai')return route.continue();return route.abort('blockedbyclient');});
+  await page.goto('https://os.capiro.ai/meri',{waitUntil:'domcontentloaded',timeout:45000});
+  await page.waitForFunction(()=>window.Clerk?.loaded,null,{timeout:45000});
+  const web=await page.evaluate(()=>({source:window.__CAPIRO_CONFIG__?.releaseSha,surface:window.__CAPIRO_CONFIG__?.webSurface}));
+  need(web.source==='78ad5805679a3045b1fc10fb19beafa7f76e4e64'&&web.surface==='vnext','WEB_RELEASE');
+  receipt.webSourceSha=web.source;
+  const ticket=await clerk.signInTokens.createSignInToken({userId:actor.clerkUserId,expiresInSeconds:120});
+  const signed=await page.evaluate(async ticket=>{const a=await window.Clerk.client.signIn.create({strategy:'ticket',ticket});return {status:a.status,id:a.createdSessionId};},ticket.token);
+  sessionId=signed.id;need(signed.status==='complete'&&sessionId,'SESSION_FAILED');
+  await page.evaluate(async x=>window.Clerk.setActive(x),{session:sessionId,organization:tenant.clerkOrgId});
+  const token=await page.evaluate(()=>window.Clerk.session.getToken({template:'capiro'}));need(token,'TOKEN_UNAVAILABLE');
+  async function get(path){
+    const response=await fetch('https://os.capiro.ai'+path,{method:'GET',headers:{authorization:'Bearer '+token,'x-capiro-tenant':org.slug,'user-agent':'Capiro-Meri-Authorized-QA/1.0'},redirect:'error',signal:AbortSignal.timeout(30000)});
+    const text=await response.text();const sha=response.headers.get('x-capiro-release-sha');
+    receipt.reads.push({path,status:response.status,bodySha256:hash(text),apiReleaseSha:sha});
+    need(response.ok,'OWNED_READ_FAILED');need(sha==='42988dae5fb7bc2fff3af582ca15a0836a4477c5','API_RELEASE');return JSON.parse(text);
+  }
+  const conversation=await get('/api/clio/conversations/'+old.conversationId);
+  const messages=await get('/api/clio/conversations/'+old.conversationId+'/messages');
+  need(conversation.id===old.conversationId&&conversation.userId===actor.userId&&conversation.tenantId===tenant.tenantId,'OWNED_CONVERSATION');
+  const metadata=conversation.metadata??{};const budget=metadata.serverCaptureProviderBudget;
+  need(budget&&budget.qualification?.captureRunId===old.captureRunId&&budget.qualification.caseId==='01','BUDGET_MISSING');
+  const rows=Array.isArray(messages)?messages:messages.items??messages.messages;
+  need(Array.isArray(rows),'MESSAGES_SHAPE');
+  receipt.apiSourceSha='42988dae5fb7bc2fff3af582ca15a0836a4477c5';
+  receipt.tenantId=tenant.tenantId;receipt.userId=actor.userId;receipt.clientId=conversation.clientId;
+  receipt.conversation={id:conversation.id,clientId:conversation.clientId,archivedAt:conversation.archivedAt??null,metadataKeys:Object.keys(metadata)};
+  receipt.budget=budget;receipt.messageCount=rows.length;receipt.messageRoles=rows.map(x=>x.role);
+  receipt.status='READBACK_CAPTURED';receipt.observedAt=new Date().toISOString();persist();
+}catch(e){receipt.status='BLOCKED';receipt.failureCode=e.message&&/^[A-Z0-9_]+$/.test(e.message)?e.message:e.name;process.exitCode=1;}
+finally{
+  if(browser)await browser.close().catch(()=>{});
+  if(sessionId&&clerk){try{await clerk.sessions.revokeSession(sessionId);const s=await clerk.sessions.getSession(sessionId);receipt.sessionRevoked=['ended','revoked'].includes(s.status);}catch{receipt.cleanupFailure=true;process.exitCode=1;}}
+  receipt.completedAt=new Date().toISOString();persist();console.log(JSON.stringify({status:receipt.status,messageCount:receipt.messageCount,sessionRevoked:receipt.sessionRevoked,failureCode:receipt.failureCode,output}));
+}
+

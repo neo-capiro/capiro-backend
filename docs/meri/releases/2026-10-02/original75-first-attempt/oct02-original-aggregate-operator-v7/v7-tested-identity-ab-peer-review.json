@@ -1,0 +1,27 @@
+{
+  "kind": "v7-tested-identity-delta-independent-peer-review",
+  "status": "PASS",
+  "observedAt": "2026-10-02T17:37:06.518053+00:00",
+  "gatesSha256": "74da8e283e7e55a68dac0b29e3f3962da9267d61d26816dc739a55926cc93acf",
+  "materializerSha256": "5a723ae8ed14a1f43f1c903feca219f379ff78696add68b28ed2c04b8b3c73f6",
+  "diffSha256": "f0f7d002f7c9e4a59542f14e33e485cb18e3065c673eb9f9a41e44eca99a817b",
+  "combinedQualificationSha256": "d8ce9e00f85d83ace96c49bd99082ca50507f05369b10b16a97f19a0224620bd",
+  "verified": [
+    "Actual reviewed-build tested49b identity is distinguished from combined testedddb55 runtime source.",
+    "Both49b assurance and54ae index ancestry are checked; all six exact source blobs and expected qualified origins crosschecked against immutable combined qualification.",
+    "Final actual source/build/promotion checks remain independent; ORC_SOURCE still UNSEALED before root-only binding.",
+    "Combined qualification hash is retained in release pins and reread before output; actual API429 setup/budget gates and singleV6 journal remain unchanged."
+  ],
+  "testsReported": {
+    "count": 26,
+    "exitCode": 0,
+    "receiptSha256": "a760c195b0a9d4c2eb2be86d4c04cd058ab8466e670bfc8ae753f641cb601fda",
+    "rerunByReviewer": false
+  },
+  "metadataNote": "Earlier source-hashes-unsealed.json describes prior revision; final sealing must use these current hashes and regenerate its inventory.",
+  "awsCalls": 0,
+  "authCalls": 0,
+  "providerCalls": 0,
+  "fixtureWrites": 0,
+  "materialization": "NOT_RUN"
+}

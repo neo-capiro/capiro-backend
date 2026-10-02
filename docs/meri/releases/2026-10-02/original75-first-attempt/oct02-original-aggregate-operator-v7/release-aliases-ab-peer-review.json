@@ -1,0 +1,14 @@
+{
+  "kind": "source-only-independent-peer-review",
+  "observedAt": "2026-10-02T17:46:59.975026+00:00",
+  "verdict": "PASS",
+  "source": "copy-qualified-release-aliases.mjs",
+  "sha256": "1f2da4f30fae3528ecdf4c471c510a3b073a230bcd06806f6845499ebf6dafd6",
+  "scope": "Exact four local exclusive byte-copy aliases; existing build/qualification/promotion and drift guards",
+  "findings": [],
+  "actualTestExecutionByReviewer": false,
+  "claims": "CD reported actual read-only prepareAliases exit0; not rerun by this reviewer.",
+  "authCalls": 0,
+  "awsCalls": 0,
+  "journalWrites": 0
+}

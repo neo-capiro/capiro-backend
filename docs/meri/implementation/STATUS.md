@@ -1,4 +1,26 @@
-## Current checkpoint — 2026-10-02, orchestrator97 live; quality defects found
+## Current checkpoint — 2026-10-02 18:05 UTC, original case01 attempted
+
+API507/source42988 and orchestrator99/sourceddb55 are deployed and independently
+healthy. WebVNext388/source78ad remains at os.capiro.ai. Forward migrations450
+and451 completed with prior ledger rows preserved; the mail covering index is
+valid. The owner mailbox diagnostic subsequently returned zero matches without
+the previous database timeout. Four supplied-fact writing checks passed; task
+counting failed its result contract, and the mail request triggered an unrelated
+legislative tool/footer. See the [actual rollout, migration and six QA results](../releases/2026-10-02/live-response-and-mail-repair/live-verification/README.md).
+
+The user resumed the original75 evaluation. Case01 was submitted once and failed
+before an answer: the retrieval-plan budget guard rejected it. Current authenticated
+readback confirms zero provider attempts, null turn ID and zero messages. The
+full$3 aggregate reservation remains held pending append-only reconciliation;
+no claim reset or retry occurred. A normal selected-client subject parsing repair
+and shared test execution support are in progress. See the [attempt and75-row audit](../releases/2026-10-02/original75-first-attempt/README.md).
+
+**File01 is incomplete: zero original live rows fully accepted.** The existing
+case17 UI-only slice is not full-row acceptance. Full75, applicable mode/JEV
+variants, CD7/CW8 and human rubric remain open. Defense Chat is excluded.
+Temporary database maximum16ACU remains unchanged.
+
+## Prior checkpoint — 2026-10-02, orchestrator97 live; quality defects found
 
 Orchestrator97/source42988 is deployed and independently healthy. API505/a260
 remains live. Three supplied-fact writing examples gave accurate answers and

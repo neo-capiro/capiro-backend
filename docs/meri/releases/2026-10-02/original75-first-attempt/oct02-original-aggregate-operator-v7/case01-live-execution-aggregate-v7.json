@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "caseId": "01",
+  "sourceSha": "42988dae5fb7bc2fff3af582ca15a0836a4477c5",
+  "orchestratorSourceSha": "ddb55a5a3e6bbf1c3f567119b66e18e0a92e60ab",
+  "driverSourceSha": "c9dae31d1e50b6560d58319baa620a14ab505c7f",
+  "webSourceSha": "78ad5805679a3045b1fc10fb19beafa7f76e4e64",
+  "operatorHead": "6921bcbcd9a54cfaaac3a84bb842804e77ad2629",
+  "pinsSha256": "bedde84c3886895236a8924c2e7d81ad438a85fb79642518a3a5931f37d22df8",
+  "inputPinsSha256": "46614c7f123c2e3e4b1dd135d24c6de85ae89f0e60c15c022e4e259abdfc3b6c",
+  "scriptSha256": "9eba9a0c58d9a7b06b236c506f2136ca1e0a3098306931969bfbffdc4bd103c7",
+  "captureRunId": "c6ffa5ad-dd9f-4912-bc31-a03231a9b903",
+  "conversationId": "d7a74b15-873b-4256-a1d1-c6b4da3f8e1f",
+  "startedAt": "2026-10-02T17:48:52.518Z",
+  "verdict": "BLOCKED",
+  "maximumNewTurns": 1,
+  "browserApplicationWrites": 0,
+  "sessionCreated": true,
+  "sessionRevoked": true,
+  "fullFile01Acceptance": false,
+  "capturePrepared": true,
+  "nativeExecutionInvoked": true,
+  "aggregateSnapshot": {
+    "reservedCeilingsMicros": 3000000,
+    "knownSettledCostMicros": 0,
+    "remainingReservationMicros": 27000000,
+    "activeRun": "01:c6ffa5ad-dd9f-4912-bc31-a03231a9b903",
+    "runs": {
+      "01:c6ffa5ad-dd9f-4912-bc31-a03231a9b903": {
+        "captureRunId": "c6ffa5ad-dd9f-4912-bc31-a03231a9b903",
+        "caseId": "01",
+        "ceilingMicros": 3000000,
+        "kind": "reserve",
+        "reservationId": "d63fd741-aac6-4d3d-9c4d-1276b96bd1a3",
+        "sequence": 1
+      }
+    },
+    "eventCount": 1,
+    "refundsAllowed": false,
+    "priorActualCostUnknownCount": 0,
+    "billedTotalStatus": "UNKNOWN"
+  },
+  "outcome": {
+    "status": "CAPTURE_UNCERTAIN",
+    "acceptanceStatus": "NOT_RUN",
+    "reason": "CASE01_RESPONSE_REJECTED",
+    "caseId": "01",
+    "captureRunId": "c6ffa5ad-dd9f-4912-bc31-a03231a9b903",
+    "requestCount": 8,
+    "synthesisSubmissionCount": 1
+  },
+  "failureCode": "CASE01_RESPONSE_REJECTED",
+  "completedAt": "2026-10-02T17:49:30.834Z"
+}

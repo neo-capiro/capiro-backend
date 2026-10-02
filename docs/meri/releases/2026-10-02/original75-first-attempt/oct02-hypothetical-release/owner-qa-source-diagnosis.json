@@ -1,0 +1,93 @@
+{
+  "kind": "read-only-owner-qa-source-diagnosis",
+  "status": "REPRODUCED",
+  "apiSource": "42988dae5fb7bc2fff3af582ca15a0836a4477c5",
+  "orchestratorSource": "ddb55a5a3e6bbf1c3f567119b66e18e0a92e60ab",
+  "sourceHashes": {
+    "ddb55a5a3e6bbf1c3f567119b66e18e0a92e60ab:packages/shared/src/meri-read-outcome.ts": "e9450afffac6cda2b12d5e8d743c9ca700118b7a0b1f88738652560309294ecf",
+    "ddb55a5a3e6bbf1c3f567119b66e18e0a92e60ab:packages/meriv2-core/src/assurance/evidence-plan.ts": "e13ab98b0a42d7277159df83643ff7502fa4f60d02799e05a1efd7007484edd0",
+    "42988dae5fb7bc2fff3af582ca15a0836a4477c5:packages/shared/src/meri-read-outcome.ts": "e9450afffac6cda2b12d5e8d743c9ca700118b7a0b1f88738652560309294ecf",
+    "42988dae5fb7bc2fff3af582ca15a0836a4477c5:apps/api/src/meri/meri-tools.service.ts": "2fd6658a7d6d221903f3a7031f8e03e911f4f5aa45c1ac27c9047dd82e0916fb",
+    "ddb55a5a3e6bbf1c3f567119b66e18e0a92e60ab:apps/meriv2-orchestrator/src/meri/retrieval/meri-evidence-requirements.ts": "283fe236f5804b8f2fdc91bbed3515c6a59b10e101d91aa5389515edcc9debc9",
+    "42988dae5fb7bc2fff3af582ca15a0836a4477c5:apps/api/src/engagement/engagement.service.ts": "7b5303e9ecbf3ec66d70a2dc3d8f77b74d5c4c265c22a273b1d1c99bb385006a"
+  },
+  "taskContract": {
+    "producerNoClientShape": "tool/generatedAt/total=bounded tasks.length/tasks; no clientId/returned/scope/coverage",
+    "actualPureClassifierResult": {
+      "kind": "failed",
+      "reason": "query_tasks_result_contract_invalid"
+    },
+    "canonicalClientControlResult": {
+      "kind": "empty"
+    },
+    "liveResultBodyInspected": false,
+    "conclusion": "Unscoped query_tasks producer shape is rejected by the shared classifier; this independently reproduces the visible error. Do not manufacture exact totals or relax validation."
+  },
+  "mailClassification": {
+    "promptSha256": "5df9348631be1094582e673b57d54dc6780465aebb5166cd66377f9b7e8270d2",
+    "categories": [
+      "bill_status",
+      "negative_or_exhaustive"
+    ],
+    "requiredToolFamilies": [
+      "get_bill_status",
+      "get_state_bill_status",
+      "get_state_rule_status",
+      "search_floor_votes",
+      "search_state_floor_votes",
+      "domain_specific_tools"
+    ],
+    "categoriesWithoutFailureInstruction": [
+      "negative_or_exhaustive"
+    ],
+    "trigger": "Generic fails/failed regex classifies a mail failure instruction as bill_status without a legislative subject.",
+    "causalLimit": "Pure classification and added tool requirements are reproduced; no claim to inspect the model internal decision."
+  },
+  "taskCoverageFooter": {
+    "promptSha256": "8777031c8f9cdcf34826ec2f5953f7890011bed6878c33369a2ac8d31e5ac192",
+    "categories": [
+      "negative_or_exhaustive"
+    ],
+    "negativeRequirementToolFamilies": [
+      "domain_specific_tools"
+    ],
+    "sourceComparison": "compareCoverage matches toolFamilies literally against invoked tools. domain_specific_tools does not equal query_tasks, so this requirement can be never_called despite the real failed task call."
+  },
+  "writingControls": [
+    {
+      "id": "planning",
+      "categories": [
+        "general_background"
+      ]
+    },
+    {
+      "id": "deadline-followup",
+      "categories": [
+        "general_background"
+      ]
+    },
+    {
+      "id": "unknown-information",
+      "categories": [
+        "general_background"
+      ]
+    },
+    {
+      "id": "independent-paraphrase",
+      "categories": [
+        "general_background"
+      ]
+    }
+  ],
+  "requiredRepairBoundaries": [
+    "Unscoped native work needs an owner-produced bounded coverage contract with truthful total/pagination and requested assignee scope; current listTasks has no general ownerUserId filter, so simply accepting its legacy shape would not answer assigned-to-me reliably.",
+    "Ground generic status/pass/fail categories in actual legislative subject, preserving real bill/rule requests and mixed factual controls.",
+    "Map generic evidence requirements to actual applicable tool families/attempt receipts before reporting never_called; preserve failed/partial distinct from empty."
+  ],
+  "actualCommandExitCode": 0,
+  "sourceEdits": 0,
+  "awsCalls": 0,
+  "databaseCalls": 0,
+  "providerCalls": 0,
+  "liveBaselineUnchanged": true
+}

@@ -1,0 +1,166 @@
+TAP version 13
+# Subtest: materializer pins the actual separately qualified versioned owner helpers
+ok 1 - materializer pins the actual separately qualified versioned owner helpers
+  ---
+  duration_ms: 2.0926
+  type: 'test'
+  ...
+# Subtest: actual429 build readbacks carry the mandatory postseed marker; removing it refuses qualification
+ok 2 - actual429 build readbacks carry the mandatory postseed marker; removing it refuses qualification
+  ---
+  duration_ms: 1.4214
+  type: 'test'
+  ...
+# Subtest: actual clean pinned driver differs from reviewed runtime by exactly8 eval paths
+ok 3 - actual clean pinned driver differs from reviewed runtime by exactly8 eval paths
+  ---
+  duration_ms: 236.4536
+  type: 'test'
+  ...
+# Subtest: unsealed scratch copy refuses readiness and initialization before auth or shared journal
+ok 4 - unsealed scratch copy refuses readiness and initialization before auth or shared journal
+  ---
+  duration_ms: 213.4891
+  type: 'test'
+  ...
+# Subtest: actual native wrapper reserves and flushes checkpoint before first external auth call and passes its capability
+ok 5 - actual native wrapper reserves and flushes checkpoint before first external auth call and passes its capability
+  ---
+  duration_ms: 0.6401
+  type: 'test'
+  ...
+# Subtest: input validator keeps all old binding joins, changes only mixed Orc source and exact budget equality
+ok 6 - input validator keeps all old binding joins, changes only mixed Orc source and exact budget equality
+  ---
+  duration_ms: 0.7188
+  type: 'test'
+  ...
+# Subtest: qualified combined runtime differs by the exact reviewed paths; native case01 imports remain exact except pinned unused case46 addition
+ok 7 - qualified combined runtime differs by the exact reviewed paths; native case01 imports remain exact except pinned unused case46 addition
+  ---
+  duration_ms: 3902.4266
+  type: 'test'
+  ...
+# Subtest: unit-only successful recovery, installation and source joins permit configuration only
+ok 8 - unit-only successful recovery, installation and source joins permit configuration only
+  ---
+  duration_ms: 1.8251
+  type: 'test'
+  ...
+# Subtest: setup or budget failure, wrong mode or stale source blocks before authentication
+ok 9 - setup or budget failure, wrong mode or stale source blocks before authentication
+  ---
+  duration_ms: 1.3439
+  type: 'test'
+  ...
+# Subtest: foreign conversation, actor, physical source and current owner/binding all fail
+ok 10 - foreign conversation, actor, physical source and current owner/binding all fail
+  ---
+  duration_ms: 1.1839
+  type: 'test'
+  ...
+# Subtest: explicit three dollar bound and rate lifetime covering the whole signed policy
+ok 11 - explicit three dollar bound and rate lifetime covering the whole signed policy
+  ---
+  duration_ms: 0.6403
+  type: 'test'
+  ...
+# Subtest: actual merged Orc candidate contains only exact reviewed core4 plus index2 blobs
+ok 12 - actual merged Orc candidate contains only exact reviewed core4 plus index2 blobs
+  ---
+  duration_ms: 551.8133
+  type: 'test'
+  ...
+# Subtest: mixed source checks real ancestry and exact blobs; refuses unset source and later code drift
+ok 13 - mixed source checks real ancestry and exact blobs; refuses unset source and later code drift
+  ---
+  duration_ms: 2286.7782
+  type: 'test'
+  ...
+# Subtest: new Orc qualification cannot substitute old Orc or change API setup source
+ok 14 - new Orc qualification cannot substitute old Orc or change API setup source
+  ---
+  duration_ms: 1.2138
+  type: 'test'
+  ...
+# Subtest: one V6 aggregate owner survives version change; initializer and checkpoints cannot create V7 ledger
+ok 15 - one V6 aggregate owner survives version change; initializer and checkpoints cannot create V7 ledger
+  ---
+  duration_ms: 0.9123
+  type: 'test'
+  ...
+# Subtest: actual reviewed assurance49b and combined ddb qualification bind independently; substitutions fail
+ok 16 - actual reviewed assurance49b and combined ddb qualification bind independently; substitutions fail
+  ---
+  duration_ms: 1.4419
+  type: 'test'
+  ...
+# Subtest: promotion must actually be healthy and join exact qualified source, image and manifest
+ok 17 - promotion must actually be healthy and join exact qualified source, image and manifest
+  ---
+  duration_ms: 2.7677
+  type: 'test'
+  ...
+# Subtest: 450 API promotion requires passing versioned migration evidence, with no schema-change opt-out
+ok 18 - 450 API promotion requires passing versioned migration evidence, with no schema-change opt-out
+  ---
+  duration_ms: 0.7607
+  type: 'test'
+  ...
+# Subtest: new orchestrator promotion is separately image/source/deployment bound
+ok 19 - new orchestrator promotion is separately image/source/deployment bound
+  ---
+  duration_ms: 0.8065
+  type: 'test'
+  ...
+# Subtest: owner execution must join real input, fixed operator, promoted task/image, mode, successful task and plan hash
+ok 20 - owner execution must join real input, fixed operator, promoted task/image, mode, successful task and plan hash
+  ---
+  duration_ms: 1.9887
+  type: 'test'
+  ...
+# Subtest: scope derives real owner identifiers and mixed runtime bindings; no new ID generation
+ok 21 - scope derives real owner identifiers and mixed runtime bindings; no new ID generation
+  ---
+  duration_ms: 2.377
+  type: 'test'
+  ...
+# Subtest: incomplete/old/foreign postseed and unmatched installed qualification/actor/rates reject
+ok 22 - incomplete/old/foreign postseed and unmatched installed qualification/actor/rates reject
+  ---
+  duration_ms: 6.2196
+  type: 'test'
+  ...
+# Subtest: previous approval or projection journals cannot replace the17-step postseed contract
+ok 23 - previous approval or projection journals cannot replace the17-step postseed contract
+  ---
+  duration_ms: 1.4194
+  type: 'test'
+  ...
+# Subtest: original slice zero means only explicit reviewed boundary; historical smoke receipt is mandatory
+ok 24 - original slice zero means only explicit reviewed boundary; historical smoke receipt is mandatory
+  ---
+  duration_ms: 0.5105
+  type: 'test'
+  ...
+# Subtest: import is inert and wrong command cannot seal or initialize anything
+ok 25 - import is inert and wrong command cannot seal or initialize anything
+  ---
+  duration_ms: 110.7217
+  type: 'test'
+  ...
+# Subtest: correct commands remain blocked by missing release pins before input writes, journal, auth or model work
+ok 26 - correct commands remain blocked by missing release pins before input writes, journal, auth or model work
+  ---
+  duration_ms: 316.2212
+  type: 'test'
+  ...
+1..26
+# tests 26
+# suites 0
+# pass 26
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 4455.2646

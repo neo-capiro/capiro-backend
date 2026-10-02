@@ -1,0 +1,25 @@
+{
+  "kind": "meri-original-aggregate-operator-release-pins",
+  "schemaVersion": 1,
+  "target": "https://os.capiro.ai",
+  "testedCodeSha": "42988dae5fb7bc2fff3af582ca15a0836a4477c5",
+  "sourceSha": "42988dae5fb7bc2fff3af582ca15a0836a4477c5",
+  "orchestratorSourceSha": "ddb55a5a3e6bbf1c3f567119b66e18e0a92e60ab",
+  "orchestratorTestedCodeSha": "ddb55a5a3e6bbf1c3f567119b66e18e0a92e60ab",
+  "orchestratorAssuranceTestedCodeSha": "49b3bbcf18337652addf2d82857d41b9161cf7ba",
+  "combinedQualificationSha256": "d8ce9e00f85d83ace96c49bd99082ca50507f05369b10b16a97f19a0224620bd",
+  "webSourceSha": "78ad5805679a3045b1fc10fb19beafa7f76e4e64",
+  "driverSourceSha": "c9dae31d1e50b6560d58319baa620a14ab505c7f",
+  "driverBaseSha": "280828b3256af2e1b69662b0867290239943cb6a",
+  "localSourceSha256": {
+    "aggregate-operator-gates.mjs": "4ae8fde5582196f7f36536bd35fac169573752750637dd66f43540f99888073d",
+    "case01-input-gates.mjs": "e5e0a2a3c23db0de887ac7daf1caa8c5d2caa6edf587f65447ed61419055afa3",
+    "initialize-original-slice.mjs": "b21d7423abc7066e7378cd71934d24a525dbf504dcfacfa90096c27914c328af",
+    "run-case01-authenticated-aggregate-v7.mjs": "9eba9a0c58d9a7b06b236c506f2136ca1e0a3098306931969bfbffdc4bd103c7"
+  },
+  "reviewedBuildInputSha256": "8c54604b7c6d988e31cff6de6b03133db209dc44280ef661cded650153909c20",
+  "apiBuildReadbackSha256": "cf21cb785baa46cd7abc57c78f14cc34ca96bfe629d4f6ef052fafa502b0ad15",
+  "orchestratorBuildReadbackSha256": "585aad8690ae23277b4674d367612756af56f2ef51d3edb428c3d0911b566a64",
+  "orchestratorReviewedBuildInputSha256": "71b8c19c5c18eb7e746df2767d1585e4f202f62e3b48e4ddc291640ba8aefbd9",
+  "originalSliceInventorySha256": "113c55d76637edfd807e5e3efced931e2b2dd73052dabba4d2e0607aff6e57b8"
+}

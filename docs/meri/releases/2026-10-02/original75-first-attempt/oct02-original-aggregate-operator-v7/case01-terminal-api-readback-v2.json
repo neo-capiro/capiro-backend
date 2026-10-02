@@ -1,0 +1,108 @@
+{
+  "kind": "meri-original01-terminal-owned-api-readback",
+  "startedAt": "2026-10-02T18:04:56.782Z",
+  "status": "READBACK_CAPTURED",
+  "applicationWrites": 0,
+  "modelSubmissions": 0,
+  "sessionRevoked": true,
+  "reads": [
+    {
+      "path": "/api/clio/conversations/d7a74b15-873b-4256-a1d1-c6b4da3f8e1f",
+      "status": 200,
+      "bodySha256": "35a2b51da86f2d9ba0d5e8e1798087d43217a037c3a8a7ef807c6c9147177155",
+      "apiReleaseSha": "42988dae5fb7bc2fff3af582ca15a0836a4477c5"
+    },
+    {
+      "path": "/api/clio/conversations/d7a74b15-873b-4256-a1d1-c6b4da3f8e1f/messages",
+      "status": 200,
+      "bodySha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "apiReleaseSha": "42988dae5fb7bc2fff3af582ca15a0836a4477c5"
+    }
+  ],
+  "captureRunId": "c6ffa5ad-dd9f-4912-bc31-a03231a9b903",
+  "conversationId": "d7a74b15-873b-4256-a1d1-c6b4da3f8e1f",
+  "priorExecutionSha256": "c0c8e241fb5e902374610af57ea46da3f5b697aecc2b58e0a94903e4a8a16bb7",
+  "webSourceSha": "78ad5805679a3045b1fc10fb19beafa7f76e4e64",
+  "apiSourceSha": "42988dae5fb7bc2fff3af582ca15a0836a4477c5",
+  "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+  "userId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+  "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+  "conversation": {
+    "id": "d7a74b15-873b-4256-a1d1-c6b4da3f8e1f",
+    "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+    "archivedAt": null,
+    "metadataKeys": [
+      "brand",
+      "runtime",
+      "userEmail",
+      "serverCaptureProviderBudget"
+    ]
+  },
+  "budget": {
+    "ledger": {
+      "limits": {
+        "maxTokens": 200000,
+        "deadlineAt": "2026-10-02T18:19:30.078Z",
+        "maxAttempts": 32,
+        "maxCostMicros": 3000000
+      },
+      "version": 1,
+      "attempts": [],
+      "activation": "enforced",
+      "chargedTokens": 0,
+      "chargedAttempts": 0,
+      "chargedCostMicros": 0
+    },
+    "turnId": null,
+    "version": 1,
+    "admissionId": "1c760bd8-19a1-4b00-9941-7927453352c9",
+    "policySha256": "a64fab12315db35ff5da5a777fa2aa15dff05f0ae4bcb35dcd21efbbaf0181b0",
+    "qualification": {
+      "rates": [
+        {
+          "kind": "openai_responses",
+          "model": "gpt-6-astra",
+          "provider": "openai",
+          "inputMicrosPerMillion": 12500000,
+          "outputMicrosPerMillion": 50000000
+        },
+        {
+          "kind": "jev",
+          "model": "gpt-6-astra",
+          "provider": "openai",
+          "inputMicrosPerMillion": 12500000,
+          "outputMicrosPerMillion": 50000000
+        },
+        {
+          "kind": "bedrock_embeddings",
+          "model": "amazon.titan-embed-text-v2:0",
+          "provider": "aws-bedrock",
+          "inputMicrosPerMillion": 20000,
+          "outputMicrosPerMillion": 0
+        },
+        {
+          "kind": "nvidia_rerank",
+          "model": "nvidia/llama-nemotron-rerank-vl-1b-v2",
+          "provider": "nvidia-nim",
+          "inputMicrosPerMillion": 1000000,
+          "outputMicrosPerMillion": 0
+        }
+      ],
+      "caseId": "01",
+      "version": 1,
+      "maxTokens": 200000,
+      "priceKind": "qualified_text_token_upper_bound",
+      "maxAttempts": 32,
+      "captureRunId": "c6ffa5ad-dd9f-4912-bc31-a03231a9b903",
+      "maxCostMicros": 3000000,
+      "rateEvidenceSha256": "be02bc240adeeb44883014b90da73462220c5d43fddfedd198db32484c6e38a5",
+      "currentVerifySha256": "177bf9befa20f94f7e0a7318e259155915401b128c1e917d4c71cc4e3d96825b",
+      "rateEvidenceExpiresAt": "2026-10-03T06:08:00.000Z"
+    },
+    "qualificationSha256": "f5c7e845fb9a45d99055387e3b47fceb9c6c9f0d3ec5771bfe3ad427abb64faf"
+  },
+  "messageCount": 0,
+  "messageRoles": [],
+  "observedAt": "2026-10-02T18:05:00.632Z",
+  "completedAt": "2026-10-02T18:05:00.905Z"
+}
