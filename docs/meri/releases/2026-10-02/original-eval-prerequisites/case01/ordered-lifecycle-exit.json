@@ -1,0 +1,7 @@
+{
+  "pass": 2,
+  "fail": 0,
+  "exitCode": 0,
+  "command": "node --test evals/meri/live-v1/tests/case01-memory-lifecycle.postgres.test.mjs",
+  "skip": 0
+}

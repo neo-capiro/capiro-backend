@@ -1,0 +1,14 @@
+{
+  "name": "typecheck",
+  "command": [
+    "C:\\Program Files\\nodejs\\pnpm.cmd",
+    "--filter",
+    "@capiro/api",
+    "typecheck"
+  ],
+  "cwd": "C:\\dev\\cap-meri-migration-history-guard",
+  "pid": 14824,
+  "exitCode": 0,
+  "seconds": 211.83,
+  "logSha256": "1c37778cbc0fcfd247c0c6643fda6f1d084bd099a081e6dd430cf8811fa50005"
+}

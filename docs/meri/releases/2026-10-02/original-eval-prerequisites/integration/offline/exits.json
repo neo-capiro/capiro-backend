@@ -1,0 +1,52 @@
+{
+  "sourceSha": "9b8fc56088ad3c60397e56096f2df4072626690d",
+  "sourceTree": "149e043deb0a3458c71ab69270bfb8d30e07ea5b",
+  "cwd": "C:\\dev\\cap-meri-migration-history-guard",
+  "policySha": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "scope": "Integrated original-eval prerequisites deterministic offline26; no live application/provider/database/fixture calls",
+  "startedAtEpoch": 1790919069.8536086,
+  "commands": [
+    {
+      "name": "promptfoo",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "node_modules/promptfoo/dist/src/entrypoint.js",
+        "eval",
+        "-c",
+        "evals/meri/promptfooconfig.yaml",
+        "--no-cache",
+        "--no-share",
+        "--no-write",
+        "--no-table",
+        "--no-progress-bar",
+        "-o",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\integrated-prereqs\\offline\\meri-offline.json",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\integrated-prereqs\\offline\\meri-offline.html",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\integrated-prereqs\\offline\\meri-offline.junit.xml"
+      ],
+      "pid": 1540,
+      "exitCode": 0,
+      "elapsedSeconds": 28.22,
+      "logSha256": "548c739f92dded2f2cef092216dc6bd3ba7bb3dcfb21514b34c638b8006d848f"
+    },
+    {
+      "name": "verifier",
+      "command": [
+        "C:\\ProgramData\\Hermes\\tools\\python-3.14.7+20260901-win32-x64\\python.exe",
+        "evals/meri/verify_report.py",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\integrated-prereqs\\offline\\meri-offline.json",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-original-eval\\integrated-prereqs\\offline\\meri-offline.summary.json"
+      ],
+      "pid": 6572,
+      "exitCode": 0,
+      "elapsedSeconds": 0.13,
+      "logSha256": "f78acc7cdc4a1f42e00f8a55b5507ef05ca66734f81298803f4feaf68a04f09f"
+    }
+  ],
+  "completedAtEpoch": 1790919098.2957056,
+  "sourceUnchanged": true,
+  "worktreeStatus": "",
+  "exitCode": 0,
+  "meri-offline.jsonSha256": "1daf492e9fc50857458dae1bba6eb5954358abcde0b1cf7c1488d487a4f30485",
+  "meri-offline.summary.jsonSha256": "cb0f7bfd9d9004d5a68de1a27ba87859c4a462104bb35d9fbe49adeab695082f"
+}

@@ -1,0 +1,90 @@
+{
+  "scope": "Sanitized qualifications and exact command exit/hash receipts; raw offline reports stay outside repo",
+  "artifacts": [
+    {
+      "file": "integration/node-exit.json",
+      "originalSha256": "9727aac41682e8ea1da4705df6bb5ab2dc6de3c016a2fbe0ca2cda0d12d2a514",
+      "archivedSha256": "9727aac41682e8ea1da4705df6bb5ab2dc6de3c016a2fbe0ca2cda0d12d2a514"
+    },
+    {
+      "file": "integration/jest-exit.json",
+      "originalSha256": "abf5077a4914b5ea62bae29e76a32e293f6815bbb253a0e994b42022385b6d3c",
+      "archivedSha256": "abf5077a4914b5ea62bae29e76a32e293f6815bbb253a0e994b42022385b6d3c"
+    },
+    {
+      "file": "integration/typecheck-exit.json",
+      "originalSha256": "0e25707ae74dddc221e931033297264995d213a47cf946126a753d9e08865fd9",
+      "archivedSha256": "0e25707ae74dddc221e931033297264995d213a47cf946126a753d9e08865fd9"
+    },
+    {
+      "file": "integration/reviewed-source-readback.json",
+      "originalSha256": "78ea3a770e5cf6f2bdf95fb9631c075af476e69a8f5c82f0687ed186b392d178",
+      "archivedSha256": "78ea3a770e5cf6f2bdf95fb9631c075af476e69a8f5c82f0687ed186b392d178"
+    },
+    {
+      "file": "integration/offline/exits.json",
+      "originalSha256": "2fa34755feb80ceddbf213d2c05c4a5ee33e7bbb9e33aadd2349c76a39da83c0",
+      "archivedSha256": "148f151259ac5efbb775fa01ff5fe2795db94a68f788c0e9270c97b8d5b51612"
+    },
+    {
+      "file": "integration/offline/meri-offline.summary.json",
+      "originalSha256": "cb0f7bfd9d9004d5a68de1a27ba87859c4a462104bb35d9fbe49adeab695082f",
+      "archivedSha256": "9833b8006469f5a694b94a93beffa6fc5529dab00461a495ea23fce5d737a164"
+    },
+    {
+      "file": "case01/final-verification.json",
+      "originalSha256": "05ee015ffcbc93022948030fa8899a0b831d7f9d90bd6a7074553716f17f71cb",
+      "archivedSha256": "ae8815e6d3da18744361af5c5d345b8072d873c8f25c94f0bf968bc9b3163890"
+    },
+    {
+      "file": "case01/handover.md",
+      "originalSha256": "af7b0a13c06476bb94ac1fa3942909977dbe284211ef317b93b312444d40c962",
+      "archivedSha256": "be5b7dfb5fca38da241d02b5c5de9b476f1517161e81944c149564b337081dba"
+    },
+    {
+      "file": "case01/case01-kimi-review.md",
+      "originalSha256": "f54e1ebc18ed6a718570a39bc7651ef0bb67e99541fb2ec6b5a2b409a190ca0c",
+      "archivedSha256": "618c9d50a16af99919a2bf3d37ba838bce484a8a361a4b72b484d5f78723a371"
+    },
+    {
+      "file": "case01/case01-kimi-exit.json",
+      "originalSha256": "9549b3d4e8c951949dcc3d0833fb82fe0a7a6254411b165200206a75e4342cd7",
+      "archivedSha256": "9549b3d4e8c951949dcc3d0833fb82fe0a7a6254411b165200206a75e4342cd7"
+    },
+    {
+      "file": "case01/case01-kimi-usage.json",
+      "originalSha256": "93171436a32bb803befee744fc2e0acb03a6bbd97df68607b31a6e995eccfcdf",
+      "archivedSha256": "63a4cc77261755e07a011be3d8f79255aeace0b8d85785b690475cb0293bb941"
+    },
+    {
+      "file": "case01/ordered-lifecycle-exit.json",
+      "originalSha256": "e1f8c2b997bec4a389d46cd760a68df75ce12ea9510d749a23bb47c485bae369",
+      "archivedSha256": "2a8443181f01336b72ee8f586ab7abd56aed7bed1279a7048e8005d6cd115978"
+    },
+    {
+      "file": "binding/final-verification.json",
+      "originalSha256": "f72710fae4b250e2950a60a5d3220d87a0fa2b29f053be4446303e3bb199a3f5",
+      "archivedSha256": "2218ff9b62f9a20ebcf133406019d54ed4777be537f84dab0969ea5005ee0296"
+    },
+    {
+      "file": "windows-storage/qualification.json",
+      "originalSha256": "5415ce047a475232afd8767cca850e9dcedc1e6f76e87e29037d841831b019c4",
+      "archivedSha256": "fe055f19e8ecfef0afdf8afca6b83a15c433a0894319e088729f7fd7d54a7aba"
+    },
+    {
+      "file": "windows-storage/windows-storage-kimi-inline-review.md",
+      "originalSha256": "58264b4ed11c4abc291e389e169a0d588c646c3c06aa836061dc4266105a560e",
+      "archivedSha256": "6be5dc3c13ca594d192b95ace3b52c8fde0b6be7a5584447995140ca77722577"
+    },
+    {
+      "file": "windows-storage/windows-storage-kimi-inline-exit.json",
+      "originalSha256": "e32a953bc1f97d49bd3cb50da03e3f10fbb7aa30bacb5e01fef220975ad519f9",
+      "archivedSha256": "e32a953bc1f97d49bd3cb50da03e3f10fbb7aa30bacb5e01fef220975ad519f9"
+    },
+    {
+      "file": "windows-storage/windows-storage-kimi-inline-usage.json",
+      "originalSha256": "557ca26b1cd5046b3cf3dea2a029b534c2bcd74a90016d1bf8b40bd2b600cad1",
+      "archivedSha256": "3613759ff55b66a538cd0a8f1356b8aec9cde5485ed229fecc0f47a8639ea5db"
+    }
+  ]
+}

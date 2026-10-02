@@ -1,0 +1,19 @@
+{
+  "name": "jest",
+  "command": [
+    "C:\\Program Files\\nodejs\\node.exe",
+    "node_modules/jest/bin/jest.js",
+    "--runInBand",
+    "--forceExit",
+    "src/memory/immutable-memory-version.service.spec.ts",
+    "src/memory/memory-store.governance.spec.ts",
+    "src/memory/memory-store.projection-governance.spec.ts",
+    "src/memory/governed-memory-candidate.service.spec.ts",
+    "src/meri/meri-server-readonly-capture.spec.ts"
+  ],
+  "cwd": "C:\\dev\\cap-meri-migration-history-guard\\apps\\api",
+  "pid": 17464,
+  "exitCode": 0,
+  "seconds": 44.18,
+  "logSha256": "34cdedb64ef3377d65b1a1833ccee08592bec5d590b063583842d6506e962a12"
+}

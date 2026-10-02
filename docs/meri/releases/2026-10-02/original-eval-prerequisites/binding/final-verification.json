@@ -1,0 +1,89 @@
+{
+  "kind": "meri-capture-binding-local-prerequisite-verification",
+  "verdict": "PASS",
+  "commitSha": "0a8e08848e4d886f06d0d02742b03f0a74c943ef",
+  "dependencyOriginalCommit": "5cf3c2411ca09d57a4de3621ba30db0a5879faa8",
+  "dependencyCherryPick": "c61d2ec773aaa7a9470a144a3f4d67bc904c7c80",
+  "policySha": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "machineMapRevision": "2026-09-30",
+  "sourceHashes": {
+    "evals/meri/live-v1/fixture-provisioning/capture-binding-owner.mjs": "ccb2a2387fd6c276621b14a95f4219aa1bb9d50e000390b3cfbeb22aca23a83d",
+    "evals/meri/live-v1/fixture-provisioning/capture-binding-runtime.mjs": "527fc5358eec0884b7159ddbdde07abd14736a299fb08d8f3c4e918ae2f7e17a",
+    "evals/meri/live-v1/tests/capture-binding-owner.test.mjs": "b926efac7de5ed1f2dae78d24d9ebdb9f88b67e0ddc677af600a45d7b69d99ac",
+    "evals/meri/live-v1/tests/capture-binding-runtime.postgres.test.mjs": "d4d5eaa1916ed09f6008d088f4dd70ade2b797f53889c54554ef0cda91b87dc8",
+    "evals/meri/live-v1/tests/capture-binding-lock.postgres.test.mjs": "906b882b46fee2c7bc813b589b0a68caade75c7d88f4376319bb0de2a071b5ec"
+  },
+  "committedBytesMatchReviewedTestedCandidate": true,
+  "workingTreeClean": true,
+  "tests": {
+    "pass": 12,
+    "fail": 0,
+    "skipped": 0,
+    "actualExitCode": 0,
+    "unit": 9,
+    "canonicalServicePostgresRollback": 2,
+    "realTwoSessionCas": 1,
+    "receipt": "all-final-exit.json",
+    "logSha256": "e30ba26ac51438fee8baf1a9a58a3442de8730366c04d5273ddf0bd74a7fa473"
+  },
+  "reviews": [
+    {
+      "stem": "capture-binding-kimi",
+      "verdict": "PASS",
+      "actualProcessExit": 0,
+      "usage": {
+        "requestedModel": "moonshotai.kimi-k2.5",
+        "initializedModel": "moonshotai.kimi-k2.5",
+        "sessionId": "20261002_044659_6fc4f4",
+        "provider": "bedrock",
+        "reportedTokens": {
+          "input": 29887,
+          "output": 3202,
+          "total": 33089,
+          "cache_read": 0,
+          "cache_write": 0
+        },
+        "reportedResultExit": 0,
+        "toolCalls": 0,
+        "billedCostUsd": null,
+        "costStatus": "not exposed by quiet stream output"
+      },
+      "reviewSha256": "25e955f7f49a75c1300cc0f741a221024e6ee53cb591e96cc6d366985e1c7640"
+    },
+    {
+      "stem": "capture-binding-delta-kimi",
+      "verdict": "PASS",
+      "actualProcessExit": 0,
+      "usage": {
+        "requestedModel": "moonshotai.kimi-k2.5",
+        "initializedModel": "moonshotai.kimi-k2.5",
+        "sessionId": "20261002_045306_4cf62f",
+        "provider": "bedrock",
+        "reportedTokens": {
+          "input": 31644,
+          "output": 249,
+          "total": 31893,
+          "cache_read": 0,
+          "cache_write": 0
+        },
+        "reportedResultExit": 0,
+        "toolCalls": 0,
+        "billedCostUsd": null,
+        "costStatus": "not exposed by quiet stream output"
+      },
+      "reviewSha256": "b53d6747e10c86b665ddd7f2ca6609f73b8ec2f570f934e4171e4ca256fab323"
+    }
+  ],
+  "independentReadbackNote": "Final delta reviewer references sourceMappingDigest in owner; actual source uses the identical existing artifact-collector algorithm and tests compare sourceMappingDigest directly. This prose inaccuracy does not change source/test verification.",
+  "localSideEffects": "55433 owned synthetic schema setup and winning transaction committed for concurrency; generated schema dropped and absence asserted. Canonical memory tests rolled back. No shared database/cloud writes.",
+  "scope": "New fixture-provisioning modules/tests only; no API route, schema, model, HMAC, deployment, LIVE guard or access changes.",
+  "liveAcceptance": "NOT_RUN",
+  "fixtureReady": false,
+  "remaining": [
+    "Original case01 negative corpus owners MA1-v1/MB1/MA2/MA3",
+    "Canonical seed operation receipt owner",
+    "Canonical reset operation receipt owner",
+    "Server composition and remaining capture authority/budget/storage gates; not wired or represented as complete here"
+  ],
+  "publication": "local task branch commit only; root integrates through C-drive main/GitHub workflow"
+}

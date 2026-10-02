@@ -1,0 +1,161 @@
+{
+  "head": "9b8fc56088ad3c60397e56096f2df4072626690d",
+  "checks": [
+    {
+      "path": "apps/api/src/memory/immutable-memory-version.service.ts",
+      "reviewedCommit": "8617d0329d796002f49138f1ffdd27ef9f007e0d",
+      "expectedCandidateHash": "1239ebd3d181b3e0f6b9c4f75938837c0c9d79103ca6fa412f15817cc21c566d",
+      "gitBlobSha256": "1239ebd3d181b3e0f6b9c4f75938837c0c9d79103ca6fa412f15817cc21c566d",
+      "match": true
+    },
+    {
+      "path": "apps/api/src/memory/memory-store.service.ts",
+      "reviewedCommit": "8617d0329d796002f49138f1ffdd27ef9f007e0d",
+      "expectedCandidateHash": "73fb0d1ea6ab25edb8257bac60beea156741e83387b67ebfb5402e1dd71aa20a",
+      "gitBlobSha256": "73fb0d1ea6ab25edb8257bac60beea156741e83387b67ebfb5402e1dd71aa20a",
+      "match": true
+    },
+    {
+      "path": "apps/api/src/memory/synthetic-approved-memory.helpers.ts",
+      "reviewedCommit": "8617d0329d796002f49138f1ffdd27ef9f007e0d",
+      "expectedCandidateHash": "bfe21a02bed8398a6f2dc80baebe345b1893e4551cb6ff48c4bdb28650b2cb1c",
+      "gitBlobSha256": "bfe21a02bed8398a6f2dc80baebe345b1893e4551cb6ff48c4bdb28650b2cb1c",
+      "match": true
+    },
+    {
+      "path": "apps/api/src/memory/synthetic-memory-version.helpers.ts",
+      "reviewedCommit": "8617d0329d796002f49138f1ffdd27ef9f007e0d",
+      "expectedCandidateHash": "9315c732bf0e96a01d5da904601dab277d8f1073a7f4ac6faade4824e7200a17",
+      "gitBlobSha256": "9315c732bf0e96a01d5da904601dab277d8f1073a7f4ac6faade4824e7200a17",
+      "match": true
+    },
+    {
+      "path": "evals/meri/live-v1/fixture-provisioning/approved-memory-runtime.mjs",
+      "reviewedCommit": "8617d0329d796002f49138f1ffdd27ef9f007e0d",
+      "expectedCandidateHash": "b814c5f904594130d0e35bbb0d4a1f49ec77a5f96c1544fcf9e6969784f278ac",
+      "gitBlobSha256": "b814c5f904594130d0e35bbb0d4a1f49ec77a5f96c1544fcf9e6969784f278ac",
+      "match": true
+    },
+    {
+      "path": "evals/meri/live-v1/fixture-provisioning/memory-candidate-owner.mjs",
+      "reviewedCommit": "8617d0329d796002f49138f1ffdd27ef9f007e0d",
+      "expectedCandidateHash": "a850e4a8a68641d7118cf7f6e5abda72e64452bde6123d8e13acf5308d6bc9b7",
+      "gitBlobSha256": "a850e4a8a68641d7118cf7f6e5abda72e64452bde6123d8e13acf5308d6bc9b7",
+      "match": true
+    },
+    {
+      "path": "evals/meri/live-v1/fixture-provisioning/case01-memory-runtime.mjs",
+      "reviewedCommit": "8617d0329d796002f49138f1ffdd27ef9f007e0d",
+      "expectedCandidateHash": "a8e6a6b2cdc886e25e25be92f436954abc2ee162ef88eee261a910b1dfe832f2",
+      "gitBlobSha256": "a8e6a6b2cdc886e25e25be92f436954abc2ee162ef88eee261a910b1dfe832f2",
+      "match": true
+    },
+    {
+      "path": "evals/meri/live-v1/tests/case01-memory-lifecycle.postgres.test.mjs",
+      "reviewedCommit": "8617d0329d796002f49138f1ffdd27ef9f007e0d",
+      "expectedCandidateHash": "05d61a3a2e60ff8a8fe9dc7b1c0205dcdbeea6ddadf6f00a7f930294c1a324a2",
+      "gitBlobSha256": "05d61a3a2e60ff8a8fe9dc7b1c0205dcdbeea6ddadf6f00a7f930294c1a324a2",
+      "match": true
+    },
+    {
+      "path": "evals/meri/live-v1/fixture-provisioning/capture-binding-owner.mjs",
+      "reviewedCommit": "0a8e08848e4d886f06d0d02742b03f0a74c943ef",
+      "expectedCandidateHash": "ccb2a2387fd6c276621b14a95f4219aa1bb9d50e000390b3cfbeb22aca23a83d",
+      "gitBlobSha256": "ccb2a2387fd6c276621b14a95f4219aa1bb9d50e000390b3cfbeb22aca23a83d",
+      "match": true
+    },
+    {
+      "path": "evals/meri/live-v1/fixture-provisioning/capture-binding-runtime.mjs",
+      "reviewedCommit": "0a8e08848e4d886f06d0d02742b03f0a74c943ef",
+      "expectedCandidateHash": "527fc5358eec0884b7159ddbdde07abd14736a299fb08d8f3c4e918ae2f7e17a",
+      "gitBlobSha256": "527fc5358eec0884b7159ddbdde07abd14736a299fb08d8f3c4e918ae2f7e17a",
+      "match": true
+    },
+    {
+      "path": "evals/meri/live-v1/tests/capture-binding-owner.test.mjs",
+      "reviewedCommit": "0a8e08848e4d886f06d0d02742b03f0a74c943ef",
+      "expectedCandidateHash": "b926efac7de5ed1f2dae78d24d9ebdb9f88b67e0ddc677af600a45d7b69d99ac",
+      "gitBlobSha256": "b926efac7de5ed1f2dae78d24d9ebdb9f88b67e0ddc677af600a45d7b69d99ac",
+      "match": true
+    },
+    {
+      "path": "evals/meri/live-v1/tests/capture-binding-runtime.postgres.test.mjs",
+      "reviewedCommit": "0a8e08848e4d886f06d0d02742b03f0a74c943ef",
+      "expectedCandidateHash": "d4d5eaa1916ed09f6008d088f4dd70ade2b797f53889c54554ef0cda91b87dc8",
+      "gitBlobSha256": "d4d5eaa1916ed09f6008d088f4dd70ade2b797f53889c54554ef0cda91b87dc8",
+      "match": true
+    },
+    {
+      "path": "evals/meri/live-v1/tests/capture-binding-lock.postgres.test.mjs",
+      "reviewedCommit": "0a8e08848e4d886f06d0d02742b03f0a74c943ef",
+      "expectedCandidateHash": "906b882b46fee2c7bc813b589b0a68caade75c7d88f4376319bb0de2a071b5ec",
+      "gitBlobSha256": "906b882b46fee2c7bc813b589b0a68caade75c7d88f4376319bb0de2a071b5ec",
+      "match": true
+    },
+    {
+      "path": "evals/meri/live-v1/lib/windows-owned-artifacts.py",
+      "reviewedCommit": "49abbad62c6f7300dfb69c63c145e85990aaa3f1",
+      "expectedCandidateHash": "2316daa96906c1bf166adbeb72341024581dac82aa1f692f2554eb1ae82a40c1",
+      "gitBlobSha256": "2316daa96906c1bf166adbeb72341024581dac82aa1f692f2554eb1ae82a40c1",
+      "match": true
+    },
+    {
+      "path": "evals/meri/live-v1/lib/windows-artifact-protocol.py",
+      "reviewedCommit": "49abbad62c6f7300dfb69c63c145e85990aaa3f1",
+      "expectedCandidateHash": "3a30f6a211a5a7815c7f721dbb09871a33f316e7ecd8fbac0b4b1cf95ead33db",
+      "gitBlobSha256": "3a30f6a211a5a7815c7f721dbb09871a33f316e7ecd8fbac0b4b1cf95ead33db",
+      "match": true
+    },
+    {
+      "path": "evals/meri/live-v1/windows-artifact-storage.mjs",
+      "reviewedCommit": "49abbad62c6f7300dfb69c63c145e85990aaa3f1",
+      "expectedCandidateHash": "8b03eeccad53a92fc4cf7bcf4976522ecf7ed2126591449e28a6a70948ac01c4",
+      "gitBlobSha256": "8b03eeccad53a92fc4cf7bcf4976522ecf7ed2126591449e28a6a70948ac01c4",
+      "match": true
+    },
+    {
+      "path": "evals/meri/live-v1/tests/windows-native-races.py",
+      "reviewedCommit": "49abbad62c6f7300dfb69c63c145e85990aaa3f1",
+      "expectedCandidateHash": "4e3b3f9babb4b90fb747b67cabb4afef95a57fe443141c3acafe926c35fa43e0",
+      "gitBlobSha256": "4e3b3f9babb4b90fb747b67cabb4afef95a57fe443141c3acafe926c35fa43e0",
+      "match": true
+    },
+    {
+      "path": "evals/meri/live-v1/tests/windows-artifact-storage.test.mjs",
+      "reviewedCommit": "49abbad62c6f7300dfb69c63c145e85990aaa3f1",
+      "expectedCandidateHash": "35ba061d3fda7f4632f6bd9cc4425cd14fdc45d0a638c1dca059ed7b6d5040b5",
+      "gitBlobSha256": "35ba061d3fda7f4632f6bd9cc4425cd14fdc45d0a638c1dca059ed7b6d5040b5",
+      "match": true
+    },
+    {
+      "path": "evals/meri/live-v1/artifact-collector.mjs",
+      "reviewedCommit": "49abbad62c6f7300dfb69c63c145e85990aaa3f1",
+      "expectedCandidateHash": "64725c9b2fc66efb6578461e755efcbf62b77e18833dc6221831ee7e21ececae",
+      "gitBlobSha256": "64725c9b2fc66efb6578461e755efcbf62b77e18833dc6221831ee7e21ececae",
+      "match": true
+    },
+    {
+      "path": "evals/meri/live-v1/artifact-reader.mjs",
+      "reviewedCommit": "49abbad62c6f7300dfb69c63c145e85990aaa3f1",
+      "expectedCandidateHash": "7a3135fe230ea821df6b60cf4fcdcdbde0b21b6af80c777544f67f14e3a0aed3",
+      "gitBlobSha256": "7a3135fe230ea821df6b60cf4fcdcdbde0b21b6af80c777544f67f14e3a0aed3",
+      "match": true
+    },
+    {
+      "path": "evals/meri/live-v1/capture-adapter.mjs",
+      "reviewedCommit": "49abbad62c6f7300dfb69c63c145e85990aaa3f1",
+      "expectedCandidateHash": "770f3e42289d4a6baef10af9e766bcbbc659d43becaf1102c35c2ba721c81346",
+      "gitBlobSha256": "770f3e42289d4a6baef10af9e766bcbbc659d43becaf1102c35c2ba721c81346",
+      "match": true
+    },
+    {
+      "path": "evals/meri/live-v1/verify-capture.mjs",
+      "reviewedCommit": "49abbad62c6f7300dfb69c63c145e85990aaa3f1",
+      "expectedCandidateHash": "24e61f13095d2a4a682dd210b763d4a4a14ff736e63997bcc16b02c9d0b37390",
+      "gitBlobSha256": "24e61f13095d2a4a682dd210b763d4a4a14ff736e63997bcc16b02c9d0b37390",
+      "match": true
+    }
+  ],
+  "verdict": "PASS",
+  "scope": "Exact reviewed source blobs unchanged by cherry-pick; CRLF-normalized candidate hashes independently reconciled"
+}

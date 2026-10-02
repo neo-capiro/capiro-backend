@@ -1,0 +1,110 @@
+{
+  "schemaVersion": 1,
+  "status": "PASS",
+  "observedAt": "2026-10-02T05:16:08.866214+00:00",
+  "policySha": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "machineMapRevision": "2026-09-30T00:21:48.2698715Z",
+  "baseSha": "2584b9a1737c35f79828981736404cdff297cec9",
+  "branch": "codex/meri-windows-artifact-owner-20261002",
+  "scope": "Windows NTFS task-owned local artifact storage only; no provider/app/cloud authority changes",
+  "sourceSha256": {
+    "evals/meri/live-v1/lib/windows-owned-artifacts.py": "2316daa96906c1bf166adbeb72341024581dac82aa1f692f2554eb1ae82a40c1",
+    "evals/meri/live-v1/lib/windows-artifact-protocol.py": "3a30f6a211a5a7815c7f721dbb09871a33f316e7ecd8fbac0b4b1cf95ead33db",
+    "evals/meri/live-v1/windows-artifact-storage.mjs": "8b03eeccad53a92fc4cf7bcf4976522ecf7ed2126591449e28a6a70948ac01c4",
+    "evals/meri/live-v1/tests/windows-native-races.py": "4e3b3f9babb4b90fb747b67cabb4afef95a57fe443141c3acafe926c35fa43e0",
+    "evals/meri/live-v1/tests/windows-artifact-storage.test.mjs": "35ba061d3fda7f4632f6bd9cc4425cd14fdc45d0a638c1dca059ed7b6d5040b5",
+    "evals/meri/live-v1/artifact-collector.mjs": "64725c9b2fc66efb6578461e755efcbf62b77e18833dc6221831ee7e21ececae",
+    "evals/meri/live-v1/artifact-reader.mjs": "7a3135fe230ea821df6b60cf4fcdcdbde0b21b6af80c777544f67f14e3a0aed3",
+    "evals/meri/live-v1/capture-adapter.mjs": "770f3e42289d4a6baef10af9e766bcbbc659d43becaf1102c35c2ba721c81346",
+    "evals/meri/live-v1/verify-capture.mjs": "24e61f13095d2a4a682dd210b763d4a4a14ff736e63997bcc16b02c9d0b37390"
+  },
+  "tests": [
+    {
+      "label": "native Node integration and LIVE non-acceptance",
+      "tests": 27,
+      "passed": 27,
+      "exitCode": 0,
+      "log": "native-node-tests-v2.log"
+    },
+    {
+      "label": "actual independent-process Windows races",
+      "tests": 9,
+      "passed": 9,
+      "exitCode": 0,
+      "log": "native-race-tests-v1.log"
+    },
+    {
+      "label": "portable collector/verifier regression",
+      "tests": 77,
+      "passed": 77,
+      "exitCode": 0,
+      "log": "portable-regression-v2.log"
+    },
+    {
+      "label": "shared build",
+      "exitCode": 0,
+      "log": "shared-build.log"
+    },
+    {
+      "label": "core build",
+      "exitCode": 0,
+      "log": "core-build-v2.log"
+    }
+  ],
+  "preservedFailures": [
+    {
+      "label": "Hermes Qwen native helper",
+      "verdict": "INVALID",
+      "exitCode": 1,
+      "usage": "native-primitives-usage.json",
+      "draft": "qwen-invalid-native-primitives.py",
+      "reason": "iteration limit and failed mutation; draft had incorrect ctypes structures and unsupported path fallback; repaired under explicit standing Codex exception"
+    },
+    {
+      "label": "first portable run",
+      "exitCode": 1,
+      "reason": "missing current core dist in reused worktree",
+      "log": "portable-regression-v1.log"
+    },
+    {
+      "label": "first core build",
+      "exitCode": 2,
+      "reason": "4 existing OpenTelemetry dependencies absent locally; linked from validated donor, no install",
+      "log": "core-build.log"
+    }
+  ],
+  "independentReview": {
+    "model": "moonshotai.kimi-k2.5",
+    "provider": "bedrock",
+    "exitCode": 0,
+    "toolCalls": 0,
+    "verdict": "PASS",
+    "report": "windows-storage-kimi-inline-review.md",
+    "reportSha256": "58264b4ed11c4abc291e389e169a0d588c646c3c06aa836061dc4266105a560e"
+  },
+  "formatting": {
+    "gitDiffCheck": "PASS",
+    "newMjsAndCaptureAdapterPrettier": "PASS",
+    "existingCollectorReaderVerifier": "preserved established formatting outside minimal changed lines; avoided wholesale formatting-only diff"
+  },
+  "limitations": [
+    "Capability is process-local; serialized state adoption/reopen is not exposed.",
+    "Trusted interpreter, repository and calling operator; not WORM against same-admin/kernel compromise.",
+    "Requires Windows fixed local NTFS and available native handles; conflicting handles fail closed.",
+    "Manifest completion requires successful flush/readback/return; crash residue is not completed evidence and cannot be overwritten.",
+    "No full original LIVE acceptance run occurred. verify-capture capture/auth/source authority guard remains BLOCKED.",
+    "No cloud/API/browser/provider/storage writes outside task-owned local test paths."
+  ],
+  "testRuntime": {
+    "node": "22.23.3",
+    "python": "3.14.7",
+    "filesystem": "NTFS"
+  },
+  "integration": {
+    "create": "createWindowsArtifactStorage(root, {pythonExecutable: trustedAbsoluteInterpreter})",
+    "capture": "executeLiveCase({...arguments, artifactStorage: storage})",
+    "verify": "verifyCaptureBundle(bundle, {artifactStorage: storage})",
+    "reader": "new OwnedArtifactReader(root, expectedOwner, {storage})",
+    "default": "No native auto-selection; default portable LIVE constructor still throws LIVE_ARTIFACT_PATH_UNSAFE."
+  }
+}

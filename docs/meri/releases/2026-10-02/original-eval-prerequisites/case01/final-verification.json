@@ -1,0 +1,131 @@
+{
+  "kind": "meri-case01-canonical-local-qualification",
+  "commitSha": "8617d0329d796002f49138f1ffdd27ef9f007e0d",
+  "parentCommit": "0a8e08848e4d886f06d0d02742b03f0a74c943ef",
+  "workingTreeClean": true,
+  "committedBytesMatchFinalCandidate": true,
+  "policySha": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "machineMapRevision": "2026-09-30",
+  "sourceHashes": {
+    "apps/api/src/memory/immutable-memory-version.service.ts": "1239ebd3d181b3e0f6b9c4f75938837c0c9d79103ca6fa412f15817cc21c566d",
+    "apps/api/src/memory/memory-store.service.ts": "73fb0d1ea6ab25edb8257bac60beea156741e83387b67ebfb5402e1dd71aa20a",
+    "apps/api/src/memory/synthetic-approved-memory.helpers.ts": "bfe21a02bed8398a6f2dc80baebe345b1893e4551cb6ff48c4bdb28650b2cb1c",
+    "apps/api/src/memory/synthetic-memory-version.helpers.ts": "9315c732bf0e96a01d5da904601dab277d8f1073a7f4ac6faade4824e7200a17",
+    "evals/meri/live-v1/fixture-provisioning/approved-memory-runtime.mjs": "b814c5f904594130d0e35bbb0d4a1f49ec77a5f96c1544fcf9e6969784f278ac",
+    "evals/meri/live-v1/fixture-provisioning/memory-candidate-owner.mjs": "a850e4a8a68641d7118cf7f6e5abda72e64452bde6123d8e13acf5308d6bc9b7",
+    "evals/meri/live-v1/fixture-provisioning/case01-memory-runtime.mjs": "a8e6a6b2cdc886e25e25be92f436954abc2ee162ef88eee261a910b1dfe832f2",
+    "evals/meri/live-v1/tests/case01-memory-lifecycle.postgres.test.mjs": "05d61a3a2e60ff8a8fe9dc7b1c0205dcdbeea6ddadf6f00a7f930294c1a324a2"
+  },
+  "checks": {
+    "node": {
+      "name": "node",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "--test",
+        "evals/meri/live-v1/tests/case01-approved-memory.test.mjs",
+        "evals/meri/live-v1/tests/case01-approved-memory.postgres.test.mjs",
+        "evals/meri/live-v1/tests/approved-memory-runtime.test.mjs",
+        "evals/meri/live-v1/tests/capture-binding-owner.test.mjs",
+        "evals/meri/live-v1/tests/capture-binding-runtime.postgres.test.mjs",
+        "evals/meri/live-v1/tests/capture-binding-lock.postgres.test.mjs",
+        "evals/meri/live-v1/tests/case01-memory-lifecycle.postgres.test.mjs"
+      ],
+      "cwd": "C:\\dev\\cap-meri-doc-fidelity",
+      "pid": 4020,
+      "exitCode": 0,
+      "seconds": 5.02,
+      "logSha256": "92f7e34335e127169c472eee60119841e3013a00d46b58275ca6d7ef9793c29d"
+    },
+    "jest": {
+      "name": "jest",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "node_modules/jest/bin/jest.js",
+        "--runInBand",
+        "--forceExit",
+        "src/memory/immutable-memory-version.service.spec.ts",
+        "src/memory/memory-store.governance.spec.ts",
+        "src/memory/memory-store.projection-governance.spec.ts",
+        "src/memory/governed-memory-candidate.service.spec.ts"
+      ],
+      "cwd": "C:\\dev\\cap-meri-doc-fidelity\\apps\\api",
+      "pid": 22444,
+      "exitCode": 0,
+      "seconds": 31.34,
+      "logSha256": "6959c1b3bb638da1d880c0565e127b388707e3725583508e458a5691af99a7ce"
+    },
+    "typecheck": {
+      "name": "typecheck",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "node_modules/typescript/bin/tsc",
+        "--noEmit",
+        "--rootDir",
+        "."
+      ],
+      "cwd": "C:\\dev\\cap-meri-doc-fidelity\\apps\\api",
+      "pid": 21196,
+      "exitCode": 0,
+      "seconds": 67.51,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "counts": {
+    "node": {
+      "pass": 20,
+      "fail": 0,
+      "skip": 0
+    },
+    "jest": {
+      "pass": 33,
+      "fail": 0,
+      "suites": 4
+    },
+    "orderingDeltaLifecycle": {
+      "pass": 2,
+      "fail": 0,
+      "skip": 0
+    }
+  },
+  "review": {
+    "verdict": "PASS",
+    "exit": {
+      "exitCode": 0,
+      "started": 1790918149.948866,
+      "finished": 1790918164.4193509,
+      "elapsedSeconds": 14.47
+    },
+    "usage": {
+      "requestedModel": "moonshotai.kimi-k2.5",
+      "initializedModel": "moonshotai.kimi-k2.5",
+      "sessionId": "20261002_051553_626aa8",
+      "provider": "bedrock",
+      "reportedTokens": {
+        "input": 44581,
+        "output": 407,
+        "total": 44988,
+        "cache_read": 0,
+        "cache_write": 0
+      },
+      "reportedResultExit": 0,
+      "toolCalls": 0,
+      "billedCostUsd": null,
+      "costStatus": "not exposed by quiet stream output"
+    },
+    "reportSha256": "f54e1ebc18ed6a718570a39bc7651ef0bb67e99541fb2ec6b5a2b409a190ca0c",
+    "reviewedHashes": "candidate-hashes.json",
+    "finalDelta": "ORDER BY id in one current-proof SQL query; 2 lifecycle tests repeated exit0; root peer review requested before integration"
+  },
+  "fixturePrerequisite": "PASS on owned local PostgreSQL, including real5states, actual lifecycle reset/reseed and atomic binding",
+  "liveAcceptance": "NOT_RUN",
+  "sourceOnlyLimitations": [
+    "No public route, collector authority, HMAC signing or LIVE gate change; root/peers compose independently.",
+    "Stateful trusted owner exists in one process; no resume hydrator after crash, partial operations fail closed for reconciliation.",
+    "Exact case01 seed/reset scopes cover5canonical memory sources, not full fixture manifest or75caseacceptance.",
+    "Actual canonical services/Prisma/SQL run on minimal owned schema, not a full production migration/RLS qualification.",
+    "Governed runtime requires exact lifecycle/enforcement/center/client-review switches; tests restore all local flags, no deployed configuration touched."
+  ],
+  "localSideEffects": "Canonical integration rolled back and verifies generated schema absent. Existing CAS regression separately commits only random owned disposable schema then drops/absence verifies. No shared database or cloud writes.",
+  "concreteBug": "Actual PostgreSQL22P02 on immutable clio:UUID~v... retirement fixed via existing clioIdFromSlug in inline forget; before-fix log/exit preserved.",
+  "publication": "Local task branch only; root integrates C-drive main first, then GitHub/main and approved deployment as authorized."
+}

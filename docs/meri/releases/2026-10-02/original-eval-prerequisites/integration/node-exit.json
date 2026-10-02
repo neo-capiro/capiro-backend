@@ -1,0 +1,23 @@
+{
+  "name": "node",
+  "command": [
+    "C:\\Program Files\\nodejs\\node.exe",
+    "--test",
+    "evals/meri/live-v1/tests/case01-approved-memory.test.mjs",
+    "evals/meri/live-v1/tests/case01-approved-memory.postgres.test.mjs",
+    "evals/meri/live-v1/tests/approved-memory-runtime.test.mjs",
+    "evals/meri/live-v1/tests/capture-binding-owner.test.mjs",
+    "evals/meri/live-v1/tests/capture-binding-runtime.postgres.test.mjs",
+    "evals/meri/live-v1/tests/capture-binding-lock.postgres.test.mjs",
+    "evals/meri/live-v1/tests/case01-memory-lifecycle.postgres.test.mjs",
+    "evals/meri/live-v1/tests/capture-receipt-jsonb.postgres.test.mjs",
+    "evals/meri/live-v1/tests/windows-artifact-storage.test.mjs",
+    "evals/meri/live-v1/tests/capture-collector.test.mjs",
+    "evals/meri/live-v1/tests/verifier.test.mjs"
+  ],
+  "cwd": "C:\\dev\\cap-meri-migration-history-guard",
+  "pid": 13532,
+  "exitCode": 0,
+  "seconds": 22.79,
+  "logSha256": "c732522f08715519a7edaf978d8b5716e93dda0c44f862e444321a0746ee5ad3"
+}
