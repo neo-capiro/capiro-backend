@@ -49,7 +49,12 @@ function harness(
     }),
   } as unknown as Prisma.TransactionClient;
   const prisma = {
-    withSystem: jest.fn(async <T>(fn: (arg: Prisma.TransactionClient) => Promise<T>) => fn(tx)),
+    withTenant: jest.fn(
+      async <T>(tenantId: string, fn: (arg: Prisma.TransactionClient) => Promise<T>) => {
+        expect(tenantId).toBe(TENANT);
+        return fn(tx);
+      },
+    ),
   } as unknown as PrismaService;
   const projector = {
     projectClioMemoryStrict: jest.fn(async () => {
@@ -84,6 +89,33 @@ const EXPECTATION = {
 };
 
 describe('GovernedMemoryIngestService', () => {
+  test.each([
+    ['id', 'another-job'],
+    ['memoryItemId', 'another-item'],
+    ['sourceVersion', '2026-07-31T12:00:00.000Z'],
+    ['contentHash', 'b'.repeat(64)],
+    ['idempotencyKey', 'another-key'],
+  ])('bound dispatch refuses changed %s before projection', async (field, value) => {
+    const h = harness();
+    await expect(
+      h.service.projectClioMemory(TENANT, CLIO, {
+        id: JOB,
+        ...EXPECTATION,
+        [field]: value,
+      }),
+    ).rejects.toThrow('memory_projection_exact_job_changed');
+    expect(h.projector.projectClioMemoryStrict).not.toHaveBeenCalled();
+    expect(h.captured).toHaveLength(0);
+  });
+
+  test('bound dispatch refuses an absent job before projection', async () => {
+    const h = harness('projected', undefined, false);
+    await expect(
+      h.service.projectClioMemory(TENANT, CLIO, { id: JOB, ...EXPECTATION }),
+    ).rejects.toThrow('memory_projection_exact_job_changed');
+    expect(h.projector.projectClioMemoryStrict).not.toHaveBeenCalled();
+    expect(h.captured).toHaveLength(0);
+  });
   test('strict request-time success loads and completes only its exact queued job', async () => {
     const h = harness('projected');
     await h.service.projectClioMemory(TENANT, CLIO);

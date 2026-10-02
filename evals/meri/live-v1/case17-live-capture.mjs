@@ -7,6 +7,10 @@ import { readCase17BuildAuthority } from './case17-build-authority.mjs';
 import { assertWindowsArtifactStorage } from './windows-artifact-storage.mjs';
 import { AUTHORIZED_TENANTS, FIXTURE_NAMESPACE } from './fixture-provisioning/contract.mjs';
 import { sha256Stable, stableJson } from './lib/stable.mjs';
+import {
+  createCase17WriteAccounting,
+  inspectCase17WriteAccounting,
+} from './case17-readonly-guard.mjs';
 
 const ORIGIN = 'https://os.capiro.ai',
   CLERK = 'https://clerk.app.capiro.ai';
@@ -177,8 +181,8 @@ export async function collectCase17LiveCapture({
     page,
     sessionId,
     cleaned = false,
-    blockedWrites = 0,
     collected;
+  const writeAccounting = createCase17WriteAccounting();
   const startedAt = Date.now(),
     deadline = startedAt + 240000;
   let timer;
@@ -195,10 +199,7 @@ export async function collectCase17LiveCapture({
     await context.route('**/*', async (route) => {
       const request = route.request(),
         url = new URL(request.url());
-      if (!['GET', 'HEAD', 'OPTIONS'].includes(request.method()) && url.origin !== CLERK) {
-        blockedWrites++;
-        return route.abort();
-      }
+      if (writeAccounting.deny(request)) return route.abort();
       if (
         request.isNavigationRequest() &&
         url.origin !== ORIGIN &&
@@ -255,9 +256,11 @@ export async function collectCase17LiveCapture({
       expectedApiSha: config.deployment.apiSha,
       expectedWebSha: config.deployment.webSha,
       artifactStorage,
+      writeAccounting,
     });
     await loadedWeb(page, config.deployment.webSha);
-    need(blockedWrites === 0 && Date.now() < deadline, 'READ_ONLY_BOUND');
+    inspectCase17WriteAccounting(writeAccounting.snapshot());
+    need(Date.now() < deadline, 'READ_ONLY_BOUND');
     inspectCase17SavedEvidence(collected.evidence);
     const afterBuilds = await readCase17BuildAuthority(config.deployment);
     need(
@@ -284,8 +287,31 @@ export async function collectCase17LiveCapture({
     }
     if (timer) clearTimeout(timer);
     await browser?.close().catch(() => {});
+    artifactStorage.writeBytes(
+      'case17/native-write-guard-diagnostic.json',
+      Buffer.from(
+        stableJson({
+          kind: 'meri-case17-native-write-guard-diagnostic',
+          schemaVersion: 1,
+          applicationWrites: 0,
+          synthesisSubmissionCount: 0,
+          sessionRevoked: cleaned,
+          ...writeAccounting.snapshot(),
+        }),
+      ),
+    );
   }
   need(cleaned && collected, 'SESSION_CLEANUP_REQUIRED');
+  inspectCase17WriteAccounting(writeAccounting.snapshot());
+  need(
+    sha256Stable(writeAccounting.snapshot()) ===
+      sha256Stable({
+        blockedWrites: collected.evidence.blockedWrites,
+        blockedPreferenceWrites: collected.evidence.blockedPreferenceWrites,
+        blockedWriteRequests: collected.evidence.blockedWriteRequests,
+      }),
+    'WRITE_AFTER_UI',
+  );
   const evidence = {
     kind: 'meri-case17-owned-live-evidence',
     schemaVersion: 1,

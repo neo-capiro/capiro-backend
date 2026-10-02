@@ -1,0 +1,43 @@
+{
+  "kind": "observed-local-operator-test-receipt",
+  "scope": "local readiness only before root live invocation",
+  "command": [
+    "node",
+    "--test",
+    "C:\\dev\\cap-meri-foundation-evidence\\oct02-case17-v7\\case17-v7-gates.test.mjs"
+  ],
+  "toolOutputChunk": "144410",
+  "exitCode": 0,
+  "pass": 6,
+  "fail": 0,
+  "skip": 0,
+  "syntaxChecks": {
+    "commands": [
+      [
+        "node",
+        "--check",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-case17-v7\\case17-v7-gates.mjs"
+      ],
+      [
+        "node",
+        "--check",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-case17-v7\\run-case17-authenticated-v7.mjs"
+      ],
+      [
+        "node",
+        "--check",
+        "C:\\dev\\cap-meri-foundation-evidence\\oct02-case17-v7\\case17-v7-gates.test.mjs"
+      ]
+    ],
+    "exitCodes": [
+      0,
+      0,
+      0
+    ],
+    "toolOutputChunk": "2b5c37",
+    "note": "All syntax commands completed before the surrounding preparation writer stopped at a no-live-path assertion because root had begun the live run. It wrote no stale preparation verdict."
+  },
+  "laterLiveStatus": "UI_SLICE_PASS",
+  "originalPromptSubmission": "NOT_RUN",
+  "humanRubric": "NOT_RUN"
+}

@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "kind": "meri-case17-visual-review",
+  "caseId": "17",
+  "captureRunId": "932af6e9-f9d7-4f73-b644-c524943da10b",
+  "evidenceSha256": "1ddc03c596f800ab30f849b0dafbd7b04c21ce16280653e5286b476b1a4a1202",
+  "reviewer": "Codex root, saved-image visual inspection; not human rubric",
+  "reference": "Original case17 six pending proposals: A/B/C Aster, D Bluehaven, E firm, F personal; saved initial and afterReload cards",
+  "rationale": "Visually inspected all six initial PNGs and the changed reload A PNG. Other five reload PNGs are byte-identical to their inspected initial images, verified with SHA256. All scope labels, target names, synthetic source text, model extraction provenance and Withdraw controls are visible without clipping. No action was clicked. This is only the UI slice and does not complete the original prompt or human rubric.",
+  "reviewedAt": "2026-10-02T12:37:54.8066529Z",
+  "screenshotSha256s": [
+    "f797e247677f0e1fc25fe5f9c6a1d49fbc4aa30174bd3c2ec1f07cf90c1c8298",
+    "b485105ce2c9b55fd444ef36cf877e7b7a176b2065e7e1f198185690e1407a29",
+    "aa917881747c65a85608c1a7f87461b66f62629d40cc1ae4cf3cda2e75b8d3d8",
+    "cb41972d67565ce2ad0816d13f436f60e3552ed368c79649c3c0485d3b518fcd",
+    "dfeccebc3e53df401fcb557032de995ac3322941710e8e974a24573c685e09c9",
+    "ac32c33de7c630f4edf4e74c06acb7785399e5848185d113185cb22999abd9f9",
+    "38aa434150e5e0a14a642554d5b334b8836888ea2bcdef720ff1f6fac94bc118",
+    "b485105ce2c9b55fd444ef36cf877e7b7a176b2065e7e1f198185690e1407a29",
+    "aa917881747c65a85608c1a7f87461b66f62629d40cc1ae4cf3cda2e75b8d3d8",
+    "cb41972d67565ce2ad0816d13f436f60e3552ed368c79649c3c0485d3b518fcd",
+    "dfeccebc3e53df401fcb557032de995ac3322941710e8e974a24573c685e09c9",
+    "ac32c33de7c630f4edf4e74c06acb7785399e5848185d113185cb22999abd9f9"
+  ],
+  "allSixCardsVisibleWithCorrectScopeAndProvenance": true,
+  "allSixActionsVisibleAfterReload": true
+}

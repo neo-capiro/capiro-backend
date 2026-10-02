@@ -6,6 +6,11 @@ import { selectPendingMemoryFixturePlan } from '../fixture-provisioning/memory-p
 import { fixtureRecordKey } from '../fixture-provisioning/contract.mjs';
 import { inspectCase17SavedEvidence } from '../case17-saved-checks.mjs';
 import { sha256Stable } from '../lib/stable.mjs';
+import { createRequire } from 'node:module';
+import { mkdir } from 'node:fs/promises';
+import { join } from 'node:path';
+import { collectCase17MemoryUi } from '../case17-memory-ui.mjs';
+import { createWindowsArtifactStorage } from '../windows-artifact-storage.mjs';
 
 async function fixture() {
   const manifest = await buildFixtureManifest({
@@ -64,6 +69,7 @@ async function fixture() {
     },
   }));
   return {
+    manifest,
     selection,
     owner,
     pages: [
@@ -111,6 +117,8 @@ async function evidence() {
     synthesisSubmissionCount: 0,
     applicationWrites: 0,
     blockedWrites: 0,
+    blockedPreferenceWrites: 0,
+    blockedWriteRequests: [],
   };
 }
 it('saved checks accept complete multiple pages and reorder after reload without minting authority', async () => {
@@ -120,6 +128,22 @@ it('saved checks accept complete multiple pages and reorder after reload without
     independentProposalCount: 6,
     reloadVerified: true,
   });
+});
+it('saved checks accept only accounted blocked panel preferences and still reject owner changes', async () => {
+  const f = await evidence();
+  f.blockedWrites = f.blockedPreferenceWrites = 2;
+  f.blockedWriteRequests = ['initial', 'afterReload'].map((phase) => ({
+    method: 'PUT',
+    path: '/api/clio/vnext/preferences',
+    phase,
+    kind: 'blocked_panel_preference',
+  }));
+  assert.equal(inspectCase17SavedEvidence(f).status, 'SAVED_CHECKS_ONLY');
+  const changed = structuredClone(f);
+  changed.after.records[0].rowVersion = '43';
+  assert.throws(() => inspectCase17SavedEvidence(changed), /CURRENT_OWNER_CHANGED/u);
+  f.blockedWriteRequests[1].path = '[redacted]';
+  assert.throws(() => inspectCase17SavedEvidence(f), /WRITE_ACCOUNTING/u);
 });
 it('missing/current/foreign/action/page/byte/write evidence fails closed', async () => {
   const original = await evidence();
@@ -167,3 +191,125 @@ it('missing/current/foreign/action/page/byte/write evidence fails closed', async
     assert.throws(() => inspectCase17SavedEvidence(f));
   }
 });
+
+it(
+  'real collector persists redacted owner/count diagnostics before each final guard, including failures',
+  { timeout: 90000 },
+  async () => {
+    const scratch = process.env.MERI_WINDOWS_ARTIFACT_TEST_ROOT;
+    const pythonExecutable = process.env.MERI_WINDOWS_ARTIFACT_PYTHON;
+    assert.ok(
+      process.platform === 'win32' && scratch && pythonExecutable,
+      'explicit owned Windows test storage is required',
+    );
+    await mkdir(scratch, { recursive: true });
+    const { chromium } = createRequire(import.meta.url)('playwright');
+    const browser = await chromium.launch({ headless: true });
+    try {
+      for (const mode of ['preferences', 'business-write', 'owner-change']) {
+        const f = await fixture();
+        const storage = createWindowsArtifactStorage(join(scratch, 'case17-' + randomUUID()), {
+          pythonExecutable,
+        });
+        storage.init(Buffer.from('{"kind":"unit-only-case17-test"}'), Buffer.from('unit-only'));
+        const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+        const apiSha = 'a'.repeat(40),
+          webSha = 'b'.repeat(40);
+        const ctx = {
+          userId: f.selection.proposerUserId,
+          tenantId: 'unit-tenant',
+          tenantSlug: 'unit-synthetic',
+          role: 'user_admin',
+        };
+        let ownerReads = 0,
+          forwardedWrites = 0;
+        const rows = f.pages.flatMap((value) => value.candidates);
+        const markup = `<script>window.__CAPIRO_CONFIG__=${JSON.stringify({ releaseSha: webSha, webSurface: 'vnext' })}</script>
+        <div data-meri-context-rail><button id="memory">Memory</button><section style="width:650px;height:780px;overflow:auto"><div>YOUR PROPOSALS · 6</div></section></div>
+        <script>
+        for (const row of ${JSON.stringify(rows)}) {
+          const card = document.createElement('article');
+          card.style.cssText='margin:10px;padding:10px;overflow-wrap:anywhere;background:#eee';
+          for(const text of [row.proposal.key,row.proposal.value,
+            row.scope==='personal'?'PERSONAL MEMORY':row.scope==='client'?'CLIENT MEMORY':'FIRM MEMORY',
+            'PENDING','Source: model extraction',row.clientName||'']) {
+            const p=document.createElement('p');p.textContent=text;card.append(p);
+          }
+          const withdraw=document.createElement('button');withdraw.textContent='Withdraw';card.append(withdraw);
+          document.querySelector('section').append(card);
+        }
+        document.querySelector('#memory').onclick=()=>fetch(${JSON.stringify(mode === 'business-write' ? '/api/memory/proposals/synthetic-only' : '/api/clio/vnext/preferences')},
+          {method:${JSON.stringify(mode === 'business-write' ? 'POST' : 'PUT')}}).catch(()=>{});
+        </script>`;
+        await page.route('**/*', (route) => {
+          if (route.request().method() !== 'GET') forwardedWrites++;
+          return route.fulfill({
+            status: 200,
+            contentType: 'text/html; charset=utf-8',
+            body: markup,
+          });
+        });
+        const invoke = () =>
+          collectCase17MemoryUi({
+            page,
+            recipe: {
+              caseId: '17',
+              fixtureInstanceId: f.manifest.fixtureInstanceId,
+              actors: f.manifest.actors,
+              clients: f.manifest.clients,
+              ctx,
+              clerkUserId: 'user_unit',
+            },
+            expectedApiSha: apiSha,
+            expectedWebSha: webSha,
+            artifactStorage: storage,
+            readCurrentOwner: async () => {
+              ownerReads++;
+              const value = structuredClone(f.owner);
+              if (mode === 'owner-change' && ownerReads > 1) value.records[0].rowVersion = '43';
+              return value;
+            },
+            readApi: async (path) => ({
+              status: 200,
+              bytes: 1024,
+              releaseSha: apiSha,
+              value:
+                path === '/api/me'
+                  ? {
+                      user: { id: ctx.userId, clerkUserId: 'user_unit' },
+                      tenant: { id: ctx.tenantId, slug: ctx.tenantSlug },
+                      role: ctx.role,
+                    }
+                  : { ...f.pages[path.includes('&cursor=') ? 1 : 0], fixtureEvidence: f.owner },
+            }),
+          });
+        if (mode === 'preferences') {
+          const result = await invoke();
+          assert.equal(result.evidence.blockedWrites, 2);
+          assert.equal(result.evidence.blockedPreferenceWrites, 2);
+          assert.equal(inspectCase17SavedEvidence(result.evidence).status, 'SAVED_CHECKS_ONLY');
+        } else {
+          await assert.rejects(
+            invoke(),
+            mode === 'business-write' ? /WRITE_ACCOUNTING/u : /OWNER_OR_WRITE_CHANGED/u,
+          );
+        }
+        const diagnostic = JSON.parse(storage.readBytes('case17/readonly-guard-diagnostic.json'));
+        assert.equal(diagnostic.ownerBeforeSha256, sha256Stable(f.owner));
+        assert.equal(diagnostic.ownerUnchanged, mode !== 'owner-change');
+        assert.equal(
+          diagnostic.ownerBeforeSha256 === diagnostic.ownerAfterSha256,
+          mode !== 'owner-change',
+        );
+        assert.equal(diagnostic.blockedWrites, 2);
+        assert.equal(diagnostic.blockedPreferenceWrites, mode === 'business-write' ? 0 : 2);
+        assert.equal(diagnostic.applicationWrites, 0);
+        assert.equal(forwardedWrites, 0);
+        assert.doesNotMatch(JSON.stringify(diagnostic), /synthetic-only|rowVersion|user_unit/u);
+        await page.close();
+      }
+    } finally {
+      await browser.close();
+    }
+  },
+);

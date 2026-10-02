@@ -118,6 +118,11 @@ it('constructs actual production memory aliases with one shared real projector/o
       source('memory/memory-authorization.service').MemoryAuthorizationService,
   );
   const ingest = d.memoryCandidates.memoryIngest;
+  assert.equal(d.memoryIngest, ingest);
+  assert.equal(
+    d.canonicalProjectionSnapshot,
+    source('memory/strict-memory-projector.service').canonicalProjectionSnapshot,
+  );
   const outbox = d.memoryCandidates.cleanupOutbox;
   assert.ok(
     ingest instanceof source('memory/governed-memory-ingest.service').GovernedMemoryIngestService,
