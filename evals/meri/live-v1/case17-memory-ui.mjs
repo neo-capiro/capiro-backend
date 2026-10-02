@@ -104,6 +104,17 @@ export function inspectPendingUiPage({ selection, owner, pages }) {
 /** The native collector supplies its new approved synthetic authenticated page and fresh
  * source-owned canonical read function. No login, model turn, mutation or LIVE
  * acceptance verdict is performed here. Saved bytes are graded separately. */
+export async function openCase17MemoryPanel(page) {
+  // Navigation's DOMContentLoaded precedes the React rail mount. Wait for its
+  // atomic render before deciding whether either optional entry is present.
+  await page.locator('[data-meri-context-rail]').waitFor({ state: 'visible', timeout: 15000 });
+  const expand = page.getByRole('button', { name: 'Expand panel', exact: true });
+  if (await expand.isVisible()) await expand.click();
+  const context = page.getByRole('button', { name: 'Open Context and Memory', exact: true });
+  if (await context.isVisible()) await context.click();
+  await page.getByRole('button', { name: 'Memory', exact: true }).click({ timeout: 15000 });
+}
+
 export async function collectCase17MemoryUi({
   page,
   recipe,
@@ -211,11 +222,7 @@ export async function collectCase17MemoryUi({
         if (cursor) cursors.add(cursor);
       } while (cursor);
       const rows = inspectPendingUiPage({ selection, owner: before, pages });
-      const expand = page.getByRole('button', { name: 'Expand panel', exact: true });
-      if (await expand.isVisible()) await expand.click();
-      const context = page.getByRole('button', { name: 'Open Context and Memory', exact: true });
-      if (await context.isVisible()) await context.click();
-      await page.getByRole('button', { name: 'Memory', exact: true }).click({ timeout: 15000 });
+      await openCase17MemoryPanel(page);
       const section = page.locator('section').filter({ has: page.getByText(/^YOUR PROPOSALS ·/u) });
       await section.waitFor({ state: 'visible', timeout: 15000 });
       let loads = 0;
