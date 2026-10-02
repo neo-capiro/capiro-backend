@@ -13,6 +13,29 @@ function response(type: ArtifactFixtureMime = docxMime, disposition?: string) {
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); vi.useRealTimers(); });
 
 describe('canonical authenticated Meri downloads', () => {
+  test('downloads exact UTF-8 text only with its saved operation and byte receipts', async () => {
+    const bytes = new TextEncoder().encode('Synthetic Aster briefing v1\n');
+    const headers = {
+      'Content-Type': 'text/plain; charset=utf-8', 'Content-Length': String(bytes.length),
+      'Content-Disposition': 'attachment; filename="aster-synthetic-briefing.txt"',
+      'X-Capiro-Artifact-Id': 'saved-artifact-1',
+      'X-Capiro-Artifact-Sha256': 'c26beebc62f179a568981d811784dc75ad7e2cad79c94165d6f4859dcb278c53',
+      'X-Capiro-Artifact-Byte-Authority': 'persisted_at_creation_v1',
+      'X-Capiro-Artifact-Operation-Id': '44444444-4444-4444-8444-444444444444',
+    };
+    const fetchMock = vi.fn().mockResolvedValue(new Response(bytes, { headers }));
+    vi.stubGlobal('fetch', fetchMock);
+    const result = await fetchMeriArtifactDownload({ ...input(), expectedFormat: 'txt' });
+    expect(result.filename).toBe('aster-synthetic-briefing.txt');
+    expect(Array.from(new Uint8Array(await result.blob.arrayBuffer()))).toEqual(Array.from(bytes));
+    for (const key of ['X-Capiro-Artifact-Byte-Authority', 'X-Capiro-Artifact-Operation-Id']) {
+      fetchMock.mockResolvedValueOnce(new Response(bytes, { headers: { ...headers, [key]: '' } }));
+      await expect(fetchMeriArtifactDownload({ ...input(), expectedFormat: 'txt' })).rejects.toThrow('creation receipt');
+    }
+    expect(meriDocumentBytesMatchFormat(new Uint8Array([0xff]), 'txt')).toBe(false);
+    expect(meriDocumentBytesMatchFormat(new Uint8Array([0]), 'txt')).toBe(false);
+    expect(meriDocumentBytesMatchFormat(new TextEncoder().encode('\ufeffCafé\r\n'), 'txt')).toBe(true);
+  });
   test.each(['', '?format=pdf', '?format=docx'])('normalizes only the exact historical sandbox artifact alias %s', (query) => {
     expect(canonicalMeriArtifactSandboxUrl(`sandbox:${route}${query}`)).toBe(`${route}${query}`);
     expect(meriArtifactDownloadFromUrl(`sandbox:${route}${query}`, apiBaseUrl)).toEqual({

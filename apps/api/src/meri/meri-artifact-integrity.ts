@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { inflateRawSync, inflateSync } from 'node:zlib';
 import { XMLParser, XMLValidator } from 'fast-xml-parser';
 import { PDFDocument } from 'pdf-lib';
-import type { DocFormat } from './meri-docgen.helpers.js';
+import { validateTextBytes, type DocFormat } from './meri-docgen.helpers.js';
 
 export const MAX_DOCUMENT_ARTIFACT_BYTES = 20 * 1024 * 1024;
 export const MAX_PNG_BASE64_CHARS = 3 * 1024 * 1024;
@@ -18,7 +18,7 @@ export function sha256Bytes(bytes: Uint8Array): string {
 }
 
 const OOXML_MAIN_PART: Record<
-  Exclude<DocFormat, 'pdf'>,
+  Exclude<DocFormat, 'pdf' | 'txt'>,
   {
     path: string;
     contentType: string;
@@ -313,7 +313,7 @@ function directElements(
 /** Validate an OOXML package and expose only entries that passed the shared
  * central-directory, inflation, size, and CRC checks. */
 export function validateOoxmlArtifactPackage(
-  format: Exclude<DocFormat, 'pdf'>,
+  format: Exclude<DocFormat, 'pdf' | 'txt'>,
   bytes: Buffer,
 ): ValidatedOoxmlEntries {
   if (!bytes.length || bytes.length > MAX_DOCUMENT_ARTIFACT_BYTES) {
@@ -382,6 +382,10 @@ export async function validateDocumentArtifactBytes(
       throw new Error('pdf_signature_invalid');
     const document = await PDFDocument.load(bytes, { updateMetadata: false });
     if (document.getPageCount() < 1) throw new Error('pdf_has_no_pages');
+    return;
+  }
+  if (format === 'txt') {
+    validateTextBytes(bytes);
     return;
   }
   validateOoxmlArtifactPackage(format, bytes);

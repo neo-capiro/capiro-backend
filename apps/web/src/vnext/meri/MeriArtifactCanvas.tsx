@@ -18,6 +18,7 @@ const MONO = "var(--meri-font-mono, Inter, -apple-system, 'Segoe UI', Roboto, Ar
 
 const DOC_KINDS: Record<string, { ext: string; label: string }> = {
   word_document: { ext: 'docx', label: 'WORD DOCUMENT' },
+  text_document: { ext: 'txt', label: 'TEXT DOCUMENT' },
   pdf_document: { ext: 'pdf', label: 'PDF DOCUMENT' },
   excel_workbook: { ext: 'xlsx', label: 'EXCEL WORKBOOK' },
   powerpoint_deck: { ext: 'pptx', label: 'POWERPOINT DECK' },

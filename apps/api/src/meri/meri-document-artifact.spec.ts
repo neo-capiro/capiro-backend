@@ -122,6 +122,42 @@ function wordInput() {
     sections: [{ heading: 'Synthetic request', paragraphs: [...fixtureLines] }] };
 }
 
+describe('native governed text artifact creation', () => {
+  const textInput = () => ({ title: 'Aster Synthetic Briefing', format: 'txt', text: 'Synthetic Aster briefing v1\n', sections: [], conversationId });
+  it('creates one real stored artifact and returns the same immutable bytes and durable operation on download', async () => {
+    const h = harness();
+    const result = await h.service.execute(ctx, 'create_word', textInput()) as any;
+    expect(h.tx.clioArtifact.create).toHaveBeenCalledTimes(1);
+    expect(result.operationReceipt).toMatchObject({ artifactId, tenantId: ctx.tenantId, userId: ctx.userId, clientId: null, conversationId, filename: 'aster-synthetic-briefing.txt', sha256: 'c26beebc62f179a568981d811784dc75ad7e2cad79c94165d6f4859dcb278c53', byteLength: 28 });
+    expect(h.artifacts[0]).toMatchObject({ kind: 'text_document', bodyText: textInput().text, metadata: { textCreation: { operationId: result.operationReceipt.operationId } } });
+    const stored = await h.service.getDocumentArtifact(ctx, artifactId);
+    expect(stored?.operationReceipt).toEqual(result.operationReceipt);
+    const response = downloadResponse();
+    await h.controller.downloadArtifact(ctx, artifactId, response.response);
+    expect(response.send).toHaveBeenCalledWith(Buffer.from(textInput().text));
+    expect(response.setHeader).toHaveBeenCalledWith('X-Capiro-Artifact-Operation-Id', result.operationReceipt.operationId);
+    expect(h.buildDocx).not.toHaveBeenCalled();
+    expect(h.buildPdf).not.toHaveBeenCalled();
+  });
+  it('requires actual conversation/client authority and rejects changed receipt ownership/bytes', async () => {
+    const h = harness();
+    await expect(h.service.execute(ctx, 'create_word', { ...textInput(), conversationId: undefined })).rejects.toThrow();
+    expect(h.tx.clioArtifact.create).not.toHaveBeenCalled();
+    await h.service.execute(ctx, 'create_word', textInput());
+    const metadata = h.artifacts[0]!.metadata!;
+    const original = { ...(metadata.textCreation as Record<string, unknown>) };
+    for (const key of ['tenantId', 'userId', 'clientId', 'conversationId', 'filename', 'sha256', 'byteLength', 'operationId']) {
+      metadata.textCreation = { ...original, [key]: 'changed' };
+      await expect(h.service.getDocumentArtifact(ctx, artifactId)).rejects.toBeInstanceOf(UnprocessableEntityException);
+    }
+    metadata.textCreation = original;
+    expect(await h.service.getDocumentArtifact({ ...ctx, userId: 'another-user' }, artifactId)).toBeNull();
+    expect(await h.service.getDocumentArtifact({ ...ctx, tenantId: 'another-tenant' }, artifactId)).toBeNull();
+    h.conversation.archivedAt = new Date();
+    expect(await h.service.getDocumentArtifact(ctx, artifactId)).toBeNull();
+  });
+});
+
 function storedArtifact(overrides: Partial<Artifact> = {}): Artifact {
   return { id: artifactId, tenantId: ctx.tenantId, userId: ctx.userId,
     clientId: null, conversationId,

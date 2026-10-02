@@ -8,7 +8,12 @@
  * and produces the actual binary buffers.
  */
 
-export type DocFormat = 'docx' | 'pdf' | 'xlsx' | 'pptx';
+export type DocFormat = 'docx' | 'pdf' | 'xlsx' | 'pptx' | 'txt';
+
+export interface TextSpec {
+  title: string;
+  text: string;
+}
 
 export interface DocTable {
   /** Column header labels. */
@@ -83,6 +88,8 @@ export const MAX_CELL_CHARS = 8000;
 export const MAX_IMAGES_PER_BLOCK = 4;
 /** ~3MB of base64 ≈ 2.2MB PNG — matches the sandbox per-image cap. */
 export const MAX_IMAGE_BASE64_CHARS = 3 * 1024 * 1024;
+/** ~1MiB for plain text artifact payload. */
+export const MAX_TEXT_BYTES = 1024 * 1024;
 
 const UUID_ISH = /^[0-9a-fA-F-]{8,64}$/;
 
@@ -272,6 +279,62 @@ export function slugifyDocName(title: string): string {
   return clean || 'document';
 }
 
+/** Validate text bytes for plain text artifacts.
+ * - UTF8 fatal decode
+ * - Reject binary NUL (U+0000) except allowed tab/CR/LF
+ * - Reject control characters except normal tab (U+0009), CR (U+000D), LF (U+000A)
+ * - Reject unpaired surrogates and invalid codepoints
+ * - Allow exact bytes, no trimming/reformatting/newline insertion */
+export function validateTextBytes(bytes: Uint8Array): string {
+  if (!bytes.length || bytes.length > MAX_TEXT_BYTES) {
+    throw new Error('text_size_invalid');
+  }
+  let text: string;
+  try {
+    text = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes);
+  } catch {
+    throw new Error('text_encoding_invalid');
+  }
+  // Check for NUL bytes and invalid control characters
+  // allowed: tab (0x09), LF (0x0A), CR (0x0D)
+  for (let i = 0; i < text.length; i += 1) {
+    const cp = text.codePointAt(i)!;
+    const isControl = cp < 0x20 || (cp >= 0x7f && cp < 0xa0);
+    if (isControl) {
+      if (cp !== 0x09 && cp !== 0x0a && cp !== 0x0d) {
+        throw new Error('text_invalid_control');
+      }
+    }
+    // Advance for surrogate pairs
+    if (cp > 0xffff) i += 1;
+  }
+  return text;
+}
+
+/** Validate + normalize a TextSpec. Throws if text is missing or invalid. */
+export function normalizeTextSpec(input: unknown): TextSpec {
+  const v = (input && typeof input === 'object' ? input : {}) as Record<string, unknown>;
+  const title = str(v.title, MAX_DOC_TITLE, 'Text Document');
+  const textRaw = v.text;
+  if (typeof textRaw !== 'string' || !textRaw) {
+    throw new Error('Text spec has no usable text');
+  }
+  const encoder = new TextEncoder();
+  const bytes = encoder.encode(textRaw);
+  if (bytes.length > MAX_TEXT_BYTES) {
+    throw new Error('text_size_exceeds_limit');
+  }
+  let text: string;
+  try {
+    text = validateTextBytes(bytes);
+    if (text !== textRaw) throw new Error('text_unicode_invalid');
+  } catch {
+    throw new Error('text_content_invalid');
+  }
+  // Exact byte preservation: no trimming, no reformatting, no newline insertion
+  return { title, text };
+}
+
 /** MIME type for a generated document format. */
 export function mimeForFormat(format: DocFormat): string {
   switch (format) {
@@ -283,5 +346,7 @@ export function mimeForFormat(format: DocFormat): string {
       return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
     case 'pptx':
       return 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+    case 'txt':
+      return 'text/plain; charset=utf-8';
   }
 }

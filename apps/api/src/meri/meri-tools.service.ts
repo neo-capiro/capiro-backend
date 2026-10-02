@@ -121,6 +121,7 @@ import {
   normalizeExcelSpec,
   normalizePptxSpec,
   normalizeWordSpec,
+  normalizeTextSpec,
   slugifyDocName,
   type DocFormat,
 } from './meri-docgen.helpers.js';
@@ -130,7 +131,8 @@ import {
   normalizeDeliveryEmail,
   validateScheduleRequest,
 } from './meri-schedule.helpers.js';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
+import { readTextArtifactCreation, type TextArtifactCreation } from './meri-text-artifact-receipt.js';
 import {
   MAX_DOCUMENT_ARTIFACT_BYTES,
   readPersistedPng,
@@ -1596,10 +1598,11 @@ export class MeriToolsService {
           title: str('Document title'),
           format: {
             type: 'string',
-            enum: ['docx', 'pdf'],
+            enum: ['docx', 'pdf', 'txt'],
             description:
-              'Requested file format. Defaults to docx. Word and PDF downloads share the same saved content.',
+              'Requested file format. Defaults to docx. Word and PDF downloads share saved content. For txt provide exact text and an empty sections array.',
           },
+          text: str('Exact UTF-8 text for txt only; whitespace and final newline are preserved.'),
           subtitle: str('Optional subtitle'),
           sections: {
             type: 'array',
@@ -2736,10 +2739,10 @@ export class MeriToolsService {
       case 'find_contacts':
         return this.findContacts(ctx, input);
       case 'create_word':
-        if (input.format !== undefined && input.format !== 'docx' && input.format !== 'pdf') {
-          throw new BadRequestException('Document format must be docx or pdf');
+        if (input.format !== undefined && input.format !== 'docx' && input.format !== 'pdf' && input.format !== 'txt') {
+          throw new BadRequestException('Document format must be docx, pdf or txt');
         }
-        return this.createDocument(ctx, input, input.format === 'pdf' ? 'pdf' : 'docx');
+        return this.createDocument(ctx, input, input.format === 'txt' ? 'txt' : input.format === 'pdf' ? 'pdf' : 'docx');
       case 'create_excel':
         return this.createDocument(ctx, input, 'xlsx');
       case 'create_powerpoint':
@@ -7496,7 +7499,13 @@ export class MeriToolsService {
     let title: string;
     let normalized: unknown;
     let generatedBuffer: Buffer;
-    if (format === 'docx' || format === 'pdf') {
+    if (format === 'txt') {
+      if (!conversationId) throw new BadRequestException('Text export requires an owned Meri conversation.');
+      const spec = normalizeTextSpec(input);
+      title = spec.title;
+      normalized = spec;
+      generatedBuffer = Buffer.from(spec.text, 'utf8');
+    } else if (format === 'docx' || format === 'pdf') {
       const spec = normalizeWordSpec(input);
       // Resolve referenced analysis-chart artifacts into embedded PNGs (F4)
       // so the stored spec re-renders identically on download.
@@ -7562,13 +7571,15 @@ export class MeriToolsService {
     const documentSha256 = sha256Bytes(generatedBuffer);
 
     const toolName =
-      format === 'docx' || format === 'pdf'
+      format === 'docx' || format === 'pdf' || format === 'txt'
         ? 'create_word'
         : format === 'xlsx'
           ? 'create_excel'
           : 'create_powerpoint';
     const kind =
-      format === 'pdf'
+      format === 'txt'
+        ? 'text_document'
+        : format === 'pdf'
         ? 'pdf_document'
         : format === 'docx'
           ? 'word_document'
@@ -7576,12 +7587,17 @@ export class MeriToolsService {
             ? 'excel_workbook'
             : 'powerpoint_deck';
     const filename = `${slugifyDocName(title)}.${format}`;
+    const textCreation: TextArtifactCreation | undefined = format === 'txt' ? {
+      version: 1, kind: 'meri_text_artifact_creation', operationId: randomUUID(),
+      tenantId: ctx.tenantId, userId: ctx.userId, clientId, conversationId: conversationId!,
+      filename, mimeType: 'text/plain', sha256: documentSha256, byteLength: generatedBuffer.length,
+    } : undefined;
     const artifact = await this.persistArtifact(ctx, {
       conversationId,
       clientId,
       title,
       kind,
-      bodyText: JSON.stringify(normalized),
+      bodyText: format === 'txt' ? normalizeTextSpec(normalized).text : JSON.stringify(normalized),
       metadata: {
         source: 'clio_tool',
         tool: toolName,
@@ -7594,6 +7610,7 @@ export class MeriToolsService {
         documentByteLength: generatedBuffer.length,
         documentByteFormat: format,
         documentByteAuthority: 'persisted_at_creation_v1',
+        ...(textCreation ? { textCreation: { ...textCreation } } : {}),
       },
     });
 
@@ -7609,6 +7626,10 @@ export class MeriToolsService {
       filename,
       mimeType: mimeForFormat(format),
       artifact,
+      ...(textCreation && artifactId ? { operationReceipt: readTextArtifactCreation(textCreation, {
+        artifactId, tenantId: ctx.tenantId, userId: ctx.userId, clientId, conversationId: conversationId!,
+        filename, mimeType: 'text/plain', sha256: documentSha256, byteLength: generatedBuffer.length,
+      }) } : {}),
       downloadUrl: artifactId ? `/api/clio/artifacts/${artifactId}/download` : null,
       // Alternate exports read the same immutable saved spec, without another
       // model call or a second artifact that could drift from the original.
@@ -7644,11 +7665,14 @@ export class MeriToolsService {
     persistedBytes: Buffer | null;
     persistedSha256: string | null;
     byteAuthority: 'persisted_at_creation_v1' | 'regenerated_legacy' | 'regenerated_export';
+    operationReceipt?: TextArtifactCreation & { artifactId: string };
   } | null> {
     const artifact = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.clioArtifact.findFirst({
         where: { id: artifactId, tenantId: ctx.tenantId, userId: ctx.userId },
         select: {
+          id: true,
+          conversationId: true,
           bodyText: true,
           metadata: true,
           kind: true,
@@ -7680,7 +7704,8 @@ export class MeriToolsService {
       nativeFormat !== 'docx' &&
       nativeFormat !== 'pdf' &&
       nativeFormat !== 'xlsx' &&
-      nativeFormat !== 'pptx'
+      nativeFormat !== 'pptx' &&
+      nativeFormat !== 'txt'
     )
       return null;
     let format: DocFormat = nativeFormat;
@@ -7713,6 +7738,9 @@ export class MeriToolsService {
       meta.documentByteFormat,
       meta.documentByteAuthority,
     ].some((value) => value !== undefined);
+    if (nativeFormat === 'txt' && !hasPersistedByteFields) {
+      throw new UnprocessableEntityException('Text artifacts require their immutable creation bytes.');
+    }
     if (hasPersistedByteFields) {
       if (
         typeof meta.documentBytesBase64 !== 'string' ||
@@ -7754,6 +7782,11 @@ export class MeriToolsService {
       persistedBytes,
       persistedSha256,
       byteAuthority,
+      ...(nativeFormat === 'txt' ? { operationReceipt: readTextArtifactCreation(meta.textCreation, {
+        artifactId: artifact.id, tenantId: ctx.tenantId, userId: ctx.userId,
+        clientId: artifact.clientId, conversationId: artifact.conversationId,
+        filename, mimeType: 'text/plain', sha256: persistedSha256!, byteLength: persistedBytes!.length,
+      }) } : {}),
     };
   }
 
@@ -9489,6 +9522,7 @@ export class MeriToolsService {
 
   /** Regenerate a document binary from a stored spec (for the download route). */
   async renderStoredDocument(format: DocFormat, specJson: string): Promise<Buffer> {
+    if (format === 'txt') throw new UnprocessableEntityException('Text downloads require their immutable creation bytes.');
     const parsed: unknown = JSON.parse(specJson);
     if (format === 'pdf') return this.docgen.buildPdf(normalizeWordSpec(parsed));
     if (format === 'docx') return this.docgen.buildDocx(normalizeWordSpec(parsed));

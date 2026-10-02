@@ -23,6 +23,7 @@ interface MeriCanvasProps {
 
 const DOC_KINDS: Record<string, { ext: string }> = {
   word_document: { ext: 'docx' },
+  text_document: { ext: 'txt' },
   pdf_document: { ext: 'pdf' },
   excel_workbook: { ext: 'xlsx' },
   powerpoint_deck: { ext: 'pptx' },

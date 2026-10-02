@@ -2,6 +2,7 @@ export type MeriArtifactAuthHeaders = () => Promise<Record<string, string>>;
 export type MeriDocumentExportFormat = 'docx' | 'pdf';
 
 const DOCUMENT_TYPES: Record<string, string> = {
+  'text/plain': 'txt',
   'application/pdf': 'pdf',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
@@ -139,6 +140,13 @@ function zipHasStructuralEnvelope(bytes: Uint8Array, requiredMainPart: string): 
 /** Browser-side transport format envelope check. This is deliberately not a
  * renderer certification: the API performs the full PDF/OOXML parser checks. */
 export function meriDocumentBytesMatchFormat(bytes: Uint8Array, extension: string): boolean {
+  if (extension === 'txt') {
+    if (!bytes.length || bytes.length > 1024 * 1024) return false;
+    try {
+      const text = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes);
+      return !/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/u.test(text);
+    } catch { return false; }
+  }
   if (extension === 'pdf') {
     if (bytes.length < 24 || !asciiAt(bytes, 0, '%PDF-1.')) return false;
     const tailStart = Math.max(0, bytes.length - 2_048);
@@ -181,7 +189,7 @@ export function readMeriSavedDocumentArtifact(value: unknown): MeriSavedDocument
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   const artifact = value as Record<string, unknown>;
   if (typeof artifact.id !== 'string' || !ARTIFACT_ID.test(artifact.id) ||
-    typeof artifact.kind !== 'string' || !['word_document', 'pdf_document', 'excel_workbook', 'powerpoint_deck'].includes(artifact.kind) ||
+    typeof artifact.kind !== 'string' || !['word_document', 'pdf_document', 'text_document', 'excel_workbook', 'powerpoint_deck'].includes(artifact.kind) ||
     typeof artifact.bodyText !== 'string') return null;
   return {
     id: artifact.id, kind: artifact.kind, bodyText: artifact.bodyText,
@@ -317,6 +325,10 @@ export async function fetchMeriArtifactDownload({
   if (response.headers.get('X-Capiro-Artifact-Id') !== artifactId) {
     throw new Error('The server returned a different saved document. Please retry.');
   }
+  if (extension === 'txt' && (
+    response.headers.get('X-Capiro-Artifact-Byte-Authority') !== 'persisted_at_creation_v1' ||
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u.test(response.headers.get('X-Capiro-Artifact-Operation-Id') ?? '')
+  )) throw new Error('The server did not return the saved text creation receipt. Please retry.');
   const expectedSha256 = response.headers.get('X-Capiro-Artifact-Sha256')?.toLowerCase() ?? '';
   if (!SHA256_HEX.test(expectedSha256)) {
     throw new Error('The server did not return a document integrity receipt. Please retry.');

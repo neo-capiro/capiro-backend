@@ -3,6 +3,7 @@ import {
   normalizeExcelSpec,
   normalizePptxSpec,
   normalizeTable,
+  normalizeTextSpec,
   normalizeWordSpec,
   slugifyDocName,
 } from './meri-docgen.helpers.js';
@@ -88,6 +89,44 @@ describe('clio-docgen helpers', () => {
       expect(mimeForFormat('xlsx')).toContain('spreadsheetml');
       expect(mimeForFormat('pptx')).toContain('presentationml');
       expect(mimeForFormat('pdf')).toBe('application/pdf');
+      expect(mimeForFormat('txt')).toBe('text/plain; charset=utf-8');
+    });
+  });
+
+  describe('normalizeTextSpec', () => {
+    it('builds a spec with title and text, default title if missing', () => {
+      const spec = normalizeTextSpec({ title: 'My Doc', text: 'Hello\nWorld' });
+      expect(spec.title).toBe('My Doc');
+      expect(spec.text).toBe('Hello\nWorld');
+    });
+    it('uses default title when title is empty', () => {
+      const spec = normalizeTextSpec({ text: 'Hello' });
+      expect(spec.title).toBe('Text Document');
+      expect(spec.text).toBe('Hello');
+    });
+    it('preserves exact bytes including leading/trailing whitespace and newlines', () => {
+      const text = '\n  \t Leading and trailing  \t  \n';
+      const spec = normalizeTextSpec({ title: 'X', text });
+      expect(spec.text).toBe(text);
+      expect(Buffer.from(spec.text)).toEqual(Buffer.from(text));
+    });
+    it('throws when text is missing', () => {
+      expect(() => normalizeTextSpec({ title: 'X' })).toThrow('Text spec has no usable text');
+      expect(() => normalizeTextSpec({ text: '' })).toThrow('Text spec has no usable text');
+    });
+    it('throws when input is invalid (no object)', () => {
+      expect(() => normalizeTextSpec(null as unknown)).toThrow('Text spec has no usable text');
+    });
+    it('throws when text contains invalid control characters (except tab/CR/LF)', () => {
+      const withBEL = '\x07hello';
+      expect(() => normalizeTextSpec({ title: 'X', text: withBEL })).toThrow('text_content_invalid');
+      const withESC = '\x1bhello';
+      expect(() => normalizeTextSpec({ title: 'X', text: withESC })).toThrow('text_content_invalid');
+    });
+    it('allows tab, CR, LF characters', () => {
+      const text = 'Col1\tCol2\nRow2';
+      const spec = normalizeTextSpec({ title: 'X', text });
+      expect(spec.text).toBe(text);
     });
   });
 });

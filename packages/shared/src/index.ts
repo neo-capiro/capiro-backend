@@ -4555,7 +4555,7 @@ export const MERI_CAPABILITY_REGISTRY = [
   {
     name: 'create_word',
     description:
-      'Generate a downloadable Word (.docx) or PDF (.pdf) document from a structured spec (title, optional subtitle, and sections with paragraphs, bullets, and tables). Set format to pdf for a PDF; docx is the default. Both export formats use the same saved content. Use when the user asks for a Word document, PDF, memo, report, or briefing as a file.',
+      'Generate a downloadable Word (.docx) or PDF (.pdf) document from a structured spec (title, optional subtitle, and sections with paragraphs, bullets, and tables). Set format to pdf for a PDF; docx is the default. Both export formats use the same saved content. For plain UTF-8 text (.txt), set format to txt, provide exact text and an empty sections array; whitespace and final newlines are preserved. Use when the user asks for a document, memo, report, or briefing as a file.',
     backend: 'meri',
     readOnly: false,
     surfaces: ['full_chat'],

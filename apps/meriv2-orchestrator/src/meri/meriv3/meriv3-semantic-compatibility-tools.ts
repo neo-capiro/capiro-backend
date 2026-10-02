@@ -33,6 +33,7 @@ const LEGACY_ARTIFACT_TOOLS = new Set([
 const ARTIFACT_TOOL_BY_TYPE: Record<string, string> = {
   word: 'create_word',
   pdf: 'create_word',
+  text: 'create_word',
   spreadsheet: 'create_excel',
   presentation: 'create_powerpoint',
   meeting_brief: 'create_meeting_brief',
@@ -42,6 +43,7 @@ const ARTIFACT_TOOL_BY_TYPE: Record<string, string> = {
 const CLIENT_AWARE_ARTIFACT_TYPES = new Set([
   'word',
   'pdf',
+  'text',
   'spreadsheet',
   'presentation',
   'policy_memo',
@@ -83,7 +85,7 @@ const CREATE_ARTIFACT_SCHEMA: MeriSemanticCompatibilitySchema = {
     properties: {
       type: {
         type: 'string',
-        enum: ['word', 'pdf', 'spreadsheet', 'presentation', 'meeting_brief', 'policy_memo'],
+        enum: ['word', 'pdf', 'text', 'spreadsheet', 'presentation', 'meeting_brief', 'policy_memo'],
       },
       clientId: {
         type: 'string',
@@ -98,7 +100,7 @@ const CREATE_ARTIFACT_SCHEMA: MeriSemanticCompatibilitySchema = {
       spec: {
         type: 'object',
         description:
-          'Complete structured content for the selected artifact type. Do not put clientId or conversationId inside this object.',
+          'Complete structured content for the selected artifact type. Text uses title and exact text, preserving whitespace and final newlines. Do not put clientId or conversationId inside this object.',
         additionalProperties: true,
       },
     },
@@ -306,6 +308,7 @@ export class MeriV3SemanticCompatibilityTools {
     if (clientId && CLIENT_AWARE_ARTIFACT_TYPES.has(type)) spec.clientId = clientId;
     if (conversationId) spec.conversationId = conversationId;
     if (type === 'pdf') spec.format = 'pdf';
+    if (type === 'text') { spec.format = 'txt'; spec.sections = []; }
 
     return invoke(backingTool, spec);
   }

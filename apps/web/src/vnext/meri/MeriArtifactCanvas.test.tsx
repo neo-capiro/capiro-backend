@@ -45,6 +45,26 @@ afterEach(() => {
 });
 
 describe('MeriArtifactCanvas Word preview', () => {
+  test.each([['workspace', MeriArtifactCanvas], ['drawer', MeriCanvas]] as const)('%s text download uses saved bytes rather than a local rewritten export', async (_surface, Canvas) => {
+    const text = 'Synthetic Aster briefing v1\n';
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(text, { headers: {
+      'Content-Type': 'text/plain; charset=utf-8', 'Content-Length': '28',
+      'Content-Disposition': 'attachment; filename="aster-synthetic-briefing.txt"',
+      'X-Capiro-Artifact-Id': artifact.id,
+      'X-Capiro-Artifact-Sha256': 'c26beebc62f179a568981d811784dc75ad7e2cad79c94165d6f4859dcb278c53',
+      'X-Capiro-Artifact-Byte-Authority': 'persisted_at_creation_v1',
+      'X-Capiro-Artifact-Operation-Id': '44444444-4444-4444-8444-444444444444',
+    } })));
+    const create = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:saved-text');
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+    const filenames: string[] = [];
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) { filenames.push(this.download); });
+    render(<Canvas artifact={{ ...artifact, kind: 'text_document', bodyText: 'changed local preview' }} onClose={vi.fn()} apiBaseUrl="https://api.example.test" getAuthHeaders={async () => ({ Authorization: 'Bearer unit-user' })} />);
+    fireEvent.click(screen.getByRole('button', { name: _surface === 'drawer' ? 'Download document' : 'Download .txt' }));
+    await waitFor(() => expect(filenames).toEqual(['aster-synthetic-briefing.txt']));
+    const blob = create.mock.calls[0]![0] as Blob;
+    expect(await blob.text()).toBe(text);
+  });
   test.each([['workspace', MeriArtifactCanvas], ['drawer', MeriCanvas]] as const)('%s offers PDF and Word from one saved document without downloading its JSON spec', async (_surface, Canvas) => {
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
       const mime = url.endsWith('format=pdf')

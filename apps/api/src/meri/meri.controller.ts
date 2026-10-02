@@ -1255,9 +1255,10 @@ export class MeriController {
     res.setHeader('X-Capiro-Artifact-Id', id);
     res.setHeader('X-Capiro-Artifact-Sha256', sha256);
     res.setHeader('X-Capiro-Artifact-Byte-Authority', doc.byteAuthority);
+    if (doc.operationReceipt) res.setHeader('X-Capiro-Artifact-Operation-Id', doc.operationReceipt.operationId);
     res.setHeader(
       'Access-Control-Expose-Headers',
-      'Content-Disposition, Content-Length, X-Capiro-Artifact-Id, X-Capiro-Artifact-Sha256, X-Capiro-Artifact-Byte-Authority',
+      'Content-Disposition, Content-Length, X-Capiro-Artifact-Id, X-Capiro-Artifact-Sha256, X-Capiro-Artifact-Byte-Authority, X-Capiro-Artifact-Operation-Id',
     );
     res.setHeader('Cache-Control', 'private, no-store');
     res.send(buffer);
