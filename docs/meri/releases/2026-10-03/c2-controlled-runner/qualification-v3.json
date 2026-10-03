@@ -1,0 +1,34 @@
+{
+  "version": 3,
+  "recordedAt": "2026-10-03T18:03:43.169066+00:00",
+  "status": "SOURCE_AND_LOCAL_HELPER_TESTS_PASS",
+  "reviewer": "Codex independent subagent /root/mail_defaults_review",
+  "reviewResult": "PASS",
+  "files": [
+    {
+      "path": "evals/meri/live-v1/run-controlled-read.mjs",
+      "sha256": "bb983c856e87d35510a849f6175098c2f8a99d961a687befba30f1445b13be85"
+    },
+    {
+      "path": "evals/meri/live-v1/CONTROLLED-READ-OPERATOR.md",
+      "sha256": "657b6c4a4c33bafeed8f811843e89a60376f602ee9fd9cc3901404e8b3a5fc29"
+    }
+  ],
+  "tests": {
+    "passed": 12,
+    "failed": 0,
+    "skipped": 0,
+    "receipt": "qualification-v2.json",
+    "receiptSha256": "2ca0faa25e505b20215d5f60d6a46689a0b41662b047a8d1f4f7c651ccfc72d9",
+    "sourceUnchangedSinceFinalTests": true
+  },
+  "resolvedFindings": [
+    "Both native spend and artifact-storage boundaries use one existing tested Python path; v1 late nonexistent-path failure prevented.",
+    "Guide defers provider endpoint/tier/unit qualification and marks the absent historical78ad/3USD setup wrapper unavailable; it does not qualify a replacement15USD wrapper."
+  ],
+  "finalDocCheck": "Prettier and git diff --check passed after prose-only clarification; root tool chunk272970. Runner source/tests unchanged.",
+  "limitations": "Existing12helper tests do not execute the full authenticated runner. Native NTFS spend tests separately qualify the selected Python; no live adoption, capture, auth, fixture, provider or journal mutation.",
+  "actualJournalUnchanged": true,
+  "providerCalls": 0,
+  "fixtureMutations": 0
+}

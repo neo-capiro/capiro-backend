@@ -1,0 +1,42 @@
+{
+  "scope": "Existing fresh adapter runner composition only; no live invocation or journal adoption",
+  "results": [
+    {
+      "command": [
+        "C:/Program Files/nodejs/node.exe",
+        "--check",
+        "evals/meri/live-v1/run-controlled-read.mjs"
+      ],
+      "startedAt": "2026-10-03T17:51:02.327603+00:00",
+      "finishedAt": "2026-10-03T17:51:02.397548+00:00",
+      "exitCode": 0,
+      "log": "check-1.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "command": [
+        "C:/Program Files/nodejs/node.exe",
+        "--test",
+        "evals/meri/live-v1/tests/controlled-read-operator.test.mjs"
+      ],
+      "startedAt": "2026-10-03T17:51:02.397548+00:00",
+      "finishedAt": "2026-10-03T17:51:02.920829+00:00",
+      "exitCode": 0,
+      "log": "check-2.log",
+      "sha256": "43822500e64ba591ff69f3aafe4bbfd3964fb6c62f7b6c2e404e144d48ad81b4"
+    }
+  ],
+  "providerCalls": 0,
+  "databaseActions": 0,
+  "journalMutations": 0,
+  "files": [
+    {
+      "path": "evals/meri/live-v1/run-controlled-read.mjs",
+      "sha256": "86b341c92ddef1e00fefa666f003f491028a2643163e8da498ee005090e02ae5"
+    },
+    {
+      "path": "evals/meri/live-v1/CONTROLLED-READ-OPERATOR.md",
+      "sha256": "587f3ecac7fc93df187c9774c66ebb0c820bf928ea9053ff4e7f67013ba8d304"
+    }
+  ]
+}

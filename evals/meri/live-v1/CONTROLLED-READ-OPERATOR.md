@@ -50,29 +50,25 @@ Use a separate deployment JSON with the actual qualified API/orchestrator/Web so
 
 The placeholders are intentionally invalid. Use the current successful build/promotion receipts. Mixed immutable source revisions are allowed only when actually qualified; no old-head build substitutes. Fresh live AWS readback independently requires exact digests, running completed service/task configuration, healthy targets and source metadata. The browser additionally requires `os.capiro.ai`, `vnext`, exact Web release SHA and canonical Clerk host.
 
-Rates must be reviewed, unexpired for at least fifteen more minutes, and valid under the200,000-token ceiling. This operator fixes32 provider attempts, a3USD per-case enforced ceiling, one synthesis and concurrency1. The separate native aggregate below reserves at most30USD for the explicit original capture slice. It does not change runtime profiles/models. Server installation validates rates and native provider boundaries. Unknown usage/unsettled costs cannot pass.
+Rates must be reviewed and unexpired for the full policy lifetime. The current source accepts the exact paired limits3USD/200,000 tokens or15USD/500,000 tokens,32 provider attempts, one synthesis and concurrency1. Select the reviewed pair before fixture/budget qualification; remaining aggregate funds do not authorize changing that qualified pair. Missing rates reject before dispatch. Provider endpoint, service-tier and billable-unit exclusions require separate qualification of the exact served candidate; this guide does not establish those protections. Unknown usage and unsettled costs cannot pass.
 
-The root operator must first review the actual original-slice inventory and initialize one native aggregate using `initializeCaptureSpendAggregate` from `capture-spend-aggregate.mjs`. Initialization is an explicit local action, never a fallback for a full, failed, or missing ledger. Its boundary names original case01 and its actual first `captureRunId`, a fresh slice UUID, and the SHA256 of the reviewed inventory. The current task's original first run is `c6ffa5ad-dd9f-4912-bc31-a03231a9b903`. Earlier diagnostic smoke calls are separately inventoried; they are not historical zero and are outside this explicitly declared original slice. If any original provider call occurred before initialization, the root must include its full prior reservation and a pinned terminal receipt; a still-running or uncertain prior attempt blocks initialization operationally until reconciled. `priorRuns` is trusted operator inventory, never a model/user assertion of readiness.
+### Existing fresh journal on this machine
+
+For the already authorized2026-10-03 fresh slice, use the separately reviewed `adoptExistingFreshCaptureSpend` adapter from `capture-spend-aggregate.mjs`. It reads the fixed existing `C:/dev/main/outputs/meri-fresh-20261003/fresh-spend.jsonl` and exact authorization file; it creates no new owner, ledger or sidecar. The original20 events/five settled attempts retain$9.841281 charged and$20.158719 remaining under the original$30 aggregate/$15 per-case/concurrency1 limits. Older unresolved spending is separate and is not reset or replaced.
 
 ```javascript
-const checkpoint = initializeCaptureSpendAggregate({
-  root: 'C:/evidence/owned-original-slice-spend', // new exclusive local directory
-  pythonExecutable: 'C:/ProgramData/Hermes/tools/python-3.14.7+20260901-win32-x64/python.exe',
-  inventory: {
-    sliceId: 'ACTUAL_SLICE_UUID_V4',
-    boundary: {
-      kind: 'original_file01_capture_slice', firstCaseId: '01',
-      firstCaptureRunId: 'c6ffa5ad-dd9f-4912-bc31-a03231a9b903',
-      inventorySha256: 'ACTUAL_REVIEWED_INVENTORY_64_HEX_HASH',
-    },
-    priorRuns: [], // only when the current reviewed inventory proves none
-  },
+const checkpoint = adoptExistingFreshCaptureSpend({
+  pythonExecutable: 'C:/Users/neoma/AppData/Local/hermes/hermes-agent/venv/Scripts/python.exe',
 });
 ```
 
-Save the exact returned checkpoint durably outside Git, then pass its path as `aggregateCheckpointPath` in the local materializer packet. This is a real native Windows capability checkpoint; copying a guessed JSON result cannot authorize capture. The native helper reopens every ancestor/file identity, verifies bytes, locks the writer, and rejects extra/missing entries or stale state. The runner reserves the full3USD ceiling and flushes `aggregate-reserved-checkpoint.json` **before** auth, conversation creation or synthesis. Only one reservation can be unresolved. The native case01/14/controlled collectors each require its opaque reservation and revalidate it immediately before POST. Other one-shot wrappers must explicitly open the same owner, reserve and pass `spendReservation`; they cannot keep using this increment's collectors without that composition.
+This initial read is accepted only while the journal has exactly its pinned20-event prefix and no new reservation. Save the returned checkpoint durably outside Git. After any append, use the exact latest returned checkpoint; initial adoption is no longer allowed. This adapter admits native01/20 only. Case72 requires its own already qualified aggregate authority and cannot use this adapter. [Source and local tests](../../../docs/meri/releases/2026-10-03/c2-fresh-spend-adapter/README.md) do not establish live adoption or capture.
 
-After real authenticated receipt joins show a settled provider ledger, the collector records its actual charge and saves `aggregate-spend-checkpoint.json`; the controlled runner additionally saves `aggregate-final-checkpoint.json`. Pass the exact latest checkpoint to the next serial case. Full reservation ceilings are never refunded even when the observed charge is smaller: ten3USD reservations exhaust this slice. An unresolved provider result, lost checkpoint or interrupted journal write blocks further cases; do not create a replacement ledger or retry. The primitive journal's UNIT test settlements do not establish LIVE evidence. Initial inventory/positive LIVE settlement and full original evaluation remain NOT_RUN until root execution.
+Pass the saved checkpoint path as `aggregateCheckpointPath` in the materializer packet. The native helper reopens ancestor/file identities, verifies all bytes and holds the journal's writer lock. Stale, replaced, missing, partial, duplicate, active or uncertain state blocks. The runner reserves the full configured case ceiling and flushes `aggregate-reserved-checkpoint.json` before authentication, conversation creation or synthesis. Canonical fixture/current-build/rate qualification is still required independently.
+
+Only the existing authenticated same-process capture outcome can settle a new reservation and release its unused ceiling. The collector saves `aggregate-spend-checkpoint.json` and the runner saves `aggregate-final-checkpoint.json`; pass the exact latest checkpoint to the next serial case. Interrupted reservations retain their full ceiling. Do not fabricate settlement, re-adopt an active owner, refund, retry an uncertain capture, or create a replacement journal. Native UNIT settlement tests are not live evidence.
+
+The historical original aggregate and its first run `c6ffa5ad-dd9f-4912-bc31-a03231a9b903` remain separate. `initializeCaptureSpendAggregate` is not a recovery path for that missing/uncertain history and must not replace the existing fresh journal. The current runner uses the local Python executable tested by the native NTFS adapter; Playwright remains at `C:/dev/node_modules/playwright`.
 
 ## Source-owned setup sequence
 
@@ -88,7 +84,7 @@ Here `C:/evidence/...` stands for the operator's actual owned evidence directory
 node apps/api/scripts/meri-controlled-read-setup.mjs plan --input-env MERI_CONTROLLED_READ_SETUP_INPUT --out /tmp/controlled-plan.json
 ```
 
-The current78ad image includes the controlled setup CLI but does **not** have a dedicated `meri-controlled-read-setup` dispatcher verb. The bounded sibling operator at `C:/dev/cap-meri-foundation-evidence/oct02-controlled-read/controlled-read-oneoff.py` resolves that packaging gap without changing the API image: for setup only it uses a fixed `/bin/sh -c` entrypoint, the image's canonical `pe-compose-database-url.js`, then this exact CLI. The shell text contains only source-owned constants; the input remains an environment value. It checks the immutable image/source/build, source owner/composer presence, real task identity/digest, actual exit and emitted owner receipts. All four modes pass only DB secret references, never provider keys. Budget modes retain the image's existing named dispatcher.
+**Historical, unavailable wrapper:** the78ad image lacked a dedicated `meri-controlled-read-setup` dispatcher verb. Its old3USD-only sibling operator was `C:/dev/cap-meri-foundation-evidence/oct02-controlled-read/controlled-read-oneoff.py`; that file is absent on this machine and is not qualified for the current15USD path. The commands below retain its historical mode/input contract, not executable current instructions. A replacement bounded operator must first be reviewed against the exact candidate, current paired limits and actual CLI packaging. It must use only the canonical DB composer and fixed setup/budget entry points, DB secret references, exact image/source/configuration fences and actual exit/owner receipts. It must not import an old approval or fabricate a successful wrapper.
 
 The runner is a narrow derivative of the reviewed case01 one-off operator, with a separate family/container, fixed20/72 setup schema/marker, explicit3USD qualification and no retry. Local19-test qualification and separate review are required before root execution. `prepare` is read-only; `run` is the sole authorized one-task mutation. Use:
 
@@ -97,7 +93,7 @@ python C:/dev/cap-meri-foundation-evidence/oct02-controlled-read/controlled-read
 python C:/dev/cap-meri-foundation-evidence/oct02-controlled-read/controlled-read-oneoff.py run --mode setup-plan --repo C:/dev/cap-meri-outcomes-validation --proof ABSOLUTE_API_QUALIFICATION_JSON --proof-sha256 ACTUAL_PROOF_FILE_SHA256 --input ABSOLUTE_MATERIALIZED_INPUT_JSON --input-sha256 ACTUAL_INPUT_FILE_SHA256 --plan C:/dev/cap-meri-foundation-evidence/oct02-controlled-read/case20-setup-plan-operation.json --plan-sha256 ACTUAL_PLAN_HASH_FIELD --confirm RUN_ONE_REVIEWED_CONTROLLED_READ_TASK --out C:/dev/cap-meri-foundation-evidence/oct02-controlled-read/case20-setup-plan-execution.json
 ```
 
-Repeat prepare/run only for each distinct next mode (`setup-execute`, `budget-plan`, `budget-install`) with that mode's newly materialized input, new operation/output names and actual hashes. The repository must be clean localmain matching origin/main, with only documented operator/doc drift from the image source; the prepared main SHA, image/service/config baseline, task request, input and reviewed helper hashes are all fenced again before writes. Never reuse a plan across modes or drift.
+For any qualified replacement, prepare/run each distinct next mode (`setup-execute`, `budget-plan`, `budget-install`) with that mode's newly materialized input, new operation/output names and actual hashes. The repository must be clean and its reviewed source must match origin/main, with only documented operator/doc drift from the image source; the prepared SHA, image/service/config baseline, task request, input and reviewed helper hashes must be fenced again before writes. Never reuse a plan across modes or drift.
 
 Its environment input is the exact materialized JSON. Preserve the one-off execution receipt, container exit and emitted owner receipt. The materializer consumes the established wrapper format `{status:"VERIFIED",containerExitCode:0,ownerReceipts:[receipt]}` (or an entry with `.receipt`); it rejects failure, missing or multiple receipts. Do not manufacture this wrapper from a guess or a task submission acknowledgment.
 

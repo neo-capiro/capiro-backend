@@ -25,6 +25,7 @@ const origin = 'https://os.capiro.ai',
   clerkOrigin = 'https://clerk.app.capiro.ai';
 const namespace = 'meri-foundation-20260928';
 const repo = fileURLToPath(new URL('../../../', import.meta.url));
+const pythonExecutable = 'C:/Users/neoma/AppData/Local/hermes/hermes-agent/venv/Scripts/python.exe';
 const require = createRequire(new URL('../../../apps/api/package.json', import.meta.url));
 const hash = (value) => createHash('sha256').update(value).digest('hex');
 const need = (value, code) => {
@@ -269,6 +270,8 @@ export async function runControlledReadOperator(args = process.argv.slice(2)) {
       'capture-spend-aggregate.mjs',
       'lib/windows-capture-spend.py',
       'tests/capture-spend-aggregate.test.mjs',
+      'tests/capture-spend-fresh.test.mjs',
+      'tests/capture-spend-fresh.unit.py',
       'CONTROLLED-READ-OPERATOR.md',
       'tests/controlled-read-operator.test.mjs',
     ]);
@@ -330,7 +333,7 @@ export async function runControlledReadOperator(args = process.argv.slice(2)) {
     };
     persist();
     const spendOwner = openCaptureSpendAggregate(aggregateCheckpoint, {
-      pythonExecutable: 'C:/ProgramData/Hermes/tools/python-3.14.7+20260901-win32-x64/python.exe',
+      pythonExecutable,
     });
     const spendReservation = spendOwner.reserve({
       caseId: config.caseId,
@@ -502,7 +505,7 @@ export async function runControlledReadOperator(args = process.argv.slice(2)) {
     need(typeof bearer === 'string' && bearer.length > 0, 'CAPTURE_BEARER_UNAVAILABLE');
     const runRoot = join(outRoot, 'artifacts');
     const storage = createWindowsArtifactStorage(runRoot, {
-      pythonExecutable: 'C:/ProgramData/Hermes/tools/python-3.14.7+20260901-win32-x64/python.exe',
+      pythonExecutable,
     });
     const capability = await prepareControlledReadLiveCapture({
       config,

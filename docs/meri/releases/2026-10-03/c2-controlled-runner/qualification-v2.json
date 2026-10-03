@@ -1,0 +1,60 @@
+{
+  "status": "FINAL_FORMATTED_LOCAL_QUALIFICATION_PASS",
+  "checks": [
+    {
+      "command": [
+        "C:/Program Files/nodejs/node.exe",
+        "--check",
+        "evals/meri/live-v1/run-controlled-read.mjs"
+      ],
+      "startedAt": "2026-10-03T18:00:52.549673+00:00",
+      "finishedAt": "2026-10-03T18:00:52.610304+00:00",
+      "exitCode": 0,
+      "log": "final-v2-syntax.log",
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "command": [
+        "C:/Program Files/nodejs/node.exe",
+        "--test",
+        "evals/meri/live-v1/tests/controlled-read-operator.test.mjs"
+      ],
+      "startedAt": "2026-10-03T18:00:52.610304+00:00",
+      "finishedAt": "2026-10-03T18:00:53.088307+00:00",
+      "exitCode": 0,
+      "log": "final-v2-operator.log",
+      "logSha256": "e99a73c444907610fc81cd0dbf9b36012f70b0c1555247fd09c5ddb242e71f76"
+    },
+    {
+      "command": [
+        "C:/Users/neoma/AppData/Local/hermes/node/pnpm.cmd",
+        "exec",
+        "prettier",
+        "--check",
+        "evals/meri/live-v1/run-controlled-read.mjs",
+        "evals/meri/live-v1/CONTROLLED-READ-OPERATOR.md"
+      ],
+      "startedAt": "2026-10-03T18:00:53.088307+00:00",
+      "finishedAt": "2026-10-03T18:00:53.699449+00:00",
+      "exitCode": 0,
+      "log": "final-v2-format.log",
+      "logSha256": "17aa973d3f004560237d9a95171210b0671deff23d61628eecf7322ff5938f20"
+    }
+  ],
+  "files": [
+    {
+      "path": "evals/meri/live-v1/run-controlled-read.mjs",
+      "sha256": "bb983c856e87d35510a849f6175098c2f8a99d961a687befba30f1445b13be85"
+    },
+    {
+      "path": "evals/meri/live-v1/CONTROLLED-READ-OPERATOR.md",
+      "sha256": "587f3ecac7fc93df187c9774c66ebb0c820bf928ea9053ff4e7f67013ba8d304"
+    }
+  ],
+  "testsPassed": 12,
+  "testsFailed": 0,
+  "testsSkipped": 0,
+  "resolvedReviewFinding": "One tested module-local Python path feeds both spend owner and native artifact storage; old nonexistent path removed from both dispatch boundaries.",
+  "priorAttemptRetained": "qualification.json and run-controlled-read-v1.mjs",
+  "limitations": "Existing12helper tests do not execute the full authenticated runner. Native NTFS spend tests separately qualify the selected Python; no live adoption, capture, auth, fixture, provider or journal mutation."
+}
