@@ -1,0 +1,25 @@
+{
+  "at": "2026-10-03T17:56:03.491Z",
+  "kind": "EXISTING_CANONICAL_CASE01_READ_ONLY",
+  "serviceRevision": 517,
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:1a4aef121151bb5da7f70417539ece2faff392842809e6b557370c2d6cf8a49d",
+  "sourceSha": "f00e5dfb4fd3e47ac6aa4aca741023cc02f6314f",
+  "scriptSha256": "3d822f40b6100f483051f02ffd74135a6136a8c48a8e46628e2547ac06b3ca56",
+  "input": {
+    "target": "capiro-dev",
+    "fixtureNamespace": "meri-foundation-20260928",
+    "ctx": {
+      "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+      "tenantSlug": "meri-foundation-20260928-t1",
+      "userId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+      "clerkUserId": "user_3Jw2FvWZkYGKmxWGx13tNJxFD2A",
+      "role": "standard_user"
+    },
+    "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+    "confirmation": "READ_EXISTING_CASE01_CANONICAL_BINDING_ONLY",
+    "prospectiveCaptureRunId": "bd35c0f4-1604-4371-b7e9-a1338369e53f"
+  },
+  "providerSecrets": 0,
+  "businessWrites": 0,
+  "cloudActions": "one bounded read task; stop and deregister owned definition"
+}

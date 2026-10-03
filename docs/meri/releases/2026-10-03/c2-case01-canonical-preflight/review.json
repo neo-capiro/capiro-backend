@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "recordedAt": "2026-10-03T18:13:39.337310+00:00",
+  "status": "CURRENT_CORPUS_READY_AND_CANONICAL_BINDING_PLAN_ONLY",
+  "reviewer": "Codex independent subagent /root/mail_defaults_review",
+  "compositionReview": "PASS",
+  "reviewedInnerSha256": "003fe9b721d326d8d51172ff6ddd4b7d22272ede71056178bae50b41fcccd3b2",
+  "reviewedHostSha256": "be520259075976fc7f8d9c388716ea380062fc4f7ddc7742d062d27f831b0ddd",
+  "reviewSummary": "Actual canonical previous/current runtimes hydrate and qualify on the binding owner inspection transaction, compare five source identities/currentVerify against independent read-only corpus inventory, and return their own proof. No captureAuthority:false inventory is adopted. Only owner.inspect is called; no bind/seed/retire/approval/install/provider path exists. The saved tenant xmin is rechecked after inspection.",
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:1a4aef121151bb5da7f70417539ece2faff392842809e6b557370c2d6cf8a49d",
+  "sourceSha": "f00e5dfb4fd3e47ac6aa4aca741023cc02f6314f",
+  "servedRevision": 517,
+  "currentVerifySha256": "227c81e4437276718a0f6dfccb2b883c6d32b266c66b35c79ba26381a1f9c413",
+  "oldBinding": {
+    "caseId": "01",
+    "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+    "actorUserId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+    "captureRunId": "6a88e8c5-ab38-405f-a282-82aa58d54e0c",
+    "seedReceiptId": "meri-synthetic-fixture-seed-receipt:sha256:daea43730b9946592d7e66073dfc6f789d34948ed7980992d42f7b74a9bf2c62",
+    "fixtureVersion": "meri-live-v1-2026-09-26.1",
+    "resetReceiptId": "meri-synthetic-fixture-reset-receipt:sha256:53f42f2e20e820546a078ffbfd6f7794b8acab158d2c69ed1eae5fdb331a5763",
+    "fixtureNamespace": "meri-foundation-20260928",
+    "physicalMapSha256": "cf61a870caf2099fd53f36c849189eef1188237191f2e7e9e2c6d9c4c6511974",
+    "currentVerifySha256": "177bf9befa20f94f7e0a7318e259155915401b128c1e917d4c71cc4e3d96825b"
+  },
+  "prospectiveRequest": {
+    "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+    "tenantSlug": "meri-foundation-20260928-t1",
+    "actorUserId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+    "clerkUserId": "user_3Jw2FvWZkYGKmxWGx13tNJxFD2A",
+    "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+    "caseId": "01",
+    "captureRunId": "bd35c0f4-1604-4371-b7e9-a1338369e53f"
+  },
+  "tentativePlan": {
+    "status": "READY",
+    "fixtureReady": true,
+    "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+    "expectedTenantRowVersion": "113754475",
+    "expectedPriorBindingSha256": "dfc397e284bc2c8f963e3d0ea517aec1b59675e81e6ba8b610a6bf150842ac76",
+    "currentVerifySha256": "227c81e4437276718a0f6dfccb2b883c6d32b266c66b35c79ba26381a1f9c413",
+    "physicalMapSha256": "cf61a870caf2099fd53f36c849189eef1188237191f2e7e9e2c6d9c4c6511974",
+    "missing": [],
+    "liveAcceptance": "NOT_RUN"
+  },
+  "priorRateQualification": {
+    "caseId": "01",
+    "captureRunId": "6a88e8c5-ab38-405f-a282-82aa58d54e0c",
+    "rateEvidenceExpiresAt": "2026-10-03T06:08:00.000Z",
+    "currentVerifySha256": "177bf9befa20f94f7e0a7318e259155915401b128c1e917d4c71cc4e3d96825b",
+    "maxTokens": 200000,
+    "maxCostMicros": 3000000
+  },
+  "allOwnedTasksStoppedAndDefinitionsInactive": true,
+  "providerCalls": 0,
+  "fixtureMutations": 0,
+  "newConversations": 0,
+  "captureAuthority": false,
+  "liveAcceptance": "NOT_RUN",
+  "limitations": [
+    "Prospective plan only; no durable binding or provider qualification was installed.",
+    "Plan row/hash fences can become stale; a fresh same-owner read is required immediately before any later bind.",
+    "The source corpus is unchanged; differing reconstructed seed/reset/currentVerify hashes follow completed metadata/projection repair. Original physical map and history remain.",
+    "Clock/provider candidate images, release attestation, actual aggregate reservation and served capture remain separate."
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "at": "2026-10-03T18:09:28.276Z",
+  "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/9f7a82820d434c1d908af20b53533126",
+  "taskStopped": true,
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-c2-case01-read-20261003:3",
+  "status": "INACTIVE"
+}

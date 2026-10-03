@@ -1,0 +1,130 @@
+{
+  "version": 1,
+  "artifacts": [
+    {
+      "path": ".gitattributes",
+      "sha256": "ef5c230f4d8b87142cf574d3b391a2b4ac5ccaf1776980fac2bd8cb3305cdc06",
+      "bytes": 75
+    },
+    {
+      "path": "case01-canonical-bind-plan-inner.mjs",
+      "sha256": "003fe9b721d326d8d51172ff6ddd4b7d22272ede71056178bae50b41fcccd3b2",
+      "bytes": 6142
+    },
+    {
+      "path": "case01-canonical-bind-plan-v1/cleanup.json",
+      "sha256": "5f409d2740a01de071ac1b5861912ff8a32e9923b5a1f83237fcef213bb9a29b",
+      "bytes": 302
+    },
+    {
+      "path": "case01-canonical-bind-plan-v1/definition-registered.json",
+      "sha256": "0a081d18459f31fdf83d0e5c47a0738d8155dfce6ccbc4f40c85a096b77e0ac5",
+      "bytes": 155
+    },
+    {
+      "path": "case01-canonical-bind-plan-v1/intent.json",
+      "sha256": "31e3ccae53153df283c4f786c2f2cc19b861691e9bcf09050cdc49e35f5267fc",
+      "bytes": 1116
+    },
+    {
+      "path": "case01-canonical-bind-plan-v1/result.json",
+      "sha256": "fdda11bf6292238453b3e050f60b764c3346a9436cf746410e89fd5a918f448a",
+      "bytes": 8567
+    },
+    {
+      "path": "case01-canonical-bind-plan-v1/task-start.json",
+      "sha256": "0da5c69ce30c74c270e8722c0f21d0bc1fab2b7df7ea4377eaf3ef9f7de3e177",
+      "bytes": 341
+    },
+    {
+      "path": "case01-current-plan-inner.mjs",
+      "sha256": "3d822f40b6100f483051f02ffd74135a6136a8c48a8e46628e2547ac06b3ca56",
+      "bytes": 3647
+    },
+    {
+      "path": "case01-current-plan-v1/cleanup.json",
+      "sha256": "63271ec90550d8c2f1486334edb4ee11dc3e5e51dc2828113ede9efa9a4da37f",
+      "bytes": 302
+    },
+    {
+      "path": "case01-current-plan-v1/definition-registered.json",
+      "sha256": "d0b5b451dfe8aaccd96bae60e2955155905d64e974f0b48f8198b24afca263d6",
+      "bytes": 155
+    },
+    {
+      "path": "case01-current-plan-v1/failure.json",
+      "sha256": "be167ce135671264efb49015fb703bcdf0d63abb5111b5c57426e566c634cf67",
+      "bytes": 346
+    },
+    {
+      "path": "case01-current-plan-v1/intent.json",
+      "sha256": "681ac8159a2185c6a243d1d6ec15e8572dc165ec030178c6cff25fad023377e8",
+      "bytes": 1096
+    },
+    {
+      "path": "case01-current-plan-v1/result.json",
+      "sha256": "daa4becda9d0333cc072d9f31e8ba2498d3ee184fa6ce27b26ba83179c292c10",
+      "bytes": 786
+    },
+    {
+      "path": "case01-current-plan-v1/task-start.json",
+      "sha256": "486b03d46c92ddf98d11b2a32a5d84dfec7ad589872135eaef4699192901888f",
+      "bytes": 341
+    },
+    {
+      "path": "case01-current-read-v2/cleanup.json",
+      "sha256": "bf7e8e7c4cb409fb6c88e21e05aaa8be8071ca30025714d9d4c38b2ead1b5cd2",
+      "bytes": 302
+    },
+    {
+      "path": "case01-current-read-v2/definition-registered.json",
+      "sha256": "6f3b283a8233e5e279bc4b8fa2cbe5454deb05a623742ddf3d383fad3b9e2f9c",
+      "bytes": 155
+    },
+    {
+      "path": "case01-current-read-v2/intent.json",
+      "sha256": "dd39f51840a4163a9b3e2c101ae99876e3d48aa8f9f4ced58a2758a16784c750",
+      "bytes": 1124
+    },
+    {
+      "path": "case01-current-read-v2/result.json",
+      "sha256": "7cd0fc4338e505a767e2f10931ca4f02db638b762588ca77e3891d9ade1cc13f",
+      "bytes": 7710
+    },
+    {
+      "path": "case01-current-read-v2/task-start.json",
+      "sha256": "250c37a69009dcbd59960ee5fe85871c532511b6d36f7e36a6169109983d25a2",
+      "bytes": 341
+    },
+    {
+      "path": "case01-current-read-v2-inner.mjs",
+      "sha256": "bf560117c48934594ee1ae807d0f9146a8f92ac401f1cae6d2d66957a17859e6",
+      "bytes": 3146
+    },
+    {
+      "path": "read-case01-canonical-bind-plan.mjs",
+      "sha256": "be520259075976fc7f8d9c388716ea380062fc4f7ddc7742d062d27f831b0ddd",
+      "bytes": 5893
+    },
+    {
+      "path": "read-case01-current-plan.mjs",
+      "sha256": "f6363aad6dd2e94daea61e3607d5d773fe825dec24ddeb4522807469d43e05de",
+      "bytes": 5764
+    },
+    {
+      "path": "read-case01-current-v2.mjs",
+      "sha256": "7498fa7200a1448b9897a2670e834eaf18ef335f494ca78a79f05cf7733f4407",
+      "bytes": 5960
+    },
+    {
+      "path": "README.md",
+      "sha256": "6fcfc778cca0ada0df4deb43a936a6a3581d46b61ce3d5883d21858656d53d17",
+      "bytes": 1601
+    },
+    {
+      "path": "review.json",
+      "sha256": "86311b58ee1a1552c097d0e8ac9e41610ac684c6f91020a9228f3acf24719ec5",
+      "bytes": 3911
+    }
+  ]
+}

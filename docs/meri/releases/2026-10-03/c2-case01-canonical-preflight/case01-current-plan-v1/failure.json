@@ -1,0 +1,7 @@
+{
+  "at": "2026-10-03T17:57:42.317Z",
+  "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/1b845afef058481e9edb26988e441440",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-c2-case01-read-20261003:1",
+  "status": "READ_NOT_QUALIFIED_RECONCILE_BEFORE_RETRY",
+  "errorClass": "AssertionError"
+}

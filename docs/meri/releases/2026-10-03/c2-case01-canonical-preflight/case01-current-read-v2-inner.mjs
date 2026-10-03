@@ -1,0 +1,41 @@
+import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
+import {execFileSync} from 'node:child_process';
+import {createCase01SetupDependencies} from './scripts/meri-case01-setup-dependencies.mjs';
+import {readCase01MemoryCorpusInTx} from '/app/evals/meri/live-v1/fixture-provisioning/case01-memory-owner.mjs';
+
+const input=JSON.parse(process.env.MERI_C2_CASE01_READ_INPUT);
+const hash=value=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
+let factory;
+try {
+  assert.equal(process.env.RELEASE_SHA,'f00e5dfb4fd3e47ac6aa4aca741023cc02f6314f');
+  assert.equal(input.confirmation,'READ_EXISTING_CASE01_CANONICAL_BINDING_ONLY');
+  assert.equal(input.ctx.tenantId,'f2d6cf8f-057c-479a-8110-62fe5086d43f');
+  assert.equal(input.ctx.userId,'b1f758fc-17bd-40f8-bef2-fa2d2380300f');
+  assert.equal(input.clientId,'41f9ec63-3963-479f-b747-59a3767ef44b');
+  assert.match(input.prospectiveCaptureRunId,/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/);
+  process.env.DATABASE_URL=execFileSync(process.execPath,['./scripts/lib/pe-compose-database-url.js'],{encoding:'utf8',stdio:['ignore','pipe','pipe']}).trim();
+  factory=await createCase01SetupDependencies();
+  const result=await factory.runWithTenant(input.ctx,async()=>{
+    const actualProof=await factory.deps.prisma.withTenantUser(input.ctx.tenantId,input.ctx.userId,tx=>
+      readCase01MemoryCorpusInTx(factory.deps,tx,input.ctx,input.clientId));
+    assert.equal(actualProof.captureAuthority,false);
+    const saved=await factory.deps.prisma.withTenantUser(input.ctx.tenantId,input.ctx.userId,async tx=>{
+      const rows=await tx.$queryRawUnsafe("SELECT settings_jsonb->'meriFoundationFixture' AS fixture,xmin::text AS row_version FROM tenants WHERE id=$1::uuid AND slug=$2",input.ctx.tenantId,input.ctx.tenantSlug);
+      assert.equal(rows.length,1);
+      const f=rows[0].fixture;
+      return {tenantRowVersion:rows[0].row_version,fixtureNamespace:f.fixtureNamespace,
+        captureBinding:f.captureEvidence??null,locatorSha256:hash(f.case01MemoryOwner??null),
+        priorRateQualification:f.captureProviderBudget?{caseId:f.captureProviderBudget.caseId,captureRunId:f.captureProviderBudget.captureRunId,
+          rateEvidenceExpiresAt:f.captureProviderBudget.rateEvidenceExpiresAt,currentVerifySha256:f.captureProviderBudget.currentVerifySha256,
+          maxTokens:f.captureProviderBudget.maxTokens,maxCostMicros:f.captureProviderBudget.maxCostMicros}:null};
+    });
+    return {status:'CURRENT_CORPUS_AND_PRIOR_BINDING_READ',actualProof,saved};
+  });
+  console.log('C2_CASE01_CURRENT_PLAN '+JSON.stringify({recordedAt:new Date().toISOString(),...result,
+    captureAuthority:false,fixtureMutations:0,providerCalls:0,conversationCreations:0,liveAcceptance:'NOT_RUN'}));
+} catch(error) {
+  const code=/^(?:CASE01_[A-Z_]+|CAPTURE_BINDING_[A-Z_]+)$/.test(error?.code??'')?error.code:null;
+  console.log('C2_CASE01_CURRENT_PLAN '+JSON.stringify({status:'READ_FAILED',code,captureAuthority:false,fixtureMutations:0,providerCalls:0,liveAcceptance:'NOT_RUN'}));
+  process.exitCode=1;
+} finally {if(factory)await factory.close();}
