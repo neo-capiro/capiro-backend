@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "kind": "fixed-forward452-prisma-task",
+  "account": "967807252336",
+  "region": "us-east-1",
+  "cluster": "capiro-dev",
+  "preparedAt": "2026-10-03T04:13:46.102Z",
+  "sourceSha": "e1d045d4abe4a7835cb9284508cd287cf1d34d3b",
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:5754b5e54f5c81a53ff032310f6af01bdfd67db0c94375a3973369abe786c4d9",
+  "buildId": "capiro-build-web-dev:51270729-0854-4ec4-8625-807b5fe50deb",
+  "apiBaseline": {
+    "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:515",
+    "serviceHash": "9ef55d473f9f1be8ebaabee7ca1e6c02cb003be8ce1db29dbd570b4c97a29d17",
+    "configHash": "973748a2b134b388a6027df6c5c099055a7e24f7b746eafbaae8cebad077258a",
+    "taskHash": "469dcd8139dbba76076eb32adfd65c6b85eab9bb23e34e8ba2eb37b6e7d9d9e8",
+    "imageDigest": "sha256:5e52f9b06658b0462672d070928e0c2afd6ea229b61c3b887371f3f66196c316",
+    "desiredCount": 2
+  },
+  "migrationTemplate": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api-migrate:135",
+  "migrationTemplateHash": "ba5b13c56aaad2d29b784683e90c9004e9b3ffedf28742642bf95d897f26967c",
+  "taskDefinitionHash": "a83606ca64687b2fa1b192fec443305b2bcac8d1d88294258df6f9adcdb5a762",
+  "runnerSha256": "e56bb14fa406b5ee32dd5d92203870fbde1caa63034d1c525f16669b7eece8e3",
+  "inputSha256": "a7654905badc56843942985e4ba1ab5f1df3bfc423ba3fd14dbf26573a07c5fe",
+  "runnerOperatorSha256": "0dc09a5002150c05f711acfd444f273901398127fe681774987ed8a7761ab6cd",
+  "migrationSha256": "ef10ab58b4eef6825652690a098ab160a374fb30c4cc0af9f15793edb7237242",
+  "manifestSha256": "f4a9f560bc21d7f12b902fa4bf09157612bacdc108dbce1de88085d010318f5f",
+  "networkHash": "d9b19901352dd52023da1ccb3f3fc72bbd468f53dbe6d617fbd158306dfd162f",
+  "operationId": "0a080325-ed36-41a4-af8c-b582c6d3aaee",
+  "scope": "One bounded additive index through packaged Prisma migrate deploy; no service updates, provider calls, data seeds, permission changes or migration ledger rewrites.",
+  "limits": {
+    "lockSeconds": 5,
+    "statementSeconds": 30,
+    "prismaSeconds": 180,
+    "taskSeconds": 600
+  },
+  "approvalStatus": "OWNER_APPROVAL_PENDING",
+  "planHash": "4348b68f96a16575fe6541d78e9c4e0c441f5cdf2a05fc28307431f49eaaab21"
+}

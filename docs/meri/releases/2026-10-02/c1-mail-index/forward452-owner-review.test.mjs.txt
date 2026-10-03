@@ -1,0 +1,213 @@
+// Offline review only. Never invokes main, a child process, AWS, or a database.
+// Synthetic IDs and the corresponding legacy-ledger pin exist only in RAM.
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
+import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+
+assert.equal(process.env.MERI_FORWARD452_INPUT, undefined, 'Do not import the production owner with its activation environment set');
+const root = 'C:/dev/main/outputs/meri-c1-20261002';
+const ownerPath = `${root}/forward452-runner.mjs`;
+const inputPath = `${root}/forward452-input.json`;
+const runnerBytes = readFileSync(ownerPath);
+const inputBytes = readFileSync(inputPath);
+const sha = value => createHash('sha256').update(value).digest('hex');
+assert.equal(sha(runnerBytes), 'e56bb14fa406b5ee32dd5d92203870fbde1caa63034d1c525f16669b7eece8e3');
+const owner = await import('./forward452-runner.mjs');
+const input = JSON.parse(inputBytes);
+const archived = JSON.parse(readFileSync('C:/dev/main/outputs/meri-c0-completion-20261002/schema-result.json', 'utf8')).receipts[0];
+const rehearsal = JSON.parse(readFileSync(`${root}/forward452-v3-fresh-e1d045d4abe4.json`, 'utf8'));
+const directory = `${root}/forward452-v3-fresh-e1d045d4abe4-full452-source/migrations`;
+const manifest = owner.packagedManifest(directory, input);
+const clone = value => structuredClone(value);
+const canonical = value => value === null || typeof value !== 'object'
+  ? JSON.stringify(value)
+  : Array.isArray(value)
+    ? `[${value.map(canonical).join(',')}]`
+    : `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${canonical(value[key])}`).join(',')}}`;
+const stableHash = value => sha(canonical(value));
+const NAME = '20281007010000_mail_messages_owned_connection_active';
+const PRIOR = '20281006010000_mail_threads_owned_connection_covering';
+const MEMORY = '20281005010000_memory_version_candidate_source_kinds';
+const before = archived.ledger.map((row, index) => ({ id: `offline-review-${String(index).padStart(4, '0')}`, ...row }));
+assert.equal(before.length, 608);
+const legacy = before.filter(row => ![NAME, PRIOR, MEMORY].includes(row.migration_name));
+const coverage = manifest.slice(0, -3).map(item => {
+  const rows = legacy.filter(row => row.migration_name === item.name && row.finished_at !== null && row.rolled_back_at === null);
+  assert.equal(rows.length, 1);
+  return { name: item.name, appliedSha256: rows[0].checksum };
+});
+const offlineInput = clone(input);
+offlineInput.baseline.fullLedgerSha256 = stableHash(legacy);
+// The metadata has real applied checksums, so the coverage pin remains the real pin.
+assert.equal(stableHash(coverage), input.baseline.apiHistorySha256);
+const added = {
+  id: 'offline-review-new-452', migration_name: NAME, checksum: input.migrationSha256,
+  started_at: '2026-10-03 06:00:00.123456+00', finished_at: '2026-10-03 06:00:01.123456+00',
+  rolled_back_at: null, applied_steps_count: 1,
+};
+const after = [...clone(before), added];
+const constraints = archived.constraints.map(row => ({ name: row.conname, validated: row.convalidated, definition: row.definition }));
+const freshIndex = rehearsal.indexes.find(row => row.name === 'mail_messages_tenant_connection_active_idx');
+const index = {
+  name: freshIndex.name, schema: 'public', table_name: 'mail_messages', method: freshIndex.method,
+  is_unique: freshIndex.unique, is_primary: false, is_valid: freshIndex.valid, is_ready: freshIndex.ready,
+  key_count: freshIndex.key_count, total_count: freshIndex.total_count, no_predicate: false,
+  predicate: freshIndex.predicate, no_expression: freshIndex.no_expression,
+  columns: freshIndex.attributes, definition: freshIndex.definition,
+};
+const priorDefinition = rehearsal.indexes.find(row => row.name === 'mail_threads_tenant_connection_id_cover_idx').definition;
+
+test('real immutable input and actual frozen 452 manifest validate', () => {
+  assert.deepEqual(owner.validateInput(clone(input)), input);
+  assert.equal(manifest.length, 452);
+  assert.equal(sha(JSON.stringify(manifest)), input.manifestSha256);
+  assert.equal(offlineInput.baseline.apiHistorySha256, input.baseline.apiHistorySha256);
+  assert.notEqual(offlineInput.baseline.fullLedgerSha256, input.baseline.fullLedgerSha256);
+});
+
+test('valid before608 and after609 preserve the exact prior rows', () => {
+  const initial = owner.checkEstablishedLedger(before, manifest, offlineInput, false);
+  const final = owner.checkEstablishedLedger(after, manifest, offlineInput, true);
+  assert.equal(initial.oldLedgerSha256, final.oldLedgerSha256);
+  owner.assertPriorUnchanged(before, after);
+  assert.deepEqual(owner.checkCatalog(constraints, input.checkSha256), input.checkSha256);
+  assert.deepEqual(owner.checkIndex([], false), { present: false });
+  assert.equal(owner.checkIndex([index], true).definitionSha256, freshIndex.definitionSha256);
+});
+
+const invalidBeforeCases = [
+  ['legacy checksum change', rows => { rows[0].checksum = '0'.repeat(64); }],
+  ['legacy timestamp microsecond change', rows => { rows[0].started_at = '2026-06-27 12:36:39.855836+00'; }],
+  ['legacy rolled-back row mutation', rows => { rows.find(row => row.rolled_back_at !== null).rolled_back_at = '2026-10-03 00:00:00.123456+00'; }],
+  ['missing 450', rows => rows.splice(rows.findIndex(row => row.migration_name === MEMORY), 1)],
+  ['missing 451', rows => rows.splice(rows.findIndex(row => row.migration_name === PRIOR), 1)],
+  ['incorrect 450 checksum', rows => { rows.find(row => row.migration_name === MEMORY).checksum = '0'.repeat(64); }],
+  ['incorrect 451 checksum', rows => { rows.find(row => row.migration_name === PRIOR).checksum = '0'.repeat(64); }],
+  ['unfinished 451', rows => { rows.find(row => row.migration_name === PRIOR).finished_at = null; }],
+  ['rolled-back 450', rows => { rows.find(row => row.migration_name === MEMORY).rolled_back_at = '2026-10-03 00:00:00+00'; }],
+  ['zero applied steps on 451', rows => { rows.find(row => row.migration_name === PRIOR).applied_steps_count = 0; }],
+  ['unexpected new 452 already present', rows => rows.push(clone(added))],
+  ['unexpected migration replacing legacy row', rows => { rows[0].migration_name = '20281008000000_unexpected'; }],
+  ['pending unexpected migration', rows => rows.push({ ...clone(added), migration_name: '20281008000000_unexpected', finished_at: null })],
+  ['duplicate IDs', rows => { rows.at(-1).id = rows[0].id; }],
+  ['empty prior ID', rows => { rows.at(-1).id = ''; }],
+];
+for (const [label, mutate] of invalidBeforeCases) test(`preflight rejects ${label}`, () => {
+  const rows = clone(before); mutate(rows);
+  assert.throws(() => owner.checkEstablishedLedger(rows, manifest, offlineInput, false));
+});
+
+const invalidAfterCases = [
+  ['missing new migration', rows => rows.pop()],
+  ['wrong new checksum', rows => { rows.at(-1).checksum = '0'.repeat(64); }],
+  ['unfinished new migration', rows => { rows.at(-1).finished_at = null; }],
+  ['rolled-back new migration', rows => { rows.at(-1).rolled_back_at = '2026-10-03 06:00:02+00'; }],
+  ['new duplicate ID', rows => { rows.at(-1).id = rows[0].id; }],
+  ['extra unexpected row', rows => rows.push({ ...clone(added), id: 'extra', migration_name: '20281008000000_unexpected' })],
+];
+for (const [label, mutate] of invalidAfterCases) test(`postcheck rejects ${label}`, () => {
+  const rows = clone(after); mutate(rows);
+  assert.throws(() => owner.checkEstablishedLedger(rows, manifest, offlineInput, true));
+});
+
+for (const [label, select, property, value] of [
+  ['legacy started microseconds', rows => rows[0], 'started_at', '2026-06-27 12:36:39.855836+00'],
+  ['450 finished microseconds', rows => rows.find(row => row.migration_name === MEMORY), 'finished_at', '2026-10-02 16:42:24.840032+00'],
+  ['451 started microseconds', rows => rows.find(row => row.migration_name === PRIOR), 'started_at', '2026-10-02 17:31:41.106978+00'],
+  ['451 ID', rows => rows.find(row => row.migration_name === PRIOR), 'id', 'changed-prior-id'],
+  ['legacy applied steps', rows => rows[0], 'applied_steps_count', 2],
+]) test(`exact prior-row comparison rejects mutation of ${label}`, () => {
+  const rows = clone(after); select(rows)[property] = value;
+  assert.throws(() => owner.assertPriorUnchanged(before, rows));
+});
+
+test('manifest guards reject wrong pin, count, last name, prior name and prior hash', () => {
+  assert.throws(() => owner.packagedManifest(directory, { ...input, manifestSha256: '0'.repeat(64) }));
+  assert.throws(() => owner.packagedManifest(directory, { ...input, migrationSha256: '0'.repeat(64) }));
+  assert.throws(() => owner.checkEstablishedLedger(before, manifest.slice(1), offlineInput, false));
+  for (const [offset, property, value] of [[-1, 'name', 'unexpected'], [-2, 'name', 'unexpected'], [-2, 'sha256', '0'.repeat(64)], [-3, 'sha256', '0'.repeat(64)]]) {
+    const invalid = clone(manifest); invalid.at(offset)[property] = value;
+    assert.throws(() => owner.checkEstablishedLedger(before, invalid, offlineInput, false));
+  }
+});
+
+test('input guards reject unreviewed fields, migration bytes and baseline counts', () => {
+  assert.throws(() => owner.validateInput({ ...input, retry: true }));
+  assert.throws(() => owner.validateInput({ ...input, migrationSha256: '0'.repeat(64) }));
+  assert.throws(() => owner.validateInput({ ...input, baseline: { ...input.baseline, total: 608 } }));
+});
+
+for (const [property, value] of [
+  ['table_name', 'mail_threads'], ['schema', 'other'], ['method', 'hash'], ['is_unique', true],
+  ['is_primary', true], ['is_valid', false], ['is_ready', false], ['no_expression', false],
+  ['key_count', 3], ['total_count', 3], ['columns', ['connection_id', 'tenant_id']],
+  ['no_predicate', true], ['predicate', '(removed_at IS NOT NULL)'], ['definition', freshIndex.definition + ' '],
+]) test(`index guard rejects malformed ${property}`, () => {
+  assert.throws(() => owner.checkIndex([{ ...clone(index), [property]: value }], true));
+});
+test('index guard rejects absent or duplicate after-index and present before-index', () => {
+  assert.throws(() => owner.checkIndex([], true));
+  assert.throws(() => owner.checkIndex([index, index], true));
+  assert.throws(() => owner.checkIndex([index], false));
+});
+
+function offlineClient(afterPhase, patch = {}) {
+  const calls = [];
+  const state = {
+    ledger: afterPhase ? after : before, checks: constraints, indexes: afterPhase ? [index] : [],
+    priorDefinition, priorReady: true, retiredAbsent: true, newAbsent: true,
+    owner: true, locks: 0, readOnly: 'on', ...patch,
+  };
+  return {
+    calls,
+    async query(sql) {
+      calls.push(sql);
+      if (sql === 'BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY' || sql === 'ROLLBACK' || sql.startsWith('SET LOCAL ')) return { rows: [] };
+      if (sql === 'SHOW transaction_read_only') return { rows: [{ transaction_read_only: state.readOnly }] };
+      if (sql === owner.LEDGER_SQL) return { rows: clone(state.ledger) };
+      if (sql === owner.CHECK_SQL) return { rows: clone(state.checks) };
+      if (sql === owner.INDEX_SQL) return { rows: clone(state.indexes) };
+      if (sql === owner.LOCK_SQL) return { rows: [{ count: state.locks }] };
+      if (sql.startsWith('SELECT pg_get_indexdef(')) return { rows: [{ definition: state.priorDefinition }] };
+      if (sql.startsWith('SELECT indisvalid AND indisready')) return { rows: [{ ready: state.priorReady }] };
+      if (sql.startsWith("SELECT to_regclass('public.meri_agent_runs')")) return { rows: [{ absent: state.retiredAbsent }] };
+      if (sql.startsWith("SELECT to_regclass('public.mail_messages_tenant_connection_active_idx')")) return { rows: [{ absent: state.newAbsent }] };
+      if (sql.startsWith('SELECT relname,pg_has_role(')) return { rows: [{ relname: '_prisma_migrations', owner: state.owner }, { relname: 'mail_messages', owner: state.owner }] };
+      throw new Error('Unexpected offline query');
+    },
+  };
+}
+
+test('readState performs bounded read-only before/after checks and always rolls back', async () => {
+  for (const afterPhase of [false, true]) {
+    const client = offlineClient(afterPhase);
+    const actual = await owner.readState(client, offlineInput, manifest, afterPhase);
+    assert.equal(actual.ledger.length, afterPhase ? 609 : 608);
+    assert.equal(client.calls[0], 'BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
+    assert.equal(client.calls.at(-1), 'ROLLBACK');
+    assert.ok(client.calls.includes("SET LOCAL statement_timeout='5s'"));
+    assert.ok(client.calls.every(sql => /^(?:BEGIN|SET LOCAL|SHOW|SELECT|ROLLBACK)\b/.test(sql)));
+  }
+});
+
+for (const [label, patch] of [
+  ['non-read-only transaction', { readOnly: 'off' }],
+  ['incorrect prior index definition', { priorDefinition: priorDefinition + ' ' }],
+  ['prior index not valid and ready', { priorReady: false }],
+  ['retired tables present', { retiredAbsent: false }],
+  ['new index already present', { newAbsent: false }],
+  ['non-owner connection', { owner: false }],
+  ['conflicting lock', { locks: 1 }],
+  ['unvalidated memory constraint', { checks: constraints.map((row, i) => i ? row : { ...row, validated: false }) }],
+  ['altered memory constraint', { checks: constraints.map((row, i) => i ? row : { ...row, definition: row.definition + ' ' }) }],
+]) test(`readState rejects ${label} and rolls back`, async () => {
+  const client = offlineClient(false, patch);
+  await assert.rejects(() => owner.readState(client, offlineInput, manifest, false));
+  assert.equal(client.calls.at(-1), 'ROLLBACK');
+});
+
+test('owner and real input files remain byte-identical', () => {
+  assert.deepEqual(readFileSync(ownerPath), runnerBytes);
+  assert.deepEqual(readFileSync(inputPath), inputBytes);
+});

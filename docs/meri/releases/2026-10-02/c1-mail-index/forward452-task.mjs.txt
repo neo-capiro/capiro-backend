@@ -1,0 +1,115 @@
+// Fixed one-off task for C1 migration452. Prepare only reads AWS. Run requires
+// the prepared fingerprint and explicit confirmation; it never updates a service.
+import assert from 'node:assert/strict';
+import {readFileSync,writeFileSync,openSync,fsyncSync,closeSync,renameSync,existsSync} from 'node:fs';
+import {execFileSync} from 'node:child_process';
+import {createHash,randomUUID} from 'node:crypto';
+import {pathToFileURL} from 'node:url';
+import {aws} from '../meri-fresh-20261003/auth-preflight.mjs';
+import {releaseOperator} from '../../meri-c1-20261002/scripts/meri-release.mjs';
+import {canonical,fingerprint,taskInput} from '../../meri-c1-20261002/scripts/lib/meri-release-policy.mjs';
+const ROOT='C:/dev/main/outputs/meri-c1-20261002';
+const REPO='C:/dev/main/meri-c1-20261002';
+const SHA='e1d045d4abe4a7835cb9284508cd287cf1d34d3b';
+const MIGRATE='arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api-migrate:135';
+const LIVE='arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:515';
+const FAMILY='capiro-dev-meri-c1-forward452';
+const CONTAINER='meri-c1-forward452';
+const PREFIX='MERI_FORWARD452_RECEIPT ';
+const hash=b=>createHash('sha256').update(b).digest('hex');
+const read=name=>JSON.parse(readFileSync(ROOT+'/'+name,'utf8'));
+const writeNew=(name,value)=>writeFileSync(ROOT+'/'+name,JSON.stringify(value,null,2)+'\n',{flag:'wx'});
+const delay=ms=>new Promise(r=>setTimeout(r,ms));
+export function normalizeDefinition(value){
+ const copy=structuredClone(value);
+ for(const key of ['volumes','placementConstraints'])if(copy[key]===undefined)copy[key]=[];
+ for(const container of copy.containerDefinitions??[]){
+  if(container.cpu===undefined)container.cpu=0;
+  for(const key of ['portMappings','mountPoints','volumesFrom','systemControls'])if(container[key]===undefined)container[key]=[];
+ }
+ return copy;
+}
+function persistReceipt(receipt){
+ const file=ROOT+'/forward452-execution.json',temp=file+'.tmp';
+ const fd=openSync(temp,'w');try{writeFileSync(fd,JSON.stringify(receipt,null,2)+'\n');fsyncSync(fd);}finally{closeSync(fd);}
+ renameSync(temp,file);
+}
+export function buildDefinition(migrate,liveTask,image,input,script){
+ assert.equal(migrate.taskDefinitionArn,MIGRATE);assert.equal(migrate.status,'ACTIVE');
+ assert.equal(liveTask.taskDefinitionArn,LIVE);assert.equal(migrate.networkMode,'awsvpc');
+ assert.deepEqual(migrate.runtimePlatform,{cpuArchitecture:'ARM64',operatingSystemFamily:'LINUX'});
+ assert.equal(migrate.executionRoleArn,'arn:aws:iam::967807252336:role/Capiro-dev-Compute-ApiTaskDefExecutionRoleE6ABB053-YlEDKuUPHjLg');
+ const containers=migrate.containerDefinitions.filter(c=>c.name==='api');assert.equal(containers.length,1);const base=containers[0];
+ const secrets=base.secrets.filter(s=>['DB_HOST','DB_PORT','DB_USER','DB_PASSWORD'].includes(s.name));
+ assert.deepEqual(secrets.map(s=>s.name).sort(),['DB_HOST','DB_PASSWORD','DB_PORT','DB_USER']);
+ const db=base.environment.filter(e=>e.name==='DB_NAME');assert.equal(db.length,1);assert.equal(db[0].value,'capiro');
+ assert.equal(base.logConfiguration.logDriver,'awslogs');assert.equal(base.logConfiguration.options['awslogs-region'],'us-east-1');
+ assert.ok(base.logConfiguration.options['awslogs-group'].startsWith('/capiro/'));
+ const def=Object.fromEntries(['executionRoleArn','networkMode','requiresCompatibilities','cpu','memory','runtimePlatform'].map(k=>[k,migrate[k]]));
+ def.family=FAMILY;def.containerDefinitions=[{name:CONTAINER,image,essential:true,entryPoint:['node','--input-type=module','-e'],command:[script],environment:[...db,{name:'GIT_SHA',value:SHA},{name:'RELEASE_SHA',value:SHA},{name:'MERI_FORWARD452_INPUT',value:canonical(input)}],secrets,logConfiguration:{...base.logConfiguration,options:{...base.logConfiguration.options,'awslogs-stream-prefix':'meri-c1-forward452'}}}];
+ assert.equal(def.taskRoleArn,undefined);return normalizeDefinition(def);
+}
+async function context(){
+ assert.equal(aws(['sts','get-caller-identity']).Account,'967807252336');
+ const imageProof=read('api-mail-index-build/qualification-readback.json');assert.equal(imageProof.status,'PASS');assert.equal(imageProof.sourceSha,SHA);assert.equal(imageProof.packagedMigrationCount,452);assert.equal(imageProof.packagedMigrationManifestMatchesSource,true);
+ const build=aws(['codebuild','batch-get-builds','--ids',imageProof.buildId]).builds[0];assert.equal(build.buildStatus,'SUCCEEDED');assert.equal(build.resolvedSourceVersion,SHA);
+ const ecr=aws(['ecr','describe-images','--repository-name','capiro/dev/api','--image-ids','imageTag='+SHA]).imageDetails;assert.equal(ecr.length,1);assert.equal(imageProof.image,'967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@'+ecr[0].imageDigest);
+ execFileSync('git',['merge-base','--is-ancestor',SHA,'origin/main'],{cwd:REPO,windowsHide:true});
+ const inputBytes=readFileSync(ROOT+'/forward452-input.json'),scriptBytes=readFileSync(ROOT+'/forward452-runner.mjs');
+ const input=JSON.parse(inputBytes);assert.equal(input.sourceSha,SHA);assert.equal(input.migrationSha256,'ef10ab58b4eef6825652690a098ab160a374fb30c4cc0af9f15793edb7237242');
+ for(const mode of ['fresh','upgrade']){const q=read('forward452-v3-'+mode+'-e1d045d4abe4.json');assert.equal(q.exitCode,0);assert.equal(q.sourceSha,SHA);assert.equal(q.history.count,452);if(mode==='upgrade')assert.equal(q.priorLedgerPreserved,true);}
+ const live=await releaseOperator({aws}).snapshot('api');assert.equal(live.baseline.taskDefinitionArn,LIVE);assert.equal(live.baseline.imageDigest,'sha256:5e52f9b06658b0462672d070928e0c2afd6ea229b61c3b887371f3f66196c316');
+ const migrate=aws(['ecs','describe-task-definition','--task-definition',MIGRATE]).taskDefinition;
+ const def=buildDefinition(migrate,live.task,imageProof.image,input,scriptBytes.toString('utf8'));
+ return {live,migrate,def,imageProof,input,scriptHash:hash(scriptBytes),inputHash:hash(inputBytes)};
+}
+export async function prepare(){
+ const c=await context();
+ const plan={schemaVersion:1,kind:'fixed-forward452-prisma-task',account:'967807252336',region:'us-east-1',cluster:'capiro-dev',preparedAt:new Date().toISOString(),sourceSha:SHA,image:c.imageProof.image,buildId:c.imageProof.buildId,apiBaseline:c.live.baseline,migrationTemplate:MIGRATE,migrationTemplateHash:fingerprint(taskInput(c.migrate)),taskDefinitionHash:fingerprint(c.def),runnerSha256:c.scriptHash,inputSha256:c.inputHash,runnerOperatorSha256:hash(readFileSync(ROOT+'/forward452-task.mjs')),migrationSha256:c.input.migrationSha256,manifestSha256:c.input.manifestSha256,networkHash:fingerprint(c.live.service.networkConfiguration),operationId:randomUUID(),scope:'One bounded additive index through packaged Prisma migrate deploy; no service updates, provider calls, data seeds, permission changes or migration ledger rewrites.',limits:{lockSeconds:5,statementSeconds:30,prismaSeconds:180,taskSeconds:600},approvalStatus:'OWNER_APPROVAL_PENDING'};
+ plan.planHash=fingerprint(plan);writeNew('forward452-task-plan.json',plan);
+ console.log(JSON.stringify({status:'PREPARED_NOT_EXECUTED',planHash:plan.planHash,sourceSha:plan.sourceSha,image:plan.image,baseline:plan.apiBaseline.taskDefinitionArn,runnerSha256:plan.runnerSha256}));return plan;
+}
+export async function run(approved,confirmation){
+ assert.equal(confirmation,'RUN_ONE_FORWARD452_PRISMA_DEPLOY');
+ const plan=read('forward452-task-plan.json'),{planHash,...body}=plan;
+ assert.equal(planHash,fingerprint(body));assert.equal(approved,planHash);
+ const age=Date.now()-Date.parse(plan.preparedAt);assert.ok(age>=0&&age<3600000,'PLAN_EXPIRED');
+ assert.equal(plan.runnerOperatorSha256,hash(readFileSync(ROOT+'/forward452-task.mjs')));
+ const c=await context();assert.equal(fingerprint(c.live.baseline),fingerprint(plan.apiBaseline));assert.equal(fingerprint(taskInput(c.migrate)),plan.migrationTemplateHash);
+ assert.equal(c.scriptHash,plan.runnerSha256);assert.equal(c.inputHash,plan.inputSha256);assert.equal(fingerprint(c.def),plan.taskDefinitionHash);assert.equal(fingerprint(c.live.service.networkConfiguration),plan.networkHash);assert.equal(c.imageProof.image,plan.image);
+ assert.equal(existsSync(ROOT+'/forward452-execution.json'),false,'EXISTING_EXECUTION_RECONCILE');
+ const claim=openSync(ROOT+'/forward452.once','wx');try{writeFileSync(claim,planHash+'\n');fsyncSync(claim);}finally{closeSync(claim);}
+ let stage='REGISTER_INTENT',task,definition;
+ const receipt={schemaVersion:1,planHash,operationId:plan.operationId,sourceSha:SHA,image:plan.image,status:'REGISTER_INTENT',startedAt:new Date().toISOString(),serviceUpdated:false,retryAllowed:false};persistReceipt(receipt);
+ try{
+  const path=ROOT+'/private/forward452-task-definition.json';writeFileSync(path,JSON.stringify(c.def),{flag:'wx'});
+  const registered=aws(['ecs','register-task-definition','--cli-input-json','file://'+path]);definition=registered.taskDefinition.taskDefinitionArn;
+  assert.match(definition,/^arn:aws:ecs:us-east-1:967807252336:task-definition\/capiro-dev-meri-c1-forward452:\d+$/);
+  receipt.taskDefinitionArn=definition;receipt.status='REGISTERED_NOT_STARTED';persistReceipt(receipt);
+  const actual=aws(['ecs','describe-task-definition','--task-definition',definition,'--include','TAGS']);
+  assert.equal(fingerprint(normalizeDefinition(taskInput({...actual.taskDefinition,tags:actual.tags??[]}))),plan.taskDefinitionHash);
+  const recheck=await releaseOperator({aws}).snapshot('api');assert.equal(fingerprint(recheck.baseline),fingerprint(plan.apiBaseline));
+  const request={cluster:'capiro-dev',taskDefinition:definition,launchType:'FARGATE',platformVersion:c.live.service.platformVersion,networkConfiguration:c.live.service.networkConfiguration,count:1,startedBy:'meri-c1-'+plan.operationId.slice(0,24),clientToken:plan.operationId};
+  const runFile=ROOT+'/private/forward452-run-request.json';writeFileSync(runFile,JSON.stringify(request),{flag:'wx'});
+  stage='RUN_TASK_INTENT';receipt.status=stage;persistReceipt(receipt);
+  const started=aws(['ecs','run-task','--cli-input-json','file://'+runFile]);assert.equal(started.failures?.length??0,0);assert.equal(started.tasks?.length,1);
+  const taskArn=started.tasks[0].taskArn;receipt.taskArn=taskArn;receipt.status='TASK_STARTED';persistReceipt(receipt);console.log(JSON.stringify({status:'FORWARD452_TASK_STARTED',taskArn}));
+  stage='TASK_READBACK';const deadline=Date.now()+600000;
+  do{await delay(5000);const r=aws(['ecs','describe-tasks','--cluster','capiro-dev','--tasks',taskArn]);assert.equal(r.failures?.length??0,0);assert.equal(r.tasks?.length,1);task=r.tasks[0];assert.equal(task.taskDefinitionArn,definition);assert.equal(task.containers.length,1);assert.equal(task.containers[0].name,CONTAINER);if(task.containers[0].imageDigest)assert.equal(task.containers[0].imageDigest,plan.image.split('@')[1]);}while(task.lastStatus!=='STOPPED'&&Date.now()<deadline);
+  assert.equal(task.lastStatus,'STOPPED','TASK_TIMEOUT_RECONCILE');
+  assert.equal(task.containers[0].imageDigest,plan.image.split('@')[1],'STOPPED_TASK_DIGEST_UNVERIFIED');
+  stage='OWNER_RECEIPTS';const stream='meri-c1-forward452/'+CONTAINER+'/'+taskArn.split('/').at(-1);
+  let token,pages=0,events=[];
+  while(pages++<20){const args=['logs','get-log-events','--log-group-name',c.def.containerDefinitions[0].logConfiguration.options['awslogs-group'],'--log-stream-name',stream,'--start-from-head'];if(token)args.push('--next-token',token);const r=aws(args);events.push(...r.events);if(r.nextForwardToken===token)break;token=r.nextForwardToken;}assert.ok(pages<20);
+  const owners=events.map(e=>e.message).filter(s=>s.startsWith(PREFIX)).map(s=>JSON.parse(s.slice(PREFIX.length)));
+  receipt.containerExitCode=task.containers[0].exitCode;receipt.ownerReceipts=owners;receipt.status='STOPPED_PENDING_VERIFICATION';persistReceipt(receipt);
+  assert.equal(receipt.containerExitCode,0);assert.equal(owners.length,3);assert.equal(owners[0].status,'VERIFIED');assert.equal(owners[1].status,'INTENT');const complete=owners[2];
+  assert.equal(complete.stage,'COMPLETE');assert.equal(complete.status,'VERIFIED');assert.equal(complete.sourceSha,SHA);assert.equal(complete.ledgerRows,609);assert.equal(complete.oldLedgerUnchanged,true);assert.equal(complete.migrationSha256,plan.migrationSha256);assert.equal(complete.manifestSha256,plan.manifestSha256);assert.equal(complete.prismaExitCode,0);assert.equal(complete.tlsVerified,true);
+  const after=await releaseOperator({aws}).snapshot('api');assert.equal(fingerprint(after.baseline),fingerprint(plan.apiBaseline));
+  receipt.status='VERIFIED';receipt.finishedAt=new Date().toISOString();persistReceipt(receipt);console.log(JSON.stringify({status:receipt.status,taskArn,ledgerRows:609,priorLedgerUnchanged:true}));return receipt;
+ }catch(error){receipt.status='RECONCILIATION_REQUIRED';receipt.failedStage=stage;receipt.errorClass=error?.constructor?.name??'unknown';receipt.errorCode=/^[A-Z0-9_]{3,50}$/.test(error?.code??'')?error.code:'FORWARD452_REFUSED';receipt.finishedAt=new Date().toISOString();persistReceipt(receipt);throw new Error('Forward452 stopped at '+stage+'; preserve once claim and reconcile receipt.');}
+ finally{if(definition&&task?.lastStatus==='STOPPED'){const r=aws(['ecs','deregister-task-definition','--task-definition',definition]);receipt.cleanup={taskStopped:true,taskDefinitionStatus:r.taskDefinition.status};persistReceipt(receipt);}}
+}
+if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){
+ const action=process.argv[2];if(action==='prepare')await prepare();else if(action==='run')await run(process.argv[3],process.argv[4]);else throw new Error('Use prepare or explicitly approved run.');
+}

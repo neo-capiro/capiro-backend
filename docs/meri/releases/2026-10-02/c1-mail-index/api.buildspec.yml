@@ -1,0 +1,71 @@
+version: 0.2
+env:
+  shell: bash
+phases:
+  pre_build:
+    on-failure: ABORT
+    commands:
+      - |
+        set -euo pipefail
+        : "${EXPECTED_SHA:?start-build must pass the exact merged-main SHA}"
+        [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]]
+        test "${CODEBUILD_SOURCE_VERSION:-}" = "$EXPECTED_SHA"
+        test "${CODEBUILD_RESOLVED_SOURCE_VERSION:-}" = "$EXPECTED_SHA"
+        test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+        test -z "$(git status --porcelain --untracked-files=no)"
+        test "$(uname -m)" = aarch64
+        test "$(aws sts get-caller-identity --query Account --output text)" = 967807252336
+        test "$(aws ecr list-images --region us-east-1 --repository-name capiro/dev/api --filter tagStatus=TAGGED --query "length(imageIds[?imageTag=='${EXPECTED_SHA}'])" --output json)" = 0
+        python3 scripts/validate-meri-build-isolation.py
+        sha256sum apps/api/Dockerfile pnpm-lock.yaml
+        aws ecr get-login-password --region us-east-1 |
+          docker login --username AWS --password-stdin 967807252336.dkr.ecr.us-east-1.amazonaws.com
+  build:
+    on-failure: ABORT
+    commands:
+      - |
+        set -euo pipefail
+        image="967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api:${EXPECTED_SHA}"
+        docker build --platform linux/arm64 \
+          --label "org.opencontainers.image.revision=$EXPECTED_SHA" \
+          --label 'org.opencontainers.image.source=https://github.com/neo-capiro/capirov2' \
+          -f apps/api/Dockerfile -t "$image" .
+        test "$(docker image inspect "$image" --format '{{.Architecture}}')" = arm64
+        test "$(docker image inspect "$image" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')" = "$EXPECTED_SHA"
+        test "$(docker run --rm --network none --entrypoint node "$image" -p 'process.version')" = v22.23.3
+        docker run --rm --network none --entrypoint node "$image" -e \
+          "const assert=require('node:assert/strict'); const p=require('@prisma/client'); assert.equal(typeof p.PrismaClient,'function'); const sanitize=require('sanitize-html'); assert.equal(sanitize('<strong>safe</strong><script>unsafe</script>'),'<strong>safe</strong>'); require('./dist/meri/meri-tools.service.js'); require('./dist/memory/memory-candidate.service.js'); console.log('OFFLINE_RUNTIME_IMPORT_PASS')"
+        docker run --rm --network none --entrypoint node "$image" --input-type=module -e \
+          "import assert from 'node:assert/strict'; import {createCase01SetupDependencies} from '/app/apps/api/scripts/meri-case01-setup-dependencies.mjs'; import {inspectCase01ExecutionSetup,inspectCase01FirstApprovalRecovery,executeCase01FirstApprovalRecovery,inspectCase01FirstApprovalContinuation,executeCase01FirstApprovalContinuation,inspectCase01PostApprovalResume,executeCase01PostApprovalResume,inspectCase01PostSeedResume,executeCase01PostSeedResume} from '/app/evals/meri/live-v1/fixture-provisioning/case01-execution-setup.mjs'; import {readCase14MemoryOwnerInTx,installCase14RecallBindingInTx} from '/app/evals/meri/live-v1/fixture-provisioning/case14-memory-owner.mjs'; import {executePendingMemorySetup} from '/app/evals/meri/live-v1/fixture-provisioning/memory-pending-execution.mjs'; import {executeControlledReadSetup} from '/app/evals/meri/live-v1/fixture-provisioning/controlled-read-owner.mjs'; import {randomUUID} from 'node:crypto'; import {createRequire} from 'node:module'; import {createHydratedCase01MemoryOwner} from '/app/evals/meri/live-v1/fixture-provisioning/case01-memory-owner.mjs'; import {buildFixtureManifest} from '/app/evals/meri/live-v1/fixture-provisioning/manifest.mjs'; const require=createRequire(import.meta.url); assert.equal(typeof createCase01SetupDependencies,'function'); assert.equal(typeof executePendingMemorySetup,'function'); assert.equal(typeof executeControlledReadSetup,'function'); assert.equal(typeof inspectCase01ExecutionSetup,'function'); assert.equal(typeof inspectCase01FirstApprovalRecovery,'function'); assert.equal(typeof executeCase01FirstApprovalRecovery,'function'); assert.equal(typeof readCase14MemoryOwnerInTx,'function'); assert.equal(typeof installCase14RecallBindingInTx,'function'); assert.equal(typeof createHydratedCase01MemoryOwner,'function'); const manifest=await buildFixtureManifest({fixtureInstanceId:randomUUID()}); assert.match(manifest.contentSha256,/^[a-f0-9]{64}$/); require('./dist/meri/meri-case01-capture-authority.js'); require('./dist/meri/meri-capture-provider-budget-install.js'); require('./dist/meri/meri-case14-capture-authority.js'); assert.equal(typeof inspectCase01FirstApprovalContinuation,'function'); assert.equal(typeof executeCase01FirstApprovalContinuation,'function'); console.log('OFFLINE_CASE01_CONTINUATION_IMPORT_PASS'); assert.equal(typeof inspectCase01PostApprovalResume,'function'); assert.equal(typeof executeCase01PostApprovalResume,'function'); console.log('OFFLINE_CASE01_POSTAPPROVAL_IMPORT_PASS'); assert.equal(typeof inspectCase01PostSeedResume,'function'); assert.equal(typeof executeCase01PostSeedResume,'function'); console.log('OFFLINE_CASE01_POSTSEED_IMPORT_PASS'); console.log('OFFLINE_CASE01_FIXTURE_PACKAGE_IMPORT_PASS')"
+        docker run --rm --network none --entrypoint node "$image" -e \
+          'const fs=require("node:fs"),c=require("node:crypto"),p=require("node:path"); const root="./prisma/migrations"; const files=fs.readdirSync(root).filter(n=>fs.existsSync(p.join(root,n,"migration.sql"))).sort(); if(files.length!==452)throw new Error("MIGRATION_COUNT"); console.log(JSON.stringify(files.map(n=>({name:n,sha256:c.createHash("sha256").update(fs.readFileSync(p.join(root,n,"migration.sql"))).digest("hex")}))));' > image-migration-hashes.json
+        python3 - <<'PY'
+        import json,pathlib,hashlib
+        observed=json.loads(pathlib.Path('image-migration-hashes.json').read_text())
+        expected=[{'name':p.parent.name,'sha256':hashlib.sha256(p.read_bytes()).hexdigest()} for p in sorted(pathlib.Path('apps/api/prisma/migrations').glob('*/migration.sql'))]
+        assert observed==expected and len(observed)==452
+        print('EXACT_452_IMAGE_MIGRATION_HASHES_PASS')
+        assert expected[-2]=={'name':'20281006010000_mail_threads_owned_connection_covering','sha256':'de0d73ca70787ceeb1d133aa539f2d291e6589bebb386210c7d4f3c8a7477915'}
+        assert expected[-1]=={'name':'20281007010000_mail_messages_owned_connection_active','sha256':'ef10ab58b4eef6825652690a098ab160a374fb30c4cc0af9f15793edb7237242'}
+        print('MAIL_ACTIVE_OWNER_INDEX_MIGRATION_PACKAGE_PASS')
+        PY
+  post_build:
+    on-failure: ABORT
+    commands:
+      - |
+        set -euo pipefail
+        test "${CODEBUILD_BUILD_SUCCEEDING:-0}" = 1
+        image="967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api:${EXPECTED_SHA}"
+        docker push "$image"
+        docker image inspect "$image" --format '{{json .RepoDigests}}' > pushed-repo-digests.json
+        digest="$(aws ecr describe-images --region us-east-1 --repository-name capiro/dev/api --image-ids "imageTag=${EXPECTED_SHA}" --query 'imageDetails[0].imageDigest' --output text)"
+        [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+        python3 - "$digest" <<'PY'
+        import json,sys
+        digest=sys.argv[1]
+        target='967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@'+digest
+        assert target in json.load(open('pushed-repo-digests.json'))
+        print('LOCAL_REPODIGEST_ECR_MATCH_PASS')
+        PY
+        echo "CANDIDATE_API_SOURCE_SHA=$EXPECTED_SHA"
+        echo "CANDIDATE_API_IMAGE=967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@$digest"

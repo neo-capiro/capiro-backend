@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "sourceSha": "e1d045d4abe4a7835cb9284508cd287cf1d34d3b",
+  "migrationSha256": "ef10ab58b4eef6825652690a098ab160a374fb30c4cc0af9f15793edb7237242",
+  "manifestSha256": "f4a9f560bc21d7f12b902fa4bf09157612bacdc108dbce1de88085d010318f5f",
+  "checkSha256": {
+    "memory_candidate_source_kind_chk": "4585194700c4539c5f62d01610ed8f9b3b78b0618e39b40cd04b8b7b80f3c4a5",
+    "memory_candidate_version_payload_check": "6a3164098759e2c2f6e6cf0caf80db29b8529c714158b9a8490ce9d477dc422c"
+  },
+  "baseline": {
+    "total": 606,
+    "activeFinished": 506,
+    "rolledBack": 100,
+    "fullLedgerSha256": "e06c88cf3a42626966b1949c5c297ee71aa7e90ba413bfc153bd6b61afbe5766",
+    "apiHistorySha256": "bab85dc1df5f9c33e0f882eee49b0346543cad867697e24456f3c3d18ac294ac"
+  }
+}

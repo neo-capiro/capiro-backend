@@ -1,0 +1,132 @@
+// Offline task-builder review. Imports are inert; no prepare/run/AWS/database call.
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
+import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { buildDefinition, normalizeDefinition } from './forward452-task.mjs';
+import { canonical, fingerprint, taskInput } from '../../meri-c1-20261002/scripts/lib/meri-release-policy.mjs';
+
+const root = 'C:/dev/main/outputs/meri-c1-20261002';
+const input = JSON.parse(readFileSync(`${root}/forward452-input.json`, 'utf8'));
+const script = readFileSync(`${root}/forward452-runner.mjs`, 'utf8');
+const wrapperBytes = readFileSync(`${root}/forward452-task.mjs`);
+const sha = bytes => createHash('sha256').update(bytes).digest('hex');
+const image = '967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:5754b5e54f5c81a53ff032310f6af01bdfd67db0c94375a3973369abe786c4d9';
+const live = { taskDefinitionArn: 'arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:515' };
+const dbSecrets = ['DB_HOST', 'DB_PORT', 'DB_USER', 'DB_PASSWORD'].map(name => ({ name, valueFrom: `arn:aws:secretsmanager:us-east-1:967807252336:secret:offline-fixture-${name}-ABCDEF` }));
+const migrate = {
+  taskDefinitionArn: 'arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api-migrate:135',
+  status: 'ACTIVE', family: 'capiro-dev-api-migrate', networkMode: 'awsvpc',
+  executionRoleArn: 'arn:aws:iam::967807252336:role/Capiro-dev-Compute-ApiTaskDefExecutionRoleE6ABB053-YlEDKuUPHjLg',
+  taskRoleArn: 'arn:aws:iam::967807252336:role/offline-fixture-task-role-that-must-not-copy',
+  requiresCompatibilities: ['FARGATE'], cpu: '256', memory: '512',
+  runtimePlatform: { cpuArchitecture: 'ARM64', operatingSystemFamily: 'LINUX' },
+  volumes: [{ name: 'fixture-volume-that-must-not-copy' }],
+  containerDefinitions: [{
+    name: 'api', image: 'fixture-old-image', essential: true,
+    command: ['old-entrypoint-that-must-not-copy'],
+    environment: [{ name: 'DB_NAME', value: 'capiro' }, { name: 'UNRELATED', value: 'must-not-copy' }],
+    secrets: [...dbSecrets, { name: 'PROVIDER_KEY', valueFrom: 'offline-provider-reference' }],
+    portMappings: [{ containerPort: 8080 }],
+    healthCheck: { command: ['CMD-SHELL', 'exit 0'] },
+    logConfiguration: { logDriver: 'awslogs', options: { 'awslogs-region': 'us-east-1', 'awslogs-group': '/capiro/offline-review', 'awslogs-stream-prefix': 'api' } },
+  }],
+};
+const clone = value => structuredClone(value);
+const build = (template = migrate, liveTask = live) => buildDefinition(template, liveTask, image, input, script);
+
+test('builder keeps only the exact four DB references and omits task role and service settings', () => {
+  const def = build();
+  assert.equal(def.family, 'capiro-dev-meri-c1-forward452');
+  assert.equal(def.taskRoleArn, undefined);
+  assert.deepEqual(def.volumes, []);
+  assert.deepEqual(def.placementConstraints, []);
+  assert.equal(def.containerDefinitions.length, 1);
+  const container = def.containerDefinitions[0];
+  assert.equal(container.name, 'meri-c1-forward452');
+  assert.equal(container.image, image);
+  assert.equal(container.essential, true);
+  assert.deepEqual(container.secrets, dbSecrets);
+  assert.deepEqual(container.entryPoint, ['node', '--input-type=module', '-e']);
+  assert.deepEqual(container.command, [script]);
+  assert.deepEqual(container.portMappings, []);
+  assert.equal(container.cpu, 0);
+  assert.equal(container.healthCheck, undefined);
+  assert.deepEqual(container.environment, [
+    { name: 'DB_NAME', value: 'capiro' },
+    { name: 'GIT_SHA', value: input.sourceSha },
+    { name: 'RELEASE_SHA', value: input.sourceSha },
+    { name: 'MERI_FORWARD452_INPUT', value: canonical(input) },
+  ]);
+  assert.equal(container.logConfiguration.options['awslogs-stream-prefix'], 'meri-c1-forward452');
+  assert.equal(sha(container.command[0]), 'e56bb14fa406b5ee32dd5d92203870fbde1caa63034d1c525f16669b7eece8e3');
+});
+
+const malformed = [
+  ['wrong migration revision', td => { td.taskDefinitionArn = td.taskDefinitionArn.replace(':135', ':134'); }],
+  ['inactive migration template', td => { td.status = 'INACTIVE'; }],
+  ['wrong network mode', td => { td.networkMode = 'bridge'; }],
+  ['wrong CPU architecture', td => { td.runtimePlatform.cpuArchitecture = 'X86_64'; }],
+  ['wrong operating system', td => { td.runtimePlatform.operatingSystemFamily = 'WINDOWS_SERVER_2022_CORE'; }],
+  ['wrong execution role', td => { td.executionRoleArn += '-other'; }],
+  ['missing api container', td => { td.containerDefinitions[0].name = 'worker'; }],
+  ['duplicate api container', td => { td.containerDefinitions.push(clone(td.containerDefinitions[0])); }],
+  ['missing DB password', td => { td.containerDefinitions[0].secrets = td.containerDefinitions[0].secrets.filter(row => row.name !== 'DB_PASSWORD'); }],
+  ['duplicate DB user', td => { td.containerDefinitions[0].secrets.push(clone(dbSecrets.find(row => row.name === 'DB_USER'))); }],
+  ['missing database name', td => { td.containerDefinitions[0].environment = []; }],
+  ['duplicate database name', td => { td.containerDefinitions[0].environment.push({ name: 'DB_NAME', value: 'capiro' }); }],
+  ['wrong database name', td => { td.containerDefinitions[0].environment[0].value = 'other'; }],
+  ['wrong log driver', td => { td.containerDefinitions[0].logConfiguration.logDriver = 'fluentd'; }],
+  ['wrong log region', td => { td.containerDefinitions[0].logConfiguration.options['awslogs-region'] = 'us-west-2'; }],
+  ['wrong log group', td => { td.containerDefinitions[0].logConfiguration.options['awslogs-group'] = '/other/group'; }],
+];
+for (const [label, mutate] of malformed) test(`builder rejects ${label}`, () => {
+  const td = clone(migrate); mutate(td);
+  assert.throws(() => build(td));
+});
+test('builder rejects wrong live revision', () => assert.throws(() => build(migrate, { ...live, taskDefinitionArn: live.taskDefinitionArn.replace(':515', ':514') })));
+
+test('normalization accepts only absent known defaults and is idempotent', () => {
+  const def = build();
+  const minimal = clone(def);
+  delete minimal.volumes;
+  delete minimal.placementConstraints;
+  for (const key of ['cpu', 'portMappings', 'mountPoints', 'volumesFrom', 'systemControls']) delete minimal.containerDefinitions[0][key];
+  assert.equal(fingerprint(normalizeDefinition(taskInput(minimal))), fingerprint(def));
+  assert.deepEqual(normalizeDefinition(normalizeDefinition(minimal)), def);
+  assert.equal(minimal.volumes, undefined);
+  const readback = { ...clone(def), taskDefinitionArn: 'arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-c1-forward452:1', revision: 1, status: 'ACTIVE', tags: [] };
+  assert.equal(fingerprint(normalizeDefinition(taskInput(readback))), fingerprint(def));
+});
+
+for (const [label, mutate] of [
+  ['task role', td => { td.taskRoleArn = 'arn:aws:iam::967807252336:role/unexpected'; }],
+  ['execution role', td => { td.executionRoleArn += '-other'; }],
+  ['image digest', td => { td.containerDefinitions[0].image = image.replace(/.$/, '0'); }],
+  ['command', td => { td.containerDefinitions[0].command = ['different']; }],
+  ['DB secret reference', td => { td.containerDefinitions[0].secrets[0].valueFrom += '-other'; }],
+  ['source environment', td => { td.containerDefinitions[0].environment.find(row => row.name === 'GIT_SHA').value = '0'.repeat(40); }],
+  ['container CPU', td => { td.containerDefinitions[0].cpu = 256; }],
+  ['port mapping', td => { td.containerDefinitions[0].portMappings = [{ containerPort: 8080 }]; }],
+  ['mount point', td => { td.containerDefinitions[0].mountPoints = [{ sourceVolume: 'other', containerPath: '/app' }]; }],
+  ['volumes from', td => { td.containerDefinitions[0].volumesFrom = [{ sourceContainer: 'other' }]; }],
+  ['system control', td => { td.containerDefinitions[0].systemControls = [{ namespace: 'net.core.somaxconn', value: '1024' }]; }],
+  ['task volume', td => { td.volumes = [{ name: 'other' }]; }],
+  ['placement constraint', td => { td.placementConstraints = [{ type: 'memberOf', expression: 'attribute:x == y' }]; }],
+  ['null instead of default', td => { td.containerDefinitions[0].cpu = null; }],
+  ['unknown container field', td => { td.containerDefinitions[0].futureWritableField = true; }],
+]) test(`normalization preserves meaningful drift in ${label}`, () => {
+  const def = build(), changed = clone(def); mutate(changed);
+  assert.notEqual(fingerprint(normalizeDefinition(taskInput(changed))), fingerprint(def));
+});
+
+test('unknown top-level fields remain rejected by taskInput', () => {
+  assert.throws(() => normalizeDefinition(taskInput({ ...build(), futureWritableField: true })));
+});
+
+test('template/input/script arguments are not mutated by building', () => {
+  const saved = canonical({ migrate, live, input, script });
+  build();
+  assert.equal(canonical({ migrate, live, input, script }), saved);
+  assert.deepEqual(readFileSync(`${root}/forward452-task.mjs`), wrapperBytes);
+});

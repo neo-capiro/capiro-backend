@@ -1,0 +1,26 @@
+{
+  "status": "PASS",
+  "sourceSha": "e1d045d4abe4a7835cb9284508cd287cf1d34d3b",
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:5754b5e54f5c81a53ff032310f6af01bdfd67db0c94375a3973369abe786c4d9",
+  "buildId": "capiro-build-web-dev:51270729-0854-4ec4-8625-807b5fe50deb",
+  "startedAt": "2026-10-02T23:59:31.548000-04:00",
+  "finishedAt": "2026-10-03T00:06:09.339000-04:00",
+  "buildspecSha256": "af951884525894f0094db67edcb472ad997a336c1873386a9da85bccab628e9a",
+  "architecture": "arm64",
+  "runtimeNode": "22.23.3",
+  "markers": [
+    "OFFLINE_RUNTIME_IMPORT_PASS",
+    "OFFLINE_CASE01_FIXTURE_PACKAGE_IMPORT_PASS",
+    "EXACT_452_IMAGE_MIGRATION_HASHES_PASS",
+    "MAIL_ACTIVE_OWNER_INDEX_MIGRATION_PACKAGE_PASS",
+    "LOCAL_REPODIGEST_ECR_MATCH_PASS"
+  ],
+  "packagedMigrationCount": 452,
+  "packagedMigrationManifestMatchesSource": true,
+  "packagedNewMigrationSha256": "ef10ab58b4eef6825652690a098ab160a374fb30c4cc0af9f15793edb7237242",
+  "buildLogSha256": "200049801343902b9290393c3e20185ff9352e019dc939e46fdecf901249158b",
+  "buildLogEvents": 762,
+  "scope": "Candidate image for one forward-only migration task; API515 service stays in place.",
+  "serviceMutations": 0,
+  "databaseMutations": 0
+}
