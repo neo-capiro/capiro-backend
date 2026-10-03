@@ -1,0 +1,24 @@
+{
+  "version": 3,
+  "recordedAt": "2026-10-03T18:39:39.968030+00:00",
+  "status": "PREPARED_NOT_BUILT",
+  "buildspecSha256": "330e33036707a5ce89befa560312635f7261a88d6eb18d73e7cb73af9093c332",
+  "templateSha256": "0b458ceac2cb7d9e3d1b2b14c932629f473682ade5f354ca7de3924e2a4bc6b0",
+  "changes": [
+    "Raise passing-test floor1502\u21921552 (same130 suites and2 pending).",
+    "Require exact governed artifact MAC test that failed in the first full native run."
+  ],
+  "previousProbesAndSourcePublicationChecks": "EXACTLY_PRESERVED",
+  "staticValidation": "YAML parse and reverse-transform exact equality PASS; no probe execution",
+  "priorFailure": {
+    "buildId": "capiro-build-web-dev:90e04461-3e01-4628-87aa-3f0ab8977330",
+    "sourceSha": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642",
+    "logSha256": "360d1ba491870673726d063f5cd3c449a13bddba3931a3e919f93aae0acbcf7b",
+    "passed": 1551,
+    "failed": 1,
+    "pending": 2
+  },
+  "sourceSha": "Root must supply exact reviewed test-correction commit; production bytes remain5b086a6b",
+  "providerCalls": 0,
+  "awsWrites": 0
+}

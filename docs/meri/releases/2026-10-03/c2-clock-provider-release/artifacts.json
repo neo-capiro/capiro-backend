@@ -1,0 +1,160 @@
+{
+  "version": 1,
+  "artifacts": [
+    {
+      "path": ".gitattributes",
+      "sha256": "ef5c230f4d8b87142cf574d3b391a2b4ac5ccaf1776980fac2bd8cb3305cdc06",
+      "bytes": 75
+    },
+    {
+      "path": "builds/api/build-readback.json",
+      "sha256": "4ba0ad5250c4327a584927d981332c3745997719e1461375b32d748d3a6419a8",
+      "bytes": 3478
+    },
+    {
+      "path": "builds/api/build-start.json",
+      "sha256": "5fc8d9b210e820d56dce05c299b386d7c9cea6bd4794ba8f2f16693f784ba661",
+      "bytes": 1251
+    },
+    {
+      "path": "builds/api/build.log",
+      "sha256": "947692c8ec5edf294a7ed731ce040c9cf29694a64e86c0e61f3e78236f794c6d",
+      "bytes": 72296
+    },
+    {
+      "path": "builds/api/buildspec.yml",
+      "sha256": "c92763d03d141e59d18485c4d9f6ac3958392ff18e0bbaf501dd116cc39f4c3c",
+      "bytes": 25235
+    },
+    {
+      "path": "builds/api/launch-intent.json",
+      "sha256": "3928d15728fb9aba4ab9c6375053bdf869871978d00225d4abb4a258d3119094",
+      "bytes": 1176
+    },
+    {
+      "path": "builds/api/preparation-checkpoint.json",
+      "sha256": "17f76ad3f91f4795c949eb894dae4ed1af2df470d01838a996bd2ccfd25348ee",
+      "bytes": 2733
+    },
+    {
+      "path": "builds/meriv2-orchestrator/build-readback.json",
+      "sha256": "55d7b3c5e734c1c9a32da6effc691357b01083d5bcc2e671b3b8338e3caddc29",
+      "bytes": 3453
+    },
+    {
+      "path": "builds/meriv2-orchestrator/build-start.json",
+      "sha256": "7c61e952c2919b23ef6e0c6f518ef57ba7b8a3092beae77630015a816057c32f",
+      "bytes": 1267
+    },
+    {
+      "path": "builds/meriv2-orchestrator/build.log",
+      "sha256": "e16a7c9b49321b052600a9899885c77de12dd3adc49ff10e847e5a0649b3b9a5",
+      "bytes": 773476
+    },
+    {
+      "path": "builds/meriv2-orchestrator/buildspec.yml",
+      "sha256": "330e33036707a5ce89befa560312635f7261a88d6eb18d73e7cb73af9093c332",
+      "bytes": 25353
+    },
+    {
+      "path": "builds/meriv2-orchestrator/launch-intent.json",
+      "sha256": "43137b0cfe3fa47f16b37110ae6b5718941f156a18eaa656dc29f58d7161fca9",
+      "bytes": 1192
+    },
+    {
+      "path": "builds/meriv2-orchestrator/preparation-checkpoint.json",
+      "sha256": "3c482ac5c27aebbb7e1172ca5cfbf960fc09ffabbefa932eb33416c25257ddba",
+      "bytes": 1080
+    },
+    {
+      "path": "current-schema/cleanup.json",
+      "sha256": "46490de3db1219b1d4e204a287e921291ea3b56c1fa74666ee0a81604b870eb5",
+      "bytes": 302
+    },
+    {
+      "path": "current-schema/definition-registered.json",
+      "sha256": "aa950fd5866234b932f74a885588d42fd470a7f8f246f110a14daef0448832f0",
+      "bytes": 155
+    },
+    {
+      "path": "current-schema/intent.json",
+      "sha256": "9899806d56c87d35b420cace5ff862637ff8c946cac29dbf8cdb3405813175a1",
+      "bytes": 535
+    },
+    {
+      "path": "current-schema/result.json",
+      "sha256": "f44e71dc3526a311de1d76d81fa7b46c7a59f2adbb006c26468b5e316c8ce128",
+      "bytes": 1481
+    },
+    {
+      "path": "current-schema/task-start.json",
+      "sha256": "2a0bb49ffa17e33c45be587e452ed86250f5e878441c6033b4db8416c822febc",
+      "bytes": 341
+    },
+    {
+      "path": "inspection-v1-failure.json",
+      "sha256": "6ff5dbcaf173c86cc0d93db65249bbdf6173269f795e833a40c5947fc0553a2d",
+      "bytes": 695
+    },
+    {
+      "path": "operators/clock-provider-schema-inner.mjs",
+      "sha256": "466f94130c5b7396ed5c9e9c3474bca95c99881adeb1aad4f6fb2f6b9f0ce386",
+      "bytes": 3639
+    },
+    {
+      "path": "operators/collect-clock-provider-build.mjs",
+      "sha256": "185fbe1bf63a8c6c9d5459c630ea81e649bccf48f025ecbabbfe2f1b4fa2a104",
+      "bytes": 4726
+    },
+    {
+      "path": "operators/collect-orchestrator-clock-build-v3.mjs",
+      "sha256": "8318439930fb4a1c99d42d6344fdc4e16b20de2adb31739beb0f95a796103cbe",
+      "bytes": 4711
+    },
+    {
+      "path": "operators/inspect-clock-provider-release-v2.mjs",
+      "sha256": "c18ee8e050a583e2a015eab5b42415ee7216743b9deb764d8bc05cd495b4599f",
+      "bytes": 6498
+    },
+    {
+      "path": "operators/inspect-clock-provider-release.mjs",
+      "sha256": "a88c10e87807ea311f842a4fbc94a89eef36f5eb41c319a6f0b2f3a832a8bb10",
+      "bytes": 6518
+    },
+    {
+      "path": "operators/read-clock-provider-schema.mjs",
+      "sha256": "506e5bb6a7f6f1768cf45fdd23bab574054690a9be2e813055ba38795fd41618",
+      "bytes": 5404
+    },
+    {
+      "path": "operators/start-clock-provider-build.mjs",
+      "sha256": "66c58ef3379215e26814fb65def34a3bf9218fb4d37cd7b74357c9e65adaa81e",
+      "bytes": 3840
+    },
+    {
+      "path": "operators/start-orchestrator-clock-build-v3.mjs",
+      "sha256": "0afdc66a2d19bc79f4c078139b608dd903eb041429c953aa7cf9c3ddf4a28d81",
+      "bytes": 3848
+    },
+    {
+      "path": "README.md",
+      "sha256": "f012d754dd7657fa525bd76ecc0bdf79893b28917332531ea5033d8662f8a7e0",
+      "bytes": 3273
+    },
+    {
+      "path": "release-independent-review.json",
+      "sha256": "392facfb1aaee255c5cb9317119921b20507ab6941fac3dfe2389bbca516371d",
+      "bytes": 27580
+    },
+    {
+      "path": "release-qualification.json",
+      "sha256": "0c84a997f4c482c635e8564e79b086d6b5c65b8c98bbcd3012c4d3cd4595aff3",
+      "bytes": 7120
+    },
+    {
+      "path": "served-baseline.json",
+      "sha256": "f7bb525407a611cf71c4e73d114c15625c9353117603fc9d734983bc563df419",
+      "bytes": 13622
+    }
+  ]
+}

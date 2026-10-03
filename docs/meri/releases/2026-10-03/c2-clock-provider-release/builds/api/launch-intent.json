@@ -1,0 +1,32 @@
+{
+  "recordedAt": "2026-10-03T18:28:00.494Z",
+  "service": "api",
+  "sourceSha": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642",
+  "buildspecSha256": "c92763d03d141e59d18485c4d9f6ac3958392ff18e0bbaf501dd116cc39f4c3c",
+  "actions": [
+    {
+      "id": 37144138635,
+      "url": "https://github.com/neo-capiro/capirov2/actions/runs/37144138635",
+      "headSha": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642",
+      "status": "completed",
+      "conclusion": "startup_failure",
+      "name": "",
+      "path": "BuildFailed",
+      "jobs": 0
+    },
+    {
+      "id": 37144138555,
+      "url": "https://github.com/neo-capiro/capirov2/actions/runs/37144138555",
+      "headSha": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642",
+      "status": "completed",
+      "conclusion": "startup_failure",
+      "name": "",
+      "path": "BuildFailed",
+      "jobs": 0
+    }
+  ],
+  "callerArn": "arn:aws:iam::967807252336:user/capirocli",
+  "requestSha256": "3074ac6255abae8c894dbd3cb2166c7d5a2915da7dbf4090544f21f7a109d011",
+  "idempotencyToken": "5c6030dd-b2db-4851-b43f-30ebe8d4e35f",
+  "scope": "Immutable ARM image build and ECR publication only; no service/config/database or provider mutation"
+}

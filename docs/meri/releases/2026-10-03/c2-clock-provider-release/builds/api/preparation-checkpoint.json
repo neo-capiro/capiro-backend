@@ -1,0 +1,45 @@
+{
+  "version": 2,
+  "status": "OFFLINE_PREPARATION_STATIC_CHECKS_PASS_NOT_BUILT",
+  "recordedAt": "2026-10-03T18:12:19.683020+00:00",
+  "template": "C:\\dev\\main\\outputs\\meri-c2-20261003\\api-clock-build\\buildspec.yml",
+  "templateSha256": "ae71024f17e0bb834d1ce28ffaf45337807f97c052732851d62a85e8d919e026",
+  "buildspec": "C:\\dev\\main\\outputs\\meri-c2-20261003\\api-clock-build-v2\\buildspec.yml",
+  "buildspecSha256": "c92763d03d141e59d18485c4d9f6ac3958392ff18e0bbaf501dd116cc39f4c3c",
+  "providerCheckpoint": "C:\\dev\\main\\outputs\\meri-c2-20261003\\provider-wire-v1\\checkpoint.json",
+  "providerCheckpointSha256": "96d17909146a526ce9eae0e60a8b42e6cc7b7a3d38712bc0b2f7297c219c6e89",
+  "expectedSource": "External EXPECTED_SHA unchanged; root supplies exact final reviewed committed SHA.",
+  "changedBlocks": [
+    "Appended one network-none packaged provider guard probe C2WIREAPI"
+  ],
+  "requiredAdditionalPassedTests": [],
+  "validation": {
+    "yamlParse": "PASS existing PyYAML",
+    "newNodeHeredocSyntax": "PASS node --check stdin (not executed)",
+    "embeddedPythonSyntax": "1 blocks PASS compile-only",
+    "priorPreBuild": "EXACTLY_PRESERVED",
+    "priorPostBuild": "EXACTLY_PRESERVED",
+    "priorBuild": "EXACTLY_PRESERVED except declared suite-count/test-name edits",
+    "reverseTransformEquality": true,
+    "firstSpecsAndCheckpointsUnchanged": {
+      "api-clock-build/buildspec.yml": "ae71024f17e0bb834d1ce28ffaf45337807f97c052732851d62a85e8d919e026",
+      "api-clock-build/preparation-checkpoint.json": "56d6f031c09781a2605d8bdce3dfe6e54de0bb2b37fa8e577d759fde961e9908",
+      "meriv2-orchestrator-clock-build/buildspec.yml": "5b7b8c9b44676828bb80169dea0a8591e6bfe20fcad3baa08350d9530afb528f",
+      "meriv2-orchestrator-clock-build/preparation-checkpoint.json": "f73a5550a54725c69caa3a96068be56a3652a1f0a0bf928207d7d3cb1dea047d"
+    },
+    "providerSourceFilesUnchanged": 8
+  },
+  "probeCoverage": [
+    "Capture API ALS active only in scope; Titan unreviewed region and NVIDIA unreviewed endpoint reject before reservation/provider; ordinary configured adapters work with local transport stubs; databaseCalls=0."
+  ],
+  "limits": [
+    "Preparation and syntax checks only; no buildspec/probe executed.",
+    "No Docker/AWS/gh/build/provider/database calls, source/test reruns or repository edits.",
+    "These are packaged behavior checks with synthetic in-process scope and local stubs, not fixture authority or database/live capture qualification.",
+    "API positive capture reservation/SDK endpoint tests remain source qualification; packaged probe makes no successful provider or persisted ledger claim."
+  ],
+  "builds": 0,
+  "remoteActions": 0,
+  "providerCalls": 0,
+  "databaseActions": 0
+}

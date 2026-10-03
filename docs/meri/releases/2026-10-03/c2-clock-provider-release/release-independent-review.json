@@ -1,0 +1,487 @@
+{
+  "schemaVersion": 1,
+  "reviewedAt": "2026-10-03T18:59:58.988834+00:00",
+  "reviewer": "independent subagent mail_defaults_review",
+  "result": "PASS",
+  "scope": "BOUNDED_IMMUTABLE_SOURCE_BUILD_SCHEMA_AND_COMPATIBILITY_QUALIFICATION",
+  "humanReleaseApproval": false,
+  "deployableManifest": false,
+  "promotionPerformedByReview": false,
+  "qualificationSha256": "0c84a997f4c482c635e8564e79b086d6b5c65b8c98bbcd3012c4d3cd4595aff3",
+  "candidates": {
+    "api": {
+      "sourceSha": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:d20110a114ef51a7db3d352321f411a2f51cc8b1877f9ccec6d1f35d7701c8cd"
+    },
+    "meriv2-orchestrator": {
+      "sourceSha": "fb17c7ebfa010ce964919068f61830cb78ca620d",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:2b3ac021d0e5149478bb480c3ed572151bd8b03e08b2a74fd1227af829a06436"
+    }
+  },
+  "findings": [],
+  "exactSource": {
+    "clockCheckpointSha256": "bac5f9664df13811270b4acf6edf6a1de50f55adb39aef8e9351336162ae62ec",
+    "providerCheckpointSha256": "96d17909146a526ce9eae0e60a8b42e6cc7b7a3d38712bc0b2f7297c219c6e89",
+    "clockFilesMatchedToApiCommit": 42,
+    "providerFilesMatchedToApiCommit": 8,
+    "memoryFilesMatchedToPriorReviewedCandidate": 22,
+    "apiToOrchestratorAppPackageDifference": [
+      "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-governed-artifact-dispatch.spec.ts"
+    ],
+    "productionIdentical": true
+  },
+  "nativeBuildEvidence": {
+    "api": {
+      "buildId": "capiro-build-web-dev:01196b56-83c6-47a9-97a1-11004413a7ee",
+      "status": "SUCCEEDED",
+      "sourceSha": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642",
+      "resolvedSourceSha": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:d20110a114ef51a7db3d352321f411a2f51cc8b1877f9ccec6d1f35d7701c8cd",
+      "buildLogSha256": "947692c8ec5edf294a7ed731ce040c9cf29694a64e86c0e61f3e78236f794c6d",
+      "buildspecSha256": "c92763d03d141e59d18485c4d9f6ac3958392ff18e0bbaf501dd116cc39f4c3c",
+      "architecture": "arm64",
+      "runtimeNode": "22.23.3",
+      "passedMarkers": [
+        "OFFLINE_RUNTIME_IMPORT_PASS",
+        "OFFLINE_CASE01_FIXTURE_PACKAGE_IMPORT_PASS",
+        "OFFLINE_CASE01_CONTINUATION_IMPORT_PASS",
+        "OFFLINE_CASE01_POSTAPPROVAL_IMPORT_PASS",
+        "OFFLINE_CASE01_POSTSEED_IMPORT_PASS",
+        "EXACT_452_IMAGE_MIGRATION_HASHES_PASS",
+        "MAIL_ACTIVE_OWNER_INDEX_MIGRATION_PACKAGE_PASS",
+        "OFFLINE_PACKAGED_C2_MEMORY_PASS",
+        "OFFLINE_PACKAGED_C2_RECONCILIATION_PASS",
+        "OFFLINE_PACKAGED_C2_TERMINAL_LIFECYCLE_PASS",
+        "OFFLINE_PACKAGED_C2_TS_SOURCE_IMPORT_PASS",
+        "OFFLINE_PACKAGED_SEMANTIC_CLOCK_API_CORE_PASS",
+        "OFFLINE_PACKAGED_CAPTURE_PROVIDER_API_GUARDS_PASS",
+        "LOCAL_REPODIGEST_ECR_MATCH_PASS"
+      ]
+    },
+    "meriv2-orchestrator": {
+      "buildId": "capiro-build-web-dev:d6486a5b-9ab2-4410-bba0-3a5afb2f0b2c",
+      "status": "SUCCEEDED",
+      "sourceSha": "fb17c7ebfa010ce964919068f61830cb78ca620d",
+      "resolvedSourceSha": "fb17c7ebfa010ce964919068f61830cb78ca620d",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:2b3ac021d0e5149478bb480c3ed572151bd8b03e08b2a74fd1227af829a06436",
+      "buildLogSha256": "e16a7c9b49321b052600a9899885c77de12dd3adc49ff10e847e5a0649b3b9a5",
+      "buildspecSha256": "330e33036707a5ce89befa560312635f7261a88d6eb18d73e7cb73af9093c332",
+      "architecture": "arm64",
+      "runtimeNode": "20.16.0",
+      "tests": {
+        "numTotalTests": 1554,
+        "numPassedTests": 1552,
+        "numFailedTests": 0,
+        "numPendingTests": 2,
+        "numTotalTestSuites": 130,
+        "numPassedTestSuites": 130,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0
+      },
+      "passedMarkers": [
+        "OFFLINE_PACKAGED_ENTRYPOINT_HEALTH_AUTH_PASS",
+        "OFFLINE_C1_CLASSIFICATION_REPAIRS_PASS",
+        "OFFLINE_PACKAGED_MAIL_DEFAULTS_PASS",
+        "OFFLINE_PACKAGED_NO_TOOLS_DIRECTIVE_PASS",
+        "OFFLINE_PACKAGED_SEMANTIC_CLOCK_ORCHESTRATOR_PASS",
+        "OFFLINE_PACKAGED_CAPTURE_PROVIDER_ORCHESTRATOR_GUARDS_PASS",
+        "LOCAL_REPODIGEST_ECR_MATCH_PASS"
+      ]
+    },
+    "checks": "Reviewed exact buildspec/source fences, ARM/runtime/revision checks, complete retained successful logs, standalone executed probe markers, source-tag image publication, and local RepoDigest/ECR equality. Collector readbacks bind the same candidate digest. No build or remote read was rerun by this reviewer.",
+    "githubLimitation": "Retained exact-SHA GitHub failures are startup_failure with blank name/BuildFailed path and zero jobs. This review relies on the separate successful exact-source native CodeBuild qualification; it does not claim a passing named GitHub workflow."
+  },
+  "packagedProbeLimits": [
+    "API clock probes use an in-memory compiler and reject incomplete final joins; they do not claim live database persistence or capture qualification.",
+    "API provider probes exercise actual packaged scope/adapter guards with local transport stubs. Orchestrator provider probes exercise actual packaged body/endpoint/tier guards. They make no provider reservation or paid call.",
+    "The actual native orchestrator suite passed 1552 tests in 130 suites, with two existing skipped tests. Skips remain NOT_RUN.",
+    "The prior native single-test failure remains retained. Its test-only fixture correction supplies required clock evidence and preserves signed missing/mismatch refusals; it is not a served case46 acceptance."
+  ],
+  "currentSchema": {
+    "resultPath": "current-schema/result.json",
+    "resultSha256": "f44e71dc3526a311de1d76d81fa7b46c7a59f2adbb006c26468b5e316c8ce128",
+    "scriptSha256": "466f94130c5b7396ed5c9e9c3474bca95c99881adeb1aad4f6fb2f6b9f0ce386",
+    "proof": {
+      "status": "VERIFIED_READ_ONLY",
+      "ledgerRows": 609,
+      "activeFinished": 509,
+      "rolledBack": 100,
+      "prior608Sha256": "9a82cbc9dcecc3b049c312ad4e39ec5a96eb33c6e5af033a3339d1e292c06e90",
+      "newMigration": "20281007010000_mail_messages_owned_connection_active",
+      "newMigrationSha256": "ef10ab58b4eef6825652690a098ab160a374fb30c4cc0af9f15793edb7237242",
+      "retirementTablesAbsent": true,
+      "indices": [
+        {
+          "name": "mail_messages_tenant_connection_active_idx",
+          "ready": true,
+          "definitionSha256": "23d2b35e8097cea6c5620ce2c9c1cab68467e9de09dba5e3337f6fca0a170688"
+        },
+        {
+          "name": "mail_threads_tenant_connection_id_cover_idx",
+          "ready": true,
+          "definitionSha256": "7097d64ec1650dfa8e004e89a1e2f6f267cb7924e869993bb44fb235e9716c9e"
+        }
+      ],
+      "migrationExecution": false
+    },
+    "cleanup": {
+      "taskStopped": true,
+      "definitionStatus": "INACTIVE",
+      "receiptSha256": "46490de3db1219b1d4e204a287e921291ea3b56c1fa74666ee0a81604b870eb5"
+    },
+    "inspectionOnly": true,
+    "newMigrations": 0
+  },
+  "servedBaseline": {
+    "observedAt": "2026-10-03T18:35:23.228Z",
+    "sha256": "f7bb525407a611cf71c4e73d114c15625c9353117603fc9d734983bc563df419",
+    "services": [
+      {
+        "service": "api",
+        "sourceSha": "f00e5dfb4fd3e47ac6aa4aca741023cc02f6314f",
+        "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:1a4aef121151bb5da7f70417539ece2faff392842809e6b557370c2d6cf8a49d",
+        "baseline": {
+          "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:517",
+          "serviceHash": "202b4f4a9d7a7ad158f2e88bfc7dc14e3107d9518870b338930d26d981e6641f",
+          "configHash": "973748a2b134b388a6027df6c5c099055a7e24f7b746eafbaae8cebad077258a",
+          "taskHash": "f13c5d7f138e364d72f302c1491e0863375fa59fb4ec8c50d54c1ce46ff3c1e6",
+          "imageDigest": "sha256:1a4aef121151bb5da7f70417539ece2faff392842809e6b557370c2d6cf8a49d",
+          "desiredCount": 2
+        }
+      },
+      {
+        "service": "meriv2-orchestrator",
+        "sourceSha": "ed44f2c6cfdfda5150f75ab198a6e52d2377880f",
+        "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:53b06f768d8a26a8a5c6124f0f7bb55a0e2117fde050706360c6108c98887faa",
+        "baseline": {
+          "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:113",
+          "serviceHash": "8eeadb3afa9003fc7abe1e1b77ee82e1b9f3339e92fc4daafad7a944e6a43bfc",
+          "configHash": "3a4fabd2139e347cd8b45192579f2a3fbaaa6fc3678762b5252f727a4461951b",
+          "taskHash": "3b8d6f04a123eb9c86e203d1fbd76ddd65ef83b5bac7a684b0926ecd2704f60e",
+          "imageDigest": "sha256:53b06f768d8a26a8a5c6124f0f7bb55a0e2117fde050706360c6108c98887faa",
+          "desiredCount": 1
+        }
+      },
+      {
+        "service": "web-vnext",
+        "sourceSha": "78ad5805679a3045b1fc10fb19beafa7f76e4e64",
+        "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:a048aceec01c207b514f76fb447d4fb8bdb5ed17278642480008a1510a12de4c",
+        "baseline": {
+          "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web-vnext:388",
+          "serviceHash": "16238627fc523b6470c76cbd86c6a54bca422f86d72f2a7ba0312cc326d139e2",
+          "configHash": "453a3d5aedc3da7d989370b97669abf0c1b14efbacd2d1597990b9cac7d50ab7",
+          "taskHash": "ce2035e6773a77eeda0adcf86dd4a7043624b3d75d8d32a74000f3d930f55211",
+          "imageDigest": "sha256:a048aceec01c207b514f76fb447d4fb8bdb5ed17278642480008a1510a12de4c",
+          "desiredCount": 1
+        }
+      }
+    ],
+    "retainedNightly": {
+      "rule": "capiro-dev-refresh-memory-graph",
+      "targetId": "refresh-memory-graph-target",
+      "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api-migrate:136",
+      "sourceSha": "f00e5dfb4fd3e47ac6aa4aca741023cc02f6314f",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:1a4aef121151bb5da7f70417539ece2faff392842809e6b557370c2d6cf8a49d",
+      "ruleSha256": "4a9376120b272c60388f6986a7a20aa00bfa78a8feb3b44a3a804fd93c617947",
+      "targetSha256": "e5b98fe865035a7dfa2add1472df1617101714e08f65232fd232c606c4f2475a",
+      "taskInputSha256": "0b362cc5b50895bcc69d70536e2496b848c0ee7bc805d9d17c1c6f85261263a5",
+      "change": "NONE"
+    },
+    "broadProjectionWorker": {
+      "state": "DISABLED",
+      "change": "NONE"
+    },
+    "limits": [
+      "This is the retained current deployment snapshot at its stated time, not proof the new candidates are deployed. Fresh candidate-bound drift/health checks remain required.",
+      "Allowlisted task model/flag values and presence booleans do not constitute process environment inspection, secret value disclosure or NVIDIA hosted-account entitlement."
+    ]
+  },
+  "compatibility": {
+    "schemaChange": false,
+    "dependencyManifestOrContainerRecipeChange": false,
+    "serviceConfigurationChangeProposed": false,
+    "sourceChecks": "Compared each candidate to its own served service baseline: lockfile, root/workspace/dependency manifests, Prisma schema/migrations and that service Dockerfile/package are unchanged. The 22 previously reviewed memory files match exactly. Packaged imports and orchestrator startup/health/auth probes passed with retired-table schema unchanged.",
+    "rollingOrder": "API first, then orchestrator; no new synthetic capture until both exact candidates are healthy and the current build/configuration owners admit the pair.",
+    "rollingLimit": "This compatibility assessment is source/probe based, not an executed mixed-revision production test. Ordinary requests carry no fixture clock and retain the covered adapter behavior.",
+    "rollbackApiImage": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:1a4aef121151bb5da7f70417539ece2faff392842809e6b557370c2d6cf8a49d",
+    "rollbackOrchestratorImage": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:53b06f768d8a26a8a5c6124f0f7bb55a0e2117fde050706360c6108c98887faa",
+    "rollbackConstraints": "Retain migration452, existing additive indexes, completed memory maintenance, guarded nightly136 and disabled broad projection worker. Do not perform new synthetic captures during rollout or rollback; requalify source/configuration and authority before any subsequent capture."
+  },
+  "rates": {
+    "status": "CONDITIONAL_REVIEWED_NOT_INSTALLED",
+    "bytesSha256": "3531e09dfcce9f66b4ea2b3564db47bd72dc507cdcf1aecdda277b838007704e",
+    "semanticSha256": "a1a179383c8451495336169f46025eb8cee8ec95487f1a43017078387b768b11",
+    "expiresAt": "2026-10-04T05:29:01.587Z",
+    "matchedKinds": [
+      "openai_responses",
+      "bedrock_embeddings"
+    ],
+    "otherProviderKinds": "Unmatched rates reject before dispatch.",
+    "qualification": "Conditional source/wire and rate review only; no budget installation or capture reservation. Preserve the stated real expiry and exact two-rate subset."
+  },
+  "remainingReleaseAndCaptureGates": [
+    "Human candidate-bound release approval and exact canonical release manifests remain absent; this technical PASS does not supply either.",
+    "Fresh current baselines, actual successful promotion and served candidate/configuration checks are required.",
+    "Prepared case01 outer dispatcher still has separate review findings under repair; no setup execution is covered by this image review.",
+    "Fresh canonical binding and bounded budget qualification, existing native same-process spend capability, and native case01 bootstrap remain separate.",
+    "Full case46 clock join, relative mail/task windows, continuation, remaining C2 families, paid native capture and human answer grading remain unproved.",
+    "Archive artifacts.json is intentionally pending until this review is added; captured artifact bytes were checked directly against originals. Final staged manifest and commit checks remain with root."
+  ],
+  "originalAcceptance": {
+    "passed": 0,
+    "cases": 75,
+    "cdPassed": 0,
+    "cdCases": 7,
+    "cwPassed": 0,
+    "cwCases": 8
+  },
+  "acceptedOriginalCaseIncrease": 0,
+  "reviewActions": {
+    "testsRerun": 0,
+    "builds": 0,
+    "remoteCalls": 0,
+    "databaseConnections": 0,
+    "providerCalls": 0,
+    "sourceEdits": 0,
+    "serviceMutations": 0,
+    "fixtureMutations": 0,
+    "journalMutations": 0,
+    "newEvidenceFilesWritten": 1
+  },
+  "rawCopyFidelity": {
+    "verifiedCopies": 27,
+    "paths": [
+      "builds/api/build-readback.json",
+      "builds/api/build-start.json",
+      "builds/api/build.log",
+      "builds/api/buildspec.yml",
+      "builds/api/launch-intent.json",
+      "builds/api/preparation-checkpoint.json",
+      "builds/meriv2-orchestrator/build-readback.json",
+      "builds/meriv2-orchestrator/build-start.json",
+      "builds/meriv2-orchestrator/build.log",
+      "builds/meriv2-orchestrator/buildspec.yml",
+      "builds/meriv2-orchestrator/launch-intent.json",
+      "builds/meriv2-orchestrator/preparation-checkpoint.json",
+      "current-schema/cleanup.json",
+      "current-schema/definition-registered.json",
+      "current-schema/intent.json",
+      "current-schema/result.json",
+      "current-schema/task-start.json",
+      "operators/clock-provider-schema-inner.mjs",
+      "operators/collect-clock-provider-build.mjs",
+      "operators/collect-orchestrator-clock-build-v3.mjs",
+      "operators/inspect-clock-provider-release-v2.mjs",
+      "operators/inspect-clock-provider-release.mjs",
+      "operators/read-clock-provider-schema.mjs",
+      "operators/start-clock-provider-build.mjs",
+      "operators/start-orchestrator-clock-build-v3.mjs",
+      "served-baseline.json",
+      "inspection-v1-failure.json"
+    ]
+  },
+  "artifactsReviewed": [
+    {
+      "path": ".gitattributes",
+      "bytes": 75,
+      "sha256": "ef5c230f4d8b87142cf574d3b391a2b4ac5ccaf1776980fac2bd8cb3305cdc06"
+    },
+    {
+      "path": "builds/api/build-readback.json",
+      "bytes": 3478,
+      "sha256": "4ba0ad5250c4327a584927d981332c3745997719e1461375b32d748d3a6419a8"
+    },
+    {
+      "path": "builds/api/build-start.json",
+      "bytes": 1251,
+      "sha256": "5fc8d9b210e820d56dce05c299b386d7c9cea6bd4794ba8f2f16693f784ba661"
+    },
+    {
+      "path": "builds/api/build.log",
+      "bytes": 72296,
+      "sha256": "947692c8ec5edf294a7ed731ce040c9cf29694a64e86c0e61f3e78236f794c6d"
+    },
+    {
+      "path": "builds/api/buildspec.yml",
+      "bytes": 25235,
+      "sha256": "c92763d03d141e59d18485c4d9f6ac3958392ff18e0bbaf501dd116cc39f4c3c"
+    },
+    {
+      "path": "builds/api/launch-intent.json",
+      "bytes": 1176,
+      "sha256": "3928d15728fb9aba4ab9c6375053bdf869871978d00225d4abb4a258d3119094"
+    },
+    {
+      "path": "builds/api/preparation-checkpoint.json",
+      "bytes": 2733,
+      "sha256": "17f76ad3f91f4795c949eb894dae4ed1af2df470d01838a996bd2ccfd25348ee"
+    },
+    {
+      "path": "builds/meriv2-orchestrator/build-readback.json",
+      "bytes": 3453,
+      "sha256": "55d7b3c5e734c1c9a32da6effc691357b01083d5bcc2e671b3b8338e3caddc29"
+    },
+    {
+      "path": "builds/meriv2-orchestrator/build-start.json",
+      "bytes": 1267,
+      "sha256": "7c61e952c2919b23ef6e0c6f518ef57ba7b8a3092beae77630015a816057c32f"
+    },
+    {
+      "path": "builds/meriv2-orchestrator/build.log",
+      "bytes": 773476,
+      "sha256": "e16a7c9b49321b052600a9899885c77de12dd3adc49ff10e847e5a0649b3b9a5"
+    },
+    {
+      "path": "builds/meriv2-orchestrator/buildspec.yml",
+      "bytes": 25353,
+      "sha256": "330e33036707a5ce89befa560312635f7261a88d6eb18d73e7cb73af9093c332"
+    },
+    {
+      "path": "builds/meriv2-orchestrator/launch-intent.json",
+      "bytes": 1192,
+      "sha256": "43137b0cfe3fa47f16b37110ae6b5718941f156a18eaa656dc29f58d7161fca9"
+    },
+    {
+      "path": "builds/meriv2-orchestrator/preparation-checkpoint.json",
+      "bytes": 1080,
+      "sha256": "3c482ac5c27aebbb7e1172ca5cfbf960fc09ffabbefa932eb33416c25257ddba"
+    },
+    {
+      "path": "current-schema/cleanup.json",
+      "bytes": 302,
+      "sha256": "46490de3db1219b1d4e204a287e921291ea3b56c1fa74666ee0a81604b870eb5"
+    },
+    {
+      "path": "current-schema/definition-registered.json",
+      "bytes": 155,
+      "sha256": "aa950fd5866234b932f74a885588d42fd470a7f8f246f110a14daef0448832f0"
+    },
+    {
+      "path": "current-schema/intent.json",
+      "bytes": 535,
+      "sha256": "9899806d56c87d35b420cace5ff862637ff8c946cac29dbf8cdb3405813175a1"
+    },
+    {
+      "path": "current-schema/result.json",
+      "bytes": 1481,
+      "sha256": "f44e71dc3526a311de1d76d81fa7b46c7a59f2adbb006c26468b5e316c8ce128"
+    },
+    {
+      "path": "current-schema/task-start.json",
+      "bytes": 341,
+      "sha256": "2a0bb49ffa17e33c45be587e452ed86250f5e878441c6033b4db8416c822febc"
+    },
+    {
+      "path": "inspection-v1-failure.json",
+      "bytes": 695,
+      "sha256": "6ff5dbcaf173c86cc0d93db65249bbdf6173269f795e833a40c5947fc0553a2d"
+    },
+    {
+      "path": "operators/clock-provider-schema-inner.mjs",
+      "bytes": 3639,
+      "sha256": "466f94130c5b7396ed5c9e9c3474bca95c99881adeb1aad4f6fb2f6b9f0ce386"
+    },
+    {
+      "path": "operators/collect-clock-provider-build.mjs",
+      "bytes": 4726,
+      "sha256": "185fbe1bf63a8c6c9d5459c630ea81e649bccf48f025ecbabbfe2f1b4fa2a104"
+    },
+    {
+      "path": "operators/collect-orchestrator-clock-build-v3.mjs",
+      "bytes": 4711,
+      "sha256": "8318439930fb4a1c99d42d6344fdc4e16b20de2adb31739beb0f95a796103cbe"
+    },
+    {
+      "path": "operators/inspect-clock-provider-release-v2.mjs",
+      "bytes": 6498,
+      "sha256": "c18ee8e050a583e2a015eab5b42415ee7216743b9deb764d8bc05cd495b4599f"
+    },
+    {
+      "path": "operators/inspect-clock-provider-release.mjs",
+      "bytes": 6518,
+      "sha256": "a88c10e87807ea311f842a4fbc94a89eef36f5eb41c319a6f0b2f3a832a8bb10"
+    },
+    {
+      "path": "operators/read-clock-provider-schema.mjs",
+      "bytes": 5404,
+      "sha256": "506e5bb6a7f6f1768cf45fdd23bab574054690a9be2e813055ba38795fd41618"
+    },
+    {
+      "path": "operators/start-clock-provider-build.mjs",
+      "bytes": 3840,
+      "sha256": "66c58ef3379215e26814fb65def34a3bf9218fb4d37cd7b74357c9e65adaa81e"
+    },
+    {
+      "path": "operators/start-orchestrator-clock-build-v3.mjs",
+      "bytes": 3848,
+      "sha256": "0afdc66a2d19bc79f4c078139b608dd903eb041429c953aa7cf9c3ddf4a28d81"
+    },
+    {
+      "path": "README.md",
+      "bytes": 3273,
+      "sha256": "f012d754dd7657fa525bd76ecc0bdf79893b28917332531ea5033d8662f8a7e0"
+    },
+    {
+      "path": "release-qualification.json",
+      "bytes": 7120,
+      "sha256": "0c84a997f4c482c635e8564e79b086d6b5c65b8c98bbcd3012c4d3cd4595aff3"
+    },
+    {
+      "path": "served-baseline.json",
+      "bytes": 13622,
+      "sha256": "f7bb525407a611cf71c4e73d114c15625c9353117603fc9d734983bc563df419"
+    }
+  ],
+  "verifiedSourceHashes": {
+    "apps/api/src/context/context-compiler-v2.service.spec.ts": "12dbc909a13be25f16b30ca9f122677d5e4ee3b6439881540de88bf71de25444",
+    "apps/api/src/context/context-compiler.service.ts": "82eaa0e1b012602217ba2c054a63b949cd9c016e6549d675b8cdad3c4a8ba7c2",
+    "apps/api/src/meri/meri-capture-clock-packets.spec.ts": "c5ac76cb69f252cf1f127a79f439f707720789e0cf0e674166dfcda6a104979f",
+    "apps/api/src/meri/meri-capture-clock-packets.ts": "69827fd74b2abccdc2d1910cc5588032342acac311487a7b6854fb3629d3b455",
+    "apps/api/src/meri/meri-capture-policy-readback.ts": "57e060fddfdf641c346f4a35395ec86459c87161d0b4804042e72727b8bfe758",
+    "apps/api/src/meri/meri-capture-semantic-clock.spec.ts": "da9f10d763d3dda9529b06ac6fc520b7fc2bc08e7c60cbb9ae93b7e3ac6b9a28",
+    "apps/api/src/meri/meri-capture-semantic-clock.ts": "9e3a7ed2a76ed98e0dafc4d47f489e6a53d5590e7a8a09a8813b77fd9cf2737c",
+    "apps/api/src/meri/meri-case01-capture-authority.ts": "c573122dab6c1800c6190f8d187aae7515cadeb137783775658f3be17bc76ffc",
+    "apps/api/src/meri/meri-context-plane-runtime.ts": "0f63ef56f80f013b750c46902a2213a6e856d3706511456624f55aefbe85239e",
+    "apps/api/src/meri/meri-context-plane.service.spec.ts": "da12768ca31b79360876726f4d4757cdecf37d959a966b5d344376211ca0685f",
+    "apps/api/src/meri/meri-context-plane.service.ts": "50d1d1b7a01ae91c5a09ddf2ce3eeb47100dd66cbb5827bf833907313bd51453",
+    "apps/api/src/meri/meri-context-plane.tools.spec.ts": "fa2437b38adc04476dfde1f8373d22e63651d779a4cb04c1a78396bf34a18393",
+    "apps/api/src/meri/meri-data-search.helpers.ts": "2828abbc2ff6315e8a6898108e0e40a6e71bbf88c19a81ed9f2e640abc74ed03",
+    "apps/api/src/meri/meri-server-capture-evidence.ts": "2fa95657d16ed7e88d4d8edb0b59c8ac39bbd63f045e13f1b7b343e730d0c377",
+    "apps/api/src/meri/meri-server-readonly-capture.spec.ts": "31247fd9118c1b35bedbed4c4e1cb2286e4f9d6dac1ee3d351cb0ef4b20a00e3",
+    "apps/api/src/meri/meri-server-readonly-capture.ts": "9be7746ded0e3e344e529df86b831bd622aa9b5b46dd0848197b4bf66dcb0b24",
+    "apps/api/src/meri/meri-tools.registration.spec.ts": "6f45dfbc9a6f9098ff597e4275cd5273f6aff42ab303eefc42deef034850cef4",
+    "apps/api/src/meri/meri-tools.service.ts": "1976465b491e0731abf05ffb7fb8b3c2048835e034b06faace81fe97f7fb6371",
+    "apps/api/src/meri/meriv3-proxy.service.ts": "c35b3e1835515c350ccc84274f922ce7b295c9f138519358c14a19057a9482f2",
+    "apps/meriv2-orchestrator/src/meri/api-tool-executor.repo.ts": "8c04bae85e105c43c972b53f75a293e329544e0795229ee5ef7e21984612b058",
+    "apps/meriv2-orchestrator/src/meri/chat/chat-prompt.spec.ts": "9a920c3e9960984813267f4af0a868ce6211d18a1505946eaf0f05f41876c010",
+    "apps/meriv2-orchestrator/src/meri/chat/chat-prompt.ts": "7df20ebe9402fbcedf337fa274ee03129820b736143c60dcc08c718b4936f258",
+    "apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts": "88da7d2d7c3b52ec4201be495e0f198c3d89890a6e6e0576d993664bb1b16ada",
+    "apps/meriv2-orchestrator/src/meri/controlled-read-observations.ts": "1067a0ffbac4096b4b0830ac2f55ac4122da90ca224b34ed15cc5d2383daadc1",
+    "apps/meriv2-orchestrator/src/meri/meri-governed-context.runtime.ts": "5bebbafafa1da4186db3d11ea2b82a36bd7f588025d4c3733f80ffe25ea5f0ca",
+    "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.spec.ts": "da1986f4cff0026ccc42721c57b4323c7a52b81d08730d7ae676ea7483e501b5",
+    "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts": "5ec89121ced8867a46aca285999dc46b869e6535040429ea27efcdce1de97f7a",
+    "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-capture-evidence.spec.ts": "295d39184f1122568b65f8f850a6f5b871cc56a0d77bebbfecd33bdba69393dd",
+    "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-capture-evidence.ts": "e456b816724dd62fab1d165f2494c88072a9ffcf0a5b0aac434819043f05e1b8",
+    "apps/meriv2-orchestrator/src/meri/meriv3/meriv3.types.ts": "d0d313c00a6270489b142af67e63f02d167f88f364b3a082ec3622ed68c8d132",
+    "apps/meriv2-orchestrator/src/meri/server-readonly-capture-dispatch.spec.ts": "9aa40fab59cbf69e9cc546441638e29d6656b55f648c0f801e5666de5c7cb321",
+    "apps/meriv2-orchestrator/src/request/trusted-current-turn-scope.ts": "60b4c10a62af06c3d95520fcfef7e4a923bb99315a8e6277517f9f1fa6ee0158",
+    "packages/meriv2-core/src/context/capture-evidence-receipt.spec.ts": "d439c939011d4681b7d4d5e60bde69219297e51da89c3eb8daf5aef6c03f4caf",
+    "packages/meriv2-core/src/context/capture-evidence-receipt.ts": "2b4540e237eebf4fd1db7a32565672eaea8bbfcc6daa6001309ec5c94788dc3f",
+    "packages/meriv2-core/src/context/compiler-v2.spec.ts": "9fe332e53e04cdf072e15efa89d64a72707085cf6905455ec885549bc5e42bec",
+    "packages/meriv2-core/src/context/compiler.ts": "88be0fd953b812dcfde9dd4b2b85c38368caba396f81ec27fce1e751d7981a81",
+    "packages/meriv2-core/src/context/contract.ts": "ef7eb2a5addc16157c664c5be651ec9c7b3c3ed2b0cde9014036a0dd18909557",
+    "packages/meriv2-core/src/context/governed-evidence-auth.spec.ts": "494fcb9a1b86544d48614ca5934fa952f56ce058aa7968ded27d813415c8e562",
+    "packages/meriv2-core/src/context/governed-evidence-auth.ts": "299b190104db34e2a16fb16f79b68c37efde940c773634be8ecf375a43e8563d",
+    "packages/meriv2-core/src/context/semantic-clock.spec.ts": "68a50c50eb22cac8ad4d2c1f207811cb369c50519105eab7cf66c596c05383c7",
+    "packages/meriv2-core/src/context/server-readonly-capture.ts": "3d924a36100fb601bf943acbbb991f49bea37b91aec2d9dabf1e3c76f4f8ee3a",
+    "packages/meriv2-core/src/registry/types.ts": "a8061c3b5a1c941b2c95fd2e1b740e7ae1cc7f5b4a72253252e4cb5059928895",
+    "apps/meriv2-orchestrator/src/meri/meri-capture-provider-wire.ts": "0b8392e2a296a9db6403ddabeb796cbf3ea950a0d53bd341b901b4fa769f2e31",
+    "apps/meriv2-orchestrator/src/meri/meriv3/openai-responses.client.ts": "10d9cca1dda1b366a5f59af4519a4dd6b6d6a8d60c8088e946d19fa7131e9363",
+    "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-run-budget.ts": "a2eda5df34b825a3b81935d1c6a84d15b7ea7cacd68183bfae76ca87dcbc0595",
+    "apps/meriv2-orchestrator/src/meri/request-scoped-llm.client.ts": "0ea51404d5cc3926863989db0873fe1484f068fb627f6a89909c175d17e92735",
+    "apps/api/src/embeddings/titan-embedding.provider.ts": "bd235b139bf262d76dc23d143e9739bd9cd5163b93921429a86a3fdb94534e55",
+    "apps/api/src/reranking/nvidia-reranking.provider.ts": "71134c434b11da6ee04a604367c67173a6c258dababa3fb1068a1ddd086b9b99",
+    "apps/meriv2-orchestrator/src/meri/meri-capture-provider-wire.spec.ts": "629ed912e9095f7c93a0e945876c67a1bd05fabe9f8ff4bb33d269c1fa763f73",
+    "apps/api/src/meri/meri-capture-api-provider-scope.spec.ts": "d43bd5bb22996785f74d855527e703bcf297ab2c4b4fa098b1fbfcc9b4cf6708"
+  }
+}

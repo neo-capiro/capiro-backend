@@ -1,0 +1,142 @@
+{
+  "service": "meriv2-orchestrator",
+  "status": "SUCCEEDED",
+  "qualification": "IMMUTABLE_BUILD_AND_OFFLINE_PROBES_PASS",
+  "sourceSha": "fb17c7ebfa010ce964919068f61830cb78ca620d",
+  "resolvedSourceSha": "fb17c7ebfa010ce964919068f61830cb78ca620d",
+  "buildId": "capiro-build-web-dev:d6486a5b-9ab2-4410-bba0-3a5afb2f0b2c",
+  "startedAt": "2026-10-03T14:43:16.012000-04:00",
+  "finishedAt": "2026-10-03T14:50:38.699000-04:00",
+  "phases": [
+    {
+      "phase": "SUBMITTED",
+      "status": "SUCCEEDED",
+      "durationSeconds": 0
+    },
+    {
+      "phase": "QUEUED",
+      "status": "SUCCEEDED",
+      "durationSeconds": 0
+    },
+    {
+      "phase": "PROVISIONING",
+      "status": "SUCCEEDED",
+      "durationSeconds": 8,
+      "contexts": [
+        {
+          "statusCode": "",
+          "message": ""
+        }
+      ]
+    },
+    {
+      "phase": "DOWNLOAD_SOURCE",
+      "status": "SUCCEEDED",
+      "durationSeconds": 10,
+      "contexts": [
+        {
+          "statusCode": "",
+          "message": ""
+        }
+      ]
+    },
+    {
+      "phase": "INSTALL",
+      "status": "SUCCEEDED",
+      "durationSeconds": 0,
+      "contexts": [
+        {
+          "statusCode": "",
+          "message": ""
+        }
+      ]
+    },
+    {
+      "phase": "PRE_BUILD",
+      "status": "SUCCEEDED",
+      "durationSeconds": 23,
+      "contexts": [
+        {
+          "statusCode": "",
+          "message": ""
+        }
+      ]
+    },
+    {
+      "phase": "BUILD",
+      "status": "SUCCEEDED",
+      "durationSeconds": 325,
+      "contexts": [
+        {
+          "statusCode": "",
+          "message": ""
+        }
+      ]
+    },
+    {
+      "phase": "POST_BUILD",
+      "status": "SUCCEEDED",
+      "durationSeconds": 72,
+      "contexts": [
+        {
+          "statusCode": "",
+          "message": ""
+        }
+      ]
+    },
+    {
+      "phase": "UPLOAD_ARTIFACTS",
+      "status": "SUCCEEDED",
+      "durationSeconds": 0,
+      "contexts": [
+        {
+          "statusCode": "",
+          "message": ""
+        }
+      ]
+    },
+    {
+      "phase": "FINALIZING",
+      "status": "SUCCEEDED",
+      "durationSeconds": 0,
+      "contexts": [
+        {
+          "statusCode": "",
+          "message": ""
+        }
+      ]
+    },
+    {
+      "phase": "COMPLETED"
+    }
+  ],
+  "buildspecSha256": "330e33036707a5ce89befa560312635f7261a88d6eb18d73e7cb73af9093c332",
+  "buildLogSha256": "e16a7c9b49321b052600a9899885c77de12dd3adc49ff10e847e5a0649b3b9a5",
+  "buildLogEvents": 2709,
+  "serviceMutations": 0,
+  "databaseMutations": 0,
+  "providerCalls": 0,
+  "tests": {
+    "numTotalTests": 1554,
+    "numPassedTests": 1552,
+    "numFailedTests": 0,
+    "numPendingTests": 2,
+    "numTotalTestSuites": 130,
+    "numPassedTestSuites": 130,
+    "numFailedTestSuites": 0,
+    "numPendingTestSuites": 0
+  },
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:2b3ac021d0e5149478bb480c3ed572151bd8b03e08b2a74fd1227af829a06436",
+  "imagePublishedAt": "2026-10-03T14:50:36.659000-04:00",
+  "architecture": "arm64",
+  "runtimeNode": "20.16.0",
+  "passedMarkers": [
+    "OFFLINE_PACKAGED_ENTRYPOINT_HEALTH_AUTH_PASS",
+    "OFFLINE_C1_CLASSIFICATION_REPAIRS_PASS",
+    "OFFLINE_PACKAGED_MAIL_DEFAULTS_PASS",
+    "OFFLINE_PACKAGED_NO_TOOLS_DIRECTIVE_PASS",
+    "OFFLINE_PACKAGED_SEMANTIC_CLOCK_ORCHESTRATOR_PASS",
+    "OFFLINE_PACKAGED_CAPTURE_PROVIDER_ORCHESTRATOR_GUARDS_PASS",
+    "LOCAL_REPODIGEST_ECR_MATCH_PASS"
+  ]
+}

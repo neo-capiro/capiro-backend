@@ -1,0 +1,168 @@
+{
+  "version": 1,
+  "status": "AUTOMATED_QUALIFICATION_PASSED_HUMAN_RELEASE_REVIEW_PENDING",
+  "recordedAt": "2026-10-03T18:52:27.486559+00:00",
+  "candidates": {
+    "api": {
+      "sourceSha": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:d20110a114ef51a7db3d352321f411a2f51cc8b1877f9ccec6d1f35d7701c8cd"
+    },
+    "meriv2-orchestrator": {
+      "sourceSha": "fb17c7ebfa010ce964919068f61830cb78ca620d",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:2b3ac021d0e5149478bb480c3ed572151bd8b03e08b2a74fd1227af829a06436"
+    }
+  },
+  "productionSourceEquivalence": {
+    "apiSource": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642",
+    "orchestratorSource": "fb17c7ebfa010ce964919068f61830cb78ca620d",
+    "onlyAppPackageDifference": [
+      "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-governed-artifact-dispatch.spec.ts"
+    ],
+    "productionIdentical": true
+  },
+  "sourceReview": {
+    "result": "PASS",
+    "clockCheckpointSha256": "bac5f9664df13811270b4acf6edf6a1de50f55adb39aef8e9351336162ae62ec",
+    "providerCheckpointSha256": "96d17909146a526ce9eae0e60a8b42e6cc7b7a3d38712bc0b2f7297c219c6e89",
+    "providerIndependentReviewSha256": "a1f548e0ca38f6fa94b7f9620e7b21a0b5094c3c184fc49a127fa85f1d63bf92",
+    "artifactTestIndependentReviewSha256": "3ea32c8cc1129fcce152417e9be1c2a071eeeef4b76bbd4f65fcb7e50d9c2ef0"
+  },
+  "tests": {
+    "nativeOrchestrator": {
+      "numTotalTests": 1554,
+      "numPassedTests": 1552,
+      "numFailedTests": 0,
+      "numPendingTests": 2,
+      "numTotalTestSuites": 130,
+      "numPassedTestSuites": 130,
+      "numFailedTestSuites": 0,
+      "numPendingTestSuites": 0
+    },
+    "providerFocusedOrchestrator": 133,
+    "providerFocusedApi": 26,
+    "actualLocalPrismaPostgresClock": 22,
+    "artifactTransportFixtureCorrection": 2
+  },
+  "builds": {
+    "api": {
+      "buildId": "capiro-build-web-dev:01196b56-83c6-47a9-97a1-11004413a7ee",
+      "buildspecSha256": "c92763d03d141e59d18485c4d9f6ac3958392ff18e0bbaf501dd116cc39f4c3c",
+      "buildLogSha256": "947692c8ec5edf294a7ed731ce040c9cf29694a64e86c0e61f3e78236f794c6d",
+      "markers": [
+        "OFFLINE_RUNTIME_IMPORT_PASS",
+        "OFFLINE_CASE01_FIXTURE_PACKAGE_IMPORT_PASS",
+        "OFFLINE_CASE01_CONTINUATION_IMPORT_PASS",
+        "OFFLINE_CASE01_POSTAPPROVAL_IMPORT_PASS",
+        "OFFLINE_CASE01_POSTSEED_IMPORT_PASS",
+        "EXACT_452_IMAGE_MIGRATION_HASHES_PASS",
+        "MAIL_ACTIVE_OWNER_INDEX_MIGRATION_PACKAGE_PASS",
+        "OFFLINE_PACKAGED_C2_MEMORY_PASS",
+        "OFFLINE_PACKAGED_C2_RECONCILIATION_PASS",
+        "OFFLINE_PACKAGED_C2_TERMINAL_LIFECYCLE_PASS",
+        "OFFLINE_PACKAGED_C2_TS_SOURCE_IMPORT_PASS",
+        "OFFLINE_PACKAGED_SEMANTIC_CLOCK_API_CORE_PASS",
+        "OFFLINE_PACKAGED_CAPTURE_PROVIDER_API_GUARDS_PASS",
+        "LOCAL_REPODIGEST_ECR_MATCH_PASS"
+      ],
+      "architecture": "arm64",
+      "runtimeNode": "22.23.3"
+    },
+    "meriv2-orchestrator": {
+      "buildId": "capiro-build-web-dev:d6486a5b-9ab2-4410-bba0-3a5afb2f0b2c",
+      "buildspecSha256": "330e33036707a5ce89befa560312635f7261a88d6eb18d73e7cb73af9093c332",
+      "buildLogSha256": "e16a7c9b49321b052600a9899885c77de12dd3adc49ff10e847e5a0649b3b9a5",
+      "markers": [
+        "OFFLINE_PACKAGED_ENTRYPOINT_HEALTH_AUTH_PASS",
+        "OFFLINE_C1_CLASSIFICATION_REPAIRS_PASS",
+        "OFFLINE_PACKAGED_MAIL_DEFAULTS_PASS",
+        "OFFLINE_PACKAGED_NO_TOOLS_DIRECTIVE_PASS",
+        "OFFLINE_PACKAGED_SEMANTIC_CLOCK_ORCHESTRATOR_PASS",
+        "OFFLINE_PACKAGED_CAPTURE_PROVIDER_ORCHESTRATOR_GUARDS_PASS",
+        "LOCAL_REPODIGEST_ECR_MATCH_PASS"
+      ],
+      "architecture": "arm64",
+      "runtimeNode": "20.16.0"
+    }
+  },
+  "currentSchema": {
+    "status": "VERIFIED_READ_ONLY",
+    "ledgerRows": 609,
+    "activeFinished": 509,
+    "rolledBack": 100,
+    "prior608Sha256": "9a82cbc9dcecc3b049c312ad4e39ec5a96eb33c6e5af033a3339d1e292c06e90",
+    "newMigration": "20281007010000_mail_messages_owned_connection_active",
+    "newMigrationSha256": "ef10ab58b4eef6825652690a098ab160a374fb30c4cc0af9f15793edb7237242",
+    "retirementTablesAbsent": true,
+    "indices": [
+      {
+        "name": "mail_messages_tenant_connection_active_idx",
+        "ready": true,
+        "definitionSha256": "23d2b35e8097cea6c5620ce2c9c1cab68467e9de09dba5e3337f6fca0a170688"
+      },
+      {
+        "name": "mail_threads_tenant_connection_id_cover_idx",
+        "ready": true,
+        "definitionSha256": "7097d64ec1650dfa8e004e89a1e2f6f267cb7924e869993bb44fb235e9716c9e"
+      }
+    ],
+    "migrationExecution": false
+  },
+  "servedBaselineSha256": "f7bb525407a611cf71c4e73d114c15625c9353117603fc9d734983bc563df419",
+  "retirementCompatibility": {
+    "schemaChange": false,
+    "currentRetiredTablesAbsent": true,
+    "migration452AndLedger609Preserved": true,
+    "dependencyAndContainerFilesUnchangedPerService": true,
+    "packagedRuntimeImports": "PASS",
+    "nativeOrchestratorEntryHealthAuth": "PASS",
+    "ordinaryRequests": "Clock remains absent and existing configuration is preserved; ordinary adapter paths have regression coverage.",
+    "rollingOrder": "API first, then orchestrator. Run no new synthetic capture until both exact revisions are healthy and their build/configuration owners admit the pair.",
+    "rollback": "Pin the exact current API517 and orchestrator113 image digests. Keep migration452, additive indexes, completed memory maintenance, nightly136 and disabled broad worker."
+  },
+  "rates": {
+    "status": "CONDITIONAL_REVIEWED_NOT_INSTALLED",
+    "bytesSha256": "3531e09dfcce9f66b4ea2b3564db47bd72dc507cdcf1aecdda277b838007704e",
+    "semanticSha256": "a1a179383c8451495336169f46025eb8cee8ec95487f1a43017078387b768b11",
+    "expiresAt": "2026-10-04T05:29:01.587Z",
+    "matchedKinds": [
+      "openai_responses",
+      "bedrock_embeddings"
+    ],
+    "otherProviderKinds": "Unmatched rates reject before dispatch."
+  },
+  "scope": {
+    "change": "API and orchestrator image and release identity only",
+    "nativeReadClockCases": [
+      "01",
+      "14",
+      "20",
+      "72"
+    ],
+    "schemaChange": false,
+    "modelConfigurationChange": false,
+    "nightlyChange": false,
+    "webChange": false,
+    "newProviderCalls": 0,
+    "newCaptureAuthority": false,
+    "captureBindingWrite": false,
+    "budgetInstallation": false,
+    "journalMutation": false
+  },
+  "limitations": [
+    "Offline packaged probes and source tests are not served original acceptance.",
+    "Full case46 artifact clock join, relative mail/task windows, cross-turn continuation and remaining C2 families remain separate.",
+    "Fresh canonical binding/budget plan and source/configuration/rate checks are required before a paid native capture.",
+    "Human answer grading and deployment attestation are not supplied by automated checks."
+  ],
+  "schemaChange": false,
+  "humanApproval": null,
+  "deployableManifest": false,
+  "originalAcceptance": {
+    "passed": 0,
+    "cases": 75,
+    "cdPassed": 0,
+    "cdCases": 7,
+    "cwPassed": 0,
+    "cwCases": 8
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "at": "2026-10-03T18:32:17.945Z",
+  "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/465a97ac0d63494caadf86bff02e9c88",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-c2-schema-read-20261003:1",
+  "scriptSha256": "466f94130c5b7396ed5c9e9c3474bca95c99881adeb1aad4f6fb2f6b9f0ce386"
+}

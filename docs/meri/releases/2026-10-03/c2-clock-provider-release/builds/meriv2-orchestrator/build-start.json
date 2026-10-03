@@ -1,0 +1,33 @@
+{
+  "service": "meriv2-orchestrator",
+  "buildId": "capiro-build-web-dev:d6486a5b-9ab2-4410-bba0-3a5afb2f0b2c",
+  "sourceSha": "fb17c7ebfa010ce964919068f61830cb78ca620d",
+  "status": "IN_PROGRESS",
+  "buildspecSha256": "330e33036707a5ce89befa560312635f7261a88d6eb18d73e7cb73af9093c332",
+  "actions": [
+    {
+      "id": 37145211440,
+      "url": "https://github.com/neo-capiro/capirov2/actions/runs/37145211440",
+      "headSha": "fb17c7ebfa010ce964919068f61830cb78ca620d",
+      "status": "completed",
+      "conclusion": "startup_failure",
+      "name": "",
+      "path": "BuildFailed",
+      "jobs": 0
+    },
+    {
+      "id": 37145211366,
+      "url": "https://github.com/neo-capiro/capirov2/actions/runs/37145211366",
+      "headSha": "fb17c7ebfa010ce964919068f61830cb78ca620d",
+      "status": "completed",
+      "conclusion": "startup_failure",
+      "name": "",
+      "path": "BuildFailed",
+      "jobs": 0
+    }
+  ],
+  "actionsLimitation": "Exact-SHA GitHub startup failures have blank names and BuildFailed paths; both have zero jobs",
+  "callerArn": "arn:aws:iam::967807252336:user/capirocli",
+  "startedAt": "2026-10-03T18:43:17.494Z",
+  "scope": "C2 clock/provider immutable candidate qualification; no service/database/configuration/provider changes"
+}

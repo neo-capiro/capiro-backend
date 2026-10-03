@@ -1,0 +1,7 @@
+{
+  "recordedAt": "2026-10-03T18:35:02.293793+00:00",
+  "status": "READ_ONLY_INSPECTION_FALSE_POSITIVE_PRESERVED",
+  "scriptSha256": "a88c10e87807ea311f842a4fbc94a89eef36f5eb41c319a6f0b2f3a832a8bb10",
+  "failure": "Invariant assertion compared apps/api/Dockerfile to the older orchestrator baseline ed44f2c6; that API file legitimately changed in the completed f00e5dfb API lifecycle release. The API Dockerfile has no change between its actual served f00e5dfb baseline and5b086a6b. No remote or repository mutations occurred.",
+  "repair": "Compare each container Dockerfile and package manifest to its own service baseline; preserve global migration/lockfile checks against both baselines."
+}
