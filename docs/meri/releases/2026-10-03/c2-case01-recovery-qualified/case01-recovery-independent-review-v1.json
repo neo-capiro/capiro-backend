@@ -1,0 +1,103 @@
+{
+  "version": 1,
+  "status": "PASS",
+  "reviewer": "/root/benchmark_review",
+  "reviewedAt": "2026-10-03T22:25:27.919169+00:00",
+  "reviewType": "Independent read-only source, control-flow, frozen-test and exact-byte review",
+  "baseCommit": "b7918cd947e6cc7fb8c83ee171e5fa50e483e7aa",
+  "files": [
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/case01-presubmission-recovery-authority.mjs",
+      "sha256": "83128b97926129a178d53863039f99a6fc1c7a65e77d9083c201b39f1e321237"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/capture-spend-aggregate.mjs",
+      "sha256": "07f216e203d36b09c63958118fb448676c115363f553df38af44da963f766181"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/case01-presubmission-recovery.test.mjs",
+      "sha256": "71905a03919e61f7aa34536aea2fa2f9c3153999e6cd2f78db81da2ae1951642"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/run-case01-native-recovery-v1.mjs",
+      "sha256": "678e3108726a273afe0af7343060d6809518f9497282c1c8599fbee8bb13687a"
+    }
+  ],
+  "findings": [],
+  "checkpoints": [
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-presubmission-recovery-v1/checkpoint.json",
+      "sha256": "5222a0b206a1edc41a37e7a35ece87b4c04efec82ade03f1edf495dc020c0883"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-recovery-local-checks-v1/checkpoint.json",
+      "sha256": "2ecde47799a934ad4f5f00821378e40724160eeb386fee98a48c4c2b3a24d12b"
+    }
+  ],
+  "tests": {
+    "implementerFocused": {
+      "command": "node --test evals/meri/live-v1/tests/case01-presubmission-recovery.test.mjs",
+      "passed": 49,
+      "failed": 0,
+      "skipped": 0,
+      "exitCode": 0,
+      "receiptPath": "C:/dev/main/outputs/meri-c2-20261003/case01-presubmission-recovery-v1/focused-final.receipt.json",
+      "receiptSha256": "2a10e235087b8e7ba89a2348c0e1002e061de370871b48139bc58d1e3c25fa2a",
+      "logSha256": "2d2acda35aac259e1b8ac2e454036586758f0ca48f52139c6801780abb538f19"
+    },
+    "rootFinalCommands": {
+      "allCommands": 8,
+      "allExitZero": true,
+      "recoveryPassed": 49,
+      "baselineAuthorityAndGradingPassed": 125,
+      "freshJavascriptPassed": 5,
+      "freshNativePythonPassed": 12,
+      "syntaxPassed": 4
+    },
+    "independentReviewerReranTests": false
+  },
+  "conclusions": [
+    "Exactly one pinned stopped pre-submission failure/run/conversation/reservation is admitted. Original execution, append-only history, original one-shot claim, checkpoint21, original collector/storage source, setup and rates are pinned and rechecked with filesystem identity guards.",
+    "Only fixed TLS-verified actual HTTPS GETs can acquire live authority; fixed origin/path/source-header/content-type, ordinary actor, exact active ownership/client, original fixture/rate readiness, empty messages and pristine metadata are checked. Pure response inspectors and serialized lookalikes cannot mint the WeakMap capability.",
+    "An exclusive fsynced fixed recovery claim is written and read back before capability mint. Existing claim, changed bytes/identity, concurrent claimant, failed restoration or failed recheck cannot create a reusable second capability.",
+    "The aggregate restores via native fresh_read against exactly the pinned active21 checkpoint; it neither adopts, reserves, releases, resets nor appends during restoration. Recovered owner.reserve is prohibited and the original15Mreservation id is retained.",
+    "The existing native claim binds the complete original expected scope. Its immediate pre-POST assert checks owned local evidence/current native checkpoint and consumes exactly one fresh successful recheck. Recheck is required, one-use, freshness-limited and failure-poisoned.",
+    "Successful existing authenticated outcome settlement remains the only release of unused ceiling. Old21 pins are checked before settlement; they are not reapplied after its successful append. Disposable real-native tests prove unchanged21 prefix plus one22ndsettlement and correct aggregate accounting.",
+    "The new output operator pins reviewed sources and clean exact committed HEAD, allows only the three evaluator paths plus docs after the original reviewed commit, retains original bootstrap, creates no new conversation or reservation, and waits for exact Clerk session/user/org after hard navigation.",
+    "Operator sequence is acquire, restore, native prepare, fresh recheck, one execution, existing grading and browser readback, then session revocation. Execution intent is fsynced before entry; errors retain uncertainty and final original-evidence drift blocks success.",
+    "Launch preparer requires this PASS, exact required4file hashes, root LOCAL_CHECKS_PASS and source hashes, clean commit, and emits a manifest-pinned one-shot launcher with original21journal/claim/outputabsence fences. It was read, not run."
+  ],
+  "supportingReviewedFiles": [
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/prepare-case01-recovery-launcher-v1.mjs",
+      "sha256": "caf275d04b34bf5f6fb86784a2397f5d0036385f603045fec3671e39ebd0c1d4"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/run-case01-recovery-local-checks-v1.mjs",
+      "sha256": "e151415bbd9e558f53d5f6896a139e24b800d40746f11ce87dd0156f9e920c89"
+    }
+  ],
+  "resolvedEarlyNotes": [
+    "Source allowlist now uses tests/case01-presubmission-recovery.test.mjs.",
+    "Final original execution hash mismatch now forces BLOCKED."
+  ],
+  "limits": [
+    "This PASS is bounded source/local-test qualification, not proof of live authority acquisition, provider execution, settlement, benchmark success or human acceptance.",
+    "Pure inspectors and private-closure extraction exercise response/lifecycle checks without live HTTPS. The disposable positive settlement deliberately substitutes test-only authority/outcome collaborators; it proves real Windows accounting compatibility, not a live authenticated receipt.",
+    "Fresh baseline regressions use verified disposable original20-event prefix copies. Saved root checks prove the actual21-event journal unchanged and live recovery claim absent during tests; reviewer did not invoke its owner.",
+    "Current metadata absence is point-in-time, not immutable historical proof: existing reasoning-mode metadata updates can overwrite from stale reads. Recovery therefore also depends on exact stopped no-submission history, fresh complete absence checks and exclusive local ownership. Independent future server actions remain outside that local lock and must cause existing current-authority checks to refuse.",
+    "No production source/schema/model/flag change is qualified by this review. Root must commit exact reviewed evaluator bytes, keep clean-source and immutable served-image checks, prepare the pinned launcher, and execute at most once. Any changed source/evidence/claim or unresolved result requires a new review; no automatic retry/refund is authorized."
+  ],
+  "actions": {
+    "sourceEdits": 0,
+    "testReruns": 0,
+    "cloudCalls": 0,
+    "authCalls": 0,
+    "databaseCalls": 0,
+    "providerCalls": 0,
+    "journalOwnerCalls": 0,
+    "journalWrites": 0,
+    "claimWrites": 0,
+    "writeScope": "Only this new independent review JSON."
+  }
+}

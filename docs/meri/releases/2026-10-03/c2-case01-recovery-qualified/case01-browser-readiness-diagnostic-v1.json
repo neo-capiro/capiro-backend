@@ -1,0 +1,35 @@
+{
+  "status": "READ_ONLY_BROWSER_DIAGNOSTIC_COMPLETE",
+  "startedAt": "2026-10-03T21:53:45.807Z",
+  "failedExecutionSha256": "091946b7c594ccb4821202b00eaef0d6b4cab89c2bdf4d5ca9708a8ed66c593b",
+  "journalSha256": "7ac5a5d06782d325e0d30327586968aa60233681b7dec2ed98f50285ed6daa60",
+  "conversationId": "f493355c-ee97-44a1-a0b0-e05e7b104b59",
+  "applicationWrites": 0,
+  "providerCalls": 0,
+  "journalMutations": 0,
+  "captureEntryCalls": 0,
+  "blockedRequests": [],
+  "sessionRevoked": true,
+  "beforeNavigation": {
+    "loaded": true,
+    "sessionPresent": true,
+    "releaseSha": "78ad5805679a3045b1fc10fb19beafa7f76e4e64"
+  },
+  "immediateAfterNavigation": {
+    "loaded": false,
+    "sessionPresent": false,
+    "releaseSha": "78ad5805679a3045b1fc10fb19beafa7f76e4e64",
+    "tokenAvailable": false,
+    "errorClass": "TypeError",
+    "missingObjectProperty": false,
+    "messageOmitted": true
+  },
+  "afterReadinessWait": {
+    "loaded": true,
+    "sessionPresent": true,
+    "tokenAvailable": true,
+    "releaseSha": "78ad5805679a3045b1fc10fb19beafa7f76e4e64"
+  },
+  "journalUnchanged": true,
+  "completedAt": "2026-10-03T21:53:49.895Z"
+}

@@ -1,0 +1,43 @@
+{
+  "at": "2026-10-03T21:11:35.792Z",
+  "mode": "plan",
+  "sourceSha": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642",
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:d20110a114ef51a7db3d352321f411a2f51cc8b1877f9ccec6d1f35d7701c8cd",
+  "taskArn": null,
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-c2-case01-setup-20261003:1",
+  "exitCode": null,
+  "scriptSha256": "632d00e47ec63fb8c0b49cfa0d166760bd16abbf5ded9b572c0a9cf235f9899d",
+  "events": [],
+  "failures": [],
+  "observedFailures": [
+    {
+      "at": "2026-10-03T21:11:33.948Z",
+      "phase": "DISPATCH_OR_POLL",
+      "fatal": true,
+      "errorClass": "AssertionError",
+      "code": "ERR_ASSERTION",
+      "automaticRetryAllowed": false
+    },
+    {
+      "at": "2026-10-03T21:11:35.790Z",
+      "phase": "FINAL_EVIDENCE_OR_CLEANUP_ASSERTION",
+      "fatal": true,
+      "errorClass": "AssertionError",
+      "code": "ERR_ASSERTION",
+      "automaticRetryAllowed": false
+    }
+  ],
+  "status": "BLOCKED_OR_UNCERTAIN_RECONCILE_BEFORE_ANOTHER_ACTION",
+  "innerObservedStatus": null,
+  "innerReceipt": null,
+  "cleanup": {
+    "taskStopped": false,
+    "stopAttempted": false,
+    "deregisterAttempted": true,
+    "taskDefinitionInactive": true
+  },
+  "evidencePersistenceFailed": false,
+  "automaticRetryAllowed": false,
+  "providerCalls": 0,
+  "liveAcceptance": "NOT_RUN"
+}

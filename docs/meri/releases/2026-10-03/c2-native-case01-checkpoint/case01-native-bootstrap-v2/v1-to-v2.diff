@@ -1,0 +1,63 @@
+--- v1/run-case01-native.mjs
++++ v2/run-case01-native.mjs
+@@ -19,6 +19,7 @@
+ import { inspectControlledConversationReadback, controlledReadBrowserRequestAllowed } from 'file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/run-controlled-read.mjs';
+ import { sha256Stable } from 'file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/artifact-collector.mjs';
+ import { frozenFixture } from 'file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/fixture.mjs';
++import { assertCase01PreparedDeployment, case01SubmissionObservation } from './case01-prepared-guards.mjs';
+ 
+ const origin = 'https://os.capiro.ai',
+   clerkOrigin = 'https://clerk.app.capiro.ai';
+@@ -60,6 +61,8 @@
+ /** Saved setup is a scope cross-check only. Native admission and live canonical
+  * authority still decide whether dispatch is allowed; no input creates capability. */
+ export function buildCase01Scope(input) {
++  // Pure exact candidate check precedes receipt/file access and all journal work.
++  assertCase01PreparedDeployment(input?.deployment);
+   need(isDeepStrictEqual(Object.keys(input ?? {}).sort(),
+     ['deployment', 'expectedWebSha', 'manifestSha256', 'operatorSourceSha', 'setupReceiptPath', 'setupReceiptSha256']),
+     'CASE01_EXACT_INPUT_REQUIRED');
+@@ -296,6 +299,7 @@
+   let clerk, browser, createdSessionId, summary, output, eventPath, sequence = 0;
+   const persist = () => {
+     if (!summary) return;
++    summary.submissionObservation = case01SubmissionObservation(summary);
+     const bytes = JSON.stringify(summary, null, 2) + '\n';
+     // The append-only fsynced history survives later summary replacement/failure.
+     const fd = openSync(eventPath, 'a', 0o600);
+@@ -388,6 +392,7 @@
+       maximumNewTurns: 1,
+       browserApplicationWrites: 0,
+       conversationCreationAttempted: false,
++      executionAttempted: false,
+       sessionCreated: false,
+       sessionRevoked: false,
+       fullFile01Acceptance: false,
+@@ -605,6 +610,18 @@
+       'CASE01_NATIVE_SETUP_CHANGED');
+     // execute itself rechecks the exact admission fixture/providerBudget again.
+ 
++    // Persist uncertainty before entering the native owner. A thrown error can
++    // follow a submitted stream or a failed artifact finalization; never infer zero.
++    summary.executionAttempted = true;
++    summary.executionIntent = {
++      phase: 'EXECUTE_CASE01_LIVE_CAPTURE',
++      captureRunId: config.captureRunId,
++      conversationId: config.conversationId,
++      recordedAt: new Date().toISOString(),
++      automaticPaidRetryAllowed: false,
++      uncertainReservationRetained: true,
++    };
++    persist(); // fsync event history and current summary before native dispatch.
+     const outcome = await executeCase01LiveCapture(capability);
+     summary.outcome = outcome;
+     persist(); // Preserve failed/uncertain native result before checkpoints/assertions.
+@@ -673,7 +690,7 @@
+         JSON.stringify({
+           verdict: summary.verdict,
+           caseId: summary.caseId,
+-          turnsSent: summary.outcome?.synthesisSubmissionCount ?? 0,
++          ...summary.submissionObservation,
+           deterministicStatus: summary.grading?.deterministicStatus,
+           sessionRevoked: summary.sessionRevoked,
+           failureCode: summary.failureCode,

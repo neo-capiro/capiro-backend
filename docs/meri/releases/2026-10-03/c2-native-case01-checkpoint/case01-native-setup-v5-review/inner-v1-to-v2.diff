@@ -1,0 +1,156 @@
+diff --git a/C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v1/case01-native-setup-inner.mjs b/C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v2/case01-native-setup-inner.mjs
+index db5c272..61715b7 100644
+--- a/C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v1/case01-native-setup-inner.mjs
++++ b/C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v2/case01-native-setup-inner.mjs
+@@ -32,7 +32,7 @@ const request = Object.freeze({
+ const require = createRequire('/app/apps/api/package.json');
+ const { captureBudgetHash, validateCaptureBudgetQualification } = require('./dist/meri/meri-capture-provider-budget.js');
+ const { assertRateEvidence, inspectCaptureProviderBudgetInstallation, installCaptureProviderBudgetQualification } = require('./dist/meri/meri-capture-provider-budget-install.js');
+-let factory, output, stage = 'VALIDATING', sequence = 0;
++let factory, output, stage = 'VALIDATING', sequence = 0, diagnosticSubstage = 'START';
+ const bytesHash = value => createHash('sha256').update(value).digest('hex');
+ const log = async (phase, value = {}) => {
+   const event = { sequence: ++sequence, recordedAt: new Date().toISOString(), stage, phase, ...value };
+@@ -44,6 +44,22 @@ const log = async (phase, value = {}) => {
+ 
+ // The only SQL owned by this composition is SELECT. Mutations belong to the two
+ // existing canonical owners. Hash every other setting to detect unrelated drift.
++// Only the binding owner's inspect/bind receives this known-slow transaction budget.
++// The actual scoped Prisma method receives the identical callback and owns the tx.
++function bindingTransactionScope(prisma) {
++  assert.equal(typeof prisma?.withTenantUser, 'function');
++  return Object.freeze({
++    withTenantUser(tenantId, userId, callback, ...options) {
++      assert.equal(arguments.length, 3, 'CASE01_BINDING_TRANSACTION_ARGUMENTS');
++      assert.equal(options.length, 0, 'CASE01_BINDING_TRANSACTION_OPTIONS');
++      assert.equal(tenantId, CTX.tenantId, 'CASE01_BINDING_TRANSACTION_TENANT');
++      assert.equal(userId, CTX.userId, 'CASE01_BINDING_TRANSACTION_ACTOR');
++      assert.equal(typeof callback, 'function', 'CASE01_BINDING_TRANSACTION_CALLBACK');
++      return prisma.withTenantUser(tenantId, userId, callback, { timeoutMs: 30000 });
++    },
++  });
++}
++
+ async function savedState() {
+   return factory.deps.prisma.withTenantUser(CTX.tenantId, CTX.userId, async tx => {
+     const rows = await tx.$queryRawUnsafe(
+@@ -112,7 +128,9 @@ try {
+     const sourceAuthority = { qualifyInTx: async (tx, ctx, scope) => {
+       assert.deepEqual(ctx, CTX);
+       assert.deepEqual(scope, { caseId: '01', clientId: CLIENT });
++      diagnosticSubstage = 'READ_INVENTORY';
+       const inventory = await readCase01MemoryCorpusInTx(factory.deps, tx, ctx, scope.clientId);
++      diagnosticSubstage = 'VERIFY_INVENTORY';
+       assert.equal(inventory.fixtureReady, true);
+       assert.deepEqual(inventory.missing, []);
+       assert.equal(inventory.captureAuthority, false);
+@@ -122,34 +140,46 @@ try {
+       );
+       assert.equal(rows.length, 1);
+       const locator = rows[0].locator;
++      diagnosticSubstage = 'VERIFY_LOCATOR';
+       assert.equal(locator.fixtureNamespace, NAMESPACE);
+       assert.equal(locator.proposerUserId, CTX.userId);
+       assert.equal(locator.clients.ASTER.physicalId, CLIENT);
+       const config = { clients: locator.clients, actors: locator.actors, uploaderActors: locator.uploaderActors };
++      diagnosticSubstage = 'BUILD_PREVIOUS_MANIFEST';
+       const previousManifest = await buildFixtureManifest({ ...config, fixtureInstanceId: locator.previousFixtureInstanceId });
++      diagnosticSubstage = 'BUILD_CURRENT_MANIFEST';
+       const currentManifest = await buildFixtureManifest({ ...config, fixtureInstanceId: locator.currentFixtureInstanceId });
+       const runtimeDeps = { ...factory.deps,
+         proposerForTenant: id => { assert.equal(id, CTX.tenantId); return CTX.userId; },
+         reviewerForTenant: () => { throw new Error('CASE01_SETUP_NO_REVIEW_AUTHORITY'); },
+       };
+       const previous = createCase01MemoryFixtureRuntime({ ...runtimeDeps, manifest: previousManifest });
++      diagnosticSubstage = 'HYDRATE_PREVIOUS';
+       await previous.hydrateInTx(tx, ctx, { lifecycle: 'retired' });
+       const current = createCase01MemoryFixtureRuntime({ ...runtimeDeps, manifest: currentManifest, previousOwner: previous });
++      diagnosticSubstage = 'HYDRATE_CURRENT';
+       await current.hydrateInTx(tx, ctx, { lifecycle: 'current' });
++      diagnosticSubstage = 'QUALIFY_CURRENT';
+       actualProof = await current.qualifyInTx(tx, ctx, scope);
++      diagnosticSubstage = 'COMPARE_CANONICAL_PROOF';
+       for (const key of ['fixtureVersion', 'physicalMapSha256', 'seedReceiptId', 'resetReceiptId', 'currentVerifySha256'])
+         assert.equal(actualProof[key], inventory[key]);
+       assert.equal(sha256Stable(actualProof.currentVerify), inventory.currentVerifySha256);
+       return actualProof; // Only the actual canonical runtime proof enters bind.
+     } };
+-    const owner = createCaptureBindingOwner({ prisma: factory.deps.prisma, sourceAuthority });
++    const owner = createCaptureBindingOwner({ prisma: bindingTransactionScope(factory.deps.prisma), sourceAuthority });
+     stage = 'INSPECT';
++    diagnosticSubstage = 'OWNER_INSPECT';
+     const bindingPlan = await owner.inspect(request);
++    diagnosticSubstage = 'VERIFY_BINDING_PLAN';
+     assert.equal(bindingPlan.status, 'READY');
++    diagnosticSubstage = 'READ_SAVED_STATE';
+     const before = await savedState();
++    diagnosticSubstage = 'VERIFY_SAVED_STATE';
+     assert.equal(before.tenantRowVersion, bindingPlan.expectedTenantRowVersion);
+     assert.equal(before.bindingSha256, bindingPlan.expectedPriorBindingSha256);
+     assert.notEqual(before.binding?.captureRunId, RUN); // No repeat or partial-run repair.
++    diagnosticSubstage = 'BUILD_QUALIFICATION';
+     const qualification = qualificationFor(bindingPlan.currentVerifySha256);
+     const plan = {
+       sourceSha: SOURCE, request, rateBytesSha256: RATE_BYTES, rateValueSha256: RATE_VALUE,
+@@ -164,6 +194,7 @@ try {
+     assert.deepEqual(input.plan, plan);
+     stage = 'BIND_DISPATCHING';
+     await log('INTENT', { planSha256 });
++    diagnosticSubstage = 'OWNER_BIND';
+     const bound = await owner.bind({ ...request,
+       expectedPriorBindingSha256: bindingPlan.expectedPriorBindingSha256,
+       expectedTenantRowVersion: bindingPlan.expectedTenantRowVersion,
+@@ -172,6 +203,7 @@ try {
+     assert.equal(bound.status, 'BOUND');
+     stage = 'BOUND';
+     await log('VERIFIED', { bound });
++    diagnosticSubstage = 'BUDGET_PLAN';
+     const budgetPlan = await inspectCaptureProviderBudgetInstallation(factory.deps, { ctx: CTX, clientId: CLIENT });
+     assert.equal(budgetPlan.status, 'READY_FOR_RATE_QUALIFICATION');
+     assert.equal(budgetPlan.captureRunId, RUN);
+@@ -180,12 +212,14 @@ try {
+     assert.equal(budgetPlan.captureBindingSha256, bound.bindingSha256);
+     assert.equal(budgetPlan.tenantRowVersion, bound.tenantRowVersion);
+     assert.equal(budgetPlan.priorQualificationSha256, before.qualificationSha256);
++    diagnosticSubstage = 'READ_MIDDLE_STATE';
+     const middle = await savedState();
+     assert.equal(middle.tenantRowVersion, budgetPlan.tenantRowVersion);
+     assert.equal(middle.protectedSettingsSha256, before.protectedSettingsSha256);
+     qualificationFor(budgetPlan.currentVerifySha256); // Recheck real expiry before install.
+     stage = 'BUDGET_INSTALL_DISPATCHING';
+     await log('INTENT', { budgetPlan, qualificationSha256: captureBudgetHash(qualification) });
++    diagnosticSubstage = 'BUDGET_INSTALL';
+     const installed = await installCaptureProviderBudgetQualification(factory.deps, {
+       ctx: CTX, clientId: CLIENT, qualification, rateEvidence: rates,
+       expectedCurrentVerifySha256: budgetPlan.currentVerifySha256,
+@@ -196,7 +230,9 @@ try {
+     assert.equal(installed.status, 'PROVIDER_QUALIFICATION_INSTALLED');
+     stage = 'BUDGET_INSTALLED';
+     await log('VERIFIED', { installed });
++    diagnosticSubstage = 'BUDGET_READBACK';
+     const readback = await inspectCaptureProviderBudgetInstallation(factory.deps, { ctx: CTX, clientId: CLIENT });
++    diagnosticSubstage = 'READ_FINAL_STATE';
+     const after = await savedState();
+     assert.equal(readback.tenantRowVersion, installed.tenantRowVersion);
+     assert.equal(after.tenantRowVersion, installed.tenantRowVersion);
+@@ -213,7 +249,19 @@ try {
+ } catch (error) {
+   const code = /^(?:CASE01_|CAPTURE_BINDING_|meri_capture_provider_budget_)[a-zA-Z0-9_]+$/u.test(error?.code ?? error?.message ?? '')
+     ? (error.code ?? error.message) : 'CASE01_SETUP_GUARD_OR_RUNTIME_FAILURE';
+-  const failure = { status: 'BLOCKED_OR_UNCERTAIN', code, lastStage: stage,
++  const diagnostic = {
++    substage: diagnosticSubstage,
++    errorClass: ['AssertionError','Error','PrismaClientKnownRequestError','PrismaClientUnknownRequestError','PrismaClientInitializationError','FixtureProvisioningError','TypeError'].includes(error?.name) ? error.name : 'OTHER_ERROR_CLASS',
++    errorCode: /^(?:P[0-9]{4}|ERR_ASSERTION|CASE01_[A-Z0-9_]+|CAPTURE_BINDING_[A-Z0-9_]+)$/u.test(error?.code ?? '') ? error.code : null,
++    messageSha256: bytesHash(String(error?.message ?? '')),
++    timeoutMentioned: /timeout|timed out|transaction already closed/iu.test(String(error?.message ?? '')),
++    frames: String(error?.stack ?? '').split('\n').slice(1).filter(line => /^\s+at /u.test(line) && /\/(?:app|dev\/shm)\//u.test(line)).slice(0,12).map(line => line.trim().slice(0,300)),
++    assertionOperator: /^[A-Za-z]+$/u.test(error?.operator ?? '') ? error.operator : null,
++    assertionActualType: typeof error?.actual,
++    assertionExpectedType: typeof error?.expected,
++    messageOmitted: true, sqlAndMetaOmitted: true,
++  };
++  const failure = { status: 'BLOCKED_OR_UNCERTAIN', code, lastStage: stage, diagnostic,
+     automaticRetryAllowed: false, liveAcceptance: 'NOT_RUN' };
+   try { if (output) await log('FAILURE', failure); }
+   catch { /* Preserve earlier intents; stdout still reports uncertainty. */ }

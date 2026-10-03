@@ -1,0 +1,30 @@
+{
+  "at": "2026-10-03T21:13:51.872Z",
+  "status": "RECONCILED_PRE_RUN_TASK_FAILURE",
+  "priorResultSha256": "44512877ecd64e4ee9e6aea0b7ea1efa2b471536ea5bef3b60951dfe3b2862ad",
+  "priorDispatcherSha256": "39219647361b76d232d2dd4251e9a574277f814a502d601cdc4ca863826cfd43",
+  "priorTaskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-c2-case01-setup-20261003:1",
+  "definitionStatus": "INACTIVE",
+  "taskLists": [
+    {
+      "desiredStatus": "RUNNING",
+      "value": {
+        "taskArns": []
+      }
+    },
+    {
+      "desiredStatus": "STOPPED",
+      "value": {
+        "taskArns": []
+      }
+    }
+  ],
+  "localRunTaskInputAbsent": true,
+  "conclusion": "Retained dispatcher source and saved ordering show the task-input hash assertion failed before runDispatched and before RunTask. Live family lists are empty and the registered definition is INACTIVE.",
+  "providerCalls": 0,
+  "databaseTaskLaunches": 0,
+  "fixtureWrites": 0,
+  "priorFailurePreserved": true,
+  "retryExecuted": false,
+  "nextAction": "A separately reviewed dispatcher correction may start a new plan in a new exclusive directory; never rerun or overwrite the failed plan."
+}

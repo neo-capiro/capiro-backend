@@ -1,0 +1,13 @@
+{
+  "at": "2026-10-03T21:43:14.478Z",
+  "reviewer": "/root",
+  "status": "ACTUAL_PLAN_REVIEW_PASS",
+  "planSha256": "37d4bfcef3ef7635bf4949f5aab58e4ea5f3059d1889bea471b83eec819897dc",
+  "resultSha256": "abc325ae84c029d7ff356b154f87c1f6d255967f56a121320a0a8dd964d37634",
+  "innerReceiptSha256": "8f87f1abc1e0f763626b43d598c111152b545a75058fb786dbb64dfd3a2c7cf1",
+  "sourceSha": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642",
+  "fixtureVerifySha256": "227c81e4437276718a0f6dfccb2b883c6d32b266c66b35c79ba26381a1f9c413",
+  "nextAction": "Execute same plan once via existing binding and budget owners with fresh exact comparison; preserve any partial/uncertain result without replay.",
+  "captureAuthority": false,
+  "providerCaptureExecuted": false
+}

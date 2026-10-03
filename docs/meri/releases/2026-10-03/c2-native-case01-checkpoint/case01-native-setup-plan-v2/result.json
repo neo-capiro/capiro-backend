@@ -1,0 +1,73 @@
+{
+  "at": "2026-10-03T21:23:52.480Z",
+  "mode": "plan",
+  "sourceSha": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642",
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:d20110a114ef51a7db3d352321f411a2f51cc8b1877f9ccec6d1f35d7701c8cd",
+  "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/fbe11d0e50174383964ac2a94f7182a9",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-c2-case01-setup-20261003:2",
+  "exitCode": 1,
+  "scriptSha256": "632d00e47ec63fb8c0b49cfa0d166760bd16abbf5ded9b572c0a9cf235f9899d",
+  "events": [
+    {
+      "sequence": 1,
+      "recordedAt": "2026-10-03T21:23:10.894Z",
+      "stage": "VALIDATING",
+      "phase": "START",
+      "mode": "plan",
+      "sourceSha": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642",
+      "captureRunId": "bd35c0f4-1604-4371-b7e9-a1338369e53f",
+      "rateBytesSha256": "3531e09dfcce9f66b4ea2b3564db47bd72dc507cdcf1aecdda277b838007704e"
+    },
+    {
+      "sequence": 2,
+      "recordedAt": "2026-10-03T21:23:20.354Z",
+      "stage": "INSPECT",
+      "phase": "FAILURE",
+      "status": "BLOCKED_OR_UNCERTAIN",
+      "code": "CASE01_SETUP_GUARD_OR_RUNTIME_FAILURE",
+      "lastStage": "INSPECT",
+      "automaticRetryAllowed": false,
+      "liveAcceptance": "NOT_RUN"
+    }
+  ],
+  "failures": [
+    {
+      "sequence": 2,
+      "recordedAt": "2026-10-03T21:23:20.354Z",
+      "stage": "INSPECT",
+      "phase": "FAILURE",
+      "status": "BLOCKED_OR_UNCERTAIN",
+      "code": "CASE01_SETUP_GUARD_OR_RUNTIME_FAILURE",
+      "lastStage": "INSPECT",
+      "automaticRetryAllowed": false,
+      "liveAcceptance": "NOT_RUN"
+    }
+  ],
+  "observedFailures": [
+    {
+      "at": "2026-10-03T21:23:52.479Z",
+      "phase": "FINAL_EVIDENCE_OR_CLEANUP_ASSERTION",
+      "fatal": true,
+      "errorClass": "AssertionError",
+      "code": "ERR_ASSERTION",
+      "automaticRetryAllowed": false
+    }
+  ],
+  "status": "BLOCKED_OR_UNCERTAIN_RECONCILE_BEFORE_ANOTHER_ACTION",
+  "innerObservedStatus": "BLOCKED_OR_UNCERTAIN",
+  "innerReceipt": {
+    "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v2/inner-receipt.jsonl",
+    "sha256": "2c800941a9995987a2033d58061e2854e766c432fc34cae5869c544a4fe71838",
+    "bytes": 549
+  },
+  "cleanup": {
+    "taskStopped": true,
+    "stopAttempted": false,
+    "deregisterAttempted": true,
+    "taskDefinitionInactive": true
+  },
+  "evidencePersistenceFailed": false,
+  "automaticRetryAllowed": false,
+  "providerCalls": 0,
+  "liveAcceptance": "NOT_RUN"
+}

@@ -1,0 +1,24 @@
+✔ forwards exact scope and identical callback once with real receiver and30second option (1.7558ms)
+✔ rejects wrong tenant before calling the actual owner (2.134ms)
+✔ rejects wrong actor before calling the actual owner (0.1751ms)
+✔ rejects missing tenant before calling the actual owner (0.1089ms)
+✔ rejects missing actor before calling the actual owner (0.3172ms)
+✔ rejects nonfunction callback before calling the actual owner (0.0843ms)
+✔ rejects missing callback before calling the actual owner (0.1124ms)
+✔ rejects explicit caller timeout before calling the actual owner (0.0683ms)
+✔ rejects caller empty options before calling the actual owner (0.0734ms)
+✔ rejects caller undefined fourth argument before calling the actual owner (0.1243ms)
+✔ rejects extra arguments before calling the actual owner (0.0829ms)
+✔ missing real method rejects instead of substituting a transaction (0.1577ms)
+✔ underlying async timeout propagates identical error without retry (0.3393ms)
+✔ underlying synchronous error propagates identical error without retry (0.0881ms)
+✔ full original success/mutation/rate paths are byte-identical after removing declared additions (0.3858ms)
+✔ v5 uses new package/dirs and pins exact diagnostic before first cloud action (3.7716ms)
+ℹ tests 16
+ℹ suites 0
+ℹ pass 16
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 104.389

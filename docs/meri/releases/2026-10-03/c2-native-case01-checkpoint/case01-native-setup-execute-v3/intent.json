@@ -1,0 +1,124 @@
+{
+  "at": "2026-10-03T21:43:27.131Z",
+  "mode": "execute",
+  "sourceSha": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642",
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:d20110a114ef51a7db3d352321f411a2f51cc8b1877f9ccec6d1f35d7701c8cd",
+  "reconciliationSha256": "b59923080aace193f676921ff8a449ff62b7e527fda80135ec2080255727e232",
+  "diagnosticFailureSha256": "0892b58914b29f3303c02df045894e895778707075922a6888483b33ff8774fd",
+  "diagnosticReceiptSha256": "0197f21682e6f7297f263018620c6cd4e078b694448f2081eb01b6e0ab28f563",
+  "scriptSha256": "e4f4a2f5b869e8a3520de4bf85edc66ead317b6645de8875cdd3362c06685b06",
+  "wrapperSha256": "d13a7d5f57b17ae47c9fddbf09699210d0bb20583d3a1efc575369ab5a981121",
+  "rateSha256": "3531e09dfcce9f66b4ea2b3564db47bd72dc507cdcf1aecdda277b838007704e",
+  "input": {
+    "confirmation": "BIND_EXISTING_CASE01_AND_INSTALL_BOUNDED_BUDGET_ONCE",
+    "expectedSourceSha": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642",
+    "plan": {
+      "sourceSha": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642",
+      "request": {
+        "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+        "tenantSlug": "meri-foundation-20260928-t1",
+        "actorUserId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+        "clerkUserId": "user_3Jw2FvWZkYGKmxWGx13tNJxFD2A",
+        "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+        "caseId": "01",
+        "captureRunId": "bd35c0f4-1604-4371-b7e9-a1338369e53f"
+      },
+      "rateBytesSha256": "3531e09dfcce9f66b4ea2b3564db47bd72dc507cdcf1aecdda277b838007704e",
+      "rateValueSha256": "a1a179383c8451495336169f46025eb8cee8ec95487f1a43017078387b768b11",
+      "bindingPlan": {
+        "status": "READY",
+        "fixtureReady": true,
+        "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+        "expectedTenantRowVersion": "113754475",
+        "expectedPriorBindingSha256": "dfc397e284bc2c8f963e3d0ea517aec1b59675e81e6ba8b610a6bf150842ac76",
+        "currentVerifySha256": "227c81e4437276718a0f6dfccb2b883c6d32b266c66b35c79ba26381a1f9c413",
+        "physicalMapSha256": "cf61a870caf2099fd53f36c849189eef1188237191f2e7e9e2c6d9c4c6511974",
+        "missing": [],
+        "liveAcceptance": "NOT_RUN"
+      },
+      "qualification": {
+        "version": 1,
+        "caseId": "01",
+        "captureRunId": "bd35c0f4-1604-4371-b7e9-a1338369e53f",
+        "currentVerifySha256": "227c81e4437276718a0f6dfccb2b883c6d32b266c66b35c79ba26381a1f9c413",
+        "rateEvidenceSha256": "a1a179383c8451495336169f46025eb8cee8ec95487f1a43017078387b768b11",
+        "rateEvidenceExpiresAt": "2026-10-04T05:29:01.587Z",
+        "priceKind": "qualified_text_token_upper_bound",
+        "maxAttempts": 32,
+        "maxTokens": 500000,
+        "maxCostMicros": 15000000,
+        "rates": [
+          {
+            "kind": "openai_responses",
+            "provider": "openai",
+            "model": "gpt-6-astra",
+            "inputMicrosPerMillion": 25000000,
+            "outputMicrosPerMillion": 75000000
+          },
+          {
+            "kind": "bedrock_embeddings",
+            "provider": "aws-bedrock",
+            "model": "amazon.titan-embed-text-v2:0",
+            "inputMicrosPerMillion": 20000,
+            "outputMicrosPerMillion": 0
+          }
+        ]
+      },
+      "priorQualificationSha256": "5bc90209bc934a32551d55e9f9450d320db0ff17ecabe332651f6bce2d03e053",
+      "protectedSettingsSha256": "ca7658055b35ab3758ef4b1b06cebdaa39e16978185bb9e32a78e9c2f073f8a1",
+      "fixture": {
+        "fixtureVersion": "meri-live-v1-2026-09-26.1",
+        "sourceMap": {
+          "MA1-v2": {
+            "frozenFixtureId": "MA1-v2",
+            "physicalId": "422b4ca9-10a8-4680-a713-3e61273a14ff",
+            "tenantPhysicalId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+            "clientPhysicalId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+            "kind": "memory",
+            "version": "memory-version:a5397fba-1d91-4ba9-8006-bf1fdaa90f67"
+          }
+        },
+        "physicalMapSha256": "cf61a870caf2099fd53f36c849189eef1188237191f2e7e9e2c6d9c4c6511974",
+        "seedReceiptId": "meri-synthetic-fixture-seed-receipt:sha256:d7ce11c8ee1508ce3899e6385a2c5bfdd1f5a3c13714aa404225135abaad3c38",
+        "resetReceiptId": "meri-synthetic-fixture-reset-receipt:sha256:4fc5d0fe9e060bed9d23d4da3c3e7b710cba1c5b74b0cb879fd6b63e1e14bc30",
+        "currentVerifySha256": "227c81e4437276718a0f6dfccb2b883c6d32b266c66b35c79ba26381a1f9c413"
+      }
+    },
+    "planSha256": "37d4bfcef3ef7635bf4949f5aab58e4ea5f3059d1889bea471b83eec819897dc"
+  },
+  "served": [
+    {
+      "service": "api",
+      "baseline": {
+        "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:519",
+        "serviceHash": "9486df2740a8a492d166553e4acb91fdafd6114ecb0c51448a4b1b83b2a36782",
+        "configHash": "973748a2b134b388a6027df6c5c099055a7e24f7b746eafbaae8cebad077258a",
+        "taskHash": "8dd9f9384fd148e54a72fa570a2f1e62b360000cbd7d2efaa44f56f6bc85bf45",
+        "imageDigest": "sha256:d20110a114ef51a7db3d352321f411a2f51cc8b1877f9ccec6d1f35d7701c8cd",
+        "desiredCount": 2
+      },
+      "sourceSha": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642"
+    },
+    {
+      "service": "meriv2-orchestrator",
+      "baseline": {
+        "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:115",
+        "serviceHash": "60738c954f95159eac019becbc517541aedbb5fdb72bf721b72cd23ae651810a",
+        "configHash": "3a4fabd2139e347cd8b45192579f2a3fbaaa6fc3678762b5252f727a4461951b",
+        "taskHash": "981602a875ff5c521fee1d846534d297325ae736b2190210c6d9e8536176edee",
+        "imageDigest": "sha256:2b3ac021d0e5149478bb480c3ed572151bd8b03e08b2a74fd1227af829a06436",
+        "desiredCount": 1
+      },
+      "sourceSha": "fb17c7ebfa010ce964919068f61830cb78ca620d"
+    }
+  ],
+  "releasePacketSha256": "98a95643241e321b6f8950449e0a2ef16a35f6a32d37cbcd089cc1a8a7520190",
+  "providerSecrets": 0,
+  "providerCalls": 0,
+  "fixtureLifecycleMutations": 0,
+  "proposedWrites": [
+    "canonical capture binding CAS",
+    "bounded provider budget qualification CAS"
+  ],
+  "automaticRetry": false
+}

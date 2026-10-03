@@ -1,0 +1,7 @@
+{
+  "command": "node --test definition-normalization.test.mjs",
+  "exitCode": 1,
+  "remoteCalls": 0,
+  "dispatcherImported": false,
+  "actualRetainedPair": true
+}

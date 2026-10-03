@@ -1,0 +1,13 @@
+{
+  "status": "VALIDATION_WRAPPER_ASSERTION_FAILED_AFTER_TEST_SUCCESS",
+  "script": "../validate-case01-native-bootstrap-v2.py",
+  "scriptSha256": "0d9695f4c46378c83f8a394cc58eb35267f3e149977e28ffe5993516794b7200",
+  "reason": "Node 24 used the spec reporter; the wrapper expected TAP summary labels.",
+  "actualTests": {
+    "exitCode": 0,
+    "passed": 13,
+    "failed": 0
+  },
+  "testLog": "pure-guard-tests.log",
+  "resolution": "Validate the retained actual spec output; do not rerun tests or modify the operator."
+}

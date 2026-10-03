@@ -1,0 +1,70 @@
+✔ exact retained submitted and registered definitions agree after only known normalization (1.6191ms)
+✔ retained failure preceded RunTask input and retained successful deregistration (0.724ms)
+✔ explicit defaults add exactly the seven observed paths and preserve input (17.3086ms)
+✔ normalization sorts environment only and is idempotent without input mutation (0.4589ms)
+✔ explicit nondefaults and null defaults remain intact (0.277ms)
+✔ rejects image (1.7663ms)
+✔ rejects command bytes (0.9574ms)
+✔ rejects command order (0.3854ms)
+✔ rejects execution role (0.4292ms)
+✔ rejects new task role (0.4887ms)
+✔ rejects task cpu capacity (0.4638ms)
+✔ rejects task memory capacity (0.3961ms)
+✔ rejects container cpu default (0.7997ms)
+✔ rejects port mapping (0.3287ms)
+✔ rejects mount point (0.3018ms)
+✔ rejects volume (0.2681ms)
+✔ rejects volumesFrom (0.2577ms)
+✔ rejects system control (0.6548ms)
+✔ rejects placement constraint (0.2833ms)
+✔ rejects secret reference (0.2487ms)
+✔ rejects extra secret (0.2423ms)
+✔ rejects secret order (0.2458ms)
+✔ rejects environment value (0.2261ms)
+✔ rejects missing environment entry (0.5862ms)
+✔ rejects extra environment entry (0.2883ms)
+✔ rejects extra environment row field (0.3363ms)
+✔ rejects missing default field (0.2897ms)
+✔ rejects explicit null default (0.2481ms)
+✔ rejects unknown container field (0.241ms)
+✔ rejects unknown task field (0.2921ms)
+✔ rejects network mode (0.2368ms)
+✔ rejects duplicate environment names in desired even with identical value (0.3593ms)
+✔ rejects duplicate environment names in registered even with identical value (0.246ms)
+✔ rejects malformed environment missing array (0.2376ms)
+✔ rejects malformed environment null array (0.1869ms)
+✔ rejects malformed environment missing value (0.2424ms)
+✔ rejects malformed environment nonstring value (0.3765ms)
+✔ rejects malformed environment empty name (0.2055ms)
+✖ v4 uses new directories and exact normalization at the pre-RunTask assertion (8.8072ms)
+ℹ tests 39
+ℹ suites 0
+ℹ pass 38
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 128.1545
+
+✖ failing tests:
+
+test at outputs\meri-c2-20261003\case01-native-setup-v4-review\definition-normalization.test.mjs:130:1
+✖ v4 uses new directories and exact normalization at the pre-RunTask assertion (8.8072ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(!text.includes('case01-native-setup-plan-v1/result.json'))
+  
+      at TestContext.<anonymous> (file:///C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v4-review/definition-normalization.test.mjs:134:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

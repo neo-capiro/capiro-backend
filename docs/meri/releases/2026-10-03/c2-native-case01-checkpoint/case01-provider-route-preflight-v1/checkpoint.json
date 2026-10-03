@@ -1,0 +1,87 @@
+{
+  "schemaVersion": 1,
+  "inspectedAtUtc": "2026-10-03T21:04:07.1497051Z",
+  "sourceHead": "b7918cd947e6cc7fb8c83ee171e5fa50e483e7aa",
+  "sourceComparedTo": "fb17c7ebfa010ce964919068f61830cb78ca620d",
+  "sourceDifferences": [],
+  "sourceHashes": [
+    {
+      "path": "apps/api/src/meri/meri-capture-provider-budget-owner.ts",
+      "sha256": "fcc9340906e8c2b1a36266a42173d589073b37bca9b99a5a1080fc1890de1c87"
+    },
+    {
+      "path": "apps/api/src/meri/meri-capture-provider-budget-receipt.ts",
+      "sha256": "31382bc2370d739f63f2163f7c26aeba9c415c644fbe003cbda3a16443c4060e"
+    },
+    {
+      "path": "apps/api/src/meri/meri-capture-provider-budget.ts",
+      "sha256": "29e6ab4ed50291a2626c132c8298ae0fb93eeac3d6a9f9f3d8c4953a56df614e"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/jev/jev-provider.factory.ts",
+      "sha256": "2918d9b9265c2c942540d230c74b236dac7a739213d535815a4a030d6c1dc5b5"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/jev/passage-selector.ts",
+      "sha256": "d87d8f21ce4145d7cc911e772009165f74b40c6c99b5df8a11a940380f84eede"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meri-capture-provider-wire.ts",
+      "sha256": "0b8392e2a296a9db6403ddabeb796cbf3ea950a0d53bd341b901b4fa769f2e31"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts",
+      "sha256": "5ec89121ced8867a46aca285999dc46b869e6535040429ea27efcdce1de97f7a"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-capture-provider-budget.ts",
+      "sha256": "dbc3c50b1042e668a7ebef9d6994ff6a972e92f7e26fce6ad25b26ab4b275771"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-run-budget.ts",
+      "sha256": "a2eda5df34b825a3b81935d1c6a84d15b7ea7cacd68183bfae76ca87dcbc0595"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/jev-client.ts",
+      "sha256": "f238dc078789f4a72eda6561d84794858a86ab4a36a45cad1394675c29351d3f"
+    },
+    {
+      "path": "packages/meriv2-core/src/rollout/auto-correction.ts",
+      "sha256": "c09d05e6d240825144259540a6db11c8817504d95246491c2aca090388e47f3c"
+    },
+    {
+      "path": "packages/meriv2-core/src/rollout/capability-rollout.ts",
+      "sha256": "e364d327b66fa8830622173f0ade3adf60655acb8a27d8025696aade8cbc007d"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/jev-config.ts",
+      "sha256": "102162866160468d56170871833630620b7f66b75ee829e1462c6c42b33f2f85"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/task-registry.ts",
+      "sha256": "69e657fe2b4db1a8cda7d1c69fb1b289e2e24842852e99456f4c74f4c01baa2a"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meri-capture-provider-wire.spec.ts",
+      "sha256": "629ed912e9095f7c93a0e945876c67a1bd05fabe9f8ff4bb33d269c1fa763f73"
+    },
+    {
+      "path": "evals/meri/live-v1/case01-receipt-joins.mjs",
+      "sha256": "c4556ba2da76c5c83de511c852f1f403f81dd4bf44160cbf8e6e14115e448aa9"
+    }
+  ],
+  "rateEvidenceHash": "3531e09dfcce9f66b4ea2b3564db47bd72dc507cdcf1aecdda277b838007704e",
+  "evidence": [
+    {
+      "path": "selected-task113-config.json",
+      "sha256": "560f77c7e15456a28f99c9424e744f6fc623b3709054a96df45677caf5d3f734"
+    },
+    {
+      "path": "findings.json",
+      "sha256": "ee4ee555fe33296dc6a5eac8b6e075f4479d947db7f01abfd51d4e3a8e2f6b08"
+    }
+  ],
+  "testsExecuted": 0,
+  "providerCalls": 0,
+  "captureCalls": 0
+}

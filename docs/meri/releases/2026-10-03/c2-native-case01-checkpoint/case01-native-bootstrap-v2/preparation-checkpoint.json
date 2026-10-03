@@ -1,0 +1,199 @@
+{
+  "version": 2,
+  "status": "PREPARED_NOT_EXECUTED",
+  "recordedAt": "2026-10-03T19:19:15.715491Z",
+  "priorCheckpoint": {
+    "path": "../case01-native-bootstrap-v1/preparation-checkpoint.json",
+    "sha256": "0df88d1c257aa15f82a79165f7d13cc752271efaf692d27f91d6a45a65417453"
+  },
+  "priorReview": {
+    "path": "../case01-native-bootstrap-v1/read-only-review-v1.json",
+    "sha256": "fd85b1274f50fd02ea1805986af9214291c1ac8c027792fe353ba29309eee6d5",
+    "result": "CHANGES_REQUIRED"
+  },
+  "changes": [
+    "Exact immutable API and orchestrator expectation is checked before receipt access or journal adoption; actual live build/native checks still required.",
+    "Execution intent is fsynced immediately before entering native execute. Missing returned outcome after intent yields null/UNKNOWN, never inferred zero."
+  ],
+  "fixedDeployment": {
+    "apiSha": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642",
+    "orchestratorSha": "fb17c7ebfa010ce964919068f61830cb78ca620d",
+    "builds": {
+      "api": {
+        "service": "api",
+        "sourceSha": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642",
+        "imageDigest": "sha256:d20110a114ef51a7db3d352321f411a2f51cc8b1877f9ccec6d1f35d7701c8cd",
+        "buildId": "capiro-build-web-dev:01196b56-83c6-47a9-97a1-11004413a7ee",
+        "buildspecSha256": "c92763d03d141e59d18485c4d9f6ac3958392ff18e0bbaf501dd116cc39f4c3c"
+      },
+      "meriv2-orchestrator": {
+        "service": "meriv2-orchestrator",
+        "sourceSha": "fb17c7ebfa010ce964919068f61830cb78ca620d",
+        "imageDigest": "sha256:2b3ac021d0e5149478bb480c3ed572151bd8b03e08b2a74fd1227af829a06436",
+        "buildId": "capiro-build-web-dev:d6486a5b-9ab2-4410-bba0-3a5afb2f0b2c",
+        "buildspecSha256": "330e33036707a5ce89befa560312635f7261a88d6eb18d73e7cb73af9093c332"
+      }
+    }
+  },
+  "fixedCaptureRunId": "bd35c0f4-1604-4371-b7e9-a1338369e53f",
+  "setupCheckpoint": {
+    "path": "../case01-native-setup-v1/preparation-checkpoint.json",
+    "sha256": "cde24885cba55257c71451a9c0b5d2b8dc03bad6d3326ab184320acedeeb54c6"
+  },
+  "journal": "C:/dev/main/outputs/meri-fresh-20261003/fresh-spend.jsonl",
+  "journalRequiredBytesSha256": "abe458973e6998db20586c781ac5a3cbd4ca2fa565425e62722f0eb9c985210b",
+  "requiredPriorEvents": 20,
+  "requiredPriorCostMicros": 9841281,
+  "requiredAvailableMicros": 20158719,
+  "maxCostMicros": 15000000,
+  "maxTokens": 500000,
+  "maxAttempts": 32,
+  "aggregateLimitMicros": 30000000,
+  "concurrency": 1,
+  "fixedOutput": "C:/dev/main/outputs/meri-c2-20261003/case01-native-bd35c0f4-1604-4371-b7e9-a1338369e53f",
+  "outputs": [
+    {
+      "path": "case01-prepared-guards.mjs",
+      "bytes": 1859,
+      "sha256": "f539d2e35a66ec76f1d741d6a8f09d528b400149c346982fd7b0f77f37eb5b7a"
+    },
+    {
+      "path": "case01-prepared-guards.test.mjs",
+      "bytes": 2684,
+      "sha256": "eee5120b872297c737ef87c657fe3f2c37645584d3228bb791deb18eb5249f81"
+    },
+    {
+      "path": "initial-validation-wrapper-failure.json",
+      "bytes": 522,
+      "sha256": "08353183941b7b61b21a5dcdc74b827953f4e52dc14584fae31fba40e59058eb"
+    },
+    {
+      "path": "offline-reproduction.log",
+      "bytes": 83,
+      "sha256": "ba3adf930c5f633e8414f09c865aed2f30f8d37edb0e4061fadf8be26716f04b"
+    },
+    {
+      "path": "pure-guard-tests.log",
+      "bytes": 1053,
+      "sha256": "8c4ec9dbc096fb7c1ca1efacdf81abb879c2726210caf1d07b43450b69cde173"
+    },
+    {
+      "path": "README.md",
+      "bytes": 2645,
+      "sha256": "3752356a5aa6be7fc72506345451f283c44126723614cd1881d6b3365690b6cb"
+    },
+    {
+      "path": "run-case01-native.mjs",
+      "bytes": 33732,
+      "sha256": "655cc278a1a76ff55cf7a0ceae96ccfc325a016e0e3a0d53c21f43f276c171d1"
+    },
+    {
+      "path": "scope-input.template.json",
+      "bytes": 1117,
+      "sha256": "7fd9d243c2b5769eb94a169f6875300d4522ec671fd4441702d4eb965df0a8b4"
+    },
+    {
+      "path": "syntax-check.log",
+      "bytes": 105,
+      "sha256": "009a225410183098e1675715fffaa433a274db1bda58813434c0ddfcb85b0136"
+    },
+    {
+      "path": "v1-to-v2.diff",
+      "bytes": 3257,
+      "sha256": "e93c98fdbd94ea43f0615d96900e42ced8553a7502c6d192931a7a6c61982e5c"
+    }
+  ],
+  "preparationScripts": [
+    {
+      "path": "../prepare-case01-native-bootstrap-v2.py",
+      "sha256": "b655153ee143b78092399ae30cc2e16d6711efc58e67fa475ef48b0e2406adb3"
+    },
+    {
+      "path": "../validate-case01-native-bootstrap-v2.py",
+      "sha256": "0d9695f4c46378c83f8a394cc58eb35267f3e149977e28ffe5993516794b7200"
+    },
+    {
+      "path": "../finalize-case01-native-bootstrap-v2.py",
+      "sha256": "ca7bca5390d108da73b05e24589ae66850d518ac01364d8548d48566f7a0ad36"
+    }
+  ],
+  "reusedSourceHashes": [
+    {
+      "path": "evals/meri/live-v1/run-controlled-read.mjs",
+      "sha256": "bb983c856e87d35510a849f6175098c2f8a99d961a687befba30f1445b13be85"
+    },
+    {
+      "path": "evals/meri/live-v1/case01-live-capture.mjs",
+      "sha256": "4136d20e10ec9e0e635fefc0ccf8a4609f12a36a410dba3f3eb4f828469ea029"
+    },
+    {
+      "path": "evals/meri/live-v1/grade-case01-capture.mjs",
+      "sha256": "b2ec25f9d39cbadad6c176f2ca00fb50857c5552b3eed50cc877728a95c1a441"
+    },
+    {
+      "path": "evals/meri/live-v1/case01-receipt-joins.mjs",
+      "sha256": "c4556ba2da76c5c83de511c852f1f403f81dd4bf44160cbf8e6e14115e448aa9"
+    },
+    {
+      "path": "evals/meri/live-v1/case01-build-authority.mjs",
+      "sha256": "3cd0353c62743d0dbf5d2511678f9dbb2aca01620e648365c353f1751a3bc065"
+    },
+    {
+      "path": "evals/meri/live-v1/capture-spend-aggregate.mjs",
+      "sha256": "8066b14877f4c760a540fd1d13031690c8f5ff00701596533ceb10ca0ab9ea60"
+    },
+    {
+      "path": "evals/meri/live-v1/lib/windows-capture-spend.py",
+      "sha256": "2090d09a9a790a8e7da2ba65d07d4157d26550ba715b0ef64e7c1c377f45c40e"
+    },
+    {
+      "path": "evals/meri/live-v1/windows-artifact-storage.mjs",
+      "sha256": "8b03eeccad53a92fc4cf7bcf4976522ecf7ed2126591449e28a6a70948ac01c4"
+    },
+    {
+      "path": "evals/meri/live-v1/artifact-collector.mjs",
+      "sha256": "64725c9b2fc66efb6578461e755efcbf62b77e18833dc6221831ee7e21ececae"
+    },
+    {
+      "path": "evals/meri/live-v1/fixture.mjs",
+      "sha256": "8915e19424520a2f97b9cd5a389fcf4b39f2823f0526573ffd04a1dfe0fbc398"
+    },
+    {
+      "path": "evals/meri/live-v1/cases.mjs",
+      "sha256": "5464412ee66b73f677cc923bda09b4785a866b20ef0ee6a3410936c431c5ba0a"
+    },
+    {
+      "path": "evals/meri/live-v1/contract-lock.json",
+      "sha256": "fc2fe9da90938d476e46007782a0b7d4471c1254e2a189180f62e3fbbde8fb6e"
+    }
+  ],
+  "validation": {
+    "syntax": "PASS",
+    "offlineReproduction": "PASS",
+    "pureGuardTests": {
+      "passed": 13,
+      "failed": 0
+    },
+    "nativeOperatorImported": false
+  },
+  "actualActions": {
+    "pureGuardModuleImports": 1,
+    "operatorImports": 0,
+    "operatorExecutions": 0,
+    "cloudCalls": 0,
+    "authCalls": 0,
+    "databaseCalls": 0,
+    "journalOwnerCalls": 0,
+    "journalWrites": 0,
+    "providerCalls": 0,
+    "fixtureMutations": 0,
+    "repositoryEdits": 0
+  },
+  "remaining": [
+    "Independent v2 review",
+    "Actual approved release, successful setup and final scope",
+    "Actual native capture and separate human adjudication"
+  ],
+  "captureAuthority": false,
+  "liveAcceptance": "NOT_RUN"
+}

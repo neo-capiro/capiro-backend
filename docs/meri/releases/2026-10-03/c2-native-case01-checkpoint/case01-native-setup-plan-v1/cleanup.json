@@ -1,0 +1,6 @@
+{
+  "taskStopped": false,
+  "stopAttempted": false,
+  "deregisterAttempted": true,
+  "taskDefinitionInactive": true
+}

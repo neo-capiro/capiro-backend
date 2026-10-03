@@ -1,0 +1,35 @@
+{
+  "at": "2026-10-03T20:51:07.696Z",
+  "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/7e7d53d5bd93476e852c405a6ce1a3c5",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-c2-schema-read-20261003:2",
+  "exitCode": 0,
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:1a4aef121151bb5da7f70417539ece2faff392842809e6b557370c2d6cf8a49d",
+  "scriptSha256": "466f94130c5b7396ed5c9e9c3474bca95c99881adeb1aad4f6fb2f6b9f0ce386",
+  "receipts": [
+    {
+      "status": "VERIFIED_READ_ONLY",
+      "ledgerRows": 609,
+      "activeFinished": 509,
+      "rolledBack": 100,
+      "prior608Sha256": "9a82cbc9dcecc3b049c312ad4e39ec5a96eb33c6e5af033a3339d1e292c06e90",
+      "newMigration": "20281007010000_mail_messages_owned_connection_active",
+      "newMigrationSha256": "ef10ab58b4eef6825652690a098ab160a374fb30c4cc0af9f15793edb7237242",
+      "retirementTablesAbsent": true,
+      "indices": [
+        {
+          "name": "mail_messages_tenant_connection_active_idx",
+          "ready": true,
+          "definitionSha256": "23d2b35e8097cea6c5620ce2c9c1cab68467e9de09dba5e3337f6fca0a170688"
+        },
+        {
+          "name": "mail_threads_tenant_connection_id_cover_idx",
+          "ready": true,
+          "definitionSha256": "7097d64ec1650dfa8e004e89a1e2f6f267cb7924e869993bb44fb235e9716c9e"
+        }
+      ],
+      "migrationExecution": false
+    }
+  ],
+  "providerCalls": 0,
+  "fixtureMutations": 0
+}

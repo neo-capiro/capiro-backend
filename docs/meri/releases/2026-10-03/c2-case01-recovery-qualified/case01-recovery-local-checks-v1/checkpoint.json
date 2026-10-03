@@ -1,0 +1,87 @@
+{
+  "status": "LOCAL_CHECKS_PASS",
+  "sourceHead": "b7918cd947e6cc7fb8c83ee171e5fa50e483e7aa",
+  "sources": [
+    {
+      "path": "evals/meri/live-v1/capture-spend-aggregate.mjs",
+      "sha256": "07f216e203d36b09c63958118fb448676c115363f553df38af44da963f766181"
+    },
+    {
+      "path": "evals/meri/live-v1/case01-presubmission-recovery-authority.mjs",
+      "sha256": "83128b97926129a178d53863039f99a6fc1c7a65e77d9083c201b39f1e321237"
+    },
+    {
+      "path": "evals/meri/live-v1/tests/case01-presubmission-recovery.test.mjs",
+      "sha256": "71905a03919e61f7aa34536aea2fa2f9c3153999e6cd2f78db81da2ae1951642"
+    }
+  ],
+  "results": [
+    {
+      "name": "syntax-0",
+      "status": 0,
+      "signal": null,
+      "log": "syntax-0.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "error": null
+    },
+    {
+      "name": "syntax-1",
+      "status": 0,
+      "signal": null,
+      "log": "syntax-1.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "error": null
+    },
+    {
+      "name": "syntax-2",
+      "status": 0,
+      "signal": null,
+      "log": "syntax-2.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "error": null
+    },
+    {
+      "name": "operator-syntax",
+      "status": 0,
+      "signal": null,
+      "log": "operator-syntax.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "error": null
+    },
+    {
+      "name": "recovery",
+      "status": 0,
+      "signal": null,
+      "log": "recovery.log",
+      "sha256": "9860740ba558d2451640ce9eb509471ff73fcd0f67d68dde166e6634d1afb5ac",
+      "error": null
+    },
+    {
+      "name": "authority-regressions",
+      "status": 0,
+      "signal": null,
+      "log": "authority-regressions.log",
+      "sha256": "64b03cd948aa089a6f11f7923c6ee8699016674e7bad13221b93d7921fb98fff",
+      "error": null
+    },
+    {
+      "name": "fresh-js-disposable-prefix",
+      "status": 0,
+      "signal": null,
+      "log": "fresh-js-disposable-prefix.log",
+      "sha256": "be6d837991ea698eac1ec91b8eb6fe6ab30b32260715fc85ad5f6516ec362104",
+      "error": null
+    },
+    {
+      "name": "fresh-native-disposable-prefix",
+      "status": 0,
+      "signal": null,
+      "log": "fresh-native-disposable-prefix.log",
+      "sha256": "72676aa847e6659ec9f27ab803eaf869fe8a60944a33e7f36c66e603727d7388",
+      "error": null
+    }
+  ],
+  "journalUnchanged": true,
+  "liveRecoveryClaimAbsent": true,
+  "completedAt": "2026-10-03T22:23:31.900Z"
+}

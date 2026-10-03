@@ -1,0 +1,95 @@
+{
+  "schemaVersion": 1,
+  "task": "case01 provider-route read-only preflight",
+  "observedAtUtc": "2026-10-03 21:03:38 UTC",
+  "sourceRepository": "C:/dev/main/meri-c1-20261002",
+  "sourceHead": "b7918cd947e6cc7fb8c83ee171e5fa50e483e7aa",
+  "candidateOrchestratorSource": "fb17c7ebfa010ce964919068f61830cb78ca620d",
+  "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+  "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+  "taskDefinitionObserved": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:113",
+  "observationScope": "Selected nonsecret task-definition environment only; TYPESAFE_API_KEY name presence only. No secret values or secret references retrieved. New rollout configuration parity remains root's deployment check.",
+  "rates": {
+    "path": "C:/dev/main/outputs/meri-c2-20261003/reviewed-rates-c2-v2-20261003.json",
+    "sha256": "3531e09dfcce9f66b4ea2b3564db47bd72dc507cdcf1aecdda277b838007704e",
+    "priced": [
+      "openai_responses/openai/gpt-6-astra",
+      "bedrock_embeddings/aws-bedrock/amazon.titan-embed-text-v2:0"
+    ],
+    "unpriced": "jev/jev/jev-1.13.0"
+  },
+  "routes": [
+    {
+      "route": "passage_relevance",
+      "status": "REACHABLE_BUT_UNPRICED_DISPATCH_REFUSED",
+      "conditions": "PASSAGE_SELECTION=enforce/all/chat; JEV_PROVIDER=enforce/all/chat; configured passage_relevance task and matching model. Nonempty candidate batches within token/deadline bounds attempt systemOne. A normal completed answer runs enforce selection; forced synthesis also runs any non-off selection.",
+      "sources": [
+        "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts:1625",
+        "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts:1753",
+        "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts:2059",
+        "apps/meriv2-orchestrator/src/meri/jev/jev-provider.factory.ts:82",
+        "apps/meriv2-orchestrator/src/meri/jev/passage-selector.ts:337",
+        "apps/meriv2-orchestrator/src/meri/jev/passage-selector.ts:491"
+      ]
+    },
+    {
+      "route": "claim_support paired postrelease shadow",
+      "status": "SUPPRESSED_BY_EXISTING_CAPTURE_POLICY",
+      "sources": [
+        "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts:2476"
+      ]
+    },
+    {
+      "route": "auto-correction claim support",
+      "status": "OFF_FOR_T1_AND_EMPTY_CATEGORIES",
+      "reason": "Enrolled tenant17b63099-bc0f-4ac5-b596-496161e9481e differs from T1; categories empty. No special capture suppression assumed.",
+      "sources": [
+        "packages/meriv2-core/src/rollout/capability-rollout.ts:79",
+        "packages/meriv2-core/src/rollout/auto-correction.ts:38",
+        "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts:2250"
+      ]
+    },
+    {
+      "route": "client_fit / match-label",
+      "status": "NO_CONFIGURED_CLIENT_FIT_TASK_AND_CAPTURE_SHADOW_SUPPRESSED",
+      "sources": [
+        "apps/meriv2-orchestrator/src/meri/jev/jev-provider.factory.ts:118",
+        "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts:2410"
+      ]
+    }
+  ],
+  "refusalAndFallback": {
+    "transport": "Exact Typesafe endpoint passes the endpoint guard; provider/model pricing qualification is a separate server reservation guard.",
+    "binding": "kind=jev, provider=jev, model=jev-1.13.0, phase=selection",
+    "beforeDispatch": "MeriRunBudget.budgetedFetch awaits reserveProviderAttempt and authenticated API owner pricing before fetch. price_unknown occurs before reserveResearchProviderAttempt is called and before owner metadata write, so this refusal creates no paid provider dispatch or durable ledger reservation.",
+    "localBudget": "reserveModelAttempt increments local finite model call count before price lookup; no newly invented budget exemption.",
+    "error": "Jev client converts the generic reservation error to JevError(network_error); it retries only provider HTTP429/529, so this exception is not retried by that client.",
+    "fallback": "askPassageQuestions catches; selectPassages keeps all original candidates. selection.applied=false. Normal completed answer remains unchanged; forced synthesis uses unfiltered evidence through its separately budgeted OpenAI call.",
+    "receipt": "Final API receipt derives SETTLED from actual durable attempts, not successful JEV selection. No durable unpriced attempt is inserted. Source permits completion with all priced attempts settled, without claiming passage-selection success.",
+    "sources": [
+      "apps/meriv2-orchestrator/src/meri/meri-capture-provider-wire.ts:126",
+      "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-run-budget.ts:179",
+      "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-run-budget.ts:225",
+      "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-run-budget.ts:528",
+      "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-capture-provider-budget.ts:35",
+      "apps/api/src/meri/meri-capture-provider-budget.ts:143",
+      "apps/api/src/meri/meri-capture-provider-budget.ts:253",
+      "apps/api/src/meri/meri-capture-provider-budget-owner.ts:135",
+      "packages/meriv2-core/src/jev/jev-client.ts:369",
+      "apps/meriv2-orchestrator/src/meri/jev/passage-selector.ts:547",
+      "apps/meriv2-orchestrator/src/meri/jev/passage-selector.ts:567",
+      "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts:1664",
+      "apps/api/src/meri/meri-capture-provider-budget-receipt.ts:29"
+    ]
+  },
+  "conclusion": "No source-proven hard blocker to bounded native case01 completion under unchanged configuration: existing fallback can complete without unpriced Typesafe dispatch. Actual Typesafe passage scoring is unqualified and will be refused if reached. This is not proof that a future run will complete or pass case01.",
+  "nextGate": "Root verifies the promoted configuration preserves these selected modes and exact existing release/fixture/budget/rates/clock authorities. A single authorized capture may use the existing fallback; preserve passage-selection fallback observation and actual final ledger/clock/source receipts. Successful JEV scoring itself would require separately reviewed exact Typesafe pricing/wire qualification; no change is prepared here.",
+  "limitations": [
+    "No capture, model/provider, DB, auth, journal, config or cloud writes.",
+    "No new test executed; existing source tests read only.",
+    "API transaction/HTTP refusal and selector fallback composition inferred from exact source; no new integration or served proof.",
+    "Secret name presence does not prove a usable secret value; missing/invalid config would fall back before JEV reservation instead.",
+    "Candidate count, deadlines and ordinary model output are future runtime observations, not guaranteed by configuration.",
+    "Rates unchanged; no unpriced dispatch authorization and no fallback-based claim of JEV qualification."
+  ]
+}

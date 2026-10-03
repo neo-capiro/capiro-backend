@@ -1,0 +1,68 @@
+{
+  "status": "ACTUAL_SETUP_SCOPE_STATIC_INSPECTION_PASS",
+  "recordedAt": "2026-10-03T21:45:30.033Z",
+  "scopePath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-actual-scope-v2.json",
+  "scopeSha256": "87b10494d9547a4ec9fb28641271d9cec7fbfa5cd9d3c971c91201400fce4d69",
+  "setupResultSha256": "cf48223a8fef21828bc16d2f11b75597de1a1a658045e3a17feebd2c821fd72a",
+  "setupProof": {
+    "setupReceiptSha256": "870e3efe65d748058614bd49b7350cad5f8ad6215cf8ab61e2e2b673cc680cb3",
+    "planSha256": "37d4bfcef3ef7635bf4949f5aab58e4ea5f3059d1889bea471b83eec819897dc",
+    "currentVerifySha256": "227c81e4437276718a0f6dfccb2b883c6d32b266c66b35c79ba26381a1f9c413",
+    "bindingSha256": "1ca9fec4b6586d3efa33edce978cd3762ade58a970018cb0895927d614640582",
+    "qualificationSha256": "6b80b2bcb8da239e6caaed813b87253e51cf1f392f93710ee79d3176a590aede"
+  },
+  "staticInspection": {
+    "selected": {
+      "actor": "PAT",
+      "client": "ASTER",
+      "role": "standard_user",
+      "logicalId": "MA1-v2",
+      "prompt": "What do we know about Aster’s briefing preferences?"
+    },
+    "actor": {
+      "userId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+      "clerkUserId": "user_3Jw2FvWZkYGKmxWGx13tNJxFD2A",
+      "role": "standard_user",
+      "tenantPhysicalId": "f2d6cf8f-057c-479a-8110-62fe5086d43f"
+    },
+    "tenant": {
+      "physicalId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+      "slug": "meri-foundation-20260928-t1"
+    },
+    "client": {
+      "physicalId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+      "tenantPhysicalId": "f2d6cf8f-057c-479a-8110-62fe5086d43f"
+    },
+    "source": {
+      "frozenFixtureId": "MA1-v2",
+      "physicalId": "422b4ca9-10a8-4680-a713-3e61273a14ff",
+      "tenantPhysicalId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+      "clientPhysicalId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+      "kind": "memory",
+      "version": "memory-version:a5397fba-1d91-4ba9-8006-bf1fdaa90f67"
+    },
+    "bearer": "static-shape-inspection-only",
+    "expected": {
+      "caseId": "01",
+      "captureRunId": "bd35c0f4-1604-4371-b7e9-a1338369e53f",
+      "conversationId": "bd35c0f4-1604-4371-b7e9-a1338369e53f",
+      "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+      "actorUserId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+      "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+      "apiSha": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642",
+      "orchestratorSha": "fb17c7ebfa010ce964919068f61830cb78ca620d",
+      "fixtureVersion": "meri-live-v1-2026-09-26.1",
+      "physicalMapSha256": "cf61a870caf2099fd53f36c849189eef1188237191f2e7e9e2c6d9c4c6511974",
+      "seedReceiptId": "meri-synthetic-fixture-seed-receipt:sha256:d7ce11c8ee1508ce3899e6385a2c5bfdd1f5a3c13714aa404225135abaad3c38",
+      "resetReceiptId": "meri-synthetic-fixture-reset-receipt:sha256:4fc5d0fe9e060bed9d23d4da3c3e7b710cba1c5b74b0cb879fd6b63e1e14bc30",
+      "maxSpendMicros": 15000000
+    }
+  },
+  "operatorSourceSha": "b7918cd947e6cc7fb8c83ee171e5fa50e483e7aa",
+  "scopeAuthority": false,
+  "fixtureAuthority": false,
+  "captureAuthority": false,
+  "journalWrites": 0,
+  "providerCalls": 0,
+  "conversationCreations": 0
+}

@@ -1,0 +1,243 @@
+{
+  "version": 1,
+  "reviewer": "/root/mail_defaults_review",
+  "result": "PASS_WITH_STATED_LIMITS",
+  "reviewType": "Independent read-only exact frozen v4 source, retained data and evidence review",
+  "humanReleaseApproval": false,
+  "captureAuthority": false,
+  "liveAcceptance": "NOT_RUN",
+  "candidate": {
+    "checkpointSha256": "c152826175c28b73b9a2e38a12c9c2b16661f10934043b107f9bb5767342e634",
+    "dispatcherSha256": "22afe2b7715207693f179cc091d5144bb9a2a9179b70fbe91010d2b4310225ff",
+    "helperSha256": "5e27f5e689f84fe4b4c6e96b2464f0c4f331d6ac0711fd7c432b89004174e1d8",
+    "testSourceSha256": "e73a987310677b1dfa0c7f264e6ef233516110df3cd0da9293b1dc4e55ba6353"
+  },
+  "findings": [],
+  "conclusions": [
+    "Exact v3-to-v4 diff is limited to the helper import/hash, seven explicit absent defaults before registration, unique-name environment ordering for comparison, new plan-v2/execute-v2 directories and the prior no-run reconciliation pin. No shared release policy or repository source changed.",
+    "Only absent fields receive the observed defaults: task volumes/placementConstraints empty arrays and container cpu zero plus portMappings/mountPoints/volumesFrom/systemControls empty arrays. Explicit null and nondefault values remain distinct. The original pinned template bytes are retained.",
+    "Readback is deliberately not default-filled. The exact intended definition now contains defaults before registration, and both comparison operands only sort complete environment rows by unique nonempty string name. Values and extra row fields are retained; duplicate names or malformed environment arrays/values fail closed.",
+    "All other fields and array orders remain significant, including image, task/container capacity, task/execution roles, secret references/order, command bytes/order, entryPoint, network and container order. Unknown top-level fields still fail the existing taskInput validator; unknown container fields still change the comparison.",
+    "Independent inspection of the retained real failure proved that 11 unique environment rows were exactly equal ignoring order and only the seven observed default additions differed. This is a normalization of the observed registration result, not a blanket omission of writable fields.",
+    "V4 checks the exact saved reconciliation hash before cloud calls, then binds the original failed result and v3 source bytes and refuses if an old RunTask input exists. The retained external reconciliation reports exact setup definition :1 INACTIVE and empty RUNNING/STOPPED family task lists. The prior failed directory remains intact.",
+    "The new plan uses an exclusive plan-v2 directory; execute reads only its successful plan-v2 result and uses an exclusive execute-v2 directory. Neither path resumes, reuses or overwrites the failed original plan.",
+    "Unchanged reviewed inner source, immutable API source/image, reviewed rate bytes, fixed scope/run, task-template hash, four DB secret names, actual release checks, receipt transport, independent failure/cleanup collection and single-attempt mutation gates remain in force."
+  ],
+  "retainedQualification": {
+    "normalizationTests": {
+      "passed": 41,
+      "failed": 0,
+      "skipped": 0,
+      "exitCode": 0,
+      "logSha256": "a2818c03ca26dd2c112a920778abeff232bb1c81aa8c2f2bf590b0cd78f8609c"
+    },
+    "exactV3ExpressionRed": {
+      "tests": 1,
+      "passed": 0,
+      "failed": 1,
+      "expectedExitCode": 1,
+      "sameFinalTestSource": true,
+      "logSha256": "eb911af0d57f2bd968de7b881b018c93976b41d0b338313b89de013c70b80447"
+    },
+    "receiptParserAndWrapperChecks": {
+      "passed": 14,
+      "exitCode": 0,
+      "logSha256": "452afa83ce35f5fa4b5c0afa6550b52f2b55ac4c996abc2dd4384e1c5d109a66"
+    },
+    "dispatcherSyntaxExitFromCheckpoint": 0,
+    "intermediateFailure": "Preserved failed static assertion mistakenly rejected the new old-result reconciliation reference. The corrected assertion rejects only using the old result as the execute plan; final source and receipts are retained.",
+    "hashesAndMirrorsVerified": 33,
+    "reviewerReranTests": false
+  },
+  "limits": [
+    "The retained tests operate on saved real task definitions and pure mutation cases, with parser/wrapper syntax checks. They do not prove successful new ECS registration, task dispatch, log transport or canonical owner execution.",
+    "This PASS supports the separately attended new PLAN under existing authority/current preflight. Its actual returned plan must still be inspected before EXECUTE; any unknown dispatch or receipt must be reconciled without automatic replay.",
+    "Review did not observe or execute the subsequently launched plan. Actual setup receipts, actual scope, native admission, journal reservation, paid capture and human adjudication remain separate gates.",
+    "Original v3, its registration-only failure and cleanup, intermediate test failures, all original source/evidence files and acceptance counts remain preserved."
+  ],
+  "reviewActions": {
+    "localReadsAndHashes": true,
+    "localSavedDataComparison": true,
+    "dispatcherImports": 0,
+    "dispatcherExecutions": 0,
+    "testReruns": 0,
+    "cloudCalls": 0,
+    "authCalls": 0,
+    "browserCalls": 0,
+    "databaseCalls": 0,
+    "providerCalls": 0,
+    "journalOwnerCalls": 0,
+    "journalWrites": 0,
+    "fixtureMutations": 0,
+    "sourceEdits": 0,
+    "writeScope": "Only this new independent review artifact."
+  },
+  "recordedAt": "2026-10-03T21:23:23.0507839Z",
+  "verifiedInputs": [
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/run-case01-native-setup-v4.mjs",
+      "bytes": 26538,
+      "sha256": "22afe2b7715207693f179cc091d5144bb9a2a9179b70fbe91010d2b4310225ff"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v4-review/source/run-case01-native-setup-v4.mjs",
+      "bytes": 26538,
+      "sha256": "22afe2b7715207693f179cc091d5144bb9a2a9179b70fbe91010d2b4310225ff"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v4-definition.mjs",
+      "bytes": 1709,
+      "sha256": "5e27f5e689f84fe4b4c6e96b2464f0c4f331d6ac0711fd7c432b89004174e1d8"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v4-review/source/case01-native-setup-v4-definition.mjs",
+      "bytes": 1709,
+      "sha256": "5e27f5e689f84fe4b4c6e96b2464f0c4f331d6ac0711fd7c432b89004174e1d8"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v4-review/definition-normalization.test.mjs",
+      "bytes": 9661,
+      "sha256": "e73a987310677b1dfa0c7f264e6ef233516110df3cd0da9293b1dc4e55ba6353"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v4-review/source/definition-normalization.test.mjs",
+      "bytes": 9661,
+      "sha256": "e73a987310677b1dfa0c7f264e6ef233516110df3cd0da9293b1dc4e55ba6353"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v4-review/check-offline.mjs",
+      "bytes": 4985,
+      "sha256": "7018e9dc06812d290065fd88375342cc09109b44033bda41b81aa9ee19a2c1e7"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v4-review/source/check-offline.mjs",
+      "bytes": 4985,
+      "sha256": "7018e9dc06812d290065fd88375342cc09109b44033bda41b81aa9ee19a2c1e7"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v4-review/prepare-v4.mjs",
+      "bytes": 4141,
+      "sha256": "3ae74de50b0b8cb2d0ff37f351350994d35b4d4bc154e3b7574c2a8448131e68"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v4-review/source/prepare-v4.mjs",
+      "bytes": 4141,
+      "sha256": "3ae74de50b0b8cb2d0ff37f351350994d35b4d4bc154e3b7574c2a8448131e68"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v4-review/freeze-v4.mjs",
+      "bytes": 3317,
+      "sha256": "b3d0ea30ba2b7dd22ab7a256f464aba33163542da08f4dccb324d1842c81dd18"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v4-review/source/freeze-v4.mjs",
+      "bytes": 3317,
+      "sha256": "b3d0ea30ba2b7dd22ab7a256f464aba33163542da08f4dccb324d1842c81dd18"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/run-case01-native-setup-v3.mjs",
+      "bytes": 25211,
+      "sha256": "39219647361b76d232d2dd4251e9a574277f814a502d601cdc4ca863826cfd43"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v1/case01-native-setup-inner.mjs",
+      "bytes": 13403,
+      "sha256": "632d00e47ec63fb8c0b49cfa0d166760bd16abbf5ded9b572c0a9cf235f9899d"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v1/case01-reviewed-rates-v2.json",
+      "bytes": 2770,
+      "sha256": "3531e09dfcce9f66b4ea2b3564db47bd72dc507cdcf1aecdda277b838007704e"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/corpus-read-definition-input.json",
+      "bytes": 3013,
+      "sha256": "6c0a447dc99ed35642df735c38d09e02b12b33983fe461b707cd0c06a8a44478"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v1-reconciliation.json",
+      "bytes": 1181,
+      "sha256": "b59923080aace193f676921ff8a449ff62b7e527fda80135ec2080255727e232"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v1/definition-input.private.json",
+      "bytes": 26979,
+      "sha256": "87ef59a657661c733a48deb3b3ba7608cc77c4aff5fc23cf871b3e41ae7cdfab"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v1/definition-readback.private.json",
+      "bytes": 28608,
+      "sha256": "28157c0671ec70d3cf76dd7899c8587461009eeb30970a4a704cc10df4c16ca7"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v1/result.json",
+      "bytes": 1405,
+      "sha256": "44512877ecd64e4ee9e6aea0b7ea1efa2b471536ea5bef3b60951dfe3b2862ad"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v4-review/green-normalization-final.json",
+      "bytes": 382,
+      "sha256": "4486fd9c3de465dedd55aa7bd141b451d91ca5538e148aa3b03d7a7e1d344464"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v4-review/green-normalization-final.log",
+      "bytes": 2373,
+      "sha256": "a2818c03ca26dd2c112a920778abeff232bb1c81aa8c2f2bf590b0cd78f8609c"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v4-review/green-normalization.json",
+      "bytes": 170,
+      "sha256": "e0d088454f80adeffd0bb60a37a2caadaafa5192c47855cf13e1d4e315325a58"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v4-review/green-normalization.log",
+      "bytes": 3291,
+      "sha256": "b635df11baad650377a4d59784d9f962e9dbafb49dd5e9c4684f2518500fdb80"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v4-review/offline-final.log",
+      "bytes": 1124,
+      "sha256": "452afa83ce35f5fa4b5c0afa6550b52f2b55ac4c996abc2dd4384e1c5d109a66"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v4-review/offline-result-final.json",
+      "bytes": 570,
+      "sha256": "090e5218fa7def4086c0dad433d617c05930129aba72e026e22b2d1521db2a4c"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v4-review/red-v3-comparison-final.json",
+      "bytes": 410,
+      "sha256": "0d402c534e8748983d516bb68c512c26263f743af4743c5c844a42ea082cddf2"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v4-review/red-v3-comparison-final.log",
+      "bytes": 1394,
+      "sha256": "eb911af0d57f2bd968de7b881b018c93976b41d0b338313b89de013c70b80447"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v4-review/red-v3-comparison.json",
+      "bytes": 314,
+      "sha256": "8b949db41ff137f965817408b27c138f6003e5bec0523a12a401d08a4aae1316"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v4-review/red-v3-comparison.log",
+      "bytes": 1393,
+      "sha256": "9fe51d7816261b2cd7957bac248980809989deb58b060fdee3a1684b845249ba"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v4-review/REVIEW.md",
+      "bytes": 3136,
+      "sha256": "4b5611c38bb09b06298319f1217fa3c5110fa70c28164375370637951374cb92"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v4-review/syntax-final.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v4-review/v3-to-v4.diff",
+      "bytes": 7283,
+      "sha256": "38af5229936dbf42c8851edde7128026401bc12dd002bcd9dead442b45444185"
+    }
+  ]
+}

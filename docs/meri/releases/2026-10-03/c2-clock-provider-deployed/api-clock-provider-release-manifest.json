@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "account": "967807252336",
+  "region": "us-east-1",
+  "cluster": "capiro-dev",
+  "service": "api",
+  "preparedAt": "2026-10-03T20:55:34.925Z",
+  "qualification": {
+    "schemaVersion": 1,
+    "service": "api",
+    "sourceSha": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642",
+    "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:d20110a114ef51a7db3d352321f411a2f51cc8b1877f9ccec6d1f35d7701c8cd",
+    "status": "qualified",
+    "reviewer": "Neo Martinez — explicit approval in current Codex chat",
+    "reviewedAt": "2026-10-03T20:48:47.110Z",
+    "expiresAt": "2026-10-04T19:48:47.110Z",
+    "schemaChange": false,
+    "evidence": [
+      "https://github.com/neo-capiro/capirov2/blob/5a1dc752a7013f285c99fe485c4fd25e5c78d8df/docs/meri/releases/2026-10-03/c2-clock-provider-release/release-qualification.json",
+      "https://github.com/neo-capiro/capirov2/blob/5a1dc752a7013f285c99fe485c4fd25e5c78d8df/docs/meri/releases/2026-10-03/c2-clock-provider-release/release-independent-review.json",
+      "https://github.com/neo-capiro/capirov2/blob/5a1dc752a7013f285c99fe485c4fd25e5c78d8df/docs/meri/releases/2026-10-03/c2-clock-provider-release/builds/api/build-readback.json"
+    ],
+    "checks": [
+      {
+        "name": "build",
+        "status": "passed",
+        "sourceSha": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642",
+        "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:d20110a114ef51a7db3d352321f411a2f51cc8b1877f9ccec6d1f35d7701c8cd",
+        "url": "https://github.com/neo-capiro/capirov2/blob/5a1dc752a7013f285c99fe485c4fd25e5c78d8df/docs/meri/releases/2026-10-03/c2-clock-provider-release/builds/api/build-readback.json"
+      },
+      {
+        "name": "automated-tests",
+        "status": "passed",
+        "sourceSha": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642",
+        "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:d20110a114ef51a7db3d352321f411a2f51cc8b1877f9ccec6d1f35d7701c8cd",
+        "url": "https://github.com/neo-capiro/capirov2/blob/5a1dc752a7013f285c99fe485c4fd25e5c78d8df/docs/meri/releases/2026-10-03/c2-clock-provider-release/release-qualification.json"
+      },
+      {
+        "name": "retirement-compatibility",
+        "status": "passed",
+        "sourceSha": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642",
+        "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:d20110a114ef51a7db3d352321f411a2f51cc8b1877f9ccec6d1f35d7701c8cd",
+        "url": "https://github.com/neo-capiro/capirov2/blob/5a1dc752a7013f285c99fe485c4fd25e5c78d8df/docs/meri/releases/2026-10-03/c2-clock-provider-release/release-qualification.json"
+      }
+    ]
+  },
+  "baseline": {
+    "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:517",
+    "serviceHash": "202b4f4a9d7a7ad158f2e88bfc7dc14e3107d9518870b338930d26d981e6641f",
+    "configHash": "973748a2b134b388a6027df6c5c099055a7e24f7b746eafbaae8cebad077258a",
+    "taskHash": "f13c5d7f138e364d72f302c1491e0863375fa59fb4ec8c50d54c1ce46ff3c1e6",
+    "imageDigest": "sha256:1a4aef121151bb5da7f70417539ece2faff392842809e6b557370c2d6cf8a49d",
+    "desiredCount": 2
+  }
+}

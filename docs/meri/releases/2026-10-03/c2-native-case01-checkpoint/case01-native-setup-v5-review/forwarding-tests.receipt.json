@@ -1,0 +1,7 @@
+{
+  "command": "node --test binding-transaction-scope.test.mjs",
+  "exitCode": 0,
+  "scope": "Extracted exact inline function plus unchanged source-boundary checks; no DB or setup imports",
+  "cloudCalls": 0,
+  "databaseCalls": 0
+}

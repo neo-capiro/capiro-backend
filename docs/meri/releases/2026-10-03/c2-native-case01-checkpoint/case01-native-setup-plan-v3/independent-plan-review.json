@@ -1,0 +1,66 @@
+{
+  "reviewedAt": "2026-10-03T21:45:52.825617+00:00",
+  "reviewer": "mail_defaults_review",
+  "status": "PASS_ACTUAL_PLAN_ONLY",
+  "humanReleaseApproval": false,
+  "captureAuthority": false,
+  "artifacts": [
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case01-native-setup-plan-v3\\result.json",
+      "bytes": 5598,
+      "sha256": "abc325ae84c029d7ff356b154f87c1f6d255967f56a121320a0a8dd964d37634"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case01-native-setup-plan-v3\\inner-receipt.jsonl",
+      "bytes": 3334,
+      "sha256": "8f87f1abc1e0f763626b43d598c111152b545a75058fb786dbb64dfd3a2c7cf1"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case01-native-setup-plan-v3\\inner-receipt-transport.json",
+      "bytes": 708,
+      "sha256": "2f046cc46c86a6777ae889a329cbafce2e3226b1fa10b8f3cb04689398e6ad2c"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case01-native-setup-plan-v3\\cleanup.json",
+      "bytes": 117,
+      "sha256": "fcfa216f16829bd153fdcdfe3ad75f1979f4d69b9fe9760e1979c7f36f714ad1"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case01-native-setup-plan-v3\\task-read-019.json",
+      "bytes": 3667,
+      "sha256": "d7ca6fc9c99eed8df36d243ce8aeed32517482cb72ad8f0596098416ae3291ab"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case01-native-setup-plan-v3\\deregister-readback-1.json",
+      "bytes": 32520,
+      "sha256": "68488275492f4b2d5cd66964fd0ddbb3c1b121157a48f69dcad7101562c8f28c"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case01-native-setup-plan-v3\\definition-readback.json",
+      "bytes": 338,
+      "sha256": "bac1f0f22b4f05489344adcba711182d90a8e4337443f1c4003bfc4571b769cf"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case01-native-setup-plan-v3\\root-plan-review.json",
+      "bytes": 744,
+      "sha256": "01b10e5dca2c98dcaf51f7974314423a6196ced9e0844e0e708f3b35a25b7ea6"
+    }
+  ],
+  "planSha256": "37d4bfcef3ef7635bf4949f5aab58e4ea5f3059d1889bea471b83eec819897dc",
+  "scriptSha256": "e4f4a2f5b869e8a3520de4bf85edc66ead317b6645de8875cdd3362c06685b06",
+  "sourceSha": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642",
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:d20110a114ef51a7db3d352321f411a2f51cc8b1877f9ccec6d1f35d7701c8cd",
+  "verified": [
+    "Exact two-event JSONL bytes/hash/count agree with outer result and transport, zero failures/wrapper failures, PLAN_ONLY exit 0.",
+    "Plan stable hash recomputed independently; fixed original tenant/actor/client/case/run matches; canonical READY proof has missing[].",
+    "Same source map, physical map hash, currentVerify, original row version and prior binding remain in the guarded plan; rates bytes and semantic hash recompute and match the two-rate file.",
+    "Qualification remains 15000000 cost micros, 500000 tokens and 32 attempts, with the exact unchanged expiration.",
+    "Final saved ECS task readback confirms exact task/definition/image digest, STOPPED and container exit 0; saved definition readback confirms INACTIVE."
+  ],
+  "limits": [
+    "This is read-only evidence review, with no replay, imports, cloud/database/auth/provider/journal actions.",
+    "This result proves the actual repaired plan succeeded; it does not itself write or prove a binding or installed budget. Execute must fresh-compare the whole plan and retain partial/uncertain outcomes without automatic retry.",
+    "Provider/conversation/lifecycle counters are the source-owned receipt reports, supported by the reviewed plan path; no separate live audit is claimed.",
+    "Actual execute receipt and generated scope remain separate review gates before capture; original acceptance unchanged."
+  ]
+}

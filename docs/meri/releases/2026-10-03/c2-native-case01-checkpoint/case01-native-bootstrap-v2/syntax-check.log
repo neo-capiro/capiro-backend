@@ -1,0 +1,3 @@
+run-case01-native.mjs: exit=0
+case01-prepared-guards.mjs: exit=0
+case01-prepared-guards.test.mjs: exit=0

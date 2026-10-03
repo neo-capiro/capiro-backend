@@ -1,0 +1,33 @@
+{
+  "status": "STATIC_SCOPE_AND_STOPPED_HISTORY_PASS",
+  "at": "2026-10-03T22:15:59.213Z",
+  "expected": {
+    "caseId": "01",
+    "captureRunId": "bd35c0f4-1604-4371-b7e9-a1338369e53f",
+    "conversationId": "f493355c-ee97-44a1-a0b0-e05e7b104b59",
+    "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+    "actorUserId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+    "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+    "apiSha": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642",
+    "orchestratorSha": "fb17c7ebfa010ce964919068f61830cb78ca620d",
+    "fixtureVersion": "meri-live-v1-2026-09-26.1",
+    "physicalMapSha256": "cf61a870caf2099fd53f36c849189eef1188237191f2e7e9e2c6d9c4c6511974",
+    "seedReceiptId": "meri-synthetic-fixture-seed-receipt:sha256:d7ce11c8ee1508ce3899e6385a2c5bfdd1f5a3c13714aa404225135abaad3c38",
+    "resetReceiptId": "meri-synthetic-fixture-reset-receipt:sha256:4fc5d0fe9e060bed9d23d4da3c3e7b710cba1c5b74b0cb879fd6b63e1e14bc30",
+    "maxSpendMicros": 15000000
+  },
+  "setupProof": {
+    "setupReceiptSha256": "870e3efe65d748058614bd49b7350cad5f8ad6215cf8ab61e2e2b673cc680cb3",
+    "planSha256": "37d4bfcef3ef7635bf4949f5aab58e4ea5f3059d1889bea471b83eec819897dc",
+    "currentVerifySha256": "227c81e4437276718a0f6dfccb2b883c6d32b266c66b35c79ba26381a1f9c413",
+    "bindingSha256": "1ca9fec4b6586d3efa33edce978cd3762ade58a970018cb0895927d614640582",
+    "qualificationSha256": "6b80b2bcb8da239e6caaed813b87253e51cf1f392f93710ee79d3176a590aede"
+  },
+  "qualificationExpiresAt": "2026-10-04T05:29:01.587Z",
+  "captureAuthority": false,
+  "recoveryClaimAbsent": true,
+  "journalSha256": "7ac5a5d06782d325e0d30327586968aa60233681b7dec2ed98f50285ed6daa60",
+  "cloudCalls": 0,
+  "authCalls": 0,
+  "providerCalls": 0
+}

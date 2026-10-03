@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "kind": "case01-native-setup-jsonl",
+  "mode": "plan",
+  "sourceSha": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642",
+  "scriptSha256": "632d00e47ec63fb8c0b49cfa0d166760bd16abbf5ded9b572c0a9cf235f9899d",
+  "rateSha256": "3531e09dfcce9f66b4ea2b3564db47bd72dc507cdcf1aecdda277b838007704e",
+  "captureRunId": "bd35c0f4-1604-4371-b7e9-a1338369e53f",
+  "receiptPath": "/dev/shm/case01-native-setup-plan-01.jsonl",
+  "byteLength": 549,
+  "base64Length": 732,
+  "chunks": 1,
+  "sha256": "2c800941a9995987a2033d58061e2854e766c432fc34cae5869c544a4fe71838",
+  "innerExitCode": 1,
+  "wrapperFailures": [],
+  "pagesRead": 1,
+  "taskStopped": true,
+  "collectionStartedAt": "2026-10-03T21:23:48.912Z"
+}

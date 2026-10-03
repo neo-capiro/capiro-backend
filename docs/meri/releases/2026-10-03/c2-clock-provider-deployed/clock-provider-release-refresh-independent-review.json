@@ -1,0 +1,186 @@
+{
+  "version": 1,
+  "reviewer": "/root/mail_defaults_review",
+  "result": "PASS_SCOPE_PRESERVING_REFRESH",
+  "reviewType": "Independent read-only policy, prepared source and completed technical refresh evidence review",
+  "humanReleaseApproval": false,
+  "newApprovalRequiredForThisTimestampOnlyRefresh": false,
+  "captureAuthority": false,
+  "reviewerExecutedRelease": false,
+  "liveAcceptance": "NOT_RUN",
+  "authorizationBinding": {
+    "basis": "Existing direct human approval of the exact original release scope, retained unchanged; this review supplies no new human attestation.",
+    "approvedAt": "2026-10-03T20:48:47.11Z",
+    "originalPacketFingerprint": "98a95643241e321b6f8950449e0a2ef16a35f6a32d37cbcd089cc1a8a7520190",
+    "refreshedPacketFingerprint": "86bdd03aa44b2cb8c5170671a0eab3055c716c82249ddb9b1a900ec05fd1ae0b",
+    "humanApprovalFingerprint": "869635e82f5cf65613ef29f0a489b72cef922dd0c0407d5271614b4653deb911",
+    "originalSnapshotExpiresAt": "2026-10-03T20:01:27.077Z",
+    "refreshedPreparedAt": "2026-10-03T20:52:50.871Z",
+    "refreshedExpiresAt": "2026-10-03T21:52:50.872Z",
+    "actualChangedKeys": [
+      "preparedAt",
+      "expiresAt"
+    ],
+    "completePacketEqualityApartFromThoseKeys": true,
+    "originalPacketAndApprovalPreserved": true,
+    "statusLabelLimit": "The refreshed packet deliberately retains the original AWAITING_HUMAN_REVIEW string to preserve strict timestamp-only equality. Actual authorization is the separate retained APPROVED human record and joined continuation receipt. Neither review packet is the deployable operator manifest."
+  },
+  "candidatesUnchanged": [
+    {
+      "service": "api",
+      "sourceSha": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642",
+      "imageDigest": "sha256:d20110a114ef51a7db3d352321f411a2f51cc8b1877f9ccec6d1f35d7701c8cd",
+      "baselineRevision": 517
+    },
+    {
+      "service": "meriv2-orchestrator",
+      "sourceSha": "fb17c7ebfa010ce964919068f61830cb78ca620d",
+      "imageDigest": "sha256:2b3ac021d0e5149478bb480c3ed572151bd8b03e08b2a74fd1227af829a06436",
+      "baselineRevision": 113
+    }
+  ],
+  "policyConclusions": [
+    "deployment-prerequisite.md requires an explicit candidate-bound human attestation and fresh technical preparation; it does not require a second human reply solely because a same-scope technical snapshot expired. The original direct approval remains the basis for these unchanged exact candidates.",
+    "meri-release-policy.mjs lines 111-124 retain future qualification expiry bounded by 24 hours and a named reviewedAt within the preceding 24 hours. The new promotion wrapper uses the actual recorded human approval time, not a fabricated new review timestamp.",
+    "meri-release.mjs lines 223-248 retain the one-hour manifest gate and current account, candidate tag/digest, healthy baseline, candidate task shape and rollback-image checks. The wrapper invokes the existing prepare command anew and supplies the exact resulting manifest fingerprint to the unchanged promote command.",
+    "Continuation equality covers the complete candidates/evidence, all three baseline fingerprints, configuration, candidate/rollback task hashes and digests, retained nightly136, WebVNext388, operation order and schema/model/provider/flag/capacity/budget/capture exclusions. A material difference cannot be accepted through the timestamp substitution.",
+    "The approved change window remains necessary; fingerprints are drift detection rather than a distributed lock. New material drift must fail closed for reconciliation. Per-service promotion, actual health checks and subsequent served verification remain required."
+  ],
+  "sourceConclusions": [
+    "prepare-clock-provider-release-refreshed.mjs uses fresh read-only snapshot/ECR/nightly/task-definition checks and exact equality against the original approved packet before saving exclusively created, fsynced successor artifacts. It also requires a current successful schema receipt identical to the committed original and recorded task cleanup.",
+    "promote-clock-provider-service-v2.mjs joins original packet, original human approval, refreshed packet and refresh proof hashes, proves full equality apart from the two timestamps, retains packet expiry checks, and uses the unchanged release CLI with AWS_MAX_ATTEMPTS=1. Existing qualification/manifest/receipt paths are exclusive; no automatic mutation retry or overwrite is added.",
+    "verify-clock-provider-served-v3.mjs preserves the same approval/refresh join and real snapshot/candidate/configuration, nightly and disabled-worker checks. Its ordinary authenticated /api/me read is separate from capture and reports only ordinary identity success. The existing withAuth helper validates the revoke response before successful return.",
+    "The schema v2 wrapper differs from v1 only in a new output directory and exact original template/inner-source hash fences. Its inner transaction is READ ONLY with bounded statements; it does not run migrations, projection cleanup or fixture mutations."
+  ],
+  "resolvedFinding": {
+    "priority": "P2",
+    "originalFileSha256": "760358e4aed4be9ddcc2c60985539df12f5247ac144ceb08e13630183d6f960b",
+    "finding": "Verifier v2 reported oldDrainingTasks zero for unscanned Web vNext and used every() without proving full requested task readback for API/orchestrator.",
+    "fixedFileSha256": "456fdbb2f39ebd169535599391f5dbae4bbfc3fafbd796c958bbbc85ef75c770",
+    "resolution": "Verifier v3 rejects duplicate requested ARNs, requires every batch response to have exact requested cardinality and ARN set, checks each cluster/service group and actual STOPPED state, and records requested/observed/draining counts. Unchanged Web explicitly reports NOT_CHECKED_UNCHANGED_SERVICE with null counts.",
+    "limit": "Read-only source review of this correction; no verifier execution or fault-injection rerun was performed. Original v2 is preserved."
+  },
+  "completedTechnicalProof": {
+    "localDataJoinVerifiedAt": "2026-10-03T20:54:51.604093Z",
+    "schemaObservedAt": "2026-10-03T20:51:07.696Z",
+    "schemaFingerprint": "2497a3612fbbbb0228addc19afd69efc1a73e2209a6c7a983dd14486f605f186",
+    "schemaReceiptEqualsOriginal": true,
+    "schema": {
+      "ledgerRows": 609,
+      "activeFinished": 509,
+      "rolledBack": 100,
+      "prior608Sha256": "9a82cbc9dcecc3b049c312ad4e39ec5a96eb33c6e5af033a3339d1e292c06e90",
+      "migration452Checksum": "ef10ab58b4eef6825652690a098ab160a374fb30c4cc0af9f15793edb7237242",
+      "bothIndexDefinitionsAndReadyStateUnchanged": true,
+      "retirementTablesAbsent": true
+    },
+    "schemaTaskExitCode": 0,
+    "schemaTaskAndDefinitionCleanupJoined": true,
+    "recordedTaskStopped": true,
+    "recordedDefinitionStatus": "INACTIVE",
+    "packetPreparationAwsWrites": 0,
+    "schemaExecutionLimit": "The schema owner used one temporary ECS read task and its registration/execution/cleanup. This is database-read-only, not a claim that the entire schema operation made no cloud mutations. Cleanup status is from the retained owner receipt, not a new reviewer-side cloud query."
+  },
+  "limits": [
+    "No promotion or authenticated served result is inferred from this technical review. The new scripts must run under the current approved exclusive release window and fresh operator gates.",
+    "The original and refreshed packets, human record, continuation proof, schema evidence and all previous reviewed sources remain retained; no expiry, receipt or source was edited by the reviewer.",
+    "The fresh schema proof is for the stated unchanged production ledger/index/retirement contract. It is not a new migration rehearsal or whole-application acceptance result.",
+    "API-first then orchestrator ordering, exact post-promotion health/served checks, guarded rollback, unchanged Web/nightly/schema and no paid capture remain the bounded release scope.",
+    "Canonical setup, rate installation, spend reservation, native capture, original benchmark counts and human adjudication remain separate; this review grants none of them."
+  ],
+  "reviewActions": {
+    "localSourceAndEvidenceReads": true,
+    "localJsonEqualityAndHashValidation": true,
+    "sourceImports": 0,
+    "operatorExecutions": 0,
+    "testReruns": 0,
+    "cloudCalls": 0,
+    "authCalls": 0,
+    "browserCalls": 0,
+    "databaseCalls": 0,
+    "providerCalls": 0,
+    "journalOwnerCalls": 0,
+    "journalWrites": 0,
+    "fixtureMutations": 0,
+    "sourceEdits": 0,
+    "evidenceWrite": "Only this new independent review artifact."
+  },
+  "recordedAt": "2026-10-03T20:57:41.2483316Z",
+  "verifiedInputs": [
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/prepare-clock-provider-release-refreshed.mjs",
+      "bytes": 11457,
+      "sha256": "2d70f463a6a884bb9b599f6d8eb0d59a03ea65f83423cd080f22ffb4394e3196"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/promote-clock-provider-service-v2.mjs",
+      "bytes": 5570,
+      "sha256": "b6370448a47946b5326875b21b8997b99443000369ce01dfbd736a2bbe4187d7"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/verify-clock-provider-served-v3.mjs",
+      "bytes": 5977,
+      "sha256": "456fdbb2f39ebd169535599391f5dbae4bbfc3fafbd796c958bbbc85ef75c770"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/verify-clock-provider-served-v2.mjs",
+      "bytes": 5134,
+      "sha256": "760358e4aed4be9ddcc2c60985539df12f5247ac144ceb08e13630183d6f960b"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/read-clock-provider-schema-v2.mjs",
+      "bytes": 5643,
+      "sha256": "87aa54c7d50686319d5f76214eb225080c9924d334f6dda53af24fc4e665ff01"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/clock-provider-schema-inner.mjs",
+      "bytes": 3639,
+      "sha256": "466f94130c5b7396ed5c9e9c3474bca95c99881adeb1aad4f6fb2f6b9f0ce386"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/clock-provider-current-schema-v2/result.json",
+      "bytes": 1481,
+      "sha256": "97b7349f9f7cbfd9f3b63b5a8800fcd135ac1ed361fbab8ced1a5f744f639b5a"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/clock-provider-current-schema-v2/cleanup.json",
+      "bytes": 302,
+      "sha256": "cc99767c1b2cbf3f10e2b186cb1befd0cf98fc9110420a00dd432ac7310eb4e9"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/clock-provider-release-packet.json",
+      "bytes": 7017,
+      "sha256": "ae8fd38164d07c3ef08ba993edbe5bee94501afb50d1428156cf82dd2c3a0b8f"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/clock-provider-release-packet-refreshed.json",
+      "bytes": 7017,
+      "sha256": "02ea5faf7a3e22e5702d2f8cf83192f5503a96c5f7540682f6ab8e5ed9eff0c2"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/clock-provider-release-refresh.json",
+      "bytes": 956,
+      "sha256": "4b1407847fa92fcbaab988c38e5e691e4a1136ee93acbdb29af5895a23a90106"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/clock-provider-human-approval.json",
+      "bytes": 1364,
+      "sha256": "fc42e18b2e530d6edd791a36815409d17815e9c8367c717a76a931475c5fe0b4"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/docs/meri/deployment-prerequisite.md",
+      "bytes": 20169,
+      "sha256": "a18a90c1fb413355df390a8a603b46e642ad0b59c19f4d24b02e071ff8ea4849"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/scripts/meri-release.mjs",
+      "bytes": 22124,
+      "sha256": "2fece407aa0f08795ac6d5d1feef99211412ab28ea6bc76125c1c49eae4412f6"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/scripts/lib/meri-release-policy.mjs",
+      "bytes": 9875,
+      "sha256": "e0518591e704ef3f051442d1b949a9f83a705a2cff40ed998dba19b57373cb5c"
+    }
+  ]
+}

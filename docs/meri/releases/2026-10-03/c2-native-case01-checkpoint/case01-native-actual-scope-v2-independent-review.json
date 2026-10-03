@@ -1,0 +1,36 @@
+{
+  "reviewedAt": "2026-10-03T21:48:24.322741+00:00",
+  "reviewer": "mail_defaults_review",
+  "status": "PASS_ACTUAL_SETUP_AND_CAPTURE_SCOPE",
+  "humanReleaseApproval": false,
+  "humanRubricReview": false,
+  "captureExecutedByReviewer": false,
+  "defects": [],
+  "hashes": {
+    "planResult": "abc325ae84c029d7ff356b154f87c1f6d255967f56a121320a0a8dd964d37634",
+    "plan": "37d4bfcef3ef7635bf4949f5aab58e4ea5f3059d1889bea471b83eec819897dc",
+    "executeResult": "cf48223a8fef21828bc16d2f11b75597de1a1a658045e3a17feebd2c821fd72a",
+    "executeReceipt": "870e3efe65d748058614bd49b7350cad5f8ad6215cf8ab61e2e2b673cc680cb3",
+    "executeScript": "e4f4a2f5b869e8a3520de4bf85edc66ead317b6645de8875cdd3362c06685b06",
+    "binding": "1ca9fec4b6586d3efa33edce978cd3762ade58a970018cb0895927d614640582",
+    "qualification": "6b80b2bcb8da239e6caaed813b87253e51cf1f392f93710ee79d3176a590aede",
+    "scope": "87b10494d9547a4ec9fb28641271d9cec7fbfa5cd9d3c971c91201400fce4d69",
+    "scopeInspection": "1367a9d645a0cb7cddb16270cd58de0065a130f52587869f43c181d51cff39bf",
+    "cleanup": "fcfa216f16829bd153fdcdfe3ad75f1979f4d69b9fe9760e1979c7f36f714ad1",
+    "stoppedTask": "8515bfe8b80c09ce16d9fedf9592f22b33473f30c8b01b80d252c5aacc48ef1e",
+    "inactiveDefinition": "6a01df877116022fc740a79c44e24b8c2ecb1cbde88e7a058e48643ec7531c7a"
+  },
+  "decisiveJoins": [
+    "Exact six-event JSONL, complete transport and outer result agree; exit 0, no failures; actual binding and qualification hashes recompute independently.",
+    "Execute matches the successful plan, original prior binding/xmin, fixture/currentVerify and exact original actor/client/run. Binding xmin114685607 joins budget plan; installed/readback xmin114685615 joins final qualification.",
+    "Protected-settings hash equals plan; no fixture lifecycle rewrite reported. Exact API image task is STOPPED/exit0 and registered definition INACTIVE.",
+    "Actual scope pins this execute-v3 JSONL, unchanged reviewed identity-only manifest, exact approved API/orchestrator source/image/build/buildspec pairs, fixed web source and clean b791 operator checkout.",
+    "Static exported build/inspect receipt selects the unchanged original prompt, Pat/Aster/MA1-v2, fixed scope and15M cap. The reviewed launcher successor changes only the scope path and retains explicit capiro-dev profile and the one native operator invocation."
+  ],
+  "limits": [
+    "This is a technical evidence/scope review, not human answer-quality/rubric acceptance or new authorization.",
+    "Saved static bearer/conversation placeholders are not runtime credentials or conversation authority. Native owner must still perform its real authentication/build/fixture/journal/reservation checks.",
+    "Setup reports zero provider/conversation/journal actions; capture and final settlement have not been reviewed. No operator, cloud/auth/provider/database/journal action or test rerun was performed by this reviewer.",
+    "Original75/CD/CW counts remain unchanged; no automatic retry after an uncertain capture outcome."
+  ]
+}

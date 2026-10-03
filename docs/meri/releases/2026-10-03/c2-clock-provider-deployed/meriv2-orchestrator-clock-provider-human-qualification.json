@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "service": "meriv2-orchestrator",
+  "sourceSha": "fb17c7ebfa010ce964919068f61830cb78ca620d",
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:2b3ac021d0e5149478bb480c3ed572151bd8b03e08b2a74fd1227af829a06436",
+  "status": "qualified",
+  "reviewer": "Neo Martinez — explicit approval in current Codex chat",
+  "reviewedAt": "2026-10-03T20:48:47.110Z",
+  "expiresAt": "2026-10-04T19:48:47.110Z",
+  "schemaChange": false,
+  "evidence": [
+    "https://github.com/neo-capiro/capirov2/blob/5a1dc752a7013f285c99fe485c4fd25e5c78d8df/docs/meri/releases/2026-10-03/c2-clock-provider-release/release-qualification.json",
+    "https://github.com/neo-capiro/capirov2/blob/5a1dc752a7013f285c99fe485c4fd25e5c78d8df/docs/meri/releases/2026-10-03/c2-clock-provider-release/release-independent-review.json",
+    "https://github.com/neo-capiro/capirov2/blob/5a1dc752a7013f285c99fe485c4fd25e5c78d8df/docs/meri/releases/2026-10-03/c2-clock-provider-release/builds/meriv2-orchestrator/build-readback.json"
+  ],
+  "checks": [
+    {
+      "name": "build",
+      "status": "passed",
+      "sourceSha": "fb17c7ebfa010ce964919068f61830cb78ca620d",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:2b3ac021d0e5149478bb480c3ed572151bd8b03e08b2a74fd1227af829a06436",
+      "url": "https://github.com/neo-capiro/capirov2/blob/5a1dc752a7013f285c99fe485c4fd25e5c78d8df/docs/meri/releases/2026-10-03/c2-clock-provider-release/builds/meriv2-orchestrator/build-readback.json"
+    },
+    {
+      "name": "automated-tests",
+      "status": "passed",
+      "sourceSha": "fb17c7ebfa010ce964919068f61830cb78ca620d",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:2b3ac021d0e5149478bb480c3ed572151bd8b03e08b2a74fd1227af829a06436",
+      "url": "https://github.com/neo-capiro/capirov2/blob/5a1dc752a7013f285c99fe485c4fd25e5c78d8df/docs/meri/releases/2026-10-03/c2-clock-provider-release/release-qualification.json"
+    },
+    {
+      "name": "retirement-compatibility",
+      "status": "passed",
+      "sourceSha": "fb17c7ebfa010ce964919068f61830cb78ca620d",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:2b3ac021d0e5149478bb480c3ed572151bd8b03e08b2a74fd1227af829a06436",
+      "url": "https://github.com/neo-capiro/capirov2/blob/5a1dc752a7013f285c99fe485c4fd25e5c78d8df/docs/meri/releases/2026-10-03/c2-clock-provider-release/release-qualification.json"
+    }
+  ]
+}

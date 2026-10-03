@@ -1,0 +1,21 @@
+{
+  "status": "IDENTICAL_APPROVED_SCOPE_REVALIDATED",
+  "recordedAt": "2026-10-03T20:52:50.969Z",
+  "originalPacketSha256": "98a95643241e321b6f8950449e0a2ef16a35f6a32d37cbcd089cc1a8a7520190",
+  "refreshedPacketSha256": "86bdd03aa44b2cb8c5170671a0eab3055c716c82249ddb9b1a900ec05fd1ae0b",
+  "humanApprovalSha256": "869635e82f5cf65613ef29f0a489b72cef922dd0c0407d5271614b4653deb911",
+  "changes": [
+    "preparedAt",
+    "expiresAt"
+  ],
+  "scopeChanged": false,
+  "candidateChanged": false,
+  "baselineChanged": false,
+  "configurationChanged": false,
+  "currentSchemaPath": "clock-provider-current-schema-v2/result.json",
+  "currentSchemaSha256": "2497a3612fbbbb0228addc19afd69efc1a73e2209a6c7a983dd14486f605f186",
+  "freshCloudImageAndBaselineChecks": true,
+  "originalSnapshotExpiryBypassed": false,
+  "approvalBasis": "Direct human approval of the exact original scope; successor changes freshness timestamps only.",
+  "awsWritesByPacketPreparation": 0
+}

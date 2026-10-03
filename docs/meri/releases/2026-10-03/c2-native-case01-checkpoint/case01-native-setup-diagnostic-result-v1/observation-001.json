@@ -1,0 +1,8 @@
+{
+  "at": "2026-10-03T21:33:36.618Z",
+  "phase": "FINAL_EVIDENCE_OR_CLEANUP_ASSERTION",
+  "fatal": true,
+  "errorClass": "AssertionError",
+  "code": "ERR_ASSERTION",
+  "automaticRetryAllowed": false
+}

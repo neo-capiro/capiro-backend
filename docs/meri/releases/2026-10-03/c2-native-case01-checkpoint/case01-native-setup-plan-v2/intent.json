@@ -1,0 +1,46 @@
+{
+  "at": "2026-10-03T21:21:56.967Z",
+  "mode": "plan",
+  "sourceSha": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642",
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:d20110a114ef51a7db3d352321f411a2f51cc8b1877f9ccec6d1f35d7701c8cd",
+  "reconciliationSha256": "b59923080aace193f676921ff8a449ff62b7e527fda80135ec2080255727e232",
+  "scriptSha256": "632d00e47ec63fb8c0b49cfa0d166760bd16abbf5ded9b572c0a9cf235f9899d",
+  "wrapperSha256": "817aad0121ee1e454b149c28739fef788795549416fba18d8c0c0a006c540508",
+  "rateSha256": "3531e09dfcce9f66b4ea2b3564db47bd72dc507cdcf1aecdda277b838007704e",
+  "input": {
+    "confirmation": "INSPECT_EXISTING_CASE01_BIND_AND_BUDGET_ONLY",
+    "expectedSourceSha": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642"
+  },
+  "served": [
+    {
+      "service": "api",
+      "baseline": {
+        "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:519",
+        "serviceHash": "9486df2740a8a492d166553e4acb91fdafd6114ecb0c51448a4b1b83b2a36782",
+        "configHash": "973748a2b134b388a6027df6c5c099055a7e24f7b746eafbaae8cebad077258a",
+        "taskHash": "8dd9f9384fd148e54a72fa570a2f1e62b360000cbd7d2efaa44f56f6bc85bf45",
+        "imageDigest": "sha256:d20110a114ef51a7db3d352321f411a2f51cc8b1877f9ccec6d1f35d7701c8cd",
+        "desiredCount": 2
+      },
+      "sourceSha": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642"
+    },
+    {
+      "service": "meriv2-orchestrator",
+      "baseline": {
+        "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:115",
+        "serviceHash": "60738c954f95159eac019becbc517541aedbb5fdb72bf721b72cd23ae651810a",
+        "configHash": "3a4fabd2139e347cd8b45192579f2a3fbaaa6fc3678762b5252f727a4461951b",
+        "taskHash": "981602a875ff5c521fee1d846534d297325ae736b2190210c6d9e8536176edee",
+        "imageDigest": "sha256:2b3ac021d0e5149478bb480c3ed572151bd8b03e08b2a74fd1227af829a06436",
+        "desiredCount": 1
+      },
+      "sourceSha": "fb17c7ebfa010ce964919068f61830cb78ca620d"
+    }
+  ],
+  "releasePacketSha256": "98a95643241e321b6f8950449e0a2ef16a35f6a32d37cbcd089cc1a8a7520190",
+  "providerSecrets": 0,
+  "providerCalls": 0,
+  "fixtureLifecycleMutations": 0,
+  "proposedWrites": [],
+  "automaticRetry": false
+}

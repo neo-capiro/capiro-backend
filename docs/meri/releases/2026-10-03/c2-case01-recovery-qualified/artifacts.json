@@ -1,0 +1,159 @@
+{
+  "status": "LOCAL_QUALIFICATION_ONLY",
+  "recordedAt": "2026-10-03T22:26:00.820228+00:00",
+  "files": [
+    {
+      "path": "case01-recovery-independent-review-v1.json",
+      "bytes": 7288,
+      "sha256": "5476bc0aed56c998659e50c50b8ca3c9971a6c5dbeaa3d4727f0c11a79da682a"
+    },
+    {
+      "path": "case01-recovery-local-checks-v1/checkpoint.json",
+      "bytes": 2579,
+      "sha256": "2ecde47799a934ad4f5f00821378e40724160eeb386fee98a48c4c2b3a24d12b"
+    },
+    {
+      "path": "case01-recovery-regressions-v1/preparation.json",
+      "bytes": 724,
+      "sha256": "8b596ed0fe4c051be4dcd253c6261040840cd6e575ef43dfb0b84021de3d524d"
+    },
+    {
+      "path": "case01-recovery-regressions-v1/capture-spend-fresh-copy.test.mjs",
+      "bytes": 8048,
+      "sha256": "ec29bda0f25b041a1a8203e0dac203db69920555431a5ccc98e6050ea7cb8eb8"
+    },
+    {
+      "path": "case01-recovery-regressions-v1/capture-spend-fresh-copy.unit.py",
+      "bytes": 11129,
+      "sha256": "0ea7d503b2d1cebc6375fe1dbe8a01d7167f439ab0c8eabcab819b091b6d7427"
+    },
+    {
+      "path": "run-case01-native-recovery-v1.mjs",
+      "bytes": 18226,
+      "sha256": "678e3108726a273afe0af7343060d6809518f9497282c1c8599fbee8bb13687a"
+    },
+    {
+      "path": "prepare-case01-recovery-launcher-v1.mjs",
+      "bytes": 4420,
+      "sha256": "caf275d04b34bf5f6fb86784a2397f5d0036385f603045fec3671e39ebd0c1d4"
+    },
+    {
+      "path": "run-case01-recovery-local-checks-v1.mjs",
+      "bytes": 3190,
+      "sha256": "e151415bbd9e558f53d5f6896a139e24b800d40746f11ce87dd0156f9e920c89"
+    },
+    {
+      "path": "prepare-case01-recovery-regression-copies.py",
+      "bytes": 3134,
+      "sha256": "17bab8fe8d72208b68c60650ccd94bb7312ec7d83ea4aa8cfba107c5ff2a165b"
+    },
+    {
+      "path": "inspect-case01-recovery-static-v1.mjs",
+      "bytes": 2489,
+      "sha256": "4bdd86758c9cbc4a76f08e2f6c6211b684de760d9a34913198793cdf28eb866e"
+    },
+    {
+      "path": "case01-recovery-static-inspection-v1.json",
+      "bytes": 1735,
+      "sha256": "906f4639fdaff9e388dc840d12b1bad8d98280e21a6a99c8127a019684e0d032"
+    },
+    {
+      "path": "case01-browser-readiness-diagnostic-v1.json",
+      "bytes": 1142,
+      "sha256": "68cfb4c38ce44ee95fc09031a53c29e8b47c4207e83864e4dc64162bd551881e"
+    },
+    {
+      "path": "diagnose-case01-browser-readiness-v1.mjs",
+      "bytes": 7371,
+      "sha256": "f72168fba30309f612f50084756d57ff30d63daa7af63c0c6e8515be75721f44"
+    },
+    {
+      "path": "case01-recovery-admission-source-audit-v1.json",
+      "bytes": 8489,
+      "sha256": "e39be12d5940bcb51b371690bf8bad430fcc40e76a84abe45c830891bd5f3ffd"
+    },
+    {
+      "path": "read-case01-token-lifetime-v1.mjs",
+      "bytes": 1326,
+      "sha256": "e89e4a6c3be9b3cdee08b0326e59d39fdf0785aa02248c31e52be485359649e3"
+    },
+    {
+      "path": "read-case01-token-lifetime-v2.mjs",
+      "bytes": 1423,
+      "sha256": "d7559493b8b30fcf061a38ab91c497f9e345e2a13aedaa5974dbd7ca5055f822"
+    },
+    {
+      "path": "case01-token-lifetime-readback-v2.json",
+      "bytes": 285,
+      "sha256": "160eb93c720cb963eb4a8456d609e620e24dc628588ffba112cca2d42d0dc405"
+    },
+    {
+      "path": "case01-recovery-local-checks-v1/syntax-0.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "case01-recovery-local-checks-v1/syntax-1.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "case01-recovery-local-checks-v1/syntax-2.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "case01-recovery-local-checks-v1/operator-syntax.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "case01-recovery-local-checks-v1/recovery.log",
+      "bytes": 3554,
+      "sha256": "9860740ba558d2451640ce9eb509471ff73fcd0f67d68dde166e6634d1afb5ac"
+    },
+    {
+      "path": "case01-recovery-local-checks-v1/authority-regressions.log",
+      "bytes": 7200,
+      "sha256": "64b03cd948aa089a6f11f7923c6ee8699016674e7bad13221b93d7921fb98fff"
+    },
+    {
+      "path": "case01-recovery-local-checks-v1/fresh-js-disposable-prefix.log",
+      "bytes": 627,
+      "sha256": "be6d837991ea698eac1ec91b8eb6fe6ab30b32260715fc85ad5f6516ec362104"
+    },
+    {
+      "path": "case01-recovery-local-checks-v1/fresh-native-disposable-prefix.log",
+      "bytes": 1876,
+      "sha256": "72676aa847e6659ec9f27ab803eaf869fe8a60944a33e7f36c66e603727d7388"
+    },
+    {
+      "path": "README.md",
+      "bytes": 2935,
+      "sha256": "3771412b830efc474deb267527f506136a3e05ee237917c1ad7674c6ccd10c4a"
+    },
+    {
+      "path": ".gitattributes",
+      "bytes": 75,
+      "sha256": "ef5c230f4d8b87142cf574d3b391a2b4ac5ccaf1776980fac2bd8cb3305cdc06"
+    }
+  ],
+  "sourceFiles": [
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/case01-presubmission-recovery-authority.mjs",
+      "sha256": "83128b97926129a178d53863039f99a6fc1c7a65e77d9083c201b39f1e321237"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/capture-spend-aggregate.mjs",
+      "sha256": "07f216e203d36b09c63958118fb448676c115363f553df38af44da963f766181"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/case01-presubmission-recovery.test.mjs",
+      "sha256": "71905a03919e61f7aa34536aea2fa2f9c3153999e6cd2f78db81da2ae1951642"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/run-case01-native-recovery-v1.mjs",
+      "sha256": "678e3108726a273afe0af7343060d6809518f9497282c1c8599fbee8bb13687a"
+    }
+  ]
+}

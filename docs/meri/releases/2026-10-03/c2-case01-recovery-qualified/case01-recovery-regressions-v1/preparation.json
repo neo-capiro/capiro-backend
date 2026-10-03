@@ -1,0 +1,15 @@
+{
+  "status": "DISPOSABLE_EXACT_PREFIX_TEST_COPIES",
+  "liveJournalSha256": "7ac5a5d06782d325e0d30327586968aa60233681b7dec2ed98f50285ed6daa60",
+  "prefixSha256": "abe458973e6998db20586c781ac5a3cbd4ca2fa565425e62722f0eb9c985210b",
+  "prefixEvents": 20,
+  "actualEvents": 21,
+  "modifications": [
+    "Only copied test input/output roots and absolute source/helper imports changed.",
+    "Production helper and aggregate module remain actual current repository source."
+  ],
+  "sourceTestHashes": {
+    "capture-spend-fresh.test.mjs": "c0dfa869f90afb9d623859cf53c4fdfc19cf1d8835a32581d36b46581d68b5d6",
+    "capture-spend-fresh.unit.py": "1073171aa3e893ebc3c328ef18cce3426be842523f933aac40d46c2a3f371ece"
+  }
+}

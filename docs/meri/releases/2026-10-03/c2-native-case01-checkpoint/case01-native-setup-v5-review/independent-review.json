@@ -1,0 +1,179 @@
+{
+  "reviewedAt": "2026-10-03T21:42:46.649630+00:00",
+  "reviewer": "mail_defaults_review",
+  "status": "PASS_WITH_LIVE_PLAN_QUALIFICATION_PENDING",
+  "humanReleaseApproval": false,
+  "captureAuthority": false,
+  "checkpoint": {
+    "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case01-native-setup-v5-review\\checkpoint.json",
+    "sha256": "aa5163fcea0d760f5aab4fab52c437c2ade3abc570294402df2c5c69b092953a",
+    "bytes": 6385
+  },
+  "verifiedHashRecords": 26,
+  "verifiedArtifacts": [
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case01-native-setup-v2\\case01-native-setup-inner.mjs",
+      "sha256": "e4f4a2f5b869e8a3520de4bf85edc66ead317b6645de8875cdd3362c06685b06",
+      "bytes": 16291
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case01-native-setup-v5-review\\source\\case01-native-setup-inner.mjs",
+      "sha256": "e4f4a2f5b869e8a3520de4bf85edc66ead317b6645de8875cdd3362c06685b06",
+      "bytes": 16291
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case01-native-setup-v2\\case01-reviewed-rates-v2.json",
+      "sha256": "3531e09dfcce9f66b4ea2b3564db47bd72dc507cdcf1aecdda277b838007704e",
+      "bytes": 2770
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case01-native-setup-v5-review\\source\\case01-reviewed-rates-v2.json",
+      "sha256": "3531e09dfcce9f66b4ea2b3564db47bd72dc507cdcf1aecdda277b838007704e",
+      "bytes": 2770
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case01-native-setup-v2\\plan-input.json",
+      "sha256": "805518e056caff9ba4deb582dd5020257045b19f80cd5283a5e5844e8f74eb6d",
+      "bytes": 136
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case01-native-setup-v5-review\\source\\plan-input.json",
+      "sha256": "805518e056caff9ba4deb582dd5020257045b19f80cd5283a5e5844e8f74eb6d",
+      "bytes": 136
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\run-case01-native-setup-v5.mjs",
+      "sha256": "12f6085bae0aaac9d9fcbce5b44219162aa23ee0692a15b2f481dd3484b2bb52",
+      "bytes": 28070
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case01-native-setup-v5-review\\source\\run-case01-native-setup-v5.mjs",
+      "sha256": "12f6085bae0aaac9d9fcbce5b44219162aa23ee0692a15b2f481dd3484b2bb52",
+      "bytes": 28070
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case01-native-setup-v5-review\\binding-transaction-scope.test.mjs",
+      "sha256": "197c03a853c1237ba62e8f5853cc79a0b70717dc8576849e05c2d4af898dba68",
+      "bytes": 6571
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case01-native-setup-v5-review\\source\\binding-transaction-scope.test.mjs",
+      "sha256": "197c03a853c1237ba62e8f5853cc79a0b70717dc8576849e05c2d4af898dba68",
+      "bytes": 6571
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case01-native-setup-v5-review\\prepare-v5.mjs",
+      "sha256": "15e67317fbc3f25ab9f34d0691b279e3b7c074093e991fcbde6b7534f861f597",
+      "bytes": 8156
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case01-native-setup-v5-review\\source\\prepare-v5.mjs",
+      "sha256": "15e67317fbc3f25ab9f34d0691b279e3b7c074093e991fcbde6b7534f861f597",
+      "bytes": 8156
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case01-native-setup-v1\\case01-native-setup-inner.mjs",
+      "sha256": "632d00e47ec63fb8c0b49cfa0d166760bd16abbf5ded9b572c0a9cf235f9899d",
+      "bytes": 13403
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\run-case01-native-setup-v4.mjs",
+      "sha256": "22afe2b7715207693f179cc091d5144bb9a2a9179b70fbe91010d2b4310225ff",
+      "bytes": 26538
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case01-native-setup-v4-definition.mjs",
+      "sha256": "5e27f5e689f84fe4b4c6e96b2464f0c4f331d6ac0711fd7c432b89004174e1d8",
+      "bytes": 1709
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\corpus-read-definition-input.json",
+      "sha256": "6c0a447dc99ed35642df735c38d09e02b12b33983fe461b707cd0c06a8a44478",
+      "bytes": 3013
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case01-native-setup-diagnostic-v1\\case01-native-setup-inner.mjs",
+      "sha256": "2479168248b3f108e012730da1fc1c11f0ba2f87dae707b837eeb282a855f488",
+      "bytes": 12217
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case01-native-setup-diagnostic-result-v1\\result.json",
+      "sha256": "0892b58914b29f3303c02df045894e895778707075922a6888483b33ff8774fd",
+      "bytes": 6567
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case01-native-setup-diagnostic-result-v1\\inner-receipt.jsonl",
+      "sha256": "0197f21682e6f7297f263018620c6cd4e078b694448f2081eb01b6e0ab28f563",
+      "bytes": 2297
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case01-native-setup-plan-v2\\result.json",
+      "sha256": "bc293a00ec0473c0bde4977f4b42209f4486119d3801929183d477fb6626f514",
+      "bytes": 2525
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case01-native-setup-v5-review\\dispatcher-v4-to-v5.diff",
+      "sha256": "eaecb6152d96dfd0a3422b88c8d0dcf10182033866c3d0257b7f7bc48cc5a595",
+      "bytes": 6379
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case01-native-setup-v5-review\\forwarding-tests.log",
+      "sha256": "8547544c734159576d45e99389da3743018826fbdaeaef2916807c656d5e1870",
+      "bytes": 1424
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case01-native-setup-v5-review\\forwarding-tests.receipt.json",
+      "sha256": "6490b1fdeb3d8625a40552e1863513084c1106256faf189f7cb61ad0f0facddb",
+      "bytes": 239
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case01-native-setup-v5-review\\inner-v1-to-v2.diff",
+      "sha256": "4b073b42363de0c506a74d7bd4623382a1fa981579cf0e07ad8e8dc8b4da3b00",
+      "bytes": 10173
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case01-native-setup-v5-review\\REVIEW.md",
+      "sha256": "5afef027ccb47f6dc13f93340943bcefe1e6544865b0277e367a2966b680c50a",
+      "bytes": 2437
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case01-native-setup-v5-review\\syntax.receipt.json",
+      "sha256": "126d4fa552506242f63da0bbe7400ebaae50433b9dba0083a9619902460a69a6",
+      "bytes": 255
+    }
+  ],
+  "scope": "Local exact-source delta, actual immutable Prisma API, retained pure-test and evidence review only. No imports, tests, operator execution, remote calls, database, provider, journal or repository edits by reviewer.",
+  "findings": [],
+  "verifiedConclusions": [
+    "The only behavior-changing inner delta is the narrow bindingTransactionScope forwarding object used solely by createCaptureBindingOwner. Its exact three-argument call requires fixed T1/Pat and a function callback; it forwards that same callback once on the original Prisma receiver with {timeoutMs:30000}.",
+    "The exact API source 5b086a6b47ffce5aa1b93bfe38f9c7b96e297642 already implements withTenantUser optional timeoutMs as Prisma transaction timeout. It retains tenant/user GUC injection and the real transaction client. Current PrismaService, setup-dependencies and capture-binding-owner files have no delta from that immutable source.",
+    "The unchanged owner calls withTenantUser with three arguments. Its same transaction locks actor, client, tenant and canonical sources before the existing binding CAS; no callback, transaction, source proof, query or fixture authority is substituted.",
+    "Caller options are rejected, synchronous/asynchronous errors propagate without retry, and no global transaction timeout or product configuration is changed.",
+    "savedState, runtime dependencies, qualification construction, rate checks, budget installation/readback, before/middle/after protected-setting checks, original two plan events and six execute events remain unchanged. Added diagnostics have the previously reviewed sanitizer.",
+    "Dispatcher v5 retains the normalization helper, image/source/template/approval/served-service and at-most-once dispatch/cleanup guards. It uses exclusive plan-v3/execute-v3 paths and only the successful plan-v3 receipt for execute.",
+    "Prior actual diagnostic result and complete JSONL hashes are pinned before cloud calls, joined to their events, P2028/HYDRATE_PREVIOUS/timeout and STOPPED/INACTIVE facts. Historical attempts are preserved.",
+    "Exact source mirrors and all 26 referenced file/hash records match the frozen checkpoint. The unchanged wrapper, JSONL assembler and success event contract are covered by retained source equality checks."
+  ],
+  "qualification": {
+    "retainedFocusedTests": {
+      "passed": 16,
+      "failed": 0,
+      "skipped": 0,
+      "exitCode": 0,
+      "scope": "Exact extracted inline forwarding implementation, rejected scope/options, same callback/receiver and error identity, static unchanged remainder and dispatcher contract."
+    },
+    "retainedSyntaxChecks": 2,
+    "syntaxExitCodes": [
+      0,
+      0
+    ],
+    "broaderParserRerun": false,
+    "actualPrismaAfterFixTestedByReviewer": false
+  },
+  "limits": [
+    "This review does not establish successful completion within 30000ms. Root has launched a separate attended PLAN; its returned exact-source/image proof and cleanup must be reviewed before execute.",
+    "No successful binding, budget installation, conversation, journal adoption or model capture is inferred from source/test PASS.",
+    "Existing separate binding and budget-install transaction boundaries remain: after any partial or uncertain execute outcome preserve intents/evidence and reconcile; no automatic replay.",
+    "Original live acceptance accounting is unchanged."
+  ]
+}

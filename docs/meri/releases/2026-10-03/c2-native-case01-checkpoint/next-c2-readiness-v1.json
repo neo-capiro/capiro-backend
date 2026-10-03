@@ -1,0 +1,253 @@
+{
+  "schemaVersion": 1,
+  "kind": "bounded_local_next_c2_readiness",
+  "recordedAt": "2026-10-03 21:32:57 UTC",
+  "repository": "C:/dev/main/meri-c1-20261002",
+  "sourceHead": "b7918cd947e6cc7fb8c83ee171e5fa50e483e7aa",
+  "releaseEvidence": {
+    "path": "C:/dev/main/outputs/meri-c2-20261003/clock-provider-served-readback.json",
+    "observedAt": "2026-10-03T21:03:52.187Z",
+    "apiSource": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642",
+    "orchestratorSource": "fb17c7ebfa010ce964919068f61830cb78ca620d",
+    "apiTask": 519,
+    "orchestratorTask": 115,
+    "webTask": 388,
+    "meaning": "Existing root saved readback, not a new cloud verification by this task"
+  },
+  "caution": "STATUS/handover still describe undeployed candidate and older services; use retained current release readback above. Case01 setup plan-v2 subsequently failed INSPECT without binding/budget mutation; its read-only diagnostic remains root-owned. No completion is assumed.",
+  "standingBudget": {
+    "adapter": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/capture-spend-aggregate.mjs:95",
+    "admittedCases": [
+      "01",
+      "20"
+    ],
+    "aggregateMicros": 30000000,
+    "perCaseMaxMicros": 15000000,
+    "concurrency": 1,
+    "preCase01SettledMicros": 9841281,
+    "preCase01RemainingMicros": 20158719,
+    "nowAvailable": "NOT_READ; root may be operating case01. Use only latest settled owner checkpoint; never re-adopt20-event prefix after append.",
+    "fixedCurrentRatePair": {
+      "maxTokens": 500000,
+      "maxCostMicros": 15000000,
+      "maxAttempts": 32
+    },
+    "conditionalNextCase20": "After case01 is fully settled, $15 remains only if its additional charged cost is <=5,158,719 micros. Any active/uncertain reservation blocks. Do not reduce a ceiling while retaining incompatible rate qualification, replace the journal, or refund historical unknown costs."
+  },
+  "recommendedNext": {
+    "caseId": "20",
+    "status": "CLOSEST_REUSABLE_PATH; NOT_YET_RUNNABLE",
+    "immediateLowRiskStep": "Prepare local materializer input using existing validated synthetic manifest, fresh case20 run ID and unchanged Pat/T1/Aster. Review a bounded dispatcher for the existing controlled-read setup and budget CLIs. Do not replace case01's tenant binding until its current-authority capture/grading evidence is finalized.",
+    "noNewBackendNeededForExistingPath": true,
+    "operatorCheckout": "Use a clean reviewed checkout at API5b: current HEAD differs by an orchestrator test file that run-controlled-read.mjs deliberately rejects. A5b checkout reuses the exact existing runner without weakening its guard; bind actual qualified orchfb17/Web388 in deployment input.",
+    "sourceGuardBlocker": {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/run-controlled-read.mjs:258",
+      "unexpectedPath": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-governed-artifact-dispatch.spec.ts",
+      "reason": "API5b..HEAD contains this test-only path outside the exact operator/docs allowlist."
+    },
+    "existingCommands": [
+      "node evals/meri/live-v1/materialize-controlled-read.mjs setup-plan --packet ABSOLUTE_REVIEWED_PACKET --out ABSOLUTE_NEW_INPUT",
+      "node apps/api/scripts/meri-controlled-read-setup.mjs plan --input-env MERI_CONTROLLED_READ_SETUP_INPUT --out ABSOLUTE_NEW_RECEIPT",
+      "node evals/meri/live-v1/run-controlled-read.mjs --execute-original-controlled-read-once --scope ABSOLUTE_CURRENT_SCOPE --manifest ABSOLUTE_EXISTING_PRIVATE_MANIFEST --out ABSOLUTE_NEW_OUTPUT"
+    ],
+    "commandLimit": "Commands are existing signatures, not approved executable inputs. setup-execute/budget-plan/budget-install/live-scope must consume actual prior owner receipts through materialize-controlled-read.mjs. Historical controlled-read-oneoff.py is absent and not qualified for current15USD; no new dispatcher was prepared here."
+  },
+  "cases": [
+    {
+      "caseId": "12",
+      "status": "BLOCKED_SOURCE_COMPOSITION_AND_FRESH_JOURNAL",
+      "reuse": [
+        "createApprovedMemoryFixtureRuntime/approvedMemoryDefinitions supports MA510 with509 newer distractors; saved row predicate exists."
+      ],
+      "blockers": [
+        "No exact case12 native capture/settlement or admitted semantic-clock case. Fresh journal rejects12.",
+        "No current MA510 fixture/order/version proof found in examined C2 outputs; the five-source case01 corpus is not case12.",
+        "Cannot manufacture or reseed >500 eligible records under a no-reseed readiness task."
+      ],
+      "nextStep": "Read-only inspect whether an already-owned MA510 corpus exists and retains original creation ordering; otherwise report exact fixture prerequisite before any setup. A native12 authority/collector slice would need qualification before paid execution.",
+      "sourceRefs": [
+        "evals/meri/live-v1/cases.mjs:158",
+        "evals/meri/live-v1/fixture-provisioning/approved-memory-runtime.mjs:109",
+        "apps/api/src/meri/meri-capture-semantic-clock.ts:52"
+      ]
+    },
+    {
+      "caseId": "14",
+      "status": "BLOCKED_CURRENT_DECISION_PROOF_AND_FRESH_JOURNAL",
+      "reuse": [
+        "collectCase14ApprovalCapture; createCase14RecallConversation; prepare/executeCase14RecallCapture in case01-live-capture; collectCase14RecallUi; gradeCase14CapturedOutcome.",
+        "readCase14MemoryOwnerInTx; inspect/installCase14RecallBindingInTx; meri-case14-recall-setup.mjs plan|bind."
+      ],
+      "blockers": [
+        "Current exact case14 pending/approved locator and decision history not verified by examined C2 evidence. Never reapprove an already committed decision.",
+        "Fresh journal rejects14; historical aggregate support does not authorize the missing old journal.",
+        "Full acceptance requires original Priya approval UI/durable decision plus next ordinary recall, reload, source/clock joins and human grading."
+      ],
+      "nextStep": "First read the existing case14 owner under exact current Priya authority. Reuse committed receipt if present; if already approved, continue only post-decision recall binding rather than repeating approval. Paid recall awaits existing-journal scope qualification.",
+      "sourceRefs": [
+        "evals/meri/live-v1/case14-approval-capture.mjs:20",
+        "evals/meri/live-v1/fixture-provisioning/case14-memory-owner.mjs:22",
+        "evals/meri/live-v1/fixture-provisioning/case14-memory-owner.mjs:244",
+        "apps/api/scripts/meri-case14-recall-setup.mjs:10"
+      ]
+    },
+    {
+      "caseId": "20",
+      "status": "NEXT_CANDIDATE_WITH_LOCAL_OPERATOR_AND_CURRENT_OWNER_PREREQUISITES",
+      "reuse": [
+        "createControlledReadDefinition for exact R2-27 PE0912345T/FY27 President's Budget request$42M/page14.",
+        "inspect/executeControlledReadSetup; materialize-controlled-read stages; prepare/executeControlledReadLiveCapture; gradeControlledReadCapturedOutcome; runControlledReadOperator.",
+        "Fresh journal accepts20; readonly semantic-clock source admits20 on current API."
+      ],
+      "blockers": [
+        "Current run-bound setup/budget source receipts not established. Existing owner changes only owned controlled locator/capture binding, not memory corpus/shared government data.",
+        "Historical setup wrapper unavailable; prepare/review a small dispatcher of the existing CLI, not a new fixture framework.",
+        "Current HEAD runner source guard rejects test-only orch drift; use exact clean API5b checkout.",
+        "Latest settled journal must cover fixed$15/500k/32 pair and current rate expiry. Preserve case01 evidence before rebinding."
+      ],
+      "nextStep": "Prepare setup-plan materialization locally, then reviewed read-only canonical plan on API5b; only afterward execute its exact CAS setup/budget and single native capture with current checkpoint.",
+      "sourceRefs": [
+        "evals/meri/live-v1/CONTROLLED-READ-OPERATOR.md",
+        "evals/meri/live-v1/controlled-read-operator-input.mjs:24",
+        "evals/meri/live-v1/fixture-provisioning/controlled-read-owner.mjs:19",
+        "evals/meri/live-v1/controlled-read-live-capture.mjs:37",
+        "evals/meri/live-v1/run-controlled-read.mjs:219"
+      ]
+    },
+    {
+      "caseId": "46",
+      "status": "BLOCKED_SEPARATE_ARTIFACT_CLOCK_AND_FRESH_JOURNAL",
+      "reuse": [
+        "meri-case46-setup.mjs plan|execute using canonical ClientDocumentWriter/Engagement input owner and sealed binding.",
+        "prepareCase46LiveCapture -> executeCase46LiveCapture -> case46-artifact-ui -> gradeCase46CapturedOutcome."
+      ],
+      "blockers": [
+        "Fresh journal rejects46 despite older aggregate format support.",
+        "Full case46 independent artifact-clock join remains explicitly unproved; readonly01/20 proof cannot substitute.",
+        "Current canonical input bytes/source binding, separate provider budget, ordinary Pat approval, one artifact effect and exact download/reload byte proof not established by C2 outputs.",
+        "Historical operator/readiness and prior approvals cannot be replayed or treated as current."
+      ],
+      "nextStep": "Reuse only read-only setup/source inspection next; retain separate governed artifact authority and original bytes. Complete artifact-clock/budget scope qualification before a paid proposal; no reseed or prepopulated output.",
+      "sourceRefs": [
+        "evals/meri/live-v1/case46-native-capture.md",
+        "apps/api/scripts/meri-case46-setup.mjs:7",
+        "evals/meri/live-v1/case46-live-capture.mjs:106",
+        "docs/meri/releases/2026-10-03/c2-clock-provider-release/release-qualification.json"
+      ]
+    },
+    {
+      "caseId": "51",
+      "status": "BLOCKED_DISPOSABLE_SEND_SINK_AND_NATIVE_AUTHORITY",
+      "reuse": [
+        "Original case contract and saved-evidence predicate; canonical proposal/approval/operation owners."
+      ],
+      "blockers": [
+        "No qualified native51 capture/accounting path or fresh-journal admission.",
+        "MAIL-SINK-51 controlled adapter is not configured by default; ordinary Gmail/Graph sends cannot stand in for disposable effects.",
+        "Must prove first known non2xx failure before effect, visible safe retry, duplicate acknowledgment deduplication, exactly one actual delivery and reload receipt; ambiguous postcommit loss requires separate reconciliation."
+      ],
+      "nextStep": "Read-only inspect existing sink configuration/owned evidence first. Do not click send or reuse real mailbox as a substitute. A bounded sink/native authority composition is prerequisite.",
+      "sourceRefs": [
+        "evals/meri/live-v1/cases.mjs:461",
+        "evals/meri/live-v1/fixture-provisioning/manifest.mjs:137",
+        "docs/meri/implementation/synthetic-fixture-contract.md:67"
+      ]
+    },
+    {
+      "caseId": "72",
+      "status": "SOURCE_PATH_EXISTS_BUT_FRESH_JOURNAL_BLOCKED",
+      "reuse": [
+        "Same controlled-read owner/materializer/runner as20; run-bound HTTP200 logical-error fixture; native no-progress receipt grading.",
+        "Semantic clock admits72 without a new backend gate."
+      ],
+      "blockers": [
+        "Fresh journal accepts01/20 only, so72 cannot use the standing adapter unchanged.",
+        "Needs new current case72 locator/budget/source receipts and actual repeated identical error/no-progress suppression; empty memo fixture alone is insufficient.",
+        "Completion must be partial/failed, not complete; one early model stop is a failed row, not permission to retry."
+      ],
+      "nextStep": "After20, reuse its qualified operator preparation but stop before reserve until a narrowly reviewed same-journal admission/settlement extension exists. Do not initialize or recover the missing historical journal by replacement.",
+      "sourceRefs": [
+        "evals/meri/live-v1/cases.mjs:628",
+        "evals/meri/live-v1/controlled-read-live-capture.mjs:37",
+        "evals/meri/live-v1/capture-spend-aggregate.mjs:95",
+        "evals/meri/live-v1/CONTROLLED-READ-OPERATOR.md"
+      ]
+    },
+    {
+      "caseId": "74",
+      "status": "BLOCKED_ACTUAL_RESEARCH_RECOVERY_COMPOSITION",
+      "reuse": [
+        "Frozen RESEARCH-RUN-74 four-read definition; existing durable research recovery implementation and structured transition requirements."
+      ],
+      "blockers": [
+        "Definition exists but controlled-read owner rejects74 and native runner admits only20/72.",
+        "No admitted74 native predicate/capture/settlement/semantic-clock path; fresh journal rejects74.",
+        "Requires actual isolated worker termination after two durable reads, same-run resume, current authority, no needless refetch or duplicate save/effect. Static fixture/test traces do not prove this."
+      ],
+      "nextStep": "Map existing durable run receipt/recovery owner read-only; prepare no worker termination until isolated run authority and capture/fault accounting are qualified.",
+      "sourceRefs": [
+        "evals/meri/live-v1/cases.mjs:644",
+        "evals/meri/live-v1/fixture-provisioning/controlled-read-definitions.mjs:105",
+        "evals/meri/live-v1/fixture-provisioning/controlled-read-owner.mjs:28"
+      ]
+    },
+    {
+      "caseId": "CD-02",
+      "status": "BLOCKED_CONTROLLED_SOURCE_COVERAGE_AND_CLOCK",
+      "reuse": [
+        "Unchanged commitments_audit product contract; frozen M-OLDER, corroborating email/debrief, native task/action and mapped Monday fixture declarations."
+      ],
+      "blockers": [
+        "No complete served CD source/coverage/native accounting authority; fixture declarations do not configure mail/Monday adapters.",
+        "Qualified relative mail/task windows and cross-turn continuation remain incomplete; cannot claim frozen older-than-seven-days semantics from readonly memory clock.",
+        "Fresh journal rejects CD cases. Must preserve mapped/authorized Monday boundary and zero task effects."
+      ],
+      "nextStep": "Read-only verify which existing canonical older promise and mapped-board/source adapters are actually available. Reuse C1 healthy-zero owner tests only as local boundary evidence, not CD product acceptance.",
+      "sourceRefs": [
+        "evals/meri/commitments-deliverables-extension.md:12",
+        "docs/meri/implementation/01-Meri-Foundation-Closeout-Plan-2026-10-02.md:119",
+        "evals/meri/live-v1/fixture-provisioning/manifest.mjs:63",
+        "evals/meri/live-v1/fixture-provisioning/manifest.mjs:137"
+      ]
+    },
+    {
+      "caseId": "CD-05",
+      "status": "BLOCKED_CD02_PRECONDITION_AND_DISPOSABLE_TASK_EFFECT",
+      "reuse": [
+        "Canonical separate action proposal/approval/task operation paths; CD-05 saved contract and disposable sink declaration."
+      ],
+      "blockers": [
+        "CD02 actual audit/evidence is prerequisite; audit itself stays read-only.",
+        "No qualified disposable task sink, native effect/capture/accounting/fresh-journal scope.",
+        "Needs in-Meri first known failure, one logical retry/effect, actual task ID/link/source/owner/date and durable reload receipt; separately test postcommit response loss without blind resending."
+      ],
+      "nextStep": "After CD02 proof, qualify only the existing task owner plus a run-bound disposable sink and truthful failure/reconciliation observation. Do not create a real task or replay approval during readiness.",
+      "sourceRefs": [
+        "evals/meri/commitments-deliverables-extension.md:15",
+        "evals/meri/live-v1/fixture-provisioning/manifest.mjs:84",
+        "docs/meri/implementation/01-Meri-Foundation-Closeout-Plan-2026-10-02.md:113"
+      ]
+    }
+  ],
+  "commonAcceptance": "Keep exact original prompts/source identities/current authority, frozen semantic instant and real operational clocks, full actual tool/source/effect receipts, Standard/Deep and JEV dispositions/variants/repeats where required, five-dimension human rubric and visual review. CAPTURE_COMPLETE or unit tests alone do not accept a row. Preserve every earlier approval, failed claim and unknown cost.",
+  "evidenceRead": [
+    "docs/meri/implementation/STATUS.md",
+    "docs/meri/implementation/01-handover.md",
+    "docs/meri/releases/2026-10-02/original75-first-attempt/oct02-original-eval/original75-readiness-20261002.json",
+    "docs/meri/releases/2026-10-03/c2-clock-provider-release/release-qualification.json",
+    "C:/dev/main/outputs/meri-c2-20261003/clock-provider-served-readback.json",
+    "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v2/result.json"
+  ],
+  "limits": {
+    "cloudCalls": 0,
+    "providerCalls": 0,
+    "authCalls": 0,
+    "databaseCalls": 0,
+    "journalOwnerCalls": 0,
+    "journalWrites": 0,
+    "testsRun": 0,
+    "repositoryEdits": 0,
+    "liveReadinessClaim": false,
+    "missingEvidenceScope": "No matching case14/20/46/72/74 current-output filenames found in bounded C2/fresh output inventory; this is not an exhaustive claim that no older evidence exists."
+  }
+}

@@ -1,0 +1,125 @@
+{
+  "at": "2026-10-03T21:33:36.620Z",
+  "mode": "plan",
+  "sourceSha": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642",
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:d20110a114ef51a7db3d352321f411a2f51cc8b1877f9ccec6d1f35d7701c8cd",
+  "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/9797dbe7fb1c4b238e56e5db0846a99d",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-c2-case01-setup-20261003:3",
+  "exitCode": 1,
+  "scriptSha256": "2479168248b3f108e012730da1fc1c11f0ba2f87dae707b837eeb282a855f488",
+  "events": [
+    {
+      "sequence": 1,
+      "recordedAt": "2026-10-03T21:32:52.083Z",
+      "stage": "VALIDATING",
+      "phase": "START",
+      "mode": "plan",
+      "sourceSha": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642",
+      "captureRunId": "bd35c0f4-1604-4371-b7e9-a1338369e53f",
+      "rateBytesSha256": "3531e09dfcce9f66b4ea2b3564db47bd72dc507cdcf1aecdda277b838007704e"
+    },
+    {
+      "sequence": 2,
+      "recordedAt": "2026-10-03T21:33:01.959Z",
+      "stage": "INSPECT",
+      "phase": "FAILURE",
+      "status": "BLOCKED_OR_UNCERTAIN",
+      "code": "CASE01_SETUP_GUARD_OR_RUNTIME_FAILURE",
+      "lastStage": "INSPECT",
+      "diagnostic": {
+        "substage": "HYDRATE_PREVIOUS",
+        "errorClass": "PrismaClientKnownRequestError",
+        "errorCode": "P2028",
+        "messageSha256": "bd642042303151aad2f964796162518793291c6643b5f7650889ce63051c49be",
+        "timeoutMentioned": true,
+        "frames": [
+          "at $n.handleRequestError (/app/node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/@prisma/client/runtime/library.js:121:7315)",
+          "at $n.handleAndLogRequestError (/app/node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/@prisma/client/runtime/library.js:121:6623)",
+          "at $n.request (/app/node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/@prisma/client/runtime/library.js:121:6307)",
+          "at async l (/app/node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/@prisma/client/runtime/library.js:130:9633)",
+          "at async readSyntheticCorrectionRetirementInTx (/app/apps/api/src/memory/synthetic-memory-version.helpers.ts:197:16)",
+          "at async retirementInTx (file:///app/evals/meri/live-v1/fixture-provisioning/case01-memory-runtime.mjs:412:24)",
+          "at async Object.hydrateInTx (file:///app/evals/meri/live-v1/fixture-provisioning/case01-memory-runtime.mjs:399:20)",
+          "at async Object.qualifyInTx (file:///dev/shm/case01-native-setup-inner.mjs:142:7)",
+          "at async file:///app/evals/meri/live-v1/fixture-provisioning/capture-binding-owner.mjs:110:25",
+          "at async Proxy._transactionWithCallback (/app/node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/@prisma/client/runtime/library.js:130:8000)",
+          "at async file:///dev/shm/case01-native-setup-inner.mjs:157:27",
+          "at async file:///dev/shm/case01-native-setup-inner.mjs:110:18"
+        ],
+        "assertionOperator": null,
+        "assertionActualType": "undefined",
+        "assertionExpectedType": "undefined",
+        "messageOmitted": true,
+        "sqlAndMetaOmitted": true
+      },
+      "automaticRetryAllowed": false,
+      "liveAcceptance": "NOT_RUN"
+    }
+  ],
+  "failures": [
+    {
+      "sequence": 2,
+      "recordedAt": "2026-10-03T21:33:01.959Z",
+      "stage": "INSPECT",
+      "phase": "FAILURE",
+      "status": "BLOCKED_OR_UNCERTAIN",
+      "code": "CASE01_SETUP_GUARD_OR_RUNTIME_FAILURE",
+      "lastStage": "INSPECT",
+      "diagnostic": {
+        "substage": "HYDRATE_PREVIOUS",
+        "errorClass": "PrismaClientKnownRequestError",
+        "errorCode": "P2028",
+        "messageSha256": "bd642042303151aad2f964796162518793291c6643b5f7650889ce63051c49be",
+        "timeoutMentioned": true,
+        "frames": [
+          "at $n.handleRequestError (/app/node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/@prisma/client/runtime/library.js:121:7315)",
+          "at $n.handleAndLogRequestError (/app/node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/@prisma/client/runtime/library.js:121:6623)",
+          "at $n.request (/app/node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/@prisma/client/runtime/library.js:121:6307)",
+          "at async l (/app/node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/@prisma/client/runtime/library.js:130:9633)",
+          "at async readSyntheticCorrectionRetirementInTx (/app/apps/api/src/memory/synthetic-memory-version.helpers.ts:197:16)",
+          "at async retirementInTx (file:///app/evals/meri/live-v1/fixture-provisioning/case01-memory-runtime.mjs:412:24)",
+          "at async Object.hydrateInTx (file:///app/evals/meri/live-v1/fixture-provisioning/case01-memory-runtime.mjs:399:20)",
+          "at async Object.qualifyInTx (file:///dev/shm/case01-native-setup-inner.mjs:142:7)",
+          "at async file:///app/evals/meri/live-v1/fixture-provisioning/capture-binding-owner.mjs:110:25",
+          "at async Proxy._transactionWithCallback (/app/node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/@prisma/client/runtime/library.js:130:8000)",
+          "at async file:///dev/shm/case01-native-setup-inner.mjs:157:27",
+          "at async file:///dev/shm/case01-native-setup-inner.mjs:110:18"
+        ],
+        "assertionOperator": null,
+        "assertionActualType": "undefined",
+        "assertionExpectedType": "undefined",
+        "messageOmitted": true,
+        "sqlAndMetaOmitted": true
+      },
+      "automaticRetryAllowed": false,
+      "liveAcceptance": "NOT_RUN"
+    }
+  ],
+  "observedFailures": [
+    {
+      "at": "2026-10-03T21:33:36.618Z",
+      "phase": "FINAL_EVIDENCE_OR_CLEANUP_ASSERTION",
+      "fatal": true,
+      "errorClass": "AssertionError",
+      "code": "ERR_ASSERTION",
+      "automaticRetryAllowed": false
+    }
+  ],
+  "status": "BLOCKED_OR_UNCERTAIN_RECONCILE_BEFORE_ANOTHER_ACTION",
+  "innerObservedStatus": "BLOCKED_OR_UNCERTAIN",
+  "innerReceipt": {
+    "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-diagnostic-result-v1/inner-receipt.jsonl",
+    "sha256": "0197f21682e6f7297f263018620c6cd4e078b694448f2081eb01b6e0ab28f563",
+    "bytes": 2297
+  },
+  "cleanup": {
+    "taskStopped": true,
+    "stopAttempted": false,
+    "deregisterAttempted": true,
+    "taskDefinitionInactive": true
+  },
+  "evidencePersistenceFailed": false,
+  "automaticRetryAllowed": false,
+  "providerCalls": 0,
+  "liveAcceptance": "NOT_RUN"
+}

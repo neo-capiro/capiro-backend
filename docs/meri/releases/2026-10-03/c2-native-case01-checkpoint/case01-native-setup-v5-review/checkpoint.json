@@ -1,0 +1,132 @@
+{
+  "schemaVersion": 1,
+  "status": "FROZEN_FOR_INDEPENDENT_REVIEW_NOT_EXECUTED",
+  "at": "2026-10-03T21:40:04.0489540Z",
+  "files": [
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v2/case01-native-setup-inner.mjs",
+      "sha256": "e4f4a2f5b869e8a3520de4bf85edc66ead317b6645de8875cdd3362c06685b06",
+      "mirror": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v5-review/source/case01-native-setup-inner.mjs",
+      "mirrorSha256": "e4f4a2f5b869e8a3520de4bf85edc66ead317b6645de8875cdd3362c06685b06"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v2/case01-reviewed-rates-v2.json",
+      "sha256": "3531e09dfcce9f66b4ea2b3564db47bd72dc507cdcf1aecdda277b838007704e",
+      "mirror": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v5-review/source/case01-reviewed-rates-v2.json",
+      "mirrorSha256": "3531e09dfcce9f66b4ea2b3564db47bd72dc507cdcf1aecdda277b838007704e"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v2/plan-input.json",
+      "sha256": "805518e056caff9ba4deb582dd5020257045b19f80cd5283a5e5844e8f74eb6d",
+      "mirror": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v5-review/source/plan-input.json",
+      "mirrorSha256": "805518e056caff9ba4deb582dd5020257045b19f80cd5283a5e5844e8f74eb6d"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/run-case01-native-setup-v5.mjs",
+      "sha256": "12f6085bae0aaac9d9fcbce5b44219162aa23ee0692a15b2f481dd3484b2bb52",
+      "mirror": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v5-review/source/run-case01-native-setup-v5.mjs",
+      "mirrorSha256": "12f6085bae0aaac9d9fcbce5b44219162aa23ee0692a15b2f481dd3484b2bb52"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v5-review/binding-transaction-scope.test.mjs",
+      "sha256": "197c03a853c1237ba62e8f5853cc79a0b70717dc8576849e05c2d4af898dba68",
+      "mirror": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v5-review/source/binding-transaction-scope.test.mjs",
+      "mirrorSha256": "197c03a853c1237ba62e8f5853cc79a0b70717dc8576849e05c2d4af898dba68"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v5-review/prepare-v5.mjs",
+      "sha256": "15e67317fbc3f25ab9f34d0691b279e3b7c074093e991fcbde6b7534f861f597",
+      "mirror": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v5-review/source/prepare-v5.mjs",
+      "mirrorSha256": "15e67317fbc3f25ab9f34d0691b279e3b7c074093e991fcbde6b7534f861f597"
+    }
+  ],
+  "preserved": [
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v1/case01-native-setup-inner.mjs",
+      "sha256": "632d00e47ec63fb8c0b49cfa0d166760bd16abbf5ded9b572c0a9cf235f9899d"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/run-case01-native-setup-v4.mjs",
+      "sha256": "22afe2b7715207693f179cc091d5144bb9a2a9179b70fbe91010d2b4310225ff"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v4-definition.mjs",
+      "sha256": "5e27f5e689f84fe4b4c6e96b2464f0c4f331d6ac0711fd7c432b89004174e1d8"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/corpus-read-definition-input.json",
+      "sha256": "6c0a447dc99ed35642df735c38d09e02b12b33983fe461b707cd0c06a8a44478"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-diagnostic-v1/case01-native-setup-inner.mjs",
+      "sha256": "2479168248b3f108e012730da1fc1c11f0ba2f87dae707b837eeb282a855f488"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-diagnostic-result-v1/result.json",
+      "sha256": "0892b58914b29f3303c02df045894e895778707075922a6888483b33ff8774fd"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-diagnostic-result-v1/inner-receipt.jsonl",
+      "sha256": "0197f21682e6f7297f263018620c6cd4e078b694448f2081eb01b6e0ab28f563"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v2/result.json",
+      "sha256": "bc293a00ec0473c0bde4977f4b42209f4486119d3801929183d477fb6626f514"
+    }
+  ],
+  "evidence": [
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case01-native-setup-v5-review\\dispatcher-v4-to-v5.diff",
+      "sha256": "eaecb6152d96dfd0a3422b88c8d0dcf10182033866c3d0257b7f7bc48cc5a595"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case01-native-setup-v5-review\\forwarding-tests.log",
+      "sha256": "8547544c734159576d45e99389da3743018826fbdaeaef2916807c656d5e1870"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case01-native-setup-v5-review\\forwarding-tests.receipt.json",
+      "sha256": "6490b1fdeb3d8625a40552e1863513084c1106256faf189f7cb61ad0f0facddb"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case01-native-setup-v5-review\\inner-v1-to-v2.diff",
+      "sha256": "4b073b42363de0c506a74d7bd4623382a1fa981579cf0e07ad8e8dc8b4da3b00"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case01-native-setup-v5-review\\REVIEW.md",
+      "sha256": "5afef027ccb47f6dc13f93340943bcefe1e6544865b0277e367a2966b680c50a"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case01-native-setup-v5-review\\syntax.receipt.json",
+      "sha256": "126d4fa552506242f63da0bbe7400ebaae50433b9dba0083a9619902460a69a6"
+    }
+  ],
+  "validation": {
+    "passed": 16,
+    "failed": 0,
+    "focusedTests": 16,
+    "syntaxChecks": 2,
+    "exitCode": 0,
+    "wrapperAndReceiptSourceUnchanged": true,
+    "syntaxExit": 0
+  },
+  "scope": {
+    "transactionSubstituted": false,
+    "successExecuteEvents": 6,
+    "callbackSubstituted": false,
+    "savedStateAndBudgetOwnersUnchanged": true,
+    "onlyBindingOwnerTimeoutMs": 30000,
+    "successPlanEvents": 2,
+    "proofSubstituted": false,
+    "automaticRetry": false
+  },
+  "effects": {
+    "authCalls": 0,
+    "providerCalls": 0,
+    "journalWrites": 0,
+    "dispatcherExecuted": false,
+    "repositoryEdits": 0,
+    "databaseCalls": 0,
+    "cloudCalls": 0
+  },
+  "limits": "Actual repaired Prisma transaction and live setup not run; pure forwarding/source tests only. Root owns live qualification."
+}

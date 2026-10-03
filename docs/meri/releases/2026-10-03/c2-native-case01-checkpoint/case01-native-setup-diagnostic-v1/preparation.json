@@ -1,0 +1,11 @@
+{
+  "at": "2026-10-03T21:26:58.725162+00:00",
+  "status": "READ_ONLY_DIAGNOSTIC_PREPARED_NOT_EXECUTED",
+  "innerSha256": "2479168248b3f108e012730da1fc1c11f0ba2f87dae707b837eeb282a855f488",
+  "dispatcherSha256": "8a7156bd390a9d4159d09e3d4f6b98c25151e4fefd81c093fddef6efb2abe7d9",
+  "purpose": "Locate failed INSPECT without retrying setup mutations or capture.",
+  "readOnly": true,
+  "providerCalls": 0,
+  "executed": false,
+  "retainedFailureSha256": "bc293a00ec0473c0bde4977f4b42209f4486119d3801929183d477fb6626f514"
+}

@@ -1,0 +1,1451 @@
+{
+  "version": 1,
+  "recordedAt": "2026-10-03T22:06:18.993969+00:00",
+  "captureRunId": "bd35c0f4-1604-4371-b7e9-a1338369e53f",
+  "operatorStatus": "BLOCKED",
+  "acceptanceDisposition": "NOT_GRADED",
+  "files": [
+    {
+      "path": ".gitattributes",
+      "bytes": 75,
+      "sha256": "ef5c230f4d8b87142cf574d3b391a2b4ac5ccaf1776980fac2bd8cb3305cdc06"
+    },
+    {
+      "path": "README.md",
+      "bytes": 2489,
+      "sha256": "a368e728efe52f6d45f76f5cbc4163811b0896f6f82bbf7aa6fcbc7804e20801"
+    },
+    {
+      "path": "archive-helper.py",
+      "bytes": 10901,
+      "sha256": "69413fa667b5d6d8fa3d8e7bba3a2451583a5f5bc331a48cb0c07594c034a801"
+    },
+    {
+      "path": "archive-inputs.json",
+      "bytes": 74717,
+      "sha256": "bceebcdf5ee97aa53e468a08a99afc8baea681d4938562bf1f11331b3e03fcfc"
+    },
+    {
+      "path": "case01-native-actual-scope-v2-independent-review.json",
+      "bytes": 3036,
+      "sha256": "9cf0cf236eb9f590fa879f6b9540d4ca192a24db91de355778b9072a74db25a9"
+    },
+    {
+      "path": "case01-native-actual-scope-v2-inspection.json",
+      "bytes": 3136,
+      "sha256": "1367a9d645a0cb7cddb16270cd58de0065a130f52587869f43c181d51cff39bf"
+    },
+    {
+      "path": "case01-native-actual-scope-v2.json",
+      "bytes": 1402,
+      "sha256": "87b10494d9547a4ec9fb28641271d9cec7fbfa5cd9d3c971c91201400fce4d69"
+    },
+    {
+      "path": "case01-native-bd35c0f4-1604-4371-b7e9-a1338369e53f/actual-capture-scope.json",
+      "bytes": 9237,
+      "sha256": "0df776432c0915e6f82ea8cfa7025f38aed347f1e7d55b647b0fd7cd83af8cfd"
+    },
+    {
+      "path": "case01-native-bd35c0f4-1604-4371-b7e9-a1338369e53f/aggregate-adopted-checkpoint.json",
+      "bytes": 4135,
+      "sha256": "afe30670778ed56b109874d3226dcbdfc87ad7408258678b11094559959c5844"
+    },
+    {
+      "path": "case01-native-bd35c0f4-1604-4371-b7e9-a1338369e53f/aggregate-reserved-checkpoint.json",
+      "bytes": 4538,
+      "sha256": "e871a120672b775379354d414c554381c00e9afcad51aceb8fccfd0b4f1f6d4f"
+    },
+    {
+      "path": "case01-native-bd35c0f4-1604-4371-b7e9-a1338369e53f/execution-events.jsonl",
+      "bytes": 31909,
+      "sha256": "ea6caeeb90d60633b3d99d9014823e4e9d1d0c07239cc1f3a46db90625c4cd75"
+    },
+    {
+      "path": "case01-native-bd35c0f4-1604-4371-b7e9-a1338369e53f/execution.json",
+      "bytes": 4257,
+      "sha256": "091946b7c594ccb4821202b00eaef0d6b4cab89c2bdf4d5ca9708a8ed66c593b"
+    },
+    {
+      "path": "case01-native-bootstrap-v2/case01-prepared-guards.mjs",
+      "bytes": 1859,
+      "sha256": "f539d2e35a66ec76f1d741d6a8f09d528b400149c346982fd7b0f77f37eb5b7a"
+    },
+    {
+      "path": "case01-native-bootstrap-v2/case01-prepared-guards.test.mjs",
+      "bytes": 2684,
+      "sha256": "eee5120b872297c737ef87c657fe3f2c37645584d3228bb791deb18eb5249f81"
+    },
+    {
+      "path": "case01-native-bootstrap-v2/initial-validation-wrapper-failure.json",
+      "bytes": 522,
+      "sha256": "08353183941b7b61b21a5dcdc74b827953f4e52dc14584fae31fba40e59058eb"
+    },
+    {
+      "path": "case01-native-bootstrap-v2/offline-reproduction.log",
+      "bytes": 83,
+      "sha256": "ba3adf930c5f633e8414f09c865aed2f30f8d37edb0e4061fadf8be26716f04b"
+    },
+    {
+      "path": "case01-native-bootstrap-v2/preparation-checkpoint.json",
+      "bytes": 7269,
+      "sha256": "dccaa619203e4e43f3c317042801ec8eca5bbcf1168312f6bc76b221d653bdb7"
+    },
+    {
+      "path": "case01-native-bootstrap-v2/pure-guard-tests.log",
+      "bytes": 1053,
+      "sha256": "8c4ec9dbc096fb7c1ca1efacdf81abb879c2726210caf1d07b43450b69cde173"
+    },
+    {
+      "path": "case01-native-bootstrap-v2/read-only-review-v2.json",
+      "bytes": 12333,
+      "sha256": "156288f5096f8e40fdaa469e059f7e831e4d0d23535eba7aee8d852b0841f5e9"
+    },
+    {
+      "path": "case01-native-bootstrap-v2/run-case01-native.mjs",
+      "bytes": 33732,
+      "sha256": "655cc278a1a76ff55cf7a0ceae96ccfc325a016e0e3a0d53c21f43f276c171d1"
+    },
+    {
+      "path": "case01-native-bootstrap-v2/syntax-check.log",
+      "bytes": 105,
+      "sha256": "009a225410183098e1675715fffaa433a274db1bda58813434c0ddfcb85b0136"
+    },
+    {
+      "path": "case01-native-bootstrap-v2/v1-to-v2.diff",
+      "bytes": 3257,
+      "sha256": "e93c98fdbd94ea43f0615d96900e42ced8553a7502c6d192931a7a6c61982e5c"
+    },
+    {
+      "path": "case01-native-setup-diagnostic-result-v1/cleanup.json",
+      "bytes": 117,
+      "sha256": "fcfa216f16829bd153fdcdfe3ad75f1979f4d69b9fe9760e1979c7f36f714ad1"
+    },
+    {
+      "path": "case01-native-setup-diagnostic-result-v1/definition-readback.json",
+      "bytes": 338,
+      "sha256": "826ae8de8d909b347e1bd32bc925ccce027fd981e0a227425cb67aaaf78b71ef"
+    },
+    {
+      "path": "case01-native-setup-diagnostic-result-v1/definition-registered.json",
+      "bytes": 156,
+      "sha256": "70c044f29c7484322ad92862c58ced764be5e0a65b15952ea2a573246a6dc5af"
+    },
+    {
+      "path": "case01-native-setup-diagnostic-result-v1/deregister-dispatch-intent.json",
+      "bytes": 172,
+      "sha256": "c8e1529cf6575013ba050d33cba21c6cbc82992927e85e14deb922f359f469f2"
+    },
+    {
+      "path": "case01-native-setup-diagnostic-result-v1/inner-receipt-events.json",
+      "bytes": 5130,
+      "sha256": "fe05f0542927a50f2fb9be1c311bc5dc5183632d6e203b44bc839929469ff3b7"
+    },
+    {
+      "path": "case01-native-setup-diagnostic-result-v1/inner-receipt-transport.json",
+      "bytes": 708,
+      "sha256": "b73e68fbcefdd89c89caeab2da9e17efa9ae962162a8ef8d70bfb9184aa6e815"
+    },
+    {
+      "path": "case01-native-setup-diagnostic-result-v1/inner-receipt.jsonl",
+      "bytes": 2297,
+      "sha256": "0197f21682e6f7297f263018620c6cd4e078b694448f2081eb01b6e0ab28f563"
+    },
+    {
+      "path": "case01-native-setup-diagnostic-result-v1/intent.json",
+      "bytes": 2287,
+      "sha256": "8c702f1ed67dbe989ba0540aa0b00aff53edac51feb31f9e4ae9074a6bc1a798"
+    },
+    {
+      "path": "case01-native-setup-diagnostic-result-v1/observation-001.json",
+      "bytes": 201,
+      "sha256": "a54ecab2b6ad4b93e1a08d822b1fa6a99e4b6487d4bc1c8fa206eb56b4f869ea"
+    },
+    {
+      "path": "case01-native-setup-diagnostic-result-v1/register-dispatch-intent.json",
+      "bytes": 156,
+      "sha256": "de2a1753d8cfdeb11020652b876cac7291ccfd0126b8f5eb3150aa8a2d397302"
+    },
+    {
+      "path": "case01-native-setup-diagnostic-result-v1/result.json",
+      "bytes": 6567,
+      "sha256": "0892b58914b29f3303c02df045894e895778707075922a6888483b33ff8774fd"
+    },
+    {
+      "path": "case01-native-setup-diagnostic-result-v1/task-start.json",
+      "bytes": 342,
+      "sha256": "2c966b2125d66d9e372e0a00d15803272f874ffb6e69e0dd6c57a363eecbb8fb"
+    },
+    {
+      "path": "case01-native-setup-diagnostic-result-v1/terminal-task.json",
+      "bytes": 3670,
+      "sha256": "f9c10a2bbc24f639ac6041fd0596a13d550f4512083db2445e969a3a3838949c"
+    },
+    {
+      "path": "case01-native-setup-diagnostic-v1/case01-native-setup-inner.mjs",
+      "bytes": 12217,
+      "sha256": "2479168248b3f108e012730da1fc1c11f0ba2f87dae707b837eeb282a855f488"
+    },
+    {
+      "path": "case01-native-setup-diagnostic-v1/case01-reviewed-rates-v2.json",
+      "bytes": 2770,
+      "sha256": "3531e09dfcce9f66b4ea2b3564db47bd72dc507cdcf1aecdda277b838007704e"
+    },
+    {
+      "path": "case01-native-setup-diagnostic-v1/independent-review.json",
+      "bytes": 5633,
+      "sha256": "6cf20b4d02c6afd609eeedfcf9d6923fd8f50ab1a4a7096cff049009d5458120"
+    },
+    {
+      "path": "case01-native-setup-diagnostic-v1/plan-input.json",
+      "bytes": 136,
+      "sha256": "805518e056caff9ba4deb582dd5020257045b19f80cd5283a5e5844e8f74eb6d"
+    },
+    {
+      "path": "case01-native-setup-diagnostic-v1/preparation.json",
+      "bytes": 521,
+      "sha256": "d2fe32be52fec67739feb174e727ed5827ea21e2197c5695e7697b45af3ff2e7"
+    },
+    {
+      "path": "case01-native-setup-execute-v3/cleanup.json",
+      "bytes": 117,
+      "sha256": "fcfa216f16829bd153fdcdfe3ad75f1979f4d69b9fe9760e1979c7f36f714ad1"
+    },
+    {
+      "path": "case01-native-setup-execute-v3/definition-readback.json",
+      "bytes": 338,
+      "sha256": "deae7277f57d01d25d1c879ad9b0776050c48f92200109902b59bf821cdb84d2"
+    },
+    {
+      "path": "case01-native-setup-execute-v3/definition-registered.json",
+      "bytes": 156,
+      "sha256": "c2b97f118c264001d2388af6819c1ac30e73161e0e1fea03da703f5ed3e76e27"
+    },
+    {
+      "path": "case01-native-setup-execute-v3/deregister-dispatch-intent.json",
+      "bytes": 172,
+      "sha256": "e293d23a9f97127f2773d7f0457adff9961977ad9a4ccc90e38c5303064c896d"
+    },
+    {
+      "path": "case01-native-setup-execute-v3/inner-receipt-events.json",
+      "bytes": 8740,
+      "sha256": "09060e28da43c62c3610f93f843a23a633fd1252cb2ea22f3395d908f690f70f"
+    },
+    {
+      "path": "case01-native-setup-execute-v3/inner-receipt-transport.json",
+      "bytes": 714,
+      "sha256": "5d8790883ddf8f1014a334c3ed4fe0812df784f38aba56fee2c1689e54e3335f"
+    },
+    {
+      "path": "case01-native-setup-execute-v3/inner-receipt.jsonl",
+      "bytes": 7113,
+      "sha256": "870e3efe65d748058614bd49b7350cad5f8ad6215cf8ab61e2e2b673cc680cb3"
+    },
+    {
+      "path": "case01-native-setup-execute-v3/intent.json",
+      "bytes": 6135,
+      "sha256": "e92138135fcb1c53b16cf019f64f790a7ea33d8355d0ac26f8771cc344adcdfa"
+    },
+    {
+      "path": "case01-native-setup-execute-v3/register-dispatch-intent.json",
+      "bytes": 156,
+      "sha256": "cfcd79d24bfb0a13eac837c4ee67cd656a42c676cf8ee1a9127fb19a37ed815d"
+    },
+    {
+      "path": "case01-native-setup-execute-v3/result.json",
+      "bytes": 9914,
+      "sha256": "cf48223a8fef21828bc16d2f11b75597de1a1a658045e3a17feebd2c821fd72a"
+    },
+    {
+      "path": "case01-native-setup-execute-v3/task-start.json",
+      "bytes": 342,
+      "sha256": "f86a3e8c894ba7ee75447c6ff5671a42a023e5409c5c03ccce5cadb50399e698"
+    },
+    {
+      "path": "case01-native-setup-execute-v3/terminal-task.json",
+      "bytes": 3673,
+      "sha256": "8515bfe8b80c09ce16d9fedf9592f22b33473f30c8b01b80d252c5aacc48ef1e"
+    },
+    {
+      "path": "case01-native-setup-plan-v1-reconciliation.json",
+      "bytes": 1181,
+      "sha256": "b59923080aace193f676921ff8a449ff62b7e527fda80135ec2080255727e232"
+    },
+    {
+      "path": "case01-native-setup-plan-v1/cleanup.json",
+      "bytes": 118,
+      "sha256": "b3d918f0381f86b95a2137b0dbeb029512e8d84e311e767ee180ed793162b821"
+    },
+    {
+      "path": "case01-native-setup-plan-v1/definition-registered.json",
+      "bytes": 156,
+      "sha256": "c2df6256c8abc242fa63a0c49e022802379c99d0cc6d5bc7d8d80d76948b869a"
+    },
+    {
+      "path": "case01-native-setup-plan-v1/deregister-dispatch-intent.json",
+      "bytes": 172,
+      "sha256": "6257729abf511301fb35aeea965c3de1bcdda006d11c822169e5f80dbce1b40a"
+    },
+    {
+      "path": "case01-native-setup-plan-v1/intent.json",
+      "bytes": 2193,
+      "sha256": "9e5023038475801c39972e00e59bedb029620cc99c3047aa3213df9d59c1c670"
+    },
+    {
+      "path": "case01-native-setup-plan-v1/observation-001.json",
+      "bytes": 182,
+      "sha256": "958d6a43e5e8e569f983cc1dfddcaa998b4d89d21f94be9bb4fdf463c8d9f916"
+    },
+    {
+      "path": "case01-native-setup-plan-v1/observation-002.json",
+      "bytes": 201,
+      "sha256": "f382ebf82a8eed9501f42938576bf666faf6f356325c02ec6fa316de5ab05ec4"
+    },
+    {
+      "path": "case01-native-setup-plan-v1/register-dispatch-intent.json",
+      "bytes": 156,
+      "sha256": "cbccf28f09c0baf8e8d709c24dec035b41053b51c1c3b05e7caf0206895648de"
+    },
+    {
+      "path": "case01-native-setup-plan-v1/result.json",
+      "bytes": 1405,
+      "sha256": "44512877ecd64e4ee9e6aea0b7ea1efa2b471536ea5bef3b60951dfe3b2862ad"
+    },
+    {
+      "path": "case01-native-setup-plan-v2/cleanup.json",
+      "bytes": 117,
+      "sha256": "fcfa216f16829bd153fdcdfe3ad75f1979f4d69b9fe9760e1979c7f36f714ad1"
+    },
+    {
+      "path": "case01-native-setup-plan-v2/definition-readback.json",
+      "bytes": 338,
+      "sha256": "6fb04f0a0c876b4a4a803db3906e96ffbf98a1075c35597337eff9f54fe65b45"
+    },
+    {
+      "path": "case01-native-setup-plan-v2/definition-registered.json",
+      "bytes": 156,
+      "sha256": "1afd62f34028688a853259de61d1c6de63e62a4396190833a13f55a0d7a2e714"
+    },
+    {
+      "path": "case01-native-setup-plan-v2/deregister-dispatch-intent.json",
+      "bytes": 172,
+      "sha256": "12be41fe1002dfc0acff50626d07fb333e7728887df0975e8bcb4eaa82791ac3"
+    },
+    {
+      "path": "case01-native-setup-plan-v2/inner-receipt-events.json",
+      "bytes": 1102,
+      "sha256": "12031044bbe8ecc594bc65b9caedcee188efecb4503db781c6667eb5480de0ec"
+    },
+    {
+      "path": "case01-native-setup-plan-v2/inner-receipt-transport.json",
+      "bytes": 706,
+      "sha256": "37d347cfcf0c08c1921f0965713039c30bc5ada1c6245ff41bf678296199aa7f"
+    },
+    {
+      "path": "case01-native-setup-plan-v2/inner-receipt.jsonl",
+      "bytes": 549,
+      "sha256": "2c800941a9995987a2033d58061e2854e766c432fc34cae5869c544a4fe71838"
+    },
+    {
+      "path": "case01-native-setup-plan-v2/intent.json",
+      "bytes": 2287,
+      "sha256": "47c161f41e30162536187c7e6fad91d72709874dec9f319e5b5828742618fa90"
+    },
+    {
+      "path": "case01-native-setup-plan-v2/observation-001.json",
+      "bytes": 201,
+      "sha256": "8df4f55267bbe6816093b29a291d5795e15a473b92d554767e0fc57faf27e079"
+    },
+    {
+      "path": "case01-native-setup-plan-v2/register-dispatch-intent.json",
+      "bytes": 156,
+      "sha256": "36f2e78103b6d68b647aaeb70c8a7a2bedbed5859f3c05ee35d9484c76fb8436"
+    },
+    {
+      "path": "case01-native-setup-plan-v2/result.json",
+      "bytes": 2525,
+      "sha256": "bc293a00ec0473c0bde4977f4b42209f4486119d3801929183d477fb6626f514"
+    },
+    {
+      "path": "case01-native-setup-plan-v2/task-start.json",
+      "bytes": 342,
+      "sha256": "1fb699f954d8170e8718a1cd4ea18a3da6216b6e64dbc0ed9d73b8dc8a51c56a"
+    },
+    {
+      "path": "case01-native-setup-plan-v2/terminal-task.json",
+      "bytes": 3667,
+      "sha256": "1f7d4b0022229d6021f19b6e625942b3b6d0d0ee63f7be14507ddfab86512cda"
+    },
+    {
+      "path": "case01-native-setup-plan-v3/cleanup.json",
+      "bytes": 117,
+      "sha256": "fcfa216f16829bd153fdcdfe3ad75f1979f4d69b9fe9760e1979c7f36f714ad1"
+    },
+    {
+      "path": "case01-native-setup-plan-v3/definition-readback.json",
+      "bytes": 338,
+      "sha256": "bac1f0f22b4f05489344adcba711182d90a8e4337443f1c4003bfc4571b769cf"
+    },
+    {
+      "path": "case01-native-setup-plan-v3/definition-registered.json",
+      "bytes": 156,
+      "sha256": "b67f360fe72cbb17fb04641ece6a66ded9dc47ee1965bde1dc3db57e2c0a11d0"
+    },
+    {
+      "path": "case01-native-setup-plan-v3/deregister-dispatch-intent.json",
+      "bytes": 172,
+      "sha256": "4486f25d8414fbe267cd74bcef802a6ad5985b0964bc43b0623c85a3d6acf710"
+    },
+    {
+      "path": "case01-native-setup-plan-v3/independent-plan-review.json",
+      "bytes": 3804,
+      "sha256": "79bbef549e3db991a238df6c188748d4d155f30b7e39749be3bfbfd8a5c192ca"
+    },
+    {
+      "path": "case01-native-setup-plan-v3/inner-receipt-events.json",
+      "bytes": 4464,
+      "sha256": "558c0374d26f5e00ecc37463e91c7c0a7e0d011467dae114e9ad8d19b7b38aea"
+    },
+    {
+      "path": "case01-native-setup-plan-v3/inner-receipt-transport.json",
+      "bytes": 708,
+      "sha256": "2f046cc46c86a6777ae889a329cbafce2e3226b1fa10b8f3cb04689398e6ad2c"
+    },
+    {
+      "path": "case01-native-setup-plan-v3/inner-receipt.jsonl",
+      "bytes": 3334,
+      "sha256": "8f87f1abc1e0f763626b43d598c111152b545a75058fb786dbb64dfd3a2c7cf1"
+    },
+    {
+      "path": "case01-native-setup-plan-v3/intent.json",
+      "bytes": 2481,
+      "sha256": "a1b85e00cb1e171071d19f2d195ff82fda39c04732629112cb3fdcfe9c2f5eca"
+    },
+    {
+      "path": "case01-native-setup-plan-v3/register-dispatch-intent.json",
+      "bytes": 156,
+      "sha256": "943abbe236a8853ac27ee48fab3a4300a0bd97bdc6ea7414852ef7453ad7c008"
+    },
+    {
+      "path": "case01-native-setup-plan-v3/result.json",
+      "bytes": 5598,
+      "sha256": "abc325ae84c029d7ff356b154f87c1f6d255967f56a121320a0a8dd964d37634"
+    },
+    {
+      "path": "case01-native-setup-plan-v3/root-plan-review.json",
+      "bytes": 744,
+      "sha256": "01b10e5dca2c98dcaf51f7974314423a6196ced9e0844e0e708f3b35a25b7ea6"
+    },
+    {
+      "path": "case01-native-setup-plan-v3/task-start.json",
+      "bytes": 342,
+      "sha256": "f5ecd575099fd56a3e249c8701e5194d22e8e91441a6f1c4511bd908b508fadf"
+    },
+    {
+      "path": "case01-native-setup-plan-v3/terminal-task.json",
+      "bytes": 3667,
+      "sha256": "d7ca6fc9c99eed8df36d243ce8aeed32517482cb72ad8f0596098416ae3291ab"
+    },
+    {
+      "path": "case01-native-setup-v1/case01-native-setup-inner.mjs",
+      "bytes": 13403,
+      "sha256": "632d00e47ec63fb8c0b49cfa0d166760bd16abbf5ded9b572c0a9cf235f9899d"
+    },
+    {
+      "path": "case01-native-setup-v2/case01-native-setup-inner.mjs",
+      "bytes": 16291,
+      "sha256": "e4f4a2f5b869e8a3520de4bf85edc66ead317b6645de8875cdd3362c06685b06"
+    },
+    {
+      "path": "case01-native-setup-v2/case01-reviewed-rates-v2.json",
+      "bytes": 2770,
+      "sha256": "3531e09dfcce9f66b4ea2b3564db47bd72dc507cdcf1aecdda277b838007704e"
+    },
+    {
+      "path": "case01-native-setup-v2/plan-input.json",
+      "bytes": 136,
+      "sha256": "805518e056caff9ba4deb582dd5020257045b19f80cd5283a5e5844e8f74eb6d"
+    },
+    {
+      "path": "case01-native-setup-v4-definition.mjs",
+      "bytes": 1709,
+      "sha256": "5e27f5e689f84fe4b4c6e96b2464f0c4f331d6ac0711fd7c432b89004174e1d8"
+    },
+    {
+      "path": "case01-native-setup-v4-review/REVIEW.md",
+      "bytes": 3136,
+      "sha256": "4b5611c38bb09b06298319f1217fa3c5110fa70c28164375370637951374cb92"
+    },
+    {
+      "path": "case01-native-setup-v4-review/check-offline.mjs",
+      "bytes": 4985,
+      "sha256": "7018e9dc06812d290065fd88375342cc09109b44033bda41b81aa9ee19a2c1e7"
+    },
+    {
+      "path": "case01-native-setup-v4-review/checkpoint.json",
+      "bytes": 7742,
+      "sha256": "c152826175c28b73b9a2e38a12c9c2b16661f10934043b107f9bb5767342e634"
+    },
+    {
+      "path": "case01-native-setup-v4-review/definition-normalization.test.mjs",
+      "bytes": 9661,
+      "sha256": "e73a987310677b1dfa0c7f264e6ef233516110df3cd0da9293b1dc4e55ba6353"
+    },
+    {
+      "path": "case01-native-setup-v4-review/freeze-v4.mjs",
+      "bytes": 3317,
+      "sha256": "b3d0ea30ba2b7dd22ab7a256f464aba33163542da08f4dccb324d1842c81dd18"
+    },
+    {
+      "path": "case01-native-setup-v4-review/green-normalization-final.json",
+      "bytes": 382,
+      "sha256": "4486fd9c3de465dedd55aa7bd141b451d91ca5538e148aa3b03d7a7e1d344464"
+    },
+    {
+      "path": "case01-native-setup-v4-review/green-normalization-final.log",
+      "bytes": 2373,
+      "sha256": "a2818c03ca26dd2c112a920778abeff232bb1c81aa8c2f2bf590b0cd78f8609c"
+    },
+    {
+      "path": "case01-native-setup-v4-review/green-normalization.json",
+      "bytes": 170,
+      "sha256": "e0d088454f80adeffd0bb60a37a2caadaafa5192c47855cf13e1d4e315325a58"
+    },
+    {
+      "path": "case01-native-setup-v4-review/green-normalization.log",
+      "bytes": 3291,
+      "sha256": "b635df11baad650377a4d59784d9f962e9dbafb49dd5e9c4684f2518500fdb80"
+    },
+    {
+      "path": "case01-native-setup-v4-review/independent-review.json",
+      "bytes": 13120,
+      "sha256": "b1582a5a05aab0bd71fc23e026150c1a123daa4414a9bdd7a7b33fa7942cb216"
+    },
+    {
+      "path": "case01-native-setup-v4-review/offline-final.log",
+      "bytes": 1124,
+      "sha256": "452afa83ce35f5fa4b5c0afa6550b52f2b55ac4c996abc2dd4384e1c5d109a66"
+    },
+    {
+      "path": "case01-native-setup-v4-review/offline-result-final.json",
+      "bytes": 570,
+      "sha256": "090e5218fa7def4086c0dad433d617c05930129aba72e026e22b2d1521db2a4c"
+    },
+    {
+      "path": "case01-native-setup-v4-review/prepare-v4.mjs",
+      "bytes": 4141,
+      "sha256": "3ae74de50b0b8cb2d0ff37f351350994d35b4d4bc154e3b7574c2a8448131e68"
+    },
+    {
+      "path": "case01-native-setup-v4-review/red-v3-comparison-final.json",
+      "bytes": 410,
+      "sha256": "0d402c534e8748983d516bb68c512c26263f743af4743c5c844a42ea082cddf2"
+    },
+    {
+      "path": "case01-native-setup-v4-review/red-v3-comparison-final.log",
+      "bytes": 1394,
+      "sha256": "eb911af0d57f2bd968de7b881b018c93976b41d0b338313b89de013c70b80447"
+    },
+    {
+      "path": "case01-native-setup-v4-review/red-v3-comparison.json",
+      "bytes": 314,
+      "sha256": "8b949db41ff137f965817408b27c138f6003e5bec0523a12a401d08a4aae1316"
+    },
+    {
+      "path": "case01-native-setup-v4-review/red-v3-comparison.log",
+      "bytes": 1393,
+      "sha256": "9fe51d7816261b2cd7957bac248980809989deb58b060fdee3a1684b845249ba"
+    },
+    {
+      "path": "case01-native-setup-v4-review/root-plan-review.json",
+      "bytes": 930,
+      "sha256": "c9cb846d787996305f2afe38b067f87566413273f50012b7d7642328209f03bc"
+    },
+    {
+      "path": "case01-native-setup-v4-review/syntax-final.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "case01-native-setup-v4-review/v3-to-v4.diff",
+      "bytes": 7283,
+      "sha256": "38af5229936dbf42c8851edde7128026401bc12dd002bcd9dead442b45444185"
+    },
+    {
+      "path": "case01-native-setup-v5-review/REVIEW.md",
+      "bytes": 2437,
+      "sha256": "5afef027ccb47f6dc13f93340943bcefe1e6544865b0277e367a2966b680c50a"
+    },
+    {
+      "path": "case01-native-setup-v5-review/binding-transaction-scope.test.mjs",
+      "bytes": 6571,
+      "sha256": "197c03a853c1237ba62e8f5853cc79a0b70717dc8576849e05c2d4af898dba68"
+    },
+    {
+      "path": "case01-native-setup-v5-review/checkpoint.json",
+      "bytes": 6385,
+      "sha256": "aa5163fcea0d760f5aab4fab52c437c2ade3abc570294402df2c5c69b092953a"
+    },
+    {
+      "path": "case01-native-setup-v5-review/dispatcher-v4-to-v5.diff",
+      "bytes": 6379,
+      "sha256": "eaecb6152d96dfd0a3422b88c8d0dcf10182033866c3d0257b7f7bc48cc5a595"
+    },
+    {
+      "path": "case01-native-setup-v5-review/forwarding-tests.log",
+      "bytes": 1424,
+      "sha256": "8547544c734159576d45e99389da3743018826fbdaeaef2916807c656d5e1870"
+    },
+    {
+      "path": "case01-native-setup-v5-review/forwarding-tests.receipt.json",
+      "bytes": 239,
+      "sha256": "6490b1fdeb3d8625a40552e1863513084c1106256faf189f7cb61ad0f0facddb"
+    },
+    {
+      "path": "case01-native-setup-v5-review/independent-review.json",
+      "bytes": 9841,
+      "sha256": "dd3c69969f71fe339b8d58593fe47ff5a59024945e54eef23a1e0b2c58bfff72"
+    },
+    {
+      "path": "case01-native-setup-v5-review/inner-v1-to-v2.diff",
+      "bytes": 10173,
+      "sha256": "4b073b42363de0c506a74d7bd4623382a1fa981579cf0e07ad8e8dc8b4da3b00"
+    },
+    {
+      "path": "case01-native-setup-v5-review/prepare-v5.mjs",
+      "bytes": 8156,
+      "sha256": "15e67317fbc3f25ab9f34d0691b279e3b7c074093e991fcbde6b7534f861f597"
+    },
+    {
+      "path": "case01-native-setup-v5-review/root-plan-review.json",
+      "bytes": 957,
+      "sha256": "7546d318440a010a97f5f6e8c873a6dd14a210ab23a533333be2942bae568c6e"
+    },
+    {
+      "path": "case01-native-setup-v5-review/syntax.receipt.json",
+      "bytes": 255,
+      "sha256": "126d4fa552506242f63da0bbe7400ebaae50433b9dba0083a9619902460a69a6"
+    },
+    {
+      "path": "case01-native-wiring-independent-review-v1.json",
+      "bytes": 7029,
+      "sha256": "38d42acf532274cfe3f44f2b9ec83b33039d580db911ad10a206038ebd3c4808"
+    },
+    {
+      "path": "case01-provider-route-preflight-v1/checkpoint.json",
+      "bytes": 3499,
+      "sha256": "758e475d48010d5493332103cbba9192f3fed888990f65290d4f807e5002e451"
+    },
+    {
+      "path": "case01-provider-route-preflight-v1/findings.json",
+      "bytes": 6943,
+      "sha256": "ee4ee555fe33296dc6a5eac8b6e075f4479d947db7f01abfd51d4e3a8e2f6b08"
+    },
+    {
+      "path": "case01-provider-route-preflight-v1/selected-task113-config.json",
+      "bytes": 2614,
+      "sha256": "560f77c7e15456a28f99c9424e744f6fc623b3709054a96df45677caf5d3f734"
+    },
+    {
+      "path": "case20-local-preparation-v1/local-inspection.json",
+      "bytes": 1920,
+      "sha256": "2420449607b59a6a0d9410c93cf66ccb469f22e2cc25643a0b0d3921b6c317de"
+    },
+    {
+      "path": "case20-local-preparation-v1/setup-plan-input.json",
+      "bytes": 467,
+      "sha256": "a72c2d69bebb9694edb38bc4131a60a093e6488f8cd3528fafd92db7f84a082d"
+    },
+    {
+      "path": "case20-local-preparation-v1/setup-plan-packet.json",
+      "bytes": 232,
+      "sha256": "850d5290e4d4759b1ffcd29c71eaf50b015b2b77e2f04cb42131f7ab94cd3420"
+    },
+    {
+      "path": "launch-case01-native-v2-once.mjs",
+      "bytes": 1905,
+      "sha256": "8e0c27f0ef83497cc2156bbfac617e54c3207286ec2f18155d52cf7f018da315"
+    },
+    {
+      "path": "launch-case01-native-v3-once.mjs",
+      "bytes": 1905,
+      "sha256": "73320818a4e8d6a29c77b4155261650203c309f76813f87f3dcc40038bb18356"
+    },
+    {
+      "path": "next-c2-readiness-v1.json",
+      "bytes": 16907,
+      "sha256": "2aebb3349810b27983a26584a6ac023d302b3cc8df6794885af9d90d20ffea38"
+    },
+    {
+      "path": "outcome.json",
+      "bytes": 1781,
+      "sha256": "d7984c383b291c2dad28a82231e47ce2e119a37c6b2046f4ddb3ff5a26f3a0fe"
+    },
+    {
+      "path": "prepare-case01-actual-scope-v1.mjs",
+      "bytes": 3522,
+      "sha256": "07a97ac07ab16d513342f484ca59191953dff0105bf0fd845dbcf7d148fa8bb6"
+    },
+    {
+      "path": "prepare-case01-actual-scope-v2.mjs",
+      "bytes": 3522,
+      "sha256": "eb4cf2f4f77eb77268f37adefd8147580d4929300838fb47da24ac7af83c6171"
+    },
+    {
+      "path": "prepare-case01-setup-diagnostic-v1.py",
+      "bytes": 6184,
+      "sha256": "fdef42667e584e341b9b39f226a300eb025e0aa77fddc282fea535435f631db0"
+    },
+    {
+      "path": "prepare-case20-local-input.mjs",
+      "bytes": 3730,
+      "sha256": "a8a8b7ec5d2b7d27b0839f3191e708d136426b0e240fbce254062dcdd85fc095"
+    },
+    {
+      "path": "reconcile-case01-setup-plan-v1.mjs",
+      "bytes": 2822,
+      "sha256": "be1447c928aadb668c2d3f676c91cbb8796738bd1b96e85075d9871710250dee"
+    },
+    {
+      "path": "run-case01-native-setup-diagnostic-v1.mjs",
+      "bytes": 27115,
+      "sha256": "8a7156bd390a9d4159d09e3d4f6b98c25151e4fefd81c093fddef6efb2abe7d9"
+    },
+    {
+      "path": "run-case01-native-setup-v3.mjs",
+      "bytes": 25211,
+      "sha256": "39219647361b76d232d2dd4251e9a574277f814a502d601cdc4ca863826cfd43"
+    },
+    {
+      "path": "run-case01-native-setup-v4.mjs",
+      "bytes": 26538,
+      "sha256": "22afe2b7715207693f179cc091d5144bb9a2a9179b70fbe91010d2b4310225ff"
+    },
+    {
+      "path": "run-case01-native-setup-v5.mjs",
+      "bytes": 28070,
+      "sha256": "12f6085bae0aaac9d9fcbce5b44219162aa23ee0692a15b2f481dd3484b2bb52"
+    }
+  ],
+  "excludedLocalProof": [
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v1/definition-input.private.json",
+      "bytes": 26979,
+      "sha256": "87ef59a657661c733a48deb3b3ba7608cc77c4aff5fc23cf871b3e41ae7cdfab",
+      "reason": "Private task input/definition; content excluded"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v1/definition-readback.private.json",
+      "bytes": 28608,
+      "sha256": "28157c0671ec70d3cf76dd7899c8587461009eeb30970a4a704cc10df4c16ca7",
+      "reason": "Private task input/definition; content excluded"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v1/definition-register-response.json",
+      "bytes": 28594,
+      "sha256": "c1b7e430f464f7111488476a6af9d57900a43f7a42a9a464612ef50e86988647",
+      "reason": "Private task input/definition; content excluded"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v1/deregister-readback-1.json",
+      "bytes": 28668,
+      "sha256": "ae90b99b71adbfbaaf8993cb918eb20494ba37784c70c452ba6c9c645d5a22dc",
+      "reason": "Private task input/definition; content excluded"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v1/deregister-response.json",
+      "bytes": 28596,
+      "sha256": "98eb6761a17bef6371801d70849df3316e7543760a9b9284d7899cd5223ba995",
+      "reason": "Private task input/definition; content excluded"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v2/definition-input.private.json",
+      "bytes": 27146,
+      "sha256": "b47354060d00c0c603b2cd0a6f0827b6b2d74d5dc5ab3a7896c56932817be529",
+      "reason": "Private task input/definition; content excluded"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v2/definition-readback.private.json",
+      "bytes": 28608,
+      "sha256": "10f31c43264877642abcbe6484a46e4d653ccf7cf5d01cd250bd0bdd641394e3",
+      "reason": "Private task input/definition; content excluded"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v2/definition-register-response.json",
+      "bytes": 28594,
+      "sha256": "17f40caa91d6ecaa0f365a3ae8247c1a6a70ef46b0bed0caba228934425a0d54",
+      "reason": "Private task input/definition; content excluded"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v2/deregister-readback-1.json",
+      "bytes": 28668,
+      "sha256": "ac52165ac81c5e817b4e4ac9cc71dc977090841a07de06ee4688f9aab189f10c",
+      "reason": "Private task input/definition; content excluded"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v2/deregister-response.json",
+      "bytes": 28596,
+      "sha256": "cafdd95cfd7681e3b189b37e6a81ec5d3db756e58d9759aad3a94739fa2d9c0e",
+      "reason": "Private task input/definition; content excluded"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v2/logs-page-001.json",
+      "bytes": 3969,
+      "sha256": "d7d9149a22876c4d4b2d1d57747d15fe4fab7888c35f0ac8b81bf24e51df27fb",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v2/raw-log-events.json",
+      "bytes": 3654,
+      "sha256": "541acacd45fcafc63fed4497e283d2439a777886eaa0286ff04550f37c61a940",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v2/task-input.private.json",
+      "bytes": 624,
+      "sha256": "1db37ce8503cffd22a19338ea9c25b0e2826ecb98fcd3aefc95d5b112362cfa1",
+      "reason": "Private task input/definition; content excluded"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v2/task-read-001.json",
+      "bytes": 2281,
+      "sha256": "5c051b9c4fab4a6664bf452df003fcbf06775143be10c570df1e71f6106151cc",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v2/task-read-002.json",
+      "bytes": 2896,
+      "sha256": "b38d1e6b67ec6872c8f30bed854b781c068afaea27944fa52aa41739d1779743",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v2/task-read-003.json",
+      "bytes": 2890,
+      "sha256": "39be1fd97c02ad367c41ddf2aad631301653f0cf62519c242ecb3c1fb6998bd0",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v2/task-read-004.json",
+      "bytes": 2890,
+      "sha256": "39be1fd97c02ad367c41ddf2aad631301653f0cf62519c242ecb3c1fb6998bd0",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v2/task-read-005.json",
+      "bytes": 2890,
+      "sha256": "39be1fd97c02ad367c41ddf2aad631301653f0cf62519c242ecb3c1fb6998bd0",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v2/task-read-006.json",
+      "bytes": 2890,
+      "sha256": "39be1fd97c02ad367c41ddf2aad631301653f0cf62519c242ecb3c1fb6998bd0",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v2/task-read-007.json",
+      "bytes": 2890,
+      "sha256": "39be1fd97c02ad367c41ddf2aad631301653f0cf62519c242ecb3c1fb6998bd0",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v2/task-read-008.json",
+      "bytes": 2890,
+      "sha256": "39be1fd97c02ad367c41ddf2aad631301653f0cf62519c242ecb3c1fb6998bd0",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v2/task-read-009.json",
+      "bytes": 2890,
+      "sha256": "39be1fd97c02ad367c41ddf2aad631301653f0cf62519c242ecb3c1fb6998bd0",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v2/task-read-010.json",
+      "bytes": 2890,
+      "sha256": "39be1fd97c02ad367c41ddf2aad631301653f0cf62519c242ecb3c1fb6998bd0",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v2/task-read-011.json",
+      "bytes": 2890,
+      "sha256": "39be1fd97c02ad367c41ddf2aad631301653f0cf62519c242ecb3c1fb6998bd0",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v2/task-read-012.json",
+      "bytes": 2890,
+      "sha256": "39be1fd97c02ad367c41ddf2aad631301653f0cf62519c242ecb3c1fb6998bd0",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v2/task-read-013.json",
+      "bytes": 3361,
+      "sha256": "311215b6a8d89c9fb9c59e919ab0686b43d699a101d553b94bc8a3f4aece74d8",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v2/task-read-014.json",
+      "bytes": 3361,
+      "sha256": "311215b6a8d89c9fb9c59e919ab0686b43d699a101d553b94bc8a3f4aece74d8",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v2/task-read-015.json",
+      "bytes": 3361,
+      "sha256": "311215b6a8d89c9fb9c59e919ab0686b43d699a101d553b94bc8a3f4aece74d8",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v2/task-read-016.json",
+      "bytes": 3361,
+      "sha256": "311215b6a8d89c9fb9c59e919ab0686b43d699a101d553b94bc8a3f4aece74d8",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v2/task-read-017.json",
+      "bytes": 3621,
+      "sha256": "9993d0ef698020f48d9b07ec7584a5d08d55a3a7abfdfc7ef9c486477c41fa72",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v2/task-read-018.json",
+      "bytes": 3621,
+      "sha256": "9993d0ef698020f48d9b07ec7584a5d08d55a3a7abfdfc7ef9c486477c41fa72",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v2/task-read-019.json",
+      "bytes": 3667,
+      "sha256": "1f7d4b0022229d6021f19b6e625942b3b6d0d0ee63f7be14507ddfab86512cda",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v2/task-read-020.json",
+      "bytes": 3667,
+      "sha256": "1f7d4b0022229d6021f19b6e625942b3b6d0d0ee63f7be14507ddfab86512cda",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v2/task-start-response.json",
+      "bytes": 2211,
+      "sha256": "2355eec7fbc3029cb86447c6481db6673dd43c0ceb8c679fc631ae8c7ddf0faa",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-diagnostic-result-v1/definition-input.private.json",
+      "bytes": 25566,
+      "sha256": "6e6ecff615a63e440193eda56918c21c141351ac0fdcb57d8ac55cddfcd41099",
+      "reason": "Private task input/definition; content excluded"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-diagnostic-result-v1/definition-readback.private.json",
+      "bytes": 27028,
+      "sha256": "3a33ab52f5ac100b749d4ea755dabad40d95c21f93ab43f94d5668a48591e5ca",
+      "reason": "Private task input/definition; content excluded"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-diagnostic-result-v1/definition-register-response.json",
+      "bytes": 27014,
+      "sha256": "30eab327721b5f0238a9daeee6f9afd332669151b952b7bd8aaf9762a283fd45",
+      "reason": "Private task input/definition; content excluded"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-diagnostic-result-v1/deregister-readback-1.json",
+      "bytes": 27088,
+      "sha256": "92e48151aa19b936590a22f00ee6ae354899c0e6d811ce961bac2e2963aa7210",
+      "reason": "Private task input/definition; content excluded"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-diagnostic-result-v1/deregister-response.json",
+      "bytes": 27016,
+      "sha256": "fb950dba888eee4ce647ad579fbb9412abc07c2554da7b957bfe58b0d7e06ec2",
+      "reason": "Private task input/definition; content excluded"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-diagnostic-result-v1/logs-page-001.json",
+      "bytes": 9921,
+      "sha256": "04fb4f21ad90ffd6dd67eadf45cd4819718476e8f453b5934dda257a6d469f24",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-diagnostic-result-v1/raw-log-events.json",
+      "bytes": 9606,
+      "sha256": "c2a952a1f8eb744c5705c24bb7742a6532ec5a6d7ab2a9287bbebf90dcb99d3e",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-diagnostic-result-v1/task-input.private.json",
+      "bytes": 624,
+      "sha256": "1dc174f99dd29365d809451e017ce814db5193ad0cdb400ce4d98007b18eecb6",
+      "reason": "Private task input/definition; content excluded"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-diagnostic-result-v1/task-read-001.json",
+      "bytes": 2281,
+      "sha256": "070b4d580f67664230836327c40002da40bbd57b400ee7e24401fcf4196f8de9",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-diagnostic-result-v1/task-read-002.json",
+      "bytes": 2897,
+      "sha256": "b1d081a44499d0c9a8b50c17ea7e1f3f66d9709dd4dbf459eceff6b7902574e0",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-diagnostic-result-v1/task-read-003.json",
+      "bytes": 2893,
+      "sha256": "a2ad079d3964b8554f6c8646d00b300e19a699742b478fdf22e32956de8af761",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-diagnostic-result-v1/task-read-004.json",
+      "bytes": 2893,
+      "sha256": "a2ad079d3964b8554f6c8646d00b300e19a699742b478fdf22e32956de8af761",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-diagnostic-result-v1/task-read-005.json",
+      "bytes": 2893,
+      "sha256": "a2ad079d3964b8554f6c8646d00b300e19a699742b478fdf22e32956de8af761",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-diagnostic-result-v1/task-read-006.json",
+      "bytes": 2893,
+      "sha256": "a2ad079d3964b8554f6c8646d00b300e19a699742b478fdf22e32956de8af761",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-diagnostic-result-v1/task-read-007.json",
+      "bytes": 2893,
+      "sha256": "a2ad079d3964b8554f6c8646d00b300e19a699742b478fdf22e32956de8af761",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-diagnostic-result-v1/task-read-008.json",
+      "bytes": 2988,
+      "sha256": "add0192c3f87f48d32b5ba788fcf44506d1f0ea2e8e947740831aa0e17039f46",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-diagnostic-result-v1/task-read-009.json",
+      "bytes": 2988,
+      "sha256": "add0192c3f87f48d32b5ba788fcf44506d1f0ea2e8e947740831aa0e17039f46",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-diagnostic-result-v1/task-read-010.json",
+      "bytes": 2988,
+      "sha256": "add0192c3f87f48d32b5ba788fcf44506d1f0ea2e8e947740831aa0e17039f46",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-diagnostic-result-v1/task-read-011.json",
+      "bytes": 2988,
+      "sha256": "add0192c3f87f48d32b5ba788fcf44506d1f0ea2e8e947740831aa0e17039f46",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-diagnostic-result-v1/task-read-012.json",
+      "bytes": 2988,
+      "sha256": "add0192c3f87f48d32b5ba788fcf44506d1f0ea2e8e947740831aa0e17039f46",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-diagnostic-result-v1/task-read-013.json",
+      "bytes": 3364,
+      "sha256": "70d97177cf7129e96ffb3292efa463c0e0fde0d9ad51e89e87c2d8a32b91b41b",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-diagnostic-result-v1/task-read-014.json",
+      "bytes": 3364,
+      "sha256": "70d97177cf7129e96ffb3292efa463c0e0fde0d9ad51e89e87c2d8a32b91b41b",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-diagnostic-result-v1/task-read-015.json",
+      "bytes": 3364,
+      "sha256": "70d97177cf7129e96ffb3292efa463c0e0fde0d9ad51e89e87c2d8a32b91b41b",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-diagnostic-result-v1/task-read-016.json",
+      "bytes": 3623,
+      "sha256": "bcae2ef043970b09f77f97dca56e45e55eb9369e209cdf945c5f47edd66ee38c",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-diagnostic-result-v1/task-read-017.json",
+      "bytes": 3624,
+      "sha256": "4e42c71a8894b0279a8322ccbd066b8ba1ad0ed6e7a5a40b95fe55f3fb8399b4",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-diagnostic-result-v1/task-read-018.json",
+      "bytes": 3624,
+      "sha256": "4e42c71a8894b0279a8322ccbd066b8ba1ad0ed6e7a5a40b95fe55f3fb8399b4",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-diagnostic-result-v1/task-read-019.json",
+      "bytes": 3670,
+      "sha256": "f9c10a2bbc24f639ac6041fd0596a13d550f4512083db2445e969a3a3838949c",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-diagnostic-result-v1/task-read-020.json",
+      "bytes": 3670,
+      "sha256": "f9c10a2bbc24f639ac6041fd0596a13d550f4512083db2445e969a3a3838949c",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-diagnostic-result-v1/task-start-response.json",
+      "bytes": 2211,
+      "sha256": "899df3af2ce10282a08e1931fe5b5f815220dd4d934466f67797f4e9eeabb896",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v3/definition-input.private.json",
+      "bytes": 30998,
+      "sha256": "1cba9555fc814bbb093b117c5de7409bc9e14b694c0a80533b972e4cef06ddfb",
+      "reason": "Private task input/definition; content excluded"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v3/definition-readback.private.json",
+      "bytes": 32460,
+      "sha256": "ca55b023147214dec29e7becc917570bfc0ab7323891b6f4949be4ef5f7f8749",
+      "reason": "Private task input/definition; content excluded"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v3/definition-register-response.json",
+      "bytes": 32446,
+      "sha256": "35166e5765d893f69ddd035515f9a7416ed44c159901c3bced21db940828445e",
+      "reason": "Private task input/definition; content excluded"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v3/deregister-readback-1.json",
+      "bytes": 32520,
+      "sha256": "68488275492f4b2d5cd66964fd0ddbb3c1b121157a48f69dcad7101562c8f28c",
+      "reason": "Private task input/definition; content excluded"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v3/deregister-response.json",
+      "bytes": 32448,
+      "sha256": "1420a658d7479a7b23fa3d475cd3e2920d1a94ad0874af7bfe353db6f7d417b2",
+      "reason": "Private task input/definition; content excluded"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v3/logs-page-001.json",
+      "bytes": 10357,
+      "sha256": "c3e43e6492726f5b505217a56c28f06f8abfe061c808267c5d82a64ac330b4e6",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v3/raw-log-events.json",
+      "bytes": 10052,
+      "sha256": "673cc8155e9b9732eac2f35371e6e22aab1eff7d8ae66bba553375e8c5cbd788",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v3/task-input.private.json",
+      "bytes": 624,
+      "sha256": "551a200f4907b43aff1f8cb2c1fe9c0e88fd984d9dd1fa2c4f44026b3a550e76",
+      "reason": "Private task input/definition; content excluded"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v3/task-read-001.json",
+      "bytes": 2281,
+      "sha256": "73060579f3465d262f3ad5158f2b97a790f75ffc37eaf4866b94f2e5543219ef",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v3/task-read-002.json",
+      "bytes": 2895,
+      "sha256": "5d42479bf8e735545cd6012cc5e11ad9249731c11959932a72ea2cd9cd5bad3d",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v3/task-read-003.json",
+      "bytes": 2890,
+      "sha256": "26ff83ac422796e332505ca94fe864fd8efe03dcc637ea48f4b4cb0e42f4102a",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v3/task-read-004.json",
+      "bytes": 2890,
+      "sha256": "26ff83ac422796e332505ca94fe864fd8efe03dcc637ea48f4b4cb0e42f4102a",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v3/task-read-005.json",
+      "bytes": 2890,
+      "sha256": "26ff83ac422796e332505ca94fe864fd8efe03dcc637ea48f4b4cb0e42f4102a",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v3/task-read-006.json",
+      "bytes": 2890,
+      "sha256": "26ff83ac422796e332505ca94fe864fd8efe03dcc637ea48f4b4cb0e42f4102a",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v3/task-read-007.json",
+      "bytes": 2890,
+      "sha256": "26ff83ac422796e332505ca94fe864fd8efe03dcc637ea48f4b4cb0e42f4102a",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v3/task-read-008.json",
+      "bytes": 2890,
+      "sha256": "26ff83ac422796e332505ca94fe864fd8efe03dcc637ea48f4b4cb0e42f4102a",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v3/task-read-009.json",
+      "bytes": 2890,
+      "sha256": "26ff83ac422796e332505ca94fe864fd8efe03dcc637ea48f4b4cb0e42f4102a",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v3/task-read-010.json",
+      "bytes": 2890,
+      "sha256": "26ff83ac422796e332505ca94fe864fd8efe03dcc637ea48f4b4cb0e42f4102a",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v3/task-read-011.json",
+      "bytes": 2890,
+      "sha256": "26ff83ac422796e332505ca94fe864fd8efe03dcc637ea48f4b4cb0e42f4102a",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v3/task-read-012.json",
+      "bytes": 3361,
+      "sha256": "72b3a4dcad55f2597c55424e4297d2ca3f8437ab637b2c38ce187b307942e04c",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v3/task-read-013.json",
+      "bytes": 3361,
+      "sha256": "72b3a4dcad55f2597c55424e4297d2ca3f8437ab637b2c38ce187b307942e04c",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v3/task-read-014.json",
+      "bytes": 3361,
+      "sha256": "72b3a4dcad55f2597c55424e4297d2ca3f8437ab637b2c38ce187b307942e04c",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v3/task-read-015.json",
+      "bytes": 3621,
+      "sha256": "b4bd84187751c56ab271223178c81df0bf7359a6f4b3c9de02ff8c18a85ca822",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v3/task-read-016.json",
+      "bytes": 3621,
+      "sha256": "b4bd84187751c56ab271223178c81df0bf7359a6f4b3c9de02ff8c18a85ca822",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v3/task-read-017.json",
+      "bytes": 3667,
+      "sha256": "d7ca6fc9c99eed8df36d243ce8aeed32517482cb72ad8f0596098416ae3291ab",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v3/task-read-018.json",
+      "bytes": 3667,
+      "sha256": "d7ca6fc9c99eed8df36d243ce8aeed32517482cb72ad8f0596098416ae3291ab",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v3/task-start-response.json",
+      "bytes": 2211,
+      "sha256": "b6592ee09753888f2790e367ef19281a78dca3c03a61d6f84dbf40bcebb7b5ac",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-execute-v3/definition-input.private.json",
+      "bytes": 34757,
+      "sha256": "0563818f6bc3d539fa2d3d1400bca855abaa12991010be688fc21fd56c2c9536",
+      "reason": "Private task input/definition; content excluded"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-execute-v3/definition-readback.private.json",
+      "bytes": 36219,
+      "sha256": "c19857e7ce129075bd799c472b95ee74eda699accb22aa1933022861b508b322",
+      "reason": "Private task input/definition; content excluded"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-execute-v3/definition-register-response.json",
+      "bytes": 36205,
+      "sha256": "39fe7d640ecf69a3fb3ad3d3e1a5dcdd81a54b5f9b2137760bde15890e9b3ec8",
+      "reason": "Private task input/definition; content excluded"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-execute-v3/deregister-readback-1.json",
+      "bytes": 36279,
+      "sha256": "6a01df877116022fc740a79c44e24b8c2ecb1cbde88e7a058e48643ec7531c7a",
+      "reason": "Private task input/definition; content excluded"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-execute-v3/deregister-response.json",
+      "bytes": 36207,
+      "sha256": "f7daceb681f15931a67839ca2604fede7749290254d816404cf09e8448320018",
+      "reason": "Private task input/definition; content excluded"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-execute-v3/logs-page-001.json",
+      "bytes": 20259,
+      "sha256": "34f8d5d3bb6dac518579d950656c571fb3f9de2fc7433c71b3e37ce13431cfac",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-execute-v3/raw-log-events.json",
+      "bytes": 19904,
+      "sha256": "b44e55779985b6e0e364fd47cd5c0eb5e00cd4958bab9bf2b6e651d7db98d7e6",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-execute-v3/task-input.private.json",
+      "bytes": 627,
+      "sha256": "564f040dbbd63d6637ac3dbc1f614f933dd3f837479e8d837dc3575a7526d941",
+      "reason": "Private task input/definition; content excluded"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-execute-v3/task-read-001.json",
+      "bytes": 2284,
+      "sha256": "39562e54b79f94f98c34e6769e56e2b76e40b3575ea4e2218138924b3354224f",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-execute-v3/task-read-002.json",
+      "bytes": 2901,
+      "sha256": "179ff5ec993b190f82a81dfdd7a402f1b0e169377b93230b0d175ac8241e2adb",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-execute-v3/task-read-003.json",
+      "bytes": 2896,
+      "sha256": "891817f3a4cb4acbbbaece9fdb3f857117e639ac0ee4eb58c6f2390847d969f5",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-execute-v3/task-read-004.json",
+      "bytes": 2896,
+      "sha256": "891817f3a4cb4acbbbaece9fdb3f857117e639ac0ee4eb58c6f2390847d969f5",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-execute-v3/task-read-005.json",
+      "bytes": 2896,
+      "sha256": "891817f3a4cb4acbbbaece9fdb3f857117e639ac0ee4eb58c6f2390847d969f5",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-execute-v3/task-read-006.json",
+      "bytes": 2991,
+      "sha256": "708bf6fda070bab0ece7a445d4e8f6b23d415e56325c0ded1ee17bf9acdb8d2e",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-execute-v3/task-read-007.json",
+      "bytes": 2991,
+      "sha256": "708bf6fda070bab0ece7a445d4e8f6b23d415e56325c0ded1ee17bf9acdb8d2e",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-execute-v3/task-read-008.json",
+      "bytes": 2991,
+      "sha256": "708bf6fda070bab0ece7a445d4e8f6b23d415e56325c0ded1ee17bf9acdb8d2e",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-execute-v3/task-read-009.json",
+      "bytes": 2991,
+      "sha256": "708bf6fda070bab0ece7a445d4e8f6b23d415e56325c0ded1ee17bf9acdb8d2e",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-execute-v3/task-read-010.json",
+      "bytes": 2991,
+      "sha256": "708bf6fda070bab0ece7a445d4e8f6b23d415e56325c0ded1ee17bf9acdb8d2e",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-execute-v3/task-read-011.json",
+      "bytes": 3367,
+      "sha256": "ab5b5da177db2ddea2fd8dae828363c859428034ba26e32962ac5bf1f60f4927",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-execute-v3/task-read-012.json",
+      "bytes": 3367,
+      "sha256": "ab5b5da177db2ddea2fd8dae828363c859428034ba26e32962ac5bf1f60f4927",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-execute-v3/task-read-013.json",
+      "bytes": 3367,
+      "sha256": "ab5b5da177db2ddea2fd8dae828363c859428034ba26e32962ac5bf1f60f4927",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-execute-v3/task-read-014.json",
+      "bytes": 3367,
+      "sha256": "ab5b5da177db2ddea2fd8dae828363c859428034ba26e32962ac5bf1f60f4927",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-execute-v3/task-read-015.json",
+      "bytes": 3627,
+      "sha256": "81d60ff1f16f952ebd63879d23857f6b04f78474c6346ded372181654040e6de",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-execute-v3/task-read-016.json",
+      "bytes": 3627,
+      "sha256": "81d60ff1f16f952ebd63879d23857f6b04f78474c6346ded372181654040e6de",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-execute-v3/task-read-017.json",
+      "bytes": 3673,
+      "sha256": "8515bfe8b80c09ce16d9fedf9592f22b33473f30c8b01b80d252c5aacc48ef1e",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-execute-v3/task-read-018.json",
+      "bytes": 3673,
+      "sha256": "8515bfe8b80c09ce16d9fedf9592f22b33473f30c8b01b80d252c5aacc48ef1e",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-execute-v3/task-start-response.json",
+      "bytes": 2214,
+      "sha256": "be8416a83a583da3c3a60ab5699a21960176da2b9ab491875527084cbba35f98",
+      "reason": "Duplicate transport/poll proof; exact assembled JSONL and terminal task are archived"
+    },
+    {
+      "localPath": "C:/dev/main/outputs/meri-c2-20261003/case01-recovered-auth-scope.private.json",
+      "bytes": 1181,
+      "sha256": "ed9c3b1c11014825b29ee2879796e20b3f0023959ed9e478337180b96ed7a062",
+      "reason": "Private authentication scope; hash only"
+    },
+    {
+      "localPath": "C:/dev/cap-meri-foundation-evidence/controlled-read-claims/01-bd35c0f4-1604-4371-b7e9-a1338369e53f.json",
+      "bytes": 320,
+      "sha256": "78737800de6ac6f9f2536e6291d9a6927460c2c2c568a1bccddd597eb7d06721",
+      "reason": "Retained one-shot claim; hash only, never archive or mutate authority"
+    }
+  ],
+  "limits": [
+    "Archive copies existing evidence only; it grants no execution authority.",
+    "Credential regex is a bounded scan, not a complete privacy proof.",
+    "Private definitions and auth scope are excluded; excluded raw proofs are hash references.",
+    "Setup success is not benchmark acceptance; outcome and human grading remain separate."
+  ]
+}

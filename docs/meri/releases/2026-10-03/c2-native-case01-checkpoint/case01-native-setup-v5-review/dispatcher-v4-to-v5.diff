@@ -1,0 +1,66 @@
+diff --git a/C:/dev/main/outputs/meri-c2-20261003/run-case01-native-setup-v4.mjs b/C:/dev/main/outputs/meri-c2-20261003/run-case01-native-setup-v5.mjs
+index 0c48220..290b3f9 100644
+--- a/C:/dev/main/outputs/meri-c2-20261003/run-case01-native-setup-v4.mjs
++++ b/C:/dev/main/outputs/meri-c2-20261003/run-case01-native-setup-v5.mjs
+@@ -9,8 +9,8 @@ import {releaseOperator} from '../../meri-c1-20261002/scripts/meri-release.mjs';
+ import {fingerprint,taskInput} from '../../meri-c1-20261002/scripts/lib/meri-release-policy.mjs';
+ 
+ const [mode]=process.argv.slice(2);assert.ok(['plan','execute'].includes(mode));assert.equal(process.argv.length,3);
+-const parent='C:/dev/main/outputs/meri-c2-20261003',packageRoot=parent+'/case01-native-setup-v1';
+-const root=parent+'/case01-native-setup-'+mode+'-v2';
++const parent='C:/dev/main/outputs/meri-c2-20261003',packageRoot=parent+'/case01-native-setup-v2';
++const root=parent+'/case01-native-setup-'+mode+'-v3';
+ assert.equal(existsSync(root),false,'Prior dispatcher intent requires reconciliation, not automatic retry');
+ const hash=b=>createHash('sha256').update(b).digest('hex');
+ assert.equal(hash(readFileSync(new URL('./case01-native-setup-v4-definition.mjs',import.meta.url))),'5e27f5e689f84fe4b4c6e96b2464f0c4f331d6ac0711fd7c432b89004174e1d8','Reviewed task normalization drift');
+@@ -27,6 +27,23 @@ assert.equal(reconciliation.definitionStatus,'INACTIVE');
+ assert.equal(hash(readFileSync(parent+'/case01-native-setup-plan-v1/result.json')),reconciliation.priorResultSha256);
+ assert.equal(hash(readFileSync(parent+'/run-case01-native-setup-v3.mjs')),reconciliation.priorDispatcherSha256);
+ assert.equal(existsSync(parent+'/case01-native-setup-plan-v1/task-input.private.json'),false);
++const diagnosticFailureBytes=readFileSync(parent+'/case01-native-setup-diagnostic-result-v1/result.json');
++const diagnosticFailureSha256=hash(diagnosticFailureBytes);
++assert.equal(diagnosticFailureSha256,'0892b58914b29f3303c02df045894e895778707075922a6888483b33ff8774fd');
++const diagnosticReceiptBytes=readFileSync(parent+'/case01-native-setup-diagnostic-result-v1/inner-receipt.jsonl');
++const diagnosticReceiptSha256=hash(diagnosticReceiptBytes);
++assert.equal(diagnosticReceiptSha256,'0197f21682e6f7297f263018620c6cd4e078b694448f2081eb01b6e0ab28f563');
++const diagnosticFailure=JSON.parse(diagnosticFailureBytes);
++assert.equal(diagnosticFailure.mode,'plan');assert.equal(diagnosticFailure.exitCode,1);
++assert.equal(diagnosticFailure.cleanup.taskStopped,true);
++assert.equal(diagnosticFailure.cleanup.taskDefinitionInactive,true);
++assert.equal(diagnosticFailure.innerReceipt.sha256,diagnosticReceiptSha256);
++assert.deepEqual(diagnosticFailure.events,diagnosticReceiptBytes.toString('utf8').trimEnd().split('\n').map(line=>JSON.parse(line)));
++assert.deepEqual(diagnosticFailure.events.map(e=>[e.stage,e.phase]),[['VALIDATING','START'],['INSPECT','FAILURE']]);
++assert.equal(diagnosticFailure.events[1].diagnostic.substage,'HYDRATE_PREVIOUS');
++assert.equal(diagnosticFailure.events[1].diagnostic.errorClass,'PrismaClientKnownRequestError');
++assert.equal(diagnosticFailure.events[1].diagnostic.errorCode,'P2028');
++assert.equal(diagnosticFailure.events[1].diagnostic.timeoutMentioned,true);
+ const packet=read(parent+'/clock-provider-release-packet.json');
+ const approval=read(parent+'/clock-provider-human-approval.json');
+ assert.equal(approval.status,'APPROVED');assert.equal(approval.scope,'EXACT_C2_CLOCK_PROVIDER_RELEASE');
+@@ -35,7 +52,7 @@ const source='5b086a6b47ffce5aa1b93bfe38f9c7b96e297642';
+ const image='967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:d20110a114ef51a7db3d352321f411a2f51cc8b1877f9ccec6d1f35d7701c8cd';
+ const body=readFileSync(packageRoot+'/case01-native-setup-inner.mjs');
+ const rates=readFileSync(packageRoot+'/case01-reviewed-rates-v2.json');
+-assert.equal(hash(body),'632d00e47ec63fb8c0b49cfa0d166760bd16abbf5ded9b572c0a9cf235f9899d');
++assert.equal(hash(body),'e4f4a2f5b869e8a3520de4bf85edc66ead317b6645de8875cdd3362c06685b06');
+ assert.equal(hash(rates),'3531e09dfcce9f66b4ea2b3564db47bd72dc507cdcf1aecdda277b838007704e');
+ assert.ok(Date.parse(JSON.parse(rates).expiresAt)>Date.now()+30*60000);
+ assert.equal(aws(['sts','get-caller-identity']).Arn,'arn:aws:iam::967807252336:user/capirocli');
+@@ -55,7 +72,7 @@ for(const service of ['api','meriv2-orchestrator']){
+ }
+ let input=read(packageRoot+'/plan-input.json');
+ if(mode==='execute'){
+-  const prior=read(parent+'/case01-native-setup-plan-v2/result.json');
++  const prior=read(parent+'/case01-native-setup-plan-v3/result.json');
+   assert.equal(prior.exitCode,0);assert.equal(prior.status,'PLAN_ONLY');
+   assert.equal(prior.sourceSha,source);assert.equal(prior.image,image);assert.equal(prior.scriptSha256,hash(body));
+   const final=prior.events.filter(e=>e.phase==='RESULT');assert.equal(final.length,1);assert.equal(final[0].status,'PLAN_ONLY');
+@@ -101,7 +118,7 @@ for(const e of c.environment)if(['GIT_SHA','RELEASE_SHA'].includes(e.name))e.val
+ assert.equal(c.environment.find(e=>e.name==='MERI_SYNTHETIC_FIXTURE_NAMESPACE')?.value,'meri-foundation-20260928');
+ c.entryPoint=['/usr/bin/dumb-init','--','node','--input-type=module','-e'];c.command=[wrapper];
+ mkdirSync(root);
+-save('intent.json',{at:new Date().toISOString(),mode,sourceSha:source,image,reconciliationSha256,scriptSha256:hash(body),wrapperSha256:hash(wrapper),rateSha256:hash(rates),input,served,releasePacketSha256:fingerprint(packet),providerSecrets:0,providerCalls:0,fixtureLifecycleMutations:0,proposedWrites:mode==='plan'?[]:['canonical capture binding CAS','bounded provider budget qualification CAS'],automaticRetry:false});
++save('intent.json',{at:new Date().toISOString(),mode,sourceSha:source,image,reconciliationSha256,diagnosticFailureSha256,diagnosticReceiptSha256,scriptSha256:hash(body),wrapperSha256:hash(wrapper),rateSha256:hash(rates),input,served,releasePacketSha256:fingerprint(packet),providerSecrets:0,providerCalls:0,fixtureLifecycleMutations:0,proposedWrites:mode==='plan'?[]:['canonical capture binding CAS','bounded provider budget qualification CAS'],automaticRetry:false});
+ save('definition-input.private.json',definition);
+ let td,arn,task,request,runDispatched=false,stopAttempted=false,deregisterAttempted=false;
+ let cleanupInactive=false,receiptFrame=null,receiptEvents=[],receiptFailures=[],receiptValid=false;

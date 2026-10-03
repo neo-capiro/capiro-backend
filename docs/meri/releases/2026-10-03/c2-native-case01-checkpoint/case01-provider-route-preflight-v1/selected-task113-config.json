@@ -1,0 +1,90 @@
+{
+  "command": "aws ecs describe-task-definition --region us-east-1 --task-definition capiro-dev-meriv2-orchestrator:113 --query selected nonsecret MERI modes/tasks/model and TYPESAFE_API_KEY name only",
+  "exitCode": 0,
+  "readback": {
+    "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:113",
+    "containers": [
+      {
+        "name": "meriv2-orchestrator",
+        "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:53b06f768d8a26a8a5c6124f0f7bb55a0e2117fde050706360c6108c98887faa",
+        "selected": [
+          {
+            "name": "MERI_AUTO_CORRECTION_SURFACES",
+            "value": "chat"
+          },
+          {
+            "name": "MERI_CLAIM_ASSESSMENT_MODE",
+            "value": "shadow"
+          },
+          {
+            "name": "MERI_PASSAGE_SELECTION_TENANTS",
+            "value": "all"
+          },
+          {
+            "name": "MERI_JEV_PROVIDER_SURFACES",
+            "value": "chat"
+          },
+          {
+            "name": "MERI_JEV_TIMEOUT_MS",
+            "value": "8000"
+          },
+          {
+            "name": "MERI_JEV_TASKS",
+            "value": "claim_support,passage_relevance"
+          },
+          {
+            "name": "MERI_CLAIM_ASSESSMENT_TENANTS",
+            "value": "all"
+          },
+          {
+            "name": "MERI_PASSAGE_SELECTION_MODE",
+            "value": "enforce"
+          },
+          {
+            "name": "MERI_PASSAGE_SELECTION_SURFACES",
+            "value": "chat"
+          },
+          {
+            "name": "MERI_JEV_PROVIDER_MODE",
+            "value": "enforce"
+          },
+          {
+            "name": "MERI_CLAIM_ASSESSMENT_SURFACES",
+            "value": "chat"
+          },
+          {
+            "name": "MERI_AUTO_CORRECTION_TENANTS",
+            "value": "17b63099-bc0f-4ac5-b596-496161e9481e"
+          },
+          {
+            "name": "MERI_AUTO_CORRECTION_MODE",
+            "value": "shadow"
+          },
+          {
+            "name": "MERI_JEV_PROVIDER_TENANTS",
+            "value": "all"
+          },
+          {
+            "name": "MERI_JEV_MODEL",
+            "value": "jev-1.13.0"
+          },
+          {
+            "name": "MERI_AUTO_CORRECTION_CATEGORIES",
+            "value": ""
+          },
+          {
+            "name": "MERI_CHAT_EVIDENCE_JUDGE",
+            "value": "paired"
+          },
+          {
+            "name": "MERI_JEV_MAX_ATTEMPTS",
+            "value": "2"
+          }
+        ],
+        "typesafeSecretNames": [
+          "TYPESAFE_API_KEY"
+        ]
+      }
+    ]
+  }
+}

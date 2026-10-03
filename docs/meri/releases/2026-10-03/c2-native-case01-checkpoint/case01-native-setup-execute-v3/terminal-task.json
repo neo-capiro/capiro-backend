@@ -1,0 +1,105 @@
+{
+  "tasks": [
+    {
+      "attachments": [
+        {
+          "id": "a1f47a47-2398-4f7e-943e-6c8330e7563f",
+          "type": "ElasticNetworkInterface",
+          "status": "DELETED",
+          "details": [
+            {
+              "name": "subnetId",
+              "value": "subnet-0920665f91c905f01"
+            },
+            {
+              "name": "networkInterfaceId",
+              "value": "eni-06d94c553645b3b4d"
+            },
+            {
+              "name": "macAddress",
+              "value": "02:ff:e9:ba:f9:27"
+            },
+            {
+              "name": "privateDnsName",
+              "value": "ip-10-40-6-123.ec2.internal"
+            },
+            {
+              "name": "privateIPv4Address",
+              "value": "10.40.6.123"
+            }
+          ]
+        }
+      ],
+      "attributes": [
+        {
+          "name": "ecs.cpu-architecture",
+          "value": "arm64"
+        }
+      ],
+      "availabilityZone": "us-east-1a",
+      "clusterArn": "arn:aws:ecs:us-east-1:967807252336:cluster/capiro-dev",
+      "connectivity": "CONNECTED",
+      "connectivityAt": "2026-10-03T17:43:32.117000-04:00",
+      "containers": [
+        {
+          "containerArn": "arn:aws:ecs:us-east-1:967807252336:container/capiro-dev/c71d84f737f14baaa7666a719de2fc34/053ca0fb-7b09-4a2c-978b-fce5345951d9",
+          "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/c71d84f737f14baaa7666a719de2fc34",
+          "name": "meri-c2-readback",
+          "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:d20110a114ef51a7db3d352321f411a2f51cc8b1877f9ccec6d1f35d7701c8cd",
+          "imageDigest": "sha256:d20110a114ef51a7db3d352321f411a2f51cc8b1877f9ccec6d1f35d7701c8cd",
+          "runtimeId": "c71d84f737f14baaa7666a719de2fc34-2262518348",
+          "lastStatus": "STOPPED",
+          "exitCode": 0,
+          "networkBindings": [],
+          "networkInterfaces": [
+            {
+              "attachmentId": "a1f47a47-2398-4f7e-943e-6c8330e7563f",
+              "privateIpv4Address": "10.40.6.123"
+            }
+          ],
+          "healthStatus": "UNKNOWN",
+          "cpu": "0"
+        }
+      ],
+      "cpu": "512",
+      "createdAt": "2026-10-03T17:43:28.743000-04:00",
+      "desiredStatus": "STOPPED",
+      "enableExecuteCommand": false,
+      "executionStoppedAt": "2026-10-03T17:44:39.598000-04:00",
+      "group": "family:capiro-dev-meri-c2-case01-setup-20261003",
+      "healthStatus": "UNKNOWN",
+      "lastStatus": "STOPPED",
+      "launchType": "FARGATE",
+      "memory": "1024",
+      "overrides": {
+        "containerOverrides": [
+          {
+            "name": "meri-c2-readback"
+          }
+        ],
+        "inferenceAcceleratorOverrides": []
+      },
+      "platformVersion": "1.4.0",
+      "platformFamily": "Linux",
+      "pullStartedAt": "2026-10-03T17:43:41.275000-04:00",
+      "pullStoppedAt": "2026-10-03T17:44:28.682000-04:00",
+      "startedAt": "2026-10-03T17:44:28.714000-04:00",
+      "startedBy": "meri-c2-c01-execute-f09ab6ea",
+      "stopCode": "EssentialContainerExited",
+      "stoppedAt": "2026-10-03T17:45:03.596000-04:00",
+      "stoppedReason": "Essential container in task exited",
+      "stoppingAt": "2026-10-03T17:44:49.633000-04:00",
+      "tags": [],
+      "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/c71d84f737f14baaa7666a719de2fc34",
+      "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-c2-case01-setup-20261003:5",
+      "version": 6,
+      "ephemeralStorage": {
+        "sizeInGiB": 20
+      },
+      "fargateEphemeralStorage": {
+        "sizeInGiB": 20
+      }
+    }
+  ],
+  "failures": []
+}

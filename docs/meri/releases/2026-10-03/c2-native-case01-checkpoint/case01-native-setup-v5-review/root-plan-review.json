@@ -1,0 +1,19 @@
+{
+  "at": "2026-10-03T21:40:13.452Z",
+  "reviewer": "/root",
+  "status": "ATTENDED_READ_ONLY_PLAN_REVIEW_PASS",
+  "dispatcherSha256": "12f6085bae0aaac9d9fcbce5b44219162aa23ee0692a15b2f481dd3484b2bb52",
+  "innerSha256": "e4f4a2f5b869e8a3520de4bf85edc66ead317b6645de8875cdd3362c06685b06",
+  "forwardingTestsPassed": 16,
+  "syntaxPassed": 2,
+  "sourceDeltaReviewed": true,
+  "scope": "New plan-v3 only; actual plan must pass before any bind/budget execution.",
+  "conclusions": [
+    "Existing actual Prisma scoped method receives original exact-actor callback with bounded30000ms option only for canonical binding inspect/bind.",
+    "No substituted transaction/query/proof, no retries, no productionconfiguration change.",
+    "Original successful receipt and mutation paths preserved; diagnostic logging sanitized.",
+    "Exact prior timeout receipt andcleanup pinned; newdirectories exclusive."
+  ],
+  "captureAuthority": false,
+  "humanApproval": false
+}

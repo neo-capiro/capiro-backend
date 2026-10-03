@@ -1,0 +1,78 @@
+{
+  "version": 1,
+  "status": "READ_ONLY_SOURCE_AUDIT_NO_RECOVERY_AUTHORITY",
+  "captureRunId": "bd35c0f4-1604-4371-b7e9-a1338369e53f",
+  "conversationId": "f493355c-ee97-44a1-a0b0-e05e7b104b59",
+  "repository": "C:/dev/main/meri-c1-20261002",
+  "mainFinding": "The durable actual native admission marker is conversation.metadata.serverCaptureProviderBudget. The existing authenticated conversation GET exposes this metadata. Its separate captureAdmission READY field is read-only readiness, not proof of dispatch or a persisted admission.",
+  "ordering": [
+    {
+      "source": "apps/api/src/meri/meriv3-runtime.proxy.ts:134",
+      "finding": "Both stream runtime choices first enter governedRuntime.runChatTurn. The legacy provider-budget path is additionally refused by meri.service.ts:1080."
+    },
+    {
+      "source": "apps/api/src/meri/meri-context-plane-runtime.ts:119",
+      "finding": "prepareTurn and semantic-clock qualification precede actual admission. Policy issuance/qualification is not itself provider work."
+    },
+    {
+      "source": "apps/api/src/meri/meri-context-plane-runtime.ts:145",
+      "finding": "captureProviderBudgetOwner(kind=admit) is awaited before withCaptureApiProviderScope and resolveChat at lines157-162. It therefore precedes initial retrieval embeddings and the later chat/provider runtime."
+    },
+    {
+      "source": "apps/api/src/meri/meri-capture-provider-budget-owner.ts:89",
+      "finding": "The tenant/user/conversation/client authority transaction locks exact rows; scoped active owner conversation metadata is read FOR UPDATE at120, then the full preserved metadata including the new ledger is written at152 and the withTenantUser transaction resolves before caller continuation."
+    },
+    {
+      "source": "apps/api/src/embeddings/titan-embedding.provider.ts:73",
+      "finding": "Initial API Titan embedding awaits a durable provider reservation before invoke at82. Thus an admitted turn may have provider work while the transcript is still empty."
+    },
+    {
+      "source": "apps/api/src/meri/meriv3-proxy.service.ts:299",
+      "finding": "User message creation occurs later in streamMessage. Its actual id is then bound to the same policy, and kind=admit binds the existing ledger turnId at308-320."
+    },
+    {
+      "source": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts:930",
+      "finding": "The runtimeBudget receives captureProviderAccounting on the native route. That owner delegates to authenticated API reservations/settlements (meriv3-capture-provider-budget.ts:37-75); OpenAI awaits reserveProviderAttempt at openai-responses.client.ts:420 before fetch at471."
+    }
+  ],
+  "storedFields": {
+    "actualConversationAdmission": "metadata.serverCaptureProviderBudget",
+    "shape": ["version", "admissionId", "turnId", "policySha256", "qualification", "qualificationSha256", "ledger"],
+    "ledger": ["limits", "attempts", "chargedTokens", "chargedCostMicros"],
+    "source": "apps/api/src/meri/meri-capture-provider-budget.ts:34-55,220-251",
+    "absenceRule": "Require a present object-valued conversation.metadata and Object.hasOwn(metadata, 'serverCaptureProviderBudget') === false. Null, malformed or any present value is not absence. Existing state, even with turnId null and attempts empty, means admission happened and is outside no-admission recovery.",
+    "otherConflictingScopesToReject": ["syntheticReadBudgetQualification", "syntheticReadProviderBudget", "syntheticReadBudgetTerminal", "governedArtifactCapture", "governedArtifactCaptureBinding", "governedArtifactProviderBudget"],
+    "assistantOnlyFinalProof": "serverReadonlyCapturePolicy and serverCaptureEvidenceReceipt are persisted on an actual assistant message by meri-server-capture-evidence.ts:215-229; absence of those late fields is insufficient to prove no dispatch."
+  },
+  "existingReadback": [
+    {
+      "route": "GET /api/clio/conversations/:id",
+      "source": "apps/api/src/meri/meri.controller.ts:346; apps/api/src/meri/meri.service.ts:570-585",
+      "proof": "ensureConversationAnyStatus (meri.service.ts:967) scopes id+tenantId+userId. Returned row includes id, tenantId, userId, clientId, archivedAt, metadata and current client. Require exact expected values and archivedAt null, because this GET also permits owned archived rows. publicCase46ConversationMetadata only replaces its own governedArtifactCapture value with a hash; it does not remove serverCaptureProviderBudget."
+    },
+    {
+      "route": "GET /api/clio/conversations/:id/messages",
+      "source": "apps/api/src/meri/meri.controller.ts:370; apps/api/src/meri/meri.service.ts:700-714",
+      "proof": "Requires active owned conversation, then returns the complete tenant/user/conversation message list without limit or pagination. Exact empty array is meaningful only jointly with absent durable admission and actual no-stream history."
+    },
+    {
+      "route": "GET /api/me and existing conversation captureAdmission",
+      "source": "evals/meri/live-v1/case01-live-capture.mjs:185-257; apps/api/src/meri/meri-case01-capture-authority.ts:159-194",
+      "proof": "Existing actor/build/fixture/scope readiness validation is reusable. readMeriCase01CaptureAdmission issues a fresh short-lived readiness policy and checks fixture/rate readiness; it performs no reserve/admit write. captureAdmission.providerBudget.ready is not an existing-attempt ledger read. Current fixture authority verifies active membership, exact synthetic actor/Clerk identity, tenant/namespace and client wall access (meri-server-readonly-capture.ts:442-535)."
+    }
+  ],
+  "retentionAndLimits": [
+    "No explicit clear/delete/reset of serverCaptureProviderBudget was found in its native owner: admit preserves existing admission and binds only an unset turnId; reserve/settle preserve the envelope and ledger history. A new policy identity does not replace the old one: policySha256 mismatch fails admission_rebound at meri-capture-provider-budget.ts:174-178. Real deadline expiration denies later dispatch; it does not erase the stored key.",
+    "Current metadata absence is not a universal historical guarantee. PATCH /api/clio/v3/conversations/:conversationId/reasoning-mode reads metadata then replaces the whole object in a later transaction (meriv3-settings.controller.ts:184-199; meriv3-conversation.helpers.ts:17-35). Although it normally preserves unknown keys, a concurrent stale read could overwrite a newly admitted key. No such write was observed in this local source audit; this is a limitation of treating present metadata as an immutable admission log.",
+    "An empty transcript alone cannot exclude initial API retrieval/provider work because admission and resolveChat precede message creation. A missing assistant receipt or missing local artifacts directory likewise cannot prove no dispatch.",
+    "The two GETs are point-in-time reads, not an atomic no-future-dispatch lock. Same-reservation recovery needs the stopped prior process/terminal history and exclusive claim plus bounded current readback. Any uncertainty, present admission key, extra message, changed owner/client/source/binding or concurrent activity must remain BLOCKED.",
+    "This audit neither creates a reopen capability nor authorizes clearing, refunding, replacing or settling the existing active aggregate reservation. It makes no live no-provider claim."
+  ],
+  "recommendedMinimalProof": [
+    "Keep process-private actual authenticated HTTP observations with status, exact source header, fresh timestamp and body hash; pass parsed bodies only to a same-process verifier, never accept user-supplied settled/proof JSON.",
+    "Revalidate exact Pat/T1/Aster actor and the same conversation, active ownership/client plus current native readiness; inspect actual metadata for absence of every conflicting admission/budget mode above.",
+    "Read exact messages as [] and re-read conversation/metadata immediately before the existing prepare/execute boundary. Retain current no-stream request history and the failed terminal execution/one-shot claim hashes; refuse changed or unresolved observations.",
+    "Preserve the original active reservation and all 21 journal events. Recovery must not issue another reserve, replay a turn, create another conversation or replace native fixture/provider admission."
+  ],
+  "actions": {"sourceEdits": 0, "tests": 0, "cloudCalls": 0, "authCalls": 0, "databaseCalls": 0, "providerCalls": 0, "journalCalls": 0}
+}

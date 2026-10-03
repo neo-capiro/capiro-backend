@@ -1,0 +1,111 @@
+{
+  "version": 1,
+  "reviewer": "/root/mail_defaults_review",
+  "result": "PREPARED_WIRING_PASS_ACTUAL_SCOPE_REVIEW_PENDING",
+  "reviewType": "Independent read-only source and saved reconciliation review",
+  "humanReleaseApproval": false,
+  "captureAuthority": false,
+  "liveAcceptance": "NOT_RUN",
+  "findings": [],
+  "operatorSourceSha": "b7918cd947e6cc7fb8c83ee171e5fa50e483e7aa",
+  "repositoryReadback": "Exact HEAD and empty git status --porcelain observed during this review; native operator repeats both guards before reservation/authentication.",
+  "scopePreparer": {
+    "file": "prepare-case01-actual-scope-v1.mjs",
+    "conclusions": [
+      "Requires a clean exact operator commit, hash-pinned unchanged reviewed bootstrap and its independent review.",
+      "Requires successful actual setup execute-v2 result, zero exit, no fatal observations, STOPPED/INACTIVE cleanup and the exact saved inner JSONL byte hash before constructing scope.",
+      "Pins the recovered authentication identity bytes; fills the immutable deployment template with actual setup receipt path/hash, manifest hash, fixed web source and current exact operator commit.",
+      "Uses the existing exported buildCase01Scope and pure inspectCase01Scope. Their static bearer/placeholder conversation input is shape validation only, never passed as live authority.",
+      "Saves an exclusive fsynced actual scope and inspection with scopeAuthority, fixtureAuthority and captureAuthority all false. It opens no journal and performs no auth, database, conversation or provider call."
+    ]
+  },
+  "launcher": {
+    "file": "launch-case01-native-v2-once.mjs",
+    "conclusions": [
+      "Requires no extra arguments, absent fixed original run output, the unchanged bootstrap bytes and exact actual-scope hash linked by the static inspection; reruns the existing pure scope join.",
+      "Explicitly sets AWS_PROFILE=capiro-dev and AWS_REGION=us-east-1 before native authority calls and confirms the exact capirocli caller through the existing explicit-profile helper.",
+      "Retrieves only the configured Clerk sk_ string into process memory/environment. The unchanged bootstrap immediately deletes CLERK_SECRET_KEY before launching child processes; the helper also deletes it in finally. No credential is written by this helper.",
+      "Calls the unchanged runCase01Operator exactly once with the sole fixed original case01 run, reviewed actual scope, recovered identity input and exclusive output directory.",
+      "Adds no reservation, settlement, refund, retry, model/provider choice or alternative capture implementation. Actual existing owners and native admission remain required."
+    ]
+  },
+  "registrationOnlyFailureReconciliation": {
+    "localEvidence": "Saved source ordering and failure records show the v3 taskInput comparison failed before construction of the RunTask request, runDispatched assignment or sole RunTask call. No next-phase input/start/inner receipt exists.",
+    "observedDifference": "Eleven complete unique-name environment rows reorder but are otherwise identical. ECS adds only container cpu=0, portMappings=[], mountPoints=[], volumesFrom=[], systemControls=[] and task volumes=[], placementConstraints=[]. All other writable task fields match.",
+    "intendedFingerprint": "e9b387942d095a14bd94c755d6ba545c97b145319de36d85e85d923077c41e47",
+    "observedFingerprint": "6a5a413b3d3be634c0b331087b5e794158afc0eef49a43b77177381a4e9ffd77",
+    "onlyObservedDefaultsAndEnvironmentOrderNormalizedFingerprint": "c1c61075f5ac9379feab47def56b55d22af5a4ea2dc1c9458d390037c5054023",
+    "externalReconciliation": "Root's retained read-only reconciliation binds the failed result/source, exact setup definition :1 INACTIVE and empty RUNNING/STOPPED family lists. Reviewer did not repeat cloud queries.",
+    "interpretation": "Registration-only pre-dispatch failure; not an executed canonical plan or fixture write. Original failed directory remains retained. A new reviewed correction must use new exclusive directories, not replay or overwrite the old attempt."
+  },
+  "remainingGates": [
+    "Independent frozen dispatcher v4 implementation review.",
+    "Actual successful plan, review of that plan, actual setup execute and durable receipts.",
+    "Independent review of the actual scope/inspection after preparation. These artifacts do not yet exist within this review's evidence boundary.",
+    "Actual current live build/native admission, existing spend reservation, original one-shot capture, durable settlement/readback and separate human adjudication."
+  ],
+  "limits": [
+    "This is a source/preparation PASS, not authorization to bypass the actual-scope gate or proof that setup/capture executed.",
+    "No helper, owner, dispatcher or operator was imported or executed by this reviewer. Pure local saved-JSON comparison is not a rerun of production code.",
+    "The identity-only input does not replace canonical fixture/binding/qualification owners. Original acceptance counts remain unchanged."
+  ],
+  "reviewActions": {
+    "localReadsAndHashes": true,
+    "helperImports": 0,
+    "helperExecutions": 0,
+    "testReruns": 0,
+    "cloudCalls": 0,
+    "authCalls": 0,
+    "browserCalls": 0,
+    "databaseCalls": 0,
+    "providerCalls": 0,
+    "journalOwnerCalls": 0,
+    "journalWrites": 0,
+    "fixtureMutations": 0,
+    "sourceEdits": 0,
+    "writeScope": "Only this new sanitized review artifact."
+  },
+  "recordedAt": "2026-10-03T21:19:07.7249215Z",
+  "verifiedInputs": [
+    {
+      "path": "prepare-case01-actual-scope-v1.mjs",
+      "bytes": 3522,
+      "sha256": "07a97ac07ab16d513342f484ca59191953dff0105bf0fd845dbcf7d148fa8bb6"
+    },
+    {
+      "path": "launch-case01-native-v2-once.mjs",
+      "bytes": 1905,
+      "sha256": "8e0c27f0ef83497cc2156bbfac617e54c3207286ec2f18155d52cf7f018da315"
+    },
+    {
+      "path": "case01-native-bootstrap-v2/run-case01-native.mjs",
+      "bytes": 33732,
+      "sha256": "655cc278a1a76ff55cf7a0ceae96ccfc325a016e0e3a0d53c21f43f276c171d1"
+    },
+    {
+      "path": "case01-native-bootstrap-v2/read-only-review-v2.json",
+      "bytes": 12333,
+      "sha256": "156288f5096f8e40fdaa469e059f7e831e4d0d23535eba7aee8d852b0841f5e9"
+    },
+    {
+      "path": "case01-recovered-auth-scope.private.json",
+      "bytes": 1181,
+      "sha256": "ed9c3b1c11014825b29ee2879796e20b3f0023959ed9e478337180b96ed7a062"
+    },
+    {
+      "path": "case01-auth-scope-independent-review.json",
+      "bytes": 4946,
+      "sha256": "e4735978d5b3660cc0a316815921522fa53f1e58de708b6173144ba6fdfdcd6f"
+    },
+    {
+      "path": "case01-native-setup-plan-v1-reconciliation.json",
+      "bytes": 1181,
+      "sha256": "b59923080aace193f676921ff8a449ff62b7e527fda80135ec2080255727e232"
+    },
+    {
+      "path": "case01-native-setup-plan-v1/result.json",
+      "bytes": 1405,
+      "sha256": "44512877ecd64e4ee9e6aea0b7ea1efa2b471536ea5bef3b60951dfe3b2862ad"
+    }
+  ]
+}

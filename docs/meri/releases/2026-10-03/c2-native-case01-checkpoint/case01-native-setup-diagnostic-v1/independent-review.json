@@ -1,0 +1,98 @@
+{
+  "reviewedAt": "2026-10-03T21:37:34.462829+00:00",
+  "reviewer": "mail_defaults_review",
+  "status": "PASS_READ_ONLY_DIAGNOSTIC_SOURCE_AND_FAILURE_EVIDENCE",
+  "humanReleaseApproval": false,
+  "captureAuthority": false,
+  "fixtureReadyProved": false,
+  "liveAcceptance": "NOT_RUN",
+  "scope": "Independent local source/delta and retained diagnostic evidence review; no operator execution, imports, tests, cloud, auth, database, journal or provider actions by reviewer.",
+  "artifacts": [
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\prepare-case01-setup-diagnostic-v1.py",
+      "sha256": "fdef42667e584e341b9b39f226a300eb025e0aa77fddc282fea535435f631db0",
+      "bytes": 6184
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case01-native-setup-diagnostic-v1\\case01-native-setup-inner.mjs",
+      "sha256": "2479168248b3f108e012730da1fc1c11f0ba2f87dae707b837eeb282a855f488",
+      "bytes": 12217
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\run-case01-native-setup-diagnostic-v1.mjs",
+      "sha256": "8a7156bd390a9d4159d09e3d4f6b98c25151e4fefd81c093fddef6efb2abe7d9",
+      "bytes": 27115
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case01-native-setup-diagnostic-v1\\preparation.json",
+      "sha256": "d2fe32be52fec67739feb174e727ed5827ea21e2197c5695e7697b45af3ff2e7",
+      "bytes": 521
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case01-native-setup-plan-v2\\result.json",
+      "sha256": "bc293a00ec0473c0bde4977f4b42209f4486119d3801929183d477fb6626f514",
+      "bytes": 2525
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case01-native-setup-diagnostic-result-v1\\result.json",
+      "sha256": "0892b58914b29f3303c02df045894e895778707075922a6888483b33ff8774fd",
+      "bytes": 6567
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case01-native-setup-diagnostic-result-v1\\inner-receipt.jsonl",
+      "sha256": "0197f21682e6f7297f263018620c6cd4e078b694448f2081eb01b6e0ab28f563",
+      "bytes": 2297
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case01-native-setup-diagnostic-result-v1\\inner-receipt-transport.json",
+      "sha256": "b73e68fbcefdd89c89caeab2da9e17efa9ae962162a8ef8d70bfb9184aa6e815",
+      "bytes": 708
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case01-native-setup-diagnostic-result-v1\\cleanup.json",
+      "sha256": "fcfa216f16829bd153fdcdfe3ad75f1979f4d69b9fe9760e1979c7f36f714ad1",
+      "bytes": 117
+    }
+  ],
+  "sourceFindings": [
+    "Both dispatcher and inner admit plan mode only; the entire executable owner.bind and budget-install branch is removed. Remaining imported install symbol is unused.",
+    "The same immutable source-owned inventory, manifest, hydration, qualification and binding inspection owners remain; inventory captureAuthority:false is not promoted into qualification authority.",
+    "Inspection uses existing tenant/user transaction scoping and row locks. This is business-data read-only, not a claim of PostgreSQL SET TRANSACTION READ ONLY or no cloud resource registration.",
+    "New exclusive output paths, original failed result hash/status/cleanup pins, exact image/template/source/rates and one-attempt dispatch/cleanup fences remain.",
+    "Actual emitted diagnostics retain allowlisted class/code, bounded application stack frames, message hash and type-only assertion metadata. No raw message, SQL, Prisma meta, actual or expected assertion value is emitted by the new diagnostic payload."
+  ],
+  "observedResult": {
+    "status": "BLOCKED_OR_UNCERTAIN_RECONCILE_BEFORE_ANOTHER_ACTION",
+    "exitCode": 1,
+    "lastStage": "INSPECT",
+    "substage": "HYDRATE_PREVIOUS",
+    "errorClass": "PrismaClientKnownRequestError",
+    "errorCode": "P2028",
+    "timeoutMentioned": true,
+    "messageSha256": "bd642042303151aad2f964796162518793291c6643b5f7650889ce63051c49be",
+    "stackInterpretation": "The retained stack places this diagnostic failure in readSyntheticCorrectionRetirementInTx, called by previous fixture hydrateInTx during the canonical source qualifier.",
+    "receiptJoin": "Exact retained JSONL bytes/hash/event sequence equal the result and transport records; no wrapper failures; exit 1 is retained rather than reclassified as PLAN_ONLY.",
+    "cleanup": {
+      "taskStopped": true,
+      "stopAttempted": false,
+      "deregisterAttempted": true,
+      "taskDefinitionInactive": true
+    },
+    "providerCallsReported": 0
+  },
+  "correction": {
+    "priorStatement": "Earlier conversational wording said the prior plan-v2 failure was during owner.inspect.",
+    "correctedStatement": "The prior plan-v2 receipt proves only the broad INSPECT stage, which also includes later saved-state and hash/assertion checks. The new diagnostic precisely locates its own P2028 failure; it does not conclusively establish the identical exact substep for the prior attempt.",
+    "priorArtifactsUnchanged": true,
+    "searchedPriorReviewArtifacts": [
+      "case01-native-wiring-independent-review-v1.json",
+      "case01-native-setup-v4-review/independent-review.json"
+    ],
+    "matchingOverSpecificArtifactWordingFound": false
+  },
+  "limits": [
+    "Diagnostic failed and does not qualify a successful setup plan, binding, budget installation, journal adoption or capture.",
+    "No database audit or rerun by reviewer; no additional lifecycle assertions are inferred from absence of a write path.",
+    "Any timeout repair and subsequent actual successful plan require separate exact-source and evidence review before setup execution."
+  ]
+}

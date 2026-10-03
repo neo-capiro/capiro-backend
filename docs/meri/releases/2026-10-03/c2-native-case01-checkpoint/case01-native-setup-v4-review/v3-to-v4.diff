@@ -1,0 +1,82 @@
+diff --git a/C:/dev/main/outputs/meri-c2-20261003/run-case01-native-setup-v3.mjs b/C:/dev/main/outputs/meri-c2-20261003/run-case01-native-setup-v4.mjs
+index 97949a6..0c48220 100644
+--- a/C:/dev/main/outputs/meri-c2-20261003/run-case01-native-setup-v3.mjs
++++ b/C:/dev/main/outputs/meri-c2-20261003/run-case01-native-setup-v4.mjs
+@@ -4,17 +4,29 @@ import {createHash,randomUUID} from 'node:crypto';
+ import assert from 'node:assert/strict';
+ import {aws} from '../meri-fresh-20261003/auth-preflight.mjs';
+ import {awsSingleAttempt} from './aws-single-attempt.mjs';
++import {withExplicitEcsDefaults,normalizeTaskEnvironment} from './case01-native-setup-v4-definition.mjs';
+ import {releaseOperator} from '../../meri-c1-20261002/scripts/meri-release.mjs';
+ import {fingerprint,taskInput} from '../../meri-c1-20261002/scripts/lib/meri-release-policy.mjs';
+ 
+ const [mode]=process.argv.slice(2);assert.ok(['plan','execute'].includes(mode));assert.equal(process.argv.length,3);
+ const parent='C:/dev/main/outputs/meri-c2-20261003',packageRoot=parent+'/case01-native-setup-v1';
+-const root=parent+'/case01-native-setup-'+mode+'-v1';
++const root=parent+'/case01-native-setup-'+mode+'-v2';
+ assert.equal(existsSync(root),false,'Prior dispatcher intent requires reconciliation, not automatic retry');
+ const hash=b=>createHash('sha256').update(b).digest('hex');
++assert.equal(hash(readFileSync(new URL('./case01-native-setup-v4-definition.mjs',import.meta.url))),'5e27f5e689f84fe4b4c6e96b2464f0c4f331d6ac0711fd7c432b89004174e1d8','Reviewed task normalization drift');
+ const read=p=>JSON.parse(readFileSync(p,'utf8'));
+ const save=(name,v)=>{const fd=openSync(root+'/'+name,'wx');try{writeFileSync(fd,JSON.stringify(v,null,2)+'\n');fsyncSync(fd);}finally{closeSync(fd);}};
+ const saveBytes=(name,bytes)=>{const fd=openSync(root+'/'+name,'wx');try{writeFileSync(fd,bytes);fsyncSync(fd);}finally{closeSync(fd);}};
++// This new exclusive plan is permitted only after the retained pre-dispatch failure was reconciled.
++const reconciliationBytes=readFileSync(parent+'/case01-native-setup-plan-v1-reconciliation.json');
++const reconciliationSha256=hash(reconciliationBytes);
++assert.equal(reconciliationSha256,'b59923080aace193f676921ff8a449ff62b7e527fda80135ec2080255727e232');
++const reconciliation=JSON.parse(reconciliationBytes);
++assert.equal(reconciliation.status,'RECONCILED_PRE_RUN_TASK_FAILURE');
++assert.equal(reconciliation.definitionStatus,'INACTIVE');
++assert.equal(hash(readFileSync(parent+'/case01-native-setup-plan-v1/result.json')),reconciliation.priorResultSha256);
++assert.equal(hash(readFileSync(parent+'/run-case01-native-setup-v3.mjs')),reconciliation.priorDispatcherSha256);
++assert.equal(existsSync(parent+'/case01-native-setup-plan-v1/task-input.private.json'),false);
+ const packet=read(parent+'/clock-provider-release-packet.json');
+ const approval=read(parent+'/clock-provider-human-approval.json');
+ assert.equal(approval.status,'APPROVED');assert.equal(approval.scope,'EXACT_C2_CLOCK_PROVIDER_RELEASE');
+@@ -43,7 +55,7 @@ for(const service of ['api','meriv2-orchestrator']){
+ }
+ let input=read(packageRoot+'/plan-input.json');
+ if(mode==='execute'){
+-  const prior=read(parent+'/case01-native-setup-plan-v1/result.json');
++  const prior=read(parent+'/case01-native-setup-plan-v2/result.json');
+   assert.equal(prior.exitCode,0);assert.equal(prior.status,'PLAN_ONLY');
+   assert.equal(prior.sourceSha,source);assert.equal(prior.image,image);assert.equal(prior.scriptSha256,hash(body));
+   const final=prior.events.filter(e=>e.phase==='RESULT');assert.equal(final.length,1);assert.equal(final[0].status,'PLAN_ONLY');
+@@ -80,7 +92,7 @@ try {
+ `;
+ const templateBytes=readFileSync(parent+'/corpus-read-definition-input.json');
+ assert.equal(hash(templateBytes),'6c0a447dc99ed35642df735c38d09e02b12b33983fe461b707cd0c06a8a44478','Reviewed task template drift');
+-const definition=JSON.parse(templateBytes);
++const definition=normalizeTaskEnvironment(withExplicitEcsDefaults(JSON.parse(templateBytes)));
+ assert.equal(definition.containerDefinitions.length,1);
+ const c=definition.containerDefinitions[0];
+ assert.deepEqual(c.secrets.map(s=>s.name).sort(),['DB_HOST','DB_PASSWORD','DB_PORT','DB_USER']);
+@@ -89,7 +101,7 @@ for(const e of c.environment)if(['GIT_SHA','RELEASE_SHA'].includes(e.name))e.val
+ assert.equal(c.environment.find(e=>e.name==='MERI_SYNTHETIC_FIXTURE_NAMESPACE')?.value,'meri-foundation-20260928');
+ c.entryPoint=['/usr/bin/dumb-init','--','node','--input-type=module','-e'];c.command=[wrapper];
+ mkdirSync(root);
+-save('intent.json',{at:new Date().toISOString(),mode,sourceSha:source,image,scriptSha256:hash(body),wrapperSha256:hash(wrapper),rateSha256:hash(rates),input,served,releasePacketSha256:fingerprint(packet),providerSecrets:0,providerCalls:0,fixtureLifecycleMutations:0,proposedWrites:mode==='plan'?[]:['canonical capture binding CAS','bounded provider budget qualification CAS'],automaticRetry:false});
++save('intent.json',{at:new Date().toISOString(),mode,sourceSha:source,image,reconciliationSha256,scriptSha256:hash(body),wrapperSha256:hash(wrapper),rateSha256:hash(rates),input,served,releasePacketSha256:fingerprint(packet),providerSecrets:0,providerCalls:0,fixtureLifecycleMutations:0,proposedWrites:mode==='plan'?[]:['canonical capture binding CAS','bounded provider budget qualification CAS'],automaticRetry:false});
+ save('definition-input.private.json',definition);
+ let td,arn,task,request,runDispatched=false,stopAttempted=false,deregisterAttempted=false;
+ let cleanupInactive=false,receiptFrame=null,receiptEvents=[],receiptFailures=[],receiptValid=false;
+@@ -211,7 +223,7 @@ async function collectLogs() {
+ }
+ 
+ try {
+-  save('register-dispatch-intent.json',{at:new Date().toISOString(),definitionSha256:fingerprint(taskInput(definition)),automaticRetry:false});
++  save('register-dispatch-intent.json',{at:new Date().toISOString(),definitionSha256:fingerprint(normalizeTaskEnvironment(taskInput(definition))),automaticRetry:false});
+   let registration;
+   try {registration=awsSingleAttempt(['ecs','register-task-definition','--cli-input-json','file://'+root+'/definition-input.private.json']);}
+   catch(error){recordFailure('REGISTER_DISPATCH_OBSERVED_FAILURE',error,true);throw error;}
+@@ -222,8 +234,8 @@ try {
+   const registered=aws(['ecs','describe-task-definition','--task-definition',td,'--include','TAGS']);
+   save('definition-readback.private.json',registered);
+   assert.equal(registered.taskDefinition.status,'ACTIVE');
+-  const registeredHash=fingerprint(taskInput({...registered.taskDefinition,tags:registered.tags}));
+-  assert.equal(registeredHash,fingerprint(taskInput(definition)),'Registered task input drift');
++  const registeredHash=fingerprint(normalizeTaskEnvironment(taskInput({...registered.taskDefinition,tags:registered.tags})));
++  assert.equal(registeredHash,fingerprint(normalizeTaskEnvironment(taskInput(definition))),'Registered task input drift');
+   save('definition-readback.json',{at:new Date().toISOString(),taskDefinition:td,taskInputSha256:registeredHash,templateBytesSha256:hash(templateBytes)});
+   request={cluster:'capiro-dev',taskDefinition:td,launchType:'FARGATE',count:1,
+     networkConfiguration:api.service.networkConfiguration,platformVersion:api.service.platformVersion,

@@ -1,0 +1,39 @@
+{
+  "events": [
+    {
+      "sequence": 1,
+      "recordedAt": "2026-10-03T21:23:10.894Z",
+      "stage": "VALIDATING",
+      "phase": "START",
+      "mode": "plan",
+      "sourceSha": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642",
+      "captureRunId": "bd35c0f4-1604-4371-b7e9-a1338369e53f",
+      "rateBytesSha256": "3531e09dfcce9f66b4ea2b3564db47bd72dc507cdcf1aecdda277b838007704e"
+    },
+    {
+      "sequence": 2,
+      "recordedAt": "2026-10-03T21:23:20.354Z",
+      "stage": "INSPECT",
+      "phase": "FAILURE",
+      "status": "BLOCKED_OR_UNCERTAIN",
+      "code": "CASE01_SETUP_GUARD_OR_RUNTIME_FAILURE",
+      "lastStage": "INSPECT",
+      "automaticRetryAllowed": false,
+      "liveAcceptance": "NOT_RUN"
+    }
+  ],
+  "failures": [
+    {
+      "sequence": 2,
+      "recordedAt": "2026-10-03T21:23:20.354Z",
+      "stage": "INSPECT",
+      "phase": "FAILURE",
+      "status": "BLOCKED_OR_UNCERTAIN",
+      "code": "CASE01_SETUP_GUARD_OR_RUNTIME_FAILURE",
+      "lastStage": "INSPECT",
+      "automaticRetryAllowed": false,
+      "liveAcceptance": "NOT_RUN"
+    }
+  ],
+  "wrapperFailures": []
+}

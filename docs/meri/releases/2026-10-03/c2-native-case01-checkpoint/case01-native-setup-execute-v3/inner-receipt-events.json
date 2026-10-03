@@ -1,0 +1,173 @@
+{
+  "events": [
+    {
+      "sequence": 1,
+      "recordedAt": "2026-10-03T21:44:29.751Z",
+      "stage": "VALIDATING",
+      "phase": "START",
+      "mode": "execute",
+      "sourceSha": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642",
+      "captureRunId": "bd35c0f4-1604-4371-b7e9-a1338369e53f",
+      "rateBytesSha256": "3531e09dfcce9f66b4ea2b3564db47bd72dc507cdcf1aecdda277b838007704e"
+    },
+    {
+      "sequence": 2,
+      "recordedAt": "2026-10-03T21:44:34.825Z",
+      "stage": "BIND_DISPATCHING",
+      "phase": "INTENT",
+      "planSha256": "37d4bfcef3ef7635bf4949f5aab58e4ea5f3059d1889bea471b83eec819897dc"
+    },
+    {
+      "sequence": 3,
+      "recordedAt": "2026-10-03T21:44:36.945Z",
+      "stage": "BOUND",
+      "phase": "VERIFIED",
+      "bound": {
+        "status": "BOUND",
+        "fixtureReady": true,
+        "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+        "expectedTenantRowVersion": "113754475",
+        "expectedPriorBindingSha256": "dfc397e284bc2c8f963e3d0ea517aec1b59675e81e6ba8b610a6bf150842ac76",
+        "currentVerifySha256": "227c81e4437276718a0f6dfccb2b883c6d32b266c66b35c79ba26381a1f9c413",
+        "physicalMapSha256": "cf61a870caf2099fd53f36c849189eef1188237191f2e7e9e2c6d9c4c6511974",
+        "missing": [],
+        "liveAcceptance": "NOT_RUN",
+        "binding": {
+          "caseId": "01",
+          "captureRunId": "bd35c0f4-1604-4371-b7e9-a1338369e53f",
+          "fixtureVersion": "meri-live-v1-2026-09-26.1",
+          "physicalMapSha256": "cf61a870caf2099fd53f36c849189eef1188237191f2e7e9e2c6d9c4c6511974",
+          "seedReceiptId": "meri-synthetic-fixture-seed-receipt:sha256:d7ce11c8ee1508ce3899e6385a2c5bfdd1f5a3c13714aa404225135abaad3c38",
+          "resetReceiptId": "meri-synthetic-fixture-reset-receipt:sha256:4fc5d0fe9e060bed9d23d4da3c3e7b710cba1c5b74b0cb879fd6b63e1e14bc30",
+          "fixtureNamespace": "meri-foundation-20260928",
+          "actorUserId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+          "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+          "currentVerifySha256": "227c81e4437276718a0f6dfccb2b883c6d32b266c66b35c79ba26381a1f9c413"
+        },
+        "bindingSha256": "1ca9fec4b6586d3efa33edce978cd3762ade58a970018cb0895927d614640582",
+        "tenantRowVersion": "114685607"
+      }
+    },
+    {
+      "sequence": 4,
+      "recordedAt": "2026-10-03T21:44:37.777Z",
+      "stage": "BUDGET_INSTALL_DISPATCHING",
+      "phase": "INTENT",
+      "budgetPlan": {
+        "status": "READY_FOR_RATE_QUALIFICATION",
+        "caseId": "01",
+        "captureRunId": "bd35c0f4-1604-4371-b7e9-a1338369e53f",
+        "currentVerifySha256": "227c81e4437276718a0f6dfccb2b883c6d32b266c66b35c79ba26381a1f9c413",
+        "captureBindingSha256": "1ca9fec4b6586d3efa33edce978cd3762ade58a970018cb0895927d614640582",
+        "priorQualificationSha256": "5bc90209bc934a32551d55e9f9450d320db0ff17ecabe332651f6bce2d03e053",
+        "tenantRowVersion": "114685607",
+        "liveAcceptance": "NOT_RUN"
+      },
+      "qualificationSha256": "6b80b2bcb8da239e6caaed813b87253e51cf1f392f93710ee79d3176a590aede"
+    },
+    {
+      "sequence": 5,
+      "recordedAt": "2026-10-03T21:44:38.632Z",
+      "stage": "BUDGET_INSTALLED",
+      "phase": "VERIFIED",
+      "installed": {
+        "status": "PROVIDER_QUALIFICATION_INSTALLED",
+        "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+        "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+        "captureRunId": "bd35c0f4-1604-4371-b7e9-a1338369e53f",
+        "currentVerifySha256": "227c81e4437276718a0f6dfccb2b883c6d32b266c66b35c79ba26381a1f9c413",
+        "captureBindingSha256": "1ca9fec4b6586d3efa33edce978cd3762ade58a970018cb0895927d614640582",
+        "qualificationSha256": "6b80b2bcb8da239e6caaed813b87253e51cf1f392f93710ee79d3176a590aede",
+        "priorQualificationSha256": "5bc90209bc934a32551d55e9f9450d320db0ff17ecabe332651f6bce2d03e053",
+        "tenantRowVersion": "114685615",
+        "maxCostMicros": 15000000,
+        "rateEvidenceSha256": "a1a179383c8451495336169f46025eb8cee8ec95487f1a43017078387b768b11",
+        "rateEvidenceExpiresAt": "2026-10-04T05:29:01.587Z",
+        "liveAcceptance": "NOT_RUN"
+      }
+    },
+    {
+      "sequence": 6,
+      "recordedAt": "2026-10-03T21:44:39.549Z",
+      "stage": "COMPLETE",
+      "phase": "RESULT",
+      "status": "BOUND_AND_BUDGET_READ_BACK",
+      "bound": {
+        "status": "BOUND",
+        "fixtureReady": true,
+        "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+        "expectedTenantRowVersion": "113754475",
+        "expectedPriorBindingSha256": "dfc397e284bc2c8f963e3d0ea517aec1b59675e81e6ba8b610a6bf150842ac76",
+        "currentVerifySha256": "227c81e4437276718a0f6dfccb2b883c6d32b266c66b35c79ba26381a1f9c413",
+        "physicalMapSha256": "cf61a870caf2099fd53f36c849189eef1188237191f2e7e9e2c6d9c4c6511974",
+        "missing": [],
+        "liveAcceptance": "NOT_RUN",
+        "binding": {
+          "caseId": "01",
+          "captureRunId": "bd35c0f4-1604-4371-b7e9-a1338369e53f",
+          "fixtureVersion": "meri-live-v1-2026-09-26.1",
+          "physicalMapSha256": "cf61a870caf2099fd53f36c849189eef1188237191f2e7e9e2c6d9c4c6511974",
+          "seedReceiptId": "meri-synthetic-fixture-seed-receipt:sha256:d7ce11c8ee1508ce3899e6385a2c5bfdd1f5a3c13714aa404225135abaad3c38",
+          "resetReceiptId": "meri-synthetic-fixture-reset-receipt:sha256:4fc5d0fe9e060bed9d23d4da3c3e7b710cba1c5b74b0cb879fd6b63e1e14bc30",
+          "fixtureNamespace": "meri-foundation-20260928",
+          "actorUserId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+          "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+          "currentVerifySha256": "227c81e4437276718a0f6dfccb2b883c6d32b266c66b35c79ba26381a1f9c413"
+        },
+        "bindingSha256": "1ca9fec4b6586d3efa33edce978cd3762ade58a970018cb0895927d614640582",
+        "tenantRowVersion": "114685607"
+      },
+      "installed": {
+        "status": "PROVIDER_QUALIFICATION_INSTALLED",
+        "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+        "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+        "captureRunId": "bd35c0f4-1604-4371-b7e9-a1338369e53f",
+        "currentVerifySha256": "227c81e4437276718a0f6dfccb2b883c6d32b266c66b35c79ba26381a1f9c413",
+        "captureBindingSha256": "1ca9fec4b6586d3efa33edce978cd3762ade58a970018cb0895927d614640582",
+        "qualificationSha256": "6b80b2bcb8da239e6caaed813b87253e51cf1f392f93710ee79d3176a590aede",
+        "priorQualificationSha256": "5bc90209bc934a32551d55e9f9450d320db0ff17ecabe332651f6bce2d03e053",
+        "tenantRowVersion": "114685615",
+        "maxCostMicros": 15000000,
+        "rateEvidenceSha256": "a1a179383c8451495336169f46025eb8cee8ec95487f1a43017078387b768b11",
+        "rateEvidenceExpiresAt": "2026-10-04T05:29:01.587Z",
+        "liveAcceptance": "NOT_RUN"
+      },
+      "readback": {
+        "status": "READY_FOR_RATE_QUALIFICATION",
+        "caseId": "01",
+        "captureRunId": "bd35c0f4-1604-4371-b7e9-a1338369e53f",
+        "currentVerifySha256": "227c81e4437276718a0f6dfccb2b883c6d32b266c66b35c79ba26381a1f9c413",
+        "captureBindingSha256": "1ca9fec4b6586d3efa33edce978cd3762ade58a970018cb0895927d614640582",
+        "priorQualificationSha256": "6b80b2bcb8da239e6caaed813b87253e51cf1f392f93710ee79d3176a590aede",
+        "tenantRowVersion": "114685615",
+        "liveAcceptance": "NOT_RUN"
+      },
+      "fixture": {
+        "fixtureVersion": "meri-live-v1-2026-09-26.1",
+        "sourceMap": {
+          "MA1-v2": {
+            "frozenFixtureId": "MA1-v2",
+            "physicalId": "422b4ca9-10a8-4680-a713-3e61273a14ff",
+            "tenantPhysicalId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+            "clientPhysicalId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+            "kind": "memory",
+            "version": "memory-version:a5397fba-1d91-4ba9-8006-bf1fdaa90f67"
+          }
+        },
+        "physicalMapSha256": "cf61a870caf2099fd53f36c849189eef1188237191f2e7e9e2c6d9c4c6511974",
+        "seedReceiptId": "meri-synthetic-fixture-seed-receipt:sha256:d7ce11c8ee1508ce3899e6385a2c5bfdd1f5a3c13714aa404225135abaad3c38",
+        "resetReceiptId": "meri-synthetic-fixture-reset-receipt:sha256:4fc5d0fe9e060bed9d23d4da3c3e7b710cba1c5b74b0cb879fd6b63e1e14bc30",
+        "currentVerifySha256": "227c81e4437276718a0f6dfccb2b883c6d32b266c66b35c79ba26381a1f9c413"
+      },
+      "protectedSettingsSha256": "ca7658055b35ab3758ef4b1b06cebdaa39e16978185bb9e32a78e9c2f073f8a1",
+      "planSha256": "37d4bfcef3ef7635bf4949f5aab58e4ea5f3059d1889bea471b83eec819897dc",
+      "providerCalls": 0,
+      "conversationCreations": 0,
+      "journalOpened": false,
+      "fixtureLifecycleMutations": 0,
+      "liveAcceptance": "NOT_RUN"
+    }
+  ],
+  "failures": [],
+  "wrapperFailures": []
+}

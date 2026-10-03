@@ -1,0 +1,6 @@
+{
+  "at": "2026-10-03T21:31:42.485Z",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-c2-case01-setup-20261003:3",
+  "taskInputSha256": "7009f6756c20ffd1ec5860059bd69e52f471424fac0e9da288301964b1d8b1ed",
+  "templateBytesSha256": "6c0a447dc99ed35642df735c38d09e02b12b33983fe461b707cd0c06a8a44478"
+}

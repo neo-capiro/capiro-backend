@@ -1,0 +1,10 @@
+{
+  "command": "node --test --test-name-pattern=\"exact retained submitted\" definition-normalization.test.mjs",
+  "environment": {
+    "CASE01_V4_REPRODUCE_V3": "1"
+  },
+  "exitCode": 1,
+  "expectedExit": 1,
+  "testSourceSha256": "e73a987310677b1dfa0c7f264e6ef233516110df3cd0da9293b1dc4e55ba6353",
+  "source": "Exact original v3 expression on retained submitted/readback; no dispatcher execution"
+}

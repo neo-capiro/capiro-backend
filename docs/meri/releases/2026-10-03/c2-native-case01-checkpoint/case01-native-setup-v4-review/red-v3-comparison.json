@@ -1,0 +1,9 @@
+{
+  "command": "node --test --test-name-pattern=\"exact retained submitted\" definition-normalization.test.mjs",
+  "environment": {
+    "CASE01_V4_REPRODUCE_V3": "1"
+  },
+  "exitCode": 1,
+  "expectedExit": 1,
+  "source": "retained exact v3 taskInput/fingerprint expression on actual submitted/readback"
+}

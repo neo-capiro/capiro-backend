@@ -1,0 +1,32 @@
+✖ exact retained submitted and registered definitions agree after only known normalization (5.2277ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 119.2351
+
+✖ failing tests:
+
+test at outputs\meri-c2-20261003\case01-native-setup-v4-review\definition-normalization.test.mjs:18:1
+✖ exact retained submitted and registered definitions agree after only known normalization (5.2277ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'e9b387942d095a14bd94c755d6ba545c97b145319de36d85e85d923077c41e47'
+  - '6a5a413b3d3be634c0b331087b5e794158afc0eef49a43b77177381a4e9ffd77'
+  
+      at TestContext.<anonymous> (file:///C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v4-review/definition-normalization.test.mjs:21:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'e9b387942d095a14bd94c755d6ba545c97b145319de36d85e85d923077c41e47',
+    expected: '6a5a413b3d3be634c0b331087b5e794158afc0eef49a43b77177381a4e9ffd77',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

@@ -1,0 +1,9 @@
+{
+  "command": "node --test definition-normalization.test.mjs",
+  "exitCode": 0,
+  "remoteCalls": 0,
+  "dispatcherImported": false,
+  "actualRetainedPair": true,
+  "priorFailedRun": "green-normalization.log",
+  "priorFailureCause": "Static test incorrectly rejected the newly requested read-only pin of old result; corrected assertion to reject only execute-plan reuse."
+}

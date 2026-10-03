@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "captureRunId": "bd35c0f4-1604-4371-b7e9-a1338369e53f",
+  "captureFinished": true,
+  "finishedAt": "2026-10-03T21:49:16.280Z",
+  "operatorStatus": "BLOCKED",
+  "reservationStatus": "UNRESOLVED",
+  "acceptanceDisposition": "NOT_GRADED",
+  "sessionRevocation": "VERIFIED",
+  "chargedMicros": null,
+  "summary": "Original bootstrap process finished before native execute; bounded setup succeeded. Same reservation remains active pending qualified continuation.",
+  "limitations": [
+    "This is the terminated original bootstrap checkpoint, not a final disposition of any later continuation.",
+    "No execution intent or native execute call was recorded; this does not identify the original masked exception.",
+    "The 15,000,000 micro-dollar reservation remains held; no refund, settlement, reset or second reserve was performed.",
+    "Original full acceptance remains 0/75, CD 0/7, CW 0/8; human rubric not performed."
+  ],
+  "evidence": [
+    {
+      "path": "case01-native-bd35c0f4-1604-4371-b7e9-a1338369e53f/execution.json",
+      "bytes": 4257,
+      "sha256": "091946b7c594ccb4821202b00eaef0d6b4cab89c2bdf4d5ca9708a8ed66c593b"
+    },
+    {
+      "path": "case01-native-bd35c0f4-1604-4371-b7e9-a1338369e53f/execution-events.jsonl",
+      "bytes": 31909,
+      "sha256": "ea6caeeb90d60633b3d99d9014823e4e9d1d0c07239cc1f3a46db90625c4cd75"
+    },
+    {
+      "path": "case01-native-bd35c0f4-1604-4371-b7e9-a1338369e53f/aggregate-reserved-checkpoint.json",
+      "bytes": 4538,
+      "sha256": "e871a120672b775379354d414c554381c00e9afcad51aceb8fccfd0b4f1f6d4f"
+    },
+    {
+      "path": "case01-native-setup-execute-v3/inner-receipt.jsonl",
+      "bytes": 7113,
+      "sha256": "870e3efe65d748058614bd49b7350cad5f8ad6215cf8ab61e2e2b673cc680cb3"
+    }
+  ]
+}

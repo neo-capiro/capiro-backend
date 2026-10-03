@@ -1,0 +1,144 @@
+{
+  "version": 1,
+  "status": "EXACT_RELEASE_AND_ORDINARY_IDENTITY_VERIFIED",
+  "recordedAt": "2026-10-03T22:06:18.079432+00:00",
+  "files": [
+    {
+      "path": "clock-provider-human-approval.json",
+      "bytes": 1364,
+      "sha256": "fc42e18b2e530d6edd791a36815409d17815e9c8367c717a76a931475c5fe0b4"
+    },
+    {
+      "path": "clock-provider-release-packet-refreshed.json",
+      "bytes": 7017,
+      "sha256": "02ea5faf7a3e22e5702d2f8cf83192f5503a96c5f7540682f6ab8e5ed9eff0c2"
+    },
+    {
+      "path": "clock-provider-release-packet-refreshed.md",
+      "bytes": 2768,
+      "sha256": "70007853775195d3e249687f4fab36b5b4a0c82b6308e1129c57ed1686e882da"
+    },
+    {
+      "path": "clock-provider-release-refresh.json",
+      "bytes": 956,
+      "sha256": "4b1407847fa92fcbaab988c38e5e691e4a1136ee93acbdb29af5895a23a90106"
+    },
+    {
+      "path": "clock-provider-release-refresh-independent-review.json",
+      "bytes": 11877,
+      "sha256": "c2866a1b55a1b9599278235e4ca8d083e9a5181cd303b14a4176779c2f94a5d4"
+    },
+    {
+      "path": "clock-provider-served-readback.json",
+      "bytes": 3872,
+      "sha256": "9fb32e697bac1c367eb8cdc03f1844f11bc2ee60eea4235554840a163d720b3f"
+    },
+    {
+      "path": "record-clock-provider-approval.mjs",
+      "bytes": 1662,
+      "sha256": "7b8019d3dabed2bf785b48ce910688be2265f5c62015b6d58bbc616bd83779d0"
+    },
+    {
+      "path": "prepare-clock-provider-refresh-operators.py",
+      "bytes": 5697,
+      "sha256": "26c2cb7ec322eab56986ab03ef7a8522518840a3b4976a8c73552f8e97329d85"
+    },
+    {
+      "path": "read-clock-provider-schema-v2.mjs",
+      "bytes": 5643,
+      "sha256": "87aa54c7d50686319d5f76214eb225080c9924d334f6dda53af24fc4e665ff01"
+    },
+    {
+      "path": "prepare-clock-provider-release-refreshed.mjs",
+      "bytes": 11457,
+      "sha256": "2d70f463a6a884bb9b599f6d8eb0d59a03ea65f83423cd080f22ffb4394e3196"
+    },
+    {
+      "path": "promote-clock-provider-service-v2.mjs",
+      "bytes": 5570,
+      "sha256": "b6370448a47946b5326875b21b8997b99443000369ce01dfbd736a2bbe4187d7"
+    },
+    {
+      "path": "verify-clock-provider-served-v2.mjs",
+      "bytes": 5134,
+      "sha256": "760358e4aed4be9ddcc2c60985539df12f5247ac144ceb08e13630183d6f960b"
+    },
+    {
+      "path": "prepare-clock-provider-readback-v3.py",
+      "bytes": 2325,
+      "sha256": "16da538cee14c072a4edc0751e03147e064be95c0d36292c55b38b55a098ff48"
+    },
+    {
+      "path": "verify-clock-provider-served-v3.mjs",
+      "bytes": 5977,
+      "sha256": "456fdbb2f39ebd169535599391f5dbae4bbfc3fafbd796c958bbbc85ef75c770"
+    },
+    {
+      "path": "api-clock-provider-human-qualification.json",
+      "bytes": 2440,
+      "sha256": "9730cd4d3130ad976efcbcffa48a81189a45209c318e8487022b174b67e472a8"
+    },
+    {
+      "path": "api-clock-provider-release-manifest.json",
+      "bytes": 3198,
+      "sha256": "9f4ca9f3a5f22b30395b251bb0d37255b720c1c52a2cb749bae5e95edc304898"
+    },
+    {
+      "path": "api-clock-provider-promotion-authorization.json",
+      "bytes": 482,
+      "sha256": "8de1bbfac1a760b7e53118ba8d1ced0586898aa444698d386d266cffff9d1f64"
+    },
+    {
+      "path": "api-clock-provider-promotion-receipt.json",
+      "bytes": 1034,
+      "sha256": "610e248f79127c37654e817adf6abf3ce150875aa93689cca08ed6376daa179a"
+    },
+    {
+      "path": "meriv2-orchestrator-clock-provider-human-qualification.json",
+      "bytes": 2552,
+      "sha256": "2c54fbc7c90c0e059dabfbcecc7088c1ac36bddf35d89d4dbf747cfb593a3960"
+    },
+    {
+      "path": "meriv2-orchestrator-clock-provider-release-manifest.json",
+      "bytes": 3342,
+      "sha256": "300f32951ac9d503e64e9210d865a08b5578ddee51044ea241c4ae7db8ed6424"
+    },
+    {
+      "path": "meriv2-orchestrator-clock-provider-promotion-authorization.json",
+      "bytes": 482,
+      "sha256": "53f5b06eb48330683a0f39c1326893345df967f7e66b39c503d2e1fb2f059e41"
+    },
+    {
+      "path": "meriv2-orchestrator-clock-provider-promotion-receipt.json",
+      "bytes": 1114,
+      "sha256": "dfcfb21ca5421477d4bb85c5ae898488177411899e025a13a5892a6a33dd3f92"
+    },
+    {
+      "path": "clock-provider-current-schema-v2/intent.json",
+      "bytes": 535,
+      "sha256": "61be4ab5a1e4bb5dfe534d585ef0e90949ae802c2771354217712f22b2d49699"
+    },
+    {
+      "path": "clock-provider-current-schema-v2/definition-registered.json",
+      "bytes": 155,
+      "sha256": "449772d04ac78aec8a1df277f9f8a582044548710fe359fca33c99ae5f9fad5d"
+    },
+    {
+      "path": "clock-provider-current-schema-v2/task-start.json",
+      "bytes": 341,
+      "sha256": "866f3f9390c2a4d0e3d535c2ae1d368041bbaa74556081ac0ac60757fda93ebd"
+    },
+    {
+      "path": "clock-provider-current-schema-v2/result.json",
+      "bytes": 1481,
+      "sha256": "97b7349f9f7cbfd9f3b63b5a8800fcd135ac1ed361fbab8ced1a5f744f639b5a"
+    },
+    {
+      "path": "clock-provider-current-schema-v2/cleanup.json",
+      "bytes": 302,
+      "sha256": "cc99767c1b2cbf3f10e2b186cb1befd0cf98fc9110420a00dd432ac7310eb4e9"
+    }
+  ],
+  "privateInputsExcluded": true,
+  "providerCaptureByThisRelease": false
+}

@@ -1,0 +1,163 @@
+{
+  "schemaVersion": 1,
+  "frozenAt": "2026-10-03T21:20:53.561Z",
+  "status": "FROZEN_FOR_INDEPENDENT_REVIEW_PREPARATION_ONLY",
+  "sourceFiles": [
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/run-case01-native-setup-v4.mjs",
+      "sha256": "22afe2b7715207693f179cc091d5144bb9a2a9179b70fbe91010d2b4310225ff",
+      "mirror": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v4-review/source/run-case01-native-setup-v4.mjs",
+      "mirrorSha256": "22afe2b7715207693f179cc091d5144bb9a2a9179b70fbe91010d2b4310225ff"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v4-definition.mjs",
+      "sha256": "5e27f5e689f84fe4b4c6e96b2464f0c4f331d6ac0711fd7c432b89004174e1d8",
+      "mirror": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v4-review/source/case01-native-setup-v4-definition.mjs",
+      "mirrorSha256": "5e27f5e689f84fe4b4c6e96b2464f0c4f331d6ac0711fd7c432b89004174e1d8"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v4-review/definition-normalization.test.mjs",
+      "sha256": "e73a987310677b1dfa0c7f264e6ef233516110df3cd0da9293b1dc4e55ba6353",
+      "mirror": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v4-review/source/definition-normalization.test.mjs",
+      "mirrorSha256": "e73a987310677b1dfa0c7f264e6ef233516110df3cd0da9293b1dc4e55ba6353"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v4-review/check-offline.mjs",
+      "sha256": "7018e9dc06812d290065fd88375342cc09109b44033bda41b81aa9ee19a2c1e7",
+      "mirror": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v4-review/source/check-offline.mjs",
+      "mirrorSha256": "7018e9dc06812d290065fd88375342cc09109b44033bda41b81aa9ee19a2c1e7"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v4-review/prepare-v4.mjs",
+      "sha256": "3ae74de50b0b8cb2d0ff37f351350994d35b4d4bc154e3b7574c2a8448131e68",
+      "mirror": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v4-review/source/prepare-v4.mjs",
+      "mirrorSha256": "3ae74de50b0b8cb2d0ff37f351350994d35b4d4bc154e3b7574c2a8448131e68"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v4-review/freeze-v4.mjs",
+      "sha256": "b3d0ea30ba2b7dd22ab7a256f464aba33163542da08f4dccb324d1842c81dd18",
+      "mirror": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v4-review/source/freeze-v4.mjs",
+      "mirrorSha256": "b3d0ea30ba2b7dd22ab7a256f464aba33163542da08f4dccb324d1842c81dd18"
+    }
+  ],
+  "preservedPins": [
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/run-case01-native-setup-v3.mjs",
+      "sha256": "39219647361b76d232d2dd4251e9a574277f814a502d601cdc4ca863826cfd43"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v1/case01-native-setup-inner.mjs",
+      "sha256": "632d00e47ec63fb8c0b49cfa0d166760bd16abbf5ded9b572c0a9cf235f9899d"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v1/case01-reviewed-rates-v2.json",
+      "sha256": "3531e09dfcce9f66b4ea2b3564db47bd72dc507cdcf1aecdda277b838007704e"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/corpus-read-definition-input.json",
+      "sha256": "6c0a447dc99ed35642df735c38d09e02b12b33983fe461b707cd0c06a8a44478"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v1-reconciliation.json",
+      "sha256": "b59923080aace193f676921ff8a449ff62b7e527fda80135ec2080255727e232"
+    }
+  ],
+  "retainedDefinitions": [
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v1/definition-input.private.json",
+      "sha256": "87ef59a657661c733a48deb3b3ba7608cc77c4aff5fc23cf871b3e41ae7cdfab"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v1/definition-readback.private.json",
+      "sha256": "28157c0671ec70d3cf76dd7899c8587461009eeb30970a4a704cc10df4c16ca7"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-plan-v1/result.json",
+      "sha256": "44512877ecd64e4ee9e6aea0b7ea1efa2b471536ea5bef3b60951dfe3b2862ad"
+    }
+  ],
+  "evidence": [
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v4-review/green-normalization-final.json",
+      "sha256": "4486fd9c3de465dedd55aa7bd141b451d91ca5538e148aa3b03d7a7e1d344464"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v4-review/green-normalization-final.log",
+      "sha256": "a2818c03ca26dd2c112a920778abeff232bb1c81aa8c2f2bf590b0cd78f8609c"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v4-review/green-normalization.json",
+      "sha256": "e0d088454f80adeffd0bb60a37a2caadaafa5192c47855cf13e1d4e315325a58"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v4-review/green-normalization.log",
+      "sha256": "b635df11baad650377a4d59784d9f962e9dbafb49dd5e9c4684f2518500fdb80"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v4-review/offline-final.log",
+      "sha256": "452afa83ce35f5fa4b5c0afa6550b52f2b55ac4c996abc2dd4384e1c5d109a66"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v4-review/offline-result-final.json",
+      "sha256": "090e5218fa7def4086c0dad433d617c05930129aba72e026e22b2d1521db2a4c"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v4-review/red-v3-comparison-final.json",
+      "sha256": "0d402c534e8748983d516bb68c512c26263f743af4743c5c844a42ea082cddf2"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v4-review/red-v3-comparison-final.log",
+      "sha256": "eb911af0d57f2bd968de7b881b018c93976b41d0b338313b89de013c70b80447"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v4-review/red-v3-comparison.json",
+      "sha256": "8b949db41ff137f965817408b27c138f6003e5bec0523a12a401d08a4aae1316"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v4-review/red-v3-comparison.log",
+      "sha256": "9fe51d7816261b2cd7957bac248980809989deb58b060fdee3a1684b845249ba"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v4-review/REVIEW.md",
+      "sha256": "4b5611c38bb09b06298319f1217fa3c5110fa70c28164375370637951374cb92"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v4-review/syntax-final.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v4-review/v3-to-v4.diff",
+      "sha256": "38af5229936dbf42c8851edde7128026401bc12dd002bcd9dead442b45444185"
+    }
+  ],
+  "validation": {
+    "normalizationTests": 41,
+    "normalizationPassed": 41,
+    "normalizationExit": 0,
+    "v3ExactComparisonRedExit": 1,
+    "receiptParserAndWrapperChecks": 14,
+    "receiptParserExit": 0,
+    "dispatcherSyntaxExit": 0
+  },
+  "unchanged": [
+    "inner source",
+    "API source/image",
+    "rate bytes",
+    "task template",
+    "one-shot action count",
+    "receipt assembler and wrapper",
+    "cleanup and uncertain-outcome gates",
+    "old plan directories",
+    "repository sources"
+  ],
+  "execution": {
+    "dispatcherImported": false,
+    "dispatcherExecuted": false,
+    "remoteCalls": 0,
+    "providerCalls": 0,
+    "authCalls": 0,
+    "databaseCalls": 0,
+    "journalWrites": 0
+  },
+  "limits": "Local saved-data normalization, syntax and extracted parser tests only. Fresh live task/state/canonical owner evidence remains unexecuted and unproved."
+}

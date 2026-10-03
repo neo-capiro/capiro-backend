@@ -1,0 +1,11 @@
+{
+  "status": "READ_ONLY_TOKEN_TEMPLATE_LIFETIME",
+  "observedAt": "2026-10-03T22:18:56.268Z",
+  "name": "capiro",
+  "lifetimeSeconds": 3600,
+  "allowedClockSkewSeconds": 5,
+  "templateWrites": 0,
+  "sessionsCreated": 0,
+  "providerCalls": 0,
+  "claimsOrCredentialsPersisted": false
+}

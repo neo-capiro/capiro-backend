@@ -11,6 +11,7 @@ import {
 } from './case01-terminal-spend-authority.mjs';
 import { currentMemoryReadUsageAuthority } from './memory-read-budget-authority.mjs';
 import { currentReviewedCaptureSpendReconciliation } from './capture-spend-reconciliation.mjs';
+import { consumeCase01PresubmissionRecoveryAuthority } from './case01-presubmission-recovery-authority.mjs';
 import {
   currentCase01CaptureAuthority,
   currentCase14RecallAuthority,
@@ -68,6 +69,21 @@ export function adoptExistingFreshCaptureSpend({ pythonExecutable }) {
  * Legacy ceilings remain consumed. Protocol v2 releases a NEW reservation's
  * unused ceiling only through the existing server-authoritative settlement. */
 export function openCaptureSpendAggregate(prior, { pythonExecutable }) {
+  return openCaptureSpendOwner(prior, { pythonExecutable });
+}
+
+/** Recover only the independently authenticated, exclusively claimed original
+ * pre-submission failure. No reserve/adopt/settle is performed by restoration. */
+export function restoreCase01PresubmissionCaptureSpend(
+  authority,
+  { pythonExecutable, invocation },
+) {
+  need(invocation === 'RESTORE_SAME_CASE01_UNSUBMITTED_RESERVATION_ONCE');
+  const recovery = consumeCase01PresubmissionRecoveryAuthority(authority);
+  return openCaptureSpendOwner(recovery.checkpoint, { pythonExecutable }, recovery);
+}
+
+function openCaptureSpendOwner(prior, { pythonExecutable }, recovery = null) {
   const fresh = prior?.kind === 'meri-fresh-capture-spend-checkpoint';
   need((fresh || prior?.kind === 'meri-original-capture-spend-checkpoint') && prior.version === 1);
   const root = prior.state?.root;
@@ -78,7 +94,18 @@ export function openCaptureSpendAggregate(prior, { pythonExecutable }) {
   );
   const operation = (op) => (fresh ? `fresh_${op}` : op);
   let value = native(root, pythonExecutable, { op: operation('read'), state: prior.state });
-  if (fresh) need(value.snapshot.activeRun === null);
+  if (recovery) {
+    const key = `${recovery.reservation.caseId}:${recovery.reservation.captureRunId}`;
+    need(
+      fresh &&
+        value.snapshot.activeRun === key &&
+        value.snapshot.runs[key]?.reservationId === recovery.reservation.reservationId &&
+        value.snapshot.runs[key]?.ceilingMicros === recovery.reservation.ceilingMicros &&
+        sha256Stable(value.state) === sha256Stable(prior.state) &&
+        sha256Stable(value.snapshot) === sha256Stable(prior.snapshot),
+    );
+    recovery.assertOwned();
+  } else if (fresh) need(value.snapshot.activeRun === null);
   let poisoned = false;
   const advance = (op, event) => {
     need(!poisoned);
@@ -90,9 +117,31 @@ export function openCaptureSpendAggregate(prior, { pythonExecutable }) {
       throw new Error('CAPTURE_SPEND_AGGREGATE_REJECTED');
     }
   };
+  const capabilityFor = (event) => {
+    const { caseId, captureRunId, ceilingMicros, reservationId } = event;
+    const capability = Object.freeze({ caseId, captureRunId, ceilingMicros, reservationId });
+    reservations.set(capability, {
+      owner,
+      settled: false,
+      expected: null,
+      requiredExpected: recovery ? sha256Stable(recovery.expected) : null,
+      assertSubmission: recovery?.assertSubmission,
+      recheck() {
+        recovery?.assertOwned();
+        const current = advance('read');
+        const key = `${caseId}:${captureRunId}`;
+        need(
+          current.snapshot.activeRun === key &&
+            current.snapshot.runs[key]?.reservationId === reservationId,
+        );
+      },
+    });
+    return capability;
+  };
   const owner = Object.freeze({
     checkpoint: () => checkpoint(value),
     reserve({ caseId, captureRunId, ceilingMicros }) {
+      need(!recovery);
       if (fresh) need(['01', '20'].includes(caseId));
       const event = {
         kind: 'reserve',
@@ -102,26 +151,7 @@ export function openCaptureSpendAggregate(prior, { pythonExecutable }) {
         reservationId: randomUUID(),
       };
       advance('reserve', event);
-      const capability = Object.freeze({
-        caseId,
-        captureRunId,
-        ceilingMicros,
-        reservationId: event.reservationId,
-      });
-      reservations.set(capability, {
-        owner,
-        settled: false,
-        expected: null,
-        recheck() {
-          const current = advance('read');
-          const key = `${caseId}:${captureRunId}`;
-          need(
-            current.snapshot.activeRun === key &&
-              current.snapshot.runs[key]?.reservationId === event.reservationId,
-          );
-        },
-      });
-      return capability;
+      return capabilityFor(event);
     },
     settleCaptured(reservation, outcome) {
       const binding = reservations.get(reservation);
@@ -222,7 +252,9 @@ export function openCaptureSpendAggregate(prior, { pythonExecutable }) {
       return result;
     },
   });
-  return owner;
+  return recovery
+    ? Object.freeze({ owner, reservation: capabilityFor(recovery.reservation) })
+    : owner;
 }
 
 /** Explicit root-only disposition of the one rejected original01 request.
@@ -333,6 +365,7 @@ export function claimCaptureSpendReservation(reservation, expected) {
       expected.captureRunId === reservation.captureRunId &&
       expected.maxSpendMicros === reservation.ceilingMicros,
   );
+  need(binding.requiredExpected === null || binding.requiredExpected === sha256Stable(expected));
   binding.recheck();
   binding.expected = sha256Stable(expected);
 }
@@ -343,6 +376,7 @@ export function assertCaptureSpendReservation(reservation, expected) {
   const binding = reservations.get(reservation);
   need(binding && !binding.settled && binding.expected === sha256Stable(expected));
   binding.recheck();
+  binding.assertSubmission?.();
 }
 
 export function settleCaptureSpendReservation(reservation, outcome) {

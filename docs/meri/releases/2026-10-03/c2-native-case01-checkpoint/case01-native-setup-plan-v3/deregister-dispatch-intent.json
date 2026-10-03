@@ -1,0 +1,5 @@
+{
+  "at": "2026-10-03T21:42:08.239Z",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-c2-case01-setup-20261003:4",
+  "attempt": 1
+}
