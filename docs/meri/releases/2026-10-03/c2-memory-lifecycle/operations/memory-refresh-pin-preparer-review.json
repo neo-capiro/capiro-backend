@@ -1,0 +1,16 @@
+{
+  "reviewer": "/root/mail_defaults_review",
+  "result": "PASS_PREPARER_SOURCE_ONLY",
+  "script": "prepare-memory-refresh-pin.mjs",
+  "scriptSha256": "30046b0d42a5ef284327e92b7abc2732b3ded9a7465d85be226af3b7b4f9fb99",
+  "resolvedFindings": [
+    "Bind exact versioned source/image qualification, full ECR image, required markers and qualification hash",
+    "Inspect RUNNING and STOPPED desired task states, complete all describe results, and require every actual nightly owner stopped",
+    "Verify the disabled strict worker's live rule and targets",
+    "Include and preserve ECS task-definition user tags"
+  ],
+  "validity": "One-hour manifest expiry; apply must freshly verify every baseline/owner/qualification, persist dispatch intent, reconcile unknown responses, and verify applied target/task/configuration/tags",
+  "execution": "NOT_RUN",
+  "humanReleaseApproval": false,
+  "limits": "Actual application implementation and fresh baselines require separate review"
+}

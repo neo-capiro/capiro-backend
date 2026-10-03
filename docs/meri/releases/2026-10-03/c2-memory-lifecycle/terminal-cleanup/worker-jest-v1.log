@@ -1,0 +1,24 @@
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+[Nest] 34204  - 10/03/2026, 10:58:36 AM     LOG [ExactMemoryProjectionWorkerService] {"event":"memory_cleanup_outbox.terminal","job_id":"44444444-4444-4444-8444-444444444444","tenant_id":"11111111-1111-4111-8111-111111111111","operation":"index_memory_item","attempts":1,"outcome":"completed"}
+[Nest] 34204  - 10/03/2026, 10:58:36 AM     LOG [ExactMemoryProjectionWorkerService] {"event":"memory_cleanup_outbox.terminal","job_id":"44444444-4444-4444-8444-444444444444","tenant_id":"11111111-1111-4111-8111-111111111111","operation":"index_memory_item","attempts":1,"outcome":"superseded"}
+[Nest] 34204  - 10/03/2026, 10:58:36 AM   ERROR [ExactMemoryProjectionWorkerService] {"security_event":"memory.cleanup_failed","job_id":"44444444-4444-4444-8444-444444444444","tenant_id":"11111111-1111-4111-8111-111111111111","operation":"index_memory_item","attempts":1,"dead_lettered":false,"error_code":"memory_embedding_missing","count":1}
+[Nest] 34204  - 10/03/2026, 10:58:36 AM   ERROR [ExactMemoryProjectionWorkerService] {"security_event":"memory.cleanup_failed","job_id":"44444444-4444-4444-8444-444444444444","tenant_id":"11111111-1111-4111-8111-111111111111","operation":"index_memory_item","attempts":1,"dead_lettered":false,"error_code":"missing_projection_expectation","count":1}
+[Nest] 34204  - 10/03/2026, 10:58:36 AM   ERROR [ExactMemoryProjectionWorkerService] {"security_event":"memory.cleanup_failed","job_id":"44444444-4444-4444-8444-444444444444","tenant_id":"11111111-1111-4111-8111-111111111111","operation":"index_memory_item","attempts":1,"dead_lettered":false,"error_code":"projection_idempotency_binding_mismatch","count":1}
+PASS src/memory/exact-memory-projection-worker.service.spec.ts (50.695 s)
+  ExactMemoryProjectionWorkerService
+    √ passes exact job identity, source version, hash, and item to the strict projector (11 ms)
+    √ marks an old job superseded without completing the newer obligation (1 ms)
+    √ keeps the job retryable when the projector throws (3 ms)
+    √ fails closed when a legacy index job lacks an exact expectation (3 ms)
+    √ refuses an idempotency key not bound to both expected version and hash (1 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       5 passed, 5 total
+Snapshots:   0 total
+Time:        53.44 s
+Ran all test suites matching /src\\memory\\exact-memory-projection-worker.service.spec.ts/i.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?

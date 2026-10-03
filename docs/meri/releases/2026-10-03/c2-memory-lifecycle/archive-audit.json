@@ -1,0 +1,47 @@
+{
+  "result": "PASS_AFTER_CORRECTIONS",
+  "reviewer": "/root/mail_defaults_review",
+  "source": "Root-authored record of independent archive audit and separately reviewed operation-file additions.",
+  "independentArchiveChecks": {
+    "hashedArtifacts": 193,
+    "byteIdenticalOriginalOutputCopies": 190,
+    "localMarkdownLinks": 171,
+    "unlistedFiles": 0
+  },
+  "corrections": [
+    "Final purge receipt points to postgres-purge-green-v3.receipt.json",
+    "Reused 56 writer regressions point to existing-writers-v3.receipt.json",
+    "Three metadata repairs attributed to earlier diagnostic; newest preview only claims reconciliation required"
+  ],
+  "qualificationSha256": "810aace2d5ca3f7d110bd091b05f34a29d5a9a7fa630ff2dc2740d527a99a31b",
+  "requirementMatrix": {
+    "tablesUnchanged": true,
+    "requirementDataRows": 39,
+    "caseDataRows": 90,
+    "headers": 2
+  },
+  "sourceInventory": {
+    "priorCheckpointsPreserved": 12,
+    "appended": 1,
+    "otherFieldsUnchanged": true
+  },
+  "olderArchive": {
+    "filesVerified": 157,
+    "originalAuditUnchanged": true,
+    "countCorrectionRetained": true
+  },
+  "appendedAfterArchiveAudit": [
+    "operations/prepare-memory-lifecycle-release.mjs",
+    "operations/apply-memory-refresh-pin.mjs",
+    "operations/aws-single-attempt.mjs",
+    "operations/independent-review.json",
+    "archive-audit.json"
+  ],
+  "finalRootManifestVerification": "Regenerated artifacts.json includes all five additions; each current hash is recomputed.",
+  "acceptanceUnchanged": {
+    "original75": 0,
+    "cd": 0,
+    "cw": 0
+  },
+  "humanReleaseApproval": false
+}

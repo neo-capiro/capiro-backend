@@ -1,0 +1,14 @@
+{
+  "sourceSha": "f00e5dfb4fd3e47ac6aa4aca741023cc02f6314f",
+  "sourceFiles": 22,
+  "sourceReview": "PASS",
+  "lifecycleSnapshotSha256": "ab06a706ee98bcbed43509cbec216509309b00a6f8916afdb93d37cafe88cebb",
+  "cleanupSnapshotSha256": "b2c48ec981947e57c3381beaf79806bda31cc06507cc0fef98c4e94379295868",
+  "mergedMain": true,
+  "pushedMainAndTaskBranch": true,
+  "semanticClockIncluded": false,
+  "schemaChange": false,
+  "deployment": "NOT_RUN",
+  "providerCalls": 0,
+  "original75Passed": 0
+}

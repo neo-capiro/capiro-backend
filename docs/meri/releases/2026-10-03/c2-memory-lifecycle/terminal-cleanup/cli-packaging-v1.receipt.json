@@ -1,0 +1,6 @@
+{
+  "command": "node --test apps/api/scripts/meri-synthetic-read-budget.test.mjs evals/meri/live-v1/tests/case01-memory-packaging.test.mjs",
+  "exitCode": 0,
+  "logSha256": "8ca262cce914008e0e89716d07b9947ccb56847a90b470b1eece2374798bda89",
+  "recordedAt": "2026-10-03T15:00:21.4261510Z"
+}

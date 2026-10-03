@@ -112,3 +112,5 @@ These decisions preserve the original I/X/M/F and donor triggers; they do not tu
 The pinned Hermes license text is retained verbatim once in root `THIRD_PARTY_NOTICES`, with exact adapted slices listed above it. That notice covers distributed Capiro source/product artifacts containing the integrated H1, H2 and H5 adaptations. Raw donor snapshots remain external inspection evidence. H4 is omitted from the current notice because its candidate is absent from current integration; an H4 integration must update the notice in the same commit.
 
 No acquisition row is promoted by repository popularity, a successful download, source presence, or a passing donor test. Mandatory remaining adapters cannot be reclassified as conditional experiments.
+
+C2 lifecycle qualification addendum: source `f00e5dfb4` adds the reviewed shared embedding lifecycle fence and bounded exact terminal cleanup. Its native image and actual rollback-only strict corpus preview pass; deployment and committed maintenance remain pending. Existing provenance and donor/adoption classifications are unchanged. [Evidence](../releases/2026-10-03/c2-memory-lifecycle/README.md).

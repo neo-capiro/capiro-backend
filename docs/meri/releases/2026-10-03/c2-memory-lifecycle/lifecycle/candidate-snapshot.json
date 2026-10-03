@@ -1,0 +1,88 @@
+{
+  "version": 1,
+  "stage": "CANDIDATE_FROZEN_FOR_REVIEW",
+  "recordedAt": "2026-10-03T13:43:37.9052195Z",
+  "gitHead": "e3a32c4e6fe802cd7bd505bbcc658745c87f30ab",
+  "files": [
+    {
+      "path": "apps/api/src/memory/memory-embedding-lifecycle.ts",
+      "sha256": "b9a914ea75a9734d49fa9088ad991fb57906402131ce2ff4c9f884c65ef113bb",
+      "bytes": 2920,
+      "kind": "production"
+    },
+    {
+      "path": "apps/api/src/memory/memory-ingest.service.ts",
+      "sha256": "f0f89d26aee31f98c32023d4843a314a229974c38fa066527b69b50da6e6b96b",
+      "bytes": 22582,
+      "kind": "production"
+    },
+    {
+      "path": "apps/api/src/memory/strict-memory-projector.service.ts",
+      "sha256": "d7fb3bc542a37943f3a5940c4959009542ed4f4e80bb53bf6888a9eec04dab42",
+      "bytes": 11538,
+      "kind": "production"
+    },
+    {
+      "path": "apps/api/src/memory/memory-store.service.ts",
+      "sha256": "12689bf6b538457d46047e22373ef08ae7e6393c940943dc852ce043cc0c2b2f",
+      "bytes": 54918,
+      "kind": "production"
+    },
+    {
+      "path": "apps/api/src/memory/immutable-memory-version.service.ts",
+      "sha256": "1c4a72447ae8b15681c7918de480c7792ef082b83fb8c2fe03c5c6e868a8139c",
+      "bytes": 49462,
+      "kind": "production"
+    },
+    {
+      "path": "apps/api/src/memory/memory-embedding-lifecycle.postgres.spec.ts",
+      "sha256": "f5db231352530eef373215a8dadb33c4914aa85469ede6bcb48e5835fd9693dd",
+      "bytes": 16145,
+      "kind": "test"
+    },
+    {
+      "path": "apps/api/src/memory/synthetic-memory-settlement.spec.ts",
+      "sha256": "1dc29c4065a29004a6bff4c0235c3adc20487e52a84b2e6963c51228fa030561",
+      "bytes": 7397,
+      "kind": "test"
+    },
+    {
+      "path": "apps/api/src/memory/strict-memory-projector.service.spec.ts",
+      "sha256": "ccda1503b3d8a59eddbc0f39c023cb2804c9e86075052096abfcea8ce7133f37",
+      "bytes": 8059,
+      "kind": "test"
+    },
+    {
+      "path": "apps/api/src/memory/immutable-memory-version.service.spec.ts",
+      "sha256": "290acd9c6ec5074cfcadaf1353b27393e4b785e26afcca0f153c8a6cf517975a",
+      "bytes": 11622,
+      "kind": "test"
+    }
+  ],
+  "tests": [
+    {
+      "receipt": "postgres-red.receipt.json",
+      "result": "2 expected failure / 2 pass before production changes"
+    },
+    {
+      "receipt": "postgres-expanded-v1.receipt.json",
+      "result": "37 pass / 0 skip"
+    },
+    {
+      "receipt": "existing-writers-v2.receipt.json",
+      "result": "56 pass / 0 skip"
+    }
+  ],
+  "clockFilesUnchanged": 12,
+  "genericEmbedderUnchanged": true,
+  "localCluster": "127.0.0.1:55433 stopped; data preserved",
+  "limits": [
+    "Native PG16 isolated text domain stores generated vector literals; no pgvector arithmetic/index claim",
+    "Other ingestion phases enumerated empty in the PostgreSQL integration harness",
+    "Provider is an in-process test stub; no paid/remote provider calls",
+    "Existing governance unit harness intentionally omits embedding backend and logs its best-effort failure; actual embedding correctness is the PostgreSQL suite",
+    "Existing retired embeddings require separately authorized canonical cleanup; this patch prevents new stale writes"
+  ],
+  "remoteActions": 0,
+  "commits": 0
+}

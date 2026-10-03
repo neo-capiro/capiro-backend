@@ -1,0 +1,25 @@
+{
+  "kind": "C2 exact owned terminal cleanup regression",
+  "startedAt": "2026-10-03T14:56:46.8250338Z",
+  "scope": "owned native PostgreSQL16 127.0.0.1:55433 only; rollback-only fixtures; not production RLS",
+  "awsCalls": 0,
+  "providerCalls": 0,
+  "sourceHashes": {
+    "apps/api/src/memory/memory-terminal-cleanup.helpers.ts": "f6cba748b438af1041cb3ed3ee4fd9be2cbc6f02e16e5f3840c8e33265a7879a",
+    "evals/meri/live-v1/fixture-provisioning/case01-memory-projection-cleanup.mjs": "2ec440397a373c81cd1632031e56c5cdcfc9a79cd8c53c9788581e4822fa69db",
+    "evals/meri/live-v1/fixture-provisioning/case01-memory-reconciliation.mjs": "33e397fcf2c21685eb9644b99d49d1cd47c72f7b7ab1c78e9d60c1973f05a280",
+    "evals/meri/live-v1/tests/case01-projection-cleanup-exercises.mjs": "6a7a53c9704efdb4df53c5e806400a813ba311acf9bd041d8e8d962dd42cedc0",
+    "evals/meri/live-v1/tests/case01-memory-hydration.postgres.test.mjs": "62038290ac3c9ed8da1ab096fc8bfffa559dcc48700b44083a9a35608ed6dd9c",
+    "evals/meri/live-v1/tests/approved-memory-postgres-harness.mjs": "e9423f5e819c33a628c104ef9137c76708aa05ef0b7c5cdb4a42793dd4959c8d",
+    "evals/meri/live-v1/tests/approved-memory-schema.mjs": "07d41fccf6ad21123f29521a7aa0a2816cf6ea4a76e74f8125ff449b828a94ab"
+  },
+  "command": "node --test evals/meri/live-v1/tests/case01-memory-hydration.postgres.test.mjs",
+  "sourceSha": "e3a32c4e6fe802cd7bd505bbcc658745c87f30ab",
+  "statusBeforeExit": 3,
+  "startExit": 0,
+  "testExit": 1,
+  "testLogSha256": "5a166614a7222eecc1a0a5f96ccc197f57c233fc49dcf0b2a0bd5db8c7716436",
+  "stopExit": 0,
+  "clusterStoppedAfter": true,
+  "completedAt": "2026-10-03T14:57:24.8025900Z"
+}

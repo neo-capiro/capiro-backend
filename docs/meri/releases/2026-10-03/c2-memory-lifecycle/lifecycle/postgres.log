@@ -1,0 +1,16 @@
+2026-10-03 09:32:10.723 EDT [38204] LOG:  starting PostgreSQL 16.15, compiled by Visual C++ build 1944, 64-bit
+2026-10-03 09:32:10.724 EDT [38204] LOG:  listening on IPv4 address "127.0.0.1", port 55433
+2026-10-03 09:32:10.784 EDT [29732] LOG:  database system was shut down at 2026-10-03 08:47:21 EDT
+2026-10-03 09:32:10.830 EDT [38204] LOG:  database system is ready to accept connections
+2026-10-03 09:37:10.770 EDT [44576] LOG:  checkpoint starting: time
+2026-10-03 09:37:21.800 EDT [44576] LOG:  checkpoint complete: wrote 103 buffers (0.6%); 0 WAL file(s) added, 0 removed, 0 recycled; write=10.927 s, sync=0.085 s, total=11.030 s; sync files=168, longest=0.004 s, average=0.001 s; distance=539 kB, estimate=539 kB; lsn=1/9462338, redo lsn=1/9462300
+2026-10-03 09:39:38.118 EDT [14488] WARNING:  there is no transaction in progress
+2026-10-03 09:42:10.810 EDT [44576] LOG:  checkpoint starting: time
+2026-10-03 09:42:19.393 EDT [44576] LOG:  checkpoint complete: wrote 79 buffers (0.5%); 0 WAL file(s) added, 0 removed, 0 recycled; write=8.369 s, sync=0.165 s, total=8.584 s; sync files=504, longest=0.002 s, average=0.001 s; distance=605 kB, estimate=605 kB; lsn=1/94F9938, redo lsn=1/94F9900
+2026-10-03 09:42:44.430 EDT [38204] LOG:  received fast shutdown request
+2026-10-03 09:42:44.431 EDT [38204] LOG:  aborting any active transactions
+2026-10-03 09:42:44.438 EDT [38204] LOG:  background worker "logical replication launcher" (PID 20192) exited with exit code 1
+2026-10-03 09:42:44.439 EDT [44576] LOG:  shutting down
+2026-10-03 09:42:44.440 EDT [44576] LOG:  checkpoint starting: shutdown immediate
+2026-10-03 09:42:44.448 EDT [44576] LOG:  checkpoint complete: wrote 0 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.001 s, sync=0.001 s, total=0.010 s; sync files=0, longest=0.000 s, average=0.000 s; distance=0 kB, estimate=544 kB; lsn=1/94F99E8, redo lsn=1/94F99E8
+2026-10-03 09:42:44.457 EDT [38204] LOG:  database system is shut down

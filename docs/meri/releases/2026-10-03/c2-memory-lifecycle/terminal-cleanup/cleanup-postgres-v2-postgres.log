@@ -1,0 +1,22 @@
+2026-10-03 10:56:47.474 EDT [47300] LOG:  starting PostgreSQL 16.15, compiled by Visual C++ build 1944, 64-bit
+2026-10-03 10:56:47.475 EDT [47300] LOG:  listening on IPv4 address "127.0.0.1", port 55433
+2026-10-03 10:56:47.572 EDT [38724] LOG:  database system was shut down at 2026-10-03 10:56:12 EDT
+2026-10-03 10:56:47.640 EDT [47300] LOG:  database system is ready to accept connections
+2026-10-03 10:57:04.237 EDT [24012] ERROR:  duplicate key value violates unique constraint "clio_memory_pkey"
+2026-10-03 10:57:04.237 EDT [24012] DETAIL:  Key (id)=(101c5fd7-a87c-48d5-9844-efea02d85740) already exists.
+2026-10-03 10:57:04.237 EDT [24012] STATEMENT:  INSERT INTO clio_memory(id,tenant_id,key,value) SELECT clio_memory_id,tenant_id,'tampered','must survive refusal' FROM memory_cleanup_outbox WHERE clio_memory_id IS NOT NULL LIMIT 1
+2026-10-03 10:57:06.953 EDT [24012] ERROR:  controlled local cleanup audit failure
+2026-10-03 10:57:06.953 EDT [24012] CONTEXT:  PL/pgSQL function refuse_cleanup_audit() line 2 at RAISE
+2026-10-03 10:57:06.953 EDT [24012] STATEMENT:  INSERT INTO audit_logs(id,tenant_id,actor_user_id,actor_role,action,entity_type,entity_id,before_jsonb,after_jsonb)
+	        VALUES($1::uuid,$2::uuid,$3::uuid,$4,'synthetic_memory_projections_cleaned','case01_memory_corpus',$5,$6::jsonb,$7::jsonb)
+2026-10-03 10:57:16.047 EDT [24012] ERROR:  controlled local audit insert failure
+2026-10-03 10:57:16.047 EDT [24012] CONTEXT:  PL/pgSQL function refuse_reconciliation_audit() line 2 at RAISE
+2026-10-03 10:57:16.047 EDT [24012] STATEMENT:  INSERT INTO audit_logs(id,tenant_id,actor_user_id,actor_role,action,entity_type,entity_id,before_jsonb,after_jsonb)
+	        VALUES($1::uuid,$2::uuid,$3::uuid,$4,'synthetic_memory_metadata_reconciled','case01_memory_corpus',$5,$6::jsonb,$7::jsonb)
+2026-10-03 10:57:24.294 EDT [47300] LOG:  received fast shutdown request
+2026-10-03 10:57:24.297 EDT [47300] LOG:  aborting any active transactions
+2026-10-03 10:57:24.314 EDT [47300] LOG:  background worker "logical replication launcher" (PID 48580) exited with exit code 1
+2026-10-03 10:57:24.316 EDT [2108] LOG:  shutting down
+2026-10-03 10:57:24.318 EDT [2108] LOG:  checkpoint starting: shutdown immediate
+2026-10-03 10:57:24.589 EDT [2108] LOG:  checkpoint complete: wrote 142 buffers (0.9%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.046 s, sync=0.160 s, total=0.273 s; sync files=224, longest=0.004 s, average=0.001 s; distance=1614 kB, estimate=1614 kB; lsn=1/97B11A8, redo lsn=1/97B11A8
+2026-10-03 10:57:24.737 EDT [47300] LOG:  database system is shut down

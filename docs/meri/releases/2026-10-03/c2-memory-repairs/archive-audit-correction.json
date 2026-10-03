@@ -1,0 +1,17 @@
+{
+  "reviewer": "/root/mail_defaults_review",
+  "reviewedCommit": "e3a32c4e6fe802cd7bd505bbcc658745c87f30ab",
+  "reviewedManifestSha256": "d912062498c1db5ccc0518a4443a1534b37079b4419c84ea5205ef63f7658c58",
+  "verifiedArtifacts": 156,
+  "byteIdenticalOutputCopies": 149,
+  "verifiedLocalMarkdownLinks": 157,
+  "matrixRequirementDataRows": 39,
+  "matrixCaseDataRows": 90,
+  "matrixTotalDataRows": 129,
+  "matrixHeaderRows": 2,
+  "matrixIdentitiesAndOrderUnchanged": true,
+  "correction": "The earlier retained archive-audit.json count130 included one table header. This correction changes accounting only, not case outcomes or historical evidence.",
+  "inventoryPriorCheckpoints": 11,
+  "inventoryAddedCheckpoints": 1,
+  "currentReadmeCorrection": "Removed stale promote-next instruction; lifecycle repair and successful preview precede release."
+}

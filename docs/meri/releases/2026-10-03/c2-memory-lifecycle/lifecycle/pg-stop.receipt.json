@@ -1,0 +1,7 @@
+{
+  "dataPreserved": true,
+  "operation": "stop exact owned PostgreSQL16 loopback55433",
+  "exitCode": 0,
+  "statusExitCode": 3,
+  "recordedAt": "2026-10-03T13:42:44.5990347Z"
+}

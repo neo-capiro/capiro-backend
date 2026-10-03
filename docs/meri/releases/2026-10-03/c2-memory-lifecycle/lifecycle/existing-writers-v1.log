@@ -1,0 +1,87 @@
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+PASS src/memory/immutable-memory-version.service.spec.ts (15.875 s)
+[Nest] 17964  - 10/03/2026, 9:37:49 AM    WARN [ImmutableMemoryVersionService] immutable memory embed failed; projection recovery remains available: prisma.withSystem is not a function
+[Nest] 17964  - 10/03/2026, 9:37:49 AM    WARN [ImmutableMemoryVersionService] immutable memory embed failed; projection recovery remains available: prisma.withSystem is not a function
+[Nest] 17964  - 10/03/2026, 9:37:49 AM    WARN [ImmutableMemoryVersionService] immutable memory embed failed; projection recovery remains available: prisma.withSystem is not a function
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+(node:17964) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 7)
+(Use `node --trace-warnings ...` to show where the warning was created)
+FAIL src/memory/synthetic-memory-settlement.spec.ts
+  ● guarded synthetic correction waits for real embedding completion
+
+    Synthetic memory correction embedding did not settle after approval
+
+      1170 |     }).then(() => undefined).catch((error: unknown) => {
+      1171 |       if (requireSettlement) {
+    > 1172 |         throw new Error('Synthetic memory correction embedding did not settle after approval');
+           |               ^
+      1173 |       }
+      1174 |       this.logger.warn(
+      1175 |         `immutable memory embed failed; projection recovery remains available: ${(error as Error).message}`,
+
+      at src/memory/immutable-memory-version.service.ts:1172:15
+      at ImmutableMemoryVersionService.approveCandidateGuarded (src/memory/immutable-memory-version.service.ts:360:25)
+
+  ● guarded synthetic correction waits for real embedding completion
+
+    expect(received).resolves.toEqual()
+
+    Received promise rejected instead of resolved
+    Rejected to value: [Error: Synthetic memory correction embedding did not settle after approval]
+
+      168 |   expect(settled).toBe(false);
+      169 |   embedding.resolve();
+    > 170 |   await expect(result).resolves.toEqual(outcome.result);
+          |         ^
+      171 |   expect(embedAndUpsert).toHaveBeenCalledTimes(1);
+      172 | });
+      173 |
+
+      at expect (../../node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)
+      at Object.<anonymous> (src/memory/synthetic-memory-settlement.spec.ts:170:9)
+
+  ● ordinary correction approval keeps its asynchronous embedding behavior
+
+    private provider response
+
+      178 |     'Synthetic memory correction embedding did not settle after approval',
+      179 |   );
+    > 180 |   embedding.reject(new Error('private provider response'));
+          |                    ^
+      181 |   await assertion;
+      182 | });
+      183 |
+
+      at Object.<anonymous> (src/memory/synthetic-memory-settlement.spec.ts:180:20)
+
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+[Nest] 17964  - 10/03/2026, 9:37:50 AM    WARN [ImmutableMemoryVersionService] immutable memory embed failed; projection recovery remains available: prisma.withSystem is not a function
+PASS src/embeddings/embedder.spec.ts
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+PASS src/embeddings/embedder-write-guard.spec.ts
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+PASS src/memory/memory-store.governance.spec.ts
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+[Nest] 17964  - 10/03/2026, 9:37:52 AM    WARN [MemoryStoreService] correctMemory embed failed (non-fatal): prisma.withSystem is not a function
+[Nest] 17964  - 10/03/2026, 9:37:52 AM    WARN [MemoryStoreService] correctMemory embed failed (non-fatal): prisma.withSystem is not a function
+[Nest] 17964  - 10/03/2026, 9:37:52 AM    WARN [MemoryStoreService] correctMemory embed failed (non-fatal): prisma.withSystem is not a function
+PASS src/memory/memory-store.projection-governance.spec.ts
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+PASS src/memory/strict-memory-projector.service.spec.ts
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+PASS src/memory/memory-ingest.service.spec.ts
+
+Test Suites: 1 failed, 7 passed, 8 total
+Tests:       2 failed, 54 passed, 56 total
+Snapshots:   0 total
+Time:        20.393 s
+Ran all test suites matching /src\\memory\\memory-ingest.service.spec.ts|src\\memory\\strict-memory-projector.service.spec.ts|src\\memory\\immutable-memory-version.service.spec.ts|src\\memory\\synthetic-memory-settlement.spec.ts|src\\memory\\memory-store.governance.spec.ts|src\\memory\\memory-store.projection-governance.spec.ts|src\\embeddings\\embedder.spec.ts|src\\embeddings\\embedder-write-guard.spec.ts/i.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?
+undefined
+C:\dev\main\meri-c1-20261002\apps\api:
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command "jest" not found

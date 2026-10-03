@@ -1,0 +1,112 @@
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+[Nest] 31764  - 10/03/2026, 11:04:50 AM     LOG [MemoryIngestService] backfill tenant=0fdd3ccf-a36a-4609-8c26-3a5b5fb2f088 {"clients":0,"clioMemories":0,"meetings":0,"emails":0,"meriSessions":0,"embedded":0,"failed":0,"failures":0}
+[Nest] 31764  - 10/03/2026, 11:04:51 AM     LOG [MemoryIngestService] backfill tenant=0fdd3ccf-a36a-4609-8c26-3a5b5fb2f088 {"clients":0,"clioMemories":0,"meetings":0,"emails":0,"meriSessions":0,"embedded":0,"failed":0,"failures":0}
+[Nest] 31764  - 10/03/2026, 11:04:51 AM     LOG [MemoryIngestService] backfill tenant=0fdd3ccf-a36a-4609-8c26-3a5b5fb2f088 {"clients":0,"clioMemories":0,"meetings":0,"emails":0,"meriSessions":0,"embedded":1,"failed":0,"failures":0}
+[Nest] 31764  - 10/03/2026, 11:04:51 AM     LOG [MemoryIngestService] backfill tenant=0fdd3ccf-a36a-4609-8c26-3a5b5fb2f088 {"clients":0,"clioMemories":0,"meetings":0,"emails":0,"meriSessions":0,"embedded":0,"failed":0,"failures":0}
+[Nest] 31764  - 10/03/2026, 11:04:51 AM     LOG [MemoryIngestService] backfill tenant=0fdd3ccf-a36a-4609-8c26-3a5b5fb2f088 {"clients":0,"clioMemories":0,"meetings":0,"emails":0,"meriSessions":0,"embedded":0,"failed":0,"failures":0}
+[Nest] 31764  - 10/03/2026, 11:04:51 AM     LOG [MemoryIngestService] backfill tenant=0fdd3ccf-a36a-4609-8c26-3a5b5fb2f088 {"clients":0,"clioMemories":0,"meetings":0,"emails":0,"meriSessions":0,"embedded":0,"failed":0,"failures":0}
+[Nest] 31764  - 10/03/2026, 11:04:51 AM     LOG [MemoryIngestService] backfill tenant=0fdd3ccf-a36a-4609-8c26-3a5b5fb2f088 {"clients":0,"clioMemories":0,"meetings":0,"emails":0,"meriSessions":0,"embedded":0,"failed":0,"failures":0}
+[Nest] 31764  - 10/03/2026, 11:04:51 AM     LOG [MemoryIngestService] backfill tenant=0fdd3ccf-a36a-4609-8c26-3a5b5fb2f088 {"clients":0,"clioMemories":0,"meetings":0,"emails":0,"meriSessions":0,"embedded":0,"failed":0,"failures":0}
+[Nest] 31764  - 10/03/2026, 11:04:51 AM     LOG [MemoryIngestService] backfill tenant=0fdd3ccf-a36a-4609-8c26-3a5b5fb2f088 {"clients":0,"clioMemories":0,"meetings":0,"emails":0,"meriSessions":0,"embedded":0,"failed":0,"failures":0}
+[Nest] 31764  - 10/03/2026, 11:04:52 AM     LOG [MemoryIngestService] backfill tenant=0fdd3ccf-a36a-4609-8c26-3a5b5fb2f088 {"clients":0,"clioMemories":0,"meetings":0,"emails":0,"meriSessions":0,"embedded":0,"failed":0,"failures":0}
+[Nest] 31764  - 10/03/2026, 11:04:52 AM     LOG [MemoryIngestService] backfill tenant=0fdd3ccf-a36a-4609-8c26-3a5b5fb2f088 {"clients":0,"clioMemories":0,"meetings":0,"emails":0,"meriSessions":0,"embedded":0,"failed":0,"failures":0}
+[Nest] 31764  - 10/03/2026, 11:04:52 AM     LOG [MemoryIngestService] backfill tenant=0fdd3ccf-a36a-4609-8c26-3a5b5fb2f088 {"clients":0,"clioMemories":0,"meetings":0,"emails":0,"meriSessions":0,"embedded":0,"failed":0,"failures":0}
+[Nest] 31764  - 10/03/2026, 11:04:52 AM     LOG [MemoryIngestService] backfill tenant=0fdd3ccf-a36a-4609-8c26-3a5b5fb2f088 {"clients":0,"clioMemories":0,"meetings":0,"emails":0,"meriSessions":0,"embedded":0,"failed":0,"failures":0}
+[Nest] 31764  - 10/03/2026, 11:04:52 AM     LOG [MemoryIngestService] backfill tenant=0fdd3ccf-a36a-4609-8c26-3a5b5fb2f088 {"clients":0,"clioMemories":0,"meetings":0,"emails":0,"meriSessions":0,"embedded":0,"failed":0,"failures":0}
+[Nest] 31764  - 10/03/2026, 11:04:52 AM     LOG [MemoryIngestService] backfill tenant=0fdd3ccf-a36a-4609-8c26-3a5b5fb2f088 {"clients":0,"clioMemories":0,"meetings":0,"emails":0,"meriSessions":0,"embedded":0,"failed":0,"failures":0}
+[Nest] 31764  - 10/03/2026, 11:04:52 AM     LOG [MemoryIngestService] backfill tenant=0fdd3ccf-a36a-4609-8c26-3a5b5fb2f088 {"clients":0,"clioMemories":0,"meetings":0,"emails":0,"meriSessions":0,"embedded":0,"failed":0,"failures":0}
+[Nest] 31764  - 10/03/2026, 11:04:52 AM     LOG [MemoryIngestService] backfill tenant=0fdd3ccf-a36a-4609-8c26-3a5b5fb2f088 {"clients":0,"clioMemories":0,"meetings":0,"emails":0,"meriSessions":0,"embedded":1,"failed":0,"failures":0}
+[Nest] 31764  - 10/03/2026, 11:04:53 AM     LOG [MemoryIngestService] backfill tenant=0fdd3ccf-a36a-4609-8c26-3a5b5fb2f088 {"clients":0,"clioMemories":0,"meetings":0,"emails":0,"meriSessions":0,"embedded":1,"failed":0,"failures":0}
+[Nest] 31764  - 10/03/2026, 11:04:53 AM     LOG [MemoryIngestService] backfill tenant=0fdd3ccf-a36a-4609-8c26-3a5b5fb2f088 {"clients":0,"clioMemories":0,"meetings":0,"emails":0,"meriSessions":0,"embedded":1,"failed":0,"failures":0}
+[Nest] 31764  - 10/03/2026, 11:04:53 AM     LOG [MemoryIngestService] backfill tenant=0fdd3ccf-a36a-4609-8c26-3a5b5fb2f088 {"clients":0,"clioMemories":0,"meetings":0,"emails":0,"meriSessions":0,"embedded":1,"failed":0,"failures":0}
+[Nest] 31764  - 10/03/2026, 11:04:53 AM     LOG [MemoryIngestService] backfill tenant=0fdd3ccf-a36a-4609-8c26-3a5b5fb2f088 {"clients":0,"clioMemories":0,"meetings":0,"emails":0,"meriSessions":0,"embedded":0,"failed":0,"failures":0}
+[Nest] 31764  - 10/03/2026, 11:04:53 AM     LOG [MemoryIngestService] backfill tenant=0fdd3ccf-a36a-4609-8c26-3a5b5fb2f088 {"clients":0,"clioMemories":0,"meetings":0,"emails":0,"meriSessions":0,"embedded":0,"failed":0,"failures":0}
+[Nest] 31764  - 10/03/2026, 11:04:53 AM     LOG [MemoryIngestService] backfill tenant=0fdd3ccf-a36a-4609-8c26-3a5b5fb2f088 {"clients":0,"clioMemories":0,"meetings":0,"emails":0,"meriSessions":0,"embedded":0,"failed":0,"failures":0}
+[Nest] 31764  - 10/03/2026, 11:04:54 AM     LOG [MemoryIngestService] backfill tenant=0fdd3ccf-a36a-4609-8c26-3a5b5fb2f088 {"clients":0,"clioMemories":0,"meetings":0,"emails":0,"meriSessions":0,"embedded":0,"failed":0,"failures":0}
+[Nest] 31764  - 10/03/2026, 11:04:54 AM     LOG [MemoryIngestService] backfill tenant=0fdd3ccf-a36a-4609-8c26-3a5b5fb2f088 {"clients":0,"clioMemories":0,"meetings":0,"emails":0,"meriSessions":0,"embedded":0,"failed":0,"failures":0}
+[Nest] 31764  - 10/03/2026, 11:04:54 AM     LOG [MemoryIngestService] backfill tenant=0fdd3ccf-a36a-4609-8c26-3a5b5fb2f088 {"clients":0,"clioMemories":0,"meetings":0,"emails":0,"meriSessions":0,"embedded":0,"failed":0,"failures":0}
+[Nest] 31764  - 10/03/2026, 11:04:54 AM     LOG [MemoryIngestService] backfill tenant=0fdd3ccf-a36a-4609-8c26-3a5b5fb2f088 {"clients":0,"clioMemories":0,"meetings":0,"emails":0,"meriSessions":0,"embedded":0,"failed":0,"failures":0}
+[Nest] 31764  - 10/03/2026, 11:04:54 AM     LOG [MemoryIngestService] backfill tenant=0fdd3ccf-a36a-4609-8c26-3a5b5fb2f088 {"clients":0,"clioMemories":0,"meetings":0,"emails":0,"meriSessions":0,"embedded":0,"failed":0,"failures":0}
+[Nest] 31764  - 10/03/2026, 11:04:54 AM     LOG [MemoryIngestService] backfill tenant=0fdd3ccf-a36a-4609-8c26-3a5b5fb2f088 {"clients":0,"clioMemories":0,"meetings":0,"emails":0,"meriSessions":0,"embedded":0,"failed":0,"failures":0}
+[Nest] 31764  - 10/03/2026, 11:04:54 AM     LOG [MemoryIngestService] backfill tenant=0fdd3ccf-a36a-4609-8c26-3a5b5fb2f088 {"clients":0,"clioMemories":0,"meetings":0,"emails":0,"meriSessions":0,"embedded":0,"failed":0,"failures":0}
+[Nest] 31764  - 10/03/2026, 11:04:55 AM     LOG [MemoryIngestService] backfill tenant=0fdd3ccf-a36a-4609-8c26-3a5b5fb2f088 {"clients":0,"clioMemories":0,"meetings":0,"emails":0,"meriSessions":0,"embedded":0,"failed":0,"failures":0}
+[Nest] 31764  - 10/03/2026, 11:04:55 AM     LOG [MemoryIngestService] backfill tenant=0fdd3ccf-a36a-4609-8c26-3a5b5fb2f088 {"clients":0,"clioMemories":0,"meetings":0,"emails":0,"meriSessions":0,"embedded":0,"failed":0,"failures":0}
+[Nest] 31764  - 10/03/2026, 11:04:55 AM     LOG [MemoryIngestService] backfill tenant=0fdd3ccf-a36a-4609-8c26-3a5b5fb2f088 {"clients":0,"clioMemories":0,"meetings":0,"emails":0,"meriSessions":0,"embedded":1,"failed":0,"failures":0}
+[Nest] 31764  - 10/03/2026, 11:04:55 AM     LOG [MemoryIngestService] backfill tenant=0fdd3ccf-a36a-4609-8c26-3a5b5fb2f088 {"clients":0,"clioMemories":0,"meetings":0,"emails":0,"meriSessions":0,"embedded":0,"failed":0,"failures":0}
+[Nest] 31764  - 10/03/2026, 11:04:55 AM     LOG [MemoryIngestService] backfill tenant=0fdd3ccf-a36a-4609-8c26-3a5b5fb2f088 {"clients":0,"clioMemories":0,"meetings":0,"emails":0,"meriSessions":0,"embedded":1,"failed":0,"failures":0}
+[Nest] 31764  - 10/03/2026, 11:04:55 AM     LOG [MemoryIngestService] backfill tenant=0fdd3ccf-a36a-4609-8c26-3a5b5fb2f088 {"clients":0,"clioMemories":0,"meetings":0,"emails":0,"meriSessions":0,"embedded":0,"failed":0,"failures":0}
+[Nest] 31764  - 10/03/2026, 11:04:56 AM     LOG [MemoryIngestService] backfill tenant=0fdd3ccf-a36a-4609-8c26-3a5b5fb2f088 {"clients":0,"clioMemories":0,"meetings":0,"emails":0,"meriSessions":0,"embedded":1,"failed":0,"failures":0}
+[Nest] 31764  - 10/03/2026, 11:04:56 AM     LOG [MemoryIngestService] backfill tenant=0fdd3ccf-a36a-4609-8c26-3a5b5fb2f088 {"clients":0,"clioMemories":0,"meetings":0,"emails":0,"meriSessions":0,"embedded":1,"failed":0,"failures":0}
+[Nest] 31764  - 10/03/2026, 11:04:56 AM     LOG [MemoryIngestService] backfill tenant=0fdd3ccf-a36a-4609-8c26-3a5b5fb2f088 {"clients":0,"clioMemories":0,"meetings":0,"emails":0,"meriSessions":0,"embedded":1,"failed":0,"failures":0}
+[Nest] 31764  - 10/03/2026, 11:04:56 AM     LOG [MemoryIngestService] backfill tenant=0fdd3ccf-a36a-4609-8c26-3a5b5fb2f088 {"clients":0,"clioMemories":0,"meetings":0,"emails":0,"meriSessions":0,"embedded":0,"failed":0,"failures":0}
+[Nest] 31764  - 10/03/2026, 11:04:56 AM     LOG [MemoryIngestService] backfill tenant=0fdd3ccf-a36a-4609-8c26-3a5b5fb2f088 {"clients":0,"clioMemories":0,"meetings":0,"emails":0,"meriSessions":0,"embedded":0,"failed":0,"failures":0}
+[Nest] 31764  - 10/03/2026, 11:04:56 AM     LOG [MemoryIngestService] backfill tenant=0fdd3ccf-a36a-4609-8c26-3a5b5fb2f088 {"clients":0,"clioMemories":0,"meetings":0,"emails":0,"meriSessions":0,"embedded":1,"failed":0,"failures":0}
+[Nest] 31764  - 10/03/2026, 11:04:58 AM     LOG [MemoryIngestService] backfill tenant=0fdd3ccf-a36a-4609-8c26-3a5b5fb2f088 {"clients":0,"clioMemories":0,"meetings":0,"emails":0,"meriSessions":0,"embedded":0,"failed":0,"failures":0}
+[Nest] 31764  - 10/03/2026, 11:04:59 AM     LOG [MemoryIngestService] backfill tenant=0fdd3ccf-a36a-4609-8c26-3a5b5fb2f088 {"clients":0,"clioMemories":0,"meetings":0,"emails":0,"meriSessions":0,"embedded":1,"failed":0,"failures":0}
+[Nest] 31764  - 10/03/2026, 11:04:59 AM     LOG [MemoryIngestService] backfill tenant=0fdd3ccf-a36a-4609-8c26-3a5b5fb2f088 {"clients":0,"clioMemories":0,"meetings":0,"emails":0,"meriSessions":0,"embedded":1,"failed":0,"failures":0}
+[Nest] 31764  - 10/03/2026, 11:04:59 AM     LOG [MemoryIngestService] backfill tenant=0fdd3ccf-a36a-4609-8c26-3a5b5fb2f088 {"clients":0,"clioMemories":0,"meetings":0,"emails":0,"meriSessions":0,"embedded":1,"failed":0,"failures":0}
+[Nest] 31764  - 10/03/2026, 11:04:59 AM     LOG [MemoryIngestService] backfill tenant=0fdd3ccf-a36a-4609-8c26-3a5b5fb2f088 {"clients":0,"clioMemories":0,"meetings":0,"emails":0,"meriSessions":0,"embedded":1,"failed":0,"failures":0}
+[Nest] 31764  - 10/03/2026, 11:04:59 AM     LOG [MemoryIngestService] backfill tenant=0fdd3ccf-a36a-4609-8c26-3a5b5fb2f088 {"clients":0,"clioMemories":0,"meetings":0,"emails":0,"meriSessions":0,"embedded":1,"failed":0,"failures":0}
+[Nest] 31764  - 10/03/2026, 11:04:59 AM     LOG [MemoryIngestService] backfill tenant=0fdd3ccf-a36a-4609-8c26-3a5b5fb2f088 {"clients":0,"clioMemories":0,"meetings":0,"emails":0,"meriSessions":0,"embedded":1,"failed":0,"failures":0}
+(node:31764) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+[Nest] 31764  - 10/03/2026, 11:04:59 AM     LOG [MemoryPurgeService] memory purge client e4eb2b37-3c07-4fdb-8156-c5fd2dbe04a8 tenant 0fdd3ccf-a36a-4609-8c26-3a5b5fb2f088: {"memoryItems":1,"embeddings":1,"edges":0,"clioMemory":0,"candidates":0,"grants":0} heldBack=0
+[Nest] 31764  - 10/03/2026, 11:05:00 AM     LOG [MemoryIngestService] backfill tenant=0fdd3ccf-a36a-4609-8c26-3a5b5fb2f088 {"clients":0,"clioMemories":0,"meetings":0,"emails":0,"meriSessions":0,"embedded":1,"failed":0,"failures":0}
+[Nest] 31764  - 10/03/2026, 11:05:00 AM     LOG [MemoryIngestService] backfill tenant=0fdd3ccf-a36a-4609-8c26-3a5b5fb2f088 {"clients":0,"clioMemories":0,"meetings":0,"emails":0,"meriSessions":0,"embedded":0,"failed":0,"failures":0}
+PASS src/memory/memory-embedding-lifecycle.postgres.spec.ts (57.148 s)
+  memory backfill lifecycle at the actual PostgreSQL source/write boundary
+    √ already revoked canonical source is not sent to the provider or re-embedded (183 ms)
+    √ revoke committed while the provider is paused cannot recreate a deleted embedding (174 ms)
+    √ eligible canonical source still embeds and a stable second run does not call the provider (145 ms)
+    √ tenant-qualified Phase F never embeds another tenant source (112 ms)
+    √ pre-provider eligibility excludes status='superseded' (108 ms)
+    √ pre-provider eligibility excludes governed_status='revoked' (130 ms)
+    √ pre-provider eligibility excludes governed_status='superseded' (96 ms)
+    √ pre-provider eligibility excludes governed_status='rejected' (100 ms)
+    √ pre-provider eligibility excludes governed_status='expired' (121 ms)
+    √ pre-provider eligibility excludes governed_status='pending_review' (122 ms)
+    √ pre-provider eligibility excludes expires_at=clock_timestamp()-interval '1 second' (119 ms)
+    √ pre-provider eligibility excludes valid_until=clock_timestamp()-interval '1 second' (129 ms)
+    √ pre-provider eligibility excludes conflict_status='open' (116 ms)
+    √ pre-provider eligibility excludes governed_status='conflicted',conflict_status='controlling' (152 ms)
+    √ pre-provider eligibility excludes visibility='user',owner_user_id=NULL (109 ms)
+    √ preserves canonically eligible legal_hold=true (123 ms)
+    √ preserves canonically eligible governed_status='stale' (144 ms)
+    √ preserves canonically eligible governed_status='conflicted',conflict_status='controlling',controlling_item_id=id (218 ms)
+    √ preserves canonically eligible conflict_status='open',controlling_item_id=id (161 ms)
+    √ source change during provider discards stale vector: status='superseded',governed_status='superseded' (174 ms)
+    √ source change during provider discards stale vector: governed_status='revoked' (156 ms)
+    √ source change during provider discards stale vector: expires_at=clock_timestamp()-interval '1 second' (154 ms)
+    √ source change during provider discards stale vector: valid_until=clock_timestamp()-interval '1 second' (152 ms)
+    √ source change during provider discards stale vector: client_id=NULL (129 ms)
+    √ source change during provider discards stale vector: owner_user_id=id (143 ms)
+    √ source change during provider discards stale vector: tenant_id=id (164 ms)
+    √ source change during provider discards stale vector: title='Changed source' (133 ms)
+    √ source change during provider discards stale vector: sections_jsonb='[]'::jsonb (148 ms)
+    √ source change during provider discards stale vector: visibility='user' (182 ms)
+    √ source deleted during provider cannot leave an orphan embedding (147 ms)
+    √ a fresh preflight snapshot cannot certify old caller text (132 ms)
+    √ legacy compatibility permits null only while lifecycle enforcement is off (416 ms)
+    √ legacy compatibility permits pending_review only while lifecycle enforcement is off (203 ms)
+    √ matching-hash scope-only correction still locks the current source and needs no provider (206 ms)
+    √ matching-hash scope-only update is blocked when source authority changes after preflight (188 ms)
+    √ real expiry crossing during the provider call blocks writing without any source update (356 ms)
+    √ the write lock serializes concurrent revoke before its canonical projection deletion (193 ms)
+    √ expiry is rechecked after waiting for a source lock even when xmin did not change (2222 ms)
+    √ compatibility deletion locks the source before its embedding and cannot deadlock the writer (323 ms)
+    √ strict deletion locks the source before its embedding and cannot deadlock the writer (275 ms)
+    √ client purge deletion locks the source before its embedding and cannot deadlock the writer (357 ms)
+    √ scheduled expiry deletion locks the source before its embedding and cannot deadlock the writer (859 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       42 passed, 42 total
+Snapshots:   0 total
+Time:        58.432 s
+Ran all test suites matching /src\\memory\\memory-embedding-lifecycle.postgres.spec.ts/i.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?

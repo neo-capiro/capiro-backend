@@ -1935,6 +1935,22 @@
       "cwFullyAccepted": 0,
       "sourceProvenanceChanged": false,
       "historicalJournalChanged": false
+    },
+    {
+      "date": "2026-10-03T15:38:15.064534+00:00",
+      "kind": "c2_memory_lifecycle_qualified_preview",
+      "sourceSha": "f00e5dfb4fd3e47ac6aa4aca741023cc02f6314f",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:1a4aef121151bb5da7f70417539ece2faff392842809e6b557370c2d6cf8a49d",
+      "evidence": "docs/meri/releases/2026-10-03/c2-memory-lifecycle/README.md",
+      "deployment": "NOT_RUN",
+      "cleanupPreview": "PROJECTION_CLEANUP_PREVIEW_ROLLED_BACK",
+      "committedCorpusMutations": 0,
+      "newProviderCaptures": 0,
+      "original75FullyAccepted": 0,
+      "cdFullyAccepted": 0,
+      "cwFullyAccepted": 0,
+      "sourceProvenanceChanged": false,
+      "historicalJournalChanged": false
     }
   ]
 }

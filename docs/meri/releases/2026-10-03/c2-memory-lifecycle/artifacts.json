@@ -1,0 +1,996 @@
+{
+  "at": "2026-10-03T15:38:15.064534+00:00",
+  "sourceSha": "f00e5dfb4fd3e47ac6aa4aca741023cc02f6314f",
+  "files": [
+    {
+      "path": ".gitattributes",
+      "bytes": 55,
+      "sha256": "be44806039e51069e5e3f4af1799f532e7737f927fbf88bfcaf361406d8f09a4"
+    },
+    {
+      "path": "archive-audit.json",
+      "bytes": 1605,
+      "sha256": "501c94ff496ff9782f306412085973825529186a4020a055f6bc743c7c074c68"
+    },
+    {
+      "path": "builds/api/build-readback.json",
+      "bytes": 3115,
+      "sha256": "91f67c441c70a60bae3c91acfc0595677f3b74e5663dba16e3c5879d0b8c90a8"
+    },
+    {
+      "path": "builds/api/build-start.json",
+      "bytes": 1288,
+      "sha256": "6acee134403682d771f97db579c0a5126a316eec8aa482ce00137dda28f22b65"
+    },
+    {
+      "path": "builds/api/build.log",
+      "bytes": 64181,
+      "sha256": "1f2327f79745b350a0cf56470ce0952c5fc0b5d1bc227b3aaf07be7685f4e9b9"
+    },
+    {
+      "path": "builds/api/buildspec.yml",
+      "bytes": 16117,
+      "sha256": "bb10f18bf3ff2909e08acf9bfe666bca85a45f8af07f41584515656e4bdf4658"
+    },
+    {
+      "path": "builds/meriv2-orchestrator/build-readback.json",
+      "bytes": 3268,
+      "sha256": "94f00182107cdc17f12ef1d3660157146af0f97437a68d3d755ff0364fc7ad3b"
+    },
+    {
+      "path": "builds/meriv2-orchestrator/build-start.json",
+      "bytes": 1304,
+      "sha256": "0df704d42333219e166283020d364c08885673858233149f24d182f3eb60e9a5"
+    },
+    {
+      "path": "builds/meriv2-orchestrator/build.log",
+      "bytes": 761388,
+      "sha256": "292a058f946bd5d04dd896a43e67f07c051d23a6c7c05c168c3614e54675cb58"
+    },
+    {
+      "path": "builds/meriv2-orchestrator/buildspec.yml",
+      "bytes": 13273,
+      "sha256": "13aeb5eb55cca4233a42cb0e73d78c01b843b815af66d17b65adfefb391d8e75"
+    },
+    {
+      "path": "lifecycle/candidate-snapshot-v2.json",
+      "bytes": 4063,
+      "sha256": "37640cf0bccc55ff0e86448268553908746bc09173e54437f1acecfadfdc527c"
+    },
+    {
+      "path": "lifecycle/candidate-snapshot-v3.json",
+      "bytes": 4580,
+      "sha256": "ab06a706ee98bcbed43509cbec216509309b00a6f8916afdb93d37cafe88cebb"
+    },
+    {
+      "path": "lifecycle/candidate-snapshot.json",
+      "bytes": 3289,
+      "sha256": "53694b003fa888882e86581ca21ccb2dd56d9ff7b85aa3ecff05bca808a56599"
+    },
+    {
+      "path": "lifecycle/existing-writers-v1.log",
+      "bytes": 9548,
+      "sha256": "a2208959dc30956ec4c28d9193d00d35540a001c2c317c6d502f4499bd728ab2"
+    },
+    {
+      "path": "lifecycle/existing-writers-v1.receipt.json",
+      "bytes": 233,
+      "sha256": "f213a64f47d6d91613d485ffbbd317e11d190950bf1b6ef7195d72a4ddf18a15"
+    },
+    {
+      "path": "lifecycle/existing-writers-v2.log",
+      "bytes": 6903,
+      "sha256": "9f599df398ce2a44d9a35b2cc1cb68d44133f8dfbcaa6b889c03ce580b063172"
+    },
+    {
+      "path": "lifecycle/existing-writers-v2.receipt.json",
+      "bytes": 552,
+      "sha256": "f4ec135edfad3a2d720b1d70199b33d7be6361d9bc17bfef6c07c92c60f023df"
+    },
+    {
+      "path": "lifecycle/existing-writers-v3.log",
+      "bytes": 8231,
+      "sha256": "21b42c417bc3f1117f63dfb74163940e4afbb9f6310c0fd07a190ec8d3ebd628"
+    },
+    {
+      "path": "lifecycle/existing-writers-v3.receipt.json",
+      "bytes": 592,
+      "sha256": "1b48d90b2dad2056ff840e66f34b5f2b832b29cbca62ee34c24a9d9c7bf27d69"
+    },
+    {
+      "path": "lifecycle/lock-expiry-red-v2.log",
+      "bytes": 5527,
+      "sha256": "573760104b6b7640621ddd253d70d22abf9c9da72dd195ac903bf9e8a554657d"
+    },
+    {
+      "path": "lifecycle/lock-expiry-red-v2.receipt.json",
+      "bytes": 338,
+      "sha256": "d85063442cbcb2e376583ce0b5e600d29772d54312335219437ce1c00df7a81c"
+    },
+    {
+      "path": "lifecycle/pg-after-stop-v2.log",
+      "bytes": 27,
+      "sha256": "00e9e2231199060045479aeef60a466d575acde1f92e0f1567df14db2d3dc4b1"
+    },
+    {
+      "path": "lifecycle/pg-after-stop-v3.log",
+      "bytes": 27,
+      "sha256": "00e9e2231199060045479aeef60a466d575acde1f92e0f1567df14db2d3dc4b1"
+    },
+    {
+      "path": "lifecycle/pg-after-stop.log",
+      "bytes": 27,
+      "sha256": "00e9e2231199060045479aeef60a466d575acde1f92e0f1567df14db2d3dc4b1"
+    },
+    {
+      "path": "lifecycle/pg-prestart-v2.log",
+      "bytes": 27,
+      "sha256": "00e9e2231199060045479aeef60a466d575acde1f92e0f1567df14db2d3dc4b1"
+    },
+    {
+      "path": "lifecycle/pg-prestart-v3.log",
+      "bytes": 27,
+      "sha256": "00e9e2231199060045479aeef60a466d575acde1f92e0f1567df14db2d3dc4b1"
+    },
+    {
+      "path": "lifecycle/pg-prestart.log",
+      "bytes": 27,
+      "sha256": "00e9e2231199060045479aeef60a466d575acde1f92e0f1567df14db2d3dc4b1"
+    },
+    {
+      "path": "lifecycle/pg-start-v2.log",
+      "bytes": 54,
+      "sha256": "46038efb813fbca18a92272496901190638dea3f97b51f7af0daa1ca2eb13818"
+    },
+    {
+      "path": "lifecycle/pg-start-v2.receipt.json",
+      "bytes": 156,
+      "sha256": "7111bbf518871c68f9ed35d2dac8116928fe3d04adba627e16c06f7718f100ab"
+    },
+    {
+      "path": "lifecycle/pg-start-v2.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "lifecycle/pg-start-v3.log",
+      "bytes": 54,
+      "sha256": "46038efb813fbca18a92272496901190638dea3f97b51f7af0daa1ca2eb13818"
+    },
+    {
+      "path": "lifecycle/pg-start-v3.receipt.json",
+      "bytes": 137,
+      "sha256": "34bf1e78056617a37677015546bc673e786d7ef564bf34587412e2b00c52f891"
+    },
+    {
+      "path": "lifecycle/pg-start-v3.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "lifecycle/pg-start.log",
+      "bytes": 54,
+      "sha256": "46038efb813fbca18a92272496901190638dea3f97b51f7af0daa1ca2eb13818"
+    },
+    {
+      "path": "lifecycle/pg-start.receipt.json",
+      "bytes": 136,
+      "sha256": "b65a55e5efc76246da5b6e6f49a86748890c214017a063a30712d594816c4a02"
+    },
+    {
+      "path": "lifecycle/pg-start.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "lifecycle/pg-stop-v2.log",
+      "bytes": 58,
+      "sha256": "3589d2bd01f8295cc7c9ec3f5e07625fcd347ccb6f33f2d80edafe5f5217c1fb"
+    },
+    {
+      "path": "lifecycle/pg-stop-v2.receipt.json",
+      "bytes": 157,
+      "sha256": "8b6cf056c5ef5f8be9322cd2c6d07c1580f09dd473cb6e1e9b5a783c07e00280"
+    },
+    {
+      "path": "lifecycle/pg-stop-v2.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "lifecycle/pg-stop-v3.log",
+      "bytes": 59,
+      "sha256": "3a6747065de8c2dbc66a6baa73d5ab09c2c03eb8851704f973ac4b886e6805f2"
+    },
+    {
+      "path": "lifecycle/pg-stop-v3.receipt.json",
+      "bytes": 157,
+      "sha256": "0470cf7ccf05cdc7e5cc0276084ebb76d264a04811c70022901c9b0ed8aefa20"
+    },
+    {
+      "path": "lifecycle/pg-stop-v3.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "lifecycle/pg-stop.log",
+      "bytes": 58,
+      "sha256": "3589d2bd01f8295cc7c9ec3f5e07625fcd347ccb6f33f2d80edafe5f5217c1fb"
+    },
+    {
+      "path": "lifecycle/pg-stop.receipt.json",
+      "bytes": 185,
+      "sha256": "79358e054b3d35c7b47090595917dd42a1281d2b81034e7e7f2934b9dbf86fd5"
+    },
+    {
+      "path": "lifecycle/pg-stop.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "lifecycle/postgres-expanded-v1.log",
+      "bytes": 15581,
+      "sha256": "1dc39e409e337ec7809394c2dfb505e29b0a83557f85f4a1c3ebaa856e957dd9"
+    },
+    {
+      "path": "lifecycle/postgres-expanded-v1.receipt.json",
+      "bytes": 301,
+      "sha256": "71aa103ffd216bb4901acd130589c89ccbeb83b72205cf96b276563cffb68531"
+    },
+    {
+      "path": "lifecycle/postgres-expanded-v2.log",
+      "bytes": 19616,
+      "sha256": "29960cd72858e1780a0eeb456ebfb5b4838ae1579b768c8942d14a74bc518cd0"
+    },
+    {
+      "path": "lifecycle/postgres-expanded-v2.receipt.json",
+      "bytes": 301,
+      "sha256": "e262ea100e428196fb1080e2ddbe674adbd7a49f525a88aabb9ecc0dcbd9c4bc"
+    },
+    {
+      "path": "lifecycle/postgres-green.log",
+      "bytes": 3957,
+      "sha256": "c82b70a4bb7dd9bc669f691f3798d16c87b6beb86431ddc5a8cc90dda8bc8d4c"
+    },
+    {
+      "path": "lifecycle/postgres-green.receipt.json",
+      "bytes": 301,
+      "sha256": "7c30f0ae1e6af957149fb853f91b0ee38128f31481199a8b0062e0d0ffef90b3"
+    },
+    {
+      "path": "lifecycle/postgres-purge-green-v3.log",
+      "bytes": 14612,
+      "sha256": "51d967b08d1b80f99c4b5965f9e2e60aeae2dfb961c3baa61d140057f407357b"
+    },
+    {
+      "path": "lifecycle/postgres-purge-green-v3.receipt.json",
+      "bytes": 341,
+      "sha256": "89b66b96591b834d55c90c06a5006fb92a1e41502fffb27ab1ab07958cd1168f"
+    },
+    {
+      "path": "lifecycle/postgres-red.log",
+      "bytes": 4377,
+      "sha256": "7fd32fd5fdc3534ead7c7491b29a255b3658ca54845cf0eabc940f0786348181"
+    },
+    {
+      "path": "lifecycle/postgres-red.receipt.json",
+      "bytes": 301,
+      "sha256": "dd161b7093713b7301cd868cd7da179eda576c612aa6e86c8c4098ba67f8c4e3"
+    },
+    {
+      "path": "lifecycle/postgres-v2.log",
+      "bytes": 2471,
+      "sha256": "15dfc60574ec0614421f3cd5d04f2643a629f942479c276d4db248affd10d165"
+    },
+    {
+      "path": "lifecycle/postgres-v3.log",
+      "bytes": 1671,
+      "sha256": "537511dd8d64ae39bcc33f02a298dce6ebb602e36912284e050733c082de7363"
+    },
+    {
+      "path": "lifecycle/postgres.log",
+      "bytes": 1980,
+      "sha256": "2d2fc72e8ac10972d66fd4108eaded6e1307774a1e8b8d7566dea0f27209f640"
+    },
+    {
+      "path": "lifecycle/purge-held-red-v3.log",
+      "bytes": 7041,
+      "sha256": "daab3c6e583d68d3ba91b49659382865858819081441c6c2347439ddbe9f4262"
+    },
+    {
+      "path": "lifecycle/purge-held-red-v3.receipt.json",
+      "bytes": 343,
+      "sha256": "a7d92d9eceb049e257b4174f2e8c93e76ec365ed43591b7def3abc9052eb2c75"
+    },
+    {
+      "path": "lifecycle/review-history.json",
+      "bytes": 2166,
+      "sha256": "cfce5b0d67aa91b56b2bb857b8d4ae56000e71f8efc71ecaae4aa777760219a0"
+    },
+    {
+      "path": "lifecycle/source/apps/api/src/memory/immutable-memory-version.service.spec.ts",
+      "bytes": 11622,
+      "sha256": "290acd9c6ec5074cfcadaf1353b27393e4b785e26afcca0f153c8a6cf517975a"
+    },
+    {
+      "path": "lifecycle/source/apps/api/src/memory/immutable-memory-version.service.ts",
+      "bytes": 49462,
+      "sha256": "1c4a72447ae8b15681c7918de480c7792ef082b83fb8c2fe03c5c6e868a8139c"
+    },
+    {
+      "path": "lifecycle/source/apps/api/src/memory/memory-embedding-lifecycle.postgres.spec.ts",
+      "bytes": 16145,
+      "sha256": "f5db231352530eef373215a8dadb33c4914aa85469ede6bcb48e5835fd9693dd"
+    },
+    {
+      "path": "lifecycle/source/apps/api/src/memory/memory-embedding-lifecycle.ts",
+      "bytes": 2920,
+      "sha256": "b9a914ea75a9734d49fa9088ad991fb57906402131ce2ff4c9f884c65ef113bb"
+    },
+    {
+      "path": "lifecycle/source/apps/api/src/memory/memory-ingest.service.ts",
+      "bytes": 22582,
+      "sha256": "f0f89d26aee31f98c32023d4843a314a229974c38fa066527b69b50da6e6b96b"
+    },
+    {
+      "path": "lifecycle/source/apps/api/src/memory/memory-store.service.ts",
+      "bytes": 54918,
+      "sha256": "12689bf6b538457d46047e22373ef08ae7e6393c940943dc852ce043cc0c2b2f"
+    },
+    {
+      "path": "lifecycle/source/apps/api/src/memory/strict-memory-projector.service.spec.ts",
+      "bytes": 8059,
+      "sha256": "ccda1503b3d8a59eddbc0f39c023cb2804c9e86075052096abfcea8ce7133f37"
+    },
+    {
+      "path": "lifecycle/source/apps/api/src/memory/strict-memory-projector.service.ts",
+      "bytes": 11538,
+      "sha256": "d7fb3bc542a37943f3a5940c4959009542ed4f4e80bb53bf6888a9eec04dab42"
+    },
+    {
+      "path": "lifecycle/source/apps/api/src/memory/synthetic-memory-settlement.spec.ts",
+      "bytes": 7397,
+      "sha256": "1dc29c4065a29004a6bff4c0235c3adc20487e52a84b2e6963c51228fa030561"
+    },
+    {
+      "path": "lifecycle/source-v2/apps/api/scripts/refresh-memory-graph.ts",
+      "bytes": 4780,
+      "sha256": "3297694dbf42d240a077fa38e3b6e374be8c2fa6d61597a05576050cfbc43964"
+    },
+    {
+      "path": "lifecycle/source-v2/apps/api/src/memory/immutable-memory-version.service.spec.ts",
+      "bytes": 11622,
+      "sha256": "290acd9c6ec5074cfcadaf1353b27393e4b785e26afcca0f153c8a6cf517975a"
+    },
+    {
+      "path": "lifecycle/source-v2/apps/api/src/memory/immutable-memory-version.service.ts",
+      "bytes": 49462,
+      "sha256": "1c4a72447ae8b15681c7918de480c7792ef082b83fb8c2fe03c5c6e868a8139c"
+    },
+    {
+      "path": "lifecycle/source-v2/apps/api/src/memory/memory-embedding-lifecycle.postgres.spec.ts",
+      "bytes": 22007,
+      "sha256": "c61ff871de766b2a6aa7ce34f1cf8dd4d4f82a77b2013059e228ce148bfd44bc"
+    },
+    {
+      "path": "lifecycle/source-v2/apps/api/src/memory/memory-embedding-lifecycle.ts",
+      "bytes": 4414,
+      "sha256": "69bfdeb9664b219f80fb890d5ed3e5ce3f03fc552da00c1334c693398c06c83d"
+    },
+    {
+      "path": "lifecycle/source-v2/apps/api/src/memory/memory-ingest.service.ts",
+      "bytes": 22603,
+      "sha256": "4dbf7707b6d89ecb72f231e90dfce05815ba8ffcb304a053d3eb10b378e6c750"
+    },
+    {
+      "path": "lifecycle/source-v2/apps/api/src/memory/memory-purge.service.ts",
+      "bytes": 7826,
+      "sha256": "63e0ca064ab7c92e5a16a6a138215699dee6ae63d0d7545416a8f56ef74cb90d"
+    },
+    {
+      "path": "lifecycle/source-v2/apps/api/src/memory/memory-store.service.ts",
+      "bytes": 54918,
+      "sha256": "12689bf6b538457d46047e22373ef08ae7e6393c940943dc852ce043cc0c2b2f"
+    },
+    {
+      "path": "lifecycle/source-v2/apps/api/src/memory/strict-memory-projector.service.spec.ts",
+      "bytes": 8059,
+      "sha256": "ccda1503b3d8a59eddbc0f39c023cb2804c9e86075052096abfcea8ce7133f37"
+    },
+    {
+      "path": "lifecycle/source-v2/apps/api/src/memory/strict-memory-projector.service.ts",
+      "bytes": 11689,
+      "sha256": "29d580fc0bc8c1a40b08a04a79da5200adca823582e750ad313b7b367693bcf2"
+    },
+    {
+      "path": "lifecycle/source-v2/apps/api/src/memory/synthetic-memory-settlement.spec.ts",
+      "bytes": 7397,
+      "sha256": "1dc29c4065a29004a6bff4c0235c3adc20487e52a84b2e6963c51228fa030561"
+    },
+    {
+      "path": "lifecycle/source-v3/apps/api/scripts/refresh-memory-graph.ts",
+      "bytes": 4780,
+      "sha256": "3297694dbf42d240a077fa38e3b6e374be8c2fa6d61597a05576050cfbc43964"
+    },
+    {
+      "path": "lifecycle/source-v3/apps/api/src/memory/immutable-memory-version.service.spec.ts",
+      "bytes": 11622,
+      "sha256": "290acd9c6ec5074cfcadaf1353b27393e4b785e26afcca0f153c8a6cf517975a"
+    },
+    {
+      "path": "lifecycle/source-v3/apps/api/src/memory/immutable-memory-version.service.ts",
+      "bytes": 49462,
+      "sha256": "1c4a72447ae8b15681c7918de480c7792ef082b83fb8c2fe03c5c6e868a8139c"
+    },
+    {
+      "path": "lifecycle/source-v3/apps/api/src/memory/memory-embedding-lifecycle.postgres.spec.ts",
+      "bytes": 24968,
+      "sha256": "7126af04da64f8adb5e05e19523636033372a8ee74fb5a7f5994e63a7b806597"
+    },
+    {
+      "path": "lifecycle/source-v3/apps/api/src/memory/memory-embedding-lifecycle.ts",
+      "bytes": 4414,
+      "sha256": "69bfdeb9664b219f80fb890d5ed3e5ce3f03fc552da00c1334c693398c06c83d"
+    },
+    {
+      "path": "lifecycle/source-v3/apps/api/src/memory/memory-ingest.service.ts",
+      "bytes": 22603,
+      "sha256": "4dbf7707b6d89ecb72f231e90dfce05815ba8ffcb304a053d3eb10b378e6c750"
+    },
+    {
+      "path": "lifecycle/source-v3/apps/api/src/memory/memory-purge.service.ts",
+      "bytes": 7739,
+      "sha256": "c8a043cf6dd47822a387ff8c24d63c4d762a49751914e42c3416475c72d69926"
+    },
+    {
+      "path": "lifecycle/source-v3/apps/api/src/memory/memory-store.service.ts",
+      "bytes": 54918,
+      "sha256": "12689bf6b538457d46047e22373ef08ae7e6393c940943dc852ce043cc0c2b2f"
+    },
+    {
+      "path": "lifecycle/source-v3/apps/api/src/memory/strict-memory-projector.service.spec.ts",
+      "bytes": 8059,
+      "sha256": "ccda1503b3d8a59eddbc0f39c023cb2804c9e86075052096abfcea8ce7133f37"
+    },
+    {
+      "path": "lifecycle/source-v3/apps/api/src/memory/strict-memory-projector.service.ts",
+      "bytes": 11689,
+      "sha256": "29d580fc0bc8c1a40b08a04a79da5200adca823582e750ad313b7b367693bcf2"
+    },
+    {
+      "path": "lifecycle/source-v3/apps/api/src/memory/synthetic-memory-settlement.spec.ts",
+      "bytes": 7397,
+      "sha256": "1dc29c4065a29004a6bff4c0235c3adc20487e52a84b2e6963c51228fa030561"
+    },
+    {
+      "path": "live-preview/preview-corpus-projections.mjs",
+      "bytes": 8945,
+      "sha256": "bbe5046da3ee68297a9b4290a200492ae33177437053f0111cb09bd0484af7de"
+    },
+    {
+      "path": "live-preview/projection-preview-cleanup.json",
+      "bytes": 331,
+      "sha256": "2203300e82fe91d14a217f8068cebd9b61b06acebf8f49c9e0f2747b6e8d5995"
+    },
+    {
+      "path": "live-preview/projection-preview-definition-binding.json",
+      "bytes": 405,
+      "sha256": "ec044c0d9a4a735d95cc27c582e08ff18abf69a458045b7b6fd2c7de1defad7e"
+    },
+    {
+      "path": "live-preview/projection-preview-durable-launch-intent.json",
+      "bytes": 640,
+      "sha256": "3cf764861dc7167099db3eb0f6936a62a69747b6b96914f3a0abc610c556ae84"
+    },
+    {
+      "path": "live-preview/projection-preview-input.json",
+      "bytes": 451,
+      "sha256": "f47f95ddd2b861d7232cd5dec7670a89401779fad2129365d9fcf95c3a3ca43c"
+    },
+    {
+      "path": "live-preview/projection-preview-result.json",
+      "bytes": 12609,
+      "sha256": "87dbe4b2ebcad805d80a895a562e3b995f9727a13b304c1228f73e8a4117bb2b"
+    },
+    {
+      "path": "live-preview/projection-preview-task-start.json",
+      "bytes": 255,
+      "sha256": "ea3adae10ccf23b0bda6f4230e2ef341755cc17426288a31d619487a5dafa612"
+    },
+    {
+      "path": "live-preview/projection-preview-with-schema.mjs",
+      "bytes": 3878,
+      "sha256": "a9c0bf09d21b7a64fb7cc5e50a3abae4ecd04bc6accc5e2fa41bdefaa5a01dd1"
+    },
+    {
+      "path": "memory-lifecycle-source-files.json",
+      "bytes": 1349,
+      "sha256": "461b9f24111deec2dba8d99532c86f074f123e5f70459ebd0d796a09ca7eaaec"
+    },
+    {
+      "path": "memory-lifecycle-source-integration.json",
+      "bytes": 491,
+      "sha256": "6878a44c36decfcaa7b779bdaaf30fec3918112b860ef763e50fbd05f433b372"
+    },
+    {
+      "path": "operations/apply-memory-refresh-pin.mjs",
+      "bytes": 10783,
+      "sha256": "0b6adecacdc6269070218c5c8732620c0727573a73b2c2d7e530fd25387207dc"
+    },
+    {
+      "path": "operations/aws-single-attempt.mjs",
+      "bytes": 782,
+      "sha256": "86b965a0257fd56e5255e30cdfd6787bef74ba0287d23eecb86fedfae7d6fec0"
+    },
+    {
+      "path": "operations/independent-review.json",
+      "bytes": 2639,
+      "sha256": "21d4d97b32a57ef36ee2de60466cbfc3eefee60ec63f25e521be74bf24dd67f6"
+    },
+    {
+      "path": "operations/memory-refresh-pin-preparer-review.json",
+      "bytes": 978,
+      "sha256": "54a0a7bc97743ea10e40b36a62c075dcf4ce8b00082309e955d5e888d1a223b1"
+    },
+    {
+      "path": "operations/memory-scheduled-writers.json",
+      "bytes": 9524,
+      "sha256": "e8f451f623b90ac25920b81d5bff9a42e9d35b5e168934ca1d5c6ebc441b8fec"
+    },
+    {
+      "path": "operations/prepare-memory-lifecycle-release.mjs",
+      "bytes": 9647,
+      "sha256": "e2e481d6d73a93b26384c95b278397be4a604ae73d580bb48c3bf399c82d00ea"
+    },
+    {
+      "path": "operations/prepare-memory-refresh-pin.mjs",
+      "bytes": 8517,
+      "sha256": "30046b0d42a5ef284327e92b7abc2732b3ded9a7465d85be226af3b7b4f9fb99"
+    },
+    {
+      "path": "prior-budget-readback.json",
+      "bytes": 534,
+      "sha256": "b776d0b3cccf5432ebf0775a2950d150a726719369bbca88c8e93af3941471c5"
+    },
+    {
+      "path": "README.md",
+      "bytes": 5159,
+      "sha256": "c620b1b4d83652e05258cc7049b3473abcfc40d1eb5dbd3a02d0afaa750f31cc"
+    },
+    {
+      "path": "release-independent-review.json",
+      "bytes": 2264,
+      "sha256": "1dd7af0ad1818b479181226e5bee95b2ecda48782367cbee1d3c9b50d123bd28"
+    },
+    {
+      "path": "release-qualification.json",
+      "bytes": 15389,
+      "sha256": "810aace2d5ca3f7d110bd091b05f34a29d5a9a7fa630ff2dc2740d527a99a31b"
+    },
+    {
+      "path": "served-baseline.json",
+      "bytes": 2046,
+      "sha256": "4b6500ce1394ff0d6e60beb3c40d9c5b6ade5a10eb10a4c531e189b437a6ab76"
+    },
+    {
+      "path": "terminal-cleanup/candidate-snapshot.json",
+      "bytes": 3026,
+      "sha256": "b2c48ec981947e57c3381beaf79806bda31cc06507cc0fef98c4e94379295868"
+    },
+    {
+      "path": "terminal-cleanup/cleanup-postgres-v1-postgres.log",
+      "bytes": 1179,
+      "sha256": "eddccd79a249708531552566b341f5fcba1220666cbf234ae6fd1737205a0dba"
+    },
+    {
+      "path": "terminal-cleanup/cleanup-postgres-v1-source-apps_api_src_memory_memory-terminal-cleanup.helpers.ts",
+      "bytes": 3983,
+      "sha256": "f6cba748b438af1041cb3ed3ee4fd9be2cbc6f02e16e5f3840c8e33265a7879a"
+    },
+    {
+      "path": "terminal-cleanup/cleanup-postgres-v1-source-evals_meri_live-v1_fixture-provisioning_case01-memory-projection-cleanup.mjs",
+      "bytes": 7672,
+      "sha256": "2ec440397a373c81cd1632031e56c5cdcfc9a79cd8c53c9788581e4822fa69db"
+    },
+    {
+      "path": "terminal-cleanup/cleanup-postgres-v1-source-evals_meri_live-v1_fixture-provisioning_case01-memory-reconciliation.mjs",
+      "bytes": 8140,
+      "sha256": "33e397fcf2c21685eb9644b99d49d1cd47c72f7b7ab1c78e9d60c1973f05a280"
+    },
+    {
+      "path": "terminal-cleanup/cleanup-postgres-v1-source-evals_meri_live-v1_tests_approved-memory-postgres-harness.mjs",
+      "bytes": 9208,
+      "sha256": "e9423f5e819c33a628c104ef9137c76708aa05ef0b7c5cdb4a42793dd4959c8d"
+    },
+    {
+      "path": "terminal-cleanup/cleanup-postgres-v1-source-evals_meri_live-v1_tests_approved-memory-schema.mjs",
+      "bytes": 6093,
+      "sha256": "07d41fccf6ad21123f29521a7aa0a2816cf6ea4a76e74f8125ff449b828a94ab"
+    },
+    {
+      "path": "terminal-cleanup/cleanup-postgres-v1-source-evals_meri_live-v1_tests_case01-memory-hydration.postgres.test.mjs",
+      "bytes": 19697,
+      "sha256": "62038290ac3c9ed8da1ab096fc8bfffa559dcc48700b44083a9a35608ed6dd9c"
+    },
+    {
+      "path": "terminal-cleanup/cleanup-postgres-v1-source-evals_meri_live-v1_tests_case01-projection-cleanup-exercises.mjs",
+      "bytes": 11973,
+      "sha256": "f4c38988bb9043bddefc022d6e12a3832a37eb10b1c892c5b2df0ac137560a4d"
+    },
+    {
+      "path": "terminal-cleanup/cleanup-postgres-v1-start.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "terminal-cleanup/cleanup-postgres-v1-start.stdout",
+      "bytes": 54,
+      "sha256": "46038efb813fbca18a92272496901190638dea3f97b51f7af0daa1ca2eb13818"
+    },
+    {
+      "path": "terminal-cleanup/cleanup-postgres-v1-status-after.log",
+      "bytes": 27,
+      "sha256": "00e9e2231199060045479aeef60a466d575acde1f92e0f1567df14db2d3dc4b1"
+    },
+    {
+      "path": "terminal-cleanup/cleanup-postgres-v1-status-before.log",
+      "bytes": 27,
+      "sha256": "00e9e2231199060045479aeef60a466d575acde1f92e0f1567df14db2d3dc4b1"
+    },
+    {
+      "path": "terminal-cleanup/cleanup-postgres-v1-stop.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "terminal-cleanup/cleanup-postgres-v1-stop.stdout",
+      "bytes": 58,
+      "sha256": "3589d2bd01f8295cc7c9ec3f5e07625fcd347ccb6f33f2d80edafe5f5217c1fb"
+    },
+    {
+      "path": "terminal-cleanup/cleanup-postgres-v1.json",
+      "bytes": 1673,
+      "sha256": "75428574e8f2c70d331b5259f3287f9f781f7743033440479bed1fdd387e4eb3"
+    },
+    {
+      "path": "terminal-cleanup/cleanup-postgres-v1.log",
+      "bytes": 6126,
+      "sha256": "a4b0542f26f8201bf607606f68fd00fa67723e8087bf69b97aa8c9b1fb2b43c3"
+    },
+    {
+      "path": "terminal-cleanup/cleanup-postgres-v2-postgres.log",
+      "bytes": 2595,
+      "sha256": "5a6dd5923e3e667c129853f8c53da4ae95528cc37ff1e9256b08ada78502edab"
+    },
+    {
+      "path": "terminal-cleanup/cleanup-postgres-v2-source-apps_api_src_memory_memory-terminal-cleanup.helpers.ts",
+      "bytes": 3983,
+      "sha256": "f6cba748b438af1041cb3ed3ee4fd9be2cbc6f02e16e5f3840c8e33265a7879a"
+    },
+    {
+      "path": "terminal-cleanup/cleanup-postgres-v2-source-evals_meri_live-v1_fixture-provisioning_case01-memory-projection-cleanup.mjs",
+      "bytes": 7672,
+      "sha256": "2ec440397a373c81cd1632031e56c5cdcfc9a79cd8c53c9788581e4822fa69db"
+    },
+    {
+      "path": "terminal-cleanup/cleanup-postgres-v2-source-evals_meri_live-v1_fixture-provisioning_case01-memory-reconciliation.mjs",
+      "bytes": 8140,
+      "sha256": "33e397fcf2c21685eb9644b99d49d1cd47c72f7b7ab1c78e9d60c1973f05a280"
+    },
+    {
+      "path": "terminal-cleanup/cleanup-postgres-v2-source-evals_meri_live-v1_tests_approved-memory-postgres-harness.mjs",
+      "bytes": 9208,
+      "sha256": "e9423f5e819c33a628c104ef9137c76708aa05ef0b7c5cdb4a42793dd4959c8d"
+    },
+    {
+      "path": "terminal-cleanup/cleanup-postgres-v2-source-evals_meri_live-v1_tests_approved-memory-schema.mjs",
+      "bytes": 6093,
+      "sha256": "07d41fccf6ad21123f29521a7aa0a2816cf6ea4a76e74f8125ff449b828a94ab"
+    },
+    {
+      "path": "terminal-cleanup/cleanup-postgres-v2-source-evals_meri_live-v1_tests_case01-memory-hydration.postgres.test.mjs",
+      "bytes": 19697,
+      "sha256": "62038290ac3c9ed8da1ab096fc8bfffa559dcc48700b44083a9a35608ed6dd9c"
+    },
+    {
+      "path": "terminal-cleanup/cleanup-postgres-v2-source-evals_meri_live-v1_tests_case01-projection-cleanup-exercises.mjs",
+      "bytes": 11981,
+      "sha256": "6a7a53c9704efdb4df53c5e806400a813ba311acf9bd041d8e8d962dd42cedc0"
+    },
+    {
+      "path": "terminal-cleanup/cleanup-postgres-v2-start.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "terminal-cleanup/cleanup-postgres-v2-start.stdout",
+      "bytes": 54,
+      "sha256": "46038efb813fbca18a92272496901190638dea3f97b51f7af0daa1ca2eb13818"
+    },
+    {
+      "path": "terminal-cleanup/cleanup-postgres-v2-status-after.log",
+      "bytes": 27,
+      "sha256": "00e9e2231199060045479aeef60a466d575acde1f92e0f1567df14db2d3dc4b1"
+    },
+    {
+      "path": "terminal-cleanup/cleanup-postgres-v2-status-before.log",
+      "bytes": 27,
+      "sha256": "00e9e2231199060045479aeef60a466d575acde1f92e0f1567df14db2d3dc4b1"
+    },
+    {
+      "path": "terminal-cleanup/cleanup-postgres-v2-stop.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "terminal-cleanup/cleanup-postgres-v2-stop.stdout",
+      "bytes": 58,
+      "sha256": "3589d2bd01f8295cc7c9ec3f5e07625fcd347ccb6f33f2d80edafe5f5217c1fb"
+    },
+    {
+      "path": "terminal-cleanup/cleanup-postgres-v2.json",
+      "bytes": 1673,
+      "sha256": "18bd1142f002601abf553d28a0ebaf89849b6aff2922e37be9d8b6e7ad8d0d8b"
+    },
+    {
+      "path": "terminal-cleanup/cleanup-postgres-v2.log",
+      "bytes": 7774,
+      "sha256": "5a166614a7222eecc1a0a5f96ccc197f57c233fc49dcf0b2a0bd5db8c7716436"
+    },
+    {
+      "path": "terminal-cleanup/cleanup-postgres-v3-postgres.log",
+      "bytes": 2148,
+      "sha256": "3728885f6a1fc9400b7b7040f2f7775df175be058186cad295bae6adc382d2c0"
+    },
+    {
+      "path": "terminal-cleanup/cleanup-postgres-v3-source-apps_api_src_memory_memory-terminal-cleanup.helpers.ts",
+      "bytes": 3983,
+      "sha256": "f6cba748b438af1041cb3ed3ee4fd9be2cbc6f02e16e5f3840c8e33265a7879a"
+    },
+    {
+      "path": "terminal-cleanup/cleanup-postgres-v3-source-evals_meri_live-v1_fixture-provisioning_case01-memory-projection-cleanup.mjs",
+      "bytes": 7672,
+      "sha256": "2ec440397a373c81cd1632031e56c5cdcfc9a79cd8c53c9788581e4822fa69db"
+    },
+    {
+      "path": "terminal-cleanup/cleanup-postgres-v3-source-evals_meri_live-v1_fixture-provisioning_case01-memory-reconciliation.mjs",
+      "bytes": 8140,
+      "sha256": "33e397fcf2c21685eb9644b99d49d1cd47c72f7b7ab1c78e9d60c1973f05a280"
+    },
+    {
+      "path": "terminal-cleanup/cleanup-postgres-v3-source-evals_meri_live-v1_tests_approved-memory-postgres-harness.mjs",
+      "bytes": 9208,
+      "sha256": "e9423f5e819c33a628c104ef9137c76708aa05ef0b7c5cdb4a42793dd4959c8d"
+    },
+    {
+      "path": "terminal-cleanup/cleanup-postgres-v3-source-evals_meri_live-v1_tests_approved-memory-schema.mjs",
+      "bytes": 6093,
+      "sha256": "07d41fccf6ad21123f29521a7aa0a2816cf6ea4a76e74f8125ff449b828a94ab"
+    },
+    {
+      "path": "terminal-cleanup/cleanup-postgres-v3-source-evals_meri_live-v1_tests_case01-memory-hydration.postgres.test.mjs",
+      "bytes": 19697,
+      "sha256": "62038290ac3c9ed8da1ab096fc8bfffa559dcc48700b44083a9a35608ed6dd9c"
+    },
+    {
+      "path": "terminal-cleanup/cleanup-postgres-v3-source-evals_meri_live-v1_tests_case01-projection-cleanup-exercises.mjs",
+      "bytes": 12016,
+      "sha256": "18595714c745e7b569ee82472e84e058410d3b2ff3af0c83ca1294e83a9d2d81"
+    },
+    {
+      "path": "terminal-cleanup/cleanup-postgres-v3-start.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "terminal-cleanup/cleanup-postgres-v3-start.stdout",
+      "bytes": 54,
+      "sha256": "46038efb813fbca18a92272496901190638dea3f97b51f7af0daa1ca2eb13818"
+    },
+    {
+      "path": "terminal-cleanup/cleanup-postgres-v3-status-after.log",
+      "bytes": 27,
+      "sha256": "00e9e2231199060045479aeef60a466d575acde1f92e0f1567df14db2d3dc4b1"
+    },
+    {
+      "path": "terminal-cleanup/cleanup-postgres-v3-status-before.log",
+      "bytes": 27,
+      "sha256": "00e9e2231199060045479aeef60a466d575acde1f92e0f1567df14db2d3dc4b1"
+    },
+    {
+      "path": "terminal-cleanup/cleanup-postgres-v3-stop.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "terminal-cleanup/cleanup-postgres-v3-stop.stdout",
+      "bytes": 58,
+      "sha256": "3589d2bd01f8295cc7c9ec3f5e07625fcd347ccb6f33f2d80edafe5f5217c1fb"
+    },
+    {
+      "path": "terminal-cleanup/cleanup-postgres-v3.json",
+      "bytes": 1673,
+      "sha256": "49b55d49f18873c4e6e65ef6001d5a51932fcd9748d75fdfa6be3c11c59e0409"
+    },
+    {
+      "path": "terminal-cleanup/cleanup-postgres-v3.log",
+      "bytes": 5894,
+      "sha256": "cb9c28a0ea482795a7a87cf4f73daedd80100eee5019c4f0a5f83fcf50344d34"
+    },
+    {
+      "path": "terminal-cleanup/cleanup-postgres-v4-final-postgres.log",
+      "bytes": 2149,
+      "sha256": "193bd62305447cf41ddcb12e30f353f493c284dfbc351dd83e0c62e84f55973a"
+    },
+    {
+      "path": "terminal-cleanup/cleanup-postgres-v4-final-source-apps_api_src_memory_memory-terminal-cleanup.helpers.ts",
+      "bytes": 3983,
+      "sha256": "f6cba748b438af1041cb3ed3ee4fd9be2cbc6f02e16e5f3840c8e33265a7879a"
+    },
+    {
+      "path": "terminal-cleanup/cleanup-postgres-v4-final-source-evals_meri_live-v1_fixture-provisioning_case01-memory-projection-cleanup.mjs",
+      "bytes": 8616,
+      "sha256": "a7438aac98f7d77d9e4074f3ce81f06d7e63934f48540e21eeba8641b3399e7e"
+    },
+    {
+      "path": "terminal-cleanup/cleanup-postgres-v4-final-source-evals_meri_live-v1_fixture-provisioning_case01-memory-reconciliation.mjs",
+      "bytes": 8995,
+      "sha256": "29a924932e9ed683f6840afc2a8c056497dd6a1c300f850d122f3707544214b8"
+    },
+    {
+      "path": "terminal-cleanup/cleanup-postgres-v4-final-source-evals_meri_live-v1_tests_approved-memory-postgres-harness.mjs",
+      "bytes": 9208,
+      "sha256": "e9423f5e819c33a628c104ef9137c76708aa05ef0b7c5cdb4a42793dd4959c8d"
+    },
+    {
+      "path": "terminal-cleanup/cleanup-postgres-v4-final-source-evals_meri_live-v1_tests_approved-memory-schema.mjs",
+      "bytes": 6093,
+      "sha256": "07d41fccf6ad21123f29521a7aa0a2816cf6ea4a76e74f8125ff449b828a94ab"
+    },
+    {
+      "path": "terminal-cleanup/cleanup-postgres-v4-final-source-evals_meri_live-v1_tests_case01-memory-hydration.postgres.test.mjs",
+      "bytes": 20209,
+      "sha256": "9d1e7c4642b5f7b9e4931e419bb6d7c0ed17ec3ec5f967fcd205d7e0603e3747"
+    },
+    {
+      "path": "terminal-cleanup/cleanup-postgres-v4-final-source-evals_meri_live-v1_tests_case01-projection-cleanup-exercises.mjs",
+      "bytes": 13258,
+      "sha256": "a3bc2e86e6113ee8e0a4f305a1f205525ed74fbf95f9ee328b9dcccc1f476890"
+    },
+    {
+      "path": "terminal-cleanup/cleanup-postgres-v4-final-start.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "terminal-cleanup/cleanup-postgres-v4-final-start.stdout",
+      "bytes": 54,
+      "sha256": "46038efb813fbca18a92272496901190638dea3f97b51f7af0daa1ca2eb13818"
+    },
+    {
+      "path": "terminal-cleanup/cleanup-postgres-v4-final-status-after.log",
+      "bytes": 27,
+      "sha256": "00e9e2231199060045479aeef60a466d575acde1f92e0f1567df14db2d3dc4b1"
+    },
+    {
+      "path": "terminal-cleanup/cleanup-postgres-v4-final-status-before.log",
+      "bytes": 27,
+      "sha256": "00e9e2231199060045479aeef60a466d575acde1f92e0f1567df14db2d3dc4b1"
+    },
+    {
+      "path": "terminal-cleanup/cleanup-postgres-v4-final-stop.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "terminal-cleanup/cleanup-postgres-v4-final-stop.stdout",
+      "bytes": 58,
+      "sha256": "3589d2bd01f8295cc7c9ec3f5e07625fcd347ccb6f33f2d80edafe5f5217c1fb"
+    },
+    {
+      "path": "terminal-cleanup/cleanup-postgres-v4-final.json",
+      "bytes": 1673,
+      "sha256": "32864badfb5934976153e3b6ff9df3ebe506d30f99b5462eadf3ce3919fa2ea5"
+    },
+    {
+      "path": "terminal-cleanup/cleanup-postgres-v4-final.log",
+      "bytes": 5890,
+      "sha256": "4d096a02915a72489888a347e486a1951293dd2090b55c08098ac2490906cc7a"
+    },
+    {
+      "path": "terminal-cleanup/cli-packaging-v1.log",
+      "bytes": 316,
+      "sha256": "8ca262cce914008e0e89716d07b9947ccb56847a90b470b1eece2374798bda89"
+    },
+    {
+      "path": "terminal-cleanup/cli-packaging-v1.receipt.json",
+      "bytes": 296,
+      "sha256": "1fd92427c69fe89572e5803d4609ccce40e1fb385154a0477f597f3f252fbc41"
+    },
+    {
+      "path": "terminal-cleanup/factory-offline-v1.log",
+      "bytes": 489,
+      "sha256": "4ad4ac5d608f648e0479b9b39b135e2293ef724b6966059867c2653bb814e046"
+    },
+    {
+      "path": "terminal-cleanup/factory-offline-v1.receipt.json",
+      "bytes": 309,
+      "sha256": "e0b41409742915e767211df7acf9616c1fc59e99726050513aa269b77cc4fdc5"
+    },
+    {
+      "path": "terminal-cleanup/independent-review.json",
+      "bytes": 1595,
+      "sha256": "5db28273a3cdde7eaeb8e7c14cec499fe6248ff9d78419032f3a7e1b84725608"
+    },
+    {
+      "path": "terminal-cleanup/run-local-tests.ps1",
+      "bytes": 4305,
+      "sha256": "7326e70583e1df4912539b1c33e77f77dd0b5c787afcfc2b9feba64041357d2d"
+    },
+    {
+      "path": "terminal-cleanup/source/apps/api/Dockerfile",
+      "bytes": 12443,
+      "sha256": "839f291b4baa6bc99f77f93d514ffcaeaa273e3586ab5324696dc8ed4024db6a"
+    },
+    {
+      "path": "terminal-cleanup/source/apps/api/scripts/meri-case01-setup-dependencies.mjs",
+      "bytes": 10834,
+      "sha256": "6de3f94669bcacac1c8a79e4ceb34acc5fa5d5359d6c17744b1ba1e10a9c16ec"
+    },
+    {
+      "path": "terminal-cleanup/source/apps/api/scripts/meri-synthetic-read-budget.mjs",
+      "bytes": 7108,
+      "sha256": "2ea622a02f8981d19e46938fb5035dbecbfd7fb07110dbb0d3bedd3c6d1e19cb"
+    },
+    {
+      "path": "terminal-cleanup/source/apps/api/scripts/meri-synthetic-read-budget.test.mjs",
+      "bytes": 4614,
+      "sha256": "2341371739072c28f6636ed67ab73adb5af2e7d06cfc85be48f261a2f7acdfb6"
+    },
+    {
+      "path": "terminal-cleanup/source/apps/api/src/memory/exact-memory-projection-worker.service.ts",
+      "bytes": 11294,
+      "sha256": "1bdab427477b00a6ba73aad6bc274c4f1ecba460a62666ffe3c1cca8ec4d7f9a"
+    },
+    {
+      "path": "terminal-cleanup/source/apps/api/src/memory/memory-terminal-cleanup.helpers.ts",
+      "bytes": 3983,
+      "sha256": "f6cba748b438af1041cb3ed3ee4fd9be2cbc6f02e16e5f3840c8e33265a7879a"
+    },
+    {
+      "path": "terminal-cleanup/source/evals/meri/live-v1/fixture-provisioning/case01-memory-owner.mjs",
+      "bytes": 9821,
+      "sha256": "1dc0a488c08341073d6b5506d3c3ffa559d1bd42e6f30127743b14f0a55b1de3"
+    },
+    {
+      "path": "terminal-cleanup/source/evals/meri/live-v1/fixture-provisioning/case01-memory-projection-cleanup.mjs",
+      "bytes": 8616,
+      "sha256": "a7438aac98f7d77d9e4074f3ce81f06d7e63934f48540e21eeba8641b3399e7e"
+    },
+    {
+      "path": "terminal-cleanup/source/evals/meri/live-v1/fixture-provisioning/case01-memory-reconciliation.mjs",
+      "bytes": 8995,
+      "sha256": "29a924932e9ed683f6840afc2a8c056497dd6a1c300f850d122f3707544214b8"
+    },
+    {
+      "path": "terminal-cleanup/source/evals/meri/live-v1/tests/case01-memory-hydration.postgres.test.mjs",
+      "bytes": 20209,
+      "sha256": "9d1e7c4642b5f7b9e4931e419bb6d7c0ed17ec3ec5f967fcd205d7e0603e3747"
+    },
+    {
+      "path": "terminal-cleanup/source/evals/meri/live-v1/tests/case01-projection-cleanup-exercises.mjs",
+      "bytes": 13258,
+      "sha256": "a3bc2e86e6113ee8e0a4f305a1f205525ed74fbf95f9ee328b9dcccc1f476890"
+    },
+    {
+      "path": "terminal-cleanup/worker-jest-v1.log",
+      "bytes": 4435,
+      "sha256": "7863f971d376fb8547e830cd6c0f4257407b57bf813969c3e901e39b2e4e869d"
+    },
+    {
+      "path": "terminal-cleanup/worker-jest-v1.receipt.json",
+      "bytes": 270,
+      "sha256": "40294d134f5ed849db9164ea1cc31ddfa49c4f6e2b794d6cc56ba7bbbadcb75e"
+    }
+  ]
+}

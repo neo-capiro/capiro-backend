@@ -1,0 +1,23 @@
+{
+  "reviewer": "/root/mail_defaults_review",
+  "result": "PASS",
+  "candidateSnapshotSha256": "b2c48ec981947e57c3381beaf79806bda31cc06507cc0fef98c4e94379295868",
+  "filesVerified": 11,
+  "findings": [],
+  "verifiedBoundaries": [
+    "Six original terminal obligations derived from authenticated two-manifest lineage",
+    "Exact tenant, item, operation, key, Clio, xmin, attempt, due and lease fences",
+    "Claim, projection deletion, full verification, completion and audit use the same transaction",
+    "Present revoked Clio source refuses before deletion; superseded Clio sources retained",
+    "Nested metadata preview rolls back and identical source rows/candidates/audits/xmin are verified",
+    "No reset, reapproval, global drain, capture or provider authority"
+  ],
+  "tests": {
+    "postgres": {"passed":19,"failed":0,"skipped":0,"receipt":"cleanup-postgres-v4-final.json","receiptSha256":"32864badfb5934976153e3b6ff9df3ebe506d30f99b5462eadf3ce3919fa2ea5","logSha256":"4d096a02915a72489888a347e486a1951293dd2090b55c08098ac2490906cc7a"},
+    "existingWorkerForwardBehavior": {"passed":5,"failed":0,"skipped":0},
+    "cliAndPackaging": {"passed":2,"failed":0,"skipped":0},
+    "offlineFactory": {"passed":2,"failed":0,"skipped":0}
+  },
+  "limits": ["Reviewer inspected evidence, not an independent rerun", "Simplified local DDL does not prove production RLS", "CLI fsync/unknown-commit behavior source-reviewed, not crash-injection tested", "Old scheduled producer must be controlled before durable cleanup", "No live operation or human release approval"],
+  "humanApproval": false
+}

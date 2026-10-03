@@ -1,0 +1,6 @@
+{
+  "command": "node --test --test-name-pattern=refuses namespace|constructs actual production apps/api/scripts/meri-case01-setup-dependencies.test.mjs",
+  "exitCode": 0,
+  "logSha256": "4ad4ac5d608f648e0479b9b39b135e2293ef724b6966059867c2653bb814e046",
+  "recordedAt": "2026-10-03T15:07:20.4562612Z"
+}

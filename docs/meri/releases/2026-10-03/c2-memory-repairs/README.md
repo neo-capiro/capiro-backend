@@ -20,7 +20,7 @@ The [fixed PostgreSQL run](projection-postgres-fixed-v1.log) passes10/10: active
 
 No C2 provider turn has been admitted. [Preserved spend readback](prior-budget-readback.json) shows9,841,281micros settled from the prior fresh five-case run,20,158,719micros remaining under its30,000,000micros cap; this is not all historical spending or a new budget. Original fixture identities, approvals, responses and unknown-spend history remain intact.
 
-Next: qualify and review exact images; promote through the existing release owner; reconcile only verified projection metadata; complete authenticated case02 and frozen semantic-clock admission before original benchmark captures. Continue the full authorized C2 memory/approval/artifact/CD scope. Original PASS0/75, CD0/7 andCW0/8 remain unchanged; no File02 readiness is claimed.
+Next: finish and independently review the lifecycle guard and exact existing-job cleanup, qualify their API/nightly image, and pass a rollback-only corpus preview before preparing release. Then complete authenticated case02 and frozen semantic-clock admission before original benchmark captures. Continue the full authorized C2 memory/approval/artifact/CD scope. Original PASS0/75, CD0/7 andCW0/8 remain unchanged; no File02 readiness is claimed.
 
 ## Earlier image qualification
 

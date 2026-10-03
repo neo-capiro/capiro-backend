@@ -1,0 +1,69 @@
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+[Nest] 45516  - 10/03/2026, 11:00:30 AM     LOG [MemoryIngestService] backfill tenant=85078513-4ce9-4af8-b759-00d335efb5b6 {"clients":0,"clioMemories":0,"meetings":0,"emails":0,"meriSessions":0,"embedded":1,"failed":0,"failures":0}
+FAIL src/memory/memory-embedding-lifecycle.postgres.spec.ts (38.266 s)
+  memory backfill lifecycle at the actual PostgreSQL source/write boundary
+    × expiry is rechecked after waiting for a source lock even when xmin did not change (2146 ms)
+    ○ skipped already revoked canonical source is not sent to the provider or re-embedded
+    ○ skipped revoke committed while the provider is paused cannot recreate a deleted embedding
+    ○ skipped eligible canonical source still embeds and a stable second run does not call the provider
+    ○ skipped tenant-qualified Phase F never embeds another tenant source
+    ○ skipped pre-provider eligibility excludes status='superseded'
+    ○ skipped pre-provider eligibility excludes governed_status='revoked'
+    ○ skipped pre-provider eligibility excludes governed_status='superseded'
+    ○ skipped pre-provider eligibility excludes governed_status='rejected'
+    ○ skipped pre-provider eligibility excludes governed_status='expired'
+    ○ skipped pre-provider eligibility excludes governed_status='pending_review'
+    ○ skipped pre-provider eligibility excludes expires_at=clock_timestamp()-interval '1 second'
+    ○ skipped pre-provider eligibility excludes valid_until=clock_timestamp()-interval '1 second'
+    ○ skipped pre-provider eligibility excludes conflict_status='open'
+    ○ skipped pre-provider eligibility excludes governed_status='conflicted',conflict_status='controlling'
+    ○ skipped pre-provider eligibility excludes visibility='user',owner_user_id=NULL
+    ○ skipped preserves canonically eligible legal_hold=true
+    ○ skipped preserves canonically eligible governed_status='stale'
+    ○ skipped preserves canonically eligible governed_status='conflicted',conflict_status='controlling',controlling_item_id=id
+    ○ skipped preserves canonically eligible conflict_status='open',controlling_item_id=id
+    ○ skipped source change during provider discards stale vector: status='superseded',governed_status='superseded'
+    ○ skipped source change during provider discards stale vector: governed_status='revoked'
+    ○ skipped source change during provider discards stale vector: expires_at=clock_timestamp()-interval '1 second'
+    ○ skipped source change during provider discards stale vector: valid_until=clock_timestamp()-interval '1 second'
+    ○ skipped source change during provider discards stale vector: client_id=NULL
+    ○ skipped source change during provider discards stale vector: owner_user_id=id
+    ○ skipped source change during provider discards stale vector: tenant_id=id
+    ○ skipped source change during provider discards stale vector: title='Changed source'
+    ○ skipped source change during provider discards stale vector: sections_jsonb='[]'::jsonb
+    ○ skipped source change during provider discards stale vector: visibility='user'
+    ○ skipped source deleted during provider cannot leave an orphan embedding
+    ○ skipped a fresh preflight snapshot cannot certify old caller text
+    ○ skipped legacy compatibility permits null only while lifecycle enforcement is off
+    ○ skipped legacy compatibility permits pending_review only while lifecycle enforcement is off
+    ○ skipped matching-hash scope-only correction still locks the current source and needs no provider
+    ○ skipped matching-hash scope-only update is blocked when source authority changes after preflight
+    ○ skipped real expiry crossing during the provider call blocks writing without any source update
+    ○ skipped the write lock serializes concurrent revoke before its canonical projection deletion
+
+  ● memory backfill lifecycle at the actual PostgreSQL source/write boundary › expiry is rechecked after waiting for a source lock even when xmin did not change
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 0
+    Received: 1
+
+      393 |       expect(embed).toHaveBeenCalledTimes(1);
+      394 |       expect(result.failed).toBe(0);
+    > 395 |       expect(result.embedded).toBe(0);
+          |                               ^
+      396 |       expect(await embeddings()).toBe(0);
+      397 |     } finally {
+      398 |       await mutation.query('ROLLBACK');
+
+      at Object.<anonymous> (src/memory/memory-embedding-lifecycle.postgres.spec.ts:395:31)
+
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 37 skipped, 38 total
+Snapshots:   0 total
+Time:        38.587 s
+Ran all test suites matching /src\\memory\\memory-embedding-lifecycle.postgres.spec.ts/i with tests matching "expiry is rechecked after waiting".
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?
+undefined
+C:\dev\main\meri-c1-20261002\apps\api:
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command "jest" not found

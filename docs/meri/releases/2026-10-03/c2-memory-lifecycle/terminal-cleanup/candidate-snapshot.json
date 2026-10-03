@@ -1,0 +1,76 @@
+{
+  "version": 1,
+  "stage": "CANDIDATE_FROZEN_FOR_REVIEW",
+  "gitHead": "e3a32c4e6fe802cd7bd505bbcc658745c87f30ab",
+  "recordedAt": "2026-10-03T15:00:21.8182068Z",
+  "files": [
+    {
+      "sha256": "839f291b4baa6bc99f77f93d514ffcaeaa273e3586ab5324696dc8ed4024db6a",
+      "path": "apps/api/Dockerfile",
+      "bytes": 12443
+    },
+    {
+      "sha256": "6de3f94669bcacac1c8a79e4ceb34acc5fa5d5359d6c17744b1ba1e10a9c16ec",
+      "path": "apps/api/scripts/meri-case01-setup-dependencies.mjs",
+      "bytes": 10834
+    },
+    {
+      "sha256": "2ea622a02f8981d19e46938fb5035dbecbfd7fb07110dbb0d3bedd3c6d1e19cb",
+      "path": "apps/api/scripts/meri-synthetic-read-budget.mjs",
+      "bytes": 7108
+    },
+    {
+      "sha256": "2341371739072c28f6636ed67ab73adb5af2e7d06cfc85be48f261a2f7acdfb6",
+      "path": "apps/api/scripts/meri-synthetic-read-budget.test.mjs",
+      "bytes": 4614
+    },
+    {
+      "sha256": "1bdab427477b00a6ba73aad6bc274c4f1ecba460a62666ffe3c1cca8ec4d7f9a",
+      "path": "apps/api/src/memory/exact-memory-projection-worker.service.ts",
+      "bytes": 11294
+    },
+    {
+      "sha256": "f6cba748b438af1041cb3ed3ee4fd9be2cbc6f02e16e5f3840c8e33265a7879a",
+      "path": "apps/api/src/memory/memory-terminal-cleanup.helpers.ts",
+      "bytes": 3983
+    },
+    {
+      "sha256": "1dc0a488c08341073d6b5506d3c3ffa559d1bd42e6f30127743b14f0a55b1de3",
+      "path": "evals/meri/live-v1/fixture-provisioning/case01-memory-owner.mjs",
+      "bytes": 9821
+    },
+    {
+      "sha256": "29a924932e9ed683f6840afc2a8c056497dd6a1c300f850d122f3707544214b8",
+      "path": "evals/meri/live-v1/fixture-provisioning/case01-memory-reconciliation.mjs",
+      "bytes": 8995
+    },
+    {
+      "sha256": "a7438aac98f7d77d9e4074f3ce81f06d7e63934f48540e21eeba8641b3399e7e",
+      "path": "evals/meri/live-v1/fixture-provisioning/case01-memory-projection-cleanup.mjs",
+      "bytes": 8616
+    },
+    {
+      "sha256": "9d1e7c4642b5f7b9e4931e419bb6d7c0ed17ec3ec5f967fcd205d7e0603e3747",
+      "path": "evals/meri/live-v1/tests/case01-memory-hydration.postgres.test.mjs",
+      "bytes": 20209
+    },
+    {
+      "sha256": "a3bc2e86e6113ee8e0a4f305a1f205525ed74fbf95f9ee328b9dcccc1f476890",
+      "path": "evals/meri/live-v1/tests/case01-projection-cleanup-exercises.mjs",
+      "bytes": 13258
+    }
+  ],
+  "tests": {
+    "worker": "5/5,0skip; worker-jest-v1.receipt.json",
+    "postgres": "19/19,0skip; cleanup-postgres-v3.json (source then formatted only)",
+    "cliPackaging": "cli-packaging-v1.receipt.json"
+  },
+  "limits": [
+    "Owned isolated PostgreSQL16 simplified DDL; no production RLS or external provider",
+    "Original terminal jobs only, no lifecycle replay, no caller-selected rows",
+    "Preview and failed verification/audit rollback all source, projection and job changes",
+    "Conditional metadata preview is rolled back; cleanup alone grants no corpus readiness/capture/provider authority"
+  ],
+  "remoteActions": 0,
+  "commits": 0
+}

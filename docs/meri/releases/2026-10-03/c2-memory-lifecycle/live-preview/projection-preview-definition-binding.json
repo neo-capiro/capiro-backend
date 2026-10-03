@@ -1,0 +1,7 @@
+{
+  "at": "2026-10-03T15:33:51.137Z",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-c2-projections-20261003:1",
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:1a4aef121151bb5da7f70417539ece2faff392842809e6b557370c2d6cf8a49d",
+  "sourceSha": "f00e5dfb4fd3e47ac6aa4aca741023cc02f6314f",
+  "operation": "preview-corpus-projections"
+}

@@ -1,0 +1,5 @@
+{
+  "recordedAt": "2026-10-03T13:37:54.7931767Z",
+  "exitCode": 1,
+  "command": "NODE_OPTIONS=--max-old-space-size=8192 pnpm --filter @capiro/api exec jest --runInBand --forceExit <8 existing affected writer/embedder suites>"
+}

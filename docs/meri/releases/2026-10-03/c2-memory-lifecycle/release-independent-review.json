@@ -1,0 +1,53 @@
+{
+  "result": "PASS",
+  "reviewer": "/root/mail_defaults_review",
+  "humanReleaseApproval": false,
+  "recordSource": "Root-authored record of independent source/build/preview review messages; reviewer did not edit, rerun, or call remote services.",
+  "sourceSha": "f00e5dfb4fd3e47ac6aa4aca741023cc02f6314f",
+  "reviewedSourceFiles": 22,
+  "excluded": "Ongoing semantic-clock work",
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:1a4aef121151bb5da7f70417539ece2faff392842809e6b557370c2d6cf8a49d",
+  "build": {
+    "status": "PASS",
+    "buildspecSha256": "bb10f18bf3ff2909e08acf9bfe666bca85a45f8af07f41584515656e4bdf4658",
+    "buildLogSha256": "1f2327f79745b350a0cf56470ce0952c5fc0b5d1bc227b3aaf07be7685f4e9b9",
+    "markersVerifiedExactlyOnce": 8,
+    "architecture": "arm64",
+    "node": "22.23.3",
+    "packagedTsSourceAndCompiledOwners": "PASS"
+  },
+  "preview": {
+    "status": "PROJECTION_CLEANUP_PREVIEW_ROLLED_BACK",
+    "exitCode": 0,
+    "planSha256": "1d62f1ea74b5150929c46babcde5e1f79b4a28d1de2721f7e4d91ca6fffbfb3e",
+    "originalJobs": 6,
+    "tentativeEmbeddingDeletes": 6,
+    "clioDeletes": 0,
+    "requiresMetadataReconciliation": true,
+    "auditId": null,
+    "captureAuthority": false,
+    "providerAuthority": false,
+    "liveAcceptance": "NOT_RUN",
+    "receiptSha256": "87dbe4b2ebcad805d80a895a562e3b995f9727a13b304c1228f73e8a4117bb2b",
+    "cleanupSha256": "2203300e82fe91d14a217f8068cebd9b61b06acebf8f49c9e0f2747b6e8d5995",
+    "taskStopped": true,
+    "taskDefinitionInactive": true
+  },
+  "schema": {
+    "status": "VERIFIED_READ_ONLY",
+    "ledgerRows": 609,
+    "finished": 509,
+    "rolledBack": 100,
+    "prior608HashVerified": true,
+    "exact452ChecksumAndImageMigrationPackage": true,
+    "readyIndexDefinitionHashesVerified": 2,
+    "retiredTablesAbsent": true
+  },
+  "findings": [],
+  "limits": [
+    "Build markers are packaged smoke checks, not reruns of local PostgreSQL/Jest suites.",
+    "Preview proves this exact owner on live schema, not committed corpus readiness or ordinary-user acceptance.",
+    "Guarded service/nightly deployment, fresh bounded execution and current corpus readback remain pending.",
+    "Human release attestation and human answer grading remain separate."
+  ]
+}

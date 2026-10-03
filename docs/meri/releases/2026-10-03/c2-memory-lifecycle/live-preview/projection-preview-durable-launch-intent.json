@@ -1,0 +1,12 @@
+{
+  "at": "2026-10-03T15:33:51.143Z",
+  "status": "DISPATCH_ATTEMPT_AUTHORIZED",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-c2-projections-20261003:1",
+  "startedBy": "meri-c2-preview-334ab11d-03dd-4338-",
+  "clientToken": "36232bb3-6903-4ae1-a751-3177d8e9be8c",
+  "inputSha256": "134b53b04de7f656da3bf3045f7f1feb99bfa629852d873cc87c35ce41f27d7c",
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:1a4aef121151bb5da7f70417539ece2faff392842809e6b557370c2d6cf8a49d",
+  "operation": "preview-corpus-projections",
+  "databaseCommit": false,
+  "noAutomaticRetry": true
+}

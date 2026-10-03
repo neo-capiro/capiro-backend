@@ -1,0 +1,51 @@
+{
+  "result": "PASS",
+  "reviewer": "/root/mail_defaults_review",
+  "humanReleaseApproval": false,
+  "source": "Root-authored record of independent static review messages; no reviewer execution or remote calls.",
+  "files": [
+    {
+      "path": "prepare-memory-lifecycle-release.mjs",
+      "sha256": "e2e481d6d73a93b26384c95b278397be4a604ae73d580bb48c3bf399c82d00ea"
+    },
+    {
+      "path": "apply-memory-refresh-pin.mjs",
+      "sha256": "0b6adecacdc6269070218c5c8732620c0727573a73b2c2d7e530fd25387207dc"
+    },
+    {
+      "path": "aws-single-attempt.mjs",
+      "sha256": "86b965a0257fd56e5255e30cdfd6787bef74ba0287d23eecb86fedfae7d6fec0"
+    }
+  ],
+  "findingsResolved": [
+    {
+      "priority": "P2",
+      "finding": "Ambient AWS CLI retries can repeat an uncertain mutation before caller reconciliation.",
+      "resolution": "Each mutation explicitly uses AWS_MAX_ATTEMPTS=1 and AWS_RETRY_MODE=standard."
+    },
+    {
+      "finding": "Check expiry immediately before registration as well as target update.",
+      "resolution": "Both mutation boundaries recheck packet and manifest expiry."
+    },
+    {
+      "finding": "Unsigned preparer imported imageFor, which the production policy module does not export. Root found this after the initial static PASS.",
+      "resolution": "Removed the nonexistent import and defined the exact local repository/digest helper; production named imports checked by Node. Independent reviewer acknowledged and verified the correction."
+    }
+  ],
+  "verified": [
+    "Unsigned packet has no fabricated human qualification or AWS writes",
+    "Versioned evidence, exact source/ECR identities, healthy baselines and rollback digests",
+    "Only the one existing nightly target and reviewed task image/release identities may change",
+    "Rule/schedule/command/roles/network/secret references/tags preserved",
+    "Complete RUNNING and STOPPED task reconciliation with active nightly owners refused",
+    "Separate projection worker remains disabled and unchanged",
+    "Fsynced intent before mutations; no automatic application retry; unknown-response readback"
+  ],
+  "limits": [
+    "Static review and local syntax/import checks; not remote execution or fault injection",
+    "ECS desired-RUNNING service snapshot does not establish that all old actual writers stopped",
+    "Require a separate actual-STOPPED old-API-writer check and repeat nightly-owner reconciliation before durable cleanup",
+    "Exclusive change window remains required; EventBridge target update has no compare-and-swap",
+    "Human release attestation and exact bounded maintenance execution remain pending"
+  ]
+}

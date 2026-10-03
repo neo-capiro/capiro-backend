@@ -1,0 +1,5 @@
+{
+  "exitCode": 0,
+  "recordedAt": "2026-10-03T15:05:02.5185892Z",
+  "command": "NODE_OPTIONS=--max-old-space-size=8192 MERI_APPROVED_MEMORY_PG_CONFIG=<exact-owned-local-config> pnpm --filter @capiro/api exec jest --runInBand --forceExit src/memory/memory-embedding-lifecycle.postgres.spec.ts"
+}

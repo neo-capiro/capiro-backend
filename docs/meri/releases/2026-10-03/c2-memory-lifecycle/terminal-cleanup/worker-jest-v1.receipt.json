@@ -1,0 +1,6 @@
+{
+  "command": "pnpm exec jest --runInBand --forceExit src/memory/exact-memory-projection-worker.service.spec.ts",
+  "exitCode": 0,
+  "logSha256": "7863f971d376fb8547e830cd6c0f4257407b57bf813969c3e901e39b2e4e869d",
+  "recordedAt": "2026-10-03T14:58:37.6284104Z"
+}

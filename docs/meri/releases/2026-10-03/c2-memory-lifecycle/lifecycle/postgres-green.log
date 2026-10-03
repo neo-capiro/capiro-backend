@@ -1,0 +1,23 @@
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+[Nest] 44524  - 10/03/2026, 9:35:46 AM     LOG [MemoryIngestService] backfill tenant=c2fcbcbb-3c4f-4d4a-878e-9ed1e327f401 {"clients":0,"clioMemories":0,"meetings":0,"emails":0,"meriSessions":0,"embedded":0,"failed":0,"failures":0}
+[Nest] 44524  - 10/03/2026, 9:35:46 AM     LOG [MemoryIngestService] backfill tenant=c2fcbcbb-3c4f-4d4a-878e-9ed1e327f401 {"clients":0,"clioMemories":0,"meetings":0,"emails":0,"meriSessions":0,"embedded":0,"failed":0,"failures":0}
+[Nest] 44524  - 10/03/2026, 9:35:46 AM     LOG [MemoryIngestService] backfill tenant=c2fcbcbb-3c4f-4d4a-878e-9ed1e327f401 {"clients":0,"clioMemories":0,"meetings":0,"emails":0,"meriSessions":0,"embedded":1,"failed":0,"failures":0}
+[Nest] 44524  - 10/03/2026, 9:35:46 AM     LOG [MemoryIngestService] backfill tenant=c2fcbcbb-3c4f-4d4a-878e-9ed1e327f401 {"clients":0,"clioMemories":0,"meetings":0,"emails":0,"meriSessions":0,"embedded":0,"failed":0,"failures":0}
+[Nest] 44524  - 10/03/2026, 9:35:46 AM     LOG [MemoryIngestService] backfill tenant=c2fcbcbb-3c4f-4d4a-878e-9ed1e327f401 {"clients":0,"clioMemories":0,"meetings":0,"emails":0,"meriSessions":0,"embedded":0,"failed":0,"failures":0}
+PASS src/memory/memory-embedding-lifecycle.postgres.spec.ts (16.367 s)
+  memory backfill lifecycle at the actual PostgreSQL source/write boundary
+    √ already revoked canonical source is not sent to the provider or re-embedded (38 ms)
+    √ revoke committed while the provider is paused cannot recreate a deleted embedding (32 ms)
+    √ eligible canonical source still embeds and a stable second run does not call the provider (28 ms)
+    √ tenant-qualified Phase F never embeds another tenant source (22 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       4 passed, 4 total
+Snapshots:   0 total
+Time:        16.597 s, estimated 21 s
+Ran all test suites matching /src\\memory\\memory-embedding-lifecycle.postgres.spec.ts/i.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?

@@ -1,0 +1,19 @@
+2026-10-03 11:10:51.037 EDT [44408] LOG:  starting PostgreSQL 16.15, compiled by Visual C++ build 1944, 64-bit
+2026-10-03 11:10:51.039 EDT [44408] LOG:  listening on IPv4 address "127.0.0.1", port 55433
+2026-10-03 11:10:51.252 EDT [44636] LOG:  database system was shut down at 2026-10-03 11:10:20 EDT
+2026-10-03 11:10:51.378 EDT [44408] LOG:  database system is ready to accept connections
+2026-10-03 11:11:19.211 EDT [41148] ERROR:  controlled local cleanup audit failure
+2026-10-03 11:11:19.211 EDT [41148] CONTEXT:  PL/pgSQL function refuse_cleanup_audit() line 2 at RAISE
+2026-10-03 11:11:19.211 EDT [41148] STATEMENT:  INSERT INTO audit_logs(id,tenant_id,actor_user_id,actor_role,action,entity_type,entity_id,before_jsonb,after_jsonb)
+	        VALUES($1::uuid,$2::uuid,$3::uuid,$4,'synthetic_memory_projections_cleaned','case01_memory_corpus',$5,$6::jsonb,$7::jsonb)
+2026-10-03 11:11:31.610 EDT [41148] ERROR:  controlled local audit insert failure
+2026-10-03 11:11:31.610 EDT [41148] CONTEXT:  PL/pgSQL function refuse_reconciliation_audit() line 2 at RAISE
+2026-10-03 11:11:31.610 EDT [41148] STATEMENT:  INSERT INTO audit_logs(id,tenant_id,actor_user_id,actor_role,action,entity_type,entity_id,before_jsonb,after_jsonb)
+	        VALUES($1::uuid,$2::uuid,$3::uuid,$4,'synthetic_memory_metadata_reconciled','case01_memory_corpus',$5,$6::jsonb,$7::jsonb)
+2026-10-03 11:11:42.326 EDT [44408] LOG:  received fast shutdown request
+2026-10-03 11:11:42.328 EDT [44408] LOG:  aborting any active transactions
+2026-10-03 11:11:42.338 EDT [44408] LOG:  background worker "logical replication launcher" (PID 16744) exited with exit code 1
+2026-10-03 11:11:42.339 EDT [46000] LOG:  shutting down
+2026-10-03 11:11:42.341 EDT [46000] LOG:  checkpoint starting: shutdown immediate
+2026-10-03 11:11:42.733 EDT [46000] LOG:  checkpoint complete: wrote 156 buffers (1.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.065 s, sync=0.255 s, total=0.395 s; sync files=227, longest=0.006 s, average=0.002 s; distance=1583 kB, estimate=1583 kB; lsn=1/9C5C560, redo lsn=1/9C5C560
+2026-10-03 11:11:42.895 EDT [44408] LOG:  database system is shut down

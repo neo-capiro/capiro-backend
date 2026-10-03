@@ -1,0 +1,267 @@
+{
+  "at": "2026-10-03T15:35:31.056Z",
+  "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/213bbbc9a0284de1a62233eceac6730a",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-c2-projections-20261003:1",
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:1a4aef121151bb5da7f70417539ece2faff392842809e6b557370c2d6cf8a49d",
+  "sourceSha": "f00e5dfb4fd3e47ac6aa4aca741023cc02f6314f",
+  "observedDigest": "sha256:1a4aef121151bb5da7f70417539ece2faff392842809e6b557370c2d6cf8a49d",
+  "exitCode": 0,
+  "stoppedAt": "2026-10-03T11:35:25.120000-04:00",
+  "receipts": [
+    {
+      "status": "PROJECTION_CLEANUP_PREVIEW_ROLLED_BACK",
+      "plan": {
+        "kind": "case01-exact-terminal-projection-cleanup",
+        "version": 1,
+        "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+        "actorUserId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+        "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+        "previousFixtureInstanceId": "84a3a6a1-ddc8-4810-b120-9a5df0cf1ed9",
+        "currentFixtureInstanceId": "f6164496-9dac-4771-980f-2f362081942e",
+        "tenantSha256": "b16310348bdf7acaab65f653e378ba17ac67bf35fd8ed237c8e02b01560cb2a6",
+        "canonicalBeforeSha256": "78266760453333ec6f2e070420239d2ea540149a319201068b8cd61be759f7d0",
+        "projectionBeforeSha256": "605f6be240dd88092bc32c9f07ae594572c65afee27b7423901147096e9e2023",
+        "clioBeforeSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "jobs": [
+          {
+            "id": "20ddb7c6-3f30-47a8-aafd-edf025cfff80",
+            "itemId": "c09cd0b2-7af4-49e9-b6dc-f5cb04baee8e",
+            "operation": "revoke_projections",
+            "idempotencyKey": "revoke:c09cd0b2-7af4-49e9-b6dc-f5cb04baee8e",
+            "clioId": "80b9842b-0a0b-441b-a1cc-1d4b6a6877a9",
+            "beforeXmin": "113660280",
+            "beforeSha256": "dcfa7a739c0b0e66f35632eb61ab51a087d1b90374ebcdbb5aa55f1ffcd33fb2"
+          },
+          {
+            "id": "8488483d-369d-47bf-a5cb-146e0cd013d6",
+            "itemId": "743a18c2-a1ff-4070-934b-b4146ba18d35",
+            "operation": "revoke_projections",
+            "idempotencyKey": "revoke:743a18c2-a1ff-4070-934b-b4146ba18d35",
+            "clioId": "d00f048c-8092-4bf3-9f18-ef802073d9bc",
+            "beforeXmin": "113660238",
+            "beforeSha256": "31e887894df9870d960abf17f16aa5ad9fc548a9bb34b71e3d91d36f8ebbdac3"
+          },
+          {
+            "id": "87270908-b778-4833-b27f-1ad85333cff1",
+            "itemId": "5e9d3ad4-b37d-4997-be47-55b00528c085",
+            "operation": "supersede_projections",
+            "idempotencyKey": "supersede_projections:5e9d3ad4-b37d-4997-be47-55b00528c085:e5f7edc5-a2d9-4795-98fb-ba666c79d2fd",
+            "clioId": null,
+            "beforeXmin": "113660215",
+            "beforeSha256": "73f9c766d099aa3eb0b27ae04aefe8014834ec4eff6899d7f6ff4c07474eb4e9"
+          },
+          {
+            "id": "c9db6ab4-76da-4555-8dcd-29f6cef0eb8d",
+            "itemId": "08c7de39-a268-40cd-9511-f56bdca2ee84",
+            "operation": "revoke_projections",
+            "idempotencyKey": "revoke:08c7de39-a268-40cd-9511-f56bdca2ee84",
+            "clioId": "4466eecc-ea4d-4592-bde9-0c52333ef995",
+            "beforeXmin": "113660245",
+            "beforeSha256": "3ba1a7c08fa7c8db758cb88a230746f203b46e00c072278cd1f0d317972a9495"
+          },
+          {
+            "id": "dca61734-aa48-46f9-b079-2ca6f4e144c6",
+            "itemId": "b4b2379f-d4ac-42f2-afa8-7dd56e220464",
+            "operation": "supersede_projections",
+            "idempotencyKey": "supersede_projections:b4b2379f-d4ac-42f2-afa8-7dd56e220464:422b4ca9-10a8-4680-a713-3e61273a14ff",
+            "clioId": null,
+            "beforeXmin": "113660264",
+            "beforeSha256": "f6761ce9339d5c7707c14b69b2a627c135da46864174256e53d91b2b48193eb9"
+          },
+          {
+            "id": "f5318325-c7fe-41b4-a224-97a3763138d1",
+            "itemId": "e5f7edc5-a2d9-4795-98fb-ba666c79d2fd",
+            "operation": "revoke_projections",
+            "idempotencyKey": "revoke:e5f7edc5-a2d9-4795-98fb-ba666c79d2fd",
+            "clioId": null,
+            "beforeXmin": "113660244",
+            "beforeSha256": "afe2bc1fcb7424e7d1267cb8d12f6d8fc33c2918c7ca4e152592ca0958e8a16a"
+          }
+        ],
+        "projectionCount": 6
+      },
+      "planSha256": "1d62f1ea74b5150929c46babcde5e1f79b4a28d1de2721f7e4d91ca6fffbfb3e",
+      "effects": [
+        {
+          "id": "20ddb7c6-3f30-47a8-aafd-edf025cfff80",
+          "vanished": false,
+          "embeddingsDeleted": 1,
+          "clioDeleted": 0,
+          "status": "completed"
+        },
+        {
+          "id": "8488483d-369d-47bf-a5cb-146e0cd013d6",
+          "vanished": false,
+          "embeddingsDeleted": 1,
+          "clioDeleted": 0,
+          "status": "completed"
+        },
+        {
+          "id": "87270908-b778-4833-b27f-1ad85333cff1",
+          "vanished": false,
+          "embeddingsDeleted": 1,
+          "clioDeleted": 0,
+          "status": "completed"
+        },
+        {
+          "id": "c9db6ab4-76da-4555-8dcd-29f6cef0eb8d",
+          "vanished": false,
+          "embeddingsDeleted": 1,
+          "clioDeleted": 0,
+          "status": "completed"
+        },
+        {
+          "id": "dca61734-aa48-46f9-b079-2ca6f4e144c6",
+          "vanished": false,
+          "embeddingsDeleted": 1,
+          "clioDeleted": 0,
+          "status": "completed"
+        },
+        {
+          "id": "f5318325-c7fe-41b4-a224-97a3763138d1",
+          "vanished": false,
+          "embeddingsDeleted": 1,
+          "clioDeleted": 0,
+          "status": "completed"
+        }
+      ],
+      "auditId": null,
+      "conditionalVerification": {
+        "requiresMetadataReconciliation": true,
+        "proof": {
+          "fixtureReady": true,
+          "missing": [],
+          "liveAcceptance": "NOT_RUN",
+          "fixtureNamespace": "meri-foundation-20260928",
+          "fixtureVersion": "meri-live-v1-2026-09-26.1",
+          "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+          "actorUserId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+          "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+          "caseId": "01",
+          "sourceMap": {
+            "MA1-v2": {
+              "frozenFixtureId": "MA1-v2",
+              "physicalId": "422b4ca9-10a8-4680-a713-3e61273a14ff",
+              "tenantPhysicalId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+              "clientPhysicalId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+              "kind": "memory",
+              "version": "memory-version:a5397fba-1d91-4ba9-8006-bf1fdaa90f67"
+            }
+          },
+          "physicalMapSha256": "cf61a870caf2099fd53f36c849189eef1188237191f2e7e9e2c6d9c4c6511974",
+          "currentVerify": {
+            "kind": "meri-case01-canonical-current-verification",
+            "fixtureInstanceId": "f6164496-9dac-4771-980f-2f362081942e",
+            "manifestContentSha256": "fa06fed8bb19d65a67adc3695e04e3f03ab1ec7e6d2fb3cdd9fc40b94264f260",
+            "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+            "actorUserId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+            "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+            "caseId": "01",
+            "current": {
+              "correction": {
+                "syntheticFixtureCandidateId": "a9de2fb9-0015-58b3-a0b1-8c1dc88797b0",
+                "syntheticFixtureMarkerSha256": "052bd9413b58e607a13a3f6e610416d35f49959bd96e09bbbea3d8e5fbd2b403",
+                "syntheticFixtureCandidateRowVersion": "113660257",
+                "syntheticFixtureItemRowVersion": "113660257",
+                "itemId": "422b4ca9-10a8-4680-a713-3e61273a14ff",
+                "itemRowVersion": "113660264",
+                "sourceVersion": "memory-version:a5397fba-1d91-4ba9-8006-bf1fdaa90f67",
+                "sourceContentHash": "455a1a88c2daca0c6e94c6d91201cca538518cae96c1368e38ad137fd8eab89a",
+                "rootRowVersion": "114501842",
+                "candidateRowVersion": "113660264",
+                "candidateId": "a5397fba-1d91-4ba9-8006-bf1fdaa90f67",
+                "correctionAuditId": "60247155-2d7b-4e73-ba7e-5e39bee4f129",
+                "supersessionAuditId": "1b73c96b-ace8-4dd0-96c4-7e6f138bae8a",
+                "approvalAuditId": "851371c6-ec7f-4670-afd9-c17411aa42b3",
+                "cleanupIntentId": "dca61734-aa48-46f9-b079-2ca6f4e144c6",
+                "rootItemId": "b4b2379f-d4ac-42f2-afa8-7dd56e220464",
+                "status": "active",
+                "rootStatus": "superseded"
+              },
+              "approved": {
+                "syntheticFixtureCandidateId": "6e550ca2-20b2-5aca-be2a-254fb0b0f32b",
+                "syntheticFixtureMarkerSha256": "17c8c2f82f030496d2c099ffadeb3c866b4d798233290a431ff73ce9df513024",
+                "syntheticFixtureCandidateRowVersion": "113660268",
+                "syntheticFixtureItemRowVersion": "114501842"
+              },
+              "revoked": {
+                "syntheticFixtureCandidateId": "f6915255-4f53-5228-ba62-553fd1455d6c",
+                "syntheticFixtureMarkerSha256": "0fde579f035e65c5b77e33eee5aa6001060b633ee6727f7b002b34a273499738",
+                "syntheticFixtureCandidateRowVersion": "113660275",
+                "syntheticFixtureItemRowVersion": "113660275",
+                "rowVersion": "113660280",
+                "transitionAuditId": "8698b58d-e91f-4521-a2c0-46ecef096bb3",
+                "cleanupIntentId": "20ddb7c6-3f30-47a8-aafd-edf025cfff80",
+                "itemId": "c09cd0b2-7af4-49e9-b6dc-f5cb04baee8e",
+                "candidateId": "f6915255-4f53-5228-ba62-553fd1455d6c",
+                "status": "revoked",
+                "governedStatus": "revoked",
+                "retained": true
+              },
+              "proposed": {
+                "syntheticFixtureMarkerSha256": "ad87c117f14620803a10d1bd8539737b96ea6a3815023ad2394a3bfe31219ca1",
+                "syntheticFixturePriorRowVersion": "113660283"
+              },
+              "negativeVersions": [
+                {
+                  "id": "4cc6ec9e-7f1b-4776-b29d-1b52cc12d41f",
+                  "client_id": "494f6834-d09e-4723-8a64-b2df57c683e8",
+                  "status": "active",
+                  "governed_status": "active",
+                  "row_version": "114501842"
+                },
+                {
+                  "id": "c09cd0b2-7af4-49e9-b6dc-f5cb04baee8e",
+                  "client_id": "41f9ec63-3963-479f-b747-59a3767ef44b",
+                  "status": "revoked",
+                  "governed_status": "revoked",
+                  "row_version": "113660280"
+                }
+              ]
+            },
+            "resetReceiptSha256": "7979469e26688568aa525682e69a31ede60457e2d7d32393d1a19fc60ba07d7f",
+            "seedReceiptSha256": "64b01f105fc8bc04a826eb9e84863c46a180d427fa902402f7761d8a514e94de"
+          },
+          "currentVerifySha256": "65cac81110795b141bfc465ee894f23a3b3be17b585ffe80119d19d0eece8d28",
+          "seedReceiptId": "meri-synthetic-fixture-seed-receipt:sha256:64b01f105fc8bc04a826eb9e84863c46a180d427fa902402f7761d8a514e94de",
+          "resetReceiptId": "meri-synthetic-fixture-reset-receipt:sha256:7979469e26688568aa525682e69a31ede60457e2d7d32393d1a19fc60ba07d7f"
+        }
+      },
+      "proofIsTentative": true,
+      "corpusReadiness": "REQUIRES_SEPARATE_CURRENT_READ",
+      "captureAuthority": false,
+      "providerAuthority": false,
+      "liveAcceptance": "NOT_RUN"
+    }
+  ],
+  "schemaReceipts": [
+    {
+      "status": "VERIFIED_READ_ONLY",
+      "ledgerRows": 609,
+      "activeFinished": 509,
+      "rolledBack": 100,
+      "prior608Sha256": "9a82cbc9dcecc3b049c312ad4e39ec5a96eb33c6e5af033a3339d1e292c06e90",
+      "newMigration": "20281007010000_mail_messages_owned_connection_active",
+      "newMigrationSha256": "ef10ab58b4eef6825652690a098ab160a374fb30c4cc0af9f15793edb7237242",
+      "retirementTablesAbsent": true,
+      "indices": [
+        {
+          "name": "mail_messages_tenant_connection_active_idx",
+          "ready": true,
+          "definitionSha256": "23d2b35e8097cea6c5620ce2c9c1cab68467e9de09dba5e3337f6fca0a170688"
+        },
+        {
+          "name": "mail_threads_tenant_connection_id_cover_idx",
+          "ready": true,
+          "definitionSha256": "7097d64ec1650dfa8e004e89a1e2f6f267cb7924e869993bb44fb235e9716c9e"
+        }
+      ],
+      "migrationExecution": false
+    }
+  ],
+  "safeErrors": [],
+  "eventCount": 2,
+  "providerCalls": 0,
+  "committedCorpusMutations": 0,
+  "captureAuthority": false
+}

@@ -1,0 +1,58 @@
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+[Nest] 43480  - 10/03/2026, 9:33:18 AM     LOG [MemoryIngestService] backfill tenant=aac7a784-52c9-47c7-a800-7f62082484ec {"clients":0,"clioMemories":0,"meetings":0,"emails":0,"meriSessions":0,"embedded":1,"failed":0,"failures":0}
+[Nest] 43480  - 10/03/2026, 9:33:18 AM     LOG [MemoryIngestService] backfill tenant=aac7a784-52c9-47c7-a800-7f62082484ec {"clients":0,"clioMemories":0,"meetings":0,"emails":0,"meriSessions":0,"embedded":1,"failed":0,"failures":0}
+[Nest] 43480  - 10/03/2026, 9:33:18 AM     LOG [MemoryIngestService] backfill tenant=aac7a784-52c9-47c7-a800-7f62082484ec {"clients":0,"clioMemories":0,"meetings":0,"emails":0,"meriSessions":0,"embedded":1,"failed":0,"failures":0}
+[Nest] 43480  - 10/03/2026, 9:33:18 AM     LOG [MemoryIngestService] backfill tenant=aac7a784-52c9-47c7-a800-7f62082484ec {"clients":0,"clioMemories":0,"meetings":0,"emails":0,"meriSessions":0,"embedded":0,"failed":0,"failures":0}
+[Nest] 43480  - 10/03/2026, 9:33:18 AM     LOG [MemoryIngestService] backfill tenant=aac7a784-52c9-47c7-a800-7f62082484ec {"clients":0,"clioMemories":0,"meetings":0,"emails":0,"meriSessions":0,"embedded":0,"failed":0,"failures":0}
+FAIL src/memory/memory-embedding-lifecycle.postgres.spec.ts (20.331 s)
+  memory backfill lifecycle at the actual PostgreSQL source/write boundary
+    × already revoked canonical source is not sent to the provider or re-embedded (51 ms)
+    × revoke committed while the provider is paused cannot recreate a deleted embedding (37 ms)
+    √ eligible canonical source still embeds and a stable second run does not call the provider (28 ms)
+    √ tenant-qualified Phase F never embeds another tenant source (24 ms)
+
+  ● memory backfill lifecycle at the actual PostgreSQL source/write boundary › already revoked canonical source is not sent to the provider or re-embedded
+
+    expect(jest.fn()).not.toHaveBeenCalled()
+
+    Expected number of calls: 0
+    Received number of calls: 1
+
+    1: "Current source Memory: Only this current source body."
+
+      104 |     await db.query("UPDATE memory_items SET status='revoked',governed_status='revoked' WHERE id=$1", [item]);
+      105 |     const result = await service.backfillCurrentTenant();
+    > 106 |     expect(embed).not.toHaveBeenCalled(); expect(await embeddings()).toBe(0);
+          |                       ^
+      107 |     expect(result.failed).toBe(0); expect(result.embedded).toBe(0);
+      108 |   });
+      109 |   test('revoke committed while the provider is paused cannot recreate a deleted embedding', async () => {
+
+      at Object.<anonymous> (src/memory/memory-embedding-lifecycle.postgres.spec.ts:106:23)
+
+  ● memory backfill lifecycle at the actual PostgreSQL source/write boundary › revoke committed while the provider is paused cannot recreate a deleted embedding
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 0
+    Received: 1
+
+      116 |     });
+      117 |     const result = await service.backfillCurrentTenant();
+    > 118 |     expect(embed).toHaveBeenCalledTimes(1); expect(await embeddings()).toBe(0);
+          |                                                                        ^
+      119 |     expect(result.embedded).toBe(0); expect(result.failed).toBe(0);
+      120 |   });
+      121 |   test('eligible canonical source still embeds and a stable second run does not call the provider', async () => {
+
+      at Object.<anonymous> (src/memory/memory-embedding-lifecycle.postgres.spec.ts:118:72)
+
+Test Suites: 1 failed, 1 total
+Tests:       2 failed, 2 passed, 4 total
+Snapshots:   0 total
+Time:        20.585 s
+Ran all test suites matching /src\\memory\\memory-embedding-lifecycle.postgres.spec.ts/i.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?
+undefined
+C:\dev\main\meri-c1-20261002\apps\api:
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command "jest" not found

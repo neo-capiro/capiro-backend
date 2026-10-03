@@ -1,0 +1,17 @@
+2026-10-03 11:16:27.081 EDT [44312] LOG:  starting PostgreSQL 16.15, compiled by Visual C++ build 1944, 64-bit
+2026-10-03 11:16:27.084 EDT [44312] LOG:  listening on IPv4 address "127.0.0.1", port 55433
+2026-10-03 11:16:27.273 EDT [46776] LOG:  database system was shut down at 2026-10-03 11:11:42 EDT
+2026-10-03 11:16:27.406 EDT [44312] LOG:  database system is ready to accept connections
+2026-10-03 11:19:40.856 EDT [28804] WARNING:  there is no transaction in progress
+2026-10-03 11:19:43.022 EDT [28804] WARNING:  there is no transaction in progress
+2026-10-03 11:19:43.444 EDT [28804] WARNING:  there is no transaction in progress
+2026-10-03 11:19:43.719 EDT [28804] WARNING:  there is no transaction in progress
+2026-10-03 11:19:44.031 EDT [28804] WARNING:  there is no transaction in progress
+2026-10-03 11:19:44.826 EDT [28804] WARNING:  there is no transaction in progress
+2026-10-03 11:20:12.355 EDT [44312] LOG:  received fast shutdown request
+2026-10-03 11:20:12.359 EDT [44312] LOG:  aborting any active transactions
+2026-10-03 11:20:12.382 EDT [44312] LOG:  background worker "logical replication launcher" (PID 48224) exited with exit code 1
+2026-10-03 11:20:12.385 EDT [36708] LOG:  shutting down
+2026-10-03 11:20:12.387 EDT [36708] LOG:  checkpoint starting: shutdown immediate
+2026-10-03 11:20:13.930 EDT [36708] LOG:  checkpoint complete: wrote 131 buffers (0.8%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.086 s, sync=0.921 s, total=1.545 s; sync files=888, longest=0.009 s, average=0.002 s; distance=1180 kB, estimate=1180 kB; lsn=1/9D83730, redo lsn=1/9D83730
+2026-10-03 11:20:14.257 EDT [44312] LOG:  database system is shut down

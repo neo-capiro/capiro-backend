@@ -1,0 +1,45 @@
+{
+  "reviewer": "/root/mail_defaults_review",
+  "reviews": [
+    {
+      "version": 1,
+      "snapshotSha256": "53694b003fa888882e86581ca21ccb2dd56d9ff7b85aa3ecff05bca808a56599",
+      "result": "CHANGES_REQUIRED",
+      "finding": "P2: eligibility can expire while final FOR UPDATE waits on an unchanged source row; recheck real DB eligibility after lock acquisition",
+      "reproducedBy": "lock-expiry-red-v2.receipt.json",
+      "resolution": "Second full eligibility/content/scope/version read under the acquired source lock in v2"
+    },
+    {
+      "version": 2,
+      "snapshotSha256": "37640cf0bccc55ff0e86448268553908746bc09173e54437f1acecfadfdc527c",
+      "result": "CHANGES_REQUIRED",
+      "finding": "P2: held-item enumeration limited to initial locked IDs fails to protect a newly committed held source from broad client projection sweeps",
+      "resolution": "Pending v3 full held enumeration and actual PostgreSQL concurrent-insertion regression"
+    },
+    {
+      "version": 3,
+      "snapshotSha256": "ab06a706ee98bcbed43509cbec216509309b00a6f8916afdb93d37cafe88cebb",
+      "result": "PASS",
+      "findings": [],
+      "resolved": [
+        "Post-lock real DB eligibility/content/scope/version recheck",
+        "Complete legal-held enumeration for broad client projection sweeps"
+      ],
+      "sourceFilesVerified": 11,
+      "clockFilesUnchanged": 12,
+      "genericEmbedderUnchanged": true,
+      "actualPostgresPassed": 43,
+      "affectedPurgePassed": 6,
+      "unchangedWriterPassesReused": 56,
+      "greenLogSha256": "51d967b08d1b80f99c4b5965f9e2e60aeae2dfb961c3baa61d140057f407357b",
+      "heldRaceRedLogSha256": "daab3c6e583d68d3ba91b49659382865858819081441c6c2347439ddbe9f4262",
+      "limits": [
+        "Reviewer inspected code/evidence without rerun or remote call",
+        "Isolated simplified PostgreSQL with text-domain vector storage and stub provider/audit",
+        "Not production RLS, native image, live cleanup, or human release approval"
+      ]
+    }
+  ],
+  "humanReleaseApproval": false,
+  "source": "Root-authored record of independent review messages; failures and exact candidate source snapshots retained"
+}

@@ -1,0 +1,68 @@
+(node:44008) [DEP0180] DeprecationWarning: fs.Stats constructor is deprecated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+[Nest] 44008  - 10/03/2026, 10:56:51 AM     LOG [MemoryCandidateService] memory_candidate e6cb925e-a560-526a-a6c2-e1207150770f pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+{"_aws":{"Timestamp":1791039411813,"CloudWatchMetrics":[{"Namespace":"Capiro/MeriV2Control","Dimensions":[["Environment"]],"Metrics":[{"Name":"SelfReviewDenials","Unit":"Count"}]}]},"Environment":"unknown","event":"meriv2.control.metrics","SelfReviewDenials":1}
+✔ creates actual weekly-to-monthly immutable lineage through guarded canonical correction and approval (4134.5023ms)
+[Nest] 44008  - 10/03/2026, 10:56:52 AM     LOG [MemoryCandidateService] memory_candidate d45965cd-a143-5d0c-a535-999b3f598bb1 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 44008  - 10/03/2026, 10:56:53 AM     LOG [MemoryCandidateService] memory_candidate 960abbf5-2f6f-567c-9360-4142e5719e6e pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 44008  - 10/03/2026, 10:56:53 AM     LOG [MemoryCandidateService] memory_candidate 888c15ab-61a5-5120-8ac2-8abf317f1199 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 44008  - 10/03/2026, 10:56:53 AM     LOG [MemoryCandidateService] memory_candidate f89196aa-13bb-5719-995b-82657e6a6738 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 44008  - 10/03/2026, 10:56:53 AM     LOG [MemoryCandidateService] memory_candidate 067faa66-9b47-50a3-b347-221b7fe8c768 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 44008  - 10/03/2026, 10:56:54 AM     LOG [MemoryCandidateService] memory_candidate 548e5eee-8cee-5e07-bb7e-3d2f66f54009 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 44008  - 10/03/2026, 10:56:54 AM     LOG [MemoryCandidateService] memory_candidate 45496620-a211-563e-bbe6-c73a0f1d3b17 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 44008  - 10/03/2026, 10:56:54 AM     LOG [MemoryCandidateService] memory_candidate 3a9356cd-0c37-5e79-aff1-52aff01cc1a7 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+✔ seeds all five real case01 states, requires actual previous retirement, then binds the new instance atomically (2662.4901ms)
+[Nest] 44008  - 10/03/2026, 10:56:55 AM     LOG [MemoryCandidateService] memory_candidate 1b473dba-b94f-58a1-8699-9d055066d9f7 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 44008  - 10/03/2026, 10:56:55 AM     LOG [MemoryCandidateService] memory_candidate 88890da2-0a05-5434-a19b-cedda2f27ea1 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 44008  - 10/03/2026, 10:56:55 AM     LOG [MemoryCandidateService] memory_candidate e616e6f1-b7b1-5b34-90b7-6ba407130036 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 44008  - 10/03/2026, 10:56:55 AM     LOG [MemoryCandidateService] memory_candidate 6d5bf153-4de4-57f3-9a01-2ba47fecf2a3 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 44008  - 10/03/2026, 10:56:56 AM     LOG [MemoryCandidateService] memory_candidate aeb76601-644d-55f3-998b-37b4cf74a31a pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 44008  - 10/03/2026, 10:56:56 AM     LOG [MemoryCandidateService] memory_candidate 73ae83c5-0999-52f4-a478-e1e235ecf717 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 44008  - 10/03/2026, 10:56:56 AM     LOG [MemoryCandidateService] memory_candidate 400160e9-5a99-56b1-afe4-fef9ef3d4954 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 44008  - 10/03/2026, 10:56:56 AM     LOG [MemoryCandidateService] memory_candidate 319aaed2-ad34-59fc-b394-2abba6148dfe pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+▶ reconstructs identical canonical seed/reset/current authority after restart and rejects mutated source history
+  ✔ retired vectors block strict read; cleanup preview is conditional and rolls back all bytes and versions (1423.8012ms)
+  ✔ caller cannot select rows, change scope, self-certify readiness or execute a stale plan (212.2237ms)
+  ✔ foreign terminal job key (336.0145ms)
+  ✔ competing worker lease (272.8754ms)
+  ✔ exhausted attempts (294.5306ms)
+  ✔ delayed retry (309.0505ms)
+  ✔ wrong cleanup Clio binding (269.8108ms)
+  ✔ altered canonical body (634.2058ms)
+  ✔ altered approval history (214.2756ms)
+  ✔ client wall (1195.7275ms)
+  ✔ removed proposer authority (19.1768ms)
+  ✖ unexpected Clio source is never erased (18.7383ms)
+  ✔ same source ID in another tenant is never erased (987.0315ms)
+  ✔ changed projection model content invalidates the exact plan (874.6334ms)
+  ✔ maintenance audit failure atomically rolls back cleanup, job claims and completion (853.9226ms)
+  ✔ CLI dispatch completes only original jobs once, retains canonical history, and requires separate metadata reconciliation (2493.9901ms)
+✖ reconstructs identical canonical seed/reset/current authority after restart and rejects mutated source history (29174.9784ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 17
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 36294.869
+
+✖ failing tests:
+
+test at evals\meri\live-v1\tests\case01-projection-cleanup-exercises.mjs:87:51
+✖ unexpected Clio source is never erased (18.7383ms)
+  PrismaClientKnownRequestError: 
+  Invalid `prisma.$executeRawUnsafe()` invocation:
+  
+  
+  Raw query failed. Code: `23505`. Message: `Key (id)=(101c5fd7-a87c-48d5-9844-efea02d85740) already exists.`
+      at $n.handleRequestError (C:\dev\main\meri-c1-20261002\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:121:7315)
+      at $n.handleAndLogRequestError (C:\dev\main\meri-c1-20261002\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:121:6623)
+      at $n.request (C:\dev\main\meri-c1-20261002\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:121:6307)
+      at async l (C:\dev\main\meri-c1-20261002\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:130:9633)
+      at async TestContext.<anonymous> (file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/case01-projection-cleanup-exercises.mjs:90:19)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async exerciseCase01ProjectionCleanup (file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/case01-projection-cleanup-exercises.mjs:87:43)
+      at async file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/case01-memory-hydration.postgres.test.mjs:159:7
+      at async prisma.$transaction.timeout (file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/approved-memory-postgres-harness.mjs:194:20)
+      at async Proxy._transactionWithCallback (C:\dev\main\meri-c1-20261002\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:130:8000)

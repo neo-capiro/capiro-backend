@@ -1,0 +1,22 @@
+2026-10-03 10:59:48.894 EDT [11968] LOG:  starting PostgreSQL 16.15, compiled by Visual C++ build 1944, 64-bit
+2026-10-03 10:59:48.896 EDT [11968] LOG:  listening on IPv4 address "127.0.0.1", port 55433
+2026-10-03 10:59:48.981 EDT [29996] LOG:  database system was shut down at 2026-10-03 10:58:44 EDT
+2026-10-03 10:59:49.045 EDT [11968] LOG:  database system is ready to accept connections
+2026-10-03 11:00:30.529 EDT [26048] WARNING:  there is no transaction in progress
+2026-10-03 11:04:48.957 EDT [47960] LOG:  checkpoint starting: time
+2026-10-03 11:04:56.794 EDT [31704] WARNING:  there is no transaction in progress
+2026-10-03 11:04:59.018 EDT [31704] WARNING:  there is no transaction in progress
+2026-10-03 11:04:59.341 EDT [31704] WARNING:  there is no transaction in progress
+2026-10-03 11:04:59.616 EDT [31704] WARNING:  there is no transaction in progress
+2026-10-03 11:04:59.978 EDT [31704] WARNING:  there is no transaction in progress
+2026-10-03 11:05:00.840 EDT [31704] WARNING:  there is no transaction in progress
+2026-10-03 11:05:07.155 EDT [47960] LOG:  checkpoint complete: wrote 162 buffers (1.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=17.514 s, sync=0.639 s, total=18.198 s; sync files=614, longest=0.009 s, average=0.002 s; distance=882 kB, estimate=882 kB; lsn=1/9ABB180, redo lsn=1/9A28128
+2026-10-03 11:09:48.166 EDT [47960] LOG:  checkpoint starting: time
+2026-10-03 11:09:54.626 EDT [47960] LOG:  checkpoint complete: wrote 58 buffers (0.4%); 0 WAL file(s) added, 0 removed, 0 recycled; write=6.246 s, sync=0.025 s, total=6.460 s; sync files=26, longest=0.003 s, average=0.001 s; distance=673 kB, estimate=861 kB; lsn=1/9AD06B0, redo lsn=1/9AD0678
+2026-10-03 11:10:20.001 EDT [11968] LOG:  received fast shutdown request
+2026-10-03 11:10:20.003 EDT [11968] LOG:  aborting any active transactions
+2026-10-03 11:10:20.014 EDT [11968] LOG:  background worker "logical replication launcher" (PID 15984) exited with exit code 1
+2026-10-03 11:10:20.015 EDT [47960] LOG:  shutting down
+2026-10-03 11:10:20.016 EDT [47960] LOG:  checkpoint starting: shutdown immediate
+2026-10-03 11:10:20.030 EDT [47960] LOG:  checkpoint complete: wrote 0 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.001 s, sync=0.001 s, total=0.015 s; sync files=0, longest=0.000 s, average=0.000 s; distance=0 kB, estimate=775 kB; lsn=1/9AD0760, redo lsn=1/9AD0760
+2026-10-03 11:10:20.044 EDT [11968] LOG:  database system is shut down

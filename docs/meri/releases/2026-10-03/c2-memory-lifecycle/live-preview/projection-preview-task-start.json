@@ -1,0 +1,5 @@
+{
+  "at": "2026-10-03T15:33:53.295Z",
+  "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/213bbbc9a0284de1a62233eceac6730a",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-c2-projections-20261003:1"
+}

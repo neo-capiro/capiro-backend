@@ -8,6 +8,11 @@
       "sha256": "7fdca0205c72857d1c76aeb34ba478f8ad63ba671b5ae11111162601577f766f"
     },
     {
+      "path": "archive-audit-correction.json",
+      "bytes": 847,
+      "sha256": "a097d3f264bcc1919b249acc7f7920fc480860b75885b1f185ab89e07cb20adb"
+    },
+    {
       "path": "archive-audit.json",
       "bytes": 627,
       "sha256": "f8faab385e12d8442ccdcaa74aee2a0a61e43ee92901fa85086c6e8fccbf3d08"
@@ -764,8 +769,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 9458,
-      "sha256": "0987c3bddb8094ed26a847789c4a7c8e2f357af33c2083fca088bad283df9fcd"
+      "bytes": 9524,
+      "sha256": "8bf6fd284cccc0f30fcfb8eb91f329d06dc96f32ad206636042961d91fc068e1"
     },
     {
       "path": "release-independent-review.json",

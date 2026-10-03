@@ -1,0 +1,12 @@
+(node:46048) [DEP0180] DeprecationWarning: fs.Stats constructor is deprecated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+✔ refuses namespace/cohort/flags before constructing any Prisma context (4.8781ms)
+✔ constructs actual production memory aliases with one shared real projector/outbox graph and closes once (43686.6016ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 44853.0346

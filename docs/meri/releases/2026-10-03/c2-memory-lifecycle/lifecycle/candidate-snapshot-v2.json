@@ -1,0 +1,107 @@
+{
+  "version": 2,
+  "limits": [
+    "Native PG16 isolated text domain stores generated vector literals; no pgvector arithmetic/index claim",
+    "Other ingestion phases enumerated empty in the PostgreSQL integration harness",
+    "Provider is an in-process test stub; no paid or remote provider calls",
+    "Existing governance unit harness intentionally omits embedding backend and logs its best-effort failure; actual embedding correctness is the PostgreSQL suite",
+    "Existing retired embeddings require separately authorized canonical cleanup; this patch prevents new stale writes",
+    "Deletion tests use actual owner SQL and concurrent transactions; auditLog is a no-op stub in the PostgreSQL harness"
+  ],
+  "gitHead": "e3a32c4e6fe802cd7bd505bbcc658745c87f30ab",
+  "stage": "CANDIDATE_FROZEN_FOR_REVIEW",
+  "recordedAt": "2026-10-03T15:11:13.5432440Z",
+  "localCluster": "127.0.0.1:55433 stopped; data preserved",
+  "diffCheck": "PASS",
+  "stopReceipt": "pg-stop-v2.receipt.json",
+  "genericEmbedderUnchanged": true,
+  "clockFilesUnchanged": 12,
+  "files": [
+    {
+      "path": "apps/api/src/memory/memory-embedding-lifecycle.ts",
+      "bytes": 4414,
+      "sha256": "69bfdeb9664b219f80fb890d5ed3e5ce3f03fc552da00c1334c693398c06c83d",
+      "kind": "production"
+    },
+    {
+      "path": "apps/api/src/memory/memory-ingest.service.ts",
+      "bytes": 22603,
+      "sha256": "4dbf7707b6d89ecb72f231e90dfce05815ba8ffcb304a053d3eb10b378e6c750",
+      "kind": "production"
+    },
+    {
+      "path": "apps/api/src/memory/strict-memory-projector.service.ts",
+      "bytes": 11689,
+      "sha256": "29d580fc0bc8c1a40b08a04a79da5200adca823582e750ad313b7b367693bcf2",
+      "kind": "production"
+    },
+    {
+      "path": "apps/api/src/memory/memory-store.service.ts",
+      "bytes": 54918,
+      "sha256": "12689bf6b538457d46047e22373ef08ae7e6393c940943dc852ce043cc0c2b2f",
+      "kind": "production"
+    },
+    {
+      "path": "apps/api/src/memory/immutable-memory-version.service.ts",
+      "bytes": 49462,
+      "sha256": "1c4a72447ae8b15681c7918de480c7792ef082b83fb8c2fe03c5c6e868a8139c",
+      "kind": "production"
+    },
+    {
+      "path": "apps/api/src/memory/memory-purge.service.ts",
+      "bytes": 7826,
+      "sha256": "63e0ca064ab7c92e5a16a6a138215699dee6ae63d0d7545416a8f56ef74cb90d",
+      "kind": "production"
+    },
+    {
+      "path": "apps/api/scripts/refresh-memory-graph.ts",
+      "bytes": 4780,
+      "sha256": "3297694dbf42d240a077fa38e3b6e374be8c2fa6d61597a05576050cfbc43964",
+      "kind": "production"
+    },
+    {
+      "path": "apps/api/src/memory/memory-embedding-lifecycle.postgres.spec.ts",
+      "bytes": 22007,
+      "sha256": "c61ff871de766b2a6aa7ce34f1cf8dd4d4f82a77b2013059e228ce148bfd44bc",
+      "kind": "test"
+    },
+    {
+      "path": "apps/api/src/memory/synthetic-memory-settlement.spec.ts",
+      "bytes": 7397,
+      "sha256": "1dc29c4065a29004a6bff4c0235c3adc20487e52a84b2e6963c51228fa030561",
+      "kind": "test"
+    },
+    {
+      "path": "apps/api/src/memory/strict-memory-projector.service.spec.ts",
+      "bytes": 8059,
+      "sha256": "ccda1503b3d8a59eddbc0f39c023cb2804c9e86075052096abfcea8ce7133f37",
+      "kind": "test"
+    },
+    {
+      "path": "apps/api/src/memory/immutable-memory-version.service.spec.ts",
+      "bytes": 11622,
+      "sha256": "290acd9c6ec5074cfcadaf1353b27393e4b785e26afcca0f153c8a6cf517975a",
+      "kind": "test"
+    }
+  ],
+  "tests": [
+    {
+      "receipt": "postgres-red.receipt.json",
+      "result": "2 expected failure / 2 pass before production changes"
+    },
+    {
+      "receipt": "lock-expiry-red-v2.receipt.json",
+      "result": "1 expected failure / 37 selected-out skips against v1 guard"
+    },
+    {
+      "receipt": "postgres-expanded-v2.receipt.json",
+      "result": "42 pass / 0 skip"
+    },
+    {
+      "receipt": "existing-writers-v3.receipt.json",
+      "result": "62 pass / 0 skip; 9 suites"
+    }
+  ],
+  "commits": 0,
+  "remoteActions": 0
+}

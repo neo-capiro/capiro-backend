@@ -1,0 +1,10 @@
+✔ fixed budget env and file ingress work for install and canonical read (27.0064ms)
+✔ imports and verifies frozen assets using only the exact API Dockerfile fixture COPY graph (261.2839ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 426.7625

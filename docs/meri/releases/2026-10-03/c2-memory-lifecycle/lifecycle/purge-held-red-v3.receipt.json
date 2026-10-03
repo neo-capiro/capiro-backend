@@ -1,0 +1,5 @@
+{
+  "exitCode": 1,
+  "command": "NODE_OPTIONS=--max-old-space-size=8192 MERI_APPROVED_MEMORY_PG_CONFIG=<exact-owned-local-config> pnpm --filter @capiro/api exec jest --runInBand --forceExit src/memory/memory-embedding-lifecycle.postgres.spec.ts -t 'client purge preserves a held source'",
+  "recordedAt": "2026-10-03T15:17:57.4103667Z"
+}
