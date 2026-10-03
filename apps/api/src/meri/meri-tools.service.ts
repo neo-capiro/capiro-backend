@@ -2539,7 +2539,8 @@ export class MeriToolsService {
     if (
       captureBudgetRequired(policy) &&
       !(policy?.syntheticReadBudget && (name === 'search_memory' || name === 'list_memory_proposals')) &&
-      !(['01','14'].includes(policy?.caseId ?? '') && name === 'search_memory') &&
+      !(['01', '14'].includes(policy?.caseId ?? '') &&
+        (name === 'search_memory' || name === 'list_memory_proposals')) &&
       !controlledReadToolAllowed(policy?.caseId ?? null, name)
     ) {
       throw new Error('meri_capture_provider_budget_unqualified_tool');
@@ -2630,8 +2631,26 @@ export class MeriToolsService {
         return this.findPathTo(ctx, input);
       case 'search_memory':
         return this.searchMemory(ctx, input);
-      case 'list_memory_proposals':
-        return readOwnPendingMemoryProposals(ctx, input, this.governedMemoryCandidates);
+      case 'list_memory_proposals': {
+        const result = await readOwnPendingMemoryProposals(
+          ctx,
+          input,
+          this.governedMemoryCandidates,
+          capturePolicy,
+        );
+        if (capturePolicy && !capturePolicy.syntheticReadBudget) {
+          // Re-read current membership, conversation and selected-client wall
+          // before returning the owned proposal content after an awaited read.
+          await assertMeriServerReadonlyCaptureCurrentAuthority({
+            prisma: this.prisma,
+            ctx,
+            policy: capturePolicy,
+          });
+          assertMeriServerReadonlyCaptureToolAllowed(String(name), capturePolicy);
+          assertMeriToolRequestActive();
+        }
+        return result;
+      }
       case 'search_congress_bills':
         return this.searchCongressBills(input);
       case 'get_bill_status':

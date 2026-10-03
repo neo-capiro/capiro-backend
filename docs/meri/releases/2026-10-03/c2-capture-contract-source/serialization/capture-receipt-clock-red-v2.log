@@ -1,0 +1,46 @@
+(node:38208) [DEP0180] DeprecationWarning: fs.Stats constructor is deprecated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+▶ clock receipt finalization on actual Prisma/PostgreSQL
+  ✖ persists an authenticated pending clock receipt with generic scope (1791.2623ms)
+  ✔ persists an authenticated joined clock receipt with generic scope (385.4606ms)
+  ✖ persists an authenticated pending clock receipt with client scope (327.6351ms)
+  ✔ persists an authenticated joined clock receipt with client scope (358.4131ms)
+✖ clock receipt finalization on actual Prisma/PostgreSQL (2863.8057ms)
+ℹ tests 4
+ℹ suites 1
+ℹ pass 2
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3011.6669
+
+✖ failing tests:
+
+test at evals\meri\live-v1\tests\capture-clock-receipt-jsonb.postgres.test.mjs:19:7
+✖ persists an authenticated pending clock receipt with generic scope (1791.2623ms)
+  Error: meri_capture_receipt_readback_mismatch
+      at C:\dev\main\meri-c1-20261002\apps\api\src\meri\meri-server-capture-evidence.ts:244:13
+      at async scoped (file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/approved-memory-postgres-harness.mjs:153:30)
+      at async persistMeriServerCaptureEvidenceReceipt (C:\dev\main\meri-c1-20261002\apps\api\src\meri\meri-server-capture-evidence.ts:202:3)
+      at async file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/capture-clock-receipt-jsonb.postgres.test.mjs:197:13
+      at async prisma.$transaction.timeout (file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/approved-memory-postgres-harness.mjs:194:20)
+      at async Proxy._transactionWithCallback (C:\dev\main\meri-c1-20261002\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:130:8000)
+      at async withOwnedApprovedMemory (file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/approved-memory-postgres-harness.mjs:115:7)
+      at async TestContext.<anonymous> (file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/capture-clock-receipt-jsonb.postgres.test.mjs:20:9)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Promise.all (index 0)
+
+test at evals\meri\live-v1\tests\capture-clock-receipt-jsonb.postgres.test.mjs:19:7
+✖ persists an authenticated pending clock receipt with client scope (327.6351ms)
+  Error: meri_capture_receipt_readback_mismatch
+      at C:\dev\main\meri-c1-20261002\apps\api\src\meri\meri-server-capture-evidence.ts:244:13
+      at async scoped (file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/approved-memory-postgres-harness.mjs:153:30)
+      at async persistMeriServerCaptureEvidenceReceipt (C:\dev\main\meri-c1-20261002\apps\api\src\meri\meri-server-capture-evidence.ts:202:3)
+      at async file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/capture-clock-receipt-jsonb.postgres.test.mjs:197:13
+      at async prisma.$transaction.timeout (file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/approved-memory-postgres-harness.mjs:194:20)
+      at async Proxy._transactionWithCallback (C:\dev\main\meri-c1-20261002\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:130:8000)
+      at async withOwnedApprovedMemory (file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/approved-memory-postgres-harness.mjs:115:7)
+      at async TestContext.<anonymous> (file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/capture-clock-receipt-jsonb.postgres.test.mjs:20:9)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:960:7)

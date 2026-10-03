@@ -320,6 +320,11 @@ describe('final API semantic clock packet join', () => {
       secret: SECRET,
     });
     expect(final.receipt.blockers).toContain('semantic_clock_api_tool_join_pending');
+    const readback = JSON.parse(JSON.stringify(final));
+    expect(Object.hasOwn(readback.receipt.semanticClock, 'api')).toBe(false);
+    expect(verifyMeriCaptureEvidenceReceipt(readback, h.args.policy, SECRET)).toEqual(
+      final.receipt,
+    );
   });
   it.each(['prompt', 'missing call', 'extra call', 'unresolved', 'failed', 'predeclared join'])(
     'rejects signed %s without storage access',
@@ -350,5 +355,34 @@ describe('final API semantic clock packet join', () => {
       return h.rows;
     });
     expect(await readMeriCaptureClockPackets(h.args)).toBeNull();
+  });
+  it('discards a predeclared orchestrator API join when the API owner supplies no proof', () => {
+    const h = fixture();
+    const claimed = {
+      initial: h.packets[0]!,
+      tools: h.packets.slice(1),
+      relativeToolWindows: 'NOT_APPLICABLE' as const,
+    };
+    h.receipt.semanticClock!.api = claimed;
+    h.receipt.semanticClock!.apiJoin = 'VERIFIED';
+    const orchestrator = signMeriCaptureEvidenceReceipt(
+      completeMeriCaptureEvidenceReceipt(h.receipt),
+      SECRET,
+    );
+    const final = finalizeMeriServerCaptureEvidence({
+      policy: h.args.policy,
+      orchestrator,
+      userMessageId: h.args.policy.turnId!,
+      assistantMessageId: 'assistant',
+      clockPackets: null,
+      secret: SECRET,
+    });
+    expect(final.receipt.semanticClock!.apiJoin).toBe('PENDING');
+    expect(Object.hasOwn(final.receipt.semanticClock!, 'api')).toBe(false);
+    expect(final.receipt.blockers).toContain('semantic_clock_api_tool_join_pending');
+    expect(orchestrator.receipt.semanticClock!.api).toEqual(claimed);
+    expect(
+      verifyMeriCaptureEvidenceReceipt(JSON.parse(JSON.stringify(final)), h.args.policy, SECRET),
+    ).toEqual(final.receipt);
   });
 });

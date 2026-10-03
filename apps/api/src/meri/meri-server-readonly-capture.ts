@@ -373,13 +373,21 @@ export function finalizeMeriServerCaptureEvidence(args: {
     args.completedAt,
   );
   const releaseRevision = currentReleaseRevision();
+  const semanticClock = orchestrator.semanticClock ? { ...orchestrator.semanticClock } : null;
+  // Only the API owner may supply this join. Omit absent evidence before
+  // signing: JSON persistence drops undefined, changing the signed payload.
+  if (semanticClock) delete semanticClock.api;
   const receipt = completeMeriCaptureEvidenceReceipt({
     ...orchestrator,
-    ...(orchestrator.semanticClock ? { semanticClock: {
-      ...orchestrator.semanticClock,
-      apiJoin: args.clockPackets ? 'VERIFIED' as const : 'PENDING' as const,
-      api: args.clockPackets ?? undefined,
-    } } : {}),
+    ...(semanticClock
+      ? {
+          semanticClock: {
+            ...semanticClock,
+            apiJoin: args.clockPackets ? ('VERIFIED' as const) : ('PENDING' as const),
+            ...(args.clockPackets ? { api: args.clockPackets } : {}),
+          },
+        }
+      : {}),
     completedAt: args.completedAt ?? Date.now(),
     releases: {
       ...orchestrator.releases,

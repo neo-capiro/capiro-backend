@@ -1,0 +1,182 @@
+{
+  "kind": "combined_capture_contract_source_qualification",
+  "recordedAt": "2026-10-03T23:34:37.665760+00:00",
+  "status": "SOURCE_QUALIFIED_IMAGES_AND_LIVE_RELEASE_PENDING",
+  "humanReleaseApproval": false,
+  "baseSourceSha": "269ae7ccadfc619f60e488a009c75df413770c64",
+  "candidateSourceCount": 13,
+  "productionCount": 6,
+  "testCount": 7,
+  "sourceHashes": [
+    {
+      "path": "apps/api/src/meri/meri-server-readonly-capture.ts",
+      "bytes": 21162,
+      "sha256": "689ddc776123be123c6181ebf7459ce747ae4eb99ad841a8966d8db87210ac93"
+    },
+    {
+      "path": "apps/api/src/meri/meri-capture-clock-packets.spec.ts",
+      "bytes": 13059,
+      "sha256": "655f564716160bed9f20bfa32450f46a9adb9989009a321782e11d235140e828"
+    },
+    {
+      "path": "evals/meri/live-v1/tests/capture-clock-receipt-jsonb.postgres.test.mjs",
+      "bytes": 11355,
+      "sha256": "0534d2c82efaca14a7d9f66cd2399192b3a400ccf4f1693300473a825d64d5e2"
+    },
+    {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "bytes": 407649,
+      "sha256": "a9b2cc4eed2b3397793a2f56b188c8a1a29cab5ec76228ab9aa4e68c46c7be5c"
+    },
+    {
+      "path": "apps/api/src/meri/meri-memory-proposal-read.ts",
+      "bytes": 5072,
+      "sha256": "d415bb91636f8f7f7f0414dc7c9d89122711e143cb6c70be5ff78e527268517e"
+    },
+    {
+      "path": "apps/api/src/meri/meri-capture-policy-readback.ts",
+      "bytes": 7784,
+      "sha256": "3858a6f7d7212fc8f9de31f1ed165e742269db5e94a9fad37b4398f401c04e07"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/controlled-read-observations.ts",
+      "bytes": 12662,
+      "sha256": "da9470709693880141fce698d998069a308523409e5eb1f63d1bea5731f0d3e0"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "bytes": 22804,
+      "sha256": "d1fe00c283c13663c40b70d7e8a7537a888a269b21b758c0f59b7c907fe39471"
+    },
+    {
+      "path": "apps/api/src/meri/meri-tools.registration.spec.ts",
+      "bytes": 46216,
+      "sha256": "149ccac73953e5ac2d7eb64b8909dcf8b9ef990a37739c890c1afd0a4864f095"
+    },
+    {
+      "path": "apps/api/src/meri/meri-memory-proposal-read.spec.ts",
+      "bytes": 10876,
+      "sha256": "9a68bf1b46654c86afddaf51b0c47f78e81aa982f82cb8a8cd3d5b373db17352"
+    },
+    {
+      "path": "apps/api/src/meri/meri-capture-budget-readback.spec.ts",
+      "bytes": 5519,
+      "sha256": "6c181f801d60c1254b34fae82bb241fa1c1c273395a9b7578354032bbc1e35c4"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts",
+      "bytes": 28435,
+      "sha256": "c80f389ce30175ecb11062fe15ae07a265c426fd0172a098849ddd9ae8efa639"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/capture-evidence-receipt.spec.ts",
+      "bytes": 21100,
+      "sha256": "d9606ffad168493f326f1017d1db3bee8794990dfade4844fc8370c86036e17e"
+    }
+  ],
+  "checkpoints": {
+    "serialization": "serialization/checkpoint.json",
+    "followup": "followup/checkpoint.json"
+  },
+  "initialSerialization": {
+    "actualPrismaPostgresRed": {
+      "receipt": "serialization/capture-receipt-clock-red-v2.receipt.json",
+      "passed": 2,
+      "failed": 2,
+      "failure": "meri_capture_receipt_readback_mismatch for both pending-join cases"
+    },
+    "actualPrismaPostgresGreen": {
+      "receipt": "serialization/capture-receipt-clock-green-final.receipt.json",
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0
+    },
+    "sameRedGreenTestBytes": true,
+    "focusedJest": {
+      "receipt": "serialization/focused-jest.receipt.json",
+      "passed": 71,
+      "failed": 0,
+      "suites": 2
+    },
+    "apiBuild": {
+      "receipt": "serialization/local-api-build.receipt.json",
+      "exitCode": 0
+    },
+    "diffCheckExitCode": 0,
+    "coverage": [
+      "pending and joined clock receipts in generic/client scopes",
+      "exact float 0.27222999999999997 survives",
+      "signed JSON roundtrip and exact policy/receipt equality",
+      "unrelated metadata preserved",
+      "BLOCKED and PENDING remain explicit",
+      "tampered signature/readback denied",
+      "current membership revocation denied",
+      "every existing invalid packet join remains serializable and blocked",
+      "predeclared orchestrator API proof cannot survive absent API-owner proof"
+    ],
+    "preservedEarlierEvidence": "red-v1 retained: two target failures plus two test-fixture omissions of the required user row; fixed test fixture before final same-byte red/green. green-v1 retained before production-only formatting; final formatted source tested again."
+  },
+  "finalQualification": {
+    "core": {
+      "passed": 50,
+      "failed": 0,
+      "receipt": "followup/core-green-v3.receipt.json"
+    },
+    "api": {
+      "passed": 149,
+      "failed": 0,
+      "receipt": "followup/api-green-v2.receipt.json"
+    },
+    "orchestrator": {
+      "passed": 43,
+      "failed": 0,
+      "receipt": "followup/orchestrator-green-v3.receipt.json"
+    },
+    "providerAndOwner": {
+      "passed": 39,
+      "failed": 0,
+      "receipt": "followup/provider-regressions.receipt.json"
+    },
+    "combinedActualPrismaPostgres": {
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "receipt": "combined-postgres/capture-receipt-clock-combined-followup-v1.receipt.json",
+      "ownedClusterStopped": true
+    },
+    "builds": {
+      "core": "followup/core-build-v2.receipt.json",
+      "api": "followup/api-build.receipt.json",
+      "orchestrator": "followup/orchestrator-build.receipt.json",
+      "allExitCode": 0
+    }
+  },
+  "independentReview": "independent-review.json",
+  "unchangedAcceptance": {
+    "originalPass": 0,
+    "originalTotal": 75,
+    "cdPass": 0,
+    "cdTotal": 7,
+    "cwPass": 0,
+    "cwTotal": 8,
+    "case01": "CAPTURE_UNCERTAIN",
+    "answerGrade": "NOT_EVALUATED"
+  },
+  "accountingContext": {
+    "source": "../c2-case01-terminal-cost/README.md",
+    "journalEvents": 22,
+    "journalSha256": "a8c8101a4d806ef8080e1648c9e46568a55b7b5f93cb0f053a3d601404bfe3b5",
+    "activeReservation": false,
+    "freshCostMicros": 12133883,
+    "remainingMicros": 17866117,
+    "assertion": "Previously committed cost-only evidence, unchanged by this source archive; not a fresh journal read or invoice claim."
+  },
+  "limits": [
+    "No cloud/auth/provider/model/capture/journal/fixture action, deployment, commit or approval was performed by this implementation.",
+    "Actual HTTP tests use loopback transport. Proposal helper and dispatch tests isolate the existing canonical owner/authority ports; they do not qualify live fixtures or production RLS.",
+    "PostgreSQL tests prove storage/serialization using actual generated Prisma and current source/final core dependency, not production authority or acceptance.",
+    "Before/after current authority is point-in-time revalidation, not an atomic cross-process revocation lock.",
+    "No schema, model, service config, dependency, signed-policy format, source fixture reset or new budget is introduced. Old/new service combinations remain fail-closed for unproved proposal clock joins; native images and rollout remain separately required.",
+    "The original failed live run remains UNCERTAIN and is not replayed or retroactively accepted by these local tests."
+  ]
+}

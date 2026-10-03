@@ -15,87 +15,333 @@ const NOW = 1_800_000_000_000;
 function clockReceipt(): MeriCaptureEvidenceReceipt {
   const value = receipt();
   value.captureRunId = '11111111-1111-4111-8111-111111111111';
-  const clockUse = { instant: '2026-09-26T16:00:00.000Z' as const, timeZone: 'America/New_York' as const,
-    eligibilityAt: new Date(NOW - 100).toISOString(), scoring: 'used' as const };
-  const packet = (n: string) => ({ packetId: `${n.repeat(8)}-${n.repeat(4)}-4${n.repeat(3)}-8${n.repeat(3)}-${n.repeat(12)}`,
-    persisted: true as const, clockUse: { ...clockUse } });
+  const clockUse = {
+    instant: '2026-09-26T16:00:00.000Z' as const,
+    timeZone: 'America/New_York' as const,
+    eligibilityAt: new Date(NOW - 100).toISOString(),
+    scoring: 'used' as const,
+  };
+  const packet = (n: string) => ({
+    packetId: `${n.repeat(8)}-${n.repeat(4)}-4${n.repeat(3)}-8${n.repeat(3)}-${n.repeat(12)}`,
+    persisted: true as const,
+    clockUse: { ...clockUse },
+  });
   value.sources = [];
-  value.toolCalls = [{ callId: 'memory-call', name: 'search_memory', attempt: 1,
-    status: 'partial', readOnly: true, sourceIds: [] }];
+  value.toolCalls = [
+    {
+      callId: 'memory-call',
+      name: 'search_memory',
+      attempt: 1,
+      status: 'partial',
+      readOnly: true,
+      sourceIds: [],
+    },
+  ];
   value.semanticClock = {
-    binding: { version: 1, kind: 'qualified_original_fixture_semantic_clock',
-      instant: clockUse.instant, timeZone: clockUse.timeZone, caseId: '01',
-      captureRunId: '11111111-1111-4111-8111-111111111111', currentVerifySha256: 'a'.repeat(64), observedAt: NOW - 1000 },
-    prompt: observed({ instant: clockUse.instant, timeZone: clockUse.timeZone, date: '2026-09-26',
-      renderedAt: NOW - 200, groundingSha256: 'b'.repeat(64) }),
-    invocations: [{ callId: 'memory-call', tool: 'search_memory', outcome: 'returned',
-      httpAttempts: 1, httpStatus: 200, responseSha256: 'c'.repeat(64), packets: [packet('2'), packet('3')] }],
-    apiJoin: 'VERIFIED', api: { initial: packet('1'), tools: [packet('2'), packet('3')], relativeToolWindows: 'NOT_APPLICABLE' },
+    binding: {
+      version: 1,
+      kind: 'qualified_original_fixture_semantic_clock',
+      instant: clockUse.instant,
+      timeZone: clockUse.timeZone,
+      caseId: '01',
+      captureRunId: '11111111-1111-4111-8111-111111111111',
+      currentVerifySha256: 'a'.repeat(64),
+      observedAt: NOW - 1000,
+    },
+    prompt: observed({
+      instant: clockUse.instant,
+      timeZone: clockUse.timeZone,
+      date: '2026-09-26',
+      renderedAt: NOW - 200,
+      groundingSha256: 'b'.repeat(64),
+    }),
+    invocations: [
+      {
+        callId: 'memory-call',
+        tool: 'search_memory',
+        outcome: 'returned',
+        httpAttempts: 1,
+        httpStatus: 200,
+        responseSha256: 'c'.repeat(64),
+        packets: [packet('2'), packet('3')],
+      },
+    ],
+    apiJoin: 'VERIFIED',
+    api: {
+      initial: packet('1'),
+      tools: [packet('2'), packet('3')],
+      relativeToolWindows: 'NOT_APPLICABLE',
+    },
   };
   return value;
 }
 
 describe('independent semantic-clock receipt join', () => {
+  function proposalReceipt() {
+    const r = clockReceipt();
+    r.toolCalls.push({
+      callId: 'proposal-call',
+      name: 'list_memory_proposals',
+      attempt: 1,
+      status: 'complete',
+      readOnly: true,
+      sourceIds: [],
+    });
+    r.semanticClock!.invocations!.push(
+      Object.assign(
+        {
+          callId: 'proposal-call',
+          tool: 'list_memory_proposals',
+          outcome: 'returned' as const,
+          httpAttempts: 1,
+          httpStatus: 200,
+          responseSha256: 'd'.repeat(64),
+          packets: [],
+        },
+        {
+          proposalRead: {
+            authority: 'own_pending_proposals' as const,
+            tenantId: r.tenantId,
+            actorUserId: r.actorUserId,
+            clientId: r.clientId!,
+            semanticTime: 'not_used' as const,
+            compiler: 'not_run' as const,
+            claimsAreApprovedFacts: false as const,
+            coverage: 'complete' as const,
+          },
+        },
+      ),
+    );
+    return r;
+  }
+  it.each(['01', '14'])(
+    'joins actual own-proposal HTTP proof without inventing a compiler consumer for case%s',
+    (caseId) => {
+      const r = proposalReceipt();
+      r.caseId = caseId;
+      r.semanticClock!.binding.caseId = caseId as '01' | '14';
+      r.providerBudget!.boundary = caseId === '01' ? 'case01_memory_turn' : 'case14_memory_turn';
+      expect(completeMeriCaptureEvidenceReceipt(r).status).toBe('COMPLETE');
+    },
+  );
+  it.each([
+    'proof',
+    'tenant',
+    'actor',
+    'client',
+    'compiler',
+    'time',
+    'approved',
+    'coverage',
+    'packet',
+    'source',
+    'citation',
+    'controlled',
+    'other-tool-proof',
+    'failed',
+    'http',
+    'response',
+    'case',
+  ])('keeps proposal %s unproved', (fault) => {
+    const r = proposalReceipt(),
+      a: any = r.semanticClock!.invocations!.at(-1)!;
+    if (fault === 'proof') delete a.proposalRead;
+    if (fault === 'tenant') a.proposalRead.tenantId = 'other';
+    if (fault === 'actor') a.proposalRead.actorUserId = 'other';
+    if (fault === 'client') a.proposalRead.clientId = null;
+    if (fault === 'compiler') a.proposalRead.compiler = 'used';
+    if (fault === 'time') a.proposalRead.semanticTime = 'used';
+    if (fault === 'approved') a.proposalRead.claimsAreApprovedFacts = true;
+    if (fault === 'coverage') {
+      a.proposalRead.coverage = 'partial';
+      r.toolCalls.at(-1)!.status = 'partial';
+    }
+    if (fault === 'packet') a.packets = r.semanticClock!.api!.tools;
+    if (fault === 'source') r.toolCalls.at(-1)!.sourceIds = ['proposal'];
+    if (fault === 'citation')
+      r.sources = [{ ...receipt().sources[0]!, toolCallId: 'proposal-call' }];
+    if (fault === 'controlled') r.controlledReadAttempts = [{ callId: 'proposal-call' } as never];
+    if (fault === 'other-tool-proof') {
+      Object.assign(r.semanticClock!.invocations![0]!, { proposalRead: a.proposalRead });
+    }
+    if (fault === 'failed') a.outcome = 'threw';
+    if (fault === 'http') a.httpStatus = 500;
+    if (fault === 'response') a.responseSha256 = null;
+    if (fault === 'case') {
+      r.caseId = '20';
+      r.semanticClock!.binding.caseId = '20';
+    }
+    expect(
+      completeMeriCaptureEvidenceReceipt(r).blockers.some((x) => x.startsWith('semantic_clock_')),
+    ).toBe(true);
+  });
   it('accepts both actual fallback packets and a separate initial compiler observation', () => {
     expect(completeMeriCaptureEvidenceReceipt(clockReceipt()).status).toBe('COMPLETE');
   });
   it.each([
-    ['unobserved HTTP census', (r: any) => { delete r.semanticClock.invocations; }],
+    [
+      'unobserved HTTP census',
+      (r: any) => {
+        delete r.semanticClock.invocations;
+      },
+    ],
     ['duplicate logical call', (r: any) => r.toolCalls.push(r.toolCalls[0])],
-    ['duplicate invocation', (r: any) => r.semanticClock.invocations.push(r.semanticClock.invocations[0])],
+    [
+      'duplicate invocation',
+      (r: any) => r.semanticClock.invocations.push(r.semanticClock.invocations[0]),
+    ],
     ['malformed invocation', (r: any) => r.semanticClock.invocations.push(null)],
-    ['missing invocation', (r: any) => { r.semanticClock.invocations = []; }],
-    ['extra invocation', (r: any) => { r.semanticClock.invocations[0].callId = 'other'; }],
-    ['unresolved invocation', (r: any) => { r.semanticClock.invocations[0].outcome = 'pending'; }],
-    ['failed HTTP', (r: any) => { r.semanticClock.invocations[0].httpStatus = 503; }],
-    ['failed logical read', (r: any) => { r.toolCalls[0].status = 'failed'; }],
-    ['second HTTP attempt', (r: any) => { r.semanticClock.invocations[0].httpAttempts = 2; }],
+    [
+      'missing invocation',
+      (r: any) => {
+        r.semanticClock.invocations = [];
+      },
+    ],
+    [
+      'extra invocation',
+      (r: any) => {
+        r.semanticClock.invocations[0].callId = 'other';
+      },
+    ],
+    [
+      'unresolved invocation',
+      (r: any) => {
+        r.semanticClock.invocations[0].outcome = 'pending';
+      },
+    ],
+    [
+      'failed HTTP',
+      (r: any) => {
+        r.semanticClock.invocations[0].httpStatus = 503;
+      },
+    ],
+    [
+      'failed logical read',
+      (r: any) => {
+        r.toolCalls[0].status = 'failed';
+      },
+    ],
+    [
+      'second HTTP attempt',
+      (r: any) => {
+        r.semanticClock.invocations[0].httpAttempts = 2;
+      },
+    ],
     ['missing fallback packet', (r: any) => r.semanticClock.api.tools.pop()],
-    ['duplicate packet', (r: any) => { r.semanticClock.invocations[0].packets[1] = r.semanticClock.invocations[0].packets[0]; }],
-    ['initial reused as tool', (r: any) => { r.semanticClock.api.initial = r.semanticClock.api.tools[0]; }],
-    ['stored clock mismatch', (r: any) => { r.semanticClock.api.tools[0].clockUse.eligibilityAt = new Date(NOW - 99).toISOString(); }],
-    ['prompt clock mismatch', (r: any) => { r.semanticClock.prompt.value.instant = new Date(NOW).toISOString(); }],
-    ['unadmitted time tool', (r: any) => { r.toolCalls[0].name = r.semanticClock.invocations[0].tool = 'query_tasks'; }],
-    ['name-only local discovery', (r: any) => { r.toolCalls.push({ callId: 'local', name: 'tool_search', readOnly: true, attempt: 1, status: 'complete' }); }],
+    [
+      'duplicate packet',
+      (r: any) => {
+        r.semanticClock.invocations[0].packets[1] = r.semanticClock.invocations[0].packets[0];
+      },
+    ],
+    [
+      'initial reused as tool',
+      (r: any) => {
+        r.semanticClock.api.initial = r.semanticClock.api.tools[0];
+      },
+    ],
+    [
+      'stored clock mismatch',
+      (r: any) => {
+        r.semanticClock.api.tools[0].clockUse.eligibilityAt = new Date(NOW - 99).toISOString();
+      },
+    ],
+    [
+      'prompt clock mismatch',
+      (r: any) => {
+        r.semanticClock.prompt.value.instant = new Date(NOW).toISOString();
+      },
+    ],
+    [
+      'unadmitted time tool',
+      (r: any) => {
+        r.toolCalls[0].name = r.semanticClock.invocations[0].tool = 'query_tasks';
+      },
+    ],
+    [
+      'name-only local discovery',
+      (r: any) => {
+        r.toolCalls.push({
+          callId: 'local',
+          name: 'tool_search',
+          readOnly: true,
+          attempt: 1,
+          status: 'complete',
+        });
+      },
+    ],
   ])('keeps %s BLOCKED', (_name, mutate) => {
-    const r = clockReceipt(); mutate(r);
-    expect(completeMeriCaptureEvidenceReceipt(r).blockers.some(x => x.startsWith('semantic_clock_'))).toBe(true);
+    const r = clockReceipt();
+    mutate(r);
+    expect(
+      completeMeriCaptureEvidenceReceipt(r).blockers.some((x) => x.startsWith('semantic_clock_')),
+    ).toBe(true);
   });
   it('permits N/A tool windows only after a complete empty invocation census and actual local discovery', () => {
     const r = clockReceipt();
-    r.toolCalls = [{ callId: 'local', name: 'tool_search', readOnly: true,
-      attempt: 1, status: 'complete', sourceIds: [], localDiscovery: true }];
+    r.toolCalls = [
+      {
+        callId: 'local',
+        name: 'tool_search',
+        readOnly: true,
+        attempt: 1,
+        status: 'complete',
+        sourceIds: [],
+        localDiscovery: true,
+      },
+    ];
     r.semanticClock!.invocations = [];
     r.semanticClock!.api!.tools = [];
     expect(completeMeriCaptureEvidenceReceipt(r).status).toBe('COMPLETE');
   });
-  it.each(['20', '72'])('joins the actual controlled response for case %s without inventing compiler use', caseId => {
-    const r = clockReceipt();
-    r.caseId = caseId;
-    r.semanticClock!.binding.caseId = caseId as '20' | '72';
-    r.providerBudget!.boundary = caseId === '20' ? 'case20_controlled_read_turn' : 'case72_controlled_read_turn';
-    r.toolCalls[0]!.name = caseId === '20' ? 'get_pe_budget_timeline' : 'read_client_documents';
-    r.toolCalls[0]!.status = caseId === '72' ? 'failed' : 'complete';
-    const attempt = r.semanticClock!.invocations![0]!;
-    attempt.tool = r.toolCalls[0]!.name;
-    attempt.outcome = caseId === '72' ? 'threw' : 'returned';
-    attempt.packets = [];
-    r.semanticClock!.api!.tools = [];
-    r.controlledReadAttempts = [{ callId: attempt.callId, tool: attempt.tool, httpStatus: 200,
-      logicalError: caseId === '72' ? 'document unavailable' : null, caseId,
-      requestId: r.requestId, traceId: r.traceId, turnId: r.turnId!, captureRunId: r.captureRunId!,
-      responseSha256: attempt.responseSha256!, sourceId: 'source', logicalSourceId: 'fixture', sourceVersion: 'v1',
-      currentVerifySha256: 'a'.repeat(64), contentSha256: 'd'.repeat(64), sourceTenantId: r.tenantId,
-      sourceClientId: caseId === '20' ? null : r.clientId, fullRead: caseId === '20', passageSha256: null }];
-    expect(completeMeriCaptureEvidenceReceipt(r).status).toBe('COMPLETE');
-    if (caseId === '72') {
-      r.toolCalls[0]!.status = 'invalid_not_executed';
+  it.each(['20', '72'])(
+    'joins the actual controlled response for case %s without inventing compiler use',
+    (caseId) => {
+      const r = clockReceipt();
+      r.caseId = caseId;
+      r.semanticClock!.binding.caseId = caseId as '20' | '72';
+      r.providerBudget!.boundary =
+        caseId === '20' ? 'case20_controlled_read_turn' : 'case72_controlled_read_turn';
+      r.toolCalls[0]!.name = caseId === '20' ? 'get_pe_budget_timeline' : 'read_client_documents';
+      r.toolCalls[0]!.status = caseId === '72' ? 'failed' : 'complete';
+      const attempt = r.semanticClock!.invocations![0]!;
+      attempt.tool = r.toolCalls[0]!.name;
+      attempt.outcome = caseId === '72' ? 'threw' : 'returned';
+      attempt.packets = [];
+      r.semanticClock!.api!.tools = [];
+      r.controlledReadAttempts = [
+        {
+          callId: attempt.callId,
+          tool: attempt.tool,
+          httpStatus: 200,
+          logicalError: caseId === '72' ? 'document unavailable' : null,
+          caseId,
+          requestId: r.requestId,
+          traceId: r.traceId,
+          turnId: r.turnId!,
+          captureRunId: r.captureRunId!,
+          responseSha256: attempt.responseSha256!,
+          sourceId: 'source',
+          logicalSourceId: 'fixture',
+          sourceVersion: 'v1',
+          currentVerifySha256: 'a'.repeat(64),
+          contentSha256: 'd'.repeat(64),
+          sourceTenantId: r.tenantId,
+          sourceClientId: caseId === '20' ? null : r.clientId,
+          fullRead: caseId === '20',
+          passageSha256: null,
+        },
+      ];
+      expect(completeMeriCaptureEvidenceReceipt(r).status).toBe('COMPLETE');
+      if (caseId === '72') {
+        r.toolCalls[0]!.status = 'invalid_not_executed';
+        expect(completeMeriCaptureEvidenceReceipt(r).status).toBe('BLOCKED');
+        r.toolCalls[0]!.status = 'failed';
+      }
+      r.controlledReadAttempts[0]!.responseSha256 = 'e'.repeat(64);
       expect(completeMeriCaptureEvidenceReceipt(r).status).toBe('BLOCKED');
-      r.toolCalls[0]!.status = 'failed';
-    }
-    r.controlledReadAttempts[0]!.responseSha256 = 'e'.repeat(64);
-    expect(completeMeriCaptureEvidenceReceipt(r).status).toBe('BLOCKED');
-  });
+    },
+  );
 });
 
 function policy(): MeriServerReadonlyCapturePolicy {
@@ -304,6 +550,18 @@ describe('trusted server capture evidence receipt', () => {
         },
       }).blockers,
     ).toContain('provider_budget_api_ingress_unaccounted');
+  });
+  it('accepts the already qualified fifteen-dollar ceiling without accepting overspend or higher limits', () => {
+    const base = receipt();
+    const make = (maxCostMicros: number, chargedCostMicros = 2_292_602) =>
+      completeMeriCaptureEvidenceReceipt({
+        ...base,
+        providerBudget: { ...base.providerBudget!, maxCostMicros, chargedCostMicros },
+      });
+    expect(make(15_000_000).blockers).not.toContain('provider_budget_malformed');
+    expect(make(15_000_001).blockers).toContain('provider_budget_malformed');
+    expect(make(15_000_000, 15_000_001).blockers).toContain('provider_budget_malformed');
+    expect(make(3_000_000, 3_000_001).blockers).toContain('provider_budget_malformed');
   });
 
   it('rejects a current-authority tuple mismatch', () => {

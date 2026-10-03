@@ -1,0 +1,14 @@
+[Nest] 55044  - 10/03/2026, 7:22:20 PM    WARN [ApiToolExecutorRepo] Delegated read "read_client_documents" -> failed
+[Nest] 55044  - 10/03/2026, 7:22:20 PM    WARN [ApiToolExecutorRepo] Delegated tool "search_memory" -> 503
+PASS src/meri/controlled-read-observations.spec.ts (9.171 s)
+[Nest] 55044  - 10/03/2026, 7:22:20 PM    WARN [ApiToolExecutorRepo] Delegated tool "list_memory_proposals" -> 500
+[Nest] 55044  - 10/03/2026, 7:22:20 PM    WARN [ApiToolExecutorRepo] Delegated read "read_client_documents" -> failed
+[Nest] 55044  - 10/03/2026, 7:22:20 PM    WARN [ApiToolExecutorRepo] Delegated read "read_client_documents" -> failed
+[Nest] 55044  - 10/03/2026, 7:22:20 PM    WARN [ApiToolExecutorRepo] Delegated read "read_client_documents" -> failed
+PASS src/meri/meriv3/meriv3-capture-evidence.spec.ts
+
+Test Suites: 2 passed, 2 total
+Tests:       43 passed, 43 total
+Snapshots:   0 total
+Time:        9.565 s, estimated 13 s
+Ran all test suites matching /src\\meri\\controlled-read-observations.spec.ts|src\\meri\\meriv3\\meriv3-capture-evidence.spec.ts/i.

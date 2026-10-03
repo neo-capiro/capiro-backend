@@ -1,0 +1,245 @@
+[Nest] 53684  - 10/03/2026, 7:04:14 PM    WARN [ApiToolExecutorRepo] Delegated read "read_client_documents" -> failed
+[Nest] 53684  - 10/03/2026, 7:04:14 PM    WARN [ApiToolExecutorRepo] Delegated tool "search_memory" -> 503
+[Nest] 53684  - 10/03/2026, 7:04:14 PM    WARN [ApiToolExecutorRepo] Delegated read "list_memory_proposals" -> failed
+[Nest] 53684  - 10/03/2026, 7:04:14 PM    WARN [ApiToolExecutorRepo] Delegated read "list_memory_proposals" -> unavailable
+[Nest] 53684  - 10/03/2026, 7:04:14 PM    WARN [ApiToolExecutorRepo] Delegated tool "list_memory_proposals" -> 500
+[Nest] 53684  - 10/03/2026, 7:04:14 PM    WARN [ApiToolExecutorRepo] Delegated read "read_client_documents" -> failed
+[Nest] 53684  - 10/03/2026, 7:04:14 PM    WARN [ApiToolExecutorRepo] Delegated read "read_client_documents" -> failed
+[Nest] 53684  - 10/03/2026, 7:04:14 PM    WARN [ApiToolExecutorRepo] Delegated read "read_client_documents" -> failed
+FAIL src/meri/controlled-read-observations.spec.ts (15.514 s)
+  controlled read actual HTTP observations
+    √ refused unwrapped execution poisons the clock census even when its caller catches the error (68 ms)
+    √ refused missing-call-id execution poisons the clock census even when its caller catches the error (2 ms)
+    √ refused wrong-tool execution poisons the clock census even when its caller catches the error (12 ms)
+    √ retains actual 01 HTTP clock evidence before truncation (102 ms)
+    √ retains actual 14 HTTP clock evidence before truncation (20 ms)
+    √ retains actual 20 HTTP clock evidence before truncation (13 ms)
+    √ retains actual 72 HTTP clock evidence before truncation (16 ms)
+    √ retains actual failed HTTP clock evidence before truncation (21 ms)
+    × observes the actual own-proposal response as a bounded no-clock-consumer read: 01-empty (10 ms)
+    × observes the actual own-proposal response as a bounded no-clock-consumer read: 01-complete (9 ms)
+    × observes the actual own-proposal response as a bounded no-clock-consumer read: 01-partial (8 ms)
+    × observes the actual own-proposal response as a bounded no-clock-consumer read: 14-complete (8 ms)
+    × observes the actual own-proposal response as a bounded no-clock-consumer read: tenant (7 ms)
+    × observes the actual own-proposal response as a bounded no-clock-consumer read: actor (7 ms)
+    × observes the actual own-proposal response as a bounded no-clock-consumer read: client (6 ms)
+    × observes the actual own-proposal response as a bounded no-clock-consumer read: missing-client (5 ms)
+    × observes the actual own-proposal response as a bounded no-clock-consumer read: compiler (7 ms)
+    √ observes the actual own-proposal response as a bounded no-clock-consumer read: approved (8 ms)
+    √ observes the actual own-proposal response as a bounded no-clock-consumer read: disabled (7 ms)
+    √ observes the actual own-proposal response as a bounded no-clock-consumer read: http-failure (7 ms)
+    √ one actual loopback HTTP response captures two independent passages under one provider call (7 ms)
+    √ multi-source observation refuses duplicate before recording anything (3 ms)
+    √ multi-source observation refuses missing before recording anything (1 ms)
+    √ multi-source observation refuses hash before recording anything (1 ms)
+    √ multi-source observation refuses foreign before recording anything (1 ms)
+    √ multi-source observation refuses coverage before recording anything (1 ms)
+    √ native API executor observes HTTP200 logical errors before failure and native no-progress suppresses call four (23 ms)
+    √ actual full passage joins call/source/hash and records tenant-global null client (1 ms)
+    √ rejects mismatched captureRunId before accepting HTTP evidence
+    √ rejects mismatched requestId before accepting HTTP evidence (1 ms)
+    √ rejects mismatched traceId before accepting HTTP evidence (1 ms)
+    √ rejects mismatched turnId before accepting HTTP evidence
+    √ rejects mismatched tenantId before accepting HTTP evidence
+    √ rejects mismatched actorUserId before accepting HTTP evidence (1 ms)
+    √ rejects mismatched clientId before accepting HTTP evidence
+    √ rejects mismatched conversationId before accepting HTTP evidence (1 ms)
+    √ rejects mismatched physicalMapSha256 before accepting HTTP evidence (1 ms)
+    √ rejects absent real call identity, non200 transport, modified full text, and wrong source client (2 ms)
+    √ ordinary and case01 requests are unchanged and cannot access another request observations
+
+  ● controlled read actual HTTP observations › observes the actual own-proposal response as a bounded no-clock-consumer read: 01-empty
+
+    expect(received).toEqual(expected) // deep equality
+
+    Expected: {"actorUserId": "55555555-5555-4555-8555-555555555555", "authority": "own_pending_proposals", "claimsAreApprovedFacts": false, "clientId": "77777777-7777-4777-8777-777777777777", "compiler": "not_run", "coverage": "empty", "semanticTime": "not_used", "tenantId": "44444444-4444-4444-8444-444444444444"}
+    Received: undefined
+
+      459 |           expect(actual[0]!.packets).toEqual([]);
+      460 |           if (succeeds)
+    > 461 |             expect((actual[0] as any).proposalRead).toEqual({
+          |                                                     ^
+      462 |               authority: 'own_pending_proposals',
+      463 |               tenantId: p.tenantId,
+      464 |               actorUserId: p.actorUserId,
+
+      at src/meri/controlled-read-observations.spec.ts:461:53
+      at src/meri/controlled-read-observations.spec.ts:446:7
+
+  ● controlled read actual HTTP observations › observes the actual own-proposal response as a bounded no-clock-consumer read: 01-complete
+
+    expect(received).toEqual(expected) // deep equality
+
+    Expected: {"actorUserId": "55555555-5555-4555-8555-555555555555", "authority": "own_pending_proposals", "claimsAreApprovedFacts": false, "clientId": "77777777-7777-4777-8777-777777777777", "compiler": "not_run", "coverage": "complete", "semanticTime": "not_used", "tenantId": "44444444-4444-4444-8444-444444444444"}
+    Received: undefined
+
+      459 |           expect(actual[0]!.packets).toEqual([]);
+      460 |           if (succeeds)
+    > 461 |             expect((actual[0] as any).proposalRead).toEqual({
+          |                                                     ^
+      462 |               authority: 'own_pending_proposals',
+      463 |               tenantId: p.tenantId,
+      464 |               actorUserId: p.actorUserId,
+
+      at src/meri/controlled-read-observations.spec.ts:461:53
+      at src/meri/controlled-read-observations.spec.ts:446:7
+
+  ● controlled read actual HTTP observations › observes the actual own-proposal response as a bounded no-clock-consumer read: 01-partial
+
+    expect(received).toEqual(expected) // deep equality
+
+    Expected: {"actorUserId": "55555555-5555-4555-8555-555555555555", "authority": "own_pending_proposals", "claimsAreApprovedFacts": false, "clientId": "77777777-7777-4777-8777-777777777777", "compiler": "not_run", "coverage": "partial", "semanticTime": "not_used", "tenantId": "44444444-4444-4444-8444-444444444444"}
+    Received: undefined
+
+      459 |           expect(actual[0]!.packets).toEqual([]);
+      460 |           if (succeeds)
+    > 461 |             expect((actual[0] as any).proposalRead).toEqual({
+          |                                                     ^
+      462 |               authority: 'own_pending_proposals',
+      463 |               tenantId: p.tenantId,
+      464 |               actorUserId: p.actorUserId,
+
+      at src/meri/controlled-read-observations.spec.ts:461:53
+      at src/meri/controlled-read-observations.spec.ts:446:7
+
+  ● controlled read actual HTTP observations › observes the actual own-proposal response as a bounded no-clock-consumer read: 14-complete
+
+    expect(received).toEqual(expected) // deep equality
+
+    Expected: {"actorUserId": "55555555-5555-4555-8555-555555555555", "authority": "own_pending_proposals", "claimsAreApprovedFacts": false, "clientId": "77777777-7777-4777-8777-777777777777", "compiler": "not_run", "coverage": "complete", "semanticTime": "not_used", "tenantId": "44444444-4444-4444-8444-444444444444"}
+    Received: undefined
+
+      459 |           expect(actual[0]!.packets).toEqual([]);
+      460 |           if (succeeds)
+    > 461 |             expect((actual[0] as any).proposalRead).toEqual({
+          |                                                     ^
+      462 |               authority: 'own_pending_proposals',
+      463 |               tenantId: p.tenantId,
+      464 |               actorUserId: p.actorUserId,
+
+      at src/meri/controlled-read-observations.spec.ts:461:53
+      at src/meri/controlled-read-observations.spec.ts:446:7
+
+  ● controlled read actual HTTP observations › observes the actual own-proposal response as a bounded no-clock-consumer read: tenant
+
+    expect(received).rejects.toThrow()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"authority": "own_pending_proposals", "candidates": [{"approvedFact": false, "clientId": "77777777-7777-4777-8777-777777777777", "contentTruncated": false, "createdAt": "2026-09-26T12:00:00.000Z", "id": "88888888-8888-4888-8888-888888888888", "proposedText": "Unapproved preference", "restricted": false, "scope": "client", "sourceKind": "user_chat", "status": "pending", "title": "Pending only"}], "claimsAreApprovedFacts": false, "coverage": {"complete": true, "firstPage": true, "reason": "owned-read"}, "enabled": true, "nextCursor": null, "scope": {"clientId": "77777777-7777-4777-8777-777777777777", "tenantId": "99999999-9999-4999-8999-999999999999", "userId": "55555555-5555-4555-8555-555555555555"}, "tool": "list_memory_proposals"}
+
+      454 |             );
+      455 |           if (succeeds) await expect(call()).resolves.toBeDefined();
+    > 456 |           else await expect(call()).rejects.toThrow();
+          |                      ^
+      457 |           const actual = readCaptureClockInvocations()!;
+      458 |           expect(actual).toHaveLength(1);
+      459 |           expect(actual[0]!.packets).toEqual([]);
+
+      at expect (../../node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)
+      at src/meri/controlled-read-observations.spec.ts:456:22
+      at Object.run (src/request/request-credentials.store.ts:48:16)
+      at src/meri/controlled-read-observations.spec.ts:447:33
+      at withTrustedCurrentTurnScope (src/request/trusted-current-turn-scope.ts:33:18)
+      at scope (src/meri/controlled-read-observations.spec.ts:76:37)
+      at src/meri/controlled-read-observations.spec.ts:446:13
+
+  ● controlled read actual HTTP observations › observes the actual own-proposal response as a bounded no-clock-consumer read: actor
+
+    expect(received).rejects.toThrow()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"authority": "own_pending_proposals", "candidates": [{"approvedFact": false, "clientId": "77777777-7777-4777-8777-777777777777", "contentTruncated": false, "createdAt": "2026-09-26T12:00:00.000Z", "id": "88888888-8888-4888-8888-888888888888", "proposedText": "Unapproved preference", "restricted": false, "scope": "client", "sourceKind": "user_chat", "status": "pending", "title": "Pending only"}], "claimsAreApprovedFacts": false, "coverage": {"complete": true, "firstPage": true, "reason": "owned-read"}, "enabled": true, "nextCursor": null, "scope": {"clientId": "77777777-7777-4777-8777-777777777777", "tenantId": "44444444-4444-4444-8444-444444444444", "userId": "99999999-9999-4999-8999-999999999999"}, "tool": "list_memory_proposals"}
+
+      454 |             );
+      455 |           if (succeeds) await expect(call()).resolves.toBeDefined();
+    > 456 |           else await expect(call()).rejects.toThrow();
+          |                      ^
+      457 |           const actual = readCaptureClockInvocations()!;
+      458 |           expect(actual).toHaveLength(1);
+      459 |           expect(actual[0]!.packets).toEqual([]);
+
+      at expect (../../node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)
+      at src/meri/controlled-read-observations.spec.ts:456:22
+      at Object.run (src/request/request-credentials.store.ts:48:16)
+      at src/meri/controlled-read-observations.spec.ts:447:33
+      at withTrustedCurrentTurnScope (src/request/trusted-current-turn-scope.ts:33:18)
+      at scope (src/meri/controlled-read-observations.spec.ts:76:37)
+      at src/meri/controlled-read-observations.spec.ts:446:13
+
+  ● controlled read actual HTTP observations › observes the actual own-proposal response as a bounded no-clock-consumer read: client
+
+    expect(received).rejects.toThrow()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"authority": "own_pending_proposals", "candidates": [{"approvedFact": false, "clientId": "99999999-9999-4999-8999-999999999999", "contentTruncated": false, "createdAt": "2026-09-26T12:00:00.000Z", "id": "88888888-8888-4888-8888-888888888888", "proposedText": "Unapproved preference", "restricted": false, "scope": "client", "sourceKind": "user_chat", "status": "pending", "title": "Pending only"}], "claimsAreApprovedFacts": false, "coverage": {"complete": true, "firstPage": true, "reason": "owned-read"}, "enabled": true, "nextCursor": null, "scope": {"clientId": "99999999-9999-4999-8999-999999999999", "tenantId": "44444444-4444-4444-8444-444444444444", "userId": "55555555-5555-4555-8555-555555555555"}, "tool": "list_memory_proposals"}
+
+      454 |             );
+      455 |           if (succeeds) await expect(call()).resolves.toBeDefined();
+    > 456 |           else await expect(call()).rejects.toThrow();
+          |                      ^
+      457 |           const actual = readCaptureClockInvocations()!;
+      458 |           expect(actual).toHaveLength(1);
+      459 |           expect(actual[0]!.packets).toEqual([]);
+
+      at expect (../../node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)
+      at src/meri/controlled-read-observations.spec.ts:456:22
+      at Object.run (src/request/request-credentials.store.ts:48:16)
+      at src/meri/controlled-read-observations.spec.ts:447:33
+      at withTrustedCurrentTurnScope (src/request/trusted-current-turn-scope.ts:33:18)
+      at scope (src/meri/controlled-read-observations.spec.ts:76:37)
+      at src/meri/controlled-read-observations.spec.ts:446:13
+
+  ● controlled read actual HTTP observations › observes the actual own-proposal response as a bounded no-clock-consumer read: missing-client
+
+    expect(received).rejects.toThrow()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"authority": "own_pending_proposals", "candidates": [{"approvedFact": false, "clientId": "77777777-7777-4777-8777-777777777777", "contentTruncated": false, "createdAt": "2026-09-26T12:00:00.000Z", "id": "88888888-8888-4888-8888-888888888888", "proposedText": "Unapproved preference", "restricted": false, "scope": "client", "sourceKind": "user_chat", "status": "pending", "title": "Pending only"}], "claimsAreApprovedFacts": false, "coverage": {"complete": true, "firstPage": true, "reason": "owned-read"}, "enabled": true, "nextCursor": null, "scope": {"clientId": null, "tenantId": "44444444-4444-4444-8444-444444444444", "userId": "55555555-5555-4555-8555-555555555555"}, "tool": "list_memory_proposals"}
+
+      454 |             );
+      455 |           if (succeeds) await expect(call()).resolves.toBeDefined();
+    > 456 |           else await expect(call()).rejects.toThrow();
+          |                      ^
+      457 |           const actual = readCaptureClockInvocations()!;
+      458 |           expect(actual).toHaveLength(1);
+      459 |           expect(actual[0]!.packets).toEqual([]);
+
+      at expect (../../node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)
+      at src/meri/controlled-read-observations.spec.ts:456:22
+      at Object.run (src/request/request-credentials.store.ts:48:16)
+      at src/meri/controlled-read-observations.spec.ts:447:33
+      at withTrustedCurrentTurnScope (src/request/trusted-current-turn-scope.ts:33:18)
+      at scope (src/meri/controlled-read-observations.spec.ts:76:37)
+      at src/meri/controlled-read-observations.spec.ts:446:13
+
+  ● controlled read actual HTTP observations › observes the actual own-proposal response as a bounded no-clock-consumer read: compiler
+
+    expect(received).rejects.toThrow()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"authority": "own_pending_proposals", "candidates": [{"approvedFact": false, "clientId": "77777777-7777-4777-8777-777777777777", "contentTruncated": false, "createdAt": "2026-09-26T12:00:00.000Z", "id": "88888888-8888-4888-8888-888888888888", "proposedText": "Unapproved preference", "restricted": false, "scope": "client", "sourceKind": "user_chat", "status": "pending", "title": "Pending only"}], "claimsAreApprovedFacts": false, "contextPackets": [], "coverage": {"complete": true, "firstPage": true, "reason": "owned-read"}, "enabled": true, "nextCursor": null, "scope": {"clientId": "77777777-7777-4777-8777-777777777777", "tenantId": "44444444-4444-4444-8444-444444444444", "userId": "55555555-5555-4555-8555-555555555555"}, "tool": "list_memory_proposals"}
+
+      454 |             );
+      455 |           if (succeeds) await expect(call()).resolves.toBeDefined();
+    > 456 |           else await expect(call()).rejects.toThrow();
+          |                      ^
+      457 |           const actual = readCaptureClockInvocations()!;
+      458 |           expect(actual).toHaveLength(1);
+      459 |           expect(actual[0]!.packets).toEqual([]);
+
+      at expect (../../node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)
+      at src/meri/controlled-read-observations.spec.ts:456:22
+      at Object.run (src/request/request-credentials.store.ts:48:16)
+      at src/meri/controlled-read-observations.spec.ts:447:33
+      at withTrustedCurrentTurnScope (src/request/trusted-current-turn-scope.ts:33:18)
+      at scope (src/meri/controlled-read-observations.spec.ts:76:37)
+      at src/meri/controlled-read-observations.spec.ts:446:13
+
+Test Suites: 1 failed, 1 total
+Tests:       9 failed, 30 passed, 39 total
+Snapshots:   0 total
+Time:        15.712 s
+Ran all test suites matching /src\\meri\\controlled-read-observations.spec.ts/i.
+undefined
+C:\dev\main\meri-c1-20261002\apps\meriv2-orchestrator:
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command "jest" not found

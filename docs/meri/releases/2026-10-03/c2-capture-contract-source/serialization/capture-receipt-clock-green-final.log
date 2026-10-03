@@ -1,0 +1,16 @@
+(node:54792) [DEP0180] DeprecationWarning: fs.Stats constructor is deprecated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+▶ clock receipt finalization on actual Prisma/PostgreSQL
+  ✔ persists an authenticated pending clock receipt with generic scope (4333.6051ms)
+  ✔ persists an authenticated joined clock receipt with generic scope (523.5799ms)
+  ✔ persists an authenticated pending clock receipt with client scope (516.4267ms)
+  ✔ persists an authenticated joined clock receipt with client scope (535.9343ms)
+✔ clock receipt finalization on actual Prisma/PostgreSQL (5911.8338ms)
+ℹ tests 4
+ℹ suites 1
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6137.0661

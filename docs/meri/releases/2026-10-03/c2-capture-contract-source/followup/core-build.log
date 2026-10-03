@@ -1,0 +1,4 @@
+
+> @capiro/meriv2-core@0.0.0 build C:\dev\main\meri-c1-20261002\packages\meriv2-core
+> tsc -p tsconfig.json
+

@@ -1,0 +1,18 @@
+{
+  "command": "pnpm --filter @capiro/api exec jest --runInBand src/meri/meri-capture-clock-packets.spec.ts src/meri/meri-server-readonly-capture.spec.ts src/meri/meri-capture-policy-readback.spec.ts",
+  "exitCode": 0,
+  "passed": 71,
+  "failed": 0,
+  "suites": 2,
+  "selectionNote": "Third name has no matching spec; the two reported suites are the actual suites. Existing receipt/policy checks live in meri-server-readonly-capture.spec.ts.",
+  "sourceHashes": {
+    "apps/api/src/meri/meri-server-readonly-capture.ts": "689ddc776123be123c6181ebf7459ce747ae4eb99ad841a8966d8db87210ac93",
+    "apps/api/src/meri/meri-capture-clock-packets.spec.ts": "655f564716160bed9f20bfa32450f46a9adb9989009a321782e11d235140e828",
+    "evals/meri/live-v1/tests/capture-clock-receipt-jsonb.postgres.test.mjs": "0534d2c82efaca14a7d9f66cd2399192b3a400ccf4f1693300473a825d64d5e2"
+  },
+  "log": {
+    "path": "focused-jest.log",
+    "bytes": 16204,
+    "sha256": "87b010912b3c823b963c178e675ea6acd81ec4e821f10274a17fa53a20a6c32f"
+  }
+}

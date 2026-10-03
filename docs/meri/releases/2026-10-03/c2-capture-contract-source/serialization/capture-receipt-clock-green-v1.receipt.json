@@ -1,0 +1,31 @@
+{
+  "kind": "C2 pending clock receipt JSONB regression on actual generated Prisma/PostgreSQL",
+  "startedAt": "2026-10-03T22:40:29.5227885Z",
+  "scope": "owned PostgreSQL16 127.0.0.1:55433 only; each random schema and all rows rolled back; no production RLS or authority issuance claim",
+  "awsCalls": 0,
+  "providerCalls": 0,
+  "sourceHashes": {
+    "evals/meri/live-v1/tests/capture-clock-receipt-jsonb.postgres.test.mjs": "0534d2c82efaca14a7d9f66cd2399192b3a400ccf4f1693300473a825d64d5e2",
+    "evals/meri/live-v1/tests/approved-memory-postgres-harness.mjs": "e9423f5e819c33a628c104ef9137c76708aa05ef0b7c5cdb4a42793dd4959c8d",
+    "evals/meri/live-v1/tests/approved-memory-schema.mjs": "07d41fccf6ad21123f29521a7aa0a2816cf6ea4a76e74f8125ff449b828a94ab",
+    "apps/api/src/meri/meri-server-readonly-capture.ts": "e36c0e5e35e18ca5de29803900404f18a573dab87bbc13b7e78c6fd7dd6838ed",
+    "apps/api/src/meri/meri-server-capture-evidence.ts": "2fa95657d16ed7e88d4d8edb0b59c8ac39bbd63f045e13f1b7b343e730d0c377",
+    "apps/api/src/meri/meri-capture-policy-readback.ts": "57e060fddfdf641c346f4a35395ec86459c87161d0b4804042e72727b8bfe758",
+    "apps/api/prisma/schema.prisma": "41fb55c8f2357b9bc2246de813d1e093e3e0bd240538048bbb514c5a4d4fe1d2"
+  },
+  "command": "node --test evals/meri/live-v1/tests/capture-clock-receipt-jsonb.postgres.test.mjs",
+  "sourceSha": "f9d1939782dc95d648e2e1b4528752e0f716db64",
+  "builtCoreFileCount": 147,
+  "builtCoreManifestSha256": "0c51ce073058d8babfc486afb33b56026c55790353fc5edf7c1fa868451b447c",
+  "listenersBefore": 0,
+  "statusBeforeExit": 3,
+  "startExit": 0,
+  "testExit": 0,
+  "testLogSha256": "a2b64495f1e353f5437f31584d51e483cd01b2672f247ffd7a465c54f435b7df",
+  "builtCoreUnchanged": true,
+  "sourceUnchanged": true,
+  "stopExit": 0,
+  "clusterStoppedAfter": true,
+  "listenersAfter": 0,
+  "completedAt": "2026-10-03T22:40:34.3481470Z"
+}

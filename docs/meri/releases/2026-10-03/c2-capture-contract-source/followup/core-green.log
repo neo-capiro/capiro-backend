@@ -1,0 +1,25 @@
+FAIL src/context/capture-evidence-receipt.spec.ts
+  ● Test suite failed to run
+
+    [96msrc/context/capture-evidence-receipt.spec.ts[0m:[93m91[0m:[93m7[0m - [91merror[0m[90m TS2345: [0mArgument of type '{ callId: string; tool: string; outcome: "returned"; httpAttempts: number; httpStatus: number; responseSha256: string; packets: never[]; } & { proposalRead: { authority: string; tenantId: string; ... 5 more ...; coverage: string; }; }' is not assignable to parameter of type 'MeriCaptureClockInvocation'.
+      The types of 'proposalRead.authority' are incompatible between these types.
+        Type 'string' is not assignable to type '"own_pending_proposals"'.
+
+    [7m 91[0m       Object.assign(
+    [7m   [0m [91m      ~~~~~~~~~~~~~~[0m
+    [7m 92[0m         {
+    [7m   [0m [91m~~~~~~~~~[0m
+    [7m...[0m 
+    [7m112[0m         },
+    [7m   [0m [91m~~~~~~~~~~[0m
+    [7m113[0m       ),
+    [7m   [0m [91m~~~~~~~[0m
+
+Test Suites: 1 failed, 1 total
+Tests:       0 total
+Snapshots:   0 total
+Time:        1.524 s, estimated 2 s
+Ran all test suites matching /src\\context\\capture-evidence-receipt.spec.ts/i.
+undefined
+C:\dev\main\meri-c1-20261002\packages\meriv2-core:
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command "jest" not found

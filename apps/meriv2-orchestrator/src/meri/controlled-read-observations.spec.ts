@@ -360,6 +360,159 @@ describe('controlled read actual HTTP observations', () => {
       expect(hits).toBe(1);
     },
   );
+  test.each([
+    '01-empty',
+    '01-complete',
+    '01-partial',
+    '14-complete',
+    'tenant',
+    'actor',
+    'client',
+    'missing-client',
+    'compiler',
+    'approved',
+    'disabled',
+    'http-failure',
+  ])(
+    'observes the actual own-proposal response as a bounded no-clock-consumer read: %s',
+    async (name) => {
+      const p = policy(name.startsWith('14') ? '14' : '01');
+      p.fixtureVersion = 'meri-live-v1-2026-09-26.1';
+      p.semanticClock = {
+        version: 1,
+        kind: 'qualified_original_fixture_semantic_clock',
+        instant: '2026-09-26T16:00:00.000Z',
+        timeZone: 'America/New_York',
+        caseId: p.caseId as '01' | '14',
+        captureRunId: p.captureRunId!,
+        currentVerifySha256: 'b'.repeat(64),
+        observedAt: p.issuedAt,
+      };
+      const partial = name.endsWith('partial'),
+        empty = name.endsWith('empty');
+      const body: any = {
+        tool: 'list_memory_proposals',
+        enabled: true,
+        authority: 'own_pending_proposals',
+        claimsAreApprovedFacts: false,
+        scope: { tenantId: p.tenantId, userId: p.actorUserId, clientId: p.clientId },
+        candidates: empty
+          ? []
+          : [
+              {
+                id: id(8),
+                status: 'pending',
+                approvedFact: false,
+                scope: 'client',
+                clientId: p.clientId,
+                sourceKind: 'user_chat',
+                createdAt: '2026-09-26T12:00:00.000Z',
+                restricted: false,
+                title: 'Pending only',
+                proposedText: 'Unapproved preference',
+                contentTruncated: false,
+              },
+            ],
+        nextCursor: partial ? 'next' : null,
+        coverage: { firstPage: true, complete: !partial, reason: 'owned-read' },
+      };
+      if (name === 'tenant') body.scope.tenantId = id(9);
+      if (name === 'actor') body.scope.userId = id(9);
+      if (name === 'client') body.scope.clientId = body.candidates[0].clientId = id(9);
+      if (name === 'missing-client') body.scope.clientId = null;
+      if (name === 'compiler') body.contextPackets = [];
+      if (name === 'approved') body.claimsAreApprovedFacts = true;
+      if (name === 'disabled') {
+        body.enabled = false;
+        body.candidates = [];
+        body.coverage.complete = false;
+      }
+      const succeeds = name.startsWith('01-') || name.startsWith('14-');
+      let hits = 0;
+      server = createServer((req, res) => {
+        hits++;
+        req.resume();
+        res.writeHead(name === 'http-failure' ? 500 : 200, { 'content-type': 'application/json' });
+        res.end(JSON.stringify(body));
+      });
+      await new Promise<void>((resolve) => server!.listen(0, '127.0.0.1', resolve));
+      const repo = new ApiToolExecutorRepo({
+        get: (key: string) =>
+          ({
+            MERIV2_API_BASE_URL: `http://127.0.0.1:${(server!.address() as { port: number }).port}`,
+            INTERNAL_SERVICE_SECRET: 'synthetic-secret',
+          })[key],
+      } as never);
+      await scope(p, () =>
+        RequestCredentialsStore.run({ bearerToken: 'synthetic-bearer' }, async () => {
+          const call = () =>
+            withControlledReadInvocation(
+              'proposal-call',
+              () =>
+                repo.execute({} as MeriContext, 'list_memory_proposals', { clientId: p.clientId }),
+              'list_memory_proposals',
+            );
+          if (succeeds) await expect(call()).resolves.toBeDefined();
+          else await expect(call()).rejects.toThrow();
+          const actual = readCaptureClockInvocations()!;
+          expect(actual).toHaveLength(1);
+          expect(actual[0]!.packets).toEqual([]);
+          if (succeeds)
+            expect((actual[0] as any).proposalRead).toEqual({
+              authority: 'own_pending_proposals',
+              tenantId: p.tenantId,
+              actorUserId: p.actorUserId,
+              clientId: p.clientId,
+              semanticTime: 'not_used',
+              compiler: 'not_run',
+              claimsAreApprovedFacts: false,
+              coverage: partial ? 'partial' : empty ? 'empty' : 'complete',
+            });
+          else expect((actual[0] as any).proposalRead).toBeUndefined();
+          const signed = buildSignedOrchestratorCaptureEvidence({
+            policy: p,
+            startedAt: p.issuedAt,
+            completedAt: Date.now(),
+            providerCallObserved: false,
+            provider: 'synthetic',
+            model: null,
+            usage: null,
+            secret: 'synthetic-secret',
+            execution: {
+              ...observeMeriV3CaptureExecution({
+                callId: 'proposal-call',
+                tool: 'list_memory_proposals',
+                readOnly: true,
+                result: succeeds ? body : { error: 'failed' },
+                citations: [],
+                coverage: [],
+              }),
+              clockInvocations: actual,
+              promptClockUse: {
+                instant: p.semanticClock!.instant,
+                timeZone: p.semanticClock!.timeZone,
+                date: '2026-09-26',
+                renderedAt: Date.now(),
+                groundingSha256: 'c'.repeat(64),
+              },
+              estimatedCostUsd: { status: 'UNKNOWN', value: null, reason: 'not_run' },
+            },
+          });
+          if (succeeds && !partial)
+            expect(meriCaptureClockExecutionBlockers(signed.receipt)).toEqual([]);
+          else if (partial)
+            expect(meriCaptureClockExecutionBlockers(signed.receipt)).toContain(
+              'semantic_clock_proposal_read_unproved',
+            );
+          else
+            expect(meriCaptureClockExecutionBlockers(signed.receipt)).toContain(
+              'semantic_clock_invocation_join_unproved',
+            );
+        }),
+      );
+      expect(hits).toBe(1);
+    },
+  );
   function multiPayload(p: MeriServerReadonlyCapturePolicy): any {
     const original = payload(policy('20'));
     const sourceReads = [8, 9].map((n) => ({

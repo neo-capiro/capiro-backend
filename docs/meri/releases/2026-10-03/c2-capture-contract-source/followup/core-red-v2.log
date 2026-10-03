@@ -1,0 +1,114 @@
+FAIL src/context/capture-evidence-receipt.spec.ts
+  independent semantic-clock receipt join
+    × joins actual own-proposal HTTP proof without inventing a compiler consumer for case01 (33 ms)
+    × joins actual own-proposal HTTP proof without inventing a compiler consumer for case14 (1 ms)
+    √ keeps proposal proof unproved (1 ms)
+    √ keeps proposal tenant unproved
+    √ keeps proposal actor unproved
+    √ keeps proposal client unproved
+    √ keeps proposal compiler unproved
+    √ keeps proposal time unproved
+    √ keeps proposal approved unproved
+    √ keeps proposal coverage unproved
+    √ keeps proposal packet unproved (1 ms)
+    √ keeps proposal source unproved
+    √ keeps proposal citation unproved
+    √ keeps proposal controlled unproved
+    √ keeps proposal other-tool-proof unproved
+    √ keeps proposal failed unproved
+    √ keeps proposal http unproved (1 ms)
+    √ keeps proposal response unproved
+    √ keeps proposal case unproved
+    √ accepts both actual fallback packets and a separate initial compiler observation
+    √ keeps unobserved HTTP census BLOCKED
+    √ keeps duplicate logical call BLOCKED
+    √ keeps duplicate invocation BLOCKED
+    √ keeps malformed invocation BLOCKED (1 ms)
+    √ keeps missing invocation BLOCKED
+    √ keeps extra invocation BLOCKED
+    √ keeps unresolved invocation BLOCKED
+    √ keeps failed HTTP BLOCKED
+    √ keeps failed logical read BLOCKED
+    √ keeps second HTTP attempt BLOCKED
+    √ keeps missing fallback packet BLOCKED
+    √ keeps duplicate packet BLOCKED
+    √ keeps initial reused as tool BLOCKED
+    √ keeps stored clock mismatch BLOCKED
+    √ keeps prompt clock mismatch BLOCKED
+    √ keeps unadmitted time tool BLOCKED (1 ms)
+    √ keeps name-only local discovery BLOCKED
+    √ permits N/A tool windows only after a complete empty invocation census and actual local discovery
+    √ joins the actual controlled response for case 20 without inventing compiler use
+    √ joins the actual controlled response for case 72 without inventing compiler use
+  trusted server capture evidence receipt
+    √ signs and verifies the exact capture tuple without treating the signature as deployment proof (4 ms)
+    √ rejects purpose tampering (6 ms)
+    √ rejects payload tampering (1 ms)
+    √ rejects expired evidence (1 ms)
+    √ cannot complete missing, uncertain, over-budget or unaccounted provider evidence
+    × accepts the already qualified fifteen-dollar ceiling without accepting overspend or higher limits
+    √ rejects a current-authority tuple mismatch (1 ms)
+    √ blocks, rather than passing, an extra unobserved write
+    √ keeps unavailable source authority explicit instead of inventing a locator or version
+  JSONB-compatible capture authentication
+    √ preserves signature and predecessor identity when persisted JSON object keys reorder (2 ms)
+
+  ● independent semantic-clock receipt join › joins actual own-proposal HTTP proof without inventing a compiler consumer for case01
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "COMPLETE"
+    Received: "BLOCKED"
+
+      122 |       r.semanticClock!.binding.caseId = caseId as '01' | '14';
+      123 |       r.providerBudget!.boundary = caseId === '01' ? 'case01_memory_turn' : 'case14_memory_turn';
+    > 124 |       expect(completeMeriCaptureEvidenceReceipt(r).status).toBe('COMPLETE');
+          |                                                            ^
+      125 |     },
+      126 |   );
+      127 |   it.each([
+
+      at src/context/capture-evidence-receipt.spec.ts:124:60
+
+  ● independent semantic-clock receipt join › joins actual own-proposal HTTP proof without inventing a compiler consumer for case14
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "COMPLETE"
+    Received: "BLOCKED"
+
+      122 |       r.semanticClock!.binding.caseId = caseId as '01' | '14';
+      123 |       r.providerBudget!.boundary = caseId === '01' ? 'case01_memory_turn' : 'case14_memory_turn';
+    > 124 |       expect(completeMeriCaptureEvidenceReceipt(r).status).toBe('COMPLETE');
+          |                                                            ^
+      125 |     },
+      126 |   );
+      127 |   it.each([
+
+      at src/context/capture-evidence-receipt.spec.ts:124:60
+
+  ● trusted server capture evidence receipt › accepts the already qualified fifteen-dollar ceiling without accepting overspend or higher limits
+
+    expect(received).not.toContain(expected) // indexOf
+
+    Expected value: not "provider_budget_malformed"
+    Received array:     ["provider_budget_malformed"]
+
+      559 |         providerBudget: { ...base.providerBudget!, maxCostMicros, chargedCostMicros },
+      560 |       });
+    > 561 |     expect(make(15_000_000).blockers).not.toContain('provider_budget_malformed');
+          |                                           ^
+      562 |     expect(make(15_000_001).blockers).toContain('provider_budget_malformed');
+      563 |     expect(make(15_000_000, 15_000_001).blockers).toContain('provider_budget_malformed');
+      564 |     expect(make(3_000_000, 3_000_001).blockers).toContain('provider_budget_malformed');
+
+      at Object.<anonymous> (src/context/capture-evidence-receipt.spec.ts:561:43)
+
+Test Suites: 1 failed, 1 total
+Tests:       3 failed, 47 passed, 50 total
+Snapshots:   0 total
+Time:        2.226 s
+Ran all test suites matching /src\\context\\capture-evidence-receipt.spec.ts/i.
+undefined
+C:\dev\main\meri-c1-20261002\packages\meriv2-core:
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command "jest" not found

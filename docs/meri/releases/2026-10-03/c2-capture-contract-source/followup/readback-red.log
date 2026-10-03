@@ -1,0 +1,51 @@
+ts-jest[config] (WARN) [94mmessage[0m[90m TS151002: [0mUsing hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+FAIL src/meri/meri-capture-budget-readback.spec.ts (24.423 s)
+  capture receipt ceiling remains bound to the current qualified ledger
+    √ checks signed receipt limit 15000000 against the actual owner state (14 ms)
+    × checks signed receipt limit 14000000 against the actual owner state (3 ms)
+    × checks signed receipt limit 15000001 against the actual owner state (1 ms)
+
+  ● capture receipt ceiling remains bound to the current qualified ledger › checks signed receipt limit 14000000 against the actual owner state
+
+    expect(received).rejects.toMatchObject()
+
+    Received promise resolved instead of rejected
+    Resolved to value: undefined
+
+      129 |         });
+      130 |         if (ceiling === 15_000_000) await expect(call).resolves.toBeUndefined();
+    > 131 |         else await expect(call).rejects.toMatchObject({ status: 403 });
+          |                    ^
+      132 |         expect(captureProviderBudgetOwner).toHaveBeenLastCalledWith(
+      133 |           expect.objectContaining({ policy, operation: { kind: 'read' } }),
+      134 |         );
+
+      at expect (../../node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)
+      at src/meri/meri-capture-budget-readback.spec.ts:131:20
+
+  ● capture receipt ceiling remains bound to the current qualified ledger › checks signed receipt limit 15000001 against the actual owner state
+
+    expect(received).rejects.toMatchObject()
+
+    Received promise resolved instead of rejected
+    Resolved to value: undefined
+
+      129 |         });
+      130 |         if (ceiling === 15_000_000) await expect(call).resolves.toBeUndefined();
+    > 131 |         else await expect(call).rejects.toMatchObject({ status: 403 });
+          |                    ^
+      132 |         expect(captureProviderBudgetOwner).toHaveBeenLastCalledWith(
+      133 |           expect.objectContaining({ policy, operation: { kind: 'read' } }),
+      134 |         );
+
+      at expect (../../node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)
+      at src/meri/meri-capture-budget-readback.spec.ts:131:20
+
+Test Suites: 1 failed, 1 total
+Tests:       2 failed, 1 passed, 3 total
+Snapshots:   0 total
+Time:        24.662 s
+Ran all test suites matching /src\\meri\\meri-capture-budget-readback.spec.ts/i.
+undefined
+C:\dev\main\meri-c1-20261002\apps\api:
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command "jest" not found

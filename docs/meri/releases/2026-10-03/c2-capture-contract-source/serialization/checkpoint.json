@@ -1,0 +1,328 @@
+{
+  "schemaVersion": 1,
+  "kind": "C2 pending semantic-clock receipt serialization repair",
+  "createdAt": "2026-10-03T22:45:10.657285+00:00",
+  "baseCommit": "f9d1939782dc95d648e2e1b4528752e0f716db64",
+  "servedApiSource": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642",
+  "servedAndBaseProductionFileEqualAfterGitNormalization": true,
+  "sources": [
+    {
+      "path": "apps/api/src/meri/meri-server-readonly-capture.ts",
+      "bytes": 21162,
+      "sha256": "689ddc776123be123c6181ebf7459ce747ae4eb99ad841a8966d8db87210ac93",
+      "mirror": "source/apps/api/src/meri/meri-server-readonly-capture.ts"
+    },
+    {
+      "path": "apps/api/src/meri/meri-capture-clock-packets.spec.ts",
+      "bytes": 13059,
+      "sha256": "655f564716160bed9f20bfa32450f46a9adb9989009a321782e11d235140e828",
+      "mirror": "source/apps/api/src/meri/meri-capture-clock-packets.spec.ts"
+    },
+    {
+      "path": "evals/meri/live-v1/tests/capture-clock-receipt-jsonb.postgres.test.mjs",
+      "bytes": 11355,
+      "sha256": "0534d2c82efaca14a7d9f66cd2399192b3a400ccf4f1693300473a825d64d5e2",
+      "mirror": "source/evals/meri/live-v1/tests/capture-clock-receipt-jsonb.postgres.test.mjs"
+    }
+  ],
+  "scope": "One production finalizer; one existing unit spec; one actual generated Prisma/PostgreSQL regression. No persistence, signature, equality, current-authority or clock-join guards weakened.",
+  "diagnosis": {
+    "confirmedDefect": "A null API packet join produced an own semanticClock.api value of undefined. canonicalJson signed that key, JSON text persistence omitted it, and exact readback equality failed. Merely loosening equality would still leave an invalid signature after JSON roundtrip.",
+    "repair": "Remove any orchestrator-supplied API proof from a copied clock object; add only the API owner proof when supplied. With no proof, omit api before signing and retain PENDING and original BLOCKED reasons.",
+    "liveLimit": "The exact stream error and served production code match the local reproducer. The reason the live strict clock join returned no proof is not established by this storage regression; no live receipt or provider outcome is reconstructed."
+  },
+  "qualification": {
+    "actualPrismaPostgresRed": {
+      "receipt": "capture-receipt-clock-red-v2.receipt.json",
+      "passed": 2,
+      "failed": 2,
+      "failure": "meri_capture_receipt_readback_mismatch for both pending-join cases"
+    },
+    "actualPrismaPostgresGreen": {
+      "receipt": "capture-receipt-clock-green-final.receipt.json",
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0
+    },
+    "sameRedGreenTestBytes": true,
+    "focusedJest": {
+      "receipt": "focused-jest.receipt.json",
+      "passed": 71,
+      "failed": 0,
+      "suites": 2
+    },
+    "apiBuild": {
+      "receipt": "local-api-build.receipt.json",
+      "exitCode": 0
+    },
+    "diffCheckExitCode": 0,
+    "coverage": [
+      "pending and joined clock receipts in generic/client scopes",
+      "exact float 0.27222999999999997 survives",
+      "signed JSON roundtrip and exact policy/receipt equality",
+      "unrelated metadata preserved",
+      "BLOCKED and PENDING remain explicit",
+      "tampered signature/readback denied",
+      "current membership revocation denied",
+      "every existing invalid packet join remains serializable and blocked",
+      "predeclared orchestrator API proof cannot survive absent API-owner proof"
+    ],
+    "preservedEarlierEvidence": "red-v1 retained: two target failures plus two test-fixture omissions of the required user row; fixed test fixture before final same-byte red/green. green-v1 retained before production-only formatting; final formatted source tested again."
+  },
+  "limits": [
+    "Local synthetic receipt observations, not original corpus qualification or production RLS",
+    "No new remote image, deployment, capture, auth session, provider call, AWS call, live journal or claim mutation",
+    "Does not repair or replay the failed live turn or settle its retained aggregate reservation",
+    "Original acceptance and human rubric review unchanged"
+  ],
+  "ownedPostgres": {
+    "address": "127.0.0.1",
+    "port": 55433,
+    "dataPreserved": true,
+    "allTestSchemasRolledBack": true,
+    "stopped": true,
+    "listenersAfter": 0
+  },
+  "evidence": [
+    {
+      "path": "capture-receipt-clock-green-final-built-core.json",
+      "bytes": 18746,
+      "sha256": "0c51ce073058d8babfc486afb33b56026c55790353fc5edf7c1fa868451b447c"
+    },
+    {
+      "path": "capture-receipt-clock-green-final-postgres.log",
+      "bytes": 1179,
+      "sha256": "dfaaac8679aeeddaf307da4f02aeb243aa4469f914fd098059797d877ce9f396"
+    },
+    {
+      "path": "capture-receipt-clock-green-final-start.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "capture-receipt-clock-green-final-start.stdout",
+      "bytes": 54,
+      "sha256": "46038efb813fbca18a92272496901190638dea3f97b51f7af0daa1ca2eb13818"
+    },
+    {
+      "path": "capture-receipt-clock-green-final-status-after.log",
+      "bytes": 27,
+      "sha256": "00e9e2231199060045479aeef60a466d575acde1f92e0f1567df14db2d3dc4b1"
+    },
+    {
+      "path": "capture-receipt-clock-green-final-status-before.log",
+      "bytes": 27,
+      "sha256": "00e9e2231199060045479aeef60a466d575acde1f92e0f1567df14db2d3dc4b1"
+    },
+    {
+      "path": "capture-receipt-clock-green-final-stop.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "capture-receipt-clock-green-final-stop.stdout",
+      "bytes": 58,
+      "sha256": "3589d2bd01f8295cc7c9ec3f5e07625fcd347ccb6f33f2d80edafe5f5217c1fb"
+    },
+    {
+      "path": "capture-receipt-clock-green-final.log",
+      "bytes": 757,
+      "sha256": "3fcedf66aad339e2d0ce3b804ee1d6990d7724ba9b111a4425e80c6a7effcbc1"
+    },
+    {
+      "path": "capture-receipt-clock-green-final.receipt.json",
+      "bytes": 1905,
+      "sha256": "8fef0591cf5678bce3e992a7cd122bbb2d5a22c273e835901a4e4c49221ce8d3"
+    },
+    {
+      "path": "capture-receipt-clock-green-v1-built-core.json",
+      "bytes": 18746,
+      "sha256": "0c51ce073058d8babfc486afb33b56026c55790353fc5edf7c1fa868451b447c"
+    },
+    {
+      "path": "capture-receipt-clock-green-v1-postgres.log",
+      "bytes": 1179,
+      "sha256": "90770756ee4ea7037738d05deebddbcfc27407d33e6233a63e7271b9dc089f05"
+    },
+    {
+      "path": "capture-receipt-clock-green-v1-start.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "capture-receipt-clock-green-v1-start.stdout",
+      "bytes": 54,
+      "sha256": "46038efb813fbca18a92272496901190638dea3f97b51f7af0daa1ca2eb13818"
+    },
+    {
+      "path": "capture-receipt-clock-green-v1-status-after.log",
+      "bytes": 27,
+      "sha256": "00e9e2231199060045479aeef60a466d575acde1f92e0f1567df14db2d3dc4b1"
+    },
+    {
+      "path": "capture-receipt-clock-green-v1-status-before.log",
+      "bytes": 27,
+      "sha256": "00e9e2231199060045479aeef60a466d575acde1f92e0f1567df14db2d3dc4b1"
+    },
+    {
+      "path": "capture-receipt-clock-green-v1-stop.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "capture-receipt-clock-green-v1-stop.stdout",
+      "bytes": 58,
+      "sha256": "3589d2bd01f8295cc7c9ec3f5e07625fcd347ccb6f33f2d80edafe5f5217c1fb"
+    },
+    {
+      "path": "capture-receipt-clock-green-v1.log",
+      "bytes": 757,
+      "sha256": "a2b64495f1e353f5437f31584d51e483cd01b2672f247ffd7a465c54f435b7df"
+    },
+    {
+      "path": "capture-receipt-clock-green-v1.receipt.json",
+      "bytes": 1905,
+      "sha256": "c47255acb4d2e4ba4c726abc9be5074df1d7e6948b9e282d359bbb0053ea5e85"
+    },
+    {
+      "path": "capture-receipt-clock-red-v1-built-core.json",
+      "bytes": 18746,
+      "sha256": "0c51ce073058d8babfc486afb33b56026c55790353fc5edf7c1fa868451b447c"
+    },
+    {
+      "path": "capture-receipt-clock-red-v1-postgres.log",
+      "bytes": 1178,
+      "sha256": "5b03860d96d6298d2acd7655bb890426920902091d08f007210326dcab0ed45e"
+    },
+    {
+      "path": "capture-receipt-clock-red-v1-start.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "capture-receipt-clock-red-v1-start.stdout",
+      "bytes": 54,
+      "sha256": "46038efb813fbca18a92272496901190638dea3f97b51f7af0daa1ca2eb13818"
+    },
+    {
+      "path": "capture-receipt-clock-red-v1-status-after.log",
+      "bytes": 27,
+      "sha256": "00e9e2231199060045479aeef60a466d575acde1f92e0f1567df14db2d3dc4b1"
+    },
+    {
+      "path": "capture-receipt-clock-red-v1-status-before.log",
+      "bytes": 27,
+      "sha256": "00e9e2231199060045479aeef60a466d575acde1f92e0f1567df14db2d3dc4b1"
+    },
+    {
+      "path": "capture-receipt-clock-red-v1-stop.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "capture-receipt-clock-red-v1-stop.stdout",
+      "bytes": 58,
+      "sha256": "3589d2bd01f8295cc7c9ec3f5e07625fcd347ccb6f33f2d80edafe5f5217c1fb"
+    },
+    {
+      "path": "capture-receipt-clock-red-v1.log",
+      "bytes": 6830,
+      "sha256": "7fc7e4c39e6ea77c4cce27228cb73f5d33bb57543dda78e6b8c61fb49c35d1b2"
+    },
+    {
+      "path": "capture-receipt-clock-red-v1.receipt.json",
+      "bytes": 1905,
+      "sha256": "75b5acdad24ff903f40543152944045280e996a738a5b8897b0be8505ca82cfb"
+    },
+    {
+      "path": "capture-receipt-clock-red-v2-built-core.json",
+      "bytes": 18746,
+      "sha256": "0c51ce073058d8babfc486afb33b56026c55790353fc5edf7c1fa868451b447c"
+    },
+    {
+      "path": "capture-receipt-clock-red-v2-postgres.log",
+      "bytes": 1179,
+      "sha256": "3e929ed0518ecd9fb65590cfde98863194dc91a7bbc1250452e169e636c5c1ef"
+    },
+    {
+      "path": "capture-receipt-clock-red-v2-start.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "capture-receipt-clock-red-v2-start.stdout",
+      "bytes": 54,
+      "sha256": "46038efb813fbca18a92272496901190638dea3f97b51f7af0daa1ca2eb13818"
+    },
+    {
+      "path": "capture-receipt-clock-red-v2-status-after.log",
+      "bytes": 27,
+      "sha256": "00e9e2231199060045479aeef60a466d575acde1f92e0f1567df14db2d3dc4b1"
+    },
+    {
+      "path": "capture-receipt-clock-red-v2-status-before.log",
+      "bytes": 27,
+      "sha256": "00e9e2231199060045479aeef60a466d575acde1f92e0f1567df14db2d3dc4b1"
+    },
+    {
+      "path": "capture-receipt-clock-red-v2-stop.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "capture-receipt-clock-red-v2-stop.stdout",
+      "bytes": 58,
+      "sha256": "3589d2bd01f8295cc7c9ec3f5e07625fcd347ccb6f33f2d80edafe5f5217c1fb"
+    },
+    {
+      "path": "capture-receipt-clock-red-v2.log",
+      "bytes": 3761,
+      "sha256": "35635ba5b575420dbe19bb60f403b68a9ef5d6df197060182f70651b2a9da4f2"
+    },
+    {
+      "path": "capture-receipt-clock-red-v2.receipt.json",
+      "bytes": 1905,
+      "sha256": "094dfa02f7a63bbe1c86438842f6edee43d732813e3ed29eb4b9f73eaac4988e"
+    },
+    {
+      "path": "diff-check.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "finalize-checkpoint.py",
+      "bytes": 7166,
+      "sha256": "0a03e73a1a21ed5a35c39e74acc55ec29eb245a1fe9d613f23107a1314c9ad9a"
+    },
+    {
+      "path": "focused-jest.log",
+      "bytes": 16204,
+      "sha256": "87b010912b3c823b963c178e675ea6acd81ec4e821f10274a17fa53a20a6c32f"
+    },
+    {
+      "path": "focused-jest.receipt.json",
+      "bytes": 1017,
+      "sha256": "d6e6746431e003135f933ceef8a193ef2342b3673c34055751affd0446758e5c"
+    },
+    {
+      "path": "local-api-build.log",
+      "bytes": 83,
+      "sha256": "474834a5bd1dd45028516d03b578bddc226aa68e089024e1afd9f730d194b192"
+    },
+    {
+      "path": "local-api-build.receipt.json",
+      "bytes": 687,
+      "sha256": "b7f530f4118f5e752cbf4194cf0a0b82bf02f3914ac82506323330a3f98ef514"
+    },
+    {
+      "path": "run-capture-receipt-clock.ps1",
+      "bytes": 6234,
+      "sha256": "5ac93d9919c4743b354d09fc0d4022305c8bd1c6c9363f2f1316f5d53511349d"
+    },
+    {
+      "path": "tracked-candidate.patch",
+      "bytes": 3676,
+      "sha256": "ac05e7326813d87d9f09f2d5c56ff73cf08a5cd1f9555689056fe0b64c1e62fd"
+    }
+  ]
+}

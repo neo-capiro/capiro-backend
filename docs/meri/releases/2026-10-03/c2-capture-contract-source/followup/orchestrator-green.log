@@ -1,0 +1,32 @@
+FAIL src/meri/controlled-read-observations.spec.ts
+  ● Test suite failed to run
+
+    [96msrc/meri/controlled-read-observations.ts[0m:[93m137[0m:[93m50[0m - [91merror[0m[90m TS18047: [0m'outcome' is possibly 'null'.
+
+    [7m137[0m       !['complete', 'empty', 'partial'].includes(outcome.kind) ||
+    [7m   [0m [91m                                                 ~~~~~~~[0m
+    [96msrc/meri/controlled-read-observations.ts[0m:[93m154[0m:[93m17[0m - [91merror[0m[90m TS18047: [0m'outcome' is possibly 'null'.
+
+    [7m154[0m       coverage: outcome.kind as 'complete' | 'empty' | 'partial',
+    [7m   [0m [91m                ~~~~~~~[0m
+
+FAIL src/meri/meriv3/meriv3-capture-evidence.spec.ts
+  ● Test suite failed to run
+
+    [96msrc/meri/controlled-read-observations.ts[0m:[93m137[0m:[93m50[0m - [91merror[0m[90m TS18047: [0m'outcome' is possibly 'null'.
+
+    [7m137[0m       !['complete', 'empty', 'partial'].includes(outcome.kind) ||
+    [7m   [0m [91m                                                 ~~~~~~~[0m
+    [96msrc/meri/controlled-read-observations.ts[0m:[93m154[0m:[93m17[0m - [91merror[0m[90m TS18047: [0m'outcome' is possibly 'null'.
+
+    [7m154[0m       coverage: outcome.kind as 'complete' | 'empty' | 'partial',
+    [7m   [0m [91m                ~~~~~~~[0m
+
+Test Suites: 2 failed, 2 total
+Tests:       0 total
+Snapshots:   0 total
+Time:        14.646 s, estimated 16 s
+Ran all test suites matching /src\\meri\\controlled-read-observations.spec.ts|src\\meri\\meriv3\\meriv3-capture-evidence.spec.ts/i.
+undefined
+C:\dev\main\meri-c1-20261002\apps\meriv2-orchestrator:
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command "jest" not found

@@ -1,0 +1,31 @@
+{
+  "label": "core-green-v2",
+  "startedAt": "2026-10-03T23:17:58.015233+00:00",
+  "completedAt": "2026-10-03T23:18:00.311123+00:00",
+  "command": [
+    "pnpm.cmd",
+    "--filter",
+    "@capiro/meriv2-core",
+    "exec",
+    "jest",
+    "--runInBand",
+    "src/context/capture-evidence-receipt.spec.ts"
+  ],
+  "exitCode": 0,
+  "sourceHashes": {
+    "apps/api/src/meri/meri-tools.service.ts": "a9b2cc4eed2b3397793a2f56b188c8a1a29cab5ec76228ab9aa4e68c46c7be5c",
+    "apps/api/src/meri/meri-memory-proposal-read.ts": "d415bb91636f8f7f7f0414dc7c9d89122711e143cb6c70be5ff78e527268517e",
+    "apps/api/src/meri/meri-capture-policy-readback.ts": "3858a6f7d7212fc8f9de31f1ed165e742269db5e94a9fad37b4398f401c04e07",
+    "apps/meriv2-orchestrator/src/meri/controlled-read-observations.ts": "e9ad70ffbaf0f90075473f161013e1a55d927262c689f4134456b2e0221066d8",
+    "packages/meriv2-core/src/context/capture-evidence-receipt.ts": "87d44b1c0405e5f864a37c7bb58d65612b298817859e0fdc2a470eaee6254227",
+    "apps/api/src/meri/meri-tools.registration.spec.ts": "149ccac73953e5ac2d7eb64b8909dcf8b9ef990a37739c890c1afd0a4864f095",
+    "apps/api/src/meri/meri-memory-proposal-read.spec.ts": "9a68bf1b46654c86afddaf51b0c47f78e81aa982f82cb8a8cd3d5b373db17352",
+    "apps/api/src/meri/meri-capture-budget-readback.spec.ts": "6c181f801d60c1254b34fae82bb241fa1c1c273395a9b7578354032bbc1e35c4",
+    "apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts": "c80f389ce30175ecb11062fe15ae07a265c426fd0172a098849ddd9ae8efa639",
+    "packages/meriv2-core/src/context/capture-evidence-receipt.spec.ts": "d9606ffad168493f326f1017d1db3bee8794990dfade4844fc8370c86036e17e"
+  },
+  "sourceUnchanged": true,
+  "logSha256": "810bfb91da1e93f47f1c2688892b834fd246d38e18b729a0a841966ef9b04c63",
+  "externalNetworkOrProviderCalls": 0,
+  "loopbackHttp": false
+}

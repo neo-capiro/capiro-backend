@@ -1,0 +1,16 @@
+{
+  "command": "pnpm --filter @capiro/api build",
+  "exitCode": 0,
+  "sourceHashes": {
+    "apps/api/src/meri/meri-server-readonly-capture.ts": "689ddc776123be123c6181ebf7459ce747ae4eb99ad841a8966d8db87210ac93",
+    "apps/api/src/meri/meri-capture-clock-packets.spec.ts": "655f564716160bed9f20bfa32450f46a9adb9989009a321782e11d235140e828",
+    "evals/meri/live-v1/tests/capture-clock-receipt-jsonb.postgres.test.mjs": "0534d2c82efaca14a7d9f66cd2399192b3a400ccf4f1693300473a825d64d5e2"
+  },
+  "log": {
+    "path": "local-api-build.log",
+    "bytes": 83,
+    "sha256": "474834a5bd1dd45028516d03b578bddc226aa68e089024e1afd9f730d194b192"
+  },
+  "remoteBuild": false,
+  "deployment": false
+}

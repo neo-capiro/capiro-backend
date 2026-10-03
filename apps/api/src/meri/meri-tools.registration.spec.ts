@@ -46,6 +46,7 @@ import { MeriToolsService, TOOL_DEFINITIONS } from './meri-tools.service.js';
 import { MERI_CAPABILITY_REGISTRY } from '@capiro/shared';
 import { EventEmitter } from 'node:events';
 import { withMeriToolRequestControl } from './meri-tool-request-control.js';
+import * as captureAuthority from './meri-server-readonly-capture.js';
 
 describe('buyer workspace Meri tool', () => {
   it('passes a pinned read through without changing coverage or unsupported gaps', async () => {
@@ -431,84 +432,257 @@ function schemas() {
 
 describe('Meri tool registration', () => {
   it('retains both actual compiler packets when a metadata-heavy memory page is narrowed', async () => {
-    const packet = (n: number) => ({ packetId: `packet-${n}`, persisted: true,
-      clockUse: { instant: '2026-09-26T16:00:00.000Z', timeZone: 'America/New_York',
-        eligibilityAt: new Date().toISOString(), scoring: 'used' } });
+    const packet = (n: number) => ({
+      packetId: `packet-${n}`,
+      persisted: true,
+      clockUse: {
+        instant: '2026-09-26T16:00:00.000Z',
+        timeZone: 'America/New_York',
+        eligibilityAt: new Date().toISOString(),
+        scoring: 'used',
+      },
+    });
     const packets = [packet(1), packet(2)];
-    const record = { domain: 'institutional_knowledge', recordId: 'memory',
-      payload: { value: 'Approved memory text.', governance: { note: 'x'.repeat(2800) } }, provenance: {} };
-    const searchToolData = jest.fn()
-      .mockResolvedValueOnce({ records: [record, record, record], coverage: { sources: [] }, contextPacket: packets[0] })
-      .mockResolvedValueOnce({ records: [record], coverage: { sources: [] }, contextPacket: packets[1] });
-    const service = Object.assign(Object.create(MeriToolsService.prototype), { contextPlane: { searchToolData } }) as any;
+    const record = {
+      domain: 'institutional_knowledge',
+      recordId: 'memory',
+      payload: { value: 'Approved memory text.', governance: { note: 'x'.repeat(2800) } },
+      provenance: {},
+    };
+    const searchToolData = jest
+      .fn()
+      .mockResolvedValueOnce({
+        records: [record, record, record],
+        coverage: { sources: [] },
+        contextPacket: packets[0],
+      })
+      .mockResolvedValueOnce({
+        records: [record],
+        coverage: { sources: [] },
+        contextPacket: packets[1],
+      });
+    const service = Object.assign(Object.create(MeriToolsService.prototype), {
+      contextPlane: { searchToolData },
+    }) as any;
     const policy = { semanticClock: { instant: '2026-09-26T16:00:00.000Z' } };
     const req = Object.assign(new EventEmitter(), { headers: {} }) as never;
-    await withMeriToolRequestControl(req, async () => {
-      const result = await service.searchMemory({ tenantId: 'tenant', userId: 'actor' }, { query: 'approved constraints', k: 3 });
-      expect(searchToolData).toHaveBeenCalledTimes(2);
-      expect(searchToolData.mock.calls.map(call => call[1].pageSize)).toEqual([3, 1]);
-      expect(result.contextPackets).toEqual(packets);
-      expect(result.contextPacket).toEqual(packets[1]);
-      expect(result.records).toHaveLength(1);
-    }, policy as never);
+    await withMeriToolRequestControl(
+      req,
+      async () => {
+        const result = await service.searchMemory(
+          { tenantId: 'tenant', userId: 'actor' },
+          { query: 'approved constraints', k: 3 },
+        );
+        expect(searchToolData).toHaveBeenCalledTimes(2);
+        expect(searchToolData.mock.calls.map((call) => call[1].pageSize)).toEqual([3, 1]);
+        expect(result.contextPackets).toEqual(packets);
+        expect(result.contextPacket).toEqual(packets[1]);
+        expect(result.records).toHaveLength(1);
+      },
+      policy as never,
+    );
   });
 
   it('passes only current server policy to the memory compiler and retains its returned metadata', async () => {
     // Exercise the memory-read implementation after admission; authority itself
     // is covered by the capture transport/current-owner suites.
     const ctx = { tenantId: 'tenant', userId: 'actor' } as never;
-    const contextPacket = { packetId: 'actual-packet', persisted: true,
-      clockUse: { instant: '2026-09-26T16:00:00.000Z', timeZone: 'America/New_York',
-        eligibilityAt: '2026-10-03T12:00:00.000Z', scoring: 'used' } };
-    const searchToolData = jest.fn(async () => ({ records: [], coverage: { sources: [] }, contextPacket }));
+    const contextPacket = {
+      packetId: 'actual-packet',
+      persisted: true,
+      clockUse: {
+        instant: '2026-09-26T16:00:00.000Z',
+        timeZone: 'America/New_York',
+        eligibilityAt: '2026-10-03T12:00:00.000Z',
+        scoring: 'used',
+      },
+    };
+    const searchToolData = jest.fn(async () => ({
+      records: [],
+      coverage: { sources: [] },
+      contextPacket,
+    }));
     const service = Object.assign(Object.create(MeriToolsService.prototype), {
       contextPlane: { searchToolData },
-    }) as { searchMemory: (ctx: unknown, input: Record<string, unknown>) => Promise<Record<string, unknown>> };
+    }) as {
+      searchMemory: (
+        ctx: unknown,
+        input: Record<string, unknown>,
+      ) => Promise<Record<string, unknown>>;
+    };
     const req = Object.assign(new EventEmitter(), { headers: {} }) as never;
     const policy = { policyId: 'current-admitted-policy' };
-    await withMeriToolRequestControl(req, async () => {
-      const result = await service.searchMemory(ctx, { query: 'approved constraints',
-        semanticClock: { instant: '2000-01-01' }, compilerCapture: { policy: 'caller-value' } });
-      expect(searchToolData).toHaveBeenCalledWith(ctx, expect.not.objectContaining({
-        semanticClock: expect.anything(),
-      }), { policy, tool: 'search_memory' });
-      expect(result.contextPacket).toBe(contextPacket);
-    }, policy as never);
+    await withMeriToolRequestControl(
+      req,
+      async () => {
+        const result = await service.searchMemory(ctx, {
+          query: 'approved constraints',
+          semanticClock: { instant: '2000-01-01' },
+          compilerCapture: { policy: 'caller-value' },
+        });
+        expect(searchToolData).toHaveBeenCalledWith(
+          ctx,
+          expect.not.objectContaining({
+            semanticClock: expect.anything(),
+          }),
+          { policy, tool: 'search_memory' },
+        );
+        expect(result.contextPacket).toBe(contextPacket);
+      },
+      policy as never,
+    );
   });
 
   it('registers and dispatches own pending proposals separately from approved recall', async () => {
     const ctx = { tenantId: 'tenant', userId: 'actor', role: 'standard_user' } as never;
-    const listOwnProposals = jest.fn(async () => ({ enabled: true, candidates: [], nextCursor: null }));
+    const listOwnProposals = jest.fn(async () => ({
+      enabled: true,
+      candidates: [],
+      nextCursor: null,
+    }));
     const searchMemory = jest.fn();
     const service = Object.assign(Object.create(MeriToolsService.prototype), {
-      governedMemoryCandidates: { listOwnProposals }, searchMemory,
+      governedMemoryCandidates: { listOwnProposals },
+      searchMemory,
     }) as MeriToolsService;
-    expect(MERI_CAPABILITY_REGISTRY.find((tool) => tool.name === 'list_memory_proposals')).toMatchObject({ readOnly: true });
+    expect(
+      MERI_CAPABILITY_REGISTRY.find((tool) => tool.name === 'list_memory_proposals'),
+    ).toMatchObject({ readOnly: true });
     const schema = schemas().find((tool) => tool.name === 'list_memory_proposals')!;
-    expect(Object.keys(schema.input_schema.properties as object).sort()).toEqual(['clientId', 'cursor', 'limit']);
-    await expect(service.executeFromAuthenticatedUser(ctx, 'list_memory_proposals', {})).resolves.toMatchObject({
-      tool: 'list_memory_proposals', claimsAreApprovedFacts: false,
+    expect(Object.keys(schema.input_schema.properties as object).sort()).toEqual([
+      'clientId',
+      'cursor',
+      'limit',
+    ]);
+    await expect(
+      service.executeFromAuthenticatedUser(ctx, 'list_memory_proposals', {}),
+    ).resolves.toMatchObject({
+      tool: 'list_memory_proposals',
+      claimsAreApprovedFacts: false,
     });
     expect(listOwnProposals).toHaveBeenCalledWith(ctx, { limit: 5, status: 'pending' });
     expect(searchMemory).not.toHaveBeenCalled();
   });
 
-  it('adds only the no-provider own-proposal read to synthetic budget accounting admission', async () => {
-    const executeScoped = jest.fn(async () => ({ reachedCurrentAuthorityBoundary: true }));
-    const service = Object.assign(Object.create(MeriToolsService.prototype), { executeScoped }) as MeriToolsService;
-    const req = Object.assign(new EventEmitter(), { headers: {} }) as never;
-    const policy = { expectedCaptureWrites: ['a', 'b', 'c', 'provider_budget_ledger'], syntheticReadBudget: {}, caseId: null };
-    await withMeriToolRequestControl(req, async () => {
-      await expect(service.execute({} as never, 'list_memory_proposals', {})).resolves.toMatchObject({ reachedCurrentAuthorityBoundary: true });
-      await expect(service.execute({} as never, 'search_memory', { query: 'approved' })).resolves.toBeDefined();
-      for (const name of ['save_memory', 'send_email', 'list_emails'] as const) {
-        await expect(service.execute({} as never, name, {})).rejects.toThrow('unqualified_tool');
+  it.each([false, true])(
+    'rechecks current capture authority after proposal read (revoked=%s)',
+    async (revoked) => {
+      const id = (n: string) =>
+        `${n.repeat(8)}-${n.repeat(4)}-4${n.repeat(3)}-8${n.repeat(3)}-${n.repeat(12)}`;
+      const issuedAt = Date.now();
+      const policy = {
+        tenantId: id('1'),
+        actorUserId: id('2'),
+        clientId: id('3'),
+        turnId: id('4'),
+        captureRunId: id('5'),
+        caseId: '01',
+        fixtureVersion: 'meri-live-v1-2026-09-26.1',
+        issuedAt,
+        expiresAt: issuedAt + 60_000,
+        expectedCaptureWrites: ['a', 'b', 'c', 'provider_budget_ledger'],
+        semanticClock: {
+          version: 1,
+          kind: 'qualified_original_fixture_semantic_clock',
+          instant: '2026-09-26T16:00:00.000Z',
+          timeZone: 'America/New_York',
+          caseId: '01',
+          captureRunId: id('5'),
+          currentVerifySha256: 'a'.repeat(64),
+          observedAt: issuedAt,
+        },
+      };
+      const current = jest
+        .spyOn(captureAuthority, 'assertMeriServerReadonlyCaptureCurrentAuthority')
+        .mockResolvedValue(null);
+      const allowed = jest
+        .spyOn(captureAuthority, 'assertMeriServerReadonlyCaptureToolAllowed')
+        .mockReturnValue(undefined);
+      current.mockResolvedValueOnce(null);
+      if (revoked) current.mockRejectedValueOnce(new Error('current authority revoked'));
+      const listOwnProposals = jest.fn(async () => {
+        expect(current).toHaveBeenCalledTimes(1);
+        return { enabled: true, candidates: [], nextCursor: null };
+      });
+      const prisma = {};
+      const service = Object.assign(Object.create(MeriToolsService.prototype), {
+        prisma,
+        governedMemoryCandidates: { listOwnProposals },
+      }) as any;
+      const ctx = { tenantId: policy.tenantId, userId: policy.actorUserId, role: 'standard_user' };
+      try {
+        await withMeriToolRequestControl(
+          Object.assign(new EventEmitter(), { headers: {} }) as never,
+          async () => {
+            // Exercise actual dispatch/current-owner ordering, with the authority port
+            // isolated; its SQL membership/wall checks have their own existing suite.
+            const result = service.executeScoped(ctx, 'list_memory_proposals', {
+              clientId: policy.clientId,
+            });
+            if (revoked) await expect(result).rejects.toThrow('current authority revoked');
+            else await expect(result).resolves.toMatchObject({ claimsAreApprovedFacts: false });
+            expect(current).toHaveBeenCalledTimes(2);
+            expect(current).toHaveBeenLastCalledWith({ prisma, ctx, policy });
+            expect(listOwnProposals).toHaveBeenCalledTimes(1);
+          },
+          policy as never,
+        );
+      } finally {
+        current.mockRestore();
+        allowed.mockRestore();
       }
-    }, policy as never);
-    await withMeriToolRequestControl(req, async () => {
-      await expect(service.execute({} as never, 'list_memory_proposals', {})).rejects.toThrow('unqualified_tool');
-    }, { ...policy, syntheticReadBudget: undefined, caseId: '01' } as never);
-    expect(executeScoped).toHaveBeenCalledTimes(2);
+    },
+  );
+
+  it('admits only the own-proposal read alongside memory in original01/14 and synthetic budget scopes', async () => {
+    const executeScoped = jest.fn(async () => ({ reachedCurrentAuthorityBoundary: true }));
+    const service = Object.assign(Object.create(MeriToolsService.prototype), {
+      executeScoped,
+    }) as MeriToolsService;
+    const req = Object.assign(new EventEmitter(), { headers: {} }) as never;
+    const policy = {
+      expectedCaptureWrites: ['a', 'b', 'c', 'provider_budget_ledger'],
+      syntheticReadBudget: {},
+      caseId: null,
+    };
+    await withMeriToolRequestControl(
+      req,
+      async () => {
+        await expect(
+          service.execute({} as never, 'list_memory_proposals', {}),
+        ).resolves.toMatchObject({ reachedCurrentAuthorityBoundary: true });
+        await expect(
+          service.execute({} as never, 'search_memory', { query: 'approved' }),
+        ).resolves.toBeDefined();
+        for (const name of ['save_memory', 'send_email', 'list_emails'] as const) {
+          await expect(service.execute({} as never, name, {})).rejects.toThrow('unqualified_tool');
+        }
+      },
+      policy as never,
+    );
+    for (const caseId of ['01', '14']) {
+      await withMeriToolRequestControl(
+        req,
+        async () => {
+          await expect(
+            service.execute({} as never, 'list_memory_proposals', {}),
+          ).resolves.toMatchObject({ reachedCurrentAuthorityBoundary: true });
+        },
+        { ...policy, syntheticReadBudget: undefined, caseId } as never,
+      );
+    }
+    for (const caseId of ['20', '72', '02', null]) {
+      await withMeriToolRequestControl(
+        req,
+        async () => {
+          await expect(service.execute({} as never, 'list_memory_proposals', {})).rejects.toThrow(
+            'unqualified_tool',
+          );
+        },
+        { ...policy, syntheticReadBudget: undefined, caseId } as never,
+      );
+    }
+    expect(executeScoped).toHaveBeenCalledTimes(4);
   });
   it('dispatches read_chat_attachments only through the dedicated owner service', async () => {
     const read = jest.fn(async () => ({ tool: 'read_chat_attachments', records: [] }));

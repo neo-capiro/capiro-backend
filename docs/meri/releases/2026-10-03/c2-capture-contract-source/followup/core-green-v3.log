@@ -1,0 +1,60 @@
+PASS src/context/capture-evidence-receipt.spec.ts
+  independent semantic-clock receipt join
+    √ joins actual own-proposal HTTP proof without inventing a compiler consumer for case01 (8 ms)
+    √ joins actual own-proposal HTTP proof without inventing a compiler consumer for case14
+    √ keeps proposal proof unproved
+    √ keeps proposal tenant unproved (1 ms)
+    √ keeps proposal actor unproved
+    √ keeps proposal client unproved
+    √ keeps proposal compiler unproved
+    √ keeps proposal time unproved (1 ms)
+    √ keeps proposal approved unproved
+    √ keeps proposal coverage unproved
+    √ keeps proposal packet unproved
+    √ keeps proposal source unproved
+    √ keeps proposal citation unproved
+    √ keeps proposal controlled unproved
+    √ keeps proposal other-tool-proof unproved
+    √ keeps proposal failed unproved
+    √ keeps proposal http unproved
+    √ keeps proposal response unproved
+    √ keeps proposal case unproved (1 ms)
+    √ accepts both actual fallback packets and a separate initial compiler observation
+    √ keeps unobserved HTTP census BLOCKED
+    √ keeps duplicate logical call BLOCKED
+    √ keeps duplicate invocation BLOCKED
+    √ keeps malformed invocation BLOCKED
+    √ keeps missing invocation BLOCKED
+    √ keeps extra invocation BLOCKED (1 ms)
+    √ keeps unresolved invocation BLOCKED
+    √ keeps failed HTTP BLOCKED
+    √ keeps failed logical read BLOCKED
+    √ keeps second HTTP attempt BLOCKED
+    √ keeps missing fallback packet BLOCKED
+    √ keeps duplicate packet BLOCKED
+    √ keeps initial reused as tool BLOCKED
+    √ keeps stored clock mismatch BLOCKED (1 ms)
+    √ keeps prompt clock mismatch BLOCKED
+    √ keeps unadmitted time tool BLOCKED
+    √ keeps name-only local discovery BLOCKED
+    √ permits N/A tool windows only after a complete empty invocation census and actual local discovery
+    √ joins the actual controlled response for case 20 without inventing compiler use
+    √ joins the actual controlled response for case 72 without inventing compiler use
+  trusted server capture evidence receipt
+    √ signs and verifies the exact capture tuple without treating the signature as deployment proof (2 ms)
+    √ rejects purpose tampering (18 ms)
+    √ rejects payload tampering
+    √ rejects expired evidence (1 ms)
+    √ cannot complete missing, uncertain, over-budget or unaccounted provider evidence
+    √ accepts the already qualified fifteen-dollar ceiling without accepting overspend or higher limits
+    √ rejects a current-authority tuple mismatch (1 ms)
+    √ blocks, rather than passing, an extra unobserved write
+    √ keeps unavailable source authority explicit instead of inventing a locator or version
+  JSONB-compatible capture authentication
+    √ preserves signature and predecessor identity when persisted JSON object keys reorder (2 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       50 passed, 50 total
+Snapshots:   0 total
+Time:        1.562 s, estimated 2 s
+Ran all test suites matching /src\\context\\capture-evidence-receipt.spec.ts/i.

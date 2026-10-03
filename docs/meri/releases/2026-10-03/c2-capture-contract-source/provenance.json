@@ -1,0 +1,2107 @@
+{
+  "kind": "raw_copy_provenance",
+  "recordedAt": "2026-10-03T23:34:37.665760+00:00",
+  "sourceRoot": "C:/dev/main/outputs/meri-c2-20261003",
+  "mapping": {
+    "capture-receipt-clock-v1": "serialization",
+    "capture-contract-followup-v1": "followup",
+    "capture-receipt-clock-v1/capture-receipt-clock-combined-followup-v1*": "combined-postgres"
+  },
+  "note": "Original checkpoints and receipts retain their original relative/absolute paths and bytes. Resolve them through this mapping; copied source snapshots are audit data, not another implementation checkout.",
+  "copies": [
+    {
+      "path": "combined-postgres/capture-receipt-clock-combined-followup-v1-built-core.json",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-combined-followup-v1-built-core.json",
+      "bytes": 18746,
+      "sha256": "452b672e3eef76df5b0890e2e44aa4f689a73c56e4af4fbeb59608f87de6484a"
+    },
+    {
+      "path": "combined-postgres/capture-receipt-clock-combined-followup-v1-postgres.log",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-combined-followup-v1-postgres.log",
+      "bytes": 1179,
+      "sha256": "c4eb8efb27ad1dde2d2467bfab5d9aeab00bfadc4ccee07cc6add38a5a007ac5"
+    },
+    {
+      "path": "combined-postgres/capture-receipt-clock-combined-followup-v1-source-apps_api_prisma_schema.prisma",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-combined-followup-v1-source-apps_api_prisma_schema.prisma",
+      "bytes": 964030,
+      "sha256": "41fb55c8f2357b9bc2246de813d1e093e3e0bd240538048bbb514c5a4d4fe1d2"
+    },
+    {
+      "path": "combined-postgres/capture-receipt-clock-combined-followup-v1-source-apps_api_src_meri_meri-capture-policy-readback.ts",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-combined-followup-v1-source-apps_api_src_meri_meri-capture-policy-readback.ts",
+      "bytes": 7784,
+      "sha256": "3858a6f7d7212fc8f9de31f1ed165e742269db5e94a9fad37b4398f401c04e07"
+    },
+    {
+      "path": "combined-postgres/capture-receipt-clock-combined-followup-v1-source-apps_api_src_meri_meri-server-capture-evidence.ts",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-combined-followup-v1-source-apps_api_src_meri_meri-server-capture-evidence.ts",
+      "bytes": 10159,
+      "sha256": "2fa95657d16ed7e88d4d8edb0b59c8ac39bbd63f045e13f1b7b343e730d0c377"
+    },
+    {
+      "path": "combined-postgres/capture-receipt-clock-combined-followup-v1-source-apps_api_src_meri_meri-server-readonly-capture.ts",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-combined-followup-v1-source-apps_api_src_meri_meri-server-readonly-capture.ts",
+      "bytes": 21162,
+      "sha256": "689ddc776123be123c6181ebf7459ce747ae4eb99ad841a8966d8db87210ac93"
+    },
+    {
+      "path": "combined-postgres/capture-receipt-clock-combined-followup-v1-source-evals_meri_live-v1_tests_approved-memory-postgres-harness.mjs",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-combined-followup-v1-source-evals_meri_live-v1_tests_approved-memory-postgres-harness.mjs",
+      "bytes": 9208,
+      "sha256": "e9423f5e819c33a628c104ef9137c76708aa05ef0b7c5cdb4a42793dd4959c8d"
+    },
+    {
+      "path": "combined-postgres/capture-receipt-clock-combined-followup-v1-source-evals_meri_live-v1_tests_approved-memory-schema.mjs",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-combined-followup-v1-source-evals_meri_live-v1_tests_approved-memory-schema.mjs",
+      "bytes": 6093,
+      "sha256": "07d41fccf6ad21123f29521a7aa0a2816cf6ea4a76e74f8125ff449b828a94ab"
+    },
+    {
+      "path": "combined-postgres/capture-receipt-clock-combined-followup-v1-source-evals_meri_live-v1_tests_capture-clock-receipt-jsonb.postgres.test.mjs",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-combined-followup-v1-source-evals_meri_live-v1_tests_capture-clock-receipt-jsonb.postgres.test.mjs",
+      "bytes": 11355,
+      "sha256": "0534d2c82efaca14a7d9f66cd2399192b3a400ccf4f1693300473a825d64d5e2"
+    },
+    {
+      "path": "combined-postgres/capture-receipt-clock-combined-followup-v1-start.stderr",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-combined-followup-v1-start.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "combined-postgres/capture-receipt-clock-combined-followup-v1-start.stdout",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-combined-followup-v1-start.stdout",
+      "bytes": 54,
+      "sha256": "46038efb813fbca18a92272496901190638dea3f97b51f7af0daa1ca2eb13818"
+    },
+    {
+      "path": "combined-postgres/capture-receipt-clock-combined-followup-v1-status-after.log",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-combined-followup-v1-status-after.log",
+      "bytes": 27,
+      "sha256": "00e9e2231199060045479aeef60a466d575acde1f92e0f1567df14db2d3dc4b1"
+    },
+    {
+      "path": "combined-postgres/capture-receipt-clock-combined-followup-v1-status-before.log",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-combined-followup-v1-status-before.log",
+      "bytes": 27,
+      "sha256": "00e9e2231199060045479aeef60a466d575acde1f92e0f1567df14db2d3dc4b1"
+    },
+    {
+      "path": "combined-postgres/capture-receipt-clock-combined-followup-v1-stop.stderr",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-combined-followup-v1-stop.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "combined-postgres/capture-receipt-clock-combined-followup-v1-stop.stdout",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-combined-followup-v1-stop.stdout",
+      "bytes": 58,
+      "sha256": "3589d2bd01f8295cc7c9ec3f5e07625fcd347ccb6f33f2d80edafe5f5217c1fb"
+    },
+    {
+      "path": "combined-postgres/capture-receipt-clock-combined-followup-v1.log",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-combined-followup-v1.log",
+      "bytes": 757,
+      "sha256": "0b9fadfbb444b2507769d591de55ba3c530aa1c45cd4dd43f642a544f949f6da"
+    },
+    {
+      "path": "combined-postgres/capture-receipt-clock-combined-followup-v1.receipt.json",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-combined-followup-v1.receipt.json",
+      "bytes": 1905,
+      "sha256": "66218d616b0fc8db505df50fabb31fbf941acaf6f4551337ff9a1365125d6e63"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-green-final-built-core.json",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-green-final-built-core.json",
+      "bytes": 18746,
+      "sha256": "0c51ce073058d8babfc486afb33b56026c55790353fc5edf7c1fa868451b447c"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-green-final-postgres.log",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-green-final-postgres.log",
+      "bytes": 1179,
+      "sha256": "dfaaac8679aeeddaf307da4f02aeb243aa4469f914fd098059797d877ce9f396"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-green-final-source-apps_api_prisma_schema.prisma",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-green-final-source-apps_api_prisma_schema.prisma",
+      "bytes": 964030,
+      "sha256": "41fb55c8f2357b9bc2246de813d1e093e3e0bd240538048bbb514c5a4d4fe1d2"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-green-final-source-apps_api_src_meri_meri-capture-policy-readback.ts",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-green-final-source-apps_api_src_meri_meri-capture-policy-readback.ts",
+      "bytes": 7700,
+      "sha256": "57e060fddfdf641c346f4a35395ec86459c87161d0b4804042e72727b8bfe758"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-green-final-source-apps_api_src_meri_meri-server-capture-evidence.ts",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-green-final-source-apps_api_src_meri_meri-server-capture-evidence.ts",
+      "bytes": 10159,
+      "sha256": "2fa95657d16ed7e88d4d8edb0b59c8ac39bbd63f045e13f1b7b343e730d0c377"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-green-final-source-apps_api_src_meri_meri-server-readonly-capture.ts",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-green-final-source-apps_api_src_meri_meri-server-readonly-capture.ts",
+      "bytes": 21162,
+      "sha256": "689ddc776123be123c6181ebf7459ce747ae4eb99ad841a8966d8db87210ac93"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-green-final-source-evals_meri_live-v1_tests_approved-memory-postgres-harness.mjs",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-green-final-source-evals_meri_live-v1_tests_approved-memory-postgres-harness.mjs",
+      "bytes": 9208,
+      "sha256": "e9423f5e819c33a628c104ef9137c76708aa05ef0b7c5cdb4a42793dd4959c8d"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-green-final-source-evals_meri_live-v1_tests_approved-memory-schema.mjs",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-green-final-source-evals_meri_live-v1_tests_approved-memory-schema.mjs",
+      "bytes": 6093,
+      "sha256": "07d41fccf6ad21123f29521a7aa0a2816cf6ea4a76e74f8125ff449b828a94ab"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-green-final-source-evals_meri_live-v1_tests_capture-clock-receipt-jsonb.postgres.test.mjs",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-green-final-source-evals_meri_live-v1_tests_capture-clock-receipt-jsonb.postgres.test.mjs",
+      "bytes": 11355,
+      "sha256": "0534d2c82efaca14a7d9f66cd2399192b3a400ccf4f1693300473a825d64d5e2"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-green-final-start.stderr",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-green-final-start.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-green-final-start.stdout",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-green-final-start.stdout",
+      "bytes": 54,
+      "sha256": "46038efb813fbca18a92272496901190638dea3f97b51f7af0daa1ca2eb13818"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-green-final-status-after.log",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-green-final-status-after.log",
+      "bytes": 27,
+      "sha256": "00e9e2231199060045479aeef60a466d575acde1f92e0f1567df14db2d3dc4b1"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-green-final-status-before.log",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-green-final-status-before.log",
+      "bytes": 27,
+      "sha256": "00e9e2231199060045479aeef60a466d575acde1f92e0f1567df14db2d3dc4b1"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-green-final-stop.stderr",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-green-final-stop.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-green-final-stop.stdout",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-green-final-stop.stdout",
+      "bytes": 58,
+      "sha256": "3589d2bd01f8295cc7c9ec3f5e07625fcd347ccb6f33f2d80edafe5f5217c1fb"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-green-final.log",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-green-final.log",
+      "bytes": 757,
+      "sha256": "3fcedf66aad339e2d0ce3b804ee1d6990d7724ba9b111a4425e80c6a7effcbc1"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-green-final.receipt.json",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-green-final.receipt.json",
+      "bytes": 1905,
+      "sha256": "8fef0591cf5678bce3e992a7cd122bbb2d5a22c273e835901a4e4c49221ce8d3"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-green-v1-built-core.json",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-green-v1-built-core.json",
+      "bytes": 18746,
+      "sha256": "0c51ce073058d8babfc486afb33b56026c55790353fc5edf7c1fa868451b447c"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-green-v1-postgres.log",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-green-v1-postgres.log",
+      "bytes": 1179,
+      "sha256": "90770756ee4ea7037738d05deebddbcfc27407d33e6233a63e7271b9dc089f05"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-green-v1-source-apps_api_prisma_schema.prisma",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-green-v1-source-apps_api_prisma_schema.prisma",
+      "bytes": 964030,
+      "sha256": "41fb55c8f2357b9bc2246de813d1e093e3e0bd240538048bbb514c5a4d4fe1d2"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-green-v1-source-apps_api_src_meri_meri-capture-policy-readback.ts",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-green-v1-source-apps_api_src_meri_meri-capture-policy-readback.ts",
+      "bytes": 7700,
+      "sha256": "57e060fddfdf641c346f4a35395ec86459c87161d0b4804042e72727b8bfe758"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-green-v1-source-apps_api_src_meri_meri-server-capture-evidence.ts",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-green-v1-source-apps_api_src_meri_meri-server-capture-evidence.ts",
+      "bytes": 10159,
+      "sha256": "2fa95657d16ed7e88d4d8edb0b59c8ac39bbd63f045e13f1b7b343e730d0c377"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-green-v1-source-apps_api_src_meri_meri-server-readonly-capture.ts",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-green-v1-source-apps_api_src_meri_meri-server-readonly-capture.ts",
+      "bytes": 21103,
+      "sha256": "e36c0e5e35e18ca5de29803900404f18a573dab87bbc13b7e78c6fd7dd6838ed"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-green-v1-source-evals_meri_live-v1_tests_approved-memory-postgres-harness.mjs",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-green-v1-source-evals_meri_live-v1_tests_approved-memory-postgres-harness.mjs",
+      "bytes": 9208,
+      "sha256": "e9423f5e819c33a628c104ef9137c76708aa05ef0b7c5cdb4a42793dd4959c8d"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-green-v1-source-evals_meri_live-v1_tests_approved-memory-schema.mjs",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-green-v1-source-evals_meri_live-v1_tests_approved-memory-schema.mjs",
+      "bytes": 6093,
+      "sha256": "07d41fccf6ad21123f29521a7aa0a2816cf6ea4a76e74f8125ff449b828a94ab"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-green-v1-source-evals_meri_live-v1_tests_capture-clock-receipt-jsonb.postgres.test.mjs",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-green-v1-source-evals_meri_live-v1_tests_capture-clock-receipt-jsonb.postgres.test.mjs",
+      "bytes": 11355,
+      "sha256": "0534d2c82efaca14a7d9f66cd2399192b3a400ccf4f1693300473a825d64d5e2"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-green-v1-start.stderr",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-green-v1-start.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-green-v1-start.stdout",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-green-v1-start.stdout",
+      "bytes": 54,
+      "sha256": "46038efb813fbca18a92272496901190638dea3f97b51f7af0daa1ca2eb13818"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-green-v1-status-after.log",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-green-v1-status-after.log",
+      "bytes": 27,
+      "sha256": "00e9e2231199060045479aeef60a466d575acde1f92e0f1567df14db2d3dc4b1"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-green-v1-status-before.log",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-green-v1-status-before.log",
+      "bytes": 27,
+      "sha256": "00e9e2231199060045479aeef60a466d575acde1f92e0f1567df14db2d3dc4b1"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-green-v1-stop.stderr",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-green-v1-stop.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-green-v1-stop.stdout",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-green-v1-stop.stdout",
+      "bytes": 58,
+      "sha256": "3589d2bd01f8295cc7c9ec3f5e07625fcd347ccb6f33f2d80edafe5f5217c1fb"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-green-v1.log",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-green-v1.log",
+      "bytes": 757,
+      "sha256": "a2b64495f1e353f5437f31584d51e483cd01b2672f247ffd7a465c54f435b7df"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-green-v1.receipt.json",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-green-v1.receipt.json",
+      "bytes": 1905,
+      "sha256": "c47255acb4d2e4ba4c726abc9be5074df1d7e6948b9e282d359bbb0053ea5e85"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-red-v1-built-core.json",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-red-v1-built-core.json",
+      "bytes": 18746,
+      "sha256": "0c51ce073058d8babfc486afb33b56026c55790353fc5edf7c1fa868451b447c"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-red-v1-postgres.log",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-red-v1-postgres.log",
+      "bytes": 1178,
+      "sha256": "5b03860d96d6298d2acd7655bb890426920902091d08f007210326dcab0ed45e"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-red-v1-source-apps_api_prisma_schema.prisma",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-red-v1-source-apps_api_prisma_schema.prisma",
+      "bytes": 964030,
+      "sha256": "41fb55c8f2357b9bc2246de813d1e093e3e0bd240538048bbb514c5a4d4fe1d2"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-red-v1-source-apps_api_src_meri_meri-capture-policy-readback.ts",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-red-v1-source-apps_api_src_meri_meri-capture-policy-readback.ts",
+      "bytes": 7700,
+      "sha256": "57e060fddfdf641c346f4a35395ec86459c87161d0b4804042e72727b8bfe758"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-red-v1-source-apps_api_src_meri_meri-server-capture-evidence.ts",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-red-v1-source-apps_api_src_meri_meri-server-capture-evidence.ts",
+      "bytes": 10159,
+      "sha256": "2fa95657d16ed7e88d4d8edb0b59c8ac39bbd63f045e13f1b7b343e730d0c377"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-red-v1-source-apps_api_src_meri_meri-server-readonly-capture.ts",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-red-v1-source-apps_api_src_meri_meri-server-readonly-capture.ts",
+      "bytes": 20815,
+      "sha256": "9be7746ded0e3e344e529df86b831bd622aa9b5b46dd0848197b4bf66dcb0b24"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-red-v1-source-evals_meri_live-v1_tests_approved-memory-postgres-harness.mjs",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-red-v1-source-evals_meri_live-v1_tests_approved-memory-postgres-harness.mjs",
+      "bytes": 9208,
+      "sha256": "e9423f5e819c33a628c104ef9137c76708aa05ef0b7c5cdb4a42793dd4959c8d"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-red-v1-source-evals_meri_live-v1_tests_approved-memory-schema.mjs",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-red-v1-source-evals_meri_live-v1_tests_approved-memory-schema.mjs",
+      "bytes": 6093,
+      "sha256": "07d41fccf6ad21123f29521a7aa0a2816cf6ea4a76e74f8125ff449b828a94ab"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-red-v1-source-evals_meri_live-v1_tests_capture-clock-receipt-jsonb.postgres.test.mjs",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-red-v1-source-evals_meri_live-v1_tests_capture-clock-receipt-jsonb.postgres.test.mjs",
+      "bytes": 10972,
+      "sha256": "9515a7c5349a37ccccbeae158cd72f0fedd1492d18f3dbd22a6b08c55b54bfab"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-red-v1-start.stderr",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-red-v1-start.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-red-v1-start.stdout",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-red-v1-start.stdout",
+      "bytes": 54,
+      "sha256": "46038efb813fbca18a92272496901190638dea3f97b51f7af0daa1ca2eb13818"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-red-v1-status-after.log",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-red-v1-status-after.log",
+      "bytes": 27,
+      "sha256": "00e9e2231199060045479aeef60a466d575acde1f92e0f1567df14db2d3dc4b1"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-red-v1-status-before.log",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-red-v1-status-before.log",
+      "bytes": 27,
+      "sha256": "00e9e2231199060045479aeef60a466d575acde1f92e0f1567df14db2d3dc4b1"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-red-v1-stop.stderr",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-red-v1-stop.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-red-v1-stop.stdout",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-red-v1-stop.stdout",
+      "bytes": 58,
+      "sha256": "3589d2bd01f8295cc7c9ec3f5e07625fcd347ccb6f33f2d80edafe5f5217c1fb"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-red-v1.log",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-red-v1.log",
+      "bytes": 6830,
+      "sha256": "7fc7e4c39e6ea77c4cce27228cb73f5d33bb57543dda78e6b8c61fb49c35d1b2"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-red-v1.receipt.json",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-red-v1.receipt.json",
+      "bytes": 1905,
+      "sha256": "75b5acdad24ff903f40543152944045280e996a738a5b8897b0be8505ca82cfb"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-red-v2-built-core.json",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-red-v2-built-core.json",
+      "bytes": 18746,
+      "sha256": "0c51ce073058d8babfc486afb33b56026c55790353fc5edf7c1fa868451b447c"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-red-v2-postgres.log",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-red-v2-postgres.log",
+      "bytes": 1179,
+      "sha256": "3e929ed0518ecd9fb65590cfde98863194dc91a7bbc1250452e169e636c5c1ef"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-red-v2-source-apps_api_prisma_schema.prisma",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-red-v2-source-apps_api_prisma_schema.prisma",
+      "bytes": 964030,
+      "sha256": "41fb55c8f2357b9bc2246de813d1e093e3e0bd240538048bbb514c5a4d4fe1d2"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-red-v2-source-apps_api_src_meri_meri-capture-policy-readback.ts",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-red-v2-source-apps_api_src_meri_meri-capture-policy-readback.ts",
+      "bytes": 7700,
+      "sha256": "57e060fddfdf641c346f4a35395ec86459c87161d0b4804042e72727b8bfe758"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-red-v2-source-apps_api_src_meri_meri-server-capture-evidence.ts",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-red-v2-source-apps_api_src_meri_meri-server-capture-evidence.ts",
+      "bytes": 10159,
+      "sha256": "2fa95657d16ed7e88d4d8edb0b59c8ac39bbd63f045e13f1b7b343e730d0c377"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-red-v2-source-apps_api_src_meri_meri-server-readonly-capture.ts",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-red-v2-source-apps_api_src_meri_meri-server-readonly-capture.ts",
+      "bytes": 20815,
+      "sha256": "9be7746ded0e3e344e529df86b831bd622aa9b5b46dd0848197b4bf66dcb0b24"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-red-v2-source-evals_meri_live-v1_tests_approved-memory-postgres-harness.mjs",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-red-v2-source-evals_meri_live-v1_tests_approved-memory-postgres-harness.mjs",
+      "bytes": 9208,
+      "sha256": "e9423f5e819c33a628c104ef9137c76708aa05ef0b7c5cdb4a42793dd4959c8d"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-red-v2-source-evals_meri_live-v1_tests_approved-memory-schema.mjs",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-red-v2-source-evals_meri_live-v1_tests_approved-memory-schema.mjs",
+      "bytes": 6093,
+      "sha256": "07d41fccf6ad21123f29521a7aa0a2816cf6ea4a76e74f8125ff449b828a94ab"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-red-v2-source-evals_meri_live-v1_tests_capture-clock-receipt-jsonb.postgres.test.mjs",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-red-v2-source-evals_meri_live-v1_tests_capture-clock-receipt-jsonb.postgres.test.mjs",
+      "bytes": 11355,
+      "sha256": "0534d2c82efaca14a7d9f66cd2399192b3a400ccf4f1693300473a825d64d5e2"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-red-v2-start.stderr",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-red-v2-start.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-red-v2-start.stdout",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-red-v2-start.stdout",
+      "bytes": 54,
+      "sha256": "46038efb813fbca18a92272496901190638dea3f97b51f7af0daa1ca2eb13818"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-red-v2-status-after.log",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-red-v2-status-after.log",
+      "bytes": 27,
+      "sha256": "00e9e2231199060045479aeef60a466d575acde1f92e0f1567df14db2d3dc4b1"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-red-v2-status-before.log",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-red-v2-status-before.log",
+      "bytes": 27,
+      "sha256": "00e9e2231199060045479aeef60a466d575acde1f92e0f1567df14db2d3dc4b1"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-red-v2-stop.stderr",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-red-v2-stop.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-red-v2-stop.stdout",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-red-v2-stop.stdout",
+      "bytes": 58,
+      "sha256": "3589d2bd01f8295cc7c9ec3f5e07625fcd347ccb6f33f2d80edafe5f5217c1fb"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-red-v2.log",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-red-v2.log",
+      "bytes": 3761,
+      "sha256": "35635ba5b575420dbe19bb60f403b68a9ef5d6df197060182f70651b2a9da4f2"
+    },
+    {
+      "path": "serialization/capture-receipt-clock-red-v2.receipt.json",
+      "source": "capture-receipt-clock-v1/capture-receipt-clock-red-v2.receipt.json",
+      "bytes": 1905,
+      "sha256": "094dfa02f7a63bbe1c86438842f6edee43d732813e3ed29eb4b9f73eaac4988e"
+    },
+    {
+      "path": "serialization/checkpoint.json",
+      "source": "capture-receipt-clock-v1/checkpoint.json",
+      "bytes": 12597,
+      "sha256": "cf9bb0fa5119c2c05b9afbc22b539e0245839dfe4680c5b49753c9a864184400"
+    },
+    {
+      "path": "serialization/diff-check.log",
+      "source": "capture-receipt-clock-v1/diff-check.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "serialization/finalize-checkpoint.py",
+      "source": "capture-receipt-clock-v1/finalize-checkpoint.py",
+      "bytes": 7166,
+      "sha256": "0a03e73a1a21ed5a35c39e74acc55ec29eb245a1fe9d613f23107a1314c9ad9a"
+    },
+    {
+      "path": "serialization/focused-jest.log",
+      "source": "capture-receipt-clock-v1/focused-jest.log",
+      "bytes": 16204,
+      "sha256": "87b010912b3c823b963c178e675ea6acd81ec4e821f10274a17fa53a20a6c32f"
+    },
+    {
+      "path": "serialization/focused-jest.receipt.json",
+      "source": "capture-receipt-clock-v1/focused-jest.receipt.json",
+      "bytes": 1017,
+      "sha256": "d6e6746431e003135f933ceef8a193ef2342b3673c34055751affd0446758e5c"
+    },
+    {
+      "path": "serialization/local-api-build.log",
+      "source": "capture-receipt-clock-v1/local-api-build.log",
+      "bytes": 83,
+      "sha256": "474834a5bd1dd45028516d03b578bddc226aa68e089024e1afd9f730d194b192"
+    },
+    {
+      "path": "serialization/local-api-build.receipt.json",
+      "source": "capture-receipt-clock-v1/local-api-build.receipt.json",
+      "bytes": 687,
+      "sha256": "b7f530f4118f5e752cbf4194cf0a0b82bf02f3914ac82506323330a3f98ef514"
+    },
+    {
+      "path": "serialization/run-capture-receipt-clock.ps1",
+      "source": "capture-receipt-clock-v1/run-capture-receipt-clock.ps1",
+      "bytes": 6234,
+      "sha256": "5ac93d9919c4743b354d09fc0d4022305c8bd1c6c9363f2f1316f5d53511349d"
+    },
+    {
+      "path": "serialization/source/apps/api/src/meri/meri-capture-clock-packets.spec.ts",
+      "source": "capture-receipt-clock-v1/source/apps/api/src/meri/meri-capture-clock-packets.spec.ts",
+      "bytes": 13059,
+      "sha256": "655f564716160bed9f20bfa32450f46a9adb9989009a321782e11d235140e828"
+    },
+    {
+      "path": "serialization/source/apps/api/src/meri/meri-server-readonly-capture.ts",
+      "source": "capture-receipt-clock-v1/source/apps/api/src/meri/meri-server-readonly-capture.ts",
+      "bytes": 21162,
+      "sha256": "689ddc776123be123c6181ebf7459ce747ae4eb99ad841a8966d8db87210ac93"
+    },
+    {
+      "path": "serialization/source/evals/meri/live-v1/tests/capture-clock-receipt-jsonb.postgres.test.mjs",
+      "source": "capture-receipt-clock-v1/source/evals/meri/live-v1/tests/capture-clock-receipt-jsonb.postgres.test.mjs",
+      "bytes": 11355,
+      "sha256": "0534d2c82efaca14a7d9f66cd2399192b3a400ccf4f1693300473a825d64d5e2"
+    },
+    {
+      "path": "serialization/tracked-candidate.patch",
+      "source": "capture-receipt-clock-v1/tracked-candidate.patch",
+      "bytes": 3676,
+      "sha256": "ac05e7326813d87d9f09f2d5c56ff73cf08a5cd1f9555689056fe0b64c1e62fd"
+    },
+    {
+      "path": "followup/api-build-source/apps/api/src/meri/meri-capture-budget-readback.spec.ts",
+      "source": "capture-contract-followup-v1/api-build-source/apps/api/src/meri/meri-capture-budget-readback.spec.ts",
+      "bytes": 5519,
+      "sha256": "6c181f801d60c1254b34fae82bb241fa1c1c273395a9b7578354032bbc1e35c4"
+    },
+    {
+      "path": "followup/api-build-source/apps/api/src/meri/meri-capture-policy-readback.ts",
+      "source": "capture-contract-followup-v1/api-build-source/apps/api/src/meri/meri-capture-policy-readback.ts",
+      "bytes": 7784,
+      "sha256": "3858a6f7d7212fc8f9de31f1ed165e742269db5e94a9fad37b4398f401c04e07"
+    },
+    {
+      "path": "followup/api-build-source/apps/api/src/meri/meri-memory-proposal-read.spec.ts",
+      "source": "capture-contract-followup-v1/api-build-source/apps/api/src/meri/meri-memory-proposal-read.spec.ts",
+      "bytes": 10876,
+      "sha256": "9a68bf1b46654c86afddaf51b0c47f78e81aa982f82cb8a8cd3d5b373db17352"
+    },
+    {
+      "path": "followup/api-build-source/apps/api/src/meri/meri-memory-proposal-read.ts",
+      "source": "capture-contract-followup-v1/api-build-source/apps/api/src/meri/meri-memory-proposal-read.ts",
+      "bytes": 5072,
+      "sha256": "d415bb91636f8f7f7f0414dc7c9d89122711e143cb6c70be5ff78e527268517e"
+    },
+    {
+      "path": "followup/api-build-source/apps/api/src/meri/meri-tools.registration.spec.ts",
+      "source": "capture-contract-followup-v1/api-build-source/apps/api/src/meri/meri-tools.registration.spec.ts",
+      "bytes": 46216,
+      "sha256": "149ccac73953e5ac2d7eb64b8909dcf8b9ef990a37739c890c1afd0a4864f095"
+    },
+    {
+      "path": "followup/api-build-source/apps/api/src/meri/meri-tools.service.ts",
+      "source": "capture-contract-followup-v1/api-build-source/apps/api/src/meri/meri-tools.service.ts",
+      "bytes": 407649,
+      "sha256": "a9b2cc4eed2b3397793a2f56b188c8a1a29cab5ec76228ab9aa4e68c46c7be5c"
+    },
+    {
+      "path": "followup/api-build-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts",
+      "source": "capture-contract-followup-v1/api-build-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts",
+      "bytes": 28435,
+      "sha256": "c80f389ce30175ecb11062fe15ae07a265c426fd0172a098849ddd9ae8efa639"
+    },
+    {
+      "path": "followup/api-build-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.ts",
+      "source": "capture-contract-followup-v1/api-build-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.ts",
+      "bytes": 12662,
+      "sha256": "da9470709693880141fce698d998069a308523409e5eb1f63d1bea5731f0d3e0"
+    },
+    {
+      "path": "followup/api-build-source/packages/meriv2-core/src/context/capture-evidence-receipt.spec.ts",
+      "source": "capture-contract-followup-v1/api-build-source/packages/meriv2-core/src/context/capture-evidence-receipt.spec.ts",
+      "bytes": 21100,
+      "sha256": "d9606ffad168493f326f1017d1db3bee8794990dfade4844fc8370c86036e17e"
+    },
+    {
+      "path": "followup/api-build-source/packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "source": "capture-contract-followup-v1/api-build-source/packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "bytes": 22804,
+      "sha256": "d1fe00c283c13663c40b70d7e8a7537a888a269b21b758c0f59b7c907fe39471"
+    },
+    {
+      "path": "followup/api-build.log",
+      "source": "capture-contract-followup-v1/api-build.log",
+      "bytes": 79,
+      "sha256": "6a73f8bc0a1fc60ac6a8ae0b9af7e0e0c38b7f9cff82c24e8b11e02b08517cc3"
+    },
+    {
+      "path": "followup/api-build.receipt.json",
+      "source": "capture-contract-followup-v1/api-build.receipt.json",
+      "bytes": 1737,
+      "sha256": "f6d20490b6b398c8586d4c447c19d1065f2b60cd49c431d7363f0517c1b88ac1"
+    },
+    {
+      "path": "followup/api-green-source/apps/api/src/meri/meri-capture-budget-readback.spec.ts",
+      "source": "capture-contract-followup-v1/api-green-source/apps/api/src/meri/meri-capture-budget-readback.spec.ts",
+      "bytes": 5519,
+      "sha256": "6c181f801d60c1254b34fae82bb241fa1c1c273395a9b7578354032bbc1e35c4"
+    },
+    {
+      "path": "followup/api-green-source/apps/api/src/meri/meri-capture-policy-readback.ts",
+      "source": "capture-contract-followup-v1/api-green-source/apps/api/src/meri/meri-capture-policy-readback.ts",
+      "bytes": 7784,
+      "sha256": "3858a6f7d7212fc8f9de31f1ed165e742269db5e94a9fad37b4398f401c04e07"
+    },
+    {
+      "path": "followup/api-green-source/apps/api/src/meri/meri-memory-proposal-read.spec.ts",
+      "source": "capture-contract-followup-v1/api-green-source/apps/api/src/meri/meri-memory-proposal-read.spec.ts",
+      "bytes": 10876,
+      "sha256": "9a68bf1b46654c86afddaf51b0c47f78e81aa982f82cb8a8cd3d5b373db17352"
+    },
+    {
+      "path": "followup/api-green-source/apps/api/src/meri/meri-memory-proposal-read.ts",
+      "source": "capture-contract-followup-v1/api-green-source/apps/api/src/meri/meri-memory-proposal-read.ts",
+      "bytes": 5072,
+      "sha256": "d415bb91636f8f7f7f0414dc7c9d89122711e143cb6c70be5ff78e527268517e"
+    },
+    {
+      "path": "followup/api-green-source/apps/api/src/meri/meri-tools.registration.spec.ts",
+      "source": "capture-contract-followup-v1/api-green-source/apps/api/src/meri/meri-tools.registration.spec.ts",
+      "bytes": 46216,
+      "sha256": "149ccac73953e5ac2d7eb64b8909dcf8b9ef990a37739c890c1afd0a4864f095"
+    },
+    {
+      "path": "followup/api-green-source/apps/api/src/meri/meri-tools.service.ts",
+      "source": "capture-contract-followup-v1/api-green-source/apps/api/src/meri/meri-tools.service.ts",
+      "bytes": 407649,
+      "sha256": "a9b2cc4eed2b3397793a2f56b188c8a1a29cab5ec76228ab9aa4e68c46c7be5c"
+    },
+    {
+      "path": "followup/api-green-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts",
+      "source": "capture-contract-followup-v1/api-green-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts",
+      "bytes": 28435,
+      "sha256": "c80f389ce30175ecb11062fe15ae07a265c426fd0172a098849ddd9ae8efa639"
+    },
+    {
+      "path": "followup/api-green-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.ts",
+      "source": "capture-contract-followup-v1/api-green-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.ts",
+      "bytes": 12644,
+      "sha256": "e9ad70ffbaf0f90075473f161013e1a55d927262c689f4134456b2e0221066d8"
+    },
+    {
+      "path": "followup/api-green-source/packages/meriv2-core/src/context/capture-evidence-receipt.spec.ts",
+      "source": "capture-contract-followup-v1/api-green-source/packages/meriv2-core/src/context/capture-evidence-receipt.spec.ts",
+      "bytes": 21100,
+      "sha256": "d9606ffad168493f326f1017d1db3bee8794990dfade4844fc8370c86036e17e"
+    },
+    {
+      "path": "followup/api-green-source/packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "source": "capture-contract-followup-v1/api-green-source/packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "bytes": 22528,
+      "sha256": "87d44b1c0405e5f864a37c7bb58d65612b298817859e0fdc2a470eaee6254227"
+    },
+    {
+      "path": "followup/api-green-v2-source/apps/api/src/meri/meri-capture-budget-readback.spec.ts",
+      "source": "capture-contract-followup-v1/api-green-v2-source/apps/api/src/meri/meri-capture-budget-readback.spec.ts",
+      "bytes": 5519,
+      "sha256": "6c181f801d60c1254b34fae82bb241fa1c1c273395a9b7578354032bbc1e35c4"
+    },
+    {
+      "path": "followup/api-green-v2-source/apps/api/src/meri/meri-capture-policy-readback.ts",
+      "source": "capture-contract-followup-v1/api-green-v2-source/apps/api/src/meri/meri-capture-policy-readback.ts",
+      "bytes": 7784,
+      "sha256": "3858a6f7d7212fc8f9de31f1ed165e742269db5e94a9fad37b4398f401c04e07"
+    },
+    {
+      "path": "followup/api-green-v2-source/apps/api/src/meri/meri-memory-proposal-read.spec.ts",
+      "source": "capture-contract-followup-v1/api-green-v2-source/apps/api/src/meri/meri-memory-proposal-read.spec.ts",
+      "bytes": 10876,
+      "sha256": "9a68bf1b46654c86afddaf51b0c47f78e81aa982f82cb8a8cd3d5b373db17352"
+    },
+    {
+      "path": "followup/api-green-v2-source/apps/api/src/meri/meri-memory-proposal-read.ts",
+      "source": "capture-contract-followup-v1/api-green-v2-source/apps/api/src/meri/meri-memory-proposal-read.ts",
+      "bytes": 5072,
+      "sha256": "d415bb91636f8f7f7f0414dc7c9d89122711e143cb6c70be5ff78e527268517e"
+    },
+    {
+      "path": "followup/api-green-v2-source/apps/api/src/meri/meri-tools.registration.spec.ts",
+      "source": "capture-contract-followup-v1/api-green-v2-source/apps/api/src/meri/meri-tools.registration.spec.ts",
+      "bytes": 46216,
+      "sha256": "149ccac73953e5ac2d7eb64b8909dcf8b9ef990a37739c890c1afd0a4864f095"
+    },
+    {
+      "path": "followup/api-green-v2-source/apps/api/src/meri/meri-tools.service.ts",
+      "source": "capture-contract-followup-v1/api-green-v2-source/apps/api/src/meri/meri-tools.service.ts",
+      "bytes": 407649,
+      "sha256": "a9b2cc4eed2b3397793a2f56b188c8a1a29cab5ec76228ab9aa4e68c46c7be5c"
+    },
+    {
+      "path": "followup/api-green-v2-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts",
+      "source": "capture-contract-followup-v1/api-green-v2-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts",
+      "bytes": 28435,
+      "sha256": "c80f389ce30175ecb11062fe15ae07a265c426fd0172a098849ddd9ae8efa639"
+    },
+    {
+      "path": "followup/api-green-v2-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.ts",
+      "source": "capture-contract-followup-v1/api-green-v2-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.ts",
+      "bytes": 12662,
+      "sha256": "da9470709693880141fce698d998069a308523409e5eb1f63d1bea5731f0d3e0"
+    },
+    {
+      "path": "followup/api-green-v2-source/packages/meriv2-core/src/context/capture-evidence-receipt.spec.ts",
+      "source": "capture-contract-followup-v1/api-green-v2-source/packages/meriv2-core/src/context/capture-evidence-receipt.spec.ts",
+      "bytes": 21100,
+      "sha256": "d9606ffad168493f326f1017d1db3bee8794990dfade4844fc8370c86036e17e"
+    },
+    {
+      "path": "followup/api-green-v2-source/packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "source": "capture-contract-followup-v1/api-green-v2-source/packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "bytes": 22804,
+      "sha256": "d1fe00c283c13663c40b70d7e8a7537a888a269b21b758c0f59b7c907fe39471"
+    },
+    {
+      "path": "followup/api-green-v2.log",
+      "source": "capture-contract-followup-v1/api-green-v2.log",
+      "bytes": 6087,
+      "sha256": "1f99a297efe1a3de0db665206639d6ea24ce9fcf0b5988113f30abb608576045"
+    },
+    {
+      "path": "followup/api-green-v2.receipt.json",
+      "source": "capture-contract-followup-v1/api-green-v2.receipt.json",
+      "bytes": 2025,
+      "sha256": "5f7fcae839564d8720fa72ca7d3a802d74295cdbbfcbaf300d324905d006eeb0"
+    },
+    {
+      "path": "followup/api-green.log",
+      "source": "capture-contract-followup-v1/api-green.log",
+      "bytes": 16304,
+      "sha256": "9d53aabc86aac6b8f98f39918f1ebf285ddf255c07d80edb5c9991c4e44d256e"
+    },
+    {
+      "path": "followup/api-green.receipt.json",
+      "source": "capture-contract-followup-v1/api-green.receipt.json",
+      "bytes": 2022,
+      "sha256": "660765bca0f56af1db41e7174b7e00d98e1c86bd95bb8fb81b648ece0a85c224"
+    },
+    {
+      "path": "followup/api-red-source/apps/api/src/meri/meri-capture-policy-readback.ts",
+      "source": "capture-contract-followup-v1/api-red-source/apps/api/src/meri/meri-capture-policy-readback.ts",
+      "bytes": 7700,
+      "sha256": "57e060fddfdf641c346f4a35395ec86459c87161d0b4804042e72727b8bfe758"
+    },
+    {
+      "path": "followup/api-red-source/apps/api/src/meri/meri-memory-proposal-read.spec.ts",
+      "source": "capture-contract-followup-v1/api-red-source/apps/api/src/meri/meri-memory-proposal-read.spec.ts",
+      "bytes": 10876,
+      "sha256": "9a68bf1b46654c86afddaf51b0c47f78e81aa982f82cb8a8cd3d5b373db17352"
+    },
+    {
+      "path": "followup/api-red-source/apps/api/src/meri/meri-memory-proposal-read.ts",
+      "source": "capture-contract-followup-v1/api-red-source/apps/api/src/meri/meri-memory-proposal-read.ts",
+      "bytes": 3485,
+      "sha256": "5cbe9e92d4088961f929e9592892e35b65cc00eba2fa61fdf3e4d02a7b82a135"
+    },
+    {
+      "path": "followup/api-red-source/apps/api/src/meri/meri-tools.registration.spec.ts",
+      "source": "capture-contract-followup-v1/api-red-source/apps/api/src/meri/meri-tools.registration.spec.ts",
+      "bytes": 43237,
+      "sha256": "20546eb158b962f6437d010c8e9c3702dca5014b2da71fec492f3d503d4e17da"
+    },
+    {
+      "path": "followup/api-red-source/apps/api/src/meri/meri-tools.service.ts",
+      "source": "capture-contract-followup-v1/api-red-source/apps/api/src/meri/meri-tools.service.ts",
+      "bytes": 406964,
+      "sha256": "1976465b491e0731abf05ffb7fb8b3c2048835e034b06faace81fe97f7fb6371"
+    },
+    {
+      "path": "followup/api-red-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts",
+      "source": "capture-contract-followup-v1/api-red-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts",
+      "bytes": 28232,
+      "sha256": "b92b08027d7be273259d66a11dcc5c31f263f3ace548d12ca61333fda1e59210"
+    },
+    {
+      "path": "followup/api-red-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.ts",
+      "source": "capture-contract-followup-v1/api-red-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.ts",
+      "bytes": 11144,
+      "sha256": "1067a0ffbac4096b4b0830ac2f55ac4122da90ca224b34ed15cc5d2383daadc1"
+    },
+    {
+      "path": "followup/api-red-source/packages/meriv2-core/src/context/capture-evidence-receipt.spec.ts",
+      "source": "capture-contract-followup-v1/api-red-source/packages/meriv2-core/src/context/capture-evidence-receipt.spec.ts",
+      "bytes": 20591,
+      "sha256": "7d9862d32a9a79952ebc09f257c170b1f229b5623c33fdabc35b8d87038d8e16"
+    },
+    {
+      "path": "followup/api-red-source/packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "source": "capture-contract-followup-v1/api-red-source/packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "bytes": 20894,
+      "sha256": "2b4540e237eebf4fd1db7a32565672eaea8bbfcc6daa6001309ec5c94788dc3f"
+    },
+    {
+      "path": "followup/api-red-v2-source/apps/api/src/meri/meri-capture-budget-readback.spec.ts",
+      "source": "capture-contract-followup-v1/api-red-v2-source/apps/api/src/meri/meri-capture-budget-readback.spec.ts",
+      "bytes": 5519,
+      "sha256": "6c181f801d60c1254b34fae82bb241fa1c1c273395a9b7578354032bbc1e35c4"
+    },
+    {
+      "path": "followup/api-red-v2-source/apps/api/src/meri/meri-capture-policy-readback.ts",
+      "source": "capture-contract-followup-v1/api-red-v2-source/apps/api/src/meri/meri-capture-policy-readback.ts",
+      "bytes": 7700,
+      "sha256": "57e060fddfdf641c346f4a35395ec86459c87161d0b4804042e72727b8bfe758"
+    },
+    {
+      "path": "followup/api-red-v2-source/apps/api/src/meri/meri-memory-proposal-read.spec.ts",
+      "source": "capture-contract-followup-v1/api-red-v2-source/apps/api/src/meri/meri-memory-proposal-read.spec.ts",
+      "bytes": 10876,
+      "sha256": "9a68bf1b46654c86afddaf51b0c47f78e81aa982f82cb8a8cd3d5b373db17352"
+    },
+    {
+      "path": "followup/api-red-v2-source/apps/api/src/meri/meri-memory-proposal-read.ts",
+      "source": "capture-contract-followup-v1/api-red-v2-source/apps/api/src/meri/meri-memory-proposal-read.ts",
+      "bytes": 3485,
+      "sha256": "5cbe9e92d4088961f929e9592892e35b65cc00eba2fa61fdf3e4d02a7b82a135"
+    },
+    {
+      "path": "followup/api-red-v2-source/apps/api/src/meri/meri-tools.registration.spec.ts",
+      "source": "capture-contract-followup-v1/api-red-v2-source/apps/api/src/meri/meri-tools.registration.spec.ts",
+      "bytes": 46216,
+      "sha256": "149ccac73953e5ac2d7eb64b8909dcf8b9ef990a37739c890c1afd0a4864f095"
+    },
+    {
+      "path": "followup/api-red-v2-source/apps/api/src/meri/meri-tools.service.ts",
+      "source": "capture-contract-followup-v1/api-red-v2-source/apps/api/src/meri/meri-tools.service.ts",
+      "bytes": 406964,
+      "sha256": "1976465b491e0731abf05ffb7fb8b3c2048835e034b06faace81fe97f7fb6371"
+    },
+    {
+      "path": "followup/api-red-v2-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts",
+      "source": "capture-contract-followup-v1/api-red-v2-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts",
+      "bytes": 28435,
+      "sha256": "c80f389ce30175ecb11062fe15ae07a265c426fd0172a098849ddd9ae8efa639"
+    },
+    {
+      "path": "followup/api-red-v2-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.ts",
+      "source": "capture-contract-followup-v1/api-red-v2-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.ts",
+      "bytes": 11144,
+      "sha256": "1067a0ffbac4096b4b0830ac2f55ac4122da90ca224b34ed15cc5d2383daadc1"
+    },
+    {
+      "path": "followup/api-red-v2-source/packages/meriv2-core/src/context/capture-evidence-receipt.spec.ts",
+      "source": "capture-contract-followup-v1/api-red-v2-source/packages/meriv2-core/src/context/capture-evidence-receipt.spec.ts",
+      "bytes": 21054,
+      "sha256": "0a038929b8d99ae160fc946813b29c40cd630e93443852d52d3b61e16c8a8a5b"
+    },
+    {
+      "path": "followup/api-red-v2-source/packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "source": "capture-contract-followup-v1/api-red-v2-source/packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "bytes": 20894,
+      "sha256": "2b4540e237eebf4fd1db7a32565672eaea8bbfcc6daa6001309ec5c94788dc3f"
+    },
+    {
+      "path": "followup/api-red-v2.log",
+      "source": "capture-contract-followup-v1/api-red-v2.log",
+      "bytes": 19165,
+      "sha256": "e857749b0251d36026b34746d4031dd480e2f8a27f340b440c8083891e7eab06"
+    },
+    {
+      "path": "followup/api-red-v2.receipt.json",
+      "source": "capture-contract-followup-v1/api-red-v2.receipt.json",
+      "bytes": 1866,
+      "sha256": "b68632535b585c3333c2879231957bf8d1e705850ee909ea13ab7332519de8e7"
+    },
+    {
+      "path": "followup/api-red.log",
+      "source": "capture-contract-followup-v1/api-red.log",
+      "bytes": 17120,
+      "sha256": "e32838a6035f6828267f96dcdbfbee562830e95ef99e74529a038d7b90401c88"
+    },
+    {
+      "path": "followup/api-red.receipt.json",
+      "source": "capture-contract-followup-v1/api-red.receipt.json",
+      "bytes": 1700,
+      "sha256": "4d2b0afbc823598c3130332829e3993c4299c3fbe87b27dab0292b929ff85ae9"
+    },
+    {
+      "path": "followup/candidate.patch",
+      "source": "capture-contract-followup-v1/candidate.patch",
+      "bytes": 70624,
+      "sha256": "331df1330f58eb3f4a51828033d96026689e46f7719cd061bcad98585db0a26e"
+    },
+    {
+      "path": "followup/checkpoint.json",
+      "source": "capture-contract-followup-v1/checkpoint.json",
+      "bytes": 26595,
+      "sha256": "b7de9e4633f59a4106e94adfeb775daecb1c0a0bf7d94bf83c56dc7f45cb65b6"
+    },
+    {
+      "path": "followup/core-build-source/apps/api/src/meri/meri-capture-budget-readback.spec.ts",
+      "source": "capture-contract-followup-v1/core-build-source/apps/api/src/meri/meri-capture-budget-readback.spec.ts",
+      "bytes": 5519,
+      "sha256": "6c181f801d60c1254b34fae82bb241fa1c1c273395a9b7578354032bbc1e35c4"
+    },
+    {
+      "path": "followup/core-build-source/apps/api/src/meri/meri-capture-policy-readback.ts",
+      "source": "capture-contract-followup-v1/core-build-source/apps/api/src/meri/meri-capture-policy-readback.ts",
+      "bytes": 7784,
+      "sha256": "3858a6f7d7212fc8f9de31f1ed165e742269db5e94a9fad37b4398f401c04e07"
+    },
+    {
+      "path": "followup/core-build-source/apps/api/src/meri/meri-memory-proposal-read.spec.ts",
+      "source": "capture-contract-followup-v1/core-build-source/apps/api/src/meri/meri-memory-proposal-read.spec.ts",
+      "bytes": 10876,
+      "sha256": "9a68bf1b46654c86afddaf51b0c47f78e81aa982f82cb8a8cd3d5b373db17352"
+    },
+    {
+      "path": "followup/core-build-source/apps/api/src/meri/meri-memory-proposal-read.ts",
+      "source": "capture-contract-followup-v1/core-build-source/apps/api/src/meri/meri-memory-proposal-read.ts",
+      "bytes": 5072,
+      "sha256": "d415bb91636f8f7f7f0414dc7c9d89122711e143cb6c70be5ff78e527268517e"
+    },
+    {
+      "path": "followup/core-build-source/apps/api/src/meri/meri-tools.registration.spec.ts",
+      "source": "capture-contract-followup-v1/core-build-source/apps/api/src/meri/meri-tools.registration.spec.ts",
+      "bytes": 46216,
+      "sha256": "149ccac73953e5ac2d7eb64b8909dcf8b9ef990a37739c890c1afd0a4864f095"
+    },
+    {
+      "path": "followup/core-build-source/apps/api/src/meri/meri-tools.service.ts",
+      "source": "capture-contract-followup-v1/core-build-source/apps/api/src/meri/meri-tools.service.ts",
+      "bytes": 407649,
+      "sha256": "a9b2cc4eed2b3397793a2f56b188c8a1a29cab5ec76228ab9aa4e68c46c7be5c"
+    },
+    {
+      "path": "followup/core-build-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts",
+      "source": "capture-contract-followup-v1/core-build-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts",
+      "bytes": 28435,
+      "sha256": "c80f389ce30175ecb11062fe15ae07a265c426fd0172a098849ddd9ae8efa639"
+    },
+    {
+      "path": "followup/core-build-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.ts",
+      "source": "capture-contract-followup-v1/core-build-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.ts",
+      "bytes": 12644,
+      "sha256": "e9ad70ffbaf0f90075473f161013e1a55d927262c689f4134456b2e0221066d8"
+    },
+    {
+      "path": "followup/core-build-source/packages/meriv2-core/src/context/capture-evidence-receipt.spec.ts",
+      "source": "capture-contract-followup-v1/core-build-source/packages/meriv2-core/src/context/capture-evidence-receipt.spec.ts",
+      "bytes": 21100,
+      "sha256": "d9606ffad168493f326f1017d1db3bee8794990dfade4844fc8370c86036e17e"
+    },
+    {
+      "path": "followup/core-build-source/packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "source": "capture-contract-followup-v1/core-build-source/packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "bytes": 22528,
+      "sha256": "87d44b1c0405e5f864a37c7bb58d65612b298817859e0fdc2a470eaee6254227"
+    },
+    {
+      "path": "followup/core-build-v2-source/apps/api/src/meri/meri-capture-budget-readback.spec.ts",
+      "source": "capture-contract-followup-v1/core-build-v2-source/apps/api/src/meri/meri-capture-budget-readback.spec.ts",
+      "bytes": 5519,
+      "sha256": "6c181f801d60c1254b34fae82bb241fa1c1c273395a9b7578354032bbc1e35c4"
+    },
+    {
+      "path": "followup/core-build-v2-source/apps/api/src/meri/meri-capture-policy-readback.ts",
+      "source": "capture-contract-followup-v1/core-build-v2-source/apps/api/src/meri/meri-capture-policy-readback.ts",
+      "bytes": 7784,
+      "sha256": "3858a6f7d7212fc8f9de31f1ed165e742269db5e94a9fad37b4398f401c04e07"
+    },
+    {
+      "path": "followup/core-build-v2-source/apps/api/src/meri/meri-memory-proposal-read.spec.ts",
+      "source": "capture-contract-followup-v1/core-build-v2-source/apps/api/src/meri/meri-memory-proposal-read.spec.ts",
+      "bytes": 10876,
+      "sha256": "9a68bf1b46654c86afddaf51b0c47f78e81aa982f82cb8a8cd3d5b373db17352"
+    },
+    {
+      "path": "followup/core-build-v2-source/apps/api/src/meri/meri-memory-proposal-read.ts",
+      "source": "capture-contract-followup-v1/core-build-v2-source/apps/api/src/meri/meri-memory-proposal-read.ts",
+      "bytes": 5072,
+      "sha256": "d415bb91636f8f7f7f0414dc7c9d89122711e143cb6c70be5ff78e527268517e"
+    },
+    {
+      "path": "followup/core-build-v2-source/apps/api/src/meri/meri-tools.registration.spec.ts",
+      "source": "capture-contract-followup-v1/core-build-v2-source/apps/api/src/meri/meri-tools.registration.spec.ts",
+      "bytes": 46216,
+      "sha256": "149ccac73953e5ac2d7eb64b8909dcf8b9ef990a37739c890c1afd0a4864f095"
+    },
+    {
+      "path": "followup/core-build-v2-source/apps/api/src/meri/meri-tools.service.ts",
+      "source": "capture-contract-followup-v1/core-build-v2-source/apps/api/src/meri/meri-tools.service.ts",
+      "bytes": 407649,
+      "sha256": "a9b2cc4eed2b3397793a2f56b188c8a1a29cab5ec76228ab9aa4e68c46c7be5c"
+    },
+    {
+      "path": "followup/core-build-v2-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts",
+      "source": "capture-contract-followup-v1/core-build-v2-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts",
+      "bytes": 28435,
+      "sha256": "c80f389ce30175ecb11062fe15ae07a265c426fd0172a098849ddd9ae8efa639"
+    },
+    {
+      "path": "followup/core-build-v2-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.ts",
+      "source": "capture-contract-followup-v1/core-build-v2-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.ts",
+      "bytes": 12662,
+      "sha256": "da9470709693880141fce698d998069a308523409e5eb1f63d1bea5731f0d3e0"
+    },
+    {
+      "path": "followup/core-build-v2-source/packages/meriv2-core/src/context/capture-evidence-receipt.spec.ts",
+      "source": "capture-contract-followup-v1/core-build-v2-source/packages/meriv2-core/src/context/capture-evidence-receipt.spec.ts",
+      "bytes": 21100,
+      "sha256": "d9606ffad168493f326f1017d1db3bee8794990dfade4844fc8370c86036e17e"
+    },
+    {
+      "path": "followup/core-build-v2-source/packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "source": "capture-contract-followup-v1/core-build-v2-source/packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "bytes": 22804,
+      "sha256": "d1fe00c283c13663c40b70d7e8a7537a888a269b21b758c0f59b7c907fe39471"
+    },
+    {
+      "path": "followup/core-build-v2.log",
+      "source": "capture-contract-followup-v1/core-build-v2.log",
+      "bytes": 109,
+      "sha256": "7d91d2435851bc957c6bf6317ad7ca88b3e88ffca708f629de2624eb93f3c030"
+    },
+    {
+      "path": "followup/core-build-v2.receipt.json",
+      "source": "capture-contract-followup-v1/core-build-v2.receipt.json",
+      "bytes": 1749,
+      "sha256": "64dc16be2885451459fe2eddf5d58c08e3c2c238b65f482ff4f727538ab8e21c"
+    },
+    {
+      "path": "followup/core-build.log",
+      "source": "capture-contract-followup-v1/core-build.log",
+      "bytes": 109,
+      "sha256": "7d91d2435851bc957c6bf6317ad7ca88b3e88ffca708f629de2624eb93f3c030"
+    },
+    {
+      "path": "followup/core-build.receipt.json",
+      "source": "capture-contract-followup-v1/core-build.receipt.json",
+      "bytes": 1746,
+      "sha256": "b35514ae4b61814002094ad3f6363ea6412bf3c7820b86a18c3b8928b8e93847"
+    },
+    {
+      "path": "followup/core-green-source/apps/api/src/meri/meri-capture-budget-readback.spec.ts",
+      "source": "capture-contract-followup-v1/core-green-source/apps/api/src/meri/meri-capture-budget-readback.spec.ts",
+      "bytes": 5519,
+      "sha256": "6c181f801d60c1254b34fae82bb241fa1c1c273395a9b7578354032bbc1e35c4"
+    },
+    {
+      "path": "followup/core-green-source/apps/api/src/meri/meri-capture-policy-readback.ts",
+      "source": "capture-contract-followup-v1/core-green-source/apps/api/src/meri/meri-capture-policy-readback.ts",
+      "bytes": 7809,
+      "sha256": "8625112e47faf52e0d797fbeb95f1484196acd9d2c7a8dc176ad6d303794b6b1"
+    },
+    {
+      "path": "followup/core-green-source/apps/api/src/meri/meri-memory-proposal-read.spec.ts",
+      "source": "capture-contract-followup-v1/core-green-source/apps/api/src/meri/meri-memory-proposal-read.spec.ts",
+      "bytes": 10876,
+      "sha256": "9a68bf1b46654c86afddaf51b0c47f78e81aa982f82cb8a8cd3d5b373db17352"
+    },
+    {
+      "path": "followup/core-green-source/apps/api/src/meri/meri-memory-proposal-read.ts",
+      "source": "capture-contract-followup-v1/core-green-source/apps/api/src/meri/meri-memory-proposal-read.ts",
+      "bytes": 5072,
+      "sha256": "d415bb91636f8f7f7f0414dc7c9d89122711e143cb6c70be5ff78e527268517e"
+    },
+    {
+      "path": "followup/core-green-source/apps/api/src/meri/meri-tools.registration.spec.ts",
+      "source": "capture-contract-followup-v1/core-green-source/apps/api/src/meri/meri-tools.registration.spec.ts",
+      "bytes": 46216,
+      "sha256": "149ccac73953e5ac2d7eb64b8909dcf8b9ef990a37739c890c1afd0a4864f095"
+    },
+    {
+      "path": "followup/core-green-source/apps/api/src/meri/meri-tools.service.ts",
+      "source": "capture-contract-followup-v1/core-green-source/apps/api/src/meri/meri-tools.service.ts",
+      "bytes": 408817,
+      "sha256": "798bba22296874606431c0a7e00b9aec029e54b76d89e29a24d5a955f4eb0322"
+    },
+    {
+      "path": "followup/core-green-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts",
+      "source": "capture-contract-followup-v1/core-green-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts",
+      "bytes": 28435,
+      "sha256": "c80f389ce30175ecb11062fe15ae07a265c426fd0172a098849ddd9ae8efa639"
+    },
+    {
+      "path": "followup/core-green-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.ts",
+      "source": "capture-contract-followup-v1/core-green-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.ts",
+      "bytes": 12644,
+      "sha256": "e9ad70ffbaf0f90075473f161013e1a55d927262c689f4134456b2e0221066d8"
+    },
+    {
+      "path": "followup/core-green-source/packages/meriv2-core/src/context/capture-evidence-receipt.spec.ts",
+      "source": "capture-contract-followup-v1/core-green-source/packages/meriv2-core/src/context/capture-evidence-receipt.spec.ts",
+      "bytes": 21054,
+      "sha256": "0a038929b8d99ae160fc946813b29c40cd630e93443852d52d3b61e16c8a8a5b"
+    },
+    {
+      "path": "followup/core-green-source/packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "source": "capture-contract-followup-v1/core-green-source/packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "bytes": 22970,
+      "sha256": "689a347ddde80363c8694e7caae74e5d0413d136d786747b76e6e0d6a2bf0731"
+    },
+    {
+      "path": "followup/core-green-v2-source/apps/api/src/meri/meri-capture-budget-readback.spec.ts",
+      "source": "capture-contract-followup-v1/core-green-v2-source/apps/api/src/meri/meri-capture-budget-readback.spec.ts",
+      "bytes": 5519,
+      "sha256": "6c181f801d60c1254b34fae82bb241fa1c1c273395a9b7578354032bbc1e35c4"
+    },
+    {
+      "path": "followup/core-green-v2-source/apps/api/src/meri/meri-capture-policy-readback.ts",
+      "source": "capture-contract-followup-v1/core-green-v2-source/apps/api/src/meri/meri-capture-policy-readback.ts",
+      "bytes": 7784,
+      "sha256": "3858a6f7d7212fc8f9de31f1ed165e742269db5e94a9fad37b4398f401c04e07"
+    },
+    {
+      "path": "followup/core-green-v2-source/apps/api/src/meri/meri-memory-proposal-read.spec.ts",
+      "source": "capture-contract-followup-v1/core-green-v2-source/apps/api/src/meri/meri-memory-proposal-read.spec.ts",
+      "bytes": 10876,
+      "sha256": "9a68bf1b46654c86afddaf51b0c47f78e81aa982f82cb8a8cd3d5b373db17352"
+    },
+    {
+      "path": "followup/core-green-v2-source/apps/api/src/meri/meri-memory-proposal-read.ts",
+      "source": "capture-contract-followup-v1/core-green-v2-source/apps/api/src/meri/meri-memory-proposal-read.ts",
+      "bytes": 5072,
+      "sha256": "d415bb91636f8f7f7f0414dc7c9d89122711e143cb6c70be5ff78e527268517e"
+    },
+    {
+      "path": "followup/core-green-v2-source/apps/api/src/meri/meri-tools.registration.spec.ts",
+      "source": "capture-contract-followup-v1/core-green-v2-source/apps/api/src/meri/meri-tools.registration.spec.ts",
+      "bytes": 46216,
+      "sha256": "149ccac73953e5ac2d7eb64b8909dcf8b9ef990a37739c890c1afd0a4864f095"
+    },
+    {
+      "path": "followup/core-green-v2-source/apps/api/src/meri/meri-tools.service.ts",
+      "source": "capture-contract-followup-v1/core-green-v2-source/apps/api/src/meri/meri-tools.service.ts",
+      "bytes": 407649,
+      "sha256": "a9b2cc4eed2b3397793a2f56b188c8a1a29cab5ec76228ab9aa4e68c46c7be5c"
+    },
+    {
+      "path": "followup/core-green-v2-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts",
+      "source": "capture-contract-followup-v1/core-green-v2-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts",
+      "bytes": 28435,
+      "sha256": "c80f389ce30175ecb11062fe15ae07a265c426fd0172a098849ddd9ae8efa639"
+    },
+    {
+      "path": "followup/core-green-v2-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.ts",
+      "source": "capture-contract-followup-v1/core-green-v2-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.ts",
+      "bytes": 12644,
+      "sha256": "e9ad70ffbaf0f90075473f161013e1a55d927262c689f4134456b2e0221066d8"
+    },
+    {
+      "path": "followup/core-green-v2-source/packages/meriv2-core/src/context/capture-evidence-receipt.spec.ts",
+      "source": "capture-contract-followup-v1/core-green-v2-source/packages/meriv2-core/src/context/capture-evidence-receipt.spec.ts",
+      "bytes": 21100,
+      "sha256": "d9606ffad168493f326f1017d1db3bee8794990dfade4844fc8370c86036e17e"
+    },
+    {
+      "path": "followup/core-green-v2-source/packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "source": "capture-contract-followup-v1/core-green-v2-source/packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "bytes": 22528,
+      "sha256": "87d44b1c0405e5f864a37c7bb58d65612b298817859e0fdc2a470eaee6254227"
+    },
+    {
+      "path": "followup/core-green-v2.log",
+      "source": "capture-contract-followup-v1/core-green-v2.log",
+      "bytes": 3119,
+      "sha256": "810bfb91da1e93f47f1c2688892b834fd246d38e18b729a0a841966ef9b04c63"
+    },
+    {
+      "path": "followup/core-green-v2.receipt.json",
+      "source": "capture-contract-followup-v1/core-green-v2.receipt.json",
+      "bytes": 1831,
+      "sha256": "ec38c15f228332192d1705cb334724c32b2c27200a85c14a0fd6ac462bb98f0c"
+    },
+    {
+      "path": "followup/core-green-v3-source/apps/api/src/meri/meri-capture-budget-readback.spec.ts",
+      "source": "capture-contract-followup-v1/core-green-v3-source/apps/api/src/meri/meri-capture-budget-readback.spec.ts",
+      "bytes": 5519,
+      "sha256": "6c181f801d60c1254b34fae82bb241fa1c1c273395a9b7578354032bbc1e35c4"
+    },
+    {
+      "path": "followup/core-green-v3-source/apps/api/src/meri/meri-capture-policy-readback.ts",
+      "source": "capture-contract-followup-v1/core-green-v3-source/apps/api/src/meri/meri-capture-policy-readback.ts",
+      "bytes": 7784,
+      "sha256": "3858a6f7d7212fc8f9de31f1ed165e742269db5e94a9fad37b4398f401c04e07"
+    },
+    {
+      "path": "followup/core-green-v3-source/apps/api/src/meri/meri-memory-proposal-read.spec.ts",
+      "source": "capture-contract-followup-v1/core-green-v3-source/apps/api/src/meri/meri-memory-proposal-read.spec.ts",
+      "bytes": 10876,
+      "sha256": "9a68bf1b46654c86afddaf51b0c47f78e81aa982f82cb8a8cd3d5b373db17352"
+    },
+    {
+      "path": "followup/core-green-v3-source/apps/api/src/meri/meri-memory-proposal-read.ts",
+      "source": "capture-contract-followup-v1/core-green-v3-source/apps/api/src/meri/meri-memory-proposal-read.ts",
+      "bytes": 5072,
+      "sha256": "d415bb91636f8f7f7f0414dc7c9d89122711e143cb6c70be5ff78e527268517e"
+    },
+    {
+      "path": "followup/core-green-v3-source/apps/api/src/meri/meri-tools.registration.spec.ts",
+      "source": "capture-contract-followup-v1/core-green-v3-source/apps/api/src/meri/meri-tools.registration.spec.ts",
+      "bytes": 46216,
+      "sha256": "149ccac73953e5ac2d7eb64b8909dcf8b9ef990a37739c890c1afd0a4864f095"
+    },
+    {
+      "path": "followup/core-green-v3-source/apps/api/src/meri/meri-tools.service.ts",
+      "source": "capture-contract-followup-v1/core-green-v3-source/apps/api/src/meri/meri-tools.service.ts",
+      "bytes": 407649,
+      "sha256": "a9b2cc4eed2b3397793a2f56b188c8a1a29cab5ec76228ab9aa4e68c46c7be5c"
+    },
+    {
+      "path": "followup/core-green-v3-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts",
+      "source": "capture-contract-followup-v1/core-green-v3-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts",
+      "bytes": 28435,
+      "sha256": "c80f389ce30175ecb11062fe15ae07a265c426fd0172a098849ddd9ae8efa639"
+    },
+    {
+      "path": "followup/core-green-v3-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.ts",
+      "source": "capture-contract-followup-v1/core-green-v3-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.ts",
+      "bytes": 12662,
+      "sha256": "da9470709693880141fce698d998069a308523409e5eb1f63d1bea5731f0d3e0"
+    },
+    {
+      "path": "followup/core-green-v3-source/packages/meriv2-core/src/context/capture-evidence-receipt.spec.ts",
+      "source": "capture-contract-followup-v1/core-green-v3-source/packages/meriv2-core/src/context/capture-evidence-receipt.spec.ts",
+      "bytes": 21100,
+      "sha256": "d9606ffad168493f326f1017d1db3bee8794990dfade4844fc8370c86036e17e"
+    },
+    {
+      "path": "followup/core-green-v3-source/packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "source": "capture-contract-followup-v1/core-green-v3-source/packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "bytes": 22804,
+      "sha256": "d1fe00c283c13663c40b70d7e8a7537a888a269b21b758c0f59b7c907fe39471"
+    },
+    {
+      "path": "followup/core-green-v3.log",
+      "source": "capture-contract-followup-v1/core-green-v3.log",
+      "bytes": 3120,
+      "sha256": "023e6f335df1328c3e111fc4286d86ff485ff188965485a1a3fa7df1d9393c27"
+    },
+    {
+      "path": "followup/core-green-v3.receipt.json",
+      "source": "capture-contract-followup-v1/core-green-v3.receipt.json",
+      "bytes": 1831,
+      "sha256": "d5c17e3597f008696bccd013824df6d55ab4c90694dc980d5ea83df410f50d31"
+    },
+    {
+      "path": "followup/core-green.log",
+      "source": "capture-contract-followup-v1/core-green.log",
+      "bytes": 1278,
+      "sha256": "e80cc8cea38281f36fbba4c479722b8c7727f3030edb355df910edcf9df6040d"
+    },
+    {
+      "path": "followup/core-green.receipt.json",
+      "source": "capture-contract-followup-v1/core-green.receipt.json",
+      "bytes": 1828,
+      "sha256": "5c1d8a64a8f7e41e8643e8af8c7e74751dce4debaec16208ca94dd174d2e7288"
+    },
+    {
+      "path": "followup/core-red-source/apps/api/src/meri/meri-capture-policy-readback.ts",
+      "source": "capture-contract-followup-v1/core-red-source/apps/api/src/meri/meri-capture-policy-readback.ts",
+      "bytes": 7700,
+      "sha256": "57e060fddfdf641c346f4a35395ec86459c87161d0b4804042e72727b8bfe758"
+    },
+    {
+      "path": "followup/core-red-source/apps/api/src/meri/meri-memory-proposal-read.spec.ts",
+      "source": "capture-contract-followup-v1/core-red-source/apps/api/src/meri/meri-memory-proposal-read.spec.ts",
+      "bytes": 10876,
+      "sha256": "9a68bf1b46654c86afddaf51b0c47f78e81aa982f82cb8a8cd3d5b373db17352"
+    },
+    {
+      "path": "followup/core-red-source/apps/api/src/meri/meri-memory-proposal-read.ts",
+      "source": "capture-contract-followup-v1/core-red-source/apps/api/src/meri/meri-memory-proposal-read.ts",
+      "bytes": 3485,
+      "sha256": "5cbe9e92d4088961f929e9592892e35b65cc00eba2fa61fdf3e4d02a7b82a135"
+    },
+    {
+      "path": "followup/core-red-source/apps/api/src/meri/meri-tools.registration.spec.ts",
+      "source": "capture-contract-followup-v1/core-red-source/apps/api/src/meri/meri-tools.registration.spec.ts",
+      "bytes": 43237,
+      "sha256": "20546eb158b962f6437d010c8e9c3702dca5014b2da71fec492f3d503d4e17da"
+    },
+    {
+      "path": "followup/core-red-source/apps/api/src/meri/meri-tools.service.ts",
+      "source": "capture-contract-followup-v1/core-red-source/apps/api/src/meri/meri-tools.service.ts",
+      "bytes": 406964,
+      "sha256": "1976465b491e0731abf05ffb7fb8b3c2048835e034b06faace81fe97f7fb6371"
+    },
+    {
+      "path": "followup/core-red-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts",
+      "source": "capture-contract-followup-v1/core-red-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts",
+      "bytes": 28232,
+      "sha256": "b92b08027d7be273259d66a11dcc5c31f263f3ace548d12ca61333fda1e59210"
+    },
+    {
+      "path": "followup/core-red-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.ts",
+      "source": "capture-contract-followup-v1/core-red-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.ts",
+      "bytes": 11144,
+      "sha256": "1067a0ffbac4096b4b0830ac2f55ac4122da90ca224b34ed15cc5d2383daadc1"
+    },
+    {
+      "path": "followup/core-red-source/packages/meriv2-core/src/context/capture-evidence-receipt.spec.ts",
+      "source": "capture-contract-followup-v1/core-red-source/packages/meriv2-core/src/context/capture-evidence-receipt.spec.ts",
+      "bytes": 20591,
+      "sha256": "7d9862d32a9a79952ebc09f257c170b1f229b5623c33fdabc35b8d87038d8e16"
+    },
+    {
+      "path": "followup/core-red-source/packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "source": "capture-contract-followup-v1/core-red-source/packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "bytes": 20894,
+      "sha256": "2b4540e237eebf4fd1db7a32565672eaea8bbfcc6daa6001309ec5c94788dc3f"
+    },
+    {
+      "path": "followup/core-red-v2-source/apps/api/src/meri/meri-capture-budget-readback.spec.ts",
+      "source": "capture-contract-followup-v1/core-red-v2-source/apps/api/src/meri/meri-capture-budget-readback.spec.ts",
+      "bytes": 5519,
+      "sha256": "6c181f801d60c1254b34fae82bb241fa1c1c273395a9b7578354032bbc1e35c4"
+    },
+    {
+      "path": "followup/core-red-v2-source/apps/api/src/meri/meri-capture-policy-readback.ts",
+      "source": "capture-contract-followup-v1/core-red-v2-source/apps/api/src/meri/meri-capture-policy-readback.ts",
+      "bytes": 7700,
+      "sha256": "57e060fddfdf641c346f4a35395ec86459c87161d0b4804042e72727b8bfe758"
+    },
+    {
+      "path": "followup/core-red-v2-source/apps/api/src/meri/meri-memory-proposal-read.spec.ts",
+      "source": "capture-contract-followup-v1/core-red-v2-source/apps/api/src/meri/meri-memory-proposal-read.spec.ts",
+      "bytes": 10876,
+      "sha256": "9a68bf1b46654c86afddaf51b0c47f78e81aa982f82cb8a8cd3d5b373db17352"
+    },
+    {
+      "path": "followup/core-red-v2-source/apps/api/src/meri/meri-memory-proposal-read.ts",
+      "source": "capture-contract-followup-v1/core-red-v2-source/apps/api/src/meri/meri-memory-proposal-read.ts",
+      "bytes": 3485,
+      "sha256": "5cbe9e92d4088961f929e9592892e35b65cc00eba2fa61fdf3e4d02a7b82a135"
+    },
+    {
+      "path": "followup/core-red-v2-source/apps/api/src/meri/meri-tools.registration.spec.ts",
+      "source": "capture-contract-followup-v1/core-red-v2-source/apps/api/src/meri/meri-tools.registration.spec.ts",
+      "bytes": 46216,
+      "sha256": "149ccac73953e5ac2d7eb64b8909dcf8b9ef990a37739c890c1afd0a4864f095"
+    },
+    {
+      "path": "followup/core-red-v2-source/apps/api/src/meri/meri-tools.service.ts",
+      "source": "capture-contract-followup-v1/core-red-v2-source/apps/api/src/meri/meri-tools.service.ts",
+      "bytes": 406964,
+      "sha256": "1976465b491e0731abf05ffb7fb8b3c2048835e034b06faace81fe97f7fb6371"
+    },
+    {
+      "path": "followup/core-red-v2-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts",
+      "source": "capture-contract-followup-v1/core-red-v2-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts",
+      "bytes": 28435,
+      "sha256": "c80f389ce30175ecb11062fe15ae07a265c426fd0172a098849ddd9ae8efa639"
+    },
+    {
+      "path": "followup/core-red-v2-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.ts",
+      "source": "capture-contract-followup-v1/core-red-v2-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.ts",
+      "bytes": 11144,
+      "sha256": "1067a0ffbac4096b4b0830ac2f55ac4122da90ca224b34ed15cc5d2383daadc1"
+    },
+    {
+      "path": "followup/core-red-v2-source/packages/meriv2-core/src/context/capture-evidence-receipt.spec.ts",
+      "source": "capture-contract-followup-v1/core-red-v2-source/packages/meriv2-core/src/context/capture-evidence-receipt.spec.ts",
+      "bytes": 21054,
+      "sha256": "0a038929b8d99ae160fc946813b29c40cd630e93443852d52d3b61e16c8a8a5b"
+    },
+    {
+      "path": "followup/core-red-v2-source/packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "source": "capture-contract-followup-v1/core-red-v2-source/packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "bytes": 20894,
+      "sha256": "2b4540e237eebf4fd1db7a32565672eaea8bbfcc6daa6001309ec5c94788dc3f"
+    },
+    {
+      "path": "followup/core-red-v2.log",
+      "source": "capture-contract-followup-v1/core-red-v2.log",
+      "bytes": 5646,
+      "sha256": "bbd655d63733be4be6df48d780bb0a316ea2f8515f825df6e01e5e80c69dcca6"
+    },
+    {
+      "path": "followup/core-red-v2.receipt.json",
+      "source": "capture-contract-followup-v1/core-red-v2.receipt.json",
+      "bytes": 1829,
+      "sha256": "74f28a6353ba2635d933aab45e952ae43656e16193a63f1de87883cff74c30d8"
+    },
+    {
+      "path": "followup/core-red.log",
+      "source": "capture-contract-followup-v1/core-red.log",
+      "bytes": 5556,
+      "sha256": "0310f654daa6680ceb2cd060b0326bc114b8df7a13c9f0cd063d0e1fbac67f7f"
+    },
+    {
+      "path": "followup/core-red.receipt.json",
+      "source": "capture-contract-followup-v1/core-red.receipt.json",
+      "bytes": 1663,
+      "sha256": "d3d1f9deaf9f452a5757cce633e3dc8bab05885713065318a8e8143bfe2434cb"
+    },
+    {
+      "path": "followup/freeze.py",
+      "source": "capture-contract-followup-v1/freeze.py",
+      "bytes": 11024,
+      "sha256": "06c2e799a834997349ea90d15e186e7a245a9bf94e32be8696d9b2924a243341"
+    },
+    {
+      "path": "followup/minimize-production-format.py",
+      "source": "capture-contract-followup-v1/minimize-production-format.py",
+      "bytes": 2567,
+      "sha256": "2a0d303759d1d1f57f8e4e31fdb33e65e09ec07c53a63220683d0825fa0f6009"
+    },
+    {
+      "path": "followup/orchestrator-build-source/apps/api/src/meri/meri-capture-budget-readback.spec.ts",
+      "source": "capture-contract-followup-v1/orchestrator-build-source/apps/api/src/meri/meri-capture-budget-readback.spec.ts",
+      "bytes": 5519,
+      "sha256": "6c181f801d60c1254b34fae82bb241fa1c1c273395a9b7578354032bbc1e35c4"
+    },
+    {
+      "path": "followup/orchestrator-build-source/apps/api/src/meri/meri-capture-policy-readback.ts",
+      "source": "capture-contract-followup-v1/orchestrator-build-source/apps/api/src/meri/meri-capture-policy-readback.ts",
+      "bytes": 7784,
+      "sha256": "3858a6f7d7212fc8f9de31f1ed165e742269db5e94a9fad37b4398f401c04e07"
+    },
+    {
+      "path": "followup/orchestrator-build-source/apps/api/src/meri/meri-memory-proposal-read.spec.ts",
+      "source": "capture-contract-followup-v1/orchestrator-build-source/apps/api/src/meri/meri-memory-proposal-read.spec.ts",
+      "bytes": 10876,
+      "sha256": "9a68bf1b46654c86afddaf51b0c47f78e81aa982f82cb8a8cd3d5b373db17352"
+    },
+    {
+      "path": "followup/orchestrator-build-source/apps/api/src/meri/meri-memory-proposal-read.ts",
+      "source": "capture-contract-followup-v1/orchestrator-build-source/apps/api/src/meri/meri-memory-proposal-read.ts",
+      "bytes": 5072,
+      "sha256": "d415bb91636f8f7f7f0414dc7c9d89122711e143cb6c70be5ff78e527268517e"
+    },
+    {
+      "path": "followup/orchestrator-build-source/apps/api/src/meri/meri-tools.registration.spec.ts",
+      "source": "capture-contract-followup-v1/orchestrator-build-source/apps/api/src/meri/meri-tools.registration.spec.ts",
+      "bytes": 46216,
+      "sha256": "149ccac73953e5ac2d7eb64b8909dcf8b9ef990a37739c890c1afd0a4864f095"
+    },
+    {
+      "path": "followup/orchestrator-build-source/apps/api/src/meri/meri-tools.service.ts",
+      "source": "capture-contract-followup-v1/orchestrator-build-source/apps/api/src/meri/meri-tools.service.ts",
+      "bytes": 407649,
+      "sha256": "a9b2cc4eed2b3397793a2f56b188c8a1a29cab5ec76228ab9aa4e68c46c7be5c"
+    },
+    {
+      "path": "followup/orchestrator-build-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts",
+      "source": "capture-contract-followup-v1/orchestrator-build-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts",
+      "bytes": 28435,
+      "sha256": "c80f389ce30175ecb11062fe15ae07a265c426fd0172a098849ddd9ae8efa639"
+    },
+    {
+      "path": "followup/orchestrator-build-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.ts",
+      "source": "capture-contract-followup-v1/orchestrator-build-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.ts",
+      "bytes": 12662,
+      "sha256": "da9470709693880141fce698d998069a308523409e5eb1f63d1bea5731f0d3e0"
+    },
+    {
+      "path": "followup/orchestrator-build-source/packages/meriv2-core/src/context/capture-evidence-receipt.spec.ts",
+      "source": "capture-contract-followup-v1/orchestrator-build-source/packages/meriv2-core/src/context/capture-evidence-receipt.spec.ts",
+      "bytes": 21100,
+      "sha256": "d9606ffad168493f326f1017d1db3bee8794990dfade4844fc8370c86036e17e"
+    },
+    {
+      "path": "followup/orchestrator-build-source/packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "source": "capture-contract-followup-v1/orchestrator-build-source/packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "bytes": 22804,
+      "sha256": "d1fe00c283c13663c40b70d7e8a7537a888a269b21b758c0f59b7c907fe39471"
+    },
+    {
+      "path": "followup/orchestrator-build.log",
+      "source": "capture-contract-followup-v1/orchestrator-build.log",
+      "bytes": 111,
+      "sha256": "71a4b795d9b3b3a9c402827c38d95e29ecc5befc20747a24c7ea4634ddaa0ce1"
+    },
+    {
+      "path": "followup/orchestrator-build.receipt.json",
+      "source": "capture-contract-followup-v1/orchestrator-build.receipt.json",
+      "bytes": 1762,
+      "sha256": "d3809ad2cd80c9e97c7671cf0a304821268c2658ffbbcd19fc9c8980aa58f3af"
+    },
+    {
+      "path": "followup/orchestrator-green-source/apps/api/src/meri/meri-capture-budget-readback.spec.ts",
+      "source": "capture-contract-followup-v1/orchestrator-green-source/apps/api/src/meri/meri-capture-budget-readback.spec.ts",
+      "bytes": 5519,
+      "sha256": "6c181f801d60c1254b34fae82bb241fa1c1c273395a9b7578354032bbc1e35c4"
+    },
+    {
+      "path": "followup/orchestrator-green-source/apps/api/src/meri/meri-capture-policy-readback.ts",
+      "source": "capture-contract-followup-v1/orchestrator-green-source/apps/api/src/meri/meri-capture-policy-readback.ts",
+      "bytes": 7784,
+      "sha256": "3858a6f7d7212fc8f9de31f1ed165e742269db5e94a9fad37b4398f401c04e07"
+    },
+    {
+      "path": "followup/orchestrator-green-source/apps/api/src/meri/meri-memory-proposal-read.spec.ts",
+      "source": "capture-contract-followup-v1/orchestrator-green-source/apps/api/src/meri/meri-memory-proposal-read.spec.ts",
+      "bytes": 10876,
+      "sha256": "9a68bf1b46654c86afddaf51b0c47f78e81aa982f82cb8a8cd3d5b373db17352"
+    },
+    {
+      "path": "followup/orchestrator-green-source/apps/api/src/meri/meri-memory-proposal-read.ts",
+      "source": "capture-contract-followup-v1/orchestrator-green-source/apps/api/src/meri/meri-memory-proposal-read.ts",
+      "bytes": 5072,
+      "sha256": "d415bb91636f8f7f7f0414dc7c9d89122711e143cb6c70be5ff78e527268517e"
+    },
+    {
+      "path": "followup/orchestrator-green-source/apps/api/src/meri/meri-tools.registration.spec.ts",
+      "source": "capture-contract-followup-v1/orchestrator-green-source/apps/api/src/meri/meri-tools.registration.spec.ts",
+      "bytes": 46216,
+      "sha256": "149ccac73953e5ac2d7eb64b8909dcf8b9ef990a37739c890c1afd0a4864f095"
+    },
+    {
+      "path": "followup/orchestrator-green-source/apps/api/src/meri/meri-tools.service.ts",
+      "source": "capture-contract-followup-v1/orchestrator-green-source/apps/api/src/meri/meri-tools.service.ts",
+      "bytes": 407649,
+      "sha256": "a9b2cc4eed2b3397793a2f56b188c8a1a29cab5ec76228ab9aa4e68c46c7be5c"
+    },
+    {
+      "path": "followup/orchestrator-green-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts",
+      "source": "capture-contract-followup-v1/orchestrator-green-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts",
+      "bytes": 28435,
+      "sha256": "c80f389ce30175ecb11062fe15ae07a265c426fd0172a098849ddd9ae8efa639"
+    },
+    {
+      "path": "followup/orchestrator-green-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.ts",
+      "source": "capture-contract-followup-v1/orchestrator-green-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.ts",
+      "bytes": 12644,
+      "sha256": "e9ad70ffbaf0f90075473f161013e1a55d927262c689f4134456b2e0221066d8"
+    },
+    {
+      "path": "followup/orchestrator-green-source/packages/meriv2-core/src/context/capture-evidence-receipt.spec.ts",
+      "source": "capture-contract-followup-v1/orchestrator-green-source/packages/meriv2-core/src/context/capture-evidence-receipt.spec.ts",
+      "bytes": 21100,
+      "sha256": "d9606ffad168493f326f1017d1db3bee8794990dfade4844fc8370c86036e17e"
+    },
+    {
+      "path": "followup/orchestrator-green-source/packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "source": "capture-contract-followup-v1/orchestrator-green-source/packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "bytes": 22528,
+      "sha256": "87d44b1c0405e5f864a37c7bb58d65612b298817859e0fdc2a470eaee6254227"
+    },
+    {
+      "path": "followup/orchestrator-green-v2-source/apps/api/src/meri/meri-capture-budget-readback.spec.ts",
+      "source": "capture-contract-followup-v1/orchestrator-green-v2-source/apps/api/src/meri/meri-capture-budget-readback.spec.ts",
+      "bytes": 5519,
+      "sha256": "6c181f801d60c1254b34fae82bb241fa1c1c273395a9b7578354032bbc1e35c4"
+    },
+    {
+      "path": "followup/orchestrator-green-v2-source/apps/api/src/meri/meri-capture-policy-readback.ts",
+      "source": "capture-contract-followup-v1/orchestrator-green-v2-source/apps/api/src/meri/meri-capture-policy-readback.ts",
+      "bytes": 7784,
+      "sha256": "3858a6f7d7212fc8f9de31f1ed165e742269db5e94a9fad37b4398f401c04e07"
+    },
+    {
+      "path": "followup/orchestrator-green-v2-source/apps/api/src/meri/meri-memory-proposal-read.spec.ts",
+      "source": "capture-contract-followup-v1/orchestrator-green-v2-source/apps/api/src/meri/meri-memory-proposal-read.spec.ts",
+      "bytes": 10876,
+      "sha256": "9a68bf1b46654c86afddaf51b0c47f78e81aa982f82cb8a8cd3d5b373db17352"
+    },
+    {
+      "path": "followup/orchestrator-green-v2-source/apps/api/src/meri/meri-memory-proposal-read.ts",
+      "source": "capture-contract-followup-v1/orchestrator-green-v2-source/apps/api/src/meri/meri-memory-proposal-read.ts",
+      "bytes": 5072,
+      "sha256": "d415bb91636f8f7f7f0414dc7c9d89122711e143cb6c70be5ff78e527268517e"
+    },
+    {
+      "path": "followup/orchestrator-green-v2-source/apps/api/src/meri/meri-tools.registration.spec.ts",
+      "source": "capture-contract-followup-v1/orchestrator-green-v2-source/apps/api/src/meri/meri-tools.registration.spec.ts",
+      "bytes": 46216,
+      "sha256": "149ccac73953e5ac2d7eb64b8909dcf8b9ef990a37739c890c1afd0a4864f095"
+    },
+    {
+      "path": "followup/orchestrator-green-v2-source/apps/api/src/meri/meri-tools.service.ts",
+      "source": "capture-contract-followup-v1/orchestrator-green-v2-source/apps/api/src/meri/meri-tools.service.ts",
+      "bytes": 407649,
+      "sha256": "a9b2cc4eed2b3397793a2f56b188c8a1a29cab5ec76228ab9aa4e68c46c7be5c"
+    },
+    {
+      "path": "followup/orchestrator-green-v2-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts",
+      "source": "capture-contract-followup-v1/orchestrator-green-v2-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts",
+      "bytes": 28435,
+      "sha256": "c80f389ce30175ecb11062fe15ae07a265c426fd0172a098849ddd9ae8efa639"
+    },
+    {
+      "path": "followup/orchestrator-green-v2-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.ts",
+      "source": "capture-contract-followup-v1/orchestrator-green-v2-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.ts",
+      "bytes": 12662,
+      "sha256": "da9470709693880141fce698d998069a308523409e5eb1f63d1bea5731f0d3e0"
+    },
+    {
+      "path": "followup/orchestrator-green-v2-source/packages/meriv2-core/src/context/capture-evidence-receipt.spec.ts",
+      "source": "capture-contract-followup-v1/orchestrator-green-v2-source/packages/meriv2-core/src/context/capture-evidence-receipt.spec.ts",
+      "bytes": 21100,
+      "sha256": "d9606ffad168493f326f1017d1db3bee8794990dfade4844fc8370c86036e17e"
+    },
+    {
+      "path": "followup/orchestrator-green-v2-source/packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "source": "capture-contract-followup-v1/orchestrator-green-v2-source/packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "bytes": 22528,
+      "sha256": "87d44b1c0405e5f864a37c7bb58d65612b298817859e0fdc2a470eaee6254227"
+    },
+    {
+      "path": "followup/orchestrator-green-v2.log",
+      "source": "capture-contract-followup-v1/orchestrator-green-v2.log",
+      "bytes": 2103,
+      "sha256": "5b3d36cb41756e021c316351952bc0382d4c2b740f7e071e0f5742298e0e54e0"
+    },
+    {
+      "path": "followup/orchestrator-green-v2.receipt.json",
+      "source": "capture-contract-followup-v1/orchestrator-green-v2.receipt.json",
+      "bytes": 1902,
+      "sha256": "600d932f8bee8bcda9a4217d4d296ee0782383833969688a721314717507169e"
+    },
+    {
+      "path": "followup/orchestrator-green-v3-source/apps/api/src/meri/meri-capture-budget-readback.spec.ts",
+      "source": "capture-contract-followup-v1/orchestrator-green-v3-source/apps/api/src/meri/meri-capture-budget-readback.spec.ts",
+      "bytes": 5519,
+      "sha256": "6c181f801d60c1254b34fae82bb241fa1c1c273395a9b7578354032bbc1e35c4"
+    },
+    {
+      "path": "followup/orchestrator-green-v3-source/apps/api/src/meri/meri-capture-policy-readback.ts",
+      "source": "capture-contract-followup-v1/orchestrator-green-v3-source/apps/api/src/meri/meri-capture-policy-readback.ts",
+      "bytes": 7784,
+      "sha256": "3858a6f7d7212fc8f9de31f1ed165e742269db5e94a9fad37b4398f401c04e07"
+    },
+    {
+      "path": "followup/orchestrator-green-v3-source/apps/api/src/meri/meri-memory-proposal-read.spec.ts",
+      "source": "capture-contract-followup-v1/orchestrator-green-v3-source/apps/api/src/meri/meri-memory-proposal-read.spec.ts",
+      "bytes": 10876,
+      "sha256": "9a68bf1b46654c86afddaf51b0c47f78e81aa982f82cb8a8cd3d5b373db17352"
+    },
+    {
+      "path": "followup/orchestrator-green-v3-source/apps/api/src/meri/meri-memory-proposal-read.ts",
+      "source": "capture-contract-followup-v1/orchestrator-green-v3-source/apps/api/src/meri/meri-memory-proposal-read.ts",
+      "bytes": 5072,
+      "sha256": "d415bb91636f8f7f7f0414dc7c9d89122711e143cb6c70be5ff78e527268517e"
+    },
+    {
+      "path": "followup/orchestrator-green-v3-source/apps/api/src/meri/meri-tools.registration.spec.ts",
+      "source": "capture-contract-followup-v1/orchestrator-green-v3-source/apps/api/src/meri/meri-tools.registration.spec.ts",
+      "bytes": 46216,
+      "sha256": "149ccac73953e5ac2d7eb64b8909dcf8b9ef990a37739c890c1afd0a4864f095"
+    },
+    {
+      "path": "followup/orchestrator-green-v3-source/apps/api/src/meri/meri-tools.service.ts",
+      "source": "capture-contract-followup-v1/orchestrator-green-v3-source/apps/api/src/meri/meri-tools.service.ts",
+      "bytes": 407649,
+      "sha256": "a9b2cc4eed2b3397793a2f56b188c8a1a29cab5ec76228ab9aa4e68c46c7be5c"
+    },
+    {
+      "path": "followup/orchestrator-green-v3-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts",
+      "source": "capture-contract-followup-v1/orchestrator-green-v3-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts",
+      "bytes": 28435,
+      "sha256": "c80f389ce30175ecb11062fe15ae07a265c426fd0172a098849ddd9ae8efa639"
+    },
+    {
+      "path": "followup/orchestrator-green-v3-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.ts",
+      "source": "capture-contract-followup-v1/orchestrator-green-v3-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.ts",
+      "bytes": 12662,
+      "sha256": "da9470709693880141fce698d998069a308523409e5eb1f63d1bea5731f0d3e0"
+    },
+    {
+      "path": "followup/orchestrator-green-v3-source/packages/meriv2-core/src/context/capture-evidence-receipt.spec.ts",
+      "source": "capture-contract-followup-v1/orchestrator-green-v3-source/packages/meriv2-core/src/context/capture-evidence-receipt.spec.ts",
+      "bytes": 21100,
+      "sha256": "d9606ffad168493f326f1017d1db3bee8794990dfade4844fc8370c86036e17e"
+    },
+    {
+      "path": "followup/orchestrator-green-v3-source/packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "source": "capture-contract-followup-v1/orchestrator-green-v3-source/packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "bytes": 22804,
+      "sha256": "d1fe00c283c13663c40b70d7e8a7537a888a269b21b758c0f59b7c907fe39471"
+    },
+    {
+      "path": "followup/orchestrator-green-v3.log",
+      "source": "capture-contract-followup-v1/orchestrator-green-v3.log",
+      "bytes": 1063,
+      "sha256": "1c224f1dcef6511de81ff52906d163136f4c3ba4a55343f9fc5c5df59dc3f26c"
+    },
+    {
+      "path": "followup/orchestrator-green-v3.receipt.json",
+      "source": "capture-contract-followup-v1/orchestrator-green-v3.receipt.json",
+      "bytes": 1902,
+      "sha256": "f2a80273936f43228d74ede5594ea5f7dac3a7a67cc849ab308ff2d5758fd266"
+    },
+    {
+      "path": "followup/orchestrator-green.log",
+      "source": "capture-contract-followup-v1/orchestrator-green.log",
+      "bytes": 1715,
+      "sha256": "394984576985dbffd960ddc5cc0076228aa987e992893e945c52460d1270979b"
+    },
+    {
+      "path": "followup/orchestrator-green.receipt.json",
+      "source": "capture-contract-followup-v1/orchestrator-green.receipt.json",
+      "bytes": 1899,
+      "sha256": "dd77a1b8e6ba73a15b8a5a25263cf750c28290cda71ef0279c81be5d718c71ff"
+    },
+    {
+      "path": "followup/orchestrator-red-source/apps/api/src/meri/meri-capture-policy-readback.ts",
+      "source": "capture-contract-followup-v1/orchestrator-red-source/apps/api/src/meri/meri-capture-policy-readback.ts",
+      "bytes": 7700,
+      "sha256": "57e060fddfdf641c346f4a35395ec86459c87161d0b4804042e72727b8bfe758"
+    },
+    {
+      "path": "followup/orchestrator-red-source/apps/api/src/meri/meri-memory-proposal-read.spec.ts",
+      "source": "capture-contract-followup-v1/orchestrator-red-source/apps/api/src/meri/meri-memory-proposal-read.spec.ts",
+      "bytes": 10876,
+      "sha256": "9a68bf1b46654c86afddaf51b0c47f78e81aa982f82cb8a8cd3d5b373db17352"
+    },
+    {
+      "path": "followup/orchestrator-red-source/apps/api/src/meri/meri-memory-proposal-read.ts",
+      "source": "capture-contract-followup-v1/orchestrator-red-source/apps/api/src/meri/meri-memory-proposal-read.ts",
+      "bytes": 3485,
+      "sha256": "5cbe9e92d4088961f929e9592892e35b65cc00eba2fa61fdf3e4d02a7b82a135"
+    },
+    {
+      "path": "followup/orchestrator-red-source/apps/api/src/meri/meri-tools.registration.spec.ts",
+      "source": "capture-contract-followup-v1/orchestrator-red-source/apps/api/src/meri/meri-tools.registration.spec.ts",
+      "bytes": 43237,
+      "sha256": "20546eb158b962f6437d010c8e9c3702dca5014b2da71fec492f3d503d4e17da"
+    },
+    {
+      "path": "followup/orchestrator-red-source/apps/api/src/meri/meri-tools.service.ts",
+      "source": "capture-contract-followup-v1/orchestrator-red-source/apps/api/src/meri/meri-tools.service.ts",
+      "bytes": 406964,
+      "sha256": "1976465b491e0731abf05ffb7fb8b3c2048835e034b06faace81fe97f7fb6371"
+    },
+    {
+      "path": "followup/orchestrator-red-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts",
+      "source": "capture-contract-followup-v1/orchestrator-red-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts",
+      "bytes": 28232,
+      "sha256": "b92b08027d7be273259d66a11dcc5c31f263f3ace548d12ca61333fda1e59210"
+    },
+    {
+      "path": "followup/orchestrator-red-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.ts",
+      "source": "capture-contract-followup-v1/orchestrator-red-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.ts",
+      "bytes": 11144,
+      "sha256": "1067a0ffbac4096b4b0830ac2f55ac4122da90ca224b34ed15cc5d2383daadc1"
+    },
+    {
+      "path": "followup/orchestrator-red-source/packages/meriv2-core/src/context/capture-evidence-receipt.spec.ts",
+      "source": "capture-contract-followup-v1/orchestrator-red-source/packages/meriv2-core/src/context/capture-evidence-receipt.spec.ts",
+      "bytes": 20591,
+      "sha256": "7d9862d32a9a79952ebc09f257c170b1f229b5623c33fdabc35b8d87038d8e16"
+    },
+    {
+      "path": "followup/orchestrator-red-source/packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "source": "capture-contract-followup-v1/orchestrator-red-source/packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "bytes": 20894,
+      "sha256": "2b4540e237eebf4fd1db7a32565672eaea8bbfcc6daa6001309ec5c94788dc3f"
+    },
+    {
+      "path": "followup/orchestrator-red-v2-source/apps/api/src/meri/meri-capture-budget-readback.spec.ts",
+      "source": "capture-contract-followup-v1/orchestrator-red-v2-source/apps/api/src/meri/meri-capture-budget-readback.spec.ts",
+      "bytes": 5519,
+      "sha256": "6c181f801d60c1254b34fae82bb241fa1c1c273395a9b7578354032bbc1e35c4"
+    },
+    {
+      "path": "followup/orchestrator-red-v2-source/apps/api/src/meri/meri-capture-policy-readback.ts",
+      "source": "capture-contract-followup-v1/orchestrator-red-v2-source/apps/api/src/meri/meri-capture-policy-readback.ts",
+      "bytes": 7700,
+      "sha256": "57e060fddfdf641c346f4a35395ec86459c87161d0b4804042e72727b8bfe758"
+    },
+    {
+      "path": "followup/orchestrator-red-v2-source/apps/api/src/meri/meri-memory-proposal-read.spec.ts",
+      "source": "capture-contract-followup-v1/orchestrator-red-v2-source/apps/api/src/meri/meri-memory-proposal-read.spec.ts",
+      "bytes": 10876,
+      "sha256": "9a68bf1b46654c86afddaf51b0c47f78e81aa982f82cb8a8cd3d5b373db17352"
+    },
+    {
+      "path": "followup/orchestrator-red-v2-source/apps/api/src/meri/meri-memory-proposal-read.ts",
+      "source": "capture-contract-followup-v1/orchestrator-red-v2-source/apps/api/src/meri/meri-memory-proposal-read.ts",
+      "bytes": 3485,
+      "sha256": "5cbe9e92d4088961f929e9592892e35b65cc00eba2fa61fdf3e4d02a7b82a135"
+    },
+    {
+      "path": "followup/orchestrator-red-v2-source/apps/api/src/meri/meri-tools.registration.spec.ts",
+      "source": "capture-contract-followup-v1/orchestrator-red-v2-source/apps/api/src/meri/meri-tools.registration.spec.ts",
+      "bytes": 46216,
+      "sha256": "149ccac73953e5ac2d7eb64b8909dcf8b9ef990a37739c890c1afd0a4864f095"
+    },
+    {
+      "path": "followup/orchestrator-red-v2-source/apps/api/src/meri/meri-tools.service.ts",
+      "source": "capture-contract-followup-v1/orchestrator-red-v2-source/apps/api/src/meri/meri-tools.service.ts",
+      "bytes": 406964,
+      "sha256": "1976465b491e0731abf05ffb7fb8b3c2048835e034b06faace81fe97f7fb6371"
+    },
+    {
+      "path": "followup/orchestrator-red-v2-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts",
+      "source": "capture-contract-followup-v1/orchestrator-red-v2-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts",
+      "bytes": 28435,
+      "sha256": "c80f389ce30175ecb11062fe15ae07a265c426fd0172a098849ddd9ae8efa639"
+    },
+    {
+      "path": "followup/orchestrator-red-v2-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.ts",
+      "source": "capture-contract-followup-v1/orchestrator-red-v2-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.ts",
+      "bytes": 11144,
+      "sha256": "1067a0ffbac4096b4b0830ac2f55ac4122da90ca224b34ed15cc5d2383daadc1"
+    },
+    {
+      "path": "followup/orchestrator-red-v2-source/packages/meriv2-core/src/context/capture-evidence-receipt.spec.ts",
+      "source": "capture-contract-followup-v1/orchestrator-red-v2-source/packages/meriv2-core/src/context/capture-evidence-receipt.spec.ts",
+      "bytes": 21054,
+      "sha256": "0a038929b8d99ae160fc946813b29c40cd630e93443852d52d3b61e16c8a8a5b"
+    },
+    {
+      "path": "followup/orchestrator-red-v2-source/packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "source": "capture-contract-followup-v1/orchestrator-red-v2-source/packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "bytes": 20894,
+      "sha256": "2b4540e237eebf4fd1db7a32565672eaea8bbfcc6daa6001309ec5c94788dc3f"
+    },
+    {
+      "path": "followup/orchestrator-red-v2.log",
+      "source": "capture-contract-followup-v1/orchestrator-red-v2.log",
+      "bytes": 18720,
+      "sha256": "2d0d2c9648e45d6f118fb9655be20c0f25c08d0635e3913a1277f22e0d203c09"
+    },
+    {
+      "path": "followup/orchestrator-red-v2.receipt.json",
+      "source": "capture-contract-followup-v1/orchestrator-red-v2.receipt.json",
+      "bytes": 1845,
+      "sha256": "4f76abddf3e8475af52230d79991b28cb2f8bbee5a41d2213616511022bf35a9"
+    },
+    {
+      "path": "followup/orchestrator-red.log",
+      "source": "capture-contract-followup-v1/orchestrator-red.log",
+      "bytes": 18700,
+      "sha256": "b7c67137bb18277ec663c7f7d7b7c64d479ee287f2a64ed6bfed5f2c5cd92bef"
+    },
+    {
+      "path": "followup/orchestrator-red.receipt.json",
+      "source": "capture-contract-followup-v1/orchestrator-red.receipt.json",
+      "bytes": 1680,
+      "sha256": "878ecf8c05f4a5dbdb8a3d4112ebcfc9780017c70ef29b943c22980e023d4d96"
+    },
+    {
+      "path": "followup/provider-regressions-source/apps/api/src/meri/meri-capture-budget-readback.spec.ts",
+      "source": "capture-contract-followup-v1/provider-regressions-source/apps/api/src/meri/meri-capture-budget-readback.spec.ts",
+      "bytes": 5519,
+      "sha256": "6c181f801d60c1254b34fae82bb241fa1c1c273395a9b7578354032bbc1e35c4"
+    },
+    {
+      "path": "followup/provider-regressions-source/apps/api/src/meri/meri-capture-policy-readback.ts",
+      "source": "capture-contract-followup-v1/provider-regressions-source/apps/api/src/meri/meri-capture-policy-readback.ts",
+      "bytes": 7784,
+      "sha256": "3858a6f7d7212fc8f9de31f1ed165e742269db5e94a9fad37b4398f401c04e07"
+    },
+    {
+      "path": "followup/provider-regressions-source/apps/api/src/meri/meri-memory-proposal-read.spec.ts",
+      "source": "capture-contract-followup-v1/provider-regressions-source/apps/api/src/meri/meri-memory-proposal-read.spec.ts",
+      "bytes": 10876,
+      "sha256": "9a68bf1b46654c86afddaf51b0c47f78e81aa982f82cb8a8cd3d5b373db17352"
+    },
+    {
+      "path": "followup/provider-regressions-source/apps/api/src/meri/meri-memory-proposal-read.ts",
+      "source": "capture-contract-followup-v1/provider-regressions-source/apps/api/src/meri/meri-memory-proposal-read.ts",
+      "bytes": 5072,
+      "sha256": "d415bb91636f8f7f7f0414dc7c9d89122711e143cb6c70be5ff78e527268517e"
+    },
+    {
+      "path": "followup/provider-regressions-source/apps/api/src/meri/meri-tools.registration.spec.ts",
+      "source": "capture-contract-followup-v1/provider-regressions-source/apps/api/src/meri/meri-tools.registration.spec.ts",
+      "bytes": 46216,
+      "sha256": "149ccac73953e5ac2d7eb64b8909dcf8b9ef990a37739c890c1afd0a4864f095"
+    },
+    {
+      "path": "followup/provider-regressions-source/apps/api/src/meri/meri-tools.service.ts",
+      "source": "capture-contract-followup-v1/provider-regressions-source/apps/api/src/meri/meri-tools.service.ts",
+      "bytes": 407649,
+      "sha256": "a9b2cc4eed2b3397793a2f56b188c8a1a29cab5ec76228ab9aa4e68c46c7be5c"
+    },
+    {
+      "path": "followup/provider-regressions-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts",
+      "source": "capture-contract-followup-v1/provider-regressions-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts",
+      "bytes": 28435,
+      "sha256": "c80f389ce30175ecb11062fe15ae07a265c426fd0172a098849ddd9ae8efa639"
+    },
+    {
+      "path": "followup/provider-regressions-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.ts",
+      "source": "capture-contract-followup-v1/provider-regressions-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.ts",
+      "bytes": 12662,
+      "sha256": "da9470709693880141fce698d998069a308523409e5eb1f63d1bea5731f0d3e0"
+    },
+    {
+      "path": "followup/provider-regressions-source/packages/meriv2-core/src/context/capture-evidence-receipt.spec.ts",
+      "source": "capture-contract-followup-v1/provider-regressions-source/packages/meriv2-core/src/context/capture-evidence-receipt.spec.ts",
+      "bytes": 21100,
+      "sha256": "d9606ffad168493f326f1017d1db3bee8794990dfade4844fc8370c86036e17e"
+    },
+    {
+      "path": "followup/provider-regressions-source/packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "source": "capture-contract-followup-v1/provider-regressions-source/packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "bytes": 22804,
+      "sha256": "d1fe00c283c13663c40b70d7e8a7537a888a269b21b758c0f59b7c907fe39471"
+    },
+    {
+      "path": "followup/provider-regressions.log",
+      "source": "capture-contract-followup-v1/provider-regressions.log",
+      "bytes": 2585,
+      "sha256": "4776eacccf24d1a4d1c2be483d876aa1ad7b39d10e20b461cff8171e9432257c"
+    },
+    {
+      "path": "followup/provider-regressions.receipt.json",
+      "source": "capture-contract-followup-v1/provider-regressions.receipt.json",
+      "bytes": 1947,
+      "sha256": "b53d657ec7ba291bd5d6460e76e94f57cae0cd42955a1140886595ea45ec8ce2"
+    },
+    {
+      "path": "followup/readback-red-source/apps/api/src/meri/meri-capture-budget-readback.spec.ts",
+      "source": "capture-contract-followup-v1/readback-red-source/apps/api/src/meri/meri-capture-budget-readback.spec.ts",
+      "bytes": 5519,
+      "sha256": "6c181f801d60c1254b34fae82bb241fa1c1c273395a9b7578354032bbc1e35c4"
+    },
+    {
+      "path": "followup/readback-red-source/apps/api/src/meri/meri-capture-policy-readback.ts",
+      "source": "capture-contract-followup-v1/readback-red-source/apps/api/src/meri/meri-capture-policy-readback.ts",
+      "bytes": 7700,
+      "sha256": "57e060fddfdf641c346f4a35395ec86459c87161d0b4804042e72727b8bfe758"
+    },
+    {
+      "path": "followup/readback-red-source/apps/api/src/meri/meri-memory-proposal-read.spec.ts",
+      "source": "capture-contract-followup-v1/readback-red-source/apps/api/src/meri/meri-memory-proposal-read.spec.ts",
+      "bytes": 10876,
+      "sha256": "9a68bf1b46654c86afddaf51b0c47f78e81aa982f82cb8a8cd3d5b373db17352"
+    },
+    {
+      "path": "followup/readback-red-source/apps/api/src/meri/meri-memory-proposal-read.ts",
+      "source": "capture-contract-followup-v1/readback-red-source/apps/api/src/meri/meri-memory-proposal-read.ts",
+      "bytes": 3485,
+      "sha256": "5cbe9e92d4088961f929e9592892e35b65cc00eba2fa61fdf3e4d02a7b82a135"
+    },
+    {
+      "path": "followup/readback-red-source/apps/api/src/meri/meri-tools.registration.spec.ts",
+      "source": "capture-contract-followup-v1/readback-red-source/apps/api/src/meri/meri-tools.registration.spec.ts",
+      "bytes": 43237,
+      "sha256": "20546eb158b962f6437d010c8e9c3702dca5014b2da71fec492f3d503d4e17da"
+    },
+    {
+      "path": "followup/readback-red-source/apps/api/src/meri/meri-tools.service.ts",
+      "source": "capture-contract-followup-v1/readback-red-source/apps/api/src/meri/meri-tools.service.ts",
+      "bytes": 406964,
+      "sha256": "1976465b491e0731abf05ffb7fb8b3c2048835e034b06faace81fe97f7fb6371"
+    },
+    {
+      "path": "followup/readback-red-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts",
+      "source": "capture-contract-followup-v1/readback-red-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts",
+      "bytes": 28232,
+      "sha256": "b92b08027d7be273259d66a11dcc5c31f263f3ace548d12ca61333fda1e59210"
+    },
+    {
+      "path": "followup/readback-red-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.ts",
+      "source": "capture-contract-followup-v1/readback-red-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.ts",
+      "bytes": 11144,
+      "sha256": "1067a0ffbac4096b4b0830ac2f55ac4122da90ca224b34ed15cc5d2383daadc1"
+    },
+    {
+      "path": "followup/readback-red-source/packages/meriv2-core/src/context/capture-evidence-receipt.spec.ts",
+      "source": "capture-contract-followup-v1/readback-red-source/packages/meriv2-core/src/context/capture-evidence-receipt.spec.ts",
+      "bytes": 20591,
+      "sha256": "7d9862d32a9a79952ebc09f257c170b1f229b5623c33fdabc35b8d87038d8e16"
+    },
+    {
+      "path": "followup/readback-red-source/packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "source": "capture-contract-followup-v1/readback-red-source/packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "bytes": 20894,
+      "sha256": "2b4540e237eebf4fd1db7a32565672eaea8bbfcc6daa6001309ec5c94788dc3f"
+    },
+    {
+      "path": "followup/readback-red.log",
+      "source": "capture-contract-followup-v1/readback-red.log",
+      "bytes": 2831,
+      "sha256": "fcfbce459d6abe07d91d533078a8128c44f5cc170efa1178e18ba6a07e2bb41e"
+    },
+    {
+      "path": "followup/readback-red.receipt.json",
+      "source": "capture-contract-followup-v1/readback-red.receipt.json",
+      "bytes": 1790,
+      "sha256": "71e3f099503ee9c548b5a513a3233d6c891f9312c045fdbeff36947163909930"
+    },
+    {
+      "path": "followup/run-check.py",
+      "source": "capture-contract-followup-v1/run-check.py",
+      "bytes": 3878,
+      "sha256": "5040737df6063cf3dbe9c9d69d44d3a904daf3dac48a1d7248342c105cb1daa4"
+    },
+    {
+      "path": "followup/source/apps/api/src/meri/meri-capture-budget-readback.spec.ts",
+      "source": "capture-contract-followup-v1/source/apps/api/src/meri/meri-capture-budget-readback.spec.ts",
+      "bytes": 5519,
+      "sha256": "6c181f801d60c1254b34fae82bb241fa1c1c273395a9b7578354032bbc1e35c4"
+    },
+    {
+      "path": "followup/source/apps/api/src/meri/meri-capture-policy-readback.ts",
+      "source": "capture-contract-followup-v1/source/apps/api/src/meri/meri-capture-policy-readback.ts",
+      "bytes": 7784,
+      "sha256": "3858a6f7d7212fc8f9de31f1ed165e742269db5e94a9fad37b4398f401c04e07"
+    },
+    {
+      "path": "followup/source/apps/api/src/meri/meri-memory-proposal-read.spec.ts",
+      "source": "capture-contract-followup-v1/source/apps/api/src/meri/meri-memory-proposal-read.spec.ts",
+      "bytes": 10876,
+      "sha256": "9a68bf1b46654c86afddaf51b0c47f78e81aa982f82cb8a8cd3d5b373db17352"
+    },
+    {
+      "path": "followup/source/apps/api/src/meri/meri-memory-proposal-read.ts",
+      "source": "capture-contract-followup-v1/source/apps/api/src/meri/meri-memory-proposal-read.ts",
+      "bytes": 5072,
+      "sha256": "d415bb91636f8f7f7f0414dc7c9d89122711e143cb6c70be5ff78e527268517e"
+    },
+    {
+      "path": "followup/source/apps/api/src/meri/meri-tools.registration.spec.ts",
+      "source": "capture-contract-followup-v1/source/apps/api/src/meri/meri-tools.registration.spec.ts",
+      "bytes": 46216,
+      "sha256": "149ccac73953e5ac2d7eb64b8909dcf8b9ef990a37739c890c1afd0a4864f095"
+    },
+    {
+      "path": "followup/source/apps/api/src/meri/meri-tools.service.ts",
+      "source": "capture-contract-followup-v1/source/apps/api/src/meri/meri-tools.service.ts",
+      "bytes": 407649,
+      "sha256": "a9b2cc4eed2b3397793a2f56b188c8a1a29cab5ec76228ab9aa4e68c46c7be5c"
+    },
+    {
+      "path": "followup/source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts",
+      "source": "capture-contract-followup-v1/source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts",
+      "bytes": 28435,
+      "sha256": "c80f389ce30175ecb11062fe15ae07a265c426fd0172a098849ddd9ae8efa639"
+    },
+    {
+      "path": "followup/source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.ts",
+      "source": "capture-contract-followup-v1/source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.ts",
+      "bytes": 12662,
+      "sha256": "da9470709693880141fce698d998069a308523409e5eb1f63d1bea5731f0d3e0"
+    },
+    {
+      "path": "followup/source/packages/meriv2-core/src/context/capture-evidence-receipt.spec.ts",
+      "source": "capture-contract-followup-v1/source/packages/meriv2-core/src/context/capture-evidence-receipt.spec.ts",
+      "bytes": 21100,
+      "sha256": "d9606ffad168493f326f1017d1db3bee8794990dfade4844fc8370c86036e17e"
+    },
+    {
+      "path": "followup/source/packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "source": "capture-contract-followup-v1/source/packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "bytes": 22804,
+      "sha256": "d1fe00c283c13663c40b70d7e8a7537a888a269b21b758c0f59b7c907fe39471"
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+PASS src/meri/meriv3/meriv3-capture-evidence.spec.ts (11.043 s)
+[Nest] 52416  - 10/03/2026, 7:20:01 PM    WARN [ApiToolExecutorRepo] Delegated read "read_client_documents" -> failed
+[Nest] 52416  - 10/03/2026, 7:20:01 PM    WARN [ApiToolExecutorRepo] Delegated tool "search_memory" -> 503
+FAIL src/meri/controlled-read-observations.spec.ts
+  ● controlled read actual HTTP observations › observes the actual own-proposal response as a bounded no-clock-consumer read: 01-empty
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 1
+    + Received  + 3
+
+    - Array []
+    + Array [
+    +   "semantic_clock_proposal_read_unproved",
+    + ]
+
+      500 |           });
+      501 |           if (succeeds && !partial)
+    > 502 |             expect(meriCaptureClockExecutionBlockers(signed.receipt)).toEqual([]);
+          |                                                                       ^
+      503 |           else if (partial)
+      504 |             expect(meriCaptureClockExecutionBlockers(signed.receipt)).toContain(
+      505 |               'semantic_clock_proposal_read_unproved',
+
+      at src/meri/controlled-read-observations.spec.ts:502:71
+      at src/meri/controlled-read-observations.spec.ts:446:7
+
+Test Suites: 1 failed, 1 passed, 2 total
+Tests:       1 failed, 42 passed, 43 total
+Snapshots:   0 total
+Time:        12.531 s
+Ran all test suites matching /src\\meri\\controlled-read-observations.spec.ts|src\\meri\\meriv3\\meriv3-capture-evidence.spec.ts/i.
+[Nest] 52416  - 10/03/2026, 7:20:02 PM    WARN [ApiToolExecutorRepo] Delegated tool "list_memory_proposals" -> 500
+[Nest] 52416  - 10/03/2026, 7:20:02 PM    WARN [ApiToolExecutorRepo] Delegated read "read_client_documents" -> failed
+[Nest] 52416  - 10/03/2026, 7:20:02 PM    WARN [ApiToolExecutorRepo] Delegated read "read_client_documents" -> failed
+[Nest] 52416  - 10/03/2026, 7:20:02 PM    WARN [ApiToolExecutorRepo] Delegated read "read_client_documents" -> failed
+undefined
+C:\dev\main\meri-c1-20261002\apps\meriv2-orchestrator:
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command "jest" not found

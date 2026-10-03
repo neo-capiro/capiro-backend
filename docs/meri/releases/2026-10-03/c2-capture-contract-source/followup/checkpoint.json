@@ -1,0 +1,532 @@
+{
+  "kind": "bounded_original_capture_contract_repair",
+  "status": "FROZEN_LOCAL_QUALIFICATION_PENDING_INDEPENDENT_REVIEW",
+  "createdAt": "2026-10-03T23:26:08.461951+00:00",
+  "baseSourceSha": "269ae7ccadfc619f60e488a009c75df413770c64",
+  "sources": [
+    {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "kind": "production",
+      "sha256": "a9b2cc4eed2b3397793a2f56b188c8a1a29cab5ec76228ab9aa4e68c46c7be5c",
+      "bytes": 407649,
+      "mirror": "source/apps/api/src/meri/meri-tools.service.ts"
+    },
+    {
+      "path": "apps/api/src/meri/meri-memory-proposal-read.ts",
+      "kind": "production",
+      "sha256": "d415bb91636f8f7f7f0414dc7c9d89122711e143cb6c70be5ff78e527268517e",
+      "bytes": 5072,
+      "mirror": "source/apps/api/src/meri/meri-memory-proposal-read.ts"
+    },
+    {
+      "path": "apps/api/src/meri/meri-capture-policy-readback.ts",
+      "kind": "production",
+      "sha256": "3858a6f7d7212fc8f9de31f1ed165e742269db5e94a9fad37b4398f401c04e07",
+      "bytes": 7784,
+      "mirror": "source/apps/api/src/meri/meri-capture-policy-readback.ts"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/controlled-read-observations.ts",
+      "kind": "production",
+      "sha256": "da9470709693880141fce698d998069a308523409e5eb1f63d1bea5731f0d3e0",
+      "bytes": 12662,
+      "mirror": "source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.ts"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "kind": "production",
+      "sha256": "d1fe00c283c13663c40b70d7e8a7537a888a269b21b758c0f59b7c907fe39471",
+      "bytes": 22804,
+      "mirror": "source/packages/meriv2-core/src/context/capture-evidence-receipt.ts"
+    },
+    {
+      "path": "apps/api/src/meri/meri-tools.registration.spec.ts",
+      "kind": "test",
+      "sha256": "149ccac73953e5ac2d7eb64b8909dcf8b9ef990a37739c890c1afd0a4864f095",
+      "bytes": 46216,
+      "mirror": "source/apps/api/src/meri/meri-tools.registration.spec.ts"
+    },
+    {
+      "path": "apps/api/src/meri/meri-memory-proposal-read.spec.ts",
+      "kind": "test",
+      "sha256": "9a68bf1b46654c86afddaf51b0c47f78e81aa982f82cb8a8cd3d5b373db17352",
+      "bytes": 10876,
+      "mirror": "source/apps/api/src/meri/meri-memory-proposal-read.spec.ts"
+    },
+    {
+      "path": "apps/api/src/meri/meri-capture-budget-readback.spec.ts",
+      "kind": "test",
+      "sha256": "6c181f801d60c1254b34fae82bb241fa1c1c273395a9b7578354032bbc1e35c4",
+      "bytes": 5519,
+      "mirror": "source/apps/api/src/meri/meri-capture-budget-readback.spec.ts"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts",
+      "kind": "test",
+      "sha256": "c80f389ce30175ecb11062fe15ae07a265c426fd0172a098849ddd9ae8efa639",
+      "bytes": 28435,
+      "mirror": "source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/capture-evidence-receipt.spec.ts",
+      "kind": "test",
+      "sha256": "d9606ffad168493f326f1017d1db3bee8794990dfade4844fc8370c86036e17e",
+      "bytes": 21100,
+      "mirror": "source/packages/meriv2-core/src/context/capture-evidence-receipt.spec.ts"
+    }
+  ],
+  "sourceCount": 10,
+  "productionCount": 5,
+  "testCount": 5,
+  "newRepositoryFile": "apps/api/src/meri/meri-capture-budget-readback.spec.ts",
+  "trackedPatch": {
+    "path": "C:/dev/main/outputs/meri-c2-20261003/capture-contract-followup-v1/candidate.patch",
+    "sha256": "331df1330f58eb3f4a51828033d96026689e46f7719cd061bcad98585db0a26e",
+    "bytes": 70624
+  },
+  "priorSerializationCandidateUnchanged": {
+    "apps/api/src/meri/meri-server-readonly-capture.ts": "689ddc776123be123c6181ebf7459ce747ae4eb99ad841a8966d8db87210ac93",
+    "apps/api/src/meri/meri-capture-clock-packets.spec.ts": "655f564716160bed9f20bfa32450f46a9adb9989009a321782e11d235140e828",
+    "evals/meri/live-v1/tests/capture-clock-receipt-jsonb.postgres.test.mjs": "0534d2c82efaca14a7d9f66cd2399192b3a400ccf4f1693300473a825d64d5e2"
+  },
+  "priorSerializationCheckpointSha256": "cf9bb0fa5119c2c05b9afbc22b539e0245839dfe4680c5b49753c9a864184400",
+  "changes": [
+    "Original01/14 budget dispatch admits the already registered own-pending-proposal read; no write/provider/tool catalog authority is added.",
+    "The internal policy binds tenant, actor, selected client, current real expiry, original fixture/semantic binding and existing ledger marker before/after the owner read; current membership/conversation/wall authority is reread before returning.",
+    "The actual raw HTTP response collector records scoped pending-only, unapproved proof without a compiler packet or semantic-time consumer. Ordinary and synthetic helper paths retain prior behavior.",
+    "Only complete or healthy-empty proposal proof can satisfy the clock invocation census; partial/disabled/failed/refused/orphan/foreign/packet/citation claims remain blocked. Empty raw coverage may match generic logical complete, only in that direction.",
+    "Readonly receipt validation matches the existing 15M qualified admission maximum and owner readback requires exact actual ledger ceiling equality. Separate case46 authority and all live budgets are unchanged."
+  ],
+  "qualification": {
+    "core": {
+      "pass": 50,
+      "fail": 0,
+      "suites": 1,
+      "receipt": "core-green-v3.receipt.json"
+    },
+    "api": {
+      "pass": 149,
+      "fail": 0,
+      "suites": 5,
+      "receipt": "api-green-v2.receipt.json"
+    },
+    "orchestrator": {
+      "pass": 43,
+      "fail": 0,
+      "suites": 2,
+      "receipt": "orchestrator-green-v3.receipt.json",
+      "actualLoopbackHttp": true
+    },
+    "providerAndOwnerRegressions": {
+      "pass": 39,
+      "fail": 0,
+      "suites": 3,
+      "receipt": "provider-regressions.receipt.json"
+    },
+    "actualPrismaPostgres": {
+      "pass": 4,
+      "fail": 0,
+      "skipped": 0,
+      "receipt": "C:/dev/main/outputs/meri-c2-20261003/capture-receipt-clock-v1/capture-receipt-clock-combined-followup-v1.receipt.json",
+      "scope": "actual generated Prisma plus current source and final built core; rollback-only random schemas on owned127.0.0.1:55433; cluster stopped"
+    },
+    "builds": [
+      {
+        "package": "core",
+        "receipt": "core-build-v2.receipt.json",
+        "exitCode": 0
+      },
+      {
+        "package": "api",
+        "receipt": "api-build.receipt.json",
+        "exitCode": 0
+      },
+      {
+        "package": "meriv2-orchestrator",
+        "receipt": "orchestrator-build.receipt.json",
+        "exitCode": 0
+      }
+    ]
+  },
+  "failFirstEvidence": {
+    "coreRedV2": {
+      "failed": 3,
+      "passed": 47,
+      "receipt": "core-red-v2.receipt.json",
+      "sameRuntimeAssertions": true,
+      "exactFinalTestBytes": false,
+      "difference": "Final test uses literal as-const annotations and non-null client type narrowing after the new production interface caused a compile-only failure; no runtime assertions changed, verified by normalized exact equality."
+    },
+    "apiRedV2": {
+      "failed": 13,
+      "passed": 62,
+      "receipt": "api-red-v2.receipt.json"
+    },
+    "httpRedV2": {
+      "failed": 9,
+      "passed": 30,
+      "receipt": "orchestrator-red-v2.receipt.json"
+    },
+    "ceilingReadbackRed": {
+      "failed": 2,
+      "passed": 1,
+      "receipt": "readback-red.receipt.json"
+    },
+    "exactFinalTestBytes": [
+      {
+        "redReceipt": "api-red-v2.receipt.json",
+        "test": "apps/api/src/meri/meri-tools.registration.spec.ts",
+        "exactFinalTestBytes": true
+      },
+      {
+        "redReceipt": "api-red-v2.receipt.json",
+        "test": "apps/api/src/meri/meri-memory-proposal-read.spec.ts",
+        "exactFinalTestBytes": true
+      },
+      {
+        "redReceipt": "readback-red.receipt.json",
+        "test": "apps/api/src/meri/meri-capture-budget-readback.spec.ts",
+        "exactFinalTestBytes": true
+      },
+      {
+        "redReceipt": "orchestrator-red-v2.receipt.json",
+        "test": "apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts",
+        "exactFinalTestBytes": true
+      }
+    ],
+    "retainedIntermediateFailures": [
+      "core-green: compile-only new literal interface/test inference mismatch, no tests executed.",
+      "orchestrator-green: compile-only nullable existing classifier return needed explicit rejection, no tests executed.",
+      "orchestrator-green-v2: actual loopback healthy-empty proof versus existing generic logical complete mismatch; one failed/42 passed. Final same-byte test passes with the bounded one-way compatibility rule.",
+      "Original red-v1 and red-v2 logs and source mirrors are retained; red-v2 tightens partial-blocked expectations and adds post-read current-authority tests."
+    ],
+    "historicalReceiptClarification": "Early core-red/api-red/orchestrator-red/readback-red receipt field networkOrProviderCalls:0 describes no external network/providers. The orchestrator suite intentionally makes loopback HTTP requests. Later receipts state externalNetworkOrProviderCalls:0 and loopbackHttp explicitly."
+  },
+  "buildGuidance": {
+    "orchestratorRequiredPassingTestNames": [
+      "controlled read actual HTTP observations observes the actual own-proposal response as a bounded no-clock-consumer read: 01-empty",
+      "controlled read actual HTTP observations observes the actual own-proposal response as a bounded no-clock-consumer read: 01-complete",
+      "controlled read actual HTTP observations observes the actual own-proposal response as a bounded no-clock-consumer read: 01-partial",
+      "controlled read actual HTTP observations observes the actual own-proposal response as a bounded no-clock-consumer read: 14-complete",
+      "controlled read actual HTTP observations observes the actual own-proposal response as a bounded no-clock-consumer read: tenant",
+      "controlled read actual HTTP observations observes the actual own-proposal response as a bounded no-clock-consumer read: actor",
+      "controlled read actual HTTP observations observes the actual own-proposal response as a bounded no-clock-consumer read: client",
+      "controlled read actual HTTP observations observes the actual own-proposal response as a bounded no-clock-consumer read: missing-client",
+      "controlled read actual HTTP observations observes the actual own-proposal response as a bounded no-clock-consumer read: compiler",
+      "controlled read actual HTTP observations observes the actual own-proposal response as a bounded no-clock-consumer read: approved",
+      "controlled read actual HTTP observations observes the actual own-proposal response as a bounded no-clock-consumer read: disabled",
+      "controlled read actual HTTP observations observes the actual own-proposal response as a bounded no-clock-consumer read: http-failure"
+    ],
+    "expectedOrchestratorNativeCountsIfNoOtherTestChanges": {
+      "passed": 1564,
+      "pending": 2,
+      "suites": 130,
+      "basis": "prior1552/2/130 plus12 new it.each entries in existing suite; remote result must confirm"
+    },
+    "apiPackagedProbe": [
+      "Use existing actual API finalizer with a signed incomplete clock receipt and clockPackets:null; assert BLOCKED/PENDING, absent own api key, JSON roundtrip equality and retained HMAC verification.",
+      "Exercise compiled core receipt shape with admitted maxCostMicros15M and charged2292602; reject max15000001 and charge beyond actual limit. This is shape validation, not a fresh qualification/admission.",
+      "Call packaged readOwnPendingMemoryProposals using a local owner stub; exact01/14 scope succeeds pending/unapproved, missing or other selected client and foreign actor/tenant refuse before stub. Ordinary helper without capture policy still succeeds. No DB/provider transport."
+    ]
+  },
+  "limits": [
+    "No cloud/auth/provider/model/capture/journal/fixture action, deployment, commit or approval was performed by this implementation.",
+    "Actual HTTP tests use loopback transport. Proposal helper and dispatch tests isolate the existing canonical owner/authority ports; they do not qualify live fixtures or production RLS.",
+    "PostgreSQL tests prove storage/serialization using actual generated Prisma and current source/final core dependency, not production authority or acceptance.",
+    "Before/after current authority is point-in-time revalidation, not an atomic cross-process revocation lock.",
+    "No schema, model, service config, dependency, signed-policy format, source fixture reset or new budget is introduced. Old/new service combinations remain fail-closed for unproved proposal clock joins; native images and rollout remain separately required.",
+    "The original failed live run remains UNCERTAIN and is not replayed or retroactively accepted by these local tests."
+  ],
+  "evidence": [
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/capture-contract-followup-v1/api-build.log",
+      "sha256": "6a73f8bc0a1fc60ac6a8ae0b9af7e0e0c38b7f9cff82c24e8b11e02b08517cc3",
+      "bytes": 79
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/capture-contract-followup-v1/api-build.receipt.json",
+      "sha256": "f6d20490b6b398c8586d4c447c19d1065f2b60cd49c431d7363f0517c1b88ac1",
+      "bytes": 1737
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/capture-contract-followup-v1/api-green-v2.log",
+      "sha256": "1f99a297efe1a3de0db665206639d6ea24ce9fcf0b5988113f30abb608576045",
+      "bytes": 6087
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/capture-contract-followup-v1/api-green-v2.receipt.json",
+      "sha256": "5f7fcae839564d8720fa72ca7d3a802d74295cdbbfcbaf300d324905d006eeb0",
+      "bytes": 2025
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/capture-contract-followup-v1/api-green.log",
+      "sha256": "9d53aabc86aac6b8f98f39918f1ebf285ddf255c07d80edb5c9991c4e44d256e",
+      "bytes": 16304
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/capture-contract-followup-v1/api-green.receipt.json",
+      "sha256": "660765bca0f56af1db41e7174b7e00d98e1c86bd95bb8fb81b648ece0a85c224",
+      "bytes": 2022
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/capture-contract-followup-v1/api-red-v2.log",
+      "sha256": "e857749b0251d36026b34746d4031dd480e2f8a27f340b440c8083891e7eab06",
+      "bytes": 19165
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/capture-contract-followup-v1/api-red-v2.receipt.json",
+      "sha256": "b68632535b585c3333c2879231957bf8d1e705850ee909ea13ab7332519de8e7",
+      "bytes": 1866
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/capture-contract-followup-v1/api-red.log",
+      "sha256": "e32838a6035f6828267f96dcdbfbee562830e95ef99e74529a038d7b90401c88",
+      "bytes": 17120
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/capture-contract-followup-v1/api-red.receipt.json",
+      "sha256": "4d2b0afbc823598c3130332829e3993c4299c3fbe87b27dab0292b929ff85ae9",
+      "bytes": 1700
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/capture-contract-followup-v1/core-build-v2.log",
+      "sha256": "7d91d2435851bc957c6bf6317ad7ca88b3e88ffca708f629de2624eb93f3c030",
+      "bytes": 109
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/capture-contract-followup-v1/core-build-v2.receipt.json",
+      "sha256": "64dc16be2885451459fe2eddf5d58c08e3c2c238b65f482ff4f727538ab8e21c",
+      "bytes": 1749
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/capture-contract-followup-v1/core-build.log",
+      "sha256": "7d91d2435851bc957c6bf6317ad7ca88b3e88ffca708f629de2624eb93f3c030",
+      "bytes": 109
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/capture-contract-followup-v1/core-build.receipt.json",
+      "sha256": "b35514ae4b61814002094ad3f6363ea6412bf3c7820b86a18c3b8928b8e93847",
+      "bytes": 1746
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/capture-contract-followup-v1/core-green-v2.log",
+      "sha256": "810bfb91da1e93f47f1c2688892b834fd246d38e18b729a0a841966ef9b04c63",
+      "bytes": 3119
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/capture-contract-followup-v1/core-green-v2.receipt.json",
+      "sha256": "ec38c15f228332192d1705cb334724c32b2c27200a85c14a0fd6ac462bb98f0c",
+      "bytes": 1831
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/capture-contract-followup-v1/core-green-v3.log",
+      "sha256": "023e6f335df1328c3e111fc4286d86ff485ff188965485a1a3fa7df1d9393c27",
+      "bytes": 3120
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/capture-contract-followup-v1/core-green-v3.receipt.json",
+      "sha256": "d5c17e3597f008696bccd013824df6d55ab4c90694dc980d5ea83df410f50d31",
+      "bytes": 1831
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/capture-contract-followup-v1/core-green.log",
+      "sha256": "e80cc8cea38281f36fbba4c479722b8c7727f3030edb355df910edcf9df6040d",
+      "bytes": 1278
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/capture-contract-followup-v1/core-green.receipt.json",
+      "sha256": "5c1d8a64a8f7e41e8643e8af8c7e74751dce4debaec16208ca94dd174d2e7288",
+      "bytes": 1828
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/capture-contract-followup-v1/core-red-v2.log",
+      "sha256": "bbd655d63733be4be6df48d780bb0a316ea2f8515f825df6e01e5e80c69dcca6",
+      "bytes": 5646
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/capture-contract-followup-v1/core-red-v2.receipt.json",
+      "sha256": "74f28a6353ba2635d933aab45e952ae43656e16193a63f1de87883cff74c30d8",
+      "bytes": 1829
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/capture-contract-followup-v1/core-red.log",
+      "sha256": "0310f654daa6680ceb2cd060b0326bc114b8df7a13c9f0cd063d0e1fbac67f7f",
+      "bytes": 5556
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/capture-contract-followup-v1/core-red.receipt.json",
+      "sha256": "d3d1f9deaf9f452a5757cce633e3dc8bab05885713065318a8e8143bfe2434cb",
+      "bytes": 1663
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/capture-contract-followup-v1/orchestrator-build.log",
+      "sha256": "71a4b795d9b3b3a9c402827c38d95e29ecc5befc20747a24c7ea4634ddaa0ce1",
+      "bytes": 111
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/capture-contract-followup-v1/orchestrator-build.receipt.json",
+      "sha256": "d3809ad2cd80c9e97c7671cf0a304821268c2658ffbbcd19fc9c8980aa58f3af",
+      "bytes": 1762
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/capture-contract-followup-v1/orchestrator-green-v2.log",
+      "sha256": "5b3d36cb41756e021c316351952bc0382d4c2b740f7e071e0f5742298e0e54e0",
+      "bytes": 2103
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/capture-contract-followup-v1/orchestrator-green-v2.receipt.json",
+      "sha256": "600d932f8bee8bcda9a4217d4d296ee0782383833969688a721314717507169e",
+      "bytes": 1902
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/capture-contract-followup-v1/orchestrator-green-v3.log",
+      "sha256": "1c224f1dcef6511de81ff52906d163136f4c3ba4a55343f9fc5c5df59dc3f26c",
+      "bytes": 1063
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/capture-contract-followup-v1/orchestrator-green-v3.receipt.json",
+      "sha256": "f2a80273936f43228d74ede5594ea5f7dac3a7a67cc849ab308ff2d5758fd266",
+      "bytes": 1902
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/capture-contract-followup-v1/orchestrator-green.log",
+      "sha256": "394984576985dbffd960ddc5cc0076228aa987e992893e945c52460d1270979b",
+      "bytes": 1715
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/capture-contract-followup-v1/orchestrator-green.receipt.json",
+      "sha256": "dd77a1b8e6ba73a15b8a5a25263cf750c28290cda71ef0279c81be5d718c71ff",
+      "bytes": 1899
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/capture-contract-followup-v1/orchestrator-red-v2.log",
+      "sha256": "2d0d2c9648e45d6f118fb9655be20c0f25c08d0635e3913a1277f22e0d203c09",
+      "bytes": 18720
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/capture-contract-followup-v1/orchestrator-red-v2.receipt.json",
+      "sha256": "4f76abddf3e8475af52230d79991b28cb2f8bbee5a41d2213616511022bf35a9",
+      "bytes": 1845
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/capture-contract-followup-v1/orchestrator-red.log",
+      "sha256": "b7c67137bb18277ec663c7f7d7b7c64d479ee287f2a64ed6bfed5f2c5cd92bef",
+      "bytes": 18700
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/capture-contract-followup-v1/orchestrator-red.receipt.json",
+      "sha256": "878ecf8c05f4a5dbdb8a3d4112ebcfc9780017c70ef29b943c22980e023d4d96",
+      "bytes": 1680
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/capture-contract-followup-v1/provider-regressions.log",
+      "sha256": "4776eacccf24d1a4d1c2be483d876aa1ad7b39d10e20b461cff8171e9432257c",
+      "bytes": 2585
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/capture-contract-followup-v1/provider-regressions.receipt.json",
+      "sha256": "b53d657ec7ba291bd5d6460e76e94f57cae0cd42955a1140886595ea45ec8ce2",
+      "bytes": 1947
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/capture-contract-followup-v1/readback-red.log",
+      "sha256": "fcfbce459d6abe07d91d533078a8128c44f5cc170efa1178e18ba6a07e2bb41e",
+      "bytes": 2831
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/capture-contract-followup-v1/readback-red.receipt.json",
+      "sha256": "71e3f099503ee9c548b5a513a3233d6c891f9312c045fdbeff36947163909930",
+      "bytes": 1790
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/capture-receipt-clock-v1/capture-receipt-clock-combined-followup-v1-built-core.json",
+      "sha256": "452b672e3eef76df5b0890e2e44aa4f689a73c56e4af4fbeb59608f87de6484a",
+      "bytes": 18746
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/capture-receipt-clock-v1/capture-receipt-clock-combined-followup-v1-postgres.log",
+      "sha256": "c4eb8efb27ad1dde2d2467bfab5d9aeab00bfadc4ccee07cc6add38a5a007ac5",
+      "bytes": 1179
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/capture-receipt-clock-v1/capture-receipt-clock-combined-followup-v1-source-apps_api_prisma_schema.prisma",
+      "sha256": "41fb55c8f2357b9bc2246de813d1e093e3e0bd240538048bbb514c5a4d4fe1d2",
+      "bytes": 964030
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/capture-receipt-clock-v1/capture-receipt-clock-combined-followup-v1-source-apps_api_src_meri_meri-capture-policy-readback.ts",
+      "sha256": "3858a6f7d7212fc8f9de31f1ed165e742269db5e94a9fad37b4398f401c04e07",
+      "bytes": 7784
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/capture-receipt-clock-v1/capture-receipt-clock-combined-followup-v1-source-apps_api_src_meri_meri-server-capture-evidence.ts",
+      "sha256": "2fa95657d16ed7e88d4d8edb0b59c8ac39bbd63f045e13f1b7b343e730d0c377",
+      "bytes": 10159
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/capture-receipt-clock-v1/capture-receipt-clock-combined-followup-v1-source-apps_api_src_meri_meri-server-readonly-capture.ts",
+      "sha256": "689ddc776123be123c6181ebf7459ce747ae4eb99ad841a8966d8db87210ac93",
+      "bytes": 21162
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/capture-receipt-clock-v1/capture-receipt-clock-combined-followup-v1-source-evals_meri_live-v1_tests_approved-memory-postgres-harness.mjs",
+      "sha256": "e9423f5e819c33a628c104ef9137c76708aa05ef0b7c5cdb4a42793dd4959c8d",
+      "bytes": 9208
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/capture-receipt-clock-v1/capture-receipt-clock-combined-followup-v1-source-evals_meri_live-v1_tests_approved-memory-schema.mjs",
+      "sha256": "07d41fccf6ad21123f29521a7aa0a2816cf6ea4a76e74f8125ff449b828a94ab",
+      "bytes": 6093
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/capture-receipt-clock-v1/capture-receipt-clock-combined-followup-v1-source-evals_meri_live-v1_tests_capture-clock-receipt-jsonb.postgres.test.mjs",
+      "sha256": "0534d2c82efaca14a7d9f66cd2399192b3a400ccf4f1693300473a825d64d5e2",
+      "bytes": 11355
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/capture-receipt-clock-v1/capture-receipt-clock-combined-followup-v1-start.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/capture-receipt-clock-v1/capture-receipt-clock-combined-followup-v1-start.stdout",
+      "sha256": "46038efb813fbca18a92272496901190638dea3f97b51f7af0daa1ca2eb13818",
+      "bytes": 54
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/capture-receipt-clock-v1/capture-receipt-clock-combined-followup-v1-status-after.log",
+      "sha256": "00e9e2231199060045479aeef60a466d575acde1f92e0f1567df14db2d3dc4b1",
+      "bytes": 27
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/capture-receipt-clock-v1/capture-receipt-clock-combined-followup-v1-status-before.log",
+      "sha256": "00e9e2231199060045479aeef60a466d575acde1f92e0f1567df14db2d3dc4b1",
+      "bytes": 27
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/capture-receipt-clock-v1/capture-receipt-clock-combined-followup-v1-stop.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/capture-receipt-clock-v1/capture-receipt-clock-combined-followup-v1-stop.stdout",
+      "sha256": "3589d2bd01f8295cc7c9ec3f5e07625fcd347ccb6f33f2d80edafe5f5217c1fb",
+      "bytes": 58
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/capture-receipt-clock-v1/capture-receipt-clock-combined-followup-v1.log",
+      "sha256": "0b9fadfbb444b2507769d591de55ba3c530aa1c45cd4dd43f642a544f949f6da",
+      "bytes": 757
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/capture-receipt-clock-v1/capture-receipt-clock-combined-followup-v1.receipt.json",
+      "sha256": "66218d616b0fc8db505df50fabb31fbf941acaf6f4551337ff9a1365125d6e63",
+      "bytes": 1905
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/capture-receipt-clock-v1/checkpoint.json",
+      "sha256": "cf9bb0fa5119c2c05b9afbc22b539e0245839dfe4680c5b49753c9a864184400",
+      "bytes": 12597
+    }
+  ]
+}

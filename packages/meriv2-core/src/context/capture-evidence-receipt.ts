@@ -97,6 +97,17 @@ export interface MeriCaptureClockInvocation {
   httpStatus: number | null;
   responseSha256: string | null;
   packets: MeriCaptureCompilerPacket[];
+  /** Observed from the actual raw own-proposal HTTP response, never model text. */
+  proposalRead?: {
+    authority: 'own_pending_proposals';
+    tenantId: string;
+    actorUserId: string;
+    clientId: string;
+    semanticTime: 'not_used';
+    compiler: 'not_run';
+    claimsAreApprovedFacts: false;
+    coverage: 'complete' | 'empty' | 'partial';
+  };
 }
 
 export interface MeriCaptureClockApiJoin {
@@ -249,7 +260,7 @@ export function meriCaptureClockExecutionBlockers(
     !/^[a-f0-9]{64}$/.test(prompt.value.groundingSha256))
     failures.add('semantic_clock_prompt_unproved');
   if (!Array.isArray(invocations)) return [...failures, 'semantic_clock_invocations_unproved'];
-  const allowed = receipt.caseId === '01' || receipt.caseId === '14' ? ['search_memory']
+  const allowed = receipt.caseId === '01' || receipt.caseId === '14' ? ['search_memory', 'list_memory_proposals']
     : receipt.caseId === '20' ? ['search_program_elements', 'get_program_element', 'get_pe_budget_timeline']
     : receipt.caseId === '72' ? ['read_client_documents'] : [];
   if (!allowed.length) failures.add('semantic_clock_case_not_admitted');
@@ -277,6 +288,8 @@ export function meriCaptureClockExecutionBlockers(
       !(expectedUnavailable ? ['failed', 'unavailable'] : ['complete', 'empty', 'partial']).includes(call.status))
       failures.add('semantic_clock_invocation_join_unproved');
     seen.add(attempt.callId);
+    if (attempt.tool !== 'list_memory_proposals' && attempt.proposalRead !== undefined)
+      failures.add('semantic_clock_proposal_read_unproved');
     if (attempt.tool === 'search_memory') {
       if (!Array.isArray(attempt.packets) || !attempt.packets.length || attempt.packets.length > 2)
         failures.add('semantic_clock_tool_packets_unproved');
@@ -286,6 +299,32 @@ export function meriCaptureClockExecutionBlockers(
         if (packet?.packetId) packets.add(packet.packetId);
       }
       if (controlled.length) failures.add('semantic_clock_unexpected_controlled_read');
+    } else if (attempt.tool === 'list_memory_proposals') {
+      const proof = attempt.proposalRead;
+      if (
+        !proof ||
+        proof.authority !== 'own_pending_proposals' ||
+        proof.tenantId !== receipt.tenantId ||
+        proof.actorUserId !== receipt.actorUserId ||
+        typeof receipt.clientId !== 'string' ||
+        !receipt.clientId.trim() ||
+        proof.clientId !== receipt.clientId ||
+        proof.semanticTime !== 'not_used' ||
+        proof.compiler !== 'not_run' ||
+        proof.claimsAreApprovedFacts !== false ||
+        !['complete', 'empty'].includes(proof.coverage) ||
+        // The generic logical observer calls an empty `candidates` page complete;
+        // only the actual proposal response establishes that its owned queue is empty.
+        (proof.coverage === 'empty'
+          ? !['complete', 'empty'].includes(call?.status ?? '')
+          : proof.coverage !== call?.status) ||
+        attempt.packets.length !== 0 ||
+        controlled.length !== 0 ||
+        !Array.isArray(call?.sourceIds) ||
+        call.sourceIds.length !== 0 ||
+        receipt.sources.some((source) => source.toolCallId === attempt.callId)
+      )
+        failures.add('semantic_clock_proposal_read_unproved');
     } else {
       const row = controlled[0];
       if (attempt.packets?.length !== 0 || controlled.length !== 1 || !row ||
@@ -368,7 +407,9 @@ export function meriCaptureReceiptBlockers(
         budget.maxCostMicros,
       ].every((value) => Number.isSafeInteger(value) && value >= 0) ||
       budget.maxCostMicros <= 0 ||
-      budget.maxCostMicros > 3_000_000 ||
+      // Match the existing original-readonly admission maximum; the API owner
+      // supplies and rechecks the exact qualified ledger limit.
+      budget.maxCostMicros > 15_000_000 ||
       budget.chargedCostMicros > budget.maxCostMicros
     )
       blockers.add('provider_budget_malformed');

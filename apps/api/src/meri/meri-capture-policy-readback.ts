@@ -196,6 +196,7 @@ export async function authorizeMeriCaptureMessageReadback(args: {
     if (
       receipt.providerBudget.ledgerSha256 !== captureBudgetHash(state) ||
       receipt.providerBudget.admissionId !== state.admissionId ||
+      receipt.providerBudget.maxCostMicros !== state.ledger.limits.maxCostMicros ||
       receipt.providerBudget.turnId !== policy.turnId
     )
       denied();

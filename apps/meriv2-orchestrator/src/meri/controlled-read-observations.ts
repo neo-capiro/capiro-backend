@@ -1,5 +1,9 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { createHash } from 'node:crypto';
+import {
+  classifyApiToolReadOutcome,
+  type MeriPendingMemoryProposalRead,
+} from '@capiro/shared/meri-read-outcome';
 import type {
   MeriServerReadonlyCapturePolicy,
   MeriControlledReadAttempt,
@@ -117,6 +121,39 @@ export function observeCaptureClockHttpResponse(
     )
       throw new Error('Capture clock compiler packets missing.');
     row.packets = structuredClone(value.contextPackets);
+  } else if (tool === 'list_memory_proposals') {
+    const value = payload as MeriPendingMemoryProposalRead | null;
+    const outcome = classifyApiToolReadOutcome(tool, payload);
+    if (
+      !['01', '14'].includes(policy.caseId ?? '') ||
+      status !== 200 ||
+      !value ||
+      typeof value !== 'object' ||
+      value.scope?.tenantId !== policy.tenantId ||
+      value.scope?.userId !== policy.actorUserId ||
+      typeof policy.clientId !== 'string' ||
+      !policy.clientId.trim() ||
+      value.scope?.clientId !== policy.clientId ||
+      !outcome ||
+      !['complete', 'empty', 'partial'].includes(outcome.kind) ||
+      ['contextPacket', 'contextPackets', 'records', 'sources', 'citations'].some(
+        (key) => key in value,
+      )
+    )
+      throw new Error('Capture clock proposal read unproved.');
+    // This fixed owner reads the proposer queue without a compiler or relative
+    // event-time window. Retain actual raw HTTP coverage, including partials;
+    // the final join must still reject an incomplete proposal read.
+    row.proposalRead = {
+      authority: 'own_pending_proposals',
+      tenantId: value.scope.tenantId,
+      actorUserId: value.scope.userId,
+      clientId: policy.clientId,
+      semanticTime: 'not_used',
+      compiler: 'not_run',
+      claimsAreApprovedFacts: false,
+      coverage: outcome.kind as 'complete' | 'empty' | 'partial',
+    };
   }
 }
 
