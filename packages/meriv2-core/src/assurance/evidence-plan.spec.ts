@@ -114,6 +114,11 @@ describe('operational status is not legislative status', () => {
     'What is the status of my upload?',
     'The database query failed. Explain the error.',
     'Read-only: did the API request work? Report whether the connection failed.',
+    'A failed search is unknown, not zero.',
+    'Report the failed mailbox lookup.',
+    'Explain the failed API request.',
+    'Report the failed query’s status.',
+    'C1 verification, read only: Search my own connected mailbox exactly once for the literal text "c1zero20261002xqv9173". Return only the matching-message count and any actual search or coverage limitation; omit message contents, addresses, and subjects. Do not retry, broaden the query, or change anything. A failed search is unknown, not zero.',
   ])('does not schedule legislative evidence for %s', (request) => {
     expect(inferClaimCategories(request)).not.toContain('bill_status');
     expect(plan(request).requiredRequirementIds).not.toContain('bill-status.official-status');
@@ -126,8 +131,49 @@ describe('operational status is not legislative status', () => {
     'The search failed. Verify whether the bill passed.',
     'What is the status of SB123? The lookup failed.',
     'The server failed, but is the measure still alive?',
+    'After the failed search, verify whether H.R. 123 passed.',
+    'The failed mailbox lookup does not tell us the bill status.',
   ])('retains actual or unresolved legislative evidence for %s', (request) => {
     expect(inferClaimCategories(request)).toContain('bill_status');
+  });
+});
+
+describe('budget deltas require financial context', () => {
+  it.each([
+    'Should we contact Office Delta for Aster?',
+    'Draft an outreach question for Office Delta about what changed from the prior version and how it compares with our current priorities.',
+    'Explain the increase in response rates and the difference between the two outreach approaches.',
+    'Compare the changes from the first software release versus the second.',
+    'We need to cut the ribbon after the renovation. What time should we invite the team?',
+    'Describe the actual cuts in the final film.',
+    'Send Office Delta the budget.',
+    'Discuss the funding request with Project Delta.',
+    'Compare the formats of these budget documents.',
+  ])('does not require budget-comparison evidence for nonfinancial requests: %s', (request) => {
+    expect(inferClaimCategories(request)).not.toContain('budget_delta');
+    expect(plan(request).requiredRequirementIds).not.toContain('budget-delta.comparable-positions');
+  });
+
+  it.each([
+    'What was the delta in the budget between the two proposals?',
+    'How did funding increase from FY2025 to FY2026?',
+    'Compare the dollar decrease for Program Element PE0601234 across fiscal years.',
+    "Compare the President's request versus the congressional mark for this program.",
+    'What actual cuts and plus-ups were made to the program element?',
+    'What is the increase for PE0602712F?',
+    'What is the increase for 0602712F?',
+    'What is the increase in federal spending?',
+    'What is the difference between appropriated and obligated amounts?',
+    'What is the difference in outlays between the two years?',
+    'What is the difference between the request and the Senate mark?',
+    'What changed from FY-2025 to FY-2026?',
+    'FY2025 vs. FY2026.',
+    'FY2025 vs FY2026.',
+    'What is the budget delta for Office Delta?',
+    'How much were appropriations decreased?',
+  ])('requires comparable financial positions for %s', (request) => {
+    expect(inferClaimCategories(request)).toContain('budget_delta');
+    expect(plan(request).requiredRequirementIds).toContain('budget-delta.comparable-positions');
   });
 });
 

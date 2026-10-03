@@ -43,6 +43,19 @@ describe('response formatting through Meri evidence finalization', () => {
     expect(finalizeWithoutReads(request, reply)).toBe(reply);
   });
 
+  it('does not add a financial warning for a named outreach target', () => {
+    const request = 'Should we contact Office Delta for Aster?';
+    const reply =
+      'The available approved guidance does not establish that outreach recommendation.';
+    expect(finalizeWithoutReads(request, reply)).toBe(reply);
+  });
+
+  it('preserves missing evidence for an actual financial comparison', () => {
+    expect(finalizeWithoutReads('What is the FY2026 funding delta?', 'Unknown.')).toContain(
+      'Evidence limitation',
+    );
+  });
+
   it('preserves the exact arithmetic diagnostic without a coverage disclaimer', () => {
     const request =
       'Diagnostic check: reply with only 4 for 2 + 2. Do not search, use tools, create tasks, save or propose memories, or send any messages.';
@@ -228,10 +241,36 @@ describe('observed operational reads through evidence finalization', () => {
         toolSchemas: [
           { name: 'query_tasks', readOnly: true, input_schema: { properties: {} } },
           { name: 'search_emails', readOnly: true, input_schema: { properties: {} } },
+          {
+            name: 'get_bill_status',
+            readOnly: true,
+            input_schema: { properties: { billId: { type: 'string' } }, required: ['billId'] },
+          },
+          { name: 'search_floor_votes', readOnly: true, input_schema: { properties: {} } },
         ],
       }),
     };
   }
+
+  it('keeps the real mailbox failure without a legislative follow-up or footer', () => {
+    const request =
+      'C1 verification, read only: Search my own connected mailbox exactly once for the literal text "c1zero20261002xqv9173". Return only the matching-message count and any actual search or coverage limitation; omit message contents, addresses, and subjects. Do not retry, broaden the query, or change anything. A failed search is unknown, not zero.';
+    const reply =
+      'Matching-message count: unknown. Mail search failed with 503 Service Unavailable, so coverage could not be verified.';
+    const result = finalize(
+      request,
+      'search_emails',
+      { error: 'Mail search is temporarily busy. Please retry.', statusCode: 503 },
+      reply,
+    );
+    expect(result.requirements.some((item) => item.requirementId.startsWith('bill-status.'))).toBe(
+      false,
+    );
+    expect(result.followUp).toBeNull();
+    expect(result.gap?.status).toBe('extraction_failed');
+    expect(result.reply.startsWith(reply)).toBe(true);
+    expect(result.reply).not.toMatch(/bill or rule status|fiscal year/);
+  });
 
   it('accepts explicit complete empty canonical task coverage and keeps the count unchanged', () => {
     const result = finalize(

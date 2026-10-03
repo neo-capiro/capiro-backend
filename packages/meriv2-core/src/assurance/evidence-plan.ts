@@ -416,6 +416,9 @@ export function inferClaimCategories(request: string): ClaimCategory[] {
   const operationalStatus =
     /\b(?:search(?:_[a-z]+)?|lookup|quer(?:y|ies)|sync|upload|download|connection|tasks?|jobs?|tools?|api|server)\s+(?:(?:has|have|had|is|are|was|were|did|does|do|will|can|may|might|not)\s+)*(?:status|fail(?:ed|s)?|pass(?:ed|es)?|dead|alive)\b|\bstatus\s+(?:of|for)\s+(?:(?:the|my|our|this|that)\s+)?(?:search|lookup|query|sync|upload|download|connection|tasks?|jobs?|tools?|api|server)\b/i.test(
       text,
+    ) ||
+    /\b(?:failed|failing|passed|dead|live)\s+(?:(?:mailbox|mail|email|database|api|native)\s+)?(?:search(?:_[a-z]+)?|lookup|quer(?:y|ies)|sync|upload|download|connection|requests?|tasks?|jobs?|tools?|server)\b/i.test(
+      text,
     );
   addIf(
     categories,
@@ -442,11 +445,23 @@ export function inferClaimCategories(request: string): ClaimCategory[] {
     /(?:\$|\bdollars?\b|\bamount\b|\bfunding\b|\bbudget\b|\brequest\b|\bmark\b)/i.test(text),
     'budget_amount',
   );
+  const financialComparisonContext =
+    /(?:\$|\b(?:dollars?|currency|budgets?|fund(?:ing|s)?|appropriat(?:ions?|ed|ing)|obligat(?:ions?|ed|ing)|outlays?|spending|expenditures?|revenues?|costs?|prices?|expenses?|financial|fiscal(?:\s+year)?|fy[\s-]?\d{2,4}|program\s+elements?|pe\s?\d{6,8}[a-z]?|\d{7}[a-z]|(?:house|senate|congressional)\s+mark|president(?:['’]s)?\s+request)\b)/i.test(
+      text,
+    );
+  // A named office or project is not a comparison, even when its outreach
+  // concerns a budget. Keep an actual delta elsewhere in the same request.
+  const comparisonText = text.replace(
+    /\b(?:office|team|project|operation|company|organization)\s+delta\b/gi,
+    '',
+  );
   addIf(
     categories,
-    /\b(?:delta|increase|decrease|cut|plus-?up|difference|change[sd]?\s+from|versus|vs\.)\b/i.test(
-      text,
-    ),
+    (financialComparisonContext &&
+      /\b(?:deltas?|increas(?:e[sd]?|ing)|decreas(?:e[sd]?|ing)|cuts?|cutting|differences?|change[sd]?\s+from|versus|vs)\b/i.test(
+        comparisonText,
+      )) ||
+      /\bplus[- ]?ups?\b/i.test(comparisonText),
     'budget_delta',
   );
   addIf(
