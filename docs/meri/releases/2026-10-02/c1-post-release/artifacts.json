@@ -111,6 +111,10 @@
     "sha256": "6d919aeebdee0a48e70bc52a0c2d6bae31a8edd9621338ca9f97c0a85f582a36",
     "bytes": 6613
   },
+  "mail-defaults-release-preparation.json": {
+    "sha256": "606cc1cb828be6f9c89da1983db795d8a7ef3f971e8c71ab619be738561ea597",
+    "bytes": 1030
+  },
   "mail-defaults.buildspec.yml": {
     "sha256": "f923955798bd5bbf28245093d7ad9a04fa67d1161a6d1ca780a5b2b9551de5be",
     "bytes": 11664
@@ -122,6 +126,10 @@
   "mail-list-body-diagnostic.mjs.txt": {
     "sha256": "8eb430c8d624bc418a0f07d3be1ccbb6cf4f511f858798ac900a1befade00d05",
     "bytes": 1297
+  },
+  "MAIL-LIST-RELEASE-REVIEW.md": {
+    "sha256": "d7abb78bc1c01d34287622378d119aea3f4b503f7094092daea0b48535d503d5",
+    "bytes": 2906
   },
   "mail-list-waf-correlation.json": {
     "sha256": "39f02a1e5b2db27a2388a0cfdd98014e37d29834082f67b03a281cda0b15bb8d",
@@ -143,6 +151,14 @@
     "sha256": "2f961027a92fefaf5ee82cdd23b9d87c34cd828fd989517892b40603f9598481",
     "bytes": 1114
   },
+  "orchestrator-mail-defaults-manifest.json": {
+    "sha256": "62a41fbd786f9bfd4b86d4b04b35d1f1b9cdba3d05f81d13badf76f8ac78164e",
+    "bytes": 3312
+  },
+  "orchestrator-mail-defaults-qualification.json": {
+    "sha256": "400cc16129eb8f99442e042ad3a9582bbf358156c75cdbffbae4eccc1d19bf06",
+    "bytes": 2522
+  },
   "owner-release-approval.json": {
     "sha256": "50a19472d149f588e8a338770eeb747a171a06971a4f8040018bebe03593c478",
     "bytes": 847
@@ -156,7 +172,7 @@
     "bytes": 79879
   },
   "README.md": {
-    "sha256": "b0839a90a2c90070b55c3879e9bb62c2fa36fcc018d5f1053609e4b7df9da62d",
-    "bytes": 6042
+    "sha256": "5dc3e23fd82e268a714c3f1440f7faf45a152583d511a89fc112fad2ec4ce7bd",
+    "bytes": 6175
   }
 }
