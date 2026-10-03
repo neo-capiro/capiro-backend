@@ -8,6 +8,7 @@ const { createHash, randomUUID } = require('node:crypto');
 const { createRequire } = require('node:module');
 const { performance } = require('node:perf_hooks');
 const repo = path.resolve(__dirname, '../../..');
+const qualify452 = process.argv.includes('--qualify-452') || process.env.MAIL_MESSAGE_INDEX_452 === '1';
 const requireApi = createRequire(path.join(repo, 'apps/api/package.json'));
 const { Client } = requireApi('pg');
 const { Prisma } = requireApi('@prisma/client');
@@ -45,7 +46,13 @@ const migrationPath = path.join(
   'apps/api/prisma/migrations/20281006010000_mail_threads_owned_connection_covering/migration.sql',
 );
 const migration = fs.readFileSync(migrationPath, 'utf8');
-assert.ok(!migration.includes('\r'), 'Migration must be LF-exact');
+assert.equal(migration.includes(String.fromCharCode(13)), false, 'Migration must be LF-exact');
+const messageMigrationPath = path.join(
+  repo,
+  'apps/api/prisma/migrations/20281007010000_mail_messages_owned_connection_active/migration.sql',
+);
+const messageMigration = qualify452 ? fs.readFileSync(messageMigrationPath, 'utf8') : null;
+if (qualify452) assert.equal(messageMigration.includes(String.fromCharCode(13)), false, 'Message migration must be LF-exact');
 const cfg = JSON.parse(fs.readFileSync(process.env.MERI_APPROVED_MEMORY_PG_CONFIG, 'utf8'));
 assert.equal(cfg.host, '127.0.0.1');
 assert.equal(cfg.port, 55433);
@@ -223,6 +230,9 @@ async function main() {
       UPDATE mail_messages SET bcc_recipients_jsonb='[{"name":"bcc-only"}]' WHERE id=md5('message9')::uuid;
       INSERT INTO mail_messages SELECT '${uuid(50)}',tenant_id,connection_id,thread_id,subject,from_email,from_name,to_recipients_jsonb,cc_recipients_jsonb,bcc_recipients_jsonb,sent_at,received_at,body_text,has_attachments,removed_at,metadata_jsonb,created_at,updated_at FROM mail_messages WHERE id=md5('message1')::uuid;
       INSERT INTO mail_messages SELECT '${uuid(51)}',tenant_id,connection_id,thread_id,subject,from_email,from_name,to_recipients_jsonb,cc_recipients_jsonb,bcc_recipients_jsonb,sent_at,received_at,body_text,has_attachments,removed_at,jsonb_set(metadata_jsonb,'{internetMessageId}','"later"'),'2026-09-08',updated_at FROM mail_messages WHERE id=md5('message1')::uuid`);
+    if (qualify452)
+      await db.query(`UPDATE mail_messages SET subject='Removed Needle',removed_at='2026-09-06' WHERE id=md5('message10')::uuid;
+        UPDATE mail_messages SET body_text=repeat('bounded-large-body ',2048) WHERE id=md5('message12')::uuid`);
     const historical = fs.readFileSync(
       path.join(
         repo,
@@ -382,11 +392,128 @@ async function main() {
         assert.equal(crossed, 0);
       },
     );
+    let messageIndexPlan, messageMigrationMs;
+    if (qualify452) {
+      const removedProbe = await queryMailMessages(prisma, ctx, { query: 'Removed Needle', asOf });
+      const largeBodyProbe = await queryMailMessages(prisma, ctx, {
+        query: 'bounded-large-body',
+        asOf,
+      });
+      await check('active-owner fixture includes removed-row and bounded large-body probes', async () => {
+        const removed = await scope(async () =>
+          (await db.query("SELECT removed_at IS NOT NULL AS removed FROM mail_messages WHERE id=md5('message10')::uuid")).rows[0],
+        );
+        assert.deepEqual(removed, { removed: true });
+        assert.equal(removedProbe.totalMatches, 0);
+        assert.equal(largeBodyProbe.totalMatches, 1);
+        assert.equal(largeBodyProbe.returned, 1);
+      });
+      await check('actual conflicting writer causes bounded message-index lock refusal with no index left behind', async () => {
+        const blocker = new Client({
+          host: cfg.host,
+          port: cfg.port,
+          user: cfg.user,
+          password: cfg.password,
+          database: cfg.database,
+          connectionTimeoutMillis: 3000,
+        });
+        try {
+          await blocker.connect();
+          await blocker.query('BEGIN');
+          await blocker.query(`LOCK TABLE ${schema}.mail_messages IN ROW EXCLUSIVE MODE`);
+          const started = performance.now();
+          let failure;
+          try {
+            await db.query(messageMigration);
+          } catch (e) {
+            failure = e;
+          }
+          const elapsed = performance.now() - started;
+          await db.query('ROLLBACK');
+          assert.equal(failure?.code, '55P03');
+          assert.ok(elapsed >= 4500 && elapsed < 8000);
+          assert.equal(
+            (await db.query("SELECT to_regclass('mail_messages_tenant_connection_active_idx') AS relation")).rows[0].relation,
+            null,
+          );
+          assert.equal((await db.query('SHOW lock_timeout')).rows[0].lock_timeout, '0');
+        } finally {
+          await blocker.query('ROLLBACK').catch(() => {});
+          await blocker.end();
+        }
+      });
+      await check('exact 452 migration creates the valid active-owner btree index and predicate', async () => {
+        const started = performance.now();
+        await db.query(messageMigration);
+        messageMigrationMs = performance.now() - started;
+        const catalog = (
+          await db.query(
+            `SELECT i.indisvalid,i.indisready,i.indnkeyatts,i.indnatts,am.amname,pg_get_indexdef(i.indexrelid) AS definition,pg_get_expr(i.indpred,i.indrelid) AS predicate
+             FROM pg_index i JOIN pg_class x ON x.oid=i.indexrelid JOIN pg_am am ON am.oid=x.relam
+             WHERE x.relnamespace=$1::regnamespace AND x.relname='mail_messages_tenant_connection_active_idx'`,
+            [schema],
+          )
+        ).rows[0];
+        assert.deepEqual(
+          {
+            indisvalid: catalog.indisvalid,
+            indisready: catalog.indisready,
+            indnkeyatts: catalog.indnkeyatts,
+            indnatts: catalog.indnatts,
+            amname: catalog.amname,
+            predicate: catalog.predicate,
+          },
+          {
+            indisvalid: true,
+            indisready: true,
+            indnkeyatts: 2,
+            indnatts: 2,
+            amname: 'btree',
+            predicate: '(removed_at IS NULL)',
+          },
+        );
+        assert.ok(catalog.definition.includes('USING btree (tenant_id, connection_id)'));
+        assert.ok(catalog.definition.endsWith('WHERE (removed_at IS NULL)'));
+        assert.equal((await db.query('SHOW lock_timeout')).rows[0].lock_timeout, '0');
+      });
+      await db.query('ANALYZE mail_messages');
+      const after452 = await runScenarios();
+      const removedAfter452 = await queryMailMessages(prisma, ctx, { query: 'Removed Needle', asOf });
+      const largeBodyAfter452 = await queryMailMessages(prisma, ctx, {
+        query: 'bounded-large-body',
+        asOf,
+      });
+      messageIndexPlan = await explain(count);
+      await check('active-owner partial index is selected in the representative count plan', async () => {
+        assert.ok(
+          messageIndexPlan.nodes.some(
+            (n) => n.index === 'mail_messages_tenant_connection_active_idx' && n.node === 'Bitmap Index Scan',
+          ),
+          JSON.stringify(messageIndexPlan.nodes),
+        );
+      });
+      await check('452 preserves all ten source scenarios, removed-row exclusion, and large-body owned search', async () => {
+        assert.deepEqual(after452, after);
+        assert.deepEqual(removedAfter452, removedProbe);
+        assert.deepEqual(largeBodyAfter452, largeBodyProbe);
+        assert.equal(removedAfter452.totalMatches, 0);
+        assert.equal(largeBodyAfter452.totalMatches, 1);
+      });
+    }
     const report = {
+      qualificationMode: qualify452 ? '452' : '451-default',
       status: 'PASS',
       checks,
       sourceHashes: hashes,
       migrationSha256: hash(migration),
+      ...(qualify452
+        ? {
+            messageMigrationSha256: hash(messageMigration),
+            messageMigrationMs,
+            messageIndexPlan,
+            resultScenariosUnchanged: true,
+          }
+        : {}),
       fixtureThreads: 100000,
       fixtureMessages: 100002,
       migrationMs,
@@ -395,7 +522,7 @@ async function main() {
       awsCalls: 0,
       sharedDatabaseCalls: 0,
       limits: [
-        'Owned local warm-cache fixture; live cold-I/O latency not measured.',
+        'Owned local warm-cache execution timings are diagnostic only; no production or cold-I/O latency claim.',
         'No production EXPLAIN or query executed by this script.',
         'No GIN, leakproof declaration, policy change or search semantic change.',
       ],
