@@ -1,6 +1,6 @@
 # C1 mailbox index qualification
 
-Source `e1d045d4abe4a7835cb9284508cd287cf1d34d3b` adds one partial btree on active mail messages by tenant and connection. It preserves search SQL, permissions, RLS, timeouts and result semantics. Status: locally qualified; packaged candidate, forward migration and served mailbox verification remain pending.
+Source `e1d045d4abe4a7835cb9284508cd287cf1d34d3b` adds one partial btree on active mail messages by tenant and connection. It preserves search SQL, permissions, RLS, timeouts and result semantics. Status: merged and qualified; the immutable migration image is verified. Explicit release approval, forward migration and served mailbox verification remain pending. [Release review](RELEASE-REVIEW.md), [image readback](api-build-readback.json) and [operator review](operator-review.json).
 
 [Qualification](qualification.json) records 11 real PostgreSQL checks, known and zero results, pagination, Unicode and literal search, tenant/owner separation, removed rows, large bodies, and actual lock refusal with no leftover index. The new path reduced the warm local count-plan buffers from 4,014 to 143; this does not establish production latency or repair the live503 by itself.
 

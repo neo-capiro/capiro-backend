@@ -1,0 +1,23 @@
+{
+  "observedAt": "2026-10-03T04:24:49.4092100Z",
+  "scope": "Only task-owned local C1 database processes were stopped; data and rehearsal evidence retained.",
+  "nativePostgres": {
+    "dataDirectory": "C:/dev/main/outputs/meri-c1-20261002/private/pgdata",
+    "observedPidBeforeStop": 42036,
+    "port": 55433,
+    "stopMode": "fast",
+    "exitCode": 0,
+    "status": "stopped"
+  },
+  "dockerPostgres": {
+    "name": "meri-c1-pgvector-linux-20261002",
+    "containerId": "9061ff0d4e48aaef26cbe820d486125f5943bb66d563a4050af6b1b8a5c24bdc",
+    "ownershipLabelVerified": "capiro.task=meri-c1-20261002",
+    "exitCode": 0,
+    "status": "exited",
+    "namedVolumeRetained": "meri-c1-pgvector-linux-20261002"
+  },
+  "existingUserContainerTouched": false,
+  "awsMutations": 0,
+  "credentialsPersisted": false
+}

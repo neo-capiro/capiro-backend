@@ -1797,6 +1797,22 @@
       "sourceProvenanceChanged": false,
       "newProviderCalls": 0,
       "schemaMutations": 0
+    },
+    {
+      "date": "2026-10-03",
+      "kind": "c1_qualification_release_pending",
+      "classificationSourceSha": "130824b6c0561069c472b2eb93a0b7cef9217f0e",
+      "mailIndexSourceSha": "e1d045d4abe4a7835cb9284508cd287cf1d34d3b",
+      "evidence": "docs/meri/releases/2026-10-02/c1-mail-index/RELEASE-REVIEW.md",
+      "c0Exit": "PASS_WITH_EXPLICIT_FIXTURE_BLOCKERS",
+      "c1Implementation": "MERGED_QUALIFIED",
+      "c1ProductionSteps": "OWNER_APPROVAL_PENDING",
+      "c1ServedAcceptance": "NOT_RUN",
+      "servedApiPackagedMigrations": 451,
+      "candidatePackagedMigrations": 452,
+      "newMigrationAppliedToProduction": false,
+      "sourceProvenanceChanged": false,
+      "historicalJournalChanged": false
     }
   ]
 }
