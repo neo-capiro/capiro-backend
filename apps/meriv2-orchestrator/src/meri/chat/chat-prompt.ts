@@ -6,6 +6,7 @@ import {
   meriGroundingSurfaceBlock,
   meriGroundingDateBlock,
   planModeSteering,
+  resolveMeriGovernedSemanticClock,
   type IntentClassification,
   type MeriContext,
 } from '@capiro/meriv2-core';
@@ -13,6 +14,8 @@ import type { MeriCitation } from '@capiro/shared';
 import { flattenSystemParts, type SystemPromptParts } from '../prompt-cache.helpers.js';
 import { MERI_CLIENT_FILING_INSTRUCTIONS } from './client-filing-confirmation.js';
 import { resolveChatDateGrounding } from './chat-date-grounding.js';
+import { createHash } from 'node:crypto';
+import { currentGovernedMeriContext, recordMeriPromptClockUse } from '../meri-governed-context.runtime.js';
 
 /**
  * Full Meri chat (Workstream C4) — pure prompt/label logic, kept dependency-light
@@ -429,9 +432,17 @@ export function composeChatSystemPrompt(
   // Grounding date block FIRST in the dynamic (uncached) tail — it changes
   // daily, so it must never sit in the cached base (would bust the prefix
   // cache). Closes the <meri_grounding> element opened in the base.
-  const now = new Date();
+  const governed = currentGovernedMeriContext();
+  const clock = governed ? resolveMeriGovernedSemanticClock(governed) : undefined;
+  const now = clock ? new Date(clock.instant) : new Date();
+  const timeZone = clock?.timeZone ?? dto.timeZone;
+  const dateGrounding = buildChatDateGrounding(timeZone, now);
+  if (clock) recordMeriPromptClockUse({
+    instant: now.toISOString(), ...resolveChatDateGrounding(timeZone, now),
+    renderedAt: Date.now(), groundingSha256: createHash('sha256').update(dateGrounding).digest('hex'),
+  });
   const dynamic = [
-    buildChatDateGrounding(dto.timeZone, now),
+    dateGrounding,
     dto.conversationId
       ? `\nThe current conversation id is: ${dto.conversationId}. Use this exact value for any tool's conversationId parameter — it is already resolved and must never be asked of the user.`
       : '',

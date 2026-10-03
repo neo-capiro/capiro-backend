@@ -1,0 +1,285 @@
+{
+  "version": 1,
+  "stage": "C1_FROZEN_INCOMPLETE_NOT_RELEASE_READY",
+  "recordedAt": "2026-10-03T16:19:25.4866202Z",
+  "previousSnapshot": "stage-b-v2-checkpoint.json",
+  "previousSnapshotSha256": "b57586f9ed3b589e8c320fe71101b0ba28666b644057601e0609c4dc792cdd7a",
+  "changedFiles": [
+    "apps/api/src/context/context-compiler.service.ts",
+    "apps/api/src/context/context-compiler-v2.service.spec.ts",
+    "apps/api/src/meri/meri-context-plane.service.ts",
+    "apps/api/src/meri/meri-context-plane.tools.spec.ts",
+    "apps/api/src/meri/meri-data-search.helpers.ts",
+    "apps/api/src/meri/meri-tools.service.ts",
+    "apps/api/src/meri/meri-tools.registration.spec.ts"
+  ],
+  "productionFiles": 4,
+  "testFiles": 3,
+  "files": [
+    {
+      "path": "apps/api/src/context/context-compiler-v2.service.spec.ts",
+      "kind": "test",
+      "stageC1Changed": true,
+      "sha256": "12dbc909a13be25f16b30ca9f122677d5e4ee3b6439881540de88bf71de25444",
+      "bytes": 14170
+    },
+    {
+      "path": "apps/api/src/context/context-compiler.service.ts",
+      "kind": "production",
+      "stageC1Changed": true,
+      "sha256": "82eaa0e1b012602217ba2c054a63b949cd9c016e6549d675b8cdad3c4a8ba7c2",
+      "bytes": 11047
+    },
+    {
+      "path": "apps/api/src/meri/meri-capture-policy-readback.ts",
+      "kind": "production",
+      "stageC1Changed": false,
+      "sha256": "57e060fddfdf641c346f4a35395ec86459c87161d0b4804042e72727b8bfe758",
+      "bytes": 7700
+    },
+    {
+      "path": "apps/api/src/meri/meri-capture-semantic-clock.spec.ts",
+      "kind": "test",
+      "stageC1Changed": false,
+      "sha256": "da9f10d763d3dda9529b06ac6fc520b7fc2bc08e7c60cbb9ae93b7e3ac6b9a28",
+      "bytes": 3525
+    },
+    {
+      "path": "apps/api/src/meri/meri-capture-semantic-clock.ts",
+      "kind": "production",
+      "stageC1Changed": false,
+      "sha256": "163367b5e73a189023057be4e9642c74903a762b1089bbbd9676ff77e82fa907",
+      "bytes": 3852
+    },
+    {
+      "path": "apps/api/src/meri/meri-case01-capture-authority.ts",
+      "kind": "production",
+      "stageC1Changed": false,
+      "sha256": "c573122dab6c1800c6190f8d187aae7515cadeb137783775658f3be17bc76ffc",
+      "bytes": 9612
+    },
+    {
+      "path": "apps/api/src/meri/meri-context-plane-runtime.ts",
+      "kind": "production",
+      "stageC1Changed": false,
+      "sha256": "0f63ef56f80f013b750c46902a2213a6e856d3706511456624f55aefbe85239e",
+      "bytes": 11559
+    },
+    {
+      "path": "apps/api/src/meri/meri-context-plane.service.spec.ts",
+      "kind": "test",
+      "stageC1Changed": false,
+      "sha256": "da12768ca31b79360876726f4d4757cdecf37d959a966b5d344376211ca0685f",
+      "bytes": 22800
+    },
+    {
+      "path": "apps/api/src/meri/meri-context-plane.service.ts",
+      "kind": "production",
+      "stageC1Changed": true,
+      "sha256": "74d0e4aa13b5c2806b729d532a3faae962a12bfa58572cc0490c47d72b14e6cf",
+      "bytes": 53363
+    },
+    {
+      "path": "apps/api/src/meri/meri-context-plane.tools.spec.ts",
+      "kind": "test",
+      "stageC1Changed": true,
+      "sha256": "7a84cafbfdef79575a33f094f895d1d7466d29df72d210f1b08b62ab65ce9cf0",
+      "bytes": 20050
+    },
+    {
+      "path": "apps/api/src/meri/meri-data-search.helpers.ts",
+      "kind": "production",
+      "stageC1Changed": true,
+      "sha256": "2828abbc2ff6315e8a6898108e0e40a6e71bbf88c19a81ed9f2e640abc74ed03",
+      "bytes": 5824
+    },
+    {
+      "path": "apps/api/src/meri/meri-server-capture-evidence.ts",
+      "kind": "production",
+      "stageC1Changed": false,
+      "sha256": "2fa95657d16ed7e88d4d8edb0b59c8ac39bbd63f045e13f1b7b343e730d0c377",
+      "bytes": 10159
+    },
+    {
+      "path": "apps/api/src/meri/meri-server-readonly-capture.spec.ts",
+      "kind": "test",
+      "stageC1Changed": false,
+      "sha256": "31247fd9118c1b35bedbed4c4e1cb2286e4f9d6dac1ee3d351cb0ef4b20a00e3",
+      "bytes": 47390
+    },
+    {
+      "path": "apps/api/src/meri/meri-tools.registration.spec.ts",
+      "kind": "test",
+      "stageC1Changed": true,
+      "sha256": "104516383419e004ef000dc4bbc4d22445519524c9955f291478017e1a9360b3",
+      "bytes": 40455
+    },
+    {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "kind": "production",
+      "stageC1Changed": true,
+      "sha256": "44e19f601f5997f76a99d14a599d1d6e06aae116b351203684587e72b34f2e86",
+      "bytes": 406624
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/chat/chat-prompt.spec.ts",
+      "kind": "test",
+      "stageC1Changed": false,
+      "sha256": "9a920c3e9960984813267f4af0a868ce6211d18a1505946eaf0f05f41876c010",
+      "bytes": 19355
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/chat/chat-prompt.ts",
+      "kind": "production",
+      "stageC1Changed": false,
+      "sha256": "7df20ebe9402fbcedf337fa274ee03129820b736143c60dcc08c718b4936f258",
+      "bytes": 36822
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meri-governed-context.runtime.ts",
+      "kind": "production",
+      "stageC1Changed": false,
+      "sha256": "5bebbafafa1da4186db3d11ea2b82a36bd7f588025d4c3733f80ffe25ea5f0ca",
+      "bytes": 1308
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts",
+      "kind": "production",
+      "stageC1Changed": false,
+      "sha256": "9ca087c009327a0d122dceac702f3e4f3e4d9b970d785523581a220a9452b9d1",
+      "bytes": 171801
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-capture-evidence.spec.ts",
+      "kind": "test",
+      "stageC1Changed": false,
+      "sha256": "295d39184f1122568b65f8f850a6f5b871cc56a0d77bebbfecd33bdba69393dd",
+      "bytes": 7775
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-capture-evidence.ts",
+      "kind": "production",
+      "stageC1Changed": false,
+      "sha256": "e20ca329a3691f830cdaaf39ad59cfdcb3aeedf4719c58936f628db699f89bd3",
+      "bytes": 10481
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3.types.ts",
+      "kind": "production",
+      "stageC1Changed": false,
+      "sha256": "8c74eeeab4d527cdfcf62484d2c52cc913f074dd6346d33e2b0e1f045638fc78",
+      "bytes": 6211
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/server-readonly-capture-dispatch.spec.ts",
+      "kind": "test",
+      "stageC1Changed": false,
+      "sha256": "9aa40fab59cbf69e9cc546441638e29d6656b55f648c0f801e5666de5c7cb321",
+      "bytes": 10204
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/request/trusted-current-turn-scope.ts",
+      "kind": "production",
+      "stageC1Changed": false,
+      "sha256": "60b4c10a62af06c3d95520fcfef7e4a923bb99315a8e6277517f9f1fa6ee0158",
+      "bytes": 4427
+    },
+    {
+      "path": "packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "kind": "production",
+      "stageC1Changed": false,
+      "sha256": "be61164bbaf83112adffda75678a928b432af26cd103a6ee951a913006e3145e",
+      "bytes": 14695
+    },
+    {
+      "path": "packages/meriv2-core/src/context/compiler-v2.spec.ts",
+      "kind": "test",
+      "stageC1Changed": false,
+      "sha256": "9fe332e53e04cdf072e15efa89d64a72707085cf6905455ec885549bc5e42bec",
+      "bytes": 24689
+    },
+    {
+      "path": "packages/meriv2-core/src/context/compiler.ts",
+      "kind": "production",
+      "stageC1Changed": false,
+      "sha256": "88be0fd953b812dcfde9dd4b2b85c38368caba396f81ec27fce1e751d7981a81",
+      "bytes": 27642
+    },
+    {
+      "path": "packages/meriv2-core/src/context/contract.ts",
+      "kind": "production",
+      "stageC1Changed": false,
+      "sha256": "ef7eb2a5addc16157c664c5be651ec9c7b3c3ed2b0cde9014036a0dd18909557",
+      "bytes": 11471
+    },
+    {
+      "path": "packages/meriv2-core/src/context/governed-evidence-auth.spec.ts",
+      "kind": "test",
+      "stageC1Changed": false,
+      "sha256": "494fcb9a1b86544d48614ca5934fa952f56ce058aa7968ded27d813415c8e562",
+      "bytes": 12984
+    },
+    {
+      "path": "packages/meriv2-core/src/context/governed-evidence-auth.ts",
+      "kind": "production",
+      "stageC1Changed": false,
+      "sha256": "299b190104db34e2a16fb16f79b68c37efde940c773634be8ecf375a43e8563d",
+      "bytes": 5277
+    },
+    {
+      "path": "packages/meriv2-core/src/context/semantic-clock.spec.ts",
+      "kind": "test",
+      "stageC1Changed": false,
+      "sha256": "68a50c50eb22cac8ad4d2c1f207811cb369c50519105eab7cf66c596c05383c7",
+      "bytes": 1286
+    },
+    {
+      "path": "packages/meriv2-core/src/context/server-readonly-capture.ts",
+      "kind": "production",
+      "stageC1Changed": false,
+      "sha256": "3d924a36100fb601bf943acbbb991f49bea37b91aec2d9dabf1e3c76f4f8ee3a",
+      "bytes": 8607
+    },
+    {
+      "path": "packages/meriv2-core/src/registry/types.ts",
+      "kind": "production",
+      "stageC1Changed": false,
+      "sha256": "a8061c3b5a1c941b2c95fd2e1b740e7ae1cc7f5b4a72253252e4cb5059928895",
+      "bytes": 9877
+    }
+  ],
+  "tests": [
+    {
+      "receipt": "stage-c1-core-build.receipt.json",
+      "result": "Local core build exit0 using reviewed StageB v2"
+    },
+    {
+      "receipt": "stage-c1-api-v1.receipt.json",
+      "result": "145 pass / 1 fixture-mode failure. All storage, data helper and initial context suites passed; V1 tool test incorrectly used enforce mode and was corrected to off."
+    },
+    {
+      "receipt": "stage-c1-api-v2.receipt.json",
+      "result": "55 pass / 0 skip across corrected tool compiler + registration suites; exit0"
+    }
+  ],
+  "evidence": [
+    "Production compiler adapter stores actual clockUse in context_packet.model_policy_jsonb.contextCompilerClockUse for V1/off, shadow and V2. Existing read-after-write checks exact parsed JSON equality.",
+    "Qualified clock requests fail closed if storage/readback failed, including off; ordinary persistence behavior unchanged.",
+    "Actual search_memory method forwards current admitted server policy separately from raw tool input. Current request/trace/turn IDs bind compiler packet refs. No new identities/signing/database schema.",
+    "Tool compiler receives fixed semantic now; explicit retrieval dates/cursors and availability remain unchanged. Returned contextPacket metadata contains actual compiler packetId/persisted/clockUse, not reconstructed policy proof."
+  ],
+  "limits": [
+    "Storage tests use the actual compiler adapter with JSON-roundtrip Prisma simulation. No actual PostgreSQL or served storage/readback was exercised.",
+    "Returned tool metadata can be omitted by later generic prompt-size projection; independent complete invocation/receipt joins remain unimplemented. Stored packet metadata is the bounded durable-owner path, not a completed receipt.",
+    "No new capture/tool admission; mail/task windows and cross-turn pagination remain unimplemented. Case46 persistence is a separate later slice.",
+    "Final receipts remain explicitly BLOCKED by semantic_clock_api_tool_join_pending; raw path and original served acceptance are not newly qualified.",
+    "No cloud/provider/browser/DB/fixture/doc/commit actions; no memory-source edits."
+  ],
+  "memorySourceCommit": "f00e5dfb4fd3e47ac6aa4aca741023cc02f6314f",
+  "memorySourceFilesUnchanged": 22,
+  "unchangedPriorClockFiles": 26,
+  "providerCalls": 0,
+  "remoteActions": 0,
+  "databaseActions": 0,
+  "commits": 0
+}

@@ -1,0 +1,206 @@
+FAIL src/context/governed-evidence-auth.spec.ts
+  authenticated governed evidence transport
+    √ round trips the exact API payload through JSON under the resolved identity (6 ms)
+    √ rejects altered prompt (15 ms)
+    √ rejects altered coverage (2 ms)
+    √ rejects altered payload
+    √ rejects altered packet
+    √ rejects an altered served-procedure version (1 ms)
+    √ rejects an altered served-procedure client (1 ms)
+    √ rejects an altered served-procedure policy
+    √ rejects an altered served-procedure tools (1 ms)
+    √ rejects replay in a changed request {"conversationId":"conversation-2"}
+    √ rejects replay in a changed request {"clientId":"client-2"} (1 ms)
+    √ rejects replay in a changed request {"messages":[{"role":"user","text":"A different question."}]}
+    √ rejects a changed resolved actor {"tenantId":"impersonated-tenant"} (1 ms)
+    √ rejects a changed resolved actor {"userId":"different-user"}
+    √ rejects a changed authenticated research-plan version (1 ms)
+    √ rejects a changed authenticated research-plan hash
+    √ rejects a changed authenticated research-plan capability (1 ms)
+    √ rejects a changed authenticated research-plan session
+    √ rejects a changed authenticated research-plan run
+    √ rejects a changed authenticated research-plan lease (1 ms)
+    √ rejects expired, future, unsigned and unconfigured contexts (2 ms)
+  signed telemetry carrier
+    √ binds trace linkage inside the existing authenticated context payload (1 ms)
+  qualified fixture semantic clock transport
+    × accepts the exact authenticated compiler/policy clock while auth uses real time (2 ms)
+    × rejects an authenticated but unqualified clock
+    × rejects an authenticated but budget-only clock
+    × rejects an authenticated but missing clock
+    × rejects an authenticated but policy-missing clock (1 ms)
+    × rejects an authenticated but mismatch clock (1 ms)
+    × rejects an authenticated but compiler-missing clock
+    × rejects an authenticated but compiler-mismatch clock
+    × rejects an authenticated but arbitrary-date clock (1 ms)
+    × rejects an authenticated but closed-case clock
+
+  ● qualified fixture semantic clock transport › accepts the exact authenticated compiler/policy clock while auth uses real time
+
+    expect(received).toThrow()
+
+    Received function did not throw
+
+      227 |   it('accepts the exact authenticated compiler/policy clock while auth uses real time', () => {
+      228 |     expect(() => verify(fixture())).not.toThrow();
+    > 229 |     expect(() => verify(fixture(), now + 60_001)).toThrow();
+          |                                                   ^
+      230 |   });
+      231 |   it.each(['unqualified', 'budget-only', 'missing', 'policy-missing', 'mismatch', 'compiler-missing', 'compiler-mismatch', 'arbitrary-date', 'closed-case'])(
+      232 |     'rejects an authenticated but %s clock', (change) => {
+
+      at Object.<anonymous> (src/context/governed-evidence-auth.spec.ts:229:51)
+
+  ● qualified fixture semantic clock transport › rejects an authenticated but unqualified clock
+
+    expect(received).toThrow()
+
+    Received function did not throw
+
+      241 |       if (change === 'arbitrary-date') (c.semanticClock as any).instant = '2020-01-01T00:00:00.000Z';
+      242 |       if (change === 'closed-case') c.serverReadonlyCapturePolicy!.caseId = '12';
+    > 243 |       expect(() => verify(c)).toThrow();
+          |                               ^
+      244 |     },
+      245 |   );
+      246 | });
+
+      at src/context/governed-evidence-auth.spec.ts:243:31
+
+  ● qualified fixture semantic clock transport › rejects an authenticated but budget-only clock
+
+    expect(received).toThrow()
+
+    Received function did not throw
+
+      241 |       if (change === 'arbitrary-date') (c.semanticClock as any).instant = '2020-01-01T00:00:00.000Z';
+      242 |       if (change === 'closed-case') c.serverReadonlyCapturePolicy!.caseId = '12';
+    > 243 |       expect(() => verify(c)).toThrow();
+          |                               ^
+      244 |     },
+      245 |   );
+      246 | });
+
+      at src/context/governed-evidence-auth.spec.ts:243:31
+
+  ● qualified fixture semantic clock transport › rejects an authenticated but missing clock
+
+    expect(received).toThrow()
+
+    Received function did not throw
+
+      241 |       if (change === 'arbitrary-date') (c.semanticClock as any).instant = '2020-01-01T00:00:00.000Z';
+      242 |       if (change === 'closed-case') c.serverReadonlyCapturePolicy!.caseId = '12';
+    > 243 |       expect(() => verify(c)).toThrow();
+          |                               ^
+      244 |     },
+      245 |   );
+      246 | });
+
+      at src/context/governed-evidence-auth.spec.ts:243:31
+
+  ● qualified fixture semantic clock transport › rejects an authenticated but policy-missing clock
+
+    expect(received).toThrow()
+
+    Received function did not throw
+
+      241 |       if (change === 'arbitrary-date') (c.semanticClock as any).instant = '2020-01-01T00:00:00.000Z';
+      242 |       if (change === 'closed-case') c.serverReadonlyCapturePolicy!.caseId = '12';
+    > 243 |       expect(() => verify(c)).toThrow();
+          |                               ^
+      244 |     },
+      245 |   );
+      246 | });
+
+      at src/context/governed-evidence-auth.spec.ts:243:31
+
+  ● qualified fixture semantic clock transport › rejects an authenticated but mismatch clock
+
+    expect(received).toThrow()
+
+    Received function did not throw
+
+      241 |       if (change === 'arbitrary-date') (c.semanticClock as any).instant = '2020-01-01T00:00:00.000Z';
+      242 |       if (change === 'closed-case') c.serverReadonlyCapturePolicy!.caseId = '12';
+    > 243 |       expect(() => verify(c)).toThrow();
+          |                               ^
+      244 |     },
+      245 |   );
+      246 | });
+
+      at src/context/governed-evidence-auth.spec.ts:243:31
+
+  ● qualified fixture semantic clock transport › rejects an authenticated but compiler-missing clock
+
+    expect(received).toThrow()
+
+    Received function did not throw
+
+      241 |       if (change === 'arbitrary-date') (c.semanticClock as any).instant = '2020-01-01T00:00:00.000Z';
+      242 |       if (change === 'closed-case') c.serverReadonlyCapturePolicy!.caseId = '12';
+    > 243 |       expect(() => verify(c)).toThrow();
+          |                               ^
+      244 |     },
+      245 |   );
+      246 | });
+
+      at src/context/governed-evidence-auth.spec.ts:243:31
+
+  ● qualified fixture semantic clock transport › rejects an authenticated but compiler-mismatch clock
+
+    expect(received).toThrow()
+
+    Received function did not throw
+
+      241 |       if (change === 'arbitrary-date') (c.semanticClock as any).instant = '2020-01-01T00:00:00.000Z';
+      242 |       if (change === 'closed-case') c.serverReadonlyCapturePolicy!.caseId = '12';
+    > 243 |       expect(() => verify(c)).toThrow();
+          |                               ^
+      244 |     },
+      245 |   );
+      246 | });
+
+      at src/context/governed-evidence-auth.spec.ts:243:31
+
+  ● qualified fixture semantic clock transport › rejects an authenticated but arbitrary-date clock
+
+    expect(received).toThrow()
+
+    Received function did not throw
+
+      241 |       if (change === 'arbitrary-date') (c.semanticClock as any).instant = '2020-01-01T00:00:00.000Z';
+      242 |       if (change === 'closed-case') c.serverReadonlyCapturePolicy!.caseId = '12';
+    > 243 |       expect(() => verify(c)).toThrow();
+          |                               ^
+      244 |     },
+      245 |   );
+      246 | });
+
+      at src/context/governed-evidence-auth.spec.ts:243:31
+
+  ● qualified fixture semantic clock transport › rejects an authenticated but closed-case clock
+
+    expect(received).toThrow()
+
+    Received function did not throw
+
+      241 |       if (change === 'arbitrary-date') (c.semanticClock as any).instant = '2020-01-01T00:00:00.000Z';
+      242 |       if (change === 'closed-case') c.serverReadonlyCapturePolicy!.caseId = '12';
+    > 243 |       expect(() => verify(c)).toThrow();
+          |                               ^
+      244 |     },
+      245 |   );
+      246 | });
+
+      at src/context/governed-evidence-auth.spec.ts:243:31
+
+Test Suites: 1 failed, 1 total
+Tests:       10 failed, 22 passed, 32 total
+Snapshots:   0 total
+Time:        3.686 s
+Ran all test suites matching /src\\context\\governed-evidence-auth.spec.ts/i.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?
+undefined
+C:\dev\main\meri-c1-20261002\packages\meriv2-core:
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command "jest" not found

@@ -1,0 +1,15 @@
+PASS src/meri/server-readonly-capture-dispatch.spec.ts (15.558 s)
+PASS src/meri/controlled-read-observations.spec.ts
+[Nest] 33684  - 10/03/2026, 1:07:48 PM    WARN [ApiToolExecutorRepo] Delegated read "read_client_documents" -> failed
+[Nest] 33684  - 10/03/2026, 1:07:48 PM    WARN [ApiToolExecutorRepo] Delegated tool "search_memory" -> 503
+[Nest] 33684  - 10/03/2026, 1:07:48 PM    WARN [ApiToolExecutorRepo] Delegated read "read_client_documents" -> failed
+[Nest] 33684  - 10/03/2026, 1:07:48 PM    WARN [ApiToolExecutorRepo] Delegated read "read_client_documents" -> failed
+[Nest] 33684  - 10/03/2026, 1:07:48 PM    WARN [ApiToolExecutorRepo] Delegated read "read_client_documents" -> failed
+PASS src/meri/meriv3/meriv3-capture-evidence.spec.ts
+
+Test Suites: 3 passed, 3 total
+Tests:       34 passed, 34 total
+Snapshots:   0 total
+Time:        16.915 s, estimated 54 s
+Ran all test suites matching /src\\meri\\controlled-read-observations.spec.ts|src\\meri\\meriv3\\meriv3-capture-evidence.spec.ts|src\\meri\\server-readonly-capture-dispatch.spec.ts/i.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?

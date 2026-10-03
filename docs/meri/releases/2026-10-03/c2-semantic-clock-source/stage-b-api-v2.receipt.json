@@ -1,0 +1,5 @@
+{
+  "recordedAt": "2026-10-03T15:41:47.3804829Z",
+  "exitCode": 0,
+  "command": "NODE_OPTIONS=--max-old-space-size=8192 pnpm --filter @capiro/api exec jest --runInBand --forceExit src/meri/meri-server-readonly-capture.spec.ts"
+}

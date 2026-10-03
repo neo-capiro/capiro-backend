@@ -1,0 +1,31 @@
+{
+  "kind": "C2 context compiler clock JSONB regression on actual generated Prisma/PostgreSQL",
+  "startedAt": "2026-10-03T16:57:33.9320399Z",
+  "scope": "owned PostgreSQL16 127.0.0.1:55433 only; each random schema and all rows rolled back; no production RLS or authority issuance claim",
+  "awsCalls": 0,
+  "providerCalls": 0,
+  "sourceHashes": {
+    "evals/meri/live-v1/tests/context-clock-jsonb.postgres.test.mjs": "ced9cb625252fde286fcc046ad4e696d192209f95fd053ad6bc690163d59cb2d",
+    "evals/meri/live-v1/tests/approved-memory-postgres-harness.mjs": "e9423f5e819c33a628c104ef9137c76708aa05ef0b7c5cdb4a42793dd4959c8d",
+    "evals/meri/live-v1/tests/approved-memory-schema.mjs": "07d41fccf6ad21123f29521a7aa0a2816cf6ea4a76e74f8125ff449b828a94ab",
+    "apps/api/src/context/context-compiler.service.ts": "82eaa0e1b012602217ba2c054a63b949cd9c016e6549d675b8cdad3c4a8ba7c2",
+    "apps/api/src/context/context-stage-timer.service.ts": "4813ed4086ec8a05c6e60df3371a56691b27a8908d4157962d3aef778ffad714",
+    "apps/api/src/context/context-persistence-boundary.service.ts": "21bdf2d100bcf29733f415bf787e44a1f24a4082b6189a5d55aa6a89ba8c7221",
+    "apps/api/prisma/schema.prisma": "41fb55c8f2357b9bc2246de813d1e093e3e0bd240538048bbb514c5a4d4fe1d2"
+  },
+  "command": "node --test evals/meri/live-v1/tests/context-clock-jsonb.postgres.test.mjs",
+  "sourceSha": "30b670895683cb5e0043ad09fb1b64fae03a49f4",
+  "builtCoreFileCount": 147,
+  "builtCoreManifestSha256": "09fbd4eb29a8d2895028958874d7763a0f17bdfff21173f7aeaa7d9827b405a8",
+  "listenersBefore": 0,
+  "statusBeforeExit": 3,
+  "startExit": 0,
+  "testExit": 0,
+  "testLogSha256": "fd83d0931466bb9a14a35cf31e09c6609745dd717c3ebfcff672e7676a1e4f5e",
+  "builtCoreUnchanged": true,
+  "sourceUnchanged": true,
+  "stopExit": 0,
+  "clusterStoppedAfter": true,
+  "listenersAfter": 0,
+  "completedAt": "2026-10-03T16:57:56.1598002Z"
+}

@@ -124,6 +124,8 @@ export interface ContextRequest {
   fourEyesEnabled?: boolean;
   /** Injectable clock for deterministic recall scoring in tests; defaults to real time. */
   now?: Date;
+  /** Fixed original-fixture clock. Eligibility/expiry still use real time. */
+  semanticClock?: import('./server-readonly-capture').MeriFixtureSemanticClock;
 }
 
 export interface SteeringRow {
@@ -305,6 +307,13 @@ interface CompiledContextPacketBase {
   /** Bounded reason code only; never a DB/provider error message. */
   persistenceErrorCode?: string | null;
   compiledAt: string;
+  /** Written by the actual compiler; compiledAt and eligibility remain real time. */
+  clockUse?: {
+    instant: string;
+    timeZone: string;
+    eligibilityAt: string;
+    scoring: 'used' | 'not_run';
+  };
 }
 
 export interface CompiledContextPacketV1 extends CompiledContextPacketBase {

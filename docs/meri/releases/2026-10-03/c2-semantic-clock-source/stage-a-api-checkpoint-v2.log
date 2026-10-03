@@ -1,0 +1,12 @@
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+PASS src/meri/meri-context-plane.service.spec.ts (14.925 s)
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+PASS src/meri/meri-capture-semantic-clock.spec.ts
+PASS src/meri/meri-case46-turn-wiring.spec.ts
+
+Test Suites: 3 passed, 3 total
+Tests:       104 passed, 104 total
+Snapshots:   0 total
+Time:        16.086 s, estimated 26 s
+Ran all test suites matching /src\\meri\\meri-context-plane.service.spec.ts|src\\meri\\meri-capture-semantic-clock.spec.ts|src\\meri\\meri-case46-turn-wiring.spec.ts/i.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?

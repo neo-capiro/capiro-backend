@@ -1,0 +1,5 @@
+{
+  "command": "pnpm --filter @capiro/meriv2-core exec vitest run src/context/governed-evidence-auth.spec.ts",
+  "recordedAt": "2026-10-03T15:27:56.4000812Z",
+  "exitCode": 1
+}

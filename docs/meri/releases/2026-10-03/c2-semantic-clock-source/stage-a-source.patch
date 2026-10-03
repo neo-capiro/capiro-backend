@@ -1,0 +1,559 @@
+--- a/packages/meriv2-core/src/context/server-readonly-capture.ts
++++ b/packages/meriv2-core/src/context/server-readonly-capture.ts
+@@ -8,7 +8,40 @@
+ export const MERI_CAPTURE_POLICY_NAMESPACE = 'meri-foundation-20260928' as const;
+ export const MERI_CAPTURE_POLICY_HEADER = 'x-meri-server-readonly-capture' as const;
+ 
++export const MERI_FIXTURE_SEMANTIC_INSTANT = '2026-09-26T16:00:00.000Z' as const;
++export const MERI_FIXTURE_SEMANTIC_ZONE = 'America/New_York' as const;
++export interface MeriFixtureSemanticClock {
++  version: 1;
++  kind: 'qualified_original_fixture_semantic_clock';
++  instant: typeof MERI_FIXTURE_SEMANTIC_INSTANT;
++  timeZone: typeof MERI_FIXTURE_SEMANTIC_ZONE;
++  caseId: '01' | '14' | '20' | '46' | '72';
++  captureRunId: string;
++  currentVerifySha256: string;
++  /** Real observation time; never used to rewind authority, expiry or deadlines. */
++  observedAt: number;
++}
++
++/** Shape/binding validation only. API issuance additionally requires the current canonical owner. */
++export function validateMeriFixtureSemanticClock(value: MeriFixtureSemanticClock, binding: {
++  caseId: string | null; captureRunId: string | null; issuedAt: number; syntheticReadBudget?: unknown;
++}): MeriFixtureSemanticClock {
++  if (!value || binding.syntheticReadBudget ||
++    Object.keys(value).sort().join('|') !== 'captureRunId|caseId|currentVerifySha256|instant|kind|observedAt|timeZone|version' ||
++    value.version !== 1 || value.kind !== 'qualified_original_fixture_semantic_clock' ||
++    value.instant !== MERI_FIXTURE_SEMANTIC_INSTANT || value.timeZone !== MERI_FIXTURE_SEMANTIC_ZONE ||
++    !['01', '14', '20', '46', '72'].includes(value.caseId) || value.caseId !== binding.caseId ||
++    value.captureRunId !== binding.captureRunId ||
++    !/^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(value.captureRunId) ||
++    !/^[a-f0-9]{64}$/.test(value.currentVerifySha256) ||
++    !Number.isSafeInteger(value.observedAt) || value.observedAt !== binding.issuedAt) {
++    throw new Error('meri_fixture_semantic_clock_invalid');
++  }
++  return value;
++}
++
+ export interface MeriServerReadonlyCapturePolicy {
++  semanticClock?: MeriFixtureSemanticClock;
+   /** Independent accounting identity; all source/fixture fields remain null. */
+   syntheticReadBudget?: MeriSyntheticReadBudgetBinding;
+   version: typeof MERI_CAPTURE_POLICY_VERSION;
+@@ -176,5 +209,6 @@
+     throw new Error('meri_capture_transport_authentication_failed');
+   }
+   validateMeriSyntheticReadBudgetGuard(policy);
++  if (policy.semanticClock) validateMeriFixtureSemanticClock(policy.semanticClock, policy);
+   return policy;
+ }
+--- a/packages/meriv2-core/src/registry/types.ts
++++ b/packages/meriv2-core/src/registry/types.ts
+@@ -66,6 +66,8 @@
+  */
+ export interface MeriGovernedTurnContext {
+   version: 1;
++  /** Canonical-owner qualified; protected by whole-context attestation, never a request date. */
++  semanticClock?: import('../context/server-readonly-capture').MeriFixtureSemanticClock;
+   /** API-owned trace linkage, authenticated by the existing whole-context MAC. */
+   telemetryContext?: MeriTelemetryContext | null;
+   operationId:
+--- a/packages/meriv2-core/src/context/contract.ts
++++ b/packages/meriv2-core/src/context/contract.ts
+@@ -124,6 +124,8 @@
+   fourEyesEnabled?: boolean;
+   /** Injectable clock for deterministic recall scoring in tests; defaults to real time. */
+   now?: Date;
++  /** Fixed original-fixture clock. Eligibility/expiry still use real time. */
++  semanticClock?: import('./server-readonly-capture').MeriFixtureSemanticClock;
+ }
+ 
+ export interface SteeringRow {
+@@ -305,6 +307,13 @@
+   /** Bounded reason code only; never a DB/provider error message. */
+   persistenceErrorCode?: string | null;
+   compiledAt: string;
++  /** Written by the actual compiler; compiledAt and eligibility remain real time. */
++  clockUse?: {
++    instant: string;
++    timeZone: string;
++    eligibilityAt: string;
++    scoring: 'used' | 'not_run';
++  };
+ }
+ 
+ export interface CompiledContextPacketV1 extends CompiledContextPacketBase {
+--- a/packages/meriv2-core/src/context/compiler.ts
++++ b/packages/meriv2-core/src/context/compiler.ts
+@@ -13,6 +13,7 @@
+   type MemorySensitivity,
+ } from '../memory/governance';
+ import { estimateTokens } from './token-budget';
++import { validateMeriFixtureSemanticClock } from './server-readonly-capture';
+ import {
+   LAYER_BY_TYPE,
+   typeRank,
+@@ -75,6 +76,7 @@
+   }
+ 
+   async compileV1(req: ContextRequest): Promise<CompiledContextPacketV1> {
++    const clockUse = captureClockUse(req, 'not_run');
+     const rows = await this.store.loadSteeringRows(req);
+     const wanted = new Set<SteeringLayer>(req.layers);
+     const items: ContextPacketItemV1[] = [];
+@@ -145,16 +147,19 @@
+           items,
+           exclusions,
+           rendered,
++          ...(clockUse ? { clockUse } : {}),
+         }),
+       ),
+       persisted: false,
+       compiledAt: new Date().toISOString(),
++      ...(clockUse ? { clockUse } : {}),
+     };
+     await this.persist(req, packet);
+     return packet;
+   }
+ 
+   async compileV2(req: ContextRequest): Promise<CompiledContextPacketV2> {
++    const clockUse = captureClockUse(req, 'used');
+     const rows = this.store.loadGovernedSteeringRows
+       ? await this.store.loadGovernedSteeringRows(req)
+       : await this.store.loadSteeringRows(req);
+@@ -188,7 +193,7 @@
+           ethicalWallAllowed: req.ethicalWallAllowed === true,
+           allowedSensitivities: req.allowedSensitivities ?? ['normal'],
+           fourEyesEnabled: req.fourEyesEnabled ?? false,
+-          now,
++          now: clockUse ? new Date(clockUse.eligibilityAt) : now,
+         });
+         if (!decision.include) {
+           if (decision.reason === 'conflict_unresolved') conflictCount += 1;
+@@ -367,6 +372,7 @@
+       totalTokenBudget,
+       usedTokens: items.reduce((sum, item) => sum + item.tokens, 0),
+       truncated,
++      ...(clockUse ? { clockUse } : {}),
+     };
+     const packet: CompiledContextPacketV2 = {
+       packetId: randomUUID(),
+@@ -400,6 +406,7 @@
+       traceHash: sha256(stableStringify(stable)),
+       persisted: false,
+       compiledAt: new Date().toISOString(),
++      ...(clockUse ? { clockUse } : {}),
+     };
+     await this.persist(req, packet);
+     return packet;
+@@ -415,6 +422,28 @@
+       if (req.persistence === 'required') throw error;
+     }
+   }
++}
++
++function captureClockUse(
++  req: ContextRequest,
++  scoring: 'used' | 'not_run',
++): CompiledContextPacket['clockUse'] {
++  const clock = req.semanticClock;
++  if (!clock) return undefined;
++  validateMeriFixtureSemanticClock(clock, {
++    caseId: clock.caseId,
++    captureRunId: clock.captureRunId,
++    issuedAt: clock.observedAt,
++  });
++  if (!req.now || !Number.isFinite(req.now.getTime()) || req.now.toISOString() !== clock.instant) {
++    throw new Error('meri_fixture_semantic_clock_request_mismatch');
++  }
++  return {
++    instant: req.now.toISOString(),
++    timeZone: clock.timeZone,
++    eligibilityAt: new Date().toISOString(),
++    scoring,
++  };
+ }
+ 
+ function groupRows(
+--- a/packages/meriv2-core/src/context/compiler-v2.spec.ts
++++ b/packages/meriv2-core/src/context/compiler-v2.spec.ts
+@@ -1,5 +1,6 @@
+ import { describe, expect, it, jest } from '@jest/globals';
+ import { ContextCompiler } from './compiler.js';
++import { MERI_FIXTURE_SEMANTIC_INSTANT, MERI_FIXTURE_SEMANTIC_ZONE, type MeriFixtureSemanticClock } from './server-readonly-capture.js';
+ import { applyContextSurfacePolicy, contextSurfacePolicy } from './surface-policy.js';
+ import type {
+   CompiledContextPacket,
+@@ -10,6 +11,35 @@
+ } from './contract.js';
+ 
+ const human = (heading: string, body: string) => ({ owner: 'human', heading, body });
++
++describe('qualified semantic clock separation', () => {
++  const semanticClock: MeriFixtureSemanticClock = { version: 1, kind: 'qualified_original_fixture_semantic_clock',
++    instant: MERI_FIXTURE_SEMANTIC_INSTANT, timeZone: MERI_FIXTURE_SEMANTIC_ZONE, caseId: '01',
++    captureRunId: '11111111-1111-4111-8111-111111111111', currentVerifySha256: 'a'.repeat(64),
++    observedAt: Date.parse('2026-10-03T12:00:00.000Z') };
++  it('scores at fixture time while enforcing real expiry and persisting actual compiler use', async () => {
++    jest.useFakeTimers().setSystemTime(new Date(semanticClock.observedAt));
++    try {
++      const saved: CompiledContextPacket[] = [];
++      const rows = [row({ id: 'current' }), row({ id: 'expired', expiresAt: '2026-10-01T00:00:00Z' })];
++      const compiler = new ContextCompiler({ loadSteeringRows: async () => rows, persistPacket: async (packet) => { saved.push(packet); } });
++      const packet = await compiler.compileV2(request({ now: new Date(semanticClock.instant), semanticClock }));
++      expect(packet.items.map((item) => item.id)).toEqual(['current']);
++      expect(packet.exclusions).toEqual(expect.arrayContaining([expect.objectContaining({ id: 'expired', reason: 'unavailable' })]));
++      expect(packet.clockUse).toEqual({ instant: semanticClock.instant, timeZone: semanticClock.timeZone,
++        eligibilityAt: '2026-10-03T12:00:00.000Z', scoring: 'used' });
++      expect(saved[0]!.clockUse).toEqual(packet.clockUse);
++      expect(packet.compiledAt).toBe('2026-10-03T12:00:00.000Z');
++      const atFixture = await compiler.compileV2(request({ now: new Date(semanticClock.instant) }));
++      expect(atFixture.items.find((item) => item.id === 'current')?.inclusionScore).toBe(packet.items[0]!.inclusionScore);
++      expect(atFixture.clockUse).toBeUndefined(); // Existing explicit test-clock defaults stay compatible.
++      const legacy = await compiler.compileV1(request({ now: new Date(semanticClock.instant), semanticClock }));
++      expect(legacy.clockUse?.scoring).toBe('not_run');
++      expect(legacy.items.map((item) => item.id)).not.toContain('expired');
++      await expect(compiler.compileV2(request({ now: new Date(), semanticClock }))).rejects.toThrow('semantic_clock');
++    } finally { jest.useRealTimers(); }
++  });
++});
+ 
+ const row = (over: Partial<SteeringRow> = {}): SteeringRow => ({
+   id: 'firm-soul-1',
+--- /dev/null
++++ b/packages/meriv2-core/src/context/semantic-clock.spec.ts
+@@ -0,0 +1,15 @@
++import { MERI_FIXTURE_SEMANTIC_INSTANT, MERI_FIXTURE_SEMANTIC_ZONE, validateMeriFixtureSemanticClock, type MeriFixtureSemanticClock } from './server-readonly-capture.js';
++
++const clock: MeriFixtureSemanticClock = { version: 1, kind: 'qualified_original_fixture_semantic_clock',
++  instant: MERI_FIXTURE_SEMANTIC_INSTANT, timeZone: MERI_FIXTURE_SEMANTIC_ZONE, caseId: '01',
++  captureRunId: '11111111-1111-4111-8111-111111111111', currentVerifySha256: 'a'.repeat(64), observedAt: 1791028800000 };
++const binding = { caseId: clock.caseId, captureRunId: clock.captureRunId, issuedAt: clock.observedAt };
++test('only the fixed qualified clock shape and exact capture tuple are valid', () => {
++  expect(validateMeriFixtureSemanticClock(clock, binding)).toBe(clock);
++  for (const change of [{ instant: '2020-01-01T00:00:00Z' }, { timeZone: 'UTC' }, { caseId: '21' },
++    { captureRunId: '22222222-2222-4222-8222-222222222222' }, { observedAt: clock.observedAt - 1 },
++    { currentVerifySha256: 'ready' }, { ready: true }]) {
++    expect(() => validateMeriFixtureSemanticClock({ ...clock, ...change } as MeriFixtureSemanticClock, binding)).toThrow('semantic_clock');
++  }
++  expect(() => validateMeriFixtureSemanticClock(clock, { ...binding, syntheticReadBudget: {} })).toThrow('semantic_clock');
++});
+--- a/apps/api/src/meri/meri-case01-capture-authority.ts
++++ b/apps/api/src/meri/meri-case01-capture-authority.ts
+@@ -57,7 +57,7 @@
+     denied();
+ }
+ 
+-async function currentFixture(args: {
++export async function qualifyMeriCase01CaptureFixture(args: {
+   prisma: PrismaService;
+   ctx: TenantContext;
+   policy: MeriServerReadonlyCapturePolicy;
+@@ -166,7 +166,7 @@
+   const policy = await issueMeriServerReadonlyCapturePolicy(args);
+   if (!policy || policy.caseId !== '01')
+     return { status: 'NOT_READY', reason: 'CASE01_BINDING_REQUIRED' } as const;
+-  const fixture = await currentFixture({ ...args, policy });
++  const fixture = await qualifyMeriCase01CaptureFixture({ ...args, policy });
+   const providerBudget = await inspectCaptureProviderBudgetReadiness({ ...args, policy });
+   const apiReleaseSha = process.env.GIT_SHA;
+   if (!SHA.test(apiReleaseSha ?? '')) denied();
+@@ -211,7 +211,7 @@
+   );
+   if (policy.caseId !== '01') return undefined;
+   if (args.message.role !== 'assistant' || policy.conversationId !== args.conversationId) denied();
+-  const fixture = await currentFixture({ ...args, policy });
++  const fixture = await qualifyMeriCase01CaptureFixture({ ...args, policy });
+   const providerBudget = await inspectCaptureProviderBudgetReadiness({ ...args, policy });
+   return {
+     schemaVersion: 1,
+--- /dev/null
++++ b/apps/api/src/meri/meri-capture-semantic-clock.ts
+@@ -0,0 +1,68 @@
++import {
++  MERI_FIXTURE_SEMANTIC_INSTANT,
++  MERI_FIXTURE_SEMANTIC_ZONE,
++  validateMeriFixtureSemanticClock,
++  type MeriFixtureSemanticClock,
++  type MeriServerReadonlyCapturePolicy,
++  type MeriGovernedArtifactCapturePolicy,
++} from '@capiro/meriv2-core';
++import type { TenantContext } from '@capiro/shared';
++import type { PrismaService } from '../prisma/prisma.service.js';
++import { qualifyMeriCase01CaptureFixture } from './meri-case01-capture-authority.js';
++import { assertMeriCase14BindingInTx } from './meri-case14-capture-authority.js';
++import { assertMeriControlledReadBindingInTx } from './meri-controlled-read-fixture.js';
++import { assertMeriServerReadonlyCaptureCurrentAuthority } from './meri-server-readonly-capture.js';
++import { issueCurrentCase46Policy } from './meri-case46-provider-budget-owner.js';
++import { case46BudgetHash } from './meri-case46-provider-budget.js';
++import { requireCase46Owner } from './meri-case46-turn-owner.js';
++import type { Case46AuthorityDependencies } from './meri-case46-authority.js';
++
++/** Fixed original-fixture semantics, minted only after the existing canonical
++ * owner requalifies the current binding. Accounting authority alone is insufficient. */
++export async function qualifyMeriCaptureSemanticClock(args: {
++  prisma: PrismaService;
++  ctx: TenantContext;
++  policy: MeriServerReadonlyCapturePolicy | null;
++  artifactPolicy?: MeriGovernedArtifactCapturePolicy | null;
++  case46?: Case46AuthorityDependencies;
++}): Promise<MeriFixtureSemanticClock | undefined> {
++  const { policy, artifactPolicy, prisma, ctx } = args;
++  if (policy && artifactPolicy) throw new Error('meri_fixture_semantic_clock_authority_conflict');
++  let binding: { caseId: string | null; captureRunId: string | null; issuedAt: number };
++  let currentVerifySha256: string;
++  if (artifactPolicy) {
++    const current = await issueCurrentCase46Policy(requireCase46Owner(args.case46), {
++      ctx, conversationId: artifactPolicy.conversationId,
++    });
++    if (!current || case46BudgetHash(current) !== case46BudgetHash(artifactPolicy))
++      throw new Error('meri_fixture_semantic_clock_current_artifact_changed');
++    binding = artifactPolicy;
++    currentVerifySha256 = current.currentVerifySha256;
++  } else {
++    if (!policy) return undefined;
++    if (policy.semanticClock) validateMeriFixtureSemanticClock(policy.semanticClock, policy);
++    if (policy.syntheticReadBudget || !policy.caseId || policy.fixtureVersion !== 'meri-live-v1-2026-09-26.1')
++      return undefined;
++    // The clock adds no new admitted case, source or provider capability.
++    if (!['01', '14', '20', '72'].includes(policy.caseId))
++      throw new Error('meri_fixture_semantic_clock_case_not_qualified');
++    await assertMeriServerReadonlyCaptureCurrentAuthority({ prisma, ctx, policy });
++    const proof = policy.caseId === '01'
++      ? await qualifyMeriCase01CaptureFixture({ prisma, ctx, policy })
++      : await prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) => policy.caseId === '14'
++        ? assertMeriCase14BindingInTx(prisma, tx, ctx, policy)
++        : assertMeriControlledReadBindingInTx(tx, ctx, policy));
++    await assertMeriServerReadonlyCaptureCurrentAuthority({ prisma, ctx, policy });
++    binding = policy;
++    currentVerifySha256 = proof.currentVerifySha256;
++  }
++  const clock = validateMeriFixtureSemanticClock({
++    version: 1, kind: 'qualified_original_fixture_semantic_clock',
++    instant: MERI_FIXTURE_SEMANTIC_INSTANT, timeZone: MERI_FIXTURE_SEMANTIC_ZONE,
++    caseId: binding.caseId as MeriFixtureSemanticClock['caseId'],
++    captureRunId: binding.captureRunId!, currentVerifySha256, observedAt: binding.issuedAt,
++  }, binding);
++  if (policy?.semanticClock && policy.semanticClock.currentVerifySha256 !== currentVerifySha256)
++    throw new Error('meri_fixture_semantic_clock_current_fixture_changed');
++  return Object.freeze(clock);
++}
+--- /dev/null
++++ b/apps/api/src/meri/meri-capture-semantic-clock.spec.ts
+@@ -0,0 +1,51 @@
++jest.mock('./meri-case01-capture-authority.js', () => ({ qualifyMeriCase01CaptureFixture: jest.fn() }));
++jest.mock('./meri-case14-capture-authority.js', () => ({ assertMeriCase14BindingInTx: jest.fn() }));
++jest.mock('./meri-controlled-read-fixture.js', () => ({ assertMeriControlledReadBindingInTx: jest.fn() }));
++jest.mock('./meri-server-readonly-capture.js', () => ({ assertMeriServerReadonlyCaptureCurrentAuthority: jest.fn(), meriReadonlyCaptureCatalogSha256: () => 'a'.repeat(64) }));
++jest.mock('./meri-case46-provider-budget-owner.js', () => ({ issueCurrentCase46Policy: jest.fn() }));
++
++import { qualifyMeriCaptureSemanticClock } from './meri-capture-semantic-clock.js';
++import { qualifyMeriCase01CaptureFixture } from './meri-case01-capture-authority.js';
++import { assertMeriCase14BindingInTx } from './meri-case14-capture-authority.js';
++import { assertMeriControlledReadBindingInTx } from './meri-controlled-read-fixture.js';
++import { assertMeriServerReadonlyCaptureCurrentAuthority } from './meri-server-readonly-capture.js';
++import { captureBudgetTestPolicy } from './meri-capture-provider-budget.spec-helper.js';
++
++const ctx = { tenantId: 'tenant', userId: 'actor' } as never;
++const prisma = { withTenantUser: async (_t: string, _u: string, fn: (tx: never) => unknown) => fn({} as never) } as never;
++const currentVerifySha256 = 'a'.repeat(64);
++function policy() {
++  return { ...captureBudgetTestPolicy(), fixtureVersion: 'meri-live-v1-2026-09-26.1',
++    caseId: '01', captureRunId: '11111111-1111-4111-8111-111111111111' };
++}
++beforeEach(() => {
++  jest.clearAllMocks();
++  jest.mocked(qualifyMeriCase01CaptureFixture).mockResolvedValue({ currentVerifySha256 } as never);
++  jest.mocked(assertMeriCase14BindingInTx).mockResolvedValue({ currentVerifySha256 } as never);
++  jest.mocked(assertMeriControlledReadBindingInTx).mockResolvedValue({ currentVerifySha256 } as never);
++});
++test.each(['01', '14', '20', '72'])('only canonical owner proof mints the fixed case %s clock', async (caseId) => {
++  const p = { ...policy(), caseId };
++  const clock = await qualifyMeriCaptureSemanticClock({ prisma, ctx, policy: p });
++  expect(clock).toEqual({ version: 1, kind: 'qualified_original_fixture_semantic_clock',
++    instant: '2026-09-26T16:00:00.000Z', timeZone: 'America/New_York', caseId,
++    captureRunId: p.captureRunId, currentVerifySha256, observedAt: p.issuedAt });
++  expect(assertMeriServerReadonlyCaptureCurrentAuthority).toHaveBeenCalledTimes(2);
++  const owner = caseId === '01' ? qualifyMeriCase01CaptureFixture : caseId === '14'
++    ? assertMeriCase14BindingInTx : assertMeriControlledReadBindingInTx;
++  expect(owner).toHaveBeenCalledTimes(1);
++});
++test('ordinary, unqualified and budget-only captures cannot acquire fixture time', async () => {
++  for (const p of [null, { ...policy(), fixtureVersion: null },
++    { ...policy(), syntheticReadBudget: {} }]) {
++    expect(await qualifyMeriCaptureSemanticClock({ prisma, ctx, policy: p as never })).toBeUndefined();
++  }
++  expect(qualifyMeriCase01CaptureFixture).not.toHaveBeenCalled();
++});
++test('closed cases and a failed current owner remain fail closed', async () => {
++  await expect(qualifyMeriCaptureSemanticClock({ prisma, ctx, policy: { ...policy(), caseId: '21' } }))
++    .rejects.toThrow('case_not_qualified');
++  jest.mocked(qualifyMeriCase01CaptureFixture).mockRejectedValueOnce(new Error('canonical proof unavailable'));
++  await expect(qualifyMeriCaptureSemanticClock({ prisma, ctx, policy: policy() }))
++    .rejects.toThrow('canonical proof unavailable');
++});
+--- a/apps/api/src/meri/meri-context-plane-runtime.ts
++++ b/apps/api/src/meri/meri-context-plane-runtime.ts
+@@ -32,6 +32,7 @@
+ import { captureProviderBudgetOwner } from './meri-capture-provider-budget-owner.js';
+ import { syntheticReadBudgetOwner } from './meri-synthetic-read-budget-owner.js';
+ import { withCaptureApiProviderScope } from './meri-capture-api-provider-scope.js';
++import { qualifyMeriCaptureSemanticClock } from './meri-capture-semantic-clock.js';
+ import {
+   assertMeriServerReadonlyCaptureCurrentAuthority,
+   assertMeriServerReadonlyCaptureTurnInput,
+@@ -118,6 +119,12 @@
+   ): Promise<T> {
+     input.signal?.throwIfAborted();
+     const prepared = await this.prepareTurn(ctx, input);
++    const semanticClock = await qualifyMeriCaptureSemanticClock({
++      prisma: this.prisma, ctx, policy: prepared.capturePolicy,
++      artifactPolicy: prepared.artifactPolicy, case46: this.case46,
++    });
++    if (prepared.capturePolicy && semanticClock)
++      prepared.capturePolicy = Object.freeze({ ...prepared.capturePolicy, semanticClock });
+     input.signal?.throwIfAborted();
+     if (prepared.capturePolicy && captureBudgetRequired(prepared.capturePolicy)) {
+       assertMeriServerReadonlyCaptureTurnInput({
+@@ -151,6 +158,7 @@
+         const resolved = await this.contextPlane.resolveChat(ctx, {
+           conversationId: input.conversationId,
+           task: prepared.task,
++          ...(semanticClock ? { now: new Date(semanticClock.instant), semanticClock } : {}),
+         });
+         // Retrieval owns its database work. Stop must prevent the next stage from
+         // starting, even when that work finishes after the browser disconnected.
+--- a/apps/api/src/meri/meri-context-plane.service.ts
++++ b/apps/api/src/meri/meri-context-plane.service.ts
+@@ -3,13 +3,14 @@
+ import { createHash } from 'node:crypto';
+ import type { TenantContext } from '@capiro/shared';
+ import { isMeriDocumentLocationClarification, resolveMeriDocumentRequest } from '@capiro/shared';
+-import { explicitMeriSubjectHint, hasExplicitMeriPortfolioScope } from '@capiro/meriv2-core';
++import { explicitMeriSubjectHint, hasExplicitMeriPortfolioScope, validateMeriFixtureSemanticClock } from '@capiro/meriv2-core';
+ import type {
+   ContextRequest,
+   MeriContextPacketItem,
+   MeriContextPacketSummary,
+   MeriContextEvidenceRecord,
+   MeriGovernedTurnContext,
++  MeriFixtureSemanticClock,
+ } from '@capiro/meriv2-core';
+ import { ContextPlaneGatewayService } from '../context/context-plane-gateway.service.js';
+ import type {
+@@ -140,8 +141,16 @@
+ 
+   async resolveChat(
+     ctx: TenantContext,
+-    input: { conversationId: string; task: string },
++    input: { conversationId: string; task: string; now?: Date; semanticClock?: MeriFixtureSemanticClock },
+   ): Promise<MeriGovernedTurnContext> {
++    if (input.semanticClock) {
++      const clock = input.semanticClock;
++      validateMeriFixtureSemanticClock(clock, {
++        caseId: clock.caseId, captureRunId: clock.captureRunId, issuedAt: clock.observedAt,
++      });
++      if (input.now?.toISOString() !== clock.instant)
++        throw new Error('meri_fixture_semantic_clock_request_mismatch');
++    }
+     const conversation = await this.chatConversationScope(ctx, input.conversationId);
+     let task = input.task;
+     if (conversation.clientId && isMeriDocumentLocationClarification(task)) {
+@@ -169,6 +178,8 @@
+       uiClientId: conversation.clientId,
+       uiClientName: conversation.clientName,
+       ref: { conversationId: input.conversationId },
++      ...(input.now ? { now: input.now } : {}),
++      ...(input.semanticClock ? { semanticClock: input.semanticClock } : {}),
+     });
+   }
+ 
+@@ -212,6 +223,8 @@
+       uiClientId: string | null;
+       uiClientName: string | null;
+       ref: Record<string, string | null | undefined>;
++      now?: Date;
++      semanticClock?: MeriFixtureSemanticClock;
+     },
+   ): Promise<MeriGovernedTurnContext> {
+     const security = await this.securityEnvelope(ctx, true);
+@@ -220,7 +233,11 @@
+       uiClientId: input.uiClientId,
+       uiClientName: input.uiClientName,
+       authorizedClientNames: security.authorizedClientNames,
++      ...(input.now ? { now: input.now } : {}),
+     });
++    // Event-time meaning may be frozen; current authorization and source
++    // availability must still include records ingested after the fixture date.
++    if (input.semanticClock && plan.observedThrough) plan.observedThrough = new Date();
+     assertCaptureApiRetrievalPlan(plan);
+ 
+     const subjectClientId = plan.subjectScope === 'client' ? input.uiClientId : null;
+@@ -298,6 +315,8 @@
+         operationId: input.operationId,
+         subjectScope: plan.subjectScope,
+       },
++      ...(input.now ? { now: input.now } : {}),
++      ...(input.semanticClock ? { semanticClock: input.semanticClock } : {}),
+     };
+ 
+     const result = await this.contextPlane.requestContext({
+@@ -310,6 +329,10 @@
+     if (result.kind === 'migration_exception') {
+       throw new Error(`context_plane_phase19_operation_not_adopted:${input.operationId}`);
+     }
++    if (input.semanticClock && (
++      result.packet.clockUse?.instant !== input.semanticClock.instant ||
++      result.packet.clockUse?.timeZone !== input.semanticClock.timeZone
++    )) throw new Error('meri_fixture_semantic_clock_compiler_evidence_missing');
+ 
+     const projection = buildModelContextProjection(result.context.retrieval?.records ?? []);
+     const steeringEvidence = buildSteeringEvidenceProjection(result.packet);
+@@ -334,6 +357,7 @@
+ 
+     return {
+       version: 1,
++      ...(input.semanticClock ? { semanticClock: input.semanticClock } : {}),
+       operationId: input.operationId,
+       prompt,
+       evidence: {
+--- a/apps/api/src/meri/meri-context-plane.service.spec.ts
++++ b/apps/api/src/meri/meri-context-plane.service.spec.ts
+@@ -4,6 +4,36 @@
+ jest.mock('../prisma/prisma.service.js', () => ({ PrismaService: class PrismaService {} }));
+ 
+ import { MeriContextPlaneService, planMeriTurn } from './meri-context-plane.service.js';
++
++test('qualified clock reaches planning/compiler explicitly without requesting a historical ingestion snapshot', async () => {
++  jest.useFakeTimers().setSystemTime(new Date('2026-10-03T12:00:00.000Z'));
++  try {
++    const semanticClock = { version: 1, kind: 'qualified_original_fixture_semantic_clock',
++      instant: '2026-09-26T16:00:00.000Z', timeZone: 'America/New_York', caseId: '01',
++      captureRunId: '11111111-1111-4111-8111-111111111111', currentVerifySha256: 'a'.repeat(64),
++      observedAt: Date.now() } as const;
++    const tx = { clioConversation: { findFirst: async () => ({ clientId: 'client-acme' }) },
++      client: { findFirst: async () => ({ name: 'Acme' }), findMany: async () => [{ id: 'client-acme', name: 'Acme' }] },
++      integrationConnection: { findMany: async () => [] } };
++    const prisma = { withTenant: async (_t: string, fn: (tx: unknown) => unknown) => fn(tx),
++      withTenantUser: async (_t: string, _u: string, fn: (tx: unknown) => unknown) => fn(tx) };
++    const requestContext = jest.fn(async (_request: unknown) => ({ kind: 'governed_packet', packet: {} }));
++    const service = new MeriContextPlaneService(prisma as never, { requestContext } as never);
++    const input = { conversationId: 'thread', task: 'Prepare a briefing on changes in the last 7 days',
++      now: new Date(semanticClock.instant), semanticClock };
++    await expect(service.resolveChat({ tenantId: 'tenant', userId: 'actor' } as never, input))
++      .rejects.toThrow('compiler_evidence_missing');
++    const call = requestContext.mock.calls[0]![0] as any;
++    expect(call.contextRequest.now).toEqual(input.now);
++    expect(call.contextRequest.semanticClock).toEqual(semanticClock);
++    expect(call.resolverRequest.retrieval.windowEnd.toISOString()).toBe(semanticClock.instant);
++    expect(call.resolverRequest.retrieval.windowStart.toISOString()).toBe('2026-09-19T16:00:00.000Z');
++    expect(call.resolverRequest.retrieval.observedThrough).toBeUndefined();
++    await expect(service.resolveChat({ tenantId: 'tenant', userId: 'actor' } as never,
++      { ...input, now: new Date() })).rejects.toThrow('clock_request_mismatch');
++    expect(requestContext).toHaveBeenCalledTimes(1);
++  } finally { jest.useRealTimers(); }
++});
+ 
+ describe('client document clarification context', () => {
+   test('replans the original meeting/contact request using only this authorized conversation', async () => {

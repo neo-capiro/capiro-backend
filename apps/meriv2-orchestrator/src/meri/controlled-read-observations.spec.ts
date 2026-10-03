@@ -1,17 +1,26 @@
 import { createServer, type Server } from 'node:http';
 import { createHash } from 'node:crypto';
 import { MERI_CAPABILITY_REGISTRY, type MeriCitation } from '@capiro/shared';
-import { type MeriServerReadonlyCapturePolicy, type MeriContext } from '@capiro/meriv2-core';
+import {
+  meriCaptureClockExecutionBlockers,
+  type MeriServerReadonlyCapturePolicy,
+  type MeriContext,
+} from '@capiro/meriv2-core';
 import { withTrustedCurrentTurnScope } from '../request/trusted-current-turn-scope.js';
 import { RequestCredentialsStore } from '../request/request-credentials.store.js';
 import { ApiToolExecutorRepo } from './api-tool-executor.repo.js';
 import { MeriRunBudget } from './meriv3/meriv3-run-budget.js';
-import { observeMeriV3CaptureExecution } from './meriv3/meriv3-capture-evidence.js';
+import {
+  observeMeriV3CaptureExecution,
+  buildSignedOrchestratorCaptureEvidence,
+} from './meriv3/meriv3-capture-evidence.js';
 import {
   withControlledReadInvocation,
   observeControlledReadHttpResponse,
   readControlledReadHttpObservations,
+  readCaptureClockInvocations,
 } from './controlled-read-observations.js';
+import { projectMeriToolEvidence } from './meriv3/meriv3-tool-evidence.js';
 
 const id = (n: number) =>
   `${n}`.repeat(8) +
@@ -119,6 +128,238 @@ describe('controlled read actual HTTP observations', () => {
       server = undefined;
     }
   });
+  test.each(['unwrapped', 'missing-call-id', 'wrong-tool'])(
+    'refused %s execution poisons the clock census even when its caller catches the error',
+    async (boundary) => {
+      const p = policy('01');
+      p.fixtureVersion = 'meri-live-v1-2026-09-26.1';
+      p.semanticClock = {
+        version: 1,
+        kind: 'qualified_original_fixture_semantic_clock',
+        instant: '2026-09-26T16:00:00.000Z',
+        timeZone: 'America/New_York',
+        caseId: '01',
+        captureRunId: p.captureRunId!,
+        currentVerifySha256: 'b'.repeat(64),
+        observedAt: p.issuedAt,
+      };
+      const repo = new ApiToolExecutorRepo({
+        get: (key: string) =>
+          (
+            ({
+              MERIV2_API_BASE_URL: 'http://127.0.0.1:1',
+              INTERNAL_SERVICE_SECRET: 'synthetic-secret',
+            }) as Record<string, string>
+          )[key],
+      } as never);
+      const fetchSpy = jest.spyOn(globalThis, 'fetch');
+      try {
+        await scope(p, () =>
+          RequestCredentialsStore.run({ bearerToken: 'synthetic-bearer' }, async () => {
+            const invoke = () => repo.execute({} as MeriContext, 'search_memory', {});
+            const refused =
+              boundary === 'unwrapped'
+                ? invoke()
+                : withControlledReadInvocation(
+                    boundary === 'missing-call-id' ? undefined : 'actual-call',
+                    invoke,
+                    boundary === 'wrong-tool' ? 'get_program_element' : 'search_memory',
+                  );
+            await expect(refused).rejects.toThrow(
+              boundary === 'missing-call-id' ? 'identity missing' : 'invocation missing',
+            );
+            expect(fetchSpy).not.toHaveBeenCalled();
+            const signed = buildSignedOrchestratorCaptureEvidence({
+              policy: p,
+              startedAt: p.issuedAt,
+              completedAt: Date.now(),
+              providerCallObserved: false,
+              provider: 'synthetic',
+              model: null,
+              usage: null,
+              secret: 'synthetic-signing-secret',
+              execution: {
+                toolCalls: [],
+                sources: [],
+                clockInvocations: readCaptureClockInvocations(),
+                promptClockUse: {
+                  instant: p.semanticClock!.instant,
+                  timeZone: p.semanticClock!.timeZone,
+                  date: '2026-09-26',
+                  renderedAt: Date.now(),
+                  groundingSha256: 'c'.repeat(64),
+                },
+                estimatedCostUsd: { status: 'UNKNOWN', value: null, reason: 'not_run' },
+              },
+            });
+            expect(meriCaptureClockExecutionBlockers(signed.receipt)).toContain(
+              'semantic_clock_invocation_join_unproved',
+            );
+            expect(signed.receipt.semanticClock!.invocations).toEqual(
+              expect.arrayContaining([
+                expect.objectContaining({
+                  callId: '',
+                  tool: 'search_memory',
+                  outcome: 'threw',
+                  httpAttempts: 0,
+                  httpStatus: null,
+                  responseSha256: null,
+                  packets: [],
+                }),
+              ]),
+            );
+          }),
+        );
+      } finally {
+        fetchSpy.mockRestore();
+      }
+    },
+  );
+  test.each(['01', '14', '20', '72', 'failed'])(
+    'retains actual %s HTTP clock evidence before truncation',
+    async (caseName) => {
+      const p = policy(caseName === 'failed' ? '01' : caseName);
+      p.fixtureVersion = 'meri-live-v1-2026-09-26.1';
+      p.semanticClock = {
+        version: 1,
+        kind: 'qualified_original_fixture_semantic_clock',
+        instant: '2026-09-26T16:00:00.000Z',
+        timeZone: 'America/New_York',
+        caseId: p.caseId as '01' | '14' | '20' | '72',
+        captureRunId: p.captureRunId!,
+        currentVerifySha256: 'b'.repeat(64),
+        observedAt: p.issuedAt,
+      };
+      const memory = ['01', '14'].includes(p.caseId!);
+      const tool = memory
+        ? 'search_memory'
+        : p.caseId === '20'
+          ? 'get_program_element'
+          : 'read_client_documents';
+      const packets = [8, 9].map((n) => ({
+        packetId: id(n),
+        persisted: true,
+        clockUse: {
+          instant: p.semanticClock!.instant,
+          timeZone: p.semanticClock!.timeZone,
+          eligibilityAt: new Date().toISOString(),
+          scoring: 'used',
+        },
+      }));
+      const body = memory
+        ? {
+            tool: 'search_memory',
+            contextPacket: packets[1],
+            contextPackets: packets,
+            coverage: {
+              complete: false,
+              paginationComplete: false,
+              sources: [
+                {
+                  domain: 'institutional_knowledge',
+                  sourceStatus: 'healthy',
+                  hasMore: true,
+                  truncated: true,
+                  paginationComplete: false,
+                  coverageComplete: false,
+                },
+              ],
+            },
+            factContentUnavailableCount: 0,
+            contentStatus: 'available',
+            contentTruncated: true,
+            nextCursor: 'next',
+            results: [{ id: 'memory' }],
+            records: [{ id: 'memory', text: 'source '.repeat(20000) }],
+          }
+        : payload(p);
+      let hits = 0;
+      server = createServer((req, res) => {
+        hits++;
+        req.resume();
+        res.writeHead(caseName === 'failed' ? 503 : 200, { 'content-type': 'application/json' });
+        res.end(JSON.stringify(body));
+      });
+      await new Promise<void>((resolve) => server!.listen(0, '127.0.0.1', resolve));
+      const repo = new ApiToolExecutorRepo({
+        get: (key: string) =>
+          (
+            ({
+              MERIV2_API_BASE_URL: `http://127.0.0.1:${(server!.address() as { port: number }).port}`,
+              INTERNAL_SERVICE_SECRET: 'synthetic-secret',
+            }) as Record<string, string>
+          )[key],
+      } as never);
+      await scope(p, () =>
+        RequestCredentialsStore.run({ bearerToken: 'synthetic-bearer' }, async () => {
+          const call = () =>
+            withControlledReadInvocation(
+              'actual-call',
+              () => repo.execute({} as MeriContext, tool, {}),
+              tool,
+            );
+          if (caseName === 'failed' || p.caseId === '72') await expect(call()).rejects.toThrow();
+          else {
+            const response = await call();
+            if (memory) {
+              const visible = projectMeriToolEvidence({
+                result: response,
+                maxCharacters: 1800,
+                readOnly: true,
+              });
+              expect(visible).not.toHaveProperty('contextPackets');
+              expect(visible).not.toHaveProperty('contextPacket');
+            }
+          }
+          const actual = readCaptureClockInvocations()!;
+          expect(actual).toHaveLength(1);
+          expect(actual[0]).toMatchObject({
+            callId: 'actual-call',
+            tool,
+            httpAttempts: 1,
+            outcome: caseName === 'failed' || p.caseId === '72' ? 'threw' : 'returned',
+            httpStatus: caseName === 'failed' ? null : 200,
+            packets: memory && caseName !== 'failed' ? packets : [],
+          });
+          if (caseName !== 'failed')
+            expect(actual[0]!.responseSha256).toBe(hash(JSON.stringify(body)));
+          if (p.caseId === '72')
+            expect(readControlledReadHttpObservations()![0]!.logicalError).toBe(
+              'document unavailable',
+            );
+          const signed = buildSignedOrchestratorCaptureEvidence({
+            policy: p,
+            startedAt: p.issuedAt,
+            completedAt: Date.now(),
+            providerCallObserved: false,
+            provider: 'synthetic',
+            model: null,
+            usage: null,
+            secret: 'synthetic-signing-secret',
+            execution: {
+              ...observeMeriV3CaptureExecution({
+                callId: 'actual-call',
+                tool,
+                readOnly: true,
+                result: caseName === 'failed' ? { error: 'failed' } : body,
+                citations: [],
+                coverage: [],
+              }),
+              clockInvocations: actual,
+              controlledReadAttempts: readControlledReadHttpObservations(),
+              estimatedCostUsd: { status: 'UNKNOWN', value: null, reason: 'not_run' },
+            },
+          });
+          expect(signed.receipt.semanticClock!.invocations).toEqual(actual);
+          expect(signed.receipt.semanticClock!.apiJoin).toBe('PENDING');
+          expect(signed.receipt.blockers).toContain('semantic_clock_api_tool_join_pending');
+          actual.length = 0;
+          expect(readCaptureClockInvocations()).toHaveLength(1);
+        }),
+      );
+      expect(hits).toBe(1);
+    },
+  );
   function multiPayload(p: MeriServerReadonlyCapturePolicy): any {
     const original = payload(policy('20'));
     const sourceReads = [8, 9].map((n) => ({

@@ -8,7 +8,47 @@ export const MERI_CAPTURE_POLICY_VERSION = 1 as const;
 export const MERI_CAPTURE_POLICY_NAMESPACE = 'meri-foundation-20260928' as const;
 export const MERI_CAPTURE_POLICY_HEADER = 'x-meri-server-readonly-capture' as const;
 
+export const MERI_FIXTURE_SEMANTIC_INSTANT = '2026-09-26T16:00:00.000Z' as const;
+export const MERI_FIXTURE_SEMANTIC_ZONE = 'America/New_York' as const;
+export interface MeriPromptClockUse {
+  instant: string;
+  timeZone: string;
+  date: string;
+  renderedAt: number;
+  groundingSha256: string;
+}
+export interface MeriFixtureSemanticClock {
+  version: 1;
+  kind: 'qualified_original_fixture_semantic_clock';
+  instant: typeof MERI_FIXTURE_SEMANTIC_INSTANT;
+  timeZone: typeof MERI_FIXTURE_SEMANTIC_ZONE;
+  caseId: '01' | '14' | '20' | '46' | '72';
+  captureRunId: string;
+  currentVerifySha256: string;
+  /** Real observation time; never used to rewind authority, expiry or deadlines. */
+  observedAt: number;
+}
+
+/** Shape/binding validation only. API issuance additionally requires the current canonical owner. */
+export function validateMeriFixtureSemanticClock(value: MeriFixtureSemanticClock, binding: {
+  caseId: string | null; captureRunId: string | null; issuedAt: number; syntheticReadBudget?: unknown;
+}): MeriFixtureSemanticClock {
+  if (!value || binding.syntheticReadBudget ||
+    Object.keys(value).sort().join('|') !== 'captureRunId|caseId|currentVerifySha256|instant|kind|observedAt|timeZone|version' ||
+    value.version !== 1 || value.kind !== 'qualified_original_fixture_semantic_clock' ||
+    value.instant !== MERI_FIXTURE_SEMANTIC_INSTANT || value.timeZone !== MERI_FIXTURE_SEMANTIC_ZONE ||
+    !['01', '14', '20', '46', '72'].includes(value.caseId) || value.caseId !== binding.caseId ||
+    value.captureRunId !== binding.captureRunId ||
+    !/^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(value.captureRunId) ||
+    !/^[a-f0-9]{64}$/.test(value.currentVerifySha256) ||
+    !Number.isSafeInteger(value.observedAt) || value.observedAt !== binding.issuedAt) {
+    throw new Error('meri_fixture_semantic_clock_invalid');
+  }
+  return value;
+}
+
 export interface MeriServerReadonlyCapturePolicy {
+  semanticClock?: MeriFixtureSemanticClock;
   /** Independent accounting identity; all source/fixture fields remain null. */
   syntheticReadBudget?: MeriSyntheticReadBudgetBinding;
   version: typeof MERI_CAPTURE_POLICY_VERSION;
@@ -176,5 +216,6 @@ export function decodeAndVerifyMeriCapturePolicyTransport(
     throw new Error('meri_capture_transport_authentication_failed');
   }
   validateMeriSyntheticReadBudgetGuard(policy);
+  if (policy.semanticClock) validateMeriFixtureSemanticClock(policy.semanticClock, policy);
   return policy;
 }

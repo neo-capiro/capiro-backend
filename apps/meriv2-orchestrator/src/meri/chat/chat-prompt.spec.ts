@@ -5,6 +5,8 @@ import {
 } from './chat-prompt';
 import { KeywordIntentRouter, MERI_GOVERNMENT_AFFAIRS_OUTPUT_CONTRACT } from '@capiro/meriv2-core';
 import type { MeriContext } from '@capiro/meriv2-core';
+import { createHash } from 'node:crypto';
+import { currentMeriPromptClockUse, runWithGovernedMeriContext } from '../meri-governed-context.runtime.js';
 
 const ctx: MeriContext = {
   tenantId: 't1',
@@ -14,6 +16,38 @@ const ctx: MeriContext = {
 };
 
 describe('chat date grounding', () => {
+  it('renders the qualified semantic clock and records actual date-block bytes outside policy', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-10-03T12:00:00.000Z'));
+    try {
+      const clock = { version: 1, kind: 'qualified_original_fixture_semantic_clock',
+        instant: '2026-09-26T16:00:00.000Z', timeZone: 'America/New_York', caseId: '01',
+        captureRunId: '11111111-1111-4111-8111-111111111111', currentVerifySha256: 'a'.repeat(64), observedAt: Date.now() };
+      const governed = { version: 1, operationId: 'meri.chat', prompt: '', semanticClock: clock,
+        evidence: { tenantId: 't1', userId: 'u1' },
+        serverReadonlyCapturePolicy: { caseId: '01', captureRunId: clock.captureRunId,
+          fixtureVersion: 'meri-live-v1-2026-09-26.1', issuedAt: Date.now(), expiresAt: Date.now()+60_000,
+          semanticClock: { ...clock }, tenantId: 't1', actorUserId: 'u1' },
+        contextPacket: { clockUse: { instant: clock.instant, timeZone: clock.timeZone,
+          eligibilityAt: new Date().toISOString(), scoring: 'used' } } };
+      await runWithGovernedMeriContext(governed as never, async () => {
+        expect(currentMeriPromptClockUse()).toBeUndefined();
+        const parts = composeChatSystemPrompt({ timeZone: 'Pacific/Honolulu' }, ctx);
+        const rendered = buildChatDateGrounding('America/New_York', new Date(clock.instant));
+        expect(parts.dynamic).toContain(rendered);
+        expect(parts.dynamic).not.toContain("Today's date is 2026-10-03.");
+        expect(parts.base).not.toContain('2026-09-26');
+        expect(currentMeriPromptClockUse()).toEqual({ instant: clock.instant, timeZone: clock.timeZone,
+          date: '2026-09-26', renderedAt: Date.now(), groundingSha256: createHash('sha256').update(rendered).digest('hex') });
+      });
+      expect(currentMeriPromptClockUse()).toBeUndefined();
+      const ordinary = composeChatSystemPrompt({ timeZone: 'UTC', semanticClock: clock } as never, ctx);
+      expect(ordinary.dynamic).toContain("Today's date is 2026-10-03.");
+      expect(currentMeriPromptClockUse()).toBeUndefined();
+      const changed = { ...governed, semanticClock: { ...clock, instant: '2020-01-01T00:00:00.000Z' } };
+      await expect(runWithGovernedMeriContext(changed as never, async () =>
+        composeChatSystemPrompt({}, ctx))).rejects.toThrow('semantic_clock');
+    } finally { jest.useRealTimers(); }
+  });
   it('keeps the local day stable on both sides of UTC midnight', () => {
     const beforeUtcMidnight = buildChatDateGrounding(
       'America/New_York',

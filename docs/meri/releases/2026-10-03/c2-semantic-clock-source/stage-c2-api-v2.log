@@ -1,0 +1,39 @@
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+PASS src/meri/meri-capture-clock-packets.spec.ts (40.401 s)
+  final API semantic clock packet join
+    √ reads actual V1 storage metadata and joins both fallback packets before signing (22 ms)
+    √ reads actual V2 storage metadata and joins both fallback packets before signing (5 ms)
+    √ keeps missing unproved and the final receipt BLOCKED (4 ms)
+    √ keeps duplicate unproved and the final receipt BLOCKED (4 ms)
+    √ keeps extra including shadow unproved and the final receipt BLOCKED (3 ms)
+    √ keeps tenantId unproved and the final receipt BLOCKED (4 ms)
+    √ keeps effectiveTenantId unproved and the final receipt BLOCKED (4 ms)
+    √ keeps userId unproved and the final receipt BLOCKED (4 ms)
+    √ keeps actorUserId unproved and the final receipt BLOCKED (3 ms)
+    √ keeps clientId unproved and the final receipt BLOCKED (2 ms)
+    √ keeps traceId unproved and the final receipt BLOCKED (4 ms)
+    √ keeps capturePolicyId unproved and the final receipt BLOCKED (3 ms)
+    √ keeps captureRequestId unproved and the final receipt BLOCKED (2 ms)
+    √ keeps captureTurnId unproved and the final receipt BLOCKED (3 ms)
+    √ keeps conversationId unproved and the final receipt BLOCKED (5 ms)
+    √ keeps tool unproved and the final receipt BLOCKED (4 ms)
+    √ keeps stored actual clock differs unproved and the final receipt BLOCKED (4 ms)
+    √ keeps stored fixed clock differs unproved and the final receipt BLOCKED (3 ms)
+    √ keeps initial actual clock differs unproved and the final receipt BLOCKED (4 ms)
+    √ keeps missing stored clock unproved and the final receipt BLOCKED (4 ms)
+    √ keeps initial runtime packet missing unproved and the final receipt BLOCKED (4 ms)
+    √ keeps current actor mismatch unproved and the final receipt BLOCKED (3 ms)
+    √ rejects signed prompt without storage access (2 ms)
+    √ rejects signed missing call without storage access (3 ms)
+    √ rejects signed extra call without storage access (2 ms)
+    √ rejects signed unresolved without storage access (3 ms)
+    √ rejects signed failed without storage access (3 ms)
+    √ rejects signed predeclared join without storage access (3 ms)
+    √ does not fabricate a join after storage failure or an expired read (3 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       29 passed, 29 total
+Snapshots:   0 total
+Time:        40.795 s, estimated 51 s
+Ran all test suites matching /src\\meri\\meri-capture-clock-packets.spec.ts/i.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?

@@ -1,0 +1,5 @@
+{
+  "command": "NODE_OPTIONS=--max-old-space-size=8192 pnpm --filter @capiro/meriv2-orchestrator exec jest --runInBand --forceExit src/meri/meriv3/meriv3-assistant.service.spec.ts -t 'keeps run_analysis excluded from fresh progressive disclosure during server capture'",
+  "recordedAt": "2026-10-03T15:38:27.6264498Z",
+  "exitCode": 0
+}

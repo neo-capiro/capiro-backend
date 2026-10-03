@@ -1,0 +1,41 @@
+[Nest] 46980  - 10/03/2026, 1:23:25 PM    WARN [ApiToolExecutorRepo] Delegated read "read_client_documents" -> failed
+[Nest] 46980  - 10/03/2026, 1:23:25 PM    WARN [ApiToolExecutorRepo] Delegated tool "search_memory" -> 503
+[Nest] 46980  - 10/03/2026, 1:23:25 PM    WARN [ApiToolExecutorRepo] Delegated read "read_client_documents" -> failed
+[Nest] 46980  - 10/03/2026, 1:23:25 PM    WARN [ApiToolExecutorRepo] Delegated read "read_client_documents" -> failed
+[Nest] 46980  - 10/03/2026, 1:23:25 PM    WARN [ApiToolExecutorRepo] Delegated read "read_client_documents" -> failed
+PASS src/meri/controlled-read-observations.spec.ts (12.828 s)
+  controlled read actual HTTP observations
+    √ refused unwrapped execution poisons the clock census even when its caller catches the error (63 ms)
+    √ refused missing-call-id execution poisons the clock census even when its caller catches the error (6 ms)
+    √ refused wrong-tool execution poisons the clock census even when its caller catches the error (3 ms)
+    √ retains actual 01 HTTP clock evidence before truncation (112 ms)
+    √ retains actual 14 HTTP clock evidence before truncation (18 ms)
+    √ retains actual 20 HTTP clock evidence before truncation (8 ms)
+    √ retains actual 72 HTTP clock evidence before truncation (9 ms)
+    √ retains actual failed HTTP clock evidence before truncation (10 ms)
+    √ one actual loopback HTTP response captures two independent passages under one provider call (17 ms)
+    √ multi-source observation refuses duplicate before recording anything (3 ms)
+    √ multi-source observation refuses missing before recording anything
+    √ multi-source observation refuses hash before recording anything (1 ms)
+    √ multi-source observation refuses foreign before recording anything (1 ms)
+    √ multi-source observation refuses coverage before recording anything (1 ms)
+    √ native API executor observes HTTP200 logical errors before failure and native no-progress suppresses call four (31 ms)
+    √ actual full passage joins call/source/hash and records tenant-global null client (1 ms)
+    √ rejects mismatched captureRunId before accepting HTTP evidence (1 ms)
+    √ rejects mismatched requestId before accepting HTTP evidence
+    √ rejects mismatched traceId before accepting HTTP evidence (1 ms)
+    √ rejects mismatched turnId before accepting HTTP evidence
+    √ rejects mismatched tenantId before accepting HTTP evidence (1 ms)
+    √ rejects mismatched actorUserId before accepting HTTP evidence (1 ms)
+    √ rejects mismatched clientId before accepting HTTP evidence
+    √ rejects mismatched conversationId before accepting HTTP evidence
+    √ rejects mismatched physicalMapSha256 before accepting HTTP evidence
+    √ rejects absent real call identity, non200 transport, modified full text, and wrong source client (1 ms)
+    √ ordinary and case01 requests are unchanged and cannot access another request observations (1 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       27 passed, 27 total
+Snapshots:   0 total
+Time:        13.033 s, estimated 14 s
+Ran all test suites matching /src\\meri\\controlled-read-observations.spec.ts/i.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?

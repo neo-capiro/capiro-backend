@@ -1,0 +1,20 @@
+FAIL src/context/compiler-v2.spec.ts
+  ● Test suite failed to run
+
+    src/context/compiler-v2.spec.ts:23:65 - error TS2345: Argument of type '(loader: "governed" | "legacy", field: "expiresAt" | "validUntil") => Promise<void>' is not assignable to parameter of type '(...args: readonly ["governed", "expiresAt"] | readonly ["governed", "validUntil"] | readonly ["legacy", "expiresAt"] | readonly ["legacy", "validUntil"]) => void | TestReturnValuePromise | TestReturnValueGenerator | undefined'.
+      Types of parameters 'loader' and 'args' are incompatible.
+        Type 'readonly ["governed", "expiresAt"] | readonly ["governed", "validUntil"] | readonly ["legacy", "expiresAt"] | readonly ["legacy", "validUntil"]' is not assignable to type '[loader: "governed" | "legacy", field: "expiresAt" | "validUntil"]'.
+          The type 'readonly ["governed", "expiresAt"]' is 'readonly' and cannot be assigned to the mutable type '[loader: "governed" | "legacy", field: "expiresAt" | "validUntil"]'.
+
+    23   ] as const)('checks real %s-store %s after the awaited load', async (loader, field) => {
+                                                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Test Suites: 1 failed, 1 total
+Tests:       0 total
+Snapshots:   0 total
+Time:        3.736 s
+Ran all test suites matching /src\\context\\compiler-v2.spec.ts/i.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?
+undefined
+C:\dev\main\meri-c1-20261002\packages\meriv2-core:
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command "jest" not found

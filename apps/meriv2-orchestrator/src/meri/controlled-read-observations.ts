@@ -3,25 +3,127 @@ import { createHash } from 'node:crypto';
 import type {
   MeriServerReadonlyCapturePolicy,
   MeriControlledReadAttempt,
+  MeriCaptureClockInvocation,
 } from '@capiro/meriv2-core';
 import { currentServerReadonlyCapturePolicy } from '../request/trusted-current-turn-scope.js';
 
 const invocations = new AsyncLocalStorage<{
   policy: MeriServerReadonlyCapturePolicy;
   callId: string;
+  clock?: MeriCaptureClockInvocation;
 }>();
 const observations = new WeakMap<MeriServerReadonlyCapturePolicy, MeriControlledReadAttempt[]>();
+const clockInvocations = new WeakMap<
+  MeriServerReadonlyCapturePolicy,
+  MeriCaptureClockInvocation[]
+>();
+const clockEnabled = (
+  p: MeriServerReadonlyCapturePolicy | null,
+): p is MeriServerReadonlyCapturePolicy =>
+  !!p?.semanticClock &&
+  !p.syntheticReadBudget &&
+  p.fixtureVersion === 'meri-live-v1-2026-09-26.1' &&
+  ['01', '14', '20', '72'].includes(p.caseId ?? '');
 const enabled = (p: MeriServerReadonlyCapturePolicy | null): p is MeriServerReadonlyCapturePolicy =>
   !!p && ['20', '21', '22', '23', '24', '26', '27', '72'].includes(p.caseId ?? '');
+
+/** A refused boundary is not a provider call or HTTP dispatch. Retain the
+ * missing identity so catching the error cannot turn an incomplete census into N/A. */
+function retainClockRefusal(policy: MeriServerReadonlyCapturePolicy, tool: string): void {
+  const rows = clockInvocations.get(policy) ?? [];
+  rows.push({
+    callId: '',
+    tool,
+    outcome: 'threw',
+    httpAttempts: 0,
+    httpStatus: null,
+    responseSha256: null,
+    packets: [],
+  });
+  clockInvocations.set(policy, rows);
+}
 /** Caller-owned actual function-call ID is set at the existing invocation owner. */
 export async function withControlledReadInvocation<T>(
   callId: string | undefined,
   fn: () => Promise<T>,
+  tool?: string,
 ): Promise<T> {
   const policy = currentServerReadonlyCapturePolicy();
-  if (!enabled(policy)) return fn();
-  if (!callId?.trim()) throw new Error('Controlled read invocation identity missing.');
-  return invocations.run({ policy, callId }, fn);
+  if (!enabled(policy) && !clockEnabled(policy)) return fn();
+  if (!callId?.trim()) {
+    if (clockEnabled(policy)) retainClockRefusal(policy, tool ?? '');
+    throw new Error('Controlled read invocation identity missing.');
+  }
+  const clock: MeriCaptureClockInvocation | undefined = clockEnabled(policy)
+    ? {
+        callId,
+        tool: tool ?? '',
+        outcome: 'pending',
+        httpAttempts: 0,
+        httpStatus: null,
+        responseSha256: null,
+        packets: [],
+      }
+    : undefined;
+  if (clock) {
+    const rows = clockInvocations.get(policy) ?? [];
+    rows.push(clock);
+    clockInvocations.set(policy, rows);
+  }
+  return invocations.run({ policy, callId, clock }, async () => {
+    try {
+      const result = await fn();
+      if (clock) clock.outcome = 'returned';
+      return result;
+    } catch (error) {
+      if (clock) clock.outcome = 'threw';
+      throw error;
+    }
+  });
+}
+
+/** Called immediately before each real fetch, including failed attempts. */
+export function observeCaptureClockHttpAttempt(tool: string): void {
+  const policy = currentServerReadonlyCapturePolicy();
+  if (!clockEnabled(policy)) return;
+  const invocation = invocations.getStore();
+  if (invocation?.policy !== policy || !invocation.clock || invocation.clock.tool !== tool) {
+    retainClockRefusal(policy, tool);
+    throw new Error('Capture clock invocation missing.');
+  }
+  invocation.clock.httpAttempts++;
+}
+
+/** Raw API response metadata is retained independently of model projection. */
+export function observeCaptureClockHttpResponse(
+  tool: string,
+  status: number,
+  payload: unknown,
+): void {
+  const policy = currentServerReadonlyCapturePolicy();
+  if (!clockEnabled(policy)) return;
+  const row = invocations.getStore()?.clock;
+  if (!row || row.tool !== tool || row.httpAttempts !== 1 || row.httpStatus !== null)
+    throw new Error('Capture clock HTTP observation mismatch.');
+  row.httpStatus = status;
+  row.responseSha256 = createHash('sha256').update(JSON.stringify(payload), 'utf8').digest('hex');
+  if (tool === 'search_memory') {
+    const value = payload as Record<string, unknown> | null;
+    if (
+      !Array.isArray(value?.contextPackets) ||
+      !value.contextPackets.length ||
+      value.contextPackets.length > 2 ||
+      JSON.stringify(value.contextPacket) !== JSON.stringify(value.contextPackets.at(-1))
+    )
+      throw new Error('Capture clock compiler packets missing.');
+    row.packets = structuredClone(value.contextPackets);
+  }
+}
+
+/** Only read at completed native-turn assembly, after all invocation owners settle. */
+export function readCaptureClockInvocations(): MeriCaptureClockInvocation[] | undefined {
+  const policy = currentServerReadonlyCapturePolicy();
+  return clockEnabled(policy) ? structuredClone(clockInvocations.get(policy) ?? []) : undefined;
 }
 /** Runs at the actual HTTP response boundary BEFORE logical-error classification
  * throws. It stores only scoped source identity, hashes and actual transport facts.

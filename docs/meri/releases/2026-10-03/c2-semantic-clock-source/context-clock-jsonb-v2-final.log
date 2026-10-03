@@ -1,0 +1,49 @@
+(node:5596) [DEP0180] DeprecationWarning: fs.Stats constructor is deprecated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+▶ context clock JSONB on actual generated Prisma/PostgreSQL
+  ✔ off: persists and rereads actual compiler clock metadata (4156.27ms)
+  ✔ off: ordinary packets and existing unrelated JSON remain unchanged (661.7347ms)
+{"_aws":{"Timestamp":1791046661843,"CloudWatchMetrics":[{"Namespace":"Capiro/MeriV2Control","Dimensions":[["Environment"]],"Metrics":[{"Name":"ContextPacketPersistenceFailures","Unit":"Count"}]}]},"Environment":"unknown","event":"meriv2.control.metrics","ContextPacketPersistenceFailures":1}
+  ✔ off: removed clock metadata blocks qualified output and rolls back the failed write (627.7468ms)
+{"_aws":{"Timestamp":1791046662482,"CloudWatchMetrics":[{"Namespace":"Capiro/MeriV2Control","Dimensions":[["Environment"]],"Metrics":[{"Name":"ContextPacketPersistenceFailures","Unit":"Count"}]}]},"Environment":"unknown","event":"meriv2.control.metrics","ContextPacketPersistenceFailures":1}
+  ✔ off: changed clock timezone blocks qualified output and rolls back the failed write (616.2808ms)
+{"_aws":{"Timestamp":1791046663064,"CloudWatchMetrics":[{"Namespace":"Capiro/MeriV2Control","Dimensions":[["Environment"]],"Metrics":[{"Name":"ContextPacketPersistenceFailures","Unit":"Count"}]}]},"Environment":"unknown","event":"meriv2.control.metrics","ContextPacketPersistenceFailures":1}
+  ✔ off: extra clock claim blocks qualified output and rolls back the failed write (586.6991ms)
+{"_aws":{"Timestamp":1791046663645,"CloudWatchMetrics":[{"Namespace":"Capiro/MeriV2Control","Dimensions":[["Environment"]],"Metrics":[{"Name":"ContextPacketPersistenceFailures","Unit":"Count"}]}]},"Environment":"unknown","event":"meriv2.control.metrics","ContextPacketPersistenceFailures":1}
+  ✔ off: missing SQL readback row blocks qualified output and rolls back the failed write (585.2966ms)
+{"_aws":{"Timestamp":1791046664278,"CloudWatchMetrics":[{"Namespace":"Capiro/MeriV2Control","Dimensions":[["Environment"]],"Metrics":[{"Name":"ContextPacketPersistenceFailures","Unit":"Count"}]}]},"Environment":"unknown","event":"meriv2.control.metrics","ContextPacketPersistenceFailures":1}
+  ✔ off: rejected SQL insert blocks qualified output and rolls back the failed write (632.3073ms)
+  ✔ enforce: persists and rereads actual compiler clock metadata (599.1699ms)
+  ✔ enforce: ordinary packets and existing unrelated JSON remain unchanged (581.3309ms)
+{"_aws":{"Timestamp":1791046666078,"CloudWatchMetrics":[{"Namespace":"Capiro/MeriV2Control","Dimensions":[["Environment"]],"Metrics":[{"Name":"ContextPacketPersistenceFailures","Unit":"Count"}]}]},"Environment":"unknown","event":"meriv2.control.metrics","ContextPacketPersistenceFailures":1}
+  ✔ enforce: removed clock metadata blocks qualified output and rolls back the failed write (618.6809ms)
+{"_aws":{"Timestamp":1791046666672,"CloudWatchMetrics":[{"Namespace":"Capiro/MeriV2Control","Dimensions":[["Environment"]],"Metrics":[{"Name":"ContextPacketPersistenceFailures","Unit":"Count"}]}]},"Environment":"unknown","event":"meriv2.control.metrics","ContextPacketPersistenceFailures":1}
+  ✔ enforce: changed clock timezone blocks qualified output and rolls back the failed write (591.2435ms)
+{"_aws":{"Timestamp":1791046667279,"CloudWatchMetrics":[{"Namespace":"Capiro/MeriV2Control","Dimensions":[["Environment"]],"Metrics":[{"Name":"ContextPacketPersistenceFailures","Unit":"Count"}]}]},"Environment":"unknown","event":"meriv2.control.metrics","ContextPacketPersistenceFailures":1}
+  ✔ enforce: extra clock claim blocks qualified output and rolls back the failed write (616.8108ms)
+{"_aws":{"Timestamp":1791046667875,"CloudWatchMetrics":[{"Namespace":"Capiro/MeriV2Control","Dimensions":[["Environment"]],"Metrics":[{"Name":"ContextPacketPersistenceFailures","Unit":"Count"}]}]},"Environment":"unknown","event":"meriv2.control.metrics","ContextPacketPersistenceFailures":1}
+  ✔ enforce: missing SQL readback row blocks qualified output and rolls back the failed write (607.1537ms)
+{"_aws":{"Timestamp":1791046668584,"CloudWatchMetrics":[{"Namespace":"Capiro/MeriV2Control","Dimensions":[["Environment"]],"Metrics":[{"Name":"ContextPacketPersistenceFailures","Unit":"Count"}]}]},"Environment":"unknown","event":"meriv2.control.metrics","ContextPacketPersistenceFailures":1}
+  ✔ enforce: rejected SQL insert blocks qualified output and rolls back the failed write (690.8069ms)
+  ✔ shadow: persists and rereads actual compiler clock metadata (748.1822ms)
+  ✔ shadow: ordinary packets and existing unrelated JSON remain unchanged (588.4084ms)
+{"_aws":{"Timestamp":1791046670536,"CloudWatchMetrics":[{"Namespace":"Capiro/MeriV2Control","Dimensions":[["Environment"]],"Metrics":[{"Name":"ContextPacketPersistenceFailures","Unit":"Count"}]}]},"Environment":"unknown","event":"meriv2.control.metrics","ContextPacketPersistenceFailures":1}
+  ✔ shadow: removed clock metadata blocks qualified output and rolls back the failed write (616.8287ms)
+{"_aws":{"Timestamp":1791046671098,"CloudWatchMetrics":[{"Namespace":"Capiro/MeriV2Control","Dimensions":[["Environment"]],"Metrics":[{"Name":"ContextPacketPersistenceFailures","Unit":"Count"}]}]},"Environment":"unknown","event":"meriv2.control.metrics","ContextPacketPersistenceFailures":1}
+  ✔ shadow: changed clock timezone blocks qualified output and rolls back the failed write (548.8494ms)
+{"_aws":{"Timestamp":1791046671670,"CloudWatchMetrics":[{"Namespace":"Capiro/MeriV2Control","Dimensions":[["Environment"]],"Metrics":[{"Name":"ContextPacketPersistenceFailures","Unit":"Count"}]}]},"Environment":"unknown","event":"meriv2.control.metrics","ContextPacketPersistenceFailures":1}
+  ✔ shadow: extra clock claim blocks qualified output and rolls back the failed write (575.2778ms)
+{"_aws":{"Timestamp":1791046672263,"CloudWatchMetrics":[{"Namespace":"Capiro/MeriV2Control","Dimensions":[["Environment"]],"Metrics":[{"Name":"ContextPacketPersistenceFailures","Unit":"Count"}]}]},"Environment":"unknown","event":"meriv2.control.metrics","ContextPacketPersistenceFailures":1}
+  ✔ shadow: missing SQL readback row blocks qualified output and rolls back the failed write (590.9037ms)
+{"_aws":{"Timestamp":1791046672820,"CloudWatchMetrics":[{"Namespace":"Capiro/MeriV2Control","Dimensions":[["Environment"]],"Metrics":[{"Name":"ContextPacketPersistenceFailures","Unit":"Count"}]}]},"Environment":"unknown","event":"meriv2.control.metrics","ContextPacketPersistenceFailures":1}
+  ✔ shadow: rejected SQL insert blocks qualified output and rolls back the failed write (559.2217ms)
+  ✔ ordinary off mode retains its existing best-effort behavior on SQL failure (744.8378ms)
+✔ context clock JSONB on actual generated Prisma/PostgreSQL (17150.9537ms)
+ℹ tests 22
+ℹ suites 1
+ℹ pass 22
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 17747.7129

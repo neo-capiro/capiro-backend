@@ -1,0 +1,151 @@
+FAIL src/context/compiler-v2.spec.ts
+  qualified semantic clock separation
+    × checks real governed-store expiresAt after the awaited load (34 ms)
+    × checks real governed-store validUntil after the awaited load (4 ms)
+    × checks real legacy-store expiresAt after the awaited load (2 ms)
+    × checks real legacy-store validUntil after the awaited load (2 ms)
+    × records the legacy compiler real eligibility check after its awaited load (4 ms)
+    √ rejects a mismatched fixed clock before either store loader executes (19 ms)
+    √ scores at fixture time while enforcing real expiry and persisting actual compiler use (7 ms)
+  ContextPacket v2 deterministic compilation
+    √ emits source-rich governed metadata and typed data blocks (3 ms)
+    √ never persists memory body text in packet items (2 ms)
+    √ is deterministic for shuffled input apart from packet id and timestamp (6 ms)
+    √ orders explicit selection, approved policy, confirmed and inferred context by tier (2 ms)
+    √ withholds unapproved, expired, conflicted, restricted and wrong-client rows before budget (1 ms)
+    √ uses governed status for every lifecycle decision and never legacy status (3 ms)
+    √ records token budgeting, omitted sections and incomplete health (2 ms)
+    √ allows instructions only for approved firm playbook records (1 ms)
+    √ advertises a packet id only after synchronous persistence succeeds (17 ms)
+  cross-surface context parity
+    √ ga-chat selects the same authoritative client item (1 ms)
+    √ in-editor selects the same authoritative client item (1 ms)
+    √ workspace-gen selects the same authoritative client item (1 ms)
+    √ strategy selects the same authoritative client item
+  ethical wall is fail-closed
+    √ withholds client memory when the wall decision is omitted (1 ms)
+    √ withholds client memory when the wall decision is explicitly denied
+    √ admits client memory only on an explicit true
+
+  ● qualified semantic clock separation › checks real governed-store expiresAt after the awaited load
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 0
+    + Received  + 1
+
+      Array [
+        "current",
+    +   "expires-during-load",
+      ]
+
+      40 |       });
+      41 |       const packet = await compiler.compileV2(request({ now: new Date(semanticClock.instant), semanticClock }));
+    > 42 |       expect(packet.items.map((item) => item.id)).toEqual(['current']);
+         |                                                   ^
+      43 |       expect(packet.exclusions).toContainEqual(expect.objectContaining({ id: 'expires-during-load',
+      44 |         reason: field === 'validUntil' ? 'invalid-until' : 'unavailable' }));
+      45 |       expect(packet.clockUse).toEqual({ instant: semanticClock.instant, timeZone: semanticClock.timeZone,
+
+      at src/context/compiler-v2.spec.ts:42:51
+
+  ● qualified semantic clock separation › checks real governed-store validUntil after the awaited load
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 0
+    + Received  + 1
+
+      Array [
+        "current",
+    +   "expires-during-load",
+      ]
+
+      40 |       });
+      41 |       const packet = await compiler.compileV2(request({ now: new Date(semanticClock.instant), semanticClock }));
+    > 42 |       expect(packet.items.map((item) => item.id)).toEqual(['current']);
+         |                                                   ^
+      43 |       expect(packet.exclusions).toContainEqual(expect.objectContaining({ id: 'expires-during-load',
+      44 |         reason: field === 'validUntil' ? 'invalid-until' : 'unavailable' }));
+      45 |       expect(packet.clockUse).toEqual({ instant: semanticClock.instant, timeZone: semanticClock.timeZone,
+
+      at src/context/compiler-v2.spec.ts:42:51
+
+  ● qualified semantic clock separation › checks real legacy-store expiresAt after the awaited load
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 0
+    + Received  + 1
+
+      Array [
+        "current",
+    +   "expires-during-load",
+      ]
+
+      40 |       });
+      41 |       const packet = await compiler.compileV2(request({ now: new Date(semanticClock.instant), semanticClock }));
+    > 42 |       expect(packet.items.map((item) => item.id)).toEqual(['current']);
+         |                                                   ^
+      43 |       expect(packet.exclusions).toContainEqual(expect.objectContaining({ id: 'expires-during-load',
+      44 |         reason: field === 'validUntil' ? 'invalid-until' : 'unavailable' }));
+      45 |       expect(packet.clockUse).toEqual({ instant: semanticClock.instant, timeZone: semanticClock.timeZone,
+
+      at src/context/compiler-v2.spec.ts:42:51
+
+  ● qualified semantic clock separation › checks real legacy-store validUntil after the awaited load
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 0
+    + Received  + 1
+
+      Array [
+        "current",
+    +   "expires-during-load",
+      ]
+
+      40 |       });
+      41 |       const packet = await compiler.compileV2(request({ now: new Date(semanticClock.instant), semanticClock }));
+    > 42 |       expect(packet.items.map((item) => item.id)).toEqual(['current']);
+         |                                                   ^
+      43 |       expect(packet.exclusions).toContainEqual(expect.objectContaining({ id: 'expires-during-load',
+      44 |         reason: field === 'validUntil' ? 'invalid-until' : 'unavailable' }));
+      45 |       expect(packet.clockUse).toEqual({ instant: semanticClock.instant, timeZone: semanticClock.timeZone,
+
+      at src/context/compiler-v2.spec.ts:42:51
+
+  ● qualified semantic clock separation › records the legacy compiler real eligibility check after its awaited load
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 1
+    + Received  + 1
+
+      Object {
+    -   "eligibilityAt": "2026-10-03T12:00:02.000Z",
+    +   "eligibilityAt": "2026-10-03T12:00:00.000Z",
+        "instant": "2026-09-26T16:00:00.000Z",
+        "scoring": "not_run",
+        "timeZone": "America/New_York",
+      }
+
+      61 |       expect(packet.items).toEqual([]);
+      62 |       expect(packet.exclusions).toContainEqual(expect.objectContaining({ id: 'expired', reason: 'expired' }));
+    > 63 |       expect(packet.clockUse).toEqual({ instant: semanticClock.instant, timeZone: semanticClock.timeZone,
+         |                               ^
+      64 |         eligibilityAt: '2026-10-03T12:00:02.000Z', scoring: 'not_run' });
+      65 |     } finally { jest.useRealTimers(); }
+      66 |   });
+
+      at Object.<anonymous> (src/context/compiler-v2.spec.ts:63:31)
+
+Test Suites: 1 failed, 1 total
+Tests:       5 failed, 18 passed, 23 total
+Snapshots:   0 total
+Time:        4.344 s
+Ran all test suites matching /src\\context\\compiler-v2.spec.ts/i.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?
+undefined
+C:\dev\main\meri-c1-20261002\packages\meriv2-core:
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command "jest" not found

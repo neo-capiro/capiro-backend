@@ -55,6 +55,9 @@ export function buildApiOnlyMeriServerCaptureEvidence(args: {
   const captureString = (value: string | null | undefined, reason: string) =>
     value?.trim() ? observed(value.trim()) : unknown<string>(reason);
   const receipt = completeMeriCaptureEvidenceReceipt({
+    ...(policy.semanticClock ? { semanticClock: { binding: policy.semanticClock,
+      prompt: notRun<import('@capiro/meriv2-core').MeriPromptClockUse>('raw_prompt_clock_not_observed'),
+      apiJoin: 'PENDING' as const } } : {}),
     version: 1,
     kind: 'server_capture_evidence_receipt',
     purpose: 'server_capture_evidence',

@@ -57,7 +57,7 @@ function assertTuple(policy: MeriServerReadonlyCapturePolicy, ctx: TenantContext
     denied();
 }
 
-async function currentFixture(args: {
+export async function qualifyMeriCase01CaptureFixture(args: {
   prisma: PrismaService;
   ctx: TenantContext;
   policy: MeriServerReadonlyCapturePolicy;
@@ -166,7 +166,7 @@ export async function readMeriCase01CaptureAdmission(args: {
   const policy = await issueMeriServerReadonlyCapturePolicy(args);
   if (!policy || policy.caseId !== '01')
     return { status: 'NOT_READY', reason: 'CASE01_BINDING_REQUIRED' } as const;
-  const fixture = await currentFixture({ ...args, policy });
+  const fixture = await qualifyMeriCase01CaptureFixture({ ...args, policy });
   const providerBudget = await inspectCaptureProviderBudgetReadiness({ ...args, policy });
   const apiReleaseSha = process.env.GIT_SHA;
   if (!SHA.test(apiReleaseSha ?? '')) denied();
@@ -211,7 +211,7 @@ export async function readMeriCase01CaptureReadback(args: {
   );
   if (policy.caseId !== '01') return undefined;
   if (args.message.role !== 'assistant' || policy.conversationId !== args.conversationId) denied();
-  const fixture = await currentFixture({ ...args, policy });
+  const fixture = await qualifyMeriCase01CaptureFixture({ ...args, policy });
   const providerBudget = await inspectCaptureProviderBudgetReadiness({ ...args, policy });
   return {
     schemaVersion: 1,

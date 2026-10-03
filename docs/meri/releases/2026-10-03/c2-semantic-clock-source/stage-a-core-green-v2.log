@@ -1,0 +1,9 @@
+PASS src/context/compiler-v2.spec.ts
+PASS src/context/semantic-clock.spec.ts
+
+Test Suites: 2 passed, 2 total
+Tests:       18 passed, 18 total
+Snapshots:   0 total
+Time:        1.666 s, estimated 2 s
+Ran all test suites matching /src\\context\\compiler-v2.spec.ts|src\\context\\semantic-clock.spec.ts/i.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?

@@ -1,0 +1,8 @@
+{
+  "command": "NODE_OPTIONS=--max-old-space-size=8192 pnpm --filter @capiro/meriv2-core exec jest --runInBand --forceExit src/context/governed-evidence-auth.spec.ts src/context/compiler-v2.spec.ts src/context/semantic-clock.spec.ts src/context/capture-evidence-receipt.spec.ts",
+  "startedAt": "2026-10-03T15:59:36.3563462Z",
+  "completedAt": "2026-10-03T15:59:42.4229642Z",
+  "exitCode": 0,
+  "compilerSha256": "88be0fd953b812dcfde9dd4b2b85c38368caba396f81ec27fce1e751d7981a81",
+  "testSha256": "9fe332e53e04cdf072e15efa89d64a72707085cf6905455ec885549bc5e42bec"
+}

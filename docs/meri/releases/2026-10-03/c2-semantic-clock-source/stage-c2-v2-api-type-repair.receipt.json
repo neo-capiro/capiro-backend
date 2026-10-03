@@ -1,0 +1,6 @@
+{
+  "command": "NODE_OPTIONS=--max-old-space-size=8192 pnpm --filter @capiro/api exec jest --runInBand --forceExit src/meri/meri-capture-clock-packets.spec.ts src/meri/meri-capture-semantic-clock.spec.ts",
+  "startedAt": "2026-10-03T17:20:44.2977989Z",
+  "completedAt": "2026-10-03T17:21:14.5206941Z",
+  "exitCode": 0
+}

@@ -1,0 +1,165 @@
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[ts-compiler] (WARN) Got a `.js` file to compile while `allowJs` option is not set to `true` (file: C:\dev\main\meri-c1-20261002\packages\meriv2-core\dist\index.js). To fix this:
+  - if you want TypeScript to process JS files, set `allowJs` to `true` in your TypeScript config (usually tsconfig.json)
+  - if you do not want TypeScript to process your `.js` files, in your Jest config change the `transform` key which value is `ts-jest` so that it does not match `.js` files anymore
+ts-jest[ts-compiler] (WARN) Got a `.js` file to compile while `allowJs` option is not set to `true` (file: C:\dev\main\meri-c1-20261002\packages\meriv2-core\dist\context\server-readonly-capture.js). To fix this:
+  - if you want TypeScript to process JS files, set `allowJs` to `true` in your TypeScript config (usually tsconfig.json)
+  - if you do not want TypeScript to process your `.js` files, in your Jest config change the `transform` key which value is `ts-jest` so that it does not match `.js` files anymore
+ts-jest[ts-compiler] (WARN) Got a `.js` file to compile while `allowJs` option is not set to `true` (file: C:\dev\main\meri-c1-20261002\packages\meriv2-core\dist\registry\tool-registry.js). To fix this:
+  - if you want TypeScript to process JS files, set `allowJs` to `true` in your TypeScript config (usually tsconfig.json)
+  - if you do not want TypeScript to process your `.js` files, in your Jest config change the `transform` key which value is `ts-jest` so that it does not match `.js` files anymore
+ts-jest[ts-compiler] (WARN) Got a `.js` file to compile while `allowJs` option is not set to `true` (file: C:\dev\main\meri-c1-20261002\packages\meriv2-core\dist\context\compiler.js). To fix this:
+  - if you want TypeScript to process JS files, set `allowJs` to `true` in your TypeScript config (usually tsconfig.json)
+  - if you do not want TypeScript to process your `.js` files, in your Jest config change the `transform` key which value is `ts-jest` so that it does not match `.js` files anymore
+ts-jest[ts-compiler] (WARN) Got a `.js` file to compile while `allowJs` option is not set to `true` (file: C:\dev\main\meri-c1-20261002\packages\meriv2-core\dist\context\truthful-compiler.js). To fix this:
+  - if you want TypeScript to process JS files, set `allowJs` to `true` in your TypeScript config (usually tsconfig.json)
+  - if you do not want TypeScript to process your `.js` files, in your Jest config change the `transform` key which value is `ts-jest` so that it does not match `.js` files anymore
+ts-jest[ts-compiler] (WARN) Got a `.js` file to compile while `allowJs` option is not set to `true` (file: C:\dev\main\meri-c1-20261002\packages\meriv2-core\dist\context\context-rollout.js). To fix this:
+  - if you want TypeScript to process JS files, set `allowJs` to `true` in your TypeScript config (usually tsconfig.json)
+  - if you do not want TypeScript to process your `.js` files, in your Jest config change the `transform` key which value is `ts-jest` so that it does not match `.js` files anymore
+ts-jest[ts-compiler] (WARN) Got a `.js` file to compile while `allowJs` option is not set to `true` (file: C:\dev\main\meri-c1-20261002\packages\meriv2-core\dist\context\context-release-switch.js). To fix this:
+  - if you want TypeScript to process JS files, set `allowJs` to `true` in your TypeScript config (usually tsconfig.json)
+  - if you do not want TypeScript to process your `.js` files, in your Jest config change the `transform` key which value is `ts-jest` so that it does not match `.js` files anymore
+ts-jest[ts-compiler] (WARN) Got a `.js` file to compile while `allowJs` option is not set to `true` (file: C:\dev\main\meri-c1-20261002\packages\meriv2-core\dist\quality-telemetry\contract.js). To fix this:
+  - if you want TypeScript to process JS files, set `allowJs` to `true` in your TypeScript config (usually tsconfig.json)
+  - if you do not want TypeScript to process your `.js` files, in your Jest config change the `transform` key which value is `ts-jest` so that it does not match `.js` files anymore
+ts-jest[ts-compiler] (WARN) Got a `.js` file to compile while `allowJs` option is not set to `true` (file: C:\dev\main\meri-c1-20261002\packages\meriv2-core\dist\evaluation\contract.js). To fix this:
+  - if you want TypeScript to process JS files, set `allowJs` to `true` in your TypeScript config (usually tsconfig.json)
+  - if you do not want TypeScript to process your `.js` files, in your Jest config change the `transform` key which value is `ts-jest` so that it does not match `.js` files anymore
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+FAIL src/meri/meri-context-plane.service.spec.ts (21.102 s)
+  ● qualified clock reaches planning/compiler explicitly, while ingestion availability remains real
+
+    TypeError: Cannot read properties of undefined (reading 'toISOString')
+
+      29 |     expect(call.resolverRequest.retrieval.windowEnd.toISOString()).toBe(semanticClock.instant);
+      30 |     expect(call.resolverRequest.retrieval.windowStart.toISOString()).toBe('2026-09-19T16:00:00.000Z');
+    > 31 |     expect(call.resolverRequest.retrieval.observedThrough.toISOString()).toBe('2026-10-03T12:00:00.000Z');
+         |                                                           ^
+      32 |     await expect(service.resolveChat({ tenantId: 'tenant', userId: 'actor' } as never,
+      33 |       { ...input, now: new Date() })).rejects.toThrow('clock_request_mismatch');
+      34 |     expect(requestContext).toHaveBeenCalledTimes(1);
+
+      at Object.<anonymous> (src/meri/meri-context-plane.service.spec.ts:31:59)
+
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+PASS src/meri/meri-case46-turn-wiring.spec.ts
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+FAIL src/meri/meri-capture-semantic-clock.spec.ts
+  ● only canonical owner proof mints the fixed case 01 clock
+
+    TypeError: (0 , meri_server_readonly_capture_js_1.meriReadonlyCaptureCatalogSha256) is not a function
+
+      34 |     expiresAt: Date.now() + 60000,
+      35 |     toolAuthority: 'shared_static_registry_read_only',
+    > 36 |     toolCatalogSha256: meriReadonlyCaptureCatalogSha256(),
+         |                                                        ^
+      37 |     dynamicMcpAllowed: false,
+      38 |     incidentalWriters: 'suppressed',
+      39 |     expectedCaptureWrites: [
+
+      at captureBudgetTestPolicy (src/meri/meri-capture-provider-budget.spec-helper.ts:36:56)
+      at policy (src/meri/meri-capture-semantic-clock.spec.ts:18:38)
+      at src/meri/meri-capture-semantic-clock.spec.ts:28:18
+
+  ● only canonical owner proof mints the fixed case 14 clock
+
+    TypeError: (0 , meri_server_readonly_capture_js_1.meriReadonlyCaptureCatalogSha256) is not a function
+
+      34 |     expiresAt: Date.now() + 60000,
+      35 |     toolAuthority: 'shared_static_registry_read_only',
+    > 36 |     toolCatalogSha256: meriReadonlyCaptureCatalogSha256(),
+         |                                                        ^
+      37 |     dynamicMcpAllowed: false,
+      38 |     incidentalWriters: 'suppressed',
+      39 |     expectedCaptureWrites: [
+
+      at captureBudgetTestPolicy (src/meri/meri-capture-provider-budget.spec-helper.ts:36:56)
+      at policy (src/meri/meri-capture-semantic-clock.spec.ts:18:38)
+      at src/meri/meri-capture-semantic-clock.spec.ts:28:18
+
+  ● only canonical owner proof mints the fixed case 20 clock
+
+    TypeError: (0 , meri_server_readonly_capture_js_1.meriReadonlyCaptureCatalogSha256) is not a function
+
+      34 |     expiresAt: Date.now() + 60000,
+      35 |     toolAuthority: 'shared_static_registry_read_only',
+    > 36 |     toolCatalogSha256: meriReadonlyCaptureCatalogSha256(),
+         |                                                        ^
+      37 |     dynamicMcpAllowed: false,
+      38 |     incidentalWriters: 'suppressed',
+      39 |     expectedCaptureWrites: [
+
+      at captureBudgetTestPolicy (src/meri/meri-capture-provider-budget.spec-helper.ts:36:56)
+      at policy (src/meri/meri-capture-semantic-clock.spec.ts:18:38)
+      at src/meri/meri-capture-semantic-clock.spec.ts:28:18
+
+  ● only canonical owner proof mints the fixed case 72 clock
+
+    TypeError: (0 , meri_server_readonly_capture_js_1.meriReadonlyCaptureCatalogSha256) is not a function
+
+      34 |     expiresAt: Date.now() + 60000,
+      35 |     toolAuthority: 'shared_static_registry_read_only',
+    > 36 |     toolCatalogSha256: meriReadonlyCaptureCatalogSha256(),
+         |                                                        ^
+      37 |     dynamicMcpAllowed: false,
+      38 |     incidentalWriters: 'suppressed',
+      39 |     expectedCaptureWrites: [
+
+      at captureBudgetTestPolicy (src/meri/meri-capture-provider-budget.spec-helper.ts:36:56)
+      at policy (src/meri/meri-capture-semantic-clock.spec.ts:18:38)
+      at src/meri/meri-capture-semantic-clock.spec.ts:28:18
+
+  ● ordinary, unqualified and budget-only captures cannot acquire fixture time
+
+    TypeError: (0 , meri_server_readonly_capture_js_1.meriReadonlyCaptureCatalogSha256) is not a function
+
+      34 |     expiresAt: Date.now() + 60000,
+      35 |     toolAuthority: 'shared_static_registry_read_only',
+    > 36 |     toolCatalogSha256: meriReadonlyCaptureCatalogSha256(),
+         |                                                        ^
+      37 |     dynamicMcpAllowed: false,
+      38 |     incidentalWriters: 'suppressed',
+      39 |     expectedCaptureWrites: [
+
+      at captureBudgetTestPolicy (src/meri/meri-capture-provider-budget.spec-helper.ts:36:56)
+      at policy (src/meri/meri-capture-semantic-clock.spec.ts:18:38)
+      at Object.<anonymous> (src/meri/meri-capture-semantic-clock.spec.ts:39:31)
+
+  ● closed cases and a failed current owner remain fail closed
+
+    TypeError: (0 , meri_server_readonly_capture_js_1.meriReadonlyCaptureCatalogSha256) is not a function
+
+      34 |     expiresAt: Date.now() + 60000,
+      35 |     toolAuthority: 'shared_static_registry_read_only',
+    > 36 |     toolCatalogSha256: meriReadonlyCaptureCatalogSha256(),
+         |                                                        ^
+      37 |     dynamicMcpAllowed: false,
+      38 |     incidentalWriters: 'suppressed',
+      39 |     expectedCaptureWrites: [
+
+      at captureBudgetTestPolicy (src/meri/meri-capture-provider-budget.spec-helper.ts:36:56)
+      at policy (src/meri/meri-capture-semantic-clock.spec.ts:18:38)
+      at Object.<anonymous> (src/meri/meri-capture-semantic-clock.spec.ts:46:76)
+
+Test Suites: 2 failed, 1 passed, 3 total
+Tests:       7 failed, 97 passed, 104 total
+Snapshots:   0 total
+Time:        25.569 s
+Ran all test suites matching /src\\meri\\meri-context-plane.service.spec.ts|src\\meri\\meri-capture-semantic-clock.spec.ts|src\\meri\\meri-case46-turn-wiring.spec.ts/i.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?
+undefined
+C:\dev\main\meri-c1-20261002\apps\api:
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command "jest" not found

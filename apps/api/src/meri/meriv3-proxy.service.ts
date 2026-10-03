@@ -90,11 +90,13 @@ import {
   bindCurrentMeriCaptureTurn,
   bindCurrentCase46Turn,
   currentMeriGovernedArtifactCapturePolicy,
+  currentMeriGovernedRuntime,
   currentMeriCaptureEvidenceReceipt,
   currentMeriServerReadonlyCapturePolicy,
   currentMeriServerReadonlyCaptureReceipt,
   setCurrentMeriCaptureEvidenceReceipt,
 } from './meri-context-plane-runtime.js';
+import { readMeriCaptureClockPackets } from './meri-capture-clock-packets.js';
 import {
   assertMeriServerReadonlyCaptureCurrentAuthority,
   assertMeriServerReadonlyCaptureNoArtifactWrites,
@@ -1298,6 +1300,10 @@ export class MeriV3ProxyService {
       orchestrator: args.orchestrator,
       userMessageId: args.userMessageId,
       assistantMessageId: args.assistantMessageId,
+      clockPackets: args.policy.semanticClock ? await readMeriCaptureClockPackets({
+        prisma: this.prisma, ctx: args.ctx, policy: args.policy, orchestrator: args.orchestrator,
+        initialPacket: currentMeriGovernedRuntime()?.context.contextPacket ?? null,
+      }) : null,
     });
     const receipt = await bindCaptureProviderBudgetReceipt({
       prisma: this.prisma,

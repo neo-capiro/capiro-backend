@@ -4,6 +4,8 @@ import {
   type MeriServerReadonlyCapturePolicy,
 } from '@capiro/meriv2-core';
 import type { MeriCitation } from '@capiro/shared';
+import { composeChatSystemPrompt } from '../chat/chat-prompt.js';
+import { currentMeriPromptClockUse, runWithGovernedMeriContext } from '../meri-governed-context.runtime.js';
 import {
   buildSignedOrchestratorCaptureEvidence,
   observeMeriV3CaptureExecution,
@@ -47,6 +49,35 @@ function policy(): MeriServerReadonlyCapturePolicy {
 }
 
 describe('Meri V3 capture evidence adapters', () => {
+  it('signs an actual prompt render observation while leaving the independent API join blocked', async () => {
+    jest.useFakeTimers().setSystemTime(NOW);
+    try {
+      const p = { ...policy(), fixtureVersion: 'meri-live-v1-2026-09-26.1',
+        captureRunId: '11111111-1111-4111-8111-111111111111' };
+      p.semanticClock = { version: 1, kind: 'qualified_original_fixture_semantic_clock',
+        instant: '2026-09-26T16:00:00.000Z', timeZone: 'America/New_York', caseId: '01',
+        captureRunId: p.captureRunId, currentVerifySha256: 'a'.repeat(64), observedAt: p.issuedAt };
+      const governed = { version: 1, operationId: 'meri.chat', prompt: '', semanticClock: p.semanticClock,
+        serverReadonlyCapturePolicy: p, evidence: { tenantId: p.tenantId, userId: p.actorUserId },
+        contextPacket: { clockUse: { instant: p.semanticClock.instant, timeZone: p.semanticClock.timeZone,
+          eligibilityAt: new Date(NOW).toISOString(), scoring: 'used' } } };
+      for (const render of [false, true]) {
+        const promptClockUse = await runWithGovernedMeriContext(governed as never, async () => {
+          if (render) composeChatSystemPrompt({}, { tenantId: p.tenantId, userId: p.actorUserId } as never);
+          return currentMeriPromptClockUse();
+        });
+        const envelope = buildSignedOrchestratorCaptureEvidence({ policy: p, startedAt: NOW - 500,
+          completedAt: NOW, providerCallObserved: false, provider: 'openai', model: null, usage: null,
+          execution: { toolCalls: [], sources: [], promptClockUse,
+            estimatedCostUsd: { status: 'UNKNOWN', value: null, reason: 'not_run' } }, secret: SECRET });
+        const receipt = verifyMeriCaptureEvidenceReceipt(envelope, p, SECRET, NOW);
+        expect(receipt.semanticClock!.prompt.status).toBe(render ? 'OBSERVED' : 'UNKNOWN');
+        expect(receipt.semanticClock!.prompt.value).toEqual(promptClockUse ?? null);
+        expect(receipt.status).toBe('BLOCKED');
+        expect(receipt.blockers).toContain('semantic_clock_api_tool_join_pending');
+      }
+    } finally { jest.useRealTimers(); }
+  });
   it('binds actual tool-call/source/usage observations without inventing missing owner fields', () => {
     const execution = observeMeriV3CaptureExecution({
       callId: 'call-actual-1',

@@ -1,0 +1,89 @@
+{
+  "version": 1,
+  "stage": "A_FROZEN_INCOMPLETE_NOT_RELEASE_READY",
+  "recordedAt": "2026-10-03T13:25:24.4348887Z",
+  "gitHead": "5ffe66728d36cb6daa62c09e6b7e6faaf1ecc7ea",
+  "files": [
+    {
+      "path": "packages/meriv2-core/src/context/server-readonly-capture.ts",
+      "sha256": "a13c8fd3409565db4e0ebef847115d3604afdb7d9586ef71be589fd80874a2bb",
+      "bytes": 8463,
+      "kind": "production"
+    },
+    {
+      "path": "packages/meriv2-core/src/registry/types.ts",
+      "sha256": "88e56a7c3fda89bc2949a7ef553366883fae15e2efc671fc4af0128690a35239",
+      "bytes": 9708,
+      "kind": "production"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/contract.ts",
+      "sha256": "ef7eb2a5addc16157c664c5be651ec9c7b3c3ed2b0cde9014036a0dd18909557",
+      "bytes": 11471,
+      "kind": "production"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/compiler.ts",
+      "sha256": "80e41fcb0157ef285849b4e7c518e8bfcec6d66b7e6a572a87d1d8356598d0cd",
+      "bytes": 27296,
+      "kind": "production"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/compiler-v2.spec.ts",
+      "sha256": "384ae9c72e95a9903f4a720023bc3c0a7ff62fffea423e4e03727ee0583f26ad",
+      "bytes": 21356,
+      "kind": "test"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/semantic-clock.spec.ts",
+      "sha256": "68a50c50eb22cac8ad4d2c1f207811cb369c50519105eab7cf66c596c05383c7",
+      "bytes": 1286,
+      "kind": "test"
+    },
+    {
+      "path": "apps/api/src/meri/meri-case01-capture-authority.ts",
+      "sha256": "c573122dab6c1800c6190f8d187aae7515cadeb137783775658f3be17bc76ffc",
+      "bytes": 9612,
+      "kind": "production"
+    },
+    {
+      "path": "apps/api/src/meri/meri-capture-semantic-clock.ts",
+      "sha256": "163367b5e73a189023057be4e9642c74903a762b1089bbbd9676ff77e82fa907",
+      "bytes": 3852,
+      "kind": "production"
+    },
+    {
+      "path": "apps/api/src/meri/meri-capture-semantic-clock.spec.ts",
+      "sha256": "da9f10d763d3dda9529b06ac6fc520b7fc2bc08e7c60cbb9ae93b7e3ac6b9a28",
+      "bytes": 3525,
+      "kind": "test"
+    },
+    {
+      "path": "apps/api/src/meri/meri-context-plane-runtime.ts",
+      "sha256": "0f63ef56f80f013b750c46902a2213a6e856d3706511456624f55aefbe85239e",
+      "bytes": 11559,
+      "kind": "production"
+    },
+    {
+      "path": "apps/api/src/meri/meri-context-plane.service.ts",
+      "sha256": "9c11cbac94ca97f8aec12b73165747dca4b12ba6cb9abc02ce840c4da64c2d05",
+      "bytes": 50735,
+      "kind": "production"
+    },
+    {
+      "path": "apps/api/src/meri/meri-context-plane.service.spec.ts",
+      "sha256": "c2bc44588edabbe166d44c187a7d5726448740e29468ab8ae66325d08afcec50",
+      "bytes": 21856,
+      "kind": "test"
+    }
+  ],
+  "remaining": [
+    "prompt date grounding and native governed-context validation",
+    "tool event-time windows, task overdue calculations and real ingestion availability",
+    "cross-turn mail continuation semantics",
+    "persisted policy allowlist and matching receipt clock proof",
+    "independent compiler/prompt/tool observation joining and mixed-version blocked evidence",
+    "full focused regression qualification and independent review"
+  ],
+  "remoteActions": 0
+}

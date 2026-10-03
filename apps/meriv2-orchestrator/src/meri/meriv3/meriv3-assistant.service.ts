@@ -1,6 +1,7 @@
 import {
   withControlledReadInvocation,
   readControlledReadHttpObservations,
+  readCaptureClockInvocations,
 } from '../controlled-read-observations.js';
 import {
   MERI_CAPABILITY_REGISTRY,
@@ -97,7 +98,7 @@ import {
   type DurableSafeReadOutcome,
 } from '../chat/chat-prompt.js';
 import { flattenSystemParts } from '../prompt-cache.helpers.js';
-import { currentGovernedMeriContext } from '../meri-governed-context.runtime.js';
+import { currentGovernedMeriContext, currentMeriPromptClockUse } from '../meri-governed-context.runtime.js';
 import {
   meriEvidenceManifest,
   seedMeriContextEvidence,
@@ -1524,6 +1525,7 @@ export class MeriV3AssistantService {
           callId: execution.call.call_id,
           tool: execution.call.name,
           readOnly: discoveryControl || this.registry.get(execution.call.name)?.readOnly === true,
+          ...(discoveryControl ? { localDiscovery: true as const } : {}),
           result: execution.result,
           citations: executionCitations,
           coverage: executionCoverage,
@@ -2678,7 +2680,9 @@ export class MeriV3AssistantService {
       ...(currentServerReadonlyCapturePolicy()
         ? {
             captureEvidence: {
+              ...(currentMeriPromptClockUse() ? { promptClockUse: currentMeriPromptClockUse() } : {}),
               controlledReadAttempts: readControlledReadHttpObservations(),
+              clockInvocations: readCaptureClockInvocations(),
               ...(readControlledReadHttpObservations()
                 ? { boundedRuntime: runtimeBudget.snapshot() }
                 : {}),
@@ -3752,6 +3756,7 @@ export class MeriV3AssistantService {
           dispatchedReservationId = reservation.reservationId;
           result = await withControlledReadInvocation(args.providerCallId, () =>
             this.registry.invoke(args.name, args.input, args.ctx, args.control),
+            args.name,
           );
           const classification = classifyApiToolReadOutcome(args.name, result);
           if (
@@ -3794,6 +3799,7 @@ export class MeriV3AssistantService {
         await this.assertCurrentProcedureAuthority(args.conversationId, args.name, args.control);
         result = await withControlledReadInvocation(args.providerCallId, () =>
           this.registry.invoke(args.name, args.input, args.ctx, args.control),
+          args.name,
         );
       }
       if (durableSafeRead) args.captureDurableSafeRead(durableSafeRead);

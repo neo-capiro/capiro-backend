@@ -1209,6 +1209,28 @@ describe('server-owned read-only acceptance capture boundary', () => {
     );
   });
 
+  test('clock readback allows only the exact field and independently matches the receipt binding', () => {
+    const current = policy({ turnId: 'message-user', fixtureVersion: 'meri-live-v1-2026-09-26.1',
+      captureRunId: '11111111-1111-4111-8111-111111111111' });
+    current.semanticClock = { version: 1, kind: 'qualified_original_fixture_semantic_clock',
+      instant: '2026-09-26T16:00:00.000Z', timeZone: 'America/New_York', caseId: '01',
+      captureRunId: current.captureRunId!, currentVerifySha256: 'a'.repeat(64), observedAt: current.issuedAt };
+    const envelope = buildApiOnlyMeriServerCaptureEvidence({ policy: current,
+      userMessageId: 'message-user', assistantMessageId: 'message-assistant', citations: [], usage: null, secret: SECRET });
+    expect(validateMeriCapturePolicyPair(current, envelope)).toEqual(current);
+    expect(envelope.receipt.blockers).toContain('semantic_clock_api_tool_join_pending');
+    expect(envelope.receipt.semanticClock!.prompt.status).toBe('NOT_RUN');
+    for (const changed of [ { ...current, semanticClock: null }, { ...current, semanticClock: undefined },
+      { ...current, fixtureVersion: null }, { ...current, fixtureVersion: 'other-fixture' },
+      { ...current, extraClock: current.semanticClock },
+      { ...current, semanticClock: { ...current.semanticClock, currentVerifySha256: 'b'.repeat(64) } },
+      { ...current, syntheticReadBudget: {} } ]) {
+      expect(() => validateMeriCapturePolicyPair(changed, envelope)).toThrow('policy_readback_denied');
+    }
+    const noClock = { ...current }; delete noClock.semanticClock;
+    expect(() => validateMeriCapturePolicyPair(noClock, envelope)).toThrow('policy_readback_denied');
+  });
+
   test('ordinary messages need no capture service identity and retain their metadata', async () => {
     const h = captureReadbackHarness();
     h.state.messages[1].metadata = { ordinary: true };

@@ -3,6 +3,7 @@ import type { TenantContext } from '@capiro/shared';
 import {
   verifyMeriCaptureEvidenceReceipt,
   validateMeriSyntheticReadBudgetGuard,
+  validateMeriFixtureSemanticClock,
   type MeriServerReadonlyCapturePolicy,
   type SignedMeriCaptureEvidenceReceipt,
 } from '@capiro/meriv2-core';
@@ -54,11 +55,16 @@ export function validateMeriCapturePolicyPair(
   try {
     if (!value || typeof value !== 'object' || Array.isArray(value)) denied();
     const policy = value as MeriServerReadonlyCapturePolicy;
-    const fields = Object.hasOwn(value, 'syntheticReadBudget')
-      ? [...POLICY_FIELDS, 'syntheticReadBudget'].sort()
-      : POLICY_FIELDS;
+    const fields = [...POLICY_FIELDS,
+      ...(Object.hasOwn(value, 'syntheticReadBudget') ? ['syntheticReadBudget'] : []),
+      ...(Object.hasOwn(value, 'semanticClock') ? ['semanticClock'] : []),
+    ].sort();
     if (JSON.stringify(Object.keys(value).sort()) !== JSON.stringify(fields)) denied();
     validateMeriSyntheticReadBudgetGuard(policy);
+    const clockQualified = !policy.syntheticReadBudget && policy.fixtureVersion === 'meri-live-v1-2026-09-26.1' &&
+      ['01', '14', '20', '72'].includes(policy.caseId ?? '');
+    if (clockQualified !== Boolean(policy.semanticClock)) denied();
+    if (Object.hasOwn(value, 'semanticClock')) validateMeriFixtureSemanticClock(policy.semanticClock!, policy);
     if (
       !Number.isSafeInteger(policy.issuedAt) ||
       !Number.isSafeInteger(policy.expiresAt) ||

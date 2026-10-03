@@ -1,0 +1,4 @@
+
+> @capiro/defense-domain@0.0.0 build C:\dev\main\meri-c1-20261002\packages\defense-domain
+> tsc -p tsconfig.json
+

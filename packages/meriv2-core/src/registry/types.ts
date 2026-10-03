@@ -42,6 +42,8 @@ export interface MeriContextPacketExclusion {
 
 /** Safe display projection of a compiled context packet; never carries body text. */
 export interface MeriContextPacketSummary {
+  /** Copied only from the compiler's returned packet, never reconstructed from policy. */
+  clockUse?: import('../context/contract').CompiledContextPacket['clockUse'];
   /** Durable ID only. Null when persistence failed or no row exists. */
   packetId?: string | null;
   persisted?: boolean;
@@ -66,6 +68,8 @@ export interface MeriContextPacketSummary {
  */
 export interface MeriGovernedTurnContext {
   version: 1;
+  /** Canonical-owner qualified; protected by whole-context attestation, never a request date. */
+  semanticClock?: import('../context/server-readonly-capture').MeriFixtureSemanticClock;
   /** API-owned trace linkage, authenticated by the existing whole-context MAC. */
   telemetryContext?: MeriTelemetryContext | null;
   operationId:

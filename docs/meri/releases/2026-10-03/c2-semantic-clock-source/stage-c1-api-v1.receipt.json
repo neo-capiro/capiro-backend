@@ -1,0 +1,6 @@
+{
+  "command": "NODE_OPTIONS=--max-old-space-size=8192 pnpm --filter @capiro/api exec jest --runInBand --forceExit src/context/context-compiler-v2.service.spec.ts src/meri/meri-context-plane.tools.spec.ts src/meri/meri-data-search.helpers.spec.ts src/meri/meri-context-plane.service.spec.ts",
+  "startedAt": "2026-10-03T16:13:36.3384988Z",
+  "completedAt": "2026-10-03T16:14:27.8373374Z",
+  "exitCode": 1
+}

@@ -1,0 +1,6 @@
+{
+  "command": "NODE_OPTIONS=--max-old-space-size=8192 pnpm --filter @capiro/meriv2-core exec jest --runInBand src/context/capture-evidence-receipt.spec.ts",
+  "startedAt": "2026-10-03T17:06:40.3718603Z",
+  "completedAt": "2026-10-03T17:06:45.2939515Z",
+  "exitCode": 0
+}

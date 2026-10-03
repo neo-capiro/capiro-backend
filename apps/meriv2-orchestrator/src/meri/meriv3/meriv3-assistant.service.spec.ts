@@ -4753,11 +4753,13 @@ describe('Stage 2 orchestrator hardening', () => {
             callId: 'capture-search-analysis',
             name: 'tool_search',
             readOnly: true,
+            localDiscovery: true,
           }),
           expect.objectContaining({
             callId: 'capture-describe-analysis',
             name: 'tool_describe',
             readOnly: true,
+            localDiscovery: true,
           }),
           expect.objectContaining({ callId: 'capture-invoke-analysis', status: 'failed' }),
         ]),

@@ -1,7 +1,9 @@
 import { Injectable, Logger, Optional } from '@nestjs/common';
+import { isDeepStrictEqual } from 'node:util';
 import { Prisma } from '@prisma/client';
 import {
   ContextPacketRolloutCompiler,
+  ContextPacketPersistenceError,
   GOVERNED_STEERING_COLUMNS_SQL,
   MERIV2_CONTEXT_PACKET_V2_ENV,
   emitMeriV2ControlMetrics,
@@ -50,7 +52,16 @@ export class ContextCompilerService {
     const mode = await this.modeFor(req.tenantId, req.surface);
     const ethicalWallAllowed = await this.ethicalWallAllowed(req);
     try {
-      return await this.compiler.compile({ ...req, ethicalWallAllowed }, mode);
+      const packet = await this.compiler.compile({ ...req, ethicalWallAllowed }, mode);
+      // Ordinary off/shadow persistence stays best-effort. A qualified clock
+      // cannot claim durable compiler evidence if its write/readback failed.
+      if (req.semanticClock && !packet.persisted) {
+        throw new ContextPacketPersistenceError(
+          packet.persistenceErrorCode ?? 'context_packet_clock_readback_missing',
+          packet.generatedPacketId ?? 'unavailable', req.surface,
+        );
+      }
+      return packet;
     } catch (error) {
       // Preserve the exact bounded persistence error even when a legacy caller
       // catches ordinary context failures and continues. The global boundary
@@ -193,15 +204,24 @@ export class ContextCompilerService {
           exclusionCount: packet.exclusions.length,
           blockChars: packet.rendered.reduce((sum, item) => sum + item.body.length, 0),
           packetHash: packet.traceHash,
+          ...(packet.clockUse ? {
+            modelPolicy: { contextCompilerClockUse: packet.clockUse } as Prisma.InputJsonValue,
+          } : {}),
           ...contextPacketVersionColumns(packet),
         },
       });
       const verified = await tx.contextPacket.findFirst({
         where: { id: packet.generatedPacketId, tenantId: packet.tenantId },
-        select: { id: true },
+        select: { id: true, ...(packet.clockUse ? { modelPolicy: true } : {}) },
       });
       if (verified?.id !== packet.generatedPacketId) {
         throw new Error('context_packet_read_after_write_missing');
+      }
+      if (packet.clockUse && !isDeepStrictEqual(
+        (verified.modelPolicy as Record<string, unknown> | null)?.contextCompilerClockUse,
+        packet.clockUse,
+      )) {
+        throw new Error('context_packet_clock_readback_mismatch');
       }
       return verified.id;
     });

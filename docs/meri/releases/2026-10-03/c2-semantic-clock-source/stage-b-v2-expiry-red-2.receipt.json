@@ -1,0 +1,8 @@
+{
+  "command": "NODE_OPTIONS=--max-old-space-size=8192 pnpm --filter @capiro/meriv2-core exec jest --runInBand --forceExit src/context/compiler-v2.spec.ts",
+  "startedAt": "2026-10-03T15:57:40.4113009Z",
+  "completedAt": "2026-10-03T15:57:45.3045650Z",
+  "exitCode": 1,
+  "compilerSha256": "80e41fcb0157ef285849b4e7c518e8bfcec6d66b7e6a572a87d1d8356598d0cd",
+  "testSha256": "c7eb18e4e6d345a7a1504358a474a46f27be2abc372ab2d7427f9e42057737ce"
+}

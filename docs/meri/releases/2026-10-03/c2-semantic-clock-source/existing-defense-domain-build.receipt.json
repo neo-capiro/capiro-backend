@@ -1,0 +1,13 @@
+{
+  "command": [
+    "C:/Users/neoma/AppData/Local/hermes/node/pnpm.cmd",
+    "--filter",
+    "@capiro/defense-domain",
+    "build"
+  ],
+  "startedAt": "2026-10-03T17:20:23.992298+00:00",
+  "completedAt": "2026-10-03T17:20:25.993442+00:00",
+  "exitCode": 0,
+  "logSha256": "9d95f7f9e7653c37bf99bb485591bd1c13aa7c92345c9e847d42420f6639b9de",
+  "scope": "Existing missing local dependency output; no dependency/source installation or edit"
+}

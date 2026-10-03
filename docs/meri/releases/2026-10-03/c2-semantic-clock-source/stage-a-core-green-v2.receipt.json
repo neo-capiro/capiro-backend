@@ -1,0 +1,5 @@
+{
+  "command": "pnpm --filter @capiro/meriv2-core exec jest --runInBand --forceExit src/context/compiler-v2.spec.ts src/context/semantic-clock.spec.ts",
+  "exitCode": 0,
+  "recordedAt": "2026-10-03T13:18:17.5889375Z"
+}

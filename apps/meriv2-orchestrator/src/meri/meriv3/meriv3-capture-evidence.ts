@@ -14,10 +14,13 @@ import {
   type MeriCaptureToolCallObservation,
   type MeriServerReadonlyCapturePolicy,
   type SignedMeriCaptureEvidenceReceipt,
+  type MeriPromptClockUse,
 } from '@capiro/meriv2-core';
 import type { MeriToolCoverageReceipt } from './meriv3-turn-coverage.js';
 
 export interface MeriV3CaptureExecutionObservation {
+  clockInvocations?: import('@capiro/meriv2-core').MeriCaptureClockInvocation[];
+  promptClockUse?: MeriPromptClockUse;
   controlledReadAttempts?: MeriControlledReadAttempt[];
   boundedRuntime?: {
     acquisitionStopped: boolean;
@@ -63,6 +66,7 @@ export function observeMeriV3CaptureExecution(args: {
   callId: string;
   tool: string;
   readOnly: boolean;
+  localDiscovery?: true;
   result: unknown;
   citations: readonly MeriCitation[];
   coverage: readonly MeriToolCoverageReceipt[];
@@ -97,6 +101,7 @@ export function observeMeriV3CaptureExecution(args: {
     status,
     readOnly: args.readOnly,
     sourceIds,
+    ...(args.localDiscovery ? { localDiscovery: true as const } : {}),
   };
   const sources = args.citations
     .filter((citation) => citation.id)
@@ -175,6 +180,11 @@ export function buildSignedOrchestratorCaptureEvidence(args: {
   const fixtureValue = <T extends string>(value: T | null, reason: string) =>
     value === null ? pendingBinding<T>(reason) : observed(value);
   const receipt = completeMeriCaptureEvidenceReceipt({
+    ...(policy.semanticClock ? { semanticClock: { binding: policy.semanticClock,
+      prompt: args.execution.promptClockUse ? observed(args.execution.promptClockUse)
+        : unknown<MeriPromptClockUse>('prompt_render_not_observed'),
+      ...(args.execution.clockInvocations ? { invocations: args.execution.clockInvocations } : {}),
+      apiJoin: 'PENDING' as const } } : {}),
     version: 1,
     kind: 'server_capture_evidence_receipt',
     purpose: 'server_capture_evidence',

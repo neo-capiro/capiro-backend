@@ -1,0 +1,5 @@
+{
+  "exitCode": 0,
+  "command": "pnpm --filter @capiro/meriv2-core build",
+  "recordedAt": "2026-10-03T13:21:30.9242006Z"
+}

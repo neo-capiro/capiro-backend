@@ -1,6 +1,9 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import type { MeriGovernedTurnContext } from '../registry/types';
 import type { MeriResearchPlanExecutionEnvelopeV1 } from './research-plan-execution';
+import { validateMeriFixtureSemanticClock, type MeriFixtureSemanticClock } from './server-readonly-capture';
+import { validateMeriGovernedArtifactPolicy } from './governed-artifact-capture';
+import { canonicalJson } from '../repair/plan-remedy';
 
 export interface MeriGovernedRequestBinding {
   conversationId?: string;
@@ -81,4 +84,39 @@ export function verifyMeriGovernedContext(
   if (!timingSafeEqual(expected, Buffer.from(proof.signature, 'hex'))) {
     throw new Error('meri_governed_context_authentication_failed');
   }
+  resolveMeriGovernedSemanticClock(context, now);
+}
+
+/** Called after whole-context authentication. This checks agreement, not fixture
+ * issuance: only the API's current canonical owner may mint the clock. */
+export function resolveMeriGovernedSemanticClock(
+  context: MeriGovernedTurnContext,
+  now = Date.now(),
+): MeriFixtureSemanticClock | undefined {
+  const policy = context.serverReadonlyCapturePolicy;
+  const artifact = context.governedArtifactCapturePolicy;
+  const clock = context.semanticClock;
+  const compiler = context.contextPacket.clockUse;
+  const qualifiedRead = policy && !policy.syntheticReadBudget &&
+    policy.fixtureVersion === 'meri-live-v1-2026-09-26.1' &&
+    ['01', '14', '20', '72'].includes(policy.caseId ?? '');
+  const fail = (): never => { throw new Error('meri_fixture_semantic_clock_context_mismatch'); };
+  if (!qualifiedRead && !artifact) {
+    if (clock || policy?.semanticClock || compiler) fail();
+    return undefined;
+  }
+  if (!clock || (artifact && policy) || context.operationId !== 'meri.chat') return fail();
+  const binding = artifact ?? policy!;
+  validateMeriFixtureSemanticClock(clock, binding);
+  if (binding.expiresAt <= now || binding.issuedAt > now + 30_000 ||
+    binding.tenantId !== context.evidence?.tenantId || binding.actorUserId !== context.evidence?.userId) fail();
+  if (artifact) {
+    validateMeriGovernedArtifactPolicy(artifact, { tenantId: artifact.tenantId,
+      actorUserId: artifact.actorUserId }, now);
+    if (clock.currentVerifySha256 !== artifact.currentVerifySha256) fail();
+  } else if (!policy!.semanticClock || canonicalJson(clock) !== canonicalJson(policy!.semanticClock)) fail();
+  if (!compiler || compiler.instant !== clock.instant || compiler.timeZone !== clock.timeZone ||
+    !Number.isFinite(Date.parse(compiler.eligibilityAt)) ||
+    !['used', 'not_run'].includes(compiler.scoring)) fail();
+  return clock;
 }

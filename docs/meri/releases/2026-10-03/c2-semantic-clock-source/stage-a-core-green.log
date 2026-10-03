@@ -1,0 +1,29 @@
+FAIL src/context/compiler-v2.spec.ts
+  ● qualified semantic clock separation › scores at fixture time while enforcing real expiry and persisting actual compiler use
+
+    expect(received).toEqual(expected) // deep equality
+
+    Expected: ArrayContaining [ObjectContaining {"id": "expired", "reason": "expired"}]
+    Received: [{"id": "expired", "layer": "firm-identity", "reason": "unavailable", "slug": "firm", "type": "firm-soul"}]
+
+      26 |       const packet = await compiler.compileV2(request({ now: new Date(semanticClock.instant), semanticClock }));
+      27 |       expect(packet.items.map((item) => item.id)).toEqual(['current']);
+    > 28 |       expect(packet.exclusions).toEqual(expect.arrayContaining([expect.objectContaining({ id: 'expired', reason: 'expired' })]));
+         |                                 ^
+      29 |       expect(packet.clockUse).toEqual({ instant: semanticClock.instant, timeZone: semanticClock.timeZone,
+      30 |         eligibilityAt: '2026-10-03T12:00:00.000Z', scoring: 'used' });
+      31 |       expect(saved[0]!.clockUse).toEqual(packet.clockUse);
+
+      at Object.<anonymous> (src/context/compiler-v2.spec.ts:28:33)
+
+PASS src/context/semantic-clock.spec.ts
+
+Test Suites: 1 failed, 1 passed, 2 total
+Tests:       1 failed, 17 passed, 18 total
+Snapshots:   0 total
+Time:        1.876 s, estimated 2 s
+Ran all test suites matching /src\\context\\compiler-v2.spec.ts|src\\context\\semantic-clock.spec.ts/i.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?
+undefined
+C:\dev\main\meri-c1-20261002\packages\meriv2-core:
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command "jest" not found

@@ -5,6 +5,48 @@ jest.mock('../prisma/prisma.service.js', () => ({ PrismaService: class PrismaSer
 
 import { MeriContextPlaneService, planMeriTurn } from './meri-context-plane.service.js';
 
+test('qualified clock reaches planning/compiler explicitly without requesting a historical ingestion snapshot', async () => {
+  jest.useFakeTimers().setSystemTime(new Date('2026-10-03T12:00:00.000Z'));
+  try {
+    const semanticClock = { version: 1, kind: 'qualified_original_fixture_semantic_clock',
+      instant: '2026-09-26T16:00:00.000Z', timeZone: 'America/New_York', caseId: '01',
+      captureRunId: '11111111-1111-4111-8111-111111111111', currentVerifySha256: 'a'.repeat(64),
+      observedAt: Date.now() } as const;
+    const tx = { clioConversation: { findFirst: async () => ({ clientId: 'client-acme' }) },
+      client: { findFirst: async () => ({ name: 'Acme' }), findMany: async () => [{ id: 'client-acme', name: 'Acme' }] },
+      integrationConnection: { findMany: async () => [] } };
+    const prisma = { withTenant: async (_t: string, fn: (tx: unknown) => unknown) => fn(tx),
+      withTenantUser: async (_t: string, _u: string, fn: (tx: unknown) => unknown) => fn(tx) };
+    const requestContext = jest.fn(async (_request: unknown) => ({ kind: 'governed_packet', packet: {} }));
+    const service = new MeriContextPlaneService(prisma as never, { requestContext } as never);
+    const input = { conversationId: 'thread', task: 'Prepare a briefing on changes in the last 7 days',
+      now: new Date(semanticClock.instant), semanticClock };
+    await expect(service.resolveChat({ tenantId: 'tenant', userId: 'actor' } as never, input))
+      .rejects.toThrow('compiler_evidence_missing');
+    const call = requestContext.mock.calls[0]![0] as any;
+    expect(call.contextRequest.now).toEqual(input.now);
+    expect(call.contextRequest.semanticClock).toEqual(semanticClock);
+    expect(call.resolverRequest.retrieval.windowEnd.toISOString()).toBe(semanticClock.instant);
+    expect(call.resolverRequest.retrieval.windowStart.toISOString()).toBe('2026-09-19T16:00:00.000Z');
+    expect(call.resolverRequest.retrieval.observedThrough).toBeUndefined();
+    await expect(service.resolveChat({ tenantId: 'tenant', userId: 'actor' } as never,
+      { ...input, now: new Date() })).rejects.toThrow('clock_request_mismatch');
+    expect(requestContext).toHaveBeenCalledTimes(1);
+    const clockUse = { instant: semanticClock.instant, timeZone: semanticClock.timeZone,
+      eligibilityAt: new Date().toISOString(), scoring: 'used' as const };
+    requestContext.mockResolvedValueOnce({ kind: 'governed_packet',
+      packet: { persisted: false, items: [], exclusions: [], rendered: [], clockUse },
+      context: { resolution: { status: 'resolved', stopReason: 'resolved',
+        subjectScope: { kind: 'client', clientIds: ['client-acme'] } },
+        retrieval: { records: [], coverage: { requestedDomains: [], searchedDomains: [], sources: [],
+          recordsEvaluated: 0, recordsReturned: 0, paginationComplete: true, complete: true } } },
+    } as never);
+    const resolved = await service.resolveChat({ tenantId: 'tenant', userId: 'actor' } as never, input);
+    expect(resolved.contextPacket.clockUse).toEqual(clockUse);
+    expect(resolved.contextPacket.clockUse!.eligibilityAt).not.toBe(semanticClock.instant);
+  } finally { jest.useRealTimers(); }
+});
+
 describe('client document clarification context', () => {
   test('replans the original meeting/contact request using only this authorized conversation', async () => {
     const task =

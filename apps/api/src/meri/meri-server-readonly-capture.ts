@@ -6,6 +6,7 @@ import type {
   MeriServerReadonlyCapturePolicy,
   MeriServerReadonlyCaptureReceipt,
   SignedMeriCaptureEvidenceReceipt,
+  MeriCaptureClockApiJoin,
 } from '@capiro/meriv2-core';
 import {
   completeMeriCaptureEvidenceReceipt,
@@ -362,6 +363,7 @@ export function finalizeMeriServerCaptureEvidence(args: {
   assistantMessageId: string;
   completedAt?: number;
   secret?: string;
+  clockPackets?: MeriCaptureClockApiJoin | null;
 }): SignedMeriCaptureEvidenceReceipt {
   const secret = args.secret ?? process.env.INTERNAL_SERVICE_SECRET;
   const orchestrator = verifyMeriCaptureEvidenceReceipt(
@@ -373,6 +375,11 @@ export function finalizeMeriServerCaptureEvidence(args: {
   const releaseRevision = currentReleaseRevision();
   const receipt = completeMeriCaptureEvidenceReceipt({
     ...orchestrator,
+    ...(orchestrator.semanticClock ? { semanticClock: {
+      ...orchestrator.semanticClock,
+      apiJoin: args.clockPackets ? 'VERIFIED' as const : 'PENDING' as const,
+      api: args.clockPackets ?? undefined,
+    } } : {}),
     completedAt: args.completedAt ?? Date.now(),
     releases: {
       ...orchestrator.releases,

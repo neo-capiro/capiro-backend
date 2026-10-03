@@ -1,0 +1,30 @@
+FAIL src/context/capture-evidence-receipt.spec.ts
+  ● Test suite failed to run
+
+    src/context/capture-evidence-receipt.spec.ts:27:7 - error TS2322: Type 'string' is not assignable to type '"2026-09-26T16:00:00.000Z"'.
+
+    27       instant: clockUse.instant, timeZone: clockUse.timeZone, caseId: '01',
+             ~~~~~~~
+
+      src/context/server-readonly-capture.ts:23:3
+        23   instant: typeof MERI_FIXTURE_SEMANTIC_INSTANT;
+             ~~~~~~~
+        The expected type comes from property 'instant' which is declared here on type 'MeriFixtureSemanticClock'
+    src/context/capture-evidence-receipt.spec.ts:27:34 - error TS2322: Type 'string' is not assignable to type '"America/New_York"'.
+
+    27       instant: clockUse.instant, timeZone: clockUse.timeZone, caseId: '01',
+                                        ~~~~~~~~
+
+      src/context/server-readonly-capture.ts:24:3
+        24   timeZone: typeof MERI_FIXTURE_SEMANTIC_ZONE;
+             ~~~~~~~~
+        The expected type comes from property 'timeZone' which is declared here on type 'MeriFixtureSemanticClock'
+
+Test Suites: 1 failed, 1 total
+Tests:       0 total
+Snapshots:   0 total
+Time:        4.779 s
+Ran all test suites matching /src\\context\\capture-evidence-receipt.spec.ts/i.
+undefined
+C:\dev\main\meri-c1-20261002\packages\meriv2-core:
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command "jest" not found

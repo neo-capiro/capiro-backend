@@ -71,6 +71,20 @@ function policy(
   };
 }
 
+test('native dispatch requires the fixed clock only for original qualified readonly fixtures', () => {
+  const p = policy({ fixtureVersion: 'meri-live-v1-2026-09-26.1',
+    captureRunId: '11111111-1111-4111-8111-111111111111' });
+  const binding = { tenantId: TENANT_ID, actorUserId: ACTOR_ID,
+    conversationId: CONVERSATION_ID, clientId: CLIENT_ID };
+  expect(() => validateServerReadonlyCapturePolicy(p, binding)).toThrow('semantic_clock');
+  p.semanticClock = { version: 1, kind: 'qualified_original_fixture_semantic_clock',
+    instant: '2026-09-26T16:00:00.000Z', timeZone: 'America/New_York', caseId: '01',
+    captureRunId: p.captureRunId!, currentVerifySha256: 'a'.repeat(64), observedAt: p.issuedAt };
+  expect(() => validateServerReadonlyCapturePolicy(p, binding)).not.toThrow();
+  expect(() => validateServerReadonlyCapturePolicy({ ...p, fixtureVersion: null }, binding)).toThrow('semantic_clock');
+  expect(() => validateServerReadonlyCapturePolicy(p, binding, p.expiresAt)).toThrow('stale');
+});
+
 test('budget-only discriminant keeps ordinary read-only dispatch and current conversation scope', () => {
   const p = policy({
     caseId: null,

@@ -1,0 +1,56 @@
+PASS src/meri/server-readonly-capture-dispatch.spec.ts (27.093 s)
+[Nest] 40516  - 10/03/2026, 1:00:37 PM    WARN [ApiToolExecutorRepo] Delegated read "search_memory" -> failed
+[Nest] 40516  - 10/03/2026, 1:00:37 PM    WARN [ApiToolExecutorRepo] Delegated read "search_memory" -> failed
+FAIL src/meri/controlled-read-observations.spec.ts
+  ● controlled read actual HTTP observations › retains actual 01 HTTP clock evidence before truncation
+
+    Delegated read "search_memory" failed: search_memory_result_contract_invalid
+
+      257 |                 });
+      258 |                 this.logger.warn(`Delegated read "${toolName}" -> ${outcome.kind}`);
+    > 259 |                 throw new Error(
+          |                       ^
+      260 |                   `Delegated read "${toolName}" ${outcome.kind}: ${(outcome.reason ?? 'owner_result_unavailable').slice(0, 200)}`,
+      261 |                 );
+      262 |               }
+
+      at src/meri/api-tool-executor.repo.ts:259:23
+      at ApiToolExecutorRepo.execute (src/meri/api-tool-executor.repo.ts:213:24)
+      at src/meri/controlled-read-observations.ts:42:22
+      at src/meri/controlled-read-observations.spec.ts:153:26
+      at src/meri/controlled-read-observations.spec.ts:149:5
+
+  ● controlled read actual HTTP observations › retains actual 14 HTTP clock evidence before truncation
+
+    Delegated read "search_memory" failed: search_memory_result_contract_invalid
+
+      257 |                 });
+      258 |                 this.logger.warn(`Delegated read "${toolName}" -> ${outcome.kind}`);
+    > 259 |                 throw new Error(
+          |                       ^
+      260 |                   `Delegated read "${toolName}" ${outcome.kind}: ${(outcome.reason ?? 'owner_result_unavailable').slice(0, 200)}`,
+      261 |                 );
+      262 |               }
+
+      at src/meri/api-tool-executor.repo.ts:259:23
+      at ApiToolExecutorRepo.execute (src/meri/api-tool-executor.repo.ts:213:24)
+      at src/meri/controlled-read-observations.ts:42:22
+      at src/meri/controlled-read-observations.spec.ts:153:26
+      at src/meri/controlled-read-observations.spec.ts:149:5
+
+[Nest] 40516  - 10/03/2026, 1:00:37 PM    WARN [ApiToolExecutorRepo] Delegated read "read_client_documents" -> failed
+[Nest] 40516  - 10/03/2026, 1:00:37 PM    WARN [ApiToolExecutorRepo] Delegated tool "search_memory" -> 503
+[Nest] 40516  - 10/03/2026, 1:00:37 PM    WARN [ApiToolExecutorRepo] Delegated read "read_client_documents" -> failed
+[Nest] 40516  - 10/03/2026, 1:00:37 PM    WARN [ApiToolExecutorRepo] Delegated read "read_client_documents" -> failed
+[Nest] 40516  - 10/03/2026, 1:00:37 PM    WARN [ApiToolExecutorRepo] Delegated read "read_client_documents" -> failed
+PASS src/meri/meriv3/meriv3-capture-evidence.spec.ts
+
+Test Suites: 1 failed, 2 passed, 3 total
+Tests:       2 failed, 32 passed, 34 total
+Snapshots:   0 total
+Time:        29.884 s
+Ran all test suites matching /src\\meri\\controlled-read-observations.spec.ts|src\\meri\\meriv3\\meriv3-capture-evidence.spec.ts|src\\meri\\server-readonly-capture-dispatch.spec.ts/i.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?
+undefined
+C:\dev\main\meri-c1-20261002\apps\meriv2-orchestrator:
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command "jest" not found

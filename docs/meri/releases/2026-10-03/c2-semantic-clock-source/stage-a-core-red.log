@@ -1,0 +1,22 @@
+PASS src/context/semantic-clock.spec.ts
+FAIL src/context/compiler-v2.spec.ts
+  ● Test suite failed to run
+
+    src/context/compiler-v2.spec.ts:31:14 - error TS2532: Object is possibly 'undefined'.
+
+    31       expect(saved[0].clockUse).toEqual(packet.clockUse);
+                    ~~~~~~~~
+    src/context/compiler-v2.spec.ts:34:90 - error TS2532: Object is possibly 'undefined'.
+
+    34       expect(atFixture.items.find((item) => item.id === 'current')?.inclusionScore).toBe(packet.items[0].inclusionScore);
+                                                                                                ~~~~~~~~~~~~~~~
+
+Test Suites: 1 failed, 1 passed, 2 total
+Tests:       1 passed, 1 total
+Snapshots:   0 total
+Time:        4.232 s
+Ran all test suites matching /src\\context\\compiler-v2.spec.ts|src\\context\\semantic-clock.spec.ts/i.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?
+undefined
+C:\dev\main\meri-c1-20261002\packages\meriv2-core:
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command "jest" not found

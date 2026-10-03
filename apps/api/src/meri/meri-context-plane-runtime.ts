@@ -32,6 +32,7 @@ import { captureBudgetRequired } from './meri-capture-provider-budget.js';
 import { captureProviderBudgetOwner } from './meri-capture-provider-budget-owner.js';
 import { syntheticReadBudgetOwner } from './meri-synthetic-read-budget-owner.js';
 import { withCaptureApiProviderScope } from './meri-capture-api-provider-scope.js';
+import { qualifyMeriCaptureSemanticClock } from './meri-capture-semantic-clock.js';
 import {
   assertMeriServerReadonlyCaptureCurrentAuthority,
   assertMeriServerReadonlyCaptureTurnInput,
@@ -118,6 +119,12 @@ export class MeriContextPlaneRuntimeService {
   ): Promise<T> {
     input.signal?.throwIfAborted();
     const prepared = await this.prepareTurn(ctx, input);
+    const semanticClock = await qualifyMeriCaptureSemanticClock({
+      prisma: this.prisma, ctx, policy: prepared.capturePolicy,
+      artifactPolicy: prepared.artifactPolicy, case46: this.case46,
+    });
+    if (prepared.capturePolicy && semanticClock)
+      prepared.capturePolicy = Object.freeze({ ...prepared.capturePolicy, semanticClock });
     input.signal?.throwIfAborted();
     if (prepared.capturePolicy && captureBudgetRequired(prepared.capturePolicy)) {
       assertMeriServerReadonlyCaptureTurnInput({
@@ -151,6 +158,7 @@ export class MeriContextPlaneRuntimeService {
         const resolved = await this.contextPlane.resolveChat(ctx, {
           conversationId: input.conversationId,
           task: prepared.task,
+          ...(semanticClock ? { now: new Date(semanticClock.instant), semanticClock } : {}),
         });
         // Retrieval owns its database work. Stop must prevent the next stage from
         // starting, even when that work finishes after the browser disconnected.

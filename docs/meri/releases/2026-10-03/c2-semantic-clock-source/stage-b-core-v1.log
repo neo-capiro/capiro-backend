@@ -1,0 +1,11 @@
+PASS src/context/governed-evidence-auth.spec.ts
+PASS src/context/compiler-v2.spec.ts
+PASS src/context/capture-evidence-receipt.spec.ts
+PASS src/context/semantic-clock.spec.ts
+
+Test Suites: 4 passed, 4 total
+Tests:       64 passed, 64 total
+Snapshots:   0 total
+Time:        4.362 s, estimated 5 s
+Ran all test suites matching /src\\context\\governed-evidence-auth.spec.ts|src\\context\\compiler-v2.spec.ts|src\\context\\semantic-clock.spec.ts|src\\context\\capture-evidence-receipt.spec.ts/i.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?

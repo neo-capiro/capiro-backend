@@ -3440,6 +3440,7 @@ export class MeriToolsService {
   }
 
   private async searchMemory(ctx: TenantContext, input: Record<string, unknown>) {
+    const capturePolicy = currentMeriToolCapturePolicy() ?? currentMeriServerReadonlyCapturePolicy();
     const query = optionalString(input, 'query', 400);
     if (!query) return { error: 'Provide a search query.' };
     const clientId = optionalString(input, 'clientId', 80);
@@ -3462,8 +3463,9 @@ export class MeriToolsService {
     // One canonical recall path for automatic context and explicit search. The
     // shared adapter reads approved memory_items content and checks the current
     // tenant/user/client wall on every page, including when embeddings are down.
-    const readPage = () =>
-      searchCapiroData(
+    const contextPackets: NonNullable<Awaited<ReturnType<typeof searchCapiroData>>['contextPacket']>[] = [];
+    const readPage = async () => {
+      const result = await searchCapiroData(
         ctx,
         {
           query,
@@ -3475,7 +3477,11 @@ export class MeriToolsService {
           ...(cursor ? { cursors: { institutional_knowledge: cursor } } : {}),
         },
         this.contextPlane,
+        capturePolicy ? { policy: capturePolicy, tool: 'search_memory' } : undefined,
       );
+      if (capturePolicy?.semanticClock && result.contextPacket) contextPackets.push(result.contextPacket);
+      return result;
+    };
     let evidence = await readPage();
     const project = () =>
       evidence.records.map((record) =>
@@ -3512,6 +3518,7 @@ export class MeriToolsService {
     return {
       ...envelope,
       tool: 'search_memory',
+      ...(capturePolicy?.semanticClock ? { contextPackets } : {}),
       summary: records.length
         ? `${records.length} governed memory item(s) returned. Follow content.nextRead for complete approved content; coverage describes the search.`
         : 'No eligible memory was returned. Coverage distinguishes an empty result from unavailable recall.',

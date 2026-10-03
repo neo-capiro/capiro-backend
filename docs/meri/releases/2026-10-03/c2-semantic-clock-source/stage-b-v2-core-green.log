@@ -1,0 +1,48 @@
+FAIL src/context/compiler-v2.spec.ts
+  ● qualified semantic clock separation › checks real governed-store validUntil after the awaited load
+
+    expect(received).toContainEqual(expected) // deep equality
+
+    Expected value: ObjectContaining {"id": "expires-during-load", "reason": "unavailable"}
+    Received array: [{"id": "expires-during-load", "layer": "firm-identity", "reason": "invalid-until", "slug": "firm", "type": "firm-soul"}]
+
+      41 |       const packet = await compiler.compileV2(request({ now: new Date(semanticClock.instant), semanticClock }));
+      42 |       expect(packet.items.map((item) => item.id)).toEqual(['current']);
+    > 43 |       expect(packet.exclusions).toContainEqual(expect.objectContaining({ id: 'expires-during-load', reason: 'unavailable' }));
+         |                                 ^
+      44 |       expect(packet.clockUse).toEqual({ instant: semanticClock.instant, timeZone: semanticClock.timeZone,
+      45 |         eligibilityAt: afterLoad, scoring: 'used' });
+      46 |       expect(saved[0]!.clockUse).toEqual(packet.clockUse);
+
+      at src/context/compiler-v2.spec.ts:43:33
+
+  ● qualified semantic clock separation › checks real legacy-store validUntil after the awaited load
+
+    expect(received).toContainEqual(expected) // deep equality
+
+    Expected value: ObjectContaining {"id": "expires-during-load", "reason": "unavailable"}
+    Received array: [{"id": "expires-during-load", "layer": "firm-identity", "reason": "invalid-until", "slug": "firm", "type": "firm-soul"}]
+
+      41 |       const packet = await compiler.compileV2(request({ now: new Date(semanticClock.instant), semanticClock }));
+      42 |       expect(packet.items.map((item) => item.id)).toEqual(['current']);
+    > 43 |       expect(packet.exclusions).toContainEqual(expect.objectContaining({ id: 'expires-during-load', reason: 'unavailable' }));
+         |                                 ^
+      44 |       expect(packet.clockUse).toEqual({ instant: semanticClock.instant, timeZone: semanticClock.timeZone,
+      45 |         eligibilityAt: afterLoad, scoring: 'used' });
+      46 |       expect(saved[0]!.clockUse).toEqual(packet.clockUse);
+
+      at src/context/compiler-v2.spec.ts:43:33
+
+PASS src/context/governed-evidence-auth.spec.ts
+PASS src/context/capture-evidence-receipt.spec.ts
+PASS src/context/semantic-clock.spec.ts
+
+Test Suites: 1 failed, 3 passed, 4 total
+Tests:       2 failed, 68 passed, 70 total
+Snapshots:   0 total
+Time:        4.558 s, estimated 7 s
+Ran all test suites matching /src\\context\\governed-evidence-auth.spec.ts|src\\context\\compiler-v2.spec.ts|src\\context\\semantic-clock.spec.ts|src\\context\\capture-evidence-receipt.spec.ts/i.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?
+undefined
+C:\dev\main\meri-c1-20261002\packages\meriv2-core:
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command "jest" not found

@@ -1,0 +1,244 @@
+{
+  "version": 2,
+  "stage": "B_FROZEN_INCOMPLETE_NOT_RELEASE_READY",
+  "recordedAt": "2026-10-03T16:00:42.8440494Z",
+  "previousSnapshot": "stage-b-checkpoint.json",
+  "previousSnapshotSha256": "f800157720766d39a793e5c5aaec1e7258dadf2fcf4242e5b7ece50f0b6df306",
+  "changedFiles": [
+    "packages/meriv2-core/src/context/compiler-v2.spec.ts",
+    "packages/meriv2-core/src/context/compiler.ts"
+  ],
+  "change": "Keep fixed-clock validation before I/O; sample real compiler eligibilityAt after awaited source load. Semantic scoring instant is unchanged.",
+  "tests": [
+    {
+      "receipt": "stage-b-v2-expiry-red.receipt.json",
+      "result": "Preserved Jest tuple typing error; zero tests ran"
+    },
+    {
+      "receipt": "stage-b-v2-expiry-red-2.receipt.json",
+      "result": "5 behavioral failures / 18 pass on original compiler"
+    },
+    {
+      "receipt": "stage-b-v2-core-green.receipt.json",
+      "result": "Preserved 2 incorrect expected-exclusion assertions / 68 pass; actual post-load exclusion worked"
+    },
+    {
+      "receipt": "stage-b-v2-expiry-red-3.receipt.json",
+      "result": "Exact final test source against frozen original compiler: 5 behavioral failures / 18 pass"
+    },
+    {
+      "receipt": "stage-b-v2-core-green-2.receipt.json",
+      "result": "70 pass / 0 skip, 4 focused core suites"
+    }
+  ],
+  "unchangedTests": "StageB API/orchestrator receipts retained; those source files unchanged, suites not rerun for this compiler-only revision",
+  "files": [
+    {
+      "path": "apps/api/src/meri/meri-capture-policy-readback.ts",
+      "kind": "production",
+      "sha256": "57e060fddfdf641c346f4a35395ec86459c87161d0b4804042e72727b8bfe758",
+      "bytes": 7700,
+      "changedFromStageB": false
+    },
+    {
+      "path": "apps/api/src/meri/meri-capture-semantic-clock.spec.ts",
+      "kind": "test",
+      "sha256": "da9f10d763d3dda9529b06ac6fc520b7fc2bc08e7c60cbb9ae93b7e3ac6b9a28",
+      "bytes": 3525,
+      "changedFromStageB": false
+    },
+    {
+      "path": "apps/api/src/meri/meri-capture-semantic-clock.ts",
+      "kind": "production",
+      "sha256": "163367b5e73a189023057be4e9642c74903a762b1089bbbd9676ff77e82fa907",
+      "bytes": 3852,
+      "changedFromStageB": false
+    },
+    {
+      "path": "apps/api/src/meri/meri-case01-capture-authority.ts",
+      "kind": "production",
+      "sha256": "c573122dab6c1800c6190f8d187aae7515cadeb137783775658f3be17bc76ffc",
+      "bytes": 9612,
+      "changedFromStageB": false
+    },
+    {
+      "path": "apps/api/src/meri/meri-context-plane-runtime.ts",
+      "kind": "production",
+      "sha256": "0f63ef56f80f013b750c46902a2213a6e856d3706511456624f55aefbe85239e",
+      "bytes": 11559,
+      "changedFromStageB": false
+    },
+    {
+      "path": "apps/api/src/meri/meri-context-plane.service.spec.ts",
+      "kind": "test",
+      "sha256": "da12768ca31b79360876726f4d4757cdecf37d959a966b5d344376211ca0685f",
+      "bytes": 22800,
+      "changedFromStageB": false
+    },
+    {
+      "path": "apps/api/src/meri/meri-context-plane.service.ts",
+      "kind": "production",
+      "sha256": "dc814609c62c8ecd5af78170a312f2f5e49139012e27ebdc8ee663f468358ee0",
+      "bytes": 51009,
+      "changedFromStageB": false
+    },
+    {
+      "path": "apps/api/src/meri/meri-server-capture-evidence.ts",
+      "kind": "production",
+      "sha256": "2fa95657d16ed7e88d4d8edb0b59c8ac39bbd63f045e13f1b7b343e730d0c377",
+      "bytes": 10159,
+      "changedFromStageB": false
+    },
+    {
+      "path": "apps/api/src/meri/meri-server-readonly-capture.spec.ts",
+      "kind": "test",
+      "sha256": "31247fd9118c1b35bedbed4c4e1cb2286e4f9d6dac1ee3d351cb0ef4b20a00e3",
+      "bytes": 47390,
+      "changedFromStageB": false
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/chat/chat-prompt.spec.ts",
+      "kind": "test",
+      "sha256": "9a920c3e9960984813267f4af0a868ce6211d18a1505946eaf0f05f41876c010",
+      "bytes": 19355,
+      "changedFromStageB": false
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/chat/chat-prompt.ts",
+      "kind": "production",
+      "sha256": "7df20ebe9402fbcedf337fa274ee03129820b736143c60dcc08c718b4936f258",
+      "bytes": 36822,
+      "changedFromStageB": false
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meri-governed-context.runtime.ts",
+      "kind": "production",
+      "sha256": "5bebbafafa1da4186db3d11ea2b82a36bd7f588025d4c3733f80ffe25ea5f0ca",
+      "bytes": 1308,
+      "changedFromStageB": false
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts",
+      "kind": "production",
+      "sha256": "9ca087c009327a0d122dceac702f3e4f3e4d9b970d785523581a220a9452b9d1",
+      "bytes": 171801,
+      "changedFromStageB": false
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-capture-evidence.spec.ts",
+      "kind": "test",
+      "sha256": "295d39184f1122568b65f8f850a6f5b871cc56a0d77bebbfecd33bdba69393dd",
+      "bytes": 7775,
+      "changedFromStageB": false
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-capture-evidence.ts",
+      "kind": "production",
+      "sha256": "e20ca329a3691f830cdaaf39ad59cfdcb3aeedf4719c58936f628db699f89bd3",
+      "bytes": 10481,
+      "changedFromStageB": false
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3.types.ts",
+      "kind": "production",
+      "sha256": "8c74eeeab4d527cdfcf62484d2c52cc913f074dd6346d33e2b0e1f045638fc78",
+      "bytes": 6211,
+      "changedFromStageB": false
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/server-readonly-capture-dispatch.spec.ts",
+      "kind": "test",
+      "sha256": "9aa40fab59cbf69e9cc546441638e29d6656b55f648c0f801e5666de5c7cb321",
+      "bytes": 10204,
+      "changedFromStageB": false
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/request/trusted-current-turn-scope.ts",
+      "kind": "production",
+      "sha256": "60b4c10a62af06c3d95520fcfef7e4a923bb99315a8e6277517f9f1fa6ee0158",
+      "bytes": 4427,
+      "changedFromStageB": false
+    },
+    {
+      "path": "packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "kind": "production",
+      "sha256": "be61164bbaf83112adffda75678a928b432af26cd103a6ee951a913006e3145e",
+      "bytes": 14695,
+      "changedFromStageB": false
+    },
+    {
+      "path": "packages/meriv2-core/src/context/compiler-v2.spec.ts",
+      "kind": "test",
+      "sha256": "9fe332e53e04cdf072e15efa89d64a72707085cf6905455ec885549bc5e42bec",
+      "bytes": 24689,
+      "changedFromStageB": true
+    },
+    {
+      "path": "packages/meriv2-core/src/context/compiler.ts",
+      "kind": "production",
+      "sha256": "88be0fd953b812dcfde9dd4b2b85c38368caba396f81ec27fce1e751d7981a81",
+      "bytes": 27642,
+      "changedFromStageB": true
+    },
+    {
+      "path": "packages/meriv2-core/src/context/contract.ts",
+      "kind": "production",
+      "sha256": "ef7eb2a5addc16157c664c5be651ec9c7b3c3ed2b0cde9014036a0dd18909557",
+      "bytes": 11471,
+      "changedFromStageB": false
+    },
+    {
+      "path": "packages/meriv2-core/src/context/governed-evidence-auth.spec.ts",
+      "kind": "test",
+      "sha256": "494fcb9a1b86544d48614ca5934fa952f56ce058aa7968ded27d813415c8e562",
+      "bytes": 12984,
+      "changedFromStageB": false
+    },
+    {
+      "path": "packages/meriv2-core/src/context/governed-evidence-auth.ts",
+      "kind": "production",
+      "sha256": "299b190104db34e2a16fb16f79b68c37efde940c773634be8ecf375a43e8563d",
+      "bytes": 5277,
+      "changedFromStageB": false
+    },
+    {
+      "path": "packages/meriv2-core/src/context/semantic-clock.spec.ts",
+      "kind": "test",
+      "sha256": "68a50c50eb22cac8ad4d2c1f207811cb369c50519105eab7cf66c596c05383c7",
+      "bytes": 1286,
+      "changedFromStageB": false
+    },
+    {
+      "path": "packages/meriv2-core/src/context/server-readonly-capture.ts",
+      "kind": "production",
+      "sha256": "3d924a36100fb601bf943acbbb991f49bea37b91aec2d9dabf1e3c76f4f8ee3a",
+      "bytes": 8607,
+      "changedFromStageB": false
+    },
+    {
+      "path": "packages/meriv2-core/src/registry/types.ts",
+      "kind": "production",
+      "sha256": "a8061c3b5a1c941b2c95fd2e1b740e7ae1cc7f5b4a72253252e4cb5059928895",
+      "bytes": 9877,
+      "changedFromStageB": false
+    }
+  ],
+  "memorySourceCommit": "f00e5dfb4fd3e47ac6aa4aca741023cc02f6314f",
+  "memorySourceFilesUnchanged": 22,
+  "remaining": [
+    "StageC: mail and task semantic read windows, overdue calculations, and distinct real ingestion availability",
+    "StageC: proved cross-turn pagination without changing explicit-date semantics",
+    "StageC: independent API compiler/tool observations joined to actual orchestrator prompt render; StageB receipts are always BLOCKED by semantic_clock_api_tool_join_pending",
+    "StageC: separate case46 actual clock-use persistence and readback; artifact authority and approval policy remain separate",
+    "Raw API-only path records prompt NOT_RUN; no raw prompt semantic-clock acceptance claim",
+    "End-to-end served original-case proof and mixed-version qualification remain unrun"
+  ],
+  "limits": [
+    "Core fake store persistence tests prove packet arguments, not durable API database storage. StageC must join real stored compiler clock evidence.",
+    "No StageC implementation, cloud, provider, browser, database, fixture, docs or commits.",
+    "Existing context scoring remains fixed; auth, expiry, deadline, lease, budget and audit use real clocks."
+  ],
+  "providerCalls": 0,
+  "remoteActions": 0,
+  "commits": 0
+}

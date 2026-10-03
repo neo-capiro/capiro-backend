@@ -13,6 +13,7 @@ import {
   type MemorySensitivity,
 } from '../memory/governance';
 import { estimateTokens } from './token-budget';
+import { validateMeriFixtureSemanticClock } from './server-readonly-capture';
 import {
   LAYER_BY_TYPE,
   typeRank,
@@ -75,7 +76,11 @@ export class ContextCompiler {
   }
 
   async compileV1(req: ContextRequest): Promise<CompiledContextPacketV1> {
+    const validatedClock = captureClockUse(req, 'not_run');
     const rows = await this.store.loadSteeringRows(req);
+    const clockUse = validatedClock
+      ? { ...validatedClock, eligibilityAt: new Date().toISOString() }
+      : undefined;
     const wanted = new Set<SteeringLayer>(req.layers);
     const items: ContextPacketItemV1[] = [];
     const exclusions: ContextExclusion[] = [];
@@ -145,19 +150,26 @@ export class ContextCompiler {
           items,
           exclusions,
           rendered,
+          ...(clockUse ? { clockUse } : {}),
         }),
       ),
       persisted: false,
       compiledAt: new Date().toISOString(),
+      ...(clockUse ? { clockUse } : {}),
     };
     await this.persist(req, packet);
     return packet;
   }
 
   async compileV2(req: ContextRequest): Promise<CompiledContextPacketV2> {
+    const validatedClock = captureClockUse(req, 'used');
     const rows = this.store.loadGovernedSteeringRows
       ? await this.store.loadGovernedSteeringRows(req)
       : await this.store.loadSteeringRows(req);
+    // Validate before I/O, but decide real-time eligibility after the rows load.
+    const clockUse = validatedClock
+      ? { ...validatedClock, eligibilityAt: new Date().toISOString() }
+      : undefined;
     const wanted = new Set<SteeringLayer>(req.layers);
     const grouped = groupRows(rows, wanted);
     const selectedIds = new Set(req.selectedItemIds ?? []);
@@ -188,7 +200,7 @@ export class ContextCompiler {
           ethicalWallAllowed: req.ethicalWallAllowed === true,
           allowedSensitivities: req.allowedSensitivities ?? ['normal'],
           fourEyesEnabled: req.fourEyesEnabled ?? false,
-          now,
+          now: clockUse ? new Date(clockUse.eligibilityAt) : now,
         });
         if (!decision.include) {
           if (decision.reason === 'conflict_unresolved') conflictCount += 1;
@@ -367,6 +379,7 @@ export class ContextCompiler {
       totalTokenBudget,
       usedTokens: items.reduce((sum, item) => sum + item.tokens, 0),
       truncated,
+      ...(clockUse ? { clockUse } : {}),
     };
     const packet: CompiledContextPacketV2 = {
       packetId: randomUUID(),
@@ -400,6 +413,7 @@ export class ContextCompiler {
       traceHash: sha256(stableStringify(stable)),
       persisted: false,
       compiledAt: new Date().toISOString(),
+      ...(clockUse ? { clockUse } : {}),
     };
     await this.persist(req, packet);
     return packet;
@@ -415,6 +429,28 @@ export class ContextCompiler {
       if (req.persistence === 'required') throw error;
     }
   }
+}
+
+function captureClockUse(
+  req: ContextRequest,
+  scoring: 'used' | 'not_run',
+): CompiledContextPacket['clockUse'] {
+  const clock = req.semanticClock;
+  if (!clock) return undefined;
+  validateMeriFixtureSemanticClock(clock, {
+    caseId: clock.caseId,
+    captureRunId: clock.captureRunId,
+    issuedAt: clock.observedAt,
+  });
+  if (!req.now || !Number.isFinite(req.now.getTime()) || req.now.toISOString() !== clock.instant) {
+    throw new Error('meri_fixture_semantic_clock_request_mismatch');
+  }
+  return {
+    instant: req.now.toISOString(),
+    timeZone: clock.timeZone,
+    eligibilityAt: new Date().toISOString(),
+    scoring,
+  };
 }
 
 function groupRows(

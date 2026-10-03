@@ -1,0 +1,123 @@
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+FAIL src/meri/meri-context-plane.tools.spec.ts (40.968 s)
+  qualified search_memory compiler clock
+    √ uses the qualified instant and retains actual compiler metadata for case 01 (19 ms)
+    √ uses the qualified instant and retains actual compiler metadata for case 14 (2 ms)
+    √ preserves an actually returned V1/not_run observation (2 ms)
+    √ does not infer successful compiler use from the policy (48 ms)
+    × rejects missing, arbitrary, expired, budget-only and wrong-actor clock bindings before retrieval (10 ms)
+    × rejects a missing tool client before retrieval for case 01 (2 ms)
+    × rejects a missing tool client before retrieval for case 14 (1 ms)
+    × rejects another already-authorized client before retrieval for case 01 (1 ms)
+    × rejects another already-authorized client before retrieval for case 14 (1 ms)
+    √ keeps arbitrary tool-input dates out of compiler authority and ordinary output unchanged (1 ms)
+    √ preserves current client authorization under the qualified clock (1 ms)
+  Meri tool reads through the adopted Context Plane gateway
+    √ preserves Monday board selectors and continuations through enforced, audited retrieval (4 ms)
+    √ preserves exact memory narrowing, dates, cursors and full source content after packet enforcement (1 ms)
+    √ keeps hearing filters and one-chunk continuation without searching an invented task string (1 ms)
+    √ denies an empty mailbox scope before mail access while preserving other authorized source results (3 ms)
+    √ rechecks the server grant before a continuation and blocks a revoked client before gateway retrieval (1 ms)
+    √ propagates enforced packet rejection instead of falling back to retrieved records (1 ms)
+    √ fails closed if the governed operation did not retrieve ({"kind":"migration_exception"})
+    √ fails closed if the governed operation did not retrieve ({"kind":"governed_packet","context":{}}) (1 ms)
+
+  ● qualified search_memory compiler clock › rejects missing, arbitrary, expired, budget-only and wrong-actor clock bindings before retrieval
+
+    expect(received).rejects.toThrow()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"contextPacket": {"clockUse": [Object], "packetId": "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", "persisted": true}, "coverage": {"complete": false, "paginationComplete": false, "recordsEvaluated": 2, "recordsReturned": 1, "requestedDomains": [Array], "requestedEntityCount": 1, "searchedDomains": [Array], "searchedEntityCount": 1, "sources": [Array], "stopReason": "pagination_incomplete", "unavailableSources": [Array]}, "observability": {"coverageComplete": false, "freshnessByDomain": [Object], "pagesByDomain": [Object], "queriedDatasets": [Array], "queriedEntityCount": 1, "queryClass": "lookup", "requestedDomains": [Array], "requestedEntityCount": 1, "sourceHealth": [Object], "stopReason": "pagination_incomplete"}, "records": [[Object]], "tool": "search_capiro_data"}
+
+      182 |     ]) {
+      183 |       const h = fixture();
+    > 184 |       await expect(searchCapiroData(ctx, toolInput, h.service, { ...original,
+          |             ^
+      185 |         policy: { ...original.policy, ...change } as MeriServerReadonlyCapturePolicy,
+      186 |       })).rejects.toThrow('semantic_clock');
+      187 |       expect(h.retrieve).not.toHaveBeenCalled();
+
+      at expect (../../node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)
+      at Object.<anonymous> (src/meri/meri-context-plane.tools.spec.ts:184:13)
+
+  ● qualified search_memory compiler clock › rejects a missing tool client before retrieval for case 01
+
+    expect(received).rejects.toThrow()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"contextPacket": {"clockUse": [Object], "packetId": "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", "persisted": true}, "coverage": {"complete": false, "paginationComplete": false, "recordsEvaluated": 2, "recordsReturned": 1, "requestedDomains": [Array], "requestedEntityCount": 1, "searchedDomains": [Array], "searchedEntityCount": 1, "sources": [Array], "stopReason": "pagination_incomplete", "unavailableSources": [Array]}, "observability": {"coverageComplete": false, "freshnessByDomain": [Object], "pagesByDomain": [Object], "queriedDatasets": [Array], "queriedEntityCount": 1, "queryClass": "lookup", "requestedDomains": [Array], "requestedEntityCount": 1, "sourceHealth": [Object], "stopReason": "pagination_incomplete"}, "records": [[Object]], "tool": "search_capiro_data"}
+
+      191 |   it.each(['01', '14'] as const)('rejects a missing tool client before retrieval for case %s', async caseId => {
+      192 |     const h = fixture();
+    > 193 |     await expect(searchCapiroData(ctx, { ...toolInput, clientId: undefined }, h.service, capture(caseId)))
+          |           ^
+      194 |       .rejects.toThrow('meri_fixture_semantic_clock_tool_binding_mismatch');
+      195 |     expect(h.security).not.toHaveBeenCalled();
+      196 |     expect(h.requestContext).not.toHaveBeenCalled();
+
+      at expect (../../node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)
+      at src/meri/meri-context-plane.tools.spec.ts:193:11
+
+  ● qualified search_memory compiler clock › rejects a missing tool client before retrieval for case 14
+
+    expect(received).rejects.toThrow()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"contextPacket": {"clockUse": [Object], "packetId": "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", "persisted": true}, "coverage": {"complete": false, "paginationComplete": false, "recordsEvaluated": 2, "recordsReturned": 1, "requestedDomains": [Array], "requestedEntityCount": 1, "searchedDomains": [Array], "searchedEntityCount": 1, "sources": [Array], "stopReason": "pagination_incomplete", "unavailableSources": [Array]}, "observability": {"coverageComplete": false, "freshnessByDomain": [Object], "pagesByDomain": [Object], "queriedDatasets": [Array], "queriedEntityCount": 1, "queryClass": "lookup", "requestedDomains": [Array], "requestedEntityCount": 1, "sourceHealth": [Object], "stopReason": "pagination_incomplete"}, "records": [[Object]], "tool": "search_capiro_data"}
+
+      191 |   it.each(['01', '14'] as const)('rejects a missing tool client before retrieval for case %s', async caseId => {
+      192 |     const h = fixture();
+    > 193 |     await expect(searchCapiroData(ctx, { ...toolInput, clientId: undefined }, h.service, capture(caseId)))
+          |           ^
+      194 |       .rejects.toThrow('meri_fixture_semantic_clock_tool_binding_mismatch');
+      195 |     expect(h.security).not.toHaveBeenCalled();
+      196 |     expect(h.requestContext).not.toHaveBeenCalled();
+
+      at expect (../../node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)
+      at src/meri/meri-context-plane.tools.spec.ts:193:11
+
+  ● qualified search_memory compiler clock › rejects another already-authorized client before retrieval for case 01
+
+    expect(received).rejects.toThrow()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"contextPacket": {"clockUse": [Object], "packetId": "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", "persisted": true}, "coverage": {"complete": false, "paginationComplete": false, "recordsEvaluated": 2, "recordsReturned": 1, "requestedDomains": [Array], "requestedEntityCount": 1, "searchedDomains": [Array], "searchedEntityCount": 1, "sources": [Array], "stopReason": "pagination_incomplete", "unavailableSources": [Array]}, "observability": {"coverageComplete": false, "freshnessByDomain": [Object], "pagesByDomain": [Object], "queriedDatasets": [Array], "queriedEntityCount": 1, "queryClass": "lookup", "requestedDomains": [Array], "requestedEntityCount": 1, "sourceHealth": [Object], "stopReason": "pagination_incomplete"}, "records": [[Object]], "tool": "search_capiro_data"}
+
+      202 |     const otherClientId = '33333333-3333-4333-8333-333333333333';
+      203 |     h.security.mockResolvedValue({ authorizedClientIds: [clientId, otherClientId], authorizedMailboxConnectionIds: [] });
+    > 204 |     await expect(searchCapiroData(ctx, { ...toolInput, clientId: otherClientId }, h.service, capture(caseId)))
+          |           ^
+      205 |       .rejects.toThrow('meri_fixture_semantic_clock_tool_binding_mismatch');
+      206 |     expect(h.security).not.toHaveBeenCalled();
+      207 |     expect(h.requestContext).not.toHaveBeenCalled();
+
+      at expect (../../node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)
+      at src/meri/meri-context-plane.tools.spec.ts:204:11
+
+  ● qualified search_memory compiler clock › rejects another already-authorized client before retrieval for case 14
+
+    expect(received).rejects.toThrow()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"contextPacket": {"clockUse": [Object], "packetId": "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", "persisted": true}, "coverage": {"complete": false, "paginationComplete": false, "recordsEvaluated": 2, "recordsReturned": 1, "requestedDomains": [Array], "requestedEntityCount": 1, "searchedDomains": [Array], "searchedEntityCount": 1, "sources": [Array], "stopReason": "pagination_incomplete", "unavailableSources": [Array]}, "observability": {"coverageComplete": false, "freshnessByDomain": [Object], "pagesByDomain": [Object], "queriedDatasets": [Array], "queriedEntityCount": 1, "queryClass": "lookup", "requestedDomains": [Array], "requestedEntityCount": 1, "sourceHealth": [Object], "stopReason": "pagination_incomplete"}, "records": [[Object]], "tool": "search_capiro_data"}
+
+      202 |     const otherClientId = '33333333-3333-4333-8333-333333333333';
+      203 |     h.security.mockResolvedValue({ authorizedClientIds: [clientId, otherClientId], authorizedMailboxConnectionIds: [] });
+    > 204 |     await expect(searchCapiroData(ctx, { ...toolInput, clientId: otherClientId }, h.service, capture(caseId)))
+          |           ^
+      205 |       .rejects.toThrow('meri_fixture_semantic_clock_tool_binding_mismatch');
+      206 |     expect(h.security).not.toHaveBeenCalled();
+      207 |     expect(h.requestContext).not.toHaveBeenCalled();
+
+      at expect (../../node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)
+      at src/meri/meri-context-plane.tools.spec.ts:204:11
+
+Test Suites: 1 failed, 1 total
+Tests:       5 failed, 14 passed, 19 total
+Snapshots:   0 total
+Time:        41.624 s
+Ran all test suites matching /src\\meri\\meri-context-plane.tools.spec.ts/i.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?
+undefined
+C:\dev\main\meri-c1-20261002\apps\api:
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command "jest" not found

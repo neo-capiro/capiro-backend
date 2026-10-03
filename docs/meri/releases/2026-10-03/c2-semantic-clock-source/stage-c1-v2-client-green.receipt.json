@@ -1,0 +1,8 @@
+{
+  "command": "NODE_OPTIONS=--max-old-space-size=8192 pnpm --filter @capiro/api exec jest --runInBand --forceExit src/meri/meri-context-plane.tools.spec.ts",
+  "startedAt": "2026-10-03T16:33:25.1257337Z",
+  "completedAt": "2026-10-03T16:34:04.5805713Z",
+  "exitCode": 0,
+  "productionSha256": "50d1d1b7a01ae91c5a09ddf2ce3eeb47100dd66cbb5827bf833907313bd51453",
+  "testSha256": "fa2437b38adc04476dfde1f8373d22e63651d779a4cb04c1a78396bf34a18393"
+}

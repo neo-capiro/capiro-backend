@@ -12,6 +12,92 @@ import type { MeriServerReadonlyCapturePolicy } from './server-readonly-capture'
 const SECRET = 'capture-evidence-test-secret-that-is-long-enough';
 const NOW = 1_800_000_000_000;
 
+function clockReceipt(): MeriCaptureEvidenceReceipt {
+  const value = receipt();
+  value.captureRunId = '11111111-1111-4111-8111-111111111111';
+  const clockUse = { instant: '2026-09-26T16:00:00.000Z' as const, timeZone: 'America/New_York' as const,
+    eligibilityAt: new Date(NOW - 100).toISOString(), scoring: 'used' as const };
+  const packet = (n: string) => ({ packetId: `${n.repeat(8)}-${n.repeat(4)}-4${n.repeat(3)}-8${n.repeat(3)}-${n.repeat(12)}`,
+    persisted: true as const, clockUse: { ...clockUse } });
+  value.sources = [];
+  value.toolCalls = [{ callId: 'memory-call', name: 'search_memory', attempt: 1,
+    status: 'partial', readOnly: true, sourceIds: [] }];
+  value.semanticClock = {
+    binding: { version: 1, kind: 'qualified_original_fixture_semantic_clock',
+      instant: clockUse.instant, timeZone: clockUse.timeZone, caseId: '01',
+      captureRunId: '11111111-1111-4111-8111-111111111111', currentVerifySha256: 'a'.repeat(64), observedAt: NOW - 1000 },
+    prompt: observed({ instant: clockUse.instant, timeZone: clockUse.timeZone, date: '2026-09-26',
+      renderedAt: NOW - 200, groundingSha256: 'b'.repeat(64) }),
+    invocations: [{ callId: 'memory-call', tool: 'search_memory', outcome: 'returned',
+      httpAttempts: 1, httpStatus: 200, responseSha256: 'c'.repeat(64), packets: [packet('2'), packet('3')] }],
+    apiJoin: 'VERIFIED', api: { initial: packet('1'), tools: [packet('2'), packet('3')], relativeToolWindows: 'NOT_APPLICABLE' },
+  };
+  return value;
+}
+
+describe('independent semantic-clock receipt join', () => {
+  it('accepts both actual fallback packets and a separate initial compiler observation', () => {
+    expect(completeMeriCaptureEvidenceReceipt(clockReceipt()).status).toBe('COMPLETE');
+  });
+  it.each([
+    ['unobserved HTTP census', (r: any) => { delete r.semanticClock.invocations; }],
+    ['duplicate logical call', (r: any) => r.toolCalls.push(r.toolCalls[0])],
+    ['duplicate invocation', (r: any) => r.semanticClock.invocations.push(r.semanticClock.invocations[0])],
+    ['malformed invocation', (r: any) => r.semanticClock.invocations.push(null)],
+    ['missing invocation', (r: any) => { r.semanticClock.invocations = []; }],
+    ['extra invocation', (r: any) => { r.semanticClock.invocations[0].callId = 'other'; }],
+    ['unresolved invocation', (r: any) => { r.semanticClock.invocations[0].outcome = 'pending'; }],
+    ['failed HTTP', (r: any) => { r.semanticClock.invocations[0].httpStatus = 503; }],
+    ['failed logical read', (r: any) => { r.toolCalls[0].status = 'failed'; }],
+    ['second HTTP attempt', (r: any) => { r.semanticClock.invocations[0].httpAttempts = 2; }],
+    ['missing fallback packet', (r: any) => r.semanticClock.api.tools.pop()],
+    ['duplicate packet', (r: any) => { r.semanticClock.invocations[0].packets[1] = r.semanticClock.invocations[0].packets[0]; }],
+    ['initial reused as tool', (r: any) => { r.semanticClock.api.initial = r.semanticClock.api.tools[0]; }],
+    ['stored clock mismatch', (r: any) => { r.semanticClock.api.tools[0].clockUse.eligibilityAt = new Date(NOW - 99).toISOString(); }],
+    ['prompt clock mismatch', (r: any) => { r.semanticClock.prompt.value.instant = new Date(NOW).toISOString(); }],
+    ['unadmitted time tool', (r: any) => { r.toolCalls[0].name = r.semanticClock.invocations[0].tool = 'query_tasks'; }],
+    ['name-only local discovery', (r: any) => { r.toolCalls.push({ callId: 'local', name: 'tool_search', readOnly: true, attempt: 1, status: 'complete' }); }],
+  ])('keeps %s BLOCKED', (_name, mutate) => {
+    const r = clockReceipt(); mutate(r);
+    expect(completeMeriCaptureEvidenceReceipt(r).blockers.some(x => x.startsWith('semantic_clock_'))).toBe(true);
+  });
+  it('permits N/A tool windows only after a complete empty invocation census and actual local discovery', () => {
+    const r = clockReceipt();
+    r.toolCalls = [{ callId: 'local', name: 'tool_search', readOnly: true,
+      attempt: 1, status: 'complete', sourceIds: [], localDiscovery: true }];
+    r.semanticClock!.invocations = [];
+    r.semanticClock!.api!.tools = [];
+    expect(completeMeriCaptureEvidenceReceipt(r).status).toBe('COMPLETE');
+  });
+  it.each(['20', '72'])('joins the actual controlled response for case %s without inventing compiler use', caseId => {
+    const r = clockReceipt();
+    r.caseId = caseId;
+    r.semanticClock!.binding.caseId = caseId as '20' | '72';
+    r.providerBudget!.boundary = caseId === '20' ? 'case20_controlled_read_turn' : 'case72_controlled_read_turn';
+    r.toolCalls[0]!.name = caseId === '20' ? 'get_pe_budget_timeline' : 'read_client_documents';
+    r.toolCalls[0]!.status = caseId === '72' ? 'failed' : 'complete';
+    const attempt = r.semanticClock!.invocations![0]!;
+    attempt.tool = r.toolCalls[0]!.name;
+    attempt.outcome = caseId === '72' ? 'threw' : 'returned';
+    attempt.packets = [];
+    r.semanticClock!.api!.tools = [];
+    r.controlledReadAttempts = [{ callId: attempt.callId, tool: attempt.tool, httpStatus: 200,
+      logicalError: caseId === '72' ? 'document unavailable' : null, caseId,
+      requestId: r.requestId, traceId: r.traceId, turnId: r.turnId!, captureRunId: r.captureRunId!,
+      responseSha256: attempt.responseSha256!, sourceId: 'source', logicalSourceId: 'fixture', sourceVersion: 'v1',
+      currentVerifySha256: 'a'.repeat(64), contentSha256: 'd'.repeat(64), sourceTenantId: r.tenantId,
+      sourceClientId: caseId === '20' ? null : r.clientId, fullRead: caseId === '20', passageSha256: null }];
+    expect(completeMeriCaptureEvidenceReceipt(r).status).toBe('COMPLETE');
+    if (caseId === '72') {
+      r.toolCalls[0]!.status = 'invalid_not_executed';
+      expect(completeMeriCaptureEvidenceReceipt(r).status).toBe('BLOCKED');
+      r.toolCalls[0]!.status = 'failed';
+    }
+    r.controlledReadAttempts[0]!.responseSha256 = 'e'.repeat(64);
+    expect(completeMeriCaptureEvidenceReceipt(r).status).toBe('BLOCKED');
+  });
+});
+
 function policy(): MeriServerReadonlyCapturePolicy {
   return {
     version: 1,

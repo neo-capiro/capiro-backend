@@ -1,0 +1,53 @@
+{
+  "kind": "independent actual Prisma/PostgreSQL context clock persistence qualification",
+  "status": "PASS",
+  "sourcePath": "evals/meri/live-v1/tests/context-clock-jsonb.postgres.test.mjs",
+  "sourceSha256": "ced9cb625252fde286fcc046ad4e696d192209f95fd053ad6bc690163d59cb2d",
+  "adapterPath": "apps/api/src/context/context-compiler.service.ts",
+  "adapterSha256": "82eaa0e1b012602217ba2c054a63b949cd9c016e6549d675b8cdad3c4a8ba7c2",
+  "finalReceipt": "context-clock-jsonb-v2-final.receipt.json",
+  "finalReceiptSha256": "e94bd85d4ded43a9bee4dc3bcd2eab31f400a3b38ea50cf4c6cb921cb79b6303",
+  "finalLog": "context-clock-jsonb-v2-final.log",
+  "finalLogSha256": "fd83d0931466bb9a14a35cf31e09c6609745dd717c3ebfcff672e7676a1e4f5e",
+  "testSourceCopy": "context-clock-jsonb-v2-final-source-evals_meri_live-v1_tests_context-clock-jsonb.postgres.test.mjs",
+  "builtCoreManifest": "context-clock-jsonb-v2-final-built-core.json",
+  "builtCoreManifestSha256": "09fbd4eb29a8d2895028958874d7763a0f17bdfff21173f7aeaa7d9827b405a8",
+  "builtCoreJavaScriptFiles": 147,
+  "builtCoreUnchangedDuringRun": true,
+  "tests": { "passed": 22, "failed": 0, "skipped": 0, "suites": 1, "exitCode": 0 },
+  "modes": ["off", "enforce", "shadow"],
+  "coverage": [
+    "Production ContextCompilerService, actual built core compiler, generated Prisma ORM and PostgreSQL JSONB persistence/readback",
+    "Actual SQL steering source participates; persisted trace hash, items, refs and clock use agree with the returned packet",
+    "Semantic instant and timezone remain fixed while recorded eligibility time remains actual wall time",
+    "Shadow baseline and V2 comparison store their respective actual clock observations",
+    "Ordinary requests add no clock metadata and preexisting unrelated JSON rows are unchanged",
+    "Real SQL triggers remove metadata, change timezone, add an unobserved clock claim, delete the inserted row, or reject insertion",
+    "Each qualified failure rejects output, records the persistence boundary failure and leaves no failed packet row",
+    "Ordinary off-mode SQL failure preserves existing best-effort behavior"
+  ],
+  "retainedEarlierAttempt": "context-clock-jsonb-v1.receipt.json",
+  "earlierAttemptStatus": "22 PASS before formatting only; final exact formatted source separately rerun",
+  "formatCheck": "pnpm exec prettier --check evals/meri/live-v1/tests/context-clock-jsonb.postgres.test.mjs exited 0",
+  "runner": "run-context-clock-jsonb.ps1",
+  "runnerSha256": "328e5a0af7c7d8b02c3dbb58f42e75332a2dd8076518e651c41ac17ab8a72cfc",
+  "cluster": {
+    "address": "127.0.0.1",
+    "port": 55433,
+    "version": 16,
+    "guard": "Configured owner/address/port/data directory verified by actual SQL before schema creation",
+    "schemas": "Random schemas and all fixture data rolled back; absence verified by the existing harness",
+    "stoppedAt": "2026-10-03T16:57:56.1598002Z",
+    "pgCtlStatusAfter": 3,
+    "listenersAfter": 0,
+    "dataDirectoryRetained": true
+  },
+  "limits": [
+    "Test clock input is structural and internal; this does not issue or prove fixture/capture authority",
+    "Rollback-only minimal schema uses exact ContextPacket scalar columns and required tenant canary settings; no production RLS qualification",
+    "No model, browser, provider, AWS or live fixture call",
+    "No end-to-end StageC2 receipt join, tool window, live deployment or original acceptance claim",
+    "No production, existing harness or schema-helper file was edited by this test task"
+  ],
+  "originalAcceptanceChanged": false
+}

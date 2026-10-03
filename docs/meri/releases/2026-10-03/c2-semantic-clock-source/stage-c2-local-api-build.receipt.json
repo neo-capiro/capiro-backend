@@ -1,0 +1,14 @@
+{
+  "command": [
+    "C:/Users/neoma/AppData/Local/hermes/node/pnpm.cmd",
+    "--filter",
+    "@capiro/api",
+    "build"
+  ],
+  "exitCode": 1,
+  "startedAt": "2026-10-03T17:15:52.659340+00:00",
+  "finishedAt": "2026-10-03T17:18:08.677771+00:00",
+  "sourceCheckpointSha256": "31f759c1a8bc2ab66306fce61b3137cb848353715b83316abca83f377d22ceb2",
+  "logSha256": "b44ca8f77d22a3c145c763797bda35f77824bb4d596fb5d002536f341f5ba4e4",
+  "limitations": "Local service compilation; not immutable native image or served acceptance"
+}

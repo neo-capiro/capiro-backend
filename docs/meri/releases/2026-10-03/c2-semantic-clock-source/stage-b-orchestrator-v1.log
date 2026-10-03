@@ -1,0 +1,10 @@
+PASS src/meri/chat/chat-prompt.spec.ts (19.818 s)
+PASS src/meri/server-readonly-capture-dispatch.spec.ts
+PASS src/meri/meriv3/meriv3-capture-evidence.spec.ts
+
+Test Suites: 3 passed, 3 total
+Tests:       44 passed, 44 total
+Snapshots:   0 total
+Time:        22.468 s
+Ran all test suites matching /src\\meri\\chat\\chat-prompt.spec.ts|src\\meri\\meriv3\\meriv3-capture-evidence.spec.ts|src\\meri\\server-readonly-capture-dispatch.spec.ts/i.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?

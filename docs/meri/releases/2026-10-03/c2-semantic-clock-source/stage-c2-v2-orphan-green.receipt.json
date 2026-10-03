@@ -1,0 +1,8 @@
+{
+  "command": "NODE_OPTIONS=--max-old-space-size=8192 pnpm --filter @capiro/meriv2-orchestrator exec jest --runInBand --forceExit src/meri/controlled-read-observations.spec.ts",
+  "startedAt": "2026-10-03T17:23:12.0702790Z",
+  "completedAt": "2026-10-03T17:23:26.2581315Z",
+  "exitCode": 0,
+  "sourceSha256": "1067a0ffbac4096b4b0830ac2f55ac4122da90ca224b34ed15cc5d2383daadc1",
+  "testSha256": "88da7d2d7c3b52ec4201be495e0f198c3d89890a6e6e0576d993664bb1b16ada"
+}

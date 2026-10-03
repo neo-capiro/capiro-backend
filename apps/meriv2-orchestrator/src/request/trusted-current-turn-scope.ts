@@ -5,6 +5,7 @@ import type { MeriServerReadonlyCapturePolicy } from '@capiro/meriv2-core';
 import {
   validateMeriGovernedArtifactPolicy,
   validateMeriSyntheticReadBudgetGuard,
+  validateMeriFixtureSemanticClock,
   type MeriGovernedArtifactCapturePolicy,
 } from '@capiro/meriv2-core';
 
@@ -63,6 +64,11 @@ export function validateServerReadonlyCapturePolicy(
   now = Date.now(),
 ): void {
   validateMeriSyntheticReadBudgetGuard(policy);
+  const clockQualified = !policy.syntheticReadBudget && policy.fixtureVersion === 'meri-live-v1-2026-09-26.1' &&
+    ['01', '14', '20', '72'].includes(policy.caseId ?? '');
+  if (clockQualified !== Boolean(policy.semanticClock))
+    throw new Error('meri_fixture_semantic_clock_policy_mismatch');
+  if (policy.semanticClock) validateMeriFixtureSemanticClock(policy.semanticClock, policy);
   const catalogSha256 = createHash('sha256')
     .update(
       MERI_CAPABILITY_REGISTRY.filter((tool) => tool.readOnly === true)

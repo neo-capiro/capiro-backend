@@ -99,6 +99,8 @@ export interface MeriV3ChatResult extends ChatResult {
   evidenceAccuracy?: 'enforce';
   /** Internal server capture observation; the controller signs it and the API verifies it. */
   captureEvidence?: {
+    promptClockUse?: import('@capiro/meriv2-core').MeriPromptClockUse;
+    clockInvocations?: import('@capiro/meriv2-core').MeriCaptureClockInvocation[];
     controlledReadAttempts?: MeriControlledReadAttempt[];
     boundedRuntime?: {
       acquisitionStopped: boolean;

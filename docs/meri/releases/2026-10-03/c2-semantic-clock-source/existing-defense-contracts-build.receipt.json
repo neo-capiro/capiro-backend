@@ -1,0 +1,13 @@
+{
+  "command": [
+    "C:/Users/neoma/AppData/Local/hermes/node/pnpm.cmd",
+    "--filter",
+    "@capiro/defense-contracts",
+    "build"
+  ],
+  "startedAt": "2026-10-03T17:20:23.012781+00:00",
+  "completedAt": "2026-10-03T17:20:23.986207+00:00",
+  "exitCode": 0,
+  "logSha256": "59c6d321985e6a777e8208e24bab558cd17e294b76630bbbe0923e7730f33cc3",
+  "scope": "Existing missing local dependency output; no dependency/source installation or edit"
+}

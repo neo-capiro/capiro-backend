@@ -1,0 +1,536 @@
+{
+  "version": 1,
+  "recordedAt": "2026-10-03T17:40:04.877303+00:00",
+  "status": "SOURCE_LOCAL_TESTS_AND_COMPILATION_PASS_NOT_DEPLOYED",
+  "reviewer": "Codex independent subagent /root/mail_defaults_review",
+  "reviewType": "Independent source and local evidence review; not human deployment attestation",
+  "checkpoint": "stage-c2-v2-checkpoint.json",
+  "checkpointSha256": "bac5f9664df13811270b4acf6edf6a1de50f55adb39aef8e9351336162ae62ec",
+  "reviewResult": "PASS",
+  "reviewSummary": [
+    "Verified all42 live and mirrored source hashes/bytes,22 unchanged memory hashes and3 focused receipt hashes.",
+    "Exactly4 files differ from v1. Two typing corrections preserve existing runtime qualification predicates.",
+    "Refused unwrapped, missing-ID or wrong-tool attempts retain explicitly unproved empty-ID observations with zero HTTP attempts before the pre-dispatch throw; caught failures cannot disappear from the final clock join.",
+    "No dispatch authority added. Same exact regression bytes produce24 pass/3 fail before and27/27 after; focused API suites38/38. No further actionable findings."
+  ],
+  "rootVerification": {
+    "liveSourceHashes": 42,
+    "memoryHashesUnchanged": 22,
+    "postgresTestHashVerified": true,
+    "apiBuildExitCode": 0,
+    "orchestratorBuildExitCode": 0
+  },
+  "finalSourceFiles": [
+    {
+      "path": "apps/api/src/context/context-compiler-v2.service.spec.ts",
+      "kind": "test",
+      "changedFromStageC2": false,
+      "sha256": "12dbc909a13be25f16b30ca9f122677d5e4ee3b6439881540de88bf71de25444",
+      "bytes": 14170
+    },
+    {
+      "path": "apps/api/src/context/context-compiler.service.ts",
+      "kind": "production",
+      "changedFromStageC2": false,
+      "sha256": "82eaa0e1b012602217ba2c054a63b949cd9c016e6549d675b8cdad3c4a8ba7c2",
+      "bytes": 11047
+    },
+    {
+      "path": "apps/api/src/meri/meri-capture-clock-packets.spec.ts",
+      "kind": "test",
+      "changedFromStageC2": false,
+      "sha256": "c5ac76cb69f252cf1f127a79f439f707720789e0cf0e674166dfcda6a104979f",
+      "bytes": 11629
+    },
+    {
+      "path": "apps/api/src/meri/meri-capture-clock-packets.ts",
+      "kind": "production",
+      "changedFromStageC2": true,
+      "sha256": "69827fd74b2abccdc2d1910cc5588032342acac311487a7b6854fb3629d3b455",
+      "bytes": 6712
+    },
+    {
+      "path": "apps/api/src/meri/meri-capture-policy-readback.ts",
+      "kind": "production",
+      "changedFromStageC2": false,
+      "sha256": "57e060fddfdf641c346f4a35395ec86459c87161d0b4804042e72727b8bfe758",
+      "bytes": 7700
+    },
+    {
+      "path": "apps/api/src/meri/meri-capture-semantic-clock.spec.ts",
+      "kind": "test",
+      "changedFromStageC2": false,
+      "sha256": "da9f10d763d3dda9529b06ac6fc520b7fc2bc08e7c60cbb9ae93b7e3ac6b9a28",
+      "bytes": 3525
+    },
+    {
+      "path": "apps/api/src/meri/meri-capture-semantic-clock.ts",
+      "kind": "production",
+      "changedFromStageC2": true,
+      "sha256": "9e3a7ed2a76ed98e0dafc4d47f489e6a53d5590e7a8a09a8813b77fd9cf2737c",
+      "bytes": 4133
+    },
+    {
+      "path": "apps/api/src/meri/meri-case01-capture-authority.ts",
+      "kind": "production",
+      "changedFromStageC2": false,
+      "sha256": "c573122dab6c1800c6190f8d187aae7515cadeb137783775658f3be17bc76ffc",
+      "bytes": 9612
+    },
+    {
+      "path": "apps/api/src/meri/meri-context-plane-runtime.ts",
+      "kind": "production",
+      "changedFromStageC2": false,
+      "sha256": "0f63ef56f80f013b750c46902a2213a6e856d3706511456624f55aefbe85239e",
+      "bytes": 11559
+    },
+    {
+      "path": "apps/api/src/meri/meri-context-plane.service.spec.ts",
+      "kind": "test",
+      "changedFromStageC2": false,
+      "sha256": "da12768ca31b79360876726f4d4757cdecf37d959a966b5d344376211ca0685f",
+      "bytes": 22800
+    },
+    {
+      "path": "apps/api/src/meri/meri-context-plane.service.ts",
+      "kind": "production",
+      "changedFromStageC2": false,
+      "sha256": "50d1d1b7a01ae91c5a09ddf2ce3eeb47100dd66cbb5827bf833907313bd51453",
+      "bytes": 53475
+    },
+    {
+      "path": "apps/api/src/meri/meri-context-plane.tools.spec.ts",
+      "kind": "test",
+      "changedFromStageC2": false,
+      "sha256": "fa2437b38adc04476dfde1f8373d22e63651d779a4cb04c1a78396bf34a18393",
+      "bytes": 21269
+    },
+    {
+      "path": "apps/api/src/meri/meri-data-search.helpers.ts",
+      "kind": "production",
+      "changedFromStageC2": false,
+      "sha256": "2828abbc2ff6315e8a6898108e0e40a6e71bbf88c19a81ed9f2e640abc74ed03",
+      "bytes": 5824
+    },
+    {
+      "path": "apps/api/src/meri/meri-server-capture-evidence.ts",
+      "kind": "production",
+      "changedFromStageC2": false,
+      "sha256": "2fa95657d16ed7e88d4d8edb0b59c8ac39bbd63f045e13f1b7b343e730d0c377",
+      "bytes": 10159
+    },
+    {
+      "path": "apps/api/src/meri/meri-server-readonly-capture.spec.ts",
+      "kind": "test",
+      "changedFromStageC2": false,
+      "sha256": "31247fd9118c1b35bedbed4c4e1cb2286e4f9d6dac1ee3d351cb0ef4b20a00e3",
+      "bytes": 47390
+    },
+    {
+      "path": "apps/api/src/meri/meri-server-readonly-capture.ts",
+      "kind": "production",
+      "changedFromStageC2": false,
+      "sha256": "9be7746ded0e3e344e529df86b831bd622aa9b5b46dd0848197b4bf66dcb0b24",
+      "bytes": 20815
+    },
+    {
+      "path": "apps/api/src/meri/meri-tools.registration.spec.ts",
+      "kind": "test",
+      "changedFromStageC2": false,
+      "sha256": "6f45dfbc9a6f9098ff597e4275cd5273f6aff42ab303eefc42deef034850cef4",
+      "bytes": 42086
+    },
+    {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "kind": "production",
+      "changedFromStageC2": false,
+      "sha256": "1976465b491e0731abf05ffb7fb8b3c2048835e034b06faace81fe97f7fb6371",
+      "bytes": 406964
+    },
+    {
+      "path": "apps/api/src/meri/meriv3-proxy.service.ts",
+      "kind": "production",
+      "changedFromStageC2": false,
+      "sha256": "c35b3e1835515c350ccc84274f922ce7b295c9f138519358c14a19057a9482f2",
+      "bytes": 52687
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/api-tool-executor.repo.ts",
+      "kind": "production",
+      "changedFromStageC2": false,
+      "sha256": "8c04bae85e105c43c972b53f75a293e329544e0795229ee5ef7e21984612b058",
+      "bytes": 13563
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/chat/chat-prompt.spec.ts",
+      "kind": "test",
+      "changedFromStageC2": false,
+      "sha256": "9a920c3e9960984813267f4af0a868ce6211d18a1505946eaf0f05f41876c010",
+      "bytes": 19355
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/chat/chat-prompt.ts",
+      "kind": "production",
+      "changedFromStageC2": false,
+      "sha256": "7df20ebe9402fbcedf337fa274ee03129820b736143c60dcc08c718b4936f258",
+      "bytes": 36822
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts",
+      "kind": "test",
+      "changedFromStageC2": true,
+      "sha256": "88da7d2d7c3b52ec4201be495e0f198c3d89890a6e6e0576d993664bb1b16ada",
+      "bytes": 22568
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/controlled-read-observations.ts",
+      "kind": "production",
+      "changedFromStageC2": true,
+      "sha256": "1067a0ffbac4096b4b0830ac2f55ac4122da90ca224b34ed15cc5d2383daadc1",
+      "bytes": 11144
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meri-governed-context.runtime.ts",
+      "kind": "production",
+      "changedFromStageC2": false,
+      "sha256": "5bebbafafa1da4186db3d11ea2b82a36bd7f588025d4c3733f80ffe25ea5f0ca",
+      "bytes": 1308
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.spec.ts",
+      "kind": "test",
+      "changedFromStageC2": false,
+      "sha256": "da1986f4cff0026ccc42721c57b4323c7a52b81d08730d7ae676ea7483e501b5",
+      "bytes": 222064
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts",
+      "kind": "production",
+      "changedFromStageC2": false,
+      "sha256": "5ec89121ced8867a46aca285999dc46b869e6535040429ea27efcdce1de97f7a",
+      "bytes": 172013
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-capture-evidence.spec.ts",
+      "kind": "test",
+      "changedFromStageC2": false,
+      "sha256": "295d39184f1122568b65f8f850a6f5b871cc56a0d77bebbfecd33bdba69393dd",
+      "bytes": 7775
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-capture-evidence.ts",
+      "kind": "production",
+      "changedFromStageC2": false,
+      "sha256": "e456b816724dd62fab1d165f2494c88072a9ffcf0a5b0aac434819043f05e1b8",
+      "bytes": 10758
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3.types.ts",
+      "kind": "production",
+      "changedFromStageC2": false,
+      "sha256": "d0d313c00a6270489b142af67e63f02d167f88f364b3a082ec3622ed68c8d132",
+      "bytes": 6294
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/server-readonly-capture-dispatch.spec.ts",
+      "kind": "test",
+      "changedFromStageC2": false,
+      "sha256": "9aa40fab59cbf69e9cc546441638e29d6656b55f648c0f801e5666de5c7cb321",
+      "bytes": 10204
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/request/trusted-current-turn-scope.ts",
+      "kind": "production",
+      "changedFromStageC2": false,
+      "sha256": "60b4c10a62af06c3d95520fcfef7e4a923bb99315a8e6277517f9f1fa6ee0158",
+      "bytes": 4427
+    },
+    {
+      "path": "packages/meriv2-core/src/context/capture-evidence-receipt.spec.ts",
+      "kind": "test",
+      "changedFromStageC2": false,
+      "sha256": "d439c939011d4681b7d4d5e60bde69219297e51da89c3eb8daf5aef6c03f4caf",
+      "bytes": 15997
+    },
+    {
+      "path": "packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "kind": "production",
+      "changedFromStageC2": false,
+      "sha256": "2b4540e237eebf4fd1db7a32565672eaea8bbfcc6daa6001309ec5c94788dc3f",
+      "bytes": 20894
+    },
+    {
+      "path": "packages/meriv2-core/src/context/compiler-v2.spec.ts",
+      "kind": "test",
+      "changedFromStageC2": false,
+      "sha256": "9fe332e53e04cdf072e15efa89d64a72707085cf6905455ec885549bc5e42bec",
+      "bytes": 24689
+    },
+    {
+      "path": "packages/meriv2-core/src/context/compiler.ts",
+      "kind": "production",
+      "changedFromStageC2": false,
+      "sha256": "88be0fd953b812dcfde9dd4b2b85c38368caba396f81ec27fce1e751d7981a81",
+      "bytes": 27642
+    },
+    {
+      "path": "packages/meriv2-core/src/context/contract.ts",
+      "kind": "production",
+      "changedFromStageC2": false,
+      "sha256": "ef7eb2a5addc16157c664c5be651ec9c7b3c3ed2b0cde9014036a0dd18909557",
+      "bytes": 11471
+    },
+    {
+      "path": "packages/meriv2-core/src/context/governed-evidence-auth.spec.ts",
+      "kind": "test",
+      "changedFromStageC2": false,
+      "sha256": "494fcb9a1b86544d48614ca5934fa952f56ce058aa7968ded27d813415c8e562",
+      "bytes": 12984
+    },
+    {
+      "path": "packages/meriv2-core/src/context/governed-evidence-auth.ts",
+      "kind": "production",
+      "changedFromStageC2": false,
+      "sha256": "299b190104db34e2a16fb16f79b68c37efde940c773634be8ecf375a43e8563d",
+      "bytes": 5277
+    },
+    {
+      "path": "packages/meriv2-core/src/context/semantic-clock.spec.ts",
+      "kind": "test",
+      "changedFromStageC2": false,
+      "sha256": "68a50c50eb22cac8ad4d2c1f207811cb369c50519105eab7cf66c596c05383c7",
+      "bytes": 1286
+    },
+    {
+      "path": "packages/meriv2-core/src/context/server-readonly-capture.ts",
+      "kind": "production",
+      "changedFromStageC2": false,
+      "sha256": "3d924a36100fb601bf943acbbb991f49bea37b91aec2d9dabf1e3c76f4f8ee3a",
+      "bytes": 8607
+    },
+    {
+      "path": "packages/meriv2-core/src/registry/types.ts",
+      "kind": "production",
+      "changedFromStageC2": false,
+      "sha256": "a8061c3b5a1c941b2c95fd2e1b740e7ae1cc7f5b4a72253252e4cb5059928895",
+      "bytes": 9877
+    },
+    {
+      "path": "evals/meri/live-v1/tests/context-clock-jsonb.postgres.test.mjs",
+      "kind": "test",
+      "sha256": "ced9cb625252fde286fcc046ad4e696d192209f95fd053ad6bc690163d59cb2d",
+      "bytes": 13047
+    }
+  ],
+  "scope": {
+    "productionFiles": 26,
+    "testFiles": 17,
+    "admittedNativeCases": [
+      "01",
+      "14",
+      "20",
+      "72"
+    ],
+    "schemaChanges": 0,
+    "modelChanges": 0,
+    "newProviderCalls": 0,
+    "newCaptures": 0
+  },
+  "largeChangeReview": "One coherent cross-service clock and receipt contract spans26 production files. It was split into frozen A/B/C1/C2 checkpoints and independently reviewed at each correction; partial stages remain explicitly incomplete. This commit integrates the matching API/core/orchestrator contract after compilation.",
+  "archiveCopies": [
+    "build-existing-local-dependencies.py",
+    "context-clock-jsonb-qualification.json",
+    "context-clock-jsonb-v1-built-core.json",
+    "context-clock-jsonb-v1-postgres.log",
+    "context-clock-jsonb-v1-start.stderr",
+    "context-clock-jsonb-v1-start.stdout",
+    "context-clock-jsonb-v1-status-after.log",
+    "context-clock-jsonb-v1-status-before.log",
+    "context-clock-jsonb-v1-stop.stderr",
+    "context-clock-jsonb-v1-stop.stdout",
+    "context-clock-jsonb-v1.log",
+    "context-clock-jsonb-v1.receipt.json",
+    "context-clock-jsonb-v2-final-built-core.json",
+    "context-clock-jsonb-v2-final-postgres.log",
+    "context-clock-jsonb-v2-final-start.stderr",
+    "context-clock-jsonb-v2-final-start.stdout",
+    "context-clock-jsonb-v2-final-status-after.log",
+    "context-clock-jsonb-v2-final-status-before.log",
+    "context-clock-jsonb-v2-final-stop.stderr",
+    "context-clock-jsonb-v2-final-stop.stdout",
+    "context-clock-jsonb-v2-final.log",
+    "context-clock-jsonb-v2-final.receipt.json",
+    "existing-defense-contracts-build.log",
+    "existing-defense-contracts-build.receipt.json",
+    "existing-defense-domain-build.log",
+    "existing-defense-domain-build.receipt.json",
+    "run-context-clock-jsonb.ps1",
+    "run-local-service-builds-v2.py",
+    "run-local-service-builds.py",
+    "stage-a-api-checkpoint-v2.log",
+    "stage-a-api-checkpoint-v2.receipt.json",
+    "stage-a-api-checkpoint.log",
+    "stage-a-api-checkpoint.receipt.json",
+    "stage-a-checkpoint.json",
+    "stage-a-core-build.log",
+    "stage-a-core-build.receipt.json",
+    "stage-a-core-green-v2.log",
+    "stage-a-core-green-v2.receipt.json",
+    "stage-a-core-green.log",
+    "stage-a-core-green.receipt.json",
+    "stage-a-core-red-v2.log",
+    "stage-a-core-red-v2.log.receipt.json",
+    "stage-a-core-red.log",
+    "stage-a-core-red.log.receipt.json",
+    "stage-b-api-v1.log",
+    "stage-b-api-v1.receipt.json",
+    "stage-b-api-v2.log",
+    "stage-b-api-v2.receipt.json",
+    "stage-b-checkpoint.json",
+    "stage-b-core-build-v1.log",
+    "stage-b-core-build-v1.receipt.json",
+    "stage-b-core-green-v1.log",
+    "stage-b-core-green-v1.receipt.json",
+    "stage-b-core-red-v2.log",
+    "stage-b-core-red-v2.receipt.json",
+    "stage-b-core-red.log",
+    "stage-b-core-red.receipt.json",
+    "stage-b-core-v1.log",
+    "stage-b-core-v1.receipt.json",
+    "stage-b-native-capture-v1.log",
+    "stage-b-native-capture-v1.receipt.json",
+    "stage-b-orchestrator-v1.log",
+    "stage-b-orchestrator-v1.receipt.json",
+    "stage-b-orchestrator-v2.log",
+    "stage-b-orchestrator-v2.receipt.json",
+    "stage-b-v2-checkpoint.json",
+    "stage-b-v2-core-green-2.log",
+    "stage-b-v2-core-green-2.receipt.json",
+    "stage-b-v2-core-green.log",
+    "stage-b-v2-core-green.receipt.json",
+    "stage-b-v2-expiry-red-2.log",
+    "stage-b-v2-expiry-red-2.receipt.json",
+    "stage-b-v2-expiry-red-3.log",
+    "stage-b-v2-expiry-red-3.receipt.json",
+    "stage-b-v2-expiry-red.log",
+    "stage-b-v2-expiry-red.receipt.json",
+    "stage-c1-api-v1.log",
+    "stage-c1-api-v1.receipt.json",
+    "stage-c1-api-v2.log",
+    "stage-c1-api-v2.receipt.json",
+    "stage-c1-checkpoint.json",
+    "stage-c1-core-build.log",
+    "stage-c1-core-build.receipt.json",
+    "stage-c1-v2-checkpoint.json",
+    "stage-c1-v2-client-green.log",
+    "stage-c1-v2-client-green.receipt.json",
+    "stage-c1-v2-client-red.log",
+    "stage-c1-v2-client-red.receipt.json",
+    "stage-c2-api-final.log",
+    "stage-c2-api-final.receipt.json",
+    "stage-c2-api-v1.log",
+    "stage-c2-api-v1.receipt.json",
+    "stage-c2-api-v2.log",
+    "stage-c2-api-v2.receipt.json",
+    "stage-c2-checkpoint.json",
+    "stage-c2-core-build-final.log",
+    "stage-c2-core-build-final.receipt.json",
+    "stage-c2-core-build-v1.log",
+    "stage-c2-core-build-v1.receipt.json",
+    "stage-c2-core-final.log",
+    "stage-c2-core-final.receipt.json",
+    "stage-c2-core-v1.log",
+    "stage-c2-core-v1.receipt.json",
+    "stage-c2-core-v2.log",
+    "stage-c2-core-v2.receipt.json",
+    "stage-c2-local-api-build.log",
+    "stage-c2-local-api-build.receipt.json",
+    "stage-c2-native-final.log",
+    "stage-c2-native-final.receipt.json",
+    "stage-c2-orchestrator-final.log",
+    "stage-c2-orchestrator-final.receipt.json",
+    "stage-c2-orchestrator-v1.log",
+    "stage-c2-orchestrator-v1.receipt.json",
+    "stage-c2-orchestrator-v2.log",
+    "stage-c2-orchestrator-v2.receipt.json",
+    "stage-c2-v2-api-type-repair.log",
+    "stage-c2-v2-api-type-repair.receipt.json",
+    "stage-c2-v2-checkpoint.json",
+    "stage-c2-v2-local-api-build.log",
+    "stage-c2-v2-local-api-build.receipt.json",
+    "stage-c2-v2-local-meriv2-orchestrator-build.log",
+    "stage-c2-v2-local-meriv2-orchestrator-build.receipt.json",
+    "stage-c2-v2-orphan-green.log",
+    "stage-c2-v2-orphan-green.receipt.json",
+    "stage-c2-v2-orphan-red.log",
+    "stage-c2-v2-orphan-red.receipt.json"
+  ],
+  "stagePatches": [
+    {
+      "stage": "stage-a",
+      "baseCommit": "de74185ab417a85a725d212d9d825fee47681bfe",
+      "path": "stage-a-source.patch",
+      "files": 12,
+      "note": "Text reconstruction against common pre-clock baseline; exact original source hashes remain in each checkpoint. Final source is committed directly."
+    },
+    {
+      "stage": "stage-b",
+      "baseCommit": "de74185ab417a85a725d212d9d825fee47681bfe",
+      "path": "stage-b-source.patch",
+      "files": 27,
+      "note": "Text reconstruction against common pre-clock baseline; exact original source hashes remain in each checkpoint. Final source is committed directly."
+    },
+    {
+      "stage": "stage-b-v2",
+      "baseCommit": "de74185ab417a85a725d212d9d825fee47681bfe",
+      "path": "stage-b-v2-source.patch",
+      "files": 27,
+      "note": "Text reconstruction against common pre-clock baseline; exact original source hashes remain in each checkpoint. Final source is committed directly."
+    },
+    {
+      "stage": "stage-c1",
+      "baseCommit": "de74185ab417a85a725d212d9d825fee47681bfe",
+      "path": "stage-c1-source.patch",
+      "files": 33,
+      "note": "Text reconstruction against common pre-clock baseline; exact original source hashes remain in each checkpoint. Final source is committed directly."
+    },
+    {
+      "stage": "stage-c1-v2",
+      "baseCommit": "de74185ab417a85a725d212d9d825fee47681bfe",
+      "path": "stage-c1-v2-source.patch",
+      "files": 33,
+      "note": "Text reconstruction against common pre-clock baseline; exact original source hashes remain in each checkpoint. Final source is committed directly."
+    },
+    {
+      "stage": "stage-c2",
+      "baseCommit": "de74185ab417a85a725d212d9d825fee47681bfe",
+      "path": "stage-c2-source.patch",
+      "files": 42,
+      "note": "Text reconstruction against common pre-clock baseline; exact original source hashes remain in each checkpoint. Final source is committed directly."
+    },
+    {
+      "stage": "stage-c2-v2",
+      "baseCommit": "de74185ab417a85a725d212d9d825fee47681bfe",
+      "path": "stage-c2-v2-source.patch",
+      "files": 42,
+      "note": "Text reconstruction against common pre-clock baseline; exact original source hashes remain in each checkpoint. Final source is committed directly."
+    }
+  ],
+  "limitations": [
+    "Local source/test/build qualification only; no native immutable image or served original capture yet.",
+    "Final packet census query/join tests use Prisma simulation. Actual generated-Prisma/PostgreSQL compiler JSONB storage/readback is separately proved22/22; final served join remains pending.",
+    "Unexplained shadow or concurrent same-conversation packets block. Off/V1 and enforce/V2 joins are covered locally.",
+    "Case46 persistence/join and mail/task relative windows or cross-turn continuation remain separate and outside admitted captures.",
+    "Raw API clock path remains blocked. Existing fixture, provenance, budget, deployment, effect and human-review gates remain."
+  ],
+  "next": "Native immutable image builds and candidate-bound human release attestation, then served original capture with canonical fixture and existing budget authority.",
+  "originalAcceptance": {
+    "passed": 0,
+    "cases": 75,
+    "cdPassed": 0,
+    "cdCases": 7,
+    "cwPassed": 0,
+    "cwCases": 8,
+    "changed": false
+  }
+}

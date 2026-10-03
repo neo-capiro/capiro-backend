@@ -1,0 +1,98 @@
+[Nest] 44516  - 10/03/2026, 1:22:47 PM    WARN [ApiToolExecutorRepo] Delegated read "read_client_documents" -> failed
+[Nest] 44516  - 10/03/2026, 1:22:47 PM    WARN [ApiToolExecutorRepo] Delegated tool "search_memory" -> 503
+[Nest] 44516  - 10/03/2026, 1:22:47 PM    WARN [ApiToolExecutorRepo] Delegated read "read_client_documents" -> failed
+[Nest] 44516  - 10/03/2026, 1:22:47 PM    WARN [ApiToolExecutorRepo] Delegated read "read_client_documents" -> failed
+[Nest] 44516  - 10/03/2026, 1:22:47 PM    WARN [ApiToolExecutorRepo] Delegated read "read_client_documents" -> failed
+FAIL src/meri/controlled-read-observations.spec.ts (13.465 s)
+  controlled read actual HTTP observations
+    × refused unwrapped execution poisons the clock census even when its caller catches the error (64 ms)
+    × refused missing-call-id execution poisons the clock census even when its caller catches the error (3 ms)
+    × refused wrong-tool execution poisons the clock census even when its caller catches the error (3 ms)
+    √ retains actual 01 HTTP clock evidence before truncation (84 ms)
+    √ retains actual 14 HTTP clock evidence before truncation (19 ms)
+    √ retains actual 20 HTTP clock evidence before truncation (9 ms)
+    √ retains actual 72 HTTP clock evidence before truncation (10 ms)
+    √ retains actual failed HTTP clock evidence before truncation (9 ms)
+    √ one actual loopback HTTP response captures two independent passages under one provider call (8 ms)
+    √ multi-source observation refuses duplicate before recording anything (3 ms)
+    √ multi-source observation refuses missing before recording anything (1 ms)
+    √ multi-source observation refuses hash before recording anything (1 ms)
+    √ multi-source observation refuses foreign before recording anything (1 ms)
+    √ multi-source observation refuses coverage before recording anything (1 ms)
+    √ native API executor observes HTTP200 logical errors before failure and native no-progress suppresses call four (31 ms)
+    √ actual full passage joins call/source/hash and records tenant-global null client (1 ms)
+    √ rejects mismatched captureRunId before accepting HTTP evidence
+    √ rejects mismatched requestId before accepting HTTP evidence (1 ms)
+    √ rejects mismatched traceId before accepting HTTP evidence (1 ms)
+    √ rejects mismatched turnId before accepting HTTP evidence (1 ms)
+    √ rejects mismatched tenantId before accepting HTTP evidence
+    √ rejects mismatched actorUserId before accepting HTTP evidence
+    √ rejects mismatched clientId before accepting HTTP evidence (1 ms)
+    √ rejects mismatched conversationId before accepting HTTP evidence
+    √ rejects mismatched physicalMapSha256 before accepting HTTP evidence (1 ms)
+    √ rejects absent real call identity, non200 transport, modified full text, and wrong source client (1 ms)
+    √ ordinary and case01 requests are unchanged and cannot access another request observations
+
+  ● controlled read actual HTTP observations › refused unwrapped execution poisons the clock census even when its caller catches the error
+
+    expect(received).toContain(expected) // indexOf
+
+    Expected value: "semantic_clock_invocation_join_unproved"
+    Received array: []
+
+      193 |               },
+      194 |             });
+    > 195 |             expect(meriCaptureClockExecutionBlockers(signed.receipt)).toContain(
+          |                                                                       ^
+      196 |               'semantic_clock_invocation_join_unproved',
+      197 |             );
+      198 |             expect(signed.receipt.semanticClock!.invocations).toEqual(
+
+      at src/meri/controlled-read-observations.spec.ts:195:71
+      at src/meri/controlled-read-observations.spec.ts:157:9
+
+  ● controlled read actual HTTP observations › refused missing-call-id execution poisons the clock census even when its caller catches the error
+
+    expect(received).toContain(expected) // indexOf
+
+    Expected value: "semantic_clock_invocation_join_unproved"
+    Received array: []
+
+      193 |               },
+      194 |             });
+    > 195 |             expect(meriCaptureClockExecutionBlockers(signed.receipt)).toContain(
+          |                                                                       ^
+      196 |               'semantic_clock_invocation_join_unproved',
+      197 |             );
+      198 |             expect(signed.receipt.semanticClock!.invocations).toEqual(
+
+      at src/meri/controlled-read-observations.spec.ts:195:71
+      at src/meri/controlled-read-observations.spec.ts:157:9
+
+  ● controlled read actual HTTP observations › refused wrong-tool execution poisons the clock census even when its caller catches the error
+
+    expect(received).toEqual(expected) // deep equality
+
+    Expected: ArrayContaining [ObjectContaining {"callId": "", "httpAttempts": 0, "httpStatus": null, "outcome": "threw", "packets": [], "responseSha256": null, "tool": "search_memory"}]
+    Received: [{"callId": "actual-call", "httpAttempts": 0, "httpStatus": null, "outcome": "threw", "packets": [], "responseSha256": null, "tool": "get_program_element"}]
+
+      196 |               'semantic_clock_invocation_join_unproved',
+      197 |             );
+    > 198 |             expect(signed.receipt.semanticClock!.invocations).toEqual(
+          |                                                               ^
+      199 |               expect.arrayContaining([
+      200 |                 expect.objectContaining({
+      201 |                   callId: '',
+
+      at src/meri/controlled-read-observations.spec.ts:198:63
+      at src/meri/controlled-read-observations.spec.ts:157:9
+
+Test Suites: 1 failed, 1 total
+Tests:       3 failed, 24 passed, 27 total
+Snapshots:   0 total
+Time:        13.695 s, estimated 26 s
+Ran all test suites matching /src\\meri\\controlled-read-observations.spec.ts/i.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?
+undefined
+C:\dev\main\meri-c1-20261002\apps\meriv2-orchestrator:
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command "jest" not found

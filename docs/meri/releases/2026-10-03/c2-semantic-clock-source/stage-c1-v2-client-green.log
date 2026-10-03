@@ -1,0 +1,34 @@
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+PASS src/meri/meri-context-plane.tools.spec.ts (36.972 s)
+  qualified search_memory compiler clock
+    √ uses the qualified instant and retains actual compiler metadata for case 01 (15 ms)
+    √ uses the qualified instant and retains actual compiler metadata for case 14 (4 ms)
+    √ preserves an actually returned V1/not_run observation (2 ms)
+    √ does not infer successful compiler use from the policy (47 ms)
+    √ rejects missing, arbitrary, expired, budget-only and wrong-actor clock bindings before retrieval (15 ms)
+    √ rejects a missing tool client before retrieval for case 01 (1 ms)
+    √ rejects a missing tool client before retrieval for case 14 (1 ms)
+    √ rejects another already-authorized client before retrieval for case 01 (1 ms)
+    √ rejects another already-authorized client before retrieval for case 14 (1 ms)
+    √ keeps arbitrary tool-input dates out of compiler authority and ordinary output unchanged (3 ms)
+    √ preserves current client authorization under the qualified clock (1 ms)
+  Meri tool reads through the adopted Context Plane gateway
+    √ preserves Monday board selectors and continuations through enforced, audited retrieval (2 ms)
+    √ preserves exact memory narrowing, dates, cursors and full source content after packet enforcement (1 ms)
+    √ keeps hearing filters and one-chunk continuation without searching an invented task string (1 ms)
+    √ denies an empty mailbox scope before mail access while preserving other authorized source results (3 ms)
+    √ rechecks the server grant before a continuation and blocks a revoked client before gateway retrieval (1 ms)
+    √ propagates enforced packet rejection instead of falling back to retrieved records (2 ms)
+    √ fails closed if the governed operation did not retrieve ({"kind":"migration_exception"}) (1 ms)
+    √ fails closed if the governed operation did not retrieve ({"kind":"governed_packet","context":{}})
+
+Test Suites: 1 passed, 1 total
+Tests:       19 passed, 19 total
+Snapshots:   0 total
+Time:        37.299 s, estimated 41 s
+Ran all test suites matching /src\\meri\\meri-context-plane.tools.spec.ts/i.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?

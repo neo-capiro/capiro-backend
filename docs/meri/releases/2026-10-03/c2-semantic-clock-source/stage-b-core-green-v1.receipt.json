@@ -1,0 +1,5 @@
+{
+  "exitCode": 0,
+  "recordedAt": "2026-10-03T15:31:44.2476204Z",
+  "command": "pnpm --filter @capiro/meriv2-core exec jest --runInBand --forceExit src/context/governed-evidence-auth.spec.ts src/context/compiler-v2.spec.ts src/context/semantic-clock.spec.ts src/context/capture-evidence-receipt.spec.ts"
+}

@@ -9,6 +9,8 @@ import { SemanticDataCatalogService } from '../retrieval/data-catalog/semantic-d
 import { CorePrismaRetrievalAdapter } from '../retrieval/adapters/core-prisma-retrieval.adapter.js';
 import type { RetrievalSourceAdapter } from '../retrieval/retrieval-source.adapter.js';
 import type { RetrievalSourceResult } from '../retrieval/retrieval-v2.types.js';
+import { MERI_FIXTURE_SEMANTIC_INSTANT, MERI_FIXTURE_SEMANTIC_ZONE, type MeriServerReadonlyCapturePolicy } from '@capiro/meriv2-core';
+import { searchCapiroData } from './meri-data-search.helpers.js';
 
 // Keep the actual product seam, gateway enforcement/audit, scope resolver,
 // planner, retrieval service and mail authorization adapter. Only packet
@@ -93,6 +95,137 @@ function harness(adapters: RetrievalSourceAdapter[]) {
     audit,
   };
 }
+
+describe('qualified search_memory compiler clock', () => {
+  function capture(caseId: '01' | '14' = '01') {
+    const issuedAt = Date.now();
+    const policy = {
+      version: 1, kind: 'server_readonly_acceptance_capture', policyId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      requestId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', traceId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+      turnId: 'actual-user-turn', caseId, captureRunId: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+      fixtureVersion: 'meri-live-v1-2026-09-26.1', tenantId: ctx.tenantId, actorUserId: ctx.userId,
+      clientId, conversationId: 'conversation-1', issuedAt, expiresAt: issuedAt + 60_000,
+      semanticClock: { version: 1, kind: 'qualified_original_fixture_semantic_clock',
+        instant: MERI_FIXTURE_SEMANTIC_INSTANT, timeZone: MERI_FIXTURE_SEMANTIC_ZONE,
+        caseId, captureRunId: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+        observedAt: issuedAt, currentVerifySha256: 'a'.repeat(64) },
+    } as MeriServerReadonlyCapturePolicy;
+    return { policy, tool: 'search_memory' as const };
+  }
+  const toolInput = { query: 'approved constraints', domains: ['institutional_knowledge'],
+    clientId, queryClass: 'lookup', pageSize: 1, memoryItemId,
+    cursors: { institutional_knowledge: 'approved-page' },
+    windowStart: '2026-09-01T00:00:00Z', windowEnd: '2026-09-10T00:00:00Z' };
+  function fixture() {
+    const source = { key: 'knowledge-plane-temporal-graph', domains: ['institutional_knowledge'],
+      retrieve: jest.fn().mockResolvedValue(page('institutional_knowledge')) } satisfies RetrievalSourceAdapter;
+    const h = harness([source]);
+    const packet = { version: 2, packetId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', persisted: true,
+      clockUse: { instant: MERI_FIXTURE_SEMANTIC_INSTANT, timeZone: MERI_FIXTURE_SEMANTIC_ZONE,
+        eligibilityAt: new Date().toISOString(), scoring: 'used' } };
+    h.packets.compile.mockResolvedValue(packet);
+    return { ...h, source, packet };
+  }
+
+  it.each(['01', '14'] as const)('uses the qualified instant and retains actual compiler metadata for case %s', async caseId => {
+    const h = fixture();
+    const bound = capture(caseId);
+    const result = await searchCapiroData(ctx, toolInput, h.service, bound);
+    expect(h.packets.compile).toHaveBeenCalledWith(expect.objectContaining({
+      now: new Date(MERI_FIXTURE_SEMANTIC_INSTANT), semanticClock: bound.policy.semanticClock,
+      traceId: bound.policy.traceId,
+      ref: expect.objectContaining({ tool: 'search_memory', capturePolicyId: bound.policy.policyId,
+        captureRequestId: bound.policy.requestId, captureTurnId: bound.policy.turnId }),
+    }), expect.anything(), expect.anything());
+    expect(h.requestContext).toHaveBeenCalledWith(expect.objectContaining({ requestId: bound.policy.requestId }));
+    expect(h.retrieve).toHaveBeenCalledWith(expect.objectContaining({
+      memoryItemId, cursors: toolInput.cursors,
+      windowStart: new Date(toolInput.windowStart), windowEnd: new Date(toolInput.windowEnd),
+    }));
+    expect(h.retrieve.mock.calls[0]![0]).not.toHaveProperty('observedThrough');
+    expect(result.contextPacket).toEqual({ packetId: h.packet.packetId, persisted: true,
+      clockUse: h.packet.clockUse });
+    expect(result.contextPacket!.clockUse).not.toBe(h.packet.clockUse);
+    expect(result.records[0]!.payload.text).toBe(evidence);
+  });
+
+  it('preserves an actually returned V1/not_run observation', async () => {
+    const h = fixture();
+    h.compiler.modeFor.mockResolvedValue('off');
+    h.packet.version = 1;
+    h.packet.clockUse.scoring = 'not_run';
+    const result = await searchCapiroData(ctx, toolInput, h.service, capture());
+    expect(result.contextPacket!.clockUse!.scoring).toBe('not_run');
+  });
+
+  it('does not infer successful compiler use from the policy', async () => {
+    for (const change of [
+      { clockUse: undefined }, { persisted: false }, { packetId: null },
+      { clockUse: { ...fixture().packet.clockUse, instant: '2000-01-01T00:00:00.000Z' } },
+      { clockUse: { ...fixture().packet.clockUse, eligibilityAt: 'unknown' } },
+      { clockUse: { ...fixture().packet.clockUse, scoring: 'invented' } },
+    ]) {
+      const h = fixture();
+      h.packets.compile.mockResolvedValue({ ...h.packet, ...change });
+      await expect(searchCapiroData(ctx, toolInput, h.service, capture())).rejects.toThrow('tool_compiler_unproved');
+    }
+  });
+
+  it('rejects missing, arbitrary, expired, budget-only and wrong-actor clock bindings before retrieval', async () => {
+    const original = capture();
+    for (const change of [
+      { semanticClock: undefined }, { tenantId: 'other-tenant' }, { actorUserId: 'other-user' },
+      { turnId: null }, { expiresAt: Date.now() - 1 }, { fixtureVersion: 'unqualified' },
+      { clientId: null }, { clientId: '' }, { clientId: ' ' },
+      { syntheticReadBudget: {} }, { caseId: '20' },
+      { semanticClock: { ...original.policy.semanticClock, instant: '2020-01-01T00:00:00.000Z' } },
+    ]) {
+      const h = fixture();
+      await expect(searchCapiroData(ctx, toolInput, h.service, { ...original,
+        policy: { ...original.policy, ...change } as MeriServerReadonlyCapturePolicy,
+      })).rejects.toThrow('semantic_clock');
+      expect(h.retrieve).not.toHaveBeenCalled();
+    }
+  });
+
+  it.each(['01', '14'] as const)('rejects a missing tool client before retrieval for case %s', async caseId => {
+    const h = fixture();
+    await expect(searchCapiroData(ctx, { ...toolInput, clientId: undefined }, h.service, capture(caseId)))
+      .rejects.toThrow('meri_fixture_semantic_clock_tool_binding_mismatch');
+    expect(h.security).not.toHaveBeenCalled();
+    expect(h.requestContext).not.toHaveBeenCalled();
+    expect(h.retrieve).not.toHaveBeenCalled();
+  });
+
+  it.each(['01', '14'] as const)('rejects another already-authorized client before retrieval for case %s', async caseId => {
+    const h = fixture();
+    const otherClientId = '33333333-3333-4333-8333-333333333333';
+    h.security.mockResolvedValue({ authorizedClientIds: [clientId, otherClientId], authorizedMailboxConnectionIds: [] });
+    await expect(searchCapiroData(ctx, { ...toolInput, clientId: otherClientId }, h.service, capture(caseId)))
+      .rejects.toThrow('meri_fixture_semantic_clock_tool_binding_mismatch');
+    expect(h.security).not.toHaveBeenCalled();
+    expect(h.requestContext).not.toHaveBeenCalled();
+    expect(h.retrieve).not.toHaveBeenCalled();
+  });
+
+  it('keeps arbitrary tool-input dates out of compiler authority and ordinary output unchanged', async () => {
+    const h = fixture();
+    const result = await searchCapiroData(ctx, { ...toolInput,
+      semanticClock: capture().policy.semanticClock, now: MERI_FIXTURE_SEMANTIC_INSTANT,
+      compilerCapture: capture() }, h.service);
+    const request = h.packets.compile.mock.calls[0]![0];
+    expect(request).not.toHaveProperty('semanticClock');
+    expect(request).not.toHaveProperty('now');
+    expect(result).not.toHaveProperty('contextPacket');
+  });
+
+  it('preserves current client authorization under the qualified clock', async () => {
+    const h = fixture();
+    h.security.mockResolvedValue({ authorizedClientIds: [], authorizedMailboxConnectionIds: [] });
+    await expect(searchCapiroData(ctx, toolInput, h.service, capture())).rejects.toBeInstanceOf(NotFoundException);
+    expect(h.retrieve).not.toHaveBeenCalled();
+  });
+});
 
 describe('Meri tool reads through the adopted Context Plane gateway', () => {
   it('preserves Monday board selectors and continuations through enforced, audited retrieval', async () => {
