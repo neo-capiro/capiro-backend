@@ -67,6 +67,10 @@
     "sha256": "435981bb6775fe0c8c6e143eaee782bf8df143407cb313620bd848e3a5fe549f",
     "bytes": 18581
   },
+  "no-tools-release-preparation.json": {
+    "sha256": "55995d9ad10be9a4381f562923e05a87aaa59957576f5a7cbbdcc6a94a417a12",
+    "bytes": 1098
+  },
   "no-tools-repair-receipt.json": {
     "sha256": "cfaef95be7a93e5b084f8e2b1b8e5ecc27198fe25b2132ec601032cc51f4805d",
     "bytes": 2506
@@ -78,6 +82,10 @@
   "no-tools-served-verification-plan.json": {
     "sha256": "c16147bff6c98d7a10c4d5369e8a397925af5e2ba175831f1205c7735e928c37",
     "bytes": 2719
+  },
+  "no-tools-sibling-readback.json": {
+    "sha256": "a99c7ff4f68f477d5bb4f10b43f02060796111b24adf394a8e1d62a0496b3cea",
+    "bytes": 2182
   },
   "no-tools-v2-core-build.log": {
     "sha256": "3b050d4996f6e2a7e46851df328e05ecb31c0e7d0fd05a710f83c08e2b42dc77",
@@ -135,17 +143,33 @@
     "sha256": "b9224f32100d36b08facef04f577e4c8aa0c5bb9cb47539d6a576553960b0df6",
     "bytes": 758464
   },
+  "orchestrator-no-tools-manifest.json": {
+    "sha256": "80f622226b23b7ad50bb2d869f2f9ad280941af6c49469207d4bf499f607b041",
+    "bytes": 3258
+  },
+  "orchestrator-no-tools-qualification.json": {
+    "sha256": "35004ca321dc2491afd5dced028f9fed6200a77974394ef1c585119cfb0ff8d4",
+    "bytes": 2468
+  },
   "orchestrator.buildspec.yml": {
     "sha256": "94486686e06ef402317574432ac5ecf836bc2cdc0f1f039f6c68cf8934718062",
     "bytes": 12883
+  },
+  "prepare-no-tools-release.mjs": {
+    "sha256": "c427d31784021e33a2abfd044fc43cfb102c5710706b0bcc90af3803a2fec0ce",
+    "bytes": 4291
   },
   "qualification.json": {
     "sha256": "a347c75e0174d9c4e7a05379bd8f7e1a7e909f4af8dacda3858814e9b41fade3",
     "bytes": 3398
   },
   "README.md": {
-    "sha256": "817d3bb6fce879dca856f4dd4ef006bc6a1c6c437b75e33e52762d19480e8e9c",
-    "bytes": 5468
+    "sha256": "9001ff577b24e550eb019b64113002d7fdc160e54f3c6923a5a48ff1b52b592d",
+    "bytes": 5543
+  },
+  "RELEASE-REVIEW.md": {
+    "sha256": "941cf737ca25fda372a853d97acaa3d404028f89e6c1c29d03a83b823edac85e",
+    "bytes": 5077
   },
   "run-offline-no-tools.py": {
     "sha256": "2c1cdfdeb9556e8b34212563c271cb281d8945df084d03330a3c9a92f1c03a2e",
