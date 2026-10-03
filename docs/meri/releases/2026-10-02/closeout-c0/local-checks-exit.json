@@ -1,0 +1,16 @@
+{
+  "exitCode": 0,
+  "scope": "Offline contract, frozen source bytes, recorder and read-plan tests; no live fixture or journal",
+  "command": [
+    "node",
+    "--test",
+    "evals/meri/live-v1/tests/contract.test.mjs",
+    "evals/meri/live-v1/tests/fixture-content-contract.test.mjs",
+    "evals/meri/live-v1/tests/memory-read-protocol.test.mjs",
+    "evals/meri/live-v1/tests/controlled-read-definitions.test.mjs"
+  ],
+  "nodeVersion": "v24.19.0",
+  "passed": 38,
+  "failed": 0,
+  "skipped": 0
+}

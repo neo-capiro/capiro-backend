@@ -1,0 +1,257 @@
+{
+  "observedAt": "2026-10-03T00:46:27.885143+00:00",
+  "baselineSha": "723735ed1f5c562ab10e6077c67261285ea102fd",
+  "fetchedMainSha": "723735ed1f5c562ab10e6077c67261285ea102fd",
+  "commitsSinceAudit": "0",
+  "policySha": "b2b0ce8c2bf03817b81e671d968b7892985b8d06",
+  "policySource": "Authenticated GitHub API: BOOTSTRAP.md, AGENTS.md, hermes/OPERATING.md",
+  "machineMapRevision": "UNAVAILABLE; documented checkout absent; targeted filename search found no map",
+  "requirementIds": [
+    "01-A",
+    "01-B",
+    "01-C",
+    "01-D",
+    "ANNEX-3",
+    "ANNEX-4.1–4.3",
+    "ANNEX-5.1",
+    "ANNEX-5.2",
+    "ANNEX-5.3",
+    "ANNEX-5.4",
+    "ANNEX-5.5",
+    "ANNEX-5.6",
+    "ANNEX-6.1",
+    "ANNEX-6.2",
+    "ANNEX-6.3–6.4",
+    "ANNEX-7.1",
+    "ANNEX-7.3",
+    "ANNEX-7.4",
+    "ANNEX-7.5",
+    "ANNEX-7.6",
+    "ANNEX-7.7",
+    "ANNEX-8.1",
+    "ANNEX-8.2",
+    "ANNEX-9.1–9.2",
+    "ANNEX-9.5",
+    "ANNEX-10.3",
+    "ANNEX-12.1–12.5",
+    "ANNEX-12.6",
+    "ANNEX-12.8",
+    "ANNEX-13",
+    "ANNEX-14.2–14.4",
+    "ANNEX-Appendix A/B",
+    "ANNEX-Appendix H",
+    "I1/I2",
+    "X1/X2",
+    "M1",
+    "F1",
+    "CW-09–12",
+    "M01–M20"
+  ],
+  "paths": {
+    "apps/api/src/meri/meri-action-proposal.service.ts": {
+      "sha256": "ab004b95d6e559047a62a35ce2f8f6895b3dcbe321d9bfaf6069c25fdf412738",
+      "lastMergedPathCommit": "2206be1d9e000b995f96d469917635d3e7b3bdb1"
+    },
+    "apps/meriv2-orchestrator/src/meri/meriv3/openai-responses.client.ts": {
+      "sha256": "3c177b77da6f06c1cb92d3b57b46da3ce2927f26b7b8147eb8d31fb4e08d42f0",
+      "lastMergedPathCommit": "6ae134540a32bd123308e3bf68b2ba1514ed3086"
+    },
+    "apps/api/src/meri/meri-artifact-integrity.ts": {
+      "sha256": "8d48953def111ee5a4bdbabd730923f0925f6edb99ea596e847a1d86a5f02aad",
+      "lastMergedPathCommit": "cd70d00a93e20ac7a956d9bbbca6e595aa27b2f4"
+    },
+    "apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.ts": {
+      "sha256": "4b94beb072986108fc1686db7b4172feb7aa8b78840c52735e18451a5b57a916",
+      "lastMergedPathCommit": "74a8b53ed0e23aaac916a6a426b97f9fa3759071"
+    },
+    "apps/api/src/meri/meri-tools.service.ts": {
+      "sha256": "a7009052ec3b381424c53810331a51df18b6aadefec138f6a75273349c3f6aef",
+      "lastMergedPathCommit": "6be5a560d5addaa1844f0687898c34a249089f76"
+    },
+    "packages/shared/src/meri-skills.ts": {
+      "sha256": "8c23514721ad84242de330fa90a1f2d5d2ed4b48ca609e3222f6e57414e020b0",
+      "lastMergedPathCommit": "488c705e1bb87d0d2bc4c223dc6e277e23ccae3e"
+    },
+    "apps/api/src/meri/meri-research-coordinator.ts": {
+      "sha256": "5f63ee88cd3783cf7dfb0bdbc8df08a4ac13e139f5dd8ed2209b3a553e5e567a",
+      "lastMergedPathCommit": "4ba275d1e0d7bafd89d69215350bf106d9962c91"
+    },
+    "apps/api/src/meri/meri-research-child-task.ts": {
+      "sha256": "0608142f70a20651fe71f262c5ddf719ad3f3ee1b5ba5990a9ea8668942d5356",
+      "lastMergedPathCommit": "daf38182e695cffa552145bccceff7ea7eecb2ba"
+    },
+    "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-run-budget.ts": {
+      "sha256": "b7e0c3e2e90d8161e70b950b62df3e131bf50470eacbec7aec1ad2dd7a2c49f6",
+      "lastMergedPathCommit": "6da9414dd99c2ed78874575fe7beef7bb5659b2c"
+    },
+    "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts": {
+      "sha256": "ecd2487c8d9a4aaaa3065983cc23b7ae302e9460d6e201b176280909391d4de3",
+      "lastMergedPathCommit": "9d55c92d6a0df6108e178c493b41f0dc174e3ea0"
+    },
+    "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-turn-coverage.ts": {
+      "sha256": "8fec042eb5bfef166d20314c9bcd5aa9dc27985501bd0f3703b059e14a17e355",
+      "lastMergedPathCommit": "4b74ad8eb0cc2d378210b5484d2bfe2600f7965c"
+    },
+    "apps/meriv2-orchestrator/src/telemetry/meri-telemetry.runtime.ts": {
+      "sha256": "9e33de364e11c7e6be2928fd8098530b7d51d9265c7dada28fbd9820ecee3ec3",
+      "lastMergedPathCommit": "03197353b2c1d06247f1adacdd03837970b82a18"
+    },
+    "apps/api/src/meri/meri.controller.ts": {
+      "sha256": "3195d6e7d40fa21dbd3afea876a4300b9a003809ff395571d2f3e28edfd42a52",
+      "lastMergedPathCommit": "237257507b0ed9dff2fc8dbf653c89b2f50abb02"
+    },
+    "packages/shared/src/index.ts": {
+      "sha256": "9ad0f2d4833fb47fd5c2ee23119e6999baaa705cbc4d6a4288673c7aaf136bc2",
+      "lastMergedPathCommit": "758dd54a279c64d27593f0fcae0e327fb654015c"
+    },
+    "apps/meriv2-orchestrator/src/meri/meriv3/meriv3.types.ts": {
+      "sha256": "cdbb965a87269a59cb802831555e323aedac219e0b05b10cfaa76025980dc010",
+      "lastMergedPathCommit": "0cd1750c861ada15b6d834bdfbfcc32aaa77bb16"
+    },
+    "apps/api/src/meri/meri-research-run-state.ts": {
+      "sha256": "ffa878891817176f336d8556c7b83126df7b78b51c0df7884c303926f5ea1886",
+      "lastMergedPathCommit": "4ba275d1e0d7bafd89d69215350bf106d9962c91"
+    },
+    "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-plan-execution.ts": {
+      "sha256": "41ff5d9c476aaaf06e022f66893faebab534bc4b74a84340e7e2ee96d0fe9605",
+      "lastMergedPathCommit": "6da9414dd99c2ed78874575fe7beef7bb5659b2c"
+    },
+    "apps/api/src/meri/meri-schedule-execution-boundary.ts": {
+      "sha256": "19cc1dc8d416478c2679644e28237743c0139ba39b74dc90f9a8a43cfafd2192",
+      "lastMergedPathCommit": "d71ff9c0c1f7e6df195a0876f31261a3fb8c5ce8"
+    },
+    "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-capture-provider-budget.ts": {
+      "sha256": "dbc3c50b1042e668a7ebef9d6994ff6a972e92f7e26fce6ad25b26ab4b275771",
+      "lastMergedPathCommit": "b0dff4bf3566ec75e972ccfd55880f847ef3d8a5"
+    },
+    "apps/api/src/meri/meri-compaction.helpers.ts": {
+      "sha256": "86e0766a6ec3adb739b71c708fb9117f6fded4a16bf2571bd99ec235b31b2f3c",
+      "lastMergedPathCommit": "a884d6445344fdce1ab94f3d7abe0589677dbf4c"
+    },
+    "apps/api/src/meri/meri-context-plane.service.ts": {
+      "sha256": "f0f2b82aff762e4f5a35fe27d787f355c3cab8576506b31d96681784c1bb76f9",
+      "lastMergedPathCommit": "e38f7202320939a8706a4b3964eedb7dd429ab1c"
+    },
+    "apps/api/src/meri/meri-research.service.ts": {
+      "sha256": "dec0cec4705eccab5be1cbb8c3a42e75fe77a099802208e31f960e2183376af1",
+      "lastMergedPathCommit": "ab3c5f68e9c0da7f6e7ca13e1ef231d13d7e31d7"
+    },
+    "apps/web/src/components/chat/meri-durable-research.ts": {
+      "sha256": "fe527c6d0c90c61c0cf453af61e1b8d5509794e56a64f816b7a4fca88d20aa02",
+      "lastMergedPathCommit": "4ba275d1e0d7bafd89d69215350bf106d9962c91"
+    },
+    "apps/web/src/vnext/meri/MeriMemoryTab.tsx": {
+      "sha256": "a9dfd1b22f9172846f43bec00601b67f07379aa32bd496263f967b9b61e06cc9",
+      "lastMergedPathCommit": "2209e697e4f7bc3ef73274282b6726f8dc3ba4d5"
+    },
+    "apps/web/src/vnext/meri/MeriApprovalsTab.tsx": {
+      "sha256": "36e0e40cfc0bfd9cc2f2ea1885320cb7c4e595ab043c770f8868f0326be6c9b5",
+      "lastMergedPathCommit": "0beaf33b1ed538a3d355ece2c20b10a3af248ee3"
+    },
+    "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-tool-evidence.ts": {
+      "sha256": "97b4e1c6e47b78681ca83e477f97659fd2f7764309a4defb673fe318d6f13449",
+      "lastMergedPathCommit": "a55f214707cd3eab6f23b0f07c6b730e95b3e19b"
+    },
+    "apps/meriv2-orchestrator/src/meri/meriv3/meri-progressive-tool-discovery.ts": {
+      "sha256": "dd87343151feb9ffbd62f7adcbd66d87b8107eff49c1b2e2746acffe61d89685",
+      "lastMergedPathCommit": "5d25c7d893aaade6f65590d585facc5c6dd15948"
+    },
+    "apps/api/src/meri/meri-procedure-runtime.ts": {
+      "sha256": "233cd8d55792485a99d33a2281806dfc4e9f77c3443bd9cb41368330a3666b4d",
+      "lastMergedPathCommit": "f766e859e16fa7d16802c0487030063ff9ddb6c6"
+    },
+    "apps/api/src/meri/meri-firm-skills.helpers.ts": {
+      "sha256": "65dc0285b46d90116c7ccc81dcc7b0f33c6f94b16271f558f545a70f0ab5f6cf",
+      "lastMergedPathCommit": "e4680ada973f4b8ceb2a2a65cadb7f7ab0b09c49"
+    },
+    "apps/api/src/meri/skills/commitments-audit.procedure.ts": {
+      "sha256": "0634e22cb494ea69fd3d857e9375ce63f2543d5af8d9292a7a58a95d455dca28",
+      "lastMergedPathCommit": "92cecbef3ea16370460901ee77589079352db7cb"
+    },
+    "apps/web/src/vnext/meri/MeriArtifactDownloadLink.tsx": {
+      "sha256": "5dcba93803c145bd64bad6abf4e1e34407d660a30c0b3faf8c8de1c53ae2b5ab",
+      "lastMergedPathCommit": "68ca804cf207ad8dc785aa46e5478db6cb04265a"
+    },
+    "evals/meri/live-v1/case46-live-capture.mjs": {
+      "sha256": "925f926a5c2f72ad9b6bb114847d7140cd769a6e510d85c5fe80d0c6656a2b66",
+      "lastMergedPathCommit": "24aa95412dee3885b0cbe9220f6386232c17f35f"
+    },
+    "apps/api/src/meri/meri-firm-skills.service.ts": {
+      "sha256": "2f769139ea8ddbb31a55cf34b87e02ba08f9772c7c451554ff4d9ebf35e76e29",
+      "lastMergedPathCommit": "e4680ada973f4b8ceb2a2a65cadb7f7ab0b09c49"
+    },
+    "docs/meri/implementation/01-source-inventory.json": {
+      "sha256": "5110aeaf4ed84f21cbce592b33039f3ff9328c731c8411f71eaabcc90bb87330",
+      "lastMergedPathCommit": "04cc5d1577331972c7e76f0efd16f8587efed513"
+    },
+    "THIRD_PARTY_NOTICES": {
+      "sha256": "bea17076ef2c0f79073137340d3cf0da52a5c9032a426e875a4ddacf884cade6",
+      "lastMergedPathCommit": "04cc5d1577331972c7e76f0efd16f8587efed513"
+    },
+    "scripts/meri-release.mjs": {
+      "sha256": "2fece407aa0f08795ac6d5d1feef99211412ab28ea6bc76125c1c49eae4412f6",
+      "lastMergedPathCommit": "beb5dc4d22a24529cdfd34b8e9d0b19436560cc0"
+    },
+    "scripts/lib/meri-release-policy.mjs": {
+      "sha256": "e0518591e704ef3f051442d1b949a9f83a705a2cff40ed998dba19b57373cb5c",
+      "lastMergedPathCommit": "0c5035caed29c8cb9509dcb32c76b9b07f78730a"
+    },
+    "evals/meri/live-v1/validate-contract.mjs": {
+      "sha256": "4f38368e8d20d7dfc1fadf150267fb4bd2418f1f6639442cf605687058dcc84d",
+      "lastMergedPathCommit": "e9815226cc509ade305e1c74e1a3cee4321a007f"
+    },
+    "evals/meri/live-v1/verify-capture.mjs": {
+      "sha256": "24e61f13095d2a4a682dd210b763d4a4a14ff736e63997bcc16b02c9d0b37390",
+      "lastMergedPathCommit": "9b8fc56088ad3c60397e56096f2df4072626690d"
+    },
+    "evals/meri/suite-contract.json": {
+      "sha256": "25be466136f4d47fc141e4b024f732a5ee1c1a477cc084700208c7b2826c052d",
+      "lastMergedPathCommit": "04b2085f8edab73bff4d3cda895c6a5e33b56ed0"
+    },
+    "evals/meri/live-v1/fixture-provisioning/cli.mjs": {
+      "sha256": "85c8d6281f849a9d3f74a96bb7a63b2ebf06598e043a7270ff7cb1ba1b64a6e8",
+      "lastMergedPathCommit": "2f492ad9f31daa333a2496bec46bff3183fb724b"
+    },
+    "evals/meri/live-v1/memory-read-protocol.mjs": {
+      "sha256": "aaa9e781af07d72aa90bb16601b9bb1058ca7c087cc9d17f3911d69e1e46491f",
+      "lastMergedPathCommit": "fecce92b0f9880fea720c755e7c5defde1af69a9"
+    },
+    "docs/meri/releases/2026-10-02/direct-browser-repairs/release-qualification.json": {
+      "sha256": "2a242c2ffad3cb856e8407c6931ae4166469df8d1daf493494c0e43355de4549",
+      "lastMergedPathCommit": "ac59dbe1fd22f0a33845810c41be5b6861a12fb6"
+    },
+    "packages/meriv2-core/src/observability/meri-joined-telemetry.ts": {
+      "sha256": "0f3eb9bcc1157a2c5e0993bbc6440affa3885a817f329007af7202127dd458c5",
+      "lastMergedPathCommit": "09f35a155cbe00c70a08f62638487a9d9e5b0c24"
+    },
+    "docs/meri/implementation/appendix-h-audit.md": {
+      "sha256": "4149d738140c8e3a525bcb34a2cde0b8c64de835fe6ad509d0b8eb1f5608df01",
+      "lastMergedPathCommit": "e1c7a27fad6deebbdf8ebabe311167a718e1dad7"
+    },
+    "docs/meri/implementation/01-source-acquisition.md": {
+      "sha256": "b2a289bc98ba0c5e4a9d09df23bdf18fc70ecccd39c0ac2a4700b9b72ff0d253",
+      "lastMergedPathCommit": "04cc5d1577331972c7e76f0efd16f8587efed513"
+    },
+    "docs/meri/implementation/01-Meri-Foundation-and-Reliability.md": {
+      "sha256": "77c55b7484343a766c3bd17047c513b50c7c5d045e2018f03ea9dd0c08b622bd",
+      "lastMergedPathCommit": "cda99a63ccb5502e58d6f741c6749d3e3a135c06"
+    },
+    "docs/meri/implementation/01-memory-strategy-acceptance.md": {
+      "sha256": "8caf34f4714aaf674c5b61d345a3592b42501ee41b81acaa028f32f9cd0baa8a",
+      "lastMergedPathCommit": "546fe9ef7eff7224ebd00b2c0ce1444c13852891"
+    }
+  },
+  "originalPlanSha256": "77c55b7484343a766c3bd17047c513b50c7c5d045e2018f03ea9dd0c08b622bd",
+  "closeoutPlanSha256": "10f32a3af65196d41dd7ae890f88839657bc8a25fbeaa4639065e73adca4722d",
+  "closeoutCopyExact": true,
+  "preservedHistory": {
+    "STATUS.md": "af921394e45de69cd698e06747cb73acf1761f93a3d92ec6fc5ea48093df5622",
+    "01-requirements.md": "8e8cec538c0736c1445942eaae63e3bf10d08d7c3c5b61ffc898737858065a5d",
+    "01-handover.md": "8447fcf8b7135316a943aff03210ddf79611776a54324c75df36f0263e157720"
+  },
+  "productionChanges": 0,
+  "providerSubmissions": 0,
+  "businessWrites": 0,
+  "journalWrites": 0,
+  "sourceReadLimit": "Current implementation entry points and existing qualifications reconciled; not a new exhaustive source or product audit."
+}
