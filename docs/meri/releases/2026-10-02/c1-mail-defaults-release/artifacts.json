@@ -1,0 +1,34 @@
+{
+  ".gitattributes": {
+    "sha256": "8b9c3028d6467ff3be7c793141927841d70f47f52d0590677438f488ca154992",
+    "bytes": 9
+  },
+  "browser-mail-defaults-final.json": {
+    "sha256": "f24ab737f1d038b944103e39e36d7ed270ebca501c2fd247cfbb404216825d48",
+    "bytes": 9780
+  },
+  "mail-defaults-final-service-readback.json": {
+    "sha256": "b9d437e07537b1ef183d7cd4a7f45aeb9c89b6cc176f876cb84752e13b6a7e4b",
+    "bytes": 3340
+  },
+  "mail-defaults-final-telemetry.json": {
+    "sha256": "cf6a665b186d448584f3b1ddbea927ee900edae5e3690d8cf0171155440ea2e3",
+    "bytes": 55505
+  },
+  "orchestrator-mail-defaults-promotion.json": {
+    "sha256": "01c3e00e77c4055e0b9cfaf332144070d34e5cc322f8cf8e74042cb98ae80ccf",
+    "bytes": 1114
+  },
+  "owner-mail-defaults-approval.json": {
+    "sha256": "92810e20c2c6b7736c6349c68292679a3f7043218030fc736faf3825b11b0ede",
+    "bytes": 1028
+  },
+  "README.md": {
+    "sha256": "7ea9efc2d0cd8cf60d52e3bda2d15dd139f4c53afdd882608a1b85fad8476a9a",
+    "bytes": 4055
+  },
+  "screenshots.json": {
+    "sha256": "a34a3525658caad7ff423a88bbf5da78907b0859be80e09b9a126c98952bc0ef",
+    "bytes": 459
+  }
+}

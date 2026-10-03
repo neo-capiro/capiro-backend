@@ -1,0 +1,160 @@
+{
+  "status": "PARTIAL_MAIL_REPAIR_PASS_CONCISE_FOOTER_FAIL",
+  "route": "https://os.capiro.ai/meri/t/1117e250-4007-47a7-9158-1dcfcf5dc435",
+  "sourceSha": "c8e2b8fbfe921fd43a1bd1d4d744a26db138e985",
+  "taskRevision": 109,
+  "imageDigest": "sha256:27418fb841c03bc1637949c45d9deda1d4de8fd5be423d05beaf83e5d1025be6",
+  "cases": [
+    {
+      "id": "minimal-mail-list",
+      "prompt": "C1 final verification, read only: Call list_emails exactly once using precisely {\"limit\":1}; omit every other optional argument rather than specifying defaults or nulls. Return only returned-message count, totalMatches, hasMore, and any actual coverage limitation. Do not show message contents, addresses, subjects, or IDs. Do not retry or change anything.",
+      "responseIndex": 8,
+      "submittedAt": "2026-10-03T06:03:38.959Z",
+      "submittedAtMs": 1791007418959,
+      "firstUsefulObservedMs": 27046,
+      "terminalObservedMs": 27046,
+      "firstUsefulObservedAt": "2026-10-03T06:04:06.005Z",
+      "terminalObservedAt": "2026-10-03T06:04:06.005Z",
+      "firstAndTerminalObservedTogether": true,
+      "observationNote": "Initial answer waiter timed out while the same request was still running; next AX snapshot showed both the useful answer and Completed at27046ms. No resubmission.",
+      "answer": "Returned-message count: 1. [8]\ntotalMatches: 30,002. [8]\nhasMore: true. [8]\nCoverage limitation: More results remain. Sync excludes junk/spam, deleted/trash, and drafts; coverage beyond the bounded 365-day sync window is not assured. Mail sync reports healthy and backfill complete. [8]\n\nEvidence limitation: No/none/only/all/every claims require explicit, non-truncated source coverage; an empty or failed query is not proof of absence; that part of the answer remains limited because the source was truncated.",
+      "result": "PASS",
+      "toolCount": 1,
+      "tools": [
+        "list_emails"
+      ],
+      "returned": 1,
+      "totalMatches": 30002,
+      "hasMore": true,
+      "failureState": null,
+      "coverage": "Stored active mail; pagination disclosed; junk/spam,deleted/trash,drafts excluded; bounded365-day sync; sync healthy/backfill complete"
+    },
+    {
+      "id": "literal-zero-mail-search",
+      "responseIndex": 9,
+      "submittedAt": null,
+      "firstUsefulObservedAt": "2026-10-03T06:07:27.918Z",
+      "terminalObservedAt": "2026-10-03T06:07:27.918Z",
+      "firstUsefulObservedMs": null,
+      "terminalObservedMs": null,
+      "firstAndTerminalObservedTogether": true,
+      "timingCapture": "Submission timestamp unavailable due observer closure error; use joined server duration, do not invent UI elapsed time.",
+      "answer": "Matching-message count: 0 in synced, active mail.\nCoverage limitations: Sync excludes junk/spam, deleted/trash, and drafts. Coverage beyond the bounded 365-day sync window is not assured. Mail sync reports healthy with backfill complete.",
+      "result": "PASS",
+      "toolCount": 1,
+      "tools": [
+        "search_emails"
+      ],
+      "matchingMessageCount": 0,
+      "failureState": null,
+      "coverage": "Synced active mail; junk/spam,deleted/trash,drafts excluded; bounded365-day sync; sync healthy/backfill complete",
+      "unrelatedFooter": false
+    },
+    {
+      "id": "known-mail-search",
+      "prompt": "C1 final verification, read only: Search my own connected mailbox once with withinDays 365 and limit 1, without a text filter. Return only returned-message count, totalMatches, hasMore, and actual source or sync-coverage limitations. Omit message contents, addresses, subjects, and IDs. Do not open messages, consult other sources, retry, or change anything. A failed lookup is unknown, not zero.",
+      "responseIndex": 10,
+      "submittedAt": "2026-10-03T06:07:27.973Z",
+      "submittedAtMs": 1791007647973,
+      "firstUsefulObservedAt": "2026-10-03T06:07:38.885Z",
+      "firstUsefulObservedMs": 10912,
+      "firstUsefulText": "Returned-message count: 1. [8]\ntotalMatches: 29,990. [8]\nhasMore: true. [8]\nCoverage limitations: More matching messages remain. Search covers stored, active mail and excludes junk/spam, deleted/trash, and drafts. Mail sync reports healthy with backfill complete; coverage beyond the bounded 365-day sync window is not assured. [8]\n\nEvidence limitation: No/none/only/all/every claims require explicit, non-truncated source coverage; an empty or failed query is not proof of absence; that part of the answer remains limited because the source was truncated.",
+      "terminalObservedAt": "2026-10-03T06:07:38.915Z",
+      "terminalObservedMs": 10942,
+      "answer": "Returned-message count: 1. [8]\ntotalMatches: 29,990. [8]\nhasMore: true. [8]\nCoverage limitations: More matching messages remain. Search covers stored, active mail and excludes junk/spam, deleted/trash, and drafts. Mail sync reports healthy with backfill complete; coverage beyond the bounded 365-day sync window is not assured. [8]\n\nEvidence limitation: No/none/only/all/every claims require explicit, non-truncated source coverage; an empty or failed query is not proof of absence; that part of the answer remains limited because the source was truncated.",
+      "result": "PASS",
+      "toolCount": 1,
+      "tools": [
+        "search_emails"
+      ],
+      "returned": 1,
+      "totalMatches": 29990,
+      "hasMore": true,
+      "failureState": null,
+      "coverage": "Stored active mail; pagination disclosed; junk/spam,deleted/trash,drafts excluded; bounded365-day sync; healthy/backfill complete"
+    },
+    {
+      "id": "own-open-task-count",
+      "prompt": "C1 final verification, read only: Use the native task lookup once to count open tasks assigned to me. Return only the count and any actual source limitation. Do not include task titles or other people’s tasks, consult other sources, or change anything.",
+      "responseIndex": 11,
+      "submittedAt": "2026-10-03T06:07:50.740Z",
+      "submittedAtMs": 1791007670740,
+      "firstUsefulObservedAt": "2026-10-03T06:07:58.509Z",
+      "firstUsefulObservedMs": 7769,
+      "firstUsefulText": "0 open tasks assigned to you. No source limitation reported.",
+      "terminalObservedAt": "2026-10-03T06:07:58.534Z",
+      "terminalObservedMs": 7794,
+      "answer": "0 open tasks assigned to you. No source limitation reported.",
+      "result": "PASS",
+      "toolCount": 1,
+      "tools": [
+        "query_tasks"
+      ],
+      "matchingTaskCount": 0,
+      "failureState": null,
+      "coverage": "Authenticated owner native open tasks; no other sources called",
+      "unrelatedFooter": false
+    },
+    {
+      "id": "concise-no-tool",
+      "prompt": "C1 final verification: In exactly three short bullets, describe how you can help with research, drafting, and task organization. Use no tools.",
+      "responseIndex": 12,
+      "submittedAt": "2026-10-03T06:08:07.927Z",
+      "submittedAtMs": 1791007687927,
+      "firstUsefulObservedAt": "2026-10-03T06:08:11.578Z",
+      "firstUsefulObservedMs": 3651,
+      "firstUsefulText": "Research: Find and analyze relevant evidence.\nDrafting: Prepare briefs, memos, and talking points.\nTask organization: Review priorities, deadlines, and follow-ups.\n\nEvidence limitation: No/none/only/all/every claims require explicit, non-truncated source coverage; an empty or failed query is not proof of absence; that part of the answer remains limited because the source was never called.",
+      "terminalObservedAt": "2026-10-03T06:08:11.596Z",
+      "terminalObservedMs": 3669,
+      "answer": "Research: Find and analyze relevant evidence.\nDrafting: Prepare briefs, memos, and talking points.\nTask organization: Review priorities, deadlines, and follow-ups.\n\nEvidence limitation: No/none/only/all/every claims require explicit, non-truncated source coverage; an empty or failed query is not proof of absence; that part of the answer remains limited because the source was never called.",
+      "result": "FAIL_UNRELATED_COVERAGE_FOOTER",
+      "toolCount": 0,
+      "tools": [],
+      "failureState": "Source-never-called warning on a general capability answer",
+      "coverage": "No source lookup requested or required",
+      "unrelatedFooter": true
+    }
+  ],
+  "timingMethod": "Same observer clock from immediately before clicking Send to first nonempty rendered assistant answer and separately observed Completed marker. These are UI observation bounds, not exact first-token latency or p95.",
+  "businessWrites": 0,
+  "customerMailContentsRequested": false,
+  "original75Acceptance": false,
+  "captureHistory": [
+    {
+      "issue": "Cross-call REPL closure retained the prior case in the observation helper after the second submission.",
+      "effect": "The second observation was initially associated with the first answer and overwrote its timing; no application request was resubmitted.",
+      "incorrectDerivedTimingMs": 107279,
+      "resolution": "Restore the minimal-list first/terminal observation27046ms from its recorded AX result. Retain second-case timing as unavailable and join exact server request duration later. Subsequent helpers return and accept case objects explicitly."
+    }
+  ],
+  "reload": {
+    "observedAt": "2026-10-03T06:10:18.170Z",
+    "totalAnswerCount": 13,
+    "cases": [
+      {
+        "id": "minimal-mail-list",
+        "sameAnswer": true
+      },
+      {
+        "id": "literal-zero-mail-search",
+        "sameAnswer": true
+      },
+      {
+        "id": "known-mail-search",
+        "sameAnswer": true
+      },
+      {
+        "id": "own-open-task-count",
+        "sameAnswer": true
+      },
+      {
+        "id": "concise-no-tool",
+        "sameAnswer": true
+      }
+    ],
+    "status": "PASS"
+  },
+  "modelObserved": "gpt-6-astra",
+  "modeObserved": "Standard",
+  "effortObserved": "medium"
+}

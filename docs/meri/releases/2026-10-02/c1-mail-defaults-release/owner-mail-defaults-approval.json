@@ -1,0 +1,16 @@
+{
+  "recordedAt": "2026-10-03T05:59:19.365Z",
+  "source": "Explicit user message in current Codex conversation",
+  "userText": "Approved",
+  "scope": [
+    "Promote the prepared mailbox-list request-defaults fix to the production meriv2-orchestrator service",
+    "Run read-only signed-in workspace acceptance and persistence checks"
+  ],
+  "service": "meriv2-orchestrator",
+  "manifestHash": "991d367383b418a7a91a0d1d1c005652d29a96a3ca1ce933cff916319c3db211",
+  "sourceSha": "c8e2b8fbfe921fd43a1bd1d4d744a26db138e985",
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:27418fb841c03bc1637949c45d9deda1d4de8fd5be423d05beaf83e5d1025be6",
+  "reviewPacket": "docs/meri/releases/2026-10-02/c1-post-release/MAIL-LIST-RELEASE-REVIEW.md",
+  "reviewPacketCommit": "66044c0b7af50bbf45191d14c7b7e0befb49c044",
+  "qualificationNote": "The immutable prepared qualification retains its historical pending-approval wording; this later explicit approval authorizes the exact manifest and image."
+}

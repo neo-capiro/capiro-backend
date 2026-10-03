@@ -1,0 +1,1424 @@
+{
+  "observedAt": "2026-10-03T06:12:28.660Z",
+  "complete": true,
+  "window": {
+    "start": "2026-10-03T06:03:08.959Z",
+    "end": "2026-10-03T06:08:41.596Z"
+  },
+  "events": [
+    {
+      "at": "2026-10-03T06:03:35.636Z",
+      "name": "meri.api.request.received",
+      "boundary": "browser_api",
+      "traceId": "668c4580b909024041dd6807aded8a7b",
+      "requestId": "f6caf189-76d3-4c7b-89a5-9d627711fb04",
+      "serverTurnId": "1fe76afe-e3e6-4fde-b877-4add21de6529",
+      "runId": "864f25da-c784-4ef1-8656-96bbe13e3f8a",
+      "tools": [],
+      "outcome": "accepted",
+      "rawEventSha256": "20d1e90d8749c3c1bbb96d1e7fb9071fa6791def58a2d968223da1e66011745b"
+    },
+    {
+      "at": "2026-10-03T06:03:39.317Z",
+      "name": "meri.api.turn.dispatch",
+      "boundary": "api_orchestrator",
+      "traceId": "668c4580b909024041dd6807aded8a7b",
+      "requestId": "f6caf189-76d3-4c7b-89a5-9d627711fb04",
+      "serverTurnId": "1fe76afe-e3e6-4fde-b877-4add21de6529",
+      "runId": "864f25da-c784-4ef1-8656-96bbe13e3f8a",
+      "tools": [],
+      "outcome": "started",
+      "rawEventSha256": "baac125dc899c14f0dcf15cbebc577a0239f7d48a0e0faa9fb93c924334c4bf2"
+    },
+    {
+      "at": "2026-10-03T06:03:40.977Z",
+      "name": "meri.orchestrator.request.received",
+      "boundary": "api_orchestrator",
+      "traceId": "668c4580b909024041dd6807aded8a7b",
+      "requestId": "f6caf189-76d3-4c7b-89a5-9d627711fb04",
+      "serverTurnId": "1fe76afe-e3e6-4fde-b877-4add21de6529",
+      "runId": "864f25da-c784-4ef1-8656-96bbe13e3f8a",
+      "tools": [],
+      "outcome": "accepted",
+      "rawEventSha256": "102e4ce7768037345396e6b3ed27d6a3a0965bdaf04a29ba5c6408288802c420"
+    },
+    {
+      "at": "2026-10-03T06:03:42.171Z",
+      "name": "meri.orchestrator.tools.selected",
+      "boundary": "turn",
+      "traceId": "668c4580b909024041dd6807aded8a7b",
+      "requestId": "f6caf189-76d3-4c7b-89a5-9d627711fb04",
+      "serverTurnId": "1fe76afe-e3e6-4fde-b877-4add21de6529",
+      "runId": "864f25da-c784-4ef1-8656-96bbe13e3f8a",
+      "tools": [],
+      "outcome": "selected",
+      "requestedModel": "gpt-6-astra",
+      "effectiveModel": "gpt-6-astra",
+      "rawEventSha256": "c91faf30d575f5090066dda1f4f077ffbb33faa0cce54c2408e70eb8af00f387"
+    },
+    {
+      "at": "2026-10-03T06:03:42.277Z",
+      "name": "meri.api.runtime.observed",
+      "boundary": "api_orchestrator",
+      "traceId": "668c4580b909024041dd6807aded8a7b",
+      "requestId": "f6caf189-76d3-4c7b-89a5-9d627711fb04",
+      "serverTurnId": "1fe76afe-e3e6-4fde-b877-4add21de6529",
+      "runId": "864f25da-c784-4ef1-8656-96bbe13e3f8a",
+      "tools": [],
+      "outcome": "not_started",
+      "requestedModel": "gpt-6-astra",
+      "effectiveModel": "gpt-6-astra",
+      "rawEventSha256": "8679d43fea84284d32280a17e1a98012a343dfadc1cba5dc0b9b5570e856080f"
+    },
+    {
+      "at": "2026-10-03T06:03:45.680Z",
+      "name": "meri.provider.attempt.finalized",
+      "boundary": "orchestrator_provider",
+      "traceId": "668c4580b909024041dd6807aded8a7b",
+      "requestId": "f6caf189-76d3-4c7b-89a5-9d627711fb04",
+      "serverTurnId": "1fe76afe-e3e6-4fde-b877-4add21de6529",
+      "runId": "864f25da-c784-4ef1-8656-96bbe13e3f8a",
+      "tools": [],
+      "outcome": "completed",
+      "durationMs": 3409,
+      "requestedModel": "gpt-6-astra",
+      "effectiveModel": "gpt-6-astra",
+      "rawEventSha256": "aac5ebc5ff1aee89e76d64aac7789b38803b0ededb85ff5be4e118ad92b21ae1"
+    },
+    {
+      "at": "2026-10-03T06:03:45.684Z",
+      "name": "meri.tool.step.started",
+      "boundary": "orchestrator_tool",
+      "traceId": "668c4580b909024041dd6807aded8a7b",
+      "requestId": "f6caf189-76d3-4c7b-89a5-9d627711fb04",
+      "serverTurnId": "1fe76afe-e3e6-4fde-b877-4add21de6529",
+      "runId": "864f25da-c784-4ef1-8656-96bbe13e3f8a",
+      "tools": [
+        "list_emails"
+      ],
+      "outcome": "started",
+      "rawEventSha256": "43615a8ca268d1fac9c86ca4d81e89a8de12f13b8a5e0ebfe0ec849cfd504ee4"
+    },
+    {
+      "at": "2026-10-03T06:03:45.773Z",
+      "name": "meri.api.runtime.observed",
+      "boundary": "api_orchestrator",
+      "traceId": "668c4580b909024041dd6807aded8a7b",
+      "requestId": "f6caf189-76d3-4c7b-89a5-9d627711fb04",
+      "serverTurnId": "1fe76afe-e3e6-4fde-b877-4add21de6529",
+      "runId": "864f25da-c784-4ef1-8656-96bbe13e3f8a",
+      "tools": [],
+      "outcome": "completed",
+      "requestedModel": "gpt-6-astra",
+      "effectiveModel": "gpt-6-astra",
+      "rawEventSha256": "e6c926555ff6e895fd53ba942f98f9aefc5963852b00255ad0c5a33d2f18c358"
+    },
+    {
+      "at": "2026-10-03T06:03:45.774Z",
+      "name": "meri.api.tool.observed",
+      "boundary": "api_orchestrator",
+      "traceId": "668c4580b909024041dd6807aded8a7b",
+      "requestId": "f6caf189-76d3-4c7b-89a5-9d627711fb04",
+      "serverTurnId": "1fe76afe-e3e6-4fde-b877-4add21de6529",
+      "runId": "864f25da-c784-4ef1-8656-96bbe13e3f8a",
+      "tools": [
+        "list_emails"
+      ],
+      "outcome": "started",
+      "rawEventSha256": "04af06b03fbef9ba0c77dd9b4cf1d8d2ed2983399bbcdb06e1a49babe1313467"
+    },
+    {
+      "at": "2026-10-03T06:03:45.807Z",
+      "name": "meri.api.tool.started",
+      "boundary": "api_tool",
+      "traceId": "668c4580b909024041dd6807aded8a7b",
+      "requestId": "f6caf189-76d3-4c7b-89a5-9d627711fb04",
+      "serverTurnId": "1fe76afe-e3e6-4fde-b877-4add21de6529",
+      "runId": "864f25da-c784-4ef1-8656-96bbe13e3f8a",
+      "tools": [
+        "list_emails"
+      ],
+      "outcome": "started",
+      "rawEventSha256": "61be0b1164cc36253eee3f475a116c5ceacc8708189e36c239c9222522393757"
+    },
+    {
+      "at": "2026-10-03T06:03:47.598Z",
+      "name": "meri.api.tool.finalized",
+      "boundary": "api_tool",
+      "traceId": "668c4580b909024041dd6807aded8a7b",
+      "requestId": "f6caf189-76d3-4c7b-89a5-9d627711fb04",
+      "serverTurnId": "1fe76afe-e3e6-4fde-b877-4add21de6529",
+      "runId": "864f25da-c784-4ef1-8656-96bbe13e3f8a",
+      "tools": [
+        "list_emails"
+      ],
+      "outcome": "partial",
+      "durationMs": 1791,
+      "rawEventSha256": "403bbd45d3072b870e4a48ffc6beb91caa625ab171202b05ca80e395b1cbece8"
+    },
+    {
+      "at": "2026-10-03T06:03:47.602Z",
+      "name": "meri.tool.attempt.finalized",
+      "boundary": "orchestrator_tool",
+      "traceId": "668c4580b909024041dd6807aded8a7b",
+      "requestId": "f6caf189-76d3-4c7b-89a5-9d627711fb04",
+      "serverTurnId": "1fe76afe-e3e6-4fde-b877-4add21de6529",
+      "runId": "864f25da-c784-4ef1-8656-96bbe13e3f8a",
+      "tools": [
+        "list_emails"
+      ],
+      "outcome": "completed",
+      "durationMs": 1833,
+      "rawEventSha256": "0fcb8e55690fc12b0e27b4481eec5e857ce4ae82503689baa288aa37aa8579a4"
+    },
+    {
+      "at": "2026-10-03T06:03:47.609Z",
+      "name": "meri.tool.step.finalized",
+      "boundary": "orchestrator_tool",
+      "traceId": "668c4580b909024041dd6807aded8a7b",
+      "requestId": "f6caf189-76d3-4c7b-89a5-9d627711fb04",
+      "serverTurnId": "1fe76afe-e3e6-4fde-b877-4add21de6529",
+      "runId": "864f25da-c784-4ef1-8656-96bbe13e3f8a",
+      "tools": [
+        "list_emails"
+      ],
+      "outcome": "partial",
+      "durationMs": 1925,
+      "rawEventSha256": "5f5c9bf5eebbff55c60f726014c74edc27f8399156ed95b66c856b801dd16def"
+    },
+    {
+      "at": "2026-10-03T06:03:51.389Z",
+      "name": "meri.provider.attempt.finalized",
+      "boundary": "orchestrator_provider",
+      "traceId": "668c4580b909024041dd6807aded8a7b",
+      "requestId": "f6caf189-76d3-4c7b-89a5-9d627711fb04",
+      "serverTurnId": "1fe76afe-e3e6-4fde-b877-4add21de6529",
+      "runId": "864f25da-c784-4ef1-8656-96bbe13e3f8a",
+      "tools": [],
+      "outcome": "completed",
+      "durationMs": 3718,
+      "requestedModel": "gpt-6-astra",
+      "effectiveModel": "gpt-6-astra",
+      "rawEventSha256": "8e5c9a4e75c2134cce8db0707be3958226b4f21d6688d64f2e81e19faa69399b"
+    },
+    {
+      "at": "2026-10-03T06:03:51.402Z",
+      "name": "meri.api.runtime.observed",
+      "boundary": "api_orchestrator",
+      "traceId": "668c4580b909024041dd6807aded8a7b",
+      "requestId": "f6caf189-76d3-4c7b-89a5-9d627711fb04",
+      "serverTurnId": "1fe76afe-e3e6-4fde-b877-4add21de6529",
+      "runId": "864f25da-c784-4ef1-8656-96bbe13e3f8a",
+      "tools": [],
+      "outcome": "completed",
+      "requestedModel": "gpt-6-astra",
+      "effectiveModel": "gpt-6-astra",
+      "rawEventSha256": "fe3a40773d9354f6c3a21f24b0687dc65b82f26c5b33f39f793ee74736ea4288"
+    },
+    {
+      "at": "2026-10-03T06:03:51.967Z",
+      "name": "meri.orchestrator.turn.finalized",
+      "boundary": "turn",
+      "traceId": "668c4580b909024041dd6807aded8a7b",
+      "requestId": "f6caf189-76d3-4c7b-89a5-9d627711fb04",
+      "serverTurnId": "1fe76afe-e3e6-4fde-b877-4add21de6529",
+      "runId": "864f25da-c784-4ef1-8656-96bbe13e3f8a",
+      "tools": [
+        "list_emails"
+      ],
+      "outcome": "completed",
+      "durationMs": 9796,
+      "requestedModel": "gpt-6-astra",
+      "effectiveModel": "gpt-6-astra",
+      "rawEventSha256": "e46cc54bb79c154a827776d0046808bccb1a6ac1ab44ff4c00c27ab3b7cb76e3"
+    },
+    {
+      "at": "2026-10-03T06:03:51.969Z",
+      "name": "meri.orchestrator.request.finalized",
+      "boundary": "api_orchestrator",
+      "traceId": "668c4580b909024041dd6807aded8a7b",
+      "requestId": "f6caf189-76d3-4c7b-89a5-9d627711fb04",
+      "serverTurnId": "1fe76afe-e3e6-4fde-b877-4add21de6529",
+      "runId": "864f25da-c784-4ef1-8656-96bbe13e3f8a",
+      "tools": [],
+      "outcome": "returned",
+      "durationMs": 10993,
+      "rawEventSha256": "456f85cc5c71e732fadda30e6a93d79c0a148f0289ec6eba3f17ce6c8f9105c5"
+    },
+    {
+      "at": "2026-10-03T06:03:51.971Z",
+      "name": "meri.api.runtime.observed",
+      "boundary": "api_orchestrator",
+      "traceId": "668c4580b909024041dd6807aded8a7b",
+      "requestId": "f6caf189-76d3-4c7b-89a5-9d627711fb04",
+      "serverTurnId": "1fe76afe-e3e6-4fde-b877-4add21de6529",
+      "runId": "864f25da-c784-4ef1-8656-96bbe13e3f8a",
+      "tools": [],
+      "outcome": "completed",
+      "requestedModel": "gpt-6-astra",
+      "effectiveModel": "gpt-6-astra",
+      "rawEventSha256": "b70aaa43cd89df91731bc0ccbbad59401ee18d2dbc998d16c9e91a23d0900585"
+    },
+    {
+      "at": "2026-10-03T06:03:51.988Z",
+      "name": "meri.api.turn.finalized",
+      "boundary": "turn",
+      "traceId": "668c4580b909024041dd6807aded8a7b",
+      "requestId": "f6caf189-76d3-4c7b-89a5-9d627711fb04",
+      "serverTurnId": "1fe76afe-e3e6-4fde-b877-4add21de6529",
+      "runId": "864f25da-c784-4ef1-8656-96bbe13e3f8a",
+      "tools": [
+        "list_emails"
+      ],
+      "outcome": "completed",
+      "durationMs": 12670,
+      "requestedModel": "gpt-6-astra",
+      "effectiveModel": "gpt-6-astra",
+      "rawEventSha256": "b54f3bda5732fe873e0d7a98ffb070f88ac3493fcf0ffb65b345e5daff97a203"
+    },
+    {
+      "at": "2026-10-03T06:03:51.988Z",
+      "name": "meri.api.request.finalized",
+      "boundary": "browser_api",
+      "traceId": "668c4580b909024041dd6807aded8a7b",
+      "requestId": "f6caf189-76d3-4c7b-89a5-9d627711fb04",
+      "serverTurnId": "1fe76afe-e3e6-4fde-b877-4add21de6529",
+      "runId": "864f25da-c784-4ef1-8656-96bbe13e3f8a",
+      "tools": [],
+      "outcome": "completed",
+      "durationMs": 16352,
+      "rawEventSha256": "20b4962ebec7950610169c7f82c64ac13f48001cc8708107dc9272ad0d20e8eb"
+    },
+    {
+      "at": "2026-10-03T06:05:22.504Z",
+      "name": "meri.api.request.received",
+      "boundary": "browser_api",
+      "traceId": "297eb43a3e88846df32351a27aa8e280",
+      "requestId": "584c1b52-5805-443f-a0e4-7cd411f8ae13",
+      "serverTurnId": "3c813899-f271-4b35-952e-0bb75071ec8b",
+      "runId": "a587ef38-873c-423f-9233-5e85abcfe008",
+      "tools": [],
+      "outcome": "accepted",
+      "rawEventSha256": "18f10432df59f80a9f36b961d9f3832548e89d1e2ad3e791b53ac5ac68dfecdf"
+    },
+    {
+      "at": "2026-10-03T06:05:23.825Z",
+      "name": "meri.api.turn.dispatch",
+      "boundary": "api_orchestrator",
+      "traceId": "297eb43a3e88846df32351a27aa8e280",
+      "requestId": "584c1b52-5805-443f-a0e4-7cd411f8ae13",
+      "serverTurnId": "3c813899-f271-4b35-952e-0bb75071ec8b",
+      "runId": "a587ef38-873c-423f-9233-5e85abcfe008",
+      "tools": [],
+      "outcome": "started",
+      "rawEventSha256": "82fed33a2eb3d9f16dd841f4fa655a6a1483b42e86345844f0eaf7f32e527c68"
+    },
+    {
+      "at": "2026-10-03T06:05:23.973Z",
+      "name": "meri.orchestrator.request.received",
+      "boundary": "api_orchestrator",
+      "traceId": "297eb43a3e88846df32351a27aa8e280",
+      "requestId": "584c1b52-5805-443f-a0e4-7cd411f8ae13",
+      "serverTurnId": "3c813899-f271-4b35-952e-0bb75071ec8b",
+      "runId": "a587ef38-873c-423f-9233-5e85abcfe008",
+      "tools": [],
+      "outcome": "accepted",
+      "rawEventSha256": "abf2315363f0c6e2c50b692df966f0ecf51ca7c7ca719f1c7cca7bdae0787bb2"
+    },
+    {
+      "at": "2026-10-03T06:05:24.178Z",
+      "name": "meri.orchestrator.tools.selected",
+      "boundary": "turn",
+      "traceId": "297eb43a3e88846df32351a27aa8e280",
+      "requestId": "584c1b52-5805-443f-a0e4-7cd411f8ae13",
+      "serverTurnId": "3c813899-f271-4b35-952e-0bb75071ec8b",
+      "runId": "a587ef38-873c-423f-9233-5e85abcfe008",
+      "tools": [],
+      "outcome": "selected",
+      "requestedModel": "gpt-6-astra",
+      "effectiveModel": "gpt-6-astra",
+      "rawEventSha256": "fea1e8988a6c9b62037a1e62cab2d426e445496bef7156f3266f1398ced98276"
+    },
+    {
+      "at": "2026-10-03T06:05:24.272Z",
+      "name": "meri.api.runtime.observed",
+      "boundary": "api_orchestrator",
+      "traceId": "297eb43a3e88846df32351a27aa8e280",
+      "requestId": "584c1b52-5805-443f-a0e4-7cd411f8ae13",
+      "serverTurnId": "3c813899-f271-4b35-952e-0bb75071ec8b",
+      "runId": "a587ef38-873c-423f-9233-5e85abcfe008",
+      "tools": [],
+      "outcome": "not_started",
+      "requestedModel": "gpt-6-astra",
+      "effectiveModel": "gpt-6-astra",
+      "rawEventSha256": "76510daf424e17f332a85b1c79af463935c17302c74698e70a0a0936da61d3c4"
+    },
+    {
+      "at": "2026-10-03T06:05:27.125Z",
+      "name": "meri.provider.attempt.finalized",
+      "boundary": "orchestrator_provider",
+      "traceId": "297eb43a3e88846df32351a27aa8e280",
+      "requestId": "584c1b52-5805-443f-a0e4-7cd411f8ae13",
+      "serverTurnId": "3c813899-f271-4b35-952e-0bb75071ec8b",
+      "runId": "a587ef38-873c-423f-9233-5e85abcfe008",
+      "tools": [],
+      "outcome": "completed",
+      "durationMs": 2858,
+      "requestedModel": "gpt-6-astra",
+      "effectiveModel": "gpt-6-astra",
+      "rawEventSha256": "56a972c2fc3475d784a6564e9da1dfaa6fed9d2d88039cd42b6a386a76aed507"
+    },
+    {
+      "at": "2026-10-03T06:05:27.127Z",
+      "name": "meri.tool.step.started",
+      "boundary": "orchestrator_tool",
+      "traceId": "297eb43a3e88846df32351a27aa8e280",
+      "requestId": "584c1b52-5805-443f-a0e4-7cd411f8ae13",
+      "serverTurnId": "3c813899-f271-4b35-952e-0bb75071ec8b",
+      "runId": "a587ef38-873c-423f-9233-5e85abcfe008",
+      "tools": [
+        "search_emails"
+      ],
+      "outcome": "started",
+      "rawEventSha256": "65efd2f6a47cf9675416db7866784a80f3b39ce74fa151fe46b2368a6355a384"
+    },
+    {
+      "at": "2026-10-03T06:05:27.130Z",
+      "name": "meri.api.runtime.observed",
+      "boundary": "api_orchestrator",
+      "traceId": "297eb43a3e88846df32351a27aa8e280",
+      "requestId": "584c1b52-5805-443f-a0e4-7cd411f8ae13",
+      "serverTurnId": "3c813899-f271-4b35-952e-0bb75071ec8b",
+      "runId": "a587ef38-873c-423f-9233-5e85abcfe008",
+      "tools": [],
+      "outcome": "completed",
+      "requestedModel": "gpt-6-astra",
+      "effectiveModel": "gpt-6-astra",
+      "rawEventSha256": "dc0e8eae774c10b35e7cba474d9e54169e67c1c10f5ab63d0a7fb750f8cb05c7"
+    },
+    {
+      "at": "2026-10-03T06:05:27.131Z",
+      "name": "meri.api.tool.observed",
+      "boundary": "api_orchestrator",
+      "traceId": "297eb43a3e88846df32351a27aa8e280",
+      "requestId": "584c1b52-5805-443f-a0e4-7cd411f8ae13",
+      "serverTurnId": "3c813899-f271-4b35-952e-0bb75071ec8b",
+      "runId": "a587ef38-873c-423f-9233-5e85abcfe008",
+      "tools": [
+        "search_emails"
+      ],
+      "outcome": "started",
+      "rawEventSha256": "928d888499c06ec09c287ad6346f86fd38ca99a79b9f03b9d63002cc52a9c323"
+    },
+    {
+      "at": "2026-10-03T06:05:27.145Z",
+      "name": "meri.api.tool.started",
+      "boundary": "api_tool",
+      "traceId": "297eb43a3e88846df32351a27aa8e280",
+      "requestId": "584c1b52-5805-443f-a0e4-7cd411f8ae13",
+      "serverTurnId": "3c813899-f271-4b35-952e-0bb75071ec8b",
+      "runId": "a587ef38-873c-423f-9233-5e85abcfe008",
+      "tools": [
+        "search_emails"
+      ],
+      "outcome": "started",
+      "rawEventSha256": "85f3c7620b75193db4766f817b166949a1c4d5a49025dc48472d38d01b81d909"
+    },
+    {
+      "at": "2026-10-03T06:05:28.056Z",
+      "name": "meri.api.tool.finalized",
+      "boundary": "api_tool",
+      "traceId": "297eb43a3e88846df32351a27aa8e280",
+      "requestId": "584c1b52-5805-443f-a0e4-7cd411f8ae13",
+      "serverTurnId": "3c813899-f271-4b35-952e-0bb75071ec8b",
+      "runId": "a587ef38-873c-423f-9233-5e85abcfe008",
+      "tools": [
+        "search_emails"
+      ],
+      "outcome": "empty",
+      "durationMs": 910,
+      "rawEventSha256": "80a336bb55f29a865f28dce23028e486dee5de16714b48e53b05c57552d37c70"
+    },
+    {
+      "at": "2026-10-03T06:05:28.059Z",
+      "name": "meri.tool.attempt.finalized",
+      "boundary": "orchestrator_tool",
+      "traceId": "297eb43a3e88846df32351a27aa8e280",
+      "requestId": "584c1b52-5805-443f-a0e4-7cd411f8ae13",
+      "serverTurnId": "3c813899-f271-4b35-952e-0bb75071ec8b",
+      "runId": "a587ef38-873c-423f-9233-5e85abcfe008",
+      "tools": [
+        "search_emails"
+      ],
+      "outcome": "completed",
+      "durationMs": 931,
+      "rawEventSha256": "8282fe7aca9af37a9b37c43f5367c07177366a5efe89efccac9c115f5b0d20d8"
+    },
+    {
+      "at": "2026-10-03T06:05:28.060Z",
+      "name": "meri.tool.step.finalized",
+      "boundary": "orchestrator_tool",
+      "traceId": "297eb43a3e88846df32351a27aa8e280",
+      "requestId": "584c1b52-5805-443f-a0e4-7cd411f8ae13",
+      "serverTurnId": "3c813899-f271-4b35-952e-0bb75071ec8b",
+      "runId": "a587ef38-873c-423f-9233-5e85abcfe008",
+      "tools": [
+        "search_emails"
+      ],
+      "outcome": "empty",
+      "durationMs": 932,
+      "rawEventSha256": "ff5c018332eb3073ede40fddd0f96e73a675a7751991f3076af8e1c09f102fe9"
+    },
+    {
+      "at": "2026-10-03T06:05:35.811Z",
+      "name": "meri.provider.attempt.finalized",
+      "boundary": "orchestrator_provider",
+      "traceId": "297eb43a3e88846df32351a27aa8e280",
+      "requestId": "584c1b52-5805-443f-a0e4-7cd411f8ae13",
+      "serverTurnId": "3c813899-f271-4b35-952e-0bb75071ec8b",
+      "runId": "a587ef38-873c-423f-9233-5e85abcfe008",
+      "tools": [],
+      "outcome": "completed",
+      "durationMs": 7742,
+      "requestedModel": "gpt-6-astra",
+      "effectiveModel": "gpt-6-astra",
+      "rawEventSha256": "6c04c23721ccd8a33673545d3823c54cd8ec5b033e24f8bd795428aa14370f4e"
+    },
+    {
+      "at": "2026-10-03T06:05:35.818Z",
+      "name": "meri.api.runtime.observed",
+      "boundary": "api_orchestrator",
+      "traceId": "297eb43a3e88846df32351a27aa8e280",
+      "requestId": "584c1b52-5805-443f-a0e4-7cd411f8ae13",
+      "serverTurnId": "3c813899-f271-4b35-952e-0bb75071ec8b",
+      "runId": "a587ef38-873c-423f-9233-5e85abcfe008",
+      "tools": [],
+      "outcome": "completed",
+      "requestedModel": "gpt-6-astra",
+      "effectiveModel": "gpt-6-astra",
+      "rawEventSha256": "0772653b917cd13f41fdc457db488aebfeb4526059b07ccc0f69dc279dca7b79"
+    },
+    {
+      "at": "2026-10-03T06:05:36.177Z",
+      "name": "meri.orchestrator.turn.finalized",
+      "boundary": "turn",
+      "traceId": "297eb43a3e88846df32351a27aa8e280",
+      "requestId": "584c1b52-5805-443f-a0e4-7cd411f8ae13",
+      "serverTurnId": "3c813899-f271-4b35-952e-0bb75071ec8b",
+      "runId": "a587ef38-873c-423f-9233-5e85abcfe008",
+      "tools": [
+        "search_emails"
+      ],
+      "outcome": "completed",
+      "durationMs": 11999,
+      "requestedModel": "gpt-6-astra",
+      "effectiveModel": "gpt-6-astra",
+      "rawEventSha256": "77339e367fc65c7da06d42611299eacea07347143327c9708e0e5b0de35061fc"
+    },
+    {
+      "at": "2026-10-03T06:05:36.178Z",
+      "name": "meri.orchestrator.request.finalized",
+      "boundary": "api_orchestrator",
+      "traceId": "297eb43a3e88846df32351a27aa8e280",
+      "requestId": "584c1b52-5805-443f-a0e4-7cd411f8ae13",
+      "serverTurnId": "3c813899-f271-4b35-952e-0bb75071ec8b",
+      "runId": "a587ef38-873c-423f-9233-5e85abcfe008",
+      "tools": [],
+      "outcome": "returned",
+      "durationMs": 12205,
+      "rawEventSha256": "66b79b777ec037d814132a6e0674dd1217ff295b0af73247ac70b816d97d05f0"
+    },
+    {
+      "at": "2026-10-03T06:05:36.180Z",
+      "name": "meri.api.runtime.observed",
+      "boundary": "api_orchestrator",
+      "traceId": "297eb43a3e88846df32351a27aa8e280",
+      "requestId": "584c1b52-5805-443f-a0e4-7cd411f8ae13",
+      "serverTurnId": "3c813899-f271-4b35-952e-0bb75071ec8b",
+      "runId": "a587ef38-873c-423f-9233-5e85abcfe008",
+      "tools": [],
+      "outcome": "completed",
+      "requestedModel": "gpt-6-astra",
+      "effectiveModel": "gpt-6-astra",
+      "rawEventSha256": "a0172bc52a02a8dce14bee3d172e8ae831d0a50ebc78634abfa43f758eec716c"
+    },
+    {
+      "at": "2026-10-03T06:05:36.194Z",
+      "name": "meri.api.turn.finalized",
+      "boundary": "turn",
+      "traceId": "297eb43a3e88846df32351a27aa8e280",
+      "requestId": "584c1b52-5805-443f-a0e4-7cd411f8ae13",
+      "serverTurnId": "3c813899-f271-4b35-952e-0bb75071ec8b",
+      "runId": "a587ef38-873c-423f-9233-5e85abcfe008",
+      "tools": [
+        "search_emails"
+      ],
+      "outcome": "completed",
+      "durationMs": 12369,
+      "requestedModel": "gpt-6-astra",
+      "effectiveModel": "gpt-6-astra",
+      "rawEventSha256": "617b4e070b6806c72108a662988121433196a5c7785c299da3cad4185e48c28c"
+    },
+    {
+      "at": "2026-10-03T06:05:36.195Z",
+      "name": "meri.api.request.finalized",
+      "boundary": "browser_api",
+      "traceId": "297eb43a3e88846df32351a27aa8e280",
+      "requestId": "584c1b52-5805-443f-a0e4-7cd411f8ae13",
+      "serverTurnId": "3c813899-f271-4b35-952e-0bb75071ec8b",
+      "runId": "a587ef38-873c-423f-9233-5e85abcfe008",
+      "tools": [],
+      "outcome": "completed",
+      "durationMs": 13691,
+      "rawEventSha256": "2086d22eeadeb4011f7a5174aacc356120000fdd7f6add4bf8d9a9051f9507c0"
+    },
+    {
+      "at": "2026-10-03T06:07:24.625Z",
+      "name": "meri.api.request.received",
+      "boundary": "browser_api",
+      "traceId": "e610e126bb242f9d16a035960e199603",
+      "requestId": "1368c0da-01f8-45c6-a6eb-a220119e3a79",
+      "serverTurnId": "e72e35a6-5256-449a-bb13-38d79a98e72a",
+      "runId": "1be8a574-f30a-43ae-acbd-816bbd2d9b0b",
+      "tools": [],
+      "outcome": "accepted",
+      "rawEventSha256": "831e76d4ea99594ad71045dad679ab15d85bf064082c0cb0d5177fa7e358b64f"
+    },
+    {
+      "at": "2026-10-03T06:07:26.037Z",
+      "name": "meri.api.turn.dispatch",
+      "boundary": "api_orchestrator",
+      "traceId": "e610e126bb242f9d16a035960e199603",
+      "requestId": "1368c0da-01f8-45c6-a6eb-a220119e3a79",
+      "serverTurnId": "e72e35a6-5256-449a-bb13-38d79a98e72a",
+      "runId": "1be8a574-f30a-43ae-acbd-816bbd2d9b0b",
+      "tools": [],
+      "outcome": "started",
+      "rawEventSha256": "e5557b70bbf291e0214727df89a73b47de2028b1fff7be6a47f9fa7cbd6d0a4a"
+    },
+    {
+      "at": "2026-10-03T06:07:26.172Z",
+      "name": "meri.orchestrator.request.received",
+      "boundary": "api_orchestrator",
+      "traceId": "e610e126bb242f9d16a035960e199603",
+      "requestId": "1368c0da-01f8-45c6-a6eb-a220119e3a79",
+      "serverTurnId": "e72e35a6-5256-449a-bb13-38d79a98e72a",
+      "runId": "1be8a574-f30a-43ae-acbd-816bbd2d9b0b",
+      "tools": [],
+      "outcome": "accepted",
+      "rawEventSha256": "5a1e368b5e1746a42e4c704615c7cf3c053fae295b67c6d86ff5315fc267502e"
+    },
+    {
+      "at": "2026-10-03T06:07:26.907Z",
+      "name": "meri.orchestrator.tools.selected",
+      "boundary": "turn",
+      "traceId": "e610e126bb242f9d16a035960e199603",
+      "requestId": "1368c0da-01f8-45c6-a6eb-a220119e3a79",
+      "serverTurnId": "e72e35a6-5256-449a-bb13-38d79a98e72a",
+      "runId": "1be8a574-f30a-43ae-acbd-816bbd2d9b0b",
+      "tools": [],
+      "outcome": "selected",
+      "requestedModel": "gpt-6-astra",
+      "effectiveModel": "gpt-6-astra",
+      "rawEventSha256": "a751f1db8ee4b3c644e5c936d79ffc3db4c8d8861ce541afe3c40471d27981e2"
+    },
+    {
+      "at": "2026-10-03T06:07:27.005Z",
+      "name": "meri.api.runtime.observed",
+      "boundary": "api_orchestrator",
+      "traceId": "e610e126bb242f9d16a035960e199603",
+      "requestId": "1368c0da-01f8-45c6-a6eb-a220119e3a79",
+      "serverTurnId": "e72e35a6-5256-449a-bb13-38d79a98e72a",
+      "runId": "1be8a574-f30a-43ae-acbd-816bbd2d9b0b",
+      "tools": [],
+      "outcome": "not_started",
+      "requestedModel": "gpt-6-astra",
+      "effectiveModel": "gpt-6-astra",
+      "rawEventSha256": "8e2803be8875f502678eb2a63fef4ca5c75306976459a8c04e790a955c5bd4aa"
+    },
+    {
+      "at": "2026-10-03T06:07:30.132Z",
+      "name": "meri.provider.attempt.finalized",
+      "boundary": "orchestrator_provider",
+      "traceId": "e610e126bb242f9d16a035960e199603",
+      "requestId": "1368c0da-01f8-45c6-a6eb-a220119e3a79",
+      "serverTurnId": "e72e35a6-5256-449a-bb13-38d79a98e72a",
+      "runId": "1be8a574-f30a-43ae-acbd-816bbd2d9b0b",
+      "tools": [],
+      "outcome": "completed",
+      "durationMs": 3161,
+      "requestedModel": "gpt-6-astra",
+      "effectiveModel": "gpt-6-astra",
+      "rawEventSha256": "2a40d4a0e99a3a5ce584685e909f853049b185a900c0f2c0d03cda03007c949f"
+    },
+    {
+      "at": "2026-10-03T06:07:30.134Z",
+      "name": "meri.tool.step.started",
+      "boundary": "orchestrator_tool",
+      "traceId": "e610e126bb242f9d16a035960e199603",
+      "requestId": "1368c0da-01f8-45c6-a6eb-a220119e3a79",
+      "serverTurnId": "e72e35a6-5256-449a-bb13-38d79a98e72a",
+      "runId": "1be8a574-f30a-43ae-acbd-816bbd2d9b0b",
+      "tools": [
+        "search_emails"
+      ],
+      "outcome": "started",
+      "rawEventSha256": "7e701eb9bc019b4345ffe2d8b4cccf9c5f4d2a40d05fca316b5d02cb39ca80f0"
+    },
+    {
+      "at": "2026-10-03T06:07:30.167Z",
+      "name": "meri.api.runtime.observed",
+      "boundary": "api_orchestrator",
+      "traceId": "e610e126bb242f9d16a035960e199603",
+      "requestId": "1368c0da-01f8-45c6-a6eb-a220119e3a79",
+      "serverTurnId": "e72e35a6-5256-449a-bb13-38d79a98e72a",
+      "runId": "1be8a574-f30a-43ae-acbd-816bbd2d9b0b",
+      "tools": [],
+      "outcome": "completed",
+      "requestedModel": "gpt-6-astra",
+      "effectiveModel": "gpt-6-astra",
+      "rawEventSha256": "e9abf956d9ba0884852263905fd7b6a0e40596e51f34152279a103034872b7b3"
+    },
+    {
+      "at": "2026-10-03T06:07:30.168Z",
+      "name": "meri.api.tool.observed",
+      "boundary": "api_orchestrator",
+      "traceId": "e610e126bb242f9d16a035960e199603",
+      "requestId": "1368c0da-01f8-45c6-a6eb-a220119e3a79",
+      "serverTurnId": "e72e35a6-5256-449a-bb13-38d79a98e72a",
+      "runId": "1be8a574-f30a-43ae-acbd-816bbd2d9b0b",
+      "tools": [
+        "search_emails"
+      ],
+      "outcome": "started",
+      "rawEventSha256": "ac1e2e1abdfb0e4e144d06d7bb557a970364c7c50e9592c7a510b04447abe9ad"
+    },
+    {
+      "at": "2026-10-03T06:07:30.197Z",
+      "name": "meri.api.tool.started",
+      "boundary": "api_tool",
+      "traceId": "e610e126bb242f9d16a035960e199603",
+      "requestId": "1368c0da-01f8-45c6-a6eb-a220119e3a79",
+      "serverTurnId": "e72e35a6-5256-449a-bb13-38d79a98e72a",
+      "runId": "1be8a574-f30a-43ae-acbd-816bbd2d9b0b",
+      "tools": [
+        "search_emails"
+      ],
+      "outcome": "started",
+      "rawEventSha256": "9a7bfcc348a783943d37d6b0ee345e01b14ca331e6de61db90a97b950d4f8211"
+    },
+    {
+      "at": "2026-10-03T06:07:31.464Z",
+      "name": "meri.api.tool.finalized",
+      "boundary": "api_tool",
+      "traceId": "e610e126bb242f9d16a035960e199603",
+      "requestId": "1368c0da-01f8-45c6-a6eb-a220119e3a79",
+      "serverTurnId": "e72e35a6-5256-449a-bb13-38d79a98e72a",
+      "runId": "1be8a574-f30a-43ae-acbd-816bbd2d9b0b",
+      "tools": [
+        "search_emails"
+      ],
+      "outcome": "partial",
+      "durationMs": 1267,
+      "rawEventSha256": "bf1e0995d643bdda15b8e7a1e151157138364d2871f824388c985af6d881ea46"
+    },
+    {
+      "at": "2026-10-03T06:07:31.467Z",
+      "name": "meri.tool.attempt.finalized",
+      "boundary": "orchestrator_tool",
+      "traceId": "e610e126bb242f9d16a035960e199603",
+      "requestId": "1368c0da-01f8-45c6-a6eb-a220119e3a79",
+      "serverTurnId": "e72e35a6-5256-449a-bb13-38d79a98e72a",
+      "runId": "1be8a574-f30a-43ae-acbd-816bbd2d9b0b",
+      "tools": [
+        "search_emails"
+      ],
+      "outcome": "completed",
+      "durationMs": 1333,
+      "rawEventSha256": "b41d42112c6268aa32ebd8be291063216f13fd64b9bfc7cc6d0d54ef1a5526b5"
+    },
+    {
+      "at": "2026-10-03T06:07:31.469Z",
+      "name": "meri.tool.step.finalized",
+      "boundary": "orchestrator_tool",
+      "traceId": "e610e126bb242f9d16a035960e199603",
+      "requestId": "1368c0da-01f8-45c6-a6eb-a220119e3a79",
+      "serverTurnId": "e72e35a6-5256-449a-bb13-38d79a98e72a",
+      "runId": "1be8a574-f30a-43ae-acbd-816bbd2d9b0b",
+      "tools": [
+        "search_emails"
+      ],
+      "outcome": "partial",
+      "durationMs": 1336,
+      "rawEventSha256": "60b8b0343155964d491c98192622ae6c068415c964212fabe05de98dbdb0a5d5"
+    },
+    {
+      "at": "2026-10-03T06:07:35.202Z",
+      "name": "meri.provider.attempt.finalized",
+      "boundary": "orchestrator_provider",
+      "traceId": "e610e126bb242f9d16a035960e199603",
+      "requestId": "1368c0da-01f8-45c6-a6eb-a220119e3a79",
+      "serverTurnId": "e72e35a6-5256-449a-bb13-38d79a98e72a",
+      "runId": "1be8a574-f30a-43ae-acbd-816bbd2d9b0b",
+      "tools": [],
+      "outcome": "completed",
+      "durationMs": 3722,
+      "requestedModel": "gpt-6-astra",
+      "effectiveModel": "gpt-6-astra",
+      "rawEventSha256": "6052c446c92268d7de179161cafdecc103becbb09bbb803d81020cd25ed1aa5e"
+    },
+    {
+      "at": "2026-10-03T06:07:35.210Z",
+      "name": "meri.api.runtime.observed",
+      "boundary": "api_orchestrator",
+      "traceId": "e610e126bb242f9d16a035960e199603",
+      "requestId": "1368c0da-01f8-45c6-a6eb-a220119e3a79",
+      "serverTurnId": "e72e35a6-5256-449a-bb13-38d79a98e72a",
+      "runId": "1be8a574-f30a-43ae-acbd-816bbd2d9b0b",
+      "tools": [],
+      "outcome": "completed",
+      "requestedModel": "gpt-6-astra",
+      "effectiveModel": "gpt-6-astra",
+      "rawEventSha256": "863d642f0609dde68c17f3485ee84f214ea5015fec007fe9cc89f759a7cf0894"
+    },
+    {
+      "at": "2026-10-03T06:07:35.404Z",
+      "name": "meri.orchestrator.turn.finalized",
+      "boundary": "turn",
+      "traceId": "e610e126bb242f9d16a035960e199603",
+      "requestId": "1368c0da-01f8-45c6-a6eb-a220119e3a79",
+      "serverTurnId": "e72e35a6-5256-449a-bb13-38d79a98e72a",
+      "runId": "1be8a574-f30a-43ae-acbd-816bbd2d9b0b",
+      "tools": [
+        "search_emails"
+      ],
+      "outcome": "completed",
+      "durationMs": 8497,
+      "requestedModel": "gpt-6-astra",
+      "effectiveModel": "gpt-6-astra",
+      "rawEventSha256": "f69e33e5bd710593338ae34fbcfc77928633c65ba5c1dd59528aa8f6f491c6f0"
+    },
+    {
+      "at": "2026-10-03T06:07:35.406Z",
+      "name": "meri.orchestrator.request.finalized",
+      "boundary": "api_orchestrator",
+      "traceId": "e610e126bb242f9d16a035960e199603",
+      "requestId": "1368c0da-01f8-45c6-a6eb-a220119e3a79",
+      "serverTurnId": "e72e35a6-5256-449a-bb13-38d79a98e72a",
+      "runId": "1be8a574-f30a-43ae-acbd-816bbd2d9b0b",
+      "tools": [],
+      "outcome": "returned",
+      "durationMs": 9235,
+      "rawEventSha256": "61973abb74c624cf6832fbd2fc27cf652e2da81ca69f9a08656233e20bfe00b9"
+    },
+    {
+      "at": "2026-10-03T06:07:35.408Z",
+      "name": "meri.api.runtime.observed",
+      "boundary": "api_orchestrator",
+      "traceId": "e610e126bb242f9d16a035960e199603",
+      "requestId": "1368c0da-01f8-45c6-a6eb-a220119e3a79",
+      "serverTurnId": "e72e35a6-5256-449a-bb13-38d79a98e72a",
+      "runId": "1be8a574-f30a-43ae-acbd-816bbd2d9b0b",
+      "tools": [],
+      "outcome": "completed",
+      "requestedModel": "gpt-6-astra",
+      "effectiveModel": "gpt-6-astra",
+      "rawEventSha256": "fa76b17604d693fb0db1b059ee6ad91a4ab5e335d7d3ae238b94437d8d1ea1df"
+    },
+    {
+      "at": "2026-10-03T06:07:35.419Z",
+      "name": "meri.api.turn.finalized",
+      "boundary": "turn",
+      "traceId": "e610e126bb242f9d16a035960e199603",
+      "requestId": "1368c0da-01f8-45c6-a6eb-a220119e3a79",
+      "serverTurnId": "e72e35a6-5256-449a-bb13-38d79a98e72a",
+      "runId": "1be8a574-f30a-43ae-acbd-816bbd2d9b0b",
+      "tools": [
+        "search_emails"
+      ],
+      "outcome": "completed",
+      "durationMs": 9381,
+      "requestedModel": "gpt-6-astra",
+      "effectiveModel": "gpt-6-astra",
+      "rawEventSha256": "d079035124cf72fbfc99e3a89cc4be9c7e4474b93ac4decbaa63e41728f78119"
+    },
+    {
+      "at": "2026-10-03T06:07:35.419Z",
+      "name": "meri.api.request.finalized",
+      "boundary": "browser_api",
+      "traceId": "e610e126bb242f9d16a035960e199603",
+      "requestId": "1368c0da-01f8-45c6-a6eb-a220119e3a79",
+      "serverTurnId": "e72e35a6-5256-449a-bb13-38d79a98e72a",
+      "runId": "1be8a574-f30a-43ae-acbd-816bbd2d9b0b",
+      "tools": [],
+      "outcome": "completed",
+      "durationMs": 10794,
+      "rawEventSha256": "c30af1978db82613e0f9c8700ccb3f1092cc58f09b91acfac7ccab7de59c05f2"
+    },
+    {
+      "at": "2026-10-03T06:07:47.386Z",
+      "name": "meri.api.request.received",
+      "boundary": "browser_api",
+      "traceId": "038410bdf0ba982f9ec78e6192b7bf7e",
+      "requestId": "2943de97-b86e-4af0-9ba9-344521213d17",
+      "serverTurnId": "5ace5a7b-0cce-40f7-a0bd-948fa25f76d1",
+      "runId": "257472bb-e5a1-4d94-8728-6e1d4bb6df58",
+      "tools": [],
+      "outcome": "accepted",
+      "rawEventSha256": "b86ce5a1b9a63bd9854387d6f4e5ba3f36ed6069e9a17038d2f7a7d5ae5b0631"
+    },
+    {
+      "at": "2026-10-03T06:07:47.555Z",
+      "name": "meri.api.turn.dispatch",
+      "boundary": "api_orchestrator",
+      "traceId": "038410bdf0ba982f9ec78e6192b7bf7e",
+      "requestId": "2943de97-b86e-4af0-9ba9-344521213d17",
+      "serverTurnId": "5ace5a7b-0cce-40f7-a0bd-948fa25f76d1",
+      "runId": "257472bb-e5a1-4d94-8728-6e1d4bb6df58",
+      "tools": [],
+      "outcome": "started",
+      "rawEventSha256": "510501d08ec9c1d1e0efbf6395cc783037f45157e435cfbc42d54d6398eca9ab"
+    },
+    {
+      "at": "2026-10-03T06:07:47.625Z",
+      "name": "meri.orchestrator.request.received",
+      "boundary": "api_orchestrator",
+      "traceId": "038410bdf0ba982f9ec78e6192b7bf7e",
+      "requestId": "2943de97-b86e-4af0-9ba9-344521213d17",
+      "serverTurnId": "5ace5a7b-0cce-40f7-a0bd-948fa25f76d1",
+      "runId": "257472bb-e5a1-4d94-8728-6e1d4bb6df58",
+      "tools": [],
+      "outcome": "accepted",
+      "rawEventSha256": "e61ede01c0cb65fccaa4c533ae9b347ea08ed688044f0ab5b25ecc300d1d8188"
+    },
+    {
+      "at": "2026-10-03T06:07:47.782Z",
+      "name": "meri.orchestrator.tools.selected",
+      "boundary": "turn",
+      "traceId": "038410bdf0ba982f9ec78e6192b7bf7e",
+      "requestId": "2943de97-b86e-4af0-9ba9-344521213d17",
+      "serverTurnId": "5ace5a7b-0cce-40f7-a0bd-948fa25f76d1",
+      "runId": "257472bb-e5a1-4d94-8728-6e1d4bb6df58",
+      "tools": [],
+      "outcome": "selected",
+      "requestedModel": "gpt-6-astra",
+      "effectiveModel": "gpt-6-astra",
+      "rawEventSha256": "f42eeba4ce48d68cb865af3e3d3a0c2067dbd7bfbec077d91d0c25114dff65d7"
+    },
+    {
+      "at": "2026-10-03T06:07:47.797Z",
+      "name": "meri.api.runtime.observed",
+      "boundary": "api_orchestrator",
+      "traceId": "038410bdf0ba982f9ec78e6192b7bf7e",
+      "requestId": "2943de97-b86e-4af0-9ba9-344521213d17",
+      "serverTurnId": "5ace5a7b-0cce-40f7-a0bd-948fa25f76d1",
+      "runId": "257472bb-e5a1-4d94-8728-6e1d4bb6df58",
+      "tools": [],
+      "outcome": "not_started",
+      "requestedModel": "gpt-6-astra",
+      "effectiveModel": "gpt-6-astra",
+      "rawEventSha256": "4d86269ce22a867ea06c0f9eea53c2156ca7bda681d8e00a2af31e1b1741cfc8"
+    },
+    {
+      "at": "2026-10-03T06:07:50.359Z",
+      "name": "meri.provider.attempt.finalized",
+      "boundary": "orchestrator_provider",
+      "traceId": "038410bdf0ba982f9ec78e6192b7bf7e",
+      "requestId": "2943de97-b86e-4af0-9ba9-344521213d17",
+      "serverTurnId": "5ace5a7b-0cce-40f7-a0bd-948fa25f76d1",
+      "runId": "257472bb-e5a1-4d94-8728-6e1d4bb6df58",
+      "tools": [],
+      "outcome": "completed",
+      "durationMs": 2567,
+      "requestedModel": "gpt-6-astra",
+      "effectiveModel": "gpt-6-astra",
+      "rawEventSha256": "1a82eae14ccdd2e509172afeddb3868760957656f2a1c01dafbb488066e41f97"
+    },
+    {
+      "at": "2026-10-03T06:07:50.361Z",
+      "name": "meri.tool.step.started",
+      "boundary": "orchestrator_tool",
+      "traceId": "038410bdf0ba982f9ec78e6192b7bf7e",
+      "requestId": "2943de97-b86e-4af0-9ba9-344521213d17",
+      "serverTurnId": "5ace5a7b-0cce-40f7-a0bd-948fa25f76d1",
+      "runId": "257472bb-e5a1-4d94-8728-6e1d4bb6df58",
+      "tools": [
+        "query_tasks"
+      ],
+      "outcome": "started",
+      "rawEventSha256": "6d3d58f7fd27d44f5e4444de5637f389c03b62094b8859e0f6442ca6b6d21492"
+    },
+    {
+      "at": "2026-10-03T06:07:50.364Z",
+      "name": "meri.api.runtime.observed",
+      "boundary": "api_orchestrator",
+      "traceId": "038410bdf0ba982f9ec78e6192b7bf7e",
+      "requestId": "2943de97-b86e-4af0-9ba9-344521213d17",
+      "serverTurnId": "5ace5a7b-0cce-40f7-a0bd-948fa25f76d1",
+      "runId": "257472bb-e5a1-4d94-8728-6e1d4bb6df58",
+      "tools": [],
+      "outcome": "completed",
+      "requestedModel": "gpt-6-astra",
+      "effectiveModel": "gpt-6-astra",
+      "rawEventSha256": "cce7e6d0ebcb51bb28e1ac2b4d7370849b86c326f49996da8936655700afa99b"
+    },
+    {
+      "at": "2026-10-03T06:07:50.365Z",
+      "name": "meri.api.tool.observed",
+      "boundary": "api_orchestrator",
+      "traceId": "038410bdf0ba982f9ec78e6192b7bf7e",
+      "requestId": "2943de97-b86e-4af0-9ba9-344521213d17",
+      "serverTurnId": "5ace5a7b-0cce-40f7-a0bd-948fa25f76d1",
+      "runId": "257472bb-e5a1-4d94-8728-6e1d4bb6df58",
+      "tools": [
+        "query_tasks"
+      ],
+      "outcome": "started",
+      "rawEventSha256": "0066bbfccddc27c118a25abd79138360af8f8da53344824f2c09ff1390f0a80c"
+    },
+    {
+      "at": "2026-10-03T06:07:50.384Z",
+      "name": "meri.api.tool.started",
+      "boundary": "api_tool",
+      "traceId": "038410bdf0ba982f9ec78e6192b7bf7e",
+      "requestId": "2943de97-b86e-4af0-9ba9-344521213d17",
+      "serverTurnId": "5ace5a7b-0cce-40f7-a0bd-948fa25f76d1",
+      "runId": "257472bb-e5a1-4d94-8728-6e1d4bb6df58",
+      "tools": [
+        "query_tasks"
+      ],
+      "outcome": "started",
+      "rawEventSha256": "3447bdbf0fab7b3739e1e60a02f5d34e1e67d07452dbc0280cf78da29e667897"
+    },
+    {
+      "at": "2026-10-03T06:07:50.406Z",
+      "name": "meri.api.tool.finalized",
+      "boundary": "api_tool",
+      "traceId": "038410bdf0ba982f9ec78e6192b7bf7e",
+      "requestId": "2943de97-b86e-4af0-9ba9-344521213d17",
+      "serverTurnId": "5ace5a7b-0cce-40f7-a0bd-948fa25f76d1",
+      "runId": "257472bb-e5a1-4d94-8728-6e1d4bb6df58",
+      "tools": [
+        "query_tasks"
+      ],
+      "outcome": "empty",
+      "durationMs": 22,
+      "rawEventSha256": "d2e78cabedc4da3a887b5a55a966f7c82f5f54a4c03b4b886bff669e83c18919"
+    },
+    {
+      "at": "2026-10-03T06:07:50.409Z",
+      "name": "meri.tool.attempt.finalized",
+      "boundary": "orchestrator_tool",
+      "traceId": "038410bdf0ba982f9ec78e6192b7bf7e",
+      "requestId": "2943de97-b86e-4af0-9ba9-344521213d17",
+      "serverTurnId": "5ace5a7b-0cce-40f7-a0bd-948fa25f76d1",
+      "runId": "257472bb-e5a1-4d94-8728-6e1d4bb6df58",
+      "tools": [
+        "query_tasks"
+      ],
+      "outcome": "completed",
+      "durationMs": 47,
+      "rawEventSha256": "23094e7b4d781a930ee340041788fd40ffec45f511e560450a071d75643691e4"
+    },
+    {
+      "at": "2026-10-03T06:07:50.410Z",
+      "name": "meri.tool.step.finalized",
+      "boundary": "orchestrator_tool",
+      "traceId": "038410bdf0ba982f9ec78e6192b7bf7e",
+      "requestId": "2943de97-b86e-4af0-9ba9-344521213d17",
+      "serverTurnId": "5ace5a7b-0cce-40f7-a0bd-948fa25f76d1",
+      "runId": "257472bb-e5a1-4d94-8728-6e1d4bb6df58",
+      "tools": [
+        "query_tasks"
+      ],
+      "outcome": "empty",
+      "durationMs": 50,
+      "rawEventSha256": "67b359b425505a4dccf5c215395b0f8a9c64bcedd6da64f920bc1963a6e2f328"
+    },
+    {
+      "at": "2026-10-03T06:07:54.838Z",
+      "name": "meri.provider.attempt.finalized",
+      "boundary": "orchestrator_provider",
+      "traceId": "038410bdf0ba982f9ec78e6192b7bf7e",
+      "requestId": "2943de97-b86e-4af0-9ba9-344521213d17",
+      "serverTurnId": "5ace5a7b-0cce-40f7-a0bd-948fa25f76d1",
+      "runId": "257472bb-e5a1-4d94-8728-6e1d4bb6df58",
+      "tools": [],
+      "outcome": "completed",
+      "durationMs": 4372,
+      "requestedModel": "gpt-6-astra",
+      "effectiveModel": "gpt-6-astra",
+      "rawEventSha256": "99a6f8b83920399047e48e2eac98289da508c877dc66d1081bc078d51dccce9a"
+    },
+    {
+      "at": "2026-10-03T06:07:54.846Z",
+      "name": "meri.api.runtime.observed",
+      "boundary": "api_orchestrator",
+      "traceId": "038410bdf0ba982f9ec78e6192b7bf7e",
+      "requestId": "2943de97-b86e-4af0-9ba9-344521213d17",
+      "serverTurnId": "5ace5a7b-0cce-40f7-a0bd-948fa25f76d1",
+      "runId": "257472bb-e5a1-4d94-8728-6e1d4bb6df58",
+      "tools": [],
+      "outcome": "completed",
+      "requestedModel": "gpt-6-astra",
+      "effectiveModel": "gpt-6-astra",
+      "rawEventSha256": "ec2069cd32f98947dc2f4977223701f734637b28c35e561b8ea903ee9fbbe269"
+    },
+    {
+      "at": "2026-10-03T06:07:55.031Z",
+      "name": "meri.orchestrator.turn.finalized",
+      "boundary": "turn",
+      "traceId": "038410bdf0ba982f9ec78e6192b7bf7e",
+      "requestId": "2943de97-b86e-4af0-9ba9-344521213d17",
+      "serverTurnId": "5ace5a7b-0cce-40f7-a0bd-948fa25f76d1",
+      "runId": "257472bb-e5a1-4d94-8728-6e1d4bb6df58",
+      "tools": [
+        "query_tasks"
+      ],
+      "outcome": "completed",
+      "durationMs": 7248,
+      "requestedModel": "gpt-6-astra",
+      "effectiveModel": "gpt-6-astra",
+      "rawEventSha256": "2380b6bdfc5efa0cf0ba8a86782e570ecdc411fc9df87a91797bb2ae0f47a3da"
+    },
+    {
+      "at": "2026-10-03T06:07:55.031Z",
+      "name": "meri.orchestrator.request.finalized",
+      "boundary": "api_orchestrator",
+      "traceId": "038410bdf0ba982f9ec78e6192b7bf7e",
+      "requestId": "2943de97-b86e-4af0-9ba9-344521213d17",
+      "serverTurnId": "5ace5a7b-0cce-40f7-a0bd-948fa25f76d1",
+      "runId": "257472bb-e5a1-4d94-8728-6e1d4bb6df58",
+      "tools": [],
+      "outcome": "returned",
+      "durationMs": 7407,
+      "rawEventSha256": "f5522f0649d6f3df43972363b0cb2e7d4ccfe1c574cddf16f6d86c46d9202a6d"
+    },
+    {
+      "at": "2026-10-03T06:07:55.033Z",
+      "name": "meri.api.runtime.observed",
+      "boundary": "api_orchestrator",
+      "traceId": "038410bdf0ba982f9ec78e6192b7bf7e",
+      "requestId": "2943de97-b86e-4af0-9ba9-344521213d17",
+      "serverTurnId": "5ace5a7b-0cce-40f7-a0bd-948fa25f76d1",
+      "runId": "257472bb-e5a1-4d94-8728-6e1d4bb6df58",
+      "tools": [],
+      "outcome": "completed",
+      "requestedModel": "gpt-6-astra",
+      "effectiveModel": "gpt-6-astra",
+      "rawEventSha256": "5d1cae7c485cf2be07b9672857f06f88bbfa8887548d9f0ee71262f125a61fe7"
+    },
+    {
+      "at": "2026-10-03T06:07:55.044Z",
+      "name": "meri.api.turn.finalized",
+      "boundary": "turn",
+      "traceId": "038410bdf0ba982f9ec78e6192b7bf7e",
+      "requestId": "2943de97-b86e-4af0-9ba9-344521213d17",
+      "serverTurnId": "5ace5a7b-0cce-40f7-a0bd-948fa25f76d1",
+      "runId": "257472bb-e5a1-4d94-8728-6e1d4bb6df58",
+      "tools": [
+        "query_tasks"
+      ],
+      "outcome": "completed",
+      "durationMs": 7488,
+      "requestedModel": "gpt-6-astra",
+      "effectiveModel": "gpt-6-astra",
+      "rawEventSha256": "854961e6ed2965b0e8307b42da2e00d2dc5dd83d6360fdd001c10e5746906f35"
+    },
+    {
+      "at": "2026-10-03T06:07:55.044Z",
+      "name": "meri.api.request.finalized",
+      "boundary": "browser_api",
+      "traceId": "038410bdf0ba982f9ec78e6192b7bf7e",
+      "requestId": "2943de97-b86e-4af0-9ba9-344521213d17",
+      "serverTurnId": "5ace5a7b-0cce-40f7-a0bd-948fa25f76d1",
+      "runId": "257472bb-e5a1-4d94-8728-6e1d4bb6df58",
+      "tools": [],
+      "outcome": "completed",
+      "durationMs": 7658,
+      "rawEventSha256": "0ec2a485156ff4732288fcb0110ea0a13998f6b1c215d2a2a78f146af5e79c21"
+    },
+    {
+      "at": "2026-10-03T06:08:04.622Z",
+      "name": "meri.api.request.received",
+      "boundary": "browser_api",
+      "traceId": "6b14953e47f084172886d7e5345b31d7",
+      "requestId": "caaca0cc-2bea-48f7-adba-c3b0eca91ec4",
+      "serverTurnId": "4bff44d5-db1b-4d34-a777-64fb01b84c52",
+      "runId": "66e9a730-d046-4ed6-a1a2-8051af46f11c",
+      "tools": [],
+      "outcome": "accepted",
+      "rawEventSha256": "577622dfc54a00591072c0da4bbd13387e992df193375d69c37bde885f94c3aa"
+    },
+    {
+      "at": "2026-10-03T06:08:04.714Z",
+      "name": "meri.api.turn.dispatch",
+      "boundary": "api_orchestrator",
+      "traceId": "6b14953e47f084172886d7e5345b31d7",
+      "requestId": "caaca0cc-2bea-48f7-adba-c3b0eca91ec4",
+      "serverTurnId": "4bff44d5-db1b-4d34-a777-64fb01b84c52",
+      "runId": "66e9a730-d046-4ed6-a1a2-8051af46f11c",
+      "tools": [],
+      "outcome": "started",
+      "rawEventSha256": "ef3cb7afb95b3bfaab1ff87ab8023bbf26f871a2b82c9e682ae969353e477d94"
+    },
+    {
+      "at": "2026-10-03T06:08:04.786Z",
+      "name": "meri.orchestrator.request.received",
+      "boundary": "api_orchestrator",
+      "traceId": "6b14953e47f084172886d7e5345b31d7",
+      "requestId": "caaca0cc-2bea-48f7-adba-c3b0eca91ec4",
+      "serverTurnId": "4bff44d5-db1b-4d34-a777-64fb01b84c52",
+      "runId": "66e9a730-d046-4ed6-a1a2-8051af46f11c",
+      "tools": [],
+      "outcome": "accepted",
+      "rawEventSha256": "7906cc3d8a5535ce8ccb358c584d9c5af9ceb8ac68c728e344cb30c96bf0e4d6"
+    },
+    {
+      "at": "2026-10-03T06:08:04.988Z",
+      "name": "meri.orchestrator.tools.selected",
+      "boundary": "turn",
+      "traceId": "6b14953e47f084172886d7e5345b31d7",
+      "requestId": "caaca0cc-2bea-48f7-adba-c3b0eca91ec4",
+      "serverTurnId": "4bff44d5-db1b-4d34-a777-64fb01b84c52",
+      "runId": "66e9a730-d046-4ed6-a1a2-8051af46f11c",
+      "tools": [],
+      "outcome": "selected",
+      "requestedModel": "gpt-6-astra",
+      "effectiveModel": "gpt-6-astra",
+      "rawEventSha256": "1a28471627416d7be230cc751ad909ca03b64ac5138eb065c4a17ab7f0cf5f61"
+    },
+    {
+      "at": "2026-10-03T06:08:05.003Z",
+      "name": "meri.api.runtime.observed",
+      "boundary": "api_orchestrator",
+      "traceId": "6b14953e47f084172886d7e5345b31d7",
+      "requestId": "caaca0cc-2bea-48f7-adba-c3b0eca91ec4",
+      "serverTurnId": "4bff44d5-db1b-4d34-a777-64fb01b84c52",
+      "runId": "66e9a730-d046-4ed6-a1a2-8051af46f11c",
+      "tools": [],
+      "outcome": "not_started",
+      "requestedModel": "gpt-6-astra",
+      "effectiveModel": "gpt-6-astra",
+      "rawEventSha256": "cdbd1890def87cfb12aceb2ed86b12597729ba5b0db7d28dec99404d9509773b"
+    },
+    {
+      "at": "2026-10-03T06:08:07.829Z",
+      "name": "meri.provider.attempt.finalized",
+      "boundary": "orchestrator_provider",
+      "traceId": "6b14953e47f084172886d7e5345b31d7",
+      "requestId": "caaca0cc-2bea-48f7-adba-c3b0eca91ec4",
+      "serverTurnId": "4bff44d5-db1b-4d34-a777-64fb01b84c52",
+      "runId": "66e9a730-d046-4ed6-a1a2-8051af46f11c",
+      "tools": [],
+      "outcome": "completed",
+      "durationMs": 2831,
+      "requestedModel": "gpt-6-astra",
+      "effectiveModel": "gpt-6-astra",
+      "rawEventSha256": "8a3054ab76a43162c0d6dac4a62353b84680ce05750c57d88a8b7bb66b929934"
+    },
+    {
+      "at": "2026-10-03T06:08:07.837Z",
+      "name": "meri.api.runtime.observed",
+      "boundary": "api_orchestrator",
+      "traceId": "6b14953e47f084172886d7e5345b31d7",
+      "requestId": "caaca0cc-2bea-48f7-adba-c3b0eca91ec4",
+      "serverTurnId": "4bff44d5-db1b-4d34-a777-64fb01b84c52",
+      "runId": "66e9a730-d046-4ed6-a1a2-8051af46f11c",
+      "tools": [],
+      "outcome": "completed",
+      "requestedModel": "gpt-6-astra",
+      "effectiveModel": "gpt-6-astra",
+      "rawEventSha256": "6b0cd5d040b5cb85b348ce8bdccb87edb19f18c8220a7ae1d142c98d9bc89bfe"
+    },
+    {
+      "at": "2026-10-03T06:08:08.009Z",
+      "name": "meri.orchestrator.turn.finalized",
+      "boundary": "turn",
+      "traceId": "6b14953e47f084172886d7e5345b31d7",
+      "requestId": "caaca0cc-2bea-48f7-adba-c3b0eca91ec4",
+      "serverTurnId": "4bff44d5-db1b-4d34-a777-64fb01b84c52",
+      "runId": "66e9a730-d046-4ed6-a1a2-8051af46f11c",
+      "tools": [],
+      "outcome": "completed",
+      "durationMs": 3021,
+      "requestedModel": "gpt-6-astra",
+      "effectiveModel": "gpt-6-astra",
+      "rawEventSha256": "27a655abcdac7638a430e4783263ba45d2dfac0709bae05686425504387527f3"
+    },
+    {
+      "at": "2026-10-03T06:08:08.009Z",
+      "name": "meri.orchestrator.request.finalized",
+      "boundary": "api_orchestrator",
+      "traceId": "6b14953e47f084172886d7e5345b31d7",
+      "requestId": "caaca0cc-2bea-48f7-adba-c3b0eca91ec4",
+      "serverTurnId": "4bff44d5-db1b-4d34-a777-64fb01b84c52",
+      "runId": "66e9a730-d046-4ed6-a1a2-8051af46f11c",
+      "tools": [],
+      "outcome": "returned",
+      "durationMs": 3224,
+      "rawEventSha256": "26357cf3d945473b07aa4589bcde6e837da711986df05623d1d32458d4326cd6"
+    },
+    {
+      "at": "2026-10-03T06:08:08.011Z",
+      "name": "meri.api.runtime.observed",
+      "boundary": "api_orchestrator",
+      "traceId": "6b14953e47f084172886d7e5345b31d7",
+      "requestId": "caaca0cc-2bea-48f7-adba-c3b0eca91ec4",
+      "serverTurnId": "4bff44d5-db1b-4d34-a777-64fb01b84c52",
+      "runId": "66e9a730-d046-4ed6-a1a2-8051af46f11c",
+      "tools": [],
+      "outcome": "completed",
+      "requestedModel": "gpt-6-astra",
+      "effectiveModel": "gpt-6-astra",
+      "rawEventSha256": "1bb9eec84bf07c3e7150a620f6d6502c44ecf45994d6774e3aa57274dd2b175d"
+    },
+    {
+      "at": "2026-10-03T06:08:08.021Z",
+      "name": "meri.api.turn.finalized",
+      "boundary": "turn",
+      "traceId": "6b14953e47f084172886d7e5345b31d7",
+      "requestId": "caaca0cc-2bea-48f7-adba-c3b0eca91ec4",
+      "serverTurnId": "4bff44d5-db1b-4d34-a777-64fb01b84c52",
+      "runId": "66e9a730-d046-4ed6-a1a2-8051af46f11c",
+      "tools": [],
+      "outcome": "completed",
+      "durationMs": 3306,
+      "requestedModel": "gpt-6-astra",
+      "effectiveModel": "gpt-6-astra",
+      "rawEventSha256": "f29be962d7d7495ce735ed4284383b5cd6e5b0d0347f7ca7c088580a61abcfb0"
+    },
+    {
+      "at": "2026-10-03T06:08:08.021Z",
+      "name": "meri.api.request.finalized",
+      "boundary": "browser_api",
+      "traceId": "6b14953e47f084172886d7e5345b31d7",
+      "requestId": "caaca0cc-2bea-48f7-adba-c3b0eca91ec4",
+      "serverTurnId": "4bff44d5-db1b-4d34-a777-64fb01b84c52",
+      "runId": "66e9a730-d046-4ed6-a1a2-8051af46f11c",
+      "tools": [],
+      "outcome": "completed",
+      "durationMs": 3399,
+      "rawEventSha256": "c599d91858fce07c45ab8ae490c02e4c293364e655d4730bddf76b10eeee81d9"
+    }
+  ],
+  "joined": [
+    {
+      "caseId": "minimal-mail-list",
+      "runId": "864f25da-c784-4ef1-8656-96bbe13e3f8a",
+      "traceId": "668c4580b909024041dd6807aded8a7b",
+      "requestId": "f6caf189-76d3-4c7b-89a5-9d627711fb04",
+      "serverTurnId": "1fe76afe-e3e6-4fde-b877-4add21de6529",
+      "receivedAt": "2026-10-03T06:03:35.636Z",
+      "finalizedAt": "2026-10-03T06:03:51.988Z",
+      "serverRequestDurationMs": 16352,
+      "requestOutcome": "completed",
+      "tools": [
+        {
+          "name": "list_emails",
+          "outcome": "partial",
+          "durationMs": 1925
+        }
+      ],
+      "ownerTools": [
+        {
+          "name": "list_emails",
+          "outcome": "partial",
+          "durationMs": 1791
+        }
+      ]
+    },
+    {
+      "caseId": "literal-zero-mail-search",
+      "runId": "a587ef38-873c-423f-9233-5e85abcfe008",
+      "traceId": "297eb43a3e88846df32351a27aa8e280",
+      "requestId": "584c1b52-5805-443f-a0e4-7cd411f8ae13",
+      "serverTurnId": "3c813899-f271-4b35-952e-0bb75071ec8b",
+      "receivedAt": "2026-10-03T06:05:22.504Z",
+      "finalizedAt": "2026-10-03T06:05:36.195Z",
+      "serverRequestDurationMs": 13691,
+      "requestOutcome": "completed",
+      "tools": [
+        {
+          "name": "search_emails",
+          "outcome": "empty",
+          "durationMs": 932
+        }
+      ],
+      "ownerTools": [
+        {
+          "name": "search_emails",
+          "outcome": "empty",
+          "durationMs": 910
+        }
+      ]
+    },
+    {
+      "caseId": "known-mail-search",
+      "runId": "1be8a574-f30a-43ae-acbd-816bbd2d9b0b",
+      "traceId": "e610e126bb242f9d16a035960e199603",
+      "requestId": "1368c0da-01f8-45c6-a6eb-a220119e3a79",
+      "serverTurnId": "e72e35a6-5256-449a-bb13-38d79a98e72a",
+      "receivedAt": "2026-10-03T06:07:24.625Z",
+      "finalizedAt": "2026-10-03T06:07:35.419Z",
+      "serverRequestDurationMs": 10794,
+      "requestOutcome": "completed",
+      "tools": [
+        {
+          "name": "search_emails",
+          "outcome": "partial",
+          "durationMs": 1336
+        }
+      ],
+      "ownerTools": [
+        {
+          "name": "search_emails",
+          "outcome": "partial",
+          "durationMs": 1267
+        }
+      ]
+    },
+    {
+      "caseId": "own-open-task-count",
+      "runId": "257472bb-e5a1-4d94-8728-6e1d4bb6df58",
+      "traceId": "038410bdf0ba982f9ec78e6192b7bf7e",
+      "requestId": "2943de97-b86e-4af0-9ba9-344521213d17",
+      "serverTurnId": "5ace5a7b-0cce-40f7-a0bd-948fa25f76d1",
+      "receivedAt": "2026-10-03T06:07:47.386Z",
+      "finalizedAt": "2026-10-03T06:07:55.044Z",
+      "serverRequestDurationMs": 7658,
+      "requestOutcome": "completed",
+      "tools": [
+        {
+          "name": "query_tasks",
+          "outcome": "empty",
+          "durationMs": 50
+        }
+      ],
+      "ownerTools": [
+        {
+          "name": "query_tasks",
+          "outcome": "empty",
+          "durationMs": 22
+        }
+      ]
+    },
+    {
+      "caseId": "concise-no-tool",
+      "runId": "66e9a730-d046-4ed6-a1a2-8051af46f11c",
+      "traceId": "6b14953e47f084172886d7e5345b31d7",
+      "requestId": "caaca0cc-2bea-48f7-adba-c3b0eca91ec4",
+      "serverTurnId": "4bff44d5-db1b-4d34-a777-64fb01b84c52",
+      "receivedAt": "2026-10-03T06:08:04.622Z",
+      "finalizedAt": "2026-10-03T06:08:08.021Z",
+      "serverRequestDurationMs": 3399,
+      "requestOutcome": "completed",
+      "tools": [],
+      "ownerTools": []
+    }
+  ],
+  "associationLimit": "Case labels correlate by serial order and matching tool names/counts; browser did not capture server run IDs. Exact run/trace/request/turn IDs join server spans only.",
+  "timingLimit": "Server request durations exclude browser transport/rendering; not first-token or p95 latency.",
+  "rawContentsPersisted": false,
+  "awsWrites": 0
+}
