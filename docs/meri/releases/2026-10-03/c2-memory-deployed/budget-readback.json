@@ -1,0 +1,18 @@
+{
+  "at": "2026-10-03T16:39:19.610115+00:00",
+  "journalPath": "C:/dev/main/outputs/meri-fresh-20261003/fresh-spend.jsonl",
+  "journalSha256": "abe458973e6998db20586c781ac5a3cbd4ca2fa565425e62722f0eb9c985210b",
+  "events": 20,
+  "reservations": 5,
+  "allReservationsSettled": true,
+  "chargedCostMicros": 9841281,
+  "aggregateCeilingMicros": 30000000,
+  "remainingMicros": 20158719,
+  "perCaseCeilingMicros": 15000000,
+  "newReservations": 0,
+  "oldUnavailableJournal": "PRESERVED_UNRESOLVED_NOT_REPLACED",
+  "semanticClockInjected": false,
+  "previousReadbackAt": "2026-10-03T11:56:23.814Z",
+  "status": "UNCHANGED_JOURNAL_NO_NEW_RESERVATIONS",
+  "scope": "Release, bounded maintenance and ordinary proposal API read only"
+}

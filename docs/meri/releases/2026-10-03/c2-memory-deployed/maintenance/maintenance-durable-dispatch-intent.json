@@ -1,0 +1,20 @@
+{
+  "at": "2026-10-03T16:24:15.576Z",
+  "status": "SINGLE_DISPATCH_AUTHORIZED",
+  "packetSha256": "98b400994ce4af4b7b0b01cd1d907b7d708172a3bce9608ffa158998af31ffcb",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-c2-maintenance-20261003:1",
+  "startedBy": "c2-maint-c11e3789-3493-40ea-9",
+  "clientToken": "b1b3b057-d42f-47e8-973c-bd86967271a5",
+  "inputSha256": "f8916d5e1f17475149cbe48631a893bf9cc1ad8168834c19c19c2d0a71233ebf",
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:1a4aef121151bb5da7f70417539ece2faff392842809e6b557370c2d6cf8a49d",
+  "operations": [
+    "preview-corpus-projections",
+    "execute-corpus-projections",
+    "preview-corpus-metadata",
+    "execute-corpus-metadata",
+    "read-corpus"
+  ],
+  "awsMaxAttempts": 1,
+  "noAutomaticRetry": true,
+  "providerCalls": 0
+}

@@ -1,0 +1,16 @@
+{
+  "status": "APPROVED",
+  "scope": "EXACT_C2_MEMORY_RELEASE_AND_BOUNDED_MAINTENANCE",
+  "reviewer": "Neo Martinez — explicit approval in current Codex chat",
+  "approvedAt": "2026-10-03T15:59:54.000Z",
+  "packetSha256": "98b400994ce4af4b7b0b01cd1d907b7d708172a3bce9608ffa158998af31ffcb",
+  "answer": "Approve release and bounded cleanup",
+  "approvalSource": "Direct human response to the exact release packet question in the current chat",
+  "evidenceCommit": "75fb394938144b5a78c9e9c74165a5399d69d3f3",
+  "scopeDetails": [
+    "Deploy API f00e5dfb and orchestrator ed44f2c6 exact qualified images",
+    "Pin existing nightly writer to the guarded image with schedule, command and configuration preserved",
+    "Fresh identical-scope previews followed by six original cleanup jobs and three bounded metadata repairs",
+    "No paid benchmark capture authority"
+  ]
+}

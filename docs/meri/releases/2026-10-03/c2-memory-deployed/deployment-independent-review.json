@@ -1,0 +1,43 @@
+{
+  "result": "BOUNDED_PASS",
+  "reviewer": "/root/mail_defaults_review",
+  "at": "2026-10-03T16:39:19.610115+00:00",
+  "recordSource": "Root-authored record of independent local read-only evidence review. Reviewer did not execute operations, tests or remote calls.",
+  "reviewedRawSha256": {
+    "memory-lifecycle-release-packet.json": "b98dfea3e17682dd087b08e4c96e3ca7487b2db8e82ecd11649e742cc8204e83",
+    "memory-lifecycle-human-approval.json": "83aadc7265abbb27c781cf9a2595393535a6febec2875ab37fac3056d899d93d",
+    "api-lifecycle-promotion-receipt.json": "bb269ae7cfe6f5636c8c12f413115b80183b501cf25c331a3eb0981c8bcb3860",
+    "meriv2-orchestrator-lifecycle-promotion-receipt.json": "fec219b47cd5e4dcbd716fddfe08271b42ae7197791f06d3fc45d535743b886f",
+    "memory-refresh-pin-apply-result.json": "4b887524ec6628737eca719023bb274d5e160d97bf91eae310bb2b287018d26b",
+    "memory-refresh-pin-apply-events.jsonl": "e791272b63efe2acc1284b4f37b49dce801b6906a96df1aef6f6846e240d39a6",
+    "maintenance-writers-before-registration.json": "e04697bbecab57740d50f2c04a497bfb16a21f5a9a058803a477ff9c5bf6544f",
+    "maintenance-writers-before-dispatch.json": "c24d06de6d056884629c7ff45e48abeebdc6b63b900ca051b73b59977cfdd219",
+    "maintenance-register-intent.json": "fbdce28cfa9f5239b48f7e7de106deeb1f7ef59260ab01e6b8882a2c24a6f56d",
+    "maintenance-durable-dispatch-intent.json": "c78acc129b88e9432155e90d407dadc6ac6346824e685cf34520a5a5a2059917",
+    "maintenance-result.json": "102caac40895ef9a59c1c52f4bfe58914ba26072e1a3c0a70a8ade37e7bec5fb",
+    "maintenance-task-cleanup.json": "28b1576cf48293a351c1095b1e2d8b9bd0684c1d36349d7ec2ee17f0daa54acc",
+    "served-pending-proposals-readback.json": "fb9c9193f380e9eb73259a864fa94478d5c495c4639e7ab5caa68116ff10c107"
+  },
+  "verified": [
+    "Exact direct human approval, canonical packet and both promotion manifest/image/config/task/rollback bindings",
+    "Exact nightly136 pin and unchanged command/schedule",
+    "Six original cleanup jobs, six embeddings, zero Clio rows",
+    "Three exact metadata rows: two governed-status repairs and three SQL-NULL normalizations",
+    "Two committed audits with matching plan and actor, attempts1 and cleared leases",
+    "Five terminal receipts and both EXECUTION_ATTEMPTED records retained",
+    "Separate current strict corpus proof with fixtureReady true and no missing assertions",
+    "Task exit0/STOPPED and utility definition INACTIVE",
+    "Unchanged schema609/prior608/index and retirement proof",
+    "No capture/provider authority or provider calls"
+  ],
+  "limits": [
+    "Healthy deployment and bounded maintenance do not establish original model/browser acceptance.",
+    "Writer censuses prove no old non-STOPPED API writer at two pre-dispatch snapshots; they do not retain a STOPPED readback for every historical task ARN.",
+    "EventBridge pin has no compare-and-swap; verification is bounded to the recorded exclusive operation window.",
+    "Nightly schedule was not invoked manually and its future scheduled run is not verified here.",
+    "The proposal read is an ordinary-user API owner read, not list_memory_proposals tool dispatch, model behavior or UI reload.",
+    "Maintenance current-corpus proof is not capture/provider authorization or proof of all lifecycle use/delivery variants.",
+    "Semantic-clock candidate changes remain uncommitted and excluded from these served images."
+  ],
+  "original75FullyAccepted": 0
+}

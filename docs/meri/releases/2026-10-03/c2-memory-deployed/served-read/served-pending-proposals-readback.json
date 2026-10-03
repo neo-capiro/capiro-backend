@@ -1,0 +1,122 @@
+{
+  "status": "SERVED_ORDINARY_OWN_PROPOSAL_READ_AND_PAGING_PASS",
+  "at": "2026-10-03T16:18:30.739Z",
+  "sourceSha": "f00e5dfb4fd3e47ac6aa4aca741023cc02f6314f",
+  "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+  "actorUserId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+  "role": "standard_user",
+  "fullReadSha256": "35aa81215907a8fcd215e543959b2f3c39c9d221a8ebcde8991bfe96e73a215c",
+  "candidateCount": 10,
+  "pages": [
+    {
+      "candidateCount": 2,
+      "responseSha256": "564d94ecd836af1ac012300e12be73be7509979ca59a36dff53af88f6fc444a0",
+      "hasMore": true
+    },
+    {
+      "candidateCount": 2,
+      "responseSha256": "de119f77e03acda307d26feec5681e9512875fac0015be4e63d5ff5da98ca502",
+      "hasMore": true
+    },
+    {
+      "candidateCount": 2,
+      "responseSha256": "391239dfee9eb3e1a3723d33955572c00c504769bbf4d05944b1d8eebc971c07",
+      "hasMore": true
+    },
+    {
+      "candidateCount": 2,
+      "responseSha256": "5f813a1b6031d06632e0b4f3cf393c71d7cd82ce2f7e0adf0b51022a8410080d",
+      "hasMore": true
+    },
+    {
+      "candidateCount": 2,
+      "responseSha256": "f1a697ad7dbdddf0d88fe41d71a9c589144895f1d14f79c9513788a194fa9a54",
+      "hasMore": false
+    }
+  ],
+  "retainedPendingSms": {
+    "id": "dc61a9a5-5130-5c67-a7e8-19906259c34f",
+    "status": "pending",
+    "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+    "restricted": false
+  },
+  "candidateSummaries": [
+    {
+      "id": "dc61a9a5-5130-5c67-a7e8-19906259c34f",
+      "status": "pending",
+      "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+      "scope": "client",
+      "restricted": false
+    },
+    {
+      "id": "f6915255-4f53-5228-ba62-553fd1455d6c",
+      "status": "approved",
+      "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+      "scope": "client",
+      "restricted": false
+    },
+    {
+      "id": "6e550ca2-20b2-5aca-be2a-254fb0b0f32b",
+      "status": "approved",
+      "clientId": "494f6834-d09e-4723-8a64-b2df57c683e8",
+      "scope": "client",
+      "restricted": false
+    },
+    {
+      "id": "a5397fba-1d91-4ba9-8006-bf1fdaa90f67",
+      "status": "approved",
+      "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+      "scope": "client",
+      "restricted": false
+    },
+    {
+      "id": "a9de2fb9-0015-58b3-a0b1-8c1dc88797b0",
+      "status": "approved",
+      "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+      "scope": "client",
+      "restricted": false
+    },
+    {
+      "id": "df57e3e0-54b6-5561-a245-44a66f21224b",
+      "status": "withdrawn",
+      "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+      "scope": "client",
+      "restricted": false
+    },
+    {
+      "id": "aecb886a-f0dc-5ba2-bf42-26bf4781c441",
+      "status": "approved",
+      "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+      "scope": "client",
+      "restricted": false
+    },
+    {
+      "id": "1d92abdf-5fa7-5963-8e92-5df8aa6ebb87",
+      "status": "approved",
+      "clientId": "494f6834-d09e-4723-8a64-b2df57c683e8",
+      "scope": "client",
+      "restricted": false
+    },
+    {
+      "id": "8c320f91-9522-47ac-8359-b012257699b4",
+      "status": "approved",
+      "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+      "scope": "client",
+      "restricted": false
+    },
+    {
+      "id": "557b5b98-f591-50ce-83ea-2ca44d44567a",
+      "status": "approved",
+      "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+      "scope": "client",
+      "restricted": false
+    }
+  ],
+  "providerCalls": 0,
+  "businessWrites": 0,
+  "ordinaryModelTurn": false,
+  "uiReloadVerified": false,
+  "originalAcceptance": "NOT_CLAIMED",
+  "ownedTransientSessionRevoked": true,
+  "credentialsSaved": false
+}

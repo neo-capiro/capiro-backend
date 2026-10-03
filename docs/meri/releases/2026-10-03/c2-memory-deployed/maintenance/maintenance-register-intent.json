@@ -1,0 +1,11 @@
+{
+  "at": "2026-10-03T16:23:21.037Z",
+  "packetSha256": "98b400994ce4af4b7b0b01cd1d907b7d708172a3bce9608ffa158998af31ffcb",
+  "sourceSha": "f00e5dfb4fd3e47ac6aa4aca741023cc02f6314f",
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:1a4aef121151bb5da7f70417539ece2faff392842809e6b557370c2d6cf8a49d",
+  "definitionSha256": "c57b3e9942b1f9ee08c94ad427938df6b65e605365e9148e7f6be16840aa30fe",
+  "wrapperSha256": "3323a103ad40de51561e7187abd8465064f1cb3477c951ec370644bfff370f79",
+  "bodySha256": "100dc25184f6c07e1e180cbba2d94903dcb4e242e8ba3bf6d2b27a709d78044e",
+  "awsMaxAttempts": 1,
+  "noAutomaticRetry": true
+}

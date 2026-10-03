@@ -1,0 +1,7 @@
+{
+  "at": "2026-10-03T16:23:22.750Z",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-c2-maintenance-20261003:1",
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:1a4aef121151bb5da7f70417539ece2faff392842809e6b557370c2d6cf8a49d",
+  "sourceSha": "f00e5dfb4fd3e47ac6aa4aca741023cc02f6314f",
+  "wrapperSha256": "3323a103ad40de51561e7187abd8465064f1cb3477c951ec370644bfff370f79"
+}

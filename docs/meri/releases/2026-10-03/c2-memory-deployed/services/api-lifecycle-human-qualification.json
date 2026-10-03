@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "service": "api",
+  "sourceSha": "f00e5dfb4fd3e47ac6aa4aca741023cc02f6314f",
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:1a4aef121151bb5da7f70417539ece2faff392842809e6b557370c2d6cf8a49d",
+  "status": "qualified",
+  "reviewer": "Neo Martinez — explicit approval in current Codex chat",
+  "reviewedAt": "2026-10-03T15:59:54.000Z",
+  "expiresAt": "2026-10-04T14:59:54.000Z",
+  "schemaChange": false,
+  "evidence": [
+    "https://github.com/neo-capiro/capirov2/blob/75fb394938144b5a78c9e9c74165a5399d69d3f3/docs/meri/releases/2026-10-03/c2-memory-lifecycle/release-qualification.json",
+    "https://github.com/neo-capiro/capirov2/blob/75fb394938144b5a78c9e9c74165a5399d69d3f3/docs/meri/releases/2026-10-03/c2-memory-lifecycle/release-independent-review.json",
+    "https://github.com/neo-capiro/capirov2/blob/75fb394938144b5a78c9e9c74165a5399d69d3f3/docs/meri/releases/2026-10-03/c2-memory-lifecycle/builds/api/build-readback.json"
+  ],
+  "checks": [
+    {
+      "name": "build",
+      "status": "passed",
+      "sourceSha": "f00e5dfb4fd3e47ac6aa4aca741023cc02f6314f",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:1a4aef121151bb5da7f70417539ece2faff392842809e6b557370c2d6cf8a49d",
+      "url": "https://github.com/neo-capiro/capirov2/blob/75fb394938144b5a78c9e9c74165a5399d69d3f3/docs/meri/releases/2026-10-03/c2-memory-lifecycle/builds/api/build-readback.json"
+    },
+    {
+      "name": "automated-tests",
+      "status": "passed",
+      "sourceSha": "f00e5dfb4fd3e47ac6aa4aca741023cc02f6314f",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:1a4aef121151bb5da7f70417539ece2faff392842809e6b557370c2d6cf8a49d",
+      "url": "https://github.com/neo-capiro/capirov2/blob/75fb394938144b5a78c9e9c74165a5399d69d3f3/docs/meri/releases/2026-10-03/c2-memory-lifecycle/release-qualification.json"
+    },
+    {
+      "name": "retirement-compatibility",
+      "status": "passed",
+      "sourceSha": "f00e5dfb4fd3e47ac6aa4aca741023cc02f6314f",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:1a4aef121151bb5da7f70417539ece2faff392842809e6b557370c2d6cf8a49d",
+      "url": "https://github.com/neo-capiro/capirov2/blob/75fb394938144b5a78c9e9c74165a5399d69d3f3/docs/meri/releases/2026-10-03/c2-memory-lifecycle/release-qualification.json"
+    }
+  ]
+}

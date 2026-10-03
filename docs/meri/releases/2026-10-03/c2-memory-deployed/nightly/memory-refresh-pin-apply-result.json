@@ -1,0 +1,21 @@
+{
+  "status": "EXACT_NIGHTLY_TARGET_PIN_VERIFIED",
+  "at": "2026-10-03T16:15:41.681Z",
+  "packetSha256": "98b400994ce4af4b7b0b01cd1d907b7d708172a3bce9608ffa158998af31ffcb",
+  "manifestSha256": "e1b61557f40d0d36c2507f468dc8daab8c801429d257ec1d08ea97301faf9393",
+  "rule": "capiro-dev-refresh-memory-graph",
+  "targetId": "refresh-memory-graph-target",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api-migrate:136",
+  "sourceSha": "f00e5dfb4fd3e47ac6aa4aca741023cc02f6314f",
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:1a4aef121151bb5da7f70417539ece2faff392842809e6b557370c2d6cf8a49d",
+  "baselineTaskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api-migrate:125",
+  "targetSha256": "e5b98fe865035a7dfa2add1472df1617101714e08f65232fd232c606c4f2475a",
+  "taskInputSha256": "0b362cc5b50895bcc69d70536e2496b848c0ee7bc805d9d17c1c6f85261263a5",
+  "ruleSha256": "4a9376120b272c60388f6986a7a20aa00bfa78a8feb3b44a3a804fd93c617947",
+  "strictProjectionWorker": "DISABLED_UNCHANGED",
+  "scheduleAndCommand": "UNCHANGED",
+  "manualInvocation": false,
+  "providerCalls": 0,
+  "corpusMutations": 0,
+  "rollback": "Retain this backward-compatible guarded writer for unrelated service rollback. If this writer fails qualification, disable only this nightly rule pending repair; do not restore an enabled known-unsafe writer."
+}

@@ -1,0 +1,47 @@
+{
+  "result": "PASS",
+  "reviewer": "/root/mail_defaults_review",
+  "recordSource": "Root-authored record of independent final archive/current-document audit messages; no remote action or edits by reviewer.",
+  "manifestBeforeThisRecordSha256": "d2184789c0ae60393c8f125e289691d0df89c241ed3aac00303e614ecdaab156",
+  "independentChecks": {
+    "manifestEntries": 36,
+    "exactByteCopies": 30,
+    "authoredFiles": 6,
+    "unmanifestedPayloads": 0,
+    "relativeMarkdownLinksResolved": 149,
+    "privateInputsOrCredentialsFound": 0
+  },
+  "matrix": {
+    "baseSha": "75fb394938144b5a78c9e9c74165a5399d69d3f3",
+    "requirementRows": 39,
+    "caseRows": 90,
+    "changedRequirementIds": [
+      "01-B",
+      "ANNEX-6.1",
+      "ANNEX-6.2",
+      "ANNEX-10.3",
+      "ANNEX-13"
+    ],
+    "allIdsAndOrderPreserved": true,
+    "originalCaseSectionUnchanged": true
+  },
+  "inventory": {
+    "priorCheckpointsPreserved": 13,
+    "appended": 1,
+    "allOtherFieldsUnchanged": true
+  },
+  "acquisition": "APPEND_ONLY",
+  "proseCorrections": [
+    "Clarify nightly target update ran once; scheduled refresh was never manually invoked",
+    "Acknowledge locally reviewed exact-client fix; independent joins remain outstanding"
+  ],
+  "acceptance": {
+    "original75": 0,
+    "cd": 0,
+    "cw": 0
+  },
+  "limits": [
+    "The independent manifest review covered the 36 entries before this root-authored audit record was appended.",
+    "Root recomputes and verifies the final 37-entry manifest including this record."
+  ]
+}

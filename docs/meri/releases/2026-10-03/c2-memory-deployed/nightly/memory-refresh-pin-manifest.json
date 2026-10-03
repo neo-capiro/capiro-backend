@@ -1,0 +1,50 @@
+{
+  "kind": "C2 existing nightly memory refresh image pin",
+  "version": 1,
+  "status": "PREPARED_NOT_APPLIED",
+  "preparedAt": "2026-10-03T15:55:55.893Z",
+  "expiresAt": "2026-10-03T16:55:55.907Z",
+  "rule": "capiro-dev-refresh-memory-graph",
+  "targetId": "refresh-memory-graph-target",
+  "baselineRuleSha256": "4a9376120b272c60388f6986a7a20aa00bfa78a8feb3b44a3a804fd93c617947",
+  "baselineTargetSha256": "f26f8d465e9e37c7c54e8470eda3c14c95d157dbc3095775495bc7e8a92c2c20",
+  "baselineTaskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api-migrate:125",
+  "baselineTaskSha256": "8dac4331fe3d226c1f747717c0bf531e1b9d9273b414c510d1eb893616183027",
+  "baselineTagsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+  "preservedUserTagCount": 0,
+  "sourceSha": "f00e5dfb4fd3e47ac6aa4aca741023cc02f6314f",
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:1a4aef121151bb5da7f70417539ece2faff392842809e6b557370c2d6cf8a49d",
+  "taskInputSha256": "0b362cc5b50895bcc69d70536e2496b848c0ee7bc805d9d17c1c6f85261263a5",
+  "taskFamily": "capiro-dev-api-migrate",
+  "qualificationSha256": "c2f31535bed9464287c6898031d50606dcce974e97f0db61c973677285dc294c",
+  "qualificationEvidence": "https://github.com/neo-capiro/capirov2/blob/75fb394938144b5a78c9e9c74165a5399d69d3f3/docs/meri/releases/2026-10-03/c2-memory-lifecycle/release-qualification.json",
+  "allowedChanges": [
+    "api.image",
+    "api.environment.GIT_SHA",
+    "api.environment.RELEASE_SHA",
+    "target.EcsParameters.TaskDefinitionArn"
+  ],
+  "unchanged": [
+    "rule state/schedule",
+    "target command",
+    "roles/network",
+    "secrets/configuration/model flags",
+    "all other targets/services"
+  ],
+  "invocation": "No manual invocation; next existing scheduled admission uses the new image",
+  "activeNightlyWriters": [],
+  "rollback": "Retain this backward-compatible guarded writer for unrelated service rollback. If this writer fails qualification, disable only this nightly rule pending repair; do not restore an enabled known-unsafe writer.",
+  "strictProjectionWorker": {
+    "state": "DISABLED",
+    "ruleSha256": "c1d73bb8c90de13f50b6849a3e1e35d8556a1ead89f0858757b42d907975cbc4",
+    "targetsSha256": "4e696a7a5cadced0d7c82374f8d59987459fc540ff380c70ef8cef699775b8a1"
+  },
+  "applyRequirements": [
+    "Fresh qualification and every baseline hash immediately before target change",
+    "Repeat RUNNING/STOPPED task reconciliation and require no active nightly writer",
+    "Verify exact new target/task/image/config/tags and unchanged rule/strict worker after write",
+    "Preserve durable dispatch intent; reconcile unknown AWS responses before any retry"
+  ],
+  "humanReleaseApproval": null,
+  "awsWrites": 0
+}

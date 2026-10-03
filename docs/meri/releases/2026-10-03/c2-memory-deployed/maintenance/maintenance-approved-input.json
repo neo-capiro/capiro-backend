@@ -1,0 +1,49 @@
+{
+  "packetSha256": "98b400994ce4af4b7b0b01cd1d907b7d708172a3bce9608ffa158998af31ffcb",
+  "sourceSha": "f00e5dfb4fd3e47ac6aa4aca741023cc02f6314f",
+  "expiresAt": "2026-10-03T16:55:55.907Z",
+  "originalCleanupJobs": [
+    {
+      "id": "20ddb7c6-3f30-47a8-aafd-edf025cfff80",
+      "itemId": "c09cd0b2-7af4-49e9-b6dc-f5cb04baee8e",
+      "operation": "revoke_projections"
+    },
+    {
+      "id": "8488483d-369d-47bf-a5cb-146e0cd013d6",
+      "itemId": "743a18c2-a1ff-4070-934b-b4146ba18d35",
+      "operation": "revoke_projections"
+    },
+    {
+      "id": "87270908-b778-4833-b27f-1ad85333cff1",
+      "itemId": "5e9d3ad4-b37d-4997-be47-55b00528c085",
+      "operation": "supersede_projections"
+    },
+    {
+      "id": "c9db6ab4-76da-4555-8dcd-29f6cef0eb8d",
+      "itemId": "08c7de39-a268-40cd-9511-f56bdca2ee84",
+      "operation": "revoke_projections"
+    },
+    {
+      "id": "dca61734-aa48-46f9-b079-2ca6f4e144c6",
+      "itemId": "b4b2379f-d4ac-42f2-afa8-7dd56e220464",
+      "operation": "supersede_projections"
+    },
+    {
+      "id": "f5318325-c7fe-41b4-a224-97a3763138d1",
+      "itemId": "e5f7edc5-a2d9-4795-98fb-ba666c79d2fd",
+      "operation": "revoke_projections"
+    }
+  ],
+  "input": {
+    "target": "capiro-dev",
+    "fixtureNamespace": "meri-foundation-20260928",
+    "ctx": {
+      "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+      "tenantSlug": "meri-foundation-20260928-t1",
+      "userId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+      "clerkUserId": "user_3Jw2FvWZkYGKmxWGx13tNJxFD2A",
+      "role": "standard_user"
+    },
+    "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b"
+  }
+}
