@@ -1,0 +1,18 @@
+(node:29068) [DEP0180] DeprecationWarning: fs.Stats constructor is deprecated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+▶ real task owner: actor assignment, client walls, exact counts and pagination
+  ✔ counts authorized assignments, not just the first page or other users (72.9261ms)
+  ✔ all authorized owners still exclude another tenant, walls and revoked research sources (18.7834ms)
+  ✔ current wall grants affect both exact count and rows (38.2958ms)
+  ✔ archived clients are excluded from both counts and returned data (16.3557ms)
+  ✔ healthy exact zero supports absence for the declared authorized scope (7.6904ms)
+  ✔ revoked membership refuses the read (2.3921ms)
+✔ real task owner: actor assignment, client walls, exact counts and pagination (3507.4405ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3634.5564

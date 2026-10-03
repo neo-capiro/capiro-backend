@@ -1,0 +1,24 @@
+✔ attaching original failure produces a serializable independent snapshot (0.979ms)
+✔ ECS permutation of unique environment entries preserves exact meaning (0.6238ms)
+✔ duplicate environment names refuse instead of hiding last-value semantics (0.7186ms)
+✔ non-string environment values refuse (0.2527ms)
+✔ meaningful difference retained: environment value (0.2113ms)
+✔ meaningful difference retained: environment name (0.1221ms)
+✔ meaningful difference retained: extra environment (0.114ms)
+✔ meaningful difference retained: command (0.1262ms)
+✔ meaningful difference retained: entrypoint order (0.1173ms)
+✔ meaningful difference retained: image (0.1691ms)
+✔ meaningful difference retained: task role (0.1406ms)
+✔ meaningful difference retained: execution role (0.1089ms)
+✔ meaningful difference retained: secret reference (0.1382ms)
+✔ meaningful difference retained: memory (0.1141ms)
+✔ meaningful difference retained: log settings (0.0845ms)
+✔ meaningful difference retained: unknown setting (0.1981ms)
+ℹ tests 16
+ℹ suites 0
+ℹ pass 16
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 86.2087
