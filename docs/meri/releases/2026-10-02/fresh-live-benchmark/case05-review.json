@@ -1,0 +1,31 @@
+{
+  "caseId": "05",
+  "reviewer": "Codex with independent agent review",
+  "humanReview": false,
+  "observedBoundary": "Saved answer, trace, citations, manifest and context packet contain no Bluehaven name, client ID or negative memory physical ID. Both citations refer to Aster client or current MA1-v2.",
+  "checkedMarkers": [
+    "Bluehaven",
+    "4cc6ec9e-7f1b-4776-b29d-1b52cc12d41f",
+    "494f6834-d09e-4723-8a64-b2df57c683e8"
+  ],
+  "checkedToolReadClientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+  "citationRecordIds": [
+    "41f9ec63-3963-479f-b747-59a3767ef44b",
+    "422b4ca9-10a8-4680-a713-3e61273a14ff"
+  ],
+  "canonicalMemoryVersion": "memory-version:a5397fba-1d91-4ba9-8006-bf1fdaa90f67",
+  "deliveredContentVersion": "content:90a0452d6c7ff25e50040cc7f528eee9eca9630d81551a8fa6b3e756705fa2bb",
+  "versionHashMatches": true,
+  "toolFailures": [
+    "search_client_knowledge",
+    "get_client_context",
+    "search_capiro_data"
+  ],
+  "limitations": [
+    "This is the observed saved response, not a global cross-client security proof.",
+    "Client citation has a null snippet; active/profile-field claims are not independently passage-verified.",
+    "Non-memory delegated tools return HTTP500 under the synthetic budget restriction; this does not establish real provider outages.",
+    "Frozen runtime semantic clock, complete effect audit, variants/repeats and human rubric remain incomplete."
+  ],
+  "fullOriginalAcceptance": false
+}

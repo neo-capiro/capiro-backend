@@ -1,0 +1,19 @@
+{
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-fresh-benchmark-20261003:1",
+  "networkConfiguration": {
+    "awsvpcConfiguration": {
+      "subnets": [
+        "subnet-0e38bd390f8961fef",
+        "subnet-0920665f91c905f01",
+        "subnet-06db79cd21239de19"
+      ],
+      "securityGroups": [
+        "sg-01def4e5c0fe44d4a"
+      ],
+      "assignPublicIp": "DISABLED"
+    }
+  },
+  "platformVersion": "LATEST",
+  "logGroup": "/capiro/dev/api",
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:5e52f9b06658b0462672d070928e0c2afd6ea229b61c3b887371f3f66196c316"
+}

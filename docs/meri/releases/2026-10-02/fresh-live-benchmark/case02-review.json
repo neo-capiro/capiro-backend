@@ -1,0 +1,18 @@
+{
+  "caseId": "02",
+  "reviewer": "Codex",
+  "humanReview": false,
+  "deterministicAssertionStatus": "FAIL",
+  "failedAssertion": "Correctly labels candidate pending if authorized to see it.",
+  "observed": "Answer reports no confirmed approved text/SMS preference but does not mention the pending proposal.",
+  "authorityEvidence": "case02-pending-authority-readback.json",
+  "candidateId": "dc61a9a5-5130-5c67-a7e8-19906259c34f",
+  "currentFixtureInstanceId": "f6164496-9dac-4771-980f-2f362081942e",
+  "ordinaryActorReadStatus": 200,
+  "candidateStatus": "pending",
+  "restricted": false,
+  "preservedBoundary": "Pending SMS preference was not asserted as approved.",
+  "answerEvidence": "case02-capture/messages-after.json",
+  "captureStatus": "COLLECTED_NOT_GRADED",
+  "fullOriginalAcceptance": false
+}

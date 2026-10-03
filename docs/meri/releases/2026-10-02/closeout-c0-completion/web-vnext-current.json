@@ -1,0 +1,37 @@
+{
+  "observedAt": "2026-10-03T02:24:35.765Z",
+  "service": "web-vnext",
+  "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web-vnext:388",
+  "serviceHash": "16238627fc523b6470c76cbd86c6a54bca422f86d72f2a7ba0312cc326d139e2",
+  "configHash": "453a3d5aedc3da7d989370b97669abf0c1b14efbacd2d1597990b9cac7d50ab7",
+  "taskHash": "ce2035e6773a77eeda0adcf86dd4a7043624b3d75d8d32a74000f3d930f55211",
+  "imageDigest": "sha256:a048aceec01c207b514f76fb447d4fb8bdb5ed17278642480008a1510a12de4c",
+  "desiredCount": 1,
+  "sourceSha": "78ad5805679a3045b1fc10fb19beafa7f76e4e64",
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:a048aceec01c207b514f76fb447d4fb8bdb5ed17278642480008a1510a12de4c",
+  "selectedEnvironment": {
+    "GIT_SHA": "78ad5805679a3045b1fc10fb19beafa7f76e4e64",
+    "RELEASE_SHA": "78ad5805679a3045b1fc10fb19beafa7f76e4e64"
+  },
+  "currentEcrAvailable": true,
+  "previousArtifact": {
+    "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web-vnext:387",
+    "status": "ACTIVE",
+    "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:bb114117e1ac5bad398a34c2272280b0b55abbcb0502cb5b6b95356f213bdfdb",
+    "immutable": true,
+    "resolvedDigest": "sha256:bb114117e1ac5bad398a34c2272280b0b55abbcb0502cb5b6b95356f213bdfdb",
+    "taskHash": "105966e60d447373fc9356d4bfdbc0ea15a8992d8332e8d006184e1ae6d36e4c",
+    "sourceSha": "940fe9354f95630c6acb0f20f75ced26ea9e75f4",
+    "availability": "VERIFIED",
+    "rollbackExecuted": false
+  },
+  "nextReleaseRollback": {
+    "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:a048aceec01c207b514f76fb447d4fb8bdb5ed17278642480008a1510a12de4c",
+    "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web-vnext:388",
+    "configHash": "453a3d5aedc3da7d989370b97669abf0c1b14efbacd2d1597990b9cac7d50ab7",
+    "basis": "Verified current healthy baseline. Retain API/web for an orchestrator-only C1 repair.",
+    "compatibilityRequires": "Next C1 patch must not change schema/API/config; requalify at its exact commit."
+  },
+  "serviceUpdated": false,
+  "cohortSummary": {}
+}

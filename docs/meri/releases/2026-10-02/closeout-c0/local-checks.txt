@@ -1,0 +1,46 @@
+✔ canonical contract has exactly sequential 01..75 and frozen hashes (72.9423ms)
+✔ actual validator rejects a missing manifest case (38.9378ms)
+✔ actual validator rejects a duplicate manifest ID (3.6148ms)
+✔ actual validator rejects verbatim prompt drift (2.3228ms)
+✔ actual validator rejects fixture hash drift (3.5628ms)
+✔ verbatim execution contract has structured context, fault, and mode requirements (0.7431ms)
+✔ case 20 immutable typed definitions and actual hashes (71.7805ms)
+✔ case 72 immutable typed definitions and actual hashes (0.7717ms)
+✔ case 74 immutable typed definitions and actual hashes (22.6429ms)
+✔ 20 exact synthetic typed passage; no global client identity fabricated (0.327ms)
+✔ 72 error fixture is not a successful source passage (0.2877ms)
+✔ 74 four distinct reads only, no simulated worker kill or durable-run receipt (0.4405ms)
+✔ reject foreign/unsupported input {"caseId":"01"} (0.1854ms)
+✔ reject foreign/unsupported input {"caseId":"75"} (0.2005ms)
+✔ reject foreign/unsupported input {"tenantId":"52e91176-08f0-4d89-9633-bc212f5bdbbf"} (0.1875ms)
+✔ reject foreign/unsupported input {"clientId":"bad"} (0.2276ms)
+✔ reject foreign/unsupported input {"captureRunId":"bad"} (0.1804ms)
+✔ full physical-map address is the validated manifest, not a caller projection (351.4204ms)
+✔ rehashing empty, omitted, duplicate or foreign source inventories cannot admit them (250.4515ms)
+✔ a self-consistently rehashed owner or frozen payload substitution is rejected (143.5565ms)
+✔ manifest contract version is checked independently of its recomputed hash (85.7691ms)
+✔ seed, reset and verify IDs bind exact kind and stable versioned content (2.6738ms)
+✔ content identity does not assert lifecycle completion or canonical authority (2.8992ms)
+✔ five plans use exact frozen original prompts with distinct case/run identities (12.9363ms)
+✔ case01 collects UNIT HTTP observations without claiming acceptance (37.4903ms)
+✔ case02 collects UNIT HTTP observations without claiming acceptance (0.9022ms)
+✔ case03 collects UNIT HTTP observations without claiming acceptance (0.6492ms)
+✔ case04 collects UNIT HTTP observations without claiming acceptance (0.9101ms)
+✔ case05 collects UNIT HTTP observations without claiming acceptance (1.284ms)
+✔ wrong current actor prevents both budget reservation and POST (1.0812ms)
+✔ missing genuine budget adapter cannot dispatch (0.9204ms)
+✔ rejected HTTP body is preserved, observed by budget owner, and never retried (1.5499ms)
+✔ ambiguous network failure after POST remains a submission and keeps no invented completion (1.2687ms)
+✔ source drift and post-turn lifecycle drift are retained as failures (2.0973ms)
+✔ incomplete SSE is not a completed capture (3.4132ms)
+✔ a terminal stream without persisted assistant remains ungraded (0.5659ms)
+✔ transport refuses non-approved paths without starting a request (0.7867ms)
+✔ recorder rejects secrets, duplicate files, and reused directories (95.7838ms)
+ℹ tests 38
+ℹ suites 0
+ℹ pass 38
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5282.0338

@@ -1,0 +1,49 @@
+{
+  "scope": "C0 reconciliation; AWS profile corrected and deployed coverage verified; original fixture preflight BLOCKED",
+  "artifacts": {
+    "contract-validation.json": {
+      "sha256": "fdaaf9ec42487b4b024478f5bdec9796fe79ab3a0dbb16af9d5fa34c4d5c7efb",
+      "bytes": 236
+    },
+    "document-validation.json": {
+      "sha256": "9e368ef453da52cf6420bde421558bbb46f3784021fe09bd461f566dba39c482",
+      "bytes": 386
+    },
+    "historical-01-handover.md": {
+      "sha256": "8447fcf8b7135316a943aff03210ddf79611776a54324c75df36f0263e157720",
+      "bytes": 1593
+    },
+    "historical-01-requirements.md": {
+      "sha256": "8e8cec538c0736c1445942eaae63e3bf10d08d7c3c5b61ffc898737858065a5d",
+      "bytes": 41774
+    },
+    "historical-STATUS.md": {
+      "sha256": "af921394e45de69cd698e06747cb73acf1761f93a3d92ec6fc5ea48093df5622",
+      "bytes": 153250
+    },
+    "local-checks-exit.json": {
+      "sha256": "9923e36a4c7205d64dfc4125f6556e7cc7ef283b106767bd9e35b87eed7ebafa",
+      "bytes": 498
+    },
+    "local-checks.txt": {
+      "sha256": "35dcbaccd589068aa65c42a753b38c97f885be19d0a842e58fcf4f77df7885f6",
+      "bytes": 3144
+    },
+    "profile-correction.json": {
+      "sha256": "dd2730434b19c3eba639128fc53d457e0f80e53800a631cc9c4021ac3f981263",
+      "bytes": 5058
+    },
+    "public-readback.json": {
+      "sha256": "ac7e42903730fac38f5c5d36e4899329bcbfc0227ba47aa9558e70b4078c6f55",
+      "bytes": 547
+    },
+    "README.md": {
+      "sha256": "a0d9c4e1727bd39142548e738f38df0ec101afe5d0705e7aee14e42e82ce2c92",
+      "bytes": 12806
+    },
+    "source-reconciliation.json": {
+      "sha256": "8822957d95c2e03dec0ce4cee51966148e3b2692f633b21f245e946ea7e9e111",
+      "bytes": 12670
+    }
+  }
+}

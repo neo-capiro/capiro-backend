@@ -1,0 +1,14 @@
+{
+  "method": "GET",
+  "path": "/api/me",
+  "status": 200,
+  "releaseSha": "6be5a560d5addaa1844f0687898c34a249089f76",
+  "body": {
+    "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+    "tenantSlug": "meri-foundation-20260928-t1",
+    "actorUserId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+    "clerkUserId": "user_3Jw2FvWZkYGKmxWGx13tNJxFD2A",
+    "role": "standard_user",
+    "meriv3Chat": true
+  }
+}

@@ -1,0 +1,59 @@
+{
+  "observedAt": "2026-10-03T02:24:27.518Z",
+  "service": "meriv2-orchestrator",
+  "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:105",
+  "serviceHash": "c16c8afa7c6f03e001cc4271eadf75ba4f3259f5f2579c62b09a3f2c46c8d88f",
+  "configHash": "3a4fabd2139e347cd8b45192579f2a3fbaaa6fc3678762b5252f727a4461951b",
+  "taskHash": "763f28c84802d3d1268fcfedf7d4d1870bae1938196d6d9b24fc2f2e8e67f4d4",
+  "imageDigest": "sha256:85162728a9d268b797e1f264bde9eb129fb4a170304a6547b3da7a9561d628fa",
+  "desiredCount": 1,
+  "sourceSha": "7c04ca368fbccc84d33c720ce7a20b9201bf6e99",
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:85162728a9d268b797e1f264bde9eb129fb4a170304a6547b3da7a9561d628fa",
+  "selectedEnvironment": {
+    "MERI_AUDITOR_MODE": "enforce",
+    "MERI_CLAIM_ASSESSMENT_MODE": "shadow",
+    "MERIV3_DEEP_MODEL": "gpt-6-astra",
+    "MERIV3_MODEL": "gpt-6-astra",
+    "RELEASE_SHA": "7c04ca368fbccc84d33c720ce7a20b9201bf6e99",
+    "MERIV3_MAX_MODEL": "gpt-6-astra",
+    "MERIV3_STANDARD_REASONING_EFFORT": "medium",
+    "MERIV3_MAX_REASONING_EFFORT": "max",
+    "MERIV3_FAST_REASONING_EFFORT": "low",
+    "GIT_SHA": "7c04ca368fbccc84d33c720ce7a20b9201bf6e99",
+    "MERI_JEV_PROVIDER_MODE": "enforce",
+    "MERIV3_ENABLED": "true",
+    "MERI_EVIDENCE_ACCURACY_MODE": "enforce",
+    "MERI_AUTO_CORRECTION_MODE": "shadow",
+    "MERI_JEV_MODEL": "jev-1.13.0",
+    "MERIV3_DEEP_REASONING_EFFORT": "high",
+    "MERI_COVERAGE_RETRIEVAL_MODE": "enforce",
+    "MERIV3_FAST_MODEL": "gpt-6-astra"
+  },
+  "currentEcrAvailable": true,
+  "previousArtifact": {
+    "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:104",
+    "status": "ACTIVE",
+    "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:4af969e3ce20e39fa789b98470250e0287a39ece24268204b8ec2e9a8a229a6f",
+    "immutable": true,
+    "resolvedDigest": "sha256:4af969e3ce20e39fa789b98470250e0287a39ece24268204b8ec2e9a8a229a6f",
+    "taskHash": "31ff0d9477c31ab674daa7cfe5f30e701a8ffea88a241e7848dad09f86dd70a7",
+    "sourceSha": "6be5a560d5addaa1844f0687898c34a249089f76",
+    "availability": "VERIFIED",
+    "rollbackExecuted": false
+  },
+  "nextReleaseRollback": {
+    "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:85162728a9d268b797e1f264bde9eb129fb4a170304a6547b3da7a9561d628fa",
+    "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:105",
+    "configHash": "3a4fabd2139e347cd8b45192579f2a3fbaaa6fc3678762b5252f727a4461951b",
+    "basis": "Verified current healthy baseline. Retain API/web for an orchestrator-only C1 repair.",
+    "compatibilityRequires": "Next C1 patch must not change schema/API/config; requalify at its exact commit."
+  },
+  "serviceUpdated": false,
+  "cohortSummary": {
+    "MERIV3_CANARY_TENANT_SLUGS": {
+      "sha256": "4c4fbcd12e2eb42ea6bc86ab8de7412f4b8e02b2a2c6d22581742049963ae7d3",
+      "count": 11,
+      "syntheticT1Included": true
+    }
+  }
+}

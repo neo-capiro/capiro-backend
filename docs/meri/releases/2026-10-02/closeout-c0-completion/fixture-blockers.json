@@ -1,0 +1,58 @@
+{
+  "status": "EXPLICIT_FIXTURE_BLOCKERS_RETAINED",
+  "c0ExitPermitsExplicitFixtureBlockers": true,
+  "items": [
+    {
+      "id": "C0-FIXTURE-CLOCK",
+      "status": "BLOCKED",
+      "requirement": "Freeze benchmark semantics at 2026-09-26T16:00:00.000Z (September26 noon America/New_York), independently of real auth/lease/deadline clocks.",
+      "evidence": [
+        {
+          "path": "apps/meriv2-orchestrator/src/meri/chat/chat-prompt.ts",
+          "servedSource": "7c04ca368fbccc84d33c720ce7a20b9201bf6e99",
+          "sourceMatchesMain": true,
+          "sha256": "60c9ead62c13fd5b54f04cc873950c03327e6598de270369b72e6b016574fd47",
+          "finding": "Provider grounding uses new Date(); no capture semantic clock supplied."
+        },
+        {
+          "path": "apps/api/src/meri/meri-context-plane.service.ts",
+          "servedSource": "6be5a560d5addaa1844f0687898c34a249089f76",
+          "sourceMatchesMain": true,
+          "sha256": "f0f2b82aff762e4f5a35fe27d787f355c3cab8576506b31d96681784c1bb76f9",
+          "finding": "Production planning/context requests omit the optional test now field."
+        },
+        {
+          "path": "packages/meriv2-core/src/context/contract.ts",
+          "servedSource": "6be5a560d5addaa1844f0687898c34a249089f76",
+          "sourceMatchesMain": true,
+          "sha256": "2a596b62a9ae5eb081169940a8fab3a190bb3d983f5f81273d20e55fbec41966",
+          "finding": "ContextRequest.now is a deterministic test seam, not an admitted served override."
+        }
+      ],
+      "collector": "evals/meri/live-v1/memory-read-protocol.mjs sends only the prompt body; static fixture/manifest clock checks do not prove runtime injection.",
+      "scopeImpact": "Original frozen-clock acceptance remains unproved. Fresh cases are collected observations, not full original acceptance.",
+      "nextAction": "Extend the existing server-owned fixture qualification and signed capture policy with a semantic instant/timezone; propagate to API planning, ContextRequest.now, orchestrator date grounding and applicable tool date defaults; persist actual clock evidence. Reject forged/mismatched bindings. Keep auth, expiry, leases, deadlines and audit timestamps on real time.",
+      "qualification": [
+        "Frozen September26 semantic date while actual auth timestamps remain October.",
+        "Real expired policy still rejected.",
+        "Nonfixture behavior unchanged.",
+        "Tampered binding rejected.",
+        "Collector rejects unsupported clock proof.",
+        "Actual served/persisted readback after qualification."
+      ],
+      "owner": "Lead, before claiming complete original fixture acceptance"
+    },
+    {
+      "id": "C0-OLD-JOURNAL",
+      "status": "BLOCKED_FOR_OLDER_RUN_RESUMPTION",
+      "path": "C:/dev/cap-meri-foundation-evidence/oct02-original-aggregate-operator-v6/shared-spend-v2-checkpoint.json",
+      "pathPresent": false,
+      "historicalCheckpointSha256": "7f9e69b4dffb07344337e9cb4c62d8b6b495c54ae956bcc399cffd3b3cd88cb5",
+      "unknownBillingPreserved": true,
+      "historicalEvent5NotCurrentBalance": true,
+      "freshRunSeparateUserAuthority": "User explicitly said start your own; five new reservations settled for9841281 micros. This does not replace or recover the old native journal.",
+      "nextAction": "Recover the exact journal/current head and reconcile its owned saved run before any older-run resumption; respect original deadline. Do not initialize/reset/refund legacy reservations.",
+      "owner": "Lead when resuming the older run"
+    }
+  ]
+}

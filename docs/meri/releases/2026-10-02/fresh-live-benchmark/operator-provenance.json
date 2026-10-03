@@ -1,0 +1,20 @@
+{
+  "sourceSha": "c8eabab2507970dd6aefc0a0db839663b0fa21d2",
+  "capturedAt": "2026-10-03T01:40:35.5304175Z",
+  "operators": [
+    {
+      "Path": "C:\\dev\\main\\outputs\\meri-fresh-20261003\\auth-preflight.mjs",
+      "Hash": "F3D757755514C478B2F7A00572883C9C696964DC13AC1A565E4C0EF61D379414"
+    },
+    {
+      "Path": "C:\\dev\\main\\outputs\\meri-fresh-20261003\\oneoff.mjs",
+      "Hash": "E502A79E82462641F3594647A272AE3F2830552D60FA41006B69DA7F929FA7AE"
+    },
+    {
+      "Path": "C:\\dev\\main\\outputs\\meri-fresh-20261003\\run-memory.mjs",
+      "Hash": "B55F0BB92D6F221F037DDBC39FBE84EE11B131C85CC8D2F0C41DAD3E3A2D6E20"
+    }
+  ],
+  "syntaxCheck": "node --check exit 0",
+  "independentReview": "No immediate unsafe dispatch or token leak found. Run strictly sequentially. HTTP readback deadline includes corpus one-off time; preserve/reconcile the same attempt on expiry."
+}

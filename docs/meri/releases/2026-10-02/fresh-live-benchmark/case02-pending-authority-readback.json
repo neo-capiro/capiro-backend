@@ -1,0 +1,51 @@
+{
+  "fetchedAt": "2026-10-03T01:49:52.164Z",
+  "endpoint": "/api/memory/proposals?limit=50",
+  "status": 200,
+  "apiSha": "6be5a560d5addaa1844f0687898c34a249089f76",
+  "actorUserId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+  "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+  "rawResponseSha256": "35aa81215907a8fcd215e543959b2f3c39c9d221a8ebcde8991bfe96e73a215c",
+  "pageCandidateCount": 10,
+  "hasNextPage": false,
+  "candidates": [
+    {
+      "id": "dc61a9a5-5130-5c67-a7e8-19906259c34f",
+      "scope": "client",
+      "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+      "sourceKind": "model_extraction",
+      "status": "pending",
+      "createdAt": "2026-10-02T17:00:09.074Z",
+      "decidedAt": null,
+      "restricted": false,
+      "proposal": {
+        "key": "meri-foundation-20260928:f6164496-9dac-4771-980f-2f362081942e:MA2",
+        "value": "prefers SMS alerts",
+        "canonicalItem": null
+      },
+      "capabilities": {
+        "withdraw": true
+      },
+      "clientName": "Aster Defense"
+    },
+    {
+      "id": "df57e3e0-54b6-5561-a245-44a66f21224b",
+      "scope": "client",
+      "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+      "sourceKind": "model_extraction",
+      "status": "withdrawn",
+      "createdAt": "2026-10-02T17:00:03.643Z",
+      "decidedAt": "2026-10-02T17:00:03.994Z",
+      "restricted": false,
+      "proposal": {
+        "key": "meri-foundation-20260928:84a3a6a1-ddc8-4810-b120-9a5df0cf1ed9:MA2",
+        "value": "prefers SMS alerts",
+        "canonicalItem": null
+      },
+      "capabilities": {
+        "withdraw": false
+      },
+      "clientName": "Aster Defense"
+    }
+  ]
+}

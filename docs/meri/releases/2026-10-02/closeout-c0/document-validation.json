@@ -1,0 +1,13 @@
+{
+  "status": "PASS",
+  "requirementIdsPreserved": 39,
+  "originalCaseIdsPreserved": 75,
+  "cdCaseIdsPreserved": 7,
+  "cwRequiredCaseIdsPreserved": 8,
+  "originalPlanUnchanged": true,
+  "donorInventoryAndPriorCheckpointsPreserved": true,
+  "closeoutAttachmentExact": true,
+  "historicalStatusBytesPreserved": true,
+  "historicalHandoverBytesPreserved": true,
+  "productionChanges": 0
+}

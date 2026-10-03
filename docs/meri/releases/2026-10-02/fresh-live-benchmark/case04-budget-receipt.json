@@ -1,0 +1,8 @@
+{
+  "kind": "synthetic_read_budget_installed",
+  "qualificationSha256": "fe06d197ad2ad953a8719094af02aaa137b3746df1e90f2b5b70b1e2ec5a40bc",
+  "conversationId": "9b70c52b-d537-4347-b6b0-1b005aeb3e3c",
+  "captureAuthority": false,
+  "status": "SYNTHETIC_READ_BUDGET_INSTALLED",
+  "liveAcceptance": "NOT_RUN"
+}

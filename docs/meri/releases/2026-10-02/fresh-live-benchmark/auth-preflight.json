@@ -1,0 +1,7 @@
+{
+  "run": "fresh-independent-benchmark",
+  "startedAt": "2026-10-03T01:28:42.340Z",
+  "newProviderTurns": 0,
+  "status": "BLOCKED",
+  "code": "CLERK_POST_400_request_invalid_for_environment"
+}

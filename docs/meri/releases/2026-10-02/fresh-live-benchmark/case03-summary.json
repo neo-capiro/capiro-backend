@@ -1,0 +1,93 @@
+{
+  "caseId": "03",
+  "captureRunId": "65c093f9-d7ee-410c-865b-65d3683e9514",
+  "startedAt": "2026-10-03T01:49:06.072Z",
+  "status": "COLLECTED_NOT_GRADED",
+  "providerSubmissionAttempted": true,
+  "conversationId": "2755ade6-35e6-43c1-8b48-bdbff01bd3a5",
+  "chargedCostMicros": 3086726,
+  "observation": {
+    "kind": "meri-memory-read-observation",
+    "caseId": "03",
+    "captureRunId": "65c093f9-d7ee-410c-865b-65d3683e9514",
+    "conversationId": "2755ade6-35e6-43c1-8b48-bdbff01bd3a5",
+    "startedAt": "2026-10-03T01:50:44.610Z",
+    "status": "COLLECTED_NOT_GRADED",
+    "machineChecks": [
+      {
+        "check": "actor_client_current_corpus",
+        "status": "PASS"
+      },
+      {
+        "check": "one_prompt_one_saved_answer",
+        "status": "PASS"
+      },
+      {
+        "check": "fixture_corpus_unchanged",
+        "status": "PASS"
+      }
+    ],
+    "humanRubric": "NOT_REVIEWED",
+    "overallCaseStatus": "NOT_RUN",
+    "submissionAttempted": true,
+    "httpStatus": 201,
+    "completed": true,
+    "runIds": [
+      "6192b7b6-e981-456e-ae2e-90872a7e2055"
+    ],
+    "responseHashes": [
+      {
+        "name": "actor",
+        "sha256": "03595ffc23ac84194ba6ed21a18932d79f04bcde680bcdb437233eee51b602f5",
+        "status": 200
+      },
+      {
+        "name": "runtime",
+        "sha256": "cb3ba0f1e12f9aece124a24cc99d8bca6274c5c7b59cf962b9a7a39b716cc1cf",
+        "status": 200
+      },
+      {
+        "name": "conversation",
+        "sha256": "bc13022aab0de0549abfca6a3ea7a21fb296962cf6ac5915bba8e7397a39df6a",
+        "status": 200
+      },
+      {
+        "name": "messages-before",
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "status": 200
+      },
+      {
+        "name": "stream",
+        "sha256": "822de6c83b016222a2e074c52de567adb7aeae66692e91433e92195e9561287d",
+        "status": 201
+      },
+      {
+        "name": "messages-after",
+        "sha256": "09eb3664bf42533c7012d7fd64a31f4c0674a3f02a4d4cf3f228e2614fabf5f2",
+        "status": 200
+      }
+    ],
+    "savedMessageHashes": [
+      {
+        "id": "cf19a4fe-9bec-4141-9489-8d2fec602c4c",
+        "role": "user",
+        "sha256": "256489ffd69f38dc1b2cc15bf115e119958510e7b24c152b33188899b65cc15c"
+      },
+      {
+        "id": "83883226-10ef-4b01-8b95-3a6d5e0b26bb",
+        "role": "assistant",
+        "sha256": "f82a32edf13c5697b8202fe7321810819c66993828e015010e83c054a4a55a4f"
+      }
+    ],
+    "unknowns": [
+      "CURRENT_EFFECT_READBACK",
+      "SOURCE_PASSAGE_AND_CITATION_REVIEW",
+      "HUMAN_RUBRIC"
+    ],
+    "answerSha256": "cdc3c3954310f116eb8ec06d7df249e7ac712f7703a2cc724ca187d4ed45055f",
+    "finishedAt": "2026-10-03T01:54:44.022Z",
+    "budgetObservationRecorded": true
+  },
+  "sessionRevoked": true,
+  "finishedAt": "2026-10-03T01:54:45.139Z"
+}

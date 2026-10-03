@@ -1,0 +1,12 @@
+{
+  "caseId": "01",
+  "check": "delivered_citation_current_canonical_version_join",
+  "canonicalVersion": "memory-version:a5397fba-1d91-4ba9-8006-bf1fdaa90f67",
+  "deliveredVersion": "content:90a0452d6c7ff25e50040cc7f528eee9eca9630d81551a8fa6b3e756705fa2bb",
+  "computedVersion": "content:90a0452d6c7ff25e50040cc7f528eee9eca9630d81551a8fa6b3e756705fa2bb",
+  "recordIdMatches": true,
+  "versionMatches": true,
+  "displayTitle": "meri-foundation-20260928:f6164496-9dac-4771-980f-2f362081942e:APPROVED-MA1-V1",
+  "reviewer": "Codex",
+  "humanReview": false
+}

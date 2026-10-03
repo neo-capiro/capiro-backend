@@ -1,0 +1,456 @@
+{
+  "events": [
+    {
+      "type": "progress",
+      "runId": "5d5d532c-120a-4246-b8f0-e3041ca29014",
+      "phase": "preparing",
+      "note": "Preparing Meri’s response.",
+      "elapsedMs": 1000,
+      "accepted": false
+    },
+    {
+      "type": "progress",
+      "runId": "5d5d532c-120a-4246-b8f0-e3041ca29014",
+      "phase": "preparing",
+      "note": "Preparing Meri’s response.",
+      "elapsedMs": 5000,
+      "accepted": false
+    },
+    {
+      "type": "progress",
+      "runId": "5d5d532c-120a-4246-b8f0-e3041ca29014",
+      "phase": "preparing",
+      "note": "Preparing Meri’s response.",
+      "elapsedMs": 10000,
+      "accepted": false
+    },
+    {
+      "type": "turn_accepted",
+      "messageId": "6b2158f7-bf56-4335-ba96-4ebfac0bab48"
+    },
+    {
+      "type": "progress",
+      "runId": "5d5d532c-120a-4246-b8f0-e3041ca29014",
+      "phase": "preparing",
+      "note": "Your message is saved. Preparing Meri’s response.",
+      "elapsedMs": 11420
+    },
+    {
+      "type": "start",
+      "intent": "general",
+      "tier": "deep",
+      "runtime": "meriv3",
+      "reasoningMode": "standard"
+    },
+    {
+      "type": "progress",
+      "runId": "5d5d532c-120a-4246-b8f0-e3041ca29014",
+      "phase": "runtime",
+      "note": "Waiting for Meri’s reasoning runtime.",
+      "elapsedMs": 11420
+    },
+    {
+      "type": "runtime",
+      "runtime": "meriv3",
+      "model": "gpt-6-astra",
+      "reasoningMode": "deep",
+      "reasoningEffort": null,
+      "telemetry": {
+        "requestedModel": "gpt-6-astra",
+        "effectiveModel": null,
+        "requestedReasoningEffort": "high",
+        "effectiveReasoningEffort": null,
+        "reasoningFallbackReasons": [],
+        "finishReason": "not_started",
+        "partial": false
+      }
+    },
+    {
+      "type": "progress",
+      "runId": "5d5d532c-120a-4246-b8f0-e3041ca29014",
+      "phase": "provider",
+      "note": "Waiting for the LLM provider’s response.",
+      "elapsedMs": 11420
+    },
+    {
+      "type": "runtime",
+      "runtime": "meriv3",
+      "model": "gpt-6-astra",
+      "reasoningMode": "deep",
+      "reasoningEffort": "high",
+      "telemetry": {
+        "requestedModel": "gpt-6-astra",
+        "effectiveModel": "gpt-6-astra",
+        "requestedReasoningEffort": "high",
+        "effectiveReasoningEffort": "high",
+        "reasoningFallbackReasons": [],
+        "finishReason": "completed",
+        "partial": false
+      },
+      "providerCalls": [
+        {
+          "requestedModel": "gpt-6-astra",
+          "effectiveModel": "gpt-6-astra",
+          "requestedReasoningEffort": "high",
+          "effectiveReasoningEffort": "high",
+          "reasoningFallbackReasons": [],
+          "finishReason": "completed",
+          "partial": false
+        }
+      ]
+    },
+    {
+      "type": "progress",
+      "runId": "5d5d532c-120a-4246-b8f0-e3041ca29014",
+      "phase": "provider",
+      "note": "Waiting for the LLM provider’s response.",
+      "elapsedMs": 11420
+    },
+    {
+      "type": "tool_call",
+      "tool": "search_memory",
+      "label": "Searched firm memory"
+    },
+    {
+      "type": "progress",
+      "runId": "5d5d532c-120a-4246-b8f0-e3041ca29014",
+      "phase": "tools",
+      "note": "Running the requested tools and checking their results.",
+      "elapsedMs": 11420
+    },
+    {
+      "type": "sources",
+      "sources": [
+        {
+          "tool": "search_memory",
+          "label": "Searched firm memory",
+          "count": null,
+          "summary": "Completed",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "type": "progress",
+      "runId": "5d5d532c-120a-4246-b8f0-e3041ca29014",
+      "phase": "provider",
+      "note": "Waiting for Meri to continue from the tool results.",
+      "elapsedMs": 11420
+    },
+    {
+      "type": "runtime",
+      "runtime": "meriv3",
+      "model": "gpt-6-astra",
+      "reasoningMode": "deep",
+      "reasoningEffort": "high",
+      "telemetry": {
+        "requestedModel": "gpt-6-astra",
+        "effectiveModel": "gpt-6-astra",
+        "requestedReasoningEffort": "high",
+        "effectiveReasoningEffort": "high",
+        "reasoningFallbackReasons": [],
+        "finishReason": "completed",
+        "partial": false
+      },
+      "providerCalls": [
+        {
+          "requestedModel": "gpt-6-astra",
+          "effectiveModel": "gpt-6-astra",
+          "requestedReasoningEffort": "high",
+          "effectiveReasoningEffort": "high",
+          "reasoningFallbackReasons": [],
+          "finishReason": "completed",
+          "partial": false
+        },
+        {
+          "requestedModel": "gpt-6-astra",
+          "effectiveModel": "gpt-6-astra",
+          "requestedReasoningEffort": "high",
+          "effectiveReasoningEffort": "high",
+          "reasoningFallbackReasons": [],
+          "finishReason": "completed",
+          "partial": false
+        }
+      ]
+    },
+    {
+      "type": "progress",
+      "runId": "5d5d532c-120a-4246-b8f0-e3041ca29014",
+      "phase": "provider",
+      "note": "Waiting for the LLM provider’s response.",
+      "elapsedMs": 11420
+    },
+    {
+      "type": "text",
+      "text": "Aster’s approved preference is that **monthly briefs include the fiscal year, budget stage, citations, and an action owner**. [3]\n\nThat preference was last confirmed on **October 2, 2026** and is marked active, with no recorded conflict or stale-review flag. [3]\n\nThe retrieved preference record does **not specify length, tone, file format, or delivery timing within the month**. [3]"
+    },
+    {
+      "type": "progress",
+      "runId": "5d5d532c-120a-4246-b8f0-e3041ca29014",
+      "phase": "answer",
+      "note": "Receiving the response.",
+      "elapsedMs": 11420
+    },
+    {
+      "type": "runtime",
+      "runtime": "meriv3",
+      "model": "gpt-6-astra",
+      "reasoningMode": "deep",
+      "reasoningEffort": "high",
+      "telemetry": {
+        "requestedModel": "gpt-6-astra",
+        "effectiveModel": "gpt-6-astra",
+        "requestedReasoningEffort": "high",
+        "effectiveReasoningEffort": "high",
+        "reasoningFallbackReasons": [],
+        "finishReason": "completed",
+        "partial": false
+      },
+      "providerCalls": [
+        {
+          "requestedModel": "gpt-6-astra",
+          "effectiveModel": "gpt-6-astra",
+          "requestedReasoningEffort": "high",
+          "effectiveReasoningEffort": "high",
+          "reasoningFallbackReasons": [],
+          "finishReason": "completed",
+          "partial": false
+        },
+        {
+          "requestedModel": "gpt-6-astra",
+          "effectiveModel": "gpt-6-astra",
+          "requestedReasoningEffort": "high",
+          "effectiveReasoningEffort": "high",
+          "reasoningFallbackReasons": [],
+          "finishReason": "completed",
+          "partial": false
+        }
+      ]
+    },
+    {
+      "type": "progress",
+      "runId": "5d5d532c-120a-4246-b8f0-e3041ca29014",
+      "phase": "answer",
+      "note": "Finishing the response.",
+      "elapsedMs": 11420
+    },
+    {
+      "type": "usage",
+      "usage": {
+        "inputTokens": 58684,
+        "outputTokens": 316,
+        "cacheReadTokens": 28535,
+        "cacheCreationTokens": 0
+      }
+    },
+    {
+      "type": "citations",
+      "citations": [
+        {
+          "n": 3,
+          "type": "memory",
+          "id": "422b4ca9-10a8-4680-a713-3e61273a14ff",
+          "title": "meri-foundation-20260928:f6164496-9dac-4771-980f-2f362081942e:APPROVED-MA1-V1",
+          "url": null,
+          "snippet": "Monthly briefs include fiscal year, budget stage, citations and action owner",
+          "tool": "search_memory",
+          "source": {
+            "kind": "memory",
+            "recordId": "422b4ca9-10a8-4680-a713-3e61273a14ff",
+            "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+            "version": "content:90a0452d6c7ff25e50040cc7f528eee9eca9630d81551a8fa6b3e756705fa2bb"
+          }
+        }
+      ]
+    },
+    {
+      "type": "grounding_statement",
+      "statement": "Grounded in 1 retrieved source."
+    },
+    {
+      "type": "done",
+      "model": "gpt-6-astra",
+      "reasoningMode": "standard",
+      "reasoningEffort": "high",
+      "finishReason": "completed",
+      "partial": false,
+      "telemetry": {
+        "requestedModel": "gpt-6-astra",
+        "effectiveModel": "gpt-6-astra",
+        "requestedReasoningEffort": "high",
+        "effectiveReasoningEffort": "high",
+        "reasoningFallbackReasons": [],
+        "finishReason": "completed",
+        "partial": false
+      },
+      "evidenceManifest": {
+        "version": 1,
+        "packetId": "882a8c28-4c51-4126-9f8b-b00edd5615a6",
+        "sourceRecordCount": 2,
+        "projectedRecordCount": 2,
+        "truncated": false,
+        "sources": [
+          {
+            "id": "422b4ca9-10a8-4680-a713-3e61273a14ff",
+            "tool": "search_memory",
+            "origin": "tool",
+            "truncated": null
+          }
+        ]
+      },
+      "messageId": "625515d0-eb37-4519-aa82-673bad416087",
+      "contextPacketId": "882a8c28-4c51-4126-9f8b-b00edd5615a6",
+      "retrieval": {
+        "plan": {
+          "version": 1,
+          "queryClass": "semantic_recall",
+          "subjectScope": "client",
+          "targetHint": null,
+          "recipeTool": null,
+          "requireCompleteCoverage": true,
+          "requiredDomains": [
+            "institutional_knowledge"
+          ],
+          "timeWindow": null
+        },
+        "coverage": {
+          "version": 1,
+          "complete": true,
+          "requestedDomains": [
+            "institutional_knowledge"
+          ],
+          "searchedDomains": [
+            "institutional_knowledge"
+          ],
+          "missingDomains": [],
+          "partialDomains": [],
+          "requestedEntityCount": 1,
+          "searchedEntityCount": 1,
+          "recordsEvaluated": 1,
+          "recordsReturned": 1,
+          "recordsDisplayed": 1,
+          "recordsOmitted": 0,
+          "sourceCounts": [
+            {
+              "source": "institutional_knowledge",
+              "recordsReturned": 1,
+              "recordsEvaluated": 1,
+              "recordsMatched": 1,
+              "recordsDisplayed": 1,
+              "recordsOmitted": 0
+            }
+          ],
+          "paginationComplete": true,
+          "truncated": false,
+          "sourceHealth": [
+            {
+              "source": "institutional_knowledge",
+              "status": "complete",
+              "lastSyncAt": "2026-10-02T17:00:06.853Z",
+              "detail": "governed_memory_scan_complete"
+            }
+          ],
+          "unavailableSources": [],
+          "toolsInvoked": [
+            "retrieval-v2:institutional_knowledge",
+            "search_memory"
+          ],
+          "stopReason": "complete",
+          "phase": "turn",
+          "initialContext": {
+            "version": 1,
+            "complete": true,
+            "requestedDomains": [
+              "institutional_knowledge"
+            ],
+            "searchedDomains": [
+              "institutional_knowledge"
+            ],
+            "missingDomains": [],
+            "partialDomains": [],
+            "requestedEntityCount": 1,
+            "searchedEntityCount": 1,
+            "recordsEvaluated": 1,
+            "recordsReturned": 1,
+            "recordsDisplayed": 1,
+            "recordsOmitted": 0,
+            "sourceCounts": [
+              {
+                "source": "institutional_knowledge",
+                "recordsReturned": 1,
+                "recordsEvaluated": 1,
+                "recordsMatched": 1,
+                "recordsDisplayed": 1,
+                "recordsOmitted": 0
+              }
+            ],
+            "paginationComplete": true,
+            "truncated": false,
+            "sourceHealth": [
+              {
+                "source": "institutional_knowledge",
+                "status": "complete",
+                "lastSyncAt": "2026-10-02T17:00:06.853Z",
+                "detail": "governed_memory_scan_complete"
+              }
+            ],
+            "unavailableSources": [],
+            "toolsInvoked": [
+              "retrieval-v2:institutional_knowledge"
+            ],
+            "stopReason": "complete"
+          },
+          "toolReads": [
+            {
+              "source": "institutional_knowledge",
+              "tool": "search_memory",
+              "status": "complete",
+              "recordsReturned": 1,
+              "recordsEvaluated": 1,
+              "recordsMatched": 1,
+              "recordsDisplayed": 1,
+              "recordsOmitted": 0,
+              "paginationComplete": true,
+              "truncated": false,
+              "lastSyncAt": "2026-10-02T17:00:06.853Z",
+              "detail": "governed_memory_scan_complete",
+              "requestRoute": {
+                "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b"
+              }
+            }
+          ],
+          "restoredSources": []
+        }
+      },
+      "turnScope": {
+        "kind": "client",
+        "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+        "clientName": "Aster Defense",
+        "targetHint": null
+      },
+      "serverReadonlyCaptureReceipt": {
+        "version": 1,
+        "policyId": "911aa627-8933-4d5c-a6d9-3d62020154ad",
+        "fixtureNamespace": "meri-foundation-20260928",
+        "authority": "server_current",
+        "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+        "actorUserId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+        "conversationId": "55452c90-5718-4e0c-9ffd-d9bf2c3439ad",
+        "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+        "issuedAt": 1790991598401,
+        "expiresAt": 1790993112747,
+        "toolCatalogSha256": "2a79756fe40f7d180bc3569e3c3efa78dfab8761c0ed00d6be9ed0d799c52e39",
+        "dispatchBoundary": "read_only_enforced",
+        "dynamicMcpAllowed": false,
+        "incidentalWriters": "suppressed",
+        "expectedCaptureWrites": [
+          "context_packet_and_evidence",
+          "conversation_user_message",
+          "conversation_assistant_message",
+          "provider_budget_ledger"
+        ]
+      }
+    }
+  ],
+  "issues": []
+}

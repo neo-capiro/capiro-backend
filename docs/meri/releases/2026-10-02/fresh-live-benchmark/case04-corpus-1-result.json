@@ -1,0 +1,109 @@
+{
+  "status": "COMPLETE",
+  "exitCode": 0,
+  "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/f05202ec6b674e8c946704f07f10d9a0",
+  "receipts": [
+    {
+      "fixtureReady": true,
+      "missing": [],
+      "liveAcceptance": "NOT_RUN",
+      "fixtureNamespace": "meri-foundation-20260928",
+      "fixtureVersion": "meri-live-v1-2026-09-26.1",
+      "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+      "actorUserId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+      "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+      "caseId": "01",
+      "sourceMap": {
+        "MA1-v2": {
+          "frozenFixtureId": "MA1-v2",
+          "physicalId": "422b4ca9-10a8-4680-a713-3e61273a14ff",
+          "tenantPhysicalId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+          "clientPhysicalId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+          "kind": "memory",
+          "version": "memory-version:a5397fba-1d91-4ba9-8006-bf1fdaa90f67"
+        }
+      },
+      "physicalMapSha256": "cf61a870caf2099fd53f36c849189eef1188237191f2e7e9e2c6d9c4c6511974",
+      "currentVerify": {
+        "kind": "meri-case01-canonical-current-verification",
+        "fixtureInstanceId": "f6164496-9dac-4771-980f-2f362081942e",
+        "manifestContentSha256": "fa06fed8bb19d65a67adc3695e04e3f03ab1ec7e6d2fb3cdd9fc40b94264f260",
+        "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+        "actorUserId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+        "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+        "caseId": "01",
+        "current": {
+          "correction": {
+            "syntheticFixtureCandidateId": "a9de2fb9-0015-58b3-a0b1-8c1dc88797b0",
+            "syntheticFixtureMarkerSha256": "052bd9413b58e607a13a3f6e610416d35f49959bd96e09bbbea3d8e5fbd2b403",
+            "syntheticFixtureCandidateRowVersion": "113660257",
+            "syntheticFixtureItemRowVersion": "113660257",
+            "itemId": "422b4ca9-10a8-4680-a713-3e61273a14ff",
+            "itemRowVersion": "113660264",
+            "sourceVersion": "memory-version:a5397fba-1d91-4ba9-8006-bf1fdaa90f67",
+            "sourceContentHash": "455a1a88c2daca0c6e94c6d91201cca538518cae96c1368e38ad137fd8eab89a",
+            "rootRowVersion": "113660264",
+            "candidateRowVersion": "113660264",
+            "candidateId": "a5397fba-1d91-4ba9-8006-bf1fdaa90f67",
+            "correctionAuditId": "60247155-2d7b-4e73-ba7e-5e39bee4f129",
+            "supersessionAuditId": "1b73c96b-ace8-4dd0-96c4-7e6f138bae8a",
+            "approvalAuditId": "851371c6-ec7f-4670-afd9-c17411aa42b3",
+            "cleanupIntentId": "dca61734-aa48-46f9-b079-2ca6f4e144c6",
+            "rootItemId": "b4b2379f-d4ac-42f2-afa8-7dd56e220464",
+            "status": "active",
+            "rootStatus": "superseded"
+          },
+          "approved": {
+            "syntheticFixtureCandidateId": "6e550ca2-20b2-5aca-be2a-254fb0b0f32b",
+            "syntheticFixtureMarkerSha256": "17c8c2f82f030496d2c099ffadeb3c866b4d798233290a431ff73ce9df513024",
+            "syntheticFixtureCandidateRowVersion": "113660268",
+            "syntheticFixtureItemRowVersion": "113660268"
+          },
+          "revoked": {
+            "syntheticFixtureCandidateId": "f6915255-4f53-5228-ba62-553fd1455d6c",
+            "syntheticFixtureMarkerSha256": "0fde579f035e65c5b77e33eee5aa6001060b633ee6727f7b002b34a273499738",
+            "syntheticFixtureCandidateRowVersion": "113660275",
+            "syntheticFixtureItemRowVersion": "113660275",
+            "rowVersion": "113660280",
+            "transitionAuditId": "8698b58d-e91f-4521-a2c0-46ecef096bb3",
+            "cleanupIntentId": "20ddb7c6-3f30-47a8-aafd-edf025cfff80",
+            "itemId": "c09cd0b2-7af4-49e9-b6dc-f5cb04baee8e",
+            "candidateId": "f6915255-4f53-5228-ba62-553fd1455d6c",
+            "status": "revoked",
+            "governedStatus": "revoked",
+            "retained": true
+          },
+          "proposed": {
+            "syntheticFixtureMarkerSha256": "ad87c117f14620803a10d1bd8539737b96ea6a3815023ad2394a3bfe31219ca1",
+            "syntheticFixturePriorRowVersion": "113660283"
+          },
+          "negativeVersions": [
+            {
+              "id": "4cc6ec9e-7f1b-4776-b29d-1b52cc12d41f",
+              "client_id": "494f6834-d09e-4723-8a64-b2df57c683e8",
+              "status": "active",
+              "governed_status": "active",
+              "row_version": "113660268"
+            },
+            {
+              "id": "c09cd0b2-7af4-49e9-b6dc-f5cb04baee8e",
+              "client_id": "41f9ec63-3963-479f-b747-59a3767ef44b",
+              "status": "revoked",
+              "governed_status": "revoked",
+              "row_version": "113660280"
+            }
+          ]
+        },
+        "resetReceiptSha256": "53f42f2e20e820546a078ffbfd6f7794b8acab158d2c69ed1eae5fdb331a5763",
+        "seedReceiptSha256": "daea43730b9946592d7e66073dfc6f789d34948ed7980992d42f7b74a9bf2c62"
+      },
+      "currentVerifySha256": "177bf9befa20f94f7e0a7318e259155915401b128c1e917d4c71cc4e3d96825b",
+      "seedReceiptId": "meri-synthetic-fixture-seed-receipt:sha256:daea43730b9946592d7e66073dfc6f789d34948ed7980992d42f7b74a9bf2c62",
+      "resetReceiptId": "meri-synthetic-fixture-reset-receipt:sha256:53f42f2e20e820546a078ffbfd6f7794b8acab158d2c69ed1eae5fdb331a5763",
+      "evidenceKind": "canonical-memory-corpus-readback",
+      "captureAuthority": false,
+      "status": "MEMORY_CORPUS_READ"
+    }
+  ],
+  "stoppedAt": "2026-10-02T21:58:11.942000-04:00"
+}

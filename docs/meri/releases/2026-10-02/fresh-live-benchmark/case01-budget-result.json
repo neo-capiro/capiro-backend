@@ -1,0 +1,16 @@
+{
+  "status": "COMPLETE",
+  "exitCode": 0,
+  "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/0e2884735bb4467786b9ce0c398f5868",
+  "receipts": [
+    {
+      "kind": "synthetic_read_budget_installed",
+      "qualificationSha256": "9ded2743ac47c55240e7eae05a7147aab34ff354d014ac39bcdc0528899aa2d9",
+      "conversationId": "55452c90-5718-4e0c-9ffd-d9bf2c3439ad",
+      "captureAuthority": false,
+      "status": "SYNTHETIC_READ_BUDGET_INSTALLED",
+      "liveAcceptance": "NOT_RUN"
+    }
+  ],
+  "stoppedAt": "2026-10-02T21:37:51.906000-04:00"
+}

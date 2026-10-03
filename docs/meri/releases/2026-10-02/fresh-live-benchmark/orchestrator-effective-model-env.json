@@ -1,0 +1,94 @@
+[
+    {
+        "name": "MERI_AUDITOR_MODE",
+        "value": "enforce"
+    },
+    {
+        "name": "MERI_CLAIM_ASSESSMENT_MODE",
+        "value": "shadow"
+    },
+    {
+        "name": "MERI_JEV_PROVIDER_SURFACES",
+        "value": "chat"
+    },
+    {
+        "name": "MERI_JEV_TIMEOUT_MS",
+        "value": "8000"
+    },
+    {
+        "name": "MERIV3_DEEP_MODEL",
+        "value": "gpt-6-astra"
+    },
+    {
+        "name": "MERIV3_MODEL",
+        "value": "gpt-6-astra"
+    },
+    {
+        "name": "MERI_JEV_TASKS",
+        "value": "claim_support,passage_relevance"
+    },
+    {
+        "name": "MERI_PASSAGE_SELECTION_MODE",
+        "value": "enforce"
+    },
+    {
+        "name": "MERIV3_MAX_MODEL",
+        "value": "gpt-6-astra"
+    },
+    {
+        "name": "MERIV3_STANDARD_REASONING_EFFORT",
+        "value": "medium"
+    },
+    {
+        "name": "MERIV3_MAX_REASONING_EFFORT",
+        "value": "max"
+    },
+    {
+        "name": "OPENAI_MODEL",
+        "value": "gpt-6-astra"
+    },
+    {
+        "name": "MERIV3_FAST_REASONING_EFFORT",
+        "value": "low"
+    },
+    {
+        "name": "MERI_JEV_PROVIDER_MODE",
+        "value": "enforce"
+    },
+    {
+        "name": "MERI_EVIDENCE_ACCURACY_MODE",
+        "value": "enforce"
+    },
+    {
+        "name": "ANTHROPIC_MODEL",
+        "value": "claude-sonnet-5"
+    },
+    {
+        "name": "MERI_AUTO_CORRECTION_MODE",
+        "value": "shadow"
+    },
+    {
+        "name": "MERI_JEV_PROVIDER_TENANTS",
+        "value": "all"
+    },
+    {
+        "name": "MERI_JEV_MODEL",
+        "value": "jev-1.13.0"
+    },
+    {
+        "name": "MERIV3_DEEP_REASONING_EFFORT",
+        "value": "high"
+    },
+    {
+        "name": "MERI_COVERAGE_RETRIEVAL_MODE",
+        "value": "enforce"
+    },
+    {
+        "name": "MERIV3_FAST_MODEL",
+        "value": "gpt-6-astra"
+    },
+    {
+        "name": "MERI_JEV_MAX_ATTEMPTS",
+        "value": "2"
+    }
+]

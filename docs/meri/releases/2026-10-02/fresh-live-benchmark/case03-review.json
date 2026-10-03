@@ -1,0 +1,20 @@
+{
+  "caseId": "03",
+  "reviewer": "Codex",
+  "humanReview": false,
+  "revokedMemoryBoundary": "Observed answer withheld outreach recommendation; delivered citation points to current MA1-v2, not revoked MA3.",
+  "coverageRelevanceStatus": "FAIL",
+  "observedDefect": "Question about Office Delta receives an unrelated fiscal-year budget-delta evidence warning.",
+  "answerEvidence": "case03-capture/messages-after.json",
+  "exactFooter": "Evidence limitation: A delta is valid only between positions with the same fiscal year, funding scope, units, and compatible vehicle stages; that part of the answer remains limited because the source was never called.",
+  "cause": "Assurance evidence-plan maps the standalone word delta to budget_delta without requiring financial context. The coverage footer then appends that unresolved essential requirement.",
+  "sourceLocations": [
+    "packages/meriv2-core/src/assurance/evidence-plan.ts:447",
+    "packages/meriv2-core/src/assurance/evidence-plan.ts:164",
+    "apps/meriv2-orchestrator/src/meri/retrieval/meri-evidence-requirements.ts:523",
+    "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts:3921"
+  ],
+  "toolBoundary": "Only search_memory succeeded. Other listed delegated reads returned HTTP500; the synthetic budget guard permits only search_memory and rejects unqualified tools before dispatch. These failures do not establish provider outages.",
+  "toolBoundarySource": "apps/api/src/meri/meri-tools.service.ts:2531",
+  "fullOriginalAcceptance": false
+}

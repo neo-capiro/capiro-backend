@@ -1,0 +1,120 @@
+{
+  "observedAt": "2026-10-03T01:15:52.397Z",
+  "profile": "capiro-dev",
+  "account": "967807252336",
+  "identityVerified": true,
+  "correction": "Previous NoCredentials applies only to explicitly forced default profile. Existing AWS_PROFILE=capiro-dev is configured and authenticates successfully. No new credentials needed.",
+  "commands": [
+    "aws sts get-caller-identity --profile capiro-dev --region us-east-1 --no-cli-pager",
+    "node scripts/meri-release.mjs inspect --service api --profile capiro-dev",
+    "node scripts/meri-release.mjs inspect --service meriv2-orchestrator --profile capiro-dev",
+    "node scripts/meri-release.mjs inspect --service web-vnext --profile capiro-dev"
+  ],
+  "exitCodes": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "services": {
+    "api": {
+      "action": "inspected-not-qualified",
+      "observedAt": "2026-10-03T01:15:52.397Z",
+      "service": "api",
+      "baseline": {
+        "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:515",
+        "serviceHash": "9ef55d473f9f1be8ebaabee7ca1e6c02cb003be8ce1db29dbd570b4c97a29d17",
+        "configHash": "973748a2b134b388a6027df6c5c099055a7e24f7b746eafbaae8cebad077258a",
+        "taskHash": "469dcd8139dbba76076eb32adfd65c6b85eab9bb23e34e8ba2eb37b6e7d9d9e8",
+        "imageDigest": "sha256:5e52f9b06658b0462672d070928e0c2afd6ea229b61c3b887371f3f66196c316",
+        "desiredCount": 2
+      },
+      "taskImage": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:5e52f9b06658b0462672d070928e0c2afd6ea229b61c3b887371f3f66196c316",
+      "deploymentConfiguration": {
+        "deploymentCircuitBreaker": {
+          "enable": false,
+          "rollback": false,
+          "resetOnHealthyTask": true,
+          "thresholdConfiguration": {
+            "type": "BOUNDED_PERCENT",
+            "value": 50
+          }
+        },
+        "maximumPercent": 200,
+        "minimumHealthyPercent": 100,
+        "strategy": "ROLLING",
+        "bakeTimeInMinutes": 0
+      },
+      "awsMutation": false
+    },
+    "meriv2-orchestrator": {
+      "action": "inspected-not-qualified",
+      "observedAt": "2026-10-03T01:15:52.397Z",
+      "service": "meriv2-orchestrator",
+      "baseline": {
+        "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:105",
+        "serviceHash": "c16c8afa7c6f03e001cc4271eadf75ba4f3259f5f2579c62b09a3f2c46c8d88f",
+        "configHash": "3a4fabd2139e347cd8b45192579f2a3fbaaa6fc3678762b5252f727a4461951b",
+        "taskHash": "763f28c84802d3d1268fcfedf7d4d1870bae1938196d6d9b24fc2f2e8e67f4d4",
+        "imageDigest": "sha256:85162728a9d268b797e1f264bde9eb129fb4a170304a6547b3da7a9561d628fa",
+        "desiredCount": 1
+      },
+      "taskImage": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:85162728a9d268b797e1f264bde9eb129fb4a170304a6547b3da7a9561d628fa",
+      "deploymentConfiguration": {
+        "deploymentCircuitBreaker": {
+          "enable": true,
+          "rollback": true,
+          "resetOnHealthyTask": true,
+          "thresholdConfiguration": {
+            "type": "BOUNDED_PERCENT",
+            "value": 50
+          }
+        },
+        "maximumPercent": 200,
+        "minimumHealthyPercent": 100,
+        "strategy": "ROLLING",
+        "bakeTimeInMinutes": 0
+      },
+      "awsMutation": false
+    },
+    "web-vnext": {
+      "action": "inspected-not-qualified",
+      "observedAt": "2026-10-03T01:15:52.397Z",
+      "service": "web-vnext",
+      "baseline": {
+        "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web-vnext:388",
+        "serviceHash": "16238627fc523b6470c76cbd86c6a54bca422f86d72f2a7ba0312cc326d139e2",
+        "configHash": "453a3d5aedc3da7d989370b97669abf0c1b14efbacd2d1597990b9cac7d50ab7",
+        "taskHash": "ce2035e6773a77eeda0adcf86dd4a7043624b3d75d8d32a74000f3d930f55211",
+        "imageDigest": "sha256:a048aceec01c207b514f76fb447d4fb8bdb5ed17278642480008a1510a12de4c",
+        "desiredCount": 1
+      },
+      "taskImage": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:a048aceec01c207b514f76fb447d4fb8bdb5ed17278642480008a1510a12de4c",
+      "deploymentConfiguration": {
+        "deploymentCircuitBreaker": {
+          "enable": true,
+          "rollback": true,
+          "resetOnHealthyTask": true,
+          "thresholdConfiguration": {
+            "type": "BOUNDED_PERCENT",
+            "value": 50
+          }
+        },
+        "maximumPercent": 200,
+        "minimumHealthyPercent": 100,
+        "alarms": {
+          "alarmNames": [],
+          "rollback": false,
+          "enable": false
+        },
+        "strategy": "ROLLING",
+        "bakeTimeInMinutes": 0
+      },
+      "awsMutation": false
+    }
+  },
+  "coverageCandidateAlreadyDeployed": true,
+  "cloudWrites": 0,
+  "providerSubmissions": 0,
+  "remainingLimit": "Original native journal/checkpoint and physical fixture mappings not located. Effective per-turn model and tenant flags still require authenticated run evidence."
+}

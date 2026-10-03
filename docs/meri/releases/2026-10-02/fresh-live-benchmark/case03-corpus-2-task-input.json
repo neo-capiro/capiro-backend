@@ -1,0 +1,43 @@
+{
+  "cluster": "capiro-dev",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-fresh-benchmark-20261003:1",
+  "launchType": "FARGATE",
+  "platformVersion": "LATEST",
+  "networkConfiguration": {
+    "awsvpcConfiguration": {
+      "subnets": [
+        "subnet-0e38bd390f8961fef",
+        "subnet-0920665f91c905f01",
+        "subnet-06db79cd21239de19"
+      ],
+      "securityGroups": [
+        "sg-01def4e5c0fe44d4a"
+      ],
+      "assignPublicIp": "DISABLED"
+    }
+  },
+  "count": 1,
+  "startedBy": "meri-fresh-6065ae55-0606-4826-b",
+  "clientToken": "60437dcd-a71b-4165-89ef-d22cf6d408da",
+  "overrides": {
+    "containerOverrides": [
+      {
+        "name": "meri-fresh-benchmark",
+        "command": [
+          "meri-synthetic-read-budget",
+          "read-corpus",
+          "--input-env",
+          "MERI_SYNTHETIC_READ_BUDGET_INPUT",
+          "--out",
+          "/dev/shm/case03-corpus-2.json"
+        ],
+        "environment": [
+          {
+            "name": "MERI_SYNTHETIC_READ_BUDGET_INPUT",
+            "value": "{\"target\":\"capiro-dev\",\"fixtureNamespace\":\"meri-foundation-20260928\",\"confirmation\":\"READ_CURRENT_OWNED_MEMORY_CORPUS\",\"ctx\":{\"tenantId\":\"f2d6cf8f-057c-479a-8110-62fe5086d43f\",\"tenantSlug\":\"meri-foundation-20260928-t1\",\"userId\":\"b1f758fc-17bd-40f8-bef2-fa2d2380300f\",\"clerkUserId\":\"user_3Jw2FvWZkYGKmxWGx13tNJxFD2A\",\"role\":\"standard_user\"},\"clientId\":\"41f9ec63-3963-479f-b747-59a3767ef44b\"}"
+          }
+        ]
+      }
+    ]
+  }
+}

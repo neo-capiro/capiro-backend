@@ -1,0 +1,44 @@
+import { readFileSync,writeFileSync } from 'node:fs';
+import { randomUUID,createHash } from 'node:crypto';
+import { aws,need } from '../meri-fresh-20261003/auth-preflight.mjs';
+const root='C:/dev/main/outputs/meri-c0-completion-20261002';
+const save=(name,v)=>writeFileSync(root+'/'+name,JSON.stringify(v,null,2)+'\n',{flag:'wx'});
+const read=p=>JSON.parse(readFileSync(p,'utf8'));
+const delay=ms=>new Promise(r=>setTimeout(r,ms));
+const identity=aws(['sts','get-caller-identity']);need(identity.Account==='967807252336','WRONG_ACCOUNT');
+const source=read(root+'/api-current.json');
+const service=aws(['ecs','describe-services','--cluster','capiro-dev','--services','capiro-dev-api']).services[0];
+need(service.taskDefinition===source.taskDefinitionArn && service.deployments.length===1,'SERVICE_DRIFT');
+const td=aws(['ecs','describe-task-definition','--task-definition',service.taskDefinition]).taskDefinition;
+const api=td.containerDefinitions.find(c=>c.name==='api');need(api.image===source.image,'IMAGE_DRIFT');
+const script=readFileSync(root+'/schema-read.mjs','utf8');
+const def=Object.fromEntries(['executionRoleArn','networkMode','requiresCompatibilities','cpu','memory','runtimePlatform'].map(k=>[k,td[k]]));
+def.family='capiro-dev-meri-c0-readonly-20261002';
+def.containerDefinitions=[{name:'meri-c0-readonly',image:api.image,essential:true,entryPoint:['node','--input-type=module','-e'],command:[script],environment:api.environment.filter(e=>['DB_NAME','GIT_SHA','RELEASE_SHA'].includes(e.name)),secrets:api.secrets.filter(s=>['DB_HOST','DB_PORT','DB_USER','DB_PASSWORD'].includes(s.name)),logConfiguration:{...api.logConfiguration,options:{...api.logConfiguration.options,'awslogs-stream-prefix':'meri-c0-completion-20261002'}}}];
+need(def.containerDefinitions[0].secrets.length===4,'DB_REFERENCES_MISSING');
+save('schema-task-definition-input.json',def);
+const registered=aws(['ecs','register-task-definition','--cli-input-json','file://'+root+'/schema-task-definition-input.json']);
+const definition=registered.taskDefinition.taskDefinitionArn;
+save('schema-task-definition.json',{definition,image:api.image,scriptSha256:createHash('sha256').update(script).digest('hex'),taskRoleIncluded:false,registeredAt:new Date().toISOString()});
+let taskArn,task;
+try {
+  const request={cluster:'capiro-dev',taskDefinition:definition,launchType:'FARGATE',platformVersion:service.platformVersion,networkConfiguration:service.networkConfiguration,count:1,startedBy:'meri-c0-'+randomUUID().slice(0,20),clientToken:randomUUID()};
+  save('schema-task-input.json',request);
+  const started=aws(['ecs','run-task','--cli-input-json','file://'+root+'/schema-task-input.json']);
+  need(started.tasks?.length===1&&!started.failures?.length,'START_FAILED');
+  taskArn=started.tasks[0].taskArn;save('schema-task-start.json',{taskArn,at:new Date().toISOString()});
+  console.log(JSON.stringify({status:'READ_ONLY_SCHEMA_TASK_STARTED',taskArn}));
+  const deadline=Date.now()+8*60*1000;
+  do {await delay(5000);const r=aws(['ecs','describe-tasks','--cluster','capiro-dev','--tasks',taskArn]);need(!r.failures?.length&&r.tasks.length===1,'TASK_LOST');task=r.tasks[0];need(task.taskDefinitionArn===definition,'DEFINITION_DRIFT');}while(task.lastStatus!=='STOPPED'&&Date.now()<deadline);
+  need(task.lastStatus==='STOPPED','READ_TASK_TIMEOUT');
+  const stream='meri-c0-completion-20261002/meri-c0-readonly/'+taskArn.split('/').at(-1);
+  const events=aws(['logs','get-log-events','--log-group-name',api.logConfiguration.options['awslogs-group'],'--log-stream-name',stream,'--start-from-head']);
+  const receipts=events.events.map(e=>e.message).filter(m=>m.startsWith('MERI_C0_SCHEMA_RECEIPT ')).map(m=>JSON.parse(m.slice('MERI_C0_SCHEMA_RECEIPT '.length)));
+  save('schema-result.json',{taskArn,exitCode:task.containers[0].exitCode,receipts,stoppedAt:task.stoppedAt});
+  need(task.containers[0].exitCode===0&&receipts.length===1&&receipts[0].status==='READBACK_COMPLETE','READBACK_FAILED');
+  console.log(JSON.stringify({status:'SCHEMA_READ_COMPLETE',packagedMigrations:receipts[0].packagedMigrationCount,ledgerRows:receipts[0].ledger.length,missing:receipts[0].missingSourceMigrations.length,historicalDifferences:receipts[0].historicalChecksumDifferences.length,unfinished:receipts[0].unfinished.length}));
+} finally {
+  if(taskArn&&task?.lastStatus!=='STOPPED')aws(['ecs','stop-task','--cluster','capiro-dev','--task',taskArn,'--reason','Bounded C0 schema read cleanup']);
+  const deactivated=aws(['ecs','deregister-task-definition','--task-definition',definition]);
+  save('schema-cleanup.json',{at:new Date().toISOString(),taskArn:taskArn??null,taskStopped:task?.lastStatus==='STOPPED',definition,status:deactivated.taskDefinition.status,serviceUpdated:false});
+}

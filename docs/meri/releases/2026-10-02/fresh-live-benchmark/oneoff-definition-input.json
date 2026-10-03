@@ -1,0 +1,98 @@
+{
+  "taskRoleArn": "arn:aws:iam::967807252336:role/Capiro-dev-Compute-ApiTaskRole12FAD4A7-szq3QeeZJSCQ",
+  "executionRoleArn": "arn:aws:iam::967807252336:role/Capiro-dev-Compute-ApiTaskDefExecutionRoleE6ABB053-YlEDKuUPHjLg",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": [
+    "FARGATE"
+  ],
+  "cpu": "512",
+  "memory": "1024",
+  "runtimePlatform": {
+    "cpuArchitecture": "ARM64",
+    "operatingSystemFamily": "LINUX"
+  },
+  "family": "capiro-dev-meri-fresh-benchmark-20261003",
+  "containerDefinitions": [
+    {
+      "name": "meri-fresh-benchmark",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:5e52f9b06658b0462672d070928e0c2afd6ea229b61c3b887371f3f66196c316",
+      "essential": true,
+      "environment": [
+        {
+          "name": "DB_NAME",
+          "value": "capiro"
+        },
+        {
+          "name": "GIT_SHA",
+          "value": "6be5a560d5addaa1844f0687898c34a249089f76"
+        },
+        {
+          "name": "RELEASE_SHA",
+          "value": "6be5a560d5addaa1844f0687898c34a249089f76"
+        },
+        {
+          "name": "AWS_REGION_DEFAULT",
+          "value": "us-east-1"
+        },
+        {
+          "name": "MEMORY_CLIENT_REVIEW",
+          "value": "enforce"
+        },
+        {
+          "name": "MEMORY_GOVERNANCE_LIFECYCLE",
+          "value": "enforce"
+        },
+        {
+          "name": "MEMORY_GOVERNANCE_CENTER",
+          "value": "enforce"
+        },
+        {
+          "name": "MEMORY_GOVERNANCE_ENFORCE",
+          "value": "enforce"
+        },
+        {
+          "name": "MERI_SYNTHETIC_FIXTURE_NAMESPACE",
+          "value": "meri-foundation-20260928"
+        },
+        {
+          "name": "TMPDIR",
+          "value": "/dev/shm"
+        },
+        {
+          "name": "MEMORY_GOVERNANCE_TENANTS",
+          "value": "f2d6cf8f-057c-479a-8110-62fe5086d43f,52e91176-08f0-4d89-9633-bc212f5bdbbf"
+        }
+      ],
+      "secrets": [
+        {
+          "name": "DB_HOST",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/dev/aurora/master-P4z1Vo:host::"
+        },
+        {
+          "name": "DB_PORT",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/dev/aurora/master-P4z1Vo:port::"
+        },
+        {
+          "name": "DB_USER",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/dev/aurora/app-zNPtsU:username::"
+        },
+        {
+          "name": "DB_PASSWORD",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/dev/aurora/app-zNPtsU:password::"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/capiro/dev/api",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "meri-fresh-20261003"
+        },
+        "secretOptions": []
+      },
+      "dockerLabels": {
+        "org.opencontainers.image.revision": "6be5a560d5addaa1844f0687898c34a249089f76"
+      }
+    }
+  ]
+}

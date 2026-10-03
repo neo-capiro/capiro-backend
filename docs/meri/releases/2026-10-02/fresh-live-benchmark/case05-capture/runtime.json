@@ -1,0 +1,10 @@
+{
+  "method": "GET",
+  "path": "/api/clio/status",
+  "status": 200,
+  "releaseSha": "6be5a560d5addaa1844f0687898c34a249089f76",
+  "body": {
+    "configured": true,
+    "healthy": true
+  }
+}

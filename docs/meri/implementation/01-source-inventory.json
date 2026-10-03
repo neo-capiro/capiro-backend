@@ -1094,7 +1094,10 @@
         "report": "C:/dev/cap-meri-foundation-evidence/review-status-provenance-residual-report.md",
         "sourceSha": "1f6dcdfa02ef93d2443638eac56a1775e7bff809",
         "result": "10 core + 19 runtime + 81 assistant tests and 22 additional direct probes exited 0",
-        "notRun": ["authenticated live cases 71-72", "CW-07"]
+        "notRun": [
+          "authenticated live cases 71-72",
+          "CW-07"
+        ]
       },
       "remainingGap": "No token/cost reservation, durable or child-shared budget, tenant metering, queue admission, restart-safe state, universal provider retry accounting or live acceptance.",
       "rollback": "File-01 lead/P1C native-runtime owner reverts the application replay commits; preserve action receipts and do not replay exhausted effects.",
@@ -1228,7 +1231,9 @@
         {
           "upstream": "tests/agent/test_compression_stall_deterministic_fallback.py",
           "capiroPath": "apps/api/src/meri/meri-compaction.helpers.spec.ts",
-          "capiroTests": ["keeps bounded state across many short turns without another model call"]
+          "capiroTests": [
+            "keeps bounded state across many short turns without another model call"
+          ]
         }
       ],
       "observedTestReceipt": {
@@ -1441,7 +1446,15 @@
         "report": "C:/dev/cap-meri-foundation-evidence/review-procedure-version-repair-report.md",
         "sourceSha": "7acbf3607247ee5d7e9968b8ca5083331809785c",
         "result": "4 suites / 51 tests exited 0; independent PostgreSQL 16/Prisma version-conflict and current-binding probes exited 0",
-        "notRun": ["CD-01", "CD-02", "CD-03", "CD-04", "CD-05", "CD-06", "CD-07"]
+        "notRun": [
+          "CD-01",
+          "CD-02",
+          "CD-03",
+          "CD-04",
+          "CD-05",
+          "CD-06",
+          "CD-07"
+        ]
       },
       "remainingGap": "No integrated served binding, durable selected starter identity, complete meetings/source coverage, invocation freshness or authenticated CD execution.",
       "rollback": "File-01 lead/P1B firm-skill owner reverts the application slice and stops publishing the canonical procedure; review persisted procedure JSON before fallback.",
@@ -1563,14 +1576,22 @@
           "id": "H4",
           "classification": "ADAPTED",
           "integrationStatus": "INTEGRATED_BOUNDED",
-          "sourceCommits": ["25a609b26", "5d25c7d89"],
+          "sourceCommits": [
+            "25a609b26",
+            "5d25c7d89"
+          ],
           "evidence": "Progressive search/describe/owner-schema dispatch plus current disclosure/invocation authority. Independent156 runtime tests +9 fresh actual-assistant probes +both types0; combined168/runtime type0. THIRD_PARTY_NOTICES already includes H4 donor paths. Full source-family/CD7/live adoption acceptance remains NOT_RUN."
         },
         {
           "id": "H5",
           "classification": "ADAPTED",
           "integrationStatus": "INTEGRATED_BOUNDED",
-          "sourceCommits": ["5a1985ce9", "f600db3f4", "aee26babd", "9d5eb22f9"],
+          "sourceCommits": [
+            "5a1985ce9",
+            "f600db3f4",
+            "aee26babd",
+            "9d5eb22f9"
+          ],
           "reviewedCandidate": "957e4b13701cc6de27b089600e66a8f209126a24",
           "evidence": "Served procedure binding/current uncached owner/version and after-await selected-client checks integrated. Independent87API +5 fresh probes +7runtime/APItype0 for last repair; final combined transport/procedure39API tests0. Full source families and CD7 remain NOT_RUN."
         },
@@ -1624,6 +1645,158 @@
           "sha256": "115e5f4afdd0bb9aa8f16642cfd77d8080d563e79574abda0570de577f8d80f0"
         }
       ]
+    },
+    {
+      "at": "2026-10-03T00:46:27.885143+00:00",
+      "capiroSourceSha": "723735ed1f5c562ab10e6077c67261285ea102fd",
+      "recordType": "C0_CURRENT_SOURCE_RECONCILIATION",
+      "fullAcceptanceClaimed": false,
+      "deployed": "UNVERIFIED",
+      "evidence": "docs/meri/releases/2026-10-02/closeout-c0/README.md",
+      "dispositions": [
+        {
+          "id": "H1",
+          "classification": "ADAPTED_BOUNDED_PRESENT",
+          "paths": [
+            "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-run-budget.ts"
+          ],
+          "remaining": "Uniform ordinary/child/JEV durable cost/token acceptance in C3.",
+          "sourceHashes": {
+            "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-run-budget.ts": "b7e0c3e2e90d8161e70b950b62df3e131bf50470eacbec7aec1ad2dd7a2c49f6"
+          }
+        },
+        {
+          "id": "H2",
+          "classification": "ADAPTED_BOUNDED_PRESENT",
+          "paths": [
+            "apps/api/src/meri/meri-compaction.helpers.ts"
+          ],
+          "remaining": "Whole provider input/pairing/revocation acceptance in C3.",
+          "sourceHashes": {
+            "apps/api/src/meri/meri-compaction.helpers.ts": "86e0766a6ec3adb739b71c708fb9117f6fded4a16bf2571bd99ec235b31b2f3c"
+          }
+        },
+        {
+          "id": "H3",
+          "classification": "CURRENT_NATIVE_IMPLEMENTATION_PRESENT_PROVENANCE_NOT_RECLASSIFIED",
+          "paths": [
+            "apps/api/src/meri/meri-citations.helpers.ts",
+            "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-tool-evidence.ts"
+          ],
+          "remaining": "Exact source/version/consulted-only served proof; presence is not proof of donor adaptation.",
+          "sourceHashes": {
+            "apps/api/src/meri/meri-citations.helpers.ts": "8a975a8ee1cd3f41e75285ff236b566205b335106f2e5c09946de6a0586a12dc",
+            "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-tool-evidence.ts": "97b4e1c6e47b78681ca83e477f97659fd2f7764309a4defb673fe318d6f13449"
+          }
+        },
+        {
+          "id": "H4",
+          "classification": "ADAPTED_BOUNDED_PRESENT",
+          "paths": [
+            "apps/meriv2-orchestrator/src/meri/meriv3/meri-progressive-tool-discovery.ts"
+          ],
+          "remaining": "Actual served schema exposure/caller/current authority and CD acceptance.",
+          "sourceHashes": {
+            "apps/meriv2-orchestrator/src/meri/meriv3/meri-progressive-tool-discovery.ts": "dd87343151feb9ffbd62f7adcbd66d87b8107eff49c1b2e2746acffe61d89685"
+          }
+        },
+        {
+          "id": "H5",
+          "classification": "ADAPTED_BOUNDED_PRESENT",
+          "paths": [
+            "apps/api/src/meri/meri-procedure-runtime.ts",
+            "apps/api/src/meri/skills/commitments-audit.procedure.ts"
+          ],
+          "remaining": "All CD-01–07 including source/coverage/effect variants.",
+          "sourceHashes": {
+            "apps/api/src/meri/meri-procedure-runtime.ts": "233cd8d55792485a99d33a2281806dfc4e9f77c3443bd9cb41368330a3666b4d",
+            "apps/api/src/meri/skills/commitments-audit.procedure.ts": "0634e22cb494ea69fd3d857e9375ce63f2543d5af8d9292a7a58a95d455dca28"
+          }
+        },
+        {
+          "id": "O1",
+          "classification": "RETAINED_NATIVE_IMPLEMENTATION_PRESENT",
+          "paths": [
+            "apps/meriv2-orchestrator/src/meri/meriv3/openai-responses.client.ts"
+          ],
+          "remaining": "Malformed/incomplete call and call-ID outcomes through served path.",
+          "sourceHashes": {
+            "apps/meriv2-orchestrator/src/meri/meriv3/openai-responses.client.ts": "3c177b77da6f06c1cb92d3b57b46da3ce2927f26b7b8147eb8d31fb4e08d42f0"
+          }
+        },
+        {
+          "id": "L1",
+          "classification": "RETAINED_NATIVE_IMPLEMENTATION_PRESENT_NO_COPY_CLAIM",
+          "paths": [
+            "apps/web/src/vnext/meri/MeriApprovalsTab.tsx"
+          ],
+          "remaining": "Actual in-Meri decisions/reload/unknown effects; no new LibreChat adoption claimed.",
+          "sourceHashes": {
+            "apps/web/src/vnext/meri/MeriApprovalsTab.tsx": "36e0e40cfc0bfd9cc2f2ea1885320cb7c4e595ab043c770f8868f0326be6c9b5"
+          }
+        },
+        {
+          "id": "T1",
+          "classification": "CURRENT_NATIVE_IMPLEMENTATION_PRESENT_PROVENANCE_NOT_RECLASSIFIED",
+          "paths": [
+            "packages/meriv2-core/src/observability/meri-joined-telemetry.ts",
+            "apps/meriv2-orchestrator/src/telemetry/meri-telemetry.runtime.ts"
+          ],
+          "remaining": "Actual joined/redacted exported traces and total usage/cost.",
+          "sourceHashes": {
+            "packages/meriv2-core/src/observability/meri-joined-telemetry.ts": "0f3eb9bcc1157a2c5e0993bbc6440affa3885a817f329007af7202127dd458c5",
+            "apps/meriv2-orchestrator/src/telemetry/meri-telemetry.runtime.ts": "9e33de364e11c7e6be2928fd8098530b7d51d9265c7dada28fbd9820ecee3ec3"
+          }
+        },
+        {
+          "id": "HERMES_COWORKER",
+          "classification": "CURRENT_NATIVE_IMPLEMENTATION_PRESENT_PROVENANCE_NOT_RECLASSIFIED",
+          "paths": [
+            "apps/api/src/meri/meri-research-coordinator.ts",
+            "apps/api/src/meri/meri-research-child-task.ts"
+          ],
+          "remaining": "CW01–08 actual recovery, steering and parent budget; donor mapping not newly certified.",
+          "sourceHashes": {
+            "apps/api/src/meri/meri-research-coordinator.ts": "5f63ee88cd3783cf7dfb0bdbc8df08a4ac13e139f5dd8ed2209b3a553e5e567a",
+            "apps/api/src/meri/meri-research-child-task.ts": "0608142f70a20651fe71f262c5ddf719ad3f3ee1b5ba5990a9ea8668942d5356"
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-10-03T02:12:31.194136+00:00",
+      "kind": "fresh_authorized_live_memory_benchmark",
+      "sourceSha": "723735ed1f5c562ab10e6077c67261285ea102fd",
+      "evidence": "docs/meri/releases/2026-10-02/fresh-live-benchmark/README.md",
+      "casesCollected": [
+        "01",
+        "02",
+        "03",
+        "04",
+        "05"
+      ],
+      "fullyAccepted": 0,
+      "knownCaseFailure": [
+        "02"
+      ],
+      "coverageDefect": "Office Delta classified as budget_delta",
+      "accountedCostMicros": 9841281,
+      "sourceProvenanceChanged": false,
+      "historicalJournalChanged": false
+    },
+    {
+      "date": "2026-10-03T02:34:36.121542+00:00",
+      "kind": "c0_exit_completion",
+      "sourceSha": "723735ed1f5c562ab10e6077c67261285ea102fd",
+      "evidence": "docs/meri/releases/2026-10-02/closeout-c0-completion/README.md",
+      "c0Exit": "PASS_WITH_EXPLICIT_FIXTURE_BLOCKERS",
+      "packagedMigrationsVerified": 451,
+      "historicalChecksumDifferencesRetained": 61,
+      "semanticClock": "BLOCKED",
+      "olderJournal": "UNAVAILABLE_PRESERVED",
+      "sourceProvenanceChanged": false,
+      "newProviderCalls": 0,
+      "schemaMutations": 0
     }
   ]
 }

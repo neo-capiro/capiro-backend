@@ -1,0 +1,11 @@
+{
+  "caseId": "03",
+  "captureRunId": "65c093f9-d7ee-410c-865b-65d3683e9514",
+  "reservationId": "41820c9a-6f51-4062-aad6-d308fadfa7e3",
+  "conversationId": "2755ade6-35e6-43c1-8b48-bdbff01bd3a5",
+  "chargedCostMicros": 3086726,
+  "ledgerSha256": "9350cf78861b64740953ffd6ff3a1eb027ae8949e8ac4de34cebc300a3f8238b",
+  "envelopeSha256": "2a3d929f863e2c07e43456c31c02d276f6a2a2c13a650df5e1887d5eec4049d7",
+  "expectedSha256": "9c34a4d116a6717d883d78bd289ae46f923a737023164372007e995002cfaaf6",
+  "captureAuthority": false
+}
