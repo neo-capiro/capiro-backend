@@ -1,0 +1,35 @@
+{
+  "status": "EXACT_CURRENT_CASE17_BUILDS_VERIFIED",
+  "proof": {
+    "kind": "meri-case17-current-immutable-builds",
+    "observedAt": 1791046406464,
+    "caller": {
+      "account": "967807252336",
+      "arn": "arn:aws:iam::967807252336:user/capirocli"
+    },
+    "services": [
+      {
+        "service": "api",
+        "sourceSha": "f00e5dfb4fd3e47ac6aa4aca741023cc02f6314f",
+        "imageDigest": "sha256:1a4aef121151bb5da7f70417539ece2faff392842809e6b557370c2d6cf8a49d",
+        "buildId": "capiro-build-web-dev:14ba6876-bc19-469c-bf00-2e932b3a3428",
+        "buildspecSha256": "bb10f18bf3ff2909e08acf9bfe666bca85a45f8af07f41584515656e4bdf4658",
+        "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:517",
+        "primaryDeploymentId": "ecs-svc/5796778005933961385",
+        "baselineSha256": "b42b2413e9c452966f554dcfd7e5bfa7718b2cd549f7d9d50d98ed9de6e4e100"
+      },
+      {
+        "service": "web-vnext",
+        "sourceSha": "78ad5805679a3045b1fc10fb19beafa7f76e4e64",
+        "imageDigest": "sha256:a048aceec01c207b514f76fb447d4fb8bdb5ed17278642480008a1510a12de4c",
+        "buildId": "capiro-build-web-dev:f2d89683-bcc5-48dc-a4da-849ced167860",
+        "buildspecSha256": "0fce5b86940b9599702942ff25c462a51977ef7e6106f6af59dfe22b54f1daf6",
+        "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web-vnext:388",
+        "primaryDeploymentId": "ecs-svc/2451414755928290434",
+        "baselineSha256": "569891aa635a37a2bcfae07adfc5186923ab67fcc75f2bc3d9f12036c9b90d91"
+      }
+    ]
+  },
+  "providerCalls": 0,
+  "applicationWrites": 0
+}

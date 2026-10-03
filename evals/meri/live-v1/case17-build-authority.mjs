@@ -21,6 +21,18 @@ const need = (ok) => {
 const SHA = /^[a-f0-9]{40}$/u;
 const HASH = /^[a-f0-9]{64}$/u;
 
+/** Pure account/principal check; only the native STS read below supplies authority. */
+export function inspectCase17Caller(caller) {
+  need(
+    caller?.Account === '967807252336' &&
+      [
+        'arn:aws:iam::967807252336:user/hermes-cli',
+        'arn:aws:iam::967807252336:user/capirocli',
+      ].includes(caller.Arn),
+  );
+  return { account: caller.Account, arn: caller.Arn };
+}
+
 /** This read-only UI row has no orchestrator/provider execution. API and Web must both be current.
  * Pure comparison only; the authority factory below supplies actual AWS reads. */
 export function inspectCase17Build({ expected, build, snapshot, image }) {
@@ -97,10 +109,7 @@ export async function readCase17BuildAuthority(deployment) {
       throw new Error('CASE17_BUILD_READBACK_FAILED');
     }
   };
-  const caller = await aws(['sts', 'get-caller-identity']);
-  need(
-    caller.Account === '967807252336' && caller.Arn === 'arn:aws:iam::967807252336:user/hermes-cli',
-  );
+  const caller = inspectCase17Caller(await aws(['sts', 'get-caller-identity']));
   const operator = releaseOperator({ aws });
   const services = [];
   for (const service of ['api', 'web-vnext']) {
@@ -126,5 +135,5 @@ export async function readCase17BuildAuthority(deployment) {
     ]);
     services.push(inspectCase17Build({ expected, build: response.builds[0], snapshot, image }));
   }
-  return { kind: 'meri-case17-current-immutable-builds', observedAt: Date.now(), services };
+  return { kind: 'meri-case17-current-immutable-builds', observedAt: Date.now(), caller, services };
 }

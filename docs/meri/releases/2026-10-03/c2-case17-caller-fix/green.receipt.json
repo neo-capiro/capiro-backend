@@ -1,0 +1,7 @@
+{
+  "exitCode": 0,
+  "logSha256": "7798fac3835fa1770a6a58890dc29628d62c2698de1eb135441c32490a5f69f7",
+  "testSha256": "91ea83aea22357af96ce2f358c73d37e9d63759e295135b47b6aefb5a703c789",
+  "sourceSha256": "dc068e2f3aa0aae7bea5802a80cf0e511397a92160b39f698b453bf372a15021",
+  "limitations": "Pure caller checks plus existing build/forged-authority guards; not remote acceptance"
+}

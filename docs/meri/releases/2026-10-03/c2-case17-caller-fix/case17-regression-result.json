@@ -1,0 +1,21 @@
+{
+  "status": "BLOCKED",
+  "at": "2026-10-03T16:50:04.921Z",
+  "caseId": "17",
+  "captureRunId": "c7a7648c-adfb-44e4-b722-e7417f9bf164",
+  "apiSha": "f00e5dfb4fd3e47ac6aa4aca741023cc02f6314f",
+  "webSha": "78ad5805679a3045b1fc10fb19beafa7f76e4e64",
+  "operatorSourceSha": "30b670895683cb5e0043ad09fb1b64fae03a49f4",
+  "preparedSha256": "10c34627683edfc39f11c766c3d616be972487340cd69fa6006d2591158a311f",
+  "sessionCreated": false,
+  "sessionRevoked": false,
+  "applicationWrites": 0,
+  "synthesisSubmissionCount": 0,
+  "providerCalls": 0,
+  "originalPromptSubmission": "NOT_RUN",
+  "humanRubric": "NOT_RUN",
+  "fullOriginalRow17Acceptance": false,
+  "fullFile01Acceptance": false,
+  "failureCode": "CASE17_IMMUTABLE_BUILD_UNPROVED",
+  "completedAt": "2026-10-03T16:50:09.642Z"
+}

@@ -1,0 +1,15 @@
+✔ only approved existing-role proposer and no-turn read scope is accepted as data (3.1225ms)
+✔ fake storage, copied receipt, page and claimed readiness cannot mint live capture authority (1.3445ms)
+✔ both API and Web require exact current successful build/source/recipe/digest binding (1.7826ms)
+✔ saved visual review binds exact twelve saved screenshots, run, bytes and capture time (2.7049ms)
+✔ accepts the explicitly configured hermes-cli read operator in the exact account (1.5317ms)
+✔ accepts the explicitly configured capirocli read operator in the exact account (0.1597ms)
+✔ rejects other principals, account mismatches and missing STS identity (0.6552ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 177.2227

@@ -1,0 +1,40 @@
+{
+  "status": "PASS",
+  "scope": "Eval-only exact CLI-principal repair; not product acceptance",
+  "independentReviewer": "/root/mail_defaults_review",
+  "reviewedSourceSha256": "dc068e2f3aa0aae7bea5802a80cf0e511397a92160b39f698b453bf372a15021",
+  "reviewedTestSha256": "91ea83aea22357af96ce2f358c73d37e9d63759e295135b47b6aefb5a703c789",
+  "finding": "Only two exact IAM user ARNs in the fixed account are accepted. Native STS remains the authority. Existing source/build/recipe/ECR/ECS/ALB and read-only guards are unchanged.",
+  "finalFormatting": {
+    "change": "Prettier formatting of the new test loop only; no production change",
+    "testSha256": "8d57e1268ecdf56a81746a3e548fe6a517e17a1be82e0130642e31c316c26ae2",
+    "reviewer": "Codex root"
+  },
+  "red": {
+    "passed": 6,
+    "failed": 1
+  },
+  "green": {
+    "passed": 7,
+    "failed": 0
+  },
+  "finalFormattedTestRun": {
+    "observedAt": "2026-10-03T17:00:08Z",
+    "command": "node --test evals/meri/live-v1/tests/case17-caller-authority.test.mjs evals/meri/live-v1/tests/case17-authority.test.mjs",
+    "exitCode": 0,
+    "passed": 7,
+    "failed": 0,
+    "skipped": 0,
+    "toolOutputChunkId": "c0f6d7"
+  },
+  "firstCurrentImageAttempt": {
+    "status": "BLOCKED",
+    "code": "CASE17_IMMUTABLE_BUILD_UNPROVED",
+    "sessionCreated": false,
+    "providerCalls": 0,
+    "applicationWrites": 0
+  },
+  "correctedNativeBuildPreflight": "EXACT_CURRENT_CASE17_BUILDS_VERIFIED",
+  "fullOriginalRow17Acceptance": false,
+  "humanRubric": "NOT_RUN"
+}

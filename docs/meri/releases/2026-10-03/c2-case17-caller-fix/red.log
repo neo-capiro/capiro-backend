@@ -1,0 +1,30 @@
+✔ only approved existing-role proposer and no-turn read scope is accepted as data (6.5831ms)
+✔ fake storage, copied receipt, page and claimed readiness cannot mint live capture authority (1.9221ms)
+✔ both API and Web require exact current successful build/source/recipe/digest binding (2.6008ms)
+✔ saved visual review binds exact twelve saved screenshots, run, bytes and capture time (6.1051ms)
+✔ accepts the explicitly configured hermes-cli read operator in the exact account (2.1097ms)
+✖ accepts the explicitly configured capirocli read operator in the exact account (0.3477ms)
+✔ rejects other principals, account mismatches and missing STS identity (0.6478ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 6
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 232.5313
+
+✖ failing tests:
+
+test at evals\meri\live-v1\tests\case17-caller-authority.test.mjs:6:3
+✖ accepts the explicitly configured capirocli read operator in the exact account (0.3477ms)
+  Error: CASE17_IMMUTABLE_BUILD_UNPROVED
+      at need (file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/case17-build-authority.mjs:19:18)
+      at inspectCase17Caller (file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/case17-build-authority.mjs:26:3)
+      at TestContext.<anonymous> (file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/case17-caller-authority.test.mjs:8:22)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
