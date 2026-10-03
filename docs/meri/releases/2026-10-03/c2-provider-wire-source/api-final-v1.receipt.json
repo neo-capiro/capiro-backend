@@ -1,0 +1,6 @@
+{
+  "command": "pnpm --filter @capiro/api exec jest --runInBand --forceExit src/meri/meri-capture-api-provider-scope.spec.ts src/embeddings/titan-embedding.provider.spec.ts src/reranking/nvidia-reranking.provider.spec.ts src/reranking/reranking-provider.factory.spec.ts",
+  "completedAt": "2026-10-03T18:01:27.4193305Z",
+  "startedAt": "2026-10-03T18:01:00.7375329Z",
+  "exit": 0
+}

@@ -1,0 +1,19 @@
+{
+  "status": "CURRENT_PUBLIC_RATE_EVIDENCE_PREPARED_NOT_INSTALLED",
+  "observedAt": "2026-10-03T17:29:01.587Z",
+  "expiresAt": "2026-10-04T05:29:01.587Z",
+  "rateBytesSha256": "8c50f2aad588d98513fd9c24fbfbe7deb7cc4ae3077a4ffb8525f813c7861d16",
+  "sameRatesAndModelsAsPrior": true,
+  "maxTokens": 500000,
+  "references": [
+    "https://developers.openai.com/api/docs/models/gpt-6-astra",
+    "https://developers.openai.com/api/docs/pricing",
+    "https://docs.api.nvidia.com/nim/docs/run-anywhere",
+    "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonBedrock/current/us-east-1/index.json"
+  ],
+  "awsSku": "EDNQYEHQ3XQ8N7EY",
+  "awsSourceSha256": "fb319584535ea2c021c74b992873faf417ce322838c8c4ac854274f11f9c385e",
+  "providerCalls": 0,
+  "budgetReservations": 0,
+  "limits": "Existing runtime unit/endpoint guard and exact current configuration must be rechecked with candidate before installation. No budget increase, old-journal change, or deployment approval is conferred."
+}

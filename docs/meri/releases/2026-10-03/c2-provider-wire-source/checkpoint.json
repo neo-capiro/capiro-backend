@@ -1,0 +1,207 @@
+{
+  "version": 1,
+  "status": "FROZEN_LOCAL_FOCUSED_PASS_PENDING_INDEPENDENT_REVIEW_AND_NATIVE_BUILDS",
+  "recordedAt": "2026-10-03T18:05:40.663511+00:00",
+  "sourceHead": "627672cd120c112fa272e9457c06553c2037f387",
+  "productionFiles": 6,
+  "testFiles": 2,
+  "productionLinesAddedIncludingFormat": 212,
+  "productionLinesRemovedIncludingFormat": 38,
+  "files": [
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meri-capture-provider-wire.ts",
+      "kind": "production",
+      "sha256": "0b8392e2a296a9db6403ddabeb796cbf3ea950a0d53bd341b901b4fa769f2e31",
+      "bytes": 5190
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/openai-responses.client.ts",
+      "kind": "production",
+      "sha256": "10d9cca1dda1b366a5f59af4519a4dd6b6d6a8d60c8088e946d19fa7131e9363",
+      "bytes": 34011
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-run-budget.ts",
+      "kind": "production",
+      "sha256": "a2eda5df34b825a3b81935d1c6a84d15b7ea7cacd68183bfae76ca87dcbc0595",
+      "bytes": 21336
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/request-scoped-llm.client.ts",
+      "kind": "production",
+      "sha256": "0ea51404d5cc3926863989db0873fe1484f068fb627f6a89909c175d17e92735",
+      "bytes": 36276
+    },
+    {
+      "path": "apps/api/src/embeddings/titan-embedding.provider.ts",
+      "kind": "production",
+      "sha256": "bd235b139bf262d76dc23d143e9739bd9cd5163b93921429a86a3fdb94534e55",
+      "bytes": 5696
+    },
+    {
+      "path": "apps/api/src/reranking/nvidia-reranking.provider.ts",
+      "kind": "production",
+      "sha256": "71134c434b11da6ee04a604367c67173a6c258dababa3fb1068a1ddd086b9b99",
+      "bytes": 8262
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meri-capture-provider-wire.spec.ts",
+      "kind": "test",
+      "sha256": "629ed912e9095f7c93a0e945876c67a1bd05fabe9f8ff4bb33d269c1fa763f73",
+      "bytes": 15782
+    },
+    {
+      "path": "apps/api/src/meri/meri-capture-api-provider-scope.spec.ts",
+      "kind": "test",
+      "sha256": "d43bd5bb22996785f74d855527e703bcf297ab2c4b4fa098b1fbfcc9b4cf6708",
+      "bytes": 13830
+    }
+  ],
+  "sourceMirror": "source",
+  "patch": "candidate.patch",
+  "patchSha256": "1dd9726c4d4e730d72e0353b514bfad850c7c4dc35e66ebdf372ff254b29d183",
+  "unchanged": {
+    "clock42": 42,
+    "memory22": 22,
+    "freshAdapter4": 4,
+    "case01Caller2": 2
+  },
+  "clockCheckpointSha256": "bac5f9664df13811270b4acf6edf6a1de50f55adb39aef8e9351336162ae62ec",
+  "actualFreshInputsUnchanged": {
+    "fresh-spend.jsonl": "abe458973e6998db20586c781ac5a3cbd4ca2fa565425e62722f0eb9c985210b",
+    "run-authorization.json": "e07822e83a7c7b531606519ecd4fdf1027f2fa7cbaefd4bad92a2084590262fe"
+  },
+  "qualification": {
+    "orchestrator": {
+      "suites": 4,
+      "testsPassed": 133,
+      "exit": 0,
+      "receipt": "orchestrator-final-v2.receipt.json"
+    },
+    "api": {
+      "suites": 3,
+      "testsPassed": 26,
+      "exit": 0,
+      "receipt": "api-final-v1.receipt.json",
+      "note": "Titan behavior is covered by actual adapter tests in meri-capture-api-provider-scope; no standalone titan-embedding.provider.spec.ts matched."
+    },
+    "sameTestRedGreen": {
+      "orchestratorRed": {
+        "failed": 18,
+        "passed": 3,
+        "receipt": "orchestrator-red-v2.receipt.json"
+      },
+      "orchestratorGreen": {
+        "passed": 21,
+        "receipt": "orchestrator-green-v1.receipt.json"
+      },
+      "apiRed": {
+        "failed": 4,
+        "passed": 11,
+        "receipt": "api-red.receipt.json"
+      },
+      "apiGreen": {
+        "passed": 15,
+        "receipt": "api-green-v1.receipt.json"
+      },
+      "snapshots": [
+        "orchestrator.red.spec.ts",
+        "api.red.spec.ts"
+      ]
+    },
+    "preservedHarnessFailure": "orchestrator-red.log: test credential missing required modelOverridden; zero tests ran. Corrected test fixture then reproduced actual18 failures."
+  },
+  "receipts": [
+    {
+      "path": "api-final-v1.receipt.json",
+      "sha256": "9acd6c2b4d72ff89139383a275f75cddc89c0e7aa5f4a5604e86fb470c203127",
+      "command": "pnpm --filter @capiro/api exec jest --runInBand --forceExit src/meri/meri-capture-api-provider-scope.spec.ts src/embeddings/titan-embedding.provider.spec.ts src/reranking/nvidia-reranking.provider.spec.ts src/reranking/reranking-provider.factory.spec.ts",
+      "completedAt": "2026-10-03T18:01:27.4193305Z",
+      "startedAt": "2026-10-03T18:01:00.7375329Z",
+      "exit": 0
+    },
+    {
+      "path": "api-green-v1.receipt.json",
+      "sha256": "26879f0a5d2245ecae39233136a795df6251de3b32841925b1ee3355f626bf30",
+      "startedAt": "2026-10-03T17:57:27.6710510Z",
+      "completedAt": "2026-10-03T17:57:53.1204031Z",
+      "command": "pnpm --filter @capiro/api exec jest --runInBand --forceExit src/meri/meri-capture-api-provider-scope.spec.ts",
+      "exit": 0
+    },
+    {
+      "path": "api-red.receipt.json",
+      "sha256": "f5f4a65e8ea92d351bf4de1a845c44bda35c9116f4841381f745ced4951c0d74",
+      "command": "pnpm --filter @capiro/api exec jest --runInBand --forceExit src/meri/meri-capture-api-provider-scope.spec.ts",
+      "startedAt": "2026-10-03T17:54:09.5126189Z",
+      "completedAt": "2026-10-03T17:55:05.8107922Z",
+      "exit": 1
+    },
+    {
+      "path": "orchestrator-final-v1.receipt.json",
+      "sha256": "2a189ff10caf11776a3fd9715d4fd8008a3746d9e2ad15c773102a9baa26e2fc",
+      "command": "pnpm --filter @capiro/meriv2-orchestrator exec jest --runInBand --forceExit src/meri/meri-capture-provider-wire.spec.ts src/meri/request-scoped-llm.client.spec.ts src/meri/meriv3/openai-responses.client.spec.ts src/meri/meriv3/meriv3-run-budget.spec.ts",
+      "completedAt": "2026-10-03T18:01:00.6998535Z",
+      "startedAt": "2026-10-03T18:00:37.2944435Z",
+      "exit": 0
+    },
+    {
+      "path": "orchestrator-final-v2.receipt.json",
+      "sha256": "6625c1fa508e7fcb4368cd316bbc57e1c5a9b5aa3132dbdef5673ddb48421b93",
+      "command": "pnpm --filter @capiro/meriv2-orchestrator exec jest --runInBand --forceExit src/meri/meri-capture-provider-wire.spec.ts src/meri/request-scoped-llm.client.spec.ts src/meri/meriv3/openai-responses.client.spec.ts src/meri/meriv3/meriv3-run-budget.spec.ts",
+      "exit": 0,
+      "startedAt": "2026-10-03T18:03:26.2901473Z",
+      "completedAt": "2026-10-03T18:03:46.7156985Z"
+    },
+    {
+      "path": "orchestrator-green-v1.receipt.json",
+      "sha256": "c1d522c3fa10b3d47027d5fb4b47c1dedab741748708809aceea7bcfbe31d52d",
+      "startedAt": "2026-10-03T17:57:12.5693161Z",
+      "completedAt": "2026-10-03T17:57:27.6306518Z",
+      "command": "pnpm --filter @capiro/meriv2-orchestrator exec jest --runInBand --forceExit src/meri/meri-capture-provider-wire.spec.ts",
+      "exit": 0
+    },
+    {
+      "path": "orchestrator-red-v2.receipt.json",
+      "sha256": "81c6d3442e37eed03dcd42fc9028faeded94e51c980f81c765e35efe51bcfe1e",
+      "command": "pnpm --filter @capiro/meriv2-orchestrator exec jest --runInBand --forceExit src/meri/meri-capture-provider-wire.spec.ts",
+      "startedAt": "2026-10-03T17:53:54.2708969Z",
+      "completedAt": "2026-10-03T17:54:09.4513765Z",
+      "exit": 1
+    },
+    {
+      "path": "orchestrator-red.receipt.json",
+      "sha256": "fa8b82528cff3931d154320675bcb33629e7a7c556774501ddc9c31722ed3c0a",
+      "completedAt": "2026-10-03T17:53:11.9296402Z",
+      "exit": 1,
+      "command": "pnpm --filter @capiro/meriv2-orchestrator exec jest --runInBand --forceExit src/meri/meri-capture-provider-wire.spec.ts",
+      "startedAt": "2026-10-03T17:52:56.5542085Z"
+    }
+  ],
+  "changes": [
+    "Capture-only explicit service_tier=default before OpenAI final request bytes/reservation; unknown tier, multimodal, hosted tools and external stored response fields reject.",
+    "Exact existing endpoint admission for capture budgetedFetch; ordinary transports and model/config selection unchanged.",
+    "Core OpenAI/Anthropic capture completion uses final adapter fetch for one reservation and settlement per wire. GPT-6 output floor8192 and full body bytes now bound; retries/fallback retain actual provider/model.",
+    "Native Typesafe JEV transport remains separately priced as kind/provider jev; current OpenAI rate entry does not admit it.",
+    "Capture Titan rejects region other than us-east-1 and pins standard regional endpoint with maxAttempts1; NVIDIA requires exact existing hosted URL and cannot follow redirects."
+  ],
+  "reachablePaths": [
+    "Native gather and forced synthesis -> OpenAiResponsesClient.complete, including same-method reasoning retry and recursive critic/synthesis.",
+    "Enforce repair -> legacy skeptic/revision generator -> RequestScopedLlmClient.withProviderBudget -> core OpenAiLlmClient adapter -> guarded actual final fetch.",
+    "Client-fit/passage selection/enforce JEV -> MeriRunBudget.budgetedFetch -> Typesafe systemone; unknown reviewed price rejects before provider fetch. Post-response shadow JEV paths remain disabled for readonly capture.",
+    "API initial context and search_memory retrieval -> Titan/NVIDIA providers under existing captureApiProviderScope."
+  ],
+  "limits": [
+    "No provider, remote, database, browser, AWS, fixture/budget mutation or paid capture was performed.",
+    "No service/core/native build was run; root must qualify exact commit/image after review.",
+    "Tests use actual implementations with mocked network/provider transport and ledger boundaries. They do not prove live prices, credential configuration or DB accounting.",
+    "Configured cross-provider positive fallback is a local accounting test only. Current reviewed native rates do not admit Anthropic or Typesafe JEV.",
+    "Reviewed rate evidence/prose and frozen buildspecs were not edited; root owns their truthful updates.",
+    "Ordinary core approximate accounting is intentionally preserved; this patch only corrects armed readonly capture paths.",
+    "Case46 OpenAI path and non-native chat runtimes are outside this readonly01/20 dispatch slice; no new capture gates or pricing entries were added."
+  ],
+  "remoteActions": 0,
+  "providerCalls": 0,
+  "databaseActions": 0,
+  "builds": 0,
+  "commits": 0
+}

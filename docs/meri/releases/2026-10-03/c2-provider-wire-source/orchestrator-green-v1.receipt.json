@@ -1,0 +1,6 @@
+{
+  "startedAt": "2026-10-03T17:57:12.5693161Z",
+  "completedAt": "2026-10-03T17:57:27.6306518Z",
+  "command": "pnpm --filter @capiro/meriv2-orchestrator exec jest --runInBand --forceExit src/meri/meri-capture-provider-wire.spec.ts",
+  "exit": 0
+}

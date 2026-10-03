@@ -1,0 +1,265 @@
+{
+  "kind": "meri_c2_independent_provider_rate_review",
+  "version": 1,
+  "recordedAt": "2026-10-03T18:00:00.032Z",
+  "reviewer": "mail_defaults_review",
+  "status": "UNQUALIFIED_NOT_INSTALLED",
+  "purpose": "Retain the rejected assumptions in the prepared rate evidence and the bounded safe configuration review. This is not rate installation, provider authorization, or human release attestation.",
+  "preparedEvidence": [
+    {
+      "path": "reviewed-rates-c2-20261003.json",
+      "bytes": 3985,
+      "sha256": "8c50f2aad588d98513fd9c24fbfbe7deb7cc4ae3077a4ffb8525f813c7861d16"
+    },
+    {
+      "path": "current-rate-evidence-review.json",
+      "bytes": 995,
+      "sha256": "fab83d90ca0ca63fd6f93a0f06a4e9a5bca006373335c6434ffc8b4909acb401"
+    },
+    {
+      "path": "current-titan-price-list.json",
+      "bytes": 19999,
+      "sha256": "ea8d31951164f501a14c09279bd14765415b17352525640a25b3f94370d5b62f"
+    }
+  ],
+  "preparedRates": {
+    "observedAt": "2026-10-03T17:29:01.587Z",
+    "expiresAt": "2026-10-04T05:29:01.587Z",
+    "maxTokensPerAttempt": 500000,
+    "currency": "USD",
+    "unit": "microdollars per one million tokens",
+    "rows": [
+      {
+        "kind": "openai_responses",
+        "provider": "openai",
+        "model": "gpt-6-astra",
+        "input": 25000000,
+        "output": 75000000
+      },
+      {
+        "kind": "jev",
+        "provider": "openai",
+        "model": "gpt-6-astra",
+        "input": 25000000,
+        "output": 75000000
+      },
+      {
+        "kind": "bedrock_embeddings",
+        "provider": "aws-bedrock",
+        "model": "amazon.titan-embed-text-v2:0",
+        "input": 20000,
+        "output": 0
+      },
+      {
+        "kind": "nvidia_rerank",
+        "provider": "nvidia-nim",
+        "model": "nvidia/llama-nemotron-rerank-vl-1b-v2",
+        "input": 1000000,
+        "output": 0
+      }
+    ],
+    "sameRatesAndTokenBoundAs": "docs/meri/releases/2026-10-02/original75-budget-recovery/reviewed-rates-long-context.json",
+    "structuralAndArithmeticReview": "PASS_BY_SOURCE_INSPECTION",
+    "structuralReviewLimit": "The existing validator verifies shape, exact hashes, dates, bounded arithmetic and HTTPS source URLs. It does not establish the truth of unitContract text, configured billing tier, provider endpoint, regional billing or unsupported request units."
+  },
+  "findings": [
+    {
+      "severity": "P2",
+      "code": "OPENAI_STANDARD_TIER_UNPROVED",
+      "conclusion": "The prepared Standard-tier unit contract is not established by the reviewed wire bodies. They omit service_tier; official documentation says omission defaults to auto and project settings. Environment/model readback cannot establish Standard billing.",
+      "sources": [
+        "apps/meriv2-orchestrator/src/meri/meriv3/openai-responses.client.ts",
+        "packages/meriv2-core/src/llm/openai-responses-adapter.ts",
+        "packages/shared/src/ai-model-policy.ts"
+      ],
+      "requiredResolution": "Qualify explicit capture-only service_tier: default on every reachable OpenAI request path, or provide exact runtime evidence of a supported billing tier with corresponding reviewed rates."
+    },
+    {
+      "severity": "P2",
+      "code": "ENDPOINT_AND_UNIT_EXCLUSIONS_OVERCLAIMED",
+      "conclusion": "The reviewed provider reservation paths identify kind/provider/model and bytes; they do not generically bind the rate to the effective endpoint, Bedrock region, billing tier or a text/function-only final request. NVIDIA configuration accepts custom endpoints, Titan accepts a region option, and the assistant can construct image input.",
+      "sources": [
+        "apps/api/src/reranking/reranking-provider.factory.ts",
+        "apps/api/src/reranking/nvidia-reranking.provider.ts",
+        "apps/api/src/embeddings/titan-embedding.provider.ts",
+        "apps/api/src/meri/meri-capture-api-provider-scope.ts",
+        "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-run-budget.ts",
+        "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts"
+      ],
+      "requiredResolution": "Review and qualify fail-closed capture wire guards and final-body accounting, preserving ordinary behavior. Keep this prepared sheet unqualified until its endpoint and unit claims are supported or truthfully narrowed.",
+      "scopeLimit": "This finding does not establish that an unsupported request occurred, was undercharged, or reached a paid endpoint."
+    }
+  ],
+  "officialSources": [
+    {
+      "url": "https://developers.openai.com/api/docs/models/gpt-6-astra",
+      "review": "Official model page reviewed for base, long-context, cache and fast-tier prices."
+    },
+    {
+      "url": "https://developers.openai.com/api/docs/pricing",
+      "review": "The prepared 25/75 USD-per-million pair covers the cited Standard long-context input/cache-write/output figures; it does not establish that the request selects Standard or excludes other billing units."
+    },
+    {
+      "url": "https://developers.openai.com/api/reference/cli/resources/responses/methods/create",
+      "review": "Omitted service_tier defaults to auto; default explicitly selects Standard processing."
+    },
+    {
+      "url": "https://docs.api.nvidia.com/nim/docs/run-anywhere",
+      "review": "Hosted development prototyping can be free for eligible accounts. One USD per million is a positive conservative reservation for that free-use premise, not a published paid token price or proof of this account's entitlement."
+    },
+    {
+      "url": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonBedrock/current/us-east-1/index.json",
+      "observedAt": "2026-10-03T17:47:56.221Z",
+      "bytes": 1485058,
+      "sha256": "fb319584535ea2c021c74b992873faf417ce322838c8c4ac854274f11f9c385e",
+      "priceListVersion": "20261003001138",
+      "publicationDate": "2026-10-03T00:11:38Z",
+      "sku": "EDNQYEHQ3XQ8N7EY",
+      "region": "us-east-1",
+      "model": "Titan Embeddings V2 Text",
+      "usage": "on-demand InvokeModelInference",
+      "effectiveDate": "2026-10-01",
+      "usdPer1000Tokens": "0.00002",
+      "usdPer1000000Tokens": "0.02",
+      "review": "Independent public price-list download matched the retained source hash. It was not a provider inference request."
+    }
+  ],
+  "safeEcsConfigurationReadback": {
+    "authorization": "Parent explicitly authorized read-only ECS service/task-definition reads using existing capiro-dev authentication. No raw task definitions, environment arrays, credentials or secret values were persisted.",
+    "observedAt": "2026-10-03T17:45:27.767Z",
+    "profile": "capiro-dev",
+    "region": "us-east-1",
+    "api": {
+      "taskDefinitionRevision": 517,
+      "sourceSha": "f00e5dfb4fd3e47ac6aa4aca741023cc02f6314f",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:1a4aef121151bb5da7f70417539ece2faff392842809e6b557370c2d6cf8a49d",
+      "desired": 2,
+      "running": 2,
+      "pending": 0,
+      "singlePrimaryDeployment": "COMPLETED",
+      "observedAllowlistedValues": {
+        "AWS_REGION_DEFAULT": "us-east-1",
+        "OPENAI_MODEL": "gpt-6-astra",
+        "MERI_JEV_MODEL": "jev-1.13.0",
+        "MERI_JEV_PROVIDER_MODE": "shadow",
+        "MERI_JEV_PROVIDER_SURFACES": "research",
+        "MERI_JEV_TASKS": "bd_entity,bd_signal"
+      },
+      "relevantSecretNames": [
+        "OPENAI_API_KEY"
+      ],
+      "environmentFileCount": 0
+    },
+    "orchestrator": {
+      "taskDefinitionRevision": 113,
+      "sourceSha": "ed44f2c6cfdfda5150f75ab198a6e52d2377880f",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:53b06f768d8a26a8a5c6124f0f7bb55a0e2117fde050706360c6108c98887faa",
+      "desired": 1,
+      "running": 1,
+      "pending": 0,
+      "singlePrimaryDeployment": "COMPLETED",
+      "observedAllowlistedValues": {
+        "MERIV3_MODEL": "gpt-6-astra",
+        "MERIV3_FAST_MODEL": "gpt-6-astra",
+        "MERIV3_DEEP_MODEL": "gpt-6-astra",
+        "MERIV3_MAX_MODEL": "gpt-6-astra",
+        "OPENAI_MODEL": "gpt-6-astra",
+        "MERI_JEV_MODEL": "jev-1.13.0",
+        "MERI_JEV_PROVIDER_MODE": "enforce",
+        "MERI_JEV_PROVIDER_SURFACES": "chat",
+        "MERI_JEV_TASKS": "claim_support,passage_relevance"
+      },
+      "relevantSecretNames": [
+        "OPENAI_API_KEY"
+      ],
+      "environmentFileCount": 0
+    },
+    "absentEndpointTierKeysInBothTaskEnvironments": [
+      "AWS_ENDPOINT_URL",
+      "AWS_ENDPOINT_URL_BEDROCK_RUNTIME",
+      "AWS_IGNORE_CONFIGURED_ENDPOINT_URLS",
+      "NVIDIA_RERANK_URL",
+      "NVIDIA_RERANK_BASE_URL",
+      "NVIDIA_BASE_URL",
+      "OPENAI_BASE_URL",
+      "OPENAI_API_BASE",
+      "OPENAI_SERVICE_TIER",
+      "RETRIEVAL_RERANK_ENABLED"
+    ],
+    "presenceOnlyFollowup": {
+      "apiObservedAt": "2026-10-03T17:47:54.659Z",
+      "orchestratorObservedAt": "2026-10-03T17:47:55.500Z",
+      "keys": [
+        "NVIDIA_API_KEY",
+        "NVIDIA_RERANK_URL",
+        "NVIDIA_RERANK_BASE_URL"
+      ],
+      "bothServices": {
+        "plainEnvironmentEntryCountForEach": 0,
+        "nonemptyPlainValueForEach": false,
+        "secretReferenceNamePresentForEach": false,
+        "environmentFileCount": 0
+      },
+      "noValuesCollectedOrPersisted": true
+    },
+    "derivedConclusions": [
+      "Current task configuration and deployed factory source support an inference that NVIDIA reranking is inactive. They do not prove an active hosted NVIDIA endpoint or account entitlement.",
+      "The deployed default Titan factory passes no region option. Titan selects options.region, then AWS_REGION_DEFAULT, then us-east-1; it does not select AWS_REGION or AWS_DEFAULT_REGION in that provider constructor.",
+      "Current API task configuration therefore supports the default us-east-1 Titan region inference. This is not a generic capture region guard or proof of future task configuration."
+    ],
+    "limitations": [
+      "These are selected task-definition values and service observations, not process-environment or OCI-image-config readback.",
+      "Deployed Dockerfile/entrypoint source contained no provider key, endpoint, model or region injection. API ConfigModule could still read an externally present .env; no runtime filesystem audit was performed.",
+      "No configured active NVIDIA endpoint is claimed.",
+      "The new release candidate requires its own current configuration and wire-guard qualification."
+    ]
+  },
+  "deployedSourceInspectionHashes": [
+    {
+      "sourceSha": "f00e5dfb4fd3e47ac6aa4aca741023cc02f6314f",
+      "label": "API Dockerfile",
+      "sha256": "839f291b4baa6bc99f77f93d514ffcaeaa273e3586ab5324696dc8ed4024db6a"
+    },
+    {
+      "sourceSha": "f00e5dfb4fd3e47ac6aa4aca741023cc02f6314f",
+      "label": "API entrypoint.sh",
+      "sha256": "af8cc1debc19da62d40a0887c43d52b32e85337ab15b2d0161f5afd2cd156c91"
+    },
+    {
+      "sourceSha": "f00e5dfb4fd3e47ac6aa4aca741023cc02f6314f",
+      "label": "API entrypoint-legacy.sh",
+      "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+    },
+    {
+      "sourceSha": "f00e5dfb4fd3e47ac6aa4aca741023cc02f6314f",
+      "label": "API entrypoint-dispatcher.inc",
+      "sha256": "0bbc8748d7a3e467ec78fe2a9ffacba1b8629d539e59f9d5bd1c2d0eba65f61a"
+    },
+    {
+      "sourceSha": "f00e5dfb4fd3e47ac6aa4aca741023cc02f6314f",
+      "label": "Titan embedding provider",
+      "sha256": "a422e79fec3faebbd734c683aa0e960ec1312a50348c8345ef70c468c30d248d"
+    },
+    {
+      "sourceSha": "ed44f2c6cfdfda5150f75ab198a6e52d2377880f",
+      "label": "Orchestrator Dockerfile",
+      "sha256": "1f4ec2752e99bfbce75877f27d36894678cc8d5bf3e504f5cc9404d1961d9d0c"
+    },
+    {
+      "sourceSha": "ed44f2c6cfdfda5150f75ab198a6e52d2377880f",
+      "label": "Orchestrator entrypoint",
+      "sha256": "fc0372951a87c9ea4c922b307c6703020f7e068512bafcdb9706e9de20793bf4"
+    }
+  ],
+  "reviewEffects": {
+    "providerInferenceCalls": 0,
+    "awsMutations": 0,
+    "fixtureMutations": 0,
+    "rateInstallations": 0,
+    "budgetReservations": 0,
+    "journalAdoptions": 0,
+    "sourceEdits": 0,
+    "preparedEvidenceOverwrites": 0
+  },
+  "finalBoundary": "The sheet remains unqualified and uninstalled. A later guarded candidate must receive its own exact-source review and truthful rate evidence; this record is retained rather than rewriting the rejected prepared artifacts."
+}

@@ -1,0 +1,71 @@
+[Nest] 47008  - 10/03/2026, 2:03:41 PM   DEBUG [RequestScopedLlmClient] LLM schema completion (provider=openai, model=gpt-6-astra, usedTenantKey=true)
+[Nest] 47008  - 10/03/2026, 2:03:41 PM   DEBUG [RequestScopedLlmClient] LLM schema completion (provider=openai, model=gpt-6-astra, usedTenantKey=true)
+[Nest] 47008  - 10/03/2026, 2:03:41 PM   DEBUG [RequestScopedLlmClient] LLM completion (provider=openai, model=gpt-6-astra, usedTenantKey=true)
+PASS src/meri/meri-capture-provider-wire.spec.ts (14.366 s)
+[Nest] 47008  - 10/03/2026, 2:03:42 PM   DEBUG [RequestScopedLlmClient] LLM completion (provider=openai, model=gpt-6-astra, usedTenantKey=true)
+[Nest] 47008  - 10/03/2026, 2:03:42 PM   DEBUG [RequestScopedLlmClient] LLM schema completion (provider=anthropic, model=claude-sonnet-5, usedTenantKey=false)
+[Nest] 47008  - 10/03/2026, 2:03:42 PM    WARN [RequestScopedLlmClient] LLM anthropic LLM schema completion failed (Anthropic request failed (402): insufficient credit); failing over to global openai
+[Nest] 47008  - 10/03/2026, 2:03:42 PM   DEBUG [RequestScopedLlmClient] LLM schema completion (provider=openai, model=gpt-6-astra, usedTenantKey=false)
+[Nest] 47008  - 10/03/2026, 2:03:42 PM   DEBUG [RequestScopedLlmClient] LLM completion (provider=anthropic, model=claude-sonnet-5, usedTenantKey=false)
+[Nest] 47008  - 10/03/2026, 2:03:42 PM   DEBUG [RequestScopedLlmClient] LLM completion (provider=openai, model=gpt-6-astra, usedTenantKey=true)
+[Nest] 47008  - 10/03/2026, 2:03:42 PM    WARN [OpenAiResponsesClient] MeriV3 model gpt-6-astra rejected the reasoning parameter on this request; retrying the same turn without it.
+[Nest] 47008  - 10/03/2026, 2:03:43 PM    WARN [OpenAiResponsesClient] MeriV3 model gpt-6-astra rejected the reasoning parameter on this request; retrying the same turn without it.
+[Nest] 47008  - 10/03/2026, 2:03:43 PM    WARN [OpenAiResponsesClient] MeriV3 model gpt-6-astra rejected the reasoning parameter on this request; retrying the same turn without it.
+[Nest] 47008  - 12/31/1969, 7:00:01 PM    WARN [OpenAiResponsesClient] MeriV3 model gpt-6-astra rejected max reasoning on this request; retrying the same turn with xhigh effort.
+[Nest] 47008  - 10/03/2026, 2:03:43 PM    WARN [OpenAiResponsesClient] MeriV3 OpenAI retry 1/2 after OpenAI Responses HTTP 503: Temporary failure
+[Nest] 47008  - 10/03/2026, 2:03:43 PM    WARN [OpenAiResponsesClient] MeriV3 OpenAI retry 1/2 after OpenAI Responses HTTP 503: temporary capacity
+PASS src/meri/meriv3/openai-responses.client.spec.ts
+[Nest] 47008  - 10/03/2026, 2:03:44 PM   DEBUG [RequestScopedLlmClient] LLM completion (provider=anthropic, model=claude-default, usedTenantKey=true)
+[Nest] 47008  - 10/03/2026, 2:03:44 PM   DEBUG [RequestScopedLlmClient] LLM completion (provider=anthropic, model=claude-tenant-model, usedTenantKey=true)
+[Nest] 47008  - 10/03/2026, 2:03:44 PM   DEBUG [RequestScopedLlmClient] LLM completion (provider=anthropic, model=claude-default, usedTenantKey=false)
+[Nest] 47008  - 10/03/2026, 2:03:44 PM   DEBUG [RequestScopedLlmClient] LLM completion (provider=anthropic, model=claude-default, usedTenantKey=false)
+[Nest] 47008  - 10/03/2026, 2:03:44 PM   DEBUG [RequestScopedLlmClient] LLM tool round (model=claude-default, usedTenantKey=true)
+[Nest] 47008  - 10/03/2026, 2:03:44 PM   DEBUG [RequestScopedLlmClient] LLM tool round (model=claude-default, usedTenantKey=false)
+[Nest] 47008  - 10/03/2026, 2:03:44 PM   DEBUG [RequestScopedLlmClient] LLM tool round (model=claude-default, usedTenantKey=false)
+[Nest] 47008  - 10/03/2026, 2:03:44 PM   DEBUG [RequestScopedLlmClient] LLM tool round (model=claude-default, usedTenantKey=false)
+[Nest] 47008  - 10/03/2026, 2:03:45 PM   DEBUG [RequestScopedLlmClient] LLM tool round (model=claude-default, usedTenantKey=false)
+[Nest] 47008  - 10/03/2026, 2:03:45 PM   DEBUG [RequestScopedLlmClient] LLM tool round (provider=openai, model=gpt-x, usedTenantKey=true)
+[Nest] 47008  - 10/03/2026, 2:03:45 PM   DEBUG [RequestScopedLlmClient] LLM schema completion (provider=anthropic, model=claude-sonnet-5, usedTenantKey=true)
+[Nest] 47008  - 10/03/2026, 2:03:45 PM   DEBUG [RequestScopedLlmClient] LLM schema completion (provider=anthropic, model=claude-opus-4-8, usedTenantKey=true)
+[Nest] 47008  - 10/03/2026, 2:03:45 PM   DEBUG [RequestScopedLlmClient] LLM completion (provider=anthropic, model=claude-default, usedTenantKey=false)
+[Nest] 47008  - 10/03/2026, 2:03:45 PM   DEBUG [RequestScopedLlmClient] LLM completion (provider=anthropic, model=claude-default, usedTenantKey=false)
+[Nest] 47008  - 10/03/2026, 2:03:45 PM   DEBUG [RequestScopedLlmClient] LLM completion (provider=anthropic, model=claude-default, usedTenantKey=false)
+[Nest] 47008  - 10/03/2026, 2:03:45 PM    WARN [RequestScopedLlmClient] LLM anthropic LLM completion failed (Anthropic request failed (400): credit balance too low); failing over to global openai
+[Nest] 47008  - 10/03/2026, 2:03:45 PM   DEBUG [RequestScopedLlmClient] LLM completion (provider=openai, model=gpt-x, usedTenantKey=false)
+[Nest] 47008  - 10/03/2026, 2:03:45 PM   DEBUG [RequestScopedLlmClient] LLM completion (provider=anthropic, model=claude-default, usedTenantKey=true)
+[Nest] 47008  - 10/03/2026, 2:03:45 PM   DEBUG [RequestScopedLlmClient] LLM schema completion (provider=anthropic, model=claude-default, usedTenantKey=false)
+[Nest] 47008  - 10/03/2026, 2:03:45 PM    WARN [RequestScopedLlmClient] LLM anthropic LLM schema completion failed (Anthropic request failed (400): insufficient_quota); failing over to global openai
+[Nest] 47008  - 10/03/2026, 2:03:45 PM   DEBUG [RequestScopedLlmClient] LLM schema completion (provider=openai, model=gpt-x, usedTenantKey=false)
+[Nest] 47008  - 10/03/2026, 2:03:45 PM   DEBUG [RequestScopedLlmClient] LLM completion (provider=anthropic, model=claude-default, usedTenantKey=false)
+[Nest] 47008  - 10/03/2026, 2:03:45 PM   DEBUG [RequestScopedLlmClient] LLM tool round (model=claude-default, usedTenantKey=false)
+PASS src/meri/request-scoped-llm.client.spec.ts
+[Nest] 47008  - 10/03/2026, 2:03:46 PM   DEBUG [RequestScopedLlmClient] LLM tool round (model=claude-default, usedTenantKey=false)
+[Nest] 47008  - 10/03/2026, 2:03:46 PM   DEBUG [RequestScopedLlmClient] LLM tool round (model=claude-default, usedTenantKey=false)
+[Nest] 47008  - 10/03/2026, 2:03:46 PM    WARN [RequestScopedLlmClient] LLM anthropic failed (Anthropic HTTP 400: credit balance too low); failing over to global openai
+[Nest] 47008  - 10/03/2026, 2:03:46 PM   DEBUG [RequestScopedLlmClient] LLM tool round (provider=openai, model=gpt-x, usedTenantKey=false)
+[Nest] 47008  - 10/03/2026, 2:03:46 PM   DEBUG [RequestScopedLlmClient] LLM tool round (model=claude-default, usedTenantKey=true)
+[Nest] 47008  - 10/03/2026, 2:03:46 PM   DEBUG [RequestScopedLlmClient] LLM tool round (model=claude-default, usedTenantKey=false)
+[Nest] 47008  - 10/03/2026, 2:03:46 PM   DEBUG [RequestScopedLlmClient] LLM tool round (model=claude-default, usedTenantKey=false)
+[Nest] 47008  - 10/03/2026, 2:03:46 PM   DEBUG [RequestScopedLlmClient] LLM tool round (model=claude-default, usedTenantKey=false)
+[Nest] 47008  - 10/03/2026, 2:03:46 PM   DEBUG [RequestScopedLlmClient] LLM tool round (model=claude-default, usedTenantKey=false)
+[Nest] 47008  - 10/03/2026, 2:03:46 PM   DEBUG [RequestScopedLlmClient] LLM tool round (model=claude-default, usedTenantKey=false)
+[Nest] 47008  - 10/03/2026, 2:03:46 PM   DEBUG [RequestScopedLlmClient] LLM tool round (model=claude-custom-deployment, usedTenantKey=false)
+[Nest] 47008  - 10/03/2026, 2:03:46 PM   DEBUG [RequestScopedLlmClient] LLM tool round (provider=openai, model=claude-default, usedTenantKey=true)
+[Nest] 47008  - 10/03/2026, 2:03:46 PM   DEBUG [RequestScopedLlmClient] LLM tool round (model=claude-sonnet-5, usedTenantKey=false)
+[Nest] 47008  - 10/03/2026, 2:03:46 PM   DEBUG [RequestScopedLlmClient] LLM tool round (model=claude-custom-deployment, usedTenantKey=false)
+[Nest] 47008  - 10/03/2026, 2:03:46 PM   DEBUG [RequestScopedLlmClient] LLM tool round (model=claude-default, usedTenantKey=false)
+[Nest] 47008  - 10/03/2026, 2:03:46 PM   DEBUG [RequestScopedLlmClient] LLM tool round (model=claude-default, usedTenantKey=false)
+[Nest] 47008  - 10/03/2026, 2:03:46 PM   DEBUG [RequestScopedLlmClient] LLM tool round (model=claude-default, usedTenantKey=false)
+[Nest] 47008  - 10/03/2026, 2:03:46 PM   DEBUG [RequestScopedLlmClient] LLM tool round (model=claude-default, usedTenantKey=false)
+[Nest] 47008  - 10/03/2026, 2:03:46 PM   DEBUG [RequestScopedLlmClient] LLM tool round (provider=openai, model=claude-default, usedTenantKey=true)
+[Nest] 47008  - 10/03/2026, 2:03:46 PM   DEBUG [RequestScopedLlmClient] LLM schema completion (provider=anthropic, model=claude-sonnet-5, usedTenantKey=true)
+[Nest] 47008  - 10/03/2026, 2:03:46 PM   DEBUG [RequestScopedLlmClient] LLM schema completion (provider=anthropic, model=claude-custom-deployment, usedTenantKey=true)
+[Nest] 47008  - 10/03/2026, 2:03:46 PM   DEBUG [RequestScopedLlmClient] LLM schema completion (provider=anthropic, model=claude-sonnet-5, usedTenantKey=true)
+PASS src/meri/meriv3/meriv3-run-budget.spec.ts
+
+Test Suites: 4 passed, 4 total
+Tests:       133 passed, 133 total
+Snapshots:   0 total
+Time:        18.972 s, estimated 22 s
+Ran all test suites matching /src\\meri\\meri-capture-provider-wire.spec.ts|src\\meri\\request-scoped-llm.client.spec.ts|src\\meri\\meriv3\\openai-responses.client.spec.ts|src\\meri\\meriv3\\meriv3-run-budget.spec.ts/i.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?

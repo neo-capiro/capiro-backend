@@ -1,0 +1,26 @@
+FAIL src/meri/meri-capture-provider-wire.spec.ts
+  ● Test suite failed to run
+
+    src/meri/meri-capture-provider-wire.spec.ts:92:80 - error TS2741: Property 'modelOverridden' is missing in type '{ provider: "openai"; apiKey: string; model: string; usedTenantKey: true; }' but required in type 'ResolvedAiProvider'.
+
+    92   await capture(() => RequestCredentialsStore.run({ bearerToken: 'unit-token', aiProvider: { provider: 'openai', apiKey: 'unit-key', model: 'gpt-6-astra', usedTenantKey: true } }, () => {
+                                                                                      ~~~~~~~~~~
+
+      src/request/request-credentials.store.ts:21:3
+        21   modelOverridden: boolean;
+             ~~~~~~~~~~~~~~~
+        'modelOverridden' is declared here.
+      src/request/request-credentials.store.ts:27:3
+        27   aiProvider?: ResolvedAiProvider;
+             ~~~~~~~~~~
+        The expected type comes from property 'aiProvider' which is declared here on type 'RequestCredentials'
+
+Test Suites: 1 failed, 1 total
+Tests:       0 total
+Snapshots:   0 total
+Time:        13.203 s
+Ran all test suites matching /src\\meri\\meri-capture-provider-wire.spec.ts/i.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?
+undefined
+C:\dev\main\meri-c1-20261002\apps\meriv2-orchestrator:
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command "jest" not found

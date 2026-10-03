@@ -1,0 +1,964 @@
+--- a/apps/meriv2-orchestrator/src/meri/meri-capture-provider-wire.ts
++++ b/apps/meriv2-orchestrator/src/meri/meri-capture-provider-wire.ts
+@@ -0,0 +1,141 @@
++import { currentServerReadonlyCapturePolicy } from '../request/trusted-current-turn-scope.js';
++
++/** The authenticated capture scope, never an ordinary model/config override. */
++export function captureProviderWireActive(): boolean {
++  return (
++    currentServerReadonlyCapturePolicy()?.expectedCaptureWrites[3] === 'provider_budget_ledger'
++  );
++}
++const fail = (): never => {
++  throw new Error('meri_capture_provider_wire_unqualified');
++};
++function record(value: unknown): Record<string, unknown> {
++  if (!value || typeof value !== 'object' || Array.isArray(value)) return fail();
++  return value as Record<string, unknown>;
++}
++function keys(value: Record<string, unknown>, allowed: string): void {
++  const names = new Set(allowed.split(' '));
++  if (Object.keys(value).some((key) => !names.has(key))) fail();
++}
++function textParts(value: unknown, types: string[]): void {
++  if (!Array.isArray(value)) return fail();
++  for (const raw of value) {
++    const part = record(raw);
++    keys(part, 'type text annotations logprobs refusal');
++    if (
++      !types.includes(String(part.type)) ||
++      (part.type === 'refusal' ? typeof part.refusal !== 'string' : typeof part.text !== 'string')
++    )
++      fail();
++  }
++}
++function inputItem(raw: unknown): void {
++  const item = record(raw);
++  if (item.type === undefined || item.type === 'message') {
++    keys(item, 'type id role content status');
++    if (!['user', 'assistant', 'system', 'developer'].includes(String(item.role))) fail();
++    if (typeof item.content !== 'string')
++      textParts(item.content, ['input_text', 'output_text', 'refusal']);
++  } else if (item.type === 'function_call') {
++    keys(item, 'type id call_id name arguments status');
++    if (
++      typeof item.call_id !== 'string' ||
++      typeof item.name !== 'string' ||
++      typeof item.arguments !== 'string'
++    )
++      fail();
++  } else if (item.type === 'function_call_output') {
++    keys(item, 'type id call_id output status');
++    if (typeof item.call_id !== 'string' || typeof item.output !== 'string') fail();
++  } else if (item.type === 'reasoning') {
++    keys(item, 'type id summary content encrypted_content status');
++    if (item.summary !== undefined) textParts(item.summary, ['summary_text']);
++    if (item.content !== undefined) textParts(item.content, ['reasoning_text']);
++    if (item.encrypted_content !== undefined && typeof item.encrypted_content !== 'string') fail();
++  } else fail();
++}
++
++/** Validate priced units and select Standard/default before hashing or reserving bytes. */
++export function prepareCaptureOpenAiBody(body: Record<string, unknown>): Record<string, unknown> {
++  if (!captureProviderWireActive()) return body;
++  keys(
++    body,
++    'model instructions input tools tool_choice parallel_tool_calls reasoning max_output_tokens store safety_identifier include text service_tier',
++  );
++  if (body.service_tier !== undefined && body.service_tier !== 'default') fail();
++  if (
++    body.store !== false ||
++    typeof body.model !== 'string' ||
++    !Number.isSafeInteger(body.max_output_tokens) ||
++    Number(body.max_output_tokens) <= 0
++  )
++    fail();
++  if (body.instructions !== undefined && typeof body.instructions !== 'string') fail();
++  if (typeof body.input !== 'string') {
++    if (!Array.isArray(body.input)) return fail();
++    body.input.forEach(inputItem);
++  }
++  if (body.tools !== undefined) {
++    if (!Array.isArray(body.tools)) return fail();
++    for (const raw of body.tools) {
++      const tool = record(raw);
++      keys(tool, 'type name description parameters strict');
++      if (tool.type !== 'function' || typeof tool.name !== 'string') fail();
++    }
++  }
++  if (body.tool_choice !== undefined) {
++    if (typeof body.tool_choice === 'string') {
++      if (!['auto', 'none', 'required'].includes(body.tool_choice)) fail();
++    } else {
++      const choice = record(body.tool_choice);
++      keys(choice, 'type name');
++      if (choice.type !== 'function' || typeof choice.name !== 'string') fail();
++    }
++  }
++  if (
++    body.include !== undefined &&
++    (!Array.isArray(body.include) || body.include.some((x) => x !== 'reasoning.encrypted_content'))
++  )
++    fail();
++  return { ...body, service_tier: 'default' };
++}
++
++/** Only existing accounted provider transports are eligible; no URL substring admission. */
++export function prepareCaptureProviderFetch(
++  args: Parameters<typeof fetch>,
++): Parameters<typeof fetch> {
++  if (!captureProviderWireActive()) return args;
++  const [request, init] = args;
++  if (
++    !(typeof request === 'string' || request instanceof URL) ||
++    init?.method !== 'POST' ||
++    typeof init.body !== 'string'
++  )
++    return fail();
++  const url = String(request);
++  if (
++    ![
++      'https://api.openai.com/v1/responses',
++      'https://api.anthropic.com/v1/messages',
++      'https://api.typesafe.ai/v1/systemone',
++    ].includes(url)
++  )
++    return fail();
++  let body: Record<string, unknown>;
++  try {
++    body = record(JSON.parse(init.body));
++  } catch {
++    return fail();
++  }
++  return [
++    request,
++    {
++      ...init,
++      redirect: 'error',
++      body:
++        url === 'https://api.openai.com/v1/responses'
++          ? JSON.stringify(prepareCaptureOpenAiBody(body))
++          : init.body,
++    },
++  ];
++}
+--- a/apps/meriv2-orchestrator/src/meri/meriv3/openai-responses.client.ts
++++ b/apps/meriv2-orchestrator/src/meri/meriv3/openai-responses.client.ts
+@@ -1,5 +1,9 @@
+ import { meriTelemetryUsage } from '@capiro/meriv2-core';
+ import { prepareOpenAiResponsesRequest, upgradeTextModel } from '@capiro/shared/ai-model-policy';
++import {
++  captureProviderWireActive,
++  prepareCaptureOpenAiBody,
++} from '../meri-capture-provider-wire.js';
+ import { Injectable, Logger } from '@nestjs/common';
+ import { AI_PRICING, computeAiCostUsd, type ProviderUsage } from '@capiro/shared';
+ import { RequestCredentialsStore } from '../../request/request-credentials.store.js';
+@@ -365,6 +369,7 @@
+       tools: params.tools,
+       toolChoice: effectiveToolChoice,
+       maxOutputTokens: params.profile.maxOutputTokens,
++      ...(captureProviderWireActive() ? { serviceTier: 'default' } : {}),
+     });
+     let previousAttemptId: string | null = null;
+     for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
+@@ -378,25 +383,27 @@
+             parallel_tool_calls: true,
+           }
+         : {};
+-      const preparedRequest = prepareOpenAiResponsesRequest(
+-        {
+-          model,
+-          instructions: params.instructions,
+-          input: params.input,
+-          ...toolFields,
+-          ...(reasoningUnsupported
+-            ? {}
+-            : {
+-                reasoning: {
+-                  effort: activeReasoningEffort,
+-                  summary: 'auto',
+-                },
+-              }),
+-          max_output_tokens: params.profile.maxOutputTokens,
+-          store: false,
+-          ...(params.safetyIdentifier ? { safety_identifier: params.safetyIdentifier } : {}),
+-        },
+-        { defaultReasoning: !reasoningUnsupported },
++      const preparedRequest = prepareCaptureOpenAiBody(
++        prepareOpenAiResponsesRequest(
++          {
++            model,
++            instructions: params.instructions,
++            input: params.input,
++            ...toolFields,
++            ...(reasoningUnsupported
++              ? {}
++              : {
++                  reasoning: {
++                    effort: activeReasoningEffort,
++                    summary: 'auto',
++                  },
++                }),
++            max_output_tokens: params.profile.maxOutputTokens,
++            store: false,
++            ...(params.safetyIdentifier ? { safety_identifier: params.safetyIdentifier } : {}),
++          },
++          { defaultReasoning: !reasoningUnsupported },
++        ),
+       );
+       const requestBody = JSON.stringify(preparedRequest);
+       // Reserve the final wire ceiling: model policy can raise a smaller
+@@ -463,6 +470,7 @@
+             async () => {
+               const response = await fetch(RESPONSES_URL, {
+                 method: 'POST',
++                ...(captureProviderWireActive() ? { redirect: 'error' as const } : {}),
+                 headers: {
+                   authorization: `Bearer ${apiKey}`,
+                   'content-type': 'application/json',
+--- a/apps/meriv2-orchestrator/src/meri/meriv3/meriv3-run-budget.ts
++++ b/apps/meriv2-orchestrator/src/meri/meriv3/meriv3-run-budget.ts
+@@ -1,5 +1,6 @@
+ import { createHash, randomUUID } from 'node:crypto';
+ import { JEV_TASK_REGISTRY } from '@capiro/meriv2-core';
++import { prepareCaptureProviderFetch } from '../meri-capture-provider-wire.js';
+ 
+ export type MeriModelBudgetPhase =
+   'acquisition' | 'selection' | 'repair' | 'synthesis' | 'finalization' | 'shadow';
+@@ -222,6 +223,7 @@
+   ): typeof fetch {
+     const attempts = new Map<string, { count: number; previousAttemptId: string | null }>();
+     return (async (...args: Parameters<typeof fetch>) => {
++      args = prepareCaptureProviderFetch(args);
+       const fetchBudget = providerFetchBudgetInput(args, phase);
+       const operationState = attempts.get(fetchBudget.logicalOperationId) ?? {
+         count: 0,
+--- a/apps/meriv2-orchestrator/src/meri/request-scoped-llm.client.ts
++++ b/apps/meriv2-orchestrator/src/meri/request-scoped-llm.client.ts
+@@ -3,6 +3,7 @@
+ import { AnthropicLlmClient, OpenAiLlmClient, type LlmClient } from '@capiro/meriv2-core';
+ import { parseProviderUsage, type ProviderUsage } from '@capiro/shared';
+ import { RequestCredentialsStore } from '../request/request-credentials.store.js';
++import { captureProviderWireActive } from './meri-capture-provider-wire.js';
+ import {
+   stableProviderOperationId,
+   type MeriModelBudgetPhase,
+@@ -220,6 +221,7 @@
+     model: string,
+     provider: 'anthropic' | 'openai',
+     control?: { signal?: AbortSignal; timeoutMs: number },
++    wireFetch?: typeof fetch,
+   ): LlmClient {
+     const boundedFetch: typeof fetch | undefined = control
+       ? async (request, init) => {
+@@ -235,7 +237,7 @@
+           if (init?.signal?.aborted) abortFromProvider();
+           if (control.signal?.aborted) abortFromTurn();
+           try {
+-            return await fetch(request, { ...init, signal: controller.signal });
++            return await (wireFetch ?? fetch)(request, { ...init, signal: controller.signal });
+           } finally {
+             clearTimeout(timer);
+             init?.signal?.removeEventListener('abort', abortFromProvider);
+@@ -256,7 +258,7 @@
+         : this.timeoutMs !== undefined
+           ? { timeoutMs: this.timeoutMs }
+           : {}),
+-      ...(boundedFetch ? { fetchImpl: boundedFetch } : {}),
++      ...(boundedFetch || wireFetch ? { fetchImpl: boundedFetch ?? wireFetch } : {}),
+     };
+     return provider === 'openai' ? new OpenAiLlmClient(opts) : new AnthropicLlmClient(opts);
+   }
+@@ -277,6 +279,14 @@
+     op: (client: LlmClient, timeoutMs?: number) => Promise<T>,
+     providerBudget?: ProviderBudgetContext,
+   ): Promise<T> {
++    // Core adapters may change endpoint, model and output ceiling. Capture
++    // accounting therefore observes their final wire request, exactly once.
++    const wireFetch =
++      captureProviderWireActive() && providerBudget
++        ? providerBudget.budget.budgetedFetch(providerBudget.phase)
++        : undefined;
++    if (captureProviderWireActive() && !providerBudget)
++      throw new Error('meri_capture_provider_wire_budget_missing');
+     const primary = this.resolve();
+     const attempts: ResolvedCred[] = [primary];
+     if (
+@@ -301,20 +311,21 @@
+         const attemptId = providerBudget
+           ? `${providerBudget.logicalOperationId}:${providerAttempt}`
+           : null;
+-        const reservation = providerBudget
+-          ? await providerBudget.budget.reserveProviderAttempt({
+-              logicalOperationId: providerBudget.logicalOperationId,
+-              attemptId: attemptId!,
+-              retryOfAttemptId: previousAttemptId,
+-              kind: cred.provider === 'openai' ? 'openai_responses' : 'anthropic_messages',
+-              phase: providerBudget.phase,
+-              provider: cred.provider,
+-              model: cred.model,
+-              maxInputTokens: providerBudget.maxInputTokens,
+-              maxOutputTokens: providerBudget.maxOutputTokens,
+-              retry: providerAttempt > 0,
+-            })
+-          : null;
++        const reservation =
++          providerBudget && !wireFetch
++            ? await providerBudget.budget.reserveProviderAttempt({
++                logicalOperationId: providerBudget.logicalOperationId,
++                attemptId: attemptId!,
++                retryOfAttemptId: previousAttemptId,
++                kind: cred.provider === 'openai' ? 'openai_responses' : 'anthropic_messages',
++                phase: providerBudget.phase,
++                provider: cred.provider,
++                model: cred.model,
++                maxInputTokens: providerBudget.maxInputTokens,
++                maxOutputTokens: providerBudget.maxOutputTokens,
++                retry: providerAttempt > 0,
++              })
++            : null;
+         providerAttempt += 1;
+         if (attemptId) previousAttemptId = attemptId;
+         const providerControl = providerBudget?.budget.providerControl(reservation?.deadlineAt);
+@@ -336,10 +347,11 @@
+               providerControl && remainingMs !== undefined
+                 ? { ...providerControl, timeoutMs: remainingMs }
+                 : undefined,
++              wireFetch,
+             ),
+             remainingMs,
+           );
+-          if (providerBudget) {
++          if (providerBudget && !wireFetch) {
+             const usage = readKnownUsage(result);
+             providerSettlementAttempted = true;
+             await providerBudget.budget.settleProviderAttempt(
+@@ -349,7 +361,7 @@
+           }
+           return result;
+         } catch (err) {
+-          if (providerBudget && !providerSettlementAttempted) {
++          if (providerBudget && !wireFetch && !providerSettlementAttempted) {
+             providerSettlementAttempted = true;
+             await providerBudget.budget.settleProviderAttempt(reservation, { kind: 'uncertain' });
+           }
+--- a/apps/api/src/embeddings/titan-embedding.provider.ts
++++ b/apps/api/src/embeddings/titan-embedding.provider.ts
+@@ -58,6 +58,8 @@
+   }
+ 
+   async embed(input: string): Promise<number[]> {
++    if (captureApiProviderScopeActive() && this.region !== 'us-east-1')
++      throw new Error('meri_capture_provider_wire_unqualified_bedrock_region');
+     const command = new InvokeModelCommand({
+       modelId: this.metadata.model,
+       contentType: 'application/json',
+@@ -141,7 +143,11 @@
+     if (this.customInvoker) return this.customInvoker(command);
+     if (captureApiProviderScopeActive()) {
+       // Hidden SDK retries cannot reuse one durable wire-attempt reservation.
+-      this.captureBedrock ??= new BedrockRuntimeClient({ region: this.region, maxAttempts: 1 });
++      this.captureBedrock ??= new BedrockRuntimeClient({
++        region: this.region,
++        maxAttempts: 1,
++        endpoint: 'https://bedrock-runtime.us-east-1.amazonaws.com',
++      });
+       const response = await this.captureBedrock.send(command);
+       return { body: response.body };
+     }
+--- a/apps/api/src/reranking/nvidia-reranking.provider.ts
++++ b/apps/api/src/reranking/nvidia-reranking.provider.ts
+@@ -1,4 +1,5 @@
+ import {
++  captureApiProviderScopeActive,
+   reserveCaptureApiProviderAttempt,
+   settleCaptureApiProviderAttempt,
+ } from '../meri/meri-capture-api-provider-scope.js';
+@@ -78,6 +79,9 @@
+   }
+ 
+   async rerank(request: RerankingProviderRequest): Promise<RerankingProviderResult> {
++    const capture = captureApiProviderScopeActive();
++    if (capture && this.endpointUrl !== nvidiaHostedRerankingUrl(this.metadata.model))
++      throw new Error('meri_capture_provider_wire_unqualified_nvidia_endpoint');
+     if (!request.query.trim() || request.passages.length === 0) {
+       throw new RerankingProviderError(
+         'invalid_provider_response',
+@@ -107,6 +111,7 @@
+     try {
+       const response = await this.fetchImpl(this.endpointUrl, {
+         method: 'POST',
++        ...(capture ? { redirect: 'error' as const } : {}),
+         headers: {
+           Accept: 'application/json',
+           'Content-Type': 'application/json',
+--- a/apps/meriv2-orchestrator/src/meri/meri-capture-provider-wire.spec.ts
++++ b/apps/meriv2-orchestrator/src/meri/meri-capture-provider-wire.spec.ts
+@@ -0,0 +1,450 @@
++import { withTrustedCurrentTurnScope } from '../request/trusted-current-turn-scope.js';
++import { RequestCredentialsStore } from '../request/request-credentials.store.js';
++import { OpenAiResponsesClient } from './meriv3/openai-responses.client.js';
++import { resolveMeriV3ReasoningProfile } from './meriv3/meriv3-reasoning.js';
++import { MeriRunBudget, stableProviderOperationId } from './meriv3/meriv3-run-budget.js';
++import { RequestScopedLlmClient } from './request-scoped-llm.client.js';
++
++const capture = <T>(fn: () => T) =>
++  withTrustedCurrentTurnScope(
++    {
++      tenantId: 'unit-tenant',
++      userId: 'unit-user',
++      conversationId: 'unit-chat',
++      selectedClientId: 'unit-client',
++      capturePolicy: {
++        expectedCaptureWrites: [
++          'user_message',
++          'assistant_message',
++          'capture_evidence',
++          'provider_budget_ledger',
++        ],
++      } as never,
++    },
++    fn,
++  );
++const wire = {
++  model: 'gpt-6-astra',
++  store: false,
++  max_output_tokens: 8192,
++  input: [{ role: 'user', content: 'unit text' }],
++};
++const response = () =>
++  new Response(
++    JSON.stringify({
++      id: 'unit-response',
++      model: 'gpt-6-astra',
++      status: 'completed',
++      output: [
++        {
++          type: 'message',
++          role: 'assistant',
++          content: [{ type: 'output_text', text: '{"ok":true}' }],
++        },
++        { type: 'function_call', call_id: 'unit-call', name: 'result', arguments: '{"ok":true}' },
++      ],
++      usage: { input_tokens: 23, output_tokens: 8 },
++    }),
++    { status: 200 },
++  );
++function accounting() {
++  const reserve = jest.fn(async (_binding: unknown) => ({
++    reservationId: 'unit-reservation',
++    dispatchAllowed: true,
++    deadlineAt: new Date(Date.now() + 60_000).toISOString(),
++  }));
++  const settle = jest.fn(async () => {});
++  return {
++    reserve,
++    settle,
++    budget: MeriRunBudget.fromToolRoundCeiling(
++      10,
++      { deadlineAt: Date.now() + 60_000 },
++      { reserve, settle },
++    ),
++  };
++}
++const originalFetch = global.fetch;
++const originalKey = process.env.OPENAI_API_KEY;
++afterEach(() => {
++  global.fetch = originalFetch;
++  if (originalKey === undefined) delete process.env.OPENAI_API_KEY;
++  else process.env.OPENAI_API_KEY = originalKey;
++});
++
++test.each([true, false])(
++  'native Responses capture=%s sets default tier only for capture before byte reservation',
++  async (scoped) => {
++    process.env.OPENAI_API_KEY = 'unit-only-key';
++    const a = accounting();
++    const fetcher = jest.fn(async (..._args: Parameters<typeof fetch>) => response());
++    global.fetch = fetcher;
++    const run = () =>
++      new OpenAiResponsesClient().complete({
++        profile: resolveMeriV3ReasoningProfile('standard', {}),
++        instructions: 'unit',
++        input: wire.input,
++        tools: [],
++        budget: a.budget,
++      });
++    await (scoped ? capture(run) : run());
++    const init = fetcher.mock.calls[0]![1]!;
++    expect(JSON.parse(String(init.body)).service_tier).toBe(scoped ? 'default' : undefined);
++    expect(a.reserve).toHaveBeenCalledTimes(1);
++    expect(a.reserve).toHaveBeenCalledWith(
++      expect.objectContaining({
++        maxInputTokens: Buffer.byteLength(String(init.body)),
++        maxOutputTokens: JSON.parse(String(init.body)).max_output_tokens,
++      }),
++    );
++  },
++);
++
++test.each([
++  { service_tier: 'priority' },
++  { service_tier: 'auto' },
++  { service_tier: 'flex' },
++  {
++    input: [
++      { role: 'user', content: [{ type: 'input_image', image_url: 'https://unit.invalid/x' }] },
++    ],
++  },
++  { input: [{ role: 'user', content: [{ type: 'input_audio', data: 'unit' }] }] },
++  { input: [{ type: 'item_reference', id: 'external-item' }] },
++  { tools: [{ type: 'web_search' }] },
++  { tool_choice: { type: 'web_search' } },
++  { tools: [{ type: 'code_interpreter', container: { type: 'auto' } }] },
++  { previous_response_id: 'external-response' },
++  { conversation: 'external-conversation' },
++  {
++    input: [
++      {
++        type: 'function_call_output',
++        call_id: 'unit',
++        output: [{ type: 'input_file', file_id: 'external-file' }],
++      },
++    ],
++  },
++])('capture refuses unsupported priced units before reservation or fetch: %j', async (override) => {
++  const a = accounting();
++  const fetcher = jest.fn(async () => response());
++  await expect(
++    capture(() =>
++      a.budget.budgetedFetch('repair', fetcher)('https://api.openai.com/v1/responses', {
++        method: 'POST',
++        body: JSON.stringify({ ...wire, ...override }),
++      }),
++    ),
++  ).rejects.toThrow('meri_capture_provider_wire');
++  expect(fetcher).not.toHaveBeenCalled();
++  expect(a.reserve).not.toHaveBeenCalled();
++});
++
++test.each([
++  'https://proxy.invalid/v1/responses',
++  'https://api.openai.com/v1/chat/completions',
++  'https://api.openai.com/v1/responses?region=other',
++])('capture refuses unqualified endpoint %s before reservation', async (url) => {
++  const a = accounting();
++  const fetcher = jest.fn(async () => response());
++  await expect(
++    capture(() =>
++      a.budget.budgetedFetch('selection', fetcher)(url, {
++        method: 'POST',
++        body: JSON.stringify(wire),
++      }),
++    ),
++  ).rejects.toThrow('meri_capture_provider_wire');
++  expect(fetcher).not.toHaveBeenCalled();
++  expect(a.reserve).not.toHaveBeenCalled();
++});
++
++test('capture allows inline text, function and reasoning replay; binds normalized final body', async () => {
++  const a = accounting();
++  const fetcher = jest.fn(async (..._args: Parameters<typeof fetch>) => response());
++  const body = {
++    ...wire,
++    tools: [{ type: 'function', name: 'unit', parameters: { type: 'object' } }],
++    input: [
++      ...wire.input,
++      {
++        type: 'reasoning',
++        id: 'unit-reasoning',
++        summary: [{ type: 'summary_text', text: 'unit' }],
++        encrypted_content: 'unit-inline-reasoning',
++      },
++      { type: 'function_call', call_id: 'unit-call', name: 'unit', arguments: '{}' },
++      { type: 'function_call_output', call_id: 'unit-call', output: 'unit text' },
++      {
++        type: 'message',
++        role: 'assistant',
++        content: [{ type: 'output_text', text: 'unit', annotations: [] }],
++      },
++    ],
++  };
++  const before = JSON.stringify(body);
++  await capture(() =>
++    a.budget.budgetedFetch('repair', fetcher)('https://api.openai.com/v1/responses', {
++      method: 'POST',
++      body: before,
++    }),
++  );
++  const sent = fetcher.mock.calls[0]![1]!;
++  expect(JSON.stringify(body)).toBe(before);
++  expect(JSON.parse(String(sent.body)).service_tier).toBe('default');
++  expect(sent.redirect).toBe('error');
++  expect(a.reserve).toHaveBeenCalledWith(
++    expect.objectContaining({
++      logicalOperationId: stableProviderOperationId('provider-fetch', {
++        url: 'https://api.openai.com/v1/responses',
++        method: 'POST',
++        body: sent.body,
++        phase: 'repair',
++      }),
++      maxInputTokens: Buffer.byteLength(String(sent.body)),
++      maxOutputTokens: 8192,
++    }),
++  );
++});
++
++test('ordinary budgeted fetch preserves custom endpoint, premium tier and multimodal body', async () => {
++  const a = accounting();
++  const fetcher = jest.fn(async (..._args: Parameters<typeof fetch>) => response());
++  const init = {
++    method: 'POST',
++    body: JSON.stringify({
++      ...wire,
++      service_tier: 'priority',
++      input: [{ type: 'input_image', image_url: 'unit' }],
++    }),
++  };
++  await a.budget.budgetedFetch('repair', fetcher)('https://proxy.invalid/v1/responses', init);
++  expect(fetcher.mock.calls[0]![1]!.body).toBe(init.body);
++  expect(fetcher.mock.calls[0]![1]!.redirect).toBeUndefined();
++});
++
++test.each(['schema', 'json'] as const)(
++  'capture core %s reserves prepared output8192 and final bytes once per retry',
++  async (method) => {
++    const a = accounting();
++    const fetcher = jest
++      .fn<Promise<Response>, Parameters<typeof fetch>>()
++      .mockResolvedValueOnce(new Response('{"error":{"message":"rate limited"}}', { status: 429 }))
++      .mockImplementation(async () => response());
++    global.fetch = fetcher;
++    const client = new RequestScopedLlmClient('unit-key', 'gpt-6-astra', 5000);
++    await capture(() =>
++      RequestCredentialsStore.run(
++        {
++          bearerToken: 'unit-token',
++          aiProvider: {
++            provider: 'openai',
++            apiKey: 'unit-key',
++            model: 'gpt-6-astra',
++            usedTenantKey: true,
++            modelOverridden: false,
++          },
++        },
++        () => {
++          const bounded = client.withProviderBudget(a.budget, 'repair', 'unit-repair');
++          const params = { system: 'unit', prompt: 'unit', maxTokens: 512 };
++          return method === 'json'
++            ? bounded.completeJson(params)
++            : bounded.completeWithSchema!({
++                ...params,
++                toolName: 'result',
++                toolDescription: 'unit',
++                inputSchema: { type: 'object' },
++              });
++        },
++      ),
++    );
++    expect(fetcher).toHaveBeenCalledTimes(2);
++    expect(a.reserve).toHaveBeenCalledTimes(2);
++    expect(a.settle).toHaveBeenCalledTimes(2);
++    for (let i = 0; i < 2; i++) {
++      const body = String(fetcher.mock.calls[i]![1]!.body);
++      expect(JSON.parse(body)).toMatchObject({ service_tier: 'default', max_output_tokens: 8192 });
++      expect(a.reserve.mock.calls[i]![0]).toMatchObject({
++        kind: 'openai_responses',
++        provider: 'openai',
++        model: 'gpt-6-astra',
++        maxInputTokens: Buffer.byteLength(body),
++        maxOutputTokens: 8192,
++      });
++    }
++    expect(a.settle.mock.calls.at(-1)).toEqual([
++      expect.anything(),
++      { kind: 'known', inputTokens: 23, outputTokens: 8 },
++    ]);
++    expect(a.reserve.mock.calls[1]![0]).toMatchObject({
++      retryOfAttemptId: (a.reserve.mock.calls[0]![0] as { attemptId: string }).attemptId,
++    });
++  },
++);
++
++test('capture Typesafe JEV remains unqualified by OpenAI rates, with no provider fetch', async () => {
++  const a = accounting();
++  a.reserve.mockRejectedValueOnce(new Error('meri_capture_provider_budget_price_unknown'));
++  const fetcher = jest.fn(async () => response());
++  await expect(
++    capture(() =>
++      a.budget.budgetedFetch('selection', fetcher)('https://api.typesafe.ai/v1/systemone', {
++        method: 'POST',
++        body: '{"model":"jev-1.13.0"}',
++      }),
++    ),
++  ).rejects.toThrow('price_unknown');
++  expect(a.reserve).toHaveBeenCalledWith(
++    expect.objectContaining({ kind: 'jev', provider: 'jev', model: 'jev-1.13.0' }),
++  );
++  expect(fetcher).not.toHaveBeenCalled();
++});
++
++test('native Responses refuses image input before either reservation or fetch', async () => {
++  process.env.OPENAI_API_KEY = 'unit-only-key';
++  const a = accounting();
++  const fetcher = jest.fn(async () => response());
++  global.fetch = fetcher;
++  await expect(
++    capture(() =>
++      new OpenAiResponsesClient().complete({
++        profile: resolveMeriV3ReasoningProfile('standard', {}),
++        instructions: 'unit',
++        input: [{ role: 'user', content: [{ type: 'input_image', image_url: 'unit' }] }],
++        tools: [],
++        budget: a.budget,
++      }),
++    ),
++  ).rejects.toThrow('meri_capture_provider_wire');
++  expect(a.reserve).not.toHaveBeenCalled();
++  expect(fetcher).not.toHaveBeenCalled();
++});
++
++test.each([undefined, 0, -1, 1.5])(
++  'capture rejects invalid final output ceiling %s before reservation',
++  async (max_output_tokens) => {
++    const a = accounting();
++    const fetcher = jest.fn(async () => response());
++    await expect(
++      capture(() =>
++        a.budget.budgetedFetch('repair', fetcher)('https://api.openai.com/v1/responses', {
++          method: 'POST',
++          body: JSON.stringify({ ...wire, max_output_tokens }),
++        }),
++      ),
++    ).rejects.toThrow('meri_capture_provider_wire');
++    expect(a.reserve).not.toHaveBeenCalled();
++    expect(fetcher).not.toHaveBeenCalled();
++  },
++);
++
++test('capture core fallback reserves each actual prepared provider wire without duplicate outer reservations', async () => {
++  const a = accounting();
++  const fetcher = jest
++    .fn<Promise<Response>, Parameters<typeof fetch>>()
++    .mockResolvedValueOnce(
++      new Response('{"error":{"message":"insufficient credit"}}', { status: 402 }),
++    )
++    .mockImplementation(async () => response());
++  global.fetch = fetcher;
++  const client = new RequestScopedLlmClient('unit-primary', 'claude-sonnet-5', 5000, {
++    provider: 'openai',
++    apiKey: 'unit-fallback',
++    model: 'gpt-6-astra',
++  });
++  await capture(() =>
++    client.withProviderBudget(a.budget, 'repair', 'unit-fallback').completeWithSchema!({
++      system: 'unit',
++      prompt: 'unit',
++      maxTokens: 512,
++      toolName: 'result',
++      toolDescription: 'unit',
++      inputSchema: { type: 'object' },
++    }),
++  );
++  expect(fetcher).toHaveBeenCalledTimes(2);
++  expect(a.reserve).toHaveBeenCalledTimes(2);
++  expect(a.settle).toHaveBeenCalledTimes(2);
++  for (let i = 0; i < 2; i++) {
++    const body = String(fetcher.mock.calls[i]![1]!.body);
++    const parsed = JSON.parse(body);
++    expect(a.reserve.mock.calls[i]![0]).toMatchObject({
++      model: parsed.model,
++      maxInputTokens: Buffer.byteLength(body),
++      maxOutputTokens: parsed.max_output_tokens ?? parsed.max_tokens,
++    });
++  }
++  expect(a.reserve.mock.calls[0]![0]).toMatchObject({
++    kind: 'anthropic_messages',
++    provider: 'anthropic',
++  });
++  expect(a.reserve.mock.calls[1]![0]).toMatchObject({
++    kind: 'openai_responses',
++    provider: 'openai',
++    maxOutputTokens: 8192,
++  });
++  expect(JSON.parse(String(fetcher.mock.calls[1]![1]!.body)).service_tier).toBe('default');
++});
++
++test('capture core unpriced configured provider fails before dispatch and does not silently choose fallback', async () => {
++  const a = accounting();
++  a.reserve.mockRejectedValueOnce(new Error('meri_capture_provider_budget_price_unknown'));
++  const fetcher = jest.fn(async () => response());
++  global.fetch = fetcher;
++  const client = new RequestScopedLlmClient('unit-primary', 'claude-sonnet-5', 5000, {
++    provider: 'openai',
++    apiKey: 'unit-fallback',
++    model: 'gpt-6-astra',
++  });
++  await expect(
++    capture(() =>
++      client
++        .withProviderBudget(a.budget, 'repair', 'unit-unpriced')
++        .completeJson({ system: 'unit', prompt: 'unit' }),
++    ),
++  ).rejects.toThrow('price_unknown');
++  expect(a.reserve).toHaveBeenCalledTimes(1);
++  expect(a.settle).not.toHaveBeenCalled();
++  expect(fetcher).not.toHaveBeenCalled();
++});
++
++test('capture core refuses an unbudgeted completion before provider dispatch', async () => {
++  const fetcher = jest.fn(async () => response());
++  global.fetch = fetcher;
++  await expect(
++    capture(() =>
++      new RequestScopedLlmClient('unit', 'gpt-6-astra').completeJson({
++        system: 'unit',
++        prompt: 'unit',
++      }),
++    ),
++  ).rejects.toThrow('meri_capture_provider_wire_budget_missing');
++  expect(fetcher).not.toHaveBeenCalled();
++});
++
++test('ordinary core budget keeps prior request shape and accounting behavior', async () => {
++  const a = accounting();
++  const fetcher = jest.fn(async (..._args: Parameters<typeof fetch>) => response());
++  global.fetch = fetcher;
++  const client = new RequestScopedLlmClient('unit', 'gpt-6-astra', 5000);
++  await RequestCredentialsStore.run(
++    {
++      bearerToken: 'unit',
++      aiProvider: {
++        provider: 'openai',
++        apiKey: 'unit',
++        model: 'gpt-6-astra',
++        usedTenantKey: true,
++        modelOverridden: false,
++      },
++    },
++    () =>
++      client
++        .withProviderBudget(a.budget, 'repair', 'ordinary')
++        .completeJson({ system: 'unit', prompt: 'unit', maxTokens: 512 }),
++  );
++  expect(JSON.parse(String(fetcher.mock.calls[0]![1]!.body)).service_tier).toBeUndefined();
++  expect(a.reserve).toHaveBeenCalledWith(expect.objectContaining({ maxOutputTokens: 512 }));
++  expect(a.settle.mock.calls.at(-1)).toEqual([expect.anything(), { kind: 'uncertain' }]);
++});
+--- a/apps/api/src/meri/meri-capture-api-provider-scope.spec.ts
++++ b/apps/api/src/meri/meri-capture-api-provider-scope.spec.ts
+@@ -1,5 +1,5 @@
+ import { captureProviderBudgetOwner } from './meri-capture-provider-budget-owner.js';
+-import type { InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
++import { BedrockRuntimeClient, type InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
+ import {
+   assertCaptureApiRetrievalPlan,
+   captureApiProviderScopeActive,
+@@ -20,6 +20,81 @@
+ const policy = captureBudgetTestPolicy();
+ const run = (fn: () => Promise<unknown>) =>
+   withCaptureApiProviderScope({} as never, ctx, policy, fn);
++
++test('capture rejects unreviewed Titan region before reservation and keeps ordinary region configuration', async () => {
++  const invoker = jest.fn(async () => ({
++    body: Buffer.from(JSON.stringify({ embedding: [1, 0], inputTextTokenCount: 2 })),
++  }));
++  const provider = new TitanEmbeddingProvider({ region: 'eu-west-1', dimensions: 2, invoker });
++  await expect(run(() => provider.embed('unit'))).rejects.toThrow('meri_capture_provider_wire');
++  expect(owner).not.toHaveBeenCalled();
++  expect(invoker).not.toHaveBeenCalled();
++  await expect(provider.embed('unit')).resolves.toEqual([1, 0]);
++  expect(invoker).toHaveBeenCalledTimes(1);
++});
++
++test.each([
++  'http://ai.api.nvidia.com/v1/retrieval/nvidia/unit/reranking',
++  'https://proxy.invalid/v1/ranking',
++  'https://ai.api.nvidia.com/v1/retrieval/nvidia/unit/reranking?paid=1',
++])(
++  'capture rejects unreviewed NVIDIA endpoint %s before reservation, ordinary remains configurable',
++  async (endpointUrl) => {
++    const fetchImpl = jest.fn(
++      async () =>
++        new Response(
++          JSON.stringify({
++            rankings: [{ index: 0, logit: 1 }],
++            usage: { prompt_tokens: 1, total_tokens: 1 },
++          }),
++          { status: 200 },
++        ),
++    );
++    const provider = new NvidiaRerankingProvider({ endpointUrl, model: 'nvidia/unit', fetchImpl });
++    await expect(run(() => provider.rerank({ query: 'unit', passages: ['unit'] }))).rejects.toThrow(
++      'meri_capture_provider_wire',
++    );
++    expect(owner).not.toHaveBeenCalled();
++    expect(fetchImpl).not.toHaveBeenCalled();
++    await provider.rerank({ query: 'unit', passages: ['unit'] });
++    expect(fetchImpl).toHaveBeenCalledTimes(1);
++  },
++);
++
++test('capture Titan SDK has fixed regional endpoint and one attempt; NVIDIA cannot redirect', async () => {
++  const send = jest
++    .spyOn(BedrockRuntimeClient.prototype, 'send')
++    .mockImplementation(async () => ({
++      body: Buffer.from(JSON.stringify({ embedding: [1, 0], inputTextTokenCount: 2 })),
++    }));
++  try {
++    const provider = new TitanEmbeddingProvider({ region: 'us-east-1', dimensions: 2 });
++    await run(() => provider.embed('unit'));
++    const sdk = (provider as unknown as { captureBedrock: BedrockRuntimeClient }).captureBedrock;
++    expect(await sdk.config.region()).toBe('us-east-1');
++    expect(await sdk.config.maxAttempts()).toBe(1);
++    expect(await sdk.config.endpoint!()).toMatchObject({
++      protocol: 'https:',
++      hostname: 'bedrock-runtime.us-east-1.amazonaws.com',
++    });
++    expect(send).toHaveBeenCalledTimes(1);
++  } finally {
++    send.mockRestore();
++  }
++  const fetchImpl = jest.fn(
++    async (..._args: Parameters<typeof fetch>) =>
++      new Response(
++        JSON.stringify({
++          rankings: [{ index: 0, logit: 1 }],
++          usage: { prompt_tokens: 1, total_tokens: 1 },
++        }),
++        { status: 200 },
++      ),
++  );
++  const provider = new NvidiaRerankingProvider({ fetchImpl });
++  await run(() => provider.rerank({ query: 'unit', passages: ['unit'] }));
++  expect(fetchImpl.mock.calls[0]![1]!.redirect).toBe('error');
++});
+ beforeEach(() => {
+   owner.mockReset();
+   owner.mockImplementation(async ({ operation }) => {
+@@ -105,13 +180,19 @@
+     ).toThrow('unqualified');
+   });
+ });
+-test('case14 next-turn recall uses the real memory-only plan and cannot admit approval or mail retrieval', async()=>{
+-  await withCaptureApiProviderScope({} as never,ctx,{...policy,caseId:'14'},async()=>{
+-    const nativePlan=planMeriTurn({task:'What is the recently approved Aster memory? Cite its source.',uiClientId:'33333333-3333-4333-8333-333333333333',uiClientName:'Aster Defense'});
++test('case14 next-turn recall uses the real memory-only plan and cannot admit approval or mail retrieval', async () => {
++  await withCaptureApiProviderScope({} as never, ctx, { ...policy, caseId: '14' }, async () => {
++    const nativePlan = planMeriTurn({
++      task: 'What is the recently approved Aster memory? Cite its source.',
++      uiClientId: '33333333-3333-4333-8333-333333333333',
++      uiClientName: 'Aster Defense',
++    });
+     expect(nativePlan.subjectScope).toBe('client');
+     expect(nativePlan.requestedDomains).toEqual(['institutional_knowledge']);
+-    expect(()=>assertCaptureApiRetrievalPlan(nativePlan)).not.toThrow();
+-    expect(()=>assertCaptureApiRetrievalPlan({subjectScope:'client',requestedDomains:['mail']})).toThrow('unqualified');
++    expect(() => assertCaptureApiRetrievalPlan(nativePlan)).not.toThrow();
++    expect(() =>
++      assertCaptureApiRetrievalPlan({ subjectScope: 'client', requestedDomains: ['mail'] }),
++    ).toThrow('unqualified');
+   });
+ });
+ test('original case01 briefing preference prompt stays on its selected client memory rail', async () => {

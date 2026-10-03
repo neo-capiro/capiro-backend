@@ -1,4 +1,5 @@
 import {
+  captureApiProviderScopeActive,
   reserveCaptureApiProviderAttempt,
   settleCaptureApiProviderAttempt,
 } from '../meri/meri-capture-api-provider-scope.js';
@@ -78,6 +79,9 @@ export class NvidiaRerankingProvider implements RerankingProvider {
   }
 
   async rerank(request: RerankingProviderRequest): Promise<RerankingProviderResult> {
+    const capture = captureApiProviderScopeActive();
+    if (capture && this.endpointUrl !== nvidiaHostedRerankingUrl(this.metadata.model))
+      throw new Error('meri_capture_provider_wire_unqualified_nvidia_endpoint');
     if (!request.query.trim() || request.passages.length === 0) {
       throw new RerankingProviderError(
         'invalid_provider_response',
@@ -107,6 +111,7 @@ export class NvidiaRerankingProvider implements RerankingProvider {
     try {
       const response = await this.fetchImpl(this.endpointUrl, {
         method: 'POST',
+        ...(capture ? { redirect: 'error' as const } : {}),
         headers: {
           Accept: 'application/json',
           'Content-Type': 'application/json',

@@ -1,5 +1,9 @@
 import { meriTelemetryUsage } from '@capiro/meriv2-core';
 import { prepareOpenAiResponsesRequest, upgradeTextModel } from '@capiro/shared/ai-model-policy';
+import {
+  captureProviderWireActive,
+  prepareCaptureOpenAiBody,
+} from '../meri-capture-provider-wire.js';
 import { Injectable, Logger } from '@nestjs/common';
 import { AI_PRICING, computeAiCostUsd, type ProviderUsage } from '@capiro/shared';
 import { RequestCredentialsStore } from '../../request/request-credentials.store.js';
@@ -365,6 +369,7 @@ export class OpenAiResponsesClient {
       tools: params.tools,
       toolChoice: effectiveToolChoice,
       maxOutputTokens: params.profile.maxOutputTokens,
+      ...(captureProviderWireActive() ? { serviceTier: 'default' } : {}),
     });
     let previousAttemptId: string | null = null;
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
@@ -378,25 +383,27 @@ export class OpenAiResponsesClient {
             parallel_tool_calls: true,
           }
         : {};
-      const preparedRequest = prepareOpenAiResponsesRequest(
-        {
-          model,
-          instructions: params.instructions,
-          input: params.input,
-          ...toolFields,
-          ...(reasoningUnsupported
-            ? {}
-            : {
-                reasoning: {
-                  effort: activeReasoningEffort,
-                  summary: 'auto',
-                },
-              }),
-          max_output_tokens: params.profile.maxOutputTokens,
-          store: false,
-          ...(params.safetyIdentifier ? { safety_identifier: params.safetyIdentifier } : {}),
-        },
-        { defaultReasoning: !reasoningUnsupported },
+      const preparedRequest = prepareCaptureOpenAiBody(
+        prepareOpenAiResponsesRequest(
+          {
+            model,
+            instructions: params.instructions,
+            input: params.input,
+            ...toolFields,
+            ...(reasoningUnsupported
+              ? {}
+              : {
+                  reasoning: {
+                    effort: activeReasoningEffort,
+                    summary: 'auto',
+                  },
+                }),
+            max_output_tokens: params.profile.maxOutputTokens,
+            store: false,
+            ...(params.safetyIdentifier ? { safety_identifier: params.safetyIdentifier } : {}),
+          },
+          { defaultReasoning: !reasoningUnsupported },
+        ),
       );
       const requestBody = JSON.stringify(preparedRequest);
       // Reserve the final wire ceiling: model policy can raise a smaller
@@ -463,6 +470,7 @@ export class OpenAiResponsesClient {
             async () => {
               const response = await fetch(RESPONSES_URL, {
                 method: 'POST',
+                ...(captureProviderWireActive() ? { redirect: 'error' as const } : {}),
                 headers: {
                   authorization: `Bearer ${apiKey}`,
                   'content-type': 'application/json',

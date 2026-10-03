@@ -1,0 +1,26 @@
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+PASS src/meri/meri-capture-api-provider-scope.spec.ts (23.918 s)
+  √ capture rejects unreviewed Titan region before reservation and keeps ordinary region configuration (22 ms)
+  √ capture rejects unreviewed NVIDIA endpoint http://ai.api.nvidia.com/v1/retrieval/nvidia/unit/reranking before reservation, ordinary remains configurable (9 ms)
+  √ capture rejects unreviewed NVIDIA endpoint https://proxy.invalid/v1/ranking before reservation, ordinary remains configurable (2 ms)
+  √ capture rejects unreviewed NVIDIA endpoint https://ai.api.nvidia.com/v1/retrieval/nvidia/unit/reranking?paid=1 before reservation, ordinary remains configurable
+  √ rejects non-memory or unscoped plans only inside armed capture (2 ms)
+  √ case 20 admits only the existing selected-client analysis context plan (4 ms)
+  √ case 72 admits only the existing selected-client analysis context plan (3 ms)
+  √ case74 cannot reuse controlled-read provider ingress
+  √ case14 next-turn recall uses the real memory-only plan and cannot admit approval or mail retrieval (1 ms)
+  √ original case01 briefing preference prompt stays on its selected client memory rail (6 ms)
+  √ real chat runtime admits before activating scope around context resolution (6 ms)
+  √ Titan cannot dispatch after failed reservation and reports actual usage when admitted (2 ms)
+  √ missing Titan usage and failed NVIDIA response remain charged as uncertain (1 ms)
+  √ NVIDIA reservation uses actual configured model and precedes its HTTP call
+  √ NVIDIA reserves repeated query encoding for every scored passage
+
+Test Suites: 1 passed, 1 total
+Tests:       15 passed, 15 total
+Snapshots:   0 total
+Time:        24.106 s, estimated 27 s
+Ran all test suites matching /src\\meri\\meri-capture-api-provider-scope.spec.ts/i.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?

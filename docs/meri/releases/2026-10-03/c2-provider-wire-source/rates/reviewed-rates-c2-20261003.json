@@ -1,0 +1,68 @@
+{
+  "kind": "meri-capture-reviewed-provider-rates",
+  "version": 1,
+  "priceKind": "qualified_text_token_upper_bound",
+  "maxTokens": 500000,
+  "observedAt": "2026-10-03T17:29:01.587Z",
+  "expiresAt": "2026-10-04T05:29:01.587Z",
+  "rates": [
+    {
+      "kind": "openai_responses",
+      "provider": "openai",
+      "model": "gpt-6-astra",
+      "inputMicrosPerMillion": 25000000,
+      "outputMicrosPerMillion": 75000000
+    },
+    {
+      "kind": "jev",
+      "provider": "openai",
+      "model": "gpt-6-astra",
+      "inputMicrosPerMillion": 25000000,
+      "outputMicrosPerMillion": 75000000
+    },
+    {
+      "kind": "bedrock_embeddings",
+      "provider": "aws-bedrock",
+      "model": "amazon.titan-embed-text-v2:0",
+      "inputMicrosPerMillion": 20000,
+      "outputMicrosPerMillion": 0
+    },
+    {
+      "kind": "nvidia_rerank",
+      "provider": "nvidia-nim",
+      "model": "nvidia/llama-nemotron-rerank-vl-1b-v2",
+      "inputMicrosPerMillion": 1000000,
+      "outputMicrosPerMillion": 0
+    }
+  ],
+  "sources": [
+    {
+      "kind": "openai_responses",
+      "provider": "openai",
+      "model": "gpt-6-astra",
+      "url": "https://developers.openai.com/api/docs/models/gpt-6-astra",
+      "unitContract": "Official OpenAI model and Standard pricing pages re-read 2026-10-03T17:29:01.587Z: gpt-6-astra long-context input USD20/M, cache write USD25/M, output USD75/M above272K input. Retain conservative USD25 input/USD75 output for every request. Existing fixed api.openai.com Responses Standard text-only guard excludes premium/regional tiers, hosted tools, images and external stored-response state. Serialized UTF8 request bytes and actual max_output_tokens bound admission; cumulative tokens<=500000. Unknown models/providers/tiers reject. Accounting bound, not a billing statement."
+    },
+    {
+      "kind": "jev",
+      "provider": "openai",
+      "model": "gpt-6-astra",
+      "url": "https://developers.openai.com/api/docs/models/gpt-6-astra",
+      "unitContract": "Official OpenAI model and Standard pricing pages re-read 2026-10-03T17:29:01.587Z: gpt-6-astra long-context input USD20/M, cache write USD25/M, output USD75/M above272K input. Retain conservative USD25 input/USD75 output for every request. Existing fixed api.openai.com Responses Standard text-only guard excludes premium/regional tiers, hosted tools, images and external stored-response state. Serialized UTF8 request bytes and actual max_output_tokens bound admission; cumulative tokens<=500000. Unknown models/providers/tiers reject. Accounting bound, not a billing statement."
+    },
+    {
+      "kind": "bedrock_embeddings",
+      "provider": "aws-bedrock",
+      "model": "amazon.titan-embed-text-v2:0",
+      "url": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonBedrock/current/us-east-1/index.json",
+      "unitContract": "AWS current us-east-1 public Price List version 20261003001138, SKU EDNQYEHQ3XQ8N7EY, effective2026-10-01: Titan EmbeddingsV2 Text On-demand InvokeModelInference input is USD0.00002/1000 tokens = USD0.02/M. Existing adapter fixes amazon.titan-embed-text-v2:0, us-east-1, ordinary InvokeModel with no premium tier; serialized UTF8 bytes reserve input, inputTextTokenCount settles it; vector output has no output-text charge."
+    },
+    {
+      "kind": "nvidia_rerank",
+      "provider": "nvidia-nim",
+      "model": "nvidia/llama-nemotron-rerank-vl-1b-v2",
+      "url": "https://docs.api.nvidia.com/nim/docs/run-anywhere",
+      "unitContract": "Official NVIDIA Run NIM Anywhere page re-read 2026-10-03T17:29:01.587Z describes free developer hosted endpoints for prototyping. This synthetic test retains the existing ai.api.nvidia.com text-only query/passages endpoint. USD1/M remains a positive conservative reserve above documented free developer use, not billed pricing. Reserve serialized UTF8 payload bytes times passage count. Unsupported partner/self-hosted/paid endpoints reject; missing reliable usage remains uncertain."
+    }
+  ]
+}

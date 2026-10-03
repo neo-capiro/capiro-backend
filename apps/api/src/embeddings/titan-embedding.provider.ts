@@ -58,6 +58,8 @@ export class TitanEmbeddingProvider implements EmbeddingProvider {
   }
 
   async embed(input: string): Promise<number[]> {
+    if (captureApiProviderScopeActive() && this.region !== 'us-east-1')
+      throw new Error('meri_capture_provider_wire_unqualified_bedrock_region');
     const command = new InvokeModelCommand({
       modelId: this.metadata.model,
       contentType: 'application/json',
@@ -141,7 +143,11 @@ export class TitanEmbeddingProvider implements EmbeddingProvider {
     if (this.customInvoker) return this.customInvoker(command);
     if (captureApiProviderScopeActive()) {
       // Hidden SDK retries cannot reuse one durable wire-attempt reservation.
-      this.captureBedrock ??= new BedrockRuntimeClient({ region: this.region, maxAttempts: 1 });
+      this.captureBedrock ??= new BedrockRuntimeClient({
+        region: this.region,
+        maxAttempts: 1,
+        endpoint: 'https://bedrock-runtime.us-east-1.amazonaws.com',
+      });
       const response = await this.captureBedrock.send(command);
       return { body: response.body };
     }

@@ -1,5 +1,5 @@
 import { captureProviderBudgetOwner } from './meri-capture-provider-budget-owner.js';
-import type { InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
+import { BedrockRuntimeClient, type InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
 import {
   assertCaptureApiRetrievalPlan,
   captureApiProviderScopeActive,
@@ -20,6 +20,81 @@ const owner = jest.mocked(captureProviderBudgetOwner);
 const policy = captureBudgetTestPolicy();
 const run = (fn: () => Promise<unknown>) =>
   withCaptureApiProviderScope({} as never, ctx, policy, fn);
+
+test('capture rejects unreviewed Titan region before reservation and keeps ordinary region configuration', async () => {
+  const invoker = jest.fn(async () => ({
+    body: Buffer.from(JSON.stringify({ embedding: [1, 0], inputTextTokenCount: 2 })),
+  }));
+  const provider = new TitanEmbeddingProvider({ region: 'eu-west-1', dimensions: 2, invoker });
+  await expect(run(() => provider.embed('unit'))).rejects.toThrow('meri_capture_provider_wire');
+  expect(owner).not.toHaveBeenCalled();
+  expect(invoker).not.toHaveBeenCalled();
+  await expect(provider.embed('unit')).resolves.toEqual([1, 0]);
+  expect(invoker).toHaveBeenCalledTimes(1);
+});
+
+test.each([
+  'http://ai.api.nvidia.com/v1/retrieval/nvidia/unit/reranking',
+  'https://proxy.invalid/v1/ranking',
+  'https://ai.api.nvidia.com/v1/retrieval/nvidia/unit/reranking?paid=1',
+])(
+  'capture rejects unreviewed NVIDIA endpoint %s before reservation, ordinary remains configurable',
+  async (endpointUrl) => {
+    const fetchImpl = jest.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            rankings: [{ index: 0, logit: 1 }],
+            usage: { prompt_tokens: 1, total_tokens: 1 },
+          }),
+          { status: 200 },
+        ),
+    );
+    const provider = new NvidiaRerankingProvider({ endpointUrl, model: 'nvidia/unit', fetchImpl });
+    await expect(run(() => provider.rerank({ query: 'unit', passages: ['unit'] }))).rejects.toThrow(
+      'meri_capture_provider_wire',
+    );
+    expect(owner).not.toHaveBeenCalled();
+    expect(fetchImpl).not.toHaveBeenCalled();
+    await provider.rerank({ query: 'unit', passages: ['unit'] });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  },
+);
+
+test('capture Titan SDK has fixed regional endpoint and one attempt; NVIDIA cannot redirect', async () => {
+  const send = jest
+    .spyOn(BedrockRuntimeClient.prototype, 'send')
+    .mockImplementation(async () => ({
+      body: Buffer.from(JSON.stringify({ embedding: [1, 0], inputTextTokenCount: 2 })),
+    }));
+  try {
+    const provider = new TitanEmbeddingProvider({ region: 'us-east-1', dimensions: 2 });
+    await run(() => provider.embed('unit'));
+    const sdk = (provider as unknown as { captureBedrock: BedrockRuntimeClient }).captureBedrock;
+    expect(await sdk.config.region()).toBe('us-east-1');
+    expect(await sdk.config.maxAttempts()).toBe(1);
+    expect(await sdk.config.endpoint!()).toMatchObject({
+      protocol: 'https:',
+      hostname: 'bedrock-runtime.us-east-1.amazonaws.com',
+    });
+    expect(send).toHaveBeenCalledTimes(1);
+  } finally {
+    send.mockRestore();
+  }
+  const fetchImpl = jest.fn(
+    async (..._args: Parameters<typeof fetch>) =>
+      new Response(
+        JSON.stringify({
+          rankings: [{ index: 0, logit: 1 }],
+          usage: { prompt_tokens: 1, total_tokens: 1 },
+        }),
+        { status: 200 },
+      ),
+  );
+  const provider = new NvidiaRerankingProvider({ fetchImpl });
+  await run(() => provider.rerank({ query: 'unit', passages: ['unit'] }));
+  expect(fetchImpl.mock.calls[0]![1]!.redirect).toBe('error');
+});
 beforeEach(() => {
   owner.mockReset();
   owner.mockImplementation(async ({ operation }) => {
@@ -105,13 +180,19 @@ test('case74 cannot reuse controlled-read provider ingress', async () => {
     ).toThrow('unqualified');
   });
 });
-test('case14 next-turn recall uses the real memory-only plan and cannot admit approval or mail retrieval', async()=>{
-  await withCaptureApiProviderScope({} as never,ctx,{...policy,caseId:'14'},async()=>{
-    const nativePlan=planMeriTurn({task:'What is the recently approved Aster memory? Cite its source.',uiClientId:'33333333-3333-4333-8333-333333333333',uiClientName:'Aster Defense'});
+test('case14 next-turn recall uses the real memory-only plan and cannot admit approval or mail retrieval', async () => {
+  await withCaptureApiProviderScope({} as never, ctx, { ...policy, caseId: '14' }, async () => {
+    const nativePlan = planMeriTurn({
+      task: 'What is the recently approved Aster memory? Cite its source.',
+      uiClientId: '33333333-3333-4333-8333-333333333333',
+      uiClientName: 'Aster Defense',
+    });
     expect(nativePlan.subjectScope).toBe('client');
     expect(nativePlan.requestedDomains).toEqual(['institutional_knowledge']);
-    expect(()=>assertCaptureApiRetrievalPlan(nativePlan)).not.toThrow();
-    expect(()=>assertCaptureApiRetrievalPlan({subjectScope:'client',requestedDomains:['mail']})).toThrow('unqualified');
+    expect(() => assertCaptureApiRetrievalPlan(nativePlan)).not.toThrow();
+    expect(() =>
+      assertCaptureApiRetrievalPlan({ subjectScope: 'client', requestedDomains: ['mail'] }),
+    ).toThrow('unqualified');
   });
 });
 test('original case01 briefing preference prompt stays on its selected client memory rail', async () => {

@@ -1,0 +1,14 @@
+{
+  "command": [
+    "C:/Users/neoma/AppData/Local/hermes/node/pnpm.cmd",
+    "--filter",
+    "@capiro/meriv2-orchestrator",
+    "build"
+  ],
+  "startedAt": "2026-10-03T18:08:15.025110+00:00",
+  "finishedAt": "2026-10-03T18:08:29.370828+00:00",
+  "exitCode": 0,
+  "logSha256": "71a4b795d9b3b3a9c402827c38d95e29ecc5befc20747a24c7ea4634ddaa0ce1",
+  "sourceCheckpointSha256": "96d17909146a526ce9eae0e60a8b42e6cc7b7a3d38712bc0b2f7297c219c6e89",
+  "limitations": "Local compilation only; not immutable native image or served capture"
+}

@@ -1,0 +1,234 @@
+{
+  "kind": "meri_c2_independent_provider_wire_review",
+  "version": 1,
+  "recordedAt": "2026-10-03T18:24:17.24Z",
+  "reviewer": "mail_defaults_review",
+  "verdict": "BOUNDED_PASS_NATIVE_READONLY_CAPTURE_COMPOSITION",
+  "checkpoint": {
+    "path": "checkpoint.json",
+    "sha256": "96d17909146a526ce9eae0e60a8b42e6cc7b7a3d38712bc0b2f7297c219c6e89",
+    "sourceHead": "627672cd120c112fa272e9457c06553c2037f387",
+    "files": 8,
+    "productionFiles": 6,
+    "testFiles": 2
+  },
+  "verifiedCandidateFiles": [
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meri-capture-provider-wire.ts",
+      "kind": "production",
+      "sha256": "0b8392e2a296a9db6403ddabeb796cbf3ea950a0d53bd341b901b4fa769f2e31",
+      "bytes": 5190
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/openai-responses.client.ts",
+      "kind": "production",
+      "sha256": "10d9cca1dda1b366a5f59af4519a4dd6b6d6a8d60c8088e946d19fa7131e9363",
+      "bytes": 34011
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-run-budget.ts",
+      "kind": "production",
+      "sha256": "a2eda5df34b825a3b81935d1c6a84d15b7ea7cacd68183bfae76ca87dcbc0595",
+      "bytes": 21336
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/request-scoped-llm.client.ts",
+      "kind": "production",
+      "sha256": "0ea51404d5cc3926863989db0873fe1484f068fb627f6a89909c175d17e92735",
+      "bytes": 36276
+    },
+    {
+      "path": "apps/api/src/embeddings/titan-embedding.provider.ts",
+      "kind": "production",
+      "sha256": "bd235b139bf262d76dc23d143e9739bd9cd5163b93921429a86a3fdb94534e55",
+      "bytes": 5696
+    },
+    {
+      "path": "apps/api/src/reranking/nvidia-reranking.provider.ts",
+      "kind": "production",
+      "sha256": "71134c434b11da6ee04a604367c67173a6c258dababa3fb1068a1ddd086b9b99",
+      "bytes": 8262
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meri-capture-provider-wire.spec.ts",
+      "kind": "test",
+      "sha256": "629ed912e9095f7c93a0e945876c67a1bd05fabe9f8ff4bb33d269c1fa763f73",
+      "bytes": 15782
+    },
+    {
+      "path": "apps/api/src/meri/meri-capture-api-provider-scope.spec.ts",
+      "kind": "test",
+      "sha256": "d43bd5bb22996785f74d855527e703bcf297ab2c4b4fa098b1fbfcc9b4cf6708",
+      "bytes": 13830
+    }
+  ],
+  "verifiedArtifacts": [
+    {
+      "path": "candidate.patch",
+      "sha256": "1dd9726c4d4e730d72e0353b514bfad850c7c4dc35e66ebdf372ff254b29d183"
+    },
+    {
+      "path": "orchestrator-final-v2.receipt.json",
+      "sha256": "6625c1fa508e7fcb4368cd316bbc57e1c5a9b5aa3132dbdef5673ddb48421b93",
+      "exitCode": 0,
+      "testsPassed": 133,
+      "suitesPassed": 4
+    },
+    {
+      "path": "orchestrator-final-v2.log",
+      "sha256": "1189e2bbae65265f8a6fa67b343044dc90f7b0e962e676f7ba42edd53f97a0c4"
+    },
+    {
+      "path": "api-final-v1.receipt.json",
+      "sha256": "9acd6c2b4d72ff89139383a275f75cddc89c0e7aa5f4a5604e86fb470c203127",
+      "exitCode": 0,
+      "testsPassed": 26,
+      "suitesPassed": 3
+    },
+    {
+      "path": "api-final-v1.log",
+      "sha256": "2377ca98d19477aace732035a8bc207d47853ecdf83593cd794efdcf9fcc8f5d"
+    },
+    {
+      "path": "orchestrator-red-v2.receipt.json",
+      "sha256": "81c6d3442e37eed03dcd42fc9028faeded94e51c980f81c765e35efe51bcfe1e",
+      "testsFailed": 18,
+      "testsPassed": 3,
+      "exitCode": 1
+    },
+    {
+      "path": "orchestrator-green-v1.receipt.json",
+      "sha256": "c1d522c3fa10b3d47027d5fb4b47c1dedab741748708809aceea7bcfbe31d52d",
+      "testsPassed": 21,
+      "exitCode": 0
+    },
+    {
+      "path": "api-red.receipt.json",
+      "sha256": "f5f4a65e8ea92d351bf4de1a845c44bda35c9116f4841381f745ced4951c0d74",
+      "testsFailed": 4,
+      "testsPassed": 11,
+      "exitCode": 1
+    },
+    {
+      "path": "api-green-v1.receipt.json",
+      "sha256": "26879f0a5d2245ecae39233136a795df6251de3b32841925b1ee3355f626bf30",
+      "testsPassed": 15,
+      "exitCode": 0
+    },
+    {
+      "path": "orchestrator-final-v1.receipt.json",
+      "sha256": "2a189ff10caf11776a3fd9715d4fd8008a3746d9e2ad15c773102a9baa26e2fc",
+      "exitCode": 0
+    },
+    {
+      "path": "orchestrator-red.receipt.json",
+      "sha256": "fa8b82528cff3931d154320675bcb33629e7a7c556774501ddc9c31722ed3c0a",
+      "exitCode": 1,
+      "note": "Preserved initial test-fixture compilation failure; not behavioral red evidence."
+    },
+    {
+      "path": "local-api-build.receipt.json",
+      "sha256": "4689f582e7e2edf716d2f99dd3b66fb9e91ee0f836a13f926becc65b574e93cc",
+      "exitCode": 0
+    },
+    {
+      "path": "local-api-build.log",
+      "sha256": "6a73f8bc0a1fc60ac6a8ae0b9af7e0e0c38b7f9cff82c24e8b11e02b08517cc3"
+    },
+    {
+      "path": "local-meriv2-orchestrator-build.receipt.json",
+      "sha256": "58361bceef130c0fb580a303201cea53c16b9687623fd6781e0ab2c0a801e419",
+      "exitCode": 0
+    },
+    {
+      "path": "local-meriv2-orchestrator-build.log",
+      "sha256": "71a4b795d9b3b3a9c402827c38d95e29ecc5befc20747a24c7ea4634ddaa0ce1"
+    }
+  ],
+  "verification": {
+    "allEightLiveAndMirrorFileHashesAndBytesMatched": true,
+    "patchHashMatched": true,
+    "allEightOriginalFocusedReceiptHashesMatched": true,
+    "bothLocalBuildReceiptsBoundToReviewedCheckpoint": true,
+    "unchangedFileGroups": {
+      "clock": 42,
+      "memory": 22,
+      "freshAdapter": 4,
+      "case01Caller": 2
+    },
+    "actualFreshJournalSha256": "abe458973e6998db20586c781ac5a3cbd4ca2fa565425e62722f0eb9c985210b",
+    "actualFreshAuthorizationSha256": "e07822e83a7c7b531606519ecd4fdf1027f2fa7cbaefd4bad92a2084590262fe",
+    "qualificationMethod": "Independent source/diff and retained artifact inspection. No tests or builds rerun by reviewer.",
+    "testEvidenceLimit": "Final focused tests use actual implementations with mocked provider transports and accounting boundaries. Red/green counts are present in retained logs; the checkpoint identifies the same-test snapshots. No standalone Titan spec matched; Titan adapter tests are in the API capture-scope suite."
+  },
+  "sourceConclusions": [
+    "For admitted native readonly 01/20 turns, runTurn creates one runtimeBudget with captureProviderAccounting. Ledger-marker capture requires identity, bearer and service-secret bindings before dispatch.",
+    "Gather, forced synthesis, recursive critic/synthesis and core enforce-repair callers retain that runtimeBudget. The new core fetch observes the actual adapter request rather than reserving an approximate outer request.",
+    "OpenAI capture requests select service_tier default before serialization and byte reservation, reject unsupported top-level state, multimodal items and hosted tools, and accept only the exact qualified endpoint with redirects disabled.",
+    "Core retries and configured fallback use actual wire provider/model, final prepared output ceiling including the 8192 floor, and full serialized input bytes. The outer approximate reservation/settlement is skipped only for this armed capture path.",
+    "API Titan capture rejects non-us-east-1 regions and uses the explicit regional Bedrock runtime endpoint with maxAttempts one. NVIDIA capture requires the canonical hosted URL for the chosen model and disallows redirects.",
+    "Existing exact-price admission remains the authority for priced provider/model/kind tuples. Unknown provider prices reject before provider dispatch.",
+    "Ordinary non-capture branches retain prior configuration, request and accounting behavior. No provider/model selection or capture-admission gate is widened."
+  ],
+  "nativeCompositionLimitation": "This PASS is for the inspected admitted native composition. OpenAiResponsesClient and MeriRunBudget are not independently safe capability boundaries when directly constructed with artificial trusted ALS and missing durable accounting; tests or arbitrary callers cannot use their public construction as capture authority. The actual runTurn chain supplies durable accounting. The API custom invoker/fetch seams are trusted composition/test seams, not user-controlled endpoint admission.",
+  "replacementRates": {
+    "path": "../reviewed-rates-c2-v2-20261003.json",
+    "sha256": "3531e09dfcce9f66b4ea2b3564db47bd72dc507cdcf1aecdda277b838007704e",
+    "semanticEvidenceSha256AsRecorded": "a1a179383c8451495336169f46025eb8cee8ec95487f1a43017078387b768b11",
+    "verdict": "CONDITIONAL_PREPARED_EVIDENCE_PASS_NOT_INSTALLED",
+    "maxTokens": 500000,
+    "expiresAt": "2026-10-04T05:29:01.587Z",
+    "pricedTuples": [
+      {
+        "kind": "openai_responses",
+        "provider": "openai",
+        "model": "gpt-6-astra",
+        "inputMicrosPerMillion": 25000000,
+        "outputMicrosPerMillion": 75000000
+      },
+      {
+        "kind": "bedrock_embeddings",
+        "provider": "aws-bedrock",
+        "model": "amazon.titan-embed-text-v2:0",
+        "inputMicrosPerMillion": 20000,
+        "outputMicrosPerMillion": 0
+      }
+    ],
+    "numericalRatesAndTokenExpiryLimitsUnchanged": true,
+    "rationale": "Remove the unused/misidentified JEV/OpenAI tuple and NVIDIA placeholder whose account entitlement was unproved. No Typesafe JEV, Anthropic or NVIDIA tuple remains priced; exact matching admission blocks those providers before dispatch without selecting a substitute model or changing configuration.",
+    "originalRejectionRetained": {
+      "path": "../provider-rate-independent-review-v1.json",
+      "sha256": "fa293afc51fc0330a58c5d2972e77a1fa59116836388c1e97bbd16812ddf4e9a"
+    },
+    "priceSources": [
+      "https://developers.openai.com/api/docs/models/gpt-6-astra",
+      "https://developers.openai.com/api/docs/pricing",
+      "https://developers.openai.com/api/docs/guides/your-data",
+      "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonBedrock/current/us-east-1/index.json"
+    ],
+    "sourceLimit": "Official OpenAI pricing/data controls distinguish prefixed regional endpoints. The candidate uses exact api.openai.com/v1/responses and explicit default tier. Rate arithmetic is an accounting upper-bound qualification, not an actual invoice."
+  },
+  "remainingGates": [
+    "Exact immutable API/orchestrator image qualification and release procedure.",
+    "Current served source, image, model, endpoint and region configuration readback for the candidate.",
+    "Fresh canonical fixture/capture binding and unexpired rate installation using existing owners and approved limits.",
+    "Actual provider ledger, final-wire and paid-capture evidence; mocked tests and local builds do not establish these.",
+    "Original-case deterministic and human acceptance; no original acceptance counts changed.",
+    "Case46 OpenAI and non-native chat paths remain outside this native readonly review boundary."
+  ],
+  "reviewEffects": {
+    "sourceEdits": 0,
+    "checkpointEdits": 0,
+    "testsRerun": 0,
+    "buildsRun": 0,
+    "awsMutations": 0,
+    "fixtureMutations": 0,
+    "rateInstallations": 0,
+    "journalAdoptions": 0,
+    "journalMutations": 0,
+    "budgetReservations": 0,
+    "paidProviderCalls": 0,
+    "evidenceFilesCreated": 1
+  },
+  "humanReleaseAttestation": false
+}

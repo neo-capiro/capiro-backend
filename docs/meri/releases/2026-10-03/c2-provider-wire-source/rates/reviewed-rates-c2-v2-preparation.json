@@ -1,0 +1,28 @@
+{
+  "version": 2,
+  "status": "PREPARED_STRUCTURE_PASS_PENDING_INDEPENDENT_GUARD_REVIEW_IMAGE_AND_DEPLOYMENT",
+  "recordedAt": "2026-10-03T18:10:46.151Z",
+  "path": "C:/dev/main/outputs/meri-c2-20261003/reviewed-rates-c2-v2-20261003.json",
+  "sha256": "3531e09dfcce9f66b4ea2b3564db47bd72dc507cdcf1aecdda277b838007704e",
+  "semanticEvidenceSha256": "a1a179383c8451495336169f46025eb8cee8ec95487f1a43017078387b768b11",
+  "expiresAt": "2026-10-04T05:29:01.587Z",
+  "maxTokens": 500000,
+  "retainedPricedKinds": [
+    "openai_responses",
+    "bedrock_embeddings"
+  ],
+  "retainedNumericalRatesUnchanged": true,
+  "removedUnqualifiedKinds": [
+    "jev/openai/gpt-6-astra (actual Typesafe JEV is a different unmatched transport)",
+    "nvidia_rerank/nvidia-nim (inactive current configuration; no billing entitlement proved)"
+  ],
+  "configuredModelsAndProvidersChanged": false,
+  "originalEvidenceRetained": true,
+  "productionValidator": "assertRateEvidence local compiled source passes shape/hash/expiry only",
+  "providerWireCheckpointSha256": "96d17909146a526ce9eae0e60a8b42e6cc7b7a3d38712bc0b2f7297c219c6e89",
+  "rateReviewRejection": "provider-rate-independent-review-v1.json",
+  "installed": false,
+  "budgetReservations": 0,
+  "providerCalls": 0,
+  "fixtureMutations": 0
+}

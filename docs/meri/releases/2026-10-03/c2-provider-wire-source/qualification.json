@@ -1,0 +1,101 @@
+{
+  "version": 1,
+  "recordedAt": "2026-10-03T18:25:12.576995+00:00",
+  "status": "SOURCE_AND_LOCAL_COMPILATION_REVIEWED_NOT_DEPLOYED",
+  "checkpointSha256": "96d17909146a526ce9eae0e60a8b42e6cc7b7a3d38712bc0b2f7297c219c6e89",
+  "independentReviewSha256": "a1f548e0ca38f6fa94b7f9620e7b21a0b5094c3c184fc49a127fa85f1d63bf92",
+  "productionFiles": 6,
+  "testFiles": 2,
+  "focusedTests": {
+    "orchestrator": 133,
+    "api": 26,
+    "failed": 0
+  },
+  "localBuilds": {
+    "apiExitCode": 0,
+    "orchestratorExitCode": 0
+  },
+  "rates": {
+    "originalStatus": "REJECTED_UNQUALIFIED_RETAINED",
+    "replacementStatus": "CONDITIONAL_SOURCE_REVIEW_PASS_NOT_INSTALLED",
+    "replacementSha256": "3531e09dfcce9f66b4ea2b3564db47bd72dc507cdcf1aecdda277b838007704e",
+    "semanticEvidenceSha256": "a1a179383c8451495336169f46025eb8cee8ec95487f1a43017078387b768b11",
+    "expiresAt": "2026-10-04T05:29:01.587Z",
+    "kinds": [
+      "openai_responses",
+      "bedrock_embeddings"
+    ]
+  },
+  "limits": [
+    "Local source qualification does not establish immutable images, served configuration, budget installation or a successful paid capture.",
+    "The independent PASS is bounded to native composition that creates and threads the existing durable capture budget before dispatch; synthetic direct helper construction is not a new authority boundary.",
+    "Typesafe JEV, Anthropic and NVIDIA have no matching reviewed rate and must be refused before capture dispatch.",
+    "No model, provider or infrastructure configuration changed; ordinary request behavior remains covered by regressions."
+  ],
+  "sourceFiles": [
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meri-capture-provider-wire.ts",
+      "kind": "production",
+      "sha256": "0b8392e2a296a9db6403ddabeb796cbf3ea950a0d53bd341b901b4fa769f2e31",
+      "bytes": 5190
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/openai-responses.client.ts",
+      "kind": "production",
+      "sha256": "10d9cca1dda1b366a5f59af4519a4dd6b6d6a8d60c8088e946d19fa7131e9363",
+      "bytes": 34011
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-run-budget.ts",
+      "kind": "production",
+      "sha256": "a2eda5df34b825a3b81935d1c6a84d15b7ea7cacd68183bfae76ca87dcbc0595",
+      "bytes": 21336
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/request-scoped-llm.client.ts",
+      "kind": "production",
+      "sha256": "0ea51404d5cc3926863989db0873fe1484f068fb627f6a89909c175d17e92735",
+      "bytes": 36276
+    },
+    {
+      "path": "apps/api/src/embeddings/titan-embedding.provider.ts",
+      "kind": "production",
+      "sha256": "bd235b139bf262d76dc23d143e9739bd9cd5163b93921429a86a3fdb94534e55",
+      "bytes": 5696
+    },
+    {
+      "path": "apps/api/src/reranking/nvidia-reranking.provider.ts",
+      "kind": "production",
+      "sha256": "71134c434b11da6ee04a604367c67173a6c258dababa3fb1068a1ddd086b9b99",
+      "bytes": 8262
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meri-capture-provider-wire.spec.ts",
+      "kind": "test",
+      "sha256": "629ed912e9095f7c93a0e945876c67a1bd05fabe9f8ff4bb33d269c1fa763f73",
+      "bytes": 15782
+    },
+    {
+      "path": "apps/api/src/meri/meri-capture-api-provider-scope.spec.ts",
+      "kind": "test",
+      "sha256": "d43bd5bb22996785f74d855527e703bcf297ab2c4b4fa098b1fbfcc9b4cf6708",
+      "bytes": 13830
+    }
+  ],
+  "actualJournalUnchanged": {
+    "fresh-spend.jsonl": "abe458973e6998db20586c781ac5a3cbd4ca2fa565425e62722f0eb9c985210b",
+    "run-authorization.json": "e07822e83a7c7b531606519ecd4fdf1027f2fa7cbaefd4bad92a2084590262fe"
+  },
+  "providerCalls": 0,
+  "fixtureMutations": 0,
+  "journalMutations": 0,
+  "originalAcceptance": {
+    "passed": 0,
+    "cases": 75,
+    "cdPassed": 0,
+    "cdCases": 7,
+    "cwPassed": 0,
+    "cwCases": 8,
+    "changed": false
+  }
+}

@@ -1,0 +1,33 @@
+[Nest] 34172  - 10/03/2026, 1:57:26 PM   DEBUG [RequestScopedLlmClient] LLM schema completion (provider=openai, model=gpt-6-astra, usedTenantKey=true)
+[Nest] 34172  - 10/03/2026, 1:57:27 PM   DEBUG [RequestScopedLlmClient] LLM schema completion (provider=openai, model=gpt-6-astra, usedTenantKey=true)
+[Nest] 34172  - 10/03/2026, 1:57:27 PM   DEBUG [RequestScopedLlmClient] LLM completion (provider=openai, model=gpt-6-astra, usedTenantKey=true)
+[Nest] 34172  - 10/03/2026, 1:57:27 PM   DEBUG [RequestScopedLlmClient] LLM completion (provider=openai, model=gpt-6-astra, usedTenantKey=true)
+PASS src/meri/meri-capture-provider-wire.spec.ts (13.51 s)
+  √ native Responses capture=true sets default tier only for capture before byte reservation (23 ms)
+  √ native Responses capture=false sets default tier only for capture before byte reservation (2 ms)
+  √ capture refuses unsupported priced units before reservation or fetch: {"service_tier":"priority"} (25 ms)
+  √ capture refuses unsupported priced units before reservation or fetch: {"service_tier":"auto"} (1 ms)
+  √ capture refuses unsupported priced units before reservation or fetch: {"service_tier":"flex"}
+  √ capture refuses unsupported priced units before reservation or fetch: {"input":[{"role":"user","content":[{"type":"input_image","image_url":"https://unit.invalid/x"}]}]}
+  √ capture refuses unsupported priced units before reservation or fetch: {"input":[{"role":"user","content":[{"type":"input_audio","data":"unit"}]}]} (1 ms)
+  √ capture refuses unsupported priced units before reservation or fetch: {"input":[{"type":"item_reference","id":"external-item"}]} (1 ms)
+  √ capture refuses unsupported priced units before reservation or fetch: {"tools":[{"type":"web_search"}]} (1 ms)
+  √ capture refuses unsupported priced units before reservation or fetch: {"tools":[{"type":"code_interpreter","container":{"type":"auto"}}]}
+  √ capture refuses unsupported priced units before reservation or fetch: {"previous_response_id":"external-response"}
+  √ capture refuses unsupported priced units before reservation or fetch: {"conversation":"external-conversation"} (1 ms)
+  √ capture refuses unsupported priced units before reservation or fetch: {"input":[{"type":"function_call_output","call_id":"unit","output":[{"type":"input_file","file_id":"external-file"}]}]}
+  √ capture refuses unqualified endpoint https://proxy.invalid/v1/responses before reservation (1 ms)
+  √ capture refuses unqualified endpoint https://api.openai.com/v1/chat/completions before reservation (1 ms)
+  √ capture refuses unqualified endpoint https://api.openai.com/v1/responses?region=other before reservation
+  √ capture allows inline text, function and reasoning replay; binds normalized final body (3 ms)
+  √ ordinary budgeted fetch preserves custom endpoint, premium tier and multimodal body (1 ms)
+  √ capture core schema reserves prepared output8192 and final bytes once per retry (263 ms)
+  √ capture core json reserves prepared output8192 and final bytes once per retry (321 ms)
+  √ capture Typesafe JEV remains unqualified by OpenAI rates, with no provider fetch (1 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       21 passed, 21 total
+Snapshots:   0 total
+Time:        13.767 s, estimated 14 s
+Ran all test suites matching /src\\meri\\meri-capture-provider-wire.spec.ts/i.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?
