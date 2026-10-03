@@ -23,11 +23,33 @@ export async function readSyntheticMemoryCorpus(factory, input) {
 export async function reconcileSyntheticMemoryCorpus(factory, input, mode) {
   const { reconcileCase01MemoryCorpusInTx } =
     await import('../../../evals/meri/live-v1/fixture-provisioning/case01-memory-owner.mjs');
-  return factory.runWithTenant(input.ctx, () => factory.deps.prisma.withTenantUser(
-    input.ctx.tenantId, input.ctx.userId,
-    (tx) => reconcileCase01MemoryCorpusInTx(factory.deps, tx, input.ctx, input.clientId,
-      mode === 'preview' ? { mode } : { mode, expectedPlanSha256: input.expectedPlanSha256 }),
-  ));
+  return factory.runWithTenant(input.ctx, () =>
+    factory.deps.prisma.withTenantUser(input.ctx.tenantId, input.ctx.userId, (tx) =>
+      reconcileCase01MemoryCorpusInTx(
+        factory.deps,
+        tx,
+        input.ctx,
+        input.clientId,
+        mode === 'preview' ? { mode } : { mode, expectedPlanSha256: input.expectedPlanSha256 },
+      ),
+    ),
+  );
+}
+
+export async function cleanupSyntheticMemoryProjections(factory, input, mode) {
+  const { cleanupCase01MemoryProjectionsInTx } =
+    await import('../../../evals/meri/live-v1/fixture-provisioning/case01-memory-owner.mjs');
+  return factory.runWithTenant(input.ctx, () =>
+    factory.deps.prisma.withTenantUser(input.ctx.tenantId, input.ctx.userId, (tx) =>
+      cleanupCase01MemoryProjectionsInTx(
+        factory.deps,
+        tx,
+        input.ctx,
+        input.clientId,
+        mode === 'preview' ? { mode } : { mode, expectedPlanSha256: input.expectedPlanSha256 },
+      ),
+    ),
+  );
 }
 
 const confirmations = {
@@ -35,6 +57,8 @@ const confirmations = {
   'read-corpus': 'READ_CURRENT_OWNED_MEMORY_CORPUS',
   'preview-corpus-metadata': 'PREVIEW_EXACT_OWNED_MEMORY_METADATA',
   'execute-corpus-metadata': 'RECONCILE_EXACT_OWNED_MEMORY_METADATA',
+  'preview-corpus-projections': 'PREVIEW_EXACT_OWNED_MEMORY_PROJECTIONS',
+  'execute-corpus-projections': 'CLEAN_EXACT_OWNED_MEMORY_PROJECTIONS',
 };
 
 export async function readSyntheticReadOperatorInput(args) {
@@ -59,10 +83,11 @@ export async function readSyntheticReadOperatorInput(args) {
     throw new Error('meri_synthetic_read_budget_scope');
   if (
     command !== 'install' &&
-    (Object.keys(input).sort().join('|') !== (command === 'execute-corpus-metadata'
-      ? 'clientId|confirmation|ctx|expectedPlanSha256|fixtureNamespace|target'
-      : 'clientId|confirmation|ctx|fixtureNamespace|target') ||
-      (command === 'execute-corpus-metadata' && !/^[a-f0-9]{64}$/.test(input.expectedPlanSha256)) ||
+    (Object.keys(input).sort().join('|') !==
+      (command.startsWith('execute-corpus-')
+        ? 'clientId|confirmation|ctx|expectedPlanSha256|fixtureNamespace|target'
+        : 'clientId|confirmation|ctx|fixtureNamespace|target') ||
+      (command.startsWith('execute-corpus-') && !/^[a-f0-9]{64}$/.test(input.expectedPlanSha256)) ||
       !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/iu.test(
         input.clientId ?? '',
       ))
@@ -72,7 +97,10 @@ export async function readSyntheticReadOperatorInput(args) {
 }
 
 export async function main(args = process.argv.slice(2)) {
-  let prisma, output, factory, executionAttempted = false;
+  let prisma,
+    output,
+    factory,
+    executionAttempted = false;
   try {
     const { command, input, outPath } = await readSyntheticReadOperatorInput(args);
     output = await open(outPath, 'wx');
@@ -80,14 +108,25 @@ export async function main(args = process.argv.slice(2)) {
       const { createCase01SetupDependencies } =
         await import('./meri-case01-setup-dependencies.mjs');
       factory = await createCase01SetupDependencies();
-      if (command === 'execute-corpus-metadata') {
-        await output.writeFile(JSON.stringify({ status: 'EXECUTION_ATTEMPTED', expectedPlanSha256: input.expectedPlanSha256,
-          noAutomaticRetry: true, captureAuthority: false }) + '\n');
+      if (command.startsWith('execute-corpus-')) {
+        await output.writeFile(
+          JSON.stringify({
+            status: 'EXECUTION_ATTEMPTED',
+            expectedPlanSha256: input.expectedPlanSha256,
+            noAutomaticRetry: true,
+            captureAuthority: false,
+          }) + '\n',
+        );
         await output.sync();
         executionAttempted = true;
       }
-      const receipt = command === 'read-corpus' ? await readSyntheticMemoryCorpus(factory, input)
-        : await reconcileSyntheticMemoryCorpus(factory, input, command === 'preview-corpus-metadata' ? 'preview' : 'execute');
+      const mode = command.startsWith('preview-corpus-') ? 'preview' : 'execute';
+      const receipt =
+        command === 'read-corpus'
+          ? await readSyntheticMemoryCorpus(factory, input)
+          : command.endsWith('-projections')
+            ? await cleanupSyntheticMemoryProjections(factory, input, mode)
+            : await reconcileSyntheticMemoryCorpus(factory, input, mode);
       await output.writeFile(JSON.stringify(receipt) + '\n');
       await output.sync();
       process.stdout.write(
@@ -121,8 +160,12 @@ export async function main(args = process.argv.slice(2)) {
       : 'meri_synthetic_read_budget_install_failed';
     if (output) {
       await output.writeFile(
-        JSON.stringify({ status: executionAttempted ? 'EXECUTION_OUTCOME_UNCONFIRMED' : 'FAILED', code,
-          noAutomaticRetry: true, liveAcceptance: 'NOT_RUN' }) + '\n',
+        JSON.stringify({
+          status: executionAttempted ? 'EXECUTION_OUTCOME_UNCONFIRMED' : 'FAILED',
+          code,
+          noAutomaticRetry: true,
+          liveAcceptance: 'NOT_RUN',
+        }) + '\n',
       );
       await output.sync();
     }

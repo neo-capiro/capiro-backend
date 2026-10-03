@@ -87,6 +87,9 @@ export async function createCase01SetupDependencies() {
   const { readSyntheticCorrectionInTx, readSyntheticCorrectionRetirementInTx } = source(
     'memory/synthetic-memory-version.helpers',
   );
+  const { completeExactOwnedTerminalCleanupInTx } = source(
+    'memory/memory-terminal-cleanup.helpers',
+  );
 
   // The explicit aliases are the corresponding MemoryModule bindings. Nest's
   // existing forwardRef edges resolve Store <-> Outbox <-> Ingest without any
@@ -145,6 +148,7 @@ export async function createCase01SetupDependencies() {
       readSyntheticMemoryRetirementInTx,
       readSyntheticCorrectionInTx,
       readSyntheticCorrectionRetirementInTx,
+      completeExactOwnedTerminalCleanupInTx,
     });
 
     function assertContext(ctx) {

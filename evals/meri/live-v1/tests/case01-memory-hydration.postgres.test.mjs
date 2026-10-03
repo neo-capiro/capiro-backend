@@ -21,7 +21,11 @@ import {
 } from '../fixture-provisioning/case01-memory-owner.mjs';
 import { sha256Stable } from '../artifact-collector.mjs';
 import { AUTHORIZED_TENANTS, FIXTURE_NAMESPACE } from '../fixture-provisioning/contract.mjs';
-import { readSyntheticMemoryCorpus, reconcileSyntheticMemoryCorpus } from '../../../../apps/api/scripts/meri-synthetic-read-budget.mjs';
+import {
+  readSyntheticMemoryCorpus,
+  reconcileSyntheticMemoryCorpus,
+} from '../../../../apps/api/scripts/meri-synthetic-read-budget.mjs';
+import { exerciseCase01ProjectionCleanup } from './case01-projection-cleanup-exercises.mjs';
 
 const require = createRequire(new URL('../../../../apps/api/package.json', import.meta.url));
 const source = (name) =>
@@ -31,13 +35,14 @@ const config = process.env.MERI_APPROVED_MEMORY_PG_CONFIG;
 it(
   'reconstructs identical canonical seed/reset/current authority after restart and rejects mutated source history',
   { skip: !config },
-  async () =>
+  async (t) =>
     withOwnedApprovedMemory(config, async ({ deps, tx, manifest, memoryStore }) => {
       const versions = await versionDependencies(deps, tx, memoryStore);
       const runtimeDeps = {
         ...deps,
         ...source('memory/synthetic-candidate-withdrawal.helpers'),
         ...source('memory/synthetic-approved-memory.helpers'),
+        ...source('memory/memory-terminal-cleanup.helpers'),
         ...versions,
         memoryVersions: versions.versions,
         memoryAuthorization: memoryStore.authz,
@@ -154,22 +159,31 @@ it(
       assert.deepEqual(stored.unrelated, { text: 'keep  ' });
       assert.deepEqual(stored.meriFoundationFixture.captureEvidence, bound.binding);
       const corpus = await readCase01MemoryCorpusInTx(runtimeDeps, tx, ctx, CLIENT);
+      await exerciseCase01ProjectionCleanup({ t, deps: runtimeDeps, tx, ctx, clientId: CLIENT });
       await tx.$executeRawUnsafe('SAVEPOINT reconciliation_exercises');
       try {
-        const snapshot = () => tx.$queryRawUnsafe(`SELECT 'item' AS kind,id::text,xmin::text AS version,to_jsonb(m) AS body,
+        const snapshot = () =>
+          tx.$queryRawUnsafe(`SELECT 'item' AS kind,id::text,xmin::text AS version,to_jsonb(m) AS body,
           retention_policy_jsonb IS NULL AS sql_null FROM memory_items m UNION ALL
           SELECT 'candidate',id::text,xmin::text,to_jsonb(c),NULL FROM memory_candidate c UNION ALL
           SELECT 'transition',id::text,xmin::text,to_jsonb(a),NULL FROM memory_transition_audit a UNION ALL
           SELECT 'audit',id::text,xmin::text,to_jsonb(l),NULL FROM audit_logs l ORDER BY kind,id`);
         const unrelatedId = randomUUID();
-        await tx.$executeRawUnsafe(`INSERT INTO memory_items(id,tenant_id,status,governed_status,retention_policy_jsonb)
-          VALUES($1::uuid,$2::uuid,'active','active','{}'::jsonb)`, unrelatedId, TENANT);
+        await tx.$executeRawUnsafe(
+          `INSERT INTO memory_items(id,tenant_id,status,governed_status,retention_policy_jsonb)
+          VALUES($1::uuid,$2::uuid,'active','active','{}'::jsonb)`,
+          unrelatedId,
+          TENANT,
+        );
         const healthy = await snapshot();
         const options = { mode: 'preview' };
         const preview = (actor = ctx, clientId = CLIENT, opts = options) =>
           reconcileCase01MemoryCorpusInTx(runtimeDeps, tx, actor, clientId, opts);
         await assert.rejects(preview(), { code: 'CASE01_METADATA_RECONCILIATION_REFUSED' }); // No no-op repair/receipt.
-        await tx.$executeRawUnsafe("UPDATE memory_items SET governed_status='active',retention_policy_jsonb='null'::jsonb WHERE id<>$1::uuid", unrelatedId);
+        await tx.$executeRawUnsafe(
+          "UPDATE memory_items SET governed_status='active',retention_policy_jsonb='null'::jsonb WHERE id<>$1::uuid",
+          unrelatedId,
+        );
         const drifted = await snapshot();
         await assert.rejects(readCase01MemoryCorpusInTx(runtimeDeps, tx, ctx, CLIENT));
         const plan = await preview();
@@ -186,8 +200,12 @@ it(
         await assert.rejects(preview({ ...ctx, userId: randomUUID() }));
         await assert.rejects(preview({ ...ctx, tenantId: AUTHORIZED_TENANTS.T2.id }));
         await assert.rejects(preview(ctx, randomUUID()));
-        await assert.rejects(preview(ctx, CLIENT, { ...options, ids: plan.plan.changes.map((row) => row.id) }));
-        await assert.rejects(preview(ctx, CLIENT, { mode: 'execute', expectedPlanSha256: '0'.repeat(64) }));
+        await assert.rejects(
+          preview(ctx, CLIENT, { ...options, ids: plan.plan.changes.map((row) => row.id) }),
+        );
+        await assert.rejects(
+          preview(ctx, CLIENT, { mode: 'execute', expectedPlanSha256: '0'.repeat(64) }),
+        );
         for (const mutation of [
           "UPDATE memory_items SET sections_jsonb='[]'::jsonb WHERE status='superseded'",
           "UPDATE memory_items SET legal_hold=true WHERE status='superseded'",
@@ -205,7 +223,10 @@ it(
             assert.ok(await tx.$executeRawUnsafe(mutation));
             const changed = await snapshot();
             await assert.rejects(preview(), mutation);
-            await assert.rejects(preview(ctx, CLIENT, { mode: 'execute', expectedPlanSha256: plan.planSha256 }), mutation);
+            await assert.rejects(
+              preview(ctx, CLIENT, { mode: 'execute', expectedPlanSha256: plan.planSha256 }),
+              mutation,
+            );
             assert.deepEqual(await snapshot(), changed, 'All failed tentative changes rolled back');
           } finally {
             await tx.$executeRawUnsafe('ROLLBACK TO SAVEPOINT invalid_reconciliation');
@@ -215,10 +236,14 @@ it(
         await tx.$executeRawUnsafe('SAVEPOINT stale_reconciliation');
         try {
           // Even a harmless before-image change invalidates the approved plan.
-          await tx.$executeRawUnsafe("UPDATE memory_items SET updated_at=updated_at+interval '1 second' WHERE status='superseded'");
+          await tx.$executeRawUnsafe(
+            "UPDATE memory_items SET updated_at=updated_at+interval '1 second' WHERE status='superseded'",
+          );
           const refreshed = await preview();
           assert.notEqual(refreshed.planSha256, plan.planSha256);
-          await assert.rejects(preview(ctx, CLIENT, { mode: 'execute', expectedPlanSha256: plan.planSha256 }));
+          await assert.rejects(
+            preview(ctx, CLIENT, { mode: 'execute', expectedPlanSha256: plan.planSha256 }),
+          );
         } finally {
           await tx.$executeRawUnsafe('ROLLBACK TO SAVEPOINT stale_reconciliation');
           await tx.$executeRawUnsafe('RELEASE SAVEPOINT stale_reconciliation');
@@ -230,37 +255,62 @@ it(
           await tx.$executeRawUnsafe(`CREATE TRIGGER refuse_reconciliation_audit BEFORE INSERT ON audit_logs
             FOR EACH ROW EXECUTE FUNCTION refuse_reconciliation_audit()`);
           const beforeFailure = await snapshot();
-          await assert.rejects(preview(ctx, CLIENT, { mode: 'execute', expectedPlanSha256: plan.planSha256 }));
-          assert.deepEqual(await snapshot(), beforeFailure, 'Audit failure rolls back every item update');
+          await assert.rejects(
+            preview(ctx, CLIENT, { mode: 'execute', expectedPlanSha256: plan.planSha256 }),
+          );
+          assert.deepEqual(
+            await snapshot(),
+            beforeFailure,
+            'Audit failure rolls back every item update',
+          );
         } finally {
           await tx.$executeRawUnsafe('ROLLBACK TO SAVEPOINT reconciliation_audit_failure');
           await tx.$executeRawUnsafe('RELEASE SAVEPOINT reconciliation_audit_failure');
         }
         const factory = { deps: runtimeDeps, runWithTenant: async (_actor, work) => work() };
-        const executed = await reconcileSyntheticMemoryCorpus(factory,
-          { ctx, clientId: CLIENT, expectedPlanSha256: plan.planSha256 }, 'execute');
+        const executed = await reconcileSyntheticMemoryCorpus(
+          factory,
+          { ctx, clientId: CLIENT, expectedPlanSha256: plan.planSha256 },
+          'execute',
+        );
         assert.equal(executed.status, 'METADATA_RECONCILED');
         assert.equal(executed.proofIsTentative, false);
         assert.ok(executed.auditId);
         const reread = await readCase01MemoryCorpusInTx(runtimeDeps, tx, ctx, CLIENT);
         assert.equal(reread.currentVerifySha256, executed.proof.currentVerifySha256);
-        await assert.rejects(preview(ctx, CLIENT, { mode: 'execute', expectedPlanSha256: plan.planSha256 }));
+        await assert.rejects(
+          preview(ctx, CLIENT, { mode: 'execute', expectedPlanSha256: plan.planSha256 }),
+        );
         const settled = await snapshot();
-        assert.deepEqual(settled.filter((row) => ['candidate', 'transition'].includes(row.kind)),
-          healthy.filter((row) => ['candidate', 'transition'].includes(row.kind)));
-        assert.deepEqual(settled.filter((row) => row.kind === 'item').map((row) => row.body),
-          healthy.filter((row) => row.kind === 'item').map((row) => row.body));
-        assert.equal(settled.filter((row) => row.kind === 'audit' && row.id === executed.auditId).length, 1);
+        assert.deepEqual(
+          settled.filter((row) => ['candidate', 'transition'].includes(row.kind)),
+          healthy.filter((row) => ['candidate', 'transition'].includes(row.kind)),
+        );
+        assert.deepEqual(
+          settled.filter((row) => row.kind === 'item').map((row) => row.body),
+          healthy.filter((row) => row.kind === 'item').map((row) => row.body),
+        );
+        assert.equal(
+          settled.filter((row) => row.kind === 'audit' && row.id === executed.auditId).length,
+          1,
+        );
       } finally {
         await tx.$executeRawUnsafe('ROLLBACK TO SAVEPOINT reconciliation_exercises');
         await tx.$executeRawUnsafe('RELEASE SAVEPOINT reconciliation_exercises');
       }
       // Exercise the CLI's actual read dispatch over the same real canonical
       // owner/owned PostgreSQL transaction; no installer or fixture mutation.
-      const readViaCli = (actor = ctx, clientId = CLIENT) => readSyntheticMemoryCorpus({
-        deps: runtimeDeps,
-        runWithTenant: async (selected, work) => { assert.deepEqual(selected, actor); return work(); },
-      }, { ctx: actor, clientId });
+      const readViaCli = (actor = ctx, clientId = CLIENT) =>
+        readSyntheticMemoryCorpus(
+          {
+            deps: runtimeDeps,
+            runWithTenant: async (selected, work) => {
+              assert.deepEqual(selected, actor);
+              return work();
+            },
+          },
+          { ctx: actor, clientId },
+        );
       assert.deepEqual(await readViaCli(), { ...corpus, status: 'MEMORY_CORPUS_READ' });
       await assert.rejects(readViaCli({ ...ctx, role: 'capiro_admin' }));
       await assert.rejects(readViaCli(ctx, randomUUID()));

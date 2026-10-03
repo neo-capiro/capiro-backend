@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Injectable, Logger } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { TenantContextStore } from '../tenant/tenant-context.store.js';
 import { MemoryStoreService } from './memory-store.service.js';
@@ -12,7 +13,8 @@ import {
 import { meetingToItem, emailThreadToItem, meriSessionToItem } from './memory-ingest.helpers.js';
 import type { IngestContext, MemoryItem } from './memory.types.js';
 import { MEMORY_SCHEMA_VERSION, defaultMemoryGovernanceFields } from './memory.types.js';
-import { embedAndUpsert, normalize } from '../embeddings/embedder.js';
+import { normalize } from '../embeddings/embedder.js';
+import { embedMemoryItem, memoryEmbeddingEligibilitySql } from './memory-embedding-lifecycle.js';
 import { MeetingNotesCryptoService } from '../engagement/meeting-notes-crypto.service.js';
 
 /** Build the text we embed for a memory item: title + human-authored section bodies
@@ -311,8 +313,8 @@ export class MemoryIngestService {
         counts.meriSessions++;
       }
 
-      // ---- Phase F: embeddings — make memory semantically searchable. Read all
-      // of the tenant's memory_items and embed (idempotent via content hash, so
+      // ---- Phase F: embeddings — make eligible memory semantically searchable.
+      // Read current eligible rows and embed (idempotent via content hash, so
       // re-runs only embed changed items). Each item embeds independently: a
       // failure is recorded in counts.failures and the pass continues (never
       // aborts), so one bad row can't strand the rest. ----
@@ -331,7 +333,8 @@ export class MemoryIngestService {
               }>
             >`
           SELECT id, client_id, owner_user_id, type, title, slug, sections_jsonb AS sections
-          FROM memory_items WHERE tenant_id = ${ctx.tenantId}::uuid
+          FROM memory_items mi WHERE mi.tenant_id = ${ctx.tenantId}::uuid
+            AND ${Prisma.raw(memoryEmbeddingEligibilitySql())}
         `,
         );
         for (const it of items) {
@@ -341,12 +344,12 @@ export class MemoryIngestService {
           const text = embeddableText({ title: it.title, sections } as MemoryItem);
           if (text.length < 10) continue;
           try {
-            const outcome = await embedAndUpsert(this.prisma as never, {
+            const outcome = await embedMemoryItem(this.prisma, {
               tenantId: ctx.tenantId,
               clientId: it.client_id,
               ownerUserId: it.owner_user_id,
-              sourceType: 'memory_item',
               sourceId: it.id,
+              sourceContent: { title: it.title, sections: it.sections },
               text,
               bypassRls: true,
             });
@@ -449,12 +452,12 @@ export class MemoryIngestService {
       const itemId = await this.store.upsertSystem(item);
       const text = embeddableText(item);
       if (text.length >= 10) {
-        await embedAndUpsert(this.prisma as never, {
+        await embedMemoryItem(this.prisma, {
           tenantId,
           clientId: item.clientId,
           ownerUserId: item.ownerUserId,
-          sourceType: 'memory_item',
           sourceId: itemId,
+          sourceContent: { title: item.title, sections: item.sections },
           text,
           bypassRls: true,
         });
@@ -479,6 +482,7 @@ export class MemoryIngestService {
           SELECT id FROM memory_items
           WHERE tenant_id = ${tenantId}::uuid AND type = 'note' AND slug = ${slug}
           LIMIT 1
+          FOR UPDATE
         `;
         const itemId = rows[0]?.id;
         if (!itemId) return;

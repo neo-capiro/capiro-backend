@@ -2,7 +2,8 @@ import { createHash } from 'node:crypto';
 import { forwardRef, Inject, Injectable } from '@nestjs/common';
 import type { MemoryItem, MemorySection } from './memory.types.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { embedAndUpsert, normalize } from '../embeddings/embedder.js';
+import { normalize } from '../embeddings/embedder.js';
+import { embedMemoryItem } from './memory-embedding-lifecycle.js';
 import { clioMemoryToItem, type ClioMemoryRow } from './memory-clio-adapter.helpers.js';
 import { MemoryStoreService } from './memory-store.service.js';
 
@@ -177,6 +178,8 @@ export class StrictMemoryProjectorService {
         ownerUserId: target?.ownerUserId ?? clioMaterial.item.ownerUserId,
         sourceId: itemId,
         text,
+        sourceContent: { title: target?.title ?? clioMaterial.item.title,
+          sections: target?.sections ?? clioMaterial.item.sections },
       });
     }
 
@@ -309,6 +312,10 @@ export class StrictMemoryProjectorService {
 
   private async removeExactProjection(tenantId: string, itemId: string): Promise<void> {
     await this.prisma.withSystem(async (tx) => {
+      await tx.$queryRaw`
+        SELECT id FROM memory_items
+        WHERE id = ${itemId}::uuid AND tenant_id = ${tenantId}::uuid FOR UPDATE
+      `;
       await tx.$executeRaw`
         DELETE FROM context_embeddings
         WHERE source_type = 'memory_item' AND source_id = ${itemId}
@@ -353,14 +360,15 @@ export class StrictMemoryProjectorService {
     ownerUserId: string | null;
     sourceId: string;
     text: string;
+    sourceContent: { title: string; sections: unknown };
   }): Promise<void> {
-    await embedAndUpsert(this.prisma as never, {
+    await embedMemoryItem(this.prisma, {
       tenantId: input.tenantId,
       clientId: input.clientId,
       ownerUserId: input.ownerUserId,
-      sourceType: 'memory_item',
       sourceId: input.sourceId,
       text: input.text,
+      sourceContent: input.sourceContent,
       bypassRls: true,
     });
   }

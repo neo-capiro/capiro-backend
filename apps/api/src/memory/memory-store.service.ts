@@ -14,7 +14,7 @@ import { MEMORY_SCHEMA_VERSION, defaultMemoryGovernanceFields } from './memory.t
 import { renderMemoryItem, vaultPathForItem } from './memory-render.helpers.js';
 import { extractWikiLinks } from './memory-parse.helpers.js';
 import { mergeEditedSections, fileDefForType } from './memory-catalog.js';
-import { embedAndUpsert } from '../embeddings/embedder.js';
+import { embedMemoryItem } from './memory-embedding-lifecycle.js';
 import {
   clientMemoryAllowed,
   fetchDeniedClientIds,
@@ -1117,6 +1117,7 @@ export class MemoryStoreService {
         title: old.title,
         clientId: old.client_id,
         ownerUserId: old.owner_user_id,
+        sections: JSON.parse(sections) as MemorySection[],
       };
     });
 
@@ -1131,12 +1132,12 @@ export class MemoryStoreService {
     // Embed the corrected row immediately (best-effort; nightly refresh is the
     // backstop). Same bypass-write path the ingest embedder uses.
     try {
-      await embedAndUpsert(this.prisma, {
+      await embedMemoryItem(this.prisma, {
         tenantId: ctx.tenantId,
         clientId: outcome.clientId,
         ownerUserId: outcome.ownerUserId,
-        sourceType: 'memory_item',
         sourceId: newId,
+        sourceContent: { title: outcome.title, sections: outcome.sections },
         text: `${outcome.title}: ${body}`,
         bypassRls: true,
       });

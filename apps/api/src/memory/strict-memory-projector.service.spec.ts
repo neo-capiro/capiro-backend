@@ -127,7 +127,8 @@ describe('StrictMemoryProjectorService', () => {
       memoryItemId: ITEM,
     });
     expect(h.writeEmbedding).toHaveBeenCalledWith(
-      expect.objectContaining({ tenantId: TENANT, sourceId: ITEM }),
+      expect.objectContaining({ tenantId: TENANT, sourceId: ITEM,
+        sourceContent: { title: h.expectedMaterial.item.title, sections: h.expectedMaterial.item.sections } }),
     );
     expect(h.sqls.some((sql) => sql.includes('FROM memory_items'))).toBe(true);
     expect(h.sqls.some((sql) => sql.includes('FROM context_embeddings'))).toBe(true);
@@ -182,7 +183,8 @@ describe('StrictMemoryProjectorService', () => {
     });
     expect(h.store.upsertSystem).not.toHaveBeenCalled();
     expect(h.writeEmbedding).toHaveBeenCalledWith(
-      expect.objectContaining({ tenantId: TENANT, sourceId: ITEM }),
+      expect.objectContaining({ tenantId: TENANT, sourceId: ITEM,
+        sourceContent: { title: h.expectedMaterial.item.title, sections: h.expectedMaterial.item.sections } }),
     );
   });
 

@@ -11,7 +11,7 @@ import type { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { TenantContextStore } from '../tenant/tenant-context.store.js';
-import { embedAndUpsert } from '../embeddings/embedder.js';
+import { embedMemoryItem } from './memory-embedding-lifecycle.js';
 import { MemoryAuthorizationService } from './memory-authorization.service.js';
 import { MemoryCleanupOutboxService } from './memory-cleanup-outbox.service.js';
 import { governedMemoryLifecycleEnabled } from './memory-governance-lifecycle.helpers.js';
@@ -140,6 +140,7 @@ interface PendingEmbed {
   memoryItemId: string;
   title: string;
   body: string;
+  sections: unknown;
 }
 
 interface TransactionOutcome<T> {
@@ -1158,12 +1159,12 @@ export class ImmutableMemoryVersionService {
   }
 
   private embedAfterCommit(input: PendingEmbed, requireSettlement = false): Promise<void> {
-    return embedAndUpsert(this.prisma, {
+    return embedMemoryItem(this.prisma, {
       tenantId: input.tenantId,
       clientId: input.clientId,
       ownerUserId: input.ownerUserId,
-      sourceType: 'memory_item',
       sourceId: input.memoryItemId,
+      sourceContent: { title: input.title, sections: input.sections },
       text: `${input.title}: ${input.body}`,
       bypassRls: true,
     }).then(() => undefined).catch((error: unknown) => {
@@ -1304,5 +1305,6 @@ function embedInput(item: ItemRow, body: string): PendingEmbed {
     memoryItemId: item.id,
     title: item.title,
     body,
+    sections: item.sections_jsonb,
   };
 }

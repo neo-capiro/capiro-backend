@@ -25,6 +25,7 @@ import { PrismaService } from '../src/prisma/prisma.service.js';
 import { TenantContextStore } from '../src/tenant/tenant-context.store.js';
 import { MemoryStoreService } from '../src/memory/memory-store.service.js';
 import { MemoryIngestService } from '../src/memory/memory-ingest.service.js';
+import { purgeExpiredMemoryInTx } from '../src/memory/memory-embedding-lifecycle.js';
 import type { TenantContext } from '@capiro/shared';
 
 function flag(name: string): boolean {
@@ -78,24 +79,7 @@ async function main(): Promise<void> {
   // unreadable to every non-bypass caller. Order: embeddings first (they
   // reference items by source_id), then the projections, then the source rows.
   try {
-    const purged = await prisma.withSystem(async (tx) => {
-      const embeddings = await tx.$executeRaw`
-        DELETE FROM context_embeddings ce
-        USING memory_items mi
-        WHERE ce.source_type = 'memory_item'
-          AND ce.source_id = mi.id::text
-          AND mi.expires_at IS NOT NULL AND mi.expires_at <= now()
-      `;
-      const items = await tx.$executeRaw`
-        DELETE FROM memory_items
-        WHERE expires_at IS NOT NULL AND expires_at <= now()
-      `;
-      const clio = await tx.$executeRaw`
-        DELETE FROM clio_memory
-        WHERE expires_at IS NOT NULL AND expires_at <= now()
-      `;
-      return { embeddings, items, clio };
-    });
+    const purged = await prisma.withSystem(purgeExpiredMemoryInTx);
     console.log(`[purge] expired ephemeral memory: ${JSON.stringify(purged)}`);
   } catch (err) {
     console.error(`[purge] FAILED (non-fatal): ${(err as Error).message}`);

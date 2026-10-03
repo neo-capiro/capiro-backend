@@ -36,6 +36,14 @@ export class MemoryPurgeService {
   ): Promise<MemoryPurgeResult> {
     const dryRun = opts.dryRun !== false; // default TRUE — never delete unless explicit
     return this.prisma.withSystem(async (tx) => {
+      // Match embedding writers: source rows first, then their projections.
+      // Execute deletes only this locked set; dry-run remains read-only.
+      const lockedItems = dryRun ? null : await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT id FROM memory_items
+        WHERE tenant_id = ${tenantId}::uuid AND client_id = ${clientId}::uuid
+        ORDER BY id FOR UPDATE
+      `;
+      const lockedIds = lockedItems?.map((row) => row.id);
       // Legal-held memory_items for this client are excluded from every delete;
       // their clio: sources are preserved too.
       const held = await tx.$queryRaw<Array<{ id: string; slug: string }>>`
@@ -49,7 +57,7 @@ export class MemoryPurgeService {
 
       // Selection counts (what a purge would remove) — computed the same way for
       // dry-run and execute so the report is truthful.
-      const counts = await this.selectionCounts(tx, tenantId, clientId, heldItemIds, heldClioIds);
+      const counts = await this.selectionCounts(tx, tenantId, clientId, heldItemIds, heldClioIds, lockedIds);
       const result: MemoryPurgeResult = {
         tenantId,
         clientId,
@@ -72,11 +80,13 @@ export class MemoryPurgeService {
               SELECT id FROM memory_items
               WHERE tenant_id = ${tenantId}::uuid AND client_id = ${clientId}::uuid
                 AND legal_hold = false
+                AND id = ANY(${lockedIds!}::uuid[])
             )
         `;
         await tx.$executeRaw`
           DELETE FROM memory_items
           WHERE tenant_id = ${tenantId}::uuid AND client_id = ${clientId}::uuid AND legal_hold = false
+            AND id = ANY(${lockedIds!}::uuid[])
         `;
         await tx.$executeRaw`
           DELETE FROM clio_memory
@@ -123,19 +133,22 @@ export class MemoryPurgeService {
     clientId: string,
     heldItemIds: string[],
     heldClioIds: string[],
+    lockedIds?: string[],
   ): Promise<MemoryPurgeCounts> {
     const one = async (sql: Promise<Array<{ n: bigint }>>): Promise<number> =>
       Number((await sql)[0]?.n ?? 0);
     const [memoryItems, embeddings, edges, clioMemory, candidates, grants] = await Promise.all([
       one(tx.$queryRaw`SELECT count(*) AS n FROM memory_items
-        WHERE tenant_id = ${tenantId}::uuid AND client_id = ${clientId}::uuid AND legal_hold = false`),
+        WHERE tenant_id = ${tenantId}::uuid AND client_id = ${clientId}::uuid AND legal_hold = false
+          ${lockedIds ? Prisma.sql`AND id = ANY(${lockedIds}::uuid[])` : Prisma.empty}`),
       one(tx.$queryRaw`SELECT count(*) AS n FROM context_embeddings
         WHERE tenant_id = ${tenantId}::uuid AND client_id = ${clientId}::uuid
           AND (source_type <> 'memory_item' OR source_id <> ALL(${heldItemIds}::text[]))`),
       one(tx.$queryRaw`SELECT count(*) AS n FROM memory_edges
         WHERE tenant_id = ${tenantId}::uuid AND src_item_id IN (
           SELECT id FROM memory_items WHERE tenant_id = ${tenantId}::uuid
-            AND client_id = ${clientId}::uuid AND legal_hold = false)`),
+            AND client_id = ${clientId}::uuid AND legal_hold = false
+            ${lockedIds ? Prisma.sql`AND id = ANY(${lockedIds}::uuid[])` : Prisma.empty})`),
       one(tx.$queryRaw`SELECT count(*) AS n FROM clio_memory
         WHERE tenant_id = ${tenantId}::uuid AND scope = 'client' AND client_id = ${clientId}::uuid
           AND id <> ALL(${heldClioIds}::uuid[])`),

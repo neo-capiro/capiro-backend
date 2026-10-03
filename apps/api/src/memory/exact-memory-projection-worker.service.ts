@@ -15,6 +15,7 @@ import {
 } from './memory-projection-worker.service.js';
 import { exactProjectionIdempotencyKey } from './exact-memory-cleanup-outbox.service.js';
 import { StrictMemoryProjectorService } from './strict-memory-projector.service.js';
+import { deleteTerminalMemoryProjectionsInTx } from './memory-terminal-cleanup.helpers.js';
 
 interface ExactClaimedMemoryJob {
   id: string;
@@ -205,27 +206,9 @@ export class ExactMemoryProjectionWorkerService {
       if (!job.memory_item_id) {
         throw new ExactMemoryWorkerError('missing_memory_item_id');
       }
-      const result = await this.prisma.withSystem(async (tx) => {
-        const present = await tx.$queryRaw<Array<{ id: string }>>`
-          SELECT id::text AS id
-          FROM memory_items
-          WHERE id = ${job.memory_item_id}::uuid
-            AND tenant_id = ${job.tenant_id}::uuid
-          LIMIT 1
-        `;
-        await tx.$executeRaw`
-          DELETE FROM context_embeddings
-          WHERE source_type = 'memory_item' AND source_id = ${job.memory_item_id}
-        `;
-        if (job.clio_memory_id) {
-          await tx.$executeRaw`
-            DELETE FROM clio_memory
-            WHERE id = ${job.clio_memory_id}::uuid
-              AND tenant_id = ${job.tenant_id}::uuid
-          `;
-        }
-        return { vanished: present.length === 0 };
-      });
+      const result = await this.prisma.withSystem((tx) =>
+        deleteTerminalMemoryProjectionsInTx(tx, { ...job, memory_item_id: job.memory_item_id! }),
+      );
       await this.completeJob(job, result.vanished);
       return result.vanished ? 'vanished' : 'completed';
     } catch (error) {

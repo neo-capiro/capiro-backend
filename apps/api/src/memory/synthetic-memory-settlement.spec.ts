@@ -1,8 +1,8 @@
 import { MemoryCandidateService } from './memory-candidate.service.js';
 import { ImmutableMemoryVersionService } from './immutable-memory-version.service.js';
-import { embedAndUpsert } from '../embeddings/embedder.js';
+import { embedMemoryItem } from './memory-embedding-lifecycle.js';
 
-jest.mock('../embeddings/embedder.js', () => ({ embedAndUpsert: jest.fn() }));
+jest.mock('./memory-embedding-lifecycle.js', () => ({ embedMemoryItem: jest.fn() }));
 
 function deferred() {
   let resolve!: () => void;
@@ -142,10 +142,11 @@ it('synthetic legacy embedding has an abort deadline without claiming optional v
 
 function versions() {
   const embedding = deferred();
-  jest.mocked(embedAndUpsert).mockImplementation(() => embedding.promise as any);
+  jest.mocked(embedMemoryItem).mockImplementation(() => embedding.promise as any);
   const outcome = {
     result: { candidateId: 'candidate', outcome: 'activated' },
-    embed: { tenantId: 'tenant', memoryItemId: 'item', title: 'title', body: 'body' },
+    embed: { tenantId: 'tenant', memoryItemId: 'item', title: 'title', body: 'body',
+      sections: [{ key: 'memory', heading: 'Memory', owner: 'human', body: 'body' }] },
   };
   const service = new ImmutableMemoryVersionService(
     { withTenantUser: jest.fn(async () => outcome) } as any,
@@ -168,7 +169,11 @@ it('guarded synthetic correction waits for real embedding completion', async () 
   expect(settled).toBe(false);
   embedding.resolve();
   await expect(result).resolves.toEqual(outcome.result);
-  expect(embedAndUpsert).toHaveBeenCalledTimes(1);
+  expect(embedMemoryItem).toHaveBeenCalledTimes(1);
+  expect(embedMemoryItem).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+    sourceContent: { title: outcome.embed.title, sections: outcome.embed.sections },
+    text: 'title: body',
+  }));
 });
 
 it('guarded synthetic correction propagates sanitized post-commit embedding failure', async () => {

@@ -159,8 +159,11 @@ function makeHarness(
         fn: (arg: Prisma.TransactionClient) => Promise<T>,
       ) => fn(tx),
     ),
+    withSystem: jest.fn(async (fn: (value: unknown) => unknown) =>
+      fn({ $queryRawUnsafe: async () => [{ version: '1' }] })),
     // embedAndUpsert sees the exact hash and returns before any Bedrock call.
-    $queryRawUnsafe: jest.fn(async () => [{ content_hash: expectedEmbedHash }]),
+    $queryRawUnsafe: jest.fn(async () => [{ content_hash: expectedEmbedHash,
+      client_id: created.client_id, owner_user_id: created.owner_user_id }]),
   } as unknown as PrismaService;
   const tenantCtx = { require: jest.fn(() => proposerContext) } as unknown as TenantContextStore;
   const authorization = {

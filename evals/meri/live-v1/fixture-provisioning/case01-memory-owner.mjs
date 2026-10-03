@@ -3,6 +3,7 @@ import { buildFixtureManifest } from './manifest.mjs';
 import { createCase01MemoryFixtureRuntime } from './case01-memory-runtime.mjs';
 import { AUTHORIZED_TENANTS, FIXTURE_NAMESPACE, FixtureProvisioningError } from './contract.mjs';
 import { reconcileCase01MetadataInTx } from './case01-memory-reconciliation.mjs';
+import { cleanupCase01ProjectionsInTx } from './case01-memory-projection-cleanup.mjs';
 
 const fail = (code) => {
   throw new FixtureProvisioningError(code, code);
@@ -176,10 +177,27 @@ export async function readCase01MemoryCorpusInTx(deps, tx, ctx, clientId) {
 /** Operator-only reconciliation. A preview grants no capture/provider authority. */
 export async function reconcileCase01MemoryCorpusInTx(deps, tx, ctx, clientId, options) {
   const row = await tenantInTx(tx, ctx);
-  const scope = { caseId: '01', clientId }, locator = row.settings.meriFoundationFixture.case01MemoryOwner;
+  const scope = { caseId: '01', clientId },
+    locator = row.settings.meriFoundationFixture.case01MemoryOwner;
   const manifests = await corpusManifests(ctx, scope, locator);
   return reconcileCase01MetadataInTx(tx, ctx, {
-    ...manifests, tenant: row, options,
+    ...manifests,
+    tenant: row,
+    options,
+    verify: () => reconstruct(tx, ctx, scope, locator, deps),
+  });
+}
+
+/** Operator-only execution of already committed, owned retirement obligations. */
+export async function cleanupCase01MemoryProjectionsInTx(deps, tx, ctx, clientId, options) {
+  const row = await tenantInTx(tx, ctx);
+  const scope = { caseId: '01', clientId },
+    locator = row.settings.meriFoundationFixture.case01MemoryOwner;
+  return cleanupCase01ProjectionsInTx(tx, ctx, {
+    ...(await corpusManifests(ctx, scope, locator)),
+    tenant: row,
+    options,
+    completeJob: deps.completeExactOwnedTerminalCleanupInTx,
     verify: () => reconstruct(tx, ctx, scope, locator, deps),
   });
 }
