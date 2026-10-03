@@ -1,0 +1,15 @@
+{
+  "observation": {
+    "path": "/api/clio/conversations/f493355c-ee97-44a1-a0b0-e05e7b104b59/messages",
+    "status": 403,
+    "apiReleaseSha": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642",
+    "bodySha256": "eeab00dd2666401d1aabaa085d3413ec5cef44faa516958a429ee74425f6d13f",
+    "bytes": 86,
+    "observedAt": "2026-10-03T22:30:04.094Z"
+  },
+  "value": {
+    "message": "meri_capture_policy_readback_denied",
+    "error": "Forbidden",
+    "statusCode": 403
+  }
+}

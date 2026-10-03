@@ -1,0 +1,34 @@
+✔ exact failed capture produces cost-only proof; no accepted envelope is invented (3.4151ms)
+✔ mismatched evidence 1 cannot release the ceiling (0.5344ms)
+✔ mismatched evidence 2 cannot release the ceiling (0.2601ms)
+✔ mismatched evidence 3 cannot release the ceiling (1.0657ms)
+✔ mismatched evidence 4 cannot release the ceiling (0.333ms)
+✔ mismatched evidence 5 cannot release the ceiling (0.2188ms)
+✔ mismatched evidence 6 cannot release the ceiling (0.2345ms)
+✔ mismatched evidence 7 cannot release the ceiling (0.2565ms)
+✔ mismatched evidence 8 cannot release the ceiling (0.2769ms)
+✔ mismatched evidence 9 cannot release the ceiling (0.3458ms)
+✔ mismatched evidence 10 cannot release the ceiling (0.3271ms)
+✔ mismatched evidence 11 cannot release the ceiling (0.3507ms)
+✔ mismatched evidence 12 cannot release the ceiling (0.2522ms)
+✔ mismatched evidence 13 cannot release the ceiling (0.2344ms)
+✔ mismatched evidence 14 cannot release the ceiling (0.3105ms)
+✔ mismatched evidence 15 cannot release the ceiling (0.2799ms)
+✔ mismatched evidence 16 cannot release the ceiling (0.3072ms)
+✔ mismatched evidence 17 cannot release the ceiling (0.9545ms)
+✔ mismatched evidence 18 cannot release the ceiling (0.383ms)
+✔ mismatched evidence 19 cannot release the ceiling (0.3152ms)
+✔ mismatched evidence 20 cannot release the ceiling (0.3482ms)
+✔ mismatched evidence 21 cannot release the ceiling (0.4731ms)
+✔ mismatched evidence 22 cannot release the ceiling (0.5284ms)
+✔ mismatched evidence 23 cannot release the ceiling (0.5261ms)
+✔ forged opaque authority and wrong invocation cannot reach the native writer (0.1673ms)
+✔ isolated filesystem pins and one-use capability reject tampering without live access (40.7964ms)
+ℹ tests 26
+ℹ suites 0
+ℹ pass 26
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 166.6474

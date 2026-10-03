@@ -1,0 +1,9 @@
+{
+  "startedAt": "2026-10-03T22:56:12.627075+00:00",
+  "finishedAt": "2026-10-03T22:56:51.712354+00:00",
+  "exitCode": 0,
+  "response": "C:\\dev\\main\\outputs\\meri-c2-20261003\\hermes-c2-audit-v1\\response.txt",
+  "bytes": 3614,
+  "responseSha256": "3b6c0a2a781d085b5182eb269998c21cedb81b6829b9804fcaafd36a459b27c9",
+  "scope": "read-only local C2 checklist audit; file toolset; no execution authority"
+}

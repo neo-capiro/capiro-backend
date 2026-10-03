@@ -1,0 +1,9 @@
+{
+  "status": "CAPTURE_UNCERTAIN",
+  "acceptanceStatus": "NOT_RUN",
+  "reason": "CASE01_STREAM_UNCERTAIN",
+  "caseId": "01",
+  "captureRunId": "bd35c0f4-1604-4371-b7e9-a1338369e53f",
+  "requestCount": 8,
+  "synthesisSubmissionCount": 1
+}

@@ -1,0 +1,134 @@
+{
+  "status": "PASS",
+  "sources": [
+    {
+      "path": "evals/meri/live-v1/case01-failed-receipt-cost-authority.mjs",
+      "bytes": 10701,
+      "sha256": "8b685fb5f4a837edcda13de49fd182b6d83e904698f9c88974a9b67ad9c6f819"
+    },
+    {
+      "path": "evals/meri/live-v1/case01-failed-receipt-cost-pins.mjs",
+      "bytes": 4123,
+      "sha256": "b637aff67c5b10d251a952b720b102fa9018df589007a1f6e678794972e54e70"
+    },
+    {
+      "path": "evals/meri/live-v1/capture-spend-aggregate.mjs",
+      "bytes": 16895,
+      "sha256": "5b42442bd07cc0bf8cbc8a5528b2df0c9caf0d397c558ef0224c8f4c5812876a"
+    },
+    {
+      "path": "evals/meri/live-v1/lib/windows-capture-spend.py",
+      "bytes": 26393,
+      "sha256": "d34adf18b04a08c52523eea98a2c8871a163214afb87e13037903f66ff56ac9e"
+    },
+    {
+      "path": "evals/meri/live-v1/tests/case01-failed-receipt-cost.test.mjs",
+      "bytes": 5335,
+      "sha256": "b32981f6df677f8360f8c8827068d4c3c45942e7b26d40e94f0b79637ec0faa8"
+    },
+    {
+      "path": "evals/meri/live-v1/tests/case01-failed-receipt-cost.unit.py",
+      "bytes": 6068,
+      "sha256": "8aa56152dd961a5cd77a64913dac1870685056c5d6c791fcf2bda8a9b25912ab"
+    },
+    {
+      "path": "evals/meri/live-v1/tests/fixtures/case01-failed-receipt-cost.unit.json",
+      "bytes": 75241,
+      "sha256": "8e00f9b412a76d299d439bf874c49c893e6bc015ffd7c24e3d1ab3dca2d00aeb"
+    },
+    {
+      "path": "evals/meri/live-v1/tests/fixtures/case01-failed-receipt-cost-proof.unit.json",
+      "bytes": 1018,
+      "sha256": "ef153e852ac2a1717603c6a05fcffc679666a294342704de790210e98c8a8758"
+    },
+    {
+      "path": "evals/meri/live-v1/tests/fixtures/case01-failed-receipt-journal21.unit.jsonl",
+      "bytes": 12974,
+      "sha256": "7ac5a5d06782d325e0d30327586968aa60233681b7dec2ed98f50285ed6daa60"
+    },
+    {
+      "path": "evals/meri/live-v1/tests/fixtures/case01-failed-receipt-authorization.unit.json",
+      "bytes": 489,
+      "sha256": "e07822e83a7c7b531606519ecd4fdf1027f2fa7cbaefd4bad92a2084590262fe"
+    }
+  ],
+  "checks": [
+    {
+      "label": "authority",
+      "command": [
+        "C:/Program Files/nodejs/node.exe",
+        "--test",
+        "evals/meri/live-v1/tests/case01-failed-receipt-cost.test.mjs"
+      ],
+      "startedAt": "2026-10-03T23:08:01.082039+00:00",
+      "finishedAt": "2026-10-03T23:08:01.323186+00:00",
+      "exitCode": 0,
+      "logSha256": "c5fd91f50955d0ac697194f110e82dabd362d8a3ba79c8828a3d48d6cff2970d"
+    },
+    {
+      "label": "native",
+      "command": [
+        "C:/Users/neoma/AppData/Local/hermes/hermes-agent/venv/Scripts/python.exe",
+        "-I",
+        "evals/meri/live-v1/tests/case01-failed-receipt-cost.unit.py"
+      ],
+      "startedAt": "2026-10-03T23:08:01.332406+00:00",
+      "finishedAt": "2026-10-03T23:08:01.819732+00:00",
+      "exitCode": 0,
+      "logSha256": "265f60c2bd15534e5a6c0c6fe9fcdd8c16ffd4284137d46344551f4cf372fe4e"
+    },
+    {
+      "label": "existing-fresh-js",
+      "command": [
+        "C:/Program Files/nodejs/node.exe",
+        "--test",
+        "C:/dev/main/outputs/meri-c2-20261003/case01-recovery-regressions-v1/capture-spend-fresh-copy.test.mjs"
+      ],
+      "startedAt": "2026-10-03T23:08:01.827771+00:00",
+      "finishedAt": "2026-10-03T23:08:05.416190+00:00",
+      "exitCode": 0,
+      "logSha256": "78df528f7dd3d43bf5e18f94751b634242c3e408f7165b813c6891b6162f6875"
+    },
+    {
+      "label": "existing-fresh-native",
+      "command": [
+        "C:/Users/neoma/AppData/Local/hermes/hermes-agent/venv/Scripts/python.exe",
+        "-I",
+        "C:/dev/main/outputs/meri-c2-20261003/case01-recovery-regressions-v1/capture-spend-fresh-copy.unit.py"
+      ],
+      "startedAt": "2026-10-03T23:08:05.422192+00:00",
+      "finishedAt": "2026-10-03T23:08:06.040625+00:00",
+      "exitCode": 0,
+      "logSha256": "bc1bfcf9a4cc4e8504d2acd35694c57fd3d888cd168d8b27f61924fdf1430c05"
+    },
+    {
+      "label": "diff-check",
+      "command": [
+        "git",
+        "diff",
+        "--check",
+        "--",
+        "evals/meri/live-v1/case01-failed-receipt-cost-authority.mjs",
+        "evals/meri/live-v1/case01-failed-receipt-cost-pins.mjs",
+        "evals/meri/live-v1/capture-spend-aggregate.mjs",
+        "evals/meri/live-v1/lib/windows-capture-spend.py",
+        "evals/meri/live-v1/tests/case01-failed-receipt-cost.test.mjs",
+        "evals/meri/live-v1/tests/case01-failed-receipt-cost.unit.py",
+        "evals/meri/live-v1/tests/fixtures/case01-failed-receipt-cost.unit.json",
+        "evals/meri/live-v1/tests/fixtures/case01-failed-receipt-cost-proof.unit.json",
+        "evals/meri/live-v1/tests/fixtures/case01-failed-receipt-journal21.unit.jsonl",
+        "evals/meri/live-v1/tests/fixtures/case01-failed-receipt-authorization.unit.json"
+      ],
+      "startedAt": "2026-10-03T23:08:06.048043+00:00",
+      "finishedAt": "2026-10-03T23:08:06.114739+00:00",
+      "exitCode": 0,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "journalUnchanged": true,
+  "journalSha256": "7ac5a5d06782d325e0d30327586968aa60233681b7dec2ed98f50285ed6daa60",
+  "liveMutationPerformed": false,
+  "cloudCalls": 0,
+  "providerCalls": 0,
+  "scope": "fixed failed Case01 terminal cost only; no capture authority or answer grading"
+}

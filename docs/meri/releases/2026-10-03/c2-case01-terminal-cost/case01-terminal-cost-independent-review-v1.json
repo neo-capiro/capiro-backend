@@ -1,0 +1,14 @@
+{
+  "status": "PASS",
+  "action": "COST_ONLY_FIXED_FAILED_CASE01",
+  "reviewer": "/root/benchmark_review",
+  "qualificationSha256": "aace3ab4ceefdb1967c6f0474277bd65dee7db39d5b797713e75228755692668",
+  "proofSha256": "59b7055d48bb074d13f57eb16c93334b258800107c039667aa445c3bf5e26648",
+  "sourceHashesVerified": 10,
+  "logHashesVerified": 5,
+  "qualificationCounts": { "authority": 26, "native": 5, "existingFreshJavaScript": 5, "existingFreshNative": 12 },
+  "findings": [],
+  "resolvedFinding": "Permanent unit test now uses isolated copied pins/source and committed NTFS fixtures instead of requiring the live journal to remain at21 events.",
+  "scope": "Exact original21-event prefix and all17 pinned observations; actual authenticated postdeadline state; exact5 settled provider attempts; one distinct native cost-only event.",
+  "limitations": "No final signed capture receipt is fabricated. CAPTURE_UNCERTAIN, captureAuthority:false and answerGrade:NOT_EVALUATED remain. Reviewer performed no remote calls, mutations or test reruns."
+}

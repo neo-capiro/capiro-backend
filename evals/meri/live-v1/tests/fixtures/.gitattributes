@@ -1,0 +1,2 @@
+# Exact failed-run fixture bytes are bound to the terminal-cost proof.
+case01-failed-receipt-* -text whitespace=-blank-at-eol,-blank-at-eof,-space-before-tab,cr-at-eol

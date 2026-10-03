@@ -230,6 +230,22 @@ def reduce_fresh(wire):
             runs[key], active = dict(row), key
             reservation_ids.add(row['reservationId'])
             capture_ids.add(row['captureRunId'])
+        elif row.get('event') == 'terminal_cost_reconciled':
+            require(sequence == 22 and len(events[:sequence]) == 22)
+            require(set(row) == common | {'proof'})
+            require(digest(b''.join(lines[:21])) == '7ac5a5d06782d325e0d30327586968aa60233681b7dec2ed98f50285ed6daa60')
+            proof = row['proof']
+            require(digest(data(proof)) == '59b7055d48bb074d13f57eb16c93334b258800107c039667aa445c3bf5e26648')
+            require(all(row[k] == proof[k] for k in ('caseId', 'captureRunId', 'reservationId')))
+            require(active == key and runs[key]['reservationId'] == row['reservationId'])
+            require(runs[key]['ceilingMicros'] == 15_000_000 and row['atMs'] >= proof['observedAtMs'])
+            require(proof['captureAuthority'] is False and proof['answerGrade'] == 'NOT_EVALUATED')
+            charged += proof['chargedCostMicros']
+            runs[key] = {**runs[key], 'chargedCostMicros': proof['chargedCostMicros'],
+                         'terminalCostReconciled': True, 'captureAuthority': False,
+                         'captureStatus': 'CAPTURE_UNCERTAIN', 'answerGrade': 'NOT_EVALUATED',
+                         'reconciliationProofSha256': digest(data(proof))}
+            active = None
         else:
             require(row.get('event') == 'settled' and set(row) == common | {'usage'})
             require(active == key and runs[key]['reservationId'] == row['reservationId'])
@@ -250,7 +266,7 @@ def reduce_fresh(wire):
 
 def execute_fresh(request):
     op, root = request['op'], request['root']
-    require(root == FRESH_ROOT and op in {'fresh_adopt', 'fresh_read', 'fresh_reserve', 'fresh_settle'})
+    require(root == FRESH_ROOT and op in {'fresh_adopt', 'fresh_read', 'fresh_reserve', 'fresh_settle', 'fresh_reconcile_terminal'})
     adopt = op == 'fresh_adopt'
     old = request.get('state')
     require(adopt or (type(old) is dict and old.get('freshVersion') == 1 and old.get('root') == root))
@@ -271,7 +287,7 @@ def execute_fresh(request):
         for name in ('run-authorization.json', 'fresh-spend.jsonl'):
             # The journal itself is the exclusive writer lock; no sidecar or new ledger.
             handle = retain(native['open_child'](parent, name, False,
-                            write=name == 'fresh-spend.jsonl' and op in {'fresh_reserve', 'fresh_settle'}))
+                            write=name == 'fresh-spend.jsonl' and op in {'fresh_reserve', 'fresh_settle', 'fresh_reconcile_terminal'}))
             value = native['read_bytes'](handle)
             descriptor = {'identity': native['inspect'](handle)['identity'], 'sha256': digest(value), 'bytes': len(value)}
             require(adopt or old['files'].get(name) == descriptor)
@@ -287,13 +303,18 @@ def execute_fresh(request):
         event = request['event']
         kind = op.removeprefix('fresh_')
         fields = {'kind', 'caseId', 'captureRunId', 'reservationId'}
-        fields |= {'ceilingMicros'} if kind == 'reserve' else {'chargedCostMicros', 'ledgerSha256', 'envelopeSha256'}
+        fields |= ({'ceilingMicros'} if kind == 'reserve' else {'proof'} if kind == 'reconcile_terminal'
+                   else {'chargedCostMicros', 'ledgerSha256', 'envelopeSha256'})
         require(set(event) == fields and event['kind'] == kind)
         row = {k: event[k] for k in ('caseId', 'captureRunId', 'reservationId')}
         row.update({'nativeCaptureVersion': 1, 'sequence': snapshot['eventCount'] + 1,
                     'atMs': int(time.time()*1000), 'event': 'reserved' if kind == 'reserve' else 'settled'})
         if kind == 'reserve':
             row['ceilingMicros'] = event['ceilingMicros']
+        elif kind == 'reconcile_terminal':
+            require(snapshot['eventCount'] == 21)
+            row['event'] = 'terminal_cost_reconciled'
+            row['proof'] = event['proof']
         else:
             row['usage'] = {k: event[k] for k in ('chargedCostMicros', 'ledgerSha256', 'envelopeSha256')}
             row['usage']['captureAuthority'] = True

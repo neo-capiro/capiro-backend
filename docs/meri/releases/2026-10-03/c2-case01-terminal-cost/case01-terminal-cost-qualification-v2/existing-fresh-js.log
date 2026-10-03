@@ -1,0 +1,13 @@
+✔ explicit fresh adoption does not append and returns exact cost/history state (378.2198ms)
+✔ only same-process native reservation can claim; arbitrary future settlement JSON cannot release cost (1117.6791ms)
+✔ two opened owners cannot both reserve; failed stale owner remains poisoned (941.4116ms)
+✔ unsupported cases and kind/format confusion cannot acquire a fresh reservation (321.7354ms)
+✔ existing original owner still reserves with its original ceiling and rejects fresh substitution (676.7518ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3518.6929

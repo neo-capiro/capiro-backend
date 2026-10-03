@@ -1,0 +1,1500 @@
+{
+  "execution": {
+    "schemaVersion": 1,
+    "caseId": "01",
+    "captureRunId": "bd35c0f4-1604-4371-b7e9-a1338369e53f",
+    "conversationId": "f493355c-ee97-44a1-a0b0-e05e7b104b59",
+    "operatorSourceSha": "f9d1939782dc95d648e2e1b4528752e0f716db64",
+    "originalOperatorSourceSha": "b7918cd947e6cc7fb8c83ee171e5fa50e483e7aa",
+    "sourceSha": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642",
+    "orchestratorSha": "fb17c7ebfa010ce964919068f61830cb78ca620d",
+    "expectedWebSha": "78ad5805679a3045b1fc10fb19beafa7f76e4e64",
+    "scopeFileSha256": "87b10494d9547a4ec9fb28641271d9cec7fbfa5cd9d3c971c91201400fce4d69",
+    "manifestSha256": "ed9c3b1c11014825b29ee2879796e20b3f0023959ed9e478337180b96ed7a062",
+    "setupProof": {
+      "setupReceiptSha256": "870e3efe65d748058614bd49b7350cad5f8ad6215cf8ab61e2e2b673cc680cb3",
+      "planSha256": "37d4bfcef3ef7635bf4949f5aab58e4ea5f3059d1889bea471b83eec819897dc",
+      "currentVerifySha256": "227c81e4437276718a0f6dfccb2b883c6d32b266c66b35c79ba26381a1f9c413",
+      "bindingSha256": "1ca9fec4b6586d3efa33edce978cd3762ade58a970018cb0895927d614640582",
+      "qualificationSha256": "6b80b2bcb8da239e6caaed813b87253e51cf1f392f93710ee79d3176a590aede"
+    },
+    "scriptSha256": "678e3108726a273afe0af7343060d6809518f9497282c1c8599fbee8bb13687a",
+    "startedAt": "2026-10-03T22:26:39.136Z",
+    "verdict": "BLOCKED",
+    "stage": "EXECUTE_NATIVE_CAPTURE",
+    "maximumNewTurns": 1,
+    "automaticPaidRetryAllowed": false,
+    "browserApplicationWrites": 0,
+    "conversationCreationAttempted": false,
+    "newReservationAttempted": false,
+    "executionAttempted": true,
+    "sessionCreated": true,
+    "sessionRevoked": true,
+    "fullFile01Acceptance": false,
+    "submissionObservation": {
+      "turnsSent": 1,
+      "turnsSentStatus": "OBSERVED_NATIVE_OUTCOME"
+    },
+    "signInAttempted": true,
+    "createdSessionIdSha256": "8218eb5c4c7f8aaf58dcce8eed0beddc38de3876183dab8af4673863b7637856",
+    "recoveryProof": {
+      "kind": "case01-presubmission-recovery-observation",
+      "captureRunId": "bd35c0f4-1604-4371-b7e9-a1338369e53f",
+      "conversationId": "f493355c-ee97-44a1-a0b0-e05e7b104b59",
+      "reservationId": "cf7ea1df-6996-4d29-a5d5-b98db9c85c61",
+      "ceilingMicros": 15000000,
+      "journalSha256": "7ac5a5d06782d325e0d30327586968aa60233681b7dec2ed98f50285ed6daa60",
+      "claimPath": "C:/dev/main/outputs/meri-c2-20261003/case01-presubmission-recovery-claim-bd35c0f4-1604-4371-b7e9-a1338369e53f.json",
+      "claimSha256": "2d4261075f84aea19f83137de965bd8b2bb55568819670d4d75cac0ae8600980",
+      "restored": true,
+      "recheckStarted": true,
+      "rechecked": true,
+      "submissionFenceConsumed": false,
+      "failed": false,
+      "initialReads": [
+        {
+          "method": "GET",
+          "path": "/api/me",
+          "status": 200,
+          "apiSourceSha": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642",
+          "bodySha256": "03595ffc23ac84194ba6ed21a18932d79f04bcde680bcdb437233eee51b602f5",
+          "bytes": 1224,
+          "observedAt": 1791066413485
+        },
+        {
+          "method": "GET",
+          "path": "/api/clio/status",
+          "status": 200,
+          "apiSourceSha": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642",
+          "bodySha256": "39acec4ad46cce70ea7ae79a2df2c112a8c54277fc0285d0c90ef0bcd5aaf144",
+          "bytes": 55170,
+          "observedAt": 1791066413679
+        },
+        {
+          "method": "GET",
+          "path": "/api/clio/conversations/f493355c-ee97-44a1-a0b0-e05e7b104b59",
+          "status": 200,
+          "apiSourceSha": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642",
+          "bodySha256": "59380698ecbefca69aec44b3d2945428078a826d6262773d736d3a12fdaeb5c2",
+          "bytes": 2555,
+          "observedAt": 1791066417046
+        },
+        {
+          "method": "GET",
+          "path": "/api/clio/conversations/f493355c-ee97-44a1-a0b0-e05e7b104b59/messages",
+          "status": 200,
+          "apiSourceSha": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642",
+          "bodySha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "bytes": 2,
+          "observedAt": 1791066417292
+        }
+      ],
+      "preSubmissionReads": [
+        {
+          "method": "GET",
+          "path": "/api/me",
+          "status": 200,
+          "apiSourceSha": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642",
+          "bodySha256": "03595ffc23ac84194ba6ed21a18932d79f04bcde680bcdb437233eee51b602f5",
+          "bytes": 1224,
+          "observedAt": 1791066435555
+        },
+        {
+          "method": "GET",
+          "path": "/api/clio/status",
+          "status": 200,
+          "apiSourceSha": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642",
+          "bodySha256": "39acec4ad46cce70ea7ae79a2df2c112a8c54277fc0285d0c90ef0bcd5aaf144",
+          "bytes": 55170,
+          "observedAt": 1791066435752
+        },
+        {
+          "method": "GET",
+          "path": "/api/clio/conversations/f493355c-ee97-44a1-a0b0-e05e7b104b59",
+          "status": 200,
+          "apiSourceSha": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642",
+          "bodySha256": "bae21f86064b14042b61274c33249c102588f1a20bb5d03c20ed8e7f2ec0ede1",
+          "bytes": 2555,
+          "observedAt": 1791066437918
+        },
+        {
+          "method": "GET",
+          "path": "/api/clio/conversations/f493355c-ee97-44a1-a0b0-e05e7b104b59/messages",
+          "status": 200,
+          "apiSourceSha": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642",
+          "bodySha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "bytes": 2,
+          "observedAt": 1791066438079
+        }
+      ],
+      "currentVerifySha256": "227c81e4437276718a0f6dfccb2b883c6d32b266c66b35c79ba26381a1f9c413",
+      "qualificationSha256": "6b80b2bcb8da239e6caaed813b87253e51cf1f392f93710ee79d3176a590aede",
+      "humanAcceptance": false
+    },
+    "restoredReservation": {
+      "caseId": "01",
+      "captureRunId": "bd35c0f4-1604-4371-b7e9-a1338369e53f",
+      "reservationId": "cf7ea1df-6996-4d29-a5d5-b98db9c85c61",
+      "ceilingMicros": 15000000
+    },
+    "capturePrepared": true,
+    "nativeAdmissionReadback": {
+      "qualificationSha256": "6b80b2bcb8da239e6caaed813b87253e51cf1f392f93710ee79d3176a590aede",
+      "currentVerifySha256": "227c81e4437276718a0f6dfccb2b883c6d32b266c66b35c79ba26381a1f9c413"
+    },
+    "executionIntent": {
+      "phase": "EXECUTE_CASE01_LIVE_CAPTURE",
+      "captureRunId": "bd35c0f4-1604-4371-b7e9-a1338369e53f",
+      "conversationId": "f493355c-ee97-44a1-a0b0-e05e7b104b59",
+      "recordedAt": "2026-10-03T22:27:18.097Z",
+      "automaticPaidRetryAllowed": false,
+      "uncertainReservationRetained": true
+    },
+    "outcome": {
+      "status": "CAPTURE_UNCERTAIN",
+      "acceptanceStatus": "NOT_RUN",
+      "reason": "CASE01_STREAM_UNCERTAIN",
+      "caseId": "01",
+      "captureRunId": "bd35c0f4-1604-4371-b7e9-a1338369e53f",
+      "requestCount": 8,
+      "synthesisSubmissionCount": 1
+    },
+    "failureCode": "CASE01_RECOVERY_OPERATOR_FAILED",
+    "failureDiagnostic": {
+      "errorClass": "Error",
+      "messageSha256": "fc1f9321dda99ee94b85e8fb5187c49c095fd04a7395d4a0ab70da6056564113",
+      "messageOmitted": true
+    },
+    "completedAt": "2026-10-03T22:27:44.495Z",
+    "originalEvidencePreserved": true
+  },
+  "stream": {
+    "schemaVersion": 1,
+    "kind": "meri-http-response-observation",
+    "captureAuthority": false,
+    "acceptanceStatus": "NOT_RUN",
+    "status": 201,
+    "releaseSha": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642",
+    "bodyBytes": 2431,
+    "bodySha256": "f357767f5909a704b82144c38a8094bee21e69ee1c4c583b5ceb3e623d31a141",
+    "redacted": false,
+    "text": "data: {\"type\":\"progress\",\"runId\":\"0fe1363f-14b2-4811-9c0d-aa9b6c3c7090\",\"phase\":\"preparing\",\"note\":\"Checking this conversation before preparing a response.\",\"elapsedMs\":1004,\"accepted\":false}\n\ndata: {\"type\":\"progress\",\"runId\":\"0fe1363f-14b2-4811-9c0d-aa9b6c3c7090\",\"phase\":\"resolver\",\"note\":\"Checking the client and information you can access.\",\"elapsedMs\":1594,\"accepted\":false}\n\ndata: {\"type\":\"progress\",\"runId\":\"0fe1363f-14b2-4811-9c0d-aa9b6c3c7090\",\"phase\":\"preparing\",\"note\":\"Preparing Meri’s response.\",\"elapsedMs\":1595,\"accepted\":false}\n\ndata: {\"type\":\"progress\",\"runId\":\"0fe1363f-14b2-4811-9c0d-aa9b6c3c7090\",\"phase\":\"retrieval\",\"note\":\"Retrieving authorized client information and evidence.\",\"elapsedMs\":1595,\"accepted\":false}\n\ndata: {\"type\":\"progress\",\"runId\":\"0fe1363f-14b2-4811-9c0d-aa9b6c3c7090\",\"phase\":\"preparing\",\"note\":\"Preparing Meri’s response.\",\"elapsedMs\":1903,\"accepted\":false}\n\ndata: {\"type\":\"progress\",\"runId\":\"0fe1363f-14b2-4811-9c0d-aa9b6c3c7090\",\"phase\":\"compile\",\"note\":\"Preparing the retrieved information for Meri.\",\"elapsedMs\":1903,\"accepted\":false}\n\ndata: {\"type\":\"progress\",\"runId\":\"0fe1363f-14b2-4811-9c0d-aa9b6c3c7090\",\"phase\":\"persistence\",\"note\":\"Saving the source record for this response.\",\"elapsedMs\":2515,\"accepted\":false}\n\ndata: {\"type\":\"progress\",\"runId\":\"0fe1363f-14b2-4811-9c0d-aa9b6c3c7090\",\"phase\":\"compile\",\"note\":\"Preparing the retrieved information for Meri.\",\"elapsedMs\":2542,\"accepted\":false}\n\ndata: {\"type\":\"progress\",\"runId\":\"0fe1363f-14b2-4811-9c0d-aa9b6c3c7090\",\"phase\":\"preparing\",\"note\":\"Preparing Meri’s response.\",\"elapsedMs\":2543,\"accepted\":false}\n\ndata: {\"type\":\"progress\",\"runId\":\"0fe1363f-14b2-4811-9c0d-aa9b6c3c7090\",\"phase\":\"preparing\",\"note\":\"Preparing Meri’s response.\",\"elapsedMs\":5001,\"accepted\":false}\n\ndata: {\"type\":\"progress\",\"runId\":\"0fe1363f-14b2-4811-9c0d-aa9b6c3c7090\",\"phase\":\"preparing\",\"note\":\"Preparing Meri’s response.\",\"elapsedMs\":10001,\"accepted\":false}\n\ndata: {\"type\":\"progress\",\"runId\":\"0fe1363f-14b2-4811-9c0d-aa9b6c3c7090\",\"phase\":\"preparing\",\"note\":\"Preparing Meri’s response.\",\"elapsedMs\":15002,\"accepted\":false}\n\ndata: {\"type\":\"progress\",\"runId\":\"0fe1363f-14b2-4811-9c0d-aa9b6c3c7090\",\"phase\":\"preparing\",\"note\":\"Preparing Meri’s response.\",\"elapsedMs\":20002,\"accepted\":false}\n\ndata: {\"type\":\"error\",\"code\":\"MERI_STREAM_SETUP_ERROR\",\"message\":\"meri_capture_receipt_readback_mismatch\",\"accepted\":false}\n\ndata: {\"type\":\"done\"}\n\n"
+  },
+  "database": {
+    "status": "READ_ONLY_RAW_AND_PRISMA_DIAGNOSTIC",
+    "captureRunId": "bd35c0f4-1604-4371-b7e9-a1338369e53f",
+    "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+    "userId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+    "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+    "conversationId": "f493355c-ee97-44a1-a0b0-e05e7b104b59",
+    "turnId": "8c8e1c76-c7b2-4c98-9fc4-ac433be980a0",
+    "sourceSha": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642",
+    "conversation": {
+      "id": "f493355c-ee97-44a1-a0b0-e05e7b104b59",
+      "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+      "userId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+      "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+      "metadata": {
+        "brand": "Meri",
+        "runtime": "Hermes",
+        "userEmail": "meri-foundation-20260928.pat@example.com",
+        "serverCaptureProviderBudget": {
+          "ledger": {
+            "limits": {
+              "maxTokens": 500000,
+              "deadlineAt": "2026-10-03T22:57:18.896Z",
+              "maxAttempts": 32,
+              "maxCostMicros": 15000000
+            },
+            "version": 1,
+            "attempts": [
+              {
+                "kind": "bedrock_embeddings",
+                "model": "amazon.titan-embed-text-v2:0",
+                "phase": "api_retrieval",
+                "runId": "42ee50b8-7a16-4b04-af18-2f8fb7e82b3d",
+                "status": "settled",
+                "version": 1,
+                "provider": "aws-bedrock",
+                "attemptId": "49f1485a-6087-45e4-aa72-f48e55ee309c",
+                "settledAt": "2026-10-03T22:27:20.738Z",
+                "leaseEpoch": 1,
+                "priceKnown": true,
+                "reservedAt": "2026-10-03T22:27:20.561Z",
+                "reservationId": "088cf2f9-b075-46bd-8e03-84efb11dafe5",
+                "actualCostMicros": 1,
+                "retryOfAttemptId": null,
+                "actualInputTokens": 11,
+                "actualOutputTokens": 0,
+                "logicalOperationId": "49f1485a-6087-45e4-aa72-f48e55ee309c",
+                "reservedCostMicros": 3,
+                "reservedInputTokens": 104,
+                "reservedOutputTokens": 0
+              },
+              {
+                "kind": "openai_responses",
+                "model": "gpt-6-astra",
+                "phase": "acquisition",
+                "runId": "42ee50b8-7a16-4b04-af18-2f8fb7e82b3d",
+                "status": "settled",
+                "version": 1,
+                "provider": "openai",
+                "attemptId": "openai-responses:3bcb099c80688f1b8c139dad975a58d4a2f99479721ce77c4fece3ea21bd464e:0",
+                "settledAt": "2026-10-03T22:27:27.457Z",
+                "leaseEpoch": 1,
+                "priceKnown": true,
+                "reservedAt": "2026-10-03T22:27:23.305Z",
+                "reservationId": "f33d568d-61b5-4cb0-8cbb-00c008024eee",
+                "actualCostMicros": 724200,
+                "retryOfAttemptId": null,
+                "actualInputTokens": 28806,
+                "actualOutputTokens": 54,
+                "logicalOperationId": "openai-responses:3bcb099c80688f1b8c139dad975a58d4a2f99479721ce77c4fece3ea21bd464e",
+                "reservedCostMicros": 5669275,
+                "reservedInputTokens": 153043,
+                "reservedOutputTokens": 24576
+              },
+              {
+                "kind": "bedrock_embeddings",
+                "model": "amazon.titan-embed-text-v2:0",
+                "phase": "api_retrieval",
+                "runId": "42ee50b8-7a16-4b04-af18-2f8fb7e82b3d",
+                "status": "settled",
+                "version": 1,
+                "provider": "aws-bedrock",
+                "attemptId": "2d47259a-6b1b-4d2e-818c-a13b97e74cbc",
+                "settledAt": "2026-10-03T22:27:27.778Z",
+                "leaseEpoch": 1,
+                "priceKnown": true,
+                "reservedAt": "2026-10-03T22:27:27.587Z",
+                "reservationId": "86b55468-6ae9-47d9-8b56-87ce5ab276a8",
+                "actualCostMicros": 1,
+                "retryOfAttemptId": null,
+                "actualInputTokens": 10,
+                "actualOutputTokens": 0,
+                "logicalOperationId": "2d47259a-6b1b-4d2e-818c-a13b97e74cbc",
+                "reservedCostMicros": 3,
+                "reservedInputTokens": 105,
+                "reservedOutputTokens": 0
+              },
+              {
+                "kind": "openai_responses",
+                "model": "gpt-6-astra",
+                "phase": "acquisition",
+                "runId": "42ee50b8-7a16-4b04-af18-2f8fb7e82b3d",
+                "status": "settled",
+                "version": 1,
+                "provider": "openai",
+                "attemptId": "openai-responses:a539bedad4eec023c0880df405baaeb9b612f52851af973c9aaa374cdae070a9:0",
+                "settledAt": "2026-10-03T22:27:33.155Z",
+                "leaseEpoch": 1,
+                "priceKnown": true,
+                "reservedAt": "2026-10-03T22:27:27.992Z",
+                "reservationId": "6e011184-bab3-403e-8ae8-b9230d3dbb88",
+                "actualCostMicros": 775400,
+                "retryOfAttemptId": null,
+                "actualInputTokens": 30599,
+                "actualOutputTokens": 139,
+                "logicalOperationId": "openai-responses:a539bedad4eec023c0880df405baaeb9b612f52851af973c9aaa374cdae070a9",
+                "reservedCostMicros": 5824625,
+                "reservedInputTokens": 159257,
+                "reservedOutputTokens": 24576
+              },
+              {
+                "kind": "openai_responses",
+                "model": "gpt-6-astra",
+                "phase": "acquisition",
+                "runId": "42ee50b8-7a16-4b04-af18-2f8fb7e82b3d",
+                "status": "settled",
+                "version": 1,
+                "provider": "openai",
+                "attemptId": "openai-responses:29fe6c1e9102947a004a9782fce550800370b355abf3fdfca7787c99250b7384:0",
+                "settledAt": "2026-10-03T22:27:41.310Z",
+                "leaseEpoch": 1,
+                "priceKnown": true,
+                "reservedAt": "2026-10-03T22:27:33.269Z",
+                "reservationId": "53bfb4ed-3f7d-4920-b504-fd794575e6c9",
+                "actualCostMicros": 793000,
+                "retryOfAttemptId": null,
+                "actualInputTokens": 30811,
+                "actualOutputTokens": 303,
+                "logicalOperationId": "openai-responses:29fe6c1e9102947a004a9782fce550800370b355abf3fdfca7787c99250b7384",
+                "reservedCostMicros": 5892200,
+                "reservedInputTokens": 161960,
+                "reservedOutputTokens": 24576
+              }
+            ],
+            "activation": "enforced",
+            "chargedTokens": 90733,
+            "chargedAttempts": 5,
+            "chargedCostMicros": 2292602
+          },
+          "turnId": "8c8e1c76-c7b2-4c98-9fc4-ac433be980a0",
+          "version": 1,
+          "admissionId": "42ee50b8-7a16-4b04-af18-2f8fb7e82b3d",
+          "policySha256": "5d3e3cec3a45ccd4b3c3ddbced7f9595f83a4d9c3cf9c99a3f95a44f327cca3f",
+          "qualification": {
+            "rates": [
+              {
+                "kind": "openai_responses",
+                "model": "gpt-6-astra",
+                "provider": "openai",
+                "inputMicrosPerMillion": 25000000,
+                "outputMicrosPerMillion": 75000000
+              },
+              {
+                "kind": "bedrock_embeddings",
+                "model": "amazon.titan-embed-text-v2:0",
+                "provider": "aws-bedrock",
+                "inputMicrosPerMillion": 20000,
+                "outputMicrosPerMillion": 0
+              }
+            ],
+            "caseId": "01",
+            "version": 1,
+            "maxTokens": 500000,
+            "priceKind": "qualified_text_token_upper_bound",
+            "maxAttempts": 32,
+            "captureRunId": "bd35c0f4-1604-4371-b7e9-a1338369e53f",
+            "maxCostMicros": 15000000,
+            "rateEvidenceSha256": "a1a179383c8451495336169f46025eb8cee8ec95487f1a43017078387b768b11",
+            "currentVerifySha256": "227c81e4437276718a0f6dfccb2b883c6d32b266c66b35c79ba26381a1f9c413",
+            "rateEvidenceExpiresAt": "2026-10-04T05:29:01.587Z"
+          },
+          "qualificationSha256": "6b80b2bcb8da239e6caaed813b87253e51cf1f392f93710ee79d3176a590aede"
+        }
+      }
+    },
+    "ormMessages": [
+      {
+        "id": "8c8e1c76-c7b2-4c98-9fc4-ac433be980a0",
+        "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+        "userId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+        "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+        "conversationId": "f493355c-ee97-44a1-a0b0-e05e7b104b59",
+        "role": "user",
+        "body": "What do we know about Aster’s briefing preferences?",
+        "metadata": {},
+        "createdAt": "2026-10-03T22:27:21.504Z"
+      },
+      {
+        "id": "71395f9b-92e4-47aa-8b9c-ed908a5127b1",
+        "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+        "userId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+        "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+        "conversationId": "f493355c-ee97-44a1-a0b0-e05e7b104b59",
+        "role": "assistant",
+        "body": "Aster’s briefing preference recorded in approved memory is that **monthly briefs include fiscal year, budget stage, citations, and an action owner**. [3]\n\nThat record does not specify length, tone, or delivery format. [3] I couldn’t check pending, unapproved preferences because the proposal source was unavailable, so this is the approved-memory finding rather than a complete inventory.",
+        "metadata": {
+          "tier": "deep",
+          "model": "gpt-6-astra",
+          "trace": [
+            {
+              "tool": "search_memory",
+              "type": "tool_done",
+              "label": "Searched firm memory",
+              "status": "done"
+            },
+            {
+              "tool": "list_memory_proposals",
+              "type": "tool_done",
+              "label": "Checked your pending memory proposals",
+              "detail": "Delegated tool \"list_memory_proposals\" failed: 500 Internal Server Error {\"statusCode\":500,\"message\":\"Internal server error\"}",
+              "status": "error"
+            }
+          ],
+          "usage": {
+            "inputTokens": 90216,
+            "outputTokens": 496,
+            "cacheReadTokens": 59399,
+            "cacheCreationTokens": 0
+          },
+          "intent": "research",
+          "actions": [],
+          "partial": false,
+          "runtime": "meriv3",
+          "servedBy": "meriv3",
+          "citations": [
+            {
+              "n": 3,
+              "id": "422b4ca9-10a8-4680-a713-3e61273a14ff",
+              "url": null,
+              "tool": "search_memory",
+              "type": "memory",
+              "title": "meri-foundation-20260928:f6164496-9dac-4771-980f-2f362081942e:APPROVED-MA1-V1",
+              "source": {
+                "kind": "memory",
+                "version": "content:90a0452d6c7ff25e50040cc7f528eee9eca9630d81551a8fa6b3e756705fa2bb",
+                "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+                "recordId": "422b4ca9-10a8-4680-a713-3e61273a14ff"
+              },
+              "snippet": "Monthly briefs include fiscal year, budget stage, citations and action owner"
+            }
+          ],
+          "retrieval": {
+            "plan": {
+              "version": 1,
+              "queryClass": "semantic_recall",
+              "recipeTool": null,
+              "targetHint": null,
+              "timeWindow": null,
+              "subjectScope": "client",
+              "requiredDomains": [
+                "institutional_knowledge"
+              ],
+              "requireCompleteCoverage": true
+            },
+            "coverage": {
+              "phase": "turn",
+              "version": 1,
+              "complete": false,
+              "toolReads": [
+                {
+                  "tool": "search_memory",
+                  "detail": "governed_memory_scan_complete",
+                  "source": "institutional_knowledge",
+                  "status": "complete",
+                  "truncated": false,
+                  "lastSyncAt": "2026-10-02T17:00:06.853Z",
+                  "requestRoute": {
+                    "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b"
+                  },
+                  "recordsMatched": 1,
+                  "recordsOmitted": 0,
+                  "recordsReturned": 1,
+                  "recordsDisplayed": 1,
+                  "recordsEvaluated": 1,
+                  "paginationComplete": true
+                },
+                {
+                  "tool": "list_memory_proposals",
+                  "detail": "source_read_failed",
+                  "source": "institutional_knowledge",
+                  "status": "error",
+                  "truncated": false,
+                  "requestRoute": {
+                    "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b"
+                  },
+                  "recordsMatched": null,
+                  "recordsOmitted": null,
+                  "recordsReturned": null,
+                  "recordsDisplayed": null,
+                  "recordsEvaluated": null,
+                  "paginationComplete": null
+                }
+              ],
+              "truncated": false,
+              "stopReason": "turn_coverage_partial",
+              "sourceCounts": [
+                {
+                  "source": "institutional_knowledge",
+                  "recordsMatched": 1,
+                  "recordsOmitted": 0,
+                  "recordsReturned": 1,
+                  "recordsDisplayed": 1,
+                  "recordsEvaluated": 1
+                }
+              ],
+              "sourceHealth": [
+                {
+                  "detail": "governed_memory_scan_complete",
+                  "source": "institutional_knowledge",
+                  "status": "complete",
+                  "lastSyncAt": "2026-10-02T17:00:06.853Z"
+                }
+              ],
+              "toolsInvoked": [
+                "retrieval-v2:institutional_knowledge",
+                "search_memory",
+                "list_memory_proposals"
+              ],
+              "initialContext": {
+                "version": 1,
+                "complete": true,
+                "truncated": false,
+                "stopReason": "complete",
+                "sourceCounts": [
+                  {
+                    "source": "institutional_knowledge",
+                    "recordsMatched": 1,
+                    "recordsOmitted": 0,
+                    "recordsReturned": 1,
+                    "recordsDisplayed": 1,
+                    "recordsEvaluated": 1
+                  }
+                ],
+                "sourceHealth": [
+                  {
+                    "detail": "governed_memory_scan_complete",
+                    "source": "institutional_knowledge",
+                    "status": "complete",
+                    "lastSyncAt": "2026-10-02T17:00:06.853Z"
+                  }
+                ],
+                "toolsInvoked": [
+                  "retrieval-v2:institutional_knowledge"
+                ],
+                "missingDomains": [],
+                "partialDomains": [],
+                "recordsOmitted": 0,
+                "recordsReturned": 1,
+                "searchedDomains": [
+                  "institutional_knowledge"
+                ],
+                "recordsDisplayed": 1,
+                "recordsEvaluated": 1,
+                "requestedDomains": [
+                  "institutional_knowledge"
+                ],
+                "paginationComplete": true,
+                "unavailableSources": [],
+                "searchedEntityCount": 1,
+                "requestedEntityCount": 1
+              },
+              "missingDomains": [],
+              "partialDomains": [],
+              "recordsOmitted": 0,
+              "recordsReturned": 1,
+              "restoredSources": [],
+              "searchedDomains": [
+                "institutional_knowledge"
+              ],
+              "recordsDisplayed": 1,
+              "recordsEvaluated": 1,
+              "requestedDomains": [
+                "institutional_knowledge"
+              ],
+              "paginationComplete": true,
+              "unavailableSources": [
+                {
+                  "reason": "subsequent_read:source_read_failed",
+                  "source": "institutional_knowledge"
+                }
+              ],
+              "searchedEntityCount": 1,
+              "requestedEntityCount": 1
+            }
+          },
+          "telemetry": {
+            "partial": false,
+            "finishReason": "completed",
+            "effectiveModel": "gpt-6-astra",
+            "requestedModel": "gpt-6-astra",
+            "effectiveReasoningEffort": "high",
+            "reasoningFallbackReasons": [],
+            "requestedReasoningEffort": "high"
+          },
+          "toolsUsed": [
+            "search_memory",
+            "list_memory_proposals"
+          ],
+          "turnScope": {
+            "kind": "client",
+            "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+            "clientName": "Aster Defense",
+            "targetHint": null
+          },
+          "trustSteps": [
+            {
+              "tool": "search_memory",
+              "label": "Searched firm memory",
+              "detail": "Completed",
+              "status": "done",
+              "confidence": "high"
+            },
+            {
+              "tool": "list_memory_proposals",
+              "label": "Checked your pending memory proposals",
+              "detail": "Delegated tool \"list_memory_proposals\" failed: 500 Internal Server Error {\"statusCode\":500,\"message\":\"Internal server error\"}",
+              "status": "error",
+              "confidence": "low"
+            }
+          ],
+          "finishReason": "completed",
+          "contextPacket": {
+            "items": [
+              {
+                "id": "422b4ca9-10a8-4680-a713-3e61273a14ff",
+                "asOf": null,
+                "type": "client-compass",
+                "label": "clio:5e38b09a-eaef-4352-9d0e-cdc8ba9114f0~va5397fba1d914ba98006bf1fdaa90f67",
+                "scope": "client",
+                "authority": "unknown",
+                "rationale": "Client soul/compass: approved framing for the active client only",
+                "selection": "automatic",
+                "userScoped": false,
+                "lastConfirmedAt": null
+              }
+            ],
+            "surface": "chat",
+            "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+            "clockUse": {
+              "instant": "2026-09-26T16:00:00.000Z",
+              "scoring": "not_run",
+              "timeZone": "America/New_York",
+              "eligibilityAt": "2026-10-03T22:27:21.401Z"
+            },
+            "degraded": true,
+            "packetId": "c4ffa975-1469-4afb-bc84-31bcad3bf17b",
+            "persisted": true,
+            "compiledAt": "2026-10-03T22:27:21.402Z",
+            "exclusions": [],
+            "degradedReason": "context_packet_release_switch_rollback",
+            "unauthorizedCount": 0,
+            "persistenceErrorCode": null
+          },
+          "providerCalls": [
+            {
+              "partial": false,
+              "finishReason": "completed",
+              "effectiveModel": "gpt-6-astra",
+              "requestedModel": "gpt-6-astra",
+              "effectiveReasoningEffort": "high",
+              "reasoningFallbackReasons": [],
+              "requestedReasoningEffort": "high"
+            },
+            {
+              "partial": false,
+              "finishReason": "completed",
+              "effectiveModel": "gpt-6-astra",
+              "requestedModel": "gpt-6-astra",
+              "effectiveReasoningEffort": "high",
+              "reasoningFallbackReasons": [],
+              "requestedReasoningEffort": "high"
+            },
+            {
+              "partial": false,
+              "finishReason": "completed",
+              "effectiveModel": "gpt-6-astra",
+              "requestedModel": "gpt-6-astra",
+              "effectiveReasoningEffort": "high",
+              "reasoningFallbackReasons": [],
+              "requestedReasoningEffort": "high"
+            }
+          ],
+          "reasoningMode": "standard",
+          "contextPacketId": "c4ffa975-1469-4afb-bc84-31bcad3bf17b",
+          "reasoningEffort": "high",
+          "evidenceManifest": {
+            "sources": [
+              {
+                "id": "422b4ca9-10a8-4680-a713-3e61273a14ff",
+                "tool": "search_memory",
+                "origin": "tool",
+                "truncated": null
+              }
+            ],
+            "version": 1,
+            "packetId": "c4ffa975-1469-4afb-bc84-31bcad3bf17b",
+            "truncated": false,
+            "sourceRecordCount": 2,
+            "projectedRecordCount": 2
+          },
+          "groundingStatement": "Grounded in 1 retrieved source.",
+          "serverReadonlyCaptureReceipt": {
+            "version": 1,
+            "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+            "issuedAt": 1791066438896,
+            "policyId": "ac809efc-4ccb-45db-bfda-fb3549221bfb",
+            "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+            "authority": "server_current",
+            "expiresAt": 1791068238896,
+            "actorUserId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+            "conversationId": "f493355c-ee97-44a1-a0b0-e05e7b104b59",
+            "dispatchBoundary": "read_only_enforced",
+            "fixtureNamespace": "meri-foundation-20260928",
+            "dynamicMcpAllowed": false,
+            "incidentalWriters": "suppressed",
+            "toolCatalogSha256": "1a08b2447cdb77040470bbd1ee52426720f8da602b9909a2a880e095ed0c6678",
+            "expectedCaptureWrites": [
+              "context_packet_and_evidence",
+              "conversation_user_message",
+              "conversation_assistant_message",
+              "provider_budget_ledger"
+            ]
+          }
+        },
+        "createdAt": "2026-10-03T22:27:41.470Z"
+      }
+    ],
+    "rawMessages": [
+      {
+        "id": "8c8e1c76-c7b2-4c98-9fc4-ac433be980a0",
+        "metadata_text": "{}"
+      },
+      {
+        "id": "71395f9b-92e4-47aa-8b9c-ed908a5127b1",
+        "metadata_text": "{\"tier\": \"deep\", \"model\": \"gpt-6-astra\", \"trace\": [{\"tool\": \"search_memory\", \"type\": \"tool_done\", \"label\": \"Searched firm memory\", \"status\": \"done\"}, {\"tool\": \"list_memory_proposals\", \"type\": \"tool_done\", \"label\": \"Checked your pending memory proposals\", \"detail\": \"Delegated tool \\\"list_memory_proposals\\\" failed: 500 Internal Server Error {\\\"statusCode\\\":500,\\\"message\\\":\\\"Internal server error\\\"}\", \"status\": \"error\"}], \"usage\": {\"inputTokens\": 90216, \"outputTokens\": 496, \"cacheReadTokens\": 59399, \"cacheCreationTokens\": 0}, \"intent\": \"research\", \"actions\": [], \"partial\": false, \"runtime\": \"meriv3\", \"servedBy\": \"meriv3\", \"citations\": [{\"n\": 3, \"id\": \"422b4ca9-10a8-4680-a713-3e61273a14ff\", \"url\": null, \"tool\": \"search_memory\", \"type\": \"memory\", \"title\": \"meri-foundation-20260928:f6164496-9dac-4771-980f-2f362081942e:APPROVED-MA1-V1\", \"source\": {\"kind\": \"memory\", \"version\": \"content:90a0452d6c7ff25e50040cc7f528eee9eca9630d81551a8fa6b3e756705fa2bb\", \"clientId\": \"41f9ec63-3963-479f-b747-59a3767ef44b\", \"recordId\": \"422b4ca9-10a8-4680-a713-3e61273a14ff\"}, \"snippet\": \"Monthly briefs include fiscal year, budget stage, citations and action owner\"}], \"retrieval\": {\"plan\": {\"version\": 1, \"queryClass\": \"semantic_recall\", \"recipeTool\": null, \"targetHint\": null, \"timeWindow\": null, \"subjectScope\": \"client\", \"requiredDomains\": [\"institutional_knowledge\"], \"requireCompleteCoverage\": true}, \"coverage\": {\"phase\": \"turn\", \"version\": 1, \"complete\": false, \"toolReads\": [{\"tool\": \"search_memory\", \"detail\": \"governed_memory_scan_complete\", \"source\": \"institutional_knowledge\", \"status\": \"complete\", \"truncated\": false, \"lastSyncAt\": \"2026-10-02T17:00:06.853Z\", \"requestRoute\": {\"clientId\": \"41f9ec63-3963-479f-b747-59a3767ef44b\"}, \"recordsMatched\": 1, \"recordsOmitted\": 0, \"recordsReturned\": 1, \"recordsDisplayed\": 1, \"recordsEvaluated\": 1, \"paginationComplete\": true}, {\"tool\": \"list_memory_proposals\", \"detail\": \"source_read_failed\", \"source\": \"institutional_knowledge\", \"status\": \"error\", \"truncated\": false, \"requestRoute\": {\"clientId\": \"41f9ec63-3963-479f-b747-59a3767ef44b\"}, \"recordsMatched\": null, \"recordsOmitted\": null, \"recordsReturned\": null, \"recordsDisplayed\": null, \"recordsEvaluated\": null, \"paginationComplete\": null}], \"truncated\": false, \"stopReason\": \"turn_coverage_partial\", \"sourceCounts\": [{\"source\": \"institutional_knowledge\", \"recordsMatched\": 1, \"recordsOmitted\": 0, \"recordsReturned\": 1, \"recordsDisplayed\": 1, \"recordsEvaluated\": 1}], \"sourceHealth\": [{\"detail\": \"governed_memory_scan_complete\", \"source\": \"institutional_knowledge\", \"status\": \"complete\", \"lastSyncAt\": \"2026-10-02T17:00:06.853Z\"}], \"toolsInvoked\": [\"retrieval-v2:institutional_knowledge\", \"search_memory\", \"list_memory_proposals\"], \"initialContext\": {\"version\": 1, \"complete\": true, \"truncated\": false, \"stopReason\": \"complete\", \"sourceCounts\": [{\"source\": \"institutional_knowledge\", \"recordsMatched\": 1, \"recordsOmitted\": 0, \"recordsReturned\": 1, \"recordsDisplayed\": 1, \"recordsEvaluated\": 1}], \"sourceHealth\": [{\"detail\": \"governed_memory_scan_complete\", \"source\": \"institutional_knowledge\", \"status\": \"complete\", \"lastSyncAt\": \"2026-10-02T17:00:06.853Z\"}], \"toolsInvoked\": [\"retrieval-v2:institutional_knowledge\"], \"missingDomains\": [], \"partialDomains\": [], \"recordsOmitted\": 0, \"recordsReturned\": 1, \"searchedDomains\": [\"institutional_knowledge\"], \"recordsDisplayed\": 1, \"recordsEvaluated\": 1, \"requestedDomains\": [\"institutional_knowledge\"], \"paginationComplete\": true, \"unavailableSources\": [], \"searchedEntityCount\": 1, \"requestedEntityCount\": 1}, \"missingDomains\": [], \"partialDomains\": [], \"recordsOmitted\": 0, \"recordsReturned\": 1, \"restoredSources\": [], \"searchedDomains\": [\"institutional_knowledge\"], \"recordsDisplayed\": 1, \"recordsEvaluated\": 1, \"requestedDomains\": [\"institutional_knowledge\"], \"paginationComplete\": true, \"unavailableSources\": [{\"reason\": \"subsequent_read:source_read_failed\", \"source\": \"institutional_knowledge\"}], \"searchedEntityCount\": 1, \"requestedEntityCount\": 1}}, \"telemetry\": {\"partial\": false, \"finishReason\": \"completed\", \"effectiveModel\": \"gpt-6-astra\", \"requestedModel\": \"gpt-6-astra\", \"effectiveReasoningEffort\": \"high\", \"reasoningFallbackReasons\": [], \"requestedReasoningEffort\": \"high\"}, \"toolsUsed\": [\"search_memory\", \"list_memory_proposals\"], \"turnScope\": {\"kind\": \"client\", \"clientId\": \"41f9ec63-3963-479f-b747-59a3767ef44b\", \"clientName\": \"Aster Defense\", \"targetHint\": null}, \"trustSteps\": [{\"tool\": \"search_memory\", \"label\": \"Searched firm memory\", \"detail\": \"Completed\", \"status\": \"done\", \"confidence\": \"high\"}, {\"tool\": \"list_memory_proposals\", \"label\": \"Checked your pending memory proposals\", \"detail\": \"Delegated tool \\\"list_memory_proposals\\\" failed: 500 Internal Server Error {\\\"statusCode\\\":500,\\\"message\\\":\\\"Internal server error\\\"}\", \"status\": \"error\", \"confidence\": \"low\"}], \"finishReason\": \"completed\", \"contextPacket\": {\"items\": [{\"id\": \"422b4ca9-10a8-4680-a713-3e61273a14ff\", \"asOf\": null, \"type\": \"client-compass\", \"label\": \"clio:5e38b09a-eaef-4352-9d0e-cdc8ba9114f0~va5397fba1d914ba98006bf1fdaa90f67\", \"scope\": \"client\", \"authority\": \"unknown\", \"rationale\": \"Client soul/compass: approved framing for the active client only\", \"selection\": \"automatic\", \"userScoped\": false, \"lastConfirmedAt\": null}], \"surface\": \"chat\", \"clientId\": \"41f9ec63-3963-479f-b747-59a3767ef44b\", \"clockUse\": {\"instant\": \"2026-09-26T16:00:00.000Z\", \"scoring\": \"not_run\", \"timeZone\": \"America/New_York\", \"eligibilityAt\": \"2026-10-03T22:27:21.401Z\"}, \"degraded\": true, \"packetId\": \"c4ffa975-1469-4afb-bc84-31bcad3bf17b\", \"persisted\": true, \"compiledAt\": \"2026-10-03T22:27:21.402Z\", \"exclusions\": [], \"degradedReason\": \"context_packet_release_switch_rollback\", \"unauthorizedCount\": 0, \"persistenceErrorCode\": null}, \"providerCalls\": [{\"partial\": false, \"finishReason\": \"completed\", \"effectiveModel\": \"gpt-6-astra\", \"requestedModel\": \"gpt-6-astra\", \"effectiveReasoningEffort\": \"high\", \"reasoningFallbackReasons\": [], \"requestedReasoningEffort\": \"high\"}, {\"partial\": false, \"finishReason\": \"completed\", \"effectiveModel\": \"gpt-6-astra\", \"requestedModel\": \"gpt-6-astra\", \"effectiveReasoningEffort\": \"high\", \"reasoningFallbackReasons\": [], \"requestedReasoningEffort\": \"high\"}, {\"partial\": false, \"finishReason\": \"completed\", \"effectiveModel\": \"gpt-6-astra\", \"requestedModel\": \"gpt-6-astra\", \"effectiveReasoningEffort\": \"high\", \"reasoningFallbackReasons\": [], \"requestedReasoningEffort\": \"high\"}], \"reasoningMode\": \"standard\", \"contextPacketId\": \"c4ffa975-1469-4afb-bc84-31bcad3bf17b\", \"reasoningEffort\": \"high\", \"evidenceManifest\": {\"sources\": [{\"id\": \"422b4ca9-10a8-4680-a713-3e61273a14ff\", \"tool\": \"search_memory\", \"origin\": \"tool\", \"truncated\": null}], \"version\": 1, \"packetId\": \"c4ffa975-1469-4afb-bc84-31bcad3bf17b\", \"truncated\": false, \"sourceRecordCount\": 2, \"projectedRecordCount\": 2}, \"groundingStatement\": \"Grounded in 1 retrieved source.\", \"serverReadonlyCaptureReceipt\": {\"version\": 1, \"clientId\": \"41f9ec63-3963-479f-b747-59a3767ef44b\", \"issuedAt\": 1791066438896, \"policyId\": \"ac809efc-4ccb-45db-bfda-fb3549221bfb\", \"tenantId\": \"f2d6cf8f-057c-479a-8110-62fe5086d43f\", \"authority\": \"server_current\", \"expiresAt\": 1791068238896, \"actorUserId\": \"b1f758fc-17bd-40f8-bef2-fa2d2380300f\", \"conversationId\": \"f493355c-ee97-44a1-a0b0-e05e7b104b59\", \"dispatchBoundary\": \"read_only_enforced\", \"fixtureNamespace\": \"meri-foundation-20260928\", \"dynamicMcpAllowed\": false, \"incidentalWriters\": \"suppressed\", \"toolCatalogSha256\": \"1a08b2447cdb77040470bbd1ee52426720f8da602b9909a2a880e095ed0c6678\", \"expectedCaptureWrites\": [\"context_packet_and_evidence\", \"conversation_user_message\", \"conversation_assistant_message\", \"provider_budget_ledger\"]}}"
+      }
+    ],
+    "packets": [
+      {
+        "id": "8c3afb39-21c0-4e08-87e2-b7829871da4b",
+        "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+        "effectiveTenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+        "userId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+        "actorUserId": null,
+        "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+        "surface": "chat",
+        "ref": {
+          "tool": "search_memory",
+          "operationId": "meri.chat",
+          "subjectScope": "client",
+          "captureTurnId": "8c8e1c76-c7b2-4c98-9fc4-ac433be980a0",
+          "conversationId": "f493355c-ee97-44a1-a0b0-e05e7b104b59",
+          "capturePolicyId": "ac809efc-4ccb-45db-bfda-fb3549221bfb",
+          "captureRequestId": "b7316f5e-d338-4a9a-a7b2-f12178c00d16"
+        },
+        "modelPolicy": {
+          "contextCompilerClockUse": {
+            "instant": "2026-09-26T16:00:00.000Z",
+            "scoring": "not_run",
+            "timeZone": "America/New_York",
+            "eligibilityAt": "2026-10-03T22:27:27.867Z"
+          }
+        },
+        "packetVersion": 1,
+        "traceId": null,
+        "createdAt": "2026-10-03T22:27:27.871Z"
+      },
+      {
+        "id": "c4ffa975-1469-4afb-bc84-31bcad3bf17b",
+        "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+        "effectiveTenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+        "userId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+        "actorUserId": null,
+        "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+        "surface": "chat",
+        "ref": {
+          "operationId": "meri.chat",
+          "subjectScope": "client",
+          "conversationId": "f493355c-ee97-44a1-a0b0-e05e7b104b59"
+        },
+        "modelPolicy": {
+          "contextCompilerClockUse": {
+            "instant": "2026-09-26T16:00:00.000Z",
+            "scoring": "not_run",
+            "timeZone": "America/New_York",
+            "eligibilityAt": "2026-10-03T22:27:21.401Z"
+          }
+        },
+        "packetVersion": 1,
+        "traceId": null,
+        "createdAt": "2026-10-03T22:27:21.407Z"
+      }
+    ],
+    "rawPackets": [
+      {
+        "id": "c4ffa975-1469-4afb-bc84-31bcad3bf17b",
+        "ref_text": "{\"operationId\": \"meri.chat\", \"subjectScope\": \"client\", \"conversationId\": \"f493355c-ee97-44a1-a0b0-e05e7b104b59\"}",
+        "model_policy_text": "{\"contextCompilerClockUse\": {\"instant\": \"2026-09-26T16:00:00.000Z\", \"scoring\": \"not_run\", \"timeZone\": \"America/New_York\", \"eligibilityAt\": \"2026-10-03T22:27:21.401Z\"}}"
+      },
+      {
+        "id": "8c3afb39-21c0-4e08-87e2-b7829871da4b",
+        "ref_text": "{\"tool\": \"search_memory\", \"operationId\": \"meri.chat\", \"subjectScope\": \"client\", \"captureTurnId\": \"8c8e1c76-c7b2-4c98-9fc4-ac433be980a0\", \"conversationId\": \"f493355c-ee97-44a1-a0b0-e05e7b104b59\", \"capturePolicyId\": \"ac809efc-4ccb-45db-bfda-fb3549221bfb\", \"captureRequestId\": \"b7316f5e-d338-4a9a-a7b2-f12178c00d16\"}",
+        "model_policy_text": "{\"contextCompilerClockUse\": {\"instant\": \"2026-09-26T16:00:00.000Z\", \"scoring\": \"not_run\", \"timeZone\": \"America/New_York\", \"eligibilityAt\": \"2026-10-03T22:27:27.867Z\"}}"
+      }
+    ],
+    "businessWrites": 0,
+    "providerCalls": 0,
+    "readOnlyTransaction": true,
+    "acceptanceAuthority": false,
+    "observedAt": "2026-10-03T22:51:02.505Z"
+  },
+  "databaseCleanup": {
+    "at": "2026-10-03T22:51:34.174Z",
+    "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/773f235e26ee4bd9a407101be7c955b4",
+    "taskStopped": true,
+    "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-c2-case01-receipt-read-20261003:1",
+    "status": "INACTIVE",
+    "cleanupErrors": [],
+    "cleanupComplete": true
+  },
+  "postdeadline": {
+    "kind": "case01-postdeadline-owned-provider-budget-readback",
+    "status": "READBACK_CAPTURED",
+    "startedAt": "2026-10-03T23:01:20.514Z",
+    "captureRunId": "bd35c0f4-1604-4371-b7e9-a1338369e53f",
+    "conversationId": "f493355c-ee97-44a1-a0b0-e05e7b104b59",
+    "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+    "userId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+    "priorDiagnosticSha256": "8537890b349e1821c742be8442f746e607383e45e67913bf19e15c89744152ea",
+    "applicationWrites": 0,
+    "modelSubmissions": 0,
+    "sessionRevoked": true,
+    "captureAuthority": false,
+    "reads": [
+      {
+        "path": "/api/me",
+        "status": 200,
+        "apiReleaseSha": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642",
+        "bodySha256": "03595ffc23ac84194ba6ed21a18932d79f04bcde680bcdb437233eee51b602f5",
+        "bytes": 1224,
+        "observedAt": "2026-10-03T23:01:23.491Z"
+      },
+      {
+        "path": "/api/clio/conversations/f493355c-ee97-44a1-a0b0-e05e7b104b59",
+        "status": 200,
+        "apiReleaseSha": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642",
+        "bodySha256": "c03760864cca6a56ebca819c26d86663712c568928fc3cb4b94ca9b64f70c5c5",
+        "bytes": 7306,
+        "observedAt": "2026-10-03T23:01:25.773Z"
+      }
+    ],
+    "conversation": {
+      "id": "f493355c-ee97-44a1-a0b0-e05e7b104b59",
+      "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+      "userId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+      "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+      "workspaceId": null,
+      "workspaceKey": "workspace",
+      "title": "meri-foundation-20260928 case01 bd35c0f4-1604-4371-b7e9-a1338369e53f",
+      "status": "active",
+      "nanoclawPlatformId": null,
+      "nanoclawAgentGroupId": null,
+      "metadata": {
+        "brand": "Meri",
+        "runtime": "Hermes",
+        "userEmail": "meri-foundation-20260928.pat@example.com",
+        "serverCaptureProviderBudget": {
+          "ledger": {
+            "limits": {
+              "maxTokens": 500000,
+              "deadlineAt": "2026-10-03T22:57:18.896Z",
+              "maxAttempts": 32,
+              "maxCostMicros": 15000000
+            },
+            "version": 1,
+            "attempts": [
+              {
+                "kind": "bedrock_embeddings",
+                "model": "amazon.titan-embed-text-v2:0",
+                "phase": "api_retrieval",
+                "runId": "42ee50b8-7a16-4b04-af18-2f8fb7e82b3d",
+                "status": "settled",
+                "version": 1,
+                "provider": "aws-bedrock",
+                "attemptId": "49f1485a-6087-45e4-aa72-f48e55ee309c",
+                "settledAt": "2026-10-03T22:27:20.738Z",
+                "leaseEpoch": 1,
+                "priceKnown": true,
+                "reservedAt": "2026-10-03T22:27:20.561Z",
+                "reservationId": "088cf2f9-b075-46bd-8e03-84efb11dafe5",
+                "actualCostMicros": 1,
+                "retryOfAttemptId": null,
+                "actualInputTokens": 11,
+                "actualOutputTokens": 0,
+                "logicalOperationId": "49f1485a-6087-45e4-aa72-f48e55ee309c",
+                "reservedCostMicros": 3,
+                "reservedInputTokens": 104,
+                "reservedOutputTokens": 0
+              },
+              {
+                "kind": "openai_responses",
+                "model": "gpt-6-astra",
+                "phase": "acquisition",
+                "runId": "42ee50b8-7a16-4b04-af18-2f8fb7e82b3d",
+                "status": "settled",
+                "version": 1,
+                "provider": "openai",
+                "attemptId": "openai-responses:3bcb099c80688f1b8c139dad975a58d4a2f99479721ce77c4fece3ea21bd464e:0",
+                "settledAt": "2026-10-03T22:27:27.457Z",
+                "leaseEpoch": 1,
+                "priceKnown": true,
+                "reservedAt": "2026-10-03T22:27:23.305Z",
+                "reservationId": "f33d568d-61b5-4cb0-8cbb-00c008024eee",
+                "actualCostMicros": 724200,
+                "retryOfAttemptId": null,
+                "actualInputTokens": 28806,
+                "actualOutputTokens": 54,
+                "logicalOperationId": "openai-responses:3bcb099c80688f1b8c139dad975a58d4a2f99479721ce77c4fece3ea21bd464e",
+                "reservedCostMicros": 5669275,
+                "reservedInputTokens": 153043,
+                "reservedOutputTokens": 24576
+              },
+              {
+                "kind": "bedrock_embeddings",
+                "model": "amazon.titan-embed-text-v2:0",
+                "phase": "api_retrieval",
+                "runId": "42ee50b8-7a16-4b04-af18-2f8fb7e82b3d",
+                "status": "settled",
+                "version": 1,
+                "provider": "aws-bedrock",
+                "attemptId": "2d47259a-6b1b-4d2e-818c-a13b97e74cbc",
+                "settledAt": "2026-10-03T22:27:27.778Z",
+                "leaseEpoch": 1,
+                "priceKnown": true,
+                "reservedAt": "2026-10-03T22:27:27.587Z",
+                "reservationId": "86b55468-6ae9-47d9-8b56-87ce5ab276a8",
+                "actualCostMicros": 1,
+                "retryOfAttemptId": null,
+                "actualInputTokens": 10,
+                "actualOutputTokens": 0,
+                "logicalOperationId": "2d47259a-6b1b-4d2e-818c-a13b97e74cbc",
+                "reservedCostMicros": 3,
+                "reservedInputTokens": 105,
+                "reservedOutputTokens": 0
+              },
+              {
+                "kind": "openai_responses",
+                "model": "gpt-6-astra",
+                "phase": "acquisition",
+                "runId": "42ee50b8-7a16-4b04-af18-2f8fb7e82b3d",
+                "status": "settled",
+                "version": 1,
+                "provider": "openai",
+                "attemptId": "openai-responses:a539bedad4eec023c0880df405baaeb9b612f52851af973c9aaa374cdae070a9:0",
+                "settledAt": "2026-10-03T22:27:33.155Z",
+                "leaseEpoch": 1,
+                "priceKnown": true,
+                "reservedAt": "2026-10-03T22:27:27.992Z",
+                "reservationId": "6e011184-bab3-403e-8ae8-b9230d3dbb88",
+                "actualCostMicros": 775400,
+                "retryOfAttemptId": null,
+                "actualInputTokens": 30599,
+                "actualOutputTokens": 139,
+                "logicalOperationId": "openai-responses:a539bedad4eec023c0880df405baaeb9b612f52851af973c9aaa374cdae070a9",
+                "reservedCostMicros": 5824625,
+                "reservedInputTokens": 159257,
+                "reservedOutputTokens": 24576
+              },
+              {
+                "kind": "openai_responses",
+                "model": "gpt-6-astra",
+                "phase": "acquisition",
+                "runId": "42ee50b8-7a16-4b04-af18-2f8fb7e82b3d",
+                "status": "settled",
+                "version": 1,
+                "provider": "openai",
+                "attemptId": "openai-responses:29fe6c1e9102947a004a9782fce550800370b355abf3fdfca7787c99250b7384:0",
+                "settledAt": "2026-10-03T22:27:41.310Z",
+                "leaseEpoch": 1,
+                "priceKnown": true,
+                "reservedAt": "2026-10-03T22:27:33.269Z",
+                "reservationId": "53bfb4ed-3f7d-4920-b504-fd794575e6c9",
+                "actualCostMicros": 793000,
+                "retryOfAttemptId": null,
+                "actualInputTokens": 30811,
+                "actualOutputTokens": 303,
+                "logicalOperationId": "openai-responses:29fe6c1e9102947a004a9782fce550800370b355abf3fdfca7787c99250b7384",
+                "reservedCostMicros": 5892200,
+                "reservedInputTokens": 161960,
+                "reservedOutputTokens": 24576
+              }
+            ],
+            "activation": "enforced",
+            "chargedTokens": 90733,
+            "chargedAttempts": 5,
+            "chargedCostMicros": 2292602
+          },
+          "turnId": "8c8e1c76-c7b2-4c98-9fc4-ac433be980a0",
+          "version": 1,
+          "admissionId": "42ee50b8-7a16-4b04-af18-2f8fb7e82b3d",
+          "policySha256": "5d3e3cec3a45ccd4b3c3ddbced7f9595f83a4d9c3cf9c99a3f95a44f327cca3f",
+          "qualification": {
+            "rates": [
+              {
+                "kind": "openai_responses",
+                "model": "gpt-6-astra",
+                "provider": "openai",
+                "inputMicrosPerMillion": 25000000,
+                "outputMicrosPerMillion": 75000000
+              },
+              {
+                "kind": "bedrock_embeddings",
+                "model": "amazon.titan-embed-text-v2:0",
+                "provider": "aws-bedrock",
+                "inputMicrosPerMillion": 20000,
+                "outputMicrosPerMillion": 0
+              }
+            ],
+            "caseId": "01",
+            "version": 1,
+            "maxTokens": 500000,
+            "priceKind": "qualified_text_token_upper_bound",
+            "maxAttempts": 32,
+            "captureRunId": "bd35c0f4-1604-4371-b7e9-a1338369e53f",
+            "maxCostMicros": 15000000,
+            "rateEvidenceSha256": "a1a179383c8451495336169f46025eb8cee8ec95487f1a43017078387b768b11",
+            "currentVerifySha256": "227c81e4437276718a0f6dfccb2b883c6d32b266c66b35c79ba26381a1f9c413",
+            "rateEvidenceExpiresAt": "2026-10-04T05:29:01.587Z"
+          },
+          "qualificationSha256": "6b80b2bcb8da239e6caaed813b87253e51cf1f392f93710ee79d3176a590aede"
+        }
+      },
+      "summary": null,
+      "summaryUpToMessageId": null,
+      "summaryTokens": null,
+      "createdAt": "2026-10-03T21:49:11.491Z",
+      "updatedAt": "2026-10-03T22:27:41.283Z",
+      "archivedAt": null,
+      "client": {
+        "id": "41f9ec63-3963-479f-b747-59a3767ef44b",
+        "name": "Aster Defense"
+      },
+      "captureAdmission": {
+        "schemaVersion": 1,
+        "kind": "meri-case01-authenticated-admission",
+        "status": "READY",
+        "caseId": "01",
+        "captureRunId": "bd35c0f4-1604-4371-b7e9-a1338369e53f",
+        "conversationId": "f493355c-ee97-44a1-a0b0-e05e7b104b59",
+        "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+        "actorUserId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+        "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+        "issuedAt": 1791068482201,
+        "expiresAt": 1791068542201,
+        "apiReleaseSha": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642",
+        "toolAuthority": "shared_static_registry_read_only",
+        "toolCatalogSha256": "1a08b2447cdb77040470bbd1ee52426720f8da602b9909a2a880e095ed0c6678",
+        "dynamicMcpAllowed": false,
+        "incidentalWriters": "suppressed",
+        "fixture": {
+          "fixtureNamespace": "meri-foundation-20260928",
+          "fixtureVersion": "meri-live-v1-2026-09-26.1",
+          "physicalMapSha256": "cf61a870caf2099fd53f36c849189eef1188237191f2e7e9e2c6d9c4c6511974",
+          "currentVerifySha256": "227c81e4437276718a0f6dfccb2b883c6d32b266c66b35c79ba26381a1f9c413",
+          "seedReceiptId": "meri-synthetic-fixture-seed-receipt:sha256:d7ce11c8ee1508ce3899e6385a2c5bfdd1f5a3c13714aa404225135abaad3c38",
+          "resetReceiptId": "meri-synthetic-fixture-reset-receipt:sha256:4fc5d0fe9e060bed9d23d4da3c3e7b710cba1c5b74b0cb879fd6b63e1e14bc30",
+          "sources": [
+            {
+              "logicalId": "MA1-v2",
+              "physicalId": "422b4ca9-10a8-4680-a713-3e61273a14ff",
+              "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+              "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+              "sourceVersion": "memory-version:a5397fba-1d91-4ba9-8006-bf1fdaa90f67",
+              "contentSha256": "455a1a88c2daca0c6e94c6d91201cca538518cae96c1368e38ad137fd8eab89a"
+            }
+          ]
+        },
+        "providerBudget": {
+          "ready": true,
+          "qualificationSha256": "6b80b2bcb8da239e6caaed813b87253e51cf1f392f93710ee79d3176a590aede",
+          "currentVerifySha256": "227c81e4437276718a0f6dfccb2b883c6d32b266c66b35c79ba26381a1f9c413",
+          "maxCostMicros": 15000000,
+          "coverage": "case01_memory_turn"
+        }
+      }
+    },
+    "providerBudgetUnchanged": true,
+    "afterProviderDeadline": true,
+    "finishedAt": "2026-10-03T23:01:25.908Z",
+    "journalUnchanged": true
+  },
+  "postdeadlineMe": {
+    "observation": {
+      "path": "/api/me",
+      "status": 200,
+      "apiReleaseSha": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642",
+      "bodySha256": "03595ffc23ac84194ba6ed21a18932d79f04bcde680bcdb437233eee51b602f5",
+      "bytes": 1224,
+      "observedAt": "2026-10-03T23:01:23.491Z"
+    },
+    "value": {
+      "user": {
+        "id": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+        "clerkUserId": "user_3Jw2FvWZkYGKmxWGx13tNJxFD2A",
+        "email": "meri-foundation-20260928.pat@example.com",
+        "firstName": "Pat",
+        "lastName": "Synthetic",
+        "title": null,
+        "emailSignatureEnabled": false,
+        "hasEmailSignature": false,
+        "tourCompleted": false,
+        "legiwatchIntroSeen": false,
+        "legiwatchPrefs": null
+      },
+      "tenant": {
+        "id": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+        "slug": "meri-foundation-20260928-t1",
+        "name": "Meri Foundation Synthetic T1 (meri-foundation-20260928)"
+      },
+      "role": "standard_user",
+      "billingAdmin": false,
+      "entitlements": {
+        "memoryGovernance": true,
+        "peWatch": true,
+        "defenseBudgetIntel": true,
+        "complianceModule": true,
+        "dataExport": true,
+        "customConnectors": true
+      },
+      "features": {
+        "meetingsV2": false,
+        "outreachAsyncGen": false,
+        "outreachAsyncSend": false,
+        "versionedOutreach": true,
+        "externalSendV2Required": true,
+        "meriDockUndockUi": true,
+        "meriv3Chat": true,
+        "strategyPlanner": false,
+        "engagementVNext": false,
+        "strategyPlannerMeri": false,
+        "agenticMeri": false,
+        "contextSteward": false,
+        "strategyWatcher": false,
+        "businessDevelopment": false,
+        "businessDevelopmentDossier": false,
+        "businessDevelopmentBrief": false,
+        "businessDevelopmentMeriProspectTools": false,
+        "businessDevelopmentClaimValidation": false,
+        "businessDevelopmentWatch": false
+      }
+    }
+  },
+  "postdeadlineConversation": {
+    "observation": {
+      "path": "/api/clio/conversations/f493355c-ee97-44a1-a0b0-e05e7b104b59",
+      "status": 200,
+      "apiReleaseSha": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642",
+      "bodySha256": "c03760864cca6a56ebca819c26d86663712c568928fc3cb4b94ca9b64f70c5c5",
+      "bytes": 7306,
+      "observedAt": "2026-10-03T23:01:25.773Z"
+    },
+    "value": {
+      "id": "f493355c-ee97-44a1-a0b0-e05e7b104b59",
+      "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+      "userId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+      "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+      "workspaceId": null,
+      "workspaceKey": "workspace",
+      "title": "meri-foundation-20260928 case01 bd35c0f4-1604-4371-b7e9-a1338369e53f",
+      "status": "active",
+      "nanoclawPlatformId": null,
+      "nanoclawAgentGroupId": null,
+      "metadata": {
+        "brand": "Meri",
+        "runtime": "Hermes",
+        "userEmail": "meri-foundation-20260928.pat@example.com",
+        "serverCaptureProviderBudget": {
+          "ledger": {
+            "limits": {
+              "maxTokens": 500000,
+              "deadlineAt": "2026-10-03T22:57:18.896Z",
+              "maxAttempts": 32,
+              "maxCostMicros": 15000000
+            },
+            "version": 1,
+            "attempts": [
+              {
+                "kind": "bedrock_embeddings",
+                "model": "amazon.titan-embed-text-v2:0",
+                "phase": "api_retrieval",
+                "runId": "42ee50b8-7a16-4b04-af18-2f8fb7e82b3d",
+                "status": "settled",
+                "version": 1,
+                "provider": "aws-bedrock",
+                "attemptId": "49f1485a-6087-45e4-aa72-f48e55ee309c",
+                "settledAt": "2026-10-03T22:27:20.738Z",
+                "leaseEpoch": 1,
+                "priceKnown": true,
+                "reservedAt": "2026-10-03T22:27:20.561Z",
+                "reservationId": "088cf2f9-b075-46bd-8e03-84efb11dafe5",
+                "actualCostMicros": 1,
+                "retryOfAttemptId": null,
+                "actualInputTokens": 11,
+                "actualOutputTokens": 0,
+                "logicalOperationId": "49f1485a-6087-45e4-aa72-f48e55ee309c",
+                "reservedCostMicros": 3,
+                "reservedInputTokens": 104,
+                "reservedOutputTokens": 0
+              },
+              {
+                "kind": "openai_responses",
+                "model": "gpt-6-astra",
+                "phase": "acquisition",
+                "runId": "42ee50b8-7a16-4b04-af18-2f8fb7e82b3d",
+                "status": "settled",
+                "version": 1,
+                "provider": "openai",
+                "attemptId": "openai-responses:3bcb099c80688f1b8c139dad975a58d4a2f99479721ce77c4fece3ea21bd464e:0",
+                "settledAt": "2026-10-03T22:27:27.457Z",
+                "leaseEpoch": 1,
+                "priceKnown": true,
+                "reservedAt": "2026-10-03T22:27:23.305Z",
+                "reservationId": "f33d568d-61b5-4cb0-8cbb-00c008024eee",
+                "actualCostMicros": 724200,
+                "retryOfAttemptId": null,
+                "actualInputTokens": 28806,
+                "actualOutputTokens": 54,
+                "logicalOperationId": "openai-responses:3bcb099c80688f1b8c139dad975a58d4a2f99479721ce77c4fece3ea21bd464e",
+                "reservedCostMicros": 5669275,
+                "reservedInputTokens": 153043,
+                "reservedOutputTokens": 24576
+              },
+              {
+                "kind": "bedrock_embeddings",
+                "model": "amazon.titan-embed-text-v2:0",
+                "phase": "api_retrieval",
+                "runId": "42ee50b8-7a16-4b04-af18-2f8fb7e82b3d",
+                "status": "settled",
+                "version": 1,
+                "provider": "aws-bedrock",
+                "attemptId": "2d47259a-6b1b-4d2e-818c-a13b97e74cbc",
+                "settledAt": "2026-10-03T22:27:27.778Z",
+                "leaseEpoch": 1,
+                "priceKnown": true,
+                "reservedAt": "2026-10-03T22:27:27.587Z",
+                "reservationId": "86b55468-6ae9-47d9-8b56-87ce5ab276a8",
+                "actualCostMicros": 1,
+                "retryOfAttemptId": null,
+                "actualInputTokens": 10,
+                "actualOutputTokens": 0,
+                "logicalOperationId": "2d47259a-6b1b-4d2e-818c-a13b97e74cbc",
+                "reservedCostMicros": 3,
+                "reservedInputTokens": 105,
+                "reservedOutputTokens": 0
+              },
+              {
+                "kind": "openai_responses",
+                "model": "gpt-6-astra",
+                "phase": "acquisition",
+                "runId": "42ee50b8-7a16-4b04-af18-2f8fb7e82b3d",
+                "status": "settled",
+                "version": 1,
+                "provider": "openai",
+                "attemptId": "openai-responses:a539bedad4eec023c0880df405baaeb9b612f52851af973c9aaa374cdae070a9:0",
+                "settledAt": "2026-10-03T22:27:33.155Z",
+                "leaseEpoch": 1,
+                "priceKnown": true,
+                "reservedAt": "2026-10-03T22:27:27.992Z",
+                "reservationId": "6e011184-bab3-403e-8ae8-b9230d3dbb88",
+                "actualCostMicros": 775400,
+                "retryOfAttemptId": null,
+                "actualInputTokens": 30599,
+                "actualOutputTokens": 139,
+                "logicalOperationId": "openai-responses:a539bedad4eec023c0880df405baaeb9b612f52851af973c9aaa374cdae070a9",
+                "reservedCostMicros": 5824625,
+                "reservedInputTokens": 159257,
+                "reservedOutputTokens": 24576
+              },
+              {
+                "kind": "openai_responses",
+                "model": "gpt-6-astra",
+                "phase": "acquisition",
+                "runId": "42ee50b8-7a16-4b04-af18-2f8fb7e82b3d",
+                "status": "settled",
+                "version": 1,
+                "provider": "openai",
+                "attemptId": "openai-responses:29fe6c1e9102947a004a9782fce550800370b355abf3fdfca7787c99250b7384:0",
+                "settledAt": "2026-10-03T22:27:41.310Z",
+                "leaseEpoch": 1,
+                "priceKnown": true,
+                "reservedAt": "2026-10-03T22:27:33.269Z",
+                "reservationId": "53bfb4ed-3f7d-4920-b504-fd794575e6c9",
+                "actualCostMicros": 793000,
+                "retryOfAttemptId": null,
+                "actualInputTokens": 30811,
+                "actualOutputTokens": 303,
+                "logicalOperationId": "openai-responses:29fe6c1e9102947a004a9782fce550800370b355abf3fdfca7787c99250b7384",
+                "reservedCostMicros": 5892200,
+                "reservedInputTokens": 161960,
+                "reservedOutputTokens": 24576
+              }
+            ],
+            "activation": "enforced",
+            "chargedTokens": 90733,
+            "chargedAttempts": 5,
+            "chargedCostMicros": 2292602
+          },
+          "turnId": "8c8e1c76-c7b2-4c98-9fc4-ac433be980a0",
+          "version": 1,
+          "admissionId": "42ee50b8-7a16-4b04-af18-2f8fb7e82b3d",
+          "policySha256": "5d3e3cec3a45ccd4b3c3ddbced7f9595f83a4d9c3cf9c99a3f95a44f327cca3f",
+          "qualification": {
+            "rates": [
+              {
+                "kind": "openai_responses",
+                "model": "gpt-6-astra",
+                "provider": "openai",
+                "inputMicrosPerMillion": 25000000,
+                "outputMicrosPerMillion": 75000000
+              },
+              {
+                "kind": "bedrock_embeddings",
+                "model": "amazon.titan-embed-text-v2:0",
+                "provider": "aws-bedrock",
+                "inputMicrosPerMillion": 20000,
+                "outputMicrosPerMillion": 0
+              }
+            ],
+            "caseId": "01",
+            "version": 1,
+            "maxTokens": 500000,
+            "priceKind": "qualified_text_token_upper_bound",
+            "maxAttempts": 32,
+            "captureRunId": "bd35c0f4-1604-4371-b7e9-a1338369e53f",
+            "maxCostMicros": 15000000,
+            "rateEvidenceSha256": "a1a179383c8451495336169f46025eb8cee8ec95487f1a43017078387b768b11",
+            "currentVerifySha256": "227c81e4437276718a0f6dfccb2b883c6d32b266c66b35c79ba26381a1f9c413",
+            "rateEvidenceExpiresAt": "2026-10-04T05:29:01.587Z"
+          },
+          "qualificationSha256": "6b80b2bcb8da239e6caaed813b87253e51cf1f392f93710ee79d3176a590aede"
+        }
+      },
+      "summary": null,
+      "summaryUpToMessageId": null,
+      "summaryTokens": null,
+      "createdAt": "2026-10-03T21:49:11.491Z",
+      "updatedAt": "2026-10-03T22:27:41.283Z",
+      "archivedAt": null,
+      "client": {
+        "id": "41f9ec63-3963-479f-b747-59a3767ef44b",
+        "name": "Aster Defense"
+      },
+      "captureAdmission": {
+        "schemaVersion": 1,
+        "kind": "meri-case01-authenticated-admission",
+        "status": "READY",
+        "caseId": "01",
+        "captureRunId": "bd35c0f4-1604-4371-b7e9-a1338369e53f",
+        "conversationId": "f493355c-ee97-44a1-a0b0-e05e7b104b59",
+        "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+        "actorUserId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+        "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+        "issuedAt": 1791068482201,
+        "expiresAt": 1791068542201,
+        "apiReleaseSha": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642",
+        "toolAuthority": "shared_static_registry_read_only",
+        "toolCatalogSha256": "1a08b2447cdb77040470bbd1ee52426720f8da602b9909a2a880e095ed0c6678",
+        "dynamicMcpAllowed": false,
+        "incidentalWriters": "suppressed",
+        "fixture": {
+          "fixtureNamespace": "meri-foundation-20260928",
+          "fixtureVersion": "meri-live-v1-2026-09-26.1",
+          "physicalMapSha256": "cf61a870caf2099fd53f36c849189eef1188237191f2e7e9e2c6d9c4c6511974",
+          "currentVerifySha256": "227c81e4437276718a0f6dfccb2b883c6d32b266c66b35c79ba26381a1f9c413",
+          "seedReceiptId": "meri-synthetic-fixture-seed-receipt:sha256:d7ce11c8ee1508ce3899e6385a2c5bfdd1f5a3c13714aa404225135abaad3c38",
+          "resetReceiptId": "meri-synthetic-fixture-reset-receipt:sha256:4fc5d0fe9e060bed9d23d4da3c3e7b710cba1c5b74b0cb879fd6b63e1e14bc30",
+          "sources": [
+            {
+              "logicalId": "MA1-v2",
+              "physicalId": "422b4ca9-10a8-4680-a713-3e61273a14ff",
+              "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+              "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+              "sourceVersion": "memory-version:a5397fba-1d91-4ba9-8006-bf1fdaa90f67",
+              "contentSha256": "455a1a88c2daca0c6e94c6d91201cca538518cae96c1368e38ad137fd8eab89a"
+            }
+          ]
+        },
+        "providerBudget": {
+          "ready": true,
+          "qualificationSha256": "6b80b2bcb8da239e6caaed813b87253e51cf1f392f93710ee79d3176a590aede",
+          "currentVerifySha256": "227c81e4437276718a0f6dfccb2b883c6d32b266c66b35c79ba26381a1f9c413",
+          "maxCostMicros": 15000000,
+          "coverage": "case01_memory_turn"
+        }
+      }
+    }
+  },
+  "checkpoint": {
+    "kind": "meri-fresh-capture-spend-checkpoint",
+    "version": 1,
+    "state": {
+      "root": "C:\\dev\\main\\outputs\\meri-fresh-20261003",
+      "freshVersion": 1,
+      "directories": {
+        "C:": "5081a475:50000:5:1da8405:2f19714a",
+        "C:/dev": "5081a475:30000:9ca2a:1dd1c57:eded5d59",
+        "C:/dev/main": "5081a475:130000:2bb7a0:1dd4485:55c889ba",
+        "C:/dev/main/outputs": "5081a475:70000:71d503:1dd471a:fb902f7b",
+        "C:/dev/main/outputs/meri-fresh-20261003": "5081a475:80000:11d74b4:1dd52d6:86131ecd"
+      },
+      "files": {
+        "run-authorization.json": {
+          "identity": "5081a475:1f0000:33e3a:1dd52d7:913b0334",
+          "sha256": "e07822e83a7c7b531606519ecd4fdf1027f2fa7cbaefd4bad92a2084590262fe",
+          "bytes": 489
+        },
+        "fresh-spend.jsonl": {
+          "identity": "5081a475:80000:11d75c5:1dd52d7:92f07d2a",
+          "sha256": "7ac5a5d06782d325e0d30327586968aa60233681b7dec2ed98f50285ed6daa60",
+          "bytes": 12974
+        }
+      }
+    },
+    "snapshot": {
+      "protocolVersion": 3,
+      "eventCount": 21,
+      "runs": {
+        "01:cc0d21a5-8981-4fbf-81dc-f2be3a63898c": {
+          "at": "2026-10-03T01:36:12.747Z",
+          "caseId": "01",
+          "captureRunId": "cc0d21a5-8981-4fbf-81dc-f2be3a63898c",
+          "reservationId": "c2cd316e-2d09-4c76-88cf-a9c0ef20e098",
+          "event": "reserved",
+          "ceilingMicros": 15000000,
+          "conversationId": "55452c90-5718-4e0c-9ffd-d9bf2c3439ad",
+          "qualificationSha256": "9ded2743ac47c55240e7eae05a7147aab34ff354d014ac39bcdc0528899aa2d9",
+          "chargedCostMicros": 1490802,
+          "historical": true
+        },
+        "02:62742c07-529c-47c1-aeeb-01474522ccbd": {
+          "at": "2026-10-03T01:43:34.996Z",
+          "caseId": "02",
+          "captureRunId": "62742c07-529c-47c1-aeeb-01474522ccbd",
+          "reservationId": "c4764abd-e3a8-4d6b-819f-77f4e08ee231",
+          "event": "reserved",
+          "ceilingMicros": 15000000,
+          "conversationId": "805cdde4-7cd2-482f-9e53-5b5b7724682e",
+          "qualificationSha256": "119ea537cd93a48a3126e5e6c178b63b68afc35132cd968085993e686c2ffe9d",
+          "chargedCostMicros": 1503301,
+          "historical": true
+        },
+        "03:65c093f9-d7ee-410c-865b-65d3683e9514": {
+          "at": "2026-10-03T01:49:09.943Z",
+          "caseId": "03",
+          "captureRunId": "65c093f9-d7ee-410c-865b-65d3683e9514",
+          "reservationId": "41820c9a-6f51-4062-aad6-d308fadfa7e3",
+          "event": "reserved",
+          "ceilingMicros": 15000000,
+          "conversationId": "2755ade6-35e6-43c1-8b48-bdbff01bd3a5",
+          "qualificationSha256": "d238c1c371685e78179b70c2dbe0ef1bb1805b8affb909b88a41cdd8f89db37d",
+          "chargedCostMicros": 3086726,
+          "historical": true
+        },
+        "04:ce58a8c8-8c5e-439b-b842-dd5aa5a06395": {
+          "at": "2026-10-03T01:54:49.415Z",
+          "caseId": "04",
+          "captureRunId": "ce58a8c8-8c5e-439b-b842-dd5aa5a06395",
+          "reservationId": "0da06107-11b3-4ce4-90bd-67a8f022c369",
+          "event": "reserved",
+          "ceilingMicros": 15000000,
+          "conversationId": "9b70c52b-d537-4347-b6b0-1b005aeb3e3c",
+          "qualificationSha256": "fe06d197ad2ad953a8719094af02aaa137b3746df1e90f2b5b70b1e2ec5a40bc",
+          "chargedCostMicros": 1499326,
+          "historical": true
+        },
+        "05:1008c920-0d14-4110-806e-76399e9e7641": {
+          "at": "2026-10-03T02:00:20.010Z",
+          "caseId": "05",
+          "captureRunId": "1008c920-0d14-4110-806e-76399e9e7641",
+          "reservationId": "8b91b48b-fa26-4395-9cbe-669efd18ab1a",
+          "event": "reserved",
+          "ceilingMicros": 15000000,
+          "conversationId": "1bfb1e6c-2128-4f9d-9fea-3e02a8f1c7b7",
+          "qualificationSha256": "def98c7562f7637db8a87aa7beac067a95093144c22bef12acdeee925e210752",
+          "chargedCostMicros": 2261126,
+          "historical": true
+        },
+        "01:bd35c0f4-1604-4371-b7e9-a1338369e53f": {
+          "atMs": 1791064128652,
+          "captureRunId": "bd35c0f4-1604-4371-b7e9-a1338369e53f",
+          "caseId": "01",
+          "ceilingMicros": 15000000,
+          "event": "reserved",
+          "nativeCaptureVersion": 1,
+          "reservationId": "cf7ea1df-6996-4d29-a5d5-b98db9c85c61",
+          "sequence": 21
+        }
+      },
+      "activeRun": "01:bd35c0f4-1604-4371-b7e9-a1338369e53f",
+      "knownSettledCostMicros": 9841281,
+      "committedCostMicros": 24841281,
+      "remainingReservationMicros": 5158719,
+      "perCaseMaxCostMicros": 15000000,
+      "historicalPrefixSha256": "abe458973e6998db20586c781ac5a3cbd4ca2fa565425e62722f0eb9c985210b",
+      "olderCosts": "UNRESOLVED_SEPARATE_NOT_REPLACED"
+    }
+  }
+}

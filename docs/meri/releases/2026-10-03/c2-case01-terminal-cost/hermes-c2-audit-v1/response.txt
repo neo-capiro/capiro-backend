@@ -1,0 +1,17 @@
+Ordered remaining-C2 checklist
+
+1. Treat the supplied newer facts as current where they supersede the checked-in checkpoint: C1 is complete; API519 `5b086a6b` and orchestrator115 `fb17c7eb` are deployed. Keep original acceptance at 0/75, CD at 0/7 and CW at 0/8. The deployed repairs and local qualifications do not create benchmark passes. (STATUS.md, “C1 accepted behavior” / “C2 clock/provider release” / “Original acceptance is unchanged”; newer facts supplied for this audit.)
+
+2. While Case01 is held, collect only the lead’s planned read-only raw DB evidence for that exact synthetic conversation. Preserve the existing reservation, event/journal records and failed result. Reconcile the one stream, five settled provider calls (2,292,602 micros / 90,733 tokens), receipt persistence failure `meri_capture_receipt_readback_mismatch`, and subsequent transcript GET 403. The minimal fix and its Prisma/Postgres, focused-test, build and review results qualify the receipt-storage fix; they do not supply the missing original clock join or restore the lost final receipt. This investigation advances diagnosis, not Case01 acceptance. No replay, new reservation, refund or settlement is authorized here. (01-handover.md, “C2 capture checkpoint”; STATUS.md, Case01 checkpoint; plan §5 evidence contract.)
+
+3. Use only genuinely read-only/local opportunities meanwhile. Case17’s six-card UI visibility/action/reload slice is evidence already earned; its original prompt, distinct-source provenance navigation and human rubric remain open. Continue only UI/source checks that need no provider call or application write, and label them as partial evidence—not a complete Case17 pass. The fix’s local tests are qualification evidence, not original-case acceptance. (STATUS.md, “C2 proposal UI”; 01-requirements.md, Case 17; plan §4 C2.)
+
+4. Keep Case20 at local preparation only: the active Case01 reservation blocks its dispatch. Do not infer benchmark authority from approvals for earlier deployed candidates. Before any provider/effect-bearing continuation, rely only on the applicable existing authorization; this audit grants none. Preserve the active hold and unchanged 21-event journal. (STATUS.md, “Next in C2”; 01-handover.md, “C2 capture checkpoint”; user-supplied authority boundary.)
+
+5. Once the Case01 hold is legitimately resolved under existing authority, continue the original C2 priority set: Cases 01, 12, 14, 17, 20, 46, 51, 72 and 74; CD-02 and CD-05; then the affected memory, approval and artifact families and all CD-01–07 variants. Verify actual source/receipt/artifact evidence, scope, effects and required human grading. Do not repeat the completed memory maintenance or count its results as benchmark cases. Case17’s slice does not close its remaining obligations. (Plan §4, “C2”; 01-requirements.md, priority rows and case ledger; 01-handover.md, C2.)
+
+6. Keep the gate boundaries explicit:
+   - C2: memory, approvals, artifacts and commitments, including its specified Cases 72/74 evidence.
+   - C3: remaining runtime/context/narrative work—ordinary/child/JEV budgets, whole-request context limits, worker-loss/recovery and CW-01–08, JEV modes and joined traces. Cases 72/74 also feed C3; their C2 evidence alone does not close those C3 assertions.
+   - C4: the complete original 75-case sweep, required variants/modes/repeats, applicable memory cases and human reviews. Do not mark broader acceptance complete from local evidence or the C2 slice.  
+   (Plan §4, C2–C4; 01-requirements.md, case ledger and CW rows.)

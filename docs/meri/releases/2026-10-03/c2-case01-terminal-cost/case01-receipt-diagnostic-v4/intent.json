@@ -1,0 +1,12 @@
+{
+  "at": "2026-10-03T22:49:58.653Z",
+  "kind": "EXACT_CASE01_READ_ONLY_RECEIPT_DIAGNOSIS",
+  "serviceRevision": 519,
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:d20110a114ef51a7db3d352321f411a2f51cc8b1877f9ccec6d1f35d7701c8cd",
+  "sourceSha": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642",
+  "scriptSha256": "58dc3438a6c0c1288102920e3e7dfe17c1d57eb3cbb974209ec558ea55942d71",
+  "providerSecrets": 0,
+  "workloadTaskRole": null,
+  "businessWrites": 0,
+  "cloudActions": "one bounded read task; stop and deregister owned definition"
+}

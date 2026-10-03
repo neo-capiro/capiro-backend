@@ -1,0 +1,17 @@
+{
+  "status": "READBACK_FAILURE_AND_CLEANUP_RECONCILED_FROM_EXECUTED_CONTROL_FLOW",
+  "originalResultSha256": "fb08de9d8996ddf7fc9f0b33d164b4e08ca54e949a8eaf62a0bfdb29af4619fc",
+  "authHelperSha256": "f3d757755514c478b2f7a00572883c9c696964dc13ac1a565e4c0ef61d379414",
+  "originalFailure": "MESSAGES_GET_403_MERI_CAPTURE_POLICY_READBACK_DENIED",
+  "sessionRevocation": "VERIFIED_BY_HELPER_FINALLY_RESPONSE",
+  "explanation": "The exact original AssertionError survived withAuth. Its finally awaited revocation and required status revoked. A cleanup failure would have replaced that error with Error. The callback was entered only after session creation. The original result flag was set only after overall success, so its false value is not proof that revocation failed.",
+  "sourceCorrection": false,
+  "originalResultPreserved": true,
+  "additionalAuthOrApiCalls": 0,
+  "providerAttempts": 5,
+  "allObservedAttemptsSettled": true,
+  "serverAccountedCostMicros": 2292602,
+  "aggregateReservationStatus": "STILL_ACTIVE_FULL_CEILING",
+  "aggregateSettlementPerformed": false,
+  "verifiedAt": "2026-10-03T22:32:15.138Z"
+}

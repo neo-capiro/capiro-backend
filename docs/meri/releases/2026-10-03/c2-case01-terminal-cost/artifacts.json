@@ -1,0 +1,157 @@
+{
+  "recordedAt": "2026-10-03T23:11:18.296457+00:00",
+  "status": "TERMINAL_COST_RECONCILED",
+  "files": [
+    {
+      "path": "case01-receipt-diagnostic-inner-v2.mjs",
+      "bytes": 4812,
+      "sha256": "58dc3438a6c0c1288102920e3e7dfe17c1d57eb3cbb974209ec558ea55942d71"
+    },
+    {
+      "path": "run-case01-receipt-diagnostic-v4.mjs",
+      "bytes": 8872,
+      "sha256": "98fb5a2a1f98b2783398629e62a00fc9501a675f8993b598530179b5a3fc994e"
+    },
+    {
+      "path": "read-case01-postdeadline-budget-v1.mjs",
+      "bytes": 4351,
+      "sha256": "9058f1230a1d09752f88d8a5299c9f0c62aab57270315655b65251ce874e371a"
+    },
+    {
+      "path": "run-case01-terminal-cost-once-v1.mjs",
+      "bytes": 3530,
+      "sha256": "73948d62d3e0eb4c60bd47985117981e6214f34cac520b2c7333a856ce45054c"
+    },
+    {
+      "path": "case01-terminal-cost-independent-review-v1.json",
+      "bytes": 1042,
+      "sha256": "ca6fdbe2ba03487562af64169206d530b6a9578d4b3c956aa75e50070153d931"
+    },
+    {
+      "path": "case01-receipt-diagnostic-v4/raw-prisma-readback.json",
+      "bytes": 25056,
+      "sha256": "8537890b349e1821c742be8442f746e607383e45e67913bf19e15c89744152ea"
+    },
+    {
+      "path": "case01-receipt-diagnostic-v4/cleanup.json",
+      "bytes": 360,
+      "sha256": "3186d391e7214da4d544603ba58628a5e4d8997f37edf511cde30ad1d5ab2519"
+    },
+    {
+      "path": "case01-receipt-diagnostic-v4/intent.json",
+      "bytes": 566,
+      "sha256": "9e448b43ec7bfaadc3b3446afeb672946a7754a478f9641ce42d4f253e082069"
+    },
+    {
+      "path": "case01-receipt-diagnostic-v4/definition-registered.json",
+      "bytes": 163,
+      "sha256": "fc1ab30fbad843556414c485293f0872c2872e2ae317bc7b514b514e4b5e390a"
+    },
+    {
+      "path": "case01-receipt-diagnostic-v4/task-start.json",
+      "bytes": 349,
+      "sha256": "565e26229625c8e0deaf04094997fa7bb1bea01a52b48d6d50c230b2c5e98584"
+    },
+    {
+      "path": "case01-receipt-diagnostic-v4/log-transport-pages.json",
+      "bytes": 709,
+      "sha256": "bd5b292a12fb1435d8f82feff3589fb2f8035a53013599f4c327efbef79c3e06"
+    },
+    {
+      "path": "case01-receipt-diagnostic-v4/readback-transport.json",
+      "bytes": 136,
+      "sha256": "b10b5e3403861d55bca00a8c1fa4780b9c8557becd7e765e17ce3b3e3fbd1e9f"
+    },
+    {
+      "path": "case01-postdeadline-budget-readback-v1/result.json",
+      "bytes": 11663,
+      "sha256": "f659b549a37035406bc771b01e70d99ebe6e71c8a94c9764b8e5800c626a03bb"
+    },
+    {
+      "path": "case01-postdeadline-budget-readback-v1/response-0.json",
+      "bytes": 1892,
+      "sha256": "395841efaf0d58854e026c527a6734394ad9f5427171fe69b6e1882653cbfab5"
+    },
+    {
+      "path": "case01-postdeadline-budget-readback-v1/response-1.json",
+      "bytes": 10651,
+      "sha256": "2562398b2f545a55bec50264d58aa3107ba0af9ca9c1f4cfd3d45bb984b1cdfb"
+    },
+    {
+      "path": "case01-terminal-cost-qualification-v2/checkpoint.json",
+      "bytes": 5403,
+      "sha256": "aace3ab4ceefdb1967c6f0474277bd65dee7db39d5b797713e75228755692668"
+    },
+    {
+      "path": "case01-terminal-cost-qualification-v2/authority.log",
+      "bytes": 1886,
+      "sha256": "c5fd91f50955d0ac697194f110e82dabd362d8a3ba79c8828a3d48d6cff2970d"
+    },
+    {
+      "path": "case01-terminal-cost-qualification-v2/native.log",
+      "bytes": 871,
+      "sha256": "265f60c2bd15534e5a6c0c6fe9fcdd8c16ffd4284137d46344551f4cf372fe4e"
+    },
+    {
+      "path": "case01-terminal-cost-qualification-v2/existing-fresh-js.log",
+      "bytes": 628,
+      "sha256": "78df528f7dd3d43bf5e18f94751b634242c3e408f7165b813c6891b6162f6875"
+    },
+    {
+      "path": "case01-terminal-cost-qualification-v2/existing-fresh-native.log",
+      "bytes": 1876,
+      "sha256": "bc1bfcf9a4cc4e8504d2acd35694c57fd3d888cd168d8b27f61924fdf1430c05"
+    },
+    {
+      "path": "case01-terminal-cost-qualification-v2/diff-check.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "case01-terminal-cost-executed-v1/intent.json",
+      "bytes": 585,
+      "sha256": "366df8f5e0782f8a0acb0ce5ebe0869d382698f45904c05d2c317ebbe3cc0f7b"
+    },
+    {
+      "path": "case01-terminal-cost-executed-v1/aggregate-checkpoint.json",
+      "bytes": 4807,
+      "sha256": "dfa616afc2622d01d3380bd373cbce3886157fbbb9123297d2a834c189fd734d"
+    },
+    {
+      "path": "case01-terminal-cost-executed-v1/result.json",
+      "bytes": 656,
+      "sha256": "07110f2d6f116f045c3cf56264e54548e66b96195dc4e70527f37d16c0d1acbe"
+    },
+    {
+      "path": "hermes-c2-audit-v1/response.txt",
+      "bytes": 3614,
+      "sha256": "3b6c0a2a781d085b5182eb269998c21cedb81b6829b9804fcaafd36a459b27c9"
+    },
+    {
+      "path": "hermes-c2-audit-v1/usage.json",
+      "bytes": 470,
+      "sha256": "c876f555396ae9a92389d928db7b97e10ebfb17ea0cf5e92c2c58c1f67899a6f"
+    },
+    {
+      "path": "hermes-c2-audit-v1/execution.json",
+      "bytes": 416,
+      "sha256": "4f48525d73b77cdc932f37cfdbac572e6f9ac502b993a8bf18900273fc3c89d7"
+    },
+    {
+      "path": "journal-after.jsonl",
+      "bytes": 14139,
+      "sha256": "a8c8101a4d806ef8080e1648c9e46568a55b7b5f93cb0f053a3d601404bfe3b5"
+    },
+    {
+      "path": "README.md",
+      "bytes": 3584,
+      "sha256": "6e903807b30dfb461f72599b47f5e0f9a7af1c54848d7f2d4c8d1fd55112ea50"
+    },
+    {
+      "path": ".gitattributes",
+      "bytes": 75,
+      "sha256": "ef5c230f4d8b87142cf574d3b391a2b4ac5ccaf1776980fac2bd8cb3305cdc06"
+    }
+  ],
+  "excluded": "Private task definitions/network inputs and original submission claims remain at their pinned owned locations."
+}

@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "kind": "meri-live-read-capture-manifest",
+  "captureRunId": "bd35c0f4-1604-4371-b7e9-a1338369e53f",
+  "owner": {
+    "ref": "bundle-owner.json",
+    "sha256": "055722a0a27e4d079bcc23298f44bc17f180659f15c555fba89bdbdef2f0e20e"
+  },
+  "summary": {
+    "status": "CAPTURE_UNCERTAIN",
+    "acceptanceStatus": "NOT_RUN",
+    "reason": "CASE01_STREAM_UNCERTAIN",
+    "caseId": "01",
+    "captureRunId": "bd35c0f4-1604-4371-b7e9-a1338369e53f",
+    "requestCount": 8,
+    "synthesisSubmissionCount": 1
+  },
+  "artifacts": [
+    {
+      "ref": "admission.json",
+      "sha256": "c25bfb75347d365ed49f71dbadb7f3b581bf72fc6bcedeed253775ed16fb6b26",
+      "bytes": 2463
+    },
+    {
+      "ref": "blocked.json",
+      "sha256": "8fbe202dee456193d0bb5202b9f6977b82238ee7a15ae4d989f2a373c09b35e9",
+      "bytes": 238
+    },
+    {
+      "ref": "bundle-owner.json",
+      "sha256": "055722a0a27e4d079bcc23298f44bc17f180659f15c555fba89bdbdef2f0e20e",
+      "bytes": 410
+    },
+    {
+      "ref": "immutable-builds.json",
+      "sha256": "1020a9ce160a06088ba84d67ce821dd58f1445f35e72704f4458bed172050fa3",
+      "bytes": 1476
+    },
+    {
+      "ref": "stream-response-observation.json",
+      "sha256": "004576a4bddfbc303f0f699a14f2de9c305b7d35e837031a63832e2c35bb274a",
+      "bytes": 3087
+    },
+    {
+      "ref": "submission-intent.json",
+      "sha256": "d3a4ee0596afdca621d550369cc44854b4859397de63ab19e5673333cd41c37f",
+      "bytes": 254
+    }
+  ]
+}

@@ -1,0 +1,61 @@
+{
+  "observation": {
+    "path": "/api/me",
+    "status": 200,
+    "apiReleaseSha": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642",
+    "bodySha256": "03595ffc23ac84194ba6ed21a18932d79f04bcde680bcdb437233eee51b602f5",
+    "bytes": 1224,
+    "observedAt": "2026-10-03T23:01:23.491Z"
+  },
+  "value": {
+    "user": {
+      "id": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+      "clerkUserId": "user_3Jw2FvWZkYGKmxWGx13tNJxFD2A",
+      "email": "meri-foundation-20260928.pat@example.com",
+      "firstName": "Pat",
+      "lastName": "Synthetic",
+      "title": null,
+      "emailSignatureEnabled": false,
+      "hasEmailSignature": false,
+      "tourCompleted": false,
+      "legiwatchIntroSeen": false,
+      "legiwatchPrefs": null
+    },
+    "tenant": {
+      "id": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+      "slug": "meri-foundation-20260928-t1",
+      "name": "Meri Foundation Synthetic T1 (meri-foundation-20260928)"
+    },
+    "role": "standard_user",
+    "billingAdmin": false,
+    "entitlements": {
+      "memoryGovernance": true,
+      "peWatch": true,
+      "defenseBudgetIntel": true,
+      "complianceModule": true,
+      "dataExport": true,
+      "customConnectors": true
+    },
+    "features": {
+      "meetingsV2": false,
+      "outreachAsyncGen": false,
+      "outreachAsyncSend": false,
+      "versionedOutreach": true,
+      "externalSendV2Required": true,
+      "meriDockUndockUi": true,
+      "meriv3Chat": true,
+      "strategyPlanner": false,
+      "engagementVNext": false,
+      "strategyPlannerMeri": false,
+      "agenticMeri": false,
+      "contextSteward": false,
+      "strategyWatcher": false,
+      "businessDevelopment": false,
+      "businessDevelopmentDossier": false,
+      "businessDevelopmentBrief": false,
+      "businessDevelopmentMeriProspectTools": false,
+      "businessDevelopmentClaimValidation": false,
+      "businessDevelopmentWatch": false
+    }
+  }
+}

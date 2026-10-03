@@ -1,0 +1,143 @@
+{
+  "status": "PRODUCT_RECEIPT_PERSISTENCE_FAILURE_CAPTURE_UNCERTAIN",
+  "recordedAt": "2026-10-03T22:35:00.021213+00:00",
+  "files": [
+    {
+      "path": "case01-native-recovery-v1-bd35c0f4-1604-4371-b7e9-a1338369e53f/execution.json",
+      "bytes": 6941,
+      "sha256": "00865ec5556eedb4c6c512465d81b4795e5c1f099d2e0a6becb7b3c05f975bca"
+    },
+    {
+      "path": "case01-native-recovery-v1-bd35c0f4-1604-4371-b7e9-a1338369e53f/execution-events.jsonl",
+      "bytes": 40217,
+      "sha256": "9e42fc28bac22a93b56f91aa329e8dc511c097e2abc0b1068885c8209d0c630b"
+    },
+    {
+      "path": "case01-native-recovery-v1-bd35c0f4-1604-4371-b7e9-a1338369e53f/actual-capture-scope.json",
+      "bytes": 9237,
+      "sha256": "0df776432c0915e6f82ea8cfa7025f38aed347f1e7d55b647b0fd7cd83af8cfd"
+    },
+    {
+      "path": "case01-native-recovery-v1-bd35c0f4-1604-4371-b7e9-a1338369e53f/aggregate-restored-checkpoint.json",
+      "bytes": 4538,
+      "sha256": "e871a120672b775379354d414c554381c00e9afcad51aceb8fccfd0b4f1f6d4f"
+    },
+    {
+      "path": "case01-native-recovery-v1-bd35c0f4-1604-4371-b7e9-a1338369e53f/aggregate-final-checkpoint.json",
+      "bytes": 4538,
+      "sha256": "e871a120672b775379354d414c554381c00e9afcad51aceb8fccfd0b4f1f6d4f"
+    },
+    {
+      "path": "case01-native-recovery-v1-bd35c0f4-1604-4371-b7e9-a1338369e53f/artifacts/admission.json",
+      "bytes": 2463,
+      "sha256": "c25bfb75347d365ed49f71dbadb7f3b581bf72fc6bcedeed253775ed16fb6b26"
+    },
+    {
+      "path": "case01-native-recovery-v1-bd35c0f4-1604-4371-b7e9-a1338369e53f/artifacts/blocked.json",
+      "bytes": 238,
+      "sha256": "8fbe202dee456193d0bb5202b9f6977b82238ee7a15ae4d989f2a373c09b35e9"
+    },
+    {
+      "path": "case01-native-recovery-v1-bd35c0f4-1604-4371-b7e9-a1338369e53f/artifacts/bundle-owner.json",
+      "bytes": 410,
+      "sha256": "055722a0a27e4d079bcc23298f44bc17f180659f15c555fba89bdbdef2f0e20e"
+    },
+    {
+      "path": "case01-native-recovery-v1-bd35c0f4-1604-4371-b7e9-a1338369e53f/artifacts/immutable-builds.json",
+      "bytes": 1476,
+      "sha256": "1020a9ce160a06088ba84d67ce821dd58f1445f35e72704f4458bed172050fa3"
+    },
+    {
+      "path": "case01-native-recovery-v1-bd35c0f4-1604-4371-b7e9-a1338369e53f/artifacts/stream-response-observation.json",
+      "bytes": 3087,
+      "sha256": "004576a4bddfbc303f0f699a14f2de9c305b7d35e837031a63832e2c35bb274a"
+    },
+    {
+      "path": "case01-native-recovery-v1-bd35c0f4-1604-4371-b7e9-a1338369e53f/artifacts/submission-intent.json",
+      "bytes": 254,
+      "sha256": "d3a4ee0596afdca621d550369cc44854b4859397de63ab19e5673333cd41c37f"
+    },
+    {
+      "path": "case01-native-recovery-v1-bd35c0f4-1604-4371-b7e9-a1338369e53f/artifacts/capture-manifest.json",
+      "bytes": 1467,
+      "sha256": "19f1b8fcc6f14803798101e366a58a7c188e8beb492699d9e54f492db20aef4a"
+    },
+    {
+      "path": "case01-native-recovery-v1-bd35c0f4-1604-4371-b7e9-a1338369e53f/artifacts/.capture-owned",
+      "bytes": 37,
+      "sha256": "7b4b0ed52e66acdc3f5e9c645d2915db88135101cf3dd1d83022ff12a57d4170"
+    },
+    {
+      "path": "launch-case01-native-recovery-v1-once.mjs",
+      "bytes": 1817,
+      "sha256": "280753d641058e536c22a54ba3cb764c4d916378f2d277b8a5445e7fc25b3d43"
+    },
+    {
+      "path": "case01-native-recovery-v1-reviewed-input.json",
+      "bytes": 2105,
+      "sha256": "7601f4bdd2c5b0559e0eb7a24f5036e921bcd3b0b88f2ea23fd9bf7bcefd333d"
+    },
+    {
+      "path": "read-case01-recovery-terminal-v1.mjs",
+      "bytes": 3648,
+      "sha256": "c954bcec0ec31a98b632819da2bf7e02b72b23a7ec295a2edcb0e185fde786bd"
+    },
+    {
+      "path": "reconcile-case01-readback-cleanup-v1.mjs",
+      "bytes": 2442,
+      "sha256": "cbd7f4e2220c36e522bbede6a4f3aa9e0f288e47a841a90bd98ab29615e36b69"
+    },
+    {
+      "path": "case01-recovery-terminal-readback-v1-cleanup-reconciliation.json",
+      "bytes": 1119,
+      "sha256": "4f7b743128bf55a9c050f5d78b956150352de10e14667fc0cfac52397d9c0bde"
+    },
+    {
+      "path": "case01-recovery-terminal-readback-v1/result.json",
+      "bytes": 12020,
+      "sha256": "fb08de9d8996ddf7fc9f0b33d164b4e08ca54e949a8eaf62a0bfdb29af4619fc"
+    },
+    {
+      "path": "case01-recovery-terminal-readback-v1/response-0.json",
+      "bytes": 1892,
+      "sha256": "1aa1819de99545f2cb0154843b2a94e13750822bfdcdf13865cc062225a7026c"
+    },
+    {
+      "path": "case01-recovery-terminal-readback-v1/response-1.json",
+      "bytes": 10651,
+      "sha256": "a75f94aaa7746322df300e0b80f5b428d6aa6d59439e4b96374f0ff192a82579"
+    },
+    {
+      "path": "case01-recovery-terminal-readback-v1/response-2.json",
+      "bytes": 464,
+      "sha256": "6e53e76d874f4980582ce1aa23fb0cc0653c3ddf782dadb7f52622cf1dfb3800"
+    },
+    {
+      "path": "outcome.json",
+      "bytes": 1155,
+      "sha256": "042234584077514abb208b2e107c25ef1a04f16643a722b228513dc7f1f3f746"
+    },
+    {
+      "path": "README.md",
+      "bytes": 2714,
+      "sha256": "4d303142d12a34115ecf7edbab6dcd706c023becf09f0f6d4cc0d0290062ed76"
+    },
+    {
+      "path": ".gitattributes",
+      "bytes": 75,
+      "sha256": "ef5c230f4d8b87142cf574d3b391a2b4ac5ccaf1776980fac2bd8cb3305cdc06"
+    }
+  ],
+  "excludedClaims": [
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case01-presubmission-recovery-claim-bd35c0f4-1604-4371-b7e9-a1338369e53f.json",
+      "bytes": 1878,
+      "sha256": "2d4261075f84aea19f83137de965bd8b2bb55568819670d4d75cac0ae8600980"
+    },
+    {
+      "path": "C:\\dev\\cap-meri-foundation-evidence\\controlled-read-claims\\01-bd35c0f4-1604-4371-b7e9-a1338369e53f.json",
+      "bytes": 320,
+      "sha256": "78737800de6ac6f9f2536e6291d9a6927460c2c2c568a1bccddd597eb7d06721"
+    }
+  ]
+}

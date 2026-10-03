@@ -1,0 +1,48 @@
+{
+  "status": "REVIEWED_CASE01_PRESUBMISSION_CONTINUATION",
+  "operatorCommit": "f9d1939782dc95d648e2e1b4528752e0f716db64",
+  "files": [
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/capture-spend-aggregate.mjs",
+      "sha256": "07f216e203d36b09c63958118fb448676c115363f553df38af44da963f766181"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/case01-presubmission-recovery-authority.mjs",
+      "sha256": "83128b97926129a178d53863039f99a6fc1c7a65e77d9083c201b39f1e321237"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/case01-presubmission-recovery.test.mjs",
+      "sha256": "71905a03919e61f7aa34536aea2fa2f9c3153999e6cd2f78db81da2ae1951642"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/run-case01-native-recovery-v1.mjs",
+      "sha256": "678e3108726a273afe0af7343060d6809518f9497282c1c8599fbee8bb13687a"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-bootstrap-v2/run-case01-native.mjs",
+      "sha256": "655cc278a1a76ff55cf7a0ceae96ccfc325a016e0e3a0d53c21f43f276c171d1"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-bootstrap-v2/case01-prepared-guards.mjs",
+      "sha256": "f539d2e35a66ec76f1d741d6a8f09d528b400149c346982fd7b0f77f37eb5b7a"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-recovery-independent-review-v1.json",
+      "sha256": "5476bc0aed56c998659e50c50b8ca3c9971a6c5dbeaa3d4727f0c11a79da682a"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-recovery-local-checks-v1/checkpoint.json",
+      "sha256": "2ecde47799a934ad4f5f00821378e40724160eeb386fee98a48c4c2b3a24d12b"
+    }
+  ],
+  "captureRunId": "bd35c0f4-1604-4371-b7e9-a1338369e53f",
+  "conversationId": "f493355c-ee97-44a1-a0b0-e05e7b104b59",
+  "reservationId": "cf7ea1df-6996-4d29-a5d5-b98db9c85c61",
+  "ceilingMicros": 15000000,
+  "preservePriorClaim": true,
+  "createConversation": false,
+  "newReserve": false,
+  "maximumNewTurns": 1,
+  "automaticRetry": false,
+  "recordedAt": "2026-10-03T22:26:26.339Z"
+}
