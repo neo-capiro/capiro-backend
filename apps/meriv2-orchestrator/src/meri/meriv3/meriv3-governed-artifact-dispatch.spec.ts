@@ -2,6 +2,8 @@ import {
   MERI_CASE46,
   MERI_GOVERNED_ARTIFACT_HEADER,
   MERI_CAPTURE_POLICY_HEADER,
+  MERI_FIXTURE_SEMANTIC_INSTANT,
+  MERI_FIXTURE_SEMANTIC_ZONE,
   attestMeriGovernedContext,
   decodeMeriGovernedArtifactTransport,
   type MeriGovernedTurnContext,
@@ -126,6 +128,12 @@ test('real governed-context MAC binds exact original turn into separate trusted 
         exclusions: [],
         unauthorizedCount: 0,
         degraded: false,
+        clockUse: {
+          instant: MERI_FIXTURE_SEMANTIC_INSTANT,
+          timeZone: MERI_FIXTURE_SEMANTIC_ZONE,
+          eligibilityAt: new Date(p.issuedAt).toISOString(),
+          scoring: 'not_run',
+        },
       },
       retrieval: {} as MeriGovernedTurnContext['retrieval'],
       evidence: {
@@ -139,6 +147,18 @@ test('real governed-context MAC binds exact original turn into separate trusted 
         records: [],
       },
       governedArtifactCapturePolicy: p,
+      // Synthetic compiler/owner evidence for this MAC transport unit test.
+      // Actual case46 clock capture remains a separate acceptance requirement.
+      semanticClock: {
+        version: 1,
+        kind: 'qualified_original_fixture_semantic_clock',
+        instant: MERI_FIXTURE_SEMANTIC_INSTANT,
+        timeZone: MERI_FIXTURE_SEMANTIC_ZONE,
+        caseId: p.caseId,
+        captureRunId: p.captureRunId,
+        currentVerifySha256: p.currentVerifySha256,
+        observedAt: p.issuedAt,
+      },
     };
     const run = jest.fn(async () => {
       expect(currentGovernedArtifactCapturePolicy()).toEqual(p);
@@ -155,6 +175,22 @@ test('real governed-context MAC binds exact original turn into separate trusted 
       { headers: { authorization: 'Bearer unit-only' } } as never,
     );
     expect(run).toHaveBeenCalledTimes(1);
+    for (const altered of [
+      { ...governed, semanticClock: undefined },
+      { ...governed, contextPacket: { ...governed.contextPacket, clockUse: undefined } },
+      {
+        ...governed,
+        semanticClock: { ...governed.semanticClock!, currentVerifySha256: 'd'.repeat(64) },
+      },
+    ]) {
+      await expect(
+        instance.run(
+          { ...input, governedContext: attestMeriGovernedContext(altered, input, secret) },
+          tenant,
+          { headers: {} } as never,
+        ),
+      ).rejects.toThrow();
+    }
     for (const patch of [
       { messages: [{ role: 'user', text: 'Send email' }] },
       { pageWrite: true },

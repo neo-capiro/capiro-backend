@@ -1,0 +1,16 @@
+{
+  "recordedAt": "2026-10-03T18:42:22.091385+00:00",
+  "status": "TEST_FIXTURE_REPAIR_PASS_NATIVE_REBUILD_PENDING",
+  "sourceBase": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642",
+  "productionChanges": 0,
+  "testSource": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-governed-artifact-dispatch.spec.ts",
+  "testSourceSha256": "c13256c40d44fcf56c65a682b265bb0b71b6dc4188ef8b0188c15bcbf889a3d7",
+  "localTestsPassed": 2,
+  "priorNativePassed": 1551,
+  "priorNativeFailed": 1,
+  "priorNativeSkipped": 2,
+  "providerAndClockSourceUnchanged": true,
+  "case46Acceptance": "NOT_RUN",
+  "providerCalls": 0,
+  "fixtureMutations": 0
+}

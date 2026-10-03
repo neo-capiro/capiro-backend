@@ -1,0 +1,19 @@
+{
+  "startedAt": "2026-10-03T18:37:34.083798+00:00",
+  "finishedAt": "2026-10-03T18:37:51.571689+00:00",
+  "command": [
+    "C:/Users/neoma/AppData/Local/hermes/node/pnpm.cmd",
+    "--filter",
+    "@capiro/meriv2-orchestrator",
+    "exec",
+    "jest",
+    "--runInBand",
+    "--forceExit",
+    "src/meri/meriv3/meriv3-governed-artifact-dispatch.spec.ts"
+  ],
+  "exitCode": 0,
+  "sourcePath": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-governed-artifact-dispatch.spec.ts",
+  "sourceSha256": "c13256c40d44fcf56c65a682b265bb0b71b6dc4188ef8b0188c15bcbf889a3d7",
+  "logSha256": "6412da12a7918d5ee0f148972d7849c2470160b97f82b82355f6775831330986",
+  "scope": "Only test-fixture clock evidence and missing/mismatched clock refusals; no production or acceptance change."
+}

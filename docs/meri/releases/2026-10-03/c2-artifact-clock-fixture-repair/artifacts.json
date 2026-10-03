@@ -1,0 +1,75 @@
+{
+  "version": 1,
+  "artifacts": [
+    {
+      "path": ".gitattributes",
+      "sha256": "ef5c230f4d8b87142cf574d3b391a2b4ac5ccaf1776980fac2bd8cb3305cdc06",
+      "bytes": 75
+    },
+    {
+      "path": "before.spec.ts",
+      "sha256": "e8a49182f15200afead261bf518e505a22a9fe923fddebf2a03111738fa78533",
+      "bytes": 6618
+    },
+    {
+      "path": "failed-native-build/build-readback.json",
+      "sha256": "d90eac09c9d21dd2555799003cc3a93038b46c91689889b4a60a014feaa11ae5",
+      "bytes": 12471
+    },
+    {
+      "path": "failed-native-build/build-start.json",
+      "sha256": "8b695158a18c870a16495c27a1f0baf278719c2fb2ea1a504ea8586ce9197efe",
+      "bytes": 1267
+    },
+    {
+      "path": "failed-native-build/build.log",
+      "sha256": "360d1ba491870673726d063f5cd3c449a13bddba3931a3e919f93aae0acbcf7b",
+      "bytes": 768488
+    },
+    {
+      "path": "failed-native-build/buildspec.yml",
+      "sha256": "0b458ceac2cb7d9e3d1b2b14c932629f473682ade5f354ca7de3924e2a4bc6b0",
+      "bytes": 25270
+    },
+    {
+      "path": "failed-native-build/launch-intent.json",
+      "sha256": "e398abd1fbefc920f5fd71fff51846e0207397210ba6da857a1bcb63c54bd7fd",
+      "bytes": 1192
+    },
+    {
+      "path": "independent-review.json",
+      "sha256": "3ea32c8cc1129fcce152417e9be1c2a071eeeef4b76bbd4f65fcb7e50d9c2ef0",
+      "bytes": 5436
+    },
+    {
+      "path": "local-fixture-tests.log",
+      "sha256": "6412da12a7918d5ee0f148972d7849c2470160b97f82b82355f6775831330986",
+      "bytes": 2353
+    },
+    {
+      "path": "local-fixture-tests.receipt.json",
+      "sha256": "0a42ff74fd61854f3ad4c656aa2683908ae4833588e3124a574f743e03391f5f",
+      "bytes": 770
+    },
+    {
+      "path": "qualification.json",
+      "sha256": "86ebca684a7dd2544c62dd78746170940d383f3e8e7890c105ad858fc225e9b8",
+      "bytes": 626
+    },
+    {
+      "path": "README.md",
+      "sha256": "563d80f35b6208720c4263651fdd32095e6e06e45e497f09a85ec0326a84ab5e",
+      "bytes": 1617
+    },
+    {
+      "path": "retry-preparation/buildspec.yml",
+      "sha256": "330e33036707a5ce89befa560312635f7261a88d6eb18d73e7cb73af9093c332",
+      "bytes": 25353
+    },
+    {
+      "path": "retry-preparation/preparation-checkpoint.json",
+      "sha256": "3c482ac5c27aebbb7e1172ca5cfbf960fc09ffabbefa932eb33416c25257ddba",
+      "bytes": 1080
+    }
+  ]
+}

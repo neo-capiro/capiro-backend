@@ -1,0 +1,90 @@
+{
+  "schemaVersion": 1,
+  "reviewedAt": "2026-10-03T18:41:49.820929+00:00",
+  "reviewer": "independent subagent mail_defaults_review",
+  "verdict": "PASS_BOUNDED_TEST_FIXTURE_REPAIR",
+  "reviewScope": "Read-only source diff, exact source hashes, existing native failure log and existing local test qualification; this reviewer performed no tests, builds, remote calls, provider calls or production mutations. Only this new evidence JSON was written.",
+  "failedNativeSource": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642",
+  "diagnosis": {
+    "classification": "STALE_TEST_FIXTURE_MISSING_REQUIRED_SEMANTIC_CLOCK_EVIDENCE",
+    "details": "The original case 46 MAC test constructed a governedArtifactCapturePolicy but omitted semanticClock and contextPacket.clockUse. verifyMeriGovernedContext checks the HMAC, then resolveMeriGovernedSemanticClock rejects the incomplete context. The controller wraps that failure as ForbiddenException at line 393. The test policy uses fresh Date.now() issue/expiry values, so the missing fields are a deterministic failure independent of expiration.",
+    "nativeFailureEvidence": {
+      "failedSuites": 1,
+      "passedSuites": 129,
+      "totalSuites": 130,
+      "failedTests": 1,
+      "passedTests": 1551,
+      "skippedTests": 2,
+      "totalTests": 1554
+    },
+    "productionComparison": "The API artifact-policy branch requalifies the current case 46 owner and currentVerify binding, mints the clock, and passes it into resolveChat before signing; the fixture repair does not change that authority or product implementation."
+  },
+  "reviewedChange": [
+    "Only the existing orchestrator test file is changed. It supplies a synthetic qualified case 46 semantic clock bound to the existing policy case/run/currentVerify/issuedAt and matching compiler clockUse with scoring not_run.",
+    "An explicit comment limits the synthetic compiler/owner evidence to this MAC transport test; actual case 46 capture acceptance remains separate.",
+    "Three independently re-signed contexts with missing semantic clock, missing compiler clock evidence, or mismatched currentVerify are refused, and the assistant run count remains one.",
+    "Existing exact-turn, page-write, image, message and post-signature tamper refusals remain intact. No production verifier, expiry, scope, capture gate, authorization or model setting changes."
+  ],
+  "qualification": {
+    "ownerRecordedRun": "local-fixture-tests.receipt.json",
+    "passedTests": 2,
+    "failedTests": 0,
+    "passedSuites": 1,
+    "exitCode": 0,
+    "sourceAndLogHashesMatchReceipt": true,
+    "reviewerReranTests": false
+  },
+  "findings": [],
+  "limits": [
+    "This is a test-fixture repair and source-level diagnosis, not production case 46 fixture qualification, a live model/provider capture, or original acceptance.",
+    "The failed native full suite remains retained evidence. The local two-test pass does not replace a successful rebuilt native full suite or image/package qualification.",
+    "No release approval, deployment, budget installation, provider reservation, corpus mutation or paid call is asserted."
+  ],
+  "artifacts": {
+    "correctedTest": {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\apps\\meriv2-orchestrator\\src\\meri\\meriv3\\meriv3-governed-artifact-dispatch.spec.ts",
+      "bytes": 7949,
+      "sha256": "c13256c40d44fcf56c65a682b265bb0b71b6dc4188ef8b0188c15bcbf889a3d7"
+    },
+    "originalTest": {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\artifact-clock-fixture-repair-v1\\before.spec.ts",
+      "bytes": 6618,
+      "sha256": "e8a49182f15200afead261bf518e505a22a9fe923fddebf2a03111738fa78533"
+    },
+    "failedNativeBuildLog": {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\meriv2-orchestrator-clock-build-v2\\build.log",
+      "bytes": 768488,
+      "sha256": "360d1ba491870673726d063f5cd3c449a13bddba3931a3e919f93aae0acbcf7b"
+    },
+    "localQualificationLog": {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\artifact-clock-fixture-repair-v1\\local-fixture-tests.log",
+      "bytes": 2353,
+      "sha256": "6412da12a7918d5ee0f148972d7849c2470160b97f82b82355f6775831330986"
+    },
+    "localQualificationReceipt": {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\artifact-clock-fixture-repair-v1\\local-fixture-tests.receipt.json",
+      "bytes": 770,
+      "sha256": "0a42ff74fd61854f3ad4c656aa2683908ae4833588e3124a574f743e03391f5f"
+    },
+    "coreVerifier": {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\packages\\meriv2-core\\src\\context\\governed-evidence-auth.ts",
+      "bytes": 5277,
+      "sha256": "299b190104db34e2a16fb16f79b68c37efde940c773634be8ecf375a43e8563d"
+    },
+    "case46PolicyFixture": {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\apps\\meriv2-orchestrator\\src\\meri\\meriv3\\meriv3-governed-artifact.spec-helper.ts",
+      "bytes": 1552,
+      "sha256": "7ec92536416f28c8f0f8ee434432505d588b23dab98cdf8f9fc3044bcceb20a3"
+    },
+    "apiClockIssuer": {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\apps\\api\\src\\meri\\meri-capture-semantic-clock.ts",
+      "bytes": 4133,
+      "sha256": "9e3a7ed2a76ed98e0dafc4d47f489e6a53d5590e7a8a09a8813b77fd9cf2737c"
+    },
+    "apiContextRuntime": {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\apps\\api\\src\\meri\\meri-context-plane-runtime.ts",
+      "bytes": 11559,
+      "sha256": "0f63ef56f80f013b750c46902a2213a6e856d3706511456624f55aefbe85239e"
+    }
+  }
+}

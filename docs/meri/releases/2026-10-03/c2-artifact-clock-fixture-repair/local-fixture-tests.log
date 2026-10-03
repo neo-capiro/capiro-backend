@@ -1,0 +1,12 @@
+[Nest] 45500  - 10/03/2026, 2:37:51 PM     LOG [MeriV3Controller] {"event":"meri.telemetry","schemaVersion":1,"name":"meri.orchestrator.request.received","boundary":"api_orchestrator","traceId":"34e1eb0bf94b14f689b65d16f39894a4","spanId":"bede37fd71df9048","parentSpanId":null,"requestId":"0288ac85-0e98-4f01-a225-412a5f8b4e8e","browserRequestId":null,"callerTraceId":null,"tenantId":"f2d6cf8f-057c-479a-8110-62fe5086d43f","actorId":"b1f758fc-17bd-40f8-bef2-fa2d2380300f","conversationId":"65bee31c-302f-4842-ace2-bc14deb10611","serverTurnId":"f80628d6-2bf6-49b9-8cca-ad472d82c872","runId":"72d4b735-03e4-464d-b5b0-c690766e41ea","release":null,"at":"2026-10-03T18:37:51.248Z","clientId":"41f9ec63-3963-479f-b747-59a3767ef44b","runtime":"meriv3","outcome":"accepted"}
+[Nest] 45500  - 10/03/2026, 2:37:51 PM     LOG [MeriV3Controller] {"event":"meri.telemetry","schemaVersion":1,"name":"meri.orchestrator.request.finalized","boundary":"api_orchestrator","traceId":"34e1eb0bf94b14f689b65d16f39894a4","spanId":"bede37fd71df9048","parentSpanId":null,"requestId":"0288ac85-0e98-4f01-a225-412a5f8b4e8e","browserRequestId":null,"callerTraceId":null,"tenantId":"f2d6cf8f-057c-479a-8110-62fe5086d43f","actorId":"b1f758fc-17bd-40f8-bef2-fa2d2380300f","conversationId":"65bee31c-302f-4842-ace2-bc14deb10611","serverTurnId":"f80628d6-2bf6-49b9-8cca-ad472d82c872","runId":"72d4b735-03e4-464d-b5b0-c690766e41ea","release":null,"at":"2026-10-03T18:37:51.253Z","clientId":"41f9ec63-3963-479f-b747-59a3767ef44b","runtime":"meriv3","outcome":"returned","durationMs":4,"usage":{"status":"unknown","inputTokens":null,"outputTokens":null,"cacheReadTokens":null,"cacheCreationTokens":null,"knownEstimatedCostUsd":null,"unknownAttempts":0,"owner":"AiUsageEvent"}}
+PASS src/meri/meriv3/meriv3-governed-artifact-dispatch.spec.ts (15.584 s)
+  √ only exact canonical proposal bridge dispatches; raw executor and dynamic MCP never execute (71 ms)
+  √ real governed-context MAC binds exact original turn into separate trusted scope (19 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       2 passed, 2 total
+Snapshots:   0 total
+Time:        15.859 s
+Ran all test suites matching /src\\meri\\meriv3\\meriv3-governed-artifact-dispatch.spec.ts/i.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?
