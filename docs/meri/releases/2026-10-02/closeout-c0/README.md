@@ -2,6 +2,12 @@
 
 Observed at `2026-10-03T00:46:27.885143+00:00`. C0 repository reconciliation is complete; live fixture preflight is **BLOCKED (ACCESS/HARNESS)**. C1 is queued, not executed. C0 cannot claim its fully runnable-flow exit while these prerequisites are unavailable.
 
+## Corrected deployment inspection — October 2, 9:15 p.m. EDT
+
+The AWS credential blocker was an agent profile-selection error: the configured `AWS_PROFILE=capiro-dev` works; explicitly forcing empty `default` caused the earlier failure. No extra credentials are needed. [Fresh canonical inspection receipts](profile-correction.json) verify API515, orchestrator105 and WebVNext388 with exit0 and zero writes. Orchestrator105 already serves the qualified coverage image `sha256:85162728a9d268b797e1f264bde9eb129fb4a170304a6547b3da7a9561d628fa`; API/web match the saved identities. This supersedes UNVERIFIED cloud deployment and proposed coverage-promotion statements in the initial snapshot below. Next C1 action is affected behavior verification on the deployed candidate, not another promotion. Per-turn model/tenant flags and original benchmark fixture/journal readback remain unverified.
+
+The missing prior evidence folder/checkpoint is a separate local artifact issue. Recover its current location or original host; do not initialize a replacement aggregate. The operations path map can be restored after verifying host paths; it is not a credential store.
+
 ## Source and preserved work
 
 Fetched `origin/main` is `723735ed1f5c562ab10e6077c67261285ea102fd`, unchanged from the attached audit. No production patch was replayed. Task branch `codex/meri-closeout-c0-20261002` is isolated from the main checkout's six unrelated untracked paths and the older dirty worktrees. No reset, cleanup, existing branch switch, active-run mutation or worker dispatch occurred. The local worktree uses the verified repository/workspace path; the missing operations map remains a prerequisite for host-dependent fixture/Hermes execution.
@@ -52,7 +58,7 @@ The general package entry `capture:meri-live-read` invokes `capture-cli.mjs`; it
 
 Owner: lead. First affected workflow: successful scoped task count must retain its supported count without a contradictory generic evidence footer; failed mail reads must state their actual failure. Prior [browser results](../direct-browser-repairs/live-verification/browser-results.json) retain both defects and reload evidence.
 
-1. Restore the configured operations map/host access and read-only AWS identity. Run the existing inspected command `node scripts/meri-release.mjs inspect --service meriv2-orchestrator --profile default` and the equivalent API/web-vnext inspections; join actual image/source/config to qualification.
+1. Restore the configured operations map/host access and read-only AWS identity. Run the existing inspected command `node scripts/meri-release.mjs inspect --service meriv2-orchestrator --profile capiro-dev` and the equivalent API/web-vnext inspections; join actual image/source/config to qualification.
 2. Determine whether coverage source `7c04ca368fbccc84d33c720ce7a20b9201bf6e99` is already served. Its qualified image is `967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:85162728a9d268b797e1f264bde9eb129fb4a170304a6547b3da7a9561d628fa`. [Qualification](../browser-coverage-followup/release-qualification.json): 1,489 tests passed, two pending, 26 offline cases, independent review PASS, live NOT_RUN.
 3. If absent, reuse that immutable artifact only after current qualification/config/compatibility and release authority are confirmed; first release is orchestrator-only coverage repair, rollback to the independently verified prior compatible image. C0 authorizes no promotion. If already served, do not redeploy merely to repeat the plan.
 4. C1 then checks concise no-tool reply, known/zero task results, known/zero mail results, controlled mail failure and persisted reload. Keep synthetic permission acceptance separate from ordinary read-only smoke. Capture first-useful/terminal timing, tools/outcomes and coverage; observation upper bounds are not p95. Reproduce the mailbox503 at its real boundary before selecting a query/index/adapter repair.

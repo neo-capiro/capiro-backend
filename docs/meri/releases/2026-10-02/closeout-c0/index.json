@@ -1,5 +1,5 @@
 {
-  "scope": "C0 reconciliation; live preflight BLOCKED",
+  "scope": "C0 reconciliation; AWS profile corrected and deployed coverage verified; original fixture preflight BLOCKED",
   "artifacts": {
     "contract-validation.json": {
       "sha256": "fdaaf9ec42487b4b024478f5bdec9796fe79ab3a0dbb16af9d5fa34c4d5c7efb",
@@ -29,13 +29,17 @@
       "sha256": "35dcbaccd589068aa65c42a753b38c97f885be19d0a842e58fcf4f77df7885f6",
       "bytes": 3144
     },
+    "profile-correction.json": {
+      "sha256": "dd2730434b19c3eba639128fc53d457e0f80e53800a631cc9c4021ac3f981263",
+      "bytes": 5058
+    },
     "public-readback.json": {
       "sha256": "ac7e42903730fac38f5c5d36e4899329bcbfc0227ba47aa9558e70b4078c6f55",
       "bytes": 547
     },
     "README.md": {
-      "sha256": "730a499db7eb311911f5735e96b7e0efc825e8da3f1ad7a338583a959d1ab42a",
-      "bytes": 11638
+      "sha256": "a0d9c4e1727bd39142548e738f38df0ec101afe5d0705e7aee14e42e82ce2c92",
+      "bytes": 12806
     },
     "source-reconciliation.json": {
       "sha256": "8822957d95c2e03dec0ce4cee51966148e3b2692f633b21f245e946ea7e9e111",
