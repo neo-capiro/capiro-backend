@@ -30,6 +30,13 @@ import {
 const RETRYABLE_MAIL_READS = new Set(['list_emails', 'search_emails', 'get_email_thread']);
 const MAX_MAIL_RETRY_DELAY_MS = 5_000;
 
+function canonicalMailReadInput(toolName: string, input: Record<string, unknown>) {
+  if (toolName !== 'list_emails' && toolName !== 'search_emails') return input;
+  // Spell out the canonical owner's existing defaults on the wire. Explicit
+  // non-null values still reach owner validation unchanged, including errors.
+  return { ...input, folder: input.folder ?? 'all', offset: input.offset ?? 0 };
+}
+
 /** Only the API's explicit database-capacity response is safe to retry here. */
 function mailCapacityRetryDelay(toolName: string, response: Response, body: string): number | null {
   if (!RETRYABLE_MAIL_READS.has(toolName) || response.status !== 503) return null;
@@ -192,7 +199,7 @@ export class ApiToolExecutorRepo implements ToolExecutor {
               }
             : researchPortfolioTool
               ? buildResearchPortfolioToolTransport(toolName, boundedInput, currentTurn)
-              : boundedInput,
+              : canonicalMailReadInput(toolName, boundedInput),
         ),
         signal: execution.signal,
       } satisfies RequestInit;

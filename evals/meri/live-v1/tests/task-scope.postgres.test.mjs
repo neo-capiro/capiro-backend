@@ -167,6 +167,24 @@ it(
         assert.equal(page.rows[0].id, ids[1]);
         await admin.query("UPDATE clients SET status='active' WHERE id=$1", [visible]);
       });
+      await t.test('healthy exact zero supports absence for the declared authorized scope', async () => {
+        const selection = parseMeriTaskReadInput(
+          ctx,
+          { assignedToMe: true, status: 'overdue', dueBefore: '2026-09-30T00:00:00Z', limit: 50 },
+          null,
+          ['todo', 'in_progress', 'blocked', 'done', 'canceled'],
+        );
+        const page = await service.readMeriTasksExact(ctx, selection);
+        assert.equal(page.total, 0);
+        assert.deepEqual(page.rows, []);
+        assert.equal(page.sourceStatus, 'healthy');
+        assert.equal(page.sourceReason, null);
+        const result = buildMeriTaskReadResult(ctx, selection, page);
+        assert.equal(result.coverage.complete, true);
+        assert.equal(result.coverage.absenceSupported, true);
+        assert.equal(result.coverage.hasMore, false);
+        assert.equal(classifyApiToolReadOutcome('query_tasks', result).kind, 'empty');
+      });
       await t.test('revoked membership refuses the read', async () => {
         await admin.query("UPDATE tenant_memberships SET status='removed' WHERE id=$1", [
           membership,
