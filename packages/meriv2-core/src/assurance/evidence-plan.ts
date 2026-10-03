@@ -458,7 +458,7 @@ export function inferClaimCategories(request: string): ClaimCategory[] {
   addIf(
     categories,
     (financialComparisonContext &&
-      /\b(?:deltas?|increas(?:e[sd]?|ing)|decreas(?:e[sd]?|ing)|cuts?|cutting|differences?|change[sd]?\s+from|versus|vs)\b/i.test(
+      /\b(?:deltas?|increas(?:e[sd]?|ing)|decreas(?:e[sd]?|ing)|cuts?|cutting|differences?|change[sd]?\s+from|versus|vs\.)\b/i.test(
         comparisonText,
       )) ||
       /\bplus[- ]?ups?\b/i.test(comparisonText),

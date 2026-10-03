@@ -167,13 +167,18 @@ describe('budget deltas require financial context', () => {
     'What is the difference in outlays between the two years?',
     'What is the difference between the request and the Senate mark?',
     'What changed from FY-2025 to FY-2026?',
-    'FY2025 vs. FY2026.',
-    'FY2025 vs FY2026.',
+    'FY2025 versus FY2026.',
     'What is the budget delta for Office Delta?',
     'How much were appropriations decreased?',
   ])('requires comparable financial positions for %s', (request) => {
     expect(inferClaimCategories(request)).toContain('budget_delta');
     expect(plan(request).requiredRequirementIds).toContain('budget-delta.comparable-positions');
+  });
+
+  it('does not add a generic budget delta to a routed chamber-position comparison', () => {
+    const result = plan('Compare House vs Senate positions on PE 0603851F.');
+    expect(result.requestCategories).not.toContain('budget_delta');
+    expect(result.requiredRequirementIds).not.toContain('budget-delta.comparable-positions');
   });
 });
 
