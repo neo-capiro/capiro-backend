@@ -1847,6 +1847,24 @@
       "original75FullyAccepted": 0,
       "sourceProvenanceChanged": false,
       "historicalJournalChanged": false
+    },
+    {
+      "date": "2026-10-03T06:44:16.110511+00:00",
+      "kind": "c1_no_tools_qualified",
+      "sourceSha": "cfd0adf0c54776f81f4b4e57c1a43190766e195e",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:a53bf1a432f212b8e43be903f766c52ec4a8307d5fce1cbec1bdfbf45196ddea",
+      "evidence": "docs/meri/releases/2026-10-02/c1-no-tools-repair/README.md",
+      "servedOrchestratorRevision": 109,
+      "candidateState": "QUALIFIED_NOT_DEPLOYED_NEW_RELEASE_REVIEW_PENDING",
+      "c1ServedAcceptance": "PARTIAL_CONCISE_WARNING_OPEN",
+      "corePassed": 1494,
+      "coreTodo": 2,
+      "orchestratorPassed": 1502,
+      "orchestratorPending": 2,
+      "offlinePassed": 26,
+      "sourceProvenanceChanged": false,
+      "historicalJournalChanged": false,
+      "original75FullyAccepted": 0
     }
   ]
 }

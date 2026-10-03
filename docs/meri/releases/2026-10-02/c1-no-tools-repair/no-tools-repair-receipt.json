@@ -1,0 +1,69 @@
+{
+  "kind": "C1 standalone no-tools evidence classification repair",
+  "baseSha": "66044c0b7af50bbf45191d14c7b7e0befb49c044",
+  "productionFilesChanged": 1,
+  "sourceHashes": {
+    "packages/meriv2-core/src/assurance/evidence-plan.ts": "ec9b7962cae384595557d72ac4f03f4c30e6b25cd3a9c3c05ed21f730aa396c8",
+    "packages/meriv2-core/src/assurance/evidence-plan.spec.ts": "c22afd6547c6b326f5ab43a5c96221cf8f9e3f0059ce0526c6ed2a38050517c8",
+    "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-clean-turn-coverage.spec.ts": "355101130d83dedc88c114fae510e14ddbac25aa0159447b779dba3c7463977e"
+  },
+  "awsCalls": 0,
+  "providerCalls": 0,
+  "browserCalls": 0,
+  "builds": "local core TypeScript only",
+  "cases": [
+    {
+      "passed": 128,
+      "pending": 0,
+      "failed": 1,
+      "success": false,
+      "name": "core red",
+      "file": "no-tools-core-red.json",
+      "exitCode": 1
+    },
+    {
+      "passed": 2,
+      "pending": 0,
+      "failed": 2,
+      "success": false,
+      "name": "JSON and SSE actual footer red",
+      "file": "no-tools-boundary-red-v3.json",
+      "exitCode": 1
+    },
+    {
+      "passed": 146,
+      "pending": 0,
+      "failed": 0,
+      "success": true,
+      "name": "core green",
+      "file": "no-tools-core-green.json",
+      "exitCode": 0
+    },
+    {
+      "passed": 36,
+      "pending": 0,
+      "failed": 0,
+      "success": true,
+      "name": "final JSON/SSE and coverage green",
+      "file": "no-tools-coverage-final.json",
+      "exitCode": 0
+    }
+  ],
+  "fixtureSetupFailures": [
+    {
+      "reason": "TypeScript errors in new fixture; not product reproduction",
+      "file": "no-tools-boundary-red.json"
+    },
+    {
+      "reason": "Coverage rollout not yet enrolled in new fixture; not product reproduction",
+      "file": "no-tools-boundary-red-v2.json"
+    }
+  ],
+  "commands": [
+    "pnpm --filter @capiro/meriv2-core exec jest --runInBand src/assurance/evidence-plan.spec.ts --json --outputFile=C:/dev/main/outputs/meri-c1-20261002/no-tools-core-green.json",
+    "pnpm --filter @capiro/meriv2-core build",
+    "pnpm --filter @capiro/meriv2-orchestrator exec jest --runInBand src/meri/meriv3/meriv3-clean-turn-coverage.spec.ts src/meri/retrieval/meri-evidence-formatting.spec.ts --json --outputFile=C:/dev/main/outputs/meri-c1-20261002/no-tools-coverage-final.json"
+  ],
+  "localBuildExit": 0,
+  "patchSha256": "af63b3a6c454c6165a293f908bb15d0933d09022a00f2f9efc51178a77b23bd3"
+}

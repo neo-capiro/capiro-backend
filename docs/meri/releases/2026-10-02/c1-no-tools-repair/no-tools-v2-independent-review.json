@@ -1,0 +1,29 @@
+{
+  "status": "PASS",
+  "candidateSourceSha": "cfd0adf0c54776f81f4b4e57c1a43190766e195e",
+  "reviewer": "Codex mail_defaults_review subagent, independently reviewed by root",
+  "humanReview": false,
+  "reviewScope": "Read-only review of exact V2 source and existing test artifacts; no rerun, AWS, or browser actions",
+  "priorFinding": {
+    "priority": "P2",
+    "status": "REPAIRED",
+    "request": "The manual says \"For this procedure, use no tools. The installation ends here.\" Verify that instruction.",
+    "defect": "V1 removed the quoted negative quantifier and incorrectly dropped the source-coverage requirement."
+  },
+  "conclusions": [
+    "V2 preserves quoted, code, blockquote, and reported instructions.",
+    "Genuine negative/exhaustive claims, qualified tool references, mixed factual requests, and existing partial/failed-source warnings remain protected.",
+    "Seven quoted/reported counterexamples failed before repair and passed afterward.",
+    "No further actionable issue found in the bounded repair."
+  ],
+  "sourceHashes": {
+    "packages/meriv2-core/src/assurance/evidence-plan.ts": "034686d040f244943e86cea49bb4b940e6fecf4c4321cd7d07c5bed4268ddd3b",
+    "packages/meriv2-core/src/assurance/evidence-plan.spec.ts": "dbf3a9c2d53ad1d5740519bc3d645f844f5a62b131856e1c9b2ab12fa7b037ce",
+    "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-clean-turn-coverage.spec.ts": "bd169d2082e7584f122037da72223168d51284d0e0da9732bc73ba690beed225"
+  },
+  "limits": [
+    "The conservative guard can retain warnings for benign prompts containing apostrophes or reporting words. This is not complete natural-language classification.",
+    "Controller regression tests use synthetic provider and persistence boundaries; served behavior remains unverified for this candidate.",
+    "This AI review is not original75 human answer review or owner release approval."
+  ]
+}

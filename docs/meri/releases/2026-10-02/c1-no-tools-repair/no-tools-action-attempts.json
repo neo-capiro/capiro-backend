@@ -1,0 +1,9 @@
+{
+  "sourceSha": "cfd0adf0c54776f81f4b4e57c1a43190766e195e",
+  "attempts": [
+    {"kind":"push event","runId":37103399923,"path":"BuildFailed","status":"completed","conclusion":"startup_failure","jobs":0,"acceptedAsCanonicalWorkflowEvidence":false},
+    {"kind":"explicit workflow_dispatch","workflow":"meriv2-orchestrator-image.yml","ref":"cfd0adf0c54776f81f4b4e57c1a43190766e195e","httpStatus":422,"error":"No ref found for the supplied SHA","runCreated":false},
+    {"kind":"explicit workflow_dispatch","workflow":"meriv2-orchestrator-image.yml","ref":"main","resolvedHeadSha":"cfd0adf0c54776f81f4b4e57c1a43190766e195e","runId":37103515621,"status":"completed","conclusion":"startup_failure","jobs":0,"url":"https://github.com/neo-capiro/capirov2/actions/runs/37103515621","acceptedAsCanonicalWorkflowEvidence":true}
+  ],
+  "fallback": "One native CodeBuild candidate build; no service deployment."
+}

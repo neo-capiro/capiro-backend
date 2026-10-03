@@ -1,0 +1,92 @@
+{
+  "no-tools-core-build.log": {
+    "localPath": "C:\\dev\\main\\outputs\\meri-c1-20261002\\no-tools-core-build.log",
+    "sha256": "3b050d4996f6e2a7e46851df328e05ecb31c0e7d0fd05a710f83c08e2b42dc77",
+    "bytes": 113,
+    "state": "Historical local artifact retained; not candidate qualification"
+  },
+  "no-tools-core-full.json": {
+    "localPath": "C:\\dev\\main\\outputs\\meri-c1-20261002\\no-tools-core-full.json",
+    "sha256": "b5b406669a484992084210a4c29dbce1d28f0c5eb384c4328c63955e6b9bc254",
+    "bytes": 633958,
+    "state": "Historical local artifact retained; not candidate qualification"
+  },
+  "no-tools-core-full.log": {
+    "localPath": "C:\\dev\\main\\outputs\\meri-c1-20261002\\no-tools-core-full.log",
+    "sha256": "c6dc3259d0a776683264c64e7c13ec3ae3fd611ed949086b03debfd6be1c2656",
+    "bytes": 5643,
+    "state": "Historical local artifact retained; not candidate qualification"
+  },
+  "no-tools-core-green.json": {
+    "localPath": "C:\\dev\\main\\outputs\\meri-c1-20261002\\no-tools-core-green.json",
+    "sha256": "f3b664805adbfa506d015ec43ba8694deaf0a8040f2c69f10acb2cdf7c6a72f7",
+    "bytes": 77284,
+    "state": "Historical local artifact retained; not candidate qualification"
+  },
+  "no-tools-core-green.log": {
+    "localPath": "C:\\dev\\main\\outputs\\meri-c1-20261002\\no-tools-core-green.log",
+    "sha256": "516b258dbe61e5574bc41c7c79a75798be0bfb7caa54f8528874d6ec5fc05279",
+    "bytes": 19461,
+    "state": "Historical local artifact retained; not candidate qualification"
+  },
+  "no-tools-coverage-final.json": {
+    "localPath": "C:\\dev\\main\\outputs\\meri-c1-20261002\\no-tools-coverage-final.json",
+    "sha256": "270d9f0d46c1cfbf8d6fe6cc9926af112272fa6d6ceb6a443f2e535aa7f64295",
+    "bytes": 20376,
+    "state": "Historical local artifact retained; not candidate qualification"
+  },
+  "no-tools-coverage-final.log": {
+    "localPath": "C:\\dev\\main\\outputs\\meri-c1-20261002\\no-tools-coverage-final.log",
+    "sha256": "a926b60b0422edd2b365d970820034578e986a774f1559f152aafec44b2a3677",
+    "bytes": 70491,
+    "state": "Historical local artifact retained; not candidate qualification"
+  },
+  "no-tools-coverage-green.json": {
+    "localPath": "C:\\dev\\main\\outputs\\meri-c1-20261002\\no-tools-coverage-green.json",
+    "sha256": "28dd6e205a919a47a91ad8a28113fd4a16afb96f3cd075bd67aed5acfd574cb8",
+    "bytes": 20378,
+    "state": "Historical local artifact retained; not candidate qualification"
+  },
+  "no-tools-coverage-green.log": {
+    "localPath": "C:\\dev\\main\\outputs\\meri-c1-20261002\\no-tools-coverage-green.log",
+    "sha256": "97aff5a57989c79d7785f9c047c15cf45cb3a4e2358b5f03f4612306cedb0671",
+    "bytes": 70499,
+    "state": "Historical local artifact retained; not candidate qualification"
+  },
+  "no-tools-source-evidence-plan.spec.ts": {
+    "localPath": "C:\\dev\\main\\outputs\\meri-c1-20261002\\no-tools-source-evidence-plan.spec.ts",
+    "sha256": "c22afd6547c6b326f5ab43a5c96221cf8f9e3f0059ce0526c6ed2a38050517c8",
+    "bytes": 14437,
+    "state": "Historical local artifact retained; not candidate qualification"
+  },
+  "no-tools-source-evidence-plan.ts": {
+    "localPath": "C:\\dev\\main\\outputs\\meri-c1-20261002\\no-tools-source-evidence-plan.ts",
+    "sha256": "ec9b7962cae384595557d72ac4f03f4c30e6b25cd3a9c3c05ed21f730aa396c8",
+    "bytes": 22956,
+    "state": "Historical local artifact retained; not candidate qualification"
+  },
+  "no-tools-source-meriv3-clean-turn-coverage.spec.ts": {
+    "localPath": "C:\\dev\\main\\outputs\\meri-c1-20261002\\no-tools-source-meriv3-clean-turn-coverage.spec.ts",
+    "sha256": "355101130d83dedc88c114fae510e14ddbac25aa0159447b779dba3c7463977e",
+    "bytes": 14915,
+    "state": "Historical local artifact retained; not candidate qualification"
+  },
+  "no-tools-v2-source-evidence-plan.spec.ts": {
+    "localPath": "C:\\dev\\main\\outputs\\meri-c1-20261002\\no-tools-v2-source-evidence-plan.spec.ts",
+    "sha256": "dbf3a9c2d53ad1d5740519bc3d645f844f5a62b131856e1c9b2ab12fa7b037ce",
+    "bytes": 15334,
+    "state": "Historical local artifact retained; not candidate qualification"
+  },
+  "no-tools-v2-source-evidence-plan.ts": {
+    "localPath": "C:\\dev\\main\\outputs\\meri-c1-20261002\\no-tools-v2-source-evidence-plan.ts",
+    "sha256": "034686d040f244943e86cea49bb4b940e6fecf4c4321cd7d07c5bed4268ddd3b",
+    "bytes": 23397,
+    "state": "Historical local artifact retained; not candidate qualification"
+  },
+  "no-tools-v2-source-meriv3-clean-turn-coverage.spec.ts": {
+    "localPath": "C:\\dev\\main\\outputs\\meri-c1-20261002\\no-tools-v2-source-meriv3-clean-turn-coverage.spec.ts",
+    "sha256": "bd169d2082e7584f122037da72223168d51284d0e0da9732bc73ba690beed225",
+    "bytes": 15372,
+    "state": "Historical local artifact retained; not candidate qualification"
+  }
+}

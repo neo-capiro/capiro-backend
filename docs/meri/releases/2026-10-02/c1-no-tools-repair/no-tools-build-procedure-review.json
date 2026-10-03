@@ -1,0 +1,22 @@
+{
+  "status": "PASS",
+  "sourceSha": "cfd0adf0c54776f81f4b4e57c1a43190766e195e",
+  "reviewer": "Codex mail_defaults_review subagent; root independently inspected the procedure",
+  "humanReview": false,
+  "scope": "Exact-source native build, qualification and immutable publication procedure; no remote execution by reviewer",
+  "checks": [
+    "Exact canonical orchestrator workflow, candidate source, zero jobs and startup_failure required for fallback.",
+    "Exact request/resolved/checkout SHA, clean tracked tree before and after qualification, ARM64/runtime/revision checks.",
+    "1502passed/1504total/2pending/129suites required before publication.",
+    "Packaged concise, quoted claim, mixed factual, prior classification, mailbox defaults, health and authentication checks.",
+    "SHA-only image publication; local RepoDigest matches ECR; complete paginated raw log retained.",
+    "No service, schema, routing, WAF or runtime-configuration mutation.",
+    "One production planner file changed from served c8; imports, dependencies, API/schema and Dockerfile unchanged; retirement and rolling compatibility retained."
+  ],
+  "sha256": {
+    "start-no-tools-build.mjs": "759b711b2bfa4934c55aed81dd3f14393c0685758b2f366b47b48e01238f6751",
+    "collect-no-tools-build.mjs": "c8d9dadaf13e9261dac5f7496be78c8d84198f3ed2ab8c83c722d1e1180e5ff2",
+    "orchestrator-mail-defaults-build/orchestrator.buildspec.yml": "f923955798bd5bbf28245093d7ad9a04fa67d1161a6d1ca780a5b2b9551de5be"
+  },
+  "limits": ["Procedure review does not establish remote build success or served acceptance.", "AI review is not owner release approval or original75 human answer review."]
+}

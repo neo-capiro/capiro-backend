@@ -1,0 +1,139 @@
+PASS src/jev/import-boundary.spec.ts
+PASS src/observability/meri-otel.spec.ts
+PASS src/tools/hearing/hearing-tools.spec.ts
+PASS src/canary/canary-report-cli.spec.ts
+PASS src/jev/evaluation/bd-task-gate.spec.ts
+PASS src/assurance/evidence-plan.spec.ts
+PASS src/jev/evaluation/jev-shadow-report-cli.spec.ts
+PASS src/tools/delegated/delegated-tool.spec.ts
+PASS src/jev/bd-claim-question.spec.ts
+PASS src/repair/repair-loop.spec.ts
+PASS src/jev/bd-claim-replay.spec.ts
+PASS src/context/compiler-v2.spec.ts
+PASS src/context/governed-artifact-capture.spec.ts
+PASS src/scoping/cross-tenant-parity.spec.ts
+PASS src/canary/canary-report.spec.ts
+PASS src/jev/evaluation/shadow-report.spec.ts
+PASS src/context/capture-evidence-receipt.spec.ts
+PASS src/grounding/auditor.spec.ts
+PASS src/jev/evaluation/shadow-events.spec.ts
+PASS src/tools/hearing/published-record-brief.spec.ts
+PASS src/context/context-rollout.spec.ts
+PASS src/jev/bd-entity-question.spec.ts
+PASS src/grounding/grounded-json.spec.ts
+PASS src/llm/llm-client.spec.ts
+PASS src/jev/jev-client.spec.ts
+PASS src/jev/task-evaluation-fixture.spec.ts
+PASS src/compliance/approval-gate.spec.ts
+PASS src/jev/evidence-envelope.spec.ts
+PASS src/registry/tool-registry.spec.ts
+PASS src/jev/bd-signal-question.spec.ts
+PASS src/evaluation/contract.spec.ts
+PASS src/context/governed-evidence-auth.spec.ts
+PASS src/registry/tool-execution-metadata.spec.ts
+PASS src/jev/bd-fixture-schema.spec.ts
+PASS src/jev/calibrated-cascade.spec.ts
+PASS src/jev/task-choice-provider.spec.ts
+PASS src/jev/evaluation/package9-economics.spec.ts
+PASS src/assurance/tool-ledger-adapter.spec.ts
+PASS src/learning/contract.spec.ts
+PASS src/assurance/assurance.spec.ts
+PASS src/compliance/action-approval.spec.ts
+PASS test/parity/diff.spec.ts
+PASS src/grounding/skeptic-audit.spec.ts
+PASS src/grounding/status-provenance.spec.ts
+PASS src/tools/client/get-client-context.spec.ts
+PASS src/quality-telemetry/contract.spec.ts
+PASS src/learning/candidate-contract.spec.ts
+PASS src/grounding/claim-gate.spec.ts
+PASS src/context/coverage-aware-packet.spec.ts
+PASS src/context/compiler.spec.ts
+PASS src/llm/quality-model-upgrade.spec.ts
+PASS src/verifier/pe-structural.spec.ts
+PASS src/grounding/skeptic.spec.ts
+PASS src/grounding/auditor-golden.spec.ts
+PASS src/context/operation-enforcement.spec.ts
+PASS src/compliance/compliance-rules.spec.ts
+PASS src/assurance/request-scope.spec.ts
+PASS src/context/firm-identity-admission.spec.ts
+PASS src/jev/decision-cache.spec.ts
+PASS src/security/tool-result-wrap.spec.ts
+PASS src/jev/replay/replay.spec.ts
+PASS src/observability/meri-joined-telemetry.spec.ts
+PASS src/memory/governance.spec.ts
+PASS src/grounding/evidence.spec.ts
+PASS src/grounding/claim-inventory.spec.ts
+PASS src/assurance/assurance-persistence.spec.ts
+PASS src/scoping/scoping-wrapper.spec.ts
+PASS src/assurance/freshness-exact.spec.ts
+PASS src/jev/evidence-selection-question.spec.ts
+PASS src/context/context-release-switch.spec.ts
+PASS src/grounding/match-label-extractor.spec.ts
+PASS src/jev/evaluation/task-paired-evaluation.spec.ts
+PASS src/grounding/claim-inventory-fixture.spec.ts
+  ● Console
+
+    console.log
+      claim-inventory tuning metrics { recall: 1, precision: 1, matches: 14, expected: 14, actual: 14 }
+
+      at Object.<anonymous> (src/grounding/claim-inventory-fixture.spec.ts:60:13)
+
+    console.log
+      claim-inventory heldout metrics {
+        recall: 0.9230769230769231,
+        precision: 0.9230769230769231,
+        matches: 12,
+        expected: 13,
+        actual: 13
+      }
+
+      at Object.<anonymous> (src/grounding/claim-inventory-fixture.spec.ts:67:13)
+
+PASS src/jev/program-identity-question.spec.ts
+PASS src/context/truthful-compiler.spec.ts
+PASS src/jev/mention-scope-question.spec.ts
+PASS src/assurance/envelope.spec.ts
+PASS src/context/research-plan-execution.spec.ts
+PASS src/jev/task-registry.spec.ts
+PASS src/jev/client-fit-question.spec.ts
+PASS src/rollout/capability-rollout.spec.ts
+PASS src/jev/skeptic-adapter.spec.ts
+PASS src/ids/canonical-ids.spec.ts
+PASS src/learning/rollout.spec.ts
+PASS src/grounding/match-label.spec.ts
+PASS src/grounding/exact-source.spec.ts
+PASS src/assurance/release-switch.spec.ts
+PASS src/assurance/evidence-profile-control.spec.ts
+PASS src/jev/evaluation/calibration.spec.ts
+PASS src/verifier/verifier-claims.spec.ts
+PASS src/rollout/claim-assessment.spec.ts
+PASS src/jev/client-fit-provider.spec.ts
+PASS src/domain/domain-primer.spec.ts
+PASS src/alerts/alert.spec.ts
+PASS src/rollout/auto-correction.spec.ts
+PASS src/jev/status-selection-question.spec.ts
+PASS src/learning/conflict-contract.spec.ts
+PASS src/jev/jev-config.spec.ts
+PASS src/intent/action-intent.spec.ts
+PASS src/rollout/status-provenance.spec.ts
+PASS src/rollout/match-label.spec.ts
+PASS src/rollout/jev-cache.spec.ts
+PASS src/jev/claim-support-question.spec.ts
+PASS src/context/token-budget.spec.ts
+PASS src/verifier/grounding-sources.spec.ts
+PASS src/rollout/passage-selection.spec.ts
+PASS src/rollout/evidence-profiles.spec.ts
+PASS src/rollout/coverage-retrieval.spec.ts
+PASS src/intent/intent-router.spec.ts
+PASS src/verifier/confidence.spec.ts
+PASS src/grounding/claim-map.spec.ts
+PASS src/assurance/eval-gate-wiring.spec.ts
+PASS src/assurance/control-metrics.spec.ts
+PASS src/assurance/rollout.spec.ts
+
+Test Suites: 114 passed, 114 total
+Tests:       2 todo, 1494 passed, 1496 total
+Snapshots:   0 total
+Time:        16.417 s, estimated 25 s
+Ran all test suites.
+Test results written to: ..\..\..\outputs\meri-c1-20261002\no-tools-v2-core-full.json

@@ -1,0 +1,172 @@
+PASS src/assurance/evidence-plan.spec.ts
+  response formatting and factual coverage requirements
+    √ does not turn a response-format constraint into a claim: C1 final verification: In exactly three short bullets, describe how you can help with research, drafting, and task organization. Use no tools. (7 ms)
+    √ does not turn a response-format constraint into a claim: This is a synthetic interface smoke check. Reply only: Meri smoke check complete. Do not call tools, retrieve records, remember anything, create tasks, modify business records, or send messages. (1 ms)
+    √ does not turn a response-format constraint into a claim: Read-only QA: list three things you can help me with besides email. Keep this under 60 words. Do not search, save memories, or change any records. (1 ms)
+    √ does not turn a response-format constraint into a claim: Use read only access to explain your capabilities.
+    √ does not turn a response-format constraint into a claim: Diagnostic check: reply with only 4 for 2 + 2. Do not search, use tools, create tasks, save or propose memories, or send any messages.
+    √ does not turn a response-format constraint into a claim: Post-correction diagnostic: search my own mailbox once for the exact nonsense string CAPIRO_MERI_DIAGNOSTIC_20261002_1409_NO_MATCH. Report only whether search_emails completed successfully or returned an error. Do not disclose email contents, run other tools, save memories, create tasks, or send messages. (6 ms)
+    √ does not turn a response-format constraint into a claim: Please respond with only -1.5 for 2.5 - 4.
+    √ does not turn a response-format constraint into a claim: Answer with only 6 for 2 * 3.
+    √ does not turn a response-format constraint into a claim: Reply with only 2 for 6 / 3.
+    √ does not turn a response-format constraint into a claim: Report only whether search_emails completed successfully.
+    √ does not turn a response-format constraint into a claim: Reply only: Meri smoke check complete.
+    √ does not turn a response-format constraint into a claim: Reply only.
+    √ does not turn a response-format constraint into a claim: REPLY ONLY: Test
+    √ does not turn a response-format constraint into a claim: Please reply only with JSON.
+    √ does not turn a response-format constraint into a claim: Reply only in JSON. (1 ms)
+    √ does not turn a response-format constraint into a claim: Respond only with plain text.
+    √ does not turn a response-format constraint into a claim: Answer in bullets only.
+    √ does not turn a response-format constraint into a claim: Answer with bullet points only.
+    √ does not turn a response-format constraint into a claim: Respond with YAML only.
+    √ does not turn a response-format constraint into a claim: Only respond with JSON.
+    √ does not turn a response-format constraint into a claim: Please only answer in markdown. (1 ms)
+    √ does not turn a response-format constraint into a claim: Write a background paragraph. Reply only with JSON.
+    √ does not turn a response-format constraint into a claim: Describe your capabilities. Please use no tools.
+    √ does not turn a response-format constraint into a claim: Use no tools. Explain how you can help organize tasks.
+    √ does not turn a response-format constraint into a claim: Describe your capabilities; use no tools.
+    √ does not turn a response-format constraint into a claim: Describe your capabilities.
+USE NO TOOLS!
+    √ preserves factual or ambiguous coverage requirements: Read-only check: list all awards.
+    √ preserves factual or ambiguous coverage requirements: Using read-only access, verify that no awards exist.
+    √ preserves factual or ambiguous coverage requirements: Read only one award and explain why it is the only match.
+    √ preserves factual or ambiguous coverage requirements: Read only the awards from this year.
+    √ preserves factual or ambiguous coverage requirements: Report only whether all awards are expired. (1 ms)
+    √ preserves factual or ambiguous coverage requirements: Report only: No awards exist.
+    √ preserves factual or ambiguous coverage requirements: Report only whether only four awards are active.
+    √ preserves factual or ambiguous coverage requirements: Reply with only 4 awards.
+    √ preserves factual or ambiguous coverage requirements: Reply with only 4 for 2 + 2 awards.
+    √ preserves factual or ambiguous coverage requirements: Reply with only 4 for 2 + 2.5 awards. (1 ms)
+    √ preserves factual or ambiguous coverage requirements: Reply with only 4 for 2 + 2. Every award expired.
+    √ preserves factual or ambiguous coverage requirements: Reply with only 4 for 2 + 2, and list all awards.
+    √ preserves factual or ambiguous coverage requirements: The agencies report only whether awards exist.
+    √ preserves factual or ambiguous coverage requirements: Report only about awards.
+    √ preserves factual or ambiguous coverage requirements: Report only if an award exists.
+    √ preserves factual or ambiguous coverage requirements: Only one award was granted. (1 ms)
+    √ preserves factual or ambiguous coverage requirements: All contracts expired.
+    √ preserves factual or ambiguous coverage requirements: Every relevant bill failed.
+    √ preserves factual or ambiguous coverage requirements: There are no other awards.
+    √ preserves factual or ambiguous coverage requirements: None of the contracts are valid.
+    √ preserves factual or ambiguous coverage requirements: No evidence exists.
+    √ preserves factual or ambiguous coverage requirements: The award does not exist. (1 ms)
+    √ preserves factual or ambiguous coverage requirements: The agency never funded this program.
+    √ preserves factual or ambiguous coverage requirements: Nothing was awarded.
+    √ preserves factual or ambiguous coverage requirements: Nobody received an award.
+    √ preserves factual or ambiguous coverage requirements: Reply only whether all contracts expired. (1 ms)
+    √ preserves factual or ambiguous coverage requirements: Reply only: No awards exist.
+    √ preserves factual or ambiguous coverage requirements: Reply only: Only one award was granted.
+    √ preserves factual or ambiguous coverage requirements: Reply only: Every contract expired.
+    √ preserves factual or ambiguous coverage requirements: Reply only with JSON: {"result":"No awards exist"} (1 ms)
+    √ preserves factual or ambiguous coverage requirements: List all awards, reply only in JSON.
+    √ preserves factual or ambiguous coverage requirements: List all awards. Reply only with JSON.
+    √ preserves factual or ambiguous coverage requirements: Please reply only in JSON. None of the awards were renewed.
+    √ preserves factual or ambiguous coverage requirements: Answer in bullets only: every contract expired.
+    √ preserves factual or ambiguous coverage requirements: Answer with bullet points only and include all awards. (1 ms)
+    √ preserves factual or ambiguous coverage requirements: Only respond with JSON: no awards exist.
+    √ preserves factual or ambiguous coverage requirements: All contractors reply only with JSON.
+    √ preserves factual or ambiguous coverage requirements: The agencies reply only with JSON.
+    √ preserves factual or ambiguous coverage requirements: Reply only about awards.
+    √ preserves factual or ambiguous coverage requirements: Reply only if an award exists.
+    √ preserves factual or ambiguous coverage requirements: List all awards. Use no tools.
+    √ preserves factual or ambiguous coverage requirements: Use no tools. Verify that no awards exist. (1 ms)
+    √ preserves factual or ambiguous coverage requirements: Use no tools, but confirm every contract expired.
+    √ preserves factual or ambiguous coverage requirements: Explain your capabilities. Use no tools. Also verify that none of the awards were renewed.
+    √ preserves factual or ambiguous coverage requirements: Which agencies use no tools?
+    √ preserves factual or ambiguous coverage requirements: The agencies use no tools.
+    √ preserves factual or ambiguous coverage requirements: Use no tools manufactured overseas.
+    √ preserves factual or ambiguous coverage requirements: Use no tools that contain foreign components.
+    √ preserves factual or ambiguous coverage requirements: The manual says "Use no tools." Explain that claim. (1 ms)
+    √ preserves factual or ambiguous coverage requirements: The manual says "For this procedure, use no tools. The installation ends here." Verify that instruction.
+    √ preserves factual or ambiguous coverage requirements: The manual says "Follow this procedure. Use no tools. The installation ends here." Verify that instruction.
+    √ preserves factual or ambiguous coverage requirements: The manual says “Follow this procedure. Use no tools. The installation ends here.” Verify that instruction. (2 ms)
+    √ preserves factual or ambiguous coverage requirements: The manual says 'Follow this procedure. Use no tools. The installation ends here.' Verify that instruction.
+    √ preserves factual or ambiguous coverage requirements: The manual says:
+> Follow this procedure. Use no tools. The installation ends here.
+Verify that instruction.
+    √ preserves factual or ambiguous coverage requirements: The manual says: Use no tools. Verify that instruction.
+    √ preserves factual or ambiguous coverage requirements: According to the manual, use no tools. Verify that instruction.
+    √ preserves factual or ambiguous coverage requirements: The manual states the procedure below.
+Use no tools.
+Verify that instruction.
+    √ preserves factual or ambiguous coverage requirements: The manual says `Follow this procedure. Use no tools. The installation ends here.` Verify that instruction.
+    √ does not change the other factual categories or their required evidence (1 ms)
+    √ keeps factual evidence requirements despite the tool constraint: Who is the current committee chair?
+    √ keeps factual evidence requirements despite the tool constraint: Did every bill pass, and how did the member vote?
+    √ keeps factual evidence requirements despite the tool constraint: Verify that no federal awards exist. (1 ms)
+    √ keeps factual evidence requirements despite the tool constraint: What is the FY2026 funding delta?
+  operational status is not legislative status
+    √ does not schedule legislative evidence for Search my mailbox once. If the search fails, say that it failed rather than treating it as no matches.
+    √ does not schedule legislative evidence for What is the status of my upload? (1 ms)
+    √ does not schedule legislative evidence for The database query failed. Explain the error.
+    √ does not schedule legislative evidence for Read-only: did the API request work? Report whether the connection failed.
+    √ does not schedule legislative evidence for A failed search is unknown, not zero.
+    √ does not schedule legislative evidence for Report the failed mailbox lookup.
+    √ does not schedule legislative evidence for Explain the failed API request.
+    √ does not schedule legislative evidence for Report the failed query’s status.
+    √ does not schedule legislative evidence for C1 verification, read only: Search my own connected mailbox exactly once for the literal text "c1zero20261002xqv9173". Return only the matching-message count and any actual search or coverage limitation; omit message contents, addresses, and subjects. Do not retry, broaden the query, or change anything. A failed search is unknown, not zero. (1 ms)
+    √ retains actual or unresolved legislative evidence for Did it pass?
+    √ retains actual or unresolved legislative evidence for What is its status?
+    √ retains actual or unresolved legislative evidence for Did H.R. 123 pass?
+    √ retains actual or unresolved legislative evidence for The search failed. Verify whether the bill passed.
+    √ retains actual or unresolved legislative evidence for What is the status of SB123? The lookup failed.
+    √ retains actual or unresolved legislative evidence for The server failed, but is the measure still alive?
+    √ retains actual or unresolved legislative evidence for After the failed search, verify whether H.R. 123 passed.
+    √ retains actual or unresolved legislative evidence for The failed mailbox lookup does not tell us the bill status.
+  budget deltas require financial context
+    √ does not require budget-comparison evidence for nonfinancial requests: Should we contact Office Delta for Aster?
+    √ does not require budget-comparison evidence for nonfinancial requests: Draft an outreach question for Office Delta about what changed from the prior version and how it compares with our current priorities. (1 ms)
+    √ does not require budget-comparison evidence for nonfinancial requests: Explain the increase in response rates and the difference between the two outreach approaches.
+    √ does not require budget-comparison evidence for nonfinancial requests: Compare the changes from the first software release versus the second.
+    √ does not require budget-comparison evidence for nonfinancial requests: We need to cut the ribbon after the renovation. What time should we invite the team?
+    √ does not require budget-comparison evidence for nonfinancial requests: Describe the actual cuts in the final film.
+    √ does not require budget-comparison evidence for nonfinancial requests: Send Office Delta the budget.
+    √ does not require budget-comparison evidence for nonfinancial requests: Discuss the funding request with Project Delta.
+    √ does not require budget-comparison evidence for nonfinancial requests: Compare the formats of these budget documents.
+    √ requires comparable financial positions for What was the delta in the budget between the two proposals?
+    √ requires comparable financial positions for How did funding increase from FY2025 to FY2026?
+    √ requires comparable financial positions for Compare the dollar decrease for Program Element PE0601234 across fiscal years.
+    √ requires comparable financial positions for Compare the President's request versus the congressional mark for this program.
+    √ requires comparable financial positions for What actual cuts and plus-ups were made to the program element?
+    √ requires comparable financial positions for What is the increase for PE0602712F? (1 ms)
+    √ requires comparable financial positions for What is the increase for 0602712F?
+    √ requires comparable financial positions for What is the increase in federal spending?
+    √ requires comparable financial positions for What is the difference between appropriated and obligated amounts?
+    √ requires comparable financial positions for What is the difference in outlays between the two years?
+    √ requires comparable financial positions for What is the difference between the request and the Senate mark?
+    √ requires comparable financial positions for What changed from FY-2025 to FY-2026?
+    √ requires comparable financial positions for FY2025 versus FY2026. (1 ms)
+    √ requires comparable financial positions for What is the budget delta for Office Delta?
+    √ requires comparable financial positions for How much were appropriations decreased?
+    √ does not add a generic budget delta to a routed chamber-position comparison
+  explicit closed hypothetical facts
+    √ does not require external proof for Quality check using hypothetical facts only: Aster has a Thursday demo. Maya owns the slides, due Tuesday. Lee owns the technical review, due Wednesday; it depends on Maya finishing the slides. The rehearsal has no owner or scheduled time. Write exactly three concise bullets: the critical path, the main delivery risk, and the next action. Use only these facts. Do not search, use tools, save memories, create tasks, or send messages. (1 ms)
+    √ does not require external proof for Update to the hypothetical example: the slides will now be ready Wednesday afternoon. Keep the other facts unchanged. In exactly two sentences, explain what this changes and what I should confirm next. Do not assume the demo has been delayed. Do not use tools, save memories, create tasks, or send messages.
+    √ does not require external proof for Based only on the hypothetical facts in this conversation, what exact time is the rehearsal, and has Lee approved the slides? If either is unknown, say so clearly. Do not infer that a scheduled review means approval happened. Do not search, use tools, save memories, create tasks, or send messages.
+    √ does not require external proof for Using only these fictional notes, prepare two bullets: Maya's slides are due Tuesday; Lee's review is now due Wednesday and depends on the slides; there is no rehearsal owner. Explain the risk and next action. Do not use tools.
+    √ does not require external proof for In this hypothetical scenario, Aster demos Thursday. Maya's slides are now due Wednesday afternoon, and Lee owns the review due Wednesday. No rehearsal time is supplied. Use only the facts supplied here. Explain the critical path and uncertainty in two sentences. Do not search or use tools.
+    √ recognizes the exclusive premise boundary across wording: Using provided notes only: the review is now due Wednesday; no owner is named. Summarize the uncertainty. (1 ms)
+    √ recognizes the exclusive premise boundary across wording: Based only on these supplied facts: no rehearsal time is specified. Explain what remains unknown.
+    √ recognizes the exclusive premise boundary across wording: Revision to this fictional scenario: the slides are now due Wednesday. Leave the remaining details unchanged. Explain the impact.
+    √ recognizes the exclusive premise boundary across wording: Use only the information given above. Now explain why no deadline can be inferred.
+    √ retains external coverage for real or mixed requests: Who is the current committee chair? Do not use tools.
+    √ retains external coverage for real or mixed requests: There are no federal awards for Aster. Do not use tools.
+    √ retains external coverage for real or mixed requests: Using hypothetical facts only, write three bullets. Also verify who is the current committee chair. Do not use tools.
+    √ retains external coverage for real or mixed requests: Based only on the hypothetical facts in this conversation, compare them to the actual current roster. Do not use tools.
+    √ retains external coverage for real or mixed requests: Update to the hypothetical example: keep the other facts unchanged. Search for all actual awards. Do not use tools.
+    √ retains external coverage for real or mixed requests: Using hypothetical facts only, list all real grants for Aster. Do not use tools.
+    √ retains external coverage for real or mixed requests: Using hypothetical facts only, write three bullets. Also list all grants for Aster. Do not use tools.
+    √ retains external coverage for real or mixed requests: Based only on the hypothetical facts in this conversation, verify that no awards exist. Do not use tools.
+    √ retains external coverage for real or mixed requests: Update to the hypothetical example: keep the other facts unchanged. Who is the committee chair? Do not use tools.
+    √ retains external coverage for real or mixed requests: Using hypothetical facts only, write three bullets. Do not search, but verify every award.
+    √ retains external coverage for real or mixed requests: A fictional client has no awards. What is its current funding status? Do not use tools.
+    √ retains external coverage for real or mixed requests: Using only these fictional notes, explain the risk. Also verify the current committee chair. Do not use tools. (1 ms)
+    √ retains external coverage for real or mixed requests: In this hypothetical scenario, no rehearsal is scheduled. Use only the facts supplied here. Also list all awards for Aster.
+    √ retains external coverage for real or mixed requests: Using provided notes only, summarize the example and compare it to the actual current roster.
+    √ retains external coverage for real or mixed requests: Use only the information given above, but verify that no real grants exist.
+
+Test Suites: 1 passed, 1 total
+Tests:       155 passed, 155 total
+Snapshots:   0 total
+Time:        1.399 s, estimated 2 s
+Ran all test suites matching /src\\assurance\\evidence-plan.spec.ts/i.
+Test results written to: ..\..\..\outputs\meri-c1-20261002\no-tools-v2-core-green.json

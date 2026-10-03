@@ -1,0 +1,80 @@
+{
+  "status": "QUALIFIED_IMAGE_NOT_DEPLOYED",
+  "qualifiedAt": "2026-10-03T06:44:15.657502+00:00",
+  "sourceSha": "cfd0adf0c54776f81f4b4e57c1a43190766e195e",
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:a53bf1a432f212b8e43be903f766c52ec4a8307d5fce1cbec1bdfbf45196ddea",
+  "buildId": "capiro-build-web-dev:07a2e855-3c6f-4e09-a20b-f8403df16aee",
+  "servedSourceSha": "c8e2b8fbfe921fd43a1bd1d4d744a26db138e985",
+  "servedOrchestratorRevision": 109,
+  "sourceHashes": {
+    "packages/meriv2-core/src/assurance/evidence-plan.ts": "034686d040f244943e86cea49bb4b940e6fecf4c4321cd7d07c5bed4268ddd3b",
+    "packages/meriv2-core/src/assurance/evidence-plan.spec.ts": "dbf3a9c2d53ad1d5740519bc3d645f844f5a62b131856e1c9b2ab12fa7b037ce",
+    "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-clean-turn-coverage.spec.ts": "bd169d2082e7584f122037da72223168d51284d0e0da9732bc73ba690beed225"
+  },
+  "productionFilesChanged": [
+    "packages/meriv2-core/src/assurance/evidence-plan.ts"
+  ],
+  "fullCore": {
+    "success": true,
+    "numPassedTests": 1494,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 2,
+    "numPassedTestSuites": 114,
+    "numTotalTests": 1496
+  },
+  "focusedCore": {
+    "passed": 155,
+    "failed": 0
+  },
+  "jsonSseAndCoverage": {
+    "passed": 36,
+    "failed": 0
+  },
+  "nativeOrchestrator": {
+    "numTotalTests": 1504,
+    "numPassedTests": 1502,
+    "numFailedTests": 0,
+    "numPendingTests": 2,
+    "numTotalTestSuites": 129,
+    "numPassedTestSuites": 129,
+    "numFailedTestSuites": 0,
+    "numPendingTestSuites": 0
+  },
+  "offline": {
+    "passed": 26,
+    "failed": 0,
+    "sourceSha": "cfd0adf0c54776f81f4b4e57c1a43190766e195e",
+    "liveProviderCalls": 0,
+    "summary": "meri-offline-no-tools.summary.json"
+  },
+  "packaged": {
+    "packagedEntrypointHealthAndAuth": "PASS",
+    "packagedClassificationRegression": "PASS",
+    "packagedMailDefaults": "PASS",
+    "packagedNoToolsDirective": "PASS",
+    "ecrRepoDigestMatch": "PASS"
+  },
+  "retirementCompatibility": "PASS: one production planner delta; no new imports, packages, retired runtime, API or schema changes; packaged entrypoint qualified",
+  "schemaChange": false,
+  "rollingCompatibility": "No API, schema, wire or persisted-format changes; retain forward452 on rollback",
+  "review": {
+    "implementation": "no-tools-v2-independent-review.json",
+    "buildProcedure": "no-tools-build-procedure-review.json",
+    "humanAnswerReview": false
+  },
+  "ownerReleaseApproval": "PENDING_NEW_ARTIFACT",
+  "servedCandidateAcceptance": "NOT_RUN",
+  "unchangedAcceptance": {
+    "original75FullyAccepted": 0,
+    "cdAccepted": 0,
+    "cwAccepted": 0,
+    "file02Ready": false
+  },
+  "limitations": [
+    "The conservative instruction guard can retain warnings for benign apostrophes, quotes or reporting words; it does not solve arbitrary natural-language classification.",
+    "JSON/SSE controller fixtures use synthetic provider/persistence dependencies and are not served acceptance.",
+    "Isolated owner known/zero task and controlled mail-failure/recovery receipts are reused at their stated owner boundary; they are not synthetic HTTP permission acceptance.",
+    "Original75, CD, CW, semantic-clock, spending history and human-review gates remain unchanged."
+  ]
+}

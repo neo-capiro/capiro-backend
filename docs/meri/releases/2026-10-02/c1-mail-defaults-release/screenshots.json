@@ -1,10 +1,26 @@
 {
   "browser-c1-complete-proof.jpg": {
     "localPath": "C:\\dev\\main\\outputs\\meri-c1-20261002\\browser-c1-complete-proof.jpg",
-    "sha256": "51846fa7a6e365ceef587c810aef28217a0e0ec1ad6a347e774b526d0b840473"
+    "sha256": "51846fa7a6e365ceef587c810aef28217a0e0ec1ad6a347e774b526d0b840473",
+    "validation": "REJECTED_WRONG_VIEWPORT",
+    "actualContent": "Earlier explicit-defaults diagnostic returning29996; not the109minimal request or concise failure named by the original filename."
   },
   "browser-c1-concise-footer-failure.jpg": {
     "localPath": "C:\\dev\\main\\outputs\\meri-c1-20261002\\browser-c1-concise-footer-failure.jpg",
-    "sha256": "bba5f701f948258483945842aed535abf29d33674281725a8bc211f6c9a7bdb0"
+    "sha256": "bba5f701f948258483945842aed535abf29d33674281725a8bc211f6c9a7bdb0",
+    "validation": "REJECTED_WRONG_VIEWPORT",
+    "actualContent": "Earlier explicit-defaults diagnostic returning29996; not the109minimal request or concise failure named by the original filename."
+  },
+  "browser-c1-minimal-mail-success-verified.jpg": {
+    "localPath": "C:\\dev\\main\\outputs\\meri-c1-20261002\\browser-c1-minimal-mail-success-verified.jpg",
+    "sha256": "9f3cb7d1a9b05a75e21f1bd99351ef5b2bc93604d530046a486bec96ee4dc01e",
+    "validation": "VISUALLY_VERIFIED",
+    "content": "109minimal prompt with precisely limit1; returned1,totalMatches30002,hasMoretrue and actual sync/pagination limitation."
+  },
+  "browser-c1-concise-footer-failure-verified.jpg": {
+    "localPath": "C:\\dev\\main\\outputs\\meri-c1-20261002\\browser-c1-concise-footer-failure-verified.jpg",
+    "sha256": "eb52925d56fc0afbe74fabdbed29f455ba614dd7697ed02bbe43c4f1cda0c46e",
+    "validation": "VISUALLY_VERIFIED",
+    "content": "Exact three-bullet Use no tools prompt, three-bullet reply and incorrect source-never-called footer."
   }
 }

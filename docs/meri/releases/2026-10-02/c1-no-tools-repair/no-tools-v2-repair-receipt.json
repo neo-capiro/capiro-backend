@@ -1,0 +1,55 @@
+{
+  "kind": "C1 no-tools repair v2 quoted/reported instruction preservation",
+  "baseSha": "69bd283a4780ba52ae0cac09eba57c4abd66f490",
+  "priorReceipt": "no-tools-repair-receipt.json",
+  "sourceHashes": {
+    "packages/meriv2-core/src/assurance/evidence-plan.ts": "034686d040f244943e86cea49bb4b940e6fecf4c4321cd7d07c5bed4268ddd3b",
+    "packages/meriv2-core/src/assurance/evidence-plan.spec.ts": "dbf3a9c2d53ad1d5740519bc3d645f844f5a62b131856e1c9b2ab12fa7b037ce",
+    "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-clean-turn-coverage.spec.ts": "bd169d2082e7584f122037da72223168d51284d0e0da9732bc73ba690beed225"
+  },
+  "productionFilesChanged": 1,
+  "awsCalls": 0,
+  "browserCalls": 0,
+  "providerCalls": 0,
+  "cases": [
+    {
+      "failed": 7,
+      "passed": 146,
+      "exitCode": 1,
+      "file": "no-tools-v2-core-red.json",
+      "pending": 0,
+      "success": false,
+      "name": "quoted/reported counterexamples red"
+    },
+    {
+      "failed": 0,
+      "passed": 155,
+      "exitCode": 0,
+      "file": "no-tools-v2-core-green.json",
+      "pending": 0,
+      "success": true,
+      "name": "core v2 green"
+    },
+    {
+      "failed": 0,
+      "passed": 36,
+      "exitCode": 0,
+      "file": "no-tools-v2-coverage-green.json",
+      "pending": 0,
+      "success": true,
+      "name": "JSON/SSE and coverage v2 green"
+    }
+  ],
+  "limits": [
+    "Quote/code/blockquote markers or explicit reporting language conservatively retain the no quantifier rather than infer instruction ownership.",
+    "Only the new tool-use normalization is guarded; other category and response-format handling is unchanged.",
+    "No production deployment performed by this agent."
+  ],
+  "commands": [
+    "pnpm --filter @capiro/meriv2-core exec jest --runInBand src/assurance/evidence-plan.spec.ts --json --outputFile=C:/dev/main/outputs/meri-c1-20261002/no-tools-v2-core-green.json",
+    "pnpm --filter @capiro/meriv2-core build",
+    "pnpm --filter @capiro/meriv2-orchestrator exec jest --runInBand src/meri/meriv3/meriv3-clean-turn-coverage.spec.ts src/meri/retrieval/meri-evidence-formatting.spec.ts --json --outputFile=C:/dev/main/outputs/meri-c1-20261002/no-tools-v2-coverage-green.json"
+  ],
+  "localBuildExit": 0,
+  "patchSha256": "44d9cafdc3a51a6dc9604070e2aa434807162570dedfd43bff2005b1d56df740"
+}

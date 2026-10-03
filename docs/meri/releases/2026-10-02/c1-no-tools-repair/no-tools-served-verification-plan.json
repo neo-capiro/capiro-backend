@@ -1,0 +1,20 @@
+{
+  "status": "NOT_RUN_REQUIRES_CANDIDATE_PROMOTION",
+  "candidateSourceSha": "cfd0adf0c54776f81f4b4e57c1a43190766e195e",
+  "browserRoute": "https://os.capiro.ai/meri/t/1117e250-4007-47a7-9158-1dcfcf5dc435",
+  "actor": "Existing approved signed-in ordinary account; retain All clients scope and gpt-6-astra/Standard/medium settings",
+  "businessWrites": 0,
+  "cases": [
+    {"id":"concise-no-tool","prompt":"C1 final verification: In exactly three short bullets, describe how you can help with research, drafting, and task organization. Use no tools.","expectation":"Exactly three useful bullets, zero tool calls, no unrelated source-never-called footer; exact prior failing prompt."},
+    {"id":"genuine-exhaustive-no-tool","prompt":"Read-only C1 coverage regression: State whether every federal award for the fictional entity C1 Offline Example has expired. Use no tools. If you cannot verify, say so.","expectation":"Zero tools; no invented factual finding or citations; missing-source limitation retained for the genuine exhaustive claim."},
+    {"id":"own-open-task-count","prompt":"C1 read-only verification: Count open native tasks assigned to me. Use one native task lookup. Return only the count and any actual source limitation. Do not call legislative tools, create tasks, or change records.","expectation":"One scoped native task lookup, correct current count, no contradictory or unrelated footer; no mutations."},
+    {"id":"minimal-mail-list","prompt":"C1 final verification, read only: Call list_emails exactly once using precisely {\"limit\":1}; omit every other optional argument rather than specifying defaults or nulls. Return only returned-message count, totalMatches, hasMore, and any actual coverage limitation. Do not show message contents, addresses, subjects, or IDs. Do not retry or change anything.","expectation":"Healthy count-only mailbox read, actual sync/pagination limits retained; no bodies, addresses, subjects or IDs."}
+  ],
+  "persistence": "Reload once and compare all new answers with their captured bodies.",
+  "capture": "Pass the case record explicitly across browser tool calls; retain first-useful and terminal observation bounds, exact server run/trace correlation where available, every failure, and visually verify screenshot framing.",
+  "reusedEvidence": [
+    "109 known and literal-zero mail searches, own zero task read, all five persisted answers.",
+    "Isolated owner known/zero task fixtures and actual controlled mail-failure/recovery qualification; unchanged owner/API paths."
+  ],
+  "limits": ["No replacement of original75/CD/CW acceptance, human review or synthetic permission fixtures.", "No first-token or p95 claims from single browser observations."]
+}
