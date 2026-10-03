@@ -1,0 +1,25 @@
+{
+  "conversationId": "b570ce29-d192-4c8f-a4da-311650695a8a",
+  "sourceBaseline": {
+    "api": "6be5a560d5addaa1844f0687898c34a249089f76",
+    "orchestrator": "7c04ca368fbccc84d33c720ce7a20b9201bf6e99"
+  },
+  "canonicalMailSearch": {
+    "observedAt": "2026-10-03T03:32:24.559Z",
+    "operation": "search_emails once, own mailbox, withinDays365,limit1",
+    "result": "503; returned,totalMatches,hasMore unknown",
+    "toolsObserved": 1,
+    "sourceCoverage": "failed; actual limitation retained",
+    "firstUsefulAndTerminalObservationUpperBoundMs": 537931
+  },
+  "persistenceReload": {
+    "status": "PASS",
+    "allFivePreviousResponsesPresent": true,
+    "resubmitted": false,
+    "observedDateUtc": "2026-10-03",
+    "timestampLimit": "Exact reload-observation timestamp was not captured; visible UI result is recorded in the task tool history."
+  },
+  "timingLimit": "Observation upper bound includes time between browser observations; not first-token latency or p95.",
+  "customerContentsRetained": false,
+  "businessWrites": 0
+}

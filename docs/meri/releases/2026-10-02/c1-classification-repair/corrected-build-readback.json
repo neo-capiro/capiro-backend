@@ -1,0 +1,84 @@
+{
+  "status": "PASS",
+  "sourceSha": "130824b6c0561069c472b2eb93a0b7cef9217f0e",
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:23ccef8051ad386b4cc6635b5e79559b6111b16121537b187bf09cdcca932213",
+  "buildId": "capiro-build-web-dev:ec9cacf7-ccd8-465f-adad-89c876876a41",
+  "startedAt": "2026-10-02T23:43:50.968000-04:00",
+  "finishedAt": "2026-10-02T23:51:20.082000-04:00",
+  "phases": [
+    {
+      "phase": "SUBMITTED",
+      "status": "SUCCEEDED",
+      "durationSeconds": 0
+    },
+    {
+      "phase": "QUEUED",
+      "status": "SUCCEEDED",
+      "durationSeconds": 0
+    },
+    {
+      "phase": "PROVISIONING",
+      "status": "SUCCEEDED",
+      "durationSeconds": 8
+    },
+    {
+      "phase": "DOWNLOAD_SOURCE",
+      "status": "SUCCEEDED",
+      "durationSeconds": 10
+    },
+    {
+      "phase": "INSTALL",
+      "status": "SUCCEEDED",
+      "durationSeconds": 0
+    },
+    {
+      "phase": "PRE_BUILD",
+      "status": "SUCCEEDED",
+      "durationSeconds": 27
+    },
+    {
+      "phase": "BUILD",
+      "status": "SUCCEEDED",
+      "durationSeconds": 326
+    },
+    {
+      "phase": "POST_BUILD",
+      "status": "SUCCEEDED",
+      "durationSeconds": 73
+    },
+    {
+      "phase": "UPLOAD_ARTIFACTS",
+      "status": "SUCCEEDED",
+      "durationSeconds": 0
+    },
+    {
+      "phase": "FINALIZING",
+      "status": "SUCCEEDED",
+      "durationSeconds": 0
+    },
+    {
+      "phase": "COMPLETED"
+    }
+  ],
+  "tests": {
+    "numTotalTests": 1494,
+    "numPassedTests": 1492,
+    "numFailedTests": 0,
+    "numPendingTests": 2,
+    "numTotalTestSuites": 129,
+    "numPassedTestSuites": 129,
+    "numFailedTestSuites": 0,
+    "numPendingTestSuites": 0
+  },
+  "packagedEntrypointHealthAndAuth": "PASS",
+  "packagedClassificationRegression": "PASS",
+  "ecrRepoDigestMatch": "PASS",
+  "buildLogSha256": "3ffc36f4c38f789c8fa7e0af3b85f3e69d14c9b0ee5ee9b81ae9b5628a18b85a",
+  "buildLogEvents": 2462,
+  "buildspecSha256": "f6df1dd48e882c4944a0ad9a431bafbab02676edb0a3597f3d5d357f0822d774",
+  "imagePublishedAt": "2026-10-02T23:51:18.050000-04:00",
+  "architecture": "arm64",
+  "runtimeNode": "20.16.0",
+  "serviceMutations": 0,
+  "databaseMutations": 0
+}

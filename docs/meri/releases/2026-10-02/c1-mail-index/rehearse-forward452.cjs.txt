@@ -1,0 +1,129 @@
+'use strict';
+// Adapted from the archived forward451 rehearsal owner. Owned local Docker
+// pgvector only; Prisma performs all migration ledger writes.
+const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
+const crypto=require('node:crypto'),cp=require('node:child_process');
+const {createRequire}=require('node:module');
+const repo='C:/dev/main/meri-c1-20261002';
+const root='C:/dev/main/outputs/meri-c1-20261002';
+const source=process.argv[2],mode=process.argv[3];
+assert.match(source??'',/^[a-f0-9]{40}$/);
+assert.ok(['fresh','upgrade'].includes(mode));
+const attempt='forward452-v3-'+mode+'-'+source.slice(0,12);
+const database='meri_c1_v3_'+mode+'_'+source.slice(0,12);
+const baselineDatabase='meri_c1_v3_baseline451_'+source.slice(0,12);
+const output=path.join(root,attempt+'.json');
+assert.ok(!fs.existsSync(output));
+const loadApi=createRequire(path.join(repo,'apps/api/package.json'));
+const {Client}=loadApi('pg');
+const sha=b=>crypto.createHash('sha256').update(b).digest('hex');
+function git(...args){return cp.execFileSync('git',args,{cwd:repo,encoding:'utf8',windowsHide:true});}
+function docker(...args){return cp.execFileSync('docker',args,{encoding:'utf8',windowsHide:true});}
+const result={kind:'meri-mail-index-forward-migration-rehearsal',sourceSha:source,mode,
+ startedAt:new Date().toISOString(),scope:'owned isolated local pgvector container only',
+ sharedDatabaseTouched:false,manualMigrationLedgerEdits:false,database};
+let admin,app,cfg,expected;
+const ledgerSql='SELECT id,migration_name,checksum,started_at::text AS started_at,finished_at::text AS finished_at,rolled_back_at::text AS rolled_back_at,applied_steps_count FROM _prisma_migrations ORDER BY migration_name,id';
+async function history(client,items){
+ const rows=(await client.query('SELECT migration_name,checksum,finished_at IS NOT NULL AS finished,rolled_back_at IS NOT NULL AS rolled_back FROM _prisma_migrations ORDER BY migration_name')).rows;
+ assert.equal(rows.length,items.length);assert.deepEqual(rows.map(x=>x.migration_name),items.map(x=>x.name));
+ for(const row of rows){assert.equal(row.finished,true);assert.equal(row.rolled_back,false);assert.equal(items.find(x=>x.name===row.migration_name)?.sha256,row.checksum);}
+ return {count:rows.length,exactSourceChecksums:true,unfinished:0,unexpected:0};
+}
+function freeze(name,items){
+ const frozen=path.join(root,attempt+'-'+name+'-source');assert.ok(!fs.existsSync(frozen));fs.mkdirSync(path.join(frozen,'migrations'),{recursive:true});
+ for(const file of ['schema.prisma','migrations/migration_lock.toml']){
+  fs.writeFileSync(path.join(frozen,file),cp.execFileSync('git',['show',source+':apps/api/prisma/'+file],{cwd:repo,windowsHide:true}),{flag:'wx'});
+ }
+ for(const item of items){
+  const sql=cp.execFileSync('git',['show',source+':apps/api/prisma/migrations/'+item.name+'/migration.sql'],{cwd:repo,windowsHide:true});
+  assert.equal(sha(sql),item.sha256);fs.mkdirSync(path.join(frozen,'migrations',item.name));fs.writeFileSync(path.join(frozen,'migrations',item.name,'migration.sql'),sql,{flag:'wx'});
+ }
+ return frozen;
+}
+const options=name=>({host:cfg.host,port:cfg.port,user:cfg.user,password:cfg.password,database:name,connectionTimeoutMillis:3000,statement_timeout:15000});
+async function createDatabase(name){
+ assert.match(name,/^meri_c1_[a-z0-9_]+$/);
+ assert.equal((await admin.query('SELECT 1 FROM pg_database WHERE datname=$1',[name])).rowCount,0);
+ await admin.query('CREATE DATABASE "'+name+'"');
+ app=new Client(options(name));await app.connect();
+ for(const relative of ['scripts/ci/disposable-capiro-worker-prerequisite.sql','scripts/ci/research-portfolio-append-only-prerequisite.sql']){
+  const sql=cp.execFileSync('git',['show',source+':'+relative],{cwd:repo,windowsHide:true});
+  await app.query(sql.toString('utf8'));result.prerequisites??=[];result.prerequisites.push({database:name,file:relative,sha256:sha(sql)});
+ }
+ await app.end();app=undefined;
+}
+function migrate(name,frozen,label){
+ const url=`postgresql://${encodeURIComponent(cfg.user)}:${encodeURIComponent(cfg.password)}@127.0.0.1:55436/${name}?schema=public`;
+ const env=Object.fromEntries(Object.entries(process.env).filter(([k])=>!/^(PG|DATABASE_URL|DIRECT_URL|AWS|CLERK|OPENAI|OPENROUTER|ANTHROPIC)/i.test(k)));
+ Object.assign(env,{DATABASE_URL:url,PRISMA_HIDE_UPDATE_MESSAGE:'1',CHECKPOINT_DISABLE:'1',NODE_OPTIONS:'--max-old-space-size=4096'});
+ result.stage='prisma migrate deploy '+label;
+ const run=cp.spawnSync(process.execPath,[loadApi.resolve('prisma'),'migrate','deploy','--schema',path.join(frozen,'schema.prisma')],{cwd:path.join(repo,'apps/api'),env,windowsHide:true,encoding:'utf8',timeout:300000,maxBuffer:8*1024*1024});
+ const log=`${run.stdout??''}${run.stderr??''}`.replaceAll(cfg.password,'[REDACTED]').replaceAll(url,'[OWNED_LOCAL_DATABASE]');
+ fs.writeFileSync(path.join(root,attempt+'-'+label+'.log'),log,{flag:'wx'});
+ result.migrationRuns??=[];result.migrationRuns.push({label,exitCode:run.status,logSha256:sha(log)});
+ assert.equal(run.status,0);assert.equal(run.error,undefined);assert.ok(log.includes('All migrations have been successfully applied.'));
+}
+(async()=>{
+ assert.equal(git('rev-parse','HEAD').trim(),source);
+ assert.equal(git('status','--porcelain=v1','--untracked-files=all','--','apps/api/prisma','apps/api/scripts/verify-mail-thread-covering-index.cjs').trim(),'');
+ const files=git('ls-tree','--name-only',source+':apps/api/prisma/migrations').trim().split(/\r?\n/).filter(n=>/^\d/.test(n)).sort();
+ assert.equal(files.length,452);assert.equal(files.at(-1),'20281007010000_mail_messages_owned_connection_active');
+ expected=files.map(name=>({name,sha256:sha(cp.execFileSync('git',['show',source+':apps/api/prisma/migrations/'+name+'/migration.sql'],{cwd:repo,windowsHide:true}))}));
+ const priorFiles=git('ls-tree','--name-only','130824b6c0561069c472b2eb93a0b7cef9217f0e:apps/api/prisma/migrations').trim().split(/\r?\n/).filter(n=>/^\d/.test(n)).sort();
+ assert.deepEqual(files.slice(0,-1),priorFiles);
+ assert.equal(git('diff','--name-only','130824b6c0561069c472b2eb93a0b7cef9217f0e',source,'--','apps/api/prisma').trim(),'apps/api/prisma/migrations/20281007010000_mail_messages_owned_connection_active/migration.sql');
+ result.migrationManifestSha256=sha(JSON.stringify(expected));result.newMigration=expected.at(-1);result.prior451SourceUnchanged=true;
+ const frozen=freeze('full452',expected);
+ cfg=JSON.parse(fs.readFileSync(root+'/private/local-pgvector-linux.json','utf8'));
+ assert.equal(cfg.scope,'owned isolated local C1 migration rehearsal; no AWS connection');assert.equal(cfg.host,'127.0.0.1');assert.equal(cfg.port,55436);
+ assert.equal(cfg.containerId,'9061ff0d4e48aaef26cbe820d486125f5943bb66d563a4050af6b1b8a5c24bdc');
+ assert.equal(cfg.clusterName,'meri-c1-pgvector-linux-20261002');assert.equal(cfg.dataDirectory,'/var/lib/postgresql/data');
+ assert.equal(cfg.volumeName,'meri-c1-pgvector-linux-20261002');
+ const owned=JSON.parse(docker('inspect',cfg.containerId))[0];
+ assert.equal(owned.Id,cfg.containerId);assert.equal(owned.State.Running,true);
+ assert.equal(owned.Image,'sha256:ccc6e83d6e35e931dc7c5def2022729d5a6c370318d099181995567ff1fb4d6b');
+ assert.equal(owned.Config.Labels['capiro.task'],'meri-c1-20261002');assert.equal(owned.Config.Labels['capiro.scope'],'disposable-local-migration-rehearsal');
+ assert.deepEqual(owned.HostConfig.PortBindings['5432/tcp'],[{HostIp:'127.0.0.1',HostPort:'55436'}]);
+ assert.equal(owned.Mounts.filter(x=>x.Destination===cfg.dataDirectory&&x.Type==='volume'&&x.Name===cfg.volumeName).length,1);
+ const volume=JSON.parse(docker('volume','inspect',cfg.volumeName))[0];
+ assert.equal(volume.Name,cfg.volumeName);assert.equal(volume.Driver,'local');assert.equal(volume.Labels['capiro.task'],'meri-c1-20261002');assert.equal(volume.Labels['capiro.scope'],'disposable-local-migration-rehearsal');
+ admin=new Client(options('postgres'));await admin.connect();
+ const identity=(await admin.query("SELECT current_user,inet_server_port() AS port,current_setting('data_directory') AS directory,current_setting('cluster_name') AS cluster")).rows[0];
+ assert.equal(identity.current_user,cfg.user);assert.equal(identity.port,5432);assert.equal(identity.directory,cfg.dataDirectory);assert.equal(identity.cluster,cfg.clusterName);result.identityVerified=true;
+ // Historical migration 20260502020000 grants CONNECT on the fixed database
+ // name capiro. Its existence is a cluster prerequisite, not a ledger repair.
+ // Create it only after proving this is the task-owned disposable container.
+ const compatibilityDatabase=(await admin.query("SELECT 1 FROM pg_database WHERE datname='capiro'")).rowCount;
+ if(compatibilityDatabase===0)await admin.query('CREATE DATABASE capiro');
+ result.fixedDatabasePrerequisite={name:'capiro',created:compatibilityDatabase===0};
+ if(mode==='upgrade'){
+  const baselineFrozen=freeze('baseline451',expected.slice(0,-1));
+  await createDatabase(baselineDatabase);migrate(baselineDatabase,baselineFrozen,'baseline451');
+  app=new Client(options(baselineDatabase));await app.connect();result.baselineHistory=await history(app,expected.slice(0,-1));
+  result.baselineFullLedger=(await app.query(ledgerSql)).rows;await app.end();app=undefined;
+  assert.equal((await admin.query('SELECT count(*)::int AS n FROM pg_stat_activity WHERE datname=$1',[baselineDatabase])).rows[0].n,0);
+  assert.equal((await admin.query('SELECT 1 FROM pg_database WHERE datname=$1',[database])).rowCount,0);
+  await admin.query(`CREATE DATABASE "${database}" TEMPLATE "${baselineDatabase}"`);
+ }else await createDatabase(database);
+ result.databaseCreated=true;migrate(database,frozen,'candidate452');
+ app=new Client(options(database));await app.connect();result.history=await history(app,expected);
+ result.constraints=(await app.query("SELECT conname AS name,convalidated AS validated,pg_get_constraintdef(oid) AS definition FROM pg_constraint WHERE conrelid='memory_candidate'::regclass AND conname IN ('memory_candidate_source_kind_chk','memory_candidate_version_payload_check') ORDER BY conname")).rows;
+ assert.equal(result.constraints.length,2);assert.ok(result.constraints.every(x=>x.validated));
+ assert.match(result.constraints[0].definition,/memory_correction/);assert.match(result.constraints[0].definition,/memory_restore/);assert.match(result.constraints[0].definition,/memory_contradiction/);assert.match(result.constraints[1].definition,/IS TRUE/);
+ result.retiredTablesAbsent=(await app.query("SELECT to_regclass('public.meri_agent_runs') IS NULL AND to_regclass('public.legiwatch_saved_view') IS NULL AS absent")).rows[0].absent;assert.equal(result.retiredTablesAbsent,true);
+ result.indexes=(await app.query("SELECT c.relname AS name,am.amname::text AS method,i.indisvalid AS valid,i.indisready AS ready,i.indisunique AS unique,i.indnkeyatts AS key_count,i.indnatts AS total_count,pg_get_expr(i.indpred,i.indrelid) AS predicate,i.indexprs IS NULL AS no_expression,ARRAY(SELECT pg_get_indexdef(i.indexrelid,k,true) FROM generate_series(1,i.indnatts) k) AS attributes,pg_get_indexdef(i.indexrelid) AS definition FROM pg_index i JOIN pg_class c ON c.oid=i.indexrelid JOIN pg_am am ON am.oid=c.relam WHERE i.indexrelid IN ('public.mail_threads_tenant_connection_id_cover_idx'::regclass,'public.mail_messages_tenant_connection_active_idx'::regclass) ORDER BY c.relname")).rows;
+ assert.equal(result.indexes.length,2);
+ for(const idx of result.indexes){assert.equal(idx.method,'btree');assert.equal(idx.valid,true);assert.equal(idx.ready,true);assert.equal(idx.unique,false);assert.equal(idx.no_expression,true);idx.definitionSha256=sha(idx.definition);}
+ const message=result.indexes[0],thread=result.indexes[1];
+ assert.equal(message.name,'mail_messages_tenant_connection_active_idx');assert.equal(message.key_count,2);assert.equal(message.total_count,2);assert.deepEqual(message.attributes,['tenant_id','connection_id']);assert.equal(message.predicate,'(removed_at IS NULL)');
+ assert.equal(thread.name,'mail_threads_tenant_connection_id_cover_idx');assert.equal(thread.key_count,3);assert.equal(thread.total_count,4);assert.equal(thread.predicate,null);assert.deepEqual(thread.attributes,['tenant_id','connection_id','id','client_id']);
+ if(mode==='upgrade'){
+  const rows=(await app.query(ledgerSql)).rows.filter(x=>x.migration_name!==expected.at(-1).name);
+  assert.deepEqual(rows,result.baselineFullLedger);result.priorLedgerPreserved=true;result.priorFullLedgerSha256=sha(JSON.stringify(rows));delete result.baselineFullLedger;
+ }
+ result.stage='complete';result.exitCode=0;
+})().catch(error=>{result.exitCode=1;result.errorClass=error?.constructor?.name??'unknown';result.code=/^[A-Z0-9_]{3,40}$/.test(error?.code??'')?error.code:'REHEARSAL_ASSERTION';process.exitCode=1;}).finally(async()=>{
+ if(app)await app.end().catch(()=>{});if(admin)await admin.end().catch(()=>{});
+ result.completedAt=new Date().toISOString();fs.writeFileSync(output,JSON.stringify(result,null,2)+'\n',{flag:'wx'});console.log(JSON.stringify(result));
+});

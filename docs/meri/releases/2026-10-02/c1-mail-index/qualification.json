@@ -1,0 +1,92 @@
+{
+  "status": "LOCALLY_QUALIFIED_NOT_APPLIED",
+  "sourceSha": "e1d045d4abe4a7835cb9284508cd287cf1d34d3b",
+  "newMigration": {
+    "name": "20281007010000_mail_messages_owned_connection_active",
+    "sha256": "ef10ab58b4eef6825652690a098ab160a374fb30c4cc0af9f15793edb7237242"
+  },
+  "manifest452Sha256": "f4a9f560bc21d7f12b902fa4bf09157612bacdc108dbce1de88085d010318f5f",
+  "freshDatabase": {
+    "status": "PASS",
+    "evidence": "forward452-v3-fresh-e1d045d4abe4.json"
+  },
+  "retiredUpgrade": {
+    "status": "PASS",
+    "evidence": "forward452-v3-upgrade-e1d045d4abe4.json",
+    "prior451LedgerUnchanged": true
+  },
+  "queryCompatibility": {
+    "status": "PASS",
+    "evidence": "root-mail-452-qualification.json",
+    "actualCanonicalSql": true,
+    "ordinaryRoleForceRls": true,
+    "knownResults": true,
+    "healthyZeroResults": true,
+    "controlledLockRefusal": true,
+    "tenSourceScenariosIdentical": true,
+    "removedRowsExcluded": true,
+    "largeBodyRead": true
+  },
+  "apiRuntimeDiffFromServed6be5": "No changes to apps/api/src,packages/shared,packages/auth; one additive migration. Existing API515 can use index without API service promotion.",
+  "independentReview": {
+    "reviewer": "Codex benchmark_review subagent",
+    "status": "PASS",
+    "humanReview": false
+  },
+  "performanceLimit": "Warm-cache local buffer/access-path evidence only. Actual production cold-I/O and mailbox503 resolution remain unverified.",
+  "failedRehearsals": [
+    {
+      "evidence": "forward452-fresh-e1d045d4abe4.json",
+      "cause": "Historical migration5 expects fixed database capiro; missing disposable-cluster prerequisite."
+    },
+    {
+      "evidence": "forward452-upgrade-e1d045d4abe4.json",
+      "cause": "Same missing disposable-cluster prerequisite in independently initiated baseline451 replay."
+    },
+    {
+      "evidence": "forward452-v2-fresh-e1d045d4abe4.json",
+      "cause": "PostgreSQL PANIC writing pg_wal through Windows bind mount: Interrupted system call; OOMKilled=false. Replaced only disposable fixture storage with owned Linux Docker volume."
+    }
+  ],
+  "sharedDatabaseMutations": 0,
+  "serviceMutations": 0,
+  "ledgerRewrites": 0,
+  "artifacts": {
+    ".gitattributes": {
+      "sha256": "705fd4d6451a31d36b3df7de96f83f30ac976c9b4a6d1e51671d8e2f33e2d0da",
+      "bytes": 8
+    },
+    "forward452-fresh-e1d045d4abe4.json": {
+      "sha256": "3aeccfcb073df24c35a041d7645b57a17b1c5ad9d459408fd9aa2be60ba43d2c",
+      "bytes": 1525
+    },
+    "forward452-upgrade-e1d045d4abe4.json": {
+      "sha256": "e6357be7f6159f6c041dc456244592abd6ac9c33a1daecad730f82303bdb873a",
+      "bytes": 1512
+    },
+    "forward452-v2-fresh-e1d045d4abe4.json": {
+      "sha256": "59d5477e5cfe1d5f8489bf29ce1172349c89bdd48bb8be83c3abc91e1e5c2171",
+      "bytes": 1614
+    },
+    "forward452-v3-fresh-e1d045d4abe4.json": {
+      "sha256": "34d39fa19f6d8d4905920718e268f25395e59e1f7a26264b68caa11ca9667d56",
+      "bytes": 4764
+    },
+    "forward452-v3-upgrade-e1d045d4abe4.json": {
+      "sha256": "276a53da82cf4a2b47b828469eca37020498c03348f804ccedbdd4abb65645a7",
+      "bytes": 5178
+    },
+    "hermes-mail-usage.json": {
+      "sha256": "ed71fedd941c6363ac269d9389266f1afcaa6465b5a064353e0f98b420421fc4",
+      "bytes": 480
+    },
+    "rehearse-forward452.cjs.txt": {
+      "sha256": "edd797adf4114aede99c7ef4a4a8171d49fca7b1a78240745c345cf70bcc476e",
+      "bytes": 13035
+    },
+    "root-mail-452-qualification.json": {
+      "sha256": "3c409419225fb8c9ba1a2d04d15d7b6a23f9c1a65350cab36c7348911282a138",
+      "bytes": 8416
+    }
+  }
+}

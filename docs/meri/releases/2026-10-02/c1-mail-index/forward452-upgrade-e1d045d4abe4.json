@@ -1,0 +1,41 @@
+{
+  "kind": "meri-mail-index-forward-migration-rehearsal",
+  "sourceSha": "e1d045d4abe4a7835cb9284508cd287cf1d34d3b",
+  "mode": "upgrade",
+  "startedAt": "2026-10-03T03:45:12.014Z",
+  "scope": "owned isolated local pgvector container only",
+  "sharedDatabaseTouched": false,
+  "manualMigrationLedgerEdits": false,
+  "database": "meri_c1_upgrade_e1d045d4abe4",
+  "migrationManifestSha256": "f4a9f560bc21d7f12b902fa4bf09157612bacdc108dbce1de88085d010318f5f",
+  "newMigration": {
+    "name": "20281007010000_mail_messages_owned_connection_active",
+    "sha256": "ef10ab58b4eef6825652690a098ab160a374fb30c4cc0af9f15793edb7237242"
+  },
+  "prior451SourceUnchanged": true,
+  "identityVerified": true,
+  "prerequisites": [
+    {
+      "database": "meri_c1_baseline451_e1d045d4abe4",
+      "file": "scripts/ci/disposable-capiro-worker-prerequisite.sql",
+      "sha256": "3a41c019f98cf79d460bf4568ffcd70672b6a961998cbd2f15cb7f0febe4be36"
+    },
+    {
+      "database": "meri_c1_baseline451_e1d045d4abe4",
+      "file": "scripts/ci/research-portfolio-append-only-prerequisite.sql",
+      "sha256": "cd47f004f0b6255648797bfa972a57192d34c59adc7eb7bf6e0de49bc82f78ac"
+    }
+  ],
+  "stage": "prisma migrate deploy baseline451",
+  "migrationRuns": [
+    {
+      "label": "baseline451",
+      "exitCode": 1,
+      "logSha256": "1f848c69452b43788ce7e24633503841a1dcfe9f4e835abac339c5891a36330e"
+    }
+  ],
+  "exitCode": 1,
+  "errorClass": "AssertionError",
+  "code": "ERR_ASSERTION",
+  "completedAt": "2026-10-03T03:46:34.325Z"
+}
