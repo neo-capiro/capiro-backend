@@ -1,0 +1,5 @@
+{
+  "timestamp": "2026-10-03T12:12:28.7007176Z",
+  "command": "pnpm --filter @capiro/meriv2-core exec jest --runInBand --forceExit src/assurance/tool-ledger-adapter.spec.ts",
+  "exitCode": 0
+}

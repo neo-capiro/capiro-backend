@@ -1,0 +1,5 @@
+{
+  "completedAt": "2026-10-03T12:01:53.6546096Z",
+  "exitCode": 1,
+  "command": "pnpm --filter @capiro/api exec jest --runInBand --forceExit src/memory/governed-memory-candidate.service.spec.ts src/memory/memory-proposal.controller.spec.ts src/meri/meri-memory-proposal-read.spec.ts src/meri/meri-tools.registration.spec.ts"
+}

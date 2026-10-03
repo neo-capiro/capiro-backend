@@ -1,0 +1,23 @@
+{
+  "kind": "C2 actual projection owner regression",
+  "startedAt": "2026-10-03T12:29:23.4333503Z",
+  "scope": "owned native PostgreSQL16 127.0.0.1:55433 only; rollback-only fixtures; not production RLS",
+  "awsCalls": 0,
+  "providerCalls": 0,
+  "sourceHashes": {
+    "apps/api/src/memory/memory-store.service.ts": "319934d2de9ea4d98423eb4aab7faa725ea5d54c431a7978d80bdd8a84dd457f",
+    "apps/api/src/memory/memory-clio-adapter.helpers.ts": "41102353e8e4e304be8b89611892193716f08f6da1f22d0a80c85d5428f086ed",
+    "evals/meri/live-v1/tests/memory-projection-governance.postgres.test.mjs": "d9498686a09b2e5c3ed87c9d7ab1c0544943d5eef71c6f4a38c890685d9c0b1a",
+    "evals/meri/live-v1/tests/approved-memory-postgres-harness.mjs": "e9423f5e819c33a628c104ef9137c76708aa05ef0b7c5cdb4a42793dd4959c8d",
+    "evals/meri/live-v1/tests/approved-memory-schema.mjs": "07d41fccf6ad21123f29521a7aa0a2816cf6ea4a76e74f8125ff449b828a94ab"
+  },
+  "command": "node --test evals/meri/live-v1/tests/memory-projection-governance.postgres.test.mjs",
+  "sourceSha": "742c49392c4c3c50dd4c63e1fdc814342172c35a",
+  "statusBeforeExit": 3,
+  "startExit": 0,
+  "testExit": 0,
+  "testLogSha256": "7c80ec19f1eb79afb18f858343d7fc710747b1918729393e2a581490b031e090",
+  "stopExit": 0,
+  "clusterStoppedAfter": true,
+  "completedAt": "2026-10-03T12:29:29.0392420Z"
+}

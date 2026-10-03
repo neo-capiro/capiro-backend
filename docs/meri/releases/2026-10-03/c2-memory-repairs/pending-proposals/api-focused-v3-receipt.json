@@ -1,0 +1,5 @@
+{
+  "exitCode": 0,
+  "command": "NODE_OPTIONS=--max-old-space-size=8192 pnpm --filter @capiro/api exec jest --runInBand --forceExit src/memory/governed-memory-candidate.service.spec.ts src/memory/memory-proposal.controller.spec.ts src/meri/meri-memory-proposal-read.spec.ts src/meri/meri-tools.registration.spec.ts",
+  "completedAt": "2026-10-03T12:07:19.9856235Z"
+}

@@ -1,0 +1,23 @@
+# C2 memory repairs — reviewed source, images building
+
+The first C2 candidate is source `ed44f2c6cfdfda5150f75ab198a6e52d2377880f`. It contains two independently reviewed commits: `742c49392c4c3c50dd4c63e1fdc814342172c35a` exposes an ordinary user's own pending memory proposals as explicitly unapproved; `ed44f2c6c` prevents stale projection metadata from overwriting existing canonical governance. Both are merged and pushed. Images are building; deployment and served case02 acceptance are **NOT_RUN**. C1's API515/orchestrator111/WebVNext388 remain the [served baseline](served-baseline.json).
+
+## Pending proposals
+
+`list_memory_proposals` calls the existing governed owner with tenant, proposer, pending status and selected-client filters before pagination. Cursors bind to that scope, wall-redacted bodies remain unavailable, and responses carry no approved-memory citations. The existing unfiltered HTTP history remains compatible. The [current ordinary-user readback](case02-current-governance-readback.json) confirms original MA2 candidate `dc61a9a5-5130-5c67-a7e8-19906259c34f` still says “prefers SMS alerts”, pending and undecided. This is source-state evidence, not a passing model answer.
+
+The [reviewed source snapshot](pending-proposals/candidate-snapshot-reviewed.json) binds 20 files and focused results: API75, orchestrator138, ledger149, native selected-client1 (121 deliberately filtered), shared/core builds. Earlier heap exhaustion and test-authoring failures remain. The original snapshot's incorrect API receipt filename is preserved and corrected only in the separate reviewed manifest. [Independent review](independent-review.json) confirms scope, discovery, dispatch and nonauthoritative evidence handling; it is not human release approval.
+
+## Projection corruption reproduced and repaired
+
+The existing canonical corpus preflight [failed](current-corpus-result.json). Bounded diagnostics used its existing factory and strict guard; no reset, seed, approval, provider call or fixture update occurred. The [predicate readback](corpus-predicate-result.json) isolated two failures among21 predicates. [Exact state and original transition audit](corpus-state-result.json) show retired item `5e9d3ad4-b37d-4997-be47-55b00528c085` has primary status `superseded`, but governed status `active` and JSON null retention where SQL NULL is required. The canonical audit retains its original active→superseded transition. This does not establish that the item was recalled, or identify the actual background invocation that changed it.
+
+`MemoryStoreService.upsertSystem` unconditionally restored active Clio governance on conflict refresh. A [real local PostgreSQL reproduction](projection-postgres-before-fix.log), after actual canonical approval, failed7 of8 checks. The small fix supplies a fresh INSERT UUID and initializes governance only when that exact new ID is returned; conflict refreshes retain later governance. Absent retention is SQL NULL. Generic content/routing/edge refresh behavior remains unchanged.
+
+The [fixed PostgreSQL run](projection-postgres-fixed-v1.log) passes10/10: active/held, superseded, revoked, stale, conflicted and expired metadata; initial authority; null/object retention; legacy nonpromotion; generic content/scope/edge compatibility; rollback after initialization failure. [Six focused Jest suites](projection-jest-v1.log) pass42/42. Original logs, source snapshots and receipts are retained. The disposable local schema simplifies production DDL and arranges later lifecycle states after actual approval; this is not production RLS or concurrent-transaction proof. The owned55433 cluster was stopped after both runs. Existing corrupted rows still need exact owner-verified reconciliation. The four diagnostic tasks are stopped and their definitions inactive: [read](corpus-read-cleanup.json), [diagnosis](corpus-diagnostic-cleanup.json), [predicates](corpus-predicate-cleanup.json), [state](corpus-state-cleanup.json).
+
+## Remaining acceptance
+
+No C2 provider turn has been admitted. [Preserved spend readback](prior-budget-readback.json) shows9,841,281micros settled from the prior fresh five-case run,20,158,719micros remaining under its30,000,000micros cap; this is not all historical spending or a new budget. Original fixture identities, approvals, responses and unknown-spend history remain intact.
+
+Next: qualify and review exact images; promote through the existing release owner; reconcile only verified projection metadata; complete authenticated case02 and frozen semantic-clock admission before original benchmark captures. Continue the full authorized C2 memory/approval/artifact/CD scope. Original PASS0/75, CD0/7 andCW0/8 remain unchanged; no File02 readiness is claimed.

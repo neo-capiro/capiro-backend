@@ -1,0 +1,4 @@
+# Preserve original captured bytes, including Windows line endings.
+* -text whitespace=cr-at-eol
+*.log -diff
+*.patch -diff

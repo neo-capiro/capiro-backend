@@ -1,0 +1,401 @@
+{
+  "kind": "C2 memory source and preflight evidence",
+  "sourceSha": "ed44f2c6cfdfda5150f75ab198a6e52d2377880f",
+  "files": [
+    {
+      "path": ".gitattributes",
+      "bytes": 123,
+      "sha256": "7fdca0205c72857d1c76aeb34ba478f8ad63ba671b5ae11111162601577f766f"
+    },
+    {
+      "path": "README.md",
+      "bytes": 4754,
+      "sha256": "8e113b3c4f145353c9a4af1d25fafa726a5c39953c8cca9dbc3cf95f2558beb6"
+    },
+    {
+      "path": "archive-audit.json",
+      "bytes": 627,
+      "sha256": "f8faab385e12d8442ccdcaa74aee2a0a61e43ee92901fa85086c6e8fccbf3d08"
+    },
+    {
+      "path": "case02-current-governance-readback.json",
+      "bytes": 1074,
+      "sha256": "cbfc1253d60794b3e64e5cfe760a65ffb705cc3e2a455c8531752e238b58bb7e"
+    },
+    {
+      "path": "corpus-diagnostic-cleanup.json",
+      "bytes": 299,
+      "sha256": "974a80e170d8e73e0fc8305d7e0b012de0428d51d057d15f0ad6d113f2cf23ce"
+    },
+    {
+      "path": "corpus-diagnostic-result.json",
+      "bytes": 1516,
+      "sha256": "b81c270756429b93dfb1328b0566103cf57ae7197c72a340d07b48850d350825"
+    },
+    {
+      "path": "corpus-predicate-cleanup.json",
+      "bytes": 299,
+      "sha256": "51bef7d932ef49895ee832dc7102bd32ade4000476de5c1d39d8030d8b189a26"
+    },
+    {
+      "path": "corpus-predicate-result.json",
+      "bytes": 2031,
+      "sha256": "e1a058ddf038686b9329090fdd42b7633095fafc0d9d0fa886b0a849aecc5e40"
+    },
+    {
+      "path": "corpus-read-cleanup.json",
+      "bytes": 299,
+      "sha256": "8f49656fd40973f6cf1cad09f2219e6734af8145863b2d17313f0479d4d76c39"
+    },
+    {
+      "path": "corpus-state-cleanup.json",
+      "bytes": 299,
+      "sha256": "4308918e87c1c1165edda36e374ca46ac68a039222b71ed3852b36537111e4ba"
+    },
+    {
+      "path": "corpus-state-result.json",
+      "bytes": 3762,
+      "sha256": "14b836a8fd8dcb0fb466461f1b81fa68567dc19302c0cee7cee171ea4ec08487"
+    },
+    {
+      "path": "current-corpus-diagnostic.json",
+      "bytes": 265,
+      "sha256": "b86aee2f0a664d3d18f5a5fbaac16a1f2f9c2a92185dad1ff49764dfcb04031d"
+    },
+    {
+      "path": "current-corpus-result.json",
+      "bytes": 383,
+      "sha256": "855e51a2cec3e32e6df729b33134410db0009a9ee6d0faf5c3a24e62e20bb9f9"
+    },
+    {
+      "path": "independent-review.json",
+      "bytes": 1385,
+      "sha256": "34fd5d67f5df33dfd2a53f258a22c7718772c3e535032d2d7822cdf59832eb92"
+    },
+    {
+      "path": "pending-proposals/api-focused-v1-receipt.json",
+      "bytes": 333,
+      "sha256": "d307c7de4ca70fa74199b9368599bfcca291d62b9b6f9bbcee2224ff903835a2"
+    },
+    {
+      "path": "pending-proposals/api-focused-v1.log",
+      "bytes": 153311,
+      "sha256": "ff4f4b81a689376a2500d98045e9a169038a39b280e94d980d50719e5989b319"
+    },
+    {
+      "path": "pending-proposals/api-focused-v2-receipt.json",
+      "bytes": 372,
+      "sha256": "d59bf2cac4aaf6b9c822044108cbd202acde80ea29b09458634a0f4804f893d2"
+    },
+    {
+      "path": "pending-proposals/api-focused-v2.log",
+      "bytes": 40060,
+      "sha256": "8beb396b2e4e78465f4692e710f9aa7788151030785e1e8236a5bef9e67db04d"
+    },
+    {
+      "path": "pending-proposals/api-focused-v3-receipt.json",
+      "bytes": 372,
+      "sha256": "c30afc71059263b527434bd844fc1597ca7f1f6aabde46821a66c833b1486cb2"
+    },
+    {
+      "path": "pending-proposals/api-focused-v3.log",
+      "bytes": 16418,
+      "sha256": "be2fad9d70f29af84e74b3703031af319615d058c94ba5450c8d9d31629b2292"
+    },
+    {
+      "path": "pending-proposals/candidate-snapshot-reviewed.json",
+      "bytes": 5970,
+      "sha256": "008f358a14e4cc3304479a25b9d6da6a003c9018b840ab35b9d03b3fab37bdfd"
+    },
+    {
+      "path": "pending-proposals/candidate-snapshot.json",
+      "bytes": 5604,
+      "sha256": "02fba6847322c8572758bb0636e46bc894bea791105cac358fd5366307ffc420"
+    },
+    {
+      "path": "pending-proposals/core-build-receipt.json",
+      "bytes": 130,
+      "sha256": "5ec8c5610b944cc98bc9a249b757b7c47c4589f61d2cbfdb3fd35710abc74bc8"
+    },
+    {
+      "path": "pending-proposals/core-build.log",
+      "bytes": 113,
+      "sha256": "3b050d4996f6e2a7e46851df328e05ecb31c0e7d0fd05a710f83c08e2b42dc77"
+    },
+    {
+      "path": "pending-proposals/core-ledger-v1.log",
+      "bytes": 12478,
+      "sha256": "d18aca72252e3a769a039327cdf252bf27f7d23bcd355c66b1b9de36e86cc783"
+    },
+    {
+      "path": "pending-proposals/core-ledger-v1.log.receipt.json",
+      "bytes": 198,
+      "sha256": "3a054797ea7fd3c76c6d6026593857e5545b1781f07d5a8ce4b312d8c3de6370"
+    },
+    {
+      "path": "pending-proposals/native-scope-v1.log",
+      "bytes": 14585,
+      "sha256": "2197e8c83b8e2217d38febe9a1051c15b97f713fec9556b910c5482d540fc862"
+    },
+    {
+      "path": "pending-proposals/native-scope-v1.log.receipt.json",
+      "bytes": 259,
+      "sha256": "a9f52a76ce58c5bd88088798732c5e1b3ca7afbc062e94bc2f8227ca93ad8c01"
+    },
+    {
+      "path": "pending-proposals/orchestrator-focused-v1-receipt.json",
+      "bytes": 476,
+      "sha256": "7f1b715480bdf141f4ad6d930937f5da75d30402c910cd2f0748cfee426bfba2"
+    },
+    {
+      "path": "pending-proposals/orchestrator-focused-v1.log",
+      "bytes": 6256,
+      "sha256": "70ca39f6e3514c839b7694c638635bdca95377890750f8477b1134d0a8f96850"
+    },
+    {
+      "path": "pending-proposals/orchestrator-focused-v2.log",
+      "bytes": 892,
+      "sha256": "58044781fc9342297de17de5797766edb4fe907fb3f4e046065aa25944b401bc"
+    },
+    {
+      "path": "pending-proposals/orchestrator-focused-v2.log.receipt.json",
+      "bytes": 435,
+      "sha256": "f8c889399dca1cf6baebddd741272f06c13196ae22272ff734e1e51ae252602e"
+    },
+    {
+      "path": "pending-proposals/shared-build-receipt.json",
+      "bytes": 125,
+      "sha256": "8f6c50c688b6230730b2a998fa145c17514c4db7f264b220a200007bd3855d58"
+    },
+    {
+      "path": "pending-proposals/shared-build-v2-receipt.json",
+      "bytes": 125,
+      "sha256": "159f9a5e05380a167494bf801b73f8205bdd945150f0762057d593bda498dfa1"
+    },
+    {
+      "path": "pending-proposals/shared-build-v2.log",
+      "bytes": 103,
+      "sha256": "d799000e39472efc15fb86a44c27f5eefce2b0a3a9343199ced227478bd0c5d7"
+    },
+    {
+      "path": "pending-proposals/shared-build-v3.log",
+      "bytes": 103,
+      "sha256": "d799000e39472efc15fb86a44c27f5eefce2b0a3a9343199ced227478bd0c5d7"
+    },
+    {
+      "path": "pending-proposals/shared-build-v3.log.receipt.json",
+      "bytes": 123,
+      "sha256": "becfd45fabe51ff2691c161db4b8be8e3d4c0ae75a1db63b43dca59c86665d62"
+    },
+    {
+      "path": "pending-proposals/shared-build.log",
+      "bytes": 103,
+      "sha256": "d799000e39472efc15fb86a44c27f5eefce2b0a3a9343199ced227478bd0c5d7"
+    },
+    {
+      "path": "pending-proposals/source/apps/api/src/memory/governed-memory-candidate.service.spec.ts",
+      "bytes": 16886,
+      "sha256": "7ae448a761ca88e516c4bc2e40399e4b218cc8da1f9e1e61c6d0af20b5c257d8"
+    },
+    {
+      "path": "pending-proposals/source/apps/api/src/memory/governed-memory-candidate.service.ts",
+      "bytes": 21052,
+      "sha256": "1176c2d16ca4af24dda1d5add3aea6f9d9c226c0130c194e7a402e18aab0e056"
+    },
+    {
+      "path": "pending-proposals/source/apps/api/src/meri/meri-memory-proposal-read.spec.ts",
+      "bytes": 6891,
+      "sha256": "433591bfbccf78e1585ac846c95afad1fd884bfc279afe1156d4e0ac447f175f"
+    },
+    {
+      "path": "pending-proposals/source/apps/api/src/meri/meri-memory-proposal-read.ts",
+      "bytes": 3485,
+      "sha256": "5cbe9e92d4088961f929e9592892e35b65cc00eba2fa61fdf3e4d02a7b82a135"
+    },
+    {
+      "path": "pending-proposals/source/apps/api/src/meri/meri-tools.registration.spec.ts",
+      "bytes": 38923,
+      "sha256": "7516b6c5274613d7c8bfeb052a9e561368ec6cf3594f11f81ceaf963e5613d0e"
+    },
+    {
+      "path": "pending-proposals/source/apps/api/src/meri/meri-tools.service.ts",
+      "bytes": 406436,
+      "sha256": "0b42cc0728ff5aa5d9de3597c535d16a01196f9d7ca85d4a341b59f04da8a7ec"
+    },
+    {
+      "path": "pending-proposals/source/apps/meriv2-orchestrator/src/meri/chat/chat-prompt.spec.ts",
+      "bytes": 16789,
+      "sha256": "7495ae215b2581bd9b15ef01b383561e139cddc2c2ca74abc03c9bf3608c1a5e"
+    },
+    {
+      "path": "pending-proposals/source/apps/meriv2-orchestrator/src/meri/chat/chat-prompt.ts",
+      "bytes": 36158,
+      "sha256": "00faa5c16a0a8127008dd3f853194b4736094d0e5f7e82f8fb8a97facdbce565"
+    },
+    {
+      "path": "pending-proposals/source/apps/meriv2-orchestrator/src/meri/full-chat-read-tools.catalog.spec.ts",
+      "bytes": 5931,
+      "sha256": "959c04dc5854f54d8985d3381b6b1d89c66c96aa467260ee58891984ac7aebcf"
+    },
+    {
+      "path": "pending-proposals/source/apps/meriv2-orchestrator/src/meri/meriv3/meri-progressive-tool-discovery.spec.ts",
+      "bytes": 9188,
+      "sha256": "a720922ff16f1508ed68d1fbeee72a15a3ba6746d20f3a768a691bd252f713c5"
+    },
+    {
+      "path": "pending-proposals/source/apps/meriv2-orchestrator/src/meri/meriv3/meri-semantic-tool-gateway.spec.ts",
+      "bytes": 19869,
+      "sha256": "d7b055eabf00863af1bbe8ea27d2ce8024b3a602e8d58134b3a4bc92a53fcccc"
+    },
+    {
+      "path": "pending-proposals/source/apps/meriv2-orchestrator/src/meri/meriv3/meri-semantic-tool-gateway.ts",
+      "bytes": 17370,
+      "sha256": "a7099e652cb057042412dd416768723b3fe301dc8c25ff80330b8c35e534128b"
+    },
+    {
+      "path": "pending-proposals/source/apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.spec.ts",
+      "bytes": 221996,
+      "sha256": "3bc1108fd02f6437dc5ceaf9b3bd3acf383a5f9cc2d651b5244bb1d5c3095232"
+    },
+    {
+      "path": "pending-proposals/source/apps/meriv2-orchestrator/src/meri/meriv3/meriv3-tool-evidence.spec.ts",
+      "bytes": 28206,
+      "sha256": "5dd8adb8dee9ce83478dd4d3c15b23c0531889d0b8d3bf17f030b62d76b89ecd"
+    },
+    {
+      "path": "pending-proposals/source/apps/meriv2-orchestrator/src/meri/meriv3/meriv3-tool-evidence.ts",
+      "bytes": 26291,
+      "sha256": "79f7ff37a28e2a6ac93ab5f072d32d9d54136a9e4a33729dc4d9848b1120a8d2"
+    },
+    {
+      "path": "pending-proposals/source/apps/meriv2-orchestrator/src/meri/retrieval/meri-tool-catalog.ts",
+      "bytes": 7347,
+      "sha256": "dd5b7bcbc8e5cbb0a89967d6a66ffe95d34f1a65da77ae9a6b689c0d53a25989"
+    },
+    {
+      "path": "pending-proposals/source/packages/meriv2-core/src/assurance/tool-ledger-adapter.spec.ts",
+      "bytes": 12749,
+      "sha256": "eb584f614015cc9d9824589e6393623fd71423e6f2b700fbc630ebab08ec3677"
+    },
+    {
+      "path": "pending-proposals/source/packages/meriv2-core/src/assurance/tool-ledger-adapter.ts",
+      "bytes": 30961,
+      "sha256": "32611cd8baf8a8df73edecc18920469d0990c805ffafdab6b1d4be4fe5742068"
+    },
+    {
+      "path": "pending-proposals/source/packages/shared/src/index.ts",
+      "bytes": 262852,
+      "sha256": "c1bd89290cc211d6621b3660dfce7c50cc3803064cc05e542c5f4f9b7af7b610"
+    },
+    {
+      "path": "pending-proposals/source/packages/shared/src/meri-read-outcome.ts",
+      "bytes": 34363,
+      "sha256": "5cf126514e51d882ef519fedf59e375813f25416c1a2dd6436fc42c8d77f34ad"
+    },
+    {
+      "path": "pending-proposals/tracked-candidate.patch",
+      "bytes": 45191,
+      "sha256": "62deedd48e47db3c539486902d468513038d360435d03a43c1433dad6a98b255"
+    },
+    {
+      "path": "prior-budget-readback.json",
+      "bytes": 534,
+      "sha256": "b776d0b3cccf5432ebf0775a2950d150a726719369bbca88c8e93af3941471c5"
+    },
+    {
+      "path": "projection-jest-v1.log",
+      "bytes": 9151,
+      "sha256": "dbc0f96b1bba7bc02fdb17c78901985387cbbb53af57df6af1294033ba9d841c"
+    },
+    {
+      "path": "projection-jest-v1.log.receipt.json",
+      "bytes": 557,
+      "sha256": "4d8d187aa1a50832c37ec824b4e2a0fd521aaee9ac01ba93811293d07ada8126"
+    },
+    {
+      "path": "projection-local-tests.ps1",
+      "bytes": 4117,
+      "sha256": "8b58c65a1e7eb63f2e34e4c5c081add7dcb6305ed44c4e5015a0b3d6782a26cf"
+    },
+    {
+      "path": "projection-postgres-before-fix-source-apps_api_src_memory_memory-clio-adapter.helpers.ts",
+      "bytes": 7604,
+      "sha256": "41102353e8e4e304be8b89611892193716f08f6da1f22d0a80c85d5428f086ed"
+    },
+    {
+      "path": "projection-postgres-before-fix-source-apps_api_src_memory_memory-store.service.ts",
+      "bytes": 54478,
+      "sha256": "73fb0d1ea6ab25edb8257bac60beea156741e83387b67ebfb5402e1dd71aa20a"
+    },
+    {
+      "path": "projection-postgres-before-fix-source-evals_meri_live-v1_tests_approved-memory-postgres-harness.mjs",
+      "bytes": 9208,
+      "sha256": "e9423f5e819c33a628c104ef9137c76708aa05ef0b7c5cdb4a42793dd4959c8d"
+    },
+    {
+      "path": "projection-postgres-before-fix-source-evals_meri_live-v1_tests_approved-memory-schema.mjs",
+      "bytes": 6093,
+      "sha256": "07d41fccf6ad21123f29521a7aa0a2816cf6ea4a76e74f8125ff449b828a94ab"
+    },
+    {
+      "path": "projection-postgres-before-fix-source-evals_meri_live-v1_tests_memory-projection-governance.postgres.test.mjs",
+      "bytes": 6800,
+      "sha256": "229b8eec83a2d610b378c8046c9f0d95cc0053fc10bf240a3fc1f7da27d0191b"
+    },
+    {
+      "path": "projection-postgres-before-fix.json",
+      "bytes": 1351,
+      "sha256": "05ba608cf547abc6e7cb91376e1c1ef9c1f906387c2435f825077d69239c6d67"
+    },
+    {
+      "path": "projection-postgres-before-fix.log",
+      "bytes": 33013,
+      "sha256": "4111a83899d96bfda3ebdf98952d7bae5751842a50e7a56c8feb18e524cf4980"
+    },
+    {
+      "path": "projection-postgres-fixed-v1-source-apps_api_src_memory_memory-clio-adapter.helpers.ts",
+      "bytes": 7604,
+      "sha256": "41102353e8e4e304be8b89611892193716f08f6da1f22d0a80c85d5428f086ed"
+    },
+    {
+      "path": "projection-postgres-fixed-v1-source-apps_api_src_memory_memory-store.service.ts",
+      "bytes": 54809,
+      "sha256": "319934d2de9ea4d98423eb4aab7faa725ea5d54c431a7978d80bdd8a84dd457f"
+    },
+    {
+      "path": "projection-postgres-fixed-v1-source-evals_meri_live-v1_tests_approved-memory-postgres-harness.mjs",
+      "bytes": 9208,
+      "sha256": "e9423f5e819c33a628c104ef9137c76708aa05ef0b7c5cdb4a42793dd4959c8d"
+    },
+    {
+      "path": "projection-postgres-fixed-v1-source-evals_meri_live-v1_tests_approved-memory-schema.mjs",
+      "bytes": 6093,
+      "sha256": "07d41fccf6ad21123f29521a7aa0a2816cf6ea4a76e74f8125ff449b828a94ab"
+    },
+    {
+      "path": "projection-postgres-fixed-v1-source-evals_meri_live-v1_tests_memory-projection-governance.postgres.test.mjs",
+      "bytes": 8421,
+      "sha256": "d9498686a09b2e5c3ed87c9d7ab1c0544943d5eef71c6f4a38c890685d9c0b1a"
+    },
+    {
+      "path": "projection-postgres-fixed-v1.json",
+      "bytes": 1351,
+      "sha256": "61473cb5ff46a4a3d3ea22c6a754a094a215f3ecce1e2c4d2fe6d4cdc5ae4820"
+    },
+    {
+      "path": "projection-postgres-fixed-v1.log",
+      "bytes": 3600,
+      "sha256": "7c80ec19f1eb79afb18f858343d7fc710747b1918729393e2a581490b031e090"
+    },
+    {
+      "path": "served-baseline.json",
+      "bytes": 2046,
+      "sha256": "4b6500ce1394ff0d6e60beb3c40d9c5b6ade5a10eb10a4c531e189b437a6ab76"
+    },
+    {
+      "path": "synthetic-session-cleanup.json",
+      "bytes": 115,
+      "sha256": "da0da3e7db724ae8668230c2cab83aace5c350430a02f9985a4c95af07698d14"
+    }
+  ]
+}

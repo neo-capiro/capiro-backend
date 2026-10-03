@@ -1,0 +1,32 @@
+(node:36956) [DEP0180] DeprecationWarning: fs.Stats constructor is deprecated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+[Nest] 36956  - 10/03/2026, 8:29:25 AM     LOG [MemoryCandidateService] memory_candidate 20e9b13c-6952-5c4b-94f1-311e6d139f40 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+▶ projection refresh over actual canonical services and owned PostgreSQL
+  ✔ preserves current active authority when the Clio snapshot is still active (1658.1401ms)
+[Nest] 36956  - 10/03/2026, 8:29:25 AM     LOG [MemoryCandidateService] memory_candidate c194091c-56a6-5c32-a07e-de68a5509c4f pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+  ✔ preserves current superseded authority when the Clio snapshot is still active (315.1148ms)
+[Nest] 36956  - 10/03/2026, 8:29:26 AM     LOG [MemoryCandidateService] memory_candidate 4c96db09-f1d7-550c-988c-9229e539ad10 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+  ✔ preserves current revoked authority when the Clio snapshot is still active (297.4656ms)
+[Nest] 36956  - 10/03/2026, 8:29:26 AM     LOG [MemoryCandidateService] memory_candidate 75b3fbd7-25b0-5332-9c43-1f54454b3e02 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+  ✔ preserves current stale authority when the Clio snapshot is still active (335.7653ms)
+[Nest] 36956  - 10/03/2026, 8:29:26 AM     LOG [MemoryCandidateService] memory_candidate c22c16e0-cd47-58d6-b489-7c415e0b1477 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+  ✔ preserves current conflicted authority when the Clio snapshot is still active (303.7678ms)
+[Nest] 36956  - 10/03/2026, 8:29:27 AM     LOG [MemoryCandidateService] memory_candidate 611178ba-86b1-5319-b307-c6bb0ac53e89 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+  ✔ preserves current expired authority when the Clio snapshot is still active (295.6647ms)
+[Nest] 36956  - 10/03/2026, 8:29:27 AM     LOG [MemoryCandidateService] memory_candidate 2e07895e-0aa9-551d-8c3a-b65943d7361b pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+  ✔ restores authority only on initial insertion and stores absent retention as SQL NULL (300.3497ms)
+[Nest] 36956  - 10/03/2026, 8:29:27 AM     LOG [MemoryCandidateService] memory_candidate 5e8cd376-5c22-5b07-b350-68fcb8c4da2e pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+  ✔ keeps ordinary unclassified content, scope and edge refreshes working (300.3328ms)
+[Nest] 36956  - 10/03/2026, 8:29:28 AM     LOG [MemoryCandidateService] memory_candidate 28107b5f-5908-5199-999f-42de445f6fe3 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+  ✔ round-trips an explicit retention policy on a new projection (298.5071ms)
+[Nest] 36956  - 10/03/2026, 8:29:28 AM     LOG [MemoryCandidateService] memory_candidate cc6cabae-e831-572e-ac94-5713d354aeb2 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+  ✔ rolls back the inserted row when governance initialization fails (333.1721ms)
+✔ projection refresh over actual canonical services and owned PostgreSQL (4439.9824ms)
+ℹ tests 10
+ℹ suites 1
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4616.944

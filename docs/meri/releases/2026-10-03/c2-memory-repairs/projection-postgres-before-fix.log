@@ -1,0 +1,379 @@
+(node:12944) [DEP0180] DeprecationWarning: fs.Stats constructor is deprecated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+[Nest] 12944  - 10/03/2026, 8:27:56 AM     LOG [MemoryCandidateService] memory_candidate 68a1e5a9-d128-5f47-9b7b-23b3b7caea0b pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+▶ projection refresh over actual canonical services and owned PostgreSQL
+  ✖ preserves current active authority when the Clio snapshot is still active (1959.3381ms)
+[Nest] 12944  - 10/03/2026, 8:27:56 AM     LOG [MemoryCandidateService] memory_candidate c21fb638-9516-5cf5-a770-a73f5be8d656 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+  ✖ preserves current superseded authority when the Clio snapshot is still active (322.9118ms)
+[Nest] 12944  - 10/03/2026, 8:27:56 AM     LOG [MemoryCandidateService] memory_candidate 4aa6e938-8628-5b7f-b99b-a5b7c368c879 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+  ✖ preserves current revoked authority when the Clio snapshot is still active (311.9804ms)
+[Nest] 12944  - 10/03/2026, 8:27:57 AM     LOG [MemoryCandidateService] memory_candidate 107ade3a-52f7-5bc7-adc8-37fbba8ca450 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+  ✖ preserves current stale authority when the Clio snapshot is still active (302.15ms)
+[Nest] 12944  - 10/03/2026, 8:27:57 AM     LOG [MemoryCandidateService] memory_candidate f3559a68-e311-5ef5-ba76-1b961156c7a7 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+  ✖ preserves current conflicted authority when the Clio snapshot is still active (304.2591ms)
+[Nest] 12944  - 10/03/2026, 8:27:57 AM     LOG [MemoryCandidateService] memory_candidate 804779d5-2301-5a17-affc-8050a8be51c5 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+  ✖ preserves current expired authority when the Clio snapshot is still active (317.5988ms)
+[Nest] 12944  - 10/03/2026, 8:27:57 AM     LOG [MemoryCandidateService] memory_candidate 5895d482-3eb1-55f9-ac1a-c8df42dbb73c pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+  ✖ restores authority only on initial insertion and stores absent retention as SQL NULL (299.3253ms)
+[Nest] 12944  - 10/03/2026, 8:27:58 AM     LOG [MemoryCandidateService] memory_candidate c0a5e034-60c1-518b-a6a0-733c211fe248 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+  ✔ keeps ordinary unclassified content, scope and edge refreshes working (315.1602ms)
+✖ projection refresh over actual canonical services and owned PostgreSQL (4134.0459ms)
+ℹ tests 8
+ℹ suites 1
+ℹ pass 1
+ℹ fail 7
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4301.4898
+
+✖ failing tests:
+
+test at evals\meri\live-v1\tests\memory-projection-governance.postgres.test.mjs:39:5
+✖ preserves current active authority when the Clio snapshot is still active (1959.3381ms)
+  AssertionError [ERR_ASSERTION]: Projection is not governance authority
+  + actual - expected
+  ... Skipped lines
+  
+    {
+      approved_at: 2026-10-03T12:27:56.085Z,
+      approved_by_user_id: '66666666-6666-4666-8666-666666666666',
+      as_of: 2026-10-03T12:27:56.085Z,
+      asserted_by_user_id: '44444444-4444-4444-8444-444444444444',
+  ...
+      instructions_allowed: false,
+  +   last_confirmed_at: 2026-10-03T12:27:56.085Z,
+  +   legal_hold: false,
+  -   last_confirmed_at: 2026-10-03T11:00:00.000Z,
+  -   legal_hold: true,
+      memory_authority: 'analyst_verified',
+      memory_class: 'client_steering',
+      retention_policy_jsonb: null,
+  +   retention_sql_null: false,
+  +   review_due_at: null,
+  -   retention_sql_null: true,
+  -   review_due_at: 2026-10-20T11:00:00.000Z,
+      review_state: 'confirmed',
+      revoked_at: null,
+      revoked_by: null,
+      second_approved_at: null,
+      second_approved_by_user_id: null,
+  +   sensitivity: 'normal',
+  -   sensitivity: 'privileged',
+      source_content_hash: 'c2497cd6db7633d2b80c5c9631fd770b6214c12f5d1b7cff3bc7c70bc094030c',
+      source_id: '68a1e5a9-d128-5f47-9b7b-23b3b7caea0b',
+      source_type: 'steward_extraction',
+      source_version: 'candidate:68a1e5a9-d128-5f47-9b7b-23b3b7caea0b',
+      status: 'active',
+  
+      at file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/memory-projection-governance.postgres.test.mjs:59:16
+      at async prisma.$transaction.timeout (file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/approved-memory-postgres-harness.mjs:194:20)
+      at async Proxy._transactionWithCallback (C:\dev\main\meri-c1-20261002\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:130:8000)
+      at async withOwnedApprovedMemory (file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/approved-memory-postgres-harness.mjs:115:7)
+      at async TestContext.<anonymous> (file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/memory-projection-governance.postgres.test.mjs:40:7)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Promise.all (index 0)
+      at async Suite.run (node:internal/test_runner/test:1869:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: { status: 'active', governed_status: 'active', memory_class: 'client_steering', memory_authority: 'analyst_verified', source_type: 'steward_extraction', source_id: '68a1e5a9-d128-5f47-9b7b-23b3b7caea0b', source_version: 'candidate:68a1e5a9-d128-5f47-9b7b-23b3b7caea0b', source_content_hash: 'c2497cd6db7633d2b80c5c9631fd770b6214c12f5d1b7cff3bc7c70bc094030c', asserted_by_user_id: '44444444-4444-4444-8444-444444444444', approved_by_user_id: '66666666-6666-4666-8666-666666666666', approved_at: 2026-10-03T12:27:56.085Z, second_approved_by_user_id: null, second_approved_at: null, as_of: 2026-10-03T12:27:56.085Z, effective_from: 2026-10-03T12:27:56.085Z, valid_until: null, last_confirmed_at: 2026-10-03T12:27:56.085Z, review_due_at: null, review_state: 'confirmed', conflict_status: 'none', conflict_group_id: null, controlling_item_id: null, sensitivity: 'normal', retention_policy_jsonb: null, retention_sql_null: false, legal_hold: false, instructions_allowed: false, revoked_at: null, revoked_by: null },
+    expected: { status: 'active', governed_status: 'active', memory_class: 'client_steering', memory_authority: 'analyst_verified', source_type: 'steward_extraction', source_id: '68a1e5a9-d128-5f47-9b7b-23b3b7caea0b', source_version: 'candidate:68a1e5a9-d128-5f47-9b7b-23b3b7caea0b', source_content_hash: 'c2497cd6db7633d2b80c5c9631fd770b6214c12f5d1b7cff3bc7c70bc094030c', asserted_by_user_id: '44444444-4444-4444-8444-444444444444', approved_by_user_id: '66666666-6666-4666-8666-666666666666', approved_at: 2026-10-03T12:27:56.085Z, second_approved_by_user_id: null, second_approved_at: null, as_of: 2026-10-03T12:27:56.085Z, effective_from: 2026-10-03T12:27:56.085Z, valid_until: null, last_confirmed_at: 2026-10-03T11:00:00.000Z, review_due_at: 2026-10-20T11:00:00.000Z, review_state: 'confirmed', conflict_status: 'none', conflict_group_id: null, controlling_item_id: null, sensitivity: 'privileged', retention_policy_jsonb: null, retention_sql_null: true, legal_hold: true, instructions_allowed: false, revoked_at: null, revoked_by: null },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at evals\meri\live-v1\tests\memory-projection-governance.postgres.test.mjs:39:5
+✖ preserves current superseded authority when the Clio snapshot is still active (322.9118ms)
+  AssertionError [ERR_ASSERTION]: Projection is not governance authority
+  + actual - expected
+  ... Skipped lines
+  
+    {
+      approved_at: 2026-10-03T12:27:56.404Z,
+      approved_by_user_id: '66666666-6666-4666-8666-666666666666',
+      as_of: 2026-10-03T12:27:56.404Z,
+      asserted_by_user_id: '44444444-4444-4444-8444-444444444444',
+  ...
+      effective_from: 2026-10-03T12:27:56.404Z,
+  +   governed_status: 'active',
+  -   governed_status: 'superseded',
+      instructions_allowed: false,
+  +   last_confirmed_at: 2026-10-03T12:27:56.404Z,
+  -   last_confirmed_at: 2026-10-03T11:00:00.000Z,
+      legal_hold: false,
+      memory_authority: 'analyst_verified',
+      memory_class: 'client_steering',
+      retention_policy_jsonb: null,
+  +   retention_sql_null: false,
+  +   review_due_at: null,
+  -   retention_sql_null: true,
+  -   review_due_at: 2026-10-20T11:00:00.000Z,
+      review_state: 'confirmed',
+      revoked_at: null,
+      revoked_by: null,
+      second_approved_at: null,
+      second_approved_by_user_id: null,
+  +   sensitivity: 'normal',
+  -   sensitivity: 'privileged',
+      source_content_hash: '8e6aec54fda305e28cd24f07c67972193bf009ecabb3058d36a6c1ccb2d2a8f4',
+      source_id: 'c21fb638-9516-5cf5-a770-a73f5be8d656',
+      source_type: 'steward_extraction',
+      source_version: 'candidate:c21fb638-9516-5cf5-a770-a73f5be8d656',
+      status: 'superseded',
+  
+      at file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/memory-projection-governance.postgres.test.mjs:59:16
+      at async prisma.$transaction.timeout (file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/approved-memory-postgres-harness.mjs:194:20)
+      at async Proxy._transactionWithCallback (C:\dev\main\meri-c1-20261002\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:130:8000)
+      at async withOwnedApprovedMemory (file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/approved-memory-postgres-harness.mjs:115:7)
+      at async TestContext.<anonymous> (file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/memory-projection-governance.postgres.test.mjs:40:7)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: { status: 'superseded', governed_status: 'active', memory_class: 'client_steering', memory_authority: 'analyst_verified', source_type: 'steward_extraction', source_id: 'c21fb638-9516-5cf5-a770-a73f5be8d656', source_version: 'candidate:c21fb638-9516-5cf5-a770-a73f5be8d656', source_content_hash: '8e6aec54fda305e28cd24f07c67972193bf009ecabb3058d36a6c1ccb2d2a8f4', asserted_by_user_id: '44444444-4444-4444-8444-444444444444', approved_by_user_id: '66666666-6666-4666-8666-666666666666', approved_at: 2026-10-03T12:27:56.404Z, second_approved_by_user_id: null, second_approved_at: null, as_of: 2026-10-03T12:27:56.404Z, effective_from: 2026-10-03T12:27:56.404Z, valid_until: null, last_confirmed_at: 2026-10-03T12:27:56.404Z, review_due_at: null, review_state: 'confirmed', conflict_status: 'none', conflict_group_id: null, controlling_item_id: null, sensitivity: 'normal', retention_policy_jsonb: null, retention_sql_null: false, legal_hold: false, instructions_allowed: false, revoked_at: null, revoked_by: null },
+    expected: { status: 'superseded', governed_status: 'superseded', memory_class: 'client_steering', memory_authority: 'analyst_verified', source_type: 'steward_extraction', source_id: 'c21fb638-9516-5cf5-a770-a73f5be8d656', source_version: 'candidate:c21fb638-9516-5cf5-a770-a73f5be8d656', source_content_hash: '8e6aec54fda305e28cd24f07c67972193bf009ecabb3058d36a6c1ccb2d2a8f4', asserted_by_user_id: '44444444-4444-4444-8444-444444444444', approved_by_user_id: '66666666-6666-4666-8666-666666666666', approved_at: 2026-10-03T12:27:56.404Z, second_approved_by_user_id: null, second_approved_at: null, as_of: 2026-10-03T12:27:56.404Z, effective_from: 2026-10-03T12:27:56.404Z, valid_until: null, last_confirmed_at: 2026-10-03T11:00:00.000Z, review_due_at: 2026-10-20T11:00:00.000Z, review_state: 'confirmed', conflict_status: 'none', conflict_group_id: null, controlling_item_id: null, sensitivity: 'privileged', retention_policy_jsonb: null, retention_sql_null: true, legal_hold: false, instructions_allowed: false, revoked_at: null, revoked_by: null },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at evals\meri\live-v1\tests\memory-projection-governance.postgres.test.mjs:39:5
+✖ preserves current revoked authority when the Clio snapshot is still active (311.9804ms)
+  AssertionError [ERR_ASSERTION]: Projection is not governance authority
+  + actual - expected
+  ... Skipped lines
+  
+    {
+      approved_at: 2026-10-03T12:27:56.734Z,
+      approved_by_user_id: '66666666-6666-4666-8666-666666666666',
+      as_of: 2026-10-03T12:27:56.734Z,
+      asserted_by_user_id: '44444444-4444-4444-8444-444444444444',
+  ...
+      effective_from: 2026-10-03T12:27:56.734Z,
+  +   governed_status: 'active',
+  -   governed_status: 'revoked',
+      instructions_allowed: false,
+  +   last_confirmed_at: 2026-10-03T12:27:56.734Z,
+  -   last_confirmed_at: 2026-10-03T11:00:00.000Z,
+      legal_hold: false,
+      memory_authority: 'analyst_verified',
+      memory_class: 'client_steering',
+      retention_policy_jsonb: null,
+  +   retention_sql_null: false,
+  +   review_due_at: null,
+  -   retention_sql_null: true,
+  -   review_due_at: 2026-10-20T11:00:00.000Z,
+      review_state: 'confirmed',
+      revoked_at: null,
+      revoked_by: null,
+      second_approved_at: null,
+      second_approved_by_user_id: null,
+  +   sensitivity: 'normal',
+  -   sensitivity: 'privileged',
+      source_content_hash: 'ccd00a53222bd322ac3e0246c61c35e56edd35d29327a3cac0975a8ee273ad1c',
+      source_id: '4aa6e938-8628-5b7f-b99b-a5b7c368c879',
+      source_type: 'steward_extraction',
+      source_version: 'candidate:4aa6e938-8628-5b7f-b99b-a5b7c368c879',
+      status: 'revoked',
+  
+      at file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/memory-projection-governance.postgres.test.mjs:59:16
+      at async prisma.$transaction.timeout (file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/approved-memory-postgres-harness.mjs:194:20)
+      at async Proxy._transactionWithCallback (C:\dev\main\meri-c1-20261002\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:130:8000)
+      at async withOwnedApprovedMemory (file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/approved-memory-postgres-harness.mjs:115:7)
+      at async TestContext.<anonymous> (file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/memory-projection-governance.postgres.test.mjs:40:7)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: { status: 'revoked', governed_status: 'active', memory_class: 'client_steering', memory_authority: 'analyst_verified', source_type: 'steward_extraction', source_id: '4aa6e938-8628-5b7f-b99b-a5b7c368c879', source_version: 'candidate:4aa6e938-8628-5b7f-b99b-a5b7c368c879', source_content_hash: 'ccd00a53222bd322ac3e0246c61c35e56edd35d29327a3cac0975a8ee273ad1c', asserted_by_user_id: '44444444-4444-4444-8444-444444444444', approved_by_user_id: '66666666-6666-4666-8666-666666666666', approved_at: 2026-10-03T12:27:56.734Z, second_approved_by_user_id: null, second_approved_at: null, as_of: 2026-10-03T12:27:56.734Z, effective_from: 2026-10-03T12:27:56.734Z, valid_until: null, last_confirmed_at: 2026-10-03T12:27:56.734Z, review_due_at: null, review_state: 'confirmed', conflict_status: 'none', conflict_group_id: null, controlling_item_id: null, sensitivity: 'normal', retention_policy_jsonb: null, retention_sql_null: false, legal_hold: false, instructions_allowed: false, revoked_at: null, revoked_by: null },
+    expected: { status: 'revoked', governed_status: 'revoked', memory_class: 'client_steering', memory_authority: 'analyst_verified', source_type: 'steward_extraction', source_id: '4aa6e938-8628-5b7f-b99b-a5b7c368c879', source_version: 'candidate:4aa6e938-8628-5b7f-b99b-a5b7c368c879', source_content_hash: 'ccd00a53222bd322ac3e0246c61c35e56edd35d29327a3cac0975a8ee273ad1c', asserted_by_user_id: '44444444-4444-4444-8444-444444444444', approved_by_user_id: '66666666-6666-4666-8666-666666666666', approved_at: 2026-10-03T12:27:56.734Z, second_approved_by_user_id: null, second_approved_at: null, as_of: 2026-10-03T12:27:56.734Z, effective_from: 2026-10-03T12:27:56.734Z, valid_until: null, last_confirmed_at: 2026-10-03T11:00:00.000Z, review_due_at: 2026-10-20T11:00:00.000Z, review_state: 'confirmed', conflict_status: 'none', conflict_group_id: null, controlling_item_id: null, sensitivity: 'privileged', retention_policy_jsonb: null, retention_sql_null: true, legal_hold: false, instructions_allowed: false, revoked_at: null, revoked_by: null },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at evals\meri\live-v1\tests\memory-projection-governance.postgres.test.mjs:39:5
+✖ preserves current stale authority when the Clio snapshot is still active (302.15ms)
+  AssertionError [ERR_ASSERTION]: Projection is not governance authority
+  + actual - expected
+  ... Skipped lines
+  
+    {
+      approved_at: 2026-10-03T12:27:57.036Z,
+      approved_by_user_id: '66666666-6666-4666-8666-666666666666',
+      as_of: 2026-10-03T12:27:57.036Z,
+      asserted_by_user_id: '44444444-4444-4444-8444-444444444444',
+  ...
+      effective_from: 2026-10-03T12:27:57.036Z,
+  +   governed_status: 'active',
+  -   governed_status: 'stale',
+      instructions_allowed: false,
+  +   last_confirmed_at: 2026-10-03T12:27:57.036Z,
+  -   last_confirmed_at: 2026-10-03T11:00:00.000Z,
+      legal_hold: false,
+      memory_authority: 'analyst_verified',
+      memory_class: 'client_steering',
+      retention_policy_jsonb: null,
+  +   retention_sql_null: false,
+  +   review_due_at: null,
+  -   retention_sql_null: true,
+  -   review_due_at: 2026-10-20T11:00:00.000Z,
+      review_state: 'confirmed',
+      revoked_at: null,
+      revoked_by: null,
+      second_approved_at: null,
+      second_approved_by_user_id: null,
+  +   sensitivity: 'normal',
+  -   sensitivity: 'privileged',
+      source_content_hash: '16cb1f9de2216edff05a9484e3d64a5d91bb72985ca82a500a92868f247b4155',
+      source_id: '107ade3a-52f7-5bc7-adc8-37fbba8ca450',
+      source_type: 'steward_extraction',
+      source_version: 'candidate:107ade3a-52f7-5bc7-adc8-37fbba8ca450',
+      status: 'active',
+  
+      at file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/memory-projection-governance.postgres.test.mjs:59:16
+      at async prisma.$transaction.timeout (file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/approved-memory-postgres-harness.mjs:194:20)
+      at async Proxy._transactionWithCallback (C:\dev\main\meri-c1-20261002\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:130:8000)
+      at async withOwnedApprovedMemory (file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/approved-memory-postgres-harness.mjs:115:7)
+      at async TestContext.<anonymous> (file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/memory-projection-governance.postgres.test.mjs:40:7)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: { status: 'active', governed_status: 'active', memory_class: 'client_steering', memory_authority: 'analyst_verified', source_type: 'steward_extraction', source_id: '107ade3a-52f7-5bc7-adc8-37fbba8ca450', source_version: 'candidate:107ade3a-52f7-5bc7-adc8-37fbba8ca450', source_content_hash: '16cb1f9de2216edff05a9484e3d64a5d91bb72985ca82a500a92868f247b4155', asserted_by_user_id: '44444444-4444-4444-8444-444444444444', approved_by_user_id: '66666666-6666-4666-8666-666666666666', approved_at: 2026-10-03T12:27:57.036Z, second_approved_by_user_id: null, second_approved_at: null, as_of: 2026-10-03T12:27:57.036Z, effective_from: 2026-10-03T12:27:57.036Z, valid_until: null, last_confirmed_at: 2026-10-03T12:27:57.036Z, review_due_at: null, review_state: 'confirmed', conflict_status: 'none', conflict_group_id: null, controlling_item_id: null, sensitivity: 'normal', retention_policy_jsonb: null, retention_sql_null: false, legal_hold: false, instructions_allowed: false, revoked_at: null, revoked_by: null },
+    expected: { status: 'active', governed_status: 'stale', memory_class: 'client_steering', memory_authority: 'analyst_verified', source_type: 'steward_extraction', source_id: '107ade3a-52f7-5bc7-adc8-37fbba8ca450', source_version: 'candidate:107ade3a-52f7-5bc7-adc8-37fbba8ca450', source_content_hash: '16cb1f9de2216edff05a9484e3d64a5d91bb72985ca82a500a92868f247b4155', asserted_by_user_id: '44444444-4444-4444-8444-444444444444', approved_by_user_id: '66666666-6666-4666-8666-666666666666', approved_at: 2026-10-03T12:27:57.036Z, second_approved_by_user_id: null, second_approved_at: null, as_of: 2026-10-03T12:27:57.036Z, effective_from: 2026-10-03T12:27:57.036Z, valid_until: null, last_confirmed_at: 2026-10-03T11:00:00.000Z, review_due_at: 2026-10-20T11:00:00.000Z, review_state: 'confirmed', conflict_status: 'none', conflict_group_id: null, controlling_item_id: null, sensitivity: 'privileged', retention_policy_jsonb: null, retention_sql_null: true, legal_hold: false, instructions_allowed: false, revoked_at: null, revoked_by: null },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at evals\meri\live-v1\tests\memory-projection-governance.postgres.test.mjs:39:5
+✖ preserves current conflicted authority when the Clio snapshot is still active (304.2591ms)
+  AssertionError [ERR_ASSERTION]: Projection is not governance authority
+  + actual - expected
+  
+    {
+      approved_at: 2026-10-03T12:27:57.339Z,
+      approved_by_user_id: '66666666-6666-4666-8666-666666666666',
+      as_of: 2026-10-03T12:27:57.339Z,
+      asserted_by_user_id: '44444444-4444-4444-8444-444444444444',
+  +   conflict_group_id: null,
+  +   conflict_status: 'none',
+  +   controlling_item_id: null,
+  -   conflict_group_id: '54f7a384-52b2-46b8-9671-55c40011f10d',
+  -   conflict_status: 'open',
+  -   controlling_item_id: '123562a4-5543-4c4e-8d35-ae1ee6b4c6df',
+      effective_from: 2026-10-03T12:27:57.339Z,
+  +   governed_status: 'active',
+  -   governed_status: 'conflicted',
+      instructions_allowed: false,
+  +   last_confirmed_at: 2026-10-03T12:27:57.339Z,
+  -   last_confirmed_at: 2026-10-03T11:00:00.000Z,
+      legal_hold: false,
+      memory_authority: 'analyst_verified',
+      memory_class: 'client_steering',
+      retention_policy_jsonb: null,
+  +   retention_sql_null: false,
+  +   review_due_at: null,
+  -   retention_sql_null: true,
+  -   review_due_at: 2026-10-20T11:00:00.000Z,
+      review_state: 'confirmed',
+      revoked_at: null,
+      revoked_by: null,
+      second_approved_at: null,
+      second_approved_by_user_id: null,
+  +   sensitivity: 'normal',
+  -   sensitivity: 'privileged',
+      source_content_hash: '5dea5f59baca2ec14907fda0656d9f6de15c43e23097d14aab141ba9b3393645',
+      source_id: 'f3559a68-e311-5ef5-ba76-1b961156c7a7',
+      source_type: 'steward_extraction',
+      source_version: 'candidate:f3559a68-e311-5ef5-ba76-1b961156c7a7',
+      status: 'active',
+  
+      at file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/memory-projection-governance.postgres.test.mjs:59:16
+      at async prisma.$transaction.timeout (file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/approved-memory-postgres-harness.mjs:194:20)
+      at async Proxy._transactionWithCallback (C:\dev\main\meri-c1-20261002\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:130:8000)
+      at async withOwnedApprovedMemory (file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/approved-memory-postgres-harness.mjs:115:7)
+      at async TestContext.<anonymous> (file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/memory-projection-governance.postgres.test.mjs:40:7)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: { status: 'active', governed_status: 'active', memory_class: 'client_steering', memory_authority: 'analyst_verified', source_type: 'steward_extraction', source_id: 'f3559a68-e311-5ef5-ba76-1b961156c7a7', source_version: 'candidate:f3559a68-e311-5ef5-ba76-1b961156c7a7', source_content_hash: '5dea5f59baca2ec14907fda0656d9f6de15c43e23097d14aab141ba9b3393645', asserted_by_user_id: '44444444-4444-4444-8444-444444444444', approved_by_user_id: '66666666-6666-4666-8666-666666666666', approved_at: 2026-10-03T12:27:57.339Z, second_approved_by_user_id: null, second_approved_at: null, as_of: 2026-10-03T12:27:57.339Z, effective_from: 2026-10-03T12:27:57.339Z, valid_until: null, last_confirmed_at: 2026-10-03T12:27:57.339Z, review_due_at: null, review_state: 'confirmed', conflict_status: 'none', conflict_group_id: null, controlling_item_id: null, sensitivity: 'normal', retention_policy_jsonb: null, retention_sql_null: false, legal_hold: false, instructions_allowed: false, revoked_at: null, revoked_by: null },
+    expected: { status: 'active', governed_status: 'conflicted', memory_class: 'client_steering', memory_authority: 'analyst_verified', source_type: 'steward_extraction', source_id: 'f3559a68-e311-5ef5-ba76-1b961156c7a7', source_version: 'candidate:f3559a68-e311-5ef5-ba76-1b961156c7a7', source_content_hash: '5dea5f59baca2ec14907fda0656d9f6de15c43e23097d14aab141ba9b3393645', asserted_by_user_id: '44444444-4444-4444-8444-444444444444', approved_by_user_id: '66666666-6666-4666-8666-666666666666', approved_at: 2026-10-03T12:27:57.339Z, second_approved_by_user_id: null, second_approved_at: null, as_of: 2026-10-03T12:27:57.339Z, effective_from: 2026-10-03T12:27:57.339Z, valid_until: null, last_confirmed_at: 2026-10-03T11:00:00.000Z, review_due_at: 2026-10-20T11:00:00.000Z, review_state: 'confirmed', conflict_status: 'open', conflict_group_id: '54f7a384-52b2-46b8-9671-55c40011f10d', controlling_item_id: '123562a4-5543-4c4e-8d35-ae1ee6b4c6df', sensitivity: 'privileged', retention_policy_jsonb: null, retention_sql_null: true, legal_hold: false, instructions_allowed: false, revoked_at: null, revoked_by: null },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at evals\meri\live-v1\tests\memory-projection-governance.postgres.test.mjs:39:5
+✖ preserves current expired authority when the Clio snapshot is still active (317.5988ms)
+  AssertionError [ERR_ASSERTION]: Projection is not governance authority
+  + actual - expected
+  ... Skipped lines
+  
+    {
+      approved_at: 2026-10-03T12:27:57.641Z,
+      approved_by_user_id: '66666666-6666-4666-8666-666666666666',
+      as_of: 2026-10-03T12:27:57.641Z,
+      asserted_by_user_id: '44444444-4444-4444-8444-444444444444',
+  ...
+      effective_from: 2026-10-03T12:27:57.641Z,
+  +   governed_status: 'active',
+  -   governed_status: 'expired',
+      instructions_allowed: false,
+  +   last_confirmed_at: 2026-10-03T12:27:57.641Z,
+  -   last_confirmed_at: 2026-10-03T11:00:00.000Z,
+      legal_hold: false,
+      memory_authority: 'analyst_verified',
+      memory_class: 'client_steering',
+      retention_policy_jsonb: null,
+  +   retention_sql_null: false,
+  +   review_due_at: null,
+  -   retention_sql_null: true,
+  -   review_due_at: 2026-10-20T11:00:00.000Z,
+      review_state: 'confirmed',
+      revoked_at: null,
+      revoked_by: null,
+      second_approved_at: null,
+      second_approved_by_user_id: null,
+  +   sensitivity: 'normal',
+  -   sensitivity: 'privileged',
+      source_content_hash: '8e784ca4400ec91eb5e06a65a8b737e69d5011098f8f7438d42c8087873aa3de',
+      source_id: '804779d5-2301-5a17-affc-8050a8be51c5',
+      source_type: 'steward_extraction',
+      source_version: 'candidate:804779d5-2301-5a17-affc-8050a8be51c5',
+      status: 'active',
+  
+      at file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/memory-projection-governance.postgres.test.mjs:59:16
+      at async prisma.$transaction.timeout (file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/approved-memory-postgres-harness.mjs:194:20)
+      at async Proxy._transactionWithCallback (C:\dev\main\meri-c1-20261002\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:130:8000)
+      at async withOwnedApprovedMemory (file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/approved-memory-postgres-harness.mjs:115:7)
+      at async TestContext.<anonymous> (file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/memory-projection-governance.postgres.test.mjs:40:7)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: { status: 'active', governed_status: 'active', memory_class: 'client_steering', memory_authority: 'analyst_verified', source_type: 'steward_extraction', source_id: '804779d5-2301-5a17-affc-8050a8be51c5', source_version: 'candidate:804779d5-2301-5a17-affc-8050a8be51c5', source_content_hash: '8e784ca4400ec91eb5e06a65a8b737e69d5011098f8f7438d42c8087873aa3de', asserted_by_user_id: '44444444-4444-4444-8444-444444444444', approved_by_user_id: '66666666-6666-4666-8666-666666666666', approved_at: 2026-10-03T12:27:57.641Z, second_approved_by_user_id: null, second_approved_at: null, as_of: 2026-10-03T12:27:57.641Z, effective_from: 2026-10-03T12:27:57.641Z, valid_until: null, last_confirmed_at: 2026-10-03T12:27:57.641Z, review_due_at: null, review_state: 'confirmed', conflict_status: 'none', conflict_group_id: null, controlling_item_id: null, sensitivity: 'normal', retention_policy_jsonb: null, retention_sql_null: false, legal_hold: false, instructions_allowed: false, revoked_at: null, revoked_by: null },
+    expected: { status: 'active', governed_status: 'expired', memory_class: 'client_steering', memory_authority: 'analyst_verified', source_type: 'steward_extraction', source_id: '804779d5-2301-5a17-affc-8050a8be51c5', source_version: 'candidate:804779d5-2301-5a17-affc-8050a8be51c5', source_content_hash: '8e784ca4400ec91eb5e06a65a8b737e69d5011098f8f7438d42c8087873aa3de', asserted_by_user_id: '44444444-4444-4444-8444-444444444444', approved_by_user_id: '66666666-6666-4666-8666-666666666666', approved_at: 2026-10-03T12:27:57.641Z, second_approved_by_user_id: null, second_approved_at: null, as_of: 2026-10-03T12:27:57.641Z, effective_from: 2026-10-03T12:27:57.641Z, valid_until: null, last_confirmed_at: 2026-10-03T11:00:00.000Z, review_due_at: 2026-10-20T11:00:00.000Z, review_state: 'confirmed', conflict_status: 'none', conflict_group_id: null, controlling_item_id: null, sensitivity: 'privileged', retention_policy_jsonb: null, retention_sql_null: true, legal_hold: false, instructions_allowed: false, revoked_at: null, revoked_by: null },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at evals\meri\live-v1\tests\memory-projection-governance.postgres.test.mjs:67:3
+✖ restores authority only on initial insertion and stores absent retention as SQL NULL (299.3253ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  false !== true
+  
+      at file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/memory-projection-governance.postgres.test.mjs:77:14
+      at async prisma.$transaction.timeout (file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/approved-memory-postgres-harness.mjs:194:20)
+      at async Proxy._transactionWithCallback (C:\dev\main\meri-c1-20261002\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:130:8000)
+      at async withOwnedApprovedMemory (file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/approved-memory-postgres-harness.mjs:115:7)
+      at async TestContext.<anonymous> (file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/memory-projection-governance.postgres.test.mjs:68:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

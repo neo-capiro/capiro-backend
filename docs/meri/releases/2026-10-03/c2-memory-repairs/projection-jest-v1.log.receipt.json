@@ -1,0 +1,6 @@
+{
+  "command": "NODE_OPTIONS=--max-old-space-size=8192 pnpm --filter @capiro/api exec jest --runInBand --forceExit src/memory/memory-store.projection-governance.spec.ts src/memory/memory-store.governance.spec.ts src/memory/memory-store.mutation.spec.ts src/memory/memory-ingest.service.spec.ts src/memory/strict-memory-projector.service.spec.ts src/memory/lineage-aware-memory-store.service.spec.ts",
+  "exitCode": 0,
+  "completedAt": "2026-10-03T12:30:38.9123315Z",
+  "logSha256": "dbc0f96b1bba7bc02fdb17c78901985387cbbb53af57df6af1294033ba9d841c"
+}

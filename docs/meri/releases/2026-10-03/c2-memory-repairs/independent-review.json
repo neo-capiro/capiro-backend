@@ -1,0 +1,39 @@
+{
+  "reviewer": "/root/mail_defaults_review",
+  "kind": "independent source review; not human release approval",
+  "pendingProposals": {
+    "result": "PASS",
+    "sourceCommit": "742c49392c4c3c50dd4c63e1fdc814342172c35a",
+    "verifiedSourceFiles": 20,
+    "api": 75,
+    "orchestrator": 138,
+    "ledger": 149,
+    "nativeScopePassed": 1,
+    "nativeScopeFiltered": 121,
+    "evidenceCorrection": "Original snapshot remains; reviewed snapshot corrects API receipt filename only"
+  },
+  "projection": {
+    "result": "PASS",
+    "sourceCommit": "ed44f2c6cfdfda5150f75ab198a6e52d2377880f",
+    "productionFileSha256": "319934d2de9ea4d98423eb4aab7faa725ea5d54c431a7978d80bdd8a84dd457f",
+    "postgresBefore": {
+      "passed": 1,
+      "failed": 7
+    },
+    "postgresAfter": {
+      "passed": 10,
+      "failed": 0
+    },
+    "jestSuites": 6,
+    "jestPassed": 42,
+    "testFormatting": "Reviewer verified same parsed syntax/literals after formatting",
+    "concurrency": "Fresh INSERT UUID and conflict return ID reviewed; no empirical concurrent-transaction proof"
+  },
+  "limitations": [
+    "No reviewer test reruns",
+    "No served C2 acceptance or production RLS proof",
+    "Existing corrupted fixture metadata requires separate reconciliation",
+    "Projection content/routing/embedding behavior unchanged",
+    "Semantic clock and original acceptance gates remain open"
+  ]
+}

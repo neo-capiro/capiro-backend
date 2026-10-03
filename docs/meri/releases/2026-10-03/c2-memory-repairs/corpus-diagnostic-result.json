@@ -1,0 +1,26 @@
+{
+  "at": "2026-10-03T12:04:16.265Z",
+  "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/fbf65196a78446f79e0a9cd9414227bb",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-c2-readback-20261003:2",
+  "exitCode": 1,
+  "receipts": [
+    {
+      "status": "READ_FAILED",
+      "name": "ForbiddenException",
+      "code": null,
+      "safeMessage": "Approved synthetic memory guard does not match",
+      "frames": [
+        "    at deny (/app/apps/api/src/memory/synthetic-approved-memory.helpers.ts:24:9)",
+        "    at validateSyntheticApprovedMemoryInTx (/app/apps/api/src/memory/synthetic-approved-memory.helpers.ts:231:27)",
+        "    at async readSyntheticCorrectionStateInTx (/app/apps/api/src/memory/synthetic-memory-version.helpers.ts:65:16)",
+        "    at async readSyntheticCorrectionRetirementInTx (/app/apps/api/src/memory/synthetic-memory-version.helpers.ts:188:17)",
+        "    at async retirementInTx (file:///app/evals/meri/live-v1/fixture-provisioning/case01-memory-runtime.mjs:412:24)",
+        "    at async Object.hydrateInTx (file:///app/evals/meri/live-v1/fixture-provisioning/case01-memory-runtime.mjs:399:20)",
+        "    at async reconstruct (file:///app/evals/meri/live-v1/fixture-provisioning/case01-memory-owner.mjs:81:3)",
+        "    at async readCase01MemoryCorpusInTx (file:///app/evals/meri/live-v1/fixture-provisioning/case01-memory-owner.mjs:156:21)"
+      ]
+    }
+  ],
+  "providerCalls": 0,
+  "businessWrites": 0
+}

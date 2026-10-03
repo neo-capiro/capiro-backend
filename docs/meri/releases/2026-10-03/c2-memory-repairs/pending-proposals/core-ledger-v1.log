@@ -1,0 +1,160 @@
+PASS src/assurance/tool-ledger-adapter.spec.ts
+  profile evidence classification
+    √ never promotes pending proposal text to primary or authoritative memory facts in either classification (3 ms)
+    √ explain_opportunity_match is Capiro-derived, non-primary, and non-authoritative (1 ms)
+    √ get_opportunity_client_context is Capiro-derived, non-primary, and non-authoritative
+    √ get_opportunity_government_landscape is Capiro-derived, non-primary, and non-authoritative
+    √ compare_funding_opportunities is Capiro-derived, non-primary, and non-authoritative
+    √ build_opportunity_action_plan is Capiro-derived, non-primary, and non-authoritative (1 ms)
+    √ research_federal_market_strategy is Capiro-derived, non-primary, and non-authoritative
+    √ run_analysis is Capiro-derived, non-primary, and non-authoritative
+    √ search_capiro_data is Capiro-derived, non-primary, and non-authoritative
+    √ query_relationship_brief is Capiro-derived, non-primary, and non-authoritative
+    √ query_client_changes is Capiro-derived, non-primary, and non-authoritative
+    √ query_portfolio_changes is Capiro-derived, non-primary, and non-authoritative
+    √ research_external_company is Capiro-derived, non-primary, and non-authoritative
+    √ query_portfolio_overlap is Capiro-derived, non-primary, and non-authoritative
+    √ query_funding_opportunity_match is Capiro-derived, non-primary, and non-authoritative
+    √ get_district_nexus_context is Capiro-derived, non-primary, and non-authoritative
+    √ get_district_nexus_changes is Capiro-derived, non-primary, and non-authoritative
+    √ get_bill_status is official_action_vote_status, primary, and authoritative
+    √ search_congress_bills is primary_legislative_legal_text, primary, and authoritative
+    √ get_pe_budget_timeline is official_budget_exhibit_mark_law, primary, and authoritative
+    √ get_committee_roster is committee_agency_guidance, primary, and authoritative (1 ms)
+    √ search_sam_opportunities is official_government_data, primary, and authoritative
+    √ search_funding_opportunities is official_government_data, primary, and authoritative
+    √ get_funding_opportunity is official_government_data, primary, and authoritative
+    √ keeps Capiro operational records self-authoritative
+    √ fails unknown tools closed
+    √ changes derived claim support while official support remains high-confidence (10 ms)
+  legacy evidence classification compatibility
+    √ get_bill_status exactly retains the pre-profile regex behavior (1 ms)
+    √ get_state_bill_status exactly retains the pre-profile regex behavior
+    √ search_floor_votes exactly retains the pre-profile regex behavior
+    √ search_state_floor_votes exactly retains the pre-profile regex behavior
+    √ get_state_rule_status exactly retains the pre-profile regex behavior
+    √ search_congress_bills exactly retains the pre-profile regex behavior
+    √ search_state_bills exactly retains the pre-profile regex behavior
+    √ get_legal_reference exactly retains the pre-profile regex behavior (1 ms)
+    √ get_pe_budget_timeline exactly retains the pre-profile regex behavior
+    √ get_program_element exactly retains the pre-profile regex behavior
+    √ get_pe_report_language exactly retains the pre-profile regex behavior
+    √ get_pe_bills exactly retains the pre-profile regex behavior
+    √ get_pe_contractors exactly retains the pre-profile regex behavior
+    √ search_program_elements exactly retains the pre-profile regex behavior
+    √ query_regulatory_dockets exactly retains the pre-profile regex behavior
+    √ get_committee_roster exactly retains the pre-profile regex behavior
+    √ get_certification_status exactly retains the pre-profile regex behavior
+    √ get_acquisition_person exactly retains the pre-profile regex behavior
+    √ search_acquisition_personnel exactly retains the pre-profile regex behavior
+    √ get_state_legislator exactly retains the pre-profile regex behavior
+    √ list_members exactly retains the pre-profile regex behavior
+    √ get_representation exactly retains the pre-profile regex behavior
+    √ resolve_entity exactly retains the pre-profile regex behavior
+    √ search_cbo_cost_estimates exactly retains the pre-profile regex behavior
+    √ search_committee_hearings exactly retains the pre-profile regex behavior
+    √ search_crs_reports exactly retains the pre-profile regex behavior
+    √ search_gao_reports exactly retains the pre-profile regex behavior
+    √ search_lda_filings exactly retains the pre-profile regex behavior
+    √ search_sec_filings exactly retains the pre-profile regex behavior
+    √ search_fara_registrations exactly retains the pre-profile regex behavior (1 ms)
+    √ search_federal_awards exactly retains the pre-profile regex behavior
+    √ search_federal_grants exactly retains the pre-profile regex behavior
+    √ search_sam_opportunities exactly retains the pre-profile regex behavior
+    √ search_funding_opportunities exactly retains the pre-profile regex behavior
+    √ get_funding_opportunity exactly retains the pre-profile regex behavior
+    √ get_funding_opportunity_requirements exactly retains the pre-profile regex behavior
+    √ query_economic_data exactly retains the pre-profile regex behavior
+    √ get_district_nexus_context exactly retains the pre-profile regex behavior
+    √ get_district_nexus_changes exactly retains the pre-profile regex behavior
+    √ query_global_data exactly retains the pre-profile regex behavior
+    √ list_global_datasets exactly retains the pre-profile regex behavior
+    √ search_tracked_bills exactly retains the pre-profile regex behavior
+    √ lookup_client_registry exactly retains the pre-profile regex behavior (1 ms)
+    √ get_florida_budget_project exactly retains the pre-profile regex behavior
+    √ query_intelligence exactly retains the pre-profile regex behavior
+    √ search_memory exactly retains the pre-profile regex behavior
+    √ search_client_knowledge exactly retains the pre-profile regex behavior
+    √ read_client_documents exactly retains the pre-profile regex behavior
+    √ search_legislative_research exactly retains the pre-profile regex behavior
+    √ search_public_web exactly retains the pre-profile regex behavior
+    √ scrape_web_page exactly retains the pre-profile regex behavior
+    √ search_intel_articles exactly retains the pre-profile regex behavior
+    √ search_legiwatch_news exactly retains the pre-profile regex behavior
+    √ get_research_evidence exactly retains the pre-profile regex behavior
+    √ get_client_context exactly retains the pre-profile regex behavior
+    √ query_tasks exactly retains the pre-profile regex behavior
+    √ query_debriefs exactly retains the pre-profile regex behavior
+    √ query_outreach exactly retains the pre-profile regex behavior
+    √ list_emails exactly retains the pre-profile regex behavior
+    √ search_emails exactly retains the pre-profile regex behavior
+    √ get_email_thread exactly retains the pre-profile regex behavior
+    √ list_upcoming_meetings exactly retains the pre-profile regex behavior
+    √ list_scheduled_tasks exactly retains the pre-profile regex behavior
+    √ find_contacts exactly retains the pre-profile regex behavior
+    √ search_research_sources exactly retains the pre-profile regex behavior
+    √ explain_opportunity_match exactly retains the pre-profile regex behavior (1 ms)
+    √ get_opportunity_client_context exactly retains the pre-profile regex behavior
+    √ get_opportunity_government_landscape exactly retains the pre-profile regex behavior
+    √ compare_funding_opportunities exactly retains the pre-profile regex behavior
+    √ build_opportunity_action_plan exactly retains the pre-profile regex behavior
+    √ research_federal_market_strategy exactly retains the pre-profile regex behavior
+    √ run_analysis exactly retains the pre-profile regex behavior
+    √ search_capiro_data exactly retains the pre-profile regex behavior
+    √ find_path_to exactly retains the pre-profile regex behavior
+    √ query_knowledge_graph exactly retains the pre-profile regex behavior
+    √ query_action_items exactly retains the pre-profile regex behavior
+    √ create_meeting_brief exactly retains the pre-profile regex behavior
+    √ draft_policy_memo exactly retains the pre-profile regex behavior
+    √ compare_florida_budget_amounts exactly retains the pre-profile regex behavior
+    √ prepare_legiwatch_briefing exactly retains the pre-profile regex behavior
+    √ get_legiwatch_review exactly retains the pre-profile regex behavior
+    √ compare_legislative_versions exactly retains the pre-profile regex behavior
+    √ preview_legiwatch_relevance exactly retains the pre-profile regex behavior
+    √ query_relationship_brief exactly retains the pre-profile regex behavior
+    √ query_client_changes exactly retains the pre-profile regex behavior
+    √ query_portfolio_changes exactly retains the pre-profile regex behavior
+    √ research_external_company exactly retains the pre-profile regex behavior
+    √ query_portfolio_overlap exactly retains the pre-profile regex behavior
+    √ query_funding_opportunity_match exactly retains the pre-profile regex behavior
+    √ save_note exactly retains the pre-profile regex behavior
+    √ save_chat_attachments exactly retains the pre-profile regex behavior (1 ms)
+    √ send_email exactly retains the pre-profile regex behavior (3 ms)
+    √ reply_email exactly retains the pre-profile regex behavior (1 ms)
+    √ save_memory exactly retains the pre-profile regex behavior
+    √ confirm_memory exactly retains the pre-profile regex behavior
+    √ correct_memory exactly retains the pre-profile regex behavior
+    √ forget_memory exactly retains the pre-profile regex behavior
+    √ create_word exactly retains the pre-profile regex behavior
+    √ create_excel exactly retains the pre-profile regex behavior
+    √ create_powerpoint exactly retains the pre-profile regex behavior
+    √ schedule_task exactly retains the pre-profile regex behavior
+    √ cancel_scheduled_task exactly retains the pre-profile regex behavior
+    √ create_client exactly retains the pre-profile regex behavior
+    √ create_task exactly retains the pre-profile regex behavior (1 ms)
+    √ update_task exactly retains the pre-profile regex behavior
+    √ update_client_profile exactly retains the pre-profile regex behavior
+    √ save_legislative_research exactly retains the pre-profile regex behavior
+    √ save_legiwatch_relevance exactly retains the pre-profile regex behavior
+    √ apply_legiwatch_suggestion exactly retains the pre-profile regex behavior
+    √ unknown_tool exactly retains the pre-profile regex behavior
+    √ future_search exactly retains the pre-profile regex behavior
+    √  exactly retains the pre-profile regex behavior
+    √ default and explicit legacy ledgers are deeply identical on realistic tools (2 ms)
+    √ returns count-only comparison data when a derived source loses support
+  exact source-integrity binding
+    √ keeps a discovered search_public_web summary ineligible despite an authoritative-looking marker (1 ms)
+    √ keeps a discovered search_intel_articles summary ineligible despite an authoritative-looking marker
+    √ does not reinterpret a document row without its owner envelope as a structured record
+    √ binds the actual get_bill_status owner shape as a consulted structured record
+    √ binds the actual query_tasks owner shape as a consulted structured record
+    √ does not bind an id found only inside another row or metadata blob
+    √ binds one exact document row and rejects wrong client, document, and version receipts (1 ms)
+    √ retains approved governed memory as a structured record, not a document passage
+
+Test Suites: 1 passed, 1 total
+Tests:       149 passed, 149 total
+Snapshots:   0 total
+Time:        1.666 s
+Ran all test suites matching /src\\assurance\\tool-ledger-adapter.spec.ts/i.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?

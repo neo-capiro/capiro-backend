@@ -1,0 +1,5 @@
+{
+  "completedAt": "2026-10-03T12:07:11.1760827Z",
+  "exitCode": 1,
+  "command": "NODE_OPTIONS=--max-old-space-size=8192 pnpm --filter @capiro/meriv2-orchestrator exec jest --runInBand --forceExit src/meri/full-chat-read-tools.catalog.spec.ts src/meri/meriv3/meri-semantic-tool-gateway.spec.ts src/meri/meriv3/meri-progressive-tool-discovery.spec.ts src/meri/meriv3/meriv3-tool-evidence.spec.ts src/meri/chat/chat-prompt.spec.ts src/meri/api-tool-read-outcome.spec.ts"
+}

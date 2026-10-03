@@ -1,0 +1,13 @@
+PASS src/meri/full-chat-read-tools.catalog.spec.ts (6.904 s)
+PASS src/meri/chat/chat-prompt.spec.ts
+PASS src/meri/meriv3/meri-semantic-tool-gateway.spec.ts
+PASS src/meri/meriv3/meri-progressive-tool-discovery.spec.ts
+PASS src/meri/api-tool-read-outcome.spec.ts
+PASS src/meri/meriv3/meriv3-tool-evidence.spec.ts
+
+Test Suites: 6 passed, 6 total
+Tests:       138 passed, 138 total
+Snapshots:   0 total
+Time:        7.985 s
+Ran all test suites matching /src\\meri\\full-chat-read-tools.catalog.spec.ts|src\\meri\\meriv3\\meri-semantic-tool-gateway.spec.ts|src\\meri\\meriv3\\meri-progressive-tool-discovery.spec.ts|src\\meri\\meriv3\\meriv3-tool-evidence.spec.ts|src\\meri\\chat\\chat-prompt.spec.ts|src\\meri\\api-tool-read-outcome.spec.ts/i.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?

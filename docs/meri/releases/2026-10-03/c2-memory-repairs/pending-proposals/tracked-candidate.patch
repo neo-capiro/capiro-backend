@@ -1,0 +1,728 @@
+diff --git a/apps/api/src/memory/governed-memory-candidate.service.spec.ts b/apps/api/src/memory/governed-memory-candidate.service.spec.ts
+index 6d577d24b..0aae3f8ab 100644
+--- a/apps/api/src/memory/governed-memory-candidate.service.spec.ts
++++ b/apps/api/src/memory/governed-memory-candidate.service.spec.ts
+@@ -89,6 +89,7 @@ function harness(
+ 
+   const tx = {
+     client: {
++      findFirst: jest.fn(async () => ({ id: CLIENT })),
+       findMany: jest.fn(async () => [{ id: CLIENT, name: 'Test Client' }]),
+     },
+     memoryCandidate: {
+@@ -300,6 +301,62 @@ describe('GovernedMemoryCandidateService Phase 13 dispositions', () => {
+     });
+   });
+ 
++  it('filters selected client and pending state in the owner query before the page limit', async () => {
++    await withReviewSurface(true, async () => {
++      const h = harness();
++      await h.service.listOwnProposals(proposerCtx, { clientId: CLIENT, status: 'pending', limit: 1 });
++      expect(h.tx.memoryCandidate.findMany).toHaveBeenCalledWith(expect.objectContaining({
++        where: {
++          tenantId: TENANT, proposedBy: PROPOSER, scope: { in: ['firm', 'client', 'personal'] },
++          status: 'pending', AND: [{ OR: [{ clientId: CLIENT }, { clientId: null }] }],
++        }, take: 2,
++      }));
++      await h.service.listOwnProposals({ ...proposerCtx, tenantId: 'another-tenant', userId: 'another-user' }, { status: 'pending' });
++      expect(h.tx.memoryCandidate.findMany).toHaveBeenLastCalledWith(expect.objectContaining({
++        where: expect.objectContaining({ tenantId: 'another-tenant', proposedBy: 'another-user', status: 'pending' }),
++      }));
++    });
++  });
++
++  it('binds scoped cursors to the tenant, proposer, client and pending filter', async () => {
++    await withReviewSurface(true, async () => {
++      const h = harness();
++      const rows = await h.tx.memoryCandidate.findMany();
++      h.tx.memoryCandidate.findMany.mockImplementation(async () => [...rows, { ...rows[0], id: REVIEWER }]);
++      const first = await h.service.listOwnProposals(proposerCtx, { clientId: CLIENT, status: 'pending', limit: 1 });
++      expect(first.nextCursor).toEqual(expect.any(String));
++      await expect(h.service.listOwnProposals(proposerCtx, { clientId: CLIENT, status: 'pending', cursor: first.nextCursor! })).resolves.toMatchObject({ enabled: true });
++      for (const [actor, filter] of [
++        [reviewerCtx, { clientId: CLIENT, status: 'pending' }],
++        [{ ...proposerCtx, tenantId: 'other' }, { clientId: CLIENT, status: 'pending' }],
++        [proposerCtx, { clientId: REVIEWER, status: 'pending' }],
++        [proposerCtx, { clientId: CLIENT }],
++      ] as const) {
++        await expect(h.service.listOwnProposals(actor, { ...filter, cursor: first.nextCursor! })).rejects.toThrow('current proposal scope');
++      }
++    });
++  });
++
++  it('keeps scoped pending bodies and client names redacted after an ethical-wall revocation', async () => {
++    await withReviewSurface(true, async () => {
++      const h = harness({ wallAllowed: false });
++      const page = await h.service.listOwnProposals(proposerCtx, { clientId: CLIENT, status: 'pending' });
++      expect(page.candidates[0]).toMatchObject({ status: 'pending', restricted: true, proposal: null, clientName: null });
++      expect(h.findFirst).not.toHaveBeenCalled();
++      expect(h.tx.client.findMany).not.toHaveBeenCalled();
++    });
++  });
++
++  it('refuses an unknown or other-tenant selected client before querying proposals', async () => {
++    await withReviewSurface(true, async () => {
++      const h = harness();
++      h.tx.client.findFirst.mockResolvedValueOnce(null as never);
++      await expect(h.service.listOwnProposals(proposerCtx, { clientId: CLIENT, status: 'pending' })).rejects.toBeInstanceOf(ForbiddenException);
++      expect(h.tx.client.findFirst).toHaveBeenCalledWith({ where: { id: CLIENT, tenantId: TENANT }, select: { id: true } });
++      expect(h.tx.memoryCandidate.findMany).not.toHaveBeenCalled();
++    });
++  });
++
+   it('forces an admin or granted proposer to use withdraw instead of reviewer rejection', async () => {
+     await withReviewSurface(true, async () => {
+       const h = harness();
+diff --git a/apps/api/src/memory/governed-memory-candidate.service.ts b/apps/api/src/memory/governed-memory-candidate.service.ts
+index db86e4d57..63dc1cbc2 100644
+--- a/apps/api/src/memory/governed-memory-candidate.service.ts
++++ b/apps/api/src/memory/governed-memory-candidate.service.ts
+@@ -1,3 +1,4 @@
++import { createHash } from 'node:crypto';
+ import {
+   BadRequestException,
+   ForbiddenException,
+@@ -71,6 +72,9 @@ interface OwnCandidateRow {
+ export interface OwnProposalPageInput {
+   cursor?: string;
+   limit?: string | number;
++  /** Optional scoped reader filters; the existing unfiltered history route is unchanged. */
++  clientId?: string;
++  status?: 'pending';
+ }
+ 
+ export interface OwnedProposalPage {
+@@ -225,6 +229,18 @@ export class GovernedMemoryCandidateService extends MemoryCandidateService {
+     const paged = input !== undefined;
+     const limit = paged ? parseOwnProposalPageSize(input.limit) : 50;
+     const cursor = paged ? decodeOwnProposalCursor(input.cursor) : null;
++    if (input?.clientId !== undefined && !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(input.clientId)) {
++      throw new BadRequestException('clientId must be a client UUID.');
++    }
++    if (input?.status !== undefined && input.status !== 'pending') {
++      throw new BadRequestException('Unsupported proposal status filter.');
++    }
++    const binding = input?.clientId !== undefined || input?.status !== undefined
++      ? createHash('sha256').update(JSON.stringify([ctx.tenantId, ctx.userId, input.clientId ?? null, input.status ?? null])).digest('hex')
++      : undefined;
++    if (binding && cursor && cursor.binding !== binding) {
++      throw new BadRequestException('cursor does not match the current proposal scope.');
++    }
+     if (!memoryReviewSurfaceEnabled()) {
+       return paged
+         ? { enabled: false, candidates: [], nextCursor: null }
+@@ -232,11 +248,18 @@ export class GovernedMemoryCandidateService extends MemoryCandidateService {
+     }
+ 
+     const page = await this.governedPrisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
++      if (input?.clientId && !await tx.client.findFirst({
++        where: { id: input.clientId, tenantId: ctx.tenantId }, select: { id: true },
++      })) throw new ForbiddenException('Selected proposal client is unavailable.');
+       const rows = (await tx.memoryCandidate.findMany({
+         where: {
+           tenantId: ctx.tenantId,
+           proposedBy: ctx.userId,
+           scope: { in: ['firm', 'client', 'personal'] },
++          ...(input?.status ? { status: input.status } : {}),
++          ...(input?.clientId ? {
++            AND: [{ OR: [{ clientId: input.clientId }, { clientId: null }] }],
++          } : {}),
+           ...(cursor
+             ? {
+                 OR: [
+@@ -313,7 +336,7 @@ export class GovernedMemoryCandidateService extends MemoryCandidateService {
+         })),
+         nextCursor:
+           paged && rows.length > limit && pageRows.length > 0
+-            ? encodeOwnProposalCursor(pageRows[pageRows.length - 1]!)
++            ? encodeOwnProposalCursor(pageRows[pageRows.length - 1]!, binding)
+             : null,
+       };
+     });
+@@ -491,20 +514,21 @@ function parseOwnProposalPageSize(value: unknown): number {
+   return parsed;
+ }
+ 
+-function encodeOwnProposalCursor(row: Pick<OwnCandidateRow, 'createdAt' | 'id'>): string {
++function encodeOwnProposalCursor(row: Pick<OwnCandidateRow, 'createdAt' | 'id'>, binding?: string): string {
+   return Buffer.from(
+-    JSON.stringify({ createdAt: row.createdAt.toISOString(), id: row.id }),
++    JSON.stringify({ createdAt: row.createdAt.toISOString(), id: row.id, ...(binding ? { binding } : {}) }),
+     'utf8',
+   ).toString('base64url');
+ }
+ 
+-function decodeOwnProposalCursor(value: unknown): { createdAt: Date; id: string } | null {
++function decodeOwnProposalCursor(value: unknown): { createdAt: Date; id: string; binding?: unknown } | null {
+   if (value === undefined || value === null || value === '') return null;
+   if (typeof value !== 'string') throw new BadRequestException('cursor is invalid.');
+   try {
+     const decoded = JSON.parse(Buffer.from(value, 'base64url').toString('utf8')) as {
+       createdAt?: unknown;
+       id?: unknown;
++      binding?: unknown;
+     };
+     const createdAt = typeof decoded.createdAt === 'string' ? new Date(decoded.createdAt) : null;
+     if (
+@@ -515,7 +539,7 @@ function decodeOwnProposalCursor(value: unknown): { createdAt: Date; id: string
+     ) {
+       throw new Error('invalid cursor payload');
+     }
+-    return { createdAt, id: decoded.id };
++    return { createdAt, id: decoded.id, binding: decoded.binding };
+   } catch {
+     throw new BadRequestException('cursor is invalid.');
+   }
+diff --git a/apps/api/src/meri/meri-tools.registration.spec.ts b/apps/api/src/meri/meri-tools.registration.spec.ts
+index ba7447711..476708727 100644
+--- a/apps/api/src/meri/meri-tools.registration.spec.ts
++++ b/apps/api/src/meri/meri-tools.registration.spec.ts
+@@ -43,6 +43,9 @@ jest.mock('../engagement/engagement.service.js', () => ({ EngagementService: jes
+ jest.mock('./meri-defense-budget-tool.helpers.js', () => ({}));
+ 
+ import { MeriToolsService, TOOL_DEFINITIONS } from './meri-tools.service.js';
++import { MERI_CAPABILITY_REGISTRY } from '@capiro/shared';
++import { EventEmitter } from 'node:events';
++import { withMeriToolRequestControl } from './meri-tool-request-control.js';
+ 
+ describe('buyer workspace Meri tool', () => {
+   it('passes a pinned read through without changing coverage or unsupported gaps', async () => {
+@@ -134,6 +137,7 @@ const EXPECTED_TOOLS = [
+   'query_knowledge_graph',
+   'find_path_to',
+   'search_memory',
++  'list_memory_proposals',
+   'search_congress_bills',
+   // Vote/status truth layer (LegiWatch A5)
+   'get_bill_status',
+@@ -426,6 +430,40 @@ function schemas() {
+ }
+ 
+ describe('Meri tool registration', () => {
++  it('registers and dispatches own pending proposals separately from approved recall', async () => {
++    const ctx = { tenantId: 'tenant', userId: 'actor', role: 'standard_user' } as never;
++    const listOwnProposals = jest.fn(async () => ({ enabled: true, candidates: [], nextCursor: null }));
++    const searchMemory = jest.fn();
++    const service = Object.assign(Object.create(MeriToolsService.prototype), {
++      governedMemoryCandidates: { listOwnProposals }, searchMemory,
++    }) as MeriToolsService;
++    expect(MERI_CAPABILITY_REGISTRY.find((tool) => tool.name === 'list_memory_proposals')).toMatchObject({ readOnly: true });
++    const schema = schemas().find((tool) => tool.name === 'list_memory_proposals')!;
++    expect(Object.keys(schema.input_schema.properties as object).sort()).toEqual(['clientId', 'cursor', 'limit']);
++    await expect(service.executeFromAuthenticatedUser(ctx, 'list_memory_proposals', {})).resolves.toMatchObject({
++      tool: 'list_memory_proposals', claimsAreApprovedFacts: false,
++    });
++    expect(listOwnProposals).toHaveBeenCalledWith(ctx, { limit: 5, status: 'pending' });
++    expect(searchMemory).not.toHaveBeenCalled();
++  });
++
++  it('adds only the no-provider own-proposal read to synthetic budget accounting admission', async () => {
++    const executeScoped = jest.fn(async () => ({ reachedCurrentAuthorityBoundary: true }));
++    const service = Object.assign(Object.create(MeriToolsService.prototype), { executeScoped }) as MeriToolsService;
++    const req = Object.assign(new EventEmitter(), { headers: {} }) as never;
++    const policy = { expectedCaptureWrites: ['a', 'b', 'c', 'provider_budget_ledger'], syntheticReadBudget: {}, caseId: null };
++    await withMeriToolRequestControl(req, async () => {
++      await expect(service.execute({} as never, 'list_memory_proposals', {})).resolves.toMatchObject({ reachedCurrentAuthorityBoundary: true });
++      await expect(service.execute({} as never, 'search_memory', { query: 'approved' })).resolves.toBeDefined();
++      for (const name of ['save_memory', 'send_email', 'list_emails'] as const) {
++        await expect(service.execute({} as never, name, {})).rejects.toThrow('unqualified_tool');
++      }
++    }, policy as never);
++    await withMeriToolRequestControl(req, async () => {
++      await expect(service.execute({} as never, 'list_memory_proposals', {})).rejects.toThrow('unqualified_tool');
++    }, { ...policy, syntheticReadBudget: undefined, caseId: '01' } as never);
++    expect(executeScoped).toHaveBeenCalledTimes(2);
++  });
+   it('dispatches read_chat_attachments only through the dedicated owner service', async () => {
+     const read = jest.fn(async () => ({ tool: 'read_chat_attachments', records: [] }));
+     const service = Object.assign(Object.create(MeriToolsService.prototype), {
+diff --git a/apps/api/src/meri/meri-tools.service.ts b/apps/api/src/meri/meri-tools.service.ts
+index 57e618dcb..ce31ae5c9 100644
+--- a/apps/api/src/meri/meri-tools.service.ts
++++ b/apps/api/src/meri/meri-tools.service.ts
+@@ -73,6 +73,8 @@ import { ClientPeopleService, type CreatePersonInput } from '../clients/client-p
+ import { ClientAdvocacyMatterService } from '../clients/client-advocacy-matter.service.js';
+ import { MemoryIngestService } from '../memory/memory-ingest.service.js';
+ import { MemoryCandidateService } from '../memory/memory-candidate.service.js';
++import { GovernedMemoryCandidateService } from '../memory/governed-memory-candidate.service.js';
++import { readOwnPendingMemoryProposals } from './meri-memory-proposal-read.js';
+ import { MemoryStoreService } from '../memory/memory-store.service.js';
+ import {
+   clientMemoryAllowed,
+@@ -426,6 +428,7 @@ export class MeriToolsService {
+     @Optional() private readonly chatAttachmentReader?: MeriChatAttachmentReadService,
+     @Optional() private readonly researchPortfolioScope?: ResearchPortfolioMeriScopeService,
+     @Optional() private readonly federalMarket?: FederalMarketService,
++    @Optional() private readonly governedMemoryCandidates?: GovernedMemoryCandidateService,
+   ) {}
+ 
+   manifest() {
+@@ -1104,6 +1107,11 @@ export class MeriToolsService {
+         },
+         ['query'],
+       ),
++      list_memory_proposals: obj({
++        clientId: str('Selected client UUID; read only this client plus own firm/private pending proposals'),
++        cursor: str('Opaque nextCursor from the same own-pending proposal scope'),
++        limit: int('Page size from 1 to 10, default 5; follow nextCursor before claiming absence'),
++      }),
+       confirm_memory: obj(
+         {
+           memoryItemId: str('The memoryItemId returned by search_memory'),
+@@ -2530,7 +2538,7 @@ export class MeriToolsService {
+     const policy = currentMeriToolCapturePolicy() ?? currentMeriServerReadonlyCapturePolicy();
+     if (
+       captureBudgetRequired(policy) &&
+-      !(policy?.syntheticReadBudget && name === 'search_memory') &&
++      !(policy?.syntheticReadBudget && (name === 'search_memory' || name === 'list_memory_proposals')) &&
+       !(['01','14'].includes(policy?.caseId ?? '') && name === 'search_memory') &&
+       !controlledReadToolAllowed(policy?.caseId ?? null, name)
+     ) {
+@@ -2622,6 +2630,8 @@ export class MeriToolsService {
+         return this.findPathTo(ctx, input);
+       case 'search_memory':
+         return this.searchMemory(ctx, input);
++      case 'list_memory_proposals':
++        return readOwnPendingMemoryProposals(ctx, input, this.governedMemoryCandidates);
+       case 'search_congress_bills':
+         return this.searchCongressBills(input);
+       case 'get_bill_status':
+diff --git a/apps/meriv2-orchestrator/src/meri/chat/chat-prompt.spec.ts b/apps/meriv2-orchestrator/src/meri/chat/chat-prompt.spec.ts
+index 13a16c575..b39961d31 100644
+--- a/apps/meriv2-orchestrator/src/meri/chat/chat-prompt.spec.ts
++++ b/apps/meriv2-orchestrator/src/meri/chat/chat-prompt.spec.ts
+@@ -41,6 +41,13 @@ describe('chat date grounding', () => {
+ });
+ 
+ describe('buildChatSystemPrompt', () => {
++  it('routes a missing approved preference to the separate own-pending governance read', () => {
++    const prompt = buildChatSystemPrompt({ clientId: 'aster', messages: [{ role: 'user', text: 'Does Aster prefer text alerts?' }] }, ctx);
++    expect(prompt).toContain('call list_memory_proposals');
++    expect(prompt).toContain('label matching text pending and unapproved');
++    expect(prompt).toContain('This queue covers only your proposals');
++    expect(prompt).toContain('Active recall excludes pending');
++  });
+   it('places the server-authored prospect directive in the dynamic system prompt', () => {
+     const directive =
+       'Active prospect scope: Acme LLC. A free-form company name does not retarget this chat.';
+diff --git a/apps/meriv2-orchestrator/src/meri/chat/chat-prompt.ts b/apps/meriv2-orchestrator/src/meri/chat/chat-prompt.ts
+index 1f0d0f636..241a57bc4 100644
+--- a/apps/meriv2-orchestrator/src/meri/chat/chat-prompt.ts
++++ b/apps/meriv2-orchestrator/src/meri/chat/chat-prompt.ts
+@@ -261,6 +261,7 @@ const TOOL_LABELS: Record<string, string> = {
+   query_knowledge_graph: 'Queried the knowledge graph',
+   find_path_to: 'Traced knowledge-graph connections',
+   search_memory: 'Searched firm memory',
++  list_memory_proposals: 'Checked your pending memory proposals',
+   search_intel_articles: 'Searched intel articles',
+   search_congress_bills: 'Searched Congress bills',
+   search_tracked_bills: 'Searched tracked bills',
+@@ -383,6 +384,7 @@ export function composeChatSystemPrompt(
+     '# Where firm data lives (route the question to the RIGHT tool)',
+     'Questions about the USER or the FIRM (their preferences, nicknames, people, prior decisions, anything "about me/us"): call search_memory FIRST — never say you have no record before searching memory. But memory holds durable facts and background ONLY — it is NOT a source of live calendar meetings, emails, or tasks; use list_upcoming_meetings / list_emails / query_tasks for those.',
+     'Governed memory: use the approved value, source reference and governance status, not a learning-event label as a fact. metadata_only or empty means the underlying fact is not stored in that approved record; disclose that and do not infer missing capability, person or facility details. Follow content.nextRead with the exact memoryItemId to complete relevant bodies, and nextCursor to complete relevant search pages within the available turn budget. If a cap, changed snapshot, timeout or failed source prevents completion, state which content/pages remain unread. Active recall excludes pending, rejected, withdrawn, revoked, superseded and non-controlling conflicts; do not claim those queues or historical states were searched. Keep a controlling conflict and stale review status explicit.',
++    'Pending memory: for proposal/governance questions, or when approved recall does not confirm a requested preference, call list_memory_proposals to check your own pending proposals under the current client scope. This is separate from approved recall: label matching text pending and unapproved, identify its proposal ID and source kind, and never state it as an approved fact. Follow nextCursor before claiming none; disclose disabled reads, unavailable reads, restricted or truncated bodies, and unread pages. This queue covers only your proposals, not everyone’s proposals or revoked/rejected history. Do not approve, reject, withdraw or save anything for this read.',
+     'UPCOMING meetings, "what\'s my next meeting", or preparing for a meeting: list_upcoming_meetings is the calendar (synced Microsoft 365/Google) and the source of truth for which meetings exist and when — START there. To PREP for a meeting: (1) list_upcoming_meetings to find it, (2) list_emails for recent email context with the attendees/client, (3) create_meeting_brief with that meeting id, and only then layer in relevant background from search_memory/get_client_context. Never use memory to decide which meetings exist or when. PAST meeting history and debriefs: query_debriefs. Tasks and to-dos: query_tasks. Outreach and past communications: query_outreach. Emails: to FIND a specific email, sender, or topic (any age) use search_emails, and retry it with different terms (a name fragment, the email address, the subject) before concluding a message is absent. search_emails reports which mailboxes were actually searched and how far back their sync reaches — if a mailbox has never synced or the mail may sit in a non-inbox folder, SAY so instead of asserting the email does not exist. A client’s profile, team, and context: get_client_context (use the conversation’s client focus, or search memory/knowledge for the client first).',
+     'Inbox activity over a date range: use list_emails or search_emails with withinDays and folder="inbox", without a query keyword. For "what activities do i have in my email inbox for the last two weeks", use withinDays=14 and omit clientId even if a client is selected. A selected client or preloaded client context does not narrow the user’s own mailbox; include clientId only when the user asks for that client’s mail. Follow hasMore using nextOffset and the returned asOf with the same filters; if you stop early, describe the summary as partial. Summarize the retrieved activity into dated conversations, supported commitments, deadlines and next actions; distinguish proposed follow-up from an actual commitment. Check mail-specific coverage and body completeness before claiming no activity or full coverage. A recent calendar/general sync time alone does not establish mail coverage. Explain a material limitation once in plain language without tool diagnostics or unrelated legislative boilerplate.',
+     'Search/list mail previews are abbreviated. Use get_email_thread with the returned threadId (and messageId when needed) to read a message body before asserting details the preview does not establish, such as a deadline, commitment, or requested next step. Follow message/body continuation; do not invent what an unread or unavailable body says.',
+diff --git a/apps/meriv2-orchestrator/src/meri/full-chat-read-tools.catalog.spec.ts b/apps/meriv2-orchestrator/src/meri/full-chat-read-tools.catalog.spec.ts
+index 86a2e95ae..99d9e42f1 100644
+--- a/apps/meriv2-orchestrator/src/meri/full-chat-read-tools.catalog.spec.ts
++++ b/apps/meriv2-orchestrator/src/meri/full-chat-read-tools.catalog.spec.ts
+@@ -2,6 +2,7 @@ import { MERI_TOOL_MANIFEST, MERI_TOOL_NAMES } from '@capiro/shared';
+ import { FULL_CHAT_READ_TOOLS } from './full-chat-read-tools.catalog';
+ import { IN_EDITOR_DELEGATED_TOOLS } from './delegated-tools.catalog';
+ import { WRITE_DELEGATED_TOOLS } from './write-tools.catalog';
++import { meriToolCoverageCatalogEntry } from './retrieval/meri-tool-catalog';
+ 
+ /**
+  * W4.6 / D-13: the canonical apps/api Meri tool surface is now the checked-in
+@@ -12,6 +13,12 @@ import { WRITE_DELEGATED_TOOLS } from './write-tools.catalog';
+ const ALL_APPS_API_TOOLS = [...MERI_TOOL_NAMES];
+ 
+ describe('FULL_CHAT_READ_TOOLS catalog', () => {
++  it('exposes own proposal reads only in full chat and identifies their memory domain without exhaustive fact coverage', () => {
++    expect(FULL_CHAT_READ_TOOLS.find((tool) => tool.name === 'list_memory_proposals')).toMatchObject({ readOnly: true });
++    expect(IN_EDITOR_DELEGATED_TOOLS.some((tool) => tool.name === 'list_memory_proposals')).toBe(false);
++    expect(WRITE_DELEGATED_TOOLS.some((tool) => tool.name === 'list_memory_proposals')).toBe(false);
++    expect(meriToolCoverageCatalogEntry('list_memory_proposals')).toMatchObject({ domains: ['memory'], exhaustive: false });
++  });
+   it('matches the intended full-chat read tool set', () => {
+     const expected = [
+       'search_legiwatch_news',
+@@ -39,6 +46,7 @@ describe('FULL_CHAT_READ_TOOLS catalog', () => {
+       'get_research_portfolio_reviews',
+       'get_research_portfolio_rules',
+       'search_memory',
++      'list_memory_proposals',
+       // Global-data analytics (structured aggregate queries over the
+       // ingested reference datasets — LDA, grants, SAM/USAspending, SEC,
+       // FARA, bills, GAO/CRS, FEC, news).
+@@ -99,7 +107,7 @@ describe('FULL_CHAT_READ_TOOLS catalog', () => {
+       'resolve_business_development_source',
+     ].sort();
+     expect(FULL_CHAT_READ_TOOLS.map((t) => t.name).sort()).toEqual(expected);
+-    expect(FULL_CHAT_READ_TOOLS).toHaveLength(78);
++    expect(FULL_CHAT_READ_TOOLS).toHaveLength(79);
+     expect(FULL_CHAT_READ_TOOLS.every((t) => t.readOnly === true)).toBe(true);
+   });
+ 
+@@ -119,7 +127,7 @@ describe('Combined delegated-tool coverage (in-editor + write + full-chat-read)'
+     ].sort();
+     expect(combined).toEqual(ALL_APPS_API_TOOLS);
+     expect(new Set(combined).size).toBe(combined.length); // no tool double-registered
+-    expect(combined).toHaveLength(137);
++    expect(combined).toHaveLength(138);
+   });
+ 
+   it('W4.6 / D-13: the three catalogs match the canonical MERI_TOOL_MANIFEST VERBATIM (name AND description) — catches description drift the name-only check missed', () => {
+diff --git a/apps/meriv2-orchestrator/src/meri/meriv3/meri-progressive-tool-discovery.spec.ts b/apps/meriv2-orchestrator/src/meri/meriv3/meri-progressive-tool-discovery.spec.ts
+index a0869b2ec..0065e704d 100644
+--- a/apps/meriv2-orchestrator/src/meri/meriv3/meri-progressive-tool-discovery.spec.ts
++++ b/apps/meriv2-orchestrator/src/meri/meriv3/meri-progressive-tool-discovery.spec.ts
+@@ -4,6 +4,7 @@ import {
+   type MeriProgressiveToolSchema,
+ } from './meri-progressive-tool-discovery.js';
+ import { MeriRunBudget } from './meriv3-run-budget.js';
++import { MERI_CAPABILITY_REGISTRY } from '@capiro/shared';
+ 
+ function schema(
+   name: string,
+@@ -49,6 +50,18 @@ function discovery(
+ }
+ 
+ describe('MeriProgressiveToolDiscovery', () => {
++  test('discovers the canonical own-proposal read without inventing approval authority', async () => {
++    const capability = MERI_CAPABILITY_REGISTRY.find((tool) => tool.name === 'list_memory_proposals')!;
++    const pending = schema(capability.name, capability.description);
++    const approved = schema('search_memory', 'Recall approved facts', ['query']);
++    const subject = discovery({ authorized: [approved, pending], exposed: [approved] });
++    const found = await subject.execute('tool_search', { queries: ['pending memory proposals'] });
++    expect(found.matchedNames).toEqual(['list_memory_proposals']);
++    const described = await subject.execute('tool_describe', { names: ['list_memory_proposals'] });
++    expect(described.loadedNames).toEqual(['list_memory_proposals']);
++    expect(subject.exposedSchemas()).toContain(pending);
++    expect(capability.readOnly).toBe(true);
++  });
+   test('keeps control schema and handler ownership explicit without adding executable leaves', () => {
+     const subject = discovery();
+     const schemaNames = new Set(subject.controlSchemas().map((item) => item.name));
+diff --git a/apps/meriv2-orchestrator/src/meri/meriv3/meri-semantic-tool-gateway.spec.ts b/apps/meriv2-orchestrator/src/meri/meriv3/meri-semantic-tool-gateway.spec.ts
+index 59223ce04..e90a97b91 100644
+--- a/apps/meriv2-orchestrator/src/meri/meriv3/meri-semantic-tool-gateway.spec.ts
++++ b/apps/meriv2-orchestrator/src/meri/meriv3/meri-semantic-tool-gateway.spec.ts
+@@ -26,6 +26,7 @@ const schemas = [
+   'find_contacts',
+   'search_research_sources',
+   'search_memory',
++  'list_memory_proposals',
+   'search_public_web',
+   'scrape_web_page',
+   'search_federal_awards',
+@@ -71,6 +72,11 @@ function plan(recipeTool: MeriRetrievalPlan['recipeTool'] = 'query_relationship_
+ }
+ 
+ describe('MeriSemanticToolGateway', () => {
++  test.each(['Does Aster prefer text alerts?', 'Show my pending Institutional Memory proposals.'])('exposes approved recall and the distinct pending reader for %s', (request) => {
++    const gateway = new MeriSemanticToolGateway(config({ MERI_SEMANTIC_TOOL_GATEWAY_ENABLED: 'true', MERI_SEMANTIC_TOOL_GATEWAY_TENANTS: '*' }));
++    const selected = gateway.select({ schemas, tenantId: 'tenant-1', request, plan: plan(null) });
++    expect(selected.decision.exposedNames).toEqual(expect.arrayContaining(['search_memory', 'list_memory_proposals']));
++  });
+   test('exposes canonical document generation for a PDF-only request', () => {
+     const gateway = new MeriSemanticToolGateway(
+       config({
+diff --git a/apps/meriv2-orchestrator/src/meri/meriv3/meri-semantic-tool-gateway.ts b/apps/meriv2-orchestrator/src/meri/meriv3/meri-semantic-tool-gateway.ts
+index 4a6f09cab..3b41dc43a 100644
+--- a/apps/meriv2-orchestrator/src/meri/meriv3/meri-semantic-tool-gateway.ts
++++ b/apps/meriv2-orchestrator/src/meri/meriv3/meri-semantic-tool-gateway.ts
+@@ -104,7 +104,7 @@ const DOMAIN_SUPPORT: Partial<Record<MeriRetrievalDomain, readonly string[]>> =
+   tasks: ['query_tasks', 'list_scheduled_tasks'],
+   action_items: ['query_action_items'],
+   outreach: ['query_outreach'],
+-  memory: ['search_memory'],
++  memory: ['search_memory', 'list_memory_proposals'],
+   legislation: [
+     'search_congress_bills',
+     'get_bill_status',
+@@ -194,7 +194,11 @@ const ACTION_RULES: ReadonlyArray<{ pattern: RegExp; tools: readonly string[] }>
+   },
+   {
+     pattern: /\b(?:remember|memory|forget|forgot|correct what you remember|still right)\b/i,
+-    tools: ['search_memory', 'save_memory', 'confirm_memory', 'correct_memory', 'forget_memory'],
++    tools: ['search_memory', 'list_memory_proposals', 'save_memory', 'confirm_memory', 'correct_memory', 'forget_memory'],
++  },
++  {
++    pattern: /\b(?:prefers?|preferences?|pending\s+(?:memory|proposal)|proposed\s+memor(?:y|ies))\b/i,
++    tools: ['search_memory', 'list_memory_proposals'],
+   },
+   {
+     pattern:
+diff --git a/apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.spec.ts b/apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.spec.ts
+index 184a680ab..c1c330a5f 100644
+--- a/apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.spec.ts
++++ b/apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.spec.ts
+@@ -344,6 +344,15 @@ function eventNameOf(message: unknown): string | null {
+ const SHADOW_EVENTS = new Set(['meri.evidence_shadow', 'meri.evidence_shadow.turn']);
+ 
+ describe('MeriV3AssistantService', () => {
++  test('pins pending proposal reads to the selected client and rejects attempted cross-client retargeting', () => {
++    const service = Object.create(MeriV3AssistantService.prototype) as any;
++    const schema = { name: 'list_memory_proposals', input_schema: { properties: { clientId: { type: 'string' }, cursor: { type: 'string' } } } };
++    const input = Object.freeze({ cursor: 'same-page' });
++    expect(service.augmentToolInput({ clientId: 'aster' }, input, schema)).toEqual({ input: { cursor: 'same-page', clientId: 'aster' } });
++    expect(service.augmentToolInput({ clientId: 'aster' }, { clientId: 'bluehaven' }, schema).scopeViolation).toContain('different client');
++    expect(service.augmentToolInput({}, input, schema)).toEqual({ input });
++    expect(input).toEqual({ cursor: 'same-page' });
++  });
+   const originalFetch = global.fetch;
+   const originalOpenAiKey = process.env.OPENAI_API_KEY;
+ 
+diff --git a/apps/meriv2-orchestrator/src/meri/meriv3/meriv3-tool-evidence.spec.ts b/apps/meriv2-orchestrator/src/meri/meriv3/meriv3-tool-evidence.spec.ts
+index 036cdcf23..6bc25ff83 100644
+--- a/apps/meriv2-orchestrator/src/meri/meriv3/meriv3-tool-evidence.spec.ts
++++ b/apps/meriv2-orchestrator/src/meri/meriv3/meriv3-tool-evidence.spec.ts
+@@ -1,4 +1,5 @@
+ import { extractCitationsFromToolResult } from '@capiro/shared';
++import { classifyApiToolReadOutcome } from '@capiro/shared/meri-read-outcome';
+ import { projectMeriToolEvidence, wrapMeriToolEvidence } from './meriv3-tool-evidence.js';
+ import {
+   coalesceMeriMailPages,
+@@ -6,6 +7,33 @@ import {
+ } from '../retrieval/meri-retrieval-coverage.js';
+ 
+ describe('model-visible tool evidence budgets', () => {
++  it('preserves pending-state boundaries, identity and pagination without minting approved memory citations', () => {
++    const pending = {
++      tool: 'list_memory_proposals', enabled: true, authority: 'own_pending_proposals', claimsAreApprovedFacts: false,
++      scope: { tenantId: 't1', userId: 'pat', clientId: 'aster' },
++      candidates: [{ id: 'pending-ma2', status: 'pending', approvedFact: false, proposedText: 'prefers SMS alerts', sourceKind: 'user_chat', restricted: false }],
++      nextCursor: 'next-page', coverage: { firstPage: true, complete: false, reason: 'unread_pages' },
++    };
++    const result = projectMeriToolEvidence({ result: pending, maxCharacters: 3000, readOnly: true });
++    expect(JSON.stringify(result)).toContain('pending-ma2');
++    expect(JSON.stringify(result)).toContain('claimsAreApprovedFacts');
++    expect(JSON.stringify(result)).toContain('next-page');
++    expect(extractCitationsFromToolResult('list_memory_proposals', pending, 1)).toEqual([]);
++  });
++  it('keeps a shortened own-proposal page partial and preserves the unapproved-state boundary', () => {
++    const candidates = Array.from({ length: 5 }, (_, n) => ({
++      id: `proposal-${n}`, status: 'pending', approvedFact: false, scope: 'client', clientId: 'aster',
++      sourceKind: 'user_chat', createdAt: '2026-09-26T12:00:00.000Z', restricted: false,
++      title: 'Unapproved preference', proposedText: 'possible preference '.repeat(40), contentTruncated: false,
++    }));
++    const pending = { tool: 'list_memory_proposals', enabled: true, authority: 'own_pending_proposals',
++      claimsAreApprovedFacts: false, scope: { tenantId: 't1', userId: 'pat', clientId: 'aster' },
++      candidates, nextCursor: null, coverage: { firstPage: true, complete: true, reason: 'own_pending_proposals_complete' } };
++    const result = projectMeriToolEvidence({ result: pending, maxCharacters: 2400, readOnly: true, inputProperties: { limit: {} } });
++    expect(result).toMatchObject({ tool: 'list_memory_proposals', claimsAreApprovedFacts: false, coverage: { complete: false }, truncated: true });
++    expect(classifyApiToolReadOutcome('list_memory_proposals', result)).toMatchObject({ kind: 'partial' });
++    expect(extractCitationsFromToolResult('list_memory_proposals', result, 1)).toEqual([]);
++  });
+   const profileSections = [
+     'capabilities',
+     'people',
+diff --git a/apps/meriv2-orchestrator/src/meri/meriv3/meriv3-tool-evidence.ts b/apps/meriv2-orchestrator/src/meri/meriv3/meriv3-tool-evidence.ts
+index 0a816e621..fa9c3bff0 100644
+--- a/apps/meriv2-orchestrator/src/meri/meriv3/meriv3-tool-evidence.ts
++++ b/apps/meriv2-orchestrator/src/meri/meriv3/meriv3-tool-evidence.ts
+@@ -7,12 +7,17 @@ const ROW_KEYS = [
+   'items',
+   'documents',
+   'memories',
++  'candidates',
+   'hearings',
+   'messages',
+   'tasks',
+ ];
+ const META_KEYS = [
+   'status',
++  'enabled',
++  'authority',
++  'claimsAreApprovedFacts',
++  'scope',
+   'sourceStatus',
+   'sourceReason',
+   'sourceFreshness',
+@@ -633,6 +638,7 @@ export function projectMeriToolEvidence(args: {
+   if (args.inputProperties?.maxChars) overrides.maxChars = 6_000;
+   const projected: Record<string, unknown> = {
+     ...metadata,
++    ...(original.tool === 'list_memory_proposals' ? { tool: original.tool } : {}),
+     ...(key ? { [key]: shown } : {}),
+     truncated: true,
+     partial: true,
+diff --git a/apps/meriv2-orchestrator/src/meri/retrieval/meri-tool-catalog.ts b/apps/meriv2-orchestrator/src/meri/retrieval/meri-tool-catalog.ts
+index 70289f428..bb4893625 100644
+--- a/apps/meriv2-orchestrator/src/meri/retrieval/meri-tool-catalog.ts
++++ b/apps/meriv2-orchestrator/src/meri/retrieval/meri-tool-catalog.ts
+@@ -30,6 +30,7 @@ const TOOL_DOMAIN_OVERRIDES: Record<string, MeriRetrievalDomain[]> = {
+   watch_research_portfolio: ['internal_research'],
+   update_research_portfolio_change_state: ['internal_research'],
+   search_memory: ['memory'],
++  list_memory_proposals: ['memory'],
+   search_emails: ['mail'],
+   list_emails: ['mail'],
+   get_email_thread: ['mail'],
+diff --git a/packages/meriv2-core/src/assurance/tool-ledger-adapter.spec.ts b/packages/meriv2-core/src/assurance/tool-ledger-adapter.spec.ts
+index 211a3e1fe..6a4d63477 100644
+--- a/packages/meriv2-core/src/assurance/tool-ledger-adapter.spec.ts
++++ b/packages/meriv2-core/src/assurance/tool-ledger-adapter.spec.ts
+@@ -35,6 +35,12 @@ function profileEvidence(tool: string) {
+ }
+ 
+ describe('profile evidence classification', () => {
++  it('never promotes pending proposal text to primary or authoritative memory facts in either classification', () => {
++    expect(profileEvidence('list_memory_proposals')).toMatchObject({ evidenceClass: 'capiro_system_of_record', primary: false, authoritative: false });
++    expect(legacyEvidenceClassForTool('list_memory_proposals')).toBe('capiro_system_of_record');
++    expect(legacyPrimaryTool('list_memory_proposals')).toBe(false);
++    expect(legacyAuthoritativeTool('list_memory_proposals')).toBe(false);
++  });
+   const derivedTools = [
+     'explain_opportunity_match',
+     'get_opportunity_client_context',
+@@ -154,7 +160,8 @@ describe('legacy evidence classification compatibility', () => {
+     return 'official_government_data';
+   }
+ 
+-  const tools = [...Object.keys(TOOL_EVIDENCE_PROFILES), 'unknown_tool', 'future_search', ''];
++  // The new proposal-state reader has no legacy fact-classification contract.
++  const tools = [...Object.keys(TOOL_EVIDENCE_PROFILES).filter((name) => name !== 'list_memory_proposals'), 'unknown_tool', 'future_search', ''];
+   it.each(tools)('%s exactly retains the pre-profile regex behavior', (tool) => {
+     expect(legacyEvidenceClassForTool(tool)).toBe(oldEvidenceClass(tool));
+     expect(legacyPrimaryTool(tool)).toBe(
+diff --git a/packages/meriv2-core/src/assurance/tool-ledger-adapter.ts b/packages/meriv2-core/src/assurance/tool-ledger-adapter.ts
+index 26e03ca3c..f5b8c9513 100644
+--- a/packages/meriv2-core/src/assurance/tool-ledger-adapter.ts
++++ b/packages/meriv2-core/src/assurance/tool-ledger-adapter.ts
+@@ -348,6 +348,7 @@ export const TOOL_EVIDENCE_PROFILES: Readonly<Record<string, ToolEvidenceProfile
+   // siblings: free recall over saved memory, unlike a specific saved document
+   // or research note, carries no source identity of its own.
+   search_memory: { evidenceClass: 'institutional_memory', primary: false, authoritative: false },
++  list_memory_proposals: CAPIRO_DERIVED,
+   search_client_knowledge: official('institutional_memory'),
+   read_client_documents: official('institutional_memory'),
+   search_legislative_research: official('institutional_memory'),
+@@ -454,6 +455,7 @@ function authoritativeTool(tool: string): boolean {
+ }
+ 
+ export function legacyEvidenceClassForTool(tool: string): EvidenceClass {
++  if (tool === 'list_memory_proposals') return 'capiro_system_of_record';
+   if (
+     /^(?:get_bill_status|get_state_bill_status|search_floor_votes|search_state_floor_votes|get_state_rule_status)$/.test(
+       tool,
+@@ -491,10 +493,12 @@ export function legacyEvidenceClassForTool(tool: string): EvidenceClass {
+ }
+ 
+ export function legacyPrimaryTool(tool: string): boolean {
++  if (tool === 'list_memory_proposals') return false;
+   return !/^(?:search_public_web|scrape_web_page|search_intel_articles|search_memory)$/.test(tool);
+ }
+ 
+ export function legacyAuthoritativeTool(tool: string): boolean {
++  if (tool === 'list_memory_proposals') return false;
+   return !/^(?:search_public_web|scrape_web_page|search_intel_articles|search_memory|query_knowledge_graph)$/.test(
+     tool,
+   );
+diff --git a/packages/shared/src/index.ts b/packages/shared/src/index.ts
+index 55960aae1..58d6bff0e 100644
+--- a/packages/shared/src/index.ts
++++ b/packages/shared/src/index.ts
+@@ -4036,6 +4036,14 @@ export const MERI_CAPABILITY_REGISTRY = [
+     readOnly: true,
+     surfaces: ['full_chat'],
+   },
++  {
++    name: 'list_memory_proposals',
++    description:
++      'Read your own pending Institutional Memory proposals and their current governance state. Use when checking whether a remembered preference or fact is still awaiting approval, including after approved search_memory finds no matching fact. Selected client scope includes that client plus own firm/private proposals. Follow nextCursor before claiming absence. Proposal text is unapproved, never an approved fact; this read grants no review or approval authority.',
++    backend: 'meri',
++    readOnly: true,
++    surfaces: ['full_chat'],
++  },
+   {
+     name: 'search_congress_bills',
+     description:
+diff --git a/packages/shared/src/meri-read-outcome.ts b/packages/shared/src/meri-read-outcome.ts
+index 8a8aa2064..163f5c4c0 100644
+--- a/packages/shared/src/meri-read-outcome.ts
++++ b/packages/shared/src/meri-read-outcome.ts
+@@ -5,6 +5,30 @@ export interface ApiToolReadOutcome {
+   reason?: string;
+ }
+ 
++/** Governance observations only: proposal text is never an approved memory fact. */
++export interface MeriPendingMemoryProposalRead {
++  tool: 'list_memory_proposals';
++  enabled: boolean;
++  authority: 'own_pending_proposals';
++  claimsAreApprovedFacts: false;
++  scope: { tenantId: string; userId: string; clientId: string | null };
++  candidates: Array<{
++    id: string;
++    status: 'pending';
++    approvedFact: false;
++    scope: string;
++    clientId: string | null;
++    sourceKind: string;
++    createdAt: string;
++    restricted: boolean;
++    title: string | null;
++    proposedText: string | null;
++    contentTruncated: boolean;
++  }>;
++  nextCursor: string | null;
++  coverage: { firstPage: boolean; complete: boolean; reason: string };
++}
++
+ type UnknownRecord = Record<string, unknown>;
+ type SourceStatus = 'healthy' | 'degraded' | 'unavailable';
+ type RetrievalSourceStatus = SourceStatus | 'unauthorized' | 'unsupported' | 'error';
+@@ -48,6 +72,39 @@ function invalidResult(toolName: string): ApiToolReadOutcome {
+   return { kind: 'failed', reason: `${toolName}_result_contract_invalid` };
+ }
+ 
++function classifyPendingMemoryProposals(payload: unknown): ApiToolReadOutcome {
++  const failure = ownerFailure(payload);
++  if (failure) return failure;
++  const value = record(payload), coverage = record(value?.coverage), scope = record(value?.scope);
++  if (!value || value.tool !== 'list_memory_proposals' || value.authority !== 'own_pending_proposals' ||
++      value.claimsAreApprovedFacts !== false || typeof value.enabled !== 'boolean' ||
++      !scope || typeof scope.tenantId !== 'string' || typeof scope.userId !== 'string' ||
++      !(scope.clientId === null || typeof scope.clientId === 'string') ||
++      !Array.isArray(value.candidates) || !(value.nextCursor === null || typeof value.nextCursor === 'string') ||
++      !coverage || typeof coverage.firstPage !== 'boolean' || typeof coverage.complete !== 'boolean' ||
++      !value.candidates.every((raw) => {
++        const row = record(raw);
++        return row && typeof row.id === 'string' && row.status === 'pending' && row.approvedFact === false &&
++          ['firm', 'client', 'personal'].includes(String(row.scope)) && typeof row.sourceKind === 'string' &&
++          typeof row.createdAt === 'string' && (row.clientId === null || typeof row.clientId === 'string') &&
++          (!scope.clientId || !row.clientId || row.clientId === scope.clientId) &&
++          (row.title === null || typeof row.title === 'string') &&
++          typeof row.restricted === 'boolean' && typeof row.contentTruncated === 'boolean' &&
++          (row.proposedText === null || typeof row.proposedText === 'string') &&
++          (!row.restricted || (row.proposedText === null && row.title === null));
++      })) return invalidResult('list_memory_proposals');
++  if (!value.enabled) return value.candidates.length === 0 && !coverage.complete && value.nextCursor === null
++    ? { kind: 'unavailable', reason: 'memory_proposal_review_disabled' }
++    : invalidResult('list_memory_proposals');
++  const incomplete = value.truncated === true || value.partial === true || !coverage.firstPage || value.nextCursor !== null || value.candidates.some((raw) => {
++    const row = record(raw)!;
++    return row.restricted || row.contentTruncated || row.proposedText === null;
++  });
++  if (coverage.complete === incomplete) return invalidResult('list_memory_proposals');
++  return incomplete ? { kind: 'partial', reason: 'memory_proposal_coverage_incomplete' }
++    : { kind: value.candidates.length ? 'complete' : 'empty' };
++}
++
+ function classifyMailSearch(toolName: string, payload: unknown): ApiToolReadOutcome {
+   const failure = ownerFailure(payload);
+   if (failure) return failure;
+@@ -760,6 +817,8 @@ export function classifyApiToolReadOutcome(
+       return classifyClientContext(payload);
+     case 'search_memory':
+       return classifyMemorySearch(payload);
++    case 'list_memory_proposals':
++      return classifyPendingMemoryProposals(payload);
+     case 'search_public_web': {
+       const failure = ownerFailure(payload);
+       return failure ?? { kind: 'partial', reason: 'public_web_search_is_discovery_only' };

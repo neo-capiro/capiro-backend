@@ -1,0 +1,10 @@
+{
+  "at": "2026-10-03T11:58:17.346Z",
+  "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/437a821edf904ec6bf6d14429f359127",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-c2-readback-20261003:1",
+  "exitCode": 1,
+  "receipts": [],
+  "stoppedAt": "2026-10-03T07:58:14.002000-04:00",
+  "providerCalls": 0,
+  "businessWrites": 0
+}

@@ -1,0 +1,174 @@
+{
+  "productionFiles": 10,
+  "base": "e49d8078226c53b83125aad547d532587abcdac7",
+  "files": [
+    {
+      "production": false,
+      "path": "apps/api/src/memory/governed-memory-candidate.service.spec.ts",
+      "bytes": 16886,
+      "sha256": "7ae448a761ca88e516c4bc2e40399e4b218cc8da1f9e1e61c6d0af20b5c257d8"
+    },
+    {
+      "production": true,
+      "path": "apps/api/src/memory/governed-memory-candidate.service.ts",
+      "bytes": 21052,
+      "sha256": "1176c2d16ca4af24dda1d5add3aea6f9d9c226c0130c194e7a402e18aab0e056"
+    },
+    {
+      "production": false,
+      "path": "apps/api/src/meri/meri-memory-proposal-read.spec.ts",
+      "bytes": 6891,
+      "sha256": "433591bfbccf78e1585ac846c95afad1fd884bfc279afe1156d4e0ac447f175f"
+    },
+    {
+      "production": true,
+      "path": "apps/api/src/meri/meri-memory-proposal-read.ts",
+      "bytes": 3485,
+      "sha256": "5cbe9e92d4088961f929e9592892e35b65cc00eba2fa61fdf3e4d02a7b82a135"
+    },
+    {
+      "production": false,
+      "path": "apps/api/src/meri/meri-tools.registration.spec.ts",
+      "bytes": 38923,
+      "sha256": "7516b6c5274613d7c8bfeb052a9e561368ec6cf3594f11f81ceaf963e5613d0e"
+    },
+    {
+      "production": true,
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "bytes": 406436,
+      "sha256": "0b42cc0728ff5aa5d9de3597c535d16a01196f9d7ca85d4a341b59f04da8a7ec"
+    },
+    {
+      "production": false,
+      "path": "apps/meriv2-orchestrator/src/meri/chat/chat-prompt.spec.ts",
+      "bytes": 16789,
+      "sha256": "7495ae215b2581bd9b15ef01b383561e139cddc2c2ca74abc03c9bf3608c1a5e"
+    },
+    {
+      "production": true,
+      "path": "apps/meriv2-orchestrator/src/meri/chat/chat-prompt.ts",
+      "bytes": 36158,
+      "sha256": "00faa5c16a0a8127008dd3f853194b4736094d0e5f7e82f8fb8a97facdbce565"
+    },
+    {
+      "production": false,
+      "path": "apps/meriv2-orchestrator/src/meri/full-chat-read-tools.catalog.spec.ts",
+      "bytes": 5931,
+      "sha256": "959c04dc5854f54d8985d3381b6b1d89c66c96aa467260ee58891984ac7aebcf"
+    },
+    {
+      "production": false,
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meri-progressive-tool-discovery.spec.ts",
+      "bytes": 9188,
+      "sha256": "a720922ff16f1508ed68d1fbeee72a15a3ba6746d20f3a768a691bd252f713c5"
+    },
+    {
+      "production": false,
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meri-semantic-tool-gateway.spec.ts",
+      "bytes": 19869,
+      "sha256": "d7b055eabf00863af1bbe8ea27d2ce8024b3a602e8d58134b3a4bc92a53fcccc"
+    },
+    {
+      "production": true,
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meri-semantic-tool-gateway.ts",
+      "bytes": 17370,
+      "sha256": "a7099e652cb057042412dd416768723b3fe301dc8c25ff80330b8c35e534128b"
+    },
+    {
+      "production": false,
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.spec.ts",
+      "bytes": 221996,
+      "sha256": "3bc1108fd02f6437dc5ceaf9b3bd3acf383a5f9cc2d651b5244bb1d5c3095232"
+    },
+    {
+      "production": false,
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-tool-evidence.spec.ts",
+      "bytes": 28206,
+      "sha256": "5dd8adb8dee9ce83478dd4d3c15b23c0531889d0b8d3bf17f030b62d76b89ecd"
+    },
+    {
+      "production": true,
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-tool-evidence.ts",
+      "bytes": 26291,
+      "sha256": "79f7ff37a28e2a6ac93ab5f072d32d9d54136a9e4a33729dc4d9848b1120a8d2"
+    },
+    {
+      "production": true,
+      "path": "apps/meriv2-orchestrator/src/meri/retrieval/meri-tool-catalog.ts",
+      "bytes": 7347,
+      "sha256": "dd5b7bcbc8e5cbb0a89967d6a66ffe95d34f1a65da77ae9a6b689c0d53a25989"
+    },
+    {
+      "production": false,
+      "path": "packages/meriv2-core/src/assurance/tool-ledger-adapter.spec.ts",
+      "bytes": 12749,
+      "sha256": "eb584f614015cc9d9824589e6393623fd71423e6f2b700fbc630ebab08ec3677"
+    },
+    {
+      "production": true,
+      "path": "packages/meriv2-core/src/assurance/tool-ledger-adapter.ts",
+      "bytes": 30961,
+      "sha256": "32611cd8baf8a8df73edecc18920469d0990c805ffafdab6b1d4be4fe5742068"
+    },
+    {
+      "production": true,
+      "path": "packages/shared/src/index.ts",
+      "bytes": 262852,
+      "sha256": "c1bd89290cc211d6621b3660dfce7c50cc3803064cc05e542c5f4f9b7af7b610"
+    },
+    {
+      "production": true,
+      "path": "packages/shared/src/meri-read-outcome.ts",
+      "bytes": 34363,
+      "sha256": "5cf126514e51d882ef519fedf59e375813f25416c1a2dd6436fc42c8d77f34ad"
+    }
+  ],
+  "limitations": [
+    "Mocks/unit boundaries, not live RLS or authenticated HTTP proof",
+    "No DB/provider/browser/cloud actions",
+    "No deployed/served case02 acceptance claim",
+    "Tracked patch excludes two new files; exact source directory and manifest include all20files"
+  ],
+  "frozenAt": "2026-10-03T12:14:58.3922722Z",
+  "tests": {
+    "orchestrator": {
+      "exitCode": 0,
+      "suites": 6,
+      "receipt": "orchestrator-focused-v2.log.receipt.json",
+      "passed": 138
+    },
+    "ledger": {
+      "exitCode": 0,
+      "suites": 1,
+      "receipt": "core-ledger-v1.log.receipt.json",
+      "passed": 149
+    },
+    "api": {
+      "exitCode": 0,
+      "suites": 4,
+      "receipt": "api-focused-v3-receipt.json",
+      "passed": 75
+    },
+    "nativeScope": {
+      "exitCode": 0,
+      "receipt": "native-scope-v1.log.receipt.json",
+      "suites": 1,
+      "filteredOut": 121,
+      "passed": 1
+    }
+  },
+  "supersedesEvidenceMetadataOnly": {
+    "path": "candidate-snapshot.json",
+    "sha256": "02fba6847322c8572758bb0636e46bc894bea791105cac358fd5366307ffc420",
+    "correction": "API receipt filename; source files and reported test results unchanged"
+  },
+  "independentSourceReview": {
+    "reviewer": "/root/mail_defaults_review",
+    "result": "PASS",
+    "testReruns": false,
+    "limitations": [
+      "No live RLS or served case02 acceptance",
+      "Corpus governance and semantic clock remain separate blockers"
+    ]
+  }
+}

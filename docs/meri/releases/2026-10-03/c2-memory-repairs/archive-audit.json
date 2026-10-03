@@ -1,0 +1,14 @@
+{
+  "reviewer": "/root/mail_defaults_review",
+  "result": "PASS",
+  "reviewedManifestSha256": "9bbfb3dfffb1eef53544205cec58ba0956b490fb52efd89c623a4c31419d33c1",
+  "verifiedFiles": 78,
+  "originalEvidenceCopies": 75,
+  "localMarkdownLinks": 142,
+  "matrixDataRowsUnchanged": 130,
+  "priorInventoryCheckpointsPreserved": 10,
+  "addedInventoryCheckpoints": 1,
+  "noEditsTestsOrRemoteCalls": true,
+  "limits": "No deployment, reconciliation, semantic-clock or original acceptance claimed",
+  "postReviewPackaging": "Raw evidence bytes unchanged; archive attributes permit original CRLF and treat captured logs as opaque diffs."
+}

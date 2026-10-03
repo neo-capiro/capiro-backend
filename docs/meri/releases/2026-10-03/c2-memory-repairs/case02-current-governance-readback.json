@@ -1,0 +1,33 @@
+{
+  "at": "2026-10-03T11:56:26.729Z",
+  "actorUserId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+  "role": "standard_user",
+  "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+  "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+  "apiSha": "6be5a560d5addaa1844f0687898c34a249089f76",
+  "route": "/api/memory/proposals?limit=50",
+  "rawResponseSha256": "35aa81215907a8fcd215e543959b2f3c39c9d221a8ebcde8991bfe96e73a215c",
+  "candidateCount": 10,
+  "hasMore": false,
+  "target": {
+    "id": "dc61a9a5-5130-5c67-a7e8-19906259c34f",
+    "scope": "client",
+    "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+    "sourceKind": "model_extraction",
+    "status": "pending",
+    "createdAt": "2026-10-02T17:00:09.074Z",
+    "decidedAt": null,
+    "restricted": false,
+    "proposal": {
+      "key": "meri-foundation-20260928:f6164496-9dac-4771-980f-2f362081942e:MA2",
+      "value": "prefers SMS alerts",
+      "canonicalItem": null
+    },
+    "capabilities": {
+      "withdraw": true
+    },
+    "clientName": "Aster Defense"
+  },
+  "providerCalls": 0,
+  "businessWrites": 0
+}

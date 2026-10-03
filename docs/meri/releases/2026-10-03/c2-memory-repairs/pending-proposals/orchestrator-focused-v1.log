@@ -1,0 +1,63 @@
+FAIL src/meri/meriv3/meriv3-tool-evidence.spec.ts
+  ● Test suite failed to run
+
+    src/meri/meriv3/meriv3-tool-evidence.spec.ts:20:12 - error TS2554: Expected 3-4 arguments, but got 2.
+
+    20     expect(extractCitationsFromToolResult('list_memory_proposals', pending)).toEqual([]);
+                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+      ../../packages/shared/dist/index.d.ts:898:92
+        898 export declare function extractCitationsFromToolResult(toolName: string, payload: unknown, startN: number, maxPerTool?: number): MeriCitation[];
+                                                                                                       ~~~~~~~~~~~~~~
+        An argument for 'startN' was not provided.
+
+PASS src/meri/chat/chat-prompt.spec.ts
+PASS src/meri/meriv3/meri-semantic-tool-gateway.spec.ts
+PASS src/meri/meriv3/meri-progressive-tool-discovery.spec.ts
+PASS src/meri/api-tool-read-outcome.spec.ts
+FAIL src/meri/full-chat-read-tools.catalog.spec.ts
+  ● FULL_CHAT_READ_TOOLS catalog › matches the intended full-chat read tool set
+
+    expect(received).toHaveLength(expected)
+
+    Expected length: 78
+    Received length: 79
+    Received array:  [{"description": "Read one authorized Defense Intelligence Research Portfolio, including its immutable identity, revision, members, linked clients, grants, and recent event history. A Research Portfolio is distinct from Meri portfolio scope, which means all firm clients.", "name": "get_research_portfolio", "readOnly": true}, {"description": "Read the authorized portfolio financial projection from the same domain service used by the UI and exports. Returns only compatible-basis totals plus the full included, excluded, overlap, missing, withheld, and unavailable contribution ledger; unavailable is never treated as zero.", "name": "get_research_portfolio_analytics", "readOnly": true}, {"description": "Read the authorized portfolio change feed with per-recipient seen, acknowledged, and dismissed state. Pagination and partial history are explicit.", "name": "get_research_portfolio_changes", "readOnly": true}, {"description": "Read the current user's bookmarks for an authorized Research Portfolio, including members, snapshots, evidence items, and reviews they have saved for quick reference.", "name": "get_research_portfolio_bookmarks", "readOnly": true}, {"description": "Read current client-link fit for the supported direct qualified canonical PE association subset. Percentage is matched supported PE members, not general relevance; unsupported members and missing facts make partial/unavailable explicit. Persisted version UUID and basis fingerprint are optional; never imply durable history when absent.", "name": "get_research_portfolio_fit", "readOnly": true}, {"description": "Read reviews for an authorized Research Portfolio in a specified lane (mine, team, deferred, resolved). Includes review evidence, assignment, and decision history.", "name": "get_research_portfolio_reviews", "readOnly": true}, {"description": "Read current rule versions for an authorized Research Portfolio, including expression, mode, qualification policy, and recompute status.", "name": "get_research_portfolio_rules", "readOnly": true}, {"description": "Read import job status and row details for an authorized Research Portfolio, including preview results, applied/failed outcomes, and compensation history.", "name": "get_research_portfolio_imports", "readOnly": true}, {"description": "Read unified operation status for an authorized Research Portfolio, covering imports, recompute jobs, output jobs, and snapshots with their lifecycle state.", "name": "get_research_portfolio_operations", "readOnly": true}, {"description": "Read immutable attachment evidence for your research session, with source IDs, completeness/status and paging; verify supplied attachments before citing them.", "name": "get_research_evidence", "readOnly": true}, …]
+
+      108 |     ].sort();
+      109 |     expect(FULL_CHAT_READ_TOOLS.map((t) => t.name).sort()).toEqual(expected);
+    > 110 |     expect(FULL_CHAT_READ_TOOLS).toHaveLength(78);
+          |                                  ^
+      111 |     expect(FULL_CHAT_READ_TOOLS.every((t) => t.readOnly === true)).toBe(true);
+      112 |   });
+      113 |
+
+      at Object.<anonymous> (src/meri/full-chat-read-tools.catalog.spec.ts:110:34)
+
+  ● Combined delegated-tool coverage (in-editor + write + full-chat-read) › the three catalogs together cover apps/api's full tool surface exactly — no gap, no duplicate
+
+    expect(received).toHaveLength(expected)
+
+    Expected length: 137
+    Received length: 138
+    Received array:  ["add_research_portfolio_review_note", "apply_legiwatch_suggestion", "build_opportunity_action_plan", "cancel_scheduled_task", "compare_florida_budget_amounts", "compare_funding_opportunities", "compare_legislative_versions", "confirm_memory", "correct_memory", "create_client", …]
+
+      128 |     expect(combined).toEqual(ALL_APPS_API_TOOLS);
+      129 |     expect(new Set(combined).size).toBe(combined.length); // no tool double-registered
+    > 130 |     expect(combined).toHaveLength(137);
+          |                      ^
+      131 |   });
+      132 |
+      133 |   it('W4.6 / D-13: the three catalogs match the canonical MERI_TOOL_MANIFEST VERBATIM (name AND description) — catches description drift the name-only check missed', () => {
+
+      at Object.<anonymous> (src/meri/full-chat-read-tools.catalog.spec.ts:130:22)
+
+Test Suites: 2 failed, 4 passed, 6 total
+Tests:       2 failed, 117 passed, 119 total
+Snapshots:   0 total
+Time:        8.794 s
+Ran all test suites matching /src\\meri\\full-chat-read-tools.catalog.spec.ts|src\\meri\\meriv3\\meri-semantic-tool-gateway.spec.ts|src\\meri\\meriv3\\meri-progressive-tool-discovery.spec.ts|src\\meri\\meriv3\\meriv3-tool-evidence.spec.ts|src\\meri\\chat\\chat-prompt.spec.ts|src\\meri\\api-tool-read-outcome.spec.ts/i.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?
+undefined
+C:\dev\main\meri-c1-20261002\apps\meriv2-orchestrator:
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command "jest" not found

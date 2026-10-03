@@ -1890,6 +1890,35 @@
       "cwFullyAccepted": 0,
       "sourceProvenanceChanged": false,
       "historicalJournalChanged": false
+    },
+    {
+      "date": "2026-10-03T12:39:05.604077+00:00",
+      "kind": "c2_memory_source_reviewed_images_building",
+      "sourceSha": "ed44f2c6cfdfda5150f75ab198a6e52d2377880f",
+      "pendingToolCommit": "742c49392c4c3c50dd4c63e1fdc814342172c35a",
+      "evidence": "docs/meri/releases/2026-10-03/c2-memory-repairs/README.md",
+      "deployment": "NOT_RUN",
+      "projectionActualPostgres": {
+        "beforePassed": 1,
+        "beforeFailed": 7,
+        "afterPassed": 10
+      },
+      "projectionJestPassed": 42,
+      "pendingProposalTests": {
+        "api": 75,
+        "orchestrator": 138,
+        "ledger": 149,
+        "nativeScope": 1,
+        "nativeFiltered": 121
+      },
+      "corpusPreflight": "FAILED_CANONICAL_PROJECTION_METADATA_DRIFT",
+      "reconciliation": "IN_PROGRESS",
+      "newProviderCaptures": 0,
+      "original75FullyAccepted": 0,
+      "cdFullyAccepted": 0,
+      "cwFullyAccepted": 0,
+      "sourceProvenanceChanged": false,
+      "historicalJournalChanged": false
     }
   ]
 }

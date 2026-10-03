@@ -1,0 +1,12 @@
+{
+  "at": "2026-10-03T11:59:33.609Z",
+  "events": [
+    {
+      "timestamp": 1791028668377,
+      "sha256": "3db38ef84e0aeacafaa19fbf606b6f6714fa085f744d49e2e7e3c6626ee6173f",
+      "codes": [
+        "meri_synthetic_read_budget_install_failed"
+      ]
+    }
+  ]
+}

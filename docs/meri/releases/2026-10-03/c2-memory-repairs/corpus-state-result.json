@@ -1,0 +1,89 @@
+{
+  "at": "2026-10-03T12:12:40.259Z",
+  "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/6dd7871e293747fba3b91ae0ee401710",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-c2-readback-20261003:4",
+  "exitCode": 1,
+  "receipts": [
+    {
+      "status": "READ_FAILED",
+      "name": "ForbiddenException",
+      "code": null,
+      "safeMessage": "Approved synthetic memory guard does not match",
+      "frames": [
+        "    at deny (/app/apps/api/src/memory/synthetic-approved-memory.helpers.ts:24:9)",
+        "    at validateSyntheticApprovedMemoryInTx (/app/apps/api/src/memory/synthetic-approved-memory.helpers.ts:231:27)",
+        "    at async readSyntheticCorrectionStateInTx (/app/apps/api/src/memory/synthetic-memory-version.helpers.ts:65:16)",
+        "    at async readSyntheticCorrectionRetirementInTx (/app/apps/api/src/memory/synthetic-memory-version.helpers.ts:188:17)",
+        "    at async retirementInTx (file:///app/evals/meri/live-v1/fixture-provisioning/case01-memory-runtime.mjs:412:24)",
+        "    at async Object.hydrateInTx (file:///app/evals/meri/live-v1/fixture-provisioning/case01-memory-runtime.mjs:399:20)",
+        "    at async reconstruct (file:///app/evals/meri/live-v1/fixture-provisioning/case01-memory-owner.mjs:81:3)",
+        "    at async readCase01MemoryCorpusInTx (file:///app/evals/meri/live-v1/fixture-provisioning/case01-memory-owner.mjs:156:21)"
+      ],
+      "observedPredicates": [
+        {
+          "source": "validateSyntheticApprovedMemoryInTx memory_items guard",
+          "rowPresent": true,
+          "current": [
+            {
+              "id": "5e9d3ad4-b37d-4997-be47-55b00528c085",
+              "status": "superseded",
+              "governed_status": "active",
+              "legal_hold": false,
+              "instructions_allowed": false,
+              "retention_sql_null": false,
+              "retention_json_type": "null",
+              "updated_at": "2026-10-03T04:48:52.392Z",
+              "revoked_at": null,
+              "revoked_by": null,
+              "review_state": "confirmed",
+              "last_confirmed_at": "2026-10-02T12:03:55.781Z",
+              "approved_at": "2026-10-02T12:03:55.781Z"
+            }
+          ],
+          "audits": [
+            {
+              "id": "c1d0c649-d9fb-47f3-84b8-308f8a3565ab",
+              "occurred_at": "2026-10-02T16:59:58.955Z",
+              "from_status": "active",
+              "to_status": "superseded",
+              "reason_code": "superseded",
+              "source_type": "approved_document_edit",
+              "proposal_id": "8c320f91-9522-47ac-8359-b012257699b4"
+            }
+          ],
+          "outbox": [
+            {
+              "id": "87270908-b778-4833-b27f-1ad85333cff1",
+              "operation": "supersede_projections",
+              "status": "pending",
+              "attempts": 0,
+              "created_at": "2026-10-02T16:59:58.871Z",
+              "completed_at": null
+            },
+            {
+              "id": "5e139f9c-3b32-434c-84a1-f043cca4b70f",
+              "operation": "index_memory_item",
+              "status": "completed",
+              "attempts": 0,
+              "created_at": "2026-10-02T12:03:55.761Z",
+              "completed_at": "2026-10-02T15:03:53.416Z"
+            }
+          ],
+          "failed": [
+            {
+              "clause": "status=$7 AND governed_status=$8",
+              "value": false
+            },
+            {
+              "clause": "legal_hold=false AND instructions_allowed=false AND retention_policy_jsonb IS NULL",
+              "value": false
+            }
+          ],
+          "totalChecks": 21
+        }
+      ]
+    }
+  ],
+  "providerCalls": 0,
+  "businessWrites": 0
+}

@@ -1,0 +1,5 @@
+{
+  "exitCode": 0,
+  "completedAt": "2026-10-03T12:03:23.3348119Z",
+  "command": "pnpm --filter @capiro/shared build"
+}

@@ -1,0 +1,4 @@
+
+> @capiro/shared@0.0.0 build C:\dev\main\meri-c1-20261002\packages\shared
+> tsc -p tsconfig.json
+
