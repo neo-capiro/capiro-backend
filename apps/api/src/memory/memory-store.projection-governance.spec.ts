@@ -19,12 +19,12 @@ function sqlText(strings: unknown): string {
   return (sql.strings ?? sql.raw ?? []).join('?');
 }
 
-function harness() {
+function harness(existingId?: string) {
   const queries: string[] = [];
   const tx = {
-    $queryRaw: jest.fn(async (strings: unknown) => {
+    $queryRaw: jest.fn(async (strings: unknown, ...values: unknown[]) => {
       queries.push(sqlText(strings));
-      return [{ id: ITEM }];
+      return [{ id: existingId ?? values[0] }];
     }),
     $executeRaw: jest.fn(async (strings: unknown) => {
       queries.push(sqlText(strings));
@@ -107,5 +107,22 @@ describe('MemoryStoreService projection governance restoration', () => {
     expect(sql).toContain('memory_class =');
     expect(sql).toContain("review_state = 'confirmed'");
     expect(sql).toContain('instructions_allowed =');
+  });
+
+  it('does not restore stale authority when the insert resolves to an existing item', async () => {
+    const h = harness(ITEM);
+    const id = await h.service.upsertSystem({
+      ...baseItem(),
+      memoryClass: 'client_steering',
+      memoryAuthority: 'client_approved',
+      memoryScope: 'client',
+      governedStatus: 'active',
+      sourceVersion: `candidate:${CANDIDATE}`,
+      assertedByUserId: PROPOSER,
+      approvedByUserId: APPROVER,
+      approvedAt: '2026-07-30T00:01:00.000Z',
+    });
+    expect(id).toBe(ITEM);
+    expect(h.queries.join('\n')).not.toContain('UPDATE memory_items');
   });
 });

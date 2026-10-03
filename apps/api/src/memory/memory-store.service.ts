@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import {
   ForbiddenException,
   Injectable,
@@ -371,14 +372,18 @@ export class MemoryStoreService {
       item.memoryScope ??
       (item.clientId ? 'client' : item.visibility === 'user' ? 'user_private' : 'firm');
     return this.prisma.withSystem(async (tx) => {
+      // Distinguish a new projection from a refresh without relying on PostgreSQL
+      // MVCC internals. The conflict path returns the existing canonical ID.
+      const insertedId = randomUUID();
       const rows = await tx.$queryRaw<Array<{ id: string }>>`
         INSERT INTO memory_items (
-          tenant_id, client_id, owner_user_id, type, visibility, memory_scope, entity_id,
+          id, tenant_id, client_id, owner_user_id, type, visibility, memory_scope, entity_id,
           slug, title, aliases, tags, source, source_ref, provenance,
           sections_jsonb, schema_version,
           status, sensitivity, legal_hold, exportable, training_use, expires_at,
           confidence, ingest_run_id, ingested_at, review_state
         ) VALUES (
+          ${insertedId}::uuid,
           ${item.tenantId}::uuid,
           ${item.clientId}::uuid,
           ${item.ownerUserId}::uuid,
@@ -456,7 +461,7 @@ export class MemoryStoreService {
         throw new Error('memory_items upsert returned no row');
       }
       const id = row.id;
-      if (hasAuthoritativeProjectionGovernance(item)) {
+      if (id === insertedId && hasAuthoritativeProjectionGovernance(item)) {
         await this.restoreProjectionGovernanceInTx(tx, id, item);
       }
       await this.deriveEdges(tx, item, id);
@@ -465,9 +470,9 @@ export class MemoryStoreService {
   }
 
   /**
-   * Restore governed metadata from the server-owned Clio projection. Generic
-   * projection writes remain byte-compatible with the pre-migration SQL shape;
-   * this UPDATE runs only when the metadata carries active candidate lineage.
+   * Initialize governed metadata on a newly inserted Clio projection only.
+   * Existing canonical rows may have newer approvals, holds or lifecycle state
+   * than the Clio snapshot; a routine refresh cannot restore that stale authority.
    */
   private async restoreProjectionGovernanceInTx(
     tx: Prisma.TransactionClient,
@@ -516,7 +521,7 @@ export class MemoryStoreService {
           conflict_group_id = ${conflictGroupId}::uuid,
           controlling_item_id = ${controllingItemId}::uuid,
           sensitivity = ${item.sensitivity ?? 'normal'},
-          retention_policy_jsonb = ${JSON.stringify(item.retentionPolicy ?? null)}::jsonb,
+          retention_policy_jsonb = ${item.retentionPolicy == null ? null : JSON.stringify(item.retentionPolicy)}::jsonb,
           legal_hold = ${item.legalHold ?? false},
           origin_surface = ${item.originSurface ?? null},
           origin_trace_id = ${item.originTraceId ?? null},

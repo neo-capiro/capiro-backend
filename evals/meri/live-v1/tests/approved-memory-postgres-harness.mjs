@@ -162,6 +162,8 @@ export async function withOwnedApprovedMemory(configPath, work) {
           const facade = {
             withTenantUser: scoped,
             withTenant: (tenantId, callback) => scoped(tenantId, null, callback),
+            // The same owned rollback-only transaction; no production RLS claim.
+            withSystem: (callback) => scoped('', null, callback),
           };
           const tenantContext = new TenantContextStore();
           const memoryStore = new MemoryStoreService(facade, tenantContext);

@@ -47,15 +47,19 @@ export function memoryFixtureSchemaSql(schema) {
         type text,visibility text,entity_id uuid,slug text,title text,aliases text[],tags text[],source text,
         source_ref text,provenance text,sections_jsonb jsonb,schema_version int,status text,sensitivity text,
         legal_hold boolean,exportable boolean,training_use text,expires_at timestamptz,confidence float,
-        memory_class text,memory_authority text,memory_scope text,governed_status text,source_type text,
+        memory_class text DEFAULT 'legacy_unclassified',memory_authority text DEFAULT 'legacy_unclassified',
+        memory_scope text,governed_status text DEFAULT 'pending_review',source_type text,
         source_id text,source_excerpt text,source_content_hash text,source_version text,asserted_by_user_id uuid,
         approved_by_user_id uuid,approved_at timestamptz,second_approved_by_user_id uuid,second_approved_at timestamptz,
         last_confirmed_at timestamptz,review_state text,review_due_at timestamptz,retention_policy_jsonb jsonb,
         as_of timestamptz,effective_from timestamptz,valid_until timestamptz,conflict_status text,conflict_group_id uuid,
         controlling_item_id uuid,origin_surface text,origin_trace_id text,origin_context_packet_id uuid,
         origin_model text,origin_prompt_version text,instructions_allowed boolean,revoked_at timestamptz,revoked_by uuid,
+        ingest_run_id uuid,ingested_at timestamptz,
         created_at timestamptz DEFAULT clock_timestamp(),updated_at timestamptz DEFAULT clock_timestamp(),UNIQUE(tenant_id,type,slug)
       );
+      CREATE TABLE "${schema}".memory_edges(tenant_id uuid,src_item_id uuid,relation text,dst_type text,dst_slug text,
+        UNIQUE(src_item_id,relation,dst_type,dst_slug));
       CREATE TABLE "${schema}".memory_cleanup_outbox(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),tenant_id uuid,
         memory_item_id uuid,clio_memory_id uuid,operation text,idempotency_key text,status text DEFAULT 'pending',
         UNIQUE(tenant_id,idempotency_key));
