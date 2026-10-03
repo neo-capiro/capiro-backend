@@ -1,0 +1,43 @@
+{
+  "status": "UI_SLICE_PASS",
+  "at": "2026-10-03T17:03:56.545Z",
+  "caseId": "17",
+  "captureRunId": "22175a99-1245-4929-9d3c-4e7e0c058374",
+  "apiSha": "f00e5dfb4fd3e47ac6aa4aca741023cc02f6314f",
+  "webSha": "78ad5805679a3045b1fc10fb19beafa7f76e4e64",
+  "operatorSourceSha": "d1bcbf37c714ff1980ff73f9b8c6c34845be7956",
+  "preparedSha256": "118a55f5005c07a9dfc535887afb210d965d5e283e72b9cd785368436e854fca",
+  "sessionCreated": true,
+  "sessionRevoked": true,
+  "applicationWrites": 0,
+  "synthesisSubmissionCount": 0,
+  "providerCalls": 0,
+  "originalPromptSubmission": "NOT_RUN",
+  "humanRubric": "NOT_RUN",
+  "fullOriginalRow17Acceptance": false,
+  "fullFile01Acceptance": false,
+  "outcome": {
+    "caseId": "17",
+    "captureRunId": "22175a99-1245-4929-9d3c-4e7e0c058374",
+    "status": "CAPTURE_COMPLETE",
+    "evidence": {
+      "ref": "case17/evidence.json",
+      "sha256": "a0fd2d6396987341cc62f2ad10e5f8e49d18752f488c17b7a736f717c642e1c0",
+      "bytes": 34203
+    },
+    "synthesisSubmissionCount": 0
+  },
+  "grading": {
+    "caseId": "17",
+    "captureRunId": "22175a99-1245-4929-9d3c-4e7e0c058374",
+    "evidenceSha256": "a0fd2d6396987341cc62f2ad10e5f8e49d18752f488c17b7a736f717c642e1c0",
+    "deterministicStatus": "PASS",
+    "synthesisSubmissionCount": 0,
+    "applicationWrites": 0,
+    "fullFile01Acceptance": false,
+    "status": "PASS",
+    "reason": "CASE17_ONLY"
+  },
+  "visualReviewer": "Codex root saved-image inspection; not human rubric",
+  "completedAt": "2026-10-03T17:07:07.977Z"
+}

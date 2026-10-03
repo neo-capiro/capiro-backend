@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "kind": "meri-case17-visual-review",
+  "caseId": "17",
+  "captureRunId": "22175a99-1245-4929-9d3c-4e7e0c058374",
+  "evidenceSha256": "a0fd2d6396987341cc62f2ad10e5f8e49d18752f488c17b7a736f717c642e1c0",
+  "reviewedAt": "2026-10-03T17:07:02.521Z",
+  "reviewer": "Codex root",
+  "reference": "Saved afterReload PNGs A through F visually inspected in current chat; each initial PNG is byte-identical to its corresponding reload PNG.",
+  "rationale": "All six cards show PENDING REVIEW, distinct A-F proposal labels and values, readable Source: model extraction, and a visible Withdraw action. A/B/C target Aster Defense; D targets Bluehaven Robotics; E is Firm memory; F is Personal memory. No clipping hides the scope, value, source kind or action. This validates visible source kind only; it does not establish a human rubric, the original model prompt, or complete distinct-source provenance navigation.",
+  "screenshotSha256s": [
+    "f797e247677f0e1fc25fe5f9c6a1d49fbc4aa30174bd3c2ec1f07cf90c1c8298",
+    "0c439c0d72d3f4a81afb5b339d66599a1b4c8ff3ce49924c131d89e8ea560037",
+    "aa917881747c65a85608c1a7f87461b66f62629d40cc1ae4cf3cda2e75b8d3d8",
+    "b432d973e963469e33497833932d241caeaeb9746c6187eeb7f728cf19171d55",
+    "9c121e93d9d99fd6a6fdb8417315519a540d5df88987e0df372df7ec3e87fd4a",
+    "ac32c33de7c630f4edf4e74c06acb7785399e5848185d113185cb22999abd9f9",
+    "f797e247677f0e1fc25fe5f9c6a1d49fbc4aa30174bd3c2ec1f07cf90c1c8298",
+    "0c439c0d72d3f4a81afb5b339d66599a1b4c8ff3ce49924c131d89e8ea560037",
+    "aa917881747c65a85608c1a7f87461b66f62629d40cc1ae4cf3cda2e75b8d3d8",
+    "b432d973e963469e33497833932d241caeaeb9746c6187eeb7f728cf19171d55",
+    "9c121e93d9d99fd6a6fdb8417315519a540d5df88987e0df372df7ec3e87fd4a",
+    "ac32c33de7c630f4edf4e74c06acb7785399e5848185d113185cb22999abd9f9"
+  ],
+  "allSixCardsVisibleWithCorrectScopeAndProvenance": true,
+  "allSixActionsVisibleAfterReload": true,
+  "humanRubric": "NOT_RUN",
+  "fullOriginalRow17Acceptance": false
+}

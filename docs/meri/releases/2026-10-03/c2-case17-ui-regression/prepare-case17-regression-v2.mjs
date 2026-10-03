@@ -1,0 +1,27 @@
+import assert from 'node:assert/strict';
+import {readFileSync,writeFileSync} from 'node:fs';
+import {createHash,randomUUID} from 'node:crypto';
+import {execFileSync} from 'node:child_process';
+import {sha256Stable} from '../../meri-c1-20261002/evals/meri/live-v1/lib/stable.mjs';
+const repo='C:/dev/main/meri-c1-20261002',root='C:/dev/main/outputs/meri-c2-20261003';
+const sha=b=>createHash('sha256').update(b).digest('hex');
+const priorBytes=readFileSync(root+'/case17-regression-prepared.json');
+assert.equal(sha(priorBytes),'10c34627683edfc39f11c766c3d616be972487340cd69fa6006d2591158a311f');
+const prepared=JSON.parse(priorBytes);
+const first=JSON.parse(readFileSync(root+'/case17-regression-result.json','utf8'));
+assert.equal(first.status,'BLOCKED');assert.equal(first.sessionCreated,false);assert.equal(first.providerCalls,0);assert.equal(first.applicationWrites,0);
+assert.equal(sha256Stable(prepared.config.recipe),prepared.originalRecipeSha256);
+assert.equal(prepared.originalRecipeSha256,'853dbf7f1e839639658e6cb9e2575fd4ef31fccf9d67b339d8ae4894537807d6');
+prepared.at=new Date().toISOString();
+prepared.sourceSha=execFileSync('git',['rev-parse','HEAD'],{cwd:repo,encoding:'utf8',windowsHide:true}).trim();
+assert.equal(prepared.sourceSha,'d1bcbf37c714ff1980ff73f9b8c6c34845be7956');
+prepared.config.captureRunId=randomUUID();
+prepared.previousAttempt={path:'case17-regression-result.json',sha256:sha(readFileSync(root+'/case17-regression-result.json')),status:first.status};
+prepared.sourceFiles=prepared.sourceFiles.map(file=>{
+ const bytes=readFileSync(repo+'/'+file.path),committed=execFileSync('git',['show','HEAD:'+file.path],{cwd:repo,windowsHide:true});
+ assert.equal(sha(bytes),sha(committed));return {...file,sha256:sha(bytes)};
+});
+const driver=readFileSync(root+'/run-case17-regression.mjs','utf8').replaceAll('case17-regression','case17-regression-v2').replaceAll('case17-owned-session.private.json','case17-v2-owned-session.private.json');
+writeFileSync(root+'/case17-regression-v2-prepared.json',JSON.stringify(prepared,null,2)+'\n',{flag:'wx'});
+writeFileSync(root+'/run-case17-regression-v2.mjs',driver,{flag:'wx'});
+console.log(JSON.stringify({status:'PREPARED_V2_WITH_ORIGINAL_FIXTURE',sourceSha:prepared.sourceSha,captureRunId:prepared.config.captureRunId,recipeSha256:prepared.originalRecipeSha256,providerCalls:0,applicationWrites:0}));

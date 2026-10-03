@@ -1,0 +1,135 @@
+{
+  "schemaVersion": 1,
+  "artifacts": [
+    {
+      "path": ".gitattributes",
+      "sha256": "308a40fa1d89ae5ea4390b4c9b46a0108b09f171f07898f25d451fa0c69c4e9f",
+      "bytes": 72
+    },
+    {
+      "path": "case17/afterReload/MEM-PENDING-17-A.png",
+      "sha256": "f797e247677f0e1fc25fe5f9c6a1d49fbc4aa30174bd3c2ec1f07cf90c1c8298",
+      "bytes": 20688
+    },
+    {
+      "path": "case17/afterReload/MEM-PENDING-17-B.png",
+      "sha256": "0c439c0d72d3f4a81afb5b339d66599a1b4c8ff3ce49924c131d89e8ea560037",
+      "bytes": 20627
+    },
+    {
+      "path": "case17/afterReload/MEM-PENDING-17-C.png",
+      "sha256": "aa917881747c65a85608c1a7f87461b66f62629d40cc1ae4cf3cda2e75b8d3d8",
+      "bytes": 20752
+    },
+    {
+      "path": "case17/afterReload/MEM-PENDING-17-D.png",
+      "sha256": "b432d973e963469e33497833932d241caeaeb9746c6187eeb7f728cf19171d55",
+      "bytes": 20947
+    },
+    {
+      "path": "case17/afterReload/MEM-PENDING-17-E.png",
+      "sha256": "9c121e93d9d99fd6a6fdb8417315519a540d5df88987e0df372df7ec3e87fd4a",
+      "bytes": 20085
+    },
+    {
+      "path": "case17/afterReload/MEM-PENDING-17-F.png",
+      "sha256": "ac32c33de7c630f4edf4e74c06acb7785399e5848185d113185cb22999abd9f9",
+      "bytes": 21152
+    },
+    {
+      "path": "case17/attempt.json",
+      "sha256": "7803a83df7743dd7b812c66d5cfdfc3c73c29d2cff0c9db10bdc0a7fa99e20af",
+      "bytes": 169
+    },
+    {
+      "path": "case17/evidence.json",
+      "sha256": "a0fd2d6396987341cc62f2ad10e5f8e49d18752f488c17b7a736f717c642e1c0",
+      "bytes": 34203
+    },
+    {
+      "path": "case17/initial/MEM-PENDING-17-A.png",
+      "sha256": "f797e247677f0e1fc25fe5f9c6a1d49fbc4aa30174bd3c2ec1f07cf90c1c8298",
+      "bytes": 20688
+    },
+    {
+      "path": "case17/initial/MEM-PENDING-17-B.png",
+      "sha256": "0c439c0d72d3f4a81afb5b339d66599a1b4c8ff3ce49924c131d89e8ea560037",
+      "bytes": 20627
+    },
+    {
+      "path": "case17/initial/MEM-PENDING-17-C.png",
+      "sha256": "aa917881747c65a85608c1a7f87461b66f62629d40cc1ae4cf3cda2e75b8d3d8",
+      "bytes": 20752
+    },
+    {
+      "path": "case17/initial/MEM-PENDING-17-D.png",
+      "sha256": "b432d973e963469e33497833932d241caeaeb9746c6187eeb7f728cf19171d55",
+      "bytes": 20947
+    },
+    {
+      "path": "case17/initial/MEM-PENDING-17-E.png",
+      "sha256": "9c121e93d9d99fd6a6fdb8417315519a540d5df88987e0df372df7ec3e87fd4a",
+      "bytes": 20085
+    },
+    {
+      "path": "case17/initial/MEM-PENDING-17-F.png",
+      "sha256": "ac32c33de7c630f4edf4e74c06acb7785399e5848185d113185cb22999abd9f9",
+      "bytes": 21152
+    },
+    {
+      "path": "case17/native-write-guard-diagnostic.json",
+      "sha256": "0ff5706a9f693ffedc0586e5a57578c445fbf7b152973a81fd891fd551e48310",
+      "bytes": 540
+    },
+    {
+      "path": "case17/readonly-guard-diagnostic.json",
+      "sha256": "6cacf0185bdbd31fb569e22d6e88f87041e46a8a5c9becc202754ec1c5b10fa4",
+      "bytes": 709
+    },
+    {
+      "path": "case17/receipt.json",
+      "sha256": "1de6d4e6c28cc895d02fe2b9c3c6cba0f08816d19412051d8d86d9c9d9950e0d",
+      "bytes": 18389
+    },
+    {
+      "path": "case17-regression-v2-prepared.json",
+      "sha256": "118a55f5005c07a9dfc535887afb210d965d5e283e72b9cd785368436e854fca",
+      "bytes": 5241
+    },
+    {
+      "path": "case17-regression-v2-result.json",
+      "sha256": "e0259a172f38e5b59ba18cca7725142d963ebe01029ed68bd7ac4a7007b2a99b",
+      "bytes": 1514
+    },
+    {
+      "path": "case17-regression-v2-visual-review-request.json",
+      "sha256": "630c995e83cf57725dbdb90b63ff024571756d02bf95eaffbf64619b103ae6c0",
+      "bytes": 3190
+    },
+    {
+      "path": "case17-regression-v2-visual-review.json",
+      "sha256": "3924697773f93c22689671b3161d9c2a62266e0fc350d111bacd46fb98d31829",
+      "bytes": 1994
+    },
+    {
+      "path": "prepare-case17-regression-v2.mjs",
+      "sha256": "4806ecc0ae4caac6ccfb1e11860b4deeb7f82d44ba9b7413f409123c8e500ac9",
+      "bytes": 2370
+    },
+    {
+      "path": "README.md",
+      "sha256": "2c0bd650148bacebb5022fb2dae380a9c666c6d97bca00ff47824c9648ab71ee",
+      "bytes": 2396
+    },
+    {
+      "path": "review-case17-regression-v2.mjs",
+      "sha256": "b3539162718e010f8cedf1dcdb02e7e46713f9ff83a58e78ef44a84c032313bf",
+      "bytes": 2272
+    },
+    {
+      "path": "run-case17-regression-v2.mjs",
+      "sha256": "d92d3f6d50aede6fa7ee552b8cda52df62e54970f62b482c2f30d4b3aed28707",
+      "bytes": 8002
+    }
+  ]
+}
