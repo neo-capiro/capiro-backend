@@ -2,6 +2,7 @@ import { sha256Stable, stableJson } from '../artifact-collector.mjs';
 import { buildFixtureManifest } from './manifest.mjs';
 import { createCase01MemoryFixtureRuntime } from './case01-memory-runtime.mjs';
 import { AUTHORIZED_TENANTS, FIXTURE_NAMESPACE, FixtureProvisioningError } from './contract.mjs';
+import { reconcileCase01MetadataInTx } from './case01-memory-reconciliation.mjs';
 
 const fail = (code) => {
   throw new FixtureProvisioningError(code, code);
@@ -35,7 +36,7 @@ export function case01MemoryOwnerLocator(currentManifest, previousManifest, prop
   });
 }
 
-async function reconstruct(tx, ctx, scope, input, deps) {
+async function corpusManifests(ctx, scope, input) {
   const locator = structuredClone(input);
   if (
     !locator ||
@@ -69,6 +70,11 @@ async function reconstruct(tx, ctx, scope, input, deps) {
     ...config,
     fixtureInstanceId: locator.currentFixtureInstanceId,
   });
+  return { locator, previousManifest, currentManifest };
+}
+
+async function reconstruct(tx, ctx, scope, input, deps) {
+  const { locator, previousManifest, currentManifest } = await corpusManifests(ctx, scope, input);
   const runtimeDeps = {
     ...deps,
     proposerForTenant: (tenantId) => {
@@ -165,6 +171,17 @@ export async function readCase01MemoryCorpusInTx(deps, tx, ctx, clientId) {
     evidenceKind: 'canonical-memory-corpus-readback',
     captureAuthority: false,
   };
+}
+
+/** Operator-only reconciliation. A preview grants no capture/provider authority. */
+export async function reconcileCase01MemoryCorpusInTx(deps, tx, ctx, clientId, options) {
+  const row = await tenantInTx(tx, ctx);
+  const scope = { caseId: '01', clientId }, locator = row.settings.meriFoundationFixture.case01MemoryOwner;
+  const manifests = await corpusManifests(ctx, scope, locator);
+  return reconcileCase01MetadataInTx(tx, ctx, {
+    ...manifests, tenant: row, options,
+    verify: () => reconstruct(tx, ctx, scope, locator, deps),
+  });
 }
 
 /** Internal server port. Qualifies inside the existing authenticated transaction.

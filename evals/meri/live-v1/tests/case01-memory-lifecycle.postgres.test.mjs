@@ -30,8 +30,7 @@ export async function versionDependencies(deps, tx, memoryStore) {
   // The enclosing harness restores this key in finally; no deployed flag changes.
   process.env.MEMORY_CLIENT_REVIEW = 'enforce';
   await tx.$executeRawUnsafe(`ALTER TABLE memory_items ADD COLUMN review_cadence_days int,
-    ADD COLUMN supersedes_id uuid, ADD COLUMN contradicts_id uuid, ADD COLUMN ingest_run_id uuid,
-    ADD COLUMN ingested_at timestamptz`);
+    ADD COLUMN supersedes_id uuid, ADD COLUMN contradicts_id uuid`);
   const { ImmutableMemoryVersionService } = source('memory/immutable-memory-version.service');
   const { MemoryTransitionAuditService } = source('memory/memory-transition-audit.service');
   const { MemoryCleanupOutboxService } = source('memory/memory-cleanup-outbox.service');

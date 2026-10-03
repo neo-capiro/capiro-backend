@@ -73,6 +73,21 @@ test('fixed budget env and file ingress work for install and canonical read', as
     await assert.rejects(parse({ ...read, clientId: 'invalid' }), /corpus_scope/);
     await assert.rejects(parse({ ...read, fixtureReady: true }), /corpus_scope/);
     await assert.rejects(parse({ ...read, credential: 'UNIT_NOT_SECRET' }), /INPUT_INVALID/);
+    for (const [command, confirmation] of [
+      ['preview-corpus-metadata', 'PREVIEW_EXACT_OWNED_MEMORY_METADATA'],
+      ['execute-corpus-metadata', 'RECONCILE_EXACT_OWNED_MEMORY_METADATA'],
+    ]) {
+      const repair = { ...read, confirmation, ...(command.startsWith('execute') ? { expectedPlanSha256: 'a'.repeat(64) } : {}) };
+      assert.deepEqual((await parse(repair, command)).input, repair);
+      await assert.rejects(parse({ ...repair, ids: ['caller-selected'] }, command), /corpus_scope/);
+      await assert.rejects(parse({ ...repair, fixtureReady: true }, command), /corpus_scope/);
+      await assert.rejects(parse({ ...repair, confirmation: read.confirmation }, command), /scope/);
+      await assert.rejects(parse({ ...repair, expectedPlanSha256: 'invalid' }, command), /corpus_scope/);
+      if (command.startsWith('execute')) {
+        const { expectedPlanSha256, ...missing } = repair;
+        await assert.rejects(parse(missing, command), /corpus_scope/);
+      }
+    }
   } finally {
     for (const key of keys) {
       if (before[key] === undefined) delete process.env[key];

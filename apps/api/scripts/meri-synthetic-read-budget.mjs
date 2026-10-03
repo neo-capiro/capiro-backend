@@ -20,10 +20,27 @@ export async function readSyntheticMemoryCorpus(factory, input) {
   return { ...proof, status: 'MEMORY_CORPUS_READ', liveAcceptance: 'NOT_RUN' };
 }
 
+export async function reconcileSyntheticMemoryCorpus(factory, input, mode) {
+  const { reconcileCase01MemoryCorpusInTx } =
+    await import('../../../evals/meri/live-v1/fixture-provisioning/case01-memory-owner.mjs');
+  return factory.runWithTenant(input.ctx, () => factory.deps.prisma.withTenantUser(
+    input.ctx.tenantId, input.ctx.userId,
+    (tx) => reconcileCase01MemoryCorpusInTx(factory.deps, tx, input.ctx, input.clientId,
+      mode === 'preview' ? { mode } : { mode, expectedPlanSha256: input.expectedPlanSha256 }),
+  ));
+}
+
+const confirmations = {
+  install: 'INSTALL_ONE_OWNED_SYNTHETIC_READ_BUDGET',
+  'read-corpus': 'READ_CURRENT_OWNED_MEMORY_CORPUS',
+  'preview-corpus-metadata': 'PREVIEW_EXACT_OWNED_MEMORY_METADATA',
+  'execute-corpus-metadata': 'RECONCILE_EXACT_OWNED_MEMORY_METADATA',
+};
+
 export async function readSyntheticReadOperatorInput(args) {
   const [command, flag, inputPath, outFlag, outPath] = args;
   if (
-    !['install', 'read-corpus'].includes(command) ||
+    !Object.hasOwn(confirmations, command) ||
     args.length !== 5 ||
     !['--input', '--input-env'].includes(flag) ||
     outFlag !== '--out' ||
@@ -34,18 +51,18 @@ export async function readSyntheticReadOperatorInput(args) {
   if (
     input.target !== 'capiro-dev' ||
     input.fixtureNamespace !== 'meri-foundation-20260928' ||
-    input.confirmation !==
-      (command === 'install'
-        ? 'INSTALL_ONE_OWNED_SYNTHETIC_READ_BUDGET'
-        : 'READ_CURRENT_OWNED_MEMORY_CORPUS') ||
+    input.confirmation !== confirmations[command] ||
     input.ctx?.role !== 'standard_user' ||
     process.env.MERI_SYNTHETIC_FIXTURE_NAMESPACE !== input.fixtureNamespace ||
     !process.env.DATABASE_URL
   )
     throw new Error('meri_synthetic_read_budget_scope');
   if (
-    command === 'read-corpus' &&
-    (Object.keys(input).sort().join('|') !== 'clientId|confirmation|ctx|fixtureNamespace|target' ||
+    command !== 'install' &&
+    (Object.keys(input).sort().join('|') !== (command === 'execute-corpus-metadata'
+      ? 'clientId|confirmation|ctx|expectedPlanSha256|fixtureNamespace|target'
+      : 'clientId|confirmation|ctx|fixtureNamespace|target') ||
+      (command === 'execute-corpus-metadata' && !/^[a-f0-9]{64}$/.test(input.expectedPlanSha256)) ||
       !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/iu.test(
         input.clientId ?? '',
       ))
@@ -55,15 +72,22 @@ export async function readSyntheticReadOperatorInput(args) {
 }
 
 export async function main(args = process.argv.slice(2)) {
-  let prisma, output, factory;
+  let prisma, output, factory, executionAttempted = false;
   try {
     const { command, input, outPath } = await readSyntheticReadOperatorInput(args);
     output = await open(outPath, 'wx');
-    if (command === 'read-corpus') {
+    if (command !== 'install') {
       const { createCase01SetupDependencies } =
         await import('./meri-case01-setup-dependencies.mjs');
       factory = await createCase01SetupDependencies();
-      const receipt = await readSyntheticMemoryCorpus(factory, input);
+      if (command === 'execute-corpus-metadata') {
+        await output.writeFile(JSON.stringify({ status: 'EXECUTION_ATTEMPTED', expectedPlanSha256: input.expectedPlanSha256,
+          noAutomaticRetry: true, captureAuthority: false }) + '\n');
+        await output.sync();
+        executionAttempted = true;
+      }
+      const receipt = command === 'read-corpus' ? await readSyntheticMemoryCorpus(factory, input)
+        : await reconcileSyntheticMemoryCorpus(factory, input, command === 'preview-corpus-metadata' ? 'preview' : 'execute');
       await output.writeFile(JSON.stringify(receipt) + '\n');
       await output.sync();
       process.stdout.write(
@@ -97,7 +121,8 @@ export async function main(args = process.argv.slice(2)) {
       : 'meri_synthetic_read_budget_install_failed';
     if (output) {
       await output.writeFile(
-        JSON.stringify({ status: 'FAILED', code, liveAcceptance: 'NOT_RUN' }) + '\n',
+        JSON.stringify({ status: executionAttempted ? 'EXECUTION_OUTCOME_UNCONFIRMED' : 'FAILED', code,
+          noAutomaticRetry: true, liveAcceptance: 'NOT_RUN' }) + '\n',
       );
       await output.sync();
     }
