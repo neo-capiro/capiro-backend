@@ -1,0 +1,12 @@
+{
+  "commands": [
+    "C:/Users/neoma/AppData/Local/hermes/hermes-agent/venv/Scripts/python.exe -I evals/meri/live-v1/tests/capture-spend-fresh.unit.py",
+    "node --test evals/meri/live-v1/tests/capture-spend-fresh.test.mjs"
+  ],
+  "startedAt": "2026-10-03T17:33:42.5933778Z",
+  "completedAt": "2026-10-03T17:33:47.0267828Z",
+  "nativeExitCode": 0,
+  "capabilityExitCode": 0,
+  "nativeTests": 12,
+  "capabilityTests": 5
+}

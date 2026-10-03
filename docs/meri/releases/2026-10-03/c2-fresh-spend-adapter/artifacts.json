@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "artifacts": [
+    {
+      "path": ".gitattributes",
+      "sha256": "ef5c230f4d8b87142cf574d3b391a2b4ac5ccaf1776980fac2bd8cb3305cdc06",
+      "bytes": 75
+    },
+    {
+      "path": "capability-final.log",
+      "sha256": "4f5703cc3851b31ef5d5bd9c1866b34e988d448340aedd7776821f0c20ee7d27",
+      "bytes": 642
+    },
+    {
+      "path": "capability-v1.log",
+      "sha256": "0e292acdecbd741ecc2ba3bafb30eb839a0dbb79ace5e03cb3f46ac7a5c3de49",
+      "bytes": 641
+    },
+    {
+      "path": "checkpoint.json",
+      "sha256": "76bc935bca9e2e7143dd7c30761d643ae2492072b3cfc7c7a4011c8699d246f2",
+      "bytes": 4879
+    },
+    {
+      "path": "final.receipt.json",
+      "sha256": "8d8cdf1dd961ff39c4e49862c356675acfe02f3110eec187c2caec1b8311731a",
+      "bytes": 435
+    },
+    {
+      "path": "native-final-v2.log",
+      "sha256": "e3d0818ca91890c2c26538a45abc1dec296251fb12d3c326af2491dfff1d9ab5",
+      "bytes": 1876
+    },
+    {
+      "path": "native-final.log",
+      "sha256": "b7c261e82cf91b1b39c824166881173c4b3925d649e64e7eed0e2fd21dd6a5c0",
+      "bytes": 1876
+    },
+    {
+      "path": "native-v1.log",
+      "sha256": "b1d63d9db1342b6bfe09be44ff997f83bcc1c517da888582bb40d68f634264b5",
+      "bytes": 1526
+    },
+    {
+      "path": "README.md",
+      "sha256": "802a7bdb5c3464d34f265702cf56b29dd808326d357afeb57fff63031005344c",
+      "bytes": 1565
+    },
+    {
+      "path": "review.json",
+      "sha256": "d11407dbba07b1587845beef8c95119dcb689698be378bf588e032bf90333d39",
+      "bytes": 1940
+    }
+  ]
+}

@@ -1,0 +1,108 @@
+{
+  "version": 1,
+  "status": "FROZEN_LOCAL_QUALIFICATION_PASS_PENDING_INDEPENDENT_REVIEW",
+  "recordedAt": "2026-10-03T17:34:33.724Z",
+  "sourceHead": "de74185ab417a85a725d212d9d825fee47681bfe",
+  "files": [
+    {
+      "path": "evals/meri/live-v1/capture-spend-aggregate.mjs",
+      "sha256": "8066b14877f4c760a540fd1d13031690c8f5ff00701596533ceb10ca0ab9ea60",
+      "bytes": 14318
+    },
+    {
+      "path": "evals/meri/live-v1/lib/windows-capture-spend.py",
+      "sha256": "2090d09a9a790a8e7da2ba65d07d4157d26550ba715b0ef64e7c1c377f45c40e",
+      "bytes": 24826
+    },
+    {
+      "path": "evals/meri/live-v1/tests/capture-spend-fresh.unit.py",
+      "sha256": "1073171aa3e893ebc3c328ef18cce3426be842523f933aac40d46c2a3f371ece",
+      "bytes": 11038
+    },
+    {
+      "path": "evals/meri/live-v1/tests/capture-spend-fresh.test.mjs",
+      "sha256": "c0dfa869f90afb9d623859cf53c4fdfc19cf1d8835a32581d36b46581d68b5d6",
+      "bytes": 7922
+    }
+  ],
+  "productionFiles": 2,
+  "testFiles": 2,
+  "scope": "Native01/20 only; exact existing fresh journal adoption and future append under existing spend capability.",
+  "protected": {
+    "journal": "C:/dev/main/outputs/meri-fresh-20261003/fresh-spend.jsonl",
+    "authorization": "C:/dev/main/outputs/meri-fresh-20261003/run-authorization.json",
+    "journalSha256": "abe458973e6998db20586c781ac5a3cbd4ca2fa565425e62722f0eb9c985210b",
+    "authorizationSha256": "e07822e83a7c7b531606519ecd4fdf1027f2fa7cbaefd4bad92a2084590262fe",
+    "events": 20,
+    "reservations": 5,
+    "spentMicros": 9841281,
+    "remainingMicros": 20158719,
+    "aggregateCeilingMicros": 30000000,
+    "perCaseCeilingMicros": 15000000,
+    "concurrency": 1,
+    "clockCheckpointSha256": "bac5f9664df13811270b4acf6edf6a1de50f55adb39aef8e9351336162ae62ec",
+    "clockFilesUnchanged": 42,
+    "memoryFilesUnchanged": 22,
+    "case01CallerFilesUnchanged": 2
+  },
+  "qualification": {
+    "nativeTests": 12,
+    "capabilityTests": 5,
+    "nativeExitCode": 0,
+    "capabilityExitCode": 0,
+    "diffCheck": "PASS",
+    "evidence": [
+      {
+        "path": "native-v1.log",
+        "sha256": "b1d63d9db1342b6bfe09be44ff997f83bcc1c517da888582bb40d68f634264b5"
+      },
+      {
+        "path": "native-final.log",
+        "sha256": "b7c261e82cf91b1b39c824166881173c4b3925d649e64e7eed0e2fd21dd6a5c0"
+      },
+      {
+        "path": "native-final-v2.log",
+        "sha256": "e3d0818ca91890c2c26538a45abc1dec296251fb12d3c326af2491dfff1d9ab5"
+      },
+      {
+        "path": "capability-v1.log",
+        "sha256": "0e292acdecbd741ecc2ba3bafb30eb839a0dbb79ace5e03cb3f46ac7a5c3de49"
+      },
+      {
+        "path": "capability-final.log",
+        "sha256": "4f5703cc3851b31ef5d5bd9c1866b34e988d448340aedd7776821f0c20ee7d27"
+      },
+      {
+        "path": "final.receipt.json",
+        "sha256": "8d8cdf1dd961ff39c4e49862c356675acfe02f3110eec187c2caec1b8311731a"
+      }
+    ],
+    "negativeCoverage": [
+      "unsupported cases/ceilings/IDs",
+      "missing/tampered/partial/duplicate/out-of-order/uncertain records",
+      "authorization/file identity/hardlink/root confusion",
+      "stale owner and cross-process native writer contention",
+      "partial append fault: prefix retained; latest checkpoint and adoption blocked",
+      "same-process claim binding and fabricated settlement rejection",
+      "historical owner compatibility and exact remaining-cap arithmetic"
+    ]
+  },
+  "usage": [
+    "adoptExistingFreshCaptureSpend({pythonExecutable}) returns read-only pinned initial checkpoint only while journal has exactly20 events.",
+    "openCaptureSpendAggregate(checkpoint,{pythonExecutable}) reuses existing reserve/claim/assert/settleCaptured; latest checkpoint required; active/uncertain owner cannot reopen or adopt.",
+    "Reserve before native collector preparation; save returned latest checkpoint durably. Existing current authenticated native outcome is the only JavaScript future settlement authority."
+  ],
+  "limits": [
+    "No production journal adoption, append, capture, fixture action or provider request executed.",
+    "Local tests copy the production module and rebind only its fixed path in isolated test code; production has no root override. Native positive settlement tests are UNIT reducer/append evidence, not a live authenticated settlement.",
+    "No new recovery/reconciliation path for uncertain fresh runs. Interrupted or stale writes block; retain full reservation ceiling and reconcile separately.",
+    "run-controlled-read integration, canonical fixture/budget/current build qualification and served clock capture remain outside this patch.",
+    "Older unresolved costs remain separate and unchanged; no reset/replacement/import/refund of historical events."
+  ],
+  "priorClockAndMemoryUnchanged": true,
+  "remoteActions": 0,
+  "providerCalls": 0,
+  "databaseActions": 0,
+  "actualJournalWrites": 0,
+  "commits": 0
+}

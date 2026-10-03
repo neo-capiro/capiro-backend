@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "recordedAt": "2026-10-03T17:46:31.294253+00:00",
+  "status": "LOCAL_SOURCE_AND_TESTS_PASS_NO_ADOPTION",
+  "reviewer": "Codex independent subagent /root/mail_defaults_review",
+  "reviewType": "Independent technical review; not human rubric or deployment attestation",
+  "checkpointSha256": "76bc935bca9e2e7143dd7c30761d643ae2492072b3cfc7c7a4011c8699d246f2",
+  "reviewResult": "PASS",
+  "findings": [],
+  "verified": [
+    "Four live and mirrored source hashes, six evidence hashes, actual journal and authorization unchanged",
+    "All20 historical events and9841281micros spent retained;20158719micros remains",
+    "Only native01/20 reservations, at most15000000micros each and concurrency1",
+    "Native handle locks, identity/hash checks and append readback reject competing writers, stale checkpoints, replacements and interrupted writes",
+    "Existing authenticated same-process capability required for JavaScript settlement; fabricated outcomes cannot release funds",
+    "Recorded12 native NTFS and5 capability tests passed"
+  ],
+  "limitations": [
+    "No production journal adoption, append, capture, fixture action or provider request executed.",
+    "Local tests copy the production module and rebind only its fixed path in isolated test code; production has no root override. Native positive settlement tests are UNIT reducer/append evidence, not a live authenticated settlement.",
+    "No new recovery/reconciliation path for uncertain fresh runs. Interrupted or stale writes block; retain full reservation ceiling and reconcile separately.",
+    "run-controlled-read integration, canonical fixture/budget/current build qualification and served clock capture remain outside this patch.",
+    "Older unresolved costs remain separate and unchanged; no reset/replacement/import/refund of historical events."
+  ],
+  "actualJournalMutations": 0,
+  "newProviderCalls": 0,
+  "originalAcceptanceChanged": false
+}

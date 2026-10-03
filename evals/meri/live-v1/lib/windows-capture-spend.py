@@ -21,6 +21,9 @@ TERMINAL_CASE01_RUN = 'c6ffa5ad-dd9f-4912-bc31-a03231a9b903'
 TERMINAL_CASE01_RESERVATION = 'd63fd741-aac6-4d3d-9c4d-1276b96bd1a3'
 TERMINAL_CASE01_INVENTORY = '113c55d76637edfd807e5e3efced931e2b2dd73052dabba4d2e0607aff6e57b8'
 TERMINAL_CASE01_PROOF = 'd8555b206bf7d47630838885f8fe4fce0e8fb5f25fda851e3b8e07e54b17314f'
+FRESH_ROOT = r'C:\dev\main\outputs\meri-fresh-20261003'
+FRESH_PREFIX = 'abe458973e6998db20586c781ac5a3cbd4ca2fa565425e62722f0eb9c985210b'
+FRESH_AUTHORIZATION = 'e07822e83a7c7b531606519ecd4fdf1027f2fa7cbaefd4bad92a2084590262fe'
 
 
 def require(condition):
@@ -190,8 +193,134 @@ def reduce_journal(owner, entries):
     return result
 
 
+def reduce_fresh(wire):
+    # The original five paid attempts stay byte-for-byte and remain budget-only.
+    lines = wire.splitlines(keepends=True)
+    require(len(lines) >= 20 and all(line.endswith(b'\n') for line in lines))
+    require(digest(b''.join(lines[:20])) == FRESH_PREFIX)
+    events = [json.loads(line) for line in lines]
+    runs, reservation_ids, capture_ids, active, charged = {}, set(), set(), None, 0
+    for index in range(0, 20, 4):
+        group = events[index:index + 4]
+        require([row['event'] for row in group] == ['reserved', 'submission_intent', 'capture_observed', 'settled'])
+        first, usage = group[0], group[-1]['usage']
+        key = run_key(first, V2_CASES)
+        require(key not in runs and first['reservationId'] not in reservation_ids and first['captureRunId'] not in capture_ids)
+        require(all(row['caseId'] == first['caseId'] and row['captureRunId'] == first['captureRunId'] and
+                    row['reservationId'] == first['reservationId'] for row in group))
+        require(all(usage[k] == first[k] for k in ('caseId', 'captureRunId', 'reservationId', 'conversationId')))
+        require(usage['captureAuthority'] is False and type(usage['chargedCostMicros']) is int and
+                0 <= usage['chargedCostMicros'] <= first['ceilingMicros'] <= MAX_V2_CASE)
+        charged += usage['chargedCostMicros']
+        reservation_ids.add(first['reservationId'])
+        capture_ids.add(first['captureRunId'])
+        runs[key] = {**first, 'chargedCostMicros': usage['chargedCostMicros'], 'historical': True}
+    require(charged == 9_841_281)
+    for sequence, row in enumerate(events[20:], 21):
+        common = {'nativeCaptureVersion', 'sequence', 'atMs', 'event', 'caseId', 'captureRunId', 'reservationId'}
+        require(row.get('nativeCaptureVersion') == 1 and row.get('sequence') == sequence)
+        require(type(row.get('atMs')) is int and row['atMs'] > 0)
+        key = run_key(row, {'01', '20'})
+        require(UUID.fullmatch(row.get('reservationId', '')))
+        if row.get('event') == 'reserved':
+            require(set(row) == common | {'ceilingMicros'})
+            require(active is None and key not in runs and row['reservationId'] not in reservation_ids and row['captureRunId'] not in capture_ids)
+            cost = ceiling(row['ceilingMicros'], MAX_V2_CASE)
+            require(charged + cost <= MAX_TOTAL)
+            runs[key], active = dict(row), key
+            reservation_ids.add(row['reservationId'])
+            capture_ids.add(row['captureRunId'])
+        else:
+            require(row.get('event') == 'settled' and set(row) == common | {'usage'})
+            require(active == key and runs[key]['reservationId'] == row['reservationId'])
+            usage = row['usage']
+            require(set(usage) == {'chargedCostMicros', 'ledgerSha256', 'envelopeSha256', 'captureAuthority'})
+            cost = usage['chargedCostMicros']
+            require(usage['captureAuthority'] is True and type(cost) is int and 0 <= cost <= runs[key]['ceilingMicros'])
+            require(HASH.fullmatch(usage['ledgerSha256']) and HASH.fullmatch(usage['envelopeSha256']))
+            charged += cost
+            runs[key] = {**runs[key], 'chargedCostMicros': cost}
+            active = None
+    committed = charged + (runs[active]['ceilingMicros'] if active else 0)
+    return {'protocolVersion': 3, 'eventCount': len(events), 'runs': runs, 'activeRun': active,
+            'knownSettledCostMicros': charged, 'committedCostMicros': committed,
+            'remainingReservationMicros': MAX_TOTAL - committed, 'perCaseMaxCostMicros': MAX_V2_CASE,
+            'historicalPrefixSha256': FRESH_PREFIX, 'olderCosts': 'UNRESOLVED_SEPARATE_NOT_REPLACED'}
+
+
+def execute_fresh(request):
+    op, root = request['op'], request['root']
+    require(root == FRESH_ROOT and op in {'fresh_adopt', 'fresh_read', 'fresh_reserve', 'fresh_settle'})
+    adopt = op == 'fresh_adopt'
+    old = request.get('state')
+    require(adopt or (type(old) is dict and old.get('freshVersion') == 1 and old.get('root') == root))
+    state = {'root': root, 'freshVersion': 1, 'directories': {}, 'files': {}}
+    drive, parts = protocol['components'](root, root=True)
+    with contextlib.ExitStack() as stack:
+        retain = stack.enter_context
+        def bind(key, handle):
+            identity = native['inspect'](handle)['identity']
+            require(adopt or old['directories'].get(key) == identity)
+            state['directories'][key] = identity
+        parent = retain(native['open_volume'](drive)); key = drive
+        bind(key, parent)
+        for part in parts:
+            parent = retain(native['open_child'](parent, part, True)); key += '/' + part
+            bind(key, parent)
+        contents, handles = {}, {}
+        for name in ('run-authorization.json', 'fresh-spend.jsonl'):
+            # The journal itself is the exclusive writer lock; no sidecar or new ledger.
+            handle = retain(native['open_child'](parent, name, False,
+                            write=name == 'fresh-spend.jsonl' and op in {'fresh_reserve', 'fresh_settle'}))
+            value = native['read_bytes'](handle)
+            descriptor = {'identity': native['inspect'](handle)['identity'], 'sha256': digest(value), 'bytes': len(value)}
+            require(adopt or old['files'].get(name) == descriptor)
+            state['files'][name], contents[name], handles[name] = descriptor, value, handle
+        require(adopt or (set(old['files']) == set(state['files']) and set(old['directories']) == set(state['directories'])))
+        require(digest(contents['run-authorization.json']) == FRESH_AUTHORIZATION)
+        wire = contents['fresh-spend.jsonl']
+        snapshot = reduce_fresh(wire)
+        if adopt:
+            require(snapshot['eventCount'] == 20 and snapshot['activeRun'] is None)
+        if op in {'fresh_adopt', 'fresh_read'}:
+            return {'state': state, 'snapshot': snapshot}
+        event = request['event']
+        kind = op.removeprefix('fresh_')
+        fields = {'kind', 'caseId', 'captureRunId', 'reservationId'}
+        fields |= {'ceilingMicros'} if kind == 'reserve' else {'chargedCostMicros', 'ledgerSha256', 'envelopeSha256'}
+        require(set(event) == fields and event['kind'] == kind)
+        row = {k: event[k] for k in ('caseId', 'captureRunId', 'reservationId')}
+        row.update({'nativeCaptureVersion': 1, 'sequence': snapshot['eventCount'] + 1,
+                    'atMs': int(time.time()*1000), 'event': 'reserved' if kind == 'reserve' else 'settled'})
+        if kind == 'reserve':
+            row['ceilingMicros'] = event['ceilingMicros']
+        else:
+            row['usage'] = {k: event[k] for k in ('chargedCostMicros', 'ledgerSha256', 'envelopeSha256')}
+            row['usage']['captureAuthority'] = True
+        addition = data(row) + b'\n'
+        next_snapshot = reduce_fresh(wire + addition)
+        require(len(wire) + len(addition) <= native['MAX_BYTES'])
+        handle = handles['fresh-spend.jsonl']
+        # Existing write_bytes only creates empty files. Append under the same
+        # deny-write/delete-sharing handle, then flush and verify all bytes.
+        native['checked'](native['Seek'](handle.value, len(wire), None, 0))
+        offset = 0
+        while offset < len(addition):
+            piece, count = addition[offset:], native['ULONG']()
+            buffer = native['c'].create_string_buffer(piece)
+            native['checked'](native['Write'](handle.value, buffer, len(piece), native['c'].byref(count), None))
+            require(count.value > 0)
+            offset += count.value
+        native['checked'](native['Flush'](handle.value))
+        require(native['read_bytes'](handle) == wire + addition)
+        state['files']['fresh-spend.jsonl'].update({'sha256': digest(wire + addition), 'bytes': len(wire + addition)})
+        return {'state': state, 'snapshot': next_snapshot, 'event': row}
+
+
 def execute(request):
     op = request.get('op')
+    if isinstance(op, str) and op.startswith('fresh_'):
+        return execute_fresh(request)
     if op == 'init':
         inventory = request['inventory']
         require(set(inventory) == {'sliceId', 'priorRuns', 'boundary'})

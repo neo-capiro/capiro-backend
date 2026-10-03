@@ -18,6 +18,7 @@ import {
 
 const helper = fileURLToPath(new URL('./lib/windows-capture-spend.py', import.meta.url));
 const reservations = new WeakMap();
+const freshRoot = 'C:/dev/main/outputs/meri-fresh-20261003';
 const need = (condition) => {
   if (!condition) throw new Error('CAPTURE_SPEND_AGGREGATE_REJECTED');
 };
@@ -40,7 +41,10 @@ function native(root, pythonExecutable, request) {
 
 const checkpoint = (value) =>
   Object.freeze({
-    kind: 'meri-original-capture-spend-checkpoint',
+    kind:
+      value.state?.freshVersion === 1
+        ? 'meri-fresh-capture-spend-checkpoint'
+        : 'meri-original-capture-spend-checkpoint',
     version: 1,
     state: structuredClone(value.state),
     snapshot: structuredClone(value.snapshot),
@@ -53,19 +57,33 @@ export function initializeCaptureSpendAggregate({ root, inventory, pythonExecuta
   return checkpoint(native(root, pythonExecutable, { op: 'init', inventory }));
 }
 
+/** Adopt only the existing pinned, fully settled fresh journal. This reads no
+ * replacement ledger and creates no files. Future opens require its exact checkpoint. */
+export function adoptExistingFreshCaptureSpend({ pythonExecutable }) {
+  return checkpoint(native(freshRoot, pythonExecutable, { op: 'fresh_adopt' }));
+}
+
 /** A trusted operator passes the pinned last checkpoint, not model/user content.
  * Native handles fence identity/content/entry-set changes and concurrent writers.
  * Legacy ceilings remain consumed. Protocol v2 releases a NEW reservation's
  * unused ceiling only through the existing server-authoritative settlement. */
 export function openCaptureSpendAggregate(prior, { pythonExecutable }) {
-  need(prior?.kind === 'meri-original-capture-spend-checkpoint' && prior.version === 1);
+  const fresh = prior?.kind === 'meri-fresh-capture-spend-checkpoint';
+  need((fresh || prior?.kind === 'meri-original-capture-spend-checkpoint') && prior.version === 1);
   const root = prior.state?.root;
-  let value = native(root, pythonExecutable, { op: 'read', state: prior.state });
+  need(
+    fresh
+      ? root === resolve(freshRoot) && prior.state.freshVersion === 1
+      : !prior.state?.freshVersion,
+  );
+  const operation = (op) => (fresh ? `fresh_${op}` : op);
+  let value = native(root, pythonExecutable, { op: operation('read'), state: prior.state });
+  if (fresh) need(value.snapshot.activeRun === null);
   let poisoned = false;
   const advance = (op, event) => {
     need(!poisoned);
     try {
-      value = native(root, pythonExecutable, { op, event, state: value.state });
+      value = native(root, pythonExecutable, { op: operation(op), event, state: value.state });
       return checkpoint(value);
     } catch {
       poisoned = true;
@@ -75,6 +93,7 @@ export function openCaptureSpendAggregate(prior, { pythonExecutable }) {
   const owner = Object.freeze({
     checkpoint: () => checkpoint(value),
     reserve({ caseId, captureRunId, ceilingMicros }) {
+      if (fresh) need(['01', '20'].includes(caseId));
       const event = {
         kind: 'reserve',
         caseId,
@@ -174,6 +193,7 @@ export function openCaptureSpendAggregate(prior, { pythonExecutable }) {
       return result;
     },
     settleMemoryRead(reservation, authority) {
+      need(!fresh);
       const binding = reservations.get(reservation);
       need(binding?.owner === owner && !binding.settled && binding.expected);
       binding.recheck();
@@ -267,16 +287,36 @@ export function reconcileCaptureSpendTerminal(prior, { pythonExecutable, authori
   need(prior?.kind === 'meri-original-capture-spend-checkpoint' && prior.version === 1);
   const p = currentReviewedCaptureSpendReconciliation(authority);
   const current = native(prior.state.root, pythonExecutable, { op: 'read', state: prior.state });
-  const key = `${p.caseId}:${p.captureRunId}`, row = current.snapshot.runs[key];
-  need(current.snapshot.activeRun === key && row?.reservationId === p.reservationId && row.ceilingMicros === p.ceilingMicros);
+  const key = `${p.caseId}:${p.captureRunId}`,
+    row = current.snapshot.runs[key];
+  need(
+    current.snapshot.activeRun === key &&
+      row?.reservationId === p.reservationId &&
+      row.ceilingMicros === p.ceilingMicros,
+  );
   const value = native(prior.state.root, pythonExecutable, {
-    op: 'reconcile_terminal', state: current.state,
-    event: { kind: 'reconcile_terminal', caseId: p.caseId, captureRunId: p.captureRunId,
-      reservationId: p.reservationId, disposition: p.disposition, chargedCostMicros: p.chargedCostMicros,
-      proof: { readbackSha256: p.readbackSha256, ledgerSha256: p.ledgerSha256, envelopeSha256: p.envelopeSha256,
-        conversationId: p.conversationId, completedAtMs: p.completedAtMs, observedAtMs: p.observedAtMs,
-        providerDeadlineAtMs: p.providerDeadlineAtMs, pendingProviderAttempts: p.pendingProviderAttempts,
-        providerAttempts: p.providerAttempts, answerGrade: 'NOT_EVALUATED' } },
+    op: 'reconcile_terminal',
+    state: current.state,
+    event: {
+      kind: 'reconcile_terminal',
+      caseId: p.caseId,
+      captureRunId: p.captureRunId,
+      reservationId: p.reservationId,
+      disposition: p.disposition,
+      chargedCostMicros: p.chargedCostMicros,
+      proof: {
+        readbackSha256: p.readbackSha256,
+        ledgerSha256: p.ledgerSha256,
+        envelopeSha256: p.envelopeSha256,
+        conversationId: p.conversationId,
+        completedAtMs: p.completedAtMs,
+        observedAtMs: p.observedAtMs,
+        providerDeadlineAtMs: p.providerDeadlineAtMs,
+        pendingProviderAttempts: p.pendingProviderAttempts,
+        providerAttempts: p.providerAttempts,
+        answerGrade: 'NOT_EVALUATED',
+      },
+    },
   });
   return checkpoint(value);
 }
