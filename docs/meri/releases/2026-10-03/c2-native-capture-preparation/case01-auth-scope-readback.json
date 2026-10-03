@@ -1,0 +1,32 @@
+{
+  "status": "EXISTING_SYNTHETIC_AUTH_IDENTITY_READ_ONLY_PASS",
+  "recordedAt": "2026-10-03T19:25:28.419Z",
+  "actor": "PAT",
+  "tenant": "T1",
+  "client": "ASTER",
+  "role": "standard_user",
+  "localAuthScope": {
+    "path": "case01-recovered-auth-scope.private.json",
+    "bytes": 1181,
+    "sha256": "ed9c3b1c11014825b29ee2879796e20b3f0023959ed9e478337180b96ed7a062"
+  },
+  "canonicalLocatorReceiptSha256": "fdda11bf6292238453b3e050f60b764c3346a9436cf746410e89fd5a918f448a",
+  "journalSha256": "abe458973e6998db20586c781ac5a3cbd4ca2fa565425e62722f0eb9c985210b",
+  "oldPrivateManifest": "Not found in referenced evidence location; identity locators recovered from retained canonical receipt and four live Clerk reads.",
+  "validation": "Actual bootstrap assertCase01SyntheticIdentity passed against the four returned SDK objects.",
+  "protectedBoundaries": "Canonical fixture, binding, qualification and native capture authority remain separate and are rechecked by their existing owners.",
+  "actualActions": {
+    "clerkReads": 4,
+    "authenticationSessionsCreated": 0,
+    "signInTicketsCreated": 0,
+    "conversationCreations": 0,
+    "providerCalls": 0,
+    "journalWrites": 0,
+    "databaseWrites": 0,
+    "fixtureMutations": 0,
+    "secretsPersisted": 0,
+    "nativeOperatorExecutions": 0
+  },
+  "captureAuthority": false,
+  "liveAcceptance": "NOT_RUN"
+}

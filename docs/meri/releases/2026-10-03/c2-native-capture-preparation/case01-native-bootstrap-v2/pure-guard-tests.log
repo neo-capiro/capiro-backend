@@ -1,0 +1,21 @@
+✔ exact prepared pair passes pure comparison only (2.5923ms)
+✔ older valid-shaped orchestrator ancestor is refused (0.6078ms)
+✔ same api source with changed imageDigest is refused (0.1337ms)
+✔ same api source with changed buildId is refused (0.1034ms)
+✔ same api source with changed buildspecSha256 is refused (0.3055ms)
+✔ same meriv2-orchestrator source with changed imageDigest is refused (0.0775ms)
+✔ same meriv2-orchestrator source with changed buildId is refused (0.0734ms)
+✔ same meriv2-orchestrator source with changed buildspecSha256 is refused (0.094ms)
+✔ additional or missing build fields cannot widen expectation (0.1218ms)
+✔ execution intent without returned outcome preserves unknown submission (0.1986ms)
+✔ no execution attempt truthfully reports zero (0.0833ms)
+✔ actual native count survives attempted execution (0.0785ms)
+✔ invalid or missing native count after intent stays unknown (0.0821ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 105.9338

@@ -1,0 +1,118 @@
+{
+  "kind": "C2 clock and provider exact release review packet",
+  "version": 1,
+  "status": "AWAITING_HUMAN_REVIEW",
+  "preparedAt": "2026-10-03T19:01:27.066Z",
+  "expiresAt": "2026-10-03T20:01:27.077Z",
+  "evidenceCommit": "5a1dc752a7013f285c99fe485c4fd25e5c78d8df",
+  "evidence": [
+    "https://github.com/neo-capiro/capirov2/blob/5a1dc752a7013f285c99fe485c4fd25e5c78d8df/docs/meri/releases/2026-10-03/c2-clock-provider-release/README.md",
+    "https://github.com/neo-capiro/capirov2/blob/5a1dc752a7013f285c99fe485c4fd25e5c78d8df/docs/meri/releases/2026-10-03/c2-clock-provider-release/release-qualification.json",
+    "https://github.com/neo-capiro/capirov2/blob/5a1dc752a7013f285c99fe485c4fd25e5c78d8df/docs/meri/releases/2026-10-03/c2-clock-provider-release/release-independent-review.json"
+  ],
+  "qualificationSha256": "91688ee6a90f32f0c0f5462077f8757d1e095a69e183806cd20f1f09b6b7a945",
+  "services": [
+    {
+      "service": "api",
+      "change": "IMAGE_AND_RELEASE_IDENTITY_ONLY",
+      "candidate": {
+        "sourceSha": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642",
+        "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:d20110a114ef51a7db3d352321f411a2f51cc8b1877f9ccec6d1f35d7701c8cd"
+      },
+      "baseline": {
+        "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:517",
+        "serviceHash": "202b4f4a9d7a7ad158f2e88bfc7dc14e3107d9518870b338930d26d981e6641f",
+        "configHash": "973748a2b134b388a6027df6c5c099055a7e24f7b746eafbaae8cebad077258a",
+        "taskHash": "f13c5d7f138e364d72f302c1491e0863375fa59fb4ec8c50d54c1ce46ff3c1e6",
+        "imageDigest": "sha256:1a4aef121151bb5da7f70417539ece2faff392842809e6b557370c2d6cf8a49d",
+        "desiredCount": 2
+      },
+      "candidateTaskSha256": "8dd9f9384fd148e54a72fa570a2f1e62b360000cbd7d2efaa44f56f6bc85bf45",
+      "rollbackImage": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:1a4aef121151bb5da7f70417539ece2faff392842809e6b557370c2d6cf8a49d",
+      "rollbackTaskSha256": "f13c5d7f138e364d72f302c1491e0863375fa59fb4ec8c50d54c1ce46ff3c1e6",
+      "configurationPreserved": true,
+      "buildEvidence": "builds/api/build-readback.json"
+    },
+    {
+      "service": "meriv2-orchestrator",
+      "change": "IMAGE_AND_RELEASE_IDENTITY_ONLY",
+      "candidate": {
+        "sourceSha": "fb17c7ebfa010ce964919068f61830cb78ca620d",
+        "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:2b3ac021d0e5149478bb480c3ed572151bd8b03e08b2a74fd1227af829a06436"
+      },
+      "baseline": {
+        "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:113",
+        "serviceHash": "8eeadb3afa9003fc7abe1e1b77ee82e1b9f3339e92fc4daafad7a944e6a43bfc",
+        "configHash": "3a4fabd2139e347cd8b45192579f2a3fbaaa6fc3678762b5252f727a4461951b",
+        "taskHash": "3b8d6f04a123eb9c86e203d1fbd76ddd65ef83b5bac7a684b0926ecd2704f60e",
+        "imageDigest": "sha256:53b06f768d8a26a8a5c6124f0f7bb55a0e2117fde050706360c6108c98887faa",
+        "desiredCount": 1
+      },
+      "candidateTaskSha256": "981602a875ff5c521fee1d846534d297325ae736b2190210c6d9e8536176edee",
+      "rollbackImage": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:53b06f768d8a26a8a5c6124f0f7bb55a0e2117fde050706360c6108c98887faa",
+      "rollbackTaskSha256": "3b8d6f04a123eb9c86e203d1fbd76ddd65ef83b5bac7a684b0926ecd2704f60e",
+      "configurationPreserved": true,
+      "buildEvidence": "builds/meriv2-orchestrator/build-readback.json"
+    },
+    {
+      "service": "web-vnext",
+      "change": "NONE",
+      "sourceSha": "78ad5805679a3045b1fc10fb19beafa7f76e4e64",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:a048aceec01c207b514f76fb447d4fb8bdb5ed17278642480008a1510a12de4c",
+      "baseline": {
+        "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web-vnext:388",
+        "serviceHash": "16238627fc523b6470c76cbd86c6a54bca422f86d72f2a7ba0312cc326d139e2",
+        "configHash": "453a3d5aedc3da7d989370b97669abf0c1b14efbacd2d1597990b9cac7d50ab7",
+        "taskHash": "ce2035e6773a77eeda0adcf86dd4a7043624b3d75d8d32a74000f3d930f55211",
+        "imageDigest": "sha256:a048aceec01c207b514f76fb447d4fb8bdb5ed17278642480008a1510a12de4c",
+        "desiredCount": 1
+      }
+    }
+  ],
+  "retainedNightly": {
+    "rule": "capiro-dev-refresh-memory-graph",
+    "targetId": "refresh-memory-graph-target",
+    "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api-migrate:136",
+    "sourceSha": "f00e5dfb4fd3e47ac6aa4aca741023cc02f6314f",
+    "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:1a4aef121151bb5da7f70417539ece2faff392842809e6b557370c2d6cf8a49d",
+    "ruleSha256": "4a9376120b272c60388f6986a7a20aa00bfa78a8feb3b44a3a804fd93c617947",
+    "targetSha256": "e5b98fe865035a7dfa2add1472df1617101714e08f65232fd232c606c4f2475a",
+    "taskInputSha256": "0b362cc5b50895bcc69d70536e2496b848c0ee7bc805d9d17c1c6f85261263a5",
+    "change": "NONE"
+  },
+  "executionOrder": [
+    "Promote the exact API image and verify all running tasks and ALB targets with unchanged configuration",
+    "Promote the exact orchestrator image and verify all running tasks and ALB targets with unchanged configuration",
+    "Read back the served pair, retained nightly136, disabled broad worker and unchanged sibling WebVNext388"
+  ],
+  "changeWindow": "One attended release owner from preparation through acceptance/rollback; concurrent service, autoscaling or configuration changes invalidate the baseline and require reconciliation.",
+  "rollback": {
+    "application": "Use the exact current API517 and orchestrator113 image digests listed per service.",
+    "database": "Retain migration452 and both existing additive indexes; no migration is run.",
+    "memory": "Retain completed cleanup and audit receipts, guarded nightly136 and the disabled broad worker. No fixture reset or replay."
+  },
+  "scope": {
+    "schemaChange": false,
+    "modelConfigurationChange": false,
+    "providerConfigurationChange": false,
+    "featureFlagChange": false,
+    "nightlyChange": false,
+    "webChange": false,
+    "capacityChange": false,
+    "newProviderCalls": 0,
+    "newCaptureAuthority": false,
+    "captureBindingWrite": false,
+    "budgetInstallation": false,
+    "journalMutation": false
+  },
+  "subsequentC2": "After this release, continue separately authorized C2 native capture preparation within the existing budget. Canonical binding, rate installation, spend reservation, served joins and human rubric remain separate checks; this packet does not claim them complete.",
+  "acceptance": {
+    "original75": 0,
+    "cd": 0,
+    "cw": 0
+  },
+  "awsWrites": 0,
+  "humanReleaseApproval": null,
+  "deployableManifest": false,
+  "approvalRequirement": "docs/meri/deployment-prerequisite.md: Qualification is an explicit human-reviewed attestation."
+}

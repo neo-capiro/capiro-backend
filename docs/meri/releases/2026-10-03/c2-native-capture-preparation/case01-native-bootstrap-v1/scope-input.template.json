@@ -1,0 +1,27 @@
+{
+  "deployment": {
+    "apiSha": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642",
+    "orchestratorSha": null,
+    "builds": {
+      "api": {
+        "service": "api",
+        "sourceSha": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642",
+        "imageDigest": null,
+        "buildId": null,
+        "buildspecSha256": null
+      },
+      "meriv2-orchestrator": {
+        "service": "meriv2-orchestrator",
+        "sourceSha": null,
+        "imageDigest": null,
+        "buildId": null,
+        "buildspecSha256": null
+      }
+    }
+  },
+  "expectedWebSha": null,
+  "operatorSourceSha": null,
+  "manifestSha256": null,
+  "setupReceiptPath": null,
+  "setupReceiptSha256": null
+}

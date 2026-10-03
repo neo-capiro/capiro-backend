@@ -1,0 +1,163 @@
+{
+  "schemaVersion": 1,
+  "reviewedAt": "2026-10-03T18:51:12.184989+00:00",
+  "reviewer": "independent subagent mail_defaults_review",
+  "verdict": "PASS_BOUNDED_PREPARED_INNER_SOURCE_REVIEW",
+  "checkpoint": {
+    "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case01-native-setup-v1\\preparation-checkpoint.json",
+    "sha256": "cde24885cba55257c71451a9c0b5d2b8dc03bad6d3326ab184320acedeeb54c6"
+  },
+  "scope": "Independent read-only inspection of the prepared inner setup operator, README, fixed inputs, existing canonical owners, and prior reviewed canonical composition. This review does not cover the subsequently prepared outer dispatcher.",
+  "findings": [],
+  "verifiedProperties": [
+    "All five prepared output byte/hash entries, fourteen source dependency hashes and the prior canonical composition hash match the frozen checkpoint.",
+    "The only mutating calls are existing owner.bind and installCaptureProviderBudgetQualification. No seed, retire, reset, approval, locator install, provider, conversation, scheduler, journal or capture operation is called.",
+    "The source authority reconstructs existing guarded manifests and hydrates previous retired and current runtime owners on the binding owner transaction, then returns actual current.qualifyInTx proof. captureAuthority:false inventory is corroboration only and is not adopted as authority.",
+    "Fixed case01, tenant, actor, client, namespace and prospective run are checked. Existing owners retain actual membership, wall, lifecycle and source-lock checks. No caller-provided source proof or ready flag is used.",
+    "Execution rebuilds the complete plan and compares its exact semantic hash and object to the reviewed plan. Binding fences prior binding hash, tenant xmin and currentVerify; budget installation independently requalifies and fences currentVerify, binding hash, prior qualification and tenant xmin.",
+    "Rate evidence bytes and semantic hash are fixed, with existing production validators and at least thirty real minutes of remaining validity checked before database work and again before budget installation. Limits remain fifteen dollars, five hundred thousand tokens and thirty-two attempts; unsupported provider kinds remain unpriced.",
+    "The inner receipt path is opened exclusively before database access. Each mutation is preceded by an intent and followed by a result written and fsynced to the receipt; stdout also carries those events. Uncertain outcomes are not retried.",
+    "Final readback compares the complete remaining tenant settings after excluding only captureEvidence and captureProviderBudget, preserving the locator, setup claims and history."
+  ],
+  "transactionBoundary": "Binding and budget installation are separate existing transactions. A later failure can leave a committed binding. The script refuses an already current target run; no automatic compensation, rollback claim or resume is supplied.",
+  "qualificationLimits": [
+    "Prepared source and prior authority composition review only; syntax qualification is recorded by the owner. This reviewer did not rerun syntax, tests, modules, SQL or any remote operation.",
+    "No runtime execution, database result, installed budget, binding result, provider reservation, capture, image or deployment qualification is established by this review.",
+    "A separately reviewed one-shot outer dispatcher, current immutable API digest, served API/orchestrator readback, configuration and release approval remain required before execution.",
+    "Any partial or uncertain outcome requires read-only reconciliation before another separately reviewed action.",
+    "The separate same-process native case01 bootstrap, ordinary owned conversation and existing aggregate reservation capability remain required for a subsequent capture.",
+    "Original acceptance and human review remain NOT_RUN; synthetic read-budget or generic capture CLI substitution is not authorized."
+  ],
+  "actions": {
+    "sourceEdits": 0,
+    "testsRerun": 0,
+    "remoteCalls": 0,
+    "databaseConnections": 0,
+    "providerCalls": 0,
+    "fixtureMutations": 0,
+    "journalMutations": 0,
+    "newReviewEvidenceWritten": 1
+  },
+  "verifiedArtifacts": [
+    {
+      "category": "outputs",
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case01-native-setup-v1\\case01-native-setup-inner.mjs",
+      "sha256": "632d00e47ec63fb8c0b49cfa0d166760bd16abbf5ded9b572c0a9cf235f9899d",
+      "bytes": 13403
+    },
+    {
+      "category": "outputs",
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case01-native-setup-v1\\case01-reviewed-rates-v2.json",
+      "sha256": "3531e09dfcce9f66b4ea2b3564db47bd72dc507cdcf1aecdda277b838007704e",
+      "bytes": 2770
+    },
+    {
+      "category": "outputs",
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case01-native-setup-v1\\plan-input.json",
+      "sha256": "805518e056caff9ba4deb582dd5020257045b19f80cd5283a5e5844e8f74eb6d",
+      "bytes": 136
+    },
+    {
+      "category": "outputs",
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case01-native-setup-v1\\README.md",
+      "sha256": "309780b098aa73214bf720620c67c05154607ace705b5b5b3ed414d4d241470f",
+      "bytes": 8383
+    },
+    {
+      "category": "outputs",
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case01-native-setup-v1\\syntax-check.log",
+      "sha256": "16e3edbe92d848d09637b5ec0801d01a735a0deb44c99bc4c374f0865de6acd8",
+      "bytes": 11
+    },
+    {
+      "category": "sourceDependencies",
+      "path": "C:\\dev\\main\\meri-c1-20261002\\apps\\api\\scripts\\meri-case01-setup-dependencies.mjs",
+      "sha256": "6de3f94669bcacac1c8a79e4ceb34acc5fa5d5359d6c17744b1ba1e10a9c16ec",
+      "bytes": 10834
+    },
+    {
+      "category": "sourceDependencies",
+      "path": "C:\\dev\\main\\meri-c1-20261002\\apps\\api\\scripts\\lib\\pe-compose-database-url.js",
+      "sha256": "aafd61a7509ad9428ea54bf5bf13332b1517bccdc271a667b11a5350dc20c6d1",
+      "bytes": 1026
+    },
+    {
+      "category": "sourceDependencies",
+      "path": "C:\\dev\\main\\meri-c1-20261002\\apps\\api\\src\\meri\\meri-capture-provider-budget-install.ts",
+      "sha256": "cec72704ca51409ced548a1acc9da37ac285d75b4b30f7b95950991f3d3ab82a",
+      "bytes": 8344
+    },
+    {
+      "category": "sourceDependencies",
+      "path": "C:\\dev\\main\\meri-c1-20261002\\apps\\api\\src\\meri\\meri-capture-provider-budget.ts",
+      "sha256": "29e6ab4ed50291a2626c132c8298ae0fb93eeac3d6a9f9f3d8c4953a56df614e",
+      "bytes": 11934
+    },
+    {
+      "category": "sourceDependencies",
+      "path": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\fixture-provisioning\\capture-binding-owner.mjs",
+      "sha256": "ccb2a2387fd6c276621b14a95f4219aa1bb9d50e000390b3cfbeb22aca23a83d",
+      "bytes": 7862
+    },
+    {
+      "category": "sourceDependencies",
+      "path": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\fixture-provisioning\\case01-memory-owner.mjs",
+      "sha256": "1dc0a488c08341073d6b5506d3c3ffa559d1bd42e6f30127743b14f0a55b1de3",
+      "bytes": 9821
+    },
+    {
+      "category": "sourceDependencies",
+      "path": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\fixture-provisioning\\case01-memory-runtime.mjs",
+      "sha256": "c289d3ecb2426ca1bbdfcedaf3307be54aef00265e2beed119299aec09f1aadc",
+      "bytes": 19355
+    },
+    {
+      "category": "sourceDependencies",
+      "path": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\fixture-provisioning\\manifest.mjs",
+      "sha256": "8f1276ef0aaaef9b648bb1cbd0a037ee7d11d0a78db9691ab4de70b3b5db667a",
+      "bytes": 20549
+    },
+    {
+      "category": "sourceDependencies",
+      "path": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\artifact-collector.mjs",
+      "sha256": "64725c9b2fc66efb6578461e755efcbf62b77e18833dc6221831ee7e21ececae",
+      "bytes": 15744
+    },
+    {
+      "category": "sourceDependencies",
+      "path": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\case01-live-capture.mjs",
+      "sha256": "4136d20e10ec9e0e635fefc0ccf8a4609f12a36a410dba3f3eb4f828469ea029",
+      "bytes": 24816
+    },
+    {
+      "category": "sourceDependencies",
+      "path": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\capture-spend-aggregate.mjs",
+      "sha256": "8066b14877f4c760a540fd1d13031690c8f5ff00701596533ceb10ca0ab9ea60",
+      "bytes": 14318
+    },
+    {
+      "category": "sourceDependencies",
+      "path": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\run-controlled-read.mjs",
+      "sha256": "bb983c856e87d35510a849f6175098c2f8a99d961a687befba30f1445b13be85",
+      "bytes": 22755
+    },
+    {
+      "category": "sourceDependencies",
+      "path": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\capture-cli.mjs",
+      "sha256": "e99a63f77aed6679b552119ff3c41795cb66cc5d7a103b68d5f22c087d069528",
+      "bytes": 2749
+    },
+    {
+      "category": "sourceDependencies",
+      "path": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\fixture-provisioning\\case01-execution-setup.mjs",
+      "sha256": "4c00fd6add2cd92f4e51c95d5f43e0fef7b66da8d2f40c8299b3b92f8b8366a3",
+      "bytes": 52168
+    },
+    {
+      "category": "priorReviewedCanonicalComposition",
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case01-canonical-bind-plan-inner.mjs",
+      "sha256": "003fe9b721d326d8d51172ff6ddd4b7d22272ede71056178bae50b41fcccd3b2",
+      "bytes": 6142
+    }
+  ]
+}

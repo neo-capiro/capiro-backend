@@ -1,0 +1,136 @@
+{
+  "version": 1,
+  "status": "PREPARED_ONLY_NOT_EXECUTED",
+  "recordedAt": "2026-10-03T18:38:05.3390872Z",
+  "sourceSha": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642",
+  "captureRunId": "bd35c0f4-1604-4371-b7e9-a1338369e53f",
+  "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+  "actorUserId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+  "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+  "caseId": "01",
+  "maxCostMicros": 15000000,
+  "maxTokens": 500000,
+  "maxAttempts": 32,
+  "rateEvidenceBytesSha256": "3531e09dfcce9f66b4ea2b3564db47bd72dc507cdcf1aecdda277b838007704e",
+  "rateEvidenceSemanticSha256": "a1a179383c8451495336169f46025eb8cee8ec95487f1a43017078387b768b11",
+  "rateEvidenceExpiresAt": "2026-10-04T05:29:01.587Z",
+  "reviewedComposition": {
+    "path": "../case01-canonical-bind-plan-inner.mjs",
+    "sha256": "003fe9b721d326d8d51172ff6ddd4b7d22272ede71056178bae50b41fcccd3b2"
+  },
+  "outputs": [
+    {
+      "path": "case01-native-setup-inner.mjs",
+      "sha256": "632d00e47ec63fb8c0b49cfa0d166760bd16abbf5ded9b572c0a9cf235f9899d",
+      "bytes": 13403
+    },
+    {
+      "path": "case01-reviewed-rates-v2.json",
+      "sha256": "3531e09dfcce9f66b4ea2b3564db47bd72dc507cdcf1aecdda277b838007704e",
+      "bytes": 2770
+    },
+    {
+      "path": "plan-input.json",
+      "sha256": "805518e056caff9ba4deb582dd5020257045b19f80cd5283a5e5844e8f74eb6d",
+      "bytes": 136
+    },
+    {
+      "path": "README.md",
+      "sha256": "309780b098aa73214bf720620c67c05154607ace705b5b5b3ed414d4d241470f",
+      "bytes": 8383
+    },
+    {
+      "path": "syntax-check.log",
+      "sha256": "16e3edbe92d848d09637b5ec0801d01a735a0deb44c99bc4c374f0865de6acd8",
+      "bytes": 11
+    }
+  ],
+  "sourceDependencies": [
+    {
+      "path": "apps/api/scripts/meri-case01-setup-dependencies.mjs",
+      "sha256": "6de3f94669bcacac1c8a79e4ceb34acc5fa5d5359d6c17744b1ba1e10a9c16ec"
+    },
+    {
+      "path": "apps/api/scripts/lib/pe-compose-database-url.js",
+      "sha256": "aafd61a7509ad9428ea54bf5bf13332b1517bccdc271a667b11a5350dc20c6d1"
+    },
+    {
+      "path": "apps/api/src/meri/meri-capture-provider-budget-install.ts",
+      "sha256": "cec72704ca51409ced548a1acc9da37ac285d75b4b30f7b95950991f3d3ab82a"
+    },
+    {
+      "path": "apps/api/src/meri/meri-capture-provider-budget.ts",
+      "sha256": "29e6ab4ed50291a2626c132c8298ae0fb93eeac3d6a9f9f3d8c4953a56df614e"
+    },
+    {
+      "path": "evals/meri/live-v1/fixture-provisioning/capture-binding-owner.mjs",
+      "sha256": "ccb2a2387fd6c276621b14a95f4219aa1bb9d50e000390b3cfbeb22aca23a83d"
+    },
+    {
+      "path": "evals/meri/live-v1/fixture-provisioning/case01-memory-owner.mjs",
+      "sha256": "1dc0a488c08341073d6b5506d3c3ffa559d1bd42e6f30127743b14f0a55b1de3"
+    },
+    {
+      "path": "evals/meri/live-v1/fixture-provisioning/case01-memory-runtime.mjs",
+      "sha256": "c289d3ecb2426ca1bbdfcedaf3307be54aef00265e2beed119299aec09f1aadc"
+    },
+    {
+      "path": "evals/meri/live-v1/fixture-provisioning/manifest.mjs",
+      "sha256": "8f1276ef0aaaef9b648bb1cbd0a037ee7d11d0a78db9691ab4de70b3b5db667a"
+    },
+    {
+      "path": "evals/meri/live-v1/artifact-collector.mjs",
+      "sha256": "64725c9b2fc66efb6578461e755efcbf62b77e18833dc6221831ee7e21ececae"
+    },
+    {
+      "path": "evals/meri/live-v1/case01-live-capture.mjs",
+      "sha256": "4136d20e10ec9e0e635fefc0ccf8a4609f12a36a410dba3f3eb4f828469ea029"
+    },
+    {
+      "path": "evals/meri/live-v1/capture-spend-aggregate.mjs",
+      "sha256": "8066b14877f4c760a540fd1d13031690c8f5ff00701596533ceb10ca0ab9ea60"
+    },
+    {
+      "path": "evals/meri/live-v1/run-controlled-read.mjs",
+      "sha256": "bb983c856e87d35510a849f6175098c2f8a99d961a687befba30f1445b13be85"
+    },
+    {
+      "path": "evals/meri/live-v1/capture-cli.mjs",
+      "sha256": "e99a63f77aed6679b552119ff3c41795cb66cc5d7a103b68d5f22c087d069528"
+    },
+    {
+      "path": "evals/meri/live-v1/fixture-provisioning/case01-execution-setup.mjs",
+      "sha256": "4c00fd6add2cd92f4e51c95d5f43e0fef7b66da8d2f40c8299b3b92f8b8366a3"
+    }
+  ],
+  "checks": [
+    {
+      "command": "node --check C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v1/case01-native-setup-inner.mjs",
+      "exitCode": 0,
+      "log": "syntax-check.log",
+      "scope": "Syntax only; module imports and operators not executed"
+    }
+  ],
+  "actualActions": {
+    "sourceEdits": 0,
+    "cloudCalls": 0,
+    "databaseConnections": 0,
+    "providerCalls": 0,
+    "fixtureMutations": 0,
+    "bindingsWritten": 0,
+    "budgetsInstalled": 0,
+    "conversationsCreated": 0,
+    "journalWrites": 0,
+    "builds": 0,
+    "runtimeTests": 0
+  },
+  "limitations": [
+    "Requires independent script review, qualified immutable API digest and served API/orchestrator release readback before a real plan or execution",
+    "No caller JSON proves deployed image identity",
+    "Binding and budget installation are separate existing transactions; failed later stages require read-only reconciliation, never automatic retry",
+    "Current run-controlled-read bootstrap does not admit case01; native same-process case01 bootstrap remains root integration",
+    "Rate expiry is unchanged; no unsupported JEV/NVIDIA billing qualification",
+    "No actual SQL/runtime execution or live acceptance established"
+  ],
+  "liveAcceptance": "NOT_RUN"
+}

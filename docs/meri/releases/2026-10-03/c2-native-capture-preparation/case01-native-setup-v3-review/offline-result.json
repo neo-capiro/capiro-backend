@@ -1,0 +1,13 @@
+{
+  "status": "OFFLINE_CHECKS_PASS",
+  "passed": 14,
+  "dispatcherSha256": "e33a159c6a51985ad13b4573180717f87c796eab5285d5c701f19a41baa7c3a3",
+  "assemblerSourceSha256": "6bcaee6bc56134c59aa9898770fa987704a38b89116654ce08e0ab0f8a5f5f05",
+  "wrapperSyntaxSha256": "817aad0121ee1e454b149c28739fef788795549416fba18d8c0c0a006c540508",
+  "dispatcherImported": false,
+  "dispatcherExecuted": false,
+  "remoteCalls": 0,
+  "ownerCalls": 0,
+  "fixtureOrJournalWrites": 0,
+  "limits": "Parser checks and generated wrapper syntax only; no task/log/cleanup integration executed."
+}

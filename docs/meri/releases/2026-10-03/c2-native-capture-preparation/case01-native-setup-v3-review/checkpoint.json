@@ -1,0 +1,126 @@
+{
+  "version": 3,
+  "status": "PREPARED_NOT_EXECUTED",
+  "recordedAt": "2026-10-03T19:12:24.4737146Z",
+  "dispatcher": "C:/dev/main/outputs/meri-c2-20261003/run-case01-native-setup-v3.mjs",
+  "dispatcherSha256": "39219647361b76d232d2dd4251e9a574277f814a502d601cdc4ca863826cfd43",
+  "preserved": [
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/run-case01-native-setup-v2.mjs",
+      "sha256": "75be6e4a13d108f1637cb217976b00473b792b84e56199d9773da4fbe9e69669",
+      "unchanged": true
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v1/case01-native-setup-inner.mjs",
+      "sha256": "632d00e47ec63fb8c0b49cfa0d166760bd16abbf5ded9b572c0a9cf235f9899d",
+      "unchanged": true
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v1/case01-reviewed-rates-v2.json",
+      "sha256": "3531e09dfcce9f66b4ea2b3564db47bd72dc507cdcf1aecdda277b838007704e",
+      "unchanged": true
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/corpus-read-definition-input.json",
+      "sha256": "6c0a447dc99ed35642df735c38d09e02b12b33983fe461b707cd0c06a8a44478",
+      "unchanged": true
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-bootstrap-v1/run-case01-native.mjs",
+      "sha256": "900de5773947e389f25afb50af7b66a2e61cab7a1f360ff5121cf8332dab3485",
+      "unchanged": true
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/run-case01-native-setup.mjs",
+      "sha256": "ea5be0f0380d48af29d5825c0027d493f05c180ada19b4b12fc352f1d5ae089c",
+      "touchedByThisTask": false
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/run-case01-native-setup-v3.mjs",
+      "bytes": 25211,
+      "sha256": "39219647361b76d232d2dd4251e9a574277f814a502d601cdc4ca863826cfd43"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v3-review/check-offline.mjs",
+      "bytes": 4985,
+      "sha256": "3dafb36c547606a6570c74b85efe32da453a97d4f126921e5a2ba2b6c956ad6c"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v3-review/offline-result.json",
+      "bytes": 570,
+      "sha256": "c890302516d360f8f5f9b05c58f9f31d9ba60754864053d8d15329d99f9d5c8a"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v3-review/offline-result-final.json",
+      "bytes": 570,
+      "sha256": "a9ed8927a0746dbe22b25ef8310050807319bacec13bcceb959b0622dbb5ca54"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v3-review/offline-final.log",
+      "bytes": 1135,
+      "sha256": "6691fd51c698e51f9b6936fab2814e5b80fab656e9da2eba41dcfe548db6427a"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v3-review/syntax-final.log",
+      "bytes": 11,
+      "sha256": "16e3edbe92d848d09637b5ec0801d01a735a0deb44c99bc4c374f0865de6acd8"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v3-review/REVIEW.md",
+      "bytes": 5602,
+      "sha256": "504e57c670e7d13f4c0fdaca4fd1b55408402aff77350e682574755d18d45db4"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v3-review/v2-to-v3.diff",
+      "bytes": 27012,
+      "sha256": "a8680e8e3ffef7aadcd9e9a6ea8f53179b51fec524b075acdd1a7f34b897c845"
+    }
+  ],
+  "validation": [
+    {
+      "command": "node --check C:/dev/main/outputs/meri-c2-20261003/run-case01-native-setup-v3.mjs",
+      "exitCode": 0,
+      "receipt": "syntax-final.log",
+      "scope": "syntax only"
+    },
+    {
+      "command": "node C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v3-review/check-offline.mjs",
+      "exitCode": 0,
+      "passed": 14,
+      "receipt": "offline-result-final.json",
+      "scope": "Exact extracted pure assembler and generated wrapper syntax; dispatcher not imported or executed"
+    }
+  ],
+  "limits": {
+    "sourceSha": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642",
+    "taskImageDigest": "sha256:d20110a114ef51a7db3d352321f411a2f51cc8b1877f9ccec6d1f35d7701c8cd",
+    "innerReceiptMaxBytes": 1048576,
+    "base64ChunkCharacters": 8192,
+    "logSchedulingWindowMs": 180000,
+    "maxLogCalls": 60,
+    "acceptedLogBytesBudget": 33554432,
+    "stopMutationAttempts": 1,
+    "deregisterMutationAttempts": 1,
+    "paidRetryAllowed": false
+  },
+  "actualActions": {
+    "dispatcherImports": 0,
+    "dispatcherExecutions": 0,
+    "cloudCalls": 0,
+    "authCalls": 0,
+    "browserCalls": 0,
+    "databaseCalls": 0,
+    "providerCalls": 0,
+    "journalWrites": 0,
+    "repositoryEdits": 0
+  },
+  "remaining": [
+    "Independent operational control-flow review",
+    "Root explicit plan/execute invocation only after current release/rate approval and served preflight",
+    "No live task/log/cleanup integration or actual inner receipt proven by this preparation"
+  ],
+  "liveAcceptance": "NOT_RUN",
+  "captureAuthority": false
+}

@@ -1,0 +1,282 @@
+{
+  "version": 1,
+  "status": "REVIEWED_PREPARATION_NOT_EXECUTED",
+  "recordedAt": "2026-10-03T19:30:39.844330Z",
+  "sourceHead": "5a1dc752a7013f285c99fe485c4fd25e5c78d8df",
+  "files": [
+    {
+      "path": "capture-token-lifetime-preflight.json",
+      "bytes": 632,
+      "sha256": "ad4103731a7af959b46aa78acc2e5a1248c843e749f90da1065c1d1403435d44"
+    },
+    {
+      "path": "case01-auth-scope-independent-review.json",
+      "bytes": 4946,
+      "sha256": "e4735978d5b3660cc0a316815921522fa53f1e58de708b6173144ba6fdfdcd6f"
+    },
+    {
+      "path": "case01-auth-scope-readback.json",
+      "bytes": 1366,
+      "sha256": "31f406b10ba7f08cf0dd7cf865bf5d9d180750f3508a1fc6c613886cc1d6e8c3"
+    },
+    {
+      "path": "case01-native-bootstrap-v1/adaptation.diff",
+      "bytes": 26429,
+      "sha256": "387029cb1010e1451764d9929657cad05bab5cd645e115d50caba374cdf7d5a1"
+    },
+    {
+      "path": "case01-native-bootstrap-v1/offline-reproduction.log",
+      "bytes": 229,
+      "sha256": "7fb5e776bd609bd8188672ccc761ecdfc36d5fe0f5ce7c95a0dd70de30a3ec91"
+    },
+    {
+      "path": "case01-native-bootstrap-v1/preparation-checkpoint.json",
+      "bytes": 6053,
+      "sha256": "0df88d1c257aa15f82a79165f7d13cc752271efaf692d27f91d6a45a65417453"
+    },
+    {
+      "path": "case01-native-bootstrap-v1/prepare.py",
+      "bytes": 11850,
+      "sha256": "0ac1c7367119d3739df6fb286241d185732511c6e17ec3ad3b8e364925fad944"
+    },
+    {
+      "path": "case01-native-bootstrap-v1/read-only-review-v1.json",
+      "bytes": 12957,
+      "sha256": "fd85b1274f50fd02ea1805986af9214291c1ac8c027792fe353ba29309eee6d5"
+    },
+    {
+      "path": "case01-native-bootstrap-v1/README.md",
+      "bytes": 7174,
+      "sha256": "f6717b76e359ea0490302cd21da52c42ecb50cec48b9825fe1d640f9dc7dc5df"
+    },
+    {
+      "path": "case01-native-bootstrap-v1/run-case01-native.mjs",
+      "bytes": 32824,
+      "sha256": "900de5773947e389f25afb50af7b66a2e61cab7a1f360ff5121cf8332dab3485"
+    },
+    {
+      "path": "case01-native-bootstrap-v1/scope-helpers.txt",
+      "bytes": 7886,
+      "sha256": "0ed4209af96a22f007e8175ca004adb4cd7690047e0216b1596b2d0788f5acac"
+    },
+    {
+      "path": "case01-native-bootstrap-v1/scope-input.template.json",
+      "bytes": 669,
+      "sha256": "41fe7b744ea5f04d39e5710fb4c74c47f57e2089df38276d148d84b11fa6b6ed"
+    },
+    {
+      "path": "case01-native-bootstrap-v1/syntax-check.log",
+      "bytes": 11,
+      "sha256": "16e3edbe92d848d09637b5ec0801d01a735a0deb44c99bc4c374f0865de6acd8"
+    },
+    {
+      "path": "case01-native-bootstrap-v1/verify-preparation.py",
+      "bytes": 1159,
+      "sha256": "2ad1a879b6a97224b2114e438c1acde6d4dd62ca05f94e4e7b276a03aa8247b8"
+    },
+    {
+      "path": "case01-native-bootstrap-v2/case01-prepared-guards.mjs",
+      "bytes": 1859,
+      "sha256": "f539d2e35a66ec76f1d741d6a8f09d528b400149c346982fd7b0f77f37eb5b7a"
+    },
+    {
+      "path": "case01-native-bootstrap-v2/case01-prepared-guards.test.mjs",
+      "bytes": 2684,
+      "sha256": "eee5120b872297c737ef87c657fe3f2c37645584d3228bb791deb18eb5249f81"
+    },
+    {
+      "path": "case01-native-bootstrap-v2/initial-validation-wrapper-failure.json",
+      "bytes": 522,
+      "sha256": "08353183941b7b61b21a5dcdc74b827953f4e52dc14584fae31fba40e59058eb"
+    },
+    {
+      "path": "case01-native-bootstrap-v2/offline-reproduction.log",
+      "bytes": 83,
+      "sha256": "ba3adf930c5f633e8414f09c865aed2f30f8d37edb0e4061fadf8be26716f04b"
+    },
+    {
+      "path": "case01-native-bootstrap-v2/preparation-checkpoint.json",
+      "bytes": 7269,
+      "sha256": "dccaa619203e4e43f3c317042801ec8eca5bbcf1168312f6bc76b221d653bdb7"
+    },
+    {
+      "path": "case01-native-bootstrap-v2/pure-guard-tests.log",
+      "bytes": 1053,
+      "sha256": "8c4ec9dbc096fb7c1ca1efacdf81abb879c2726210caf1d07b43450b69cde173"
+    },
+    {
+      "path": "case01-native-bootstrap-v2/read-only-review-v2.json",
+      "bytes": 12333,
+      "sha256": "156288f5096f8e40fdaa469e059f7e831e4d0d23535eba7aee8d852b0841f5e9"
+    },
+    {
+      "path": "case01-native-bootstrap-v2/README.md",
+      "bytes": 2645,
+      "sha256": "3752356a5aa6be7fc72506345451f283c44126723614cd1881d6b3365690b6cb"
+    },
+    {
+      "path": "case01-native-bootstrap-v2/run-case01-native.mjs",
+      "bytes": 33732,
+      "sha256": "655cc278a1a76ff55cf7a0ceae96ccfc325a016e0e3a0d53c21f43f276c171d1"
+    },
+    {
+      "path": "case01-native-bootstrap-v2/scope-input.template.json",
+      "bytes": 1117,
+      "sha256": "7fd9d243c2b5769eb94a169f6875300d4522ec671fd4441702d4eb965df0a8b4"
+    },
+    {
+      "path": "case01-native-bootstrap-v2/syntax-check.log",
+      "bytes": 105,
+      "sha256": "009a225410183098e1675715fffaa433a274db1bda58813434c0ddfcb85b0136"
+    },
+    {
+      "path": "case01-native-bootstrap-v2/v1-to-v2.diff",
+      "bytes": 3257,
+      "sha256": "e93c98fdbd94ea43f0615d96900e42ced8553a7502c6d192931a7a6c61982e5c"
+    },
+    {
+      "path": "case01-native-setup-v1/case01-native-setup-inner.mjs",
+      "bytes": 13403,
+      "sha256": "632d00e47ec63fb8c0b49cfa0d166760bd16abbf5ded9b572c0a9cf235f9899d"
+    },
+    {
+      "path": "case01-native-setup-v1/case01-reviewed-rates-v2.json",
+      "bytes": 2770,
+      "sha256": "3531e09dfcce9f66b4ea2b3564db47bd72dc507cdcf1aecdda277b838007704e"
+    },
+    {
+      "path": "case01-native-setup-v1/independent-review.json",
+      "bytes": 9418,
+      "sha256": "3585fffb12060bd7253f8ef07ee58e97bb17b77e6ba3c20e9f9b282134d93255"
+    },
+    {
+      "path": "case01-native-setup-v1/plan-input.json",
+      "bytes": 136,
+      "sha256": "805518e056caff9ba4deb582dd5020257045b19f80cd5283a5e5844e8f74eb6d"
+    },
+    {
+      "path": "case01-native-setup-v1/preparation-checkpoint.json",
+      "bytes": 5440,
+      "sha256": "cde24885cba55257c71451a9c0b5d2b8dc03bad6d3326ab184320acedeeb54c6"
+    },
+    {
+      "path": "case01-native-setup-v1/README.md",
+      "bytes": 8383,
+      "sha256": "309780b098aa73214bf720620c67c05154607ace705b5b5b3ed414d4d241470f"
+    },
+    {
+      "path": "case01-native-setup-v1/syntax-check.log",
+      "bytes": 11,
+      "sha256": "16e3edbe92d848d09637b5ec0801d01a735a0deb44c99bc4c374f0865de6acd8"
+    },
+    {
+      "path": "case01-native-setup-v3-review/check-offline.mjs",
+      "bytes": 4985,
+      "sha256": "3dafb36c547606a6570c74b85efe32da453a97d4f126921e5a2ba2b6c956ad6c"
+    },
+    {
+      "path": "case01-native-setup-v3-review/checkpoint.json",
+      "bytes": 5060,
+      "sha256": "80bb22e0a570a641eb05391160f12179f739bd3568720d6b8002a6facd828999"
+    },
+    {
+      "path": "case01-native-setup-v3-review/independent-review.json",
+      "bytes": 8528,
+      "sha256": "147afc7d351fedfd2584da8067786c183f9d358e0171d6abdff492d158342cdc"
+    },
+    {
+      "path": "case01-native-setup-v3-review/offline-final.log",
+      "bytes": 1135,
+      "sha256": "6691fd51c698e51f9b6936fab2814e5b80fab656e9da2eba41dcfe548db6427a"
+    },
+    {
+      "path": "case01-native-setup-v3-review/offline-result-final.json",
+      "bytes": 570,
+      "sha256": "a9ed8927a0746dbe22b25ef8310050807319bacec13bcceb959b0622dbb5ca54"
+    },
+    {
+      "path": "case01-native-setup-v3-review/offline-result.json",
+      "bytes": 570,
+      "sha256": "c890302516d360f8f5f9b05c58f9f31d9ba60754864053d8d15329d99f9d5c8a"
+    },
+    {
+      "path": "case01-native-setup-v3-review/REVIEW.md",
+      "bytes": 5602,
+      "sha256": "504e57c670e7d13f4c0fdaca4fd1b55408402aff77350e682574755d18d45db4"
+    },
+    {
+      "path": "case01-native-setup-v3-review/syntax-final.log",
+      "bytes": 11,
+      "sha256": "16e3edbe92d848d09637b5ec0801d01a735a0deb44c99bc4c374f0865de6acd8"
+    },
+    {
+      "path": "case01-native-setup-v3-review/v2-to-v3.diff",
+      "bytes": 27012,
+      "sha256": "a8680e8e3ffef7aadcd9e9a6ea8f53179b51fec524b075acdd1a7f34b897c845"
+    },
+    {
+      "path": "case01-setup-dispatch-v2-preparation.json",
+      "bytes": 832,
+      "sha256": "5f6f144ecf6ca68f7cd847afe009bbd479b2a0ebfc720df4863a1c21eb5bac91"
+    },
+    {
+      "path": "clock-provider-release-packet.json",
+      "bytes": 7017,
+      "sha256": "ae8fd38164d07c3ef08ba993edbe5bee94501afb50d1428156cf82dd2c3a0b8f"
+    },
+    {
+      "path": "clock-provider-release-packet.md",
+      "bytes": 2644,
+      "sha256": "435d5dfb31475531c28daaa049afee3c42c1c1b988b816195188b272477fe684"
+    },
+    {
+      "path": "finalize-case01-native-bootstrap-v2.py",
+      "bytes": 2414,
+      "sha256": "ca7bca5390d108da73b05e24589ae66850d518ac01364d8548d48566f7a0ad36"
+    },
+    {
+      "path": "prepare-case01-native-bootstrap-v2.py",
+      "bytes": 11116,
+      "sha256": "b655153ee143b78092399ae30cc2e16d6711efc58e67fa475ef48b0e2406adb3"
+    },
+    {
+      "path": "prepare-case01-setup-dispatch-v2.py",
+      "bytes": 3108,
+      "sha256": "f88e6cc9b8a3451ad97009cf685eb427db025179d71b96f1d9c8beb89a1df79b"
+    },
+    {
+      "path": "recover-case01-auth-scope.mjs",
+      "bytes": 6212,
+      "sha256": "55bd6b512f4dc1ee9ec8301e5047ed423a7f0306447dd4b8c5ec3ce7f601cc10"
+    },
+    {
+      "path": "run-case01-native-setup-v2.mjs",
+      "bytes": 10681,
+      "sha256": "75be6e4a13d108f1637cb217976b00473b792b84e56199d9773da4fbe9e69669"
+    },
+    {
+      "path": "run-case01-native-setup-v3.mjs",
+      "bytes": 25211,
+      "sha256": "39219647361b76d232d2dd4251e9a574277f814a502d601cdc4ca863826cfd43"
+    },
+    {
+      "path": "run-case01-native-setup.mjs",
+      "bytes": 9881,
+      "sha256": "ea5be0f0380d48af29d5825c0027d493f05c180ada19b4b12fc352f1d5ae089c"
+    },
+    {
+      "path": "validate-case01-native-bootstrap-v2.py",
+      "bytes": 5038,
+      "sha256": "0d9695f4c46378c83f8a394cc58eb35267f3e149977e28ffe5993516794b7200"
+    }
+  ],
+  "privateInputsExcluded": true,
+  "captureAuthority": false,
+  "humanReleaseApproval": false,
+  "liveAcceptance": "NOT_RUN",
+  "acceptance": {
+    "original75": 0,
+    "cd": 0,
+    "cw": 0
+  }
+}

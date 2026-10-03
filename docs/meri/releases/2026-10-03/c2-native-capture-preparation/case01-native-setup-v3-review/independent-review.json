@@ -1,0 +1,133 @@
+{
+  "version": 1,
+  "reviewer": "/root/mail_defaults_review",
+  "result": "PASS_WITH_STATED_LIMITS",
+  "reviewType": "Independent read-only dispatcher source and retained-evidence review; persisted after the original chat verdict",
+  "humanReleaseApproval": false,
+  "captureAuthority": false,
+  "liveAcceptance": "NOT_RUN",
+  "candidate": {
+    "dispatcher": "../run-case01-native-setup-v3.mjs",
+    "dispatcherSha256": "39219647361b76d232d2dd4251e9a574277f814a502d601cdc4ca863826cfd43",
+    "checkpointSha256": "80bb22e0a570a641eb05391160f12179f739bd3568720d6b8002a6facd828999"
+  },
+  "findings": [],
+  "resolvedFindings": [
+    "Host intents, input/response artifacts, observations and final evidence use exclusive creation and fsync. A preexisting run directory blocks another invocation; no automatic retry is introduced.",
+    "The exact task template bytes are pinned and registered canonical taskInput is re-described and compared before RunTask. The unchanged reviewed inner script/rates, four DB secret references, API image/source, current release approval and both healthy service snapshots remain required.",
+    "Task stop handling, log collection, final task readback and task-definition deregistration are independent guarded phases. A polling or stop failure no longer skips collection of committed inner evidence. Raw log pages are fsynced before interpretation, and collection tolerates transient empty tails and bounded ingestion lag."
+  ],
+  "controlFlowConclusions": [
+    "The unchanged inner module owns canonical binding and budget installation. The outer script neither manufactures owners nor seeds/resets fixtures; execute is constructed only from the successful exact-source prior plan and the inner owner still rebuilds/checks its plan and CAS state.",
+    "Wrapper finally transports complete saved JSONL bytes using bounded numbered base64 chunks and exact source/script/rate/run/path/length/hash/exit metadata. Host assembly rejects duplicate, missing, reordered, malformed, noncanonical or mismatched frames and saves complete bytes before inner JSONL interpretation.",
+    "Actual failure receipts and every returned raw log page are retained separately from success. Unchanged forward tokens are temporary tails; collection has a 180-second scheduling window, at most 60 requests and a 32 MiB accepted-page budget. Per-call read timeout can extend a scheduling window; it is not a hard wall-clock deadline.",
+    "Registration, RunTask, stop and deregistration each have one awsSingleAttempt mutation call site. Their durable intents precede dispatch. Bounded read-only task discovery can recover only the exact startedBy nonce/task definition for cleanup after an unknown RunTask response; original dispatch failure remains fatal and cannot be converted to green.",
+    "Task and stream identity are tied to the owned ARN, exact task definition, capiro-dev cluster and persisted startedBy. Cleanup does not invoke a global drain or stop unrelated tasks.",
+    "Success requires complete exact inner stages/sequence, no inner/wrapper failure, zero inner and actual ECS exit, actual owned STOPPED task with the exact container/image/digest, independently read-back INACTIVE definition, no fatal observation and no evidence persistence failure. Committed inner status is reported separately from a blocked/uncertain outer result.",
+    "Unknown registration, run, cleanup or final evidence outcomes require scoped reconciliation. No mutation replay, automatic refund, compensation, second bind/install or provider execution is added."
+  ],
+  "retainedQualification": {
+    "pureChecksPassed": 14,
+    "pureChecksFailed": 0,
+    "pureLogSha256": "6691fd51c698e51f9b6936fab2814e5b80fab656e9da2eba41dcfe548db6427a",
+    "resultSha256": "a9ed8927a0746dbe22b25ef8310050807319bacec13bcceb959b0622dbb5ca54",
+    "syntaxLogSha256": "16e3edbe92d848d09637b5ec0801d01a735a0deb44c99bc4c374f0865de6acd8",
+    "scope": "Exact extracted pure assembler cases and generated wrapper syntax, plus whole-dispatcher syntax. No dispatcher import or execution; no AWS/task/log/cleanup integration test.",
+    "reviewerReranChecks": false
+  },
+  "limits": [
+    "This technical source verdict is not release approval, capture authorization or proof that setup has run.",
+    "At review no live inner JSONL receipt, task image execution, CloudWatch transport or cleanup integration was supplied by these parser checks. Actual successful plan/execute artifacts remain necessary.",
+    "The fixed receipt/source/template/rate and reviewed release assumptions must still hold at explicit invocation. Native capture, actual paid evidence, original acceptance and human adjudication remain separate.",
+    "Post-failure discovery is bounded and may be inconclusive; the result remains uncertain and never licenses automatic replay."
+  ],
+  "reviewActions": {
+    "localReadsAndHashes": true,
+    "dispatcherImports": 0,
+    "dispatcherExecutions": 0,
+    "testReruns": 0,
+    "cloudCalls": 0,
+    "authCalls": 0,
+    "browserCalls": 0,
+    "databaseCalls": 0,
+    "providerCalls": 0,
+    "journalOwnerCalls": 0,
+    "journalWrites": 0,
+    "fixtureMutations": 0,
+    "sourceEdits": 0,
+    "writeScope": "Only this new independent review artifact; checkpoint and existing evidence retained byte for byte."
+  },
+  "recordedAt": "2026-10-03T19:30:31.0440286Z",
+  "verifiedInputs": [
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/run-case01-native-setup-v3.mjs",
+      "bytes": 25211,
+      "sha256": "39219647361b76d232d2dd4251e9a574277f814a502d601cdc4ca863826cfd43"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v3-review/check-offline.mjs",
+      "bytes": 4985,
+      "sha256": "3dafb36c547606a6570c74b85efe32da453a97d4f126921e5a2ba2b6c956ad6c"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v3-review/offline-result.json",
+      "bytes": 570,
+      "sha256": "c890302516d360f8f5f9b05c58f9f31d9ba60754864053d8d15329d99f9d5c8a"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v3-review/offline-result-final.json",
+      "bytes": 570,
+      "sha256": "a9ed8927a0746dbe22b25ef8310050807319bacec13bcceb959b0622dbb5ca54"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v3-review/offline-final.log",
+      "bytes": 1135,
+      "sha256": "6691fd51c698e51f9b6936fab2814e5b80fab656e9da2eba41dcfe548db6427a"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v3-review/syntax-final.log",
+      "bytes": 11,
+      "sha256": "16e3edbe92d848d09637b5ec0801d01a735a0deb44c99bc4c374f0865de6acd8"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v3-review/REVIEW.md",
+      "bytes": 5602,
+      "sha256": "504e57c670e7d13f4c0fdaca4fd1b55408402aff77350e682574755d18d45db4"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v3-review/v2-to-v3.diff",
+      "bytes": 27012,
+      "sha256": "a8680e8e3ffef7aadcd9e9a6ea8f53179b51fec524b075acdd1a7f34b897c845"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/run-case01-native-setup-v2.mjs",
+      "bytes": 10681,
+      "sha256": "75be6e4a13d108f1637cb217976b00473b792b84e56199d9773da4fbe9e69669"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v1/case01-native-setup-inner.mjs",
+      "bytes": 13403,
+      "sha256": "632d00e47ec63fb8c0b49cfa0d166760bd16abbf5ded9b572c0a9cf235f9899d"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-setup-v1/case01-reviewed-rates-v2.json",
+      "bytes": 2770,
+      "sha256": "3531e09dfcce9f66b4ea2b3564db47bd72dc507cdcf1aecdda277b838007704e"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/corpus-read-definition-input.json",
+      "bytes": 3013,
+      "sha256": "6c0a447dc99ed35642df735c38d09e02b12b33983fe461b707cd0c06a8a44478"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case01-native-bootstrap-v1/run-case01-native.mjs",
+      "bytes": 32824,
+      "sha256": "900de5773947e389f25afb50af7b66a2e61cab7a1f360ff5121cf8332dab3485"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/run-case01-native-setup.mjs",
+      "bytes": 9881,
+      "sha256": "ea5be0f0380d48af29d5825c0027d493f05c180ada19b4b12fc352f1d5ae089c"
+    }
+  ]
+}

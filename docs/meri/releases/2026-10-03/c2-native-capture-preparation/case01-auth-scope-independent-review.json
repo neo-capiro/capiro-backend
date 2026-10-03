@@ -1,0 +1,81 @@
+{
+  "version": 1,
+  "reviewer": "/root/mail_defaults_review",
+  "result": "PASS_AUTH_IDENTITY_INPUT_ONLY",
+  "humanReleaseApproval": false,
+  "fixtureAuthority": false,
+  "captureAuthority": false,
+  "liveAcceptance": "NOT_RUN",
+  "findings": [],
+  "conclusions": [
+    "The recovered private file is explicitly AUTH_IDENTITY_ONLY_NOT_FIXTURE_MANIFEST. Its only operational role is the existing bootstrap manifest-shaped authentication input; the label ready is not corpus or capture readiness.",
+    "The canonical locator receipt has one CANONICAL_BINDING_PLAN_ONLY record, exitCode 0 and plan READY. Recovery asserts the complete fixed Pat/T1/Aster/case01/run request. The recovered tenant, actor and Clerk user identifiers equal that receipt; its byte hash matches both the private provenance and sanitized readback.",
+    "The private scope hash/1181 bytes match the readback. Its expected namespace, environment, ordinary role locators, instance and organization fields satisfy the bootstrap input shape. Only the synthetic handle format was checked locally; its value is deliberately omitted here.",
+    "Recovery invokes the actual exported assertCase01SyntheticIdentity from the hash-pinned bootstrap. Its fixed actor/client/tenant, synthetic user metadata/name/email, synthetic organization metadata/slug and exactly one ordinary org:member checks remain intact. The retained result reports that assertion passed against the four returned live SDK objects.",
+    "The installed @clerk/backend 1.34.0 CommonJS implementation maps instance.get, users.getUser, users.getOrganizationMembershipList and organizations.getOrganization to GET. Recovery uses read-only caller/secret retrieval, performs no session/ticket/conversation/provider/DB operation, and saves only selected identity locators plus sanitized provenance.",
+    "The bootstrap only uses this input for identity and its bytes hash. Fixed canonical scope still comes from the independently joined setup receipt, and original canonical fixture/binding/qualification owners plus native live admission remain required. Recovery does not install a binding, price qualification or budget, seed/reset fixtures, adopt a journal, or manufacture a native capability.",
+    "At startup the bootstrap again checks the exact input byte hash and repeats live Clerk identity checks. Retained recovery is not substituted for those current checks."
+  ],
+  "sdkReadOnlyVerification": {
+    "version": "1.34.0",
+    "file": "C:/dev/main/meri-c1-20261002/apps/api/node_modules/@clerk/backend/dist/index.js",
+    "sha256": "a1501ae0a900a7e8cf657037270031b3f80e5c25c98302c9c6b0ea862335e949",
+    "methodLines": {
+      "instance.get": 282,
+      "organizations.getOrganization": 423,
+      "users.getUser": 915,
+      "users.getOrganizationMembershipList": 992
+    },
+    "httpMethods": "GET for all four selected SDK operations"
+  },
+  "limits": [
+    "This review inspects code, selected private-file predicates and retained sanitized run evidence. It did not repeat live Clerk/AWS reads or independently retain the four complete live SDK response objects.",
+    "Four reads means four explicit SDK operations; no raw HTTP attempt trace was retained to prove a retry-free wire request count.",
+    "The old private fixture manifest was not reconstructed. No source inventory, original fixture receipts, capture authority, provider qualification, run acceptance or human adjudication is supplied by this identity file."
+  ],
+  "reviewActions": {
+    "localReadsAndHashes": true,
+    "operatorImports": 0,
+    "operatorExecutions": 0,
+    "testsRun": 0,
+    "cloudCalls": 0,
+    "authCalls": 0,
+    "browserCalls": 0,
+    "databaseCalls": 0,
+    "providerCalls": 0,
+    "journalOwnerCalls": 0,
+    "journalWrites": 0,
+    "fixtureMutations": 0,
+    "sourceEdits": 0,
+    "privateHandleOrSecretValuesPrinted": false,
+    "writeScope": "Only this new sanitized review file."
+  },
+  "recordedAt": "2026-10-03T19:29:10.9106232Z",
+  "verifiedInputs": [
+    {
+      "path": "recover-case01-auth-scope.mjs",
+      "bytes": 6212,
+      "sha256": "55bd6b512f4dc1ee9ec8301e5047ed423a7f0306447dd4b8c5ec3ce7f601cc10"
+    },
+    {
+      "path": "case01-auth-scope-readback.json",
+      "bytes": 1366,
+      "sha256": "31f406b10ba7f08cf0dd7cf865bf5d9d180750f3508a1fc6c613886cc1d6e8c3"
+    },
+    {
+      "path": "case01-recovered-auth-scope.private.json",
+      "bytes": 1181,
+      "sha256": "ed9c3b1c11014825b29ee2879796e20b3f0023959ed9e478337180b96ed7a062"
+    },
+    {
+      "path": "case01-canonical-bind-plan-v1/result.json",
+      "bytes": 8567,
+      "sha256": "fdda11bf6292238453b3e050f60b764c3346a9436cf746410e89fd5a918f448a"
+    },
+    {
+      "path": "case01-native-bootstrap-v2/run-case01-native.mjs",
+      "bytes": 33732,
+      "sha256": "655cc278a1a76ff55cf7a0ceae96ccfc325a016e0e3a0d53c21f43f276c171d1"
+    }
+  ]
+}

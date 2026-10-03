@@ -1,0 +1,15 @@
+{
+  "recordedAt": "2026-10-03T18:58:33.901Z",
+  "status": "AUTHENTICATED_TEMPLATE_LIFETIME_OBSERVED",
+  "providerCalls": 0,
+  "journalMutations": 0,
+  "conversationCreations": 0,
+  "tokenLifetimeSeconds": 3600,
+  "remainingAtAuthenticatedReadSeconds": 3599,
+  "apiSourceSha": "f00e5dfb4fd3e47ac6aa4aca741023cc02f6314f",
+  "template": "capiro",
+  "actorScope": "Existing synthetic Pat standard_user/T1",
+  "credentialValuesPersisted": false,
+  "limit": "One observed token from the existing template; future capture must check its own token validity. This does not qualify provider or capture authority.",
+  "sessionRevoked": true
+}

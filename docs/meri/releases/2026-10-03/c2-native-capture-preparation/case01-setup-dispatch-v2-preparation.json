@@ -1,0 +1,18 @@
+{
+  "version": 2,
+  "recordedAt": "2026-10-03T18:53:49.771933+00:00",
+  "status": "PREPARED_NOT_EXECUTED_PENDING_REVIEW",
+  "originalPath": "run-case01-native-setup.mjs",
+  "originalSha256": "ea5be0f0380d48af29d5825c0027d493f05c180ada19b4b12fc352f1d5ae089c",
+  "replacementPath": "run-case01-native-setup-v2.mjs",
+  "replacementSha256": "75be6e4a13d108f1637cb217976b00473b792b84e56199d9773da4fbe9e69669",
+  "resolvedReviewFindings": [
+    "fsync every exclusive host record/input before subsequent cloud mutation",
+    "pin exact reviewed task template bytes, then independently describe and fingerprint registered task before RunTask"
+  ],
+  "innerScriptUnchanged": "632d00e47ec63fb8c0b49cfa0d166760bd16abbf5ded9b572c0a9cf235f9899d",
+  "serviceMutations": 0,
+  "setupExecutions": 0,
+  "journalMutations": 0,
+  "providerCalls": 0
+}

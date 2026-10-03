@@ -1,0 +1,106 @@
+const fixedApiSource = '5b086a6b47ffce5aa1b93bfe38f9c7b96e297642';
+const fixedRun = 'bd35c0f4-1604-4371-b7e9-a1338369e53f';
+const fixedClient = '41f9ec63-3963-479f-b747-59a3767ef44b';
+const fixedContext = Object.freeze({ tenantId: 'f2d6cf8f-057c-479a-8110-62fe5086d43f',
+  userId: 'b1f758fc-17bd-40f8-bef2-fa2d2380300f', clerkUserId: 'user_3Jw2FvWZkYGKmxWGx13tNJxFD2A' });
+const fixedOutput = `C:/dev/main/outputs/meri-c2-20261003/case01-native-${fixedRun}`;
+const freshPrefix = 'abe458973e6998db20586c781ac5a3cbd4ca2fa565425e62722f0eb9c985210b';
+const freshAuthorization = 'e07822e83a7c7b531606519ecd4fdf1027f2fa7cbaefd4bad92a2084590262fe';
+const rateBytesHash = '3531e09dfcce9f66b4ea2b3564db47bd72dc507cdcf1aecdda277b838007704e';
+const rateValueHash = 'a1a179383c8451495336169f46025eb8cee8ec95487f1a43017078387b768b11';
+const SHA = /^[a-f0-9]{40}$/u, HASH = /^[a-f0-9]{64}$/u;
+function safeFailure(error) {
+  const code = error?.safeCode ?? error?.code ?? error?.message ?? '';
+  return /^(?:CASE01_|CAPTURE_SPEND_)[A-Z0-9_]+$/u.test(code) || error?.safeCode
+    ? code : 'CASE01_OPERATOR_FAILED';
+}
+function writeExclusive(path, value) {
+  const fd = openSync(path, 'wx', 0o600);
+  try { writeFileSync(fd, JSON.stringify(value, null, 2) + '\n'); fsyncSync(fd); }
+  finally { closeSync(fd); }
+}
+/** Saved setup is a scope cross-check only. Native admission and live canonical
+ * authority still decide whether dispatch is allowed; no input creates capability. */
+export function buildCase01Scope(input) {
+  need(isDeepStrictEqual(Object.keys(input ?? {}).sort(),
+    ['deployment', 'expectedWebSha', 'manifestSha256', 'operatorSourceSha', 'setupReceiptPath', 'setupReceiptSha256']),
+    'CASE01_EXACT_INPUT_REQUIRED');
+  need(SHA.test(input.operatorSourceSha ?? '') && SHA.test(input.expectedWebSha ?? '') &&
+    HASH.test(input.manifestSha256 ?? '') && HASH.test(input.setupReceiptSha256 ?? '') &&
+    isAbsolute(input.setupReceiptPath ?? ''), 'CASE01_PREPARED_INPUT_REQUIRED');
+  const wire = readFileSync(input.setupReceiptPath);
+  need(hash(wire) === input.setupReceiptSha256 && wire.at(-1) === 10, 'CASE01_SETUP_BYTES_CHANGED');
+  const events = wire.toString('utf8').trimEnd().split('\n').map(line => JSON.parse(line));
+  need(events.length === 6 && events.every((event, index) => event.sequence === index + 1) &&
+    isDeepStrictEqual(events.map(e => [e.stage, e.phase]), [
+      ['VALIDATING', 'START'], ['BIND_DISPATCHING', 'INTENT'], ['BOUND', 'VERIFIED'],
+      ['BUDGET_INSTALL_DISPATCHING', 'INTENT'], ['BUDGET_INSTALLED', 'VERIFIED'], ['COMPLETE', 'RESULT']
+    ]) && events[0].mode === 'execute' && events[0].sourceSha === fixedApiSource &&
+    events[0].captureRunId === fixedRun && events[0].rateBytesSha256 === rateBytesHash,
+    'CASE01_SETUP_SEQUENCE_INVALID');
+  const setup = events.at(-1), b = setup.bound?.binding, f = setup.fixture;
+  const ratesBytes = readFileSync(new URL('../case01-native-setup-v1/case01-reviewed-rates-v2.json', import.meta.url));
+  need(hash(ratesBytes) === rateBytesHash, 'CASE01_RATE_BYTES_CHANGED');
+  const rates = JSON.parse(ratesBytes.toString('utf8'));
+  need(sha256Stable(rates) === rateValueHash && Date.parse(rates.expiresAt) > Date.now() + 1800000,
+    'CASE01_RATE_QUALIFICATION_EXPIRED');
+  const q = { version: 1, caseId: '01', captureRunId: fixedRun, currentVerifySha256: f?.currentVerifySha256,
+    rateEvidenceSha256: rateValueHash, rateEvidenceExpiresAt: rates.expiresAt,
+    priceKind: 'qualified_text_token_upper_bound', maxAttempts: 32, maxTokens: 500000,
+    maxCostMicros: 15000000, rates: rates.rates };
+  need(setup.status === 'BOUND_AND_BUDGET_READ_BACK' && setup.liveAcceptance === 'NOT_RUN' &&
+    setup.journalOpened === false && setup.providerCalls === 0 && setup.conversationCreations === 0 &&
+    setup.fixtureLifecycleMutations === 0 && setup.bound?.status === 'BOUND' &&
+    setup.installed?.status === 'PROVIDER_QUALIFICATION_INSTALLED' &&
+    isDeepStrictEqual(events[2].bound, setup.bound) && isDeepStrictEqual(events[4].installed, setup.installed) &&
+    events[1].planSha256 === setup.planSha256 && HASH.test(setup.planSha256 ?? '') &&
+    HASH.test(setup.protectedSettingsSha256 ?? '') &&
+    b?.caseId === '01' && b.captureRunId === fixedRun && b.actorUserId === fixedContext.userId &&
+    b.clientId === fixedClient && b.fixtureNamespace === namespace && b.fixtureVersion === frozenFixture.version &&
+    setup.bound.tenantId === fixedContext.tenantId && setup.bound.fixtureReady === true &&
+    setup.bound.bindingSha256 === sha256Stable(b) &&
+    f?.physicalMapSha256 === sha256Stable(f.sourceMap) &&
+    ['fixtureVersion', 'physicalMapSha256', 'seedReceiptId', 'resetReceiptId', 'currentVerifySha256'].every(k => f[k] === b[k]) &&
+    setup.installed.tenantId === fixedContext.tenantId && setup.installed.clientId === fixedClient &&
+    setup.installed.captureRunId === fixedRun && setup.installed.currentVerifySha256 === b.currentVerifySha256 &&
+    setup.installed.captureBindingSha256 === setup.bound.bindingSha256 &&
+    setup.installed.rateEvidenceSha256 === rateValueHash && setup.installed.rateEvidenceExpiresAt === rates.expiresAt &&
+    setup.installed.maxCostMicros === 15000000 && setup.installed.qualificationSha256 === sha256Stable(q) &&
+    events[3].qualificationSha256 === sha256Stable(q) &&
+    setup.readback?.status === 'READY_FOR_RATE_QUALIFICATION' && setup.readback.caseId === '01' &&
+    setup.readback.captureRunId === fixedRun && setup.readback.currentVerifySha256 === b.currentVerifySha256 &&
+    setup.readback.captureBindingSha256 === setup.bound.bindingSha256 &&
+    setup.readback.priorQualificationSha256 === sha256Stable(q) &&
+    setup.readback.tenantRowVersion === setup.installed.tenantRowVersion,
+    'CASE01_SETUP_JOIN_REJECTED');
+  const lock = read(join(repo, 'evals/meri/live-v1/contract-lock.json'));
+  const config = {
+    schemaVersion: 1, provenance: 'LIVE_CAPTURE', caseId: '01',
+    target: { apiOrigin: origin, environment: 'capiro-dev' },
+    limits: { concurrency: 1, deadlineMs: 900000, maxSpendUsd: 15 },
+    contract: lock, captureRunId: fixedRun, conversationId: null, deployment: input.deployment,
+    scope: {
+      actors: { PAT: { ...fixedContext, role: 'standard_user', tenantPhysicalId: fixedContext.tenantId } },
+      tenants: { T1: { physicalId: fixedContext.tenantId, slug: namespace + '-t1' } },
+      clients: { ASTER: { physicalId: fixedClient, tenantPhysicalId: fixedContext.tenantId } },
+      sources: f.sourceMap,
+    },
+    fixture: { namespace, version: f.fixtureVersion, sha256: lock.fixtureSha256,
+      mappingSha256: f.physicalMapSha256, seedReceiptId: f.seedReceiptId, resetReceiptId: f.resetReceiptId },
+  };
+  delete config.scope.actors.PAT.tenantId;
+  need(config.deployment?.apiSha === fixedApiSource && SHA.test(config.deployment.orchestratorSha ?? ''),
+    'CASE01_DEPLOYMENT_INPUT_REQUIRED');
+  need(isDeepStrictEqual(Object.keys(config.deployment.builds ?? {}).sort(), ['api', 'meriv2-orchestrator']),
+    'CASE01_BOTH_IMMUTABLE_BUILDS_REQUIRED');
+  for (const service of ['api', 'meriv2-orchestrator']) {
+    const build = config.deployment.builds[service];
+    need(build.service === service && build.sourceSha === config.deployment[service === 'api' ? 'apiSha' : 'orchestratorSha'] &&
+      /^sha256:[a-f0-9]{64}$/u.test(build.imageDigest ?? '') && HASH.test(build.buildspecSha256 ?? '') &&
+      /^capiro-build-[a-z0-9-]+:[a-f0-9-]{36}$/u.test(build.buildId ?? ''), 'CASE01_BUILD_INPUT_INCOMPLETE');
+  }
+  return { config, expectedWebSha: input.expectedWebSha, operatorSourceSha: input.operatorSourceSha,
+    qualificationExpiresAt: rates.expiresAt, setupProof: { setupReceiptSha256: input.setupReceiptSha256,
+      planSha256: setup.planSha256, currentVerifySha256: b.currentVerifySha256,
+      bindingSha256: setup.bound.bindingSha256, qualificationSha256: setup.installed.qualificationSha256 } };
+}

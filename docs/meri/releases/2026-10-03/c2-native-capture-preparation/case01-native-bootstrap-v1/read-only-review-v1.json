@@ -1,0 +1,221 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-10-03T19:13:58.717580+00:00",
+  "reviewer": "independent subagent mail_defaults_review",
+  "result": "CHANGES_REQUIRED",
+  "humanReleaseApproval": false,
+  "reviewScope": "Frozen bootstrap v1 source, fixed setup input/receipt composition, existing public case01 capture/build/spend/storage APIs and retained syntax/offline reproduction evidence. No runner, helper, test, auth, cloud, browser, journal, database or capture execution by this reviewer.",
+  "checkpoint": {
+    "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case01-native-bootstrap-v1\\preparation-checkpoint.json",
+    "sha256": "0df88d1c257aa15f82a79165f7d13cc752271efaf692d27f91d6a45a65417453"
+  },
+  "executable": {
+    "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case01-native-bootstrap-v1\\run-case01-native.mjs",
+    "sha256": "900de5773947e389f25afb50af7b66a2e61cab7a1f360ff5121cf8332dab3485",
+    "bytes": 32824
+  },
+  "findings": [
+    {
+      "id": "C2_CASE01_BOOTSTRAP_V1_UNCERTAIN_SUBMISSION_ZERO",
+      "severity": "P2",
+      "file": "run-case01-native.mjs",
+      "lines": [
+        608,
+        676
+      ],
+      "problem": "executeCase01LiveCapture is invoked without a persisted wrapper execution-attempt marker. The final summary prints turnsSent as outcome.synthesisSubmissionCount or zero when no outcome returns.",
+      "concretePath": "The actual native owner can submit the sole stream/provider request and later throw from blocked-artifact writing or collector.finalize (case01-live-capture.mjs lines668-670). Bootstrap then has no returned outcome and reports zero although submission is uncertain.",
+      "requiredCorrection": "Fsync an execution intent immediately before invoking the native owner. When execution was attempted and no outcome returns, retain UNKNOWN/null submission count rather than zero. Preserve the unresolved reservation and no-retry behavior. Do not fabricate settlement or refund.",
+      "neededBoundedNegativeCase": "A native execution that throws without returning an outcome after execution intent must produce uncertain submission reporting, preserve the intent and avoid a second execution or settlement."
+    },
+    {
+      "id": "C2_CASE01_BOOTSTRAP_V1_OLD_ORCHESTRATOR_ANCESTOR",
+      "severity": "P2",
+      "file": "run-case01-native.mjs",
+      "lines": [
+        344,
+        345,
+        346,
+        347,
+        348
+      ],
+      "problem": "The source gate only requires the declared orchestrator source to be an ancestor of operator HEAD; its allowed-path comparison is fixedApiSource to HEAD rather than fixedApiSource to the declared orchestrator candidate.",
+      "concretePath": "A scope declaring the previously served ed44f2c6cfdfda5150f75ab198a6e52d2377880f/orchestrator113 and its real old build/digest satisfies ancestry. Existing readCase01BuildAuthority can truthfully validate that still-served older image during an API-first transition. The new API can therefore be paired with an orchestrator predating the reviewed clock and provider wire guards.",
+      "requiredCorrection": "Bind the exact approved API/orchestrator source, image digest, build ID and buildspec authority, or equivalently bind the approved release packet and prove the promised production-source equivalence. Reject stale ancestors before journal adoption or reservation.",
+      "neededBoundedNegativeCase": "An otherwise well-formed prior ancestor and historical valid build declaration must be refused before any journal or auth operation; the exact reviewed new pair must remain admissible to subsequent live verification."
+    }
+  ],
+  "reviewedPropertiesWithoutAdditionalBlockers": [
+    "All nine frozen output byte/hash entries and twelve reused source hashes match the checkpoint. The adjacent setup checkpoint also matches.",
+    "Setup requires six exact stage/phase JSONL records with ordered sequence and a pinned whole-byte hash. Bound/installed records, source mapping, original seed/reset identities, fixed case/run/actor/client, rate evidence and qualification hashes are cross-checked.",
+    "Saved setup is not treated as live authority. The native prepare owner performs authenticated current admission and immutable build reads; bootstrap compares currentVerify and qualification hashes and execute rechecks the current fixture/provider budget.",
+    "Imports use the same actual public case01/spend/storage module paths, preserving their opaque same-process WeakMap capabilities. The bootstrap supplies no substitute transport, source authority, receipt or settlement callback.",
+    "The existing native execute owner alone joins authenticated server receipts and settles the reservation. Bootstrap does not call settlement a second time and grades the exact opaque outcome.",
+    "The existing fresh journal is adopted through its owner with the pinned twenty-event prefix and authorization hash. Existing charges, fifteen-dollar ceiling, thirty-dollar aggregate and concurrency one are preserved; no initialization, refund, replacement or recovery is called.",
+    "A fixed output directory and global run claim prevent normal reruns. The claim and execution history are fsynced. Native artifacts use the actual Windows owned storage capability.",
+    "The fixed original prompt is selected inside the native owner. Conversation creation is bounded to one ordinary owned conversation and live empty/scoped readback. Browser application writes are blocked.",
+    "The Clerk secret is removed from child-process environment before Git/AWS/browser work, credentials are not printed, the owned session is revoked and revocation checked, and unknown sign-in acknowledgement is marked cleanup-unconfirmed.",
+    "Failed or uncertain results retain reservation consumption. Deterministic grading never becomes full original acceptance without separate human adjudication."
+  ],
+  "qualificationLimits": [
+    "V1 is not approved for execution because the two P2 findings remain in its frozen bytes.",
+    "Preparation qualification is node syntax and exact offline string-composition reproduction only. No integration or runtime path was exercised by this review.",
+    "The retained token preflight observed one3600-second capiro token and revoked its session with zero provider/journal/conversation actions. It is not proof of a future token lifetime. The native owner retains one bearer and server auth remains fail-closed.",
+    "The actual approved deployment pair, successful setup JSONL, current build/auth/fixture admission, journal identity and source checks must still pass at execution.",
+    "No paid call, budget installation, conversation creation, live receipt join or original case acceptance is established. Original75/CD/CW and human review remain separate."
+  ],
+  "reviewActions": {
+    "remoteCalls": 0,
+    "authCalls": 0,
+    "testsRerun": 0,
+    "browserLaunches": 0,
+    "runnerImports": 0,
+    "runnerExecutions": 0,
+    "journalOwnerCalls": 0,
+    "journalWrites": 0,
+    "databaseCalls": 0,
+    "providerCalls": 0,
+    "sourceEdits": 0,
+    "newEvidenceFilesWritten": 1
+  },
+  "verifiedArtifacts": [
+    {
+      "category": "outputs",
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case01-native-bootstrap-v1\\run-case01-native.mjs",
+      "sha256": "900de5773947e389f25afb50af7b66a2e61cab7a1f360ff5121cf8332dab3485",
+      "bytes": 32824
+    },
+    {
+      "category": "outputs",
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case01-native-bootstrap-v1\\prepare.py",
+      "sha256": "0ac1c7367119d3739df6fb286241d185732511c6e17ec3ad3b8e364925fad944",
+      "bytes": 11850
+    },
+    {
+      "category": "outputs",
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case01-native-bootstrap-v1\\scope-helpers.txt",
+      "sha256": "0ed4209af96a22f007e8175ca004adb4cd7690047e0216b1596b2d0788f5acac",
+      "bytes": 7886
+    },
+    {
+      "category": "outputs",
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case01-native-bootstrap-v1\\verify-preparation.py",
+      "sha256": "2ad1a879b6a97224b2114e438c1acde6d4dd62ca05f94e4e7b276a03aa8247b8",
+      "bytes": 1159
+    },
+    {
+      "category": "outputs",
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case01-native-bootstrap-v1\\adaptation.diff",
+      "sha256": "387029cb1010e1451764d9929657cad05bab5cd645e115d50caba374cdf7d5a1",
+      "bytes": 26429
+    },
+    {
+      "category": "outputs",
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case01-native-bootstrap-v1\\scope-input.template.json",
+      "sha256": "41fe7b744ea5f04d39e5710fb4c74c47f57e2089df38276d148d84b11fa6b6ed",
+      "bytes": 669
+    },
+    {
+      "category": "outputs",
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case01-native-bootstrap-v1\\README.md",
+      "sha256": "f6717b76e359ea0490302cd21da52c42ecb50cec48b9825fe1d640f9dc7dc5df",
+      "bytes": 7174
+    },
+    {
+      "category": "outputs",
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case01-native-bootstrap-v1\\syntax-check.log",
+      "sha256": "16e3edbe92d848d09637b5ec0801d01a735a0deb44c99bc4c374f0865de6acd8",
+      "bytes": 11
+    },
+    {
+      "category": "outputs",
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case01-native-bootstrap-v1\\offline-reproduction.log",
+      "sha256": "7fb5e776bd609bd8188672ccc761ecdfc36d5fe0f5ce7c95a0dd70de30a3ec91",
+      "bytes": 229
+    },
+    {
+      "category": "reusedSourceHashes",
+      "path": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\run-controlled-read.mjs",
+      "sha256": "bb983c856e87d35510a849f6175098c2f8a99d961a687befba30f1445b13be85",
+      "bytes": 22755
+    },
+    {
+      "category": "reusedSourceHashes",
+      "path": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\case01-live-capture.mjs",
+      "sha256": "4136d20e10ec9e0e635fefc0ccf8a4609f12a36a410dba3f3eb4f828469ea029",
+      "bytes": 24816
+    },
+    {
+      "category": "reusedSourceHashes",
+      "path": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\grade-case01-capture.mjs",
+      "sha256": "b2ec25f9d39cbadad6c176f2ca00fb50857c5552b3eed50cc877728a95c1a441",
+      "bytes": 4269
+    },
+    {
+      "category": "reusedSourceHashes",
+      "path": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\case01-receipt-joins.mjs",
+      "sha256": "c4556ba2da76c5c83de511c852f1f403f81dd4bf44160cbf8e6e14115e448aa9",
+      "bytes": 12888
+    },
+    {
+      "category": "reusedSourceHashes",
+      "path": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\case01-build-authority.mjs",
+      "sha256": "3cd0353c62743d0dbf5d2511678f9dbb2aca01620e648365c353f1751a3bc065",
+      "bytes": 5460
+    },
+    {
+      "category": "reusedSourceHashes",
+      "path": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\capture-spend-aggregate.mjs",
+      "sha256": "8066b14877f4c760a540fd1d13031690c8f5ff00701596533ceb10ca0ab9ea60",
+      "bytes": 14318
+    },
+    {
+      "category": "reusedSourceHashes",
+      "path": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\lib\\windows-capture-spend.py",
+      "sha256": "2090d09a9a790a8e7da2ba65d07d4157d26550ba715b0ef64e7c1c377f45c40e",
+      "bytes": 24826
+    },
+    {
+      "category": "reusedSourceHashes",
+      "path": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\windows-artifact-storage.mjs",
+      "sha256": "8b03eeccad53a92fc4cf7bcf4976522ecf7ed2126591449e28a6a70948ac01c4",
+      "bytes": 3415
+    },
+    {
+      "category": "reusedSourceHashes",
+      "path": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\artifact-collector.mjs",
+      "sha256": "64725c9b2fc66efb6578461e755efcbf62b77e18833dc6221831ee7e21ececae",
+      "bytes": 15744
+    },
+    {
+      "category": "reusedSourceHashes",
+      "path": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\fixture.mjs",
+      "sha256": "8915e19424520a2f97b9cd5a389fcf4b39f2823f0526573ffd04a1dfe0fbc398",
+      "bytes": 17294
+    },
+    {
+      "category": "reusedSourceHashes",
+      "path": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\cases.mjs",
+      "sha256": "5464412ee66b73f677cc923bda09b4785a866b20ef0ee6a3410936c431c5ba0a",
+      "bytes": 62128
+    },
+    {
+      "category": "reusedSourceHashes",
+      "path": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\contract-lock.json",
+      "sha256": "fc2fe9da90938d476e46007782a0b7d4471c1254e2a189180f62e3fbbde8fb6e",
+      "bytes": 6168
+    },
+    {
+      "category": "setupCheckpoint",
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case01-native-setup-v1\\preparation-checkpoint.json",
+      "sha256": "cde24885cba55257c71451a9c0b5d2b8dc03bad6d3326ab184320acedeeb54c6",
+      "bytes": 5440
+    },
+    {
+      "category": "authLifetimeReadOnlyEvidence",
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\capture-token-lifetime-preflight.json",
+      "sha256": "ad4103731a7af959b46aa78acc2e5a1248c843e749f90da1065c1d1403435d44",
+      "bytes": 632
+    }
+  ]
+}
