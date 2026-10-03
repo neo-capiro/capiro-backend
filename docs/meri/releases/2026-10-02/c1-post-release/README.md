@@ -19,6 +19,23 @@ Two launcher failures preceded the first migration dispatch. ECS returned approv
 
 [Browser observations](browser-post-release.json), [joined server event durations](post-release-telemetry.json), [isolated task receipt](c1-acceptance-local-v1.json), and [actual mail failure/recovery/default equivalence](c1-mail-defaults-local-v1-mail-report.json) separate these claims. No customer message contents, addresses or subjects were persisted in this archive. Eight QA chat pairs were created; no business writes or memory decisions were performed. The owned local PostgreSQL55433 fixture was stopped after verification.
 
+### Request timing evidence
+
+The saved telemetry contains one received/finalized request pair for each of the eight serial checks. [Derived timings](post-release-request-timings.json) join exact trace/request/turn/run IDs within each request and verify the reported duration against server timestamps. Browser case association uses order and matching tool names/outcomes; browser observations did not capture run IDs.
+
+| Check | Server request duration | Tool outcome |
+| --- | ---: | --- |
+| Concise answer | 12.792 s | No tools |
+| Proper-name/failed-search wording | 31.808 s | No tools |
+| Owned task count | 9.272 s | Empty, successful read |
+| Initial minimal mailbox list | 11.696 s | Failed before API owner |
+| Literal-zero mailbox search | 11.791 s | Empty, successful read |
+| Known mailbox search | 15.799 s | Partial, pagination disclosed |
+| Exact minimal mailbox list | 9.155 s | Failed before API owner |
+| Explicit-default mailbox list | 12.593 s | Partial, diagnostic success |
+
+These durations cover API receipt through finalization, excluding browser transport/rendering; completed request envelopes do not turn failed tool reads into successes. First useful content was not independently timed, and browser/server clocks were not aligned. Capture first useful content and terminal observation separately in the post-promotion checks. No first-token or p95 claim is made. Derivation reused saved events without additional provider or AWS calls.
+
 ## Remaining repair
 
 [WAF samples](mail-list-waf-correlation.json) correlate both signed-in failures with `AWS#AWSManagedRulesSQLiRuleSet#SQLi_BODY` on `/api/clio/tools/list_emails`, each with an 11-byte JSON body. A bounded unauthenticated diagnostic sent the two legitimate request forms: minimal input produced edge 403 without an API release header; explicit owner defaults reached normal API 401 authentication. It sent no credentials and could not enter the tool owner. [Exact diagnostic](mail-list-body-diagnostic.json).

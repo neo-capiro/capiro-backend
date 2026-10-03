@@ -1,0 +1,216 @@
+{
+  "status": "DERIVED_SERVER_REQUEST_TIMINGS",
+  "sourceFiles": {
+    "post-release-telemetry.json": "ad593449e962565a6c4fb3b8006148933a13d60b720d15ddafdb714da4185f3d",
+    "browser-post-release.json": "a82962e0d44d3fa1932a5501ce36a6b4db06c34f9cc2a8b7e92423e12aae408f"
+  },
+  "derivation": "Group telemetry by runId; require unique received/finalized boundaries and consistent trace/request/turn IDs; verify duration against server timestamps within 1 ms; associate the eight serial browser cases by order and matching tool names/outcomes/counts.",
+  "limits": [
+    "Browser observations did not capture run IDs. Case association uses serial order plus matching tools/outcomes; server durations themselves use exact shared trace/request/turn/run IDs.",
+    "Duration covers API request receipt through finalization, excluding browser transport/rendering. It is not first-token or first-useful-content latency, nor p95.",
+    "First useful content was not independently timed in these saved observations. Observe first useful content and terminal state separately in the post-promotion checks.",
+    "Do not subtract browser and server timestamps; clock alignment was not measured.",
+    "Request completion can include a truthful tool failure. Both minimal list cases remain failed despite completed request envelopes.",
+    "These events come from orchestrator107, not the unpromoted mailbox-defaults image."
+  ],
+  "cases": [
+    {
+      "ordinal": 1,
+      "caseId": "concise-no-tool",
+      "runId": "58cca861-81b6-4995-b5da-ec066ce85119",
+      "traceId": "683c5ab6412789ce4acf0ad80e8be5cb",
+      "requestId": "ed9bea3d-bba5-4e23-8483-e916a0de8f79",
+      "serverTurnId": "69a2516d-fb34-4289-abaa-20191151196b",
+      "receivedAt": "2026-10-03T04:40:09.079Z",
+      "finalizedAt": "2026-10-03T04:40:21.871Z",
+      "serverRequestDurationMs": 12792,
+      "requestFinalizedRawEventSha256": "98b5a37279ab77e6d69126c03d1294945f62ff9f6175872de8bf8b7b2faebd6f",
+      "toolCount": 0,
+      "toolSteps": [],
+      "ownerDurations": [],
+      "firstUsefulContentMs": null,
+      "browserObservedUpperBoundMs": 28007
+    },
+    {
+      "ordinal": 2,
+      "caseId": "proper-name-operational-wording",
+      "runId": "bca96ccd-16d3-41cd-bdb2-14d5cb68db58",
+      "traceId": "84451eb4ed8ecfb9de247cf0fdef44b4",
+      "requestId": "1a50917d-ad6a-4a7e-a318-defa8b0b26e8",
+      "serverTurnId": "c14566c8-c87c-44d8-8445-c9ad57dae105",
+      "receivedAt": "2026-10-03T04:46:29.380Z",
+      "finalizedAt": "2026-10-03T04:47:01.188Z",
+      "serverRequestDurationMs": 31808,
+      "requestFinalizedRawEventSha256": "3072f248c10c77029d06b9f1ebbc29e1e7d8b3489b930d394f9be9f9c09b1c41",
+      "toolCount": 0,
+      "toolSteps": [],
+      "ownerDurations": [],
+      "firstUsefulContentMs": null,
+      "browserObservedUpperBoundMs": 109383
+    },
+    {
+      "ordinal": 3,
+      "caseId": "own-open-task-count",
+      "runId": "4dd2068b-bc09-4b38-887d-68c98bb80251",
+      "traceId": "52c3ad65d707e8d3887e13eec205b8da",
+      "requestId": "845f4a36-0cae-4bde-9ed1-3a5502a840f1",
+      "serverTurnId": "8ca5ecf1-7843-4022-af9b-936704ef9cdd",
+      "receivedAt": "2026-10-03T04:51:32.873Z",
+      "finalizedAt": "2026-10-03T04:51:42.145Z",
+      "serverRequestDurationMs": 9272,
+      "requestFinalizedRawEventSha256": "c6fe5282e9f3dd047f3a032e1b1f754c4ba03709d331ca6ade0e9a3e15537b75",
+      "toolCount": 1,
+      "toolSteps": [
+        {
+          "name": "query_tasks",
+          "outcome": "empty",
+          "durationMs": 141
+        }
+      ],
+      "ownerDurations": [
+        {
+          "name": "query_tasks",
+          "outcome": "empty",
+          "durationMs": 25
+        }
+      ],
+      "firstUsefulContentMs": null,
+      "browserObservedUpperBoundMs": 44502
+    },
+    {
+      "ordinal": 4,
+      "caseId": "mail_list_post_index",
+      "runId": "f6aad7d2-f5a4-4239-942a-2a473a1c7c14",
+      "traceId": "ba18202abef3e767dca68c8e3c110b45",
+      "requestId": "9a2633f5-23f5-4176-a867-a98188312d2c",
+      "serverTurnId": "92db56fe-2495-4940-954b-41ca3f68c167",
+      "receivedAt": "2026-10-03T05:02:54.881Z",
+      "finalizedAt": "2026-10-03T05:03:06.577Z",
+      "serverRequestDurationMs": 11696,
+      "requestFinalizedRawEventSha256": "a029d1b1d3c699bbd4d92eb40ae6502a652859acefacf7c3e09773e329168327",
+      "toolCount": 1,
+      "toolSteps": [
+        {
+          "name": "list_emails",
+          "outcome": "failed",
+          "durationMs": 11
+        }
+      ],
+      "ownerDurations": [],
+      "firstUsefulContentMs": null,
+      "browserObservedUpperBoundMs": 30612
+    },
+    {
+      "ordinal": 5,
+      "caseId": "mail_literal_zero_post_index",
+      "runId": "80a79a90-8ce2-4974-bff7-97b633df74d1",
+      "traceId": "fc3ca8f5ada3a9dcd4250cd70b55dfb0",
+      "requestId": "272b9a58-a42a-4368-92f1-7baee03e913c",
+      "serverTurnId": "c3367170-63d1-4889-b79e-8860eea77170",
+      "receivedAt": "2026-10-03T05:03:26.344Z",
+      "finalizedAt": "2026-10-03T05:03:38.134Z",
+      "serverRequestDurationMs": 11791,
+      "requestFinalizedRawEventSha256": "bb24e4e4981e07c15782355e74cf27b21a898581f48bce510c3b53d44441fbfe",
+      "toolCount": 1,
+      "toolSteps": [
+        {
+          "name": "search_emails",
+          "outcome": "empty",
+          "durationMs": 947
+        }
+      ],
+      "ownerDurations": [
+        {
+          "name": "search_emails",
+          "outcome": "empty",
+          "durationMs": 915
+        }
+      ],
+      "firstUsefulContentMs": null,
+      "browserObservedUpperBoundMs": 58453
+    },
+    {
+      "ordinal": 6,
+      "caseId": "mail_known_bounded_post_index",
+      "runId": "50296e85-271f-4c3d-8120-f91385bda3dd",
+      "traceId": "313ca4f26b0fa0bf42e479aefb5fcff4",
+      "requestId": "11bfe83d-e91e-4222-aeb2-deeae526047f",
+      "serverTurnId": "82f865e0-b9ae-445b-b0b0-95c548aaaa94",
+      "receivedAt": "2026-10-03T05:04:25.970Z",
+      "finalizedAt": "2026-10-03T05:04:41.769Z",
+      "serverRequestDurationMs": 15799,
+      "requestFinalizedRawEventSha256": "5ff79f2255026ac14d63247373c2f54b03e1a38e87af85a480bb273886d83a39",
+      "toolCount": 1,
+      "toolSteps": [
+        {
+          "name": "search_emails",
+          "outcome": "partial",
+          "durationMs": 1803
+        }
+      ],
+      "ownerDurations": [
+        {
+          "name": "search_emails",
+          "outcome": "partial",
+          "durationMs": 1776
+        }
+      ],
+      "firstUsefulContentMs": null,
+      "browserObservedUpperBoundMs": 157834
+    },
+    {
+      "ordinal": 7,
+      "caseId": "mail_list_minimal_diagnostic",
+      "runId": "63f5c9e3-ae58-4066-a47a-7bb8b92ddc5e",
+      "traceId": "ecae39e68b9805a4e18e8bfbc28fdd12",
+      "requestId": "1f74f11c-c300-4522-844d-17c20f8dc492",
+      "serverTurnId": "7110cf6c-b1c8-414e-8109-b56284b374ee",
+      "receivedAt": "2026-10-03T05:09:28.885Z",
+      "finalizedAt": "2026-10-03T05:09:38.040Z",
+      "serverRequestDurationMs": 9155,
+      "requestFinalizedRawEventSha256": "1788a41144d20cccb595bf8ad1db2cb0f115213c3cccb767006f373da071e6f2",
+      "toolCount": 1,
+      "toolSteps": [
+        {
+          "name": "list_emails",
+          "outcome": "failed",
+          "durationMs": 7
+        }
+      ],
+      "ownerDurations": [],
+      "firstUsefulContentMs": null,
+      "browserObservedUpperBoundMs": 151844
+    },
+    {
+      "ordinal": 8,
+      "caseId": "mail_list_explicit_defaults_diagnostic",
+      "runId": "73f04f40-d4e1-4c58-a103-c52c77b247d0",
+      "traceId": "e1f00d125fa4ef9cbf90488c0b13e86c",
+      "requestId": "fc1f30f2-f707-4993-bb18-68512c88f09d",
+      "serverTurnId": "ffac5cd4-e9ef-4651-9fb8-0fe296211ca5",
+      "receivedAt": "2026-10-03T05:12:01.781Z",
+      "finalizedAt": "2026-10-03T05:12:14.374Z",
+      "serverRequestDurationMs": 12593,
+      "requestFinalizedRawEventSha256": "45d0a0f6200ee4045524dd131a91360ff29e6cca119b8820196587c3b2bd1d67",
+      "toolCount": 1,
+      "toolSteps": [
+        {
+          "name": "list_emails",
+          "outcome": "partial",
+          "durationMs": 1704
+        }
+      ],
+      "ownerDurations": [
+        {
+          "name": "list_emails",
+          "outcome": "partial",
+          "durationMs": 1677
+        }
+      ],
+      "firstUsefulContentMs": null,
+      "browserObservedUpperBoundMs": 40558
+    }
+  ],
+  "newProviderCalls": 0,
+  "newAwsCalls": 0
+}

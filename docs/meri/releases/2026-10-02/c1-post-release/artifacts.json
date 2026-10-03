@@ -128,8 +128,8 @@
     "bytes": 1297
   },
   "MAIL-LIST-RELEASE-REVIEW.md": {
-    "sha256": "d7abb78bc1c01d34287622378d119aea3f4b503f7094092daea0b48535d503d5",
-    "bytes": 2906
+    "sha256": "9280596542c0458ab6080a00c4d1c407f2a44b3c1fa139f13b849cfb6c9763c9",
+    "bytes": 3157
   },
   "mail-list-waf-correlation.json": {
     "sha256": "39f02a1e5b2db27a2388a0cfdd98014e37d29834082f67b03a281cda0b15bb8d",
@@ -163,6 +163,10 @@
     "sha256": "50a19472d149f588e8a338770eeb747a171a06971a4f8040018bebe03593c478",
     "bytes": 847
   },
+  "post-release-request-timings.json": {
+    "sha256": "ceaaca96eed10f557ac4024b9ff1e7eddbb3d168709fb4f0548a8315890fc799",
+    "bytes": 8535
+  },
   "post-release-service-readback.json": {
     "sha256": "10e4635cfd6b65f7335059d052d7a83ba99c5a00e77166add2b2d81fa134df8e",
     "bytes": 2991
@@ -172,7 +176,7 @@
     "bytes": 79879
   },
   "README.md": {
-    "sha256": "5dc3e23fd82e268a714c3f1440f7faf45a152583d511a89fc112fad2ec4ce7bd",
-    "bytes": 6175
+    "sha256": "d2037a0f3b38dfd9abe9f7c693edf1af447316563fea4d410c7f5651db04e7de",
+    "bytes": 7641
   }
 }
