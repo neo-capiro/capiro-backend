@@ -1,0 +1,46 @@
+{
+  "conversationId": "b570ce29-d192-4c8f-a4da-311650695a8a",
+  "route": "https://os.capiro.ai/meri/t/b570ce29-d192-4c8f-a4da-311650695a8a",
+  "accountScope": "existing approved signed-in owner; own tasks/mail; no cross-tenant comparison",
+  "selectedMode": "Standard",
+  "modelObserved": "gpt-6-astra",
+  "cases": [
+    {
+      "case": "concise-no-tool",
+      "outcome": "PASS",
+      "toolsObserved": 0,
+      "firstUsefulAndTerminalUpperBoundMs": 26053,
+      "observedAt": "2026-10-03T02:51:00.419Z",
+      "answer": "Three short capability bullets, no coverage footer."
+    },
+    {
+      "case": "zero-mail-attempt",
+      "outcome": "FAIL",
+      "toolsObserved": 2,
+      "firstUsefulAndTerminalUpperBoundMs": 47354,
+      "observedAt": "2026-10-03T02:52:08.225Z",
+      "answer": "Count unknown with real search_emails503. Unrelated search_floor_votes and bill-status footer appeared."
+    },
+    {
+      "case": "own-open-task-count",
+      "outcome": "PASS",
+      "toolsObserved": 1,
+      "firstUsefulAndTerminalUpperBoundMs": 86889,
+      "observedAt": "2026-10-03T02:57:40.275Z",
+      "answer": "0 open tasks assigned to you. No coverage footer."
+    },
+    {
+      "case": "known-mail-attempt",
+      "outcome": "FAIL",
+      "toolsObserved": 1,
+      "firstUsefulAndTerminalUpperBoundMs": 397516,
+      "observedAt": "2026-10-03T03:04:31.983Z",
+      "answer": "list_emails returned403HTML; count/hasMore unknown; real failure limitation retained."
+    }
+  ],
+  "timingLimits": "Browser observation upper bounds, including time between observations; neither first-token latency nor p95. Tool counts are rendered workflow steps.",
+  "customerContentsPersisted": false,
+  "businessWrites": 0,
+  "chatMessagesPersisted": true,
+  "original75Acceptance": false
+}

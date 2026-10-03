@@ -1,0 +1,2178 @@
+{
+  "status": "LOCALLY_QUALIFIED_NOT_DEPLOYED",
+  "sourceSha": "6c816139e1002d99f652e6a26177fd43ac8febcd",
+  "schemaChange": false,
+  "servicesToChange": [
+    "meriv2-orchestrator"
+  ],
+  "runtimeConfigurationChange": false,
+  "checks": {
+    "core": {
+      "success": true,
+      "numTotalTests": 360,
+      "numPassedTests": 360,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTotalTestSuites": 12,
+      "rawReportSha256": "fbfeb1fe01cfeb2bde3b030ebbcb31ccf43bdf0ee851b99b0007a4233bb5148a",
+      "tests": [
+        {
+          "file": "packages/meriv2-core/src/assurance/assurance.spec.ts",
+          "status": "passed",
+          "assertions": [
+            {
+              "name": "GovernmentAffairsOperatingFrame resolves federal, state, regulatory, procurement, grants, and mixed rails without defaulting federal",
+              "status": "passed"
+            },
+            {
+              "name": "GovernmentAffairsOperatingFrame requires state, FY, and client-direction dimensions when material",
+              "status": "passed"
+            },
+            {
+              "name": "GovernmentAffairsOperatingFrame uses client objective and ask only from approved direction",
+              "status": "passed"
+            },
+            {
+              "name": "domain evidence planning requires the correct official tool families for high-stakes categories",
+              "status": "passed"
+            },
+            {
+              "name": "domain evidence planning requires complete coverage for no/none/all/every claims",
+              "status": "passed"
+            },
+            {
+              "name": "claim ledger does not accept fluent factual prose as self-supporting evidence",
+              "status": "passed"
+            },
+            {
+              "name": "claim ledger resolves primary authoritative evidence and caps confidence at the evidence ceiling",
+              "status": "passed"
+            },
+            {
+              "name": "claim ledger requires complete non-truncated coverage for a negative claim",
+              "status": "passed"
+            },
+            {
+              "name": "claim ledger removes unsupported facts and can relabel unsupported advice as uncertainty",
+              "status": "passed"
+            },
+            {
+              "name": "deterministic government-affairs checks requires enactment proof and correct stage ordering",
+              "status": "passed"
+            },
+            {
+              "name": "deterministic government-affairs checks catches failed-rule advancement and a narrated vote with no roll call",
+              "status": "passed"
+            },
+            {
+              "name": "deterministic government-affairs checks separates authorization/appropriation and PE/procurement identity",
+              "status": "passed"
+            },
+            {
+              "name": "deterministic government-affairs checks refuses a delta across different fiscal years/scopes",
+              "status": "passed"
+            },
+            {
+              "name": "deterministic government-affairs checks requires canonical current-role, district, deadline, and timezone evidence",
+              "status": "passed"
+            },
+            {
+              "name": "deterministic government-affairs checks treats empty/failed/truncated retrieval as non-proof of absence",
+              "status": "passed"
+            },
+            {
+              "name": "buffer-before-release and recommendations buffers money/status/roles/deadlines and external artifacts before release",
+              "status": "passed"
+            },
+            {
+              "name": "buffer-before-release and recommendations holds unsupported high-risk content rather than caveating it after release",
+              "status": "passed"
+            },
+            {
+              "name": "buffer-before-release and recommendations does not manufacture a client objective",
+              "status": "passed"
+            },
+            {
+              "name": "versioned compliance policy packs keeps approved generic action gates active and binds decisions to pack version",
+              "status": "passed"
+            },
+            {
+              "name": "versioned compliance policy packs makes every legal-policy example impossible to activate",
+              "status": "passed"
+            },
+            {
+              "name": "versioned compliance policy packs enforces admin publishing, review state, and optional four-eyes separation",
+              "status": "passed"
+            },
+            {
+              "name": "release eval gates and feedback loop does not let an aggregate score hide a critical category failure",
+              "status": "passed"
+            },
+            {
+              "name": "release eval gates and feedback loop never turns feedback into a golden fixture without review and anonymization",
+              "status": "passed"
+            },
+            {
+              "name": "release eval gates and feedback loop keeps observability content-free",
+              "status": "passed"
+            },
+            {
+              "name": "release eval gates and feedback loop renders a shared prompt block with frame gaps and evidence requirements",
+              "status": "passed"
+            }
+          ]
+        },
+        {
+          "file": "packages/meriv2-core/src/assurance/freshness-exact.spec.ts",
+          "status": "passed",
+          "assertions": [
+            {
+              "name": "deriveEvidenceDates award dates preserve source semantics",
+              "status": "passed"
+            },
+            {
+              "name": "deriveEvidenceDates rule dates preserve source semantics",
+              "status": "passed"
+            },
+            {
+              "name": "deriveEvidenceDates budget dates preserve source semantics",
+              "status": "passed"
+            },
+            {
+              "name": "deriveEvidenceDates prefers citation observation for retrieval and leaves unknown values null",
+              "status": "passed"
+            },
+            {
+              "name": "evaluateFreshness keeps enactment and awards durable regardless of age",
+              "status": "passed"
+            },
+            {
+              "name": "evaluateFreshness does not let a recent retrieval refresh a stale status statement",
+              "status": "passed"
+            },
+            {
+              "name": "evaluateFreshness treats a passed opportunity deadline as stale",
+              "status": "passed"
+            },
+            {
+              "name": "exact comparison normalizes amounts and rounds evidence to claim precision",
+              "status": "passed"
+            },
+            {
+              "name": "exact comparison normalizes dates, fiscal years, stages, bills, and PE identifiers",
+              "status": "passed"
+            },
+            {
+              "name": "exact comparison requires both chamber figures only for chamber comparisons",
+              "status": "passed"
+            },
+            {
+              "name": "evaluateClaimDeterministically freshness aggregation keeps a claim fresh while any supporting source is current",
+              "status": "passed"
+            },
+            {
+              "name": "evaluateClaimDeterministically freshness aggregation marks a claim stale only when no supporting source is fresh",
+              "status": "passed"
+            }
+          ]
+        },
+        {
+          "file": "packages/meriv2-core/src/assurance/tool-ledger-adapter.spec.ts",
+          "status": "passed",
+          "assertions": [
+            {
+              "name": "profile evidence classification explain_opportunity_match is Capiro-derived, non-primary, and non-authoritative",
+              "status": "passed"
+            },
+            {
+              "name": "profile evidence classification get_opportunity_client_context is Capiro-derived, non-primary, and non-authoritative",
+              "status": "passed"
+            },
+            {
+              "name": "profile evidence classification get_opportunity_government_landscape is Capiro-derived, non-primary, and non-authoritative",
+              "status": "passed"
+            },
+            {
+              "name": "profile evidence classification compare_funding_opportunities is Capiro-derived, non-primary, and non-authoritative",
+              "status": "passed"
+            },
+            {
+              "name": "profile evidence classification build_opportunity_action_plan is Capiro-derived, non-primary, and non-authoritative",
+              "status": "passed"
+            },
+            {
+              "name": "profile evidence classification research_federal_market_strategy is Capiro-derived, non-primary, and non-authoritative",
+              "status": "passed"
+            },
+            {
+              "name": "profile evidence classification run_analysis is Capiro-derived, non-primary, and non-authoritative",
+              "status": "passed"
+            },
+            {
+              "name": "profile evidence classification search_capiro_data is Capiro-derived, non-primary, and non-authoritative",
+              "status": "passed"
+            },
+            {
+              "name": "profile evidence classification query_relationship_brief is Capiro-derived, non-primary, and non-authoritative",
+              "status": "passed"
+            },
+            {
+              "name": "profile evidence classification query_client_changes is Capiro-derived, non-primary, and non-authoritative",
+              "status": "passed"
+            },
+            {
+              "name": "profile evidence classification query_portfolio_changes is Capiro-derived, non-primary, and non-authoritative",
+              "status": "passed"
+            },
+            {
+              "name": "profile evidence classification research_external_company is Capiro-derived, non-primary, and non-authoritative",
+              "status": "passed"
+            },
+            {
+              "name": "profile evidence classification query_portfolio_overlap is Capiro-derived, non-primary, and non-authoritative",
+              "status": "passed"
+            },
+            {
+              "name": "profile evidence classification query_funding_opportunity_match is Capiro-derived, non-primary, and non-authoritative",
+              "status": "passed"
+            },
+            {
+              "name": "profile evidence classification get_district_nexus_context is Capiro-derived, non-primary, and non-authoritative",
+              "status": "passed"
+            },
+            {
+              "name": "profile evidence classification get_district_nexus_changes is Capiro-derived, non-primary, and non-authoritative",
+              "status": "passed"
+            },
+            {
+              "name": "profile evidence classification get_bill_status is official_action_vote_status, primary, and authoritative",
+              "status": "passed"
+            },
+            {
+              "name": "profile evidence classification search_congress_bills is primary_legislative_legal_text, primary, and authoritative",
+              "status": "passed"
+            },
+            {
+              "name": "profile evidence classification get_pe_budget_timeline is official_budget_exhibit_mark_law, primary, and authoritative",
+              "status": "passed"
+            },
+            {
+              "name": "profile evidence classification get_committee_roster is committee_agency_guidance, primary, and authoritative",
+              "status": "passed"
+            },
+            {
+              "name": "profile evidence classification search_sam_opportunities is official_government_data, primary, and authoritative",
+              "status": "passed"
+            },
+            {
+              "name": "profile evidence classification search_funding_opportunities is official_government_data, primary, and authoritative",
+              "status": "passed"
+            },
+            {
+              "name": "profile evidence classification get_funding_opportunity is official_government_data, primary, and authoritative",
+              "status": "passed"
+            },
+            {
+              "name": "profile evidence classification keeps Capiro operational records self-authoritative",
+              "status": "passed"
+            },
+            {
+              "name": "profile evidence classification fails unknown tools closed",
+              "status": "passed"
+            },
+            {
+              "name": "profile evidence classification changes derived claim support while official support remains high-confidence",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility get_bill_status exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility get_state_bill_status exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility search_floor_votes exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility search_state_floor_votes exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility get_state_rule_status exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility search_congress_bills exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility search_state_bills exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility get_legal_reference exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility get_pe_budget_timeline exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility get_program_element exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility get_pe_report_language exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility get_pe_bills exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility get_pe_contractors exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility search_program_elements exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility query_regulatory_dockets exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility get_committee_roster exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility get_certification_status exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility get_acquisition_person exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility search_acquisition_personnel exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility get_state_legislator exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility list_members exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility get_representation exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility resolve_entity exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility search_cbo_cost_estimates exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility search_committee_hearings exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility search_crs_reports exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility search_gao_reports exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility search_lda_filings exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility search_sec_filings exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility search_fara_registrations exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility search_federal_awards exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility search_federal_grants exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility search_sam_opportunities exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility search_funding_opportunities exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility get_funding_opportunity exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility get_funding_opportunity_requirements exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility query_economic_data exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility get_district_nexus_context exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility get_district_nexus_changes exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility query_global_data exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility list_global_datasets exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility search_tracked_bills exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility lookup_client_registry exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility get_florida_budget_project exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility query_intelligence exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility search_memory exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility search_client_knowledge exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility read_client_documents exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility search_legislative_research exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility search_public_web exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility scrape_web_page exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility search_intel_articles exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility search_legiwatch_news exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility get_research_evidence exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility get_client_context exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility query_tasks exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility query_debriefs exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility query_outreach exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility list_emails exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility search_emails exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility get_email_thread exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility list_upcoming_meetings exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility list_scheduled_tasks exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility find_contacts exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility search_research_sources exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility explain_opportunity_match exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility get_opportunity_client_context exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility get_opportunity_government_landscape exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility compare_funding_opportunities exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility build_opportunity_action_plan exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility research_federal_market_strategy exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility run_analysis exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility search_capiro_data exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility find_path_to exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility query_knowledge_graph exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility query_action_items exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility create_meeting_brief exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility draft_policy_memo exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility compare_florida_budget_amounts exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility prepare_legiwatch_briefing exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility get_legiwatch_review exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility compare_legislative_versions exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility preview_legiwatch_relevance exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility query_relationship_brief exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility query_client_changes exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility query_portfolio_changes exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility research_external_company exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility query_portfolio_overlap exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility query_funding_opportunity_match exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility save_note exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility save_chat_attachments exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility send_email exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility reply_email exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility save_memory exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility confirm_memory exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility correct_memory exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility forget_memory exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility create_word exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility create_excel exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility create_powerpoint exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility schedule_task exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility cancel_scheduled_task exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility create_client exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility create_task exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility update_task exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility update_client_profile exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility save_legislative_research exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility save_legiwatch_relevance exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility apply_legiwatch_suggestion exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility unknown_tool exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility future_search exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility  exactly retains the pre-profile regex behavior",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility default and explicit legacy ledgers are deeply identical on realistic tools",
+              "status": "passed"
+            },
+            {
+              "name": "legacy evidence classification compatibility returns count-only comparison data when a derived source loses support",
+              "status": "passed"
+            },
+            {
+              "name": "exact source-integrity binding keeps a discovered search_public_web summary ineligible despite an authoritative-looking marker",
+              "status": "passed"
+            },
+            {
+              "name": "exact source-integrity binding keeps a discovered search_intel_articles summary ineligible despite an authoritative-looking marker",
+              "status": "passed"
+            },
+            {
+              "name": "exact source-integrity binding does not reinterpret a document row without its owner envelope as a structured record",
+              "status": "passed"
+            },
+            {
+              "name": "exact source-integrity binding binds the actual get_bill_status owner shape as a consulted structured record",
+              "status": "passed"
+            },
+            {
+              "name": "exact source-integrity binding binds the actual query_tasks owner shape as a consulted structured record",
+              "status": "passed"
+            },
+            {
+              "name": "exact source-integrity binding does not bind an id found only inside another row or metadata blob",
+              "status": "passed"
+            },
+            {
+              "name": "exact source-integrity binding binds one exact document row and rejects wrong client, document, and version receipts",
+              "status": "passed"
+            },
+            {
+              "name": "exact source-integrity binding retains approved governed memory as a structured record, not a document passage",
+              "status": "passed"
+            }
+          ]
+        },
+        {
+          "file": "packages/meriv2-core/src/assurance/evidence-profile-control.spec.ts",
+          "status": "passed",
+          "assertions": [
+            {
+              "name": "buildControlledClaimLedger keeps off legacy, shadows once without sensitive text, and enforces profiles",
+              "status": "passed"
+            },
+            {
+              "name": "buildControlledClaimLedger swallows shadow logger failures and returns the legacy ledger",
+              "status": "passed"
+            }
+          ]
+        },
+        {
+          "file": "packages/meriv2-core/src/assurance/assurance-persistence.spec.ts",
+          "status": "passed",
+          "assertions": [
+            {
+              "name": "assurePreToolPersist blocks the WRITE (not just the display) on an unsupported high-risk claim",
+              "status": "passed"
+            },
+            {
+              "name": "assurePreToolPersist allows the write when the high-risk claim resolves to authoritative evidence",
+              "status": "passed"
+            },
+            {
+              "name": "assurePreToolPersist still persists a deliver_with_flags artifact \u2014 flags travel with it",
+              "status": "passed"
+            },
+            {
+              "name": "feedback reason vocabulary reconciliation accepts every LIVE apps/api code (the drift that used to throw)",
+              "status": "passed"
+            },
+            {
+              "name": "feedback reason vocabulary reconciliation still accepts the legacy meriv2-core spellings, normalized to canonical",
+              "status": "passed"
+            },
+            {
+              "name": "feedback reason vocabulary reconciliation creates a candidate from a live-spelling-only thumbs-down instead of throwing",
+              "status": "passed"
+            },
+            {
+              "name": "feedback reason vocabulary reconciliation collapses an alias and its canonical form to ONE code",
+              "status": "passed"
+            },
+            {
+              "name": "feedback reason vocabulary reconciliation rejects unrecognized codes and never auto-accepts feedback as golden truth",
+              "status": "passed"
+            },
+            {
+              "name": "policy pack persistence helpers hashes the decision-bearing rule material, not the lifecycle metadata",
+              "status": "passed"
+            },
+            {
+              "name": "policy pack persistence helpers detects an out-of-band rule edit (tamper evidence for a persisted row)",
+              "status": "passed"
+            },
+            {
+              "name": "policy pack persistence helpers stamps every simulation as simulated so it can never read as enforcement",
+              "status": "passed"
+            },
+            {
+              "name": "policy pack persistence helpers never lets a disabled legal example simulate a substantive rule",
+              "status": "passed"
+            },
+            {
+              "name": "policy pack persistence helpers enumerates exactly the actions the append-only event ledger accepts",
+              "status": "passed"
+            }
+          ]
+        },
+        {
+          "file": "packages/meriv2-core/src/assurance/control-metrics.spec.ts",
+          "status": "passed",
+          "assertions": [
+            {
+              "name": "MeriV2 control metrics normalizes deployment names to a bounded five-value dimension",
+              "status": "passed"
+            },
+            {
+              "name": "MeriV2 control metrics emits CloudWatch EMF with Environment as the only dimension",
+              "status": "passed"
+            },
+            {
+              "name": "MeriV2 control metrics clamps negative values and percentages without admitting arbitrary fields",
+              "status": "passed"
+            },
+            {
+              "name": "MeriV2 control metrics is disabled in tests unless an explicit operator forces emission",
+              "status": "passed"
+            },
+            {
+              "name": "MeriV2 control metrics maps hold/degraded outcomes and the unsupported high-risk claim rate",
+              "status": "passed"
+            }
+          ]
+        },
+        {
+          "file": "packages/meriv2-core/src/assurance/rollout.spec.ts",
+          "status": "passed",
+          "assertions": [
+            {
+              "name": "Phase 16 assurance rollout defaults to off and rejects truthy-looking near misses",
+              "status": "passed"
+            },
+            {
+              "name": "Phase 16 assurance rollout supports exact shadow and enforce global ceilings",
+              "status": "passed"
+            },
+            {
+              "name": "Phase 16 assurance rollout requires global mode, a server-resolved tenant canary, and surface selection",
+              "status": "passed"
+            },
+            {
+              "name": "Phase 16 assurance rollout preserves shadow as observe-only and enforce as the only holding mode",
+              "status": "passed"
+            },
+            {
+              "name": "Phase 16 assurance rollout does not widen one tenant or surface into another",
+              "status": "passed"
+            },
+            {
+              "name": "Phase 16 assurance rollout supports explicit all while ignoring unknown surface tokens",
+              "status": "passed"
+            }
+          ]
+        },
+        {
+          "file": "packages/meriv2-core/src/assurance/request-scope.spec.ts",
+          "status": "passed",
+          "assertions": [
+            {
+              "name": "assurance request scope retains the strict all-tenant rule without an authenticated request scope",
+              "status": "passed"
+            },
+            {
+              "name": "assurance request scope arms the exact authenticated tenant and actual artifact surface",
+              "status": "passed"
+            },
+            {
+              "name": "assurance request scope keeps concurrent tenant/surface requests isolated",
+              "status": "passed"
+            }
+          ]
+        },
+        {
+          "file": "packages/meriv2-core/src/assurance/release-switch.spec.ts",
+          "status": "passed",
+          "assertions": [
+            {
+              "name": "resolveAssuranceReleaseMode legacy chat path is off when any required control is absent",
+              "status": "passed"
+            },
+            {
+              "name": "resolveAssuranceReleaseMode legacy chat path supports exact shadow and enforce only for explicit all-tenant chat canary",
+              "status": "passed"
+            },
+            {
+              "name": "resolveAssuranceReleaseMode legacy chat path fails safe on truthy-looking or near-miss values",
+              "status": "passed"
+            },
+            {
+              "name": "resolveAssuranceReleaseSurfaces parses no surfaces when unset",
+              "status": "passed"
+            },
+            {
+              "name": "resolveAssuranceReleaseSurfaces legacy no-tenant arming requires global enforce and all tenants",
+              "status": "passed"
+            },
+            {
+              "name": "resolveAssuranceReleaseSurfaces arms only the surfaces actually named",
+              "status": "passed"
+            },
+            {
+              "name": "resolveAssuranceReleaseSurfaces honours the explicit all token",
+              "status": "passed"
+            },
+            {
+              "name": "resolveAssuranceReleaseSurfaces ignores unknown tokens instead of arming on a typo",
+              "status": "passed"
+            }
+          ]
+        },
+        {
+          "file": "packages/meriv2-core/src/assurance/evidence-plan.spec.ts",
+          "status": "passed",
+          "assertions": [
+            {
+              "name": "response formatting and factual coverage requirements does not turn a response-format constraint into a claim: This is a synthetic interface smoke check. Reply only: Meri smoke check complete. Do not call tools, retrieve records, remember anything, create tasks, modify business records, or send messages.",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting and factual coverage requirements does not turn a response-format constraint into a claim: Read-only QA: list three things you can help me with besides email. Keep this under 60 words. Do not search, save memories, or change any records.",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting and factual coverage requirements does not turn a response-format constraint into a claim: Use read only access to explain your capabilities.",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting and factual coverage requirements does not turn a response-format constraint into a claim: Diagnostic check: reply with only 4 for 2 + 2. Do not search, use tools, create tasks, save or propose memories, or send any messages.",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting and factual coverage requirements does not turn a response-format constraint into a claim: Post-correction diagnostic: search my own mailbox once for the exact nonsense string CAPIRO_MERI_DIAGNOSTIC_20261002_1409_NO_MATCH. Report only whether search_emails completed successfully or returned an error. Do not disclose email contents, run other tools, save memories, create tasks, or send messages.",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting and factual coverage requirements does not turn a response-format constraint into a claim: Please respond with only -1.5 for 2.5 - 4.",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting and factual coverage requirements does not turn a response-format constraint into a claim: Answer with only 6 for 2 * 3.",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting and factual coverage requirements does not turn a response-format constraint into a claim: Reply with only 2 for 6 / 3.",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting and factual coverage requirements does not turn a response-format constraint into a claim: Report only whether search_emails completed successfully.",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting and factual coverage requirements does not turn a response-format constraint into a claim: Reply only: Meri smoke check complete.",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting and factual coverage requirements does not turn a response-format constraint into a claim: Reply only.",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting and factual coverage requirements does not turn a response-format constraint into a claim: REPLY ONLY: Test",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting and factual coverage requirements does not turn a response-format constraint into a claim: Please reply only with JSON.",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting and factual coverage requirements does not turn a response-format constraint into a claim: Reply only in JSON.",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting and factual coverage requirements does not turn a response-format constraint into a claim: Respond only with plain text.",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting and factual coverage requirements does not turn a response-format constraint into a claim: Answer in bullets only.",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting and factual coverage requirements does not turn a response-format constraint into a claim: Answer with bullet points only.",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting and factual coverage requirements does not turn a response-format constraint into a claim: Respond with YAML only.",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting and factual coverage requirements does not turn a response-format constraint into a claim: Only respond with JSON.",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting and factual coverage requirements does not turn a response-format constraint into a claim: Please only answer in markdown.",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting and factual coverage requirements does not turn a response-format constraint into a claim: Write a background paragraph. Reply only with JSON.",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting and factual coverage requirements preserves factual or ambiguous coverage requirements: Read-only check: list all awards.",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting and factual coverage requirements preserves factual or ambiguous coverage requirements: Using read-only access, verify that no awards exist.",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting and factual coverage requirements preserves factual or ambiguous coverage requirements: Read only one award and explain why it is the only match.",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting and factual coverage requirements preserves factual or ambiguous coverage requirements: Read only the awards from this year.",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting and factual coverage requirements preserves factual or ambiguous coverage requirements: Report only whether all awards are expired.",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting and factual coverage requirements preserves factual or ambiguous coverage requirements: Report only: No awards exist.",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting and factual coverage requirements preserves factual or ambiguous coverage requirements: Report only whether only four awards are active.",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting and factual coverage requirements preserves factual or ambiguous coverage requirements: Reply with only 4 awards.",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting and factual coverage requirements preserves factual or ambiguous coverage requirements: Reply with only 4 for 2 + 2 awards.",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting and factual coverage requirements preserves factual or ambiguous coverage requirements: Reply with only 4 for 2 + 2.5 awards.",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting and factual coverage requirements preserves factual or ambiguous coverage requirements: Reply with only 4 for 2 + 2. Every award expired.",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting and factual coverage requirements preserves factual or ambiguous coverage requirements: Reply with only 4 for 2 + 2, and list all awards.",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting and factual coverage requirements preserves factual or ambiguous coverage requirements: The agencies report only whether awards exist.",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting and factual coverage requirements preserves factual or ambiguous coverage requirements: Report only about awards.",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting and factual coverage requirements preserves factual or ambiguous coverage requirements: Report only if an award exists.",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting and factual coverage requirements preserves factual or ambiguous coverage requirements: Only one award was granted.",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting and factual coverage requirements preserves factual or ambiguous coverage requirements: All contracts expired.",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting and factual coverage requirements preserves factual or ambiguous coverage requirements: Every relevant bill failed.",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting and factual coverage requirements preserves factual or ambiguous coverage requirements: There are no other awards.",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting and factual coverage requirements preserves factual or ambiguous coverage requirements: None of the contracts are valid.",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting and factual coverage requirements preserves factual or ambiguous coverage requirements: No evidence exists.",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting and factual coverage requirements preserves factual or ambiguous coverage requirements: The award does not exist.",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting and factual coverage requirements preserves factual or ambiguous coverage requirements: The agency never funded this program.",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting and factual coverage requirements preserves factual or ambiguous coverage requirements: Nothing was awarded.",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting and factual coverage requirements preserves factual or ambiguous coverage requirements: Nobody received an award.",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting and factual coverage requirements preserves factual or ambiguous coverage requirements: Reply only whether all contracts expired.",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting and factual coverage requirements preserves factual or ambiguous coverage requirements: Reply only: No awards exist.",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting and factual coverage requirements preserves factual or ambiguous coverage requirements: Reply only: Only one award was granted.",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting and factual coverage requirements preserves factual or ambiguous coverage requirements: Reply only: Every contract expired.",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting and factual coverage requirements preserves factual or ambiguous coverage requirements: Reply only with JSON: {\"result\":\"No awards exist\"}",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting and factual coverage requirements preserves factual or ambiguous coverage requirements: List all awards, reply only in JSON.",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting and factual coverage requirements preserves factual or ambiguous coverage requirements: List all awards. Reply only with JSON.",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting and factual coverage requirements preserves factual or ambiguous coverage requirements: Please reply only in JSON. None of the awards were renewed.",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting and factual coverage requirements preserves factual or ambiguous coverage requirements: Answer in bullets only: every contract expired.",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting and factual coverage requirements preserves factual or ambiguous coverage requirements: Answer with bullet points only and include all awards.",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting and factual coverage requirements preserves factual or ambiguous coverage requirements: Only respond with JSON: no awards exist.",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting and factual coverage requirements preserves factual or ambiguous coverage requirements: All contractors reply only with JSON.",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting and factual coverage requirements preserves factual or ambiguous coverage requirements: The agencies reply only with JSON.",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting and factual coverage requirements preserves factual or ambiguous coverage requirements: Reply only about awards.",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting and factual coverage requirements preserves factual or ambiguous coverage requirements: Reply only if an award exists.",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting and factual coverage requirements does not change the other factual categories or their required evidence",
+              "status": "passed"
+            },
+            {
+              "name": "operational status is not legislative status does not schedule legislative evidence for Search my mailbox once. If the search fails, say that it failed rather than treating it as no matches.",
+              "status": "passed"
+            },
+            {
+              "name": "operational status is not legislative status does not schedule legislative evidence for What is the status of my upload?",
+              "status": "passed"
+            },
+            {
+              "name": "operational status is not legislative status does not schedule legislative evidence for The database query failed. Explain the error.",
+              "status": "passed"
+            },
+            {
+              "name": "operational status is not legislative status does not schedule legislative evidence for Read-only: did the API request work? Report whether the connection failed.",
+              "status": "passed"
+            },
+            {
+              "name": "operational status is not legislative status does not schedule legislative evidence for A failed search is unknown, not zero.",
+              "status": "passed"
+            },
+            {
+              "name": "operational status is not legislative status does not schedule legislative evidence for Report the failed mailbox lookup.",
+              "status": "passed"
+            },
+            {
+              "name": "operational status is not legislative status does not schedule legislative evidence for Explain the failed API request.",
+              "status": "passed"
+            },
+            {
+              "name": "operational status is not legislative status does not schedule legislative evidence for Report the failed query\u2019s status.",
+              "status": "passed"
+            },
+            {
+              "name": "operational status is not legislative status does not schedule legislative evidence for C1 verification, read only: Search my own connected mailbox exactly once for the literal text \"c1zero20261002xqv9173\". Return only the matching-message count and any actual search or coverage limitation; omit message contents, addresses, and subjects. Do not retry, broaden the query, or change anything. A failed search is unknown, not zero.",
+              "status": "passed"
+            },
+            {
+              "name": "operational status is not legislative status retains actual or unresolved legislative evidence for Did it pass?",
+              "status": "passed"
+            },
+            {
+              "name": "operational status is not legislative status retains actual or unresolved legislative evidence for What is its status?",
+              "status": "passed"
+            },
+            {
+              "name": "operational status is not legislative status retains actual or unresolved legislative evidence for Did H.R. 123 pass?",
+              "status": "passed"
+            },
+            {
+              "name": "operational status is not legislative status retains actual or unresolved legislative evidence for The search failed. Verify whether the bill passed.",
+              "status": "passed"
+            },
+            {
+              "name": "operational status is not legislative status retains actual or unresolved legislative evidence for What is the status of SB123? The lookup failed.",
+              "status": "passed"
+            },
+            {
+              "name": "operational status is not legislative status retains actual or unresolved legislative evidence for The server failed, but is the measure still alive?",
+              "status": "passed"
+            },
+            {
+              "name": "operational status is not legislative status retains actual or unresolved legislative evidence for After the failed search, verify whether H.R. 123 passed.",
+              "status": "passed"
+            },
+            {
+              "name": "operational status is not legislative status retains actual or unresolved legislative evidence for The failed mailbox lookup does not tell us the bill status.",
+              "status": "passed"
+            },
+            {
+              "name": "budget deltas require financial context does not require budget-comparison evidence for nonfinancial requests: Should we contact Office Delta for Aster?",
+              "status": "passed"
+            },
+            {
+              "name": "budget deltas require financial context does not require budget-comparison evidence for nonfinancial requests: Draft an outreach question for Office Delta about what changed from the prior version and how it compares with our current priorities.",
+              "status": "passed"
+            },
+            {
+              "name": "budget deltas require financial context does not require budget-comparison evidence for nonfinancial requests: Explain the increase in response rates and the difference between the two outreach approaches.",
+              "status": "passed"
+            },
+            {
+              "name": "budget deltas require financial context does not require budget-comparison evidence for nonfinancial requests: Compare the changes from the first software release versus the second.",
+              "status": "passed"
+            },
+            {
+              "name": "budget deltas require financial context does not require budget-comparison evidence for nonfinancial requests: We need to cut the ribbon after the renovation. What time should we invite the team?",
+              "status": "passed"
+            },
+            {
+              "name": "budget deltas require financial context does not require budget-comparison evidence for nonfinancial requests: Describe the actual cuts in the final film.",
+              "status": "passed"
+            },
+            {
+              "name": "budget deltas require financial context does not require budget-comparison evidence for nonfinancial requests: Send Office Delta the budget.",
+              "status": "passed"
+            },
+            {
+              "name": "budget deltas require financial context does not require budget-comparison evidence for nonfinancial requests: Discuss the funding request with Project Delta.",
+              "status": "passed"
+            },
+            {
+              "name": "budget deltas require financial context does not require budget-comparison evidence for nonfinancial requests: Compare the formats of these budget documents.",
+              "status": "passed"
+            },
+            {
+              "name": "budget deltas require financial context requires comparable financial positions for What was the delta in the budget between the two proposals?",
+              "status": "passed"
+            },
+            {
+              "name": "budget deltas require financial context requires comparable financial positions for How did funding increase from FY2025 to FY2026?",
+              "status": "passed"
+            },
+            {
+              "name": "budget deltas require financial context requires comparable financial positions for Compare the dollar decrease for Program Element PE0601234 across fiscal years.",
+              "status": "passed"
+            },
+            {
+              "name": "budget deltas require financial context requires comparable financial positions for Compare the President's request versus the congressional mark for this program.",
+              "status": "passed"
+            },
+            {
+              "name": "budget deltas require financial context requires comparable financial positions for What actual cuts and plus-ups were made to the program element?",
+              "status": "passed"
+            },
+            {
+              "name": "budget deltas require financial context requires comparable financial positions for What is the increase for PE0602712F?",
+              "status": "passed"
+            },
+            {
+              "name": "budget deltas require financial context requires comparable financial positions for What is the increase for 0602712F?",
+              "status": "passed"
+            },
+            {
+              "name": "budget deltas require financial context requires comparable financial positions for What is the increase in federal spending?",
+              "status": "passed"
+            },
+            {
+              "name": "budget deltas require financial context requires comparable financial positions for What is the difference between appropriated and obligated amounts?",
+              "status": "passed"
+            },
+            {
+              "name": "budget deltas require financial context requires comparable financial positions for What is the difference in outlays between the two years?",
+              "status": "passed"
+            },
+            {
+              "name": "budget deltas require financial context requires comparable financial positions for What is the difference between the request and the Senate mark?",
+              "status": "passed"
+            },
+            {
+              "name": "budget deltas require financial context requires comparable financial positions for What changed from FY-2025 to FY-2026?",
+              "status": "passed"
+            },
+            {
+              "name": "budget deltas require financial context requires comparable financial positions for FY2025 vs. FY2026.",
+              "status": "passed"
+            },
+            {
+              "name": "budget deltas require financial context requires comparable financial positions for FY2025 vs FY2026.",
+              "status": "passed"
+            },
+            {
+              "name": "budget deltas require financial context requires comparable financial positions for What is the budget delta for Office Delta?",
+              "status": "passed"
+            },
+            {
+              "name": "budget deltas require financial context requires comparable financial positions for How much were appropriations decreased?",
+              "status": "passed"
+            },
+            {
+              "name": "explicit closed hypothetical facts does not require external proof for Quality check using hypothetical facts only: Aster has a Thursday demo. Maya owns the slides, due Tuesday. Lee owns the technical review, due Wednesday; it depends on Maya finishing the slides. The rehearsal has no owner or scheduled time. Write exactly three concise bullets: the critical path, the main delivery risk, and the next action. Use only these facts. Do not search, use tools, save memories, create tasks, or send messages.",
+              "status": "passed"
+            },
+            {
+              "name": "explicit closed hypothetical facts does not require external proof for Update to the hypothetical example: the slides will now be ready Wednesday afternoon. Keep the other facts unchanged. In exactly two sentences, explain what this changes and what I should confirm next. Do not assume the demo has been delayed. Do not use tools, save memories, create tasks, or send messages.",
+              "status": "passed"
+            },
+            {
+              "name": "explicit closed hypothetical facts does not require external proof for Based only on the hypothetical facts in this conversation, what exact time is the rehearsal, and has Lee approved the slides? If either is unknown, say so clearly. Do not infer that a scheduled review means approval happened. Do not search, use tools, save memories, create tasks, or send messages.",
+              "status": "passed"
+            },
+            {
+              "name": "explicit closed hypothetical facts does not require external proof for Using only these fictional notes, prepare two bullets: Maya's slides are due Tuesday; Lee's review is now due Wednesday and depends on the slides; there is no rehearsal owner. Explain the risk and next action. Do not use tools.",
+              "status": "passed"
+            },
+            {
+              "name": "explicit closed hypothetical facts does not require external proof for In this hypothetical scenario, Aster demos Thursday. Maya's slides are now due Wednesday afternoon, and Lee owns the review due Wednesday. No rehearsal time is supplied. Use only the facts supplied here. Explain the critical path and uncertainty in two sentences. Do not search or use tools.",
+              "status": "passed"
+            },
+            {
+              "name": "explicit closed hypothetical facts recognizes the exclusive premise boundary across wording: Using provided notes only: the review is now due Wednesday; no owner is named. Summarize the uncertainty.",
+              "status": "passed"
+            },
+            {
+              "name": "explicit closed hypothetical facts recognizes the exclusive premise boundary across wording: Based only on these supplied facts: no rehearsal time is specified. Explain what remains unknown.",
+              "status": "passed"
+            },
+            {
+              "name": "explicit closed hypothetical facts recognizes the exclusive premise boundary across wording: Revision to this fictional scenario: the slides are now due Wednesday. Leave the remaining details unchanged. Explain the impact.",
+              "status": "passed"
+            },
+            {
+              "name": "explicit closed hypothetical facts recognizes the exclusive premise boundary across wording: Use only the information given above. Now explain why no deadline can be inferred.",
+              "status": "passed"
+            },
+            {
+              "name": "explicit closed hypothetical facts retains external coverage for real or mixed requests: Who is the current committee chair? Do not use tools.",
+              "status": "passed"
+            },
+            {
+              "name": "explicit closed hypothetical facts retains external coverage for real or mixed requests: There are no federal awards for Aster. Do not use tools.",
+              "status": "passed"
+            },
+            {
+              "name": "explicit closed hypothetical facts retains external coverage for real or mixed requests: Using hypothetical facts only, write three bullets. Also verify who is the current committee chair. Do not use tools.",
+              "status": "passed"
+            },
+            {
+              "name": "explicit closed hypothetical facts retains external coverage for real or mixed requests: Based only on the hypothetical facts in this conversation, compare them to the actual current roster. Do not use tools.",
+              "status": "passed"
+            },
+            {
+              "name": "explicit closed hypothetical facts retains external coverage for real or mixed requests: Update to the hypothetical example: keep the other facts unchanged. Search for all actual awards. Do not use tools.",
+              "status": "passed"
+            },
+            {
+              "name": "explicit closed hypothetical facts retains external coverage for real or mixed requests: Using hypothetical facts only, list all real grants for Aster. Do not use tools.",
+              "status": "passed"
+            },
+            {
+              "name": "explicit closed hypothetical facts retains external coverage for real or mixed requests: Using hypothetical facts only, write three bullets. Also list all grants for Aster. Do not use tools.",
+              "status": "passed"
+            },
+            {
+              "name": "explicit closed hypothetical facts retains external coverage for real or mixed requests: Based only on the hypothetical facts in this conversation, verify that no awards exist. Do not use tools.",
+              "status": "passed"
+            },
+            {
+              "name": "explicit closed hypothetical facts retains external coverage for real or mixed requests: Update to the hypothetical example: keep the other facts unchanged. Who is the committee chair? Do not use tools.",
+              "status": "passed"
+            },
+            {
+              "name": "explicit closed hypothetical facts retains external coverage for real or mixed requests: Using hypothetical facts only, write three bullets. Do not search, but verify every award.",
+              "status": "passed"
+            },
+            {
+              "name": "explicit closed hypothetical facts retains external coverage for real or mixed requests: A fictional client has no awards. What is its current funding status? Do not use tools.",
+              "status": "passed"
+            },
+            {
+              "name": "explicit closed hypothetical facts retains external coverage for real or mixed requests: Using only these fictional notes, explain the risk. Also verify the current committee chair. Do not use tools.",
+              "status": "passed"
+            },
+            {
+              "name": "explicit closed hypothetical facts retains external coverage for real or mixed requests: In this hypothetical scenario, no rehearsal is scheduled. Use only the facts supplied here. Also list all awards for Aster.",
+              "status": "passed"
+            },
+            {
+              "name": "explicit closed hypothetical facts retains external coverage for real or mixed requests: Using provided notes only, summarize the example and compare it to the actual current roster.",
+              "status": "passed"
+            },
+            {
+              "name": "explicit closed hypothetical facts retains external coverage for real or mixed requests: Use only the information given above, but verify that no real grants exist.",
+              "status": "passed"
+            }
+          ]
+        },
+        {
+          "file": "packages/meriv2-core/src/assurance/eval-gate-wiring.spec.ts",
+          "status": "passed",
+          "assertions": [
+            {
+              "name": "release gate as the CI exit code ALLOWS a run where every deterministic case passed",
+              "status": "passed"
+            },
+            {
+              "name": "release gate as the CI exit code BLOCKS on a single critical regression, however many cases passed",
+              "status": "passed"
+            },
+            {
+              "name": "release gate as the CI exit code BLOCKS on a tenant-isolation or approval-invariant failure at ANY severity",
+              "status": "passed"
+            },
+            {
+              "name": "release gate as the CI exit code reports the per-DOMAIN breakdown that gets persisted as immutable evidence",
+              "status": "passed"
+            },
+            {
+              "name": "release gate as the CI exit code never lets a cost/latency sign-off waive a safety failure",
+              "status": "passed"
+            },
+            {
+              "name": "release gate as the CI exit code produces a STABLE provenance hash for identical provenance",
+              "status": "passed"
+            }
+          ]
+        },
+        {
+          "file": "packages/meriv2-core/src/assurance/envelope.spec.ts",
+          "status": "passed",
+          "assertions": [
+            {
+              "name": "Phase 16 assurance envelope binds frame, evidence, claims, release decision, context, policy, and verifier",
+              "status": "passed"
+            },
+            {
+              "name": "Phase 16 assurance envelope detects content, context, policy, surface, and verifier drift",
+              "status": "passed"
+            },
+            {
+              "name": "Phase 16 assurance envelope attributes a section finding only to its originating section",
+              "status": "passed"
+            },
+            {
+              "name": "Phase 16 assurance envelope produces a bounded operational summary without claim text",
+              "status": "passed"
+            }
+          ]
+        }
+      ]
+    },
+    "orchestrator": {
+      "success": true,
+      "numTotalTests": 102,
+      "numPassedTests": 102,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTotalTestSuites": 3,
+      "rawReportSha256": "c6b3650c7f57a4515559462b4284f34395ff1972109858ef807cc8b7cb028aa8",
+      "tests": [
+        {
+          "file": "apps/meriv2-orchestrator/src/meri/retrieval/meri-evidence-formatting.spec.ts",
+          "status": "passed",
+          "assertions": [
+            {
+              "name": "response formatting through Meri evidence finalization does not append a dataset warning to a read-only capabilities answer",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting through Meri evidence finalization does not probe legislative sources when a mailbox lookup fails",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting through Meri evidence finalization does not add a financial warning for a named outreach target",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting through Meri evidence finalization preserves missing evidence for an actual financial comparison",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting through Meri evidence finalization preserves the exact arithmetic diagnostic without a coverage disclaimer",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting through Meri evidence finalization does not reinterpret a successful mail-tool acknowledgement as an exhaustive claim",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting through Meri evidence finalization preserves the exact synthetic acknowledgement without a coverage disclaimer",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting through Meri evidence finalization retains a disclosure for an unsupported factual request: Report only whether all awards are expired.",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting through Meri evidence finalization retains a disclosure for an unsupported factual request: Report only: No awards exist.",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting through Meri evidence finalization retains a disclosure for an unsupported factual request: Reply with only 4 awards.",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting through Meri evidence finalization retains a disclosure for an unsupported factual request: Reply with only 4 for 2 + 2. Every award expired.",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting through Meri evidence finalization retains a disclosure for an unsupported factual request: List all awards, reply only in JSON.",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting through Meri evidence finalization retains a disclosure for an unsupported factual request: Reply only: No awards exist.",
+              "status": "passed"
+            },
+            {
+              "name": "response formatting through Meri evidence finalization retains a disclosure for an unsupported factual request: Reply only whether all contracts expired.",
+              "status": "passed"
+            },
+            {
+              "name": "closed hypothetical facts through the real coverage planner does not probe or qualify supplied context: Quality check using hypothetical facts only: Aster has a Thursday demo. Maya owns the slides, due Tuesday. Lee owns the technical review, due Wednesday; it depends on Maya finishing the slides. The rehearsal has no owner or scheduled time. Write exactly three concise bullets: the critical path, the main delivery risk, and the next action. Use only these facts. Do not search, use tools, save memories, create tasks, or send messages.",
+              "status": "passed"
+            },
+            {
+              "name": "closed hypothetical facts through the real coverage planner does not probe or qualify supplied context: Update to the hypothetical example: the slides will now be ready Wednesday afternoon. Keep the other facts unchanged. In exactly two sentences, explain what this changes and what I should confirm next. Do not assume the demo has been delayed. Do not use tools, save memories, create tasks, or send messages.",
+              "status": "passed"
+            },
+            {
+              "name": "closed hypothetical facts through the real coverage planner does not probe or qualify supplied context: Based only on the hypothetical facts in this conversation, what exact time is the rehearsal, and has Lee approved the slides? If either is unknown, say so clearly. Do not infer that a scheduled review means approval happened. Do not search, use tools, save memories, create tasks, or send messages.",
+              "status": "passed"
+            },
+            {
+              "name": "closed hypothetical facts through the real coverage planner does not probe or qualify supplied context: Using only these fictional notes, prepare two bullets: Maya's slides are due Tuesday; Lee's review is now due Wednesday and depends on the slides; there is no rehearsal owner. Explain the risk and next action. Do not use tools.",
+              "status": "passed"
+            },
+            {
+              "name": "closed hypothetical facts through the real coverage planner does not probe or qualify supplied context: In this hypothetical scenario, Aster demos Thursday. Maya's slides are now due Wednesday afternoon, and Lee owns the review due Wednesday. No rehearsal time is supplied. Use only the facts supplied here. Explain the critical path and uncertainty in two sentences. Do not search or use tools.",
+              "status": "passed"
+            },
+            {
+              "name": "closed hypothetical facts through the real coverage planner still schedules a real current-role lookup and discloses a missing source",
+              "status": "passed"
+            },
+            {
+              "name": "observed operational reads through evidence finalization keeps the real mailbox failure without a legislative follow-up or footer",
+              "status": "passed"
+            },
+            {
+              "name": "observed operational reads through evidence finalization accepts explicit complete empty canonical task coverage and keeps the count unchanged",
+              "status": "passed"
+            },
+            {
+              "name": "observed operational reads through evidence finalization retains the limitation for partial task coverage",
+              "status": "passed"
+            },
+            {
+              "name": "observed operational reads through evidence finalization retains the limitation for unknown task coverage",
+              "status": "passed"
+            },
+            {
+              "name": "observed operational reads through evidence finalization reports the observed mailbox failure without calling it an uncalled source",
+              "status": "passed"
+            },
+            {
+              "name": "observed operational reads through evidence finalization requires full query coverage for observed mail offset 0 of 1 matches",
+              "status": "passed"
+            },
+            {
+              "name": "observed operational reads through evidence finalization requires full query coverage for observed mail offset 10 of 11 matches",
+              "status": "passed"
+            },
+            {
+              "name": "observed operational reads through evidence finalization requires full query coverage for observed mail offset 0 of 11 matches",
+              "status": "passed"
+            },
+            {
+              "name": "observed operational reads through evidence finalization does not treat an observed task continuation as whole-scope coverage: {\"offset\":10,\"cursorApplied\":false}",
+              "status": "passed"
+            },
+            {
+              "name": "observed operational reads through evidence finalization does not treat an observed task continuation as whole-scope coverage: {\"offset\":0,\"cursorApplied\":true}",
+              "status": "passed"
+            },
+            {
+              "name": "observed operational reads through evidence finalization does not let a complete unrelated task read satisfy a mailbox claim",
+              "status": "passed"
+            },
+            {
+              "name": "observed operational reads through evidence finalization requires both sources for an exhaustive task and mailbox request",
+              "status": "passed"
+            }
+          ]
+        },
+        {
+          "file": "apps/meriv2-orchestrator/src/meri/api-tool-executor-mail-retry.spec.ts",
+          "status": "passed",
+          "assertions": [
+            {
+              "name": "mail read retry after explicit API capacity failure list_emails recovers once, retaining request scope, identity and original deadline",
+              "status": "passed"
+            },
+            {
+              "name": "mail read retry after explicit API capacity failure search_emails recovers once, retaining request scope, identity and original deadline",
+              "status": "passed"
+            },
+            {
+              "name": "mail read retry after explicit API capacity failure get_email_thread recovers once, retaining request scope, identity and original deadline",
+              "status": "passed"
+            },
+            {
+              "name": "mail read retry after explicit API capacity failure exhausted retry remains a failure, never an empty search result",
+              "status": "passed"
+            },
+            {
+              "name": "mail read retry after explicit API capacity failure keeps both retry attempts and delegated headers on one redacted trace",
+              "status": "passed"
+            },
+            {
+              "name": "mail read retry after explicit API capacity failure does not retry no Retry-After",
+              "status": "passed"
+            },
+            {
+              "name": "mail read retry after explicit API capacity failure does not retry invalid Retry-After",
+              "status": "passed"
+            },
+            {
+              "name": "mail read retry after explicit API capacity failure does not retry long Retry-After",
+              "status": "passed"
+            },
+            {
+              "name": "mail read retry after explicit API capacity failure does not retry feature refusal",
+              "status": "passed"
+            },
+            {
+              "name": "mail read retry after explicit API capacity failure does not retry unstructured service failure",
+              "status": "passed"
+            },
+            {
+              "name": "mail read retry after explicit API capacity failure does not retry authentication failure",
+              "status": "passed"
+            },
+            {
+              "name": "mail read retry after explicit API capacity failure does not retry authorization failure",
+              "status": "passed"
+            },
+            {
+              "name": "mail read retry after explicit API capacity failure never adds a retry to send_email",
+              "status": "passed"
+            },
+            {
+              "name": "mail read retry after explicit API capacity failure never adds a retry to save_note",
+              "status": "passed"
+            },
+            {
+              "name": "mail read retry after explicit API capacity failure never adds a retry to save_chat_attachments",
+              "status": "passed"
+            },
+            {
+              "name": "mail read retry after explicit API capacity failure never adds a retry to search_memory",
+              "status": "passed"
+            },
+            {
+              "name": "mail read retry after explicit API capacity failure does not retry when the server delay would consume the remaining turn deadline",
+              "status": "passed"
+            },
+            {
+              "name": "mail read retry after explicit API capacity failure cancellation during Retry-After cancels the wait without another request",
+              "status": "passed"
+            },
+            {
+              "name": "mail read retry after explicit API capacity failure the retry fetch uses the remaining deadline rather than a fresh timeout",
+              "status": "passed"
+            },
+            {
+              "name": "mail read retry after explicit API capacity failure accepts a short HTTP-date Retry-After",
+              "status": "passed"
+            }
+          ]
+        },
+        {
+          "file": "apps/meriv2-orchestrator/src/meri/retrieval/meri-evidence-requirements.spec.ts",
+          "status": "passed",
+          "assertions": [
+            {
+              "name": "coverage requirements detects task templates: Compare House vs Senate marks for PE 0603851F",
+              "status": "passed"
+            },
+            {
+              "name": "coverage requirements detects task templates: Compare HAC-D and SAC-D for PE 0603851F",
+              "status": "passed"
+            },
+            {
+              "name": "coverage requirements detects task templates: Summarize the attached transcript",
+              "status": "passed"
+            },
+            {
+              "name": "coverage requirements detects task templates: What is currently in production?",
+              "status": "passed"
+            },
+            {
+              "name": "coverage requirements detects task templates: What is PE 0603851F?",
+              "status": "passed"
+            },
+            {
+              "name": "coverage requirements includes every plan-required requirement before templates",
+              "status": "passed"
+            },
+            {
+              "name": "coverage requirements turns a document keyword without any concrete document into a non-essential hint only",
+              "status": "passed"
+            },
+            {
+              "name": "coverage requirements treats a selected document id with no candidate manifest as a non-essential hint, not a routed fetch",
+              "status": "passed"
+            },
+            {
+              "name": "coverage requirements still creates an essential routed requirement for a selected id once a manifest confirms it names a real document",
+              "status": "passed"
+            },
+            {
+              "name": "coverage requirements creates one essential requirement per document named in the request",
+              "status": "passed"
+            },
+            {
+              "name": "coverage requirements keeps a pronoun-only reference non-essential",
+              "status": "passed"
+            },
+            {
+              "name": "coverage comparison closes an earlier partial read only after a complete retry of the same source, scope and page",
+              "status": "passed"
+            },
+            {
+              "name": "coverage comparison closes an earlier error read only after a complete retry of the same source, scope and page",
+              "status": "passed"
+            },
+            {
+              "name": "coverage comparison closes an earlier unavailable read only after a complete retry of the same source, scope and page",
+              "status": "passed"
+            },
+            {
+              "name": "coverage comparison does not infer recovery from two unscoped reads after partial",
+              "status": "passed"
+            },
+            {
+              "name": "coverage comparison does not infer recovery from two unscoped reads after error",
+              "status": "passed"
+            },
+            {
+              "name": "coverage comparison keeps ambiguous receipt-to-result pairing unresolved",
+              "status": "passed"
+            },
+            {
+              "name": "coverage comparison uses the canonical task scope and same page for partial recovery",
+              "status": "passed"
+            },
+            {
+              "name": "coverage comparison uses the canonical task scope and same page for error recovery",
+              "status": "passed"
+            },
+            {
+              "name": "coverage comparison does not let another mailbox query recover a failed query in the same client route",
+              "status": "passed"
+            },
+            {
+              "name": "coverage comparison does not use a final mail page to close failed first page",
+              "status": "passed"
+            },
+            {
+              "name": "coverage comparison does not use a final mail page to close skipped intermediate page",
+              "status": "passed"
+            },
+            {
+              "name": "coverage comparison does not use a final mail page to close contiguous pages without whole-query proof",
+              "status": "passed"
+            },
+            {
+              "name": "coverage comparison preserves previously complete evidence when the same page is read again",
+              "status": "passed"
+            },
+            {
+              "name": "coverage comparison does not assume the page coordinates of an unpositioned mail retry",
+              "status": "passed"
+            },
+            {
+              "name": "coverage comparison requires explicit healthy coverage for negative claims: missing receipt",
+              "status": "passed"
+            },
+            {
+              "name": "coverage comparison requires explicit healthy coverage for negative claims: receipt without results",
+              "status": "passed"
+            },
+            {
+              "name": "coverage comparison requires explicit healthy coverage for negative claims: failed result with complete receipt",
+              "status": "passed"
+            },
+            {
+              "name": "coverage comparison requires explicit healthy coverage for negative claims: partial nonempty result",
+              "status": "passed"
+            },
+            {
+              "name": "coverage comparison requires explicit healthy coverage for negative claims: complete nonempty result",
+              "status": "passed"
+            },
+            {
+              "name": "coverage comparison does not promote operational evidence into official or private requirements",
+              "status": "passed"
+            },
+            {
+              "name": "coverage comparison classifies never_called",
+              "status": "passed"
+            },
+            {
+              "name": "coverage comparison classifies called_no_usable_content",
+              "status": "passed"
+            },
+            {
+              "name": "coverage comparison classifies truncated",
+              "status": "passed"
+            },
+            {
+              "name": "coverage comparison classifies unavailable",
+              "status": "passed"
+            },
+            {
+              "name": "coverage comparison classifies extraction_failed",
+              "status": "passed"
+            },
+            {
+              "name": "coverage comparison classifies satisfied",
+              "status": "passed"
+            },
+            {
+              "name": "coverage comparison keeps usable evidence open while the matching read is incomplete, then closes on a later complete receipt",
+              "status": "passed"
+            },
+            {
+              "name": "coverage comparison keeps explicit payload continuation metadata unresolved without a matching completion receipt",
+              "status": "passed"
+            },
+            {
+              "name": "coverage comparison treats a transcript filename without content as unusable",
+              "status": "passed"
+            },
+            {
+              "name": "coverage comparison never lets a file listing satisfy a document-content requirement",
+              "status": "passed"
+            },
+            {
+              "name": "coverage comparison is satisfied by a complete content read of the routed document after a truncated listing",
+              "status": "passed"
+            },
+            {
+              "name": "coverage comparison matches chamber routes against the evidence actually retrieved",
+              "status": "passed"
+            },
+            {
+              "name": "coverage follow-up and disclosure plans every concrete essential read-only call up to the caller safety ceiling",
+              "status": "passed"
+            },
+            {
+              "name": "coverage follow-up and disclosure fails closed for non-read-only tools and missing concrete routes",
+              "status": "passed"
+            },
+            {
+              "name": "coverage follow-up and disclosure never plans a bare document listing for a content requirement without a document route",
+              "status": "passed"
+            },
+            {
+              "name": "coverage follow-up and disclosure plans a document read only with the concrete document id",
+              "status": "passed"
+            },
+            {
+              "name": "coverage follow-up and disclosure retains the concrete route when planning continuation for an incomplete read",
+              "status": "passed"
+            },
+            {
+              "name": "coverage follow-up and disclosure adds the latest concrete continuation cursor to a routed follow-up",
+              "status": "passed"
+            },
+            {
+              "name": "coverage follow-up and disclosure adds one marker-free claim-tied limitation only for essential residual gaps",
+              "status": "passed"
+            }
+          ]
+        }
+      ]
+    },
+    "mail": {
+      "success": true,
+      "numTotalTests": 37,
+      "numPassedTests": 37,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTotalTestSuites": 4,
+      "rawReportSha256": "664ed919fd8987db99d9b8dbe66371eaeca9248406e01fb3cad68c7ff6189964",
+      "tests": [
+        {
+          "file": "apps/api/src/engagement/mail-query.spec.ts",
+          "status": "passed",
+          "assertions": [
+            {
+              "name": "canonical mailbox query accepts a date-only inbox inventory and binds a stable 14-day window without a keyword",
+              "status": "passed"
+            },
+            {
+              "name": "canonical mailbox query rejects invalid inventory or continuation input before SQL: {\"withinDays\":0}",
+              "status": "passed"
+            },
+            {
+              "name": "canonical mailbox query rejects invalid inventory or continuation input before SQL: {\"withinDays\":\"two weeks\"}",
+              "status": "passed"
+            },
+            {
+              "name": "canonical mailbox query rejects invalid inventory or continuation input before SQL: {\"folder\":\"trash\"}",
+              "status": "passed"
+            },
+            {
+              "name": "canonical mailbox query rejects invalid inventory or continuation input before SQL: {\"withinDays\":14,\"offset\":50}",
+              "status": "passed"
+            },
+            {
+              "name": "canonical mailbox query rejects invalid inventory or continuation input before SQL: {\"withinDays\":14,\"offset\":-1}",
+              "status": "passed"
+            },
+            {
+              "name": "canonical mailbox query rejects invalid inventory or continuation input before SQL: {\"withinDays\":14,\"asOf\":\"not-a-date\"}",
+              "status": "passed"
+            },
+            {
+              "name": "canonical mailbox query rejects invalid inventory or continuation input before SQL: {\"withinDays\":14,\"limit\":51}",
+              "status": "passed"
+            },
+            {
+              "name": "canonical mailbox query returns a continuation offset with the same time boundary",
+              "status": "passed"
+            },
+            {
+              "name": "canonical mailbox query does not label calendar connection success as completed mail sync",
+              "status": "passed"
+            },
+            {
+              "name": "canonical mailbox query fails closed when no search term is given (no recent-mail dump)",
+              "status": "passed"
+            },
+            {
+              "name": "canonical mailbox query fails closed on a non-UUID clientId before it can reach the ::uuid cast",
+              "status": "passed"
+            },
+            {
+              "name": "canonical mailbox query escapes LIKE wildcards in model-supplied terms so they match literally",
+              "status": "passed"
+            },
+            {
+              "name": "canonical mailbox query scopes every query to the tenant and the caller-owned connections",
+              "status": "passed"
+            },
+            {
+              "name": "canonical mailbox query deduplicates folder copies in SQL before applying the page limit",
+              "status": "passed"
+            },
+            {
+              "name": "canonical mailbox query keeps distinct messages, trims to limit, and reports hasMore from the distinct total",
+              "status": "passed"
+            },
+            {
+              "name": "canonical mailbox query returns messages shaped for follow-up tools (threadId for reply_email, from/to/cc, preview)",
+              "status": "passed"
+            },
+            {
+              "name": "canonical mailbox query calls out a connected-but-never-synced mailbox instead of silently \"searching\" it",
+              "status": "passed"
+            },
+            {
+              "name": "canonical mailbox query short-circuits with a clear note when the user has no mail connection at all",
+              "status": "passed"
+            }
+          ]
+        },
+        {
+          "file": "apps/api/src/meri/meri-tools.search-emails.spec.ts",
+          "status": "passed",
+          "assertions": [
+            {
+              "name": "Meri canonical mailbox tools emits server body evidence that the durable owner adapter accepts unchanged",
+              "status": "passed"
+            },
+            {
+              "name": "Meri canonical mailbox tools reads stored details beyond the inventory preview through the canonical authorized thread reader",
+              "status": "passed"
+            },
+            {
+              "name": "Meri canonical mailbox tools preserves canonical authorization failures when reading a mail body",
+              "status": "passed"
+            },
+            {
+              "name": "Meri canonical mailbox tools enforces an explicit client scope while preserving unscoped personal mail",
+              "status": "passed"
+            },
+            {
+              "name": "Meri canonical mailbox tools requires an exact message for body continuation and rejects unbounded reads",
+              "status": "passed"
+            },
+            {
+              "name": "Meri canonical mailbox tools delegates date-only inbox search without manufacturing a keyword",
+              "status": "passed"
+            },
+            {
+              "name": "Meri canonical mailbox tools lists the same bounded message page through canonical engagement and preserves thread citation IDs",
+              "status": "passed"
+            },
+            {
+              "name": "Meri canonical mailbox tools passes through canonical invalid-scope errors without claiming an empty inbox",
+              "status": "passed"
+            }
+          ]
+        },
+        {
+          "file": "apps/api/src/engagement/mail-query-deadline.postgres.spec.ts",
+          "status": "passed",
+          "assertions": [
+            {
+              "name": "actual owned PostgreSQL mail-query cancellation a later scan is cancelled within the shared budget, then the same pool is reusable without leaked timeout",
+              "status": "passed"
+            },
+            {
+              "name": "actual owned PostgreSQL mail-query cancellation a healthy multi-scan read beyond the old 3.5-second limit completes intact",
+              "status": "passed"
+            },
+            {
+              "name": "actual owned PostgreSQL mail-query cancellation fast count/page/coverage results remain intact in one owned transaction",
+              "status": "passed"
+            }
+          ]
+        },
+        {
+          "file": "apps/api/src/engagement/mail-query-deadline.spec.ts",
+          "status": "passed",
+          "assertions": [
+            {
+              "name": "all scans share the remaining deadline and the same tenant transaction",
+              "status": "passed"
+            },
+            {
+              "name": "an exhausted shared budget starts no next scan and returns no partial data",
+              "status": "passed"
+            },
+            {
+              "name": "server cancellation returns a sanitized 503 and no partial or empty result",
+              "status": "passed"
+            },
+            {
+              "name": "preserves unrelated errors for the existing exception filter: {\"code\": \"P2010\", \"meta\": [Object]}",
+              "status": "passed"
+            },
+            {
+              "name": "preserves unrelated errors for the existing exception filter: {\"code\": \"P2024\"}",
+              "status": "passed"
+            },
+            {
+              "name": "preserves unrelated errors for the existing exception filter: {\"code\": \"P2028\"}",
+              "status": "passed"
+            },
+            {
+              "name": "preserves unrelated errors for the existing exception filter: [Error: unrelated failure]",
+              "status": "passed"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "typecheckExit": 0,
+  "offlineCases": 26,
+  "offlineExit": 0,
+  "offlineReportVerificationExit": 0,
+  "independentReview": {
+    "status": "PASS",
+    "reviewer": "Codex benchmark_review (independent read-only source review)",
+    "filesSha256": {
+      "packages/meriv2-core/src/assurance/evidence-plan.ts": "09cdd8a7006f70f8b7dc824a0e6d4c879eacd3acc8bb3c24552ca9ff67cdac15",
+      "packages/meriv2-core/src/assurance/evidence-plan.spec.ts": "cc21a7751d382276241607ce51be2372fd69c2150bbe9cd663aea8a966d23a0f",
+      "apps/meriv2-orchestrator/src/meri/retrieval/meri-evidence-formatting.spec.ts": "93677952bd01bf1a1911c2f42ad8ead657b6a19c3efad9da10c250d800f2e2d6"
+    }
+  },
+  "original75Accepted": 0,
+  "remainingC1": [
+    "served classification repair verification",
+    "mail timeout repair and served known/zero reads",
+    "served persistence verification"
+  ],
+  "limitations": [
+    "Local PostgreSQL tests use disposable synthetic fixtures; production cold-I/O performance is not established.",
+    "No deployed behavior is claimed by local tests.",
+    "Hermes summary incorrectly said no code changes; lead independently inspected and revised its actual diff."
+  ]
+}

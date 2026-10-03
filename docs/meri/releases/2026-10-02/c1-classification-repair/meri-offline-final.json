@@ -1,0 +1,3237 @@
+{
+  "evalId": "eval-4mo-2026-10-03T03:12:04",
+  "results": {
+    "version": 3,
+    "timestamp": "2026-10-03T03:12:04.987Z",
+    "prompts": [
+      {
+        "id": "f0da76d10ed092c8a8e21f26129c0fb440f6c949a994307347b9ec50cdc85d6a",
+        "raw": "{{caseId}}",
+        "label": "{{caseId}}",
+        "provider": "meri-offline-runner",
+        "metrics": {
+          "score": 26,
+          "testPassCount": 26,
+          "testFailCount": 0,
+          "testErrorCount": 0,
+          "assertPassCount": 26,
+          "assertFailCount": 0,
+          "totalLatencyMs": 29283,
+          "tokenUsage": {
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "total": 0,
+            "numRequests": 26,
+            "completionDetails": {
+              "reasoning": 0,
+              "acceptedPrediction": 0,
+              "rejectedPrediction": 0,
+              "cacheReadInputTokens": 0,
+              "cacheCreationInputTokens": 0
+            },
+            "assertions": {
+              "total": 0,
+              "prompt": 0,
+              "completion": 0,
+              "cached": 0,
+              "numRequests": 0,
+              "completionDetails": {
+                "reasoning": 0,
+                "acceptedPrediction": 0,
+                "rejectedPrediction": 0,
+                "cacheReadInputTokens": 0,
+                "cacheCreationInputTokens": 0
+              }
+            }
+          },
+          "namedScores": {},
+          "namedScoresCount": {},
+          "namedScoreWeights": {},
+          "cost": 0
+        }
+      }
+    ],
+    "results": [
+      {
+        "cost": 0,
+        "gradingResult": {
+          "pass": true,
+          "score": 1,
+          "reason": "All assertions passed",
+          "namedScores": {},
+          "tokensUsed": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0
+          },
+          "componentResults": [
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "PASS: gate enforced BLOCK + WARN-unapproved (no execution) and WARN-approved (executed once)",
+              "assertion": {
+                "type": "python",
+                "value": "file://./scorer.py",
+                "threshold": 1
+              }
+            }
+          ]
+        },
+        "id": "24ea15b4-3121-4438-aae5-8343597cfa47",
+        "latencyMs": 2845,
+        "namedScores": {},
+        "prompt": {
+          "raw": "core/compliance.gate.enforcement",
+          "label": "{{caseId}}",
+          "config": {}
+        },
+        "promptId": "f0da76d10ed092c8a8e21f26129c0fb440f6c949a994307347b9ec50cdc85d6a",
+        "promptIdx": 0,
+        "provider": {
+          "id": "meri-offline-runner",
+          "label": "meri-offline-runner"
+        },
+        "response": {
+          "output": "{\"schemaVersion\":1,\"datasetVersion\":\"meri-offline-v1\",\"caseId\":\"core/compliance.gate.enforcement\",\"measurement\":{\"status\":\"pass\",\"durationMs\":1},\"result\":{\"pass\":true,\"detail\":\"gate enforced BLOCK + WARN-unapproved (no execution) and WARN-approved (executed once)\",\"results\":null},\"answer\":null,\"sources\":null,\"requiredSourceIds\":null,\"expect\":null,\"plan\":null,\"turns\":null,\"grade\":null,\"provenance\":{\"gitSha\":\"6c816139e1002d99f652e6a26177fd43ac8febcd\",\"fixtureVersion\":\"2026-09-06.1\",\"model\":\"none\",\"inputSha256\":{\"config\":\"b2000ece2d0801a49538e7e5649fb1324e398cd00ce45b988c525bc37f0852b9\",\"scorer\":\"0813d0356df6837a8946b46134251f6d93f0a59b84a11138760471199c7bbc55\",\"provider\":\"b7eaa13d23949664593a62e9ad690d7f9fa7d388e727ad63ac2d249869328b1d\",\"runner\":\"53f1d9c847b65359e89d8408743f4abaff288de3aae3b79808db13870cd9b65d\",\"ga_fixture\":\"f3474d7d9ee178e224d2b130e32643bec09af5ae0804e808149ed7e08442e770\"}}}",
+          "metadata": {
+            "measurement": {
+              "status": "pass",
+              "durationMs": 1
+            }
+          }
+        },
+        "score": 1,
+        "success": true,
+        "testCase": {
+          "vars": {
+            "caseId": "core/compliance.gate.enforcement"
+          },
+          "assert": [
+            {
+              "type": "python",
+              "value": "file://./scorer.py",
+              "threshold": 1
+            }
+          ],
+          "options": {},
+          "metadata": {}
+        },
+        "testIdx": 2,
+        "tokenUsage": {
+          "prompt": 0,
+          "completion": 0,
+          "cached": 0,
+          "total": 0,
+          "numRequests": 1,
+          "completionDetails": {
+            "reasoning": 0,
+            "acceptedPrediction": 0,
+            "rejectedPrediction": 0,
+            "cacheReadInputTokens": 0,
+            "cacheCreationInputTokens": 0
+          },
+          "assertions": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0,
+            "completionDetails": {
+              "reasoning": 0,
+              "acceptedPrediction": 0,
+              "rejectedPrediction": 0,
+              "cacheReadInputTokens": 0,
+              "cacheCreationInputTokens": 0
+            }
+          }
+        },
+        "vars": {
+          "caseId": "core/compliance.gate.enforcement"
+        },
+        "metadata": {
+          "measurement": {
+            "status": "pass",
+            "durationMs": 1
+          },
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 0
+      },
+      {
+        "cost": 0,
+        "gradingResult": {
+          "pass": true,
+          "score": 1,
+          "reason": "All assertions passed",
+          "namedScores": {},
+          "tokensUsed": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0
+          },
+          "componentResults": [
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "PASS: no cross-tenant rows across 3 callers (3-tenant matrix)",
+              "assertion": {
+                "type": "python",
+                "value": "file://./scorer.py",
+                "threshold": 1
+              }
+            }
+          ]
+        },
+        "id": "a4c32bf9-7116-4fdc-9f4f-f75521531b6e",
+        "latencyMs": 2847,
+        "namedScores": {},
+        "prompt": {
+          "raw": "core/leakage.cross-tenant.matrix",
+          "label": "{{caseId}}",
+          "config": {}
+        },
+        "promptId": "f0da76d10ed092c8a8e21f26129c0fb440f6c949a994307347b9ec50cdc85d6a",
+        "promptIdx": 0,
+        "provider": {
+          "id": "meri-offline-runner",
+          "label": "meri-offline-runner"
+        },
+        "response": {
+          "output": "{\"schemaVersion\":1,\"datasetVersion\":\"meri-offline-v1\",\"caseId\":\"core/leakage.cross-tenant.matrix\",\"measurement\":{\"status\":\"pass\",\"durationMs\":1},\"result\":{\"pass\":true,\"detail\":\"no cross-tenant rows across 3 callers (3-tenant matrix)\",\"results\":null},\"answer\":null,\"sources\":null,\"requiredSourceIds\":null,\"expect\":null,\"plan\":null,\"turns\":null,\"grade\":null,\"provenance\":{\"gitSha\":\"6c816139e1002d99f652e6a26177fd43ac8febcd\",\"fixtureVersion\":\"2026-09-06.1\",\"model\":\"none\",\"inputSha256\":{\"config\":\"b2000ece2d0801a49538e7e5649fb1324e398cd00ce45b988c525bc37f0852b9\",\"scorer\":\"0813d0356df6837a8946b46134251f6d93f0a59b84a11138760471199c7bbc55\",\"provider\":\"b7eaa13d23949664593a62e9ad690d7f9fa7d388e727ad63ac2d249869328b1d\",\"runner\":\"53f1d9c847b65359e89d8408743f4abaff288de3aae3b79808db13870cd9b65d\",\"ga_fixture\":\"f3474d7d9ee178e224d2b130e32643bec09af5ae0804e808149ed7e08442e770\"}}}",
+          "metadata": {
+            "measurement": {
+              "status": "pass",
+              "durationMs": 1
+            }
+          }
+        },
+        "score": 1,
+        "success": true,
+        "testCase": {
+          "vars": {
+            "caseId": "core/leakage.cross-tenant.matrix"
+          },
+          "assert": [
+            {
+              "type": "python",
+              "value": "file://./scorer.py",
+              "threshold": 1
+            }
+          ],
+          "options": {},
+          "metadata": {}
+        },
+        "testIdx": 0,
+        "tokenUsage": {
+          "prompt": 0,
+          "completion": 0,
+          "cached": 0,
+          "total": 0,
+          "numRequests": 1,
+          "completionDetails": {
+            "reasoning": 0,
+            "acceptedPrediction": 0,
+            "rejectedPrediction": 0,
+            "cacheReadInputTokens": 0,
+            "cacheCreationInputTokens": 0
+          },
+          "assertions": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0,
+            "completionDetails": {
+              "reasoning": 0,
+              "acceptedPrediction": 0,
+              "rejectedPrediction": 0,
+              "cacheReadInputTokens": 0,
+              "cacheCreationInputTokens": 0
+            }
+          }
+        },
+        "vars": {
+          "caseId": "core/leakage.cross-tenant.matrix"
+        },
+        "metadata": {
+          "measurement": {
+            "status": "pass",
+            "durationMs": 1
+          },
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 0
+      },
+      {
+        "cost": 0,
+        "gradingResult": {
+          "pass": true,
+          "score": 1,
+          "reason": "All assertions passed",
+          "namedScores": {},
+          "tokensUsed": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0
+          },
+          "componentResults": [
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "PASS: mechanism sound: 8 fabricated shapes rejected, 4 real ids normalized, round-trips + zod gates green",
+              "assertion": {
+                "type": "python",
+                "value": "file://./scorer.py",
+                "threshold": 1
+              }
+            }
+          ]
+        },
+        "id": "98c48a0b-7c1a-4ece-8b1f-ccd572ddb7ae",
+        "latencyMs": 2845,
+        "namedScores": {},
+        "prompt": {
+          "raw": "core/entity.grounding.canonical-ids",
+          "label": "{{caseId}}",
+          "config": {}
+        },
+        "promptId": "f0da76d10ed092c8a8e21f26129c0fb440f6c949a994307347b9ec50cdc85d6a",
+        "promptIdx": 0,
+        "provider": {
+          "id": "meri-offline-runner",
+          "label": "meri-offline-runner"
+        },
+        "response": {
+          "output": "{\"schemaVersion\":1,\"datasetVersion\":\"meri-offline-v1\",\"caseId\":\"core/entity.grounding.canonical-ids\",\"measurement\":{\"status\":\"pass\",\"durationMs\":1},\"result\":{\"pass\":true,\"detail\":\"mechanism sound: 8 fabricated shapes rejected, 4 real ids normalized, round-trips + zod gates green\",\"results\":null},\"answer\":null,\"sources\":null,\"requiredSourceIds\":null,\"expect\":null,\"plan\":null,\"turns\":null,\"grade\":null,\"provenance\":{\"gitSha\":\"6c816139e1002d99f652e6a26177fd43ac8febcd\",\"fixtureVersion\":\"2026-09-06.1\",\"model\":\"none\",\"inputSha256\":{\"config\":\"b2000ece2d0801a49538e7e5649fb1324e398cd00ce45b988c525bc37f0852b9\",\"scorer\":\"0813d0356df6837a8946b46134251f6d93f0a59b84a11138760471199c7bbc55\",\"provider\":\"b7eaa13d23949664593a62e9ad690d7f9fa7d388e727ad63ac2d249869328b1d\",\"runner\":\"53f1d9c847b65359e89d8408743f4abaff288de3aae3b79808db13870cd9b65d\",\"ga_fixture\":\"f3474d7d9ee178e224d2b130e32643bec09af5ae0804e808149ed7e08442e770\"}}}",
+          "metadata": {
+            "measurement": {
+              "status": "pass",
+              "durationMs": 1
+            }
+          }
+        },
+        "score": 1,
+        "success": true,
+        "testCase": {
+          "vars": {
+            "caseId": "core/entity.grounding.canonical-ids"
+          },
+          "assert": [
+            {
+              "type": "python",
+              "value": "file://./scorer.py",
+              "threshold": 1
+            }
+          ],
+          "options": {},
+          "metadata": {}
+        },
+        "testIdx": 3,
+        "tokenUsage": {
+          "prompt": 0,
+          "completion": 0,
+          "cached": 0,
+          "total": 0,
+          "numRequests": 1,
+          "completionDetails": {
+            "reasoning": 0,
+            "acceptedPrediction": 0,
+            "rejectedPrediction": 0,
+            "cacheReadInputTokens": 0,
+            "cacheCreationInputTokens": 0
+          },
+          "assertions": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0,
+            "completionDetails": {
+              "reasoning": 0,
+              "acceptedPrediction": 0,
+              "rejectedPrediction": 0,
+              "cacheReadInputTokens": 0,
+              "cacheCreationInputTokens": 0
+            }
+          }
+        },
+        "vars": {
+          "caseId": "core/entity.grounding.canonical-ids"
+        },
+        "metadata": {
+          "measurement": {
+            "status": "pass",
+            "durationMs": 1
+          },
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 0
+      },
+      {
+        "cost": 0,
+        "gradingResult": {
+          "pass": true,
+          "score": 1,
+          "reason": "All assertions passed",
+          "namedScores": {},
+          "tokensUsed": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0
+          },
+          "componentResults": [
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "PASS: 1 claim(s) emitted, all evidence-backed",
+              "assertion": {
+                "type": "python",
+                "value": "file://./scorer.py",
+                "threshold": 1
+              }
+            }
+          ]
+        },
+        "id": "b875d9ec-6205-4a2e-aa1f-8df351544136",
+        "latencyMs": 2846,
+        "namedScores": {},
+        "prompt": {
+          "raw": "core/grounding.claim-evidence",
+          "label": "{{caseId}}",
+          "config": {}
+        },
+        "promptId": "f0da76d10ed092c8a8e21f26129c0fb440f6c949a994307347b9ec50cdc85d6a",
+        "promptIdx": 0,
+        "provider": {
+          "id": "meri-offline-runner",
+          "label": "meri-offline-runner"
+        },
+        "response": {
+          "output": "{\"schemaVersion\":1,\"datasetVersion\":\"meri-offline-v1\",\"caseId\":\"core/grounding.claim-evidence\",\"measurement\":{\"status\":\"pass\",\"durationMs\":0},\"result\":{\"pass\":true,\"detail\":\"1 claim(s) emitted, all evidence-backed\",\"results\":null},\"answer\":null,\"sources\":null,\"requiredSourceIds\":null,\"expect\":null,\"plan\":null,\"turns\":null,\"grade\":null,\"provenance\":{\"gitSha\":\"6c816139e1002d99f652e6a26177fd43ac8febcd\",\"fixtureVersion\":\"2026-09-06.1\",\"model\":\"none\",\"inputSha256\":{\"config\":\"b2000ece2d0801a49538e7e5649fb1324e398cd00ce45b988c525bc37f0852b9\",\"scorer\":\"0813d0356df6837a8946b46134251f6d93f0a59b84a11138760471199c7bbc55\",\"provider\":\"b7eaa13d23949664593a62e9ad690d7f9fa7d388e727ad63ac2d249869328b1d\",\"runner\":\"53f1d9c847b65359e89d8408743f4abaff288de3aae3b79808db13870cd9b65d\",\"ga_fixture\":\"f3474d7d9ee178e224d2b130e32643bec09af5ae0804e808149ed7e08442e770\"}}}",
+          "metadata": {
+            "measurement": {
+              "status": "pass",
+              "durationMs": 0
+            }
+          }
+        },
+        "score": 1,
+        "success": true,
+        "testCase": {
+          "vars": {
+            "caseId": "core/grounding.claim-evidence"
+          },
+          "assert": [
+            {
+              "type": "python",
+              "value": "file://./scorer.py",
+              "threshold": 1
+            }
+          ],
+          "options": {},
+          "metadata": {}
+        },
+        "testIdx": 1,
+        "tokenUsage": {
+          "prompt": 0,
+          "completion": 0,
+          "cached": 0,
+          "total": 0,
+          "numRequests": 1,
+          "completionDetails": {
+            "reasoning": 0,
+            "acceptedPrediction": 0,
+            "rejectedPrediction": 0,
+            "cacheReadInputTokens": 0,
+            "cacheCreationInputTokens": 0
+          },
+          "assertions": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0,
+            "completionDetails": {
+              "reasoning": 0,
+              "acceptedPrediction": 0,
+              "rejectedPrediction": 0,
+              "cacheReadInputTokens": 0,
+              "cacheCreationInputTokens": 0
+            }
+          }
+        },
+        "vars": {
+          "caseId": "core/grounding.claim-evidence"
+        },
+        "metadata": {
+          "measurement": {
+            "status": "pass",
+            "durationMs": 0
+          },
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 0
+      },
+      {
+        "cost": 0,
+        "gradingResult": {
+          "pass": true,
+          "score": 1,
+          "reason": "All assertions passed",
+          "namedScores": {},
+          "tokensUsed": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0
+          },
+          "componentResults": [
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "PASS: H.R. 8800 truth layer sound: rule-reported→rule_pending, rule-failed→rule_failed, passage outranks, vote-result classified",
+              "assertion": {
+                "type": "python",
+                "value": "file://./scorer.py",
+                "threshold": 1
+              }
+            }
+          ]
+        },
+        "id": "5fac822c-25fd-4077-b838-35f56d4ca664",
+        "latencyMs": 745,
+        "namedScores": {},
+        "prompt": {
+          "raw": "core/legislation.bill-status.hr8800-rule-failed",
+          "label": "{{caseId}}",
+          "config": {}
+        },
+        "promptId": "f0da76d10ed092c8a8e21f26129c0fb440f6c949a994307347b9ec50cdc85d6a",
+        "promptIdx": 0,
+        "provider": {
+          "id": "meri-offline-runner",
+          "label": "meri-offline-runner"
+        },
+        "response": {
+          "output": "{\"schemaVersion\":1,\"datasetVersion\":\"meri-offline-v1\",\"caseId\":\"core/legislation.bill-status.hr8800-rule-failed\",\"measurement\":{\"status\":\"pass\",\"durationMs\":1},\"result\":{\"pass\":true,\"detail\":\"H.R. 8800 truth layer sound: rule-reported→rule_pending, rule-failed→rule_failed, passage outranks, vote-result classified\",\"results\":null},\"answer\":null,\"sources\":null,\"requiredSourceIds\":null,\"expect\":null,\"plan\":null,\"turns\":null,\"grade\":null,\"provenance\":{\"gitSha\":\"6c816139e1002d99f652e6a26177fd43ac8febcd\",\"fixtureVersion\":\"2026-09-06.1\",\"model\":\"none\",\"inputSha256\":{\"config\":\"b2000ece2d0801a49538e7e5649fb1324e398cd00ce45b988c525bc37f0852b9\",\"scorer\":\"0813d0356df6837a8946b46134251f6d93f0a59b84a11138760471199c7bbc55\",\"provider\":\"b7eaa13d23949664593a62e9ad690d7f9fa7d388e727ad63ac2d249869328b1d\",\"runner\":\"53f1d9c847b65359e89d8408743f4abaff288de3aae3b79808db13870cd9b65d\",\"ga_fixture\":\"f3474d7d9ee178e224d2b130e32643bec09af5ae0804e808149ed7e08442e770\"}}}",
+          "metadata": {
+            "measurement": {
+              "status": "pass",
+              "durationMs": 1
+            }
+          }
+        },
+        "score": 1,
+        "success": true,
+        "testCase": {
+          "vars": {
+            "caseId": "core/legislation.bill-status.hr8800-rule-failed"
+          },
+          "assert": [
+            {
+              "type": "python",
+              "value": "file://./scorer.py",
+              "threshold": 1
+            }
+          ],
+          "options": {},
+          "metadata": {}
+        },
+        "testIdx": 4,
+        "tokenUsage": {
+          "prompt": 0,
+          "completion": 0,
+          "cached": 0,
+          "total": 0,
+          "numRequests": 1,
+          "completionDetails": {
+            "reasoning": 0,
+            "acceptedPrediction": 0,
+            "rejectedPrediction": 0,
+            "cacheReadInputTokens": 0,
+            "cacheCreationInputTokens": 0
+          },
+          "assertions": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0,
+            "completionDetails": {
+              "reasoning": 0,
+              "acceptedPrediction": 0,
+              "rejectedPrediction": 0,
+              "cacheReadInputTokens": 0,
+              "cacheCreationInputTokens": 0
+            }
+          }
+        },
+        "vars": {
+          "caseId": "core/legislation.bill-status.hr8800-rule-failed"
+        },
+        "metadata": {
+          "measurement": {
+            "status": "pass",
+            "durationMs": 1
+          },
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 0
+      },
+      {
+        "cost": 0,
+        "gradingResult": {
+          "pass": true,
+          "score": 1,
+          "reason": "All assertions passed",
+          "namedScores": {},
+          "tokensUsed": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0
+          },
+          "componentResults": [
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "PASS: committee-roster mechanism sound: exact code resolves, ambiguous name (no chamber hint) returns null, chamber hint disambiguates, unknown name returns null",
+              "assertion": {
+                "type": "python",
+                "value": "file://./scorer.py",
+                "threshold": 1
+              }
+            }
+          ]
+        },
+        "id": "1cb73fd3-cfd2-4e85-8941-5c0988fc31e7",
+        "latencyMs": 668,
+        "namedScores": {},
+        "prompt": {
+          "raw": "core/legislation.committee-roster.never-guess",
+          "label": "{{caseId}}",
+          "config": {}
+        },
+        "promptId": "f0da76d10ed092c8a8e21f26129c0fb440f6c949a994307347b9ec50cdc85d6a",
+        "promptIdx": 0,
+        "provider": {
+          "id": "meri-offline-runner",
+          "label": "meri-offline-runner"
+        },
+        "response": {
+          "output": "{\"schemaVersion\":1,\"datasetVersion\":\"meri-offline-v1\",\"caseId\":\"core/legislation.committee-roster.never-guess\",\"measurement\":{\"status\":\"pass\",\"durationMs\":1},\"result\":{\"pass\":true,\"detail\":\"committee-roster mechanism sound: exact code resolves, ambiguous name (no chamber hint) returns null, chamber hint disambiguates, unknown name returns null\",\"results\":null},\"answer\":null,\"sources\":null,\"requiredSourceIds\":null,\"expect\":null,\"plan\":null,\"turns\":null,\"grade\":null,\"provenance\":{\"gitSha\":\"6c816139e1002d99f652e6a26177fd43ac8febcd\",\"fixtureVersion\":\"2026-09-06.1\",\"model\":\"none\",\"inputSha256\":{\"config\":\"b2000ece2d0801a49538e7e5649fb1324e398cd00ce45b988c525bc37f0852b9\",\"scorer\":\"0813d0356df6837a8946b46134251f6d93f0a59b84a11138760471199c7bbc55\",\"provider\":\"b7eaa13d23949664593a62e9ad690d7f9fa7d388e727ad63ac2d249869328b1d\",\"runner\":\"53f1d9c847b65359e89d8408743f4abaff288de3aae3b79808db13870cd9b65d\",\"ga_fixture\":\"f3474d7d9ee178e224d2b130e32643bec09af5ae0804e808149ed7e08442e770\"}}}",
+          "metadata": {
+            "measurement": {
+              "status": "pass",
+              "durationMs": 1
+            }
+          }
+        },
+        "score": 1,
+        "success": true,
+        "testCase": {
+          "vars": {
+            "caseId": "core/legislation.committee-roster.never-guess"
+          },
+          "assert": [
+            {
+              "type": "python",
+              "value": "file://./scorer.py",
+              "threshold": 1
+            }
+          ],
+          "options": {},
+          "metadata": {}
+        },
+        "testIdx": 7,
+        "tokenUsage": {
+          "prompt": 0,
+          "completion": 0,
+          "cached": 0,
+          "total": 0,
+          "numRequests": 1,
+          "completionDetails": {
+            "reasoning": 0,
+            "acceptedPrediction": 0,
+            "rejectedPrediction": 0,
+            "cacheReadInputTokens": 0,
+            "cacheCreationInputTokens": 0
+          },
+          "assertions": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0,
+            "completionDetails": {
+              "reasoning": 0,
+              "acceptedPrediction": 0,
+              "rejectedPrediction": 0,
+              "cacheReadInputTokens": 0,
+              "cacheCreationInputTokens": 0
+            }
+          }
+        },
+        "vars": {
+          "caseId": "core/legislation.committee-roster.never-guess"
+        },
+        "metadata": {
+          "measurement": {
+            "status": "pass",
+            "durationMs": 1
+          },
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 0
+      },
+      {
+        "cost": 0,
+        "gradingResult": {
+          "pass": true,
+          "score": 1,
+          "reason": "All assertions passed",
+          "namedScores": {},
+          "tokensUsed": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0
+          },
+          "componentResults": [
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "PASS: State bill truth layer sound: crossover-dead resolves before committee-ish text, enrolled/failed outrank sine-die, vote motion classified",
+              "assertion": {
+                "type": "python",
+                "value": "file://./scorer.py",
+                "threshold": 1
+              }
+            }
+          ]
+        },
+        "id": "f3d62863-7deb-4ca6-8136-a79aabad924e",
+        "latencyMs": 675,
+        "namedScores": {},
+        "prompt": {
+          "raw": "core/legislation.state-bill-status.crossover-dead",
+          "label": "{{caseId}}",
+          "config": {}
+        },
+        "promptId": "f0da76d10ed092c8a8e21f26129c0fb440f6c949a994307347b9ec50cdc85d6a",
+        "promptIdx": 0,
+        "provider": {
+          "id": "meri-offline-runner",
+          "label": "meri-offline-runner"
+        },
+        "response": {
+          "output": "{\"schemaVersion\":1,\"datasetVersion\":\"meri-offline-v1\",\"caseId\":\"core/legislation.state-bill-status.crossover-dead\",\"measurement\":{\"status\":\"pass\",\"durationMs\":0},\"result\":{\"pass\":true,\"detail\":\"State bill truth layer sound: crossover-dead resolves before committee-ish text, enrolled/failed outrank sine-die, vote motion classified\",\"results\":null},\"answer\":null,\"sources\":null,\"requiredSourceIds\":null,\"expect\":null,\"plan\":null,\"turns\":null,\"grade\":null,\"provenance\":{\"gitSha\":\"6c816139e1002d99f652e6a26177fd43ac8febcd\",\"fixtureVersion\":\"2026-09-06.1\",\"model\":\"none\",\"inputSha256\":{\"config\":\"b2000ece2d0801a49538e7e5649fb1324e398cd00ce45b988c525bc37f0852b9\",\"scorer\":\"0813d0356df6837a8946b46134251f6d93f0a59b84a11138760471199c7bbc55\",\"provider\":\"b7eaa13d23949664593a62e9ad690d7f9fa7d388e727ad63ac2d249869328b1d\",\"runner\":\"53f1d9c847b65359e89d8408743f4abaff288de3aae3b79808db13870cd9b65d\",\"ga_fixture\":\"f3474d7d9ee178e224d2b130e32643bec09af5ae0804e808149ed7e08442e770\"}}}",
+          "metadata": {
+            "measurement": {
+              "status": "pass",
+              "durationMs": 0
+            }
+          }
+        },
+        "score": 1,
+        "success": true,
+        "testCase": {
+          "vars": {
+            "caseId": "core/legislation.state-bill-status.crossover-dead"
+          },
+          "assert": [
+            {
+              "type": "python",
+              "value": "file://./scorer.py",
+              "threshold": 1
+            }
+          ],
+          "options": {},
+          "metadata": {}
+        },
+        "testIdx": 5,
+        "tokenUsage": {
+          "prompt": 0,
+          "completion": 0,
+          "cached": 0,
+          "total": 0,
+          "numRequests": 1,
+          "completionDetails": {
+            "reasoning": 0,
+            "acceptedPrediction": 0,
+            "rejectedPrediction": 0,
+            "cacheReadInputTokens": 0,
+            "cacheCreationInputTokens": 0
+          },
+          "assertions": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0,
+            "completionDetails": {
+              "reasoning": 0,
+              "acceptedPrediction": 0,
+              "rejectedPrediction": 0,
+              "cacheReadInputTokens": 0,
+              "cacheCreationInputTokens": 0
+            }
+          }
+        },
+        "vars": {
+          "caseId": "core/legislation.state-bill-status.crossover-dead"
+        },
+        "metadata": {
+          "measurement": {
+            "status": "pass",
+            "durationMs": 0
+          },
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 0
+      },
+      {
+        "cost": 0,
+        "gradingResult": {
+          "pass": true,
+          "score": 1,
+          "reason": "All assertions passed",
+          "namedScores": {},
+          "tokensUsed": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0
+          },
+          "componentResults": [
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "PASS: State rule status sound: stage derived from type+dates (notice floor for unknowns), isOpen gated to comment-accepting stages with a real live window — no fabricated status/deadline",
+              "assertion": {
+                "type": "python",
+                "value": "file://./scorer.py",
+                "threshold": 1
+              }
+            }
+          ]
+        },
+        "id": "bdf97c3f-7723-480b-8f78-ce585f6c321f",
+        "latencyMs": 651,
+        "namedScores": {},
+        "prompt": {
+          "raw": "core/legislation.state-rule-status.no-fabrication",
+          "label": "{{caseId}}",
+          "config": {}
+        },
+        "promptId": "f0da76d10ed092c8a8e21f26129c0fb440f6c949a994307347b9ec50cdc85d6a",
+        "promptIdx": 0,
+        "provider": {
+          "id": "meri-offline-runner",
+          "label": "meri-offline-runner"
+        },
+        "response": {
+          "output": "{\"schemaVersion\":1,\"datasetVersion\":\"meri-offline-v1\",\"caseId\":\"core/legislation.state-rule-status.no-fabrication\",\"measurement\":{\"status\":\"pass\",\"durationMs\":0},\"result\":{\"pass\":true,\"detail\":\"State rule status sound: stage derived from type+dates (notice floor for unknowns), isOpen gated to comment-accepting stages with a real live window — no fabricated status/deadline\",\"results\":null},\"answer\":null,\"sources\":null,\"requiredSourceIds\":null,\"expect\":null,\"plan\":null,\"turns\":null,\"grade\":null,\"provenance\":{\"gitSha\":\"6c816139e1002d99f652e6a26177fd43ac8febcd\",\"fixtureVersion\":\"2026-09-06.1\",\"model\":\"none\",\"inputSha256\":{\"config\":\"b2000ece2d0801a49538e7e5649fb1324e398cd00ce45b988c525bc37f0852b9\",\"scorer\":\"0813d0356df6837a8946b46134251f6d93f0a59b84a11138760471199c7bbc55\",\"provider\":\"b7eaa13d23949664593a62e9ad690d7f9fa7d388e727ad63ac2d249869328b1d\",\"runner\":\"53f1d9c847b65359e89d8408743f4abaff288de3aae3b79808db13870cd9b65d\",\"ga_fixture\":\"f3474d7d9ee178e224d2b130e32643bec09af5ae0804e808149ed7e08442e770\"}}}",
+          "metadata": {
+            "measurement": {
+              "status": "pass",
+              "durationMs": 0
+            }
+          }
+        },
+        "score": 1,
+        "success": true,
+        "testCase": {
+          "vars": {
+            "caseId": "core/legislation.state-rule-status.no-fabrication"
+          },
+          "assert": [
+            {
+              "type": "python",
+              "value": "file://./scorer.py",
+              "threshold": 1
+            }
+          ],
+          "options": {},
+          "metadata": {}
+        },
+        "testIdx": 6,
+        "tokenUsage": {
+          "prompt": 0,
+          "completion": 0,
+          "cached": 0,
+          "total": 0,
+          "numRequests": 1,
+          "completionDetails": {
+            "reasoning": 0,
+            "acceptedPrediction": 0,
+            "rejectedPrediction": 0,
+            "cacheReadInputTokens": 0,
+            "cacheCreationInputTokens": 0
+          },
+          "assertions": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0,
+            "completionDetails": {
+              "reasoning": 0,
+              "acceptedPrediction": 0,
+              "rejectedPrediction": 0,
+              "cacheReadInputTokens": 0,
+              "cacheCreationInputTokens": 0
+            }
+          }
+        },
+        "vars": {
+          "caseId": "core/legislation.state-rule-status.no-fabrication"
+        },
+        "metadata": {
+          "measurement": {
+            "status": "pass",
+            "durationMs": 0
+          },
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 0
+      },
+      {
+        "cost": 0,
+        "gradingResult": {
+          "pass": true,
+          "score": 1,
+          "reason": "All assertions passed",
+          "namedScores": {},
+          "tokensUsed": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0
+          },
+          "componentResults": [
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "PASS: 4-state batch resolves identically forward, reversed, and repeated — no cross-state contamination",
+              "assertion": {
+                "type": "python",
+                "value": "file://./scorer.py",
+                "threshold": 1
+              }
+            }
+          ]
+        },
+        "id": "69c11a1b-353c-48ba-a035-e524609d9a78",
+        "latencyMs": 689,
+        "namedScores": {},
+        "prompt": {
+          "raw": "core/legislation.multi-state-comparison.order-independent",
+          "label": "{{caseId}}",
+          "config": {}
+        },
+        "promptId": "f0da76d10ed092c8a8e21f26129c0fb440f6c949a994307347b9ec50cdc85d6a",
+        "promptIdx": 0,
+        "provider": {
+          "id": "meri-offline-runner",
+          "label": "meri-offline-runner"
+        },
+        "response": {
+          "output": "{\"schemaVersion\":1,\"datasetVersion\":\"meri-offline-v1\",\"caseId\":\"core/legislation.multi-state-comparison.order-independent\",\"measurement\":{\"status\":\"pass\",\"durationMs\":1},\"result\":{\"pass\":true,\"detail\":\"4-state batch resolves identically forward, reversed, and repeated — no cross-state contamination\",\"results\":null},\"answer\":null,\"sources\":null,\"requiredSourceIds\":null,\"expect\":null,\"plan\":null,\"turns\":null,\"grade\":null,\"provenance\":{\"gitSha\":\"6c816139e1002d99f652e6a26177fd43ac8febcd\",\"fixtureVersion\":\"2026-09-06.1\",\"model\":\"none\",\"inputSha256\":{\"config\":\"b2000ece2d0801a49538e7e5649fb1324e398cd00ce45b988c525bc37f0852b9\",\"scorer\":\"0813d0356df6837a8946b46134251f6d93f0a59b84a11138760471199c7bbc55\",\"provider\":\"b7eaa13d23949664593a62e9ad690d7f9fa7d388e727ad63ac2d249869328b1d\",\"runner\":\"53f1d9c847b65359e89d8408743f4abaff288de3aae3b79808db13870cd9b65d\",\"ga_fixture\":\"f3474d7d9ee178e224d2b130e32643bec09af5ae0804e808149ed7e08442e770\"}}}",
+          "metadata": {
+            "measurement": {
+              "status": "pass",
+              "durationMs": 1
+            }
+          }
+        },
+        "score": 1,
+        "success": true,
+        "testCase": {
+          "vars": {
+            "caseId": "core/legislation.multi-state-comparison.order-independent"
+          },
+          "assert": [
+            {
+              "type": "python",
+              "value": "file://./scorer.py",
+              "threshold": 1
+            }
+          ],
+          "options": {},
+          "metadata": {}
+        },
+        "testIdx": 8,
+        "tokenUsage": {
+          "prompt": 0,
+          "completion": 0,
+          "cached": 0,
+          "total": 0,
+          "numRequests": 1,
+          "completionDetails": {
+            "reasoning": 0,
+            "acceptedPrediction": 0,
+            "rejectedPrediction": 0,
+            "cacheReadInputTokens": 0,
+            "cacheCreationInputTokens": 0
+          },
+          "assertions": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0,
+            "completionDetails": {
+              "reasoning": 0,
+              "acceptedPrediction": 0,
+              "rejectedPrediction": 0,
+              "cacheReadInputTokens": 0,
+              "cacheCreationInputTokens": 0
+            }
+          }
+        },
+        "vars": {
+          "caseId": "core/legislation.multi-state-comparison.order-independent"
+        },
+        "metadata": {
+          "measurement": {
+            "status": "pass",
+            "durationMs": 1
+          },
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 0
+      },
+      {
+        "cost": 0,
+        "gradingResult": {
+          "pass": true,
+          "score": 1,
+          "reason": "All assertions passed",
+          "namedScores": {},
+          "tokensUsed": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0
+          },
+          "componentResults": [
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "PASS: GA grader verified answer and citations",
+              "assertion": {
+                "type": "python",
+                "value": "file://./scorer.py",
+                "threshold": 1
+              }
+            }
+          ]
+        },
+        "id": "381cd9c2-cac6-4f60-a7b4-9a8ef2d0d748",
+        "latencyMs": 1383,
+        "namedScores": {},
+        "prompt": {
+          "raw": "ga/ga-budget-stage-and-units",
+          "label": "{{caseId}}",
+          "config": {}
+        },
+        "promptId": "f0da76d10ed092c8a8e21f26129c0fb440f6c949a994307347b9ec50cdc85d6a",
+        "promptIdx": 0,
+        "provider": {
+          "id": "meri-offline-runner",
+          "label": "meri-offline-runner"
+        },
+        "response": {
+          "output": "{\"schemaVersion\":1,\"datasetVersion\":\"meri-offline-v1\",\"caseId\":\"ga/ga-budget-stage-and-units\",\"measurement\":{\"status\":\"pass\",\"durationMs\":1},\"result\":null,\"answer\":\"Recommend a technical follow-up, not a spending commitment. Arbor’s marine sensors fit strategy AS-7, but its earlier attachment permits spending commitments only against enacted funding; WA-07/OR-01 footprint supports a proposed local-impact case, with the third facility unverified. [1] Observed 2026-09-06, FY2027 PE 0609001N / DEM-1, page 42, in thousands: request 12,000 versus House appropriations committee 9,000 is a $3 million reduction, or 25%. Neither is enacted; authorization and the FY2026 award are separate. [2] Inference: the reduction creates demonstration risk; seeking restoration or a smaller demonstration are alternatives, not approved strategies. The government affairs director should propose a one-page technical brief to committee staff. No deadline is verified. Retrieve enacted status and the missing facility before finalizing the case. [1][2]\",\"sources\":[{\"id\":1,\"title\":\"Synthetic Arbor Sensors profile / strategy AS-7; observed 2026-09-06\",\"text\":\"Record client:arbor, sections capabilities/facilities/constraints; source eval://client/arbor. Arbor Sensors is a for-profit small business. Capability: marine acoustic sensors. Headquarters: WA-07; plant: OR-01. Facilities coverage: 2 of 3 returned; third facility unavailable, location unknown. Strategy AS-7 approved 2026-09-01: pursue a Navy demonstration in FY2027; preserve a credible technical ask without representing proposed funding as enacted. Finance has not approved matching cash. Strategy owner: government affairs director. Earlier attachment AS-brief section 4 requires limiting any spending commitment to enacted funding. These are synthetic fixtures, not real client facts.\"},{\"id\":2,\"title\":\"Synthetic FY2027 Navy budget table / PE 0609001N, project DEM-1, page 42\",\"text\":\"Source eval://budget/fy2027/page/42, observed 2026-09-06. Units: thousands of dollars. FY2027 request: 12,000; House appropriations committee recommendation: 9,000. Same PE 0609001N, project DEM-1 and scope. Delta is -3,000 thousand dollars (-$3 million, -25%). Neither stage is enacted. Separate authorization proposal mentions $14 million; it is not an appropriation. FY2026 award AW-8 for $200,000 is historical, not new FY2027 funds. No final enacted amount in the supplied records. Committee staff accepts technical follow-up; no submission deadline verified.\"}],\"requiredSourceIds\":[1,2],\"expect\":{\"mustInclude\":[\"0609001N\",\"DEM-1\",\"2027\",\"25%\"],\"mustNotInclude\":[\"funding is secured\",\"the enacted amount is $9 million\"],\"mustCite\":true},\"plan\":null,\"turns\":null,\"grade\":{\"pass\":true,\"failures\":[]},\"provenance\":{\"gitSha\":\"6c816139e1002d99f652e6a26177fd43ac8febcd\",\"fixtureVersion\":\"2026-09-06.1\",\"model\":\"none\",\"inputSha256\":{\"config\":\"b2000ece2d0801a49538e7e5649fb1324e398cd00ce45b988c525bc37f0852b9\",\"scorer\":\"0813d0356df6837a8946b46134251f6d93f0a59b84a11138760471199c7bbc55\",\"provider\":\"b7eaa13d23949664593a62e9ad690d7f9fa7d388e727ad63ac2d249869328b1d\",\"runner\":\"53f1d9c847b65359e89d8408743f4abaff288de3aae3b79808db13870cd9b65d\",\"ga_fixture\":\"f3474d7d9ee178e224d2b130e32643bec09af5ae0804e808149ed7e08442e770\"}}}",
+          "metadata": {
+            "measurement": {
+              "status": "pass",
+              "durationMs": 1
+            }
+          }
+        },
+        "score": 1,
+        "success": true,
+        "testCase": {
+          "vars": {
+            "caseId": "ga/ga-budget-stage-and-units"
+          },
+          "assert": [
+            {
+              "type": "python",
+              "value": "file://./scorer.py",
+              "threshold": 1
+            }
+          ],
+          "options": {},
+          "metadata": {}
+        },
+        "testIdx": 11,
+        "tokenUsage": {
+          "prompt": 0,
+          "completion": 0,
+          "cached": 0,
+          "total": 0,
+          "numRequests": 1,
+          "completionDetails": {
+            "reasoning": 0,
+            "acceptedPrediction": 0,
+            "rejectedPrediction": 0,
+            "cacheReadInputTokens": 0,
+            "cacheCreationInputTokens": 0
+          },
+          "assertions": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0,
+            "completionDetails": {
+              "reasoning": 0,
+              "acceptedPrediction": 0,
+              "rejectedPrediction": 0,
+              "cacheReadInputTokens": 0,
+              "cacheCreationInputTokens": 0
+            }
+          }
+        },
+        "vars": {
+          "caseId": "ga/ga-budget-stage-and-units"
+        },
+        "metadata": {
+          "measurement": {
+            "status": "pass",
+            "durationMs": 1
+          },
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 0
+      },
+      {
+        "cost": 0,
+        "gradingResult": {
+          "pass": true,
+          "score": 1,
+          "reason": "All assertions passed",
+          "namedScores": {},
+          "tokensUsed": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0
+          },
+          "componentResults": [
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "PASS: 23 versioned goldens cover 11 domains; deterministic assurance mechanisms passed.",
+              "assertion": {
+                "type": "python",
+                "value": "file://./scorer.py",
+                "threshold": 1
+              }
+            }
+          ]
+        },
+        "id": "c372ebfa-4db1-4566-bf08-775494f92006",
+        "latencyMs": 736,
+        "namedScores": {},
+        "prompt": {
+          "raw": "core/government-affairs-assurance-ga-goldens-v1.0.0",
+          "label": "{{caseId}}",
+          "config": {}
+        },
+        "promptId": "f0da76d10ed092c8a8e21f26129c0fb440f6c949a994307347b9ec50cdc85d6a",
+        "promptIdx": 0,
+        "provider": {
+          "id": "meri-offline-runner",
+          "label": "meri-offline-runner"
+        },
+        "response": {
+          "output": "{\"schemaVersion\":1,\"datasetVersion\":\"meri-offline-v1\",\"caseId\":\"core/government-affairs-assurance-ga-goldens-v1.0.0\",\"measurement\":{\"status\":\"pass\",\"durationMs\":14},\"result\":{\"pass\":true,\"detail\":\"23 versioned goldens cover 11 domains; deterministic assurance mechanisms passed.\",\"results\":null},\"answer\":null,\"sources\":null,\"requiredSourceIds\":null,\"expect\":null,\"plan\":null,\"turns\":null,\"grade\":null,\"provenance\":{\"gitSha\":\"6c816139e1002d99f652e6a26177fd43ac8febcd\",\"fixtureVersion\":\"2026-09-06.1\",\"model\":\"none\",\"inputSha256\":{\"config\":\"b2000ece2d0801a49538e7e5649fb1324e398cd00ce45b988c525bc37f0852b9\",\"scorer\":\"0813d0356df6837a8946b46134251f6d93f0a59b84a11138760471199c7bbc55\",\"provider\":\"b7eaa13d23949664593a62e9ad690d7f9fa7d388e727ad63ac2d249869328b1d\",\"runner\":\"53f1d9c847b65359e89d8408743f4abaff288de3aae3b79808db13870cd9b65d\",\"ga_fixture\":\"f3474d7d9ee178e224d2b130e32643bec09af5ae0804e808149ed7e08442e770\"}}}",
+          "metadata": {
+            "measurement": {
+              "status": "pass",
+              "durationMs": 14
+            }
+          }
+        },
+        "score": 1,
+        "success": true,
+        "testCase": {
+          "vars": {
+            "caseId": "core/government-affairs-assurance-ga-goldens-v1.0.0"
+          },
+          "assert": [
+            {
+              "type": "python",
+              "value": "file://./scorer.py",
+              "threshold": 1
+            }
+          ],
+          "options": {},
+          "metadata": {}
+        },
+        "testIdx": 10,
+        "tokenUsage": {
+          "prompt": 0,
+          "completion": 0,
+          "cached": 0,
+          "total": 0,
+          "numRequests": 1,
+          "completionDetails": {
+            "reasoning": 0,
+            "acceptedPrediction": 0,
+            "rejectedPrediction": 0,
+            "cacheReadInputTokens": 0,
+            "cacheCreationInputTokens": 0
+          },
+          "assertions": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0,
+            "completionDetails": {
+              "reasoning": 0,
+              "acceptedPrediction": 0,
+              "rejectedPrediction": 0,
+              "cacheReadInputTokens": 0,
+              "cacheCreationInputTokens": 0
+            }
+          }
+        },
+        "vars": {
+          "caseId": "core/government-affairs-assurance-ga-goldens-v1.0.0"
+        },
+        "metadata": {
+          "measurement": {
+            "status": "pass",
+            "durationMs": 14
+          },
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 0
+      },
+      {
+        "cost": 0,
+        "gradingResult": {
+          "pass": true,
+          "score": 1,
+          "reason": "All assertions passed",
+          "namedScores": {},
+          "tokensUsed": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0
+          },
+          "componentResults": [
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "PASS: federal+state mixed mechanism sound: 4 interleaved rounds both stayed correct, no cross-rail status leakage",
+              "assertion": {
+                "type": "python",
+                "value": "file://./scorer.py",
+                "threshold": 1
+              }
+            }
+          ]
+        },
+        "id": "aaa4fec3-79df-419d-a2a9-8fe23c7a3e7f",
+        "latencyMs": 676,
+        "namedScores": {},
+        "prompt": {
+          "raw": "core/legislation.federal-state-mixed.no-cross-contamination",
+          "label": "{{caseId}}",
+          "config": {}
+        },
+        "promptId": "f0da76d10ed092c8a8e21f26129c0fb440f6c949a994307347b9ec50cdc85d6a",
+        "promptIdx": 0,
+        "provider": {
+          "id": "meri-offline-runner",
+          "label": "meri-offline-runner"
+        },
+        "response": {
+          "output": "{\"schemaVersion\":1,\"datasetVersion\":\"meri-offline-v1\",\"caseId\":\"core/legislation.federal-state-mixed.no-cross-contamination\",\"measurement\":{\"status\":\"pass\",\"durationMs\":0},\"result\":{\"pass\":true,\"detail\":\"federal+state mixed mechanism sound: 4 interleaved rounds both stayed correct, no cross-rail status leakage\",\"results\":null},\"answer\":null,\"sources\":null,\"requiredSourceIds\":null,\"expect\":null,\"plan\":null,\"turns\":null,\"grade\":null,\"provenance\":{\"gitSha\":\"6c816139e1002d99f652e6a26177fd43ac8febcd\",\"fixtureVersion\":\"2026-09-06.1\",\"model\":\"none\",\"inputSha256\":{\"config\":\"b2000ece2d0801a49538e7e5649fb1324e398cd00ce45b988c525bc37f0852b9\",\"scorer\":\"0813d0356df6837a8946b46134251f6d93f0a59b84a11138760471199c7bbc55\",\"provider\":\"b7eaa13d23949664593a62e9ad690d7f9fa7d388e727ad63ac2d249869328b1d\",\"runner\":\"53f1d9c847b65359e89d8408743f4abaff288de3aae3b79808db13870cd9b65d\",\"ga_fixture\":\"f3474d7d9ee178e224d2b130e32643bec09af5ae0804e808149ed7e08442e770\"}}}",
+          "metadata": {
+            "measurement": {
+              "status": "pass",
+              "durationMs": 0
+            }
+          }
+        },
+        "score": 1,
+        "success": true,
+        "testCase": {
+          "vars": {
+            "caseId": "core/legislation.federal-state-mixed.no-cross-contamination"
+          },
+          "assert": [
+            {
+              "type": "python",
+              "value": "file://./scorer.py",
+              "threshold": 1
+            }
+          ],
+          "options": {},
+          "metadata": {}
+        },
+        "testIdx": 9,
+        "tokenUsage": {
+          "prompt": 0,
+          "completion": 0,
+          "cached": 0,
+          "total": 0,
+          "numRequests": 1,
+          "completionDetails": {
+            "reasoning": 0,
+            "acceptedPrediction": 0,
+            "rejectedPrediction": 0,
+            "cacheReadInputTokens": 0,
+            "cacheCreationInputTokens": 0
+          },
+          "assertions": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0,
+            "completionDetails": {
+              "reasoning": 0,
+              "acceptedPrediction": 0,
+              "rejectedPrediction": 0,
+              "cacheReadInputTokens": 0,
+              "cacheCreationInputTokens": 0
+            }
+          }
+        },
+        "vars": {
+          "caseId": "core/legislation.federal-state-mixed.no-cross-contamination"
+        },
+        "metadata": {
+          "measurement": {
+            "status": "pass",
+            "durationMs": 0
+          },
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 0
+      },
+      {
+        "cost": 0,
+        "gradingResult": {
+          "pass": true,
+          "score": 1,
+          "reason": "All assertions passed",
+          "namedScores": {},
+          "tokensUsed": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0
+          },
+          "componentResults": [
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "PASS: GA grader verified answer and citations",
+              "assertion": {
+                "type": "python",
+                "value": "file://./scorer.py",
+                "threshold": 1
+              }
+            }
+          ]
+        },
+        "id": "0f7646d3-8fa7-45ef-9d59-39a8a62a8559",
+        "latencyMs": 978,
+        "namedScores": {},
+        "prompt": {
+          "raw": "ga/ga-funding-eligibility-and-forecast",
+          "label": "{{caseId}}",
+          "config": {}
+        },
+        "promptId": "f0da76d10ed092c8a8e21f26129c0fb440f6c949a994307347b9ec50cdc85d6a",
+        "promptIdx": 0,
+        "provider": {
+          "id": "meri-offline-runner",
+          "label": "meri-offline-runner"
+        },
+        "response": {
+          "output": "{\"schemaVersion\":1,\"datasetVersion\":\"meri-offline-v1\",\"caseId\":\"ga/ga-funding-eligibility-and-forecast\",\"measurement\":{\"status\":\"pass\",\"durationMs\":1},\"result\":null,\"answer\":\"Prioritize conditional diligence on FO-1: Arbor’s marine sensors and US facilities match, but finance has not approved matching cash. The third facility is also unavailable. [1] Canonical match M-41, observed 2026-09-06, permits for-profit small businesses; FO-1 is open, requires 20% non-federal cash, and closes 2026-10-15 at 17:00 ET. Confidence is medium until the match is verified. FO-2 is disqualified because only nonprofit universities qualify. FF-3 is a procurement forecast, not an open opportunity or known deadline. [2] The government affairs director should ask finance for match approval and have the proposal lead prepare the eligibility checklist before the published FO-1 deadline. If no match is available, do not submit; monitor FF-3 instead. No new matching score is asserted. [1][2]\",\"sources\":[{\"id\":1,\"title\":\"Synthetic Arbor Sensors profile / strategy AS-7; observed 2026-09-06\",\"text\":\"Record client:arbor, sections capabilities/facilities/constraints; source eval://client/arbor. Arbor Sensors is a for-profit small business. Capability: marine acoustic sensors. Headquarters: WA-07; plant: OR-01. Facilities coverage: 2 of 3 returned; third facility unavailable, location unknown. Strategy AS-7 approved 2026-09-01: pursue a Navy demonstration in FY2027; preserve a credible technical ask without representing proposed funding as enacted. Finance has not approved matching cash. Strategy owner: government affairs director. Earlier attachment AS-brief section 4 requires limiting any spending commitment to enacted funding. These are synthetic fixtures, not real client facts.\"},{\"id\":2,\"title\":\"Synthetic canonical Funding Opportunities matching result / match run M-41\",\"text\":\"Source eval://funding/matches/M-41 observed 2026-09-06. Canonical matching service results, not raw similarity. FO-1: OPEN marine sensor demonstration, small-business for-profit applicants allowed, US performance, deadline 2026-10-15 17:00 ET, 20% non-federal cash match mandatory; Arbor capability/geography pass, overall conditional because matching cash unverified, confidence medium. FO-2: OPEN, eligible applicants nonprofit universities only; Arbor explicitly ineligible despite strong sensor similarity. FF-3: PROCUREMENT FORECAST, anticipated release FY2027 Q2, no open solicitation or verified due date, eligibility not determined. Do not reinterpret forecast date as deadline.\"}],\"requiredSourceIds\":[1,2],\"expect\":{\"mustInclude\":[\"FO-1\",\"FO-2\",\"FF-3\",\"20%\",\"2026-10-15\"],\"mustNotInclude\":[\"Arbor is eligible for FO-2\",\"FF-3 is open\"],\"mustCite\":true},\"plan\":null,\"turns\":null,\"grade\":{\"pass\":true,\"failures\":[]},\"provenance\":{\"gitSha\":\"6c816139e1002d99f652e6a26177fd43ac8febcd\",\"fixtureVersion\":\"2026-09-06.1\",\"model\":\"none\",\"inputSha256\":{\"config\":\"b2000ece2d0801a49538e7e5649fb1324e398cd00ce45b988c525bc37f0852b9\",\"scorer\":\"0813d0356df6837a8946b46134251f6d93f0a59b84a11138760471199c7bbc55\",\"provider\":\"b7eaa13d23949664593a62e9ad690d7f9fa7d388e727ad63ac2d249869328b1d\",\"runner\":\"53f1d9c847b65359e89d8408743f4abaff288de3aae3b79808db13870cd9b65d\",\"ga_fixture\":\"f3474d7d9ee178e224d2b130e32643bec09af5ae0804e808149ed7e08442e770\"}}}",
+          "metadata": {
+            "measurement": {
+              "status": "pass",
+              "durationMs": 1
+            }
+          }
+        },
+        "score": 1,
+        "success": true,
+        "testCase": {
+          "vars": {
+            "caseId": "ga/ga-funding-eligibility-and-forecast"
+          },
+          "assert": [
+            {
+              "type": "python",
+              "value": "file://./scorer.py",
+              "threshold": 1
+            }
+          ],
+          "options": {},
+          "metadata": {}
+        },
+        "testIdx": 12,
+        "tokenUsage": {
+          "prompt": 0,
+          "completion": 0,
+          "cached": 0,
+          "total": 0,
+          "numRequests": 1,
+          "completionDetails": {
+            "reasoning": 0,
+            "acceptedPrediction": 0,
+            "rejectedPrediction": 0,
+            "cacheReadInputTokens": 0,
+            "cacheCreationInputTokens": 0
+          },
+          "assertions": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0,
+            "completionDetails": {
+              "reasoning": 0,
+              "acceptedPrediction": 0,
+              "rejectedPrediction": 0,
+              "cacheReadInputTokens": 0,
+              "cacheCreationInputTokens": 0
+            }
+          }
+        },
+        "vars": {
+          "caseId": "ga/ga-funding-eligibility-and-forecast"
+        },
+        "metadata": {
+          "measurement": {
+            "status": "pass",
+            "durationMs": 1
+          },
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 0
+      },
+      {
+        "cost": 0,
+        "gradingResult": {
+          "pass": true,
+          "score": 1,
+          "reason": "All assertions passed",
+          "namedScores": {},
+          "tokensUsed": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0
+          },
+          "componentResults": [
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "PASS: GA grader verified answer and citations",
+              "assertion": {
+                "type": "python",
+                "value": "file://./scorer.py",
+                "threshold": 1
+              }
+            }
+          ]
+        },
+        "id": "2717266a-9e7f-487b-a9bc-27d8600c225a",
+        "latencyMs": 838,
+        "namedScores": {},
+        "prompt": {
+          "raw": "ga/ga-meeting-history-and-role",
+          "label": "{{caseId}}",
+          "config": {}
+        },
+        "promptId": "f0da76d10ed092c8a8e21f26129c0fb440f6c949a994307347b9ec50cdc85d6a",
+        "promptIdx": 0,
+        "provider": {
+          "id": "meri-offline-runner",
+          "label": "meri-offline-runner"
+        },
+        "response": {
+          "output": "{\"schemaVersion\":1,\"datasetVersion\":\"meri-offline-v1\",\"caseId\":\"ga/ga-meeting-history-and-role\",\"measurement\":{\"status\":\"pass\",\"durationMs\":1},\"result\":null,\"answer\":\"Arbor should earn a credible demonstration discussion by delivering its promised evidence first. Its marine sensors and WA-07 headquarters support AS-7, while OR-01 plant and an unknown third facility require careful geographic claims. [1] Debrief M-12 and directory D-5, observed 2026-09-06, identify Alex Reed as legislative assistant, verified 2026-09-05. The office promised review only. [2] Ask Reed to review the two-page noise-test summary and discuss a suitable technical office; an introduction is a proposal, not a commitment. Talking points: demonstration objective, measured capability, and evidence still needed. Technical lead should deliver the summary by 2026-09-09; government affairs director should prepare the 2026-09-10 14:00 ET meeting and record follow-up. Matching funds and complete facility details remain unverified. [1][2]\",\"sources\":[{\"id\":1,\"title\":\"Synthetic Arbor Sensors profile / strategy AS-7; observed 2026-09-06\",\"text\":\"Record client:arbor, sections capabilities/facilities/constraints; source eval://client/arbor. Arbor Sensors is a for-profit small business. Capability: marine acoustic sensors. Headquarters: WA-07; plant: OR-01. Facilities coverage: 2 of 3 returned; third facility unavailable, location unknown. Strategy AS-7 approved 2026-09-01: pursue a Navy demonstration in FY2027; preserve a credible technical ask without representing proposed funding as enacted. Finance has not approved matching cash. Strategy owner: government affairs director. Earlier attachment AS-brief section 4 requires limiting any spending commitment to enacted funding. These are synthetic fixtures, not real client facts.\"},{\"id\":2,\"title\":\"Synthetic office directory verification and meeting debrief / D-5, M-12\",\"text\":\"Source eval://meetings/M-12#commitments observed 2026-09-06. Meeting on 2026-09-02 with Alex Reed; directory D-5 verified 2026-09-05 lists Reed as WA-07 legislative assistant, not chief of staff. Arbor promised a two-page noise-test summary by 2026-09-09. Office offered to review it; no funding support or introduction promised. Next meeting 2026-09-10 at 14:00 ET. Technical lead owns noise-test summary. Unverified old CRM note calls Reed chief of staff; current verified directory supersedes this role note.\"}],\"requiredSourceIds\":[1,2],\"expect\":{\"mustInclude\":[\"Alex Reed\",\"legislative assistant\",\"2026-09-09\"],\"mustNotInclude\":[\"Reed promised funding\",\"Reed is chief of staff\"],\"mustCite\":true},\"plan\":null,\"turns\":null,\"grade\":{\"pass\":true,\"failures\":[]},\"provenance\":{\"gitSha\":\"6c816139e1002d99f652e6a26177fd43ac8febcd\",\"fixtureVersion\":\"2026-09-06.1\",\"model\":\"none\",\"inputSha256\":{\"config\":\"b2000ece2d0801a49538e7e5649fb1324e398cd00ce45b988c525bc37f0852b9\",\"scorer\":\"0813d0356df6837a8946b46134251f6d93f0a59b84a11138760471199c7bbc55\",\"provider\":\"b7eaa13d23949664593a62e9ad690d7f9fa7d388e727ad63ac2d249869328b1d\",\"runner\":\"53f1d9c847b65359e89d8408743f4abaff288de3aae3b79808db13870cd9b65d\",\"ga_fixture\":\"f3474d7d9ee178e224d2b130e32643bec09af5ae0804e808149ed7e08442e770\"}}}",
+          "metadata": {
+            "measurement": {
+              "status": "pass",
+              "durationMs": 1
+            }
+          }
+        },
+        "score": 1,
+        "success": true,
+        "testCase": {
+          "vars": {
+            "caseId": "ga/ga-meeting-history-and-role"
+          },
+          "assert": [
+            {
+              "type": "python",
+              "value": "file://./scorer.py",
+              "threshold": 1
+            }
+          ],
+          "options": {},
+          "metadata": {}
+        },
+        "testIdx": 13,
+        "tokenUsage": {
+          "prompt": 0,
+          "completion": 0,
+          "cached": 0,
+          "total": 0,
+          "numRequests": 1,
+          "completionDetails": {
+            "reasoning": 0,
+            "acceptedPrediction": 0,
+            "rejectedPrediction": 0,
+            "cacheReadInputTokens": 0,
+            "cacheCreationInputTokens": 0
+          },
+          "assertions": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0,
+            "completionDetails": {
+              "reasoning": 0,
+              "acceptedPrediction": 0,
+              "rejectedPrediction": 0,
+              "cacheReadInputTokens": 0,
+              "cacheCreationInputTokens": 0
+            }
+          }
+        },
+        "vars": {
+          "caseId": "ga/ga-meeting-history-and-role"
+        },
+        "metadata": {
+          "measurement": {
+            "status": "pass",
+            "durationMs": 1
+          },
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 0
+      },
+      {
+        "cost": 0,
+        "gradingResult": {
+          "pass": true,
+          "score": 1,
+          "reason": "All assertions passed",
+          "namedScores": {},
+          "tokensUsed": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0
+          },
+          "componentResults": [
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "PASS: GA grader verified answer and citations",
+              "assertion": {
+                "type": "python",
+                "value": "file://./scorer.py",
+                "threshold": 1
+              }
+            }
+          ]
+        },
+        "id": "735a2838-c9b7-4656-8e85-865915d3f0f0",
+        "latencyMs": 774,
+        "namedScores": {},
+        "prompt": {
+          "raw": "ga/ga-hearing-statement-versus-decision",
+          "label": "{{caseId}}",
+          "config": {}
+        },
+        "promptId": "f0da76d10ed092c8a8e21f26129c0fb440f6c949a994307347b9ec50cdc85d6a",
+        "promptIdx": 0,
+        "provider": {
+          "id": "meri-offline-runner",
+          "label": "meri-offline-runner"
+        },
+        "response": {
+          "output": "{\"schemaVersion\":1,\"datasetVersion\":\"meri-offline-v1\",\"caseId\":\"ga/ga-hearing-statement-versus-decision\",\"measurement\":{\"status\":\"pass\",\"durationMs\":0},\"result\":null,\"answer\":\"No funded demonstration is established. Arbor’s marine acoustic sensors fit the question raised and AS-7, but a spending commitment still requires enacted proof. Its WA-07/OR-01 footprint is known; the third facility is unavailable. [1] H-77 transcript section 6, observed 2026-09-06: at 00:47:12 Dr. Mira Lin recommended a demonstration to measure acoustic detection in coastal noise; at 00:49:03 the chair invited technical data. These are statements, not a vote, appropriation or award. The headline overstates the transcript. [3] Inference: a concise coastal-noise test brief may advance a technical conversation; an alternative is gathering additional results first. Government affairs director should coordinate the technical lead’s proposed brief to committee staff. No deadline or performance threshold is verified; retrieve those before committing. [1][3]\",\"sources\":[{\"id\":1,\"title\":\"Synthetic Arbor Sensors profile / strategy AS-7; observed 2026-09-06\",\"text\":\"Record client:arbor, sections capabilities/facilities/constraints; source eval://client/arbor. Arbor Sensors is a for-profit small business. Capability: marine acoustic sensors. Headquarters: WA-07; plant: OR-01. Facilities coverage: 2 of 3 returned; third facility unavailable, location unknown. Strategy AS-7 approved 2026-09-01: pursue a Navy demonstration in FY2027; preserve a credible technical ask without representing proposed funding as enacted. Finance has not approved matching cash. Strategy owner: government affairs director. Earlier attachment AS-brief section 4 requires limiting any spending commitment to enacted funding. These are synthetic fixtures, not real client facts.\"},{\"id\":3,\"title\":\"Synthetic maritime hearing H-77 / transcript section 6 at 00:47:12\",\"text\":\"Source eval://hearing/H-77/transcript/6, observed 2026-09-06; hearing held 2026-09-04. At 00:47:12 Dr. Mira Lin, technical witness, stated: \\\"We need a demonstration to measure acoustic detection in coastal noise.\\\" This is a witness recommendation, not adopted policy, an appropriation or an award. At 00:49:03 the chair invited technical data without promising funding. No numerical performance threshold or follow-up deadline was stated. Metadata headline says \\\"Committee approves sensors\\\" but the full transcript records no vote; headline is not evidence of adoption.\"}],\"requiredSourceIds\":[1,3],\"expect\":{\"mustInclude\":[\"Mira Lin\",\"00:47:12\"],\"mustNotInclude\":[\"Arbor has won funding\",\"the committee adopted the demonstration\"],\"mustCite\":true},\"plan\":null,\"turns\":null,\"grade\":{\"pass\":true,\"failures\":[]},\"provenance\":{\"gitSha\":\"6c816139e1002d99f652e6a26177fd43ac8febcd\",\"fixtureVersion\":\"2026-09-06.1\",\"model\":\"none\",\"inputSha256\":{\"config\":\"b2000ece2d0801a49538e7e5649fb1324e398cd00ce45b988c525bc37f0852b9\",\"scorer\":\"0813d0356df6837a8946b46134251f6d93f0a59b84a11138760471199c7bbc55\",\"provider\":\"b7eaa13d23949664593a62e9ad690d7f9fa7d388e727ad63ac2d249869328b1d\",\"runner\":\"53f1d9c847b65359e89d8408743f4abaff288de3aae3b79808db13870cd9b65d\",\"ga_fixture\":\"f3474d7d9ee178e224d2b130e32643bec09af5ae0804e808149ed7e08442e770\"}}}",
+          "metadata": {
+            "measurement": {
+              "status": "pass",
+              "durationMs": 0
+            }
+          }
+        },
+        "score": 1,
+        "success": true,
+        "testCase": {
+          "vars": {
+            "caseId": "ga/ga-hearing-statement-versus-decision"
+          },
+          "assert": [
+            {
+              "type": "python",
+              "value": "file://./scorer.py",
+              "threshold": 1
+            }
+          ],
+          "options": {},
+          "metadata": {}
+        },
+        "testIdx": 14,
+        "tokenUsage": {
+          "prompt": 0,
+          "completion": 0,
+          "cached": 0,
+          "total": 0,
+          "numRequests": 1,
+          "completionDetails": {
+            "reasoning": 0,
+            "acceptedPrediction": 0,
+            "rejectedPrediction": 0,
+            "cacheReadInputTokens": 0,
+            "cacheCreationInputTokens": 0
+          },
+          "assertions": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0,
+            "completionDetails": {
+              "reasoning": 0,
+              "acceptedPrediction": 0,
+              "rejectedPrediction": 0,
+              "cacheReadInputTokens": 0,
+              "cacheCreationInputTokens": 0
+            }
+          }
+        },
+        "vars": {
+          "caseId": "ga/ga-hearing-statement-versus-decision"
+        },
+        "metadata": {
+          "measurement": {
+            "status": "pass",
+            "durationMs": 0
+          },
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 0
+      },
+      {
+        "cost": 0,
+        "gradingResult": {
+          "pass": true,
+          "score": 1,
+          "reason": "All assertions passed",
+          "namedScores": {},
+          "tokensUsed": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0
+          },
+          "componentResults": [
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "PASS: GA grader verified answer and citations",
+              "assertion": {
+                "type": "python",
+                "value": "file://./scorer.py",
+                "threshold": 1
+              }
+            }
+          ]
+        },
+        "id": "d830e5e1-d89f-4c5f-9e59-17df115d1b2d",
+        "latencyMs": 780,
+        "namedScores": {},
+        "prompt": {
+          "raw": "ga/ga-legislation-current-version",
+          "label": "{{caseId}}",
+          "config": {}
+        },
+        "promptId": "f0da76d10ed092c8a8e21f26129c0fb440f6c949a994307347b9ec50cdc85d6a",
+        "promptIdx": 0,
+        "provider": {
+          "id": "meri-offline-runner",
+          "label": "meri-offline-runner"
+        },
+        "response": {
+          "output": "{\"schemaVersion\":1,\"datasetVersion\":\"meri-offline-v1\",\"caseId\":\"ga/ga-legislation-current-version\",\"measurement\":{\"status\":\"pass\",\"durationMs\":0},\"result\":null,\"answer\":\"Prepare a readiness assessment rather than treat the proposal as a current deadline. Arbor’s marine sensors may be affected; AS-7 and the unavailable third facility make scope confirmation material. [1] Federal HR 9998, 119th Congress, IH section 402, observed 2026-09-06, is introduced and referred to House Armed Services Committee. It proposes certification 90 days after enactment; the expired 118th Congress 30-day text is not current. [2] Inference: early technical comments could shape workable certification; waiting for a committee revision is an alternative. Government affairs director should have the technical lead draft implementation questions for committee staff. Verify the assigned office role, covered products and schedule before outreach; no present legal deadline or hearing date is supported. [1][2]\",\"sources\":[{\"id\":1,\"title\":\"Synthetic Arbor Sensors profile / strategy AS-7; observed 2026-09-06\",\"text\":\"Record client:arbor, sections capabilities/facilities/constraints; source eval://client/arbor. Arbor Sensors is a for-profit small business. Capability: marine acoustic sensors. Headquarters: WA-07; plant: OR-01. Facilities coverage: 2 of 3 returned; third facility unavailable, location unknown. Strategy AS-7 approved 2026-09-01: pursue a Navy demonstration in FY2027; preserve a credible technical ask without representing proposed funding as enacted. Finance has not approved matching cash. Strategy owner: government affairs director. Earlier attachment AS-brief section 4 requires limiting any spending commitment to enacted funding. These are synthetic fixtures, not real client facts.\"},{\"id\":2,\"title\":\"Synthetic federal bill version and stage / HR 9998, 119th Congress, IH §402\",\"text\":\"Source eval://legislation/119/hr9998/IH#402, observed 2026-09-06. Federal jurisdiction; 119th Congress. Current verified version: introduced House (IH), referred to House Armed Services Committee, no committee report or enactment. Section 402 proposes certification within 90 days after enactment. No current statutory certification deadline exists from this bill. Prior bill in 118th Congress expired and used 30 days; it is not this version. Committee jurisdiction supports contacting committee staff; no current individual staff assignment or hearing date is verified.\"}],\"requiredSourceIds\":[1,2],\"expect\":{\"mustInclude\":[\"119\",\"402\",\"90 days\"],\"mustNotInclude\":[\"Arbor must certify within 30 days\",\"HR 9998 is enacted\"],\"mustCite\":true},\"plan\":null,\"turns\":null,\"grade\":{\"pass\":true,\"failures\":[]},\"provenance\":{\"gitSha\":\"6c816139e1002d99f652e6a26177fd43ac8febcd\",\"fixtureVersion\":\"2026-09-06.1\",\"model\":\"none\",\"inputSha256\":{\"config\":\"b2000ece2d0801a49538e7e5649fb1324e398cd00ce45b988c525bc37f0852b9\",\"scorer\":\"0813d0356df6837a8946b46134251f6d93f0a59b84a11138760471199c7bbc55\",\"provider\":\"b7eaa13d23949664593a62e9ad690d7f9fa7d388e727ad63ac2d249869328b1d\",\"runner\":\"53f1d9c847b65359e89d8408743f4abaff288de3aae3b79808db13870cd9b65d\",\"ga_fixture\":\"f3474d7d9ee178e224d2b130e32643bec09af5ae0804e808149ed7e08442e770\"}}}",
+          "metadata": {
+            "measurement": {
+              "status": "pass",
+              "durationMs": 0
+            }
+          }
+        },
+        "score": 1,
+        "success": true,
+        "testCase": {
+          "vars": {
+            "caseId": "ga/ga-legislation-current-version"
+          },
+          "assert": [
+            {
+              "type": "python",
+              "value": "file://./scorer.py",
+              "threshold": 1
+            }
+          ],
+          "options": {},
+          "metadata": {}
+        },
+        "testIdx": 15,
+        "tokenUsage": {
+          "prompt": 0,
+          "completion": 0,
+          "cached": 0,
+          "total": 0,
+          "numRequests": 1,
+          "completionDetails": {
+            "reasoning": 0,
+            "acceptedPrediction": 0,
+            "rejectedPrediction": 0,
+            "cacheReadInputTokens": 0,
+            "cacheCreationInputTokens": 0
+          },
+          "assertions": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0,
+            "completionDetails": {
+              "reasoning": 0,
+              "acceptedPrediction": 0,
+              "rejectedPrediction": 0,
+              "cacheReadInputTokens": 0,
+              "cacheCreationInputTokens": 0
+            }
+          }
+        },
+        "vars": {
+          "caseId": "ga/ga-legislation-current-version"
+        },
+        "metadata": {
+          "measurement": {
+            "status": "pass",
+            "durationMs": 0
+          },
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 0
+      },
+      {
+        "cost": 0,
+        "gradingResult": {
+          "pass": true,
+          "score": 1,
+          "reason": "All assertions passed",
+          "namedScores": {},
+          "tokensUsed": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0
+          },
+          "componentResults": [
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "PASS: GA grader verified answer and citations",
+              "assertion": {
+                "type": "python",
+                "value": "file://./scorer.py",
+                "threshold": 1
+              }
+            }
+          ]
+        },
+        "id": "60857455-80da-47b9-84b3-e654ec0c20e3",
+        "latencyMs": 772,
+        "namedScores": {},
+        "prompt": {
+          "raw": "ga/ga-executive-consistent-deliverable",
+          "label": "{{caseId}}",
+          "config": {}
+        },
+        "promptId": "f0da76d10ed092c8a8e21f26129c0fb440f6c949a994307347b9ec50cdc85d6a",
+        "promptIdx": 0,
+        "provider": {
+          "id": "meri-offline-runner",
+          "label": "meri-offline-runner"
+        },
+        "response": {
+          "output": "{\"schemaVersion\":1,\"datasetVersion\":\"meri-offline-v1\",\"caseId\":\"ga/ga-executive-consistent-deliverable\",\"measurement\":{\"status\":\"pass\",\"durationMs\":0},\"result\":null,\"answer\":\"Decision: authorize technical engagement, not a spending commitment. Arbor’s AS-7 objective, marine sensors and WA-07/OR-01 footprint support a demonstration case; a third facility is unavailable and matching cash is unapproved. [1] Evidence observed 2026-09-06: FY2027 PE 0609001N / DEM-1, page 42, thousands of dollars, request 12,000 versus House appropriations committee 9,000 is a $3 million reduction (25%). It is not enacted funding; authorization and historical awards are separate. [2] H-77 section 6: Dr. Mira Lin at 00:47:12 recommended coastal-noise demonstration evidence; the statement and chair’s invitation are not policy adoption or funding. [3] Judgment: a smaller demonstration or restoration case could fit, but either is proposed strategy. Priority 1: government affairs director and technical lead prepare a one-page evidence brief for committee staff. Priority 2: finance verify any commitment against enacted proof and match availability. No submission deadline is verified. Missing information: final enacted status, performance thresholds, third facility and staff timing; retrieve before committing resources. [1][2][3]\",\"sources\":[{\"id\":1,\"title\":\"Synthetic Arbor Sensors profile / strategy AS-7; observed 2026-09-06\",\"text\":\"Record client:arbor, sections capabilities/facilities/constraints; source eval://client/arbor. Arbor Sensors is a for-profit small business. Capability: marine acoustic sensors. Headquarters: WA-07; plant: OR-01. Facilities coverage: 2 of 3 returned; third facility unavailable, location unknown. Strategy AS-7 approved 2026-09-01: pursue a Navy demonstration in FY2027; preserve a credible technical ask without representing proposed funding as enacted. Finance has not approved matching cash. Strategy owner: government affairs director. Earlier attachment AS-brief section 4 requires limiting any spending commitment to enacted funding. These are synthetic fixtures, not real client facts.\"},{\"id\":2,\"title\":\"Synthetic FY2027 Navy budget table / PE 0609001N, project DEM-1, page 42\",\"text\":\"Source eval://budget/fy2027/page/42, observed 2026-09-06. Units: thousands of dollars. FY2027 request: 12,000; House appropriations committee recommendation: 9,000. Same PE 0609001N, project DEM-1 and scope. Delta is -3,000 thousand dollars (-$3 million, -25%). Neither stage is enacted. Separate authorization proposal mentions $14 million; it is not an appropriation. FY2026 award AW-8 for $200,000 is historical, not new FY2027 funds. No final enacted amount in the supplied records. Committee staff accepts technical follow-up; no submission deadline verified.\"},{\"id\":3,\"title\":\"Synthetic maritime hearing H-77 / transcript section 6 at 00:47:12\",\"text\":\"Source eval://hearing/H-77/transcript/6, observed 2026-09-06; hearing held 2026-09-04. At 00:47:12 Dr. Mira Lin, technical witness, stated: \\\"We need a demonstration to measure acoustic detection in coastal noise.\\\" This is a witness recommendation, not adopted policy, an appropriation or an award. At 00:49:03 the chair invited technical data without promising funding. No numerical performance threshold or follow-up deadline was stated. Metadata headline says \\\"Committee approves sensors\\\" but the full transcript records no vote; headline is not evidence of adoption.\"}],\"requiredSourceIds\":[1,2,3],\"expect\":{\"mustInclude\":[\"0609001N\",\"DEM-1\",\"25%\",\"00:47:12\"],\"mustNotInclude\":[\"the demonstration is funded\",\"enacted FY2027 funding totals $9 million\"],\"mustCite\":true},\"plan\":null,\"turns\":null,\"grade\":{\"pass\":true,\"failures\":[]},\"provenance\":{\"gitSha\":\"6c816139e1002d99f652e6a26177fd43ac8febcd\",\"fixtureVersion\":\"2026-09-06.1\",\"model\":\"none\",\"inputSha256\":{\"config\":\"b2000ece2d0801a49538e7e5649fb1324e398cd00ce45b988c525bc37f0852b9\",\"scorer\":\"0813d0356df6837a8946b46134251f6d93f0a59b84a11138760471199c7bbc55\",\"provider\":\"b7eaa13d23949664593a62e9ad690d7f9fa7d388e727ad63ac2d249869328b1d\",\"runner\":\"53f1d9c847b65359e89d8408743f4abaff288de3aae3b79808db13870cd9b65d\",\"ga_fixture\":\"f3474d7d9ee178e224d2b130e32643bec09af5ae0804e808149ed7e08442e770\"}}}",
+          "metadata": {
+            "measurement": {
+              "status": "pass",
+              "durationMs": 0
+            }
+          }
+        },
+        "score": 1,
+        "success": true,
+        "testCase": {
+          "vars": {
+            "caseId": "ga/ga-executive-consistent-deliverable"
+          },
+          "assert": [
+            {
+              "type": "python",
+              "value": "file://./scorer.py",
+              "threshold": 1
+            }
+          ],
+          "options": {},
+          "metadata": {}
+        },
+        "testIdx": 16,
+        "tokenUsage": {
+          "prompt": 0,
+          "completion": 0,
+          "cached": 0,
+          "total": 0,
+          "numRequests": 1,
+          "completionDetails": {
+            "reasoning": 0,
+            "acceptedPrediction": 0,
+            "rejectedPrediction": 0,
+            "cacheReadInputTokens": 0,
+            "cacheCreationInputTokens": 0
+          },
+          "assertions": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0,
+            "completionDetails": {
+              "reasoning": 0,
+              "acceptedPrediction": 0,
+              "rejectedPrediction": 0,
+              "cacheReadInputTokens": 0,
+              "cacheCreationInputTokens": 0
+            }
+          }
+        },
+        "vars": {
+          "caseId": "ga/ga-executive-consistent-deliverable"
+        },
+        "metadata": {
+          "measurement": {
+            "status": "pass",
+            "durationMs": 0
+          },
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 0
+      },
+      {
+        "cost": 0,
+        "gradingResult": {
+          "pass": true,
+          "score": 1,
+          "reason": "All assertions passed",
+          "namedScores": {},
+          "tokensUsed": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0
+          },
+          "componentResults": [
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "PASS: Planner output matches all expected fields",
+              "assertion": {
+                "type": "python",
+                "value": "file://./scorer.py",
+                "threshold": 1
+              }
+            }
+          ]
+        },
+        "id": "3cd18e6e-eefa-4cf3-a0f7-6787d1461464",
+        "latencyMs": 1193,
+        "namedScores": {},
+        "prompt": {
+          "raw": "plan/overland-ai-profile",
+          "label": "{{caseId}}",
+          "config": {}
+        },
+        "promptId": "f0da76d10ed092c8a8e21f26129c0fb440f6c949a994307347b9ec50cdc85d6a",
+        "promptIdx": 0,
+        "provider": {
+          "id": "meri-offline-runner",
+          "label": "meri-offline-runner"
+        },
+        "response": {
+          "output": "{\"schemaVersion\":1,\"datasetVersion\":\"meri-offline-v1\",\"caseId\":\"plan/overland-ai-profile\",\"measurement\":{\"status\":\"complete\",\"durationMs\":4},\"result\":null,\"answer\":null,\"sources\":null,\"requiredSourceIds\":null,\"expect\":null,\"plan\":{\"version\":1,\"queryClass\":\"lookup\",\"subjectScope\":\"external_entity\",\"targetHint\":\"overland ai\",\"recipeTool\":\"research_external_company\",\"requireCompleteCoverage\":false,\"requiredDomains\":[\"public_web\"],\"optionalDomains\":[\"clients\",\"internal_research\"],\"recommendedTools\":[\"research_external_company\",\"lookup_client_registry\",\"search_research_sources\",\"search_public_web\",\"scrape_web_page\"],\"timeWindow\":null,\"activeClients\":[{\"name\":\"Arbor Sensors\",\"status\":\"active\",\"id\":\"Arbor Sensors\"},{\"name\":\"Sable Maritime\",\"status\":\"active\",\"id\":\"Sable Maritime\"}],\"reasons\":[\"company_description_request\",\"named_target\",\"explicit_named_subject\",\"recipe:research_external_company\",\"quick-company-profile\"]},\"turns\":null,\"grade\":null,\"provenance\":{\"gitSha\":\"6c816139e1002d99f652e6a26177fd43ac8febcd\",\"fixtureVersion\":\"2026-09-06.1\",\"model\":\"none\",\"inputSha256\":{\"config\":\"b2000ece2d0801a49538e7e5649fb1324e398cd00ce45b988c525bc37f0852b9\",\"scorer\":\"0813d0356df6837a8946b46134251f6d93f0a59b84a11138760471199c7bbc55\",\"provider\":\"b7eaa13d23949664593a62e9ad690d7f9fa7d388e727ad63ac2d249869328b1d\",\"runner\":\"53f1d9c847b65359e89d8408743f4abaff288de3aae3b79808db13870cd9b65d\",\"ga_fixture\":\"f3474d7d9ee178e224d2b130e32643bec09af5ae0804e808149ed7e08442e770\"}}}",
+          "metadata": {
+            "measurement": {
+              "status": "complete",
+              "durationMs": 4
+            }
+          }
+        },
+        "score": 1,
+        "success": true,
+        "testCase": {
+          "description": "plan/overland-ai-profile: bounded external company lookup",
+          "vars": {
+            "caseId": "plan/overland-ai-profile",
+            "request": "what does overland ai do",
+            "expectedRecipeTool": "research_external_company",
+            "expectedSubjectScope": "external_entity",
+            "expectedTargetHint": "overland ai",
+            "expectedRequiredDomains_json": "[\"public_web\"]",
+            "expectedRecommendedTools_json": "[\"research_external_company\"]",
+            "forbiddenRecommendedTools_json": "[\"research_federal_market_strategy\",\"search_lda_filings\",\"search_sec_filings\",\"search_federal_awards\",\"search_sam_opportunities\",\"search_federal_grants\",\"search_program_elements\",\"get_pe_budget_timeline\",\"get_pe_report_language\"]"
+          },
+          "assert": [
+            {
+              "type": "python",
+              "value": "file://./scorer.py",
+              "threshold": 1
+            }
+          ],
+          "options": {},
+          "metadata": {}
+        },
+        "testIdx": 18,
+        "tokenUsage": {
+          "prompt": 0,
+          "completion": 0,
+          "cached": 0,
+          "total": 0,
+          "numRequests": 1,
+          "completionDetails": {
+            "reasoning": 0,
+            "acceptedPrediction": 0,
+            "rejectedPrediction": 0,
+            "cacheReadInputTokens": 0,
+            "cacheCreationInputTokens": 0
+          },
+          "assertions": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0,
+            "completionDetails": {
+              "reasoning": 0,
+              "acceptedPrediction": 0,
+              "rejectedPrediction": 0,
+              "cacheReadInputTokens": 0,
+              "cacheCreationInputTokens": 0
+            }
+          }
+        },
+        "vars": {
+          "caseId": "plan/overland-ai-profile",
+          "request": "what does overland ai do",
+          "expectedRecipeTool": "research_external_company",
+          "expectedSubjectScope": "external_entity",
+          "expectedTargetHint": "overland ai",
+          "expectedRequiredDomains_json": "[\"public_web\"]",
+          "expectedRecommendedTools_json": "[\"research_external_company\"]",
+          "forbiddenRecommendedTools_json": "[\"research_federal_market_strategy\",\"search_lda_filings\",\"search_sec_filings\",\"search_federal_awards\",\"search_sam_opportunities\",\"search_federal_grants\",\"search_program_elements\",\"get_pe_budget_timeline\",\"get_pe_report_language\"]"
+        },
+        "metadata": {
+          "measurement": {
+            "status": "complete",
+            "durationMs": 4
+          },
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 0
+      },
+      {
+        "cost": 0,
+        "gradingResult": {
+          "pass": true,
+          "score": 1,
+          "reason": "All assertions passed",
+          "namedScores": {},
+          "tokensUsed": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0
+          },
+          "componentResults": [
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "PASS: Planner output matches all expected fields",
+              "assertion": {
+                "type": "python",
+                "value": "file://./scorer.py",
+                "threshold": 1
+              }
+            }
+          ]
+        },
+        "id": "d6a0b6b7-8ca4-459f-92fa-2d88e4630511",
+        "latencyMs": 826,
+        "namedScores": {},
+        "prompt": {
+          "raw": "plan/portfolio-changes",
+          "label": "{{caseId}}",
+          "config": {}
+        },
+        "promptId": "f0da76d10ed092c8a8e21f26129c0fb440f6c949a994307347b9ec50cdc85d6a",
+        "promptIdx": 0,
+        "provider": {
+          "id": "meri-offline-runner",
+          "label": "meri-offline-runner"
+        },
+        "response": {
+          "output": "{\"schemaVersion\":1,\"datasetVersion\":\"meri-offline-v1\",\"caseId\":\"plan/portfolio-changes\",\"measurement\":{\"status\":\"complete\",\"durationMs\":3},\"result\":null,\"answer\":null,\"sources\":null,\"requiredSourceIds\":null,\"expect\":null,\"plan\":{\"version\":1,\"queryClass\":\"change_detection\",\"subjectScope\":\"portfolio\",\"targetHint\":null,\"recipeTool\":\"query_portfolio_changes\",\"requireCompleteCoverage\":true,\"requiredDomains\":[\"clients\",\"mail\",\"meetings\",\"tasks\",\"action_items\",\"outreach\",\"legislation\"],\"optionalDomains\":[\"budget\",\"opportunities\",\"memory\",\"hearings\",\"regulatory\",\"intelligence\"],\"recommendedTools\":[\"query_portfolio_changes\",\"query_tasks\",\"query_action_items\",\"query_outreach\",\"list_emails\",\"query_debriefs\",\"search_tracked_bills\",\"get_client_context\",\"get_opportunity_client_context\"],\"timeWindow\":{\"expression\":\"this week\",\"withinDays\":7},\"activeClients\":[{\"name\":\"Arbor Sensors\",\"status\":\"active\",\"id\":\"Arbor Sensors\"},{\"name\":\"Sable Maritime\",\"status\":\"active\",\"id\":\"Sable Maritime\"}],\"reasons\":[\"explicit_portfolio_scope\",\"change_request\",\"complete_coverage_required\",\"recipe:query_portfolio_changes\",\"time-window:this week\",\"coverage-required\"]},\"turns\":null,\"grade\":null,\"provenance\":{\"gitSha\":\"6c816139e1002d99f652e6a26177fd43ac8febcd\",\"fixtureVersion\":\"2026-09-06.1\",\"model\":\"none\",\"inputSha256\":{\"config\":\"b2000ece2d0801a49538e7e5649fb1324e398cd00ce45b988c525bc37f0852b9\",\"scorer\":\"0813d0356df6837a8946b46134251f6d93f0a59b84a11138760471199c7bbc55\",\"provider\":\"b7eaa13d23949664593a62e9ad690d7f9fa7d388e727ad63ac2d249869328b1d\",\"runner\":\"53f1d9c847b65359e89d8408743f4abaff288de3aae3b79808db13870cd9b65d\",\"ga_fixture\":\"f3474d7d9ee178e224d2b130e32643bec09af5ae0804e808149ed7e08442e770\"}}}",
+          "metadata": {
+            "measurement": {
+              "status": "complete",
+              "durationMs": 3
+            }
+          }
+        },
+        "score": 1,
+        "success": true,
+        "testCase": {
+          "description": "plan/portfolio-changes: portfolio scope, change_detection, query_portfolio_changes",
+          "vars": {
+            "caseId": "plan/portfolio-changes",
+            "request": "What has changed across my portfolio this week?",
+            "expectedRecipeTool": "query_portfolio_changes",
+            "expectedSubjectScope": "portfolio",
+            "expectedWithinDays": 7,
+            "expectedActiveClientCount": 2,
+            "expectedRequiredDomains_json": "[\"clients\",\"mail\",\"tasks\",\"action_items\"]",
+            "expectedRecommendedTools_json": "[\"query_portfolio_changes\"]",
+            "forbiddenRecommendedTools_json": "[\"research_federal_market_strategy\"]"
+          },
+          "assert": [
+            {
+              "type": "python",
+              "value": "file://./scorer.py",
+              "threshold": 1
+            }
+          ],
+          "options": {},
+          "metadata": {}
+        },
+        "testIdx": 17,
+        "tokenUsage": {
+          "prompt": 0,
+          "completion": 0,
+          "cached": 0,
+          "total": 0,
+          "numRequests": 1,
+          "completionDetails": {
+            "reasoning": 0,
+            "acceptedPrediction": 0,
+            "rejectedPrediction": 0,
+            "cacheReadInputTokens": 0,
+            "cacheCreationInputTokens": 0
+          },
+          "assertions": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0,
+            "completionDetails": {
+              "reasoning": 0,
+              "acceptedPrediction": 0,
+              "rejectedPrediction": 0,
+              "cacheReadInputTokens": 0,
+              "cacheCreationInputTokens": 0
+            }
+          }
+        },
+        "vars": {
+          "caseId": "plan/portfolio-changes",
+          "request": "What has changed across my portfolio this week?",
+          "expectedRecipeTool": "query_portfolio_changes",
+          "expectedSubjectScope": "portfolio",
+          "expectedWithinDays": 7,
+          "expectedActiveClientCount": 2,
+          "expectedRequiredDomains_json": "[\"clients\",\"mail\",\"tasks\",\"action_items\"]",
+          "expectedRecommendedTools_json": "[\"query_portfolio_changes\"]",
+          "forbiddenRecommendedTools_json": "[\"research_federal_market_strategy\"]"
+        },
+        "metadata": {
+          "measurement": {
+            "status": "complete",
+            "durationMs": 3
+          },
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 0
+      },
+      {
+        "cost": 0,
+        "gradingResult": {
+          "pass": true,
+          "score": 1,
+          "reason": "All assertions passed",
+          "namedScores": {},
+          "tokensUsed": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0
+          },
+          "componentResults": [
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "PASS: Planner output matches all expected fields",
+              "assertion": {
+                "type": "python",
+                "value": "file://./scorer.py",
+                "threshold": 1
+              }
+            }
+          ]
+        },
+        "id": "66b9c5d4-8f67-4112-98f4-d9c0ce33c556",
+        "latencyMs": 889,
+        "namedScores": {},
+        "prompt": {
+          "raw": "plan/c2-strategies-mail-history",
+          "label": "{{caseId}}",
+          "config": {}
+        },
+        "promptId": "f0da76d10ed092c8a8e21f26129c0fb440f6c949a994307347b9ec50cdc85d6a",
+        "promptIdx": 0,
+        "provider": {
+          "id": "meri-offline-runner",
+          "label": "meri-offline-runner"
+        },
+        "response": {
+          "output": "{\"schemaVersion\":1,\"datasetVersion\":\"meri-offline-v1\",\"caseId\":\"plan/c2-strategies-mail-history\",\"measurement\":{\"status\":\"complete\",\"durationMs\":5},\"result\":null,\"answer\":null,\"sources\":null,\"requiredSourceIds\":null,\"expect\":null,\"plan\":{\"version\":1,\"queryClass\":\"relationship_history\",\"subjectScope\":\"external_entity\",\"targetHint\":\"c2 strategies\",\"recipeTool\":\"query_relationship_brief\",\"requireCompleteCoverage\":true,\"requiredDomains\":[\"mail\"],\"optionalDomains\":[\"contacts\",\"memory\",\"internal_research\"],\"recommendedTools\":[\"query_relationship_brief\",\"search_emails\",\"find_contacts\",\"search_memory\",\"lookup_client_registry\"],\"timeWindow\":null,\"activeClients\":[{\"name\":\"Arbor Sensors\",\"status\":\"active\",\"id\":\"Arbor Sensors\"},{\"name\":\"Sable Maritime\",\"status\":\"active\",\"id\":\"Sable Maritime\"}],\"reasons\":[\"relationship_request\",\"named_target\",\"explicit_named_subject\",\"complete_coverage_required\",\"recipe:query_relationship_brief\",\"mail-history-focus\",\"coverage-required\"]},\"turns\":null,\"grade\":null,\"provenance\":{\"gitSha\":\"6c816139e1002d99f652e6a26177fd43ac8febcd\",\"fixtureVersion\":\"2026-09-06.1\",\"model\":\"none\",\"inputSha256\":{\"config\":\"b2000ece2d0801a49538e7e5649fb1324e398cd00ce45b988c525bc37f0852b9\",\"scorer\":\"0813d0356df6837a8946b46134251f6d93f0a59b84a11138760471199c7bbc55\",\"provider\":\"b7eaa13d23949664593a62e9ad690d7f9fa7d388e727ad63ac2d249869328b1d\",\"runner\":\"53f1d9c847b65359e89d8408743f4abaff288de3aae3b79808db13870cd9b65d\",\"ga_fixture\":\"f3474d7d9ee178e224d2b130e32643bec09af5ae0804e808149ed7e08442e770\"}}}",
+          "metadata": {
+            "measurement": {
+              "status": "complete",
+              "durationMs": 5
+            }
+          }
+        },
+        "score": 1,
+        "success": true,
+        "testCase": {
+          "description": "plan/c2-strategies-mail-history: mail-only required coverage",
+          "vars": {
+            "caseId": "plan/c2-strategies-mail-history",
+            "request": "tell me my email history with c2 strategies",
+            "expectedRecipeTool": "query_relationship_brief",
+            "expectedSubjectScope": "external_entity",
+            "expectedTargetHint": "c2 strategies",
+            "expectedRequiredDomains_json": "[\"mail\"]",
+            "expectedRecommendedTools_json": "[\"query_relationship_brief\",\"search_emails\"]",
+            "forbiddenRecommendedTools_json": "[\"research_external_company\",\"research_federal_market_strategy\",\"search_public_web\",\"search_lda_filings\",\"search_sec_filings\",\"search_federal_awards\",\"search_federal_grants\",\"search_program_elements\"]"
+          },
+          "assert": [
+            {
+              "type": "python",
+              "value": "file://./scorer.py",
+              "threshold": 1
+            }
+          ],
+          "options": {},
+          "metadata": {}
+        },
+        "testIdx": 19,
+        "tokenUsage": {
+          "prompt": 0,
+          "completion": 0,
+          "cached": 0,
+          "total": 0,
+          "numRequests": 1,
+          "completionDetails": {
+            "reasoning": 0,
+            "acceptedPrediction": 0,
+            "rejectedPrediction": 0,
+            "cacheReadInputTokens": 0,
+            "cacheCreationInputTokens": 0
+          },
+          "assertions": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0,
+            "completionDetails": {
+              "reasoning": 0,
+              "acceptedPrediction": 0,
+              "rejectedPrediction": 0,
+              "cacheReadInputTokens": 0,
+              "cacheCreationInputTokens": 0
+            }
+          }
+        },
+        "vars": {
+          "caseId": "plan/c2-strategies-mail-history",
+          "request": "tell me my email history with c2 strategies",
+          "expectedRecipeTool": "query_relationship_brief",
+          "expectedSubjectScope": "external_entity",
+          "expectedTargetHint": "c2 strategies",
+          "expectedRequiredDomains_json": "[\"mail\"]",
+          "expectedRecommendedTools_json": "[\"query_relationship_brief\",\"search_emails\"]",
+          "forbiddenRecommendedTools_json": "[\"research_external_company\",\"research_federal_market_strategy\",\"search_public_web\",\"search_lda_filings\",\"search_sec_filings\",\"search_federal_awards\",\"search_federal_grants\",\"search_program_elements\"]"
+        },
+        "metadata": {
+          "measurement": {
+            "status": "complete",
+            "durationMs": 5
+          },
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 0
+      },
+      {
+        "cost": 0,
+        "gradingResult": {
+          "pass": true,
+          "score": 1,
+          "reason": "All assertions passed",
+          "namedScores": {},
+          "tokensUsed": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0
+          },
+          "componentResults": [
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "PASS: Planner output matches all expected fields",
+              "assertion": {
+                "type": "python",
+                "value": "file://./scorer.py",
+                "threshold": 1
+              }
+            }
+          ]
+        },
+        "id": "250c3145-1775-4054-b95b-51eaf4701800",
+        "latencyMs": 802,
+        "namedScores": {},
+        "prompt": {
+          "raw": "plan/kindetic-industries-research",
+          "label": "{{caseId}}",
+          "config": {}
+        },
+        "promptId": "f0da76d10ed092c8a8e21f26129c0fb440f6c949a994307347b9ec50cdc85d6a",
+        "promptIdx": 0,
+        "provider": {
+          "id": "meri-offline-runner",
+          "label": "meri-offline-runner"
+        },
+        "response": {
+          "output": "{\"schemaVersion\":1,\"datasetVersion\":\"meri-offline-v1\",\"caseId\":\"plan/kindetic-industries-research\",\"measurement\":{\"status\":\"complete\",\"durationMs\":4},\"result\":null,\"answer\":null,\"sources\":null,\"requiredSourceIds\":null,\"expect\":null,\"plan\":{\"version\":1,\"queryClass\":\"exhaustive_search\",\"subjectScope\":\"external_entity\",\"targetHint\":\"kindeticindustries.inc\",\"recipeTool\":\"research_federal_market_strategy\",\"requireCompleteCoverage\":true,\"requiredDomains\":[\"identity\",\"public_web\",\"registries\",\"awards\",\"opportunities\",\"grants\",\"budget\",\"intelligence\",\"directory\"],\"optionalDomains\":[\"internal_research\",\"memory\",\"legislation\",\"hearings\"],\"recommendedTools\":[\"research_federal_market_strategy\",\"research_external_company\",\"resolve_entity\",\"search_public_web\",\"scrape_web_page\",\"search_lda_filings\",\"search_sec_filings\",\"search_federal_awards\",\"search_sam_opportunities\",\"search_federal_grants\",\"search_program_elements\",\"get_program_element\",\"get_pe_budget_timeline\",\"get_pe_report_language\",\"get_pe_contractors\",\"get_pe_bills\",\"search_acquisition_personnel\",\"search_intel_articles\",\"search_gao_reports\",\"search_crs_reports\",\"search_committee_hearings\",\"search_research_sources\",\"search_memory\"],\"timeWindow\":null,\"activeClients\":[{\"name\":\"Arbor Sensors\",\"status\":\"active\",\"id\":\"Arbor Sensors\"},{\"name\":\"Sable Maritime\",\"status\":\"active\",\"id\":\"Sable Maritime\"}],\"reasons\":[\"exhaustive_language\",\"external_discovery\",\"named_target\",\"explicit_named_subject\",\"complete_coverage_required\",\"recipe:research_federal_market_strategy\",\"research-director-required\",\"coverage-required\"]},\"turns\":null,\"grade\":null,\"provenance\":{\"gitSha\":\"6c816139e1002d99f652e6a26177fd43ac8febcd\",\"fixtureVersion\":\"2026-09-06.1\",\"model\":\"none\",\"inputSha256\":{\"config\":\"b2000ece2d0801a49538e7e5649fb1324e398cd00ce45b988c525bc37f0852b9\",\"scorer\":\"0813d0356df6837a8946b46134251f6d93f0a59b84a11138760471199c7bbc55\",\"provider\":\"b7eaa13d23949664593a62e9ad690d7f9fa7d388e727ad63ac2d249869328b1d\",\"runner\":\"53f1d9c847b65359e89d8408743f4abaff288de3aae3b79808db13870cd9b65d\",\"ga_fixture\":\"f3474d7d9ee178e224d2b130e32643bec09af5ae0804e808149ed7e08442e770\"}}}",
+          "metadata": {
+            "measurement": {
+              "status": "complete",
+              "durationMs": 4
+            }
+          }
+        },
+        "score": 1,
+        "success": true,
+        "testCase": {
+          "description": "plan/kindetic-industries-research: comprehensive federal market research",
+          "vars": {
+            "caseId": "plan/kindetic-industries-research",
+            "request": "Give me a comprehensive strategy on kindeticindustries.inc",
+            "expectedRecipeTool": "research_federal_market_strategy",
+            "expectedSubjectScope": "external_entity",
+            "expectedTargetHint": "kindeticindustries.inc",
+            "expectedRequiredDomains_json": "[\"public_web\",\"awards\",\"budget\"]",
+            "expectedRecommendedTools_json": "[\"research_federal_market_strategy\"]"
+          },
+          "assert": [
+            {
+              "type": "python",
+              "value": "file://./scorer.py",
+              "threshold": 1
+            }
+          ],
+          "options": {},
+          "metadata": {}
+        },
+        "testIdx": 20,
+        "tokenUsage": {
+          "prompt": 0,
+          "completion": 0,
+          "cached": 0,
+          "total": 0,
+          "numRequests": 1,
+          "completionDetails": {
+            "reasoning": 0,
+            "acceptedPrediction": 0,
+            "rejectedPrediction": 0,
+            "cacheReadInputTokens": 0,
+            "cacheCreationInputTokens": 0
+          },
+          "assertions": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0,
+            "completionDetails": {
+              "reasoning": 0,
+              "acceptedPrediction": 0,
+              "rejectedPrediction": 0,
+              "cacheReadInputTokens": 0,
+              "cacheCreationInputTokens": 0
+            }
+          }
+        },
+        "vars": {
+          "caseId": "plan/kindetic-industries-research",
+          "request": "Give me a comprehensive strategy on kindeticindustries.inc",
+          "expectedRecipeTool": "research_federal_market_strategy",
+          "expectedSubjectScope": "external_entity",
+          "expectedTargetHint": "kindeticindustries.inc",
+          "expectedRequiredDomains_json": "[\"public_web\",\"awards\",\"budget\"]",
+          "expectedRecommendedTools_json": "[\"research_federal_market_strategy\"]"
+        },
+        "metadata": {
+          "measurement": {
+            "status": "complete",
+            "durationMs": 4
+          },
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 0
+      },
+      {
+        "cost": 0,
+        "gradingResult": {
+          "pass": true,
+          "score": 1,
+          "reason": "All assertions passed",
+          "namedScores": {},
+          "tokensUsed": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0
+          },
+          "componentResults": [
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "PASS: Planner output matches all expected fields",
+              "assertion": {
+                "type": "python",
+                "value": "file://./scorer.py",
+                "threshold": 1
+              }
+            }
+          ]
+        },
+        "id": "eb2de107-4264-4d48-af37-2b2889ad9f57",
+        "latencyMs": 791,
+        "namedScores": {},
+        "prompt": {
+          "raw": "plan/selected-client-priorities",
+          "label": "{{caseId}}",
+          "config": {}
+        },
+        "promptId": "f0da76d10ed092c8a8e21f26129c0fb440f6c949a994307347b9ec50cdc85d6a",
+        "promptIdx": 0,
+        "provider": {
+          "id": "meri-offline-runner",
+          "label": "meri-offline-runner"
+        },
+        "response": {
+          "output": "{\"schemaVersion\":1,\"datasetVersion\":\"meri-offline-v1\",\"caseId\":\"plan/selected-client-priorities\",\"measurement\":{\"status\":\"complete\",\"durationMs\":3},\"result\":null,\"answer\":null,\"sources\":null,\"requiredSourceIds\":null,\"expect\":null,\"plan\":{\"version\":1,\"queryClass\":\"temporal_state\",\"subjectScope\":\"client\",\"targetHint\":null,\"recipeTool\":null,\"requireCompleteCoverage\":false,\"requiredDomains\":[],\"optionalDomains\":[],\"recommendedTools\":[],\"timeWindow\":null,\"activeClients\":[{\"name\":\"Arbor Sensors\",\"status\":\"active\",\"id\":\"Arbor Sensors\"},{\"name\":\"Sable Maritime\",\"status\":\"active\",\"id\":\"Sable Maritime\"}],\"reasons\":[\"focused_client_context_relevant\"]},\"turns\":null,\"grade\":null,\"provenance\":{\"gitSha\":\"6c816139e1002d99f652e6a26177fd43ac8febcd\",\"fixtureVersion\":\"2026-09-06.1\",\"model\":\"none\",\"inputSha256\":{\"config\":\"b2000ece2d0801a49538e7e5649fb1324e398cd00ce45b988c525bc37f0852b9\",\"scorer\":\"0813d0356df6837a8946b46134251f6d93f0a59b84a11138760471199c7bbc55\",\"provider\":\"b7eaa13d23949664593a62e9ad690d7f9fa7d388e727ad63ac2d249869328b1d\",\"runner\":\"53f1d9c847b65359e89d8408743f4abaff288de3aae3b79808db13870cd9b65d\",\"ga_fixture\":\"f3474d7d9ee178e224d2b130e32643bec09af5ae0804e808149ed7e08442e770\"}}}",
+          "metadata": {
+            "measurement": {
+              "status": "complete",
+              "durationMs": 3
+            }
+          }
+        },
+        "score": 1,
+        "success": true,
+        "testCase": {
+          "description": "plan/selected-client-priorities: ordinary selected client lookup",
+          "vars": {
+            "caseId": "plan/selected-client-priorities",
+            "request": "What are this client's current priorities?",
+            "selectedClientId": "eval-client-uuid-001",
+            "expectedSubjectScope": "client",
+            "expectedRecipeTool": "__none__",
+            "expectedTargetHint": "__none__",
+            "forbiddenRecommendedTools_json": "[\"research_external_company\",\"research_federal_market_strategy\"]"
+          },
+          "assert": [
+            {
+              "type": "python",
+              "value": "file://./scorer.py",
+              "threshold": 1
+            }
+          ],
+          "options": {},
+          "metadata": {}
+        },
+        "testIdx": 21,
+        "tokenUsage": {
+          "prompt": 0,
+          "completion": 0,
+          "cached": 0,
+          "total": 0,
+          "numRequests": 1,
+          "completionDetails": {
+            "reasoning": 0,
+            "acceptedPrediction": 0,
+            "rejectedPrediction": 0,
+            "cacheReadInputTokens": 0,
+            "cacheCreationInputTokens": 0
+          },
+          "assertions": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0,
+            "completionDetails": {
+              "reasoning": 0,
+              "acceptedPrediction": 0,
+              "rejectedPrediction": 0,
+              "cacheReadInputTokens": 0,
+              "cacheCreationInputTokens": 0
+            }
+          }
+        },
+        "vars": {
+          "caseId": "plan/selected-client-priorities",
+          "request": "What are this client's current priorities?",
+          "selectedClientId": "eval-client-uuid-001",
+          "expectedSubjectScope": "client",
+          "expectedRecipeTool": "__none__",
+          "expectedTargetHint": "__none__",
+          "forbiddenRecommendedTools_json": "[\"research_external_company\",\"research_federal_market_strategy\"]"
+        },
+        "metadata": {
+          "measurement": {
+            "status": "complete",
+            "durationMs": 3
+          },
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 0
+      },
+      {
+        "cost": 0,
+        "gradingResult": {
+          "pass": true,
+          "score": 1,
+          "reason": "All assertions passed",
+          "namedScores": {},
+          "tokensUsed": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0
+          },
+          "componentResults": [
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "PASS: Sequence turns produce expected behavior",
+              "assertion": {
+                "type": "python",
+                "value": "file://./scorer.py",
+                "threshold": 1
+              }
+            }
+          ]
+        },
+        "id": "76bd7e09-2614-4be8-b9b8-b04ea11a3b86",
+        "latencyMs": 754,
+        "namedScores": {},
+        "prompt": {
+          "raw": "sequence/portfolio-overlap-with-target",
+          "label": "{{caseId}}",
+          "config": {}
+        },
+        "promptId": "f0da76d10ed092c8a8e21f26129c0fb440f6c949a994307347b9ec50cdc85d6a",
+        "promptIdx": 0,
+        "provider": {
+          "id": "meri-offline-runner",
+          "label": "meri-offline-runner"
+        },
+        "response": {
+          "output": "{\"schemaVersion\":1,\"datasetVersion\":\"meri-offline-v1\",\"caseId\":\"sequence/portfolio-overlap-with-target\",\"measurement\":{\"status\":\"complete\",\"durationMs\":5},\"result\":null,\"answer\":null,\"sources\":null,\"requiredSourceIds\":null,\"expect\":null,\"plan\":{\"version\":1,\"queryClass\":\"portfolio_scan\",\"subjectScope\":\"portfolio\",\"targetHint\":\"Kinetic Industries Inc\",\"recipeTool\":\"query_portfolio_overlap\",\"requireCompleteCoverage\":true,\"requiredDomains\":[\"identity\",\"clients\",\"internal_research\"],\"optionalDomains\":[\"public_web\",\"awards\",\"opportunities\",\"budget\",\"memory\"],\"recommendedTools\":[\"query_portfolio_overlap\",\"research_external_company\",\"get_client_context\",\"get_opportunity_client_context\"],\"timeWindow\":null,\"activeClients\":[{\"name\":\"Arbor Sensors\",\"status\":\"active\",\"id\":\"Arbor Sensors\"},{\"name\":\"Sable Maritime\",\"status\":\"active\",\"id\":\"Sable Maritime\"}],\"reasons\":[\"explicit_portfolio_scope\",\"complete_coverage_required\",\"recipe:query_portfolio_overlap\",\"target-from-conversation-history\",\"coverage-required\"]},\"turns\":[{\"version\":1,\"queryClass\":\"lookup\",\"subjectScope\":\"external_entity\",\"targetHint\":\"Kinetic Industries Inc\",\"recipeTool\":\"research_external_company\",\"requireCompleteCoverage\":false,\"requiredDomains\":[\"public_web\"],\"optionalDomains\":[\"clients\",\"internal_research\"],\"recommendedTools\":[\"research_external_company\",\"lookup_client_registry\",\"search_research_sources\",\"search_public_web\",\"scrape_web_page\"],\"timeWindow\":null,\"activeClients\":[{\"name\":\"Arbor Sensors\",\"status\":\"active\",\"id\":\"Arbor Sensors\"},{\"name\":\"Sable Maritime\",\"status\":\"active\",\"id\":\"Sable Maritime\"}],\"reasons\":[\"named_target\",\"explicit_named_subject\",\"recipe:research_external_company\",\"quick-company-profile\"]},{\"version\":1,\"queryClass\":\"portfolio_scan\",\"subjectScope\":\"portfolio\",\"targetHint\":\"Kinetic Industries Inc\",\"recipeTool\":\"query_portfolio_overlap\",\"requireCompleteCoverage\":true,\"requiredDomains\":[\"identity\",\"clients\",\"internal_research\"],\"optionalDomains\":[\"public_web\",\"awards\",\"opportunities\",\"budget\",\"memory\"],\"recommendedTools\":[\"query_portfolio_overlap\",\"research_external_company\",\"get_client_context\",\"get_opportunity_client_context\"],\"timeWindow\":null,\"activeClients\":[{\"name\":\"Arbor Sensors\",\"status\":\"active\",\"id\":\"Arbor Sensors\"},{\"name\":\"Sable Maritime\",\"status\":\"active\",\"id\":\"Sable Maritime\"}],\"reasons\":[\"explicit_portfolio_scope\",\"complete_coverage_required\",\"recipe:query_portfolio_overlap\",\"target-from-conversation-history\",\"coverage-required\"]}],\"grade\":null,\"provenance\":{\"gitSha\":\"6c816139e1002d99f652e6a26177fd43ac8febcd\",\"fixtureVersion\":\"2026-09-06.1\",\"model\":\"none\",\"inputSha256\":{\"config\":\"b2000ece2d0801a49538e7e5649fb1324e398cd00ce45b988c525bc37f0852b9\",\"scorer\":\"0813d0356df6837a8946b46134251f6d93f0a59b84a11138760471199c7bbc55\",\"provider\":\"b7eaa13d23949664593a62e9ad690d7f9fa7d388e727ad63ac2d249869328b1d\",\"runner\":\"53f1d9c847b65359e89d8408743f4abaff288de3aae3b79808db13870cd9b65d\",\"ga_fixture\":\"f3474d7d9ee178e224d2b130e32643bec09af5ae0804e808149ed7e08442e770\"}}}",
+          "metadata": {
+            "measurement": {
+              "status": "complete",
+              "durationMs": 5
+            }
+          }
+        },
+        "score": 1,
+        "success": true,
+        "testCase": {
+          "description": "sequence/portfolio-overlap-with-target: prior entity carried into portfolio overlap",
+          "vars": {
+            "caseId": "sequence/portfolio-overlap-with-target",
+            "firstRequest": "Tell me about Kinetic Industries Inc.",
+            "request": "Search across clients",
+            "selectedClientId": "eval-client-uuid-001",
+            "expectedFirstTargetHint": "Kinetic Industries Inc",
+            "expectedSecondTargetHint": "Kinetic Industries Inc",
+            "expectedSecondRecipeTool": "query_portfolio_overlap",
+            "expectedSecondSubjectScope": "portfolio"
+          },
+          "assert": [
+            {
+              "type": "python",
+              "value": "file://./scorer.py",
+              "threshold": 1
+            }
+          ],
+          "options": {},
+          "metadata": {}
+        },
+        "testIdx": 22,
+        "tokenUsage": {
+          "prompt": 0,
+          "completion": 0,
+          "cached": 0,
+          "total": 0,
+          "numRequests": 1,
+          "completionDetails": {
+            "reasoning": 0,
+            "acceptedPrediction": 0,
+            "rejectedPrediction": 0,
+            "cacheReadInputTokens": 0,
+            "cacheCreationInputTokens": 0
+          },
+          "assertions": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0,
+            "completionDetails": {
+              "reasoning": 0,
+              "acceptedPrediction": 0,
+              "rejectedPrediction": 0,
+              "cacheReadInputTokens": 0,
+              "cacheCreationInputTokens": 0
+            }
+          }
+        },
+        "vars": {
+          "caseId": "sequence/portfolio-overlap-with-target",
+          "firstRequest": "Tell me about Kinetic Industries Inc.",
+          "request": "Search across clients",
+          "selectedClientId": "eval-client-uuid-001",
+          "expectedFirstTargetHint": "Kinetic Industries Inc",
+          "expectedSecondTargetHint": "Kinetic Industries Inc",
+          "expectedSecondRecipeTool": "query_portfolio_overlap",
+          "expectedSecondSubjectScope": "portfolio"
+        },
+        "metadata": {
+          "measurement": {
+            "status": "complete",
+            "durationMs": 5
+          },
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 0
+      },
+      {
+        "cost": 0,
+        "gradingResult": {
+          "pass": true,
+          "score": 1,
+          "reason": "All assertions passed",
+          "namedScores": {},
+          "tokensUsed": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0
+          },
+          "componentResults": [
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "PASS: Sequence turns produce expected behavior",
+              "assertion": {
+                "type": "python",
+                "value": "file://./scorer.py",
+                "threshold": 1
+              }
+            }
+          ]
+        },
+        "id": "f581c518-fb32-49e1-ac71-c803fe4bd708",
+        "latencyMs": 921,
+        "namedScores": {},
+        "prompt": {
+          "raw": "sequence/cleared-prior-target",
+          "label": "{{caseId}}",
+          "config": {}
+        },
+        "promptId": "f0da76d10ed092c8a8e21f26129c0fb440f6c949a994307347b9ec50cdc85d6a",
+        "promptIdx": 0,
+        "provider": {
+          "id": "meri-offline-runner",
+          "label": "meri-offline-runner"
+        },
+        "response": {
+          "output": "{\"schemaVersion\":1,\"datasetVersion\":\"meri-offline-v1\",\"caseId\":\"sequence/cleared-prior-target\",\"measurement\":{\"status\":\"complete\",\"durationMs\":5},\"result\":null,\"answer\":null,\"sources\":null,\"requiredSourceIds\":null,\"expect\":null,\"plan\":{\"version\":1,\"queryClass\":\"temporal_state\",\"subjectScope\":\"client\",\"targetHint\":null,\"recipeTool\":null,\"requireCompleteCoverage\":false,\"requiredDomains\":[],\"optionalDomains\":[],\"recommendedTools\":[],\"timeWindow\":null,\"activeClients\":[{\"name\":\"Arbor Sensors\",\"status\":\"active\",\"id\":\"Arbor Sensors\"},{\"name\":\"Sable Maritime\",\"status\":\"active\",\"id\":\"Sable Maritime\"}],\"reasons\":[\"focused_client_context_relevant\"]},\"turns\":[{\"version\":1,\"queryClass\":\"lookup\",\"subjectScope\":\"external_entity\",\"targetHint\":\"Overland AI\",\"recipeTool\":\"research_external_company\",\"requireCompleteCoverage\":false,\"requiredDomains\":[\"public_web\"],\"optionalDomains\":[\"clients\",\"internal_research\"],\"recommendedTools\":[\"research_external_company\",\"lookup_client_registry\",\"search_research_sources\",\"search_public_web\",\"scrape_web_page\"],\"timeWindow\":null,\"activeClients\":[{\"name\":\"Arbor Sensors\",\"status\":\"active\",\"id\":\"Arbor Sensors\"},{\"name\":\"Sable Maritime\",\"status\":\"active\",\"id\":\"Sable Maritime\"}],\"reasons\":[\"named_target\",\"explicit_named_subject\",\"recipe:research_external_company\",\"quick-company-profile\"]},{\"version\":1,\"queryClass\":\"temporal_state\",\"subjectScope\":\"client\",\"targetHint\":null,\"recipeTool\":null,\"requireCompleteCoverage\":false,\"requiredDomains\":[],\"optionalDomains\":[],\"recommendedTools\":[],\"timeWindow\":null,\"activeClients\":[{\"name\":\"Arbor Sensors\",\"status\":\"active\",\"id\":\"Arbor Sensors\"},{\"name\":\"Sable Maritime\",\"status\":\"active\",\"id\":\"Sable Maritime\"}],\"reasons\":[\"focused_client_context_relevant\"]}],\"grade\":null,\"provenance\":{\"gitSha\":\"6c816139e1002d99f652e6a26177fd43ac8febcd\",\"fixtureVersion\":\"2026-09-06.1\",\"model\":\"none\",\"inputSha256\":{\"config\":\"b2000ece2d0801a49538e7e5649fb1324e398cd00ce45b988c525bc37f0852b9\",\"scorer\":\"0813d0356df6837a8946b46134251f6d93f0a59b84a11138760471199c7bbc55\",\"provider\":\"b7eaa13d23949664593a62e9ad690d7f9fa7d388e727ad63ac2d249869328b1d\",\"runner\":\"53f1d9c847b65359e89d8408743f4abaff288de3aae3b79808db13870cd9b65d\",\"ga_fixture\":\"f3474d7d9ee178e224d2b130e32643bec09af5ae0804e808149ed7e08442e770\"}}}",
+          "metadata": {
+            "measurement": {
+              "status": "complete",
+              "durationMs": 5
+            }
+          }
+        },
+        "score": 1,
+        "success": true,
+        "testCase": {
+          "description": "sequence/cleared-prior-target: prior entity cleared for unrelated client follow-up",
+          "vars": {
+            "caseId": "sequence/cleared-prior-target",
+            "firstRequest": "Tell me about Overland AI.",
+            "request": "What are this client's current priorities?",
+            "selectedClientId": "eval-client-uuid-001",
+            "expectedFirstTargetHint": "Overland AI",
+            "expectedSecondTargetHint": "__none__",
+            "expectedSecondRecipeTool": "__none__",
+            "expectedSecondSubjectScope": "client"
+          },
+          "assert": [
+            {
+              "type": "python",
+              "value": "file://./scorer.py",
+              "threshold": 1
+            }
+          ],
+          "options": {},
+          "metadata": {}
+        },
+        "testIdx": 23,
+        "tokenUsage": {
+          "prompt": 0,
+          "completion": 0,
+          "cached": 0,
+          "total": 0,
+          "numRequests": 1,
+          "completionDetails": {
+            "reasoning": 0,
+            "acceptedPrediction": 0,
+            "rejectedPrediction": 0,
+            "cacheReadInputTokens": 0,
+            "cacheCreationInputTokens": 0
+          },
+          "assertions": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0,
+            "completionDetails": {
+              "reasoning": 0,
+              "acceptedPrediction": 0,
+              "rejectedPrediction": 0,
+              "cacheReadInputTokens": 0,
+              "cacheCreationInputTokens": 0
+            }
+          }
+        },
+        "vars": {
+          "caseId": "sequence/cleared-prior-target",
+          "firstRequest": "Tell me about Overland AI.",
+          "request": "What are this client's current priorities?",
+          "selectedClientId": "eval-client-uuid-001",
+          "expectedFirstTargetHint": "Overland AI",
+          "expectedSecondTargetHint": "__none__",
+          "expectedSecondRecipeTool": "__none__",
+          "expectedSecondSubjectScope": "client"
+        },
+        "metadata": {
+          "measurement": {
+            "status": "complete",
+            "durationMs": 5
+          },
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 0
+      },
+      {
+        "cost": 0,
+        "gradingResult": {
+          "pass": true,
+          "score": 1,
+          "reason": "All assertions passed",
+          "namedScores": {},
+          "tokensUsed": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0
+          },
+          "componentResults": [
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "PASS: GA grader correctly rejected bad citation",
+              "assertion": {
+                "type": "python",
+                "value": "file://./scorer.py",
+                "threshold": 1
+              }
+            }
+          ]
+        },
+        "id": "5373c11f-0225-4955-a1b6-c2138c3e3b44",
+        "latencyMs": 697,
+        "namedScores": {},
+        "prompt": {
+          "raw": "calibration/bad-citation",
+          "label": "{{caseId}}",
+          "config": {}
+        },
+        "promptId": "f0da76d10ed092c8a8e21f26129c0fb440f6c949a994307347b9ec50cdc85d6a",
+        "promptIdx": 0,
+        "provider": {
+          "id": "meri-offline-runner",
+          "label": "meri-offline-runner"
+        },
+        "response": {
+          "output": "{\"schemaVersion\":1,\"datasetVersion\":\"meri-offline-v1\",\"caseId\":\"calibration/bad-citation\",\"measurement\":{\"status\":\"complete\",\"durationMs\":0},\"result\":null,\"answer\":\"Recommend a technical follow-up, not a spending commitment. Arbor’s marine sensors fit strategy AS-7, but its earlier attachment permits spending commitments only against enacted funding; WA-07/OR-01 footprint supports a proposed local-impact case, with the third facility unverified. [1] Observed 2026-09-06, FY2027 PE 0609001N / DEM-1, page 42, in thousands: request 12,000 versus House appropriations committee 9,000 is a $3 million reduction, or 25%. Neither is enacted; authorization and the FY2026 award are separate. [2] Inference: the reduction creates demonstration risk; seeking restoration or a smaller demonstration are alternatives, not approved strategies. The government affairs director should propose a one-page technical brief to committee staff. No deadline is verified. Retrieve enacted status and the missing facility before finalizing the case. [1][2] [999]\",\"sources\":[{\"id\":1,\"title\":\"Synthetic Arbor Sensors profile / strategy AS-7; observed 2026-09-06\",\"text\":\"Record client:arbor, sections capabilities/facilities/constraints; source eval://client/arbor. Arbor Sensors is a for-profit small business. Capability: marine acoustic sensors. Headquarters: WA-07; plant: OR-01. Facilities coverage: 2 of 3 returned; third facility unavailable, location unknown. Strategy AS-7 approved 2026-09-01: pursue a Navy demonstration in FY2027; preserve a credible technical ask without representing proposed funding as enacted. Finance has not approved matching cash. Strategy owner: government affairs director. Earlier attachment AS-brief section 4 requires limiting any spending commitment to enacted funding. These are synthetic fixtures, not real client facts.\"},{\"id\":2,\"title\":\"Synthetic FY2027 Navy budget table / PE 0609001N, project DEM-1, page 42\",\"text\":\"Source eval://budget/fy2027/page/42, observed 2026-09-06. Units: thousands of dollars. FY2027 request: 12,000; House appropriations committee recommendation: 9,000. Same PE 0609001N, project DEM-1 and scope. Delta is -3,000 thousand dollars (-$3 million, -25%). Neither stage is enacted. Separate authorization proposal mentions $14 million; it is not an appropriation. FY2026 award AW-8 for $200,000 is historical, not new FY2027 funds. No final enacted amount in the supplied records. Committee staff accepts technical follow-up; no submission deadline verified.\"}],\"requiredSourceIds\":[1,2],\"expect\":{\"mustInclude\":[\"0609001N\",\"DEM-1\",\"2027\",\"25%\"],\"mustNotInclude\":[\"funding is secured\",\"the enacted amount is $9 million\"],\"mustCite\":true},\"plan\":null,\"turns\":null,\"grade\":{\"pass\":false,\"failures\":[\"citation [999] has no supplied source\"]},\"provenance\":{\"gitSha\":\"6c816139e1002d99f652e6a26177fd43ac8febcd\",\"fixtureVersion\":\"2026-09-06.1\",\"model\":\"none\",\"inputSha256\":{\"config\":\"b2000ece2d0801a49538e7e5649fb1324e398cd00ce45b988c525bc37f0852b9\",\"scorer\":\"0813d0356df6837a8946b46134251f6d93f0a59b84a11138760471199c7bbc55\",\"provider\":\"b7eaa13d23949664593a62e9ad690d7f9fa7d388e727ad63ac2d249869328b1d\",\"runner\":\"53f1d9c847b65359e89d8408743f4abaff288de3aae3b79808db13870cd9b65d\",\"ga_fixture\":\"f3474d7d9ee178e224d2b130e32643bec09af5ae0804e808149ed7e08442e770\"}}}",
+          "metadata": {
+            "measurement": {
+              "status": "complete",
+              "durationMs": 0
+            }
+          }
+        },
+        "score": 1,
+        "success": true,
+        "testCase": {
+          "description": "calibration/bad-citation: GA grader must reject fabricated citation [999]",
+          "vars": {
+            "caseId": "calibration/bad-citation"
+          },
+          "assert": [
+            {
+              "type": "python",
+              "value": "file://./scorer.py",
+              "threshold": 1
+            }
+          ],
+          "options": {},
+          "metadata": {}
+        },
+        "testIdx": 24,
+        "tokenUsage": {
+          "prompt": 0,
+          "completion": 0,
+          "cached": 0,
+          "total": 0,
+          "numRequests": 1,
+          "completionDetails": {
+            "reasoning": 0,
+            "acceptedPrediction": 0,
+            "rejectedPrediction": 0,
+            "cacheReadInputTokens": 0,
+            "cacheCreationInputTokens": 0
+          },
+          "assertions": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0,
+            "completionDetails": {
+              "reasoning": 0,
+              "acceptedPrediction": 0,
+              "rejectedPrediction": 0,
+              "cacheReadInputTokens": 0,
+              "cacheCreationInputTokens": 0
+            }
+          }
+        },
+        "vars": {
+          "caseId": "calibration/bad-citation"
+        },
+        "metadata": {
+          "measurement": {
+            "status": "complete",
+            "durationMs": 0
+          },
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 0
+      },
+      {
+        "cost": 0,
+        "gradingResult": {
+          "pass": true,
+          "score": 1,
+          "reason": "All assertions passed",
+          "namedScores": {},
+          "tokensUsed": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0
+          },
+          "componentResults": [
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "PASS: Mechanism correctly rejected tenant leak",
+              "assertion": {
+                "type": "python",
+                "value": "file://./scorer.py",
+                "threshold": 1
+              }
+            }
+          ]
+        },
+        "id": "cf25cc0c-007f-4ea2-a315-b330c7cbe776",
+        "latencyMs": 662,
+        "namedScores": {},
+        "prompt": {
+          "raw": "calibration/tenant-leak",
+          "label": "{{caseId}}",
+          "config": {}
+        },
+        "promptId": "f0da76d10ed092c8a8e21f26129c0fb440f6c949a994307347b9ec50cdc85d6a",
+        "promptIdx": 0,
+        "provider": {
+          "id": "meri-offline-runner",
+          "label": "meri-offline-runner"
+        },
+        "response": {
+          "output": "{\"schemaVersion\":1,\"datasetVersion\":\"meri-offline-v1\",\"caseId\":\"calibration/tenant-leak\",\"measurement\":{\"status\":\"fail\",\"durationMs\":1},\"result\":{\"pass\":false,\"detail\":\"LEAK across matrix: [tenant-a←tenant-b:b-secret-1, tenant-a←tenant-c:c-secret-1, tenant-a←tenant-c:c-secret-2, tenant-a←tenant-c:c-secret-3, tenant-b←tenant-a:a-secret-1, tenant-b←tenant-a:a-secret-2, tenant-b←tenant-c:c-secret-1, tenant-b←tenant-c:c-secret-2, tenant-b←tenant-c:c-secret-3, tenant-c←tenant-a:a-secret-1, tenant-c←tenant-a:a-secret-2, tenant-c←tenant-b:b-secret-1]\",\"results\":null},\"answer\":null,\"sources\":null,\"requiredSourceIds\":null,\"expect\":null,\"plan\":null,\"turns\":null,\"grade\":null,\"provenance\":{\"gitSha\":\"6c816139e1002d99f652e6a26177fd43ac8febcd\",\"fixtureVersion\":\"2026-09-06.1\",\"model\":\"none\",\"inputSha256\":{\"config\":\"b2000ece2d0801a49538e7e5649fb1324e398cd00ce45b988c525bc37f0852b9\",\"scorer\":\"0813d0356df6837a8946b46134251f6d93f0a59b84a11138760471199c7bbc55\",\"provider\":\"b7eaa13d23949664593a62e9ad690d7f9fa7d388e727ad63ac2d249869328b1d\",\"runner\":\"53f1d9c847b65359e89d8408743f4abaff288de3aae3b79808db13870cd9b65d\",\"ga_fixture\":\"f3474d7d9ee178e224d2b130e32643bec09af5ae0804e808149ed7e08442e770\"}}}",
+          "metadata": {
+            "measurement": {
+              "status": "fail",
+              "durationMs": 1
+            }
+          }
+        },
+        "score": 1,
+        "success": true,
+        "testCase": {
+          "description": "calibration/tenant-leak: mechanism must reject cross-tenant leak when seeded",
+          "vars": {
+            "caseId": "calibration/tenant-leak"
+          },
+          "assert": [
+            {
+              "type": "python",
+              "value": "file://./scorer.py",
+              "threshold": 1
+            }
+          ],
+          "options": {},
+          "metadata": {}
+        },
+        "testIdx": 25,
+        "tokenUsage": {
+          "prompt": 0,
+          "completion": 0,
+          "cached": 0,
+          "total": 0,
+          "numRequests": 1,
+          "completionDetails": {
+            "reasoning": 0,
+            "acceptedPrediction": 0,
+            "rejectedPrediction": 0,
+            "cacheReadInputTokens": 0,
+            "cacheCreationInputTokens": 0
+          },
+          "assertions": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0,
+            "completionDetails": {
+              "reasoning": 0,
+              "acceptedPrediction": 0,
+              "rejectedPrediction": 0,
+              "cacheReadInputTokens": 0,
+              "cacheCreationInputTokens": 0
+            }
+          }
+        },
+        "vars": {
+          "caseId": "calibration/tenant-leak"
+        },
+        "metadata": {
+          "measurement": {
+            "status": "fail",
+            "durationMs": 1
+          },
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 0
+      }
+    ],
+    "stats": {
+      "successes": 26,
+      "failures": 0,
+      "errors": 0,
+      "tokenUsage": {
+        "prompt": 0,
+        "completion": 0,
+        "cached": 0,
+        "total": 0,
+        "numRequests": 26,
+        "completionDetails": {
+          "reasoning": 0,
+          "acceptedPrediction": 0,
+          "rejectedPrediction": 0,
+          "cacheReadInputTokens": 0,
+          "cacheCreationInputTokens": 0
+        },
+        "assertions": {
+          "total": 0,
+          "prompt": 0,
+          "completion": 0,
+          "cached": 0,
+          "numRequests": 0,
+          "completionDetails": {
+            "reasoning": 0,
+            "acceptedPrediction": 0,
+            "rejectedPrediction": 0,
+            "cacheReadInputTokens": 0,
+            "cacheCreationInputTokens": 0
+          }
+        }
+      },
+      "durationMs": 21903,
+      "evaluationDurationMs": 21903
+    }
+  },
+  "config": {
+    "tags": {},
+    "description": "Meri offline regression evaluation suite (meri-offline-v1)",
+    "prompts": [
+      "{{caseId}}"
+    ],
+    "providers": [
+      {
+        "id": "file://./runtime/provider.cjs",
+        "label": "meri-offline-runner"
+      }
+    ],
+    "tests": [
+      {
+        "vars": {
+          "caseId": "core/leakage.cross-tenant.matrix"
+        }
+      },
+      {
+        "vars": {
+          "caseId": "core/grounding.claim-evidence"
+        }
+      },
+      {
+        "vars": {
+          "caseId": "core/compliance.gate.enforcement"
+        }
+      },
+      {
+        "vars": {
+          "caseId": "core/entity.grounding.canonical-ids"
+        }
+      },
+      {
+        "vars": {
+          "caseId": "core/legislation.bill-status.hr8800-rule-failed"
+        }
+      },
+      {
+        "vars": {
+          "caseId": "core/legislation.state-bill-status.crossover-dead"
+        }
+      },
+      {
+        "vars": {
+          "caseId": "core/legislation.state-rule-status.no-fabrication"
+        }
+      },
+      {
+        "vars": {
+          "caseId": "core/legislation.committee-roster.never-guess"
+        }
+      },
+      {
+        "vars": {
+          "caseId": "core/legislation.multi-state-comparison.order-independent"
+        }
+      },
+      {
+        "vars": {
+          "caseId": "core/legislation.federal-state-mixed.no-cross-contamination"
+        }
+      },
+      {
+        "vars": {
+          "caseId": "core/government-affairs-assurance-ga-goldens-v1.0.0"
+        }
+      },
+      {
+        "vars": {
+          "caseId": "ga/ga-budget-stage-and-units"
+        }
+      },
+      {
+        "vars": {
+          "caseId": "ga/ga-funding-eligibility-and-forecast"
+        }
+      },
+      {
+        "vars": {
+          "caseId": "ga/ga-meeting-history-and-role"
+        }
+      },
+      {
+        "vars": {
+          "caseId": "ga/ga-hearing-statement-versus-decision"
+        }
+      },
+      {
+        "vars": {
+          "caseId": "ga/ga-legislation-current-version"
+        }
+      },
+      {
+        "vars": {
+          "caseId": "ga/ga-executive-consistent-deliverable"
+        }
+      },
+      {
+        "description": "plan/portfolio-changes: portfolio scope, change_detection, query_portfolio_changes",
+        "vars": {
+          "caseId": "plan/portfolio-changes",
+          "request": "What has changed across my portfolio this week?",
+          "expectedRecipeTool": "query_portfolio_changes",
+          "expectedSubjectScope": "portfolio",
+          "expectedWithinDays": 7,
+          "expectedActiveClientCount": 2,
+          "expectedRequiredDomains_json": "[\"clients\",\"mail\",\"tasks\",\"action_items\"]",
+          "expectedRecommendedTools_json": "[\"query_portfolio_changes\"]",
+          "forbiddenRecommendedTools_json": "[\"research_federal_market_strategy\"]"
+        }
+      },
+      {
+        "description": "plan/overland-ai-profile: bounded external company lookup",
+        "vars": {
+          "caseId": "plan/overland-ai-profile",
+          "request": "what does overland ai do",
+          "expectedRecipeTool": "research_external_company",
+          "expectedSubjectScope": "external_entity",
+          "expectedTargetHint": "overland ai",
+          "expectedRequiredDomains_json": "[\"public_web\"]",
+          "expectedRecommendedTools_json": "[\"research_external_company\"]",
+          "forbiddenRecommendedTools_json": "[\"research_federal_market_strategy\",\"search_lda_filings\",\"search_sec_filings\",\"search_federal_awards\",\"search_sam_opportunities\",\"search_federal_grants\",\"search_program_elements\",\"get_pe_budget_timeline\",\"get_pe_report_language\"]"
+        }
+      },
+      {
+        "description": "plan/c2-strategies-mail-history: mail-only required coverage",
+        "vars": {
+          "caseId": "plan/c2-strategies-mail-history",
+          "request": "tell me my email history with c2 strategies",
+          "expectedRecipeTool": "query_relationship_brief",
+          "expectedSubjectScope": "external_entity",
+          "expectedTargetHint": "c2 strategies",
+          "expectedRequiredDomains_json": "[\"mail\"]",
+          "expectedRecommendedTools_json": "[\"query_relationship_brief\",\"search_emails\"]",
+          "forbiddenRecommendedTools_json": "[\"research_external_company\",\"research_federal_market_strategy\",\"search_public_web\",\"search_lda_filings\",\"search_sec_filings\",\"search_federal_awards\",\"search_federal_grants\",\"search_program_elements\"]"
+        }
+      },
+      {
+        "description": "plan/kindetic-industries-research: comprehensive federal market research",
+        "vars": {
+          "caseId": "plan/kindetic-industries-research",
+          "request": "Give me a comprehensive strategy on kindeticindustries.inc",
+          "expectedRecipeTool": "research_federal_market_strategy",
+          "expectedSubjectScope": "external_entity",
+          "expectedTargetHint": "kindeticindustries.inc",
+          "expectedRequiredDomains_json": "[\"public_web\",\"awards\",\"budget\"]",
+          "expectedRecommendedTools_json": "[\"research_federal_market_strategy\"]"
+        }
+      },
+      {
+        "description": "plan/selected-client-priorities: ordinary selected client lookup",
+        "vars": {
+          "caseId": "plan/selected-client-priorities",
+          "request": "What are this client's current priorities?",
+          "selectedClientId": "eval-client-uuid-001",
+          "expectedSubjectScope": "client",
+          "expectedRecipeTool": "__none__",
+          "expectedTargetHint": "__none__",
+          "forbiddenRecommendedTools_json": "[\"research_external_company\",\"research_federal_market_strategy\"]"
+        }
+      },
+      {
+        "description": "sequence/portfolio-overlap-with-target: prior entity carried into portfolio overlap",
+        "vars": {
+          "caseId": "sequence/portfolio-overlap-with-target",
+          "firstRequest": "Tell me about Kinetic Industries Inc.",
+          "request": "Search across clients",
+          "selectedClientId": "eval-client-uuid-001",
+          "expectedFirstTargetHint": "Kinetic Industries Inc",
+          "expectedSecondTargetHint": "Kinetic Industries Inc",
+          "expectedSecondRecipeTool": "query_portfolio_overlap",
+          "expectedSecondSubjectScope": "portfolio"
+        }
+      },
+      {
+        "description": "sequence/cleared-prior-target: prior entity cleared for unrelated client follow-up",
+        "vars": {
+          "caseId": "sequence/cleared-prior-target",
+          "firstRequest": "Tell me about Overland AI.",
+          "request": "What are this client's current priorities?",
+          "selectedClientId": "eval-client-uuid-001",
+          "expectedFirstTargetHint": "Overland AI",
+          "expectedSecondTargetHint": "__none__",
+          "expectedSecondRecipeTool": "__none__",
+          "expectedSecondSubjectScope": "client"
+        }
+      },
+      {
+        "description": "calibration/bad-citation: GA grader must reject fabricated citation [999]",
+        "vars": {
+          "caseId": "calibration/bad-citation"
+        }
+      },
+      {
+        "description": "calibration/tenant-leak: mechanism must reject cross-tenant leak when seeded",
+        "vars": {
+          "caseId": "calibration/tenant-leak"
+        }
+      }
+    ],
+    "env": {},
+    "defaultTest": {
+      "assert": [
+        {
+          "type": "python",
+          "value": "file://./scorer.py",
+          "threshold": 1
+        }
+      ],
+      "vars": {},
+      "options": {},
+      "metadata": {}
+    },
+    "outputPath": [
+      "C:\\dev\\main\\outputs\\meri-c1-20261002\\meri-offline-final.json",
+      "C:\\dev\\main\\outputs\\meri-c1-20261002\\meri-offline-final.html",
+      "C:\\dev\\main\\outputs\\meri-c1-20261002\\meri-offline-final.junit.xml"
+    ],
+    "extensions": [],
+    "metadata": {},
+    "evaluateOptions": {}
+  },
+  "shareableUrl": null,
+  "metadata": {
+    "promptfooVersion": "0.123.1",
+    "nodeVersion": "v24.19.0",
+    "platform": "win32",
+    "arch": "x64",
+    "exportedAt": "2026-10-03T03:12:26.907Z",
+    "evaluationCreatedAt": "2026-10-03T03:12:04.987Z"
+  },
+  "vars": [
+    "caseId",
+    "request",
+    "expectedRecipeTool",
+    "expectedSubjectScope",
+    "expectedWithinDays",
+    "expectedActiveClientCount",
+    "expectedRequiredDomains_json",
+    "expectedRecommendedTools_json",
+    "forbiddenRecommendedTools_json",
+    "expectedTargetHint",
+    "selectedClientId",
+    "firstRequest",
+    "expectedFirstTargetHint",
+    "expectedSecondTargetHint",
+    "expectedSecondRecipeTool",
+    "expectedSecondSubjectScope"
+  ],
+  "runtimeOptions": {
+    "eventSource": "cli",
+    "showProgressBar": false,
+    "repeat": 1,
+    "maxConcurrency": 4,
+    "cache": false
+  }
+}

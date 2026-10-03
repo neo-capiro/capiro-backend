@@ -1,0 +1,171 @@
+{
+  "observedAt": "2026-10-03T02:54:21.843Z",
+  "window": {
+    "start": "2026-10-03T02:51:15Z",
+    "end": "2026-10-03T02:52:15Z"
+  },
+  "logs": {
+    "matches": [],
+    "hasMore": true
+  },
+  "mailSql": [
+    {
+      "id": "B213B3BD39D288EF6A7A8CFF3BEEA2C6C95827C5",
+      "tokenizedId": "F3DB732C8D316BAA1B052DEB0986280710B2CAC4",
+      "count": true,
+      "coverage": false,
+      "load": 0.16666666666666666,
+      "statementPersisted": false
+    },
+    {
+      "id": "FE9A39A0DD06C4C7CA23422A407B742233B58960",
+      "tokenizedId": "34645B677ECD90EE102ECC3986F979C3E75F8311",
+      "count": true,
+      "coverage": false,
+      "load": 0.03333333333333333,
+      "statementPersisted": false
+    }
+  ],
+  "waits": [
+    {
+      "sqlId": "B213B3BD39D288EF6A7A8CFF3BEEA2C6C95827C5",
+      "groups": [
+        {
+          "points": [
+            {
+              "Timestamp": "2026-10-02T22:51:26-04:00",
+              "Value": 1
+            },
+            {
+              "Timestamp": "2026-10-02T22:51:27-04:00",
+              "Value": 1
+            },
+            {
+              "Timestamp": "2026-10-02T22:51:28-04:00",
+              "Value": 1
+            },
+            {
+              "Timestamp": "2026-10-02T22:51:29-04:00",
+              "Value": 1
+            },
+            {
+              "Timestamp": "2026-10-02T22:51:30-04:00",
+              "Value": 1
+            },
+            {
+              "Timestamp": "2026-10-02T22:51:31-04:00",
+              "Value": 1
+            },
+            {
+              "Timestamp": "2026-10-02T22:51:32-04:00",
+              "Value": 1
+            },
+            {
+              "Timestamp": "2026-10-02T22:51:33-04:00",
+              "Value": 1
+            },
+            {
+              "Timestamp": "2026-10-02T22:51:34-04:00",
+              "Value": 1
+            },
+            {
+              "Timestamp": "2026-10-02T22:51:35-04:00",
+              "Value": 1
+            }
+          ]
+        },
+        {
+          "dimensions": {
+            "db.wait_event.name": "IO:DataFileRead",
+            "db.wait_event.type": "IO"
+          },
+          "points": [
+            {
+              "Timestamp": "2026-10-02T22:51:26-04:00",
+              "Value": 1
+            },
+            {
+              "Timestamp": "2026-10-02T22:51:27-04:00",
+              "Value": 1
+            },
+            {
+              "Timestamp": "2026-10-02T22:51:28-04:00",
+              "Value": 1
+            },
+            {
+              "Timestamp": "2026-10-02T22:51:29-04:00",
+              "Value": 1
+            },
+            {
+              "Timestamp": "2026-10-02T22:51:30-04:00",
+              "Value": 1
+            },
+            {
+              "Timestamp": "2026-10-02T22:51:31-04:00",
+              "Value": 1
+            },
+            {
+              "Timestamp": "2026-10-02T22:51:33-04:00",
+              "Value": 1
+            },
+            {
+              "Timestamp": "2026-10-02T22:51:34-04:00",
+              "Value": 1
+            },
+            {
+              "Timestamp": "2026-10-02T22:51:35-04:00",
+              "Value": 1
+            }
+          ]
+        },
+        {
+          "dimensions": {
+            "db.wait_event.name": "CPU",
+            "db.wait_event.type": "CPU"
+          },
+          "points": [
+            {
+              "Timestamp": "2026-10-02T22:51:32-04:00",
+              "Value": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "sqlId": "FE9A39A0DD06C4C7CA23422A407B742233B58960",
+      "groups": [
+        {
+          "points": [
+            {
+              "Timestamp": "2026-10-02T22:51:20-04:00",
+              "Value": 1
+            },
+            {
+              "Timestamp": "2026-10-02T22:51:21-04:00",
+              "Value": 1
+            }
+          ]
+        },
+        {
+          "dimensions": {
+            "db.wait_event.name": "IO:DataFileRead",
+            "db.wait_event.type": "IO"
+          },
+          "points": [
+            {
+              "Timestamp": "2026-10-02T22:51:20-04:00",
+              "Value": 1
+            },
+            {
+              "Timestamp": "2026-10-02T22:51:21-04:00",
+              "Value": 1
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "awsWrites": 0,
+  "rawCustomerDataPersisted": false
+}
