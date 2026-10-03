@@ -1,0 +1,49 @@
+{
+  "sourceSha": "ed44f2c6cfdfda5150f75ab198a6e52d2377880f",
+  "status": "AUTOMATED_QUALIFICATION_PASSED_HUMAN_RELEASE_REVIEW_PENDING",
+  "humanApproval": null,
+  "proposedPromotionOrder": [
+    "api",
+    "meriv2-orchestrator"
+  ],
+  "schemaChange": false,
+  "migrationExecution": "none; already-applied452 retained",
+  "images": {
+    "api": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:69c68914115f1a5bb737b7432cebb9ccc684de1236216e27abab08e342f7d352",
+    "meriv2-orchestrator": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:53b06f768d8a26a8a5c6124f0f7bb55a0e2117fde050706360c6108c98887faa"
+  },
+  "orchestratorTests": {
+    "numTotalTests": 1512,
+    "numPassedTests": 1510,
+    "numFailedTests": 0,
+    "numPendingTests": 2,
+    "numTotalTestSuites": 129,
+    "numPassedTestSuites": 129,
+    "numFailedTestSuites": 0,
+    "numPendingTestSuites": 0
+  },
+  "apiFocusedTests": {
+    "pendingProposalRead": 75,
+    "projection": 42,
+    "projectionActualPostgres": 10
+  },
+  "sharedCoreBuilds": "PASS",
+  "coreLedgerTests": 149,
+  "nativeSelectedClientRegression": {
+    "passed": 1,
+    "filtered": 121
+  },
+  "retirementCompatibility": "Current API and orchestrator import graphs build and load in native ARM64 images. No restored Hermes modules, dropped-table imports, dependency changes, model/provider/configuration changes in these two repairs.",
+  "rollback": {
+    "api": "sha256:5e52f9b06658b0462672d070928e0c2afd6ea229b61c3b887371f3f66196c316",
+    "meriv2-orchestrator": "sha256:a53bf1a432f212b8e43be903f766c52ec4a8307d5fce1cbec1bdfbf45196ddea"
+  },
+  "limitations": [
+    "Source/boundary tests are not served case02 acceptance",
+    "Existing fixture metadata requires separately verified reconciliation",
+    "Semantic clock remains open",
+    "Original PASS0/75 CD0/7 CW0/8 unchanged",
+    "No new provider calls or shared database writes"
+  ],
+  "collectionNote": "Initial Windows AWS CLI log reads failed character encoding; explicit UTF-8 output collected both complete logs without rerunning either build."
+}

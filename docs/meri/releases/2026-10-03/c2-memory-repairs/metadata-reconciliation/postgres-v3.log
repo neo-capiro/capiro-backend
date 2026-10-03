@@ -1,0 +1,32 @@
+✔ fixed budget env and file ingress work for install and canonical read (9.7955ms)
+(node:41788) [DEP0180] DeprecationWarning: fs.Stats constructor is deprecated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+[Nest] 41788  - 10/03/2026, 8:46:49 AM     LOG [MemoryCandidateService] memory_candidate 9aa6b498-ec8a-570f-8c42-3f5e10cdb602 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+{"_aws":{"Timestamp":1791031609846,"CloudWatchMetrics":[{"Namespace":"Capiro/MeriV2Control","Dimensions":[["Environment"]],"Metrics":[{"Name":"SelfReviewDenials","Unit":"Count"}]}]},"Environment":"unknown","event":"meriv2.control.metrics","SelfReviewDenials":1}
+✔ creates actual weekly-to-monthly immutable lineage through guarded canonical correction and approval (1861.275ms)
+[Nest] 41788  - 10/03/2026, 8:46:50 AM     LOG [MemoryCandidateService] memory_candidate 850a28b9-bdcb-5a40-96cd-b769f5cdc7da pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 41788  - 10/03/2026, 8:46:50 AM     LOG [MemoryCandidateService] memory_candidate 3d43ae30-39e5-52af-9da5-36061e8454e5 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 41788  - 10/03/2026, 8:46:50 AM     LOG [MemoryCandidateService] memory_candidate 26fc5af2-b2b1-5806-900f-482d0639c9ce pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 41788  - 10/03/2026, 8:46:50 AM     LOG [MemoryCandidateService] memory_candidate 9db0fcbd-883b-5f45-b89e-5ad5ea199d98 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 41788  - 10/03/2026, 8:46:50 AM     LOG [MemoryCandidateService] memory_candidate d67d510e-7ab3-5dd4-bc5c-3a59dc2fbe98 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 41788  - 10/03/2026, 8:46:50 AM     LOG [MemoryCandidateService] memory_candidate 6cb582ec-512b-532c-8516-41f825b63aff pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 41788  - 10/03/2026, 8:46:50 AM     LOG [MemoryCandidateService] memory_candidate 31eed9e9-d8a2-5658-9a91-ebe6608d53d4 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 41788  - 10/03/2026, 8:46:50 AM     LOG [MemoryCandidateService] memory_candidate 978f9fa1-edd5-5a47-b807-b83974fd6b12 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+✔ seeds all five real case01 states, requires actual previous retirement, then binds the new instance atomically (1053.4625ms)
+[Nest] 41788  - 10/03/2026, 8:46:51 AM     LOG [MemoryCandidateService] memory_candidate 1c73050c-e31f-5a94-bef9-4ab5981ca02b pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 41788  - 10/03/2026, 8:46:51 AM     LOG [MemoryCandidateService] memory_candidate 25e7b4b1-725d-5b2c-bfbb-b0bf1eafce83 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 41788  - 10/03/2026, 8:46:51 AM     LOG [MemoryCandidateService] memory_candidate d9ad66f3-0908-5597-9dae-7f16a633563c pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 41788  - 10/03/2026, 8:46:51 AM     LOG [MemoryCandidateService] memory_candidate 9514e2d5-75b1-5289-8003-9f58609c8115 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 41788  - 10/03/2026, 8:46:51 AM     LOG [MemoryCandidateService] memory_candidate f48bd08d-43fb-5fa9-8dc4-274440e53cf2 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 41788  - 10/03/2026, 8:46:51 AM     LOG [MemoryCandidateService] memory_candidate 07ef1fb9-b1e9-5d97-8561-7d650dbb76c4 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 41788  - 10/03/2026, 8:46:51 AM     LOG [MemoryCandidateService] memory_candidate f603319b-24c5-5ee6-a6cd-225d1fd9783a pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 41788  - 10/03/2026, 8:46:51 AM     LOG [MemoryCandidateService] memory_candidate 9e849d95-4dff-5eb1-a5a0-0bf4d114f4fe pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+✔ reconstructs identical canonical seed/reset/current authority after restart and rejects mutated source history (6258.2569ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9370.7516

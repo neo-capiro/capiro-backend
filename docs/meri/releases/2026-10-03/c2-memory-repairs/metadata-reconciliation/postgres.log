@@ -1,0 +1,29 @@
+2026-10-03 08:41:55.264 EDT [42820] LOG:  starting PostgreSQL 16.15, compiled by Visual C++ build 1944, 64-bit
+2026-10-03 08:41:55.265 EDT [42820] LOG:  listening on IPv4 address "127.0.0.1", port 55433
+2026-10-03 08:41:55.318 EDT [44392] LOG:  database system was shut down at 2026-10-03 08:29:28 EDT
+2026-10-03 08:41:55.353 EDT [42820] LOG:  database system is ready to accept connections
+2026-10-03 08:42:41.075 EDT [27264] ERROR:  column "ingest_run_id" of relation "memory_items" already exists
+2026-10-03 08:42:41.075 EDT [27264] STATEMENT:  ALTER TABLE memory_items ADD COLUMN review_cadence_days int,
+	    ADD COLUMN supersedes_id uuid, ADD COLUMN contradicts_id uuid, ADD COLUMN ingest_run_id uuid,
+	    ADD COLUMN ingested_at timestamptz
+2026-10-03 08:42:41.340 EDT [32196] ERROR:  column "ingest_run_id" of relation "memory_items" already exists
+2026-10-03 08:42:41.340 EDT [32196] STATEMENT:  ALTER TABLE memory_items ADD COLUMN review_cadence_days int,
+	    ADD COLUMN supersedes_id uuid, ADD COLUMN contradicts_id uuid, ADD COLUMN ingest_run_id uuid,
+	    ADD COLUMN ingested_at timestamptz
+2026-10-03 08:42:41.588 EDT [44776] ERROR:  column "ingest_run_id" of relation "memory_items" already exists
+2026-10-03 08:42:41.588 EDT [44776] STATEMENT:  ALTER TABLE memory_items ADD COLUMN review_cadence_days int,
+	    ADD COLUMN supersedes_id uuid, ADD COLUMN contradicts_id uuid, ADD COLUMN ingest_run_id uuid,
+	    ADD COLUMN ingested_at timestamptz
+2026-10-03 08:46:54.757 EDT [36568] ERROR:  controlled local audit insert failure
+2026-10-03 08:46:54.757 EDT [36568] CONTEXT:  PL/pgSQL function refuse_reconciliation_audit() line 2 at RAISE
+2026-10-03 08:46:54.757 EDT [36568] STATEMENT:  INSERT INTO audit_logs(id,tenant_id,actor_user_id,actor_role,action,entity_type,entity_id,before_jsonb,after_jsonb)
+	        VALUES($1::uuid,$2::uuid,$3::uuid,$4,'synthetic_memory_metadata_reconciled','case01_memory_corpus',$5,$6::jsonb,$7::jsonb)
+2026-10-03 08:46:55.311 EDT [19528] LOG:  checkpoint starting: time
+2026-10-03 08:47:21.281 EDT [42820] LOG:  received fast shutdown request
+2026-10-03 08:47:21.284 EDT [42820] LOG:  aborting any active transactions
+2026-10-03 08:47:21.290 EDT [42820] LOG:  background worker "logical replication launcher" (PID 2828) exited with exit code 1
+2026-10-03 08:47:21.546 EDT [19528] LOG:  checkpoint complete: wrote 385 buffers (2.3%); 0 WAL file(s) added, 1 removed, 0 recycled; write=25.981 s, sync=0.194 s, total=26.236 s; sync files=744, longest=0.002 s, average=0.001 s; distance=5671 kB, estimate=5671 kB; lsn=1/93DB320, redo lsn=1/939FB78
+2026-10-03 08:47:21.557 EDT [19528] LOG:  shutting down
+2026-10-03 08:47:21.559 EDT [19528] LOG:  checkpoint starting: shutdown immediate
+2026-10-03 08:47:21.580 EDT [19528] LOG:  checkpoint complete: wrote 5 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.003 s, sync=0.005 s, total=0.024 s; sync files=4, longest=0.002 s, average=0.002 s; distance=238 kB, estimate=5128 kB; lsn=1/93DB398, redo lsn=1/93DB398
+2026-10-03 08:47:21.595 EDT [42820] LOG:  database system is shut down

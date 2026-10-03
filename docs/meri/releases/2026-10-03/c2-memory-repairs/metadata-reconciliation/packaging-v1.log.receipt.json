@@ -1,0 +1,5 @@
+{
+  "exitCode": 1,
+  "timestamp": "2026-10-03T12:47:36.8127026Z",
+  "command": "node --test evals/meri/live-v1/tests/case01-memory-packaging.test.mjs"
+}

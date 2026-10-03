@@ -1,0 +1,615 @@
+{
+  "at": "2026-10-03T13:18:06.410Z",
+  "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/d4feef4b597f42aebf6903649f4f1fa4",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-c2-metadata-20261003:2",
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:7ec9d5b2e8e5300fed7da69bb7b210c0617655babe7ca18c97cfa789a551a738",
+  "sourceSha": "5ffe66728d36cb6daa62c09e6b7e6faaf1ecc7ea",
+  "observedDigest": "sha256:7ec9d5b2e8e5300fed7da69bb7b210c0617655babe7ca18c97cfa789a551a738",
+  "exitCode": 1,
+  "stoppedAt": "2026-10-03T09:18:04.012000-04:00",
+  "receipts": [
+    {
+      "status": "PREVIEW_FAILED",
+      "error": {
+        "name": "ForbiddenException",
+        "code": null,
+        "message": "Synthetic correction retirement evidence does not match",
+        "databaseCode": null,
+        "frames": [
+          "    at readSyntheticCorrectionRetirementInTx (/app/apps/api/src/memory/synthetic-memory-version.helpers.ts:215:11)",
+          "    at async retirementInTx (file:///app/evals/meri/live-v1/fixture-provisioning/case01-memory-runtime.mjs:412:24)",
+          "    at async Object.hydrateInTx (file:///app/evals/meri/live-v1/fixture-provisioning/case01-memory-runtime.mjs:399:20)",
+          "    at async reconstruct (file:///app/evals/meri/live-v1/fixture-provisioning/case01-memory-owner.mjs:87:3)",
+          "    at async reconcileCase01MetadataInTx (file:///app/evals/meri/live-v1/fixture-provisioning/case01-memory-reconciliation.mjs:72:19)",
+          "    at async Proxy._transactionWithCallback (/app/node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/@prisma/client/runtime/library.js:130:8000)",
+          "    at async file:///app/apps/api/[eval1]:36:15"
+        ]
+      },
+      "observations": [
+        {
+          "method": "$queryRawUnsafe",
+          "querySha256": "11a84929671e8bb012fe2815bea76618b71f16416f875d747529378a13db80b4",
+          "queryKind": "SELECT id::text,slug,settings_jsonb AS settings,xmin::text AS",
+          "rowCount": 1
+        },
+        {
+          "method": "$queryRawUnsafe",
+          "querySha256": "b2f6c30db1782bfdac1d26871e48b1cb011dad4eea6796092270d50dc016475c",
+          "queryKind": "SELECT u.email,u.first_name,u.last_name,tm.role FROM users u",
+          "rowCount": 1
+        },
+        {
+          "method": "$executeRawUnsafe",
+          "querySha256": "01cb3506d6835794bc2ceb5d9687cbcf7a8874ac606d5ea32840503b5b897a3b",
+          "queryKind": "SAVEPOINT case01_metadata_reconciliation"
+        },
+        {
+          "method": "$queryRawUnsafe",
+          "querySha256": "21a50f85bcb5d02341f38fa83509407479ab467b04e5939071e2d386272f0bb9",
+          "queryKind": "SELECT c.committed_memory_item_id::text AS item_id,c.xmin::text AS",
+          "rowCount": 1
+        },
+        {
+          "method": "$queryRawUnsafe",
+          "querySha256": "bd70cf930be04ec12939b66be48b6e89523610a229c2056ff037f9d28786c2a0",
+          "queryKind": "SELECT metadata_jsonb AS metadata FROM",
+          "rowCount": 1
+        },
+        {
+          "method": "$queryRawUnsafe",
+          "querySha256": "21a50f85bcb5d02341f38fa83509407479ab467b04e5939071e2d386272f0bb9",
+          "queryKind": "SELECT c.committed_memory_item_id::text AS item_id,c.xmin::text AS",
+          "rowCount": 1
+        },
+        {
+          "method": "$queryRawUnsafe",
+          "querySha256": "bd70cf930be04ec12939b66be48b6e89523610a229c2056ff037f9d28786c2a0",
+          "queryKind": "SELECT metadata_jsonb AS metadata FROM",
+          "rowCount": 1
+        },
+        {
+          "method": "$queryRawUnsafe",
+          "querySha256": "21a50f85bcb5d02341f38fa83509407479ab467b04e5939071e2d386272f0bb9",
+          "queryKind": "SELECT c.committed_memory_item_id::text AS item_id,c.xmin::text AS",
+          "rowCount": 1
+        },
+        {
+          "method": "$queryRawUnsafe",
+          "querySha256": "bd70cf930be04ec12939b66be48b6e89523610a229c2056ff037f9d28786c2a0",
+          "queryKind": "SELECT metadata_jsonb AS metadata FROM",
+          "rowCount": 1
+        },
+        {
+          "method": "$queryRawUnsafe",
+          "querySha256": "1e432b2d926f7bde0b2ea5cf4ac5c607e100c5cf7eed37b5650af272440a9e6e",
+          "queryKind": "SELECT c.id::text AS candidate_id,m.id::text AS",
+          "rowCount": 1
+        },
+        {
+          "method": "$queryRawUnsafe",
+          "querySha256": "d3e3c69c4a1c552baf4bb81f13cdb41c8dc3b3eb0cbcc49dae7a3df6809b26b3",
+          "queryKind": "SELECT xmin::text AS version FROM",
+          "rowCount": 1
+        },
+        {
+          "method": "$queryRawUnsafe",
+          "querySha256": "69f60efe1e4d8d4eace48b6f552b82d67b1b1a0340900ac0f7257891fd791756",
+          "queryKind": "SELECT metadata_jsonb AS metadata FROM",
+          "rowCount": 1
+        },
+        {
+          "method": "$queryRawUnsafe",
+          "querySha256": "754b2cb32ce47e845ac1be356e8bec66ff6abce729f06acfa702b05044826e74",
+          "queryKind": "SELECT metadata_jsonb AS metadata FROM",
+          "rowCount": 1
+        },
+        {
+          "method": "$queryRawUnsafe",
+          "querySha256": "21a50f85bcb5d02341f38fa83509407479ab467b04e5939071e2d386272f0bb9",
+          "queryKind": "SELECT c.committed_memory_item_id::text AS item_id,c.xmin::text AS",
+          "rowCount": 1
+        },
+        {
+          "method": "$queryRawUnsafe",
+          "querySha256": "bd70cf930be04ec12939b66be48b6e89523610a229c2056ff037f9d28786c2a0",
+          "queryKind": "SELECT metadata_jsonb AS metadata FROM",
+          "rowCount": 1
+        },
+        {
+          "method": "$queryRawUnsafe",
+          "querySha256": "21a50f85bcb5d02341f38fa83509407479ab467b04e5939071e2d386272f0bb9",
+          "queryKind": "SELECT c.committed_memory_item_id::text AS item_id,c.xmin::text AS",
+          "rowCount": 1
+        },
+        {
+          "method": "$queryRawUnsafe",
+          "querySha256": "bd70cf930be04ec12939b66be48b6e89523610a229c2056ff037f9d28786c2a0",
+          "queryKind": "SELECT metadata_jsonb AS metadata FROM",
+          "rowCount": 1
+        },
+        {
+          "method": "$queryRawUnsafe",
+          "querySha256": "21a50f85bcb5d02341f38fa83509407479ab467b04e5939071e2d386272f0bb9",
+          "queryKind": "SELECT c.committed_memory_item_id::text AS item_id,c.xmin::text AS",
+          "rowCount": 1
+        },
+        {
+          "method": "$queryRawUnsafe",
+          "querySha256": "1e432b2d926f7bde0b2ea5cf4ac5c607e100c5cf7eed37b5650af272440a9e6e",
+          "queryKind": "SELECT c.id::text AS candidate_id,m.id::text AS",
+          "rowCount": 1
+        },
+        {
+          "method": "$queryRawUnsafe",
+          "querySha256": "d3e3c69c4a1c552baf4bb81f13cdb41c8dc3b3eb0cbcc49dae7a3df6809b26b3",
+          "queryKind": "SELECT xmin::text AS version FROM",
+          "rowCount": 1
+        },
+        {
+          "method": "$queryRawUnsafe",
+          "querySha256": "3a4aad9a9786204a3da21988a3c52edf50a4ab7504522909b72176958e59f66c",
+          "queryKind": "SELECT id::text,xmin::text AS version,to_jsonb(m) AS",
+          "rowCount": 8,
+          "memoryRows": [
+            {
+              "id": "08c7de39-a268-40cd-9511-f56bdca2ee84",
+              "xmin": "113660245",
+              "status": "revoked",
+              "governedStatus": "revoked",
+              "legalHold": false,
+              "instructionsAllowed": false,
+              "retentionSqlNull": true,
+              "retentionJsonNull": true
+            },
+            {
+              "id": "422b4ca9-10a8-4680-a713-3e61273a14ff",
+              "xmin": "113660264",
+              "status": "active",
+              "governedStatus": "active",
+              "legalHold": false,
+              "instructionsAllowed": false,
+              "retentionSqlNull": true,
+              "retentionJsonNull": true
+            },
+            {
+              "id": "4cc6ec9e-7f1b-4776-b29d-1b52cc12d41f",
+              "xmin": "114126679",
+              "status": "active",
+              "governedStatus": "active",
+              "legalHold": false,
+              "instructionsAllowed": false,
+              "retentionSqlNull": false,
+              "retentionJsonNull": true
+            },
+            {
+              "id": "5e9d3ad4-b37d-4997-be47-55b00528c085",
+              "xmin": "114126681",
+              "status": "superseded",
+              "governedStatus": "active",
+              "legalHold": false,
+              "instructionsAllowed": false,
+              "retentionSqlNull": false,
+              "retentionJsonNull": true
+            },
+            {
+              "id": "743a18c2-a1ff-4070-934b-b4146ba18d35",
+              "xmin": "113660238",
+              "status": "revoked",
+              "governedStatus": "revoked",
+              "legalHold": false,
+              "instructionsAllowed": false,
+              "retentionSqlNull": true,
+              "retentionJsonNull": true
+            },
+            {
+              "id": "b4b2379f-d4ac-42f2-afa8-7dd56e220464",
+              "xmin": "114126680",
+              "status": "superseded",
+              "governedStatus": "active",
+              "legalHold": false,
+              "instructionsAllowed": false,
+              "retentionSqlNull": false,
+              "retentionJsonNull": true
+            },
+            {
+              "id": "c09cd0b2-7af4-49e9-b6dc-f5cb04baee8e",
+              "xmin": "113660280",
+              "status": "revoked",
+              "governedStatus": "revoked",
+              "legalHold": false,
+              "instructionsAllowed": false,
+              "retentionSqlNull": true,
+              "retentionJsonNull": true
+            },
+            {
+              "id": "e5f7edc5-a2d9-4795-98fb-ba666c79d2fd",
+              "xmin": "113660244",
+              "status": "revoked",
+              "governedStatus": "revoked",
+              "legalHold": false,
+              "instructionsAllowed": false,
+              "retentionSqlNull": true,
+              "retentionJsonNull": true
+            }
+          ]
+        },
+        {
+          "method": "$queryRawUnsafe",
+          "querySha256": "ff829e4dbd0e85300054e2b54aecc57a2f46e4231a7d4f94b6f0238b53777188",
+          "queryKind": "SELECT to_jsonb(c) AS body,xmin::text AS",
+          "rowCount": 10
+        },
+        {
+          "method": "$queryRawUnsafe",
+          "querySha256": "a126dad704a91f59fa6fc718c244b9cbf60cd97c3a6e7e989b377551a98be999",
+          "queryKind": "SELECT to_jsonb(a) AS body,xmin::text AS",
+          "rowCount": 25,
+          "audits": [
+            {
+              "id": "044995a3-7288-4568-b76f-4dc2dc386d91",
+              "memoryItemId": "08c7de39-a268-40cd-9511-f56bdca2ee84",
+              "candidateId": null,
+              "from": "active",
+              "to": "revoked",
+              "reason": "revoked",
+              "syntheticCandidate": "1d92abdf-5fa7-5963-8e92-5df8aa6ebb87"
+            },
+            {
+              "id": "14598286-5170-4a8b-a50a-d857f48db807",
+              "memoryItemId": null,
+              "candidateId": "a5397fba-1d91-4ba9-8006-bf1fdaa90f67",
+              "from": null,
+              "to": "pending_review",
+              "reason": "submitted_for_review"
+            },
+            {
+              "id": "189116fa-4a45-4b06-b6dc-56dbcaa8f83e",
+              "memoryItemId": "e5f7edc5-a2d9-4795-98fb-ba666c79d2fd",
+              "candidateId": null,
+              "from": null,
+              "to": "active",
+              "reason": "corrected",
+              "syntheticCandidate": "557b5b98-f591-50ce-83ea-2ca44d44567a"
+            },
+            {
+              "id": "1b73c96b-ace8-4dd0-96c4-7e6f138bae8a",
+              "memoryItemId": "b4b2379f-d4ac-42f2-afa8-7dd56e220464",
+              "candidateId": null,
+              "from": "active",
+              "to": "superseded",
+              "reason": "superseded",
+              "syntheticCandidate": "a9de2fb9-0015-58b3-a0b1-8c1dc88797b0"
+            },
+            {
+              "id": "30a6e192-5859-4720-bbdb-46928e2d62a9",
+              "memoryItemId": null,
+              "candidateId": "557b5b98-f591-50ce-83ea-2ca44d44567a",
+              "from": "pending_review",
+              "to": "active",
+              "reason": "approved"
+            },
+            {
+              "id": "462f2ec7-bc5b-423b-a676-5adc155fc82c",
+              "memoryItemId": null,
+              "candidateId": "6e550ca2-20b2-5aca-be2a-254fb0b0f32b",
+              "from": "suggested",
+              "to": "pending_review",
+              "reason": "submitted_for_review"
+            },
+            {
+              "id": "490bdeab-f443-489f-8334-5dcb04b79d9f",
+              "memoryItemId": null,
+              "candidateId": "1d92abdf-5fa7-5963-8e92-5df8aa6ebb87",
+              "from": "pending_review",
+              "to": "active",
+              "reason": "approved"
+            },
+            {
+              "id": "54609d4a-6fa9-4270-ba44-955236afe535",
+              "memoryItemId": null,
+              "candidateId": "f6915255-4f53-5228-ba62-553fd1455d6c",
+              "from": "pending_review",
+              "to": "active",
+              "reason": "approved"
+            },
+            {
+              "id": "5a0b4249-3c1f-4fc6-aa2e-f89c005f74fa",
+              "memoryItemId": null,
+              "candidateId": "df57e3e0-54b6-5561-a245-44a66f21224b",
+              "from": "suggested",
+              "to": "rejected",
+              "reason": "withdrawn_by_proposer"
+            },
+            {
+              "id": "5eafd86c-8539-48da-b2be-2fe51127f3b4",
+              "memoryItemId": null,
+              "candidateId": "8c320f91-9522-47ac-8359-b012257699b4",
+              "from": "pending_review",
+              "to": "active",
+              "reason": "approved"
+            },
+            {
+              "id": "60247155-2d7b-4e73-ba7e-5e39bee4f129",
+              "memoryItemId": "422b4ca9-10a8-4680-a713-3e61273a14ff",
+              "candidateId": null,
+              "from": null,
+              "to": "active",
+              "reason": "corrected",
+              "syntheticCandidate": "a9de2fb9-0015-58b3-a0b1-8c1dc88797b0"
+            },
+            {
+              "id": "72cdce58-9afd-412d-8704-6e6aac08960d",
+              "memoryItemId": null,
+              "candidateId": "f6915255-4f53-5228-ba62-553fd1455d6c",
+              "from": "suggested",
+              "to": "pending_review",
+              "reason": "submitted_for_review"
+            },
+            {
+              "id": "73e9cba2-772c-4497-863e-c3e688aee2b1",
+              "memoryItemId": null,
+              "candidateId": "aecb886a-f0dc-5ba2-bf42-26bf4781c441",
+              "from": "suggested",
+              "to": "pending_review",
+              "reason": "submitted_for_review"
+            },
+            {
+              "id": "740487aa-7589-4dea-b622-931a5652798e",
+              "memoryItemId": "e5f7edc5-a2d9-4795-98fb-ba666c79d2fd",
+              "candidateId": null,
+              "from": "active",
+              "to": "revoked",
+              "reason": "revoked",
+              "syntheticCandidate": "557b5b98-f591-50ce-83ea-2ca44d44567a"
+            },
+            {
+              "id": "7943dd4c-ca93-42cd-9a63-4c99467a8e3a",
+              "memoryItemId": "743a18c2-a1ff-4070-934b-b4146ba18d35",
+              "candidateId": null,
+              "from": "active",
+              "to": "revoked",
+              "reason": "revoked",
+              "syntheticCandidate": "aecb886a-f0dc-5ba2-bf42-26bf4781c441"
+            },
+            {
+              "id": "7c52b66b-b5a5-4aba-b11f-e33332bcdc9b",
+              "memoryItemId": null,
+              "candidateId": "aecb886a-f0dc-5ba2-bf42-26bf4781c441",
+              "from": "pending_review",
+              "to": "active",
+              "reason": "approved"
+            },
+            {
+              "id": "7c6c1244-cff2-4bc7-bf8b-beab252d6b72",
+              "memoryItemId": null,
+              "candidateId": "a9de2fb9-0015-58b3-a0b1-8c1dc88797b0",
+              "from": "pending_review",
+              "to": "active",
+              "reason": "approved"
+            },
+            {
+              "id": "851371c6-ec7f-4670-afd9-c17411aa42b3",
+              "memoryItemId": null,
+              "candidateId": "a5397fba-1d91-4ba9-8006-bf1fdaa90f67",
+              "from": "pending_review",
+              "to": "active",
+              "reason": "approved"
+            },
+            {
+              "id": "8698b58d-e91f-4521-a2c0-46ecef096bb3",
+              "memoryItemId": "c09cd0b2-7af4-49e9-b6dc-f5cb04baee8e",
+              "candidateId": null,
+              "from": "active",
+              "to": "revoked",
+              "reason": "revoked",
+              "syntheticCandidate": "f6915255-4f53-5228-ba62-553fd1455d6c"
+            },
+            {
+              "id": "b25aa596-00a2-44b8-af23-dc50dea5d589",
+              "memoryItemId": null,
+              "candidateId": "6e550ca2-20b2-5aca-be2a-254fb0b0f32b",
+              "from": "pending_review",
+              "to": "active",
+              "reason": "approved"
+            },
+            {
+              "id": "b468723c-cda4-49c3-9d30-c24d113ec40b",
+              "memoryItemId": null,
+              "candidateId": "8c320f91-9522-47ac-8359-b012257699b4",
+              "from": null,
+              "to": "pending_review",
+              "reason": "submitted_for_review"
+            },
+            {
+              "id": "c19270e9-2a47-418a-ac5c-ee55082f987b",
+              "memoryItemId": null,
+              "candidateId": "a9de2fb9-0015-58b3-a0b1-8c1dc88797b0",
+              "from": "suggested",
+              "to": "pending_review",
+              "reason": "submitted_for_review"
+            },
+            {
+              "id": "c1d0c649-d9fb-47f3-84b8-308f8a3565ab",
+              "memoryItemId": "5e9d3ad4-b37d-4997-be47-55b00528c085",
+              "candidateId": null,
+              "from": "active",
+              "to": "superseded",
+              "reason": "superseded",
+              "syntheticCandidate": "557b5b98-f591-50ce-83ea-2ca44d44567a"
+            },
+            {
+              "id": "de42f077-756a-42b9-b775-2bf0ec1973ff",
+              "memoryItemId": null,
+              "candidateId": "557b5b98-f591-50ce-83ea-2ca44d44567a",
+              "from": "suggested",
+              "to": "pending_review",
+              "reason": "submitted_for_review"
+            },
+            {
+              "id": "ec378a6c-5353-47c9-90d7-22f21794819f",
+              "memoryItemId": null,
+              "candidateId": "1d92abdf-5fa7-5963-8e92-5df8aa6ebb87",
+              "from": "suggested",
+              "to": "pending_review",
+              "reason": "submitted_for_review"
+            }
+          ]
+        },
+        {
+          "method": "$queryRawUnsafe",
+          "querySha256": "2e974aa650094b12d4b4b772c2864a79f99c8eb9f8635a497de9a5304217707d",
+          "queryKind": "UPDATE memory_items SET governed_status=$1,retention_policy_jsonb=NULL WHERE",
+          "rowCount": 1
+        },
+        {
+          "method": "$queryRawUnsafe",
+          "querySha256": "2e974aa650094b12d4b4b772c2864a79f99c8eb9f8635a497de9a5304217707d",
+          "queryKind": "UPDATE memory_items SET governed_status=$1,retention_policy_jsonb=NULL WHERE",
+          "rowCount": 1
+        },
+        {
+          "method": "$queryRawUnsafe",
+          "querySha256": "2e974aa650094b12d4b4b772c2864a79f99c8eb9f8635a497de9a5304217707d",
+          "queryKind": "UPDATE memory_items SET governed_status=$1,retention_policy_jsonb=NULL WHERE",
+          "rowCount": 1
+        },
+        {
+          "method": "$queryRawUnsafe",
+          "querySha256": "21a50f85bcb5d02341f38fa83509407479ab467b04e5939071e2d386272f0bb9",
+          "queryKind": "SELECT c.committed_memory_item_id::text AS item_id,c.xmin::text AS",
+          "rowCount": 1
+        },
+        {
+          "method": "$queryRawUnsafe",
+          "querySha256": "bd70cf930be04ec12939b66be48b6e89523610a229c2056ff037f9d28786c2a0",
+          "queryKind": "SELECT metadata_jsonb AS metadata FROM",
+          "rowCount": 1
+        },
+        {
+          "method": "$queryRawUnsafe",
+          "querySha256": "21a50f85bcb5d02341f38fa83509407479ab467b04e5939071e2d386272f0bb9",
+          "queryKind": "SELECT c.committed_memory_item_id::text AS item_id,c.xmin::text AS",
+          "rowCount": 1
+        },
+        {
+          "method": "$queryRawUnsafe",
+          "querySha256": "bd70cf930be04ec12939b66be48b6e89523610a229c2056ff037f9d28786c2a0",
+          "queryKind": "SELECT metadata_jsonb AS metadata FROM",
+          "rowCount": 1
+        },
+        {
+          "method": "$queryRawUnsafe",
+          "querySha256": "21a50f85bcb5d02341f38fa83509407479ab467b04e5939071e2d386272f0bb9",
+          "queryKind": "SELECT c.committed_memory_item_id::text AS item_id,c.xmin::text AS",
+          "rowCount": 1
+        },
+        {
+          "method": "$queryRawUnsafe",
+          "querySha256": "bd70cf930be04ec12939b66be48b6e89523610a229c2056ff037f9d28786c2a0",
+          "queryKind": "SELECT metadata_jsonb AS metadata FROM",
+          "rowCount": 1
+        },
+        {
+          "method": "$queryRawUnsafe",
+          "querySha256": "1e432b2d926f7bde0b2ea5cf4ac5c607e100c5cf7eed37b5650af272440a9e6e",
+          "queryKind": "SELECT c.id::text AS candidate_id,m.id::text AS",
+          "rowCount": 1
+        },
+        {
+          "method": "$queryRawUnsafe",
+          "querySha256": "d3e3c69c4a1c552baf4bb81f13cdb41c8dc3b3eb0cbcc49dae7a3df6809b26b3",
+          "queryKind": "SELECT xmin::text AS version FROM",
+          "rowCount": 1
+        },
+        {
+          "method": "$queryRawUnsafe",
+          "querySha256": "69f60efe1e4d8d4eace48b6f552b82d67b1b1a0340900ac0f7257891fd791756",
+          "queryKind": "SELECT metadata_jsonb AS metadata FROM",
+          "rowCount": 1
+        },
+        {
+          "method": "$queryRawUnsafe",
+          "querySha256": "754b2cb32ce47e845ac1be356e8bec66ff6abce729f06acfa702b05044826e74",
+          "queryKind": "SELECT metadata_jsonb AS metadata FROM",
+          "rowCount": 1
+        },
+        {
+          "method": "$queryRaw",
+          "querySha256": "026d6aab943c4b9e45ddec5f90473ab4b8b4dd199e35affa39e3476a3c29136a",
+          "queryKind": "SELECT proposed_by::text AS \"proposedBy\", approved_by_user_id::text",
+          "rowCount": 1
+        },
+        {
+          "method": "$queryRaw",
+          "querySha256": "01149bda85daa82d200f46748f825e93b666bf55a0cff447de4c2b0461bfc2a0",
+          "queryKind": "SELECT tm.user_id::text AS id FROM",
+          "rowCount": 1
+        },
+        {
+          "method": "$queryRaw",
+          "querySha256": "b37900102c576d8422fd6563771d321625240927eb3e82f6ce1cb6e2921892cd",
+          "queryKind": "SELECT id FROM clients WHERE",
+          "rowCount": 1
+        },
+        {
+          "method": "$queryRaw",
+          "querySha256": "5d6770621fb1f4ec29456926a0309b4e75711e2efe49546ba36f21862d14908f",
+          "queryKind": "SELECT user_id FROM client_memory_access WHERE",
+          "rowCount": 0
+        },
+        {
+          "method": "$queryRaw",
+          "querySha256": "0a1158b86f70540ebfe4cb6698c79a1917c45cd1234d9f408e15823c19918e4d",
+          "queryKind": "SELECT id FROM memory_access_grant WHERE",
+          "rowCount": 0
+        },
+        {
+          "method": "$queryRaw",
+          "querySha256": "8a3d88d114b3ea49277df89ebec34714887d2974e039a4429e639bacd35f0d80",
+          "queryKind": "SELECT id FROM memory_candidate WHERE",
+          "rowCount": 1
+        },
+        {
+          "method": "$queryRaw",
+          "querySha256": "216719ac1d4ce8c0da43b165f33e2d31b827a1b6712464ef4c61f38f340209e4",
+          "queryKind": "SELECT id FROM memory_items WHERE",
+          "rowCount": 1
+        },
+        {
+          "method": "$queryRaw",
+          "querySha256": "e22555019bd79c84231111b3df19f7183466cf406331d6d6a0a6e398ff60544a",
+          "queryKind": "SELECT id FROM clio_memory WHERE",
+          "rowCount": 1
+        },
+        {
+          "method": "$queryRaw",
+          "querySha256": "0d98f0cd2d5611275a0b83b38535470b777d5e1c1bf1297af78967c1d82c726b",
+          "queryKind": "SELECT v.id::text AS \"itemId\",v.xmin::text AS",
+          "rowCount": 1
+        },
+        {
+          "method": "$queryRaw",
+          "querySha256": "abab81e8181ba69e36a95a2b2067d98efdfc7e5928c7f211f6f270a4722a3cfb",
+          "queryKind": "SELECT a.id::text AS \"transitionAuditId\",o.id::text AS",
+          "rowCount": 0
+        },
+        {
+          "method": "$executeRawUnsafe",
+          "querySha256": "77f7bc658bce8a1cfa70a12b77de8ea717d172b1671d70d3d5ec40dc9142b136",
+          "queryKind": "ROLLBACK TO SAVEPOINT case01_metadata_reconciliation"
+        },
+        {
+          "method": "$executeRawUnsafe",
+          "querySha256": "c533aefd08d09ea7a4fddc79e54794dd123b8ee2440b72ad9e7291e49ef556f2",
+          "queryKind": "RELEASE SAVEPOINT case01_metadata_reconciliation"
+        }
+      ]
+    }
+  ],
+  "schemaReceipts": [],
+  "safeErrors": [],
+  "eventCount": 1,
+  "providerCalls": 0,
+  "committedCorpusMutations": 0,
+  "captureAuthority": false
+}

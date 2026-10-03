@@ -1,0 +1,29 @@
+{
+  "result": "PASS_BUILD_AND_SOURCE_ONLY",
+  "reviewer": "/root/mail_defaults_review",
+  "humanReleaseApproval": false,
+  "reconciliationSource": {
+    "result": "PASS",
+    "sourceSha": "5ffe66728d36cb6daa62c09e6b7e6faaf1ecc7ea",
+    "snapshotSha256": "9371afb5dcdaeef50065d58d18cb9543d75d8e0c122d9d0eab6c00cfc026a492",
+    "files": 7,
+    "sqlCliPassed": 4,
+    "packagingPassed": 1
+  },
+  "builds": {
+    "apiLogSha256": "1a28ce64ce020aaf810a1754bdaaec69919ddecf576186b2d5e0fddbe5f30ab0",
+    "orchestratorLogSha256": "292a058f946bd5d04dd896a43e67f07c051d23a6c7c05c168c3614e54675cb58",
+    "orchestratorPassed": 1510,
+    "orchestratorSkipped": 2,
+    "orchestratorSuites": 129
+  },
+  "preview": "FAILED_UNPROVED",
+  "schema": "VERIFIED_READ_ONLY",
+  "rollout": "API first; drain old writers before reconciliation. API service replacement does not update separate nightly task.",
+  "limits": [
+    "No reviewer reruns or remote calls",
+    "Local simplified SQL is not production RLS or concurrency proof",
+    "Commit/output-loss behavior source-reviewed only",
+    "No served acceptance or human release attestation"
+  ]
+}

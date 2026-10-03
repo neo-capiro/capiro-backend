@@ -1,0 +1,33 @@
+{
+  "service": "api",
+  "buildId": "capiro-build-web-dev:c9e3efed-f16a-40d6-aaca-fbf1cc685a7b",
+  "sourceSha": "ed44f2c6cfdfda5150f75ab198a6e52d2377880f",
+  "status": "IN_PROGRESS",
+  "buildspecSha256": "0b1c3cf428aa2e6f8594308db0ae65a89f642a707a7ab37648182690827aff83",
+  "actions": [
+    {
+      "id": 37123296575,
+      "url": "https://github.com/neo-capiro/capirov2/actions/runs/37123296575",
+      "headSha": "ed44f2c6cfdfda5150f75ab198a6e52d2377880f",
+      "status": "completed",
+      "conclusion": "startup_failure",
+      "name": "",
+      "path": "BuildFailed",
+      "jobs": 0
+    },
+    {
+      "id": 37123294926,
+      "url": "https://github.com/neo-capiro/capirov2/actions/runs/37123294926",
+      "headSha": "ed44f2c6cfdfda5150f75ab198a6e52d2377880f",
+      "status": "completed",
+      "conclusion": "startup_failure",
+      "name": "",
+      "path": "BuildFailed",
+      "jobs": 0
+    }
+  ],
+  "actionsLimitation": "GitHub startup failures have blank workflow names and BuildFailed paths; no workflow jobs ran",
+  "callerArn": "arn:aws:iam::967807252336:user/capirocli",
+  "startedAt": "2026-10-03T12:35:32.667Z",
+  "scope": "C2 immutable candidate publication and qualification through existing native ARM project; no service/database/provider configuration changes"
+}

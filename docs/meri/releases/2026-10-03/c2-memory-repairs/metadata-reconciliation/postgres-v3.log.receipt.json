@@ -1,0 +1,5 @@
+{
+  "timestamp": "2026-10-03T12:46:57.4240525Z",
+  "command": "node --test --test-concurrency=1 evals/meri/live-v1/tests/case01-memory-hydration.postgres.test.mjs apps/api/scripts/meri-synthetic-read-budget.test.mjs",
+  "exitCode": 0
+}

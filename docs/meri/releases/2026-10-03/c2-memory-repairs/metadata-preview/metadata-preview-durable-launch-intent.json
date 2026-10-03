@@ -1,0 +1,12 @@
+{
+  "at": "2026-10-03T13:11:11.681Z",
+  "status": "DISPATCH_ATTEMPT_AUTHORIZED",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-c2-metadata-20261003:1",
+  "startedBy": "meri-c2-preview-66c422da-6aff-49bf-",
+  "clientToken": "d3635039-f1b6-4d2d-a68d-8b5067937cc4",
+  "inputSha256": "a2699fcfa168fd10f297cd40ed9509bbea2cf9cfe0055570fb823530b00d8199",
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:7ec9d5b2e8e5300fed7da69bb7b210c0617655babe7ca18c97cfa789a551a738",
+  "operation": "preview-corpus-metadata",
+  "databaseCommit": false,
+  "noAutomaticRetry": true
+}

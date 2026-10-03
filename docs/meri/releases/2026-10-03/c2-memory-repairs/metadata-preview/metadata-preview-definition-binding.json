@@ -1,0 +1,7 @@
+{
+  "at": "2026-10-03T13:11:11.668Z",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-c2-metadata-20261003:1",
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:7ec9d5b2e8e5300fed7da69bb7b210c0617655babe7ca18c97cfa789a551a738",
+  "sourceSha": "5ffe66728d36cb6daa62c09e6b7e6faaf1ecc7ea",
+  "operation": "preview-corpus-metadata"
+}

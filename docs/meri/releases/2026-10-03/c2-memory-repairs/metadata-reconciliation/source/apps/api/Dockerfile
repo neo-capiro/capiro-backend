@@ -1,0 +1,160 @@
+# Capiro API container.
+#
+# Build context: REPOSITORY ROOT (not apps/api).
+#   docker buildx build --platform linux/arm64 -f apps/api/Dockerfile -t capiro-api:local --push .
+#
+# Multi-stage:
+#   1. base    pnpm + corepack on slim node
+#   2. build   install + compile, then `pnpm prune --prod` in place
+#   3. runtime minimal node slim, non-root user, copies the pruned workspace
+#
+# Why we DON'T use `pnpm deploy`: it doesn't carry generated Prisma client
+# files (which live under pnpm's symlinked store at .pnpm/@prisma+client@*/.prisma).
+# Instead, we prune dev deps in place and copy the whole workspace.
+
+# sanitize-html in the frozen lockfile requires Node >=22.12.0. Keep build and
+# runtime on the same supported release so CommonJS can load its ESM parser.
+ARG NODE_VERSION=22.23.3
+
+# -------- base ----------------------------------------------------------------
+# Use the ECR Public mirror so release builds are not coupled to Docker Hub's
+# anonymous pull limits.
+FROM public.ecr.aws/docker/library/node:${NODE_VERSION}-bookworm-slim AS base
+ENV PNPM_HOME=/pnpm
+ENV PATH=$PNPM_HOME:$PATH
+RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
+WORKDIR /workspace
+
+# -------- build ---------------------------------------------------------------
+FROM base AS build
+# Prisma's binary engine wants libssl. Bookworm ships OpenSSL 3 but Prisma
+# can't detect it without the package present.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends openssl ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml* tsconfig.base.json ./
+COPY apps/api/package.json apps/api/package.json
+COPY packages/shared/package.json packages/shared/package.json
+COPY packages/meriv2-core/package.json packages/meriv2-core/package.json
+COPY packages/defense-contracts/package.json packages/defense-contracts/package.json
+COPY packages/defense-domain/package.json packages/defense-domain/package.json
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    pnpm install --frozen-lockfile --filter=@capiro/api... --filter=@capiro/shared... --filter=@capiro/meriv2-core... --filter=@capiro/defense-contracts... --filter=@capiro/defense-domain...
+
+COPY packages/shared/src packages/shared/src
+COPY packages/shared/tsconfig.json packages/shared/tsconfig.json
+COPY packages/meriv2-core/src packages/meriv2-core/src
+COPY packages/meriv2-core/tsconfig.json packages/meriv2-core/tsconfig.json
+COPY packages/defense-contracts/src packages/defense-contracts/src
+COPY packages/defense-contracts/tsconfig.json packages/defense-contracts/tsconfig.json
+COPY packages/defense-domain/src packages/defense-domain/src
+COPY packages/defense-domain/tsconfig.json packages/defense-domain/tsconfig.json
+COPY apps/api/src apps/api/src
+COPY apps/api/tsconfig.json apps/api/tsconfig.build.json apps/api/nest-cli.json apps/api/
+COPY apps/api/prisma apps/api/prisma
+COPY apps/api/scripts apps/api/scripts
+COPY apps/api/data apps/api/data
+# The one-shot Florida directory importer verifies every web portrait byte,
+# checksum, and JPEG dimension before it may write source evidence. Keep an
+# audit copy in the API release image; the web image serves the same files.
+COPY apps/web/public/florida-directory/portraits apps/api/data/florida-legislative-directory/portraits
+
+RUN pnpm --filter @capiro/shared build
+RUN pnpm --filter @capiro/meriv2-core build
+# defense-domain is a leaf onto @capiro/shared, defense-contracts has no
+# workspace deps of its own — apps/api's new lifecycle read module imports
+# both directly (see docs/defense-budget/defense-budget-vnext-implementation-map.md).
+RUN pnpm --filter @capiro/defense-contracts build
+RUN pnpm --filter @capiro/defense-domain build
+RUN pnpm --filter @capiro/api exec prisma generate
+# V8's default old-space heuristic under QEMU cross-arch emulation (e.g. building
+# linux/arm64 on an amd64 host) misreads emulated /proc/meminfo and picks a heap
+# ceiling far below the host's real available memory, OOM-killing `nest build` on
+# this codebase's current size. Pin an explicit ceiling for this step only.
+RUN NODE_OPTIONS=--max-old-space-size=4096 pnpm --filter @capiro/api build
+
+# Prune dev dependencies in place (keeps the .pnpm store with the generated
+# Prisma client intact).
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    pnpm install --frozen-lockfile --prod --filter=@capiro/api... --filter=@capiro/shared... --filter=@capiro/meriv2-core... --filter=@capiro/defense-contracts... --filter=@capiro/defense-domain...
+
+# -------- runtime -------------------------------------------------------------
+FROM public.ecr.aws/docker/library/node:${NODE_VERSION}-bookworm-slim AS runtime
+ENV NODE_ENV=production
+ENV NODE_OPTIONS=--enable-source-maps
+RUN groupadd --system --gid 1001 capiro \
+ && useradd --system --uid 1001 --gid capiro --shell /usr/sbin/nologin capiro \
+ && apt-get update \
+ && apt-get install -y --no-install-recommends wget ca-certificates dumb-init openssl \
+ && rm -rf /var/lib/apt/lists/*
+# tsx (used by entrypoint.sh to run scripts/sync-*.ts as ECS one-off tasks)
+# needs writable scratch space for its IPC server. Keep image-local fallbacks for
+# writable-root deployments, but default to Fargate's writable /dev/shm tmpfs.
+# entrypoint.sh probes TMPDIR, /dev/shm, and /tmp before dispatch because a baked
+# /app/tmp becomes read-only when ECS enables readonlyRootFilesystem.
+RUN mkdir -p /app/tmp /tmp \
+ && chmod 1777 /tmp \
+ && chown capiro:capiro /app/tmp
+ENV TMPDIR=/dev/shm
+WORKDIR /app
+
+# Copy the entire workspace, pnpm's symlinked node_modules + the generated
+# Prisma client + the compiled API. Larger image (~250MB) but reliable.
+COPY --chown=capiro:capiro --from=build /workspace/node_modules /app/node_modules
+COPY --chown=capiro:capiro --from=build /workspace/packages/shared/dist /app/packages/shared/dist
+COPY --chown=capiro:capiro --from=build /workspace/packages/shared/package.json /app/packages/shared/package.json
+COPY --chown=capiro:capiro --from=build /workspace/packages/meriv2-core/dist /app/packages/meriv2-core/dist
+COPY --chown=capiro:capiro --from=build /workspace/packages/meriv2-core/package.json /app/packages/meriv2-core/package.json
+# meriv2-core (unlike leaf @capiro/shared) has workspace deps of its own —
+# packages/meriv2-core/dist/alerts/alert.js require()s @capiro/shared, and pnpm
+# links that (+ zod) under packages/meriv2-core/node_modules (relative symlinks
+# to /app/packages/shared and /app/node_modules/.pnpm), NOT hoisted to root. Copy
+# it or the API crashloops at boot with MODULE_NOT_FOUND '@capiro/shared'.
+COPY --chown=capiro:capiro --from=build /workspace/packages/meriv2-core/node_modules /app/packages/meriv2-core/node_modules
+COPY --chown=capiro:capiro --from=build /workspace/packages/defense-contracts/dist /app/packages/defense-contracts/dist
+COPY --chown=capiro:capiro --from=build /workspace/packages/defense-contracts/package.json /app/packages/defense-contracts/package.json
+COPY --chown=capiro:capiro --from=build /workspace/packages/defense-domain/dist /app/packages/defense-domain/dist
+COPY --chown=capiro:capiro --from=build /workspace/packages/defense-domain/package.json /app/packages/defense-domain/package.json
+# defense-domain, like meriv2-core, has a workspace dep of its own (@capiro/shared)
+# that pnpm links under its own node_modules rather than hoisting to root.
+COPY --chown=capiro:capiro --from=build /workspace/packages/defense-domain/node_modules /app/packages/defense-domain/node_modules
+COPY --chown=capiro:capiro --from=build /workspace/apps/api/dist /app/apps/api/dist
+COPY --chown=capiro:capiro --from=build /workspace/apps/api/node_modules /app/apps/api/node_modules
+COPY --chown=capiro:capiro --from=build /workspace/apps/api/prisma /app/apps/api/prisma
+COPY --chown=capiro:capiro --from=build /workspace/apps/api/data /app/apps/api/data
+COPY --chown=capiro:capiro --from=build /workspace/apps/api/package.json /app/apps/api/package.json
+# bootstrap-*, sync-* and emit-* commands run TS scripts via tsx at task
+# launch. Copy both the scripts AND the app `src/` they import from (e.g.
+# sync-congress imports ../src/embeddings/embedder.js) so `tsx scripts/<name>.ts`
+# resolves at runtime — the compiled dist/ alone does not satisfy those imports.
+COPY --chown=capiro:capiro --from=build /workspace/apps/api/scripts /app/apps/api/scripts
+COPY --chown=capiro:capiro --from=build /workspace/apps/api/src /app/apps/api/src
+# Case01 restart qualification uses only this fixed source-owned module graph.
+# No eval runners, provider adapters, tests, or external configuration are copied.
+COPY --chown=capiro:capiro evals/meri/live-v1/artifact-collector.mjs evals/meri/live-v1/windows-artifact-storage.mjs evals/meri/live-v1/fixture.mjs evals/meri/live-v1/cases.mjs evals/meri/live-v1/contract-lock.json /app/evals/meri/live-v1/
+COPY --chown=capiro:capiro evals/meri/live-v1/lib/stable.mjs evals/meri/live-v1/lib/windows-artifact-protocol.py /app/evals/meri/live-v1/lib/
+COPY --chown=capiro:capiro evals/meri/live-v1/fixture-provisioning/case14-memory-owner.mjs evals/meri/live-v1/fixture-provisioning/memory-pending-execution.mjs evals/meri/live-v1/fixture-provisioning/memory-pending-fixture-plan.mjs evals/meri/live-v1/fixture-provisioning/controlled-budget-definitions.mjs evals/meri/live-v1/fixture-provisioning/controlled-read-definitions.mjs evals/meri/live-v1/fixture-provisioning/controlled-read-owner.mjs evals/meri/live-v1/fixture-provisioning/case01-execution-setup.mjs evals/meri/live-v1/fixture-provisioning/capture-binding-owner.mjs evals/meri/live-v1/fixture-provisioning/case01-memory-owner.mjs evals/meri/live-v1/fixture-provisioning/case01-memory-reconciliation.mjs evals/meri/live-v1/fixture-provisioning/case01-memory-runtime.mjs evals/meri/live-v1/fixture-provisioning/case01-memory-hydration.mjs evals/meri/live-v1/fixture-provisioning/manifest.mjs evals/meri/live-v1/fixture-provisioning/contract.mjs evals/meri/live-v1/fixture-provisioning/canonical-owner-adapter.mjs evals/meri/live-v1/fixture-provisioning/approved-memory-runtime.mjs evals/meri/live-v1/fixture-provisioning/approved-memory-retirement-owner.mjs evals/meri/live-v1/fixture-provisioning/memory-candidate-owner.mjs /app/evals/meri/live-v1/fixture-provisioning/
+COPY --chown=capiro:capiro evals/meri/live-v1/source-binaries/asset-manifest.json evals/meri/live-v1/source-binaries/D-A-1.pdf evals/meri/live-v1/source-binaries/DECK-A-1.pptx evals/meri/live-v1/source-binaries/FILE-B-1-restricted.pdf evals/meri/live-v1/source-binaries/PDF-PENDING-1.pdf evals/meri/live-v1/source-binaries/REPORT-A-v1.pdf evals/meri/live-v1/source-binaries/REPORT-A-v2.pdf evals/meri/live-v1/source-binaries/SHEET-A-1.xlsx /app/evals/meri/live-v1/source-binaries/
+# tsx (used by entrypoint.sh for sync-entity-resolution, which boots the full
+# NestJS AppModule) needs a tsconfig with experimentalDecorators/emitDecoratorMetadata
+# at runtime; without it esbuild fails NestJS controllers with
+# "Parameter decorators only work when experimentalDecorators are enabled".
+# Copy the api tsconfig + the base it extends so tsx auto-discovers them.
+COPY --chown=capiro:capiro --from=build /workspace/tsconfig.base.json /app/tsconfig.base.json
+COPY --chown=capiro:capiro --from=build /workspace/apps/api/tsconfig.json /app/apps/api/tsconfig.json
+# Phase A: retain the large legacy dispatcher for all ordinary verbs, but put a
+# small fail-closed wrapper in front of it. The wrapper owns migration deployment
+# (never edits _prisma_migrations) and the SELECT-only PE trust diagnostic.
+COPY --chown=capiro:capiro apps/api/scripts/entrypoint-legacy.sh /usr/local/lib/capiro/entrypoint-legacy.sh
+COPY --chown=capiro:capiro apps/api/scripts/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod 0644 /usr/local/lib/capiro/entrypoint-legacy.sh \
+ && chmod 0755 /usr/local/bin/entrypoint.sh
+
+USER capiro
+WORKDIR /app/apps/api
+# Validate the pruned runtime dependency graph before publishing the image.
+RUN --network=none node -e "const assert=require('node:assert/strict'); const sanitize=require('sanitize-html'); assert.equal(sanitize('<strong>safe</strong><script>unsafe</script>'), '<strong>safe</strong>'); require('./dist/meri/meri-tools.service.js'); require('./dist/memory/memory-candidate.service.js');"
+EXPOSE 4000
+ENTRYPOINT ["/usr/bin/dumb-init", "--", "/usr/local/bin/entrypoint.sh"]
+CMD ["serve"]

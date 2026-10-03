@@ -1,0 +1,5 @@
+{
+  "at": "2026-10-03T13:21:52.724Z",
+  "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/d50c5f4987c04204a96b334ef07b51da",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-c2-metadata-20261003:3"
+}

@@ -1,0 +1,130 @@
+{
+  "service": "api",
+  "status": "SUCCEEDED",
+  "sourceSha": "5ffe66728d36cb6daa62c09e6b7e6faaf1ecc7ea",
+  "resolvedSourceSha": "5ffe66728d36cb6daa62c09e6b7e6faaf1ecc7ea",
+  "buildId": "capiro-build-web-dev:5950a43e-cd94-4bae-b528-26bbb391d55b",
+  "startedAt": "2026-10-03T09:01:27.137000-04:00",
+  "finishedAt": "2026-10-03T09:08:11.732000-04:00",
+  "phases": [
+    {
+      "phase": "SUBMITTED",
+      "status": "SUCCEEDED",
+      "durationSeconds": 0
+    },
+    {
+      "phase": "QUEUED",
+      "status": "SUCCEEDED",
+      "durationSeconds": 0
+    },
+    {
+      "phase": "PROVISIONING",
+      "status": "SUCCEEDED",
+      "durationSeconds": 6,
+      "contexts": [
+        {
+          "statusCode": "",
+          "message": ""
+        }
+      ]
+    },
+    {
+      "phase": "DOWNLOAD_SOURCE",
+      "status": "SUCCEEDED",
+      "durationSeconds": 12,
+      "contexts": [
+        {
+          "statusCode": "",
+          "message": ""
+        }
+      ]
+    },
+    {
+      "phase": "INSTALL",
+      "status": "SUCCEEDED",
+      "durationSeconds": 0,
+      "contexts": [
+        {
+          "statusCode": "",
+          "message": ""
+        }
+      ]
+    },
+    {
+      "phase": "PRE_BUILD",
+      "status": "SUCCEEDED",
+      "durationSeconds": 14,
+      "contexts": [
+        {
+          "statusCode": "",
+          "message": ""
+        }
+      ]
+    },
+    {
+      "phase": "BUILD",
+      "status": "SUCCEEDED",
+      "durationSeconds": 270,
+      "contexts": [
+        {
+          "statusCode": "",
+          "message": ""
+        }
+      ]
+    },
+    {
+      "phase": "POST_BUILD",
+      "status": "SUCCEEDED",
+      "durationSeconds": 99,
+      "contexts": [
+        {
+          "statusCode": "",
+          "message": ""
+        }
+      ]
+    },
+    {
+      "phase": "UPLOAD_ARTIFACTS",
+      "status": "SUCCEEDED",
+      "durationSeconds": 0,
+      "contexts": [
+        {
+          "statusCode": "",
+          "message": ""
+        }
+      ]
+    },
+    {
+      "phase": "FINALIZING",
+      "status": "SUCCEEDED",
+      "durationSeconds": 0,
+      "contexts": [
+        {
+          "statusCode": "",
+          "message": ""
+        }
+      ]
+    },
+    {
+      "phase": "COMPLETED"
+    }
+  ],
+  "buildspecSha256": "9e92ac4a7b47651de075708409d500e69efb3632889c202c4da519cf27a94707",
+  "buildLogSha256": "1a28ce64ce020aaf810a1754bdaaec69919ddecf576186b2d5e0fddbe5f30ab0",
+  "buildLogEvents": 828,
+  "serviceMutations": 0,
+  "databaseMutations": 0,
+  "providerCalls": 0,
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:7ec9d5b2e8e5300fed7da69bb7b210c0617655babe7ca18c97cfa789a551a738",
+  "imagePublishedAt": "2026-10-03T09:08:10.165000-04:00",
+  "architecture": "arm64",
+  "runtimeNode": "22.23.3",
+  "passedMarkers": [
+    "OFFLINE_RUNTIME_IMPORT_PASS",
+    "OFFLINE_CASE01_FIXTURE_PACKAGE_IMPORT_PASS",
+    "EXACT_452_IMAGE_MIGRATION_HASHES_PASS",
+    "OFFLINE_PACKAGED_C2_MEMORY_PASS",
+    "OFFLINE_PACKAGED_C2_RECONCILIATION_PASS",
+    "LOCAL_REPODIGEST_ECR_MATCH_PASS"
+  ]
+}

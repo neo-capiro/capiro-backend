@@ -1,0 +1,13 @@
+{
+  "target": "capiro-dev",
+  "fixtureNamespace": "meri-foundation-20260928",
+  "confirmation": "PREVIEW_EXACT_OWNED_MEMORY_METADATA",
+  "ctx": {
+    "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+    "tenantSlug": "meri-foundation-20260928-t1",
+    "userId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+    "clerkUserId": "user_3Jw2FvWZkYGKmxWGx13tNJxFD2A",
+    "role": "standard_user"
+  },
+  "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b"
+}

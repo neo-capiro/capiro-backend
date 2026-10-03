@@ -1,0 +1,113 @@
+{
+  "status": "RELEASE_HELD_RETIREMENT_EMBEDDING_AND_OLD_SCHEDULED_WRITER",
+  "at": "2026-10-03T13:28:50.937198+00:00",
+  "apiSourceSha": "5ffe66728d36cb6daa62c09e6b7e6faaf1ecc7ea",
+  "apiImage": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:7ec9d5b2e8e5300fed7da69bb7b210c0617655babe7ca18c97cfa789a551a738",
+  "schema": {
+    "status": "VERIFIED_READ_ONLY",
+    "ledgerRows": 609,
+    "activeFinished": 509,
+    "rolledBack": 100,
+    "prior608Sha256": "9a82cbc9dcecc3b049c312ad4e39ec5a96eb33c6e5af033a3339d1e292c06e90",
+    "newMigration": "20281007010000_mail_messages_owned_connection_active",
+    "newMigrationSha256": "ef10ab58b4eef6825652690a098ab160a374fb30c4cc0af9f15793edb7237242",
+    "retirementTablesAbsent": true,
+    "indices": [
+      {
+        "name": "mail_messages_tenant_connection_active_idx",
+        "ready": true,
+        "definitionSha256": "23d2b35e8097cea6c5620ce2c9c1cab68467e9de09dba5e3337f6fca0a170688"
+      },
+      {
+        "name": "mail_threads_tenant_connection_id_cover_idx",
+        "ready": true,
+        "definitionSha256": "7097d64ec1650dfa8e004e89a1e2f6f267cb7924e869993bb44fb235e9716c9e"
+      }
+    ],
+    "migrationExecution": false
+  },
+  "preview": {
+    "exitCode": 1,
+    "canonicalReconstruction": "FAILED",
+    "tentativeMetadataUpdates": 3,
+    "allRolledBack": true,
+    "committedCorpusMutations": 0
+  },
+  "retirement": {
+    "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+    "itemId": "e5f7edc5-a2d9-4795-98fb-ba666c79d2fd",
+    "expected": {
+      "syntheticCandidate": "557b5b98-f591-50ce-83ea-2ca44d44567a",
+      "markerSha256": "784877fbc54b3ec988da2d6b527f8030b94f6ec47e0cfab1e79bd9b5bc43e793",
+      "candidateRowVersion": "113459135",
+      "itemRowVersion": "113660215"
+    },
+    "item": [
+      {
+        "status": "revoked",
+        "governed_status": "revoked",
+        "revoked_by": "fb218bf5-2674-4ced-bca3-7a5d0c01592f",
+        "revoked_at": "2026-10-02 17:00:03.832218+00",
+        "revoked_epoch": "1790960403.832218"
+      }
+    ],
+    "audit": [
+      {
+        "id": "740487aa-7589-4dea-b622-931a5652798e",
+        "actor_user_id": "fb218bf5-2674-4ced-bca3-7a5d0c01592f",
+        "from_status": "active",
+        "to_status": "revoked",
+        "reason_code": "revoked",
+        "metadata_jsonb": {
+          "verb": "forget",
+          "priorGovernedStatus": "active",
+          "syntheticFixtureCandidateId": "557b5b98-f591-50ce-83ea-2ca44d44567a",
+          "syntheticFixtureMarkerSha256": "784877fbc54b3ec988da2d6b527f8030b94f6ec47e0cfab1e79bd9b5bc43e793",
+          "syntheticFixtureItemRowVersion": "113660215",
+          "syntheticFixtureRevokedAtEpoch": "1790960403.832218",
+          "syntheticFixtureCandidateRowVersion": "113459135"
+        }
+      }
+    ],
+    "outbox": [
+      {
+        "id": "f5318325-c7fe-41b4-a224-97a3763138d1",
+        "operation": "revoke_projections",
+        "status": "pending",
+        "idempotency_key": "revoke:e5f7edc5-a2d9-4795-98fb-ba666c79d2fd",
+        "clio_memory_id": null,
+        "attempts": 0,
+        "created_at": "2026-10-02 17:00:03.832218+00",
+        "completed_at": null
+      }
+    ],
+    "embeddingCount": [
+      {
+        "count": 1
+      }
+    ]
+  },
+  "nightlyRefresh": {
+    "state": "ENABLED",
+    "schedule": "cron(30 4 * * ? *)",
+    "taskDefinition": "capiro-dev-api-migrate:125",
+    "sourceSha": "15205dcfc6d68ce88ff2a3b5fb6e57bdc7c7c1d2",
+    "imageDigest": "sha256:460efb52ac5adb83b4e66d234988416c72969cc0cb767fc8b64259cfc02daa7d"
+  },
+  "strictProjectionWorker": "DISABLED_NOT_CHANGED",
+  "limitations": [
+    "Stale embedding presence does not prove user-facing recall of revoked memory",
+    "Actual writer invocation not yet joined to this row; nightly path is a confirmed recurrence risk"
+  ],
+  "next": [
+    "Fix and test backfill embedding eligibility plus final write recheck",
+    "Qualify the changed nightly writer image separately from API service",
+    "Process only exact existing synthetic cleanup obligations through canonical owner",
+    "Repeat unchanged strict corpus preview before exact metadata reconciliation"
+  ],
+  "semanticClock": "STAGE_A_FROZEN_INCOMPLETE_NOT_RELEASE_READY",
+  "newProviderCalls": 0,
+  "original75Passed": 0,
+  "cdPassed": 0,
+  "cwPassed": 0
+}

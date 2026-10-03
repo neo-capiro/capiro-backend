@@ -1,0 +1,324 @@
+diff --git a/apps/api/Dockerfile b/apps/api/Dockerfile
+index 97e7dc30b..0249b1f63 100644
+--- a/apps/api/Dockerfile
++++ b/apps/api/Dockerfile
+@@ -134,7 +134,7 @@ COPY --chown=capiro:capiro --from=build /workspace/apps/api/src /app/apps/api/sr
+ # No eval runners, provider adapters, tests, or external configuration are copied.
+ COPY --chown=capiro:capiro evals/meri/live-v1/artifact-collector.mjs evals/meri/live-v1/windows-artifact-storage.mjs evals/meri/live-v1/fixture.mjs evals/meri/live-v1/cases.mjs evals/meri/live-v1/contract-lock.json /app/evals/meri/live-v1/
+ COPY --chown=capiro:capiro evals/meri/live-v1/lib/stable.mjs evals/meri/live-v1/lib/windows-artifact-protocol.py /app/evals/meri/live-v1/lib/
+-COPY --chown=capiro:capiro evals/meri/live-v1/fixture-provisioning/case14-memory-owner.mjs evals/meri/live-v1/fixture-provisioning/memory-pending-execution.mjs evals/meri/live-v1/fixture-provisioning/memory-pending-fixture-plan.mjs evals/meri/live-v1/fixture-provisioning/controlled-budget-definitions.mjs evals/meri/live-v1/fixture-provisioning/controlled-read-definitions.mjs evals/meri/live-v1/fixture-provisioning/controlled-read-owner.mjs evals/meri/live-v1/fixture-provisioning/case01-execution-setup.mjs evals/meri/live-v1/fixture-provisioning/capture-binding-owner.mjs evals/meri/live-v1/fixture-provisioning/case01-memory-owner.mjs evals/meri/live-v1/fixture-provisioning/case01-memory-runtime.mjs evals/meri/live-v1/fixture-provisioning/case01-memory-hydration.mjs evals/meri/live-v1/fixture-provisioning/manifest.mjs evals/meri/live-v1/fixture-provisioning/contract.mjs evals/meri/live-v1/fixture-provisioning/canonical-owner-adapter.mjs evals/meri/live-v1/fixture-provisioning/approved-memory-runtime.mjs evals/meri/live-v1/fixture-provisioning/approved-memory-retirement-owner.mjs evals/meri/live-v1/fixture-provisioning/memory-candidate-owner.mjs /app/evals/meri/live-v1/fixture-provisioning/
++COPY --chown=capiro:capiro evals/meri/live-v1/fixture-provisioning/case14-memory-owner.mjs evals/meri/live-v1/fixture-provisioning/memory-pending-execution.mjs evals/meri/live-v1/fixture-provisioning/memory-pending-fixture-plan.mjs evals/meri/live-v1/fixture-provisioning/controlled-budget-definitions.mjs evals/meri/live-v1/fixture-provisioning/controlled-read-definitions.mjs evals/meri/live-v1/fixture-provisioning/controlled-read-owner.mjs evals/meri/live-v1/fixture-provisioning/case01-execution-setup.mjs evals/meri/live-v1/fixture-provisioning/capture-binding-owner.mjs evals/meri/live-v1/fixture-provisioning/case01-memory-owner.mjs evals/meri/live-v1/fixture-provisioning/case01-memory-reconciliation.mjs evals/meri/live-v1/fixture-provisioning/case01-memory-runtime.mjs evals/meri/live-v1/fixture-provisioning/case01-memory-hydration.mjs evals/meri/live-v1/fixture-provisioning/manifest.mjs evals/meri/live-v1/fixture-provisioning/contract.mjs evals/meri/live-v1/fixture-provisioning/canonical-owner-adapter.mjs evals/meri/live-v1/fixture-provisioning/approved-memory-runtime.mjs evals/meri/live-v1/fixture-provisioning/approved-memory-retirement-owner.mjs evals/meri/live-v1/fixture-provisioning/memory-candidate-owner.mjs /app/evals/meri/live-v1/fixture-provisioning/
+ COPY --chown=capiro:capiro evals/meri/live-v1/source-binaries/asset-manifest.json evals/meri/live-v1/source-binaries/D-A-1.pdf evals/meri/live-v1/source-binaries/DECK-A-1.pptx evals/meri/live-v1/source-binaries/FILE-B-1-restricted.pdf evals/meri/live-v1/source-binaries/PDF-PENDING-1.pdf evals/meri/live-v1/source-binaries/REPORT-A-v1.pdf evals/meri/live-v1/source-binaries/REPORT-A-v2.pdf evals/meri/live-v1/source-binaries/SHEET-A-1.xlsx /app/evals/meri/live-v1/source-binaries/
+ # tsx (used by entrypoint.sh for sync-entity-resolution, which boots the full
+ # NestJS AppModule) needs a tsconfig with experimentalDecorators/emitDecoratorMetadata
+diff --git a/apps/api/scripts/meri-synthetic-read-budget.mjs b/apps/api/scripts/meri-synthetic-read-budget.mjs
+index b05e7f297..028bd84bd 100644
+--- a/apps/api/scripts/meri-synthetic-read-budget.mjs
++++ b/apps/api/scripts/meri-synthetic-read-budget.mjs
+@@ -20,10 +20,27 @@ export async function readSyntheticMemoryCorpus(factory, input) {
+   return { ...proof, status: 'MEMORY_CORPUS_READ', liveAcceptance: 'NOT_RUN' };
+ }
+ 
++export async function reconcileSyntheticMemoryCorpus(factory, input, mode) {
++  const { reconcileCase01MemoryCorpusInTx } =
++    await import('../../../evals/meri/live-v1/fixture-provisioning/case01-memory-owner.mjs');
++  return factory.runWithTenant(input.ctx, () => factory.deps.prisma.withTenantUser(
++    input.ctx.tenantId, input.ctx.userId,
++    (tx) => reconcileCase01MemoryCorpusInTx(factory.deps, tx, input.ctx, input.clientId,
++      mode === 'preview' ? { mode } : { mode, expectedPlanSha256: input.expectedPlanSha256 }),
++  ));
++}
++
++const confirmations = {
++  install: 'INSTALL_ONE_OWNED_SYNTHETIC_READ_BUDGET',
++  'read-corpus': 'READ_CURRENT_OWNED_MEMORY_CORPUS',
++  'preview-corpus-metadata': 'PREVIEW_EXACT_OWNED_MEMORY_METADATA',
++  'execute-corpus-metadata': 'RECONCILE_EXACT_OWNED_MEMORY_METADATA',
++};
++
+ export async function readSyntheticReadOperatorInput(args) {
+   const [command, flag, inputPath, outFlag, outPath] = args;
+   if (
+-    !['install', 'read-corpus'].includes(command) ||
++    !Object.hasOwn(confirmations, command) ||
+     args.length !== 5 ||
+     !['--input', '--input-env'].includes(flag) ||
+     outFlag !== '--out' ||
+@@ -34,18 +51,18 @@ export async function readSyntheticReadOperatorInput(args) {
+   if (
+     input.target !== 'capiro-dev' ||
+     input.fixtureNamespace !== 'meri-foundation-20260928' ||
+-    input.confirmation !==
+-      (command === 'install'
+-        ? 'INSTALL_ONE_OWNED_SYNTHETIC_READ_BUDGET'
+-        : 'READ_CURRENT_OWNED_MEMORY_CORPUS') ||
++    input.confirmation !== confirmations[command] ||
+     input.ctx?.role !== 'standard_user' ||
+     process.env.MERI_SYNTHETIC_FIXTURE_NAMESPACE !== input.fixtureNamespace ||
+     !process.env.DATABASE_URL
+   )
+     throw new Error('meri_synthetic_read_budget_scope');
+   if (
+-    command === 'read-corpus' &&
+-    (Object.keys(input).sort().join('|') !== 'clientId|confirmation|ctx|fixtureNamespace|target' ||
++    command !== 'install' &&
++    (Object.keys(input).sort().join('|') !== (command === 'execute-corpus-metadata'
++      ? 'clientId|confirmation|ctx|expectedPlanSha256|fixtureNamespace|target'
++      : 'clientId|confirmation|ctx|fixtureNamespace|target') ||
++      (command === 'execute-corpus-metadata' && !/^[a-f0-9]{64}$/.test(input.expectedPlanSha256)) ||
+       !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/iu.test(
+         input.clientId ?? '',
+       ))
+@@ -55,15 +72,22 @@ export async function readSyntheticReadOperatorInput(args) {
+ }
+ 
+ export async function main(args = process.argv.slice(2)) {
+-  let prisma, output, factory;
++  let prisma, output, factory, executionAttempted = false;
+   try {
+     const { command, input, outPath } = await readSyntheticReadOperatorInput(args);
+     output = await open(outPath, 'wx');
+-    if (command === 'read-corpus') {
++    if (command !== 'install') {
+       const { createCase01SetupDependencies } =
+         await import('./meri-case01-setup-dependencies.mjs');
+       factory = await createCase01SetupDependencies();
+-      const receipt = await readSyntheticMemoryCorpus(factory, input);
++      if (command === 'execute-corpus-metadata') {
++        await output.writeFile(JSON.stringify({ status: 'EXECUTION_ATTEMPTED', expectedPlanSha256: input.expectedPlanSha256,
++          noAutomaticRetry: true, captureAuthority: false }) + '\n');
++        await output.sync();
++        executionAttempted = true;
++      }
++      const receipt = command === 'read-corpus' ? await readSyntheticMemoryCorpus(factory, input)
++        : await reconcileSyntheticMemoryCorpus(factory, input, command === 'preview-corpus-metadata' ? 'preview' : 'execute');
+       await output.writeFile(JSON.stringify(receipt) + '\n');
+       await output.sync();
+       process.stdout.write(
+@@ -97,7 +121,8 @@ export async function main(args = process.argv.slice(2)) {
+       : 'meri_synthetic_read_budget_install_failed';
+     if (output) {
+       await output.writeFile(
+-        JSON.stringify({ status: 'FAILED', code, liveAcceptance: 'NOT_RUN' }) + '\n',
++        JSON.stringify({ status: executionAttempted ? 'EXECUTION_OUTCOME_UNCONFIRMED' : 'FAILED', code,
++          noAutomaticRetry: true, liveAcceptance: 'NOT_RUN' }) + '\n',
+       );
+       await output.sync();
+     }
+diff --git a/apps/api/scripts/meri-synthetic-read-budget.test.mjs b/apps/api/scripts/meri-synthetic-read-budget.test.mjs
+index 25e5f1c71..6c287f2f5 100644
+--- a/apps/api/scripts/meri-synthetic-read-budget.test.mjs
++++ b/apps/api/scripts/meri-synthetic-read-budget.test.mjs
+@@ -73,6 +73,21 @@ test('fixed budget env and file ingress work for install and canonical read', as
+     await assert.rejects(parse({ ...read, clientId: 'invalid' }), /corpus_scope/);
+     await assert.rejects(parse({ ...read, fixtureReady: true }), /corpus_scope/);
+     await assert.rejects(parse({ ...read, credential: 'UNIT_NOT_SECRET' }), /INPUT_INVALID/);
++    for (const [command, confirmation] of [
++      ['preview-corpus-metadata', 'PREVIEW_EXACT_OWNED_MEMORY_METADATA'],
++      ['execute-corpus-metadata', 'RECONCILE_EXACT_OWNED_MEMORY_METADATA'],
++    ]) {
++      const repair = { ...read, confirmation, ...(command.startsWith('execute') ? { expectedPlanSha256: 'a'.repeat(64) } : {}) };
++      assert.deepEqual((await parse(repair, command)).input, repair);
++      await assert.rejects(parse({ ...repair, ids: ['caller-selected'] }, command), /corpus_scope/);
++      await assert.rejects(parse({ ...repair, fixtureReady: true }, command), /corpus_scope/);
++      await assert.rejects(parse({ ...repair, confirmation: read.confirmation }, command), /scope/);
++      await assert.rejects(parse({ ...repair, expectedPlanSha256: 'invalid' }, command), /corpus_scope/);
++      if (command.startsWith('execute')) {
++        const { expectedPlanSha256, ...missing } = repair;
++        await assert.rejects(parse(missing, command), /corpus_scope/);
++      }
++    }
+   } finally {
+     for (const key of keys) {
+       if (before[key] === undefined) delete process.env[key];
+diff --git a/evals/meri/live-v1/fixture-provisioning/case01-memory-owner.mjs b/evals/meri/live-v1/fixture-provisioning/case01-memory-owner.mjs
+index d8dd3ab7f..55de440b3 100644
+--- a/evals/meri/live-v1/fixture-provisioning/case01-memory-owner.mjs
++++ b/evals/meri/live-v1/fixture-provisioning/case01-memory-owner.mjs
+@@ -2,6 +2,7 @@ import { sha256Stable, stableJson } from '../artifact-collector.mjs';
+ import { buildFixtureManifest } from './manifest.mjs';
+ import { createCase01MemoryFixtureRuntime } from './case01-memory-runtime.mjs';
+ import { AUTHORIZED_TENANTS, FIXTURE_NAMESPACE, FixtureProvisioningError } from './contract.mjs';
++import { reconcileCase01MetadataInTx } from './case01-memory-reconciliation.mjs';
+ 
+ const fail = (code) => {
+   throw new FixtureProvisioningError(code, code);
+@@ -35,7 +36,7 @@ export function case01MemoryOwnerLocator(currentManifest, previousManifest, prop
+   });
+ }
+ 
+-async function reconstruct(tx, ctx, scope, input, deps) {
++async function corpusManifests(ctx, scope, input) {
+   const locator = structuredClone(input);
+   if (
+     !locator ||
+@@ -69,6 +70,11 @@ async function reconstruct(tx, ctx, scope, input, deps) {
+     ...config,
+     fixtureInstanceId: locator.currentFixtureInstanceId,
+   });
++  return { locator, previousManifest, currentManifest };
++}
++
++async function reconstruct(tx, ctx, scope, input, deps) {
++  const { locator, previousManifest, currentManifest } = await corpusManifests(ctx, scope, input);
+   const runtimeDeps = {
+     ...deps,
+     proposerForTenant: (tenantId) => {
+@@ -167,6 +173,17 @@ export async function readCase01MemoryCorpusInTx(deps, tx, ctx, clientId) {
+   };
+ }
+ 
++/** Operator-only reconciliation. A preview grants no capture/provider authority. */
++export async function reconcileCase01MemoryCorpusInTx(deps, tx, ctx, clientId, options) {
++  const row = await tenantInTx(tx, ctx);
++  const scope = { caseId: '01', clientId }, locator = row.settings.meriFoundationFixture.case01MemoryOwner;
++  const manifests = await corpusManifests(ctx, scope, locator);
++  return reconcileCase01MetadataInTx(tx, ctx, {
++    ...manifests, tenant: row, options,
++    verify: () => reconstruct(tx, ctx, scope, locator, deps),
++  });
++}
++
+ /** Internal server port. Qualifies inside the existing authenticated transaction.
+  * Reconstruct each time, so neither tenant configuration nor row versions cache
+  * across requests or restarts. Canonical helpers hold the current source locks.
+diff --git a/evals/meri/live-v1/tests/case01-memory-hydration.postgres.test.mjs b/evals/meri/live-v1/tests/case01-memory-hydration.postgres.test.mjs
+index 4df9f2aff..03c9a6f79 100644
+--- a/evals/meri/live-v1/tests/case01-memory-hydration.postgres.test.mjs
++++ b/evals/meri/live-v1/tests/case01-memory-hydration.postgres.test.mjs
+@@ -16,11 +16,12 @@ import { createCaptureBindingOwner } from '../fixture-provisioning/capture-bindi
+ import {
+   createHydratedCase01MemoryOwner,
+   readCase01MemoryCorpusInTx,
++  reconcileCase01MemoryCorpusInTx,
+   case01MemoryOwnerLocator,
+ } from '../fixture-provisioning/case01-memory-owner.mjs';
+ import { sha256Stable } from '../artifact-collector.mjs';
+ import { AUTHORIZED_TENANTS, FIXTURE_NAMESPACE } from '../fixture-provisioning/contract.mjs';
+-import { readSyntheticMemoryCorpus } from '../../../../apps/api/scripts/meri-synthetic-read-budget.mjs';
++import { readSyntheticMemoryCorpus, reconcileSyntheticMemoryCorpus } from '../../../../apps/api/scripts/meri-synthetic-read-budget.mjs';
+ 
+ const require = createRequire(new URL('../../../../apps/api/package.json', import.meta.url));
+ const source = (name) =>
+@@ -153,6 +154,107 @@ it(
+       assert.deepEqual(stored.unrelated, { text: 'keep  ' });
+       assert.deepEqual(stored.meriFoundationFixture.captureEvidence, bound.binding);
+       const corpus = await readCase01MemoryCorpusInTx(runtimeDeps, tx, ctx, CLIENT);
++      await tx.$executeRawUnsafe('SAVEPOINT reconciliation_exercises');
++      try {
++        const snapshot = () => tx.$queryRawUnsafe(`SELECT 'item' AS kind,id::text,xmin::text AS version,to_jsonb(m) AS body,
++          retention_policy_jsonb IS NULL AS sql_null FROM memory_items m UNION ALL
++          SELECT 'candidate',id::text,xmin::text,to_jsonb(c),NULL FROM memory_candidate c UNION ALL
++          SELECT 'transition',id::text,xmin::text,to_jsonb(a),NULL FROM memory_transition_audit a UNION ALL
++          SELECT 'audit',id::text,xmin::text,to_jsonb(l),NULL FROM audit_logs l ORDER BY kind,id`);
++        const unrelatedId = randomUUID();
++        await tx.$executeRawUnsafe(`INSERT INTO memory_items(id,tenant_id,status,governed_status,retention_policy_jsonb)
++          VALUES($1::uuid,$2::uuid,'active','active','{}'::jsonb)`, unrelatedId, TENANT);
++        const healthy = await snapshot();
++        const options = { mode: 'preview' };
++        const preview = (actor = ctx, clientId = CLIENT, opts = options) =>
++          reconcileCase01MemoryCorpusInTx(runtimeDeps, tx, actor, clientId, opts);
++        await assert.rejects(preview(), { code: 'CASE01_METADATA_RECONCILIATION_REFUSED' }); // No no-op repair/receipt.
++        await tx.$executeRawUnsafe("UPDATE memory_items SET governed_status='active',retention_policy_jsonb='null'::jsonb WHERE id<>$1::uuid", unrelatedId);
++        const drifted = await snapshot();
++        await assert.rejects(readCase01MemoryCorpusInTx(runtimeDeps, tx, ctx, CLIENT));
++        const plan = await preview();
++        assert.equal(plan.status, 'METADATA_RECONCILIATION_PREVIEW_ROLLED_BACK');
++        assert.equal(plan.plan.changes.length, 8);
++        assert.equal(plan.captureAuthority, false);
++        assert.equal(plan.providerAuthority, false);
++        assert.equal(plan.proofIsTentative, true);
++        assert.equal(plan.proof.fixtureReady, true);
++        assert.equal(plan.auditId, null);
++        assert.deepEqual(await snapshot(), drifted); // Including xmin: preview changed nothing.
++        await assert.rejects(readCase01MemoryCorpusInTx(runtimeDeps, tx, ctx, CLIENT));
++        await assert.rejects(preview({ ...ctx, role: 'capiro_admin' }));
++        await assert.rejects(preview({ ...ctx, userId: randomUUID() }));
++        await assert.rejects(preview({ ...ctx, tenantId: AUTHORIZED_TENANTS.T2.id }));
++        await assert.rejects(preview(ctx, randomUUID()));
++        await assert.rejects(preview(ctx, CLIENT, { ...options, ids: plan.plan.changes.map((row) => row.id) }));
++        await assert.rejects(preview(ctx, CLIENT, { mode: 'execute', expectedPlanSha256: '0'.repeat(64) }));
++        for (const mutation of [
++          "UPDATE memory_items SET sections_jsonb='[]'::jsonb WHERE status='superseded'",
++          "UPDATE memory_items SET legal_hold=true WHERE status='superseded'",
++          "UPDATE memory_items SET retention_policy_jsonb='{}'::jsonb WHERE status='superseded'",
++          "UPDATE memory_items SET status='active' WHERE status='superseded'",
++          "UPDATE memory_items SET governed_status='revoked' WHERE status='superseded'",
++          "UPDATE memory_items SET approved_at=approved_at + interval '1 second' WHERE status='superseded'",
++          "UPDATE memory_candidate SET payload_jsonb='{}'::jsonb WHERE status='approved'",
++          "UPDATE memory_transition_audit SET metadata_jsonb='{}'::jsonb WHERE reason_code='superseded'",
++          "UPDATE clients SET memory_wall=true WHERE id='22222222-2222-4222-8222-222222222222'",
++          "UPDATE tenants SET settings_jsonb=jsonb_set(settings_jsonb,'{meriFoundationFixture,case01MemoryOwner,ready}','true')",
++        ]) {
++          await tx.$executeRawUnsafe('SAVEPOINT invalid_reconciliation');
++          try {
++            assert.ok(await tx.$executeRawUnsafe(mutation));
++            const changed = await snapshot();
++            await assert.rejects(preview(), mutation);
++            await assert.rejects(preview(ctx, CLIENT, { mode: 'execute', expectedPlanSha256: plan.planSha256 }), mutation);
++            assert.deepEqual(await snapshot(), changed, 'All failed tentative changes rolled back');
++          } finally {
++            await tx.$executeRawUnsafe('ROLLBACK TO SAVEPOINT invalid_reconciliation');
++            await tx.$executeRawUnsafe('RELEASE SAVEPOINT invalid_reconciliation');
++          }
++        }
++        await tx.$executeRawUnsafe('SAVEPOINT stale_reconciliation');
++        try {
++          // Even a harmless before-image change invalidates the approved plan.
++          await tx.$executeRawUnsafe("UPDATE memory_items SET updated_at=updated_at+interval '1 second' WHERE status='superseded'");
++          const refreshed = await preview();
++          assert.notEqual(refreshed.planSha256, plan.planSha256);
++          await assert.rejects(preview(ctx, CLIENT, { mode: 'execute', expectedPlanSha256: plan.planSha256 }));
++        } finally {
++          await tx.$executeRawUnsafe('ROLLBACK TO SAVEPOINT stale_reconciliation');
++          await tx.$executeRawUnsafe('RELEASE SAVEPOINT stale_reconciliation');
++        }
++        await tx.$executeRawUnsafe('SAVEPOINT reconciliation_audit_failure');
++        try {
++          await tx.$executeRawUnsafe(`CREATE FUNCTION refuse_reconciliation_audit() RETURNS trigger LANGUAGE plpgsql AS $$
++            BEGIN RAISE EXCEPTION 'controlled local audit insert failure'; END $$`);
++          await tx.$executeRawUnsafe(`CREATE TRIGGER refuse_reconciliation_audit BEFORE INSERT ON audit_logs
++            FOR EACH ROW EXECUTE FUNCTION refuse_reconciliation_audit()`);
++          const beforeFailure = await snapshot();
++          await assert.rejects(preview(ctx, CLIENT, { mode: 'execute', expectedPlanSha256: plan.planSha256 }));
++          assert.deepEqual(await snapshot(), beforeFailure, 'Audit failure rolls back every item update');
++        } finally {
++          await tx.$executeRawUnsafe('ROLLBACK TO SAVEPOINT reconciliation_audit_failure');
++          await tx.$executeRawUnsafe('RELEASE SAVEPOINT reconciliation_audit_failure');
++        }
++        const factory = { deps: runtimeDeps, runWithTenant: async (_actor, work) => work() };
++        const executed = await reconcileSyntheticMemoryCorpus(factory,
++          { ctx, clientId: CLIENT, expectedPlanSha256: plan.planSha256 }, 'execute');
++        assert.equal(executed.status, 'METADATA_RECONCILED');
++        assert.equal(executed.proofIsTentative, false);
++        assert.ok(executed.auditId);
++        const reread = await readCase01MemoryCorpusInTx(runtimeDeps, tx, ctx, CLIENT);
++        assert.equal(reread.currentVerifySha256, executed.proof.currentVerifySha256);
++        await assert.rejects(preview(ctx, CLIENT, { mode: 'execute', expectedPlanSha256: plan.planSha256 }));
++        const settled = await snapshot();
++        assert.deepEqual(settled.filter((row) => ['candidate', 'transition'].includes(row.kind)),
++          healthy.filter((row) => ['candidate', 'transition'].includes(row.kind)));
++        assert.deepEqual(settled.filter((row) => row.kind === 'item').map((row) => row.body),
++          healthy.filter((row) => row.kind === 'item').map((row) => row.body));
++        assert.equal(settled.filter((row) => row.kind === 'audit' && row.id === executed.auditId).length, 1);
++      } finally {
++        await tx.$executeRawUnsafe('ROLLBACK TO SAVEPOINT reconciliation_exercises');
++        await tx.$executeRawUnsafe('RELEASE SAVEPOINT reconciliation_exercises');
++      }
+       // Exercise the CLI's actual read dispatch over the same real canonical
+       // owner/owned PostgreSQL transaction; no installer or fixture mutation.
+       const readViaCli = (actor = ctx, clientId = CLIENT) => readSyntheticMemoryCorpus({
+diff --git a/evals/meri/live-v1/tests/case01-memory-lifecycle.postgres.test.mjs b/evals/meri/live-v1/tests/case01-memory-lifecycle.postgres.test.mjs
+index c6e4c1155..926d9a485 100644
+--- a/evals/meri/live-v1/tests/case01-memory-lifecycle.postgres.test.mjs
++++ b/evals/meri/live-v1/tests/case01-memory-lifecycle.postgres.test.mjs
+@@ -30,8 +30,7 @@ export async function versionDependencies(deps, tx, memoryStore) {
+   // The enclosing harness restores this key in finally; no deployed flag changes.
+   process.env.MEMORY_CLIENT_REVIEW = 'enforce';
+   await tx.$executeRawUnsafe(`ALTER TABLE memory_items ADD COLUMN review_cadence_days int,
+-    ADD COLUMN supersedes_id uuid, ADD COLUMN contradicts_id uuid, ADD COLUMN ingest_run_id uuid,
+-    ADD COLUMN ingested_at timestamptz`);
++    ADD COLUMN supersedes_id uuid, ADD COLUMN contradicts_id uuid`);
+   const { ImmutableMemoryVersionService } = source('memory/immutable-memory-version.service');
+   const { MemoryTransitionAuditService } = source('memory/memory-transition-audit.service');
+   const { MemoryCleanupOutboxService } = source('memory/memory-cleanup-outbox.service');

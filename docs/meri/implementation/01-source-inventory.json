@@ -1707,7 +1707,7 @@
             "apps/api/src/meri/meri-procedure-runtime.ts",
             "apps/api/src/meri/skills/commitments-audit.procedure.ts"
           ],
-          "remaining": "All CD-01–07 including source/coverage/effect variants.",
+          "remaining": "All CD-01\u201307 including source/coverage/effect variants.",
           "sourceHashes": {
             "apps/api/src/meri/meri-procedure-runtime.ts": "233cd8d55792485a99d33a2281806dfc4e9f77c3443bd9cb41368330a3666b4d",
             "apps/api/src/meri/skills/commitments-audit.procedure.ts": "0634e22cb494ea69fd3d857e9375ce63f2543d5af8d9292a7a58a95d455dca28"
@@ -1755,7 +1755,7 @@
             "apps/api/src/meri/meri-research-coordinator.ts",
             "apps/api/src/meri/meri-research-child-task.ts"
           ],
-          "remaining": "CW01–08 actual recovery, steering and parent budget; donor mapping not newly certified.",
+          "remaining": "CW01\u201308 actual recovery, steering and parent budget; donor mapping not newly certified.",
           "sourceHashes": {
             "apps/api/src/meri/meri-research-coordinator.ts": "5f63ee88cd3783cf7dfb0bdbc8df08a4ac13e139f5dd8ed2209b3a553e5e567a",
             "apps/api/src/meri/meri-research-child-task.ts": "0608142f70a20651fe71f262c5ddf719ad3f3ee1b5ba5990a9ea8668942d5356"
@@ -1913,6 +1913,22 @@
       },
       "corpusPreflight": "FAILED_CANONICAL_PROJECTION_METADATA_DRIFT",
       "reconciliation": "IN_PROGRESS",
+      "newProviderCaptures": 0,
+      "original75FullyAccepted": 0,
+      "cdFullyAccepted": 0,
+      "cwFullyAccepted": 0,
+      "sourceProvenanceChanged": false,
+      "historicalJournalChanged": false
+    },
+    {
+      "date": "2026-10-03T13:28:50.937198+00:00",
+      "kind": "c2_memory_preview_retirement_blocker",
+      "sourceSha": "5ffe66728d36cb6daa62c09e6b7e6faaf1ecc7ea",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:7ec9d5b2e8e5300fed7da69bb7b210c0617655babe7ca18c97cfa789a551a738",
+      "evidence": "docs/meri/releases/2026-10-03/c2-memory-repairs/README.md",
+      "deployment": "NOT_RUN",
+      "corpusPreview": "FAILED_RETIRED_EMBEDDING",
+      "committedCorpusMutations": 0,
       "newProviderCaptures": 0,
       "original75FullyAccepted": 0,
       "cdFullyAccepted": 0,

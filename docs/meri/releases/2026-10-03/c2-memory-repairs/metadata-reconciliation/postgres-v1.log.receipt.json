@@ -1,0 +1,5 @@
+{
+  "command": "node --test --test-concurrency=1 evals/meri/live-v1/tests/case01-memory-hydration.postgres.test.mjs",
+  "timestamp": "2026-10-03T12:44:35.4974979Z",
+  "exitCode": 1
+}

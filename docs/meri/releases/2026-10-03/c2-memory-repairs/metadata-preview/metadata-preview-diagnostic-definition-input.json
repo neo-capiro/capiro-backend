@@ -1,0 +1,108 @@
+{
+  "taskRoleArn": "arn:aws:iam::967807252336:role/Capiro-dev-Compute-ApiTaskRole12FAD4A7-szq3QeeZJSCQ",
+  "executionRoleArn": "arn:aws:iam::967807252336:role/Capiro-dev-Compute-ApiTaskDefExecutionRoleE6ABB053-YlEDKuUPHjLg",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": [
+    "FARGATE"
+  ],
+  "cpu": "512",
+  "memory": "1024",
+  "runtimePlatform": {
+    "cpuArchitecture": "ARM64",
+    "operatingSystemFamily": "LINUX"
+  },
+  "family": "capiro-dev-meri-c2-metadata-20261003",
+  "containerDefinitions": [
+    {
+      "name": "meri-c2-metadata",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:7ec9d5b2e8e5300fed7da69bb7b210c0617655babe7ca18c97cfa789a551a738",
+      "essential": true,
+      "environment": [
+        {
+          "name": "DB_NAME",
+          "value": "capiro"
+        },
+        {
+          "name": "AWS_REGION_DEFAULT",
+          "value": "us-east-1"
+        },
+        {
+          "name": "MEMORY_CLIENT_REVIEW",
+          "value": "enforce"
+        },
+        {
+          "name": "MEMORY_GOVERNANCE_LIFECYCLE",
+          "value": "enforce"
+        },
+        {
+          "name": "MEMORY_GOVERNANCE_CENTER",
+          "value": "enforce"
+        },
+        {
+          "name": "MEMORY_GOVERNANCE_ENFORCE",
+          "value": "enforce"
+        },
+        {
+          "name": "MERI_SYNTHETIC_FIXTURE_NAMESPACE",
+          "value": "meri-foundation-20260928"
+        },
+        {
+          "name": "TMPDIR",
+          "value": "/dev/shm"
+        },
+        {
+          "name": "GIT_SHA",
+          "value": "5ffe66728d36cb6daa62c09e6b7e6faaf1ecc7ea"
+        },
+        {
+          "name": "RELEASE_SHA",
+          "value": "5ffe66728d36cb6daa62c09e6b7e6faaf1ecc7ea"
+        },
+        {
+          "name": "MEMORY_GOVERNANCE_TENANTS",
+          "value": "f2d6cf8f-057c-479a-8110-62fe5086d43f,52e91176-08f0-4d89-9633-bc212f5bdbbf"
+        }
+      ],
+      "secrets": [
+        {
+          "name": "DB_HOST",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/dev/aurora/master-P4z1Vo:host::"
+        },
+        {
+          "name": "DB_PORT",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/dev/aurora/master-P4z1Vo:port::"
+        },
+        {
+          "name": "DB_USER",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/dev/aurora/app-zNPtsU:username::"
+        },
+        {
+          "name": "DB_PASSWORD",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/dev/aurora/app-zNPtsU:password::"
+        }
+      ],
+      "entryPoint": [
+        "/usr/bin/dumb-init",
+        "--",
+        "node",
+        "--input-type=module",
+        "-e"
+      ],
+      "command": [
+        "// Observe the packaged preview; do not change queries, guards or transaction behavior.\nimport {execFileSync} from 'node:child_process';\nimport {createHash} from 'node:crypto';\nimport {readSyntheticReadOperatorInput,reconcileSyntheticMemoryCorpus} from './scripts/meri-synthetic-read-budget.mjs';\nimport {createCase01SetupDependencies} from './scripts/meri-case01-setup-dependencies.mjs';\nconst hash=value=>createHash('sha256').update(value).digest('hex');\nconst observations=[];\nconst safeError=e=>({name:/^[A-Za-z]{1,70}$/.test(e?.name??'')?e.name:null,\n  code:/^(P[0-9]{4}|CASE01_[A-Z_]+)$/.test(e?.code??'')?e.code:null,\n  message:['Approved synthetic memory guard does not match','Synthetic correction readback guard does not match','Synthetic immutable correction evidence does not match','Synthetic correction retirement version does not match','Synthetic correction retirement evidence does not match','Synthetic immutable correction guard does not match'].includes(e?.message)||/^(CASE01_[A-Z_]+|meri_synthetic_read_budget_[a-z_]+)$/.test(e?.message??'')?e.message:'UNCLASSIFIED_NO_RAW_MESSAGE',\n  databaseCode:/^[0-9A-Z]{5}$/.test(e?.meta?.code??'')?e.meta.code:null,\n  frames:String(e?.stack??'').split('\\n').filter(s=>/^\\s+at /.test(s)&&s.includes('/app/')).slice(0,9)});\nlet factory;\ntry {\n  process.env.DATABASE_URL=execFileSync(process.execPath,['./scripts/lib/pe-compose-database-url.js'],{encoding:'utf8',stdio:['ignore','pipe','pipe']}).trim();\n  const {input}=await readSyntheticReadOperatorInput(['preview-corpus-metadata','--input-env','MERI_SYNTHETIC_READ_BUDGET_INPUT','--out','/dev/shm/unused-diagnostic.json']);\n  factory=await createCase01SetupDependencies();\n  const original=factory.deps.prisma;\n  const prisma=new Proxy(original,{get(target,key,receiver){\n    if(key!=='withTenantUser') return Reflect.get(target,key,receiver);\n    return (tenant,user,work)=>target.withTenantUser(tenant,user,tx=>work(new Proxy(tx,{get(db,method){\n      if(!['$queryRawUnsafe','$queryRaw','$executeRawUnsafe','$executeRaw'].includes(method)) return Reflect.get(db,method);\n      return async(first,...values)=>{\n        const sql=typeof first==='string'?first:Array.isArray(first)?first.join('?'):'UNCLASSIFIED';\n        const info={method,querySha256:hash(sql),queryKind:sql.trim().split(/\\s+/).slice(0,5).join(' ')};\n        try {\n          const result=await db[method](first,...values);\n          if(Array.isArray(result)) info.rowCount=result.length;\n          if(sql.startsWith('SELECT id::text,xmin::text AS version,to_jsonb(m)')) info.memoryRows=result.map(r=>({id:r.id,xmin:r.version,status:r.body.status,governedStatus:r.body.governed_status,legalHold:r.body.legal_hold,instructionsAllowed:r.body.instructions_allowed,retentionSqlNull:r.retention_sql_null,retentionJsonNull:r.body.retention_policy_jsonb===null}));\n          if(sql.startsWith('SELECT to_jsonb(a) AS body,xmin::text AS version FROM memory_transition_audit')) info.audits=result.map(r=>({id:r.body.id,memoryItemId:r.body.memory_item_id,candidateId:r.body.memory_candidate_id,from:r.body.from_status,to:r.body.to_status,reason:r.body.reason_code,syntheticCandidate:r.body.metadata_jsonb?.syntheticFixtureCandidateId}));\n          observations.push(info);return result;\n        } catch(error) {observations.push({...info,error:safeError(error)});throw error;}\n      };\n    }})));\n  }});\n  const proof=await reconcileSyntheticMemoryCorpus({...factory,deps:{...factory.deps,prisma}},input,'preview');\n  console.log('C2_METADATA_PREVIEW_DIAGNOSTIC '+JSON.stringify({status:'PREVIEW_COMPLETE',proof,observations}));\n} catch(error) {\n  console.log('C2_METADATA_PREVIEW_DIAGNOSTIC '+JSON.stringify({status:'PREVIEW_FAILED',error:safeError(error),observations}));\n  process.exitCode=1;\n} finally {if(factory) await factory.close();}\n"
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/capiro/dev/api",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "meri-c2-metadata"
+        },
+        "secretOptions": []
+      },
+      "dockerLabels": {
+        "org.opencontainers.image.revision": "5ffe66728d36cb6daa62c09e6b7e6faaf1ecc7ea"
+      }
+    }
+  ]
+}

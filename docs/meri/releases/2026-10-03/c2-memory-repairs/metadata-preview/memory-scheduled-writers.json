@@ -1,0 +1,232 @@
+{
+  "at": "2026-10-03T13:23:43.320Z",
+  "status": "READ_ONLY_WRITER_INVENTORY",
+  "records": [
+    {
+      "name": "capiro-dev-refresh-memory-graph",
+      "arn": "arn:aws:events:us-east-1:967807252336:rule/capiro-dev-refresh-memory-graph",
+      "state": "ENABLED",
+      "schedule": "cron(30 4 * * ? *)",
+      "ruleSha256": "4a9376120b272c60388f6986a7a20aa00bfa78a8feb3b44a3a804fd93c617947",
+      "targets": [
+        {
+          "id": "refresh-memory-graph-target",
+          "clusterArn": "arn:aws:ecs:us-east-1:967807252336:cluster/capiro-dev",
+          "roleArn": "arn:aws:iam::967807252336:role/capiro-dev-eventbridge-sync-invoker",
+          "input": {
+            "containerOverrides": [
+              {
+                "name": "api",
+                "command": [
+                  "refresh-memory-graph",
+                  "--all-tenants"
+                ]
+              }
+            ]
+          },
+          "ecs": {
+            "TaskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api-migrate:125",
+            "TaskCount": 1,
+            "LaunchType": "FARGATE",
+            "NetworkConfiguration": {
+              "awsvpcConfiguration": {
+                "Subnets": [
+                  "subnet-0e38bd390f8961fef",
+                  "subnet-0920665f91c905f01",
+                  "subnet-06db79cd21239de19"
+                ],
+                "SecurityGroups": [
+                  "sg-01def4e5c0fe44d4a"
+                ],
+                "AssignPublicIp": "DISABLED"
+              }
+            },
+            "PlatformVersion": "LATEST",
+            "EnableECSManagedTags": false,
+            "EnableExecuteCommand": false
+          },
+          "targetSha256": "f26f8d465e9e37c7c54e8470eda3c14c95d157dbc3095775495bc7e8a92c2c20",
+          "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api-migrate:125",
+          "taskDefinitionSha256": "8dac4331fe3d226c1f747717c0bf531e1b9d9273b414c510d1eb893616183027",
+          "containers": [
+            {
+              "name": "api",
+              "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:460efb52ac5adb83b4e66d234988416c72969cc0cb767fc8b64259cfc02daa7d",
+              "entryPoint": null,
+              "command": [
+                "migrate"
+              ],
+              "releaseSha": "15205dcfc6d68ce88ff2a3b5fb6e57bdc7c7c1d2",
+              "environmentNames": [
+                "API_BIND_HOST",
+                "API_PORT",
+                "ASSETS_BUCKET",
+                "AWS_REGION_DEFAULT",
+                "CAPIRO_PHASE4_RELEASE_SHA",
+                "CAPIRO_PHASE6_RELEASE_SHA",
+                "CAPIRO_PHASE7_RELEASE_SHA",
+                "CAPIRO_PHASE8_RELEASE_SHA",
+                "CLERK_JWT_ISSUER",
+                "CLIO_RUNTIME_BASE_URL",
+                "CLIO_RUNTIME_TIMEOUT_MS",
+                "CONTEXT_PACKET_V2",
+                "DB_NAME",
+                "DEFENSE_BUDGET_RAW_BUCKET",
+                "DEFENSE_BUDGET_RAW_KMS_KEY_ARN",
+                "DEFENSE_BUDGET_RETENTION_YEARS",
+                "GIT_SHA",
+                "HEARING_AUDIO_MAINTENANCE_ENABLED",
+                "HEARING_AUDIO_STORAGE_ENABLED",
+                "HEARING_PUBLIC_AUDIO_STORAGE_ENABLED",
+                "HEARING_SMS_READINESS_APPROVED",
+                "HEARING_TRANSCRIPTION_RECOVERY_ENABLED",
+                "LEGISCAN_DOCUMENT_EVIDENCE_ENABLED",
+                "LEGIWATCH_FISCAL_REFRESH_ENABLED",
+                "LEGIWATCH_HEARING_EMAIL_ENABLED",
+                "LEGIWATCH_HEARING_INBOX_ENABLED",
+                "LEGIWATCH_HEARING_SMS_ENABLED",
+                "LEGIWATCH_KEYWORD_DELIVERY_ENABLED",
+                "LEGIWATCH_NEWS_DAILY_REQUEST_CAP",
+                "LEGIWATCH_NEWS_INGEST_ENABLED",
+                "LEGIWATCH_PUBLISHED_RECORD_REFRESH_ENABLED",
+                "LEGIWATCH_RECORD_EMAIL_ENABLED",
+                "LEGIWATCH_RECORD_INBOX_ENABLED",
+                "LEGIWATCH_RECORD_SMS_ENABLED",
+                "LEGIWATCH_STATE_SERVER_CAPTURE_ENABLED",
+                "LLAMA_CLOUD_BASE_URL",
+                "LOG_LEVEL",
+                "MEMORY_AUTOLEARN_GOVERNED",
+                "MEMORY_CLIENT_REVIEW",
+                "MEMORY_GOVERNANCE_CENTER",
+                "MEMORY_GOVERNANCE_ENFORCE",
+                "MEMORY_GOVERNANCE_LIFECYCLE",
+                "MEMORY_GOVERNANCE_TENANTS",
+                "MERIV2_CONTEXT_PACKET_V2",
+                "MERIV2_CONTROL_METRICS",
+                "MERI_POLICY_PACK_SOURCE",
+                "MERI_POLICY_PACK_TENANTS",
+                "MERI_RELEASE_GATE",
+                "MERI_RELEASE_GATE_SURFACES",
+                "MERI_RELEASE_GATE_TENANTS",
+                "NODE_ENV",
+                "PE_ALERT_EMAIL_TENANTS",
+                "RELEASE_SHA",
+                "TRACKER_SINGLE_SENDER_GUARD",
+                "WEB_ORIGIN"
+              ],
+              "secretNames": [
+                "AI_CREDENTIAL_ENCRYPTION_KEY",
+                "ANTHROPIC_API_KEY",
+                "CLERK_SECRET_KEY",
+                "CLERK_WEBHOOK_SIGNING_SECRET",
+                "CLIO_RUNTIME_API_KEY",
+                "CLIO_TOOL_API_KEY",
+                "CONGRESS_API_KEY",
+                "DB_HOST",
+                "DB_PASSWORD",
+                "DB_PORT",
+                "DB_USER",
+                "FIRECRAWL_API_KEY",
+                "LLAMA_CLOUD_API_KEY",
+                "MICROSOFT_CERT_PRIVATE_KEY",
+                "MICROSOFT_CERT_THUMBPRINT",
+                "MICROSOFT_CLIENT_ID",
+                "MICROSOFT_TENANT_ID",
+                "NOTES_ENCRYPTION_KEY",
+                "OAUTH_STATE_SECRET",
+                "OAUTH_TOKEN_ENCRYPTION_KEY",
+                "OPENAI_API_KEY",
+                "SAM_GOV_API_KEY"
+              ],
+              "logGroup": "/capiro/dev/api",
+              "logPrefix": "api"
+            }
+          ],
+          "imageDetails": [
+            {
+              "container": "api",
+              "configuredImage": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:460efb52ac5adb83b4e66d234988416c72969cc0cb767fc8b64259cfc02daa7d",
+              "observedDigest": "sha256:460efb52ac5adb83b4e66d234988416c72969cc0cb767fc8b64259cfc02daa7d",
+              "pushedAt": "2026-09-18T06:16:22.555000-04:00"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "capiro-dev-memory-projection-worker",
+      "arn": "arn:aws:events:us-east-1:967807252336:rule/capiro-dev-memory-projection-worker",
+      "state": "DISABLED",
+      "schedule": "rate(5 minutes)",
+      "ruleSha256": "c1d73bb8c90de13f50b6849a3e1e35d8556a1ead89f0858757b42d907975cbc4",
+      "targets": [
+        {
+          "id": "Target0",
+          "clusterArn": "arn:aws:ecs:us-east-1:967807252336:cluster/capiro-dev",
+          "roleArn": "arn:aws:iam::967807252336:role/Capiro-dev-MemoryProjecti-ScheduledWorkerTaskDefEve-iP1F0ItypS7k",
+          "input": {},
+          "ecs": {
+            "TaskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-memory-projection-worker:1",
+            "TaskCount": 1,
+            "LaunchType": "FARGATE",
+            "NetworkConfiguration": {
+              "awsvpcConfiguration": {
+                "Subnets": [
+                  "subnet-0e38bd390f8961fef",
+                  "subnet-0920665f91c905f01",
+                  "subnet-06db79cd21239de19"
+                ],
+                "SecurityGroups": [
+                  "sg-01def4e5c0fe44d4a"
+                ],
+                "AssignPublicIp": "DISABLED"
+              }
+            },
+            "EnableECSManagedTags": false,
+            "EnableExecuteCommand": false
+          },
+          "targetSha256": "1324b8b9b1643ade51bfdbf5ddd71c7e687c4e394199d64c55cbc8ce67b0e166",
+          "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-memory-projection-worker:1",
+          "taskDefinitionSha256": "392e7950b303988ec47748642c62f70f6a88b04791d203fb16c637b651439b12",
+          "containers": [
+            {
+              "name": "memory-projection-worker",
+              "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:152dcb2aae70396a3dc3877e456072d1ca5cea7f662bac766279c45de8acd968",
+              "entryPoint": [],
+              "command": [
+                "drain-memory-cleanup-outbox",
+                "200",
+                "300"
+              ],
+              "releaseSha": null,
+              "environmentNames": [
+                "AWS_REGION_DEFAULT",
+                "DB_NAME",
+                "LOG_LEVEL",
+                "NODE_ENV"
+              ],
+              "secretNames": [
+                "DB_HOST",
+                "DB_PASSWORD",
+                "DB_PORT",
+                "DB_USER"
+              ],
+              "logGroup": "/capiro/dev/memory-projection-worker",
+              "logPrefix": "worker"
+            }
+          ],
+          "imageDetails": [
+            {
+              "container": "memory-projection-worker",
+              "configuredImage": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:152dcb2aae70396a3dc3877e456072d1ca5cea7f662bac766279c45de8acd968",
+              "status": "ECR_LOOKUP_UNVERIFIED",
+              "error": "AWS_COMMAND_FAILED_ecr_describe-images"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "mutations": 0,
+  "conclusion": "API service replacement alone does not replace the independently scheduled backfill image. Do not execute corpus reconciliation until recurring writer compatibility is addressed."
+}

@@ -1,0 +1,76 @@
+{
+  "tests": {
+    "actualSqlAndCli": {
+      "exitCode": 0,
+      "failed": 0,
+      "passed": 4,
+      "skipped": 0,
+      "receipt": "postgres-v3.log.receipt.json"
+    },
+    "packaging": {
+      "exitCode": 0,
+      "failed": 0,
+      "passed": 1,
+      "skipped": 0,
+      "receipt": "packaging-v2.log.receipt.json"
+    }
+  },
+  "base": "e9dd1e7b73404bb04eef446efe2f18eda8f712b1",
+  "productionFiles": 4,
+  "frozenAt": "2026-10-03T12:48:42.1806059Z",
+  "cluster": {
+    "state": "STOPPED",
+    "receipt": "pg-stop.receipt.json",
+    "port": 55433
+  },
+  "limits": [
+    "Existing local rollback-only actual SQL harness; projection sink inert; not production RLS proof",
+    "No remote action or live reconciliation performed",
+    "Preview proof tentative; execute requires fresh full verification and exact before plan SHA",
+    "Tracked patch excludes new helper; source snapshot includes it"
+  ],
+  "files": [
+    {
+      "sha256": "24a6568e1619e8a12705398b16f94300447030b91eb5dcfdd8bf70c34da937fa",
+      "bytes": 12366,
+      "path": "apps/api/Dockerfile",
+      "production": true
+    },
+    {
+      "sha256": "2deb66cf279fa8de82ec6c9bc17b4e5fd1afd64ebdeaf3ce4e51eb82c4381a92",
+      "bytes": 6018,
+      "path": "apps/api/scripts/meri-synthetic-read-budget.mjs",
+      "production": true
+    },
+    {
+      "sha256": "b52ddf011ad6b9bbc803178f1f3a9ac850d36a1d2da521b1b7192ee4ef87e082",
+      "bytes": 4400,
+      "path": "apps/api/scripts/meri-synthetic-read-budget.test.mjs",
+      "production": false
+    },
+    {
+      "sha256": "1447e0cbba7739761f25aa8e23ef80a0e2d67ac9829a788ceeb5649b325d574f",
+      "bytes": 9129,
+      "path": "evals/meri/live-v1/fixture-provisioning/case01-memory-owner.mjs",
+      "production": true
+    },
+    {
+      "sha256": "dd28527a7b82247b7bf929a363dcfbabd0dca3bfcd5a3651fe2f6735021a175e",
+      "bytes": 7588,
+      "path": "evals/meri/live-v1/fixture-provisioning/case01-memory-reconciliation.mjs",
+      "production": true
+    },
+    {
+      "sha256": "2a19eb4de1a7286da400a5b5129eea230e707309d3bc18817861de4d3282e94a",
+      "bytes": 19444,
+      "path": "evals/meri/live-v1/tests/case01-memory-hydration.postgres.test.mjs",
+      "production": false
+    },
+    {
+      "sha256": "4ad502fb68aaefe866365d17d9f1e6bb2a1e80af8ae8b1cfdeb1f08d6537e2ee",
+      "bytes": 14012,
+      "path": "evals/meri/live-v1/tests/case01-memory-lifecycle.postgres.test.mjs",
+      "production": false
+    }
+  ]
+}

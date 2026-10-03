@@ -12,7 +12,7 @@ Fresh runtime addendum: the user authorized an independent live rerun; cases01â€
 
 C0 closure addendum: the seven-item baseline gate is closed with explicit fixture blockers; current schema/rollback and verified local policy paths are recorded in the [completion report](../releases/2026-10-02/closeout-c0-completion/README.md). Donor provenance and conditional activation decisions remain unchanged.
 
-C2 memory integration addendum: source `ed44f2c6c` contains reviewed own-pending proposal reads and the reproduced projection-governance repair. [Candidate evidence](../releases/2026-10-03/c2-memory-repairs/README.md) records focused/local qualification, live corpus preflight failure and exact remaining release/reconciliation/clock boundaries. No donor acquisition, dependency, provenance classification or conditional activation changed. Original acceptance remains0/75, CD0/7, CW0/8.
+C2 memory integration addendum: source `ed44f2c6c` contains reviewed own-pending proposal reads and the reproduced projection-governance repair; `5ffe66728` adds bounded metadata reconciliation. Exact images are qualified, but rollback-only corpus verification exposed a retired embedding and an independently pinned nightly writer; no C2 release or new acceptance is claimed. [Candidate evidence](../releases/2026-10-03/c2-memory-repairs/README.md) records focused/local qualification, live corpus preflight failure and exact remaining release/reconciliation/clock boundaries. No donor acquisition, dependency, provenance classification or conditional activation changed. Original acceptance remains0/75, CD0/7, CW0/8.
 
 ## Current consolidation checkpoint â€” source `3111e053d`
 
