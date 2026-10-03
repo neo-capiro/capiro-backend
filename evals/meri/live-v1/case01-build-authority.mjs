@@ -21,6 +21,18 @@ const need = (ok) => {
 const SHA = /^[a-f0-9]{40}$/u;
 const HASH = /^[a-f0-9]{64}$/u;
 
+/** Pure account/principal check; only the native STS read below supplies authority. */
+export function inspectCase01Caller(caller) {
+  need(
+    caller?.Account === '967807252336' &&
+      [
+        'arn:aws:iam::967807252336:user/hermes-cli',
+        'arn:aws:iam::967807252336:user/capirocli',
+      ].includes(caller.Arn),
+  );
+  return { account: caller.Account, arn: caller.Arn };
+}
+
 /** Pure comparison only; the authority factory below supplies actual AWS reads. */
 export function inspectCase01Build({ expected, build, snapshot, image }) {
   need(
@@ -96,10 +108,7 @@ export async function readCase01BuildAuthority(deployment) {
       throw new Error('CASE01_BUILD_READBACK_FAILED');
     }
   };
-  const caller = await aws(['sts', 'get-caller-identity']);
-  need(
-    caller.Account === '967807252336' && caller.Arn === 'arn:aws:iam::967807252336:user/hermes-cli',
-  );
+  const caller = inspectCase01Caller(await aws(['sts', 'get-caller-identity']));
   const operator = releaseOperator({ aws });
   const services = [];
   for (const service of ['api', 'meriv2-orchestrator']) {
@@ -125,5 +134,5 @@ export async function readCase01BuildAuthority(deployment) {
     ]);
     services.push(inspectCase01Build({ expected, build: response.builds[0], snapshot, image }));
   }
-  return { kind: 'meri-case01-current-immutable-builds', observedAt: Date.now(), services };
+  return { kind: 'meri-case01-current-immutable-builds', observedAt: Date.now(), caller, services };
 }

@@ -1,0 +1,8 @@
+{
+  "command": "node --test evals/meri/live-v1/tests/case01-caller-authority.test.mjs evals/meri/live-v1/tests/case01-authority.test.mjs",
+  "startedAt": "2026-10-03T17:15:44.6959936Z",
+  "completedAt": "2026-10-03T17:15:45.0982378Z",
+  "exitCode": 0,
+  "sourceSha256": "3cd0353c62743d0dbf5d2511678f9dbb2aca01620e648365c353f1751a3bc065",
+  "testSha256": "0da0e9f6ade5b7fb337b39b132863085810d6a743bedfb5099af62f24e5df2d3"
+}

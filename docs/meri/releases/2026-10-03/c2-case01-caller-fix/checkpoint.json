@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "status": "FROZEN_LOCAL_RED_GREEN_PASS",
+  "recordedAt": "2026-10-03T17:16:26.404Z",
+  "scope": "Exact account plus two existing IAM read operators; observed native STS account/ARN retained. No injection path or immutable-build checks changed.",
+  "files": [
+    {
+      "path": "evals/meri/live-v1/case01-build-authority.mjs",
+      "sha256": "3cd0353c62743d0dbf5d2511678f9dbb2aca01620e648365c353f1751a3bc065",
+      "bytes": 5460
+    },
+    {
+      "path": "evals/meri/live-v1/tests/case01-caller-authority.test.mjs",
+      "sha256": "0da0e9f6ade5b7fb337b39b132863085810d6a743bedfb5099af62f24e5df2d3",
+      "bytes": 1232
+    }
+  ],
+  "beforeSha256": "077fe5f5388faa654be2852ee5b1eeb69c9b3305014baf282c99ec70593b8759",
+  "red": {
+    "receipt": "red.receipt.json",
+    "sha256": "521d6878b0b8e7d255a1313dfe994d73ba5ab5243703d48ebe5de54c09e187d7",
+    "passed": 54,
+    "failed": 1,
+    "exitCode": 1,
+    "onlyFailure": "capirocli exact principal rejected by old guard"
+  },
+  "green": {
+    "receipt": "green.receipt.json",
+    "sha256": "fe2ee497cc890032895ee7a08745e5cf63f0eae86169834046181be87e9f99ac",
+    "passed": 55,
+    "failed": 0,
+    "exitCode": 0
+  },
+  "sameTestBytes": true,
+  "immutableBuildFunctionByteIdentical": true,
+  "entireOtherSourcePreserved": true,
+  "formatting": "pnpm exec prettier --write both owned files; both unchanged",
+  "diffCheck": "PASS",
+  "clockCheckpointSha256": "31f759c1a8bc2ab66306fce61b3137cb848353715b83316abca83f377d22ceb2",
+  "clockFilesUnchanged": 42,
+  "memoryFilesUnchanged": 22,
+  "limitations": [
+    "Pure local authority and existing immutable-build tests only; native AWS reads were not rerun. Parent independently observed configured capirocli identity.",
+    "No acceptance/capture result or production release is implied."
+  ],
+  "remoteActions": 0,
+  "providerCalls": 0,
+  "databaseActions": 0,
+  "commits": 0
+}
