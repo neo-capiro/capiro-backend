@@ -1,0 +1,26 @@
+{
+  "caseId": "03",
+  "captureRunId": "65c093f9-d7ee-410c-865b-65d3683e9514",
+  "conversationId": "2755ade6-35e6-43c1-8b48-bdbff01bd3a5",
+  "actorUserId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+  "clerkUserId": "user_3Jw2FvWZkYGKmxWGx13tNJxFD2A",
+  "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+  "apiSha": "6be5a560d5addaa1844f0687898c34a249089f76",
+  "orchestratorSha": "7c04ca368fbccc84d33c720ce7a20b9201bf6e99",
+  "webSha": "78ad5805679a3045b1fc10fb19beafa7f76e4e64",
+  "maxCostMicros": 15000000,
+  "timeoutMs": 900000,
+  "kind": "meri-memory-read-plan",
+  "schemaVersion": 1,
+  "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+  "tenantSlug": "meri-foundation-20260928-t1",
+  "actor": "PAT",
+  "client": "ASTER",
+  "mode": "Standard",
+  "prompt": "Should we contact Office Delta for Aster?",
+  "promptSha256": "a32735abfcaa4410a1f35583b8b36cbc2e6b75177e63918c3a56cb7866909e98",
+  "expectedSources": [
+    "MA3-GOVERNANCE-STATE"
+  ],
+  "liveAcceptance": "NOT_RUN"
+}

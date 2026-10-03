@@ -8,6 +8,8 @@ H1/H2 bounded adaptations, H4 progressive discovery and H5 served procedure bind
 
 `01-source-inventory.json.integrationCheckpoints` now records verified current path hashes. All original acquisition records, hashes, donor pins, earlier checkpoint objects and conditionalActivationDecisions are unchanged. No new donor bytes, package upgrades or notices were added. Promptfoo/Playwright remain existing dependencies; R1/R2, Docling, LangGraph, new compute/models, relocation and connector expansion keep their original conditional decisions. See [C0 evidence](../releases/2026-10-02/closeout-c0/README.md) and [current matrix](01-requirements.md).
 
+Fresh runtime addendum: the user authorized an independent live rerun; cases01–05 are collected with exact corpus/citation/usage evidence, a case02 pending-state failure and a case03 coverage-footer defect. This changes observed runtime acceptance evidence only; donor provenance and conditional activation decisions are unchanged. [Run report](../releases/2026-10-02/fresh-live-benchmark/README.md).
+
 ## Current consolidation checkpoint — source `3111e053d`
 
 Lead update, 2026-09-28. The register review below describes historical source `71efe006a`; it is retained as an evidence snapshot. The following changes are present in the current task integration branch. This update does not claim either-main integration, deployment, or complete adoption acceptance.

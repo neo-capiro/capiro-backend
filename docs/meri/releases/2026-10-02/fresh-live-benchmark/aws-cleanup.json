@@ -1,0 +1,217 @@
+{
+  "completedAt": "2026-10-03T02:10:47.718Z",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-fresh-benchmark-20261003:1",
+  "taskDefinitionStatus": "INACTIVE",
+  "allTasksStopped": true,
+  "tasks": [
+    {
+      "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/0e2884735bb4467786b9ce0c398f5868",
+      "lastStatus": "STOPPED",
+      "stopCode": "EssentialContainerExited",
+      "stoppedAt": "2026-10-02T21:37:51.906000-04:00",
+      "containers": [
+        {
+          "name": "meri-fresh-benchmark",
+          "exitCode": 0,
+          "lastStatus": "STOPPED"
+        }
+      ]
+    },
+    {
+      "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/2b0d6e99d6f1459091bdf13b09b1b8e7",
+      "lastStatus": "STOPPED",
+      "stopCode": "EssentialContainerExited",
+      "stoppedAt": "2026-10-02T21:39:55.089000-04:00",
+      "containers": [
+        {
+          "name": "meri-fresh-benchmark",
+          "exitCode": 0,
+          "lastStatus": "STOPPED"
+        }
+      ]
+    },
+    {
+      "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/46f5910246444e68a8068cec5ccad32c",
+      "lastStatus": "STOPPED",
+      "stopCode": "EssentialContainerExited",
+      "stoppedAt": "2026-10-02T21:41:52.472000-04:00",
+      "containers": [
+        {
+          "name": "meri-fresh-benchmark",
+          "exitCode": 0,
+          "lastStatus": "STOPPED"
+        }
+      ]
+    },
+    {
+      "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/5d6e5e68c1d34c269bef4c1aef1fe628",
+      "lastStatus": "STOPPED",
+      "stopCode": "EssentialContainerExited",
+      "stoppedAt": "2026-10-02T21:45:01.430000-04:00",
+      "containers": [
+        {
+          "name": "meri-fresh-benchmark",
+          "exitCode": 0,
+          "lastStatus": "STOPPED"
+        }
+      ]
+    },
+    {
+      "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/b49b025c919245f1aa33478d98299f38",
+      "lastStatus": "STOPPED",
+      "stopCode": "EssentialContainerExited",
+      "stoppedAt": "2026-10-02T21:46:56.398000-04:00",
+      "containers": [
+        {
+          "name": "meri-fresh-benchmark",
+          "exitCode": 0,
+          "lastStatus": "STOPPED"
+        }
+      ]
+    },
+    {
+      "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/0fac246b030a4764b5ab7ec80e4912a5",
+      "lastStatus": "STOPPED",
+      "stopCode": "EssentialContainerExited",
+      "stoppedAt": "2026-10-02T21:48:58.136000-04:00",
+      "containers": [
+        {
+          "name": "meri-fresh-benchmark",
+          "exitCode": 0,
+          "lastStatus": "STOPPED"
+        }
+      ]
+    },
+    {
+      "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/e74ba7a84cba4156bdaad245b1e1cb84",
+      "lastStatus": "STOPPED",
+      "stopCode": "EssentialContainerExited",
+      "stoppedAt": "2026-10-02T21:50:38.752000-04:00",
+      "containers": [
+        {
+          "name": "meri-fresh-benchmark",
+          "exitCode": 0,
+          "lastStatus": "STOPPED"
+        }
+      ]
+    },
+    {
+      "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/4eb6404076b045fb8a6b30c49657aaef",
+      "lastStatus": "STOPPED",
+      "stopCode": "EssentialContainerExited",
+      "stoppedAt": "2026-10-02T21:52:22.147000-04:00",
+      "containers": [
+        {
+          "name": "meri-fresh-benchmark",
+          "exitCode": 0,
+          "lastStatus": "STOPPED"
+        }
+      ]
+    },
+    {
+      "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/0611e4f22ffd4c5eb7512ec4d4e6adf8",
+      "lastStatus": "STOPPED",
+      "stopCode": "EssentialContainerExited",
+      "stoppedAt": "2026-10-02T21:54:34.424000-04:00",
+      "containers": [
+        {
+          "name": "meri-fresh-benchmark",
+          "exitCode": 0,
+          "lastStatus": "STOPPED"
+        }
+      ]
+    },
+    {
+      "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/defda247c36f4aaa94fb287c2531926e",
+      "lastStatus": "STOPPED",
+      "stopCode": "EssentialContainerExited",
+      "stoppedAt": "2026-10-02T21:56:30.564000-04:00",
+      "containers": [
+        {
+          "name": "meri-fresh-benchmark",
+          "exitCode": 0,
+          "lastStatus": "STOPPED"
+        }
+      ]
+    },
+    {
+      "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/f05202ec6b674e8c946704f07f10d9a0",
+      "lastStatus": "STOPPED",
+      "stopCode": "EssentialContainerExited",
+      "stoppedAt": "2026-10-02T21:58:11.942000-04:00",
+      "containers": [
+        {
+          "name": "meri-fresh-benchmark",
+          "exitCode": 0,
+          "lastStatus": "STOPPED"
+        }
+      ]
+    },
+    {
+      "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/ddc8966ff1694818bcb4906659a630fe",
+      "lastStatus": "STOPPED",
+      "stopCode": "EssentialContainerExited",
+      "stoppedAt": "2026-10-02T22:00:07.225000-04:00",
+      "containers": [
+        {
+          "name": "meri-fresh-benchmark",
+          "exitCode": 0,
+          "lastStatus": "STOPPED"
+        }
+      ]
+    },
+    {
+      "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/9e3a850b47f64e4b8bcdae1a42ef8760",
+      "lastStatus": "STOPPED",
+      "stopCode": "EssentialContainerExited",
+      "stoppedAt": "2026-10-02T22:01:50.464000-04:00",
+      "containers": [
+        {
+          "name": "meri-fresh-benchmark",
+          "exitCode": 0,
+          "lastStatus": "STOPPED"
+        }
+      ]
+    },
+    {
+      "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/f3ecc21e96db40de94c40ffc0e85582d",
+      "lastStatus": "STOPPED",
+      "stopCode": "EssentialContainerExited",
+      "stoppedAt": "2026-10-02T22:03:32.463000-04:00",
+      "containers": [
+        {
+          "name": "meri-fresh-benchmark",
+          "exitCode": 0,
+          "lastStatus": "STOPPED"
+        }
+      ]
+    },
+    {
+      "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/af5e561cff73403a90a53ae62bce4801",
+      "lastStatus": "STOPPED",
+      "stopCode": "EssentialContainerExited",
+      "stoppedAt": "2026-10-02T22:05:24.321000-04:00",
+      "containers": [
+        {
+          "name": "meri-fresh-benchmark",
+          "exitCode": 0,
+          "lastStatus": "STOPPED"
+        }
+      ]
+    },
+    {
+      "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/fe34864405c743eaa14198e409889d2d",
+      "lastStatus": "STOPPED",
+      "stopCode": "EssentialContainerExited",
+      "stoppedAt": "2026-10-02T21:34:18.560000-04:00",
+      "containers": [
+        {
+          "name": "meri-fresh-benchmark",
+          "exitCode": 0,
+          "lastStatus": "STOPPED"
+        }
+      ]
+    }
+  ],
+  "serviceUpdated": false
+}

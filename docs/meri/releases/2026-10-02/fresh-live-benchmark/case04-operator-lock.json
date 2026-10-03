@@ -1,0 +1,9 @@
+{
+  "caseId": "04",
+  "captureRunId": "ce58a8c8-8c5e-439b-b842-dd5aa5a06395",
+  "reservation": {
+    "reservationId": "0da06107-11b3-4ce4-90bd-67a8f022c369",
+    "ceilingMicros": 15000000
+  },
+  "at": "2026-10-03T01:54:45.563Z"
+}

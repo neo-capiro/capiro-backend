@@ -1,0 +1,13 @@
+{
+  "caseId": "04",
+  "captureRunId": "ce58a8c8-8c5e-439b-b842-dd5aa5a06395",
+  "conversationId": "9b70c52b-d537-4347-b6b0-1b005aeb3e3c",
+  "actorUserId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+  "clerkUserId": "user_3Jw2FvWZkYGKmxWGx13tNJxFD2A",
+  "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+  "apiSha": "6be5a560d5addaa1844f0687898c34a249089f76",
+  "orchestratorSha": "7c04ca368fbccc84d33c720ce7a20b9201bf6e99",
+  "webSha": "78ad5805679a3045b1fc10fb19beafa7f76e4e64",
+  "maxCostMicros": 15000000,
+  "timeoutMs": 900000
+}

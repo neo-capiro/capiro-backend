@@ -1,0 +1,771 @@
+{
+  "events": [
+    {
+      "type": "progress",
+      "runId": "51ad3ed7-fb08-4752-a8be-2892b4c8f142",
+      "phase": "preparing",
+      "note": "Preparing Meri’s response.",
+      "elapsedMs": 1000,
+      "accepted": false
+    },
+    {
+      "type": "progress",
+      "runId": "51ad3ed7-fb08-4752-a8be-2892b4c8f142",
+      "phase": "preparing",
+      "note": "Preparing Meri’s response.",
+      "elapsedMs": 5000,
+      "accepted": false
+    },
+    {
+      "type": "progress",
+      "runId": "51ad3ed7-fb08-4752-a8be-2892b4c8f142",
+      "phase": "preparing",
+      "note": "Preparing Meri’s response.",
+      "elapsedMs": 10000,
+      "accepted": false
+    },
+    {
+      "type": "turn_accepted",
+      "messageId": "82e1c556-3e92-4d5a-9ef5-1ad4321b2d6b"
+    },
+    {
+      "type": "progress",
+      "runId": "51ad3ed7-fb08-4752-a8be-2892b4c8f142",
+      "phase": "preparing",
+      "note": "Your message is saved. Preparing Meri’s response.",
+      "elapsedMs": 14467
+    },
+    {
+      "type": "start",
+      "intent": "general",
+      "tier": "deep",
+      "runtime": "meriv3",
+      "reasoningMode": "standard"
+    },
+    {
+      "type": "progress",
+      "runId": "51ad3ed7-fb08-4752-a8be-2892b4c8f142",
+      "phase": "runtime",
+      "note": "Waiting for Meri’s reasoning runtime.",
+      "elapsedMs": 14467
+    },
+    {
+      "type": "runtime",
+      "runtime": "meriv3",
+      "model": "gpt-6-astra",
+      "reasoningMode": "standard",
+      "reasoningEffort": null,
+      "telemetry": {
+        "requestedModel": "gpt-6-astra",
+        "effectiveModel": null,
+        "requestedReasoningEffort": "medium",
+        "effectiveReasoningEffort": null,
+        "reasoningFallbackReasons": [],
+        "finishReason": "not_started",
+        "partial": false
+      }
+    },
+    {
+      "type": "progress",
+      "runId": "51ad3ed7-fb08-4752-a8be-2892b4c8f142",
+      "phase": "provider",
+      "note": "Waiting for the LLM provider’s response.",
+      "elapsedMs": 14468
+    },
+    {
+      "type": "runtime",
+      "runtime": "meriv3",
+      "model": "gpt-6-astra",
+      "reasoningMode": "standard",
+      "reasoningEffort": "medium",
+      "telemetry": {
+        "requestedModel": "gpt-6-astra",
+        "effectiveModel": "gpt-6-astra",
+        "requestedReasoningEffort": "medium",
+        "effectiveReasoningEffort": "medium",
+        "reasoningFallbackReasons": [],
+        "finishReason": "completed",
+        "partial": false
+      },
+      "providerCalls": [
+        {
+          "requestedModel": "gpt-6-astra",
+          "effectiveModel": "gpt-6-astra",
+          "requestedReasoningEffort": "medium",
+          "effectiveReasoningEffort": "medium",
+          "reasoningFallbackReasons": [],
+          "finishReason": "completed",
+          "partial": false
+        }
+      ]
+    },
+    {
+      "type": "progress",
+      "runId": "51ad3ed7-fb08-4752-a8be-2892b4c8f142",
+      "phase": "provider",
+      "note": "Waiting for the LLM provider’s response.",
+      "elapsedMs": 14468
+    },
+    {
+      "type": "tool_call",
+      "tool": "search_client_knowledge",
+      "label": "Searched client knowledge"
+    },
+    {
+      "type": "progress",
+      "runId": "51ad3ed7-fb08-4752-a8be-2892b4c8f142",
+      "phase": "tools",
+      "note": "Running the requested tools and checking their results.",
+      "elapsedMs": 14468
+    },
+    {
+      "type": "sources",
+      "sources": [
+        {
+          "tool": "search_client_knowledge",
+          "label": "Searched client knowledge",
+          "count": null,
+          "summary": "Delegated tool \"search_client_knowledge\" failed: 500 Internal Server Error {\"statusCode\":500,\"message\":\"Internal server error\"}",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "type": "progress",
+      "runId": "51ad3ed7-fb08-4752-a8be-2892b4c8f142",
+      "phase": "provider",
+      "note": "Waiting for Meri to continue from the tool results.",
+      "elapsedMs": 14468
+    },
+    {
+      "type": "runtime",
+      "runtime": "meriv3",
+      "model": "gpt-6-astra",
+      "reasoningMode": "standard",
+      "reasoningEffort": "medium",
+      "telemetry": {
+        "requestedModel": "gpt-6-astra",
+        "effectiveModel": "gpt-6-astra",
+        "requestedReasoningEffort": "medium",
+        "effectiveReasoningEffort": "medium",
+        "reasoningFallbackReasons": [],
+        "finishReason": "completed",
+        "partial": false
+      },
+      "providerCalls": [
+        {
+          "requestedModel": "gpt-6-astra",
+          "effectiveModel": "gpt-6-astra",
+          "requestedReasoningEffort": "medium",
+          "effectiveReasoningEffort": "medium",
+          "reasoningFallbackReasons": [],
+          "finishReason": "completed",
+          "partial": false
+        },
+        {
+          "requestedModel": "gpt-6-astra",
+          "effectiveModel": "gpt-6-astra",
+          "requestedReasoningEffort": "medium",
+          "effectiveReasoningEffort": "medium",
+          "reasoningFallbackReasons": [],
+          "finishReason": "completed",
+          "partial": false
+        }
+      ]
+    },
+    {
+      "type": "progress",
+      "runId": "51ad3ed7-fb08-4752-a8be-2892b4c8f142",
+      "phase": "provider",
+      "note": "Waiting for the LLM provider’s response.",
+      "elapsedMs": 14468
+    },
+    {
+      "type": "tool_call",
+      "tool": "get_client_context",
+      "label": "Reviewed client context"
+    },
+    {
+      "type": "progress",
+      "runId": "51ad3ed7-fb08-4752-a8be-2892b4c8f142",
+      "phase": "tools",
+      "note": "Running the requested tools and checking their results.",
+      "elapsedMs": 14468
+    },
+    {
+      "type": "sources",
+      "sources": [
+        {
+          "tool": "get_client_context",
+          "label": "Reviewed client context",
+          "count": null,
+          "summary": "Delegated tool \"get_client_context\" failed: 500 Internal Server Error {\"statusCode\":500,\"message\":\"Internal server error\"}",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "type": "progress",
+      "runId": "51ad3ed7-fb08-4752-a8be-2892b4c8f142",
+      "phase": "provider",
+      "note": "Waiting for Meri to continue from the tool results.",
+      "elapsedMs": 14468
+    },
+    {
+      "type": "tool_call",
+      "tool": "search_memory",
+      "label": "Searched firm memory"
+    },
+    {
+      "type": "progress",
+      "runId": "51ad3ed7-fb08-4752-a8be-2892b4c8f142",
+      "phase": "tools",
+      "note": "Running the requested tools and checking their results.",
+      "elapsedMs": 14468
+    },
+    {
+      "type": "sources",
+      "sources": [
+        {
+          "tool": "search_memory",
+          "label": "Searched firm memory",
+          "count": null,
+          "summary": "Completed",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "type": "progress",
+      "runId": "51ad3ed7-fb08-4752-a8be-2892b4c8f142",
+      "phase": "provider",
+      "note": "Waiting for Meri to continue from the tool results.",
+      "elapsedMs": 14468
+    },
+    {
+      "type": "tool_call",
+      "tool": "search_capiro_data",
+      "label": "Ran search_capiro_data"
+    },
+    {
+      "type": "progress",
+      "runId": "51ad3ed7-fb08-4752-a8be-2892b4c8f142",
+      "phase": "tools",
+      "note": "Running the requested tools and checking their results.",
+      "elapsedMs": 14468
+    },
+    {
+      "type": "sources",
+      "sources": [
+        {
+          "tool": "search_capiro_data",
+          "label": "Ran search_capiro_data",
+          "count": null,
+          "summary": "Delegated tool \"search_capiro_data\" failed: 500 Internal Server Error {\"statusCode\":500,\"message\":\"Internal server error\"}",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "type": "progress",
+      "runId": "51ad3ed7-fb08-4752-a8be-2892b4c8f142",
+      "phase": "provider",
+      "note": "Waiting for Meri to continue from the tool results.",
+      "elapsedMs": 14468
+    },
+    {
+      "type": "runtime",
+      "runtime": "meriv3",
+      "model": "gpt-6-astra",
+      "reasoningMode": "standard",
+      "reasoningEffort": "medium",
+      "telemetry": {
+        "requestedModel": "gpt-6-astra",
+        "effectiveModel": "gpt-6-astra",
+        "requestedReasoningEffort": "medium",
+        "effectiveReasoningEffort": "medium",
+        "reasoningFallbackReasons": [],
+        "finishReason": "completed",
+        "partial": false
+      },
+      "providerCalls": [
+        {
+          "requestedModel": "gpt-6-astra",
+          "effectiveModel": "gpt-6-astra",
+          "requestedReasoningEffort": "medium",
+          "effectiveReasoningEffort": "medium",
+          "reasoningFallbackReasons": [],
+          "finishReason": "completed",
+          "partial": false
+        },
+        {
+          "requestedModel": "gpt-6-astra",
+          "effectiveModel": "gpt-6-astra",
+          "requestedReasoningEffort": "medium",
+          "effectiveReasoningEffort": "medium",
+          "reasoningFallbackReasons": [],
+          "finishReason": "completed",
+          "partial": false
+        },
+        {
+          "requestedModel": "gpt-6-astra",
+          "effectiveModel": "gpt-6-astra",
+          "requestedReasoningEffort": "medium",
+          "effectiveReasoningEffort": "medium",
+          "reasoningFallbackReasons": [],
+          "finishReason": "completed",
+          "partial": false
+        }
+      ]
+    },
+    {
+      "type": "progress",
+      "runId": "51ad3ed7-fb08-4752-a8be-2892b4c8f142",
+      "phase": "provider",
+      "note": "Waiting for the LLM provider’s response.",
+      "elapsedMs": 14468
+    },
+    {
+      "type": "text",
+      "text": "**Aster Defense is an active client, but the verified background available here is limited.** [2]\n\n- **Reporting preference:** Monthly briefs should include the fiscal year, budget stage, supporting citations, and an action owner. This is an active, client-approved preference confirmed October 2, 2026. [4]\n- **Basic profile:** The available client record does not list a business description, website, primary contact, or federal contracting identifiers and classification codes. [2]\n\n**Coverage limitation:** The detailed profile, knowledge-base, and strategy lookups were unavailable. I therefore can’t reliably summarize capabilities, facilities, key people, advocacy objectives, or relationship history from this read. That is a retrieval gap—not evidence that those records or relationships do not exist."
+    },
+    {
+      "type": "progress",
+      "runId": "51ad3ed7-fb08-4752-a8be-2892b4c8f142",
+      "phase": "answer",
+      "note": "Receiving the response.",
+      "elapsedMs": 14468
+    },
+    {
+      "type": "runtime",
+      "runtime": "meriv3",
+      "model": "gpt-6-astra",
+      "reasoningMode": "standard",
+      "reasoningEffort": "medium",
+      "telemetry": {
+        "requestedModel": "gpt-6-astra",
+        "effectiveModel": "gpt-6-astra",
+        "requestedReasoningEffort": "medium",
+        "effectiveReasoningEffort": "medium",
+        "reasoningFallbackReasons": [],
+        "finishReason": "completed",
+        "partial": false
+      },
+      "providerCalls": [
+        {
+          "requestedModel": "gpt-6-astra",
+          "effectiveModel": "gpt-6-astra",
+          "requestedReasoningEffort": "medium",
+          "effectiveReasoningEffort": "medium",
+          "reasoningFallbackReasons": [],
+          "finishReason": "completed",
+          "partial": false
+        },
+        {
+          "requestedModel": "gpt-6-astra",
+          "effectiveModel": "gpt-6-astra",
+          "requestedReasoningEffort": "medium",
+          "effectiveReasoningEffort": "medium",
+          "reasoningFallbackReasons": [],
+          "finishReason": "completed",
+          "partial": false
+        },
+        {
+          "requestedModel": "gpt-6-astra",
+          "effectiveModel": "gpt-6-astra",
+          "requestedReasoningEffort": "medium",
+          "effectiveReasoningEffort": "medium",
+          "reasoningFallbackReasons": [],
+          "finishReason": "completed",
+          "partial": false
+        }
+      ]
+    },
+    {
+      "type": "progress",
+      "runId": "51ad3ed7-fb08-4752-a8be-2892b4c8f142",
+      "phase": "answer",
+      "note": "Finishing the response.",
+      "elapsedMs": 14468
+    },
+    {
+      "type": "usage",
+      "usage": {
+        "inputTokens": 89314,
+        "outputTokens": 377,
+        "cacheReadTokens": 58260,
+        "cacheCreationTokens": 0
+      }
+    },
+    {
+      "type": "citations",
+      "citations": [
+        {
+          "n": 2,
+          "type": "source",
+          "id": "41f9ec63-3963-479f-b747-59a3767ef44b",
+          "title": "Aster Defense",
+          "url": null,
+          "snippet": null,
+          "tool": "context_plane",
+          "source": {
+            "kind": "client",
+            "recordId": "41f9ec63-3963-479f-b747-59a3767ef44b"
+          }
+        },
+        {
+          "n": 4,
+          "type": "memory",
+          "id": "422b4ca9-10a8-4680-a713-3e61273a14ff",
+          "title": "meri-foundation-20260928:f6164496-9dac-4771-980f-2f362081942e:APPROVED-MA1-V1",
+          "url": null,
+          "snippet": "Monthly briefs include fiscal year, budget stage, citations and action owner",
+          "tool": "search_memory",
+          "source": {
+            "kind": "memory",
+            "recordId": "422b4ca9-10a8-4680-a713-3e61273a14ff",
+            "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+            "version": "content:90a0452d6c7ff25e50040cc7f528eee9eca9630d81551a8fa6b3e756705fa2bb"
+          }
+        }
+      ]
+    },
+    {
+      "type": "grounding_statement",
+      "statement": "Grounded in 2 retrieved sources."
+    },
+    {
+      "type": "done",
+      "model": "gpt-6-astra",
+      "reasoningMode": "standard",
+      "reasoningEffort": "medium",
+      "finishReason": "completed",
+      "partial": false,
+      "telemetry": {
+        "requestedModel": "gpt-6-astra",
+        "effectiveModel": "gpt-6-astra",
+        "requestedReasoningEffort": "medium",
+        "effectiveReasoningEffort": "medium",
+        "reasoningFallbackReasons": [],
+        "finishReason": "completed",
+        "partial": false
+      },
+      "evidenceManifest": {
+        "version": 1,
+        "packetId": "fd5ede8f-3c32-464e-b8e5-74bce56289d8",
+        "sourceRecordCount": 3,
+        "projectedRecordCount": 3,
+        "truncated": false,
+        "sources": [
+          {
+            "id": "41f9ec63-3963-479f-b747-59a3767ef44b",
+            "tool": "context_plane",
+            "origin": "initial_context",
+            "truncated": false
+          },
+          {
+            "id": "422b4ca9-10a8-4680-a713-3e61273a14ff",
+            "tool": "search_memory",
+            "origin": "tool",
+            "truncated": null
+          }
+        ]
+      },
+      "messageId": "eb92118c-ea9e-4e1c-82dc-d5dcc13608f6",
+      "contextPacketId": "fd5ede8f-3c32-464e-b8e5-74bce56289d8",
+      "retrieval": {
+        "plan": {
+          "version": 1,
+          "queryClass": "lookup",
+          "subjectScope": "client",
+          "targetHint": null,
+          "recipeTool": null,
+          "requireCompleteCoverage": false,
+          "requiredDomains": [
+            "clients"
+          ],
+          "timeWindow": null
+        },
+        "coverage": {
+          "version": 1,
+          "complete": false,
+          "requestedDomains": [
+            "clients",
+            "contacts",
+            "strategies_work",
+            "institutional_knowledge"
+          ],
+          "searchedDomains": [
+            "clients",
+            "contacts",
+            "strategies_work",
+            "institutional_knowledge",
+            "internal_research"
+          ],
+          "missingDomains": [],
+          "partialDomains": [],
+          "requestedEntityCount": 4,
+          "searchedEntityCount": 4,
+          "recordsEvaluated": 2,
+          "recordsReturned": 2,
+          "recordsDisplayed": 2,
+          "recordsOmitted": 0,
+          "sourceCounts": [
+            {
+              "source": "clients",
+              "recordsReturned": 1,
+              "recordsEvaluated": 1,
+              "recordsMatched": 1,
+              "recordsDisplayed": 1,
+              "recordsOmitted": 0
+            },
+            {
+              "source": "contacts",
+              "recordsReturned": 0,
+              "recordsEvaluated": 0,
+              "recordsMatched": 0,
+              "recordsDisplayed": 0,
+              "recordsOmitted": 0
+            },
+            {
+              "source": "strategies_work",
+              "recordsReturned": 0,
+              "recordsEvaluated": 0,
+              "recordsMatched": null,
+              "recordsDisplayed": 0,
+              "recordsOmitted": 0
+            },
+            {
+              "source": "institutional_knowledge",
+              "recordsReturned": 1,
+              "recordsEvaluated": 1,
+              "recordsMatched": 1,
+              "recordsDisplayed": 1,
+              "recordsOmitted": 0
+            }
+          ],
+          "paginationComplete": true,
+          "truncated": false,
+          "sourceHealth": [
+            {
+              "source": "clients",
+              "status": "complete",
+              "lastSyncAt": "2026-09-28T01:24:38.611Z",
+              "detail": "authoritative_page_complete"
+            },
+            {
+              "source": "contacts",
+              "status": "complete",
+              "detail": "authoritative_page_complete"
+            },
+            {
+              "source": "strategies_work",
+              "status": "complete",
+              "detail": "complete"
+            },
+            {
+              "source": "institutional_knowledge",
+              "status": "complete",
+              "lastSyncAt": "2026-10-02T17:00:06.853Z",
+              "detail": "governed_memory_scan_complete"
+            }
+          ],
+          "unavailableSources": [
+            {
+              "source": "internal_research",
+              "reason": "subsequent_read:source_read_failed"
+            },
+            {
+              "source": "clients",
+              "reason": "subsequent_read:source_read_failed"
+            }
+          ],
+          "toolsInvoked": [
+            "retrieval-v2:clients",
+            "retrieval-v2:contacts",
+            "retrieval-v2:strategies_work",
+            "retrieval-v2:institutional_knowledge",
+            "search_client_knowledge",
+            "get_client_context",
+            "search_memory"
+          ],
+          "stopReason": "turn_coverage_partial",
+          "phase": "turn",
+          "initialContext": {
+            "version": 1,
+            "complete": true,
+            "requestedDomains": [
+              "clients",
+              "contacts",
+              "strategies_work",
+              "institutional_knowledge"
+            ],
+            "searchedDomains": [
+              "clients",
+              "contacts",
+              "strategies_work",
+              "institutional_knowledge"
+            ],
+            "missingDomains": [],
+            "partialDomains": [],
+            "requestedEntityCount": 4,
+            "searchedEntityCount": 4,
+            "recordsEvaluated": 2,
+            "recordsReturned": 2,
+            "recordsDisplayed": 2,
+            "recordsOmitted": 0,
+            "sourceCounts": [
+              {
+                "source": "clients",
+                "recordsReturned": 1,
+                "recordsEvaluated": 1,
+                "recordsMatched": 1,
+                "recordsDisplayed": 1,
+                "recordsOmitted": 0
+              },
+              {
+                "source": "contacts",
+                "recordsReturned": 0,
+                "recordsEvaluated": 0,
+                "recordsMatched": 0,
+                "recordsDisplayed": 0,
+                "recordsOmitted": 0
+              },
+              {
+                "source": "strategies_work",
+                "recordsReturned": 0,
+                "recordsEvaluated": 0,
+                "recordsMatched": null,
+                "recordsDisplayed": 0,
+                "recordsOmitted": 0
+              },
+              {
+                "source": "institutional_knowledge",
+                "recordsReturned": 1,
+                "recordsEvaluated": 1,
+                "recordsMatched": 1,
+                "recordsDisplayed": 1,
+                "recordsOmitted": 0
+              }
+            ],
+            "paginationComplete": true,
+            "truncated": false,
+            "sourceHealth": [
+              {
+                "source": "clients",
+                "status": "complete",
+                "lastSyncAt": "2026-09-28T01:24:38.611Z",
+                "detail": "authoritative_page_complete"
+              },
+              {
+                "source": "contacts",
+                "status": "complete",
+                "detail": "authoritative_page_complete"
+              },
+              {
+                "source": "strategies_work",
+                "status": "complete",
+                "detail": "complete"
+              },
+              {
+                "source": "institutional_knowledge",
+                "status": "complete",
+                "lastSyncAt": "2026-10-02T17:00:06.853Z",
+                "detail": "governed_memory_scan_complete"
+              }
+            ],
+            "unavailableSources": [],
+            "toolsInvoked": [
+              "retrieval-v2:clients",
+              "retrieval-v2:contacts",
+              "retrieval-v2:strategies_work",
+              "retrieval-v2:institutional_knowledge"
+            ],
+            "stopReason": "complete"
+          },
+          "toolReads": [
+            {
+              "source": "internal_research",
+              "tool": "search_client_knowledge",
+              "status": "error",
+              "recordsReturned": null,
+              "recordsEvaluated": null,
+              "recordsMatched": null,
+              "recordsDisplayed": null,
+              "recordsOmitted": null,
+              "paginationComplete": null,
+              "truncated": false,
+              "detail": "source_read_failed",
+              "requestRoute": {
+                "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b"
+              }
+            },
+            {
+              "source": "clients",
+              "tool": "get_client_context",
+              "status": "error",
+              "recordsReturned": null,
+              "recordsEvaluated": null,
+              "recordsMatched": null,
+              "recordsDisplayed": null,
+              "recordsOmitted": null,
+              "paginationComplete": null,
+              "truncated": false,
+              "detail": "source_read_failed",
+              "requestRoute": {
+                "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b"
+              }
+            },
+            {
+              "source": "institutional_knowledge",
+              "tool": "search_memory",
+              "status": "complete",
+              "recordsReturned": 1,
+              "recordsEvaluated": 1,
+              "recordsMatched": 1,
+              "recordsDisplayed": 1,
+              "recordsOmitted": 0,
+              "paginationComplete": true,
+              "truncated": false,
+              "lastSyncAt": "2026-10-02T17:00:06.853Z",
+              "detail": "governed_memory_scan_complete",
+              "requestRoute": {
+                "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b"
+              }
+            }
+          ],
+          "restoredSources": []
+        }
+      },
+      "turnScope": {
+        "kind": "client",
+        "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+        "clientName": "Aster Defense",
+        "targetHint": null
+      },
+      "serverReadonlyCaptureReceipt": {
+        "version": 1,
+        "policyId": "37a6fa8f-86c3-4791-8647-5ce210f5cad8",
+        "fixtureNamespace": "meri-foundation-20260928",
+        "authority": "server_current",
+        "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+        "actorUserId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+        "conversationId": "1bfb1e6c-2128-4f9d-9fea-3e02a8f1c7b7",
+        "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+        "issuedAt": 1790993019951,
+        "expiresAt": 1790994560009,
+        "toolCatalogSha256": "2a79756fe40f7d180bc3569e3c3efa78dfab8761c0ed00d6be9ed0d799c52e39",
+        "dispatchBoundary": "read_only_enforced",
+        "dynamicMcpAllowed": false,
+        "incidentalWriters": "suppressed",
+        "expectedCaptureWrites": [
+          "context_packet_and_evidence",
+          "conversation_user_message",
+          "conversation_assistant_message",
+          "provider_budget_ledger"
+        ]
+      }
+    }
+  ],
+  "issues": []
+}

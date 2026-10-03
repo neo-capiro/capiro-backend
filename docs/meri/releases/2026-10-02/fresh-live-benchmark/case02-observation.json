@@ -1,0 +1,82 @@
+{
+  "kind": "meri-memory-read-observation",
+  "caseId": "02",
+  "captureRunId": "62742c07-529c-47c1-aeeb-01474522ccbd",
+  "conversationId": "805cdde4-7cd2-482f-9e53-5b5b7724682e",
+  "startedAt": "2026-10-03T01:45:12.464Z",
+  "status": "COLLECTED_NOT_GRADED",
+  "machineChecks": [
+    {
+      "check": "actor_client_current_corpus",
+      "status": "PASS"
+    },
+    {
+      "check": "one_prompt_one_saved_answer",
+      "status": "PASS"
+    },
+    {
+      "check": "fixture_corpus_unchanged",
+      "status": "PASS"
+    }
+  ],
+  "humanRubric": "NOT_REVIEWED",
+  "overallCaseStatus": "NOT_RUN",
+  "submissionAttempted": true,
+  "httpStatus": 201,
+  "completed": true,
+  "runIds": [
+    "3e7e3569-d1df-407e-a3ce-ec562e3ffa3f"
+  ],
+  "responseHashes": [
+    {
+      "name": "actor",
+      "sha256": "03595ffc23ac84194ba6ed21a18932d79f04bcde680bcdb437233eee51b602f5",
+      "status": 200
+    },
+    {
+      "name": "runtime",
+      "sha256": "cb3ba0f1e12f9aece124a24cc99d8bca6274c5c7b59cf962b9a7a39b716cc1cf",
+      "status": 200
+    },
+    {
+      "name": "conversation",
+      "sha256": "cf9bc54c8e42c22e299e404192f1ff0a1db5b2838d4c508b4938d957ac200337",
+      "status": 200
+    },
+    {
+      "name": "messages-before",
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "status": 200
+    },
+    {
+      "name": "stream",
+      "sha256": "ab84fdcb7f42fa7ce171726738b3825075465a3b1326a090e1ca75252692af03",
+      "status": 201
+    },
+    {
+      "name": "messages-after",
+      "sha256": "3184a5118ef8670f469b0933e6747426e7e42bd661f33638c0e4917b468a844d",
+      "status": 200
+    }
+  ],
+  "savedMessageHashes": [
+    {
+      "id": "6f30c698-1ebd-47ff-985c-dbd020e8d81f",
+      "role": "user",
+      "sha256": "a9f58a03ecb88458031b591bf5f68dcfa46851731d54bd6171d1c42761c3eb9f"
+    },
+    {
+      "id": "ba52c60e-d3c6-40cf-8de1-faed726062d1",
+      "role": "assistant",
+      "sha256": "fd8d153c72320719b4b34a9abb90248904c8417bd0e57fdbd0893800a8c2f0c3"
+    }
+  ],
+  "unknowns": [
+    "CURRENT_EFFECT_READBACK",
+    "SOURCE_PASSAGE_AND_CITATION_REVIEW",
+    "HUMAN_RUBRIC"
+  ],
+  "answerSha256": "f6d1afcf4b9e3fa8d1da8ff1686aedbc79166de4d97ac52a3082aedcec8d2796",
+  "finishedAt": "2026-10-03T01:49:04.429Z",
+  "budgetObservationRecorded": true
+}

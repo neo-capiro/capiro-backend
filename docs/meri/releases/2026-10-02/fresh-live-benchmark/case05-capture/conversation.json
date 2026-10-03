@@ -1,0 +1,10 @@
+{
+  "method": "GET",
+  "path": "/api/clio/conversations/1bfb1e6c-2128-4f9d-9fea-3e02a8f1c7b7",
+  "status": 200,
+  "releaseSha": "6be5a560d5addaa1844f0687898c34a249089f76",
+  "body": {
+    "id": "1bfb1e6c-2128-4f9d-9fea-3e02a8f1c7b7",
+    "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "caseId": "05",
+  "captureRunId": "1008c920-0d14-4110-806e-76399e9e7641",
+  "conversationId": "1bfb1e6c-2128-4f9d-9fea-3e02a8f1c7b7",
+  "actorUserId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+  "clerkUserId": "user_3Jw2FvWZkYGKmxWGx13tNJxFD2A",
+  "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+  "apiSha": "6be5a560d5addaa1844f0687898c34a249089f76",
+  "orchestratorSha": "7c04ca368fbccc84d33c720ce7a20b9201bf6e99",
+  "webSha": "78ad5805679a3045b1fc10fb19beafa7f76e4e64",
+  "maxCostMicros": 15000000,
+  "timeoutMs": 900000,
+  "kind": "meri-memory-read-plan",
+  "schemaVersion": 1,
+  "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+  "tenantSlug": "meri-foundation-20260928-t1",
+  "actor": "PAT",
+  "client": "ASTER",
+  "mode": "Standard",
+  "prompt": "Summarize what we know about this client.",
+  "promptSha256": "d2875410251f899c3b2aaa0d9bfe2e0c73f7d718f99e75fc197e32d7b95cb31b",
+  "expectedSources": [
+    "MA1-v2"
+  ],
+  "liveAcceptance": "NOT_RUN"
+}

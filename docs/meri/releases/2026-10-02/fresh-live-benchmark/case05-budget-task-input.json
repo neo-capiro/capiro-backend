@@ -1,0 +1,43 @@
+{
+  "cluster": "capiro-dev",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-fresh-benchmark-20261003:1",
+  "launchType": "FARGATE",
+  "platformVersion": "LATEST",
+  "networkConfiguration": {
+    "awsvpcConfiguration": {
+      "subnets": [
+        "subnet-0e38bd390f8961fef",
+        "subnet-0920665f91c905f01",
+        "subnet-06db79cd21239de19"
+      ],
+      "securityGroups": [
+        "sg-01def4e5c0fe44d4a"
+      ],
+      "assignPublicIp": "DISABLED"
+    }
+  },
+  "count": 1,
+  "startedBy": "meri-fresh-c51f988c-dcd5-4950-b",
+  "clientToken": "8b2a88c4-82d1-42f0-8ee9-38027fedd236",
+  "overrides": {
+    "containerOverrides": [
+      {
+        "name": "meri-fresh-benchmark",
+        "command": [
+          "meri-synthetic-read-budget",
+          "install",
+          "--input-env",
+          "MERI_SYNTHETIC_READ_BUDGET_INPUT",
+          "--out",
+          "/dev/shm/case05-budget.json"
+        ],
+        "environment": [
+          {
+            "name": "MERI_SYNTHETIC_READ_BUDGET_INPUT",
+            "value": "{\"target\":\"capiro-dev\",\"fixtureNamespace\":\"meri-foundation-20260928\",\"confirmation\":\"INSTALL_ONE_OWNED_SYNTHETIC_READ_BUDGET\",\"ctx\":{\"tenantId\":\"f2d6cf8f-057c-479a-8110-62fe5086d43f\",\"tenantSlug\":\"meri-foundation-20260928-t1\",\"userId\":\"b1f758fc-17bd-40f8-bef2-fa2d2380300f\",\"clerkUserId\":\"user_3Jw2FvWZkYGKmxWGx13tNJxFD2A\",\"role\":\"standard_user\"},\"qualification\":{\"version\":1,\"kind\":\"synthetic_read_budget_only\",\"caseId\":\"05\",\"captureRunId\":\"1008c920-0d14-4110-806e-76399e9e7641\",\"aggregateReservationId\":\"8b91b48b-fa26-4395-9cbe-669efd18ab1a\",\"tenantId\":\"f2d6cf8f-057c-479a-8110-62fe5086d43f\",\"actorUserId\":\"b1f758fc-17bd-40f8-bef2-fa2d2380300f\",\"conversationId\":\"1bfb1e6c-2128-4f9d-9fea-3e02a8f1c7b7\",\"clientId\":\"41f9ec63-3963-479f-b747-59a3767ef44b\",\"promptSha256\":\"d2875410251f899c3b2aaa0d9bfe2e0c73f7d718f99e75fc197e32d7b95cb31b\",\"deadlineAt\":\"2026-10-03T02:29:20.009Z\",\"rateEvidenceSha256\":\"d7e706e7f97ace47203b0ce9eb8abfd39f5bc1c79c9e44fc274df3c0bb6975d5\",\"rateEvidenceExpiresAt\":\"2026-10-03T06:08:00.000Z\",\"priceKind\":\"qualified_text_token_upper_bound\",\"maxAttempts\":32,\"maxTokens\":500000,\"maxCostMicros\":15000000,\"rates\":[{\"kind\":\"openai_responses\",\"provider\":\"openai\",\"model\":\"gpt-6-astra\",\"inputMicrosPerMillion\":25000000,\"outputMicrosPerMillion\":75000000},{\"kind\":\"jev\",\"provider\":\"openai\",\"model\":\"gpt-6-astra\",\"inputMicrosPerMillion\":25000000,\"outputMicrosPerMillion\":75000000},{\"kind\":\"bedrock_embeddings\",\"provider\":\"aws-bedrock\",\"model\":\"amazon.titan-embed-text-v2:0\",\"inputMicrosPerMillion\":20000,\"outputMicrosPerMillion\":0},{\"kind\":\"nvidia_rerank\",\"provider\":\"nvidia-nim\",\"model\":\"nvidia/llama-nemotron-rerank-vl-1b-v2\",\"inputMicrosPerMillion\":1000000,\"outputMicrosPerMillion\":0}]},\"rateEvidence\":{\"kind\":\"meri-capture-reviewed-provider-rates\",\"version\":1,\"priceKind\":\"qualified_text_token_upper_bound\",\"maxTokens\":500000,\"observedAt\":\"2026-10-02T19:24:00.000Z\",\"expiresAt\":\"2026-10-03T06:08:00.000Z\",\"rates\":[{\"kind\":\"openai_responses\",\"provider\":\"openai\",\"model\":\"gpt-6-astra\",\"inputMicrosPerMillion\":25000000,\"outputMicrosPerMillion\":75000000},{\"kind\":\"jev\",\"provider\":\"openai\",\"model\":\"gpt-6-astra\",\"inputMicrosPerMillion\":25000000,\"outputMicrosPerMillion\":75000000},{\"kind\":\"bedrock_embeddings\",\"provider\":\"aws-bedrock\",\"model\":\"amazon.titan-embed-text-v2:0\",\"inputMicrosPerMillion\":20000,\"outputMicrosPerMillion\":0},{\"kind\":\"nvidia_rerank\",\"provider\":\"nvidia-nim\",\"model\":\"nvidia/llama-nemotron-rerank-vl-1b-v2\",\"inputMicrosPerMillion\":1000000,\"outputMicrosPerMillion\":0}],\"sources\":[{\"kind\":\"openai_responses\",\"provider\":\"openai\",\"model\":\"gpt-6-astra\",\"url\":\"https://developers.openai.com/api/docs/models/gpt-6-astra\",\"unitContract\":\"Official model and Standard pricing pages fetched 2026-10-02T19:24Z: long-context input USD20/M, cache-write USD25/M, output USD75/M. The long-context tier applies above272K input tokens per request. Conservatively apply USD25 input/USD75 output to EVERY qualified request, including short context; cumulative reserved/charged tokens capped500000. This no longer depends on cumulative usage keeping each request below272K. Existing fixed api.openai.com Responses Standard text-only requests without service_tier/regional endpoint, hosted tools, images or external stored-response state remain required. Final serialized UTF8 request bytes and unchanged actual max_output_tokens bound each reservation before dispatch. Unknown models/providers/tiers reject. This is conservative runtime accounting, not a billing statement.\"},{\"kind\":\"jev\",\"provider\":\"openai\",\"model\":\"gpt-6-astra\",\"url\":\"https://developers.openai.com/api/docs/models/gpt-6-astra\",\"unitContract\":\"Official model and Standard pricing pages fetched 2026-10-02T19:24Z: long-context input USD20/M, cache-write USD25/M, output USD75/M. The long-context tier applies above272K input tokens per request. Conservatively apply USD25 input/USD75 output to EVERY qualified request, including short context; cumulative reserved/charged tokens capped500000. This no longer depends on cumulative usage keeping each request below272K. Existing fixed api.openai.com Responses Standard text-only requests without service_tier/regional endpoint, hosted tools, images or external stored-response state remain required. Final serialized UTF8 request bytes and unchanged actual max_output_tokens bound each reservation before dispatch. Unknown models/providers/tiers reject. This is conservative runtime accounting, not a billing statement.\"},{\"kind\":\"bedrock_embeddings\",\"provider\":\"aws-bedrock\",\"model\":\"amazon.titan-embed-text-v2:0\",\"url\":\"https://aws.amazon.com/blogs/machine-learning/optimizing-costs-of-generative-ai-applications-on-aws/\",\"unitContract\":\"Official AWS Titan Text EmbeddingsV2 On-Demand USD0.02 per million input text tokens. Actual current adapter fixed InvokeModel in us-east-1 omits premium service tier, reserves serialized UTF8 bytes, observes inputTextTokenCount; outputs are vectors, no output text-token charge.\"},{\"kind\":\"nvidia_rerank\",\"provider\":\"nvidia-nim\",\"model\":\"nvidia/llama-nemotron-rerank-vl-1b-v2\",\"url\":\"https://docs.api.nvidia.com/nim/docs/run-anywhere\",\"unitContract\":\"NVIDIA official hosted developer endpoints are free for prototyping. This approved synthetic dev/test uses the existing ai.api.nvidia.com endpoint, text-only query/passages; no paid partner or self-hosted pricing qualified. USD1/M is a positive conservative accounting reserve above the documented zero-dollar developer usage, NOT a claim of billed price. Count bound is serialized UTF8 payload bytes times scored passage count. Missing trustworthy usage remains retained uncertain and does not qualify a settled proof.\"}]}}"
+          }
+        ]
+      }
+    ]
+  }
+}

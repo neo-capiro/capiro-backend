@@ -1762,6 +1762,27 @@
           }
         }
       ]
+    },
+    {
+      "date": "2026-10-03T02:12:31.194136+00:00",
+      "kind": "fresh_authorized_live_memory_benchmark",
+      "sourceSha": "723735ed1f5c562ab10e6077c67261285ea102fd",
+      "evidence": "docs/meri/releases/2026-10-02/fresh-live-benchmark/README.md",
+      "casesCollected": [
+        "01",
+        "02",
+        "03",
+        "04",
+        "05"
+      ],
+      "fullyAccepted": 0,
+      "knownCaseFailure": [
+        "02"
+      ],
+      "coverageDefect": "Office Delta classified as budget_delta",
+      "accountedCostMicros": 9841281,
+      "sourceProvenanceChanged": false,
+      "historicalJournalChanged": false
     }
   ]
 }
