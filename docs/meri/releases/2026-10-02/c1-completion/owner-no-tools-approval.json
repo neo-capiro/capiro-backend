@@ -1,0 +1,27 @@
+{
+  "recordedAt": "2026-10-03T11:23:05.466Z",
+  "source": "Explicit human message in current Codex conversation",
+  "userText": "Approved",
+  "service": "meriv2-orchestrator",
+  "sourceSha": "cfd0adf0c54776f81f4b4e57c1a43190766e195e",
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:a53bf1a432f212b8e43be903f766c52ec4a8307d5fce1cbec1bdfbf45196ddea",
+  "approvedReviewPacket": "docs/meri/releases/2026-10-02/c1-no-tools-repair/RELEASE-REVIEW.md",
+  "approvedReviewPacketCommit": "8797a3d4b81d75a43c53924e79dc42ac13c5202d",
+  "originalManifestHash": "cdae48fbe78e3355f896f5516b6704d30153a8058be3ec5c968d9aa00ae9b762",
+  "effectiveManifestHash": "6a28230c133830cf608e890dcf4c566e65369610acf22509c835855045b8ca2c",
+  "renewal": {
+    "reason": "One-hour preparation window elapsed before human reply; exact approved artifact and complete baseline revalidated",
+    "onlyChangedField": "preparedAt",
+    "previous": "2026-10-03T06:48:45.876Z",
+    "current": "2026-10-03T11:23:05.465Z",
+    "qualificationUnchanged": true,
+    "baselineUnchanged": true,
+    "siblingsUnchanged": true
+  },
+  "scope": [
+    "Promote the exact approved concise-warning image using fresh canonical checks",
+    "Verify C1 in the signed-in workspace",
+    "Proceed through all C2 after C1 completes, per the preceding explicit instruction"
+  ],
+  "inheritedNewArtifactApproval": false
+}

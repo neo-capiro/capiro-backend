@@ -1,0 +1,13 @@
+{
+  "id": "own-open-task-count",
+  "prompt": "C1 read-only verification: Count open native tasks assigned to me. Use one native task lookup. Return only the count and any actual source limitation. Do not call legislative tools, create tasks, or change records.",
+  "responseIndex": 15,
+  "submittedAt": "2026-10-03T11:29:29.624Z",
+  "submittedAtMs": 1791026969624,
+  "firstUsefulObservedAt": "2026-10-03T11:29:37.559Z",
+  "firstUsefulObservedMs": 7935,
+  "firstUsefulText": "0 open native tasks assigned to you. No source limitation reported.",
+  "terminalObservedAt": "2026-10-03T11:29:37.577Z",
+  "terminalObservedMs": 7953,
+  "answer": "0 open native tasks assigned to you. No source limitation reported."
+}

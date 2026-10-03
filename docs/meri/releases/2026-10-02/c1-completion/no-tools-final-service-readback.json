@@ -1,0 +1,77 @@
+{
+  "observedAt": "2026-10-03T11:31:46.672Z",
+  "status": "VERIFIED",
+  "identities": [
+    {
+      "service": "api",
+      "baseline": {
+        "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:515",
+        "serviceHash": "9ef55d473f9f1be8ebaabee7ca1e6c02cb003be8ce1db29dbd570b4c97a29d17",
+        "configHash": "973748a2b134b388a6027df6c5c099055a7e24f7b746eafbaae8cebad077258a",
+        "taskHash": "469dcd8139dbba76076eb32adfd65c6b85eab9bb23e34e8ba2eb37b6e7d9d9e8",
+        "imageDigest": "sha256:5e52f9b06658b0462672d070928e0c2afd6ea229b61c3b887371f3f66196c316",
+        "desiredCount": 2
+      },
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:5e52f9b06658b0462672d070928e0c2afd6ea229b61c3b887371f3f66196c316",
+      "sourceSha": "6be5a560d5addaa1844f0687898c34a249089f76",
+      "rollout": [
+        {
+          "id": "ecs-svc/1085604237059963278",
+          "status": "PRIMARY",
+          "rolloutState": "COMPLETED",
+          "runningCount": 2,
+          "pendingCount": 0,
+          "failedTasks": 0
+        }
+      ]
+    },
+    {
+      "service": "meriv2-orchestrator",
+      "baseline": {
+        "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:111",
+        "serviceHash": "6b7597a9b78335ebc13198e46e25a984a9f833a550bec1d25ae173d95b518150",
+        "configHash": "3a4fabd2139e347cd8b45192579f2a3fbaaa6fc3678762b5252f727a4461951b",
+        "taskHash": "aff068a38d80462720cc32584e43680d0bdbcf25a0bce909133c608c1c10ed12",
+        "imageDigest": "sha256:a53bf1a432f212b8e43be903f766c52ec4a8307d5fce1cbec1bdfbf45196ddea",
+        "desiredCount": 1
+      },
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:a53bf1a432f212b8e43be903f766c52ec4a8307d5fce1cbec1bdfbf45196ddea",
+      "sourceSha": "cfd0adf0c54776f81f4b4e57c1a43190766e195e",
+      "rollout": [
+        {
+          "id": "ecs-svc/3053768789015031285",
+          "status": "PRIMARY",
+          "rolloutState": "COMPLETED",
+          "runningCount": 1,
+          "pendingCount": 0,
+          "failedTasks": 0
+        }
+      ]
+    },
+    {
+      "service": "web-vnext",
+      "baseline": {
+        "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web-vnext:388",
+        "serviceHash": "16238627fc523b6470c76cbd86c6a54bca422f86d72f2a7ba0312cc326d139e2",
+        "configHash": "453a3d5aedc3da7d989370b97669abf0c1b14efbacd2d1597990b9cac7d50ab7",
+        "taskHash": "ce2035e6773a77eeda0adcf86dd4a7043624b3d75d8d32a74000f3d930f55211",
+        "imageDigest": "sha256:a048aceec01c207b514f76fb447d4fb8bdb5ed17278642480008a1510a12de4c",
+        "desiredCount": 1
+      },
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:a048aceec01c207b514f76fb447d4fb8bdb5ed17278642480008a1510a12de4c",
+      "sourceSha": "78ad5805679a3045b1fc10fb19beafa7f76e4e64",
+      "rollout": [
+        {
+          "id": "ecs-svc/2451414755928290434",
+          "status": "PRIMARY",
+          "rolloutState": "COMPLETED",
+          "runningCount": 1,
+          "pendingCount": 0,
+          "failedTasks": 0
+        }
+      ]
+    }
+  ],
+  "approvalManifestHash": "6a28230c133830cf608e890dcf4c566e65369610acf22509c835855045b8ca2c",
+  "awsWrites": 0
+}

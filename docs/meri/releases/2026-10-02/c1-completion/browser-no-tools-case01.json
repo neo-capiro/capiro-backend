@@ -1,0 +1,13 @@
+{
+  "id": "concise-no-tool",
+  "prompt": "C1 final verification: In exactly three short bullets, describe how you can help with research, drafting, and task organization. Use no tools.",
+  "responseIndex": 13,
+  "submittedAt": "2026-10-03T11:28:24.402Z",
+  "submittedAtMs": 1791026904402,
+  "firstUsefulObservedAt": "2026-10-03T11:28:34.269Z",
+  "firstUsefulObservedMs": 9867,
+  "firstUsefulText": "Research: Find evidence and analyze policy developments.\nDrafting: Prepare briefs, memos, and talking points.\nTask organization: Organize priorities, deadlines, and follow-ups.",
+  "terminalObservedAt": "2026-10-03T11:28:34.288Z",
+  "terminalObservedMs": 9886,
+  "answer": "Research: Find evidence and analyze policy developments.\nDrafting: Prepare briefs, memos, and talking points.\nTask organization: Organize priorities, deadlines, and follow-ups."
+}

@@ -1,0 +1,140 @@
+{
+  "kind": "C1 concise-warning served verification",
+  "sourceSha": "cfd0adf0c54776f81f4b4e57c1a43190766e195e",
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:a53bf1a432f212b8e43be903f766c52ec4a8307d5fce1cbec1bdfbf45196ddea",
+  "orchestratorRevision": 111,
+  "browserRoute": "https://os.capiro.ai/meri/t/1117e250-4007-47a7-9158-1dcfcf5dc435",
+  "scope": "Existing approved signed-in account; All clients,15 in scope",
+  "model": "gpt-6-astra",
+  "mode": "Standard",
+  "effort": "medium",
+  "businessWrites": 0,
+  "customerContentRequested": false,
+  "cases": [
+    {
+      "id": "concise-no-tool",
+      "prompt": "C1 final verification: In exactly three short bullets, describe how you can help with research, drafting, and task organization. Use no tools.",
+      "responseIndex": 13,
+      "submittedAt": "2026-10-03T11:28:24.402Z",
+      "submittedAtMs": 1791026904402,
+      "firstUsefulObservedAt": "2026-10-03T11:28:34.269Z",
+      "firstUsefulObservedMs": 9867,
+      "firstUsefulText": "Research: Find evidence and analyze policy developments.\nDrafting: Prepare briefs, memos, and talking points.\nTask organization: Organize priorities, deadlines, and follow-ups.",
+      "terminalObservedAt": "2026-10-03T11:28:34.288Z",
+      "terminalObservedMs": 9886,
+      "answer": "Research: Find evidence and analyze policy developments.\nDrafting: Prepare briefs, memos, and talking points.\nTask organization: Organize priorities, deadlines, and follow-ups.",
+      "tools": [],
+      "toolCount": 0,
+      "grade": "PASS",
+      "assertions": [
+        "Exactly three rendered bullets",
+        "No unrelated Evidence limitation",
+        "Server telemetry verifies zero actual tool invocations"
+      ]
+    },
+    {
+      "id": "genuine-exhaustive-no-tool",
+      "prompt": "Read-only C1 coverage regression: State whether every federal award for the fictional entity C1 Offline Example has expired. Use no tools. If you cannot verify, say so.",
+      "responseIndex": 14,
+      "submittedAt": "2026-10-03T11:29:08.782Z",
+      "submittedAtMs": 1791026948782,
+      "firstUsefulObservedAt": "2026-10-03T11:29:17.670Z",
+      "firstUsefulObservedMs": 8888,
+      "firstUsefulText": "I cannot verify whether every federal award for the fictional entity C1 Offline Example has expired. No award records or expiration evidence were provided.\n\nEvidence limitation: No/none/only/all/every claims require explicit, non-truncated source coverage; an empty or failed query is not proof of absence; that part of the answer remains limited because the source was never called.",
+      "terminalObservedAt": "2026-10-03T11:29:17.690Z",
+      "terminalObservedMs": 8908,
+      "answer": "I cannot verify whether every federal award for the fictional entity C1 Offline Example has expired. No award records or expiration evidence were provided.\n\nEvidence limitation: No/none/only/all/every claims require explicit, non-truncated source coverage; an empty or failed query is not proof of absence; that part of the answer remains limited because the source was never called.",
+      "tools": [],
+      "toolCount": 0,
+      "grade": "PASS",
+      "assertions": [
+        "Cannot verify genuine exhaustive claim",
+        "No invented award result or citation",
+        "Missing-source limitation retained"
+      ]
+    },
+    {
+      "id": "own-open-task-count",
+      "prompt": "C1 read-only verification: Count open native tasks assigned to me. Use one native task lookup. Return only the count and any actual source limitation. Do not call legislative tools, create tasks, or change records.",
+      "responseIndex": 15,
+      "submittedAt": "2026-10-03T11:29:29.624Z",
+      "submittedAtMs": 1791026969624,
+      "firstUsefulObservedAt": "2026-10-03T11:29:37.559Z",
+      "firstUsefulObservedMs": 7935,
+      "firstUsefulText": "0 open native tasks assigned to you. No source limitation reported.",
+      "terminalObservedAt": "2026-10-03T11:29:37.577Z",
+      "terminalObservedMs": 7953,
+      "answer": "0 open native tasks assigned to you. No source limitation reported.",
+      "tools": [
+        "query_tasks"
+      ],
+      "toolCount": 1,
+      "grade": "PASS",
+      "assertions": [
+        "Own open native tasks0",
+        "No contradictory source footer",
+        "One visible native task step"
+      ]
+    },
+    {
+      "id": "minimal-mail-list",
+      "prompt": "C1 final verification, read only: Call list_emails exactly once using precisely {\"limit\":1}; omit every other optional argument rather than specifying defaults or nulls. Return only returned-message count, totalMatches, hasMore, and any actual coverage limitation. Do not show message contents, addresses, subjects, or IDs. Do not retry or change anything.",
+      "responseIndex": 16,
+      "submittedAt": "2026-10-03T11:29:53.638Z",
+      "submittedAtMs": 1791026993638,
+      "firstUsefulObservedAt": "2026-10-03T11:30:10.635Z",
+      "firstUsefulObservedMs": 16997,
+      "firstUsefulText": "Returned-message count: 1. [8]\ntotalMatches: 30,009. [8]\nhasMore: true. [8]\nCoverage limitations: More results remain. Sync excludes junk/spam, deleted/trash, and drafts; coverage beyond the bounded 365-day sync window is not assured. [8]\n\nEvidence limitation: No/none/only/all/every claims require explicit, non-truncated source coverage; an empty or failed query is not proof of absence; that part of the answer remains limited because the source was truncated.",
+      "terminalObservedAt": "2026-10-03T11:30:10.654Z",
+      "terminalObservedMs": 17016,
+      "answer": "Returned-message count: 1. [8]\ntotalMatches: 30,009. [8]\nhasMore: true. [8]\nCoverage limitations: More results remain. Sync excludes junk/spam, deleted/trash, and drafts; coverage beyond the bounded 365-day sync window is not assured. [8]\n\nEvidence limitation: No/none/only/all/every claims require explicit, non-truncated source coverage; an empty or failed query is not proof of absence; that part of the answer remains limited because the source was truncated.",
+      "tools": [
+        "list_emails"
+      ],
+      "toolCount": 1,
+      "grade": "PASS",
+      "assertions": [
+        "Returned1,totalMatches30009,hasMoretrue",
+        "Actual pagination and sync limits retained",
+        "No message contents or identities requested"
+      ]
+    }
+  ],
+  "reload": {
+    "observedAt": "2026-10-03T11:31:08.086Z",
+    "totalAnswers": 17,
+    "comparisons": [
+      {
+        "id": "concise-no-tool",
+        "identicalNormalizedWhitespace": true
+      },
+      {
+        "id": "genuine-exhaustive-no-tool",
+        "identicalNormalizedWhitespace": true
+      },
+      {
+        "id": "own-open-task-count",
+        "identicalNormalizedWhitespace": true
+      },
+      {
+        "id": "minimal-mail-list",
+        "identicalNormalizedWhitespace": true
+      }
+    ]
+  },
+  "status": "SERVED_PASS_WITH_SEPARATE_TRACE_UI_FINDING",
+  "timingLimit": "First useful and terminal are browser observation upper bounds; not first-token latency or p95.",
+  "toolEvidence": "Expected tool names/counts in this browser record were independently joined to server telemetry in no-tools-final-telemetry.json.",
+  "traceUiFinding": {
+    "observedAt": "2026-10-03T11:34:06.866Z",
+    "caseId": "concise-no-tool",
+    "afterReload": true,
+    "displayedToolCount": 1,
+    "label": "Writing the answer from gathered evidence",
+    "detail": "passage selection removed evidence from the synthesis request",
+    "actualServerToolCount": 0,
+    "interpretation": "Execution panel counts an internal synthesis/context step as a tool. This is a presentation discrepancy, not an observed external/domain-tool invocation.",
+    "disposition": "Retained for C3 execution-evidence UI investigation; no original trace acceptance claimed.",
+    "screenshot": "browser-c1-concise-success-with-trace-note.jpg"
+  }
+}

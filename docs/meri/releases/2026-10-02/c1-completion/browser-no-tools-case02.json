@@ -1,0 +1,13 @@
+{
+  "id": "genuine-exhaustive-no-tool",
+  "prompt": "Read-only C1 coverage regression: State whether every federal award for the fictional entity C1 Offline Example has expired. Use no tools. If you cannot verify, say so.",
+  "responseIndex": 14,
+  "submittedAt": "2026-10-03T11:29:08.782Z",
+  "submittedAtMs": 1791026948782,
+  "firstUsefulObservedAt": "2026-10-03T11:29:17.670Z",
+  "firstUsefulObservedMs": 8888,
+  "firstUsefulText": "I cannot verify whether every federal award for the fictional entity C1 Offline Example has expired. No award records or expiration evidence were provided.\n\nEvidence limitation: No/none/only/all/every claims require explicit, non-truncated source coverage; an empty or failed query is not proof of absence; that part of the answer remains limited because the source was never called.",
+  "terminalObservedAt": "2026-10-03T11:29:17.690Z",
+  "terminalObservedMs": 8908,
+  "answer": "I cannot verify whether every federal award for the fictional entity C1 Offline Example has expired. No award records or expiration evidence were provided.\n\nEvidence limitation: No/none/only/all/every claims require explicit, non-truncated source coverage; an empty or failed query is not proof of absence; that part of the answer remains limited because the source was never called."
+}

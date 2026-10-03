@@ -1865,6 +1865,31 @@
       "sourceProvenanceChanged": false,
       "historicalJournalChanged": false,
       "original75FullyAccepted": 0
+    },
+    {
+      "date": "2026-10-03T11:47:50.731354+00:00",
+      "kind": "c1_completed_c2_authorized_active",
+      "sourceSha": "cfd0adf0c54776f81f4b4e57c1a43190766e195e",
+      "imageDigest": "sha256:a53bf1a432f212b8e43be903f766c52ec4a8307d5fce1cbec1bdfbf45196ddea",
+      "evidence": "docs/meri/releases/2026-10-02/c1-completion/README.md",
+      "orchestratorTaskRevision": 111,
+      "rollbackTaskRevision": 110,
+      "manifestHash": "6a28230c133830cf608e890dcf4c566e65369610acf22509c835855045b8ca2c",
+      "c1ServedAcceptance": "PASS_WITH_DECLARED_BOUNDARIES",
+      "c2State": "AUTHORIZED_ACTIVE",
+      "actualFinalToolCounts": [
+        0,
+        0,
+        1,
+        1
+      ],
+      "finalReloadPassed": 4,
+      "traceUiIssue": "Internal synthesize step labelled as a tool after reload; retained for C3",
+      "original75FullyAccepted": 0,
+      "cdFullyAccepted": 0,
+      "cwFullyAccepted": 0,
+      "sourceProvenanceChanged": false,
+      "historicalJournalChanged": false
     }
   ]
 }

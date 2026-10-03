@@ -1,0 +1,13 @@
+{
+  "id": "minimal-mail-list",
+  "prompt": "C1 final verification, read only: Call list_emails exactly once using precisely {\"limit\":1}; omit every other optional argument rather than specifying defaults or nulls. Return only returned-message count, totalMatches, hasMore, and any actual coverage limitation. Do not show message contents, addresses, subjects, or IDs. Do not retry or change anything.",
+  "responseIndex": 16,
+  "submittedAt": "2026-10-03T11:29:53.638Z",
+  "submittedAtMs": 1791026993638,
+  "firstUsefulObservedAt": "2026-10-03T11:30:10.635Z",
+  "firstUsefulObservedMs": 16997,
+  "firstUsefulText": "Returned-message count: 1. [8]\ntotalMatches: 30,009. [8]\nhasMore: true. [8]\nCoverage limitations: More results remain. Sync excludes junk/spam, deleted/trash, and drafts; coverage beyond the bounded 365-day sync window is not assured. [8]\n\nEvidence limitation: No/none/only/all/every claims require explicit, non-truncated source coverage; an empty or failed query is not proof of absence; that part of the answer remains limited because the source was truncated.",
+  "terminalObservedAt": "2026-10-03T11:30:10.654Z",
+  "terminalObservedMs": 17016,
+  "answer": "Returned-message count: 1. [8]\ntotalMatches: 30,009. [8]\nhasMore: true. [8]\nCoverage limitations: More results remain. Sync excludes junk/spam, deleted/trash, and drafts; coverage beyond the bounded 365-day sync window is not assured. [8]\n\nEvidence limitation: No/none/only/all/every claims require explicit, non-truncated source coverage; an empty or failed query is not proof of absence; that part of the answer remains limited because the source was truncated."
+}

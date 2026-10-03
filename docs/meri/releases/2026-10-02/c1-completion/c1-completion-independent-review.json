@@ -1,0 +1,34 @@
+{
+  "kind": "Independent read-only C1 completion audit",
+  "reviewer": "/root/mail_defaults_review",
+  "recordedDate": "2026-10-03",
+  "verdict": "PASS_C1_FUNCTIONAL_EXIT",
+  "sourceSha": "cfd0adf0c54776f81f4b4e57c1a43190766e195e",
+  "orchestratorRevision": 111,
+  "rollbackRevision": 110,
+  "actualOwnerInvocations": [0, 0, 1, 1],
+  "checks": [
+    "Healthy exact approved source/image/config; API and web identities unchanged",
+    "Original and refreshed manifest fingerprints reproduce; only preparedAt differs",
+    "Three concise bullets without unrelated warning; genuine exhaustive limitation retained",
+    "Own-task healthy zero and minimal mail 1 of 30009 with truthful partial coverage",
+    "All four new answer bodies persist after reload",
+    "Relevant API owners unchanged; retained known/zero fixtures and controlled 503/recovery remain applicable"
+  ],
+  "evidenceSha256": {
+    "browser-no-tools-final.json": "88907e0873483d70bef7bf94029c5f46ded62a088b2c9b0c6201ddbd43c186a7",
+    "no-tools-final-telemetry.json": "31ecfccb532ed47fd2efad46ef94dba0e144232fd95c110ecbb037bb464563ea",
+    "no-tools-final-service-readback.json": "760fe0dbc773f0a5829aa9b545ddb2c5975a122972bd9cd3802eac9585d44a67",
+    "orchestrator-no-tools-promotion.json": "87bd49eca09d643654c5c968bb4aaaedab783ab0a5539baefd07bc654c10d4de"
+  },
+  "limits": [
+    "Browser/server association is serial order and matching tools/counts; exact IDs join server spans",
+    "Browser timings are observation upper bounds, not first-token or p95; prior zero-mail UI elapsed remains unavailable",
+    "Reload panel 1 TOOL and API finalized synthesize summarize an internal step, not an invoked owner tool; C3 UI issue retained",
+    "Retained isolated owner fixtures do not prove production fault injection or all original synthetic permissions",
+    "Original75, CD, CW and required original human review remain unchanged"
+  ],
+  "reviewMutations": 0,
+  "reviewReruns": 0,
+  "reviewRemoteCalls": 0
+}
