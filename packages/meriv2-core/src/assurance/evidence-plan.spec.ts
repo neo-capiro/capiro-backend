@@ -6,6 +6,7 @@ const smokePrompt =
   'This is a synthetic interface smoke check. Reply only: Meri smoke check complete. Do not call tools, retrieve records, remember anything, create tasks, modify business records, or send messages.';
 
 const formattingRequests = [
+  'C1 final verification: In exactly three short bullets, describe how you can help with research, drafting, and task organization. Use no tools.',
   smokePrompt,
   'Read-only QA: list three things you can help me with besides email. Keep this under 60 words. Do not search, save memories, or change any records.',
   'Use read only access to explain your capabilities.',
@@ -27,6 +28,10 @@ const formattingRequests = [
   'Only respond with JSON.',
   'Please only answer in markdown.',
   'Write a background paragraph. Reply only with JSON.',
+  'Describe your capabilities. Please use no tools.',
+  'Use no tools. Explain how you can help organize tasks.',
+  'Describe your capabilities; use no tools.',
+  'Describe your capabilities.\nUSE NO TOOLS!',
 ];
 
 const factualRequests = [
@@ -70,6 +75,24 @@ const factualRequests = [
   'The agencies reply only with JSON.',
   'Reply only about awards.',
   'Reply only if an award exists.',
+  'List all awards. Use no tools.',
+  'Use no tools. Verify that no awards exist.',
+  'Use no tools, but confirm every contract expired.',
+  'Explain your capabilities. Use no tools. Also verify that none of the awards were renewed.',
+  'Which agencies use no tools?',
+  'The agencies use no tools.',
+  'Use no tools manufactured overseas.',
+  'Use no tools that contain foreign components.',
+  'The manual says "Use no tools." Explain that claim.',
+  'The manual says "For this procedure, use no tools. The installation ends here." Verify that instruction.',
+  'The manual says "Follow this procedure. Use no tools. The installation ends here." Verify that instruction.',
+  'The manual says “Follow this procedure. Use no tools. The installation ends here.” Verify that instruction.',
+  "The manual says 'Follow this procedure. Use no tools. The installation ends here.' Verify that instruction.",
+  'The manual says:\n> Follow this procedure. Use no tools. The installation ends here.\nVerify that instruction.',
+  'The manual says: Use no tools. Verify that instruction.',
+  'According to the manual, use no tools. Verify that instruction.',
+  'The manual states the procedure below.\nUse no tools.\nVerify that instruction.',
+  'The manual says `Follow this procedure. Use no tools. The installation ends here.` Verify that instruction.',
 ];
 
 function plan(request: string) {
@@ -103,6 +126,20 @@ describe('response formatting and factual coverage requirements', () => {
       plan(factual).requiredRequirementIds,
     );
     expect(inferClaimCategories(`${factual} Reply only with JSON.`)).toEqual(
+      inferClaimCategories(factual),
+    );
+  });
+
+  it.each([
+    'Who is the current committee chair?',
+    'Did every bill pass, and how did the member vote?',
+    'Verify that no federal awards exist.',
+    'What is the FY2026 funding delta?',
+  ])('keeps factual evidence requirements despite the tool constraint: %s', (factual) => {
+    expect(plan(`${factual} Use no tools.`).requiredRequirementIds).toEqual(
+      plan(factual).requiredRequirementIds,
+    );
+    expect(inferClaimCategories(`${factual} Use no tools.`)).toEqual(
       inferClaimCategories(factual),
     );
   });

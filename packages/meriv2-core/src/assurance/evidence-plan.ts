@@ -338,12 +338,25 @@ const REQUIREMENTS: Readonly<Record<ClaimCategory, readonly EvidenceRequirement[
   ],
 };
 
-/** Remove only the quantifier in a recognized response-format directive.
+/** Remove only the quantifier in a recognized response-format or tool-use directive.
  * Keep its payload and every other quantifier so mixed factual requests still
  * require complete coverage. Unrecognized wording remains conservative. */
 function withoutResponseFormatOnly(request: string): string {
+  // Do not guess which speaker owns a tool instruction in quoted/reported
+  // content. This guard affects only the new execution-directive normalization.
+  const ambiguousToolInstruction =
+    /["'“”‘’«»`]|(?:^|\n)\s*>|\b(?:says|said|states|stated|reads|reports|reported|according\s+to)\b/i.test(
+      request,
+    );
   return (
     request
+      // A complete "Use no tools" clause constrains execution, not source
+      // coverage. Keep qualified tool nouns and every other claim unchanged.
+      .replace(
+        /(^|[.!?;\n]\s*)((?:please\s+)?use\s+)no\b(?=\s+tools\s*(?:[.!?;:,\n](?=\s|$)|$))/gi,
+        (match, boundary: string, directive: string) =>
+          ambiguousToolInstruction ? match : `${boundary}${directive}`,
+      )
       // A bare numeric reply to an explicit arithmetic expression is a format
       // directive, not a restriction on a factual dataset. Require the expression
       // to end the clause so units or factual objects remain conservative.
