@@ -1,0 +1,65 @@
+{
+  "observedAt": "2026-10-03T05:16:27.107Z",
+  "wafArn": "arn:aws:wafv2:us-east-1:967807252336:regional/webacl/capiro-dev-waf/95dc2979-45e1-4c94-9ea8-650dfb21c516",
+  "window": {
+    "StartTime": "2026-10-03T01:02:55-04:00",
+    "EndTime": "2026-10-03T01:12:40-04:00"
+  },
+  "population": 3,
+  "samples": [
+    {
+      "at": "2026-10-03T01:03:03.250000-04:00",
+      "action": "BLOCK",
+      "rule": "AWS#AWSManagedRulesSQLiRuleSet#SQLi_BODY",
+      "path": "/api/clio/tools/list_emails",
+      "method": "POST",
+      "safeHeaders": [
+        {
+          "Name": "content-type",
+          "Value": "application/json"
+        },
+        {
+          "Name": "content-length",
+          "Value": "11"
+        }
+      ]
+    },
+    {
+      "at": "2026-10-03T01:09:34.797000-04:00",
+      "action": "BLOCK",
+      "rule": "AWS#AWSManagedRulesSQLiRuleSet#SQLi_BODY",
+      "path": "/api/clio/tools/list_emails",
+      "method": "POST",
+      "safeHeaders": [
+        {
+          "Name": "content-type",
+          "Value": "application/json"
+        },
+        {
+          "Name": "content-length",
+          "Value": "11"
+        }
+      ]
+    },
+    {
+      "at": "2026-10-03T01:11:23.631000-04:00",
+      "action": "BLOCK",
+      "rule": "AWS#AWSManagedRulesSQLiRuleSet#SQLi_BODY",
+      "path": "/api/clio/tools/list_emails",
+      "method": "POST",
+      "safeHeaders": [
+        {
+          "Name": "content-type",
+          "Value": "application/json"
+        },
+        {
+          "Name": "content-length",
+          "Value": "11"
+        }
+      ]
+    }
+  ],
+  "credentialsPersisted": false,
+  "bodyPersisted": false,
+  "awsWrites": 0
+}

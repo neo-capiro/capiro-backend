@@ -1,0 +1,125 @@
+{
+  "schemaVersion": 1,
+  "planHash": "4348b68f96a16575fe6541d78e9c4e0c441f5cdf2a05fc28307431f49eaaab21",
+  "operationId": "0a080325-ed36-41a4-af8c-b582c6d3aaee",
+  "sourceSha": "e1d045d4abe4a7835cb9284508cd287cf1d34d3b",
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:5754b5e54f5c81a53ff032310f6af01bdfd67db0c94375a3973369abe786c4d9",
+  "status": "VERIFIED",
+  "startedAt": "2026-10-03T04:39:54.391Z",
+  "serviceUpdated": false,
+  "retryAllowed": false,
+  "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-c1-forward452:1",
+  "failedStage": "REGISTER_INTENT",
+  "errorClass": "AssertionError",
+  "errorCode": "ERR_ASSERTION",
+  "finishedAt": "2026-10-03T04:57:35.472Z",
+  "registrationReconciliation": {
+    "observedAt": "2026-10-03T04:55:45.271Z",
+    "planHash": "4348b68f96a16575fe6541d78e9c4e0c441f5cdf2a05fc28307431f49eaaab21",
+    "definition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-c1-forward452:1",
+    "originalFailure": {
+      "schemaVersion": 1,
+      "planHash": "4348b68f96a16575fe6541d78e9c4e0c441f5cdf2a05fc28307431f49eaaab21",
+      "operationId": "0a080325-ed36-41a4-af8c-b582c6d3aaee",
+      "sourceSha": "e1d045d4abe4a7835cb9284508cd287cf1d34d3b",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:5754b5e54f5c81a53ff032310f6af01bdfd67db0c94375a3973369abe786c4d9",
+      "status": "RECONCILIATION_REQUIRED",
+      "startedAt": "2026-10-03T04:39:54.391Z",
+      "serviceUpdated": false,
+      "retryAllowed": false,
+      "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-c1-forward452:1",
+      "failedStage": "REGISTER_INTENT",
+      "errorClass": "AssertionError",
+      "errorCode": "ERR_ASSERTION",
+      "finishedAt": "2026-10-03T04:39:56.137Z"
+    },
+    "expectedDefinitionHash": "a83606ca64687b2fa1b192fec443305b2bcac8d1d88294258df6f9adcdb5a762",
+    "returnedDefinitionHash": "32ab3aaa9dfa8ea7db2cd5246d4f2a85798d5e47c94da578ae89d14d3c66a502",
+    "semanticDefinitionHash": "4a9d0ecd504d739c0ff43ad29fb21d6a518af02dbda92bb62d50b7958dba484c",
+    "difference": "Only order of unique environment-name entries; exact names and values preserved.",
+    "runningOrPendingTasks": 0,
+    "stoppedTasks": 0,
+    "artifactAndBaselineUnchanged": true,
+    "resumeOperatorSha256": "574a0ec70868a559819035210cb9294afb0283ba4447b312d4a0b543567ec79d",
+    "preDispatchReceiptRecovery": true
+  },
+  "resumedAt": "2026-10-03T04:55:45.275Z",
+  "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/8d380e30cddb408396a6ab44fc673584",
+  "containerExitCode": 0,
+  "ownerReceipts": [
+    {
+      "version": 1,
+      "kind": "meri-forward452",
+      "stage": "PREFLIGHT",
+      "status": "VERIFIED",
+      "sourceSha": "e1d045d4abe4a7835cb9284508cd287cf1d34d3b",
+      "ledgerRows": 608,
+      "activeFinished": 508,
+      "rolledBack": 100,
+      "apiSourceMigrations": 451,
+      "apiHistorySha256": "2ba2296af1eba3c489fe83a5a4a1f5a4cf7c3aaae984317610163f041693e520",
+      "oldLedgerSha256": "9a82cbc9dcecc3b049c312ad4e39ec5a96eb33c6e5af033a3339d1e292c06e90",
+      "legacyLedgerSha256": "e06c88cf3a42626966b1949c5c297ee71aa7e90ba413bfc153bd6b61afbe5766",
+      "checks": {
+        "memory_candidate_source_kind_chk": "4585194700c4539c5f62d01610ed8f9b3b78b0618e39b40cd04b8b7b80f3c4a5",
+        "memory_candidate_version_payload_check": "6a3164098759e2c2f6e6cf0caf80db29b8529c714158b9a8490ce9d477dc422c"
+      },
+      "index": {
+        "present": false
+      },
+      "tlsVerified": true
+    },
+    {
+      "version": 1,
+      "kind": "meri-forward452",
+      "stage": "PRISMA_DEPLOY",
+      "status": "INTENT",
+      "sourceSha": "e1d045d4abe4a7835cb9284508cd287cf1d34d3b",
+      "migrationSha256": "ef10ab58b4eef6825652690a098ab160a374fb30c4cc0af9f15793edb7237242"
+    },
+    {
+      "version": 1,
+      "kind": "meri-forward452",
+      "stage": "COMPLETE",
+      "status": "VERIFIED",
+      "sourceSha": "e1d045d4abe4a7835cb9284508cd287cf1d34d3b",
+      "ledgerRows": 609,
+      "activeFinished": 509,
+      "rolledBack": 100,
+      "apiSourceMigrations": 452,
+      "apiHistorySha256": "2ba2296af1eba3c489fe83a5a4a1f5a4cf7c3aaae984317610163f041693e520",
+      "newMigration": "20281007010000_mail_messages_owned_connection_active",
+      "migrationSha256": "ef10ab58b4eef6825652690a098ab160a374fb30c4cc0af9f15793edb7237242",
+      "manifestSha256": "f4a9f560bc21d7f12b902fa4bf09157612bacdc108dbce1de88085d010318f5f",
+      "oldLedgerSha256": "9a82cbc9dcecc3b049c312ad4e39ec5a96eb33c6e5af033a3339d1e292c06e90",
+      "oldLedgerUnchanged": true,
+      "legacyLedgerSha256": "e06c88cf3a42626966b1949c5c297ee71aa7e90ba413bfc153bd6b61afbe5766",
+      "checks": {
+        "memory_candidate_source_kind_chk": "4585194700c4539c5f62d01610ed8f9b3b78b0618e39b40cd04b8b7b80f3c4a5",
+        "memory_candidate_version_payload_check": "6a3164098759e2c2f6e6cf0caf80db29b8529c714158b9a8490ce9d477dc422c"
+      },
+      "index": {
+        "present": true,
+        "definitionSha256": "23d2b35e8097cea6c5620ce2c9c1cab68467e9de09dba5e3337f6fca0a170688",
+        "method": "btree",
+        "keyColumns": [
+          "tenant_id",
+          "connection_id"
+        ],
+        "includeColumns": [],
+        "unique": false,
+        "valid": true,
+        "ready": true,
+        "predicate": "(removed_at IS NULL)",
+        "noExpression": true
+      },
+      "prismaExitCode": 0,
+      "prismaOutputSha256": "5a5e0db65b7a7284ae809ba8aff639f2927018e83ecb3a058202a83f0f1c34ba",
+      "tlsVerified": true
+    }
+  ],
+  "cleanup": {
+    "taskStopped": true,
+    "taskDefinitionStatus": "INACTIVE"
+  }
+}

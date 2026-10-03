@@ -1,0 +1,17 @@
+{
+  "buildId": "capiro-build-web-dev:25da10f2-dc10-4a54-812e-e3e4714c58dd",
+  "sourceSha": "c8e2b8fbfe921fd43a1bd1d4d744a26db138e985",
+  "status": "IN_PROGRESS",
+  "buildspecSha256": "f923955798bd5bbf28245093d7ad9a04fa67d1161a6d1ca780a5b2b9551de5be",
+  "actionRun": {
+    "conclusion": "startup_failure",
+    "headSha": "c8e2b8fbfe921fd43a1bd1d4d744a26db138e985",
+    "jobs": [],
+    "status": "completed",
+    "url": "https://github.com/neo-capiro/capirov2/actions/runs/37099466379",
+    "workflowName": "meriv2-orchestrator-image"
+  },
+  "callerArn": "arn:aws:iam::967807252336:user/capirocli",
+  "startedAt": "2026-10-03T05:21:41.550Z",
+  "scope": "Immutable orchestrator candidate build/qualification only; no service, database, routing, WAF, or provider configuration mutation"
+}

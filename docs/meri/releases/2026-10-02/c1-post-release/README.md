@@ -1,0 +1,30 @@
+# C1 production checks and remaining mailbox-list repair
+
+The owner approved both prepared operations with “Approve both”. [Approval](owner-release-approval.json) binds the original fingerprints. The classification repair is served by orchestrator107 at `130824b6c0561069c472b2eb93a0b7cef9217f0e`, digest `sha256:23ccef8051ad386b4cc6635b5e79559b6111b16121537b187bf09cdcca932213`. [Promotion](orchestrator-corrected-promotion.json) and [fresh healthy service readback](post-release-service-readback.json) verify the running image and unchanged configuration. API515 and WebVNext388 remain unchanged.
+
+Forward452 completed through normal Prisma deployment: 608 to 609 ledger rows, with every prior row and historical checksum unchanged. The exact active-mailbox index is valid and ready; memory constraints and the earlier index remain verified. [Execution receipt](forward452-execution.json) records TLS verification, exit 0, stopped task and deregistered one-off definition. No API service rollout or ledger rewrite occurred. Retain the additive index on application rollback; orchestrator106 is the pinned rollback definition for107.
+
+Two launcher failures preceded the first migration dispatch. ECS returned approved environment entries in a different order; the narrow resume compares unique name/value entries without relaxing other fields. The first resume then failed serializing a circular diagnostic receipt before RunTask. Authoritative empty-family checks, preserved claims, the corrected immutable failure snapshot and 16 passing regression tests preceded the single actual task. The final receipt retains historical failure fields beneath its overall VERIFIED result. [Registration reconciliation](forward452-registration-reconciliation.json), [pre-dispatch failure](forward452-predispatch-failure.json), [recovery reconciliation](forward452-predispatch-reconciliation.json), and [review](forward452-resume-review.v2.json) preserve the sequence. Do not rerun the migration.
+
+## Actual C1 behavior
+
+| Outcome | Evidence and limit |
+| --- | --- |
+| Concise answer; proper-name/failed-search wording | PASS in the signed-in workspace; zero tools and no unrelated legislative/footer requirement. The hypothetical wording case is not a controlled DB failure. |
+| Known and healthy-zero tasks | Isolated actual owner fixture 7/7; client/assignment/membership boundaries retained. Live owned open-task count 0, one tool, no contradictory footer. The task fixture uses its existing transaction adapter, not an RLS proof. |
+| Known and healthy-zero mail | Actual owner/Prisma fixture 12/12 under an ordinary nonowner FORCE-RLS role, including known 3 and healthy 0. Live literal query returned0; a 365-day search returned1 of 29,984 with truthful pagination/sync limits. |
+| Controlled mail failure and recovery | Actual EngagementService/canonical query/Prisma path hit its unchanged 10-second deadline under an isolated fixture lock. Sanitized503 classified failed, never empty. Same session recovered known 3 and healthy 0. This does not claim a production injected fault or HTTP/model/browser failure injection. |
+| Persistence | All eight post-release prompt/answer pairs survived reload. Browser timings are observation upper bounds, not first-token measurements or p95. |
+| Minimal mailbox listing | FAIL: `{"limit":1}` received 403 HTML. Explicit canonical defaults succeeded with 1 of 29,996 active messages. This is diagnostic success, not acceptance of the automatic repair. |
+
+[Browser observations](browser-post-release.json), [joined server event durations](post-release-telemetry.json), [isolated task receipt](c1-acceptance-local-v1.json), and [actual mail failure/recovery/default equivalence](c1-mail-defaults-local-v1-mail-report.json) separate these claims. No customer message contents, addresses or subjects were persisted in this archive. Eight QA chat pairs were created; no business writes or memory decisions were performed. The owned local PostgreSQL55433 fixture was stopped after verification.
+
+## Remaining repair
+
+[WAF samples](mail-list-waf-correlation.json) correlate both signed-in failures with `AWS#AWSManagedRulesSQLiRuleSet#SQLi_BODY` on `/api/clio/tools/list_emails`, each with an 11-byte JSON body. A bounded unauthenticated diagnostic sent the two legitimate request forms: minimal input produced edge 403 without an API release header; explicit owner defaults reached normal API 401 authentication. It sent no credentials and could not enter the tool owner. [Exact diagnostic](mail-list-body-diagnostic.json).
+
+Source `c8e2b8fbfe921fd43a1bd1d4d744a26db138e985` is merged to both mains. It fills only nullish `folder`/`offset` with the owner's existing `all`/`0` defaults for list/search mail. Explicit filters, limits, dates, literals, invalid values, scope, authentication, deadlines and other tools stay unchanged; it changes no WAF rule. Fifty focused tests, TypeScript checking, real owner result equivalence, and 26/26 offline cases passed. [Focused receipt](mail-defaults-focused-v1-receipt.json), [database receipt](c1-mail-defaults-local-v1.json), [offline verification](meri-offline-mail-defaults.summary.json).
+
+The follow-up immutable image is qualified: `sha256:27418fb841c03bc1637949c45d9deda1d4de8fd5be423d05beaf83e5d1025be6`. All 1,500 orchestrator tests passed (two existing skips), with packaged health/auth, classification and default-normalization checks. [Exact qualification](mail-defaults-qualification.json). C1 remains open until that exact candidate is approved, promoted and a minimal list call succeeds through the workspace. The previous approval covers the two completed artifacts; it is not relabeled as approval of this new artifact.
+
+Original acceptance remains PASS 0/75, CD 0/7, CW 0/8. These C1 checks do not repair the frozen benchmark clock, pending-SMS omission, older unknown journal, effect/variant/repeat assertions or required human grading. C0 remains complete with those explicit fixture dispositions; File01 and file02 readiness remain incomplete.

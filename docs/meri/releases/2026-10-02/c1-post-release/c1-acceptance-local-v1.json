@@ -1,0 +1,40 @@
+{
+  "kind": "C1 isolated actual owner acceptance tests",
+  "startedAt": "2026-10-03T04:59:17.0269233Z",
+  "scope": "owned native PostgreSQL16 127.0.0.1:55433 only",
+  "postgresOptions": "-h 127.0.0.1 -p 55433",
+  "awsCalls": 0,
+  "productionCodeEdits": 0,
+  "providerCalls": 0,
+  "sourceHashes": {
+    "evals/meri/live-v1/tests/task-scope.postgres.test.mjs": "72ce7d6834cc5db1028fb142787fa7e8eeb64ce8a9d9e742920a65bb6eb09f18",
+    "apps/api/scripts/verify-mail-thread-covering-index.cjs": "85aa5dfe8611266c4dc6c3fe4c9b3c3c5f0af7093c87d7a383401b4cd8cfd8df",
+    "apps/api/src/engagement/engagement.service.ts": "71940d04ccd213fa698ec536bff238927555306077cdcfba5bfbddab5c13036b",
+    "apps/api/src/engagement/mail-query.ts": "b32e25f106e3a2d9e69ac50e37b6fde8b26cea51a08be24adcdf5cfc69ad34c8",
+    "apps/api/src/engagement/mail-query-deadline.ts": "cb90d145a96d006785ad4c0a5a768ddeddf843b351638db199aad360850c138b",
+    "apps/api/src/engagement/mail-sync-coverage.ts": "fdad6a158c7fc61b9c8a15cf06ba57b73d829bc219b369c6593e6e31b1e310e1",
+    "apps/api/src/prisma/prisma.service.ts": "fb3886df5f2732a0412342627a3a6156f159718913479cdc2325fa602bfdd86e",
+    "apps/api/src/meri/meri-task-read.helpers.ts": "3f2ec7cd10ba3dcb3d5ae8126a36241d3b995070dc6cd33f517f9d694aa6c9e9",
+    "packages/shared/src/meri-read-outcome.ts": "7338dc39e9d8f7df3ce82083451aad69905cc03ab2a83035b404346ce6f123f9"
+  },
+  "commands": [
+    "node --test evals/meri/live-v1/tests/task-scope.postgres.test.mjs",
+    "node apps/api/scripts/verify-mail-thread-covering-index.cjs --qualify-452"
+  ],
+  "priorTaskAttempts": [
+    "task-scope-c1-audit-20261003.json",
+    "task-scope-c1-audit-20261003-v2.json",
+    "task-scope-c1-audit-20261003-v3.json"
+  ],
+  "sourceSha": "03292ab0ca82fa269a72190038f77a2b8081f4ea",
+  "statusBeforeExit": 3,
+  "clusterStoppedBefore": true,
+  "startExit": 0,
+  "taskExit": 0,
+  "taskLogSha256": "decddaaf36afa043bdecaf816ff990ec9460c145717485021f959051c42a7292",
+  "mailExit": 0,
+  "mailLogSha256": "fc99da0d702e47cac8556e45b063fe3408090580503ad90fbb93e3ef1087e883",
+  "stopExit": 0,
+  "clusterStoppedAfter": true,
+  "completedAt": "2026-10-03T04:59:55.0674547Z"
+}

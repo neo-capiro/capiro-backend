@@ -1,0 +1,20 @@
+{
+  "status": "PASS",
+  "sourceSha": "c8e2b8fbfe921fd43a1bd1d4d744a26db138e985",
+  "reviewer": "Codex root and independent mail_defaults_review subagent",
+  "humanReview": false,
+  "sourceHashes": {
+    "apps/meriv2-orchestrator/src/meri/api-tool-executor.repo.ts": "73433e4323dcc330ce2f57ec6dbc35d30c46d47bea77f223cfdac905f019051e",
+    "apps/meriv2-orchestrator/src/meri/api-tool-executor.repo.spec.ts": "cb323aa2ff8e2a128ae23d76db5716b08ba277a1298e0342d82101f54748a6ad",
+    "apps/api/scripts/verify-mail-thread-covering-index.cjs": "c15ce1a9f630dbd50e799ffab21771131825fc9f571871d8f88296679e2a192e",
+    "evals/meri/live-v1/tests/task-scope.postgres.test.mjs": "72ce7d6834cc5db1028fb142787fa7e8eeb64ce8a9d9e742920a65bb6eb09f18"
+  },
+  "findings": [],
+  "scope": "Existing owner defaults only; literal/filter/scope/validation/auth/deadline/retry and other tools unchanged. Packaged smoke has synthetic credentials and networking disabled; WAF/encoding unchanged.",
+  "limits": [
+    "Local execution receipts identify pre-commit HEAD03292ab0; exact source hashes match c8e2b8fb.",
+    "Task fixture exercises its existing transaction adapter, not RLS.",
+    "WAF samples correlate time/path/body length, not an exact browser request ID.",
+    "Explicit-default browser success used orchestrator107; automatic repair still requires promotion and served acceptance."
+  ]
+}

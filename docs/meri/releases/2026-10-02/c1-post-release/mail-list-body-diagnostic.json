@@ -1,0 +1,39 @@
+{
+  "startedAt": "2026-10-03T05:11:26.748Z",
+  "target": "https://app.capiro.ai/api/clio/tools/list_emails",
+  "purpose": "Compare legitimate read-input serialization at the edge with no credentials; neither request can enter the authenticated tool owner.",
+  "authenticated": false,
+  "requests": [
+    {
+      "at": "2026-10-03T05:11:26.749Z",
+      "input": {
+        "limit": 1
+      },
+      "bodyBytes": 11,
+      "status": 403,
+      "contentType": "text/html",
+      "release": null,
+      "elapsedMs": 246,
+      "html403": true,
+      "apiAuthRefusal": false,
+      "responseBodyPersisted": false
+    },
+    {
+      "at": "2026-10-03T05:11:26.995Z",
+      "input": {
+        "limit": 1,
+        "folder": "all",
+        "offset": 0
+      },
+      "bodyBytes": 37,
+      "status": 401,
+      "contentType": "application/json; charset=utf-8",
+      "release": "6be5a560d5addaa1844f0687898c34a249089f76",
+      "elapsedMs": 74,
+      "html403": false,
+      "apiAuthRefusal": true,
+      "responseBodyPersisted": false
+    }
+  ],
+  "completedAt": "2026-10-03T05:11:27.070Z"
+}

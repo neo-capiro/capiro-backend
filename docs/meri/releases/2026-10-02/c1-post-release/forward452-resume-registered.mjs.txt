@@ -1,0 +1,135 @@
+// Resume the approved operation after reconciling ECS environment-array ordering.
+// Never registers a replacement definition, resets a claim, or retries RunTask.
+import assert from 'node:assert/strict';
+import {readFileSync,writeFileSync,openSync,fsyncSync,closeSync,renameSync,existsSync} from 'node:fs';
+import {createHash} from 'node:crypto';
+import {pathToFileURL} from 'node:url';
+import {aws} from '../meri-fresh-20261003/auth-preflight.mjs';
+import {releaseOperator} from '../../meri-c1-20261002/scripts/meri-release.mjs';
+import {fingerprint,taskInput} from '../../meri-c1-20261002/scripts/lib/meri-release-policy.mjs';
+import {normalizeDefinition} from './forward452-task.mjs';
+
+const ROOT='C:/dev/main/outputs/meri-c1-20261002';
+const APPROVED='4348b68f96a16575fe6541d78e9c4e0c441f5cdf2a05fc28307431f49eaaab21';
+const DEFINITION='arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-c1-forward452:1';
+const CONTAINER='meri-c1-forward452';
+const sha=b=>createHash('sha256').update(b).digest('hex');
+const read=name=>JSON.parse(readFileSync(ROOT+'/'+name,'utf8'));
+const delay=ms=>new Promise(r=>setTimeout(r,ms));
+export function semanticDefinition(value){
+  const copy=normalizeDefinition(value);
+  for(const container of copy.containerDefinitions??[]){
+    if(container.environment===undefined)continue;
+    assert.ok(Array.isArray(container.environment));
+    const names=container.environment.map(e=>{assert.equal(typeof e.name,'string');assert.equal(typeof e.value,'string');return e.name;});
+    assert.equal(new Set(names).size,names.length,'DUPLICATE_ENVIRONMENT_NAME');
+    container.environment.sort((a,b)=>a.name<b.name?-1:a.name>b.name?1:0);
+  }
+  return copy;
+}
+export function attachReconciliation(receipt,reconciliation){
+  // Snapshot before attaching: originalFailure may refer to receipt itself.
+  receipt.registrationReconciliation=structuredClone(reconciliation);
+}
+function persist(receipt){
+  const path=ROOT+'/forward452-execution.json',temp=path+'.tmp';
+  const fd=openSync(temp,'w');try{writeFileSync(fd,JSON.stringify(receipt,null,2)+'\n');fsyncSync(fd);}finally{closeSync(fd);}
+  renameSync(temp,path);
+}
+export async function resume(approved,confirmation){
+  assert.equal(approved,APPROVED);
+  const recoverUnsent=confirmation==='RECOVER_UNSENT_FORWARD452_ONCE';
+  assert.ok(recoverUnsent||confirmation==='RESUME_RECONCILED_FORWARD452_ONCE');
+  const plan=read('forward452-task-plan.json'),{planHash,...body}=plan;
+  assert.equal(planHash,APPROVED);assert.equal(fingerprint(body),APPROVED);
+  const age=Date.now()-Date.parse(plan.preparedAt);assert.ok(age>=0&&age<3600000,'PLAN_EXPIRED');
+  const approval=read('owner-release-approval.json');assert.equal(approval.userText,'Approve both');assert.equal(approval.migrationPlanHash,APPROVED);
+  assert.equal(readFileSync(ROOT+'/forward452.once','utf8').trim(),APPROVED);
+  assert.equal(sha(readFileSync(ROOT+'/forward452-task.mjs')),plan.runnerOperatorSha256);
+  assert.equal(sha(readFileSync(ROOT+'/forward452-runner.mjs')),plan.runnerSha256);
+  assert.equal(sha(readFileSync(ROOT+'/forward452-input.json')),plan.inputSha256);
+  const receipt=read('forward452-execution.json');assert.equal(receipt.planHash,APPROVED);
+  assert.equal(receipt.status,'RECONCILIATION_REQUIRED');assert.equal(receipt.failedStage,'REGISTER_INTENT');
+  assert.equal(receipt.errorClass,'AssertionError');assert.equal(receipt.taskDefinitionArn,DEFINITION);
+  assert.equal(receipt.taskArn,undefined);assert.equal(receipt.operationId,plan.operationId);
+  assert.equal(existsSync(ROOT+'/private/forward452-run-request.json'),recoverUnsent);
+  if(recoverUnsent){
+    assert.equal(readFileSync(ROOT+'/forward452-resume.once','utf8').trim(),APPROVED);
+    assert.equal(sha(readFileSync(ROOT+'/forward452-resume-registered.v1.mjs')),'5fa8464d607ec444db3a7f64f555a57a3087374a2f1577879524c54b9b7de738');
+    const first=read('forward452-registration-reconciliation.json');
+    assert.equal(first.resumeOperatorSha256,'5fa8464d607ec444db3a7f64f555a57a3087374a2f1577879524c54b9b7de738');
+    assert.equal(fingerprint(first.originalFailure),fingerprint(receipt));
+  }
+  assert.equal(aws(['sts','get-caller-identity']).Account,plan.account);
+  const actual=aws(['ecs','describe-task-definition','--task-definition',DEFINITION,'--include','TAGS']);
+  assert.equal(actual.taskDefinition.status,'ACTIVE');
+  const expected=read('private/forward452-task-definition.json');assert.equal(fingerprint(expected),plan.taskDefinitionHash);
+  const actualInput=taskInput({...actual.taskDefinition,tags:actual.tags??[]});
+  const expectedSemantic=fingerprint(semanticDefinition(expected));
+  assert.equal(fingerprint(semanticDefinition(actualInput)),expectedSemantic,'REGISTERED_DEFINITION_MISMATCH');
+  for(const state of ['RUNNING','STOPPED']){
+    const result=aws(['ecs','list-tasks','--cluster',plan.cluster,'--family','capiro-dev-meri-c1-forward452','--desired-status',state]);
+    assert.deepEqual(result.taskArns,[],'EXISTING_MIGRATION_TASK_RECONCILE');
+  }
+  const ecr=aws(['ecr','describe-images','--repository-name','capiro/dev/api','--image-ids','imageTag='+plan.sourceSha]).imageDetails;
+  assert.equal(ecr.length,1);assert.equal(ecr[0].imageDigest,plan.image.split('@')[1]);
+  const live=await releaseOperator({aws}).snapshot('api');
+  assert.equal(fingerprint(live.baseline),fingerprint(plan.apiBaseline));
+  assert.equal(fingerprint(live.service.networkConfiguration),plan.networkHash);
+  const template=aws(['ecs','describe-task-definition','--task-definition',plan.migrationTemplate]).taskDefinition;
+  assert.equal(fingerprint(taskInput(template)),plan.migrationTemplateHash);
+  const reconciliation={observedAt:new Date().toISOString(),planHash:APPROVED,definition:DEFINITION,originalFailure:receipt,expectedDefinitionHash:plan.taskDefinitionHash,returnedDefinitionHash:fingerprint(normalizeDefinition(actualInput)),semanticDefinitionHash:expectedSemantic,difference:'Only order of unique environment-name entries; exact names and values preserved.',runningOrPendingTasks:0,stoppedTasks:0,artifactAndBaselineUnchanged:true,resumeOperatorSha256:sha(readFileSync(ROOT+'/forward452-resume-registered.mjs'))};
+  const request={cluster:plan.cluster,taskDefinition:DEFINITION,launchType:'FARGATE',platformVersion:live.service.platformVersion,networkConfiguration:live.service.networkConfiguration,count:1,startedBy:'meri-c1-'+plan.operationId.slice(0,24),clientToken:plan.operationId};
+  const runFile=ROOT+'/private/forward452-run-request.json';
+  if(recoverUnsent)assert.equal(fingerprint(read('private/forward452-run-request.json')),fingerprint(request),'SAVED_RUN_REQUEST_CHANGED');
+  reconciliation.preDispatchReceiptRecovery=recoverUnsent;
+  writeFileSync(ROOT+(recoverUnsent?'/forward452-predispatch-reconciliation.json':'/forward452-registration-reconciliation.json'),JSON.stringify(reconciliation,null,2)+'\n',{flag:'wx'});
+  const claim=openSync(ROOT+(recoverUnsent?'/forward452-predispatch.once':'/forward452-resume.once'),'wx');try{writeFileSync(claim,APPROVED+'\n');fsyncSync(claim);}finally{closeSync(claim);}
+  attachReconciliation(receipt,reconciliation);receipt.resumedAt=new Date().toISOString();
+  let task,stage='RUN_TASK_INTENT';
+  try{
+    if(!recoverUnsent)writeFileSync(runFile,JSON.stringify(request),{flag:'wx'});
+    receipt.status=stage;persist(receipt);
+    const started=aws(['ecs','run-task','--cli-input-json','file://'+runFile]);
+    assert.equal(started.failures?.length??0,0);assert.equal(started.tasks?.length,1);
+    const taskArn=started.tasks[0].taskArn;receipt.taskArn=taskArn;receipt.status='TASK_STARTED';persist(receipt);
+    console.log(JSON.stringify({status:'FORWARD452_TASK_STARTED',taskArn}));
+    stage='TASK_READBACK';const deadline=Date.now()+600000;
+    do{
+      await delay(5000);
+      const result=aws(['ecs','describe-tasks','--cluster',plan.cluster,'--tasks',taskArn]);
+      assert.equal(result.failures?.length??0,0);assert.equal(result.tasks?.length,1);task=result.tasks[0];
+      assert.equal(task.taskDefinitionArn,DEFINITION);assert.equal(task.containers.length,1);assert.equal(task.containers[0].name,CONTAINER);
+      if(task.containers[0].imageDigest)assert.equal(task.containers[0].imageDigest,plan.image.split('@')[1]);
+    }while(task.lastStatus!=='STOPPED'&&Date.now()<deadline);
+    assert.equal(task.lastStatus,'STOPPED','TASK_TIMEOUT_RECONCILE');
+    assert.equal(task.containers[0].imageDigest,plan.image.split('@')[1],'STOPPED_TASK_DIGEST_UNVERIFIED');
+    stage='OWNER_RECEIPTS';let token,pages=0,events=[];
+    const stream='meri-c1-forward452/'+CONTAINER+'/'+taskArn.split('/').at(-1);
+    while(pages++<20){
+      const args=['logs','get-log-events','--log-group-name',expected.containerDefinitions[0].logConfiguration.options['awslogs-group'],'--log-stream-name',stream,'--start-from-head'];
+      if(token)args.push('--next-token',token);const result=aws(args);events.push(...result.events);
+      if(result.nextForwardToken===token)break;token=result.nextForwardToken;
+    }
+    assert.ok(pages<20);
+    const owners=events.map(e=>e.message).filter(m=>m.startsWith('MERI_FORWARD452_RECEIPT ')).map(m=>JSON.parse(m.slice('MERI_FORWARD452_RECEIPT '.length)));
+    receipt.containerExitCode=task.containers[0].exitCode;receipt.ownerReceipts=owners;receipt.status='STOPPED_PENDING_VERIFICATION';persist(receipt);
+    assert.equal(receipt.containerExitCode,0);assert.equal(owners.length,3);assert.equal(owners[0].status,'VERIFIED');assert.equal(owners[1].status,'INTENT');
+    const complete=owners[2];assert.equal(complete.stage,'COMPLETE');assert.equal(complete.status,'VERIFIED');assert.equal(complete.sourceSha,plan.sourceSha);
+    assert.equal(complete.ledgerRows,609);assert.equal(complete.oldLedgerUnchanged,true);assert.equal(complete.migrationSha256,plan.migrationSha256);
+    assert.equal(complete.manifestSha256,plan.manifestSha256);assert.equal(complete.prismaExitCode,0);assert.equal(complete.tlsVerified,true);
+    const after=await releaseOperator({aws}).snapshot('api');assert.equal(fingerprint(after.baseline),fingerprint(plan.apiBaseline));
+    receipt.status='VERIFIED';receipt.finishedAt=new Date().toISOString();persist(receipt);
+    console.log(JSON.stringify({status:'VERIFIED',taskArn,ledgerRows:609,priorLedgerUnchanged:true}));return receipt;
+  }catch(error){
+    receipt.status='RECONCILIATION_REQUIRED';receipt.failedStage=stage;receipt.errorClass=error?.constructor?.name??'unknown';
+    receipt.errorCode=/^[A-Z0-9_]{3,50}$/.test(error?.code??'')?error.code:'FORWARD452_REFUSED';receipt.finishedAt=new Date().toISOString();persist(receipt);
+    throw new Error('Forward452 resume stopped at '+stage+'; preserve both once claims and reconcile receipt.');
+  }finally{
+    if(task?.lastStatus==='STOPPED'){
+      const cleanup=aws(['ecs','deregister-task-definition','--task-definition',DEFINITION]);
+      receipt.cleanup={taskStopped:true,taskDefinitionStatus:cleanup.taskDefinition.status};persist(receipt);
+    }
+  }
+}
+if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href)await resume(process.argv[2],process.argv[3]);

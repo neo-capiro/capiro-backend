@@ -1,0 +1,16 @@
+{
+  "command": "pnpm --filter @capiro/meriv2-orchestrator exec jest --runInBand src/meri/api-tool-executor.repo.spec.ts src/meri/api-tool-executor-mail-retry.spec.ts src/meri/api-tool-executor-cancellation.spec.ts --json --outputFile=C:/dev/main/outputs/meri-c1-20261002/mail-defaults-focused-v1.json",
+  "exitCode": 0,
+  "success": true,
+  "totalTests": 50,
+  "passedTests": 50,
+  "failedTests": 0,
+  "pendingTests": 0,
+  "suites": 3,
+  "sourceSha": "03292ab0ca82fa269a72190038f77a2b8081f4ea",
+  "sourceHashes": {
+    "apps/meriv2-orchestrator/src/meri/api-tool-executor.repo.ts": "73433e4323dcc330ce2f57ec6dbc35d30c46d47bea77f223cfdac905f019051e",
+    "apps/meriv2-orchestrator/src/meri/api-tool-executor.repo.spec.ts": "cb323aa2ff8e2a128ae23d76db5716b08ba277a1298e0342d82101f54748a6ad"
+  },
+  "logSha256": "ab4c30e480f370ee1b2ad9c4f2851ad12838f3dfd66e47bfb4b718db61769a7a"
+}

@@ -1,0 +1,12 @@
+import { writeFileSync } from 'node:fs';
+const out={startedAt:new Date().toISOString(),target:'https://app.capiro.ai/api/clio/tools/list_emails',purpose:'Compare legitimate read-input serialization at the edge with no credentials; neither request can enter the authenticated tool owner.',authenticated:false,requests:[]};
+for(const input of [{limit:1},{limit:1,folder:'all',offset:0}]) {
+  const body=JSON.stringify(input);
+  const started=Date.now();
+  const response=await fetch(out.target,{method:'POST',headers:{'content-type':'application/json',accept:'application/json'},body,redirect:'error',signal:AbortSignal.timeout(15000)});
+  const raw=await response.text();
+  out.requests.push({at:new Date(started).toISOString(),input,bodyBytes:Buffer.byteLength(body),status:response.status,contentType:response.headers.get('content-type'),release:response.headers.get('x-capiro-release-sha'),elapsedMs:Date.now()-started,html403:response.status===403&&/<html>/i.test(raw),apiAuthRefusal:/Unauthorized|invalid.*auth|authentication|unauthenticated/i.test(raw),responseBodyPersisted:false});
+}
+out.completedAt=new Date().toISOString();
+writeFileSync('C:/dev/main/outputs/meri-c1-20261002/mail-list-body-diagnostic.json',JSON.stringify(out,null,2)+'\n',{flag:'wx'});
+console.log(JSON.stringify(out));

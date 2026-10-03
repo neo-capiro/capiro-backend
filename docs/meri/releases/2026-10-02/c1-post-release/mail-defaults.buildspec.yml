@@ -1,0 +1,164 @@
+version: 0.2
+env:
+  shell: bash
+phases:
+  pre_build:
+    on-failure: ABORT
+    commands:
+      - |
+        set -euo pipefail
+        : "${EXPECTED_SHA:?start-build must pass the exact merged-main SHA}"
+        [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]]
+        test "${CODEBUILD_SOURCE_VERSION:-}" = "$EXPECTED_SHA"
+        test "${CODEBUILD_RESOLVED_SOURCE_VERSION:-}" = "$EXPECTED_SHA"
+        test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+        test -z "$(git status --porcelain --untracked-files=no)"
+        test "$(uname -m)" = aarch64
+        test "$(aws sts get-caller-identity --query Account --output text)" = 967807252336
+        test "$(aws ecr list-images --region us-east-1 --repository-name capiro/dev/meriv2-orchestrator --filter tagStatus=TAGGED --query "length(imageIds[?imageTag=='${EXPECTED_SHA}'])" --output json)" = 0
+        python3 scripts/validate-meri-orchestrator-build-only.py
+        python3 scripts/validate-meri-build-isolation.py
+        sha256sum apps/meriv2-orchestrator/Dockerfile apps/api/prisma/schema.prisma pnpm-lock.yaml
+        docker pull public.ecr.aws/docker/library/node:20.16.0-bookworm-slim
+        docker tag public.ecr.aws/docker/library/node:20.16.0-bookworm-slim node:20.16.0-bookworm-slim
+        docker build --platform linux/arm64 -t "capiro-orchestrator-test-base:${EXPECTED_SHA}" - <<'DOCKERFILE'
+        FROM node:20.16.0-bookworm-slim
+        RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
+        RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
+        DOCKERFILE
+        aws ecr get-login-password --region us-east-1 |
+          docker login --username AWS --password-stdin 967807252336.dkr.ecr.us-east-1.amazonaws.com
+  build:
+    on-failure: ABORT
+    commands:
+      - |
+        set -euo pipefail
+        # The native ARM64 test workspace uses the canonical Dockerfile's dependency/build order.
+        # No host credentials or database/provider secrets enter either test container.
+        docker run --rm -e CI=1 -e NODE_OPTIONS=--max-old-space-size=6144 \
+          -v "${CODEBUILD_SRC_DIR}:/workspace" -w /workspace \
+          "capiro-orchestrator-test-base:${EXPECTED_SHA}" bash -lc '
+            set -euo pipefail
+            pnpm install --frozen-lockfile --filter=@capiro/meriv2-orchestrator... --filter=@capiro/auth... --filter=@capiro/meriv2-core... --filter=@capiro/shared... --filter=@capiro/strategy-verifier...
+            pnpm --filter @capiro/shared build
+            pnpm --filter @capiro/auth build
+            pnpm --filter @capiro/meriv2-core build
+            pnpm --filter @capiro/strategy-verifier build
+            mkdir -p apps/meriv2-orchestrator/prisma
+            cp apps/api/prisma/schema.prisma apps/meriv2-orchestrator/prisma/schema.prisma
+            pnpm --filter @capiro/meriv2-orchestrator exec prisma generate
+            pnpm --filter @capiro/meriv2-orchestrator build
+          '
+        # Test dependencies are already installed in the workspace; no package download is possible here.
+        docker run --rm --network none -e CI=1 -e NODE_OPTIONS=--max-old-space-size=6144 \
+          -v "${CODEBUILD_SRC_DIR}:/workspace" -w /workspace/apps/meriv2-orchestrator \
+          "capiro-orchestrator-test-base:${EXPECTED_SHA}" bash -lc '
+            set -euo pipefail
+            node node_modules/typescript/bin/tsc --noEmit
+            node node_modules/jest/bin/jest.js --runInBand --detectOpenHandles --forceExit --json --outputFile=/workspace/orchestrator-jest-results.json
+          '
+        python3 - <<'PY'
+        import json
+        result=json.load(open('orchestrator-jest-results.json'))
+        assert result['success'] is True and result['numFailedTests']==0 and result['numFailedTestSuites']==0
+        assert result['numPassedTests'] > 0 and result['numTotalTests'] > 0
+        print('ORCHESTRATOR_SOURCE_TEST_COUNTS='+json.dumps({k:result[k] for k in ['numTotalTests','numPassedTests','numFailedTests','numPendingTests','numTotalTestSuites','numPassedTestSuites','numFailedTestSuites','numPendingTestSuites']}))
+        print('Skipped live tests are NOT RUN; this is offline source qualification only.')
+        PY
+        test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+        test -z "$(git status --porcelain --untracked-files=no)"
+        image="967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator:${EXPECTED_SHA}"
+        docker build --no-cache --platform linux/arm64 \
+          --label "org.opencontainers.image.revision=$EXPECTED_SHA" \
+          --label 'org.opencontainers.image.source=https://github.com/neo-capiro/capirov2' \
+          -f apps/meriv2-orchestrator/Dockerfile -t "$image" .
+        test "$(docker image inspect "$image" --format '{{.Architecture}}')" = arm64
+        test "$(docker image inspect "$image" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')" = "$EXPECTED_SHA"
+        test "$(docker run --rm --network none --entrypoint node "$image" -p 'process.version')" = v20.16.0
+        # Final image starts through its real entrypoint with synthetic local-only configuration.
+        # The container has no network interface except loopback; no shared DB/provider calls can succeed.
+        timeout 90s docker run --rm -i --network none --entrypoint node \
+          -e DATABASE_URL=postgresql://offline:offline@127.0.0.1:1/offline \
+          -e CLERK_SECRET_KEY=sk_test_meriv2_jest_dummy \
+          -e MERIV2_BIND_HOST=127.0.0.1 -e MERIV2_PORT=4300 \
+          -e MERIV2_LOG_LEVEL=warn "$image" - <<'NODE'
+        const assert = require('node:assert/strict');
+        const { spawn } = require('node:child_process');
+        const { setTimeout: delay } = require('node:timers/promises');
+        const p = require('@prisma/client');
+        assert.equal(typeof p.PrismaClient, 'function');
+        require('./dist/app.module.js');
+        const child = spawn('/usr/bin/dumb-init', ['--', '/usr/local/bin/entrypoint.sh', 'serve'], { stdio: ['ignore', 'inherit', 'inherit'] });
+        let exited = false;
+        let spawnError;
+        child.once('error', error => { spawnError = error; });
+        const done = new Promise(resolve => child.once('exit', () => { exited = true; resolve(); }));
+        (async () => {
+          try {
+            let health;
+            const deadline = Date.now() + 45000;
+            while (Date.now() < deadline) {
+              if (spawnError) throw spawnError;
+              if (exited) throw new Error('Packaged entrypoint exited before health became ready');
+              try {
+                const response = await fetch('http://127.0.0.1:4300/meri-api/health', { signal: AbortSignal.timeout(1500) });
+                if (response.ok) { health = await response.json(); break; }
+              } catch (_) {}
+              await delay(250);
+            }
+            assert.deepEqual(health, { ok: true, service: 'meriv2-orchestrator' });
+            const get = await fetch('http://127.0.0.1:4300/meri-api/tools', { signal: AbortSignal.timeout(3000) });
+            assert.equal(get.status, 401);
+            const post = await fetch('http://127.0.0.1:4300/meri-api/tools/get_client_context/invoke', {
+              method: 'POST', headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({ input: { clientId: '11111111-1111-4111-8111-111111111111' } }),
+              signal: AbortSignal.timeout(3000),
+            });
+            assert.equal(post.status, 401);
+            console.log('OFFLINE_PACKAGED_ENTRYPOINT_HEALTH_AUTH_PASS');
+          } finally {
+            child.kill('SIGTERM');
+            await Promise.race([done, delay(5000)]);
+            if (!exited) child.kill('SIGKILL');
+          }
+        })().catch(error => { console.error(error); process.exitCode = 1; });
+        NODE
+        docker run --rm --network none --entrypoint node "$image" -e 'const a=require("node:assert/strict"),c=require("@capiro/meriv2-core"),plan=request=>c.planGovernmentAffairsEvidence({request,frame:c.resolveGovernmentAffairsOperatingFrame({request}),surface:"chat"});a.equal(plan("Read-only QA: list three things you can help me with besides email.").requestCategories.includes("negative_or_exhaustive"),false);a.equal(plan("If the mailbox search fails, say that it failed.").requestCategories.includes("bill_status"),false);a.equal(plan("Read-only: verify all awards.").requestCategories.includes("negative_or_exhaustive"),true);a.equal(plan("Should we contact Office Delta for Aster?").requestCategories.includes("budget_delta"),false);a.equal(plan("A failed search is unknown, not zero.").requestCategories.includes("bill_status"),false);a.equal(plan("What is the increase for 0602712F?").requestCategories.includes("budget_delta"),true);a.equal(plan("Compare House vs Senate positions on PE 0603851F.").requestCategories.includes("budget_delta"),false);console.log("OFFLINE_C1_CLASSIFICATION_REPAIRS_PASS")'
+        docker run --rm -i --network none --entrypoint node "$image" - <<'MAIL'
+        const assert = require("node:assert/strict");
+        const { ApiToolExecutorRepo } = require("./dist/meri/api-tool-executor.repo.js");
+        const { RequestCredentialsStore } = require("./dist/request/request-credentials.store.js");
+        const config = { MERIV2_API_BASE_URL: "https://offline.invalid", INTERNAL_SERVICE_SECRET: "synthetic-offline-secret" };
+        const repo = new ApiToolExecutorRepo({ get: key => config[key] });
+        let called = 0;
+        global.fetch = async (url, init) => {
+          called++; assert.equal(url, "https://offline.invalid/api/clio/tools/list_emails");
+          assert.equal(init.headers.authorization, "Bearer synthetic-offline-bearer");
+          assert.equal(init.headers["x-internal-service-secret"], config.INTERNAL_SERVICE_SECRET);
+          assert.deepEqual(JSON.parse(init.body), { limit: 1, folder: "all", offset: 0 });
+          return new Response(JSON.stringify({ totalMatches: 0, returned: 0, hasMore: false, messages: [], searchedMailboxes: [{mailCoverage:{sourceStatus:"healthy"}}] }), {status:200});
+        };
+        RequestCredentialsStore.run({bearerToken:"synthetic-offline-bearer"}, () => repo.execute({}, "list_emails", Object.freeze({limit:1})))
+          .then(result => { assert.equal(result.totalMatches,0); assert.equal(called,1); console.log("OFFLINE_PACKAGED_MAIL_DEFAULTS_PASS"); })
+          .catch(error => { console.error(error); process.exitCode=1; });
+        MAIL
+  post_build:
+    on-failure: ABORT
+    commands:
+      - |
+        set -euo pipefail
+        test "${CODEBUILD_BUILD_SUCCEEDING:-0}" = 1
+        image="967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator:${EXPECTED_SHA}"
+        docker push "$image"
+        docker image inspect "$image" --format '{{json .RepoDigests}}' > pushed-orchestrator-repo-digests.json
+        digest="$(aws ecr describe-images --region us-east-1 --repository-name capiro/dev/meriv2-orchestrator --image-ids "imageTag=${EXPECTED_SHA}" --query 'imageDetails[0].imageDigest' --output text)"
+        [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+        python3 - "$digest" <<'PY'
+        import json,sys
+        digest=sys.argv[1]
+        target='967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@'+digest
+        assert target in json.load(open('pushed-orchestrator-repo-digests.json'))
+        print('LOCAL_REPODIGEST_ECR_MATCH_PASS')
+        PY
+        echo "CANDIDATE_ORCHESTRATOR_SOURCE_SHA=$EXPECTED_SHA"
+        echo "CANDIDATE_ORCHESTRATOR_IMAGE=967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@$digest"

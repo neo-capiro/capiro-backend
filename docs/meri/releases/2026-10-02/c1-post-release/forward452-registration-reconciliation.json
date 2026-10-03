@@ -1,0 +1,29 @@
+{
+  "observedAt": "2026-10-03T04:47:49.019Z",
+  "planHash": "4348b68f96a16575fe6541d78e9c4e0c441f5cdf2a05fc28307431f49eaaab21",
+  "definition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-c1-forward452:1",
+  "originalFailure": {
+    "schemaVersion": 1,
+    "planHash": "4348b68f96a16575fe6541d78e9c4e0c441f5cdf2a05fc28307431f49eaaab21",
+    "operationId": "0a080325-ed36-41a4-af8c-b582c6d3aaee",
+    "sourceSha": "e1d045d4abe4a7835cb9284508cd287cf1d34d3b",
+    "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:5754b5e54f5c81a53ff032310f6af01bdfd67db0c94375a3973369abe786c4d9",
+    "status": "RECONCILIATION_REQUIRED",
+    "startedAt": "2026-10-03T04:39:54.391Z",
+    "serviceUpdated": false,
+    "retryAllowed": false,
+    "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-c1-forward452:1",
+    "failedStage": "REGISTER_INTENT",
+    "errorClass": "AssertionError",
+    "errorCode": "ERR_ASSERTION",
+    "finishedAt": "2026-10-03T04:39:56.137Z"
+  },
+  "expectedDefinitionHash": "a83606ca64687b2fa1b192fec443305b2bcac8d1d88294258df6f9adcdb5a762",
+  "returnedDefinitionHash": "32ab3aaa9dfa8ea7db2cd5246d4f2a85798d5e47c94da578ae89d14d3c66a502",
+  "semanticDefinitionHash": "4a9d0ecd504d739c0ff43ad29fb21d6a518af02dbda92bb62d50b7958dba484c",
+  "difference": "Only order of unique environment-name entries; exact names and values preserved.",
+  "runningOrPendingTasks": 0,
+  "stoppedTasks": 0,
+  "artifactAndBaselineUnchanged": true,
+  "resumeOperatorSha256": "5fa8464d607ec444db3a7f64f555a57a3087374a2f1577879524c54b9b7de738"
+}

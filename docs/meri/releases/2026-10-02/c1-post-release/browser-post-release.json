@@ -1,0 +1,153 @@
+{
+  "status": "PARTIAL_C1_MAIL_SEARCH_REPAIRED_LIST_DEFAULTS_NOT_DEPLOYED",
+  "route": "https://os.capiro.ai/meri/t/1117e250-4007-47a7-9158-1dcfcf5dc435",
+  "accountScope": "Existing approved signed-in owner; own tasks and mail only; no account comparison",
+  "orchestrator": {
+    "taskRevision": 107,
+    "sourceSha": "130824b6c0561069c472b2eb93a0b7cef9217f0e",
+    "imageDigest": "sha256:23ccef8051ad386b4cc6635b5e79559b6111b16121537b187bf09cdcca932213"
+  },
+  "modelObserved": "gpt-6-astra",
+  "modeObserved": "Standard",
+  "effortObserved": "Per-turn medium/high; automatic escalation retained. Original list failure inspector showed high; successful explicit-default list showed medium.",
+  "timingLimits": "First useful content and completion were observed together. These are upper bounds including gaps between observations, not first-token measurements or p95.",
+  "cases": [
+    {
+      "case": "concise-no-tool",
+      "outcome": "PASS",
+      "observedAt": "2026-10-03T04:40:40.243Z",
+      "firstUsefulAndTerminalUpperBoundMs": 28007,
+      "toolCount": 0,
+      "answer": "Three concise capability bullets; no evidence footer.",
+      "failureState": "none",
+      "sourceCoverage": "General capabilities; no source lookup requested"
+    },
+    {
+      "case": "proper-name-operational-wording",
+      "outcome": "PASS",
+      "observedAt": "2026-10-03T04:48:22.007Z",
+      "firstUsefulAndTerminalUpperBoundMs": 109383,
+      "toolCount": 0,
+      "answer": "Office Delta\u00e2\u20ac\u2122s message count is unknown because the mailbox search failed.",
+      "coverageFooter": false,
+      "failureState": "none; rewriting supplied hypothetical text",
+      "sourceCoverage": "Only the supplied hypothetical sentence; no records retrieved",
+      "limit": "Wording check, not a controlled database failure"
+    },
+    {
+      "case": "own-open-task-count",
+      "outcome": "PASS",
+      "observedAt": "2026-10-03T04:52:20.613Z",
+      "firstUsefulAndTerminalUpperBoundMs": 44502,
+      "toolCount": 1,
+      "renderedToolLabels": [
+        "Reviewed tasks"
+      ],
+      "answer": "0 open tasks assigned to you.",
+      "coverageFooter": false,
+      "failureState": "none",
+      "sourceCoverage": "Authenticated owner's native open tasks; no other sources called"
+    },
+    {
+      "id": "mail_list_post_index",
+      "observedAt": "2026-10-03T05:03:28.693Z",
+      "observedUpperBoundMs": 30612,
+      "result": "FAIL",
+      "renderedToolLabels": [
+        "Listed emails"
+      ],
+      "toolCount": 1,
+      "failureState": "403 Forbidden",
+      "outcome": "failed_not_empty",
+      "counts": "unknown",
+      "coverage": "source and sync coverage unverified",
+      "footer": "extraction failed coverage warning"
+    },
+    {
+      "id": "mail_literal_zero_post_index",
+      "observedAt": "2026-10-03T05:04:28.069Z",
+      "observedUpperBoundMs": 58453,
+      "result": "PASS",
+      "renderedToolLabels": [
+        "Searched emails"
+      ],
+      "toolCount": 1,
+      "failureState": null,
+      "matchingMessageCount": 0,
+      "coverage": "synced active mail; excludes junk/spam, deleted/trash, drafts; beyond bounded365-day sync may be incomplete",
+      "unrelatedFooter": false
+    },
+    {
+      "id": "mail_known_bounded_post_index",
+      "observedAt": "2026-10-03T05:07:07.079Z",
+      "observedUpperBoundMs": 157834,
+      "result": "PASS_WITH_EXPLICIT_PAGINATION",
+      "renderedToolLabels": [
+        "Searched emails"
+      ],
+      "toolCount": 1,
+      "failureState": null,
+      "returned": 1,
+      "totalMatches": 29984,
+      "hasMore": true,
+      "coverage": "stored active mail; sync healthy/backfill complete; junk/spam, deleted/trash,drafts excluded",
+      "footer": "truncated source warning with limit1/hasMoretrue"
+    },
+    {
+      "id": "mail_list_minimal_diagnostic",
+      "observedAt": "2026-10-03T05:12:04.000Z",
+      "observedUpperBoundMs": 151844,
+      "result": "FAIL",
+      "toolCount": 1,
+      "failureState": "403 Forbidden",
+      "requestConstraint": {
+        "limit": 1
+      },
+      "wafCorrelatedBodyBytes": 11,
+      "counts": "unknown"
+    },
+    {
+      "id": "mail_list_explicit_defaults_diagnostic",
+      "observedAt": "2026-10-03T05:12:45.595Z",
+      "observedUpperBoundMs": 40558,
+      "result": "PASS_DIAGNOSTIC_NOT_AUTOMATIC_REPAIR",
+      "toolCount": 1,
+      "renderedToolLabels": [
+        "Listed emails"
+      ],
+      "requestConstraint": {
+        "limit": 1,
+        "folder": "all",
+        "offset": 0
+      },
+      "failureState": null,
+      "returned": 1,
+      "totalMatches": 29996,
+      "hasMore": true,
+      "coverage": "stored active mail; sync healthy/backfill complete; junk/spam,deleted/trash,drafts excluded; bounded365-day sync",
+      "footer": "truncation limitation consistent with limit1/hasMoretrue"
+    }
+  ],
+  "businessWrites": 0,
+  "chatMessagesPersisted": true,
+  "customerMailContentsPersisted": false,
+  "original75Acceptance": false,
+  "mailChecks": "Known and literal-zero search PASS; minimal list403FAIL; explicit-owner-default listPASS diagnostic only.",
+  "reloadVerification": {
+    "status": "PASS",
+    "observedAt": "2026-10-03T05:13:17.399Z",
+    "savedPromptAnswerPairs": 8,
+    "allEightAnswersPersisted": true
+  },
+  "migration": {
+    "name": "20281007010000_mail_messages_owned_connection_active",
+    "status": "VERIFIED",
+    "ledgerRows": 609,
+    "priorLedgerUnchanged": true
+  },
+  "screenshot": {
+    "localPath": "C:\\dev\\main\\outputs\\meri-c1-20261002\\browser-post-release-proof.jpg",
+    "sha256": "646c992ac42dda0311e16e69103a75cd22cd483bf6a7fa94917f8a2699cf5713",
+    "description": "Signed-in list with explicit canonical defaults after reload; counts only; not automatic-fix acceptance."
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "kind": "C1 canonical mail transport defaults equivalence",
+  "startedAt": "2026-10-03T05:15:15.1645700Z",
+  "scope": "owned native PostgreSQL16 127.0.0.1:55433 only",
+  "postgresOptions": "-h 127.0.0.1 -p 55433",
+  "awsCalls": 0,
+  "productionCodeEdits": 1,
+  "providerCalls": 0,
+  "sourceHashes": {
+    "apps/meriv2-orchestrator/src/meri/api-tool-executor.repo.ts": "73433e4323dcc330ce2f57ec6dbc35d30c46d47bea77f223cfdac905f019051e",
+    "apps/meriv2-orchestrator/src/meri/api-tool-executor.repo.spec.ts": "cb323aa2ff8e2a128ae23d76db5716b08ba277a1298e0342d82101f54748a6ad",
+    "evals/meri/live-v1/tests/task-scope.postgres.test.mjs": "72ce7d6834cc5db1028fb142787fa7e8eeb64ce8a9d9e742920a65bb6eb09f18",
+    "apps/api/scripts/verify-mail-thread-covering-index.cjs": "c15ce1a9f630dbd50e799ffab21771131825fc9f571871d8f88296679e2a192e",
+    "apps/api/src/engagement/engagement.service.ts": "71940d04ccd213fa698ec536bff238927555306077cdcfba5bfbddab5c13036b",
+    "apps/api/src/engagement/mail-query.ts": "b32e25f106e3a2d9e69ac50e37b6fde8b26cea51a08be24adcdf5cfc69ad34c8",
+    "apps/api/src/engagement/mail-query-deadline.ts": "cb90d145a96d006785ad4c0a5a768ddeddf843b351638db199aad360850c138b",
+    "apps/api/src/engagement/mail-sync-coverage.ts": "fdad6a158c7fc61b9c8a15cf06ba57b73d829bc219b369c6593e6e31b1e310e1",
+    "apps/api/src/prisma/prisma.service.ts": "fb3886df5f2732a0412342627a3a6156f159718913479cdc2325fa602bfdd86e",
+    "apps/api/src/meri/meri-task-read.helpers.ts": "3f2ec7cd10ba3dcb3d5ae8126a36241d3b995070dc6cd33f517f9d694aa6c9e9",
+    "packages/shared/src/meri-read-outcome.ts": "7338dc39e9d8f7df3ce82083451aad69905cc03ab2a83035b404346ce6f123f9"
+  },
+  "commands": [
+    "node apps/api/scripts/verify-mail-thread-covering-index.cjs --qualify-452"
+  ],
+  "priorAcceptanceAttempt": "c1-acceptance-local-v1.json",
+  "priorTaskAttempts": [
+    "task-scope-c1-audit-20261003.json",
+    "task-scope-c1-audit-20261003-v2.json",
+    "task-scope-c1-audit-20261003-v3.json"
+  ],
+  "sourceSha": "03292ab0ca82fa269a72190038f77a2b8081f4ea",
+  "statusBeforeExit": 3,
+  "clusterStoppedBefore": true,
+  "startExit": 0,
+  "mailExit": 0,
+  "mailLogSha256": "472cbd1ca5d3d0ca455e4509df4529eff0b9992a3cd3a9848e744f11a920c001",
+  "stopExit": 0,
+  "clusterStoppedAfter": true,
+  "completedAt": "2026-10-03T05:15:50.0350221Z"
+}

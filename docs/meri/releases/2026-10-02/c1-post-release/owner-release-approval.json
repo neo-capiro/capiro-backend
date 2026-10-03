@@ -1,0 +1,15 @@
+{
+  "recordedAt": "2026-10-03T04:35:25.481Z",
+  "source": "Explicit user message in current Codex conversation",
+  "userText": "Approve both",
+  "scope": [
+    "Promote qualified C1 orchestrator response repair",
+    "Run one packaged forward452 mailbox-index migration",
+    "Run read-only signed-in browser acceptance checks"
+  ],
+  "orchestratorManifestHash": "15a29ec7a10142b038c3266ed0d198813e6c05cc156a89b0d59b40fee3d41c5f",
+  "migrationPlanHash": "4348b68f96a16575fe6541d78e9c4e0c441f5cdf2a05fc28307431f49eaaab21",
+  "reviewPacket": "docs/meri/releases/2026-10-02/c1-mail-index/RELEASE-REVIEW.md",
+  "reviewPacketCommit": "b4c588490ef41288c957154cf3829384b9b7ea47",
+  "qualificationNote": "Prepared qualification and plan retain their original pending-approval wording; this later explicit approval authorizes the exact bound artifacts."
+}

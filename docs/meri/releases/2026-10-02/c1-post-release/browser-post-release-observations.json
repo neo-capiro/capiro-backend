@@ -1,0 +1,124 @@
+{
+  "startedAt": "2026-10-03T04:40:12.236Z",
+  "cases": [
+    {
+      "case": "concise-no-tool",
+      "outcome": "PASS",
+      "toolCount": 0,
+      "observedAt": "2026-10-03T04:40:40.243Z",
+      "firstUsefulAndTerminalUpperBoundMs": 28007,
+      "answer": "Three concise capability bullets; no evidence footer.",
+      "model": "gpt-6-astra",
+      "mode": "Standard",
+      "effort": "medium"
+    },
+    {
+      "case": "proper-name-operational-wording",
+      "outcome": "PASS",
+      "toolCount": 0,
+      "observedAt": "2026-10-03T04:48:22.007Z",
+      "firstUsefulAndTerminalUpperBoundMs": 109383,
+      "answer": "Office Delta’s message count is unknown because the mailbox search failed.",
+      "coverageFooter": false,
+      "limit": "Hypothetical wording check; not a controlled database failure."
+    },
+    {
+      "case": "own-open-task-count",
+      "outcome": "PASS",
+      "toolCount": 1,
+      "tools": [
+        "query_tasks"
+      ],
+      "observedAt": "2026-10-03T04:52:20.613Z",
+      "firstUsefulAndTerminalUpperBoundMs": 44502,
+      "answer": "0 open tasks assigned to you.",
+      "coverageFooter": false
+    },
+    {
+      "id": "mail_list_post_index",
+      "observedAt": "2026-10-03T05:03:28.693Z",
+      "observedUpperBoundMs": 30612,
+      "result": "FAIL",
+      "renderedToolLabels": [
+        "Listed emails"
+      ],
+      "toolCount": 1,
+      "failureState": "403 Forbidden",
+      "outcome": "failed_not_empty",
+      "counts": "unknown",
+      "coverage": "source and sync coverage unverified",
+      "footer": "extraction failed coverage warning"
+    },
+    {
+      "id": "mail_literal_zero_post_index",
+      "observedAt": "2026-10-03T05:04:28.069Z",
+      "observedUpperBoundMs": 58453,
+      "result": "PASS",
+      "renderedToolLabels": [
+        "Searched emails"
+      ],
+      "toolCount": 1,
+      "failureState": null,
+      "matchingMessageCount": 0,
+      "coverage": "synced active mail; excludes junk/spam, deleted/trash, drafts; beyond bounded365-day sync may be incomplete",
+      "unrelatedFooter": false
+    },
+    {
+      "id": "mail_known_bounded_post_index",
+      "observedAt": "2026-10-03T05:07:07.079Z",
+      "observedUpperBoundMs": 157834,
+      "result": "PASS_WITH_EXPLICIT_PAGINATION",
+      "renderedToolLabels": [
+        "Searched emails"
+      ],
+      "toolCount": 1,
+      "failureState": null,
+      "returned": 1,
+      "totalMatches": 29984,
+      "hasMore": true,
+      "coverage": "stored active mail; sync healthy/backfill complete; junk/spam, deleted/trash,drafts excluded",
+      "footer": "truncated source warning with limit1/hasMoretrue"
+    },
+    {
+      "id": "mail_list_minimal_diagnostic",
+      "observedAt": "2026-10-03T05:12:04.000Z",
+      "observedUpperBoundMs": 151844,
+      "result": "FAIL",
+      "toolCount": 1,
+      "failureState": "403 Forbidden",
+      "requestConstraint": {
+        "limit": 1
+      },
+      "wafCorrelatedBodyBytes": 11,
+      "counts": "unknown"
+    },
+    {
+      "id": "mail_list_explicit_defaults_diagnostic",
+      "observedAt": "2026-10-03T05:12:45.595Z",
+      "observedUpperBoundMs": 40558,
+      "result": "PASS_DIAGNOSTIC_NOT_AUTOMATIC_REPAIR",
+      "toolCount": 1,
+      "renderedToolLabels": [
+        "Listed emails"
+      ],
+      "requestConstraint": {
+        "limit": 1,
+        "folder": "all",
+        "offset": 0
+      },
+      "failureState": null,
+      "returned": 1,
+      "totalMatches": 29996,
+      "hasMore": true,
+      "coverage": "stored active mail; sync healthy/backfill complete; junk/spam,deleted/trash,drafts excluded; bounded365-day sync",
+      "footer": "truncation limitation consistent with limit1/hasMoretrue"
+    }
+  ],
+  "route": "https://os.capiro.ai/meri/t/1117e250-4007-47a7-9158-1dcfcf5dc435",
+  "reloadVerification": {
+    "status": "PASS",
+    "observedAt": "2026-10-03T05:13:17.399Z",
+    "savedPromptAnswerPairs": 8,
+    "allEightAnswersPersisted": true
+  }
+}

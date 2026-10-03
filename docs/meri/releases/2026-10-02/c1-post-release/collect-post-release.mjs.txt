@@ -1,0 +1,38 @@
+import { aws } from '../meri-fresh-20261003/auth-preflight.mjs';
+import { releaseOperator } from '../../meri-c1-20261002/scripts/meri-release.mjs';
+import { writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import assert from 'node:assert/strict';
+const root='C:/dev/main/outputs/meri-c1-20261002';
+const op=releaseOperator({aws});
+const identities=[];
+for(const service of ['api','meriv2-orchestrator','web-vnext']) {
+  const r=await op.snapshot(service);
+  const c=r.task.containerDefinitions.find(c=>c.name===service);
+  identities.push({service,baseline:r.baseline,image:c.image,sourceSha:c.environment?.find(e=>e.name==='CAPIRO_RELEASE_SHA')?.value??null,rollout:r.service.deployments.map(d=>({status:d.status,rolloutState:d.rolloutState,runningCount:d.runningCount,pendingCount:d.pendingCount,failedTasks:d.failedTasks}))});
+}
+assert.ok(identities[0].baseline.taskDefinitionArn.endsWith(':515'));
+assert.ok(identities[1].baseline.taskDefinitionArn.endsWith(':107'));
+assert.ok(identities[2].baseline.taskDefinitionArn.endsWith(':388'));
+assert.equal(identities[1].baseline.imageDigest,'sha256:23ccef8051ad386b4cc6635b5e79559b6111b16121537b187bf09cdcca932213');
+writeFileSync(root+'/post-release-service-readback.json',JSON.stringify({observedAt:new Date().toISOString(),status:'VERIFIED',identities,awsWrites:0},null,2)+'\n',{flag:'wx'});
+const wafArn='arn:aws:wafv2:us-east-1:967807252336:regional/webacl/capiro-dev-waf/95dc2979-45e1-4c94-9ea8-650dfb21c516';
+const samples=aws(['wafv2','get-sampled-requests','--scope','REGIONAL','--web-acl-arn',wafArn,'--rule-metric-name','SQLiRuleSet','--time-window','StartTime=2026-10-03T05:02:55Z,EndTime=2026-10-03T05:12:40Z','--max-items','100']);
+const sanitized=(samples.SampledRequests??[]).filter(s=>s.Request?.URI==='/api/clio/tools/list_emails').map(s=>({at:s.Timestamp,action:s.Action,rule:s.RuleNameWithinRuleGroup,path:s.Request.URI,method:s.Request.Method,safeHeaders:(s.Request.Headers??[]).filter(h=>['content-length','content-type'].includes(h.Name.toLowerCase()))}));
+writeFileSync(root+'/mail-list-waf-correlation.json',JSON.stringify({observedAt:new Date().toISOString(),wafArn,window:samples.TimeWindow,population:samples.PopulationSize,samples:sanitized,credentialsPersisted:false,bodyPersisted:false,awsWrites:0},null,2)+'\n',{flag:'wx'});
+const events=[];let token;let complete=false;let pages=0;
+for(;pages<10;pages++) {
+  const args=['logs','filter-log-events','--log-group-name','/capiro/dev/api','--start-time',String(Date.parse('2026-10-03T04:39:00Z')),'--end-time',String(Date.parse('2026-10-03T05:13:30Z')),'--filter-pattern','"1117e250-4007-47a7-9158-1dcfcf5dc435"','--limit','10000','--no-paginate'];
+  if(token)args.push('--next-token',token);
+  const r=aws(args);
+  for(const e of r.events??[]) {
+    let j;try{j=JSON.parse(e.message.slice(e.message.indexOf('{'),e.message.lastIndexOf('}')+1));}catch{continue;}
+    if(j.event!=='meri.telemetry')continue;
+    events.push({at:new Date(e.timestamp).toISOString(),name:j.name,boundary:j.boundary,traceId:j.traceId,requestId:j.requestId,serverTurnId:j.serverTurnId,runId:j.runId,tools:j.invokedTools??[],outcome:j.outcome,durationMs:j.durationMs,requestedModel:j.requestedModel,effectiveModel:j.effectiveModel,rawEventSha256:createHash('sha256').update(e.message).digest('hex')});
+  }
+  if(!r.nextToken||r.nextToken===token){complete=true;break;}
+  token=r.nextToken;
+}
+assert.ok(complete,'Telemetry pagination incomplete');
+writeFileSync(root+'/post-release-telemetry.json',JSON.stringify({observedAt:new Date().toISOString(),complete,events,rawContentsPersisted:false,timingScope:'Server event durations are not first-token or p95 latency.'},null,2)+'\n',{flag:'wx'});
+console.log(JSON.stringify({services:'VERIFIED',wafSamples:sanitized.length,telemetryEvents:events.length,telemetryComplete:complete,awsWrites:0}));

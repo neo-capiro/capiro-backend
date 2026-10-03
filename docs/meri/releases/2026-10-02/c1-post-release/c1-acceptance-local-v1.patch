@@ -1,0 +1,189 @@
+diff --git a/apps/api/scripts/verify-mail-thread-covering-index.cjs b/apps/api/scripts/verify-mail-thread-covering-index.cjs
+index 9e45da0af..47319c31f 100644
+--- a/apps/api/scripts/verify-mail-thread-covering-index.cjs
++++ b/apps/api/scripts/verify-mail-thread-covering-index.cjs
+@@ -168,6 +168,120 @@ async function runScenarios() {
+   for (const input of scenarios) results.push(await queryMailMessages(prisma, ctx, input));
+   return results;
+ }
++async function verifyServiceFailureAndRecovery() {
++  requireApi('ts-node').register({
++    project: path.join(repo, 'apps/api/tsconfig.json'),
++    transpileOnly: true,
++    experimentalResolver: true,
++  });
++  const servicePath = path.join(repo, 'apps/api/src/engagement/engagement.service.ts');
++  const prismaPath = path.join(repo, 'apps/api/src/prisma/prisma.service.ts');
++  const { EngagementService } = requireApi(servicePath);
++  const { PrismaService } = requireApi(prismaPath);
++  const { ServiceUnavailableException } = requireApi('@nestjs/common');
++  const outcomePath = requireApi.resolve('@capiro/shared/meri-read-outcome');
++  const { classifyApiToolReadOutcome } = requireApi(outcomePath);
++  for (const file of [servicePath, prismaPath, outcomePath])
++    hashes[path.relative(repo, file).replaceAll('\\', '/')] = hash(fs.readFileSync(file));
++
++  // Completion is a source-coverage claim, not just a successful zero-row SQL result.
++  const now = new Date().toISOString();
++  await db.query('UPDATE engagement_connections SET sync_state_jsonb=$1::jsonb WHERE id=$2', [
++    JSON.stringify({ mail: {
++      captureVersion: 1, updatedAt: now, folderEnumerationComplete: true,
++      folders: {
++        inbox: { updatedAt: now, deltaLink: 'synthetic-inbox-complete' },
++        sentitems: { updatedAt: now, deltaLink: 'synthetic-sent-complete' },
++      },
++      lastStats: { failed: 0, hasMore: false },
++    } }),
++    own,
++  ]);
++  const url = new URL(`postgresql://127.0.0.1:55433/${cfg.database}`);
++  url.username = cfg.user;
++  url.password = cfg.password;
++  url.searchParams.set('schema', schema);
++  url.searchParams.set('connection_limit', '1');
++  url.searchParams.set('pool_timeout', '5');
++  const actualPrisma = new PrismaService({ datasources: { db: { url: url.href } }, log: [] });
++  const service = Object.assign(Object.create(EngagementService.prototype), { prisma: actualPrisma });
++  const blocker = new Client({
++    host: cfg.host, port: cfg.port, user: cfg.user, password: cfg.password,
++    database: cfg.database, connectionTimeoutMillis: 3000,
++  });
++  let blockerConnected = false;
++  try {
++    await actualPrisma.$connect();
++    assert.match(role, /^meri_mail_role_[0-9a-f]{32}$/);
++    await actualPrisma.$executeRawUnsafe(`SET ROLE ${role}`);
++    const identitySql = Prisma.sql`SELECT pg_backend_pid() AS pid,current_user AS role,
++      current_setting('statement_timeout') AS timeout,rolsuper,rolbypassrls,
++      pg_has_role(current_user,c.relowner,'USAGE') AS owns,c.relrowsecurity,c.relforcerowsecurity
++      FROM pg_roles r JOIN pg_class c ON c.oid='mail_messages'::regclass WHERE r.rolname=current_user`;
++    const [identity] = await actualPrisma.$queryRaw(identitySql);
++    assert.equal(identity.role, role);
++    assert.equal(identity.timeout, '0');
++    for (const key of ['rolsuper', 'rolbypassrls', 'owns']) assert.equal(identity[key], false);
++    assert.equal(identity.relrowsecurity, true);
++    assert.equal(identity.relforcerowsecurity, true);
++    const input = { query: 'Scope Needle', asOf, limit: 50 };
++    const known = await service.searchMailMessages(ctx, input);
++    assert.equal(known.totalMatches, 3);
++    assert.equal(known.returned, 3);
++    assert.equal(known.searchedMailboxes.length, 1);
++    assert.equal(known.searchedMailboxes[0].mailCoverage.sourceStatus, 'healthy');
++    assert.equal(classifyApiToolReadOutcome('search_emails', known).kind, 'complete');
++
++    // Hold only this disposable fixture table. The production deadline and
++    // Prisma error mapping must cancel the real canonical owner/service read.
++    await blocker.connect();
++    blockerConnected = true;
++    await blocker.query('BEGIN');
++    await blocker.query(`LOCK TABLE ${schema}.mail_messages IN ACCESS EXCLUSIVE MODE`);
++    let failure, result, elapsed;
++    try {
++      const started = performance.now();
++      try { result = await service.searchMailMessages(ctx, input); } catch (error) { failure = error; }
++      elapsed = performance.now() - started;
++    } finally {
++      await blocker.query('ROLLBACK');
++    }
++    assert.equal(result, undefined, 'A failed read must not return a successful empty result');
++    assert.ok(failure instanceof ServiceUnavailableException);
++    assert.equal(failure.getStatus(), 503);
++    const failureBody = failure.getResponse();
++    assert.deepEqual(failureBody, {
++      message: 'Mail search is temporarily busy. Please retry.',
++      error: 'Service Unavailable', statusCode: 503,
++    });
++    assert.equal(classifyApiToolReadOutcome('search_emails', failureBody).kind, 'failed');
++    assert.ok(elapsed >= 9500 && elapsed < 11500, `Unchanged 10s deadline elapsed ${elapsed}ms`);
++    assert.deepEqual((await actualPrisma.$queryRaw(identitySql))[0], identity);
++    const recovered = await service.searchMailMessages(ctx, input);
++    assert.deepEqual(recovered, known);
++    assert.equal(classifyApiToolReadOutcome('search_emails', recovered).kind, 'complete');
++    const zero = await service.searchMailMessages(ctx, scenarios[0]);
++    assert.equal(zero.totalMatches, 0);
++    assert.equal(zero.returned, 0);
++    assert.deepEqual(zero.messages, []);
++    assert.equal(zero.searchedMailboxes.length, 1);
++    assert.equal(zero.searchedMailboxes[0].mailCoverage.sourceStatus, 'healthy');
++    assert.equal(classifyApiToolReadOutcome('search_emails', zero).kind, 'empty');
++    return {
++      boundary: 'EngagementService.searchMailMessages -> canonical query -> PrismaService -> owned PostgreSQL; shared typed classifier',
++      nonownerForceRls: true, knownMatches: 3, knownOutcome: 'complete',
++      inducedFailure: 'exclusive lock on disposable fixture mail_messages',
++      failureStatus: 503, failureOutcome: 'failed', failureBody, elapsedMs: elapsed,
++      sameSessionRecovered: true, recoveredMatches: 3, recoveredOutcome: 'complete',
++      healthyZeroMatches: 0, healthyZeroOutcome: 'empty',
++    };
++  } finally {
++    if (blockerConnected) await blocker.query('ROLLBACK').catch(() => {});
++    await blocker.end();
++    await actualPrisma.$executeRawUnsafe('RESET ROLE').catch(() => {});
++    await actualPrisma.$disconnect();
++  }
++}
+ async function main() {
+   let beforePlan, afterPlan, before, after, migrationMs;
+   try {
+@@ -392,7 +506,7 @@ async function main() {
+         assert.equal(crossed, 0);
+       },
+     );
+-    let messageIndexPlan, messageMigrationMs;
++    let messageIndexPlan, messageMigrationMs, serviceFailureAndRecovery;
+     if (qualify452) {
+       const removedProbe = await queryMailMessages(prisma, ctx, { query: 'Removed Needle', asOf });
+       const largeBodyProbe = await queryMailMessages(prisma, ctx, {
+@@ -499,6 +613,9 @@ async function main() {
+         assert.equal(removedAfter452.totalMatches, 0);
+         assert.equal(largeBodyAfter452.totalMatches, 1);
+       });
++      await check('actual mail owner/service returns typed failure on database cancellation, then healthy known and zero results on the same connection', async () => {
++        serviceFailureAndRecovery = await verifyServiceFailureAndRecovery();
++      });
+     }
+     const report = {
+       qualificationMode: qualify452 ? '452' : '451-default',
+@@ -512,6 +629,7 @@ async function main() {
+             messageMigrationMs,
+             messageIndexPlan,
+             resultScenariosUnchanged: true,
++            serviceFailureAndRecovery,
+           }
+         : {}),
+       fixtureThreads: 100000,
+@@ -525,6 +643,7 @@ async function main() {
+         'Owned local warm-cache execution timings are diagnostic only; no production or cold-I/O latency claim.',
+         'No production EXPLAIN or query executed by this script.',
+         'No GIN, leakproof declaration, policy change or search semantic change.',
++        'Service failure/recovery checks do not exercise an HTTP route, model response, or browser.',
+       ],
+     };
+     if (process.env.MAIL_THREAD_INDEX_REPORT)
+diff --git a/evals/meri/live-v1/tests/task-scope.postgres.test.mjs b/evals/meri/live-v1/tests/task-scope.postgres.test.mjs
+index c570ed219..2eb8525ca 100644
+--- a/evals/meri/live-v1/tests/task-scope.postgres.test.mjs
++++ b/evals/meri/live-v1/tests/task-scope.postgres.test.mjs
+@@ -167,6 +167,24 @@ it(
+         assert.equal(page.rows[0].id, ids[1]);
+         await admin.query("UPDATE clients SET status='active' WHERE id=$1", [visible]);
+       });
++      await t.test('healthy exact zero supports absence for the declared authorized scope', async () => {
++        const selection = parseMeriTaskReadInput(
++          ctx,
++          { assignedToMe: true, status: 'overdue', dueBefore: '2026-09-30T00:00:00Z', limit: 50 },
++          null,
++          ['todo', 'in_progress', 'blocked', 'done', 'canceled'],
++        );
++        const page = await service.readMeriTasksExact(ctx, selection);
++        assert.equal(page.total, 0);
++        assert.deepEqual(page.rows, []);
++        assert.equal(page.sourceStatus, 'healthy');
++        assert.equal(page.sourceReason, null);
++        const result = buildMeriTaskReadResult(ctx, selection, page);
++        assert.equal(result.coverage.complete, true);
++        assert.equal(result.coverage.absenceSupported, true);
++        assert.equal(result.coverage.hasMore, false);
++        assert.equal(classifyApiToolReadOutcome('query_tasks', result).kind, 'empty');
++      });
+       await t.test('revoked membership refuses the read', async () => {
+         await admin.query("UPDATE tenant_memberships SET status='removed' WHERE id=$1", [
+           membership,

@@ -1,0 +1,33 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {semanticDefinition,attachReconciliation} from './forward452-resume-registered.mjs';
+import {fingerprint} from '../../meri-c1-20261002/scripts/lib/meri-release-policy.mjs';
+const base={family:'test',executionRoleArn:'execution',networkMode:'awsvpc',requiresCompatibilities:['FARGATE'],cpu:'512',memory:'1024',runtimePlatform:{cpuArchitecture:'ARM64',operatingSystemFamily:'LINUX'},containerDefinitions:[{name:'migrate',image:'repo@sha256:abc',essential:true,entryPoint:['node','-e'],command:['fixed owner'],environment:[{name:'DB_NAME',value:'capiro'},{name:'GIT_SHA',value:'source'},{name:'RELEASE_SHA',value:'source'},{name:'MERI_FORWARD452_INPUT',value:'fixed input'}],secrets:[{name:'DB_PASSWORD',valueFrom:'secret-reference'}],logConfiguration:{logDriver:'awslogs',options:{'awslogs-group':'/capiro/log'}}}]};
+const h=x=>fingerprint(semanticDefinition(x));
+test('attaching original failure produces a serializable independent snapshot',()=>{
+ const receipt={status:'RECONCILIATION_REQUIRED',failedStage:'REGISTER_INTENT'};
+ const reconciliation={originalFailure:receipt,definition:'reviewed:1'};
+ attachReconciliation(receipt,reconciliation);
+ receipt.status='RUN_TASK_INTENT';
+ const roundtrip=JSON.parse(JSON.stringify(receipt));
+ assert.equal(roundtrip.status,'RUN_TASK_INTENT');
+ assert.deepEqual(roundtrip.registrationReconciliation.originalFailure,{status:'RECONCILIATION_REQUIRED',failedStage:'REGISTER_INTENT'});
+ assert.equal(roundtrip.registrationReconciliation.definition,'reviewed:1');
+});
+test('ECS permutation of unique environment entries preserves exact meaning',()=>{const actual=structuredClone(base);actual.containerDefinitions[0].environment.reverse();assert.equal(h(base),h(actual));assert.equal(base.containerDefinitions[0].environment[0].name,'DB_NAME');});
+test('duplicate environment names refuse instead of hiding last-value semantics',()=>{const actual=structuredClone(base);actual.containerDefinitions[0].environment.push({name:'DB_NAME',value:'other'});assert.throws(()=>h(actual),/DUPLICATE_ENVIRONMENT_NAME/);});
+test('non-string environment values refuse',()=>{const actual=structuredClone(base);actual.containerDefinitions[0].environment[0].value=42;assert.throws(()=>h(actual));});
+for(const [name,change] of [
+ ['environment value',x=>x.containerDefinitions[0].environment[0].value='other'],
+ ['environment name',x=>x.containerDefinitions[0].environment[0].name='OTHER'],
+ ['extra environment',x=>x.containerDefinitions[0].environment.push({name:'NEW',value:'new'})],
+ ['command',x=>x.containerDefinitions[0].command=['different owner']],
+ ['entrypoint order',x=>x.containerDefinitions[0].entryPoint.reverse()],
+ ['image',x=>x.containerDefinitions[0].image='different@sha256:abc'],
+ ['task role',x=>x.taskRoleArn='unexpected-role'],
+ ['execution role',x=>x.executionRoleArn='unexpected-role'],
+ ['secret reference',x=>x.containerDefinitions[0].secrets[0].valueFrom='different-secret'],
+ ['memory',x=>x.memory='2048'],
+ ['log settings',x=>x.containerDefinitions[0].logConfiguration.options['awslogs-group']='/other'],
+ ['unknown setting',x=>x.newSetting=true],
+])test('meaningful difference retained: '+name,()=>{const actual=structuredClone(base);change(actual);assert.notEqual(h(base),h(actual));});
