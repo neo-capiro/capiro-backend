@@ -4037,6 +4037,14 @@ export const MERI_CAPABILITY_REGISTRY = [
     surfaces: ['full_chat'],
   },
   {
+    name: 'list_memory_proposals',
+    description:
+      'Read your own pending Institutional Memory proposals and their current governance state. Use when checking whether a remembered preference or fact is still awaiting approval, including after approved search_memory finds no matching fact. Selected client scope includes that client plus own firm/private proposals. Follow nextCursor before claiming absence. Proposal text is unapproved, never an approved fact; this read grants no review or approval authority.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
     name: 'search_congress_bills',
     description:
       'Search congressional bills in the Capiro database (118th and 119th Congress). Filter by keyword, policy area, congress number, or recent activity date. Accepts a bill designation or id ("H.R. 8800", "119-hr-8800") as the query for a direct lookup. Returns bill title, sponsor, latest action, canonical STATUS (e.g. rule_failed, passed_chamber), policy area, and cosponsors count.',

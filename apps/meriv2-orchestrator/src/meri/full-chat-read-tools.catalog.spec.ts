@@ -2,6 +2,7 @@ import { MERI_TOOL_MANIFEST, MERI_TOOL_NAMES } from '@capiro/shared';
 import { FULL_CHAT_READ_TOOLS } from './full-chat-read-tools.catalog';
 import { IN_EDITOR_DELEGATED_TOOLS } from './delegated-tools.catalog';
 import { WRITE_DELEGATED_TOOLS } from './write-tools.catalog';
+import { meriToolCoverageCatalogEntry } from './retrieval/meri-tool-catalog';
 
 /**
  * W4.6 / D-13: the canonical apps/api Meri tool surface is now the checked-in
@@ -12,6 +13,12 @@ import { WRITE_DELEGATED_TOOLS } from './write-tools.catalog';
 const ALL_APPS_API_TOOLS = [...MERI_TOOL_NAMES];
 
 describe('FULL_CHAT_READ_TOOLS catalog', () => {
+  it('exposes own proposal reads only in full chat and identifies their memory domain without exhaustive fact coverage', () => {
+    expect(FULL_CHAT_READ_TOOLS.find((tool) => tool.name === 'list_memory_proposals')).toMatchObject({ readOnly: true });
+    expect(IN_EDITOR_DELEGATED_TOOLS.some((tool) => tool.name === 'list_memory_proposals')).toBe(false);
+    expect(WRITE_DELEGATED_TOOLS.some((tool) => tool.name === 'list_memory_proposals')).toBe(false);
+    expect(meriToolCoverageCatalogEntry('list_memory_proposals')).toMatchObject({ domains: ['memory'], exhaustive: false });
+  });
   it('matches the intended full-chat read tool set', () => {
     const expected = [
       'search_legiwatch_news',
@@ -39,6 +46,7 @@ describe('FULL_CHAT_READ_TOOLS catalog', () => {
       'get_research_portfolio_reviews',
       'get_research_portfolio_rules',
       'search_memory',
+      'list_memory_proposals',
       // Global-data analytics (structured aggregate queries over the
       // ingested reference datasets — LDA, grants, SAM/USAspending, SEC,
       // FARA, bills, GAO/CRS, FEC, news).
@@ -99,7 +107,7 @@ describe('FULL_CHAT_READ_TOOLS catalog', () => {
       'resolve_business_development_source',
     ].sort();
     expect(FULL_CHAT_READ_TOOLS.map((t) => t.name).sort()).toEqual(expected);
-    expect(FULL_CHAT_READ_TOOLS).toHaveLength(78);
+    expect(FULL_CHAT_READ_TOOLS).toHaveLength(79);
     expect(FULL_CHAT_READ_TOOLS.every((t) => t.readOnly === true)).toBe(true);
   });
 
@@ -119,7 +127,7 @@ describe('Combined delegated-tool coverage (in-editor + write + full-chat-read)'
     ].sort();
     expect(combined).toEqual(ALL_APPS_API_TOOLS);
     expect(new Set(combined).size).toBe(combined.length); // no tool double-registered
-    expect(combined).toHaveLength(137);
+    expect(combined).toHaveLength(138);
   });
 
   it('W4.6 / D-13: the three catalogs match the canonical MERI_TOOL_MANIFEST VERBATIM (name AND description) — catches description drift the name-only check missed', () => {

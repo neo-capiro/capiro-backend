@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import {
   BadRequestException,
   ForbiddenException,
@@ -71,6 +72,9 @@ interface OwnCandidateRow {
 export interface OwnProposalPageInput {
   cursor?: string;
   limit?: string | number;
+  /** Optional scoped reader filters; the existing unfiltered history route is unchanged. */
+  clientId?: string;
+  status?: 'pending';
 }
 
 export interface OwnedProposalPage {
@@ -225,6 +229,18 @@ export class GovernedMemoryCandidateService extends MemoryCandidateService {
     const paged = input !== undefined;
     const limit = paged ? parseOwnProposalPageSize(input.limit) : 50;
     const cursor = paged ? decodeOwnProposalCursor(input.cursor) : null;
+    if (input?.clientId !== undefined && !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(input.clientId)) {
+      throw new BadRequestException('clientId must be a client UUID.');
+    }
+    if (input?.status !== undefined && input.status !== 'pending') {
+      throw new BadRequestException('Unsupported proposal status filter.');
+    }
+    const binding = input?.clientId !== undefined || input?.status !== undefined
+      ? createHash('sha256').update(JSON.stringify([ctx.tenantId, ctx.userId, input.clientId ?? null, input.status ?? null])).digest('hex')
+      : undefined;
+    if (binding && cursor && cursor.binding !== binding) {
+      throw new BadRequestException('cursor does not match the current proposal scope.');
+    }
     if (!memoryReviewSurfaceEnabled()) {
       return paged
         ? { enabled: false, candidates: [], nextCursor: null }
@@ -232,11 +248,18 @@ export class GovernedMemoryCandidateService extends MemoryCandidateService {
     }
 
     const page = await this.governedPrisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      if (input?.clientId && !await tx.client.findFirst({
+        where: { id: input.clientId, tenantId: ctx.tenantId }, select: { id: true },
+      })) throw new ForbiddenException('Selected proposal client is unavailable.');
       const rows = (await tx.memoryCandidate.findMany({
         where: {
           tenantId: ctx.tenantId,
           proposedBy: ctx.userId,
           scope: { in: ['firm', 'client', 'personal'] },
+          ...(input?.status ? { status: input.status } : {}),
+          ...(input?.clientId ? {
+            AND: [{ OR: [{ clientId: input.clientId }, { clientId: null }] }],
+          } : {}),
           ...(cursor
             ? {
                 OR: [
@@ -313,7 +336,7 @@ export class GovernedMemoryCandidateService extends MemoryCandidateService {
         })),
         nextCursor:
           paged && rows.length > limit && pageRows.length > 0
-            ? encodeOwnProposalCursor(pageRows[pageRows.length - 1]!)
+            ? encodeOwnProposalCursor(pageRows[pageRows.length - 1]!, binding)
             : null,
       };
     });
@@ -491,20 +514,21 @@ function parseOwnProposalPageSize(value: unknown): number {
   return parsed;
 }
 
-function encodeOwnProposalCursor(row: Pick<OwnCandidateRow, 'createdAt' | 'id'>): string {
+function encodeOwnProposalCursor(row: Pick<OwnCandidateRow, 'createdAt' | 'id'>, binding?: string): string {
   return Buffer.from(
-    JSON.stringify({ createdAt: row.createdAt.toISOString(), id: row.id }),
+    JSON.stringify({ createdAt: row.createdAt.toISOString(), id: row.id, ...(binding ? { binding } : {}) }),
     'utf8',
   ).toString('base64url');
 }
 
-function decodeOwnProposalCursor(value: unknown): { createdAt: Date; id: string } | null {
+function decodeOwnProposalCursor(value: unknown): { createdAt: Date; id: string; binding?: unknown } | null {
   if (value === undefined || value === null || value === '') return null;
   if (typeof value !== 'string') throw new BadRequestException('cursor is invalid.');
   try {
     const decoded = JSON.parse(Buffer.from(value, 'base64url').toString('utf8')) as {
       createdAt?: unknown;
       id?: unknown;
+      binding?: unknown;
     };
     const createdAt = typeof decoded.createdAt === 'string' ? new Date(decoded.createdAt) : null;
     if (
@@ -515,7 +539,7 @@ function decodeOwnProposalCursor(value: unknown): { createdAt: Date; id: string 
     ) {
       throw new Error('invalid cursor payload');
     }
-    return { createdAt, id: decoded.id };
+    return { createdAt, id: decoded.id, binding: decoded.binding };
   } catch {
     throw new BadRequestException('cursor is invalid.');
   }

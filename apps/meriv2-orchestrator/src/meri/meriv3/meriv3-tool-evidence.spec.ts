@@ -1,4 +1,5 @@
 import { extractCitationsFromToolResult } from '@capiro/shared';
+import { classifyApiToolReadOutcome } from '@capiro/shared/meri-read-outcome';
 import { projectMeriToolEvidence, wrapMeriToolEvidence } from './meriv3-tool-evidence.js';
 import {
   coalesceMeriMailPages,
@@ -6,6 +7,33 @@ import {
 } from '../retrieval/meri-retrieval-coverage.js';
 
 describe('model-visible tool evidence budgets', () => {
+  it('preserves pending-state boundaries, identity and pagination without minting approved memory citations', () => {
+    const pending = {
+      tool: 'list_memory_proposals', enabled: true, authority: 'own_pending_proposals', claimsAreApprovedFacts: false,
+      scope: { tenantId: 't1', userId: 'pat', clientId: 'aster' },
+      candidates: [{ id: 'pending-ma2', status: 'pending', approvedFact: false, proposedText: 'prefers SMS alerts', sourceKind: 'user_chat', restricted: false }],
+      nextCursor: 'next-page', coverage: { firstPage: true, complete: false, reason: 'unread_pages' },
+    };
+    const result = projectMeriToolEvidence({ result: pending, maxCharacters: 3000, readOnly: true });
+    expect(JSON.stringify(result)).toContain('pending-ma2');
+    expect(JSON.stringify(result)).toContain('claimsAreApprovedFacts');
+    expect(JSON.stringify(result)).toContain('next-page');
+    expect(extractCitationsFromToolResult('list_memory_proposals', pending, 1)).toEqual([]);
+  });
+  it('keeps a shortened own-proposal page partial and preserves the unapproved-state boundary', () => {
+    const candidates = Array.from({ length: 5 }, (_, n) => ({
+      id: `proposal-${n}`, status: 'pending', approvedFact: false, scope: 'client', clientId: 'aster',
+      sourceKind: 'user_chat', createdAt: '2026-09-26T12:00:00.000Z', restricted: false,
+      title: 'Unapproved preference', proposedText: 'possible preference '.repeat(40), contentTruncated: false,
+    }));
+    const pending = { tool: 'list_memory_proposals', enabled: true, authority: 'own_pending_proposals',
+      claimsAreApprovedFacts: false, scope: { tenantId: 't1', userId: 'pat', clientId: 'aster' },
+      candidates, nextCursor: null, coverage: { firstPage: true, complete: true, reason: 'own_pending_proposals_complete' } };
+    const result = projectMeriToolEvidence({ result: pending, maxCharacters: 2400, readOnly: true, inputProperties: { limit: {} } });
+    expect(result).toMatchObject({ tool: 'list_memory_proposals', claimsAreApprovedFacts: false, coverage: { complete: false }, truncated: true });
+    expect(classifyApiToolReadOutcome('list_memory_proposals', result)).toMatchObject({ kind: 'partial' });
+    expect(extractCitationsFromToolResult('list_memory_proposals', result, 1)).toEqual([]);
+  });
   const profileSections = [
     'capabilities',
     'people',

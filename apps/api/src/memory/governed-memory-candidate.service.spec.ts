@@ -89,6 +89,7 @@ function harness(
 
   const tx = {
     client: {
+      findFirst: jest.fn(async () => ({ id: CLIENT })),
       findMany: jest.fn(async () => [{ id: CLIENT, name: 'Test Client' }]),
     },
     memoryCandidate: {
@@ -297,6 +298,62 @@ describe('GovernedMemoryCandidateService Phase 13 dispositions', () => {
       );
       expect(h.state.status).toBe('pending');
       expect(h.audits).toHaveLength(0);
+    });
+  });
+
+  it('filters selected client and pending state in the owner query before the page limit', async () => {
+    await withReviewSurface(true, async () => {
+      const h = harness();
+      await h.service.listOwnProposals(proposerCtx, { clientId: CLIENT, status: 'pending', limit: 1 });
+      expect(h.tx.memoryCandidate.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: {
+          tenantId: TENANT, proposedBy: PROPOSER, scope: { in: ['firm', 'client', 'personal'] },
+          status: 'pending', AND: [{ OR: [{ clientId: CLIENT }, { clientId: null }] }],
+        }, take: 2,
+      }));
+      await h.service.listOwnProposals({ ...proposerCtx, tenantId: 'another-tenant', userId: 'another-user' }, { status: 'pending' });
+      expect(h.tx.memoryCandidate.findMany).toHaveBeenLastCalledWith(expect.objectContaining({
+        where: expect.objectContaining({ tenantId: 'another-tenant', proposedBy: 'another-user', status: 'pending' }),
+      }));
+    });
+  });
+
+  it('binds scoped cursors to the tenant, proposer, client and pending filter', async () => {
+    await withReviewSurface(true, async () => {
+      const h = harness();
+      const rows = await h.tx.memoryCandidate.findMany();
+      h.tx.memoryCandidate.findMany.mockImplementation(async () => [...rows, { ...rows[0], id: REVIEWER }]);
+      const first = await h.service.listOwnProposals(proposerCtx, { clientId: CLIENT, status: 'pending', limit: 1 });
+      expect(first.nextCursor).toEqual(expect.any(String));
+      await expect(h.service.listOwnProposals(proposerCtx, { clientId: CLIENT, status: 'pending', cursor: first.nextCursor! })).resolves.toMatchObject({ enabled: true });
+      for (const [actor, filter] of [
+        [reviewerCtx, { clientId: CLIENT, status: 'pending' }],
+        [{ ...proposerCtx, tenantId: 'other' }, { clientId: CLIENT, status: 'pending' }],
+        [proposerCtx, { clientId: REVIEWER, status: 'pending' }],
+        [proposerCtx, { clientId: CLIENT }],
+      ] as const) {
+        await expect(h.service.listOwnProposals(actor, { ...filter, cursor: first.nextCursor! })).rejects.toThrow('current proposal scope');
+      }
+    });
+  });
+
+  it('keeps scoped pending bodies and client names redacted after an ethical-wall revocation', async () => {
+    await withReviewSurface(true, async () => {
+      const h = harness({ wallAllowed: false });
+      const page = await h.service.listOwnProposals(proposerCtx, { clientId: CLIENT, status: 'pending' });
+      expect(page.candidates[0]).toMatchObject({ status: 'pending', restricted: true, proposal: null, clientName: null });
+      expect(h.findFirst).not.toHaveBeenCalled();
+      expect(h.tx.client.findMany).not.toHaveBeenCalled();
+    });
+  });
+
+  it('refuses an unknown or other-tenant selected client before querying proposals', async () => {
+    await withReviewSurface(true, async () => {
+      const h = harness();
+      h.tx.client.findFirst.mockResolvedValueOnce(null as never);
+      await expect(h.service.listOwnProposals(proposerCtx, { clientId: CLIENT, status: 'pending' })).rejects.toBeInstanceOf(ForbiddenException);
+      expect(h.tx.client.findFirst).toHaveBeenCalledWith({ where: { id: CLIENT, tenantId: TENANT }, select: { id: true } });
+      expect(h.tx.memoryCandidate.findMany).not.toHaveBeenCalled();
     });
   });
 

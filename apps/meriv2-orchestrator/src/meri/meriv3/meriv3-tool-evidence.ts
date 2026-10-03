@@ -7,12 +7,17 @@ const ROW_KEYS = [
   'items',
   'documents',
   'memories',
+  'candidates',
   'hearings',
   'messages',
   'tasks',
 ];
 const META_KEYS = [
   'status',
+  'enabled',
+  'authority',
+  'claimsAreApprovedFacts',
+  'scope',
   'sourceStatus',
   'sourceReason',
   'sourceFreshness',
@@ -633,6 +638,7 @@ export function projectMeriToolEvidence(args: {
   if (args.inputProperties?.maxChars) overrides.maxChars = 6_000;
   const projected: Record<string, unknown> = {
     ...metadata,
+    ...(original.tool === 'list_memory_proposals' ? { tool: original.tool } : {}),
     ...(key ? { [key]: shown } : {}),
     truncated: true,
     partial: true,

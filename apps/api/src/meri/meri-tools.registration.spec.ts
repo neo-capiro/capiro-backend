@@ -43,6 +43,9 @@ jest.mock('../engagement/engagement.service.js', () => ({ EngagementService: jes
 jest.mock('./meri-defense-budget-tool.helpers.js', () => ({}));
 
 import { MeriToolsService, TOOL_DEFINITIONS } from './meri-tools.service.js';
+import { MERI_CAPABILITY_REGISTRY } from '@capiro/shared';
+import { EventEmitter } from 'node:events';
+import { withMeriToolRequestControl } from './meri-tool-request-control.js';
 
 describe('buyer workspace Meri tool', () => {
   it('passes a pinned read through without changing coverage or unsupported gaps', async () => {
@@ -134,6 +137,7 @@ const EXPECTED_TOOLS = [
   'query_knowledge_graph',
   'find_path_to',
   'search_memory',
+  'list_memory_proposals',
   'search_congress_bills',
   // Vote/status truth layer (LegiWatch A5)
   'get_bill_status',
@@ -426,6 +430,40 @@ function schemas() {
 }
 
 describe('Meri tool registration', () => {
+  it('registers and dispatches own pending proposals separately from approved recall', async () => {
+    const ctx = { tenantId: 'tenant', userId: 'actor', role: 'standard_user' } as never;
+    const listOwnProposals = jest.fn(async () => ({ enabled: true, candidates: [], nextCursor: null }));
+    const searchMemory = jest.fn();
+    const service = Object.assign(Object.create(MeriToolsService.prototype), {
+      governedMemoryCandidates: { listOwnProposals }, searchMemory,
+    }) as MeriToolsService;
+    expect(MERI_CAPABILITY_REGISTRY.find((tool) => tool.name === 'list_memory_proposals')).toMatchObject({ readOnly: true });
+    const schema = schemas().find((tool) => tool.name === 'list_memory_proposals')!;
+    expect(Object.keys(schema.input_schema.properties as object).sort()).toEqual(['clientId', 'cursor', 'limit']);
+    await expect(service.executeFromAuthenticatedUser(ctx, 'list_memory_proposals', {})).resolves.toMatchObject({
+      tool: 'list_memory_proposals', claimsAreApprovedFacts: false,
+    });
+    expect(listOwnProposals).toHaveBeenCalledWith(ctx, { limit: 5, status: 'pending' });
+    expect(searchMemory).not.toHaveBeenCalled();
+  });
+
+  it('adds only the no-provider own-proposal read to synthetic budget accounting admission', async () => {
+    const executeScoped = jest.fn(async () => ({ reachedCurrentAuthorityBoundary: true }));
+    const service = Object.assign(Object.create(MeriToolsService.prototype), { executeScoped }) as MeriToolsService;
+    const req = Object.assign(new EventEmitter(), { headers: {} }) as never;
+    const policy = { expectedCaptureWrites: ['a', 'b', 'c', 'provider_budget_ledger'], syntheticReadBudget: {}, caseId: null };
+    await withMeriToolRequestControl(req, async () => {
+      await expect(service.execute({} as never, 'list_memory_proposals', {})).resolves.toMatchObject({ reachedCurrentAuthorityBoundary: true });
+      await expect(service.execute({} as never, 'search_memory', { query: 'approved' })).resolves.toBeDefined();
+      for (const name of ['save_memory', 'send_email', 'list_emails'] as const) {
+        await expect(service.execute({} as never, name, {})).rejects.toThrow('unqualified_tool');
+      }
+    }, policy as never);
+    await withMeriToolRequestControl(req, async () => {
+      await expect(service.execute({} as never, 'list_memory_proposals', {})).rejects.toThrow('unqualified_tool');
+    }, { ...policy, syntheticReadBudget: undefined, caseId: '01' } as never);
+    expect(executeScoped).toHaveBeenCalledTimes(2);
+  });
   it('dispatches read_chat_attachments only through the dedicated owner service', async () => {
     const read = jest.fn(async () => ({ tool: 'read_chat_attachments', records: [] }));
     const service = Object.assign(Object.create(MeriToolsService.prototype), {

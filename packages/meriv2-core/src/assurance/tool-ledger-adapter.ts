@@ -348,6 +348,7 @@ export const TOOL_EVIDENCE_PROFILES: Readonly<Record<string, ToolEvidenceProfile
   // siblings: free recall over saved memory, unlike a specific saved document
   // or research note, carries no source identity of its own.
   search_memory: { evidenceClass: 'institutional_memory', primary: false, authoritative: false },
+  list_memory_proposals: CAPIRO_DERIVED,
   search_client_knowledge: official('institutional_memory'),
   read_client_documents: official('institutional_memory'),
   search_legislative_research: official('institutional_memory'),
@@ -454,6 +455,7 @@ function authoritativeTool(tool: string): boolean {
 }
 
 export function legacyEvidenceClassForTool(tool: string): EvidenceClass {
+  if (tool === 'list_memory_proposals') return 'capiro_system_of_record';
   if (
     /^(?:get_bill_status|get_state_bill_status|search_floor_votes|search_state_floor_votes|get_state_rule_status)$/.test(
       tool,
@@ -491,10 +493,12 @@ export function legacyEvidenceClassForTool(tool: string): EvidenceClass {
 }
 
 export function legacyPrimaryTool(tool: string): boolean {
+  if (tool === 'list_memory_proposals') return false;
   return !/^(?:search_public_web|scrape_web_page|search_intel_articles|search_memory)$/.test(tool);
 }
 
 export function legacyAuthoritativeTool(tool: string): boolean {
+  if (tool === 'list_memory_proposals') return false;
   return !/^(?:search_public_web|scrape_web_page|search_intel_articles|search_memory|query_knowledge_graph)$/.test(
     tool,
   );

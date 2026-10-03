@@ -5,6 +5,30 @@ export interface ApiToolReadOutcome {
   reason?: string;
 }
 
+/** Governance observations only: proposal text is never an approved memory fact. */
+export interface MeriPendingMemoryProposalRead {
+  tool: 'list_memory_proposals';
+  enabled: boolean;
+  authority: 'own_pending_proposals';
+  claimsAreApprovedFacts: false;
+  scope: { tenantId: string; userId: string; clientId: string | null };
+  candidates: Array<{
+    id: string;
+    status: 'pending';
+    approvedFact: false;
+    scope: string;
+    clientId: string | null;
+    sourceKind: string;
+    createdAt: string;
+    restricted: boolean;
+    title: string | null;
+    proposedText: string | null;
+    contentTruncated: boolean;
+  }>;
+  nextCursor: string | null;
+  coverage: { firstPage: boolean; complete: boolean; reason: string };
+}
+
 type UnknownRecord = Record<string, unknown>;
 type SourceStatus = 'healthy' | 'degraded' | 'unavailable';
 type RetrievalSourceStatus = SourceStatus | 'unauthorized' | 'unsupported' | 'error';
@@ -46,6 +70,39 @@ function ownerFailure(payload: unknown): ApiToolReadOutcome | null {
 
 function invalidResult(toolName: string): ApiToolReadOutcome {
   return { kind: 'failed', reason: `${toolName}_result_contract_invalid` };
+}
+
+function classifyPendingMemoryProposals(payload: unknown): ApiToolReadOutcome {
+  const failure = ownerFailure(payload);
+  if (failure) return failure;
+  const value = record(payload), coverage = record(value?.coverage), scope = record(value?.scope);
+  if (!value || value.tool !== 'list_memory_proposals' || value.authority !== 'own_pending_proposals' ||
+      value.claimsAreApprovedFacts !== false || typeof value.enabled !== 'boolean' ||
+      !scope || typeof scope.tenantId !== 'string' || typeof scope.userId !== 'string' ||
+      !(scope.clientId === null || typeof scope.clientId === 'string') ||
+      !Array.isArray(value.candidates) || !(value.nextCursor === null || typeof value.nextCursor === 'string') ||
+      !coverage || typeof coverage.firstPage !== 'boolean' || typeof coverage.complete !== 'boolean' ||
+      !value.candidates.every((raw) => {
+        const row = record(raw);
+        return row && typeof row.id === 'string' && row.status === 'pending' && row.approvedFact === false &&
+          ['firm', 'client', 'personal'].includes(String(row.scope)) && typeof row.sourceKind === 'string' &&
+          typeof row.createdAt === 'string' && (row.clientId === null || typeof row.clientId === 'string') &&
+          (!scope.clientId || !row.clientId || row.clientId === scope.clientId) &&
+          (row.title === null || typeof row.title === 'string') &&
+          typeof row.restricted === 'boolean' && typeof row.contentTruncated === 'boolean' &&
+          (row.proposedText === null || typeof row.proposedText === 'string') &&
+          (!row.restricted || (row.proposedText === null && row.title === null));
+      })) return invalidResult('list_memory_proposals');
+  if (!value.enabled) return value.candidates.length === 0 && !coverage.complete && value.nextCursor === null
+    ? { kind: 'unavailable', reason: 'memory_proposal_review_disabled' }
+    : invalidResult('list_memory_proposals');
+  const incomplete = value.truncated === true || value.partial === true || !coverage.firstPage || value.nextCursor !== null || value.candidates.some((raw) => {
+    const row = record(raw)!;
+    return row.restricted || row.contentTruncated || row.proposedText === null;
+  });
+  if (coverage.complete === incomplete) return invalidResult('list_memory_proposals');
+  return incomplete ? { kind: 'partial', reason: 'memory_proposal_coverage_incomplete' }
+    : { kind: value.candidates.length ? 'complete' : 'empty' };
 }
 
 function classifyMailSearch(toolName: string, payload: unknown): ApiToolReadOutcome {
@@ -760,6 +817,8 @@ export function classifyApiToolReadOutcome(
       return classifyClientContext(payload);
     case 'search_memory':
       return classifyMemorySearch(payload);
+    case 'list_memory_proposals':
+      return classifyPendingMemoryProposals(payload);
     case 'search_public_web': {
       const failure = ownerFailure(payload);
       return failure ?? { kind: 'partial', reason: 'public_web_search_is_discovery_only' };

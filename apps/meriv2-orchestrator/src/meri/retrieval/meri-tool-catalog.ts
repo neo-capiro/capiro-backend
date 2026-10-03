@@ -30,6 +30,7 @@ const TOOL_DOMAIN_OVERRIDES: Record<string, MeriRetrievalDomain[]> = {
   watch_research_portfolio: ['internal_research'],
   update_research_portfolio_change_state: ['internal_research'],
   search_memory: ['memory'],
+  list_memory_proposals: ['memory'],
   search_emails: ['mail'],
   list_emails: ['mail'],
   get_email_thread: ['mail'],

@@ -4,6 +4,7 @@ import {
   type MeriProgressiveToolSchema,
 } from './meri-progressive-tool-discovery.js';
 import { MeriRunBudget } from './meriv3-run-budget.js';
+import { MERI_CAPABILITY_REGISTRY } from '@capiro/shared';
 
 function schema(
   name: string,
@@ -49,6 +50,18 @@ function discovery(
 }
 
 describe('MeriProgressiveToolDiscovery', () => {
+  test('discovers the canonical own-proposal read without inventing approval authority', async () => {
+    const capability = MERI_CAPABILITY_REGISTRY.find((tool) => tool.name === 'list_memory_proposals')!;
+    const pending = schema(capability.name, capability.description);
+    const approved = schema('search_memory', 'Recall approved facts', ['query']);
+    const subject = discovery({ authorized: [approved, pending], exposed: [approved] });
+    const found = await subject.execute('tool_search', { queries: ['pending memory proposals'] });
+    expect(found.matchedNames).toEqual(['list_memory_proposals']);
+    const described = await subject.execute('tool_describe', { names: ['list_memory_proposals'] });
+    expect(described.loadedNames).toEqual(['list_memory_proposals']);
+    expect(subject.exposedSchemas()).toContain(pending);
+    expect(capability.readOnly).toBe(true);
+  });
   test('keeps control schema and handler ownership explicit without adding executable leaves', () => {
     const subject = discovery();
     const schemaNames = new Set(subject.controlSchemas().map((item) => item.name));

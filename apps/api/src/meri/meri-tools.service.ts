@@ -73,6 +73,8 @@ import { ClientPeopleService, type CreatePersonInput } from '../clients/client-p
 import { ClientAdvocacyMatterService } from '../clients/client-advocacy-matter.service.js';
 import { MemoryIngestService } from '../memory/memory-ingest.service.js';
 import { MemoryCandidateService } from '../memory/memory-candidate.service.js';
+import { GovernedMemoryCandidateService } from '../memory/governed-memory-candidate.service.js';
+import { readOwnPendingMemoryProposals } from './meri-memory-proposal-read.js';
 import { MemoryStoreService } from '../memory/memory-store.service.js';
 import {
   clientMemoryAllowed,
@@ -426,6 +428,7 @@ export class MeriToolsService {
     @Optional() private readonly chatAttachmentReader?: MeriChatAttachmentReadService,
     @Optional() private readonly researchPortfolioScope?: ResearchPortfolioMeriScopeService,
     @Optional() private readonly federalMarket?: FederalMarketService,
+    @Optional() private readonly governedMemoryCandidates?: GovernedMemoryCandidateService,
   ) {}
 
   manifest() {
@@ -1104,6 +1107,11 @@ export class MeriToolsService {
         },
         ['query'],
       ),
+      list_memory_proposals: obj({
+        clientId: str('Selected client UUID; read only this client plus own firm/private pending proposals'),
+        cursor: str('Opaque nextCursor from the same own-pending proposal scope'),
+        limit: int('Page size from 1 to 10, default 5; follow nextCursor before claiming absence'),
+      }),
       confirm_memory: obj(
         {
           memoryItemId: str('The memoryItemId returned by search_memory'),
@@ -2530,7 +2538,7 @@ export class MeriToolsService {
     const policy = currentMeriToolCapturePolicy() ?? currentMeriServerReadonlyCapturePolicy();
     if (
       captureBudgetRequired(policy) &&
-      !(policy?.syntheticReadBudget && name === 'search_memory') &&
+      !(policy?.syntheticReadBudget && (name === 'search_memory' || name === 'list_memory_proposals')) &&
       !(['01','14'].includes(policy?.caseId ?? '') && name === 'search_memory') &&
       !controlledReadToolAllowed(policy?.caseId ?? null, name)
     ) {
@@ -2622,6 +2630,8 @@ export class MeriToolsService {
         return this.findPathTo(ctx, input);
       case 'search_memory':
         return this.searchMemory(ctx, input);
+      case 'list_memory_proposals':
+        return readOwnPendingMemoryProposals(ctx, input, this.governedMemoryCandidates);
       case 'search_congress_bills':
         return this.searchCongressBills(input);
       case 'get_bill_status':

@@ -344,6 +344,15 @@ function eventNameOf(message: unknown): string | null {
 const SHADOW_EVENTS = new Set(['meri.evidence_shadow', 'meri.evidence_shadow.turn']);
 
 describe('MeriV3AssistantService', () => {
+  test('pins pending proposal reads to the selected client and rejects attempted cross-client retargeting', () => {
+    const service = Object.create(MeriV3AssistantService.prototype) as any;
+    const schema = { name: 'list_memory_proposals', input_schema: { properties: { clientId: { type: 'string' }, cursor: { type: 'string' } } } };
+    const input = Object.freeze({ cursor: 'same-page' });
+    expect(service.augmentToolInput({ clientId: 'aster' }, input, schema)).toEqual({ input: { cursor: 'same-page', clientId: 'aster' } });
+    expect(service.augmentToolInput({ clientId: 'aster' }, { clientId: 'bluehaven' }, schema).scopeViolation).toContain('different client');
+    expect(service.augmentToolInput({}, input, schema)).toEqual({ input });
+    expect(input).toEqual({ cursor: 'same-page' });
+  });
   const originalFetch = global.fetch;
   const originalOpenAiKey = process.env.OPENAI_API_KEY;
 

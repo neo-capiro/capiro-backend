@@ -41,6 +41,13 @@ describe('chat date grounding', () => {
 });
 
 describe('buildChatSystemPrompt', () => {
+  it('routes a missing approved preference to the separate own-pending governance read', () => {
+    const prompt = buildChatSystemPrompt({ clientId: 'aster', messages: [{ role: 'user', text: 'Does Aster prefer text alerts?' }] }, ctx);
+    expect(prompt).toContain('call list_memory_proposals');
+    expect(prompt).toContain('label matching text pending and unapproved');
+    expect(prompt).toContain('This queue covers only your proposals');
+    expect(prompt).toContain('Active recall excludes pending');
+  });
   it('places the server-authored prospect directive in the dynamic system prompt', () => {
     const directive =
       'Active prospect scope: Acme LLC. A free-form company name does not retarget this chat.';
