@@ -1,0 +1,68 @@
+{
+  "observedAt": "2026-10-03T02:24:19.628Z",
+  "service": "api",
+  "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:515",
+  "serviceHash": "9ef55d473f9f1be8ebaabee7ca1e6c02cb003be8ce1db29dbd570b4c97a29d17",
+  "configHash": "973748a2b134b388a6027df6c5c099055a7e24f7b746eafbaae8cebad077258a",
+  "taskHash": "469dcd8139dbba76076eb32adfd65c6b85eab9bb23e34e8ba2eb37b6e7d9d9e8",
+  "imageDigest": "sha256:5e52f9b06658b0462672d070928e0c2afd6ea229b61c3b887371f3f66196c316",
+  "desiredCount": 2,
+  "sourceSha": "6be5a560d5addaa1844f0687898c34a249089f76",
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:5e52f9b06658b0462672d070928e0c2afd6ea229b61c3b887371f3f66196c316",
+  "selectedEnvironment": {
+    "MEMORY_RECALL_SOURCE": "union",
+    "MEMORY_GOVERNANCE_LIFECYCLE": "enforce",
+    "MERI_SYNTHETIC_FIXTURE_NAMESPACE": "meri-foundation-20260928",
+    "MERI_AUDITOR_MODE": "enforce",
+    "MERIV2_ENABLED": "true",
+    "RELEASE_SHA": "6be5a560d5addaa1844f0687898c34a249089f76",
+    "MEMORY_AUTOLEARN_GOVERNED": "true",
+    "MERIV2_ACTION_PROPOSALS_ENABLED": "true",
+    "GIT_SHA": "6be5a560d5addaa1844f0687898c34a249089f76",
+    "MERI_MCP_MONDAY_ENABLED": "true",
+    "MERIV3_ENABLED": "true",
+    "MERI_AUTO_CORRECTION_MODE": "off",
+    "MERI_JEV_MODEL": "jev-1.13.0",
+    "MEMORY_GOVERNANCE_CENTER": "enforce",
+    "MERI_COVERAGE_RETRIEVAL_MODE": "off",
+    "MERI_CLAIM_ASSESSMENT_MODE": "shadow",
+    "MEMORY_GOVERNANCE_ENFORCE": "enforce",
+    "MERI_QUICK_ACTION_SKILLS_ENABLED": "true",
+    "MEMORY_CLIENT_REVIEW": "enforce",
+    "MERI_JEV_PROVIDER_MODE": "shadow",
+    "MERI_EVIDENCE_ACCURACY_MODE": "enforce",
+    "MERI_MCP_GOOGLE_DRIVE_ENABLED": "true"
+  },
+  "currentEcrAvailable": true,
+  "previousArtifact": {
+    "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:514",
+    "status": "ACTIVE",
+    "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:9da63160063d9a711b2c7625803919d91803d96284037ecd097c24bedcbdacbd",
+    "immutable": true,
+    "resolvedDigest": "sha256:9da63160063d9a711b2c7625803919d91803d96284037ecd097c24bedcbdacbd",
+    "taskHash": "956223645e7e774cde6c7df25db7dafcf6b81440061b110bd47a130425c78459",
+    "sourceSha": "240f378094be1ee8f722560173e68dc4936aaef0",
+    "availability": "VERIFIED",
+    "rollbackExecuted": false
+  },
+  "nextReleaseRollback": {
+    "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:5e52f9b06658b0462672d070928e0c2afd6ea229b61c3b887371f3f66196c316",
+    "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:515",
+    "configHash": "973748a2b134b388a6027df6c5c099055a7e24f7b746eafbaae8cebad077258a",
+    "basis": "Verified current healthy baseline. Retain API/web for an orchestrator-only C1 repair.",
+    "compatibilityRequires": "Next C1 patch must not change schema/API/config; requalify at its exact commit."
+  },
+  "serviceUpdated": false,
+  "cohortSummary": {
+    "MEMORY_GOVERNANCE_TENANTS": {
+      "sha256": "256c775174458d86d75094c3c01c031a928675f9f97380e093bfa8fab653a2f0",
+      "count": 11,
+      "syntheticT1Included": true
+    },
+    "MERIV3_CANARY_TENANT_SLUGS": {
+      "sha256": "4c4fbcd12e2eb42ea6bc86ab8de7412f4b8e02b2a2c6d22581742049963ae7d3",
+      "count": 11,
+      "syntheticT1Included": true
+    }
+  }
+}

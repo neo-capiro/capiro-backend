@@ -1,0 +1,48 @@
+{
+  "status": "PASS_BASELINE_READBACK_WITH_HISTORICAL_DRIFT_RETAINED",
+  "schemaMutations": 0,
+  "sourceApi": "6be5a560d5addaa1844f0687898c34a249089f76",
+  "sourceMain": "723735ed1f5c562ab10e6077c67261285ea102fd",
+  "apiRollbackSource": "240f378094be1ee8f722560173e68dc4936aaef0",
+  "packagedSourceMigrations": 451,
+  "packagedManifestMatchesApiSource": true,
+  "packagedManifestMatchesMain": true,
+  "packagedManifestMatchesApiRollback": true,
+  "allSourceMigrationNamesApplied": true,
+  "unfinishedMigrations": 0,
+  "ledgerRows": 608,
+  "activeLedgerRows": 508,
+  "rolledBackHistoricalRows": 100,
+  "checksumDifferences": 61,
+  "checksumDifferencesExactlyMatchHistoricalDiagnostic": true,
+  "historicalDiagnostic": "docs/meri/releases/2026-10-02/memory-kind-release/forward450-verified/forward450-diagnostic-execution.json",
+  "currentConstraintHashesMatchQualifiedForward450": {
+    "memory_candidate_source_kind_chk": "4585194700c4539c5f62d01610ed8f9b3b78b0618e39b40cd04b8b7b80f3c4a5",
+    "memory_candidate_version_payload_check": "6a3164098759e2c2f6e6cf0caf80db29b8529c714158b9a8490ce9d477dc422c"
+  },
+  "currentSyntheticClaims": {
+    "case01ExecutionSetup": {
+      "present": true,
+      "status": "STARTED",
+      "sha256": "826e8fd90cae939542ad444eeeb26b79df2e0aceda29105604c5e2daccc4b473"
+    },
+    "case01ExecutionSetupRecovery": {
+      "present": true,
+      "status": "STARTED",
+      "sha256": "98742da0bc301122416b70c6be86cab510839500cfd8cbf95aff4f8e364ab6ae"
+    },
+    "case01ExecutionSetupContinuation": {
+      "present": true,
+      "status": "STARTED",
+      "sha256": "e4f78c306edb34962d7cce0300119ecbfdda98e6bdc3bfa0adebd3b36c57fba0"
+    },
+    "case01ExecutionSetupPostApproval": {
+      "present": true,
+      "status": "STARTED",
+      "sha256": "4b5d836d1a8f41c19c02e92736aef0be52ee8c5f7a83c9f505da8d70c0f49099"
+    }
+  },
+  "claimHashAlgorithm": "SHA256(JSON.stringify(value)); current observation only, not compared to old canonical-sorted claim hashes",
+  "rollbackLimit": "Artifact availability and migration-tree compatibility are verified; no rollback rehearsal or general database drift repair was performed. Retain current API/web for the next orchestrator-only C1 patch.",
+  "taskCleanupVerified": true
+}

@@ -1,0 +1,82 @@
+{
+  "kind": "meri_closeout_c0_completion",
+  "completedAt": "2026-10-03T02:34:36.121542+00:00",
+  "userFacingDate": "2026-10-02 America/New_York",
+  "c0Exit": "PASS_WITH_EXPLICIT_FIXTURE_BLOCKERS",
+  "basis": "Closeout plan C0 exit permits explicit fixture blockers; Done requires current version, first affected flow, existing test mechanism and next release.",
+  "checklist": [
+    {
+      "step": 1,
+      "status": "PASS",
+      "evidence": "source-and-machine.json"
+    },
+    {
+      "step": 2,
+      "status": "PASS",
+      "evidence": "../closeout-c0/source-reconciliation.json"
+    },
+    {
+      "step": 3,
+      "status": "PASS_BASELINE_WITH_HISTORICAL_DRIFT_RETAINED",
+      "evidence": "schema-assessment.json"
+    },
+    {
+      "step": 4,
+      "status": "PASS",
+      "evidence": "../../../implementation/01-requirements.md"
+    },
+    {
+      "step": 5,
+      "status": "ACCEPTED_LIMITATION_OLDER_JOURNAL",
+      "evidence": "fixture-blockers.json"
+    },
+    {
+      "step": 6,
+      "status": "LIVE_FLOW_VERIFIED_SEMANTIC_CLOCK_BLOCKED",
+      "evidence": "../fresh-live-benchmark/README.md"
+    },
+    {
+      "step": 7,
+      "status": "PASS_QUEUED",
+      "evidence": "C1-FIRST-REPAIR.md"
+    }
+  ],
+  "sourceSha": "723735ed1f5c562ab10e6077c67261285ea102fd",
+  "policySha": "b2b0ce8c2bf03817b81e671d968b7892985b8d06",
+  "machineMapSha256": "2d6a62086deee9b8c4c013826c6ead4c68a8b71f83038627b1ace40e1a202c75",
+  "currentVersions": {
+    "api": {
+      "sourceSha": "6be5a560d5addaa1844f0687898c34a249089f76",
+      "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:515",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:5e52f9b06658b0462672d070928e0c2afd6ea229b61c3b887371f3f66196c316",
+      "configHash": "973748a2b134b388a6027df6c5c099055a7e24f7b746eafbaae8cebad077258a"
+    },
+    "meriv2-orchestrator": {
+      "sourceSha": "7c04ca368fbccc84d33c720ce7a20b9201bf6e99",
+      "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:105",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:85162728a9d268b797e1f264bde9eb129fb4a170304a6547b3da7a9561d628fa",
+      "configHash": "3a4fabd2139e347cd8b45192579f2a3fbaaa6fc3678762b5252f727a4461951b"
+    },
+    "web-vnext": {
+      "sourceSha": "78ad5805679a3045b1fc10fb19beafa7f76e4e64",
+      "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web-vnext:388",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:a048aceec01c207b514f76fb447d4fb8bdb5ed17278642480008a1510a12de4c",
+      "configHash": "453a3d5aedc3da7d989370b97669abf0c1b14efbacd2d1597990b9cac7d50ab7"
+    }
+  },
+  "liveCasesCollected": 5,
+  "originalCasesFullyAccepted": 0,
+  "caseAssertionFailure": [
+    "02"
+  ],
+  "coverageDefectCase": "03",
+  "additionalProviderCallsThisClosure": 0,
+  "additionalDatabaseMutations": 0,
+  "newTemporarySchemaTasks": 1,
+  "taskCleanupVerified": true,
+  "productionCodeChanges": 0,
+  "serviceDeployments": 0,
+  "humanAcceptanceReview": "NOT_REVIEWED",
+  "nextGate": "C1",
+  "nextRelease": "Narrow Office Delta classification repair; expected orchestrator-only, current orch105 rollback baseline; confirm actual final diff/qualification."
+}

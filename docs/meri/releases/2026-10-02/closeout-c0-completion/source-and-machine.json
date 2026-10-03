@@ -1,0 +1,388 @@
+{
+  "observedAt": "2026-10-03T02:24:10.715Z",
+  "fetchedMainSha": "723735ed1f5c562ab10e6077c67261285ea102fd",
+  "taskHeadBefore": "69c5adf42aa4d6692055935a13c5fb6a3931aacb",
+  "commitsSinceAudit": "0",
+  "policySha": "b2b0ce8c2bf03817b81e671d968b7892985b8d06",
+  "machineMap": {
+    "path": "C:/dev/capiro-agent-ops/machine-paths.local.yaml",
+    "sha256": "2d6a62086deee9b8c4c013826c6ead4c68a8b71f83038627b1ace40e1a202c75",
+    "pathsVerified": true,
+    "gitIgnored": true,
+    "logicalKeys": [
+      "ops_repo_root",
+      "app_repo_root",
+      "worktree_root",
+      "qa_evidence_root",
+      "hermes_home",
+      "pnpm_bin",
+      "playwright_package",
+      "aws_region"
+    ]
+  },
+  "aws": {
+    "profile": "capiro-dev",
+    "region": "us-east-1",
+    "account": "967807252336",
+    "principal": "arn:aws:iam::967807252336:user/capirocli"
+  },
+  "openPullRequests": [
+    {
+      "baseRefName": "main",
+      "headRefName": "fix/outreach-personal-notes-improve",
+      "number": 1755,
+      "title": "fix(outreach): personal notes reach drafts; Improve keeps campaign context",
+      "url": "https://github.com/neo-capiro/capirov2/pull/1755"
+    },
+    {
+      "baseRefName": "main",
+      "headRefName": "feat/meri-ios-phase2-chat-20260923-hermes",
+      "number": 1754,
+      "title": "feat(ios): implement Meri Phase 2 chat client",
+      "url": "https://github.com/neo-capiro/capirov2/pull/1754"
+    },
+    {
+      "baseRefName": "main",
+      "headRefName": "dependabot/npm_and_yarn/nestjs/testing-12.0.3",
+      "number": 1740,
+      "title": "build(deps-dev): bump @nestjs/testing from 10.4.22 to 12.0.3",
+      "url": "https://github.com/neo-capiro/capirov2/pull/1740"
+    },
+    {
+      "baseRefName": "main",
+      "headRefName": "dependabot/npm_and_yarn/types/node-26.6.1",
+      "number": 1739,
+      "title": "build(deps-dev): bump @types/node from 20.19.39 to 26.6.3",
+      "url": "https://github.com/neo-capiro/capirov2/pull/1739"
+    },
+    {
+      "baseRefName": "main",
+      "headRefName": "dependabot/npm_and_yarn/lighthouse-13.4.1",
+      "number": 1738,
+      "title": "build(deps-dev): bump lighthouse from 12.8.2 to 13.5.0",
+      "url": "https://github.com/neo-capiro/capirov2/pull/1738"
+    },
+    {
+      "baseRefName": "main",
+      "headRefName": "dependabot/npm_and_yarn/nestjs/config-12.0.0",
+      "number": 1737,
+      "title": "build(deps): bump @nestjs/config from 3.3.0 to 12.0.1",
+      "url": "https://github.com/neo-capiro/capirov2/pull/1737"
+    },
+    {
+      "baseRefName": "main",
+      "headRefName": "dependabot/npm_and_yarn/antd-6.6.4",
+      "number": 1736,
+      "title": "build(deps): bump antd from 5.29.3 to 6.6.5",
+      "url": "https://github.com/neo-capiro/capirov2/pull/1736"
+    },
+    {
+      "baseRefName": "main",
+      "headRefName": "dependabot/npm_and_yarn/react-markdown-10.1.0",
+      "number": 1735,
+      "title": "build(deps): bump react-markdown from 9.1.0 to 10.1.0",
+      "url": "https://github.com/neo-capiro/capirov2/pull/1735"
+    },
+    {
+      "baseRefName": "main",
+      "headRefName": "dependabot/github_actions/docker/build-push-action-7",
+      "number": 1733,
+      "title": "build(deps): bump docker/build-push-action from 6 to 7",
+      "url": "https://github.com/neo-capiro/capirov2/pull/1733"
+    },
+    {
+      "baseRefName": "main",
+      "headRefName": "dependabot/github_actions/actions/setup-python-7",
+      "number": 1732,
+      "title": "build(deps): bump actions/setup-python from 5 to 7",
+      "url": "https://github.com/neo-capiro/capirov2/pull/1732"
+    },
+    {
+      "baseRefName": "main",
+      "headRefName": "dependabot/github_actions/aws-actions/configure-aws-credentials-6",
+      "number": 1731,
+      "title": "build(deps): bump aws-actions/configure-aws-credentials from 4 to 6",
+      "url": "https://github.com/neo-capiro/capirov2/pull/1731"
+    },
+    {
+      "baseRefName": "main",
+      "headRefName": "fix/defense-budget-approval-replacement-hardening",
+      "number": 1703,
+      "title": "fix(defense-budget): harden approval-replacement orchestrator (PR #1680 follow-up)",
+      "url": "https://github.com/neo-capiro/capirov2/pull/1703"
+    },
+    {
+      "baseRefName": "main",
+      "headRefName": "codex/hillday-first-page-editing-863e1ddf",
+      "number": 1605,
+      "title": "feat(workspace): edit the first page of Hill Day schedules",
+      "url": "https://github.com/neo-capiro/capirov2/pull/1605"
+    },
+    {
+      "baseRefName": "main",
+      "headRefName": "fix/client-setaside-and-funding-priority-length",
+      "number": 1596,
+      "title": "fix: client set-aside save error + funding priority length 120->1000",
+      "url": "https://github.com/neo-capiro/capirov2/pull/1596"
+    },
+    {
+      "baseRefName": "main",
+      "headRefName": "docs/phase10b32-release-and-canary-packet",
+      "number": 1534,
+      "title": "docs(defense-budget): Phase 10B-32 release report + deferred canary packet",
+      "url": "https://github.com/neo-capiro/capirov2/pull/1534"
+    },
+    {
+      "baseRefName": "main",
+      "headRefName": "fix/x-feed-save-defaults-feedback",
+      "number": 1483,
+      "title": "fix(web): surface errors and pending state when saving default X accounts",
+      "url": "https://github.com/neo-capiro/capirov2/pull/1483"
+    },
+    {
+      "baseRefName": "main",
+      "headRefName": "agent/legiwatch-v2-wave1-backend",
+      "number": 1469,
+      "title": "feat(legiwatch): build V2 Wave 1 backend",
+      "url": "https://github.com/neo-capiro/capirov2/pull/1469"
+    },
+    {
+      "baseRefName": "main",
+      "headRefName": "agent/phase10b22-r2-review-acceptance",
+      "number": 1438,
+      "title": "feat(defense-budget): govern acceptance of review-only R-2 evidence",
+      "url": "https://github.com/neo-capiro/capirov2/pull/1438"
+    },
+    {
+      "baseRefName": "main",
+      "headRefName": "jc/opportunities-tab-stack-panels",
+      "number": 1403,
+      "title": "Stack Opportunities and Relevant budget programs vertically",
+      "url": "https://github.com/neo-capiro/capirov2/pull/1403"
+    },
+    {
+      "baseRefName": "main",
+      "headRefName": "fix/wire-news-lookback-and-rss-meta",
+      "number": 1336,
+      "title": "fix(wire): honor news lookback and populate intel article taxonomy",
+      "url": "https://github.com/neo-capiro/capirov2/pull/1336"
+    },
+    {
+      "baseRefName": "main",
+      "headRefName": "agent/meri-context-degraded-reason-labels",
+      "number": 1317,
+      "title": "fix(meri): humanize raw context degraded-reason codes in the CONTEXT tab",
+      "url": "https://github.com/neo-capiro/capirov2/pull/1317"
+    },
+    {
+      "baseRefName": "codex/legiwatch-live-hearings-phase-1-2-implementation",
+      "headRefName": "agent/legiwatch-committee-directory-closeout-v2",
+      "number": 1170,
+      "title": "LegiWatch Live Hearings: use the complete committee registry",
+      "url": "https://github.com/neo-capiro/capirov2/pull/1170"
+    },
+    {
+      "baseRefName": "main",
+      "headRefName": "codex/legiwatch-live-hearings-phase-1-2-implementation",
+      "number": 1167,
+      "title": "LegiWatch Live Hearings: pixel-parity UI + structural gap closure",
+      "url": "https://github.com/neo-capiro/capirov2/pull/1167"
+    },
+    {
+      "baseRefName": "main",
+      "headRefName": "agent/phase8-session4-runtime-move",
+      "number": 1035,
+      "title": "Phase 8 Session 4: dark Phase 1–7 runtime boundary + FY27 dual-path replay",
+      "url": "https://github.com/neo-capiro/capirov2/pull/1035"
+    },
+    {
+      "baseRefName": "main",
+      "headRefName": "agent/workspace-final-closeout",
+      "number": 987,
+      "title": "fix(workspace): finish durable Max intake, generation, editor and deployment",
+      "url": "https://github.com/neo-capiro/capirov2/pull/987"
+    },
+    {
+      "baseRefName": "agent/outreach-v3-engagement-complete",
+      "headRefName": "agent/vnext-engagement-pixel-perfect",
+      "number": 963,
+      "title": "restack(vnext): Engagement UI foundation onto Outreach V3 integration",
+      "url": "https://github.com/neo-capiro/capirov2/pull/963"
+    },
+    {
+      "baseRefName": "agent/outreach-v3-engagement-complete",
+      "headRefName": "agent/outreach-v3-governed-generation",
+      "number": 962,
+      "title": "restack(outreach-v3): governed generation onto accepted Phase 4–6 head",
+      "url": "https://github.com/neo-capiro/capirov2/pull/962"
+    },
+    {
+      "baseRefName": "main",
+      "headRefName": "agent/web-vnext-fargate-os-capiro-ai",
+      "number": 898,
+      "title": "infra: add isolated web-vnext Fargate service for os.capiro.ai",
+      "url": "https://github.com/neo-capiro/capirov2/pull/898"
+    },
+    {
+      "baseRefName": "agent/outreach-v3-p5-context-strategy",
+      "headRefName": "agent/outreach-v3-p6-conversational-ui",
+      "number": 891,
+      "title": "feat(outreach-v3): Phase 6 conversational planning UI",
+      "url": "https://github.com/neo-capiro/capirov2/pull/891"
+    },
+    {
+      "baseRefName": "agent/outreach-v3-p4-target-intelligence",
+      "headRefName": "agent/outreach-v3-p5-context-strategy",
+      "number": 890,
+      "title": "feat(outreach-v3): Phase 5 governed context and strategy",
+      "url": "https://github.com/neo-capiro/capirov2/pull/890"
+    },
+    {
+      "baseRefName": "agent/outreach-v3-p3-reasoning-gateway",
+      "headRefName": "agent/outreach-v3-p4-target-intelligence",
+      "number": 883,
+      "title": "feat(outreach-v3): Phase 4 target intelligence and canonical selection",
+      "url": "https://github.com/neo-capiro/capirov2/pull/883"
+    },
+    {
+      "baseRefName": "agent/outreach-v3-p2-campaign-state-command-engine",
+      "headRefName": "agent/outreach-v3-p3-reasoning-gateway",
+      "number": 881,
+      "title": "feat(outreach-v3): Revised Phase 3 thin reasoning gateway",
+      "url": "https://github.com/neo-capiro/capirov2/pull/881"
+    },
+    {
+      "baseRefName": "agent/outreach-v3-p1-shared-foundations-gpt56-complete",
+      "headRefName": "agent/outreach-v3-p2-campaign-state-command-engine",
+      "number": 862,
+      "title": "feat(outreach-v3): Revised Phase 2 campaign state command engine",
+      "url": "https://github.com/neo-capiro/capirov2/pull/862"
+    },
+    {
+      "baseRefName": "agent/tango-shared-intelligence-consumers",
+      "headRefName": "main",
+      "number": 832,
+      "title": "chore: update Tango shared-consumers branch from main",
+      "url": "https://github.com/neo-capiro/capirov2/pull/832"
+    },
+    {
+      "baseRefName": "main",
+      "headRefName": "agent/tango-shared-intelligence-consumers",
+      "number": 831,
+      "title": "feat(federal-market): share Tango intelligence across District Nexus, spending, and Meriv3",
+      "url": "https://github.com/neo-capiro/capirov2/pull/831"
+    },
+    {
+      "baseRefName": "main",
+      "headRefName": "agent/legiwatch-v3-p00-foundation",
+      "number": 728,
+      "title": "feat(legiwatch): V3 Phase 0 — foundation flags, CI migration replay, ops contract",
+      "url": "https://github.com/neo-capiro/capirov2/pull/728"
+    },
+    {
+      "baseRefName": "main",
+      "headRefName": "agent/meriv2-phase10-clean-ci-validation",
+      "number": 724,
+      "title": "MeriV2 Phase 10 clean-history exact-tree validation (do not merge)",
+      "url": "https://github.com/neo-capiro/capirov2/pull/724"
+    },
+    {
+      "baseRefName": "feat/meriv2-p3-memory-context-v2",
+      "headRefName": "feat/meriv2-p4-government-affairs-assurance",
+      "number": 674,
+      "title": "feat(meri): Phase 4 government-affairs assurance and eval gates",
+      "url": "https://github.com/neo-capiro/capirov2/pull/674"
+    },
+    {
+      "baseRefName": "feat/meriv2-p2-trust-ux",
+      "headRefName": "feat/meriv2-p3-memory-context-v2",
+      "number": 673,
+      "title": "MeriV2 Phase 3 — institutional memory governance / Context Packet v2 (independent closeout)",
+      "url": "https://github.com/neo-capiro/capirov2/pull/673"
+    },
+    {
+      "baseRefName": "main",
+      "headRefName": "feat/meriv2-p2-trust-ux",
+      "number": 664,
+      "title": "feat(meri): Phase 2 trust UX and generation reliability",
+      "url": "https://github.com/neo-capiro/capirov2/pull/664"
+    },
+    {
+      "baseRefName": "agent/hearing-browser-capture-hardening",
+      "headRefName": "main",
+      "number": 662,
+      "title": "chore: sync main into hearing hardening branch",
+      "url": "https://github.com/neo-capiro/capirov2/pull/662"
+    },
+    {
+      "baseRefName": "fix/meriv2-p0-control-boundaries",
+      "headRefName": "fix/meriv2-p1-correctness-context-runtime",
+      "number": 645,
+      "title": "MeriV2 Phase 1 (orchestrator only): effective request context, runtime schemas, chat budgets — needs proposal-ID re-integration",
+      "url": "https://github.com/neo-capiro/capirov2/pull/645"
+    },
+    {
+      "baseRefName": "main",
+      "headRefName": "fix/typecheck-api-scripts",
+      "number": 584,
+      "title": "build(api): typecheck apps/api/scripts in CI",
+      "url": "https://github.com/neo-capiro/capirov2/pull/584"
+    },
+    {
+      "baseRefName": "main",
+      "headRefName": "dependabot/npm_and_yarn/vite-8.1.5",
+      "number": 550,
+      "title": "chore(deps-dev): bump vite from 5.4.21 to 8.1.5",
+      "url": "https://github.com/neo-capiro/capirov2/pull/550"
+    },
+    {
+      "baseRefName": "main",
+      "headRefName": "dependabot/github_actions/pnpm/action-setup-6",
+      "number": 545,
+      "title": "chore(deps): bump pnpm/action-setup from 4 to 6",
+      "url": "https://github.com/neo-capiro/capirov2/pull/545"
+    },
+    {
+      "baseRefName": "main",
+      "headRefName": "dependabot/github_actions/actions/checkout-7",
+      "number": 544,
+      "title": "chore(deps): bump actions/checkout from 4 to 7",
+      "url": "https://github.com/neo-capiro/capirov2/pull/544"
+    },
+    {
+      "baseRefName": "main",
+      "headRefName": "review/meriv2-pr1",
+      "number": 504,
+      "title": "chore(meriv2): formalize codex/meriv2-pr1 (PR1 containment + service boundary) for review",
+      "url": "https://github.com/neo-capiro/capirov2/pull/504"
+    },
+    {
+      "baseRefName": "main",
+      "headRefName": "dev/capiro-state-legislation-plan-48815a",
+      "number": 375,
+      "title": "docs(state): comprehensive state-legislation platform plan",
+      "url": "https://github.com/neo-capiro/capirov2/pull/375"
+    },
+    {
+      "baseRefName": "main",
+      "headRefName": "feat/workflows-kanban-and-deletes",
+      "number": 61,
+      "title": "Workspace: kanban Workflows board + delete workflows & strategies",
+      "url": "https://github.com/neo-capiro/capirov2/pull/61"
+    },
+    {
+      "baseRefName": "feat/intelligence-coming-soon",
+      "headRefName": "feat/company-info-wizard",
+      "number": 13,
+      "title": "feat(clients): company-info create wizard + Overview + bulk import",
+      "url": "https://github.com/neo-capiro/capirov2/pull/13"
+    },
+    {
+      "baseRefName": "main",
+      "headRefName": "chore/correct-aws-account-refs",
+      "number": 12,
+      "title": "chore(infra): correct AWS account for GHA image builds",
+      "url": "https://github.com/neo-capiro/capirov2/pull/12"
+    }
+  ]
+}

@@ -1783,6 +1783,20 @@
       "accountedCostMicros": 9841281,
       "sourceProvenanceChanged": false,
       "historicalJournalChanged": false
+    },
+    {
+      "date": "2026-10-03T02:34:36.121542+00:00",
+      "kind": "c0_exit_completion",
+      "sourceSha": "723735ed1f5c562ab10e6077c67261285ea102fd",
+      "evidence": "docs/meri/releases/2026-10-02/closeout-c0-completion/README.md",
+      "c0Exit": "PASS_WITH_EXPLICIT_FIXTURE_BLOCKERS",
+      "packagedMigrationsVerified": 451,
+      "historicalChecksumDifferencesRetained": 61,
+      "semanticClock": "BLOCKED",
+      "olderJournal": "UNAVAILABLE_PRESERVED",
+      "sourceProvenanceChanged": false,
+      "newProviderCalls": 0,
+      "schemaMutations": 0
     }
   ]
 }

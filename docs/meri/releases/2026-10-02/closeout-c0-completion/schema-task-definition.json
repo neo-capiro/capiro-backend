@@ -1,0 +1,7 @@
+{
+  "definition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-c0-readonly-20261002:1",
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:5e52f9b06658b0462672d070928e0c2afd6ea229b61c3b887371f3f66196c316",
+  "scriptSha256": "75743248b9996d759da297db47bb528809b485bfcae8882dd8969963fecb10a6",
+  "taskRoleIncluded": false,
+  "registeredAt": "2026-10-03T02:26:19.574Z"
+}

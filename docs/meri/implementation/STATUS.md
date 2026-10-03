@@ -1,6 +1,6 @@
 # Meri File01 current checkpoint — C0 and fresh live benchmark
 
-**C0 baseline reconciliation is complete: current deployment, ordinary actor, canonical fixture, live capture, persisted answer and terminal spending readback are verified. File01 remains 01_BLOCKED.** Frozen semantic-clock injection remains an explicit fixture gap. The user subsequently requested a benchmark rerun and explicitly said “start your own,” authorizing the fresh independent run recorded below.
+**C0 exit complete with explicit fixture blockers; C1 queued. File01 remains 01_BLOCKED.** All seven C0 checklist items now have evidence or an explicit disposition. Current/previous artifacts, live schema, local operations map and a runnable ordinary flow are verified. Frozen semantic-clock injection remains BLOCKED; the older journal is unavailable and its unknown costs are preserved. These are permitted C0 fixture dispositions, not original acceptance passes. [C0 completion and exact checklist](../releases/2026-10-02/closeout-c0-completion/README.md).
 
 **Five live cases (01–05) collected.** All 15 capture checks passed: actor/client/current corpus, one saved prompt/answer, unchanged canonical corpus. All five server spending ledgers settled. This is live API/model evidence, not the 26-case offline suite. [Results and exact evidence](../releases/2026-10-02/fresh-live-benchmark/README.md).
 
@@ -8,7 +8,9 @@
 
 **Running versions:** source/main remains `723735ed1f5c562ab10e6077c67261285ea102fd`; API515 / `6be5a560…`, orchestrator105 / `7c04ca368…` (qualified coverage repair), WebVNext388 / `78ad5805…`. Actual model is `gpt-6-astra`; requested Standard and actual per-turn effort are recorded, including existing automatic Deep/high escalation. No additional AWS or Clerk credentials are needed; `capiro-dev` works.
 
-**Fresh run accounting:** $9.841281 under $30 aggregate / $15 per-case, concurrency1, no unknown new reservations. These are conservative provider-accounting values, not billing statements. All owned logins revoked; temporary operator tasks stopped and definition deregistered. Existing source corpus, approvals, historical fixture claims and old journal are unchanged. No production code, service deployment or model/provider setting changed.
+**Schema and rollback baseline:** all 451 packaged API migration names are applied, none unfinished. The 61 checksum differences exactly match the prior diagnostic; no ledger was rewritten. Current memory constraints match the qualified repair, and the current API/main/API rollback migration bytes match. Previous immutable artifacts are available; no rollback rehearsal was run. The read-only schema task is stopped and deregistered. [Assessment](../releases/2026-10-02/closeout-c0-completion/schema-assessment.json).
+
+**Fresh run accounting:** $9.841281 under $30 aggregate / $15 per-case, concurrency1, no unknown new reservations. These are conservative provider-accounting values, not billing statements. All owned logins revoked; temporary operator tasks stopped and definition deregistered. This work did not modify the existing source corpus, approvals, historical fixture claims or old journal. No production code, service deployment or model/provider setting changed.
 
 **Original acceptance:** PASS0; case02 has a known failed assertion; cases01/03/04/05 are incomplete; cases06–75 NOT_RUN. Full frozen semantic-clock, effect, mode/JEV/variant/repeat and human-review gates remain. CD0/7 and CW0/8 accepted. Prior case01 failures and case17's partial UI slice remain historical evidence; no collector result is relabeled as a full pass.
 

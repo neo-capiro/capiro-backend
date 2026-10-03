@@ -10,6 +10,8 @@ H1/H2 bounded adaptations, H4 progressive discovery and H5 served procedure bind
 
 Fresh runtime addendum: the user authorized an independent live rerun; cases01–05 are collected with exact corpus/citation/usage evidence, a case02 pending-state failure and a case03 coverage-footer defect. This changes observed runtime acceptance evidence only; donor provenance and conditional activation decisions are unchanged. [Run report](../releases/2026-10-02/fresh-live-benchmark/README.md).
 
+C0 closure addendum: the seven-item baseline gate is closed with explicit fixture blockers; current schema/rollback and verified local policy paths are recorded in the [completion report](../releases/2026-10-02/closeout-c0-completion/README.md). Donor provenance and conditional activation decisions remain unchanged.
+
 ## Current consolidation checkpoint — source `3111e053d`
 
 Lead update, 2026-09-28. The register review below describes historical source `71efe006a`; it is retained as an evidence snapshot. The following changes are present in the current task integration branch. This update does not claim either-main integration, deployment, or complete adoption acceptance.

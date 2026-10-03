@@ -1,0 +1,22 @@
+{
+  "cluster": "capiro-dev",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-c0-readonly-20261002:1",
+  "launchType": "FARGATE",
+  "platformVersion": "LATEST",
+  "networkConfiguration": {
+    "awsvpcConfiguration": {
+      "subnets": [
+        "subnet-0e38bd390f8961fef",
+        "subnet-0920665f91c905f01",
+        "subnet-06db79cd21239de19"
+      ],
+      "securityGroups": [
+        "sg-01def4e5c0fe44d4a"
+      ],
+      "assignPublicIp": "DISABLED"
+    }
+  },
+  "count": 1,
+  "startedBy": "meri-c0-9babfd48-894f-44c9-9",
+  "clientToken": "66b1d378-8721-49ba-9f8f-d460eb71bc84"
+}
