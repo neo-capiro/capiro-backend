@@ -1,0 +1,182 @@
+{
+  "schemaVersion": 1,
+  "status": "SOURCE_DIAGNOSIS_CONFIRMED_WITH_LIVE_LIMITS",
+  "reviewer": "/root/mail_defaults_review",
+  "reviewedAt": "2026-10-04T01:36:36.439Z",
+  "sourceSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+  "evidence": {
+    "path": "C:/dev/main/outputs/meri-c2-20261003/case20-native-recovery-v3-f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b/artifacts/saved-messages-observation.json",
+    "sha256": "00c35d633da138416134a369b07c8bc066bf2b5d945901d0346c3f3bfcec6c55",
+    "status": 200,
+    "apiReleaseSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+    "bodySha256": "0be19927fa2315ab441f78f59368e83764b58c5b04d7e80d109af5eaf4f6e6a8",
+    "redacted": true
+  },
+  "sourceHashes": [
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts",
+      "sha256": "5ec89121ced8867a46aca285999dc46b869e6535040429ea27efcdce1de97f7a"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-turn-coverage.ts",
+      "sha256": "8fec042eb5bfef166d20314c9bcd5aa9dc27985501bd0f3703b059e14a17e355"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-capture-evidence.ts",
+      "sha256": "e456b816724dd62fab1d165f2494c88072a9ffcf0a5b0aac434819043f05e1b8"
+    },
+    {
+      "path": "apps/api/src/meri/meri-controlled-read-fixture.ts",
+      "sha256": "2a553957a36057a9c643e8ca48bc6064286a9ed0f2f76b02e540196e150171f4"
+    },
+    {
+      "path": "apps/api/src/meri/meri-capture-clock-packets.ts",
+      "sha256": "69827fd74b2abccdc2d1910cc5588032342acac311487a7b6854fb3629d3b455"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "sha256": "d1fe00c283c13663c40b70d7e8a7537a888a269b21b758c0f59b7c907fe39471"
+    },
+    {
+      "path": "evals/meri/live-v1/controlled-read-receipt-joins.mjs",
+      "sha256": "d09ecb5f4fd4dee86bab14f1b2e257dd9d66c83f21405c3bad1989657686a273"
+    }
+  ],
+  "observed": {
+    "caseId": "20",
+    "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+    "conversationId": "db0e01ac-60a1-4e3c-b8ba-66748d087a2e",
+    "receiptStatus": "BLOCKED",
+    "blockers": [
+      "semantic_clock_api_tool_join_pending",
+      "semantic_clock_prompt_unproved",
+      "source_client_authority_unproved:2d0c016e-8dad-5f6e-80dd-e36740fff7ee"
+    ],
+    "promptRenderedAt": 1791077218191,
+    "receiptStartedAt": 1791077218487,
+    "promptBeforeReceiptStartMs": 296,
+    "apiClockJoin": "PENDING",
+    "toolCalls": [
+      {
+        "name": "get_pe_budget_timeline",
+        "callId": "call_f3k3r8wjQHgu4uInyGyp5mfa",
+        "status": "partial",
+        "attempt": 1,
+        "readOnly": true,
+        "sourceIds": [
+          "2d0c016e-8dad-5f6e-80dd-e36740fff7ee"
+        ]
+      }
+    ],
+    "controlledReadAttempts": [
+      {
+        "tool": "get_pe_budget_timeline",
+        "callId": "call_f3k3r8wjQHgu4uInyGyp5mfa",
+        "caseId": "20",
+        "turnId": "3a50a9fd-8afa-4b3d-9a74-ba69f02122e6",
+        "traceId": "5f6c9bfe-a113-4b63-93d5-e1edb1defd32",
+        "fullRead": true,
+        "sourceId": "2d0c016e-8dad-5f6e-80dd-e36740fff7ee",
+        "requestId": "f161ebdf-323e-4995-9a7f-4509541d71f9",
+        "httpStatus": 200,
+        "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+        "logicalError": null,
+        "contentSha256": "8e0dc2325edff514502ec08d0d0465ad0ba8046e422910d7c89710969da50f76",
+        "passageSha256": "8e0dc2325edff514502ec08d0d0465ad0ba8046e422910d7c89710969da50f76",
+        "sourceVersion": "v1",
+        "responseSha256": "2d42264ed2ebb79bafef650a5d25a2d03655cb19e1ddd601b4262336a44c0983",
+        "sourceClientId": null,
+        "sourceTenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+        "logicalSourceId": "R2-27",
+        "currentVerifySha256": "925c4735e4d435ab06c40b31ee590b0ce4e7d9220b742155c67e4115b1bc6516"
+      }
+    ],
+    "sources": [
+      {
+        "locator": {
+          "value": "page 14",
+          "reason": null,
+          "status": "OBSERVED"
+        },
+        "clientId": {
+          "value": null,
+          "reason": null,
+          "status": "OBSERVED"
+        },
+        "fullRead": {
+          "value": true,
+          "reason": null,
+          "status": "OBSERVED"
+        },
+        "sourceId": "2d0c016e-8dad-5f6e-80dd-e36740fff7ee",
+        "tenantId": {
+          "value": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+          "reason": null,
+          "status": "OBSERVED"
+        },
+        "byteSha256": {
+          "value": "8e0dc2325edff514502ec08d0d0465ad0ba8046e422910d7c89710969da50f76",
+          "reason": null,
+          "status": "OBSERVED"
+        },
+        "toolCallId": "call_f3k3r8wjQHgu4uInyGyp5mfa",
+        "passageSha256": {
+          "value": "8e0dc2325edff514502ec08d0d0465ad0ba8046e422910d7c89710969da50f76",
+          "reason": null,
+          "status": "OBSERVED"
+        },
+        "currentVersion": {
+          "value": "v1",
+          "reason": null,
+          "status": "OBSERVED"
+        }
+      }
+    ],
+    "initialContextPacketId": "afbd22f7-c3a7-426b-bb0c-b532517990d7",
+    "initialContextClockUse": {
+      "instant": "2026-09-26T16:00:00.000Z",
+      "scoring": "not_run",
+      "timeZone": "America/New_York",
+      "eligibilityAt": "2026-10-04T01:26:56.942Z"
+    },
+    "toolCompilerPackets": 0
+  },
+  "findings": [
+    {
+      "id": "CLOCK_START_ORDER",
+      "classification": "PRODUCTION_OBSERVATION_BOUNDARY",
+      "source": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts:1069,1344,2697",
+      "cause": "Prompt composition records actual clock use before the later runtime startedAt. Core rejects the 296ms-earlier prompt, and API readMeriCaptureClockPackets returns null on that blocker before any packet census.",
+      "minimalRepair": "Record separate captureStartedAt at runTurn entry and pass it only to capture evidence. Preserve the existing runtime/deadline timer and all timestamp validation."
+    },
+    {
+      "id": "CONTROLLED_COVERAGE_OMITTED",
+      "classification": "PRODUCTION_OWNER_CONTRACT",
+      "source": "apps/api/src/meri/meri-controlled-read-fixture.ts:301",
+      "cause": "Case20 owner returns records and verified controlledRead provenance but no coverage object. The generic turn coverage observer requires explicit complete/coverageComplete, so it emits partial and the strict collector correctly refuses a full-source join.",
+      "minimalRepair": "Emit explicit coverage for only the exact bounded source set from the existing before/after-qualified owner. Preserve projection/truncation negatives and the collector complete/full-passage guard."
+    },
+    {
+      "id": "GLOBAL_SOURCE_CLIENT",
+      "classification": "EXISTING_NARROWLY_RECONCILED_PRODUCER_GAP",
+      "source": "packages/meriv2-core/src/context/capture-evidence-receipt.ts:430",
+      "cause": "The generic core requires source client equal selected client and flags the genuinely tenant-owned null-client R2-27. The existing controlled collector already reconciles only that exact owner-proved global source after full strict joins.",
+      "minimalRepair": "No collector relaxation. If eliminating the producer blocker, permit only an exact same-case/tool/call/tenant/response/source/hash/full-read controlled proof; never a blanket null-client exception."
+    }
+  ],
+  "testRecommendations": [
+    "Real native runTurn prompt composition with delayed setup: captured start precedes prompt; runtime deadline behavior unchanged.",
+    "Production Case20 owner result through generic coverage and capture observers: exact full source complete, projected/omitted/truncated source remains partial.",
+    "Core/API receipt proof with actual 296ms ordering regression; missing/tampered prompt, wrong scope/hash, foreign/null-source proof remain blocked.",
+    "Existing collector remains unchanged and requires complete logical call plus source passage/byte hashes."
+  ],
+  "limits": [
+    "Saved response was read locally; reviewer did not perform fresh auth, API, DB, provider or capture calls or cryptographic verification requiring service secrets.",
+    "Zero tool compiler packets is correct for controlled Case20; it is not a defect.",
+    "API packet census was short-circuited by the prompt blocker. This review does not prove that the subsequent persisted packet census would pass after repair.",
+    "Correct answer text is not receipt acceptance. No new model turn, old-run replay, settlement or acceptance reclassification is authorized by this diagnosis."
+  ],
+  "sourceEdits": 0,
+  "testsRerun": false,
+  "liveActions": 0
+}

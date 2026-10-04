@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "provenance": "LIVE_CAPTURE",
+  "caseId": "20",
+  "target": {
+    "apiOrigin": "https://os.capiro.ai",
+    "environment": "capiro-dev"
+  },
+  "limits": {
+    "concurrency": 1,
+    "deadlineMs": 600000,
+    "maxSpendUsd": 15
+  },
+  "contract": {
+    "fixtureSha256": "2a8159d45d512f325539eb700907700ecc16cbc2d6536277adf85d8f49368e61",
+    "contractSourceSha256": "acd2a1cf766ad6e988025c4c43235213164926e7036cc8361986916d59963b66"
+  },
+  "fixture": {
+    "version": "meri-live-v1-2026-09-26.1",
+    "namespace": "meri-foundation-20260928",
+    "sha256": "2a8159d45d512f325539eb700907700ecc16cbc2d6536277adf85d8f49368e61",
+    "mappingSha256": "929ebb433886c035cfbcbcf8a537acde2157bec86634bfc384b594dfbca05861",
+    "seedReceiptId": "meri-synthetic-fixture-seed-receipt:sha256:dbda52dbd9e17320519d4cc40bcd73975fbf0ce0fae21341a1de535644f619e8",
+    "resetReceiptId": "meri-synthetic-fixture-reset-receipt:sha256:28630ec9f867373094583e8f16eaf521f8be00508d03b7b713c11784ab214de0"
+  },
+  "scope": {
+    "actors": {
+      "PAT": {
+        "userId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+        "clerkUserId": "user_3Jw2FvWZkYGKmxWGx13tNJxFD2A",
+        "role": "standard_user",
+        "tenantPhysicalId": "f2d6cf8f-057c-479a-8110-62fe5086d43f"
+      }
+    },
+    "tenants": {
+      "T1": {
+        "physicalId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+        "slug": "meri-foundation-20260928-t1"
+      }
+    },
+    "clients": {
+      "ASTER": {
+        "physicalId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+        "tenantPhysicalId": "f2d6cf8f-057c-479a-8110-62fe5086d43f"
+      }
+    },
+    "sources": {
+      "R2-27": {
+        "frozenFixtureId": "R2-27",
+        "physicalId": "2d0c016e-8dad-5f6e-80dd-e36740fff7ee",
+        "tenantPhysicalId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+        "clientPhysicalId": null,
+        "kind": "budget_document",
+        "version": "v1"
+      }
+    }
+  },
+  "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+  "conversationId": "db0e01ac-60a1-4e3c-b8ba-66748d087a2e",
+  "deployment": {
+    "apiSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+    "orchestratorSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+    "builds": {
+      "api": {
+        "service": "api",
+        "sourceSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+        "imageDigest": "sha256:23f529da3c1c00d401968811575dc075bced6c60669baa9a09e9c23575c9c452",
+        "buildId": "capiro-build-web-dev:5ca674e3-f986-46fa-bb05-2ca8e14d1d67",
+        "buildspecSha256": "61cc399b632b885b2c17dfb692a536ba493246465573fb83469669c6267e2811"
+      },
+      "meriv2-orchestrator": {
+        "service": "meriv2-orchestrator",
+        "sourceSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+        "imageDigest": "sha256:1c491a5ac46ea320195fe8ab367322ad2ebbd0949d69530b5ccfba2de84eb491",
+        "buildId": "capiro-build-web-dev:1105f91e-3171-41aa-ae00-7f28540caf90",
+        "buildspecSha256": "eb741a51f6169fdca94e6a3d69ab5bfa18ef0f22098016518e8dc30120aa8a24"
+      }
+    }
+  }
+}

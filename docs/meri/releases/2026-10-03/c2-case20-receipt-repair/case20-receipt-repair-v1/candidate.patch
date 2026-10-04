@@ -1,0 +1,600 @@
+diff --git a/apps/api/src/meri/meri-controlled-read-fixture.ts b/apps/api/src/meri/meri-controlled-read-fixture.ts
+index a92468012..adfbc41da 100644
+--- a/apps/api/src/meri/meri-controlled-read-fixture.ts
++++ b/apps/api/src/meri/meri-controlled-read-fixture.ts
+@@ -305,6 +305,16 @@ export async function tryExecuteMeriControlledRead(
+       currentCycleFy: claims.currentCycleFy,
+       currentFundingClaim: claims.currentFundingClaim,
+       records: [record],
++      // Completeness is for this exact source-owned response, not the public
++      // corpus. The current fixture/binding is rechecked before release below.
++      coverage: {
++        total: 1,
++        returned: 1,
++        complete: true,
++        paginationComplete: true,
++        truncated: false,
++        nextCursor: null,
++      },
+       controlledRead: provenance,
+       ...(search
+         ? { data: [programElement], total: 1, page: 1, limit: input.limit ?? 20 }
+diff --git a/apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts b/apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts
+index 949983b61..c97f98e3d 100644
+--- a/apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts
++++ b/apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts
+@@ -21,6 +21,7 @@ import {
+   readCaptureClockInvocations,
+ } from './controlled-read-observations.js';
+ import { projectMeriToolEvidence } from './meriv3/meriv3-tool-evidence.js';
++import { observeMeriTurnToolCoverage } from './meriv3/meriv3-turn-coverage.js';
+ 
+ const id = (n: number) =>
+   `${n}`.repeat(8) +
+@@ -714,6 +715,57 @@ describe('controlled read actual HTTP observations', () => {
+       }),
+     );
+   });
++  test.each(['search_program_elements', 'get_program_element', 'get_pe_budget_timeline'])(
++    'Case20 %s preserves exact source completion and refuses projection-truncated completion',
++    async (tool) => {
++      for (const truncated of [false, true]) {
++        const p = policy('20');
++        const body = {
++          ...payload(p),
++          coverage: {
++            total: 1,
++            returned: 1,
++            complete: true,
++            paginationComplete: true,
++            truncated: false,
++            nextCursor: null,
++          },
++        };
++        await scope(p, () =>
++          withControlledReadInvocation('provider-call', async () => {
++            observeControlledReadHttpResponse(tool, 200, body);
++            const visible = projectMeriToolEvidence({
++              result: body,
++              readOnly: true,
++              maxCharacters: truncated ? 200 : 10000,
++            });
++            const coverage = observeMeriTurnToolCoverage(tool, visible);
++            expect(coverage).toHaveLength(1);
++            expect(coverage[0]!.status).toBe(truncated ? 'partial' : 'complete');
++            expect(coverage[0]!.truncated).toBe(truncated);
++            const execution = observeMeriV3CaptureExecution({
++              callId: 'provider-call',
++              tool,
++              readOnly: true,
++              result: visible,
++              coverage,
++              citations: truncated
++                ? []
++                : [{ id: id(8), snippet: body.records![0]!.text, tool } as MeriCitation],
++            });
++            expect(execution.toolCalls[0]!.status).toBe(truncated ? 'partial' : 'complete');
++            expect(readControlledReadHttpObservations()![0]!.fullRead).toBe(true);
++            if (!truncated)
++              expect(execution.sources[0]!.clientId).toEqual({
++                status: 'OBSERVED',
++                value: null,
++                reason: null,
++              });
++          }),
++        );
++      }
++    },
++  );
+   test.each([
+     'captureRunId',
+     'requestId',
+diff --git a/apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.spec.ts b/apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.spec.ts
+index fcbd0ce8b..81eddab29 100644
+--- a/apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.spec.ts
++++ b/apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.spec.ts
+@@ -17,6 +17,7 @@ import { runWithGovernedMeriContext } from '../meri-governed-context.runtime.js'
+ import type { MeriGovernedTurnContext } from '@capiro/meriv2-core';
+ import { RequestCredentialsStore } from '../../request/request-credentials.store.js';
+ import { withTrustedCurrentTurnScope } from '../../request/trusted-current-turn-scope.js';
++import * as chatPrompt from '../chat/chat-prompt.js';
+ import * as passageSelector from '../jev/passage-selector.js';
+ import type { PassageCandidate } from '../jev/passage-selector.js';
+ import * as liveRepair from '../repair/live-repair.service.js';
+@@ -344,6 +345,89 @@ function eventNameOf(message: unknown): string | null {
+ const SHADOW_EVENTS = new Set(['meri.evidence_shadow', 'meri.evidence_shadow.turn']);
+ 
+ describe('MeriV3AssistantService', () => {
++  test('Case20 capture begins before actual prompt rendering without moving the runtime budget timer', async () => {
++    let now = 1791077218191;
++    const clock = jest.spyOn(Date, 'now').mockImplementation(() => now);
++    const actualCompose = chatPrompt.composeChatSystemPrompt;
++    let renderedAt = 0;
++    const compose = jest
++      .spyOn(chatPrompt, 'composeChatSystemPrompt')
++      .mockImplementation((...args) => {
++        const result = actualCompose(...args);
++        renderedAt = now;
++        now += 296; // Actual saved render-to-runtime-start ordering.
++        return result;
++      });
++    const complete = jest.fn().mockResolvedValue(response());
++    const assistant = build(registry([]), complete);
++    const p = {
++      version: 1,
++      kind: 'server_readonly_acceptance_capture',
++      policyId: 'capture-policy',
++      requestId: 'request',
++      traceId: 'trace',
++      turnId: 'turn',
++      caseId: '20',
++      captureRunId: 'run',
++      fixtureVersion: 'fixture',
++      physicalMapSha256: 'a'.repeat(64),
++      resetReceiptId: 'reset',
++      seedReceiptId: 'seed',
++      fixtureNamespace: 'meri-foundation-20260928',
++      tenantId: context.tenantId,
++      tenantSlug: 'meri-foundation-20260928-t1',
++      actorUserId: context.userId,
++      conversationId: 'conversation',
++      clientId: 'client-1',
++      issuedAt: now - 1000,
++      expiresAt: now + 60000,
++      toolAuthority: 'shared_static_registry_read_only',
++      toolCatalogSha256: createHash('sha256')
++        .update(
++          MERI_CAPABILITY_REGISTRY.filter((t) => t.readOnly)
++            .map((t) => t.name)
++            .sort()
++            .join('\n'),
++        )
++        .digest('hex'),
++      dynamicMcpAllowed: false,
++      incidentalWriters: 'suppressed',
++      expectedCaptureWrites: [
++        'context_packet_and_evidence',
++        'conversation_user_message',
++        'conversation_assistant_message',
++      ],
++    } as MeriServerReadonlyCapturePolicy;
++    global.fetch = jest.fn(
++      async () => new Response(JSON.stringify({ schemas: [] }), { status: 200 }),
++    ) as typeof fetch;
++    try {
++      const result = await withTrustedCurrentTurnScope(
++        {
++          tenantId: p.tenantId,
++          userId: p.actorUserId,
++          conversationId: p.conversationId,
++          selectedClientId: p.clientId,
++          capturePolicy: p,
++        },
++        () =>
++          RequestCredentialsStore.run({ bearerToken: 'unit-bearer' }, () =>
++            assistant.run(context, {
++              clientId: p.clientId!,
++              conversationId: p.conversationId,
++              messages: [{ role: 'user', text: 'Find PE 0912345T and give me its FY27 request.' }],
++            }),
++          ),
++      );
++      expect(compose).toHaveBeenCalledTimes(1);
++      expect(result.captureEvidence!.startedAt).toBeLessThanOrEqual(renderedAt);
++      expect(result.captureEvidence!.completedAt).toBe(renderedAt + 296);
++    } finally {
++      compose.mockRestore();
++      clock.mockRestore();
++    }
++  });
++
+   test('pins pending proposal reads to the selected client and rejects attempted cross-client retargeting', () => {
+     const service = Object.create(MeriV3AssistantService.prototype) as any;
+     const schema = { name: 'list_memory_proposals', input_schema: { properties: { clientId: { type: 'string' }, cursor: { type: 'string' } } } };
+diff --git a/apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts b/apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts
+index 2a4e0a2ec..7c5004cbd 100644
+--- a/apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts
++++ b/apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts
+@@ -918,6 +918,9 @@ export class MeriV3AssistantService {
+     dto: MeriV3ChatInput,
+     opts: MeriV3RunOptions,
+   ): Promise<MeriV3ChatResult> {
++    // Capture includes the actual prompt render, which precedes the runtime
++    // timer below. Keep operational budget/deadline timing independent.
++    const captureStartedAt = Date.now();
+     const emit = opts.onEvent ?? (() => {});
+     const researchPlanExecution = requireMeriV3ResearchPlanExecution(dto, ctx);
+     const admittedReadCapabilities = researchPlanExecution
+@@ -2694,7 +2697,7 @@ export class MeriV3AssistantService {
+                   ? observed(currentMeriTaskUsage().knownEstimatedCostUsd!)
+                   : unknown('provider_usage_or_effective_model_price_not_fully_observed'),
+               providerCallObserved,
+-              startedAt,
++              startedAt: captureStartedAt,
+               completedAt: Date.now(),
+             },
+           }
+diff --git a/packages/meriv2-core/src/context/capture-evidence-receipt.spec.ts b/packages/meriv2-core/src/context/capture-evidence-receipt.spec.ts
+index 4b28c681c..f06e5f08a 100644
+--- a/packages/meriv2-core/src/context/capture-evidence-receipt.spec.ts
++++ b/packages/meriv2-core/src/context/capture-evidence-receipt.spec.ts
+@@ -77,6 +77,138 @@ function clockReceipt(): MeriCaptureEvidenceReceipt {
+ }
+ 
+ describe('independent semantic-clock receipt join', () => {
++  function case20Receipt() {
++    const r = clockReceipt();
++    r.caseId = '20';
++    r.providerBudget!.boundary = 'case20_controlled_read_turn';
++    r.semanticClock!.binding.caseId = '20';
++    r.semanticClock!.api!.tools = [];
++    const call = r.toolCalls[0]!;
++    call.name = 'get_pe_budget_timeline';
++    call.status = 'complete';
++    call.sourceIds = ['2d0c016e-8dad-5f6e-80dd-e36740fff7ee'];
++    const invocation = r.semanticClock!.invocations![0]!;
++    invocation.tool = call.name;
++    invocation.packets = [];
++    r.sources = [
++      {
++        sourceId: call.sourceIds[0]!,
++        toolCallId: call.callId,
++        tenantId: observed(r.tenantId),
++        clientId: observed(null),
++        currentVersion: observed('v1'),
++        fullRead: observed(true),
++        locator: observed('page 14'),
++        passageSha256: observed('d'.repeat(64)),
++        byteSha256: observed('d'.repeat(64)),
++      },
++    ];
++    r.controlledReadAttempts = [
++      {
++        callId: call.callId,
++        tool: call.name,
++        httpStatus: 200,
++        logicalError: null,
++        caseId: '20',
++        requestId: r.requestId,
++        traceId: r.traceId,
++        turnId: r.turnId!,
++        captureRunId: r.captureRunId!,
++        responseSha256: invocation.responseSha256!,
++        sourceId: call.sourceIds[0]!,
++        logicalSourceId: 'R2-27',
++        sourceVersion: 'v1',
++        currentVerifySha256: r.semanticClock!.binding.currentVerifySha256,
++        contentSha256: 'd'.repeat(64),
++        sourceTenantId: r.tenantId,
++        sourceClientId: null,
++        fullRead: true,
++        passageSha256: 'd'.repeat(64),
++      },
++    ];
++    return r;
++  }
++  it('Case20 accepts the current-tenant public full source only through its matching controlled HTTP proof', () => {
++    const r = case20Receipt();
++    expect(completeMeriCaptureEvidenceReceipt(r).status).toBe('COMPLETE');
++    expect(r.semanticClock!.invocations![0]!.packets).toEqual([]);
++    expect(r.semanticClock!.api!.tools).toEqual([]);
++    // Retain the exact observed public scope, never relabel it as client-owned.
++    expect(r.sources[0]!.clientId).toEqual(observed(null));
++  });
++  it.each([
++    'case',
++    'tenant',
++    'client',
++    'source-client',
++    'missing-attempt',
++    'duplicate-attempt',
++    'call',
++    'tool',
++    'request',
++    'trace',
++    'turn',
++    'run',
++    'http',
++    'error',
++    'version',
++    'source',
++    'logical-source',
++    'source-read',
++    'full-read',
++    'passage',
++    'content',
++    'response',
++    'verify',
++    'invocation',
++    'partial',
++    'missing-clock',
++  ])('Case20 public-source proof rejects %s drift', (fault) => {
++    const r = case20Receipt();
++    const a = r.controlledReadAttempts![0]!;
++    const s = r.sources[0]!;
++    if (fault === 'case') r.caseId = '01';
++    if (fault === 'tenant') a.sourceTenantId = 'other-tenant';
++    if (fault === 'client') a.sourceClientId = 'other-client';
++    if (fault === 'source-client') s.clientId = observed('other-client');
++    if (fault === 'missing-attempt') r.controlledReadAttempts = [];
++    if (fault === 'duplicate-attempt') r.controlledReadAttempts!.push({ ...a });
++    if (fault === 'call') a.callId = 'other-call';
++    if (fault === 'tool') a.tool = 'search_memory';
++    if (fault === 'request') a.requestId = 'other-request';
++    if (fault === 'trace') a.traceId = 'other-trace';
++    if (fault === 'turn') a.turnId = 'other-turn';
++    if (fault === 'run') a.captureRunId = 'other-run';
++    if (fault === 'http') a.httpStatus = 500;
++    if (fault === 'error') a.logicalError = 'unavailable';
++    if (fault === 'version') a.sourceVersion = 'v2';
++    if (fault === 'source') a.sourceId = 'other-source';
++    if (fault === 'logical-source') a.logicalSourceId = 'HOUSE27';
++    if (fault === 'source-read') s.fullRead = observed(false);
++    if (fault === 'full-read') a.fullRead = false;
++    if (fault === 'passage') a.passageSha256 = 'e'.repeat(64);
++    if (fault === 'content') a.contentSha256 = 'e'.repeat(64);
++    if (fault === 'response') a.responseSha256 = 'e'.repeat(64);
++    if (fault === 'verify') a.currentVerifySha256 = 'e'.repeat(64);
++    if (fault === 'invocation') r.semanticClock!.invocations = [];
++    if (fault === 'partial') r.toolCalls[0]!.status = 'partial';
++    if (fault === 'missing-clock') delete r.semanticClock;
++    expect(completeMeriCaptureEvidenceReceipt(r).blockers).toContain(
++      `source_client_authority_unproved:${s.sourceId}`,
++    );
++  });
++  it('Case20 preserves the prompt-time bound and the independent API join requirement', () => {
++    const r = case20Receipt();
++    r.startedAt = r.semanticClock!.prompt.value!.renderedAt + 296;
++    r.semanticClock!.apiJoin = 'PENDING';
++    delete r.semanticClock!.api;
++    expect(completeMeriCaptureEvidenceReceipt(r).blockers).toEqual(
++      expect.arrayContaining([
++        'semantic_clock_prompt_unproved',
++        'semantic_clock_api_tool_join_pending',
++      ]),
++    );
++  });
+   function proposalReceipt() {
+     const r = clockReceipt();
+     r.toolCalls.push({
+diff --git a/packages/meriv2-core/src/context/capture-evidence-receipt.ts b/packages/meriv2-core/src/context/capture-evidence-receipt.ts
+index 2f44b8f09..4b2b4deab 100644
+--- a/packages/meriv2-core/src/context/capture-evidence-receipt.ts
++++ b/packages/meriv2-core/src/context/capture-evidence-receipt.ts
+@@ -358,6 +358,54 @@ function validClockPacket(packet: MeriCaptureCompilerPacket, binding: MeriFixtur
+     Date.parse(use.eligibilityAt) <= receipt.completedAt;
+ }
+ 
++/** Case20's source is tenant-owned public evidence, not selected-client memory.
++ * Only its actual fully-read controlled HTTP proof can establish that scope. */
++function qualifiedCase20PublicSource(
++  receipt: Omit<MeriCaptureEvidenceReceipt, 'status' | 'blockers'>,
++  source: MeriCaptureSourceObservation,
++): boolean {
++  if (
++    receipt.caseId !== '20' ||
++    !receipt.clientId ||
++    !receipt.semanticClock ||
++    source.clientId.status !== 'OBSERVED' ||
++    source.clientId.value !== null ||
++    source.tenantId.status !== 'OBSERVED' ||
++    source.tenantId.value !== receipt.tenantId ||
++    source.fullRead.status !== 'OBSERVED' ||
++    source.fullRead.value !== true ||
++    source.currentVersion.status !== 'OBSERVED' ||
++    source.passageSha256.status !== 'OBSERVED' ||
++    source.byteSha256.status !== 'OBSERVED' ||
++    !/^[a-f0-9]{64}$/.test(source.passageSha256.value ?? '') ||
++    source.passageSha256.value !== source.byteSha256.value ||
++    meriCaptureClockExecutionBlockers(receipt).length
++  )
++    return false;
++  const calls = receipt.toolCalls.filter((call) => call.callId === source.toolCallId);
++  const attempts = (receipt.controlledReadAttempts ?? []).filter(
++    (a) => a.callId === source.toolCallId,
++  );
++  if (calls.length !== 1 || attempts.length !== 1) return false;
++  const call = calls[0]!;
++  const attempt = attempts[0]!;
++  return (
++    call.status === 'complete' &&
++    call.sourceIds.length === 1 &&
++    call.sourceIds[0] === source.sourceId &&
++    attempt.tool === call.name &&
++    attempt.sourceId === source.sourceId &&
++    attempt.logicalSourceId === 'R2-27' &&
++    attempt.sourceTenantId === receipt.tenantId &&
++    attempt.sourceClientId === null &&
++    attempt.fullRead === true &&
++    attempt.sourceVersion === source.currentVersion.value &&
++    attempt.contentSha256 === source.byteSha256.value &&
++    attempt.passageSha256 === source.passageSha256.value &&
++    attempt.currentVerifySha256 === receipt.semanticClock.binding.currentVerifySha256
++  );
++}
++
+ export function meriCaptureReceiptBlockers(
+   receipt: Omit<MeriCaptureEvidenceReceipt, 'status' | 'blockers'>,
+ ): string[] {
+@@ -427,7 +475,10 @@ export function meriCaptureReceiptBlockers(
+     if (source.tenantId.status !== 'OBSERVED' || source.tenantId.value !== receipt.tenantId) {
+       blockers.add(`source_tenant_authority_unproved:${source.sourceId}`);
+     }
+-    if (source.clientId.status !== 'OBSERVED' || source.clientId.value !== receipt.clientId) {
++    if (
++      (source.clientId.status !== 'OBSERVED' || source.clientId.value !== receipt.clientId) &&
++      !qualifiedCase20PublicSource(receipt, source)
++    ) {
+       blockers.add(`source_client_authority_unproved:${source.sourceId}`);
+     }
+     if (source.currentVersion.status !== 'OBSERVED')
+diff --git a/apps/api/src/meri/meri-controlled-read-fixture.spec.ts b/apps/api/src/meri/meri-controlled-read-fixture.spec.ts
+new file mode 100644
+--- /dev/null
++++ b/apps/api/src/meri/meri-controlled-read-fixture.spec.ts
+@@ -0,0 +1,165 @@
++// Only the immutable fixture loader and authority I/O are replaced. The API
++// dispatcher, result construction and before/after proof comparisons are real.
++jest.mock('node:url', () => ({
++  ...jest.requireActual('node:url'),
++  pathToFileURL: () => ({ href: 'controlled-case20-owner-test' }),
++}));
++jest.mock('controlled-case20-owner-test', () => ({ qualifyControlledReadInTx: jest.fn() }), {
++  virtual: true,
++});
++jest.mock('./meri-server-readonly-capture.js', () => ({
++  assertMeriServerReadonlyCaptureCurrentAuthority: jest.fn(),
++  meriReadonlyCaptureCatalogSha256: () => 'a'.repeat(64),
++}));
++jest.mock('./meri-tool-request-control.js', () => ({
++  currentMeriToolCapturePolicy: jest.fn(),
++  assertMeriToolRequestActive: jest.fn(),
++}));
++import {
++  tryExecuteMeriControlledRead,
++  meriControlledReadHttpStatus,
++} from './meri-controlled-read-fixture.js';
++import { captureBudgetHash } from './meri-capture-provider-budget.js';
++import {
++  captureBudgetTestContext as ctx,
++  captureBudgetTestPolicy,
++} from './meri-capture-provider-budget.spec-helper.js';
++import { currentMeriToolCapturePolicy } from './meri-tool-request-control.js';
++import { assertMeriServerReadonlyCaptureCurrentAuthority } from './meri-server-readonly-capture.js';
++
++const owner = require('controlled-case20-owner-test') as { qualifyControlledReadInTx: jest.Mock };
++const text = 'R2-27, page 14. PE 0912345T. FY27 Presidentâ€™s Budget request: $42M.';
++const sourceId = '2d0c016e-8dad-5f6e-80dd-e36740fff7ee';
++function fixture() {
++  const sourceMap = { 'R2-27': { physicalId: sourceId } };
++  const currentVerify = { sourceId };
++  const p = {
++    ...captureBudgetTestPolicy(),
++    caseId: '20',
++    clientId: 'aster',
++    captureRunId: '11111111-1111-4111-8111-111111111111',
++    physicalMapSha256: captureBudgetHash(sourceMap),
++  };
++  const proof = {
++    fixtureReady: true,
++    missing: [],
++    liveAcceptance: 'NOT_RUN',
++    fixtureNamespace: p.fixtureNamespace,
++    fixtureVersion: p.fixtureVersion,
++    tenantId: ctx.tenantId,
++    actorUserId: ctx.userId,
++    clientId: p.clientId,
++    caseId: p.caseId,
++    captureRunId: p.captureRunId,
++    sourceMap,
++    physicalMapSha256: p.physicalMapSha256,
++    currentVerify,
++    currentVerifySha256: captureBudgetHash(currentVerify),
++    seedReceiptId: p.seedReceiptId,
++    resetReceiptId: p.resetReceiptId,
++    definition: {
++      reads: [
++        {
++          logicalId: 'R2-27',
++          physicalId: sourceId,
++          kind: 'program_element',
++          version: 'v1',
++          content: text,
++          contentSha256: 'd'.repeat(64),
++          facts: { peCode: '0912345T', fiscalYear: 2027, amountUsd: 42000000, page: 14 },
++        },
++      ],
++    },
++  };
++  const tx = {
++    tenant: {
++      findUnique: jest.fn(async () => ({
++        settings: {
++          meriFoundationFixture: {
++            captureEvidence: {
++              actorUserId: ctx.userId,
++              clientId: p.clientId,
++              currentVerifySha256: proof.currentVerifySha256,
++            },
++          },
++        },
++      })),
++    },
++  };
++  const prisma = {
++    withTenantUser: jest.fn(async (tenant: string, actor: string, fn: (tx: unknown) => unknown) => {
++      expect([tenant, actor]).toEqual([ctx.tenantId, ctx.userId]);
++      return fn(tx);
++    }),
++  };
++  jest.mocked(currentMeriToolCapturePolicy).mockReturnValue(p);
++  owner.qualifyControlledReadInTx.mockResolvedValue(proof);
++  return { p, proof, prisma };
++}
++describe('Case20 qualified source coverage', () => {
++  const namespace = process.env.MERI_SYNTHETIC_FIXTURE_NAMESPACE;
++  beforeEach(() => {
++    jest.clearAllMocks();
++    process.env.MERI_SYNTHETIC_FIXTURE_NAMESPACE = 'meri-foundation-20260928';
++  });
++  afterAll(() => {
++    if (namespace === undefined) delete process.env.MERI_SYNTHETIC_FIXTURE_NAMESPACE;
++    else process.env.MERI_SYNTHETIC_FIXTURE_NAMESPACE = namespace;
++  });
++  test.each(['search_program_elements', 'get_program_element', 'get_pe_budget_timeline'])(
++    '%s reports completion only for the exact returned, currently qualified source',
++    async (tool) => {
++      const { prisma } = fixture();
++      const result = await tryExecuteMeriControlledRead(
++        prisma as never,
++        ctx,
++        tool,
++        tool === 'search_program_elements'
++          ? { query: '0912345T', limit: 1 }
++          : { peCode: '0912345T' },
++      );
++      expect(result!.coverage).toEqual({
++        total: 1,
++        returned: 1,
++        complete: true,
++        paginationComplete: true,
++        truncated: false,
++        nextCursor: null,
++      });
++      expect(result!.records).toEqual([expect.objectContaining({ id: sourceId, text })]);
++      expect(result!.controlledRead).toMatchObject({
++        sourceTenantId: ctx.tenantId,
++        sourceClientId: null,
++        logicalSourceId: 'R2-27',
++      });
++      expect(owner.qualifyControlledReadInTx).toHaveBeenCalledTimes(2);
++      expect(assertMeriServerReadonlyCaptureCurrentAuthority).toHaveBeenCalledTimes(2);
++      expect(meriControlledReadHttpStatus(result)).toBe(200);
++    },
++  );
++  test('a changed after-read binding cannot release complete coverage', async () => {
++    const { prisma, proof } = fixture();
++    owner.qualifyControlledReadInTx
++      .mockResolvedValueOnce(proof)
++      .mockResolvedValueOnce({ ...proof, clientId: 'other-client' });
++    await expect(
++      tryExecuteMeriControlledRead(prisma as never, ctx, 'get_pe_budget_timeline', {
++        peCode: '0912345T',
++      }),
++    ).rejects.toThrow('current_proof_mismatch');
++  });
++  test('does not manufacture coverage for ordinary traffic or a different selector', async () => {
++    const { prisma } = fixture();
++    await expect(
++      tryExecuteMeriControlledRead(prisma as never, ctx, 'get_pe_budget_timeline', {
++        peCode: 'OTHER',
++      }),
++    ).rejects.toThrow('budget_selector_unsupported');
++    jest.mocked(currentMeriToolCapturePolicy).mockReturnValue(null);
++    expect(
++      await tryExecuteMeriControlledRead(prisma as never, ctx, 'get_pe_budget_timeline', {
++        peCode: '0912345T',
++      }),
++    ).toBeUndefined();
++  });
++});

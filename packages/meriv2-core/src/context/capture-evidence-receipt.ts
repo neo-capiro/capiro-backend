@@ -358,6 +358,54 @@ function validClockPacket(packet: MeriCaptureCompilerPacket, binding: MeriFixtur
     Date.parse(use.eligibilityAt) <= receipt.completedAt;
 }
 
+/** Case20's source is tenant-owned public evidence, not selected-client memory.
+ * Only its actual fully-read controlled HTTP proof can establish that scope. */
+function qualifiedCase20PublicSource(
+  receipt: Omit<MeriCaptureEvidenceReceipt, 'status' | 'blockers'>,
+  source: MeriCaptureSourceObservation,
+): boolean {
+  if (
+    receipt.caseId !== '20' ||
+    !receipt.clientId ||
+    !receipt.semanticClock ||
+    source.clientId.status !== 'OBSERVED' ||
+    source.clientId.value !== null ||
+    source.tenantId.status !== 'OBSERVED' ||
+    source.tenantId.value !== receipt.tenantId ||
+    source.fullRead.status !== 'OBSERVED' ||
+    source.fullRead.value !== true ||
+    source.currentVersion.status !== 'OBSERVED' ||
+    source.passageSha256.status !== 'OBSERVED' ||
+    source.byteSha256.status !== 'OBSERVED' ||
+    !/^[a-f0-9]{64}$/.test(source.passageSha256.value ?? '') ||
+    source.passageSha256.value !== source.byteSha256.value ||
+    meriCaptureClockExecutionBlockers(receipt).length
+  )
+    return false;
+  const calls = receipt.toolCalls.filter((call) => call.callId === source.toolCallId);
+  const attempts = (receipt.controlledReadAttempts ?? []).filter(
+    (a) => a.callId === source.toolCallId,
+  );
+  if (calls.length !== 1 || attempts.length !== 1) return false;
+  const call = calls[0]!;
+  const attempt = attempts[0]!;
+  return (
+    call.status === 'complete' &&
+    call.sourceIds.length === 1 &&
+    call.sourceIds[0] === source.sourceId &&
+    attempt.tool === call.name &&
+    attempt.sourceId === source.sourceId &&
+    attempt.logicalSourceId === 'R2-27' &&
+    attempt.sourceTenantId === receipt.tenantId &&
+    attempt.sourceClientId === null &&
+    attempt.fullRead === true &&
+    attempt.sourceVersion === source.currentVersion.value &&
+    attempt.contentSha256 === source.byteSha256.value &&
+    attempt.passageSha256 === source.passageSha256.value &&
+    attempt.currentVerifySha256 === receipt.semanticClock.binding.currentVerifySha256
+  );
+}
+
 export function meriCaptureReceiptBlockers(
   receipt: Omit<MeriCaptureEvidenceReceipt, 'status' | 'blockers'>,
 ): string[] {
@@ -427,7 +475,10 @@ export function meriCaptureReceiptBlockers(
     if (source.tenantId.status !== 'OBSERVED' || source.tenantId.value !== receipt.tenantId) {
       blockers.add(`source_tenant_authority_unproved:${source.sourceId}`);
     }
-    if (source.clientId.status !== 'OBSERVED' || source.clientId.value !== receipt.clientId) {
+    if (
+      (source.clientId.status !== 'OBSERVED' || source.clientId.value !== receipt.clientId) &&
+      !qualifiedCase20PublicSource(receipt, source)
+    ) {
       blockers.add(`source_client_authority_unproved:${source.sourceId}`);
     }
     if (source.currentVersion.status !== 'OBSERVED')

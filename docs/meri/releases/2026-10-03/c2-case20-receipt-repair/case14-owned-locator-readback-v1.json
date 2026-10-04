@@ -1,0 +1,62 @@
+{
+  "kind": "case14-owned-get-only-locator-readback",
+  "startedAt": "2026-10-04T01:47:51.334Z",
+  "applicationWrites": 0,
+  "modelSubmissions": 0,
+  "journalMutations": 0,
+  "sessionRevoked": true,
+  "readback": {
+    "status": "CANONICAL_CASE14_OWNER_NOT_ESTABLISHED",
+    "requestCount": 6,
+    "responseBytes": 20654,
+    "reads": [
+      {
+        "route": "/api/me",
+        "status": 200,
+        "apiReleaseSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+        "bytes": 1225,
+        "bodySha256": "53cbd0e8e5e95c9f7bb3d66772d29b6ca2877cfbaf33d79f8f3eedb215073578"
+      },
+      {
+        "route": "/api/memory/review/inbox",
+        "status": 200,
+        "apiReleaseSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+        "bytes": 6132,
+        "bodySha256": "73656a2846b6123a77d93570af09fe1109319bd8e582bd99b7359ffcfd22b47c"
+      },
+      {
+        "route": "/api/memory/review/inbox",
+        "status": 200,
+        "apiReleaseSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+        "bytes": 8355,
+        "bodySha256": "60b5c5f7c5ac9be1809382e58ab4ee8ca02eb32a9b45d7127da6e8f5958f0fe3"
+      },
+      {
+        "route": "/api/memory/review/inbox/candidates/dc61a9a5-5130-5c67-a7e8-19906259c34f",
+        "status": 200,
+        "apiReleaseSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+        "bytes": 1752,
+        "bodySha256": "03ebcbf0a91075677e067c3721c4ab0b9de64fbe026510cf8f99ac900dfbca32"
+      },
+      {
+        "route": "/api/memory/review/inbox/candidates/557b5b98-f591-50ce-83ea-2ca44d44567a",
+        "status": 200,
+        "apiReleaseSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+        "bytes": 1965,
+        "bodySha256": "1b0277d68e1b9901d54d6b46385c74827a1e21b9c0676715a1db7375fa879eb1"
+      },
+      {
+        "route": "/api/me",
+        "status": 200,
+        "apiReleaseSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+        "bytes": 1225,
+        "bodySha256": "53cbd0e8e5e95c9f7bb3d66772d29b6ca2877cfbaf33d79f8f3eedb215073578"
+      }
+    ],
+    "candidateDetailsChecked": 2,
+    "missingInput": "The already-persisted tenants.settings_jsonb.meriFoundationFixture.pendingMemorySetups[\"14\"].locator and SETUP_COMPLETE owner are not established by these protected reads. Supply the original Case14 owner locator to the authorized owner-reader workflow; do not infer it from Case17 or guess a candidate ID."
+  },
+  "status": "CANONICAL_CASE14_OWNER_NOT_ESTABLISHED",
+  "finishedAt": "2026-10-04T01:47:54.973Z",
+  "journalUnchanged": true
+}

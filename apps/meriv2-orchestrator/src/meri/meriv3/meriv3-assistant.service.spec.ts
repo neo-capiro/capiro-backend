@@ -17,6 +17,7 @@ import { runWithGovernedMeriContext } from '../meri-governed-context.runtime.js'
 import type { MeriGovernedTurnContext } from '@capiro/meriv2-core';
 import { RequestCredentialsStore } from '../../request/request-credentials.store.js';
 import { withTrustedCurrentTurnScope } from '../../request/trusted-current-turn-scope.js';
+import * as chatPrompt from '../chat/chat-prompt.js';
 import * as passageSelector from '../jev/passage-selector.js';
 import type { PassageCandidate } from '../jev/passage-selector.js';
 import * as liveRepair from '../repair/live-repair.service.js';
@@ -344,6 +345,89 @@ function eventNameOf(message: unknown): string | null {
 const SHADOW_EVENTS = new Set(['meri.evidence_shadow', 'meri.evidence_shadow.turn']);
 
 describe('MeriV3AssistantService', () => {
+  test('Case20 capture begins before actual prompt rendering without moving the runtime budget timer', async () => {
+    let now = 1791077218191;
+    const clock = jest.spyOn(Date, 'now').mockImplementation(() => now);
+    const actualCompose = chatPrompt.composeChatSystemPrompt;
+    let renderedAt = 0;
+    const compose = jest
+      .spyOn(chatPrompt, 'composeChatSystemPrompt')
+      .mockImplementation((...args) => {
+        const result = actualCompose(...args);
+        renderedAt = now;
+        now += 296; // Actual saved render-to-runtime-start ordering.
+        return result;
+      });
+    const complete = jest.fn().mockResolvedValue(response());
+    const assistant = build(registry([]), complete);
+    const p = {
+      version: 1,
+      kind: 'server_readonly_acceptance_capture',
+      policyId: 'capture-policy',
+      requestId: 'request',
+      traceId: 'trace',
+      turnId: 'turn',
+      caseId: '20',
+      captureRunId: 'run',
+      fixtureVersion: 'fixture',
+      physicalMapSha256: 'a'.repeat(64),
+      resetReceiptId: 'reset',
+      seedReceiptId: 'seed',
+      fixtureNamespace: 'meri-foundation-20260928',
+      tenantId: context.tenantId,
+      tenantSlug: 'meri-foundation-20260928-t1',
+      actorUserId: context.userId,
+      conversationId: 'conversation',
+      clientId: 'client-1',
+      issuedAt: now - 1000,
+      expiresAt: now + 60000,
+      toolAuthority: 'shared_static_registry_read_only',
+      toolCatalogSha256: createHash('sha256')
+        .update(
+          MERI_CAPABILITY_REGISTRY.filter((t) => t.readOnly)
+            .map((t) => t.name)
+            .sort()
+            .join('\n'),
+        )
+        .digest('hex'),
+      dynamicMcpAllowed: false,
+      incidentalWriters: 'suppressed',
+      expectedCaptureWrites: [
+        'context_packet_and_evidence',
+        'conversation_user_message',
+        'conversation_assistant_message',
+      ],
+    } as MeriServerReadonlyCapturePolicy;
+    global.fetch = jest.fn(
+      async () => new Response(JSON.stringify({ schemas: [] }), { status: 200 }),
+    ) as typeof fetch;
+    try {
+      const result = await withTrustedCurrentTurnScope(
+        {
+          tenantId: p.tenantId,
+          userId: p.actorUserId,
+          conversationId: p.conversationId,
+          selectedClientId: p.clientId,
+          capturePolicy: p,
+        },
+        () =>
+          RequestCredentialsStore.run({ bearerToken: 'unit-bearer' }, () =>
+            assistant.run(context, {
+              clientId: p.clientId!,
+              conversationId: p.conversationId,
+              messages: [{ role: 'user', text: 'Find PE 0912345T and give me its FY27 request.' }],
+            }),
+          ),
+      );
+      expect(compose).toHaveBeenCalledTimes(1);
+      expect(result.captureEvidence!.startedAt).toBeLessThanOrEqual(renderedAt);
+      expect(result.captureEvidence!.completedAt).toBe(renderedAt + 296);
+    } finally {
+      compose.mockRestore();
+      clock.mockRestore();
+    }
+  });
+
   test('pins pending proposal reads to the selected client and rejects attempted cross-client retargeting', () => {
     const service = Object.create(MeriV3AssistantService.prototype) as any;
     const schema = { name: 'list_memory_proposals', input_schema: { properties: { clientId: { type: 'string' }, cursor: { type: 'string' } } } };

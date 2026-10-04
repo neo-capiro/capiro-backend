@@ -918,6 +918,9 @@ export class MeriV3AssistantService {
     dto: MeriV3ChatInput,
     opts: MeriV3RunOptions,
   ): Promise<MeriV3ChatResult> {
+    // Capture includes the actual prompt render, which precedes the runtime
+    // timer below. Keep operational budget/deadline timing independent.
+    const captureStartedAt = Date.now();
     const emit = opts.onEvent ?? (() => {});
     const researchPlanExecution = requireMeriV3ResearchPlanExecution(dto, ctx);
     const admittedReadCapabilities = researchPlanExecution
@@ -2694,7 +2697,7 @@ export class MeriV3AssistantService {
                   ? observed(currentMeriTaskUsage().knownEstimatedCostUsd!)
                   : unknown('provider_usage_or_effective_model_price_not_fully_observed'),
               providerCallObserved,
-              startedAt,
+              startedAt: captureStartedAt,
               completedAt: Date.now(),
             },
           }

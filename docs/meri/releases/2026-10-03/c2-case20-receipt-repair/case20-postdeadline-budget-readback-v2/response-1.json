@@ -1,0 +1,178 @@
+{
+  "observation": {
+    "path": "/api/clio/conversations/db0e01ac-60a1-4e3c-b8ba-66748d087a2e",
+    "status": 200,
+    "apiReleaseSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+    "bodySha256": "feb0b17528bc36eb751b8340fa8125707a4e45d346e3631a41ba80fb99625675",
+    "bytes": 5318,
+    "observedAt": "2026-10-04T02:13:50.468Z"
+  },
+  "value": {
+    "id": "db0e01ac-60a1-4e3c-b8ba-66748d087a2e",
+    "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+    "userId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+    "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+    "workspaceId": null,
+    "workspaceKey": "workspace",
+    "title": "meri-foundation-20260928 case20 f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+    "status": "active",
+    "nanoclawPlatformId": null,
+    "nanoclawAgentGroupId": null,
+    "metadata": {
+      "brand": "Meri",
+      "runtime": "Hermes",
+      "userEmail": "meri-foundation-20260928.pat@example.com",
+      "serverCaptureProviderBudget": {
+        "ledger": {
+          "limits": {
+            "maxTokens": 500000,
+            "deadlineAt": "2026-10-04T01:56:56.119Z",
+            "maxAttempts": 32,
+            "maxCostMicros": 15000000
+          },
+          "version": 1,
+          "attempts": [
+            {
+              "kind": "openai_responses",
+              "model": "gpt-6-astra",
+              "phase": "acquisition",
+              "runId": "1bbf8e44-e4b8-4952-abb3-84435991f392",
+              "status": "settled",
+              "version": 1,
+              "provider": "openai",
+              "attemptId": "openai-responses:cf7de9a10b372bc4dc1b03b16d715f3826f8ca047f0f1f5190fa38f5e145783d:0",
+              "settledAt": "2026-10-04T01:27:02.007Z",
+              "leaseEpoch": 1,
+              "priceKnown": true,
+              "reservedAt": "2026-10-04T01:26:58.652Z",
+              "reservationId": "3b822e51-a624-496f-870e-4e096c75ab53",
+              "actualCostMicros": 735125,
+              "retryOfAttemptId": null,
+              "actualInputTokens": 29330,
+              "actualOutputTokens": 25,
+              "logicalOperationId": "openai-responses:cf7de9a10b372bc4dc1b03b16d715f3826f8ca047f0f1f5190fa38f5e145783d",
+              "reservedCostMicros": 5097600,
+              "reservedInputTokens": 154752,
+              "reservedOutputTokens": 16384
+            },
+            {
+              "kind": "openai_responses",
+              "model": "gpt-6-astra",
+              "phase": "acquisition",
+              "runId": "1bbf8e44-e4b8-4952-abb3-84435991f392",
+              "status": "settled",
+              "version": 1,
+              "provider": "openai",
+              "attemptId": "openai-responses:8a85530212a5f403138c976c69f7f40a7db8b24c1267c37972ba51911d724bbb:0",
+              "settledAt": "2026-10-04T01:27:05.154Z",
+              "leaseEpoch": 1,
+              "priceKnown": true,
+              "reservedAt": "2026-10-04T01:27:02.276Z",
+              "reservationId": "48da380e-f851-489a-b4c0-dbe38b05eb9a",
+              "actualCostMicros": 762050,
+              "retryOfAttemptId": null,
+              "actualInputTokens": 30332,
+              "actualOutputTokens": 50,
+              "logicalOperationId": "openai-responses:8a85530212a5f403138c976c69f7f40a7db8b24c1267c37972ba51911d724bbb",
+              "reservedCostMicros": 5172050,
+              "reservedInputTokens": 157730,
+              "reservedOutputTokens": 16384
+            }
+          ],
+          "activation": "enforced",
+          "chargedTokens": 59737,
+          "chargedAttempts": 2,
+          "chargedCostMicros": 1497175
+        },
+        "turnId": "3a50a9fd-8afa-4b3d-9a74-ba69f02122e6",
+        "version": 1,
+        "admissionId": "1bbf8e44-e4b8-4952-abb3-84435991f392",
+        "policySha256": "f220c783eef2bc097f624c980b658109f6f2d6c86e75caf3a1514ea1ef4531ed",
+        "qualification": {
+          "rates": [
+            {
+              "kind": "openai_responses",
+              "model": "gpt-6-astra",
+              "provider": "openai",
+              "inputMicrosPerMillion": 25000000,
+              "outputMicrosPerMillion": 75000000
+            },
+            {
+              "kind": "bedrock_embeddings",
+              "model": "amazon.titan-embed-text-v2:0",
+              "provider": "aws-bedrock",
+              "inputMicrosPerMillion": 20000,
+              "outputMicrosPerMillion": 0
+            }
+          ],
+          "caseId": "20",
+          "version": 1,
+          "maxTokens": 500000,
+          "priceKind": "qualified_text_token_upper_bound",
+          "maxAttempts": 32,
+          "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+          "maxCostMicros": 15000000,
+          "rateEvidenceSha256": "a1a179383c8451495336169f46025eb8cee8ec95487f1a43017078387b768b11",
+          "currentVerifySha256": "925c4735e4d435ab06c40b31ee590b0ce4e7d9220b742155c67e4115b1bc6516",
+          "rateEvidenceExpiresAt": "2026-10-04T05:29:01.587Z"
+        },
+        "qualificationSha256": "47d64a19fdf3a718eddefee998247173f98f9b1d3f24703f31d8b4dee779c9af"
+      }
+    },
+    "summary": null,
+    "summaryUpToMessageId": null,
+    "summaryTokens": null,
+    "createdAt": "2026-10-04T00:53:20.651Z",
+    "updatedAt": "2026-10-04T01:27:05.113Z",
+    "archivedAt": null,
+    "client": {
+      "id": "41f9ec63-3963-479f-b747-59a3767ef44b",
+      "name": "Aster Defense"
+    },
+    "captureAdmission": {
+      "schemaVersion": 1,
+      "kind": "meri-controlled-read-authenticated-admission",
+      "status": "READY",
+      "caseId": "20",
+      "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+      "conversationId": "db0e01ac-60a1-4e3c-b8ba-66748d087a2e",
+      "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+      "actorUserId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+      "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+      "issuedAt": 1791080028461,
+      "expiresAt": 1791080088461,
+      "apiReleaseSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+      "toolAuthority": "shared_static_registry_read_only",
+      "toolCatalogSha256": "1a08b2447cdb77040470bbd1ee52426720f8da602b9909a2a880e095ed0c6678",
+      "dynamicMcpAllowed": false,
+      "incidentalWriters": "suppressed",
+      "fixture": {
+        "fixtureNamespace": "meri-foundation-20260928",
+        "fixtureVersion": "meri-live-v1-2026-09-26.1",
+        "physicalMapSha256": "929ebb433886c035cfbcbcf8a537acde2157bec86634bfc384b594dfbca05861",
+        "currentVerifySha256": "925c4735e4d435ab06c40b31ee590b0ce4e7d9220b742155c67e4115b1bc6516",
+        "seedReceiptId": "meri-synthetic-fixture-seed-receipt:sha256:dbda52dbd9e17320519d4cc40bcd73975fbf0ce0fae21341a1de535644f619e8",
+        "resetReceiptId": "meri-synthetic-fixture-reset-receipt:sha256:28630ec9f867373094583e8f16eaf521f8be00508d03b7b713c11784ab214de0",
+        "sources": [
+          {
+            "logicalId": "R2-27",
+            "physicalId": "2d0c016e-8dad-5f6e-80dd-e36740fff7ee",
+            "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+            "clientId": null,
+            "sourceVersion": "v1",
+            "contentSha256": "8e0dc2325edff514502ec08d0d0465ad0ba8046e422910d7c89710969da50f76",
+            "kind": "budget_document",
+            "sourceStorage": "immutable_source_owned_controlled_adapter"
+          }
+        ]
+      },
+      "providerBudget": {
+        "ready": true,
+        "qualificationSha256": "47d64a19fdf3a718eddefee998247173f98f9b1d3f24703f31d8b4dee779c9af",
+        "currentVerifySha256": "925c4735e4d435ab06c40b31ee590b0ce4e7d9220b742155c67e4115b1bc6516",
+        "maxCostMicros": 15000000,
+        "coverage": "case20_controlled_read_turn"
+      }
+    }
+  }
+}

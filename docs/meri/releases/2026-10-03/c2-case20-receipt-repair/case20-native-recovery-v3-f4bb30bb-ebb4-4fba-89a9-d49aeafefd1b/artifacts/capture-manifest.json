@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "kind": "meri-live-read-capture-manifest",
+  "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+  "owner": {
+    "ref": "bundle-owner.json",
+    "sha256": "740053385b36c80acebe5eaec6710dd492582729409a77bf52c3b4044f61ccbe"
+  },
+  "summary": {
+    "status": "CAPTURE_UNCERTAIN",
+    "acceptanceStatus": "NOT_RUN",
+    "reason": "CONTROLLED_READ_FULL_PASSAGE_UNPROVED",
+    "caseId": "20",
+    "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+    "requestCount": 10,
+    "synthesisSubmissionCount": 1
+  },
+  "artifacts": [
+    {
+      "ref": "admission.json",
+      "sha256": "7850f28b3c1195071e2f0aca7426863088cfd8e4ad41fb980c68bd5261c07ee9",
+      "bytes": 2506
+    },
+    {
+      "ref": "blocked.json",
+      "sha256": "b1e0bcae351feb740387918c1b8e0e42978c4b14e6734e1dde15e1a4b8b94064",
+      "bytes": 253
+    },
+    {
+      "ref": "bundle-owner.json",
+      "sha256": "740053385b36c80acebe5eaec6710dd492582729409a77bf52c3b4044f61ccbe",
+      "bytes": 419
+    },
+    {
+      "ref": "captured-inputs.json",
+      "sha256": "26722a9b258aea0490065cf2d896fdab6362187ef84b96c2b6ba6a020f404106",
+      "bytes": 30365
+    },
+    {
+      "ref": "immutable-builds.json",
+      "sha256": "7f09417ccfd1430fa98d1c26d2d3e6826120eef44f78139738cf71ee01f9955a",
+      "bytes": 1476
+    },
+    {
+      "ref": "saved-messages-observation.json",
+      "sha256": "00c35d633da138416134a369b07c8bc066bf2b5d945901d0346c3f3bfcec6c55",
+      "bytes": 21658
+    },
+    {
+      "ref": "stream-response-observation.json",
+      "sha256": "fa70b15fe6d340040b0f1f6a95d366383839a59a15f8a979d7c915c17c7660be",
+      "bytes": 20459
+    },
+    {
+      "ref": "submission-intent.json",
+      "sha256": "bfb98d276cd9ec1e6643ebb1ce7f93ea256cf7ec25d1728be92f32c0df0fd0ba",
+      "bytes": 254
+    }
+  ]
+}

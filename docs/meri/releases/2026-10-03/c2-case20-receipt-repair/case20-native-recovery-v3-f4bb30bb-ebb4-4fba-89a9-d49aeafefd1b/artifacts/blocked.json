@@ -1,0 +1,9 @@
+{
+  "status": "CAPTURE_UNCERTAIN",
+  "acceptanceStatus": "NOT_RUN",
+  "reason": "CONTROLLED_READ_FULL_PASSAGE_UNPROVED",
+  "caseId": "20",
+  "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+  "requestCount": 10,
+  "synthesisSubmissionCount": 1
+}

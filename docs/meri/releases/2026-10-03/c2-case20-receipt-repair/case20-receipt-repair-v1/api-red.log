@@ -1,0 +1,70 @@
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+FAIL src/meri/meri-controlled-read-fixture.spec.ts (23.584 s)
+  Case20 qualified source coverage
+    × search_program_elements reports completion only for the exact returned, currently qualified source (5 ms)
+    × get_program_element reports completion only for the exact returned, currently qualified source (2 ms)
+    × get_pe_budget_timeline reports completion only for the exact returned, currently qualified source (1 ms)
+    √ a changed after-read binding cannot release complete coverage (10 ms)
+    √ does not manufacture coverage for ordinary traffic or a different selector (1 ms)
+
+  ● Case20 qualified source coverage › search_program_elements reports completion only for the exact returned, currently qualified source
+
+    expect(received).toEqual(expected) // deep equality
+
+    Expected: {"complete": true, "nextCursor": null, "paginationComplete": true, "returned": 1, "total": 1, "truncated": false}
+    Received: undefined
+
+      49 |       const result = await tryExecuteMeriControlledRead(prisma as never, ctx, tool,
+      50 |         tool === 'search_program_elements' ? { query: '0912345T', limit: 1 } : { peCode: '0912345T' });
+    > 51 |       expect(result!.coverage).toEqual({ total: 1, returned: 1, complete: true, paginationComplete: true,
+         |                                ^
+      52 |         truncated: false, nextCursor: null });
+      53 |       expect(result!.records).toEqual([expect.objectContaining({ id: sourceId, text })]);
+      54 |       expect(result!.controlledRead).toMatchObject({ sourceTenantId: ctx.tenantId, sourceClientId: null, logicalSourceId: 'R2-27' });
+
+      at src/meri/meri-controlled-read-fixture.spec.ts:51:32
+
+  ● Case20 qualified source coverage › get_program_element reports completion only for the exact returned, currently qualified source
+
+    expect(received).toEqual(expected) // deep equality
+
+    Expected: {"complete": true, "nextCursor": null, "paginationComplete": true, "returned": 1, "total": 1, "truncated": false}
+    Received: undefined
+
+      49 |       const result = await tryExecuteMeriControlledRead(prisma as never, ctx, tool,
+      50 |         tool === 'search_program_elements' ? { query: '0912345T', limit: 1 } : { peCode: '0912345T' });
+    > 51 |       expect(result!.coverage).toEqual({ total: 1, returned: 1, complete: true, paginationComplete: true,
+         |                                ^
+      52 |         truncated: false, nextCursor: null });
+      53 |       expect(result!.records).toEqual([expect.objectContaining({ id: sourceId, text })]);
+      54 |       expect(result!.controlledRead).toMatchObject({ sourceTenantId: ctx.tenantId, sourceClientId: null, logicalSourceId: 'R2-27' });
+
+      at src/meri/meri-controlled-read-fixture.spec.ts:51:32
+
+  ● Case20 qualified source coverage › get_pe_budget_timeline reports completion only for the exact returned, currently qualified source
+
+    expect(received).toEqual(expected) // deep equality
+
+    Expected: {"complete": true, "nextCursor": null, "paginationComplete": true, "returned": 1, "total": 1, "truncated": false}
+    Received: undefined
+
+      49 |       const result = await tryExecuteMeriControlledRead(prisma as never, ctx, tool,
+      50 |         tool === 'search_program_elements' ? { query: '0912345T', limit: 1 } : { peCode: '0912345T' });
+    > 51 |       expect(result!.coverage).toEqual({ total: 1, returned: 1, complete: true, paginationComplete: true,
+         |                                ^
+      52 |         truncated: false, nextCursor: null });
+      53 |       expect(result!.records).toEqual([expect.objectContaining({ id: sourceId, text })]);
+      54 |       expect(result!.controlledRead).toMatchObject({ sourceTenantId: ctx.tenantId, sourceClientId: null, logicalSourceId: 'R2-27' });
+
+      at src/meri/meri-controlled-read-fixture.spec.ts:51:32
+
+Test Suites: 1 failed, 1 total
+Tests:       3 failed, 2 passed, 5 total
+Snapshots:   0 total
+Time:        23.792 s
+Ran all test suites matching /src\\meri\\meri-controlled-read-fixture.spec.ts/i.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?
+undefined
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command "jest" not found
+
+Did you mean "pnpm exec jest"?

@@ -1,0 +1,55 @@
+{
+  "admission": {
+    "schemaVersion": 1,
+    "kind": "meri-controlled-read-authenticated-admission",
+    "status": "READY",
+    "caseId": "20",
+    "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+    "conversationId": "db0e01ac-60a1-4e3c-b8ba-66748d087a2e",
+    "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+    "actorUserId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+    "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+    "issuedAt": 1791077213264,
+    "expiresAt": 1791077273264,
+    "apiReleaseSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+    "toolAuthority": "shared_static_registry_read_only",
+    "toolCatalogSha256": "1a08b2447cdb77040470bbd1ee52426720f8da602b9909a2a880e095ed0c6678",
+    "dynamicMcpAllowed": false,
+    "incidentalWriters": "suppressed",
+    "fixture": {
+      "fixtureNamespace": "meri-foundation-20260928",
+      "fixtureVersion": "meri-live-v1-2026-09-26.1",
+      "physicalMapSha256": "929ebb433886c035cfbcbcf8a537acde2157bec86634bfc384b594dfbca05861",
+      "currentVerifySha256": "925c4735e4d435ab06c40b31ee590b0ce4e7d9220b742155c67e4115b1bc6516",
+      "seedReceiptId": "meri-synthetic-fixture-seed-receipt:sha256:dbda52dbd9e17320519d4cc40bcd73975fbf0ce0fae21341a1de535644f619e8",
+      "resetReceiptId": "meri-synthetic-fixture-reset-receipt:sha256:28630ec9f867373094583e8f16eaf521f8be00508d03b7b713c11784ab214de0",
+      "sources": [
+        {
+          "logicalId": "R2-27",
+          "physicalId": "2d0c016e-8dad-5f6e-80dd-e36740fff7ee",
+          "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+          "clientId": null,
+          "sourceVersion": "v1",
+          "contentSha256": "8e0dc2325edff514502ec08d0d0465ad0ba8046e422910d7c89710969da50f76",
+          "kind": "budget_document",
+          "sourceStorage": "immutable_source_owned_controlled_adapter"
+        }
+      ]
+    },
+    "providerBudget": {
+      "ready": true,
+      "qualificationSha256": "47d64a19fdf3a718eddefee998247173f98f9b1d3f24703f31d8b4dee779c9af",
+      "currentVerifySha256": "925c4735e4d435ab06c40b31ee590b0ce4e7d9220b742155c67e4115b1bc6516",
+      "maxCostMicros": 15000000,
+      "coverage": "case20_controlled_read_turn"
+    }
+  },
+  "identity": {
+    "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+    "tenantSlug": "meri-foundation-20260928-t1",
+    "actorUserId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+    "clerkUserId": "user_3Jw2FvWZkYGKmxWGx13tNJxFD2A",
+    "role": "standard_user",
+    "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b"
+  }
+}

@@ -1,0 +1,435 @@
+{
+  "kind": "exact-case20-repair-and-failed-run-archive",
+  "createdAt": "2026-10-04T02:18:10.385706+00:00",
+  "checkpointSha256": "c9bf23e861e8a41b8b18d2a944e83178b12fdd875bb503becf194b44f3f42a21",
+  "reviewSha256": "b8422c5c40bc3e0cb4e5f209921a6a228463ae3d15d51b07ff5119077d17f122",
+  "verifiedCheckpointPaths": 71,
+  "files": [
+    {
+      "path": "case20-receipt-repair-v1/api-final.exit",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-receipt-repair-v1/api-final.exit",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "bytes": 3
+    },
+    {
+      "path": "case20-receipt-repair-v1/api-final.log",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-receipt-repair-v1/api-final.log",
+      "sha256": "99a0319f37ec03f3983a200ee9fe0a7d6a3d472adaad1a416e0363747e30b573",
+      "bytes": 902
+    },
+    {
+      "path": "case20-receipt-repair-v1/api-green.exit",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-receipt-repair-v1/api-green.exit",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "bytes": 3
+    },
+    {
+      "path": "case20-receipt-repair-v1/api-green.log",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-receipt-repair-v1/api-green.log",
+      "sha256": "8051edd8e31c889791162c5e847f7e1c4d87d243128e29d0486decc5e162f9f2",
+      "bytes": 6058
+    },
+    {
+      "path": "case20-receipt-repair-v1/api-qualified-final.exit",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-receipt-repair-v1/api-qualified-final.exit",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "bytes": 3
+    },
+    {
+      "path": "case20-receipt-repair-v1/api-qualified-final.log",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-receipt-repair-v1/api-qualified-final.log",
+      "sha256": "9cd15b082cc8818e8726b55ca6d3fabcb0c48365d6e7ccf80ea4cc300c4ad3c2",
+      "bytes": 1422
+    },
+    {
+      "path": "case20-receipt-repair-v1/api-red.exit",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-receipt-repair-v1/api-red.exit",
+      "sha256": "f1b2f662800122bed0ff255693df89c4487fbdcf453d3524a42d4ec20c3d9c04",
+      "bytes": 3
+    },
+    {
+      "path": "case20-receipt-repair-v1/api-red.log",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-receipt-repair-v1/api-red.log",
+      "sha256": "440afdeafdffcfc13b0387d4dc975440a626eecef3d6fb9fd9140d796eebfbaa",
+      "bytes": 4763
+    },
+    {
+      "path": "case20-receipt-repair-v1/api-typecheck-final.exit",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-receipt-repair-v1/api-typecheck-final.exit",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "bytes": 3
+    },
+    {
+      "path": "case20-receipt-repair-v1/api-typecheck-final.log",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-receipt-repair-v1/api-typecheck-final.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "case20-receipt-repair-v1/api-typecheck.exit",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-receipt-repair-v1/api-typecheck.exit",
+      "sha256": "df4e26a04a444901b95afef44e4a96cfae34690fff2ad2c66389c70079cdff2b",
+      "bytes": 3
+    },
+    {
+      "path": "case20-receipt-repair-v1/api-typecheck.log",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-receipt-repair-v1/api-typecheck.log",
+      "sha256": "3ef358b150031316c622d855c991527debb761ab9862937cf642631d8368c908",
+      "bytes": 180
+    },
+    {
+      "path": "case20-receipt-repair-v1/candidate.patch",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-receipt-repair-v1/candidate.patch",
+      "sha256": "9c2d15f89d925fd37e4cbf5bab263c9b99882938f1aecb18cc0efbb65179fadb",
+      "bytes": 24910
+    },
+    {
+      "path": "case20-receipt-repair-v1/checkpoint.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-receipt-repair-v1/checkpoint.json",
+      "sha256": "c9bf23e861e8a41b8b18d2a944e83178b12fdd875bb503becf194b44f3f42a21",
+      "bytes": 21739
+    },
+    {
+      "path": "case20-receipt-repair-v1/core-build-final.exit",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-receipt-repair-v1/core-build-final.exit",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "bytes": 3
+    },
+    {
+      "path": "case20-receipt-repair-v1/core-build-final.log",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-receipt-repair-v1/core-build-final.log",
+      "sha256": "3b050d4996f6e2a7e46851df328e05ecb31c0e7d0fd05a710f83c08e2b42dc77",
+      "bytes": 113
+    },
+    {
+      "path": "case20-receipt-repair-v1/core-build.exit",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-receipt-repair-v1/core-build.exit",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "bytes": 3
+    },
+    {
+      "path": "case20-receipt-repair-v1/core-build.log",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-receipt-repair-v1/core-build.log",
+      "sha256": "3b050d4996f6e2a7e46851df328e05ecb31c0e7d0fd05a710f83c08e2b42dc77",
+      "bytes": 113
+    },
+    {
+      "path": "case20-receipt-repair-v1/core-final.exit",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-receipt-repair-v1/core-final.exit",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "bytes": 3
+    },
+    {
+      "path": "case20-receipt-repair-v1/core-final.log",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-receipt-repair-v1/core-final.log",
+      "sha256": "4cc7fea855ec8f9b0d38901df8239d73dcdd9b6bb852ccb47c8443d89d9c666a",
+      "bytes": 4986
+    },
+    {
+      "path": "case20-receipt-repair-v1/core-green.exit",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-receipt-repair-v1/core-green.exit",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "bytes": 3
+    },
+    {
+      "path": "case20-receipt-repair-v1/core-green.log",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-receipt-repair-v1/core-green.log",
+      "sha256": "3e6090af320bd2072a950a5fe04af66ceed5660b35d02e1a5ae8e9e8e88e2281",
+      "bytes": 4957
+    },
+    {
+      "path": "case20-receipt-repair-v1/core-red.exit",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-receipt-repair-v1/core-red.exit",
+      "sha256": "f1b2f662800122bed0ff255693df89c4487fbdcf453d3524a42d4ec20c3d9c04",
+      "bytes": 3
+    },
+    {
+      "path": "case20-receipt-repair-v1/core-red.log",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-receipt-repair-v1/core-red.log",
+      "sha256": "263ad3c3f8de37ae4543826851eedfdc63c27d0f99eb0a520960b1b818577f70",
+      "bytes": 5964
+    },
+    {
+      "path": "case20-receipt-repair-v1/diagnosis.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-receipt-repair-v1/diagnosis.json",
+      "sha256": "ba550c7099b62df6091d0195dc14b5ba143b954a7c8e688553a78a66cab10bc9",
+      "bytes": 3502
+    },
+    {
+      "path": "case20-receipt-repair-v1/diff-check.log",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-receipt-repair-v1/diff-check.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "case20-receipt-repair-v1/format.log",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-receipt-repair-v1/format.log",
+      "sha256": "3eaa21d98f0521ae78a5f22441093f73a62314fe3a08b822435234f73f9182d9",
+      "bytes": 502
+    },
+    {
+      "path": "case20-receipt-repair-v1/independent-review.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-receipt-repair-v1/independent-review.json",
+      "sha256": "b8422c5c40bc3e0cb4e5f209921a6a228463ae3d15d51b07ff5119077d17f122",
+      "bytes": 6294
+    },
+    {
+      "path": "case20-receipt-repair-v1/orchestrator-final.exit",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-receipt-repair-v1/orchestrator-final.exit",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "bytes": 3
+    },
+    {
+      "path": "case20-receipt-repair-v1/orchestrator-final.log",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-receipt-repair-v1/orchestrator-final.log",
+      "sha256": "2e0208dccc3d0cbcda4bdd9b4de6aab3ef5e06e5a15f8482df783a353e03becc",
+      "bytes": 377819
+    },
+    {
+      "path": "case20-receipt-repair-v1/orchestrator-green.exit",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-receipt-repair-v1/orchestrator-green.exit",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "bytes": 3
+    },
+    {
+      "path": "case20-receipt-repair-v1/orchestrator-green.log",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-receipt-repair-v1/orchestrator-green.log",
+      "sha256": "ef8c6b61a23d1fd797f0df71634cb208969fd0acbea80af991d8bd9ae103c055",
+      "bytes": 377835
+    },
+    {
+      "path": "case20-receipt-repair-v1/orchestrator-red.exit",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-receipt-repair-v1/orchestrator-red.exit",
+      "sha256": "f1b2f662800122bed0ff255693df89c4487fbdcf453d3524a42d4ec20c3d9c04",
+      "bytes": 3
+    },
+    {
+      "path": "case20-receipt-repair-v1/orchestrator-red.log",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-receipt-repair-v1/orchestrator-red.log",
+      "sha256": "a685035ec9a6b032b707b71102442ab26711d0db662dc0066ba4d53822e4b581",
+      "bytes": 18218
+    },
+    {
+      "path": "case20-receipt-repair-v1/orchestrator-typecheck.exit",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-receipt-repair-v1/orchestrator-typecheck.exit",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "bytes": 3
+    },
+    {
+      "path": "case20-receipt-repair-v1/orchestrator-typecheck.log",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-receipt-repair-v1/orchestrator-typecheck.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "case20-receipt-repair-v1/red-source/apps/api/src/meri/meri-controlled-read-fixture.spec.ts",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-receipt-repair-v1/red-source/apps/api/src/meri/meri-controlled-read-fixture.spec.ts",
+      "sha256": "2b33a865511663e96ea3a70d64f5a925feab585b2631c0591b08dccb83995fba",
+      "bytes": 5457
+    },
+    {
+      "path": "case20-receipt-repair-v1/red-source/apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.spec.ts",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-receipt-repair-v1/red-source/apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.spec.ts",
+      "sha256": "368e92a64d36e992cf8d2c90e5ee4d44f6944fcaf514e9698cd9c52a0cd37d83",
+      "bytes": 224717
+    },
+    {
+      "path": "case20-receipt-repair-v1/red-source/packages/meriv2-core/src/context/capture-evidence-receipt.spec.ts",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-receipt-repair-v1/red-source/packages/meriv2-core/src/context/capture-evidence-receipt.spec.ts",
+      "sha256": "01b62c5b26d377771414d0cedac0d28cfc6fdbce1b92b880735ea251e1e42563",
+      "bytes": 25636
+    },
+    {
+      "path": "case20-receipt-repair-v1/source/apps/api/src/meri/meri-controlled-read-fixture.spec.ts",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-receipt-repair-v1/source/apps/api/src/meri/meri-controlled-read-fixture.spec.ts",
+      "sha256": "f113a97d8f79849c13efe276baeb18cb26bedc96ae42aa00d5bccdb0435ae479",
+      "bytes": 6029
+    },
+    {
+      "path": "case20-receipt-repair-v1/source/apps/api/src/meri/meri-controlled-read-fixture.ts",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-receipt-repair-v1/source/apps/api/src/meri/meri-controlled-read-fixture.ts",
+      "sha256": "a375f1b7031282fc8c7e9eabcada67cca31530da683d8b593521c4cb7e978893",
+      "bytes": 13577
+    },
+    {
+      "path": "case20-receipt-repair-v1/source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-receipt-repair-v1/source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts",
+      "sha256": "58562daed7c68ba7c65abc9f5d8d6975b0b5d7a1b4dceeb555b384dc2cac5b2b",
+      "bytes": 30468
+    },
+    {
+      "path": "case20-receipt-repair-v1/source/apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.spec.ts",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-receipt-repair-v1/source/apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.spec.ts",
+      "sha256": "53633692585e42a7d5332bc356abb896f09ad3826eda4349ec3daa9284245233",
+      "bytes": 225097
+    },
+    {
+      "path": "case20-receipt-repair-v1/source/apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-receipt-repair-v1/source/apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts",
+      "sha256": "e2c49a4356ce2cdffdef62b1abcb3e85a247630e763ac5e9d847c00f604aad6f",
+      "bytes": 172222
+    },
+    {
+      "path": "case20-receipt-repair-v1/source/packages/meriv2-core/src/context/capture-evidence-receipt.spec.ts",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-receipt-repair-v1/source/packages/meriv2-core/src/context/capture-evidence-receipt.spec.ts",
+      "sha256": "eaf9c739b07a027adfa0e55537c799208712d8e97659d94a6f9d0975c9ea9e62",
+      "bytes": 25998
+    },
+    {
+      "path": "case20-receipt-repair-v1/source/packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-receipt-repair-v1/source/packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "sha256": "affe70118364d44bdb5b13e55cd15edde2ce863323ecca4afa9644e0def74ab0",
+      "bytes": 24863
+    },
+    {
+      "path": "case20-receipt-repair-v1/source-freeze.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-receipt-repair-v1/source-freeze.json",
+      "sha256": "e11291319ea3b8af0c14e1f3796294e761b5a2180e739bb97a85893691d944e7",
+      "bytes": 5111
+    },
+    {
+      "path": "case20-native-recovery-v3-f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b/actual-capture-scope.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-native-recovery-v3-f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b/actual-capture-scope.json",
+      "sha256": "1eb14db7d3b74cc7594366e2695542ef1d280cc6940a79348a8f1bf215ab2496",
+      "bytes": 3019
+    },
+    {
+      "path": "case20-native-recovery-v3-f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b/aggregate-final-checkpoint.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-native-recovery-v3-f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b/aggregate-final-checkpoint.json",
+      "sha256": "bc3a5a601507ad987c637cfe7b9da08a9fbaae576548977ca989158481c052a7",
+      "bytes": 5209
+    },
+    {
+      "path": "case20-native-recovery-v3-f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b/aggregate-restored-checkpoint.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-native-recovery-v3-f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b/aggregate-restored-checkpoint.json",
+      "sha256": "bc3a5a601507ad987c637cfe7b9da08a9fbaae576548977ca989158481c052a7",
+      "bytes": 5209
+    },
+    {
+      "path": "case20-native-recovery-v3-f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b/artifacts/.capture-owned",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-native-recovery-v3-f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b/artifacts/.capture-owned",
+      "sha256": "9430621aa877731fd34514706253537267f5c86f99cf20badf60a36b48cc47fd",
+      "bytes": 37
+    },
+    {
+      "path": "case20-native-recovery-v3-f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b/artifacts/admission.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-native-recovery-v3-f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b/artifacts/admission.json",
+      "sha256": "7850f28b3c1195071e2f0aca7426863088cfd8e4ad41fb980c68bd5261c07ee9",
+      "bytes": 2506
+    },
+    {
+      "path": "case20-native-recovery-v3-f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b/artifacts/blocked.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-native-recovery-v3-f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b/artifacts/blocked.json",
+      "sha256": "b1e0bcae351feb740387918c1b8e0e42978c4b14e6734e1dde15e1a4b8b94064",
+      "bytes": 253
+    },
+    {
+      "path": "case20-native-recovery-v3-f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b/artifacts/bundle-owner.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-native-recovery-v3-f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b/artifacts/bundle-owner.json",
+      "sha256": "740053385b36c80acebe5eaec6710dd492582729409a77bf52c3b4044f61ccbe",
+      "bytes": 419
+    },
+    {
+      "path": "case20-native-recovery-v3-f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b/artifacts/capture-manifest.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-native-recovery-v3-f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b/artifacts/capture-manifest.json",
+      "sha256": "1ca09e7aacea29bce06376250ed3fadfba20231f5ae266e6d63cbf8c669acacc",
+      "bytes": 1804
+    },
+    {
+      "path": "case20-native-recovery-v3-f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b/artifacts/captured-inputs.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-native-recovery-v3-f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b/artifacts/captured-inputs.json",
+      "sha256": "26722a9b258aea0490065cf2d896fdab6362187ef84b96c2b6ba6a020f404106",
+      "bytes": 30365
+    },
+    {
+      "path": "case20-native-recovery-v3-f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b/artifacts/immutable-builds.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-native-recovery-v3-f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b/artifacts/immutable-builds.json",
+      "sha256": "7f09417ccfd1430fa98d1c26d2d3e6826120eef44f78139738cf71ee01f9955a",
+      "bytes": 1476
+    },
+    {
+      "path": "case20-native-recovery-v3-f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b/artifacts/saved-messages-observation.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-native-recovery-v3-f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b/artifacts/saved-messages-observation.json",
+      "sha256": "00c35d633da138416134a369b07c8bc066bf2b5d945901d0346c3f3bfcec6c55",
+      "bytes": 21658
+    },
+    {
+      "path": "case20-native-recovery-v3-f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b/artifacts/stream-response-observation.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-native-recovery-v3-f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b/artifacts/stream-response-observation.json",
+      "sha256": "fa70b15fe6d340040b0f1f6a95d366383839a59a15f8a979d7c915c17c7660be",
+      "bytes": 20459
+    },
+    {
+      "path": "case20-native-recovery-v3-f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b/artifacts/submission-intent.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-native-recovery-v3-f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b/artifacts/submission-intent.json",
+      "sha256": "bfb98d276cd9ec1e6643ebb1ce7f93ea256cf7ec25d1728be92f32c0df0fd0ba",
+      "bytes": 254
+    },
+    {
+      "path": "case20-native-recovery-v3-f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b/execution-events.jsonl",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-native-recovery-v3-f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b/execution-events.jsonl",
+      "sha256": "49914f150a5bb1cd3bcb5a25c242a72d2e0282db1fef3f7eb0ca5b899ddd3bfc",
+      "bytes": 50260
+    },
+    {
+      "path": "case20-native-recovery-v3-f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b/execution.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-native-recovery-v3-f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b/execution.json",
+      "sha256": "bd2b6c273ea2ac3b747d974ec638353066db86d2199ba3ea3b31c0ef648358f8",
+      "bytes": 6687
+    },
+    {
+      "path": "case20-postdeadline-budget-readback-v2/response-0.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-postdeadline-budget-readback-v2/response-0.json",
+      "sha256": "29737a3ca3e4d0a53ce0147aaa547f76786373201d30d74759d3dacc6a380378",
+      "bytes": 1892
+    },
+    {
+      "path": "case20-postdeadline-budget-readback-v2/response-1.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-postdeadline-budget-readback-v2/response-1.json",
+      "sha256": "3cf933089efca63b66a6381b64f999cd462d29105367ba0320c33be16d62eaf6",
+      "bytes": 7605
+    },
+    {
+      "path": "case20-postdeadline-budget-readback-v2/result.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-postdeadline-budget-readback-v2/result.json",
+      "sha256": "a1ddd5d0770ed4bb6fe662ce92c9c7a64e2cdc077d6f382a5c192dc9381cd344",
+      "bytes": 5279
+    },
+    {
+      "path": "case20-receipt-source-diagnosis-v1.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-receipt-source-diagnosis-v1.json",
+      "sha256": "f494e12abb9fba8027375d8311d85aec6c0d5134349b13a8ae135a77894f662a",
+      "bytes": 8537
+    },
+    {
+      "path": "case20-presubmission-recovery-claim-f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-presubmission-recovery-claim-f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b.json",
+      "sha256": "01bc9a9e7bf7059fa3d4e26ffb9e7679e4d739af944d07eebbefd25832fd670f",
+      "bytes": 1878
+    },
+    {
+      "path": "read-case20-postdeadline-budget-v2.mjs",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/read-case20-postdeadline-budget-v2.mjs",
+      "sha256": "3b98f47830f634d26f01c12f7350af8e61dff495717e1cf8c95959b3e290a6b9",
+      "bytes": 5941
+    },
+    {
+      "path": "case20-postdeadline-budget-v2-independent-review.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-postdeadline-budget-v2-independent-review.json",
+      "sha256": "3e9586d2299498a7fec5043b94f743652e3425decbf608e449a5a46571ba1674",
+      "bytes": 2360
+    },
+    {
+      "path": "case14-native-readonly-prerequisites-v1.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case14-native-readonly-prerequisites-v1.json",
+      "sha256": "76d733be7dd83879cf95b93631b9ad5553aa026d2bc41c707a39b01a01ffd62e",
+      "bytes": 8891
+    },
+    {
+      "path": "case14-owned-locator-readback-v1.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case14-owned-locator-readback-v1.json",
+      "sha256": "5e6ad4ed20b27668aa93583b66f51983779207a9a7728ca5e19fcc35069f5380",
+      "bytes": 2498
+    }
+  ]
+}
