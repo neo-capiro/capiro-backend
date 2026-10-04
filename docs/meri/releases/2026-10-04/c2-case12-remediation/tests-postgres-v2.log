@@ -1,0 +1,43 @@
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+(node:46220) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS src/meri/meri-case12-capture-remediation.pg.spec.ts (37.414 s)
+  one-time Case12 remediation — native PostgreSQL reads and CAS
+    √ reads plan, preserves old ledger/history, removes old qualification, installs once (319 ms)
+    √ ordinary installer still refuses a second Case12 binding (10 ms)
+    √ rejects a stale tenant row version without mutation (22 ms)
+    √ rejects a stale old row version without mutation (20 ms)
+    √ rejects a stale new row version without mutation (26 ms)
+    √ failed CAS rolls back without replacing history (19 ms)
+    √ rejects changed or nonzero prior budget: attempt (15 ms)
+    √ rejects changed or nonzero prior budget: unknown (13 ms)
+    √ rejects changed or nonzero prior budget: tokens (17 ms)
+    √ rejects changed or nonzero prior budget: cost (13 ms)
+    √ rejects changed or nonzero prior budget: turn (11 ms)
+    √ rejects changed or nonzero prior budget: qualification (12 ms)
+    √ rejects changed or nonzero prior budget: deadline (10 ms)
+    √ uses the native clock and ignores a caller-supplied later time (9 ms)
+    √ rejects persisted messages in 40dd8401-dcfe-46bd-b010-c30e7098297c regardless of message tenant (17 ms)
+    √ rejects persisted messages in 22222222-2222-4222-8222-222222222222 regardless of message tenant (12 ms)
+    √ rejects artifacts in 40dd8401-dcfe-46bd-b010-c30e7098297c (13 ms)
+    √ rejects artifacts in 22222222-2222-4222-8222-222222222222 (10 ms)
+    √ rejects prior capture state in new conversation: serverCaptureProviderBudget (9 ms)
+    √ rejects prior capture state in new conversation: serverCaptureEvidenceReceipt (10 ms)
+    √ rejects prior capture state in new conversation: case12CaptureAuthority (10 ms)
+    √ rejects a new conversation with wrong user_id (14 ms)
+    √ rejects a new conversation with wrong tenant_id (9 ms)
+    √ rejects a new conversation with wrong client_id (8 ms)
+    √ rejects a corpus that no longer qualifies (13 ms)
+    √ rejects changed input {"newConversationId":"40dd8401-dcfe-46bd-b010-c30e7098297c"} (7 ms)
+    √ rejects changed input {"newCaptureRunId":"4a32f9ce-3caa-49f2-95ef-2a512c854468"} (6 ms)
+    √ rejects changed input {"expectedApiSourceSha":"eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"} (7 ms)
+    √ rejects changed input {"expectedCurrentVerifySha256":"eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"} (6 ms)
+    √ rejects changed input {"clientId":"22222222-2222-4222-8222-222222222222"} (10 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       30 passed, 30 total
+Snapshots:   0 total
+Time:        37.639 s, estimated 42 s
+Ran all test suites matching /src\\meri\\meri-case12-capture-remediation.pg.spec.ts/i.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?

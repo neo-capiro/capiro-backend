@@ -1,0 +1,50 @@
+{
+  "status": "SOURCE_TESTS_AND_REVIEW_PASS",
+  "at": "2026-10-04T23:43:18.837137+00:00",
+  "totalTestsPassed": 102,
+  "postgresTestsPassed": 30,
+  "authorityReadbackTestsPassed": 72,
+  "apiTypecheck": "PASS",
+  "schemaChange": false,
+  "newHttpRoutes": false,
+  "providerCalls": 0,
+  "nativeInstallation": "NOT_RUN",
+  "liveCapture": "NOT_RUN",
+  "humanAcceptance": "NOT_RUN",
+  "c2Complete": false,
+  "sourcePins": [
+    {
+      "path": "apps/api/src/meri/meri-case12-capture-remediation.ts",
+      "sha256Lf": "b8639e478cfdb1a50ecb4953ecf9837fbf977c5fba0e2b9534969c70aa3e9c29"
+    },
+    {
+      "path": "apps/api/src/meri/meri-server-readonly-capture.ts",
+      "sha256Lf": "1f79caa3953d225a937577527ea50e393627644b85cf485d6359397d0b82abd6"
+    },
+    {
+      "path": "apps/api/src/meri/meri-case12-capture-remediation.pg.spec.ts",
+      "sha256Lf": "b581315af758a16babe5a71df9315db8d0e95f7e753b29aa1e7fcd1bb88cd2b0"
+    },
+    {
+      "path": "apps/api/src/meri/meri-server-readonly-capture.spec.ts",
+      "sha256Lf": "c6e0608db8890247ba23e36fc0c7eabcb89b76d1bf384fee4b2c548b3f2c7004"
+    }
+  ],
+  "reviewer": "root",
+  "hermesStatus": "45_MINUTE_TIMEOUT_PARTIAL_SOURCE_DRAFT",
+  "requiredPackagedMarkers": 29,
+  "initialTestFailure": "Combining PGlite VM mode with legacy server-controller suite hit existing htmlparser2 ESM loader; run suites in their required modes separately.",
+  "reviewFixes": [
+    "Use current immutable API SHA instead of previous release hardcode",
+    "Use native database time, reject caller clock",
+    "Check exact old qualification, same completed setup and current corpus",
+    "Lock old/new conversations; reject new capture state and messages/artifacts",
+    "Archive prior binding, qualification and old metadata; remove old active qualification; preserve old conversation",
+    "Enforce exact new conversation in current authority",
+    "PostgreSQL plan/CAS and scope/replay negative tests"
+  ],
+  "limitations": [
+    "PGlite is single-backend; concurrent lock behavior is not simulated",
+    "Deployment and live capture remain separate gates"
+  ]
+}

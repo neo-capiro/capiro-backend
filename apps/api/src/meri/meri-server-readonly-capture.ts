@@ -537,6 +537,22 @@ export async function currentCaptureAuthorityRows(
     ) {
       throw captureDenied('server_current_fixture_authority_missing');
     }
+    // The one-time failed Case12 retry belongs to one new conversation. Keeping
+    // the old ledger readable must never make it eligible for another admission.
+    if (captureBinding?.caseId === '12' &&
+        (Object.hasOwn(fixture!, 'case12CaptureRemediation') ||
+         Object.hasOwn(captureBinding, 'remediationConversationId'))) {
+      const remediation = asRecord(fixture?.case12CaptureRemediation);
+      if (remediation?.kind !== 'meri-case12-one-time-capture-remediation' ||
+          remediation.version !== 1 ||
+          remediation.oldConversationId === conversationId ||
+          remediation.newConversationId !== conversationId ||
+          remediation.newCaptureRunId !== captureBinding.captureRunId ||
+          remediation.actorUserId !== ctx.userId || remediation.clientId !== conversation.clientId ||
+          captureBinding.remediationConversationId !== conversationId) {
+        throw captureDenied('server_case12_remediation_conversation_mismatch');
+      }
+    }
     return {
       metadata: conversation.metadata,
       clientId: conversation.clientId,
