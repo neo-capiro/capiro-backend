@@ -1,0 +1,103 @@
+{
+  "status": "EXACT_RELEASE_ORDINARY_IDENTITY_AND_MEMORY_READ_VERIFIED",
+  "recordedAt": "2026-10-04T08:45:30.383Z",
+  "packetSha256": "1dba538b156ddbdac729dbc0c647d0d3c4b4f38bb3a583a8edc08ef6b0f2b5e2",
+  "services": [
+    {
+      "service": "api",
+      "baseline": {
+        "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:525",
+        "serviceHash": "d05241d67971079d2e103716ec430abefb24394bc0794c4b0929af066af966d6",
+        "configHash": "973748a2b134b388a6027df6c5c099055a7e24f7b746eafbaae8cebad077258a",
+        "taskHash": "d6575633ee5e4da21cbdaddf189b89aa24c81c8908bf9367d19c4207b0d9ad75",
+        "imageDigest": "sha256:00e8c5cac10d8b4cd3cc46a0a9a7602b51db4657e38fabe86f1f12999d2b2e31",
+        "desiredCount": 2
+      },
+      "health": "ALL_CURRENT_TASKS_AND_TARGETS_HEALTHY",
+      "oldTaskReadback": {
+        "status": "ALL_REQUESTED_TASKS_STOPPED",
+        "requestedCount": 0,
+        "observedCount": 0,
+        "drainingCount": 0
+      }
+    },
+    {
+      "service": "meriv2-orchestrator",
+      "baseline": {
+        "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:121",
+        "serviceHash": "9546878c15f6c1738888798f44d97528bd00ac8a6951c33415294c979401cd63",
+        "configHash": "3a4fabd2139e347cd8b45192579f2a3fbaaa6fc3678762b5252f727a4461951b",
+        "taskHash": "240d885469db96b5505428b9cd3d325bb9d7d15b7af5d9d1dea9e0fc935d1981",
+        "imageDigest": "sha256:94c82ec438a0cfee0da3869af284e107ae6aeff6157c8c0ff2f97dc991f6c5bf",
+        "desiredCount": 1
+      },
+      "health": "ALL_CURRENT_TASKS_AND_TARGETS_HEALTHY",
+      "oldTaskReadback": {
+        "status": "ALL_REQUESTED_TASKS_STOPPED",
+        "requestedCount": 0,
+        "observedCount": 0,
+        "drainingCount": 0
+      }
+    },
+    {
+      "service": "web-vnext",
+      "baseline": {
+        "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web-vnext:390",
+        "serviceHash": "3493c2e6107a77aab2653bc923119b3300e4899310e11b81e1c3be351240254c",
+        "configHash": "453a3d5aedc3da7d989370b97669abf0c1b14efbacd2d1597990b9cac7d50ab7",
+        "taskHash": "2ffa123e80c546c0bb03083e2aadb39b8118377efbf6de0b685f758c3abfb3c4",
+        "imageDigest": "sha256:fb594dabc437723fa6a28a7a6adcd54b13f813fcc52130f8458692aac2e9c8c6",
+        "desiredCount": 1
+      },
+      "health": "UNCHANGED_ALL_CURRENT_TASKS_AND_TARGETS_HEALTHY"
+    }
+  ],
+  "retainedNightly": {
+    "rule": "capiro-dev-refresh-memory-graph",
+    "targetId": "refresh-memory-graph-target",
+    "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api-migrate:136",
+    "sourceSha": "f00e5dfb4fd3e47ac6aa4aca741023cc02f6314f",
+    "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:1a4aef121151bb5da7f70417539ece2faff392842809e6b557370c2d6cf8a49d",
+    "ruleSha256": "4a9376120b272c60388f6986a7a20aa00bfa78a8feb3b44a3a804fd93c617947",
+    "targetSha256": "e5b98fe865035a7dfa2add1472df1617101714e08f65232fd232c606c4f2475a",
+    "taskInputSha256": "0b362cc5b50895bcc69d70536e2496b848c0ee7bc805d9d17c1c6f85261263a5",
+    "change": "NONE"
+  },
+  "broadProjectionWorker": "DISABLED",
+  "ordinaryIdentity": {
+    "status": "ORDINARY_IDENTITY_ROUTE_PASS",
+    "httpStatus": 200,
+    "actorUserId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+    "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+    "role": "standard_user",
+    "apiSourceSha": "945179d44223882f9fe1da2fb4e41213bf5813c2"
+  },
+  "ordinaryMemoryRead": {
+    "status": "ORDINARY_APPROVED_MEMORY_LIST_AND_MARKDOWN_PASS",
+    "httpStatuses": [
+      200,
+      200
+    ],
+    "actorUserId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+    "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+    "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+    "itemId": "a740d74f-2c61-4888-bb59-5c9eea502e3f",
+    "type": "client-compass",
+    "slug": "clio:70352101-16f8-42a3-9a4f-77c1c67111c9",
+    "visibility": "tenant",
+    "updatedAt": "2026-10-04T05:50:22.534Z",
+    "returnedListCount": 2,
+    "markdownBytes": 565,
+    "markdownSha256": "4f878a7ef504ca03d6c399130bba6e6bbd40a59ec51195f84ccbc7033e8c003a",
+    "path": "clients/clio:70352101-16f8-42a3-9a4f-77c1c67111c9/compass.md",
+    "apiSourceSha": "945179d44223882f9fe1da2fb4e41213bf5813c2",
+    "providerCalls": 0,
+    "scope": "Ordinary authenticated product read only; no search embedding, capture policy, replay, acceptance or canonical completeness assertion."
+  },
+  "temporarySessionRevoked": true,
+  "providerCalls": 0,
+  "conversationCreations": 0,
+  "journalMutations": 0,
+  "fixtureMutations": 0,
+  "originalAcceptance": "UNCHANGED_NOT_RUN"
+}

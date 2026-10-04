@@ -1,0 +1,21 @@
+{
+  "result": "PASS",
+  "at": "2026-10-04T08:55:36.965674+00:00",
+  "sourceSha": "945179d44223882f9fe1da2fb4e41213bf5813c2",
+  "approvedPacketSha256": "1dba538b156ddbdac729dbc0c647d0d3c4b4f38bb3a583a8edc08ef6b0f2b5e2",
+  "reviewAssessmentSha256": "dc3d5ac939c6747b2124d34d4db30acfac140548ba696445c3ccc868022bca4f",
+  "rootChecks": [
+    "All38 pre-review archive files unchanged before appending final review",
+    "All34 originals match copied bytes and hashes",
+    "Actual configured Hermes execution and report hashes match successful receipt",
+    "Direct old-task supplement covers exact2API/1orchestrator baseline task identities",
+    "Native26-event journal unchanged"
+  ],
+  "clarifications": [
+    "Raw Hermes wording C2 remains0/75 refers to the overall75-case suite accounting, not a C2 denominator or percentage. C2 retains its original family scope and remains incomplete.",
+    "The deployment-summary pending-review field and packet pending/null approval fields are retained preparation snapshots; later exact human approval and final review are separate records."
+  ],
+  "acceptancePromoted": false,
+  "newCaptureAuthority": false,
+  "journalSha256": "816b04a47be56432846d1ee602370c3bea985eb497a7de9e899aee4d53f8b39e"
+}

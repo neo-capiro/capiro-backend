@@ -1,0 +1,30 @@
+{
+  "status": "APPROVED",
+  "scope": "EXACT_C2_MEMORY_SOURCE_RELEASE",
+  "reviewer": "Human user — explicit approval in current Codex chat",
+  "approvedAt": "2026-10-04T08:30:57.472Z",
+  "packetSha256": "1dba538b156ddbdac729dbc0c647d0d3c4b4f38bb3a583a8edc08ef6b0f2b5e2",
+  "answer": "Approved",
+  "approvalSource": "Direct human reply Approved to the immediately preceding exact API00e8c5ca/orchestrator94c82ec4 two-image release packet approval request in this Codex chat",
+  "originalSnapshotExpiresAt": "2026-10-04T08:59:13.015Z",
+  "executionCondition": "Exact packet candidates and baseline through the existing one-service release operator; API then orchestrator, health verification after each. Preserve models, configuration and benchmark budget.",
+  "scopeDetails": [
+    {
+      "service": "api",
+      "sourceSha": "945179d44223882f9fe1da2fb4e41213bf5813c2",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:00e8c5cac10d8b4cd3cc46a0a9a7602b51db4657e38fabe86f1f12999d2b2e31",
+      "buildId": "capiro-build-web-dev:e7fa2d19-a094-4806-9c74-b592667ba1ce",
+      "architecture": "arm64",
+      "runtimeNode": "22.23.3"
+    },
+    {
+      "service": "meriv2-orchestrator",
+      "sourceSha": "945179d44223882f9fe1da2fb4e41213bf5813c2",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:94c82ec438a0cfee0da3869af284e107ae6aeff6157c8c0ff2f97dc991f6c5bf",
+      "buildId": "capiro-build-web-dev:3588b57f-4e9f-4d14-8585-c3f751759a6e",
+      "architecture": "arm64",
+      "runtimeNode": "20.16.0"
+    }
+  ],
+  "paidCaptureAuthority": false
+}
