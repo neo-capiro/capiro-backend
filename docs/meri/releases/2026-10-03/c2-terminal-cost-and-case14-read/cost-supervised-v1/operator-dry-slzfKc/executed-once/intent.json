@@ -1,0 +1,13 @@
+{
+  "at": "2026-10-04T02:40:10.545Z",
+  "action": "RECONCILE_FAILED_CASE20_PROVIDER_COST_ONCE",
+  "qualificationSha256": "a8b9325e5cd3f613cb82c59e5d3270e5147ffeb92997e82b74bf773a1960ae31",
+  "reviewSha256": "a136af53e2418ca94d058925a4a159b00dbf910d3ee5d7a1da494c92eb38e27a",
+  "journalBeforeSha256": "d6213af1fd8330e9e97a688d903a3c1852b5f40265a66eafb6aa2bf1cfa2060b",
+  "operatorSha256": "a1bf30ae11a8d5aeb355c3bbdafefa45ced660ddeb30ba8f63fb2ff1826cd550",
+  "captureAuthority": false,
+  "answerGrade": "NOT_EVALUATED",
+  "captureStatus": "CAPTURE_UNCERTAIN",
+  "modelSubmissions": 0,
+  "automaticRetryAllowed": false
+}

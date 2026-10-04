@@ -1,0 +1,5 @@
+Review complete. Disposition: FAIL with three actionable findings: uncertain ECS launch reconciliation, duplicate CloudWatch event accumulation, and incomplete current governance-flag comparison.
+
+The review is at C:\dev\main\outputs\meri-c2-20261003\case14-native-read-hermes-review-v1\REVIEW.md.
+
+Source review only: I did not execute the code or make live calls; this is not live evidence.

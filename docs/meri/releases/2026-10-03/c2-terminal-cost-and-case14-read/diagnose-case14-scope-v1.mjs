@@ -1,0 +1,11 @@
+import {createRequire} from 'node:module';
+import {readFileSync,writeFileSync} from 'node:fs';
+import assert from 'node:assert/strict';
+const require=createRequire('C:/dev/main/meri-c1-20261002/apps/api/package.json');
+const definition=JSON.parse(readFileSync('C:/dev/main/outputs/meri-c2-20261003/case14-native-owner-read-v1/definition-input.private.json'));
+for(const {name,value}of definition.containerDefinitions[0].environment)if(name.startsWith('MEMORY_')||name==='MERI_SYNTHETIC_FIXTURE_NAMESPACE')process.env[name]=value;
+const {memoryReviewSurfaceEnabled}=require('./dist/memory/memory-review-switch.js');
+const {runWithMemoryGovernanceTenant}=require('./dist/memory/memory-governance-tenant-scope.js');
+const result={kind:'case14-real-compiled-scope-gate-reproduction',unscoped:memoryReviewSurfaceEnabled(),scoped:await runWithMemoryGovernanceTenant('f2d6cf8f-057c-479a-8110-62fe5086d43f',()=>memoryReviewSurfaceEnabled()),databaseCalls:0,providerCalls:0};
+writeFileSync('C:/dev/main/outputs/meri-c2-20261003/case14-scope-diagnosis-v1.json',JSON.stringify(result,null,2)+'\n',{flag:'wx'});
+console.log(JSON.stringify(result));assert.equal(result.unscoped,false);assert.equal(result.scoped,true);

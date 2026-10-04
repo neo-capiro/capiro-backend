@@ -1,0 +1,5 @@
+Created the source-review deliverable at:
+
+C:\dev\main\outputs\meri-c2-20261003\continuation-hermes-v1\case14-independent-review\REVIEW.md
+
+It documents the canonical read guards, rollback-sentinel composition, compiled import paths, output allowlist, state/error distinctions, and proposed mock/local checks. This was source review only: no live read, test, or acceptance claim was made. I could not delegate to parallel Hermes sessions because no session-delegation tool is available here.

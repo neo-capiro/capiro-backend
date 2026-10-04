@@ -1,0 +1,15 @@
+{
+  "kind": "fresh_independent_benchmark",
+  "authorization": [
+    "run the becnh mark again",
+    "start your own"
+  ],
+  "createdAt": "2026-10-03T01:36:09.899Z",
+  "maxCostMicros": 30000000,
+  "perCaseMaxCostMicros": 15000000,
+  "concurrency": 1,
+  "historyDisposition": "Previous evidence and unresolved costs retained separately; no prior run retried or reset.",
+  "semanticClock": "2026-09-26T16:00:00.000Z",
+  "semanticClockInjected": false,
+  "originalAcceptance": "NOT_CLAIMED"
+}

@@ -1,0 +1,13 @@
+test_authorization_content_drift_rejected (__main__.TerminalCost.test_authorization_content_drift_rejected) ... ok
+test_competing_native_writer_excludes_terminal_append (__main__.TerminalCost.test_competing_native_writer_excludes_terminal_append) ... ok
+test_exact_append_keeps_failed_answer_and_releases_only_unused_hold (__main__.TerminalCost.test_exact_append_keeps_failed_answer_and_releases_only_unused_hold) ... ok
+test_interrupted_append_keeps_prefix_and_fails_closed (__main__.TerminalCost.test_interrupted_append_keeps_prefix_and_fails_closed) ... ok
+test_prefix_drift_rejected_even_with_updated_descriptor (__main__.TerminalCost.test_prefix_drift_rejected_even_with_updated_descriptor) ... ok
+test_proof_tamper_fake_pass_scope_cost_and_extra_fields_never_append (__main__.TerminalCost.test_proof_tamper_fake_pass_scope_cost_and_extra_fields_never_append) ... ok
+test_repeat_stale_checkpoint_adopt_and_reused_run_rejected (__main__.TerminalCost.test_repeat_stale_checkpoint_adopt_and_reused_run_rejected) ... ok
+test_same_bytes_replaced_file_identity_rejected (__main__.TerminalCost.test_same_bytes_replaced_file_identity_rejected) ... ok
+
+----------------------------------------------------------------------
+Ran 8 tests in 0.368s
+
+OK

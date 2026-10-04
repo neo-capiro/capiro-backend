@@ -14,6 +14,7 @@ import { currentReviewedCaptureSpendReconciliation } from './capture-spend-recon
 import { consumeCase01PresubmissionRecoveryAuthority } from './case01-presubmission-recovery-authority.mjs';
 import { consumeCase20PresubmissionRecoveryAuthority } from './case20-presubmission-recovery-authority.mjs';
 import { consumeCase01FailedReceiptCostAuthority } from './case01-failed-receipt-cost-authority.mjs';
+import { consumeCase20TerminalCostAuthority } from './case20-terminal-cost-authority.mjs';
 import {
   currentCase01CaptureAuthority,
   currentCase14RecallAuthority,
@@ -70,6 +71,18 @@ export function adoptExistingFreshCaptureSpend({ pythonExecutable }) {
 export function reconcileCase01FailedReceiptCost(authority, { pythonExecutable, invocation }) {
   need(invocation === 'RECONCILE_FAILED_CASE01_PROVIDER_COST_ONCE');
   const { proof, checkpoint: prior } = consumeCase01FailedReceiptCostAuthority(authority);
+  need(prior.kind === 'meri-fresh-capture-spend-checkpoint' && prior.state.root === resolve(freshRoot));
+  return checkpoint(native(freshRoot, pythonExecutable, {
+    op: 'fresh_reconcile_terminal', state: prior.state,
+    event: { kind: 'reconcile_terminal', caseId: proof.caseId, captureRunId: proof.captureRunId,
+      reservationId: proof.reservationId, proof },
+  }));
+}
+
+/** Exact Case20 event24 cost closure; preserves its failed capture and claims. */
+export function reconcileCase20TerminalCost(authority, { pythonExecutable, invocation }) {
+  need(invocation === 'RECONCILE_FAILED_CASE20_PROVIDER_COST_ONCE');
+  const { proof, checkpoint: prior } = consumeCase20TerminalCostAuthority(authority);
   need(prior.kind === 'meri-fresh-capture-spend-checkpoint' && prior.state.root === resolve(freshRoot));
   return checkpoint(native(freshRoot, pythonExecutable, {
     op: 'fresh_reconcile_terminal', state: prior.state,

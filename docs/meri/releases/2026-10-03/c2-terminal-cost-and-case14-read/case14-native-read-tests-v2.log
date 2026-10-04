@@ -1,0 +1,23 @@
+✔ happy path deduplicates repeated transport events and confirms cleanup (29.7487ms)
+✔ uncertain run acknowledgment discovers/stops exact task, preserves failure (3.1313ms)
+✔ uncertain run with no match cannot claim cleanup complete (2.2779ms)
+✔ uncertain registration cannot claim cleanup complete or launch a task (1.8148ms)
+✔ absence requires precise missing key, checked membership and rollback (2.08ms)
+✔ claimed is reconciliation, never absent (0.1582ms)
+✔ completed/null is unresolved, never absent (0.1074ms)
+✔ pending owner output omits content and unknown nested fields (0.1805ms)
+✔ approved owner output omits content and unknown nested fields (0.1511ms)
+✔ wrong current member rejects before invoking canonical owner (1.0889ms)
+✔ owner exception is redacted and transaction rolls back (0.1939ms)
+✔ rollback failure cannot emit success (0.1076ms)
+✔ swallowed sentinel cannot emit success (0.1033ms)
+✔ disabled current review switch rejects before read (0.426ms)
+✔ real compiled review gate is checked inside canonical tenant scope (0.6183ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 15
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 193.6934

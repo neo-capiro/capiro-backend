@@ -1,0 +1,2129 @@
+{
+  "createdAt": "2026-10-04T02:44:20.091304+00:00",
+  "files": [
+    {
+      "path": "cost-supervised-v1/aggregate-regressions-adapted.log",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/aggregate-regressions-adapted.log",
+      "bytes": 7865,
+      "sha256": "025fa7c838df1a1ccfce6175c83b0fa847f92ebc99c0bff08470d60d43f1bee7"
+    },
+    {
+      "path": "cost-supervised-v1/aggregate-regressions.log",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/aggregate-regressions.log",
+      "bytes": 30354,
+      "sha256": "35004f13db3a894277e6ae23112475a1c300f255d28f197f222a2982285f893e"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-aggregate/0ae755aa-7eaa-41b9-ab90-8b4378771a6f/.capture-owned",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-aggregate/0ae755aa-7eaa-41b9-ab90-8b4378771a6f/.capture-owned",
+      "bytes": 28,
+      "sha256": "32c10d49dc1b96ec7fe92cb397a2376d7676e4a416bc86df0afee2d1f672bf7c"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-aggregate/0ae755aa-7eaa-41b9-ab90-8b4378771a6f/.spend-lock",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-aggregate/0ae755aa-7eaa-41b9-ab90-8b4378771a6f/.spend-lock",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-aggregate/0ae755aa-7eaa-41b9-ab90-8b4378771a6f/bundle-owner.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-aggregate/0ae755aa-7eaa-41b9-ab90-8b4378771a6f/bundle-owner.json",
+      "bytes": 407,
+      "sha256": "cc0dc0b896b7c6cf57697dc3db239ea7f7eb976807c6caf1b984e04ad9278fdb"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-aggregate/0ae755aa-7eaa-41b9-ab90-8b4378771a6f/spend-000001.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-aggregate/0ae755aa-7eaa-41b9-ab90-8b4378771a6f/spend-000001.json",
+      "bytes": 2,
+      "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-aggregate/17b90b8e-e69b-4dfb-a086-b41511249fd8/.capture-owned",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-aggregate/17b90b8e-e69b-4dfb-a086-b41511249fd8/.capture-owned",
+      "bytes": 28,
+      "sha256": "32c10d49dc1b96ec7fe92cb397a2376d7676e4a416bc86df0afee2d1f672bf7c"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-aggregate/17b90b8e-e69b-4dfb-a086-b41511249fd8/.spend-lock",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-aggregate/17b90b8e-e69b-4dfb-a086-b41511249fd8/.spend-lock",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-aggregate/17b90b8e-e69b-4dfb-a086-b41511249fd8/bundle-owner.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-aggregate/17b90b8e-e69b-4dfb-a086-b41511249fd8/bundle-owner.json",
+      "bytes": 407,
+      "sha256": "fddc41f5e02e3b26da059c837be5bbfc0e6f79cb15d19ca838d6316d2c73a977"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-aggregate/17b90b8e-e69b-4dfb-a086-b41511249fd8/spend-000001.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-aggregate/17b90b8e-e69b-4dfb-a086-b41511249fd8/spend-000001.json",
+      "bytes": 178,
+      "sha256": "ed3eda704419f3348ee43f8181671e14a7d7bdd6c4a8d05161da5b80ed17fdaa"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-aggregate/17b90b8e-e69b-4dfb-a086-b41511249fd8/spend-000002.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-aggregate/17b90b8e-e69b-4dfb-a086-b41511249fd8/spend-000002.json",
+      "bytes": 2,
+      "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-aggregate/21ccfd56-26e3-43a8-b60d-c81e6df20726/.capture-owned",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-aggregate/21ccfd56-26e3-43a8-b60d-c81e6df20726/.capture-owned",
+      "bytes": 28,
+      "sha256": "32c10d49dc1b96ec7fe92cb397a2376d7676e4a416bc86df0afee2d1f672bf7c"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-aggregate/21ccfd56-26e3-43a8-b60d-c81e6df20726/.spend-lock",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-aggregate/21ccfd56-26e3-43a8-b60d-c81e6df20726/.spend-lock",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-aggregate/21ccfd56-26e3-43a8-b60d-c81e6df20726/bundle-owner.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-aggregate/21ccfd56-26e3-43a8-b60d-c81e6df20726/bundle-owner.json",
+      "bytes": 407,
+      "sha256": "04e3dd84dafa1c9006c966e5d7caa3517c23caf32d9d8505bcc0b80b358b068f"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-aggregate/21ccfd56-26e3-43a8-b60d-c81e6df20726/spend-000001.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-aggregate/21ccfd56-26e3-43a8-b60d-c81e6df20726/spend-000001.json",
+      "bytes": 178,
+      "sha256": "102e046ab958705958d57c9a66a6c9a5213f14fd1f5f3f1a33933d8d3806098f"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-aggregate/21ccfd56-26e3-43a8-b60d-c81e6df20726/spend-000002.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-aggregate/21ccfd56-26e3-43a8-b60d-c81e6df20726/spend-000002.json",
+      "bytes": 346,
+      "sha256": "476f2e80f8366af2acde615608b479e36faf7df249a45932b24a143725cca1a7"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-aggregate/21ccfd56-26e3-43a8-b60d-c81e6df20726/spend-000003.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-aggregate/21ccfd56-26e3-43a8-b60d-c81e6df20726/spend-000003.json",
+      "bytes": 178,
+      "sha256": "793b80e7d1b5d36148f3430b7a22331928d91012296ccfe8b5cfeeeea4a50b89"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-aggregate/21ccfd56-26e3-43a8-b60d-c81e6df20726/spend-000004.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-aggregate/21ccfd56-26e3-43a8-b60d-c81e6df20726/spend-000004.json",
+      "bytes": 346,
+      "sha256": "e151449c2bde345f749d08a52330fff0220160943f1a360330ffc36a1ac74c09"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-aggregate/21ccfd56-26e3-43a8-b60d-c81e6df20726/spend-000005.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-aggregate/21ccfd56-26e3-43a8-b60d-c81e6df20726/spend-000005.json",
+      "bytes": 178,
+      "sha256": "dabd34d8fe983cab0f5c2d38b1ccf5a89e39108d1394ade0680e7d3a56c3bd65"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-aggregate/21ccfd56-26e3-43a8-b60d-c81e6df20726/spend-000006.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-aggregate/21ccfd56-26e3-43a8-b60d-c81e6df20726/spend-000006.json",
+      "bytes": 346,
+      "sha256": "7dccf9907ffd49e6aaf74d422f9b4ff750985aa7bc137a771c6fdf67750db9cc"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-aggregate/21ccfd56-26e3-43a8-b60d-c81e6df20726/spend-000007.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-aggregate/21ccfd56-26e3-43a8-b60d-c81e6df20726/spend-000007.json",
+      "bytes": 178,
+      "sha256": "77e214aa5610569a978b0ab86672015a5d02d449c87468506a9b54eb6a544a57"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-aggregate/21ccfd56-26e3-43a8-b60d-c81e6df20726/spend-000008.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-aggregate/21ccfd56-26e3-43a8-b60d-c81e6df20726/spend-000008.json",
+      "bytes": 346,
+      "sha256": "aacd22597cd385969b9cc47342a4cd559f9d2e7c86eaa99daccb0ea7e87a2f31"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-aggregate/21ccfd56-26e3-43a8-b60d-c81e6df20726/spend-000009.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-aggregate/21ccfd56-26e3-43a8-b60d-c81e6df20726/spend-000009.json",
+      "bytes": 178,
+      "sha256": "8f58b69785cac37cf2219a63e46d78bd31ecf5f4c690dee97567904871ca4b13"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-aggregate/21ccfd56-26e3-43a8-b60d-c81e6df20726/spend-000010.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-aggregate/21ccfd56-26e3-43a8-b60d-c81e6df20726/spend-000010.json",
+      "bytes": 347,
+      "sha256": "0028da74e750688120fb2f32cc03d2bb216683c678bec4edc0a02e5955c8a5cd"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-aggregate/21ccfd56-26e3-43a8-b60d-c81e6df20726/spend-000011.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-aggregate/21ccfd56-26e3-43a8-b60d-c81e6df20726/spend-000011.json",
+      "bytes": 179,
+      "sha256": "242cbfea8d9af4fae5a178ee4d0d4c6b9fb5283124cb9f04ec0ac0b47120382d"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-aggregate/21ccfd56-26e3-43a8-b60d-c81e6df20726/spend-000012.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-aggregate/21ccfd56-26e3-43a8-b60d-c81e6df20726/spend-000012.json",
+      "bytes": 347,
+      "sha256": "d9efe2c88ef5d828bb40d2a929261c8528fac9eae0e8131aebcc70938fedb46f"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-aggregate/21ccfd56-26e3-43a8-b60d-c81e6df20726/spend-000013.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-aggregate/21ccfd56-26e3-43a8-b60d-c81e6df20726/spend-000013.json",
+      "bytes": 179,
+      "sha256": "60d5856491e5c9b667e464ea9350ce076127448d8ec359cfac70a71f5e7769c0"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-aggregate/21ccfd56-26e3-43a8-b60d-c81e6df20726/spend-000014.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-aggregate/21ccfd56-26e3-43a8-b60d-c81e6df20726/spend-000014.json",
+      "bytes": 347,
+      "sha256": "310561fbb48ceebd2b1a8b9b351b5874cd45116c4ceddabca17dde8f43e3e2b6"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-aggregate/21ccfd56-26e3-43a8-b60d-c81e6df20726/spend-000015.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-aggregate/21ccfd56-26e3-43a8-b60d-c81e6df20726/spend-000015.json",
+      "bytes": 179,
+      "sha256": "40aa44a7e9a89d0946d5fd24ec96c5ab6743bbfd18e040038097998c6fa0c963"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-aggregate/21ccfd56-26e3-43a8-b60d-c81e6df20726/spend-000016.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-aggregate/21ccfd56-26e3-43a8-b60d-c81e6df20726/spend-000016.json",
+      "bytes": 347,
+      "sha256": "e60c8bfbab5fdab7a0360b85f9b54da9b94a51189179af2ea805ca09c4dcce25"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-aggregate/21ccfd56-26e3-43a8-b60d-c81e6df20726/spend-000017.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-aggregate/21ccfd56-26e3-43a8-b60d-c81e6df20726/spend-000017.json",
+      "bytes": 179,
+      "sha256": "4657a5b5cf0460a8bbba8b3db274188842dd394b10136463d8d3fd4fcc190ef8"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-aggregate/21ccfd56-26e3-43a8-b60d-c81e6df20726/spend-000018.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-aggregate/21ccfd56-26e3-43a8-b60d-c81e6df20726/spend-000018.json",
+      "bytes": 347,
+      "sha256": "61a6da1c45ad7d54513a6a6b1fe1829f021fdc9526b2791492c4e684023b950a"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-aggregate/21ccfd56-26e3-43a8-b60d-c81e6df20726/spend-000019.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-aggregate/21ccfd56-26e3-43a8-b60d-c81e6df20726/spend-000019.json",
+      "bytes": 179,
+      "sha256": "8b6783855454e2b03c5e25402d6ca25528f55cb6781aa17b9b3a357591c2db90"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-aggregate/21ccfd56-26e3-43a8-b60d-c81e6df20726/spend-000020.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-aggregate/21ccfd56-26e3-43a8-b60d-c81e6df20726/spend-000020.json",
+      "bytes": 347,
+      "sha256": "b62f9bc5121a8ac2736bfdff7ea1037ed362f3138253efc9bd351302ed5d060d"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-aggregate/82902d27-cb6d-4e77-b65e-546bb4237db4/.capture-owned",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-aggregate/82902d27-cb6d-4e77-b65e-546bb4237db4/.capture-owned",
+      "bytes": 28,
+      "sha256": "32c10d49dc1b96ec7fe92cb397a2376d7676e4a416bc86df0afee2d1f672bf7c"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-aggregate/82902d27-cb6d-4e77-b65e-546bb4237db4/.spend-lock",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-aggregate/82902d27-cb6d-4e77-b65e-546bb4237db4/.spend-lock",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-aggregate/82902d27-cb6d-4e77-b65e-546bb4237db4/bundle-owner.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-aggregate/82902d27-cb6d-4e77-b65e-546bb4237db4/bundle-owner.json",
+      "bytes": 407,
+      "sha256": "58701b6fc5632ff5e0e38ec60f6899c2ff712ba65bd2442fba9d30371181dab3"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-aggregate/82902d27-cb6d-4e77-b65e-546bb4237db4/spend-000001.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-aggregate/82902d27-cb6d-4e77-b65e-546bb4237db4/spend-000001.json",
+      "bytes": 178,
+      "sha256": "6204d76bea9a6313dc113ee68ef9d26346fbac2890e68a4c93944245324cc07a"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-aggregate/82902d27-cb6d-4e77-b65e-546bb4237db4/spend-000002.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-aggregate/82902d27-cb6d-4e77-b65e-546bb4237db4/spend-000002.json",
+      "bytes": 341,
+      "sha256": "0371d539d18e02a3e7de1008e880525ded91a1d6872f12d8359543f87f643d23"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-aggregate/83472842-1ff7-4caf-93fe-a05e314d4988/.capture-owned",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-aggregate/83472842-1ff7-4caf-93fe-a05e314d4988/.capture-owned",
+      "bytes": 28,
+      "sha256": "32c10d49dc1b96ec7fe92cb397a2376d7676e4a416bc86df0afee2d1f672bf7c"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-aggregate/83472842-1ff7-4caf-93fe-a05e314d4988/.spend-lock",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-aggregate/83472842-1ff7-4caf-93fe-a05e314d4988/.spend-lock",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-aggregate/83472842-1ff7-4caf-93fe-a05e314d4988/bundle-owner.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-aggregate/83472842-1ff7-4caf-93fe-a05e314d4988/bundle-owner.json",
+      "bytes": 633,
+      "sha256": "532b236830687b81fa50e48c43d725af9ce1da31d2c7d04d904b46720b9aa50d"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-aggregate/ad6c2b54-62eb-45eb-bfd9-cdd21b19eba4/.capture-owned",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-aggregate/ad6c2b54-62eb-45eb-bfd9-cdd21b19eba4/.capture-owned",
+      "bytes": 28,
+      "sha256": "32c10d49dc1b96ec7fe92cb397a2376d7676e4a416bc86df0afee2d1f672bf7c"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-aggregate/ad6c2b54-62eb-45eb-bfd9-cdd21b19eba4/.spend-lock",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-aggregate/ad6c2b54-62eb-45eb-bfd9-cdd21b19eba4/.spend-lock",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-aggregate/ad6c2b54-62eb-45eb-bfd9-cdd21b19eba4/bundle-owner.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-aggregate/ad6c2b54-62eb-45eb-bfd9-cdd21b19eba4/bundle-owner.json",
+      "bytes": 407,
+      "sha256": "7ea07e7a19e5cbcf021e4c75f30c1a6ea24dbff4404db75b47516e402a6786c4"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-aggregate/ad6c2b54-62eb-45eb-bfd9-cdd21b19eba4/spend-000001.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-aggregate/ad6c2b54-62eb-45eb-bfd9-cdd21b19eba4/spend-000001.json",
+      "bytes": 178,
+      "sha256": "18317d986245fb6e387d3e1c2162d077c9df8d8ce6d1344b6b1e4bd67753e48a"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-aggregate/d3defb6d-168d-469d-a67c-81e8f02de573/.capture-owned",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-aggregate/d3defb6d-168d-469d-a67c-81e8f02de573/.capture-owned",
+      "bytes": 28,
+      "sha256": "32c10d49dc1b96ec7fe92cb397a2376d7676e4a416bc86df0afee2d1f672bf7c"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-aggregate/d3defb6d-168d-469d-a67c-81e8f02de573/.spend-lock",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-aggregate/d3defb6d-168d-469d-a67c-81e8f02de573/.spend-lock",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-aggregate/d3defb6d-168d-469d-a67c-81e8f02de573/bundle-owner.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-aggregate/d3defb6d-168d-469d-a67c-81e8f02de573/bundle-owner.json",
+      "bytes": 407,
+      "sha256": "7da0ab65c210bc8f657678b757a140d9afbf79855a2ae63ea88152bc7430b303"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-aggregate/d3defb6d-168d-469d-a67c-81e8f02de573/spend-000001.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-aggregate/d3defb6d-168d-469d-a67c-81e8f02de573/spend-000001.json",
+      "bytes": 178,
+      "sha256": "688f0e1a824919e586e9477b1514cb5ddc7b2082982bd2cec5fc660a763a9f5c"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-aggregate/f8037e6c-2e68-483e-b92d-bf224aaa9e74/.capture-owned",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-aggregate/f8037e6c-2e68-483e-b92d-bf224aaa9e74/.capture-owned",
+      "bytes": 28,
+      "sha256": "32c10d49dc1b96ec7fe92cb397a2376d7676e4a416bc86df0afee2d1f672bf7c"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-aggregate/f8037e6c-2e68-483e-b92d-bf224aaa9e74/.spend-lock",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-aggregate/f8037e6c-2e68-483e-b92d-bf224aaa9e74/.spend-lock",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-aggregate/f8037e6c-2e68-483e-b92d-bf224aaa9e74/bundle-owner.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-aggregate/f8037e6c-2e68-483e-b92d-bf224aaa9e74/bundle-owner.json",
+      "bytes": 407,
+      "sha256": "bdaec59e6f4a1dfbfb892aa2d7b323b85a4f6f607088c31861c53fcf64d47fb2"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-aggregate/f8037e6c-2e68-483e-b92d-bf224aaa9e74/spend-000001.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-aggregate/f8037e6c-2e68-483e-b92d-bf224aaa9e74/spend-000001.json",
+      "bytes": 178,
+      "sha256": "2ad0bf4d0b05a57ee442447d9ee6b8a982802037c5271bf8bf8a2e53a384c4dd"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-aggregate.adapted.test.mjs",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-aggregate.adapted.test.mjs",
+      "bytes": 10476,
+      "sha256": "762ec2774bd40c24b82ac2ed175f9a7669320279883c3344f5b1447e7ed3e765"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-reconciliation/1917fefc-efd9-45e7-b044-390f444e79ef.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-reconciliation/1917fefc-efd9-45e7-b044-390f444e79ef.json",
+      "bytes": 5472,
+      "sha256": "fbb46233e3df191cafcc176dc1345657360ffd2f1b210e600cf495ab5c97ed76"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-reconciliation/1a8d7ac9-56c4-44ae-bca7-28bb8cc3bc3c/.capture-owned",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-reconciliation/1a8d7ac9-56c4-44ae-bca7-28bb8cc3bc3c/.capture-owned",
+      "bytes": 28,
+      "sha256": "32c10d49dc1b96ec7fe92cb397a2376d7676e4a416bc86df0afee2d1f672bf7c"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-reconciliation/1a8d7ac9-56c4-44ae-bca7-28bb8cc3bc3c/.spend-lock",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-reconciliation/1a8d7ac9-56c4-44ae-bca7-28bb8cc3bc3c/.spend-lock",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-reconciliation/1a8d7ac9-56c4-44ae-bca7-28bb8cc3bc3c/bundle-owner.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-reconciliation/1a8d7ac9-56c4-44ae-bca7-28bb8cc3bc3c/bundle-owner.json",
+      "bytes": 407,
+      "sha256": "e06422a2139a5d58fe8fb35cbe110931db9e7da16d4372c738f7f5e86319dcbc"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-reconciliation/1a8d7ac9-56c4-44ae-bca7-28bb8cc3bc3c/spend-000001.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-reconciliation/1a8d7ac9-56c4-44ae-bca7-28bb8cc3bc3c/spend-000001.json",
+      "bytes": 178,
+      "sha256": "4dca06b523789b8e3022040ab9b5b6ba238722e48810fd0fd9868b75f8db7799"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-reconciliation/1a8d7ac9-56c4-44ae-bca7-28bb8cc3bc3c/spend-000002.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-reconciliation/1a8d7ac9-56c4-44ae-bca7-28bb8cc3bc3c/spend-000002.json",
+      "bytes": 702,
+      "sha256": "08eb7cdb66a386033d20dddbe14e4f951f65ab6f87c9ee19817d70cb016b3b33"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-reconciliation/69d83ac3-d9b0-445b-bb31-fa1e732f054a.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-reconciliation/69d83ac3-d9b0-445b-bb31-fa1e732f054a.json",
+      "bytes": 5472,
+      "sha256": "6340780da355d3f0a3d528117ffcd81ae7168524bfef1321f988efbf909e7423"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-reconciliation/c1cc41ac-2b69-4f4a-a701-02f06625d3ce.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-reconciliation/c1cc41ac-2b69-4f4a-a701-02f06625d3ce.json",
+      "bytes": 5486,
+      "sha256": "305708493937892776d84fc02d9ea46a1f8c591047d7480bb65ecebbb4350d31"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-reconciliation/d6df2424-9916-4ee4-b965-11b15a495d3e.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-reconciliation/d6df2424-9916-4ee4-b965-11b15a495d3e.json",
+      "bytes": 5472,
+      "sha256": "5c6afbe3d1eca5a3e8af68b89cc8451615e5d39ab2de389036bc6cbcc84793ca"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-reconciliation/f4b197ff-0849-471e-999d-a87092f31c8c/.capture-owned",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-reconciliation/f4b197ff-0849-471e-999d-a87092f31c8c/.capture-owned",
+      "bytes": 28,
+      "sha256": "32c10d49dc1b96ec7fe92cb397a2376d7676e4a416bc86df0afee2d1f672bf7c"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-reconciliation/f4b197ff-0849-471e-999d-a87092f31c8c/.spend-lock",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-reconciliation/f4b197ff-0849-471e-999d-a87092f31c8c/.spend-lock",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-reconciliation/f4b197ff-0849-471e-999d-a87092f31c8c/bundle-owner.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-reconciliation/f4b197ff-0849-471e-999d-a87092f31c8c/bundle-owner.json",
+      "bytes": 407,
+      "sha256": "dc71e0b3a76aa15923f7f3c43d216b7d18178c979153fd6f2720b6bc3d61bf89"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-reconciliation/f4b197ff-0849-471e-999d-a87092f31c8c/spend-000001.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-reconciliation/f4b197ff-0849-471e-999d-a87092f31c8c/spend-000001.json",
+      "bytes": 178,
+      "sha256": "9c915e3e12219735b22197d474e10dbd5c6041a1c87bdfb56f06740986788a86"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-reconciliation/f4b197ff-0849-471e-999d-a87092f31c8c/spend-000002.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-reconciliation/f4b197ff-0849-471e-999d-a87092f31c8c/spend-000002.json",
+      "bytes": 710,
+      "sha256": "5b846e46f8d535087ec2b5b4ea01655e1fe45c2585830cf654992205d34a07e7"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-reconciliation.adapted.test.mjs",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-reconciliation.adapted.test.mjs",
+      "bytes": 11370,
+      "sha256": "20c1ce8fdf9b1522e35ed1e3ec85101c9d576a3167504be8fcb1b7734dbc4a34"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-terminal/0a76b3f2-e54e-4431-926b-16391580fb54/.capture-owned",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-terminal/0a76b3f2-e54e-4431-926b-16391580fb54/.capture-owned",
+      "bytes": 28,
+      "sha256": "32c10d49dc1b96ec7fe92cb397a2376d7676e4a416bc86df0afee2d1f672bf7c"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-terminal/0a76b3f2-e54e-4431-926b-16391580fb54/.spend-lock",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-terminal/0a76b3f2-e54e-4431-926b-16391580fb54/.spend-lock",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-terminal/0a76b3f2-e54e-4431-926b-16391580fb54/bundle-owner.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-terminal/0a76b3f2-e54e-4431-926b-16391580fb54/bundle-owner.json",
+      "bytes": 407,
+      "sha256": "5ed6bb3496a1903f2213405c84e195d114f0df345c42d63a7fcce6e28a508a93"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-terminal/0a76b3f2-e54e-4431-926b-16391580fb54/spend-000001.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-terminal/0a76b3f2-e54e-4431-926b-16391580fb54/spend-000001.json",
+      "bytes": 178,
+      "sha256": "fe0e677893131430c65d3e28399e36cdd4ea02ece8eaa97d031148763e57730e"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-terminal/0a76b3f2-e54e-4431-926b-16391580fb54/spend-000002.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-terminal/0a76b3f2-e54e-4431-926b-16391580fb54/spend-000002.json",
+      "bytes": 1067,
+      "sha256": "fedfadad8478c43707b7fc2749b89aa89257c64ba39263a42a00d20613b409a5"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-terminal/7728be43-cd47-46d1-96c3-d9896989c96e/.capture-owned",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-terminal/7728be43-cd47-46d1-96c3-d9896989c96e/.capture-owned",
+      "bytes": 28,
+      "sha256": "32c10d49dc1b96ec7fe92cb397a2376d7676e4a416bc86df0afee2d1f672bf7c"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-terminal/7728be43-cd47-46d1-96c3-d9896989c96e/.spend-lock",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-terminal/7728be43-cd47-46d1-96c3-d9896989c96e/.spend-lock",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-terminal/7728be43-cd47-46d1-96c3-d9896989c96e/bundle-owner.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-terminal/7728be43-cd47-46d1-96c3-d9896989c96e/bundle-owner.json",
+      "bytes": 407,
+      "sha256": "2ccc7b11dda7b40be22ed4219f70ff77969a4672bdffab649c0a288bb4c5500c"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-terminal/7728be43-cd47-46d1-96c3-d9896989c96e/spend-000001.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-terminal/7728be43-cd47-46d1-96c3-d9896989c96e/spend-000001.json",
+      "bytes": 178,
+      "sha256": "fe0e677893131430c65d3e28399e36cdd4ea02ece8eaa97d031148763e57730e"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-terminal/7728be43-cd47-46d1-96c3-d9896989c96e/spend-000002.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-terminal/7728be43-cd47-46d1-96c3-d9896989c96e/spend-000002.json",
+      "bytes": 2,
+      "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-terminal/baca432c-ccc6-4ca8-815d-e890316d1bdd/.capture-owned",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-terminal/baca432c-ccc6-4ca8-815d-e890316d1bdd/.capture-owned",
+      "bytes": 28,
+      "sha256": "32c10d49dc1b96ec7fe92cb397a2376d7676e4a416bc86df0afee2d1f672bf7c"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-terminal/baca432c-ccc6-4ca8-815d-e890316d1bdd/.spend-lock",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-terminal/baca432c-ccc6-4ca8-815d-e890316d1bdd/.spend-lock",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-terminal/baca432c-ccc6-4ca8-815d-e890316d1bdd/bundle-owner.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-terminal/baca432c-ccc6-4ca8-815d-e890316d1bdd/bundle-owner.json",
+      "bytes": 407,
+      "sha256": "283673899915a485ecad1bca9b3c1db9aac8ad74b821ca82b5c06bf67e35a1ae"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-terminal/baca432c-ccc6-4ca8-815d-e890316d1bdd/spend-000001.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-terminal/baca432c-ccc6-4ca8-815d-e890316d1bdd/spend-000001.json",
+      "bytes": 178,
+      "sha256": "fe0e677893131430c65d3e28399e36cdd4ea02ece8eaa97d031148763e57730e"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-terminal/bd5a25e7-f924-44a8-bed8-9d6065b801c3/.capture-owned",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-terminal/bd5a25e7-f924-44a8-bed8-9d6065b801c3/.capture-owned",
+      "bytes": 28,
+      "sha256": "32c10d49dc1b96ec7fe92cb397a2376d7676e4a416bc86df0afee2d1f672bf7c"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-terminal/bd5a25e7-f924-44a8-bed8-9d6065b801c3/.spend-lock",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-terminal/bd5a25e7-f924-44a8-bed8-9d6065b801c3/.spend-lock",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-terminal/bd5a25e7-f924-44a8-bed8-9d6065b801c3/bundle-owner.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-terminal/bd5a25e7-f924-44a8-bed8-9d6065b801c3/bundle-owner.json",
+      "bytes": 407,
+      "sha256": "8281f83a8fd90d1aae6bef3e2c1b1300d8beecb84061726d1222480e7f7e9959"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-terminal/bd5a25e7-f924-44a8-bed8-9d6065b801c3/spend-000001.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-terminal/bd5a25e7-f924-44a8-bed8-9d6065b801c3/spend-000001.json",
+      "bytes": 178,
+      "sha256": "fe0e677893131430c65d3e28399e36cdd4ea02ece8eaa97d031148763e57730e"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-terminal/bd5a25e7-f924-44a8-bed8-9d6065b801c3/spend-000002.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-terminal/bd5a25e7-f924-44a8-bed8-9d6065b801c3/spend-000002.json",
+      "bytes": 1067,
+      "sha256": "fedfadad8478c43707b7fc2749b89aa89257c64ba39263a42a00d20613b409a5"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-terminal/f381f086-cc53-4312-8cc2-cd70ff8d7964/.capture-owned",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-terminal/f381f086-cc53-4312-8cc2-cd70ff8d7964/.capture-owned",
+      "bytes": 28,
+      "sha256": "32c10d49dc1b96ec7fe92cb397a2376d7676e4a416bc86df0afee2d1f672bf7c"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-terminal/f381f086-cc53-4312-8cc2-cd70ff8d7964/.spend-lock",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-terminal/f381f086-cc53-4312-8cc2-cd70ff8d7964/.spend-lock",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-terminal/f381f086-cc53-4312-8cc2-cd70ff8d7964/bundle-owner.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-terminal/f381f086-cc53-4312-8cc2-cd70ff8d7964/bundle-owner.json",
+      "bytes": 407,
+      "sha256": "8de6dbe7570e8013662e35324e96c2515b5c5ac0d74fb59a64581423e2eb668b"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-terminal/f381f086-cc53-4312-8cc2-cd70ff8d7964/spend-000001.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-terminal/f381f086-cc53-4312-8cc2-cd70ff8d7964/spend-000001.json",
+      "bytes": 178,
+      "sha256": "fe0e677893131430c65d3e28399e36cdd4ea02ece8eaa97d031148763e57730e"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-terminal.adapted.test.mjs",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-terminal.adapted.test.mjs",
+      "bytes": 8206,
+      "sha256": "365fc76328a0ada6cda2d2f1a02bbe2c8dea2244350a03d9defb56b608b15158"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-v2/403a88d4-f7d1-4dc8-9ffd-398636f735af/.capture-owned",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-v2/403a88d4-f7d1-4dc8-9ffd-398636f735af/.capture-owned",
+      "bytes": 28,
+      "sha256": "32c10d49dc1b96ec7fe92cb397a2376d7676e4a416bc86df0afee2d1f672bf7c"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-v2/403a88d4-f7d1-4dc8-9ffd-398636f735af/.spend-lock",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-v2/403a88d4-f7d1-4dc8-9ffd-398636f735af/.spend-lock",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-v2/403a88d4-f7d1-4dc8-9ffd-398636f735af/bundle-owner.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-v2/403a88d4-f7d1-4dc8-9ffd-398636f735af/bundle-owner.json",
+      "bytes": 407,
+      "sha256": "c5aa111916f98c0a58c23016b033daa7193b9475c27c8fd3ba3f83a01f56b673"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-v2/403a88d4-f7d1-4dc8-9ffd-398636f735af/spend-000001.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-v2/403a88d4-f7d1-4dc8-9ffd-398636f735af/spend-000001.json",
+      "bytes": 178,
+      "sha256": "fe0e677893131430c65d3e28399e36cdd4ea02ece8eaa97d031148763e57730e"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-v2/403a88d4-f7d1-4dc8-9ffd-398636f735af/spend-000002.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-v2/403a88d4-f7d1-4dc8-9ffd-398636f735af/spend-000002.json",
+      "bytes": 1067,
+      "sha256": "fedfadad8478c43707b7fc2749b89aa89257c64ba39263a42a00d20613b409a5"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-v2/403a88d4-f7d1-4dc8-9ffd-398636f735af/spend-000003.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-v2/403a88d4-f7d1-4dc8-9ffd-398636f735af/spend-000003.json",
+      "bytes": 376,
+      "sha256": "7b25714554f4919ab72c0cdccd7d4a63de8fe41be7754a7135b90c9c7c40951b"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-v2/403a88d4-f7d1-4dc8-9ffd-398636f735af/spend-000004.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-v2/403a88d4-f7d1-4dc8-9ffd-398636f735af/spend-000004.json",
+      "bytes": 207,
+      "sha256": "1e53d00728268aa7d4824f44f67c8715a949688a119f93a8330ea794f898931e"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-v2/4bb70f51-7b6b-4165-b189-ccac378b60d5/.capture-owned",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-v2/4bb70f51-7b6b-4165-b189-ccac378b60d5/.capture-owned",
+      "bytes": 28,
+      "sha256": "32c10d49dc1b96ec7fe92cb397a2376d7676e4a416bc86df0afee2d1f672bf7c"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-v2/4bb70f51-7b6b-4165-b189-ccac378b60d5/.spend-lock",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-v2/4bb70f51-7b6b-4165-b189-ccac378b60d5/.spend-lock",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-v2/4bb70f51-7b6b-4165-b189-ccac378b60d5/bundle-owner.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-v2/4bb70f51-7b6b-4165-b189-ccac378b60d5/bundle-owner.json",
+      "bytes": 407,
+      "sha256": "610e1dfbe143d38cbf67536a7a4b6c98ff1370c583be47e05809087a12f3a35d"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-v2/4bb70f51-7b6b-4165-b189-ccac378b60d5/spend-000001.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-v2/4bb70f51-7b6b-4165-b189-ccac378b60d5/spend-000001.json",
+      "bytes": 178,
+      "sha256": "fe0e677893131430c65d3e28399e36cdd4ea02ece8eaa97d031148763e57730e"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-v2/4bb70f51-7b6b-4165-b189-ccac378b60d5/spend-000002.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-v2/4bb70f51-7b6b-4165-b189-ccac378b60d5/spend-000002.json",
+      "bytes": 1067,
+      "sha256": "fedfadad8478c43707b7fc2749b89aa89257c64ba39263a42a00d20613b409a5"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-v2/4bb70f51-7b6b-4165-b189-ccac378b60d5/spend-000003.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-v2/4bb70f51-7b6b-4165-b189-ccac378b60d5/spend-000003.json",
+      "bytes": 376,
+      "sha256": "152b3bcd8b4523cec843689a0f4d3a1c1ee24aee2094bbbe5b30ee388b3d98fd"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-v2/4bb70f51-7b6b-4165-b189-ccac378b60d5/spend-000004.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-v2/4bb70f51-7b6b-4165-b189-ccac378b60d5/spend-000004.json",
+      "bytes": 207,
+      "sha256": "574fcc28bb2f860215b5e571e86ceaadbadb59b88b4db34a46c0120dfeb2a43d"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-v2/5db32f6c-0a90-4954-bb60-bbb00dcf215c/.capture-owned",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-v2/5db32f6c-0a90-4954-bb60-bbb00dcf215c/.capture-owned",
+      "bytes": 28,
+      "sha256": "32c10d49dc1b96ec7fe92cb397a2376d7676e4a416bc86df0afee2d1f672bf7c"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-v2/5db32f6c-0a90-4954-bb60-bbb00dcf215c/.spend-lock",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-v2/5db32f6c-0a90-4954-bb60-bbb00dcf215c/.spend-lock",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-v2/5db32f6c-0a90-4954-bb60-bbb00dcf215c/bundle-owner.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-v2/5db32f6c-0a90-4954-bb60-bbb00dcf215c/bundle-owner.json",
+      "bytes": 407,
+      "sha256": "bafe2e96244054db76c2d19f01e698f1e4b9300354e634fcae5c124c35278cbb"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-v2/5db32f6c-0a90-4954-bb60-bbb00dcf215c/spend-000001.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-v2/5db32f6c-0a90-4954-bb60-bbb00dcf215c/spend-000001.json",
+      "bytes": 178,
+      "sha256": "fe0e677893131430c65d3e28399e36cdd4ea02ece8eaa97d031148763e57730e"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-v2/5db32f6c-0a90-4954-bb60-bbb00dcf215c/spend-000002.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-v2/5db32f6c-0a90-4954-bb60-bbb00dcf215c/spend-000002.json",
+      "bytes": 1067,
+      "sha256": "fedfadad8478c43707b7fc2749b89aa89257c64ba39263a42a00d20613b409a5"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-v2/5db32f6c-0a90-4954-bb60-bbb00dcf215c/spend-000003.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-v2/5db32f6c-0a90-4954-bb60-bbb00dcf215c/spend-000003.json",
+      "bytes": 376,
+      "sha256": "770a9a95a6738f47350c4828e4fbd8dd09633a3ded76bc05a98f4415a196f745"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-v2/5db32f6c-0a90-4954-bb60-bbb00dcf215c/spend-000004.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-v2/5db32f6c-0a90-4954-bb60-bbb00dcf215c/spend-000004.json",
+      "bytes": 208,
+      "sha256": "3324cdf89eda9f44b5a675b0ed11c43a1192f2fdce0c67f6c355cdef42b092a9"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-v2/5db32f6c-0a90-4954-bb60-bbb00dcf215c/spend-000005.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-v2/5db32f6c-0a90-4954-bb60-bbb00dcf215c/spend-000005.json",
+      "bytes": 348,
+      "sha256": "c5a1414fab4f922418da725edc3647a5fcd99b0ee911b60419f73b07eabbf5c5"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-v2/5db32f6c-0a90-4954-bb60-bbb00dcf215c/spend-000006.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-v2/5db32f6c-0a90-4954-bb60-bbb00dcf215c/spend-000006.json",
+      "bytes": 208,
+      "sha256": "c46ebde6d5bc22c2322eba6e8be6ff3938d60c57dfc4295a6bac45a6b69e5675"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-v2/7e2af8b5-d723-492a-8378-693589d9c6f1/.capture-owned",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-v2/7e2af8b5-d723-492a-8378-693589d9c6f1/.capture-owned",
+      "bytes": 28,
+      "sha256": "32c10d49dc1b96ec7fe92cb397a2376d7676e4a416bc86df0afee2d1f672bf7c"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-v2/7e2af8b5-d723-492a-8378-693589d9c6f1/.spend-lock",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-v2/7e2af8b5-d723-492a-8378-693589d9c6f1/.spend-lock",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-v2/7e2af8b5-d723-492a-8378-693589d9c6f1/bundle-owner.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-v2/7e2af8b5-d723-492a-8378-693589d9c6f1/bundle-owner.json",
+      "bytes": 407,
+      "sha256": "0b0b6e1a88e6158d3cf572108137377148f65b8fcf4dcccc040ad489b41c08db"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-v2/7e2af8b5-d723-492a-8378-693589d9c6f1/spend-000001.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-v2/7e2af8b5-d723-492a-8378-693589d9c6f1/spend-000001.json",
+      "bytes": 178,
+      "sha256": "fe0e677893131430c65d3e28399e36cdd4ea02ece8eaa97d031148763e57730e"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-v2/7e2af8b5-d723-492a-8378-693589d9c6f1/spend-000002.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-v2/7e2af8b5-d723-492a-8378-693589d9c6f1/spend-000002.json",
+      "bytes": 1067,
+      "sha256": "fedfadad8478c43707b7fc2749b89aa89257c64ba39263a42a00d20613b409a5"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-v2/7e2af8b5-d723-492a-8378-693589d9c6f1/spend-000003.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-v2/7e2af8b5-d723-492a-8378-693589d9c6f1/spend-000003.json",
+      "bytes": 376,
+      "sha256": "f587f49a386b803e1cac2039497382d1b7bb287aa88708bd00294e52fbfdbad2"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-v2/8b9734b8-75fd-4e21-bbd3-aa63316c3a7f/.capture-owned",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-v2/8b9734b8-75fd-4e21-bbd3-aa63316c3a7f/.capture-owned",
+      "bytes": 28,
+      "sha256": "32c10d49dc1b96ec7fe92cb397a2376d7676e4a416bc86df0afee2d1f672bf7c"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-v2/8b9734b8-75fd-4e21-bbd3-aa63316c3a7f/.spend-lock",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-v2/8b9734b8-75fd-4e21-bbd3-aa63316c3a7f/.spend-lock",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-v2/8b9734b8-75fd-4e21-bbd3-aa63316c3a7f/bundle-owner.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-v2/8b9734b8-75fd-4e21-bbd3-aa63316c3a7f/bundle-owner.json",
+      "bytes": 407,
+      "sha256": "fde53fb6d4a9262fc2d0f88c9f01bfafbc55670e3f3ae87d6ab772a51cfca087"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-v2/8b9734b8-75fd-4e21-bbd3-aa63316c3a7f/spend-000001.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-v2/8b9734b8-75fd-4e21-bbd3-aa63316c3a7f/spend-000001.json",
+      "bytes": 178,
+      "sha256": "fe0e677893131430c65d3e28399e36cdd4ea02ece8eaa97d031148763e57730e"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-v2/8b9734b8-75fd-4e21-bbd3-aa63316c3a7f/spend-000002.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-v2/8b9734b8-75fd-4e21-bbd3-aa63316c3a7f/spend-000002.json",
+      "bytes": 1067,
+      "sha256": "fedfadad8478c43707b7fc2749b89aa89257c64ba39263a42a00d20613b409a5"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-v2/8b9734b8-75fd-4e21-bbd3-aa63316c3a7f/spend-000003.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-v2/8b9734b8-75fd-4e21-bbd3-aa63316c3a7f/spend-000003.json",
+      "bytes": 376,
+      "sha256": "59798d43fcaf37b5256b5a507c6b76ca71f17299663f9f7e5855a3cdf4af917a"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-v2/8b9734b8-75fd-4e21-bbd3-aa63316c3a7f/spend-000004.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-v2/8b9734b8-75fd-4e21-bbd3-aa63316c3a7f/spend-000004.json",
+      "bytes": 207,
+      "sha256": "467554323c3bebc2435b8311a06e49818217036b3e231540be509a205cbb8731"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-v2/8b9734b8-75fd-4e21-bbd3-aa63316c3a7f/spend-000005.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-v2/8b9734b8-75fd-4e21-bbd3-aa63316c3a7f/spend-000005.json",
+      "bytes": 343,
+      "sha256": "b7ca7314f9062633addc747d5b66102b9f0847fa9b6eb70d64ef9cd8ce19b01e"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-v2/9dd3978d-f5f4-4024-a53e-707197f63031/.capture-owned",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-v2/9dd3978d-f5f4-4024-a53e-707197f63031/.capture-owned",
+      "bytes": 28,
+      "sha256": "32c10d49dc1b96ec7fe92cb397a2376d7676e4a416bc86df0afee2d1f672bf7c"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-v2/9dd3978d-f5f4-4024-a53e-707197f63031/.spend-lock",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-v2/9dd3978d-f5f4-4024-a53e-707197f63031/.spend-lock",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-v2/9dd3978d-f5f4-4024-a53e-707197f63031/bundle-owner.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-v2/9dd3978d-f5f4-4024-a53e-707197f63031/bundle-owner.json",
+      "bytes": 407,
+      "sha256": "6d1e84b7f6923f3a8783bc554c7eb536a7dd1c8cb1b192ad4926cca5b966c141"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-v2/9dd3978d-f5f4-4024-a53e-707197f63031/spend-000001.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-v2/9dd3978d-f5f4-4024-a53e-707197f63031/spend-000001.json",
+      "bytes": 178,
+      "sha256": "fe0e677893131430c65d3e28399e36cdd4ea02ece8eaa97d031148763e57730e"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-v2/9dd3978d-f5f4-4024-a53e-707197f63031/spend-000002.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-v2/9dd3978d-f5f4-4024-a53e-707197f63031/spend-000002.json",
+      "bytes": 1067,
+      "sha256": "fedfadad8478c43707b7fc2749b89aa89257c64ba39263a42a00d20613b409a5"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-v2/9dd3978d-f5f4-4024-a53e-707197f63031/spend-000003.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-v2/9dd3978d-f5f4-4024-a53e-707197f63031/spend-000003.json",
+      "bytes": 178,
+      "sha256": "aa5518655cf3f442bdf5bed072e30565e52822ef8f5ce7b0f5418065d4a79118"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-v2/9dd3978d-f5f4-4024-a53e-707197f63031/spend-000004.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-v2/9dd3978d-f5f4-4024-a53e-707197f63031/spend-000004.json",
+      "bytes": 710,
+      "sha256": "0ab87fafaff4477f585d7951a56fed2fcf5c783e85d98ea17b24c652d8fe8400"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-v2/9dd3978d-f5f4-4024-a53e-707197f63031/spend-000005.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-v2/9dd3978d-f5f4-4024-a53e-707197f63031/spend-000005.json",
+      "bytes": 376,
+      "sha256": "4d4a210ea0f4169677287f1fe61721327a1b79e5b29de58144dfaa2b842df986"
+    },
+    {
+      "path": "cost-supervised-v1/capture-spend-v2.adapted.test.mjs",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/capture-spend-v2.adapted.test.mjs",
+      "bytes": 8481,
+      "sha256": "f9bd33b032d93ad863c45a909dd46201fa915d590f37a5b3f75e9c959388bad2"
+    },
+    {
+      "path": "cost-supervised-v1/case01-legacy-native/ntfs-278mjrr_/fresh-spend.jsonl",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/case01-legacy-native/ntfs-278mjrr_/fresh-spend.jsonl",
+      "bytes": 14368,
+      "sha256": "b232caccae2316ee58194d07e1f0ef9be9ef82b01d7f8cdf631d97267da225a4"
+    },
+    {
+      "path": "cost-supervised-v1/case01-legacy-native/ntfs-278mjrr_/run-authorization.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/case01-legacy-native/ntfs-278mjrr_/run-authorization.json",
+      "bytes": 489,
+      "sha256": "e07822e83a7c7b531606519ecd4fdf1027f2fa7cbaefd4bad92a2084590262fe"
+    },
+    {
+      "path": "cost-supervised-v1/case01-legacy-native/ntfs-4xm6klcl/fresh-spend.jsonl",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/case01-legacy-native/ntfs-4xm6klcl/fresh-spend.jsonl",
+      "bytes": 12974,
+      "sha256": "7ac5a5d06782d325e0d30327586968aa60233681b7dec2ed98f50285ed6daa60"
+    },
+    {
+      "path": "cost-supervised-v1/case01-legacy-native/ntfs-4xm6klcl/run-authorization.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/case01-legacy-native/ntfs-4xm6klcl/run-authorization.json",
+      "bytes": 489,
+      "sha256": "e07822e83a7c7b531606519ecd4fdf1027f2fa7cbaefd4bad92a2084590262fe"
+    },
+    {
+      "path": "cost-supervised-v1/case01-legacy-native/ntfs-6yjrbn7h/fresh-spend.jsonl",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/case01-legacy-native/ntfs-6yjrbn7h/fresh-spend.jsonl",
+      "bytes": 13556,
+      "sha256": "705e8dc4a51ed0b1bf8ddb62029f6ea9e534dfcf722124ef7cbf5f216a91224e"
+    },
+    {
+      "path": "cost-supervised-v1/case01-legacy-native/ntfs-6yjrbn7h/run-authorization.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/case01-legacy-native/ntfs-6yjrbn7h/run-authorization.json",
+      "bytes": 489,
+      "sha256": "e07822e83a7c7b531606519ecd4fdf1027f2fa7cbaefd4bad92a2084590262fe"
+    },
+    {
+      "path": "cost-supervised-v1/case01-legacy-native/ntfs-9zc4gdod/fresh-spend.jsonl",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/case01-legacy-native/ntfs-9zc4gdod/fresh-spend.jsonl",
+      "bytes": 12974,
+      "sha256": "7ac5a5d06782d325e0d30327586968aa60233681b7dec2ed98f50285ed6daa60"
+    },
+    {
+      "path": "cost-supervised-v1/case01-legacy-native/ntfs-9zc4gdod/run-authorization.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/case01-legacy-native/ntfs-9zc4gdod/run-authorization.json",
+      "bytes": 489,
+      "sha256": "e07822e83a7c7b531606519ecd4fdf1027f2fa7cbaefd4bad92a2084590262fe"
+    },
+    {
+      "path": "cost-supervised-v1/case01-legacy-native/ntfs-au_5wejx/fresh-spend.jsonl",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/case01-legacy-native/ntfs-au_5wejx/fresh-spend.jsonl",
+      "bytes": 13556,
+      "sha256": "04e703ba156fc54534acec5186cdccc844514271e81e77528ae863ac43a244ec"
+    },
+    {
+      "path": "cost-supervised-v1/case01-legacy-native/ntfs-au_5wejx/run-authorization.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/case01-legacy-native/ntfs-au_5wejx/run-authorization.json",
+      "bytes": 489,
+      "sha256": "e07822e83a7c7b531606519ecd4fdf1027f2fa7cbaefd4bad92a2084590262fe"
+    },
+    {
+      "path": "cost-supervised-v1/case01-legacy-native/ntfs-pdtbnwq6/fresh-spend.jsonl",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/case01-legacy-native/ntfs-pdtbnwq6/fresh-spend.jsonl",
+      "bytes": 12974,
+      "sha256": "7ac5a5d06782d325e0d30327586968aa60233681b7dec2ed98f50285ed6daa60"
+    },
+    {
+      "path": "cost-supervised-v1/case01-legacy-native/ntfs-pdtbnwq6/run-authorization.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/case01-legacy-native/ntfs-pdtbnwq6/run-authorization.json",
+      "bytes": 489,
+      "sha256": "e07822e83a7c7b531606519ecd4fdf1027f2fa7cbaefd4bad92a2084590262fe"
+    },
+    {
+      "path": "cost-supervised-v1/case01-legacy-native/ntfs-u9chec49/fresh-spend.jsonl",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/case01-legacy-native/ntfs-u9chec49/fresh-spend.jsonl",
+      "bytes": 14139,
+      "sha256": "88d592075d3c4b69903d52b1ce9f07a1940d1478ad0b1afa53df7c8c48589a06"
+    },
+    {
+      "path": "cost-supervised-v1/case01-legacy-native/ntfs-u9chec49/run-authorization.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/case01-legacy-native/ntfs-u9chec49/run-authorization.json",
+      "bytes": 489,
+      "sha256": "e07822e83a7c7b531606519ecd4fdf1027f2fa7cbaefd4bad92a2084590262fe"
+    },
+    {
+      "path": "cost-supervised-v1/case01-legacy-native/ntfs-us6j1gdg/fresh-spend.jsonl",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/case01-legacy-native/ntfs-us6j1gdg/fresh-spend.jsonl",
+      "bytes": 12974,
+      "sha256": "7ac5a5d06782d325e0d30327586968aa60233681b7dec2ed98f50285ed6daa60"
+    },
+    {
+      "path": "cost-supervised-v1/case01-legacy-native/ntfs-us6j1gdg/run-authorization.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/case01-legacy-native/ntfs-us6j1gdg/run-authorization.json",
+      "bytes": 489,
+      "sha256": "e07822e83a7c7b531606519ecd4fdf1027f2fa7cbaefd4bad92a2084590262fe"
+    },
+    {
+      "path": "cost-supervised-v1/case01-legacy-native/ntfs-x9u835ve/fresh-spend.jsonl",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/case01-legacy-native/ntfs-x9u835ve/fresh-spend.jsonl",
+      "bytes": 14368,
+      "sha256": "e12dc0e2da487177c69ba1b6cbe592a0395195a6de29e603149e6a64493db601"
+    },
+    {
+      "path": "cost-supervised-v1/case01-legacy-native/ntfs-x9u835ve/run-authorization.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/case01-legacy-native/ntfs-x9u835ve/run-authorization.json",
+      "bytes": 489,
+      "sha256": "e07822e83a7c7b531606519ecd4fdf1027f2fa7cbaefd4bad92a2084590262fe"
+    },
+    {
+      "path": "cost-supervised-v1/case01-legacy-native/ntfs-zws76m96/fresh-spend.jsonl",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/case01-legacy-native/ntfs-zws76m96/fresh-spend.jsonl",
+      "bytes": 14139,
+      "sha256": "b0defef36f8ad17b3b8a7a0d63924b02c8f67b7447b10c25f087ad565e74b91e"
+    },
+    {
+      "path": "cost-supervised-v1/case01-legacy-native/ntfs-zws76m96/run-authorization.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/case01-legacy-native/ntfs-zws76m96/run-authorization.json",
+      "bytes": 489,
+      "sha256": "e07822e83a7c7b531606519ecd4fdf1027f2fa7cbaefd4bad92a2084590262fe"
+    },
+    {
+      "path": "cost-supervised-v1/case01-legacy-native.unit.py",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/case01-legacy-native.unit.py",
+      "bytes": 6108,
+      "sha256": "f26ffacfa0df18bb8ad601cfd308d7b069102a2b8749ea46445f6a7e0b4fc52a"
+    },
+    {
+      "path": "cost-supervised-v1/case01-native.log",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/case01-native.log",
+      "bytes": 871,
+      "sha256": "8b7608ccbf77b5587f66a51e4c5233f7272ea61768ba62892bb196b56287b603"
+    },
+    {
+      "path": "cost-supervised-v1/case20-native.log",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/case20-native.log",
+      "bytes": 1259,
+      "sha256": "ce07f93f17946e5be87ffa44d8a60a295ecc73ae7a0f85e65a7e9aa6436c5515"
+    },
+    {
+      "path": "cost-supervised-v1/checkpoint-failed-original-runtime.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/checkpoint-failed-original-runtime.json",
+      "bytes": 6491,
+      "sha256": "8b23fea62bd25f40dac5575f65704741b7821cda427336eacf2de236dc25d201"
+    },
+    {
+      "path": "cost-supervised-v1/checkpoint-v1-preserved.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/checkpoint-v1-preserved.json",
+      "bytes": 6687,
+      "sha256": "a8b9325e5cd3f613cb82c59e5d3270e5147ffeb92997e82b74bf773a1960ae31"
+    },
+    {
+      "path": "cost-supervised-v1/checkpoint.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/checkpoint.json",
+      "bytes": 8196,
+      "sha256": "93538de87b791c65801cd5d43a3fe1b74428ae72fa5f53df1fa038b8f0854d29"
+    },
+    {
+      "path": "cost-supervised-v1/executed-once/aggregate-checkpoint.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/executed-once/aggregate-checkpoint.json",
+      "bytes": 5477,
+      "sha256": "b778571ba5fdd6911701076453fe0f5bb7641e86bb31fdb1d7a37b3798e5266c"
+    },
+    {
+      "path": "cost-supervised-v1/executed-once/intent.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/executed-once/intent.json",
+      "bytes": 619,
+      "sha256": "860e86d51da154c61cac2f1df6190b113e2f520c1e052716f8d65cecc627815e"
+    },
+    {
+      "path": "cost-supervised-v1/executed-once/result.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/executed-once/result.json",
+      "bytes": 655,
+      "sha256": "6abf0021d71fdc75b9638febef476e31b8243b2ab069686c6aa548f7e7ab6fdb"
+    },
+    {
+      "path": "cost-supervised-v1/independent-review.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/independent-review.json",
+      "bytes": 1063,
+      "sha256": "4a0900110781513e3448087f4ae9c3690cbcdd8b5806da4a7689b727e26b3c62"
+    },
+    {
+      "path": "cost-supervised-v1/node-cost-regressions.log",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/node-cost-regressions.log",
+      "bytes": 3613,
+      "sha256": "c2ddd4ce2254d6fff25749362ba8e1b94fddbbb6a2f247fe246d103edc0df8ed"
+    },
+    {
+      "path": "cost-supervised-v1/ntfs-tests/ntfs-0w6dlkfe/fresh-spend.jsonl",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/ntfs-tests/ntfs-0w6dlkfe/fresh-spend.jsonl",
+      "bytes": 14368,
+      "sha256": "d6213af1fd8330e9e97a688d903a3c1852b5f40265a66eafb6aa2bf1cfa2060b"
+    },
+    {
+      "path": "cost-supervised-v1/ntfs-tests/ntfs-0w6dlkfe/run-authorization.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/ntfs-tests/ntfs-0w6dlkfe/run-authorization.json",
+      "bytes": 489,
+      "sha256": "e07822e83a7c7b531606519ecd4fdf1027f2fa7cbaefd4bad92a2084590262fe"
+    },
+    {
+      "path": "cost-supervised-v1/ntfs-tests/ntfs-12ypbiqc/fresh-spend.jsonl",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/ntfs-tests/ntfs-12ypbiqc/fresh-spend.jsonl",
+      "bytes": 14368,
+      "sha256": "d6213af1fd8330e9e97a688d903a3c1852b5f40265a66eafb6aa2bf1cfa2060b"
+    },
+    {
+      "path": "cost-supervised-v1/ntfs-tests/ntfs-12ypbiqc/original-preserved.jsonl",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/ntfs-tests/ntfs-12ypbiqc/original-preserved.jsonl",
+      "bytes": 14368,
+      "sha256": "d6213af1fd8330e9e97a688d903a3c1852b5f40265a66eafb6aa2bf1cfa2060b"
+    },
+    {
+      "path": "cost-supervised-v1/ntfs-tests/ntfs-12ypbiqc/run-authorization.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/ntfs-tests/ntfs-12ypbiqc/run-authorization.json",
+      "bytes": 489,
+      "sha256": "e07822e83a7c7b531606519ecd4fdf1027f2fa7cbaefd4bad92a2084590262fe"
+    },
+    {
+      "path": "cost-supervised-v1/ntfs-tests/ntfs-269kxs9u/fresh-spend.jsonl",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/ntfs-tests/ntfs-269kxs9u/fresh-spend.jsonl",
+      "bytes": 14368,
+      "sha256": "d6213af1fd8330e9e97a688d903a3c1852b5f40265a66eafb6aa2bf1cfa2060b"
+    },
+    {
+      "path": "cost-supervised-v1/ntfs-tests/ntfs-269kxs9u/run-authorization.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/ntfs-tests/ntfs-269kxs9u/run-authorization.json",
+      "bytes": 489,
+      "sha256": "e07822e83a7c7b531606519ecd4fdf1027f2fa7cbaefd4bad92a2084590262fe"
+    },
+    {
+      "path": "cost-supervised-v1/ntfs-tests/ntfs-2pfe8d1n/fresh-spend.jsonl",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/ntfs-tests/ntfs-2pfe8d1n/fresh-spend.jsonl",
+      "bytes": 15532,
+      "sha256": "c3529abaab20dfe6bb3b48cec092fad08cec9fcbe9dd2415c987e550b39a36f0"
+    },
+    {
+      "path": "cost-supervised-v1/ntfs-tests/ntfs-2pfe8d1n/run-authorization.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/ntfs-tests/ntfs-2pfe8d1n/run-authorization.json",
+      "bytes": 489,
+      "sha256": "e07822e83a7c7b531606519ecd4fdf1027f2fa7cbaefd4bad92a2084590262fe"
+    },
+    {
+      "path": "cost-supervised-v1/ntfs-tests/ntfs-5tgn6cu4/fresh-spend.jsonl",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/ntfs-tests/ntfs-5tgn6cu4/fresh-spend.jsonl",
+      "bytes": 14368,
+      "sha256": "d6213af1fd8330e9e97a688d903a3c1852b5f40265a66eafb6aa2bf1cfa2060b"
+    },
+    {
+      "path": "cost-supervised-v1/ntfs-tests/ntfs-5tgn6cu4/run-authorization.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/ntfs-tests/ntfs-5tgn6cu4/run-authorization.json",
+      "bytes": 490,
+      "sha256": "0a722851ff64b278219923f329da9294226ccd4d8745bda285140196fbd0c4c2"
+    },
+    {
+      "path": "cost-supervised-v1/ntfs-tests/ntfs-6sf4gyra/fresh-spend.jsonl",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/ntfs-tests/ntfs-6sf4gyra/fresh-spend.jsonl",
+      "bytes": 14368,
+      "sha256": "d6213af1fd8330e9e97a688d903a3c1852b5f40265a66eafb6aa2bf1cfa2060b"
+    },
+    {
+      "path": "cost-supervised-v1/ntfs-tests/ntfs-6sf4gyra/run-authorization.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/ntfs-tests/ntfs-6sf4gyra/run-authorization.json",
+      "bytes": 489,
+      "sha256": "e07822e83a7c7b531606519ecd4fdf1027f2fa7cbaefd4bad92a2084590262fe"
+    },
+    {
+      "path": "cost-supervised-v1/ntfs-tests/ntfs-a4otbqw9/fresh-spend.jsonl",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/ntfs-tests/ntfs-a4otbqw9/fresh-spend.jsonl",
+      "bytes": 14950,
+      "sha256": "d71d67cb588c449608086794ee142fe791427c87c32bdd7b6e69768c2709a7b9"
+    },
+    {
+      "path": "cost-supervised-v1/ntfs-tests/ntfs-a4otbqw9/run-authorization.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/ntfs-tests/ntfs-a4otbqw9/run-authorization.json",
+      "bytes": 489,
+      "sha256": "e07822e83a7c7b531606519ecd4fdf1027f2fa7cbaefd4bad92a2084590262fe"
+    },
+    {
+      "path": "cost-supervised-v1/ntfs-tests/ntfs-ep6ja444/fresh-spend.jsonl",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/ntfs-tests/ntfs-ep6ja444/fresh-spend.jsonl",
+      "bytes": 14368,
+      "sha256": "91630bf3982840607109f817f03ff19d505bb5bf3115b31a7c80d933601e7147"
+    },
+    {
+      "path": "cost-supervised-v1/ntfs-tests/ntfs-ep6ja444/run-authorization.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/ntfs-tests/ntfs-ep6ja444/run-authorization.json",
+      "bytes": 489,
+      "sha256": "e07822e83a7c7b531606519ecd4fdf1027f2fa7cbaefd4bad92a2084590262fe"
+    },
+    {
+      "path": "cost-supervised-v1/ntfs-tests/ntfs-gm_4lnht/fresh-spend.jsonl",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/ntfs-tests/ntfs-gm_4lnht/fresh-spend.jsonl",
+      "bytes": 14950,
+      "sha256": "30c67b01b497798b692ce58d48c80f214ab3449b429c2b99a0895d285d97fb6f"
+    },
+    {
+      "path": "cost-supervised-v1/ntfs-tests/ntfs-gm_4lnht/run-authorization.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/ntfs-tests/ntfs-gm_4lnht/run-authorization.json",
+      "bytes": 489,
+      "sha256": "e07822e83a7c7b531606519ecd4fdf1027f2fa7cbaefd4bad92a2084590262fe"
+    },
+    {
+      "path": "cost-supervised-v1/ntfs-tests/ntfs-gsksvaw6/fresh-spend.jsonl",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/ntfs-tests/ntfs-gsksvaw6/fresh-spend.jsonl",
+      "bytes": 14368,
+      "sha256": "d6213af1fd8330e9e97a688d903a3c1852b5f40265a66eafb6aa2bf1cfa2060b"
+    },
+    {
+      "path": "cost-supervised-v1/ntfs-tests/ntfs-gsksvaw6/run-authorization.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/ntfs-tests/ntfs-gsksvaw6/run-authorization.json",
+      "bytes": 490,
+      "sha256": "0a722851ff64b278219923f329da9294226ccd4d8745bda285140196fbd0c4c2"
+    },
+    {
+      "path": "cost-supervised-v1/ntfs-tests/ntfs-ho8qo25m/fresh-spend.jsonl",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/ntfs-tests/ntfs-ho8qo25m/fresh-spend.jsonl",
+      "bytes": 14368,
+      "sha256": "d6213af1fd8330e9e97a688d903a3c1852b5f40265a66eafb6aa2bf1cfa2060b"
+    },
+    {
+      "path": "cost-supervised-v1/ntfs-tests/ntfs-ho8qo25m/run-authorization.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/ntfs-tests/ntfs-ho8qo25m/run-authorization.json",
+      "bytes": 489,
+      "sha256": "e07822e83a7c7b531606519ecd4fdf1027f2fa7cbaefd4bad92a2084590262fe"
+    },
+    {
+      "path": "cost-supervised-v1/ntfs-tests/ntfs-hxqontk7/fresh-spend.jsonl",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/ntfs-tests/ntfs-hxqontk7/fresh-spend.jsonl",
+      "bytes": 14368,
+      "sha256": "91630bf3982840607109f817f03ff19d505bb5bf3115b31a7c80d933601e7147"
+    },
+    {
+      "path": "cost-supervised-v1/ntfs-tests/ntfs-hxqontk7/run-authorization.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/ntfs-tests/ntfs-hxqontk7/run-authorization.json",
+      "bytes": 489,
+      "sha256": "e07822e83a7c7b531606519ecd4fdf1027f2fa7cbaefd4bad92a2084590262fe"
+    },
+    {
+      "path": "cost-supervised-v1/ntfs-tests/ntfs-lcxpnuo0/fresh-spend.jsonl",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/ntfs-tests/ntfs-lcxpnuo0/fresh-spend.jsonl",
+      "bytes": 14368,
+      "sha256": "d6213af1fd8330e9e97a688d903a3c1852b5f40265a66eafb6aa2bf1cfa2060b"
+    },
+    {
+      "path": "cost-supervised-v1/ntfs-tests/ntfs-lcxpnuo0/run-authorization.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/ntfs-tests/ntfs-lcxpnuo0/run-authorization.json",
+      "bytes": 489,
+      "sha256": "e07822e83a7c7b531606519ecd4fdf1027f2fa7cbaefd4bad92a2084590262fe"
+    },
+    {
+      "path": "cost-supervised-v1/ntfs-tests/ntfs-n00d5p_r/fresh-spend.jsonl",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/ntfs-tests/ntfs-n00d5p_r/fresh-spend.jsonl",
+      "bytes": 14368,
+      "sha256": "d6213af1fd8330e9e97a688d903a3c1852b5f40265a66eafb6aa2bf1cfa2060b"
+    },
+    {
+      "path": "cost-supervised-v1/ntfs-tests/ntfs-n00d5p_r/original-preserved.jsonl",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/ntfs-tests/ntfs-n00d5p_r/original-preserved.jsonl",
+      "bytes": 14368,
+      "sha256": "d6213af1fd8330e9e97a688d903a3c1852b5f40265a66eafb6aa2bf1cfa2060b"
+    },
+    {
+      "path": "cost-supervised-v1/ntfs-tests/ntfs-n00d5p_r/run-authorization.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/ntfs-tests/ntfs-n00d5p_r/run-authorization.json",
+      "bytes": 489,
+      "sha256": "e07822e83a7c7b531606519ecd4fdf1027f2fa7cbaefd4bad92a2084590262fe"
+    },
+    {
+      "path": "cost-supervised-v1/ntfs-tests/ntfs-oeb410f7/fresh-spend.jsonl",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/ntfs-tests/ntfs-oeb410f7/fresh-spend.jsonl",
+      "bytes": 14368,
+      "sha256": "d6213af1fd8330e9e97a688d903a3c1852b5f40265a66eafb6aa2bf1cfa2060b"
+    },
+    {
+      "path": "cost-supervised-v1/ntfs-tests/ntfs-oeb410f7/run-authorization.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/ntfs-tests/ntfs-oeb410f7/run-authorization.json",
+      "bytes": 490,
+      "sha256": "0a722851ff64b278219923f329da9294226ccd4d8745bda285140196fbd0c4c2"
+    },
+    {
+      "path": "cost-supervised-v1/ntfs-tests/ntfs-pac3zmc_/fresh-spend.jsonl",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/ntfs-tests/ntfs-pac3zmc_/fresh-spend.jsonl",
+      "bytes": 14950,
+      "sha256": "c2c170d3ffecbd263c8b41d7ee20a740074d617efefe33c565646791f5c96c9b"
+    },
+    {
+      "path": "cost-supervised-v1/ntfs-tests/ntfs-pac3zmc_/run-authorization.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/ntfs-tests/ntfs-pac3zmc_/run-authorization.json",
+      "bytes": 489,
+      "sha256": "e07822e83a7c7b531606519ecd4fdf1027f2fa7cbaefd4bad92a2084590262fe"
+    },
+    {
+      "path": "cost-supervised-v1/ntfs-tests/ntfs-qq5oojo0/fresh-spend.jsonl",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/ntfs-tests/ntfs-qq5oojo0/fresh-spend.jsonl",
+      "bytes": 15761,
+      "sha256": "504596427087c96b8f23415758971e2d398600256a519288c15bc964d1b5e2c9"
+    },
+    {
+      "path": "cost-supervised-v1/ntfs-tests/ntfs-qq5oojo0/run-authorization.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/ntfs-tests/ntfs-qq5oojo0/run-authorization.json",
+      "bytes": 489,
+      "sha256": "e07822e83a7c7b531606519ecd4fdf1027f2fa7cbaefd4bad92a2084590262fe"
+    },
+    {
+      "path": "cost-supervised-v1/ntfs-tests/ntfs-sltoqb3w/fresh-spend.jsonl",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/ntfs-tests/ntfs-sltoqb3w/fresh-spend.jsonl",
+      "bytes": 15761,
+      "sha256": "1b9801df4579b68d8079b6cb32fe5302b0f245c034eb4a72944a6258d3402ce4"
+    },
+    {
+      "path": "cost-supervised-v1/ntfs-tests/ntfs-sltoqb3w/run-authorization.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/ntfs-tests/ntfs-sltoqb3w/run-authorization.json",
+      "bytes": 489,
+      "sha256": "e07822e83a7c7b531606519ecd4fdf1027f2fa7cbaefd4bad92a2084590262fe"
+    },
+    {
+      "path": "cost-supervised-v1/ntfs-tests/ntfs-su5sadzl/fresh-spend.jsonl",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/ntfs-tests/ntfs-su5sadzl/fresh-spend.jsonl",
+      "bytes": 14368,
+      "sha256": "d6213af1fd8330e9e97a688d903a3c1852b5f40265a66eafb6aa2bf1cfa2060b"
+    },
+    {
+      "path": "cost-supervised-v1/ntfs-tests/ntfs-su5sadzl/run-authorization.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/ntfs-tests/ntfs-su5sadzl/run-authorization.json",
+      "bytes": 489,
+      "sha256": "e07822e83a7c7b531606519ecd4fdf1027f2fa7cbaefd4bad92a2084590262fe"
+    },
+    {
+      "path": "cost-supervised-v1/ntfs-tests/ntfs-t6cxyezh/fresh-spend.jsonl",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/ntfs-tests/ntfs-t6cxyezh/fresh-spend.jsonl",
+      "bytes": 15532,
+      "sha256": "341cd391c446c12170ca290de046ac2ea0772fdad5830de3cd19caa5604d5971"
+    },
+    {
+      "path": "cost-supervised-v1/ntfs-tests/ntfs-t6cxyezh/run-authorization.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/ntfs-tests/ntfs-t6cxyezh/run-authorization.json",
+      "bytes": 489,
+      "sha256": "e07822e83a7c7b531606519ecd4fdf1027f2fa7cbaefd4bad92a2084590262fe"
+    },
+    {
+      "path": "cost-supervised-v1/ntfs-tests/ntfs-v7oy6loj/fresh-spend.jsonl",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/ntfs-tests/ntfs-v7oy6loj/fresh-spend.jsonl",
+      "bytes": 15532,
+      "sha256": "1b90edd9dc553b9e7d4366e6f280b1f827931a8fcdd15c567a779b34c39a5ed4"
+    },
+    {
+      "path": "cost-supervised-v1/ntfs-tests/ntfs-v7oy6loj/run-authorization.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/ntfs-tests/ntfs-v7oy6loj/run-authorization.json",
+      "bytes": 489,
+      "sha256": "e07822e83a7c7b531606519ecd4fdf1027f2fa7cbaefd4bad92a2084590262fe"
+    },
+    {
+      "path": "cost-supervised-v1/ntfs-tests/ntfs-xww28wuy/fresh-spend.jsonl",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/ntfs-tests/ntfs-xww28wuy/fresh-spend.jsonl",
+      "bytes": 14368,
+      "sha256": "d6213af1fd8330e9e97a688d903a3c1852b5f40265a66eafb6aa2bf1cfa2060b"
+    },
+    {
+      "path": "cost-supervised-v1/ntfs-tests/ntfs-xww28wuy/original-preserved.jsonl",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/ntfs-tests/ntfs-xww28wuy/original-preserved.jsonl",
+      "bytes": 14368,
+      "sha256": "d6213af1fd8330e9e97a688d903a3c1852b5f40265a66eafb6aa2bf1cfa2060b"
+    },
+    {
+      "path": "cost-supervised-v1/ntfs-tests/ntfs-xww28wuy/run-authorization.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/ntfs-tests/ntfs-xww28wuy/run-authorization.json",
+      "bytes": 489,
+      "sha256": "e07822e83a7c7b531606519ecd4fdf1027f2fa7cbaefd4bad92a2084590262fe"
+    },
+    {
+      "path": "cost-supervised-v1/ntfs-tests/ntfs-yrtjpj39/fresh-spend.jsonl",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/ntfs-tests/ntfs-yrtjpj39/fresh-spend.jsonl",
+      "bytes": 15761,
+      "sha256": "8991c29c67a7fd2ff4ed3764609e84433c98232a691d578b423d497410d3a74b"
+    },
+    {
+      "path": "cost-supervised-v1/ntfs-tests/ntfs-yrtjpj39/run-authorization.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/ntfs-tests/ntfs-yrtjpj39/run-authorization.json",
+      "bytes": 489,
+      "sha256": "e07822e83a7c7b531606519ecd4fdf1027f2fa7cbaefd4bad92a2084590262fe"
+    },
+    {
+      "path": "cost-supervised-v1/ntfs-tests/ntfs-zv7fv_qt/fresh-spend.jsonl",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/ntfs-tests/ntfs-zv7fv_qt/fresh-spend.jsonl",
+      "bytes": 14368,
+      "sha256": "91630bf3982840607109f817f03ff19d505bb5bf3115b31a7c80d933601e7147"
+    },
+    {
+      "path": "cost-supervised-v1/ntfs-tests/ntfs-zv7fv_qt/run-authorization.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/ntfs-tests/ntfs-zv7fv_qt/run-authorization.json",
+      "bytes": 489,
+      "sha256": "e07822e83a7c7b531606519ecd4fdf1027f2fa7cbaefd4bad92a2084590262fe"
+    },
+    {
+      "path": "cost-supervised-v1/operator-dry-5GPPHE/checkpoint.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/operator-dry-5GPPHE/checkpoint.json",
+      "bytes": 6687,
+      "sha256": "a8b9325e5cd3f613cb82c59e5d3270e5147ffeb92997e82b74bf773a1960ae31"
+    },
+    {
+      "path": "cost-supervised-v1/operator-dry-5GPPHE/executed-once/aggregate-checkpoint.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/operator-dry-5GPPHE/executed-once/aggregate-checkpoint.json",
+      "bytes": 217,
+      "sha256": "a68b5702806ed80d3deaf5572e5d4a396f1771d68cf5b3f4e8b9f15f5db3b6f9"
+    },
+    {
+      "path": "cost-supervised-v1/operator-dry-5GPPHE/executed-once/intent.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/operator-dry-5GPPHE/executed-once/intent.json",
+      "bytes": 619,
+      "sha256": "ed50b400bec2c6c941b9f100e7db73120bce6f84ec12c681444edb2ef41db6f9"
+    },
+    {
+      "path": "cost-supervised-v1/operator-dry-5GPPHE/executed-once/result.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/operator-dry-5GPPHE/executed-once/result.json",
+      "bytes": 655,
+      "sha256": "306a68741d486fce30dc49e300eb7f78cb59e6f4de48057d5c2e497b582fe960"
+    },
+    {
+      "path": "cost-supervised-v1/operator-dry-5GPPHE/fresh-spend.jsonl",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/operator-dry-5GPPHE/fresh-spend.jsonl",
+      "bytes": 15532,
+      "sha256": "fbd935409a54f594d49fbc73f202be0cedbf0302d71be00604ed90c8d22dfbbe"
+    },
+    {
+      "path": "cost-supervised-v1/operator-dry-5GPPHE/independent-review.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/operator-dry-5GPPHE/independent-review.json",
+      "bytes": 147,
+      "sha256": "a136af53e2418ca94d058925a4a159b00dbf910d3ee5d7a1da494c92eb38e27a"
+    },
+    {
+      "path": "cost-supervised-v1/operator-dry-91Mu88/checkpoint.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/operator-dry-91Mu88/checkpoint.json",
+      "bytes": 6687,
+      "sha256": "a8b9325e5cd3f613cb82c59e5d3270e5147ffeb92997e82b74bf773a1960ae31"
+    },
+    {
+      "path": "cost-supervised-v1/operator-dry-91Mu88/executed-once/failure.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/operator-dry-91Mu88/executed-once/failure.json",
+      "bytes": 214,
+      "sha256": "745394afa9240cd5029ca0dfcd1dc7ea56977fc9bc2d8ef4b10c224c2a64127d"
+    },
+    {
+      "path": "cost-supervised-v1/operator-dry-91Mu88/executed-once/intent.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/operator-dry-91Mu88/executed-once/intent.json",
+      "bytes": 619,
+      "sha256": "df41c57df471589eb0fc6a35c1bae7ae8a82fadabcc200490acc334934bf11dd"
+    },
+    {
+      "path": "cost-supervised-v1/operator-dry-91Mu88/fresh-spend.jsonl",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/operator-dry-91Mu88/fresh-spend.jsonl",
+      "bytes": 14368,
+      "sha256": "d6213af1fd8330e9e97a688d903a3c1852b5f40265a66eafb6aa2bf1cfa2060b"
+    },
+    {
+      "path": "cost-supervised-v1/operator-dry-91Mu88/independent-review.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/operator-dry-91Mu88/independent-review.json",
+      "bytes": 147,
+      "sha256": "a136af53e2418ca94d058925a4a159b00dbf910d3ee5d7a1da494c92eb38e27a"
+    },
+    {
+      "path": "cost-supervised-v1/operator-dry-9H9PEO/checkpoint.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/operator-dry-9H9PEO/checkpoint.json",
+      "bytes": 6687,
+      "sha256": "a8b9325e5cd3f613cb82c59e5d3270e5147ffeb92997e82b74bf773a1960ae31"
+    },
+    {
+      "path": "cost-supervised-v1/operator-dry-9H9PEO/executed-once/aggregate-checkpoint.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/operator-dry-9H9PEO/executed-once/aggregate-checkpoint.json",
+      "bytes": 217,
+      "sha256": "a68b5702806ed80d3deaf5572e5d4a396f1771d68cf5b3f4e8b9f15f5db3b6f9"
+    },
+    {
+      "path": "cost-supervised-v1/operator-dry-9H9PEO/executed-once/failure.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/operator-dry-9H9PEO/executed-once/failure.json",
+      "bytes": 223,
+      "sha256": "e104989a2d9ef948704575ce31e77d490ded1adf057bd06292ba2fe9a78a7cc8"
+    },
+    {
+      "path": "cost-supervised-v1/operator-dry-9H9PEO/executed-once/intent.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/operator-dry-9H9PEO/executed-once/intent.json",
+      "bytes": 619,
+      "sha256": "bbc3996bc7a36d1170336b165a82dc82f5518f1cb42f5438dd977a166dd42c08"
+    },
+    {
+      "path": "cost-supervised-v1/operator-dry-9H9PEO/fresh-spend.jsonl",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/operator-dry-9H9PEO/fresh-spend.jsonl",
+      "bytes": 15532,
+      "sha256": "db8c9f0469ff90bab3ee91fe8c54ce38d77bd86b6a6dd3eda1d3ae3da3d8b191"
+    },
+    {
+      "path": "cost-supervised-v1/operator-dry-9H9PEO/independent-review.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/operator-dry-9H9PEO/independent-review.json",
+      "bytes": 147,
+      "sha256": "a136af53e2418ca94d058925a4a159b00dbf910d3ee5d7a1da494c92eb38e27a"
+    },
+    {
+      "path": "cost-supervised-v1/operator-dry-EiwRIN/checkpoint.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/operator-dry-EiwRIN/checkpoint.json",
+      "bytes": 6687,
+      "sha256": "a8b9325e5cd3f613cb82c59e5d3270e5147ffeb92997e82b74bf773a1960ae31"
+    },
+    {
+      "path": "cost-supervised-v1/operator-dry-EiwRIN/executed-once/aggregate-checkpoint.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/operator-dry-EiwRIN/executed-once/aggregate-checkpoint.json",
+      "bytes": 217,
+      "sha256": "a68b5702806ed80d3deaf5572e5d4a396f1771d68cf5b3f4e8b9f15f5db3b6f9"
+    },
+    {
+      "path": "cost-supervised-v1/operator-dry-EiwRIN/executed-once/intent.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/operator-dry-EiwRIN/executed-once/intent.json",
+      "bytes": 619,
+      "sha256": "2a741c2e59d8a69fa869cd5b50e971888713333e46f9aade52b1bf7cb9eeb353"
+    },
+    {
+      "path": "cost-supervised-v1/operator-dry-EiwRIN/executed-once/result.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/operator-dry-EiwRIN/executed-once/result.json",
+      "bytes": 655,
+      "sha256": "898b1383ab5a02c458efd05daf444a26f71e0bdcf84633f6abbb1259f303a2ef"
+    },
+    {
+      "path": "cost-supervised-v1/operator-dry-EiwRIN/fresh-spend.jsonl",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/operator-dry-EiwRIN/fresh-spend.jsonl",
+      "bytes": 15532,
+      "sha256": "0fa29029013f6f885c0450116fe7fbc3e607fd73a2eb6fdf84f032a9b7900e41"
+    },
+    {
+      "path": "cost-supervised-v1/operator-dry-EiwRIN/independent-review.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/operator-dry-EiwRIN/independent-review.json",
+      "bytes": 147,
+      "sha256": "a136af53e2418ca94d058925a4a159b00dbf910d3ee5d7a1da494c92eb38e27a"
+    },
+    {
+      "path": "cost-supervised-v1/operator-dry-fWayWa/checkpoint.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/operator-dry-fWayWa/checkpoint.json",
+      "bytes": 6687,
+      "sha256": "a8b9325e5cd3f613cb82c59e5d3270e5147ffeb92997e82b74bf773a1960ae31"
+    },
+    {
+      "path": "cost-supervised-v1/operator-dry-fWayWa/executed-once/aggregate-checkpoint.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/operator-dry-fWayWa/executed-once/aggregate-checkpoint.json",
+      "bytes": 217,
+      "sha256": "a68b5702806ed80d3deaf5572e5d4a396f1771d68cf5b3f4e8b9f15f5db3b6f9"
+    },
+    {
+      "path": "cost-supervised-v1/operator-dry-fWayWa/executed-once/failure.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/operator-dry-fWayWa/executed-once/failure.json",
+      "bytes": 223,
+      "sha256": "a5e8b1a34be81f49eb5f2f437c83a41614f3eb5dbba70db46f1554f0ac490acc"
+    },
+    {
+      "path": "cost-supervised-v1/operator-dry-fWayWa/executed-once/intent.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/operator-dry-fWayWa/executed-once/intent.json",
+      "bytes": 619,
+      "sha256": "2824528aa307afd969032a95b0bd1e0a363ebf1e1bb5df9e1b77d05b2bdfbc08"
+    },
+    {
+      "path": "cost-supervised-v1/operator-dry-fWayWa/fresh-spend.jsonl",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/operator-dry-fWayWa/fresh-spend.jsonl",
+      "bytes": 15532,
+      "sha256": "e28bb9908dbc117acd8990403ca5a05eca4d5d67e4cc0eee68f8d88144eb25fa"
+    },
+    {
+      "path": "cost-supervised-v1/operator-dry-fWayWa/independent-review.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/operator-dry-fWayWa/independent-review.json",
+      "bytes": 147,
+      "sha256": "a136af53e2418ca94d058925a4a159b00dbf910d3ee5d7a1da494c92eb38e27a"
+    },
+    {
+      "path": "cost-supervised-v1/operator-dry-slzfKc/checkpoint.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/operator-dry-slzfKc/checkpoint.json",
+      "bytes": 6687,
+      "sha256": "a8b9325e5cd3f613cb82c59e5d3270e5147ffeb92997e82b74bf773a1960ae31"
+    },
+    {
+      "path": "cost-supervised-v1/operator-dry-slzfKc/executed-once/aggregate-checkpoint.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/operator-dry-slzfKc/executed-once/aggregate-checkpoint.json",
+      "bytes": 217,
+      "sha256": "a68b5702806ed80d3deaf5572e5d4a396f1771d68cf5b3f4e8b9f15f5db3b6f9"
+    },
+    {
+      "path": "cost-supervised-v1/operator-dry-slzfKc/executed-once/failure.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/operator-dry-slzfKc/executed-once/failure.json",
+      "bytes": 223,
+      "sha256": "1ad0820577e73b9227e39faf14ebff1d9f099fa5e48ec8f60a668880ef78c61e"
+    },
+    {
+      "path": "cost-supervised-v1/operator-dry-slzfKc/executed-once/intent.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/operator-dry-slzfKc/executed-once/intent.json",
+      "bytes": 619,
+      "sha256": "b19ace134a0a3d03d445de3010a02632211fb4cf516e30dd75e7173c2282e3e4"
+    },
+    {
+      "path": "cost-supervised-v1/operator-dry-slzfKc/fresh-spend.jsonl",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/operator-dry-slzfKc/fresh-spend.jsonl",
+      "bytes": 15532,
+      "sha256": "7989114e17516d8db8516bfdfce1681023fb6b8ea915369324dd79e42aa54b33"
+    },
+    {
+      "path": "cost-supervised-v1/operator-dry-slzfKc/independent-review.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/operator-dry-slzfKc/independent-review.json",
+      "bytes": 147,
+      "sha256": "a136af53e2418ca94d058925a4a159b00dbf910d3ee5d7a1da494c92eb38e27a"
+    },
+    {
+      "path": "cost-supervised-v1/operator-dry-v2.log",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/operator-dry-v2.log",
+      "bytes": 533,
+      "sha256": "92dbf8fa6c0e8744c124783830b332344250c94f614aea2d7d30f68319391faf"
+    },
+    {
+      "path": "cost-supervised-v1/operator-dry-yKHiiY/checkpoint.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/operator-dry-yKHiiY/checkpoint.json",
+      "bytes": 6687,
+      "sha256": "a8b9325e5cd3f613cb82c59e5d3270e5147ffeb92997e82b74bf773a1960ae31"
+    },
+    {
+      "path": "cost-supervised-v1/operator-dry-yKHiiY/executed-once/failure.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/operator-dry-yKHiiY/executed-once/failure.json",
+      "bytes": 214,
+      "sha256": "b1f08870d43fec7937238a7b5122dcae16fff9472098ef3193319d4165eaf38e"
+    },
+    {
+      "path": "cost-supervised-v1/operator-dry-yKHiiY/executed-once/intent.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/operator-dry-yKHiiY/executed-once/intent.json",
+      "bytes": 619,
+      "sha256": "6c95ec7bbac1f85ff60b87c17d35e36457c3f2fc35e633893162d1fee549a729"
+    },
+    {
+      "path": "cost-supervised-v1/operator-dry-yKHiiY/fresh-spend.jsonl",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/operator-dry-yKHiiY/fresh-spend.jsonl",
+      "bytes": 14368,
+      "sha256": "d6213af1fd8330e9e97a688d903a3c1852b5f40265a66eafb6aa2bf1cfa2060b"
+    },
+    {
+      "path": "cost-supervised-v1/operator-dry-yKHiiY/independent-review.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/operator-dry-yKHiiY/independent-review.json",
+      "bytes": 147,
+      "sha256": "a136af53e2418ca94d058925a4a159b00dbf910d3ee5d7a1da494c92eb38e27a"
+    },
+    {
+      "path": "cost-supervised-v1/operator-dry-Z9XBf7/checkpoint.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/operator-dry-Z9XBf7/checkpoint.json",
+      "bytes": 6687,
+      "sha256": "a8b9325e5cd3f613cb82c59e5d3270e5147ffeb92997e82b74bf773a1960ae31"
+    },
+    {
+      "path": "cost-supervised-v1/operator-dry-Z9XBf7/executed-once/aggregate-checkpoint.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/operator-dry-Z9XBf7/executed-once/aggregate-checkpoint.json",
+      "bytes": 217,
+      "sha256": "a68b5702806ed80d3deaf5572e5d4a396f1771d68cf5b3f4e8b9f15f5db3b6f9"
+    },
+    {
+      "path": "cost-supervised-v1/operator-dry-Z9XBf7/executed-once/failure.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/operator-dry-Z9XBf7/executed-once/failure.json",
+      "bytes": 223,
+      "sha256": "cc14b6251210a822eca512179cbc579c0c4413dfccaca1398153c3bf78594d64"
+    },
+    {
+      "path": "cost-supervised-v1/operator-dry-Z9XBf7/executed-once/intent.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/operator-dry-Z9XBf7/executed-once/intent.json",
+      "bytes": 619,
+      "sha256": "ec1431d1c567f37b6b5c8b6eeda103b56f3598e0484348d0ef47e4901f9db353"
+    },
+    {
+      "path": "cost-supervised-v1/operator-dry-Z9XBf7/fresh-spend.jsonl",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/operator-dry-Z9XBf7/fresh-spend.jsonl",
+      "bytes": 15532,
+      "sha256": "f5348a54cfd64913008691260ac26ae12d0e340ab3f972d2721225f8bfd0fa9e"
+    },
+    {
+      "path": "cost-supervised-v1/operator-dry-Z9XBf7/independent-review.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/operator-dry-Z9XBf7/independent-review.json",
+      "bytes": 147,
+      "sha256": "a136af53e2418ca94d058925a4a159b00dbf910d3ee5d7a1da494c92eb38e27a"
+    },
+    {
+      "path": "cost-supervised-v1/operator-dry.test.mjs",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/operator-dry.test.mjs",
+      "bytes": 5466,
+      "sha256": "ef1ac712ace3944676078ebcd8e8ddc880e042bfadf775675fa8260f9504f69a"
+    },
+    {
+      "path": "cost-supervised-v1/operator-syntax.log",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/operator-syntax.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "cost-supervised-v1/prepare-native-tests.py",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/prepare-native-tests.py",
+      "bytes": 2560,
+      "sha256": "dc9d557eed1550dbb37c805e638b51a7791cea03bcb6ef5af6fe2071b7fb48a0"
+    },
+    {
+      "path": "cost-supervised-v1/prepare-pins.mjs",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/prepare-pins.mjs",
+      "bytes": 3084,
+      "sha256": "d184cda70d76210d8f6e94a3be40e1750d680ff16091c8409502ea67f7f074ca"
+    },
+    {
+      "path": "cost-supervised-v1/proof.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/proof.json",
+      "bytes": 1017,
+      "sha256": "1e45641ee993aa75fa6d2a56b4e7bc2fb2b7666e66c2806167a2cf8bc437a62e"
+    },
+    {
+      "path": "cost-supervised-v1/qualify-operator-v2.py",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/qualify-operator-v2.py",
+      "bytes": 2226,
+      "sha256": "dbdc4a12244236140463a0a2f0bd6d6392b657f91c5d39f8405214ca6905f68e"
+    },
+    {
+      "path": "cost-supervised-v1/qualify.py",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/qualify.py",
+      "bytes": 4317,
+      "sha256": "c2185df0157e38f1b79e289e5760759b0ad5bd7b17f9b2c8fad3bfbf02ddd3f2"
+    },
+    {
+      "path": "cost-supervised-v1/run-case20-terminal-cost-once.mjs",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/run-case20-terminal-cost-once.mjs",
+      "bytes": 3538,
+      "sha256": "a1bf30ae11a8d5aeb355c3bbdafefa45ced660ddeb30ba8f63fb2ff1826cd550"
+    },
+    {
+      "path": "case20-cost-hermes-review-v1/execution.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-cost-hermes-review-v1/execution.json",
+      "bytes": 968,
+      "sha256": "0c0e0ed374307ffbeb3d65cc4b137ac1d491cce6f982ec9a1fd5c41ca2e7c5c5"
+    },
+    {
+      "path": "case20-cost-hermes-review-v1/prompt.txt",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-cost-hermes-review-v1/prompt.txt",
+      "bytes": 2527,
+      "sha256": "13149fa62d4abbe3419a4602c1c695fc67c19ff84068c73175f2abcf596fc921"
+    },
+    {
+      "path": "case20-cost-hermes-review-v1/response.txt",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-cost-hermes-review-v1/response.txt",
+      "bytes": 442,
+      "sha256": "4d37f7221f59c2fb9b00acbb057d6bf9ad07a1d9f81c981327bad1ac26bf17b5"
+    },
+    {
+      "path": "case20-cost-hermes-review-v1/REVIEW.md",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-cost-hermes-review-v1/REVIEW.md",
+      "bytes": 5554,
+      "sha256": "e2fdd6ef3cf6f6c4616f40da7a8db478a3a885d7816498d27915f163ee41c9e1"
+    },
+    {
+      "path": "case20-cost-hermes-review-v1/stderr.log",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-cost-hermes-review-v1/stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "case20-cost-hermes-review-v1/usage.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case20-cost-hermes-review-v1/usage.json",
+      "bytes": 484,
+      "sha256": "1673446b4da18e4ff3e87a9bcf350795679be770a2ee94849128eb86243506e3"
+    },
+    {
+      "path": "case14-native-owner-read-v1/cleanup.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case14-native-owner-read-v1/cleanup.json",
+      "bytes": 358,
+      "sha256": "e0583df3029cf4ff0ada448b830c8f6ff842de0778e12ea1f4cf16d8c5eb063a"
+    },
+    {
+      "path": "case14-native-owner-read-v1/definition-registered.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case14-native-owner-read-v1/definition-registered.json",
+      "bytes": 161,
+      "sha256": "946c4eff15daaa0d2979142e0694c93106fb2ebd4261e6f7937e09a5b498b2e3"
+    },
+    {
+      "path": "case14-native-owner-read-v1/failure.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case14-native-owner-read-v1/failure.json",
+      "bytes": 352,
+      "sha256": "6c9bc177d451c2988ff2d1043525f212599a85fcd56a70652db6a828c3ae91b7"
+    },
+    {
+      "path": "case14-native-owner-read-v1/intent.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case14-native-owner-read-v1/intent.json",
+      "bytes": 559,
+      "sha256": "03ec3a7c09e27f373f524e71a7ab89e7e9638e0e67d9e4ec5a981a2e504b367d"
+    },
+    {
+      "path": "case14-native-owner-read-v1/journal-preserved.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case14-native-owner-read-v1/journal-preserved.json",
+      "bytes": 104,
+      "sha256": "473795da6ff2474b5d06ca0f05e7015bf50197dc723ce1c8e2e599577a7c7358"
+    },
+    {
+      "path": "case14-native-owner-read-v1/log-transport-pages.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case14-native-owner-read-v1/log-transport-pages.json",
+      "bytes": 709,
+      "sha256": "05161d8d152622ce502362d3884be44bbe164b56ffb5f765241875326ce298e0"
+    },
+    {
+      "path": "case14-native-owner-read-v1/result.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case14-native-owner-read-v1/result.json",
+      "bytes": 698,
+      "sha256": "4794f6ced3b4a722d82cca5e133e90eda2c3fbc9d5b869f76646f84117949f51"
+    },
+    {
+      "path": "case14-native-owner-read-v1/task-start.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case14-native-owner-read-v1/task-start.json",
+      "bytes": 347,
+      "sha256": "2d4b68dd32f78645752c232426f4578d6c025e6dbf856a7b93c9030de97af0b9"
+    },
+    {
+      "path": "case14-native-owner-read-v2/canonical-owner-readback.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case14-native-owner-read-v2/canonical-owner-readback.json",
+      "bytes": 487,
+      "sha256": "22d6864ea5030ab853dc3ca4cba9f3e8f6640fb9dc1e04a56081b2aeb6ac2c46"
+    },
+    {
+      "path": "case14-native-owner-read-v2/cleanup.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case14-native-owner-read-v2/cleanup.json",
+      "bytes": 358,
+      "sha256": "52fec6ecf69dc1761aec71fcc9e21547e4442559401da243f7728afadd33781d"
+    },
+    {
+      "path": "case14-native-owner-read-v2/definition-registered.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case14-native-owner-read-v2/definition-registered.json",
+      "bytes": 161,
+      "sha256": "411c2d7601058c0f252c88276494d3bfa995c79a4533d697a8b0092a2466b0b5"
+    },
+    {
+      "path": "case14-native-owner-read-v2/intent.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case14-native-owner-read-v2/intent.json",
+      "bytes": 559,
+      "sha256": "834e32d3d704f876b45e31af61ec1680f8c603f04f9741db38f594232a2c90e3"
+    },
+    {
+      "path": "case14-native-owner-read-v2/journal-preserved.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case14-native-owner-read-v2/journal-preserved.json",
+      "bytes": 104,
+      "sha256": "473795da6ff2474b5d06ca0f05e7015bf50197dc723ce1c8e2e599577a7c7358"
+    },
+    {
+      "path": "case14-native-owner-read-v2/log-transport-pages.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case14-native-owner-read-v2/log-transport-pages.json",
+      "bytes": 709,
+      "sha256": "d024f836b6b078675a8d0c2b450ef857a9c2bc6839c922bb11e9275014582168"
+    },
+    {
+      "path": "case14-native-owner-read-v2/readback-transport.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case14-native-owner-read-v2/readback-transport.json",
+      "bytes": 134,
+      "sha256": "d7c5aeb23c3982d6f5dc4f6899cf66a2f90d9ea0eb6354cf1d5e1e56d9d1f0b1"
+    },
+    {
+      "path": "case14-native-owner-read-v2/result.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case14-native-owner-read-v2/result.json",
+      "bytes": 1617,
+      "sha256": "fdfe1c52f51f6c34ac56802946f9be8272202edd58c954527dcb71f81558c21b"
+    },
+    {
+      "path": "case14-native-owner-read-v2/task-start.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case14-native-owner-read-v2/task-start.json",
+      "bytes": 347,
+      "sha256": "bfc56ca4002fd51fdde45fcc254aca4ea484c4c50e2ddfa90a9c3acea2a9afbe"
+    },
+    {
+      "path": "case14-native-read-hermes-review-v1/execution.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case14-native-read-hermes-review-v1/execution.json",
+      "bytes": 968,
+      "sha256": "8d7e3a77e1c7b4de64b4e1c8149886a8ece3655f786552a4e14125d8d40c174b"
+    },
+    {
+      "path": "case14-native-read-hermes-review-v1/prompt.txt",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case14-native-read-hermes-review-v1/prompt.txt",
+      "bytes": 1841,
+      "sha256": "7d6c57c8c6c6e36c1af442f1f6747763f91abcbbc40606718152672a82aa6f76"
+    },
+    {
+      "path": "case14-native-read-hermes-review-v1/response.txt",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case14-native-read-hermes-review-v1/response.txt",
+      "bytes": 398,
+      "sha256": "4afb99f9e49aa5fb8a53d5afaa3977fcc41973be162e7eeeade981834dcee27a"
+    },
+    {
+      "path": "case14-native-read-hermes-review-v1/REVIEW.md",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case14-native-read-hermes-review-v1/REVIEW.md",
+      "bytes": 7516,
+      "sha256": "fd0eb59637059982cf1729cbec228be7e1701914ba458e1864e4de45c1657798"
+    },
+    {
+      "path": "case14-native-read-hermes-review-v1/stderr.log",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case14-native-read-hermes-review-v1/stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "case14-native-read-hermes-review-v1/usage.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case14-native-read-hermes-review-v1/usage.json",
+      "bytes": 475,
+      "sha256": "4b2cf8af7e95ea2609942a69e8870836b53c0e87899c87c3eaf03d50a15a33a6"
+    },
+    {
+      "path": "case14-native-read-hermes-review-v2/execution.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case14-native-read-hermes-review-v2/execution.json",
+      "bytes": 968,
+      "sha256": "5310fb8b8754a9a49a68f85cdfd2e06925e316f5a697ec11a90043ad57653d40"
+    },
+    {
+      "path": "case14-native-read-hermes-review-v2/prompt.txt",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case14-native-read-hermes-review-v2/prompt.txt",
+      "bytes": 1449,
+      "sha256": "f1a833608b00dadb57a4b9a4282fccc7cb7d45b28f854105090496bad66da256"
+    },
+    {
+      "path": "case14-native-read-hermes-review-v2/response.txt",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case14-native-read-hermes-review-v2/response.txt",
+      "bytes": 456,
+      "sha256": "6dd9a12d54c592c54933d715458631e6eb9720fe01968bbfd33d5f214b391d24"
+    },
+    {
+      "path": "case14-native-read-hermes-review-v2/REVIEW.md",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case14-native-read-hermes-review-v2/REVIEW.md",
+      "bytes": 4042,
+      "sha256": "57c938aed6fe11909fdca0e7b0ec9f9ee4e4b0374dd5b154b1ad1d1d89912305"
+    },
+    {
+      "path": "case14-native-read-hermes-review-v2/stderr.log",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case14-native-read-hermes-review-v2/stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "case14-native-read-hermes-review-v2/usage.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case14-native-read-hermes-review-v2/usage.json",
+      "bytes": 473,
+      "sha256": "e95ae26891b5150aa30b7e76088cfb7800d85af99bef5baede9418526dcc7a47"
+    },
+    {
+      "path": "continuation-hermes-v1/case14-independent-review/execution.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/continuation-hermes-v1/case14-independent-review/execution.json",
+      "bytes": 1108,
+      "sha256": "370e63866d6b113a6c452c6a2a380acef3e2ed2570c0bd3bacc2422178f818f6"
+    },
+    {
+      "path": "continuation-hermes-v1/case14-independent-review/prompt.txt",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/continuation-hermes-v1/case14-independent-review/prompt.txt",
+      "bytes": 2361,
+      "sha256": "b960477a8bcd6c7a553a56bf6bc703447bd7bc7100a107c1ee11870f24c47e93"
+    },
+    {
+      "path": "continuation-hermes-v1/case14-independent-review/response.txt",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/continuation-hermes-v1/case14-independent-review/response.txt",
+      "bytes": 497,
+      "sha256": "d3e2158fcc04d67c17885618dd06b68b103ef5b68bffde5954eb34fc610b4436"
+    },
+    {
+      "path": "continuation-hermes-v1/case14-independent-review/REVIEW.md",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/continuation-hermes-v1/case14-independent-review/REVIEW.md",
+      "bytes": 12226,
+      "sha256": "d62d8b9906134cf87011583c2c6f30c244b2b16e8218a1d709ec0efe10109cb6"
+    },
+    {
+      "path": "continuation-hermes-v1/case14-independent-review/stderr.log",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/continuation-hermes-v1/case14-independent-review/stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "continuation-hermes-v1/case14-independent-review/usage.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/continuation-hermes-v1/case14-independent-review/usage.json",
+      "bytes": 474,
+      "sha256": "ade5a09bb6d0f4336bd82c47840e86b61190665e3f4d5ad2f1c304f818ddccae"
+    },
+    {
+      "path": "continuation-hermes-v1/cost-implementation/evals/meri/live-v1/case20-cost-owner.patch",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/continuation-hermes-v1/cost-implementation/evals/meri/live-v1/case20-cost-owner.patch",
+      "bytes": 3151,
+      "sha256": "988814de90498f665410af8f5b557b5b0a85bd1d9e46039117ac0a9812a4cd2c"
+    },
+    {
+      "path": "continuation-hermes-v1/cost-implementation/evals/meri/live-v1/case20-terminal-cost-authority.mjs",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/continuation-hermes-v1/cost-implementation/evals/meri/live-v1/case20-terminal-cost-authority.mjs",
+      "bytes": 7934,
+      "sha256": "a87b00201b81aa623dc466b82197ef381dda3c11811cd640cafe0f04c9925d71"
+    },
+    {
+      "path": "continuation-hermes-v1/cost-implementation/evals/meri/live-v1/case20-terminal-cost-pins.mjs",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/continuation-hermes-v1/cost-implementation/evals/meri/live-v1/case20-terminal-cost-pins.mjs",
+      "bytes": 2685,
+      "sha256": "ac5b9861ee40884f3b360fc8e44853b5089e3bdbc3d8b8a3d49440f9452d9984"
+    },
+    {
+      "path": "continuation-hermes-v1/cost-implementation/execution.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/continuation-hermes-v1/cost-implementation/execution.json",
+      "bytes": 1673,
+      "sha256": "5fb81e2fb0a2ae578af0d1f77d5819758939c13adc7d17653151614f071e31f5"
+    },
+    {
+      "path": "continuation-hermes-v1/cost-implementation/NOTES.md",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/continuation-hermes-v1/cost-implementation/NOTES.md",
+      "bytes": 3784,
+      "sha256": "96cf9286e45c6378a74c6acb38e985d241c2443fcd970f8ddb0018fff6508064"
+    },
+    {
+      "path": "continuation-hermes-v1/cost-implementation/prompt.txt",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/continuation-hermes-v1/cost-implementation/prompt.txt",
+      "bytes": 3183,
+      "sha256": "8b9828ff97fae51a120e543cb9ddf7391c087a54dafe80537d09c726f06458fb"
+    },
+    {
+      "path": "continuation-hermes-v1/cost-implementation/response.txt",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/continuation-hermes-v1/cost-implementation/response.txt",
+      "bytes": 1415,
+      "sha256": "a09cd935a3785302994e105995089777c55e90b0f7d75f5faedf868395f61f8b"
+    },
+    {
+      "path": "continuation-hermes-v1/cost-implementation/stderr.log",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/continuation-hermes-v1/cost-implementation/stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "continuation-hermes-v1/cost-implementation/usage.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/continuation-hermes-v1/cost-implementation/usage.json",
+      "bytes": 477,
+      "sha256": "902e11f6298cdffc2574d613e89829f3a16c236b3276d2abaa11bdacd380dddf"
+    },
+    {
+      "path": "case14-native-read-inner-v1.mjs",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case14-native-read-inner-v1.mjs",
+      "bytes": 6365,
+      "sha256": "70e7708d1ce002113b1e4efdc3876cecb9f228498e02a7bb5bcc3dc0eaecdc81"
+    },
+    {
+      "path": "case14-native-read-inner-v2.mjs",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case14-native-read-inner-v2.mjs",
+      "bytes": 6430,
+      "sha256": "8480a84893ac2578833d3cb23e020b6c98a2a2462b54dc2cadfa399cb33977a4"
+    },
+    {
+      "path": "run-case14-native-owner-read-v1.mjs",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/run-case14-native-owner-read-v1.mjs",
+      "bytes": 12576,
+      "sha256": "a53265902cafe810bdd730e44805b120e4b48fa1c0f215b464f55636f7520d98"
+    },
+    {
+      "path": "run-case14-native-owner-read-v2.mjs",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/run-case14-native-owner-read-v2.mjs",
+      "bytes": 12604,
+      "sha256": "6623605f69e60b9d18aedea5912300d7b84046a45e03ac21ed715fdb883b3f40"
+    },
+    {
+      "path": "test-case14-native-read-v1.mjs",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/test-case14-native-read-v1.mjs",
+      "bytes": 3653,
+      "sha256": "61087faeacf38719d69da6f8a135e6182e819882c06c3f2489c790466aa8224a"
+    },
+    {
+      "path": "test-case14-native-read-v2.mjs",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/test-case14-native-read-v2.mjs",
+      "bytes": 4843,
+      "sha256": "cf1ee7c60a771279d55d3a4e3ea8913fcf52a4d9c2761197896ff15a69a56afb"
+    },
+    {
+      "path": "test-case14-native-outer-v1.mjs",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/test-case14-native-outer-v1.mjs",
+      "bytes": 4837,
+      "sha256": "78f3abcbfa3cc628afac1b4d24c8f887e6215821027f32e341815b7834afa5b8"
+    },
+    {
+      "path": "test-case14-native-outer-v2.mjs",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/test-case14-native-outer-v2.mjs",
+      "bytes": 4961,
+      "sha256": "1375b8f2b8ec201b1a1ff0f31ec4f4c24de35ef66b0174565dab83daffe1e50d"
+    },
+    {
+      "path": "case14-native-read-tests-v1.log",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case14-native-read-tests-v1.log",
+      "bytes": 802,
+      "sha256": "46f15b8ba37c7e05dee0a34cd64d7e7ca724a98c0ad5efcfb60adcee4411cf53"
+    },
+    {
+      "path": "case14-native-outer-tests-v1.log",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case14-native-outer-tests-v1.log",
+      "bytes": 459,
+      "sha256": "f5f4675bf6ff1582d73cf3aaafef46e8d40549faec9a9b4bb457d394075d4c14"
+    },
+    {
+      "path": "case14-native-read-tests-v2.log",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case14-native-read-tests-v2.log",
+      "bytes": 1221,
+      "sha256": "587c4384715c5f9d5b00c16ee30e6aa9ec7c9e7e3a59a358ef1f209dfab27a6f"
+    },
+    {
+      "path": "case14-scope-diagnosis-v1.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case14-scope-diagnosis-v1.json",
+      "bytes": 144,
+      "sha256": "fcbbb07b8f9c673db3a720a477ed9ea1d57a2470c45752f1ffd1f85c9a7bb330"
+    },
+    {
+      "path": "diagnose-case14-scope-v1.mjs",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/diagnose-case14-scope-v1.mjs",
+      "bytes": 1206,
+      "sha256": "9622171628938d82f416b21d31a536c9c0eb3e2e424cae02a62331a588196086"
+    },
+    {
+      "path": "verify-cost-final-v1.py",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/verify-cost-final-v1.py",
+      "bytes": 2135,
+      "sha256": "184a5835996fb4f709b170cc2c9aab041216616f85797c602c634d490df898f6"
+    },
+    {
+      "path": "journal24-exact.jsonl",
+      "source": "C:/dev/main/outputs/meri-fresh-20261003/fresh-spend.jsonl",
+      "bytes": 15532,
+      "sha256": "8f20134f71dde90e32fc0c3c2aba2da2d5b93dd13fffea31b83105d1621bc3e5"
+    },
+    {
+      "path": "source/evals/meri/live-v1/case20-terminal-cost-authority.mjs",
+      "source": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/case20-terminal-cost-authority.mjs",
+      "bytes": 15205,
+      "sha256": "c67970c36192625203019ca9d0da19c8480c29783f2622072523650ccb4f8f7d"
+    },
+    {
+      "path": "source/evals/meri/live-v1/case20-terminal-cost-pins.mjs",
+      "source": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/case20-terminal-cost-pins.mjs",
+      "bytes": 7881,
+      "sha256": "9591737cbf0fe53a81795a62eb6a28f19dd878a45408cff03c68f1dee0e20d6a"
+    },
+    {
+      "path": "source/evals/meri/live-v1/capture-spend-aggregate.mjs",
+      "source": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/capture-spend-aggregate.mjs",
+      "bytes": 18235,
+      "sha256": "c2de81c8cd264a723a73d24aab4d2ca550eb9c15555011370ea7ca2e65755e48"
+    },
+    {
+      "path": "source/evals/meri/live-v1/lib/windows-capture-spend.py",
+      "source": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/lib/windows-capture-spend.py",
+      "bytes": 27025,
+      "sha256": "12c0428b25d616ee2d3969d7b41f4c804ee2fa52c509dc9ec01876bd18856fdc"
+    },
+    {
+      "path": "source/evals/meri/live-v1/tests/case20-terminal-cost.test.mjs",
+      "source": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/case20-terminal-cost.test.mjs",
+      "bytes": 5628,
+      "sha256": "27300b66229ae2e34baac70a91b84d5a650fad96986120ddd9e0bd99e9118314"
+    },
+    {
+      "path": "source/evals/meri/live-v1/tests/case20-terminal-cost.unit.py",
+      "source": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/case20-terminal-cost.unit.py",
+      "bytes": 7187,
+      "sha256": "66dd4e78bc697ca4ff431e554f66ab2c5e3fb72db9c74465ce1ca7e0262e4827"
+    },
+    {
+      "path": "source/evals/meri/live-v1/tests/fixtures/case20-terminal-cost.unit.json",
+      "source": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/fixtures/case20-terminal-cost.unit.json",
+      "bytes": 132382,
+      "sha256": "ac03c1707773f929cb56fb2f6c35f3311d9d1691e65348a6bc3816c5603a2388"
+    },
+    {
+      "path": "source/evals/meri/live-v1/tests/fixtures/case20-terminal-cost-proof.unit.json",
+      "source": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/fixtures/case20-terminal-cost-proof.unit.json",
+      "bytes": 1017,
+      "sha256": "1e45641ee993aa75fa6d2a56b4e7bc2fb2b7666e66c2806167a2cf8bc437a62e"
+    },
+    {
+      "path": "source/evals/meri/live-v1/tests/fixtures/case20-terminal-cost-journal23.unit.jsonl",
+      "source": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/fixtures/case20-terminal-cost-journal23.unit.jsonl",
+      "bytes": 14368,
+      "sha256": "d6213af1fd8330e9e97a688d903a3c1852b5f40265a66eafb6aa2bf1cfa2060b"
+    },
+    {
+      "path": "prior-current-docs/STATUS.md",
+      "source": "C:/dev/main/meri-c1-20261002/docs/meri/implementation/STATUS.md",
+      "bytes": 10547,
+      "sha256": "8db2ae02b1696d193a6cc56b39fcffa926e9df71658eb0eee7138edd5826c810"
+    },
+    {
+      "path": "prior-current-docs/01-requirements.md",
+      "source": "C:/dev/main/meri-c1-20261002/docs/meri/implementation/01-requirements.md",
+      "bytes": 47679,
+      "sha256": "40dcfcf063d893056893c0a61f2992e5976c3f178edbc97f7fc8fdda105cb81e"
+    },
+    {
+      "path": "prior-current-docs/01-handover.md",
+      "source": "C:/dev/main/meri-c1-20261002/docs/meri/implementation/01-handover.md",
+      "bytes": 10919,
+      "sha256": "ee3eb1d644f0c1e35274ddf6e5fe200fed72b4bc8fcf57bf4f540671711cfbce"
+    }
+  ]
+}

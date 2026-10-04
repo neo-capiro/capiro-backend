@@ -1,0 +1,48 @@
+*** Begin Patch
+*** Update File: evals/meri/live-v1/case20-terminal-cost-authority.mjs
+@@
+     pendingProviderAttempts: 0, providerStateSha256: sha256Stable(state), journalBeforeSha256: s.preAppendJournalSha256,
++    executionCompletedAtMs: completed, observedAtMs: observed, providerDeadlineAtMs: deadline,
+     disposition: 'FAILED_CAPTURE_TERMINAL_PROVIDER_COST_RECONCILED', captureAuthority: false,
+*** End Patch
+
+*** Begin Patch
+*** Update File: evals/meri/live-v1/lib/windows-capture-spend.py
+@@
+-            require(set(proof) == {'caseId', 'captureRunId', 'reservationId', 'conversationId',
++            require(set(proof) == {'caseId', 'captureRunId', 'reservationId', 'conversationId',
+                                   'chargedCostMicros', 'providerTokens', 'providerAttempts',
+                                   'pendingProviderAttempts', 'providerStateSha256',
+-                                  'journalBeforeSha256', 'disposition', 'captureAuthority',
++                                  'journalBeforeSha256', 'executionCompletedAtMs', 'observedAtMs',
++                                  'providerDeadlineAtMs', 'disposition', 'captureAuthority',
+                                   'answerGrade', 'captureStatus'})
+@@
+             require(proof['chargedCostMicros'] == 1_497_175 and proof['providerTokens'] == 59_737 and
+@@
+                     proof['disposition'] == 'FAILED_CAPTURE_TERMINAL_PROVIDER_COST_RECONCILED')
++            for field in ('executionCompletedAtMs', 'observedAtMs', 'providerDeadlineAtMs'):
++                require(type(proof[field]) is int and proof[field] > 0)
++            require(proof['executionCompletedAtMs'] < proof['providerDeadlineAtMs'] < proof['observedAtMs'] and
++                    row['atMs'] >= proof['observedAtMs'])
+*** End Patch
+
+*** Begin Patch
+*** Update File: evals/meri/live-v1/case20-terminal-cost-authority.test.mjs
+@@
+       wholeProviderStateSha256: '3d665a2323c36e38733b7c1576af13976c0c4a573fa1a2ccc91f668a630ca5f5',
+       knownSettledBeforeMicros: 12133883, chargedCostMicros: 1497175, chargedTokens: 59737,
+       settledAttempts: 2, terminalSequence: 24 });
++    expect(scope.knownSettledBeforeMicros + scope.chargedCostMicros).toBeLessThanOrEqual(30000000);
++    expect(scope.ceilingMicros).toBe(15000000); // no per-case or aggregate cap change
+*** End Patch
+
+# This remains a text proposal only. Do not apply here; run source tests only in lead-owned integration.
+*** End Patch
+
+*** Begin Patch
+*** Update File: NOTES.md
+@@
+ - With no terminal/hash capability allowed, exact byte counts, input hashes, canonical stable proof digest, or append-event digest could not be independently generated. Placeholders are intentional and make the proposed path reject rather than act. Supervisor must generate pins from exact retained bytes and independently review the resulting patch before enabling authority.
++- Append schema in this draft includes execution-completed, provider-deadline, observation, and event timestamps, requiring completion < deadline < readback observation <= append time. This keeps the journal event chronology aligned with cost-only closeout.
+*** End Patch
