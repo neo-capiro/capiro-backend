@@ -1,0 +1,30 @@
+{
+  "at": "2026-10-03T23:39:44.184Z",
+  "pages": [
+    {
+      "round": 0,
+      "page": 0,
+      "status": "READ",
+      "events": 1,
+      "eventsSha256": "cdd5d65faf20c48d6eddd545e0fb89f10e473b81afce99ec89f94885779ff1f7",
+      "forwardUnchanged": false
+    },
+    {
+      "round": 0,
+      "page": 1,
+      "status": "READ",
+      "events": 0,
+      "eventsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "forwardUnchanged": false
+    },
+    {
+      "round": 0,
+      "page": 2,
+      "status": "READ",
+      "events": 0,
+      "eventsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "forwardUnchanged": true
+    }
+  ],
+  "events": 1
+}

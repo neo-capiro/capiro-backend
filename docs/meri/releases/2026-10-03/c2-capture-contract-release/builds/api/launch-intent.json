@@ -1,0 +1,32 @@
+{
+  "recordedAt": "2026-10-03T23:47:18.976Z",
+  "service": "api",
+  "sourceSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+  "buildspecSha256": "61cc399b632b885b2c17dfb692a536ba493246465573fb83469669c6267e2811",
+  "actions": [
+    {
+      "id": 37162486000,
+      "url": "https://github.com/neo-capiro/capirov2/actions/runs/37162486000",
+      "headSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+      "status": "completed",
+      "conclusion": "startup_failure",
+      "name": "api-image",
+      "path": ".github/workflows/api-image.yml",
+      "jobs": 0
+    },
+    {
+      "id": 37162487568,
+      "url": "https://github.com/neo-capiro/capirov2/actions/runs/37162487568",
+      "headSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+      "status": "completed",
+      "conclusion": "startup_failure",
+      "name": "meriv2-orchestrator-image",
+      "path": ".github/workflows/meriv2-orchestrator-image.yml",
+      "jobs": 0
+    }
+  ],
+  "callerArn": "arn:aws:iam::967807252336:user/capirocli",
+  "requestSha256": "a5cea580283c0653b4a68724512d8dd7e9c7e4c18aca04db46d466c0ac0cad76",
+  "idempotencyToken": "6269b63b-3a85-4aeb-9a6c-ae4e17397289",
+  "scope": "Immutable ARM image build and ECR publication only; no service/config/database or provider mutation"
+}

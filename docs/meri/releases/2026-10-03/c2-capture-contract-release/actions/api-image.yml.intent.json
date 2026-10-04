@@ -1,0 +1,1 @@
+{"workflow":"api-image.yml","ref":"main","sourceSha":"4f0253874357c272fda1ae2a5271ee4af645f0bc","environment":"dev","scope":"Build and publish immutable image only; no promotion","at":"2026-10-03T23:39:55.809Z"}

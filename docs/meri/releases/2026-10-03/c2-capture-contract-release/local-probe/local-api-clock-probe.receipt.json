@@ -1,0 +1,9 @@
+{
+  "status": "PASS",
+  "exitCode": 0,
+  "startedAt": "2026-10-03T23:25:27.481947+00:00",
+  "finishedAt": "2026-10-03T23:25:27.903840+00:00",
+  "probeSha256": "9f0cbab2e7e7e813de8def2783a3b3ca52791cbd7c0e2a86b086d923f24a077e",
+  "logSha256": "8aa0eeb7edda86989c277688525ef34dc60b63a30f079ed9d461ff793a066a75",
+  "scope": "Local compiled candidate only, not immutable ARM image qualification; synthetic owner/compiler collaborators; no DB/provider calls."
+}

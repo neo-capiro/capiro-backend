@@ -1,0 +1,12 @@
+{
+  "at": "2026-10-03T23:38:02.595Z",
+  "kind": "C2_CAPTURE_CONTRACT_SCHEMA_READ",
+  "serviceRevision": 519,
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:d20110a114ef51a7db3d352321f411a2f51cc8b1877f9ccec6d1f35d7701c8cd",
+  "sourceSha": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642",
+  "scriptSha256": "b099d0e139a9eac2a1fad0dcdf111eb8b4f9ac5dc2c4852234f45ad44dec9b18",
+  "providerSecrets": 0,
+  "workloadTaskRole": null,
+  "businessWrites": 0,
+  "cloudActions": "one bounded read task; stop and deregister owned definition"
+}

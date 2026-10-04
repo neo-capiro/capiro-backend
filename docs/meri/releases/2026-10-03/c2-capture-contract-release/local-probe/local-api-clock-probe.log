@@ -1,0 +1,4 @@
+OFFLINE_PACKAGED_CAPTURE_RECEIPT_CONTRACT_PASS
+Synthetic owner collaborator only; no actual DB, provider, human acceptance or admitted budget is claimed.
+OFFLINE_PACKAGED_SEMANTIC_CLOCK_API_CORE_PASS
+Compiler store is in-memory; no database persistence or live capture qualification is claimed.

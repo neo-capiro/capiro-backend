@@ -1,0 +1,7 @@
+{
+  "sourceSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+  "followupCheckpointSha256": "b7de9e4633f59a4106e94adfeb775daecb1c0a0bf7d94bf83c56dc7f45cb65b6",
+  "serializationCheckpointSha256": "cf9bb0fa5119c2c05b9afbc22b539e0245839dfe4680c5b49753c9a864184400",
+  "sourceArchiveManifestSha256": "73eebb291749a3e07185ebb25a100da617c3cb8fa213b9342a4221c3c7307bd0",
+  "scope": "Immutable candidate build qualification only; human release approval pending"
+}

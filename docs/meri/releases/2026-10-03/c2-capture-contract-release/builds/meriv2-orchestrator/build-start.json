@@ -1,0 +1,33 @@
+{
+  "service": "meriv2-orchestrator",
+  "buildId": "capiro-build-web-dev:1105f91e-3171-41aa-ae00-7f28540caf90",
+  "sourceSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+  "status": "IN_PROGRESS",
+  "buildspecSha256": "eb741a51f6169fdca94e6a3d69ab5bfa18ef0f22098016518e8dc30120aa8a24",
+  "actions": [
+    {
+      "id": 37162486000,
+      "url": "https://github.com/neo-capiro/capirov2/actions/runs/37162486000",
+      "headSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+      "status": "completed",
+      "conclusion": "startup_failure",
+      "name": "api-image",
+      "path": ".github/workflows/api-image.yml",
+      "jobs": 0
+    },
+    {
+      "id": 37162487568,
+      "url": "https://github.com/neo-capiro/capirov2/actions/runs/37162487568",
+      "headSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+      "status": "completed",
+      "conclusion": "startup_failure",
+      "name": "meriv2-orchestrator-image",
+      "path": ".github/workflows/meriv2-orchestrator-image.yml",
+      "jobs": 0
+    }
+  ],
+  "actionsLimitation": "Both named build workflows failed at startup for the exact candidate SHA with zero jobs; this is infrastructure failure, not executed source qualification",
+  "callerArn": "arn:aws:iam::967807252336:user/capirocli",
+  "startedAt": "2026-10-03T23:47:26.315Z",
+  "scope": "C2 capture-contract immutable candidate qualification; no service/database/configuration/provider changes"
+}

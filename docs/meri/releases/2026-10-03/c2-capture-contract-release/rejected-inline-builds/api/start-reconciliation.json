@@ -1,0 +1,15 @@
+{
+  "status": "DEFINITE_SERVICE_REJECTION_NO_BUILD_STARTED",
+  "service": "api",
+  "sourceSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+  "eventTime": "2026-10-03T23:41:56Z",
+  "eventId": "e6cd1e97-c963-4731-a74f-a59e43dc08d2",
+  "requestId": "f2ad9881-12ca-493d-b223-9f77e5fe3bdb",
+  "errorCode": "InvalidInputException",
+  "errorMessage": "Max buildspec length is 25600",
+  "responseElements": null,
+  "intentSha256": "82301253c0128115f054d1f1de3f6c913f977b876d791fbaadd0bb3e7ce75f35",
+  "requestSha256": "e64394f7f5f8ff71930aa435403da2a8b50be1f9e28688d9060330ded00c48a7",
+  "oldBuildspecSha256": "50ad3b3e94750abb350820e66aae2cc4b9bde0564eb45d73eb471e504823dc2a",
+  "scope": "A new bounded build may use the same source after lossless inline buildspec compaction and review. No replay of the rejected request."
+}

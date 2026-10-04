@@ -1,0 +1,152 @@
+{
+  "version": 1,
+  "status": "AUTOMATED_QUALIFICATION_PASSED_HUMAN_RELEASE_REVIEW_PENDING",
+  "recordedAt": "2026-10-03T23:56:16.697400+00:00",
+  "candidates": {
+    "api": {
+      "sourceSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:23f529da3c1c00d401968811575dc075bced6c60669baa9a09e9c23575c9c452"
+    },
+    "meriv2-orchestrator": {
+      "sourceSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:1c491a5ac46ea320195fe8ab367322ad2ebbd0949d69530b5ccfba2de84eb491"
+    }
+  },
+  "sourceReview": {
+    "result": "PASS",
+    "sourceCommit": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+    "serializationCheckpointSha256": "cf9bb0fa5119c2c05b9afbc22b539e0245839dfe4680c5b49753c9a864184400",
+    "followupCheckpointSha256": "b7de9e4633f59a4106e94adfeb775daecb1c0a0bf7d94bf83c56dc7f45cb65b6",
+    "archiveManifestSha256": "73eebb291749a3e07185ebb25a100da617c3cb8fa213b9342a4221c3c7307bd0",
+    "evidence": "https://github.com/neo-capiro/capirov2/blob/4f0253874357c272fda1ae2a5271ee4af645f0bc/docs/meri/releases/2026-10-03/c2-capture-contract-source/README.md"
+  },
+  "tests": {
+    "nativeOrchestrator": {
+      "numTotalTests": 1566,
+      "numPassedTests": 1564,
+      "numFailedTests": 0,
+      "numPendingTests": 2,
+      "numTotalTestSuites": 130,
+      "numPassedTestSuites": 130,
+      "numFailedTestSuites": 0,
+      "numPendingTestSuites": 0
+    },
+    "focusedCore": 50,
+    "focusedApi": 149,
+    "focusedOrchestrator": 43,
+    "providerAndOwner": 39,
+    "combinedActualPrismaPostgres": 4,
+    "initialSerializationFocused": 71,
+    "initialSerializationPrismaPostgres": 4,
+    "overlap": "Focused and initial counts overlap native/combined qualification; they are not independent benchmark passes."
+  },
+  "builds": {
+    "api": {
+      "buildId": "capiro-build-web-dev:5ca674e3-f986-46fa-bb05-2ca8e14d1d67",
+      "buildspecSha256": "61cc399b632b885b2c17dfb692a536ba493246465573fb83469669c6267e2811",
+      "buildLogSha256": "71684f75fb0a8a2c2ccbff797ff6624f24b49fa8dcf1cb11ed5126d5b30cefcf",
+      "markers": [
+        "OFFLINE_RUNTIME_IMPORT_PASS",
+        "OFFLINE_CASE01_FIXTURE_PACKAGE_IMPORT_PASS",
+        "OFFLINE_CASE01_CONTINUATION_IMPORT_PASS",
+        "OFFLINE_CASE01_POSTAPPROVAL_IMPORT_PASS",
+        "OFFLINE_CASE01_POSTSEED_IMPORT_PASS",
+        "EXACT_452_IMAGE_MIGRATION_HASHES_PASS",
+        "MAIL_ACTIVE_OWNER_INDEX_MIGRATION_PACKAGE_PASS",
+        "OFFLINE_PACKAGED_C2_MEMORY_PASS",
+        "OFFLINE_PACKAGED_C2_RECONCILIATION_PASS",
+        "OFFLINE_PACKAGED_C2_TERMINAL_LIFECYCLE_PASS",
+        "OFFLINE_PACKAGED_C2_TS_SOURCE_IMPORT_PASS",
+        "OFFLINE_PACKAGED_SEMANTIC_CLOCK_API_CORE_PASS",
+        "OFFLINE_PACKAGED_CAPTURE_RECEIPT_CONTRACT_PASS",
+        "OFFLINE_PACKAGED_CAPTURE_PROVIDER_API_GUARDS_PASS",
+        "LOCAL_REPODIGEST_ECR_MATCH_PASS"
+      ],
+      "architecture": "arm64",
+      "runtimeNode": "22.23.3"
+    },
+    "meriv2-orchestrator": {
+      "buildId": "capiro-build-web-dev:1105f91e-3171-41aa-ae00-7f28540caf90",
+      "buildspecSha256": "eb741a51f6169fdca94e6a3d69ab5bfa18ef0f22098016518e8dc30120aa8a24",
+      "buildLogSha256": "4fea25c2434b30b8d6eb42be8f01134ecb5a5daf83d7613ec4d14e5c9c344dc5",
+      "markers": [
+        "ORCHESTRATOR_CAPTURE_CONTRACT_LOOPBACK_TESTS_PASS",
+        "OFFLINE_PACKAGED_ENTRYPOINT_HEALTH_AUTH_PASS",
+        "OFFLINE_C1_CLASSIFICATION_REPAIRS_PASS",
+        "OFFLINE_PACKAGED_MAIL_DEFAULTS_PASS",
+        "OFFLINE_PACKAGED_NO_TOOLS_DIRECTIVE_PASS",
+        "OFFLINE_PACKAGED_SEMANTIC_CLOCK_ORCHESTRATOR_PASS",
+        "OFFLINE_PACKAGED_CAPTURE_PROVIDER_ORCHESTRATOR_GUARDS_PASS",
+        "LOCAL_REPODIGEST_ECR_MATCH_PASS"
+      ],
+      "architecture": "arm64",
+      "runtimeNode": "20.16.0"
+    }
+  },
+  "currentSchema": {
+    "status": "VERIFIED_READ_ONLY",
+    "ledgerRows": 609,
+    "activeFinished": 509,
+    "rolledBack": 100,
+    "prior608Sha256": "9a82cbc9dcecc3b049c312ad4e39ec5a96eb33c6e5af033a3339d1e292c06e90",
+    "newMigration": "20281007010000_mail_messages_owned_connection_active",
+    "newMigrationSha256": "ef10ab58b4eef6825652690a098ab160a374fb30c4cc0af9f15793edb7237242",
+    "retirementTablesAbsent": true,
+    "indices": [
+      {
+        "name": "mail_messages_tenant_connection_active_idx",
+        "ready": true,
+        "definitionSha256": "23d2b35e8097cea6c5620ce2c9c1cab68467e9de09dba5e3337f6fca0a170688"
+      },
+      {
+        "name": "mail_threads_tenant_connection_id_cover_idx",
+        "ready": true,
+        "definitionSha256": "7097d64ec1650dfa8e004e89a1e2f6f267cb7924e869993bb44fb235e9716c9e"
+      }
+    ],
+    "migrationExecution": false
+  },
+  "servedBaselineSha256": "d4b80aedef5eb0001d5c7d89e16a013381268cf6b88e1228ee6e7f1a2fe9ae33",
+  "retirementCompatibility": {
+    "schemaChange": false,
+    "retiredTablesAbsent": true,
+    "migrationDependencyContainerFilesUnchanged": true,
+    "rollingOrder": "API first then orchestrator; captures wait for the qualified pair. Absent proposal proof remains blocked with mixed old/new versions.",
+    "rollback": "Exact current API519/orchestrator115 digests; retain schema, nightly136, disabled broad worker and completed maintenance."
+  },
+  "scope": {
+    "change": "API and orchestrator image and release identity only",
+    "schemaChange": false,
+    "modelConfigurationChange": false,
+    "nightlyChange": false,
+    "webChange": false,
+    "newProviderCalls": 0,
+    "newCaptureAuthority": false,
+    "captureBindingWrite": false,
+    "budgetInstallation": false,
+    "journalMutation": false
+  },
+  "failureHistory": {
+    "actions": "Both named exact-SHA image workflows failed at startup with zero jobs. No executed GitHub qualification is claimed.",
+    "initialBuildDispatches": "Both rejected for inline buildspec length. Exact service rejection recorded; no builds started.",
+    "fallback": "Each compressed phase decodes to the exact originally reviewed bash program; assertions and tests unchanged."
+  },
+  "schemaChange": false,
+  "humanApproval": null,
+  "deployableManifest": false,
+  "acceptance": {
+    "original75": 0,
+    "cd": 0,
+    "cw": 0,
+    "failedCase01": "CAPTURE_UNCERTAIN; never replay or retroactively accept",
+    "case20": "Not run; separate setup/admission/receipt/effect/human gates remain"
+  },
+  "budgetCheckpoint": {
+    "events": 22,
+    "activeRun": null,
+    "knownCostMicros": 12133883,
+    "remainingMicros": 17866117,
+    "journalSha256": "a8c8101a4d806ef8080e1648c9e46568a55b7b5f93cb0f053a3d601404bfe3b5",
+    "scope": "Historical saved checkpoint, no new journal read or mutation in this release archive"
+  }
+}

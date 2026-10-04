@@ -1,0 +1,6 @@
+{
+  "at": "2026-10-03T23:38:05.214Z",
+  "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/f83ebf5a81b94f8cbc8209a0c836beb2",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-c2-contract-schema-read-20261003:1",
+  "scriptSha256": "b099d0e139a9eac2a1fad0dcdf111eb8b4f9ac5dc2c4852234f45ad44dec9b18"
+}

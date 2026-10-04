@@ -1,0 +1,14 @@
+{
+  "at": "2026-10-03T23:39:45.098Z",
+  "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/f83ebf5a81b94f8cbc8209a0c836beb2",
+  "taskStopped": true,
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-c2-contract-schema-read-20261003:1",
+  "status": "INACTIVE",
+  "cleanupErrors": [],
+  "cleanupComplete": true,
+  "registerAttempted": true,
+  "registerConfirmed": true,
+  "runAttempted": true,
+  "runConfirmed": true,
+  "mutationOutcome": "KNOWN"
+}

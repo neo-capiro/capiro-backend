@@ -1,0 +1,34 @@
+{
+  "service": "meriv2-orchestrator",
+  "originalBuildspecSha256": "c23d52da40dbab3aa4f2fda523cd748718c41f8791059edd2fe1fd44c00ad389",
+  "compactedBuildspecSha256": "eb741a51f6169fdca94e6a3d69ab5bfa18ef0f22098016518e8dc30120aa8a24",
+  "originalBytes": 25760,
+  "compactedBytes": 11692,
+  "phaseCommandProof": [
+    {
+      "phase": "pre_build",
+      "index": 0,
+      "decodedBytes": 1492,
+      "decodedSha256": "b89d8c24be6091a2511400abb9f659addd66484c910988d937e15feb308c6112",
+      "codec": "gzip-base64",
+      "exactDecodedOriginalCommand": true
+    },
+    {
+      "phase": "build",
+      "index": 0,
+      "decodedBytes": 20820,
+      "decodedSha256": "ece54a6be8d1a19aba23b9355c32a9166636f42a7d560ba77108a054ff1f3038",
+      "codec": "gzip-base64",
+      "exactDecodedOriginalCommand": true
+    },
+    {
+      "phase": "post_build",
+      "index": 0,
+      "decodedBytes": 970,
+      "decodedSha256": "f825684e3b242e453781b3498cb6816bc5b3845eb40c23888cb33f8b6e1a92fd",
+      "codec": "gzip-base64",
+      "exactDecodedOriginalCommand": true
+    }
+  ],
+  "limits": "Only the inline carrier changes. Each phase executes its exact original reviewed bash program; no assertion/test/guard/command removed. No cloud action by this generator."
+}

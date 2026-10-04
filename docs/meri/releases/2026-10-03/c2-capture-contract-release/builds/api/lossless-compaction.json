@@ -1,0 +1,34 @@
+{
+  "service": "api",
+  "originalBuildspecSha256": "50ad3b3e94750abb350820e66aae2cc4b9bde0564eb45d73eb471e504823dc2a",
+  "compactedBuildspecSha256": "61cc399b632b885b2c17dfb692a536ba493246465573fb83469669c6267e2811",
+  "originalBytes": 27673,
+  "compactedBytes": 10700,
+  "phaseCommandProof": [
+    {
+      "phase": "pre_build",
+      "index": 0,
+      "decodedBytes": 879,
+      "decodedSha256": "12f8d9b5104ccfc902e2dc4deb49a891313015ab0b38a31fdad0701a6641f6e2",
+      "codec": "gzip-base64",
+      "exactDecodedOriginalCommand": true
+    },
+    {
+      "phase": "build",
+      "index": 0,
+      "decodedBytes": 23510,
+      "decodedSha256": "1f99e942c001215a0cd63ce2a6bf4e7fbd691a36d5880c68e4945c5849fa0550",
+      "codec": "gzip-base64",
+      "exactDecodedOriginalCommand": true
+    },
+    {
+      "phase": "post_build",
+      "index": 0,
+      "decodedBytes": 862,
+      "decodedSha256": "1babacab704ad7818d636dc1a87b28525541e92c663ffc99cde0907bbd92c600",
+      "codec": "gzip-base64",
+      "exactDecodedOriginalCommand": true
+    }
+  ],
+  "limits": "Only the inline carrier changes. Each phase executes its exact original reviewed bash program; no assertion/test/guard/command removed. No cloud action by this generator."
+}
