@@ -21,6 +21,7 @@ import {
   admitMeriServerReadonlyCaptureTransport,
   assertMeriServerReadonlyCaptureCurrentAuthority,
   createMeriServerReadonlyCaptureOutputFence,
+  currentCaptureAuthorityRows,
   issueMeriServerReadonlyCapturePolicy,
   meriReadonlyCaptureCatalogSha256,
 } from './meri-server-readonly-capture.js';
@@ -52,6 +53,27 @@ const ordinaryCtx: TenantContext = {
   clerkUserId: 'clerk-ordinary',
   role: 'standard_user',
 };
+
+describe('Case12 remediation conversation authority', () => {
+  test.each(['new', 'old', 'unrelated', 'missing-history', 'changed-run', 'other-case'])(
+    'enforces retry scope for %s', async variant => {
+      const {prisma, tx} = authorityHarness();
+      const tenant: any = await tx.tenant.findUnique();
+      const fixture = tenant.settings.meriFoundationFixture;
+      fixture.captureEvidence.caseId = variant === 'other-case' ? '46' : '12';
+      fixture.captureEvidence.remediationConversationId = CONVERSATION_ID;
+      fixture.case12CaptureRemediation = {kind: 'meri-case12-one-time-capture-remediation', version: 1,
+        oldConversationId: 'old', newConversationId: CONVERSATION_ID, newCaptureRunId: 'run-1',
+        actorUserId: ACTOR_ID, clientId: CLIENT_ID};
+      if (variant === 'missing-history') delete fixture.case12CaptureRemediation;
+      if (variant === 'changed-run') fixture.case12CaptureRemediation.newCaptureRunId = 'different';
+      tx.tenant.findUnique.mockResolvedValue(tenant);
+      const id = variant === 'old' ? 'old' : variant === 'unrelated' ? 'unrelated' : CONVERSATION_ID;
+      const result = currentCaptureAuthorityRows(prisma as never, captureCtx, id);
+      if (variant === 'new' || variant === 'other-case') await expect(result).resolves.toMatchObject({clientId: CLIENT_ID});
+      else await expect(result).rejects.toThrow('Server-owned read-only capture authority was denied');
+    });
+});
 
 function policy(
   overrides: Partial<MeriServerReadonlyCapturePolicy> = {},

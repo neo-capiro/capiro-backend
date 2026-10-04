@@ -1,0 +1,26 @@
+{
+  "startedAt": "2026-10-04T22:46:21.293506+00:00",
+  "finishedAt": "2026-10-04T23:31:21.359328+00:00",
+  "exitCode": 124,
+  "failure": "BOUNDED_45_MINUTE_TIMEOUT",
+  "timeoutSeconds": 2700,
+  "modelOverride": null,
+  "providerOverride": null,
+  "files": [
+    {
+      "path": "prompt.txt",
+      "bytes": 4310,
+      "sha256": "6f9ccee7fe9d7586de5176ab1b42a4280bf6cb3429bfd19287a37a1766bef773"
+    },
+    {
+      "path": "response.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ]
+}
