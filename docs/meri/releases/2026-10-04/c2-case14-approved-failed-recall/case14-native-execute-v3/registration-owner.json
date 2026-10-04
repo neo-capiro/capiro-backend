@@ -1,0 +1,9 @@
+{
+  "at": "2026-10-04T04:16:54.083Z",
+  "family": "capiro-dev-meri-c2-case14-execute-20261003",
+  "registrationMarker": "aea22491-84f9-4b2b-b939-fed4cabe2854",
+  "previousDefinitions": [
+    "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-c2-case14-execute-20261003:1"
+  ],
+  "definitionSha256": "8b9aaabce39bda4d665dcfac6eb8818f9064879556f06a847804be4431696cc0"
+}

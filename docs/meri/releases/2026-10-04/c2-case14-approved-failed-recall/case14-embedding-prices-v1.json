@@ -1,0 +1,108 @@
+{
+  "observedAt": "2026-10-04T04:44:33.843Z",
+  "kind": "official_embedding_price_readback",
+  "aws": {
+    "source": "AWS Price List Query API",
+    "serviceCode": "AmazonBedrock",
+    "region": "us-east-1",
+    "products": [
+      {
+        "product": {
+          "productFamily": "Amazon Bedrock",
+          "attributes": {
+            "regionCode": "us-east-1",
+            "inferenceType": "Input tokens",
+            "servicecode": "AmazonBedrock",
+            "feature": "On-demand Inference",
+            "usagetype": "USE1-TitanEmbeddingV2-Text-input-tokens",
+            "locationType": "AWS Region",
+            "location": "US East (N. Virginia)",
+            "servicename": "Amazon Bedrock",
+            "operation": "InvokeModelInference",
+            "titanModel": "TitanEmbeddingsV2-Text-input"
+          },
+          "sku": "EDNQYEHQ3XQ8N7EY"
+        },
+        "serviceCode": "AmazonBedrock",
+        "terms": {
+          "OnDemand": {
+            "EDNQYEHQ3XQ8N7EY.JRTCKXETXF": {
+              "priceDimensions": {
+                "EDNQYEHQ3XQ8N7EY.JRTCKXETXF.6YS6EN2CT7": {
+                  "unit": "1K tokens",
+                  "endRange": "Inf",
+                  "description": "$0.00002 per 1K tokens for TitanEmbeddingsV2-Text-input-tokens in US East",
+                  "appliesTo": [],
+                  "rateCode": "EDNQYEHQ3XQ8N7EY.JRTCKXETXF.6YS6EN2CT7",
+                  "beginRange": "0",
+                  "pricePerUnit": {
+                    "USD": "0.0000200000"
+                  }
+                }
+              },
+              "sku": "EDNQYEHQ3XQ8N7EY",
+              "effectiveDate": "2026-10-01T00:00:00Z",
+              "offerTermCode": "JRTCKXETXF",
+              "termAttributes": {}
+            }
+          }
+        },
+        "version": "20261003001138",
+        "publicationDate": "2026-10-03T00:11:38Z"
+      },
+      {
+        "product": {
+          "productFamily": "Amazon Bedrock",
+          "attributes": {
+            "regionCode": "us-east-1",
+            "inferenceType": "Input tokens",
+            "servicecode": "AmazonBedrock",
+            "feature": "BatchInference",
+            "usagetype": "USE1-TitanEmbeddingV2-Text-input-tokens-batch",
+            "locationType": "AWS Region",
+            "location": "US East (N. Virginia)",
+            "servicename": "Amazon Bedrock",
+            "operation": "",
+            "titanModel": "TitanEmbeddingsV2-Text-input"
+          },
+          "sku": "K8BWWBWG2N3QMH5R"
+        },
+        "serviceCode": "AmazonBedrock",
+        "terms": {
+          "OnDemand": {
+            "K8BWWBWG2N3QMH5R.JRTCKXETXF": {
+              "priceDimensions": {
+                "K8BWWBWG2N3QMH5R.JRTCKXETXF.6YS6EN2CT7": {
+                  "unit": "1K tokens",
+                  "endRange": "Inf",
+                  "description": "$0.00001 per 1K tokens for TitanEmbeddingV2-Text-input-tokens-batch in US East",
+                  "appliesTo": [],
+                  "rateCode": "K8BWWBWG2N3QMH5R.JRTCKXETXF.6YS6EN2CT7",
+                  "beginRange": "0",
+                  "pricePerUnit": {
+                    "USD": "0.0000100000"
+                  }
+                }
+              },
+              "sku": "K8BWWBWG2N3QMH5R",
+              "effectiveDate": "2026-10-01T00:00:00Z",
+              "offerTermCode": "JRTCKXETXF",
+              "termAttributes": {}
+            }
+          }
+        },
+        "version": "20261003001138",
+        "publicationDate": "2026-10-03T00:11:38Z"
+      }
+    ],
+    "rawSha256": "97ad8b063e8332037bfbe1b653476eb1dd26d0f7fcbe3237f27f9083551a18b4"
+  },
+  "openai": {
+    "sourceUrl": "https://developers.openai.com/api/docs/models/text-embedding-3-small",
+    "sourceAccess": "Official page opened through web tool this session; pricing section states per1Mtokens, Cost$0.02.",
+    "model": "text-embedding-3-small",
+    "usdPerMillionTokens": 0.02
+  },
+  "qualification": "PRICES_ONLY_NOT_A_PROVIDER_ATTEMPT_OR_APPROVAL_COST_BOUND",
+  "providerCalls": 0
+}

@@ -1,0 +1,145 @@
+{
+  "kind": "case14-authentic-terminal-cost-finalization",
+  "status": "LOCAL_QUALIFICATION_PASS_ROOT_REVIEW_ACTIVATION_OBSERVED",
+  "at": "2026-10-04T06:33:33.972Z",
+  "preparedBy": "Codex independent supervisor; not Hermes",
+  "activation": "REVIEWED_FIXED_COST_ONLY_EVIDENCE",
+  "authenticPostdeadlineReadbackSha256": "6bf04ccb58fe4410bff0f665c635cc230148ab7ae7ea6509ccc5c6493a40c7c1",
+  "proofSha256": "1bd0de197e10510a119e9da6e1e41b3a27c40421ebc421d1014926750577c893",
+  "evidencePinsSha256": "5869eeac81658a0a8208dbe4637bd4da95f8c965534a8a4b43e5ba49ff3f5bb9",
+  "sourcePinsSha256": "cc931336933c4222aaa11810a49b2408a3a373a3c9576d42cb095a7cbf3840ee",
+  "tests": {
+    "node": 10,
+    "nativeNtfsDisposable": 8,
+    "failures": 0
+  },
+  "liveJournalRead": false,
+  "liveJournalMutations": 0,
+  "providerCalls": 0,
+  "cloudCalls": 0,
+  "repositoryEdits": 0,
+  "expectedAccounting": {
+    "knownRecallCostMicros": 1569851,
+    "conservativeApprovalCostMicros": 1000000,
+    "approvalBilledActualMicros": null,
+    "aggregateKnownSettledCostMicros": 15200909,
+    "aggregateCommittedCostMicros": 16200909,
+    "aggregateRemainingReservationMicros": 13799091
+  },
+  "captureAuthority": false,
+  "captureStatus": "CAPTURE_UNCERTAIN",
+  "answerGrade": "NOT_EVALUATED",
+  "files": [
+    {
+      "name": "proof.json",
+      "bytes": 1556,
+      "sha256": "1b7487bac0888fffc5b9c149e221945d86b38389a53311a2b5d510837238b059"
+    },
+    {
+      "name": "finalization-pins.mjs",
+      "bytes": 6247,
+      "sha256": "ce0bdab448e2f4c0d24dc9dba1a1773fa792030610f3b62a99c80fdc40a638ee"
+    },
+    {
+      "name": "review-request.json",
+      "bytes": 4432,
+      "sha256": "9834835c3e08eb493b8f9d29f5995082fd0f881b0585e7c18c7ce5ca7b534f10"
+    },
+    {
+      "name": "authority.mjs",
+      "bytes": 4125,
+      "sha256": "c22cfa133e7923846a09922620eb39ac44fa0b366589753504248f2795a9af8c"
+    },
+    {
+      "name": "predicate.mjs",
+      "bytes": 15472,
+      "sha256": "3b73befc146b06ef606ca64e4112fb149ea5275ab0baca4661cbe4204f2aab4c"
+    },
+    {
+      "name": "fixed.mjs",
+      "bytes": 11992,
+      "sha256": "03636b111371ed4da23bbe069ebd9f43a0bbef56e42eaebcdb767c0fa4e9759f"
+    },
+    {
+      "name": "bridge.mjs",
+      "bytes": 2382,
+      "sha256": "9721fdad4a33a7de099e0aeb2bf45aea25cc69d837e48b3f256b66a49769fb0d"
+    },
+    {
+      "name": "operator.mjs",
+      "bytes": 3295,
+      "sha256": "c48285f1addd65734962922023a11133787326d4ab89e505d7ae7a8f891d28b4"
+    },
+    {
+      "name": "dry-run-driver.py",
+      "bytes": 2343,
+      "sha256": "0d59dbc209f9e6e048adcc12101221b33f4ac11d5cad2e523beb848e93bfc2a2"
+    },
+    {
+      "name": "accept-root-review.mjs",
+      "bytes": 1736,
+      "sha256": "f4d8f857ebe1d4b8ca6e7ca842adbf7c015ee6ef07e49d24c8bf882d31c49777"
+    },
+    {
+      "name": "native/windows-capture-spend.py",
+      "bytes": 32453,
+      "sha256": "51e29c01fd630d4d3f7da13450e7b0adb3aa79e2d5a18c045e78531e1672c237"
+    },
+    {
+      "name": "native/windows-artifact-protocol.py",
+      "bytes": 6696,
+      "sha256": "3a30f6a211a5a7815c7f721dbb09871a33f316e7ecd8fbac0b4b1cf95ead33db"
+    },
+    {
+      "name": "native/windows-owned-artifacts.py",
+      "bytes": 8713,
+      "sha256": "2316daa96906c1bf166adbeb72341024581dac82aa1f692f2554eb1ae82a40c1"
+    },
+    {
+      "name": "node-tests.log",
+      "bytes": 906,
+      "sha256": "dba232637b79f50704a788e43a2923e419c0d14293243f76e0b2130115786ca9"
+    },
+    {
+      "name": "native-tests.log",
+      "bytes": 1088,
+      "sha256": "4fbbd566c86130bda9bc91c3f0fc26272d2e0031004787ddc05373461ffa3760"
+    },
+    {
+      "name": "tests.mjs",
+      "bytes": 8200,
+      "sha256": "77c710c3446556cc1815a8973ecc62c18caf540611bd1e2b42a3a92a43b58a33"
+    },
+    {
+      "name": "native-tests.py",
+      "bytes": 6761,
+      "sha256": "ce7e18ebc3b344fe68b2dd6e5fb6af427bec7624e9a04c08f64ea8a6451e0bc2"
+    },
+    {
+      "name": "operator-dry-test-result.json",
+      "bytes": 6112,
+      "sha256": "9c696abda81c1ae479718c3eba45c5eb22cc052a1ff0f77d8353feadf597c5c0"
+    },
+    {
+      "name": "copy-provenance.json",
+      "bytes": 9754,
+      "sha256": "52fe9521993507b4cd0cbdd21835ba290059e50d78737bb8fb4c850d1707f875"
+    },
+    {
+      "name": "README.md",
+      "bytes": 6220,
+      "sha256": "a043c60fd31eb6b0d0a093a9c33961c280faecf60c0433c8f2df4a0a62631f72"
+    }
+  ],
+  "testedActivation": "FROZEN_AWAITING_ROOT_INDEPENDENT_REVIEW",
+  "supervisorActivated": false,
+  "rootReview": {
+    "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-terminal-cost-finalization-v2/independent-review.json",
+    "sha256": "ce8f4626cb2fea65d5163de3348575c43678d0381c7326edab86f7f9238a021d"
+  },
+  "rootDryRun": {
+    "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-terminal-cost-finalization-v2/root-dry-run.json",
+    "sha256": "815b76329787e30402fb54d145998280b139cc08a15d522a3d5dcbdc4ae103f5",
+    "bytes": 4797
+  }
+}

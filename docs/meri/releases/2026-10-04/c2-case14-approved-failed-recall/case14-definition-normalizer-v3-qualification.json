@@ -1,0 +1,18 @@
+{
+  "at": "2026-10-04T04:16:12.602Z",
+  "status": "PASS",
+  "operatorSha256": "ce5c64d29f20f408e113e66c890ee87d9a4e165848a1c484b2eaabce15d44801",
+  "actualAwsDefaultsMatch": true,
+  "negativeCases": [
+    "nonzero cpu",
+    "nonempty volumes",
+    "nonempty mounts",
+    "source environment",
+    "ownership marker",
+    "task role",
+    "image"
+  ],
+  "previousAttemptNoTask": true,
+  "previousDefinitionInactive": true,
+  "cloudActions": 0
+}

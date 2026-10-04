@@ -1,0 +1,7 @@
+{
+  "at": "2026-10-04T04:09:03.413Z",
+  "taskArn": null,
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-c2-case14-execute-20261003:1",
+  "status": "EXECUTION_NOT_QUALIFIED_RECONCILE_BEFORE_RETRY",
+  "errorClass": "AssertionError"
+}

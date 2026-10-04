@@ -1,0 +1,16 @@
+test_disabled_default_refuses_even_exact_unit_proof (__main__.Native.test_disabled_default_refuses_even_exact_unit_proof) ... ok
+test_exact_append_separates_known_recall_from_conservative_approval (__main__.Native.test_exact_append_separates_known_recall_from_conservative_approval) ... ok
+test_existing_writer_excludes_append (__main__.Native.test_existing_writer_excludes_append) ... ok
+test_partial_append_preserves_prefix_and_fails_closed (__main__.Native.test_partial_append_preserves_prefix_and_fails_closed) ... ok
+test_prefix_drift_even_with_updated_descriptor_fails (__main__.Native.test_prefix_drift_even_with_updated_descriptor_fails) ... ok
+test_replay_stale_checkpoint_and_new_adoption_fail (__main__.Native.test_replay_stale_checkpoint_and_new_adoption_fail) ... ok
+test_same_bytes_different_file_identity_fails (__main__.Native.test_same_bytes_different_file_identity_fails) ... ok
+test_tampering_never_appends (__main__.Native.test_tampering_never_appends) ... ok
+
+----------------------------------------------------------------------
+Ran 8 tests in 0.397s
+
+OK
+
+exit_code=0
+

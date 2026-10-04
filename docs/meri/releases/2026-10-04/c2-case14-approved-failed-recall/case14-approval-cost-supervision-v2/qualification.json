@@ -1,0 +1,260 @@
+{
+  "kind": "case14-approval-cost-codex-supervision",
+  "version": 2,
+  "preparedBy": "Codex",
+  "observedAt": "2026-10-04T05:04:59.796Z",
+  "sdkQualification": {
+    "status": "PASS_RETAINED_SDK_EVIDENCE",
+    "sdk": {
+      "kind": "case14-ordinary-embedding-sdk-readback",
+      "status": "SDK_CONFIGURATION_READ_NO_PROVIDER_DISPATCH",
+      "sourceSha": "c0f393f863bf73bd4e65e7a94e17c073e7be021e",
+      "metadata": {
+        "provider": "aws-bedrock",
+        "model": "amazon.titan-embed-text-v2:0",
+        "modelVersion": "v2",
+        "dimensions": 1024
+      },
+      "region": "us-east-1",
+      "maxAttempts": 3,
+      "retryMode": "standard",
+      "useFipsEndpoint": false,
+      "useDualstackEndpoint": false,
+      "overrideKeys": [],
+      "explicitEndpointConfigured": false,
+      "providerCalls": 0,
+      "databaseCalls": 0,
+      "candidateCreations": 0,
+      "reviewDecisions": 0,
+      "recallSubmissions": 0,
+      "acceptanceAuthority": false,
+      "observedAt": "2026-10-04T04:46:19.385Z"
+    },
+    "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/e69540e42007496bb057c7bd9d023a37",
+    "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-c2-case14-sdk-read-20261004:1",
+    "readbackSha256": "713b761d129f33cd95f23ca0e87831f182a156141affc30bd102f0af30d21583",
+    "cloudReobservation": false,
+    "limitation": "Full raw task and registered-definition readbacks were asserted by the pinned launcher but not retained; this verifies retained receipts, definition input, source, transport and cleanup joins."
+  },
+  "evidenceFiles": [
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case14-sdk-read-v1/sdk-readback.json",
+      "sha256": "713b761d129f33cd95f23ca0e87831f182a156141affc30bd102f0af30d21583"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case14-sdk-read-v1/result.json",
+      "sha256": "b9352b650ef65a0863d7de7a307a33daaf3dcae83ea719db12d8fc84fe28a240"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case14-sdk-read-v1/cleanup.json",
+      "sha256": "d1ae7712baac728a97c959d40ff8c286ef004342bf5ab99bfcc2e0688c6b5c62"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case14-sdk-read-v1/task-start.json",
+      "sha256": "a3ebda660350970667db9441e3b4a491b399f37bb9a0bf904e40f47812eb6c8f"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case14-sdk-read-v1/definition-registered.json",
+      "sha256": "a88af2f8c0c6021f5eb7e0cd55fa6d656cdd9d6d7dda96a5eabbbeeb6f36184f"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case14-sdk-read-v1/intent.json",
+      "sha256": "75c73b304c55cdb9cec4b869cee65585b5673f1021f887abf2f710374cb6c4de"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case14-sdk-read-v1/readback-transport.json",
+      "sha256": "51f8832cc0d65345712c35c03ed056f255e644adab1c6b57cf629ef4996b1306"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case14-sdk-read-v1/definition-input.private.json",
+      "sha256": "a86a5e28eb45d6a728a4176ebb420cb3347d7a0e245f44bc72429fa3936537e6"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case14-sdk-read-v1/registration-owner.json",
+      "sha256": "31b570f51a2c797aa3c8007741c53728024330f75760f2bfd6937458a37f64b5"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case14-sdk-read-v1/task-input.private.json",
+      "sha256": "808fed81c3b4eacf38d2061dc2ae499a5e53f7b8561a7c2c39af4b64d36a499c"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case14-sdk-read-v1/journal-preserved.json",
+      "sha256": "6d64760b81e72c3755ce78c176348d6d3c6c8957fa239f5c342d7169acb617f8"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case14-sdk-read-v1/log-transport-pages.json",
+      "sha256": "3634899bd22e432f1f0ae635bf153c7f1a144bebb98b1459cc31ccf5c97a7543"
+    }
+  ],
+  "sourcePins": [
+    {
+      "path": "apps/api/src/memory/memory.module.ts",
+      "sha256": "7966c8584528ed157e7b2f4e40d3908a8237ff996f4129352216ecfa71375409",
+      "gitObject": "1e91013ebb8284cb99970bea44ab17f60392947c"
+    },
+    {
+      "path": "apps/api/src/memory/memory-candidate-review.service.ts",
+      "sha256": "fd60280e2b7483271cab403178329f929fa8fdf4dd035deccdf4a60bfc7eea8c",
+      "gitObject": "de724e25d41107d9650320bfd2977ddf07e97478"
+    },
+    {
+      "path": "apps/api/src/memory/settings-aware-memory-candidate.service.ts",
+      "sha256": "68c65ab73373f1e36c7b37c7c16e5e65c9e7e191818dc9beb6dc6ff5610343c5",
+      "gitObject": "b081b436d2bd08909c099d9206c7eae6e740eb87"
+    },
+    {
+      "path": "apps/api/src/memory/memory-candidate.service.ts",
+      "sha256": "411f943b59aa74f2791acd68c32b6eae5fec587bf2e2b669e0dadfde0be776ce",
+      "gitObject": "db7aaf146589c97e6a369b62373b9506fc9c4aab"
+    },
+    {
+      "path": "apps/api/src/memory/memory-canonical-activation.helpers.ts",
+      "sha256": "fec784b019bb6300845fc5d8e3779d38e2e9fdbbe296852ea845e7a51633c58e",
+      "gitObject": "64d6a09ddda571b7f46d0628dde31c6fb590e397"
+    },
+    {
+      "path": "apps/api/src/memory/governed-memory-ingest.service.ts",
+      "sha256": "122164ca67d8e47d0037a1e1ab2fa606e1ddea036810f42877c1cbe3f63cf612",
+      "gitObject": "decc8a2ec558fd46527880db0da9fc04b293612e"
+    },
+    {
+      "path": "apps/api/src/memory/exact-memory-cleanup-outbox.service.ts",
+      "sha256": "8b6843696943c30feab19d271680ff2429effcbc8399ea67ee9e7045c365154d",
+      "gitObject": "7d8827520f9727aab646512e19ef4a14be1e3c88"
+    },
+    {
+      "path": "apps/api/src/memory/strict-memory-projector.service.ts",
+      "sha256": "29d580fc0bc8c1a40b08a04a79da5200adca823582e750ad313b7b367693bcf2",
+      "gitObject": "546fa53aa03231ae84b8e5d78b363adb17d3a20c"
+    },
+    {
+      "path": "apps/api/src/memory/exact-memory-projection-worker.service.ts",
+      "sha256": "1bdab427477b00a6ba73aad6bc274c4f1ecba460a62666ffe3c1cca8ec4d7f9a",
+      "gitObject": "f7246a38e0518559f69f5a84ac5f683bca73034f"
+    },
+    {
+      "path": "apps/api/src/memory/memory-embedding-lifecycle.ts",
+      "sha256": "69bfdeb9664b219f80fb890d5ed3e5ce3f03fc552da00c1334c693398c06c83d",
+      "gitObject": "bfb605c50330c46c3c66881cf262a7fedfa058da"
+    },
+    {
+      "path": "apps/api/src/embeddings/embedder.ts",
+      "sha256": "78a8354cf07166e5c60ad657bf5126888f62114a33fa46eb8cc7abd529909150",
+      "gitObject": "60afa28cac18430185371b981a69b97294397db8"
+    },
+    {
+      "path": "apps/api/src/embeddings/titan-embedding.provider.ts",
+      "sha256": "bd235b139bf262d76dc23d143e9739bd9cd5163b93921429a86a3fdb94534e55",
+      "gitObject": "9d0386b6c2a8a99ea83ea2d60123f2e54de71a2c"
+    },
+    {
+      "path": "apps/api/src/memory/memory-ingest.service.ts",
+      "sha256": "4dbf7707b6d89ecb72f231e90dfce05815ba8ffcb304a053d3eb10b378e6c750",
+      "gitObject": "2fbc96877ce1d7f01139c2098f790a9bb0afd7f8"
+    },
+    {
+      "path": "apps/api/scripts/refresh-memory-graph.ts",
+      "sha256": "3297694dbf42d240a077fa38e3b6e374be8c2fa6d61597a05576050cfbc43964",
+      "gitObject": "c43e3f39e6e3b6b7cfeec12d798b7ad83cd34ea0"
+    },
+    {
+      "path": "apps/api/src/memory/memory-clio-adapter.helpers.ts",
+      "sha256": "41102353e8e4e304be8b89611892193716f08f6da1f22d0a80c85d5428f086ed",
+      "gitObject": "7795c8f18bc41a66fe52c15a0af86cff9770503c"
+    }
+  ],
+  "priceEvidence": {
+    "path": "C:/dev/main/outputs/meri-c2-20261003/case14-embedding-prices-v1.json",
+    "sha256": "5bf6b8f979d5e3082438a4b5544bf19a680342d6c3f0cea80414a830c199f008",
+    "status": "RETAINED_PRICES_ONLY_NO_REFRESH"
+  },
+  "envelope": {
+    "status": "PROPOSAL_NOT_ADMISSION",
+    "windowMs": 900000,
+    "payloads": {
+      "key": "meri-foundation-20260928:dee4e90e-8e91-4782-9488-10b8e52a2146:MEM-PROPOSAL-14",
+      "value": "Synthetic Aster candidate for approval",
+      "openai": {
+        "inputBytes": 117,
+        "bodyBytes": 162,
+        "bodySha256": "f318cb99c13dfe9c923311fa6d85e0bdc5acead8c60ba339c8dd52305d8e8ae5"
+      },
+      "titan": {
+        "inputBytes": 124,
+        "bodyBytes": 175,
+        "bodySha256": "30ad2e7ae848cc19081381fccd644aa2e7e5fecb73c97945db5d8b3bf2bbcf84",
+        "projectionTextSha256": "2fa57d1cfcabbdce21b1a0f5a90b67ca93edc4f6d9e3025219c0cbfab0d97dd5"
+      }
+    },
+    "scope": "ONE_ORDINARY_APPROVAL_FAST_PATH_WITH_NO_CONCURRENT_PROJECTION_WRITER",
+    "openaiNativeFetchInvocations": 1,
+    "titanMaxSdkAttempts": 3,
+    "conservativeTokenMethod": "Use serialized UTF8 body bytes as an input-token ceiling, pending explicit approval-unit/transport review; vector output is not output text tokens.",
+    "provisionalTokenCeilings": {
+      "openai": 162,
+      "titanPerAttempt": 175
+    },
+    "provisionalPriceArithmeticMicros": 16,
+    "inputMicrosPerMillion": 20000,
+    "approvalEnvelopeMicros": 1000000,
+    "recallCeilingMicros": 14000000,
+    "combinedHoldMicros": 15000000,
+    "chargeClassification": "CONSERVATIVE_APPROVAL_ENVELOPE_RETAINED_NOT_BILLED_ACTUAL",
+    "approvalEnvelopeRefundAllowed": false,
+    "approvalActualCostMicros": null,
+    "liveAdmission": false,
+    "prerequisites": [
+      "Fresh exact service/image/provider configuration and 15-minute deadline bound to one captureRunId",
+      "Current writer census and schedule proof excluding active or newly admitted nightly/manual projection within the window",
+      "Reviewed finite request/retry/unit contract for ordinary approval, including the direct Node fetch path",
+      "Native aggregate capability atomically reserves combined15USD BEFORE approval and retains1USD irrespective of unmeasured approval usage",
+      "Recall native qualification and receipt enforce14USD and cannot spend approval portion",
+      "Postapproval exact canonical owner + completed outbox + institutional vector + legacy vector proof before closeout; unknowns remain unresolved"
+    ],
+    "permanentFixtureLifetimeClaim": false,
+    "acceptanceAuthority": false
+  },
+  "tests": {
+    "status": "PASS",
+    "count": 18,
+    "checks": [
+      "reject wrong task cleanup",
+      "reject active definition",
+      "reject cleanup error",
+      "reject incomplete stop",
+      "reject altered framed bytes",
+      "reject copied receipt extra frame",
+      "reject provider secret restored",
+      "reject workload role restored",
+      "reject extra launch",
+      "reject different registered identity",
+      "reject different inner source",
+      "reject journal drift",
+      "reject late observations",
+      "reject registration marker changed",
+      "price arithmetic and conservative classification",
+      "reject widened window",
+      "reject concurrent projection writer",
+      "reject batch price substitution"
+    ]
+  },
+  "liveApproval": "NOT_RUN",
+  "liveAdmission": false,
+  "journalMutations": 0,
+  "providerCalls": 0,
+  "databaseCalls": 0,
+  "prerequisitesNotYetProved": [
+    "Fresh exact service/image/provider configuration and 15-minute deadline bound to one captureRunId",
+    "Current writer census and schedule proof excluding active or newly admitted nightly/manual projection within the window",
+    "Reviewed finite request/retry/unit contract for ordinary approval, including the direct Node fetch path",
+    "Native aggregate capability atomically reserves combined15USD BEFORE approval and retains1USD irrespective of unmeasured approval usage",
+    "Recall native qualification and receipt enforce14USD and cannot spend approval portion",
+    "Postapproval exact canonical owner + completed outbox + institutional vector + legacy vector proof before closeout; unknowns remain unresolved"
+  ],
+  "sourceProofLimitations": [
+    "No fresh AWS re-observation by this qualifier",
+    "No runtime OpenAI fetch implementation/version or redirect dispatch bound in SDK readback",
+    "Proposed serialized-byte token ceiling needs explicit unit-contract review;16micros is provisional arithmetic, not billed actual",
+    "Current readonly SDK result does not prove projection completion for the still-pending candidate"
+  ]
+}

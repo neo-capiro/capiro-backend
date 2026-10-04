@@ -1,0 +1,50 @@
+{
+  "kind": "case14-closeout-staging-validation",
+  "at": "2026-10-04T06:46:50.436902+00:00",
+  "status": "PASS",
+  "payloadPath": "C:/dev/main/outputs/meri-c2-20261003/case14-closeout-archive-staging-v1/payload",
+  "copiedFiles": 356,
+  "copiedBytes": 3140773,
+  "excludedFiles": 784,
+  "credentialQuarantinedFiles": 0,
+  "allCopiesEqualOriginalBytes": true,
+  "journal26Sha256": "816b04a47be56432846d1ee602370c3bea985eb497a7de9e899aee4d53f8b39e",
+  "journal26Events": 26,
+  "invalidCostBoundPreservedOpaque": true,
+  "sourceCheckpointV2Sha256": "9d56b631ac462901967b297d27111f27c0ac5b0f7faca50bfb9dd80dbe263ed9",
+  "fullCase14Acceptance": false,
+  "fullC2Acceptance": false,
+  "replayAllowed": false,
+  "repositoryWrites": 0,
+  "cloudCalls": 0,
+  "providerCalls": 0,
+  "liveJournalReads": 0,
+  "liveJournalWrites": 0,
+  "generatedFiles": [
+    {
+      "path": "README.md",
+      "bytes": 5664,
+      "sha256": "a9a08b2c96dea538182cc7eb0214bf038038c0403eb4383e82a71496db8a15f5"
+    },
+    {
+      "path": "artifact-manifest.json",
+      "bytes": 248568,
+      "sha256": "16af4c4e085ad924382b41d587666df38bfda4d64a2ef7fab4dc07ba6f3a633d"
+    },
+    {
+      "path": "excluded-inventory.json",
+      "bytes": 344811,
+      "sha256": "85e9bdfc0f76a48357add71fa9205172b193b91300eddd8afa0fdc71e0e33e5b"
+    },
+    {
+      "path": "credential-scan.json",
+      "bytes": 696,
+      "sha256": "80549304ec6200c8fdaa0324ef59a93a5fbde13857255f2abbd0c16499b8cabd"
+    },
+    {
+      "path": "hermes-session-boundaries.json",
+      "bytes": 3491,
+      "sha256": "d501fb4fe16e77c3dcca8b7523efb820997623fb90b68d9bfd55ca9866963050"
+    }
+  ]
+}

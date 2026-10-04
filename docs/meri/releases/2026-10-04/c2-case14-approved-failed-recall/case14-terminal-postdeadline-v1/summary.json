@@ -1,0 +1,39 @@
+{
+  "kind": "case14-postdeadline-owned-provider-budget-readback",
+  "status": "READBACK_CAPTURED",
+  "captureRunId": "5f4312a2-6aa9-4ec8-820d-5717a88402df",
+  "conversationId": "88603ac2-bfbf-42dc-9e3b-85e4bea173b8",
+  "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+  "userId": "fb218bf5-2674-4ced-bca3-7a5d0c01592f",
+  "sessionRevoked": true,
+  "journalUnchanged": true,
+  "afterProviderDeadline": true,
+  "messagesReadAfterDeadline": false,
+  "captureAuthority": false,
+  "applicationWrites": 0,
+  "modelSubmissions": 0,
+  "journalMutations": 0,
+  "priorMessagesSha256": "bf38d567fa24f8f990b1664917cc03fb6f9eb7c318613e309fec20ea554a406c",
+  "priorExecutionSha256": "29ecf72822ee4e0eb83542321615b781e2943bef17eeb24f0d42edf6d8b217a8",
+  "priorCheckpointSha256": "74d14e4710e8d4d581dc32047f80f3b3e5a846305e71dec14e04fbf330aab9cd",
+  "reads": [
+    {
+      "path": "/api/me",
+      "status": 200,
+      "apiReleaseSha": "c0f393f863bf73bd4e65e7a94e17c073e7be021e",
+      "observedAt": "2026-10-04T06:23:42.936Z",
+      "bodySha256": "53cbd0e8e5e95c9f7bb3d66772d29b6ca2877cfbaf33d79f8f3eedb215073578",
+      "bodyBytes": 1225
+    },
+    {
+      "path": "/api/clio/conversations/88603ac2-bfbf-42dc-9e3b-85e4bea173b8",
+      "status": 200,
+      "apiReleaseSha": "c0f393f863bf73bd4e65e7a94e17c073e7be021e",
+      "observedAt": "2026-10-04T06:23:43.478Z",
+      "bodySha256": "a149ad9f91fad0ea5e53dd91519b9d1145c44d4fa20b295ea1148746360789f1",
+      "bodyBytes": 6201
+    }
+  ],
+  "startedAt": "2026-10-04T06:23:39.688Z",
+  "finishedAt": "2026-10-04T06:23:43.614Z"
+}

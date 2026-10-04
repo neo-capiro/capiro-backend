@@ -1,0 +1,186 @@
+{
+  "copiedAt": "2026-10-04T06:23:54.312Z",
+  "kind": "EXACT_LOCAL_COPIES_NO_NEW_LIVE_OBSERVATION",
+  "files": [
+    {
+      "name": "execution",
+      "original": "C:/dev/main/outputs/meri-c2-20261003/case14-live-operator-v1/result.json",
+      "copy": "C:/dev/main/outputs/meri-c2-20261003/case14-terminal-cost-finalization-v2/retained/execution.json",
+      "bytes": 2109,
+      "sha256": "29ecf72822ee4e0eb83542321615b781e2943bef17eeb24f0d42edf6d8b217a8"
+    },
+    {
+      "name": "checkpoint",
+      "original": "C:/dev/main/outputs/meri-c2-20261003/case14-live-operator-v1/aggregate-final.json",
+      "copy": "C:/dev/main/outputs/meri-c2-20261003/case14-terminal-cost-finalization-v2/retained/checkpoint.json",
+      "bytes": 6102,
+      "sha256": "74d14e4710e8d4d581dc32047f80f3b3e5a846305e71dec14e04fbf330aab9cd"
+    },
+    {
+      "name": "prepared",
+      "original": "C:/dev/main/outputs/meri-c2-20261003/case14-live-operator-v1/prepared.json",
+      "copy": "C:/dev/main/outputs/meri-c2-20261003/case14-terminal-cost-finalization-v2/retained/prepared.json",
+      "bytes": 24758,
+      "sha256": "9df8efe27601aa1e4482c6232d9b9ecf1a5c651c4f6151eb1830ab30216c4cb9"
+    },
+    {
+      "name": "operator",
+      "original": "C:/dev/main/outputs/meri-c2-20261003/case14-live-operator-v1/operator.mjs",
+      "copy": "C:/dev/main/outputs/meri-c2-20261003/case14-terminal-cost-finalization-v2/retained/operator.mjs",
+      "bytes": 15327,
+      "sha256": "b7e92d169d2f417550d742394eb48c299602bd7f1b2b85f996f56902261af1bd"
+    },
+    {
+      "name": "config",
+      "original": "C:/dev/main/outputs/meri-c2-20261003/case14-live-operator-v1/recall-config.json",
+      "copy": "C:/dev/main/outputs/meri-c2-20261003/case14-terminal-cost-finalization-v2/retained/config.json",
+      "bytes": 3564,
+      "sha256": "107c95e174ad4cbe0dbc771696068f13818c70057962f92a7a562f84c250f995"
+    },
+    {
+      "name": "setup",
+      "original": "C:/dev/main/outputs/meri-c2-20261003/case14-live-operator-v1/native-setup-authority-proof.json",
+      "copy": "C:/dev/main/outputs/meri-c2-20261003/case14-terminal-cost-finalization-v2/retained/setup.json",
+      "bytes": 20077,
+      "sha256": "85451560d630bf7b6f459a9fb6717710b81c90240fb0a5e470bf146077f18950"
+    },
+    {
+      "name": "approval",
+      "original": "C:/dev/main/outputs/meri-c2-20261003/case14-live-operator-v1/artifacts-ui/case14-approval/evidence.json",
+      "copy": "C:/dev/main/outputs/meri-c2-20261003/case14-terminal-cost-finalization-v2/retained/approval.json",
+      "bytes": 9904,
+      "sha256": "344f8450abdc80e52b39867a908c0d6e0e3add04c5fcc6b8c345140e18bf2fc6"
+    },
+    {
+      "name": "approvalBound",
+      "original": "C:/dev/main/outputs/meri-c2-20261003/case14-live-operator-v1/artifacts-ui/case14-approval/cost-bound.json",
+      "copy": "C:/dev/main/outputs/meri-c2-20261003/case14-terminal-cost-finalization-v2/retained/approvalBound.json",
+      "bytes": 14317,
+      "sha256": "c18c308d8a38cf49fd0f7eedef0309b940d433da0d07ac05a328abd6a05c85bd"
+    },
+    {
+      "name": "approvalAck",
+      "original": "C:/dev/main/outputs/meri-c2-20261003/case14-live-operator-v1/artifacts-ui/case14-approval/approval-acknowledgement.json",
+      "copy": "C:/dev/main/outputs/meri-c2-20261003/case14-terminal-cost-finalization-v2/retained/approvalAck.json",
+      "bytes": 242,
+      "sha256": "56a4256e6d0265a6dd1004912695118ce2bca9543473a2c8e7668f64f2c752da"
+    },
+    {
+      "name": "manifest",
+      "original": "C:/dev/main/outputs/meri-c2-20261003/case14-live-operator-v1/artifacts-recall/capture-manifest.json",
+      "copy": "C:/dev/main/outputs/meri-c2-20261003/case14-terminal-cost-finalization-v2/retained/manifest.json",
+      "bytes": 1644,
+      "sha256": "10fe02b41f462fedbd513fc6dd05e69e7dadd8521cf2c23ccb4792fc29983c37"
+    },
+    {
+      "name": "blocked",
+      "original": "C:/dev/main/outputs/meri-c2-20261003/case14-live-operator-v1/artifacts-recall/blocked.json",
+      "copy": "C:/dev/main/outputs/meri-c2-20261003/case14-terminal-cost-finalization-v2/retained/blocked.json",
+      "bytes": 248,
+      "sha256": "a7621895fde183cdd338f875f40f29e110f8c3cba1431fe863f56911099ce178"
+    },
+    {
+      "name": "intent",
+      "original": "C:/dev/main/outputs/meri-c2-20261003/case14-live-operator-v1/artifacts-recall/submission-intent.json",
+      "copy": "C:/dev/main/outputs/meri-c2-20261003/case14-terminal-cost-finalization-v2/retained/intent.json",
+      "bytes": 254,
+      "sha256": "4eae8e20145267430ab8d5ad4d43f1e6334fed8ef0c89388acb51d04f824aa00"
+    },
+    {
+      "name": "admission",
+      "original": "C:/dev/main/outputs/meri-c2-20261003/case14-live-operator-v1/artifacts-recall/admission.json",
+      "copy": "C:/dev/main/outputs/meri-c2-20261003/case14-terminal-cost-finalization-v2/retained/admission.json",
+      "bytes": 2781,
+      "sha256": "3c4393ad305cfe43a5cb4760ae3f9908d42074b319604b4aebf266fae07c0190"
+    },
+    {
+      "name": "builds",
+      "original": "C:/dev/main/outputs/meri-c2-20261003/case14-live-operator-v1/artifacts-recall/immutable-builds.json",
+      "copy": "C:/dev/main/outputs/meri-c2-20261003/case14-terminal-cost-finalization-v2/retained/builds.json",
+      "bytes": 1476,
+      "sha256": "f06f8605a4835dcd50103edbde14779fbe7a947c9886797135cd156fded16038"
+    },
+    {
+      "name": "savedMessages",
+      "original": "C:/dev/main/outputs/meri-c2-20261003/case14-live-operator-v1/artifacts-recall/saved-messages-observation.json",
+      "copy": "C:/dev/main/outputs/meri-c2-20261003/case14-terminal-cost-finalization-v2/retained/savedMessages.json",
+      "bytes": 20078,
+      "sha256": "8a65e30939fa18178cfcc480ae3c513df511bb86e01b502032ba777b94bc5d25"
+    },
+    {
+      "name": "stream",
+      "original": "C:/dev/main/outputs/meri-c2-20261003/case14-live-operator-v1/artifacts-recall/stream-response-observation.json",
+      "copy": "C:/dev/main/outputs/meri-c2-20261003/case14-terminal-cost-finalization-v2/retained/stream.json",
+      "bytes": 19083,
+      "sha256": "dd15420d3b67a79e5559cc46c10225ab6477c98807dc33aadedcc1c7466c6f34"
+    },
+    {
+      "name": "diagnosticConversation",
+      "original": "C:/dev/main/outputs/meri-c2-20261003/case14-terminal-read-v2/conversation.json",
+      "copy": "C:/dev/main/outputs/meri-c2-20261003/case14-terminal-cost-finalization-v2/retained/diagnosticConversation.json",
+      "bytes": 8901,
+      "sha256": "fd16febd34e21eb953bd96557dd46139405c78ac958057468d9429678818e2a5"
+    },
+    {
+      "name": "diagnosticMessages",
+      "original": "C:/dev/main/outputs/meri-c2-20261003/case14-terminal-read-v2/messages.json",
+      "copy": "C:/dev/main/outputs/meri-c2-20261003/case14-terminal-cost-finalization-v2/retained/diagnosticMessages.json",
+      "bytes": 28813,
+      "sha256": "bf38d567fa24f8f990b1664917cc03fb6f9eb7c318613e309fec20ea554a406c"
+    },
+    {
+      "name": "diagnosticMe",
+      "original": "C:/dev/main/outputs/meri-c2-20261003/case14-terminal-read-v2/me.json",
+      "copy": "C:/dev/main/outputs/meri-c2-20261003/case14-terminal-cost-finalization-v2/retained/diagnosticMe.json",
+      "bytes": 1897,
+      "sha256": "17ad3c5d020d76b6c0bbeffbb20a31d0b6e70ab2aaecdb948b6d9e5063565eb8"
+    },
+    {
+      "name": "rates",
+      "original": "C:/dev/main/outputs/meri-c2-20261003/reviewed-rates-c2-v3-20261004.json",
+      "copy": "C:/dev/main/outputs/meri-c2-20261003/case14-terminal-cost-finalization-v2/retained/rates.json",
+      "bytes": 2470,
+      "sha256": "6a5e22e56f15c576612a0b50f42573e88a8c29a76698d033eb007d20b9b49684"
+    },
+    {
+      "name": "predeadlineSummary",
+      "original": "C:/dev/main/outputs/meri-c2-20261003/case14-terminal-read-v2/summary.json",
+      "copy": "C:/dev/main/outputs/meri-c2-20261003/case14-terminal-cost-finalization-v2/retained/predeadlineSummary.json",
+      "bytes": 1066,
+      "sha256": "d1a2afd275a9eb983853b9ec222b48043f7acc1c52bc0027cb31a44e08e41669"
+    },
+    {
+      "name": "predeadlineCleanup",
+      "original": "C:/dev/main/outputs/meri-c2-20261003/case14-terminal-read-v2/session-cleanup.json",
+      "copy": "C:/dev/main/outputs/meri-c2-20261003/case14-terminal-cost-finalization-v2/retained/predeadlineCleanup.json",
+      "bytes": 149,
+      "sha256": "3f9a14045dcee14794213790ef96447111a58aa9a84b7c2afa2470daf6712bc9"
+    },
+    {
+      "name": "predeadlineJournal",
+      "original": "C:/dev/main/outputs/meri-c2-20261003/case14-terminal-read-v2/journal-preserved.json",
+      "copy": "C:/dev/main/outputs/meri-c2-20261003/case14-terminal-cost-finalization-v2/retained/predeadlineJournal.json",
+      "bytes": 104,
+      "sha256": "2996b80bacd62151655a2c307902f82e9ac1480e6e1e92f6ee2cd3a51f0b674a"
+    },
+    {
+      "name": "predeadlineReader",
+      "original": "C:/dev/main/outputs/meri-c2-20261003/read-case14-terminal-evidence-v2.mjs",
+      "copy": "C:/dev/main/outputs/meri-c2-20261003/case14-terminal-cost-finalization-v2/retained/predeadlineReader.mjs",
+      "bytes": 3543,
+      "sha256": "8508c858d98cd06f2e9ecee797391a7f6b003144366ff682073a91b14a997a47"
+    },
+    {
+      "original": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/lib/windows-artifact-protocol.py",
+      "copy": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-terminal-cost-finalization-v2\\native\\windows-artifact-protocol.py",
+      "sha256": "3a30f6a211a5a7815c7f721dbb09871a33f316e7ecd8fbac0b4b1cf95ead33db",
+      "bytes": 6696
+    },
+    {
+      "original": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/lib/windows-owned-artifacts.py",
+      "copy": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-terminal-cost-finalization-v2\\native\\windows-owned-artifacts.py",
+      "sha256": "2316daa96906c1bf166adbeb72341024581dac82aa1f692f2554eb1ae82a40c1",
+      "bytes": 8713
+    }
+  ]
+}

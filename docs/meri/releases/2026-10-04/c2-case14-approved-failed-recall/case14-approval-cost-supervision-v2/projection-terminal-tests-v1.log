@@ -1,0 +1,46 @@
+PASS terminal proof retains exact joins and omits raw vector/content
+PASS reject different canonical owner
+PASS reject other clio tenant
+PASS reject other clio client
+PASS reject private clio owner
+PASS reject changed source text
+PASS reject wrong legacy dimension
+PASS reject stale clio timestamp
+PASS reject changed item xmin
+PASS reject changed item source hash
+PASS reject foreign item id
+PASS reject changed canonical sections
+PASS reject extra model row
+PASS reject foreign vector scope
+PASS reject foreign vector source
+PASS reject wrong vector model
+PASS reject wrong vector hash
+PASS reject wrong vector dimension
+PASS reject stale vector timestamp
+PASS reject extra sibling job
+PASS reject foreign job tenant
+PASS reject foreign job item
+PASS reject foreign job clio
+PASS reject wrong exact source version
+PASS reject wrong exact hash
+PASS reject old timestamp-only idempotency key
+PASS reject background attempt
+PASS reject active lease
+PASS reject failed outbox
+PASS reject running outbox
+PASS reject retained failure
+PASS reject future completion
+PASS no missing asynchronous branch claims terminal
+PASS pending exact outbox waits even with both vectors
+PASS tampered fixed owner rejected after rehash
+PASS unknown owner fields rejected after rehash
+PASS wrong run and overlong expired windows reject
+PASS pending to terminal emits exact proof once
+PASS drift rejects without second read
+PASS read failure never retries
+PASS permanent pending bounded to twelve reads
+PASS transaction timeout shrinks to window remainder
+PASS late terminal result cannot pass sixty second bound
+PASS source contract text hash and exact key match fresh compiled candidate
+PASS used schema and producer paths still match deployed candidate Git objects
+{"kind":"case14-projection-terminal-local-tests","preparedBy":"Codex","status":"PASS","tests":45,"liveExecution":false,"providerCalls":0,"databaseWrites":0,"acceptanceAuthority":false}

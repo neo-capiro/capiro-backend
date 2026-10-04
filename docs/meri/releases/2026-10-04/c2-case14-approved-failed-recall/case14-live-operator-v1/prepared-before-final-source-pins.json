@@ -1,0 +1,484 @@
+{
+  "kind": "case14-combined-owned-live-operator-preparation",
+  "version": 1,
+  "preparedBy": "Codex",
+  "status": "PREPARED_NOT_EXECUTED",
+  "preparedAt": "2026-10-04T05:44:58.007Z",
+  "config": {
+    "schemaVersion": 1,
+    "caseId": "14",
+    "target": "https://os.capiro.ai",
+    "captureRunId": "5f4312a2-6aa9-4ec8-820d-5717a88402df",
+    "recipe": {
+      "schemaVersion": 1,
+      "target": "capiro-dev",
+      "fixtureNamespace": "meri-foundation-20260928",
+      "caseId": "14",
+      "fixtureInstanceId": "dee4e90e-8e91-4782-9488-10b8e52a2146",
+      "ctx": {
+        "role": "standard_user",
+        "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+        "tenantSlug": "meri-foundation-20260928-t1",
+        "userId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f"
+      },
+      "clerkUserId": "user_3Jw2FvWZkYGKmxWGx13tNJxFD2A",
+      "actors": {
+        "PAT": {
+          "tenantId": "T1",
+          "physicalId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f"
+        },
+        "PRIYA": {
+          "tenantId": "T1",
+          "physicalId": "fb218bf5-2674-4ced-bca3-7a5d0c01592f"
+        },
+        "ELI": {
+          "tenantId": "T1",
+          "physicalId": "c81e97df-a6e8-4dea-9de0-33bc7b393ca8"
+        }
+      },
+      "clients": {
+        "ASTER": {
+          "tenantId": "T1",
+          "physicalId": "41f9ec63-3963-479f-b747-59a3767ef44b"
+        },
+        "BLUEHAVEN": {
+          "tenantId": "T1",
+          "physicalId": "494f6834-d09e-4723-8a64-b2df57c683e8"
+        },
+        "CEDAR": {
+          "tenantId": "T2",
+          "physicalId": "d966c570-5729-44e6-9d28-8e9c1833aea1"
+        }
+      }
+    },
+    "reviewer": {
+      "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+      "tenantSlug": "meri-foundation-20260928-t1",
+      "userId": "fb218bf5-2674-4ced-bca3-7a5d0c01592f",
+      "clerkUserId": "user_3Jw2G2jbyyDlrrg6zCNd4gYUDfH",
+      "role": "user_admin"
+    },
+    "clerkOrganizationId": "org_3Jw2G4KLYzp2j3xg0OXhyvbItRM",
+    "deployment": {
+      "apiSha": "c0f393f863bf73bd4e65e7a94e17c073e7be021e",
+      "webSha": "c0f393f863bf73bd4e65e7a94e17c073e7be021e",
+      "builds": {
+        "api": {
+          "service": "api",
+          "sourceSha": "c0f393f863bf73bd4e65e7a94e17c073e7be021e",
+          "imageDigest": "sha256:024fcc82a2db7701f4a3e3311598a9a1d0933b3fe4fcf73751bf0e3fb866d8ce",
+          "buildId": "capiro-build-web-dev:b91bc32a-8016-4b7a-ac6b-c34a46d7807e",
+          "buildspecSha256": "cf24c5952b4bb2e458935d6678c26982d61677e6537d48798fe92fa4aad60b5f"
+        },
+        "web-vnext": {
+          "service": "web-vnext",
+          "sourceSha": "c0f393f863bf73bd4e65e7a94e17c073e7be021e",
+          "imageDigest": "sha256:fb594dabc437723fa6a28a7a6adcd54b13f813fcc52130f8458692aac2e9c8c6",
+          "buildId": "capiro-build-web-dev:d12e01ed-3f15-4d52-9c9a-ad3e0209ae02",
+          "buildspecSha256": "604d019ef9b54936de5cf7d9a5fb46f878d998b19549b2257de4a842edef9899"
+        },
+        "meriv2-orchestrator": {
+          "service": "meriv2-orchestrator",
+          "sourceSha": "c0f393f863bf73bd4e65e7a94e17c073e7be021e",
+          "imageDigest": "sha256:5329e61c0234a5baca60b4475e49a88adf4d15c78dc555fd4d46a94b01f74b1a",
+          "buildId": "capiro-build-web-dev:6fcbfb1c-a003-401d-af01-4067d11f2954",
+          "buildspecSha256": "67617283cc66959285174b78493e95b7d491bbfcb916b8592eb0980fd0aa3e0b"
+        }
+      },
+      "orchestratorSha": "c0f393f863bf73bd4e65e7a94e17c073e7be021e"
+    },
+    "limits": {
+      "concurrency": 1,
+      "maxApprovalSubmissions": 1,
+      "maxSynthesisSubmissions": 0
+    }
+  },
+  "contract": {
+    "schemaVersion": 1,
+    "normalization": "unicode-nfc-lf-rtrim-no-final-newline; stable-json-sorted-keys-v1",
+    "contractSourceSha256": "acd2a1cf766ad6e988025c4c43235213164926e7036cc8361986916d59963b66",
+    "fixtureSha256": "2a8159d45d512f325539eb700907700ecc16cbc2d6536277adf85d8f49368e61",
+    "promptSha256": {
+      "10": "4a914c70a36ad1a1019362138c63e3a9280150175523c100a5ea9df1f23aaec5",
+      "11": "e5ed35e64a5adfac88a497a757168ca4b41db638edb47b9947a1b7f46292dd7e",
+      "12": "9ebd52d5fcf7d671c376c964af5eb7fee835c9462e72fe452a6d0efd15384318",
+      "13": "e62ac79e0308e79048b665cc404fcd1dd22959b9da54fc889e235e760a8d8874",
+      "14": "b80711efbe96094a5c6590cbc69dad102542248f4f32786cab41833438597862",
+      "15": "4452b04d83c15052db17ea91c8bc48ae287e45353b00354908be5facf223a6fa",
+      "16": "b4d3b19b1f4fe83c8c6fcb6ac406ceb41c49ae121527b1d5064c95b81ed59966",
+      "17": "9b03297d879d34b297d0a21df3f22ba9b222ac18733cd6bdf1bbb5e9568ed6fe",
+      "18": "80de3eab52d8f431e9a5611838844e68ebde73bfe71183c94da98c18b648f930",
+      "19": "6b1eac4f0b888bb3091214499f885111f1f07b33512bb48ba6b994744eeb6ba3",
+      "20": "1773411db67d89126260f86bd2b460f030ca37a6848fa7cf709295853f1bca17",
+      "21": "05f45a8fc42491b77ff029a91f42c6ddb8f74a7f0361904785c0759f899238b5",
+      "22": "1114ce826f0072160ebf2be8dcdb71520af57c02df0639b58df17526bab8e792",
+      "23": "eb7ae1c1c73caed02b0cc5b12ca9fc401356233ab8c87257995c13e32b7f1895",
+      "24": "ec0cd243ff3c2a92c44c3593ad89e570b2c289901e4ea54609a04e3bfbb2b3c7",
+      "25": "88a1dc43ab4f825d7c3019b3becb2ee0a8a4b1cbcd843960415016e56561befe",
+      "26": "62c886c131b469cbc0f3a9fbd2c691d50493b709876b51fa382061a5f3c8318b",
+      "27": "67e007c8a28947a8370c5984425e1809aa6330e6a8a96a7ed7794aef36b4f967",
+      "28": "ccc9b7c1ff5be8d612c4d5359dd22b185590a3506289b5237843f3d097871448",
+      "29": "65b87a32331a63bfb7f82d175fe8857b93a8ee5f520a3c29ace93febc3eb3f06",
+      "30": "45f1a3d44dc25e1cf2b5e65588aba5554ae6c9444877cbde1cd531cfc3d1ecdb",
+      "31": "9199736fbea573d68d54587438788aa4e948e4cbde3742b75ab76265f1fc14f5",
+      "32": "a227ec38ee298b9d015eaa20184bd6d9fe238e5328775cdecbad5bead43f86b8",
+      "33": "a8f827287ef4b626e0a0bf3bad3a98e7a508b52fde81637e0eb1ec2739ac102c",
+      "34": "37df7a8d6e235e593ab728f34f32de62a4142f8b342deb14ddb30e1047849bdd",
+      "35": "30f111ee8d3c2f7045e077d558ddf2070444f744e2bb60edd3c1664100f68877",
+      "36": "cd9c19721cdf40c2e89f0dbb147e9845321d10885145eb3442c051fcbbc3972c",
+      "37": "4081be7811c50f8725d995313f0b24f931bdd1d4b1a1fe64fa9ee70c28fc2267",
+      "38": "61939b5fe186a86ba2d07c6ac4e4a59a29b1841cad26cd4dd69ed49eefc90f48",
+      "39": "afc85c157733537361b260c60748594a010309a1dcdff18f927e3347059bb791",
+      "40": "fc76c78332bdc3e6c3a1469a57f76a5220ed60d3fab84dc72fde6b8ddf843a9e",
+      "41": "ad1cd0cb822d6631be9b6a9a545a1483ff1fd92144beac394e2f5f35f19b9cff",
+      "42": "c35e79b69d5c2df67c34517fcec53e9fbb2733f8acd10310395800281361f42a",
+      "43": "254b74f4ecd429a629d48c41933a23d5bc1d3d0c22a200cf7d87d91f253f9213",
+      "44": "d5d05b817e604f0237b914fd5b11d7039fc697bbe4be4551c56e65232069792b",
+      "45": "2fe9a4151941bd569e68b0cf70671936a401d7c4b43f0f734c7dfa39ba1296e7",
+      "46": "505d6a10bf4989814d350a183e1c8cd0f215fb01332da0cf4ffb3ff76326fb05",
+      "47": "26f340dfe0aeef4346f30e5628a878853f77cb9b410e296ce87471db0fd6cd1c",
+      "48": "6d73a71c6ebd9402828c0bf2849b706ba5b01c7125ef997e3a5305230aea2056",
+      "49": "39d9243ea8a37b14b918f33f82da21fba8b3f29bb0f57814343e797cbae6f095",
+      "50": "e15f29ffd92710bd3cf4a47b95b63ece63f523b88d6e06b5415ac362095b1d33",
+      "51": "02b90fb6ad28bc4057b1e5d43d4185b5d2da668b76c6adab0b46ce7f2a1ab03f",
+      "52": "820a50ef855ac2be0199f655c374ad49e5f7c3aaedd4fa4bcad5d031b40e76d0",
+      "53": "e29ddc6878d520629e5d4fdde57445221782c0921bd5e6feb4f9325cbe7a0326",
+      "54": "327a81f3f42e792322f0f2d2415aa0251187a6556b085b60b4b79279101ae245",
+      "55": "a0be41202057e91e8676c4901afa61cc50e8c2333f7cdab017c902bd3924a076",
+      "56": "70e032ae0d1e7f032a8680ea970cc2ddc259dee565cc0be38fb9ae33acc0279f",
+      "57": "cb886c7a8453cdc335bc3810e9b22cf972218547d556a25075c160b73688db39",
+      "58": "a8f49ab1bedcb598940a6b5b3d819f83277ba125d151c1b9d3d710aabfe8ee27",
+      "59": "ac81788d02d21bb082dd6260d4abf93edf49131d02a2fee778112ca811131203",
+      "60": "e7eb76d682e9cbb2953e2197e996c9d9bc7202ef50fb9c87aa14905c75575eaa",
+      "61": "1282282a277b1f0d92d19f0f012729da65b587fa076f555060f64f0b8d20d8a6",
+      "62": "134843361bf09961a9490817f44800222c0fa648b857c759354fbffed3026418",
+      "63": "e0415f757f6f1dedced06cdb6c4a56b275f491990ccfd9cdf07c0dc2e9297194",
+      "64": "7a7b7fe103e84a3497629891169c553336a1eb1783c3e74041cfeb08cca428dc",
+      "65": "195890fa91066de34b0489d10d7344dc7eead616d2d94b131e01fc470cc1383a",
+      "66": "31f27be392762252b0b77a92d1b1d190f583cc14904bddeb0de43af9ddff3e2a",
+      "67": "6e446774839bc15bf238b0485ac67e94592e5296388d4514a6aab61801033aff",
+      "68": "1d7148deccfdc2dd8dba3a4d25cd0d365c16fdbb169a2dc27724fa49bd993acd",
+      "69": "4d9284fdaf459d005c2f4f01f94c6e579195b1f42f662d5b7b8ea16d39f739d2",
+      "70": "ca70824b2fa49fd1c188dd27ff931a9db10bc42933250302f5d169874d1ca500",
+      "71": "ef6041f1d7d07f5c0926f4cc9b6569ba8b3314be1b861e166a33167ec0d290e2",
+      "72": "66fd4b9d8f592a980fe42c0d8bed4cb1beaedf6815b3c48b77382887b11406b2",
+      "73": "b8ff3806b61a8b5f6b016734228ad927c5772780bc5594be548b474ad4bf81fe",
+      "74": "874f640684b82f2a41b2e87c638bd7138b902a8585f57a150af4a1f75df45c0c",
+      "75": "48bb0413d6338babc0119e2eb6e4d12cf297efabb0d00e014ea9cc047bf4dc50",
+      "01": "9d516d7276e3a2de959def23af9e09e76adc5ae361eba13334ede4e9c031cb42",
+      "02": "3585359aa7b7a336532cedfccb09d4597ca9c684846fed66be89802eda482de9",
+      "03": "a32735abfcaa4410a1f35583b8b36cbc2e6b75177e63918c3a56cb7866909e98",
+      "04": "401a10d6b05d718371ac0a86590443fadec753956fdcda17eefb2524e018de92",
+      "05": "d2875410251f899c3b2aaa0d9bfe2e0c73f7d718f99e75fc197e32d7b95cb31b",
+      "06": "7cb213e17a049e3700a50c425c8b3bb7f8a67994fca746a5cc670380db48790c",
+      "07": "b6e3b568fae49062285afd1c0d7d5feb687e95535bd53e619f757c503d07f877",
+      "08": "474e527ee423523d7eac4266b07010ef193314b720015ac317f292ca923d87fb",
+      "09": "8a46ac9bdb44f9ce3f9fa3d8d7a54415ea227f1c770ae5760d20b495d092c814"
+    }
+  },
+  "aggregateCheckpointPath": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/executed-once/aggregate-checkpoint.json",
+  "journalPath": "C:/dev/main/outputs/meri-fresh-20261003/fresh-spend.jsonl",
+  "journalPrefixSha256": "8f20134f71dde90e32fc0c3c2aba2da2d5b93dd13fffea31b83105d1621bc3e5",
+  "sourceFiles": [
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/artifact-collector.mjs",
+      "sha256": "64725c9b2fc66efb6578461e755efcbf62b77e18833dc6221831ee7e21ececae"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/capture-http-observation.mjs",
+      "sha256": "bdf0f4f96aef5e57eed34e6076e111b82d38f6b92e638b6ae4a43147d00b671c"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/capture-spend-aggregate.mjs",
+      "sha256": "5ca3fb0dd3eb0b6100b3b478704503fc2c5197fbb398ab62fcf7beb317d132a9"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/capture-spend-reconciliation.mjs",
+      "sha256": "fee573186e368a44e837345a8e18aee4d3c25bc28530603527d304f58c1a8b8a"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/capture-transport.mjs",
+      "sha256": "888ad26b94971424b3d5db199ce646617cfc82b927a697fdb9a1475bc2de0669"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/case01-build-authority.mjs",
+      "sha256": "3cd0353c62743d0dbf5d2511678f9dbb2aca01620e648365c353f1751a3bc065"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/case01-failed-receipt-cost-authority.mjs",
+      "sha256": "8b685fb5f4a837edcda13de49fd182b6d83e904698f9c88974a9b67ad9c6f819"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/case01-failed-receipt-cost-pins.mjs",
+      "sha256": "b637aff67c5b10d251a952b720b102fa9018df589007a1f6e678794972e54e70"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/case01-live-capture.mjs",
+      "sha256": "9872ee2fb91b05547030331dd22258727bb6fbcf13537f6e3d94b6fd9f325a83"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/case01-presubmission-recovery-authority.mjs",
+      "sha256": "83128b97926129a178d53863039f99a6fc1c7a65e77d9083c201b39f1e321237"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/case01-receipt-joins.mjs",
+      "sha256": "c4556ba2da76c5c83de511c852f1f403f81dd4bf44160cbf8e6e14115e448aa9"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/case01-terminal-spend-authority.mjs",
+      "sha256": "132ee81d974fb771dab328a57cfa1b1a71348039306cbbe690d6e3e2acc7692a"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/case14-approval-capture.mjs",
+      "sha256": "fcea0961cc531ffe98104ecc8c6d3dc6d6083cc972d1879e7b340991a9e1046d"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/case14-approval-cost-authority.mjs",
+      "sha256": "d41cdb4193d17484e8429677aedb168d207c976a41764f3a8eeba8392b4690bc"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/case14-approval-cost-evidence.json",
+      "sha256": "aa63a7378883f152c1d8180cc0796fc5dc2bb4ad61e68df9030d52b9a754aa33"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/case14-approval-write-guard.mjs",
+      "sha256": "4aff57265d0fe414221f8d168e53ddd0940bca1ca76c6f86cb2669e7b16d5a34"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/case14-postapproval-task-authority.mjs",
+      "sha256": "21f874c7863666d65d7fb7ed09040eaaf2d07606be17881370cb555ea2981564"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/case17-build-authority.mjs",
+      "sha256": "dc068e2f3aa0aae7bea5802a80cf0e511397a92160b39f698b453bf372a15021"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/case17-readonly-guard.mjs",
+      "sha256": "6c8d3e5e0dfafba4a0132a2ff3151fcfce245e9b4cc0ad0c2b0a05ac38636b09"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/case20-presubmission-recovery-authority.mjs",
+      "sha256": "cd2225d5be0d81ad359964d454c7329594f211d9e9e999ad36babc05cc426ac9"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/case20-terminal-cost-authority.mjs",
+      "sha256": "c67970c36192625203019ca9d0da19c8480c29783f2622072523650ccb4f8f7d"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/case20-terminal-cost-pins.mjs",
+      "sha256": "9591737cbf0fe53a81795a62eb6a28f19dd878a45408cff03c68f1dee0e20d6a"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/case46-artifact-evidence.mjs",
+      "sha256": "9abd6c2e10421cffbf937052271fe3b87bc6af08b82ec9654dc101372e33b06c"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/case46-artifact-ui.mjs",
+      "sha256": "edc53ae170faf64bd242f2a7552e1dc985d8c89e0d7a359d4a29a96dc656ec28"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/case46-live-capture.mjs",
+      "sha256": "925f926a5c2f72ad9b6bb114847d7140cd769a6e510d85c5fe80d0c6656a2b66"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/case46-receipt-joins.mjs",
+      "sha256": "68f3d4404359091ced225f79ea09b7a2f504a57d2fefd9d7fcf0d1bcf562823e"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/cases.mjs",
+      "sha256": "5464412ee66b73f677cc923bda09b4785a866b20ef0ee6a3410936c431c5ba0a"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/contract-lock.json",
+      "sha256": "fc2fe9da90938d476e46007782a0b7d4471c1254e2a189180f62e3fbbde8fb6e"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/contract.types.d.ts",
+      "sha256": "c0690639b935d86f58b93529d00d46b315947907498c8319d995d7ca763a6049"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/controlled-capture-receipt.mjs",
+      "sha256": "b49ba3887d83698ba4829c0fd39197d5cb7b4959824c5e0453f63499f59a90ec"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/controlled-read-live-capture.mjs",
+      "sha256": "e22e8d6022053a685276468710bb8521ae516ac21b7fabf995cc60b07e04ca63"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/controlled-read-receipt-joins.mjs",
+      "sha256": "d09ecb5f4fd4dee86bab14f1b2e257dd9d66c83f21405c3bad1989657686a273"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/fixture-provisioning/canonical-owner-adapter.mjs",
+      "sha256": "a9e68e7f12e60253d8402108dbc2ecc0cf6688863ca42c6412c13e371c61fa40"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/fixture-provisioning/contract.mjs",
+      "sha256": "301f39229b64b3878d2fa9783d2cac5cd716fdf8acb125a2e758dc698e36076e"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/fixture-provisioning/controlled-budget-definitions.mjs",
+      "sha256": "36c7286f8177df416ccb3d47f384942e67e90142e42f82855e4fbfe191d261ea"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/fixture-provisioning/controlled-read-definitions.mjs",
+      "sha256": "56a6f30e198e78db778c1ac2b02a00a4f6eae17646d56bc94f8ece66d63adf05"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/fixture-provisioning/manifest.mjs",
+      "sha256": "8f1276ef0aaaef9b648bb1cbd0a037ee7d11d0a78db9691ab4de70b3b5db667a"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/fixture-provisioning/memory-candidate-owner.mjs",
+      "sha256": "a850e4a8a68641d7118cf7f6e5abda72e64452bde6123d8e13acf5308d6bc9b7"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/fixture-provisioning/memory-pending-fixture-plan.mjs",
+      "sha256": "7d683e5594bf4a76ee20d2ed9c926773436d63a87aff6f33ef0a69292d38968e"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/fixture.mjs",
+      "sha256": "8915e19424520a2f97b9cd5a389fcf4b39f2823f0526573ffd04a1dfe0fbc398"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/grade-case14-capture.mjs",
+      "sha256": "5e82810195e282d44b90a3cca920267939a560d3c33f4ecaf9a78570625e884f"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/lib/native-http.mjs",
+      "sha256": "c31fa2d1e643c91517c9328f397c0cc311b4a2381606cf0589537d230256a64c"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/lib/stable.mjs",
+      "sha256": "03bba6f6dd1c48bf206ed32c628e1f9ce2038d75a9560d33d044950261f45c23"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/lib/windows-artifact-protocol.py",
+      "sha256": "3a30f6a211a5a7815c7f721dbb09871a33f316e7ecd8fbac0b4b1cf95ead33db"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/lib/windows-capture-spend.py",
+      "sha256": "d9fefeda594bee5c69eaa596de2d0a41ad8bab7fbfaf8ee3ce2e7d9a4564277d"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/memory-read-budget-authority.mjs",
+      "sha256": "6efc3d2ada6f8f5b73a914ec33a274995e36fcde8e81f8889f6e698e0a429c06"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/memory-read-http.mjs",
+      "sha256": "3a9e1387303b163a790b69972166800867da2a5ad3591199c513665c38cf02e3"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/source-binaries/asset-manifest.json",
+      "sha256": "6512b1ad5f9a154e517e2702f329bc52ab8276ccde9f7a1d2609872c8ea1889d"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/windows-artifact-storage.mjs",
+      "sha256": "8b03eeccad53a92fc4cf7bcf4976522ecf7ed2126591449e28a6a70948ac01c4"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/scripts/lib/meri-release-policy.mjs",
+      "sha256": "e0518591e704ef3f051442d1b949a9f83a705a2cff40ed998dba19b57373cb5c"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/scripts/lib/resolve-aws-cli.mjs",
+      "sha256": "eae72a9bf7feb36ec1626ecd58e1c46ff057e6859141eb6ad70047450d84c1d5"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/scripts/meri-release.mjs",
+      "sha256": "2fece407aa0f08795ac6d5d1feef99211412ab28ea6bc76125c1c49eae4412f6"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/aws-single-attempt.mjs",
+      "sha256": "86b965a0257fd56e5255e30cdfd6787bef74ba0287d23eecb86fedfae7d6fec0"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case14-live-operator-v1/auth-owner.mjs",
+      "sha256": "a4c903e3c09e94403a99579f62357daabb03bf5acee78aaebd8d22e92cd057c5"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case14-live-operator-v1/config.mjs",
+      "sha256": "505e4bc57fa6fe4d49909d70c3dcb5017ab5f51ace3459032d3e35e3bace77c9"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case14-live-operator-v1/operator.mjs",
+      "sha256": "52f9b88b1e246b982dd3d7a133200e83f3b32bb4766128e7eac9f843f3e03ee8"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case14-postapproval-preparation-v2/build-case14-postapproval-input-v2.mjs",
+      "sha256": "c688efbce35b97e61597fe465c28178a88d28dab08eaecd31cb81ab9a90a509d"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case14-postapproval-preparation-v2/case14-postapproval-inner-v2.mjs",
+      "sha256": "48f79bd617b4d42afeb0cd19500014284c2fa1cc281853d6486f354a229b1a81"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case14-postapproval-preparation-v2/reviewed-rates-retained.json",
+      "sha256": "6a5e22e56f15c576612a0b50f42573e88a8c29a76698d033eb007d20b9b49684"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/execute-case14-postapproval-outer-v1.mjs",
+      "sha256": "1ed2521256a1925e03d7055be4f523e0620f933c7012d017eac130991dc3d722"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-fresh-20261003/auth-preflight.mjs",
+      "sha256": "f3d757755514c478b2f7a00572883c9c696964dc13ac1a565e4c0ef61d379414"
+    }
+  ],
+  "inputFiles": [
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case14-native-execute-input-v1.json",
+      "sha256": "9d6bb553def112676b48125a71810c4307dd0950a7fa9f6fa63773b7fe50f167"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case17-regression-v4-prepared.json",
+      "sha256": "4ea1a7c5450b7861d1c47a96691fd32cc04c629f5e9e1d94a49f0cb001d6c980"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/docs/meri/releases/2026-10-03/c2-combined-release/release-qualification.json",
+      "sha256": "a3a8d153ed0129e1c3ce78178caa924e228d817300465a978667192f581bab83"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/cost-supervised-v1/executed-once/aggregate-checkpoint.json",
+      "sha256": "b778571ba5fdd6911701076453fe0f5bb7641e86bb31fdb1d7a37b3798e5266c"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case14-postapproval-preparation-v2/reviewed-rates-retained.json",
+      "sha256": "6a5e22e56f15c576612a0b50f42573e88a8c29a76698d033eb007d20b9b49684"
+    }
+  ],
+  "assertions": {
+    "sameProcessCapabilitiesRequired": true,
+    "maximumApprovalSubmissions": 1,
+    "maximumRecallSubmissions": 1,
+    "maximumConversationCreates": 1,
+    "combinedHoldMicros": 15000000,
+    "conservativeApprovalCeilingMicros": 1000000,
+    "recallCeilingMicros": 14000000,
+    "automaticRetryAllowed": false,
+    "originalPromptSubmission": "NOT_RUN",
+    "humanRubric": "NOT_RUN",
+    "fullOriginalRow14Acceptance": false,
+    "fullFile01Acceptance": false
+  },
+  "entry": {
+    "localOnly": [
+      "node",
+      "C:/dev/main/outputs/meri-c2-20261003/case14-live-operator-v1/operator.mjs",
+      "--check-readiness"
+    ],
+    "leadOnlyLive": [
+      "node",
+      "C:/dev/main/outputs/meri-c2-20261003/case14-live-operator-v1/operator.mjs",
+      "--run-once"
+    ],
+    "visualReviewCommand": "GRADE_SAVED_CASE14_VISUAL_REVIEW",
+    "visualReviewFile": "C:/dev/main/outputs/meri-c2-20261003/case14-live-operator-v1/visual-review.json"
+  },
+  "limits": [
+    "This local draft does not independently authorize execution. Lead owns reviewed source pins and the one live invocation.",
+    "Any change to pinned source requires review and a new preparation before live use.",
+    "No restart/replay after result.json exists; uncertain auth/setup/provider outcomes require reconciliation.",
+    "Visual review uses saved screenshots after all sessions are cleaned; human rubric and original prompt remain NOT_RUN."
+  ]
+}

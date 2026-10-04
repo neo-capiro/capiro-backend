@@ -1,0 +1,146 @@
+{
+  "kind": "meri-fresh-capture-spend-checkpoint",
+  "version": 1,
+  "state": {
+    "root": "C:\\dev\\main\\outputs\\meri-fresh-20261003",
+    "freshVersion": 1,
+    "directories": {
+      "C:": "5081a475:50000:5:1da8405:2f19714a",
+      "C:/dev": "5081a475:30000:9ca2a:1dd1c57:eded5d59",
+      "C:/dev/main": "5081a475:130000:2bb7a0:1dd4485:55c889ba",
+      "C:/dev/main/outputs": "5081a475:70000:71d503:1dd471a:fb902f7b",
+      "C:/dev/main/outputs/meri-fresh-20261003": "5081a475:80000:11d74b4:1dd52d6:86131ecd"
+    },
+    "files": {
+      "run-authorization.json": {
+        "identity": "5081a475:1f0000:33e3a:1dd52d7:913b0334",
+        "sha256": "e07822e83a7c7b531606519ecd4fdf1027f2fa7cbaefd4bad92a2084590262fe",
+        "bytes": 489
+      },
+      "fresh-spend.jsonl": {
+        "identity": "5081a475:80000:11d75c5:1dd52d7:92f07d2a",
+        "sha256": "139b6d7199038ca752c553289bf1ebe9c45f14e65956710f82a48301b132e673",
+        "bytes": 15913
+      }
+    }
+  },
+  "snapshot": {
+    "protocolVersion": 3,
+    "eventCount": 25,
+    "runs": {
+      "01:cc0d21a5-8981-4fbf-81dc-f2be3a63898c": {
+        "at": "2026-10-03T01:36:12.747Z",
+        "caseId": "01",
+        "captureRunId": "cc0d21a5-8981-4fbf-81dc-f2be3a63898c",
+        "reservationId": "c2cd316e-2d09-4c76-88cf-a9c0ef20e098",
+        "event": "reserved",
+        "ceilingMicros": 15000000,
+        "conversationId": "55452c90-5718-4e0c-9ffd-d9bf2c3439ad",
+        "qualificationSha256": "9ded2743ac47c55240e7eae05a7147aab34ff354d014ac39bcdc0528899aa2d9",
+        "chargedCostMicros": 1490802,
+        "historical": true
+      },
+      "02:62742c07-529c-47c1-aeeb-01474522ccbd": {
+        "at": "2026-10-03T01:43:34.996Z",
+        "caseId": "02",
+        "captureRunId": "62742c07-529c-47c1-aeeb-01474522ccbd",
+        "reservationId": "c4764abd-e3a8-4d6b-819f-77f4e08ee231",
+        "event": "reserved",
+        "ceilingMicros": 15000000,
+        "conversationId": "805cdde4-7cd2-482f-9e53-5b5b7724682e",
+        "qualificationSha256": "119ea537cd93a48a3126e5e6c178b63b68afc35132cd968085993e686c2ffe9d",
+        "chargedCostMicros": 1503301,
+        "historical": true
+      },
+      "03:65c093f9-d7ee-410c-865b-65d3683e9514": {
+        "at": "2026-10-03T01:49:09.943Z",
+        "caseId": "03",
+        "captureRunId": "65c093f9-d7ee-410c-865b-65d3683e9514",
+        "reservationId": "41820c9a-6f51-4062-aad6-d308fadfa7e3",
+        "event": "reserved",
+        "ceilingMicros": 15000000,
+        "conversationId": "2755ade6-35e6-43c1-8b48-bdbff01bd3a5",
+        "qualificationSha256": "d238c1c371685e78179b70c2dbe0ef1bb1805b8affb909b88a41cdd8f89db37d",
+        "chargedCostMicros": 3086726,
+        "historical": true
+      },
+      "04:ce58a8c8-8c5e-439b-b842-dd5aa5a06395": {
+        "at": "2026-10-03T01:54:49.415Z",
+        "caseId": "04",
+        "captureRunId": "ce58a8c8-8c5e-439b-b842-dd5aa5a06395",
+        "reservationId": "0da06107-11b3-4ce4-90bd-67a8f022c369",
+        "event": "reserved",
+        "ceilingMicros": 15000000,
+        "conversationId": "9b70c52b-d537-4347-b6b0-1b005aeb3e3c",
+        "qualificationSha256": "fe06d197ad2ad953a8719094af02aaa137b3746df1e90f2b5b70b1e2ec5a40bc",
+        "chargedCostMicros": 1499326,
+        "historical": true
+      },
+      "05:1008c920-0d14-4110-806e-76399e9e7641": {
+        "at": "2026-10-03T02:00:20.010Z",
+        "caseId": "05",
+        "captureRunId": "1008c920-0d14-4110-806e-76399e9e7641",
+        "reservationId": "8b91b48b-fa26-4395-9cbe-669efd18ab1a",
+        "event": "reserved",
+        "ceilingMicros": 15000000,
+        "conversationId": "1bfb1e6c-2128-4f9d-9fea-3e02a8f1c7b7",
+        "qualificationSha256": "def98c7562f7637db8a87aa7beac067a95093144c22bef12acdeee925e210752",
+        "chargedCostMicros": 2261126,
+        "historical": true
+      },
+      "01:bd35c0f4-1604-4371-b7e9-a1338369e53f": {
+        "atMs": 1791064128652,
+        "captureRunId": "bd35c0f4-1604-4371-b7e9-a1338369e53f",
+        "caseId": "01",
+        "ceilingMicros": 15000000,
+        "event": "reserved",
+        "nativeCaptureVersion": 1,
+        "reservationId": "cf7ea1df-6996-4d29-a5d5-b98db9c85c61",
+        "sequence": 21,
+        "chargedCostMicros": 2292602,
+        "terminalCostReconciled": true,
+        "captureAuthority": false,
+        "captureStatus": "CAPTURE_UNCERTAIN",
+        "answerGrade": "NOT_EVALUATED",
+        "reconciliationProofSha256": "59b7055d48bb074d13f57eb16c93334b258800107c039667aa445c3bf5e26648"
+      },
+      "20:f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b": {
+        "atMs": 1791075178097,
+        "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+        "caseId": "20",
+        "ceilingMicros": 15000000,
+        "event": "reserved",
+        "nativeCaptureVersion": 1,
+        "reservationId": "7ea73cdc-526e-4b31-8c28-b0636ea8d2ae",
+        "sequence": 23,
+        "chargedCostMicros": 1497175,
+        "terminalCostReconciled": true,
+        "captureAuthority": false,
+        "captureStatus": "CAPTURE_UNCERTAIN",
+        "answerGrade": "NOT_EVALUATED",
+        "reconciliationProofSha256": "305283f0048a7f7ae82dc322f8353a2499cc444cc2e60537736375d0e5eed3a0"
+      },
+      "14:5f4312a2-6aa9-4ec8-820d-5717a88402df": {
+        "approvalBoundSha256": "10246a491d3f9d1099622ece9fe9c964c0260943590c596a8aba0b98e71cd161",
+        "approvalCeilingMicros": 1000000,
+        "atMs": 1791092997130,
+        "captureRunId": "5f4312a2-6aa9-4ec8-820d-5717a88402df",
+        "caseId": "14",
+        "ceilingMicros": 15000000,
+        "event": "reserved",
+        "nativeCaptureVersion": 1,
+        "recallCeilingMicros": 14000000,
+        "reservationId": "9b299041-d425-45fa-9a41-439745f4a912",
+        "sequence": 25
+      }
+    },
+    "activeRun": "14:5f4312a2-6aa9-4ec8-820d-5717a88402df",
+    "knownSettledCostMicros": 13631058,
+    "conservativeApprovalCostMicros": 0,
+    "committedCostMicros": 28631058,
+    "remainingReservationMicros": 1368942,
+    "perCaseMaxCostMicros": 15000000,
+    "historicalPrefixSha256": "abe458973e6998db20586c781ac5a3cbd4ca2fa565425e62722f0eb9c985210b",
+    "olderCosts": "UNRESOLVED_SEPARATE_NOT_REPLACED"
+  }
+}

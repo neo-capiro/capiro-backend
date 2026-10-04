@@ -1,0 +1,74 @@
+[
+  {
+    "path": "observed-messages.json",
+    "sha256": "bf38d567fa24f8f990b1664917cc03fb6f9eb7c318613e309fec20ea554a406c"
+  },
+  {
+    "path": "observed-source.json",
+    "sha256": "8b0c9c764db955695d99a57b2efb0af1d35925bc792d6e504de929dc19fcda35"
+  },
+  {
+    "path": "apps\\api\\src\\meri\\meri-context-plane.tools.spec.ts",
+    "sha256": "fa2437b38adc04476dfde1f8373d22e63651d779a4cb04c1a78396bf34a18393"
+  },
+  {
+    "path": "apps\\api\\src\\meri\\meri-memory-content.helpers.spec.ts",
+    "sha256": "39d46dbd09ea56ef5dde6dc3c64efe735b8c9b8a99f4e3806da532fd3d07b897"
+  },
+  {
+    "path": "apps\\api\\src\\meri\\meri-memory-content.helpers.ts",
+    "sha256": "97882bac03bebccde9ac3e82a787974fa89bb50bd7bd999ebd9b3a27a6ce1ad7"
+  },
+  {
+    "path": "apps\\api\\src\\meri\\meri-tools.service.ts",
+    "sha256": "a9b2cc4eed2b3397793a2f56b188c8a1a29cab5ec76228ab9aa4e68c46c7be5c"
+  },
+  {
+    "path": "apps\\api\\src\\retrieval\\retrieval-v2.types.ts",
+    "sha256": "95f388145594c5a9052318e4fa0f215de0b10fb92757bbcca8adb17120890fb8"
+  },
+  {
+    "path": "apps\\api\\src\\retrieval\\adapters\\institutional-knowledge-retrieval.adapter.spec.ts",
+    "sha256": "9db14a26e84cf5053e3654fc0d77c74e01678c64ff9611abd15f5f4433494289"
+  },
+  {
+    "path": "apps\\api\\src\\retrieval\\adapters\\institutional-knowledge-retrieval.adapter.ts",
+    "sha256": "4b94beb072986108fc1686db7b4172feb7aa8b78840c52735e18451a5b57a916"
+  },
+  {
+    "path": "apps\\meriv2-orchestrator\\src\\meri\\api-tool-executor.repo.spec.ts",
+    "sha256": "cb323aa2ff8e2a128ae23d76db5716b08ba277a1298e0342d82101f54748a6ad"
+  },
+  {
+    "path": "apps\\meriv2-orchestrator\\src\\meri\\api-tool-executor.repo.ts",
+    "sha256": "8c04bae85e105c43c972b53f75a293e329544e0795229ee5ef7e21984612b058"
+  },
+  {
+    "path": "apps\\meriv2-orchestrator\\src\\meri\\controlled-read-observations.spec.ts",
+    "sha256": "58562daed7c68ba7c65abc9f5d8d6975b0b5d7a1b4dceeb555b384dc2cac5b2b"
+  },
+  {
+    "path": "apps\\meriv2-orchestrator\\src\\meri\\controlled-read-observations.ts",
+    "sha256": "da9470709693880141fce698d998069a308523409e5eb1f63d1bea5731f0d3e0"
+  },
+  {
+    "path": "apps\\meriv2-orchestrator\\src\\meri\\meriv3\\meriv3-assistant.service.ts",
+    "sha256": "e2c49a4356ce2cdffdef62b1abcb3e85a247630e763ac5e9d847c00f604aad6f"
+  },
+  {
+    "path": "apps\\meriv2-orchestrator\\src\\meri\\meriv3\\meriv3-capture-evidence.spec.ts",
+    "sha256": "295d39184f1122568b65f8f850a6f5b871cc56a0d77bebbfecd33bdba69393dd"
+  },
+  {
+    "path": "apps\\meriv2-orchestrator\\src\\meri\\meriv3\\meriv3-capture-evidence.ts",
+    "sha256": "e456b816724dd62fab1d165f2494c88072a9ffcf0a5b0aac434819043f05e1b8"
+  },
+  {
+    "path": "packages\\meriv2-core\\src\\context\\capture-evidence-receipt.spec.ts",
+    "sha256": "eaf9c739b07a027adfa0e55537c799208712d8e97659d94a6f9d0975c9ea9e62"
+  },
+  {
+    "path": "packages\\meriv2-core\\src\\context\\capture-evidence-receipt.ts",
+    "sha256": "affe70118364d44bdb5b13e55cd15edde2ce863323ecca4afa9644e0def74ab0"
+  }
+]

@@ -1,0 +1,112 @@
+{
+  "kind": "case14-terminal-cost-local-draft-qualification",
+  "status": "LOCAL_TESTS_PASS_LIVE_AUTHORITY_NOT_FROZEN",
+  "preparedBy": "Codex independent supervisor; not Hermes",
+  "at": "2026-10-04T06:14:37.389Z",
+  "tests": {
+    "node": 26,
+    "nativeNtfsDisposable": 8,
+    "failures": 0
+  },
+  "authenticPostdeadlineEvidence": false,
+  "callableLiveAuthority": false,
+  "nativeCase14ProofPin": null,
+  "liveJournalRead": false,
+  "liveJournalMutations": 0,
+  "repositoryEdits": 0,
+  "providerCalls": 0,
+  "cloudCalls": 0,
+  "exactPrefix25Sha256": "139b6d7199038ca752c553289bf1ebe9c45f14e65956710f82a48301b132e673",
+  "originalCheckpointRetained": true,
+  "expectedAccountingAfterQualifiedClosure": {
+    "knownSettledCostMicros": 15200909,
+    "conservativeApprovalCostMicros": 1000000,
+    "approvalBilledActualMicros": null,
+    "committedCostMicros": 16200909,
+    "remainingReservationMicros": 13799091
+  },
+  "acceptance": {
+    "captureAuthority": false,
+    "captureStatus": "CAPTURE_UNCERTAIN",
+    "answerGrade": "NOT_EVALUATED",
+    "replayAllowed": false
+  },
+  "limitations": [
+    "Authentic postdeadline me/conversation evidence and independent final review required before any source integration or append.",
+    "UNIT postdeadline/proof fixtures are synthetic; cannot qualify live authority.",
+    "Existing cost-bound.json invalid JSON (undefined unrelated imageDigest) pinned as opaque original bytes, not silently repaired.",
+    "Reconstructed prefix is only a disposable test fixture; eventual use must preserve original native root/file identity/checkpoint and actual current journal bytes."
+  ],
+  "files": [
+    {
+      "name": "authority-draft.mjs",
+      "bytes": 15472,
+      "sha256": "3b73befc146b06ef606ca64e4112fb149ea5275ab0baca4661cbe4204f2aab4c"
+    },
+    {
+      "name": "fixed.mjs",
+      "bytes": 8464,
+      "sha256": "a4e441c605563a3237f5ce220ea3b235d4e89983348ae549aa1dd03804744538"
+    },
+    {
+      "name": "retained-pins.json",
+      "bytes": 7442,
+      "sha256": "432efbd9fcca20ca0f9d25255fcc721b3503a9a88599d7834c6d5512d39edddd"
+    },
+    {
+      "name": "retained-input.json",
+      "bytes": 179255,
+      "sha256": "2de8f1fcae182ae2ffe67b90f91e92ff2228c11e1796e15498187973df24a8e9"
+    },
+    {
+      "name": "journal25-reconstructed-from-retained.jsonl",
+      "bytes": 15913,
+      "sha256": "139b6d7199038ca752c553289bf1ebe9c45f14e65956710f82a48301b132e673"
+    },
+    {
+      "name": "windows-capture-spend.draft.py",
+      "bytes": 32405,
+      "sha256": "c8277becaa258a8bc0521c1f1a33e17bfab1f4afd681ec04e9873dc1c8bb0471"
+    },
+    {
+      "name": "prepare-native-draft.py",
+      "bytes": 3431,
+      "sha256": "39747f5955669369102f12994a2a0c89153d7d14bc6eb083c5ba6b470f5bb444"
+    },
+    {
+      "name": "tests.mjs",
+      "bytes": 5043,
+      "sha256": "afb5e4daf8b6188986f08c5a0040ddf789bd81359bb72d268c679e6449f46a25"
+    },
+    {
+      "name": "native-tests.py",
+      "bytes": 6744,
+      "sha256": "11f8ecfe4fd398cf068f5af79c57a59699f8b1798b85f6a866654215c6535348"
+    },
+    {
+      "name": "proof.unit.json",
+      "bytes": 1556,
+      "sha256": "d280f086ca58d106e33e189ae62d42b8440355683825e94f23bf1b29e89bc0ec"
+    },
+    {
+      "name": "postdeadline.UNIT-ONLY.json",
+      "bytes": 13058,
+      "sha256": "57b5a00fa8b5b6c8298a54c914dbdec841eac3698e6e723d0d3fe92ef6b90e00"
+    },
+    {
+      "name": "node-tests.log",
+      "bytes": 1350,
+      "sha256": "6ad2db7a96c53c2d885d4cedfb13df5f658800207e4bd70ac580ad91ea730775"
+    },
+    {
+      "name": "native-tests.log",
+      "bytes": 1092,
+      "sha256": "ff5438abb55081a40ee78633c87c36891a867c408a5afd76d4d5dd444fbed33c"
+    },
+    {
+      "name": "README.md",
+      "bytes": 5392,
+      "sha256": "c0da211fd6b931da24c2ee44831811091e75e566ac13a226370298aa5edc6824"
+    }
+  ]
+}

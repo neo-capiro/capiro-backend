@@ -1,0 +1,86 @@
+{
+  "sessions": [
+    {
+      "directory": "case14-combined-native-hermes-v1",
+      "startedAt": "2026-10-04T04:55:54.578891+00:00",
+      "finishedAt": "2026-10-04T04:58:47.163900+00:00",
+      "exitCode": 0,
+      "failure": null,
+      "scope": "source-or-analysis-only; no live acceptance",
+      "implementationStatus": "consult-original-response-review-and-root-disposition"
+    },
+    {
+      "directory": "case14-combined-review-hermes-v1",
+      "startedAt": "2026-10-04T05:11:01.828118+00:00",
+      "finishedAt": "2026-10-04T05:13:09.993420+00:00",
+      "exitCode": 0,
+      "failure": null,
+      "scope": "source-or-analysis-only; no live acceptance",
+      "implementationStatus": "consult-original-response-review-and-root-disposition"
+    },
+    {
+      "directory": "case14-final-review-hermes-v1",
+      "startedAt": "2026-10-04T05:39:05.623555+00:00",
+      "finishedAt": "2026-10-04T05:41:00.197238+00:00",
+      "exitCode": 0,
+      "failure": null,
+      "scope": "source-or-analysis-only; no live acceptance",
+      "implementationStatus": "consult-original-response-review-and-root-disposition"
+    },
+    {
+      "directory": "case14-postapproval-review-hermes-v2",
+      "startedAt": "2026-10-04T04:56:41.698602+00:00",
+      "finishedAt": "2026-10-04T04:58:09.477225+00:00",
+      "exitCode": 0,
+      "failure": null,
+      "scope": "source-or-analysis-only; no live acceptance",
+      "implementationStatus": "consult-original-response-review-and-root-disposition"
+    },
+    {
+      "directory": "case14-repair-implementation-hermes-v1",
+      "startedAt": "2026-10-04T06:01:48.162526+00:00",
+      "finishedAt": "2026-10-04T06:07:48.488554+00:00",
+      "exitCode": 124,
+      "failure": "BOUNDED_REVIEW_TIMEOUT",
+      "scope": "source-or-analysis-only; no live acceptance",
+      "implementationStatus": "consult-original-response-review-and-root-disposition"
+    },
+    {
+      "directory": "case14-repair-review-hermes-v1",
+      "startedAt": "2026-10-04T06:01:48.389218+00:00",
+      "finishedAt": "2026-10-04T06:03:19.056347+00:00",
+      "exitCode": 0,
+      "failure": null,
+      "scope": "source-or-analysis-only; no live acceptance",
+      "implementationStatus": "consult-original-response-review-and-root-disposition"
+    },
+    {
+      "directory": "case14-repair-final-review-hermes-v1",
+      "startedAt": "2026-10-04T06:22:46.411231+00:00",
+      "finishedAt": "2026-10-04T06:24:22.466551+00:00",
+      "exitCode": 0,
+      "failure": null,
+      "scope": "source-or-analysis-only; no live acceptance",
+      "implementationStatus": "consult-original-response-review-and-root-disposition"
+    },
+    {
+      "directory": "case14-repair-final-review-hermes-v2",
+      "startedAt": "2026-10-04T06:30:04.845270+00:00",
+      "finishedAt": "2026-10-04T06:31:41.703110+00:00",
+      "exitCode": 0,
+      "failure": null,
+      "scope": "source-or-analysis-only; no live acceptance",
+      "implementationStatus": "consult-original-response-review-and-root-disposition"
+    },
+    {
+      "directory": "case14-source-authority-hermes-v1",
+      "startedAt": "2026-10-04T06:29:09.972604+00:00",
+      "finishedAt": "2026-10-04T06:32:24.058556+00:00",
+      "exitCode": 0,
+      "failure": null,
+      "scope": "source-or-analysis-only; no live acceptance",
+      "implementationStatus": "NOT_IMPLEMENTED_ANALYSIS_ONLY"
+    }
+  ],
+  "acceptancePromoted": false
+}

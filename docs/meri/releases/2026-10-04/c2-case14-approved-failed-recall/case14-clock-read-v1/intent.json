@@ -1,0 +1,12 @@
+{
+  "at": "2026-10-04T06:08:08.910Z",
+  "kind": "EXACT_CASE14_CONTEXT_PACKET_READ_ONLY",
+  "serviceRevision": 523,
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:024fcc82a2db7701f4a3e3311598a9a1d0933b3fe4fcf73751bf0e3fb866d8ce",
+  "sourceSha": "c0f393f863bf73bd4e65e7a94e17c073e7be021e",
+  "scriptSha256": "285207de6100ddeb48ddbfdedbcf3fdd85e51c7ba3b76a441bec81c9284db70e",
+  "providerSecrets": 0,
+  "workloadTaskRole": null,
+  "allowedMutation": "NONE_READ_ONLY_CONTEXT_PACKET_ROWS",
+  "cloudActions": "one bounded context packet read task; stop and deregister owned definition"
+}

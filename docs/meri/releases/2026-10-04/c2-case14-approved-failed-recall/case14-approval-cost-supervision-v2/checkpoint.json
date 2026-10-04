@@ -1,0 +1,124 @@
+{
+  "kind": "case14-approval-cost-local-preparation-checkpoint",
+  "version": 2,
+  "preparedBy": "Codex",
+  "observedAt": "2026-10-04T05:24:40.535Z",
+  "status": "LOCAL_QUALIFICATION_PASS_NOT_LIVE_ADMISSION",
+  "files": [
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case14-approval-cost-supervision-v2/qualifier.mjs",
+      "sha256": "9ad3fc86ed9ad95d7459a3ec9b9d40314ab489e4c42101dfbf2c3061eb3cd320",
+      "bytes": 10495
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case14-approval-cost-supervision-v2/qualify-local.mjs",
+      "sha256": "310732c00dc769d9f05485312db705a3e9122472dd14dbb79177248d6ce7bd1c",
+      "bytes": 7111
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case14-approval-cost-supervision-v2/qualification.json",
+      "sha256": "1c56ef891f5f1d476725e8746f386fcd2f5952bbb9e908c98d7555ec4af0bae1",
+      "bytes": 12005
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case14-approval-cost-supervision-v2/projection-terminal-inner-v1.mjs",
+      "sha256": "635ae39807fc884569577f199dad4db4c27d4335c8c61b6fff298b317de77e1d",
+      "bytes": 16862
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case14-approval-cost-supervision-v2/projection-terminal-tests-v1.mjs",
+      "sha256": "8152d96386cdfbbcbe9dbded8c5a1491c9836622c0807b7aab5d8e4f9fc1e2bd",
+      "bytes": 12046
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case14-approval-cost-supervision-v2/projection-terminal-tests-v1.log",
+      "sha256": "afe2925f45c8855976f540053d42b1368538e1a2c55d1e1ee0a6d74215e3ddff",
+      "bytes": 1976
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case14-postapproval-preparation-v2/case14-postapproval-inner-v2.mjs",
+      "sha256": "48f79bd617b4d42afeb0cd19500014284c2fa1cc281853d6486f354a229b1a81",
+      "bytes": 45613
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case14-postapproval-preparation-v2/build-case14-postapproval-input-v2.mjs",
+      "sha256": "c688efbce35b97e61597fe465c28178a88d28dab08eaecd31cb81ab9a90a509d",
+      "bytes": 2175
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case14-postapproval-preparation-v2/test-case14-postapproval-inner-v2.mjs",
+      "sha256": "a18ddef0690324640b3c4deaac910fa05d1db60426d5a034c709b29603a01a05",
+      "bytes": 12387
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case14-postapproval-preparation-v2/tests.log",
+      "sha256": "6c78240756c849ab44ef6faa324400c0710ca813404a8f38a004a9d983423340",
+      "bytes": 1420
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case14-postapproval-preparation-v2/reviewed-rates-retained.json",
+      "sha256": "6a5e22e56f15c576612a0b50f42573e88a8c29a76698d033eb007d20b9b49684",
+      "bytes": 2470
+    }
+  ],
+  "tests": {
+    "sdkRetainedEvidenceAndNegatives": 18,
+    "projectionReadAndSourceContract": 45,
+    "integratedPostapprovalSequenceAndNegatives": 23,
+    "additionalFinalChecks": [
+      "embedded module byte equality and SHA",
+      "data URL import has no native execution",
+      "builder rejects copied JSON approval and non14M partition",
+      "three native source syntax checks",
+      "exact journal prefix remains24events"
+    ]
+  },
+  "transport": {
+    "sourceSha": "c0f393f863bf73bd4e65e7a94e17c073e7be021e",
+    "innerEnv": [
+      "C2_CASE14_POSTAPPROVAL_INPUT_B64",
+      "C2_CASE14_POSTAPPROVAL_INPUT_SHA256"
+    ],
+    "framePrefix": "C2_CASE14_POSTAPPROVAL ",
+    "builderSignature": "buildCase14PostApprovalInput(actualOwnedApprovalOutcome,{maxCostMicros:14000000,approvalWindow:{startedAtMs,deadlineAtMs}})",
+    "windowAuthority": "Lead outer must derive this exact window from the real consumed combined reservation; JSON alone is not authority",
+    "terminalProofLocation": "COMPLETE.value.results[\"projection-terminal\"]",
+    "terminalProofEarlierFrames": [
+      "PROJECTION_READ_RECEIPT.receipt where phase TERMINAL",
+      "VERIFIED stage projection-terminal proof"
+    ],
+    "orderedStages": [
+      "projection-terminal",
+      "recall-plan",
+      "recall-bind",
+      "budget-plan",
+      "budget-install"
+    ],
+    "nativeCliDeadline": "min(remaining reservation window, remaining shared240second CLI deadline,90000ms per child)",
+    "recallCostMicros": 14000000,
+    "rateEvidenceSemanticSha256": "1c9106e5d98f73b061f0de9918bf33c8fb28b0f0bc5be5ae4bc7d20e0da2a348",
+    "rateEvidenceExpiresAt": "2026-10-04T11:09:44.838Z"
+  },
+  "scope": {
+    "providerCalls": 0,
+    "databaseCalls": 0,
+    "journalMutations": 0,
+    "repositorySourceEdits": 0,
+    "liveApproval": "NOT_RUN",
+    "acceptanceAuthority": false
+  },
+  "journal": {
+    "sha256": "8f20134f71dde90e32fc0c3c2aba2da2d5b93dd13fffea31b83105d1621bc3e5",
+    "events": 24
+  },
+  "limitations": [
+    "Native helper has not been run against the approved owner: no approval has occurred in this preparation.",
+    "Source-owned owner verifier takes ordinary scoped row locks; no data writes, and deliberately no transaction READ ONLY mode.",
+    "Polling accepts no proof at or after its60second limit or reservation deadline; process startup, connection setup, transaction teardown, and network failures are not a hard total process wall-clock kill. Outer owns process lifecycle.",
+    "SDK qualifier verifies retained source/receipts; full raw SDK task/definition describes were not retained, so no independent fresh cloud observation is claimed.",
+    "SDK maxAttempts3 bounds Titan ordinary SDK attempts; existing SDK probe does not prove the runtime OpenAI fetch redirect implementation.",
+    "Serialized-body token arithmetic in SDK qualifier remains conditional on the separately reviewed unit contract, not actual billed usage.",
+    "Required admission gate remains lead-owned combined reservation, exact UI authority, fresh relevant-worker census and source/rate/tenant pins. Parent reported nightly stopped at05:12:14.897Z; this checkpoint has not independently reobserved cloud census.",
+    "Terminal proof confirms persisted1536 legacy vector,1024 Titan vector and exact completed outbox withzero background attempts; approval usage and billed actual remain unmeasured, so retained conservative approval ceiling must not be refunded as if measured."
+  ]
+}

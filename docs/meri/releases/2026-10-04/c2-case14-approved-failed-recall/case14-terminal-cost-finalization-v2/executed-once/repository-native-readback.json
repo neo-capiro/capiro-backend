@@ -1,0 +1,8 @@
+{
+  "status": "REPOSITORY_NATIVE_READ_MATCHES_ACTUAL26_CHECKPOINT",
+  "eventCount": 26,
+  "journalSha256": "816b04a47be56432846d1ee602370c3bea985eb497a7de9e899aee4d53f8b39e",
+  "nativeSourceSha256": "9bf4efe4ebf8706e66ed48a58fe2cc5e68a73f6492831f6d28e91e73d8507e10",
+  "journalMutations": 0,
+  "adoption": false
+}

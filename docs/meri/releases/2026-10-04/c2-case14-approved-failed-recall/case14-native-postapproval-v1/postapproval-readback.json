@@ -1,0 +1,375 @@
+{
+  "kind": "case14-postapproval-native-setup",
+  "status": "RECALL_BOUND_AND_BUDGET_INSTALLED",
+  "preparedBy": "Codex",
+  "sourceSha": "c0f393f863bf73bd4e65e7a94e17c073e7be021e",
+  "captureRunId": "5f4312a2-6aa9-4ec8-820d-5717a88402df",
+  "approvalEvidenceSha256": "344f8450abdc80e52b39867a908c0d6e0e3add04c5fcc6b8c345140e18bf2fc6",
+  "inputContentSha256": "7947156390d9f7c759240794508d2829309929fdbf3d1e1ecf28652a951290fd",
+  "approvalWindow": {
+    "startedAtMs": 1791092994259,
+    "deadlineAtMs": 1791093894259
+  },
+  "phaseInputs": {
+    "recall-plan": {
+      "ctx": {
+        "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+        "tenantSlug": "meri-foundation-20260928-t1",
+        "userId": "fb218bf5-2674-4ced-bca3-7a5d0c01592f",
+        "clerkUserId": "user_3Jw2G2jbyyDlrrg6zCNd4gYUDfH",
+        "role": "user_admin"
+      },
+      "caseId": "14",
+      "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+      "captureRunId": "5f4312a2-6aa9-4ec8-820d-5717a88402df"
+    },
+    "recall-bind": {
+      "ctx": {
+        "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+        "tenantSlug": "meri-foundation-20260928-t1",
+        "userId": "fb218bf5-2674-4ced-bca3-7a5d0c01592f",
+        "clerkUserId": "user_3Jw2G2jbyyDlrrg6zCNd4gYUDfH",
+        "role": "user_admin"
+      },
+      "caseId": "14",
+      "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+      "captureRunId": "5f4312a2-6aa9-4ec8-820d-5717a88402df",
+      "expectedPlanSha256": "d2eef132de24142cca54e7829284d7a07c36c400fbaac5ed6dbec0d3f00e1659",
+      "confirmation": "BIND_EXISTING_CASE14_CANONICAL_APPROVAL"
+    },
+    "budget-plan": {
+      "target": "capiro-dev",
+      "fixtureNamespace": "meri-foundation-20260928",
+      "caseId": "14",
+      "ctx": {
+        "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+        "tenantSlug": "meri-foundation-20260928-t1",
+        "userId": "fb218bf5-2674-4ced-bca3-7a5d0c01592f",
+        "clerkUserId": "user_3Jw2G2jbyyDlrrg6zCNd4gYUDfH",
+        "role": "user_admin"
+      },
+      "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b"
+    },
+    "budget-install": {
+      "target": "capiro-dev",
+      "fixtureNamespace": "meri-foundation-20260928",
+      "caseId": "14",
+      "ctx": {
+        "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+        "tenantSlug": "meri-foundation-20260928-t1",
+        "userId": "fb218bf5-2674-4ced-bca3-7a5d0c01592f",
+        "clerkUserId": "user_3Jw2G2jbyyDlrrg6zCNd4gYUDfH",
+        "role": "user_admin"
+      },
+      "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+      "qualification": {
+        "version": 1,
+        "caseId": "14",
+        "captureRunId": "5f4312a2-6aa9-4ec8-820d-5717a88402df",
+        "currentVerifySha256": "269f120e553fa77feb70d83c76103c89e1db4ae921d086b14c232242b501373e",
+        "rateEvidenceSha256": "1c9106e5d98f73b061f0de9918bf33c8fb28b0f0bc5be5ae4bc7d20e0da2a348",
+        "rateEvidenceExpiresAt": "2026-10-04T11:09:44.838Z",
+        "priceKind": "qualified_text_token_upper_bound",
+        "maxAttempts": 32,
+        "maxTokens": 500000,
+        "maxCostMicros": 14000000,
+        "rates": [
+          {
+            "kind": "openai_responses",
+            "provider": "openai",
+            "model": "gpt-6-astra",
+            "inputMicrosPerMillion": 25000000,
+            "outputMicrosPerMillion": 75000000
+          },
+          {
+            "kind": "bedrock_embeddings",
+            "provider": "aws-bedrock",
+            "model": "amazon.titan-embed-text-v2:0",
+            "inputMicrosPerMillion": 20000,
+            "outputMicrosPerMillion": 0
+          }
+        ]
+      },
+      "rateEvidence": {
+        "kind": "meri-capture-reviewed-provider-rates",
+        "version": 1,
+        "priceKind": "qualified_text_token_upper_bound",
+        "maxTokens": 500000,
+        "observedAt": "2026-10-04T05:09:44.838Z",
+        "expiresAt": "2026-10-04T11:09:44.838Z",
+        "rates": [
+          {
+            "kind": "openai_responses",
+            "provider": "openai",
+            "model": "gpt-6-astra",
+            "inputMicrosPerMillion": 25000000,
+            "outputMicrosPerMillion": 75000000
+          },
+          {
+            "kind": "bedrock_embeddings",
+            "provider": "aws-bedrock",
+            "model": "amazon.titan-embed-text-v2:0",
+            "inputMicrosPerMillion": 20000,
+            "outputMicrosPerMillion": 0
+          }
+        ],
+        "sources": [
+          {
+            "kind": "openai_responses",
+            "provider": "openai",
+            "model": "gpt-6-astra",
+            "url": "https://developers.openai.com/api/docs/pricing",
+            "unitContract": "Official OpenAI Standard pricing re-opened2026-10-04 in this session: gpt-6-astra long-context input USD20/M, cache-write USD25/M, output USD75/M; retained conservative input25/output75 for every request under cumulative500000token cap. Only exact api.openai.com/v1/responses and explicit service_tier default, store false, reviewed text/function/reasoning replay, no hosted tools/image/audio/external response state. Actual serialized UTF8 bytes and prepared max_output_tokens are reserved before each main/core attempt and fallback. Unmatched Typesafe JEV, Anthropic, NVIDIA or other model/provider remains rejected before dispatch. This is an accounting upper bound, not actual invoiced billing. No regional/FedRAMP endpoint."
+          },
+          {
+            "kind": "bedrock_embeddings",
+            "provider": "aws-bedrock",
+            "model": "amazon.titan-embed-text-v2:0",
+            "url": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonBedrock/current/us-east-1/index.json",
+            "unitContract": "AWS signed Price List Query API read2026-10-04T04:44:33.843Z, us-east-1, version20261003001138, SKU EDNQYEHQ3XQ8N7EY, On-demand InvokeModelInference USD0.0000200000/1000inputtokens = USD0.02/M, effective2026-10-01. Only reviewed capture path with canonical Bedrock runtime endpoint, us-east-1 and amazon.titan-embed-text-v2:0, explicit maxAttempts1. Serialized UTF8 request bytes reserve input; inputTextTokenCount settles actual tokens. Output vector has no text-output charge. Ordinary approval embeddings are separately covered by combined-case conservative envelope; these recall rates do not claim approval has zero cost."
+          }
+        ]
+      },
+      "expectedCurrentVerifySha256": "269f120e553fa77feb70d83c76103c89e1db4ae921d086b14c232242b501373e",
+      "expectedCaptureBindingSha256": "5cd02827b1a80bbe2315508fbd6f08941b46c3a0120f682aeab654cb52f596ec",
+      "expectedPriorQualificationSha256": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+      "expectedTenantRowVersion": "115066502"
+    }
+  },
+  "results": {
+    "projection-terminal": {
+      "kind": "case14-exact-projection-terminal-proof",
+      "status": "BOTH_APPROVAL_PROJECTION_BRANCHES_PERSISTED",
+      "sourceSha": "c0f393f863bf73bd4e65e7a94e17c073e7be021e",
+      "captureRunId": "5f4312a2-6aa9-4ec8-820d-5717a88402df",
+      "approvalEvidenceSha256": "344f8450abdc80e52b39867a908c0d6e0e3add04c5fcc6b8c345140e18bf2fc6",
+      "canonicalOwner": {
+        "kind": "meri-case14-current-memory-owner",
+        "schemaVersion": 1,
+        "caseId": "14",
+        "fixtureNamespace": "meri-foundation-20260928",
+        "fixtureVersion": "meri-live-v1-2026-09-26.1",
+        "fixtureInstanceId": "dee4e90e-8e91-4782-9488-10b8e52a2146",
+        "manifestContentSha256": "5deda70f94698a8f8ed82d40fa804d16ae2e39a091012af0d70203a0e1b5fc14",
+        "recipeSha256": "1668649c84550f701faea8e30617da11c944c84caeb99965afa311acd017e593",
+        "seedPlanSha256": "42ed4d5a6466c9834a9d578092b98f07039808cf424a6a77095aca22202c21f2",
+        "setupReceiptSha256": "c2c80bdef51e6b8b22d13c809e77e76c61eb680fa10aca88372f258d53a155f8",
+        "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+        "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+        "proposerUserId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+        "reviewerUserId": "fb218bf5-2674-4ced-bca3-7a5d0c01592f",
+        "reviewerRole": "user_admin",
+        "logicalSourceId": "MEM-PROPOSAL-14",
+        "candidateId": "6f4545a1-dcd5-5eba-8606-db2043b238ac",
+        "candidateRowVersion": "115066220",
+        "revision": 1,
+        "ownershipMarkerSha256": "48b95413d7b876a412e3c5352ac4e3fecfea5eb8b260e2cd327736829ee1faab",
+        "payloadSha256": "1b2333f97623789682efa51f479a8a0a452a2c4d1181b121437c51f4f0be499e",
+        "text": "Synthetic Aster candidate for approval",
+        "state": "approved",
+        "item": {
+          "id": "a740d74f-2c61-4888-bb59-5c9eea502e3f",
+          "clioMemoryId": "70352101-16f8-42a3-9a4f-77c1c67111c9",
+          "rowVersion": "115066220",
+          "sourceVersion": "candidate:6f4545a1-dcd5-5eba-8606-db2043b238ac",
+          "contentSha256": "e398859f2cda473be80da00d8e849a958646f9b105292823f005c848938af8cc",
+          "status": "active",
+          "governedStatus": "active"
+        },
+        "decision": {
+          "transitionAuditId": "c6a57ea9-429a-4692-9ab0-dc3f04eaf4e8",
+          "actorUserId": "fb218bf5-2674-4ced-bca3-7a5d0c01592f",
+          "decision": "approved"
+        },
+        "currentVerifySha256": "0493a26ddcd18d978603b4c7f426915853b39881c36c33a4fe0a0810b44efb6d"
+      },
+      "windowStartedAt": "2026-10-04T05:49:54.259Z",
+      "deadlineAt": "2026-10-04T06:04:54.259Z",
+      "observedAt": "2026-10-04T05:51:57.644Z",
+      "clio": {
+        "id": "70352101-16f8-42a3-9a4f-77c1c67111c9",
+        "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+        "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+        "ownerUserId": null,
+        "scope": "client",
+        "source": "meri_synthetic_fixture",
+        "keySha256": "6a08bc7d5018e29178edbd610654e2991be37aed93f0c0d26164013a0554e2d2",
+        "valueSha256": "cda1a974afa696537646a4b057bc83964ac0185a4d962a12f200bd17a59ce9be",
+        "createdAt": "2026-10-04T05:50:22.563Z",
+        "updatedAt": "2026-10-04T05:50:22.563Z",
+        "hasLegacyEmbedding": true,
+        "legacyDimensions": 1536
+      },
+      "item": {
+        "id": "a740d74f-2c61-4888-bb59-5c9eea502e3f",
+        "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+        "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+        "ownerUserId": null,
+        "rowVersion": "115066220",
+        "status": "active",
+        "governedStatus": "active",
+        "sourceVersion": "candidate:6f4545a1-dcd5-5eba-8606-db2043b238ac",
+        "sourceContentHash": "e398859f2cda473be80da00d8e849a958646f9b105292823f005c848938af8cc",
+        "slug": "clio:70352101-16f8-42a3-9a4f-77c1c67111c9",
+        "titleSha256": "6a08bc7d5018e29178edbd610654e2991be37aed93f0c0d26164013a0554e2d2",
+        "sectionsSha256": "daf53838ef95fb180f858a80cb1cf473508a5800b312ae5d3558f1f8bcc9270e"
+      },
+      "embedding": {
+        "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+        "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+        "ownerUserId": null,
+        "sourceType": "memory_item",
+        "sourceId": "a740d74f-2c61-4888-bb59-5c9eea502e3f",
+        "model": "amazon.titan-embed-text-v2:0",
+        "contentHash": "2fa57d1cfcabbdce21b1a0f5a90b67ca93edc4f6d9e3025219c0cbfab0d97dd5",
+        "hasEmbedding": true,
+        "dimensions": 1024,
+        "createdAt": "2026-10-04T05:50:23.437Z",
+        "updatedAt": "2026-10-04T05:50:23.437Z",
+        "contentTextSha256": "2fa57d1cfcabbdce21b1a0f5a90b67ca93edc4f6d9e3025219c0cbfab0d97dd5"
+      },
+      "outbox": {
+        "id": "5dd24df7-e422-466e-b325-afe60c31390b",
+        "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+        "memoryItemId": "a740d74f-2c61-4888-bb59-5c9eea502e3f",
+        "clioMemoryId": "70352101-16f8-42a3-9a4f-77c1c67111c9",
+        "operation": "index_memory_item",
+        "idempotencyKey": "index_memory_item:70352101-16f8-42a3-9a4f-77c1c67111c9:2026-10-04T05:50:22.563Z:2fa57d1cfcabbdce21b1a0f5a90b67ca93edc4f6d9e3025219c0cbfab0d97dd5",
+        "status": "completed",
+        "attempts": 0,
+        "createdAt": "2026-10-04T05:50:22.534Z",
+        "completedAt": "2026-10-04T05:50:24.230Z",
+        "lastError": null,
+        "expectedSourceVersion": "2026-10-04T05:50:22.563Z",
+        "expectedContentHash": "2fa57d1cfcabbdce21b1a0f5a90b67ca93edc4f6d9e3025219c0cbfab0d97dd5",
+        "leaseOwner": null,
+        "leaseExpiresAt": null
+      },
+      "matchingInstitutionalVectorRows": 1,
+      "matchingLegacyVectorRows": 1,
+      "exactOutboxRows": 1,
+      "otherOutboxRows": 0,
+      "providerUsageMeasured": false,
+      "approvalBilledActualMicros": null,
+      "projectionDispatchesByThisHelper": 0,
+      "providerCalls": 0,
+      "databaseWrites": 0,
+      "reviewDecisions": 0,
+      "acceptanceAuthority": false
+    },
+    "recall-plan": {
+      "kind": "meri-case14-recall-binding-plan",
+      "schemaVersion": 1,
+      "caseId": "14",
+      "captureRunId": "5f4312a2-6aa9-4ec8-820d-5717a88402df",
+      "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+      "actorUserId": "fb218bf5-2674-4ced-bca3-7a5d0c01592f",
+      "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+      "tenantRowVersion": "114873941",
+      "priorSettingsSha256": "dbc89687bbc13adf4982e53228ef75e0b33824f93a544b9943fe53134397dd93",
+      "approvedOwnerSha256": "0493a26ddcd18d978603b4c7f426915853b39881c36c33a4fe0a0810b44efb6d",
+      "physicalMapSha256": "886c4b2b5e069133c1c246cceb570353347b3354afe49d1657cf67083f9eb69f",
+      "sharedCorpusWrites": 0,
+      "approvalDecisions": 0,
+      "liveAcceptance": "NOT_RUN",
+      "planSha256": "d2eef132de24142cca54e7829284d7a07c36c400fbaac5ed6dbec0d3f00e1659"
+    },
+    "recall-bind": {
+      "status": "CASE14_RECALL_BOUND",
+      "operationId": "7fae46b8-3373-43a6-9965-3c146534e6c2",
+      "binding": {
+        "caseId": "14",
+        "captureRunId": "5f4312a2-6aa9-4ec8-820d-5717a88402df",
+        "fixtureVersion": "meri-live-v1-2026-09-26.1",
+        "physicalMapSha256": "886c4b2b5e069133c1c246cceb570353347b3354afe49d1657cf67083f9eb69f",
+        "seedReceiptId": "meri-synthetic-fixture-seed-receipt:sha256:c5ab663ae34589d4fd3ad3076fdf10a9f1fb680c6b913b1c1de058aef9b22129",
+        "resetReceiptId": "meri-synthetic-fixture-reset-receipt:sha256:e43edc1d1804f362245168f10b98611f6e6680ffe6cf9406b5eeb5963fcd9512",
+        "fixtureNamespace": "meri-foundation-20260928",
+        "actorUserId": "fb218bf5-2674-4ced-bca3-7a5d0c01592f",
+        "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+        "currentVerifySha256": "269f120e553fa77feb70d83c76103c89e1db4ae921d086b14c232242b501373e"
+      },
+      "sourceMap": {
+        "MEM-PROPOSAL-14": {
+          "frozenFixtureId": "MEM-PROPOSAL-14",
+          "kind": "memory",
+          "physicalId": "a740d74f-2c61-4888-bb59-5c9eea502e3f",
+          "tenantPhysicalId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+          "clientPhysicalId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+          "version": "candidate:6f4545a1-dcd5-5eba-8606-db2043b238ac"
+        }
+      },
+      "seedReceipt": {
+        "schemaVersion": 1,
+        "contractVersion": "meri-synthetic-fixture-provisioning-v1",
+        "kind": "meri-synthetic-fixture-seed-receipt",
+        "owner": "meri_case14_canonical_approval_v1",
+        "operationId": "7fae46b8-3373-43a6-9965-3c146534e6c2",
+        "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+        "actorUserId": "fb218bf5-2674-4ced-bca3-7a5d0c01592f",
+        "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+        "caseId": "14",
+        "captureRunId": "5f4312a2-6aa9-4ec8-820d-5717a88402df",
+        "approvedOwnerSha256": "0493a26ddcd18d978603b4c7f426915853b39881c36c33a4fe0a0810b44efb6d",
+        "physicalMapSha256": "886c4b2b5e069133c1c246cceb570353347b3354afe49d1657cf67083f9eb69f",
+        "setupReceiptSha256": "c2c80bdef51e6b8b22d13c809e77e76c61eb680fa10aca88372f258d53a155f8",
+        "transitionAuditId": "c6a57ea9-429a-4692-9ab0-dc3f04eaf4e8",
+        "contentSha256": "c5ab663ae34589d4fd3ad3076fdf10a9f1fb680c6b913b1c1de058aef9b22129"
+      },
+      "resetReceipt": {
+        "schemaVersion": 1,
+        "contractVersion": "meri-synthetic-fixture-provisioning-v1",
+        "kind": "meri-synthetic-fixture-reset-receipt",
+        "owner": "meri_case14_canonical_approval_v1",
+        "operationId": "7fae46b8-3373-43a6-9965-3c146534e6c2",
+        "scope": "replace_owned_capture_binding_only_after_canonical_approval",
+        "priorSettingsSha256": "dbc89687bbc13adf4982e53228ef75e0b33824f93a544b9943fe53134397dd93",
+        "sharedCorpusWrites": 0,
+        "contentSha256": "e43edc1d1804f362245168f10b98611f6e6680ffe6cf9406b5eeb5963fcd9512"
+      },
+      "sharedCorpusWrites": 0,
+      "approvalDecisions": 0,
+      "synthesisSubmissionCount": 0,
+      "liveAcceptance": "NOT_RUN"
+    },
+    "budget-plan": {
+      "status": "READY_FOR_RATE_QUALIFICATION",
+      "caseId": "14",
+      "captureRunId": "5f4312a2-6aa9-4ec8-820d-5717a88402df",
+      "currentVerifySha256": "269f120e553fa77feb70d83c76103c89e1db4ae921d086b14c232242b501373e",
+      "captureBindingSha256": "5cd02827b1a80bbe2315508fbd6f08941b46c3a0120f682aeab654cb52f596ec",
+      "priorQualificationSha256": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+      "tenantRowVersion": "115066502",
+      "liveAcceptance": "NOT_RUN"
+    },
+    "budget-install": {
+      "status": "PROVIDER_QUALIFICATION_INSTALLED",
+      "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+      "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+      "captureRunId": "5f4312a2-6aa9-4ec8-820d-5717a88402df",
+      "currentVerifySha256": "269f120e553fa77feb70d83c76103c89e1db4ae921d086b14c232242b501373e",
+      "captureBindingSha256": "5cd02827b1a80bbe2315508fbd6f08941b46c3a0120f682aeab654cb52f596ec",
+      "qualificationSha256": "b0552df040a303d65eb1573c8a8ec0bebd76e198361a3421e241256713240353",
+      "priorQualificationSha256": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+      "tenantRowVersion": "115066508",
+      "maxCostMicros": 14000000,
+      "rateEvidenceSha256": "1c9106e5d98f73b061f0de9918bf33c8fb28b0f0bc5be5ae4bc7d20e0da2a348",
+      "rateEvidenceExpiresAt": "2026-10-04T11:09:44.838Z",
+      "liveAcceptance": "NOT_RUN"
+    }
+  },
+  "completed": [
+    "projection-terminal",
+    "recall-plan",
+    "recall-bind",
+    "budget-plan",
+    "budget-install"
+  ],
+  "adapterProviderCalls": 0,
+  "approvalProviderEffects": "TERMINAL_PERSISTENCE_VERIFIED_BILLED_ACTUAL_UNMEASURED",
+  "reviewDecisions": 0,
+  "synthesisSubmissions": 0,
+  "aggregateJournalMutations": 0,
+  "liveAcceptance": "NOT_RUN",
+  "acceptanceAuthority": false
+}

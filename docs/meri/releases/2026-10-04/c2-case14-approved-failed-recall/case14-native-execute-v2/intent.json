@@ -1,0 +1,12 @@
+{
+  "at": "2026-10-04T04:09:01.421Z",
+  "kind": "EXACT_CASE14_NATIVE_PENDING_SETUP",
+  "serviceRevision": 523,
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:024fcc82a2db7701f4a3e3311598a9a1d0933b3fe4fcf73751bf0e3fb866d8ce",
+  "sourceSha": "c0f393f863bf73bd4e65e7a94e17c073e7be021e",
+  "scriptSha256": "42f0490e00639dd0d0a67289202c0f0e63535f5d68120c10aced5b22290ef0f9",
+  "providerSecrets": 0,
+  "workloadTaskRole": null,
+  "allowedMutation": "ONE_CANONICAL_PENDING_CANDIDATE_AND_NATIVE_OWNER_CLAIM",
+  "cloudActions": "one bounded native setup task; stop and deregister owned definition"
+}

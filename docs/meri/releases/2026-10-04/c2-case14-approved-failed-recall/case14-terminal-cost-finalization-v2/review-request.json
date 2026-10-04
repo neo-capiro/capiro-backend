@@ -1,0 +1,95 @@
+{
+  "status": "REVIEW_REQUIRED",
+  "action": "COST_ONLY_FIXED_FAILED_CASE14",
+  "evidencePinsSha256": "5869eeac81658a0a8208dbe4637bd4da95f8c965534a8a4b43e5ba49ff3f5bb9",
+  "proofSha256": "1bd0de197e10510a119e9da6e1e41b3a27c40421ebc421d1014926750577c893",
+  "sourcePinsSha256": "cc931336933c4222aaa11810a49b2408a3a373a3c9576d42cb095a7cbf3840ee",
+  "captureAuthority": false,
+  "answerGrade": "NOT_EVALUATED",
+  "approvalBilledActualMicros": null,
+  "proof": {
+    "caseId": "14",
+    "captureRunId": "5f4312a2-6aa9-4ec8-820d-5717a88402df",
+    "reservationId": "9b299041-d425-45fa-9a41-439745f4a912",
+    "conversationId": "88603ac2-bfbf-42dc-9e3b-85e4bea173b8",
+    "chargedCostMicros": 1569851,
+    "conservativeApprovalCostMicros": 1000000,
+    "approvalBilledActualMicros": null,
+    "combinedCommittedCostMicros": 2569851,
+    "approvalBoundSha256": "10246a491d3f9d1099622ece9fe9c964c0260943590c596a8aba0b98e71cd161",
+    "approvalOutcomeSha256": "94d6dddff1c6d2f5871403b855b6511f801238aee4aa932b7e9bd7ff1be63958",
+    "projectionTerminalSha256": "a6d321d23d3b8286dc620939afdaab2277a85cc8b9e2334c88dce2feebc5052d",
+    "providerTokens": 62396,
+    "providerAttempts": 3,
+    "pendingProviderAttempts": 0,
+    "ledgerSha256": "7ff4ea07f433ed5e390e851e9bd5e9b1300bb7720732355cbac2f9429ad4c209",
+    "providerStateSha256": "eb6de264b55a1d79c27fb7b925c12841c44663c91f80e07e4c1623fe1281e99e",
+    "providerDeadlineAtMs": 1791095001190,
+    "observedAtMs": 1791095023478,
+    "executionCompletedAtMs": 1791093215912,
+    "retainedEvidenceSha256": "4e6dd27bfa9a4adbdb86d74d34ad831d127653bd73c5ea7285c545b818e18f08",
+    "postdeadlineReadbackSha256": "75245eb56ba6dccee7104a2042626918cfb1ee01857ebeccba233800e02d3916",
+    "journalBeforeSha256": "139b6d7199038ca752c553289bf1ebe9c45f14e65956710f82a48301b132e673",
+    "disposition": "FAILED_CAPTURE_TERMINAL_RECALL_COST_RECONCILED_WITH_CONSERVATIVE_APPROVAL",
+    "captureAuthority": false,
+    "answerGrade": "NOT_EVALUATED",
+    "captureStatus": "CAPTURE_UNCERTAIN",
+    "failure": "CASE01_SOURCE_TOOL_JOIN_MISMATCH"
+  },
+  "sourcePins": [
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-terminal-cost-finalization-v2\\authority.mjs",
+      "bytes": 4125,
+      "sha256": "c22cfa133e7923846a09922620eb39ac44fa0b366589753504248f2795a9af8c",
+      "encoding": "raw"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-terminal-cost-finalization-v2\\predicate.mjs",
+      "bytes": 15472,
+      "sha256": "3b73befc146b06ef606ca64e4112fb149ea5275ab0baca4661cbe4204f2aab4c",
+      "encoding": "raw"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-terminal-cost-finalization-v2\\fixed.mjs",
+      "bytes": 11992,
+      "sha256": "03636b111371ed4da23bbe069ebd9f43a0bbef56e42eaebcdb767c0fa4e9759f",
+      "encoding": "raw"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-terminal-cost-finalization-v2\\bridge.mjs",
+      "bytes": 2382,
+      "sha256": "9721fdad4a33a7de099e0aeb2bf45aea25cc69d837e48b3f256b66a49769fb0d",
+      "encoding": "raw"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-terminal-cost-finalization-v2\\operator.mjs",
+      "bytes": 3295,
+      "sha256": "c48285f1addd65734962922023a11133787326d4ab89e505d7ae7a8f891d28b4",
+      "encoding": "raw"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-terminal-cost-finalization-v2\\dry-run-driver.py",
+      "bytes": 2343,
+      "sha256": "0d59dbc209f9e6e048adcc12101221b33f4ac11d5cad2e523beb848e93bfc2a2",
+      "encoding": "raw"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-terminal-cost-finalization-v2\\native\\windows-capture-spend.py",
+      "bytes": 32453,
+      "sha256": "51e29c01fd630d4d3f7da13450e7b0adb3aa79e2d5a18c045e78531e1672c237",
+      "encoding": "raw"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-terminal-cost-finalization-v2\\native\\windows-artifact-protocol.py",
+      "bytes": 6696,
+      "sha256": "3a30f6a211a5a7815c7f721dbb09871a33f316e7ecd8fbac0b4b1cf95ead33db",
+      "encoding": "raw"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-terminal-cost-finalization-v2\\native\\windows-owned-artifacts.py",
+      "bytes": 8713,
+      "sha256": "2316daa96906c1bf166adbeb72341024581dac82aa1f692f2554eb1ae82a40c1",
+      "encoding": "raw"
+    }
+  ]
+}

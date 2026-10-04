@@ -1,0 +1,9 @@
+Created complete candidate copies at:
+
+- `C:\dev\main\outputs\meri-c2-20261003\case14-combined-native-hermes-v1\candidate\evals\meri\live-v1\lib\windows-capture-spend.py`
+- `C:\dev\main\outputs\meri-c2-20261003\case14-combined-native-hermes-v1\candidate\evals\meri\live-v1\tests\capture-spend-fresh.unit.py`
+- `C:\dev\main\outputs\meri-c2-20261003\case14-combined-native-hermes-v1\candidate\evals\meri\live-v1\IMPLEMENTATION.md`
+
+The implementation preserves the historical prefix and existing non-Case14 reserve/settle fields, adds the fixed Case14 approval/recall partition and required proof hashes, and separates actual recall cost from conservative approval accounting. Tests cover legacy accounting, Case14 validation/accounting, stale checkpoints, exact-prefix constraints, and failed settlement retaining the active hold.
+
+Syntax checks reported OK for the Python file writes. Tests: NOT_RUN, as requested; I did not execute commands. Originals and live files were not modified.

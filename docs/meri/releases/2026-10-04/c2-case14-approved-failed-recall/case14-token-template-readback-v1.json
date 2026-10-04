@@ -1,0 +1,8 @@
+{
+  "at": "2026-10-04T05:43:41.269Z",
+  "name": "capiro",
+  "lifetime": 3600,
+  "allowedClockSkew": 5,
+  "sessionCreations": 0,
+  "mutations": 0
+}

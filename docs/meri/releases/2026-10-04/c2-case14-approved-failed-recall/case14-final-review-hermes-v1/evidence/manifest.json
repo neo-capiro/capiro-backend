@@ -1,0 +1,97 @@
+[
+  {
+    "path": "evals\\meri\\live-v1\\capture-spend-aggregate.mjs",
+    "bytes": 25552,
+    "sha256": "5ca3fb0dd3eb0b6100b3b478704503fc2c5197fbb398ab62fcf7beb317d132a9"
+  },
+  {
+    "path": "evals\\meri\\live-v1\\case01-live-capture.mjs",
+    "bytes": 25051,
+    "sha256": "9872ee2fb91b05547030331dd22258727bb6fbcf13537f6e3d94b6fd9f325a83"
+  },
+  {
+    "path": "evals\\meri\\live-v1\\case14-approval-capture.mjs",
+    "bytes": 33454,
+    "sha256": "fcea0961cc531ffe98104ecc8c6d3dc6d6083cc972d1879e7b340991a9e1046d"
+  },
+  {
+    "path": "evals\\meri\\live-v1\\case14-approval-cost-authority.mjs",
+    "bytes": 10803,
+    "sha256": "d41cdb4193d17484e8429677aedb168d207c976a41764f3a8eeba8392b4690bc"
+  },
+  {
+    "path": "evals\\meri\\live-v1\\case14-approval-cost-evidence.json",
+    "bytes": 4770,
+    "sha256": "aa63a7378883f152c1d8180cc0796fc5dc2bb4ad61e68df9030d52b9a754aa33"
+  },
+  {
+    "path": "evals\\meri\\live-v1\\case14-postapproval-task-authority.mjs",
+    "bytes": 13010,
+    "sha256": "21f874c7863666d65d7fb7ed09040eaaf2d07606be17881370cb555ea2981564"
+  },
+  {
+    "path": "evals\\meri\\live-v1\\lib\\windows-capture-spend.py",
+    "bytes": 29964,
+    "sha256": "d9fefeda594bee5c69eaa596de2d0a41ad8bab7fbfaf8ee3ce2e7d9a4564277d"
+  },
+  {
+    "path": "evals\\meri\\live-v1\\fixture-provisioning\\case14-memory-owner.mjs",
+    "bytes": 15558,
+    "sha256": "14ec0d38eb4d294e966400a68b6371965b47eb67544a6e2df5aaba04fb4a329d"
+  },
+  {
+    "path": "apps\\api\\scripts\\meri-case14-recall-setup.mjs",
+    "bytes": 2284,
+    "sha256": "0f9f34f5e43f9fe9550cfc1cb01f694df607f227b0b05c93320a243832577998"
+  },
+  {
+    "path": "apps\\api\\scripts\\meri-capture-provider-budget.mjs",
+    "bytes": 5360,
+    "sha256": "956c7544e058ef4dd4398ecda957f6de131b18460717e61af0d3a41913fe6dae"
+  },
+  {
+    "path": "scripts\\lib\\meri-release-policy.mjs",
+    "bytes": 9875,
+    "sha256": "e0518591e704ef3f051442d1b949a9f83a705a2cff40ed998dba19b57373cb5c"
+  },
+  {
+    "path": "execute-case14-postapproval-outer-v1.mjs",
+    "bytes": 16492,
+    "sha256": "1ed2521256a1925e03d7055be4f523e0620f933c7012d017eac130991dc3d722"
+  },
+  {
+    "path": "case14-postapproval-preparation-v2\\case14-postapproval-inner-v2.mjs",
+    "bytes": 45613,
+    "sha256": "48f79bd617b4d42afeb0cd19500014284c2fa1cc281853d6486f354a229b1a81"
+  },
+  {
+    "path": "case14-postapproval-preparation-v2\\build-case14-postapproval-input-v2.mjs",
+    "bytes": 2175,
+    "sha256": "c688efbce35b97e61597fe465c28178a88d28dab08eaecd31cb81ab9a90a509d"
+  },
+  {
+    "path": "case14-approval-cost-supervision-v2\\projection-terminal-inner-v1.mjs",
+    "bytes": 16862,
+    "sha256": "635ae39807fc884569577f199dad4db4c27d4335c8c61b6fff298b317de77e1d"
+  },
+  {
+    "path": "case14-postapproval-authority-supervision-v4\\report.json",
+    "bytes": 2109,
+    "sha256": "3d6c325c5ad0277f9f8b01a1aa5575977636615e7bc07f9c8ec4977c43c9dddf"
+  },
+  {
+    "path": "reviewed-rates-c2-v3-20261004.json",
+    "bytes": 2470,
+    "sha256": "6a5e22e56f15c576612a0b50f42573e88a8c29a76698d033eb007d20b9b49684"
+  },
+  {
+    "path": "case14-combined-review-root-disposition-v1.json",
+    "bytes": 408,
+    "sha256": "868fdc7237e7781c703e332d8dc14df5c85c361056978dce11bdc4e7aaf49a39"
+  },
+  {
+    "path": "case14-postapproval-pinned-definition.private.json",
+    "bytes": 3389,
+    "sha256": "9b9b1301493100f4fd0131066f30c6d7d68ed5721cd2feeba3d96ea73c041cb8"
+  }
+]

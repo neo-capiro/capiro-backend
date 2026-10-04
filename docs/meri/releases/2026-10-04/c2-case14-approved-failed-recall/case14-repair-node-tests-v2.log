@@ -1,0 +1,138 @@
+✔ recorded current configuration and completed nightly leave bounded approval window (14.6289ms)
+✔ runtime, schedule, worker, source, census and overlap changes reject (10.6041ms)
+✔ passing pure checks or copying a digest never mints a spend authority (0.6343ms)
+✔ pure admission checks canonical current scope and exact server budget without creating authority (2.1609ms)
+✔ serialized lookalikes cannot execute or bypass native storage before network (0.5792ms)
+✔ scope refuses wrong origin (0.3005ms)
+✔ scope refuses case20 (0.2244ms)
+✔ scope refuses unapproved tenant (0.4698ms)
+✔ scope refuses admin actor (1.0729ms)
+✔ scope refuses no conversation (0.2016ms)
+✔ scope refuses over15USD (0.2052ms)
+✔ scope refuses parallel (0.2416ms)
+✔ scope refuses stale contract (0.2894ms)
+✔ admission refuses wrong actor (0.3275ms)
+✔ admission refuses wrong tenant (0.1477ms)
+✔ admission refuses wrong client (0.1265ms)
+✔ admission refuses expired (0.1311ms)
+✔ admission refuses mutable dispatch (0.1496ms)
+✔ admission refuses wrong source (0.1561ms)
+✔ admission refuses missing reset (0.1566ms)
+✔ admission refuses no budget (0.1534ms)
+✔ admission refuses server budget exceeds configured (0.1401ms)
+✔ admission refuses different owner version (0.1869ms)
+✔ admission refuses wrong release (0.1519ms)
+✔ complete signed/current-source joins are validation only and do not grant acceptance (1.213ms)
+✔ receipt joins refuse source tenant contradiction (0.4985ms)
+✔ receipt joins refuse source client contradiction (0.3949ms)
+✔ receipt joins refuse mutating tool (0.7821ms)
+✔ receipt joins refuse unjoined tool (0.3306ms)
+✔ receipt joins refuse source bytes (0.2722ms)
+✔ receipt joins refuse source version (0.2993ms)
+✔ receipt joins refuse truncated source (0.2452ms)
+✔ receipt joins refuse citation bytes (0.3483ms)
+✔ receipt joins refuse current owner changed (0.5667ms)
+✔ receipt joins refuse unsettled cost (0.4878ms)
+✔ receipt joins refuse unaccounted provider (0.4127ms)
+✔ receipt joins refuse cost exceeded (0.3634ms)
+✔ receipt joins refuse different budget (0.6485ms)
+✔ receipt joins refuse unexpected write (0.5129ms)
+✔ receipt joins refuse logical effect (1.4301ms)
+✔ receipt joins refuse message effect mismatch (0.4208ms)
+✔ receipt joins refuse missing coverage (0.3213ms)
+✔ receipt joins refuse wrong build (0.262ms)
+✔ receipt joins refuse usage missing (0.3034ms)
+✔ receipt joins refuse expired authority (0.3167ms)
+✔ SSE and canonical receipt must match exact signed bytes (0.2289ms)
+✔ exact answer bytes are required (0.2157ms)
+✔ build comparison requires exact successful canonical source, recipe and served digest (0.8126ms)
+✔ build comparison refuses failed build (0.1183ms)
+✔ build comparison refuses wrong source (0.0533ms)
+✔ build comparison refuses different recipe (0.0615ms)
+✔ build comparison refuses different repository (0.0401ms)
+✔ build comparison refuses failed test phase (0.0384ms)
+✔ build comparison refuses wrong image (0.0429ms)
+✔ build comparison refuses source label drift (0.0446ms)
+✔ native memory QA transport identifies itself to the edge without caller-selected or newline headers (0.4016ms)
+✔ case14 exact current approval/version uses shared signed memory receipt joins without relabeling case01 (0.7465ms)
+✖ case01 retains Unicode ellipsis handling in a partial citation snippet (1.5695ms)
+✖ case14 rejects a copied version that does not hash the actual text and source version (0.8741ms)
+✔ case14 refuses wrong content status (0.8498ms)
+✔ case14 refuses missing canonical DB hash (0.3229ms)
+✔ case14 refuses wrong candidate provenance (0.2918ms)
+✔ case14 refuses wrong provenance version (0.247ms)
+✔ case14 refuses source changed after citation (0.2535ms)
+✔ case14 refuses paged source (0.3275ms)
+✔ case14 refuses nonzero source offset (0.2486ms)
+✔ case14 refuses object substituted for string version (0.2668ms)
+✔ case14 refuses noncanonical source owner (0.4198ms)
+✔ case14 refuses wrong approved text (0.49ms)
+✔ case14 refuses wrong DB provenance hash (0.4301ms)
+✔ case14 refuses wrong current source version (0.2829ms)
+✔ case14 refuses partial source pagination (0.6611ms)
+✔ case14 refuses citation/readback currentVersion contradiction (0.2878ms)
+✔ case14 refuses wrong case (0.2103ms)
+✔ case14 refuses wrong version (0.2558ms)
+✔ case14 refuses foreign decision actor (0.2535ms)
+✔ case14 refuses missing audit (0.3661ms)
+✔ case14 refuses unapproved source (0.3571ms)
+✔ case14 refuses unknown cost (0.379ms)
+✔ copied case14 evidence cannot authorize approval, recall, UI or grading (0.4514ms)
+✔ approval grading accepts actual Nest201 semantics and canonical decision joins only (2.7975ms)
+ℹ tests 81
+ℹ suites 0
+ℹ pass 79
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 247.2651
+
+✖ failing tests:
+
+test at evals\meri\live-v1\tests\case14-capture.test.mjs:103:1
+✖ case01 retains Unicode ellipsis handling in a partial citation snippet (1.5695ms)
+  AssertionError [ERR_ASSERTION]: Got unwanted exception.
+  Actual message: "CASE01_CITATION_BYTES_MISMATCH"
+      at TestContext.<anonymous> (file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/case14-capture.test.mjs:109:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: Error: CASE01_CITATION_BYTES_MISMATCH
+        at fail (file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/case01-receipt-joins.mjs:7:17)
+        at need (file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/case01-receipt-joins.mjs:12:19)
+        at assertMemoryReceiptJoins (file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/case01-receipt-joins.mjs:254:3)
+        at assertCase01ReceiptJoins (file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/case01-receipt-joins.mjs:31:10)
+        at file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/case14-capture.test.mjs:109:29
+        at getActual (node:assert:611:5)
+        at strict.doesNotThrow (node:assert:779:32)
+        at TestContext.<anonymous> (file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/case14-capture.test.mjs:109:10)
+        at Test.runInAsyncScope (node:async_hooks:227:14)
+        at Test.run (node:internal/test_runner/test:1382:25),
+    expected: undefined,
+    operator: 'doesNotThrow',
+    diff: 'simple'
+  }
+
+test at evals\meri\live-v1\tests\case14-capture.test.mjs:111:1
+✖ case14 rejects a copied version that does not hash the actual text and source version (0.8741ms)
+  AssertionError [ERR_ASSERTION]: Missing expected exception.
+      at TestContext.<anonymous> (file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/case14-capture.test.mjs:118:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /CASE01_CANONICAL_SOURCE_BYTES_MISMATCH/u,
+    operator: 'throws',
+    diff: 'simple'
+  }
