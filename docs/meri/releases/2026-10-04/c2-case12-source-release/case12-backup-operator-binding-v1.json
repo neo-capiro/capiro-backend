@@ -1,0 +1,31 @@
+{
+  "kind": "case12-root-backup-operator-binding",
+  "recordedAt": "2026-10-04T12:54:27.027645+00:00",
+  "sourceSha": "e60f37189f8c9b68ab7d5ef66e515ed3be4ec3c1",
+  "candidateSha256": "8248d8cbcf794eff92ab932abc1ccf954ae8723a76a970bf9beb0e8a2634e1ae",
+  "sourceCheckpointSha256": "60b60d1dbbf8a3457b9233868d0223d506cef31d211efc9dda97ad1591640170",
+  "sourceReviewSha256": "c512a2d70a6cf64d45811f57d7c265622b90c0105c8aa85ce8fb9269eb1b9fb8",
+  "backupCheckpointSha256": "242e0ab02c82ba31d24460f9ce454a3184916f083384b7701fdc2c0d8a2f0f57",
+  "backupHermesReviewSha256": "aa729d638de2eca0d81394651ecb2cab2727fe02a338b66a44496b16a46a2d40",
+  "backupHermesExecutionSha256": "2dc0b74ba32c9c5aa8ce2295bcdef13ddb9d5ee23c85223c60295234e6066b5e",
+  "backupSupervisedReviewSha256": "1cff2ce2e7a2e29843ff2fe805b7cc3c4ef9ecdf1ded53ec99402579b80340c4",
+  "frozenFilesVerified": 36,
+  "operators": [
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-backup-build-preparation-v2\\start-case12-source-backup-build-bound-v1.mjs",
+      "sha256": "1ac799003feafd2d72face1841df6fcc479dc94661cc84288db0989a387bc6c3",
+      "templateSha256": "cc3c24069e5d30f525efaf0ef97ee5f23f3322a6980dc9738173dd95005a1dd9",
+      "onlyChange": "Literal fixed candidate SHA replaces null; no other byte change",
+      "syntaxExitCode": 0
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-backup-build-preparation-v2\\collect-case12-source-backup-build-bound-v1.mjs",
+      "sha256": "3d214ac4cd2ae3510a6563a2b3fc0680ffbb2326e84d25f8d27027d2905b68a8",
+      "templateSha256": "15eb45c280623a81ec1d20bd98c98f6f4998bbbfa446993f9537cf6da56defee",
+      "onlyChange": "Literal fixed candidate SHA replaces null; no other byte change",
+      "syntaxExitCode": 0
+    }
+  ],
+  "buildsLaunched": 0,
+  "scope": "User-authorized CodeBuild immutable candidate build and ECR publication only; no ECS deployment, IAM, database or provider operation"
+}

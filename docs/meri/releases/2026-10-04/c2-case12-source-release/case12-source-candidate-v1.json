@@ -1,0 +1,11 @@
+{
+  "kind": "meri-case12-backup-build-candidate",
+  "version": 1,
+  "caseId": "12",
+  "sourceSha": "e60f37189f8c9b68ab7d5ef66e515ed3be4ec3c1",
+  "sourceCheckpointSha256": "60b60d1dbbf8a3457b9233868d0223d506cef31d211efc9dda97ad1591640170",
+  "reviewSha256": "c512a2d70a6cf64d45811f57d7c265622b90c0105c8aa85ce8fb9269eb1b9fb8",
+  "templateChecksSha256": "d78c2662a5d61d2bbdfe06e7332c614d9ed86c3b551e3f7e39f97236fda90ea9",
+  "backupAuthorization": "USER_REQUEST_USE_BACKUP_SHIPPING_METHOD",
+  "c2Complete": false
+}

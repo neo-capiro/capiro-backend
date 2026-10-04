@@ -1,0 +1,15 @@
+{
+  "recordedAt": "2026-10-04T12:54:33.102Z",
+  "service": "api",
+  "sourceSha": "e60f37189f8c9b68ab7d5ef66e515ed3be4ec3c1",
+  "buildspecSha256": "ea7ed52f8bad7e2c752e364e39a9809d4997a9dba32f2ef0b9230f7fb6f9405c",
+  "candidateSha256": "8248d8cbcf794eff92ab932abc1ccf954ae8723a76a970bf9beb0e8a2634e1ae",
+  "checkpointSha256": "60b60d1dbbf8a3457b9233868d0223d506cef31d211efc9dda97ad1591640170",
+  "reviewSha256": "c512a2d70a6cf64d45811f57d7c265622b90c0105c8aa85ce8fb9269eb1b9fb8",
+  "templateChecksSha256": "d78c2662a5d61d2bbdfe06e7332c614d9ed86c3b551e3f7e39f97236fda90ea9",
+  "requestSha256": "7cff1af7311f9cd56d562821d187cbdfa4d59d0c3410146d7c16510aa9d8b915",
+  "idempotencyToken": "2372fa00-5ff1-443e-a4e9-7ea1ac27ac2f",
+  "callerArn": "arn:aws:iam::967807252336:user/capirocli",
+  "authorization": "USER_REQUEST_USE_BACKUP_SHIPPING_METHOD",
+  "scope": "One immutable ARM image build and ECR publication; no service/config/database/provider mutation"
+}

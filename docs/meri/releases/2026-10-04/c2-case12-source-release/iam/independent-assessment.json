@@ -1,0 +1,105 @@
+{
+  "at": "2026-10-04T12:12:07.895717+00:00",
+  "status": "PASS_UNACTIVATED_POLICY_DESIGN_WITH_NATIVE_ACCESS_GATE",
+  "reviewMethod": "Read-only local artifact/source inspection and current official AWS service-authorization reference; no AWS calls or IAM mutations by reviewer; no extra Hermes session required for narrow policy inspection.",
+  "policySha256": "173d4b8f134c2d1fac50b9df7d3db6e4e136f1e965c293a258cee6407da50d3a",
+  "officialDocumentation": {
+    "url": "https://docs.aws.amazon.com/service-authorization/latest/reference/list_ecs.html",
+    "accessedOn": "2026-10-04",
+    "observedFacts": [
+      "DescribeTasks supports task resources, ecs:cluster and aws:ResourceTag conditions.",
+      "DescribeTaskDefinition has no resource-level scope in its action row; Resource * is necessary."
+    ]
+  },
+  "findings": [],
+  "scopeFacts": [
+    "Candidate adds only two read actions in us-east-1 before21:00UTC2026-10-04; no IAM/task write permissions added.",
+    "DescribeTasks is confined to account967807252336/capiro-dev task ARNs, exact cluster and presence of meri-case12-setup-owner resource tag. Presence does not bind a particular registration marker or only self.",
+    "DescribeTaskDefinition permits account task-definition reads across families in that region for the validity window. Existing API task-role consumers share this new ability if attached to their role.",
+    "Eight saved IAM custom-policy simulations match expected outcomes and each saved request embeds exactly the candidate policy. Runtime helper credentials/service authorization/propagation remain untested.",
+    "The custom-policy no-run-task result means the new policy adds no RunTask permission. It does not negate pre-existing SenateAutoCapturePollLaunch RunTask permission on the role."
+  ],
+  "roleChoiceAssessment": {
+    "preferredForThisBoundedRemedy": "Temporary existing API task-role read policy is proportionate if explicitly approved as a shared-role expansion and removed after qualified helper completion/readback.",
+    "reason": "Adds two documented read actions with region/time/task-tag bounds without silently creating a new broad duplicate trust/provider/resource permission graph.",
+    "isolatedRoleAlternative": "Can isolate the read grant from API service consumers, but requires its own least-privilege trust/PassRole/secrets/KMS/provider/network and native helper qualification. Blindly copying the11 baseline policies is not a narrower verified substitute."
+  },
+  "requiredBeforeActivation": [
+    "Explicit reviewable IAM change and role/scope/expiration/removal plan; this receipt is not approval.",
+    "Apply only within authorized scope then independently prove actual ECS native reads using intended helper credentials and exact immutable task/definition/input; policy simulation does not prove access.",
+    "Keep exact role/template pins in final operator packet and retain fail-closed native admission; no JSON substitution for unavailable native reads.",
+    "Remove named inline policy after terminal reconciliation, preserving baseline11 policy hashes; expiry stops permission but does not remove policy object."
+  ],
+  "limitations": [
+    "Preflight is root-produced summary with11 inline policy hashes/no attached policies; original complete installed policy documents and raw service state were not independently retrieved by reviewer.",
+    "Saved simulation response decisions are summarized in root qualification; raw request bytes and source assertions checked, no new cloud calls performed.",
+    "Actual helper IAM and live setup/capture acceptance NOT_RUN."
+  ],
+  "pins": [
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-iam-preflight-v1.json",
+      "sha256": "4942f24c68fb402805de768d9c7f6f63a4a09152d0d61571a5e0adc6b9b485d4",
+      "bytes": 3529
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-iam-policy-candidate-v1.json",
+      "sha256": "173d4b8f134c2d1fac50b9df7d3db6e4e136f1e965c293a258cee6407da50d3a",
+      "bytes": 935
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-iam-policy-candidate-qualification-v1.json",
+      "sha256": "b898f260b230f9744f66009f9175d60c00ca90c752c3053ac7ddf76db2025565",
+      "bytes": 2342
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\check-case12-native-iam-candidate-v1.py",
+      "sha256": "ec23ad7eec1ec841682820b489aff03b78cfc240cba89a3336195b3566e30f84",
+      "bytes": 3547
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\record-case12-native-iam-preflight-v1.py",
+      "sha256": "369e084ca7e9e54ff52faf819cfb6ab23cb1fdaaf701c8b583544ada4ee5e679",
+      "bytes": 2643
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-simulation-tagged-helper-task.json",
+      "sha256": "d13ea68f47c180753e961daa562b80ad977e8fbd816dc16604b41f0500be970f",
+      "bytes": 1740
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-simulation-untagged-task.json",
+      "sha256": "f8012185cbabf6be192197f6d41c3d51dc2b6d498c6cf6b51c816aa82b8f6ae2",
+      "bytes": 1587
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-simulation-wrong-cluster.json",
+      "sha256": "2a2b92433a4a00fb1bbb1444ac272e26ed64de3deae82675b141ba9c58d487f3",
+      "bytes": 1746
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-simulation-expired-task.json",
+      "sha256": "8876017a4f60ec43b728e27f9c53ba411cdfa2f2b99aa6ec6f5cd90ac3859901",
+      "bytes": 1740
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-simulation-task-definition-read.json",
+      "sha256": "c1de3b55edffd7f0d082182b3fe96b5627fe47086ccdae2acdac9d2dc0c71c32",
+      "bytes": 1667
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-simulation-foreign-region-definition.json",
+      "sha256": "e38c647ae1a0d7c9885544760b79e8141f874d65a7cbb60f815c6bf09bd38702",
+      "bytes": 1667
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-simulation-expired-definition.json",
+      "sha256": "cd8d2038d5ee34a7809976f86b0e5c11e92399a1080a06e9c4474f0495a5e2e2",
+      "bytes": 1667
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-simulation-no-run-task.json",
+      "sha256": "348bd5d51effd37119957f7166a4c44254263addb0cd0f74eed8a049cab21d88",
+      "bytes": 1735
+    }
+  ]
+}
