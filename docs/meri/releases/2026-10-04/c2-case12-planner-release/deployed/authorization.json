@@ -1,0 +1,8 @@
+{
+  "at": "2026-10-04T21:14:55.018Z",
+  "packetSha256": "4f614b21c7a9d954d0d0886dc2e27d1f2312f242b284431e181cc96cc2835a97",
+  "manifestSha256": "a4147ad597fcf06060818ab11e39d1ba66e7d1425eb79c7dff2d4b28be390727",
+  "authorizationBasis": "User requested continued C2 closeout and explicitly authorized established CodeBuild backup shipping; inherited handover October 4, 2026. No newly claimed human review of answers or digest.",
+  "awsMaxAttempts": 1,
+  "noAutomaticRetry": true
+}

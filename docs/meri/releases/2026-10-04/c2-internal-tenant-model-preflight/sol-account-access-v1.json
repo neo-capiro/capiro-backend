@@ -1,0 +1,16 @@
+{
+  "at": "2026-10-04T21:24:17.764Z",
+  "status": "MODEL_METADATA_ACCESS_VERIFIED",
+  "tenantId": "17b63099-bc0f-4ac5-b596-496161e9481e",
+  "model": "gpt-6.1-sol",
+  "httpStatus": 200,
+  "effectiveCurrentModel": "gpt-6-astra",
+  "currentModelOverridden": false,
+  "usedTenantKey": true,
+  "apiSourceSha": "34e5c37ce1a0d421f008d32cef08dd05e0cc2d7a",
+  "providerModelId": "gpt-6.1-sol",
+  "providerErrorCode": null,
+  "inferenceValidation": "NOT_RUN",
+  "generations": 0,
+  "budgetCostMicros": 0
+}

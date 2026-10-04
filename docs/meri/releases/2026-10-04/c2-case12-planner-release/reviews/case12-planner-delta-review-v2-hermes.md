@@ -1,0 +1,10 @@
+BLOCKED
+
+Concrete bug — plural source qualifiers can still enter memory-only recall. In `evidence/meri-context-plane.service.ts:1268-1271`, the exclusion covers `inbox` and `calendar` only, not `inboxes` or `calendars`. Because the regex uses word boundaries, neither plural matches. For example, “What did we approve about Aster’s autonomous maritime demo in the inboxes?” still satisfies the retrospective-approval predicate; the possessive target extraction accepts the phrase, and with the selected/authorized Aster client the early branch at lines 541-552 returns only `institutional_knowledge`. `taskDomains` also does not recognize either plural, so it cannot rescue the route. This violates the source-qualified fallback requirement. Add the plural forms (and native-planner negatives) before treating this blocker as resolved.
+
+Checks from static source/delta review:
+- The original ordinary approval wording remains eligible: the new exclusion does not match it, and the existing selected-client/authorized-unique-prefix conditions remain in place. The bundled native-planner spec retains the exact original prompt and asserts its `institutional_knowledge` plan.
+- The seven added source-qualified prompts (proposal, contract, PDF, report, transcript, call, meeting notes) are excluded by the expanded predicate. On the selected-client path they proceed past the memory-only branch to the ordinary planner; mail/email and meeting/calendar qualifiers additionally map to their existing source domains where `taskDomains` recognizes them.
+- The delta changes only the source-word predicate and adds regression inputs/assertions. It does not alter or widen the capture guard.
+
+Scope: static review only, limited to the supplied final source, delta, and prior review. No tests, builds, cloud actions, or repository operations were run. No live acceptance or source-qualified build is required for this source-only review stage.

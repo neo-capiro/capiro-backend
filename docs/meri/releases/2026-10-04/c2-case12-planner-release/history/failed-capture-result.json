@@ -1,0 +1,20 @@
+{
+  "at": "2026-10-04T20:15:48.508Z",
+  "caseId": "12",
+  "captureRunId": "4a32f9ce-3caa-49f2-95ef-2a512c854468",
+  "conversationId": "40dd8401-dcfe-46bd-b010-c30e7098297c",
+  "humanAcceptance": "NOT_RUN",
+  "capture": {
+    "status": "CAPTURE_UNCERTAIN",
+    "caseId": "12",
+    "captureRunId": "4a32f9ce-3caa-49f2-95ef-2a512c854468",
+    "conversationId": "40dd8401-dcfe-46bd-b010-c30e7098297c",
+    "reason": "CASE12_CAPTURE_SSE_UNEXPECTED_EVENT",
+    "humanAcceptance": "NOT_RUN",
+    "requests": 5,
+    "synthesisSubmissionCount": 1
+  },
+  "status": "CAPTURE_UNCERTAIN",
+  "sessionRevoked": true,
+  "finishedAt": "2026-10-04T20:16:13.767Z"
+}

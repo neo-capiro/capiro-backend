@@ -1,0 +1,10 @@
+{
+  "exitCode": 0,
+  "helperSha256": "51c010b299b010368ab0f32a081ed8ff1d0b6982fb436f1d8443644d7181d881",
+  "approvalSha256": "be0b1ca012495ba58486af4c92bd14345b0600c046cff913bf6da2852bbb8a62",
+  "rootCorrections": [
+    "Test harness binds reducer.__globals__ rather than runpy dictionary copy",
+    "Amendment fields require exact integer types; rejects booleans/floats"
+  ],
+  "nativeWrite": "NOT_RUN"
+}

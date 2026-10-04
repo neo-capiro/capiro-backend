@@ -1,0 +1,12 @@
+test_exact_row31_activates_only_aggregate_cap (test_budget_amendment.BudgetAmendmentTests.test_exact_row31_activates_only_aggregate_cap) ... ok
+test_later_ordinary_case_reservation_reads_amended_history (test_budget_amendment.BudgetAmendmentTests.test_later_ordinary_case_reservation_reads_amended_history) ... ok
+test_readonly_journal_snapshot_is_unchanged_without_amendment (test_budget_amendment.BudgetAmendmentTests.test_readonly_journal_snapshot_is_unchanged_without_amendment) ... ok
+test_rejects_altered_amount_authority_limits_and_checkpoint (test_budget_amendment.BudgetAmendmentTests.test_rejects_altered_amount_authority_limits_and_checkpoint) ... ok
+test_rejects_changed_original_prefix (test_budget_amendment.BudgetAmendmentTests.test_rejects_changed_original_prefix) ... ok
+test_rejects_replay_and_non31_amendment (test_budget_amendment.BudgetAmendmentTests.test_rejects_replay_and_non31_amendment) ... ok
+test_unbound_authority_rejects_even_well_formed_caller_row (test_budget_amendment.BudgetAmendmentTests.test_unbound_authority_rejects_even_well_formed_caller_row) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 0.013s
+
+OK

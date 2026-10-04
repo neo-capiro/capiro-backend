@@ -1,0 +1,25 @@
+{
+  "status": "ROOT_REVIEWED_SETUP_TERMINAL_AND_SETTLEMENT_COMPLETE",
+  "at": "2026-10-04T18:24:06.322126+00:00",
+  "helper": "case12-native-setup-supervision-4aa30f1a-c852-43db-840e-62538d475373/result.json",
+  "terminal": "case12-terminal-launch-result-v2.json",
+  "settlement": "case12-known-settlement-root-result-v1.json",
+  "iamCleanup": "case12-temporary-iam-supervised-v1/executed-once/remove-readback.json",
+  "independentHelperReview": {
+    "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-actual-setup-review-hermes-v1\\REVIEW.md",
+    "sha256": "07e30e31715df163ce3e9687e69efdc30d2a0140959c06d02b44483b262928c2",
+    "scope": "Supplied raw helper evidence static review; reviewer did not execute hashes/native verification. Root native terminal validator and settlement separately passed after its packet was prepared."
+  },
+  "completedRows": 510,
+  "providerAttempts": 1020,
+  "pendingProviderAttempts": 0,
+  "bothVectorBranchesVerified": true,
+  "chargedCostMicros": 2038,
+  "eventCount": 28,
+  "activeRun": null,
+  "committedCostMicros": 16202947,
+  "remainingReservationMicros": 13797053,
+  "case12Capture": "NOT_RUN",
+  "humanAcceptance": "NOT_RUN",
+  "c2Complete": false
+}

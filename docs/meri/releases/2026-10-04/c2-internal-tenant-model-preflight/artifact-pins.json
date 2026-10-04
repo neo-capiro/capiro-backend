@@ -1,0 +1,17 @@
+[
+  {
+    "path": "capiro-internal-clerk-readback-v1.json",
+    "bytes": 510,
+    "sha256": "674b61f7ecded9d5623f423e85229f76dc5df8ea647168d2bd2c17e08cddb833"
+  },
+  {
+    "path": "capiro-internal-config-readback-v1.json",
+    "bytes": 1024,
+    "sha256": "a1e7d7a676d00fb815d3247fdfb23d1a429599d3218b3b57162765aa0be3300d"
+  },
+  {
+    "path": "sol-account-access-v1.json",
+    "bytes": 496,
+    "sha256": "471f26163e1478e190db61c1b5248479afc4ef9311c1cb1648e98f100eea1f69"
+  }
+]

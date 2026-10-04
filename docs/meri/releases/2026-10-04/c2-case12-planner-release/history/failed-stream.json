@@ -1,0 +1,6 @@
+{
+  "path": "/api/clio/conversations/40dd8401-dcfe-46bd-b010-c30e7098297c/stream",
+  "status": 201,
+  "releaseSha": "478a1826afc7e4d599c66bfe5fb7a9759b0a4582",
+  "text": "data: {\"type\":\"progress\",\"runId\":\"7c525f0c-2ee9-4409-9df7-8cf8389ac23f\",\"phase\":\"preparing\",\"note\":\"Checking this conversation before preparing a response.\",\"elapsedMs\":1235,\"accepted\":false}\n\ndata: {\"type\":\"error\",\"code\":\"MERI_STREAM_SETUP_ERROR\",\"message\":\"meri_capture_provider_budget_unqualified_retrieval_plan\",\"accepted\":false}\n\ndata: {\"type\":\"done\"}\n\n"
+}

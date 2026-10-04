@@ -1,0 +1,5 @@
+# Shared benchmark cap amended to $500
+
+The existing native NTFS journal owner appended event 31 once after seven corrected offline tests and independent root source review. [Native result](result.json) and [acknowledgment](native-ack.json) establish an effective $500 aggregate cap, unchanged $15 per-case ceiling, $16.202947 committed and $483.797053 available. All original 21,204 history bytes, original authorization bytes, file identity, approvals and failed captures remain intact. No provider call was made.
+
+The original human $500 authorization remains unchanged. The later concurrency and capiro-internal instruction is recorded separately. Paid runs remain serialized pending real reservation/binding qualification; parallel Hermes work is independent. The corrected test harness uses the reducer's actual globals, and typed amendment validation rejects booleans/floats. The bound helper is the current native reader for this 31-event checkpoint; older fixed-history helpers must not reset/adopt or rewrite the journal.

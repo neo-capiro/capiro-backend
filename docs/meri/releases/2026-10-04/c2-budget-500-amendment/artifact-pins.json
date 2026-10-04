@@ -1,0 +1,67 @@
+[
+  {
+    "path": "result.json",
+    "bytes": 716,
+    "sha256": "f85d152945ea3a043ea52f0128aa267940b39a49e2819e5100ef3602de612813"
+  },
+  {
+    "path": "qualification.json",
+    "bytes": 416,
+    "sha256": "3fb05d8f12b85a8a5e4a4931c67d7305629191a8d6819ae35ca2826e5daa8e7d"
+  },
+  {
+    "path": "tests.log",
+    "bytes": 1200,
+    "sha256": "cddbad8959f9f971f1519607a17f163ad3a53189684fb63de2524ee9a781499d"
+  },
+  {
+    "path": "native-ack.json",
+    "bytes": 9346,
+    "sha256": "35566c1fd2da4a2ffd9133913a8099ae5a0d3883362e66dde30684e33359f9fb"
+  },
+  {
+    "path": "apply-intent.json",
+    "bytes": 388,
+    "sha256": "6285960c2f8c11de1be8f39cc20762497648275a3e9afdc069c61f2bfde04282"
+  },
+  {
+    "path": "tests/test_budget_amendment.py",
+    "bytes": 6003,
+    "sha256": "85c5abb7564459706281eaaff0656431d9ceebb54370d62fdc0e2e4c940fb4d5"
+  },
+  {
+    "path": "evidence/windows-capture-spend-bound.py",
+    "bytes": 54380,
+    "sha256": "51c010b299b010368ab0f32a081ed8ff1d0b6982fb436f1d8443644d7181d881"
+  },
+  {
+    "path": "evidence/windows-artifact-protocol.py",
+    "bytes": 6696,
+    "sha256": "3a30f6a211a5a7815c7f721dbb09871a33f316e7ecd8fbac0b4b1cf95ead33db"
+  },
+  {
+    "path": "evidence/windows-owned-artifacts.py",
+    "bytes": 8713,
+    "sha256": "2316daa96906c1bf166adbeb72341024581dac82aa1f692f2554eb1ae82a40c1"
+  },
+  {
+    "path": "evidence/journal30.readonly.jsonl",
+    "bytes": 21204,
+    "sha256": "91f3a7288d35972aab78310ed2feea2f089482ba48a95dd58bdf975d76c6be56"
+  },
+  {
+    "path": "benchmark-budget-user-approval-500-v1.json",
+    "bytes": 845,
+    "sha256": "be0b1ca012495ba58486af4c92bd14345b0600c046cff913bf6da2852bbb8a62"
+  },
+  {
+    "path": "benchmark-concurrency-tenant-authorization-v1.json",
+    "bytes": 996,
+    "sha256": "c78031ded680bf636d674dff71e93f360bfafaed1293ec0d4a38f29a2930c2af"
+  },
+  {
+    "path": "apply-budget-amendment-root-v1.py",
+    "bytes": 3360,
+    "sha256": "715e786b0bb878058657a4c2cde4dd6365dbbd8d1657dfa4660471781aaa3fd9"
+  }
+]

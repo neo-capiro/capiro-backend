@@ -1,0 +1,8 @@
+{
+  "at": "2026-10-04T21:17:46.332389+00:00",
+  "helperSha256": "51c010b299b010368ab0f32a081ed8ff1d0b6982fb436f1d8443644d7181d881",
+  "approvalSha256": "be0b1ca012495ba58486af4c92bd14345b0600c046cff913bf6da2852bbb8a62",
+  "journalBeforeSha256": "91f3a7288d35972aab78310ed2feea2f089482ba48a95dd58bdf975d76c6be56",
+  "operation": "fresh_amend_budget",
+  "noProviderAuthority": true
+}

@@ -1,0 +1,17 @@
+{
+  "kind": "meri-benchmark-concurrency-and-tenant-authorization",
+  "version": 1,
+  "recordedAt": "2026-10-04T21:14:23.152666+00:00",
+  "source": "User-provided continuation handover 2026-10-04, preserving quoted prior instructions",
+  "instructions": [
+    "ok yes increase it. for answer generating, change it to a cehaper model for this work. increase the budget and run multiple sessions and sessions at a time, we need to finish this but also maintain quality of work.",
+    "you can do it in capiro-internal teneant."
+  ],
+  "totalMaxCostMicros": 500000000,
+  "perCaseMaxCostMicros": 15000000,
+  "tenantSlug": "capiro-internal",
+  "proposedConcurrentLanes": 3,
+  "laneCountBasis": "Root operating choice, not a user-specified count",
+  "paidConcurrencyStatus": "PENDING_ATOMIC_RESERVATIONS_AND_BINDING_QUALIFICATION",
+  "history": "Original $500 approval concurrency one remains unchanged; this later authorization does not reset history or itself enable paid captures"
+}

@@ -1,0 +1,17 @@
+{
+  "status": "NATIVE_APPEND_AND_READBACK_PASS",
+  "at": "2026-10-04T21:17:46.365211+00:00",
+  "eventCount": 31,
+  "maxCostMicros": 500000000,
+  "perCaseMaxCostMicros": 15000000,
+  "committedCostMicros": 16202947,
+  "remainingReservationMicros": 483797053,
+  "journalBeforeSha256": "91f3a7288d35972aab78310ed2feea2f089482ba48a95dd58bdf975d76c6be56",
+  "journalAfterSha256": "610bb3291c49195bc12c1b44731ec8796a9c46a855928136fa2de8931c406f7f",
+  "originalHistoryBytesPreserved": 21204,
+  "authorizationUnchanged": true,
+  "nativeJournalIdentityPreserved": true,
+  "providerCalls": 0,
+  "paidConcurrency": 1,
+  "laterConcurrencyAuthorization": "../benchmark-concurrency-tenant-authorization-v1.json"
+}

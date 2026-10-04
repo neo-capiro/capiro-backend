@@ -1,0 +1,124 @@
+{
+  "kind": "C2 Case12 retrospective approval planner release qualification",
+  "recordedAt": "2026-10-04T21:12:00.626433+00:00",
+  "candidate": {
+    "sourceSha": "34e5c37ce1a0d421f008d32cef08dd05e0cc2d7a",
+    "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:fed13cd307cd5113849949a1e5c1eb0ef4ce6cbcf0b6bc27e19574d820a6aa96"
+  },
+  "status": "AUTOMATED_SOURCE_BUILD_COMPATIBILITY_PASS",
+  "reviewer": "Root continuation review, retaining Hermes conditional findings and verified root corrections",
+  "checks": {
+    "nativePlannerRelatedTests": 166,
+    "finalPluralSourceTests": 17,
+    "apiTypecheck": "PASS",
+    "immutablePackagedMarkers": 27
+  },
+  "schemaChange": false,
+  "retirementCompatibility": {
+    "status": "PASS",
+    "unchangedPaths": [
+      "apps/api/prisma",
+      "pnpm-lock.yaml",
+      "apps/api/Dockerfile",
+      "apps/api/package.json",
+      "apps/api/scripts/entrypoint.sh",
+      "packages/meriv2-core/src",
+      "packages/shared/src"
+    ],
+    "changedApiPaths": [
+      "apps/api/src/meri/meri-capture-api-provider-scope.spec.ts",
+      "apps/api/src/meri/meri-context-plane.service.ts",
+      "apps/api/src/meri/phase-19-meri-context-plane.contract.spec.ts"
+    ],
+    "reason": "Only retrospective approval planner and regression tests changed; packaged migration compatibility markers passed on exact candidate image."
+  },
+  "authorizationBasis": "User requested continued C2 closeout and explicitly authorized established CodeBuild backup shipping; inherited handover October 4, 2026. No newly claimed human review of answers or digest.",
+  "liveAcceptance": "NOT_RUN",
+  "c2Complete": false,
+  "artifactPins": [
+    {
+      "path": "build/build-readback.json",
+      "bytes": 4469,
+      "sha256": "a6bc46d891b867465618e1d273842c419b1de3f4e190ad1986d5ed1c201bea58"
+    },
+    {
+      "path": "build/build.log",
+      "bytes": 70662,
+      "sha256": "39bf049914d436c53d40cdf80a930a6fe9d315696594eaa6774c4afb485e5496"
+    },
+    {
+      "path": "build/buildspec.json",
+      "bytes": 19869,
+      "sha256": "896e7c44d2eb9a207771b230cbf27f60831b446a97a607db77017028cd72843c"
+    },
+    {
+      "path": "case12-planner-source-qualification-v1.json",
+      "bytes": 15056,
+      "sha256": "c0ac19ca1b5427e01116bb03cdc01a8bc1ce0bf8d128aa04c354ce86aaf36b51"
+    },
+    {
+      "path": "case12-planner-source-review-v1.json",
+      "bytes": 1523,
+      "sha256": "98cd532e20218adf110c3d0c6a15987ed7b075066f29a7ad304958d391bf6bc4"
+    },
+    {
+      "path": "case12-planner-candidate-v1.json",
+      "bytes": 511,
+      "sha256": "a78daac8aa79a80ec5758898d0542fbb67999280e327c8393f7261cbf9947b4a"
+    },
+    {
+      "path": "case12-planner-final-jest-v2.json",
+      "bytes": 73392,
+      "sha256": "67af75aef637b6fc6b1cbbac82f6392289d5217d43accf0a2cf805f174877bbe"
+    },
+    {
+      "path": "case12-planner-plural-regressions-v1.json",
+      "bytes": 7059,
+      "sha256": "4926ed1c524159185951cb294cfd4223546e7c9cfe0803b8875c1ca586f76d7e"
+    },
+    {
+      "path": "case12-planner-typecheck-v1.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "prepare-case12-planner-release-v1.mjs",
+      "bytes": 5148,
+      "sha256": "19ab5586dde70997a3cb221f69a427cb58fccb1e7d4c7b344c3fd86f36c1b696"
+    },
+    {
+      "path": "served-baseline.json",
+      "bytes": 4523,
+      "sha256": "2316655b9d41972f48bf605052795951ee64c91ba5c37024c78c73056a5f1dc8"
+    },
+    {
+      "path": "reviews/case12-routing-independent-diagnosis-v1-hermes.md",
+      "bytes": 7717,
+      "sha256": "e41cca7acb9ab9ba5ab8f3d279310f4ebfa31b2fee593b940aa46e5a14a7eae1"
+    },
+    {
+      "path": "reviews/case12-planner-final-review-v1-hermes.md",
+      "bytes": 2061,
+      "sha256": "b34be8006896c4819122db0b192187c2f5aea4e67b650a72757b5737c02c6380"
+    },
+    {
+      "path": "reviews/case12-planner-delta-review-v2-hermes.md",
+      "bytes": 1941,
+      "sha256": "dc38de9f1aa1bbee664d68cad00b74ee914e64ca7e2036cdbff6c3ad80f338a2"
+    }
+  ],
+  "sourcePinLineEndingJoins": [
+    {
+      "path": "apps/api/src/meri/meri-case12-native-setup-admission.spec.ts",
+      "localCheckpointSha256": "2317588bb2c82fffbeaef1252300da18e87af7923f3f362ce23fb5b657d92ef2",
+      "gitBlobBytesSha256": "0a4dda68e588daaf3e2bc8869e93b6bd3f4bf2b778adf37b42b493858abe8ac2",
+      "difference": "CRLF checkout versus LF Git blob only; exact normalized bytes verified"
+    },
+    {
+      "path": "apps/api/src/meri/meri-case12-native-setup-admission.ts",
+      "localCheckpointSha256": "fbebfba2ab0fdb0314542178f4576c6ef6962f28263c3a5cfa092fd56a3688db",
+      "gitBlobBytesSha256": "48a0e6349259289e36ba11399033e07a21e6533b38d3aacb80ca3919df63f830",
+      "difference": "CRLF checkout versus LF Git blob only; exact normalized bytes verified"
+    }
+  ]
+}

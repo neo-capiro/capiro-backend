@@ -1,0 +1,13 @@
+{
+  "at": "2026-10-04T20:46:30.261Z",
+  "status": "FAILED_CAPTURE_KNOWN_ZERO_COST_RECONCILED",
+  "captureRunId": "4a32f9ce-3caa-49f2-95ef-2a512c854468",
+  "proofSha256": "4702740c2f91a0ba4bd16bf845ce5d5db871d5972ef4ea8efcd5c0ba2d24475e",
+  "journalSha256": "91f3a7288d35972aab78310ed2feea2f089482ba48a95dd58bdf975d76c6be56",
+  "eventCount": 30,
+  "committedCostMicros": 16202947,
+  "remainingReservationMicros": 13797053,
+  "captureAuthority": false,
+  "liveAcceptance": "NOT_RUN",
+  "sessionRevoked": true
+}

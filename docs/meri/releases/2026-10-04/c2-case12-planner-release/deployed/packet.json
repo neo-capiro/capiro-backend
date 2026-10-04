@@ -1,0 +1,98 @@
+{
+  "preparedAt": "2026-10-04T21:14:08.948Z",
+  "evidenceCommit": "2786a3835bfdb0f6848fb6e49a77bda6ddb54b25",
+  "manifestSha256": "a4147ad597fcf06060818ab11e39d1ba66e7d1425eb79c7dff2d4b28be390727",
+  "candidate": {
+    "sourceSha": "34e5c37ce1a0d421f008d32cef08dd05e0cc2d7a",
+    "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:fed13cd307cd5113849949a1e5c1eb0ef4ce6cbcf0b6bc27e19574d820a6aa96"
+  },
+  "candidateTaskSha256": "6a360a7bc0add54bf0bc02f9c392c2578833d4d984b5e5a58822d95051ae8929",
+  "rollbackTaskSha256": "4c4686cf496fa3028e5ce639175c88b9c6746f6b7523d8881e81e79bebca36c7",
+  "baseline": {
+    "status": "CURRENT_SERVED_BASELINE_VERIFIED_READ_ONLY",
+    "observedAt": "2026-10-04T21:10:12.599Z",
+    "candidateSourceSha": "34e5c37ce1a0d421f008d32cef08dd05e0cc2d7a",
+    "candidateImage": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:fed13cd307cd5113849949a1e5c1eb0ef4ce6cbcf0b6bc27e19574d820a6aa96",
+    "services": [
+      {
+        "service": "api",
+        "baseline": {
+          "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:529",
+          "serviceHash": "bf02ce0ba77303f8524544844c332b1da012da508c02f268cc933b7ec5269feb",
+          "configHash": "973748a2b134b388a6027df6c5c099055a7e24f7b746eafbaae8cebad077258a",
+          "taskHash": "4c4686cf496fa3028e5ce639175c88b9c6746f6b7523d8881e81e79bebca36c7",
+          "imageDigest": "sha256:ef27f66af273ded53ce0a8d7b0a941ad51e415a50e70a3a0293cce59e2c3381e",
+          "desiredCount": 2
+        },
+        "sourceSha": "478a1826afc7e4d599c66bfe5fb7a9759b0a4582",
+        "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:ef27f66af273ded53ce0a8d7b0a941ad51e415a50e70a3a0293cce59e2c3381e",
+        "health": "ALL_RUNNING_TASKS_AND_ALB_TARGETS_VERIFIED"
+      },
+      {
+        "service": "meriv2-orchestrator",
+        "baseline": {
+          "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:123",
+          "serviceHash": "1044f596b80ce117936828cd332ff0ab8005a774d6df17bf96a39f334013fabe",
+          "configHash": "3a4fabd2139e347cd8b45192579f2a3fbaaa6fc3678762b5252f727a4461951b",
+          "taskHash": "b97c3f9a891cea7412d0ade96eae537bd2433a8d8e6adb782d953d7829934242",
+          "imageDigest": "sha256:33ecf4fcaf2f691999d14d410b5f43539c13070d44a1135d148c68f41eda3369",
+          "desiredCount": 1
+        },
+        "sourceSha": "e60f37189f8c9b68ab7d5ef66e515ed3be4ec3c1",
+        "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:33ecf4fcaf2f691999d14d410b5f43539c13070d44a1135d148c68f41eda3369",
+        "health": "ALL_RUNNING_TASKS_AND_ALB_TARGETS_VERIFIED"
+      },
+      {
+        "service": "web-vnext",
+        "baseline": {
+          "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web-vnext:390",
+          "serviceHash": "3493c2e6107a77aab2653bc923119b3300e4899310e11b81e1c3be351240254c",
+          "configHash": "453a3d5aedc3da7d989370b97669abf0c1b14efbacd2d1597990b9cac7d50ab7",
+          "taskHash": "2ffa123e80c546c0bb03083e2aadb39b8118377efbf6de0b685f758c3abfb3c4",
+          "imageDigest": "sha256:fb594dabc437723fa6a28a7a6adcd54b13f813fcc52130f8458692aac2e9c8c6",
+          "desiredCount": 1
+        },
+        "sourceSha": "c0f393f863bf73bd4e65e7a94e17c073e7be021e",
+        "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:fb594dabc437723fa6a28a7a6adcd54b13f813fcc52130f8458692aac2e9c8c6",
+        "health": "ALL_RUNNING_TASKS_AND_ALB_TARGETS_VERIFIED"
+      }
+    ],
+    "oldApiTaskArns": [
+      "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/03612d9d2a2649f9b73414944acf80be",
+      "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/e5e8fd3dfa7b4b4bab812fbf7ab198fe"
+    ],
+    "retainedNightly": {
+      "rule": "capiro-dev-refresh-memory-graph",
+      "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api-migrate:136",
+      "ruleSha256": "4a9376120b272c60388f6986a7a20aa00bfa78a8feb3b44a3a804fd93c617947",
+      "targetSha256": "e5b98fe865035a7dfa2add1472df1617101714e08f65232fd232c606c4f2475a",
+      "taskInputSha256": "0b362cc5b50895bcc69d70536e2496b848c0ee7bc805d9d17c1c6f85261263a5"
+    },
+    "broadProjectionWorker": {
+      "state": "DISABLED",
+      "ruleSha256": "c1d73bb8c90de13f50b6849a3e1e35d8556a1ead89f0858757b42d907975cbc4"
+    },
+    "retirementCompatibility": {
+      "status": "PASS",
+      "unchangedPaths": [
+        "apps/api/prisma",
+        "pnpm-lock.yaml",
+        "apps/api/Dockerfile",
+        "apps/api/package.json",
+        "apps/api/scripts/entrypoint.sh",
+        "packages/meriv2-core/src",
+        "packages/shared/src"
+      ],
+      "changedApiPaths": [
+        "apps/api/src/meri/meri-capture-api-provider-scope.spec.ts",
+        "apps/api/src/meri/meri-context-plane.service.ts",
+        "apps/api/src/meri/phase-19-meri-context-plane.contract.spec.ts"
+      ],
+      "reason": "Only retrospective approval planner and regression tests changed; packaged migration compatibility markers passed on exact candidate image."
+    },
+    "journalSha256": "91f3a7288d35972aab78310ed2feea2f089482ba48a95dd58bdf975d76c6be56",
+    "providerCalls": 0,
+    "awsWrites": 0
+  },
+  "authorizationBasis": "User requested continued C2 closeout and explicitly authorized established CodeBuild backup shipping; inherited handover October 4, 2026. No newly claimed human review of answers or digest."
+}

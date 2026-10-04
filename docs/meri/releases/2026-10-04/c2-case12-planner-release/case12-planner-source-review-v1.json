@@ -1,0 +1,37 @@
+{
+  "caseId": "12",
+  "sourceSha": "34e5c37ce1a0d421f008d32cef08dd05e0cc2d7a",
+  "status": "PASS_SOURCE_ONLY",
+  "sourceCheckpointSha256": "c0ac19ca1b5427e01116bb03cdc01a8bc1ce0bf8d128aa04c354ce86aaf36b51",
+  "reviewer": "Root final review of parallel Hermes implementation and independent findings",
+  "independentReviews": [
+    {
+      "path": "case12-routing-independent-diagnosis-v1-hermes/REVIEW.md",
+      "sha256": "e41cca7acb9ab9ba5ab8f3d279310f4ebfa31b2fee593b940aa46e5a14a7eae1"
+    },
+    {
+      "path": "case12-planner-final-review-v1-hermes/REVIEW.md",
+      "sha256": "b34be8006896c4819122db0b192187c2f5aea4e67b650a72757b5737c02c6380"
+    },
+    {
+      "path": "case12-planner-delta-review-v2-hermes/REVIEW.md",
+      "sha256": "dc38de9f1aa1bbee664d68cad00b74ee914e64ca7e2036cdbff6c3ad80f338a2"
+    }
+  ],
+  "findings": [
+    {
+      "issue": "Initial candidate did not extract retrospective subject",
+      "disposition": "Corrected; native original-prompt regression passes"
+    },
+    {
+      "issue": "Source-specific proposal/contract/report/transcript/call requests could select memory-only",
+      "disposition": "Corrected exclusion and seven native planner negatives pass"
+    },
+    {
+      "issue": "Plural inbox/calendar qualifiers were missed",
+      "disposition": "Corrected both forms and native negatives; final17-test scope suite passes"
+    }
+  ],
+  "preserved": "Unchanged capture guard, authorization, provider config, original failed run and journal",
+  "liveAcceptance": "NOT_RUN"
+}

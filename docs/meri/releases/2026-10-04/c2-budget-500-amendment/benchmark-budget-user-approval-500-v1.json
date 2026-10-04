@@ -1,0 +1,13 @@
+{
+  "kind": "meri-benchmark-budget-human-amendment",
+  "version": 1,
+  "recordedAt": "2026-10-04T20:52:26.304297+00:00",
+  "userInstruction": "$500 total",
+  "questionAnswered": "What should the new total provider-spend cap be for the closeout benchmark, including the $16.20 already committed? I\u2019ll retain the current $15-per-case limit unless you specify otherwise.",
+  "previousMaxCostMicros": 30000000,
+  "newMaxCostMicros": 500000000,
+  "perCaseMaxCostMicros": 15000000,
+  "concurrency": 1,
+  "scope": "Existing closeout benchmark provider usage; excludes coding agents, hosting and builds",
+  "historyDisposition": "Preserve original authorization file, full original journal and all costs, failed captures, approvals and consumed claims. This changes only aggregate cap; no replay or successful-acceptance authority."
+}

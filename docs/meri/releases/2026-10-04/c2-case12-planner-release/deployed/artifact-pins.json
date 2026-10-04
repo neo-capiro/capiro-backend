@@ -1,0 +1,42 @@
+[
+  {
+    "path": "qualification.json",
+    "bytes": 2276,
+    "sha256": "51149fea0763b3bf86768ac9b287d72272a3c18bda3d1093b2362b2880c17a99"
+  },
+  {
+    "path": "manifest.json",
+    "bytes": 3032,
+    "sha256": "b38bffbc353cade5b04a6f06010a7097520ff3d5517314bbbcc4f38335cb2277"
+  },
+  {
+    "path": "packet.json",
+    "bytes": 5539,
+    "sha256": "c5ea7a37413a2efa9ace8baf082381e9db8ecd8f4d82678acd1d1857ad9c191f"
+  },
+  {
+    "path": "authorization.json",
+    "bytes": 481,
+    "sha256": "b7cc3b5971989ddd407ea1b36069923b37e86d92889ce78a3547b6138298e070"
+  },
+  {
+    "path": "receipt.json",
+    "bytes": 1034,
+    "sha256": "7d6c64d28a6f3d83ee3ea43a7b746c0fb95f9e2654d7289f90b1ae3a066e03b2"
+  },
+  {
+    "path": "served-readback.json",
+    "bytes": 4728,
+    "sha256": "fc7cd7461c23791cd20f73c5e2afa02bf6d9543b27a29ea59281e404b095b9b8"
+  },
+  {
+    "path": "promote-case12-planner-v1.mjs",
+    "bytes": 5640,
+    "sha256": "907c5291752d7dfa942d19c208d50c53c526984a9f76e919abd7d5934c3d2f39"
+  },
+  {
+    "path": "verify-case12-planner-served-v1.mjs",
+    "bytes": 6784,
+    "sha256": "3d6cc946d9447fe156f28cdd4b494b1fd7dcb0792954fe0a4804fde190bfae58"
+  }
+]

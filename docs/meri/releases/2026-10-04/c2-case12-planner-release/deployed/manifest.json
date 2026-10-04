@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "account": "967807252336",
+  "region": "us-east-1",
+  "cluster": "capiro-dev",
+  "service": "api",
+  "preparedAt": "2026-10-04T21:14:03.365Z",
+  "qualification": {
+    "schemaVersion": 1,
+    "service": "api",
+    "sourceSha": "34e5c37ce1a0d421f008d32cef08dd05e0cc2d7a",
+    "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:fed13cd307cd5113849949a1e5c1eb0ef4ce6cbcf0b6bc27e19574d820a6aa96",
+    "status": "qualified",
+    "reviewer": "Root continuation review, retaining Hermes conditional findings and verified root corrections",
+    "reviewedAt": "2026-10-04T21:13:53.823Z",
+    "expiresAt": "2026-10-04T22:13:53.824Z",
+    "schemaChange": false,
+    "evidence": [
+      "https://github.com/neo-capiro/capirov2/blob/2786a3835bfdb0f6848fb6e49a77bda6ddb54b25/docs/meri/releases/2026-10-04/c2-case12-planner-release/release-qualification.json",
+      "https://github.com/neo-capiro/capirov2/blob/2786a3835bfdb0f6848fb6e49a77bda6ddb54b25/docs/meri/releases/2026-10-04/c2-case12-planner-release/served-baseline.json"
+    ],
+    "checks": [
+      {
+        "name": "build",
+        "status": "passed",
+        "sourceSha": "34e5c37ce1a0d421f008d32cef08dd05e0cc2d7a",
+        "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:fed13cd307cd5113849949a1e5c1eb0ef4ce6cbcf0b6bc27e19574d820a6aa96",
+        "url": "https://github.com/neo-capiro/capirov2/blob/2786a3835bfdb0f6848fb6e49a77bda6ddb54b25/docs/meri/releases/2026-10-04/c2-case12-planner-release/build/build-readback.json"
+      },
+      {
+        "name": "automated-tests",
+        "status": "passed",
+        "sourceSha": "34e5c37ce1a0d421f008d32cef08dd05e0cc2d7a",
+        "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:fed13cd307cd5113849949a1e5c1eb0ef4ce6cbcf0b6bc27e19574d820a6aa96",
+        "url": "https://github.com/neo-capiro/capirov2/blob/2786a3835bfdb0f6848fb6e49a77bda6ddb54b25/docs/meri/releases/2026-10-04/c2-case12-planner-release/release-qualification.json"
+      },
+      {
+        "name": "retirement-compatibility",
+        "status": "passed",
+        "sourceSha": "34e5c37ce1a0d421f008d32cef08dd05e0cc2d7a",
+        "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:fed13cd307cd5113849949a1e5c1eb0ef4ce6cbcf0b6bc27e19574d820a6aa96",
+        "url": "https://github.com/neo-capiro/capirov2/blob/2786a3835bfdb0f6848fb6e49a77bda6ddb54b25/docs/meri/releases/2026-10-04/c2-case12-planner-release/served-baseline.json"
+      }
+    ]
+  },
+  "baseline": {
+    "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:529",
+    "serviceHash": "bf02ce0ba77303f8524544844c332b1da012da508c02f268cc933b7ec5269feb",
+    "configHash": "973748a2b134b388a6027df6c5c099055a7e24f7b746eafbaae8cebad077258a",
+    "taskHash": "4c4686cf496fa3028e5ce639175c88b9c6746f6b7523d8881e81e79bebca36c7",
+    "imageDigest": "sha256:ef27f66af273ded53ce0a8d7b0a941ad51e415a50e70a3a0293cce59e2c3381e",
+    "desiredCount": 2
+  }
+}

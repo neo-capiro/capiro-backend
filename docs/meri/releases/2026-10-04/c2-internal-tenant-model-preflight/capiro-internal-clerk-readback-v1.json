@@ -1,0 +1,19 @@
+{
+  "at": "2026-10-04T21:15:18.259Z",
+  "status": "CLERK_ORG_READBACK_ONLY",
+  "tenantSlug": "capiro-internal",
+  "clerkOrgId": "org_3DB7EKoeKfF8ZLu6cW4d9Vn6CT0",
+  "tenantId": "17b63099-bc0f-4ac5-b596-496161e9481e",
+  "memberCount": 6,
+  "matchingActors": [
+    {
+      "clerkUserId": "user_3DB9UHz60mRgIUOq5A9fwWqMToF",
+      "role": "org:admin",
+      "firstName": "Neo",
+      "lastName": "Martinez"
+    }
+  ],
+  "apiTenantIdentity": "PENDING_API_ME_VERIFICATION",
+  "mutations": 0,
+  "providerCalls": 0
+}
