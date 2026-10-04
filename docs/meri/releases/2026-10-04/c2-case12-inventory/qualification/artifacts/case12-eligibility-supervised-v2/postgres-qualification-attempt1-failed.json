@@ -1,0 +1,41 @@
+{
+  "kind": "case12-owned-postgresql-current-eligibility-qualification",
+  "providerCalls": 0,
+  "cloudCalls": 0,
+  "semanticClockQualified": false,
+  "fullApplicationSchemaQualified": false,
+  "productionRlsQualified": false,
+  "semanticVectorBranchRun": false,
+  "originalModelPromptRun": false,
+  "humanRubricRun": false,
+  "captureAuthority": false,
+  "liveAcceptance": "NOT_RUN",
+  "checks": [
+    "native services create 510 approved owners with actual durable outbox and inert projection sink",
+    "actual canonical inventory guards and current SQL/postfilter qualify target plus 509 newer eligible rows",
+    "actual source and proposed adapters return MA510 full passage before safety cap without embedding calls",
+    "actual SQL/postfilter and both adapters exclude target with future effective time",
+    "actual SQL/postfilter and both adapters exclude target with expired record",
+    "actual SQL/postfilter and both adapters exclude target with elapsed valid-until",
+    "actual SQL/postfilter and both adapters exclude target with restricted sensitivity",
+    "actual SQL/postfilter and both adapters exclude target with missing approval",
+    "actual SQL/postfilter and both adapters exclude target with revoked governance",
+    "actual SQL/postfilter and both adapters exclude target with legacy inactive status",
+    "actual SQL/postfilter and both adapters exclude target with foreign client",
+    "500 eligible newer rows count, then 499 fail the threshold from actual current predicate",
+    "age comparison is database precise: tied timestamps do not count; one microsecond newer does",
+    "actual current ethical wall denies the ungranted actor",
+    "composed owner rejects foreign reader scope",
+    "composed owner rejects changed current version",
+    "composed owner rejects duplicate row",
+    "composed owner rejects missing target",
+    "composed owner rejects only 499 newer eligible rows",
+    "malformed and foreign ordinary identities are rejected before qualification"
+  ],
+  "canonicalCounts": {
+    "candidates": 510,
+    "outbox": 510,
+    "approvals": 510
+  },
+  "rollbackSchemaAbsent": true
+}

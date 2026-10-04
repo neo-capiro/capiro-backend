@@ -1,0 +1,24 @@
+(node:43532) [DEP0180] DeprecationWarning: fs.Stats constructor is deprecated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+✖ actual canonical approval commits, then inventory and shared eligibility in an owned repeatable-read snapshot (2450.3058ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2603.2614
+
+✖ failing tests:
+
+test at ..\outputs\meri-c2-20261003\case12-eligibility-supervised-v2\scratch\evals\meri\live-v1\tests\case12-eligibility.postgres.test.mjs:20:1
+✖ actual canonical approval commits, then inventory and shared eligibility in an owned repeatable-read snapshot (2450.3058ms)
+  Error: Invalid owned schema
+      at memoryFixtureSchemaSql (file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/approved-memory-schema.mjs:3:59)
+      at file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/approved-memory-postgres-independent-harness.mjs:46:30
+      at async Proxy._transactionWithCallback (C:\dev\main\meri-c1-20261002\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:130:8000)
+      at async withOwnedApprovedMemory (file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/approved-memory-postgres-independent-harness.mjs:42:5)
+      at async TestContext.<anonymous> (file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/case12-eligibility.postgres.test.mjs:21:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)

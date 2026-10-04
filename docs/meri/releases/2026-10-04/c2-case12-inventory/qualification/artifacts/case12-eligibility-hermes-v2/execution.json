@@ -1,0 +1,45 @@
+{
+  "startedAt": "2026-10-04T08:53:51.780547+00:00",
+  "finishedAt": "2026-10-04T08:57:23.372451+00:00",
+  "exitCode": 0,
+  "failure": null,
+  "modelOverride": null,
+  "providerOverride": null,
+  "files": [
+    {
+      "path": "IMPLEMENTATION.md",
+      "bytes": 3191,
+      "sha256": "40e06a0521c18393474e32190fe6a50d18c27ddd5d038c054537c2194f5d8598"
+    },
+    {
+      "path": "prompt.txt",
+      "bytes": 4127,
+      "sha256": "510b460fc24c6c04b9811d0803f2aa88609e68f85ae9123bbc745d904e7b8925"
+    },
+    {
+      "path": "response.txt",
+      "bytes": 1117,
+      "sha256": "7dfe54771c1adefbc45e518337a1f4396734a3243048de8eebfb7e785f94d94b"
+    },
+    {
+      "path": "stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "usage.json",
+      "bytes": 476,
+      "sha256": "1946ad63ec3e9d7af67a08171eca5837373cf5e00cf81b13419bf8bc7c9a8c01"
+    },
+    {
+      "path": "candidate\\apps\\api\\src\\retrieval\\adapters\\governed-memory-eligibility.helpers.spec.ts",
+      "bytes": 5200,
+      "sha256": "ed95dba0e3e71cd8cbabcb56b1ce1ffd21c6e116e629f56c8bf38b11df503c80"
+    },
+    {
+      "path": "candidate\\apps\\api\\src\\retrieval\\adapters\\governed-memory-eligibility.helpers.ts",
+      "bytes": 2978,
+      "sha256": "3056dc2df5b4fab0cb8e95168f28cb00b55ec11c3755ee07c3b9e0b085330b6c"
+    }
+  ]
+}

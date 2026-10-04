@@ -1,0 +1,1879 @@
+{
+  "kind": "case12-final-source-and-local-qualification-independent-review",
+  "at": "2026-10-04T09:24:20.685Z",
+  "status": "PASS_SOURCE_AND_LOCAL_QUALIFICATION_ONLY",
+  "findings": [],
+  "scope": "Independent file/hash/source review plus actual configured Hermes frozen-source review. Reviewer performed no cloud, database, deployment, provider benchmark, repository, fixture or journal mutations. Test execution belongs to supervisor/root receipts; reviewer did not rerun PostgreSQL.",
+  "evidence": {
+    "manifest": {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-final-source-hermes-v1/evidence/manifest.json",
+      "bytes": 8122,
+      "sha256": "45b511c30113d46bbf5ad4a42304c2f0feb673dd17333cf3f0f2b7477166aa50"
+    },
+    "checkpoint": {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/checkpoint.json",
+      "bytes": 20510,
+      "sha256": "5ea8a2ff5fed0ccc5204c1b88be85741b16bae084ef5985ad842268fd2f9f1f2"
+    },
+    "rootQualification": {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-root-qualification-v1/qualification.json",
+      "bytes": 4554,
+      "sha256": "f44755a002e3d9639f8f9dc77c42202a076cf6fbb7b7f1d513c83a4dc20a01be"
+    },
+    "repositoryAstComparison": {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-final-source-repo-comparison-v1/comparison.json",
+      "bytes": 4627,
+      "sha256": "af1359131f9a8f899dcdc13aed26e709e923d0b470d3973075385a4c1e015ba3"
+    },
+    "hermesReview": {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-final-source-hermes-v1/review.md",
+      "sha256": "aa074121e511a1c5827e9ba77b20fdca63e42c3e8530d91ddc84e97e0c56d84b"
+    },
+    "hermesExecution": {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-final-source-hermes-v1/execution.json",
+      "sha256": "fb39373432c8eaa900731d792ad4797b6e06815627330285f77fb8b10642de6c",
+      "exitCode": 0,
+      "startedAt": "2026-10-04T09:15:56.805166+00:00",
+      "finishedAt": "2026-10-04T09:17:44.401888+00:00",
+      "model": "openai/gpt-6-luna",
+      "provider": "openrouter",
+      "sessionId": "20261004_051602_29ba5c",
+      "estimatedCostUsd": 0.013734725
+    },
+    "journal": {
+      "path": "C:/dev/main/outputs/meri-fresh-20261003/fresh-spend.jsonl",
+      "bytes": 17588,
+      "sha256": "816b04a47be56432846d1ee602370c3bea985eb497a7de9e899aee4d53f8b39e"
+    }
+  },
+  "counts": {
+    "frozenFiles": 20,
+    "stableCandidateFiles": 5,
+    "formattedRepositoryFiles": 7,
+    "packagePrimaryPins": 54,
+    "retainedDiagnosticPins": 15,
+    "compiledCorePins": 148,
+    "postgresTests": 24,
+    "postgresSubchecks": 23,
+    "supervisedJestTests": 71,
+    "integratedApiJestTests": 73,
+    "integratedOwnerTests": 36,
+    "overlayTypeScriptFiles": 6556,
+    "checkCount": 447
+  },
+  "sourceConclusions": [
+    "SQL and JavaScript eligibility extraction preserves the original predicates, parameter binding, ranking, pagination, projection and provider behavior. Raw draft placeholder and clock-test defects were corrected only in the supervised copy.",
+    "Private reader uses the shared SQL predicate and actual JavaScript filter against exact tenant/client/inventory IDs, with real snapshot, transaction/statement timestamps and process observation window. It does not substitute a benchmark semantic clock.",
+    "Private owner joins current SQL row/version/source/hash to each native canonical owner, rejects duplicate/foreign/missing/changed observations, requires MA510 and500 distinct strictly newer eligible rows, and retains false fixture/capture and NOT_RUN acceptance flags.",
+    "AST equivalence joins all7 final formatted repository files to frozen reviewed candidates/dependencies. Current raw repository hashes match the canonical root test receipt.",
+    "Owned PostgreSQL harness validates loopback target and data directory, random schema absence/owner/marker before exact DROP CASCADE, verifies schema absence and local cluster shutdown. Actual native service transactions commit within the disposable schema; inspection runs RepeatableRead. Projection sink is inert and provider/graph test ports throw if invoked."
+  ],
+  "clarifications": [
+    "Correction to earlier raw review suggestion: with four-eyes disabled, existing core retrieval requires approvedBy but not approvedAt. Both original/proposed real adapters retain missing-approvedAt rows; native canonical owner rejects the altered approval timestamp. Production semantics were intentionally preserved.",
+    "Hermes observation-null wording applies when the SQL result is empty. When SQL rows exist but all fail the JavaScript filter, observation metadata can remain while eligible observations are empty; owner still rejects the missing target/500-row threshold.",
+    "Hermes rollback-only shorthand is superseded by the actual v5 receipt: service transactions commit solely inside an owned random local schema and that exact schema is removed after qualification. No live seed receipt is created.",
+    "Hermes review ran before final test receipts; its original static-only conclusion is preserved. This independent assessment joins the later completed receipts without rewriting Hermes output. Hermes development/review provider usage is separate from unchanged application benchmark journal."
+  ],
+  "limits": [
+    "Reduced disposable schema only; production RLS, full migrations and application DI unqualified.",
+    "Lookup branch parity and precise eligibility were tested; semantic vector/provider/model branch, original benchmark prompt, UI evidence and human rubric were not run.",
+    "Current live discovery found zero visible matching exact synthetic MA510 keys only; no general corpus-absence or original-inventory claim follows.",
+    "No live seed, semantic-clock/source/provider/aggregate capture admission, capture authority or Case12/C2 acceptance promotion. fixtureReady=false; captureAuthority=false; liveAcceptance=NOT_RUN.",
+    "6634 SQL calls and approximately2.54seconds for local native inventory inspection do not prove a remote deadline.",
+    "All failed/invalid attempts and raw Hermes incomplete draft remain preserved."
+  ],
+  "fixtureReady": false,
+  "captureAuthority": false,
+  "case12Complete": false,
+  "liveAcceptance": "NOT_RUN",
+  "checks": [
+    {
+      "name": "SHA256 C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-final-source-hermes-v1/evidence/manifest.json",
+      "passed": true
+    },
+    {
+      "name": "SHA256 frozen candidate/apps/api/src/retrieval/adapters/governed-memory-eligibility.helpers.ts",
+      "passed": true
+    },
+    {
+      "name": "bytes frozen candidate/apps/api/src/retrieval/adapters/governed-memory-eligibility.helpers.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 scratch candidate candidate/apps/api/src/retrieval/adapters/governed-memory-eligibility.helpers.ts",
+      "passed": true
+    },
+    {
+      "name": "bytes scratch candidate candidate/apps/api/src/retrieval/adapters/governed-memory-eligibility.helpers.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 frozen candidate/apps/api/src/retrieval/adapters/governed-memory-eligibility.helpers.spec.ts",
+      "passed": true
+    },
+    {
+      "name": "bytes frozen candidate/apps/api/src/retrieval/adapters/governed-memory-eligibility.helpers.spec.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 scratch candidate candidate/apps/api/src/retrieval/adapters/governed-memory-eligibility.helpers.spec.ts",
+      "passed": true
+    },
+    {
+      "name": "bytes scratch candidate candidate/apps/api/src/retrieval/adapters/governed-memory-eligibility.helpers.spec.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 frozen candidate/apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.ts",
+      "passed": true
+    },
+    {
+      "name": "bytes frozen candidate/apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 scratch candidate candidate/apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.ts",
+      "passed": true
+    },
+    {
+      "name": "bytes scratch candidate candidate/apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 frozen candidate/apps/api/src/retrieval/adapters/case12-memory-eligibility.read.ts",
+      "passed": true
+    },
+    {
+      "name": "bytes frozen candidate/apps/api/src/retrieval/adapters/case12-memory-eligibility.read.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 scratch candidate candidate/apps/api/src/retrieval/adapters/case12-memory-eligibility.read.ts",
+      "passed": true
+    },
+    {
+      "name": "bytes scratch candidate candidate/apps/api/src/retrieval/adapters/case12-memory-eligibility.read.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 frozen candidate/evals/meri/live-v1/fixture-provisioning/case12-memory-eligibility-owner.mjs",
+      "passed": true
+    },
+    {
+      "name": "bytes frozen candidate/evals/meri/live-v1/fixture-provisioning/case12-memory-eligibility-owner.mjs",
+      "passed": true
+    },
+    {
+      "name": "SHA256 scratch candidate candidate/evals/meri/live-v1/fixture-provisioning/case12-memory-eligibility-owner.mjs",
+      "passed": true
+    },
+    {
+      "name": "bytes scratch candidate candidate/evals/meri/live-v1/fixture-provisioning/case12-memory-eligibility-owner.mjs",
+      "passed": true
+    },
+    {
+      "name": "SHA256 frozen support/source/evals/meri/live-v1/fixture-provisioning/case12-memory-inventory-owner.mjs",
+      "passed": true
+    },
+    {
+      "name": "bytes frozen support/source/evals/meri/live-v1/fixture-provisioning/case12-memory-inventory-owner.mjs",
+      "passed": true
+    },
+    {
+      "name": "SHA256 frozen support/source/evals/meri/live-v1/fixture-provisioning/approved-memory-runtime.mjs",
+      "passed": true
+    },
+    {
+      "name": "bytes frozen support/source/evals/meri/live-v1/fixture-provisioning/approved-memory-runtime.mjs",
+      "passed": true
+    },
+    {
+      "name": "SHA256 frozen support/source/evals/meri/live-v1/fixture-provisioning/memory-candidate-owner.mjs",
+      "passed": true
+    },
+    {
+      "name": "bytes frozen support/source/evals/meri/live-v1/fixture-provisioning/memory-candidate-owner.mjs",
+      "passed": true
+    },
+    {
+      "name": "SHA256 frozen support/source/evals/meri/live-v1/fixture-provisioning/manifest.mjs",
+      "passed": true
+    },
+    {
+      "name": "bytes frozen support/source/evals/meri/live-v1/fixture-provisioning/manifest.mjs",
+      "passed": true
+    },
+    {
+      "name": "SHA256 frozen support/source/evals/meri/live-v1/lib/stable.mjs",
+      "passed": true
+    },
+    {
+      "name": "bytes frozen support/source/evals/meri/live-v1/lib/stable.mjs",
+      "passed": true
+    },
+    {
+      "name": "SHA256 frozen support/source/apps/api/src/memory/memory-wall.helpers.ts",
+      "passed": true
+    },
+    {
+      "name": "bytes frozen support/source/apps/api/src/memory/memory-wall.helpers.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 frozen support/source/apps/api/src/memory/synthetic-approved-memory.helpers.ts",
+      "passed": true
+    },
+    {
+      "name": "bytes frozen support/source/apps/api/src/memory/synthetic-approved-memory.helpers.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 frozen support/source/apps/api/src/memory/memory-authorization.service.ts",
+      "passed": true
+    },
+    {
+      "name": "bytes frozen support/source/apps/api/src/memory/memory-authorization.service.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 frozen baseline/apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.ts",
+      "passed": true
+    },
+    {
+      "name": "bytes frozen baseline/apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 frozen baseline/apps/api/src/memory/memory-recall-suppression.helpers.ts",
+      "passed": true
+    },
+    {
+      "name": "bytes frozen baseline/apps/api/src/memory/memory-recall-suppression.helpers.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 frozen baseline/packages/meriv2-core/src/memory/governance.ts",
+      "passed": true
+    },
+    {
+      "name": "bytes frozen baseline/packages/meriv2-core/src/memory/governance.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 frozen baseline/apps/api/src/retrieval/retrieval-v2.types.ts",
+      "passed": true
+    },
+    {
+      "name": "bytes frozen baseline/apps/api/src/retrieval/retrieval-v2.types.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 frozen support/case12-inventory-owner-independent-review-v1-independent-assessment.json",
+      "passed": true
+    },
+    {
+      "name": "bytes frozen support/case12-inventory-owner-independent-review-v1-independent-assessment.json",
+      "passed": true
+    },
+    {
+      "name": "SHA256 frozen support/case12-eligibility-raw-independent-review-v1-independent-assessment.json",
+      "passed": true
+    },
+    {
+      "name": "bytes frozen support/case12-eligibility-raw-independent-review-v1-independent-assessment.json",
+      "passed": true
+    },
+    {
+      "name": "SHA256 frozen support/case12-eligibility-supervised-v2-helper-tests-v3.log",
+      "passed": true
+    },
+    {
+      "name": "bytes frozen support/case12-eligibility-supervised-v2-helper-tests-v3.log",
+      "passed": true
+    },
+    {
+      "name": "SHA256 C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-final-source-repo-comparison-v1/comparison.json",
+      "passed": true
+    },
+    {
+      "name": "seven formatted repository AST comparisons passed",
+      "passed": true
+    },
+    {
+      "name": "SHA256 current repository apps/api/src/retrieval/adapters/governed-memory-eligibility.helpers.ts",
+      "passed": true
+    },
+    {
+      "name": "bytes current repository apps/api/src/retrieval/adapters/governed-memory-eligibility.helpers.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 AST frozen apps/api/src/retrieval/adapters/governed-memory-eligibility.helpers.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 current repository apps/api/src/retrieval/adapters/governed-memory-eligibility.helpers.spec.ts",
+      "passed": true
+    },
+    {
+      "name": "bytes current repository apps/api/src/retrieval/adapters/governed-memory-eligibility.helpers.spec.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 AST frozen apps/api/src/retrieval/adapters/governed-memory-eligibility.helpers.spec.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 current repository apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.ts",
+      "passed": true
+    },
+    {
+      "name": "bytes current repository apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 AST frozen apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 current repository apps/api/src/retrieval/adapters/case12-memory-eligibility.read.ts",
+      "passed": true
+    },
+    {
+      "name": "bytes current repository apps/api/src/retrieval/adapters/case12-memory-eligibility.read.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 AST frozen apps/api/src/retrieval/adapters/case12-memory-eligibility.read.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 current repository evals/meri/live-v1/fixture-provisioning/case12-memory-eligibility-owner.mjs",
+      "passed": true
+    },
+    {
+      "name": "bytes current repository evals/meri/live-v1/fixture-provisioning/case12-memory-eligibility-owner.mjs",
+      "passed": true
+    },
+    {
+      "name": "SHA256 AST frozen evals/meri/live-v1/fixture-provisioning/case12-memory-eligibility-owner.mjs",
+      "passed": true
+    },
+    {
+      "name": "SHA256 current repository evals/meri/live-v1/fixture-provisioning/case12-memory-inventory-owner.mjs",
+      "passed": true
+    },
+    {
+      "name": "bytes current repository evals/meri/live-v1/fixture-provisioning/case12-memory-inventory-owner.mjs",
+      "passed": true
+    },
+    {
+      "name": "SHA256 AST frozen evals/meri/live-v1/fixture-provisioning/case12-memory-inventory-owner.mjs",
+      "passed": true
+    },
+    {
+      "name": "SHA256 current repository evals/meri/live-v1/tests/case12-memory-inventory-owner.test.mjs",
+      "passed": true
+    },
+    {
+      "name": "bytes current repository evals/meri/live-v1/tests/case12-memory-inventory-owner.test.mjs",
+      "passed": true
+    },
+    {
+      "name": "SHA256 AST frozen evals/meri/live-v1/tests/case12-memory-inventory-owner.test.mjs",
+      "passed": true
+    },
+    {
+      "name": "SHA256 C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/checkpoint.json",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package governed-memory-eligibility.helpers.ts",
+      "passed": true
+    },
+    {
+      "name": "bytes package governed-memory-eligibility.helpers.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package governed-memory-eligibility.helpers.spec.ts",
+      "passed": true
+    },
+    {
+      "name": "bytes package governed-memory-eligibility.helpers.spec.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package institutional-knowledge-retrieval.adapter.ts",
+      "passed": true
+    },
+    {
+      "name": "bytes package institutional-knowledge-retrieval.adapter.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package case12-memory-eligibility.read.ts",
+      "passed": true
+    },
+    {
+      "name": "bytes package case12-memory-eligibility.read.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package case12-memory-eligibility-owner.mjs",
+      "passed": true
+    },
+    {
+      "name": "bytes package case12-memory-eligibility-owner.mjs",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package README.md",
+      "passed": true
+    },
+    {
+      "name": "bytes package README.md",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package proposed.patch",
+      "passed": true
+    },
+    {
+      "name": "bytes package proposed.patch",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package run-owned-postgres.ps1",
+      "passed": true
+    },
+    {
+      "name": "bytes package run-owned-postgres.ps1",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package jest.config.cjs",
+      "passed": true
+    },
+    {
+      "name": "bytes package jest.config.cjs",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package run-helper-tests.cjs",
+      "passed": true
+    },
+    {
+      "name": "bytes package run-helper-tests.cjs",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package typecheck-overlay.cjs",
+      "passed": true
+    },
+    {
+      "name": "bytes package typecheck-overlay.cjs",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package verify-integrated-format.cjs",
+      "passed": true
+    },
+    {
+      "name": "bytes package verify-integrated-format.cjs",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package integrated-format-equivalence.json",
+      "passed": true
+    },
+    {
+      "name": "bytes package integrated-format-equivalence.json",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package adapter-and-helper-tests-final.log",
+      "passed": true
+    },
+    {
+      "name": "bytes package adapter-and-helper-tests-final.log",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package helper-tests-v3.log",
+      "passed": true
+    },
+    {
+      "name": "bytes package helper-tests-v3.log",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package typecheck-overlay-v2.log",
+      "passed": true
+    },
+    {
+      "name": "bytes package typecheck-overlay-v2.log",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package typecheck-overlay-result.json",
+      "passed": true
+    },
+    {
+      "name": "bytes package typecheck-overlay-result.json",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package case12-eligibility-v5.log",
+      "passed": true
+    },
+    {
+      "name": "bytes package case12-eligibility-v5.log",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package case12-eligibility-v5.receipt.json",
+      "passed": true
+    },
+    {
+      "name": "bytes package case12-eligibility-v5.receipt.json",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package case12-eligibility-v5-built-core.json",
+      "passed": true
+    },
+    {
+      "name": "bytes package case12-eligibility-v5-built-core.json",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package postgres-qualification-final.json",
+      "passed": true
+    },
+    {
+      "name": "bytes package postgres-qualification-final.json",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package dependency-pins.json",
+      "passed": true
+    },
+    {
+      "name": "bytes package dependency-pins.json",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package harness-adaptation.json",
+      "passed": true
+    },
+    {
+      "name": "bytes package harness-adaptation.json",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package case12-eligibility.postgres.test.mjs",
+      "passed": true
+    },
+    {
+      "name": "bytes package case12-eligibility.postgres.test.mjs",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package approved-memory-postgres-independent-harness.mjs",
+      "passed": true
+    },
+    {
+      "name": "bytes package approved-memory-postgres-independent-harness.mjs",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package approved-memory-schema.mjs",
+      "passed": true
+    },
+    {
+      "name": "bytes package approved-memory-schema.mjs",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package approved-memory-postgres-harness.mjs",
+      "passed": true
+    },
+    {
+      "name": "bytes package approved-memory-postgres-harness.mjs",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package case12-memory-inventory-owner.mjs",
+      "passed": true
+    },
+    {
+      "name": "bytes package case12-memory-inventory-owner.mjs",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package institutional-knowledge-retrieval.original-baseline.ts",
+      "passed": true
+    },
+    {
+      "name": "bytes package institutional-knowledge-retrieval.original-baseline.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package institutional-knowledge-retrieval.adapter.spec.ts",
+      "passed": true
+    },
+    {
+      "name": "bytes package institutional-knowledge-retrieval.adapter.spec.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package case12-eligibility-v5-source-apps_api_prisma_schema.prisma",
+      "passed": true
+    },
+    {
+      "name": "bytes package case12-eligibility-v5-source-apps_api_prisma_schema.prisma",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package case12-eligibility-v5-source-apps_api_src_memory_memory-authorization.service.ts",
+      "passed": true
+    },
+    {
+      "name": "bytes package case12-eligibility-v5-source-apps_api_src_memory_memory-authorization.service.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package case12-eligibility-v5-source-apps_api_src_memory_memory-candidate.service.ts",
+      "passed": true
+    },
+    {
+      "name": "bytes package case12-eligibility-v5-source-apps_api_src_memory_memory-candidate.service.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package case12-eligibility-v5-source-apps_api_src_memory_memory-canonical-activation.helpers.ts",
+      "passed": true
+    },
+    {
+      "name": "bytes package case12-eligibility-v5-source-apps_api_src_memory_memory-canonical-activation.helpers.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package case12-eligibility-v5-source-apps_api_src_memory_memory-recall-suppression.helpers.ts",
+      "passed": true
+    },
+    {
+      "name": "bytes package case12-eligibility-v5-source-apps_api_src_memory_memory-recall-suppression.helpers.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package case12-eligibility-v5-source-apps_api_src_memory_memory-store.service.ts",
+      "passed": true
+    },
+    {
+      "name": "bytes package case12-eligibility-v5-source-apps_api_src_memory_memory-store.service.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package case12-eligibility-v5-source-apps_api_src_memory_memory-wall.helpers.ts",
+      "passed": true
+    },
+    {
+      "name": "bytes package case12-eligibility-v5-source-apps_api_src_memory_memory-wall.helpers.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package case12-eligibility-v5-source-apps_api_src_memory_synthetic-approved-memory.helpers.ts",
+      "passed": true
+    },
+    {
+      "name": "bytes package case12-eligibility-v5-source-apps_api_src_memory_synthetic-approved-memory.helpers.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package case12-eligibility-v5-source-apps_api_src_retrieval_adapters_institutional-knowledge-retrieval.adapter.ts",
+      "passed": true
+    },
+    {
+      "name": "bytes package case12-eligibility-v5-source-apps_api_src_retrieval_adapters_institutional-knowledge-retrieval.adapter.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package case12-eligibility-v5-source-evals_meri_live-v1_fixture-provisioning_approved-memory-runtime.mjs",
+      "passed": true
+    },
+    {
+      "name": "bytes package case12-eligibility-v5-source-evals_meri_live-v1_fixture-provisioning_approved-memory-runtime.mjs",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package case12-eligibility-v5-source-packages_meriv2-core_src_memory_governance.ts",
+      "passed": true
+    },
+    {
+      "name": "bytes package case12-eligibility-v5-source-packages_meriv2-core_src_memory_governance.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package case12-eligibility-v5-start.stdout",
+      "passed": true
+    },
+    {
+      "name": "bytes package case12-eligibility-v5-start.stdout",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package case12-eligibility-v5-stop.stdout",
+      "passed": true
+    },
+    {
+      "name": "bytes package case12-eligibility-v5-stop.stdout",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package case12-eligibility-v5-start.stderr",
+      "passed": true
+    },
+    {
+      "name": "bytes package case12-eligibility-v5-start.stderr",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package case12-eligibility-v5-stop.stderr",
+      "passed": true
+    },
+    {
+      "name": "bytes package case12-eligibility-v5-stop.stderr",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package case12-eligibility-v5-status-after.log",
+      "passed": true
+    },
+    {
+      "name": "bytes package case12-eligibility-v5-status-after.log",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package case12-eligibility-v5-status-before.log",
+      "passed": true
+    },
+    {
+      "name": "bytes package case12-eligibility-v5-status-before.log",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package execution.json",
+      "passed": true
+    },
+    {
+      "name": "bytes package execution.json",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package usage.json",
+      "passed": true
+    },
+    {
+      "name": "bytes package usage.json",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package response.txt",
+      "passed": true
+    },
+    {
+      "name": "bytes package response.txt",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package IMPLEMENTATION.md",
+      "passed": true
+    },
+    {
+      "name": "bytes package IMPLEMENTATION.md",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package prompt.txt",
+      "passed": true
+    },
+    {
+      "name": "bytes package prompt.txt",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package governed-memory-eligibility.helpers.ts",
+      "passed": true
+    },
+    {
+      "name": "bytes package governed-memory-eligibility.helpers.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package governed-memory-eligibility.helpers.spec.ts",
+      "passed": true
+    },
+    {
+      "name": "bytes package governed-memory-eligibility.helpers.spec.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package helper-tests-v1.log",
+      "passed": true
+    },
+    {
+      "name": "bytes package helper-tests-v1.log",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package helper-tests-v2.log",
+      "passed": true
+    },
+    {
+      "name": "bytes package helper-tests-v2.log",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package typecheck-overlay-v1.log",
+      "passed": true
+    },
+    {
+      "name": "bytes package typecheck-overlay-v1.log",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package typecheck-overlay-result-v1-invalid-harness.json",
+      "passed": true
+    },
+    {
+      "name": "bytes package typecheck-overlay-result-v1-invalid-harness.json",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package postgres-qualification.json",
+      "passed": true
+    },
+    {
+      "name": "bytes package postgres-qualification.json",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package postgres-qualification-attempt1-failed.json",
+      "passed": true
+    },
+    {
+      "name": "bytes package postgres-qualification-attempt1-failed.json",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package postgres-qualification-attempt4-baseline-invalid.json",
+      "passed": true
+    },
+    {
+      "name": "bytes package postgres-qualification-attempt4-baseline-invalid.json",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package case12-eligibility-v1.log",
+      "passed": true
+    },
+    {
+      "name": "bytes package case12-eligibility-v1.log",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package case12-eligibility-v1.receipt.json",
+      "passed": true
+    },
+    {
+      "name": "bytes package case12-eligibility-v1.receipt.json",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package case12-eligibility-v2.log",
+      "passed": true
+    },
+    {
+      "name": "bytes package case12-eligibility-v2.log",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package case12-eligibility-v2.receipt.json",
+      "passed": true
+    },
+    {
+      "name": "bytes package case12-eligibility-v2.receipt.json",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package case12-eligibility-v3.log",
+      "passed": true
+    },
+    {
+      "name": "bytes package case12-eligibility-v3.log",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package case12-eligibility-v3.receipt.json",
+      "passed": true
+    },
+    {
+      "name": "bytes package case12-eligibility-v3.receipt.json",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package case12-eligibility-v4.log",
+      "passed": true
+    },
+    {
+      "name": "bytes package case12-eligibility-v4.log",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package case12-eligibility-v4.receipt.json",
+      "passed": true
+    },
+    {
+      "name": "bytes package case12-eligibility-v4.receipt.json",
+      "passed": true
+    },
+    {
+      "name": "SHA256 package checkpoint.json",
+      "passed": true
+    },
+    {
+      "name": "bytes package checkpoint.json",
+      "passed": true
+    },
+    {
+      "name": "supervised package limits are explicit",
+      "passed": true
+    },
+    {
+      "name": "PG actual execution succeeded with source stability and complete cleanup",
+      "passed": true
+    },
+    {
+      "name": "SHA256 C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/case12-eligibility-v5.log",
+      "passed": true
+    },
+    {
+      "name": "PG test log reports all24 passed with zero fail/skip",
+      "passed": true
+    },
+    {
+      "name": "PG 23 subchecks and outer test success",
+      "passed": true
+    },
+    {
+      "name": "native durable canonical setup and precise observation",
+      "passed": true
+    },
+    {
+      "name": "actual adapter retains explicit500-cap and complete MA510 passage",
+      "passed": true
+    },
+    {
+      "name": "PG limitations retained",
+      "passed": true
+    },
+    {
+      "name": "SHA256 PG scratch apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 PG scratch apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.original-baseline.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 PG scratch apps/api/src/retrieval/adapters/governed-memory-eligibility.helpers.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 PG scratch apps/api/src/retrieval/adapters/case12-memory-eligibility.read.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 PG scratch evals/meri/live-v1/fixture-provisioning/case12-memory-inventory-owner.mjs",
+      "passed": true
+    },
+    {
+      "name": "SHA256 PG scratch evals/meri/live-v1/fixture-provisioning/case12-memory-eligibility-owner.mjs",
+      "passed": true
+    },
+    {
+      "name": "SHA256 PG scratch evals/meri/live-v1/tests/case12-eligibility.postgres.test.mjs",
+      "passed": true
+    },
+    {
+      "name": "SHA256 PG scratch evals/meri/live-v1/tests/approved-memory-postgres-independent-harness.mjs",
+      "passed": true
+    },
+    {
+      "name": "SHA256 PG scratch evals/meri/live-v1/tests/approved-memory-schema.mjs",
+      "passed": true
+    },
+    {
+      "name": "SHA256 PG current source apps/api/src/memory/memory-candidate.service.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 PG frozen source apps/api/src/memory/memory-candidate.service.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 PG current source apps/api/src/memory/memory-store.service.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 PG frozen source apps/api/src/memory/memory-store.service.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 PG current source apps/api/src/memory/memory-authorization.service.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 PG frozen source apps/api/src/memory/memory-authorization.service.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 PG current source apps/api/src/memory/synthetic-approved-memory.helpers.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 PG frozen source apps/api/src/memory/synthetic-approved-memory.helpers.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 PG current source apps/api/src/memory/memory-canonical-activation.helpers.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 PG frozen source apps/api/src/memory/memory-canonical-activation.helpers.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 PG current source apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 PG frozen source apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 PG current source apps/api/src/memory/memory-wall.helpers.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 PG frozen source apps/api/src/memory/memory-wall.helpers.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 PG current source apps/api/src/memory/memory-recall-suppression.helpers.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 PG frozen source apps/api/src/memory/memory-recall-suppression.helpers.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 PG current source packages/meriv2-core/src/memory/governance.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 PG frozen source packages/meriv2-core/src/memory/governance.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 PG current source evals/meri/live-v1/fixture-provisioning/approved-memory-runtime.mjs",
+      "passed": true
+    },
+    {
+      "name": "SHA256 PG frozen source evals/meri/live-v1/fixture-provisioning/approved-memory-runtime.mjs",
+      "passed": true
+    },
+    {
+      "name": "SHA256 PG current source apps/api/prisma/schema.prisma",
+      "passed": true
+    },
+    {
+      "name": "SHA256 PG frozen source apps/api/prisma/schema.prisma",
+      "passed": true
+    },
+    {
+      "name": "SHA256 C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/case12-eligibility-v5-built-core.json",
+      "passed": true
+    },
+    {
+      "name": "148 compiled core pins recorded",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/alerts/alert.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/assurance/checks.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/assurance/claim-ledger.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/assurance/control-metrics.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/assurance/deterministic-evaluation.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/assurance/envelope.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/assurance/eval-gate.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/assurance/evidence-dates.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/assurance/evidence-plan.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/assurance/evidence-profile-control.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/assurance/exact-comparison.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/assurance/feedback-fixtures.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/assurance/freshness.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/assurance/generation.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/assurance/index.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/assurance/observability.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/assurance/operating-frame.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/assurance/policy-pack.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/assurance/prompt-block.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/assurance/recommendation.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/assurance/request-scope.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/assurance/risk-gate.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/assurance/rollout.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/assurance/tool-ledger-adapter.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/canary/canary-report.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/canary/limits.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/compliance/action-approval.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/compliance/approval-gate.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/compliance/compliance-rules.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/context/capture-evidence-receipt.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/context/compiler.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/context/context-release-switch.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/context/context-rollout.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/context/contract.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/context/coverage-aware-packet.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/context/governed-artifact-capture.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/context/governed-columns.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/context/governed-evidence-auth.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/context/layers.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/context/memory-capture-source.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/context/meri-explicit-subject.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/context/operation-enforcement.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/context/research-plan-execution.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/context/server-readonly-capture.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/context/surface-policy.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/context/synthetic-read-budget.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/context/token-budget.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/context/truthful-compiler.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/domain/domain-primer.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/domain/government-affairs-output.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/evaluation/contract.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/grounding/auditor.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/grounding/claim-gate.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/grounding/claim-inventory.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/grounding/claim-map.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/grounding/evidence.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/grounding/exact-source.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/grounding/grounded-json.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/grounding/match-label-extractor.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/grounding/match-label.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/grounding/skeptic-audit.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/grounding/skeptic.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/grounding/status-provenance.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/ids/canonical-ids.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/index.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/intent/action-intent.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/intent/intent-router.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/jev/bd-claim-question.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/jev/bd-entity-question.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/jev/bd-fixture-schema.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/jev/bd-signal-question.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/jev/calibrated-cascade.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/jev/claim-support-question.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/jev/client-fit-provider.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/jev/client-fit-question.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/jev/decision-cache.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/jev/decision-contract.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/jev/evaluation/bd-task-gate.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/jev/evaluation/calibration.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/jev/evaluation/package9-economics.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/jev/evaluation/shadow-events.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/jev/evaluation/shadow-report.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/jev/evaluation/task-paired-evaluation.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/jev/evidence-envelope.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/jev/evidence-selection-question.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/jev/fixture-schema.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/jev/index.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/jev/jev-client.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/jev/jev-config.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/jev/jev-decision-provider.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/jev/mention-scope-question.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/jev/program-identity-question.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/jev/replay/paired-evaluation.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/jev/replay/recorded-decision-store.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/jev/replay/recording-decision-provider.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/jev/replay/replay-decision-provider.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/jev/skeptic-adapter.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/jev/status-selection-question.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/jev/task-choice-provider.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/jev/task-evaluation-fixture.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/jev/task-registry.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/learning/candidate-contract.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/learning/conflict-contract.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/learning/contract.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/learning/rollout.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/llm/llm-client.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/llm/openai-responses-adapter.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/memory/governance-rollout.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/memory/governance.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/observability/meri-joined-telemetry.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/observability/meri-otel.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/quality-telemetry/contract.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/registry/in-editor-tools.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/registry/tool-execution-control.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/registry/tool-execution-metadata.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/registry/tool-registry.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/registry/types.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/repair/assemble.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/repair/index.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/repair/plan-remedy.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/repair/recheck.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/repair/revise.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/repair/run-repair.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/repair/tool-executor.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/repair/types.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/rollout/auto-correction.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/rollout/capability-rollout.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/rollout/claim-assessment.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/rollout/coverage-retrieval.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/rollout/evidence-accuracy.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/rollout/evidence-profiles.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/rollout/jev-cache.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/rollout/match-label.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/rollout/passage-selection.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/rollout/status-provenance.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/rollout/tokens.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/scoping/scoping-wrapper.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/security/tool-result-wrap.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/tools/client/get-client-context.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/tools/delegated/delegated-tool.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/tools/hearing/generate-editorial-brief.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/tools/hearing/generate-post-hearing-summary.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/tools/hearing/generate-published-record-brief.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/tools/hearing/tag-live-policy-mentions.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/verifier/confidence.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/verifier/grounding-sources.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/verifier/pe-structural.js",
+      "passed": true
+    },
+    {
+      "name": "SHA256 compiled core packages/meriv2-core/dist/verifier/verifier-claims.js",
+      "passed": true
+    },
+    {
+      "name": "baseline comparator is independently frozen original",
+      "passed": true
+    },
+    {
+      "name": "SHA256 C:/dev/main/outputs/meri-c2-20261003/case12-root-qualification-v1/qualification.json",
+      "passed": true
+    },
+    {
+      "name": "SHA256 root qualified apps/api/src/retrieval/adapters/governed-memory-eligibility.helpers.ts",
+      "passed": true
+    },
+    {
+      "name": "bytes root qualified apps/api/src/retrieval/adapters/governed-memory-eligibility.helpers.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 root qualified apps/api/src/retrieval/adapters/governed-memory-eligibility.helpers.spec.ts",
+      "passed": true
+    },
+    {
+      "name": "bytes root qualified apps/api/src/retrieval/adapters/governed-memory-eligibility.helpers.spec.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 root qualified apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.ts",
+      "passed": true
+    },
+    {
+      "name": "bytes root qualified apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 root qualified apps/api/src/retrieval/adapters/case12-memory-eligibility.read.ts",
+      "passed": true
+    },
+    {
+      "name": "bytes root qualified apps/api/src/retrieval/adapters/case12-memory-eligibility.read.ts",
+      "passed": true
+    },
+    {
+      "name": "SHA256 root qualified evals/meri/live-v1/fixture-provisioning/case12-memory-eligibility-owner.mjs",
+      "passed": true
+    },
+    {
+      "name": "bytes root qualified evals/meri/live-v1/fixture-provisioning/case12-memory-eligibility-owner.mjs",
+      "passed": true
+    },
+    {
+      "name": "SHA256 root qualified evals/meri/live-v1/fixture-provisioning/case12-memory-inventory-owner.mjs",
+      "passed": true
+    },
+    {
+      "name": "bytes root qualified evals/meri/live-v1/fixture-provisioning/case12-memory-inventory-owner.mjs",
+      "passed": true
+    },
+    {
+      "name": "SHA256 root qualified evals/meri/live-v1/tests/case12-memory-inventory-owner.test.mjs",
+      "passed": true
+    },
+    {
+      "name": "bytes root qualified evals/meri/live-v1/tests/case12-memory-inventory-owner.test.mjs",
+      "passed": true
+    },
+    {
+      "name": "SHA256 root test API helper, existing adapter and PGlite database regressions",
+      "passed": true
+    },
+    {
+      "name": "bytes root test API helper, existing adapter and PGlite database regressions",
+      "passed": true
+    },
+    {
+      "name": "SHA256 root test Case12 inventory owner and native definitions",
+      "passed": true
+    },
+    {
+      "name": "bytes root test Case12 inventory owner and native definitions",
+      "passed": true
+    },
+    {
+      "name": "SHA256 root test Full API TypeScript check including specs",
+      "passed": true
+    },
+    {
+      "name": "bytes root test Full API TypeScript check including specs",
+      "passed": true
+    },
+    {
+      "name": "SHA256 root test Initial Jest command omitted Node VM module flag required by PGlite",
+      "passed": true
+    },
+    {
+      "name": "bytes root test Initial Jest command omitted Node VM module flag required by PGlite",
+      "passed": true
+    },
+    {
+      "name": "SHA256 root test Initial full API typecheck exhausted default local Node heap",
+      "passed": true
+    },
+    {
+      "name": "bytes root test Initial full API typecheck exhausted default local Node heap",
+      "passed": true
+    },
+    {
+      "name": "root canonical73API36owner/fullAPItypecheck pass",
+      "passed": true
+    },
+    {
+      "name": "failed root attempts retained as failures",
+      "passed": true
+    },
+    {
+      "name": "SHA256 Hermes prompt.txt",
+      "passed": true
+    },
+    {
+      "name": "bytes Hermes prompt.txt",
+      "passed": true
+    },
+    {
+      "name": "SHA256 Hermes response.txt",
+      "passed": true
+    },
+    {
+      "name": "bytes Hermes response.txt",
+      "passed": true
+    },
+    {
+      "name": "SHA256 Hermes review.md",
+      "passed": true
+    },
+    {
+      "name": "bytes Hermes review.md",
+      "passed": true
+    },
+    {
+      "name": "SHA256 Hermes stderr.log",
+      "passed": true
+    },
+    {
+      "name": "bytes Hermes stderr.log",
+      "passed": true
+    },
+    {
+      "name": "SHA256 Hermes usage.json",
+      "passed": true
+    },
+    {
+      "name": "bytes Hermes usage.json",
+      "passed": true
+    },
+    {
+      "name": "actual configured Hermes review completed without overrides",
+      "passed": true
+    },
+    {
+      "name": "Hermes frozen source conclusion retained",
+      "passed": true
+    },
+    {
+      "name": "SHA256 benchmark journal",
+      "passed": true
+    },
+    {
+      "name": "bytes benchmark journal",
+      "passed": true
+    },
+    {
+      "name": "benchmark journal26events unchanged",
+      "passed": true
+    }
+  ]
+}

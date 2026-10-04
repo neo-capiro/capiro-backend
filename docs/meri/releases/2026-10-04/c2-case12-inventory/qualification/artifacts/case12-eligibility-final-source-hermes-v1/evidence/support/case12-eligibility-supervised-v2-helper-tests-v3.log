@@ -1,0 +1,29 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in C:/dev/main/meri-c1-20261002/apps/api/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/apps/api/src/retrieval/adapters/governed-memory-eligibility.helpers.spec.ts
+  canonical governed-memory eligibility SQL
+    √ contains the source tenant, visibility, status, class, scope, governance, provenance, sensitivity, temporal, client, and lifecycle clauses (3 ms)
+    √ adds an exact item selector only when present and parameterizes its value
+    √ keeps empty allowed-client arrays as bound parameters
+  includeCanonicalGovernedMemoryRow
+    √ accepts an approved, current client-steering record through the real governance filter (4 ms)
+    √ rejects foreign tenant using existing filter contracts (1 ms)
+    √ rejects foreign user-private owner using existing filter contracts
+    √ rejects wrong client using existing filter contracts
+    √ rejects expired using existing filter contracts (1 ms)
+    √ rejects future effective time using existing filter contracts
+    √ rejects revoked using existing filter contracts
+    √ rejects stale legacy status using existing filter contracts
+    √ rejects unknown class using existing filter contracts
+    √ rejects visibility denied using existing filter contracts
+    √ rejects missing approval using existing filter contracts
+    √ rejects denied sensitivity using existing filter contracts (1 ms)
+    √ rejects missing unknown provenance using existing filter contracts
+    √ rejects client steering when its source client is outside the allowed set
+
+Test Suites: 1 passed, 1 total
+Tests:       17 passed, 17 total
+Snapshots:   0 total
+Time:        1.092 s
+Ran all test suites.

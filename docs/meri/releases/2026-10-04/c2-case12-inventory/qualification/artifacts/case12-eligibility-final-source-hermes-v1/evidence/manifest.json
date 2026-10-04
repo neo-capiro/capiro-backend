@@ -1,0 +1,148 @@
+{
+  "at": "2026-10-04T09:15:55.915Z",
+  "status": "FROZEN_STATIC_SOURCE_REVIEW_PENDING_FINAL_TEST_RECEIPTS",
+  "pins": [
+    {
+      "path": "candidate/apps/api/src/retrieval/adapters/governed-memory-eligibility.helpers.ts",
+      "originalPath": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/apps/api/src/retrieval/adapters/governed-memory-eligibility.helpers.ts",
+      "bytes": 2978,
+      "sha256": "3056dc2df5b4fab0cb8e95168f28cb00b55ec11c3755ee07c3b9e0b085330b6c",
+      "kind": "stable_candidate"
+    },
+    {
+      "path": "candidate/apps/api/src/retrieval/adapters/governed-memory-eligibility.helpers.spec.ts",
+      "originalPath": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/apps/api/src/retrieval/adapters/governed-memory-eligibility.helpers.spec.ts",
+      "bytes": 5421,
+      "sha256": "6c4080419c73b5cb1be18a24aebe7d29da93de77f97f471357c5961d009ac716",
+      "kind": "stable_candidate"
+    },
+    {
+      "path": "candidate/apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.ts",
+      "originalPath": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.ts",
+      "bytes": 35315,
+      "sha256": "fb55d3582958437824c7336b1aaaae5e6e0f854e279e198f126ffb7cb47e8223",
+      "kind": "stable_candidate"
+    },
+    {
+      "path": "candidate/apps/api/src/retrieval/adapters/case12-memory-eligibility.read.ts",
+      "originalPath": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/apps/api/src/retrieval/adapters/case12-memory-eligibility.read.ts",
+      "bytes": 4774,
+      "sha256": "0a2b4b5a68d6c13049b6548a37f062469b0bcaf276a22fc3a6bc467d1712b073",
+      "kind": "stable_candidate"
+    },
+    {
+      "path": "candidate/evals/meri/live-v1/fixture-provisioning/case12-memory-eligibility-owner.mjs",
+      "originalPath": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/fixture-provisioning/case12-memory-eligibility-owner.mjs",
+      "bytes": 3782,
+      "sha256": "ff06b33c3895a2ccbbabf876583c4186ca9118c37ef8a34aa2523fa196800a8a",
+      "kind": "stable_candidate"
+    },
+    {
+      "path": "support/source/evals/meri/live-v1/fixture-provisioning/case12-memory-inventory-owner.mjs",
+      "originalPath": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/fixture-provisioning/case12-memory-inventory-owner.mjs",
+      "bytes": 15053,
+      "sha256": "6558f5a49f7e4a4316411107c3f17f29f3bbf133466b02118e9cfbaae34fb1b9",
+      "kind": "trusted_internal_dependency"
+    },
+    {
+      "path": "support/source/evals/meri/live-v1/fixture-provisioning/approved-memory-runtime.mjs",
+      "originalPath": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/fixture-provisioning/approved-memory-runtime.mjs",
+      "bytes": 14972,
+      "sha256": "b814c5f904594130d0e35bbb0d4a1f49ec77a5f96c1544fcf9e6969784f278ac",
+      "kind": "trusted_internal_dependency"
+    },
+    {
+      "path": "support/source/evals/meri/live-v1/fixture-provisioning/memory-candidate-owner.mjs",
+      "originalPath": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/fixture-provisioning/memory-candidate-owner.mjs",
+      "bytes": 14006,
+      "sha256": "a850e4a8a68641d7118cf7f6e5abda72e64452bde6123d8e13acf5308d6bc9b7",
+      "kind": "trusted_internal_dependency"
+    },
+    {
+      "path": "support/source/evals/meri/live-v1/fixture-provisioning/manifest.mjs",
+      "originalPath": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/fixture-provisioning/manifest.mjs",
+      "bytes": 20549,
+      "sha256": "8f1276ef0aaaef9b648bb1cbd0a037ee7d11d0a78db9691ab4de70b3b5db667a",
+      "kind": "trusted_internal_dependency"
+    },
+    {
+      "path": "support/source/evals/meri/live-v1/lib/stable.mjs",
+      "originalPath": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/lib/stable.mjs",
+      "bytes": 1146,
+      "sha256": "03bba6f6dd1c48bf206ed32c628e1f9ce2038d75a9560d33d044950261f45c23",
+      "kind": "trusted_internal_dependency"
+    },
+    {
+      "path": "support/source/apps/api/src/memory/memory-wall.helpers.ts",
+      "originalPath": "C:/dev/main/meri-c1-20261002/apps/api/src/memory/memory-wall.helpers.ts",
+      "bytes": 7833,
+      "sha256": "91961048fd944885b8a06d229009259cf4866a4d40338d09685b1608f29a9255",
+      "kind": "trusted_internal_dependency"
+    },
+    {
+      "path": "support/source/apps/api/src/memory/synthetic-approved-memory.helpers.ts",
+      "originalPath": "C:/dev/main/meri-c1-20261002/apps/api/src/memory/synthetic-approved-memory.helpers.ts",
+      "bytes": 13474,
+      "sha256": "8451534ad56fdda936c7ce5c1961c68e0172d61ab2be45872e6d1b93da21ba22",
+      "kind": "trusted_internal_dependency"
+    },
+    {
+      "path": "support/source/apps/api/src/memory/memory-authorization.service.ts",
+      "originalPath": "C:/dev/main/meri-c1-20261002/apps/api/src/memory/memory-authorization.service.ts",
+      "bytes": 9173,
+      "sha256": "eefa7645c2b181e46a7a90441a7d59e4eac607350ef7c0841410cdc30a80892f",
+      "kind": "trusted_internal_dependency"
+    },
+    {
+      "path": "baseline/apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.ts",
+      "originalPath": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-hermes-v2/evidence/source/apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.ts",
+      "bytes": 36320,
+      "sha256": "bde82251b71fb7d2e86fee9d6928bd4b3fc686b4385f16be19057c864817b819",
+      "kind": "frozen_original"
+    },
+    {
+      "path": "baseline/apps/api/src/memory/memory-recall-suppression.helpers.ts",
+      "originalPath": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-hermes-v2/evidence/source/apps/api/src/memory/memory-recall-suppression.helpers.ts",
+      "bytes": 2449,
+      "sha256": "f1a049bf5362c540098adea8ba885b25b579ab70f2a51b322abb3060eab647f2",
+      "kind": "frozen_original"
+    },
+    {
+      "path": "baseline/packages/meriv2-core/src/memory/governance.ts",
+      "originalPath": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-hermes-v2/evidence/source/packages/meriv2-core/src/memory/governance.ts",
+      "bytes": 23789,
+      "sha256": "bc6ac38540d147dfd4dee1d3665c0f4396be3c5722f173c816546549d175aba3",
+      "kind": "frozen_original"
+    },
+    {
+      "path": "baseline/apps/api/src/retrieval/retrieval-v2.types.ts",
+      "originalPath": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-hermes-v2/evidence/source/apps/api/src/retrieval/retrieval-v2.types.ts",
+      "bytes": 11082,
+      "sha256": "95f388145594c5a9052318e4fa0f215de0b10fb92757bbcca8adb17120890fb8",
+      "kind": "frozen_original"
+    },
+    {
+      "path": "support/case12-inventory-owner-independent-review-v1-independent-assessment.json",
+      "originalPath": "C:/dev/main/outputs/meri-c2-20261003/case12-inventory-owner-independent-review-v1/independent-assessment.json",
+      "bytes": 5562,
+      "sha256": "0bb7ea9e1814b01c63d6dd4eef1126556b3fc4eade06e7df61642f9963ea0ae7",
+      "kind": "prior_review_or_focused_test"
+    },
+    {
+      "path": "support/case12-eligibility-raw-independent-review-v1-independent-assessment.json",
+      "originalPath": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-raw-independent-review-v1/independent-assessment.json",
+      "bytes": 3364,
+      "sha256": "af86f47c8b4823d09a9a3e0f58553c82ebd145981ff376cd9d0feb94625e0b9c",
+      "kind": "prior_review_or_focused_test"
+    },
+    {
+      "path": "support/case12-eligibility-supervised-v2-helper-tests-v3.log",
+      "originalPath": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/helper-tests-v3.log",
+      "bytes": 1954,
+      "sha256": "818ef03610087631c6ccc11a003580fadf9305fd7f17ee8a9ae0eb13f5de758a",
+      "kind": "prior_review_or_focused_test"
+    }
+  ],
+  "stableCandidateFiles": 5,
+  "scope": "Private local source composition only. Tests/integration receipts still being qualified by supervisor; this static review must not claim final PostgreSQL/typecheck acceptance or capture authority."
+}

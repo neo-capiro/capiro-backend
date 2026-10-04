@@ -1,0 +1,40 @@
+{
+  "startedAt": "2026-10-04T08:31:45.156781+00:00",
+  "finishedAt": "2026-10-04T08:43:45.196891+00:00",
+  "exitCode": 124,
+  "failure": "BOUNDED_REVIEW_TIMEOUT",
+  "modelOverride": null,
+  "providerOverride": null,
+  "files": [
+    {
+      "path": "IMPLEMENTATION.md",
+      "bytes": 3612,
+      "sha256": "53d479a376d36765320d4c467e2b477e8c3c21e0cba788dadb60fbf8f0ebac46"
+    },
+    {
+      "path": "prompt.txt",
+      "bytes": 6803,
+      "sha256": "4d14a5ccc934862511686fbfa4e02ee8cdc1d33cd7e49b58ba8bf3cf01618c58"
+    },
+    {
+      "path": "response.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "candidate\\evals\\meri\\live-v1\\fixture-provisioning\\case12-memory-inventory-owner.mjs",
+      "bytes": 13419,
+      "sha256": "e8deb6bbe21eaeec1476ec58a3a7d17405f3f3ccaa0bf66d363bad109d0b0f33"
+    },
+    {
+      "path": "candidate\\evals\\meri\\live-v1\\tests\\case12-memory-inventory-owner.test.mjs",
+      "bytes": 18854,
+      "sha256": "0c621c404fbd0de051c6d5493eaaffa98252fd74bfb71373d40c436af3d42cd1"
+    }
+  ]
+}

@@ -1,0 +1,97 @@
+[
+  {
+    "path": "apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.ts",
+    "sha256": "bde82251b71fb7d2e86fee9d6928bd4b3fc686b4385f16be19057c864817b819",
+    "copiedUnchanged": false
+  },
+  {
+    "path": "apps/api/src/embeddings/embedding-provider.ts",
+    "sha256": "07b80b7ad2d24873da8b4d5336bf3d59c439cdaa2d744e828006f0ef625dcb79",
+    "copiedUnchanged": true
+  },
+  {
+    "path": "apps/api/src/knowledge/graph/temporal-knowledge-graph.service.ts",
+    "sha256": "7454babfefb7d46421344a38d88720ff2ae742a0726a0071451acbe7b4da0d0c",
+    "copiedUnchanged": true
+  },
+  {
+    "path": "apps/api/src/knowledge/graph/temporal-knowledge-graph.helpers.ts",
+    "sha256": "6821d57a0122f758ee434d8d867ae3fe2ef1fbeeff4040d070b38522f823142b",
+    "copiedUnchanged": true
+  },
+  {
+    "path": "apps/api/src/knowledge/knowledge.helpers.ts",
+    "sha256": "ad56c2cec64c43b06dbb6ffecab9c61561237c1a384a97694ae18ae2c1e8a495",
+    "copiedUnchanged": true
+  },
+  {
+    "path": "apps/api/src/knowledge/knowledge.types.ts",
+    "sha256": "af823f3ba72d84db1bd199896e8b9360f61b5489c79e31335d518d4802e498df",
+    "copiedUnchanged": true
+  },
+  {
+    "path": "apps/api/src/knowledge/graph/temporal-knowledge-graph.types.ts",
+    "sha256": "6ee2696be42227bd4fdc345312c44b043701a389e724bc9a3fb98cd90c3fc005",
+    "copiedUnchanged": true
+  },
+  {
+    "path": "apps/api/src/knowledge/graph/temporal-knowledge-graph.repository.ts",
+    "sha256": "0970dee74cab1e201b76e1be53b05ef24453ae0365ad9263b7d794625744b571",
+    "copiedUnchanged": true
+  },
+  {
+    "path": "apps/api/src/prisma/prisma.service.ts",
+    "sha256": "fb3886df5f2732a0412342627a3a6156f159718913479cdc2325fa602bfdd86e",
+    "copiedUnchanged": true
+  },
+  {
+    "path": "apps/api/src/memory/memory-recall-suppression.helpers.ts",
+    "sha256": "f1a049bf5362c540098adea8ba885b25b579ab70f2a51b322abb3060eab647f2",
+    "copiedUnchanged": true
+  },
+  {
+    "path": "apps/api/src/memory/memory-governance-lifecycle.helpers.ts",
+    "sha256": "6f983d9f0bc388464dc0be27e9edba1aeb9bfdaec9c7ab16830882db286770b7",
+    "copiedUnchanged": true
+  },
+  {
+    "path": "apps/api/src/memory/memory-authorization.helpers.ts",
+    "sha256": "a0c2ece14a7d8164d3a7c7a2f028ffe75a486c91f6fdda8b11fa48cab66c60e7",
+    "copiedUnchanged": true
+  },
+  {
+    "path": "apps/api/src/memory/memory-governance-tenant-scope.ts",
+    "sha256": "2c56f023b7e5f7b26e71b6473d26b850cfa27a8a8566e9c9412396a662202f84",
+    "copiedUnchanged": true
+  },
+  {
+    "path": "apps/api/src/memory/memory-review-admin-policy.ts",
+    "sha256": "ce7d9b36b52b7b63d1a8bdcaf0bab2acf3c57187dedc5752a80f8e95f733adc3",
+    "copiedUnchanged": true
+  },
+  {
+    "path": "apps/api/src/memory/memory-recall-content.helpers.ts",
+    "sha256": "73b42e9d9b0822112bae16a45e818bdb88a13e4b727b02489e7098794094e6ca",
+    "copiedUnchanged": true
+  },
+  {
+    "path": "apps/api/src/memory/memory-wall.helpers.ts",
+    "sha256": "91961048fd944885b8a06d229009259cf4866a4d40338d09685b1608f29a9255",
+    "copiedUnchanged": true
+  },
+  {
+    "path": "apps/api/src/retrieval/retrieval-source.adapter.ts",
+    "sha256": "661983a016798b12a4aca9438153f193fdd20f90fcd9407d9367c5316d1d5780",
+    "copiedUnchanged": true
+  },
+  {
+    "path": "apps/api/src/retrieval/retrieval-v2.types.ts",
+    "sha256": "95f388145594c5a9052318e4fa0f215de0b10fb92757bbcca8adb17120890fb8",
+    "copiedUnchanged": true
+  },
+  {
+    "path": "apps/api/src/retrieval/data-catalog/semantic-data-catalog.service.ts",
+    "sha256": "7bc2926e0343ff215b14c527de82ed56e774fb08f7b1f6ac0493439ff6b01fba",
+    "copiedUnchanged": true
+  }
+]

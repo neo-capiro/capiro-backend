@@ -1,0 +1,423 @@
+{
+  "kind": "case12-current-eligibility-supervised-local-checkpoint",
+  "createdAt": "2026-10-04T09:21:29.388307+00:00",
+  "status": "PASS_LOCAL_SCOPE_ONLY",
+  "case12Complete": false,
+  "fixtureReady": false,
+  "captureAuthority": false,
+  "liveAcceptance": "NOT_RUN",
+  "repoMutationsByThisLane": 0,
+  "cloudCalls": 0,
+  "benchmarkProviderCalls": 0,
+  "journalMutations": 0,
+  "liveFixtureWrites": 0,
+  "tests": {
+    "jest": {
+      "passed": 71,
+      "failed": 0
+    },
+    "postgres": {
+      "passed": 24,
+      "failed": 0,
+      "skipped": 0
+    },
+    "fullApiReadonlyTypeScriptOverlay": {
+      "files": 6556,
+      "diagnostics": 0
+    }
+  },
+  "cleanup": {
+    "ownedSchemaDroppedAndAbsent": true,
+    "localClusterStopped": true,
+    "listenersAfter": 0
+  },
+  "nativeOwnerInspection": {
+    "records": 510,
+    "newerEligible": 509,
+    "durationMs": 2539.9701999999997,
+    "queryCount": 6634,
+    "observation": {
+      "databaseTransactionStartedAt": "2026-10-04T09:17:52.344Z",
+      "databaseObservedAt": "2026-10-04T09:17:54.881Z",
+      "databaseSnapshot": "9471:9471:",
+      "processStartedAt": "2026-10-04T09:17:54.877Z",
+      "processCompletedAt": "2026-10-04T09:17:54.889Z"
+    }
+  },
+  "immutableV1Checkpoint": {
+    "path": "C:/dev/main/outputs/meri-c2-20261003/case12-inventory-owner-supervised-v1/checkpoint.json",
+    "bytes": 36608,
+    "sha256": "1fbea7bac853ea116f212264974e1fd2a24cf5df9733b535abaf09f26acc1727"
+  },
+  "productionCandidatePaths": [
+    "apps/api/src/retrieval/adapters/governed-memory-eligibility.helpers.ts",
+    "apps/api/src/retrieval/adapters/governed-memory-eligibility.helpers.spec.ts",
+    "apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.ts",
+    "apps/api/src/retrieval/adapters/case12-memory-eligibility.read.ts",
+    "evals/meri/live-v1/fixture-provisioning/case12-memory-eligibility-owner.mjs"
+  ],
+  "primaryEvidence": [
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/apps/api/src/retrieval/adapters/governed-memory-eligibility.helpers.ts",
+      "bytes": 2978,
+      "sha256": "3056dc2df5b4fab0cb8e95168f28cb00b55ec11c3755ee07c3b9e0b085330b6c"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/apps/api/src/retrieval/adapters/governed-memory-eligibility.helpers.spec.ts",
+      "bytes": 5421,
+      "sha256": "6c4080419c73b5cb1be18a24aebe7d29da93de77f97f471357c5961d009ac716"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.ts",
+      "bytes": 35315,
+      "sha256": "fb55d3582958437824c7336b1aaaae5e6e0f854e279e198f126ffb7cb47e8223"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/apps/api/src/retrieval/adapters/case12-memory-eligibility.read.ts",
+      "bytes": 4774,
+      "sha256": "0a2b4b5a68d6c13049b6548a37f062469b0bcaf276a22fc3a6bc467d1712b073"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/fixture-provisioning/case12-memory-eligibility-owner.mjs",
+      "bytes": 3782,
+      "sha256": "ff06b33c3895a2ccbbabf876583c4186ca9118c37ef8a34aa2523fa196800a8a"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/README.md",
+      "bytes": 6280,
+      "sha256": "e41effa435e2a4fc0dcb3a791a13ead570ad3650f7c7555d3d667f01a581a42f"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/proposed.patch",
+      "bytes": 22825,
+      "sha256": "ffbbb2efd325e4c3087d202d005c48632a94d3486b55d8d3a05a7b90990ec38e"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/run-owned-postgres.ps1",
+      "bytes": 8092,
+      "sha256": "a377cb64071cf378e97e9bfeb3b55100e5c3a3a4fa7f9f44c173206b500af790"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/jest.config.cjs",
+      "bytes": 619,
+      "sha256": "8b1d5f6d8f2406768e933b6cecdc22cff82d31a578e530764fbc0b08ab428a0d"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/run-helper-tests.cjs",
+      "bytes": 214,
+      "sha256": "0183627d785bb2fc79950fe3c2f1fbf582836bb9a804015d80a1f9c5aee3a857"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/typecheck-overlay.cjs",
+      "bytes": 2540,
+      "sha256": "57c37c083014abfb18f0635b7680758d0d35a4c16818a3201c4413374f5d1707"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/verify-integrated-format.cjs",
+      "bytes": 1412,
+      "sha256": "24065cba4c14bd558ee7f44dcdf4fc4a5b0e996bdb96fed1614905a5bc314f51"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/integrated-format-equivalence.json",
+      "bytes": 1703,
+      "sha256": "0f3d36813bf44195a5caeef59a8a7a9bdad67bb0fbb322ab1030f3cc8e800123"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/adapter-and-helper-tests-final.log",
+      "bytes": 721,
+      "sha256": "1dca8c8c572d264cdb834d7e8a22fb3285a7b510cebbcec79e6a589827fe5797"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/helper-tests-v3.log",
+      "bytes": 1954,
+      "sha256": "818ef03610087631c6ccc11a003580fadf9305fd7f17ee8a9ae0eb13f5de758a"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/typecheck-overlay-v2.log",
+      "bytes": 969,
+      "sha256": "3e54bc8174a9d999168bc45c6f509088d6dc4103d0a83d10ccea9b860f01230b"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/typecheck-overlay-result.json",
+      "bytes": 944,
+      "sha256": "016ca8d0d3810f28e364fdb7dd53af3a5993659b672c2f6ff15cc187094f29ad"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/case12-eligibility-v5.log",
+      "bytes": 115930,
+      "sha256": "48bd579a1f9c29320c9adb6fa503715d7601938f15f9088405ac2213ab76a71e"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/case12-eligibility-v5.receipt.json",
+      "bytes": 3995,
+      "sha256": "3583db77f8a7635017645f46f575a6852f33c0092c2e25635f2cbf31b5dede32"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/case12-eligibility-v5-built-core.json",
+      "bytes": 18879,
+      "sha256": "a70469fc0b4c7600b925761d26cbb82c49e7e7e0755e525486bfc70c32cd469f"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/postgres-qualification-final.json",
+      "bytes": 8044,
+      "sha256": "391d3544e7fc10adb3481bcb147c034170dbe25f65ed7a851f930f6e890a6c86"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/dependency-pins.json",
+      "bytes": 3688,
+      "sha256": "5ea0fc2ff987b7736e13829e4583e14f98d421d643755c01136a9efe8a5a4cad"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/harness-adaptation.json",
+      "bytes": 760,
+      "sha256": "77390cbed6a8d2b4f001bfd50b68436372d99ea028eca32981773dc4c59e6ce7"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/case12-eligibility.postgres.test.mjs",
+      "bytes": 13118,
+      "sha256": "3b3e19c21d9611fda5d46c8047643a03f8e135098c14a894cae0507abc98d2e2"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/approved-memory-postgres-independent-harness.mjs",
+      "bytes": 7837,
+      "sha256": "185e2abef32b0fbad8248d33cf17cfd71ca9cd719b922c4747e64ab4b90bf355"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/approved-memory-schema.mjs",
+      "bytes": 6188,
+      "sha256": "0ed9fae4f9f30cb06c14b33f619a346bca42af2a05fc1f9a9894a231d744df19"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/approved-memory-postgres-harness.mjs",
+      "bytes": 9495,
+      "sha256": "7c45dfa9c25dfacc4fca15df56b10c2e78c2695437ae6d9fcbbea17102b68bec"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/fixture-provisioning/case12-memory-inventory-owner.mjs",
+      "bytes": 15053,
+      "sha256": "6558f5a49f7e4a4316411107c3f17f29f3bbf133466b02118e9cfbaae34fb1b9"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.original-baseline.ts",
+      "bytes": 36320,
+      "sha256": "bde82251b71fb7d2e86fee9d6928bd4b3fc686b4385f16be19057c864817b819"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.spec.ts",
+      "bytes": 40489,
+      "sha256": "f146bcb662abfa8b80e2feb0c82fe41da45a45b7490f5df9298372d126e78fd9"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/case12-eligibility-v5-source-apps_api_prisma_schema.prisma",
+      "bytes": 964030,
+      "sha256": "41fb55c8f2357b9bc2246de813d1e093e3e0bd240538048bbb514c5a4d4fe1d2"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/case12-eligibility-v5-source-apps_api_src_memory_memory-authorization.service.ts",
+      "bytes": 9173,
+      "sha256": "eefa7645c2b181e46a7a90441a7d59e4eac607350ef7c0841410cdc30a80892f"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/case12-eligibility-v5-source-apps_api_src_memory_memory-candidate.service.ts",
+      "bytes": 39431,
+      "sha256": "411f943b59aa74f2791acd68c32b6eae5fec587bf2e2b669e0dadfde0be776ce"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/case12-eligibility-v5-source-apps_api_src_memory_memory-canonical-activation.helpers.ts",
+      "bytes": 12693,
+      "sha256": "fec784b019bb6300845fc5d8e3779d38e2e9fdbbe296852ea845e7a51633c58e"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/case12-eligibility-v5-source-apps_api_src_memory_memory-recall-suppression.helpers.ts",
+      "bytes": 2449,
+      "sha256": "f1a049bf5362c540098adea8ba885b25b579ab70f2a51b322abb3060eab647f2"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/case12-eligibility-v5-source-apps_api_src_memory_memory-store.service.ts",
+      "bytes": 54918,
+      "sha256": "12689bf6b538457d46047e22373ef08ae7e6393c940943dc852ce043cc0c2b2f"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/case12-eligibility-v5-source-apps_api_src_memory_memory-wall.helpers.ts",
+      "bytes": 7833,
+      "sha256": "91961048fd944885b8a06d229009259cf4866a4d40338d09685b1608f29a9255"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/case12-eligibility-v5-source-apps_api_src_memory_synthetic-approved-memory.helpers.ts",
+      "bytes": 13474,
+      "sha256": "8451534ad56fdda936c7ce5c1961c68e0172d61ab2be45872e6d1b93da21ba22"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/case12-eligibility-v5-source-apps_api_src_retrieval_adapters_institutional-knowledge-retrieval.adapter.ts",
+      "bytes": 34441,
+      "sha256": "3de5e6ac3e64baf5b85dec6919d80f6bd2f4ab7855db56742b60f142cb547c18"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/case12-eligibility-v5-source-evals_meri_live-v1_fixture-provisioning_approved-memory-runtime.mjs",
+      "bytes": 14972,
+      "sha256": "b814c5f904594130d0e35bbb0d4a1f49ec77a5f96c1544fcf9e6969784f278ac"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/case12-eligibility-v5-source-packages_meriv2-core_src_memory_governance.ts",
+      "bytes": 23789,
+      "sha256": "bc6ac38540d147dfd4dee1d3665c0f4396be3c5722f173c816546549d175aba3"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/case12-eligibility-v5-start.stdout",
+      "bytes": 54,
+      "sha256": "46038efb813fbca18a92272496901190638dea3f97b51f7af0daa1ca2eb13818"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/case12-eligibility-v5-stop.stdout",
+      "bytes": 58,
+      "sha256": "3589d2bd01f8295cc7c9ec3f5e07625fcd347ccb6f33f2d80edafe5f5217c1fb"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/case12-eligibility-v5-start.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/case12-eligibility-v5-stop.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/case12-eligibility-v5-status-after.log",
+      "bytes": 27,
+      "sha256": "00e9e2231199060045479aeef60a466d575acde1f92e0f1567df14db2d3dc4b1"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/case12-eligibility-v5-status-before.log",
+      "bytes": 27,
+      "sha256": "00e9e2231199060045479aeef60a466d575acde1f92e0f1567df14db2d3dc4b1"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-hermes-v2/execution.json",
+      "bytes": 1434,
+      "sha256": "99035c3492e12f66394d97941b0fd5e777803bec7ff4eff2c52cb25beef252bf"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-hermes-v2/usage.json",
+      "bytes": 476,
+      "sha256": "1946ad63ec3e9d7af67a08171eca5837373cf5e00cf81b13419bf8bc7c9a8c01"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-hermes-v2/response.txt",
+      "bytes": 1117,
+      "sha256": "7dfe54771c1adefbc45e518337a1f4396734a3243048de8eebfb7e785f94d94b"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-hermes-v2/IMPLEMENTATION.md",
+      "bytes": 3191,
+      "sha256": "40e06a0521c18393474e32190fe6a50d18c27ddd5d038c054537c2194f5d8598"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-hermes-v2/prompt.txt",
+      "bytes": 4127,
+      "sha256": "510b460fc24c6c04b9811d0803f2aa88609e68f85ae9123bbc745d904e7b8925"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-hermes-v2/candidate/apps/api/src/retrieval/adapters/governed-memory-eligibility.helpers.ts",
+      "bytes": 2978,
+      "sha256": "3056dc2df5b4fab0cb8e95168f28cb00b55ec11c3755ee07c3b9e0b085330b6c"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-hermes-v2/candidate/apps/api/src/retrieval/adapters/governed-memory-eligibility.helpers.spec.ts",
+      "bytes": 5200,
+      "sha256": "ed95dba0e3e71cd8cbabcb56b1ce1ffd21c6e116e629f56c8bf38b11df503c80"
+    }
+  ],
+  "diagnosticOnlyNeverAcceptance": [
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/helper-tests-v1.log",
+      "bytes": 1074,
+      "sha256": "a16f017ee818c534095ee858987208f90851d2ed9bc1e477c7b31b8a57f7eaef"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/helper-tests-v2.log",
+      "bytes": 2744,
+      "sha256": "cb12d3f2e6c1cf9bf2a57e28632a5b6a37152d8c5912411388d7d96b3effa004"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/typecheck-overlay-v1.log",
+      "bytes": 13093876,
+      "sha256": "db932292e96b0e55c9606c3e04990ca688e2a2d28ce295e4fa04036a059f3c33"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/typecheck-overlay-result-v1-invalid-harness.json",
+      "bytes": 12780062,
+      "sha256": "9aa017839f4caa35961ecf287cdd5b839a47c3456ac911014d528b3a19e7da3e"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/postgres-qualification.json",
+      "bytes": 2137,
+      "sha256": "cc877853be100675b7a767a7e2f0ee922cec012fa85b0dcc3480959ed63d2a58"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/postgres-qualification-attempt1-failed.json",
+      "bytes": 2137,
+      "sha256": "cc877853be100675b7a767a7e2f0ee922cec012fa85b0dcc3480959ed63d2a58"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/postgres-qualification-attempt4-baseline-invalid.json",
+      "bytes": 8044,
+      "sha256": "02b5a921ba2cb05f07fb77ad6243bc84b48542d07d07ca931154373d086af9aa"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/case12-eligibility-v1.log",
+      "bytes": 138584,
+      "sha256": "b1c634e1f8e62553535c3ea31d8d96419a8de25190b46d89b1d9a3a34e89266e"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/case12-eligibility-v1.receipt.json",
+      "bytes": 2518,
+      "sha256": "d711ace9a71eb60883bee459e354028579e1930bcd3672b6679e0bcc8325ba3e"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/case12-eligibility-v2.log",
+      "bytes": 1831,
+      "sha256": "0016e4253c52b1cf7b3d8de3909f2d818b80c71b1ad381e38da58d52ca66a220"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/case12-eligibility-v2.receipt.json",
+      "bytes": 2518,
+      "sha256": "cdd0e3d063f60fff119b6562d5f1a3b5b28ec5a622be00437145e6e53437ed62"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/case12-eligibility-v3.log",
+      "bytes": 117314,
+      "sha256": "3e117eff94157678cb5a06d16fabd141154f6d55538799b23b16c8a55945fbc9"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/case12-eligibility-v3.receipt.json",
+      "bytes": 2616,
+      "sha256": "121a04f164e4acb3d9d201c6373d9c75197ed576d9215f6da7fa5a106258d7c6"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/case12-eligibility-v4.log",
+      "bytes": 115934,
+      "sha256": "06e546f1621bdc27b7941f7871109b5e68bd1c23a503a4dd4de004f79a466f96"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/case12-eligibility-v4.receipt.json",
+      "bytes": 2617,
+      "sha256": "53cd32820137bf85d5843116a44fcf124c124d12a85da552b6cd410a57a1a290"
+    }
+  ],
+  "secretScan": {
+    "filesScanned": 69,
+    "actualLocalPasswordMatches": 0,
+    "jwtShapedMatches": 0,
+    "awsAccessKeyShapedMatches": 0,
+    "privateConfigCopied": false
+  },
+  "limitations": [
+    "Reduced schema only, projection fast path inert; no production RLS/full migrations/application DI qualification",
+    "No semantic vector branch/provider/model/original prompt/human rubric",
+    "No live Case12 inventory or transferable seed receipt; owned local schema was removed",
+    "No Case12 native clock/source/provider/aggregate/capture authority; present owner is readiness inspection only",
+    "Original baseline frozen before concurrent root integration; root separately formatted/integrated production candidate",
+    "6,634 SQL calls/2.54sec local inspection is not a remote deadline guarantee"
+  ]
+}

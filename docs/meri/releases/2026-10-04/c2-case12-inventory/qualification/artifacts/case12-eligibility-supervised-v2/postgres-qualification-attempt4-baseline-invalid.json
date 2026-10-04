@@ -1,0 +1,212 @@
+{
+  "kind": "case12-owned-postgresql-current-eligibility-qualification",
+  "providerCalls": 0,
+  "cloudCalls": 0,
+  "semanticClockQualified": false,
+  "fullApplicationSchemaQualified": false,
+  "productionRlsQualified": false,
+  "semanticVectorBranchRun": false,
+  "originalModelPromptRun": false,
+  "humanRubricRun": false,
+  "captureAuthority": false,
+  "liveAcceptance": "NOT_RUN",
+  "checks": [
+    {
+      "name": "native services create 510 approved owners with actual durable outbox and inert projection sink",
+      "passed": true
+    },
+    {
+      "name": "actual canonical inventory guards and current SQL/postfilter qualify target plus 509 newer eligible rows",
+      "passed": true
+    },
+    {
+      "name": "actual source and proposed adapters return MA510 full passage before safety cap without embedding calls",
+      "passed": true
+    },
+    {
+      "name": "actual SQL/postfilter and both adapters exclude target with future effective time",
+      "passed": true
+    },
+    {
+      "name": "actual SQL/postfilter and both adapters exclude target with expired record",
+      "passed": true
+    },
+    {
+      "name": "actual SQL/postfilter and both adapters exclude target with elapsed valid-until",
+      "passed": true
+    },
+    {
+      "name": "actual SQL/postfilter and both adapters exclude target with restricted sensitivity",
+      "passed": true
+    },
+    {
+      "name": "actual SQL/postfilter and both adapters exclude target with missing approval",
+      "passed": true
+    },
+    {
+      "name": "actual SQL/postfilter and both adapters exclude target with blank source provenance",
+      "passed": true
+    },
+    {
+      "name": "actual SQL/postfilter and both adapters exclude target with revoked governance",
+      "passed": true
+    },
+    {
+      "name": "actual SQL/postfilter and both adapters exclude target with legacy inactive status",
+      "passed": true
+    },
+    {
+      "name": "actual SQL/postfilter and both adapters exclude target with foreign client",
+      "passed": true
+    },
+    {
+      "name": "existing retrieval only requires approvedBy when four-eyes is disabled; native owner still rejects changed approval timestamp",
+      "passed": true
+    },
+    {
+      "name": "500 eligible newer rows count, then 499 fail the threshold from actual current predicate",
+      "passed": true
+    },
+    {
+      "name": "age comparison is database precise: tied timestamps do not count; one microsecond newer does",
+      "passed": true
+    },
+    {
+      "name": "actual current ethical wall denies the ungranted actor",
+      "passed": true
+    },
+    {
+      "name": "composed owner rejects foreign reader scope",
+      "passed": true
+    },
+    {
+      "name": "composed owner rejects changed current version",
+      "passed": true
+    },
+    {
+      "name": "composed owner rejects duplicate row",
+      "passed": true
+    },
+    {
+      "name": "composed owner rejects missing observed snapshot",
+      "passed": true
+    },
+    {
+      "name": "composed owner rejects missing target",
+      "passed": true
+    },
+    {
+      "name": "composed owner rejects only 499 newer eligible rows",
+      "passed": true
+    },
+    {
+      "name": "malformed and foreign ordinary identities are rejected before qualification",
+      "passed": true
+    }
+  ],
+  "creationDurationMs": 22979.3297,
+  "canonicalCounts": {
+    "candidates": 510,
+    "outbox": 510,
+    "approvals": 510
+  },
+  "nativeOwnerInspectionDurationMs": 3196.4177999999993,
+  "nativeOwnerInspectionQueryCount": 6634,
+  "currentOwner": {
+    "fixtureInstanceId": "8ba8bed8-0196-4017-92fa-55328e3ebf13",
+    "manifestContentSha256": "da1a8e529dac9a0f3928eed907bc875b27fb777cb5821f6e2672985ae42b5970",
+    "seedInventorySha256": "bffb170ecf90e5886447decc1b39d887f7edfc0dc6a668e0513425def0262d8c",
+    "newerCurrentEligibleRecordCount": 509,
+    "targetId": "e6ad1fad-11f7-4f2e-8c0a-1decc343867d",
+    "sourceVersion": "candidate:1fa7ce41-2771-5bcc-ad37-64f140dc17ee",
+    "observation": {
+      "databaseTransactionStartedAt": "2026-10-04T09:15:57.898Z",
+      "databaseObservedAt": "2026-10-04T09:16:01.090Z",
+      "databaseSnapshot": "7923:7923:",
+      "processStartedAt": "2026-10-04T09:16:01.086Z",
+      "processCompletedAt": "2026-10-04T09:16:01.099Z"
+    }
+  },
+  "lookup": {
+    "returned": 50,
+    "recordsEvaluated": 501,
+    "truncated": true,
+    "sourceStatus": "degraded",
+    "stopReason": "governed_memory_safety_cap_reached",
+    "targetRecord": {
+      "domain": "institutional_knowledge",
+      "recordId": "e6ad1fad-11f7-4f2e-8c0a-1decc343867d",
+      "entityRef": {
+        "type": "client",
+        "id": "11111111-1111-4111-8111-111111111111"
+      },
+      "updatedAt": "2026-10-04T09:15:34.974Z",
+      "payload": {
+        "sourceKind": "governed_memory",
+        "key": "meri-foundation-20260928:8ba8bed8-0196-4017-92fa-55328e3ebf13:APPROVED-MA510",
+        "scope": "client",
+        "clientId": "11111111-1111-4111-8111-111111111111",
+        "memoryItemId": "e6ad1fad-11f7-4f2e-8c0a-1decc343867d",
+        "title": "meri-foundation-20260928:8ba8bed8-0196-4017-92fa-55328e3ebf13:APPROVED-MA510",
+        "contentStatus": "available",
+        "contentLimitation": null,
+        "type": "client-compass",
+        "slug": "clio:7663afc7-a271-4bbb-ade4-edad4971eba9",
+        "sectionCount": 1,
+        "contentRead": {
+          "tool": "search_memory",
+          "arguments": {
+            "query": "Read this approved memory",
+            "memoryItemId": "e6ad1fad-11f7-4f2e-8c0a-1decc343867d",
+            "clientId": "11111111-1111-4111-8111-111111111111"
+          }
+        },
+        "governance": {
+          "memoryClass": "client_steering",
+          "authority": "analyst_verified",
+          "status": "active",
+          "conflictStatus": "none",
+          "controllingItemId": null,
+          "approvedByUserId": "66666666-6666-4666-8666-666666666666",
+          "approvedAt": "2026-10-04T09:15:34.968Z",
+          "asOf": "2026-10-04T09:15:34.968Z",
+          "effectiveFrom": "2026-10-04T09:15:34.968Z",
+          "validUntil": null,
+          "expiresAt": null,
+          "lastConfirmedAt": "2026-10-04T09:15:34.968Z",
+          "reviewDueAt": null,
+          "stale": false,
+          "instructionsAllowed": false
+        },
+        "value": "autonomous maritime demo",
+        "sections": [
+          {
+            "key": "memory",
+            "heading": "Memory",
+            "characters": 24
+          }
+        ]
+      },
+      "provenance": {
+        "source": "memory_items",
+        "recordId": "e6ad1fad-11f7-4f2e-8c0a-1decc343867d",
+        "canonicalTenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+        "sourceType": "steward_extraction",
+        "sourceId": "1fa7ce41-2771-5bcc-ad37-64f140dc17ee",
+        "sourceRef": "meri_synthetic_fixture",
+        "sourceExcerpt": "{\"ownership\":{\"marker\":{\"contractVersion\":\"meri-synthetic-fixture-provisioning-v1\",\"fixtureInstanceId\":\"8ba8bed8-0196-4017-92fa-55328e3ebf13\",\"fixtureNamespace\":\"meri-foundation-20260928\",\"fixtureVersion\":\"meri-live-v1-2026-09-26.1\",\"logicalId\":\"APPROVED-MA510\",\"owner\":\"memory_candidate\",\"tenantId\":\"f2d6cf8f-057c-479a-8110-62fe5086d43f\"},\"markerSha256\":\"12482409e12eb8cc4177f5963e33f4444443cd3265d311fd4cdedc60ffe52b05\",\"physicalId\":\"1fa7ce41-2771-5bcc-ad37-64f140dc17ee\"},\"payload\":{\"facts\":{\"lifecycle\":\"approved\",\"retrievalOrdinal\":510,\"text\":\"autonomous maritime demo\"},\"fixtureKind\":\"approved_memory_fixture\",\"sourceAsset\":null,\"sourceLogicalId\":\"MA510\",\"supporting\":false}}",
+        "contentHash": "3a2d808d8cec31217186113eda9337ca9a487c955a79e6956bf52ca37f74fc9e",
+        "sourceVersion": "candidate:1fa7ce41-2771-5bcc-ad37-64f140dc17ee"
+      },
+      "retrievalSignals": {}
+    }
+  },
+  "transactionMetrics": {
+    "serviceTransactions": 7140,
+    "serviceQueries": 25500,
+    "inspectionTransactions": 1,
+    "inspectionQueries": 46583
+  },
+  "ownedSchemaDroppedAndAbsent": true,
+  "status": "PASS_LOCAL_SCOPE_ONLY"
+}

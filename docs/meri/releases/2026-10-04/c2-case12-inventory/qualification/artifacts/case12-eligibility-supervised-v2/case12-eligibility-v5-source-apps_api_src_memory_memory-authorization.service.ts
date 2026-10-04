@@ -1,0 +1,253 @@
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
+import type { TenantContext, TenantRole } from '@capiro/shared';
+import {
+  emitMeriV2ControlMetrics,
+  type GovernedMemoryScope,
+  type GovernedMemoryStatus,
+  type MemoryClass,
+} from '@capiro/meriv2-core';
+import { PrismaService } from '../prisma/prisma.service.js';
+import { clientMemoryAllowed } from './memory-wall.helpers.js';
+import {
+  evaluateGovernedMemoryAuthorization,
+  type MemoryAuthorizationDecision,
+  type MemoryAuthorizationSubject,
+  type MemoryOperation,
+} from './memory-authorization.helpers.js';
+import { isMemoryReviewAdminRole } from './memory-review-admin-policy.js';
+
+export interface GovernedMemorySubjectRow extends MemoryAuthorizationSubject {
+  id: string;
+  tenantId: string;
+  clientId: string | null;
+  ownerUserId: string | null;
+  clientStatus: string | null;
+  /** Legacy memory_candidate.status. Present only for candidate subjects. */
+  legacyCandidateStatus?: string | null;
+}
+
+export interface MemoryAuthorizationOptions {
+  impersonating?: boolean;
+  actorRole?: TenantRole | null;
+  /**
+   * Eligibility/read-model calculations use the exact authorization policy but
+   * are not attempted mutations. Suppress denial counters for those read-only
+   * simulations so polling a status surface cannot manufacture control events.
+   * The same signal prevents simulations from receiving the transaction-local
+   * administrator decision capability used by the database trigger.
+   */
+  emitDenialMetrics?: boolean;
+}
+
+@Injectable()
+export class MemoryAuthorizationService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async requireItem(
+    ctx: TenantContext,
+    itemId: string,
+    operation: MemoryOperation,
+    options: MemoryAuthorizationOptions = {},
+  ): Promise<GovernedMemorySubjectRow> {
+    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      const row = await this.loadItemInTx(tx, ctx.tenantId, itemId);
+      if (!row) throw new NotFoundException('Memory item not found');
+      const decision = await this.evaluateInTx(tx, ctx, row, operation, options);
+      if (!decision.allowed) {
+        throw new ForbiddenException(`Memory operation denied: ${decision.reason}`);
+      }
+      return row;
+    });
+  }
+
+  async requireCandidate(
+    ctx: TenantContext,
+    candidateId: string,
+    operation: MemoryOperation,
+    options: MemoryAuthorizationOptions = {},
+  ): Promise<GovernedMemorySubjectRow> {
+    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      const row = await this.loadCandidateInTx(tx, ctx.tenantId, candidateId);
+      if (!row) throw new NotFoundException('Memory candidate not found');
+      const decision = await this.evaluateInTx(tx, ctx, row, operation, options);
+      if (!decision.allowed) {
+        throw new ForbiddenException(`Memory operation denied: ${decision.reason}`);
+      }
+      return row;
+    });
+  }
+
+  async evaluateInTx(
+    tx: Prisma.TransactionClient,
+    ctx: Pick<TenantContext, 'tenantId' | 'userId' | 'role'>,
+    subject: GovernedMemorySubjectRow,
+    operation: MemoryOperation,
+    options: MemoryAuthorizationOptions = {},
+  ): Promise<MemoryAuthorizationDecision> {
+    let ethicalWallAllowed = true;
+    let grantPermissions: string[] = [];
+    if (subject.clientId) {
+      ethicalWallAllowed = await clientMemoryAllowed(
+        tx,
+        ctx.tenantId,
+        ctx.userId,
+        subject.clientId,
+      );
+      const grants = await tx.$queryRaw<Array<{ permissions: string[] }>>(Prisma.sql`
+        SELECT permissions
+        FROM memory_access_grant
+        WHERE tenant_id = ${ctx.tenantId}::uuid
+          AND client_id = ${subject.clientId}::uuid
+          AND user_id = ${ctx.userId}::uuid
+          AND status = 'active'
+          AND expires_at IS NOT NULL
+          AND expires_at > now()
+          AND reason IS NOT NULL
+          AND btrim(reason) <> ''
+        ORDER BY created_at DESC
+        LIMIT 1
+      `);
+      grantPermissions = grants[0]?.permissions ?? [];
+    }
+    const decision = evaluateGovernedMemoryAuthorization({
+      userId: ctx.userId,
+      role: ctx.role,
+      operation,
+      subject,
+      ethicalWallAllowed,
+      clientStatus: subject.clientStatus,
+      grantPermissions,
+      impersonating: options.impersonating,
+      actorRole: options.actorRole,
+    });
+    if (options.emitDenialMetrics !== false) {
+      if (!decision.allowed && decision.reason === 'ethical_wall') {
+        emitMeriV2ControlMetrics({ EthicalWallDenials: 1 });
+      }
+      if (!decision.allowed && decision.reason === 'self_review') {
+        emitMeriV2ControlMetrics({ SelfReviewDenials: 1 });
+      }
+    }
+
+    const effectiveRole = options.impersonating ? (options.actorRole ?? ctx.role) : ctx.role;
+    // The governed candidate column deliberately defaults to `suggested`, while
+    // the legacy workflow uses status='pending'. Shared Settings submissions can
+    // therefore be a real pending review before governed_status advances. Bind
+    // the DB capability to either representation, but only for candidate rows
+    // (identified by proposedByUserId) and only after canonical authorization.
+    const pendingCandidate =
+      Boolean(subject.proposedByUserId) &&
+      (subject.status === 'pending_review' || subject.legacyCandidateStatus === 'pending');
+    if (
+      decision.allowed &&
+      options.emitDenialMetrics !== false &&
+      isMemoryReviewAdminRole(effectiveRole) &&
+      (operation === 'approve' || operation === 'review') &&
+      pendingCandidate
+    ) {
+      await tx.$executeRawUnsafe(
+        `SELECT set_config('app.memory_admin_review_candidate_id', $1, true)`,
+        subject.id,
+      );
+      await tx.$executeRawUnsafe(
+        `SELECT set_config('app.memory_admin_review_actor_id', $1, true)`,
+        ctx.userId,
+      );
+    }
+
+    return decision;
+  }
+
+  async loadItemInTx(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    itemId: string,
+  ): Promise<GovernedMemorySubjectRow | null> {
+    const rows = await tx.$queryRaw<Array<GovernedMemorySubjectRow>>(Prisma.sql`
+      SELECT mi.id::text AS id,
+             mi.tenant_id::text AS "tenantId",
+             mi.client_id::text AS "clientId",
+             mi.owner_user_id::text AS "ownerUserId",
+             mi.memory_class AS "memoryClass",
+             mi.memory_scope AS scope,
+             mi.governed_status AS status,
+             mi.legal_hold AS "legalHold",
+             c.status AS "clientStatus"
+      FROM memory_items mi
+      LEFT JOIN clients c ON c.id = mi.client_id AND c.tenant_id = mi.tenant_id
+      WHERE mi.tenant_id = ${tenantId}::uuid AND mi.id = ${itemId}::uuid
+      LIMIT 1
+    `);
+    return normalizeSubject(rows[0]);
+  }
+
+  async loadCandidateInTx(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    candidateId: string,
+  ): Promise<GovernedMemorySubjectRow | null> {
+    const rows = await tx.$queryRaw<Array<GovernedMemorySubjectRow>>(Prisma.sql`
+      SELECT mc.id::text AS id,
+             mc.tenant_id::text AS "tenantId",
+             mc.client_id::text AS "clientId",
+             mc.proposed_by::text AS "ownerUserId",
+             mc.proposed_by::text AS "proposedByUserId",
+             mc.memory_class AS "memoryClass",
+             -- A pending proposal still has the governed column's firm default.
+             -- Authorization must follow the proposal scope used by approval.
+             CASE WHEN mc.scope = 'personal' THEN 'user_private' ELSE mc.scope END AS scope,
+             mc.governed_status AS status,
+             mc.status AS "legacyCandidateStatus",
+             mc.legal_hold AS "legalHold",
+             c.status AS "clientStatus"
+      FROM memory_candidate mc
+      LEFT JOIN clients c ON c.id = mc.client_id AND c.tenant_id = mc.tenant_id
+      WHERE mc.tenant_id = ${tenantId}::uuid AND mc.id = ${candidateId}::uuid
+      LIMIT 1
+    `);
+    return normalizeSubject(rows[0]);
+  }
+}
+
+function normalizeSubject(
+  row: GovernedMemorySubjectRow | undefined,
+): GovernedMemorySubjectRow | null {
+  if (!row) return null;
+  const memoryClass = normalizeClass(row.memoryClass);
+  const scope = normalizeScope(row.scope);
+  const status = normalizeStatus(row.status);
+  return { ...row, memoryClass, scope, status };
+}
+
+function normalizeClass(value: unknown): MemoryClass {
+  const allowed = [
+    'institutional_authoritative',
+    'client_steering',
+    'user_preference',
+    'episodic_working',
+    'legacy_unclassified',
+  ];
+  return allowed.includes(String(value)) ? (value as MemoryClass) : 'legacy_unclassified';
+}
+
+function normalizeScope(value: unknown): GovernedMemoryScope {
+  return ['firm', 'client', 'user_private'].includes(String(value))
+    ? (value as GovernedMemoryScope)
+    : 'firm';
+}
+
+function normalizeStatus(value: unknown): GovernedMemoryStatus {
+  const allowed = [
+    'suggested',
+    'pending_review',
+    'active',
+    'stale',
+    'conflicted',
+    'superseded',
+    'revoked',
+    'rejected',
+    'expired',
+  ];
+  return allowed.includes(String(value)) ? (value as GovernedMemoryStatus) : 'pending_review';
+}

@@ -1,0 +1,1030 @@
+--- hermes/evals/meri/live-v1/fixture-provisioning/case12-memory-inventory-owner.mjs
++++ supervised/evals/meri/live-v1/fixture-provisioning/case12-memory-inventory-owner.mjs
+@@ -13,12 +13,17 @@
+ };
+ 
+ function exactKeys(value, allowed, code) {
+-  if (!value || typeof value !== 'object' || Array.isArray(value) ||
+-      Object.keys(value).some((key) => !allowed.has(key))) fail(code);
++  if (
++    !value ||
++    typeof value !== 'object' ||
++    Array.isArray(value) ||
++    Object.keys(value).some((key) => !allowed.has(key))
++  )
++    fail(code);
+ }
+ 
+ function validRowVersion(value) {
+-  return typeof value === 'string' && /^[0-9]{1,10}$/u.test(value);
++  return typeof value === 'string' && /^[0-9]{1,10}$/u.test(value) && Number(value) <= 0xffffffff;
+ }
+ 
+ function resultBase(missing) {
+@@ -36,11 +41,18 @@
+ }
+ 
+ function validateSeedEnvelope(seedInventory) {
+-  exactKeys(seedInventory, new Set(['kind', 'fixtureMapSha256', 'bindings', 'bindingsSha256']), 'CASE12_SEED_UNKNOWN_FIELDS');
+-  if (seedInventory.kind !== RECEIPT_KIND ||
+-      !SHA256.test(seedInventory.fixtureMapSha256 ?? '') ||
+-      !Array.isArray(seedInventory.bindings) ||
+-      seedInventory.bindingsSha256 !== sha256Stable(seedInventory.bindings)) {
++  exactKeys(
++    seedInventory,
++    new Set(['kind', 'fixtureMapSha256', 'bindings', 'bindingsSha256', 'liveAcceptance']),
++    'CASE12_SEED_UNKNOWN_FIELDS',
++  );
++  if (
++    seedInventory.kind !== RECEIPT_KIND ||
++    seedInventory.liveAcceptance !== 'NOT_RUN' ||
++    !SHA256.test(seedInventory.fixtureMapSha256 ?? '') ||
++    !Array.isArray(seedInventory.bindings) ||
++    seedInventory.bindingsSha256 !== sha256Stable(seedInventory.bindings)
++  ) {
+     fail('CASE12_SEED_RECEIPT_INVALID');
+   }
+ }
+@@ -57,29 +69,46 @@
+   const physicalIds = new Set();
+   const candidateIds = new Set();
+   for (const binding of bindings) {
+-    exactKeys(binding, new Set([
+-      'logicalId', 'supporting', 'owner', 'tenantId', 'clientId', 'physicalId',
+-      'proposedItemId', 'candidateId', 'ownershipMarkerSha256', 'candidatePayloadSha256',
+-      'candidateRowVersion', 'itemRowVersion', 'lifecycle',
+-    ]), 'CASE12_BINDING_UNKNOWN_FIELDS');
++    exactKeys(
++      binding,
++      new Set([
++        'logicalId',
++        'supporting',
++        'owner',
++        'tenantId',
++        'clientId',
++        'physicalId',
++        'proposedItemId',
++        'candidateId',
++        'ownershipMarkerSha256',
++        'candidatePayloadSha256',
++        'candidateRowVersion',
++        'itemRowVersion',
++        'lifecycle',
++      ]),
++      'CASE12_BINDING_UNKNOWN_FIELDS',
++    );
+     if (typeof binding.logicalId !== 'string' || byLogicalId.has(binding.logicalId))
+       fail('CASE12_DUPLICATE_LOGICAL_ID');
+     const definition = definitions.get(binding.logicalId);
+     if (!definition) fail('CASE12_SEED_INVENTORY_MISMATCH');
+     const candidate = definition.candidate;
+-    if (binding.owner !== 'memory_item' || binding.lifecycle !== 'approved' ||
+-        binding.supporting !== definition.supporting ||
+-        binding.tenantId !== candidate.tenantId ||
+-        binding.clientId !== candidate.clientPhysicalId ||
+-        binding.candidateId !== candidate.physicalId ||
+-        binding.proposedItemId !== definition.proposedItemId ||
+-        binding.ownershipMarkerSha256 !== candidate.ownership.markerSha256 ||
+-        binding.candidatePayloadSha256 !== candidate.payloadSha256 ||
+-        !UUID.test(binding.physicalId ?? '') ||
+-        binding.physicalId === candidate.physicalId ||
+-        binding.physicalId === definition.proposedItemId ||
+-        !validRowVersion(binding.candidateRowVersion) ||
+-        !validRowVersion(binding.itemRowVersion)) {
++    if (
++      binding.owner !== 'memory_item' ||
++      binding.lifecycle !== 'approved' ||
++      binding.supporting !== definition.supporting ||
++      binding.tenantId !== candidate.tenantId ||
++      binding.clientId !== candidate.clientPhysicalId ||
++      binding.candidateId !== candidate.physicalId ||
++      binding.proposedItemId !== definition.proposedItemId ||
++      binding.ownershipMarkerSha256 !== candidate.ownership.markerSha256 ||
++      binding.candidatePayloadSha256 !== candidate.payloadSha256 ||
++      !UUID.test(binding.physicalId ?? '') ||
++      binding.physicalId === candidate.physicalId ||
++      binding.physicalId === definition.proposedItemId ||
++      !validRowVersion(binding.candidateRowVersion) ||
++      !validRowVersion(binding.itemRowVersion)
++    ) {
+       fail('CASE12_SEED_BINDING_MISMATCH', binding.logicalId);
+     }
+     if (physicalIds.has(binding.physicalId) || candidateIds.has(binding.candidateId))
+@@ -88,8 +117,11 @@
+     candidateIds.add(binding.candidateId);
+     byLogicalId.set(binding.logicalId, binding);
+   }
+-  if (JSON.stringify([...byLogicalId.keys()].sort()) !== JSON.stringify(expectedIds) ||
+-      !byLogicalId.has('MA510')) fail('CASE12_SEED_INVENTORY_MISMATCH');
++  if (
++    JSON.stringify([...byLogicalId.keys()].sort()) !== JSON.stringify(expectedIds) ||
++    !byLogicalId.has('MA510')
++  )
++    fail('CASE12_SEED_INVENTORY_MISMATCH');
+   return byLogicalId;
+ }
+ 
+@@ -115,36 +147,67 @@
+ 
+   if (snapshotManifest === undefined) prerequisitesMissing.push('EXACT_FIXTURE_MANIFEST_MISSING');
+   else {
++    if (
++      typeof snapshotManifest.fixtureInstanceId !== 'string' ||
++      !snapshotManifest.fixtureInstanceId
++    )
++      fail('CASE12_EXACT_FIXTURE_INSTANCE_ID_REQUIRED');
+     assertManifest(snapshotManifest);
+-    if (typeof snapshotManifest.fixtureInstanceId !== 'string' || !snapshotManifest.fixtureInstanceId)
+-      fail('CASE12_EXACT_FIXTURE_INSTANCE_ID_REQUIRED');
+-    definitionsById = new Map(approvedMemoryDefinitions(snapshotManifest).map((entry) => [entry.logicalId, entry]));
+-  }
+-  if (snapshotSeed === undefined) prerequisitesMissing.push('EXACT_ORIGINAL_SEED_INVENTORY_MISSING');
++  }
++  if (snapshotSeed === undefined)
++    prerequisitesMissing.push('EXACT_ORIGINAL_SEED_INVENTORY_MISSING');
+   else {
+     validateSeedEnvelope(snapshotSeed);
+-    if (definitionsById) bindingsById = validateSeed(snapshotSeed, snapshotManifest, definitionsById);
+-  }
+-
+-  if (typeof proposerForTenant !== 'function' ||
+-      typeof assertSyntheticApprovedMemoryInTx !== 'function' ||
+-      typeof memoryAuthorization?.loadItemInTx !== 'function' ||
+-      typeof memoryAuthorization?.evaluateInTx !== 'function') {
++    const distractorCount = snapshotSeed.bindings.length - 1;
++    if (distractorCount < 500 || distractorCount > 600) fail('CASE12_SEED_INVENTORY_MISMATCH');
++    if (snapshotManifest) {
++      definitionsById = new Map(
++        approvedMemoryDefinitions(snapshotManifest, { distractorCount }).map((entry) => [
++          entry.logicalId,
++          entry,
++        ]),
++      );
++      bindingsById = validateSeed(snapshotSeed, snapshotManifest, definitionsById);
++    }
++  }
++
++  if (
++    typeof proposerForTenant !== 'function' ||
++    typeof assertSyntheticApprovedMemoryInTx !== 'function' ||
++    typeof memoryAuthorization?.loadItemInTx !== 'function' ||
++    typeof memoryAuthorization?.evaluateInTx !== 'function'
++  ) {
+     fail('CASE12_CANONICAL_INSPECTION_HELPERS_INCOMPLETE');
+   }
+ 
+-  const inspectInTx = async (tx, ctx, { caseId, clientId } = {}) => {
++  const loadItemInTx = memoryAuthorization.loadItemInTx.bind(memoryAuthorization);
++  const evaluateInTx = memoryAuthorization.evaluateInTx.bind(memoryAuthorization);
++  const inspectInTx = async (tx, suppliedContext, { caseId, clientId } = {}) => {
++    const ctx = suppliedContext === undefined ? undefined : structuredClone(suppliedContext);
+     if (caseId !== '12') fail('CASE12_ONLY');
+     if (prerequisitesMissing.length) return resultBase([...prerequisitesMissing]);
+     if (!tx || typeof tx.$queryRawUnsafe !== 'function') fail('CASE12_TRANSACTION_REQUIRED');
+     const client = snapshotManifest.clients?.ASTER;
+     const tenantId = snapshotManifest.tenants?.T1?.id;
+     const tenantKey = snapshotManifest.clients?.ASTER?.tenantId;
+-    const ordinaryPatId = snapshotManifest.actors?.PAT?.physicalId ?? snapshotManifest.actors?.PAT?.userId;
+-    if (!client || tenantKey !== 'T1' || !tenantId || client.tenantId !== 'T1' ||
+-        client.physicalId !== clientId ||
+-        ctx?.tenantId !== tenantId || typeof ctx?.userId !== 'string' ||
+-        !UUID.test(ctx.userId) || ctx.userId !== ordinaryPatId || !ORDINARY_ROLES.has(ctx.role)) {
++    const ordinaryPatId =
++      snapshotManifest.actors?.PAT?.physicalId ?? snapshotManifest.actors?.PAT?.userId;
++    if (
++      !client ||
++      tenantKey !== 'T1' ||
++      !tenantId ||
++      client.tenantId !== 'T1' ||
++      snapshotManifest.actors?.PAT?.tenantId !== 'T1' ||
++      (snapshotManifest.actors.PAT.physicalId &&
++        snapshotManifest.actors.PAT.userId &&
++        snapshotManifest.actors.PAT.physicalId !== snapshotManifest.actors.PAT.userId) ||
++      client.physicalId !== clientId ||
++      ctx?.tenantId !== tenantId ||
++      typeof ctx?.userId !== 'string' ||
++      !UUID.test(ctx.userId) ||
++      ctx.userId !== ordinaryPatId ||
++      !ORDINARY_ROLES.has(ctx.role)
++    ) {
+       fail('CASE12_ORDINARY_ACTOR_SCOPE_MISMATCH');
+     }
+ 
+@@ -152,11 +215,17 @@
+       `SELECT tm.user_id::text AS user_id, tm.role::text AS role
+        FROM tenant_memberships tm JOIN tenants t ON t.id=tm.tenant_id
+        WHERE tm.tenant_id=$1::uuid AND tm.user_id=$2::uuid AND tm.status='active'
+-         AND t.slug=$3`,
+-      tenantId, ctx.userId, snapshotManifest.tenants.T1.slug,
++         AND t.slug=$3 FOR SHARE OF tm,t`,
++      tenantId,
++      ctx.userId,
++      snapshotManifest.tenants.T1.slug,
+     );
+-    if (membership.length !== 1 || membership[0].user_id !== ctx.userId ||
+-        !ORDINARY_ROLES.has(membership[0].role) || membership[0].role !== ctx.role) {
++    if (
++      membership.length !== 1 ||
++      membership[0].user_id !== ctx.userId ||
++      !ORDINARY_ROLES.has(membership[0].role) ||
++      membership[0].role !== ctx.role
++    ) {
+       fail('CASE12_ORDINARY_ACTOR_MEMBERSHIP_INVALID');
+     }
+ 
+@@ -166,8 +235,13 @@
+       const logicalId = definition.logicalId;
+       const candidate = definition.candidate;
+       const seeded = bindingsById.get(logicalId);
+-      if (!seeded || seeded.tenantId !== tenantId || seeded.clientId !== clientId ||
+-          candidate.tenantId !== tenantId || candidate.clientPhysicalId !== clientId) {
++      if (
++        !seeded ||
++        seeded.tenantId !== tenantId ||
++        seeded.clientId !== clientId ||
++        candidate.tenantId !== tenantId ||
++        candidate.clientPhysicalId !== clientId
++      ) {
+         fail('CASE12_SEED_SCOPE_MISMATCH', logicalId);
+       }
+       const proposerId = await proposerForTenant(tenantId);
+@@ -176,7 +250,10 @@
+         `SELECT proposed_by::text AS proposed_by FROM memory_candidate
+          WHERE tenant_id=$1::uuid AND id=$2::uuid AND proposed_by=$3::uuid
+            AND xmin::text=$4 FOR UPDATE`,
+-        tenantId, seeded.candidateId, proposerId, seeded.candidateRowVersion,
++        tenantId,
++        seeded.candidateId,
++        proposerId,
++        seeded.candidateRowVersion,
+       );
+       if (proposers.length !== 1 || proposers[0].proposed_by !== proposerId)
+         fail('CASE12_CANDIDATE_OWNER_OR_VERSION_CHANGED', logicalId);
+@@ -185,21 +262,35 @@
+         expectedRowVersion: seeded.candidateRowVersion,
+         expectedItemRowVersion: seeded.itemRowVersion,
+         expectedPayload: expectedMemoryCandidatePayload(
+-          candidate, proposerId,
++          candidate,
++          proposerId,
+           stableJson({ ownership: candidate.ownership, payload: candidate.payload }),
+         ),
+       };
+       const ownership = await assertSyntheticApprovedMemoryInTx(tx, ctx, seeded.physicalId, guard);
+-      if (!ownership || ownership.syntheticFixtureCandidateRowVersion !== seeded.candidateRowVersion ||
+-          (ownership.itemId !== undefined && ownership.itemId !== seeded.physicalId) ||
+-          (ownership.status !== undefined && ownership.status !== 'active') ||
+-          (ownership.governedStatus !== undefined && ownership.governedStatus !== 'active')) {
++      if (
++        !ownership ||
++        ownership.syntheticFixtureCandidateRowVersion !== seeded.candidateRowVersion ||
++        ownership.syntheticFixtureItemRowVersion !== seeded.itemRowVersion ||
++        ownership.syntheticFixtureCandidateId !== seeded.candidateId ||
++        ownership.syntheticFixtureMarkerSha256 !== candidate.ownership.markerSha256
++      ) {
+         fail('CASE12_CANONICAL_APPROVAL_OWNER_MISMATCH', logicalId);
+       }
+-      const subject = await memoryAuthorization.loadItemInTx(tx, tenantId, seeded.physicalId);
+-      if (!subject || (await memoryAuthorization.evaluateInTx(tx, ctx, subject, 'read', {
+-        emitDenialMetrics: false,
+-      }))?.allowed !== true) fail('CASE12_CURRENT_READ_DENIED', logicalId);
++      const subject = await loadItemInTx(tx, tenantId, seeded.physicalId);
++      if (
++        !subject ||
++        subject.id !== seeded.physicalId ||
++        subject.tenantId !== tenantId ||
++        subject.clientId !== clientId ||
++        subject.status !== 'active' ||
++        (
++          await evaluateInTx(tx, ctx, subject, 'read', {
++            emitDenialMetrics: false,
++          })
++        )?.allowed !== true
++      )
++        fail('CASE12_CURRENT_READ_DENIED', logicalId);
+ 
+       // Select by physical id, then verify actual returned scope. The transaction
+       // and established owner helpers may lock rows; no READ ONLY mode is imposed.
+@@ -207,17 +298,27 @@
+         `SELECT id::text AS id, tenant_id::text AS tenant_id, client_id::text AS client_id,
+                 status, source_version, source_content_hash, sections_jsonb,
+                 xmin::text AS row_version, created_at, updated_at
+-         FROM memory_items WHERE id=$1::uuid FOR UPDATE`,
++         FROM memory_items WHERE id=$1::uuid AND tenant_id=$2::uuid AND client_id=$3::uuid FOR UPDATE`,
+         seeded.physicalId,
++        tenantId,
++        clientId,
+       );
+       const item = actualRows[0];
+-      if (actualRows.length !== 1 || item.id !== seeded.physicalId || item.tenant_id !== tenantId ||
+-          item.client_id !== clientId || item.status !== 'active' ||
+-          item.row_version !== seeded.itemRowVersion ||
+-          typeof item.source_version !== 'string' || !item.source_version ||
+-          typeof item.source_content_hash !== 'string' || !SHA256.test(item.source_content_hash) ||
+-          !item.sections_jsonb || typeof item.sections_jsonb !== 'object' ||
+-          !item.created_at || !item.updated_at) {
++      if (
++        actualRows.length !== 1 ||
++        item.id !== seeded.physicalId ||
++        item.tenant_id !== tenantId ||
++        item.client_id !== clientId ||
++        item.status !== 'active' ||
++        item.row_version !== seeded.itemRowVersion ||
++        item.source_version !== `candidate:${candidate.physicalId}` ||
++        typeof item.source_content_hash !== 'string' ||
++        !SHA256.test(item.source_content_hash) ||
++        !Array.isArray(item.sections_jsonb) ||
++        !item.sections_jsonb.length ||
++        !item.created_at ||
++        !item.updated_at
++      ) {
+         fail('CASE12_CANONICAL_ITEM_BINDING_MISMATCH', logicalId);
+       }
+       observations.push({
+@@ -241,21 +342,31 @@
+     // ties do not count. Only individually owner-verified/permitted receipt IDs
+     // are counted, and this does not qualify expiry/sensitivity/lifecycle policy.
+     const newer = await tx.$queryRawUnsafe(
+-      `SELECT COUNT(DISTINCT inventory.id)::text AS count
+-       FROM memory_items AS inventory
+-       JOIN memory_items AS target ON target.id=$4::uuid AND target.tenant_id=$1::uuid
+-       WHERE inventory.tenant_id=$1::uuid AND inventory.client_id=$2::uuid
+-         AND inventory.status='active' AND inventory.id=ANY($3::uuid[])
+-         AND inventory.id<>target.id
+-         AND inventory.updated_at > target.updated_at
+-         AND inventory.created_at > target.created_at`,
+-      tenantId, clientId, [...bindingsById.values()].map((row) => row.physicalId), target.physicalId,
++      `SELECT COUNT(DISTINCT id)::text AS count
++       FROM memory_items
++       WHERE tenant_id=$1::uuid AND client_id=$2::uuid AND status='active'
++         AND id=ANY($3::uuid[])
++         AND id<>$4::uuid
++         AND updated_at > (SELECT updated_at FROM memory_items WHERE id=$4::uuid AND tenant_id=$1::uuid AND client_id=$2::uuid)
++         AND created_at > (SELECT created_at FROM memory_items WHERE id=$4::uuid AND tenant_id=$1::uuid AND client_id=$2::uuid)`,
++      tenantId,
++      clientId,
++      [...bindingsById.values()].map((row) => row.physicalId),
++      target.physicalId,
+     );
+-    if (newer.length !== 1 || !/^[0-9]+$/u.test(newer[0].count ?? '') || Number(newer[0].count) < 500)
++    if (
++      newer.length !== 1 ||
++      !/^[0-9]+$/u.test(newer[0].count ?? '') ||
++      Number(newer[0].count) < 500 ||
++      Number(newer[0].count) > bindingsById.size - 1
++    )
+       fail('CASE12_500_NEWER_PERMITTED_ROWS_NOT_VERIFIED');
+ 
+     return {
+-      ...resultBase(['RETRIEVAL_ELIGIBILITY_NOT_QUALIFIED', 'CASE12_CAPTURE_AND_LIVE_ACCEPTANCE_NOT_RUN']),
++      ...resultBase([
++        'RETRIEVAL_ELIGIBILITY_NOT_QUALIFIED',
++        'CASE12_CAPTURE_AND_LIVE_ACCEPTANCE_NOT_RUN',
++      ]),
+       inventoryVerified: true,
+       olderThan500PermittedOwnerRowsVerified: true,
+       newerPermittedAsterRecordCount: Number(newer[0].count),
+--- hermes/evals/meri/live-v1/tests/case12-memory-inventory-owner.test.mjs
++++ supervised/evals/meri/live-v1/tests/case12-memory-inventory-owner.test.mjs
+@@ -3,24 +3,29 @@
+ import { randomUUID } from 'node:crypto';
+ import { buildFixtureManifest } from '../fixture-provisioning/manifest.mjs';
+ import { approvedMemoryDefinitions } from '../fixture-provisioning/approved-memory-runtime.mjs';
+-import { createCase12MemoryInventoryOwner, CASE12_SEED_RECEIPT_KIND } from '../fixture-provisioning/case12-memory-inventory-owner.mjs';
++import {
++  createCase12MemoryInventoryOwner,
++  CASE12_SEED_RECEIPT_KIND,
++} from '../fixture-provisioning/case12-memory-inventory-owner.mjs';
+ import { expectedMemoryCandidatePayload } from '../fixture-provisioning/memory-candidate-owner.mjs';
+ import { sha256Stable, stableJson } from '../lib/stable.mjs';
+ 
+ const INSTANCE = 'c924e861-06e5-4f26-a1b1-a7fc70840b35';
+ const id = () => randomUUID();
+ 
+-async function fixture() {
+-  const manifest = await buildFixtureManifest({
+-    fixtureInstanceId: INSTANCE,
+-    clients: {
+-      ASTER: { tenantId: 'T1', physicalId: id() },
+-      BLUEHAVEN: { tenantId: 'T1', physicalId: id() },
+-      CEDAR: { tenantId: 'T2', physicalId: id() },
+-    },
+-    actors: { PAT: { tenantId: 'T1', physicalId: id() } },
+-  });
+-  const definitions = approvedMemoryDefinitions(manifest);
++async function fixture(count = 509) {
++  const manifest = structuredClone(
++    await buildFixtureManifest({
++      fixtureInstanceId: INSTANCE,
++      clients: {
++        ASTER: { tenantId: 'T1', physicalId: id() },
++        BLUEHAVEN: { tenantId: 'T1', physicalId: id() },
++        CEDAR: { tenantId: 'T2', physicalId: id() },
++      },
++      actors: { PAT: { tenantId: 'T1', physicalId: id() } },
++    }),
++  );
++  const definitions = approvedMemoryDefinitions(manifest, { distractorCount: count });
+   const bindings = definitions.map((entry) => ({
+     logicalId: entry.logicalId,
+     supporting: entry.supporting,
+@@ -41,16 +46,26 @@
+     fixtureMapSha256: manifest.contentSha256,
+     bindings,
+     bindingsSha256: sha256Stable(bindings),
++    liveAcceptance: 'NOT_RUN',
+   };
+   return { manifest, definitions, seedInventory };
+ }
+ 
+-function spies({ manifest, definitions, seedInventory, newer = 509, deniedId, changedItemRowVersionId, foreignId, membershipRole = 'standard_user' }) {
++function spies(input) {
++  const {
++    manifest,
++    definitions,
++    seedInventory,
++    newer = input.seedInventory.bindings.length - 1,
++    deniedId,
++    changedVersionId,
++    foreignId,
++    membershipRole = 'standard_user',
++  } = structuredClone(input);
+   const tenantId = manifest.tenants.T1.id;
+   const clientId = manifest.clients.ASTER.physicalId;
+-  const byLogical = new Map(seedInventory.bindings.map((row) => [row.logicalId, row]));
++  const byCandidate = new Map(seedInventory.bindings.map((row) => [row.candidateId, row]));
+   const byItem = new Map(seedInventory.bindings.map((row) => [row.physicalId, row]));
+-  const byCandidate = new Map(seedInventory.bindings.map((row) => [row.candidateId, row]));
+   const calls = { membership: 0, candidate: 0, item: 0, newer: 0, owner: 0, load: 0, auth: 0 };
+   const tx = {};
+   // Capture stable proposer by call so the candidate query and helper share it.
+@@ -60,6 +75,7 @@
+     return (proposerId ??= id());
+   };
+   tx.$queryRawUnsafe = async (sql, ...args) => {
++    assert.match(sql.trim(), /^SELECT/u);
+     if (sql.includes('FROM tenant_memberships')) {
+       calls.membership++;
+       return [{ user_id: args[1], role: membershipRole }];
+@@ -73,9 +89,9 @@
+     }
+     if (sql.includes('COUNT(DISTINCT')) {
+       calls.newer++;
+-      assert.match(sql, /inventory\.updated_at\s*>\s*target\.updated_at/u);
+-      assert.match(sql, /inventory\.created_at\s*>\s*target\.created_at/u);
+-      assert.match(sql, /inventory\.id<>target\.id/u);
++      assert.match(sql, /updated_at\s*>\s*\(SELECT updated_at/u);
++      assert.match(sql, /created_at\s*>\s*\(SELECT created_at/u);
++      assert.match(sql, /id<>\$4::uuid/u);
+       return [{ count: String(newer) }];
+     }
+     if (sql.includes('FROM memory_items')) {
+@@ -83,40 +99,49 @@
+       const itemId = args[0];
+       const row = byItem.get(itemId);
+       if (!row) return [];
+-      return [{
+-        id: itemId,
+-        tenant_id: foreignId === itemId ? id() : tenantId,
+-        client_id: clientId,
+-        status: 'active',
+-        source_version: 'v1',
+-        source_content_hash: 'a'.repeat(64),
+-        sections_jsonb: { content: `unit:${row.logicalId}` },
+-        row_version: changedItemRowVersionId === itemId ? '999' : row.itemRowVersion,
+-        created_at: '2040-01-01T00:00:00.000001Z',
+-        updated_at: '2040-01-02T00:00:00.000001Z',
+-      }];
++      return [
++        {
++          id: itemId,
++          tenant_id: foreignId === itemId ? id() : tenantId,
++          client_id: clientId,
++          status: 'active',
++          source_version:
++            changedVersionId === itemId ? 'unexpected-v9' : `candidate:${row.candidateId}`,
++          source_content_hash: 'a'.repeat(64),
++          sections_jsonb: [{ key: 'memory', body: `unit:${row.logicalId}` }],
++          row_version: row.itemRowVersion,
++          created_at: '2040-01-01T00:00:00.000001Z',
++          updated_at: '2040-01-02T00:00:00.000001Z',
++        },
++      ];
+     }
+     throw new Error(`unexpected SQL: ${sql}`);
+   };
+   const owner = async (txArg, ctx, candidateId, guard) => {
+     calls.owner++;
+-    const row = byCandidate.get(candidateId);
++    const row = byItem.get(candidateId);
+     assert.ok(row);
+     assert.equal(guard.expectedRowVersion, row.candidateRowVersion);
+     assert.equal(guard.expectedItemRowVersion, row.itemRowVersion);
+-    assert.equal(guard.expectedPayload, (await import('../fixture-provisioning/memory-candidate-owner.mjs')).expectedMemoryCandidatePayload(
+-      definitions.find((entry) => entry.logicalId === row.logicalId).candidate,
+-      proposerId,
+-      stableJson({
+-        ownership: definitions.find((entry) => entry.logicalId === row.logicalId).candidate.ownership,
+-        payload: definitions.find((entry) => entry.logicalId === row.logicalId).candidate.payload,
+-      }),
+-    ));
++    assert.deepEqual(
++      guard.expectedPayload,
++      (
++        await import('../fixture-provisioning/memory-candidate-owner.mjs')
++      ).expectedMemoryCandidatePayload(
++        definitions.find((entry) => entry.logicalId === row.logicalId).candidate,
++        proposerId,
++        stableJson({
++          ownership: definitions.find((entry) => entry.logicalId === row.logicalId).candidate
++            .ownership,
++          payload: definitions.find((entry) => entry.logicalId === row.logicalId).candidate.payload,
++        }),
++      ),
++    );
+     return {
+-      itemId: row.physicalId,
++      syntheticFixtureCandidateId: row.candidateId,
++      syntheticFixtureMarkerSha256: row.ownershipMarkerSha256,
+       syntheticFixtureCandidateRowVersion: row.candidateRowVersion,
+-      status: 'active',
+-      governedStatus: 'active',
++      syntheticFixtureItemRowVersion: row.itemRowVersion,
+     };
+   };
+   const memoryAuthorization = {
+@@ -124,7 +149,7 @@
+       calls.load++;
+       assert.equal(actualTenant, tenantId);
+       assert.ok(byItem.has(itemId));
+-      return { id: itemId, tenantId: actualTenant };
++      return { id: itemId, tenantId: actualTenant, clientId, status: 'active' };
+     },
+     async evaluateInTx(txArg, ctx, subject, action, options) {
+       calls.auth++;
+@@ -134,7 +159,9 @@
+     },
+   };
+   return {
+-    tx, calls, proposerForTenant: stableProposer,
++    tx,
++    calls,
++    proposerForTenant: stableProposer,
+     owner: (txArg, ctx, candidateId, guard) => owner(txArg, ctx, candidateId, guard),
+     memoryAuthorization,
+     ctx: { tenantId, userId: manifest.actors.PAT.physicalId, role: 'standard_user' },
+@@ -160,7 +187,10 @@
+   const data = await fixture();
+   const boundary = spies(data);
+   const owner = makeOwner(data, boundary);
+-  const result = await owner.inspectInTx(boundary.tx, boundary.ctx, { caseId: '12', clientId: boundary.clientId });
++  const result = await owner.inspectInTx(boundary.tx, boundary.ctx, {
++    caseId: '12',
++    clientId: boundary.clientId,
++  });
+   assert.equal(result.inventoryVerified, true);
+   assert.equal(result.fixtureReady, false);
+   assert.equal(result.captureAuthority, false);
+@@ -168,7 +198,8 @@
+   assert.equal(result.retrievalEligibility, 'RETRIEVAL_ELIGIBILITY_NOT_QUALIFIED');
+   assert.equal(result.olderThan500PermittedOwnerRowsVerified, true);
+   assert.equal(result.observations.length, 510);
+-  for (const key of ['owner', 'load', 'auth', 'item', 'candidate']) assert.equal(boundary.calls[key], 510);
++  for (const key of ['owner', 'load', 'auth', 'item', 'candidate'])
++    assert.equal(boundary.calls[key], 510);
+   assert.equal(boundary.calls.newer, 1);
+   assert.equal(Object.keys(owner).join(','), 'inspectInTx');
+ });
+@@ -182,7 +213,10 @@
+     assertSyntheticApprovedMemoryInTx: boundary.owner,
+     memoryAuthorization: boundary.memoryAuthorization,
+   });
+-  const result = await owner.inspectInTx(boundary.tx, boundary.ctx, { caseId: '12', clientId: boundary.clientId });
++  const result = await owner.inspectInTx(boundary.tx, boundary.ctx, {
++    caseId: '12',
++    clientId: boundary.clientId,
++  });
+   assert.equal(result.fixtureReady, false);
+   assert.equal(result.inventoryVerified, false);
+   assert.ok(result.missing.includes('EXACT_FIXTURE_MANIFEST_MISSING'));
+@@ -199,7 +233,10 @@
+     assertSyntheticApprovedMemoryInTx: boundary.owner,
+     memoryAuthorization: boundary.memoryAuthorization,
+   });
+-  const result = await owner.inspectInTx(boundary.tx, boundary.ctx, { caseId: '12', clientId: boundary.clientId });
++  const result = await owner.inspectInTx(boundary.tx, boundary.ctx, {
++    caseId: '12',
++    clientId: boundary.clientId,
++  });
+   assert.ok(result.missing.includes('EXACT_FIXTURE_MANIFEST_MISSING'));
+   assert.equal(boundary.calls.membership, 0);
+ });
+@@ -208,7 +245,10 @@
+   const data = await fixture();
+   data.manifest.contentSha256 = '0'.repeat(64);
+   const boundary = spies(data);
+-  assert.throws(() => makeOwner(data, boundary), (error) => error?.code === 'MANIFEST_HASH_MISMATCH');
++  assert.throws(
++    () => makeOwner(data, boundary),
++    (error) => error?.code === 'MANIFEST_HASH_MISMATCH',
++  );
+   assert.equal(boundary.calls.membership, 0);
+ });
+ 
+@@ -220,14 +260,20 @@
+   data.seedInventory.fixtureMapSha256 = data.manifest.contentSha256;
+   data.seedInventory.bindingsSha256 = sha256Stable(data.seedInventory.bindings);
+   const boundary = spies(data);
+-  assert.throws(() => makeOwner(data, boundary), (error) => error?.code === 'CASE12_EXACT_FIXTURE_INSTANCE_ID_REQUIRED');
++  assert.throws(
++    () => makeOwner(data, boundary),
++    (error) => error?.code === 'CASE12_EXACT_FIXTURE_INSTANCE_ID_REQUIRED',
++  );
+ });
+ 
+ test('receipt hash or manifest binding mismatch rejects supplied seed evidence', async () => {
+   const data = await fixture();
+   data.seedInventory.bindingsSha256 = 'f'.repeat(64);
+   const boundary = spies(data);
+-  assert.throws(() => makeOwner(data, boundary), (error) => error?.code === 'CASE12_SEED_RECEIPT_INVALID');
++  assert.throws(
++    () => makeOwner(data, boundary),
++    (error) => error?.code === 'CASE12_SEED_RECEIPT_INVALID',
++  );
+ });
+ 
+ test('duplicate logical id is rejected even with rehashed receipt', async () => {
+@@ -235,7 +281,10 @@
+   data.seedInventory.bindings[1].logicalId = data.seedInventory.bindings[0].logicalId;
+   data.seedInventory.bindingsSha256 = sha256Stable(data.seedInventory.bindings);
+   const boundary = spies(data);
+-  assert.throws(() => makeOwner(data, boundary), (error) => error?.code === 'CASE12_DUPLICATE_LOGICAL_ID');
++  assert.throws(
++    () => makeOwner(data, boundary),
++    (error) => error?.code === 'CASE12_DUPLICATE_LOGICAL_ID',
++  );
+ });
+ 
+ test('duplicate actual physical item id is rejected', async () => {
+@@ -243,16 +292,24 @@
+   data.seedInventory.bindings[1].physicalId = data.seedInventory.bindings[0].physicalId;
+   data.seedInventory.bindingsSha256 = sha256Stable(data.seedInventory.bindings);
+   const boundary = spies(data);
+-  assert.throws(() => makeOwner(data, boundary), (error) => error?.code === 'CASE12_DUPLICATE_PHYSICAL_ID');
++  assert.throws(
++    () => makeOwner(data, boundary),
++    (error) => error?.code === 'CASE12_DUPLICATE_PHYSICAL_ID',
++  );
+ });
+ 
+ test('missing MA510 or distractor rejects complete inventory', async () => {
+   for (const missingId of ['MA510', 'MA510-DISTRACTOR-0001']) {
+     const data = await fixture();
+-    data.seedInventory.bindings = data.seedInventory.bindings.filter((row) => row.logicalId !== missingId);
++    data.seedInventory.bindings = data.seedInventory.bindings.filter(
++      (row) => row.logicalId !== missingId,
++    );
+     data.seedInventory.bindingsSha256 = sha256Stable(data.seedInventory.bindings);
+     const boundary = spies(data);
+-    assert.throws(() => makeOwner(data, boundary), (error) => error?.code === 'CASE12_SEED_INVENTORY_MISMATCH');
++    assert.throws(
++      () => makeOwner(data, boundary),
++      (error) => error?.code === 'CASE12_SEED_INVENTORY_MISMATCH',
++    );
+   }
+ });
+ 
+@@ -261,7 +318,10 @@
+   data.seedInventory.bindings[0].eligible = true;
+   data.seedInventory.bindingsSha256 = sha256Stable(data.seedInventory.bindings);
+   const boundary = spies(data);
+-  assert.throws(() => makeOwner(data, boundary), (error) => error?.code === 'CASE12_BINDING_UNKNOWN_FIELDS');
++  assert.throws(
++    () => makeOwner(data, boundary),
++    (error) => error?.code === 'CASE12_BINDING_UNKNOWN_FIELDS',
++  );
+ });
+ 
+ test('altered marker binding is rejected before any database call', async () => {
+@@ -269,7 +329,10 @@
+   data.seedInventory.bindings[0].ownershipMarkerSha256 = 'b'.repeat(64);
+   data.seedInventory.bindingsSha256 = sha256Stable(data.seedInventory.bindings);
+   const boundary = spies(data);
+-  assert.throws(() => makeOwner(data, boundary), (error) => error?.code === 'CASE12_SEED_BINDING_MISMATCH');
++  assert.throws(
++    () => makeOwner(data, boundary),
++    (error) => error?.code === 'CASE12_SEED_BINDING_MISMATCH',
++  );
+   assert.equal(boundary.calls.membership, 0);
+ });
+ 
+@@ -280,17 +343,40 @@
+   binding.physicalId = entry.proposedItemId;
+   data.seedInventory.bindingsSha256 = sha256Stable(data.seedInventory.bindings);
+   const boundary = spies(data);
+-  assert.throws(() => makeOwner(data, boundary), (error) => error?.code === 'CASE12_SEED_BINDING_MISMATCH');
++  assert.throws(
++    () => makeOwner(data, boundary),
++    (error) => error?.code === 'CASE12_SEED_BINDING_MISMATCH',
++  );
+ });
+ 
+ test('wrong case, tenant, client, actor role and reviewer role cannot inspect', async () => {
+   const data = await fixture();
+   const boundary = spies(data);
+   const owner = makeOwner(data, boundary);
+-  await expectFailure(owner.inspectInTx(boundary.tx, boundary.ctx, { caseId: '01', clientId: boundary.clientId }), 'CASE12_ONLY');
+-  await expectFailure(owner.inspectInTx(boundary.tx, { ...boundary.ctx, tenantId: id() }, { caseId: '12', clientId: boundary.clientId }), 'CASE12_ORDINARY_ACTOR_SCOPE_MISMATCH');
+-  await expectFailure(owner.inspectInTx(boundary.tx, boundary.ctx, { caseId: '12', clientId: id() }), 'CASE12_ORDINARY_ACTOR_SCOPE_MISMATCH');
+-  await expectFailure(owner.inspectInTx(boundary.tx, { ...boundary.ctx, role: 'institutional_memory_reviewer' }, { caseId: '12', clientId: boundary.clientId }), 'CASE12_ORDINARY_ACTOR_SCOPE_MISMATCH');
++  await expectFailure(
++    owner.inspectInTx(boundary.tx, boundary.ctx, { caseId: '01', clientId: boundary.clientId }),
++    'CASE12_ONLY',
++  );
++  await expectFailure(
++    owner.inspectInTx(
++      boundary.tx,
++      { ...boundary.ctx, tenantId: id() },
++      { caseId: '12', clientId: boundary.clientId },
++    ),
++    'CASE12_ORDINARY_ACTOR_SCOPE_MISMATCH',
++  );
++  await expectFailure(
++    owner.inspectInTx(boundary.tx, boundary.ctx, { caseId: '12', clientId: id() }),
++    'CASE12_ORDINARY_ACTOR_SCOPE_MISMATCH',
++  );
++  await expectFailure(
++    owner.inspectInTx(
++      boundary.tx,
++      { ...boundary.ctx, role: 'institutional_memory_reviewer' },
++      { caseId: '12', clientId: boundary.clientId },
++    ),
++    'CASE12_ORDINARY_ACTOR_SCOPE_MISMATCH',
++  );
+   assert.equal(boundary.calls.membership, 0);
+ });
+ 
+@@ -298,7 +384,10 @@
+   const data = await fixture();
+   const boundary = spies({ ...data, membershipRole: 'user_admin' });
+   const owner = makeOwner(data, boundary);
+-  await expectFailure(owner.inspectInTx(boundary.tx, boundary.ctx, { caseId: '12', clientId: boundary.clientId }), 'CASE12_ORDINARY_ACTOR_MEMBERSHIP_INVALID');
++  await expectFailure(
++    owner.inspectInTx(boundary.tx, boundary.ctx, { caseId: '12', clientId: boundary.clientId }),
++    'CASE12_ORDINARY_ACTOR_MEMBERSHIP_INVALID',
++  );
+   assert.equal(boundary.calls.candidate, 0);
+ });
+ 
+@@ -307,7 +396,10 @@
+   const target = data.seedInventory.bindings.find((row) => row.logicalId === 'MA510');
+   const boundary = spies({ ...data, foreignId: target.physicalId });
+   const owner = makeOwner(data, boundary);
+-  await expectFailure(owner.inspectInTx(boundary.tx, boundary.ctx, { caseId: '12', clientId: boundary.clientId }), 'CASE12_CANONICAL_ITEM_BINDING_MISMATCH');
++  await expectFailure(
++    owner.inspectInTx(boundary.tx, boundary.ctx, { caseId: '12', clientId: boundary.clientId }),
++    'CASE12_CANONICAL_ITEM_BINDING_MISMATCH',
++  );
+   assert.equal(boundary.calls.owner, 1);
+ });
+ 
+@@ -316,17 +408,23 @@
+   const denied = data.seedInventory.bindings[0].physicalId;
+   const boundary = spies({ ...data, deniedId: denied });
+   const owner = makeOwner(data, boundary);
+-  await expectFailure(owner.inspectInTx(boundary.tx, boundary.ctx, { caseId: '12', clientId: boundary.clientId }), 'CASE12_CURRENT_READ_DENIED');
++  await expectFailure(
++    owner.inspectInTx(boundary.tx, boundary.ctx, { caseId: '12', clientId: boundary.clientId }),
++    'CASE12_CURRENT_READ_DENIED',
++  );
+   assert.equal(boundary.calls.auth, 1);
+   assert.equal(boundary.calls.item, 0);
+ });
+ 
+-test('changed canonical item row version is rejected', async () => {
++test('changed source row version and source identity are rejected', async () => {
+   const data = await fixture();
+   const changed = data.seedInventory.bindings[0].physicalId;
+-  const boundary = spies({ ...data, changedItemRowVersionId: changed });
+-  const owner = makeOwner(data, boundary);
+-  await expectFailure(owner.inspectInTx(boundary.tx, boundary.ctx, { caseId: '12', clientId: boundary.clientId }), 'CASE12_CANONICAL_ITEM_BINDING_MISMATCH');
++  const boundary = spies({ ...data, changedVersionId: changed });
++  const owner = makeOwner(data, boundary);
++  await expectFailure(
++    owner.inspectInTx(boundary.tx, boundary.ctx, { caseId: '12', clientId: boundary.clientId }),
++    'CASE12_CANONICAL_ITEM_BINDING_MISMATCH',
++  );
+ });
+ 
+ test('retired canonical item is not treated as approved current owner', async () => {
+@@ -335,18 +433,25 @@
+   const original = boundary.tx.$queryRawUnsafe;
+   boundary.tx.$queryRawUnsafe = async (sql, ...args) => {
+     const rows = await original(sql, ...args);
+-    if (sql.includes('FROM memory_items') && !sql.includes('COUNT(DISTINCT')) rows[0].status = 'revoked';
++    if (sql.includes('FROM memory_items') && !sql.includes('COUNT(DISTINCT'))
++      rows[0].status = 'revoked';
+     return rows;
+   };
+   const owner = makeOwner(data, boundary);
+-  await expectFailure(owner.inspectInTx(boundary.tx, boundary.ctx, { caseId: '12', clientId: boundary.clientId }), 'CASE12_CANONICAL_ITEM_BINDING_MISMATCH');
++  await expectFailure(
++    owner.inspectInTx(boundary.tx, boundary.ctx, { caseId: '12', clientId: boundary.clientId }),
++    'CASE12_CANONICAL_ITEM_BINDING_MISMATCH',
++  );
+ });
+ 
+ test('fewer than 500 strictly newer rows blocks age claim; timestamp ties do not count', async () => {
+   const data = await fixture();
+   const boundary = spies({ ...data, newer: 499 });
+   const owner = makeOwner(data, boundary);
+-  await expectFailure(owner.inspectInTx(boundary.tx, boundary.ctx, { caseId: '12', clientId: boundary.clientId }), 'CASE12_500_NEWER_PERMITTED_ROWS_NOT_VERIFIED');
++  await expectFailure(
++    owner.inspectInTx(boundary.tx, boundary.ctx, { caseId: '12', clientId: boundary.clientId }),
++    'CASE12_500_NEWER_PERMITTED_ROWS_NOT_VERIFIED',
++  );
+   assert.equal(boundary.calls.newer, 1);
+ });
+ 
+@@ -356,7 +461,10 @@
+   const owner = makeOwner(data, boundary);
+   data.manifest.clients.ASTER.physicalId = id();
+   data.seedInventory.bindings[0].physicalId = id();
+-  const result = await owner.inspectInTx(boundary.tx, boundary.ctx, { caseId: '12', clientId: boundary.clientId });
++  const result = await owner.inspectInTx(boundary.tx, boundary.ctx, {
++    caseId: '12',
++    clientId: boundary.clientId,
++  });
+   assert.equal(result.inventoryVerified, true);
+   assert.equal(result.observations.length, 510);
+ });
+@@ -381,13 +489,20 @@
+   const altered = structuredClone(data.seedInventory);
+   altered.bindings[0].candidateRowVersion = '999';
+   altered.bindingsSha256 = sha256Stable(altered.bindings);
+-  assert.throws(() => createCase12MemoryInventoryOwner({
++  const staleOwner = createCase12MemoryInventoryOwner({
+     manifest: data.manifest,
+     seedInventory: altered,
+     proposerForTenant: boundary.proposerForTenant,
+     assertSyntheticApprovedMemoryInTx: boundary.owner,
+     memoryAuthorization: boundary.memoryAuthorization,
+-  }), (error) => error?.code === 'CASE12_SEED_BINDING_MISMATCH');
++  });
++  await expectFailure(
++    staleOwner.inspectInTx(boundary.tx, boundary.ctx, {
++      caseId: '12',
++      clientId: boundary.clientId,
++    }),
++    'CASE12_CANDIDATE_OWNER_OR_VERSION_CHANGED',
++  );
+   assert.equal(boundary.calls.owner, 0);
+   assert.equal(boundary.calls.auth, 0);
+   assert.equal(typeof owner.inspectInTx, 'function');
+@@ -396,3 +511,146 @@
+ // Keep imports exercised as real-source contract dependencies, not static text assertions.
+ assert.equal(typeof sha256Stable, 'function');
+ assert.equal(typeof stableJson, 'function');
++
++for (const count of [500, 600])
++  test(`accepts exact native receipt for ${count} defined distractors only as inventory`, async () => {
++    const data = await fixture(count),
++      b = spies(data);
++    const r = await makeOwner(data, b).inspectInTx(b.tx, b.ctx, {
++      caseId: '12',
++      clientId: b.clientId,
++    });
++    assert.equal(r.observations.length, count + 1);
++    assert.equal(r.newerPermittedAsterRecordCount, count);
++    assert.equal(r.fixtureReady, false);
++    assert.equal(r.captureAuthority, false);
++  });
++test('requires the native receipt NOT_RUN boundary, even if the receipt otherwise hashes', async () => {
++  const d = await fixture(),
++    b = spies(d);
++  d.seedInventory.liveAcceptance = 'PASS';
++  assert.throws(() => makeOwner(d, b), { code: 'CASE12_SEED_RECEIPT_INVALID' });
++});
++test('malformed seed cannot hide behind a missing manifest', async () => {
++  const d = await fixture(),
++    b = spies(d);
++  d.seedInventory.bindingsSha256 = 'f'.repeat(64);
++  assert.throws(
++    () =>
++      createCase12MemoryInventoryOwner({
++        seedInventory: d.seedInventory,
++        proposerForTenant: b.proposerForTenant,
++        assertSyntheticApprovedMemoryInTx: b.owner,
++        memoryAuthorization: b.memoryAuthorization,
++      }),
++    { code: 'CASE12_SEED_RECEIPT_INVALID' },
++  );
++});
++test('all four native canonical proof fields must join, not just candidate row version', async () => {
++  for (const field of [
++    'syntheticFixtureCandidateId',
++    'syntheticFixtureMarkerSha256',
++    'syntheticFixtureCandidateRowVersion',
++    'syntheticFixtureItemRowVersion',
++  ]) {
++    const d = await fixture(),
++      b = spies(d),
++      original = b.owner;
++    b.owner = async (...args) => {
++      const proof = await original(...args);
++      delete proof[field];
++      return proof;
++    };
++    await expectFailure(
++      makeOwner(d, b).inspectInTx(b.tx, b.ctx, { caseId: '12', clientId: b.clientId }),
++      'CASE12_CANONICAL_APPROVAL_OWNER_MISMATCH',
++    );
++    assert.equal(b.calls.auth, 0);
++  }
++});
++test('canonical helper rejection is not converted to a partial positive receipt', async () => {
++  const d = await fixture(),
++    b = spies(d);
++  b.owner = () => {
++    throw Object.assign(new Error('denied'), { code: 'NATIVE_OWNER_DENIED' });
++  };
++  await expectFailure(
++    makeOwner(d, b).inspectInTx(b.tx, b.ctx, { caseId: '12', clientId: b.clientId }),
++    'NATIVE_OWNER_DENIED',
++  );
++  assert.equal(b.calls.auth, 0);
++});
++test('foreign authorization subjects are rejected before evaluating read permission', async () => {
++  for (const field of ['id', 'tenantId', 'clientId', 'status']) {
++    const d = await fixture(),
++      b = spies(d),
++      load = b.memoryAuthorization.loadItemInTx;
++    b.memoryAuthorization.loadItemInTx = async (...args) => ({
++      ...(await load(...args)),
++      [field]: 'foreign',
++    });
++    await expectFailure(
++      makeOwner(d, b).inspectInTx(b.tx, b.ctx, { caseId: '12', clientId: b.clientId }),
++      'CASE12_CURRENT_READ_DENIED',
++    );
++    assert.equal(b.calls.auth, 0);
++  }
++});
++test('caller context mutation and replaced auth methods cannot change an in-flight inspection', async () => {
++  const d = await fixture(),
++    b = spies(d),
++    owner = makeOwner(d, b),
++    sql = b.tx.$queryRawUnsafe;
++  const originalUser = b.ctx.userId;
++  b.tx.$queryRawUnsafe = async (...args) => {
++    const r = await sql(...args);
++    b.ctx.userId = id();
++    return r;
++  };
++  b.memoryAuthorization.evaluateInTx = () => {
++    throw new Error('replaced');
++  };
++  const r = await owner.inspectInTx(b.tx, b.ctx, { caseId: '12', clientId: b.clientId });
++  assert.equal(r.actorUserId, originalUser);
++});
++test('a different ordinary user cannot substitute for manifest Pat', async () => {
++  const d = await fixture(),
++    b = spies(d);
++  b.ctx.userId = id();
++  await expectFailure(
++    makeOwner(d, b).inspectInTx(b.tx, b.ctx, { caseId: '12', clientId: b.clientId }),
++    'CASE12_ORDINARY_ACTOR_SCOPE_MISMATCH',
++  );
++  assert.equal(b.calls.membership, 0);
++});
++test('row versions outside PostgreSQL xid range reject before any native read', async () => {
++  const d = await fixture(),
++    b = spies(d);
++  d.seedInventory.bindings[0].itemRowVersion = '4294967296';
++  d.seedInventory.bindingsSha256 = sha256Stable(d.seedInventory.bindings);
++  assert.throws(() => makeOwner(d, b), { code: 'CASE12_SEED_BINDING_MISMATCH' });
++  assert.equal(b.calls.membership, 0);
++});
++test('missing actual canonical row cannot be reported as inspected', async () => {
++  const d = await fixture(),
++    b = spies(d),
++    sql = b.tx.$queryRawUnsafe;
++  b.tx.$queryRawUnsafe = async (text, ...args) =>
++    text.includes('FROM memory_items') && !text.includes('COUNT(DISTINCT')
++      ? []
++      : sql(text, ...args);
++  await expectFailure(
++    makeOwner(d, b).inspectInTx(b.tx, b.ctx, { caseId: '12', clientId: b.clientId }),
++    'CASE12_CANONICAL_ITEM_BINDING_MISMATCH',
++  );
++});
++test('impossible or fractional newer count is refused', async () => {
++  for (const newer of [510, 500.5, NaN]) {
++    const d = await fixture(),
++      b = spies({ ...d, newer });
++    await expectFailure(
++      makeOwner(d, b).inspectInTx(b.tx, b.ctx, { caseId: '12', clientId: b.clientId }),
++      'CASE12_500_NEWER_PERMITTED_ROWS_NOT_VERIFIED',
++    );
++  }
++});

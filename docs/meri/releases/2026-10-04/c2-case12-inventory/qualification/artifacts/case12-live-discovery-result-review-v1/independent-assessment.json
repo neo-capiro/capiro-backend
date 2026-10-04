@@ -1,0 +1,124 @@
+{
+  "at": "2026-10-04T09:13:13.168Z",
+  "status": "PASS_BOUNDED_DISCOVERY_RESULT_REVIEW",
+  "findings": [],
+  "pins": [
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-live-discovery-v2/cleanup.json",
+      "bytes": 357,
+      "sha256": "a9dba34070dabd5a09daac19ce263d4f31025820f61ccf805809f3cc889cbf24"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-live-discovery-v2/definition-input.private.json",
+      "bytes": 10012,
+      "sha256": "bf0845de068c6c95770a22a25f48d904f08e7a1338e1a96f4a79104ef51b4e74"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-live-discovery-v2/definition-registered.json",
+      "bytes": 160,
+      "sha256": "d6beaa3f2eb909867918ff3df28dded2b34a02af0ebf84b6504454b575bfb660"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-live-discovery-v2/discovery-proof.json",
+      "bytes": 2519,
+      "sha256": "23544bb2dc5889e3fc79144ade30f93abd75b5a40b34e901b9b534500a7292b7"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-live-discovery-v2/intent.json",
+      "bytes": 558,
+      "sha256": "bf608c7f5125653b7037ecf40094e420987d58283191f76d780bbcb938eb165c"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-live-discovery-v2/journal-preserved.json",
+      "bytes": 104,
+      "sha256": "60ad10d5db4da943317b1681f443d9cbba6e33056c659dacd967f38ecd34f3d3"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-live-discovery-v2/log-transport-pages.json",
+      "bytes": 709,
+      "sha256": "793e4f475c94ade7cab783cfc320103cac5b1a5ad2a08823f3b35c73c72f9a40"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-live-discovery-v2/readback-transport.json",
+      "bytes": 135,
+      "sha256": "a27bd7d232c1b151fd93fd2a0527b7bca12fdfc3f235a3155ff8f924744c08d9"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-live-discovery-v2/result.json",
+      "bytes": 4326,
+      "sha256": "d1f467371dc2ef7d84f6c5fabc575c36b0fe9a3d7f82bfc0855ac6608a02be8c"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-live-discovery-v2/task-input.private.json",
+      "bytes": 637,
+      "sha256": "41a8a123c7ca01bafbedc2e9c737f32e57221422ef99c784df2a1e62d9b17d37"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-live-discovery-v2/task-start.json",
+      "bytes": 346,
+      "sha256": "e2030cd6f49ca113f59ee54d9bdd32dcb4f9b656fd590e3e415ee785c4025427"
+    }
+  ],
+  "facts": [
+    {
+      "name": "exact proof bytes",
+      "result": "PASS"
+    },
+    {
+      "name": "exact reviewed executable",
+      "result": "PASS"
+    },
+    {
+      "name": "single owned task and exact helper definition joins",
+      "result": "PASS"
+    },
+    {
+      "name": "source image and no workload/provider authority",
+      "result": "PASS"
+    },
+    {
+      "name": "successful task and complete log transport reconstruction",
+      "result": "PASS"
+    },
+    {
+      "name": "exact read-only ordinary tenant context",
+      "result": "PASS"
+    },
+    {
+      "name": "recorded role-level RLS metadata",
+      "result": "PASS"
+    },
+    {
+      "name": "complete zero-key diagnostic and independent hints",
+      "result": "PASS"
+    },
+    {
+      "name": "all admission flags remain false",
+      "result": "PASS"
+    },
+    {
+      "name": "owned helper cleanup confirmed",
+      "result": "PASS"
+    },
+    {
+      "name": "current journal remains unchanged",
+      "result": "PASS"
+    }
+  ],
+  "checkCount": 11,
+  "proofSha256": "23544bb2dc5889e3fc79144ade30f93abd75b5a40b34e901b9b534500a7292b7",
+  "observedAt": "2026-10-04T09:08:52.143Z",
+  "cleanupAt": "2026-10-04T09:09:23.999Z",
+  "conclusion": "At this read-only T1 snapshot, no visible candidate key matched the exact canonical synthetic MA510 namespace predicate. There were 15 synthetic-source candidates visible to the separate hint query, with zero MA510 excerpt or autonomous-maritime-demo phrase hints. This is diagnostic evidence only.",
+  "interpretationLimits": [
+    "No general corpus absence, original manifest/seed absence, canonical inventory completeness, retrieval eligibility, semantic clock or capture authority is established.",
+    "The capiro_app role has recorded rolsuper=false/rolbypassrls=false and both tables have FORCE RLS. Application app.bypass_rls GUC/rls_bypass() runtime value was not directly read; do not claim every bypass setting was measured.",
+    "The query explicitly filters candidate tenant regardless of the RLS policy branch. Saved policies and exact key predicate bound the conclusion.",
+    "Reviewer verified retained source/receipt/task/transport/cleanup joins and actual unchanged journal; no new cloud/database call was made."
+  ],
+  "sourceReview": "case12-live-discovery-review-v2/independent-review.json",
+  "cloudCalls": 0,
+  "databaseCalls": 0,
+  "repoEdits": false,
+  "journalWrites": false
+}

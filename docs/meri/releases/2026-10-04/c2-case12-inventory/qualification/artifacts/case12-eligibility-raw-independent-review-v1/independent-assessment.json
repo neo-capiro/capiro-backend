@@ -1,0 +1,70 @@
+{
+  "at": "2026-10-04T09:10:57.975Z",
+  "status": "EXACT_PREDICATE_TRANSCRIPTION_WITH_RAW_TEST_DEFECTS",
+  "rawHelper": {
+    "sha256": "3056dc2df5b4fab0cb8e95168f28cb00b55ec11c3755ee07c3b9e0b085330b6c",
+    "bytes": 2978
+  },
+  "rawSpec": {
+    "sha256": "ed95dba0e3e71cd8cbabcb56b1ce1ffd21c6e116e629f56c8bf38b11df503c80",
+    "bytes": 5200
+  },
+  "frozenInputs": [
+    {
+      "path": "apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.ts",
+      "sha256": "bde82251b71fb7d2e86fee9d6928bd4b3fc686b4385f16be19057c864817b819",
+      "bytes": 36320
+    },
+    {
+      "path": "apps/api/src/memory/memory-recall-suppression.helpers.ts",
+      "sha256": "f1a049bf5362c540098adea8ba885b25b579ab70f2a51b322abb3060eab647f2",
+      "bytes": 2449
+    },
+    {
+      "path": "packages/meriv2-core/src/memory/governance.ts",
+      "sha256": "bc6ac38540d147dfd4dee1d3665c0f4396be3c5722f173c816546549d175aba3",
+      "bytes": 23789
+    },
+    {
+      "path": "apps/api/src/retrieval/retrieval-v2.types.ts",
+      "sha256": "95f388145594c5a9052318e4fa0f215de0b10fb92757bbcca8adb17120890fb8",
+      "bytes": 11082
+    }
+  ],
+  "parity": {
+    "sqlAfterIdentifierSubstitution": "EXACT_NORMALIZED_MATCH",
+    "jsRowExpressionAfterIdentifierSubstitution": "EXACT_NORMALIZED_MATCH",
+    "sourcePredicateDriftFound": false
+  },
+  "confirmedDefects": [
+    {
+      "id": "duplicate_prisma_parameter_expectations",
+      "scope": "raw spec only",
+      "evidence": "Actual Prisma.sql values without selector are [tenantId,userId,userId,[],[]], with selector [tenantId,userId,itemId,userId,[],[]]. The raw spec omits the second userId and asserts wrong private-owner/ANY placeholder positions.",
+      "requiredFix": "Correct the tests; retain the production binding shape."
+    },
+    {
+      "id": "date_now_mock_does_not_freeze_governance_clock",
+      "scope": "raw spec only",
+      "evidence": "Real frozen core uses access.now ?? new Date(). A deterministic VM with Date.now fixed to noon and new Date fixed to09:00 includes the raw11:59:59 expiry case, contrary to its expected rejection.",
+      "requiredFix": "Use fake timers/system time that freeze both new Date() and Date.now; do not change production clock behavior for the extraction."
+    }
+  ],
+  "additionalRawCoverageGaps": [
+    "validUntil/expiry equality at clock boundary",
+    "episodic TTL absent/present",
+    "stale/conflicted/open/controlling self-versus-other lifecycle",
+    "SQL-pass/JS-reject cases such as sourceId empty string or missing approvedAt"
+  ],
+  "integrationStatus": "Raw IMPLEMENTATION.md correctly declares adapter wiring and all tests incomplete/NOTRUN. Supervisor reports separate scratch wiring and both spec fixes, with PostgreSQL qualification still in progress. This review does not qualify that pending final package.",
+  "scopeLimits": [
+    "Both shared SQL and JS defense-in-depth predicates are required before inventory eligibility counting.",
+    "Database now(), effectiveFrom Date.now(), and core new Date() semantics are intentionally retained; they do not create benchmark semantic-clock authority.",
+    "No original live inventory, source/capture eligibility, provider/budget admission, or human rubric is granted."
+  ],
+  "rawFilesEdited": false,
+  "cloudCalls": 0,
+  "databaseCalls": 0,
+  "applicationProviderCalls": 0,
+  "repoEdits": false
+}

@@ -1,0 +1,11 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in C:/dev/main/meri-c1-20261002/apps/api/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.spec.ts
+PASS outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/apps/api/src/retrieval/adapters/governed-memory-eligibility.helpers.spec.ts
+
+Test Suites: 2 passed, 2 total
+Tests:       71 passed, 71 total
+Snapshots:   0 total
+Time:        1.84 s
+Ran all test suites.

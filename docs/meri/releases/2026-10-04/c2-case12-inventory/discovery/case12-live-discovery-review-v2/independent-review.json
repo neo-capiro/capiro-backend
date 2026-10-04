@@ -1,0 +1,99 @@
+{
+  "at": "2026-10-04T09:07:11.630Z",
+  "status": "PASS_STATIC_READ_ONLY_DISCOVERY_PREPARATION",
+  "files": [
+    {
+      "name": "case12-live-discovery-inner-v2.mjs",
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-live-discovery-inner-v2.mjs",
+      "sha256": "e871cf0273cf7124fc06f22e03da62eadce903f5838a9c1892dd54ff0a62d93c",
+      "bytes": 6507
+    },
+    {
+      "name": "read-case12-live-discovery-v2.mjs",
+      "path": "C:/dev/main/outputs/meri-c2-20261003/read-case12-live-discovery-v2.mjs",
+      "sha256": "be375aedeb0cb1d0f2b448d3d568667af0e69fa790c76e11610fb12c3f026e6b",
+      "bytes": 12770
+    }
+  ],
+  "resolvedFindings": [
+    "wrong_canonical_item_join"
+  ],
+  "findings": [],
+  "sourcePins": [
+    {
+      "path": "apps/api/prisma/schema.prisma",
+      "bytes": 964030,
+      "sha256": "41fb55c8f2357b9bc2246de813d1e093e3e0bd240538048bbb514c5a4d4fe1d2"
+    },
+    {
+      "path": "apps/api/src/memory/synthetic-approved-memory.helpers.ts",
+      "bytes": 13474,
+      "sha256": "8451534ad56fdda936c7ce5c1961c68e0172d61ab2be45872e6d1b93da21ba22"
+    },
+    {
+      "path": "apps/api/src/prisma/prisma.service.ts",
+      "bytes": 12476,
+      "sha256": "fb3886df5f2732a0412342627a3a6156f159718913479cdc2325fa602bfdd86e"
+    },
+    {
+      "path": "evals/meri/live-v1/fixture-provisioning/approved-memory-runtime.mjs",
+      "bytes": 14972,
+      "sha256": "b814c5f904594130d0e35bbb0d4a1f49ec77a5f96c1544fcf9e6969784f278ac"
+    },
+    {
+      "path": "evals/meri/live-v1/fixture-provisioning/memory-candidate-owner.mjs",
+      "bytes": 14006,
+      "sha256": "a850e4a8a68641d7118cf7f6e5abda72e64452bde6123d8e13acf5308d6bc9b7"
+    }
+  ],
+  "auxiliaryPins": [
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/corpus-read-definition-input.json",
+      "bytes": 3013,
+      "sha256": "6c0a447dc99ed35642df735c38d09e02b12b33983fe461b707cd0c06a8a44478"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/aws-single-attempt.mjs",
+      "bytes": 782,
+      "sha256": "86b965a0257fd56e5255e30cdfd6787bef74ba0287d23eecb86fedfae7d6fec0"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/prepare-case12-live-discovery-v1.py",
+      "bytes": 2187,
+      "sha256": "955a6593bc681070cae7e8f61c6cac0f5f4024e96a5b090c17fbd163b1df4b47"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/repair-case12-live-discovery-v2.py",
+      "bytes": 1005,
+      "sha256": "d17bdab2f0dbe610fe42f558e0333c119e9183813c9241e2dd3d958809384a63"
+    }
+  ],
+  "nodeSyntax": "PASS",
+  "changeVerification": "Inner v2 differs only by canonical item FK join; outer v2 differs only by versioned output/input names and exact new inner hash.",
+  "checks": [
+    "Candidate and canonical item column names were compared with schema/native guard; corrected join retains matching tenant and exact canonical item ID.",
+    "READ ONLY is set first in a RepeatableRead transaction; local 5-second statements and 30-second transaction bound read work. All following statements are SELECT or local configuration.",
+    "Exact T1/Pat tenant and user settings plus active standard_user membership/tenant slug are checked; database role, relation RLS flags and policies are recorded.",
+    "Namespace-key count and row query use the same parameterized predicate in one snapshot. Count above 2000 aborts; LIMIT2001 and rows=count detect truncation. The primary-key join cannot multiply candidate rows.",
+    "Discovery scope remains the recorded database role and visible exact key predicate. Nonmatches, hints, RLS-hidden rows and other corpora are not promoted into general absence evidence.",
+    "Parsed excerpt marker/logical IDs are explicitly unverified diagnostics; canonicalInventoryVerified/retrievalEligibilityVerified/fixtureReady/captureAuthority remain false and liveAcceptance remains NOT_RUN.",
+    "Exact API525/source945179d/image00e8c5ca and current steady service are required before helper registration; helper input bytes and inner script bytes are pinned.",
+    "Pinned task template has only four database secret entries and no provider keys; workload taskRoleArn is removed. Live governance flags are copied, and no model SDK/server/capture path is invoked.",
+    "Unique output folder and exclusive output files prevent accidental replay. Intent and task request are saved before mutation calls. Registration/run/stop/deregister use the single-attempt adapter with AWS_MAX_ATTEMPTS=1.",
+    "Unknown run outcome is reconciled by exact startedBy and definition among owned family tasks, without a second RunTask. Unknown registration or unresolved launch prevents cleanup success.",
+    "Owned task is stopped if needed and definition deregistered; positive cleanup requires task STOPPED and definition INACTIVE with no cleanup errors.",
+    "Observed helper image and digest, one-container exit0, bounded log transport, exact BEGIN/END/chunk order/size/SHA and source identity are verified before readback acceptance.",
+    "Exact 26-event journal hash is required before launch and bytes must remain unchanged after cleanup; no journal mutation, business data mutation or capture admission path exists."
+  ],
+  "limits": [
+    "Static source and hash review only; no helper, AWS, SQL, database or auth action executed by reviewer.",
+    "Root may execute only this exact pair; actual readback and cleanup still need subsequent evidence verification.",
+    "Helper registration/run/cleanup are intended bounded cloud mutations; business data reads occur in READ ONLY. This review is not a claim that no AWS mutations will occur.",
+    "A zero result proves only absence from the stated visible predicate at the recorded snapshot; it cannot establish absence of the original full MA510 corpus or substitute for native inventory/canonical eligibility."
+  ],
+  "cloudCalls": 0,
+  "databaseCalls": 0,
+  "repoEdits": false,
+  "journalWrites": false,
+  "priorV1FindingPreserved": true
+}

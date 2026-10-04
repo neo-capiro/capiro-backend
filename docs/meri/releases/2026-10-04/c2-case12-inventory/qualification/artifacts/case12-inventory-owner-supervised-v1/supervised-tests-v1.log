@@ -1,0 +1,42 @@
+✔ successful canonical inspection verifies all owner/auth rows but never readiness or retrieval eligibility (144.587ms)
+✔ missing exact manifest and seed reports NOT_READY without DB reads (38.2142ms)
+✔ a seed-only not-ready envelope does not imply a manifest or trigger reads (36.8308ms)
+✔ malformed manifest content hash rejects before inspection (40.1575ms)
+✔ fixture instance is required exactly; generated/new locator is not accepted (39.4096ms)
+✔ receipt hash or manifest binding mismatch rejects supplied seed evidence (44.8162ms)
+✔ duplicate logical id is rejected even with rehashed receipt (64.7518ms)
+✔ duplicate actual physical item id is rejected (73.6828ms)
+✔ missing MA510 or distractor rejects complete inventory (125.6283ms)
+✔ unknown row fields and caller-claimed eligibility flags are refused (62.8226ms)
+✔ altered marker binding is rejected before any database call (64.0644ms)
+✔ proposed rather than allocated physical ID is refused (62.5207ms)
+✔ wrong case, tenant, client, actor role and reviewer role cannot inspect (64.8175ms)
+✔ active ordinary membership must match actor context (67.2795ms)
+✔ foreign canonical tenant row is refused with no partial inventory result (73.5998ms)
+✔ current permission denial blocks inventory and is evaluated without denial metrics (61.2171ms)
+✔ changed source row version and source identity are rejected (62.5998ms)
+✔ retired canonical item is not treated as approved current owner (61.7512ms)
+✔ fewer than 500 strictly newer rows blocks age claim; timestamp ties do not count (84.0559ms)
+✔ caller mutation after construction cannot alter snapshotted manifest or seed (87.8753ms)
+✔ owner exposes no seed, write, capture, provider or readiness-authority entrypoint (70.734ms)
+✔ arbitrary seed receipt alone is not accepted as current owner proof (102.0374ms)
+✔ accepts exact native receipt for 500 defined distractors only as inventory (80.3486ms)
+✔ accepts exact native receipt for 600 defined distractors only as inventory (98.754ms)
+✔ requires the native receipt NOT_RUN boundary, even if the receipt otherwise hashes (44.6373ms)
+✔ malformed seed cannot hide behind a missing manifest (36.6547ms)
+✔ all four native canonical proof fields must join, not just candidate row version (246.0008ms)
+✔ canonical helper rejection is not converted to a partial positive receipt (59.8044ms)
+✔ foreign authorization subjects are rejected before evaluating read permission (238.8999ms)
+✔ caller context mutation and replaced auth methods cannot change an in-flight inspection (82.2522ms)
+✔ a different ordinary user cannot substitute for manifest Pat (66.8826ms)
+✔ row versions outside PostgreSQL xid range reject before any native read (67.443ms)
+✔ missing actual canonical row cannot be reported as inspected (60.4008ms)
+✔ impossible or fractional newer count is refused (255.2293ms)
+ℹ tests 34
+ℹ suites 0
+ℹ pass 34
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3008.6479

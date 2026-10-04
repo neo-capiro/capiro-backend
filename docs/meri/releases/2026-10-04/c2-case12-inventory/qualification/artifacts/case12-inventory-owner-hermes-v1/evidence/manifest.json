@@ -1,0 +1,137 @@
+{
+  "at": "2026-10-04T08:31:44.256035+00:00",
+  "kind": "case12-inventory-owner-local-scratch-inputs",
+  "sourceFiles": [
+    {
+      "path": "apps/api/src/memory/memory-authorization.service.ts",
+      "bytes": 9173,
+      "sha256": "eefa7645c2b181e46a7a90441a7d59e4eac607350ef7c0841410cdc30a80892f"
+    },
+    {
+      "path": "apps/api/src/memory/synthetic-approved-memory.helpers.ts",
+      "bytes": 13474,
+      "sha256": "8451534ad56fdda936c7ce5c1961c68e0172d61ab2be45872e6d1b93da21ba22"
+    },
+    {
+      "path": "apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.ts",
+      "bytes": 36320,
+      "sha256": "bde82251b71fb7d2e86fee9d6928bd4b3fc686b4385f16be19057c864817b819"
+    },
+    {
+      "path": "evals/meri/live-v1/artifact-collector.mjs",
+      "bytes": 15744,
+      "sha256": "64725c9b2fc66efb6578461e755efcbf62b77e18833dc6221831ee7e21ececae"
+    },
+    {
+      "path": "evals/meri/live-v1/cases.mjs",
+      "bytes": 62128,
+      "sha256": "5464412ee66b73f677cc923bda09b4785a866b20ef0ee6a3410936c431c5ba0a"
+    },
+    {
+      "path": "evals/meri/live-v1/contract-lock.json",
+      "bytes": 6168,
+      "sha256": "fc2fe9da90938d476e46007782a0b7d4471c1254e2a189180f62e3fbbde8fb6e"
+    },
+    {
+      "path": "evals/meri/live-v1/fixture-provisioning/approved-memory-retirement-owner.mjs",
+      "bytes": 6106,
+      "sha256": "84ce879940d2edf83004faf690739e6a9fef4091675fb640980a1d370529f668"
+    },
+    {
+      "path": "evals/meri/live-v1/fixture-provisioning/approved-memory-runtime.mjs",
+      "bytes": 14972,
+      "sha256": "b814c5f904594130d0e35bbb0d4a1f49ec77a5f96c1544fcf9e6969784f278ac"
+    },
+    {
+      "path": "evals/meri/live-v1/fixture-provisioning/canonical-owner-adapter.mjs",
+      "bytes": 8502,
+      "sha256": "a9e68e7f12e60253d8402108dbc2ecc0cf6688863ca42c6412c13e371c61fa40"
+    },
+    {
+      "path": "evals/meri/live-v1/fixture-provisioning/capture-binding-runtime.mjs",
+      "bytes": 7753,
+      "sha256": "527fc5358eec0884b7159ddbdde07abd14736a299fb08d8f3c4e918ae2f7e17a"
+    },
+    {
+      "path": "evals/meri/live-v1/fixture-provisioning/contract.mjs",
+      "bytes": 5295,
+      "sha256": "301f39229b64b3878d2fa9783d2cac5cd716fdf8acb125a2e758dc698e36076e"
+    },
+    {
+      "path": "evals/meri/live-v1/fixture-provisioning/manifest.mjs",
+      "bytes": 20549,
+      "sha256": "8f1276ef0aaaef9b648bb1cbd0a037ee7d11d0a78db9691ab4de70b3b5db667a"
+    },
+    {
+      "path": "evals/meri/live-v1/fixture-provisioning/memory-candidate-owner.mjs",
+      "bytes": 14006,
+      "sha256": "a850e4a8a68641d7118cf7f6e5abda72e64452bde6123d8e13acf5308d6bc9b7"
+    },
+    {
+      "path": "evals/meri/live-v1/fixture.mjs",
+      "bytes": 17294,
+      "sha256": "8915e19424520a2f97b9cd5a389fcf4b39f2823f0526573ffd04a1dfe0fbc398"
+    },
+    {
+      "path": "evals/meri/live-v1/lib/stable.mjs",
+      "bytes": 1146,
+      "sha256": "03bba6f6dd1c48bf206ed32c628e1f9ce2038d75a9560d33d044950261f45c23"
+    },
+    {
+      "path": "evals/meri/live-v1/source-binaries/asset-manifest.json",
+      "bytes": 7757,
+      "sha256": "6512b1ad5f9a154e517e2702f329bc52ab8276ccde9f7a1d2609872c8ea1889d"
+    },
+    {
+      "path": "evals/meri/live-v1/source-binaries/D-A-1.pdf",
+      "bytes": 3269,
+      "sha256": "da882da4ae603b15d8b21072a034a2daf302071856743fd842ad3198a003d0fc"
+    },
+    {
+      "path": "evals/meri/live-v1/source-binaries/DECK-A-1.pptx",
+      "bytes": 25954,
+      "sha256": "cc12bfaa119ab3d99f210d4f3169a693be269b2d4d98b76fbb42f78aff2cd4bb"
+    },
+    {
+      "path": "evals/meri/live-v1/source-binaries/FILE-B-1-restricted.pdf",
+      "bytes": 1887,
+      "sha256": "161c88788ac2214e3ce4bc0c7627d413331e0ecff721ffb9c73cbeb66ebde6f3"
+    },
+    {
+      "path": "evals/meri/live-v1/source-binaries/PDF-PENDING-1.pdf",
+      "bytes": 1899,
+      "sha256": "759ba31674a35f47324cada809abc52c411dd3fd649df36b4b12e91549705bcc"
+    },
+    {
+      "path": "evals/meri/live-v1/source-binaries/REPORT-A-v1.pdf",
+      "bytes": 38597,
+      "sha256": "24d2374a09cbb012418bed2dfa562015ef7a200c22f6c3a0ac425e8ceeb487a7"
+    },
+    {
+      "path": "evals/meri/live-v1/source-binaries/REPORT-A-v2.pdf",
+      "bytes": 38734,
+      "sha256": "f06ebef24465eb837a4de37964ad0630859323bf34292d9f6dec2a9264f8f848"
+    },
+    {
+      "path": "evals/meri/live-v1/source-binaries/SHEET-A-1.xlsx",
+      "bytes": 6557,
+      "sha256": "debd2c837dbd1c33c329ce8d96f98a702a879c4a4e4829df740fdc6dd58924df"
+    },
+    {
+      "path": "evals/meri/live-v1/tests/approved-memory-runtime.test.mjs",
+      "bytes": 2781,
+      "sha256": "6f4bbc3c6f873a69666b1969f538064db98d3f8d36bb4b048a41178e94d94847"
+    },
+    {
+      "path": "evals/meri/live-v1/tests/approved-memory-schema.mjs",
+      "bytes": 6093,
+      "sha256": "07d41fccf6ad21123f29521a7aa0a2816cf6ea4a76e74f8125ff449b828a94ab"
+    },
+    {
+      "path": "evals/meri/live-v1/windows-artifact-storage.mjs",
+      "bytes": 3415,
+      "sha256": "8b03eeccad53a92fc4cf7bcf4976522ecf7ed2126591449e28a6a70948ac01c4"
+    }
+  ],
+  "liveAuthority": false
+}

@@ -1,0 +1,165 @@
+{
+  "status": "EXACT_VISIBLE_KEY_DISCOVERY_COMPLETE_NO_MATCHES",
+  "observedAt": "2026-10-04T09:08:52.143Z",
+  "sourceSha": "945179d44223882f9fe1da2fb4e41213bf5813c2",
+  "apiRevision": 525,
+  "canonicalInventoryVerified": false,
+  "fixtureReady": false,
+  "captureAuthority": false,
+  "liveAcceptance": "NOT_RUN",
+  "counts": {
+    "matching_key_count": 0,
+    "matching_synthetic_source_count": 0,
+    "root_count": 0
+  },
+  "hintCounts": {
+    "synthetic_candidates": 15,
+    "ma510_excerpt_hints": 0,
+    "phrase_hints": 0
+  },
+  "scope": "Exact T1 namespace candidate-key discovery under recorded database role, tenant settings and RLS policies; not a general corpus absence proof.",
+  "cleanupComplete": true,
+  "providerCalls": 0,
+  "businessWrites": 0,
+  "journalSha256": "816b04a47be56432846d1ee602370c3bea985eb497a7de9e899aee4d53f8b39e",
+  "files": [
+    {
+      "path": "discovery/source/case12-live-discovery-inner-v1.mjs",
+      "bytes": 6502,
+      "sha256": "88d38980b5d802f4b5f0edc7dd02fb564dc40c367260fdbff4ec2696e818d364",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-live-discovery-inner-v1.mjs"
+    },
+    {
+      "path": "discovery/source/read-case12-live-discovery-v1.mjs",
+      "bytes": 12770,
+      "sha256": "612df59edc8a86ded568956d4427d5eb64ad5d2c827e541b5e9d31888ecb5090",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\read-case12-live-discovery-v1.mjs"
+    },
+    {
+      "path": "discovery/source/prepare-case12-live-discovery-v1.py",
+      "bytes": 2187,
+      "sha256": "955a6593bc681070cae7e8f61c6cac0f5f4024e96a5b090c17fbd163b1df4b47",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\prepare-case12-live-discovery-v1.py"
+    },
+    {
+      "path": "discovery/source/case12-live-discovery-inner-v2.mjs",
+      "bytes": 6507,
+      "sha256": "e871cf0273cf7124fc06f22e03da62eadce903f5838a9c1892dd54ff0a62d93c",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-live-discovery-inner-v2.mjs"
+    },
+    {
+      "path": "discovery/source/read-case12-live-discovery-v2.mjs",
+      "bytes": 12770,
+      "sha256": "be375aedeb0cb1d0f2b448d3d568667af0e69fa790c76e11610fb12c3f026e6b",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\read-case12-live-discovery-v2.mjs"
+    },
+    {
+      "path": "discovery/source/repair-case12-live-discovery-v2.py",
+      "bytes": 1005,
+      "sha256": "d17bdab2f0dbe610fe42f558e0333c119e9183813c9241e2dd3d958809384a63",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\repair-case12-live-discovery-v2.py"
+    },
+    {
+      "path": "discovery/case12-live-discovery-review-v1/case12-live-discovery-inner-v1.mjs",
+      "bytes": 6502,
+      "sha256": "88d38980b5d802f4b5f0edc7dd02fb564dc40c367260fdbff4ec2696e818d364",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-live-discovery-review-v1\\case12-live-discovery-inner-v1.mjs"
+    },
+    {
+      "path": "discovery/case12-live-discovery-review-v1/independent-review.json",
+      "bytes": 2590,
+      "sha256": "568c11f6614f78e8aef77821b9d92ec00827531620cc679c70df92fda6b08d55",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-live-discovery-review-v1\\independent-review.json"
+    },
+    {
+      "path": "discovery/case12-live-discovery-review-v1/read-case12-live-discovery-v1.mjs",
+      "bytes": 12770,
+      "sha256": "612df59edc8a86ded568956d4427d5eb64ad5d2c827e541b5e9d31888ecb5090",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-live-discovery-review-v1\\read-case12-live-discovery-v1.mjs"
+    },
+    {
+      "path": "discovery/case12-live-discovery-review-v1/README.md",
+      "bytes": 303,
+      "sha256": "d2d6caffe5ce952e1c05b9f231e412d86bc1183a38fcd61e11c09cb4d12e5654",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-live-discovery-review-v1\\README.md"
+    },
+    {
+      "path": "discovery/case12-live-discovery-review-v2/case12-live-discovery-inner-v2.mjs",
+      "bytes": 6507,
+      "sha256": "e871cf0273cf7124fc06f22e03da62eadce903f5838a9c1892dd54ff0a62d93c",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-live-discovery-review-v2\\case12-live-discovery-inner-v2.mjs"
+    },
+    {
+      "path": "discovery/case12-live-discovery-review-v2/independent-review.json",
+      "bytes": 5933,
+      "sha256": "8e0c52de5a7658641f208e42096352bf58142fc8de9839bd7d31ae93d023aaee",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-live-discovery-review-v2\\independent-review.json"
+    },
+    {
+      "path": "discovery/case12-live-discovery-review-v2/read-case12-live-discovery-v2.mjs",
+      "bytes": 12770,
+      "sha256": "be375aedeb0cb1d0f2b448d3d568667af0e69fa790c76e11610fb12c3f026e6b",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-live-discovery-review-v2\\read-case12-live-discovery-v2.mjs"
+    },
+    {
+      "path": "discovery/case12-live-discovery-review-v2/README.md",
+      "bytes": 693,
+      "sha256": "df596a9c7824cbc24dfaafecfc1ed1e7f94fdd80b58b83fd5824284f4c95d22d",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-live-discovery-review-v2\\README.md"
+    },
+    {
+      "path": "discovery/executed-once/intent.json",
+      "bytes": 558,
+      "sha256": "bf608c7f5125653b7037ecf40094e420987d58283191f76d780bbcb938eb165c",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-live-discovery-v2\\intent.json"
+    },
+    {
+      "path": "discovery/executed-once/definition-registered.json",
+      "bytes": 160,
+      "sha256": "d6beaa3f2eb909867918ff3df28dded2b34a02af0ebf84b6504454b575bfb660",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-live-discovery-v2\\definition-registered.json"
+    },
+    {
+      "path": "discovery/executed-once/task-start.json",
+      "bytes": 346,
+      "sha256": "e2030cd6f49ca113f59ee54d9bdd32dcb4f9b656fd590e3e415ee785c4025427",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-live-discovery-v2\\task-start.json"
+    },
+    {
+      "path": "discovery/executed-once/log-transport-pages.json",
+      "bytes": 709,
+      "sha256": "793e4f475c94ade7cab783cfc320103cac5b1a5ad2a08823f3b35c73c72f9a40",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-live-discovery-v2\\log-transport-pages.json"
+    },
+    {
+      "path": "discovery/executed-once/result.json",
+      "bytes": 4326,
+      "sha256": "d1f467371dc2ef7d84f6c5fabc575c36b0fe9a3d7f82bfc0855ac6608a02be8c",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-live-discovery-v2\\result.json"
+    },
+    {
+      "path": "discovery/executed-once/discovery-proof.json",
+      "bytes": 2519,
+      "sha256": "23544bb2dc5889e3fc79144ade30f93abd75b5a40b34e901b9b534500a7292b7",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-live-discovery-v2\\discovery-proof.json"
+    },
+    {
+      "path": "discovery/executed-once/readback-transport.json",
+      "bytes": 135,
+      "sha256": "a27bd7d232c1b151fd93fd2a0527b7bca12fdfc3f235a3155ff8f924744c08d9",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-live-discovery-v2\\readback-transport.json"
+    },
+    {
+      "path": "discovery/executed-once/cleanup.json",
+      "bytes": 357,
+      "sha256": "a9dba34070dabd5a09daac19ce263d4f31025820f61ccf805809f3cc889cbf24",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-live-discovery-v2\\cleanup.json"
+    },
+    {
+      "path": "discovery/executed-once/journal-preserved.json",
+      "bytes": 104,
+      "sha256": "60ad10d5db4da943317b1681f443d9cbba6e33056c659dacd967f38ecd34f3d3",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-live-discovery-v2\\journal-preserved.json"
+    }
+  ]
+}
