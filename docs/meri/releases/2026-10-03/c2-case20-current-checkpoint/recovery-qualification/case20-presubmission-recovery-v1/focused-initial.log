@@ -1,0 +1,74 @@
+✖ sanitized stopped pre-submission evidence and fresh READY readback validate without granting authority (10.8ms)
+✔ rejects local evidence: execution intent (0.4999ms)
+✔ rejects local evidence: execution attempted (0.2303ms)
+✔ rejects local evidence: completed preparation (0.2032ms)
+✔ rejects local evidence: native outcome (1.1347ms)
+✔ rejects local evidence: browser application write (0.2097ms)
+✔ rejects local evidence: missing history (0.1247ms)
+✔ rejects local evidence: history reversal (0.1226ms)
+✔ rejects local evidence: different conversation (0.1534ms)
+✔ rejects local evidence: different claim (0.1903ms)
+✔ rejects local evidence: different reservation (3.1212ms)
+✔ rejects local evidence: changed cost (0.4196ms)
+✔ rejects local evidence: additional journal event (0.5017ms)
+✔ rejects local evidence: active reservation cleared (0.2581ms)
+✔ rejects local evidence: wrong journal hash (0.1675ms)
+✔ rejects local evidence: diagnostic writes (0.1529ms)
+✔ rejects current readback: different actor (0.5105ms)
+✔ rejects current readback: administrator (0.267ms)
+✔ rejects current readback: wrong release (0.2694ms)
+✔ rejects current readback: archived conversation (10.916ms)
+✔ rejects current readback: different owner (0.4225ms)
+✔ rejects current readback: different client (0.209ms)
+✔ rejects current readback: messages already present (0.1811ms)
+✔ rejects current readback: malformed messages (0.1876ms)
+✔ rejects current readback: missing metadata (0.1584ms)
+✔ rejects current readback: null metadata (0.1512ms)
+✔ rejects current readback: wrong current fixture (0.2204ms)
+✔ rejects current readback: wrong qualification (2.5058ms)
+✔ rejects current readback: expired admission (0.3277ms)
+✔ rejects current readback: stale admission (0.1696ms)
+✔ present serverCaptureProviderBudget, even null, is not absence (0.1848ms)
+✔ present serverReadonlyCapturePolicy, even null, is not absence (0.1434ms)
+✔ present serverCaptureEvidenceReceipt, even null, is not absence (0.1374ms)
+✔ present syntheticReadBudgetQualification, even null, is not absence (0.1286ms)
+✔ present syntheticReadProviderBudget, even null, is not absence (0.1689ms)
+✔ present syntheticReadBudgetTerminal, even null, is not absence (0.171ms)
+✔ present governedArtifactCapture, even null, is not absence (0.1011ms)
+✔ present governedArtifactCaptureBinding, even null, is not absence (0.1018ms)
+✔ present governedArtifactProviderBudget, even null, is not absence (0.1162ms)
+✔ present unknownScope, even null, is not absence (0.12ms)
+✔ restoration, HTTP recheck and immediate submission fence are independently one-use (3.3124ms)
+✔ failed recheck poisons authority and cannot be repaired by calling again (1.8501ms)
+✔ changed owned evidence rejects restoration and failed consume is not reusable (0.9734ms)
+✔ stale post-prepare HTTP proof refuses the native submission fence (0.7817ms)
+✔ live exported recheck rejects forged JSON before any endpoint call (0.2025ms)
+✔ exclusive fsynced claim preserves existing evidence and detects same-byte replacement (18.4536ms)
+✔ two real local processes cannot both acquire the same exclusive recovery claim (106.2621ms)
+✔ actual native copy restores same reservation without append and existing settlement appends once (1540.9649ms)
+✔ actual native checkpoint drift refuses restore and preserves full original ceiling (433.0336ms)
+ℹ tests 49
+ℹ suites 0
+ℹ pass 48
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2317.1858
+
+✖ failing tests:
+
+test at evals\meri\live-v1\tests\case20-presubmission-recovery.test.mjs:108:1
+✖ sanitized stopped pre-submission evidence and fresh READY readback validate without granting authority (10.8ms)
+  Error: CONTROLLED_READ_CURRENT_FIXTURE_UNPROVED
+      at fail (file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/controlled-read-live-capture.mjs:28:17)
+      at need (file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/controlled-read-live-capture.mjs:33:19)
+      at inspectControlledReadAdmission (file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/controlled-read-live-capture.mjs:193:3)
+      at inspectCase20PresubmissionRecoveryReadback (file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/case20-presubmission-recovery-authority.mjs:343:21)
+      at TestContext.<anonymous> (file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/case20-presubmission-recovery.test.mjs:111:20)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    code: 'CONTROLLED_READ_CURRENT_FIXTURE_UNPROVED'
+  }
