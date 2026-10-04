@@ -1,0 +1,77 @@
+{
+  "kind": "final candidate exact review bytes",
+  "files": [
+    {
+      "path": "evals/meri/live-v1/case17-memory-ui.mjs",
+      "sha256": "e98ae2cc417db901e9288e3d85a95044b11693b897c0df7fd066625da5b9be55"
+    },
+    {
+      "path": "evals/meri/live-v1/case17-live-capture.mjs",
+      "sha256": "7957589436d62483246b23a29d96c5d4a5d017789f83b9f0dee594498c46b18b"
+    },
+    {
+      "path": "evals/meri/live-v1/case17-saved-checks.mjs",
+      "sha256": "f883bc4cbfc1c9dcc22ec148beb6453ec5a0f0a78f0e8b3b7ac1205aba7338f0"
+    },
+    {
+      "path": "evals/meri/live-v1/grade-case17-capture.mjs",
+      "sha256": "13586eda4b84f83aaf335ed6262e9e8a4b9456ede942692c032466e878550be5"
+    },
+    {
+      "path": "evals/meri/live-v1/case17-readonly-guard.mjs",
+      "sha256": "6c8d3e5e0dfafba4a0132a2ff3151fcfce245e9b4cc0ad0c2b0a05ac38636b09"
+    },
+    {
+      "path": "evals/meri/live-v1/tests/case17-memory-ui.test.mjs",
+      "sha256": "60c778aecff7711cb03c9dd1f651039c065a66b0d22d5de68431cea739e51eb7"
+    },
+    {
+      "path": "evals/meri/live-v1/tests/case17-saved-checks.test.mjs",
+      "sha256": "8bbd979cc1c4f16803435a531964633426c6d51bd4dbf08a19156520a048c2d5"
+    },
+    {
+      "path": "evals/meri/live-v1/tests/case17-memory-ui-delayed-mount.test.mjs",
+      "sha256": "939ca062ba2309adf1ed54293a86a6337e7048ed59d5ef95944fab37c7fe6336"
+    },
+    {
+      "path": "evals/meri/live-v1/tests/case17-memory-ui-query.test.mjs",
+      "sha256": "a48e14a96246554f9db461aed87e609269d5ce352982a98e93fb5d18be9b42a8"
+    },
+    {
+      "path": "evals/meri/live-v1/fixture-provisioning/memory-candidate-owner.mjs",
+      "sha256": "a850e4a8a68641d7118cf7f6e5abda72e64452bde6123d8e13acf5308d6bc9b7"
+    },
+    {
+      "path": "evals/meri/live-v1/fixture-provisioning/memory-pending-fixture-plan.mjs",
+      "sha256": "7d683e5594bf4a76ee20d2ed9c926773436d63a87aff6f33ef0a69292d38968e"
+    },
+    {
+      "path": "apps/api/src/memory/governed-memory-candidate.service.ts",
+      "sha256": "761007d0d3ca1c8408a559db7f8bc52eea24d84d016cb79519dae2f52542077a"
+    },
+    {
+      "path": "apps/web/src/vnext/meri/MeriMemoryTab.tsx",
+      "sha256": "1855144be86307d19a6ecc9834c27f6f79640f461b19209e4fe3293f76b3416b"
+    },
+    {
+      "path": "evals/meri/live-v1/fixture.mjs",
+      "sha256": "8915e19424520a2f97b9cd5a389fcf4b39f2823f0526573ffd04a1dfe0fbc398"
+    },
+    {
+      "path": "evals/meri/live-v1/fixture-provisioning/manifest.mjs",
+      "sha256": "8f1276ef0aaaef9b648bb1cbd0a037ee7d11d0a78db9691ab4de70b3b5db667a"
+    },
+    {
+      "path": "previous-review.md",
+      "sha256": "190b63745027eb8b7a95b842733fb9eafba57b1d09079bd90f649e4b17b32dc1"
+    },
+    {
+      "path": "qualification/checkpoint.json",
+      "sha256": "117c1433283c449b91da09fcc5ac5f0fa544e236af0aa9a9cc0e1fb7673ed3ca"
+    },
+    {
+      "path": "qualification/tests.log",
+      "sha256": "12acca78d5daca8cea96110d3603cdf589d5dfb84ae4dd71327e4cad08b83196"
+    }
+  ]
+}

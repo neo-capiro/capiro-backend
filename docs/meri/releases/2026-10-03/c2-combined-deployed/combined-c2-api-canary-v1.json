@@ -1,0 +1,17 @@
+{
+  "status": "ORDINARY_AUTHENTICATED_API_CANARY_PASS",
+  "at": "2026-10-04T03:36:47.586Z",
+  "identity": {
+    "httpStatus": 200,
+    "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+    "userId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+    "role": "standard_user",
+    "sourceSha": "c0f393f863bf73bd4e65e7a94e17c073e7be021e"
+  },
+  "temporarySessionRevoked": true,
+  "providerCalls": 0,
+  "conversationCreations": 0,
+  "fixtureWrites": 0,
+  "budgetWrites": 0,
+  "originalAcceptance": "UNCHANGED"
+}

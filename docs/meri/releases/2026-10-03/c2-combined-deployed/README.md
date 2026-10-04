@@ -1,0 +1,11 @@
+# Approved C2 combined release deployed
+
+The human user approved the exact three-image packet, and the existing release operator promoted API523, orchestrator119 and Web vNext390 in that order. All serve source `c0f393f863bf73bd4e65e7a94e17c073e7be021e` built through the user-authorized CodeBuild backup. Each rollout passed task and target health before the next began. The [final served readback](combined-c2-served-readback-v1.json) verifies all exact images/task hashes/configuration and ordinary authenticated Pat/T1 identity. Temporary check sessions were revoked.
+
+The desired-STOPPED list query returned no rows, so complete retirement is established by the [exact previous task supplement](combined-c2-retired-tasks-v1.json): service stop events identify all four prior tasks, and native describe-tasks confirms each exact prior task definition is fully STOPPED. The empty list is not treated as task-by-task evidence.
+
+The [human approval](combined-c2-human-approval.json) binds packet `8f246b44000e35548444642a31079c8b65f04aa3abf6fd0fcf6768864c3f9c7b`; each service's manifest, exact authorization and durable receipt are retained. Rollback definitions522/118/389 preserve the prior images. [Build qualification and failed attempts](../c2-combined-release/README.md) remain immutable historical evidence; their preapproval status is not rewritten.
+
+This changes the three service images and release identity only. Schema/migration452/ledger609, models, providers, flags, desired capacity, guarded nightly136 and the disabled broad projection worker remain unchanged. Memory maintenance and consumed Case01/20 captures were not replayed. The fresh24-event cost journal remains byte-identical, known cost $13.631058, remaining $16.368942, no active hold, with01/20 admission unchanged. This release does not create new paid capture authority.
+
+Deployment verification is complete; C2/File01 acceptance remains incomplete. Case17 source-detail capture, Case14 native fixture/decision/next-turn recall, remaining memory/artifact/CD cases, variants/repeats and human grading remain. Original75/CD/CW acceptance counts remain0. The [checkpoint](checkpoint.json) binds all archived bytes.

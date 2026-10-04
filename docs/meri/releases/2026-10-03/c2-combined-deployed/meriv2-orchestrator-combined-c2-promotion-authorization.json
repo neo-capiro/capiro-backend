@@ -1,0 +1,10 @@
+{
+  "at": "2026-10-04T03:37:19.021Z",
+  "packetSha256": "8f246b44000e35548444642a31079c8b65f04aa3abf6fd0fcf6768864c3f9c7b",
+  "approvalSha256": "dab02ce8320a14d03c83fc5784f914c866c2cfda7a56a5ec28d3743ae64d1060",
+  "manifestSha256": "bc2a2f4d8b1a85a85ef609f0cc4dcd743ded8ecec060f24869550b14d481b84a",
+  "candidateTaskSha256": "42e637e627ee2c57b21fbb2ca6e46ae735d559429b193aecd3e923d21427b587",
+  "exactPacketScopeConfirmed": true,
+  "awsMaxAttempts": 1,
+  "noAutomaticRetry": true
+}

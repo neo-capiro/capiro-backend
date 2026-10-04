@@ -1,0 +1,183 @@
+import { createHash } from 'node:crypto';
+import { buildFixtureManifest } from './fixture-provisioning/manifest.mjs';
+import { selectPendingMemoryFixturePlan } from './fixture-provisioning/memory-pending-fixture-plan.mjs';
+import { fixtureRecordKey } from './fixture-provisioning/contract.mjs';
+import { sha256Stable, stableJson } from './lib/stable.mjs';
+import { assertWindowsArtifactStorage } from './windows-artifact-storage.mjs';
+import { createCase17WriteAccounting, inspectCase17WriteAccounting } from './case17-readonly-guard.mjs';
+
+const origin = 'https://os.capiro.ai';
+const need = (ok, code) => { if (!ok) throw new Error(`CASE17_UI_${code}`); };
+
+/** Pure join only; caller objects cannot become a LIVE verification capability. */
+export function inspectPendingUiPage({ selection, owner, pages }) {
+  need(owner?.kind === 'meri-pending-memory-current-readback' && owner.caseId === '17' &&
+    owner.fixtureInstanceId === selection.fixtureInstanceId && owner.manifestContentSha256 === selection.manifestContentSha256 &&
+    owner.ctx?.userId === selection.proposerUserId && owner.currentVerifySha256 === sha256Stable(owner.records), 'OWNER_BINDING');
+  need(Array.isArray(pages) && pages.length > 0 && pages.length <= 10, 'PAGE_BOUND');
+  const rows = [], seen = new Set();
+  for (let index = 0; index < pages.length; index++) {
+    const page = pages[index];
+    need(page.enabled === true && Array.isArray(page.candidates) && page.candidates.length <= 50, 'PAGE_FORMAT');
+    need(index === pages.length - 1 ? page.nextCursor === null : typeof page.nextCursor === 'string' && page.nextCursor.length > 0, 'PAGE_CHAIN');
+    for (const row of page.candidates) { need(!seen.has(row.id), 'DUPLICATE_ROW'); seen.add(row.id); rows.push(row); }
+  }
+  need(rows.length === 6 && owner.records.length === 6 && new Set(owner.records.map((row) => row.physicalId)).size === 6, 'OWNER_ROW_COUNT');
+  return selection.records.map((record) => {
+    const bound = owner.records.find((row) => row.logicalSourceId === record.logicalId);
+    const row = rows.find((item) => item.id === record.physicalId);
+    const scope = record.payload.facts.scope === 'private' ? 'personal' : record.clientPhysicalId ? 'client' : 'firm';
+    const key = fixtureRecordKey(record.logicalId, selection.fixtureInstanceId);
+    const text = record.payload.facts.proposedText ?? record.payload.facts.text ?? `Synthetic pending proposal ${record.logicalId}`;
+    need(bound?.physicalId === record.physicalId && bound.tenantId === record.tenantId && bound.proposerUserId === selection.proposerUserId &&
+      bound.payloadSha256 === record.payloadSha256 && bound.ownershipMarkerSha256 === record.ownership.markerSha256 &&
+      bound.status === 'pending' && bound.scope === scope && bound.clientId === record.clientPhysicalId, 'OWNER_ROW_BINDING');
+    const recordedSource = row?.recordedSource;
+    need(recordedSource && Object.keys(recordedSource).sort().join(',') === 'sourceId,sourceType' &&
+      typeof recordedSource.sourceType === 'string' && recordedSource.sourceType.length > 0 && recordedSource.sourceType.length <= 40 &&
+      /^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$/u.test(recordedSource.sourceType) &&
+      recordedSource.sourceType === 'meri_synthetic_fixture' && typeof recordedSource.sourceId === 'string' &&
+      /^[a-f0-9]{64}$/u.test(recordedSource.sourceId) && recordedSource.sourceId === record.ownership.markerSha256, 'RECORDED_SOURCE_BINDING');
+    need(row?.scope === scope && row.clientId === record.clientPhysicalId && row.status === 'pending' && row.restricted === false &&
+      row.sourceKind === 'model_extraction' && row.capabilities?.withdraw === true && row.proposal?.key === key &&
+      row.proposal.value === text && row.proposal.canonicalItem === null, 'API_ROW_BINDING');
+    need(scope !== 'client' || (typeof row.clientName === 'string' && row.clientName.length > 0), 'CLIENT_LABEL');
+    return { logicalSourceId: record.logicalId, physicalId: row.id, key, text, scope,
+      clientName: row.clientName ?? null, sourceKind: row.sourceKind,
+      recordedSource: { sourceType: recordedSource.sourceType, sourceId: recordedSource.sourceId } };
+  });
+}
+
+export async function openCase17MemoryPanel(page) {
+  await page.locator('[data-meri-context-rail]').waitFor({ state: 'visible', timeout: 15000 });
+  const expand = page.getByRole('button', { name: 'Expand panel', exact: true });
+  if (await expand.isVisible()) await expand.click();
+  const context = page.getByRole('button', { name: 'Open Context and Memory', exact: true });
+  if (await context.isVisible()) await context.click();
+  await page.getByRole('button', { name: 'Memory', exact: true }).click({ timeout: 15000 });
+}
+
+export async function waitForCase17ProposalQuery(page) {
+  const section = page.locator('section').filter({ has: page.getByText(/^YOUR PROPOSALS ·/u) });
+  await section.waitFor({ state: 'visible', timeout: 15000 });
+  await page.waitForFunction(() => {
+    const section = [...document.querySelectorAll('section')].find((node) => node.textContent.includes('YOUR PROPOSALS ·'));
+    return !!section && !section.textContent.includes('Loading your proposals…') &&
+      (section.querySelectorAll('article').length > 0 || section.textContent.includes('Your proposal history could not be loaded.') ||
+       section.textContent.includes('You have not proposed an institutional memory change.'));
+  }, null, { timeout: 15000 });
+  need(!(await section.getByText('Your proposal history could not be loaded.', { exact: true }).isVisible()), 'PROPOSALS_QUERY_FAILED');
+  return section;
+}
+
+/** Center the real card within its scroll ancestors, then reject clipped pixels. */
+export async function screenshotCase17Card(card) {
+  await card.evaluate((node) => node.scrollIntoView({ block: 'center', inline: 'center', behavior: 'instant' }));
+  const fullyVisible = await card.evaluate((node) => {
+    const rect = node.getBoundingClientRect(); let left = 0, top = 0, right = innerWidth, bottom = innerHeight;
+    for (let parent = node.parentElement; parent; parent = parent.parentElement) {
+      const css = getComputedStyle(parent), bounds = parent.getBoundingClientRect();
+      if (/(auto|scroll|hidden|clip)/u.test(css.overflowX)) { left = Math.max(left, bounds.left + parent.clientLeft); right = Math.min(right, bounds.left + parent.clientLeft + parent.clientWidth); }
+      if (/(auto|scroll|hidden|clip)/u.test(css.overflowY)) { top = Math.max(top, bounds.top + parent.clientTop); bottom = Math.min(bottom, bounds.top + parent.clientTop + parent.clientHeight); }
+    }
+    return rect.width > 0 && rect.height > 0 && rect.left >= left - 0.5 && rect.top >= top - 0.5 && rect.right <= right + 0.5 && rect.bottom <= bottom + 0.5;
+  });
+  need(fullyVisible, 'CARD_SCREENSHOT_CLIPPED');
+  return card.screenshot();
+}
+
+export async function collectCase17MemoryUi({ page, recipe, readCurrentOwner, readApi, expectedApiSha, expectedWebSha, artifactStorage,
+  writeAccounting = createCase17WriteAccounting() }) {
+  need(typeof readCurrentOwner === 'function' && typeof readApi === 'function' && /^[a-f0-9]{40}$/u.test(expectedApiSha ?? '') &&
+    /^[a-f0-9]{40}$/u.test(expectedWebSha ?? ''), 'QUALIFIED_OPERATOR_REQUIRED');
+  assertWindowsArtifactStorage(artifactStorage, artifactStorage?.root);
+  const manifest = await buildFixtureManifest({ fixtureInstanceId: recipe.fixtureInstanceId, actors: recipe.actors, clients: recipe.clients });
+  const selection = selectPendingMemoryFixturePlan(manifest, '17');
+  need(recipe.caseId === '17' && recipe.ctx?.userId === selection.proposerUserId, 'RECIPE_SCOPE');
+  let requests = 0;
+  const guard = async (route) => {
+    const request = route.request(), url = new URL(request.url());
+    if (writeAccounting.deny(request)) return route.abort();
+    if (request.isNavigationRequest() && (request.frame() === page.mainFrame() ? url.origin !== origin || !url.pathname.startsWith('/meri') : ![origin, 'https://clerk.app.capiro.ai'].includes(url.origin))) return route.abort();
+    return route.fallback();
+  };
+  await page.route('**/*', guard);
+  const deadline = Date.now() + 120000;
+  const bounded = () => need(Date.now() < deadline && requests <= 24, 'READ_BOUND');
+  const get = async (path) => {
+    bounded(); requests++;
+    need(path === '/api/me' || /^\/api\/memory\/proposals\?limit=50(?:&cursor=[A-Za-z0-9%_-]+)?$/u.test(path), 'READ_ROUTE');
+    const value = await readApi(path);
+    need(value.status === 200 && value.bytes <= 262144 && value.releaseSha === expectedApiSha, 'AUTHENTICATED_READ');
+    return value.value;
+  };
+  const rounds = [];
+  try {
+    const before = await readCurrentOwner();
+    for (const phase of ['initial', 'afterReload']) {
+      bounded(); writeAccounting.panelPhase(phase);
+      if (phase === 'initial') await page.goto(origin + '/meri', { waitUntil: 'domcontentloaded', timeout: 30000 });
+      else await page.reload({ waitUntil: 'domcontentloaded', timeout: 30000 });
+      need(new URL(page.url()).origin === origin && new URL(page.url()).pathname.startsWith('/meri'), 'APPLICATION_ORIGIN');
+      const web = await page.evaluate(() => ({ releaseSha: window.__CAPIRO_CONFIG__?.releaseSha, surface: window.__CAPIRO_CONFIG__?.webSurface }));
+      need(web.releaseSha === expectedWebSha && web.surface === 'vnext', 'WEB_SOURCE');
+      const me = await get('/api/me');
+      need(me?.user?.id === recipe.ctx.userId && me.user.clerkUserId === recipe.clerkUserId && me.tenant?.id === recipe.ctx.tenantId &&
+        me.tenant.slug === recipe.ctx.tenantSlug && me.role === recipe.ctx.role, 'CURRENT_ACTOR');
+      const pages = [], cursors = new Set(); let cursor;
+      do {
+        const pageResult = await get('/api/memory/proposals?limit=50' + (cursor ? '&cursor=' + encodeURIComponent(cursor) : ''));
+        pages.push(pageResult); need(sha256Stable(pageResult.fixtureEvidence) === sha256Stable(before), 'PAGE_OWNER_CHANGED');
+        cursor = pageResult.nextCursor; need(pages.length <= 10 && (!cursor || !cursors.has(cursor)), 'PAGE_BOUND'); if (cursor) cursors.add(cursor);
+      } while (cursor);
+      const rows = inspectPendingUiPage({ selection, owner: before, pages });
+      await openCase17MemoryPanel(page); const section = await waitForCase17ProposalQuery(page); let loads = 0;
+      while (await section.getByRole('button', { name: 'Load more proposals', exact: true }).count()) {
+        need(++loads <= 9, 'UI_PAGE_BOUND'); const count = await section.locator('article').count();
+        await section.getByRole('button', { name: 'Load more proposals', exact: true }).click();
+        await page.waitForFunction(({ count }) => [...document.querySelectorAll('section')].find((s) => s.textContent.includes('YOUR PROPOSALS ·') )?.querySelectorAll('article').length > count, { count }, { timeout: 15000 });
+      }
+      const cards = [];
+      for (const row of rows) {
+        bounded(); const card = section.locator('article').filter({ has: page.getByText(row.key, { exact: true }) });
+        need((await card.count()) === 1, 'UNIQUE_CARD');
+        await card.getByText(row.text, { exact: true }).waitFor({ state: 'visible', timeout: 15000 });
+        const withdraw = card.getByRole('button', { name: 'Withdraw', exact: true });
+        need((await withdraw.isVisible()) && (await withdraw.isEnabled()), 'ACTIONABLE');
+        const text = await card.innerText();
+        const scopeLabel = row.scope === 'personal' ? 'PERSONAL MEMORY' : row.scope === 'client' ? 'CLIENT MEMORY' : 'FIRM MEMORY';
+        need(text.includes(scopeLabel) && text.includes('PENDING') && text.includes('Source: model extraction') && (!row.clientName || text.includes(row.clientName)), 'VISIBLE_PROVENANCE');
+        const summary = card.locator('details').filter({ has: page.getByRole('summary', { name: 'Source details', exact: true }) });
+        need((await summary.count()) === 1, 'SOURCE_DETAILS_CONTROL');
+        const details = summary.locator('summary');
+        need(await details.isVisible(), 'SOURCE_DETAILS_CONTROL');
+        if (!(await summary.evaluate((node) => node.open))) await details.click();
+        const typeLine = card.getByText('Source type: Synthetic fixture', { exact: true });
+        const referenceLine = card.getByText(`Recorded source reference: ${row.recordedSource.sourceId}`, { exact: true });
+        await typeLine.waitFor({ state: 'visible', timeout: 5000 }); await referenceLine.waitFor({ state: 'visible', timeout: 5000 });
+        need(await summary.evaluate((node) => node.open), 'SOURCE_DETAILS_CLOSED');
+        const visibleType = await typeLine.innerText(), visibleReference = await referenceLine.innerText();
+        need(visibleType === 'Source type: Synthetic fixture' && visibleReference === `Recorded source reference: ${row.recordedSource.sourceId}`, 'SOURCE_DETAILS_TEXT');
+        const bytes = await screenshotCase17Card(card);
+        const descriptor = artifactStorage.writeBytes(`case17/${phase}/${row.logicalSourceId}.png`, bytes);
+        cards.push({ logicalSourceId: row.logicalSourceId, physicalId: row.physicalId, scope: row.scope, visible: true, actionable: true,
+          textSha256: createHash('sha256').update(text).digest('hex'),
+          recordedSourceProof: { sourceType: row.recordedSource.sourceType, sourceId: row.recordedSource.sourceId,
+            sourceTypeLabel: visibleType, sourceReferenceLabel: visibleReference, expanded: true, visible: true }, screenshot: descriptor });
+      }
+      rounds.push({ phase, apiPageCount: pages.length, pageHashes: pages.map(sha256Stable), pages, uiLoadMoreCount: loads, cards });
+      writeAccounting.panelPhase('outsidePanel');
+    }
+    const after = await readCurrentOwner(); const writeCounts = writeAccounting.snapshot();
+    artifactStorage.writeBytes('case17/readonly-guard-diagnostic.json', Buffer.from(stableJson({ kind: 'meri-case17-readonly-guard-diagnostic', schemaVersion: 1,
+      ownerBeforeSha256: sha256Stable(before), ownerAfterSha256: sha256Stable(after), ownerUnchanged: sha256Stable(before) === sha256Stable(after),
+      applicationWrites: 0, synthesisSubmissionCount: 0, ...writeCounts })));
+    inspectCase17WriteAccounting(writeCounts); need(sha256Stable(before) === sha256Stable(after), 'OWNER_OR_WRITE_CHANGED');
+    const receipt = { kind: 'meri-case17-ui-readonly-receipt', schemaVersion: 1, caseId: '17', status: 'CAPTURE_COMPLETE',
+      fixtureInstanceId: selection.fixtureInstanceId, ownerReadbackSha256: sha256Stable(after), expectedApiSha, expectedWebSha, rounds,
+      authenticatedReadCount: requests, ...writeCounts, synthesisSubmissionCount: 0, applicationWrites: 0, liveAcceptance: 'NOT_RUN' };
+    const descriptor = artifactStorage.writeBytes('case17/receipt.json', Buffer.from(stableJson(receipt)));
+    need(sha256Stable(JSON.parse(artifactStorage.readBytes(descriptor.ref))) === sha256Stable(receipt), 'STORAGE_READBACK');
+    return { receipt, descriptor, evidence: { selection, before, after, rounds, synthesisSubmissionCount: 0, applicationWrites: 0, ...writeCounts } };
+  } finally { writeAccounting.panelPhase('outsidePanel'); await page.unroute('**/*', guard); }
+}

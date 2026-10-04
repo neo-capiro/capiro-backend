@@ -1,0 +1,28 @@
+{
+  "status": "PASS_SOURCE_AND_LOCAL_QUALIFICATION_ONLY",
+  "reviewer": "Independent Codex cost_supervision helper, with lead integration review",
+  "humanReview": false,
+  "checkpointSha256": "117c1433283c449b91da09fcc5ac5f0fa544e236af0aa9a9cc0e1fb7673ed3ca",
+  "testLogSha256": "12acca78d5daca8cea96110d3603cdf589d5dfb84ae4dd71327e4cad08b83196",
+  "tests": {"passed": 22, "failed": 0, "skipped": 0, "nativeChromiumAndWindowsStorage": true},
+  "originalHermesReview": {
+    "path": "case17-served-provenance-review-hermes-v3/REVIEW.md",
+    "sha256": "190b63745027eb8b7a95b842733fb9eafba57b1d09079bd90f649e4b17b32dc1",
+    "originalDisposition": "ACTIONABLE DEFECT",
+    "adjudication": "Not applicable to the fixed six-record collector: Case17-F is frozen to private in fixture.mjs. Selection calls assertManifest, which rebuilds frozenRecordInput and rejects any changed definition even after rehashing. The original reviewer lacked fixture.mjs and manifest.mjs. Its original report is preserved, not relabelled PASS.",
+    "inputLimitations": "13-path manifest retained c0 baseline hashes. Actual two helper files matched tested candidate but their manifest hashes were stale; other11 files matched c0, including baseline tests. Independent Codex reviewer inspected final four-file diff and verified exact current hashes/test checkpoint. Final Hermes v4 includes a fresh full input manifest and the missing frozen definitions."
+  },
+  "leadCorrections": [
+    "Kept a minimal patch rather than draft-wide reformatting/removal of comments.",
+    "Fixed nonexistent ARIA summary role with scoped CSS summary; scoped exact text to native disclosure.",
+    "Hashed expanded card text and required six distinct canonical markers.",
+    "Corrected nested template syntax in draft browser test markup.",
+    "Strengthened swaps/duplicates to move whole valid proof objects and rehash mutated API pages."
+  ],
+  "liveServedCapture": "NOT_RUN_AT_THIS_CHECKPOINT",
+  "finalHermesFollowup": "v4 received freshly hashed current files, tests/log and missing frozen definitions, but timed out after360 seconds without a report. No verdict or passed review is inferred. Independent Codex review supplies the final source/local disposition.",
+  "originalPrompt": "NOT_RUN",
+  "humanRubric": "NOT_RUN",
+  "fullOriginalCase17Acceptance": false,
+  "cloudOperationsByReviewers": 0
+}

@@ -1,0 +1,9 @@
+Delivered the two requested test files and `candidate/NOTES.md`:
+
+- `C:\dev\main\outputs\meri-c2-20261003\case17-served-provenance-tests-hermes-v2\candidate\evals\meri\live-v1\tests\case17-memory-ui.test.mjs`
+- `C:\dev\main\outputs\meri-c2-20261003\case17-served-provenance-tests-hermes-v2\candidate\evals\meri\live-v1\tests\case17-saved-checks.test.mjs`
+- `C:\dev\main\outputs\meri-c2-20261003\case17-served-provenance-tests-hermes-v2\candidate\NOTES.md`
+
+The fixtures include API recorded-source references and saved-card proof. Added negative cases cover malformed, missing, foreign, swapped, duplicated, hidden/closed, and unexpected-field cases; saved-check API mutations rehash page hashes and are exercised in both rounds. The positive reload reorder case remains. The real-browser markup fixture now uses native `<details>` with the requested labels.
+
+No helpers or other sources were changed. Tests were not run. This is only the source-UI slice; full original Case17 and the human rubric are NOT_RUN. No acceptance claim is made.

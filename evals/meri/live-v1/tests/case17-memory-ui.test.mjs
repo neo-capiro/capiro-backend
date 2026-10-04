@@ -56,6 +56,10 @@ async function fixture() {
     status: 'pending',
     restricted: false,
     sourceKind: 'model_extraction',
+    recordedSource: {
+      sourceType: 'meri_synthetic_fixture',
+      sourceId: row.ownershipMarkerSha256,
+    },
     capabilities: { withdraw: true },
     proposal: {
       key: fixtureRecordKey(row.logicalSourceId, manifest.fixtureInstanceId),
@@ -77,7 +81,39 @@ it('joins all six actual physical source mappings across complete pages, without
     result = inspectPendingUiPage(f);
   assert.equal(result.length, 6);
   assert.equal(result[5].scope, 'personal');
+  assert.equal(result[0].recordedSource.sourceType, 'meri_synthetic_fixture');
+  assert.equal(result[0].recordedSource.sourceId, f.selection.records[0].ownership.markerSha256);
   assert.equal(Object.hasOwn(result, 'verdict'), false);
+});
+it('rejects absent, unknown, malformed, swapped and duplicated API source references', async () => {
+  const original = await fixture();
+  const cases = [
+    (f) => {
+      delete f.pages[0].candidates[0].recordedSource;
+    },
+    (f) => {
+      f.pages[0].candidates[0].recordedSource.sourceType = 'unknown_source';
+    },
+    (f) => {
+      f.pages[0].candidates[0].recordedSource.sourceId = 'not-a-marker-hash';
+    },
+    (f) => {
+      const first = f.pages[0].candidates[0].recordedSource.sourceId;
+      f.pages[0].candidates[0].recordedSource.sourceId = f.pages[0].candidates[1].recordedSource.sourceId;
+      f.pages[0].candidates[1].recordedSource.sourceId = first;
+    },
+    (f) => {
+      f.pages[0].candidates[1].recordedSource.sourceId = f.pages[0].candidates[0].recordedSource.sourceId;
+    },
+    (f) => {
+      f.pages[0].candidates[0].recordedSource.unexpected = 'duplicate reference field';
+    },
+  ];
+  for (const alter of cases) {
+    const f = structuredClone(original);
+    alter(f);
+    assert.throws(() => inspectPendingUiPage(f), /CASE17_UI_RECORDED_SOURCE_BINDING/u);
+  }
 });
 it('rejects absent private proposal, duplicate pages, incomplete traversal, incorrect actor/version/provenance and non-actionable rows', async () => {
   const original = await fixture();

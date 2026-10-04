@@ -1,0 +1,140 @@
+{
+  "kind": "C2 Case17 and Case20 three-service release review packet",
+  "version": 1,
+  "status": "AWAITING_HUMAN_REVIEW",
+  "preparedAt": "2026-10-04T03:24:21.134Z",
+  "expiresAt": "2026-10-04T04:24:21.142Z",
+  "evidenceCommit": "a07ee9d1c0fafddfddb15e1458b8226b5f0a4d38",
+  "evidence": [
+    "https://github.com/neo-capiro/capirov2/blob/a07ee9d1c0fafddfddb15e1458b8226b5f0a4d38/docs/meri/releases/2026-10-03/c2-combined-release/README.md",
+    "https://github.com/neo-capiro/capirov2/blob/a07ee9d1c0fafddfddb15e1458b8226b5f0a4d38/docs/meri/releases/2026-10-03/c2-combined-release/release-qualification.json",
+    "https://github.com/neo-capiro/capirov2/blob/a07ee9d1c0fafddfddb15e1458b8226b5f0a4d38/docs/meri/releases/2026-10-03/c2-combined-release/release-independent-review.json"
+  ],
+  "qualificationSha256": "26f2a4801464009fb41706e63a83ee00a85fcaab875232d68204f9a983332627",
+  "services": [
+    {
+      "service": "api",
+      "change": "IMAGE_AND_RELEASE_IDENTITY_ONLY",
+      "candidate": {
+        "sourceSha": "c0f393f863bf73bd4e65e7a94e17c073e7be021e",
+        "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:024fcc82a2db7701f4a3e3311598a9a1d0933b3fe4fcf73751bf0e3fb866d8ce"
+      },
+      "baseline": {
+        "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:521",
+        "serviceHash": "793302143e44176b8dd4cd79f914ef57c50567f5665b06ff65cca32b0071ef0c",
+        "configHash": "973748a2b134b388a6027df6c5c099055a7e24f7b746eafbaae8cebad077258a",
+        "taskHash": "b6108d13d2558e5cf4dd762a81406574aab92546736606b870da283af45b4170",
+        "imageDigest": "sha256:23f529da3c1c00d401968811575dc075bced6c60669baa9a09e9c23575c9c452",
+        "desiredCount": 2
+      },
+      "candidateTaskSha256": "284f48945c765bda32f0b64c7a4c45ae436bd91a080ed02d5a0149e2b7332595",
+      "rollbackImage": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:23f529da3c1c00d401968811575dc075bced6c60669baa9a09e9c23575c9c452",
+      "rollbackTaskSha256": "b6108d13d2558e5cf4dd762a81406574aab92546736606b870da283af45b4170",
+      "configurationPreserved": true,
+      "buildEvidence": "builds/api/build-readback.json"
+    },
+    {
+      "service": "meriv2-orchestrator",
+      "change": "IMAGE_AND_RELEASE_IDENTITY_ONLY",
+      "candidate": {
+        "sourceSha": "c0f393f863bf73bd4e65e7a94e17c073e7be021e",
+        "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:5329e61c0234a5baca60b4475e49a88adf4d15c78dc555fd4d46a94b01f74b1a"
+      },
+      "baseline": {
+        "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:117",
+        "serviceHash": "70aea1ca7863f98f9c8febcc25c048ab68067e3491abc3b836fea8e44238db44",
+        "configHash": "3a4fabd2139e347cd8b45192579f2a3fbaaa6fc3678762b5252f727a4461951b",
+        "taskHash": "7444417aec330d62f970880153f12e1dae52bded0a9a2aaf475385eb24c9e56e",
+        "imageDigest": "sha256:1c491a5ac46ea320195fe8ab367322ad2ebbd0949d69530b5ccfba2de84eb491",
+        "desiredCount": 1
+      },
+      "candidateTaskSha256": "42e637e627ee2c57b21fbb2ca6e46ae735d559429b193aecd3e923d21427b587",
+      "rollbackImage": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:1c491a5ac46ea320195fe8ab367322ad2ebbd0949d69530b5ccfba2de84eb491",
+      "rollbackTaskSha256": "7444417aec330d62f970880153f12e1dae52bded0a9a2aaf475385eb24c9e56e",
+      "configurationPreserved": true,
+      "buildEvidence": "builds/meriv2-orchestrator/build-readback.json"
+    },
+    {
+      "service": "web-vnext",
+      "change": "IMAGE_AND_RELEASE_IDENTITY_ONLY",
+      "candidate": {
+        "sourceSha": "c0f393f863bf73bd4e65e7a94e17c073e7be021e",
+        "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:fb594dabc437723fa6a28a7a6adcd54b13f813fcc52130f8458692aac2e9c8c6"
+      },
+      "baseline": {
+        "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web-vnext:388",
+        "serviceHash": "16238627fc523b6470c76cbd86c6a54bca422f86d72f2a7ba0312cc326d139e2",
+        "configHash": "453a3d5aedc3da7d989370b97669abf0c1b14efbacd2d1597990b9cac7d50ab7",
+        "taskHash": "ce2035e6773a77eeda0adcf86dd4a7043624b3d75d8d32a74000f3d930f55211",
+        "imageDigest": "sha256:a048aceec01c207b514f76fb447d4fb8bdb5ed17278642480008a1510a12de4c",
+        "desiredCount": 1
+      },
+      "candidateTaskSha256": "2ffa123e80c546c0bb03083e2aadb39b8118377efbf6de0b685f758c3abfb3c4",
+      "rollbackImage": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:a048aceec01c207b514f76fb447d4fb8bdb5ed17278642480008a1510a12de4c",
+      "rollbackTaskSha256": "ce2035e6773a77eeda0adcf86dd4a7043624b3d75d8d32a74000f3d930f55211",
+      "configurationPreserved": true,
+      "buildEvidence": "builds/web-vnext/build-readback.json"
+    }
+  ],
+  "retainedNightly": {
+    "rule": "capiro-dev-refresh-memory-graph",
+    "targetId": "refresh-memory-graph-target",
+    "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api-migrate:136",
+    "sourceSha": "f00e5dfb4fd3e47ac6aa4aca741023cc02f6314f",
+    "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:1a4aef121151bb5da7f70417539ece2faff392842809e6b557370c2d6cf8a49d",
+    "ruleSha256": "4a9376120b272c60388f6986a7a20aa00bfa78a8feb3b44a3a804fd93c617947",
+    "targetSha256": "e5b98fe865035a7dfa2add1472df1617101714e08f65232fd232c606c4f2475a",
+    "taskInputSha256": "0b362cc5b50895bcc69d70536e2496b848c0ee7bc805d9d17c1c6f85261263a5",
+    "change": "NONE"
+  },
+  "executionOrder": [
+    "Promote API and verify exact tasks/digest and ALB health",
+    "Promote orchestrator and verify exact tasks/digest and ALB health",
+    "Promote Web vNext and verify exact tasks/digest and ALB health",
+    "Verify authenticated served identities and Case17 provenance; continue separate C2 prerequisites"
+  ],
+  "changeWindow": "One attended release owner; any concurrent service/scaling/configuration change invalidates baseline and requires reconciliation.",
+  "rollback": {
+    "application": "Current API521/orchestrator117/Web388 exact digests, listed per service.",
+    "database": "Retain migration452 and ledger609; no migration.",
+    "memory": "Retain completed cleanup and audit receipts, nightly136 and disabled broad worker. No reset or replay."
+  },
+  "scope": {
+    "schemaChange": false,
+    "modelConfigurationChange": false,
+    "providerConfigurationChange": false,
+    "featureFlagChange": false,
+    "nightlyChange": false,
+    "webChange": true,
+    "capacityChange": false,
+    "newProviderCalls": 0,
+    "newCaptureAuthority": false,
+    "captureBindingWrite": false,
+    "budgetInstallation": false,
+    "journalMutation": false
+  },
+  "budget": {
+    "journalSha256": "8f20134f71dde90e32fc0c3c2aba2da2d5b93dd13fffea31b83105d1621bc3e5",
+    "events": 24,
+    "knownCostMicros": 13631058,
+    "remainingMicros": 16368942,
+    "activeRun": null,
+    "admittedCases": [
+      "01",
+      "20"
+    ],
+    "newCaptureAuthority": false
+  },
+  "acceptance": {
+    "original75": 0,
+    "cd": 0,
+    "cw": 0,
+    "failedCase01": "CAPTURE_UNCERTAIN; consumed; no replay",
+    "failedCase20": "CAPTURE_UNCERTAIN / NOT_EVALUATED; consumed; accounting only closed",
+    "case14": "Native plan captured; no pending candidate created, no approval/capture/recall acceptance"
+  },
+  "awsWrites": 0,
+  "humanReleaseApproval": null,
+  "deployableManifest": false,
+  "approvalRequirement": "docs/meri/deployment-prerequisite.md: Qualification is an explicit human-reviewed attestation; the exact new candidate packet is ready for that review."
+}

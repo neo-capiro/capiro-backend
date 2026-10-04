@@ -1,0 +1,5 @@
+ACTIONABLE DEFECT: `case17-memory-ui.mjs:60-65` classifies only `facts.scope === 'private'` as personal, while the fixture-owner contract also accepts `'user_private'`. Details are in REVIEW.md, including checks and pending evidence.
+
+Written: C:\dev\main\outputs\meri-c2-20261003\case17-served-provenance-review-hermes-v3\REVIEW.md
+
+Tests and native served capture were not run or observed. No evidence sources were changed.
