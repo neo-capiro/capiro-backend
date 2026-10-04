@@ -1,0 +1,45 @@
+[
+  {
+    "command": [
+      "node",
+      "--test",
+      "evals/meri/live-v1/tests/controlled-read-operator.test.mjs"
+    ],
+    "exitCode": 0,
+    "log": "C:\\dev\\main\\outputs\\meri-c2-20261003\\controlled-read-execution-intent-v1\\focused-final.log",
+    "logSha256": "20a44134db59fb9e9e6a27290ae14b9e244d2673b36a05c88fff96f1221463da"
+  },
+  {
+    "command": [
+      "node",
+      "--check",
+      "evals/meri/live-v1/run-controlled-read.mjs"
+    ],
+    "exitCode": 0,
+    "log": "C:\\dev\\main\\outputs\\meri-c2-20261003\\controlled-read-execution-intent-v1\\check-1.log",
+    "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "command": [
+      "node",
+      "--check",
+      "evals/meri/live-v1/tests/controlled-read-operator.test.mjs"
+    ],
+    "exitCode": 0,
+    "log": "C:\\dev\\main\\outputs\\meri-c2-20261003\\controlled-read-execution-intent-v1\\check-2.log",
+    "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "command": [
+      "git",
+      "diff",
+      "--check",
+      "--",
+      "evals/meri/live-v1/run-controlled-read.mjs",
+      "evals/meri/live-v1/tests/controlled-read-operator.test.mjs"
+    ],
+    "exitCode": 0,
+    "log": "C:\\dev\\main\\outputs\\meri-c2-20261003\\controlled-read-execution-intent-v1\\check-3.log",
+    "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+]

@@ -1,0 +1,92 @@
+{
+  "status": "EXACT_RELEASE_AND_ORDINARY_IDENTITY_VERIFIED",
+  "recordedAt": "2026-10-04T00:24:04.235475+00:00",
+  "files": [
+    {
+      "path": ".gitattributes",
+      "bytes": 29,
+      "sha256": "730a35ae3d558080083c3103d9ac8100c3f6561678092abe341701dfa331eb1d"
+    },
+    {
+      "path": "api-capture-contract-human-qualification.json",
+      "bytes": 2450,
+      "sha256": "64fa5ad96b3313a3a87d81ada2fb567ec1575e396244ea2b53a44916247bcc74"
+    },
+    {
+      "path": "api-capture-contract-promotion-authorization.json",
+      "bytes": 482,
+      "sha256": "db14166ff6bf29afa47c2cfdaa666ac13903ac70cada545dcb7497132e8adcff"
+    },
+    {
+      "path": "api-capture-contract-promotion-receipt.json",
+      "bytes": 1034,
+      "sha256": "7a97570e67eb9d775da52521d2dc874d0a5bde3e76690e2bc892e744459b6fa4"
+    },
+    {
+      "path": "api-capture-contract-release-manifest.json",
+      "bytes": 3208,
+      "sha256": "3a7466c7f03976bcefd8a2f3d38348cef448cf959e4daaa665b1e4c103ce830e"
+    },
+    {
+      "path": "capture-contract-human-approval.json",
+      "bytes": 1284,
+      "sha256": "729b82ae4787aecce9687d4b08da188071e06bf58e8f4b1a1831239f89d5b88c"
+    },
+    {
+      "path": "capture-contract-release-packet.json",
+      "bytes": 7021,
+      "sha256": "27b3b8cda6fe1fee90800b149e7b2bfc1c851ba8637a7edc838073b5b6ae891f"
+    },
+    {
+      "path": "capture-contract-release-packet.md",
+      "bytes": 3084,
+      "sha256": "ef12278c12f48dd52a51b5644cce234ad7ba34543081a29edf53e41636b0e109"
+    },
+    {
+      "path": "capture-contract-served-readback.json",
+      "bytes": 3872,
+      "sha256": "8552a710a602df8a38eaea900dda61ec7162423ef5a3f6422471c76ad5432552"
+    },
+    {
+      "path": "meriv2-orchestrator-capture-contract-human-qualification.json",
+      "bytes": 2562,
+      "sha256": "6311999d61ab14cd17dfef28edc58037371e81d84e64fd2e30057ef3a32e4566"
+    },
+    {
+      "path": "meriv2-orchestrator-capture-contract-promotion-authorization.json",
+      "bytes": 482,
+      "sha256": "3abdbcb6b78f26ad0c1fda3b922fb38d0d598158c5af2608531f12bdbeee999d"
+    },
+    {
+      "path": "meriv2-orchestrator-capture-contract-promotion-receipt.json",
+      "bytes": 1114,
+      "sha256": "fa30d9ff3883055dc3d681c3c7aaf4b67fde282ef38567800f85e5299cc68607"
+    },
+    {
+      "path": "meriv2-orchestrator-capture-contract-release-manifest.json",
+      "bytes": 3352,
+      "sha256": "e11a0df627aa4a852f5fa5543423ad16776b603626861970a62bfe1c3c1a515b"
+    },
+    {
+      "path": "promote-capture-contract-service-v1.mjs",
+      "bytes": 4973,
+      "sha256": "aeb8eaa326e6c4732d546f35c6bc57315280be1c67c768dd316f4a0e40313998"
+    },
+    {
+      "path": "README.md",
+      "bytes": 2176,
+      "sha256": "f6c417c2dc00432f3279d024f953526266fc4717399ba763f05d6169c1e9d87f"
+    },
+    {
+      "path": "record-capture-contract-approval-v1.mjs",
+      "bytes": 1540,
+      "sha256": "69e87e716627d2bf6a650b920843f65ea197053a6f44799d74144ff05f137a8d"
+    },
+    {
+      "path": "verify-capture-contract-served-v1.mjs",
+      "bytes": 5380,
+      "sha256": "36e98a299ab910739190be721b7656340c68ddfa74c07db49b5e6ed0c386d7d4"
+    }
+  ],
+  "privateInputsExcluded": true
+}

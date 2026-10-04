@@ -1,0 +1,278 @@
+diff --git a/evals/meri/live-v1/run-controlled-read.mjs b/evals/meri/live-v1/run-controlled-read.mjs
+index 23e656bc4..757c2410f 100644
+--- a/evals/meri/live-v1/run-controlled-read.mjs
++++ b/evals/meri/live-v1/run-controlled-read.mjs
+@@ -37,6 +37,15 @@ const need = (value, code) => {
+ };
+ const read = (path) => JSON.parse(readFileSync(path, 'utf8').replace(/^\uFEFF/u, ''));
+ 
++export function controlledReadSubmissionObservation(summary) {
++  const count = summary?.outcome?.synthesisSubmissionCount;
++  if (Number.isSafeInteger(count) && count >= 0 && count <= 1)
++    return { turnsSent: count, turnsSentStatus: 'OBSERVED_NATIVE_OUTCOME' };
++  return summary?.executionAttempted === true
++    ? { turnsSent: null, turnsSentStatus: 'UNKNOWN_AFTER_EXECUTION_INTENT' }
++    : { turnsSent: 0, turnsSentStatus: 'NOT_ATTEMPTED' };
++}
++
+ export function inspectControlledConversationReadback({ config, created, current, messages }) {
+   const actor = config.scope.actors.PAT,
+     tenant = config.scope.tenants.T1;
+@@ -219,7 +228,23 @@ async function verifyWeb(page, expectedWebSha) {
+ export async function runControlledReadOperator(args = process.argv.slice(2)) {
+   let clerk, browser, createdSessionId, summary, output;
+   const persist = () => {
+-    if (summary) writeFileSync(output, JSON.stringify(summary, null, 2) + '\n', { mode: 0o600 });
++    if (!summary) return;
++    summary.submissionObservation = controlledReadSubmissionObservation(summary);
++    // Preserve intent and returned outcomes even if a later summary write fails.
++    const history = openSync(output + '.events.jsonl', 'a', 0o600);
++    try {
++      writeFileSync(history, JSON.stringify({ at: new Date().toISOString(), summary }) + '\n');
++      fsyncSync(history);
++    } finally {
++      closeSync(history);
++    }
++    const current = openSync(output, 'w', 0o600);
++    try {
++      writeFileSync(current, JSON.stringify(summary, null, 2) + '\n');
++      fsyncSync(current);
++    } finally {
++      closeSync(current);
++    }
+   };
+   try {
+     const [command, scopeFlag, scopePath, manifestFlag, manifestPath, outFlag, outRoot] = args;
+@@ -327,6 +352,7 @@ export async function runControlledReadOperator(args = process.argv.slice(2)) {
+       maximumNewTurns: 1,
+       browserApplicationWrites: 0,
+       conversationCreationAttempted: false,
++      executionAttempted: false,
+       sessionCreated: false,
+       sessionRevoked: false,
+       fullFile01Acceptance: false,
+@@ -515,11 +541,19 @@ export async function runControlledReadOperator(args = process.argv.slice(2)) {
+       env: { MERI_LIVE_BEARER_TOKEN: bearer },
+     });
+     summary.capturePrepared = true;
++    summary.executionAttempted = true;
++    summary.executionIntent = {
++      at: new Date().toISOString(),
++      caseId: config.caseId,
++      captureRunId: config.captureRunId,
++      conversationId: config.conversationId,
++      maximumNewTurns: 1,
++    };
+     persist();
+     const outcome = await executeControlledReadLiveCapture(capability);
+-    saveSpendCheckpoint('aggregate-final-checkpoint.json');
+     summary.outcome = outcome;
+     persist();
++    saveSpendCheckpoint('aggregate-final-checkpoint.json');
+     need(
+       outcome.status === 'CAPTURE_COMPLETE' && outcome.synthesisSubmissionCount === 1,
+       'CAPTURE_NOT_COMPLETE',
+@@ -579,7 +613,7 @@ export async function runControlledReadOperator(args = process.argv.slice(2)) {
+         JSON.stringify({
+           verdict: summary.verdict,
+           caseId: summary.caseId,
+-          turnsSent: summary.outcome?.synthesisSubmissionCount ?? 0,
++          ...controlledReadSubmissionObservation(summary),
+           deterministicStatus: summary.grading?.deterministicStatus,
+           sessionRevoked: summary.sessionRevoked,
+           failureCode: summary.failureCode,
+diff --git a/evals/meri/live-v1/tests/controlled-read-operator.test.mjs b/evals/meri/live-v1/tests/controlled-read-operator.test.mjs
+index 7bb5fcae3..d09e7b054 100644
+--- a/evals/meri/live-v1/tests/controlled-read-operator.test.mjs
++++ b/evals/meri/live-v1/tests/controlled-read-operator.test.mjs
+@@ -3,7 +3,7 @@ import vm from 'node:vm';
+ import { EventEmitter } from 'node:events';
+ import assert from 'node:assert/strict';
+ import { randomUUID } from 'node:crypto';
+-import { mkdtempSync, writeFileSync, readFileSync } from 'node:fs';
++import { mkdtempSync, writeFileSync, readFileSync, openSync, fsyncSync, closeSync } from 'node:fs';
+ import { tmpdir } from 'node:os';
+ import { join } from 'node:path';
+ import { fileURLToPath } from 'node:url';
+@@ -31,6 +31,7 @@ import {
+   assertControlledReadSyntheticIdentity,
+   inspectControlledConversationReadback,
+ } from '../run-controlled-read.mjs';
++import * as controlledReadOperator from '../run-controlled-read.mjs';
+ 
+ // Exercise the actual private native transport bodies with fake HTTPS sockets.
+ // No injectable transport or capability is exposed by the production collector.
+@@ -560,3 +561,173 @@ test('materializer CLI refuses failed oneoff receipts and existing output; never
+   assert.equal(failed.status, 1);
+   assert.match(failed.stderr, /EXECUTION_NOT_VERIFIED/);
+ });
++
++test('submission observation preserves native zero/one and treats absent or invalid attempted outcomes as unknown', () => {
++  const observe = controlledReadOperator.controlledReadSubmissionObservation;
++  assert.equal(typeof observe, 'function');
++  for (const count of [0, 1])
++    assert.deepEqual(
++      observe({ executionAttempted: true, outcome: { synthesisSubmissionCount: count } }),
++      {
++        turnsSent: count,
++        turnsSentStatus: 'OBSERVED_NATIVE_OUTCOME',
++      },
++    );
++  for (const count of [undefined, null, -1, 2, 0.5, '0', '1', NaN, Infinity, true]) {
++    assert.deepEqual(
++      observe({ executionAttempted: true, outcome: { synthesisSubmissionCount: count } }),
++      {
++        turnsSent: null,
++        turnsSentStatus: 'UNKNOWN_AFTER_EXECUTION_INTENT',
++      },
++    );
++  }
++  for (const outcome of [undefined, null, {}])
++    assert.deepEqual(observe({ executionAttempted: true, outcome }), {
++      turnsSent: null,
++      turnsSentStatus: 'UNKNOWN_AFTER_EXECUTION_INTENT',
++    });
++  assert.deepEqual(observe({ executionAttempted: false }), {
++    turnsSent: 0,
++    turnsSentStatus: 'NOT_ATTEMPTED',
++  });
++  assert.deepEqual(observe(undefined), { turnsSent: 0, turnsSentStatus: 'NOT_ATTEMPTED' });
++});
++
++// Execute only the actual private persistence and prepared-to-outcome boundary.
++// Test-only collaborators cannot authenticate, acquire a native capability, or dispatch HTTP.
++function localExecutionBoundary({ execute, checkpoint, sync = fsyncSync }) {
++  const source = readFileSync(new URL('../run-controlled-read.mjs', import.meta.url), 'utf8');
++  const persistStart = source.indexOf('  const persist = () => {');
++  const persistEnd = source.indexOf('\n  try {\n    const [command', persistStart);
++  const executionStart = source.indexOf('    summary.capturePrepared = true;');
++  const executionEnd = source.indexOf('    summary.grading =', executionStart);
++  assert.ok(
++    persistStart >= 0 &&
++      persistEnd > persistStart &&
++      executionStart > persistEnd &&
++      executionEnd > executionStart,
++  );
++  const output = join(
++    mkdtempSync(join(tmpdir(), 'meri-controlled-execution-unit-')),
++    'execution.json',
++  );
++  const summary = {
++    caseId: '20',
++    captureRunId: randomUUID(),
++    conversationId: randomUUID(),
++    executionAttempted: false,
++  };
++  const executeBoundary = vm.runInNewContext(
++    `(async () => {\n${source.slice(persistStart, persistEnd)}\n${source.slice(executionStart, executionEnd)}\n})`,
++    {
++      summary,
++      output,
++      config: summary,
++      capability: Object.freeze({ unitOnly: true }),
++      readFileSync,
++      writeFileSync,
++      openSync,
++      fsyncSync: sync,
++      closeSync,
++      Date,
++      JSON,
++      controlledReadSubmissionObservation:
++        controlledReadOperator.controlledReadSubmissionObservation,
++      executeControlledReadLiveCapture: () => execute({ summary, output }),
++      saveSpendCheckpoint: () => checkpoint?.({ summary, output }),
++      need: (condition, code) => {
++        if (!condition) throw new Error(code);
++      },
++    },
++  );
++  return { executeBoundary, summary, output };
++}
++
++test('execution intent is fsynced before one native call and thrown-after-submission remains unknown', async () => {
++  let calls = 0,
++    syncs = 0,
++    checkpoints = 0;
++  const failure = new Error('UNIT_THROWN_AFTER_SUBMISSION');
++  const run = localExecutionBoundary({
++    sync: (fd) => {
++      syncs++;
++      fsyncSync(fd);
++    },
++    execute: ({ summary, output }) => {
++      calls++;
++      assert.ok(syncs >= 2, 'history and summary were fsynced before native execution');
++      const saved = JSON.parse(readFileSync(output, 'utf8'));
++      assert.equal(saved.executionAttempted, true);
++      assert.equal(saved.executionIntent.conversationId, summary.conversationId);
++      assert.equal(saved.executionIntent.captureRunId, summary.captureRunId);
++      assert.equal(saved.executionIntent.maximumNewTurns, 1);
++      assert.deepEqual(saved.submissionObservation, {
++        turnsSent: null,
++        turnsSentStatus: 'UNKNOWN_AFTER_EXECUTION_INTENT',
++      });
++      const events = readFileSync(output + '.events.jsonl', 'utf8')
++        .trim()
++        .split('\n')
++        .map(JSON.parse);
++      assert.equal(events.at(-1).summary.executionAttempted, true);
++      throw failure;
++    },
++    checkpoint: () => {
++      checkpoints++;
++    },
++  });
++  await assert.rejects(run.executeBoundary(), (error) => error === failure);
++  assert.equal(calls, 1);
++  assert.equal(checkpoints, 0);
++  assert.equal(run.summary.outcome, undefined);
++  assert.deepEqual(controlledReadOperator.controlledReadSubmissionObservation(run.summary), {
++    turnsSent: null,
++    turnsSentStatus: 'UNKNOWN_AFTER_EXECUTION_INTENT',
++  });
++});
++
++test('failed intent persistence prevents native dispatch without retry or swallowed error', async () => {
++  let calls = 0;
++  const failure = new Error('UNIT_FSYNC_FAILED');
++  const run = localExecutionBoundary({
++    execute: () => {
++      calls++;
++    },
++    sync: () => {
++      throw failure;
++    },
++  });
++  await assert.rejects(run.executeBoundary(), (error) => error === failure);
++  assert.equal(calls, 0);
++});
++
++for (const count of [0, 1])
++  test(`native ${count} is durably preserved before a failing final checkpoint`, async () => {
++    let calls = 0,
++      checkpoints = 0;
++    const outcome = {
++      status: count ? 'CAPTURE_COMPLETE' : 'CAPTURE_BLOCKED',
++      synthesisSubmissionCount: count,
++    };
++    const failure = new Error('UNIT_CHECKPOINT_FAILED');
++    const run = localExecutionBoundary({
++      execute: () => {
++        calls++;
++        return outcome;
++      },
++      checkpoint: ({ output }) => {
++        checkpoints++;
++        const saved = JSON.parse(readFileSync(output, 'utf8'));
++        assert.deepEqual(saved.outcome, outcome);
++        assert.deepEqual(saved.submissionObservation, {
++          turnsSent: count,
++          turnsSentStatus: 'OBSERVED_NATIVE_OUTCOME',
++        });
++        throw failure;
++      },
++    });
++    await assert.rejects(run.executeBoundary(), (error) => error === failure);
++    assert.equal(calls, 1);
++    assert.equal(checkpoints, 1);
++  });

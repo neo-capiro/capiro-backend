@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "account": "967807252336",
+  "region": "us-east-1",
+  "cluster": "capiro-dev",
+  "service": "api",
+  "preparedAt": "2026-10-04T00:09:10.448Z",
+  "qualification": {
+    "schemaVersion": 1,
+    "service": "api",
+    "sourceSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+    "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:23f529da3c1c00d401968811575dc075bced6c60669baa9a09e9c23575c9c452",
+    "status": "qualified",
+    "reviewer": "Human user — explicit approval in current Codex chat",
+    "reviewedAt": "2026-10-04T00:08:59.410Z",
+    "expiresAt": "2026-10-04T23:08:59.410Z",
+    "schemaChange": false,
+    "evidence": [
+      "https://github.com/neo-capiro/capirov2/blob/3c22947463812812b72f4322bca410aec7d91ac5/docs/meri/releases/2026-10-03/c2-capture-contract-release/release-qualification.json",
+      "https://github.com/neo-capiro/capirov2/blob/3c22947463812812b72f4322bca410aec7d91ac5/docs/meri/releases/2026-10-03/c2-capture-contract-release/release-independent-review.json",
+      "https://github.com/neo-capiro/capirov2/blob/3c22947463812812b72f4322bca410aec7d91ac5/docs/meri/releases/2026-10-03/c2-capture-contract-release/builds/api/build-readback.json"
+    ],
+    "checks": [
+      {
+        "name": "build",
+        "status": "passed",
+        "sourceSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+        "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:23f529da3c1c00d401968811575dc075bced6c60669baa9a09e9c23575c9c452",
+        "url": "https://github.com/neo-capiro/capirov2/blob/3c22947463812812b72f4322bca410aec7d91ac5/docs/meri/releases/2026-10-03/c2-capture-contract-release/builds/api/build-readback.json"
+      },
+      {
+        "name": "automated-tests",
+        "status": "passed",
+        "sourceSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+        "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:23f529da3c1c00d401968811575dc075bced6c60669baa9a09e9c23575c9c452",
+        "url": "https://github.com/neo-capiro/capirov2/blob/3c22947463812812b72f4322bca410aec7d91ac5/docs/meri/releases/2026-10-03/c2-capture-contract-release/release-qualification.json"
+      },
+      {
+        "name": "retirement-compatibility",
+        "status": "passed",
+        "sourceSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+        "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:23f529da3c1c00d401968811575dc075bced6c60669baa9a09e9c23575c9c452",
+        "url": "https://github.com/neo-capiro/capirov2/blob/3c22947463812812b72f4322bca410aec7d91ac5/docs/meri/releases/2026-10-03/c2-capture-contract-release/release-qualification.json"
+      }
+    ]
+  },
+  "baseline": {
+    "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:519",
+    "serviceHash": "9486df2740a8a492d166553e4acb91fdafd6114ecb0c51448a4b1b83b2a36782",
+    "configHash": "973748a2b134b388a6027df6c5c099055a7e24f7b746eafbaae8cebad077258a",
+    "taskHash": "8dd9f9384fd148e54a72fa570a2f1e62b360000cbd7d2efaa44f56f6bc85bf45",
+    "imageDigest": "sha256:d20110a114ef51a7db3d352321f411a2f51cc8b1877f9ccec6d1f35d7701c8cd",
+    "desiredCount": 2
+  }
+}

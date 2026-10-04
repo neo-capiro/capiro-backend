@@ -1,0 +1,10 @@
+{
+  "command": [
+    "node",
+    "--test",
+    "evals/meri/live-v1/tests/controlled-read-operator.test.mjs"
+  ],
+  "exitCode": 0,
+  "recordedAt": "2026-10-04T00:16:35.535607+00:00",
+  "testSha256": "f2f8c07473f6bc17307a89cb38abbc3833dd0cfbdb528829b7a1ddba6d923968"
+}

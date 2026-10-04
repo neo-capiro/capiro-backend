@@ -37,6 +37,15 @@ const need = (value, code) => {
 };
 const read = (path) => JSON.parse(readFileSync(path, 'utf8').replace(/^\uFEFF/u, ''));
 
+export function controlledReadSubmissionObservation(summary) {
+  const count = summary?.outcome?.synthesisSubmissionCount;
+  if (Number.isSafeInteger(count) && count >= 0 && count <= 1)
+    return { turnsSent: count, turnsSentStatus: 'OBSERVED_NATIVE_OUTCOME' };
+  return summary?.executionAttempted === true
+    ? { turnsSent: null, turnsSentStatus: 'UNKNOWN_AFTER_EXECUTION_INTENT' }
+    : { turnsSent: 0, turnsSentStatus: 'NOT_ATTEMPTED' };
+}
+
 export function inspectControlledConversationReadback({ config, created, current, messages }) {
   const actor = config.scope.actors.PAT,
     tenant = config.scope.tenants.T1;
@@ -219,7 +228,23 @@ async function verifyWeb(page, expectedWebSha) {
 export async function runControlledReadOperator(args = process.argv.slice(2)) {
   let clerk, browser, createdSessionId, summary, output;
   const persist = () => {
-    if (summary) writeFileSync(output, JSON.stringify(summary, null, 2) + '\n', { mode: 0o600 });
+    if (!summary) return;
+    summary.submissionObservation = controlledReadSubmissionObservation(summary);
+    // Preserve intent and returned outcomes even if a later summary write fails.
+    const history = openSync(output + '.events.jsonl', 'a', 0o600);
+    try {
+      writeFileSync(history, JSON.stringify({ at: new Date().toISOString(), summary }) + '\n');
+      fsyncSync(history);
+    } finally {
+      closeSync(history);
+    }
+    const current = openSync(output, 'w', 0o600);
+    try {
+      writeFileSync(current, JSON.stringify(summary, null, 2) + '\n');
+      fsyncSync(current);
+    } finally {
+      closeSync(current);
+    }
   };
   try {
     const [command, scopeFlag, scopePath, manifestFlag, manifestPath, outFlag, outRoot] = args;
@@ -327,6 +352,7 @@ export async function runControlledReadOperator(args = process.argv.slice(2)) {
       maximumNewTurns: 1,
       browserApplicationWrites: 0,
       conversationCreationAttempted: false,
+      executionAttempted: false,
       sessionCreated: false,
       sessionRevoked: false,
       fullFile01Acceptance: false,
@@ -515,11 +541,19 @@ export async function runControlledReadOperator(args = process.argv.slice(2)) {
       env: { MERI_LIVE_BEARER_TOKEN: bearer },
     });
     summary.capturePrepared = true;
+    summary.executionAttempted = true;
+    summary.executionIntent = {
+      at: new Date().toISOString(),
+      caseId: config.caseId,
+      captureRunId: config.captureRunId,
+      conversationId: config.conversationId,
+      maximumNewTurns: 1,
+    };
     persist();
     const outcome = await executeControlledReadLiveCapture(capability);
-    saveSpendCheckpoint('aggregate-final-checkpoint.json');
     summary.outcome = outcome;
     persist();
+    saveSpendCheckpoint('aggregate-final-checkpoint.json');
     need(
       outcome.status === 'CAPTURE_COMPLETE' && outcome.synthesisSubmissionCount === 1,
       'CAPTURE_NOT_COMPLETE',
@@ -579,7 +613,7 @@ export async function runControlledReadOperator(args = process.argv.slice(2)) {
         JSON.stringify({
           verdict: summary.verdict,
           caseId: summary.caseId,
-          turnsSent: summary.outcome?.synthesisSubmissionCount ?? 0,
+          ...controlledReadSubmissionObservation(summary),
           deterministicStatus: summary.grading?.deterministicStatus,
           sessionRevoked: summary.sessionRevoked,
           failureCode: summary.failureCode,

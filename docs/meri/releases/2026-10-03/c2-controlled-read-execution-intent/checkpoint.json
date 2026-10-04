@@ -1,0 +1,163 @@
+{
+  "status": "FROZEN_LOCAL_OPERATOR_CANDIDATE",
+  "recordedAt": "2026-10-04T00:17:54.215141+00:00",
+  "source": [
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\run-controlled-read.mjs",
+      "sha256": "d8d429a7e4e1b5fc5d731e7cb4dee098a3075d4764fa0886c745cace43bf7c83",
+      "bytes": 24025,
+      "mirror": "C:\\dev\\main\\outputs\\meri-c2-20261003\\controlled-read-execution-intent-v1\\source\\evals\\meri\\live-v1\\run-controlled-read.mjs"
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\tests\\controlled-read-operator.test.mjs",
+      "sha256": "c158d73d18203b678b39055b355040fdac86b376d66c723b3d3adb8c730103a5",
+      "bytes": 26872,
+      "mirror": "C:\\dev\\main\\outputs\\meri-c2-20261003\\controlled-read-execution-intent-v1\\source\\evals\\meri\\live-v1\\tests\\controlled-read-operator.test.mjs"
+    }
+  ],
+  "checks": [
+    {
+      "command": [
+        "node",
+        "--test",
+        "evals/meri/live-v1/tests/controlled-read-operator.test.mjs"
+      ],
+      "exitCode": 0,
+      "log": "C:\\dev\\main\\outputs\\meri-c2-20261003\\controlled-read-execution-intent-v1\\focused-final.log",
+      "logSha256": "20a44134db59fb9e9e6a27290ae14b9e244d2673b36a05c88fff96f1221463da"
+    },
+    {
+      "command": [
+        "node",
+        "--check",
+        "evals/meri/live-v1/run-controlled-read.mjs"
+      ],
+      "exitCode": 0,
+      "log": "C:\\dev\\main\\outputs\\meri-c2-20261003\\controlled-read-execution-intent-v1\\check-1.log",
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "command": [
+        "node",
+        "--check",
+        "evals/meri/live-v1/tests/controlled-read-operator.test.mjs"
+      ],
+      "exitCode": 0,
+      "log": "C:\\dev\\main\\outputs\\meri-c2-20261003\\controlled-read-execution-intent-v1\\check-2.log",
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "command": [
+        "git",
+        "diff",
+        "--check",
+        "--",
+        "evals/meri/live-v1/run-controlled-read.mjs",
+        "evals/meri/live-v1/tests/controlled-read-operator.test.mjs"
+      ],
+      "exitCode": 0,
+      "log": "C:\\dev\\main\\outputs\\meri-c2-20261003\\controlled-read-execution-intent-v1\\check-3.log",
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "red": {
+    "receipt": "red-receipt.json",
+    "log": "red.log",
+    "result": "12 passed / 5 failed; exit1",
+    "testSource": "red-test-source.mjs",
+    "note": "The final test differs from red only in formatting. Initial log printing encountered a console cp1252 UnicodeEncodeError after the actual failure log and receipt were already saved."
+  },
+  "green": {
+    "result": "17 passed / 0 failed; exit0",
+    "log": "focused-final.log"
+  },
+  "changes": [
+    "Native execution intent is stored before one call in fsynced append-only history and current summary.",
+    "Unknown absent/invalid native count after intent is null/UNKNOWN_AFTER_EXECUTION_INTENT; valid native 0 or 1 remains authoritative.",
+    "Returned native outcome is durably preserved before final aggregate checkpoint.",
+    "CLI output and persisted summary use the same observation helper."
+  ],
+  "limits": [
+    "Local test-only private source extraction uses disposable files and fake native/checkpoint collaborators; cannot mint live authority.",
+    "No cloud, authentication, browser, provider, real journal, fixture, reservation, settlement, retry, backend source, release or commit changes."
+  ],
+  "servedVerifierReview": {
+    "result": "PASS",
+    "sha256": "36e98a299ab910739190be721b7656340c68ddfa74c07db49b5e6ed0c386d7d4",
+    "priorSha256": "456fdbb2f39ebd169535599391f5dbae4bbfc3fafbd796c958bbbc85ef75c770",
+    "delta": "Name/scope substitutions plus removal of refresh-only packet binding; current exact packet is directly bound to human approval. All service/old-task/nightly/identity checks unchanged.",
+    "executed": false
+  },
+  "evidence": [
+    {
+      "path": "candidate.patch",
+      "sha256": "b00c47bd0bb88eeec1f0f22281a4ad143f286de06de5f53265739e2ffb639a26",
+      "bytes": 11409
+    },
+    {
+      "path": "check-1.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "check-2.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "check-3.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "final-checks.json",
+      "sha256": "414dba6c5b47e4e35d5c771f93a672e8352ec5857747fd6f8f6a322b4f50197c",
+      "bytes": 1470
+    },
+    {
+      "path": "focused-final.log",
+      "sha256": "20a44134db59fb9e9e6a27290ae14b9e244d2673b36a05c88fff96f1221463da",
+      "bytes": 1831
+    },
+    {
+      "path": "format.log",
+      "sha256": "c429da7ec7188248d86c90505a833929231d3bf74e47789a0ca4ab8a68a06757",
+      "bytes": 124
+    },
+    {
+      "path": "green-receipt.json",
+      "sha256": "8876e1f420f4fcf2c196cfe453532b484fca79d50b336788f8bc6fc3bce3a7cf",
+      "bytes": 277
+    },
+    {
+      "path": "green.log",
+      "sha256": "b0db15a8ce05c6fd10caa644ab4033000fb3420a53ade174171c2314afaf9da5",
+      "bytes": 1828
+    },
+    {
+      "path": "red-receipt.json",
+      "sha256": "ee6af0678636b946824891d75dc2a92df0f019b3e408a87f9235472ef97ebcc2",
+      "bytes": 277
+    },
+    {
+      "path": "red-test-source.mjs",
+      "sha256": "f2f8c07473f6bc17307a89cb38abbc3833dd0cfbdb528829b7a1ddba6d923968",
+      "bytes": 26430
+    },
+    {
+      "path": "red.log",
+      "sha256": "e6697a37326fb70e564cfb26cbac0fe90741e46031bce65e1caf2e191b1833d7",
+      "bytes": 8403
+    },
+    {
+      "path": "source\\evals\\meri\\live-v1\\run-controlled-read.mjs",
+      "sha256": "d8d429a7e4e1b5fc5d731e7cb4dee098a3075d4764fa0886c745cace43bf7c83",
+      "bytes": 24025
+    },
+    {
+      "path": "source\\evals\\meri\\live-v1\\tests\\controlled-read-operator.test.mjs",
+      "sha256": "c158d73d18203b678b39055b355040fdac86b376d66c723b3d3adb8c730103a5",
+      "bytes": 26872
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+✔ creation native HTTPS sends QA User-Agent and retains TLS, auth and one-write bounds (4.0978ms)
+✔ capture native HTTPS sends QA User-Agent and retains TLS, auth and one-write bounds (4.3564ms)
+✔ case20 input chain preserves fixed source and exact owner/CAS/budget/build identities (6.9327ms)
+✔ case72 input chain preserves fixed source and exact owner/CAS/budget/build identities (1.7274ms)
+✔ new reviewed500k rate sheet selects15USD while prior200k qualification remains3USD (2.1477ms)
+✔ rejects other cases/tenants and plans with modified fixed mappings or stale hash (1.0367ms)
+✔ seed/reset proof rejects swapped run, actor, client, operation and fabricated source/hash (1.1298ms)
+✔ rates/installation require current bounded exact CAS and qualification joins (2.1795ms)
+✔ ordinary synthetic Clerk identity rejects wrong instance/org/member role and foreign user (1.2558ms)
+✔ browser cannot mutate application or leave canonical origin, while Clerk auth is allowed (0.5756ms)
+✔ native conversation readback requires new exact owned empty active row with no previous ledger (0.9163ms)
+✔ materializer CLI refuses failed oneoff receipts and existing output; never starts auth on import (319.2026ms)
+✔ submission observation preserves native zero/one and treats absent or invalid attempted outcomes as unknown (0.3821ms)
+✔ execution intent is fsynced before one native call and thrown-after-submission remains unknown (7.7376ms)
+✔ failed intent persistence prevents native dispatch without retry or swallowed error (3.4701ms)
+✔ native 0 is durably preserved before a failing final checkpoint (8.2135ms)
+✔ native 1 is durably preserved before a failing final checkpoint (11.4386ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 543.0721

@@ -1,0 +1,87 @@
+{
+  "status": "EXACT_RELEASE_AND_ORDINARY_IDENTITY_VERIFIED",
+  "recordedAt": "2026-10-04T00:23:40.773Z",
+  "packetSha256": "5d67f443a71180e7aa49e775f3f979a585348d5b6480a7e83b76432bef7bfbdf",
+  "services": [
+    {
+      "service": "api",
+      "baseline": {
+        "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:521",
+        "serviceHash": "793302143e44176b8dd4cd79f914ef57c50567f5665b06ff65cca32b0071ef0c",
+        "configHash": "973748a2b134b388a6027df6c5c099055a7e24f7b746eafbaae8cebad077258a",
+        "taskHash": "b6108d13d2558e5cf4dd762a81406574aab92546736606b870da283af45b4170",
+        "imageDigest": "sha256:23f529da3c1c00d401968811575dc075bced6c60669baa9a09e9c23575c9c452",
+        "desiredCount": 2
+      },
+      "health": "ALL_CURRENT_TASKS_AND_TARGETS_HEALTHY",
+      "oldTaskReadback": {
+        "status": "ALL_REQUESTED_TASKS_STOPPED",
+        "requestedCount": 0,
+        "observedCount": 0,
+        "drainingCount": 0
+      }
+    },
+    {
+      "service": "meriv2-orchestrator",
+      "baseline": {
+        "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:117",
+        "serviceHash": "70aea1ca7863f98f9c8febcc25c048ab68067e3491abc3b836fea8e44238db44",
+        "configHash": "3a4fabd2139e347cd8b45192579f2a3fbaaa6fc3678762b5252f727a4461951b",
+        "taskHash": "7444417aec330d62f970880153f12e1dae52bded0a9a2aaf475385eb24c9e56e",
+        "imageDigest": "sha256:1c491a5ac46ea320195fe8ab367322ad2ebbd0949d69530b5ccfba2de84eb491",
+        "desiredCount": 1
+      },
+      "health": "ALL_CURRENT_TASKS_AND_TARGETS_HEALTHY",
+      "oldTaskReadback": {
+        "status": "ALL_REQUESTED_TASKS_STOPPED",
+        "requestedCount": 0,
+        "observedCount": 0,
+        "drainingCount": 0
+      }
+    },
+    {
+      "service": "web-vnext",
+      "baseline": {
+        "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web-vnext:388",
+        "serviceHash": "16238627fc523b6470c76cbd86c6a54bca422f86d72f2a7ba0312cc326d139e2",
+        "configHash": "453a3d5aedc3da7d989370b97669abf0c1b14efbacd2d1597990b9cac7d50ab7",
+        "taskHash": "ce2035e6773a77eeda0adcf86dd4a7043624b3d75d8d32a74000f3d930f55211",
+        "imageDigest": "sha256:a048aceec01c207b514f76fb447d4fb8bdb5ed17278642480008a1510a12de4c",
+        "desiredCount": 1
+      },
+      "health": "ALL_CURRENT_TASKS_AND_TARGETS_HEALTHY",
+      "oldTaskReadback": {
+        "status": "NOT_CHECKED_UNCHANGED_SERVICE",
+        "requestedCount": null,
+        "observedCount": null,
+        "drainingCount": null
+      }
+    }
+  ],
+  "retainedNightly": {
+    "rule": "capiro-dev-refresh-memory-graph",
+    "targetId": "refresh-memory-graph-target",
+    "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api-migrate:136",
+    "sourceSha": "f00e5dfb4fd3e47ac6aa4aca741023cc02f6314f",
+    "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:1a4aef121151bb5da7f70417539ece2faff392842809e6b557370c2d6cf8a49d",
+    "ruleSha256": "4a9376120b272c60388f6986a7a20aa00bfa78a8feb3b44a3a804fd93c617947",
+    "targetSha256": "e5b98fe865035a7dfa2add1472df1617101714e08f65232fd232c606c4f2475a",
+    "taskInputSha256": "0b362cc5b50895bcc69d70536e2496b848c0ee7bc805d9d17c1c6f85261263a5",
+    "change": "NONE"
+  },
+  "broadProjectionWorker": "DISABLED",
+  "ordinaryIdentity": {
+    "status": "ORDINARY_IDENTITY_ROUTE_PASS",
+    "httpStatus": 200,
+    "actorUserId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+    "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+    "role": "standard_user",
+    "apiSourceSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc"
+  },
+  "temporarySessionRevoked": true,
+  "providerCalls": 0,
+  "conversationCreations": 0,
+  "journalMutations": 0,
+  "fixtureMutations": 0,
+  "originalAcceptance": "UNCHANGED_NOT_RUN"
+}

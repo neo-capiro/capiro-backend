@@ -1,0 +1,95 @@
+{
+  "status": "LOCAL_OPERATOR_QUALIFIED",
+  "files": [
+    {
+      "path": ".gitattributes",
+      "bytes": 55,
+      "sha256": "be44806039e51069e5e3f4af1799f532e7737f927fbf88bfcaf361406d8f09a4"
+    },
+    {
+      "path": "candidate.patch",
+      "bytes": 11409,
+      "sha256": "b00c47bd0bb88eeec1f0f22281a4ad143f286de06de5f53265739e2ffb639a26"
+    },
+    {
+      "path": "check-1.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "check-2.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "check-3.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "checkpoint.json",
+      "bytes": 6392,
+      "sha256": "a00b78f63f041daa631f172e076b538d070a44c035195429327f472fc0c2ec94"
+    },
+    {
+      "path": "final-checks.json",
+      "bytes": 1470,
+      "sha256": "414dba6c5b47e4e35d5c771f93a672e8352ec5857747fd6f8f6a322b4f50197c"
+    },
+    {
+      "path": "focused-final.log",
+      "bytes": 1831,
+      "sha256": "20a44134db59fb9e9e6a27290ae14b9e244d2673b36a05c88fff96f1221463da"
+    },
+    {
+      "path": "format.log",
+      "bytes": 124,
+      "sha256": "c429da7ec7188248d86c90505a833929231d3bf74e47789a0ca4ab8a68a06757"
+    },
+    {
+      "path": "green-receipt.json",
+      "bytes": 277,
+      "sha256": "8876e1f420f4fcf2c196cfe453532b484fca79d50b336788f8bc6fc3bce3a7cf"
+    },
+    {
+      "path": "green.log",
+      "bytes": 1828,
+      "sha256": "b0db15a8ce05c6fd10caa644ab4033000fb3420a53ade174171c2314afaf9da5"
+    },
+    {
+      "path": "independent-review.json",
+      "bytes": 1772,
+      "sha256": "e1bc0db62963e4a56b24009a6bb43dca50ac7042c5c4ee414806410d41d3f113"
+    },
+    {
+      "path": "README.md",
+      "bytes": 768,
+      "sha256": "b420e27f01d97d1e7bdb29a6378d96d03842afb290dd7b1d996020ca091d9a87"
+    },
+    {
+      "path": "red-receipt.json",
+      "bytes": 277,
+      "sha256": "ee6af0678636b946824891d75dc2a92df0f019b3e408a87f9235472ef97ebcc2"
+    },
+    {
+      "path": "red-test-source.mjs",
+      "bytes": 26430,
+      "sha256": "f2f8c07473f6bc17307a89cb38abbc3833dd0cfbdb528829b7a1ddba6d923968"
+    },
+    {
+      "path": "red.log",
+      "bytes": 8403,
+      "sha256": "e6697a37326fb70e564cfb26cbac0fe90741e46031bce65e1caf2e191b1833d7"
+    },
+    {
+      "path": "source/evals/meri/live-v1/run-controlled-read.mjs",
+      "bytes": 24025,
+      "sha256": "d8d429a7e4e1b5fc5d731e7cb4dee098a3075d4764fa0886c745cace43bf7c83"
+    },
+    {
+      "path": "source/evals/meri/live-v1/tests/controlled-read-operator.test.mjs",
+      "bytes": 26872,
+      "sha256": "c158d73d18203b678b39055b355040fdac86b376d66c723b3d3adb8c730103a5"
+    }
+  ]
+}

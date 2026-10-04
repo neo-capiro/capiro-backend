@@ -1,0 +1,167 @@
+✔ creation native HTTPS sends QA User-Agent and retains TLS, auth and one-write bounds (2.7967ms)
+✔ capture native HTTPS sends QA User-Agent and retains TLS, auth and one-write bounds (3.8738ms)
+✔ case20 input chain preserves fixed source and exact owner/CAS/budget/build identities (6.7568ms)
+✔ case72 input chain preserves fixed source and exact owner/CAS/budget/build identities (2.2076ms)
+✔ new reviewed500k rate sheet selects15USD while prior200k qualification remains3USD (2.5368ms)
+✔ rejects other cases/tenants and plans with modified fixed mappings or stale hash (2.05ms)
+✔ seed/reset proof rejects swapped run, actor, client, operation and fabricated source/hash (1.5843ms)
+✔ rates/installation require current bounded exact CAS and qualification joins (4.1676ms)
+✔ ordinary synthetic Clerk identity rejects wrong instance/org/member role and foreign user (1.7978ms)
+✔ browser cannot mutate application or leave canonical origin, while Clerk auth is allowed (1.1573ms)
+✔ native conversation readback requires new exact owned empty active row with no previous ledger (2.0331ms)
+✔ materializer CLI refuses failed oneoff receipts and existing output; never starts auth on import (350.4103ms)
+✖ submission observation preserves native zero/one and treats absent or invalid attempted outcomes as unknown (1.7569ms)
+✖ execution intent is fsynced before one native call and thrown-after-submission remains unknown (2.2896ms)
+✖ failed intent persistence prevents native dispatch without retry or swallowed error (2.3842ms)
+✖ native 0 is durably preserved before a failing final checkpoint (3.5964ms)
+✖ native 1 is durably preserved before a failing final checkpoint (2.7858ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 12
+ℹ fail 5
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 580.8546
+
+✖ failing tests:
+
+test at evals\meri\live-v1\tests\controlled-read-operator.test.mjs:565:1
+✖ submission observation preserves native zero/one and treats absent or invalid attempted outcomes as unknown (1.7569ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'undefined'
+  - 'function'
+  
+      at TestContext.<anonymous> (file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/controlled-read-operator.test.mjs:567:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'undefined',
+    expected: 'function',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at evals\meri\live-v1\tests\controlled-read-operator.test.mjs:607:1
+✖ execution intent is fsynced before one native call and thrown-after-submission remains unknown (2.2896ms)
+  AssertionError [ERR_ASSERTION]: The validation function is expected to return "true". Received false
+  
+  Caught error:
+  
+  AssertionError [ERR_ASSERTION]: history and summary were fsynced before native execution
+      at async TestContext.<anonymous> (file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/controlled-read-operator.test.mjs:627:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: AssertionError [ERR_ASSERTION]: history and summary were fsynced before native execution
+        at execute (file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/controlled-read-operator.test.mjs:614:14)
+        at executeControlledReadLiveCapture (file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/controlled-read-operator.test.mjs:600:45)
+        at Object.executeBoundary (evalmachine.<anonymous>:7:27)
+        at TestContext.<anonymous> (file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/controlled-read-operator.test.mjs:627:28)
+        at Test.runInAsyncScope (node:async_hooks:227:14)
+        at Test.run (node:internal/test_runner/test:1382:25)
+        at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+        at Test.postRun (node:internal/test_runner/test:1522:19)
+        at Test.run (node:internal/test_runner/test:1447:12)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:960:7),
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at evals\meri\live-v1\tests\controlled-read-operator.test.mjs:636:1
+✖ failed intent persistence prevents native dispatch without retry or swallowed error (2.3842ms)
+  AssertionError [ERR_ASSERTION]: The validation function is expected to return "true". Received false
+  
+  Caught error:
+  
+  TypeError: Cannot read properties of undefined (reading 'status')
+      at async TestContext.<anonymous> (file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/controlled-read-operator.test.mjs:640:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: TypeError: Cannot read properties of undefined (reading 'status')
+        at Object.executeBoundary (evalmachine.<anonymous>:12:15),
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at evals\meri\live-v1\tests\controlled-read-operator.test.mjs:645:3
+✖ native 0 is durably preserved before a failing final checkpoint (3.5964ms)
+  AssertionError [ERR_ASSERTION]: The validation function is expected to return "true". Received false
+  
+  Caught error:
+  
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + undefined
+  - {
+  -   status: 'CAPTURE_BLOCKED',
+  -   synthesisSubmissionCount: 0
+  - }
+  
+      at async TestContext.<anonymous> (file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/controlled-read-operator.test.mjs:659:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+    + actual - expected
+    
+    + undefined
+    - {
+    -   status: 'CAPTURE_BLOCKED',
+    -   synthesisSubmissionCount: 0
+    - }
+    
+        at checkpoint (file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/controlled-read-operator.test.mjs:654:16)
+        at saveSpendCheckpoint (file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/controlled-read-operator.test.mjs:601:44)
+        at Object.executeBoundary (evalmachine.<anonymous>:8:5),
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at evals\meri\live-v1\tests\controlled-read-operator.test.mjs:645:3
+✖ native 1 is durably preserved before a failing final checkpoint (2.7858ms)
+  AssertionError [ERR_ASSERTION]: The validation function is expected to return "true". Received false
+  
+  Caught error:
+  
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + undefined
+  - {
+  -   status: 'CAPTURE_COMPLETE',
+  -   synthesisSubmissionCount: 1
+  - }
+  
+      at async TestContext.<anonymous> (file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/controlled-read-operator.test.mjs:659:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+    + actual - expected
+    
+    + undefined
+    - {
+    -   status: 'CAPTURE_COMPLETE',
+    -   synthesisSubmissionCount: 1
+    - }
+    
+        at checkpoint (file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/controlled-read-operator.test.mjs:654:16)
+        at saveSpendCheckpoint (file:///C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/controlled-read-operator.test.mjs:601:44)
+        at Object.executeBoundary (evalmachine.<anonymous>:8:5),
+    operator: 'rejects',
+    diff: 'simple'
+  }
