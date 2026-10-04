@@ -482,7 +482,12 @@ async function prepareMemoryLiveCapture(
   await collector.init();
   claimedRuns.add(claim);
   const builds = await readCase01BuildAuthority(config.deployment);
-  const transport = nativeTransport(scope, config.limits.deadlineMs, collector);
+  const remaining =
+    spendReservation.deadlineAtMs === undefined
+      ? config.limits.deadlineMs
+      : Math.min(config.limits.deadlineMs, spendReservation.deadlineAtMs - Date.now());
+  need(remaining >= 1000, 'CASE14_COMBINED_WINDOW_EXPIRED');
+  const transport = nativeTransport(scope, remaining, collector);
   const before = await currentAdmission(scope, transport);
   await collector.writeBytes('admission.json', privateBytes(before, scope.bearer));
   await collector.writeBytes('immutable-builds.json', privateBytes(builds, scope.bearer));

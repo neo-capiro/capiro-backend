@@ -214,12 +214,43 @@ describe('MeriV2 Phase 0 HTTP adversarial boundary', () => {
       .post('/api/clio/tools/send_email')
       .set('x-internal-service-secret', SECRET)
       .send({ to: 'victim@example.com', body: 'test' })
-      .expect(201);
+      .expect(200);
     expect(executeTool).toHaveBeenCalledWith(
       expect.objectContaining({ tenantId: TENANT, userId: USER }),
       'send_email',
       { to: 'victim@example.com', body: 'test' },
     );
+  });
+
+  it('returns HTTP 200 for an ordinary memory tool and preserves its response body', async () => {
+    const result = { records: [{ id: 'approved-memory', text: 'Approved memory text.' }] };
+    executeTool.mockResolvedValueOnce(result);
+    const response = await request(app.getHttpServer())
+      .post('/api/clio/tools/search_memory')
+      .set('x-internal-service-secret', SECRET)
+      .send({ query: 'recently approved memory' })
+      .expect(200);
+    expect(response.body).toEqual(result);
+    expect(executeTool).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: TENANT, userId: USER }),
+      'search_memory',
+      { query: 'recently approved memory' },
+    );
+  });
+
+  it('preserves memory tool service-identity rejection and thrown HTTP errors', async () => {
+    await request(app.getHttpServer())
+      .post('/api/clio/tools/search_memory')
+      .send({ query: 'memory' })
+      .expect(403);
+    expect(executeTool).not.toHaveBeenCalled();
+    executeTool.mockRejectedValueOnce(new NotFoundException('Memory not found.'));
+    const response = await request(app.getHttpServer())
+      .post('/api/clio/tools/search_memory')
+      .set('x-internal-service-secret', SECRET)
+      .send({ query: 'memory' })
+      .expect(404);
+    expect(response.body.message).toBe('Memory not found.');
   });
 
   it('requires service identity and accepts only bounded procedure validation fields', async () => {

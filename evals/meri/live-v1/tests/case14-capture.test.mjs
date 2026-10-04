@@ -7,7 +7,7 @@ import {
   executeCase14RecallCapture,
   currentCase14RecallAuthority,
 } from '../case01-live-capture.mjs';
-import { assertCase14ReceiptJoins } from '../case01-receipt-joins.mjs';
+import { assertCase01ReceiptJoins, assertCase14ReceiptJoins } from '../case01-receipt-joins.mjs';
 import {
   currentCase14ApprovalAuthority,
   currentCase14RecallUiAuthority,
@@ -15,8 +15,9 @@ import {
   inspectCase14ApprovalEvidence,
 } from '../case14-approval-capture.mjs';
 import { gradeCase14CapturedOutcome } from '../grade-case14-capture.mjs';
-import { sha256Stable } from '../artifact-collector.mjs';
+import { sha256Bytes, sha256Stable } from '../artifact-collector.mjs';
 import { nativeMeriCaptureHeaders } from '../lib/native-http.mjs';
+const obs = (value) => ({ status: 'OBSERVED', value, reason: null });
 test('native memory QA transport identifies itself to the edge without caller-selected or newline headers', () => {
   const headers = nativeMeriCaptureHeaders('unit-bearer', 'meri-foundation-20260928-t1');
   assert.equal(headers['User-Agent'], 'Capiro-Meri-Authorized-QA/1.0');
@@ -30,7 +31,7 @@ test('native memory QA transport identifies itself to the edge without caller-se
 
 function unitFixture() {
   const h = fixture(),
-    candidateId = '11111111-1111-5111-8111-111111111111';
+    candidateId = '6f4545a1-dcd5-5eba-8606-db2043b238ac';
   h.config.caseId = '14';
   h.config.scope.actors.PRIYA = { ...h.config.scope.actors.PAT, role: 'user_admin' };
   delete h.config.scope.actors.PAT;
@@ -60,12 +61,30 @@ function unitFixture() {
     transitionAuditId: '22222222-2222-4222-8222-222222222222',
   };
   f.approvedText = 'Synthetic Aster candidate for approval';
+  f.sources[0].contentSha256 = 'e398859f2cda473be80da00d8e849a958646f9b105292823f005c848938af8cc';
   j.admission.fixture = f;
   j.admission.providerBudget.coverage = 'case14_memory_turn';
   j.authority.providerBudget.coverage = 'case14_memory_turn';
   j.envelope.receipt.fixture.physicalMapSha256.value = h.config.fixture.mappingSha256;
   j.envelope.receipt.providerBudget.boundary = 'case14_memory_turn';
+  const currentVersion = `content:${sha256Bytes(f.approvedText + '\0' + source.version)}`;
+  j.envelope.receipt.sources[0].currentVersion = obs(currentVersion);
+  j.envelope.receipt.sources[0].passageSha256 = obs(sha256Bytes(f.approvedText));
+  j.envelope.receipt.sources[0].fullRead = obs(true);
   j.sourceReadback.sourceVersion = source.version;
+  j.sourceReadback.text = f.approvedText;
+  j.sourceReadback.totalCharacters = f.approvedText.length;
+  j.sourceReadback.currentVersion = currentVersion;
+  j.sourceReadback.contentStatus = 'available';
+  j.sourceReadback.versionStatus = 'matches_cited_version';
+  j.sourceReadback.provenance = {
+    recordId: source.physicalId,
+    sourceId: candidateId,
+    sourceVersion: source.version,
+    contentHash: f.sources[0].contentSha256,
+  };
+  j.citations[0].snippet = f.approvedText;
+  j.citations[0].source.version = currentVersion;
   j.doneEnvelope = structuredClone(j.envelope);
   j.authority.envelopeSha256 = sha256Stable(j.envelope);
   h.admissionInput = {
@@ -81,7 +100,76 @@ test('case14 exact current approval/version uses shared signed memory receipt jo
   assert.equal(inspectCase14RecallAdmission(h.admissionInput).caseId, '14');
   assert.equal(assertCase14ReceiptJoins(h.joins).source.logicalId, 'MEM-PROPOSAL-14');
 });
+test('case01 retains Unicode ellipsis handling in a partial citation snippet', () => {
+  const h = fixture(), snippet = h.joins.sourceReadback.text.slice(0, 12) + '…';
+  h.joins.citations[0].snippet = snippet;
+  h.joins.envelope.receipt.sources[0].passageSha256 = obs(sha256Bytes(snippet));
+  h.joins.doneEnvelope = structuredClone(h.joins.envelope);
+  h.joins.authority.envelopeSha256 = sha256Stable(h.joins.envelope);
+  assert.doesNotThrow(() => assertCase01ReceiptJoins(h.joins));
+});
+test('case14 rejects a copied version that does not hash the actual text and source version', () => {
+  const h = unitFixture(), wrong = 'content:' + '0'.repeat(64);
+  h.joins.sourceReadback.currentVersion = wrong;
+  h.joins.citations[0].source.version = wrong;
+  h.joins.envelope.receipt.sources[0].currentVersion = obs(wrong);
+  h.joins.doneEnvelope = structuredClone(h.joins.envelope);
+  h.joins.authority.envelopeSha256 = sha256Stable(h.joins.envelope);
+  assert.throws(() => assertCase14ReceiptJoins(h.joins), /CASE01_CANONICAL_SOURCE_BYTES_MISMATCH/u);
+});
 for (const [name, change] of [
+  ['wrong content status', h => { h.joins.sourceReadback.contentStatus = 'partial'; }],
+  ['missing canonical DB hash', h => { delete h.joins.sourceReadback.provenance.contentHash; }],
+  ['wrong candidate provenance', h => { h.joins.sourceReadback.provenance.sourceId = 'foreign'; }],
+  ['wrong provenance version', h => { h.joins.sourceReadback.provenance.sourceVersion = 'changed'; }],
+  ['source changed after citation', h => { h.joins.sourceReadback.versionStatus = 'changed_since_citation'; }],
+  ['paged source', h => { h.joins.sourceReadback.nextCursor = 'more'; }],
+  ['nonzero source offset', h => { h.joins.sourceReadback.offset = 1; }],
+  ['object substituted for string version', h => { h.joins.sourceReadback.currentVersion = obs(h.joins.sourceReadback.currentVersion); }],
+
+  [
+    'noncanonical source owner',
+    (h) => {
+      const fixture = structuredClone(h.joins.authority.fixture);
+      fixture.sources[0].physicalId = '99999999-9999-4999-8999-999999999999';
+      h.joins.authority.fixture = fixture;
+      h.joins.admission.fixture = structuredClone(fixture);
+    },
+  ],
+  [
+    'wrong approved text',
+    (h) => {
+      h.joins.sourceReadback.text += ' altered';
+      h.joins.sourceReadback.totalCharacters = h.joins.sourceReadback.text.length;
+    },
+  ],
+  [
+    'wrong DB provenance hash',
+    (h) => {
+      const fixture = structuredClone(h.joins.authority.fixture);
+      fixture.sources[0].contentSha256 = '0'.repeat(64);
+      h.joins.authority.fixture = fixture;
+      h.joins.admission.fixture = structuredClone(fixture);
+    },
+  ],
+  [
+    'wrong current source version',
+    (h) => {
+      h.joins.sourceReadback.currentVersion = 'content:' + '0'.repeat(64);
+    },
+  ],
+  [
+    'partial source pagination',
+    (h) => {
+      h.joins.sourceReadback.totalCharacters -= 1;
+    },
+  ],
+  [
+    'citation/readback currentVersion contradiction',
+    (h) => {
+      h.joins.citations[0].source.version = 'content:' + '0'.repeat(64);
+    },
+  ],
   [
     'wrong case',
     (h) => {

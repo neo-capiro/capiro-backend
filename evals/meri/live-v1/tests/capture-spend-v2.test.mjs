@@ -16,7 +16,7 @@ import {
   reviseCaptureSpendProtocol,
   openCaptureSpendAggregate,
 } from '../capture-spend-aggregate.mjs';
-const python = 'C:/ProgramData/Hermes/tools/python-3.14.7+20260901-win32-x64/python.exe';
+const python = process.env.MERI_WINDOWS_PYTHON ?? 'C:/ProgramData/Hermes/tools/python-3.14.7+20260901-win32-x64/python.exe';
 const helper = fileURLToPath(new URL('../lib/windows-capture-spend.py', import.meta.url));
 const parent = 'C:/dev/cap-meri-foundation-evidence/spend-v2-tests';
 mkdirSync(parent, { recursive: true });

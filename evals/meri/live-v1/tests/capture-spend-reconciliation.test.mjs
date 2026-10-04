@@ -7,7 +7,7 @@ import { sha256Stable } from '../lib/stable.mjs';
 import { inspectCaptureSpendTerminalReadback, prepareReviewedCaptureSpendReconciliation, currentReviewedCaptureSpendReconciliation } from '../capture-spend-reconciliation.mjs';
 import { initializeCaptureSpendAggregate, openCaptureSpendAggregate, reconcileCaptureSpendTerminal } from '../capture-spend-aggregate.mjs';
 const hash = value => createHash('sha256').update(value).digest('hex');
-const python = 'C:/ProgramData/Hermes/tools/python-3.14.7+20260901-win32-x64/python.exe';
+const python = process.env.MERI_WINDOWS_PYTHON ?? 'C:/ProgramData/Hermes/tools/python-3.14.7+20260901-win32-x64/python.exe';
 const parent = 'C:/dev/cap-meri-foundation-evidence/spend-terminal-generic-tests';
 mkdirSync(parent, { recursive: true });
 function fixture() {

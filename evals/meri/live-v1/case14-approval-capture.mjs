@@ -8,6 +8,12 @@ import { readCase17BuildAuthority } from './case17-build-authority.mjs';
 import { assertWindowsArtifactStorage } from './windows-artifact-storage.mjs';
 import { sha256Bytes, sha256Stable, stableJson } from './artifact-collector.mjs';
 import { currentCase14RecallAuthority } from './case01-live-capture.mjs';
+import {
+  claimCase14ApprovalSpendReservation,
+  refreshCase14ApprovalSpendReservation,
+  assertCase14ApprovalSpendReservation,
+  bindCase14ApprovalSpendOutcome,
+} from './capture-spend-aggregate.mjs';
 import { nativeMeriCaptureHeaders } from './lib/native-http.mjs';
 import {
   createCase17WriteAccounting,
@@ -262,6 +268,7 @@ export async function collectCase14ApprovalCapture({
   artifactStorage,
   createSignInTicket,
   onSessionCreated,
+  spendReservation,
 }) {
   const config = inspectCase14ApprovalScope(input);
   need(
@@ -287,6 +294,7 @@ export async function collectCase14ApprovalCapture({
   const selected = selectPendingMemoryFixturePlan(manifest, '14'),
     candidateId = selected.records[0].physicalId;
   need(selected.reviewerUserId === config.reviewer.userId, 'FROZEN_REVIEWER');
+  claimCase14ApprovalSpendReservation(spendReservation, config, candidateId);
   const builds = await readCase17BuildAuthority(config.deployment);
   const { chromium } = createRequire(import.meta.url)('playwright');
   const writeGuard = createCase14ApprovalWriteGuard(candidateId);
@@ -309,6 +317,17 @@ export async function collectCase14ApprovalCapture({
       const request = route.request(),
         url = new URL(request.url());
       if (writeGuard.decide(request) === 'abort') return route.abort();
+      if (
+        request.method() === 'POST' &&
+        url.origin === ORIGIN &&
+        url.pathname === `/api/memory/review/candidates/${candidateId}/approve`
+      ) {
+        try {
+          assertCase14ApprovalSpendReservation(spendReservation, { submit: true });
+        } catch {
+          return route.abort();
+        }
+      }
       if (
         request.isNavigationRequest() &&
         (request.frame() === page.mainFrame()
@@ -376,6 +395,8 @@ export async function collectCase14ApprovalCapture({
     ];
     need(Date.now() < deadline && Date.now() - builds.observedAt < 60000, 'PRESUBMIT_FRESHNESS');
     writeGuard.assertBeforeIntent();
+    await refreshCase14ApprovalSpendReservation(spendReservation);
+    assertCase14ApprovalSpendReservation(spendReservation);
     const pending = page.waitForResponse(
       (response) =>
         response.request().method() === 'POST' &&
@@ -542,6 +563,7 @@ export async function collectCase14ApprovalCapture({
     sha256: sha256Bytes(bytes),
     outcomeHash: sha256Stable(outcome),
   });
+  bindCase14ApprovalSpendOutcome(spendReservation, outcome);
   return outcome;
 }
 

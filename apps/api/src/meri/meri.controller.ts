@@ -4,6 +4,7 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
   Logger,
   Param,
   Patch,
@@ -499,6 +500,7 @@ export class MeriController {
   // enforce it; development/test observe by default unless
   // MERI_TOOLS_REQUIRE_SERVICE_SECRET=true. @CurrentTenant (user JWT) unchanged.
   @Post('tools/:name')
+  @HttpCode(200)
   @UseGuards(ToolServiceSecretGuard)
   async executeTool(
     @CurrentTenant() ctx: TenantContext,
