@@ -1,0 +1,57 @@
+{
+  "status": "CONTROLLED_READ_BOUND",
+  "operationId": "686b00e9-6ee9-4e44-b29b-a728795f0d83",
+  "binding": {
+    "caseId": "20",
+    "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+    "fixtureVersion": "meri-live-v1-2026-09-26.1",
+    "physicalMapSha256": "929ebb433886c035cfbcbcf8a537acde2157bec86634bfc384b594dfbca05861",
+    "seedReceiptId": "meri-synthetic-fixture-seed-receipt:sha256:dbda52dbd9e17320519d4cc40bcd73975fbf0ce0fae21341a1de535644f619e8",
+    "resetReceiptId": "meri-synthetic-fixture-reset-receipt:sha256:28630ec9f867373094583e8f16eaf521f8be00508d03b7b713c11784ab214de0",
+    "fixtureNamespace": "meri-foundation-20260928",
+    "actorUserId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+    "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+    "currentVerifySha256": "925c4735e4d435ab06c40b31ee590b0ce4e7d9220b742155c67e4115b1bc6516"
+  },
+  "sourceMap": {
+    "R2-27": {
+      "frozenFixtureId": "R2-27",
+      "physicalId": "2d0c016e-8dad-5f6e-80dd-e36740fff7ee",
+      "tenantPhysicalId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+      "clientPhysicalId": null,
+      "kind": "budget_document",
+      "version": "v1"
+    }
+  },
+  "currentVerifySha256": "925c4735e4d435ab06c40b31ee590b0ce4e7d9220b742155c67e4115b1bc6516",
+  "seedReceipt": {
+    "schemaVersion": 1,
+    "contractVersion": "meri-synthetic-fixture-provisioning-v1",
+    "kind": "meri-synthetic-fixture-seed-receipt",
+    "owner": "meri_controlled_read_v1",
+    "operationId": "686b00e9-6ee9-4e44-b29b-a728795f0d83",
+    "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+    "actorUserId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+    "caseId": "20",
+    "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+    "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+    "definitionSha256": "bfb7af9d607d6ba0bd81479c72c282ea50f082a5f9cecc7ea1d8915503b493f9",
+    "physicalMapSha256": "929ebb433886c035cfbcbcf8a537acde2157bec86634bfc384b594dfbca05861",
+    "sourceStorage": "immutable_source_owned_controlled_adapter",
+    "sharedCorpusWrites": 0,
+    "contentSha256": "dbda52dbd9e17320519d4cc40bcd73975fbf0ce0fae21341a1de535644f619e8"
+  },
+  "resetReceipt": {
+    "schemaVersion": 1,
+    "contractVersion": "meri-synthetic-fixture-provisioning-v1",
+    "kind": "meri-synthetic-fixture-reset-receipt",
+    "owner": "meri_controlled_read_v1",
+    "operationId": "686b00e9-6ee9-4e44-b29b-a728795f0d83",
+    "scope": "replace_owned_capture_binding_and_controlled_locator_only",
+    "priorSettingsSha256": "a424d1d6697f7434c05a7d53efcd2703cc0d13d76dad2a69303522d486dab409",
+    "sharedCorpusWrites": 0,
+    "contentSha256": "28630ec9f867373094583e8f16eaf521f8be00508d03b7b713c11784ab214de0"
+  },
+  "sharedCorpusWrites": 0,
+  "liveAcceptance": "NOT_RUN"
+}

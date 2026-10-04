@@ -1,0 +1,2161 @@
+{
+  "execution": {
+    "schemaVersion": 1,
+    "caseId": "20",
+    "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+    "conversationId": "db0e01ac-60a1-4e3c-b8ba-66748d087a2e",
+    "operatorSourceSha": "bb08625ed565bbbb093f47b3dd4f9ed6b8b1b607",
+    "originalOperatorSourceSha": "af7aa8aff4777a2d4809e882c2b797fbb2cd51a2",
+    "sourceSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+    "orchestratorSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+    "expectedWebSha": "78ad5805679a3045b1fc10fb19beafa7f76e4e64",
+    "scopeFileSha256": "ff11e6de4f6f89ed4314dda96a11bec7ccf724dc35d0520fdbefe33155266e0c",
+    "manifestSha256": "ed9c3b1c11014825b29ee2879796e20b3f0023959ed9e478337180b96ed7a062",
+    "setupProof": {
+      "qualificationSha256": "47d64a19fdf3a718eddefee998247173f98f9b1d3f24703f31d8b4dee779c9af",
+      "currentVerifySha256": "925c4735e4d435ab06c40b31ee590b0ce4e7d9220b742155c67e4115b1bc6516"
+    },
+    "scriptSha256": "f82a39539f369f3f3007c0cc814cf649d118825d8525511a94ac35b47eeea872",
+    "startedAt": "2026-10-04T01:26:31.767Z",
+    "verdict": "BLOCKED",
+    "stage": "EXECUTE_NATIVE_CAPTURE",
+    "maximumNewTurns": 1,
+    "automaticPaidRetryAllowed": false,
+    "browserApplicationWrites": 0,
+    "conversationCreationAttempted": false,
+    "newReservationAttempted": false,
+    "executionAttempted": true,
+    "sessionCreated": true,
+    "sessionRevoked": true,
+    "fullFile01Acceptance": false,
+    "submissionObservation": {
+      "turnsSent": 1,
+      "turnsSentStatus": "OBSERVED_NATIVE_OUTCOME"
+    },
+    "signInAttempted": true,
+    "createdSessionIdSha256": "aa92ba28acf77b39450af97bb14101dcd119f05b2fa945f42ec66d749fbadc4f",
+    "recoveryProof": {
+      "kind": "case20-presubmission-recovery-observation",
+      "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+      "conversationId": "db0e01ac-60a1-4e3c-b8ba-66748d087a2e",
+      "reservationId": "7ea73cdc-526e-4b31-8c28-b0636ea8d2ae",
+      "ceilingMicros": 15000000,
+      "journalSha256": "d6213af1fd8330e9e97a688d903a3c1852b5f40265a66eafb6aa2bf1cfa2060b",
+      "claimPath": "C:/dev/main/outputs/meri-c2-20261003/case20-presubmission-recovery-claim-f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b.json",
+      "claimSha256": "01bc9a9e7bf7059fa3d4e26ffb9e7679e4d739af944d07eebbefd25832fd670f",
+      "restored": true,
+      "recheckStarted": true,
+      "rechecked": true,
+      "submissionFenceConsumed": false,
+      "failed": false,
+      "initialReads": [
+        {
+          "method": "GET",
+          "path": "/api/me",
+          "status": 200,
+          "apiSourceSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+          "bodySha256": "03595ffc23ac84194ba6ed21a18932d79f04bcde680bcdb437233eee51b602f5",
+          "bytes": 1224,
+          "observedAt": 1791077196067
+        },
+        {
+          "method": "GET",
+          "path": "/api/clio/status",
+          "status": 200,
+          "apiSourceSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+          "bodySha256": "39acec4ad46cce70ea7ae79a2df2c112a8c54277fc0285d0c90ef0bcd5aaf144",
+          "bytes": 55170,
+          "observedAt": 1791077196237
+        },
+        {
+          "method": "GET",
+          "path": "/api/clio/conversations/db0e01ac-60a1-4e3c-b8ba-66748d087a2e",
+          "status": 200,
+          "apiSourceSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+          "bodySha256": "4083ac7395611ee7da8d8dd010ffb9509d3fb0c48547f300f37200dc0faa04ea",
+          "bytes": 2574,
+          "observedAt": 1791077196956
+        },
+        {
+          "method": "GET",
+          "path": "/api/clio/conversations/db0e01ac-60a1-4e3c-b8ba-66748d087a2e/messages",
+          "status": 200,
+          "apiSourceSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+          "bodySha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "bytes": 2,
+          "observedAt": 1791077197089
+        }
+      ],
+      "preSubmissionReads": [
+        {
+          "method": "GET",
+          "path": "/api/me",
+          "status": 200,
+          "apiSourceSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+          "bodySha256": "03595ffc23ac84194ba6ed21a18932d79f04bcde680bcdb437233eee51b602f5",
+          "bytes": 1224,
+          "observedAt": 1791077216041
+        },
+        {
+          "method": "GET",
+          "path": "/api/clio/status",
+          "status": 200,
+          "apiSourceSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+          "bodySha256": "39acec4ad46cce70ea7ae79a2df2c112a8c54277fc0285d0c90ef0bcd5aaf144",
+          "bytes": 55170,
+          "observedAt": 1791077216207
+        },
+        {
+          "method": "GET",
+          "path": "/api/clio/conversations/db0e01ac-60a1-4e3c-b8ba-66748d087a2e",
+          "status": 200,
+          "apiSourceSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+          "bodySha256": "fc0e04d089da6ebc232e50f74084232c4f9b5ba0213f814ea8d729bb7ef05a0d",
+          "bytes": 2574,
+          "observedAt": 1791077216479
+        },
+        {
+          "method": "GET",
+          "path": "/api/clio/conversations/db0e01ac-60a1-4e3c-b8ba-66748d087a2e/messages",
+          "status": 200,
+          "apiSourceSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+          "bodySha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "bytes": 2,
+          "observedAt": 1791077216597
+        }
+      ],
+      "currentVerifySha256": "925c4735e4d435ab06c40b31ee590b0ce4e7d9220b742155c67e4115b1bc6516",
+      "qualificationSha256": "47d64a19fdf3a718eddefee998247173f98f9b1d3f24703f31d8b4dee779c9af",
+      "humanAcceptance": false
+    },
+    "restoredReservation": {
+      "caseId": "20",
+      "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+      "reservationId": "7ea73cdc-526e-4b31-8c28-b0636ea8d2ae",
+      "ceilingMicros": 15000000
+    },
+    "capturePrepared": true,
+    "nativeAdmissionReadback": {
+      "qualificationSha256": "47d64a19fdf3a718eddefee998247173f98f9b1d3f24703f31d8b4dee779c9af",
+      "currentVerifySha256": "925c4735e4d435ab06c40b31ee590b0ce4e7d9220b742155c67e4115b1bc6516"
+    },
+    "executionIntent": {
+      "phase": "EXECUTE_CASE20_LIVE_CAPTURE",
+      "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+      "conversationId": "db0e01ac-60a1-4e3c-b8ba-66748d087a2e",
+      "recordedAt": "2026-10-04T01:26:56.618Z",
+      "automaticPaidRetryAllowed": false,
+      "uncertainReservationRetained": true
+    },
+    "outcome": {
+      "status": "CAPTURE_UNCERTAIN",
+      "acceptanceStatus": "NOT_RUN",
+      "reason": "CONTROLLED_READ_FULL_PASSAGE_UNPROVED",
+      "caseId": "20",
+      "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+      "requestCount": 10,
+      "synthesisSubmissionCount": 1
+    },
+    "failureCode": "CASE20_RECOVERY_OPERATOR_FAILED",
+    "failureDiagnostic": {
+      "errorClass": "Error",
+      "messageSha256": "fc1f9321dda99ee94b85e8fb5187c49c095fd04a7395d4a0ab70da6056564113",
+      "messageOmitted": true
+    },
+    "completedAt": "2026-10-04T01:27:09.827Z",
+    "originalEvidencePreserved": true
+  },
+  "checkpoint": {
+    "kind": "meri-fresh-capture-spend-checkpoint",
+    "version": 1,
+    "state": {
+      "root": "C:\\dev\\main\\outputs\\meri-fresh-20261003",
+      "freshVersion": 1,
+      "directories": {
+        "C:": "5081a475:50000:5:1da8405:2f19714a",
+        "C:/dev": "5081a475:30000:9ca2a:1dd1c57:eded5d59",
+        "C:/dev/main": "5081a475:130000:2bb7a0:1dd4485:55c889ba",
+        "C:/dev/main/outputs": "5081a475:70000:71d503:1dd471a:fb902f7b",
+        "C:/dev/main/outputs/meri-fresh-20261003": "5081a475:80000:11d74b4:1dd52d6:86131ecd"
+      },
+      "files": {
+        "run-authorization.json": {
+          "identity": "5081a475:1f0000:33e3a:1dd52d7:913b0334",
+          "sha256": "e07822e83a7c7b531606519ecd4fdf1027f2fa7cbaefd4bad92a2084590262fe",
+          "bytes": 489
+        },
+        "fresh-spend.jsonl": {
+          "identity": "5081a475:80000:11d75c5:1dd52d7:92f07d2a",
+          "sha256": "d6213af1fd8330e9e97a688d903a3c1852b5f40265a66eafb6aa2bf1cfa2060b",
+          "bytes": 14368
+        }
+      }
+    },
+    "snapshot": {
+      "protocolVersion": 3,
+      "eventCount": 23,
+      "runs": {
+        "01:cc0d21a5-8981-4fbf-81dc-f2be3a63898c": {
+          "at": "2026-10-03T01:36:12.747Z",
+          "caseId": "01",
+          "captureRunId": "cc0d21a5-8981-4fbf-81dc-f2be3a63898c",
+          "reservationId": "c2cd316e-2d09-4c76-88cf-a9c0ef20e098",
+          "event": "reserved",
+          "ceilingMicros": 15000000,
+          "conversationId": "55452c90-5718-4e0c-9ffd-d9bf2c3439ad",
+          "qualificationSha256": "9ded2743ac47c55240e7eae05a7147aab34ff354d014ac39bcdc0528899aa2d9",
+          "chargedCostMicros": 1490802,
+          "historical": true
+        },
+        "02:62742c07-529c-47c1-aeeb-01474522ccbd": {
+          "at": "2026-10-03T01:43:34.996Z",
+          "caseId": "02",
+          "captureRunId": "62742c07-529c-47c1-aeeb-01474522ccbd",
+          "reservationId": "c4764abd-e3a8-4d6b-819f-77f4e08ee231",
+          "event": "reserved",
+          "ceilingMicros": 15000000,
+          "conversationId": "805cdde4-7cd2-482f-9e53-5b5b7724682e",
+          "qualificationSha256": "119ea537cd93a48a3126e5e6c178b63b68afc35132cd968085993e686c2ffe9d",
+          "chargedCostMicros": 1503301,
+          "historical": true
+        },
+        "03:65c093f9-d7ee-410c-865b-65d3683e9514": {
+          "at": "2026-10-03T01:49:09.943Z",
+          "caseId": "03",
+          "captureRunId": "65c093f9-d7ee-410c-865b-65d3683e9514",
+          "reservationId": "41820c9a-6f51-4062-aad6-d308fadfa7e3",
+          "event": "reserved",
+          "ceilingMicros": 15000000,
+          "conversationId": "2755ade6-35e6-43c1-8b48-bdbff01bd3a5",
+          "qualificationSha256": "d238c1c371685e78179b70c2dbe0ef1bb1805b8affb909b88a41cdd8f89db37d",
+          "chargedCostMicros": 3086726,
+          "historical": true
+        },
+        "04:ce58a8c8-8c5e-439b-b842-dd5aa5a06395": {
+          "at": "2026-10-03T01:54:49.415Z",
+          "caseId": "04",
+          "captureRunId": "ce58a8c8-8c5e-439b-b842-dd5aa5a06395",
+          "reservationId": "0da06107-11b3-4ce4-90bd-67a8f022c369",
+          "event": "reserved",
+          "ceilingMicros": 15000000,
+          "conversationId": "9b70c52b-d537-4347-b6b0-1b005aeb3e3c",
+          "qualificationSha256": "fe06d197ad2ad953a8719094af02aaa137b3746df1e90f2b5b70b1e2ec5a40bc",
+          "chargedCostMicros": 1499326,
+          "historical": true
+        },
+        "05:1008c920-0d14-4110-806e-76399e9e7641": {
+          "at": "2026-10-03T02:00:20.010Z",
+          "caseId": "05",
+          "captureRunId": "1008c920-0d14-4110-806e-76399e9e7641",
+          "reservationId": "8b91b48b-fa26-4395-9cbe-669efd18ab1a",
+          "event": "reserved",
+          "ceilingMicros": 15000000,
+          "conversationId": "1bfb1e6c-2128-4f9d-9fea-3e02a8f1c7b7",
+          "qualificationSha256": "def98c7562f7637db8a87aa7beac067a95093144c22bef12acdeee925e210752",
+          "chargedCostMicros": 2261126,
+          "historical": true
+        },
+        "01:bd35c0f4-1604-4371-b7e9-a1338369e53f": {
+          "atMs": 1791064128652,
+          "captureRunId": "bd35c0f4-1604-4371-b7e9-a1338369e53f",
+          "caseId": "01",
+          "ceilingMicros": 15000000,
+          "event": "reserved",
+          "nativeCaptureVersion": 1,
+          "reservationId": "cf7ea1df-6996-4d29-a5d5-b98db9c85c61",
+          "sequence": 21,
+          "chargedCostMicros": 2292602,
+          "terminalCostReconciled": true,
+          "captureAuthority": false,
+          "captureStatus": "CAPTURE_UNCERTAIN",
+          "answerGrade": "NOT_EVALUATED",
+          "reconciliationProofSha256": "59b7055d48bb074d13f57eb16c93334b258800107c039667aa445c3bf5e26648"
+        },
+        "20:f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b": {
+          "atMs": 1791075178097,
+          "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+          "caseId": "20",
+          "ceilingMicros": 15000000,
+          "event": "reserved",
+          "nativeCaptureVersion": 1,
+          "reservationId": "7ea73cdc-526e-4b31-8c28-b0636ea8d2ae",
+          "sequence": 23
+        }
+      },
+      "activeRun": "20:f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+      "knownSettledCostMicros": 12133883,
+      "committedCostMicros": 27133883,
+      "remainingReservationMicros": 2866117,
+      "perCaseMaxCostMicros": 15000000,
+      "historicalPrefixSha256": "abe458973e6998db20586c781ac5a3cbd4ca2fa565425e62722f0eb9c985210b",
+      "olderCosts": "UNRESOLVED_SEPARATE_NOT_REPLACED"
+    }
+  },
+  "captured": {
+    "expected": {
+      "caseId": "20",
+      "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+      "conversationId": "db0e01ac-60a1-4e3c-b8ba-66748d087a2e",
+      "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+      "actorUserId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+      "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+      "apiSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+      "orchestratorSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+      "fixtureVersion": "meri-live-v1-2026-09-26.1",
+      "physicalMapSha256": "929ebb433886c035cfbcbcf8a537acde2157bec86634bfc384b594dfbca05861",
+      "seedReceiptId": "meri-synthetic-fixture-seed-receipt:sha256:dbda52dbd9e17320519d4cc40bcd73975fbf0ce0fae21341a1de535644f619e8",
+      "resetReceiptId": "meri-synthetic-fixture-reset-receipt:sha256:28630ec9f867373094583e8f16eaf521f8be00508d03b7b713c11784ab214de0",
+      "maxSpendMicros": 15000000,
+      "assistantMessageId": "09967dee-533c-4177-bfb8-68366cfa0e3f"
+    },
+    "admission": {
+      "schemaVersion": 1,
+      "kind": "meri-controlled-read-authenticated-admission",
+      "status": "READY",
+      "caseId": "20",
+      "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+      "conversationId": "db0e01ac-60a1-4e3c-b8ba-66748d087a2e",
+      "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+      "actorUserId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+      "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+      "issuedAt": 1791077215289,
+      "expiresAt": 1791077275289,
+      "apiReleaseSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+      "toolAuthority": "shared_static_registry_read_only",
+      "toolCatalogSha256": "1a08b2447cdb77040470bbd1ee52426720f8da602b9909a2a880e095ed0c6678",
+      "dynamicMcpAllowed": false,
+      "incidentalWriters": "suppressed",
+      "fixture": {
+        "fixtureNamespace": "meri-foundation-20260928",
+        "fixtureVersion": "meri-live-v1-2026-09-26.1",
+        "physicalMapSha256": "929ebb433886c035cfbcbcf8a537acde2157bec86634bfc384b594dfbca05861",
+        "currentVerifySha256": "925c4735e4d435ab06c40b31ee590b0ce4e7d9220b742155c67e4115b1bc6516",
+        "seedReceiptId": "meri-synthetic-fixture-seed-receipt:sha256:dbda52dbd9e17320519d4cc40bcd73975fbf0ce0fae21341a1de535644f619e8",
+        "resetReceiptId": "meri-synthetic-fixture-reset-receipt:sha256:28630ec9f867373094583e8f16eaf521f8be00508d03b7b713c11784ab214de0",
+        "sources": [
+          {
+            "logicalId": "R2-27",
+            "physicalId": "2d0c016e-8dad-5f6e-80dd-e36740fff7ee",
+            "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+            "clientId": null,
+            "sourceVersion": "v1",
+            "contentSha256": "8e0dc2325edff514502ec08d0d0465ad0ba8046e422910d7c89710969da50f76",
+            "kind": "budget_document",
+            "sourceStorage": "immutable_source_owned_controlled_adapter"
+          }
+        ]
+      },
+      "providerBudget": {
+        "ready": true,
+        "qualificationSha256": "47d64a19fdf3a718eddefee998247173f98f9b1d3f24703f31d8b4dee779c9af",
+        "currentVerifySha256": "925c4735e4d435ab06c40b31ee590b0ce4e7d9220b742155c67e4115b1bc6516",
+        "maxCostMicros": 15000000,
+        "coverage": "case20_controlled_read_turn"
+      }
+    },
+    "authority": {
+      "schemaVersion": 1,
+      "kind": "meri-controlled-read-authenticated-readback",
+      "caseId": "20",
+      "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+      "conversationId": "db0e01ac-60a1-4e3c-b8ba-66748d087a2e",
+      "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+      "actorUserId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+      "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+      "messageId": "09967dee-533c-4177-bfb8-68366cfa0e3f",
+      "turnId": "3a50a9fd-8afa-4b3d-9a74-ba69f02122e6",
+      "policyId": "026d5d8a-b655-41b4-a4e8-5ad4cbd93c6f",
+      "requestId": "f161ebdf-323e-4995-9a7f-4509541d71f9",
+      "traceId": "5f6c9bfe-a113-4b63-93d5-e1edb1defd32",
+      "verifiedAt": 1791077226288,
+      "envelopeSha256": "c00e45d7603ae4335b81b91bfa6bc7e16e8dbc818fdc876f74d23ba4835fbe51",
+      "answerSha256": "5f5ee957d707c7d63e3077b5af1e0a75e83e84bec9432e9b1ee778147f6de64c",
+      "fixture": {
+        "fixtureNamespace": "meri-foundation-20260928",
+        "fixtureVersion": "meri-live-v1-2026-09-26.1",
+        "physicalMapSha256": "929ebb433886c035cfbcbcf8a537acde2157bec86634bfc384b594dfbca05861",
+        "currentVerifySha256": "925c4735e4d435ab06c40b31ee590b0ce4e7d9220b742155c67e4115b1bc6516",
+        "seedReceiptId": "meri-synthetic-fixture-seed-receipt:sha256:dbda52dbd9e17320519d4cc40bcd73975fbf0ce0fae21341a1de535644f619e8",
+        "resetReceiptId": "meri-synthetic-fixture-reset-receipt:sha256:28630ec9f867373094583e8f16eaf521f8be00508d03b7b713c11784ab214de0",
+        "sources": [
+          {
+            "logicalId": "R2-27",
+            "physicalId": "2d0c016e-8dad-5f6e-80dd-e36740fff7ee",
+            "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+            "clientId": null,
+            "sourceVersion": "v1",
+            "contentSha256": "8e0dc2325edff514502ec08d0d0465ad0ba8046e422910d7c89710969da50f76",
+            "kind": "budget_document",
+            "sourceStorage": "immutable_source_owned_controlled_adapter"
+          }
+        ]
+      },
+      "providerBudget": {
+        "ready": true,
+        "qualificationSha256": "47d64a19fdf3a718eddefee998247173f98f9b1d3f24703f31d8b4dee779c9af",
+        "currentVerifySha256": "925c4735e4d435ab06c40b31ee590b0ce4e7d9220b742155c67e4115b1bc6516",
+        "maxCostMicros": 15000000,
+        "coverage": "case20_controlled_read_turn"
+      }
+    },
+    "policy": {
+      "kind": "server_readonly_acceptance_capture",
+      "caseId": "20",
+      "turnId": "3a50a9fd-8afa-4b3d-9a74-ba69f02122e6",
+      "traceId": "5f6c9bfe-a113-4b63-93d5-e1edb1defd32",
+      "version": 1,
+      "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+      "issuedAt": 1791077216119,
+      "policyId": "026d5d8a-b655-41b4-a4e8-5ad4cbd93c6f",
+      "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+      "expiresAt": 1791079016119,
+      "requestId": "f161ebdf-323e-4995-9a7f-4509541d71f9",
+      "tenantSlug": "meri-foundation-20260928-t1",
+      "actorUserId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+      "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+      "seedReceiptId": "meri-synthetic-fixture-seed-receipt:sha256:dbda52dbd9e17320519d4cc40bcd73975fbf0ce0fae21341a1de535644f619e8",
+      "semanticClock": {
+        "kind": "qualified_original_fixture_semantic_clock",
+        "caseId": "20",
+        "instant": "2026-09-26T16:00:00.000Z",
+        "version": 1,
+        "timeZone": "America/New_York",
+        "observedAt": 1791077216119,
+        "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+        "currentVerifySha256": "925c4735e4d435ab06c40b31ee590b0ce4e7d9220b742155c67e4115b1bc6516"
+      },
+      "toolAuthority": "shared_static_registry_read_only",
+      "conversationId": "db0e01ac-60a1-4e3c-b8ba-66748d087a2e",
+      "fixtureVersion": "meri-live-v1-2026-09-26.1",
+      "resetReceiptId": "meri-synthetic-fixture-reset-receipt:sha256:28630ec9f867373094583e8f16eaf521f8be00508d03b7b713c11784ab214de0",
+      "fixtureNamespace": "meri-foundation-20260928",
+      "dynamicMcpAllowed": false,
+      "incidentalWriters": "suppressed",
+      "physicalMapSha256": "929ebb433886c035cfbcbcf8a537acde2157bec86634bfc384b594dfbca05861",
+      "toolCatalogSha256": "1a08b2447cdb77040470bbd1ee52426720f8da602b9909a2a880e095ed0c6678",
+      "expectedCaptureWrites": [
+        "context_packet_and_evidence",
+        "conversation_user_message",
+        "conversation_assistant_message",
+        "provider_budget_ledger"
+      ]
+    },
+    "envelope": {
+      "purpose": "server_capture_evidence",
+      "receipt": {
+        "kind": "server_capture_evidence_receipt",
+        "usage": {
+          "model": {
+            "value": "gpt-6-astra",
+            "reason": null,
+            "status": "OBSERVED"
+          },
+          "costKind": "existing_pricing_estimate",
+          "provider": {
+            "value": "openai",
+            "reason": null,
+            "status": "OBSERVED"
+          },
+          "inputTokens": {
+            "value": 59662,
+            "reason": null,
+            "status": "OBSERVED"
+          },
+          "outputTokens": {
+            "value": 75,
+            "reason": null,
+            "status": "OBSERVED"
+          },
+          "cacheReadTokens": {
+            "value": null,
+            "reason": "cache_per_attempt_coverage_not_bound",
+            "status": "UNKNOWN"
+          },
+          "estimatedCostUsd": {
+            "value": 0.6003700000000001,
+            "reason": null,
+            "status": "OBSERVED"
+          },
+          "cacheCreationTokens": {
+            "value": null,
+            "reason": "cache_per_attempt_coverage_not_bound",
+            "status": "UNKNOWN"
+          }
+        },
+        "caseId": "20",
+        "status": "BLOCKED",
+        "turnId": "3a50a9fd-8afa-4b3d-9a74-ba69f02122e6",
+        "effects": {
+          "writes": [
+            {
+              "kind": "context_packet_and_evidence",
+              "phase": "before",
+              "status": "observed",
+              "recordId": null,
+              "logicalWriteId": "f161ebdf-323e-4995-9a7f-4509541d71f9:context"
+            },
+            {
+              "kind": "conversation_user_message",
+              "phase": "during",
+              "status": "observed",
+              "recordId": "3a50a9fd-8afa-4b3d-9a74-ba69f02122e6",
+              "logicalWriteId": "f161ebdf-323e-4995-9a7f-4509541d71f9:user-message"
+            },
+            {
+              "kind": "conversation_assistant_message",
+              "phase": "during",
+              "status": "observed",
+              "recordId": "09967dee-533c-4177-bfb8-68366cfa0e3f",
+              "logicalWriteId": "f161ebdf-323e-4995-9a7f-4509541d71f9:assistant-message"
+            },
+            {
+              "kind": "assistant_receipt_metadata",
+              "phase": "after",
+              "status": "observed",
+              "recordId": "09967dee-533c-4177-bfb8-68366cfa0e3f",
+              "logicalWriteId": "f161ebdf-323e-4995-9a7f-4509541d71f9:receipt-metadata"
+            },
+            {
+              "kind": "provider_budget_ledger",
+              "phase": "during",
+              "status": "observed",
+              "recordId": "db0e01ac-60a1-4e3c-b8ba-66748d087a2e",
+              "logicalWriteId": "f161ebdf-323e-4995-9a7f-4509541d71f9:provider-budget-ledger"
+            }
+          ],
+          "boundary": "bounded_capture_path_hooks",
+          "logicalEffects": [
+            {
+              "status": "observed",
+              "receiptId": "3d665a2323c36e38733b7c1576af13976c0c4a573fa1a2ccc91f668a630ca5f5",
+              "operationId": "1bbf8e44-e4b8-4952-abb3-84435991f392",
+              "logicalEffectId": "f161ebdf-323e-4995-9a7f-4509541d71f9:provider-budget-ledger"
+            }
+          ]
+        },
+        "fixture": {
+          "version": {
+            "value": "meri-live-v1-2026-09-26.1",
+            "reason": null,
+            "status": "OBSERVED"
+          },
+          "namespace": "meri-foundation-20260928",
+          "seedReceiptId": {
+            "value": "meri-synthetic-fixture-seed-receipt:sha256:dbda52dbd9e17320519d4cc40bcd73975fbf0ce0fae21341a1de535644f619e8",
+            "reason": null,
+            "status": "OBSERVED"
+          },
+          "resetReceiptId": {
+            "value": "meri-synthetic-fixture-reset-receipt:sha256:28630ec9f867373094583e8f16eaf521f8be00508d03b7b713c11784ab214de0",
+            "reason": null,
+            "status": "OBSERVED"
+          },
+          "physicalMapSha256": {
+            "value": "929ebb433886c035cfbcbcf8a537acde2157bec86634bfc384b594dfbca05861",
+            "reason": null,
+            "status": "OBSERVED"
+          }
+        },
+        "purpose": "server_capture_evidence",
+        "sources": [
+          {
+            "locator": {
+              "value": "page 14",
+              "reason": null,
+              "status": "OBSERVED"
+            },
+            "clientId": {
+              "value": null,
+              "reason": null,
+              "status": "OBSERVED"
+            },
+            "fullRead": {
+              "value": true,
+              "reason": null,
+              "status": "OBSERVED"
+            },
+            "sourceId": "2d0c016e-8dad-5f6e-80dd-e36740fff7ee",
+            "tenantId": {
+              "value": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+              "reason": null,
+              "status": "OBSERVED"
+            },
+            "byteSha256": {
+              "value": "8e0dc2325edff514502ec08d0d0465ad0ba8046e422910d7c89710969da50f76",
+              "reason": null,
+              "status": "OBSERVED"
+            },
+            "toolCallId": "call_f3k3r8wjQHgu4uInyGyp5mfa",
+            "passageSha256": {
+              "value": "8e0dc2325edff514502ec08d0d0465ad0ba8046e422910d7c89710969da50f76",
+              "reason": null,
+              "status": "OBSERVED"
+            },
+            "currentVersion": {
+              "value": "v1",
+              "reason": null,
+              "status": "OBSERVED"
+            }
+          }
+        ],
+        "traceId": "5f6c9bfe-a113-4b63-93d5-e1edb1defd32",
+        "version": 1,
+        "blockers": [
+          "semantic_clock_api_tool_join_pending",
+          "semantic_clock_prompt_unproved",
+          "source_client_authority_unproved:2d0c016e-8dad-5f6e-80dd-e36740fff7ee"
+        ],
+        "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+        "policyId": "026d5d8a-b655-41b4-a4e8-5ad4cbd93c6f",
+        "releases": {
+          "api": {
+            "service": "api",
+            "deploymentProof": "PENDING_APPROVED_BUILD_RECEIPT_CROSSCHECK",
+            "releaseRevision": {
+              "value": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+              "reason": null,
+              "status": "OBSERVED"
+            },
+            "identityContract": "runtime_environment_v1"
+          },
+          "orchestrator": {
+            "service": "meriv2-orchestrator",
+            "deploymentProof": "PENDING_APPROVED_BUILD_RECEIPT_CROSSCHECK",
+            "releaseRevision": {
+              "value": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+              "reason": null,
+              "status": "OBSERVED"
+            },
+            "identityContract": "runtime_environment_v1"
+          }
+        },
+        "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+        "expiresAt": 1791079016119,
+        "requestId": "f161ebdf-323e-4995-9a7f-4509541d71f9",
+        "startedAt": 1791077218487,
+        "toolCalls": [
+          {
+            "name": "get_pe_budget_timeline",
+            "callId": "call_f3k3r8wjQHgu4uInyGyp5mfa",
+            "status": "partial",
+            "attempt": 1,
+            "readOnly": true,
+            "sourceIds": [
+              "2d0c016e-8dad-5f6e-80dd-e36740fff7ee"
+            ]
+          }
+        ],
+        "actorUserId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+        "completedAt": 1791077225341,
+        "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+        "semanticClock": {
+          "prompt": {
+            "value": {
+              "date": "2026-09-26",
+              "instant": "2026-09-26T16:00:00.000Z",
+              "timeZone": "America/New_York",
+              "renderedAt": 1791077218191,
+              "groundingSha256": "4e1312e10d40bcaf30a117911b791590fee02ca2ab0ed1d57ae35b253ed93e2b"
+            },
+            "reason": null,
+            "status": "OBSERVED"
+          },
+          "apiJoin": "PENDING",
+          "binding": {
+            "kind": "qualified_original_fixture_semantic_clock",
+            "caseId": "20",
+            "instant": "2026-09-26T16:00:00.000Z",
+            "version": 1,
+            "timeZone": "America/New_York",
+            "observedAt": 1791077216119,
+            "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+            "currentVerifySha256": "925c4735e4d435ab06c40b31ee590b0ce4e7d9220b742155c67e4115b1bc6516"
+          },
+          "invocations": [
+            {
+              "tool": "get_pe_budget_timeline",
+              "callId": "call_f3k3r8wjQHgu4uInyGyp5mfa",
+              "outcome": "returned",
+              "packets": [],
+              "httpStatus": 200,
+              "httpAttempts": 1,
+              "responseSha256": "2d42264ed2ebb79bafef650a5d25a2d03655cb19e1ddd601b4262336a44c0983"
+            }
+          ]
+        },
+        "boundedRuntime": {
+          "toolCalls": 1,
+          "modelCalls": 3,
+          "retryCalls": 0,
+          "stopReason": null,
+          "maxToolCalls": 75,
+          "maxModelCalls": 13,
+          "maxRetryCalls": 5,
+          "acquisitionStopped": false
+        },
+        "conversationId": "db0e01ac-60a1-4e3c-b8ba-66748d087a2e",
+        "providerBudget": {
+          "status": "SETTLED",
+          "turnId": "3a50a9fd-8afa-4b3d-9a74-ba69f02122e6",
+          "version": 1,
+          "attempts": 2,
+          "boundary": "case20_controlled_read_turn",
+          "admissionId": "1bbf8e44-e4b8-4952-abb3-84435991f392",
+          "ledgerSha256": "3d665a2323c36e38733b7c1576af13976c0c4a573fa1a2ccc91f668a630ca5f5",
+          "chargedTokens": 59737,
+          "maxCostMicros": 15000000,
+          "chargedCostMicros": 1497175,
+          "qualificationSha256": "47d64a19fdf3a718eddefee998247173f98f9b1d3f24703f31d8b4dee779c9af",
+          "unaccountedBoundaries": []
+        },
+        "controlledReadAttempts": [
+          {
+            "tool": "get_pe_budget_timeline",
+            "callId": "call_f3k3r8wjQHgu4uInyGyp5mfa",
+            "caseId": "20",
+            "turnId": "3a50a9fd-8afa-4b3d-9a74-ba69f02122e6",
+            "traceId": "5f6c9bfe-a113-4b63-93d5-e1edb1defd32",
+            "fullRead": true,
+            "sourceId": "2d0c016e-8dad-5f6e-80dd-e36740fff7ee",
+            "requestId": "f161ebdf-323e-4995-9a7f-4509541d71f9",
+            "httpStatus": 200,
+            "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+            "logicalError": null,
+            "contentSha256": "8e0dc2325edff514502ec08d0d0465ad0ba8046e422910d7c89710969da50f76",
+            "passageSha256": "8e0dc2325edff514502ec08d0d0465ad0ba8046e422910d7c89710969da50f76",
+            "sourceVersion": "v1",
+            "responseSha256": "2d42264ed2ebb79bafef650a5d25a2d03655cb19e1ddd601b4262336a44c0983",
+            "sourceClientId": null,
+            "sourceTenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+            "logicalSourceId": "R2-27",
+            "currentVerifySha256": "925c4735e4d435ab06c40b31ee590b0ce4e7d9220b742155c67e4115b1bc6516"
+          }
+        ],
+        "predecessorAttestationSha256": "e921ad41e4176a41dbd423e4f7f59935758c233854efe6fae0fc9f95f410d459"
+      },
+      "version": 1,
+      "audience": "capiro:meri:server-readonly-capture:evidence:v1",
+      "signature": "92b23a5b293225c4122afab6812b1f137ab067d6a2e8a12e62b043cb65224743"
+    },
+    "doneEnvelope": {
+      "version": 1,
+      "audience": "capiro:meri:server-readonly-capture:evidence:v1",
+      "purpose": "server_capture_evidence",
+      "receipt": {
+        "semanticClock": {
+          "binding": {
+            "version": 1,
+            "kind": "qualified_original_fixture_semantic_clock",
+            "instant": "2026-09-26T16:00:00.000Z",
+            "timeZone": "America/New_York",
+            "caseId": "20",
+            "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+            "currentVerifySha256": "925c4735e4d435ab06c40b31ee590b0ce4e7d9220b742155c67e4115b1bc6516",
+            "observedAt": 1791077216119
+          },
+          "prompt": {
+            "status": "OBSERVED",
+            "value": {
+              "instant": "2026-09-26T16:00:00.000Z",
+              "timeZone": "America/New_York",
+              "date": "2026-09-26",
+              "renderedAt": 1791077218191,
+              "groundingSha256": "4e1312e10d40bcaf30a117911b791590fee02ca2ab0ed1d57ae35b253ed93e2b"
+            },
+            "reason": null
+          },
+          "invocations": [
+            {
+              "callId": "call_f3k3r8wjQHgu4uInyGyp5mfa",
+              "tool": "get_pe_budget_timeline",
+              "outcome": "returned",
+              "httpAttempts": 1,
+              "httpStatus": 200,
+              "responseSha256": "2d42264ed2ebb79bafef650a5d25a2d03655cb19e1ddd601b4262336a44c0983",
+              "packets": []
+            }
+          ],
+          "apiJoin": "PENDING"
+        },
+        "version": 1,
+        "kind": "server_capture_evidence_receipt",
+        "purpose": "server_capture_evidence",
+        "policyId": "026d5d8a-b655-41b4-a4e8-5ad4cbd93c6f",
+        "caseId": "20",
+        "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+        "requestId": "f161ebdf-323e-4995-9a7f-4509541d71f9",
+        "conversationId": "db0e01ac-60a1-4e3c-b8ba-66748d087a2e",
+        "turnId": "3a50a9fd-8afa-4b3d-9a74-ba69f02122e6",
+        "traceId": "5f6c9bfe-a113-4b63-93d5-e1edb1defd32",
+        "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+        "actorUserId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+        "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+        "startedAt": 1791077218487,
+        "completedAt": 1791077225341,
+        "expiresAt": 1791079016119,
+        "sources": [
+          {
+            "sourceId": "2d0c016e-8dad-5f6e-80dd-e36740fff7ee",
+            "toolCallId": "call_f3k3r8wjQHgu4uInyGyp5mfa",
+            "tenantId": {
+              "status": "OBSERVED",
+              "value": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+              "reason": null
+            },
+            "clientId": {
+              "status": "OBSERVED",
+              "value": null,
+              "reason": null
+            },
+            "currentVersion": {
+              "status": "OBSERVED",
+              "value": "v1",
+              "reason": null
+            },
+            "fullRead": {
+              "status": "OBSERVED",
+              "value": true,
+              "reason": null
+            },
+            "locator": {
+              "status": "OBSERVED",
+              "value": "page 14",
+              "reason": null
+            },
+            "passageSha256": {
+              "status": "OBSERVED",
+              "value": "8e0dc2325edff514502ec08d0d0465ad0ba8046e422910d7c89710969da50f76",
+              "reason": null
+            },
+            "byteSha256": {
+              "status": "OBSERVED",
+              "value": "8e0dc2325edff514502ec08d0d0465ad0ba8046e422910d7c89710969da50f76",
+              "reason": null
+            }
+          }
+        ],
+        "toolCalls": [
+          {
+            "callId": "call_f3k3r8wjQHgu4uInyGyp5mfa",
+            "name": "get_pe_budget_timeline",
+            "attempt": 1,
+            "status": "partial",
+            "readOnly": true,
+            "sourceIds": [
+              "2d0c016e-8dad-5f6e-80dd-e36740fff7ee"
+            ]
+          }
+        ],
+        "controlledReadAttempts": [
+          {
+            "callId": "call_f3k3r8wjQHgu4uInyGyp5mfa",
+            "tool": "get_pe_budget_timeline",
+            "httpStatus": 200,
+            "logicalError": null,
+            "caseId": "20",
+            "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+            "requestId": "f161ebdf-323e-4995-9a7f-4509541d71f9",
+            "traceId": "5f6c9bfe-a113-4b63-93d5-e1edb1defd32",
+            "turnId": "3a50a9fd-8afa-4b3d-9a74-ba69f02122e6",
+            "sourceId": "2d0c016e-8dad-5f6e-80dd-e36740fff7ee",
+            "logicalSourceId": "R2-27",
+            "sourceVersion": "v1",
+            "currentVerifySha256": "925c4735e4d435ab06c40b31ee590b0ce4e7d9220b742155c67e4115b1bc6516",
+            "contentSha256": "8e0dc2325edff514502ec08d0d0465ad0ba8046e422910d7c89710969da50f76",
+            "sourceTenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+            "sourceClientId": null,
+            "fullRead": true,
+            "passageSha256": "8e0dc2325edff514502ec08d0d0465ad0ba8046e422910d7c89710969da50f76",
+            "responseSha256": "2d42264ed2ebb79bafef650a5d25a2d03655cb19e1ddd601b4262336a44c0983"
+          }
+        ],
+        "boundedRuntime": {
+          "modelCalls": 3,
+          "toolCalls": 1,
+          "retryCalls": 0,
+          "maxModelCalls": 13,
+          "maxToolCalls": 75,
+          "maxRetryCalls": 5,
+          "acquisitionStopped": false,
+          "stopReason": null
+        },
+        "usage": {
+          "provider": {
+            "status": "OBSERVED",
+            "value": "openai",
+            "reason": null
+          },
+          "model": {
+            "status": "OBSERVED",
+            "value": "gpt-6-astra",
+            "reason": null
+          },
+          "inputTokens": {
+            "status": "OBSERVED",
+            "value": 59662,
+            "reason": null
+          },
+          "outputTokens": {
+            "status": "OBSERVED",
+            "value": 75,
+            "reason": null
+          },
+          "cacheReadTokens": {
+            "status": "UNKNOWN",
+            "value": null,
+            "reason": "cache_per_attempt_coverage_not_bound"
+          },
+          "cacheCreationTokens": {
+            "status": "UNKNOWN",
+            "value": null,
+            "reason": "cache_per_attempt_coverage_not_bound"
+          },
+          "estimatedCostUsd": {
+            "status": "OBSERVED",
+            "value": 0.6003700000000001,
+            "reason": null
+          },
+          "costKind": "existing_pricing_estimate"
+        },
+        "releases": {
+          "api": {
+            "service": "api",
+            "releaseRevision": {
+              "status": "OBSERVED",
+              "value": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+              "reason": null
+            },
+            "identityContract": "runtime_environment_v1",
+            "deploymentProof": "PENDING_APPROVED_BUILD_RECEIPT_CROSSCHECK"
+          },
+          "orchestrator": {
+            "service": "meriv2-orchestrator",
+            "releaseRevision": {
+              "status": "OBSERVED",
+              "value": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+              "reason": null
+            },
+            "identityContract": "runtime_environment_v1",
+            "deploymentProof": "PENDING_APPROVED_BUILD_RECEIPT_CROSSCHECK"
+          }
+        },
+        "fixture": {
+          "namespace": "meri-foundation-20260928",
+          "version": {
+            "status": "OBSERVED",
+            "value": "meri-live-v1-2026-09-26.1",
+            "reason": null
+          },
+          "physicalMapSha256": {
+            "status": "OBSERVED",
+            "value": "929ebb433886c035cfbcbcf8a537acde2157bec86634bfc384b594dfbca05861",
+            "reason": null
+          },
+          "resetReceiptId": {
+            "status": "OBSERVED",
+            "value": "meri-synthetic-fixture-reset-receipt:sha256:28630ec9f867373094583e8f16eaf521f8be00508d03b7b713c11784ab214de0",
+            "reason": null
+          },
+          "seedReceiptId": {
+            "status": "OBSERVED",
+            "value": "meri-synthetic-fixture-seed-receipt:sha256:dbda52dbd9e17320519d4cc40bcd73975fbf0ce0fae21341a1de535644f619e8",
+            "reason": null
+          }
+        },
+        "effects": {
+          "boundary": "bounded_capture_path_hooks",
+          "writes": [
+            {
+              "logicalWriteId": "f161ebdf-323e-4995-9a7f-4509541d71f9:context",
+              "kind": "context_packet_and_evidence",
+              "phase": "before",
+              "status": "observed",
+              "recordId": null
+            },
+            {
+              "logicalWriteId": "f161ebdf-323e-4995-9a7f-4509541d71f9:user-message",
+              "kind": "conversation_user_message",
+              "phase": "during",
+              "status": "observed",
+              "recordId": "3a50a9fd-8afa-4b3d-9a74-ba69f02122e6"
+            },
+            {
+              "logicalWriteId": "f161ebdf-323e-4995-9a7f-4509541d71f9:assistant-message",
+              "kind": "conversation_assistant_message",
+              "phase": "during",
+              "status": "observed",
+              "recordId": "09967dee-533c-4177-bfb8-68366cfa0e3f"
+            },
+            {
+              "logicalWriteId": "f161ebdf-323e-4995-9a7f-4509541d71f9:receipt-metadata",
+              "kind": "assistant_receipt_metadata",
+              "phase": "after",
+              "status": "observed",
+              "recordId": "09967dee-533c-4177-bfb8-68366cfa0e3f"
+            },
+            {
+              "logicalWriteId": "f161ebdf-323e-4995-9a7f-4509541d71f9:provider-budget-ledger",
+              "kind": "provider_budget_ledger",
+              "phase": "during",
+              "status": "observed",
+              "recordId": "db0e01ac-60a1-4e3c-b8ba-66748d087a2e"
+            }
+          ],
+          "logicalEffects": [
+            {
+              "logicalEffectId": "f161ebdf-323e-4995-9a7f-4509541d71f9:provider-budget-ledger",
+              "operationId": "1bbf8e44-e4b8-4952-abb3-84435991f392",
+              "receiptId": "3d665a2323c36e38733b7c1576af13976c0c4a573fa1a2ccc91f668a630ca5f5",
+              "status": "observed"
+            }
+          ]
+        },
+        "predecessorAttestationSha256": "e921ad41e4176a41dbd423e4f7f59935758c233854efe6fae0fc9f95f410d459",
+        "status": "BLOCKED",
+        "blockers": [
+          "semantic_clock_api_tool_join_pending",
+          "semantic_clock_prompt_unproved",
+          "source_client_authority_unproved:2d0c016e-8dad-5f6e-80dd-e36740fff7ee"
+        ],
+        "providerBudget": {
+          "version": 1,
+          "boundary": "case20_controlled_read_turn",
+          "status": "SETTLED",
+          "admissionId": "1bbf8e44-e4b8-4952-abb3-84435991f392",
+          "turnId": "3a50a9fd-8afa-4b3d-9a74-ba69f02122e6",
+          "ledgerSha256": "3d665a2323c36e38733b7c1576af13976c0c4a573fa1a2ccc91f668a630ca5f5",
+          "qualificationSha256": "47d64a19fdf3a718eddefee998247173f98f9b1d3f24703f31d8b4dee779c9af",
+          "attempts": 2,
+          "chargedTokens": 59737,
+          "chargedCostMicros": 1497175,
+          "maxCostMicros": 15000000,
+          "unaccountedBoundaries": []
+        }
+      },
+      "signature": "92b23a5b293225c4122afab6812b1f137ab067d6a2e8a12e62b043cb65224743"
+    },
+    "answer": "PE **0912345T** has an **FY27 President’s Budget request of $42M**, documented in **R2-27, page 14**. This is a request, not enacted funding. [4]",
+    "sourceReadback": {
+      "kind": "controlled_read",
+      "status": "available",
+      "recordId": "2d0c016e-8dad-5f6e-80dd-e36740fff7ee",
+      "sourceVersion": "v1",
+      "currentVersion": "v1",
+      "versionStatus": "matches_cited_version",
+      "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+      "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+      "conversationId": "db0e01ac-60a1-4e3c-b8ba-66748d087a2e",
+      "title": "R2-27",
+      "section": "page 14",
+      "text": "R2-27, page 14. PE 0912345T. FY27 President’s Budget request: $42M.",
+      "offset": 0,
+      "nextCursor": null,
+      "contentSha256": "8e0dc2325edff514502ec08d0d0465ad0ba8046e422910d7c89710969da50f76",
+      "controlled": true,
+      "disclosure": "Controlled synthetic budget source. No shared budget corpus row or PDF extraction is asserted."
+    },
+    "citations": [
+      {
+        "n": 4,
+        "type": "source",
+        "id": "2d0c016e-8dad-5f6e-80dd-e36740fff7ee",
+        "title": "R2-27",
+        "url": null,
+        "snippet": "R2-27, page 14. PE 0912345T. FY27 President’s Budget request: $42M.",
+        "tool": "get_pe_budget_timeline",
+        "source": {
+          "kind": "controlled_read",
+          "recordId": "2d0c016e-8dad-5f6e-80dd-e36740fff7ee",
+          "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+          "conversationId": "db0e01ac-60a1-4e3c-b8ba-66748d087a2e",
+          "version": "v1",
+          "section": "page 14"
+        }
+      }
+    ]
+  },
+  "blocked": {
+    "status": "CAPTURE_UNCERTAIN",
+    "acceptanceStatus": "NOT_RUN",
+    "reason": "CONTROLLED_READ_FULL_PASSAGE_UNPROVED",
+    "caseId": "20",
+    "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+    "requestCount": 10,
+    "synthesisSubmissionCount": 1
+  },
+  "manifest": {
+    "schemaVersion": 1,
+    "kind": "meri-live-read-capture-manifest",
+    "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+    "owner": {
+      "ref": "bundle-owner.json",
+      "sha256": "740053385b36c80acebe5eaec6710dd492582729409a77bf52c3b4044f61ccbe"
+    },
+    "summary": {
+      "status": "CAPTURE_UNCERTAIN",
+      "acceptanceStatus": "NOT_RUN",
+      "reason": "CONTROLLED_READ_FULL_PASSAGE_UNPROVED",
+      "caseId": "20",
+      "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+      "requestCount": 10,
+      "synthesisSubmissionCount": 1
+    },
+    "artifacts": [
+      {
+        "ref": "admission.json",
+        "sha256": "7850f28b3c1195071e2f0aca7426863088cfd8e4ad41fb980c68bd5261c07ee9",
+        "bytes": 2506
+      },
+      {
+        "ref": "blocked.json",
+        "sha256": "b1e0bcae351feb740387918c1b8e0e42978c4b14e6734e1dde15e1a4b8b94064",
+        "bytes": 253
+      },
+      {
+        "ref": "bundle-owner.json",
+        "sha256": "740053385b36c80acebe5eaec6710dd492582729409a77bf52c3b4044f61ccbe",
+        "bytes": 419
+      },
+      {
+        "ref": "captured-inputs.json",
+        "sha256": "26722a9b258aea0490065cf2d896fdab6362187ef84b96c2b6ba6a020f404106",
+        "bytes": 30365
+      },
+      {
+        "ref": "immutable-builds.json",
+        "sha256": "7f09417ccfd1430fa98d1c26d2d3e6826120eef44f78139738cf71ee01f9955a",
+        "bytes": 1476
+      },
+      {
+        "ref": "saved-messages-observation.json",
+        "sha256": "00c35d633da138416134a369b07c8bc066bf2b5d945901d0346c3f3bfcec6c55",
+        "bytes": 21658
+      },
+      {
+        "ref": "stream-response-observation.json",
+        "sha256": "fa70b15fe6d340040b0f1f6a95d366383839a59a15f8a979d7c915c17c7660be",
+        "bytes": 20459
+      },
+      {
+        "ref": "submission-intent.json",
+        "sha256": "bfb98d276cd9ec1e6643ebb1ce7f93ea256cf7ec25d1728be92f32c0df0fd0ba",
+        "bytes": 254
+      }
+    ]
+  },
+  "admission": {
+    "admission": {
+      "schemaVersion": 1,
+      "kind": "meri-controlled-read-authenticated-admission",
+      "status": "READY",
+      "caseId": "20",
+      "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+      "conversationId": "db0e01ac-60a1-4e3c-b8ba-66748d087a2e",
+      "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+      "actorUserId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+      "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+      "issuedAt": 1791077213264,
+      "expiresAt": 1791077273264,
+      "apiReleaseSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+      "toolAuthority": "shared_static_registry_read_only",
+      "toolCatalogSha256": "1a08b2447cdb77040470bbd1ee52426720f8da602b9909a2a880e095ed0c6678",
+      "dynamicMcpAllowed": false,
+      "incidentalWriters": "suppressed",
+      "fixture": {
+        "fixtureNamespace": "meri-foundation-20260928",
+        "fixtureVersion": "meri-live-v1-2026-09-26.1",
+        "physicalMapSha256": "929ebb433886c035cfbcbcf8a537acde2157bec86634bfc384b594dfbca05861",
+        "currentVerifySha256": "925c4735e4d435ab06c40b31ee590b0ce4e7d9220b742155c67e4115b1bc6516",
+        "seedReceiptId": "meri-synthetic-fixture-seed-receipt:sha256:dbda52dbd9e17320519d4cc40bcd73975fbf0ce0fae21341a1de535644f619e8",
+        "resetReceiptId": "meri-synthetic-fixture-reset-receipt:sha256:28630ec9f867373094583e8f16eaf521f8be00508d03b7b713c11784ab214de0",
+        "sources": [
+          {
+            "logicalId": "R2-27",
+            "physicalId": "2d0c016e-8dad-5f6e-80dd-e36740fff7ee",
+            "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+            "clientId": null,
+            "sourceVersion": "v1",
+            "contentSha256": "8e0dc2325edff514502ec08d0d0465ad0ba8046e422910d7c89710969da50f76",
+            "kind": "budget_document",
+            "sourceStorage": "immutable_source_owned_controlled_adapter"
+          }
+        ]
+      },
+      "providerBudget": {
+        "ready": true,
+        "qualificationSha256": "47d64a19fdf3a718eddefee998247173f98f9b1d3f24703f31d8b4dee779c9af",
+        "currentVerifySha256": "925c4735e4d435ab06c40b31ee590b0ce4e7d9220b742155c67e4115b1bc6516",
+        "maxCostMicros": 15000000,
+        "coverage": "case20_controlled_read_turn"
+      }
+    },
+    "identity": {
+      "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+      "tenantSlug": "meri-foundation-20260928-t1",
+      "actorUserId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+      "clerkUserId": "user_3Jw2FvWZkYGKmxWGx13tNJxFD2A",
+      "role": "standard_user",
+      "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b"
+    }
+  },
+  "owner": {
+    "schemaVersion": 1,
+    "kind": "meri-controlled-read-authenticated-capture",
+    "provenance": "LIVE_CAPTURE",
+    "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+    "caseId": "20",
+    "fixtureVersion": "meri-live-v1-2026-09-26.1",
+    "fixtureSha256": "2a8159d45d512f325539eb700907700ecc16cbc2d6536277adf85d8f49368e61",
+    "contractSourceSha256": "acd2a1cf766ad6e988025c4c43235213164926e7036cc8361986916d59963b66"
+  },
+  "builds": {
+    "kind": "meri-case01-current-immutable-builds",
+    "observedAt": 1791077214495,
+    "caller": {
+      "account": "967807252336",
+      "arn": "arn:aws:iam::967807252336:user/capirocli"
+    },
+    "services": [
+      {
+        "service": "api",
+        "sourceSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+        "imageDigest": "sha256:23f529da3c1c00d401968811575dc075bced6c60669baa9a09e9c23575c9c452",
+        "buildId": "capiro-build-web-dev:5ca674e3-f986-46fa-bb05-2ca8e14d1d67",
+        "buildspecSha256": "61cc399b632b885b2c17dfb692a536ba493246465573fb83469669c6267e2811",
+        "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:521",
+        "primaryDeploymentId": "ecs-svc/7532166570913154097",
+        "baselineSha256": "5690fa4df8c7d55eeeeb0b9cbb5a64951e76d78a5a485778d0fc8a8caf8c7374"
+      },
+      {
+        "service": "meriv2-orchestrator",
+        "sourceSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+        "imageDigest": "sha256:1c491a5ac46ea320195fe8ab367322ad2ebbd0949d69530b5ccfba2de84eb491",
+        "buildId": "capiro-build-web-dev:1105f91e-3171-41aa-ae00-7f28540caf90",
+        "buildspecSha256": "eb741a51f6169fdca94e6a3d69ab5bfa18ef0f22098016518e8dc30120aa8a24",
+        "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:117",
+        "primaryDeploymentId": "ecs-svc/7126005384437566907",
+        "baselineSha256": "d806009956dd087dfc4862b84cca6f6a7b91b418973ac147bd7f16dc24ffff0a"
+      }
+    ]
+  },
+  "intent": {
+    "caseId": "20",
+    "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+    "conversationId": "db0e01ac-60a1-4e3c-b8ba-66748d087a2e",
+    "promptSha256": "1773411db67d89126260f86bd2b460f030ca37a6848fa7cf709295853f1bca17",
+    "maxCostMicros": 15000000
+  },
+  "messages": {
+    "schemaVersion": 1,
+    "kind": "meri-http-response-observation",
+    "captureAuthority": false,
+    "acceptanceStatus": "NOT_RUN",
+    "status": 200,
+    "releaseSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+    "bodyBytes": 19575,
+    "bodySha256": "0be19927fa2315ab441f78f59368e83764b58c5b04d7e80d109af5eaf4f6e6a8",
+    "redacted": true,
+    "text": "[{\"id\":\"3a50a9fd-8afa-4b3d-9a74-ba69f02122e6\",\"tenantId\":\"f2d6cf8f-057c-479a-8110-62fe5086d43f\",\"userId\":\"b1f758fc-17bd-40f8-bef2-fa2d2380300f\",\"clientId\":\"41f9ec63-3963-479f-b747-59a3767ef44b\",\"conversationId\":\"db0e01ac-60a1-4e3c-b8ba-66748d087a2e\",\"role\":\"user\",\"body\":\"Find PE 0912345T and give me its FY27 request.\",\"nanoclawId\":null,\"metadata\":{},\"createdAt\":\"2026-10-04T01:26:57.048Z\",\"artifacts\":[]},{\"id\":\"09967dee-533c-4177-bfb8-68366cfa0e3f\",\"tenantId\":\"f2d6cf8f-057c-479a-8110-62fe5086d43f\",\"userId\":\"b1f758fc-17bd-40f8-bef2-fa2d2380300f\",\"clientId\":\"41f9ec63-3963-479f-b747-59a3767ef44b\",\"conversationId\":\"db0e01ac-60a1-4e3c-b8ba-66748d087a2e\",\"role\":\"assistant\",\"body\":\"PE **0912345T** has an **FY27 President’s Budget request of $42M**, documented in **R2-27, page 14**. This is a request, not enacted funding. [4]\",\"nanoclawId\":null,\"metadata\":{\"tier\":\"deep\",\"model\":\"gpt-6-astra\",\"trace\":[{\"tool\":\"get_pe_budget_timeline\",\"type\":\"tool_done\",\"label\":\"Pulled PE budget timeline\",\"status\":\"done\"}],\"usage\":{\"inputTokens\":\"[REDACTED]\",\"outputTokens\":\"[REDACTED]\",\"cacheReadTokens\":\"[REDACTED]\",\"cacheCreationTokens\":\"[REDACTED]\"},\"intent\":\"research\",\"actions\":[],\"partial\":false,\"runtime\":\"meriv3\",\"servedBy\":\"meriv3\",\"citations\":[{\"n\":4,\"id\":\"2d0c016e-8dad-5f6e-80dd-e36740fff7ee\",\"url\":null,\"tool\":\"get_pe_budget_timeline\",\"type\":\"source\",\"title\":\"R2-27\",\"source\":{\"kind\":\"controlled_read\",\"section\":\"page 14\",\"version\":\"v1\",\"clientId\":\"41f9ec63-3963-479f-b747-59a3767ef44b\",\"recordId\":\"2d0c016e-8dad-5f6e-80dd-e36740fff7ee\",\"conversationId\":\"db0e01ac-60a1-4e3c-b8ba-66748d087a2e\"},\"snippet\":\"R2-27, page 14. PE 0912345T. FY27 President’s Budget request: $42M.\"}],\"retrieval\":{\"plan\":{\"version\":1,\"queryClass\":\"lookup\",\"recipeTool\":null,\"targetHint\":null,\"timeWindow\":null,\"subjectScope\":\"client\",\"requiredDomains\":[],\"requireCompleteCoverage\":false},\"coverage\":{\"phase\":\"turn\",\"version\":1,\"complete\":false,\"toolReads\":[{\"tool\":\"get_pe_budget_timeline\",\"source\":\"program_elements\",\"status\":\"partial\",\"truncated\":false,\"requestRoute\":{\"peCode\":\"0912345T\"},\"recordsMatched\":null,\"recordsOmitted\":0,\"recordsReturned\":1,\"recordsDisplayed\":1,\"recordsEvaluated\":null,\"paginationComplete\":null}],\"truncated\":false,\"stopReason\":\"turn_coverage_partial\",\"sourceCounts\":[{\"source\":\"clients\",\"recordsMatched\":1,\"recordsOmitted\":0,\"recordsReturned\":1,\"recordsDisplayed\":1,\"recordsEvaluated\":1},{\"source\":\"contacts\",\"recordsMatched\":0,\"recordsOmitted\":0,\"recordsReturned\":0,\"recordsDisplayed\":0,\"recordsEvaluated\":0},{\"source\":\"strategies_work\",\"recordsMatched\":null,\"recordsOmitted\":0,\"recordsReturned\":0,\"recordsDisplayed\":0,\"recordsEvaluated\":0},{\"source\":\"institutional_knowledge\",\"recordsMatched\":1,\"recordsOmitted\":0,\"recordsReturned\":1,\"recordsDisplayed\":1,\"recordsEvaluated\":1}],\"sourceHealth\":[{\"detail\":\"authoritative_page_complete\",\"source\":\"clients\",\"status\":\"complete\",\"lastSyncAt\":\"2026-09-28T01:24:38.611Z\"},{\"detail\":\"authoritative_page_complete\",\"source\":\"contacts\",\"status\":\"complete\"},{\"detail\":\"complete\",\"source\":\"strategies_work\",\"status\":\"complete\"},{\"detail\":\"governed_memory_scan_complete\",\"source\":\"institutional_knowledge\",\"status\":\"complete\",\"lastSyncAt\":\"2026-10-02T17:00:06.853Z\"}],\"toolsInvoked\":[\"retrieval-v2:clients\",\"retrieval-v2:contacts\",\"retrieval-v2:strategies_work\",\"retrieval-v2:institutional_knowledge\",\"get_pe_budget_timeline\"],\"initialContext\":{\"version\":1,\"complete\":true,\"truncated\":false,\"stopReason\":\"complete\",\"sourceCounts\":[{\"source\":\"clients\",\"recordsMatched\":1,\"recordsOmitted\":0,\"recordsReturned\":1,\"recordsDisplayed\":1,\"recordsEvaluated\":1},{\"source\":\"contacts\",\"recordsMatched\":0,\"recordsOmitted\":0,\"recordsReturned\":0,\"recordsDisplayed\":0,\"recordsEvaluated\":0},{\"source\":\"strategies_work\",\"recordsMatched\":null,\"recordsOmitted\":0,\"recordsReturned\":0,\"recordsDisplayed\":0,\"recordsEvaluated\":0},{\"source\":\"institutional_knowledge\",\"recordsMatched\":1,\"recordsOmitted\":0,\"recordsReturned\":1,\"recordsDisplayed\":1,\"recordsEvaluated\":1}],\"sourceHealth\":[{\"detail\":\"authoritative_page_complete\",\"source\":\"clients\",\"status\":\"complete\",\"lastSyncAt\":\"2026-09-28T01:24:38.611Z\"},{\"detail\":\"authoritative_page_complete\",\"source\":\"contacts\",\"status\":\"complete\"},{\"detail\":\"complete\",\"source\":\"strategies_work\",\"status\":\"complete\"},{\"detail\":\"governed_memory_scan_complete\",\"source\":\"institutional_knowledge\",\"status\":\"complete\",\"lastSyncAt\":\"2026-10-02T17:00:06.853Z\"}],\"toolsInvoked\":[\"retrieval-v2:clients\",\"retrieval-v2:contacts\",\"retrieval-v2:strategies_work\",\"retrieval-v2:institutional_knowledge\"],\"missingDomains\":[],\"partialDomains\":[],\"recordsOmitted\":0,\"recordsReturned\":2,\"searchedDomains\":[\"clients\",\"contacts\",\"strategies_work\",\"institutional_knowledge\"],\"recordsDisplayed\":2,\"recordsEvaluated\":2,\"requestedDomains\":[\"clients\",\"contacts\",\"strategies_work\",\"institutional_knowledge\"],\"paginationComplete\":true,\"unavailableSources\":[],\"searchedEntityCount\":4,\"requestedEntityCount\":4},\"missingDomains\":[],\"partialDomains\":[\"program_elements\"],\"recordsOmitted\":0,\"recordsReturned\":2,\"restoredSources\":[],\"searchedDomains\":[\"clients\",\"contacts\",\"strategies_work\",\"institutional_knowledge\",\"program_elements\"],\"recordsDisplayed\":2,\"recordsEvaluated\":2,\"requestedDomains\":[\"clients\",\"contacts\",\"strategies_work\",\"institutional_knowledge\"],\"paginationComplete\":true,\"unavailableSources\":[],\"searchedEntityCount\":4,\"requestedEntityCount\":4}},\"telemetry\":{\"partial\":false,\"finishReason\":\"completed\",\"effectiveModel\":\"gpt-6-astra\",\"requestedModel\":\"gpt-6-astra\",\"effectiveReasoningEffort\":\"medium\",\"reasoningFallbackReasons\":[],\"requestedReasoningEffort\":\"medium\"},\"toolsUsed\":[\"get_pe_budget_timeline\"],\"turnScope\":{\"kind\":\"client\",\"clientId\":\"41f9ec63-3963-479f-b747-59a3767ef44b\",\"clientName\":\"Aster Defense\",\"targetHint\":null},\"trustSteps\":[{\"tool\":\"get_pe_budget_timeline\",\"label\":\"Pulled PE budget timeline\",\"detail\":\"Completed\",\"status\":\"done\",\"confidence\":\"high\"}],\"finishReason\":\"completed\",\"contextPacket\":{\"items\":[{\"id\":\"422b4ca9-10a8-4680-a713-3e61273a14ff\",\"asOf\":null,\"type\":\"client-compass\",\"label\":\"clio:5e38b09a-eaef-4352-9d0e-cdc8ba9114f0~va5397fba1d914ba98006bf1fdaa90f67\",\"scope\":\"client\",\"authority\":\"unknown\",\"rationale\":\"Client soul/compass: approved framing for the active client only\",\"selection\":\"automatic\",\"userScoped\":false,\"lastConfirmedAt\":null}],\"surface\":\"chat\",\"clientId\":\"41f9ec63-3963-479f-b747-59a3767ef44b\",\"clockUse\":{\"instant\":\"2026-09-26T16:00:00.000Z\",\"scoring\":\"not_run\",\"timeZone\":\"America/New_York\",\"eligibilityAt\":\"2026-10-04T01:26:56.942Z\"},\"degraded\":true,\"packetId\":\"afbd22f7-c3a7-426b-bb0c-b532517990d7\",\"persisted\":true,\"compiledAt\":\"2026-10-04T01:26:56.943Z\",\"exclusions\":[],\"degradedReason\":\"context_packet_release_switch_rollback\",\"unauthorizedCount\":0,\"persistenceErrorCode\":null},\"providerCalls\":[{\"partial\":false,\"finishReason\":\"completed\",\"effectiveModel\":\"gpt-6-astra\",\"requestedModel\":\"gpt-6-astra\",\"effectiveReasoningEffort\":\"medium\",\"reasoningFallbackReasons\":[],\"requestedReasoningEffort\":\"medium\"},{\"partial\":false,\"finishReason\":\"completed\",\"effectiveModel\":\"gpt-6-astra\",\"requestedModel\":\"gpt-6-astra\",\"effectiveReasoningEffort\":\"medium\",\"reasoningFallbackReasons\":[],\"requestedReasoningEffort\":\"medium\"}],\"reasoningMode\":\"standard\",\"contextPacketId\":\"afbd22f7-c3a7-426b-bb0c-b532517990d7\",\"reasoningEffort\":\"medium\",\"evidenceManifest\":{\"sources\":[{\"id\":\"2d0c016e-8dad-5f6e-80dd-e36740fff7ee\",\"tool\":\"get_pe_budget_timeline\",\"origin\":\"tool\",\"truncated\":null}],\"version\":1,\"packetId\":\"afbd22f7-c3a7-426b-bb0c-b532517990d7\",\"truncated\":false,\"sourceRecordCount\":3,\"projectedRecordCount\":3},\"groundingStatement\":\"Grounded in 1 retrieved source.\",\"serverReadonlyCapturePolicy\":{\"kind\":\"server_readonly_acceptance_capture\",\"caseId\":\"20\",\"turnId\":\"3a50a9fd-8afa-4b3d-9a74-ba69f02122e6\",\"traceId\":\"5f6c9bfe-a113-4b63-93d5-e1edb1defd32\",\"version\":1,\"clientId\":\"41f9ec63-3963-479f-b747-59a3767ef44b\",\"issuedAt\":1791077216119,\"policyId\":\"026d5d8a-b655-41b4-a4e8-5ad4cbd93c6f\",\"tenantId\":\"f2d6cf8f-057c-479a-8110-62fe5086d43f\",\"expiresAt\":1791079016119,\"requestId\":\"f161ebdf-323e-4995-9a7f-4509541d71f9\",\"tenantSlug\":\"meri-foundation-20260928-t1\",\"actorUserId\":\"b1f758fc-17bd-40f8-bef2-fa2d2380300f\",\"captureRunId\":\"f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b\",\"seedReceiptId\":\"meri-synthetic-fixture-seed-receipt:sha256:dbda52dbd9e17320519d4cc40bcd73975fbf0ce0fae21341a1de535644f619e8\",\"semanticClock\":{\"kind\":\"qualified_original_fixture_semantic_clock\",\"caseId\":\"20\",\"instant\":\"2026-09-26T16:00:00.000Z\",\"version\":1,\"timeZone\":\"America/New_York\",\"observedAt\":1791077216119,\"captureRunId\":\"f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b\",\"currentVerifySha256\":\"925c4735e4d435ab06c40b31ee590b0ce4e7d9220b742155c67e4115b1bc6516\"},\"toolAuthority\":\"shared_static_registry_read_only\",\"conversationId\":\"db0e01ac-60a1-4e3c-b8ba-66748d087a2e\",\"fixtureVersion\":\"meri-live-v1-2026-09-26.1\",\"resetReceiptId\":\"meri-synthetic-fixture-reset-receipt:sha256:28630ec9f867373094583e8f16eaf521f8be00508d03b7b713c11784ab214de0\",\"fixtureNamespace\":\"meri-foundation-20260928\",\"dynamicMcpAllowed\":false,\"incidentalWriters\":\"suppressed\",\"physicalMapSha256\":\"929ebb433886c035cfbcbcf8a537acde2157bec86634bfc384b594dfbca05861\",\"toolCatalogSha256\":\"1a08b2447cdb77040470bbd1ee52426720f8da602b9909a2a880e095ed0c6678\",\"expectedCaptureWrites\":[\"context_packet_and_evidence\",\"conversation_user_message\",\"conversation_assistant_message\",\"provider_budget_ledger\"]},\"serverCaptureEvidenceReceipt\":{\"purpose\":\"server_capture_evidence\",\"receipt\":{\"kind\":\"server_capture_evidence_receipt\",\"usage\":{\"model\":{\"value\":\"gpt-6-astra\",\"reason\":null,\"status\":\"OBSERVED\"},\"costKind\":\"existing_pricing_estimate\",\"provider\":{\"value\":\"openai\",\"reason\":null,\"status\":\"OBSERVED\"},\"inputTokens\":\"[REDACTED]\",\"outputTokens\":\"[REDACTED]\",\"cacheReadTokens\":\"[REDACTED]\",\"estimatedCostUsd\":{\"value\":0.6003700000000001,\"reason\":null,\"status\":\"OBSERVED\"},\"cacheCreationTokens\":\"[REDACTED]\"},\"caseId\":\"20\",\"status\":\"BLOCKED\",\"turnId\":\"3a50a9fd-8afa-4b3d-9a74-ba69f02122e6\",\"effects\":{\"writes\":[{\"kind\":\"context_packet_and_evidence\",\"phase\":\"before\",\"status\":\"observed\",\"recordId\":null,\"logicalWriteId\":\"f161ebdf-323e-4995-9a7f-4509541d71f9:context\"},{\"kind\":\"conversation_user_message\",\"phase\":\"during\",\"status\":\"observed\",\"recordId\":\"3a50a9fd-8afa-4b3d-9a74-ba69f02122e6\",\"logicalWriteId\":\"f161ebdf-323e-4995-9a7f-4509541d71f9:user-message\"},{\"kind\":\"conversation_assistant_message\",\"phase\":\"during\",\"status\":\"observed\",\"recordId\":\"09967dee-533c-4177-bfb8-68366cfa0e3f\",\"logicalWriteId\":\"f161ebdf-323e-4995-9a7f-4509541d71f9:assistant-message\"},{\"kind\":\"assistant_receipt_metadata\",\"phase\":\"after\",\"status\":\"observed\",\"recordId\":\"09967dee-533c-4177-bfb8-68366cfa0e3f\",\"logicalWriteId\":\"f161ebdf-323e-4995-9a7f-4509541d71f9:receipt-metadata\"},{\"kind\":\"provider_budget_ledger\",\"phase\":\"during\",\"status\":\"observed\",\"recordId\":\"db0e01ac-60a1-4e3c-b8ba-66748d087a2e\",\"logicalWriteId\":\"f161ebdf-323e-4995-9a7f-4509541d71f9:provider-budget-ledger\"}],\"boundary\":\"bounded_capture_path_hooks\",\"logicalEffects\":[{\"status\":\"observed\",\"receiptId\":\"3d665a2323c36e38733b7c1576af13976c0c4a573fa1a2ccc91f668a630ca5f5\",\"operationId\":\"1bbf8e44-e4b8-4952-abb3-84435991f392\",\"logicalEffectId\":\"f161ebdf-323e-4995-9a7f-4509541d71f9:provider-budget-ledger\"}]},\"fixture\":{\"version\":{\"value\":\"meri-live-v1-2026-09-26.1\",\"reason\":null,\"status\":\"OBSERVED\"},\"namespace\":\"meri-foundation-20260928\",\"seedReceiptId\":{\"value\":\"meri-synthetic-fixture-seed-receipt:sha256:dbda52dbd9e17320519d4cc40bcd73975fbf0ce0fae21341a1de535644f619e8\",\"reason\":null,\"status\":\"OBSERVED\"},\"resetReceiptId\":{\"value\":\"meri-synthetic-fixture-reset-receipt:sha256:28630ec9f867373094583e8f16eaf521f8be00508d03b7b713c11784ab214de0\",\"reason\":null,\"status\":\"OBSERVED\"},\"physicalMapSha256\":{\"value\":\"929ebb433886c035cfbcbcf8a537acde2157bec86634bfc384b594dfbca05861\",\"reason\":null,\"status\":\"OBSERVED\"}},\"purpose\":\"server_capture_evidence\",\"sources\":[{\"locator\":{\"value\":\"page 14\",\"reason\":null,\"status\":\"OBSERVED\"},\"clientId\":{\"value\":null,\"reason\":null,\"status\":\"OBSERVED\"},\"fullRead\":{\"value\":true,\"reason\":null,\"status\":\"OBSERVED\"},\"sourceId\":\"2d0c016e-8dad-5f6e-80dd-e36740fff7ee\",\"tenantId\":{\"value\":\"f2d6cf8f-057c-479a-8110-62fe5086d43f\",\"reason\":null,\"status\":\"OBSERVED\"},\"byteSha256\":{\"value\":\"8e0dc2325edff514502ec08d0d0465ad0ba8046e422910d7c89710969da50f76\",\"reason\":null,\"status\":\"OBSERVED\"},\"toolCallId\":\"call_f3k3r8wjQHgu4uInyGyp5mfa\",\"passageSha256\":{\"value\":\"8e0dc2325edff514502ec08d0d0465ad0ba8046e422910d7c89710969da50f76\",\"reason\":null,\"status\":\"OBSERVED\"},\"currentVersion\":{\"value\":\"v1\",\"reason\":null,\"status\":\"OBSERVED\"}}],\"traceId\":\"5f6c9bfe-a113-4b63-93d5-e1edb1defd32\",\"version\":1,\"blockers\":[\"semantic_clock_api_tool_join_pending\",\"semantic_clock_prompt_unproved\",\"source_client_authority_unproved:2d0c016e-8dad-5f6e-80dd-e36740fff7ee\"],\"clientId\":\"41f9ec63-3963-479f-b747-59a3767ef44b\",\"policyId\":\"026d5d8a-b655-41b4-a4e8-5ad4cbd93c6f\",\"releases\":{\"api\":{\"service\":\"api\",\"deploymentProof\":\"PENDING_APPROVED_BUILD_RECEIPT_CROSSCHECK\",\"releaseRevision\":{\"value\":\"4f0253874357c272fda1ae2a5271ee4af645f0bc\",\"reason\":null,\"status\":\"OBSERVED\"},\"identityContract\":\"runtime_environment_v1\"},\"orchestrator\":{\"service\":\"meriv2-orchestrator\",\"deploymentProof\":\"PENDING_APPROVED_BUILD_RECEIPT_CROSSCHECK\",\"releaseRevision\":{\"value\":\"4f0253874357c272fda1ae2a5271ee4af645f0bc\",\"reason\":null,\"status\":\"OBSERVED\"},\"identityContract\":\"runtime_environment_v1\"}},\"tenantId\":\"f2d6cf8f-057c-479a-8110-62fe5086d43f\",\"expiresAt\":1791079016119,\"requestId\":\"f161ebdf-323e-4995-9a7f-4509541d71f9\",\"startedAt\":1791077218487,\"toolCalls\":[{\"name\":\"get_pe_budget_timeline\",\"callId\":\"call_f3k3r8wjQHgu4uInyGyp5mfa\",\"status\":\"partial\",\"attempt\":1,\"readOnly\":true,\"sourceIds\":[\"2d0c016e-8dad-5f6e-80dd-e36740fff7ee\"]}],\"actorUserId\":\"b1f758fc-17bd-40f8-bef2-fa2d2380300f\",\"completedAt\":1791077225341,\"captureRunId\":\"f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b\",\"semanticClock\":{\"prompt\":{\"value\":{\"date\":\"2026-09-26\",\"instant\":\"2026-09-26T16:00:00.000Z\",\"timeZone\":\"America/New_York\",\"renderedAt\":1791077218191,\"groundingSha256\":\"4e1312e10d40bcaf30a117911b791590fee02ca2ab0ed1d57ae35b253ed93e2b\"},\"reason\":null,\"status\":\"OBSERVED\"},\"apiJoin\":\"PENDING\",\"binding\":{\"kind\":\"qualified_original_fixture_semantic_clock\",\"caseId\":\"20\",\"instant\":\"2026-09-26T16:00:00.000Z\",\"version\":1,\"timeZone\":\"America/New_York\",\"observedAt\":1791077216119,\"captureRunId\":\"f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b\",\"currentVerifySha256\":\"925c4735e4d435ab06c40b31ee590b0ce4e7d9220b742155c67e4115b1bc6516\"},\"invocations\":[{\"tool\":\"get_pe_budget_timeline\",\"callId\":\"call_f3k3r8wjQHgu4uInyGyp5mfa\",\"outcome\":\"returned\",\"packets\":[],\"httpStatus\":200,\"httpAttempts\":1,\"responseSha256\":\"2d42264ed2ebb79bafef650a5d25a2d03655cb19e1ddd601b4262336a44c0983\"}]},\"boundedRuntime\":{\"toolCalls\":1,\"modelCalls\":3,\"retryCalls\":0,\"stopReason\":null,\"maxToolCalls\":75,\"maxModelCalls\":13,\"maxRetryCalls\":5,\"acquisitionStopped\":false},\"conversationId\":\"db0e01ac-60a1-4e3c-b8ba-66748d087a2e\",\"providerBudget\":{\"status\":\"SETTLED\",\"turnId\":\"3a50a9fd-8afa-4b3d-9a74-ba69f02122e6\",\"version\":1,\"attempts\":2,\"boundary\":\"case20_controlled_read_turn\",\"admissionId\":\"1bbf8e44-e4b8-4952-abb3-84435991f392\",\"ledgerSha256\":\"3d665a2323c36e38733b7c1576af13976c0c4a573fa1a2ccc91f668a630ca5f5\",\"chargedTokens\":\"[REDACTED]\",\"maxCostMicros\":15000000,\"chargedCostMicros\":1497175,\"qualificationSha256\":\"47d64a19fdf3a718eddefee998247173f98f9b1d3f24703f31d8b4dee779c9af\",\"unaccountedBoundaries\":[]},\"controlledReadAttempts\":[{\"tool\":\"get_pe_budget_timeline\",\"callId\":\"call_f3k3r8wjQHgu4uInyGyp5mfa\",\"caseId\":\"20\",\"turnId\":\"3a50a9fd-8afa-4b3d-9a74-ba69f02122e6\",\"traceId\":\"5f6c9bfe-a113-4b63-93d5-e1edb1defd32\",\"fullRead\":true,\"sourceId\":\"2d0c016e-8dad-5f6e-80dd-e36740fff7ee\",\"requestId\":\"f161ebdf-323e-4995-9a7f-4509541d71f9\",\"httpStatus\":200,\"captureRunId\":\"f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b\",\"logicalError\":null,\"contentSha256\":\"8e0dc2325edff514502ec08d0d0465ad0ba8046e422910d7c89710969da50f76\",\"passageSha256\":\"8e0dc2325edff514502ec08d0d0465ad0ba8046e422910d7c89710969da50f76\",\"sourceVersion\":\"v1\",\"responseSha256\":\"2d42264ed2ebb79bafef650a5d25a2d03655cb19e1ddd601b4262336a44c0983\",\"sourceClientId\":null,\"sourceTenantId\":\"f2d6cf8f-057c-479a-8110-62fe5086d43f\",\"logicalSourceId\":\"R2-27\",\"currentVerifySha256\":\"925c4735e4d435ab06c40b31ee590b0ce4e7d9220b742155c67e4115b1bc6516\"}],\"predecessorAttestationSha256\":\"e921ad41e4176a41dbd423e4f7f59935758c233854efe6fae0fc9f95f410d459\"},\"version\":1,\"audience\":\"capiro:meri:server-readonly-capture:evidence:v1\",\"signature\":\"92b23a5b293225c4122afab6812b1f137ab067d6a2e8a12e62b043cb65224743\"},\"serverReadonlyCaptureReceipt\":{\"version\":1,\"clientId\":\"41f9ec63-3963-479f-b747-59a3767ef44b\",\"issuedAt\":1791077216119,\"policyId\":\"026d5d8a-b655-41b4-a4e8-5ad4cbd93c6f\",\"tenantId\":\"f2d6cf8f-057c-479a-8110-62fe5086d43f\",\"authority\":\"server_current\",\"expiresAt\":1791079016119,\"actorUserId\":\"b1f758fc-17bd-40f8-bef2-fa2d2380300f\",\"conversationId\":\"db0e01ac-60a1-4e3c-b8ba-66748d087a2e\",\"dispatchBoundary\":\"read_only_enforced\",\"fixtureNamespace\":\"meri-foundation-20260928\",\"dynamicMcpAllowed\":false,\"incidentalWriters\":\"suppressed\",\"toolCatalogSha256\":\"1a08b2447cdb77040470bbd1ee52426720f8da602b9909a2a880e095ed0c6678\",\"expectedCaptureWrites\":[\"context_packet_and_evidence\",\"conversation_user_message\",\"conversation_assistant_message\",\"provider_budget_ledger\"]},\"controlledReadCaptureAuthority\":{\"schemaVersion\":1,\"kind\":\"meri-controlled-read-authenticated-readback\",\"caseId\":\"20\",\"captureRunId\":\"f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b\",\"conversationId\":\"db0e01ac-60a1-4e3c-b8ba-66748d087a2e\",\"tenantId\":\"f2d6cf8f-057c-479a-8110-62fe5086d43f\",\"actorUserId\":\"b1f758fc-17bd-40f8-bef2-fa2d2380300f\",\"clientId\":\"41f9ec63-3963-479f-b747-59a3767ef44b\",\"messageId\":\"09967dee-533c-4177-bfb8-68366cfa0e3f\",\"turnId\":\"3a50a9fd-8afa-4b3d-9a74-ba69f02122e6\",\"policyId\":\"026d5d8a-b655-41b4-a4e8-5ad4cbd93c6f\",\"requestId\":\"f161ebdf-323e-4995-9a7f-4509541d71f9\",\"traceId\":\"5f6c9bfe-a113-4b63-93d5-e1edb1defd32\",\"verifiedAt\":1791077226288,\"envelopeSha256\":\"c00e45d7603ae4335b81b91bfa6bc7e16e8dbc818fdc876f74d23ba4835fbe51\",\"answerSha256\":\"5f5ee957d707c7d63e3077b5af1e0a75e83e84bec9432e9b1ee778147f6de64c\",\"fixture\":{\"fixtureNamespace\":\"meri-foundation-20260928\",\"fixtureVersion\":\"meri-live-v1-2026-09-26.1\",\"physicalMapSha256\":\"929ebb433886c035cfbcbcf8a537acde2157bec86634bfc384b594dfbca05861\",\"currentVerifySha256\":\"925c4735e4d435ab06c40b31ee590b0ce4e7d9220b742155c67e4115b1bc6516\",\"seedReceiptId\":\"meri-synthetic-fixture-seed-receipt:sha256:dbda52dbd9e17320519d4cc40bcd73975fbf0ce0fae21341a1de535644f619e8\",\"resetReceiptId\":\"meri-synthetic-fixture-reset-receipt:sha256:28630ec9f867373094583e8f16eaf521f8be00508d03b7b713c11784ab214de0\",\"sources\":[{\"logicalId\":\"R2-27\",\"physicalId\":\"2d0c016e-8dad-5f6e-80dd-e36740fff7ee\",\"tenantId\":\"f2d6cf8f-057c-479a-8110-62fe5086d43f\",\"clientId\":null,\"sourceVersion\":\"v1\",\"contentSha256\":\"8e0dc2325edff514502ec08d0d0465ad0ba8046e422910d7c89710969da50f76\",\"kind\":\"budget_document\",\"sourceStorage\":\"immutable_source_owned_controlled_adapter\"}]},\"providerBudget\":{\"ready\":true,\"qualificationSha256\":\"47d64a19fdf3a718eddefee998247173f98f9b1d3f24703f31d8b4dee779c9af\",\"currentVerifySha256\":\"925c4735e4d435ab06c40b31ee590b0ce4e7d9220b742155c67e4115b1bc6516\",\"maxCostMicros\":15000000,\"coverage\":\"case20_controlled_read_turn\"}}},\"createdAt\":\"2026-10-04T01:27:05.313Z\",\"artifacts\":[]}]"
+  },
+  "stream": {
+    "schemaVersion": 1,
+    "kind": "meri-http-response-observation",
+    "captureAuthority": false,
+    "acceptanceStatus": "NOT_RUN",
+    "status": 201,
+    "releaseSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+    "bodyBytes": 18272,
+    "bodySha256": "334dcf506cebf16676ba1f48fc3868e7b36780a9efeca02c7e3ee9d9606869b3",
+    "redacted": true,
+    "text": "data: {\"type\":\"progress\",\"runId\":\"958839e5-f566-42d5-9333-e7c0e9cbb1e0\",\"phase\":\"preparing\",\"note\":\"Preparing Meri’s response.\",\"elapsedMs\":1001,\"accepted\":false}\n\ndata: {\"type\":\"progress\",\"runId\":\"958839e5-f566-42d5-9333-e7c0e9cbb1e0\",\"phase\":\"preparing\",\"note\":\"Preparing Meri’s response.\",\"elapsedMs\":5000,\"accepted\":false}\n\ndata: {\"type\":\"turn_accepted\",\"messageId\":\"3a50a9fd-8afa-4b3d-9a74-ba69f02122e6\"}\n\ndata: {\"type\":\"progress\",\"runId\":\"958839e5-f566-42d5-9333-e7c0e9cbb1e0\",\"phase\":\"preparing\",\"note\":\"Your message is saved. Preparing Meri’s response.\",\"elapsedMs\":9375}\n\ndata: {\"type\":\"start\",\"intent\":\"general\",\"tier\":\"deep\",\"runtime\":\"meriv3\",\"reasoningMode\":\"standard\"}\n\ndata: {\"type\":\"progress\",\"runId\":\"958839e5-f566-42d5-9333-e7c0e9cbb1e0\",\"phase\":\"runtime\",\"note\":\"Waiting for Meri’s reasoning runtime.\",\"elapsedMs\":9375}\n\ndata: {\"type\":\"runtime\",\"runtime\":\"meriv3\",\"model\":\"gpt-6-astra\",\"reasoningMode\":\"standard\",\"reasoningEffort\":null,\"telemetry\":{\"requestedModel\":\"gpt-6-astra\",\"effectiveModel\":null,\"requestedReasoningEffort\":\"medium\",\"effectiveReasoningEffort\":null,\"reasoningFallbackReasons\":[],\"finishReason\":\"not_started\",\"partial\":false}}\n\ndata: {\"type\":\"progress\",\"runId\":\"958839e5-f566-42d5-9333-e7c0e9cbb1e0\",\"phase\":\"provider\",\"note\":\"Waiting for the LLM provider’s response.\",\"elapsedMs\":9375}\n\ndata: {\"type\":\"runtime\",\"runtime\":\"meriv3\",\"model\":\"gpt-6-astra\",\"reasoningMode\":\"standard\",\"reasoningEffort\":\"medium\",\"telemetry\":{\"requestedModel\":\"gpt-6-astra\",\"effectiveModel\":\"gpt-6-astra\",\"requestedReasoningEffort\":\"medium\",\"effectiveReasoningEffort\":\"medium\",\"reasoningFallbackReasons\":[],\"finishReason\":\"completed\",\"partial\":false},\"providerCalls\":[{\"requestedModel\":\"gpt-6-astra\",\"effectiveModel\":\"gpt-6-astra\",\"requestedReasoningEffort\":\"medium\",\"effectiveReasoningEffort\":\"medium\",\"reasoningFallbackReasons\":[],\"finishReason\":\"completed\",\"partial\":false}]}\n\ndata: {\"type\":\"progress\",\"runId\":\"958839e5-f566-42d5-9333-e7c0e9cbb1e0\",\"phase\":\"provider\",\"note\":\"Waiting for the LLM provider’s response.\",\"elapsedMs\":9375}\n\ndata: {\"type\":\"tool_call\",\"tool\":\"get_pe_budget_timeline\",\"label\":\"Pulled PE budget timeline\"}\n\ndata: {\"type\":\"progress\",\"runId\":\"958839e5-f566-42d5-9333-e7c0e9cbb1e0\",\"phase\":\"tools\",\"note\":\"Running the requested tools and checking their results.\",\"elapsedMs\":9375}\n\ndata: {\"type\":\"sources\",\"sources\":[{\"tool\":\"get_pe_budget_timeline\",\"label\":\"Pulled PE budget timeline\",\"count\":null,\"summary\":\"Completed\",\"confidence\":\"high\"}]}\n\ndata: {\"type\":\"progress\",\"runId\":\"958839e5-f566-42d5-9333-e7c0e9cbb1e0\",\"phase\":\"provider\",\"note\":\"Waiting for Meri to continue from the tool results.\",\"elapsedMs\":9375}\n\ndata: {\"type\":\"runtime\",\"runtime\":\"meriv3\",\"model\":\"gpt-6-astra\",\"reasoningMode\":\"standard\",\"reasoningEffort\":\"medium\",\"telemetry\":{\"requestedModel\":\"gpt-6-astra\",\"effectiveModel\":\"gpt-6-astra\",\"requestedReasoningEffort\":\"medium\",\"effectiveReasoningEffort\":\"medium\",\"reasoningFallbackReasons\":[],\"finishReason\":\"completed\",\"partial\":false},\"providerCalls\":[{\"requestedModel\":\"gpt-6-astra\",\"effectiveModel\":\"gpt-6-astra\",\"requestedReasoningEffort\":\"medium\",\"effectiveReasoningEffort\":\"medium\",\"reasoningFallbackReasons\":[],\"finishReason\":\"completed\",\"partial\":false},{\"requestedModel\":\"gpt-6-astra\",\"effectiveModel\":\"gpt-6-astra\",\"requestedReasoningEffort\":\"medium\",\"effectiveReasoningEffort\":\"medium\",\"reasoningFallbackReasons\":[],\"finishReason\":\"completed\",\"partial\":false}]}\n\ndata: {\"type\":\"progress\",\"runId\":\"958839e5-f566-42d5-9333-e7c0e9cbb1e0\",\"phase\":\"provider\",\"note\":\"Waiting for the LLM provider’s response.\",\"elapsedMs\":9375}\n\ndata: {\"type\":\"text\",\"text\":\"PE **0912345T** has an **FY27 President’s Budget request of $42M**, documented in **R2-27, page 14**. This is a request, not enacted funding. [4]\"}\n\ndata: {\"type\":\"progress\",\"runId\":\"958839e5-f566-42d5-9333-e7c0e9cbb1e0\",\"phase\":\"answer\",\"note\":\"Receiving the response.\",\"elapsedMs\":9376}\n\ndata: {\"type\":\"runtime\",\"runtime\":\"meriv3\",\"model\":\"gpt-6-astra\",\"reasoningMode\":\"standard\",\"reasoningEffort\":\"medium\",\"telemetry\":{\"requestedModel\":\"gpt-6-astra\",\"effectiveModel\":\"gpt-6-astra\",\"requestedReasoningEffort\":\"medium\",\"effectiveReasoningEffort\":\"medium\",\"reasoningFallbackReasons\":[],\"finishReason\":\"completed\",\"partial\":false},\"providerCalls\":[{\"requestedModel\":\"gpt-6-astra\",\"effectiveModel\":\"gpt-6-astra\",\"requestedReasoningEffort\":\"medium\",\"effectiveReasoningEffort\":\"medium\",\"reasoningFallbackReasons\":[],\"finishReason\":\"completed\",\"partial\":false},{\"requestedModel\":\"gpt-6-astra\",\"effectiveModel\":\"gpt-6-astra\",\"requestedReasoningEffort\":\"medium\",\"effectiveReasoningEffort\":\"medium\",\"reasoningFallbackReasons\":[],\"finishReason\":\"completed\",\"partial\":false}]}\n\ndata: {\"type\":\"progress\",\"runId\":\"958839e5-f566-42d5-9333-e7c0e9cbb1e0\",\"phase\":\"answer\",\"note\":\"Finishing the response.\",\"elapsedMs\":9376}\n\ndata: {\"type\":\"usage\",\"usage\":{\"inputTokens\":\"[REDACTED]\",\"outputTokens\":\"[REDACTED]\",\"cacheReadTokens\":\"[REDACTED]\",\"cacheCreationTokens\":\"[REDACTED]\"}}\n\ndata: {\"type\":\"citations\",\"citations\":[{\"n\":4,\"type\":\"source\",\"id\":\"2d0c016e-8dad-5f6e-80dd-e36740fff7ee\",\"title\":\"R2-27\",\"url\":null,\"snippet\":\"R2-27, page 14. PE 0912345T. FY27 President’s Budget request: $42M.\",\"tool\":\"get_pe_budget_timeline\",\"source\":{\"kind\":\"controlled_read\",\"recordId\":\"2d0c016e-8dad-5f6e-80dd-e36740fff7ee\",\"clientId\":\"41f9ec63-3963-479f-b747-59a3767ef44b\",\"conversationId\":\"db0e01ac-60a1-4e3c-b8ba-66748d087a2e\",\"version\":\"v1\",\"section\":\"page 14\"}}]}\n\ndata: {\"type\":\"grounding_statement\",\"statement\":\"Grounded in 1 retrieved source.\"}\n\ndata: {\"type\":\"done\",\"model\":\"gpt-6-astra\",\"reasoningMode\":\"standard\",\"reasoningEffort\":\"medium\",\"finishReason\":\"completed\",\"partial\":false,\"telemetry\":{\"requestedModel\":\"gpt-6-astra\",\"effectiveModel\":\"gpt-6-astra\",\"requestedReasoningEffort\":\"medium\",\"effectiveReasoningEffort\":\"medium\",\"reasoningFallbackReasons\":[],\"finishReason\":\"completed\",\"partial\":false},\"evidenceManifest\":{\"version\":1,\"packetId\":\"afbd22f7-c3a7-426b-bb0c-b532517990d7\",\"sourceRecordCount\":3,\"projectedRecordCount\":3,\"truncated\":false,\"sources\":[{\"id\":\"2d0c016e-8dad-5f6e-80dd-e36740fff7ee\",\"tool\":\"get_pe_budget_timeline\",\"origin\":\"tool\",\"truncated\":null}]},\"messageId\":\"09967dee-533c-4177-bfb8-68366cfa0e3f\",\"contextPacketId\":\"afbd22f7-c3a7-426b-bb0c-b532517990d7\",\"retrieval\":{\"plan\":{\"version\":1,\"queryClass\":\"lookup\",\"subjectScope\":\"client\",\"targetHint\":null,\"recipeTool\":null,\"requireCompleteCoverage\":false,\"requiredDomains\":[],\"timeWindow\":null},\"coverage\":{\"version\":1,\"complete\":false,\"requestedDomains\":[\"clients\",\"contacts\",\"strategies_work\",\"institutional_knowledge\"],\"searchedDomains\":[\"clients\",\"contacts\",\"strategies_work\",\"institutional_knowledge\",\"program_elements\"],\"missingDomains\":[],\"partialDomains\":[\"program_elements\"],\"requestedEntityCount\":4,\"searchedEntityCount\":4,\"recordsEvaluated\":2,\"recordsReturned\":2,\"recordsDisplayed\":2,\"recordsOmitted\":0,\"sourceCounts\":[{\"source\":\"clients\",\"recordsReturned\":1,\"recordsEvaluated\":1,\"recordsMatched\":1,\"recordsDisplayed\":1,\"recordsOmitted\":0},{\"source\":\"contacts\",\"recordsReturned\":0,\"recordsEvaluated\":0,\"recordsMatched\":0,\"recordsDisplayed\":0,\"recordsOmitted\":0},{\"source\":\"strategies_work\",\"recordsReturned\":0,\"recordsEvaluated\":0,\"recordsMatched\":null,\"recordsDisplayed\":0,\"recordsOmitted\":0},{\"source\":\"institutional_knowledge\",\"recordsReturned\":1,\"recordsEvaluated\":1,\"recordsMatched\":1,\"recordsDisplayed\":1,\"recordsOmitted\":0}],\"paginationComplete\":true,\"truncated\":false,\"sourceHealth\":[{\"source\":\"clients\",\"status\":\"complete\",\"lastSyncAt\":\"2026-09-28T01:24:38.611Z\",\"detail\":\"authoritative_page_complete\"},{\"source\":\"contacts\",\"status\":\"complete\",\"detail\":\"authoritative_page_complete\"},{\"source\":\"strategies_work\",\"status\":\"complete\",\"detail\":\"complete\"},{\"source\":\"institutional_knowledge\",\"status\":\"complete\",\"lastSyncAt\":\"2026-10-02T17:00:06.853Z\",\"detail\":\"governed_memory_scan_complete\"}],\"unavailableSources\":[],\"toolsInvoked\":[\"retrieval-v2:clients\",\"retrieval-v2:contacts\",\"retrieval-v2:strategies_work\",\"retrieval-v2:institutional_knowledge\",\"get_pe_budget_timeline\"],\"stopReason\":\"turn_coverage_partial\",\"phase\":\"turn\",\"initialContext\":{\"version\":1,\"complete\":true,\"requestedDomains\":[\"clients\",\"contacts\",\"strategies_work\",\"institutional_knowledge\"],\"searchedDomains\":[\"clients\",\"contacts\",\"strategies_work\",\"institutional_knowledge\"],\"missingDomains\":[],\"partialDomains\":[],\"requestedEntityCount\":4,\"searchedEntityCount\":4,\"recordsEvaluated\":2,\"recordsReturned\":2,\"recordsDisplayed\":2,\"recordsOmitted\":0,\"sourceCounts\":[{\"source\":\"clients\",\"recordsReturned\":1,\"recordsEvaluated\":1,\"recordsMatched\":1,\"recordsDisplayed\":1,\"recordsOmitted\":0},{\"source\":\"contacts\",\"recordsReturned\":0,\"recordsEvaluated\":0,\"recordsMatched\":0,\"recordsDisplayed\":0,\"recordsOmitted\":0},{\"source\":\"strategies_work\",\"recordsReturned\":0,\"recordsEvaluated\":0,\"recordsMatched\":null,\"recordsDisplayed\":0,\"recordsOmitted\":0},{\"source\":\"institutional_knowledge\",\"recordsReturned\":1,\"recordsEvaluated\":1,\"recordsMatched\":1,\"recordsDisplayed\":1,\"recordsOmitted\":0}],\"paginationComplete\":true,\"truncated\":false,\"sourceHealth\":[{\"source\":\"clients\",\"status\":\"complete\",\"lastSyncAt\":\"2026-09-28T01:24:38.611Z\",\"detail\":\"authoritative_page_complete\"},{\"source\":\"contacts\",\"status\":\"complete\",\"detail\":\"authoritative_page_complete\"},{\"source\":\"strategies_work\",\"status\":\"complete\",\"detail\":\"complete\"},{\"source\":\"institutional_knowledge\",\"status\":\"complete\",\"lastSyncAt\":\"2026-10-02T17:00:06.853Z\",\"detail\":\"governed_memory_scan_complete\"}],\"unavailableSources\":[],\"toolsInvoked\":[\"retrieval-v2:clients\",\"retrieval-v2:contacts\",\"retrieval-v2:strategies_work\",\"retrieval-v2:institutional_knowledge\"],\"stopReason\":\"complete\"},\"toolReads\":[{\"source\":\"program_elements\",\"tool\":\"get_pe_budget_timeline\",\"status\":\"partial\",\"recordsReturned\":1,\"recordsEvaluated\":null,\"recordsMatched\":null,\"recordsDisplayed\":1,\"recordsOmitted\":0,\"paginationComplete\":null,\"truncated\":false,\"requestRoute\":{\"peCode\":\"0912345T\"}}],\"restoredSources\":[]}},\"turnScope\":{\"kind\":\"client\",\"clientId\":\"41f9ec63-3963-479f-b747-59a3767ef44b\",\"clientName\":\"Aster Defense\",\"targetHint\":null},\"serverReadonlyCaptureReceipt\":{\"version\":1,\"policyId\":\"026d5d8a-b655-41b4-a4e8-5ad4cbd93c6f\",\"fixtureNamespace\":\"meri-foundation-20260928\",\"authority\":\"server_current\",\"tenantId\":\"f2d6cf8f-057c-479a-8110-62fe5086d43f\",\"actorUserId\":\"b1f758fc-17bd-40f8-bef2-fa2d2380300f\",\"conversationId\":\"db0e01ac-60a1-4e3c-b8ba-66748d087a2e\",\"clientId\":\"41f9ec63-3963-479f-b747-59a3767ef44b\",\"issuedAt\":1791077216119,\"expiresAt\":1791079016119,\"toolCatalogSha256\":\"1a08b2447cdb77040470bbd1ee52426720f8da602b9909a2a880e095ed0c6678\",\"dispatchBoundary\":\"read_only_enforced\",\"dynamicMcpAllowed\":false,\"incidentalWriters\":\"suppressed\",\"expectedCaptureWrites\":[\"context_packet_and_evidence\",\"conversation_user_message\",\"conversation_assistant_message\",\"provider_budget_ledger\"]},\"serverCaptureEvidenceReceipt\":{\"version\":1,\"audience\":\"capiro:meri:server-readonly-capture:evidence:v1\",\"purpose\":\"server_capture_evidence\",\"receipt\":{\"semanticClock\":{\"binding\":{\"version\":1,\"kind\":\"qualified_original_fixture_semantic_clock\",\"instant\":\"2026-09-26T16:00:00.000Z\",\"timeZone\":\"America/New_York\",\"caseId\":\"20\",\"captureRunId\":\"f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b\",\"currentVerifySha256\":\"925c4735e4d435ab06c40b31ee590b0ce4e7d9220b742155c67e4115b1bc6516\",\"observedAt\":1791077216119},\"prompt\":{\"status\":\"OBSERVED\",\"value\":{\"instant\":\"2026-09-26T16:00:00.000Z\",\"timeZone\":\"America/New_York\",\"date\":\"2026-09-26\",\"renderedAt\":1791077218191,\"groundingSha256\":\"4e1312e10d40bcaf30a117911b791590fee02ca2ab0ed1d57ae35b253ed93e2b\"},\"reason\":null},\"invocations\":[{\"callId\":\"call_f3k3r8wjQHgu4uInyGyp5mfa\",\"tool\":\"get_pe_budget_timeline\",\"outcome\":\"returned\",\"httpAttempts\":1,\"httpStatus\":200,\"responseSha256\":\"2d42264ed2ebb79bafef650a5d25a2d03655cb19e1ddd601b4262336a44c0983\",\"packets\":[]}],\"apiJoin\":\"PENDING\"},\"version\":1,\"kind\":\"server_capture_evidence_receipt\",\"purpose\":\"server_capture_evidence\",\"policyId\":\"026d5d8a-b655-41b4-a4e8-5ad4cbd93c6f\",\"caseId\":\"20\",\"captureRunId\":\"f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b\",\"requestId\":\"f161ebdf-323e-4995-9a7f-4509541d71f9\",\"conversationId\":\"db0e01ac-60a1-4e3c-b8ba-66748d087a2e\",\"turnId\":\"3a50a9fd-8afa-4b3d-9a74-ba69f02122e6\",\"traceId\":\"5f6c9bfe-a113-4b63-93d5-e1edb1defd32\",\"tenantId\":\"f2d6cf8f-057c-479a-8110-62fe5086d43f\",\"actorUserId\":\"b1f758fc-17bd-40f8-bef2-fa2d2380300f\",\"clientId\":\"41f9ec63-3963-479f-b747-59a3767ef44b\",\"startedAt\":1791077218487,\"completedAt\":1791077225341,\"expiresAt\":1791079016119,\"sources\":[{\"sourceId\":\"2d0c016e-8dad-5f6e-80dd-e36740fff7ee\",\"toolCallId\":\"call_f3k3r8wjQHgu4uInyGyp5mfa\",\"tenantId\":{\"status\":\"OBSERVED\",\"value\":\"f2d6cf8f-057c-479a-8110-62fe5086d43f\",\"reason\":null},\"clientId\":{\"status\":\"OBSERVED\",\"value\":null,\"reason\":null},\"currentVersion\":{\"status\":\"OBSERVED\",\"value\":\"v1\",\"reason\":null},\"fullRead\":{\"status\":\"OBSERVED\",\"value\":true,\"reason\":null},\"locator\":{\"status\":\"OBSERVED\",\"value\":\"page 14\",\"reason\":null},\"passageSha256\":{\"status\":\"OBSERVED\",\"value\":\"8e0dc2325edff514502ec08d0d0465ad0ba8046e422910d7c89710969da50f76\",\"reason\":null},\"byteSha256\":{\"status\":\"OBSERVED\",\"value\":\"8e0dc2325edff514502ec08d0d0465ad0ba8046e422910d7c89710969da50f76\",\"reason\":null}}],\"toolCalls\":[{\"callId\":\"call_f3k3r8wjQHgu4uInyGyp5mfa\",\"name\":\"get_pe_budget_timeline\",\"attempt\":1,\"status\":\"partial\",\"readOnly\":true,\"sourceIds\":[\"2d0c016e-8dad-5f6e-80dd-e36740fff7ee\"]}],\"controlledReadAttempts\":[{\"callId\":\"call_f3k3r8wjQHgu4uInyGyp5mfa\",\"tool\":\"get_pe_budget_timeline\",\"httpStatus\":200,\"logicalError\":null,\"caseId\":\"20\",\"captureRunId\":\"f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b\",\"requestId\":\"f161ebdf-323e-4995-9a7f-4509541d71f9\",\"traceId\":\"5f6c9bfe-a113-4b63-93d5-e1edb1defd32\",\"turnId\":\"3a50a9fd-8afa-4b3d-9a74-ba69f02122e6\",\"sourceId\":\"2d0c016e-8dad-5f6e-80dd-e36740fff7ee\",\"logicalSourceId\":\"R2-27\",\"sourceVersion\":\"v1\",\"currentVerifySha256\":\"925c4735e4d435ab06c40b31ee590b0ce4e7d9220b742155c67e4115b1bc6516\",\"contentSha256\":\"8e0dc2325edff514502ec08d0d0465ad0ba8046e422910d7c89710969da50f76\",\"sourceTenantId\":\"f2d6cf8f-057c-479a-8110-62fe5086d43f\",\"sourceClientId\":null,\"fullRead\":true,\"passageSha256\":\"8e0dc2325edff514502ec08d0d0465ad0ba8046e422910d7c89710969da50f76\",\"responseSha256\":\"2d42264ed2ebb79bafef650a5d25a2d03655cb19e1ddd601b4262336a44c0983\"}],\"boundedRuntime\":{\"modelCalls\":3,\"toolCalls\":1,\"retryCalls\":0,\"maxModelCalls\":13,\"maxToolCalls\":75,\"maxRetryCalls\":5,\"acquisitionStopped\":false,\"stopReason\":null},\"usage\":{\"provider\":{\"status\":\"OBSERVED\",\"value\":\"openai\",\"reason\":null},\"model\":{\"status\":\"OBSERVED\",\"value\":\"gpt-6-astra\",\"reason\":null},\"inputTokens\":\"[REDACTED]\",\"outputTokens\":\"[REDACTED]\",\"cacheReadTokens\":\"[REDACTED]\",\"cacheCreationTokens\":\"[REDACTED]\",\"estimatedCostUsd\":{\"status\":\"OBSERVED\",\"value\":0.6003700000000001,\"reason\":null},\"costKind\":\"existing_pricing_estimate\"},\"releases\":{\"api\":{\"service\":\"api\",\"releaseRevision\":{\"status\":\"OBSERVED\",\"value\":\"4f0253874357c272fda1ae2a5271ee4af645f0bc\",\"reason\":null},\"identityContract\":\"runtime_environment_v1\",\"deploymentProof\":\"PENDING_APPROVED_BUILD_RECEIPT_CROSSCHECK\"},\"orchestrator\":{\"service\":\"meriv2-orchestrator\",\"releaseRevision\":{\"status\":\"OBSERVED\",\"value\":\"4f0253874357c272fda1ae2a5271ee4af645f0bc\",\"reason\":null},\"identityContract\":\"runtime_environment_v1\",\"deploymentProof\":\"PENDING_APPROVED_BUILD_RECEIPT_CROSSCHECK\"}},\"fixture\":{\"namespace\":\"meri-foundation-20260928\",\"version\":{\"status\":\"OBSERVED\",\"value\":\"meri-live-v1-2026-09-26.1\",\"reason\":null},\"physicalMapSha256\":{\"status\":\"OBSERVED\",\"value\":\"929ebb433886c035cfbcbcf8a537acde2157bec86634bfc384b594dfbca05861\",\"reason\":null},\"resetReceiptId\":{\"status\":\"OBSERVED\",\"value\":\"meri-synthetic-fixture-reset-receipt:sha256:28630ec9f867373094583e8f16eaf521f8be00508d03b7b713c11784ab214de0\",\"reason\":null},\"seedReceiptId\":{\"status\":\"OBSERVED\",\"value\":\"meri-synthetic-fixture-seed-receipt:sha256:dbda52dbd9e17320519d4cc40bcd73975fbf0ce0fae21341a1de535644f619e8\",\"reason\":null}},\"effects\":{\"boundary\":\"bounded_capture_path_hooks\",\"writes\":[{\"logicalWriteId\":\"f161ebdf-323e-4995-9a7f-4509541d71f9:context\",\"kind\":\"context_packet_and_evidence\",\"phase\":\"before\",\"status\":\"observed\",\"recordId\":null},{\"logicalWriteId\":\"f161ebdf-323e-4995-9a7f-4509541d71f9:user-message\",\"kind\":\"conversation_user_message\",\"phase\":\"during\",\"status\":\"observed\",\"recordId\":\"3a50a9fd-8afa-4b3d-9a74-ba69f02122e6\"},{\"logicalWriteId\":\"f161ebdf-323e-4995-9a7f-4509541d71f9:assistant-message\",\"kind\":\"conversation_assistant_message\",\"phase\":\"during\",\"status\":\"observed\",\"recordId\":\"09967dee-533c-4177-bfb8-68366cfa0e3f\"},{\"logicalWriteId\":\"f161ebdf-323e-4995-9a7f-4509541d71f9:receipt-metadata\",\"kind\":\"assistant_receipt_metadata\",\"phase\":\"after\",\"status\":\"observed\",\"recordId\":\"09967dee-533c-4177-bfb8-68366cfa0e3f\"},{\"logicalWriteId\":\"f161ebdf-323e-4995-9a7f-4509541d71f9:provider-budget-ledger\",\"kind\":\"provider_budget_ledger\",\"phase\":\"during\",\"status\":\"observed\",\"recordId\":\"db0e01ac-60a1-4e3c-b8ba-66748d087a2e\"}],\"logicalEffects\":[{\"logicalEffectId\":\"f161ebdf-323e-4995-9a7f-4509541d71f9:provider-budget-ledger\",\"operationId\":\"1bbf8e44-e4b8-4952-abb3-84435991f392\",\"receiptId\":\"3d665a2323c36e38733b7c1576af13976c0c4a573fa1a2ccc91f668a630ca5f5\",\"status\":\"observed\"}]},\"predecessorAttestationSha256\":\"e921ad41e4176a41dbd423e4f7f59935758c233854efe6fae0fc9f95f410d459\",\"status\":\"BLOCKED\",\"blockers\":[\"semantic_clock_api_tool_join_pending\",\"semantic_clock_prompt_unproved\",\"source_client_authority_unproved:2d0c016e-8dad-5f6e-80dd-e36740fff7ee\"],\"providerBudget\":{\"version\":1,\"boundary\":\"case20_controlled_read_turn\",\"status\":\"SETTLED\",\"admissionId\":\"1bbf8e44-e4b8-4952-abb3-84435991f392\",\"turnId\":\"3a50a9fd-8afa-4b3d-9a74-ba69f02122e6\",\"ledgerSha256\":\"3d665a2323c36e38733b7c1576af13976c0c4a573fa1a2ccc91f668a630ca5f5\",\"qualificationSha256\":\"47d64a19fdf3a718eddefee998247173f98f9b1d3f24703f31d8b4dee779c9af\",\"attempts\":2,\"chargedTokens\":\"[REDACTED]\",\"chargedCostMicros\":1497175,\"maxCostMicros\":15000000,\"unaccountedBoundaries\":[]}},\"signature\":\"92b23a5b293225c4122afab6812b1f137ab067d6a2e8a12e62b043cb65224743\"}}\n\n"
+  },
+  "readback": {
+    "kind": "case20-postdeadline-owned-provider-budget-readback",
+    "status": "READBACK_CAPTURED",
+    "startedAt": "2026-10-04T02:13:46.880Z",
+    "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+    "conversationId": "db0e01ac-60a1-4e3c-b8ba-66748d087a2e",
+    "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+    "userId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+    "priorExecutionSha256": "bd2b6c273ea2ac3b747d974ec638353066db86d2199ba3ea3b31c0ef648358f8",
+    "priorMessagesObservationSha256": "00c35d633da138416134a369b07c8bc066bf2b5d945901d0346c3f3bfcec6c55",
+    "applicationWrites": 0,
+    "modelSubmissions": 0,
+    "journalMutations": 0,
+    "sessionRevoked": true,
+    "captureAuthority": false,
+    "messagesReadAfterDeadline": false,
+    "priorMessagesEvidence": "RETAINED_PRE_DEADLINE_OBSERVATION_ONLY",
+    "reads": [
+      {
+        "path": "/api/me",
+        "status": 200,
+        "apiReleaseSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+        "bodySha256": "03595ffc23ac84194ba6ed21a18932d79f04bcde680bcdb437233eee51b602f5",
+        "bytes": 1224,
+        "observedAt": "2026-10-04T02:13:50.155Z"
+      },
+      {
+        "path": "/api/clio/conversations/db0e01ac-60a1-4e3c-b8ba-66748d087a2e",
+        "status": 200,
+        "apiReleaseSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+        "bodySha256": "feb0b17528bc36eb751b8340fa8125707a4e45d346e3631a41ba80fb99625675",
+        "bytes": 5318,
+        "observedAt": "2026-10-04T02:13:50.468Z"
+      }
+    ],
+    "providerBudget": {
+      "ledger": {
+        "limits": {
+          "maxTokens": 500000,
+          "deadlineAt": "2026-10-04T01:56:56.119Z",
+          "maxAttempts": 32,
+          "maxCostMicros": 15000000
+        },
+        "version": 1,
+        "attempts": [
+          {
+            "kind": "openai_responses",
+            "model": "gpt-6-astra",
+            "phase": "acquisition",
+            "runId": "1bbf8e44-e4b8-4952-abb3-84435991f392",
+            "status": "settled",
+            "version": 1,
+            "provider": "openai",
+            "attemptId": "openai-responses:cf7de9a10b372bc4dc1b03b16d715f3826f8ca047f0f1f5190fa38f5e145783d:0",
+            "settledAt": "2026-10-04T01:27:02.007Z",
+            "leaseEpoch": 1,
+            "priceKnown": true,
+            "reservedAt": "2026-10-04T01:26:58.652Z",
+            "reservationId": "3b822e51-a624-496f-870e-4e096c75ab53",
+            "actualCostMicros": 735125,
+            "retryOfAttemptId": null,
+            "actualInputTokens": 29330,
+            "actualOutputTokens": 25,
+            "logicalOperationId": "openai-responses:cf7de9a10b372bc4dc1b03b16d715f3826f8ca047f0f1f5190fa38f5e145783d",
+            "reservedCostMicros": 5097600,
+            "reservedInputTokens": 154752,
+            "reservedOutputTokens": 16384
+          },
+          {
+            "kind": "openai_responses",
+            "model": "gpt-6-astra",
+            "phase": "acquisition",
+            "runId": "1bbf8e44-e4b8-4952-abb3-84435991f392",
+            "status": "settled",
+            "version": 1,
+            "provider": "openai",
+            "attemptId": "openai-responses:8a85530212a5f403138c976c69f7f40a7db8b24c1267c37972ba51911d724bbb:0",
+            "settledAt": "2026-10-04T01:27:05.154Z",
+            "leaseEpoch": 1,
+            "priceKnown": true,
+            "reservedAt": "2026-10-04T01:27:02.276Z",
+            "reservationId": "48da380e-f851-489a-b4c0-dbe38b05eb9a",
+            "actualCostMicros": 762050,
+            "retryOfAttemptId": null,
+            "actualInputTokens": 30332,
+            "actualOutputTokens": 50,
+            "logicalOperationId": "openai-responses:8a85530212a5f403138c976c69f7f40a7db8b24c1267c37972ba51911d724bbb",
+            "reservedCostMicros": 5172050,
+            "reservedInputTokens": 157730,
+            "reservedOutputTokens": 16384
+          }
+        ],
+        "activation": "enforced",
+        "chargedTokens": 59737,
+        "chargedAttempts": 2,
+        "chargedCostMicros": 1497175
+      },
+      "turnId": "3a50a9fd-8afa-4b3d-9a74-ba69f02122e6",
+      "version": 1,
+      "admissionId": "1bbf8e44-e4b8-4952-abb3-84435991f392",
+      "policySha256": "f220c783eef2bc097f624c980b658109f6f2d6c86e75caf3a1514ea1ef4531ed",
+      "qualification": {
+        "rates": [
+          {
+            "kind": "openai_responses",
+            "model": "gpt-6-astra",
+            "provider": "openai",
+            "inputMicrosPerMillion": 25000000,
+            "outputMicrosPerMillion": 75000000
+          },
+          {
+            "kind": "bedrock_embeddings",
+            "model": "amazon.titan-embed-text-v2:0",
+            "provider": "aws-bedrock",
+            "inputMicrosPerMillion": 20000,
+            "outputMicrosPerMillion": 0
+          }
+        ],
+        "caseId": "20",
+        "version": 1,
+        "maxTokens": 500000,
+        "priceKind": "qualified_text_token_upper_bound",
+        "maxAttempts": 32,
+        "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+        "maxCostMicros": 15000000,
+        "rateEvidenceSha256": "a1a179383c8451495336169f46025eb8cee8ec95487f1a43017078387b768b11",
+        "currentVerifySha256": "925c4735e4d435ab06c40b31ee590b0ce4e7d9220b742155c67e4115b1bc6516",
+        "rateEvidenceExpiresAt": "2026-10-04T05:29:01.587Z"
+      },
+      "qualificationSha256": "47d64a19fdf3a718eddefee998247173f98f9b1d3f24703f31d8b4dee779c9af"
+    },
+    "providerLedgerMatchesSignedReceipt": true,
+    "afterProviderDeadline": true,
+    "finishedAt": "2026-10-04T02:13:50.607Z",
+    "journalUnchanged": true
+  },
+  "me": {
+    "observation": {
+      "path": "/api/me",
+      "status": 200,
+      "apiReleaseSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+      "bodySha256": "03595ffc23ac84194ba6ed21a18932d79f04bcde680bcdb437233eee51b602f5",
+      "bytes": 1224,
+      "observedAt": "2026-10-04T02:13:50.155Z"
+    },
+    "value": {
+      "user": {
+        "id": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+        "clerkUserId": "user_3Jw2FvWZkYGKmxWGx13tNJxFD2A",
+        "email": "meri-foundation-20260928.pat@example.com",
+        "firstName": "Pat",
+        "lastName": "Synthetic",
+        "title": null,
+        "emailSignatureEnabled": false,
+        "hasEmailSignature": false,
+        "tourCompleted": false,
+        "legiwatchIntroSeen": false,
+        "legiwatchPrefs": null
+      },
+      "tenant": {
+        "id": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+        "slug": "meri-foundation-20260928-t1",
+        "name": "Meri Foundation Synthetic T1 (meri-foundation-20260928)"
+      },
+      "role": "standard_user",
+      "billingAdmin": false,
+      "entitlements": {
+        "memoryGovernance": true,
+        "peWatch": true,
+        "defenseBudgetIntel": true,
+        "complianceModule": true,
+        "dataExport": true,
+        "customConnectors": true
+      },
+      "features": {
+        "meetingsV2": false,
+        "outreachAsyncGen": false,
+        "outreachAsyncSend": false,
+        "versionedOutreach": true,
+        "externalSendV2Required": true,
+        "meriDockUndockUi": true,
+        "meriv3Chat": true,
+        "strategyPlanner": false,
+        "engagementVNext": false,
+        "strategyPlannerMeri": false,
+        "agenticMeri": false,
+        "contextSteward": false,
+        "strategyWatcher": false,
+        "businessDevelopment": false,
+        "businessDevelopmentDossier": false,
+        "businessDevelopmentBrief": false,
+        "businessDevelopmentMeriProspectTools": false,
+        "businessDevelopmentClaimValidation": false,
+        "businessDevelopmentWatch": false
+      }
+    }
+  },
+  "conversation": {
+    "observation": {
+      "path": "/api/clio/conversations/db0e01ac-60a1-4e3c-b8ba-66748d087a2e",
+      "status": 200,
+      "apiReleaseSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+      "bodySha256": "feb0b17528bc36eb751b8340fa8125707a4e45d346e3631a41ba80fb99625675",
+      "bytes": 5318,
+      "observedAt": "2026-10-04T02:13:50.468Z"
+    },
+    "value": {
+      "id": "db0e01ac-60a1-4e3c-b8ba-66748d087a2e",
+      "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+      "userId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+      "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+      "workspaceId": null,
+      "workspaceKey": "workspace",
+      "title": "meri-foundation-20260928 case20 f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+      "status": "active",
+      "nanoclawPlatformId": null,
+      "nanoclawAgentGroupId": null,
+      "metadata": {
+        "brand": "Meri",
+        "runtime": "Hermes",
+        "userEmail": "meri-foundation-20260928.pat@example.com",
+        "serverCaptureProviderBudget": {
+          "ledger": {
+            "limits": {
+              "maxTokens": 500000,
+              "deadlineAt": "2026-10-04T01:56:56.119Z",
+              "maxAttempts": 32,
+              "maxCostMicros": 15000000
+            },
+            "version": 1,
+            "attempts": [
+              {
+                "kind": "openai_responses",
+                "model": "gpt-6-astra",
+                "phase": "acquisition",
+                "runId": "1bbf8e44-e4b8-4952-abb3-84435991f392",
+                "status": "settled",
+                "version": 1,
+                "provider": "openai",
+                "attemptId": "openai-responses:cf7de9a10b372bc4dc1b03b16d715f3826f8ca047f0f1f5190fa38f5e145783d:0",
+                "settledAt": "2026-10-04T01:27:02.007Z",
+                "leaseEpoch": 1,
+                "priceKnown": true,
+                "reservedAt": "2026-10-04T01:26:58.652Z",
+                "reservationId": "3b822e51-a624-496f-870e-4e096c75ab53",
+                "actualCostMicros": 735125,
+                "retryOfAttemptId": null,
+                "actualInputTokens": 29330,
+                "actualOutputTokens": 25,
+                "logicalOperationId": "openai-responses:cf7de9a10b372bc4dc1b03b16d715f3826f8ca047f0f1f5190fa38f5e145783d",
+                "reservedCostMicros": 5097600,
+                "reservedInputTokens": 154752,
+                "reservedOutputTokens": 16384
+              },
+              {
+                "kind": "openai_responses",
+                "model": "gpt-6-astra",
+                "phase": "acquisition",
+                "runId": "1bbf8e44-e4b8-4952-abb3-84435991f392",
+                "status": "settled",
+                "version": 1,
+                "provider": "openai",
+                "attemptId": "openai-responses:8a85530212a5f403138c976c69f7f40a7db8b24c1267c37972ba51911d724bbb:0",
+                "settledAt": "2026-10-04T01:27:05.154Z",
+                "leaseEpoch": 1,
+                "priceKnown": true,
+                "reservedAt": "2026-10-04T01:27:02.276Z",
+                "reservationId": "48da380e-f851-489a-b4c0-dbe38b05eb9a",
+                "actualCostMicros": 762050,
+                "retryOfAttemptId": null,
+                "actualInputTokens": 30332,
+                "actualOutputTokens": 50,
+                "logicalOperationId": "openai-responses:8a85530212a5f403138c976c69f7f40a7db8b24c1267c37972ba51911d724bbb",
+                "reservedCostMicros": 5172050,
+                "reservedInputTokens": 157730,
+                "reservedOutputTokens": 16384
+              }
+            ],
+            "activation": "enforced",
+            "chargedTokens": 59737,
+            "chargedAttempts": 2,
+            "chargedCostMicros": 1497175
+          },
+          "turnId": "3a50a9fd-8afa-4b3d-9a74-ba69f02122e6",
+          "version": 1,
+          "admissionId": "1bbf8e44-e4b8-4952-abb3-84435991f392",
+          "policySha256": "f220c783eef2bc097f624c980b658109f6f2d6c86e75caf3a1514ea1ef4531ed",
+          "qualification": {
+            "rates": [
+              {
+                "kind": "openai_responses",
+                "model": "gpt-6-astra",
+                "provider": "openai",
+                "inputMicrosPerMillion": 25000000,
+                "outputMicrosPerMillion": 75000000
+              },
+              {
+                "kind": "bedrock_embeddings",
+                "model": "amazon.titan-embed-text-v2:0",
+                "provider": "aws-bedrock",
+                "inputMicrosPerMillion": 20000,
+                "outputMicrosPerMillion": 0
+              }
+            ],
+            "caseId": "20",
+            "version": 1,
+            "maxTokens": 500000,
+            "priceKind": "qualified_text_token_upper_bound",
+            "maxAttempts": 32,
+            "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+            "maxCostMicros": 15000000,
+            "rateEvidenceSha256": "a1a179383c8451495336169f46025eb8cee8ec95487f1a43017078387b768b11",
+            "currentVerifySha256": "925c4735e4d435ab06c40b31ee590b0ce4e7d9220b742155c67e4115b1bc6516",
+            "rateEvidenceExpiresAt": "2026-10-04T05:29:01.587Z"
+          },
+          "qualificationSha256": "47d64a19fdf3a718eddefee998247173f98f9b1d3f24703f31d8b4dee779c9af"
+        }
+      },
+      "summary": null,
+      "summaryUpToMessageId": null,
+      "summaryTokens": null,
+      "createdAt": "2026-10-04T00:53:20.651Z",
+      "updatedAt": "2026-10-04T01:27:05.113Z",
+      "archivedAt": null,
+      "client": {
+        "id": "41f9ec63-3963-479f-b747-59a3767ef44b",
+        "name": "Aster Defense"
+      },
+      "captureAdmission": {
+        "schemaVersion": 1,
+        "kind": "meri-controlled-read-authenticated-admission",
+        "status": "READY",
+        "caseId": "20",
+        "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+        "conversationId": "db0e01ac-60a1-4e3c-b8ba-66748d087a2e",
+        "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+        "actorUserId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+        "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+        "issuedAt": 1791080028461,
+        "expiresAt": 1791080088461,
+        "apiReleaseSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+        "toolAuthority": "shared_static_registry_read_only",
+        "toolCatalogSha256": "1a08b2447cdb77040470bbd1ee52426720f8da602b9909a2a880e095ed0c6678",
+        "dynamicMcpAllowed": false,
+        "incidentalWriters": "suppressed",
+        "fixture": {
+          "fixtureNamespace": "meri-foundation-20260928",
+          "fixtureVersion": "meri-live-v1-2026-09-26.1",
+          "physicalMapSha256": "929ebb433886c035cfbcbcf8a537acde2157bec86634bfc384b594dfbca05861",
+          "currentVerifySha256": "925c4735e4d435ab06c40b31ee590b0ce4e7d9220b742155c67e4115b1bc6516",
+          "seedReceiptId": "meri-synthetic-fixture-seed-receipt:sha256:dbda52dbd9e17320519d4cc40bcd73975fbf0ce0fae21341a1de535644f619e8",
+          "resetReceiptId": "meri-synthetic-fixture-reset-receipt:sha256:28630ec9f867373094583e8f16eaf521f8be00508d03b7b713c11784ab214de0",
+          "sources": [
+            {
+              "logicalId": "R2-27",
+              "physicalId": "2d0c016e-8dad-5f6e-80dd-e36740fff7ee",
+              "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+              "clientId": null,
+              "sourceVersion": "v1",
+              "contentSha256": "8e0dc2325edff514502ec08d0d0465ad0ba8046e422910d7c89710969da50f76",
+              "kind": "budget_document",
+              "sourceStorage": "immutable_source_owned_controlled_adapter"
+            }
+          ]
+        },
+        "providerBudget": {
+          "ready": true,
+          "qualificationSha256": "47d64a19fdf3a718eddefee998247173f98f9b1d3f24703f31d8b4dee779c9af",
+          "currentVerifySha256": "925c4735e4d435ab06c40b31ee590b0ce4e7d9220b742155c67e4115b1bc6516",
+          "maxCostMicros": 15000000,
+          "coverage": "case20_controlled_read_turn"
+        }
+      }
+    }
+  },
+  "earlierConversation": {
+    "observation": {
+      "path": "/api/clio/conversations/db0e01ac-60a1-4e3c-b8ba-66748d087a2e",
+      "status": 200,
+      "apiReleaseSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+      "bodySha256": "a9919af33594cdc4e0cfa23de3de157b6702b778107e490e1848159b8c68179d",
+      "bytes": 5318,
+      "observedAt": "2026-10-04T01:33:55.062Z"
+    },
+    "value": {
+      "id": "db0e01ac-60a1-4e3c-b8ba-66748d087a2e",
+      "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+      "userId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+      "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+      "workspaceId": null,
+      "workspaceKey": "workspace",
+      "title": "meri-foundation-20260928 case20 f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+      "status": "active",
+      "nanoclawPlatformId": null,
+      "nanoclawAgentGroupId": null,
+      "metadata": {
+        "brand": "Meri",
+        "runtime": "Hermes",
+        "userEmail": "meri-foundation-20260928.pat@example.com",
+        "serverCaptureProviderBudget": {
+          "ledger": {
+            "limits": {
+              "maxTokens": 500000,
+              "deadlineAt": "2026-10-04T01:56:56.119Z",
+              "maxAttempts": 32,
+              "maxCostMicros": 15000000
+            },
+            "version": 1,
+            "attempts": [
+              {
+                "kind": "openai_responses",
+                "model": "gpt-6-astra",
+                "phase": "acquisition",
+                "runId": "1bbf8e44-e4b8-4952-abb3-84435991f392",
+                "status": "settled",
+                "version": 1,
+                "provider": "openai",
+                "attemptId": "openai-responses:cf7de9a10b372bc4dc1b03b16d715f3826f8ca047f0f1f5190fa38f5e145783d:0",
+                "settledAt": "2026-10-04T01:27:02.007Z",
+                "leaseEpoch": 1,
+                "priceKnown": true,
+                "reservedAt": "2026-10-04T01:26:58.652Z",
+                "reservationId": "3b822e51-a624-496f-870e-4e096c75ab53",
+                "actualCostMicros": 735125,
+                "retryOfAttemptId": null,
+                "actualInputTokens": 29330,
+                "actualOutputTokens": 25,
+                "logicalOperationId": "openai-responses:cf7de9a10b372bc4dc1b03b16d715f3826f8ca047f0f1f5190fa38f5e145783d",
+                "reservedCostMicros": 5097600,
+                "reservedInputTokens": 154752,
+                "reservedOutputTokens": 16384
+              },
+              {
+                "kind": "openai_responses",
+                "model": "gpt-6-astra",
+                "phase": "acquisition",
+                "runId": "1bbf8e44-e4b8-4952-abb3-84435991f392",
+                "status": "settled",
+                "version": 1,
+                "provider": "openai",
+                "attemptId": "openai-responses:8a85530212a5f403138c976c69f7f40a7db8b24c1267c37972ba51911d724bbb:0",
+                "settledAt": "2026-10-04T01:27:05.154Z",
+                "leaseEpoch": 1,
+                "priceKnown": true,
+                "reservedAt": "2026-10-04T01:27:02.276Z",
+                "reservationId": "48da380e-f851-489a-b4c0-dbe38b05eb9a",
+                "actualCostMicros": 762050,
+                "retryOfAttemptId": null,
+                "actualInputTokens": 30332,
+                "actualOutputTokens": 50,
+                "logicalOperationId": "openai-responses:8a85530212a5f403138c976c69f7f40a7db8b24c1267c37972ba51911d724bbb",
+                "reservedCostMicros": 5172050,
+                "reservedInputTokens": 157730,
+                "reservedOutputTokens": 16384
+              }
+            ],
+            "activation": "enforced",
+            "chargedTokens": 59737,
+            "chargedAttempts": 2,
+            "chargedCostMicros": 1497175
+          },
+          "turnId": "3a50a9fd-8afa-4b3d-9a74-ba69f02122e6",
+          "version": 1,
+          "admissionId": "1bbf8e44-e4b8-4952-abb3-84435991f392",
+          "policySha256": "f220c783eef2bc097f624c980b658109f6f2d6c86e75caf3a1514ea1ef4531ed",
+          "qualification": {
+            "rates": [
+              {
+                "kind": "openai_responses",
+                "model": "gpt-6-astra",
+                "provider": "openai",
+                "inputMicrosPerMillion": 25000000,
+                "outputMicrosPerMillion": 75000000
+              },
+              {
+                "kind": "bedrock_embeddings",
+                "model": "amazon.titan-embed-text-v2:0",
+                "provider": "aws-bedrock",
+                "inputMicrosPerMillion": 20000,
+                "outputMicrosPerMillion": 0
+              }
+            ],
+            "caseId": "20",
+            "version": 1,
+            "maxTokens": 500000,
+            "priceKind": "qualified_text_token_upper_bound",
+            "maxAttempts": 32,
+            "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+            "maxCostMicros": 15000000,
+            "rateEvidenceSha256": "a1a179383c8451495336169f46025eb8cee8ec95487f1a43017078387b768b11",
+            "currentVerifySha256": "925c4735e4d435ab06c40b31ee590b0ce4e7d9220b742155c67e4115b1bc6516",
+            "rateEvidenceExpiresAt": "2026-10-04T05:29:01.587Z"
+          },
+          "qualificationSha256": "47d64a19fdf3a718eddefee998247173f98f9b1d3f24703f31d8b4dee779c9af"
+        }
+      },
+      "summary": null,
+      "summaryUpToMessageId": null,
+      "summaryTokens": null,
+      "createdAt": "2026-10-04T00:53:20.651Z",
+      "updatedAt": "2026-10-04T01:27:05.113Z",
+      "archivedAt": null,
+      "client": {
+        "id": "41f9ec63-3963-479f-b747-59a3767ef44b",
+        "name": "Aster Defense"
+      },
+      "captureAdmission": {
+        "schemaVersion": 1,
+        "kind": "meri-controlled-read-authenticated-admission",
+        "status": "READY",
+        "caseId": "20",
+        "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+        "conversationId": "db0e01ac-60a1-4e3c-b8ba-66748d087a2e",
+        "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+        "actorUserId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+        "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+        "issuedAt": 1791077633110,
+        "expiresAt": 1791077693110,
+        "apiReleaseSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+        "toolAuthority": "shared_static_registry_read_only",
+        "toolCatalogSha256": "1a08b2447cdb77040470bbd1ee52426720f8da602b9909a2a880e095ed0c6678",
+        "dynamicMcpAllowed": false,
+        "incidentalWriters": "suppressed",
+        "fixture": {
+          "fixtureNamespace": "meri-foundation-20260928",
+          "fixtureVersion": "meri-live-v1-2026-09-26.1",
+          "physicalMapSha256": "929ebb433886c035cfbcbcf8a537acde2157bec86634bfc384b594dfbca05861",
+          "currentVerifySha256": "925c4735e4d435ab06c40b31ee590b0ce4e7d9220b742155c67e4115b1bc6516",
+          "seedReceiptId": "meri-synthetic-fixture-seed-receipt:sha256:dbda52dbd9e17320519d4cc40bcd73975fbf0ce0fae21341a1de535644f619e8",
+          "resetReceiptId": "meri-synthetic-fixture-reset-receipt:sha256:28630ec9f867373094583e8f16eaf521f8be00508d03b7b713c11784ab214de0",
+          "sources": [
+            {
+              "logicalId": "R2-27",
+              "physicalId": "2d0c016e-8dad-5f6e-80dd-e36740fff7ee",
+              "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+              "clientId": null,
+              "sourceVersion": "v1",
+              "contentSha256": "8e0dc2325edff514502ec08d0d0465ad0ba8046e422910d7c89710969da50f76",
+              "kind": "budget_document",
+              "sourceStorage": "immutable_source_owned_controlled_adapter"
+            }
+          ]
+        },
+        "providerBudget": {
+          "ready": true,
+          "qualificationSha256": "47d64a19fdf3a718eddefee998247173f98f9b1d3f24703f31d8b4dee779c9af",
+          "currentVerifySha256": "925c4735e4d435ab06c40b31ee590b0ce4e7d9220b742155c67e4115b1bc6516",
+          "maxCostMicros": 15000000,
+          "coverage": "case20_controlled_read_turn"
+        }
+      }
+    }
+  },
+  "scope": {
+    "config": {
+      "schemaVersion": 1,
+      "provenance": "LIVE_CAPTURE",
+      "caseId": "20",
+      "target": {
+        "apiOrigin": "https://os.capiro.ai",
+        "environment": "capiro-dev"
+      },
+      "limits": {
+        "concurrency": 1,
+        "deadlineMs": 600000,
+        "maxSpendUsd": 15
+      },
+      "contract": {
+        "fixtureSha256": "2a8159d45d512f325539eb700907700ecc16cbc2d6536277adf85d8f49368e61",
+        "contractSourceSha256": "acd2a1cf766ad6e988025c4c43235213164926e7036cc8361986916d59963b66"
+      },
+      "fixture": {
+        "version": "meri-live-v1-2026-09-26.1",
+        "namespace": "meri-foundation-20260928",
+        "sha256": "2a8159d45d512f325539eb700907700ecc16cbc2d6536277adf85d8f49368e61",
+        "mappingSha256": "929ebb433886c035cfbcbcf8a537acde2157bec86634bfc384b594dfbca05861",
+        "seedReceiptId": "meri-synthetic-fixture-seed-receipt:sha256:dbda52dbd9e17320519d4cc40bcd73975fbf0ce0fae21341a1de535644f619e8",
+        "resetReceiptId": "meri-synthetic-fixture-reset-receipt:sha256:28630ec9f867373094583e8f16eaf521f8be00508d03b7b713c11784ab214de0"
+      },
+      "scope": {
+        "actors": {
+          "PAT": {
+            "userId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+            "clerkUserId": "user_3Jw2FvWZkYGKmxWGx13tNJxFD2A",
+            "role": "standard_user",
+            "tenantPhysicalId": "f2d6cf8f-057c-479a-8110-62fe5086d43f"
+          }
+        },
+        "tenants": {
+          "T1": {
+            "physicalId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+            "slug": "meri-foundation-20260928-t1"
+          }
+        },
+        "clients": {
+          "ASTER": {
+            "physicalId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+            "tenantPhysicalId": "f2d6cf8f-057c-479a-8110-62fe5086d43f"
+          }
+        },
+        "sources": {
+          "R2-27": {
+            "frozenFixtureId": "R2-27",
+            "physicalId": "2d0c016e-8dad-5f6e-80dd-e36740fff7ee",
+            "tenantPhysicalId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+            "clientPhysicalId": null,
+            "kind": "budget_document",
+            "version": "v1"
+          }
+        }
+      },
+      "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+      "conversationId": null,
+      "deployment": {
+        "apiSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+        "orchestratorSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+        "builds": {
+          "api": {
+            "service": "api",
+            "sourceSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+            "imageDigest": "sha256:23f529da3c1c00d401968811575dc075bced6c60669baa9a09e9c23575c9c452",
+            "buildId": "capiro-build-web-dev:5ca674e3-f986-46fa-bb05-2ca8e14d1d67",
+            "buildspecSha256": "61cc399b632b885b2c17dfb692a536ba493246465573fb83469669c6267e2811"
+          },
+          "meriv2-orchestrator": {
+            "service": "meriv2-orchestrator",
+            "sourceSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+            "imageDigest": "sha256:1c491a5ac46ea320195fe8ab367322ad2ebbd0949d69530b5ccfba2de84eb491",
+            "buildId": "capiro-build-web-dev:1105f91e-3171-41aa-ae00-7f28540caf90",
+            "buildspecSha256": "eb741a51f6169fdca94e6a3d69ab5bfa18ef0f22098016518e8dc30120aa8a24"
+          }
+        }
+      }
+    },
+    "setupReceipt": {
+      "status": "CONTROLLED_READ_BOUND",
+      "operationId": "686b00e9-6ee9-4e44-b29b-a728795f0d83",
+      "binding": {
+        "caseId": "20",
+        "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+        "fixtureVersion": "meri-live-v1-2026-09-26.1",
+        "physicalMapSha256": "929ebb433886c035cfbcbcf8a537acde2157bec86634bfc384b594dfbca05861",
+        "seedReceiptId": "meri-synthetic-fixture-seed-receipt:sha256:dbda52dbd9e17320519d4cc40bcd73975fbf0ce0fae21341a1de535644f619e8",
+        "resetReceiptId": "meri-synthetic-fixture-reset-receipt:sha256:28630ec9f867373094583e8f16eaf521f8be00508d03b7b713c11784ab214de0",
+        "fixtureNamespace": "meri-foundation-20260928",
+        "actorUserId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+        "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+        "currentVerifySha256": "925c4735e4d435ab06c40b31ee590b0ce4e7d9220b742155c67e4115b1bc6516"
+      },
+      "sourceMap": {
+        "R2-27": {
+          "frozenFixtureId": "R2-27",
+          "physicalId": "2d0c016e-8dad-5f6e-80dd-e36740fff7ee",
+          "tenantPhysicalId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+          "clientPhysicalId": null,
+          "kind": "budget_document",
+          "version": "v1"
+        }
+      },
+      "currentVerifySha256": "925c4735e4d435ab06c40b31ee590b0ce4e7d9220b742155c67e4115b1bc6516",
+      "seedReceipt": {
+        "schemaVersion": 1,
+        "contractVersion": "meri-synthetic-fixture-provisioning-v1",
+        "kind": "meri-synthetic-fixture-seed-receipt",
+        "owner": "meri_controlled_read_v1",
+        "operationId": "686b00e9-6ee9-4e44-b29b-a728795f0d83",
+        "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+        "actorUserId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+        "caseId": "20",
+        "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+        "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+        "definitionSha256": "bfb7af9d607d6ba0bd81479c72c282ea50f082a5f9cecc7ea1d8915503b493f9",
+        "physicalMapSha256": "929ebb433886c035cfbcbcf8a537acde2157bec86634bfc384b594dfbca05861",
+        "sourceStorage": "immutable_source_owned_controlled_adapter",
+        "sharedCorpusWrites": 0,
+        "contentSha256": "dbda52dbd9e17320519d4cc40bcd73975fbf0ce0fae21341a1de535644f619e8"
+      },
+      "resetReceipt": {
+        "schemaVersion": 1,
+        "contractVersion": "meri-synthetic-fixture-provisioning-v1",
+        "kind": "meri-synthetic-fixture-reset-receipt",
+        "owner": "meri_controlled_read_v1",
+        "operationId": "686b00e9-6ee9-4e44-b29b-a728795f0d83",
+        "scope": "replace_owned_capture_binding_and_controlled_locator_only",
+        "priorSettingsSha256": "a424d1d6697f7434c05a7d53efcd2703cc0d13d76dad2a69303522d486dab409",
+        "sharedCorpusWrites": 0,
+        "contentSha256": "28630ec9f867373094583e8f16eaf521f8be00508d03b7b713c11784ab214de0"
+      },
+      "sharedCorpusWrites": 0,
+      "liveAcceptance": "NOT_RUN"
+    },
+    "expectedWebSha": "78ad5805679a3045b1fc10fb19beafa7f76e4e64",
+    "qualificationExpiresAt": "2026-10-04T05:29:01.587Z",
+    "operatorSourceSha": "af7aa8aff4777a2d4809e882c2b797fbb2cd51a2",
+    "aggregateCheckpoint": {
+      "kind": "meri-fresh-capture-spend-checkpoint",
+      "version": 1,
+      "state": {
+        "root": "C:\\dev\\main\\outputs\\meri-fresh-20261003",
+        "freshVersion": 1,
+        "directories": {
+          "C:": "5081a475:50000:5:1da8405:2f19714a",
+          "C:/dev": "5081a475:30000:9ca2a:1dd1c57:eded5d59",
+          "C:/dev/main": "5081a475:130000:2bb7a0:1dd4485:55c889ba",
+          "C:/dev/main/outputs": "5081a475:70000:71d503:1dd471a:fb902f7b",
+          "C:/dev/main/outputs/meri-fresh-20261003": "5081a475:80000:11d74b4:1dd52d6:86131ecd"
+        },
+        "files": {
+          "run-authorization.json": {
+            "identity": "5081a475:1f0000:33e3a:1dd52d7:913b0334",
+            "sha256": "e07822e83a7c7b531606519ecd4fdf1027f2fa7cbaefd4bad92a2084590262fe",
+            "bytes": 489
+          },
+          "fresh-spend.jsonl": {
+            "identity": "5081a475:80000:11d75c5:1dd52d7:92f07d2a",
+            "sha256": "a8c8101a4d806ef8080e1648c9e46568a55b7b5f93cb0f053a3d601404bfe3b5",
+            "bytes": 14139
+          }
+        }
+      },
+      "snapshot": {
+        "protocolVersion": 3,
+        "eventCount": 22,
+        "runs": {
+          "01:cc0d21a5-8981-4fbf-81dc-f2be3a63898c": {
+            "at": "2026-10-03T01:36:12.747Z",
+            "caseId": "01",
+            "captureRunId": "cc0d21a5-8981-4fbf-81dc-f2be3a63898c",
+            "reservationId": "c2cd316e-2d09-4c76-88cf-a9c0ef20e098",
+            "event": "reserved",
+            "ceilingMicros": 15000000,
+            "conversationId": "55452c90-5718-4e0c-9ffd-d9bf2c3439ad",
+            "qualificationSha256": "9ded2743ac47c55240e7eae05a7147aab34ff354d014ac39bcdc0528899aa2d9",
+            "chargedCostMicros": 1490802,
+            "historical": true
+          },
+          "02:62742c07-529c-47c1-aeeb-01474522ccbd": {
+            "at": "2026-10-03T01:43:34.996Z",
+            "caseId": "02",
+            "captureRunId": "62742c07-529c-47c1-aeeb-01474522ccbd",
+            "reservationId": "c4764abd-e3a8-4d6b-819f-77f4e08ee231",
+            "event": "reserved",
+            "ceilingMicros": 15000000,
+            "conversationId": "805cdde4-7cd2-482f-9e53-5b5b7724682e",
+            "qualificationSha256": "119ea537cd93a48a3126e5e6c178b63b68afc35132cd968085993e686c2ffe9d",
+            "chargedCostMicros": 1503301,
+            "historical": true
+          },
+          "03:65c093f9-d7ee-410c-865b-65d3683e9514": {
+            "at": "2026-10-03T01:49:09.943Z",
+            "caseId": "03",
+            "captureRunId": "65c093f9-d7ee-410c-865b-65d3683e9514",
+            "reservationId": "41820c9a-6f51-4062-aad6-d308fadfa7e3",
+            "event": "reserved",
+            "ceilingMicros": 15000000,
+            "conversationId": "2755ade6-35e6-43c1-8b48-bdbff01bd3a5",
+            "qualificationSha256": "d238c1c371685e78179b70c2dbe0ef1bb1805b8affb909b88a41cdd8f89db37d",
+            "chargedCostMicros": 3086726,
+            "historical": true
+          },
+          "04:ce58a8c8-8c5e-439b-b842-dd5aa5a06395": {
+            "at": "2026-10-03T01:54:49.415Z",
+            "caseId": "04",
+            "captureRunId": "ce58a8c8-8c5e-439b-b842-dd5aa5a06395",
+            "reservationId": "0da06107-11b3-4ce4-90bd-67a8f022c369",
+            "event": "reserved",
+            "ceilingMicros": 15000000,
+            "conversationId": "9b70c52b-d537-4347-b6b0-1b005aeb3e3c",
+            "qualificationSha256": "fe06d197ad2ad953a8719094af02aaa137b3746df1e90f2b5b70b1e2ec5a40bc",
+            "chargedCostMicros": 1499326,
+            "historical": true
+          },
+          "05:1008c920-0d14-4110-806e-76399e9e7641": {
+            "at": "2026-10-03T02:00:20.010Z",
+            "caseId": "05",
+            "captureRunId": "1008c920-0d14-4110-806e-76399e9e7641",
+            "reservationId": "8b91b48b-fa26-4395-9cbe-669efd18ab1a",
+            "event": "reserved",
+            "ceilingMicros": 15000000,
+            "conversationId": "1bfb1e6c-2128-4f9d-9fea-3e02a8f1c7b7",
+            "qualificationSha256": "def98c7562f7637db8a87aa7beac067a95093144c22bef12acdeee925e210752",
+            "chargedCostMicros": 2261126,
+            "historical": true
+          },
+          "01:bd35c0f4-1604-4371-b7e9-a1338369e53f": {
+            "atMs": 1791064128652,
+            "captureRunId": "bd35c0f4-1604-4371-b7e9-a1338369e53f",
+            "caseId": "01",
+            "ceilingMicros": 15000000,
+            "event": "reserved",
+            "nativeCaptureVersion": 1,
+            "reservationId": "cf7ea1df-6996-4d29-a5d5-b98db9c85c61",
+            "sequence": 21,
+            "chargedCostMicros": 2292602,
+            "terminalCostReconciled": true,
+            "captureAuthority": false,
+            "captureStatus": "CAPTURE_UNCERTAIN",
+            "answerGrade": "NOT_EVALUATED",
+            "reconciliationProofSha256": "59b7055d48bb074d13f57eb16c93334b258800107c039667aa445c3bf5e26648"
+          }
+        },
+        "activeRun": null,
+        "knownSettledCostMicros": 12133883,
+        "committedCostMicros": 12133883,
+        "remainingReservationMicros": 17866117,
+        "perCaseMaxCostMicros": 15000000,
+        "historicalPrefixSha256": "abe458973e6998db20586c781ac5a3cbd4ca2fa565425e62722f0eb9c985210b",
+        "olderCosts": "UNRESOLVED_SEPARATE_NOT_REPLACED"
+      }
+    }
+  },
+  "originalClaim": {
+    "kind": "meri-controlled-read-one-shot-claim",
+    "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+    "caseId": "20",
+    "operatorSourceSha": "af7aa8aff4777a2d4809e882c2b797fbb2cd51a2",
+    "outRoot": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+    "createdAt": "2026-10-04T00:52:57.635Z"
+  },
+  "recoveryClaim": {
+    "kind": "case20-presubmission-recovery-once",
+    "version": 1,
+    "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+    "conversationId": "db0e01ac-60a1-4e3c-b8ba-66748d087a2e",
+    "reservationId": "7ea73cdc-526e-4b31-8c28-b0636ea8d2ae",
+    "ceilingMicros": 15000000,
+    "priorExecutionSha256": "e210847d83b7b4998d0e0cc57b51bc7d93b290ab6b5bcddcd5ee9f24fdc1f2c7",
+    "priorHistorySha256": "7675b0e47b1faa78bb288e8f4eeb463da72a64153ed792ef388beecae078c2f5",
+    "priorClaimSha256": "3a7c2bfe69f17785e74752d7c0ba64753d91818bd6965fdfdf192f59896478f3",
+    "checkpointSha256": "bc3a5a601507ad987c637cfe7b9da08a9fbaae576548977ca989158481c052a7",
+    "journalSha256": "d6213af1fd8330e9e97a688d903a3c1852b5f40265a66eafb6aa2bf1cfa2060b",
+    "expectedSha256": "434ec2668da9c4d79d6efc259967b1f475786fca1e289f638119f9b7fa3d4234",
+    "observations": [
+      {
+        "method": "GET",
+        "path": "/api/me",
+        "status": 200,
+        "apiSourceSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+        "bodySha256": "03595ffc23ac84194ba6ed21a18932d79f04bcde680bcdb437233eee51b602f5",
+        "bytes": 1224,
+        "observedAt": 1791077196067
+      },
+      {
+        "method": "GET",
+        "path": "/api/clio/status",
+        "status": 200,
+        "apiSourceSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+        "bodySha256": "39acec4ad46cce70ea7ae79a2df2c112a8c54277fc0285d0c90ef0bcd5aaf144",
+        "bytes": 55170,
+        "observedAt": 1791077196237
+      },
+      {
+        "method": "GET",
+        "path": "/api/clio/conversations/db0e01ac-60a1-4e3c-b8ba-66748d087a2e",
+        "status": 200,
+        "apiSourceSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+        "bodySha256": "4083ac7395611ee7da8d8dd010ffb9509d3fb0c48547f300f37200dc0faa04ea",
+        "bytes": 2574,
+        "observedAt": 1791077196956
+      },
+      {
+        "method": "GET",
+        "path": "/api/clio/conversations/db0e01ac-60a1-4e3c-b8ba-66748d087a2e/messages",
+        "status": 200,
+        "apiSourceSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+        "bodySha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "bytes": 2,
+        "observedAt": 1791077197089
+      }
+    ],
+    "createdAt": 1791077197104,
+    "noAutomaticRetry": true,
+    "noNewReservation": true
+  },
+  "authorization": {
+    "kind": "fresh_independent_benchmark",
+    "authorization": [
+      "run the becnh mark again",
+      "start your own"
+    ],
+    "createdAt": "2026-10-03T01:36:09.899Z",
+    "maxCostMicros": 30000000,
+    "perCaseMaxCostMicros": 15000000,
+    "concurrency": 1,
+    "historyDisposition": "Previous evidence and unresolved costs retained separately; no prior run retried or reset.",
+    "semanticClock": "2026-09-26T16:00:00.000Z",
+    "semanticClockInjected": false,
+    "originalAcceptance": "NOT_CLAIMED"
+  }
+}

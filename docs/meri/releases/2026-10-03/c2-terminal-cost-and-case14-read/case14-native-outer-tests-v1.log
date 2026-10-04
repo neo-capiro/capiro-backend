@@ -1,0 +1,12 @@
+✔ happy path deduplicates repeated transport events and confirms cleanup (57.5132ms)
+✔ uncertain run acknowledgment discovers/stops exact task, preserves failure (5.055ms)
+✔ uncertain run with no match cannot claim cleanup complete (2.8718ms)
+✔ uncertain registration cannot claim cleanup complete or launch a task (1.7301ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 175.4504

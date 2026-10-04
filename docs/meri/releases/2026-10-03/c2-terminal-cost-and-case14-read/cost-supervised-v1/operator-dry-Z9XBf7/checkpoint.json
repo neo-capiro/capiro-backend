@@ -1,0 +1,149 @@
+{
+  "kind": "case20-terminal-cost-offline-qualification",
+  "status": "PASS",
+  "sources": [
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\case20-terminal-cost-authority.mjs",
+      "bytes": 15205,
+      "sha256": "c67970c36192625203019ca9d0da19c8480c29783f2622072523650ccb4f8f7d"
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\case20-terminal-cost-pins.mjs",
+      "bytes": 7881,
+      "sha256": "9591737cbf0fe53a81795a62eb6a28f19dd878a45408cff03c68f1dee0e20d6a"
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\capture-spend-aggregate.mjs",
+      "bytes": 18235,
+      "sha256": "c2de81c8cd264a723a73d24aab4d2ca550eb9c15555011370ea7ca2e65755e48"
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\lib\\windows-capture-spend.py",
+      "bytes": 27025,
+      "sha256": "12c0428b25d616ee2d3969d7b41f4c804ee2fa52c509dc9ec01876bd18856fdc"
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\tests\\case20-terminal-cost.test.mjs",
+      "bytes": 5628,
+      "sha256": "27300b66229ae2e34baac70a91b84d5a650fad96986120ddd9e0bd99e9118314"
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\tests\\case20-terminal-cost.unit.py",
+      "bytes": 7187,
+      "sha256": "66dd4e78bc697ca4ff431e554f66ab2c5e3fb72db9c74465ce1ca7e0262e4827"
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\tests\\fixtures\\case20-terminal-cost.unit.json",
+      "bytes": 132382,
+      "sha256": "ac03c1707773f929cb56fb2f6c35f3311d9d1691e65348a6bc3816c5603a2388"
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\tests\\fixtures\\case20-terminal-cost-proof.unit.json",
+      "bytes": 1017,
+      "sha256": "1e45641ee993aa75fa6d2a56b4e7bc2fb2b7666e66c2806167a2cf8bc437a62e"
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\tests\\fixtures\\case20-terminal-cost-journal23.unit.jsonl",
+      "bytes": 14368,
+      "sha256": "d6213af1fd8330e9e97a688d903a3c1852b5f40265a66eafb6aa2bf1cfa2060b"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\cost-supervised-v1\\run-case20-terminal-cost-once.mjs",
+      "bytes": 3538,
+      "sha256": "a1bf30ae11a8d5aeb355c3bbdafefa45ced660ddeb30ba8f63fb2ff1826cd550"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\cost-supervised-v1\\qualify.py",
+      "bytes": 4317,
+      "sha256": "c2185df0157e38f1b79e289e5760759b0ad5bd7b17f9b2c8fad3bfbf02ddd3f2"
+    }
+  ],
+  "tests": [
+    {
+      "name": "node-cost-regressions",
+      "command": [
+        "C:/Program Files/nodejs/node.exe",
+        "--test",
+        "evals/meri/live-v1/tests/case20-terminal-cost.test.mjs",
+        "evals/meri/live-v1/tests/case01-failed-receipt-cost.test.mjs"
+      ],
+      "exitCode": 0,
+      "startedAt": "2026-10-04T02:35:26.176237+00:00",
+      "log": "C:\\dev\\main\\outputs\\meri-c2-20261003\\cost-supervised-v1\\node-cost-regressions.log",
+      "logSha256": "c2ddd4ce2254d6fff25749362ba8e1b94fddbbb6a2f247fe246d103edc0df8ed"
+    },
+    {
+      "name": "case20-native",
+      "command": [
+        "C:\\Users\\neoma\\AppData\\Local\\hermes\\hermes-agent\\venv\\Scripts\\python.exe",
+        "-I",
+        "evals/meri/live-v1/tests/case20-terminal-cost.unit.py"
+      ],
+      "exitCode": 0,
+      "startedAt": "2026-10-04T02:35:26.545076+00:00",
+      "log": "C:\\dev\\main\\outputs\\meri-c2-20261003\\cost-supervised-v1\\case20-native.log",
+      "logSha256": "ce07f93f17946e5be87ffa44d8a60a295ecc73ae7a0f85e65a7e9aa6436c5515"
+    },
+    {
+      "name": "case01-native",
+      "command": [
+        "C:\\Users\\neoma\\AppData\\Local\\hermes\\hermes-agent\\venv\\Scripts\\python.exe",
+        "-I",
+        "C:\\dev\\main\\outputs\\meri-c2-20261003\\cost-supervised-v1\\case01-legacy-native.unit.py"
+      ],
+      "exitCode": 0,
+      "startedAt": "2026-10-04T02:35:27.136736+00:00",
+      "log": "C:\\dev\\main\\outputs\\meri-c2-20261003\\cost-supervised-v1\\case01-native.log",
+      "logSha256": "8b7608ccbf77b5587f66a51e4c5233f7272ea61768ba62892bb196b56287b603"
+    },
+    {
+      "name": "aggregate-regressions-adapted",
+      "command": [
+        "C:/Program Files/nodejs/node.exe",
+        "--test",
+        "C:\\dev\\main\\outputs\\meri-c2-20261003\\cost-supervised-v1\\capture-spend-aggregate.adapted.test.mjs",
+        "C:\\dev\\main\\outputs\\meri-c2-20261003\\cost-supervised-v1\\capture-spend-terminal.adapted.test.mjs",
+        "C:\\dev\\main\\outputs\\meri-c2-20261003\\cost-supervised-v1\\capture-spend-reconciliation.adapted.test.mjs",
+        "C:\\dev\\main\\outputs\\meri-c2-20261003\\cost-supervised-v1\\capture-spend-v2.adapted.test.mjs"
+      ],
+      "exitCode": 0,
+      "startedAt": "2026-10-04T02:35:27.652451+00:00",
+      "log": "C:\\dev\\main\\outputs\\meri-c2-20261003\\cost-supervised-v1\\aggregate-regressions-adapted.log",
+      "logSha256": "025fa7c838df1a1ccfce6175c83b0fa847f92ebc99c0bff08470d60d43f1bee7"
+    },
+    {
+      "name": "operator-syntax",
+      "command": [
+        "C:/Program Files/nodejs/node.exe",
+        "--check",
+        "C:\\dev\\main\\outputs\\meri-c2-20261003\\cost-supervised-v1\\run-case20-terminal-cost-once.mjs"
+      ],
+      "exitCode": 0,
+      "startedAt": "2026-10-04T02:35:38.396111+00:00",
+      "log": "C:\\dev\\main\\outputs\\meri-c2-20261003\\cost-supervised-v1\\operator-syntax.log",
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "preparedAt": "2026-10-04T02:35:38.460606+00:00",
+  "canonicalProofSha256": "305283f0048a7f7ae82dc322f8353a2499cc444cc2e60537736375d0e5eed3a0",
+  "journalBeforeSha256": "d6213af1fd8330e9e97a688d903a3c1852b5f40265a66eafb6aa2bf1cfa2060b",
+  "journalAfterSha256": "d6213af1fd8330e9e97a688d903a3c1852b5f40265a66eafb6aa2bf1cfa2060b",
+  "journalUnchanged": true,
+  "currentEventCount": 23,
+  "proposedEventCount": 24,
+  "chargedCostMicros": 1497175,
+  "knownFreshCostAfterMicros": 13631058,
+  "remainingFreshBudgetAfterMicros": 16368942,
+  "captureAuthority": false,
+  "captureStatus": "CAPTURE_UNCERTAIN",
+  "answerGrade": "NOT_EVALUATED",
+  "liveAppend": "NOT_RUN",
+  "cloudCalls": 0,
+  "modelSubmissions": 0,
+  "independentReview": "PENDING",
+  "limitations": [
+    "Evidence pins intentionally address retained local outputs; pin-copy integration test needs those files.",
+    "Cost-only terminal closure is not benchmark acceptance and does not qualify a future capture.",
+    "Existing server-authenticated BLOCKED signed envelope is joined offline; no secret is loaded to re-sign or re-verify HMAC."
+  ]
+}

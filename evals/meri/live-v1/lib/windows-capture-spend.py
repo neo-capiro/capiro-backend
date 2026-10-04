@@ -231,11 +231,19 @@ def reduce_fresh(wire):
             reservation_ids.add(row['reservationId'])
             capture_ids.add(row['captureRunId'])
         elif row.get('event') == 'terminal_cost_reconciled':
-            require(sequence == 22 and len(events[:sequence]) == 22)
             require(set(row) == common | {'proof'})
-            require(digest(b''.join(lines[:21])) == '7ac5a5d06782d325e0d30327586968aa60233681b7dec2ed98f50285ed6daa60')
             proof = row['proof']
-            require(digest(data(proof)) == '59b7055d48bb074d13f57eb16c93334b258800107c039667aa445c3bf5e26648')
+            if sequence == 22:
+                # Preserve the already-qualified Case01/event22 authority.
+                require(digest(b''.join(lines[:21])) == '7ac5a5d06782d325e0d30327586968aa60233681b7dec2ed98f50285ed6daa60')
+                require(digest(data(proof)) == '59b7055d48bb074d13f57eb16c93334b258800107c039667aa445c3bf5e26648')
+            else:
+                # One bounded extension: exact failed Case20, exact prior23 bytes.
+                require(sequence == 24 and row['caseId'] == '20')
+                require(row['captureRunId'] == 'f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b')
+                require(row['reservationId'] == '7ea73cdc-526e-4b31-8c28-b0636ea8d2ae')
+                require(digest(b''.join(lines[:23])) == 'd6213af1fd8330e9e97a688d903a3c1852b5f40265a66eafb6aa2bf1cfa2060b')
+                require(digest(data(proof)) == '305283f0048a7f7ae82dc322f8353a2499cc444cc2e60537736375d0e5eed3a0')
             require(all(row[k] == proof[k] for k in ('caseId', 'captureRunId', 'reservationId')))
             require(active == key and runs[key]['reservationId'] == row['reservationId'])
             require(runs[key]['ceilingMicros'] == 15_000_000 and row['atMs'] >= proof['observedAtMs'])
@@ -312,7 +320,7 @@ def execute_fresh(request):
         if kind == 'reserve':
             row['ceilingMicros'] = event['ceilingMicros']
         elif kind == 'reconcile_terminal':
-            require(snapshot['eventCount'] == 21)
+            require(snapshot['eventCount'] in {21, 23})
             row['event'] = 'terminal_cost_reconciled'
             row['proof'] = event['proof']
         else:

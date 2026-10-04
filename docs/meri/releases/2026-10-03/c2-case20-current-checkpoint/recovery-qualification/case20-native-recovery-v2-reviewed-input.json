@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "status": "REVIEWED_CASE20_PRESUBMISSION_CONTINUATION",
+  "operatorCommit": "fd2fb71d8646693a948b62a28720c9575c917507",
+  "files": [
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case20-presubmission-recovery-v1/checkpoint.json",
+      "sha256": "58ef5990df45131ed040f2a411e73240362362b7dee7ba04b81436649b2d5376"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/controlled-read-browser-readiness-v1/checkpoint.json",
+      "sha256": "ecd68b3c56e16bf27831357d4530ff54329ff067ebf9cee3d7b38bf64db7dd59"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case20-recovery-independent-review-v1.json",
+      "sha256": "287dbe4e52e40fca9105760b5f713a34c65bb2ce290de7e5bb5444effab06cc3"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/controlled-read-browser-readiness-v1/independent-review.json",
+      "sha256": "b21393e4bebada5ec2ba78147cb286d13449a91eca484394ca65c65ee7918fba"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/run-case20-native-recovery-v2.mjs",
+      "sha256": "c7bdbacd9f5cfef151c5d950d0e34c486dd7c795ccdb61c6dcd2e26418ecb2e8"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case20-live-scope-v1.json",
+      "sha256": "ff11e6de4f6f89ed4314dda96a11bec7ccf724dc35d0520fdbefe33155266e0c"
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\case20-presubmission-recovery-authority.mjs",
+      "sha256": "cd2225d5be0d81ad359964d454c7329594f211d9e9e999ad36babc05cc426ac9"
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\capture-spend-aggregate.mjs",
+      "sha256": "c1c389c96a6cd47133d2d5976a518ad4e5ca76b6f0d545f539037cb69e118823"
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\tests\\case20-presubmission-recovery.test.mjs",
+      "sha256": "3fed119bb1ab9ed74f68a646c42702b09b24f107aef79172b5be932626ae64bb"
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\run-controlled-read.mjs",
+      "sha256": "05f47f19162c702255580b0e27c6c4d2579a6d79ce20da66223f35d8cad14e84"
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\tests\\controlled-read-operator.test.mjs",
+      "sha256": "338652e7e6052f9b346c607b7ba289874f98c60b7f321761561fba9099f7f7d6"
+    }
+  ],
+  "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+  "conversationId": "db0e01ac-60a1-4e3c-b8ba-66748d087a2e",
+  "reservationId": "7ea73cdc-526e-4b31-8c28-b0636ea8d2ae",
+  "ceilingMicros": 15000000,
+  "preservePriorClaim": true,
+  "createConversation": false,
+  "newReserve": false,
+  "maximumNewTurns": 1,
+  "automaticRetry": false,
+  "recordedAt": "2026-10-04T01:13:48.213Z"
+}

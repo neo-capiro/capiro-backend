@@ -1,0 +1,28 @@
+{
+  "status": "PASS",
+  "action": "COST_ONLY_FIXED_FAILED_CASE20",
+  "qualificationSha256": "93538de87b791c65801cd5d43a3fe1b74428ae72fa5f53df1fa038b8f0854d29",
+  "recordedAt": "2026-10-04T02:42:57.755170+00:00",
+  "sourceReview": {
+    "reviewer": "Actual Hermes independent session",
+    "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-cost-hermes-review-v1\\REVIEW.md",
+    "sha256": "e2fdd6ef3cf6f6c4616f40da7a8db478a3a885d7816498d27915f163ee41c9e1",
+    "sessionId": "20261003_223220_f73b4e",
+    "model": "openai/gpt-6-luna",
+    "provider": "openrouter",
+    "scope": "Independent source review; did not execute tests"
+  },
+  "leadVerification": {
+    "sourceHashes": 13,
+    "qualifiedLogHashes": 6,
+    "operatorDryTests": 5,
+    "priorTests": 177,
+    "journalEvents": 23,
+    "journalUnchanged": true,
+    "reviewedNativeAppend": true
+  },
+  "limits": [
+    "Cost-only fixed terminal evidence; no new capture, cap increase, paid retry or benchmark PASS",
+    "No human rubric/release approval is represented"
+  ]
+}

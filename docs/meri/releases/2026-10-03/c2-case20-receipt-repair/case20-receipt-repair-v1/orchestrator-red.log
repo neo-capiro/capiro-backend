@@ -1,0 +1,169 @@
+[Nest] 57644  - 10/03/2026, 9:26:58 PM     LOG [MeriV3AssistantService] {"event":"meri.semantic_tool_gateway.selection","decisionId":"30ea8d98-88a9-4a56-a20e-c12efde2a992","mode":"legacy","requestedNames":["get_pe_budget_timeline","get_program_element","get_funding_positions","query_pe_deep_dive","search_program_elements","get_pe_report_language","get_pe_contractors","get_pe_bills"],"requestedCount":8,"selectedNames":[],"selectedCount":0,"exposedNames":[],"exposedCount":0,"invokedNames":[],"invokedCount":0,"result":"selected"}
+[Nest] 57644  - 10/03/2026, 9:26:58 PM     LOG [MeriV3AssistantService] {"event":"meri.canary.turn","conversationId":"conversation","tenantId":"tenant-1","surface":"chat","modes":{"evidenceAccuracy":"off","claimAssessment":"off","coverageRetrieval":"off","passageSelection":"off","autoCorrection":"off","jevProvider":"off","routing":"llm"},"registryVersion":"jev-task-registry.v5","jevTasks":{},"outcome":"released","clarificationRequested":false,"heldReason":null,"coverage":{"gaps":0,"followUps":0,"residual":0},"passageSelection":{"candidates":0,"kept":0,"dropped":0,"requiredCandidates":0,"requiredRetained":0,"contradictoryRetained":0,"fallback":false,"safetyIntervention":{"evaluated":false,"intervened":false,"reasons":[]}},"repair":{"attempted":0,"corrected":0,"qualified":0,"omitted":0,"documentRequested":0,"budgetExhausted":0,"timedOut":false},"latencyMs":{"timeToText":296,"assessment":0,"passageSelection":0,"coverageFollowUp":0,"repair":0,"total":296},"tokens":{"synthesis":15,"jev":0,"legacy":0,"repair":0},"cost":{"retrievalToolCalls":0,"retrievalLatencyMs":0,"coverageFollowUpTokens":0,"jevCalls":0,"legacyCalls":0,"repairLoops":0},"estimatedCostUsd":0,"sampled":false}
+[Nest] 57644  - 10/03/2026, 9:26:58 PM     LOG [MeriV3AssistantService] {"event":"meriv3.turn","tenantId":"tenant-1","userId":"user-1","runtime":"meriv3","reasoningMode":"standard","reasoningEffort":"medium","model":"gpt-5.1","rounds":0,"toolsUsed":[],"inputTokens":10,"outputTokens":5,"durationMs":0,"held":false,"aborted":false,"telemetry":{"requestedModel":"gpt-5.1","effectiveModel":"gpt-5.1","requestedReasoningEffort":"medium","effectiveReasoningEffort":"medium","reasoningFallbackReasons":[],"finishReason":"completed","partial":false},"providerCalls":[{"requestedModel":"gpt-5.1","effectiveModel":"gpt-5.1","requestedReasoningEffort":"medium","effectiveReasoningEffort":"medium","reasoningFallbackReasons":[],"finishReason":"completed","partial":false}],"runtimeBudget":{"modelCalls":0,"toolCalls":0,"retryCalls":0,"maxModelCalls":13,"maxToolCalls":75,"maxRetryCalls":5,"acquisitionStopped":false,"stopReason":null}}
+FAIL src/meri/meriv3/meriv3-assistant.service.spec.ts (20.345 s)
+  MeriV3AssistantService
+    × Case20 capture begins before actual prompt rendering without moving the runtime budget timer (37 ms)
+    ○ skipped pins pending proposal reads to the selected client and rejects attempted cross-client retargeting
+    ○ skipped repairs an incomplete response without dispatching its call or releasing stale prose
+    ○ skipped bounds alternating unchanged read failures across real provider rounds and synthesizes retained partial evidence
+    ○ skipped rejects an oversized parallel tool batch before dispatch and performs only terminal synthesis
+    ○ skipped dispatches no provider phase or tool after a late Stop supersedes model-call exhaustion
+    ○ skipped dispatches no provider phase or tool after a late deadline supersedes model-call exhaustion
+    ○ skipped keeps an incomplete envelope with malformed arguments out of research finalization and performs one fresh repair
+    ○ skipped keeps a completed envelope containing a malformed call out of research finalization and performs one fresh repair
+    ○ skipped executes zero calls from a batch containing an incomplete item status
+    ○ skipped executes zero calls from a batch containing malformed arguments
+    ○ skipped off mode emits the identical reply without scheduling claim inventory work
+    ○ skipped blocks an audit that retracts text absent from the literal preceding answer
+    ○ skipped emits the reply before legacy-only shadow provider work begins
+    ○ skipped does not emit or persist a client note success before any write ran
+    ○ skipped saves inherited document evidence used only in the generated artifact, preserving [56]
+    ○ skipped retains the professional answer contract and client constraints in forced synthesis
+    ○ skipped rejects incomplete forced no-tools synthesis text and returns a deterministic partial once
+    ○ skipped runs local enforce controls after runtime exhaustion without another model or tool call
+    ○ skipped uses only the model-visible tool projection for citation and grounding evidence
+    ○ skipped stops the remaining tool batch and synthesis after cancellation
+    ○ skipped expired deadline schedules neither a provider request nor a tool
+    ○ skipped recovers from a mid-turn deadline_exceeded error using already-gathered evidence
+    ○ skipped records effective effort and retains fallback history across rounds
+    ○ skipped preserves a partial finalization even when the completed draft is usable
+    ○ skipped returns a reasoned answer without exposing provider reasoning items
+    ○ skipped passes all API-selected unsummarized messages beyond forty into the provider
+    ○ skipped blocks unadvertised send_email under read-only before any execution or approval
+    ○ skipped blocks unadvertised search_memory under none before any execution or approval
+    ○ skipped blocks unadvertised unreviewed_api_write under undefined before any execution or approval
+    ○ skipped continues after a read-tool call and feeds the exact result back
+    ○ skipped coverage shadow logs both routed chamber gaps as one JSON line without executing a follow-up
+    ○ skipped closed hypothetical turn does not execute an automatic roster read: Quality check using hypothetical facts only: Aster has a Thursday demo. Maya owns the slides, due Tuesday. Lee owns the technical review, due Wednesday; it depends on Maya finishing the slides. The rehearsal has no owner or scheduled time. Write exactly three concise bullets: the critical path, the main delivery risk, and the next action. Use only these facts. Do not search, use tools, save memories, create tasks, or send messages.
+    ○ skipped closed hypothetical turn does not execute an automatic roster read: Update to the hypothetical example: the slides will now be ready Wednesday afternoon. Keep the other facts unchanged. In exactly two sentences, explain what this changes and what I should confirm next. Do not assume the demo has been delayed. Do not use tools, save memories, create tasks, or send messages.
+    ○ skipped closed hypothetical turn does not execute an automatic roster read: Based only on the hypothetical facts in this conversation, what exact time is the rehearsal, and has Lee approved the slides? If either is unknown, say so clearly. Do not infer that a scheduled review means approval happened. Do not search, use tools, save memories, create tasks, or send messages.
+    ○ skipped closed hypothetical turn does not execute an automatic roster read: Using only these fictional notes, prepare two bullets: Maya's slides are due Tuesday; Lee's review is now due Wednesday and depends on the slides; there is no rehearsal owner. Explain the risk and next action. Do not use tools.
+    ○ skipped closed hypothetical turn does not execute an automatic roster read: In this hypothetical scenario, Aster demos Thursday. Maya's slides are now due Wednesday afternoon, and Lee owns the review due Wednesday. No rehearsal time is supplied. Use only the facts supplied here. Explain the critical path and uncertainty in two sentences. Do not search or use tools.
+    ○ skipped coverage enforce executes one read-only follow-up per chamber and re-synthesizes over both
+    ○ skipped coverage enforce follows a concrete continuation cursor until the routed source closes
+    ○ skipped coverage enforce releases the completed prose when the follow-up re-synthesis rejects
+    ○ skipped coverage enforce releases the completed prose when the follow-up re-synthesis returns empty prose
+    ○ skipped holds a governed write as an opaque proposal instead of invoking it
+    ○ skipped case46 original export uses only canonical approval with exact source bytes and no artifact effect
+    ○ skipped deduplicates scoped write intent within one batch while preserving call outputs
+    ○ skipped does not create a proposal for a draft-only email request
+    ○ skipped blocks a tool request that attempts to escape the pinned client
+    ○ skipped list_emails preserves a provider-selected personal inbox date range without injecting the UI client
+    ○ skipped search_emails preserves a provider-selected personal inbox date range without injecting the UI client
+    ○ skipped list_emails still refuses an explicit different client filter
+    ○ skipped search_emails still refuses an explicit different client filter
+    reasoning mode auto-detection
+      ○ skipped escalates an audit-everything request past the default Standard mode
+      ○ skipped leaves an ordinary lookup on the default Standard mode
+      ○ skipped never downgrades a mode the user explicitly selected
+  Admitted research plan execution
+    ○ skipped rejects a research run with no execution envelope before schema, provider, or tool calls
+    ○ skipped exposes only the admitted catalog intersection and blocks an unlisted provider call before replay or tool dispatch
+    ○ skipped does not expose a plan-admitted capability that the current API catalog denies
+  Durable research cancellation across API replicas
+    ○ skipped checks the authenticated run before each tool and stops the batch after durable cancellation
+    ○ skipped a missing or revoked run schedules no provider request
+    ○ skipped run-status HTTP 401 stays a runtime error rather than reporting a user cancellation
+    ○ skipped run-status HTTP 503 stays a runtime error rather than reporting a user cancellation
+    ○ skipped commits a qualified HTTP-200 owner result before sharing one server execution ID across step and ledger
+    ○ skipped records an HTTP-200 logical failure without committing coordinator step completion
+    ○ skipped budget exhaustion prevents registry invocation and outcome side effects
+    ○ skipped a completed replay-identity miss never falls through to duplicate execution
+  MeriV3 client transcript task completion
+    ○ skipped replays a location clarification, reads beyond 35k characters, and continues contact research after premature prose
+    ○ skipped a file listing alone cannot release made-up content or claim an upload failure
+    ○ skipped bounds automatic reads and discloses an unfinished document instead of reporting completion
+    ○ skipped checks access again for each page and stops after a revoked read
+    ○ skipped binds research evidence to the authenticated run instead of a model-supplied session
+    ○ skipped cancellation stops automatic reads before another page or model call
+  Stage 2 orchestrator hardening
+    passage selection (S2-B)
+      ○ skipped enforce keeps a plan-required family passage while coverage retrieval is on
+      ○ skipped enforce keeps the completed prose without a second synthesis when nothing is dropped
+      ○ skipped enforce releases the completed prose when the forced re-synthesis rejects
+      ○ skipped enforce releases the completed prose when the forced re-synthesis returns empty prose
+      ○ skipped selection time is charged to the turn deadline instead of extending the synthesis timeout
+      ○ skipped shadow reports the prompt-size metric from text lengths and leaves the synthesis request untouched
+    canary event (S2-E)
+      ○ skipped emits one JSON line that readCanaryEvents parses back to the same event
+      ○ skipped emits the text frame before the canary event and measures time-to-text at that frame
+      ○ skipped classifies a deadline-exceeded time-limit reply as incomplete
+      ○ skipped records the tenant-resolved Jev provider mode and the resolved routing
+    shadow events (Stage 1)
+      ○ skipped emits meri.evidence_shadow and meri.evidence_shadow.turn as JSON lines that readShadowEvents parses back
+    surface and rollout scoping
+      ○ skipped a Deep Research run resolves every Stage 0-2 mode as off under a chat-only enrollment
+      ○ skipped warns once about unknown MERI_AUTO_CORRECTION_CATEGORIES tokens even when every token is unknown
+      ○ skipped logs meri.rollout.invalid_config once when a Stage 2 control carries a malformed token
+    release gate interplay
+      ○ skipped never appends the coverage disclosure to a held refusal
+      ○ skipped skips live repair on a held turn and emits the hold unchanged
+      ○ skipped falls back to the finalized reply when the repaired text would be held by the release gate
+    bounded auto-correction (S2-C)
+      ○ skipped serves a corrected claim after configured Jev retrieve, revise, and Jev recheck
+      ○ skipped a throwing repair stage releases the finalized reply with exactly one text frame
+      ○ skipped a hanging judge provider cannot delay the text frame past the repair deadline
+      ○ skipped a hung repair is abandoned when the request aborts and the finalized reply is still released once
+      ○ skipped an empty rewrite is rejected and the finalized reply is emitted once
+      ○ skipped caps the promoted claims assessed in one turn
+      ○ skipped binds exact comparison to the ledger entry that produced the citation (marker inside the sentence), with its full text
+      ○ skipped binds exact comparison to the ledger entry that produced the citation (marker after the period), with its full text
+      ○ skipped passes truthful document references so a claim read from the document is judged rather than turned into an attachment request
+      ○ skipped passes no document references when the turn touched no document
+    native governed tool selection
+      ○ skipped sends the expected legacy schema payload to the ordinary provider turn
+      ○ skipped sends the expected shadow schema payload to the ordinary provider turn
+      ○ skipped sends the expected enabled schema payload to the ordinary provider turn
+      ○ skipped does not recreate a missing required capability in the provider payload
+      ○ skipped discovers, describes, exposes, and executes an omitted authorized leaf in later provider rounds
+      ○ skipped keeps run_analysis excluded from fresh progressive disclosure during server capture
+      ○ skipped withholds a name, description, and telemetry when the registry withdraws it before search
+      ○ skipped withholds an API-withdrawn schema between search and describe
+      ○ skipped withholds a loaded leaf whose exact API schema changes before admission
+      ○ skipped rechecks API authority after describe and before invoking the loaded leaf
+      ○ skipped does not dispatch a progressively loaded leaf removed from the current registry
+      ○ skipped keeps enabled selection in selected-client scope and pins the executed input
+      ○ skipped intersects enabled selection with read-only policy before provider exposure
+      ○ skipped intersects enabled selection with none policy before provider exposure
+      ○ skipped does not promote a dynamic MCP schema outside the authorized full-chat surface
+      ○ skipped runs an authorized procedure read and blocks a procedure write in the actual assistant path
+      ○ skipped exposes and invokes the manifest-authorized historical meeting-source reader after current validation
+      ○ skipped revalidates every invocation and executes no second tool after revocation
+      ○ skipped fails closed when the callback is cancelled before registry invocation
+      ○ skipped fails closed when the callback is deadline_exceeded before registry invocation
+      ○ skipped rejects a late abort after the validation body arrives and before admission
+      ○ skipped revalidates before admitting a durable replay and rejects replay after revocation
+      ○ skipped rejects missing user bearer or service identity before validation transport
+      ○ skipped blocks unknown provider names without copying them or private arguments into public traces
+  initial repair source binding
+    ○ skipped passes only the exact cited current owner span into the actual assistant repair input
+    ○ skipped rejects stale, wrong-client, and metadata-only owner material without fallback text
+
+  ● MeriV3AssistantService › Case20 capture begins before actual prompt rendering without moving the runtime budget timer
+
+    expect(received).toBeLessThanOrEqual(expected)
+
+    Expected: <= 1791077218191
+    Received:    1791077218487
+
+      380 |         })));
+      381 |       expect(compose).toHaveBeenCalledTimes(1);
+    > 382 |       expect(result.captureEvidence!.startedAt).toBeLessThanOrEqual(renderedAt);
+          |                                                 ^
+      383 |       expect(result.captureEvidence!.completedAt).toBe(renderedAt + 296);
+      384 |     } finally { compose.mockRestore(); clock.mockRestore(); }
+      385 |   });
+
+      at Object.<anonymous> (src/meri/meriv3/meriv3-assistant.service.spec.ts:382:49)
+
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 122 skipped, 123 total
+Snapshots:   0 total
+Time:        20.626 s, estimated 26 s
+Ran all test suites matching /src\\meri\\meriv3\\meriv3-assistant.service.spec.ts/i with tests matching "Case20 capture begins".
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?
+undefined
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command "jest" not found
+
+Did you mean "pnpm exec jest"?

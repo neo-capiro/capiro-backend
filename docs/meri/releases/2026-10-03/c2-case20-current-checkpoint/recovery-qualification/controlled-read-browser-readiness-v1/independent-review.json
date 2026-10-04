@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "status": "PASS_BOUNDED_SOURCE_REVIEW",
+  "reviewer": "/root/mail_defaults_review",
+  "reviewedAt": "2026-10-04T01:07:27.4080309Z",
+  "checkpointSha256": "ecd68b3c56e16bf27831357d4530ff54329ff067ebf9cee3d7b38bf64db7dd59",
+  "sources": [
+    {
+      "path": "evals/meri/live-v1/run-controlled-read.mjs",
+      "sha256": "05f47f19162c702255580b0e27c6c4d2579a6d79ce20da66223f35d8cad14e84",
+      "liveAndMirrorMatched": true
+    },
+    {
+      "path": "evals/meri/live-v1/tests/controlled-read-operator.test.mjs",
+      "sha256": "338652e7e6052f9b346c607b7ba289874f98c60b7f321761561fba9099f7f7d6",
+      "liveAndMirrorMatched": true
+    }
+  ],
+  "retainedQualification": {
+    "path": "test-result.txt",
+    "sha256": "468268bf441cb1b0bb9d3788c5c757f82da272dee2b5da7a24478b622785be03",
+    "passed": 27,
+    "failed": 0,
+    "skipped": 0,
+    "kind": "Saved transcript of already completed tool output; independently read, not rerun"
+  },
+  "findings": [],
+  "conclusions": [
+    "Readiness requires the exact owned session, actor and organization, loaded Clerk and available token method.",
+    "The token evaluation repeats identity checks after waiting and sanitizes readiness/token errors.",
+    "The existing native bearerSupplier is used without changing request, deadline, target or single-submission bounds.",
+    "Local VM tests cover delayed readiness, wrong session/user/org, unavailable method, identity drift and refreshed-token refusal; transport regressions retain zero-network refusal and no retry.",
+    "Only the exact new Case20 recovery source and test paths extend the eval source allowlist."
+  ],
+  "limitations": [
+    "Tests exercise production callback source in a local VM and retained transport doubles, not a new authenticated browser run.",
+    "No live recovery, provider call, journal write, release or original acceptance is proved by this source review.",
+    "Case20 recovery authority and exact reviewed-input manifest require separate final review."
+  ],
+  "testsRerun": false,
+  "remoteCalls": 0,
+  "sourceEdits": 0
+}

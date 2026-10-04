@@ -1,0 +1,30 @@
+{
+  "kind": "meri-case01-current-immutable-builds",
+  "observedAt": 1791077214495,
+  "caller": {
+    "account": "967807252336",
+    "arn": "arn:aws:iam::967807252336:user/capirocli"
+  },
+  "services": [
+    {
+      "service": "api",
+      "sourceSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+      "imageDigest": "sha256:23f529da3c1c00d401968811575dc075bced6c60669baa9a09e9c23575c9c452",
+      "buildId": "capiro-build-web-dev:5ca674e3-f986-46fa-bb05-2ca8e14d1d67",
+      "buildspecSha256": "61cc399b632b885b2c17dfb692a536ba493246465573fb83469669c6267e2811",
+      "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:521",
+      "primaryDeploymentId": "ecs-svc/7532166570913154097",
+      "baselineSha256": "5690fa4df8c7d55eeeeb0b9cbb5a64951e76d78a5a485778d0fc8a8caf8c7374"
+    },
+    {
+      "service": "meriv2-orchestrator",
+      "sourceSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+      "imageDigest": "sha256:1c491a5ac46ea320195fe8ab367322ad2ebbd0949d69530b5ccfba2de84eb491",
+      "buildId": "capiro-build-web-dev:1105f91e-3171-41aa-ae00-7f28540caf90",
+      "buildspecSha256": "eb741a51f6169fdca94e6a3d69ab5bfa18ef0f22098016518e8dc30120aa8a24",
+      "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:117",
+      "primaryDeploymentId": "ecs-svc/7126005384437566907",
+      "baselineSha256": "d806009956dd087dfc4862b84cca6f6a7b91b418973ac147bd7f16dc24ffff0a"
+    }
+  ]
+}

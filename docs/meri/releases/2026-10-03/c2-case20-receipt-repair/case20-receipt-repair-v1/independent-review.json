@@ -1,0 +1,119 @@
+{
+  "kind": "independent-case20-receipt-repair-source-review",
+  "reviewer": "/root/mail_defaults_review",
+  "reviewedAt": "2026-10-04T01:59:49.173Z",
+  "status": "PASS_BOUNDED_SOURCE_AND_RETAINED_QUALIFICATION_REVIEW",
+  "actionableFindings": [],
+  "checkpoint": {
+    "path": "C:/dev/main/outputs/meri-c2-20261003/case20-receipt-repair-v1/checkpoint.json",
+    "sha256": "c9bf23e861e8a41b8b18d2a944e83178b12fdd875bb503becf194b44f3f42a21"
+  },
+  "patch": {
+    "path": "C:/dev/main/outputs/meri-c2-20261003/case20-receipt-repair-v1/candidate.patch",
+    "sha256": "9c2d15f89d925fd37e4cbf5bab263c9b99882938f1aecb18cc0efbb65179fadb",
+    "bytes": 24910
+  },
+  "sourceFiles": [
+    {
+      "path": "packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "sha256": "affe70118364d44bdb5b13e55cd15edde2ce863323ecca4afa9644e0def74ab0",
+      "bytes": 24863
+    },
+    {
+      "path": "packages/meriv2-core/src/context/capture-evidence-receipt.spec.ts",
+      "sha256": "eaf9c739b07a027adfa0e55537c799208712d8e97659d94a6f9d0975c9ea9e62",
+      "bytes": 25998
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts",
+      "sha256": "e2c49a4356ce2cdffdef62b1abcb3e85a247630e763ac5e9d847c00f604aad6f",
+      "bytes": 172222
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.spec.ts",
+      "sha256": "53633692585e42a7d5332bc356abb896f09ad3826eda4349ec3daa9284245233",
+      "bytes": 225097
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts",
+      "sha256": "58562daed7c68ba7c65abc9f5d8d6975b0b5d7a1b4dceeb555b384dc2cac5b2b",
+      "bytes": 30468
+    },
+    {
+      "path": "apps/api/src/meri/meri-controlled-read-fixture.ts",
+      "sha256": "a375f1b7031282fc8c7e9eabcada67cca31530da683d8b593521c4cb7e978893",
+      "bytes": 13577
+    },
+    {
+      "path": "apps/api/src/meri/meri-controlled-read-fixture.spec.ts",
+      "sha256": "f113a97d8f79849c13efe276baeb18cb26bedc96ae42aa00d5bccdb0435ae479",
+      "bytes": 6029
+    }
+  ],
+  "verification": {
+    "liveAndMirrorFiles": 7,
+    "unchangedCase17AndTypeFixFiles": 7,
+    "evidenceFiles": 45,
+    "hashOrByteMismatches": 0,
+    "productionDelta": {
+      "files": 3,
+      "insertions": 66,
+      "deletions": 2
+    },
+    "testLogs": [
+      {
+        "name": "core-final",
+        "passed": 78,
+        "failed": 0,
+        "sha256": "4cc7fea855ec8f9b0d38901df8239d73dcdd9b6bb852ccb47c8443d89d9c666a"
+      },
+      {
+        "name": "api-qualified-final",
+        "passed": 38,
+        "failed": 0,
+        "sha256": "9cd15b082cc8818e8726b55ca6d3fabcb0c48365d6e7ccf80ea4cc300c4ad3c2"
+      },
+      {
+        "name": "orchestrator-final",
+        "passed": 191,
+        "failed": 0,
+        "sha256": "2e0208dccc3d0cbcda4bdd9b4de6aab3ef5e06e5a15f8482df783a353e03becc"
+      }
+    ],
+    "buildAndTypecheck": "Retained core build, full API 8GB typecheck and orchestrator typecheck exit0 verified; not rerun."
+  },
+  "conclusions": [
+    "Separate captureStartedAt is assigned at runTurn entry and used only for capture evidence; actual prompt composition follows it. Existing operational startedAt, budgets, real deadlines and expiry checks remain unchanged.",
+    "Exact Case20 response coverage is added only after strict supported selector/current controlled fixture qualification; the existing after-read authority/binding check still runs before result release. It describes the one returned source, not completeness of the public corpus.",
+    "Real evidence projection and coverage/capture adapters remain unchanged. New tests show all three Case20 tools complete with retained full evidence and partial when model-facing evidence is truncated, while raw HTTP fullRead remains independently observed.",
+    "The public null-client exception is Case20-only and requires observed exact tenant/public scope, full source and equal passage/content hashes, one complete source-bearing logical call, one controlled attempt, logical R2-27 identity and matching source/version/currentVerify. Existing full invocation/HTTP/request/trace/turn/run/response census must pass; missing, duplicate, failed, mismatched and partial evidence remain blocked.",
+    "Prompt bounds and independent persisted API packet census remain strict. Case20 correctly requires its initial compiler packet and no tool compiler packets; no fabricated packet or API proof is introduced.",
+    "Generic collector full-passage/client reconciliation, generic coverage, HMAC verification, source dispatch authorization, rates/models/config/schema and seven frozen Case17/typefix files are unchanged."
+  ],
+  "redEvidence": {
+    "core": {
+      "failed": 1,
+      "passed": 77,
+      "cause": "Previously rejected exact tenant-owned null-client full source."
+    },
+    "api": {
+      "failed": 3,
+      "passed": 2,
+      "cause": "All three admitted Case20 tool results lacked coverage."
+    },
+    "orchestrator": {
+      "failed": 1,
+      "selectedOut": 122,
+      "cause": "Saved 296ms render/start ordering reproduced: prompt1791077218191 versus capture start1791077218487."
+    },
+    "sourceComparison": "Inspected red-to-final tests. Formatting/import ordering plus undefined-to-declared-null absent-policy mock correction; coverage, scope, proof and ordering assertions retained. No weakened test assertions."
+  },
+  "limits": [
+    "Read-only source/evidence review: no source edits, test reruns, database, cloud/auth/browser/provider/capture or journal actions. Only this new review artifact was written.",
+    "API fixture loader/authority I/O and provider completion are mocked. This is not actual PostgreSQL or live deployed qualification.",
+    "The clock test exercises actual prompt composition and result timing with a stubbed provider. Runtime timer preservation is additionally established by the narrow production diff; no new end-to-end time-budget experiment is claimed.",
+    "Full native immutable image qualification, deployment and served checks are not established by these local receipts.",
+    "Historical Case20 remains CAPTURE_UNCERTAIN. Saved receipts are not repaired, paid turns are not replayed, and no original acceptance or human rubric is inferred."
+  ],
+  "humanReleaseApproval": false
+}

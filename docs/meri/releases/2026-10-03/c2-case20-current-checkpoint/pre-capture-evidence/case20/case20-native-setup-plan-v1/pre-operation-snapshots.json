@@ -1,0 +1,26 @@
+{
+  "api": {
+    "baseline": {
+      "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:521",
+      "serviceHash": "793302143e44176b8dd4cd79f914ef57c50567f5665b06ff65cca32b0071ef0c",
+      "configHash": "973748a2b134b388a6027df6c5c099055a7e24f7b746eafbaae8cebad077258a",
+      "taskHash": "b6108d13d2558e5cf4dd762a81406574aab92546736606b870da283af45b4170",
+      "imageDigest": "sha256:23f529da3c1c00d401968811575dc075bced6c60669baa9a09e9c23575c9c452",
+      "desiredCount": 2
+    },
+    "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:521",
+    "serviceName": "capiro-dev-api"
+  },
+  "meriv2-orchestrator": {
+    "baseline": {
+      "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:117",
+      "serviceHash": "70aea1ca7863f98f9c8febcc25c048ab68067e3491abc3b836fea8e44238db44",
+      "configHash": "3a4fabd2139e347cd8b45192579f2a3fbaaa6fc3678762b5252f727a4461951b",
+      "taskHash": "7444417aec330d62f970880153f12e1dae52bded0a9a2aaf475385eb24c9e56e",
+      "imageDigest": "sha256:1c491a5ac46ea320195fe8ab367322ad2ebbd0949d69530b5ccfba2de84eb491",
+      "desiredCount": 1
+    },
+    "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:117",
+    "serviceName": "capiro-dev-meriv2-orchestrator"
+  }
+}

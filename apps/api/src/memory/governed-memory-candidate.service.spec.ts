@@ -67,6 +67,7 @@ function harness(
     scope?: 'firm' | 'client';
     wallAllowed?: boolean;
     reviewerAllowed?: boolean;
+    recordedSources?: Record<string, { sourceType?: unknown; sourceId?: unknown }>;
   } = {},
 ) {
   const state = {
@@ -85,7 +86,10 @@ function harness(
     value: 'proposed value',
     canonicalItem: null,
   };
-  const findFirst = jest.fn(async () => ({ payload }));
+  const findFirst = jest.fn(async (args?: { where?: { id?: string }; select?: Record<string, boolean> }) => ({
+    payload: { ...payload, sourceExcerpt: 'must not be copied', sourceRef: 'https://must-not-leak.invalid' },
+    ...(options.recordedSources?.[args?.where?.id ?? ''] ?? {}),
+  }));
 
   const tx = {
     client: {
@@ -322,7 +326,9 @@ describe('GovernedMemoryCandidateService Phase 13 dispositions', () => {
     await withReviewSurface(true, async () => {
       const h = harness();
       const rows = await h.tx.memoryCandidate.findMany();
-      h.tx.memoryCandidate.findMany.mockImplementation(async () => [...rows, { ...rows[0], id: REVIEWER }]);
+      const firstRow = rows[0];
+      if (!firstRow) throw new Error('Expected the owned proposal fixture row');
+      h.tx.memoryCandidate.findMany.mockImplementation(async () => [...rows, { ...firstRow, id: REVIEWER }]);
       const first = await h.service.listOwnProposals(proposerCtx, { clientId: CLIENT, status: 'pending', limit: 1 });
       expect(first.nextCursor).toEqual(expect.any(String));
       await expect(h.service.listOwnProposals(proposerCtx, { clientId: CLIENT, status: 'pending', cursor: first.nextCursor! })).resolves.toMatchObject({ enabled: true });
@@ -343,6 +349,7 @@ describe('GovernedMemoryCandidateService Phase 13 dispositions', () => {
       const page = await h.service.listOwnProposals(proposerCtx, { clientId: CLIENT, status: 'pending' });
       expect(page.candidates[0]).toMatchObject({ status: 'pending', restricted: true, proposal: null, clientName: null });
       expect(h.findFirst).not.toHaveBeenCalled();
+      expect(page.candidates[0]).not.toHaveProperty('recordedSource');
       expect(h.tx.client.findMany).not.toHaveBeenCalled();
     });
   });
@@ -427,6 +434,70 @@ describe('GovernedMemoryCandidateService Phase 13 dispositions', () => {
         ServiceUnavailableException,
       );
       expect(h.tx.memoryCandidate.update).not.toHaveBeenCalled();
+    });
+  });
+
+  it('returns six distinct recorded references only for own proposals and never copies payload provenance', async () => {
+    await withReviewSurface(true, async () => {
+      const ids = Array.from({ length: 6 }, (_, index) =>
+        `66666666-6666-4666-8666-${String(index + 1).padStart(12, '0')}`,
+      );
+      const recordedSources = Object.fromEntries(ids.map((id, index) => [id, {
+        sourceType: 'meri_synthetic_fixture', sourceId: String(index + 1).repeat(64),
+      }]));
+      const h = harness({ recordedSources });
+      h.tx.memoryCandidate.findMany.mockResolvedValue(ids.map((id, index) => ({
+        id, clientId: CLIENT, proposedBy: PROPOSER, sourceKind: 'model_extraction', scope: 'client',
+        status: 'pending', createdAt: new Date(Date.UTC(2026, 6, 31, 12, index)), decidedAt: null,
+      })) as never);
+      const page = await h.service.listOwnProposals(proposerCtx);
+      expect(page.candidates.map((row) => row.recordedSource?.sourceId)).toEqual(
+        Array.from({ length: 6 }, (_, index) => String(index + 1).repeat(64)),
+      );
+      expect(new Set(page.candidates.map((row) => row.recordedSource?.sourceId)).size).toBe(6);
+      expect(h.tx.memoryCandidate.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({ tenantId: TENANT, proposedBy: PROPOSER }),
+      }));
+      expect(h.findFirst).toHaveBeenCalledWith({
+        where: { id: ids[0], tenantId: TENANT, proposedBy: PROPOSER },
+        select: { payload: true, sourceType: true, sourceId: true },
+      });
+      expect(h.findFirst).toHaveBeenCalledTimes(6);
+      expect(JSON.stringify(page)).not.toContain('sourceExcerpt');
+      expect(JSON.stringify(page)).not.toContain('must-not-leak.invalid');
+    });
+  });
+
+  it('retains a supported recorded UUID without reading its underlying content', async () => {
+    await withReviewSurface(true, async () => {
+      const h = harness({ recordedSources: { [CANDIDATE]: { sourceType: 'chat', sourceId: CLIENT } } });
+      const page = await h.service.listOwnProposals(proposerCtx);
+      expect(page.candidates[0]?.recordedSource).toEqual({ sourceType: 'chat', sourceId: CLIENT });
+      expect(h.findFirst).toHaveBeenCalledWith({
+        where: { id: CANDIDATE, tenantId: TENANT, proposedBy: PROPOSER },
+        select: { payload: true, sourceType: true, sourceId: true },
+      });
+      expect(JSON.stringify(page)).not.toContain('sourceExcerpt');
+      expect(JSON.stringify(page)).not.toContain('must-not-leak.invalid');
+    });
+  });
+
+  it.each<[string, { sourceType?: unknown; sourceId?: unknown }]>([
+    ['unknown type', { sourceType: 'unknown', sourceId: 'a'.repeat(64) }],
+    ['unsupported type', { sourceType: 'UpperCase', sourceId: 'a'.repeat(64) }],
+    ['malformed id', { sourceType: 'meri_synthetic_fixture', sourceId: 'A'.repeat(64) }],
+    ['unsupported id', { sourceType: 'meri_synthetic_fixture', sourceId: 'source-ref' }],
+    ['type newline', { sourceType: 'meri_synthetic_fixture\n', sourceId: 'a'.repeat(64) }],
+    ['id newline', { sourceType: 'meri_synthetic_fixture', sourceId: 'a'.repeat(64) + '\n' }],
+    ['oversized type', { sourceType: 'a'.repeat(41), sourceId: 'a'.repeat(64) }],
+    ['URL id', { sourceType: 'chat', sourceId: 'https://example.invalid/private' }],
+    ['missing type', { sourceId: 'a'.repeat(64) }],
+    ['missing id', { sourceType: 'chat' }],
+  ])('omits recorded provenance for %s', async (_label, source) => {
+    await withReviewSurface(true, async () => {
+      const h = harness({ recordedSources: { [CANDIDATE]: source } });
+      const page = await h.service.listOwnProposals(proposerCtx);
+      expect(page.candidates[0]).not.toHaveProperty('recordedSource');
     });
   });
 });

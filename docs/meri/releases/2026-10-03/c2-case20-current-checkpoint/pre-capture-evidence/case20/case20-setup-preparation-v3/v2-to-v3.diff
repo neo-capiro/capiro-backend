@@ -1,0 +1,66 @@
+--- v2/supervised-candidate/run-case20-native-setup.mjs
++++ v3/supervised-candidate/run-case20-native-setup.mjs
+@@ -222,6 +222,21 @@
+   return { errorClass: error?.name ?? 'Error', code: /^[A-Z0-9_]{1,100}$/u.test(error?.code ?? '') ? error.code : null };
+ }
+ 
++async function recheckAccountingFiles(checkpoint) {
++  assert.equal(path.resolve(checkpoint.state.root), path.resolve(`${OUTPUTS}/meri-fresh-20261003`), 'Accounting root changed');
++  assert.ok(exactKeys(checkpoint.state.files, ['run-authorization.json', 'fresh-spend.jsonl']));
++  const observed = {};
++  for (const name of ['run-authorization.json', 'fresh-spend.jsonl']) {
++    const expected = checkpoint.state.files[name];
++    assert.ok(shaField(expected.sha256) && Number.isSafeInteger(expected.bytes) && expected.bytes > 0);
++    const bytes = await read(path.join(checkpoint.state.root, name));
++    assert.equal(bytes.length, expected.bytes, `Current accounting size changed: ${name}`);
++    assert.equal(hash(bytes), expected.sha256, `Current accounting bytes changed: ${name}`);
++    observed[name] = { sha256: hash(bytes), bytes: bytes.length };
++  }
++  return { checkedAt: new Date().toISOString(), files: observed, readOnly: true };
++}
++
+ async function localGates() {
+   const inputBytes = await read(INPUT);
+   assert.equal(hash(inputBytes), INPUT_SHA256);
+@@ -234,6 +249,7 @@
+   const checkpointBytes = await read(AGGREGATE);
+   const checkpoint = json(checkpointBytes, 'CHECKPOINT');
+   const checkpointProof = validateCheckpoint(checkpoint, checkpointBytes);
++  const currentAccounting = await recheckAccountingFiles(checkpoint);
+   for (const [relative, expected] of SOURCE_FILES) {
+     const bytes = await read(path.join(REPO, relative));
+     assert.equal(hash(bytes), expected, `Frozen source binding changed: ${relative}`);
+@@ -249,7 +265,7 @@
+   }
+   const innerBytes = await read(path.join(ROOT, 'case20-native-setup-inner.mjs'));
+   const outerBytes = await read(path.join(ROOT, 'run-case20-native-setup.mjs'));
+-  return { input, inputBytes, inputSha256: hash(inputBytes), checkpointProof,
++  return { input, inputBytes, inputSha256: hash(inputBytes), checkpointProof, checkpoint, currentAccounting,
+     checkpointBytesSha256: hash(checkpointBytes), runtimeSources, innerScriptSha256: hash(innerBytes),
+     outerScriptSha256: hash(outerBytes) };
+ }
+@@ -503,6 +519,7 @@
+ 
+   // Mutation A: registration. Unknown response means reconciliation, never retry.
+   try {
++  save(root, 'accounting-before-register.json', await recheckAccountingFiles(local.checkpoint));
+   save(root, 'register-dispatch-intent.json', { at: new Date().toISOString(),
+     taskInputSha256: canonicalFingerprint(normalizedTaskInput), automaticRetryAllowed: false });
+   let registration;
+@@ -523,6 +540,7 @@
+   request.taskDefinition = taskDefinitionArn;
+   taskRequest = { ...request };
+   save(root, 'run-task-input.private.json', taskRequest);
++  save(root, 'accounting-before-run.json', await recheckAccountingFiles(local.checkpoint));
+   save(root, 'run-task-dispatch-intent.json', { at: new Date().toISOString(),
+     taskDefinitionArn, cluster: CLUSTER, startedBy: startBy, clientToken,
+     taskInputSha256: hash(Buffer.from(JSON.stringify(taskRequest))), automaticRetryAllowed: false });
+@@ -674,7 +692,7 @@
+       resultSha256: priorPlan?.resultSha256 ?? null, receiptPath: `${PRIOR_PLAN_ROOT}/inner-owner-receipt.json`,
+       receiptSha256: priorPlan?.receiptSha256 ?? null, planSha256: priorPlan?.plan?.planSha256 ?? null } : null,
+     innerObservedStatus:receiptFrame?.owner?.status??receiptFrame?.owner?.kind??null,
+-    priorBudgetQualification:mode==='execute'?'CLEARED_BY_EXISTING_NATIVE_OWNER':'UNCHANGED',
++    priorBudgetQualification: mode === 'plan' ? 'UNCHANGED' : successfulReceipt ? 'CLEARED_BY_EXISTING_NATIVE_OWNER' : runDispatched ? 'NOT_PROVED' : 'UNCHANGED_BEFORE_DISPATCH',
+     childExitCode: receiptFrame?.meta?.childExitCode ?? null,
+     taskExitCode: task?.containers?.[0]?.exitCode ?? null,
+     events, failures, rawFrameRecords: logRecords, observations, postOperationSnapshots: postSnapshot,

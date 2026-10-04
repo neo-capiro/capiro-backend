@@ -1,0 +1,815 @@
+{
+  "scope": "Hash references only. Raw AWS pages, task definitions and private launch inputs remain external; no contents copied.",
+  "files": [
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-plan-v1\\definition-readback.json",
+      "sha256": "0790d0d1a93860fa7c802fe6032045d9ce3c1d6ce716862c1354f044f0564ffb",
+      "bytes": 271,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-plan-v1\\definition-readback.private.json",
+      "sha256": "2cb0e28032b1cdcc63ee113525da8a1cd406de8ab52ff10b8fd06a697126cf99",
+      "bytes": 18407,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-plan-v1\\definition-register-response.json",
+      "sha256": "faf45eda022b9c453181389485f60d79b114efbcc5594e98ba1ab03d8031e9e9",
+      "bytes": 18393,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-plan-v1\\deregister-dispatch-intent.json",
+      "sha256": "d05cc924e7412198943a75d2c1b10882ebdfff75efe5e3192f45ada21e904390",
+      "bytes": 175,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-plan-v1\\deregister-readback-1.json",
+      "sha256": "7caa0c9b6ef09dc94e883574277b157c4f04769c42d3bc19c76aa2dd8ca552ce",
+      "bytes": 18467,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-plan-v1\\deregister-response.json",
+      "sha256": "dbcdd875f6db4d45f2a0b265d2b10557added9906b34ad089345fcc2b970b192",
+      "bytes": 18395,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-plan-v1\\intent.json",
+      "sha256": "6e5abe547321397024841f58b81ddaac4a58a262b9b8db881b5a474d98f3761c",
+      "bytes": 2290,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-plan-v1\\logs-page-001.json",
+      "sha256": "67872483d77cbb005dd8966c689a44ad1c58a2089ec9c1b7c118120d42990e07",
+      "bytes": 3625,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-plan-v1\\raw-log-events.json",
+      "sha256": "a2cf90d51e7d6e490b20e244ea54a2eae7d3d186a7f537580dff814feb27f968",
+      "bytes": 3340,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-plan-v1\\raw-receipt-records.json",
+      "sha256": "711775732b1de85d1feff44f169f699a3364552a60777bfec5fc7ec3000f95f5",
+      "bytes": 3136,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-plan-v1\\register-dispatch-intent.json",
+      "sha256": "d261f3e977d060ca0ab203fe20a01e1955df481d123bfb3aa30586cb9b209bd8",
+      "bytes": 162,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-plan-v1\\run-task-dispatch-intent.json",
+      "sha256": "f757c7933fa877512a383cef2936119590195039ec839e2b1b1aca0f9959274a",
+      "bytes": 410,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-plan-v1\\run-task-input.private.json",
+      "sha256": "fa4da7157ad40f8eb79350daa9bd269f6e6a9149e6d32b3942bea87bb8047087",
+      "bytes": 624,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-plan-v1\\task-definition-request.private.json",
+      "sha256": "9302da61a092f9d870e9d6ee12cfc63c4ad99c4ef9f44cde227aeec63c8c72f4",
+      "bytes": 17071,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-plan-v1\\task-read-001.json",
+      "sha256": "d9faf221390df366ed69487a450e40f4b5b0881932b9d7fb8c026c744de88683",
+      "bytes": 2287,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-plan-v1\\task-read-002.json",
+      "sha256": "cdd352e51ab411c3ee6e9796524fc290cda6f2572932c67eb8eaf00365f2a6d0",
+      "bytes": 2907,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-plan-v1\\task-read-003.json",
+      "sha256": "2ef18b072b7495525286d692f8d062e10e42b47cc855d67e314004262d89a209",
+      "bytes": 2902,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-plan-v1\\task-read-004.json",
+      "sha256": "2ef18b072b7495525286d692f8d062e10e42b47cc855d67e314004262d89a209",
+      "bytes": 2902,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-plan-v1\\task-read-005.json",
+      "sha256": "2ef18b072b7495525286d692f8d062e10e42b47cc855d67e314004262d89a209",
+      "bytes": 2902,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-plan-v1\\task-read-006.json",
+      "sha256": "2ef18b072b7495525286d692f8d062e10e42b47cc855d67e314004262d89a209",
+      "bytes": 2902,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-plan-v1\\task-read-007.json",
+      "sha256": "2ef18b072b7495525286d692f8d062e10e42b47cc855d67e314004262d89a209",
+      "bytes": 2902,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-plan-v1\\task-read-008.json",
+      "sha256": "2ef18b072b7495525286d692f8d062e10e42b47cc855d67e314004262d89a209",
+      "bytes": 2902,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-plan-v1\\task-read-009.json",
+      "sha256": "2ef18b072b7495525286d692f8d062e10e42b47cc855d67e314004262d89a209",
+      "bytes": 2902,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-plan-v1\\task-read-010.json",
+      "sha256": "2ef18b072b7495525286d692f8d062e10e42b47cc855d67e314004262d89a209",
+      "bytes": 2902,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-plan-v1\\task-read-011.json",
+      "sha256": "00e44091277b75e4fce82cf6c27580bf4c407fbf934b966134b5c845d26ba125",
+      "bytes": 3373,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-plan-v1\\task-read-012.json",
+      "sha256": "00e44091277b75e4fce82cf6c27580bf4c407fbf934b966134b5c845d26ba125",
+      "bytes": 3373,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-plan-v1\\task-read-013.json",
+      "sha256": "586c2394c3cb2513f0fe4d9bf616cf10cd2741759fba31e583d93ed7caf24d02",
+      "bytes": 3633,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-plan-v1\\task-read-014.json",
+      "sha256": "586c2394c3cb2513f0fe4d9bf616cf10cd2741759fba31e583d93ed7caf24d02",
+      "bytes": 3633,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-plan-v1\\task-read-015.json",
+      "sha256": "586c2394c3cb2513f0fe4d9bf616cf10cd2741759fba31e583d93ed7caf24d02",
+      "bytes": 3633,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-plan-v1\\task-read-016.json",
+      "sha256": "b809d7452f32637cc4dd62729c93ffc8c8121f5881ab8fd69a7d3602b9795b86",
+      "bytes": 3679,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-plan-v1\\task-read-017.json",
+      "sha256": "b809d7452f32637cc4dd62729c93ffc8c8121f5881ab8fd69a7d3602b9795b86",
+      "bytes": 3679,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-plan-v1\\task-read-018.json",
+      "sha256": "b809d7452f32637cc4dd62729c93ffc8c8121f5881ab8fd69a7d3602b9795b86",
+      "bytes": 3679,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-plan-v1\\task-start-response.json",
+      "sha256": "a206a9e489d0acdee0af7b9e6b33f6b7a6fa3fe2eb694c8e28e7c138a4510575",
+      "bytes": 2217,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-plan-v1\\task-start.json",
+      "sha256": "d0de6026acce5be32760745a773a55e347026f2b3704007a3a2d014b5510bcc1",
+      "bytes": 446,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-execute-v1\\definition-readback.json",
+      "sha256": "39acf44cae2bd4fb479c449b54cb56de27858fccf71a6eaa37d2479c5f60a1cf",
+      "bytes": 271,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-execute-v1\\definition-readback.private.json",
+      "sha256": "c70a92bf3da39344ebc157b8994604a6537212a2a7038c331bd6105b2f0ba6c3",
+      "bytes": 21700,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-execute-v1\\definition-register-response.json",
+      "sha256": "224bc37a58fa2c7a85878da6cad60014bde393b04890afba3785592d3c8f958b",
+      "bytes": 21686,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-execute-v1\\deregister-dispatch-intent.json",
+      "sha256": "dcccabb837d4297b6b292001a34dd2f98004d5cf376bb5bdef040174819cce87",
+      "bytes": 175,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-execute-v1\\deregister-readback-1.json",
+      "sha256": "619fba173276b606122af399acc9c00e9c31bda297fb2f18e4409b7fbde42dea",
+      "bytes": 21760,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-execute-v1\\deregister-response.json",
+      "sha256": "0e204b58b707bd35c7e6be4ebff9bcbe60f03a5de20bc7a517edc83601a07c29",
+      "bytes": 21688,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-execute-v1\\intent.json",
+      "sha256": "a8061f39d9fbb1df302b2ad82e1e95eca06c0eed7597b193dafaac089ffa86ef",
+      "bytes": 2365,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-execute-v1\\logs-page-001.json",
+      "sha256": "b8c876cbf0356bcc373559b70d22bbebdd654349b342532dea01aa89ab8dffd4",
+      "bytes": 5813,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-execute-v1\\raw-log-events.json",
+      "sha256": "afc2a8333fd73b8ba89de7708db1c4182f6418ca3fd2429741bbd83c9f7d1908",
+      "bytes": 5528,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-execute-v1\\raw-receipt-records.json",
+      "sha256": "26275f41056b3689f7e45aa0e68386550d021ebbda7969fe45493d3e56f6cf21",
+      "bytes": 5324,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-execute-v1\\register-dispatch-intent.json",
+      "sha256": "ab59b16e843b32b5ff187697c12ee5a1f2215f7e1365869df157579350f08030",
+      "bytes": 162,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-execute-v1\\run-task-dispatch-intent.json",
+      "sha256": "a37a994012c25c44f01aa7e386321b0201eaf4e2483d1023b9afe3100ccc401b",
+      "bytes": 413,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-execute-v1\\run-task-input.private.json",
+      "sha256": "e799a72ea2e532357254806e284bd3048175d1730e4aebb711d7a51fff1aa0a1",
+      "bytes": 627,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-execute-v1\\task-definition-request.private.json",
+      "sha256": "72cc4edb82d48f5cea0397762061b5a0cebec249d8a24ad2cd57000a15912858",
+      "bytes": 20364,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-execute-v1\\task-read-001.json",
+      "sha256": "879cab9af9c981aaca5e67a4065563bd2e57be81963e2990089db945f0e320ff",
+      "bytes": 2290,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-execute-v1\\task-read-002.json",
+      "sha256": "4559b6fe0ce11a1abeb0aa3a399beafa711004961575b61cf15aebe7c746b9e0",
+      "bytes": 2907,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-execute-v1\\task-read-003.json",
+      "sha256": "30d2ce8b14a9cffbca26e0e18dec5b270bd007147049538f3157436e6f6fc8f5",
+      "bytes": 2902,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-execute-v1\\task-read-004.json",
+      "sha256": "30d2ce8b14a9cffbca26e0e18dec5b270bd007147049538f3157436e6f6fc8f5",
+      "bytes": 2902,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-execute-v1\\task-read-005.json",
+      "sha256": "30d2ce8b14a9cffbca26e0e18dec5b270bd007147049538f3157436e6f6fc8f5",
+      "bytes": 2902,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-execute-v1\\task-read-006.json",
+      "sha256": "30d2ce8b14a9cffbca26e0e18dec5b270bd007147049538f3157436e6f6fc8f5",
+      "bytes": 2902,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-execute-v1\\task-read-007.json",
+      "sha256": "30d2ce8b14a9cffbca26e0e18dec5b270bd007147049538f3157436e6f6fc8f5",
+      "bytes": 2902,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-execute-v1\\task-read-008.json",
+      "sha256": "30d2ce8b14a9cffbca26e0e18dec5b270bd007147049538f3157436e6f6fc8f5",
+      "bytes": 2902,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-execute-v1\\task-read-009.json",
+      "sha256": "30d2ce8b14a9cffbca26e0e18dec5b270bd007147049538f3157436e6f6fc8f5",
+      "bytes": 2902,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-execute-v1\\task-read-010.json",
+      "sha256": "30d2ce8b14a9cffbca26e0e18dec5b270bd007147049538f3157436e6f6fc8f5",
+      "bytes": 2902,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-execute-v1\\task-read-011.json",
+      "sha256": "269e19a574cf16c478aa806ce0a90c3fd069b6cb22f167e67dfbfc01f5af7397",
+      "bytes": 3373,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-execute-v1\\task-read-012.json",
+      "sha256": "269e19a574cf16c478aa806ce0a90c3fd069b6cb22f167e67dfbfc01f5af7397",
+      "bytes": 3373,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-execute-v1\\task-read-013.json",
+      "sha256": "a62455285e0aa0495dcfdfa68891b20dd2cfe00b7d10a83c6521d7975b9d505e",
+      "bytes": 3633,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-execute-v1\\task-read-014.json",
+      "sha256": "a62455285e0aa0495dcfdfa68891b20dd2cfe00b7d10a83c6521d7975b9d505e",
+      "bytes": 3633,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-execute-v1\\task-read-015.json",
+      "sha256": "146dc916de4efaeaeee97e6a57e5d5c4f226e9834bdce96ce5748c1f3ab775c9",
+      "bytes": 3679,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-execute-v1\\task-read-016.json",
+      "sha256": "146dc916de4efaeaeee97e6a57e5d5c4f226e9834bdce96ce5748c1f3ab775c9",
+      "bytes": 3679,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-execute-v1\\task-read-017.json",
+      "sha256": "146dc916de4efaeaeee97e6a57e5d5c4f226e9834bdce96ce5748c1f3ab775c9",
+      "bytes": 3679,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-execute-v1\\task-start-response.json",
+      "sha256": "e3462aef270a34dfeb02a8af138e0681ce6312e8c3337cea7114c6a685803cba",
+      "bytes": 2220,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-execute-v1\\task-start.json",
+      "sha256": "b4a032002dd8a59472222637c958b4d1a5ee22b0581d44df5a7f115ea86e1592",
+      "bytes": 449,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-plan-v1\\definition-readback.json",
+      "sha256": "f36d920f171edfd9bf6c7b80363f45b18c7dd970393cf18f9f0f631424c68b08",
+      "bytes": 272,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-plan-v1\\definition-readback.private.json",
+      "sha256": "e29a8fc608395bd44ad1e155b60b1964b18c6e936a5a60225c0fcbace39feb10",
+      "bytes": 25663,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-plan-v1\\definition-register-response.json",
+      "sha256": "2aefcaa5fd56513fdb4f1b6c341a5195270486f920d0978c54d000d4451f6448",
+      "bytes": 25649,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-plan-v1\\deregister-dispatch-intent.json",
+      "sha256": "8b396aeb6ea952c91621d56c6c7c9881904935e9166ad4f4ba1eb61fb91400f8",
+      "bytes": 176,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-plan-v1\\deregister-readback-1.json",
+      "sha256": "185ccf4ce560613854594eb2f440a0efa81a41755d877fe6530852b915d309fc",
+      "bytes": 25723,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-plan-v1\\deregister-response.json",
+      "sha256": "101fff2ce4149fb4b406963199b8bd7cfa3ffef80a8055d7de39c51f60909263",
+      "bytes": 25651,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-plan-v1\\intent.json",
+      "sha256": "f336a34a5a4dc39684fd7db310561e2d33287dfa5e68beb5bda31d2b5abb0145",
+      "bytes": 2439,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-plan-v1\\logs-page-001.json",
+      "sha256": "9b4ec7f201e344fe7774a5faded7a806c8d91c053b2e72473d673ebb8c30371c",
+      "bytes": 2960,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-plan-v1\\raw-log-events.json",
+      "sha256": "f3834a33051c109a27c2d7406a8b78b96387a3d851abf5a11d5858f38d61da63",
+      "bytes": 2675,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-plan-v1\\raw-receipt-records.json",
+      "sha256": "278dea75dc71cd28d931465c8f4c121c865a4f3e51d4945124c8e1098cabebf1",
+      "bytes": 2476,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-plan-v1\\register-dispatch-intent.json",
+      "sha256": "c2f9df10d42ba147553d28d9a9fe45797a36a2da62503c444e69a5c1fc4aa0b9",
+      "bytes": 162,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-plan-v1\\run-task-dispatch-intent.json",
+      "sha256": "4101c1f85ee8a6e502a4a3652dcda787b1253b0c917ab86f80f7f047c6748642",
+      "bytes": 411,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-plan-v1\\run-task-input.private.json",
+      "sha256": "46dd667aa6842d1b4c4c6bb53c9fa5143ef19eed6a2f4173326932bcf04297a7",
+      "bytes": 625,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-plan-v1\\task-definition-request.private.json",
+      "sha256": "ce810f2487b9d6ef117c206fa18a502aee7f82eda0035927f28ce1e2b62b3b1a",
+      "bytes": 24326,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-plan-v1\\task-read-001.json",
+      "sha256": "2abcecf4f02435de5fd696d2abb58bc05109a84fa2c0aa768c333ed509311423",
+      "bytes": 2291,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-plan-v1\\task-read-002.json",
+      "sha256": "2591ac42369641c2daedb7f654a1468f5263862422c9604dcb3ad4c5af2d2750",
+      "bytes": 2912,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-plan-v1\\task-read-003.json",
+      "sha256": "f9fbd18b50b9887640987bcc05d735d97cb62c1ec2d5d94bbc96c1c982365769",
+      "bytes": 2906,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-plan-v1\\task-read-004.json",
+      "sha256": "f9fbd18b50b9887640987bcc05d735d97cb62c1ec2d5d94bbc96c1c982365769",
+      "bytes": 2906,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-plan-v1\\task-read-005.json",
+      "sha256": "f9fbd18b50b9887640987bcc05d735d97cb62c1ec2d5d94bbc96c1c982365769",
+      "bytes": 2906,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-plan-v1\\task-read-006.json",
+      "sha256": "f9fbd18b50b9887640987bcc05d735d97cb62c1ec2d5d94bbc96c1c982365769",
+      "bytes": 2906,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-plan-v1\\task-read-007.json",
+      "sha256": "f9fbd18b50b9887640987bcc05d735d97cb62c1ec2d5d94bbc96c1c982365769",
+      "bytes": 2906,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-plan-v1\\task-read-008.json",
+      "sha256": "f9fbd18b50b9887640987bcc05d735d97cb62c1ec2d5d94bbc96c1c982365769",
+      "bytes": 2906,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-plan-v1\\task-read-009.json",
+      "sha256": "f9fbd18b50b9887640987bcc05d735d97cb62c1ec2d5d94bbc96c1c982365769",
+      "bytes": 2906,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-plan-v1\\task-read-010.json",
+      "sha256": "f9fbd18b50b9887640987bcc05d735d97cb62c1ec2d5d94bbc96c1c982365769",
+      "bytes": 2906,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-plan-v1\\task-read-011.json",
+      "sha256": "734fb2ca6669bb5bbef55018aa69c1e34edefc3a6c14e1621cd0a2fc7cabb753",
+      "bytes": 3377,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-plan-v1\\task-read-012.json",
+      "sha256": "734fb2ca6669bb5bbef55018aa69c1e34edefc3a6c14e1621cd0a2fc7cabb753",
+      "bytes": 3377,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-plan-v1\\task-read-013.json",
+      "sha256": "146ccaed6db7e2034b6355a25072d1e5751b3ea43a7b67f2d5273aa4b662cd25",
+      "bytes": 3636,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-plan-v1\\task-read-014.json",
+      "sha256": "163599bedae1e47f7e3e2409ce1cdfc102c888e306c390aa8d20644b5c36ad5c",
+      "bytes": 3637,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-plan-v1\\task-read-015.json",
+      "sha256": "163599bedae1e47f7e3e2409ce1cdfc102c888e306c390aa8d20644b5c36ad5c",
+      "bytes": 3637,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-plan-v1\\task-read-016.json",
+      "sha256": "5ad94cb73e18ba6fe2517027795fc41ba9eff153ec8efe7a83f251a96aae6923",
+      "bytes": 3683,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-plan-v1\\task-read-017.json",
+      "sha256": "5ad94cb73e18ba6fe2517027795fc41ba9eff153ec8efe7a83f251a96aae6923",
+      "bytes": 3683,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-plan-v1\\task-read-018.json",
+      "sha256": "5ad94cb73e18ba6fe2517027795fc41ba9eff153ec8efe7a83f251a96aae6923",
+      "bytes": 3683,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-plan-v1\\task-start-response.json",
+      "sha256": "f227719b14f39a92c9e8607f5e9c2a03ea5bac8fc916a7015074c7e5bab4dcfb",
+      "bytes": 2221,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-plan-v1\\task-start.json",
+      "sha256": "e3c499abb6f49bdab328407b85e6b3c1baf8a2ac4033f32b0f9038319959512a",
+      "bytes": 447,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-install-v1\\definition-readback.json",
+      "sha256": "fcf7fe6b5e2eb09792730bcddea73aade2636ae297e87afdac8018a16df97ee6",
+      "bytes": 272,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-install-v1\\definition-readback.private.json",
+      "sha256": "5e669104aee10cd033d03d8b041053244db58184e283dbb272277fb4ee5a06ea",
+      "bytes": 30501,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-install-v1\\definition-register-response.json",
+      "sha256": "9bc93cc1374d163b0b3302bb7d7f04e3aa2f916bd6434f9aeb94a903675cb44b",
+      "bytes": 30487,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-install-v1\\deregister-dispatch-intent.json",
+      "sha256": "0ff99e7ebdfc70e4b8e16772a5f59bef03d340cb70e02f2e6a9b8d8a2cb6ea4f",
+      "bytes": 176,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-install-v1\\deregister-readback-1.json",
+      "sha256": "75d8f073ed722ceec2258b6dc0186c3a7819a12637d441f0e968df75164a8ceb",
+      "bytes": 30561,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-install-v1\\deregister-response.json",
+      "sha256": "fe1a276e6ab2ce209e8edbb5b4f6a8478aa5c4c61c1d4040f28d7fd587c1ffe0",
+      "bytes": 30489,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-install-v1\\intent.json",
+      "sha256": "3a902c9e63eab8900a596bd2400ad3545a2235242f343b1c12905a7d235bd9b2",
+      "bytes": 2527,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-install-v1\\logs-page-001.json",
+      "sha256": "54b9d342dee37482f63cfd6dcbed85ae7b40e51eee10689f7b7628f9ddf6a5e0",
+      "bytes": 3458,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-install-v1\\raw-log-events.json",
+      "sha256": "88e453ac7b71542671099dab9023418c133a973f467043b1c23590faf4f50389",
+      "bytes": 3173,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-install-v1\\raw-receipt-records.json",
+      "sha256": "eae1a00fea139cc0d513d57e6b4fd2b91bce3b5cdc373991fdd7cb2e2210cd93",
+      "bytes": 2974,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-install-v1\\register-dispatch-intent.json",
+      "sha256": "a7decd8c5eb3d0a63bcbd3596e8562b0b3694bb8d67d2ef2e326c203c9f24a66",
+      "bytes": 162,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-install-v1\\run-task-dispatch-intent.json",
+      "sha256": "26371e8e834e3971c2dce195e8e6d6eafff46fbcddc7a6ba099e89dda4ee9849",
+      "bytes": 414,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-install-v1\\run-task-input.private.json",
+      "sha256": "7c245f3283d5dca2f5321cf9af4e0365c28793eec046e96d5043efe7676ccc97",
+      "bytes": 628,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-install-v1\\task-definition-request.private.json",
+      "sha256": "b0b26e42ce8062a79cc9f238c6433a13a9595e91eb435c88131c50a7b4a65620",
+      "bytes": 29164,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-install-v1\\task-read-001.json",
+      "sha256": "421ea88b0b563c5f27ea57394179b2e1216d6afb582a1d4f4b5b2c1862532edf",
+      "bytes": 2294,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-install-v1\\task-read-002.json",
+      "sha256": "74ae8d6315be43660a0e95987aae35a395694d757f69986e4bf87364263efa0c",
+      "bytes": 2910,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-install-v1\\task-read-003.json",
+      "sha256": "75708320f356e23f620b80ed3e27b67c088de32f1b1d68a7e662e03cdaea69d4",
+      "bytes": 2911,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-install-v1\\task-read-004.json",
+      "sha256": "d455bf460ef288f41e500a525e10b7ef6393a5a634dea9e431aab4874ce7f19a",
+      "bytes": 2906,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-install-v1\\task-read-005.json",
+      "sha256": "d455bf460ef288f41e500a525e10b7ef6393a5a634dea9e431aab4874ce7f19a",
+      "bytes": 2906,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-install-v1\\task-read-006.json",
+      "sha256": "d455bf460ef288f41e500a525e10b7ef6393a5a634dea9e431aab4874ce7f19a",
+      "bytes": 2906,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-install-v1\\task-read-007.json",
+      "sha256": "d455bf460ef288f41e500a525e10b7ef6393a5a634dea9e431aab4874ce7f19a",
+      "bytes": 2906,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-install-v1\\task-read-008.json",
+      "sha256": "d455bf460ef288f41e500a525e10b7ef6393a5a634dea9e431aab4874ce7f19a",
+      "bytes": 2906,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-install-v1\\task-read-009.json",
+      "sha256": "d455bf460ef288f41e500a525e10b7ef6393a5a634dea9e431aab4874ce7f19a",
+      "bytes": 2906,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-install-v1\\task-read-010.json",
+      "sha256": "d455bf460ef288f41e500a525e10b7ef6393a5a634dea9e431aab4874ce7f19a",
+      "bytes": 2906,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-install-v1\\task-read-011.json",
+      "sha256": "d455bf460ef288f41e500a525e10b7ef6393a5a634dea9e431aab4874ce7f19a",
+      "bytes": 2906,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-install-v1\\task-read-012.json",
+      "sha256": "ebb66b48075f3be1821cd9c807297490221a0c6dbc9075b2b9fda7c9d83dda14",
+      "bytes": 3377,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-install-v1\\task-read-013.json",
+      "sha256": "ebb66b48075f3be1821cd9c807297490221a0c6dbc9075b2b9fda7c9d83dda14",
+      "bytes": 3377,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-install-v1\\task-read-014.json",
+      "sha256": "d3ff4e89bcff389d14467f70a08c8c6f807faa02234f1cbc1533a5f25f7e1d24",
+      "bytes": 3637,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-install-v1\\task-read-015.json",
+      "sha256": "d3ff4e89bcff389d14467f70a08c8c6f807faa02234f1cbc1533a5f25f7e1d24",
+      "bytes": 3637,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-install-v1\\task-read-016.json",
+      "sha256": "64a9354046828a289a1627155c12baa97fda9d539a2b867e8eb028fc6acf08b6",
+      "bytes": 3683,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-install-v1\\task-read-017.json",
+      "sha256": "64a9354046828a289a1627155c12baa97fda9d539a2b867e8eb028fc6acf08b6",
+      "bytes": 3683,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-install-v1\\task-read-018.json",
+      "sha256": "64a9354046828a289a1627155c12baa97fda9d539a2b867e8eb028fc6acf08b6",
+      "bytes": 3683,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-install-v1\\task-start-response.json",
+      "sha256": "9f1161658e2cb3ae33a2d96a9dc0ca7f906330983b094e56d89fcb28642e014a",
+      "bytes": 2224,
+      "contentIncluded": false
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-install-v1\\task-start.json",
+      "sha256": "16922d7ccbf4818dc875e793eba5c354ac7a643fc6f46213e043063ac3d5dcc9",
+      "bytes": 450,
+      "contentIncluded": false
+    }
+  ]
+}

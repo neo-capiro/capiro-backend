@@ -1,0 +1,18 @@
+✔ absence requires precise missing key, checked membership and rollback (9.8819ms)
+✔ claimed is reconciliation, never absent (0.2516ms)
+✔ completed/null is unresolved, never absent (0.1407ms)
+✔ pending owner output omits content and unknown nested fields (1.1683ms)
+✔ approved owner output omits content and unknown nested fields (0.4407ms)
+✔ wrong current member rejects before invoking canonical owner (1.3605ms)
+✔ owner exception is redacted and transaction rolls back (0.2198ms)
+✔ rollback failure cannot emit success (0.1206ms)
+✔ swallowed sentinel cannot emit success (0.1067ms)
+✔ disabled current review switch rejects before read (0.4799ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 115.9769

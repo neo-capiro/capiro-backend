@@ -1,0 +1,925 @@
+{
+  "schemaVersion": 1,
+  "createdAt": "2026-10-04T01:06:41.481037+00:00",
+  "status": "ARCHIVED_PRE_RECOVERY_EVIDENCE_ONLY",
+  "case20": {
+    "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+    "initialModelSubmissions": 0,
+    "recovery": "NOT_RUN",
+    "eventCount": 23,
+    "knownSettledCostMicros": 12133883,
+    "heldMicros": 15000000,
+    "committedCostMicros": 27133883,
+    "remainingReservationMicros": 2866117
+  },
+  "case17": {
+    "status": "UI_SLICE_PASS",
+    "originalPromptSubmission": "NOT_RUN",
+    "humanRubric": "NOT_RUN",
+    "fullOriginalRow17Acceptance": false
+  },
+  "validatedReviewPins": [
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-setup-preparation-v3\\checkpoint.json",
+      "sha256": "58d451f530476cf6e7513b88baee1d4dd5f004001ac918ee705819b24b8d39bc",
+      "review": "case20-pre-capture-independent-review-v1.json"
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-setup-preparation-v3\\supervised-candidate\\run-case20-native-setup.mjs",
+      "sha256": "9f81d8f0b5aec4211d2e03bb94dc27c93fd4d7f12bc38f70ed5c7773f03699f2",
+      "review": "case20-pre-capture-independent-review-v1.json"
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-setup-preparation-v3\\supervised-candidate\\case20-native-setup-inner.mjs",
+      "sha256": "36e6c8021e8033f282be2534767e0a1ea94c27fdc98af08aadab0c26b25b15de",
+      "review": "case20-pre-capture-independent-review-v1.json"
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\launch-case20-controlled-read-v1-once.mjs",
+      "sha256": "d8c09bc7bd943fbb010533011daac5cfd00047243c7afb09688d87aa27e1015e",
+      "review": "case20-pre-capture-independent-review-v1.json"
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\materialize-verified-case20-setup-v1.mjs",
+      "sha256": "a64486538c21505f185ecc7354e7653393a8845f697acc528892a37310434f50",
+      "review": "case20-pre-capture-independent-review-v1.json"
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-budget-preparation-v1\\checkpoint.json",
+      "sha256": "3042821fca345142a7640cf5745d4845ef260134ca6075f83d88f1556582ed7a",
+      "review": "case20-budget-independent-review-v1.json"
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-budget-preparation-v1\\supervised-candidate\\run-case20-native-budget.mjs",
+      "sha256": "cd4d7e506f7b26ab04fcc2013964bb7dbd843c72028c734376b577cc21b50c69",
+      "review": "case20-budget-independent-review-v1.json"
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-budget-preparation-v1\\supervised-candidate\\case20-native-budget-inner.mjs",
+      "sha256": "f0314af18590f8a3ec5503cc6c39d2d9045b042d5b817482320339c6d38286dc",
+      "review": "case20-budget-independent-review-v1.json"
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-budget-preparation-v1\\final-exact-input\\receipt.json",
+      "sha256": "a99510bf2a33149895526f77c23a82b16aeb7a2f8870a45b80644226d286a3f4",
+      "review": "case20-budget-independent-review-v1.json"
+    },
+    {
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\materialize-verified-case20-budget-v1.mjs",
+      "sha256": "d2628540fe19531d8c672bd95a5aed72ed9c39eb7480d1afee71c348791894c8",
+      "review": "case20-budget-independent-review-v1.json"
+    }
+  ],
+  "files": [
+    {
+      "archivePath": "case20/case20-pre-capture-independent-review-v1.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-pre-capture-independent-review-v1.json",
+      "sha256": "6c59f1cdb44dc24034c9e09b69ec6a548e9028f828c979e1d74f66359e5d0bd2",
+      "bytes": 3830,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-budget-independent-review-v1.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-budget-independent-review-v1.json",
+      "sha256": "b5e4fc4c2a7ea0b84168a186ddfb6dad14f1254e1fbe6ac9900a552fbd9b5fbc",
+      "bytes": 3986,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-deployment-input-v1.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-deployment-input-v1.json",
+      "sha256": "cd0fba943c2e897dfb40f1cc1bc4e2567d37f85589f86d90876216585f19ceb1",
+      "bytes": 1043,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-materializer-packet-v1.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-materializer-packet-v1.json",
+      "sha256": "d0c94451b62c01fb332f4df4f916f6a13eaa9713a05137520d162f51eeb215ee",
+      "bytes": 1018,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-live-scope-v1.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-live-scope-v1.json",
+      "sha256": "ff11e6de4f6f89ed4314dda96a11bec7ccf724dc35d0520fdbefe33155266e0c",
+      "bytes": 11282,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/reviewed-rates-c2-v2-20261003.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\reviewed-rates-c2-v2-20261003.json",
+      "sha256": "3531e09dfcce9f66b4ea2b3564db47bd72dc507cdcf1aecdda277b838007704e",
+      "bytes": 2770,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/reviewed-rates-c2-v2-preparation.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\reviewed-rates-c2-v2-preparation.json",
+      "sha256": "f08de4fa69e5814d4ba5a38761b6b3d7baaffd41ff7ba9a00377f06d31225421",
+      "bytes": 1275,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/capture-contract-served-readback.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\capture-contract-served-readback.json",
+      "sha256": "8552a710a602df8a38eaea900dda61ec7162423ef5a3f6422471c76ad5432552",
+      "bytes": 3872,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/materialize-verified-case20-setup-v1.mjs",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\materialize-verified-case20-setup-v1.mjs",
+      "sha256": "a64486538c21505f185ecc7354e7653393a8845f697acc528892a37310434f50",
+      "bytes": 3187,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/materialize-verified-case20-budget-v1.mjs",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\materialize-verified-case20-budget-v1.mjs",
+      "sha256": "d2628540fe19531d8c672bd95a5aed72ed9c39eb7480d1afee71c348791894c8",
+      "bytes": 4653,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/launch-case20-controlled-read-v1-once.mjs",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\launch-case20-controlled-read-v1-once.mjs",
+      "sha256": "d8c09bc7bd943fbb010533011daac5cfd00047243c7afb09688d87aa27e1015e",
+      "bytes": 2937,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-browser-readiness-diagnostic-v1.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-browser-readiness-diagnostic-v1.json",
+      "sha256": "ba3d94226245e8d6c84e3e42ed6434dc9ec398fb6478bb8ae87a5f86426786c2",
+      "bytes": 1142,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/diagnose-case20-browser-readiness-v1.mjs",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\diagnose-case20-browser-readiness-v1.mjs",
+      "sha256": "f6c59c34d24740466fc17df41a557f8d506fdcaca624b9ee943b2e4cd518a095",
+      "bytes": 7402,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-local-preparation-v1/setup-plan-input.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-local-preparation-v1\\setup-plan-input.json",
+      "sha256": "a72c2d69bebb9694edb38bc4131a60a093e6488f8cd3528fafd92db7f84a082d",
+      "bytes": 467,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-local-preparation-v1/local-inspection.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-local-preparation-v1\\local-inspection.json",
+      "sha256": "2420449607b59a6a0d9410c93cf66ccb469f22e2cc25643a0b0d3921b6c317de",
+      "bytes": 1920,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-setup-preparation-v3/checkpoint.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-setup-preparation-v3\\checkpoint.json",
+      "sha256": "58d451f530476cf6e7513b88baee1d4dd5f004001ac918ee705819b24b8d39bc",
+      "bytes": 2605,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-setup-preparation-v3/README.md",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-setup-preparation-v3\\README.md",
+      "sha256": "b0a6b31e1bf046f0292e3bee7e29c4e1390b352f45b131b6766c3e0fdb273eb7",
+      "bytes": 1729,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-setup-preparation-v3/syntax-receipt.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-setup-preparation-v3\\syntax-receipt.json",
+      "sha256": "fe25fa8df0a87582505516e63529f46e8f5583c71bd8a77e4b91e0976ffe81fe",
+      "bytes": 530,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-setup-preparation-v3/green-v3/receipt.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-setup-preparation-v3\\green-v3\\receipt.json",
+      "sha256": "d53e598f28c6800f51ae4d2835e0f9a1fe052c9d11672d3e6672bd5bd264da95",
+      "bytes": 4475,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-setup-preparation-v3/red-v2/receipt.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-setup-preparation-v3\\red-v2\\receipt.json",
+      "sha256": "6714a98bc39f7f9f0f346193f1b4742878e8fcdde4a664da3751c0b1f1a0ed8a",
+      "bytes": 5499,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-setup-preparation-v3/qualify-supervised-candidate.mjs",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-setup-preparation-v3\\qualify-supervised-candidate.mjs",
+      "sha256": "556e83d8530efee3993873ff0187700c9f5df20ca16890bd656bdacc26ec2a00",
+      "bytes": 19129,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-setup-preparation-v3/v2-to-v3.diff",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-setup-preparation-v3\\v2-to-v3.diff",
+      "sha256": "7cee8e9b8f789b5c7977a28e6d830ed7dceb6171724503733d6f87705fca33ef",
+      "bytes": 4100,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-setup-preparation-v3/supervised-candidate/run-case20-native-setup.mjs",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-setup-preparation-v3\\supervised-candidate\\run-case20-native-setup.mjs",
+      "sha256": "9f81d8f0b5aec4211d2e03bb94dc27c93fd4d7f12bc38f70ed5c7773f03699f2",
+      "bytes": 51569,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-setup-preparation-v3/supervised-candidate/case20-native-setup-inner.mjs",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-setup-preparation-v3\\supervised-candidate\\case20-native-setup-inner.mjs",
+      "sha256": "36e6c8021e8033f282be2534767e0a1ea94c27fdc98af08aadab0c26b25b15de",
+      "bytes": 9343,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-budget-preparation-v1/checkpoint.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-budget-preparation-v1\\checkpoint.json",
+      "sha256": "3042821fca345142a7640cf5745d4845ef260134ca6075f83d88f1556582ed7a",
+      "bytes": 5845,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-budget-preparation-v1/README.md",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-budget-preparation-v1\\README.md",
+      "sha256": "82dc5f7b4e1333338c10e0a1f43d74e8f160c29521fc51fe23df15c2e9cd83e4",
+      "bytes": 4605,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-budget-preparation-v1/final-exact-input/receipt.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-budget-preparation-v1\\final-exact-input\\receipt.json",
+      "sha256": "a99510bf2a33149895526f77c23a82b16aeb7a2f8870a45b80644226d286a3f4",
+      "bytes": 3914,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-budget-preparation-v1/final-source-qualification.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-budget-preparation-v1\\final-source-qualification.json",
+      "sha256": "1a57768182b4cad664f04fcfa322b37231984b948cfcab2e914493b7ef71b8b5",
+      "bytes": 1082,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-budget-preparation-v1/final-qualification-receipt.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-budget-preparation-v1\\final-qualification-receipt.json",
+      "sha256": "bafc09c5e5e08563628a108109ce21a97209904521bc90ed98eb25711c820b9c",
+      "bytes": 1243,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-budget-preparation-v1/qualify-budget-delta.mjs",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-budget-preparation-v1\\qualify-budget-delta.mjs",
+      "sha256": "89f3fbde42fb70f0f3e9d9b5e7d07343a7f9c0312e7ee667de0fca2bbf94bd19",
+      "bytes": 12433,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-budget-preparation-v1/hermes-inner-supervisor.diff",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-budget-preparation-v1\\hermes-inner-supervisor.diff",
+      "sha256": "4e059a66730ddf9259433c08d6abf8ef3b04de142779acbc286fbfe9f4054f07",
+      "bytes": 1314,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-budget-preparation-v1/supervised-candidate/run-case20-native-budget.mjs",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-budget-preparation-v1\\supervised-candidate\\run-case20-native-budget.mjs",
+      "sha256": "cd4d7e506f7b26ab04fcc2013964bb7dbd843c72028c734376b577cc21b50c69",
+      "bytes": 58164,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-budget-preparation-v1/supervised-candidate/case20-native-budget-inner.mjs",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-budget-preparation-v1\\supervised-candidate\\case20-native-budget-inner.mjs",
+      "sha256": "f0314af18590f8a3ec5503cc6c39d2d9045b042d5b817482320339c6d38286dc",
+      "bytes": 14842,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-budget-preparation-v1/hermes-draft/hermes-execution.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-budget-preparation-v1\\hermes-draft\\hermes-execution.json",
+      "sha256": "123d29bb2fc2ed7e5cc9d6876c65942df0f09d84730f1d51cbe4625fa0cbc337",
+      "bytes": 1388,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-budget-preparation-v1/hermes-draft/hermes-usage.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-budget-preparation-v1\\hermes-draft\\hermes-usage.json",
+      "sha256": "df697b3d62a4ebb4c1206e2a2a5531eeb7e9fd07b97ac2898771f2b6538c2f57",
+      "bytes": 488,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-native-setup-plan-v1/result.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-plan-v1\\result.json",
+      "sha256": "aa57f83930da0848410e97e50efae812fa7b79fe5df6aaa311953f8a529d373b",
+      "bytes": 7332,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-native-setup-plan-v1/cleanup.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-plan-v1\\cleanup.json",
+      "sha256": "a5ccdef57192ab1f1d84711a49d38c11a10d49b1ce0c89c43bc232484a6a219c",
+      "bytes": 117,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-native-setup-plan-v1/inner-owner-receipt.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-plan-v1\\inner-owner-receipt.json",
+      "sha256": "1d1ebb9412e82a18c4c30e32466480fe3a6c124d60147242f2bc8c1ed5c05b31",
+      "bytes": 1110,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-native-setup-plan-v1/inner-owner-transport.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-plan-v1\\inner-owner-transport.json",
+      "sha256": "edc26b14701a17b96e4e1ecf2c2c67ca654c5a0c09917c8bcf0447712cc82612",
+      "bytes": 741,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-native-setup-plan-v1/inner-owner-events.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-plan-v1\\inner-owner-events.json",
+      "sha256": "52cea2b926c23c93b5d2283d3256b245c67154b68f45f491efb032878ea646e2",
+      "bytes": 1892,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-native-setup-plan-v1/materializer-receipt.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-plan-v1\\materializer-receipt.json",
+      "sha256": "879b637ac437937bcf534630931c09283f6f08547f3ff9ead142aaa1a0c051fc",
+      "bytes": 2066,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-native-setup-plan-v1/source-bindings.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-plan-v1\\source-bindings.json",
+      "sha256": "354a4c30414bec8c517d72cc0de156b24433c84c5de2da8955e3b77a60c5acad",
+      "bytes": 1493,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-native-setup-plan-v1/release-gate.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-plan-v1\\release-gate.json",
+      "sha256": "523e3460209bbcd81697e847190c492b934a34490fb76e7dffcf234dc4b0ec7c",
+      "bytes": 1500,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-native-setup-plan-v1/pre-operation-snapshots.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-plan-v1\\pre-operation-snapshots.json",
+      "sha256": "8652f3db309c62fafb1be45abc88f7b5132a570e0116593a9f3dfa06dc8d4f46",
+      "bytes": 1383,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-native-setup-plan-v1/post-operation-snapshots.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-plan-v1\\post-operation-snapshots.json",
+      "sha256": "aad181015ada71d4143b75bd6ac47a52e889c7a0cf00eb005403c33ad58aca28",
+      "bytes": 1377,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-native-setup-plan-v1/accounting-before-register.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-plan-v1\\accounting-before-register.json",
+      "sha256": "7e646d9efb0b127c32e191f7e6fdb24b9402231c8d0d67b57365132ad13e6f35",
+      "bytes": 364,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-native-setup-plan-v1/accounting-before-run.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-plan-v1\\accounting-before-run.json",
+      "sha256": "72d1060f1f1a4351d15a440d169ef0d2396f8283c65858854562d863b96b55a0",
+      "bytes": 364,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-native-setup-execute-v1/result.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-execute-v1\\result.json",
+      "sha256": "0632a6b540c3f4d72528d3469206f0570e5e394ade82fe9dd93f12d426ee86ca",
+      "bytes": 9084,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-native-setup-execute-v1/cleanup.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-execute-v1\\cleanup.json",
+      "sha256": "a5ccdef57192ab1f1d84711a49d38c11a10d49b1ce0c89c43bc232484a6a219c",
+      "bytes": 117,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-native-setup-execute-v1/inner-owner-receipt.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-execute-v1\\inner-owner-receipt.json",
+      "sha256": "9ac732d7a5d4b066cea584804218f2f68083a445c016092b4f72d8f8a92f2cfd",
+      "bytes": 2742,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-native-setup-execute-v1/inner-owner-transport.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-execute-v1\\inner-owner-transport.json",
+      "sha256": "81d3573e067474964e9c0fbaea8a42b87a6f417df1479032986b50313bfe9569",
+      "bytes": 747,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-native-setup-execute-v1/inner-owner-events.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-execute-v1\\inner-owner-events.json",
+      "sha256": "83f968cd899a8146087ac8901b574fd86cac8192ed0de89dd5a50ff853487de3",
+      "bytes": 3590,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-native-setup-execute-v1/materializer-receipt.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-execute-v1\\materializer-receipt.json",
+      "sha256": "72c6da16d7be893fa1cb2b5726f110a06ebb9774b2d5c67bb1dc4cb0c5d16123",
+      "bytes": 3821,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-native-setup-execute-v1/source-bindings.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-execute-v1\\source-bindings.json",
+      "sha256": "88cc3e74ab3e05fd258ee2bb075bdf292342869dc52683cb71c74b0dea8f7273",
+      "bytes": 1493,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-native-setup-execute-v1/release-gate.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-execute-v1\\release-gate.json",
+      "sha256": "523e3460209bbcd81697e847190c492b934a34490fb76e7dffcf234dc4b0ec7c",
+      "bytes": 1500,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-native-setup-execute-v1/pre-operation-snapshots.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-execute-v1\\pre-operation-snapshots.json",
+      "sha256": "8652f3db309c62fafb1be45abc88f7b5132a570e0116593a9f3dfa06dc8d4f46",
+      "bytes": 1383,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-native-setup-execute-v1/post-operation-snapshots.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-execute-v1\\post-operation-snapshots.json",
+      "sha256": "aad181015ada71d4143b75bd6ac47a52e889c7a0cf00eb005403c33ad58aca28",
+      "bytes": 1377,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-native-setup-execute-v1/accounting-before-register.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-execute-v1\\accounting-before-register.json",
+      "sha256": "58029128c952a51bcacf13d625124e929f57c96739051b2f6b3fbfb9f3b6755f",
+      "bytes": 364,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-native-setup-execute-v1/accounting-before-run.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-setup-execute-v1\\accounting-before-run.json",
+      "sha256": "c4620151602ecce48bb4f11266607c48570af4899b90825913b842e578d35351",
+      "bytes": 364,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-native-budget-plan-v1/result.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-plan-v1\\result.json",
+      "sha256": "727fe21fae80b1c445af32683c1d8623d91d33145dcb845b7767ffd95f7fd2e6",
+      "bytes": 6959,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-native-budget-plan-v1/cleanup.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-plan-v1\\cleanup.json",
+      "sha256": "a5ccdef57192ab1f1d84711a49d38c11a10d49b1ce0c89c43bc232484a6a219c",
+      "bytes": 117,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-native-budget-plan-v1/inner-owner-receipt.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-plan-v1\\inner-owner-receipt.json",
+      "sha256": "f61c0e81ecfb2cf5567eb5069879139a710ec8cf52dcdb7eeda45212ee216260",
+      "bytes": 474,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-native-budget-plan-v1/inner-owner-transport.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-plan-v1\\inner-owner-transport.json",
+      "sha256": "66cabf002be8e533bf5e402fee5124b4e608b72c72e763c8b24d082e85182944",
+      "bytes": 831,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-native-budget-plan-v1/inner-owner-events.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-plan-v1\\inner-owner-events.json",
+      "sha256": "2e71229604c90cbc87c46436c37cb8936ba4544819e10ca633af5aba22918ccd",
+      "bytes": 1314,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-native-budget-plan-v1/materializer-receipt.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-plan-v1\\materializer-receipt.json",
+      "sha256": "f11d33033e0e042f2e44235135bd7815556462591e3829fcef8c69ff867b6a3d",
+      "bytes": 1456,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-native-budget-plan-v1/source-bindings.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-plan-v1\\source-bindings.json",
+      "sha256": "471e8f7949021b97a749e8782a7104e3fb50f8e5b74b2beeb02dd08fe51f21cd",
+      "bytes": 2743,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-native-budget-plan-v1/release-gate.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-plan-v1\\release-gate.json",
+      "sha256": "523e3460209bbcd81697e847190c492b934a34490fb76e7dffcf234dc4b0ec7c",
+      "bytes": 1500,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-native-budget-plan-v1/pre-operation-snapshots.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-plan-v1\\pre-operation-snapshots.json",
+      "sha256": "8652f3db309c62fafb1be45abc88f7b5132a570e0116593a9f3dfa06dc8d4f46",
+      "bytes": 1383,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-native-budget-plan-v1/post-operation-snapshots.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-plan-v1\\post-operation-snapshots.json",
+      "sha256": "aad181015ada71d4143b75bd6ac47a52e889c7a0cf00eb005403c33ad58aca28",
+      "bytes": 1377,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-native-budget-plan-v1/accounting-before-register.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-plan-v1\\accounting-before-register.json",
+      "sha256": "fd528cfc65bf991c68f059a978338b10a83ceea4217594a050018add09aac407",
+      "bytes": 1359,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-native-budget-plan-v1/accounting-before-run.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-plan-v1\\accounting-before-run.json",
+      "sha256": "6d5e7bb1cd40325af36eefbe55f2617e163e067519dbe74a58f021853e524689",
+      "bytes": 1359,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-native-budget-plan-v1/owner-input.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-plan-v1\\owner-input.json",
+      "sha256": "116670b45a6529cff0c526a336d29f40927eb4b04b2d3ee548af24060027639e",
+      "bytes": 341,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-native-budget-install-v1/result.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-install-v1\\result.json",
+      "sha256": "92b41d3f07af80893177c72b6e22bac21aa610bb33b20872423088d7ed2599a4",
+      "bytes": 7045,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-native-budget-install-v1/cleanup.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-install-v1\\cleanup.json",
+      "sha256": "a5ccdef57192ab1f1d84711a49d38c11a10d49b1ce0c89c43bc232484a6a219c",
+      "bytes": 117,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-native-budget-install-v1/inner-owner-receipt.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-install-v1\\inner-owner-receipt.json",
+      "sha256": "35b2f3342781c9352fce0daed5ad502087b776b336d6203af592e5fd4cb0b3c0",
+      "bytes": 837,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-native-budget-install-v1/inner-owner-transport.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-install-v1\\inner-owner-transport.json",
+      "sha256": "2f1890c25add8ab87ced81acc517483d331110d65de77b24b2b072d1dbcc84d7",
+      "bytes": 838,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-native-budget-install-v1/inner-owner-events.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-install-v1\\inner-owner-events.json",
+      "sha256": "739eac2733207f329d12f8b957665e0848bdcf8315bda3ea980af0d2fbe915eb",
+      "bytes": 1694,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-native-budget-install-v1/materializer-receipt.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-install-v1\\materializer-receipt.json",
+      "sha256": "2258ea3522af644ba50771bbc2014aa093977341c8a3921538c5bda01fd44279",
+      "bytes": 1842,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-native-budget-install-v1/source-bindings.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-install-v1\\source-bindings.json",
+      "sha256": "be7ab346ab653c3243e1a7091d1d57850e65eeca7254a6aa7b47dfa41b6349fd",
+      "bytes": 2743,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-native-budget-install-v1/release-gate.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-install-v1\\release-gate.json",
+      "sha256": "523e3460209bbcd81697e847190c492b934a34490fb76e7dffcf234dc4b0ec7c",
+      "bytes": 1500,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-native-budget-install-v1/pre-operation-snapshots.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-install-v1\\pre-operation-snapshots.json",
+      "sha256": "8652f3db309c62fafb1be45abc88f7b5132a570e0116593a9f3dfa06dc8d4f46",
+      "bytes": 1383,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-native-budget-install-v1/post-operation-snapshots.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-install-v1\\post-operation-snapshots.json",
+      "sha256": "aad181015ada71d4143b75bd6ac47a52e889c7a0cf00eb005403c33ad58aca28",
+      "bytes": 1377,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-native-budget-install-v1/accounting-before-register.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-install-v1\\accounting-before-register.json",
+      "sha256": "093258d6023f664ed97d827da2f1d973d727f416cdca7bd1cd794c92b2d96c78",
+      "bytes": 1678,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-native-budget-install-v1/accounting-before-run.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-install-v1\\accounting-before-run.json",
+      "sha256": "166be6c27f3772fd669b459a587ba2579457b4bf3f3b3db0a1756633ef9926f7",
+      "bytes": 1678,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-native-budget-install-v1/owner-input.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-budget-install-v1\\owner-input.json",
+      "sha256": "04abc6e9e338ddc2b34f5e211554268bb3f9d8683f8f78d36a73350eb9b8fb42",
+      "bytes": 3955,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-native-f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b/execution.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b\\execution.json",
+      "sha256": "e210847d83b7b4998d0e0cc57b51bc7d93b290ab6b5bcddcd5ee9f24fdc1f2c7",
+      "bytes": 1572,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-native-f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b/execution.json.events.jsonl",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b\\execution.json.events.jsonl",
+      "sha256": "7675b0e47b1faa78bb288e8f4eeb463da72a64153ed792ef388beecae078c2f5",
+      "bytes": 6229,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-native-f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b/actual-capture-scope.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b\\actual-capture-scope.json",
+      "sha256": "1eb14db7d3b74cc7594366e2695542ef1d280cc6940a79348a8f1bf215ab2496",
+      "bytes": 3019,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/case20-native-f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b/aggregate-reserved-checkpoint.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-native-f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b\\aggregate-reserved-checkpoint.json",
+      "sha256": "bc3a5a601507ad987c637cfe7b9da08a9fbaae576548977ca989158481c052a7",
+      "bytes": 5209,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/controlled-read-browser-readiness-v1/checkpoint.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\controlled-read-browser-readiness-v1\\checkpoint.json",
+      "sha256": "ecd68b3c56e16bf27831357d4530ff54329ff067ebf9cee3d7b38bf64db7dd59",
+      "bytes": 3078,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/controlled-read-browser-readiness-v1/test-result.txt",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\controlled-read-browser-readiness-v1\\test-result.txt",
+      "sha256": "468268bf441cb1b0bb9d3788c5c757f82da272dee2b5da7a24478b622785be03",
+      "bytes": 3175,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/controlled-read-browser-readiness-v1/source/evals/meri/live-v1/run-controlled-read.mjs",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\controlled-read-browser-readiness-v1\\source\\evals\\meri\\live-v1\\run-controlled-read.mjs",
+      "sha256": "05f47f19162c702255580b0e27c6c4d2579a6d79ce20da66223f35d8cad14e84",
+      "bytes": 25490,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/controlled-read-browser-readiness-v1/source/evals/meri/live-v1/tests/controlled-read-operator.test.mjs",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\controlled-read-browser-readiness-v1\\source\\evals\\meri\\live-v1\\tests\\controlled-read-operator.test.mjs",
+      "sha256": "338652e7e6052f9b346c607b7ba289874f98c60b7f321761561fba9099f7f7d6",
+      "bytes": 32348,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case17/case17-regression-v3-prepared.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-regression-v3-prepared.json",
+      "sha256": "7e809606611bc8d19a09b4a7e76bbe118ef6784225fe8e58af0930a5b2067b25",
+      "bytes": 5921,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case17/case17-regression-v3-local-review.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-regression-v3-local-review.json",
+      "sha256": "daa66259c9c5e544bff6408f9402b6b0658faf07ae899b4b72c2df3231035524",
+      "bytes": 1593,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case17/case17-regression-v3-result.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-regression-v3-result.json",
+      "sha256": "f99e75012e5b14ca14bde5e3fc3128893c269fd658ad7a74cbf151b332938bc7",
+      "bytes": 2091,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case17/case17-regression-v3-visual-review-request.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-regression-v3-visual-review-request.json",
+      "sha256": "090f2e45cf36dc7ac4460c4a320029bafac377d259969b20356c9dbaa83f387c",
+      "bytes": 3190,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case17/case17-regression-v3-visual-review.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-regression-v3-visual-review.json",
+      "sha256": "5bc09f39558a6a053d473942e8448b835e073746c28179ce635e7f86d65d65a3",
+      "bytes": 2110,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case17/prepare-case17-regression-v3.mjs",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\prepare-case17-regression-v3.mjs",
+      "sha256": "b6b1a50051423e8e857520d9b1b56d28e225c4e9d6653aef39f1cc310c4be872",
+      "bytes": 5476,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case17/run-case17-regression-v3.mjs",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\run-case17-regression-v3.mjs",
+      "sha256": "38c6639d008b5b1f2dfde0c1a7dacc26a05f15027437a4cfd53a36327d9e2aae",
+      "bytes": 8050,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case17/record-case17-v3-visual-review.mjs",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\record-case17-v3-visual-review.mjs",
+      "sha256": "27a45bd9dec60dac6f0b617f6738d9c2b942d57460e8a37fe7e5490b8820d1a5",
+      "bytes": 2358,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case17/case17-regression-v3-artifacts/case17/attempt.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-regression-v3-artifacts\\case17\\attempt.json",
+      "sha256": "b915e6260533381576e6e34f5ceffd8a278b23fd90122c4a5e0d95e303e7867f",
+      "bytes": 169,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case17/case17-regression-v3-artifacts/case17/evidence.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-regression-v3-artifacts\\case17\\evidence.json",
+      "sha256": "a67703b8d4f9e6ea6894c32fb2e166866581788c007333e212128a6a722b71ed",
+      "bytes": 34309,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case17/case17-regression-v3-artifacts/case17/native-write-guard-diagnostic.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-regression-v3-artifacts\\case17\\native-write-guard-diagnostic.json",
+      "sha256": "a98d91d1471074390d7a289519b181c7cb6a8db949236cdf5890c3683ebc2970",
+      "bytes": 646,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case17/case17-regression-v3-artifacts/case17/readonly-guard-diagnostic.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-regression-v3-artifacts\\case17\\readonly-guard-diagnostic.json",
+      "sha256": "6cfd21394030bd652a6f64e44f466509b936d661b809ed510bf6a61a5e265603",
+      "bytes": 815,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case17/case17-regression-v3-artifacts/case17/receipt.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-regression-v3-artifacts\\case17\\receipt.json",
+      "sha256": "fc4c98d72f47f0102518c9dd5de72330de065f5b1e05ace44f5a1bfc68a8c5fc",
+      "bytes": 18495,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case17/case17-regression-v3-artifacts/case17/afterReload/MEM-PENDING-17-A.png",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-regression-v3-artifacts\\case17\\afterReload\\MEM-PENDING-17-A.png",
+      "sha256": "f797e247677f0e1fc25fe5f9c6a1d49fbc4aa30174bd3c2ec1f07cf90c1c8298",
+      "bytes": 20688,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case17/case17-regression-v3-artifacts/case17/afterReload/MEM-PENDING-17-B.png",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-regression-v3-artifacts\\case17\\afterReload\\MEM-PENDING-17-B.png",
+      "sha256": "0c439c0d72d3f4a81afb5b339d66599a1b4c8ff3ce49924c131d89e8ea560037",
+      "bytes": 20627,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case17/case17-regression-v3-artifacts/case17/afterReload/MEM-PENDING-17-C.png",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-regression-v3-artifacts\\case17\\afterReload\\MEM-PENDING-17-C.png",
+      "sha256": "aa917881747c65a85608c1a7f87461b66f62629d40cc1ae4cf3cda2e75b8d3d8",
+      "bytes": 20752,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case17/case17-regression-v3-artifacts/case17/afterReload/MEM-PENDING-17-D.png",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-regression-v3-artifacts\\case17\\afterReload\\MEM-PENDING-17-D.png",
+      "sha256": "b432d973e963469e33497833932d241caeaeb9746c6187eeb7f728cf19171d55",
+      "bytes": 20947,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case17/case17-regression-v3-artifacts/case17/afterReload/MEM-PENDING-17-E.png",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-regression-v3-artifacts\\case17\\afterReload\\MEM-PENDING-17-E.png",
+      "sha256": "9c121e93d9d99fd6a6fdb8417315519a540d5df88987e0df372df7ec3e87fd4a",
+      "bytes": 20085,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case17/case17-regression-v3-artifacts/case17/afterReload/MEM-PENDING-17-F.png",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-regression-v3-artifacts\\case17\\afterReload\\MEM-PENDING-17-F.png",
+      "sha256": "ac32c33de7c630f4edf4e74c06acb7785399e5848185d113185cb22999abd9f9",
+      "bytes": 21152,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case17/case17-regression-v3-artifacts/case17/initial/MEM-PENDING-17-A.png",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-regression-v3-artifacts\\case17\\initial\\MEM-PENDING-17-A.png",
+      "sha256": "f797e247677f0e1fc25fe5f9c6a1d49fbc4aa30174bd3c2ec1f07cf90c1c8298",
+      "bytes": 20688,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case17/case17-regression-v3-artifacts/case17/initial/MEM-PENDING-17-B.png",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-regression-v3-artifacts\\case17\\initial\\MEM-PENDING-17-B.png",
+      "sha256": "0c439c0d72d3f4a81afb5b339d66599a1b4c8ff3ce49924c131d89e8ea560037",
+      "bytes": 20627,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case17/case17-regression-v3-artifacts/case17/initial/MEM-PENDING-17-C.png",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-regression-v3-artifacts\\case17\\initial\\MEM-PENDING-17-C.png",
+      "sha256": "aa917881747c65a85608c1a7f87461b66f62629d40cc1ae4cf3cda2e75b8d3d8",
+      "bytes": 20752,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case17/case17-regression-v3-artifacts/case17/initial/MEM-PENDING-17-D.png",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-regression-v3-artifacts\\case17\\initial\\MEM-PENDING-17-D.png",
+      "sha256": "b432d973e963469e33497833932d241caeaeb9746c6187eeb7f728cf19171d55",
+      "bytes": 20947,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case17/case17-regression-v3-artifacts/case17/initial/MEM-PENDING-17-E.png",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-regression-v3-artifacts\\case17\\initial\\MEM-PENDING-17-E.png",
+      "sha256": "9c121e93d9d99fd6a6fdb8417315519a540d5df88987e0df372df7ec3e87fd4a",
+      "bytes": 20085,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case17/case17-regression-v3-artifacts/case17/initial/MEM-PENDING-17-F.png",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-regression-v3-artifacts\\case17\\initial\\MEM-PENDING-17-F.png",
+      "sha256": "ac32c33de7c630f4edf4e74c06acb7785399e5848185d113185cb22999abd9f9",
+      "bytes": 21152,
+      "copyMode": "EXACT_BYTES"
+    },
+    {
+      "archivePath": "case20/initial-runner-source/evals/meri/live-v1/run-controlled-read.mjs",
+      "sourcePath": "git:af7aa8aff4777a2d4809e882c2b797fbb2cd51a2:evals/meri/live-v1/run-controlled-read.mjs",
+      "sha256": "d8d429a7e4e1b5fc5d731e7cb4dee098a3075d4764fa0886c745cace43bf7c83",
+      "bytes": 24025,
+      "copyMode": "EXACT_BYTES"
+    }
+  ],
+  "generatedFiles": [
+    {
+      "archivePath": "external-raw-aws-file-hashes.json",
+      "sha256": "c8bc645c4a21aeb389092aa1cd693354b185a9a5dc0c7e1cd96d379fce10e62d",
+      "bytes": 37057
+    },
+    {
+      "archivePath": "README.md",
+      "sha256": "8d143d09e5d2bbdb5c35afd337660f3de56dc28745e853501b4b04349bebdff1",
+      "bytes": 2896
+    }
+  ],
+  "copies": 119,
+  "copiedBytes": 787172,
+  "liveCallsDuringArchival": 0,
+  "repositoryEdits": 0,
+  "pinnedOriginalEdits": 0
+}

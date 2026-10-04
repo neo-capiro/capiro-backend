@@ -1,0 +1,10 @@
+{
+  "kind": "meri-fresh-capture-spend-checkpoint",
+  "version": 1,
+  "snapshot": {
+    "eventCount": 24,
+    "activeRun": null,
+    "knownSettledCostMicros": 13631058,
+    "remainingReservationMicros": 16368942
+  }
+}

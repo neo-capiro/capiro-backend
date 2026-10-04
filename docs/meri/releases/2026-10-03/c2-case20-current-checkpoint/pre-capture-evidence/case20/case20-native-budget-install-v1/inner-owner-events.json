@@ -1,0 +1,36 @@
+{
+  "meta": {
+    "version": 1,
+    "kind": "case20-native-budget-json",
+    "mode": "install",
+    "sourceSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+    "inputSha256": "a72c2d69bebb9694edb38bc4131a60a093e6488f8cd3528fafd92db7f84a082d",
+    "scriptSha256": "f0314af18590f8a3ec5503cc6c39d2d9045b042d5b817482320339c6d38286dc",
+    "ownerInputSha256": "04abc6e9e338ddc2b34f5e211554268bb3f9d8683f8f78d36a73350eb9b8fb42",
+    "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+    "outputPath": "/dev/shm/case20-native-budget-install-owner.json",
+    "byteLength": 837,
+    "base64Length": 1116,
+    "chunks": 1,
+    "sha256": "35b2f3342781c9352fce0daed5ad502087b776b336d6203af592e5fd4cb0b3c0",
+    "childExitCode": 0,
+    "childSignal": null,
+    "ownerOutput": "OWNER_SUCCESS"
+  },
+  "owner": {
+    "status": "PROVIDER_QUALIFICATION_INSTALLED",
+    "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+    "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+    "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+    "currentVerifySha256": "925c4735e4d435ab06c40b31ee590b0ce4e7d9220b742155c67e4115b1bc6516",
+    "captureBindingSha256": "0162b3bfc6fe8a2906a732d1b7b469cb7cc0eeca5b957905bfd8917adaa8b5ed",
+    "qualificationSha256": "47d64a19fdf3a718eddefee998247173f98f9b1d3f24703f31d8b4dee779c9af",
+    "priorQualificationSha256": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+    "tenantRowVersion": "114801800",
+    "maxCostMicros": 15000000,
+    "rateEvidenceSha256": "a1a179383c8451495336169f46025eb8cee8ec95487f1a43017078387b768b11",
+    "rateEvidenceExpiresAt": "2026-10-04T05:29:01.587Z",
+    "liveAcceptance": "NOT_RUN"
+  },
+  "ownerFailure": false
+}

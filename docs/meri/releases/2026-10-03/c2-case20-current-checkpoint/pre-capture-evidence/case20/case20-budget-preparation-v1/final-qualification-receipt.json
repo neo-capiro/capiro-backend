@@ -1,0 +1,37 @@
+{
+  "observedAt": "2026-10-04T00:43:42.656154+00:00",
+  "command": [
+    "node",
+    "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-budget-preparation-v1\\qualify-budget-delta.mjs",
+    "final-green"
+  ],
+  "exitCode": 0,
+  "logSha256": "6b65bb44d10279c78c94d71d57847c9f483549eccaef65d73a042320b0dee685",
+  "syntax": [
+    {
+      "path": "supervised-candidate\\run-case20-native-budget.mjs",
+      "sha256": "8c07637f1fccbb8d3bfab7725d68824d0ce53804164c432cc4b1dce67c301758",
+      "command": [
+        "node",
+        "--check",
+        "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-budget-preparation-v1\\supervised-candidate\\run-case20-native-budget.mjs"
+      ],
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "path": "supervised-candidate\\case20-native-budget-inner.mjs",
+      "sha256": "f0314af18590f8a3ec5503cc6c39d2d9045b042d5b817482320339c6d38286dc",
+      "command": [
+        "node",
+        "--check",
+        "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-budget-preparation-v1\\supervised-candidate\\case20-native-budget-inner.mjs"
+      ],
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": ""
+    }
+  ],
+  "operatorMainExecuted": false
+}

@@ -1,0 +1,76 @@
+{
+  "checks": [
+    {
+      "command": [
+        "node",
+        "--test",
+        "evals/meri/live-v1/tests/case20-presubmission-recovery.test.mjs"
+      ],
+      "cwd": "C:\\dev\\main\\meri-c1-20261002",
+      "startedAt": "2026-10-04T01:07:09.715868+00:00",
+      "exitCode": 0,
+      "log": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-presubmission-recovery-v1\\focused-final.log",
+      "sha256": "dcc9f97e140adda6098abf02eea54c6705f715c97559bdbce75960ad32f28ede"
+    },
+    {
+      "command": [
+        "node",
+        "--check",
+        "evals/meri/live-v1/case20-presubmission-recovery-authority.mjs"
+      ],
+      "cwd": "C:\\dev\\main\\meri-c1-20261002",
+      "startedAt": "2026-10-04T01:07:11.797327+00:00",
+      "exitCode": 0,
+      "log": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-presubmission-recovery-v1\\check-1.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "command": [
+        "node",
+        "--check",
+        "evals/meri/live-v1/capture-spend-aggregate.mjs"
+      ],
+      "cwd": "C:\\dev\\main\\meri-c1-20261002",
+      "startedAt": "2026-10-04T01:07:11.856054+00:00",
+      "exitCode": 0,
+      "log": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-presubmission-recovery-v1\\check-2.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "command": [
+        "node",
+        "--check",
+        "evals/meri/live-v1/tests/case20-presubmission-recovery.test.mjs"
+      ],
+      "cwd": "C:\\dev\\main\\meri-c1-20261002",
+      "startedAt": "2026-10-04T01:07:11.910141+00:00",
+      "exitCode": 0,
+      "log": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-presubmission-recovery-v1\\check-3.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "command": [
+        "git",
+        "diff",
+        "--check",
+        "--",
+        "evals/meri/live-v1/case20-presubmission-recovery-authority.mjs",
+        "evals/meri/live-v1/capture-spend-aggregate.mjs",
+        "evals/meri/live-v1/tests/case20-presubmission-recovery.test.mjs"
+      ],
+      "cwd": "C:\\dev\\main\\meri-c1-20261002",
+      "startedAt": "2026-10-04T01:07:11.972271+00:00",
+      "exitCode": 0,
+      "log": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-presubmission-recovery-v1\\check-4.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "tests": {
+    "pass": 59,
+    "fail": 0,
+    "skip": 0
+  },
+  "liveActions": false,
+  "externalCalls": false,
+  "testOnly": true
+}

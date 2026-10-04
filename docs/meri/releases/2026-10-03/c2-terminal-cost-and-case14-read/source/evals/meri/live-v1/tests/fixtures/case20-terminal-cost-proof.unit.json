@@ -1,0 +1,22 @@
+{
+  "caseId": "20",
+  "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+  "reservationId": "7ea73cdc-526e-4b31-8c28-b0636ea8d2ae",
+  "conversationId": "db0e01ac-60a1-4e3c-b8ba-66748d087a2e",
+  "chargedCostMicros": 1497175,
+  "providerTokens": 59737,
+  "providerAttempts": 2,
+  "pendingProviderAttempts": 0,
+  "ledgerSha256": "52a551371e0444f38c014b599b9be3a1adb83c79fecc4c533865c320989e9b4f",
+  "providerStateSha256": "3d665a2323c36e38733b7c1576af13976c0c4a573fa1a2ccc91f668a630ca5f5",
+  "providerDeadlineAtMs": 1791079016119,
+  "observedAtMs": 1791080030468,
+  "executionCompletedAtMs": 1791077229827,
+  "evidenceSha256": "aff344922825fed006001a7d98423f22d35a5a3285be0d34e97ccbcf68cea802",
+  "journalBeforeSha256": "d6213af1fd8330e9e97a688d903a3c1852b5f40265a66eafb6aa2bf1cfa2060b",
+  "disposition": "FAILED_CAPTURE_TERMINAL_PROVIDER_COST_RECONCILED",
+  "captureAuthority": false,
+  "answerGrade": "NOT_EVALUATED",
+  "captureStatus": "CAPTURE_UNCERTAIN",
+  "failure": "CONTROLLED_READ_FULL_PASSAGE_UNPROVED"
+}

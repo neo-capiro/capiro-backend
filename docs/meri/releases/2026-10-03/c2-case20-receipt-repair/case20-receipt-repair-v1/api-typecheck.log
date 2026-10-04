@@ -1,0 +1,1 @@
+src/meri/meri-controlled-read-fixture.spec.ts(158,63): error TS2345: Argument of type 'undefined' is not assignable to parameter of type 'MeriServerReadonlyCapturePolicy | null'.

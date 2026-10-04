@@ -1,0 +1,150 @@
+{
+  "kind": "case14-native-readonly-prerequisites",
+  "author": "/root/mail_defaults_review",
+  "preparedAt": "2026-10-04T01:54:11.258Z",
+  "status": "CURRENT_OWNER_READ_CAN_BE_PREPARED_WITHOUT_NEW_RECIPE",
+  "liveOperationsPerformed": 0,
+  "sourceSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+  "observedProtectedRead": {
+    "path": "C:/dev/main/outputs/meri-c2-20261003/case14-owned-locator-readback-v1.json",
+    "sha256": "5e6ad4ed20b27668aa93583b66f51983779207a9a7728ca5e19fcc35069f5380",
+    "status": "CANONICAL_CASE14_OWNER_NOT_ESTABLISHED",
+    "requests": 6,
+    "candidateDetails": 2,
+    "sessionRevoked": true,
+    "journalUnchanged": true,
+    "interpretation": "No canonical Case14 owner established by these protected reads. This is not proof that the operation, locator or candidate is absent from the database."
+  },
+  "minimumNextNativeRead": {
+    "scope": {
+      "caseId": "14",
+      "ctx": {
+        "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+        "tenantSlug": "meri-foundation-20260928-t1",
+        "userId": "fb218bf5-2674-4ced-bca3-7a5d0c01592f",
+        "clerkUserId": "user_3Jw2G2jbyyDlrrg6zCNd4gYUDfH",
+        "role": "user_admin"
+      },
+      "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b"
+    },
+    "entrypoint": "Packaged compiled readCase14FixtureEvidenceInTx(tx, ctx, authorization), omitting candidateId, under existing runWithMemoryGovernanceTenant and PrismaService.withTenantUser.",
+    "composition": "Reuse minimal PrismaService + MemoryAuthorizationService imports from apps/api/scripts/meri-case14-recall-setup.mjs. No full AppModule, pending execute, recall bind or budget installer.",
+    "why": "readCase14MemoryOwnerInTx obtains the persisted source-validated locator itself, resolves the original frozen recipe and validates current candidate and pending or approved canonical state.",
+    "additionalRead": "In the same exact-T1 scoped transaction, read only tenant slug and settings_jsonb #> {meriFoundationFixture,pendingMemorySetups,14}; retain operation presence/status and validated locator/hash fields, not the full settings object. First independently require current exact Priya membership/Clerk ID/namespace/role.",
+    "transaction": "Canonical pending/approved guards include FOR SHARE/FOR UPDATE and cannot run in PostgreSQL READ ONLY mode. Use an ordinary scoped transaction with a mandatory outer rollback sentinel after collecting the sanitized result; do not weaken those locks or substitute queries for the owner.",
+    "output": "Existing owner IDs/state/versions/hashes with proposal text omitted; verified locator if present, explicit null/invalid/blocked status otherwise. Preserve error stage/class/allowlisted code without SQL, credentials, full settings or arbitrary exception text.",
+    "packaging": "Exact current API4f immutable image, existing private DB entrypoint, only required DB secrets and approved governance/namespace flags; no workload IAM role or provider secrets; one task, no retry, independent STOPPED/INACTIVE cleanup."
+  },
+  "existingPendingCli": {
+    "command": "meri-pending-memory-setup plan|read --input-env MERI_PENDING_MEMORY_SETUP_INPUT --out /absolute/new-receipt.jsonl",
+    "inputShape": {
+      "recipe": "Exact stored Case14 locator or separately prepared prospective Case14 recipe; no caller receipt is authority."
+    },
+    "plan": "inspectPendingMemorySetup verifies current ordinary Pat identity/client wall, requires no existing case operation and absent deterministic candidate, and returns planSha256/tenantRowVersion/priorSettingsSha256. It performs no creation.",
+    "read": "readPendingMemorySetup requires exact SETUP_COMPLETE recipe and fixtureInstanceId and reconstructs pending rows only. It is not the approved-memory owner and must not be used to relabel approved rows as pending.",
+    "existingOperation": "PENDING_MEMORY_EXISTING_OPERATION_REQUIRES_RECONCILIATION must stop new setup planning. Recover its actual locator/state, preserve claim and do not choose another instance to evade it.",
+    "prohibitedInThisStep": [
+      "execute",
+      "bind",
+      "approve",
+      "provider budget plan/install",
+      "new conversation",
+      "provider turn",
+      "journal reserve/restore/adopt/refund/settle"
+    ]
+  },
+  "recipeProvenance": {
+    "frozenDefinition": "evals/meri/live-v1/fixture.mjs MEM-PROPOSAL-14: one memory_candidate_fixture, T1/Aster, pending, text Synthetic Aster candidate for approval.",
+    "selection": "selectPendingMemoryFixturePlan(manifest, 14) selects exactly MEM-PROPOSAL-14 with Pat proposer and Priya reviewer.",
+    "identityMappingSource": {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case14-readonly-preparation-v1/inputs/case17-regression-v3-prepared.json",
+      "sha256": "7e809606611bc8d19a09b4a7e76bbe118ef6784225fe8e58af0930a5b2067b25"
+    },
+    "actors": {
+      "PAT": {
+        "tenantId": "T1",
+        "physicalId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f"
+      },
+      "PRIYA": {
+        "tenantId": "T1",
+        "physicalId": "fb218bf5-2674-4ced-bca3-7a5d0c01592f"
+      },
+      "ELI": {
+        "tenantId": "T1",
+        "physicalId": "c81e97df-a6e8-4dea-9de0-33bc7b393ca8"
+      }
+    },
+    "clients": {
+      "ASTER": {
+        "tenantId": "T1",
+        "physicalId": "41f9ec63-3963-479f-b747-59a3767ef44b"
+      },
+      "BLUEHAVEN": {
+        "tenantId": "T1",
+        "physicalId": "494f6834-d09e-4723-8a64-b2df57c683e8"
+      },
+      "CEDAR": {
+        "tenantId": "T2",
+        "physicalId": "d966c570-5729-44e6-9d28-8e9c1833aea1"
+      }
+    },
+    "ordinaryPatContext": {
+      "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+      "tenantSlug": "meri-foundation-20260928-t1",
+      "userId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+      "role": "standard_user"
+    },
+    "patClerkUserId": "user_3Jw2FvWZkYGKmxWGx13tNJxFD2A",
+    "priorCase14RecipeLocated": false,
+    "limit": "Searched named C1/C2/fresh outputs, versioned release archives and the present cap-meri-foundation-evidence directory; no historical Case14 operation recipe or setup receipt was located. Case17 instance63c7bb50-1971-49df-96b9-c6c94c562078 is not adopted as Case14 authority.",
+    "futureProspectivePlan": "If the exact current DB owner read proves no prior case14 operation, root may separately prepare a fresh UUIDv4 prospective Case14 recipe using these grounded identities and the frozen source. A new local recipe is not evidence of an existing fixture, and its read-only plan is not authorization to execute."
+  },
+  "nextBranch": {
+    "pending": "Use the exact stored recipe and canonical owner to prepare the existing one-decision Meri approval path separately.",
+    "approved": "Do not replay approval. Preserve actual decision/audit/item/version and prepare only the existing recall prerequisites separately.",
+    "absent": "Record exact scoped database absence; prospective plan can then be prepared without creating a fixture.",
+    "claimedOrInvalid": "Retain and reconcile the existing operation; no reset or alternate-instance retry."
+  },
+  "sources": [
+    {
+      "path": "apps/api/scripts/meri-pending-memory-setup.mjs",
+      "sha256": "5b960d3ef811bdeba712ab852becc8da0e528146b576e971b548cf106a5177d2"
+    },
+    {
+      "path": "apps/api/scripts/meri-case01-setup-dependencies.mjs",
+      "sha256": "6de3f94669bcacac1c8a79e4ceb34acc5fa5d5359d6c17744b1ba1e10a9c16ec"
+    },
+    {
+      "path": "apps/api/scripts/meri-case14-recall-setup.mjs",
+      "sha256": "0f9f34f5e43f9fe9550cfc1cb01f694df607f227b0b05c93320a243832577998"
+    },
+    {
+      "path": "apps/api/src/memory/case14-fixture-evidence.ts",
+      "sha256": "94337f5deefb57a7ffdc5c205e20ca23d3e50856e46be1020f76f9bf9e67e300"
+    },
+    {
+      "path": "apps/api/src/memory/case14-reviewer-preflight.ts",
+      "sha256": "4b2b3f830d9e9cc3027aa62e846914893644a78a1bc878b76393fe463d657189"
+    },
+    {
+      "path": "evals/meri/live-v1/fixture-provisioning/memory-pending-execution.mjs",
+      "sha256": "ea14336f7405d857ebbb29201f210377db77eaf3ea4cbdc04c2f796205e81485"
+    },
+    {
+      "path": "evals/meri/live-v1/fixture-provisioning/memory-pending-fixture-plan.mjs",
+      "sha256": "7d683e5594bf4a76ee20d2ed9c926773436d63a87aff6f33ef0a69292d38968e"
+    },
+    {
+      "path": "evals/meri/live-v1/fixture-provisioning/case14-memory-owner.mjs",
+      "sha256": "14ec0d38eb4d294e966400a68b6371965b47eb67544a6e2df5aaba04fb4a329d"
+    },
+    {
+      "path": "evals/meri/live-v1/fixture.mjs",
+      "sha256": "8915e19424520a2f97b9cd5a389fcf4b39f2823f0526573ffd04a1dfe0fbc398"
+    }
+  ],
+  "limits": [
+    "Source/prerequisite preparation only. No module owner invocation, test rerun, cloud/auth/database/browser/provider or journal action.",
+    "No current fixture presence/absence/ready state, pending decision, immutable release attestation or original row14 acceptance is claimed."
+  ]
+}

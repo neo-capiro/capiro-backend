@@ -1,0 +1,105 @@
+{
+  "savedObservation": {
+    "path": "C:/dev/main/outputs/meri-c2-20261003/case20-native-recovery-v3-f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b/artifacts/saved-messages-observation.json",
+    "sha256": "00c35d633da138416134a369b07c8bc066bf2b5d945901d0346c3f3bfcec6c55",
+    "bytes": 21658
+  },
+  "receiptFields": {
+    "startedAt": 1791077218487,
+    "renderedAt": 1791077218191,
+    "completedAt": 1791077225341,
+    "blockers": [
+      "semantic_clock_api_tool_join_pending",
+      "semantic_clock_prompt_unproved",
+      "source_client_authority_unproved:2d0c016e-8dad-5f6e-80dd-e36740fff7ee"
+    ],
+    "toolCalls": [
+      {
+        "name": "get_pe_budget_timeline",
+        "callId": "call_f3k3r8wjQHgu4uInyGyp5mfa",
+        "status": "partial",
+        "attempt": 1,
+        "readOnly": true,
+        "sourceIds": [
+          "2d0c016e-8dad-5f6e-80dd-e36740fff7ee"
+        ]
+      }
+    ],
+    "sources": [
+      {
+        "locator": {
+          "value": "page 14",
+          "reason": null,
+          "status": "OBSERVED"
+        },
+        "clientId": {
+          "value": null,
+          "reason": null,
+          "status": "OBSERVED"
+        },
+        "fullRead": {
+          "value": true,
+          "reason": null,
+          "status": "OBSERVED"
+        },
+        "sourceId": "2d0c016e-8dad-5f6e-80dd-e36740fff7ee",
+        "tenantId": {
+          "value": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+          "reason": null,
+          "status": "OBSERVED"
+        },
+        "byteSha256": {
+          "value": "8e0dc2325edff514502ec08d0d0465ad0ba8046e422910d7c89710969da50f76",
+          "reason": null,
+          "status": "OBSERVED"
+        },
+        "toolCallId": "call_f3k3r8wjQHgu4uInyGyp5mfa",
+        "passageSha256": {
+          "value": "8e0dc2325edff514502ec08d0d0465ad0ba8046e422910d7c89710969da50f76",
+          "reason": null,
+          "status": "OBSERVED"
+        },
+        "currentVersion": {
+          "value": "v1",
+          "reason": null,
+          "status": "OBSERVED"
+        }
+      }
+    ],
+    "controlledReadAttempts": [
+      {
+        "tool": "get_pe_budget_timeline",
+        "callId": "call_f3k3r8wjQHgu4uInyGyp5mfa",
+        "caseId": "20",
+        "turnId": "3a50a9fd-8afa-4b3d-9a74-ba69f02122e6",
+        "traceId": "5f6c9bfe-a113-4b63-93d5-e1edb1defd32",
+        "fullRead": true,
+        "sourceId": "2d0c016e-8dad-5f6e-80dd-e36740fff7ee",
+        "requestId": "f161ebdf-323e-4995-9a7f-4509541d71f9",
+        "httpStatus": 200,
+        "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+        "logicalError": null,
+        "contentSha256": "8e0dc2325edff514502ec08d0d0465ad0ba8046e422910d7c89710969da50f76",
+        "passageSha256": "8e0dc2325edff514502ec08d0d0465ad0ba8046e422910d7c89710969da50f76",
+        "sourceVersion": "v1",
+        "responseSha256": "2d42264ed2ebb79bafef650a5d25a2d03655cb19e1ddd601b4262336a44c0983",
+        "sourceClientId": null,
+        "sourceTenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+        "logicalSourceId": "R2-27",
+        "currentVerifySha256": "925c4735e4d435ab06c40b31ee590b0ce4e7d9220b742155c67e4115b1bc6516"
+      }
+    ],
+    "clockInvocations": [
+      {
+        "tool": "get_pe_budget_timeline",
+        "callId": "call_f3k3r8wjQHgu4uInyGyp5mfa",
+        "outcome": "returned",
+        "packets": [],
+        "httpStatus": 200,
+        "httpAttempts": 1,
+        "responseSha256": "2d42264ed2ebb79bafef650a5d25a2d03655cb19e1ddd601b4262336a44c0983"
+      }
+    ]
+  },
+  "historyUnchanged": true
+}

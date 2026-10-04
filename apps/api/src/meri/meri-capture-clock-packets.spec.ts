@@ -238,7 +238,7 @@ describe('final API semantic clock packet join', () => {
       expect(readback.blockers.filter((x) => x.startsWith('semantic_clock'))).toEqual([]);
     },
   );
-  it.each([
+  it.each<[string, (h: any) => unknown]>([
     ['missing', (h: any) => h.rows.pop()],
     [
       'duplicate',
@@ -250,23 +250,23 @@ describe('final API semantic clock packet join', () => {
       'extra including shadow',
       (h: any) => h.rows.push({ ...h.rows[0], id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb' }),
     ],
-    ...['tenantId', 'effectiveTenantId', 'userId', 'actorUserId', 'clientId', 'traceId'].map(
+    ...['tenantId', 'effectiveTenantId', 'userId', 'actorUserId', 'clientId', 'traceId'].map<[string, (h: any) => unknown]>(
       (key) =>
         [
           key,
           (h: any) => {
             h.rows[1][key] = id(0);
           },
-        ] as const,
+        ],
     ),
-    ...['capturePolicyId', 'captureRequestId', 'captureTurnId', 'conversationId', 'tool'].map(
+    ...['capturePolicyId', 'captureRequestId', 'captureTurnId', 'conversationId', 'tool'].map<[string, (h: any) => unknown]>(
       (key) =>
         [
           key,
           (h: any) => {
             h.rows[1].ref[key] = 'other';
           },
-        ] as const,
+        ],
     ),
     [
       'stored actual clock differs',

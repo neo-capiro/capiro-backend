@@ -1,0 +1,39 @@
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+PASS src/memory/governed-memory-candidate.service.spec.ts (32.32 s)
+  GovernedMemoryCandidateService Phase 13 dispositions
+    √ lets the proposer withdraw atomically with distinct status and audit reason (6 ms)
+    √ shows withdrawal and reviewer rejection as distinct proposer history outcomes (4 ms)
+    √ keeps the unpaged contract unchanged and keyset-pages candidate 51 (3 ms)
+    √ denies withdrawal by anybody other than the proposer (1 ms)
+    √ filters selected client and pending state in the owner query before the page limit (1 ms)
+    √ binds scoped cursors to the tenant, proposer, client and pending filter (22 ms)
+    √ keeps scoped pending bodies and client names redacted after an ethical-wall revocation (1 ms)
+    √ refuses an unknown or other-tenant selected client before querying proposals (1 ms)
+    √ forces an admin or granted proposer to use withdraw instead of reviewer rejection (1 ms)
+    √ lets an independent authorized reviewer reject with a distinct audit reason
+    √ cannot withdraw a terminal candidate twice (1 ms)
+    √ redacts a walled proposal body but still lets its proposer withdraw it (1 ms)
+    √ stays dark and mutation-free until the review surface is explicitly armed
+    √ returns six distinct recorded references only for own proposals and never copies payload provenance (1 ms)
+    √ retains a supported recorded UUID without reading its underlying content (1 ms)
+    √ omits recorded provenance for unknown type
+    √ omits recorded provenance for unsupported type
+    √ omits recorded provenance for malformed id (1 ms)
+    √ omits recorded provenance for unsupported id
+    √ omits recorded provenance for type newline
+    √ omits recorded provenance for id newline
+    √ omits recorded provenance for oversized type (1 ms)
+    √ omits recorded provenance for URL id
+    √ omits recorded provenance for missing type
+    √ omits recorded provenance for missing id
+
+Test Suites: 1 passed, 1 total
+Tests:       25 passed, 25 total
+Snapshots:   0 total
+Time:        32.685 s
+Ran all test suites matching /src\\memory\\governed-memory-candidate.service.spec.ts/i.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?

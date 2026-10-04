@@ -1,0 +1,299 @@
+diff --git a/apps/api/src/memory/governed-memory-candidate.service.spec.ts b/apps/api/src/memory/governed-memory-candidate.service.spec.ts
+index 0aae3f8ab..70fb5fd02 100644
+--- a/apps/api/src/memory/governed-memory-candidate.service.spec.ts
++++ b/apps/api/src/memory/governed-memory-candidate.service.spec.ts
+@@ -67,6 +67,7 @@ function harness(
+     scope?: 'firm' | 'client';
+     wallAllowed?: boolean;
+     reviewerAllowed?: boolean;
++    recordedSources?: Record<string, { sourceType?: unknown; sourceId?: unknown }>;
+   } = {},
+ ) {
+   const state = {
+@@ -85,7 +86,10 @@ function harness(
+     value: 'proposed value',
+     canonicalItem: null,
+   };
+-  const findFirst = jest.fn(async () => ({ payload }));
++  const findFirst = jest.fn(async (args?: { where?: { id?: string }; select?: Record<string, boolean> }) => ({
++    payload: { ...payload, sourceExcerpt: 'must not be copied', sourceRef: 'https://must-not-leak.invalid' },
++    ...(options.recordedSources?.[args?.where?.id ?? ''] ?? {}),
++  }));
+ 
+   const tx = {
+     client: {
+@@ -322,7 +326,9 @@ describe('GovernedMemoryCandidateService Phase 13 dispositions', () => {
+     await withReviewSurface(true, async () => {
+       const h = harness();
+       const rows = await h.tx.memoryCandidate.findMany();
+-      h.tx.memoryCandidate.findMany.mockImplementation(async () => [...rows, { ...rows[0], id: REVIEWER }]);
++      const firstRow = rows[0];
++      if (!firstRow) throw new Error('Expected the owned proposal fixture row');
++      h.tx.memoryCandidate.findMany.mockImplementation(async () => [...rows, { ...firstRow, id: REVIEWER }]);
+       const first = await h.service.listOwnProposals(proposerCtx, { clientId: CLIENT, status: 'pending', limit: 1 });
+       expect(first.nextCursor).toEqual(expect.any(String));
+       await expect(h.service.listOwnProposals(proposerCtx, { clientId: CLIENT, status: 'pending', cursor: first.nextCursor! })).resolves.toMatchObject({ enabled: true });
+@@ -343,6 +349,7 @@ describe('GovernedMemoryCandidateService Phase 13 dispositions', () => {
+       const page = await h.service.listOwnProposals(proposerCtx, { clientId: CLIENT, status: 'pending' });
+       expect(page.candidates[0]).toMatchObject({ status: 'pending', restricted: true, proposal: null, clientName: null });
+       expect(h.findFirst).not.toHaveBeenCalled();
++      expect(page.candidates[0]).not.toHaveProperty('recordedSource');
+       expect(h.tx.client.findMany).not.toHaveBeenCalled();
+     });
+   });
+@@ -429,4 +436,68 @@ describe('GovernedMemoryCandidateService Phase 13 dispositions', () => {
+       expect(h.tx.memoryCandidate.update).not.toHaveBeenCalled();
+     });
+   });
++
++  it('returns six distinct recorded references only for own proposals and never copies payload provenance', async () => {
++    await withReviewSurface(true, async () => {
++      const ids = Array.from({ length: 6 }, (_, index) =>
++        `66666666-6666-4666-8666-${String(index + 1).padStart(12, '0')}`,
++      );
++      const recordedSources = Object.fromEntries(ids.map((id, index) => [id, {
++        sourceType: 'meri_synthetic_fixture', sourceId: String(index + 1).repeat(64),
++      }]));
++      const h = harness({ recordedSources });
++      h.tx.memoryCandidate.findMany.mockResolvedValue(ids.map((id, index) => ({
++        id, clientId: CLIENT, proposedBy: PROPOSER, sourceKind: 'model_extraction', scope: 'client',
++        status: 'pending', createdAt: new Date(Date.UTC(2026, 6, 31, 12, index)), decidedAt: null,
++      })) as never);
++      const page = await h.service.listOwnProposals(proposerCtx);
++      expect(page.candidates.map((row) => row.recordedSource?.sourceId)).toEqual(
++        Array.from({ length: 6 }, (_, index) => String(index + 1).repeat(64)),
++      );
++      expect(new Set(page.candidates.map((row) => row.recordedSource?.sourceId)).size).toBe(6);
++      expect(h.tx.memoryCandidate.findMany).toHaveBeenCalledWith(expect.objectContaining({
++        where: expect.objectContaining({ tenantId: TENANT, proposedBy: PROPOSER }),
++      }));
++      expect(h.findFirst).toHaveBeenCalledWith({
++        where: { id: ids[0], tenantId: TENANT, proposedBy: PROPOSER },
++        select: { payload: true, sourceType: true, sourceId: true },
++      });
++      expect(h.findFirst).toHaveBeenCalledTimes(6);
++      expect(JSON.stringify(page)).not.toContain('sourceExcerpt');
++      expect(JSON.stringify(page)).not.toContain('must-not-leak.invalid');
++    });
++  });
++
++  it('retains a supported recorded UUID without reading its underlying content', async () => {
++    await withReviewSurface(true, async () => {
++      const h = harness({ recordedSources: { [CANDIDATE]: { sourceType: 'chat', sourceId: CLIENT } } });
++      const page = await h.service.listOwnProposals(proposerCtx);
++      expect(page.candidates[0]?.recordedSource).toEqual({ sourceType: 'chat', sourceId: CLIENT });
++      expect(h.findFirst).toHaveBeenCalledWith({
++        where: { id: CANDIDATE, tenantId: TENANT, proposedBy: PROPOSER },
++        select: { payload: true, sourceType: true, sourceId: true },
++      });
++      expect(JSON.stringify(page)).not.toContain('sourceExcerpt');
++      expect(JSON.stringify(page)).not.toContain('must-not-leak.invalid');
++    });
++  });
++
++  it.each<[string, { sourceType?: unknown; sourceId?: unknown }]>([
++    ['unknown type', { sourceType: 'unknown', sourceId: 'a'.repeat(64) }],
++    ['unsupported type', { sourceType: 'UpperCase', sourceId: 'a'.repeat(64) }],
++    ['malformed id', { sourceType: 'meri_synthetic_fixture', sourceId: 'A'.repeat(64) }],
++    ['unsupported id', { sourceType: 'meri_synthetic_fixture', sourceId: 'source-ref' }],
++    ['type newline', { sourceType: 'meri_synthetic_fixture\n', sourceId: 'a'.repeat(64) }],
++    ['id newline', { sourceType: 'meri_synthetic_fixture', sourceId: 'a'.repeat(64) + '\n' }],
++    ['oversized type', { sourceType: 'a'.repeat(41), sourceId: 'a'.repeat(64) }],
++    ['URL id', { sourceType: 'chat', sourceId: 'https://example.invalid/private' }],
++    ['missing type', { sourceId: 'a'.repeat(64) }],
++    ['missing id', { sourceType: 'chat' }],
++  ])('omits recorded provenance for %s', async (_label, source) => {
++    await withReviewSurface(true, async () => {
++      const h = harness({ recordedSources: { [CANDIDATE]: source } });
++      const page = await h.service.listOwnProposals(proposerCtx);
++      expect(page.candidates[0]).not.toHaveProperty('recordedSource');
++    });
++  });
+ });
+diff --git a/apps/api/src/memory/governed-memory-candidate.service.ts b/apps/api/src/memory/governed-memory-candidate.service.ts
+index 63dc1cbc2..5ebe0e71c 100644
+--- a/apps/api/src/memory/governed-memory-candidate.service.ts
++++ b/apps/api/src/memory/governed-memory-candidate.service.ts
+@@ -69,6 +69,11 @@ interface OwnCandidateRow {
+   decidedAt: Date | null;
+ }
+ 
++interface RecordedProposalSource {
++  sourceType: string;
++  sourceId: string;
++}
++
+ export interface OwnProposalPageInput {
+   cursor?: string;
+   limit?: string | number;
+@@ -93,6 +98,7 @@ export interface OwnedMemoryCandidate {
+   createdAt: string;
+   decidedAt: string | null;
+   restricted: boolean;
++  recordedSource?: RecordedProposalSource;
+   proposal: {
+     key: string | null;
+     value: string | null;
+@@ -291,10 +297,13 @@ export class GovernedMemoryCandidateService extends MemoryCandidateService {
+           : true;
+         const payloadRow = contentAllowed
+           ? await tx.memoryCandidate.findFirst({
+-              where: { id: row.id, tenantId: ctx.tenantId },
+-              select: { payload: true },
++              where: { id: row.id, tenantId: ctx.tenantId, proposedBy: ctx.userId },
++              select: { payload: true, sourceType: true, sourceId: true },
+             })
+           : null;
++        const recordedSource = contentAllowed && payloadRow
++          ? recordedProposalSource(payloadRow.sourceType, payloadRow.sourceId)
++          : undefined;
+         own.push({
+           id: row.id,
+           scope: row.scope,
+@@ -304,6 +313,7 @@ export class GovernedMemoryCandidateService extends MemoryCandidateService {
+           createdAt: row.createdAt.toISOString(),
+           decidedAt: row.decidedAt?.toISOString() ?? null,
+           restricted: !contentAllowed,
++          ...(recordedSource ? { recordedSource } : {}),
+           proposal: payloadRow ? proposalFromPayload(payloadRow.payload) : null,
+           capabilities: { withdraw: row.status === 'pending' },
+         });
+@@ -505,6 +515,20 @@ export class GovernedMemoryCandidateService extends MemoryCandidateService {
+   }
+ }
+ 
++function recordedProposalSource(sourceType: unknown, sourceId: unknown): RecordedProposalSource | undefined {
++  if (
++    typeof sourceType !== 'string' ||
++    sourceType === 'unknown' ||
++    sourceType.trim() !== sourceType ||
++    sourceType.length > 40 ||
++    !/^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$/.test(sourceType) ||
++    typeof sourceId !== 'string' ||
++    !((sourceId.length === 36 && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(sourceId)) ||
++      (sourceId.length === 64 && /^[0-9a-f]{64}$/.test(sourceId)))
++  ) return undefined;
++  return { sourceType, sourceId };
++}
++
+ function parseOwnProposalPageSize(value: unknown): number {
+   if (value === undefined || value === null || value === '') return 50;
+   const parsed = typeof value === 'number' ? value : Number(value);
+diff --git a/apps/web/src/components/memory-queue-shared.ts b/apps/web/src/components/memory-queue-shared.ts
+index 240c0caf1..1d902947a 100644
+--- a/apps/web/src/components/memory-queue-shared.ts
++++ b/apps/web/src/components/memory-queue-shared.ts
+@@ -24,6 +24,7 @@ export interface OwnedMemoryCandidate {
+   createdAt: string;
+   decidedAt: string | null;
+   restricted: boolean;
++  recordedSource?: { sourceType: string; sourceId: string };
+   proposal: {
+     key: string | null;
+     value: string | null;
+diff --git a/apps/web/src/vnext/meri/MeriMemoryTab.targets.test.tsx b/apps/web/src/vnext/meri/MeriMemoryTab.targets.test.tsx
+index 1ca43987a..cc106493b 100644
+--- a/apps/web/src/vnext/meri/MeriMemoryTab.targets.test.tsx
++++ b/apps/web/src/vnext/meri/MeriMemoryTab.targets.test.tsx
+@@ -187,6 +187,44 @@ describe('Meri governed proposal targets', () => {
+     expect(mocks.api.post).not.toHaveBeenCalled();
+   });
+ 
++  it('reveals each own proposal recorded reference as plain text and retains it after remount', async () => {
++    review = [];
++    const idOne = 'a'.repeat(64);
++    const idTwo = '11111111-1111-4111-8111-111111111111';
++    proposals = [
++      owned('source-one', { sourceKind: 'model_extraction', recordedSource: { sourceType: 'meri_synthetic_fixture', sourceId: idOne } }),
++      owned('source-two', { sourceKind: 'model_extraction', recordedSource: { sourceType: 'chat', sourceId: idTwo } }),
++    ];
++    const first = show();
++    await screen.findByText('Proposal source-one');
++    const one = card('Proposal source-one');
++    const two = card('Proposal source-two');
++    const disclosure = one.getByText('Source details');
++    expect(disclosure.tagName).toBe('SUMMARY');
++    expect(disclosure.closest('details')).not.toHaveAttribute('open');
++    fireEvent.click(disclosure);
++    fireEvent.click(two.getByText('Source details'));
++    await waitFor(() => expect(one.getByText(`Recorded source reference: ${idOne}`)).toBeVisible());
++    await waitFor(() => expect(two.getByText(`Recorded source reference: ${idTwo}`)).toBeVisible());
++    expect(one.queryByText(`Recorded source reference: ${idTwo}`)).not.toBeInTheDocument();
++    expect(two.queryByText(`Recorded source reference: ${idOne}`)).not.toBeInTheDocument();
++    expect(disclosure.closest('details')).toHaveAttribute('open');
++    expect(one.getByText('Source type: Synthetic fixture')).toBeVisible();
++    expect(two.getByText('Source type: Conversation')).toBeVisible();
++    expect(one.getByText('Source: model extraction')).toBeInTheDocument();
++    expect(one.queryByRole('link')).not.toBeInTheDocument();
++    expect(mocks.api.post).not.toHaveBeenCalled();
++    first.unmount();
++    show();
++    await screen.findByText('Proposal source-one');
++    const reopened = card('Proposal source-one');
++    fireEvent.click(reopened.getByText('Source details'));
++    await waitFor(() => expect(reopened.getByText(`Recorded source reference: ${idOne}`)).toBeVisible());
++    expect(reopened.getByRole('button', { name: 'Withdraw' })).toBeEnabled();
++    expect(reopened.queryByRole('link')).not.toBeInTheDocument();
++    expect(mocks.api.post).not.toHaveBeenCalled();
++  });
++
+   it('keeps both actual client labels across picker/context changes without client-filtering requests', async () => {
+     const view = show();
+     await screen.findByText('Proposal l3-review');
+@@ -254,6 +292,21 @@ describe('Meri governed proposal targets', () => {
+     );
+   });
+ 
++  it('never displays adversarial provenance supplied on a restricted candidate', async () => {
++    proposals = [owned('restricted-provenance', {
++      restricted: true,
++      proposal: null,
++      recordedSource: { sourceType: 'meri_synthetic_fixture', sourceId: 'c'.repeat(64) },
++    })];
++    show();
++    await screen.findByText('Restricted client memory proposal');
++    const restricted = card('Restricted client memory proposal');
++    expect(restricted.queryByText('Source details')).not.toBeInTheDocument();
++    expect(restricted.queryByText(/Recorded source reference/)).not.toBeInTheDocument();
++    expect(restricted.queryByText(new RegExp('c'.repeat(64)))).not.toBeInTheDocument();
++    expect(restricted.getByRole('button', { name: 'Withdraw' })).toBeEnabled();
++  });
++
+   it('keeps every pending proposal reachable in Meri and does not route review to Settings', async () => {
+     proposals = Array.from({ length: 7 }, (_, index) => owned(`pending-${index + 1}`));
+     show();
+diff --git a/apps/web/src/vnext/meri/MeriMemoryTab.tsx b/apps/web/src/vnext/meri/MeriMemoryTab.tsx
+index 9095f7a6e..955d11e68 100644
+--- a/apps/web/src/vnext/meri/MeriMemoryTab.tsx
++++ b/apps/web/src/vnext/meri/MeriMemoryTab.tsx
+@@ -159,6 +159,12 @@ function sourceLabel(sourceKind: string): string {
+   return sourceKind.replace(/_/g, ' ');
+ }
+ 
++function recordedSourceLabel(sourceType: string): string {
++  if (sourceType === 'meri_synthetic_fixture') return 'Synthetic fixture';
++  if (sourceType === 'chat') return 'Conversation';
++  return sourceLabel(sourceType);
++}
++
+ function reviewBody(candidate: ReviewableMemoryCandidate): Array<{ heading: string; body: string }> {
+   const canonical = candidate.proposal.canonicalItem;
+   if (canonical?.sections.length) {
+@@ -1025,6 +1031,17 @@ export function MeriMemoryTab({ packet }: { packet: MeriContextPacket | null })
+               <div style={{ marginTop: 8, color: '#667085', fontSize: 10.5 }}>
+                 Source: {sourceLabel(candidate.sourceKind)}
+               </div>
++              {!candidate.restricted && candidate.recordedSource ? (
++                <details style={{ marginTop: 7, color: '#667085', fontSize: 10.5 }}>
++                  <summary style={{ cursor: 'pointer' }}>Source details</summary>
++                  <div style={{ marginTop: 5, lineHeight: 1.45 }}>
++                    <div>Source type: {recordedSourceLabel(candidate.recordedSource.sourceType)}</div>
++                    <div style={{ overflowWrap: 'anywhere' }}>
++                      Recorded source reference: {candidate.recordedSource.sourceId}
++                    </div>
++                  </div>
++                </details>
++              ) : null}
+               {candidate.status !== 'pending' ? (
+                 <div
+                   aria-label="Memory decision receipt"

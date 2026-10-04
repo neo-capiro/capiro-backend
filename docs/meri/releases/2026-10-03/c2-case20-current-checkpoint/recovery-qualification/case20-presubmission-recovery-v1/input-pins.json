@@ -1,0 +1,18 @@
+{
+  "C:/dev/main/outputs/meri-c2-20261003/case20-native-f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b/execution.json": "e210847d83b7b4998d0e0cc57b51bc7d93b290ab6b5bcddcd5ee9f24fdc1f2c7",
+  "C:/dev/main/outputs/meri-c2-20261003/case20-native-f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b/execution.json.events.jsonl": "7675b0e47b1faa78bb288e8f4eeb463da72a64153ed792ef388beecae078c2f5",
+  "C:/dev/main/outputs/meri-c2-20261003/case20-native-f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b/actual-capture-scope.json": "1eb14db7d3b74cc7594366e2695542ef1d280cc6940a79348a8f1bf215ab2496",
+  "C:/dev/main/outputs/meri-c2-20261003/case20-native-f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b/aggregate-reserved-checkpoint.json": "bc3a5a601507ad987c637cfe7b9da08a9fbaae576548977ca989158481c052a7",
+  "C:/dev/cap-meri-foundation-evidence/controlled-read-claims/20-f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b.json": "3a7c2bfe69f17785e74752d7c0ba64753d91818bd6965fdfdf192f59896478f3",
+  "C:/dev/main/outputs/meri-c2-20261003/case20-browser-readiness-diagnostic-v1.json": "ba3d94226245e8d6c84e3e42ed6434dc9ec398fb6478bb8ae87a5f86426786c2",
+  "C:/dev/main/outputs/meri-c2-20261003/controlled-read-execution-intent-v1/source/evals/meri/live-v1/run-controlled-read.mjs": "d8d429a7e4e1b5fc5d731e7cb4dee098a3075d4764fa0886c745cace43bf7c83",
+  "C:/dev/main/outputs/meri-c2-20261003/launch-case20-controlled-read-v1-once.mjs": "d8c09bc7bd943fbb010533011daac5cfd00047243c7afb09688d87aa27e1015e",
+  "C:/dev/main/outputs/meri-c2-20261003/case20-live-scope-v1.json": "ff11e6de4f6f89ed4314dda96a11bec7ccf724dc35d0520fdbefe33155266e0c",
+  "C:/dev/main/outputs/meri-c2-20261003/case20-native-setup-execute-v1/inner-owner-receipt.json": "9ac732d7a5d4b066cea584804218f2f68083a445c016092b4f72d8f8a92f2cfd",
+  "C:/dev/main/outputs/meri-c2-20261003/case20-native-budget-install-v1/inner-owner-receipt.json": "35b2f3342781c9352fce0daed5ad502087b776b336d6203af592e5fd4cb0b3c0",
+  "C:/dev/main/outputs/meri-c2-20261003/reviewed-rates-c2-v2-20261003.json": "3531e09dfcce9f66b4ea2b3564db47bd72dc507cdcf1aecdda277b838007704e",
+  "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/controlled-read-live-capture.mjs": "e22e8d6022053a685276468710bb8521ae516ac21b7fabf995cc60b07e04ca63",
+  "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/windows-artifact-storage.mjs": "8b03eeccad53a92fc4cf7bcf4976522ecf7ed2126591449e28a6a70948ac01c4",
+  "C:/dev/main/outputs/meri-fresh-20261003/fresh-spend.jsonl": "d6213af1fd8330e9e97a688d903a3c1852b5f40265a66eafb6aa2bf1cfa2060b",
+  "C:/dev/main/outputs/meri-fresh-20261003/run-authorization.json": "e07822e83a7c7b531606519ecd4fdf1027f2fa7cbaefd4bad92a2084590262fe"
+}

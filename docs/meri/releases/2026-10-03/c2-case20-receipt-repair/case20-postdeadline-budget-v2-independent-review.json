@@ -1,0 +1,34 @@
+{
+  "kind": "independent-case20-postdeadline-budget-source-review",
+  "reviewer": "/root/mail_defaults_review",
+  "reviewedAt": "2026-10-04T01:44:55.227Z",
+  "status": "PASS_BOUNDED_SOURCE_REVIEW",
+  "script": {
+    "path": "C:/dev/main/outputs/meri-c2-20261003/read-case20-postdeadline-budget-v2.mjs",
+    "sha256": "3b98f47830f634d26f01c12f7350af8e61dff495717e1cf8c95959b3e290a6b9"
+  },
+  "supersededPreparedScript": {
+    "path": "C:/dev/main/outputs/meri-c2-20261003/read-case20-postdeadline-budget-v1.mjs",
+    "sha256": "d35245874ce1eb5f19958422e5f48aa2f01ce611ee342871662e58fbc3c12734",
+    "findings": [
+      "The messages read after policy expiry cannot be required to return 200.",
+      "Raw messages receipt cannot be compared directly to the retained redacted observation."
+    ],
+    "resolution": "V2 removes the messages GET and messagesUnchanged claim; prior messages are historical evidence only."
+  },
+  "verified": [
+    "Only two fixed owned application GETs: /api/me and the exact original Case20 conversation.",
+    "Deadline precondition precedes authentication; observed budget state must also be read after its deadline.",
+    "Current journal bytes pinned to the unchanged 23-event checkpoint; no write, reserve, restore, adopt, settle or refund operation exists.",
+    "Full provider state hash joins retained signed receipt, deep equality joins the pinned prior conversation budget, and exact admission/turn/qualification/source/actor/client/settled-attempt/cost checks remain.",
+    "Callback errors are retained until the existing authentication helper finishes session revocation; failure results retain partial reads and journal comparison.",
+    "Fresh exclusive output and fsynced evidence writes; no automatic retry."
+  ],
+  "limits": [
+    "Preparation-only source review; no script import, test rerun, authentication, application request, provider request, or journal mutation was performed.",
+    "Live read and session cleanup remain to be proved by the actual result.",
+    "Two GETs prove a point-in-time owned budget read, not new message authority, HMAC verification, acceptance, or journal settlement.",
+    "Existing authentication helper creates and revokes only its owned temporary authentication state; applicationWrites and modelSubmissions remain zero by this script."
+  ],
+  "humanReleaseApproval": false
+}

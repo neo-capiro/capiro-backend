@@ -1,0 +1,32 @@
+{
+  "status": "VERIFIED",
+  "containerExitCode": 0,
+  "ownerReceipts": [
+    {
+      "status": "READY_FOR_RATE_QUALIFICATION",
+      "caseId": "20",
+      "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+      "currentVerifySha256": "925c4735e4d435ab06c40b31ee590b0ce4e7d9220b742155c67e4115b1bc6516",
+      "captureBindingSha256": "0162b3bfc6fe8a2906a732d1b7b469cb7cc0eeca5b957905bfd8917adaa8b5ed",
+      "priorQualificationSha256": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+      "tenantRowVersion": "114747047",
+      "liveAcceptance": "NOT_RUN"
+    }
+  ],
+  "evidence": {
+    "resultPath": "C:/dev/main/outputs/meri-c2-20261003/case20-native-budget-plan-v1/result.json",
+    "resultSha256": "727fe21fae80b1c445af32683c1d8623d91d33145dcb845b7767ffd95f7fd2e6",
+    "ownerReceiptSha256": "f61c0e81ecfb2cf5567eb5069879139a710ec8cf52dcdb7eeda45212ee216260",
+    "ownerInputSha256": "116670b45a6529cff0c526a336d29f40927eb4b04b2d3ee548af24060027639e",
+    "sourceSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+    "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/36f92924b12e4fd5acd4e7e915312102",
+    "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-c2-case20-budget-20261003:1",
+    "cleanup": {
+      "taskStopped": true,
+      "stopAttempted": false,
+      "taskDefinitionInactive": true,
+      "deregisterAttempted": true
+    }
+  },
+  "liveAcceptance": "NOT_RUN"
+}

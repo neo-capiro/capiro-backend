@@ -21,6 +21,7 @@ import {
   readCaptureClockInvocations,
 } from './controlled-read-observations.js';
 import { projectMeriToolEvidence } from './meriv3/meriv3-tool-evidence.js';
+import { observeMeriTurnToolCoverage } from './meriv3/meriv3-turn-coverage.js';
 
 const id = (n: number) =>
   `${n}`.repeat(8) +
@@ -714,6 +715,57 @@ describe('controlled read actual HTTP observations', () => {
       }),
     );
   });
+  test.each(['search_program_elements', 'get_program_element', 'get_pe_budget_timeline'])(
+    'Case20 %s preserves exact source completion and refuses projection-truncated completion',
+    async (tool) => {
+      for (const truncated of [false, true]) {
+        const p = policy('20');
+        const body = {
+          ...payload(p),
+          coverage: {
+            total: 1,
+            returned: 1,
+            complete: true,
+            paginationComplete: true,
+            truncated: false,
+            nextCursor: null,
+          },
+        };
+        await scope(p, () =>
+          withControlledReadInvocation('provider-call', async () => {
+            observeControlledReadHttpResponse(tool, 200, body);
+            const visible = projectMeriToolEvidence({
+              result: body,
+              readOnly: true,
+              maxCharacters: truncated ? 200 : 10000,
+            });
+            const coverage = observeMeriTurnToolCoverage(tool, visible);
+            expect(coverage).toHaveLength(1);
+            expect(coverage[0]!.status).toBe(truncated ? 'partial' : 'complete');
+            expect(coverage[0]!.truncated).toBe(truncated);
+            const execution = observeMeriV3CaptureExecution({
+              callId: 'provider-call',
+              tool,
+              readOnly: true,
+              result: visible,
+              coverage,
+              citations: truncated
+                ? []
+                : [{ id: id(8), snippet: body.records![0]!.text, tool } as MeriCitation],
+            });
+            expect(execution.toolCalls[0]!.status).toBe(truncated ? 'partial' : 'complete');
+            expect(readControlledReadHttpObservations()![0]!.fullRead).toBe(true);
+            if (!truncated)
+              expect(execution.sources[0]!.clientId).toEqual({
+                status: 'OBSERVED',
+                value: null,
+                reason: null,
+              });
+          }),
+        );
+      }
+    },
+  );
   test.each([
     'captureRunId',
     'requestId',

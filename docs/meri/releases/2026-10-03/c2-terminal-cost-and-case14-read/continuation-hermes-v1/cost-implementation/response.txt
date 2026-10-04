@@ -1,0 +1,10 @@
+Draft deliverables are in:
+
+- `C:\dev\main\outputs\meri-c2-20261003\continuation-hermes-v1\cost-implementation\evals\meri\live-v1\case20-terminal-cost-pins.mjs`
+- `C:\dev\main\outputs\meri-c2-20261003\continuation-hermes-v1\cost-implementation\evals\meri\live-v1\case20-terminal-cost-authority.mjs`
+- `C:\dev\main\outputs\meri-c2-20261003\continuation-hermes-v1\cost-implementation\evals\meri\live-v1\case20-cost-owner.patch`
+- `C:\dev\main\outputs\meri-c2-20261003\continuation-hermes-v1\cost-implementation\NOTES.md`
+
+The patch proposes a Case20-specific cost-only append through the existing aggregate/Python owner: event 24, the exact active reservation and unchanged journal prefix, with no cap increase or capture authority. The authority draft checks the BLOCKED/CAPTURE_UNCERTAIN state, post-deadline readback, provider-state hash, and settled cost/token totals.
+
+BLOCKED / NOT ACCEPTED: exact evidence byte/hash pins and the canonical proof digest remain explicit fail-closed placeholders. I could not read the requested handover section 6 or Case01 cost test files through the available file paths; the original run’s `captured-inputs` file was also not found at the assumed path. Tests were not run, as instructed. No repository files or journal were changed. Case20 remains CAPTURE_UNCERTAIN / NOT_EVALUATED. No tool for delegating to parallel Hermes sessions was available in this session.

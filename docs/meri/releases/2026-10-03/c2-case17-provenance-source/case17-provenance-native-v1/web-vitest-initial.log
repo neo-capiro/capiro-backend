@@ -1,0 +1,11 @@
+
+ RUN  v2.1.9 C:/dev/main/meri-c1-20261002/apps/web
+
+ ✓ src/vnext/meri/MeriMemoryTab.test.ts (5 tests) 12ms
+ ✓ src/vnext/meri/MeriMemoryTab.targets.test.tsx (32 tests) 1883ms
+
+ Test Files  2 passed (2)
+      Tests  37 passed (37)
+   Start at  21:18:13
+   Duration  24.79s (transform 252ms, setup 9.95s, collect 1.04s, tests 1.89s, environment 31.46s, prepare 1.36s)
+

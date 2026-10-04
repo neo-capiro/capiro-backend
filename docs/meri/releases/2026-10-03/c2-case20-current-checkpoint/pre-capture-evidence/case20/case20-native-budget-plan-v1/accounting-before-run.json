@@ -1,0 +1,25 @@
+{
+  "accounting": {
+    "checkedAt": "2026-10-04T00:46:58.387Z",
+    "files": {
+      "run-authorization.json": {
+        "sha256": "e07822e83a7c7b531606519ecd4fdf1027f2fa7cbaefd4bad92a2084590262fe",
+        "bytes": 489
+      },
+      "fresh-spend.jsonl": {
+        "sha256": "a8c8101a4d806ef8080e1648c9e46568a55b7b5f93cb0f053a3d601404bfe3b5",
+        "bytes": 14139
+      }
+    },
+    "readOnly": true
+  },
+  "ratesSha256": "3531e09dfcce9f66b4ea2b3564db47bd72dc507cdcf1aecdda277b838007704e",
+  "operationFiles": {
+    "C:/dev/main/outputs/meri-c2-20261003/case20-native-setup-execute-v1/result.json": "0632a6b540c3f4d72528d3469206f0570e5e394ade82fe9dd93f12d426ee86ca",
+    "C:/dev/main/outputs/meri-c2-20261003/case20-native-setup-execute-v1/cleanup.json": "a5ccdef57192ab1f1d84711a49d38c11a10d49b1ce0c89c43bc232484a6a219c",
+    "C:/dev/main/outputs/meri-c2-20261003/case20-native-setup-execute-v1/inner-owner-receipt.json": "9ac732d7a5d4b066cea584804218f2f68083a445c016092b4f72d8f8a92f2cfd",
+    "C:/dev/main/outputs/meri-c2-20261003/case20-native-setup-execute-v1/inner-owner-transport.json": "81d3573e067474964e9c0fbaea8a42b87a6f417df1479032986b50313bfe9569",
+    "C:/dev/main/outputs/meri-c2-20261003/case20-native-setup-execute-v1/materializer-receipt.json": "72c6da16d7be893fa1cb2b5726f110a06ebb9774b2d5c67bb1dc4cb0c5d16123"
+  },
+  "readOnly": true
+}

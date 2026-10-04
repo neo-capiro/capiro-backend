@@ -1,0 +1,17 @@
+{
+  "status": "TERMINAL_COST_RECONCILED",
+  "at": "2026-10-04T02:40:10.497Z",
+  "journalBeforeSha256": "d6213af1fd8330e9e97a688d903a3c1852b5f40265a66eafb6aa2bf1cfa2060b",
+  "journalAfterSha256": "0fa29029013f6f885c0450116fe7fbc3e607fd73a2eb6fdf84f032a9b7900e41",
+  "chargedThisRunMicros": 1497175,
+  "knownFreshCostMicros": 13631058,
+  "remainingFreshBudgetMicros": 16368942,
+  "originalPrefixPreserved": true,
+  "captureAuthority": false,
+  "answerGrade": "NOT_EVALUATED",
+  "captureStatus": "CAPTURE_UNCERTAIN",
+  "originalFailure": "CONTROLLED_READ_FULL_PASSAGE_UNPROVED",
+  "cloudCalls": 0,
+  "modelSubmissions": 0,
+  "automaticRetryAllowed": false
+}

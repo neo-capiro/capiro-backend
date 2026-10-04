@@ -1,0 +1,40 @@
+{
+  "session": "case14-independent-review",
+  "startedAt": "2026-10-04T02:15:37.856269+00:00",
+  "finishedAt": "2026-10-04T02:16:55.802621+00:00",
+  "exitCode": 0,
+  "failure": null,
+  "modelOverride": null,
+  "providerOverride": null,
+  "toolsets": [
+    "file"
+  ],
+  "scope": "local draft/review only; no product execution",
+  "files": [
+    {
+      "path": "prompt.txt",
+      "sha256": "b960477a8bcd6c7a553a56bf6bc703447bd7bc7100a107c1ee11870f24c47e93",
+      "bytes": 2361
+    },
+    {
+      "path": "response.txt",
+      "sha256": "d3e2158fcc04d67c17885618dd06b68b103ef5b68bffde5954eb34fc610b4436",
+      "bytes": 497
+    },
+    {
+      "path": "REVIEW.md",
+      "sha256": "d62d8b9906134cf87011583c2c6f30c244b2b16e8218a1d709ec0efe10109cb6",
+      "bytes": 12226
+    },
+    {
+      "path": "stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "usage.json",
+      "sha256": "ade5a09bb6d0f4336bd82c47840e86b61190665e3f4d5ad2f1c304f818ddccae",
+      "bytes": 474
+    }
+  ]
+}

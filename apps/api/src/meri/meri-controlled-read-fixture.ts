@@ -305,6 +305,16 @@ export async function tryExecuteMeriControlledRead(
       currentCycleFy: claims.currentCycleFy,
       currentFundingClaim: claims.currentFundingClaim,
       records: [record],
+      // Completeness is for this exact source-owned response, not the public
+      // corpus. The current fixture/binding is rechecked before release below.
+      coverage: {
+        total: 1,
+        returned: 1,
+        complete: true,
+        paginationComplete: true,
+        truncated: false,
+        nextCursor: null,
+      },
       controlledRead: provenance,
       ...(search
         ? { data: [programElement], total: 1, page: 1, limit: input.limit ?? 20 }

@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "status": "PASS",
+  "reviewer": "/root/mail_defaults_review",
+  "reviewedAt": "2026-10-04T01:32:59.0449318Z",
+  "checkpointSha256": "e666b82818a64fffcaec9974fbc3bfb80d074b6cf8c344a5d1dec8fc1480c686",
+  "patchSha256": "624e6dc588f41ac9e276ae5973017e7d8d5fc4f0f70e12638633333917262f26",
+  "filesVerified": 2,
+  "evidenceFilesVerified": 9,
+  "priorCase17FilesAndMirrorsVerified": 5,
+  "mismatches": 0,
+  "findings": [],
+  "changes": [
+    "Explicit mutable tuples fix Jest.each inference while retaining every clock-negative case and assertion.",
+    "Removal of a false full-policy cast leaves the same partial fixture and existing test adapter.",
+    "Non-null type assertions erase at runtime; missing result rows still fail the tests."
+  ],
+  "qualification": {
+    "affectedApiTests": 65,
+    "suites": 2,
+    "failed": 0,
+    "fullApiTypecheck": "PASS_EXIT_0_WITH_8GB_HEAP",
+    "emittedJavaScript": "BYTE_IDENTICAL_BEFORE_AFTER_RETAINED_PROOF",
+    "runtimeEquivalenceSha256": "4e368f2cd44dae086dd4ee8ded4d6429007b9cd992ff1196e85ef1c9afd1c89b",
+    "jestLogSha256": "8203eb1dea7e678557d0a7a00a767c5eff97238029f1f4175a53217aa0c6eeed",
+    "typecheckLogSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "testsRerunByReviewer": false
+  },
+  "limits": [
+    "Two test files only; no production behavior, guards, assertions or test cases changed.",
+    "Retained prior failing typecheck stays historical; this successor qualifies the repaired combined native API typecheck.",
+    "No immutable build, deployment, live capture, original case acceptance or human grading is inferred."
+  ],
+  "liveActions": 0,
+  "sourceEdits": 0
+}

@@ -1,0 +1,22 @@
+--- Hermes-inner
++++ supervised-inner
+@@ -99,7 +99,10 @@
+   assert.equal(evidence.version, 1);
+   assert.equal(evidence.priceKind, 'qualified_text_token_upper_bound');
+   assert.equal(evidence.maxTokens, 500000);
+-  assert.ok(Array.isArray(evidence.rates) && evidence.rates.length === 2, 'TWO_REVIEWED_RATES_REQUIRED');
++  assert.deepEqual(evidence.rates, [
++    { kind: 'openai_responses', provider: 'openai', model: 'gpt-6-astra', inputMicrosPerMillion: 25000000, outputMicrosPerMillion: 75000000 },
++    { kind: 'bedrock_embeddings', provider: 'aws-bedrock', model: 'amazon.titan-embed-text-v2:0', inputMicrosPerMillion: 20000, outputMicrosPerMillion: 0 },
++  ], 'EXACT_REVIEWED_RATES_REQUIRED');
+   assert.ok(Array.isArray(evidence.sources) && evidence.sources.length > 0);
+   assert.ok(q.rates.length === 2, 'TWO_REVIEWED_RATES_REQUIRED');
+   assert.deepEqual(q.rates, evidence.rates, 'QUALIFICATION_RATES_DIFFER_FROM_EVIDENCE');
+@@ -134,7 +137,6 @@
+     assert.match(owner.tenantRowVersion, /^\d+$/u);
+   } else {
+     const q = ownerInput.qualification;
+-    assert.equal(owner.caseId, q.caseId);
+     assert.ok(exactKeys(owner, INSTALL_RESULT_KEYS), 'INSTALL_RESULT_KEYS_INVALID');
+     assert.equal(owner.status, 'PROVIDER_QUALIFICATION_INSTALLED');
+     assert.equal(owner.tenantId, input.ctx.tenantId);

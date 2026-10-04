@@ -1,0 +1,7 @@
+{
+  "kind": "case14-real-compiled-scope-gate-reproduction",
+  "unscoped": false,
+  "scoped": true,
+  "databaseCalls": 0,
+  "providerCalls": 0
+}

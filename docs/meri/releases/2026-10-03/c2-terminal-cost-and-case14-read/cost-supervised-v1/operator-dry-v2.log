@@ -1,0 +1,13 @@
+✔ actual source has one backslash escape, not literal backslash-n output (0.559ms)
+✔ successful operator preserves23 prefix and writes three valid newline-terminated JSON files (20.8496ms)
+✔ native failure writes parseable failure evidence without appending (24.2367ms)
+✔ changed prefix cannot produce a successful result (24.4692ms)
+✔ regression test detects an intentionally doubled split escape (19.4022ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 171.9372

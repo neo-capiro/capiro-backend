@@ -1,0 +1,41 @@
+{
+  "status": "LOCAL_INPUT_ONLY_NOT_RUNNABLE",
+  "at": "2026-10-03T21:41:33.249Z",
+  "caseId": "20",
+  "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+  "manifestSha256": "ed9c3b1c11014825b29ee2879796e20b3f0023959ed9e478337180b96ed7a062",
+  "sourceHashes": [
+    {
+      "path": "evals/meri/live-v1/controlled-read-operator-input.mjs",
+      "localSha256": "ce6244bb6ffc52e0c1661779290995aad53ab287023f0706480509414ee5ef2a",
+      "sourceSha": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642"
+    },
+    {
+      "path": "evals/meri/live-v1/fixture-provisioning/controlled-read-definitions.mjs",
+      "localSha256": "56a6f30e198e78db778c1ac2b02a00a4f6eae17646d56bc94f8ece66d63adf05",
+      "sourceSha": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642"
+    },
+    {
+      "path": "evals/meri/live-v1/cases.mjs",
+      "localSha256": "5464412ee66b73f677cc923bda09b4785a866b20ef0ee6a3410936c431c5ba0a",
+      "sourceSha": "5b086a6b47ffce5aa1b93bfe38f9c7b96e297642"
+    }
+  ],
+  "originalPrompt": "Find PE 0912345T and give me its FY27 request.",
+  "setupInputSha256": "a72c2d69bebb9694edb38bc4131a60a093e6488f8cd3528fafd92db7f84a082d",
+  "localDefinitionSha256": "6071f1727742910f33e5027b111150918bfe233e9aa01f761a547404a357310f",
+  "fixtureAuthority": false,
+  "captureAuthority": false,
+  "paidReservation": false,
+  "remoteCalls": 0,
+  "providerCalls": 0,
+  "journalCalls": 0,
+  "fixtureWrites": 0,
+  "nextRequirements": [
+    "Finish and settle Case01 without ambiguity before replacing its tenant binding.",
+    "Verify remaining budget against the actual final checkpoint; no new budget is inferred.",
+    "Use a reviewed clean operator checkout matching current source guards.",
+    "Review a bounded dispatcher for existing setup/budget owners and obtain actual plan/execute/install receipts.",
+    "Recheck actual source/fixture/budget/authentication and grade captured evidence; original human rubric remains."
+  ]
+}

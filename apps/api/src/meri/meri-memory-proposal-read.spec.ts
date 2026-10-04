@@ -10,7 +10,6 @@ import type {
   OwnedMemoryCandidate,
 } from '../memory/governed-memory-candidate.service.js';
 import { readOwnPendingMemoryProposals } from './meri-memory-proposal-read.js';
-import type { MeriServerReadonlyCapturePolicy } from '@capiro/meriv2-core';
 
 const ctx = {
   tenantId: '11111111-1111-4111-8111-111111111111',
@@ -76,7 +75,7 @@ describe('governed own pending memory read', () => {
         currentVerifySha256: 'a'.repeat(64),
         observedAt: issuedAt,
       },
-    } as MeriServerReadonlyCapturePolicy;
+    };
   };
   const captureRead = (...args: unknown[]) =>
     (readOwnPendingMemoryProposals as (...values: any[]) => Promise<any>)(...args);
@@ -227,8 +226,8 @@ describe('governed own pending memory read', () => {
       ],
     });
     const result = await readOwnPendingMemoryProposals(ctx, {}, h.owner);
-    expect(result.candidates[0].proposedText).toHaveLength(2000);
-    expect(result.candidates[0].contentTruncated).toBe(true);
+    expect(result.candidates[0]!.proposedText).toHaveLength(2000);
+    expect(result.candidates[0]!.contentTruncated).toBe(true);
     expect(JSON.stringify(result)).not.toContain('incorrect fallback');
     expect(classifyApiToolReadOutcome('list_memory_proposals', result)).toMatchObject({
       kind: 'partial',

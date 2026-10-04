@@ -1,0 +1,1 @@
+{"activatedAtMs":1791081331705,"concurrency":1,"deadlineAtMs":1791081931705,"kind":"revise_protocol","maxCostMicros":30000000,"perCaseMaxCostMicros":15000000,"protocolVersion":2,"reviewSha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","sequence":3,"settlementAuthority":"server_settled_provider_ledger","uncertainDisposition":"full_ceiling_no_refund"}

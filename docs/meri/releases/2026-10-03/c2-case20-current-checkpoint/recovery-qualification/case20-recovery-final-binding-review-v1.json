@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "status": "PASS",
+  "reviewer": "/root/mail_defaults_review",
+  "reviewedAt": "2026-10-04T01:15:31.8299721Z",
+  "operatorCommit": "fd2fb71d8646693a948b62a28720c9575c917507",
+  "cleanWorktree": true,
+  "changedFiles": 5,
+  "manifest": {
+    "path": "case20-native-recovery-v2-reviewed-input.json",
+    "sha256": "3d9785bd20ebfb035cc89a594dbc09824bf7e334c82691427abf9f8118dd9439",
+    "verifiedEntries": 11,
+    "verifiedCommittedSourceBlobs": 5,
+    "mismatches": 0
+  },
+  "launcher": {
+    "path": "launch-case20-native-recovery-v2-once.mjs",
+    "sha256": "e67494bc800d881387a933e10e8e7e4c4c8c6d4f9709a6240bb354fb2518661f"
+  },
+  "operator": {
+    "path": "run-case20-native-recovery-v2.mjs",
+    "sha256": "c7bdbacd9f5cfef151c5d950d0e34c486dd7c795ccdb61c6dcd2e26418ecb2e8"
+  },
+  "binder": {
+    "path": "bind-case20-recovery-v2.mjs",
+    "sha256": "aa5748e388699222daeed536dd8630db62f05f397244c08d59294613ab0cbb0f"
+  },
+  "priorReviewSha256": "287dbe4e52e40fca9105760b5f713a34c65bb2ce290de7e5bb5444effab06cc3",
+  "journalSha256": "d6213af1fd8330e9e97a688d903a3c1852b5f40265a66eafb6aa2bf1cfa2060b",
+  "recoveryOutputAbsentAtReview": true,
+  "recoveryClaimAbsentAtReview": true,
+  "findings": [],
+  "conclusions": [
+    "Manifest binds all frozen source/test bytes and independent records; exact committed blobs match the reviewed files and the worktree is clean.",
+    "Launcher pins exact manifest/operator bytes and unchanged current journal, refuses pre-existing recovery output/claim, selects capiro-dev/us-east-1 and exact CLI actor, and invokes the reviewed operator once.",
+    "Clerk secret is never printed or persisted; the operator removes CLERK_SECRET_KEY from the environment before child processes and the launcher deletes it in finally.",
+    "No new conversation, reservation, adoption, refund, automatic retry or alternate capture path is introduced."
+  ],
+  "limits": [
+    "Review performed local reads/hashes only; launcher/operator/binder were not imported or executed and no auth/cloud/provider/journal call occurred.",
+    "Runtime authenticated admission, build, empty-conversation, exclusive-claim and existing-reservation checks remain mandatory; this review does not assert a completed capture or original acceptance."
+  ],
+  "testsRerun": false,
+  "liveActions": 0
+}

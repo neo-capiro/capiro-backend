@@ -1,0 +1,108 @@
+{
+  "status": "PASS",
+  "createdAt": "2026-10-04T01:31:07.760563+00:00",
+  "files": [
+    {
+      "path": "apps/api/src/meri/meri-capture-clock-packets.spec.ts",
+      "baseSha256": "655f564716160bed9f20bfa32450f46a9adb9989009a321782e11d235140e828",
+      "sha256": "e955d72df1ab150997f6e78e73c982821c3c9c38b699df1fdbb6af9f1d94bf55",
+      "bytes": 13134,
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-api-typecheck-followup-v1\\source\\apps\\api\\src\\meri\\meri-capture-clock-packets.spec.ts",
+      "base": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-api-typecheck-followup-v1\\base\\apps\\api\\src\\meri\\meri-capture-clock-packets.spec.ts"
+    },
+    {
+      "path": "apps/api/src/meri/meri-memory-proposal-read.spec.ts",
+      "baseSha256": "9a68bf1b46654c86afddaf51b0c47f78e81aa982f82cb8a8cd3d5b373db17352",
+      "sha256": "b58297bd8cd4b5e243293cc4b69843af12aae109ce38eb25418655da1a563b91",
+      "bytes": 10767,
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-api-typecheck-followup-v1\\source\\apps\\api\\src\\meri\\meri-memory-proposal-read.spec.ts",
+      "base": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-api-typecheck-followup-v1\\base\\apps\\api\\src\\meri\\meri-memory-proposal-read.spec.ts"
+    }
+  ],
+  "sourcePatchSha256": "624e6dc588f41ac9e276ae5973017e7d8d5fc4f0f70e12638633333917262f26",
+  "checks": [
+    {
+      "command": "pnpm -C apps/api exec jest src/meri/meri-capture-clock-packets.spec.ts src/meri/meri-memory-proposal-read.spec.ts --runInBand --forceExit",
+      "cwd": "C:\\dev\\main\\meri-c1-20261002",
+      "exitCode": 0,
+      "tests": {
+        "pass": 65,
+        "fail": 0,
+        "suites": 2
+      },
+      "log": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-api-typecheck-followup-v1\\api-jest-final.log",
+      "sha256": "8203eb1dea7e678557d0a7a00a767c5eff97238029f1f4175a53217aa0c6eeed"
+    },
+    {
+      "command": "node --max-old-space-size=8192 node_modules/typescript/bin/tsc --noEmit --rootDir . --incremental false",
+      "cwd": "C:\\dev\\main\\meri-c1-20261002\\apps\\api",
+      "exitCode": 0,
+      "log": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-api-typecheck-followup-v1\\api-typecheck-final.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "runtimeEquivalent": {
+    "proof": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-api-typecheck-followup-v1\\runtime-equivalence.json",
+    "sha256": "4e368f2cd44dae086dd4ee8ded4d6429007b9cd992ff1196e85ef1c9afd1c89b",
+    "emittedJavaScriptByteIdentical": true
+  },
+  "priorCase17Checkpoint": {
+    "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-provenance-native-v1\\checkpoint.json",
+    "sha256": "c7bd52428514ac1e826b1a7b8b2e16e1f4681e4a5afc65e56a301f848f4b0032",
+    "allFiveLiveAndMirrorHashesUnchanged": true
+  },
+  "priorErrorsRetainedAt": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-provenance-native-v1\\api-typecheck-final.log",
+  "productionChanges": false,
+  "limits": [
+    "Two test files only; existing test cases, assertions and runtime bytes unchanged.",
+    "No deployment, cloud, provider, auth, fixture, journal or original rubric acceptance.",
+    "Focused Jest and full API typecheck use actual installed native tools; known ts-jest hybrid-module warnings retained."
+  ],
+  "evidence": [
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-api-typecheck-followup-v1\\api-jest-final.log",
+      "sha256": "8203eb1dea7e678557d0a7a00a767c5eff97238029f1f4175a53217aa0c6eeed",
+      "bytes": 2403
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-api-typecheck-followup-v1\\api-typecheck-final.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-api-typecheck-followup-v1\\candidate.patch",
+      "sha256": "624e6dc588f41ac9e276ae5973017e7d8d5fc4f0f70e12638633333917262f26",
+      "bytes": 2885
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-api-typecheck-followup-v1\\check-runtime-equivalence.cjs",
+      "sha256": "edf85fad2b92915c1ebe129ded03c12424268a482d6829a796cf94fb6c84f889",
+      "bytes": 1842
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-api-typecheck-followup-v1\\diff-check.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-api-typecheck-followup-v1\\freeze.py",
+      "sha256": "a2fbd3e635ae8066029eef9d8e57b9e1f7e485c106348fd8b2d384c6bf5f14b2",
+      "bytes": 2659
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-api-typecheck-followup-v1\\preparation.json",
+      "sha256": "e804803478352d61f1332b31a2cc756c28388b191c55397c0df8c2e86e8d0c2b",
+      "bytes": 1397
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-api-typecheck-followup-v1\\prepare.py",
+      "sha256": "a3cb977a024236ab21fc2a23519cba1dcc350fb1f120503e325b64c3e88f16ad",
+      "bytes": 2232
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-api-typecheck-followup-v1\\runtime-equivalence.json",
+      "sha256": "4e368f2cd44dae086dd4ee8ded4d6429007b9cd992ff1196e85ef1c9afd1c89b",
+      "bytes": 1816
+    }
+  ]
+}

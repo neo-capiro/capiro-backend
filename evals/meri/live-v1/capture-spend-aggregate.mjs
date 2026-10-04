@@ -12,7 +12,9 @@ import {
 import { currentMemoryReadUsageAuthority } from './memory-read-budget-authority.mjs';
 import { currentReviewedCaptureSpendReconciliation } from './capture-spend-reconciliation.mjs';
 import { consumeCase01PresubmissionRecoveryAuthority } from './case01-presubmission-recovery-authority.mjs';
+import { consumeCase20PresubmissionRecoveryAuthority } from './case20-presubmission-recovery-authority.mjs';
 import { consumeCase01FailedReceiptCostAuthority } from './case01-failed-receipt-cost-authority.mjs';
+import { consumeCase20TerminalCostAuthority } from './case20-terminal-cost-authority.mjs';
 import {
   currentCase01CaptureAuthority,
   currentCase14RecallAuthority,
@@ -77,6 +79,18 @@ export function reconcileCase01FailedReceiptCost(authority, { pythonExecutable, 
   }));
 }
 
+/** Exact Case20 event24 cost closure; preserves its failed capture and claims. */
+export function reconcileCase20TerminalCost(authority, { pythonExecutable, invocation }) {
+  need(invocation === 'RECONCILE_FAILED_CASE20_PROVIDER_COST_ONCE');
+  const { proof, checkpoint: prior } = consumeCase20TerminalCostAuthority(authority);
+  need(prior.kind === 'meri-fresh-capture-spend-checkpoint' && prior.state.root === resolve(freshRoot));
+  return checkpoint(native(freshRoot, pythonExecutable, {
+    op: 'fresh_reconcile_terminal', state: prior.state,
+    event: { kind: 'reconcile_terminal', caseId: proof.caseId, captureRunId: proof.captureRunId,
+      reservationId: proof.reservationId, proof },
+  }));
+}
+
 /** A trusted operator passes the pinned last checkpoint, not model/user content.
  * Native handles fence identity/content/entry-set changes and concurrent writers.
  * Legacy ceilings remain consumed. Protocol v2 releases a NEW reservation's
@@ -93,6 +107,16 @@ export function restoreCase01PresubmissionCaptureSpend(
 ) {
   need(invocation === 'RESTORE_SAME_CASE01_UNSUBMITTED_RESERVATION_ONCE');
   const recovery = consumeCase01PresubmissionRecoveryAuthority(authority);
+  return openCaptureSpendOwner(recovery.checkpoint, { pythonExecutable }, recovery);
+}
+
+/** Restore only the separately authenticated, fixed Case20 pre-submission failure. */
+export function restoreCase20PresubmissionCaptureSpend(
+  authority,
+  { pythonExecutable, invocation },
+) {
+  need(invocation === 'RESTORE_SAME_CASE20_UNSUBMITTED_RESERVATION_ONCE');
+  const recovery = consumeCase20PresubmissionRecoveryAuthority(authority);
   return openCaptureSpendOwner(recovery.checkpoint, { pythonExecutable }, recovery);
 }
 

@@ -1,0 +1,62 @@
+[
+  {
+    "command": "pnpm -C apps/api exec jest src/memory/governed-memory-candidate.service.spec.ts --runInBand --forceExit",
+    "cwd": "C:\\dev\\main\\meri-c1-20261002",
+    "exitCode": 0,
+    "log": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-provenance-native-v1\\api-jest-initial.log",
+    "sha256": "c2463990dac09a1eae75b0edd9f049132edffbc0cf5e23b02e209f2bca1766bb",
+    "passed": 25
+  },
+  {
+    "command": "pnpm -C apps/web exec vitest run src/vnext/meri/MeriMemoryTab.targets.test.tsx src/vnext/meri/MeriMemoryTab.test.ts --poolOptions.threads.singleThread --testTimeout=20000 --hookTimeout=20000",
+    "cwd": "C:\\dev\\main\\meri-c1-20261002",
+    "exitCode": 0,
+    "log": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-provenance-native-v1\\web-vitest-initial.log",
+    "sha256": "f71eb190b9d2918c2319b0e1edea61c013b0156002ff9a25009a297541d87169",
+    "passed": 37,
+    "suites": 2
+  },
+  {
+    "command": "pnpm -C apps/api exec tsc --noEmit --rootDir . --incremental false",
+    "cwd": "C:\\dev\\main\\meri-c1-20261002",
+    "exitCode": 134,
+    "log": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-provenance-native-v1\\api-typecheck-initial.log",
+    "sha256": "0227d4fd6095a022f5d9e5186c819385701eb18f49483af9fa2b991d9305a03e",
+    "failure": "Default 4GB Node heap exhausted"
+  },
+  {
+    "command": "pnpm -C apps/web run typecheck",
+    "cwd": "C:\\dev\\main\\meri-c1-20261002",
+    "exitCode": 0,
+    "log": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-provenance-native-v1\\web-typecheck-initial.log",
+    "sha256": "17b816c0f73fdfedd14cb1c0952677cde147c440d5b1b5b228fb8f7277a789f6"
+  },
+  {
+    "command": "node --max-old-space-size=8192 node_modules/typescript/bin/tsc --noEmit --rootDir . --incremental false",
+    "cwd": "C:\\dev\\main\\meri-c1-20261002\\apps\\api",
+    "exitCode": 2,
+    "log": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-provenance-native-v1\\api-typecheck-8gb.log",
+    "sha256": "27807659d4e5234dd39a747f7b8df8aa5e4b5e89c2d6dff40cfdfacb2dad3286",
+    "errors": 7,
+    "ownedSpecErrors": 3,
+    "unrelatedUnchangedSpecErrors": 4
+  },
+  {
+    "command": "pnpm -C apps/api exec jest src/memory/governed-memory-candidate.service.spec.ts --runInBand --forceExit",
+    "cwd": "C:\\dev\\main\\meri-c1-20261002",
+    "exitCode": 0,
+    "log": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-provenance-native-v1\\api-jest-final.log",
+    "sha256": "be150e4e72dd1ca16b91717fd75ea8d3fd124fa41a71f302c00da168d5c4b292",
+    "passed": 25
+  },
+  {
+    "command": "node --max-old-space-size=8192 node_modules/typescript/bin/tsc --noEmit --rootDir . --incremental false",
+    "cwd": "C:\\dev\\main\\meri-c1-20261002\\apps\\api",
+    "exitCode": 2,
+    "log": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-provenance-native-v1\\api-typecheck-final.log",
+    "sha256": "bdceb69593b19c6b44b51382f010e24da347ec81147cd7f105261b11da5e4688",
+    "errors": 4,
+    "ownedSpecErrors": 0,
+    "unrelatedUnchangedSpecErrors": 4
+  }
+]

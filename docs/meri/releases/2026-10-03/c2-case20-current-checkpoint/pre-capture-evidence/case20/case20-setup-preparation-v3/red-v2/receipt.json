@@ -1,0 +1,173 @@
+{
+  "kind": "LOCAL_ONLY_CASE20_DRAFT_QUALIFICATION",
+  "sourceSha256": "d111ba5f02938540e207b02444916337b2ac69acdfe423569f02d6b18ea3b8d0",
+  "innerSha256": "36e6c8021e8033f282be2534767e0a1ea94c27fdc98af08aadab0c26b25b15de",
+  "pass": 29,
+  "fail": 7,
+  "results": [
+    {
+      "name": "exact new packet shape accepts a separate promotion manifest hash in memory",
+      "status": "PASS"
+    },
+    {
+      "name": "old approval scope rejected",
+      "status": "PASS"
+    },
+    {
+      "name": "approval hash mismatch rejected",
+      "status": "PASS"
+    },
+    {
+      "name": "different source in approved pair rejected",
+      "status": "PASS"
+    },
+    {
+      "name": "paid capture authority cannot be inferred",
+      "status": "PASS"
+    },
+    {
+      "name": "missing healthy promotion receipt rejected",
+      "status": "PASS"
+    },
+    {
+      "name": "saved actual 22-event checkpoint is read without opening its journal",
+      "status": "PASS"
+    },
+    {
+      "name": "read-only current accounting accepts exact bytes without opening live files",
+      "status": "FAIL",
+      "errorClass": "AssertionError",
+      "message": "Expected values to be strictly equal:\n+ actual - expected\n\n+ 'object'\n- 'function'\n"
+    },
+    {
+      "name": "read-only current accounting rejects changed run-authorization.json",
+      "status": "FAIL",
+      "errorClass": "AssertionError",
+      "message": "Expected values to be strictly equal:\n+ actual - expected\n\n+ 'object'\n- 'function'\n"
+    },
+    {
+      "name": "read-only current accounting rejects changed fresh-spend.jsonl",
+      "status": "FAIL",
+      "errorClass": "AssertionError",
+      "message": "Expected values to be strictly equal:\n+ actual - expected\n\n+ 'object'\n- 'function'\n"
+    },
+    {
+      "name": "minimal utility removes workload role and all provider secrets",
+      "status": "PASS"
+    },
+    {
+      "name": "duplicate DB secret names and environment files refuse",
+      "status": "PASS"
+    },
+    {
+      "name": "task normalization changes only environment order and refuses duplicates",
+      "status": "PASS"
+    },
+    {
+      "name": "complete exact owner byte transport and incomplete log-lag handling",
+      "status": "PASS"
+    },
+    {
+      "name": "failure alongside complete transport retains bytes but never success",
+      "status": "PASS"
+    },
+    {
+      "name": "invalid native owner JSON remains exact raw evidence, never success",
+      "status": "PASS"
+    },
+    {
+      "name": "unknown receipt phase refuses",
+      "status": "PASS"
+    },
+    {
+      "name": "duplicate start refuses",
+      "status": "PASS"
+    },
+    {
+      "name": "wrong source refuses",
+      "status": "PASS"
+    },
+    {
+      "name": "wrong run refuses",
+      "status": "PASS"
+    },
+    {
+      "name": "wrong inner hash refuses",
+      "status": "PASS"
+    },
+    {
+      "name": "altered chunk refuses",
+      "status": "PASS"
+    },
+    {
+      "name": "wrong chunk index refuses",
+      "status": "PASS"
+    },
+    {
+      "name": "exact task ARN/cluster/nonce binding refuses alien task",
+      "status": "PASS"
+    },
+    {
+      "name": "injected local lifecycle happy",
+      "status": "PASS"
+    },
+    {
+      "name": "injected local lifecycle log-lag",
+      "status": "PASS"
+    },
+    {
+      "name": "injected local lifecycle register-unknown",
+      "status": "PASS"
+    },
+    {
+      "name": "injected local lifecycle run-unknown",
+      "status": "PASS"
+    },
+    {
+      "name": "injected local lifecycle stop-unknown",
+      "status": "PASS"
+    },
+    {
+      "name": "injected local lifecycle deregister-unknown",
+      "status": "PASS"
+    },
+    {
+      "name": "injected local lifecycle post-drift",
+      "status": "PASS"
+    },
+    {
+      "name": "execute clearance and current-accounting fence happy",
+      "status": "PASS"
+    },
+    {
+      "name": "execute clearance and current-accounting fence register-unknown",
+      "status": "FAIL",
+      "errorClass": "AssertionError",
+      "message": "Expected values to be strictly equal:\n+ actual - expected\n\n+ 'CLEARED_BY_EXISTING_NATIVE_OWNER'\n- 'UNCHANGED_BEFORE_DISPATCH'\n"
+    },
+    {
+      "name": "execute clearance and current-accounting fence run-unknown-no-receipt",
+      "status": "FAIL",
+      "errorClass": "AssertionError",
+      "message": "Expected values to be strictly equal:\n+ actual - expected\n\n+ 'CLEARED_BY_EXISTING_NATIVE_OWNER'\n- 'NOT_PROVED'\n"
+    },
+    {
+      "name": "execute clearance and current-accounting fence journal-before-register",
+      "status": "FAIL",
+      "errorClass": "AssertionError",
+      "message": "Expected values to be strictly equal:\n\n1 !== 0\n"
+    },
+    {
+      "name": "execute clearance and current-accounting fence journal-before-run",
+      "status": "FAIL",
+      "errorClass": "AssertionError",
+      "message": "Expected values to be strictly equal:\n\n1 !== 0\n"
+    }
+  ],
+  "limits": [
+    "Dispatcher main was never imported or executed. Only source declarations were extracted and named functions called.",
+    "AWS clients, service snapshots and canonical-owner result checking are injected local fakes in lifecycle scenarios.",
+    "No cloud, auth, provider, DB/fixture or live journal calls; local scratch files only. No actual plan, approval or promotion artifact was minted.",
+    "These tests do not qualify a real AWS deployment, the packaged CLI/database owner, actual human approval, or a live setup result."
+  ]
+}

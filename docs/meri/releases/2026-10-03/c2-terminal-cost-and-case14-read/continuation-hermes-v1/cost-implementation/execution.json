@@ -1,0 +1,55 @@
+{
+  "session": "cost-implementation",
+  "startedAt": "2026-10-04T02:15:37.856269+00:00",
+  "finishedAt": "2026-10-04T02:20:00.160196+00:00",
+  "exitCode": 0,
+  "failure": null,
+  "modelOverride": null,
+  "providerOverride": null,
+  "toolsets": [
+    "file"
+  ],
+  "scope": "local draft/review only; no product execution",
+  "files": [
+    {
+      "path": "NOTES.md",
+      "sha256": "96cf9286e45c6378a74c6acb38e985d241c2443fcd970f8ddb0018fff6508064",
+      "bytes": 3784
+    },
+    {
+      "path": "prompt.txt",
+      "sha256": "8b9828ff97fae51a120e543cb9ddf7391c087a54dafe80537d09c726f06458fb",
+      "bytes": 3183
+    },
+    {
+      "path": "response.txt",
+      "sha256": "a09cd935a3785302994e105995089777c55e90b0f7d75f5faedf868395f61f8b",
+      "bytes": 1415
+    },
+    {
+      "path": "stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "usage.json",
+      "sha256": "902e11f6298cdffc2574d613e89829f3a16c236b3276d2abaa11bdacd380dddf",
+      "bytes": 477
+    },
+    {
+      "path": "evals\\meri\\live-v1\\case20-cost-owner.patch",
+      "sha256": "988814de90498f665410af8f5b557b5b0a85bd1d9e46039117ac0a9812a4cd2c",
+      "bytes": 3151
+    },
+    {
+      "path": "evals\\meri\\live-v1\\case20-terminal-cost-authority.mjs",
+      "sha256": "a87b00201b81aa623dc466b82197ef381dda3c11811cd640cafe0f04c9925d71",
+      "bytes": 7934
+    },
+    {
+      "path": "evals\\meri\\live-v1\\case20-terminal-cost-pins.mjs",
+      "sha256": "ac5b9861ee40884f3b360fc8e44853b5089e3bdbc3d8b8a3d49440f9452d9984",
+      "bytes": 2685
+    }
+  ]
+}

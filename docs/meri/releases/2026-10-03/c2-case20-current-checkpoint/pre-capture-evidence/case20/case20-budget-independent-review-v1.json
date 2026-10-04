@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "result": "PASS",
+  "reviewer": "benchmark_review",
+  "recordedAt": "2026-10-04T00:48:09.377958+00:00",
+  "sourceCommit": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+  "caseId": "20",
+  "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+  "findings": [],
+  "files": [
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-budget-preparation-v1\\checkpoint.json",
+      "sha256": "3042821fca345142a7640cf5745d4845ef260134ca6075f83d88f1556582ed7a",
+      "bytes": 5845
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-budget-preparation-v1\\supervised-candidate\\run-case20-native-budget.mjs",
+      "sha256": "cd4d7e506f7b26ab04fcc2013964bb7dbd843c72028c734376b577cc21b50c69",
+      "bytes": 58164
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-budget-preparation-v1\\supervised-candidate\\case20-native-budget-inner.mjs",
+      "sha256": "f0314af18590f8a3ec5503cc6c39d2d9045b042d5b817482320339c6d38286dc",
+      "bytes": 14842
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-budget-preparation-v1\\final-exact-input\\receipt.json",
+      "sha256": "a99510bf2a33149895526f77c23a82b16aeb7a2f8870a45b80644226d286a3f4",
+      "bytes": 3914
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\materialize-verified-case20-budget-v1.mjs",
+      "sha256": "d2628540fe19531d8c672bd95a5aed72ed9c39eb7480d1afee71c348791894c8",
+      "bytes": 4653
+    }
+  ],
+  "checks": [
+    "All frozen source/evidence pins and the reviewed setup-v3 transport predecessor match. Final local receipt reports 29 passed, zero failed; preserved earlier failures and syntax checks are attributed correctly.",
+    "Actual saved setup/result/transport/materializer joins and prior successful budget plan are bound to the fixed run/source/approved image pair and canonical input helpers.",
+    "Exact reviewed rate bytes 3531e09dfcce9f66b4ea2b3564db47bd72dc507cdcf1aecdda277b838007704e retain15M micros/500k tokens/32 attempts and the real expiry; current accounting, rates and operation evidence are rechecked before registration and RunTask.",
+    "The adapter invokes only packaged meri-capture-provider-budget.mjs plan/install. Canonical actor/client/current fixture, binding, prior qualification, xmin CAS and readback remain the authority; no provider call or second fixture binding is introduced.",
+    "Exact compact owner-input bytes and raw owner result bytes are joined through the preserved hash/chunk framing. Actual install result schema has no caseId, and host/inner validation matches that API contract.",
+    "The reviewed setup one-shot lifecycle, uncertain dispatch refusal, independent cleanup and pre/post service checks are retained under budget-only family/output names.",
+    "Materializer d2628540fe19531d8c672bd95a5aed72ed9c39eb7480d1afee71c348791894c8 requires successful task/child/owner/cleanup and exact release/script/input/setup/rate pins, transport input/result hashes, canonical plan/install/live-config joins, then writes an exclusive fsynced local wrapper."
+  ],
+  "scope": "Independent source-bound review of budget-only preparation plus pure local receipt materialization, not a live budget or capture result.",
+  "limits": [
+    "No reviewed script main was executed, tests rerun, or cloud/auth/provider/database/journal/fixture actions performed by reviewer.",
+    "Local budget test objects are synthetic; only saved real setup bytes and rates were read. Real canonical budget plan/install/CAS outcomes remain to be observed.",
+    "Current local files and service checks are point-in-time fences, not a distributed lock.",
+    "No reserve/adopt/settle/refund/replay, conversation creation, model/config change, paid capture or benchmark acceptance is authorized by this record.",
+    "Previously reviewed setup/launcher record remains separate and unchanged."
+  ],
+  "humanReleaseApproval": false,
+  "paidCaptureAuthority": false
+}

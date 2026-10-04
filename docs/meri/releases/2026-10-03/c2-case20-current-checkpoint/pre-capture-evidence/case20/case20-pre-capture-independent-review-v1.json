@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "result": "PASS",
+  "reviewer": "benchmark_review",
+  "recordedAt": "2026-10-04T00:38:40.220122+00:00",
+  "files": [
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-setup-preparation-v3\\checkpoint.json",
+      "sha256": "58d451f530476cf6e7513b88baee1d4dd5f004001ac918ee705819b24b8d39bc",
+      "bytes": 2605
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-setup-preparation-v3\\supervised-candidate\\run-case20-native-setup.mjs",
+      "sha256": "9f81d8f0b5aec4211d2e03bb94dc27c93fd4d7f12bc38f70ed5c7773f03699f2",
+      "bytes": 51569
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-setup-preparation-v3\\supervised-candidate\\case20-native-setup-inner.mjs",
+      "sha256": "36e6c8021e8033f282be2534767e0a1ea94c27fdc98af08aadab0c26b25b15de",
+      "bytes": 9343
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\launch-case20-controlled-read-v1-once.mjs",
+      "sha256": "d8c09bc7bd943fbb010533011daac5cfd00047243c7afb09688d87aa27e1015e",
+      "bytes": 2937
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\materialize-verified-case20-setup-v1.mjs",
+      "sha256": "a64486538c21505f185ecc7354e7653393a8845f697acc528892a37310434f50",
+      "bytes": 3187
+    }
+  ],
+  "sourceCommit": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+  "operatorCommit": "af7aa8aff4777a2d4809e882c2b797fbb2cd51a2",
+  "caseId": "20",
+  "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+  "findings": [],
+  "closedFindings": [
+    "Current authorization/journal bytes now checked against fixed 22-event checkpoint at local admission, immediately before registration and immediately before RunTask.",
+    "Prior qualification clearance requires a validated successful canonical owner receipt; pre-dispatch failure is unchanged and unproved dispatched outcome stays NOT_PROVED."
+  ],
+  "checks": [
+    "Setup uses only the immutable packaged canonical controlled-read plan/execute owner, preserving scope, current-state CAS, original source map and shared-source corpus.",
+    "One-shot intent and unknown AWS outcome handling remain fail-closed; raw pages and assembled exact owner bytes are retained, with source/run/input/script/owner scope and child/task exit validation, independent STOPPED/INACTIVE cleanup and unchanged service guards.",
+    "Retained same-test red29/7 and green36/0 plus syntax0/0 match the frozen source/evidence pins. These are injected local tests, not real AWS/database/owner acceptance.",
+    "Launcher binds reviewed runner/auth manifest, exact run/source/pair and $15/concurrency1 scope, absent run/claim and current22 accounting bytes; existing native runner retains real build/setup/admission/reservation/execute authority and private in-memory Clerk key handling.",
+    "Materializer requires successful actual setup result, exact release/script/input pins, raw owner receipt byte hash, canonical plan/setup validation, cleanup evidence and exclusive fsynced output."
+  ],
+  "scope": "Independent preparation/source review only; the recorded PASS creates no operation, capture, cost or human release authority.",
+  "limits": [
+    "No scripts were executed, tests rerun, or cloud/auth/browser/provider/database/journal/fixture actions performed by reviewer.",
+    "Current file/service comparisons are point-in-time drift checks, not a distributed lock.",
+    "Actual successful setup receipts, separate canonical budget plan/install, qualified live scope and native capture checks are prerequisites to paid dispatch.",
+    "Budget successor is outside this review and remains pending independent review.",
+    "Failed Case01 remains CAPTURE_UNCERTAIN; no replay or original acceptance is inferred."
+  ],
+  "humanReleaseApproval": false,
+  "paidCaptureAuthority": false
+}

@@ -1,0 +1,51 @@
+{
+  "status": "SOURCE_TRACED_PROPOSAL_ONLY_NO_PRODUCT_EDITS",
+  "observedApiSource": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+  "servedWebSource": "78ad5805679a3045b1fc10fb19beafa7f76e4e64",
+  "problem": "Meri own-proposal cards render the same source-kind label for all six retained proposals. The API drops distinct stored provenance, and the UI has no source-detail control or source link.",
+  "sourceEvidence": [
+    "apps/api/src/memory/memory-candidate.service.ts:342-368 persists sourceExcerpt and optional conversation/message provenance; :416-422 persists source_type/source_id.",
+    "evals/meri/live-v1/fixture-provisioning/memory-candidate-owner.mjs:43-58 uses sourceType meri_synthetic_fixture and a distinct ownership-marker SHA as sourceId. The original sourceExcerpt contains the source-owned ownership/payload evidence, not a URL.",
+    "apps/api/src/memory/governed-memory-candidate.service.ts:86-108 has no source provenance DTO. :287-308 gates the proposal content by current client access; :548-558 projects only key/value/canonicalItem.",
+    "apps/web/src/components/memory-queue-shared.ts:17 mirrors that narrow DTO.",
+    "apps/web/src/vnext/meri/MeriMemoryTab.tsx:992-1038 renders own-proposal text, Source: model extraction, and Withdraw only.",
+    "apps/api/src/memory/memory-review-inbox.service.ts:923-982 uses review_request JOIN memory_candidate. It is not a generic arbitrary own-candidate source route and must not be assumed to cover legacy synthetic proposals."
+  ],
+  "minimalCandidateChange": [
+    "Add a bounded typed provenance projection for authorized proposer-owned candidates through the existing governed service. Preserve null/hidden provenance for a restricted, foreign, retired or unreadable source. Do not expose the entire raw payload/provenance JSON.",
+    "Expose the source type, current canonical reference and a plain-text bounded excerpt as read-only source details inside the existing Meri proposal card, with accessible expand/collapse. Revalidate the exact current candidate and source authorization before disclosing source content; a protected own-proposal source-detail GET may be necessary if the existing list read cannot establish that authority.",
+    "Only provide navigation to a conversation/document when its real current source owner authorizes the exact ID and the application has an existing valid route. Synthetic ownership hashes get an honest source-detail view, never an invented href or fake chat/document.",
+    "Verify current forbidden-client/other-user/private scope rejection, missing/invalid provenance, bounded escaping, no arbitrary external href, distinct authorized source identities, and visible details before/after reload. The existing capture collector may later observe these actual controls without altering state."
+  ],
+  "retainedFixtureLimit": "The six original fixture sources have null sourceConversationId/sourceMessageId. Distinct marker identities are real canonical provenance for those synthetic inputs, but cannot prove navigation to six underlying conversations/documents. Do not reseed or replace them to make a stronger claim.",
+  "contractFinding": {
+    "exactOriginalReferences": [
+      "docs/meri/implementation/01-Meri-Foundation-and-Reliability.md:1482",
+      "evals/meri/live-v1/source/appendix-f.md:54",
+      "evals/meri/live-75-case-spec.md:52",
+      "evals/meri/live-v1/cases.mjs:197-204"
+    ],
+    "setupWording": "six independent pending proposals with distinct scopes/sources",
+    "observableWording": "All six remain discoverable and actionable in Meri after reload with correct scope/provenance; none requires Settings or vanishes due to list limit.",
+    "interpretation": "No explicit requirement for clickable links or six separately provisioned documents/messages appears in the row or inspected surrounding memory requirements. A truthful source-detail view of the existing distinct canonical synthetic provenance can satisfy the visible scope/provenance criterion when actual readback and screenshots prove it. Source type alone cannot distinguish these six. Creating replacement source documents or reseeding would broaden the frozen fixture unnecessarily.",
+    "preserve": "The actual original recipe and six candidate IDs remain unchanged. Its native owner is memory-candidate-owner.mjs with SettingsAwareMemoryCandidateService through memory-candidate-runtime.mjs, selected by memory-pending-fixture-plan.mjs. The synthetic source identity is the canonical ownership marker, not a fabricated URL."
+  },
+  "suggestedFilesAndChecks": {
+    "product": [
+      "apps/api/src/memory/governed-memory-candidate.service.ts: typed bounded source projection behind existing owner/client read gate",
+      "apps/api/src/memory/memory-proposal.controller.ts: only if a separate current-authority source-detail read is required",
+      "apps/web/src/components/memory-queue-shared.ts: matching bounded provenance DTO",
+      "apps/web/src/vnext/meri/MeriMemoryTab.tsx: read-only accessible Source details control and honest source-unavailable state"
+    ],
+    "existingTestsToExtend": [
+      "apps/api/src/memory/governed-memory-candidate.service.spec.ts: denied client/foreign owner/malformed provenance and distinct source projection",
+      "apps/web/src/vnext/meri/MeriMemoryTab.targets.test.tsx: source detail text/control, hidden denied source, no generated href and persistence after remount",
+      "evals/meri/live-v1/tests/own-pending-proposals.postgres.test.mjs: actual six canonical source IDs and current-wall redaction",
+      "evals/meri/live-v1/tests/case17-memory-ui.test.mjs: actual source-details observation joins",
+      "evals/meri/live-v1/tests/case17-readonly-guard.test.mjs: preserve zero-write navigation guard"
+    ],
+    "schema": "Existing MemoryCandidate.sourceType/sourceId/sourceRef/sourceContentHash and payload/provenance fields already exist (apps/api/prisma/schema.prisma:10901-10954); no migration inferred."
+  },
+  "acceptanceLimit": "Original row17 prompt and human rubric remain NOT_RUN. Source-detail inspection must not be relabeled external source navigation. Current v3 UI_SLICE_PASS validates current-source card visibility/actionability and source-kind display only. This proposal grants no original-row PASS.",
+  "coordination": "No repository edits until root permits after Case20 capture. Any later API/Web changes require separate source qualification, immutable image qualification and applicable release review. Current v3 collector is frozen independently."
+}

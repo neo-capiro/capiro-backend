@@ -486,6 +486,137 @@ test('browser cannot mutate application or leave canonical origin, while Clerk a
   ])
     assert.equal(controlledReadBrowserRequestAllowed(value), false);
 });
+// Run the actual post-navigation boundary and its private readiness predicate in
+// a local VM. The page double has no browser, authentication or network access.
+function localBrowserReadiness(states, beforeTokenEvaluation) {
+  const source = readFileSync(new URL('../run-controlled-read.mjs', import.meta.url), 'utf8');
+  const helperStart = source.indexOf('async function waitForControlledReadBrowserIdentity(');
+  const helperEnd = source.indexOf('\nasync function verifyWeb(', helperStart);
+  const start = source.indexOf("    await page.goto(origin + '/meri/t/' + config.conversationId");
+  const end = source.indexOf('    summary.capturePrepared = true;', start);
+  assert.ok(helperStart >= 0 && helperEnd > helperStart && start > helperEnd && end > start);
+  const calls = [],
+    readiness = [],
+    window = {};
+  const token = async (options) => {
+    calls.push('token');
+    assert.deepEqual(JSON.parse(JSON.stringify(options)), { template: 'capiro', skipCache: true });
+    return 'unit-local-token';
+  };
+  const ready = {
+    loaded: true,
+    session: { id: 'session_unit', getToken: token },
+    user: { id: 'user_unit' },
+    organization: { id: 'org_unit' },
+  };
+  const page = {
+    async goto() {
+      calls.push('navigation');
+      window.Clerk = { loaded: false };
+    },
+    async waitForFunction(predicate, input, options) {
+      calls.push('readiness');
+      assert.equal(options.timeout, 45000);
+      for (const state of states(ready)) {
+        window.Clerk = state;
+        readiness.push(Boolean(predicate(input)));
+        if (readiness.at(-1)) return;
+      }
+      throw new Error('UNIT_PRIVATE_BROWSER_DETAIL_MUST_NOT_ESCAPE');
+    },
+    evaluate: async (callback, input) => {
+      beforeTokenEvaluation?.(window);
+      return callback(input);
+    },
+  };
+  let prepared;
+  const run = vm.runInNewContext(
+    `(async () => { let bearer;\n${source.slice(helperStart, helperEnd)}\n${source.slice(start, end)}\nreturn bearer; })`,
+    {
+      page,
+      window,
+      origin: 'https://unit.invalid',
+      config: { conversationId: randomUUID() },
+      actor: { clerkUserId: 'user_unit' },
+      tenant: { clerkOrgId: 'org_unit' },
+      createdSessionId: 'session_unit',
+      expectedWebSha: 'unit-source',
+      routeFailure: undefined,
+      outRoot: 'unit-output',
+      pythonExecutable: 'unit-python',
+      spendReservation: Object.freeze({ unitOnly: true }),
+      join,
+      createWindowsArtifactStorage: () => Object.freeze({ unitOnly: true }),
+      prepareControlledReadLiveCapture: async (input) => {
+        prepared = input;
+        calls.push('prepare');
+        return Object.freeze({ unitOnly: true });
+      },
+      verifyWeb: async () => calls.push('web'),
+      need: (condition, code) => {
+        if (!condition) throw Object.assign(new Error(code), { safeCode: code });
+      },
+    },
+  );
+  return { run, calls, readiness, refresh: () => prepared.bearerSupplier() };
+}
+
+test('post-navigation token read waits through unloaded Clerk and missing session for exact identity', async () => {
+  const run = localBrowserReadiness((ready) => [
+    undefined,
+    { ...ready, loaded: false },
+    { ...ready, session: null },
+    ready,
+  ]);
+  assert.equal(await run.run(), 'unit-local-token');
+  assert.deepEqual(run.readiness, [false, false, false, true]);
+  assert.deepEqual(run.calls, ['navigation', 'web', 'readiness', 'token', 'prepare']);
+});
+
+test('wrong browser session, actor, org or unavailable token method blocks before token with sanitized failure', async () => {
+  for (const mutate of [
+    (ready) => ({ ...ready, session: { ...ready.session, id: 'other_session' } }),
+    (ready) => ({ ...ready, user: { id: 'other_user' } }),
+    (ready) => ({ ...ready, organization: { id: 'other_org' } }),
+    (ready) => ({ ...ready, session: { id: 'session_unit' } }),
+  ]) {
+    const run = localBrowserReadiness((ready) => [mutate(ready)]);
+    await assert.rejects(run.run(), (error) => {
+      assert.equal(error.message, 'BROWSER_IDENTITY_NOT_READY');
+      assert.equal(error.safeCode, 'BROWSER_IDENTITY_NOT_READY');
+      return true;
+    });
+    assert.deepEqual(run.readiness, [false]);
+    assert.deepEqual(run.calls, ['navigation', 'web', 'readiness']);
+  }
+});
+
+test('native bearer supplier refreshes the same session and rejects a later foreign session before token access', async () => {
+  let foreign = false;
+  const run = localBrowserReadiness((ready) => [
+    foreign ? { ...ready, session: { ...ready.session, id: 'other_session' } } : ready,
+  ]);
+  await run.run();
+  assert.equal(await run.refresh(), 'unit-local-token');
+  assert.equal(run.calls.filter((call) => call === 'token').length, 2);
+  foreign = true;
+  await assert.rejects(run.refresh(), /BROWSER_IDENTITY_NOT_READY/);
+  assert.equal(run.calls.filter((call) => call === 'token').length, 2);
+  assert.equal(run.calls.filter((call) => call === 'prepare').length, 1);
+});
+
+test('identity changes between readiness and token evaluation fail closed without token or capture preparation', async () => {
+  for (const change of [
+    (clerk) => (clerk.session.id = 'other_session'),
+    (clerk) => (clerk.user.id = 'other_user'),
+    (clerk) => (clerk.organization.id = 'other_org'),
+  ]) {
+    const run = localBrowserReadiness((ready) => [ready], (window) => change(window.Clerk));
+    await assert.rejects(run.run(), /CAPTURE_BEARER_UNAVAILABLE/);
+    assert.deepEqual(run.calls, ['navigation', 'web', 'readiness']);
+  }
+});
+
 test('native conversation readback requires new exact owned empty active row with no previous ledger', () => {
   const s = sample(),
     config = s.live.config;

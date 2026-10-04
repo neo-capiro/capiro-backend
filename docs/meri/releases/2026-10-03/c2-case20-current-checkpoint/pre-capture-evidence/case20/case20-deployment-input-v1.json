@@ -1,0 +1,22 @@
+{
+  "apiSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+  "orchestratorSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+  "webSha": "78ad5805679a3045b1fc10fb19beafa7f76e4e64",
+  "operatorSourceSha": "af7aa8aff4777a2d4809e882c2b797fbb2cd51a2",
+  "builds": {
+    "api": {
+      "service": "api",
+      "sourceSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+      "imageDigest": "sha256:23f529da3c1c00d401968811575dc075bced6c60669baa9a09e9c23575c9c452",
+      "buildId": "capiro-build-web-dev:5ca674e3-f986-46fa-bb05-2ca8e14d1d67",
+      "buildspecSha256": "61cc399b632b885b2c17dfb692a536ba493246465573fb83469669c6267e2811"
+    },
+    "meriv2-orchestrator": {
+      "service": "meriv2-orchestrator",
+      "sourceSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+      "imageDigest": "sha256:1c491a5ac46ea320195fe8ab367322ad2ebbd0949d69530b5ccfba2de84eb491",
+      "buildId": "capiro-build-web-dev:1105f91e-3171-41aa-ae00-7f28540caf90",
+      "buildspecSha256": "eb741a51f6169fdca94e6a3d69ab5bfa18ef0f22098016518e8dc30120aa8a24"
+    }
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "startedAt": "2026-10-04T00:32:21.370120+00:00",
+  "finishedAt": "2026-10-04T00:37:58.024897+00:00",
+  "exitCode": 0,
+  "failure": null,
+  "modelOverride": null,
+  "providerOverride": null,
+  "files": [
+    {
+      "path": "case20-native-budget-inner.mjs",
+      "bytes": 14614,
+      "sha256": "337f84bd9e2c8c17243f46b18e64fa24d7a88bfffcd96c669b38128d81fd2162"
+    },
+    {
+      "path": "hermes-intent.json",
+      "bytes": 478,
+      "sha256": "a6bde7017275f656ada869b2258e20b9048a37527f14432edf173d5ed4c22371"
+    },
+    {
+      "path": "hermes-prompt.txt",
+      "bytes": 3929,
+      "sha256": "494aa51ae919404b68047a6cb570cdb82be65a95bc3a49bc54ed677e3f5ce76e"
+    },
+    {
+      "path": "hermes-response.txt",
+      "bytes": 557,
+      "sha256": "20592b591cad2dce42c4a1474ec9e54c07c7c089f600502268abd0f9b15a708e"
+    },
+    {
+      "path": "hermes-stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "hermes-usage.json",
+      "bytes": 488,
+      "sha256": "df697b3d62a4ebb4c1206e2a2a5531eeb7e9fd07b97ac2898771f2b6538c2f57"
+    },
+    {
+      "path": "REVIEW.md",
+      "bytes": 2275,
+      "sha256": "13a877f09d576a3a8d3f4598f955581af83af268311bf6ec5d70e992fc588eec"
+    }
+  ],
+  "scope": "file-only local code; no product benchmark spend"
+}

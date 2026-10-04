@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "status": "PASS_BOUNDED_SOURCE_AND_FOCUSED_QUALIFICATION",
+  "reviewer": "/root/mail_defaults_review",
+  "reviewedAt": "2026-10-04T01:29:42.3875175Z",
+  "checkpointSha256": "c7bd52428514ac1e826b1a7b8b2e16e1f4681e4a5afc65e56a301f848f4b0032",
+  "patchSha256": "5814b9230114bdffec9c50488370353b46e0897040185699e2fbd19415fd8108",
+  "originalReviewedPatchSha256": "5937399b67bcc0b3b9c8a411ff0a1485bc1ffcf82e73f3a9606847c51cbafb32",
+  "verifiedCandidateMirrors": 5,
+  "verifiedPriorSourceHashes": 5,
+  "verifiedEvidenceFiles": 11,
+  "mismatches": 0,
+  "changedAfterPriorReview": [
+    "API spec explicitly requires the existing fixture row before spreading it.",
+    "Optional-chain access still requires exact equality with the expected recordedSource object; absence fails.",
+    "Mutable typed Jest.each tuple preserves the same malformed-input cases."
+  ],
+  "unchanged": "All production and both Web files are byte-identical to reviewed v3.",
+  "qualification": {
+    "apiFocusedTests": 25,
+    "webFocusedTests": 37,
+    "webSuites": 2,
+    "webTypecheck": "PASS",
+    "apiFullTypecheck": "BLOCKED_BY_FOUR_EXISTING_ERRORS_IN_TWO_UNCHANGED_SPECS",
+    "apiOwnedSpecErrors": 0,
+    "residualFilesMatchLiveAndHead": true,
+    "testsRerunByReviewer": false
+  },
+  "findings": [],
+  "limits": [
+    "Initial API typecheck heap failure and later compile failures remain retained, not recast as passes.",
+    "API full typecheck cannot be claimed until the separate frozen fixture-type repair is qualified.",
+    "No immutable builds, deployment, served UI verification, original prompt submission or human-rubric acceptance are inferred.",
+    "Review used frozen external mirrors and local read-only hashes/logs; no source edits, test reruns or live actions."
+  ],
+  "liveActions": 0,
+  "sourceEdits": 0
+}

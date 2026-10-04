@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "kind": "case20-native-budget-json",
+  "mode": "install",
+  "sourceSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+  "inputSha256": "a72c2d69bebb9694edb38bc4131a60a093e6488f8cd3528fafd92db7f84a082d",
+  "scriptSha256": "f0314af18590f8a3ec5503cc6c39d2d9045b042d5b817482320339c6d38286dc",
+  "ownerInputSha256": "04abc6e9e338ddc2b34f5e211554268bb3f9d8683f8f78d36a73350eb9b8fb42",
+  "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+  "outputPath": "/dev/shm/case20-native-budget-install-owner.json",
+  "byteLength": 837,
+  "base64Length": 1116,
+  "chunks": 1,
+  "sha256": "35b2f3342781c9352fce0daed5ad502087b776b336d6203af592e5fd4cb0b3c0",
+  "childExitCode": 0,
+  "childSignal": null,
+  "ownerOutput": "OWNER_SUCCESS",
+  "pagesRead": 1,
+  "collectionStartedAt": "2026-10-04T00:51:35.449Z",
+  "taskStopped": true
+}

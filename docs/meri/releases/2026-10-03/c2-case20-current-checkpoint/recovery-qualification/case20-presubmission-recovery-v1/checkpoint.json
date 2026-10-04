@@ -1,0 +1,116 @@
+{
+  "version": 1,
+  "status": "FROZEN_FOR_INDEPENDENT_REVIEW",
+  "sourceBase": "af7aa8aff4777a2d4809e882c2b797fbb2cd51a2",
+  "files": [
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\case20-presubmission-recovery-authority.mjs",
+      "relativePath": "evals/meri/live-v1/case20-presubmission-recovery-authority.mjs",
+      "sha256": "cd2225d5be0d81ad359964d454c7329594f211d9e9e999ad36babc05cc426ac9",
+      "bytes": 23439,
+      "mirror": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-presubmission-recovery-v1\\source\\evals\\meri\\live-v1\\case20-presubmission-recovery-authority.mjs"
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\capture-spend-aggregate.mjs",
+      "relativePath": "evals/meri/live-v1/capture-spend-aggregate.mjs",
+      "sha256": "c1c389c96a6cd47133d2d5976a518ad4e5ca76b6f0d545f539037cb69e118823",
+      "bytes": 17438,
+      "mirror": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-presubmission-recovery-v1\\source\\evals\\meri\\live-v1\\capture-spend-aggregate.mjs"
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\tests\\case20-presubmission-recovery.test.mjs",
+      "relativePath": "evals/meri/live-v1/tests/case20-presubmission-recovery.test.mjs",
+      "sha256": "3fed119bb1ab9ed74f68a646c42702b09b24f107aef79172b5be932626ae64bb",
+      "bytes": 46395,
+      "mirror": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-presubmission-recovery-v1\\source\\evals\\meri\\live-v1\\tests\\case20-presubmission-recovery.test.mjs"
+    }
+  ],
+  "evidence": [
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-presubmission-recovery-v1\\aggregate.patch",
+      "sha256": "3c04c4e3316d2452beb0aa2f5be1073684be4eaea0500ccc5d8528c43ac7a540",
+      "bytes": 1690
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-presubmission-recovery-v1\\check-1.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-presubmission-recovery-v1\\check-2.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-presubmission-recovery-v1\\check-3.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-presubmission-recovery-v1\\check-4.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-presubmission-recovery-v1\\focused-expanded.log",
+      "sha256": "e0d21e4c265c86d936935739f112c0b09e3a2ad38efc5d27c690b3e696138e97",
+      "bytes": 4390
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-presubmission-recovery-v1\\focused-final.log",
+      "sha256": "dcc9f97e140adda6098abf02eea54c6705f715c97559bdbce75960ad32f28ede",
+      "bytes": 4325
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-presubmission-recovery-v1\\focused-final.receipt.json",
+      "sha256": "79b1e6d2fc885341f54e4d191403ba2f0bde6e2757a89b7da9daca3abc0035b8",
+      "bytes": 2607
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-presubmission-recovery-v1\\focused-first-green.log",
+      "sha256": "019b2642fa87ac13ba8dcab2c57114f05ac4c484cf9cdb1edeaf2f847d9f3904",
+      "bytes": 3618
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-presubmission-recovery-v1\\focused-formatted.log",
+      "sha256": "197a3e988707aba6f6a3e46f6cf20d9a37fab5ae60f1632982f6f67e88b71dac",
+      "bytes": 4394
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-presubmission-recovery-v1\\focused-initial.log",
+      "sha256": "9349d70dd095bd59caf766281cd327f756336576959bc6c8f0873845ce2c2feb",
+      "bytes": 4876
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-presubmission-recovery-v1\\format.log",
+      "sha256": "c0ec55dce3bb3f7a14752305ab5589d599270e2550edcada836eb46fe3cd1a00",
+      "bytes": 192
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-presubmission-recovery-v1\\initial-test-source.mjs",
+      "sha256": "bc9a28e77b293e2f111dba8d945e5e49abd0753511b1e76e0668179990fe27ca",
+      "bytes": 38073
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case20-presubmission-recovery-v1\\input-pins.json",
+      "sha256": "9ccb4e6e54797a9eff8799e46f8a709f2cdedf0be8dd85f423b67d5a97208842",
+      "bytes": 2633
+    }
+  ],
+  "scope": "Exact Case20 pre-submission recovery only; existing private owner rehydrates same reservation via fresh_read. No reducer, admission, backend, source fixture, rate or settlement changes.",
+  "frozenAt": "2026-10-04T01:07:12.227784+00:00",
+  "tests": {
+    "focusedPass": 59,
+    "fail": 0,
+    "skip": 0,
+    "syntaxChecks": 3,
+    "diffCheckExit": 0
+  },
+  "limitations": [
+    "No live HTTPS, auth, cloud, provider, DB, operational claim or journal writes.",
+    "Permanent tests use sanitized inline proof data, test-only private VM collaborators, and real native NTFS on disposable copies. No production capability is minted.",
+    "Acquisition still requires current fixed-release actor/tenant/client/empty metadata/admission readbacks, unchanged pinned files, and exclusive fsynced claim.",
+    "The initial 48-pass/1-fail run was a test fixture field-shape error, not a claimed product regression; retained log and test bytes.",
+    "Prior Case01 capture remains failed; no human grading, benchmark acceptance, new reservation or release approval."
+  ]
+}

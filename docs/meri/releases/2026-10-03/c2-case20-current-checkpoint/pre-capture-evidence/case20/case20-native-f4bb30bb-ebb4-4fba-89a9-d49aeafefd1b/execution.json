@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "caseId": "20",
+  "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+  "conversationId": "db0e01ac-60a1-4e3c-b8ba-66748d087a2e",
+  "sourceSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+  "expectedWebSha": "78ad5805679a3045b1fc10fb19beafa7f76e4e64",
+  "scriptSha256": "d8d429a7e4e1b5fc5d731e7cb4dee098a3075d4764fa0886c745cace43bf7c83",
+  "startedAt": "2026-10-04T00:52:57.644Z",
+  "verdict": "BLOCKED",
+  "maximumNewTurns": 1,
+  "browserApplicationWrites": 0,
+  "conversationCreationAttempted": true,
+  "executionAttempted": false,
+  "sessionCreated": true,
+  "sessionRevoked": true,
+  "fullFile01Acceptance": false,
+  "submissionObservation": {
+    "turnsSent": 0,
+    "turnsSentStatus": "NOT_ATTEMPTED"
+  },
+  "createdSessionIdSha256": "1ab8e49328fa6c037bda00d520bc9fa5a07b9be295de643066684471786346cb",
+  "creationIntent": {
+    "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+    "title": "meri-foundation-20260928 case20 f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+    "createdAt": "2026-10-04T00:53:22.310Z",
+    "retryAllowed": false
+  },
+  "conversationReadback": {
+    "status": "EMPTY_OWNED_CONVERSATION_CREATED",
+    "createdSha256": "e7b01a255b1d92415529ecbb68ed137729841e453a21e60ddc672654033629e7",
+    "currentSha256": "40865de677270b6489ce394b966045243798bcc679d26fa298faeb4be4f8158a",
+    "messagesSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "observedAt": "2026-10-04T00:53:22.698Z"
+  },
+  "failureCode": "CONTROLLED_READ_OPERATOR_FAILED",
+  "completedAt": "2026-10-04T00:53:23.883Z"
+}

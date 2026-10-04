@@ -187,6 +187,44 @@ describe('Meri governed proposal targets', () => {
     expect(mocks.api.post).not.toHaveBeenCalled();
   });
 
+  it('reveals each own proposal recorded reference as plain text and retains it after remount', async () => {
+    review = [];
+    const idOne = 'a'.repeat(64);
+    const idTwo = '11111111-1111-4111-8111-111111111111';
+    proposals = [
+      owned('source-one', { sourceKind: 'model_extraction', recordedSource: { sourceType: 'meri_synthetic_fixture', sourceId: idOne } }),
+      owned('source-two', { sourceKind: 'model_extraction', recordedSource: { sourceType: 'chat', sourceId: idTwo } }),
+    ];
+    const first = show();
+    await screen.findByText('Proposal source-one');
+    const one = card('Proposal source-one');
+    const two = card('Proposal source-two');
+    const disclosure = one.getByText('Source details');
+    expect(disclosure.tagName).toBe('SUMMARY');
+    expect(disclosure.closest('details')).not.toHaveAttribute('open');
+    fireEvent.click(disclosure);
+    fireEvent.click(two.getByText('Source details'));
+    await waitFor(() => expect(one.getByText(`Recorded source reference: ${idOne}`)).toBeVisible());
+    await waitFor(() => expect(two.getByText(`Recorded source reference: ${idTwo}`)).toBeVisible());
+    expect(one.queryByText(`Recorded source reference: ${idTwo}`)).not.toBeInTheDocument();
+    expect(two.queryByText(`Recorded source reference: ${idOne}`)).not.toBeInTheDocument();
+    expect(disclosure.closest('details')).toHaveAttribute('open');
+    expect(one.getByText('Source type: Synthetic fixture')).toBeVisible();
+    expect(two.getByText('Source type: Conversation')).toBeVisible();
+    expect(one.getByText('Source: model extraction')).toBeInTheDocument();
+    expect(one.queryByRole('link')).not.toBeInTheDocument();
+    expect(mocks.api.post).not.toHaveBeenCalled();
+    first.unmount();
+    show();
+    await screen.findByText('Proposal source-one');
+    const reopened = card('Proposal source-one');
+    fireEvent.click(reopened.getByText('Source details'));
+    await waitFor(() => expect(reopened.getByText(`Recorded source reference: ${idOne}`)).toBeVisible());
+    expect(reopened.getByRole('button', { name: 'Withdraw' })).toBeEnabled();
+    expect(reopened.queryByRole('link')).not.toBeInTheDocument();
+    expect(mocks.api.post).not.toHaveBeenCalled();
+  });
+
   it('keeps both actual client labels across picker/context changes without client-filtering requests', async () => {
     const view = show();
     await screen.findByText('Proposal l3-review');
@@ -252,6 +290,21 @@ describe('Meri governed proposal targets', () => {
         {},
       ),
     );
+  });
+
+  it('never displays adversarial provenance supplied on a restricted candidate', async () => {
+    proposals = [owned('restricted-provenance', {
+      restricted: true,
+      proposal: null,
+      recordedSource: { sourceType: 'meri_synthetic_fixture', sourceId: 'c'.repeat(64) },
+    })];
+    show();
+    await screen.findByText('Restricted client memory proposal');
+    const restricted = card('Restricted client memory proposal');
+    expect(restricted.queryByText('Source details')).not.toBeInTheDocument();
+    expect(restricted.queryByText(/Recorded source reference/)).not.toBeInTheDocument();
+    expect(restricted.queryByText(new RegExp('c'.repeat(64)))).not.toBeInTheDocument();
+    expect(restricted.getByRole('button', { name: 'Withdraw' })).toBeEnabled();
   });
 
   it('keeps every pending proposal reachable in Meri and does not route review to Settings', async () => {

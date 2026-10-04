@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "kind": "meri-controlled-read-authenticated-capture",
+  "provenance": "LIVE_CAPTURE",
+  "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+  "caseId": "20",
+  "fixtureVersion": "meri-live-v1-2026-09-26.1",
+  "fixtureSha256": "2a8159d45d512f325539eb700907700ecc16cbc2d6536277adf85d8f49368e61",
+  "contractSourceSha256": "acd2a1cf766ad6e988025c4c43235213164926e7036cc8361986916d59963b66"
+}

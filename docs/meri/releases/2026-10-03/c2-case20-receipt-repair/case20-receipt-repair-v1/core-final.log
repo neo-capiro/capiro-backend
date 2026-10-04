@@ -1,0 +1,88 @@
+PASS src/context/capture-evidence-receipt.spec.ts
+  independent semantic-clock receipt join
+    √ Case20 accepts the current-tenant public full source only through its matching controlled HTTP proof (19 ms)
+    √ Case20 public-source proof rejects case drift
+    √ Case20 public-source proof rejects tenant drift (1 ms)
+    √ Case20 public-source proof rejects client drift
+    √ Case20 public-source proof rejects source-client drift
+    √ Case20 public-source proof rejects missing-attempt drift
+    √ Case20 public-source proof rejects duplicate-attempt drift (1 ms)
+    √ Case20 public-source proof rejects call drift (9 ms)
+    √ Case20 public-source proof rejects tool drift (1 ms)
+    √ Case20 public-source proof rejects request drift
+    √ Case20 public-source proof rejects trace drift
+    √ Case20 public-source proof rejects turn drift
+    √ Case20 public-source proof rejects run drift (1 ms)
+    √ Case20 public-source proof rejects http drift
+    √ Case20 public-source proof rejects error drift
+    √ Case20 public-source proof rejects version drift
+    √ Case20 public-source proof rejects source drift (1 ms)
+    √ Case20 public-source proof rejects logical-source drift
+    √ Case20 public-source proof rejects source-read drift
+    √ Case20 public-source proof rejects full-read drift
+    √ Case20 public-source proof rejects passage drift
+    √ Case20 public-source proof rejects content drift
+    √ Case20 public-source proof rejects response drift (1 ms)
+    √ Case20 public-source proof rejects verify drift
+    √ Case20 public-source proof rejects invocation drift
+    √ Case20 public-source proof rejects partial drift
+    √ Case20 public-source proof rejects missing-clock drift
+    √ Case20 preserves the prompt-time bound and the independent API join requirement (1 ms)
+    √ joins actual own-proposal HTTP proof without inventing a compiler consumer for case01 (36 ms)
+    √ joins actual own-proposal HTTP proof without inventing a compiler consumer for case14
+    √ keeps proposal proof unproved (1 ms)
+    √ keeps proposal tenant unproved
+    √ keeps proposal actor unproved
+    √ keeps proposal client unproved (1 ms)
+    √ keeps proposal compiler unproved
+    √ keeps proposal time unproved
+    √ keeps proposal approved unproved
+    √ keeps proposal coverage unproved
+    √ keeps proposal packet unproved
+    √ keeps proposal source unproved
+    √ keeps proposal citation unproved (1 ms)
+    √ keeps proposal controlled unproved
+    √ keeps proposal other-tool-proof unproved
+    √ keeps proposal failed unproved
+    √ keeps proposal http unproved
+    √ keeps proposal response unproved
+    √ keeps proposal case unproved (1 ms)
+    √ accepts both actual fallback packets and a separate initial compiler observation
+    √ keeps unobserved HTTP census BLOCKED
+    √ keeps duplicate logical call BLOCKED
+    √ keeps duplicate invocation BLOCKED
+    √ keeps malformed invocation BLOCKED
+    √ keeps missing invocation BLOCKED
+    √ keeps extra invocation BLOCKED (1 ms)
+    √ keeps unresolved invocation BLOCKED
+    √ keeps failed HTTP BLOCKED
+    √ keeps failed logical read BLOCKED
+    √ keeps second HTTP attempt BLOCKED
+    √ keeps missing fallback packet BLOCKED
+    √ keeps duplicate packet BLOCKED
+    √ keeps initial reused as tool BLOCKED
+    √ keeps stored clock mismatch BLOCKED
+    √ keeps prompt clock mismatch BLOCKED
+    √ keeps unadmitted time tool BLOCKED
+    √ keeps name-only local discovery BLOCKED
+    √ permits N/A tool windows only after a complete empty invocation census and actual local discovery
+    √ joins the actual controlled response for case 20 without inventing compiler use
+    √ joins the actual controlled response for case 72 without inventing compiler use
+  trusted server capture evidence receipt
+    √ signs and verifies the exact capture tuple without treating the signature as deployment proof (7 ms)
+    √ rejects purpose tampering (20 ms)
+    √ rejects payload tampering (1 ms)
+    √ rejects expired evidence (1 ms)
+    √ cannot complete missing, uncertain, over-budget or unaccounted provider evidence (1 ms)
+    √ accepts the already qualified fifteen-dollar ceiling without accepting overspend or higher limits
+    √ rejects a current-authority tuple mismatch
+    √ blocks, rather than passing, an extra unobserved write (1 ms)
+    √ keeps unavailable source authority explicit instead of inventing a locator or version
+  JSONB-compatible capture authentication
+    √ preserves signature and predecessor identity when persisted JSON object keys reorder (2 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       78 passed, 78 total
+Snapshots:   0 total
+Time:        2.789 s, estimated 3 s
+Ran all test suites matching /src\\context\\capture-evidence-receipt.spec.ts/i.
