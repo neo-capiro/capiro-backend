@@ -1,0 +1,8 @@
+import assert from 'node:assert/strict';
+import {readFileSync,writeFileSync,existsSync} from 'node:fs';
+import {withAuth,ctx} from '../meri-fresh-20261003/auth-preflight.mjs';
+const root='C:/dev/main/outputs/meri-c2-20261003',output=root+'/combined-c2-api-canary-v1.json';assert.equal(existsSync(output),false);
+const receipt=JSON.parse(readFileSync(root+'/api-combined-c2-promotion-receipt.json'));assert.equal(receipt.status,'ecs-healthy-manual-acceptance-required');assert.equal(receipt.candidateImage,'967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:024fcc82a2db7701f4a3e3311598a9a1d0933b3fe4fcf73751bf0e3fb866d8ce');
+let identity;
+await withAuth(async({bearer})=>{const response=await fetch('https://os.capiro.ai/api/me',{headers:{Authorization:'Bearer '+bearer,'x-capiro-tenant':ctx.tenantSlug,'User-Agent':'Capiro-Meri-Authorized-QA/1.0'},redirect:'error',signal:AbortSignal.timeout(30000)});const me=await response.json();assert.equal(response.status,200);assert.equal(me.tenant?.id,ctx.tenantId);assert.equal(me.user?.id,ctx.userId);assert.equal(me.role,'standard_user');assert.equal(response.headers.get('x-capiro-release-sha'),'c0f393f863bf73bd4e65e7a94e17c073e7be021e');identity={httpStatus:200,tenantId:ctx.tenantId,userId:ctx.userId,role:'standard_user',sourceSha:response.headers.get('x-capiro-release-sha')};});
+const proof={status:'ORDINARY_AUTHENTICATED_API_CANARY_PASS',at:new Date().toISOString(),identity,temporarySessionRevoked:true,providerCalls:0,conversationCreations:0,fixtureWrites:0,budgetWrites:0,originalAcceptance:'UNCHANGED'};writeFileSync(output,JSON.stringify(proof,null,2)+'\n',{flag:'wx'});console.log(JSON.stringify(proof));

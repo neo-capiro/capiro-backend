@@ -63,6 +63,19 @@ export function inspectCase17SavedEvidence({
           HASH.test(card.textSha256 ?? ''),
         'CARD_BINDING',
       );
+      const proof = card.recordedSourceProof;
+      need(
+        proof &&
+          Object.keys(proof).sort().join(',') ===
+            'expanded,sourceId,sourceReferenceLabel,sourceType,sourceTypeLabel,visible' &&
+          proof.sourceType === row.recordedSource.sourceType &&
+          proof.sourceId === row.recordedSource.sourceId &&
+          proof.sourceTypeLabel === 'Source type: Synthetic fixture' &&
+          proof.sourceReferenceLabel === `Recorded source reference: ${row.recordedSource.sourceId}` &&
+          proof.expanded === true &&
+          proof.visible === true,
+        'RECORDED_SOURCE_PROOF',
+      );
       const descriptor = card.screenshot;
       need(
         descriptor?.ref === `case17/${round.phase}/${row.logicalSourceId}.png` &&

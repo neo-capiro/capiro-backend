@@ -49,7 +49,9 @@ export function inspectPendingUiPage({ selection, owner, pages }) {
   need(
     rows.length === 6 &&
       owner.records.length === 6 &&
-      new Set(owner.records.map((row) => row.physicalId)).size === 6,
+      new Set(owner.records.map((row) => row.physicalId)).size === 6 &&
+      selection.records.length === 6 &&
+      new Set(selection.records.map((record) => record.ownership.markerSha256)).size === 6,
     'OWNER_ROW_COUNT',
   );
   return selection.records.map((record) => {
@@ -89,6 +91,16 @@ export function inspectPendingUiPage({ selection, owner, pages }) {
         row.proposal.canonicalItem === null,
       'API_ROW_BINDING',
     );
+    const recordedSource = row.recordedSource;
+    need(
+      recordedSource &&
+        Object.keys(recordedSource).sort().join(',') === 'sourceId,sourceType' &&
+        recordedSource.sourceType === 'meri_synthetic_fixture' &&
+        typeof recordedSource.sourceId === 'string' &&
+        /^[a-f0-9]{64}$/u.test(recordedSource.sourceId) &&
+        recordedSource.sourceId === record.ownership.markerSha256,
+      'RECORDED_SOURCE_BINDING',
+    );
     need(
       scope !== 'client' || (typeof row.clientName === 'string' && row.clientName.length > 0),
       'CLIENT_LABEL',
@@ -101,6 +113,7 @@ export function inspectPendingUiPage({ selection, owner, pages }) {
       scope,
       clientName: row.clientName ?? null,
       sourceKind: row.sourceKind,
+      recordedSource: { sourceType: recordedSource.sourceType, sourceId: recordedSource.sourceId },
     };
   });
 }
@@ -332,6 +345,29 @@ export async function collectCase17MemoryUi({
             (!row.clientName || text.includes(row.clientName)),
           'VISIBLE_PROVENANCE',
         );
+        const details = card.locator('details').filter({
+          has: page.locator('summary').filter({ hasText: /^Source details$/u }),
+        });
+        need((await details.count()) === 1, 'SOURCE_DETAILS_CONTROL');
+        const summary = details.locator('summary');
+        need((await summary.count()) === 1 && (await summary.isVisible()), 'SOURCE_DETAILS_CONTROL');
+        if (!(await details.evaluate((node) => node.open))) await summary.click();
+        const typeLine = details.getByText('Source type: Synthetic fixture', { exact: true });
+        const referenceLine = details.getByText(
+          `Recorded source reference: ${row.recordedSource.sourceId}`,
+          { exact: true },
+        );
+        await typeLine.waitFor({ state: 'visible', timeout: 5000 });
+        await referenceLine.waitFor({ state: 'visible', timeout: 5000 });
+        need(await details.evaluate((node) => node.open), 'SOURCE_DETAILS_CLOSED');
+        const sourceTypeLabel = await typeLine.innerText();
+        const sourceReferenceLabel = await referenceLine.innerText();
+        need(
+          sourceTypeLabel === 'Source type: Synthetic fixture' &&
+            sourceReferenceLabel === `Recorded source reference: ${row.recordedSource.sourceId}`,
+          'SOURCE_DETAILS_TEXT',
+        );
+        const expandedText = await card.innerText();
         const bytes = await screenshotCase17Card(card);
         const descriptor = artifactStorage.writeBytes(
           `case17/${phase}/${row.logicalSourceId}.png`,
@@ -343,7 +379,14 @@ export async function collectCase17MemoryUi({
           scope: row.scope,
           visible: true,
           actionable: true,
-          textSha256: createHash('sha256').update(text).digest('hex'),
+          textSha256: createHash('sha256').update(expandedText).digest('hex'),
+          recordedSourceProof: {
+            ...row.recordedSource,
+            sourceTypeLabel,
+            sourceReferenceLabel,
+            expanded: true,
+            visible: true,
+          },
           screenshot: descriptor,
         });
       }

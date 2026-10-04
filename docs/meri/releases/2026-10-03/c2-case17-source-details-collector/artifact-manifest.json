@@ -1,0 +1,294 @@
+{
+  "status": "SOURCE_AND_LOCAL_CHECKS_QUALIFIED_SERVED_CAPTURE_PENDING",
+  "recordedAt": "2026-10-04T03:51:26.523083+00:00",
+  "files": [
+    {
+      "path": "case17-served-provenance-hermes-v1/execution.json",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-served-provenance-hermes-v1\\execution.json",
+      "sha256": "8d7ce7c9422c7ab8757ee80f6552b2b42a671fc5b8aec2ba3df757018abbc8fc",
+      "bytes": 1239
+    },
+    {
+      "path": "case17-served-provenance-hermes-v1/prompt.txt",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-served-provenance-hermes-v1\\prompt.txt",
+      "sha256": "aec7ff8c61c7e3ff3daa45a9b16915286538eb34d564051caee33b8225740c50",
+      "bytes": 2767
+    },
+    {
+      "path": "case17-served-provenance-hermes-v1/response.txt",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-served-provenance-hermes-v1\\response.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "case17-served-provenance-hermes-v1/stderr.log",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-served-provenance-hermes-v1\\stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "case17-served-provenance-hermes-v1/candidate/NOTES.md",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-served-provenance-hermes-v1\\candidate\\NOTES.md",
+      "sha256": "98ea9f3bde9a286bdefd22572399f393ec0219229f2dd8521ada835298c11205",
+      "bytes": 2341
+    },
+    {
+      "path": "case17-served-provenance-hermes-v1/candidate/evals/meri/live-v1/case17-memory-ui.mjs",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-served-provenance-hermes-v1\\candidate\\evals\\meri\\live-v1\\case17-memory-ui.mjs",
+      "sha256": "4f13114f6dcd9e096ddb7a1bd9e08daa93ba4b4f0f713fbefdd4ed3908a29419",
+      "bytes": 15116
+    },
+    {
+      "path": "case17-served-provenance-hermes-v1/candidate/evals/meri/live-v1/case17-saved-checks.mjs",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-served-provenance-hermes-v1\\candidate\\evals\\meri\\live-v1\\case17-saved-checks.mjs",
+      "sha256": "0629b87b8d5409459edfee8afbc497e9c85834e6b50b58a9ac5260a11b0b734a",
+      "bytes": 3291
+    },
+    {
+      "path": "case17-served-provenance-tests-hermes-v2/execution.json",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-served-provenance-tests-hermes-v2\\execution.json",
+      "sha256": "eb7e2dfa8f796e1d0b84d0866ca79c9e6583790966e8df2462846f2f62f1fa59",
+      "bytes": 1392
+    },
+    {
+      "path": "case17-served-provenance-tests-hermes-v2/prompt.txt",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-served-provenance-tests-hermes-v2\\prompt.txt",
+      "sha256": "df1bb685a624998cb30b9b96ff5f41416af8db402a15b425a57ff0b9fe5c6008",
+      "bytes": 2440
+    },
+    {
+      "path": "case17-served-provenance-tests-hermes-v2/response.txt",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-served-provenance-tests-hermes-v2\\response.txt",
+      "sha256": "14946f56da5bc06b47d25b3ab8353241b14049064d71e36e4503b4b624280e74",
+      "bytes": 1049
+    },
+    {
+      "path": "case17-served-provenance-tests-hermes-v2/stderr.log",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-served-provenance-tests-hermes-v2\\stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "case17-served-provenance-tests-hermes-v2/usage.json",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-served-provenance-tests-hermes-v2\\usage.json",
+      "sha256": "3d74d03c6c4f2dbf7d782ae24bc924194acd4ff9c3ed67fc4677c1ee2079b9bc",
+      "bytes": 486
+    },
+    {
+      "path": "case17-served-provenance-tests-hermes-v2/candidate/NOTES.md",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-served-provenance-tests-hermes-v2\\candidate\\NOTES.md",
+      "sha256": "ea317d4181cea24aea7f06f2ee5d254346c23af003aef5706847e1186a570fb2",
+      "bytes": 948
+    },
+    {
+      "path": "case17-served-provenance-tests-hermes-v2/candidate/evals/meri/live-v1/tests/case17-memory-ui.test.mjs",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-served-provenance-tests-hermes-v2\\candidate\\evals\\meri\\live-v1\\tests\\case17-memory-ui.test.mjs",
+      "sha256": "60c778aecff7711cb03c9dd1f651039c065a66b0d22d5de68431cea739e51eb7",
+      "bytes": 5281
+    },
+    {
+      "path": "case17-served-provenance-tests-hermes-v2/candidate/evals/meri/live-v1/tests/case17-saved-checks.test.mjs",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-served-provenance-tests-hermes-v2\\candidate\\evals\\meri\\live-v1\\tests\\case17-saved-checks.test.mjs",
+      "sha256": "58e641b9a165ac56947d161d9946e2a10a534725bbf02d69d20f9f292f379056",
+      "bytes": 15457
+    },
+    {
+      "path": "case17-served-provenance-review-hermes-v3/execution.json",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-served-provenance-review-hermes-v3\\execution.json",
+      "sha256": "9d01bdce8ccb0b5706deaf599c7ec82e5ca709f7e2a3b9ce47468f7bf1bc18c8",
+      "bytes": 968
+    },
+    {
+      "path": "case17-served-provenance-review-hermes-v3/prompt.txt",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-served-provenance-review-hermes-v3\\prompt.txt",
+      "sha256": "8fe8b324c8d464b0ee1296401f2be8cdce1cae072181d9b24a4b3ecd56f65b62",
+      "bytes": 1556
+    },
+    {
+      "path": "case17-served-provenance-review-hermes-v3/response.txt",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-served-provenance-review-hermes-v3\\response.txt",
+      "sha256": "b2ca3e467071eaa7dd18ee7b700ec2a07c7057855b61ace1c95c8769436a7497",
+      "bytes": 431
+    },
+    {
+      "path": "case17-served-provenance-review-hermes-v3/REVIEW.md",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-served-provenance-review-hermes-v3\\REVIEW.md",
+      "sha256": "190b63745027eb8b7a95b842733fb9eafba57b1d09079bd90f649e4b17b32dc1",
+      "bytes": 4669
+    },
+    {
+      "path": "case17-served-provenance-review-hermes-v3/stderr.log",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-served-provenance-review-hermes-v3\\stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "case17-served-provenance-review-hermes-v3/usage.json",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-served-provenance-review-hermes-v3\\usage.json",
+      "sha256": "4af26089f95d4d949d93c8af100a87f5c79d64df941abc8bcd80467aa61d9ad9",
+      "bytes": 475
+    },
+    {
+      "path": "case17-served-provenance-final-review-hermes-v4/execution.json",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-served-provenance-final-review-hermes-v4\\execution.json",
+      "sha256": "95472da854f4945f66ead78240da700f7b25853c595abf05f74abad45ef7c0a6",
+      "bytes": 690
+    },
+    {
+      "path": "case17-served-provenance-final-review-hermes-v4/prompt.txt",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-served-provenance-final-review-hermes-v4\\prompt.txt",
+      "sha256": "8843ed04dc5b2c812c340b4fffcecfd00e4fc10b0e1301ff00a8984f14496f62",
+      "bytes": 2391
+    },
+    {
+      "path": "case17-served-provenance-final-review-hermes-v4/response.txt",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-served-provenance-final-review-hermes-v4\\response.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "case17-served-provenance-final-review-hermes-v4/stderr.log",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-served-provenance-final-review-hermes-v4\\stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "final-review-inputs/input-manifest.json",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-served-provenance-final-review-inputs-v4\\input-manifest.json",
+      "sha256": "9e275d25298becaab740b08b6379d194784586b8aba8fabd392051eecef8af62",
+      "bytes": 3016
+    },
+    {
+      "path": "final-review-inputs/previous-review.md",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-served-provenance-final-review-inputs-v4\\previous-review.md",
+      "sha256": "190b63745027eb8b7a95b842733fb9eafba57b1d09079bd90f649e4b17b32dc1",
+      "bytes": 4669
+    },
+    {
+      "path": "final-review-inputs/apps/api/src/memory/governed-memory-candidate.service.ts",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-served-provenance-final-review-inputs-v4\\apps\\api\\src\\memory\\governed-memory-candidate.service.ts",
+      "sha256": "761007d0d3ca1c8408a559db7f8bc52eea24d84d016cb79519dae2f52542077a",
+      "bytes": 22048
+    },
+    {
+      "path": "final-review-inputs/apps/web/src/vnext/meri/MeriMemoryTab.tsx",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-served-provenance-final-review-inputs-v4\\apps\\web\\src\\vnext\\meri\\MeriMemoryTab.tsx",
+      "sha256": "1855144be86307d19a6ecc9834c27f6f79640f461b19209e4fe3293f76b3416b",
+      "bytes": 44524
+    },
+    {
+      "path": "final-review-inputs/evals/meri/live-v1/case17-live-capture.mjs",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-served-provenance-final-review-inputs-v4\\evals\\meri\\live-v1\\case17-live-capture.mjs",
+      "sha256": "7957589436d62483246b23a29d96c5d4a5d017789f83b9f0dee594498c46b18b",
+      "bytes": 13269
+    },
+    {
+      "path": "final-review-inputs/evals/meri/live-v1/case17-memory-ui.mjs",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-served-provenance-final-review-inputs-v4\\evals\\meri\\live-v1\\case17-memory-ui.mjs",
+      "sha256": "e98ae2cc417db901e9288e3d85a95044b11693b897c0df7fd066625da5b9be55",
+      "bytes": 17811
+    },
+    {
+      "path": "final-review-inputs/evals/meri/live-v1/case17-readonly-guard.mjs",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-served-provenance-final-review-inputs-v4\\evals\\meri\\live-v1\\case17-readonly-guard.mjs",
+      "sha256": "6c8d3e5e0dfafba4a0132a2ff3151fcfce245e9b4cc0ad0c2b0a05ac38636b09",
+      "bytes": 2720
+    },
+    {
+      "path": "final-review-inputs/evals/meri/live-v1/case17-saved-checks.mjs",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-served-provenance-final-review-inputs-v4\\evals\\meri\\live-v1\\case17-saved-checks.mjs",
+      "sha256": "f883bc4cbfc1c9dcc22ec148beb6453ec5a0f0a78f0e8b3b7ac1205aba7338f0",
+      "bytes": 3346
+    },
+    {
+      "path": "final-review-inputs/evals/meri/live-v1/fixture.mjs",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-served-provenance-final-review-inputs-v4\\evals\\meri\\live-v1\\fixture.mjs",
+      "sha256": "8915e19424520a2f97b9cd5a389fcf4b39f2823f0526573ffd04a1dfe0fbc398",
+      "bytes": 17294
+    },
+    {
+      "path": "final-review-inputs/evals/meri/live-v1/grade-case17-capture.mjs",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-served-provenance-final-review-inputs-v4\\evals\\meri\\live-v1\\grade-case17-capture.mjs",
+      "sha256": "13586eda4b84f83aaf335ed6262e9e8a4b9456ede942692c032466e878550be5",
+      "bytes": 2572
+    },
+    {
+      "path": "final-review-inputs/evals/meri/live-v1/fixture-provisioning/manifest.mjs",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-served-provenance-final-review-inputs-v4\\evals\\meri\\live-v1\\fixture-provisioning\\manifest.mjs",
+      "sha256": "8f1276ef0aaaef9b648bb1cbd0a037ee7d11d0a78db9691ab4de70b3b5db667a",
+      "bytes": 20549
+    },
+    {
+      "path": "final-review-inputs/evals/meri/live-v1/fixture-provisioning/memory-candidate-owner.mjs",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-served-provenance-final-review-inputs-v4\\evals\\meri\\live-v1\\fixture-provisioning\\memory-candidate-owner.mjs",
+      "sha256": "a850e4a8a68641d7118cf7f6e5abda72e64452bde6123d8e13acf5308d6bc9b7",
+      "bytes": 14006
+    },
+    {
+      "path": "final-review-inputs/evals/meri/live-v1/fixture-provisioning/memory-pending-fixture-plan.mjs",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-served-provenance-final-review-inputs-v4\\evals\\meri\\live-v1\\fixture-provisioning\\memory-pending-fixture-plan.mjs",
+      "sha256": "7d683e5594bf4a76ee20d2ed9c926773436d63a87aff6f33ef0a69292d38968e",
+      "bytes": 1941
+    },
+    {
+      "path": "final-review-inputs/evals/meri/live-v1/tests/case17-memory-ui-delayed-mount.test.mjs",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-served-provenance-final-review-inputs-v4\\evals\\meri\\live-v1\\tests\\case17-memory-ui-delayed-mount.test.mjs",
+      "sha256": "939ca062ba2309adf1ed54293a86a6337e7048ed59d5ef95944fab37c7fe6336",
+      "bytes": 3314
+    },
+    {
+      "path": "final-review-inputs/evals/meri/live-v1/tests/case17-memory-ui-query.test.mjs",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-served-provenance-final-review-inputs-v4\\evals\\meri\\live-v1\\tests\\case17-memory-ui-query.test.mjs",
+      "sha256": "a48e14a96246554f9db461aed87e609269d5ce352982a98e93fb5d18be9b42a8",
+      "bytes": 3396
+    },
+    {
+      "path": "final-review-inputs/evals/meri/live-v1/tests/case17-memory-ui.test.mjs",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-served-provenance-final-review-inputs-v4\\evals\\meri\\live-v1\\tests\\case17-memory-ui.test.mjs",
+      "sha256": "60c778aecff7711cb03c9dd1f651039c065a66b0d22d5de68431cea739e51eb7",
+      "bytes": 5281
+    },
+    {
+      "path": "final-review-inputs/evals/meri/live-v1/tests/case17-saved-checks.test.mjs",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-served-provenance-final-review-inputs-v4\\evals\\meri\\live-v1\\tests\\case17-saved-checks.test.mjs",
+      "sha256": "8bbd979cc1c4f16803435a531964633426c6d51bd4dbf08a19156520a048c2d5",
+      "bytes": 15478
+    },
+    {
+      "path": "final-review-inputs/qualification/checkpoint.json",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-served-provenance-final-review-inputs-v4\\qualification\\checkpoint.json",
+      "sha256": "117c1433283c449b91da09fcc5ac5f0fa544e236af0aa9a9cc0e1fb7673ed3ca",
+      "bytes": 1635
+    },
+    {
+      "path": "final-review-inputs/qualification/tests.log",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-served-provenance-final-review-inputs-v4\\qualification\\tests.log",
+      "sha256": "12acca78d5daca8cea96110d3603cdf589d5dfb84ae4dd71327e4cad08b83196",
+      "bytes": 2501
+    },
+    {
+      "path": "qualification/checkpoint.json",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-served-provenance-qualification-v1\\checkpoint.json",
+      "sha256": "117c1433283c449b91da09fcc5ac5f0fa544e236af0aa9a9cc0e1fb7673ed3ca",
+      "bytes": 1635
+    },
+    {
+      "path": "qualification/tests.log",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-served-provenance-qualification-v1\\tests.log",
+      "sha256": "12acca78d5daca8cea96110d3603cdf589d5dfb84ae4dd71327e4cad08b83196",
+      "bytes": 2501
+    },
+    {
+      "path": "qualify-case17-served-provenance-v1.py",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\qualify-case17-served-provenance-v1.py",
+      "sha256": "266262c5d4336d5667b251cb33f87de7b89e5cbfc4c48791ea39c4ca5c646a7a",
+      "bytes": 1721
+    },
+    {
+      "path": "case17-served-provenance-independent-review.json",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-served-provenance-independent-review.json",
+      "sha256": "0d8d23b5787ad872e88ce4da7431400137af469416e2db438ced6049a5ad5e9a",
+      "bytes": 2367
+    }
+  ]
+}

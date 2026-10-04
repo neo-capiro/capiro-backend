@@ -1,0 +1,42 @@
+{
+  "status": "PASS",
+  "startedAt": "2026-10-04T03:41:48.102313+00:00",
+  "completedAt": "2026-10-04T03:42:09.877015+00:00",
+  "exitCode": 0,
+  "command": [
+    "C:/Program Files/nodejs/node.exe",
+    "--test",
+    "--test-concurrency=1",
+    "evals/meri/live-v1/tests/case17-authority.test.mjs",
+    "evals/meri/live-v1/tests/case17-caller-authority.test.mjs",
+    "evals/meri/live-v1/tests/case17-memory-ui-delayed-mount.test.mjs",
+    "evals/meri/live-v1/tests/case17-memory-ui-query.test.mjs",
+    "evals/meri/live-v1/tests/case17-memory-ui.test.mjs",
+    "evals/meri/live-v1/tests/case17-readonly-guard.test.mjs",
+    "evals/meri/live-v1/tests/case17-saved-checks.test.mjs"
+  ],
+  "sourceFiles": [
+    {
+      "path": "evals/meri/live-v1/case17-memory-ui.mjs",
+      "sha256": "e98ae2cc417db901e9288e3d85a95044b11693b897c0df7fd066625da5b9be55"
+    },
+    {
+      "path": "evals/meri/live-v1/case17-saved-checks.mjs",
+      "sha256": "f883bc4cbfc1c9dcc22ec148beb6453ec5a0f0a78f0e8b3b7ac1205aba7338f0"
+    },
+    {
+      "path": "evals/meri/live-v1/tests/case17-memory-ui.test.mjs",
+      "sha256": "60c778aecff7711cb03c9dd1f651039c065a66b0d22d5de68431cea739e51eb7"
+    },
+    {
+      "path": "evals/meri/live-v1/tests/case17-saved-checks.test.mjs",
+      "sha256": "8bbd979cc1c4f16803435a531964633426c6d51bd4dbf08a19156520a048c2d5"
+    }
+  ],
+  "testLogSha256": "12acca78d5daca8cea96110d3603cdf589d5dfb84ae4dd71327e4cad08b83196",
+  "nativeWindowsBrowserAndStorage": true,
+  "cloudOperations": 0,
+  "providerCalls": 0,
+  "fullOriginalCase17Acceptance": false,
+  "humanRubric": "NOT_RUN"
+}

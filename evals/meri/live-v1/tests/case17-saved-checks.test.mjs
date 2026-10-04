@@ -61,6 +61,10 @@ async function fixture() {
     status: 'pending',
     restricted: false,
     sourceKind: 'model_extraction',
+    recordedSource: {
+      sourceType: 'meri_synthetic_fixture',
+      sourceId: row.ownershipMarkerSha256,
+    },
     capabilities: { withdraw: true },
     proposal: {
       key: fixtureRecordKey(row.logicalSourceId, manifest.fixtureInstanceId),
@@ -101,6 +105,14 @@ async function evidence() {
         visible: true,
         actionable: true,
         textSha256: 'a'.repeat(64),
+        recordedSourceProof: {
+          sourceType: 'meri_synthetic_fixture',
+          sourceId: row.ownershipMarkerSha256,
+          sourceTypeLabel: 'Source type: Synthetic fixture',
+          sourceReferenceLabel: `Recorded source reference: ${row.ownershipMarkerSha256}`,
+          expanded: true,
+          visible: true,
+        },
         screenshot: {
           ref: `case17/${phase}/${row.logicalSourceId}.png`,
           sha256: 'b'.repeat(64),
@@ -144,6 +156,76 @@ it('saved checks accept only accounted blocked panel preferences and still rejec
   assert.throws(() => inspectCase17SavedEvidence(changed), /CURRENT_OWNER_CHANGED/u);
   f.blockedWriteRequests[1].path = '[redacted]';
   assert.throws(() => inspectCase17SavedEvidence(f), /WRITE_ACCOUNTING/u);
+});
+it('saved checks reject absent, swapped, duplicated, foreign, hidden and closed source proof in either round', async () => {
+  const original = await evidence();
+  const alterProofs = [
+    (round) => {
+      delete round.cards[0].recordedSourceProof;
+    },
+    (round) => {
+      const first = round.cards[0].recordedSourceProof;
+      round.cards[0].recordedSourceProof = round.cards[1].recordedSourceProof;
+      round.cards[1].recordedSourceProof = first;
+    },
+    (round) => {
+      round.cards[1].recordedSourceProof = structuredClone(round.cards[0].recordedSourceProof);
+    },
+    (round) => {
+      round.cards[0].recordedSourceProof.sourceType = 'foreign_source';
+    },
+    (round) => {
+      round.cards[0].recordedSourceProof.visible = false;
+    },
+    (round) => {
+      round.cards[0].recordedSourceProof.expanded = false;
+    },
+    (round) => {
+      round.cards[0].recordedSourceProof.unexpected = 'foreign proof field';
+    },
+  ];
+  for (let roundIndex = 0; roundIndex < 2; roundIndex++) {
+    for (const alter of alterProofs) {
+      const f = structuredClone(original);
+      alter(f.rounds[roundIndex]);
+      assert.throws(() => inspectCase17SavedEvidence(f), /CASE17_SAVED_RECORDED_SOURCE_PROOF/u);
+    }
+  }
+});
+it('saved checks reject absent, unknown, malformed, swapped and duplicated API source references after page rehash', async () => {
+  const original = await evidence();
+  const alterSources = [
+    (row) => {
+      delete row.recordedSource;
+    },
+    (row) => {
+      row.recordedSource.sourceType = 'unknown_source';
+    },
+    (row) => {
+      row.recordedSource.sourceId = 'not-a-marker-hash';
+    },
+    (row, rows) => {
+      const first = row.recordedSource;
+      row.recordedSource = rows[1].recordedSource;
+      rows[1].recordedSource = first;
+    },
+    (row, rows) => {
+      rows[1].recordedSource.sourceId = row.recordedSource.sourceId;
+    },
+    (row) => {
+      row.recordedSource.unexpected = 'duplicate reference field';
+    },
+  ];
+  for (let roundIndex = 0; roundIndex < 2; roundIndex++) {
+    for (const alter of alterSources) {
+      const f = structuredClone(original);
+      const round = f.rounds[roundIndex];
+      const rows = round.pages.flatMap((page) => page.candidates);
+      alter(rows[0], rows);
+      round.pageHashes = round.pages.map(sha256Stable);
+      assert.throws(() => inspectCase17SavedEvidence(f), /CASE17_UI_RECORDED_SOURCE_BINDING/u);
+    }
+  }
 });
 it('missing/current/foreign/action/page/byte/write evidence fails closed', async () => {
   const original = await evidence();
@@ -235,6 +317,12 @@ it(
             'PENDING','Source: model extraction',row.clientName||'']) {
             const p=document.createElement('p');p.textContent=text;card.append(p);
           }
+          const sourceDetails=document.createElement('details');
+          const sourceSummary=document.createElement('summary');sourceSummary.textContent='Source details';sourceDetails.append(sourceSummary);
+          for(const text of ['Source type: Synthetic fixture','Recorded source reference: '+row.recordedSource.sourceId]) {
+            const p=document.createElement('p');p.textContent=text;sourceDetails.append(p);
+          }
+          card.append(sourceDetails);
           const withdraw=document.createElement('button');withdraw.textContent='Withdraw';card.append(withdraw);
           document.querySelector('section').append(card);
         }
@@ -288,6 +376,12 @@ it(
           assert.equal(result.evidence.blockedWrites, 2);
           assert.equal(result.evidence.blockedPreferenceWrites, 2);
           assert.equal(inspectCase17SavedEvidence(result.evidence).status, 'SAVED_CHECKS_ONLY');
+          for (const round of result.evidence.rounds) {
+            for (const card of round.cards) {
+              assert.equal(card.recordedSourceProof.expanded, true);
+              assert.equal(card.recordedSourceProof.visible, true);
+            }
+          }
         } else {
           await assert.rejects(
             invoke(),

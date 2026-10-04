@@ -1,0 +1,77 @@
+{
+  "status": "EXACT_PREVIOUS_SERVICE_TASKS_STOPPED",
+  "recordedAt": "2026-10-04T03:48:33.264Z",
+  "servedReadbackSha256": "9d46bceaae9f2bea2ba76fa89ba13940c4fd49979fc601213aaa36e21357cd06",
+  "reason": "The final desired-STOPPED list query returned zero rows. This supplement resolves exact old task IDs from post-approval ECS service stop events and requires each exact old task definition to report STOPPED.",
+  "services": [
+    {
+      "service": "api",
+      "expectedOldTaskCount": 2,
+      "events": [
+        {
+          "id": "e91eeaf8-b4a7-4fb7-93eb-c99126c1fdd3",
+          "createdAt": "2026-10-03T23:32:23.201000-04:00",
+          "message": "(service capiro-dev-api) has stopped 2 running tasks: (task 8336cd45a73045df9d7c2bfb000a02b3) (task 100b5456feec4da69c864ea5ac5148fe)."
+        }
+      ],
+      "tasks": [
+        {
+          "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/8336cd45a73045df9d7c2bfb000a02b3",
+          "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:521",
+          "lastStatus": "STOPPED",
+          "desiredStatus": "STOPPED",
+          "stoppedAt": "2026-10-03T23:38:38.847000-04:00"
+        },
+        {
+          "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/100b5456feec4da69c864ea5ac5148fe",
+          "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:521",
+          "lastStatus": "STOPPED",
+          "desiredStatus": "STOPPED",
+          "stoppedAt": "2026-10-03T23:38:41.854000-04:00"
+        }
+      ]
+    },
+    {
+      "service": "meriv2-orchestrator",
+      "expectedOldTaskCount": 1,
+      "events": [
+        {
+          "id": "ae5bcd10-f656-4047-98b5-21ca753ddfa6",
+          "createdAt": "2026-10-03T23:39:26.004000-04:00",
+          "message": "(service capiro-dev-meriv2-orchestrator) has stopped 1 running tasks: (task 796a665d901c448eb5130ed78239d7e1)."
+        }
+      ],
+      "tasks": [
+        {
+          "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/796a665d901c448eb5130ed78239d7e1",
+          "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:117",
+          "lastStatus": "STOPPED",
+          "desiredStatus": "STOPPED",
+          "stoppedAt": "2026-10-03T23:40:37.001000-04:00"
+        }
+      ]
+    },
+    {
+      "service": "web-vnext",
+      "expectedOldTaskCount": 1,
+      "events": [
+        {
+          "id": "df66b993-c8de-457b-aa51-b9540b2749a2",
+          "createdAt": "2026-10-03T23:44:33.800000-04:00",
+          "message": "(service capiro-dev-web-vnext) has stopped 1 running tasks: (task 0e20f3e370cb4e628be1616cc0249622)."
+        }
+      ],
+      "tasks": [
+        {
+          "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/0e20f3e370cb4e628be1616cc0249622",
+          "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web-vnext:388",
+          "lastStatus": "STOPPED",
+          "desiredStatus": "STOPPED",
+          "stoppedAt": "2026-10-03T23:45:45.950000-04:00"
+        }
+      ]
+    }
+  ],
+  "awsWrites": 0,
+  "providerCalls": 0
+}

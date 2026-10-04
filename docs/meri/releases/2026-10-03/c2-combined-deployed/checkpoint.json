@@ -1,0 +1,280 @@
+{
+  "status": "EXACT_RELEASE_AND_ORDINARY_IDENTITY_VERIFIED",
+  "recordedAt": "2026-10-04T03:48:51.716835+00:00",
+  "sourceSha": "c0f393f863bf73bd4e65e7a94e17c073e7be021e",
+  "humanApproval": {
+    "scope": "EXACT_C2_COMBINED_RELEASE",
+    "approvedAt": "2026-10-04T03:28:03.666Z",
+    "packetSha256": "8f246b44000e35548444642a31079c8b65f04aa3abf6fd0fcf6768864c3f9c7b"
+  },
+  "services": [
+    {
+      "service": "api",
+      "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:523",
+      "imageDigest": "sha256:024fcc82a2db7701f4a3e3311598a9a1d0933b3fe4fcf73751bf0e3fb866d8ce",
+      "configHash": "973748a2b134b388a6027df6c5c099055a7e24f7b746eafbaae8cebad077258a",
+      "oldTasks": {
+        "status": "ALL_REQUESTED_TASKS_STOPPED",
+        "requestedCount": 0,
+        "observedCount": 0,
+        "drainingCount": 0
+      }
+    },
+    {
+      "service": "meriv2-orchestrator",
+      "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:119",
+      "imageDigest": "sha256:5329e61c0234a5baca60b4475e49a88adf4d15c78dc555fd4d46a94b01f74b1a",
+      "configHash": "3a4fabd2139e347cd8b45192579f2a3fbaaa6fc3678762b5252f727a4461951b",
+      "oldTasks": {
+        "status": "ALL_REQUESTED_TASKS_STOPPED",
+        "requestedCount": 0,
+        "observedCount": 0,
+        "drainingCount": 0
+      }
+    },
+    {
+      "service": "web-vnext",
+      "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web-vnext:390",
+      "imageDigest": "sha256:fb594dabc437723fa6a28a7a6adcd54b13f813fcc52130f8458692aac2e9c8c6",
+      "configHash": "453a3d5aedc3da7d989370b97669abf0c1b14efbacd2d1597990b9cac7d50ab7",
+      "oldTasks": {
+        "status": "ALL_REQUESTED_TASKS_STOPPED",
+        "requestedCount": 0,
+        "observedCount": 0,
+        "drainingCount": 0
+      }
+    }
+  ],
+  "budget": {
+    "events": 24,
+    "knownCostMicros": 13631058,
+    "remainingMicros": 16368942,
+    "activeHold": null,
+    "unchanged": true,
+    "admittedCases": [
+      "01",
+      "20"
+    ]
+  },
+  "case17ServedCapture": "NOT_RUN_AT_THIS_CHECKPOINT",
+  "case14": "PLAN_ONLY_NO_CANDIDATE_APPROVAL_OR_RECALL",
+  "fullC2Acceptance": false,
+  "fullOriginal75Pass": 0,
+  "cdPass": 0,
+  "cwPass": 0,
+  "files": [
+    {
+      "path": "combined-c2-release-packet-v1.json",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\combined-c2-release-packet-v1.json",
+      "sha256": "aa0bcf5f84d8ea9a5d952a7ec9e38e856dd5765164aaeb984347030f2f9c5f26",
+      "bytes": 7721
+    },
+    {
+      "path": "combined-c2-release-packet-v1.md",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\combined-c2-release-packet-v1.md",
+      "sha256": "ba718324945d199066fc0a790b9035633bc94c624725c4815361bd05ccaa16db",
+      "bytes": 2624
+    },
+    {
+      "path": "combined-c2-human-approval.json",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\combined-c2-human-approval.json",
+      "sha256": "31347e80be11ccdf32f6191e27c0d90a6578bcc60501c6f23e465017ac6abc8c",
+      "bytes": 1581
+    },
+    {
+      "path": "combined-c2-api-canary-v1.json",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\combined-c2-api-canary-v1.json",
+      "sha256": "b3353e3a0e659c9da3c2a1fb97f3bcb9c33ff3ae5403c7ef4b4a425747f86be9",
+      "bytes": 503
+    },
+    {
+      "path": "combined-c2-served-readback-v1.json",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\combined-c2-served-readback-v1.json",
+      "sha256": "9d46bceaae9f2bea2ba76fa89ba13940c4fd49979fc601213aaa36e21357cd06",
+      "bytes": 3861
+    },
+    {
+      "path": "record-combined-c2-approval-v1.mjs",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\record-combined-c2-approval-v1.mjs",
+      "sha256": "9dc268d838d44f863c4a7c45767babcc3e6153ba7d56b0139c704ab58e0db10d",
+      "bytes": 1569
+    },
+    {
+      "path": "prepare-combined-c2-packet-v1.mjs",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\prepare-combined-c2-packet-v1.mjs",
+      "sha256": "56654325125a4067ace5951ec831e71e1d642637f37067437e4e8286560c876a",
+      "bytes": 9026
+    },
+    {
+      "path": "promote-combined-c2-service-v1.mjs",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\promote-combined-c2-service-v1.mjs",
+      "sha256": "2b93b8eb2ecb746f911ee4f3dca92fd3b21f0a3909e10812d28d73e8a46f11d2",
+      "bytes": 6276
+    },
+    {
+      "path": "verify-combined-c2-api-canary-v1.mjs",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\verify-combined-c2-api-canary-v1.mjs",
+      "sha256": "9abd38f7d5c7d14e129ccfc56648c99f472d2f50b7d5aab8847dfe2118e2bdb3",
+      "bytes": 1681
+    },
+    {
+      "path": "verify-combined-c2-served-v1.mjs",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\verify-combined-c2-served-v1.mjs",
+      "sha256": "c0646f3db737f78131e84fe4346875ab716126b260dc2558d70f1cc267d216b7",
+      "bytes": 5497
+    },
+    {
+      "path": "combined-c2-retired-tasks-v1.json",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\combined-c2-retired-tasks-v1.json",
+      "sha256": "42919b3eac0665a0dc82df93535a2f48afd12cf3647c1d368368545c2d904225",
+      "bytes": 3159
+    },
+    {
+      "path": "verify-combined-c2-retired-tasks-v1.mjs",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\verify-combined-c2-retired-tasks-v1.mjs",
+      "sha256": "ae95f8e03fead0447a24eed10e85fe2e0595e4abf0039c21a6be051104310d00",
+      "bytes": 2806
+    },
+    {
+      "path": "api-combined-c2-human-qualification.json",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\api-combined-c2-human-qualification.json",
+      "sha256": "f34a42769736ba6247fe729020d904a6c7c7eb7912b7f30ef77f49cf1178e900",
+      "bytes": 2402
+    },
+    {
+      "path": "api-combined-c2-release-manifest.json",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\api-combined-c2-release-manifest.json",
+      "sha256": "407c027a55e93ac16ef628c501b06970c693962aecec8b7486f7e5dbe966198d",
+      "bytes": 3160
+    },
+    {
+      "path": "api-combined-c2-promotion-authorization.json",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\api-combined-c2-promotion-authorization.json",
+      "sha256": "a305b6c976d7e4589c892c73ce3c03af383a5b79514bee27421cca21c0d863d8",
+      "bytes": 482
+    },
+    {
+      "path": "api-combined-c2-promotion-receipt.json",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\api-combined-c2-promotion-receipt.json",
+      "sha256": "f03cc65ec62b80a67d835c6dfeb2377f6b82c2e34952e50ede6521dbb07ce768",
+      "bytes": 1034
+    },
+    {
+      "path": "meriv2-orchestrator-combined-c2-human-qualification.json",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\meriv2-orchestrator-combined-c2-human-qualification.json",
+      "sha256": "68cbedfef80c7ca99e0a969daa091d1f7e0e6d6c8d07650452c89a373103c275",
+      "bytes": 2514
+    },
+    {
+      "path": "meriv2-orchestrator-combined-c2-release-manifest.json",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\meriv2-orchestrator-combined-c2-release-manifest.json",
+      "sha256": "9a336d7927b99115a7a4f57b839f7ab7e91b44aa5c4816a2ee3bd3bd1d776206",
+      "bytes": 3304
+    },
+    {
+      "path": "meriv2-orchestrator-combined-c2-promotion-authorization.json",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\meriv2-orchestrator-combined-c2-promotion-authorization.json",
+      "sha256": "2cfbea12e6140c89b742c209ff32cc45ae38d53ef6210d625803a103be62f2e2",
+      "bytes": 482
+    },
+    {
+      "path": "meriv2-orchestrator-combined-c2-promotion-receipt.json",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\meriv2-orchestrator-combined-c2-promotion-receipt.json",
+      "sha256": "28359edf23994f6b240a732b97eb38832da955b68dc7f0125235262dadafbcaf",
+      "bytes": 1114
+    },
+    {
+      "path": "web-vnext-combined-c2-human-qualification.json",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\web-vnext-combined-c2-human-qualification.json",
+      "sha256": "fb2c00170ec2094e8f2dfe6477ca55da1b96648f161cead173b069521a847ce5",
+      "bytes": 2444
+    },
+    {
+      "path": "web-vnext-combined-c2-release-manifest.json",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\web-vnext-combined-c2-release-manifest.json",
+      "sha256": "89ec6082d0017563aa784f9ba305eee90570a6723a7d851b4159baaf1e4a8d77",
+      "bytes": 3214
+    },
+    {
+      "path": "web-vnext-combined-c2-promotion-authorization.json",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\web-vnext-combined-c2-promotion-authorization.json",
+      "sha256": "d112d8283b3aec369871241937251a137c747d981718192c985ca6609957f782",
+      "bytes": 482
+    },
+    {
+      "path": "web-vnext-combined-c2-promotion-receipt.json",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\web-vnext-combined-c2-promotion-receipt.json",
+      "sha256": "30f6b038d064a7b7ca228dfa2667419b1a3f6f653916cd7004e87b52d5ffae4f",
+      "bytes": 1064
+    }
+  ],
+  "exactRetiredTasks": [
+    {
+      "service": "api",
+      "expectedOldTaskCount": 2,
+      "events": [
+        {
+          "id": "e91eeaf8-b4a7-4fb7-93eb-c99126c1fdd3",
+          "createdAt": "2026-10-03T23:32:23.201000-04:00",
+          "message": "(service capiro-dev-api) has stopped 2 running tasks: (task 8336cd45a73045df9d7c2bfb000a02b3) (task 100b5456feec4da69c864ea5ac5148fe)."
+        }
+      ],
+      "tasks": [
+        {
+          "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/8336cd45a73045df9d7c2bfb000a02b3",
+          "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:521",
+          "lastStatus": "STOPPED",
+          "desiredStatus": "STOPPED",
+          "stoppedAt": "2026-10-03T23:38:38.847000-04:00"
+        },
+        {
+          "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/100b5456feec4da69c864ea5ac5148fe",
+          "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:521",
+          "lastStatus": "STOPPED",
+          "desiredStatus": "STOPPED",
+          "stoppedAt": "2026-10-03T23:38:41.854000-04:00"
+        }
+      ]
+    },
+    {
+      "service": "meriv2-orchestrator",
+      "expectedOldTaskCount": 1,
+      "events": [
+        {
+          "id": "ae5bcd10-f656-4047-98b5-21ca753ddfa6",
+          "createdAt": "2026-10-03T23:39:26.004000-04:00",
+          "message": "(service capiro-dev-meriv2-orchestrator) has stopped 1 running tasks: (task 796a665d901c448eb5130ed78239d7e1)."
+        }
+      ],
+      "tasks": [
+        {
+          "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/796a665d901c448eb5130ed78239d7e1",
+          "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:117",
+          "lastStatus": "STOPPED",
+          "desiredStatus": "STOPPED",
+          "stoppedAt": "2026-10-03T23:40:37.001000-04:00"
+        }
+      ]
+    },
+    {
+      "service": "web-vnext",
+      "expectedOldTaskCount": 1,
+      "events": [
+        {
+          "id": "df66b993-c8de-457b-aa51-b9540b2749a2",
+          "createdAt": "2026-10-03T23:44:33.800000-04:00",
+          "message": "(service capiro-dev-web-vnext) has stopped 1 running tasks: (task 0e20f3e370cb4e628be1616cc0249622)."
+        }
+      ],
+      "tasks": [
+        {
+          "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/0e20f3e370cb4e628be1616cc0249622",
+          "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web-vnext:388",
+          "lastStatus": "STOPPED",
+          "desiredStatus": "STOPPED",
+          "stoppedAt": "2026-10-03T23:45:45.950000-04:00"
+        }
+      ]
+    }
+  ]
+}

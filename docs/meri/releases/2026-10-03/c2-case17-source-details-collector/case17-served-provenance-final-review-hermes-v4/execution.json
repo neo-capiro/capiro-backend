@@ -1,0 +1,25 @@
+{
+  "startedAt": "2026-10-04T03:44:40.045424+00:00",
+  "finishedAt": "2026-10-04T03:50:40.338960+00:00",
+  "exitCode": 124,
+  "failure": "BOUNDED_REVIEW_TIMEOUT",
+  "modelOverride": null,
+  "providerOverride": null,
+  "files": [
+    {
+      "path": "prompt.txt",
+      "bytes": 2391,
+      "sha256": "8843ed04dc5b2c812c340b4fffcecfd00e4fc10b0e1301ff00a8984f14496f62"
+    },
+    {
+      "path": "response.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ]
+}

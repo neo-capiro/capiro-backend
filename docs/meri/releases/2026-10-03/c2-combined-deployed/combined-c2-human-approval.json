@@ -1,0 +1,29 @@
+{
+  "status": "APPROVED",
+  "scope": "EXACT_C2_COMBINED_RELEASE",
+  "reviewer": "Human user — explicit approval in current Codex chat",
+  "approvedAt": "2026-10-04T03:28:03.666Z",
+  "packetSha256": "8f246b44000e35548444642a31079c8b65f04aa3abf6fd0fcf6768864c3f9c7b",
+  "answer": "Approved",
+  "approvalSource": "Direct human reply Approved to the immediately preceding exact three-image release packet approval request in this Codex chat",
+  "originalSnapshotExpiresAt": "2026-10-04T04:24:21.142Z",
+  "executionCondition": "Exact packet candidates and baseline through the existing one-service release operator; API then orchestrator then Web, health verification after each. Preserve models, configuration and benchmark budget.",
+  "scopeDetails": [
+    {
+      "service": "api",
+      "sourceSha": "c0f393f863bf73bd4e65e7a94e17c073e7be021e",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:024fcc82a2db7701f4a3e3311598a9a1d0933b3fe4fcf73751bf0e3fb866d8ce"
+    },
+    {
+      "service": "meriv2-orchestrator",
+      "sourceSha": "c0f393f863bf73bd4e65e7a94e17c073e7be021e",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:5329e61c0234a5baca60b4475e49a88adf4d15c78dc555fd4d46a94b01f74b1a"
+    },
+    {
+      "service": "web-vnext",
+      "sourceSha": "c0f393f863bf73bd4e65e7a94e17c073e7be021e",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:fb594dabc437723fa6a28a7a6adcd54b13f813fcc52130f8458692aac2e9c8c6"
+    }
+  ],
+  "paidCaptureAuthority": false
+}

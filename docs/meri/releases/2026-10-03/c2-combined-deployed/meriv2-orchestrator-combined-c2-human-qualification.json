@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "service": "meriv2-orchestrator",
+  "sourceSha": "c0f393f863bf73bd4e65e7a94e17c073e7be021e",
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:5329e61c0234a5baca60b4475e49a88adf4d15c78dc555fd4d46a94b01f74b1a",
+  "status": "qualified",
+  "reviewer": "Human user — explicit approval in current Codex chat",
+  "reviewedAt": "2026-10-04T03:28:03.666Z",
+  "expiresAt": "2026-10-05T02:28:03.666Z",
+  "schemaChange": false,
+  "evidence": [
+    "https://github.com/neo-capiro/capirov2/blob/a07ee9d1c0fafddfddb15e1458b8226b5f0a4d38/docs/meri/releases/2026-10-03/c2-combined-release/release-qualification.json",
+    "https://github.com/neo-capiro/capirov2/blob/a07ee9d1c0fafddfddb15e1458b8226b5f0a4d38/docs/meri/releases/2026-10-03/c2-combined-release/release-independent-review.json",
+    "https://github.com/neo-capiro/capirov2/blob/a07ee9d1c0fafddfddb15e1458b8226b5f0a4d38/docs/meri/releases/2026-10-03/c2-combined-release/builds/meriv2-orchestrator/build-readback.json"
+  ],
+  "checks": [
+    {
+      "name": "build",
+      "status": "passed",
+      "sourceSha": "c0f393f863bf73bd4e65e7a94e17c073e7be021e",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:5329e61c0234a5baca60b4475e49a88adf4d15c78dc555fd4d46a94b01f74b1a",
+      "url": "https://github.com/neo-capiro/capirov2/blob/a07ee9d1c0fafddfddb15e1458b8226b5f0a4d38/docs/meri/releases/2026-10-03/c2-combined-release/builds/meriv2-orchestrator/build-readback.json"
+    },
+    {
+      "name": "automated-tests",
+      "status": "passed",
+      "sourceSha": "c0f393f863bf73bd4e65e7a94e17c073e7be021e",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:5329e61c0234a5baca60b4475e49a88adf4d15c78dc555fd4d46a94b01f74b1a",
+      "url": "https://github.com/neo-capiro/capirov2/blob/a07ee9d1c0fafddfddb15e1458b8226b5f0a4d38/docs/meri/releases/2026-10-03/c2-combined-release/release-qualification.json"
+    },
+    {
+      "name": "retirement-compatibility",
+      "status": "passed",
+      "sourceSha": "c0f393f863bf73bd4e65e7a94e17c073e7be021e",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:5329e61c0234a5baca60b4475e49a88adf4d15c78dc555fd4d46a94b01f74b1a",
+      "url": "https://github.com/neo-capiro/capirov2/blob/a07ee9d1c0fafddfddb15e1458b8226b5f0a4d38/docs/meri/releases/2026-10-03/c2-combined-release/release-qualification.json"
+    }
+  ]
+}

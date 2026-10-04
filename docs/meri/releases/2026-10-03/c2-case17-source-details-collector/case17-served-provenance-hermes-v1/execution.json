@@ -1,0 +1,40 @@
+{
+  "startedAt": "2026-10-04T03:30:29.567142+00:00",
+  "finishedAt": "2026-10-04T03:36:29.969861+00:00",
+  "exitCode": 124,
+  "failure": "BOUNDED_REVIEW_TIMEOUT",
+  "modelOverride": null,
+  "providerOverride": null,
+  "files": [
+    {
+      "path": "prompt.txt",
+      "bytes": 2767,
+      "sha256": "aec7ff8c61c7e3ff3daa45a9b16915286538eb34d564051caee33b8225740c50"
+    },
+    {
+      "path": "response.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "candidate\\NOTES.md",
+      "bytes": 2341,
+      "sha256": "98ea9f3bde9a286bdefd22572399f393ec0219229f2dd8521ada835298c11205"
+    },
+    {
+      "path": "candidate\\evals\\meri\\live-v1\\case17-memory-ui.mjs",
+      "bytes": 15116,
+      "sha256": "4f13114f6dcd9e096ddb7a1bd9e08daa93ba4b4f0f713fbefdd4ed3908a29419"
+    },
+    {
+      "path": "candidate\\evals\\meri\\live-v1\\case17-saved-checks.mjs",
+      "bytes": 3291,
+      "sha256": "0629b87b8d5409459edfee8afbc497e9c85834e6b50b58a9ac5260a11b0b734a"
+    }
+  ]
+}

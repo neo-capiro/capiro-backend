@@ -1,0 +1,151 @@
+{
+  "status": "ORIGINAL_CASE17_LOCATOR_RECOVERED_NO_NEW_FIXTURE",
+  "at": "2026-10-04T03:52:35.674Z",
+  "sourceSha": "a922a9525bdfc704d8812b19aff23daa78ecd384",
+  "config": {
+    "schemaVersion": 1,
+    "caseId": "17",
+    "target": "https://os.capiro.ai",
+    "captureRunId": "c27ae741-8e3d-454d-a126-d16273002d04",
+    "recipe": {
+      "schemaVersion": 1,
+      "target": "capiro-dev",
+      "fixtureNamespace": "meri-foundation-20260928",
+      "caseId": "17",
+      "fixtureInstanceId": "63c7bb50-1971-49df-96b9-c6c94c562078",
+      "ctx": {
+        "role": "user_admin",
+        "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+        "tenantSlug": "meri-foundation-20260928-t1",
+        "userId": "fb218bf5-2674-4ced-bca3-7a5d0c01592f"
+      },
+      "clerkUserId": "user_3Jw2G2jbyyDlrrg6zCNd4gYUDfH",
+      "actors": {
+        "PAT": {
+          "tenantId": "T1",
+          "physicalId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f"
+        },
+        "PRIYA": {
+          "tenantId": "T1",
+          "physicalId": "fb218bf5-2674-4ced-bca3-7a5d0c01592f"
+        },
+        "ELI": {
+          "tenantId": "T1",
+          "physicalId": "c81e97df-a6e8-4dea-9de0-33bc7b393ca8"
+        }
+      },
+      "clients": {
+        "ASTER": {
+          "tenantId": "T1",
+          "physicalId": "41f9ec63-3963-479f-b747-59a3767ef44b"
+        },
+        "BLUEHAVEN": {
+          "tenantId": "T1",
+          "physicalId": "494f6834-d09e-4723-8a64-b2df57c683e8"
+        },
+        "CEDAR": {
+          "tenantId": "T2",
+          "physicalId": "d966c570-5729-44e6-9d28-8e9c1833aea1"
+        }
+      }
+    },
+    "clerkOrganizationId": "org_3Jw2G4KLYzp2j3xg0OXhyvbItRM",
+    "deployment": {
+      "apiSha": "c0f393f863bf73bd4e65e7a94e17c073e7be021e",
+      "webSha": "c0f393f863bf73bd4e65e7a94e17c073e7be021e",
+      "builds": {
+        "api": {
+          "service": "api",
+          "sourceSha": "c0f393f863bf73bd4e65e7a94e17c073e7be021e",
+          "imageDigest": "sha256:024fcc82a2db7701f4a3e3311598a9a1d0933b3fe4fcf73751bf0e3fb866d8ce",
+          "buildId": "capiro-build-web-dev:b91bc32a-8016-4b7a-ac6b-c34a46d7807e",
+          "buildspecSha256": "cf24c5952b4bb2e458935d6678c26982d61677e6537d48798fe92fa4aad60b5f"
+        },
+        "web-vnext": {
+          "service": "web-vnext",
+          "sourceSha": "c0f393f863bf73bd4e65e7a94e17c073e7be021e",
+          "imageDigest": "sha256:fb594dabc437723fa6a28a7a6adcd54b13f813fcc52130f8458692aac2e9c8c6",
+          "buildId": "capiro-build-web-dev:d12e01ed-3f15-4d52-9c9a-ad3e0209ae02",
+          "buildspecSha256": "604d019ef9b54936de5cf7d9a5fb46f878d998b19549b2257de4a842edef9899"
+        }
+      }
+    },
+    "limits": {
+      "concurrency": 1,
+      "maxSynthesisSubmissions": 0,
+      "maxApplicationWrites": 0
+    }
+  },
+  "sourceFiles": [
+    {
+      "path": "evals/meri/live-v1/case17-live-capture.mjs",
+      "sha256": "7957589436d62483246b23a29d96c5d4a5d017789f83b9f0dee594498c46b18b"
+    },
+    {
+      "path": "evals/meri/live-v1/case17-memory-ui.mjs",
+      "sha256": "e98ae2cc417db901e9288e3d85a95044b11693b897c0df7fd066625da5b9be55"
+    },
+    {
+      "path": "evals/meri/live-v1/case17-readonly-guard.mjs",
+      "sha256": "6c8d3e5e0dfafba4a0132a2ff3151fcfce245e9b4cc0ad0c2b0a05ac38636b09"
+    },
+    {
+      "path": "evals/meri/live-v1/case17-saved-checks.mjs",
+      "sha256": "f883bc4cbfc1c9dcc22ec148beb6453ec5a0f0a78f0e8b3b7ac1205aba7338f0"
+    },
+    {
+      "path": "evals/meri/live-v1/case17-build-authority.mjs",
+      "sha256": "dc068e2f3aa0aae7bea5802a80cf0e511397a92160b39f698b453bf372a15021"
+    },
+    {
+      "path": "evals/meri/live-v1/grade-case17-capture.mjs",
+      "sha256": "13586eda4b84f83aaf335ed6262e9e8a4b9456ede942692c032466e878550be5"
+    },
+    {
+      "path": "evals/meri/live-v1/windows-artifact-storage.mjs",
+      "sha256": "8b03eeccad53a92fc4cf7bcf4976522ecf7ed2126591449e28a6a70948ac01c4"
+    },
+    {
+      "path": "evals/meri/live-v1/fixture-provisioning/manifest.mjs",
+      "sha256": "8f1276ef0aaaef9b648bb1cbd0a037ee7d11d0a78db9691ab4de70b3b5db667a"
+    },
+    {
+      "path": "evals/meri/live-v1/fixture-provisioning/memory-pending-fixture-plan.mjs",
+      "sha256": "7d683e5594bf4a76ee20d2ed9c926773436d63a87aff6f33ef0a69292d38968e"
+    },
+    {
+      "path": "evals/meri/live-v1/fixture-provisioning/contract.mjs",
+      "sha256": "301f39229b64b3878d2fa9783d2cac5cd716fdf8acb125a2e758dc698e36076e"
+    },
+    {
+      "path": "evals/meri/live-v1/lib/stable.mjs",
+      "sha256": "03bba6f6dd1c48bf206ed32c628e1f9ce2038d75a9560d33d044950261f45c23"
+    },
+    {
+      "path": "evals/meri/live-v1/lib/windows-artifact-protocol.py",
+      "sha256": "3a30f6a211a5a7815c7f721dbb09871a33f316e7ecd8fbac0b4b1cf95ead33db"
+    }
+  ],
+  "originalRecipeSha256": "853dbf7f1e839639658e6cb9e2575fd4ef31fccf9d67b339d8ae4894537807d6",
+  "priorCaptureSha256": "1ddc03c596f800ab30f849b0dafbd7b04c21ce16280653e5286b476b1a4a1202",
+  "originalPromptSubmission": "NOT_RUN",
+  "fullOriginalRow17Acceptance": false,
+  "applicationWrites": 0,
+  "providerCalls": 0,
+  "credentialsSaved": false,
+  "previousAttempt": {
+    "path": "case17-regression-v3-result.json",
+    "sha256": "f99e75012e5b14ca14bde5e3fc3128893c269fd658ad7a74cbf151b332938bc7",
+    "status": "UI_SLICE_PASS",
+    "scope": "Prior source-kind-only UI slice; does not prove new expandable source details."
+  },
+  "provenanceNavigation": {
+    "status": "SOURCE_DISCLOSURE_QUALIFIED_AWAITING_SERVED_CAPTURE",
+    "sourcePath": "apps/web/src/vnext/meri/MeriMemoryTab.tsx",
+    "sourceSha256": "1855144be86307d19a6ecc9834c27f6f79640f461b19209e4fe3293f76b3416b",
+    "reason": "Existing Source details disclosure shows bounded recorded type and exact reference; no external navigation authority.",
+    "canonicalSourceBinding": "Each of six references must match its canonical fixture ownership marker and remain visible after reload.",
+    "operatorSourceSha": "a922a9525bdfc704d8812b19aff23daa78ecd384"
+  },
+  "servedReadbackSha256": "9d46bceaae9f2bea2ba76fa89ba13940c4fd49979fc601213aaa36e21357cd06"
+}

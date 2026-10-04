@@ -1,0 +1,30 @@
+✔ only approved existing-role proposer and no-turn read scope is accepted as data (2.5713ms)
+✔ fake storage, copied receipt, page and claimed readiness cannot mint live capture authority (1.0168ms)
+✔ both API and Web require exact current successful build/source/recipe/digest binding (1.0764ms)
+✔ saved visual review binds exact twelve saved screenshots, run, bytes and capture time (2.4314ms)
+✔ accepts the explicitly configured hermes-cli read operator in the exact account (0.9988ms)
+✔ accepts the explicitly configured capirocli read operator in the exact account (0.087ms)
+✔ rejects other principals, account mismatches and missing STS identity (0.2932ms)
+✔ real browser reproduces pre-mount skip and corrected collector waits before choosing controls (2953.982ms)
+✔ visible section can precede the query; collector waits for exact cards before counting (651.8895ms)
+✔ failed query rejects; actual empty result remains empty for unchanged strict card assertions (480.6436ms)
+✔ joins all six actual physical source mappings across complete pages, without asserting acceptance (52.9102ms)
+✔ rejects absent, unknown, malformed, swapped and duplicated API source references (20.6926ms)
+✔ rejects absent private proposal, duplicate pages, incomplete traversal, incorrect actor/version/provenance and non-actionable rows (20.2511ms)
+✔ real Chromium aborts the navigation preference PUT and a business POST; nested guards count once (514.1053ms)
+✔ only bounded exact same-origin PUTs within each panel round qualify; all other writes remain denied (0.9831ms)
+✔ card screenshot restores real nested scroll visibility and rejects a card wider than its clipping ancestor (776.8236ms)
+✔ saved checks accept complete multiple pages and reorder after reload without minting authority (33.1793ms)
+✔ saved checks accept only accounted blocked panel preferences and still reject owner changes (21.3977ms)
+✔ saved checks reject absent, swapped, duplicated, foreign, hidden and closed source proof in either round (33.9361ms)
+✔ saved checks reject absent, unknown, malformed, swapped and duplicated API source references after page rehash (28.7411ms)
+✔ missing/current/foreign/action/page/byte/write evidence fails closed (32.3474ms)
+✔ real collector persists redacted owner/count diagnostics before each final guard, including failures (14178.1064ms)
+ℹ tests 22
+ℹ suites 0
+ℹ pass 22
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 21686.6184

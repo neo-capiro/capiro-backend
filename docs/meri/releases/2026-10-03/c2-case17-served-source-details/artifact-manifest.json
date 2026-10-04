@@ -1,0 +1,159 @@
+{
+  "status": "SERVED_SOURCE_DETAILS_UI_SLICE_PASS",
+  "recordedAt": "2026-10-04T04:02:59.957793+00:00",
+  "runId": "c27ae741-8e3d-454d-a126-d16273002d04",
+  "files": [
+    {
+      "path": "case17-regression-v4-prepared.json",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-regression-v4-prepared.json",
+      "sha256": "4ea1a7c5450b7861d1c47a96691fd32cc04c629f5e9e1d94a49f0cb001d6c980",
+      "bytes": 6034
+    },
+    {
+      "path": "case17-regression-v4-local-review.json",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-regression-v4-local-review.json",
+      "sha256": "df2cb502e4b11fce73b3522c61a5654c1543aea25d847563ff9cb6d67fcf2646",
+      "bytes": 706
+    },
+    {
+      "path": "case17-regression-v4-result.json",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-regression-v4-result.json",
+      "sha256": "c993b14b311a6646907821c9e27ebfbd983f779c19be94780f5e492186f32632",
+      "bytes": 2109
+    },
+    {
+      "path": "case17-regression-v4-visual-review-request.json",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-regression-v4-visual-review-request.json",
+      "sha256": "5fbe2ffa15dfb7c02beae5698ea56cdce02a44d8f6ef74e520fbc0cceee1d1dc",
+      "bytes": 3190
+    },
+    {
+      "path": "case17-regression-v4-visual-review.json",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-regression-v4-visual-review.json",
+      "sha256": "5967581045d6a17e738d56d59509ac1a6fea5959a1635b75fa22fc5c5917f0b9",
+      "bytes": 2378
+    },
+    {
+      "path": "prepare-case17-regression-v4.mjs",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\prepare-case17-regression-v4.mjs",
+      "sha256": "9b39e7bcdb311138e12708aaa6d1228a3c2f53287c774a6445ee0c749eafe1a6",
+      "bytes": 5228
+    },
+    {
+      "path": "run-case17-regression-v4.mjs",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\run-case17-regression-v4.mjs",
+      "sha256": "e8be0c305addea709236a5ff8db115851b48267c6d51f2d9efb6697196f21953",
+      "bytes": 8050
+    },
+    {
+      "path": "record-case17-v4-visual-review.mjs",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\record-case17-v4-visual-review.mjs",
+      "sha256": "dbd5a27b1feec0b5a77f551c36aa5252bdb5c29c4f7efb33c2d1d4b053f702b4",
+      "bytes": 3052
+    },
+    {
+      "path": "case17-regression-v4-artifacts/case17/attempt.json",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-regression-v4-artifacts\\case17\\attempt.json",
+      "sha256": "744b5248aaa60bc50e14e21bbdc81d7a2a3966be7fd4551a6ca14454feefb72c",
+      "bytes": 169
+    },
+    {
+      "path": "case17-regression-v4-artifacts/case17/evidence.json",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-regression-v4-artifacts\\case17\\evidence.json",
+      "sha256": "f3d3a1d4b4aa5442ebb813ca0f6ee6f7215b0fa74ff2d7cdf98352007669c267",
+      "bytes": 39891
+    },
+    {
+      "path": "case17-regression-v4-artifacts/case17/native-write-guard-diagnostic.json",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-regression-v4-artifacts\\case17\\native-write-guard-diagnostic.json",
+      "sha256": "0ff5706a9f693ffedc0586e5a57578c445fbf7b152973a81fd891fd551e48310",
+      "bytes": 540
+    },
+    {
+      "path": "case17-regression-v4-artifacts/case17/readonly-guard-diagnostic.json",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-regression-v4-artifacts\\case17\\readonly-guard-diagnostic.json",
+      "sha256": "6cacf0185bdbd31fb569e22d6e88f87041e46a8a5c9becc202754ec1c5b10fa4",
+      "bytes": 709
+    },
+    {
+      "path": "case17-regression-v4-artifacts/case17/receipt.json",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-regression-v4-artifacts\\case17\\receipt.json",
+      "sha256": "acd3dd020ab071970aee630c48d871d5674bc665dcf7385d3177fcd703ee71d5",
+      "bytes": 24077
+    },
+    {
+      "path": "case17-regression-v4-artifacts/case17/afterReload/MEM-PENDING-17-A.png",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-regression-v4-artifacts\\case17\\afterReload\\MEM-PENDING-17-A.png",
+      "sha256": "985f462b1934c3c04f9d31caa04b1e6ee508598001173adc444d6031a9defcb2",
+      "bytes": 29736
+    },
+    {
+      "path": "case17-regression-v4-artifacts/case17/afterReload/MEM-PENDING-17-B.png",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-regression-v4-artifacts\\case17\\afterReload\\MEM-PENDING-17-B.png",
+      "sha256": "658e6174b021d1f98c104e5bb49b195f924e5a5d383402b989c48465c23fc4c1",
+      "bytes": 29584
+    },
+    {
+      "path": "case17-regression-v4-artifacts/case17/afterReload/MEM-PENDING-17-C.png",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-regression-v4-artifacts\\case17\\afterReload\\MEM-PENDING-17-C.png",
+      "sha256": "5ff61388d5822df9c98a71768b93d99b4808762b2869d19ee669623eb8b3b014",
+      "bytes": 29564
+    },
+    {
+      "path": "case17-regression-v4-artifacts/case17/afterReload/MEM-PENDING-17-D.png",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-regression-v4-artifacts\\case17\\afterReload\\MEM-PENDING-17-D.png",
+      "sha256": "e5a021856d69bb80a0fd0b563a08d4cf38880c4e4d6a16539cef5f45215a1ae8",
+      "bytes": 30097
+    },
+    {
+      "path": "case17-regression-v4-artifacts/case17/afterReload/MEM-PENDING-17-E.png",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-regression-v4-artifacts\\case17\\afterReload\\MEM-PENDING-17-E.png",
+      "sha256": "f3787f527addf0df21d74c1bc86c03318b6dc781f936144f301e08fd7633c89f",
+      "bytes": 28638
+    },
+    {
+      "path": "case17-regression-v4-artifacts/case17/afterReload/MEM-PENDING-17-F.png",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-regression-v4-artifacts\\case17\\afterReload\\MEM-PENDING-17-F.png",
+      "sha256": "a9b4b5611fbd9582171169ef49d4088d1c10a7ec76981b0ea2549895056a24e8",
+      "bytes": 30233
+    },
+    {
+      "path": "case17-regression-v4-artifacts/case17/initial/MEM-PENDING-17-A.png",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-regression-v4-artifacts\\case17\\initial\\MEM-PENDING-17-A.png",
+      "sha256": "985f462b1934c3c04f9d31caa04b1e6ee508598001173adc444d6031a9defcb2",
+      "bytes": 29736
+    },
+    {
+      "path": "case17-regression-v4-artifacts/case17/initial/MEM-PENDING-17-B.png",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-regression-v4-artifacts\\case17\\initial\\MEM-PENDING-17-B.png",
+      "sha256": "658e6174b021d1f98c104e5bb49b195f924e5a5d383402b989c48465c23fc4c1",
+      "bytes": 29584
+    },
+    {
+      "path": "case17-regression-v4-artifacts/case17/initial/MEM-PENDING-17-C.png",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-regression-v4-artifacts\\case17\\initial\\MEM-PENDING-17-C.png",
+      "sha256": "5ff61388d5822df9c98a71768b93d99b4808762b2869d19ee669623eb8b3b014",
+      "bytes": 29564
+    },
+    {
+      "path": "case17-regression-v4-artifacts/case17/initial/MEM-PENDING-17-D.png",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-regression-v4-artifacts\\case17\\initial\\MEM-PENDING-17-D.png",
+      "sha256": "e5a021856d69bb80a0fd0b563a08d4cf38880c4e4d6a16539cef5f45215a1ae8",
+      "bytes": 30097
+    },
+    {
+      "path": "case17-regression-v4-artifacts/case17/initial/MEM-PENDING-17-E.png",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-regression-v4-artifacts\\case17\\initial\\MEM-PENDING-17-E.png",
+      "sha256": "f3787f527addf0df21d74c1bc86c03318b6dc781f936144f301e08fd7633c89f",
+      "bytes": 28638
+    },
+    {
+      "path": "case17-regression-v4-artifacts/case17/initial/MEM-PENDING-17-F.png",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-regression-v4-artifacts\\case17\\initial\\MEM-PENDING-17-F.png",
+      "sha256": "a9b4b5611fbd9582171169ef49d4088d1c10a7ec76981b0ea2549895056a24e8",
+      "bytes": 30233
+    }
+  ],
+  "privateSessionAndStorageCapabilityLocatorsExcluded": true,
+  "credentialPatternScan": "PASS"
+}
