@@ -1,0 +1,128 @@
+{
+  "service": "web-vnext",
+  "status": "SUCCEEDED",
+  "qualification": "IMMUTABLE_BUILD_AND_OFFLINE_PROBES_PASS",
+  "sourceSha": "c0f393f863bf73bd4e65e7a94e17c073e7be021e",
+  "resolvedSourceSha": "c0f393f863bf73bd4e65e7a94e17c073e7be021e",
+  "buildId": "capiro-build-web-dev:d12e01ed-3f15-4d52-9c9a-ad3e0209ae02",
+  "startedAt": "2026-10-03T22:50:10.963000-04:00",
+  "finishedAt": "2026-10-03T22:58:48.426000-04:00",
+  "phases": [
+    {
+      "phase": "SUBMITTED",
+      "status": "SUCCEEDED",
+      "durationSeconds": 0
+    },
+    {
+      "phase": "QUEUED",
+      "status": "SUCCEEDED",
+      "durationSeconds": 0
+    },
+    {
+      "phase": "PROVISIONING",
+      "status": "SUCCEEDED",
+      "durationSeconds": 8,
+      "contexts": [
+        {
+          "statusCode": "",
+          "message": ""
+        }
+      ]
+    },
+    {
+      "phase": "DOWNLOAD_SOURCE",
+      "status": "SUCCEEDED",
+      "durationSeconds": 9,
+      "contexts": [
+        {
+          "statusCode": "",
+          "message": ""
+        }
+      ]
+    },
+    {
+      "phase": "INSTALL",
+      "status": "SUCCEEDED",
+      "durationSeconds": 0,
+      "contexts": [
+        {
+          "statusCode": "",
+          "message": ""
+        }
+      ]
+    },
+    {
+      "phase": "PRE_BUILD",
+      "status": "SUCCEEDED",
+      "durationSeconds": 16,
+      "contexts": [
+        {
+          "statusCode": "",
+          "message": ""
+        }
+      ]
+    },
+    {
+      "phase": "BUILD",
+      "status": "SUCCEEDED",
+      "durationSeconds": 477,
+      "contexts": [
+        {
+          "statusCode": "",
+          "message": ""
+        }
+      ]
+    },
+    {
+      "phase": "POST_BUILD",
+      "status": "SUCCEEDED",
+      "durationSeconds": 2,
+      "contexts": [
+        {
+          "statusCode": "",
+          "message": ""
+        }
+      ]
+    },
+    {
+      "phase": "UPLOAD_ARTIFACTS",
+      "status": "SUCCEEDED",
+      "durationSeconds": 1,
+      "contexts": [
+        {
+          "statusCode": "",
+          "message": ""
+        }
+      ]
+    },
+    {
+      "phase": "FINALIZING",
+      "status": "SUCCEEDED",
+      "durationSeconds": 0,
+      "contexts": [
+        {
+          "statusCode": "",
+          "message": ""
+        }
+      ]
+    },
+    {
+      "phase": "COMPLETED"
+    }
+  ],
+  "buildspecSha256": "604d019ef9b54936de5cf7d9a5fb46f878d998b19549b2257de4a842edef9899",
+  "buildLogSha256": "b72b933d6825e170d62ed4e953bd84098d576c99f4eda839dd46bd29fc86a44c",
+  "buildLogEvents": 1032,
+  "serviceMutations": 0,
+  "databaseMutations": 0,
+  "providerCalls": 0,
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:fb594dabc437723fa6a28a7a6adcd54b13f813fcc52130f8458692aac2e9c8c6",
+  "imagePublishedAt": "2026-10-03T22:58:45.505000-04:00",
+  "architecture": "arm64",
+  "runtimeNode": "BUILD_LOG",
+  "passedMarkers": [
+    "NATIVE_WEB_SOURCE_TESTS_TYPES_BUILD_PASS",
+    "LOCAL_REPODIGEST_ECR_MATCH_PASS",
+    "OFFLINE_PACKAGED_C2_RECORDED_SOURCE_WEB_BYTES_PASS"
+  ]
+}

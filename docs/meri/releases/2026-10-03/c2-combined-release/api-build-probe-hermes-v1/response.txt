@@ -1,0 +1,8 @@
+Created the corrected probe and notes:
+
+- `C:\dev\main\outputs\meri-c2-20261003\api-build-probe-hermes-v1\api-recorded-source.sh`
+- `C:\dev\main\outputs\meri-c2-20261003\api-build-probe-hermes-v1\NOTES.md`
+
+The cause was the probe’s direct service call without canonical tenant scope and cohort configuration. The native review gate therefore returned disabled before the synthetic transaction ran. The updated probe covers unscoped denial, off-cohort denial, and eligible success, while retaining the privacy, recorded-source, and negative-wall assertions. Production source and flags were not changed.
+
+The requested C1 checkout path was unavailable; the notes identify the matching source snapshot consulted and call out that it needs parent confirmation. No tests were run.

@@ -1,0 +1,17 @@
+{
+  "status": "SOURCE_RECIPE_RESOLVED_NO_LIVE_PLAN",
+  "fixtureInstanceId": "dee4e90e-8e91-4782-9488-10b8e52a2146",
+  "inputSha256": "6e20d773668705f805945a619c392d48b7fefc4843b91b62adde7e5d470b5ffd",
+  "candidateId": "6f4545a1-dcd5-5eba-8606-db2043b238ac",
+  "logicalSourceId": "MEM-PROPOSAL-14",
+  "manifestContentSha256": "5deda70f94698a8f8ed82d40fa804d16ae2e39a091012af0d70203a0e1b5fc14",
+  "scope": {
+    "role": "standard_user",
+    "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+    "tenantSlug": "meri-foundation-20260928-t1",
+    "userId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f"
+  },
+  "fixtureExists": false,
+  "providerCalls": 0,
+  "businessWrites": 0
+}

@@ -1,0 +1,17 @@
+AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
++ actual - expected
+
++ undefined
+- '6e09fd3e-30fd-4c82-926f-dc6d12041d73'
+
+    at Object.findFirst (C:\dev\main\outputs\meri-c2-20261003\api-build-probe-supervised-v2\local-probe.cjs:22:61)
+    at C:\dev\main\meri-c1-20261002\apps\api\dist\memory\governed-memory-candidate.service.js:144:48
+    at async GovernedMemoryCandidateService.listOwnProposals (C:\dev\main\meri-c1-20261002\apps\api\dist\memory\governed-memory-candidate.service.js:101:22)
+    at async C:\dev\main\outputs\meri-c2-20261003\api-build-probe-supervised-v2\local-probe.cjs:51:16 {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: undefined,
+  expected: '6e09fd3e-30fd-4c82-926f-dc6d12041d73',
+  operator: 'strictEqual',
+  diff: 'simple'
+}

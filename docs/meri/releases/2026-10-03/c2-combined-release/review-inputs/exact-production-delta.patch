@@ -1,0 +1,231 @@
+diff --git a/apps/api/src/memory/governed-memory-candidate.service.ts b/apps/api/src/memory/governed-memory-candidate.service.ts
+index 63dc1cbc2..5ebe0e71c 100644
+--- a/apps/api/src/memory/governed-memory-candidate.service.ts
++++ b/apps/api/src/memory/governed-memory-candidate.service.ts
+@@ -69,6 +69,11 @@ interface OwnCandidateRow {
+   decidedAt: Date | null;
+ }
+ 
++interface RecordedProposalSource {
++  sourceType: string;
++  sourceId: string;
++}
++
+ export interface OwnProposalPageInput {
+   cursor?: string;
+   limit?: string | number;
+@@ -93,6 +98,7 @@ export interface OwnedMemoryCandidate {
+   createdAt: string;
+   decidedAt: string | null;
+   restricted: boolean;
++  recordedSource?: RecordedProposalSource;
+   proposal: {
+     key: string | null;
+     value: string | null;
+@@ -291,10 +297,13 @@ export class GovernedMemoryCandidateService extends MemoryCandidateService {
+           : true;
+         const payloadRow = contentAllowed
+           ? await tx.memoryCandidate.findFirst({
+-              where: { id: row.id, tenantId: ctx.tenantId },
+-              select: { payload: true },
++              where: { id: row.id, tenantId: ctx.tenantId, proposedBy: ctx.userId },
++              select: { payload: true, sourceType: true, sourceId: true },
+             })
+           : null;
++        const recordedSource = contentAllowed && payloadRow
++          ? recordedProposalSource(payloadRow.sourceType, payloadRow.sourceId)
++          : undefined;
+         own.push({
+           id: row.id,
+           scope: row.scope,
+@@ -304,6 +313,7 @@ export class GovernedMemoryCandidateService extends MemoryCandidateService {
+           createdAt: row.createdAt.toISOString(),
+           decidedAt: row.decidedAt?.toISOString() ?? null,
+           restricted: !contentAllowed,
++          ...(recordedSource ? { recordedSource } : {}),
+           proposal: payloadRow ? proposalFromPayload(payloadRow.payload) : null,
+           capabilities: { withdraw: row.status === 'pending' },
+         });
+@@ -505,6 +515,20 @@ export class GovernedMemoryCandidateService extends MemoryCandidateService {
+   }
+ }
+ 
++function recordedProposalSource(sourceType: unknown, sourceId: unknown): RecordedProposalSource | undefined {
++  if (
++    typeof sourceType !== 'string' ||
++    sourceType === 'unknown' ||
++    sourceType.trim() !== sourceType ||
++    sourceType.length > 40 ||
++    !/^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$/.test(sourceType) ||
++    typeof sourceId !== 'string' ||
++    !((sourceId.length === 36 && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(sourceId)) ||
++      (sourceId.length === 64 && /^[0-9a-f]{64}$/.test(sourceId)))
++  ) return undefined;
++  return { sourceType, sourceId };
++}
++
+ function parseOwnProposalPageSize(value: unknown): number {
+   if (value === undefined || value === null || value === '') return 50;
+   const parsed = typeof value === 'number' ? value : Number(value);
+diff --git a/apps/api/src/meri/meri-controlled-read-fixture.ts b/apps/api/src/meri/meri-controlled-read-fixture.ts
+index a92468012..adfbc41da 100644
+--- a/apps/api/src/meri/meri-controlled-read-fixture.ts
++++ b/apps/api/src/meri/meri-controlled-read-fixture.ts
+@@ -305,6 +305,16 @@ export async function tryExecuteMeriControlledRead(
+       currentCycleFy: claims.currentCycleFy,
+       currentFundingClaim: claims.currentFundingClaim,
+       records: [record],
++      // Completeness is for this exact source-owned response, not the public
++      // corpus. The current fixture/binding is rechecked before release below.
++      coverage: {
++        total: 1,
++        returned: 1,
++        complete: true,
++        paginationComplete: true,
++        truncated: false,
++        nextCursor: null,
++      },
+       controlledRead: provenance,
+       ...(search
+         ? { data: [programElement], total: 1, page: 1, limit: input.limit ?? 20 }
+diff --git a/apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts b/apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts
+index 2a4e0a2ec..7c5004cbd 100644
+--- a/apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts
++++ b/apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts
+@@ -918,6 +918,9 @@ export class MeriV3AssistantService {
+     dto: MeriV3ChatInput,
+     opts: MeriV3RunOptions,
+   ): Promise<MeriV3ChatResult> {
++    // Capture includes the actual prompt render, which precedes the runtime
++    // timer below. Keep operational budget/deadline timing independent.
++    const captureStartedAt = Date.now();
+     const emit = opts.onEvent ?? (() => {});
+     const researchPlanExecution = requireMeriV3ResearchPlanExecution(dto, ctx);
+     const admittedReadCapabilities = researchPlanExecution
+@@ -2694,7 +2697,7 @@ export class MeriV3AssistantService {
+                   ? observed(currentMeriTaskUsage().knownEstimatedCostUsd!)
+                   : unknown('provider_usage_or_effective_model_price_not_fully_observed'),
+               providerCallObserved,
+-              startedAt,
++              startedAt: captureStartedAt,
+               completedAt: Date.now(),
+             },
+           }
+diff --git a/apps/web/src/components/memory-queue-shared.ts b/apps/web/src/components/memory-queue-shared.ts
+index 240c0caf1..1d902947a 100644
+--- a/apps/web/src/components/memory-queue-shared.ts
++++ b/apps/web/src/components/memory-queue-shared.ts
+@@ -24,6 +24,7 @@ export interface OwnedMemoryCandidate {
+   createdAt: string;
+   decidedAt: string | null;
+   restricted: boolean;
++  recordedSource?: { sourceType: string; sourceId: string };
+   proposal: {
+     key: string | null;
+     value: string | null;
+diff --git a/apps/web/src/vnext/meri/MeriMemoryTab.tsx b/apps/web/src/vnext/meri/MeriMemoryTab.tsx
+index 9095f7a6e..955d11e68 100644
+--- a/apps/web/src/vnext/meri/MeriMemoryTab.tsx
++++ b/apps/web/src/vnext/meri/MeriMemoryTab.tsx
+@@ -159,6 +159,12 @@ function sourceLabel(sourceKind: string): string {
+   return sourceKind.replace(/_/g, ' ');
+ }
+ 
++function recordedSourceLabel(sourceType: string): string {
++  if (sourceType === 'meri_synthetic_fixture') return 'Synthetic fixture';
++  if (sourceType === 'chat') return 'Conversation';
++  return sourceLabel(sourceType);
++}
++
+ function reviewBody(candidate: ReviewableMemoryCandidate): Array<{ heading: string; body: string }> {
+   const canonical = candidate.proposal.canonicalItem;
+   if (canonical?.sections.length) {
+@@ -1025,6 +1031,17 @@ export function MeriMemoryTab({ packet }: { packet: MeriContextPacket | null })
+               <div style={{ marginTop: 8, color: '#667085', fontSize: 10.5 }}>
+                 Source: {sourceLabel(candidate.sourceKind)}
+               </div>
++              {!candidate.restricted && candidate.recordedSource ? (
++                <details style={{ marginTop: 7, color: '#667085', fontSize: 10.5 }}>
++                  <summary style={{ cursor: 'pointer' }}>Source details</summary>
++                  <div style={{ marginTop: 5, lineHeight: 1.45 }}>
++                    <div>Source type: {recordedSourceLabel(candidate.recordedSource.sourceType)}</div>
++                    <div style={{ overflowWrap: 'anywhere' }}>
++                      Recorded source reference: {candidate.recordedSource.sourceId}
++                    </div>
++                  </div>
++                </details>
++              ) : null}
+               {candidate.status !== 'pending' ? (
+                 <div
+                   aria-label="Memory decision receipt"
+diff --git a/packages/meriv2-core/src/context/capture-evidence-receipt.ts b/packages/meriv2-core/src/context/capture-evidence-receipt.ts
+index 2f44b8f09..4b2b4deab 100644
+--- a/packages/meriv2-core/src/context/capture-evidence-receipt.ts
++++ b/packages/meriv2-core/src/context/capture-evidence-receipt.ts
+@@ -358,6 +358,54 @@ function validClockPacket(packet: MeriCaptureCompilerPacket, binding: MeriFixtur
+     Date.parse(use.eligibilityAt) <= receipt.completedAt;
+ }
+ 
++/** Case20's source is tenant-owned public evidence, not selected-client memory.
++ * Only its actual fully-read controlled HTTP proof can establish that scope. */
++function qualifiedCase20PublicSource(
++  receipt: Omit<MeriCaptureEvidenceReceipt, 'status' | 'blockers'>,
++  source: MeriCaptureSourceObservation,
++): boolean {
++  if (
++    receipt.caseId !== '20' ||
++    !receipt.clientId ||
++    !receipt.semanticClock ||
++    source.clientId.status !== 'OBSERVED' ||
++    source.clientId.value !== null ||
++    source.tenantId.status !== 'OBSERVED' ||
++    source.tenantId.value !== receipt.tenantId ||
++    source.fullRead.status !== 'OBSERVED' ||
++    source.fullRead.value !== true ||
++    source.currentVersion.status !== 'OBSERVED' ||
++    source.passageSha256.status !== 'OBSERVED' ||
++    source.byteSha256.status !== 'OBSERVED' ||
++    !/^[a-f0-9]{64}$/.test(source.passageSha256.value ?? '') ||
++    source.passageSha256.value !== source.byteSha256.value ||
++    meriCaptureClockExecutionBlockers(receipt).length
++  )
++    return false;
++  const calls = receipt.toolCalls.filter((call) => call.callId === source.toolCallId);
++  const attempts = (receipt.controlledReadAttempts ?? []).filter(
++    (a) => a.callId === source.toolCallId,
++  );
++  if (calls.length !== 1 || attempts.length !== 1) return false;
++  const call = calls[0]!;
++  const attempt = attempts[0]!;
++  return (
++    call.status === 'complete' &&
++    call.sourceIds.length === 1 &&
++    call.sourceIds[0] === source.sourceId &&
++    attempt.tool === call.name &&
++    attempt.sourceId === source.sourceId &&
++    attempt.logicalSourceId === 'R2-27' &&
++    attempt.sourceTenantId === receipt.tenantId &&
++    attempt.sourceClientId === null &&
++    attempt.fullRead === true &&
++    attempt.sourceVersion === source.currentVersion.value &&
++    attempt.contentSha256 === source.byteSha256.value &&
++    attempt.passageSha256 === source.passageSha256.value &&
++    attempt.currentVerifySha256 === receipt.semanticClock.binding.currentVerifySha256
++  );
++}
++
+ export function meriCaptureReceiptBlockers(
+   receipt: Omit<MeriCaptureEvidenceReceipt, 'status' | 'blockers'>,
+ ): string[] {
+@@ -427,7 +475,10 @@ export function meriCaptureReceiptBlockers(
+     if (source.tenantId.status !== 'OBSERVED' || source.tenantId.value !== receipt.tenantId) {
+       blockers.add(`source_tenant_authority_unproved:${source.sourceId}`);
+     }
+-    if (source.clientId.status !== 'OBSERVED' || source.clientId.value !== receipt.clientId) {
++    if (
++      (source.clientId.status !== 'OBSERVED' || source.clientId.value !== receipt.clientId) &&
++      !qualifiedCase20PublicSource(receipt, source)
++    ) {
+       blockers.add(`source_client_authority_unproved:${source.sourceId}`);
+     }
+     if (source.currentVersion.status !== 'OBSERVED')

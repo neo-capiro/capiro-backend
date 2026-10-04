@@ -1,0 +1,21 @@
+{
+  "result": "PASS",
+  "observedAt": "2026-10-04T03:19:16.628213+00:00",
+  "sourceSha": "c0f393f863bf73bd4e65e7a94e17c073e7be021e",
+  "copiedFilesVerified": 101,
+  "sourcePinsVerifiedAgainstGitObjects": 23,
+  "actualBuildsVerified": 3,
+  "qualificationBytesSha256": "a3a8d153ed0129e1c3ce78178caa924e228d817300465a978667192f581bab83",
+  "schemaAndPlanCleanupComplete": true,
+  "journal24Unchanged": true,
+  "humanReleaseApproval": false,
+  "correctionsToHermesWording": [
+    "The paged disabled nextCursor:null branch was already present in the served source; it is preserved, not newly added by this delta.",
+    "Fresh schema proof was collected during this continuation from the current served API image; no new schema/migration is proposed.",
+    "Final API immutable qualification is now present; the prior bounded Hermes review correctly left it pending at review time."
+  ],
+  "limits": [
+    "Source/offline image probes use synthetic collaborators; no new benchmark capture or human grading.",
+    "No live service promotion or original acceptance inferred."
+  ]
+}

@@ -1,0 +1,94 @@
+[
+  {
+    "path": "apps/api/src/memory/governed-memory-candidate.service.spec.ts",
+    "sha256": "585b078a7d4d3672a14d8523b7dcd286a5d93d957e23879744e5b4586bf0cf92"
+  },
+  {
+    "path": "apps/api/src/memory/governed-memory-candidate.service.ts",
+    "sha256": "761007d0d3ca1c8408a559db7f8bc52eea24d84d016cb79519dae2f52542077a"
+  },
+  {
+    "path": "apps/api/src/meri/meri-capture-clock-packets.spec.ts",
+    "sha256": "e955d72df1ab150997f6e78e73c982821c3c9c38b699df1fdbb6af9f1d94bf55"
+  },
+  {
+    "path": "apps/api/src/meri/meri-controlled-read-fixture.spec.ts",
+    "sha256": "f113a97d8f79849c13efe276baeb18cb26bedc96ae42aa00d5bccdb0435ae479"
+  },
+  {
+    "path": "apps/api/src/meri/meri-controlled-read-fixture.ts",
+    "sha256": "a375f1b7031282fc8c7e9eabcada67cca31530da683d8b593521c4cb7e978893"
+  },
+  {
+    "path": "apps/api/src/meri/meri-memory-proposal-read.spec.ts",
+    "sha256": "b58297bd8cd4b5e243293cc4b69843af12aae109ce38eb25418655da1a563b91"
+  },
+  {
+    "path": "apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts",
+    "sha256": "58562daed7c68ba7c65abc9f5d8d6975b0b5d7a1b4dceeb555b384dc2cac5b2b"
+  },
+  {
+    "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.spec.ts",
+    "sha256": "53633692585e42a7d5332bc356abb896f09ad3826eda4349ec3daa9284245233"
+  },
+  {
+    "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts",
+    "sha256": "e2c49a4356ce2cdffdef62b1abcb3e85a247630e763ac5e9d847c00f604aad6f"
+  },
+  {
+    "path": "apps/web/src/components/memory-queue-shared.ts",
+    "sha256": "4afca32e9c80b6503330517cbb4c1f99b398bae657e008d9bc8a9da3a9b38822"
+  },
+  {
+    "path": "apps/web/src/vnext/meri/MeriMemoryTab.targets.test.tsx",
+    "sha256": "3bd026aee7cfe26fa569fb05f40bddac3b93a378167e8d4f14b7b069feeceead"
+  },
+  {
+    "path": "apps/web/src/vnext/meri/MeriMemoryTab.tsx",
+    "sha256": "1855144be86307d19a6ecc9834c27f6f79640f461b19209e4fe3293f76b3416b"
+  },
+  {
+    "path": "evals/meri/live-v1/capture-spend-aggregate.mjs",
+    "sha256": "c2de81c8cd264a723a73d24aab4d2ca550eb9c15555011370ea7ca2e65755e48"
+  },
+  {
+    "path": "evals/meri/live-v1/case20-terminal-cost-authority.mjs",
+    "sha256": "c67970c36192625203019ca9d0da19c8480c29783f2622072523650ccb4f8f7d"
+  },
+  {
+    "path": "evals/meri/live-v1/case20-terminal-cost-pins.mjs",
+    "sha256": "9591737cbf0fe53a81795a62eb6a28f19dd878a45408cff03c68f1dee0e20d6a"
+  },
+  {
+    "path": "evals/meri/live-v1/lib/windows-capture-spend.py",
+    "sha256": "12c0428b25d616ee2d3969d7b41f4c804ee2fa52c509dc9ec01876bd18856fdc"
+  },
+  {
+    "path": "evals/meri/live-v1/tests/case20-terminal-cost.test.mjs",
+    "sha256": "27300b66229ae2e34baac70a91b84d5a650fad96986120ddd9e0bd99e9118314"
+  },
+  {
+    "path": "evals/meri/live-v1/tests/case20-terminal-cost.unit.py",
+    "sha256": "66dd4e78bc697ca4ff431e554f66ab2c5e3fb72db9c74465ce1ca7e0262e4827"
+  },
+  {
+    "path": "evals/meri/live-v1/tests/fixtures/case20-terminal-cost-journal23.unit.jsonl",
+    "sha256": "d6213af1fd8330e9e97a688d903a3c1852b5f40265a66eafb6aa2bf1cfa2060b"
+  },
+  {
+    "path": "evals/meri/live-v1/tests/fixtures/case20-terminal-cost-proof.unit.json",
+    "sha256": "1e45641ee993aa75fa6d2a56b4e7bc2fb2b7666e66c2806167a2cf8bc437a62e"
+  },
+  {
+    "path": "evals/meri/live-v1/tests/fixtures/case20-terminal-cost.unit.json",
+    "sha256": "ac03c1707773f929cb56fb2f6c35f3311d9d1691e65348a6bc3816c5603a2388"
+  },
+  {
+    "path": "packages/meriv2-core/src/context/capture-evidence-receipt.spec.ts",
+    "sha256": "eaf9c739b07a027adfa0e55537c799208712d8e97659d94a6f9d0975c9ea9e62"
+  },
+  {
+    "path": "packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+    "sha256": "affe70118364d44bdb5b13e55cd15edde2ce863323ecca4afa9644e0def74ab0"
+  }
+]

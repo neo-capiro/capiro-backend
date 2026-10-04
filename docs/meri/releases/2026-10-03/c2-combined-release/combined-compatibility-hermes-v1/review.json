@@ -1,0 +1,30 @@
+{
+  "kind": "independent-combined-c2-source-compatibility-review",
+  "candidateSha": "c0f393f863bf73bd4e65e7a94e17c073e7be021e",
+  "status": "BLOCKED_FOR_BUILD_BACKED_COMPATIBILITY_AND_RELEASE_EVIDENCE",
+  "sourceReview": "NO_CONCRETE_SOURCE_LEVEL_BLOCKER_FOUND_WITHIN_INSPECTED_FILES",
+  "humanAcceptanceOrApproval": false,
+  "apiImageQualified": false,
+  "case17CheckpointAndReview": "NOT_AVAILABLE_TO_REVIEW",
+  "orchestratorBuildReadbackAndLog": "NOT_AVAILABLE_TO_REVIEW",
+  "webBuildReadbackAndLog": "NOT_AVAILABLE_TO_REVIEW",
+  "case20ArchiveOutcome": {
+    "capture": "CAPTURE_UNCERTAIN",
+    "acceptance": "NOT_RUN",
+    "replayClaimed": false
+  },
+  "sourceConclusions": [
+    "recordedSource is optional/additive in the inspected API/web types; API omits it for restricted proposals and UI hides it for restricted rows.",
+    "Case20 null-client public-source exception is narrowly tied to current tenant, exact full source/hash, clock, invocation and receipt proof; generic blockers remain fail-closed.",
+    "Inspected runtime module entrypoints use native Meri modules; this is not a complete transitive retired-Hermes/table or live-schema audit."
+  ],
+  "requiredChecks": [
+    "Inspect the Case17 checkpoint and independent review and bind its pins to the exact merged tree.",
+    "Inspect orchestrator and web build logs/readbacks and bind each to candidate SHA, immutable digest and run/attempt.",
+    "Verify mixed-version API-first then orchestrator behavior for Case20 and ensure incomplete joins fail closed.",
+    "Repair and pass API build offline probe gate; no API image is qualified by this review.",
+    "Parent independently verifies Git diff, live schema/migration ledger and retired-table dependency inventory.",
+    "Complete release procedure qualification, one-service rollout and authenticated application checks; no acceptance is inferred here."
+  ],
+  "reviewArtifact": "REVIEW.md"
+}

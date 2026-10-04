@@ -1,0 +1,29 @@
+{
+  "at": "2026-10-04T02:59:59.483Z",
+  "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/ba6b5549633a46488bcd9bdc139467fa",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-c2-case14-plan-20261003:1",
+  "exitCode": 0,
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:23f529da3c1c00d401968811575dc075bced6c60669baa9a09e9c23575c9c452",
+  "scriptSha256": "b89f3b188304c19ab684745c3768a9760d459aae49cb4f9ead5cab276ba76b7b",
+  "receipts": [
+    {
+      "phase": "BEGIN",
+      "sha256": "ce733ae0c5041a9b8e1e9e50e764eb1f706d13bafbfeb64c1f2f78a1ff524f79",
+      "bytes": 909,
+      "chunks": 1
+    },
+    {
+      "phase": "CHUNK",
+      "index": 0,
+      "data": "eyJraW5kIjoiY2FzZTE0LXByb3NwZWN0aXZlLW5hdGl2ZS1wbGFuIiwic3RhdHVzIjoiTkFUSVZFX1BMQU5fQ0FQVFVSRUQiLCJwbGFuIjp7ImtpbmQiOiJtZXJpLXBlbmRpbmctbWVtb3J5LXNldHVwLXBsYW4iLCJzY2hlbWFWZXJzaW9uIjoxLCJjYXNlSWQiOiIxNCIsInJlY2lwZVNoYTI1NiI6IjE2Njg2NDljODQ1NTBmNzAxZmFlYThlMzA2MTdkYTExYzk0NGM4NGNhZWI5OTk2NWFmYTMxMWFjZDAxN2U1OTMiLCJtYW5pZmVzdENvbnRlbnRTaGEyNTYiOiI1ZGVkYTcwZjk0Njk4YThmOGVkODJkNDBmYTgwNGQxNmFlMmUzOWEwOTEwMTJhZjBkNzAyMDNhMGUxYjVmYzE0IiwidGVuYW50Um93VmVyc2lvbiI6IjExNDgwMTgwMCIsInByaW9yU2V0dGluZ3NTaGEyNTYiOiI1MGJiM2EyNWEwYWI5MWYxYzVhM2VjZjczNmVhNWY4OGZmZDk1ZWU0OTQwNGM3ODU5MmY4MDRhYzZhMGY0YzJhIiwic291cmNlSWRzIjpbIk1FTS1QUk9QT1NBTC0xNCJdLCJsaXZlQWNjZXB0YW5jZSI6Ik5PVF9SVU4iLCJwbGFuU2hhMjU2IjoiNDJlZDRkNWE2NDY2Yzk4MzRhOWQ1NzgwOTJiOThmMDcwMzk4MDhjZjQyNGE2YTc3MDk1YWNhMjIyMDJjMjFmMiJ9LCJzb3VyY2VTaGEiOiI0ZjAyNTM4NzQzNTdjMjcyZmRhMWFlMmE1MjcxZWU0YWY2NDVmMGJjIiwiZml4dHVyZUluc3RhbmNlSWQiOiJkZWU0ZTkwZS04ZTkxLTQ3ODItOTQ4OC0xMGI4ZTUyYTIxNDYiLCJpbnB1dFNoYTI1NiI6IjZlMjBkNzczNjY4NzA1ZjgwNTk0NWE2MTljMzkyZDQ4YjdmZWZjNDg0M2I5MWI2MmFkZGU3ZTVkNDcwYjVmZmQiLCJwcm92aWRlckNhbGxzIjowLCJidXNpbmVzc1dyaXRlcyI6MCwiYWNjZXB0YW5jZUF1dGhvcml0eSI6ZmFsc2UsIm5hdGl2ZVBsYW5Pbmx5Ijp0cnVlLCJvYnNlcnZlZEF0IjoiMjAyNi0xMC0wNFQwMjo1OToyOC41MzlaIn0K"
+    },
+    {
+      "phase": "END",
+      "sha256": "ce733ae0c5041a9b8e1e9e50e764eb1f706d13bafbfeb64c1f2f78a1ff524f79",
+      "bytes": 909,
+      "chunks": 1
+    }
+  ],
+  "providerCalls": 0,
+  "fixtureMutations": 0
+}

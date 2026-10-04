@@ -1,0 +1,66 @@
+--- failed-v1/build.sh
++++ supervised-v2/build.sh
+@@ -251,12 +251,15 @@
+ const assert = require('node:assert/strict');
+ const { randomUUID } = require('node:crypto');
+ const { GovernedMemoryCandidateService } = require('./dist/memory/governed-memory-candidate.service.js');
++const { runWithMemoryGovernanceTenant } = require('./dist/memory/memory-governance-tenant-scope.js');
+ (async () => {
+   for (const name of ['MEMORY_GOVERNANCE_LIFECYCLE', 'MEMORY_GOVERNANCE_ENFORCE', 'MEMORY_CLIENT_REVIEW']) process.env[name] = 'enforce';
+   const tenantId = randomUUID(), userId = randomUUID(), clientId = randomUUID();
++  // Configure only the isolated probe process. Production flags/source are unchanged.
++  process.env.MEMORY_GOVERNANCE_TENANTS = tenantId;
+   const ctx = { tenantId, userId, role: 'standard_user' };
+   const ids = Array.from({ length: 6 }, () => randomUUID());
+-  let allowed = true, payloadReads = 0, badSource = false;
++  let allowed = true, payloadReads = 0, badSource = false, tenantTransactions = 0;
+   const tx = {
+     memoryCandidate: {
+       findMany: async args => {
+@@ -278,20 +281,43 @@
+   };
+   const service = Object.create(GovernedMemoryCandidateService.prototype);
+   service.governedPrisma = { withTenantUser: async (tenant, actor, fn) => {
++    tenantTransactions++;
+     assert.equal(tenant, tenantId); assert.equal(actor, userId); return fn(tx);
+   } };
+-  const page = await service.listOwnProposals(ctx, { limit: 50 });
++
++  // Native gates stay fail-closed with no canonical request tenant scope.
++  assert.deepEqual(await service.listOwnProposals(ctx, { limit: 50 }), { enabled: false, candidates: [], nextCursor: null });
++  assert.equal(tenantTransactions, 0);
++  assert.equal(payloadReads, 0);
++
++  // An explicitly configured cohort does not authorize a different scoped tenant.
++  const offCohortTenantId = randomUUID();
++  assert.deepEqual(await runWithMemoryGovernanceTenant(offCohortTenantId,
++    () => service.listOwnProposals(ctx, { limit: 50 })), { enabled: false, candidates: [], nextCursor: null });
++  assert.equal(tenantTransactions, 0);
++  assert.equal(payloadReads, 0);
++
++  // Eligible success uses the API's canonical AsyncLocalStorage tenant scope.
++  const page = await runWithMemoryGovernanceTenant(tenantId,
++    () => service.listOwnProposals(ctx, { limit: 50 }));
+   assert.equal(page.enabled, true); assert.equal(page.candidates.length, 6);
+   assert.equal(new Set(page.candidates.map(c => c.recordedSource.sourceId)).size, 6);
+   assert.ok(page.candidates.every(c => c.recordedSource.sourceType === 'meri_synthetic_fixture'));
+   assert.equal(JSON.stringify(page).includes('private.invalid'), false);
+   assert.equal(JSON.stringify(page).includes('private excerpt'), false);
++
++  // The ethical wall denies payload/source access while preserving redacted status.
+   allowed = false; const before = payloadReads;
+-  const restricted = await service.listOwnProposals(ctx, { limit: 50 });
++  const restricted = await runWithMemoryGovernanceTenant(tenantId,
++    () => service.listOwnProposals(ctx, { limit: 50 }));
+   assert.equal(payloadReads, before);
+   assert.ok(restricted.candidates.every(c => c.restricted && !c.recordedSource && c.proposal === null && c.clientName === null));
++
++  // Unknown source kinds never produce recorded-source metadata.
+   allowed = true; badSource = true;
+-  assert.ok((await service.listOwnProposals(ctx, { limit: 50 })).candidates.every(c => !c.recordedSource));
++  const unknownSource = await runWithMemoryGovernanceTenant(tenantId,
++    () => service.listOwnProposals(ctx, { limit: 50 }));
++  assert.ok(unknownSource.candidates.every(c => !c.recordedSource));
+   console.log('OFFLINE_PACKAGED_C2_RECORDED_SOURCE_PRIVACY_PASS');
+ })().catch(error => { console.error(error); process.exitCode = 1; });
+ C2RECORDEDSOURCE

@@ -1,0 +1,13 @@
+{
+  "recordedAt": "2026-10-04T02:50:12.149Z",
+  "service": "web-vnext",
+  "sourceSha": "c0f393f863bf73bd4e65e7a94e17c073e7be021e",
+  "buildspecSha256": "604d019ef9b54936de5cf7d9a5fb46f878d998b19549b2257de4a842edef9899",
+  "candidateSha256": "7c03b93cc894fe6e017b51dc2e814bd2d9dd99feab3ca7647c013179ce8ef746",
+  "sourcePinsSha256": "57d8505bf40dee4987e9f1104909ee0afb3f4c102b7814a35c4d2985ad85d518",
+  "callerArn": "arn:aws:iam::967807252336:user/capirocli",
+  "requestSha256": "e82788ec5d386ba4a28fee9110b066523c2d81f2c8b395db8dc780b7c4870223",
+  "idempotencyToken": "8ee2f879-ab50-4dee-9f57-3a8e93584f64",
+  "backupAuthorization": "USER_REQUEST_2026_10_03_USE_BACKUP_SHIPPING_METHOD",
+  "scope": "Immutable ARM image build and ECR publication only; no service/config/database/provider mutation"
+}

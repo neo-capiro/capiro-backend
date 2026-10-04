@@ -1,0 +1,40 @@
+{
+  "startedAt": "2026-10-04T02:59:29.836633+00:00",
+  "finishedAt": "2026-10-04T03:03:25.765131+00:00",
+  "exitCode": 0,
+  "failure": null,
+  "modelOverride": null,
+  "providerOverride": null,
+  "files": [
+    {
+      "path": "api-recorded-source.sh",
+      "bytes": 4553,
+      "sha256": "da143d64161edbff15d9c7ed967ed68eacc374bf6d37a14f1c124bd153070e27"
+    },
+    {
+      "path": "NOTES.md",
+      "bytes": 4949,
+      "sha256": "6c54c4b7175715482c43d88f89f96f136d0e8d9109290318d28f151ab8e6fb47"
+    },
+    {
+      "path": "prompt.txt",
+      "bytes": 1300,
+      "sha256": "71500e6a6481f80e782c551fbf79847cdb86ad1545db678d1e5de9b98d82f870"
+    },
+    {
+      "path": "response.txt",
+      "bytes": 788,
+      "sha256": "7364086f3f65f126b3a85c3e04cb343710c25595030458cbf51ecde38500f1a9"
+    },
+    {
+      "path": "stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "usage.json",
+      "bytes": 476,
+      "sha256": "e0506c00515d9d241a72060df893ffa7e9d6e6d0b2b32a82ce793810fc3cf2d3"
+    }
+  ]
+}
