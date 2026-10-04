@@ -220,6 +220,13 @@ test('case12 retrospective approval recall naturally plans selected authorized c
       'What did we approve about Aster’s autonomous maritime demo? Check the launch date.',
       'What did we approve about Aster’s autonomous maritime demo in the email?',
       'What did we approve about Aster’s autonomous maritime demo in the document?',
+      'What did we approve about Aster’s autonomous maritime demo in the proposal?',
+      'What did we approve about Aster’s autonomous maritime demo in the contract?',
+      'What did we approve about Aster’s autonomous maritime demo in the PDF?',
+      'What did we approve about Aster’s autonomous maritime demo in the report?',
+      'What did we approve about Aster’s autonomous maritime demo in the transcript?',
+      'What did we approve about Aster’s autonomous maritime demo on the call?',
+      'What did we approve about Aster’s autonomous maritime demo in the meeting notes?',
       'Approve Aster’s autonomous maritime demo.',
     ])
       expect(notMemoryOnly(task).requestedDomains).not.toEqual(['institutional_knowledge']);
