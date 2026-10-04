@@ -1,0 +1,247 @@
+{
+  "kind": "C2 Case12 API ECS compatibility release qualification",
+  "status": "AUTOMATED_CHECKS_PASS_SCOPED_HUMAN_APPROVAL_RECORDED",
+  "at": "2026-10-04T16:58:11.873321+00:00",
+  "sourceSha": "478a1826afc7e4d599c66bfe5fb7a9759b0a4582",
+  "candidate": {
+    "sourceSha": "478a1826afc7e4d599c66bfe5fb7a9759b0a4582",
+    "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:ef27f66af273ded53ce0a8d7b0a941ad51e415a50e70a3a0293cce59e2c3381e"
+  },
+  "buildId": "capiro-build-web-dev:dbe4503e-e668-4e67-9534-09783abc9107",
+  "checks": {
+    "packagedMarkers": 26,
+    "nativeRegressionTests": 47,
+    "apiProjectTypecheck": "PASS",
+    "nestBuild": "PASS",
+    "broaderPackageTypecheck": "NOT_PASSING: three unchanged word-extractor declarations; default-heap OOM also retained"
+  },
+  "schemaChange": false,
+  "currentSchema": {
+    "status": "VERIFIED_READ_ONLY",
+    "ledgerRows": 609,
+    "activeFinished": 509,
+    "rolledBack": 100,
+    "prior608Sha256": "9a82cbc9dcecc3b049c312ad4e39ec5a96eb33c6e5af033a3339d1e292c06e90",
+    "newMigration": "20281007010000_mail_messages_owned_connection_active",
+    "newMigrationSha256": "ef10ab58b4eef6825652690a098ab160a374fb30c4cc0af9f15793edb7237242",
+    "retirementTablesAbsent": true,
+    "indices": [
+      {
+        "name": "mail_messages_tenant_connection_active_idx",
+        "ready": true,
+        "definitionSha256": "23d2b35e8097cea6c5620ce2c9c1cab68467e9de09dba5e3337f6fca0a170688"
+      },
+      {
+        "name": "mail_threads_tenant_connection_id_cover_idx",
+        "ready": true,
+        "definitionSha256": "7097d64ec1650dfa8e004e89a1e2f6f267cb7924e869993bb44fb235e9716c9e"
+      }
+    ],
+    "migrationExecution": false,
+    "sourceSha": "e60f37189f8c9b68ab7d5ef66e515ed3be4ec3c1",
+    "observedAt": "2026-10-04T16:45:33.153Z",
+    "providerCalls": 0,
+    "businessWrites": 0,
+    "acceptanceAuthority": false,
+    "readOnlyTransaction": true
+  },
+  "nativePlan": {
+    "status": "OWNED_NATIVE_PLAN_AND_CLEANUP_CAPTURED",
+    "at": "2026-10-04T16:49:48.423Z",
+    "sourceSha": "478a1826afc7e4d599c66bfe5fb7a9759b0a4582",
+    "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:ef27f66af273ded53ce0a8d7b0a941ad51e415a50e70a3a0293cce59e2c3381e",
+    "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/8fa69f5dafa34471b812f164e6ef848a",
+    "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-c2-case12-plan-20261004:2",
+    "startedAt": "2026-10-04T12:49:05.040000-04:00",
+    "stoppedAt": "2026-10-04T12:49:32.178000-04:00",
+    "exitCode": 0,
+    "inputSha256": "b398f80cc2973573721075de7a41d13a500a59c1f86de76b9ab77c7872a0b7f3",
+    "setupPlanSha256": "9b1b847044832ab3403dcc95321a234de0f2d8e2266e66b82eb9b21a6e3e8056",
+    "fixtureInstanceId": "d64dfeb7-3bfd-40d9-b8bb-f94c448bfe7a",
+    "providerCalls": 0,
+    "businessWrites": 0,
+    "journalUnchanged": true,
+    "serviceBaselineUnchanged": true,
+    "fixtureReady": false,
+    "captureAuthority": false,
+    "liveAcceptance": "NOT_RUN",
+    "costAuthority": "NOT_MINTED_REQUIRES_ROOT_REVIEW_OF_NATIVE_EVIDENCE"
+  },
+  "retirementCompatibility": {
+    "status": "PASS",
+    "reason": "All prior packaged compatibility markers retained; exact 452 migration hashes; actual schema609 retired tables absent; two-source-file runtime correction only"
+  },
+  "approval": {
+    "status": "APPROVED_SCOPED_CORRECTION",
+    "scope": "C2_CASE12_API_ECS_OVERRIDE_COMPATIBILITY_FIX",
+    "recordedAt": "2026-10-04T16:45:38.0499787Z",
+    "reviewer": "Human user in current Codex chat",
+    "answer": "Approve",
+    "approvalSource": "Two direct Approve messages after the described narrow API compatibility correction and API-only CodeBuild shipping plan",
+    "approvedSourceChange": {
+      "implementationSha256": "fbebfba2ab0fdb0314542178f4576c6ef6962f28263c3a5cfa092fd56a3688db",
+      "mergedSourceSha": "478a1826afc7e4d599c66bfe5fb7a9759b0a4582",
+      "regressionSpecSha256": "2317588bb2c82fffbeaef1252300da18e87af7923f3f362ce23fb5b657d92ef2",
+      "pullRequest": "https://github.com/neo-capiro/capirov2/pull/1948"
+    },
+    "candidateDigestAvailableAtApproval": false,
+    "bindingCondition": "Only the immutable image built from this exact reviewed source after all 26 required packaged checks pass, using the existing reviewed release operator; authenticated served verification required",
+    "service": "api",
+    "preserve": [
+      "orchestrator123",
+      "Web390",
+      "models",
+      "provider configuration",
+      "feature flags",
+      "capacity",
+      "schema",
+      "nightly136",
+      "budget and journal",
+      "original failed captures"
+    ],
+    "additionalIamChange": false,
+    "setupOrCaptureAdmissionCreatedByThisApproval": false
+  },
+  "scope": {
+    "service": "api",
+    "imageAndReleaseIdentityOnly": true,
+    "additionalIamChange": false,
+    "journalMutation": false,
+    "setupOrCaptureAdmission": false
+  },
+  "acceptance": "C2_UNFINISHED_NATIVE_SETUP_AND_CAPTURE_NOT_RUN",
+  "artifactPins": [
+    {
+      "path": "build/build-readback.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\api-case12-ecs-compat-build-v1\\build-readback.json",
+      "bytes": 4409,
+      "sha256": "4b2a7586d1a81ebbd2da1b38590d1e8e1d9b371a65d04e454d933ccdf6b5e904"
+    },
+    {
+      "path": "build/build.log",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\api-case12-ecs-compat-build-v1\\build.log",
+      "bytes": 69914,
+      "sha256": "dad1368bea5ef26cae21c7cd1362d4f99f0964a86a7541908e4fd0fb92b4623a"
+    },
+    {
+      "path": "build/buildspec.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\api-case12-ecs-compat-build-v1\\buildspec.json",
+      "bytes": 19381,
+      "sha256": "3c9a0c27c22daf2de53800292cee77ccf1e8f485ae600f23541dcea45f81e125"
+    },
+    {
+      "path": "build/build-start.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\api-case12-ecs-compat-build-v1\\build-start.json",
+      "bytes": 569,
+      "sha256": "de89bb86121f97431aeba42c448535f1e8e5cb5f3057a6862225f38650f7ecb6"
+    },
+    {
+      "path": "build/launch-intent.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\api-case12-ecs-compat-build-v1\\launch-intent.json",
+      "bytes": 954,
+      "sha256": "74467c15a7385ff0b20361edb77ae63789ffa34f0cf5a53b5ced817b369f26b6"
+    },
+    {
+      "path": "case12-ecs-compat-candidate-v1.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-ecs-compat-candidate-v1.json",
+      "bytes": 522,
+      "sha256": "63f41279e04c69727412f8bcc3ef8ca14599a253fc49caf48384031257287aa4"
+    },
+    {
+      "path": "case12-ecs-compat-source-qualification-v1.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-ecs-compat-source-qualification-v1.json",
+      "bytes": 16898,
+      "sha256": "7126bef8d7127420bbc00dfa01d743e606a3a76e70a0ac6d8af5962ba0fbf8b5"
+    },
+    {
+      "path": "case12-ecs-compat-source-review-v1.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-ecs-compat-source-review-v1.json",
+      "bytes": 981,
+      "sha256": "c0bb1d43f761b87e1f2d9e1b12232fab3195bfbfae3549975685d8f86720726f"
+    },
+    {
+      "path": "case12-ecs-compat-root-execution.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-ecs-compat-root-execution.json",
+      "bytes": 907,
+      "sha256": "79790de4a77471e04235b6d0ce219c90473968be09b211b5505ea69dab93b282"
+    },
+    {
+      "path": "case12-ecs-compat-scope-approval-v1.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-ecs-compat-scope-approval-v1.json",
+      "bytes": 1367,
+      "sha256": "9f6cd00ecd0c30a693603f7072b6f9062552248be77a36f366ac769475563c8f"
+    },
+    {
+      "path": "served-baseline.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-ecs-compat-release-preparation-v1\\served-baseline.json",
+      "bytes": 10198,
+      "sha256": "87c5c44f51c58b9358f7400dc660d778ae83030e9e24096349abc4f2fe370be1"
+    },
+    {
+      "path": "schema/schema-proof.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-source-schema-read-v2\\schema-proof.json",
+      "bytes": 892,
+      "sha256": "29faf769cfb6cb7d57cc411de9b0621782da0a2d13555bbc8eda7715bcf8ace8"
+    },
+    {
+      "path": "schema/cleanup.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-source-schema-read-v2\\cleanup.json",
+      "bytes": 368,
+      "sha256": "f4fdb44215e55adcf3590c73c0bf728b3767d98829be1bb73e02d068346384b1"
+    },
+    {
+      "path": "schema/journal-preserved.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-source-schema-read-v2\\journal-preserved.json",
+      "bytes": 104,
+      "sha256": "60ad10d5db4da943317b1681f443d9cbba6e33056c659dacd967f38ecd34f3d3"
+    },
+    {
+      "path": "schema/result.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-source-schema-read-v2\\result.json",
+      "bytes": 2167,
+      "sha256": "588704697f211e437c1cf887657acfb2482eee804cf8e2849f966ad06bd7dad1"
+    },
+    {
+      "path": "native-plan/result.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-readonly-plan-task-v2\\executed-once\\result.json",
+      "bytes": 1140,
+      "sha256": "29ef43700cfd29cc4af6127323fb2b8ec8e31b232ffae96d8e17e6bb28c97a19"
+    },
+    {
+      "path": "native-plan/cleanup.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-readonly-plan-task-v2\\executed-once\\cleanup.json",
+      "bytes": 355,
+      "sha256": "7a41dca832ffadb72720ea56bf55108709fb0b59ae7488b5d2b6c0c222df2fc2"
+    },
+    {
+      "path": "native-plan/setup-plan.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-readonly-plan-task-v2\\executed-once\\setup-plan.json",
+      "bytes": 1207,
+      "sha256": "a1403068899fced882f22422989ee7677c68fe5adf2914f059112d374af9cbbd"
+    },
+    {
+      "path": "native-plan/plan-receipt.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-readonly-plan-task-v2\\executed-once\\plan-receipt.json",
+      "bytes": 1491,
+      "sha256": "5da16541e399dd586c8a293f7bbbc3607a0a4844a88d987b2542c1484f0623b2"
+    },
+    {
+      "path": "native-plan/journal-preserved.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-readonly-plan-task-v2\\executed-once\\journal-preserved.json",
+      "bytes": 247,
+      "sha256": "ef58f2d9ff1b9556b665480e6b4d442a0edea21fa24b68230a4cec6a00dfdb6f"
+    },
+    {
+      "path": "source-review/independent-assessment-v2.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-overrides-supervisor-review-v1\\independent-assessment-v2.json",
+      "bytes": 3353,
+      "sha256": "e7bb81f065c57e3978be534f7ec553a51f4513553ca4b7c3247dac6ca3313d92"
+    },
+    {
+      "path": "backup-review/independent-assessment.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-ecs-compat-backup-independent-v1\\independent-assessment.json",
+      "bytes": 2769,
+      "sha256": "b502d393337cf7b03f432645f2975576400ef7657d7706153648c83ad96128eb"
+    }
+  ]
+}

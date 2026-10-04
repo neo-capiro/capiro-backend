@@ -1,0 +1,26 @@
+{
+  "kind": "meri-case12-memory-setup-plan",
+  "schemaVersion": 1,
+  "recipeSha256": "b9bc1eb7c35defa66c052020e16bb1497a344027e5bd74f482b73ff91113ec37",
+  "manifestContentSha256": "4ecdb1abe2783d8a00a2353fea658f3bac35f75ddd5ca9c924fae41b4752864b",
+  "orderedDefinitionSha256": "495e20872bc241e639b33e3b8bf423e4ed4cd6b3a3c70cac9c7bb237614af7f5",
+  "exactCanonicalDefinitionCount": 510,
+  "firstLogicalId": "MA510",
+  "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+  "tenantRowVersion": "115066508",
+  "priorSettingsSha256": "4a7ff529b0ab857e89845f476ec5eb7ed3fc4357b120791a4e2933c1f40d19a5",
+  "fixtureNamespace": "meri-foundation-20260928",
+  "fixtureInstanceId": "d64dfeb7-3bfd-40d9-b8bb-f94c448bfe7a",
+  "actorScope": {
+    "proposerUserId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+    "proposerRole": "standard_user",
+    "clerkUserId": "user_3Jw2FvWZkYGKmxWGx13tNJxFD2A",
+    "reviewerUserId": "fb218bf5-2674-4ced-bca3-7a5d0c01592f",
+    "reviewerRole": "user_admin",
+    "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b"
+  },
+  "fixtureReady": false,
+  "captureAuthority": false,
+  "liveAcceptance": "NOT_RUN",
+  "planSha256": "9b1b847044832ab3403dcc95321a234de0f2d8e2266e66b82eb9b21a6e3e8056"
+}

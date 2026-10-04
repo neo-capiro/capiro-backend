@@ -1,0 +1,17 @@
+{
+  "kind": "meri-case12-root-merged-source-binding-review",
+  "version": 1,
+  "caseId": "12",
+  "sourceSha": "478a1826afc7e4d599c66bfe5fb7a9759b0a4582",
+  "status": "PASS_SOURCE_ONLY",
+  "sourceCheckpointSha256": "7126bef8d7127420bbc00dfa01d743e606a3a76e70a0ac6d8af5962ba0fbf8b5",
+  "recordedAt": "2026-10-04T16:39:46.108543+00:00",
+  "sourceTree": "ada4fc085b8225f14b249af7e9d97c922154615b",
+  "sourcePinsVerified": 72,
+  "changedPinsVerified": 2,
+  "mergedTreeEqualsReviewedTree": true,
+  "independentSourceReviewSha256": "e7bb81f065c57e3978be534f7ec553a51f4513553ca4b7c3247dac6ca3313d92",
+  "independentBackupReviewSha256": "b502d393337cf7b03f432645f2975576400ef7657d7706153648c83ad96128eb",
+  "stagedVerificationSha256": "4edc4c8fc5ffdbfe86a3a981d0db450ca6fc3fb869626e819b3a83c2d59f1430",
+  "scope": "Root immutable merge binding over independent exact source and template reviews. No new Hermes verdict, native setup, capture or human acceptance claimed."
+}
