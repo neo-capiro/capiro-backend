@@ -1,0 +1,36 @@
+{
+  "status": "INTERNAL_SOL_MODEL_NATIVE_WRITE_READBACK_AUDIT_RESOLUTION_PASS",
+  "at": "2026-10-04T22:36:13.020Z",
+  "tenantId": "17b63099-bc0f-4ac5-b596-496161e9481e",
+  "tenantSlug": "capiro-internal",
+  "actorUserId": "48b8b988-2f7e-458a-999e-9e476ed70752",
+  "apiSourceSha": "4b228386df0ddd2f34aea8f4bc1fcc1d1a8f985e",
+  "model": "gpt-6.1-sol",
+  "modelOverridden": true,
+  "usedTenantKey": true,
+  "auditId": "e9d73294-0ba8-4bf7-8944-7389622e12cb",
+  "maskedCredential": {
+    "provider": "openai",
+    "last4": "KfYA",
+    "modelOverride": "gpt-6.1-sol",
+    "status": "active",
+    "lastValidatedAt": "2026-06-12T04:18:18.547Z",
+    "updatedAt": "2026-10-04T22:34:14.759Z"
+  },
+  "otherProviderRowsUnchanged": true,
+  "keyLast4AndValidationTimeUnchanged": true,
+  "providerGenerations": 0,
+  "globalDefaultsChanged": false,
+  "acceptanceAuthority": false,
+  "temporarySessionRevoked": true,
+  "modelWrites": 1,
+  "reconciliation": {
+    "readOnly": true,
+    "priorFailurePreserved": true,
+    "strictLocalFromFilterExcludedRealAuditRow": true,
+    "localIntentAt": "2026-10-04T22:34:18.420Z",
+    "databaseUpdatedAt": "2026-10-04T22:34:14.759Z",
+    "auditOccurredAt": "2026-10-04T22:34:14.768Z",
+    "clockSkewInference": "Local intent timestamp is later than the committed database audit timestamp. Reconciliation used exact tenant, actor, entity, action, before/after and unique audit row rather than a cross-clock lower bound."
+  }
+}

@@ -1,0 +1,5 @@
+Review complete. `REVIEW.md` is at `C:\dev\main\outputs\meri-c2-20261003\sol-probe-final-review-long-v1-hermes\REVIEW.md`.
+
+Verdict: BLOCKED for execution. The supplied probe template contains `apiKey:creden...0` in the client constructor, so it is not executable as written; confirm whether that is a redaction artifact and bind a syntax-checked final operator. The allocation logic is conditionally qualified, but exact root plan/operator binding and event-32 native append/readback remain pending—not defects or actions already completed. Prior F1–F3 appear addressed in the candidate.
+
+I did not contact AWS, resolve credentials, call a provider, or modify the journal. The review file is the only change.

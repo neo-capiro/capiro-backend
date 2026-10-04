@@ -1,0 +1,22 @@
+{
+  "at": "2026-10-04T22:34:18.685Z",
+  "credentials": [
+    {
+      "provider": "anthropic",
+      "last4": "ewAA",
+      "modelOverride": null,
+      "status": "active",
+      "lastValidatedAt": "2026-06-27T20:34:32.301Z",
+      "updatedAt": "2026-06-27T20:34:32.305Z"
+    },
+    {
+      "provider": "openai",
+      "last4": "KfYA",
+      "modelOverride": "gpt-6.1-sol",
+      "status": "active",
+      "lastValidatedAt": "2026-06-12T04:18:18.547Z",
+      "updatedAt": "2026-10-04T22:34:14.759Z"
+    }
+  ],
+  "auditRows": []
+}

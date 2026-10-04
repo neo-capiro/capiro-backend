@@ -1,0 +1,12 @@
+test_allocation_rejects_mutation_replay_and_malformed_numbers (test_budget_amendment.SolProbeBudgetTests.test_allocation_rejects_mutation_replay_and_malformed_numbers) ... ok
+test_exact_fixed_one_dollar_allocation_is_committed_not_known_usage (test_budget_amendment.SolProbeBudgetTests.test_exact_fixed_one_dollar_allocation_is_committed_not_known_usage) ... ok
+test_exact_row31_ack_replay_and_original_authorities_unchanged (test_budget_amendment.SolProbeBudgetTests.test_exact_row31_ack_replay_and_original_authorities_unchanged) ... ok
+test_future_capacity_counts_permanent_allocation (test_budget_amendment.SolProbeBudgetTests.test_future_capacity_counts_permanent_allocation) ... ok
+test_original_bytes_and_case_authority_cannot_be_rewritten_by_caller (test_budget_amendment.SolProbeBudgetTests.test_original_bytes_and_case_authority_cannot_be_rewritten_by_caller) ... ok
+test_small_later_settlement_does_not_refund_qualification_allocation (test_budget_amendment.SolProbeBudgetTests.test_small_later_settlement_does_not_refund_qualification_allocation) ... ok
+test_unbound_plan_disables_funding (test_budget_amendment.SolProbeBudgetTests.test_unbound_plan_disables_funding) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 0.015s
+
+OK

@@ -1,0 +1,31 @@
+{
+  "at": "2026-10-04T22:34:18.420Z",
+  "tenantId": "17b63099-bc0f-4ac5-b596-496161e9481e",
+  "actorUserId": "48b8b988-2f7e-458a-999e-9e476ed70752",
+  "sourceSha": "4b228386df0ddd2f34aea8f4bc1fcc1d1a8f985e",
+  "before": [
+    {
+      "provider": "anthropic",
+      "last4": "ewAA",
+      "modelOverride": null,
+      "status": "active",
+      "lastValidatedAt": "2026-06-27T20:34:32.301Z",
+      "updatedAt": "2026-06-27T20:34:32.305Z"
+    },
+    {
+      "provider": "openai",
+      "last4": "KfYA",
+      "modelOverride": null,
+      "status": "active",
+      "lastValidatedAt": "2026-06-12T04:18:18.547Z",
+      "updatedAt": "2026-06-12T04:18:18.563Z"
+    }
+  ],
+  "request": {
+    "provider": "openai",
+    "modelOverride": "gpt-6.1-sol",
+    "expectedModelOverride": null,
+    "expectedUpdatedAt": "2026-06-12T04:18:18.563Z"
+  },
+  "noAutomaticRetry": true
+}

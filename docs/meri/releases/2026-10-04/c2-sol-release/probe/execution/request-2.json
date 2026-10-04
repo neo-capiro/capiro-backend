@@ -1,0 +1,13 @@
+{
+  "at": "2026-10-04T22:18:19.511Z",
+  "endpoint": "https://api.openai.com/v1/responses",
+  "model": "gpt-6.1-sol",
+  "maxOutputTokens": 1024,
+  "serviceTier": "default",
+  "reasoningEffort": "low",
+  "requestBytes": 954,
+  "requestSha256": "12f52fbc52a485d847728df534e4950e6bf8ac9ba017c09404f4eda75a3d2acf",
+  "tools": [
+    "lookup_record"
+  ]
+}

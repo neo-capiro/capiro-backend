@@ -1,0 +1,8 @@
+{
+  "at": "2026-10-04T22:22:30.457Z",
+  "packetSha256": "87bbfd0fa1d79e7ed80b44712bfd1f8e3f15be5b99108bd95c93276315550293",
+  "manifestSha256": "941fdf05515ea50c6b23e86335ed2da474faf5d8635c7d60b5a87bde2cbe3d62",
+  "authorizationBasis": "User authorized continuing C2, cheaper benchmark model only in capiro-internal, actual Hermes sessions, and the established CodeBuild backup shipping path. No additional general approval required.",
+  "awsMaxAttempts": 1,
+  "noAutomaticRetry": true
+}

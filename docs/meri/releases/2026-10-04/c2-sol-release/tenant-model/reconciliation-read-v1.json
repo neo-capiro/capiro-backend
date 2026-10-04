@@ -1,0 +1,65 @@
+{
+  "at": "2026-10-04T22:35:25.524Z",
+  "kind": "READ_ONLY_MODEL_WRITE_RECONCILIATION",
+  "tenantId": "17b63099-bc0f-4ac5-b596-496161e9481e",
+  "actorUserId": "48b8b988-2f7e-458a-999e-9e476ed70752",
+  "apiSourceSha": "4b228386df0ddd2f34aea8f4bc1fcc1d1a8f985e",
+  "credentials": [
+    {
+      "provider": "anthropic",
+      "last4": "ewAA",
+      "modelOverride": null,
+      "status": "active",
+      "lastValidatedAt": "2026-06-27T20:34:32.301Z",
+      "updatedAt": "2026-06-27T20:34:32.305Z"
+    },
+    {
+      "provider": "openai",
+      "last4": "KfYA",
+      "modelOverride": "gpt-6.1-sol",
+      "status": "active",
+      "lastValidatedAt": "2026-06-12T04:18:18.547Z",
+      "updatedAt": "2026-10-04T22:34:14.759Z"
+    }
+  ],
+  "audit": {
+    "data": [
+      {
+        "id": "e9d73294-0ba8-4bf7-8944-7389622e12cb",
+        "tenantId": "17b63099-bc0f-4ac5-b596-496161e9481e",
+        "actorUserId": "48b8b988-2f7e-458a-999e-9e476ed70752",
+        "actorRole": "capiro_admin",
+        "action": "ai_credential.model_override.update",
+        "entityType": "tenant_ai_credential",
+        "entityId": "17b63099-bc0f-4ac5-b596-496161e9481e:openai",
+        "before": {
+          "updatedAt": "2026-06-12T04:18:18.563Z",
+          "modelOverride": null
+        },
+        "after": {
+          "status": "active",
+          "provider": "openai",
+          "tenantId": "17b63099-bc0f-4ac5-b596-496161e9481e",
+          "modelOverride": "gpt-6.1-sol"
+        },
+        "ip": null,
+        "userAgent": null,
+        "requestId": null,
+        "occurredAt": "2026-10-04T22:34:14.768Z"
+      }
+    ],
+    "total": 1,
+    "page": 1,
+    "limit": 100
+  },
+  "resolved": {
+    "resolved": true,
+    "provider": "openai",
+    "model": "gpt-6.1-sol",
+    "modelOverridden": true,
+    "usedTenantKey": true
+  },
+  "modelWrites": 0,
+  "providerGenerations": 0,
+  "temporarySessionRevoked": true
+}

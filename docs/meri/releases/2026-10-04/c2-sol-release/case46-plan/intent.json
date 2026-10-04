@@ -1,0 +1,13 @@
+{
+  "at": "2026-10-04T22:32:57.575Z",
+  "kind": "EXACT_CASE46_PROSPECTIVE_NATIVE_PLAN",
+  "serviceRevision": 533,
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:55be7c40656181c278438964244500cf2f03de5c451416019a94d51f9165628e",
+  "sourceSha": "4b228386df0ddd2f34aea8f4bc1fcc1d1a8f985e",
+  "scriptSha256": "d21af36816e3e2f400c5a1dd9960dc08e12d3da1dad2e4f3be2922e1105c65be",
+  "inputSha256": "a529153816294da5a57d2df5c3e42a39b8254bef51232fb9e6476176ae21f256",
+  "providerSecrets": 0,
+  "workloadTaskRole": null,
+  "businessWrites": 0,
+  "cloudActions": "one bounded read task; stop and deregister owned definition"
+}

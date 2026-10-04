@@ -1,0 +1,12 @@
+{
+  "at": "2026-10-04T22:00:36.422Z",
+  "sourceSha": "4b228386df0ddd2f34aea8f4bc1fcc1d1a8f985e",
+  "service": "meriv2-orchestrator",
+  "requestSha256": "ff5f51754dee87eab6d97dae2aa98979402a36aba716c274566aeb23047fe197",
+  "sourceQualificationSha256": "11d363a942ed6c016df97768794a828b457d950eb9feb0eb35b6fb31e6a94db6",
+  "sourceQualificationUrl": "https://github.com/neo-capiro/capirov2/blob/4b228386df0ddd2f34aea8f4bc1fcc1d1a8f985e/docs/meri/releases/2026-10-04/c2-sol-tenant-model/qualification.json",
+  "buildspecSha256": "984f64b4589f888e54fa7d3a6cf5ff1e36823221392492b8a91e6da54b9c8a5e",
+  "idempotencyToken": "903a3f45-cdbc-4261-9032-223dc39a47eb",
+  "authorization": "USER_AUTHORIZED_ESTABLISHED_CODEBUILD_BACKUP_SHIPPING",
+  "scope": "Immutable image build and ECR push; no service/config/schema/provider mutation"
+}

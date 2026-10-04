@@ -1,0 +1,38 @@
+{
+  "status": "LIVE_MODEL_AND_TOOL_CONTINUATION_PROBE_PASS",
+  "at": "2026-10-04T22:18:24.698Z",
+  "probeId": "a2ad88c7-a7f8-4a60-95e8-22b7200f13a9",
+  "model": "gpt-6.1-sol",
+  "tenantId": "17b63099-bc0f-4ac5-b596-496161e9481e",
+  "apiSourceSha": "34e5c37ce1a0d421f008d32cef08dd05e0cc2d7a",
+  "requests": 3,
+  "observations": [
+    {
+      "request": 1,
+      "inputTokens": 137,
+      "outputTokens": 72,
+      "conservativeCostMicros": 1791
+    },
+    {
+      "request": 2,
+      "inputTokens": 127,
+      "outputTokens": 21,
+      "conservativeCostMicros": 906
+    },
+    {
+      "request": 3,
+      "inputTokens": 181,
+      "outputTokens": 60,
+      "conservativeCostMicros": 1787
+    }
+  ],
+  "conservativeObservedCostMicros": 4484,
+  "permanentlyCommittedCeilingMicros": 1000000,
+  "answers": [
+    "Maya approved the Peregrine sensor-only dockside demonstration on September 24, 2026, scheduled for October 9, 2026, with a maximum budget of USD 42,000; live navigation was explicitly excluded [QUAL-41]. Funding confirmation remains pending, and no other approval is recorded [QUAL-41].",
+    "**Approved amount and scope:** USD 18,500 for bench sensor calibration only; field deployment is excluded. [QUAL-42]\n\n**Unresolved:** The source does not establish a delivery date; it states that a delivery date has not been agreed. [QUAL-42]"
+  ],
+  "acceptanceAuthority": false,
+  "humanRubric": "NOT_REVIEWED",
+  "scope": "Direct provider qualification through compiled shared client; not served Meri or Appendix F acceptance"
+}

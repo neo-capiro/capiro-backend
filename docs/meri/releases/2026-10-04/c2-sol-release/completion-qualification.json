@@ -1,0 +1,302 @@
+{
+  "status": "SOL_RELEASE_TENANT_CONFIGURATION_AND_BOUNDED_PROVIDER_PROBE_PASS",
+  "at": "2026-10-04T22:37:25.310844+00:00",
+  "sourceSha": "4b228386df0ddd2f34aea8f4bc1fcc1d1a8f985e",
+  "apiTask": 533,
+  "orchestratorTask": 125,
+  "webTask": 390,
+  "model": "gpt-6.1-sol",
+  "tenantSlug": "capiro-internal",
+  "originalAcceptance": {
+    "accepted": 0,
+    "total": 75
+  },
+  "cdAcceptance": {
+    "accepted": 0,
+    "total": 7
+  },
+  "humanRubric": "NOT_REVIEWED",
+  "case46": "NATIVE_PLAN_ONLY_NO_SETUP_OR_CAPTURE",
+  "reviewDisposition": {
+    "hermesVerdictPreserved": "BLOCKED",
+    "rootCounterevidence": "Original and reviewer copy of probe template hash03952787900766040d7b12d08c279d62d75f1ea1c5a0713a0be4f9748cbcc572 both passed node --check; claimed constructor text was absent. Root binding initially replaced both declaration and normalization string; failed bound artifact retained. Declaration-only binding passed syntax/hash checks and actual three-call live probe. Native allocation append and readback passed independently.",
+    "modelWriteReadback": "Exactly one model-only POST201. Initial audit filter used local clock lower bound later than database audit timestamp and excluded real row. Read-only reconciliation matched unique tenant/actor/entity/action/before/after audit and native model resolver, no second model write."
+  },
+  "artifactPins": [
+    {
+      "path": "deployment/api/qualification.json",
+      "bytes": 2229,
+      "sha256": "f4ae0b503f2e9d0361e5e998260ff746bc6f8f649a979beb1ce907318090643a"
+    },
+    {
+      "path": "deployment/api/manifest.json",
+      "bytes": 2985,
+      "sha256": "8e917d6cf02012b8deac960dfaa68a302ddd52326bc52b5e5e488be7a54a2077"
+    },
+    {
+      "path": "deployment/api/packet.json",
+      "bytes": 3364,
+      "sha256": "0e81e8a5e2447c362aaf33ca420411e6b67f4f94dd1a149247d0920be345cf9d"
+    },
+    {
+      "path": "deployment/api/authorization.json",
+      "bytes": 488,
+      "sha256": "0dccb27f9bdfbbef769b0ccf06d50326f34e0a8733bde19104becb3a66ceb055"
+    },
+    {
+      "path": "deployment/api/receipt.json",
+      "bytes": 1034,
+      "sha256": "dfd9a9cb890d05fd08d5cbf4ce5817f05514ed5219c713f6aabb68e183bbac6c"
+    },
+    {
+      "path": "deployment/meriv2-orchestrator/qualification.json",
+      "bytes": 2325,
+      "sha256": "3277ccdedec0ec4cc1808d9fec4d6b112f7225af28870ed446ee360081ebce38"
+    },
+    {
+      "path": "deployment/meriv2-orchestrator/manifest.json",
+      "bytes": 3113,
+      "sha256": "a60a7996681ee2cdf35ab8aba3a0ba56613b1e78bc122f9d1ce9e050f9e56c6b"
+    },
+    {
+      "path": "deployment/meriv2-orchestrator/packet.json",
+      "bytes": 3396,
+      "sha256": "22aa02edce6137258aad6dffb4e09b32bab3c9a3da03d87c27cdaceec2b4a00d"
+    },
+    {
+      "path": "deployment/meriv2-orchestrator/authorization.json",
+      "bytes": 488,
+      "sha256": "571604ed06c30bae0b37f13be4284c46606e11619a63de86b7156c59a1418124"
+    },
+    {
+      "path": "deployment/meriv2-orchestrator/receipt.json",
+      "bytes": 1114,
+      "sha256": "88eeaa69e8db524e6fc7b5fa304bde9de6259af47cf6e4db4193469ea9638d21"
+    },
+    {
+      "path": "deployment/served-readback.json",
+      "bytes": 4587,
+      "sha256": "d5a36584ed88a381ec99c1dc53b76f2e82f2909c4fa6812c9708a3b77ca4b5af"
+    },
+    {
+      "path": "tenant-model/intent.json",
+      "bytes": 863,
+      "sha256": "39f629e33d7c6a751a9f1d560802dd9f3dbd0a8b4f9ad41618fe66f51879c0f0"
+    },
+    {
+      "path": "tenant-model/response.json",
+      "bytes": 314,
+      "sha256": "45aeca40414738ddc3567aeadecbe7c21afd592563781a48f3b140abe7e2ec42"
+    },
+    {
+      "path": "tenant-model/readback.json",
+      "bytes": 529,
+      "sha256": "6a641e78f2b42aabf4f978f61cec27be29938984a866d5a9b88dc2431f8bca32"
+    },
+    {
+      "path": "tenant-model/reconciliation-required.json",
+      "bytes": 153,
+      "sha256": "4b144ad17ac7515af3a26e3b520950538c89de349f2164ca1f2fd2fabe8f9825"
+    },
+    {
+      "path": "tenant-model/reconciliation-read-v1.json",
+      "bytes": 1887,
+      "sha256": "7e8252c7e094e5381792bd8134969c7cb841fb79273f4c9b9e04e1e0d7ed88b2"
+    },
+    {
+      "path": "tenant-model/verified.json",
+      "bytes": 1447,
+      "sha256": "328416ee1c0efd64b3f7327fdb3c4930960124f359cfe1cf989c8417bc316c6a"
+    },
+    {
+      "path": "probe/execution/intent.json",
+      "bytes": 275,
+      "sha256": "36fc2ede17cd59249157c3551d4e1bfe2edf18a404371e37420d126f6eb45ecd"
+    },
+    {
+      "path": "probe/execution/request-1.json",
+      "bytes": 326,
+      "sha256": "cd134fee231dea9a111b3fcbb6604ef50a91c0d458295c4d0a97d6f34a4214b0"
+    },
+    {
+      "path": "probe/execution/request-2.json",
+      "bytes": 349,
+      "sha256": "bca2c0f34be3615f130709f2a985a58df6a3a9b9aa67b6b3c8927a0463a8d9cb"
+    },
+    {
+      "path": "probe/execution/request-3.json",
+      "bytes": 327,
+      "sha256": "c245dc92ca676931d7c8e75915f6e8268b3b6614159ea39c9db500b46a99276e"
+    },
+    {
+      "path": "probe/execution/response-1.json",
+      "bytes": 441,
+      "sha256": "077841114903a76658a97772daad1501765fac5ab3492c5a0a237b82224258c6"
+    },
+    {
+      "path": "probe/execution/response-2.json",
+      "bytes": 441,
+      "sha256": "a41390643ac1f61d8cdf46b7a099393be52d371967d253f2ba40639ada9914d9"
+    },
+    {
+      "path": "probe/execution/response-3.json",
+      "bytes": 441,
+      "sha256": "e31464ed9b861983bc10653ce93494c257c87fc76f9fb3968cd3c6ca00e94f1e"
+    },
+    {
+      "path": "probe/execution/result.json",
+      "bytes": 1537,
+      "sha256": "dd225e7454963d74857cb86c716369d915b16f362d31b5dc46b9dda3b6c499e2"
+    },
+    {
+      "path": "probe/plan.json",
+      "bytes": 2989,
+      "sha256": "ef64a7269334a057135484427f30f737a7df8ff8c57c4437612572a1cae899eb"
+    },
+    {
+      "path": "probe/operator-template.mjs",
+      "bytes": 10192,
+      "sha256": "03952787900766040d7b12d08c279d62d75f1ea1c5a0713a0be4f9748cbcc572"
+    },
+    {
+      "path": "probe/CONSUMED-bound-operator.mjs",
+      "bytes": 10254,
+      "sha256": "aaf97d97779262d047bb1c7f019761883417e9bd7ac8f3c7bbac703f65d010ff"
+    },
+    {
+      "path": "budget/qualification.json",
+      "bytes": 1392,
+      "sha256": "c1935503cebf99d28cedba91f83dc834479506ef38ae11f7c420d182322589eb"
+    },
+    {
+      "path": "budget/allocation-intent.json",
+      "bytes": 480,
+      "sha256": "1bcca123db6cdf05edb83639ba552d688c9c7f92fd5f9031b4954e851bd953a4"
+    },
+    {
+      "path": "budget/native-ack.json",
+      "bytes": 9995,
+      "sha256": "1dad755ad4199ac38b91ca086147583bb85a7ac1194fcdfc884a3665354068e1"
+    },
+    {
+      "path": "budget/result.json",
+      "bytes": 741,
+      "sha256": "686c8c3df99cd7fe342e57b46a78c0e3686d19f0d77013f3be8bcb150b73364e"
+    },
+    {
+      "path": "budget/tests-v2.log",
+      "bytes": 1297,
+      "sha256": "a69af53e257073ecfadc6d3a015c5371c8af7b4c539a8ec62051966f0bfe66a7"
+    },
+    {
+      "path": "budget/bound-operator-syntax-failure-v1.txt",
+      "bytes": 10316,
+      "sha256": "f7c017f783685d0b0a89aa9e590179d6b8a73d6bd7d02e34ccf172838458232d"
+    },
+    {
+      "path": "budget/native/windows-artifact-protocol.py",
+      "bytes": 6696,
+      "sha256": "3a30f6a211a5a7815c7f721dbb09871a33f316e7ecd8fbac0b4b1cf95ead33db"
+    },
+    {
+      "path": "budget/native/windows-capture-spend-bound.py",
+      "bytes": 63508,
+      "sha256": "efe11ae2cb50041609cfd5f376fc3ae4e0436f45899695ce5fa168818e57bf80"
+    },
+    {
+      "path": "budget/native/windows-owned-artifacts.py",
+      "bytes": 8713,
+      "sha256": "2316daa96906c1bf166adbeb72341024581dac82aa1f692f2554eb1ae82a40c1"
+    },
+    {
+      "path": "budget/tests/test_budget_amendment.py",
+      "bytes": 10296,
+      "sha256": "860a795b595e6c96484e6b83e3adce3db90ab12baf7e97a3d9da8418f49a7231"
+    },
+    {
+      "path": "review/REVIEW.md",
+      "bytes": 7976,
+      "sha256": "296bc4d8b02fff961bd83ae24af1e92e21114a8603d3a0dad8384080e64f1106"
+    },
+    {
+      "path": "review/execution.json",
+      "bytes": 995,
+      "sha256": "00327d2f6a5e89c90ed961f6167677bbf74a0b922b89388911f8613c21016c26"
+    },
+    {
+      "path": "review/response.txt",
+      "bytes": 719,
+      "sha256": "1a6a71c76a0911e95671a4508480e404cb70807af9e8f278fc3405fd0ed635f9"
+    },
+    {
+      "path": "case46-plan/intent.json",
+      "bytes": 647,
+      "sha256": "96e7e219276f83f23d87212f5d555a4a91743d0a6a116498f04581675034caf6"
+    },
+    {
+      "path": "case46-plan/definition-registered.json",
+      "bytes": 155,
+      "sha256": "5bc0666772b8b142d2c42bd29f850885cfe837ad687ec46ec0b6aca558be835f"
+    },
+    {
+      "path": "case46-plan/task-start.json",
+      "bytes": 341,
+      "sha256": "7af0d26004cc43801862a2829db4f2b9109f5a32b814fc4a7085658667c7292e"
+    },
+    {
+      "path": "case46-plan/result.json",
+      "bytes": 2653,
+      "sha256": "e26a78d019be6ee7555ab6f19a2a18450dac9a63d0c544aa5bfe06acbd7d5e30"
+    },
+    {
+      "path": "case46-plan/native-plan-readback.json",
+      "bytes": 1269,
+      "sha256": "24c2913d736675d54cd7e97adae58c02b4acf2fa5b6085c94b4b3cbcc510ebfc"
+    },
+    {
+      "path": "case46-plan/cleanup.json",
+      "bytes": 352,
+      "sha256": "50cdc304f18fa02269c0e060f406dc585a835d7fd0293c506de8ae899ca0598c"
+    },
+    {
+      "path": "case46-plan/journal-preserved.json",
+      "bytes": 104,
+      "sha256": "168d9ac4663ada57de60800b6381c687ee25224f24b69195ef6fcf8485126e8a"
+    },
+    {
+      "path": "operators/promote-sol-release-v1.mjs",
+      "bytes": 6902,
+      "sha256": "941535f5eed7753ea8543f2f3294b2e8ef582dac3040f1ee247ea5ab7e54d1e5"
+    },
+    {
+      "path": "operators/verify-sol-release-served-v1.mjs",
+      "bytes": 5650,
+      "sha256": "53d8f4b30e95767ecf6692460cdf381bfb7b79667f28dbc0d57db9d6bc15a25d"
+    },
+    {
+      "path": "operators/apply-internal-sol-model-once-v1.mjs",
+      "bytes": 6744,
+      "sha256": "9e8fe8574f7465124c3f6323a809a45a4ee002733caee757b492271643114b51"
+    },
+    {
+      "path": "operators/reconcile-internal-sol-model-read-v1.mjs",
+      "bytes": 1974,
+      "sha256": "da142bcda93a731fcc9146f32f003944b820e55659250d17bca55c010dc20040"
+    },
+    {
+      "path": "operators/finalize-internal-sol-reconciliation-v1.mjs",
+      "bytes": 3013,
+      "sha256": "28bf5cdb8419181c0ec9d0dda38c04358b394e9955139b251cdfe41056218f98"
+    },
+    {
+      "path": "operators/case46-native-plan-inner-root-v1.mjs",
+      "bytes": 2257,
+      "sha256": "d21af36816e3e2f400c5a1dd9960dc08e12d3da1dad2e4f3be2922e1105c65be"
+    },
+    {
+      "path": "operators/run-case46-native-plan-root-v1.mjs",
+      "bytes": 12909,
+      "sha256": "89098261407ae89b4c7e1ce44d5085ef941406b96813fa1fd03e600a92c422f5"
+    }
+  ]
+}

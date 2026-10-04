@@ -1,0 +1,9 @@
+{
+  "at": "2026-10-04T22:18:11.126Z",
+  "probeId": "a2ad88c7-a7f8-4a60-95e8-22b7200f13a9",
+  "planSha256": "ef64a7269334a057135484427f30f737a7df8ff8c57c4437612572a1cae899eb",
+  "maxRequests": 3,
+  "retries": 0,
+  "allocationMicros": 1000000,
+  "acceptanceAuthority": false
+}

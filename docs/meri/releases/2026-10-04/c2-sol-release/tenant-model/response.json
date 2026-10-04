@@ -1,0 +1,12 @@
+{
+  "httpStatus": 201,
+  "sourceSha": "4b228386df0ddd2f34aea8f4bc1fcc1d1a8f985e",
+  "maskedCredential": {
+    "provider": "openai",
+    "last4": "KfYA",
+    "modelOverride": "gpt-6.1-sol",
+    "status": "active",
+    "lastValidatedAt": "2026-06-12T04:18:18.547Z",
+    "updatedAt": "2026-10-04T22:34:14.759Z"
+  }
+}

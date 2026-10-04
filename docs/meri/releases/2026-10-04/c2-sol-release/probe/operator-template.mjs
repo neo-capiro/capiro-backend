@@ -1,0 +1,88 @@
+import assert from 'node:assert/strict';
+import {readFileSync,writeFileSync,mkdirSync,existsSync} from 'node:fs';
+import {createHash} from 'node:crypto';
+import {createRequire} from 'node:module';
+import {aws} from '../meri-fresh-20261003/auth-preflight.mjs';
+const PLAN_SHA256=null; // Root binds only after plan, funding owner and this operator are reviewed.
+const OUT='C:/dev/main/outputs/meri-c2-20261003';
+const PLAN=OUT+'/sol-live-probe-v1/plan.json';
+const RUN=OUT+'/sol-live-probe-v1/execution';
+const sha=b=>createHash('sha256').update(b).digest('hex');
+assert.match(PLAN_SHA256??'',/^[a-f0-9]{64}$/,'PROBE_UNBOUND');
+const planBytes=readFileSync(PLAN);assert.equal(sha(planBytes),PLAN_SHA256);const plan=JSON.parse(planBytes);
+const operatorSource=readFileSync(new URL(import.meta.url),'utf8').replace(/^const PLAN_SHA256='[a-f0-9]{64}';/m,'const PLAN_SHA256=null;');
+assert.equal(sha(operatorSource),plan.operatorSha256,'PROBE_OPERATOR_CHANGED');
+assert.equal(plan.kind,'sol-model-qualification-probe');assert.equal(plan.tenantId,'17b63099-bc0f-4ac5-b596-496161e9481e');
+assert.equal(plan.model,'gpt-6.1-sol');assert.equal(plan.maxRequests,3);assert.equal(plan.maxOutputTokens,1024);assert.equal(plan.maxRequestBytes,32768);
+assert.equal(plan.conservativeAllocationMicros,1000000);assert.equal(plan.acceptanceAuthority,false);
+// This funding check remains inert until the native owner supplies an exact reviewed ACK contract.
+assert.equal(plan.fundingOwnerQualified,true);
+const ack=JSON.parse(readFileSync(OUT+'/sol-probe-budget-root-v1/native-ack.json'));
+assert.equal(ack.ok,true);assert.equal(ack.event.probePlanSha256,PLAN_SHA256);assert.equal(ack.event.probeId,plan.probeId);
+assert.equal(ack.snapshot.conservativeModelQualificationCostMicros,1000000);
+assert.equal(ack.snapshot.maxCostMicros,500000000);assert.equal(ack.snapshot.activeRun,null);
+assert.equal(ack.state.files['fresh-spend.jsonl'].sha256,sha(readFileSync('C:/dev/main/outputs/meri-fresh-20261003/fresh-spend.jsonl')));
+const runtimeRoot='C:/dev/main/meri-c1-20261002/';
+const runtimePaths=['packages/meriv2-core/dist/llm/llm-client.js','packages/meriv2-core/dist/llm/openai-responses-adapter.js','packages/shared/dist/ai-model-policy.js','packages/shared/dist/index.js'].map(p=>runtimeRoot+p);
+assert.deepEqual(plan.runtimePins.map(p=>p.path).sort(),runtimePaths.sort(),'INCOMPLETE_RUNTIME_PIN_SET');
+for(const pin of plan.runtimePins)assert.equal(sha(readFileSync(pin.path)),pin.sha256);
+assert.match(plan.probeId,/^[a-f0-9-]{36}$/);assert.equal(typeof plan.summaryPrompt,'string');assert.equal(typeof plan.toolPrompt,'string');
+assert.equal(plan.toolResult.sourceId,'QUAL-42');assert.equal(plan.toolResult.amountUsd,18500);
+assert.equal(plan.resolver.origin,'https://os.capiro.ai');assert.equal(plan.resolver.account,'967807252336');assert.match(plan.resolver.releaseSha,/^[a-f0-9]{40}$/);
+assert.equal(existsSync(RUN),false,'PRIOR_PROBE_INTENT_DO_NOT_REPLAY');mkdirSync(RUN);
+const save=(name,value)=>writeFileSync(RUN+'/'+name,JSON.stringify(value,null,2)+'\n',{flag:'wx'});
+save('intent.json',{at:new Date().toISOString(),probeId:plan.probeId,planSha256:PLAN_SHA256,maxRequests:3,retries:0,allocationMicros:1000000,acceptanceAuthority:false});
+let requests=0,observedCostMicros=0;const observations=[];
+try{
+ assert.equal(aws(['sts','get-caller-identity']).Account,plan.resolver.account);
+ const service=aws(['ecs','describe-services','--cluster','capiro-dev','--services','capiro-dev-api']).services[0];
+ assert.equal(service.taskDefinition,plan.resolver.taskDefinition);
+ const td=aws(['ecs','describe-task-definition','--task-definition',service.taskDefinition]).taskDefinition;
+ const c=td.containerDefinitions.find(c=>c.name==='api');
+ assert.equal(c.image,plan.resolver.image);
+ assert.equal(c.environment.find(e=>e.name==='RELEASE_SHA')?.value,plan.resolver.releaseSha);
+ const env=c.environment?.filter(e=>e.name==='INTERNAL_SERVICE_SECRET')??[],refs=c.secrets?.filter(e=>e.name==='INTERNAL_SERVICE_SECRET')??[];
+ assert.equal(env.length+refs.length,1);
+ const secret=env[0]?.value??aws(['secretsmanager','get-secret-value','--secret-id',refs[0].valueFrom]).SecretString;
+ const resolved=await fetch('https://os.capiro.ai/api/internal/ai-credentials/resolve',{method:'POST',redirect:'error',signal:AbortSignal.timeout(30000),headers:{'Content-Type':'application/json','x-internal-service-secret':secret},body:JSON.stringify({tenantId:plan.tenantId,provider:'openai'})});
+ assert.equal(resolved.status,200);assert.equal(resolved.headers.get('x-capiro-release-sha'),plan.resolver.releaseSha);const credential=await resolved.json();
+ assert.equal(credential.resolved,true);assert.equal(credential.provider,'openai');assert.equal(credential.usedTenantKey,true);assert.equal(typeof credential.apiKey,'string');
+ const require=createRequire('C:/dev/main/meri-c1-20261002/packages/meriv2-core/package.json');
+ const {OpenAiLlmClient}=require('./dist/llm/llm-client.js');
+ const deadline=Date.now()+240000;
+ const guardedFetch=async(url,init)=>{
+  assert.equal(String(url),'https://api.openai.com/v1/responses');assert.equal(init.method,'POST');assert.ok(requests<3&&Date.now()<deadline);
+  const body=JSON.parse(String(init.body));assert.equal(body.model,plan.model);assert.equal(body.max_output_tokens,1024);assert.equal(body.store,false);
+  assert.ok((body.tools??[]).every(t=>t.type==='function'&&t.name==='lookup_record'));
+  body.service_tier='default';body.reasoning={...body.reasoning,effort:'low'};
+  const wire=JSON.stringify(body);assert.ok(Buffer.byteLength(wire)<=32768);
+  requests++;save('request-'+requests+'.json',{at:new Date().toISOString(),endpoint:String(url),model:body.model,maxOutputTokens:body.max_output_tokens,serviceTier:body.service_tier,reasoningEffort:body.reasoning.effort,requestBytes:Buffer.byteLength(wire),requestSha256:sha(wire),tools:(body.tools??[]).map(t=>t.name)});
+  const r=await fetch(url,{...init,body:wire,redirect:'error',signal:AbortSignal.any([init.signal,AbortSignal.timeout(Math.min(90000,deadline-Date.now()))].filter(Boolean))});
+  const raw=await r.text();assert.ok(Buffer.byteLength(raw)<=262144);assert.ok(!raw.includes(credential.apiKey)&&!raw.includes(secret));
+  const j=JSON.parse(raw);save('response-'+requests+'.json',{at:new Date().toISOString(),httpStatus:r.status,requestId:r.headers.get('x-request-id'),responseId:j.id??null,model:j.model??null,status:j.status??null,responseSha256:sha(raw),inputTokens:j.usage?.input_tokens??null,outputTokens:j.usage?.output_tokens??null,cachedInputTokens:j.usage?.input_tokens_details?.cached_tokens??null,errorCode:j.error?.code??null,errorType:j.error?.type??null});
+  assert.equal(r.status,200);assert.equal(j.model,plan.model);assert.equal(j.status,'completed');
+  assert.ok(Number.isSafeInteger(j.usage?.input_tokens)&&j.usage.input_tokens>=0);assert.ok(Number.isSafeInteger(j.usage?.output_tokens)&&j.usage.output_tokens>=0&&j.usage.output_tokens<=1024);
+  // Conservative long-context rates; ignore cache savings. The entire $1 stays committed.
+  const upper=Math.ceil(j.usage.input_tokens*4.4+j.usage.output_tokens*16.5);
+  observedCostMicros+=upper;assert.ok(observedCostMicros<=1000000);
+  observations.push({request:requests,inputTokens:j.usage.input_tokens,outputTokens:j.usage.output_tokens,conservativeCostMicros:upper});
+  return new Response(raw,{status:r.status,headers:{'Content-Type':'application/json'}});
+ };
+ const client=new OpenAiLlmClient({apiKey:credential.apiKey,model:plan.model,fetchImpl:guardedFetch,timeoutMs:90000});
+ const system='This is a synthetic model qualification sample. Answer only from the supplied source. Cite its source ID, separate approved scope from unresolved facts, and never invent an approval or action.';
+ const first=await client.completeWithTools({system,maxTokens:1024,messages:[{role:'user',content:plan.summaryPrompt}],tools:[]});
+ const firstText=first.content.filter(b=>b.type==='text').map(b=>b.text).join('');
+ assert.match(firstText,/42,?000/);assert.match(firstText,/QUAL-41/);assert.match(firstText,/fund/i);
+ const user={role:'user',content:plan.toolPrompt};
+ const tool={name:'lookup_record',description:'Read the named synthetic approved record.',input_schema:{type:'object',properties:{recordId:{type:'string',enum:['QUAL-42']}},required:['recordId'],additionalProperties:false}};
+ const second=await client.completeWithTools({system,maxTokens:1024,messages:[user],tools:[tool],toolChoice:{type:'tool',name:'lookup_record'}});
+ const calls=second.content.filter(b=>b.type==='tool_use');assert.equal(calls.length,1);assert.equal(calls[0].name,'lookup_record');assert.deepEqual(calls[0].input,{recordId:'QUAL-42'});
+ const third=await client.completeWithTools({system,maxTokens:1024,messages:[user,{role:'assistant',content:second.content},{role:'user',content:[{type:'tool_result',tool_use_id:calls[0].id,content:JSON.stringify(plan.toolResult)}]}],tools:[]});
+ const thirdText=third.content.filter(b=>b.type==='text').map(b=>b.text).join('');assert.match(thirdText,/18,?500/);assert.match(thirdText,/QUAL-42/);
+ assert.equal(requests,3);
+ save('result.json',{status:'LIVE_MODEL_AND_TOOL_CONTINUATION_PROBE_PASS',at:new Date().toISOString(),probeId:plan.probeId,model:plan.model,tenantId:plan.tenantId,apiSourceSha:resolved.headers.get('x-capiro-release-sha'),requests,observations,conservativeObservedCostMicros:observedCostMicros,permanentlyCommittedCeilingMicros:1000000,answers:[firstText,thirdText],acceptanceAuthority:false,humanRubric:'NOT_REVIEWED',scope:'Direct provider qualification through compiled shared client; not served Meri or Appendix F acceptance'});
+ console.log(JSON.stringify({status:'LIVE_MODEL_AND_TOOL_CONTINUATION_PROBE_PASS',requests,conservativeObservedCostMicros:observedCostMicros,committedCeilingMicros:1000000}));
+}catch(error){
+ save('failure.json',{at:new Date().toISOString(),status:'PROBE_FAILED_DO_NOT_REPLAY',requests,observations,conservativeObservedCostMicros:observedCostMicros,committedCeilingMicros:1000000,errorName:error?.name??'Error',acceptanceAuthority:false});
+ console.error('Sol qualification probe failed; inspect saved sanitized evidence. Do not replay.');process.exitCode=1;
+}

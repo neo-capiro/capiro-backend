@@ -1,0 +1,4 @@
+# Preserve byte-pinned build receipts, including Windows-created input files.
+* -text whitespace=cr-at-eol
+*.log -diff
+buildspec.json -diff

@@ -1,0 +1,90 @@
+{
+  "status": "CURRENT_SERVED_BASELINE_VERIFIED_READ_ONLY",
+  "at": "2026-10-04T22:09:00.288Z",
+  "sourceSha": "4b228386df0ddd2f34aea8f4bc1fcc1d1a8f985e",
+  "services": [
+    {
+      "service": "api",
+      "baseline": {
+        "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:531",
+        "serviceHash": "97ad19f74b30626b11997c00fe89be9683c08e8fb18b727a8fa7c1eba5f755d7",
+        "configHash": "973748a2b134b388a6027df6c5c099055a7e24f7b746eafbaae8cebad077258a",
+        "taskHash": "6a360a7bc0add54bf0bc02f9c392c2578833d4d984b5e5a58822d95051ae8929",
+        "imageDigest": "sha256:fed13cd307cd5113849949a1e5c1eb0ef4ce6cbcf0b6bc27e19574d820a6aa96",
+        "desiredCount": 2
+      },
+      "sourceSha": "34e5c37ce1a0d421f008d32cef08dd05e0cc2d7a",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:fed13cd307cd5113849949a1e5c1eb0ef4ce6cbcf0b6bc27e19574d820a6aa96",
+      "health": "ALL_RUNNING_TASKS_AND_ACTUAL_ALB_TARGETS_HEALTHY"
+    },
+    {
+      "service": "meriv2-orchestrator",
+      "baseline": {
+        "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:123",
+        "serviceHash": "1044f596b80ce117936828cd332ff0ab8005a774d6df17bf96a39f334013fabe",
+        "configHash": "3a4fabd2139e347cd8b45192579f2a3fbaaa6fc3678762b5252f727a4461951b",
+        "taskHash": "b97c3f9a891cea7412d0ade96eae537bd2433a8d8e6adb782d953d7829934242",
+        "imageDigest": "sha256:33ecf4fcaf2f691999d14d410b5f43539c13070d44a1135d148c68f41eda3369",
+        "desiredCount": 1
+      },
+      "sourceSha": "e60f37189f8c9b68ab7d5ef66e515ed3be4ec3c1",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:33ecf4fcaf2f691999d14d410b5f43539c13070d44a1135d148c68f41eda3369",
+      "health": "ALL_RUNNING_TASKS_AND_ACTUAL_ALB_TARGETS_HEALTHY"
+    },
+    {
+      "service": "web-vnext",
+      "baseline": {
+        "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web-vnext:390",
+        "serviceHash": "3493c2e6107a77aab2653bc923119b3300e4899310e11b81e1c3be351240254c",
+        "configHash": "453a3d5aedc3da7d989370b97669abf0c1b14efbacd2d1597990b9cac7d50ab7",
+        "taskHash": "2ffa123e80c546c0bb03083e2aadb39b8118377efbf6de0b685f758c3abfb3c4",
+        "imageDigest": "sha256:fb594dabc437723fa6a28a7a6adcd54b13f813fcc52130f8458692aac2e9c8c6",
+        "desiredCount": 1
+      },
+      "sourceSha": "c0f393f863bf73bd4e65e7a94e17c073e7be021e",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:fb594dabc437723fa6a28a7a6adcd54b13f813fcc52130f8458692aac2e9c8c6",
+      "health": "ALL_RUNNING_TASKS_AND_ACTUAL_ALB_TARGETS_HEALTHY"
+    }
+  ],
+  "retainedNightly": {
+    "rule": "capiro-dev-refresh-memory-graph",
+    "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api-migrate:136",
+    "ruleSha256": "4a9376120b272c60388f6986a7a20aa00bfa78a8feb3b44a3a804fd93c617947",
+    "targetSha256": "e5b98fe865035a7dfa2add1472df1617101714e08f65232fd232c606c4f2475a",
+    "taskInputSha256": "0b362cc5b50895bcc69d70536e2496b848c0ee7bc805d9d17c1c6f85261263a5"
+  },
+  "broadProjectionWorker": {
+    "state": "DISABLED",
+    "ruleSha256": "c1d73bb8c90de13f50b6849a3e1e35d8556a1ead89f0858757b42d907975cbc4"
+  },
+  "retirementCompatibility": [
+    {
+      "service": "api",
+      "status": "PASS",
+      "schemaChange": false,
+      "unchangedPaths": [
+        "apps/api/prisma",
+        "pnpm-lock.yaml",
+        "apps/api/Dockerfile",
+        "apps/api/package.json",
+        "apps/api/scripts/entrypoint.sh"
+      ],
+      "reason": "Credential model override and shared Sol model normalization/pricing are additive. Global defaults, schema, package lock and service container/runtime setup remain unchanged. Case12 planner/API lineage and packaged compatibility probes are retained."
+    },
+    {
+      "service": "meriv2-orchestrator",
+      "status": "PASS",
+      "schemaChange": false,
+      "unchangedPaths": [
+        "apps/api/prisma",
+        "pnpm-lock.yaml",
+        "apps/meriv2-orchestrator/Dockerfile",
+        "apps/meriv2-orchestrator/package.json",
+        "apps/meriv2-orchestrator/scripts/entrypoint.sh"
+      ],
+      "reason": "Credential model override and shared Sol model normalization/pricing are additive. Global defaults, schema, package lock and service container/runtime setup remain unchanged. Case12 planner/API lineage and packaged compatibility probes are retained."
+    }
+  ],
+  "awsWrites": 0,
+  "providerCalls": 0
+}

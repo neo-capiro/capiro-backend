@@ -1,0 +1,18 @@
+{
+  "status": "NATIVE_SOL_PROBE_ALLOCATION_AND_READBACK_PASS",
+  "at": "2026-10-04T22:18:03.525309+00:00",
+  "eventCount": 32,
+  "probeId": "a2ad88c7-a7f8-4a60-95e8-22b7200f13a9",
+  "planSha256": "ef64a7269334a057135484427f30f737a7df8ff8c57c4437612572a1cae899eb",
+  "priorBytesPreserved": 21723,
+  "journalSha256": "bb313b12f76dcc2f4660aa65baa6fbf4ed93386db6865a211423db38c834726c",
+  "nativeIdentityPreserved": true,
+  "authorizationUnchanged": true,
+  "knownSettledCostMicros": 15202947,
+  "conservativeApprovalCostMicros": 1000000,
+  "conservativeModelQualificationCostMicros": 1000000,
+  "committedCostMicros": 17202947,
+  "remainingReservationMicros": 482797053,
+  "providerCalls": 0,
+  "acceptanceAuthority": false
+}

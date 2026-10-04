@@ -1,0 +1,20 @@
+{
+  "status": "ROOT_REVIEW_AND_NATIVE_PREALLOCATION_READ_PASS",
+  "at": "2026-10-04T22:17:56.726200+00:00",
+  "planSha256": "ef64a7269334a057135484427f30f737a7df8ff8c57c4437612572a1cae899eb",
+  "probeId": "a2ad88c7-a7f8-4a60-95e8-22b7200f13a9",
+  "helperBeforeBindingSha256": "5d57ec5b0c3181024657bb7b86fd276348ccb23947127c8cb15c2f7d4b932ab5",
+  "boundHelperSha256": "efe11ae2cb50041609cfd5f376fc3ae4e0436f45899695ce5fa168818e57bf80",
+  "operatorNormalizedSha256": "03952787900766040d7b12d08c279d62d75f1ea1c5a0713a0be4f9748cbcc572",
+  "boundOperatorSha256": "aaf97d97779262d047bb1c7f019761883417e9bd7ac8f3c7bbac703f65d010ff",
+  "offlineTestsPassed": 7,
+  "nativePriorEventCount": 31,
+  "nativePriorJournalSha256": "610bb3291c49195bc12c1b44731ec8796a9c46a855928136fa2de8931c406f7f",
+  "reviewDisposition": {
+    "nativeFunding": "Hermes source-qualified allocation subject to root binding/native readback; root fixed impossible zero-history condition, incorrect directory identity, and malformed-state preflight. Seven tests pass.",
+    "probe": "Prior F1-F3 addressed. Claimed malformed constructor is not present in either actual file: original and reviewer copy have the same SHA256 and both node --check commands exit0. Exact compiled require resolution/pins independently verified."
+  },
+  "newJournalEvents": 0,
+  "providerCalls": 0,
+  "acceptanceAuthority": false
+}

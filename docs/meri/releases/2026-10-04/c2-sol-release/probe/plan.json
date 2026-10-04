@@ -1,0 +1,58 @@
+{
+  "kind": "sol-model-qualification-probe",
+  "version": 1,
+  "at": "2026-10-04T22:05:11.795Z",
+  "probeId": "a2ad88c7-a7f8-4a60-95e8-22b7200f13a9",
+  "tenantId": "17b63099-bc0f-4ac5-b596-496161e9481e",
+  "tenantSlug": "capiro-internal",
+  "model": "gpt-6.1-sol",
+  "sourceSha": "4b228386df0ddd2f34aea8f4bc1fcc1d1a8f985e",
+  "operatorSha256": "03952787900766040d7b12d08c279d62d75f1ea1c5a0713a0be4f9748cbcc572",
+  "maxRequests": 3,
+  "maxOutputTokens": 1024,
+  "maxRequestBytes": 32768,
+  "serviceTier": "default",
+  "reasoningEffort": "low",
+  "retries": 0,
+  "hostedTools": false,
+  "acceptanceAuthority": false,
+  "conservativeAllocationMicros": 1000000,
+  "fundingOwnerQualified": true,
+  "resolver": {
+    "origin": "https://os.capiro.ai",
+    "account": "967807252336",
+    "releaseSha": "34e5c37ce1a0d421f008d32cef08dd05e0cc2d7a",
+    "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:531",
+    "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:fed13cd307cd5113849949a1e5c1eb0ef4ce6cbcf0b6bc27e19574d820a6aa96"
+  },
+  "runtimePins": [
+    {
+      "path": "C:/dev/main/meri-c1-20261002/packages/meriv2-core/dist/llm/llm-client.js",
+      "sha256": "35793aaf6c92cc4802f79ee132c162f41fef2cf97074d6207bd8387186b106b7"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/packages/meriv2-core/dist/llm/openai-responses-adapter.js",
+      "sha256": "549a8909ba8626fc59bb1101f165a965b16dc2eb379d02e752ea3bde3489d14d"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/packages/shared/dist/ai-model-policy.js",
+      "sha256": "9a80a7b3a981153a92f81cec499866e4105d4632d349003b6ba9182aba7e4420"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/packages/shared/dist/index.js",
+      "sha256": "6e6e4623be7a3a7a149618eb70cf826ec1303cf3fd98f7eced3cfdea2984c26a"
+    }
+  ],
+  "summaryPrompt": "Summarize what was approved, its budget and date, and what remains unresolved in at most four sentences. Source QUAL-41 (synthetic): On September 24, 2026, Maya approved the Peregrine sensor-only dockside demonstration for October 9, 2026, with a maximum budget of USD 42,000. Live navigation was explicitly excluded. Funding confirmation remains pending. No other approval is recorded. Cite QUAL-41.",
+  "toolPrompt": "Read the synthetic record QUAL-42 using lookup_record. Then summarize its approved amount and scope, cite QUAL-42, and state whether the source establishes a delivery date. Do not use outside information.",
+  "toolResult": {
+    "sourceId": "QUAL-42",
+    "recordId": "QUAL-42",
+    "approved": true,
+    "amountUsd": 18500,
+    "approvedScope": "Bench sensor calibration only; no field deployment.",
+    "deliveryDate": null,
+    "sourceStatement": "The approved amount is USD 18,500. A delivery date has not been agreed."
+  },
+  "budgetDisposition": "Permanent conservative $1 allocation from existing $500 journal; observed usage never refunds it. No Appendix F case ID or acceptance authority."
+}
