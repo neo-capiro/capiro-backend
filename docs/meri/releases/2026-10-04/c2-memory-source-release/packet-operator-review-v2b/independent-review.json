@@ -1,0 +1,121 @@
+{
+  "at": "2026-10-04T07:55:48.246Z",
+  "status": "PASS_PACKET_OPERATOR_V2_PREPARATION_REVIEW",
+  "operator": {
+    "path": "C:/dev/main/outputs/meri-c2-20261003/prepare-case14-source-packet-v2.mjs",
+    "sha256": "f09ad7bef80df79f823bfb0f5967ec4c6758f0052036565b05e6c803c4c3d488",
+    "bytes": 10920,
+    "nodeSyntax": "PASS"
+  },
+  "resolvedFindings": [
+    "stale_pass_review_unbound",
+    "journal_can_drift_during_read_sequence"
+  ],
+  "checks": [
+    {
+      "name": "matching reviewed bytes",
+      "result": "PASS",
+      "outcome": "ACCEPTED_MATCHING_PRE_CLOUD_INPUTS",
+      "cloudCalls": 0,
+      "packetWrites": 0
+    },
+    {
+      "name": "stale review qualification SHA",
+      "result": "PASS",
+      "outcome": "REJECTED",
+      "cloudCalls": 0,
+      "packetWrites": 0
+    },
+    {
+      "name": "stale review source SHA",
+      "result": "PASS",
+      "outcome": "REJECTED",
+      "cloudCalls": 0,
+      "packetWrites": 0
+    },
+    {
+      "name": "different operator bytes",
+      "result": "PASS",
+      "outcome": "REJECTED",
+      "cloudCalls": 0,
+      "packetWrites": 0
+    },
+    {
+      "name": "altered qualification bytes",
+      "result": "PASS",
+      "outcome": "REJECTED",
+      "cloudCalls": 0,
+      "packetWrites": 0
+    },
+    {
+      "name": "artifact SHA drift",
+      "result": "PASS",
+      "outcome": "REJECTED",
+      "cloudCalls": 0,
+      "packetWrites": 0
+    },
+    {
+      "name": "artifact byte count drift",
+      "result": "PASS",
+      "outcome": "REJECTED",
+      "cloudCalls": 0,
+      "packetWrites": 0
+    },
+    {
+      "name": "missing qualified artifact",
+      "result": "PASS",
+      "outcome": "REJECTED",
+      "cloudCalls": 0,
+      "packetWrites": 0
+    },
+    {
+      "name": "missing used baseline pin",
+      "result": "PASS",
+      "outcome": "REJECTED",
+      "cloudCalls": 0,
+      "packetWrites": 0
+    },
+    {
+      "name": "journal drift",
+      "result": "PASS",
+      "outcome": "REJECTED",
+      "cloudCalls": 0,
+      "packetWrites": 0
+    },
+    {
+      "name": "final journal fence accepts unchanged bytes",
+      "result": "PASS",
+      "cloudCalls": 0,
+      "packetWrites": 0
+    },
+    {
+      "name": "final journal fence rejects changed bytes",
+      "result": "PASS",
+      "cloudCalls": 0,
+      "packetWrites": 0
+    }
+  ],
+  "checkCount": 12,
+  "scope": "Static source/call-graph inspection plus isolated pre-cloud gate prefix and isolated final journal fence against synthetic in-memory review bridge. Full generator not executed. No cloud calls or final packet generated.",
+  "versionedInputs": {
+    "qualificationSha256": "48fa688aadf19ede1ad4908113d656ce5ecf8bdad3fc8fcdd74668323d3491eb",
+    "sourceSha": "945179d44223882f9fe1da2fb4e41213bf5813c2",
+    "qualifiedArtifactPins": 30,
+    "allOriginalPinnedBytesStillMatch": true,
+    "reviewBridge": "Root has not yet written/versioned the final bridge; simulated matching expected contract for gate tests only."
+  },
+  "findings": [],
+  "preservedProperties": [
+    "Direct/transitive AWS calls are reads only; no promotion/register/update call reachable from this generator.",
+    "Candidate and rollback task construction changes image and release identity only; rollback retains current original identity.",
+    "Live API/orchestrator/Web baseline and nightly rule/target/task fingerprints remain required; candidate+rollback ECR digests are rechecked.",
+    "Human approval null and deployableManifest false retained; no C2 acceptance/capture/replay authority promoted.",
+    "Final journal equality fence occurs after all AWS reads, before packet construction and writes.",
+    "Packet now records raw qualification/review/operator hashes in addition to semantic fingerprint."
+  ],
+  "noAdditionalHermes": "Prior actual Hermes packet qualification already passed; this narrow local deterministic gate repair independently verified without another session.",
+  "cloudCalls": 0,
+  "finalPacketGenerated": false,
+  "repoEdits": false,
+  "v1FindingEvidencePreserved": true
+}

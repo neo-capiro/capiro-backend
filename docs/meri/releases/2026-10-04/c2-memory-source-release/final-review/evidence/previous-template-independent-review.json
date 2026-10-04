@@ -1,0 +1,349 @@
+{
+  "checkedAt": "2026-10-04T07:20:44.945551+00:00",
+  "result": "PASS_LOCAL_BACKUP_TEMPLATE_REVIEW",
+  "checks": [
+    {
+      "name": "api template hash/size",
+      "result": "PASS"
+    },
+    {
+      "name": "api exact phase set",
+      "result": "PASS"
+    },
+    {
+      "name": "api/pre_build fail closed wrapper",
+      "result": "PASS"
+    },
+    {
+      "name": "api/pre_build compressed command exact shape",
+      "result": "PASS"
+    },
+    {
+      "name": "api/pre_build lossless decompression",
+      "result": "PASS"
+    },
+    {
+      "name": "api/pre_build independent bash syntax",
+      "result": "PASS"
+    },
+    {
+      "name": "api/pre_build baseline v1 preserved",
+      "result": "PASS"
+    },
+    {
+      "name": "api/build fail closed wrapper",
+      "result": "PASS"
+    },
+    {
+      "name": "api/build compressed command exact shape",
+      "result": "PASS"
+    },
+    {
+      "name": "api/build lossless decompression",
+      "result": "PASS"
+    },
+    {
+      "name": "api/build independent bash syntax",
+      "result": "PASS"
+    },
+    {
+      "name": "api/build/python0 syntax",
+      "result": "PASS"
+    },
+    {
+      "name": "api/build/node0 syntax",
+      "result": "PASS"
+    },
+    {
+      "name": "api/build/node1 syntax",
+      "result": "PASS"
+    },
+    {
+      "name": "api/build/node2 syntax",
+      "result": "PASS"
+    },
+    {
+      "name": "api/build/node3 syntax",
+      "result": "PASS"
+    },
+    {
+      "name": "api/build/node4 syntax",
+      "result": "PASS"
+    },
+    {
+      "name": "api/build/node5 syntax",
+      "result": "PASS"
+    },
+    {
+      "name": "api/build/node6 syntax",
+      "result": "PASS"
+    },
+    {
+      "name": "api/build/node7 syntax",
+      "result": "PASS"
+    },
+    {
+      "name": "api/post_build fail closed wrapper",
+      "result": "PASS"
+    },
+    {
+      "name": "api/post_build compressed command exact shape",
+      "result": "PASS"
+    },
+    {
+      "name": "api/post_build lossless decompression",
+      "result": "PASS"
+    },
+    {
+      "name": "api/post_build independent bash syntax",
+      "result": "PASS"
+    },
+    {
+      "name": "api/post_build/python0 syntax",
+      "result": "PASS"
+    },
+    {
+      "name": "api/post_build baseline v1 preserved",
+      "result": "PASS"
+    },
+    {
+      "name": "api baseline marker inventory preserved",
+      "result": "PASS"
+    },
+    {
+      "name": "api all required markers in executable phases",
+      "result": "PASS"
+    },
+    {
+      "name": "api no service/deploy/DB commands",
+      "result": "PASS"
+    },
+    {
+      "name": "api postbuild requires success before push",
+      "result": "PASS"
+    },
+    {
+      "name": "meriv2-orchestrator template hash/size",
+      "result": "PASS"
+    },
+    {
+      "name": "meriv2-orchestrator exact phase set",
+      "result": "PASS"
+    },
+    {
+      "name": "meriv2-orchestrator/pre_build fail closed wrapper",
+      "result": "PASS"
+    },
+    {
+      "name": "meriv2-orchestrator/pre_build compressed command exact shape",
+      "result": "PASS"
+    },
+    {
+      "name": "meriv2-orchestrator/pre_build lossless decompression",
+      "result": "PASS"
+    },
+    {
+      "name": "meriv2-orchestrator/pre_build independent bash syntax",
+      "result": "PASS"
+    },
+    {
+      "name": "meriv2-orchestrator/pre_build baseline v1 preserved",
+      "result": "PASS"
+    },
+    {
+      "name": "meriv2-orchestrator/build fail closed wrapper",
+      "result": "PASS"
+    },
+    {
+      "name": "meriv2-orchestrator/build compressed command exact shape",
+      "result": "PASS"
+    },
+    {
+      "name": "meriv2-orchestrator/build lossless decompression",
+      "result": "PASS"
+    },
+    {
+      "name": "meriv2-orchestrator/build independent bash syntax",
+      "result": "PASS"
+    },
+    {
+      "name": "meriv2-orchestrator/build/python0 syntax",
+      "result": "PASS"
+    },
+    {
+      "name": "meriv2-orchestrator/build/python1 syntax",
+      "result": "PASS"
+    },
+    {
+      "name": "meriv2-orchestrator/build/node0 syntax",
+      "result": "PASS"
+    },
+    {
+      "name": "meriv2-orchestrator/build/node1 syntax",
+      "result": "PASS"
+    },
+    {
+      "name": "meriv2-orchestrator/build/node2 syntax",
+      "result": "PASS"
+    },
+    {
+      "name": "meriv2-orchestrator/build/node3 syntax",
+      "result": "PASS"
+    },
+    {
+      "name": "meriv2-orchestrator/post_build fail closed wrapper",
+      "result": "PASS"
+    },
+    {
+      "name": "meriv2-orchestrator/post_build compressed command exact shape",
+      "result": "PASS"
+    },
+    {
+      "name": "meriv2-orchestrator/post_build lossless decompression",
+      "result": "PASS"
+    },
+    {
+      "name": "meriv2-orchestrator/post_build independent bash syntax",
+      "result": "PASS"
+    },
+    {
+      "name": "meriv2-orchestrator/post_build/python0 syntax",
+      "result": "PASS"
+    },
+    {
+      "name": "meriv2-orchestrator/post_build baseline v1 preserved",
+      "result": "PASS"
+    },
+    {
+      "name": "meriv2-orchestrator baseline marker inventory preserved",
+      "result": "PASS"
+    },
+    {
+      "name": "meriv2-orchestrator all required markers in executable phases",
+      "result": "PASS"
+    },
+    {
+      "name": "meriv2-orchestrator no service/deploy/DB commands",
+      "result": "PASS"
+    },
+    {
+      "name": "meriv2-orchestrator postbuild requires success before push",
+      "result": "PASS"
+    },
+    {
+      "name": "API v1 source byte-semantic prefix preserved",
+      "result": "PASS"
+    },
+    {
+      "name": "API exact new packaged probe appended",
+      "result": "PASS"
+    },
+    {
+      "name": "Orchestrator exact v1 + intended 3 additions only",
+      "result": "PASS"
+    },
+    {
+      "name": "Orchestrator full baseline threshold preserved",
+      "result": "PASS"
+    },
+    {
+      "name": "api/pre_build qualified older template preserved",
+      "result": "PASS"
+    },
+    {
+      "name": "api/build qualified older template preserved",
+      "result": "PASS"
+    },
+    {
+      "name": "api/post_build qualified older template preserved",
+      "result": "PASS"
+    },
+    {
+      "name": "meriv2-orchestrator/pre_build qualified older template preserved",
+      "result": "PASS"
+    },
+    {
+      "name": "meriv2-orchestrator/build qualified older template preserved",
+      "result": "PASS"
+    },
+    {
+      "name": "meriv2-orchestrator/post_build qualified older template preserved",
+      "result": "PASS"
+    },
+    {
+      "name": "Preparation Python syntax",
+      "result": "PASS"
+    }
+  ],
+  "pins": [
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-backup-build-preparation-v2\\api\\buildspec.template.json",
+      "sha256": "b69ec8d59ab4a897f177c0a99c87a7fe0f4c3680c3a2e9b62126a97dbe91f258",
+      "bytes": 13997
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-backup-build-preparation-v2\\api\\pre_build.sh",
+      "sha256": "b2482d882549708861cd5a761b20e05740be23b71be442887a04af778eabf427",
+      "bytes": 880
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-backup-build-preparation-v2\\api\\build.sh",
+      "sha256": "9ceea86487ac7508f926a493cd86a8bc98dd2c8b42aa72896bf7f7bfbbe6a35c",
+      "bytes": 32970
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-backup-build-preparation-v2\\api\\post_build.sh",
+      "sha256": "fc6034cdd9ec8f0dfaa5e9ce39617f2518a35e227e335bfea4c9b48daa9d372d",
+      "bytes": 863
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-backup-build-preparation-v2\\meriv2-orchestrator\\buildspec.template.json",
+      "sha256": "2c385ca184bb7dd65770573eba645ccae735387019c4aea623aebe142e4acc7a",
+      "bytes": 12525
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-backup-build-preparation-v2\\meriv2-orchestrator\\pre_build.sh",
+      "sha256": "7214275629cfe2732e11020877ba4e0717d67711fe649f5eddb6f7b1b8d7c317",
+      "bytes": 1493
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-backup-build-preparation-v2\\meriv2-orchestrator\\build.sh",
+      "sha256": "0389dd21eeca07408010f15f55d64012eb21f0e0ab3983fef1a48ec1ec8ab7a7",
+      "bytes": 23479
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-backup-build-preparation-v2\\meriv2-orchestrator\\post_build.sh",
+      "sha256": "20b5e9bb3ba9f445f70dbaa058e126ef736992331e71b3cae5ee5dd6bfbc4d9d",
+      "bytes": 971
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\api-build-probe-supervised-v2\\buildspec.template.json",
+      "sha256": "cf24c5952b4bb2e458935d6678c26982d61677e6537d48798fe92fa4aad60b5f",
+      "bytes": 12385
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\combined-c2-build-preparation-v1\\templates\\meriv2-orchestrator\\buildspec.template.json",
+      "sha256": "67617283cc66959285174b78493e95b7d491bbfcb916b8592eb0980fd0aa3e0b",
+      "bytes": 12301
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\prepare-case14-backup-build-v2.py",
+      "sha256": "558025c6450937ee65f73dd9c2511d3ac5cfc0996d4d4fa24178d644d045e9fc",
+      "bytes": 4100
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-memory-source-packaged-probe-v1.cjs",
+      "sha256": "4508e681b2c335cbec72156e02037c3f9b1e3f9d71704651ff28ff7a65c78ac5",
+      "bytes": 3962
+    }
+  ],
+  "scope": "Read-only local source/syntax/decompression audit; no cloud, Docker build, provider, capture or deployment executed.",
+  "constraints": [
+    "Expected final source SHA is runtime-required but not frozen in these generic templates; start script must bind qualified source/candidate.",
+    "Orchestrator minimum retained at1564 although root final source suite reports1570; new Case01/14 names required individually. A future strengthened threshold belongs in a new frozen version.",
+    "Build dependency fetching, base image pulling, AWS identity/ECR reads/login and final ECR candidate image push are intended external operations; all source tests and runtime probes are network none.",
+    "API final image new seam is probed with synthetic context-plane records; this is not a live DB owner integration or acceptance capture.",
+    "No Actions dispatch, ECS deployment, migration execution, scheduler mutation, real provider call, or live case replay present.",
+    "Local scripts must be gated by actual successful build receipts/markers before image deployment."
+  ]
+}

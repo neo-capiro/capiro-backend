@@ -1,0 +1,101 @@
+{
+  "sourceSha": "945179d44223882f9fe1da2fb4e41213bf5813c2",
+  "copiedFiles": [
+    {
+      "path": "docs/meri/releases/2026-10-04/c2-case12-preparation/hermes/case12-next-prerequisites.md",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-next-prerequisites-hermes-v1\\case12-next-prerequisites.md",
+      "bytes": 15769,
+      "sha256": "3299b04ff8bcd814318683aca565f23e4b506d3cc8ff3c169dda9971dcfbd17e"
+    },
+    {
+      "path": "docs/meri/releases/2026-10-04/c2-case12-preparation/hermes/evidence/actual-event26-cost-closure.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-next-prerequisites-hermes-v1\\evidence\\actual-event26-cost-closure.json",
+      "bytes": 599,
+      "sha256": "3d32560aa9e725249db594b4cff6547dcba95fc82188e8d6858d0d9f7459391a"
+    },
+    {
+      "path": "docs/meri/releases/2026-10-04/c2-case12-preparation/hermes/evidence/manifest.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-next-prerequisites-hermes-v1\\evidence\\manifest.json",
+      "bytes": 12703,
+      "sha256": "df5ea100986ca055fac00d4e61248d315793a4ff883c620d5ff48b1e4605c9ca"
+    },
+    {
+      "path": "docs/meri/releases/2026-10-04/c2-case12-preparation/hermes/evidence/source-excerpts.md",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-next-prerequisites-hermes-v1\\evidence\\source-excerpts.md",
+      "bytes": 77121,
+      "sha256": "e7417cc75bdf7000f85ca1e0fcaf0f0e6d90ecfc75855a0b81145326200f8132"
+    },
+    {
+      "path": "docs/meri/releases/2026-10-04/c2-case12-preparation/hermes/execution.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-next-prerequisites-hermes-v1\\execution.json",
+      "bytes": 988,
+      "sha256": "7de7424e71226f9dc9fb12d0a5ccce1d3d9a5fe8504fb69bd4579ca69c2ad8ef"
+    },
+    {
+      "path": "docs/meri/releases/2026-10-04/c2-case12-preparation/hermes/prompt.txt",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-next-prerequisites-hermes-v1\\prompt.txt",
+      "bytes": 3398,
+      "sha256": "4fb3782418e4aee0a51dad0c5c704dbb90f0e0e01b080c04619434c2e8465ad5"
+    },
+    {
+      "path": "docs/meri/releases/2026-10-04/c2-case12-preparation/hermes/response.txt",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-next-prerequisites-hermes-v1\\response.txt",
+      "bytes": 277,
+      "sha256": "ab83a8daa2b62a791e16a573f6c8018d6d42d9f668e7dc05048c2abc31f4e952"
+    },
+    {
+      "path": "docs/meri/releases/2026-10-04/c2-case12-preparation/hermes/stderr.log",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-next-prerequisites-hermes-v1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/meri/releases/2026-10-04/c2-case12-preparation/hermes/usage.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-next-prerequisites-hermes-v1\\usage.json",
+      "bytes": 483,
+      "sha256": "75a50f4a9d1feed2abffa1a5373e248e89afaa047d3139f21932e8b8c3349a71"
+    },
+    {
+      "path": "docs/meri/releases/2026-10-04/c2-case12-preparation/independent-review/independent-review.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-next-prerequisites-independent-review-v1\\independent-review.json",
+      "bytes": 15971,
+      "sha256": "2dd0cb22a0f5b4828ba9f2c848f4c9b3668c13bdd28ec5bd224246137eb47f64"
+    },
+    {
+      "path": "docs/meri/releases/2026-10-04/c2-case12-preparation/independent-review/README.md",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-next-prerequisites-independent-review-v1\\README.md",
+      "bytes": 4910,
+      "sha256": "531d6ba6bad6f7ee4121cbf9072b7af1787d3a344a792a2c0bab987f6d092d42"
+    },
+    {
+      "path": "docs/meri/releases/2026-10-04/c2-case12-preparation/independent-review/supplemental-primary-excerpts.md",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-next-prerequisites-independent-review-v1\\supplemental-primary-excerpts.md",
+      "bytes": 10381,
+      "sha256": "e41e22c9a5c2f0150148af31b31bc0795fc13230fb49eaedaa719b10c6038d77"
+    },
+    {
+      "path": "docs/meri/releases/2026-10-04/c2-case12-preparation/retained-inventory-search/matching-paths.txt",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-retained-inventory-search-v1\\matching-paths.txt",
+      "bytes": 1055,
+      "sha256": "ccfe0983de9d21bfc26f639dee9129f645316d639fa42721712dab3b982a054d"
+    },
+    {
+      "path": "docs/meri/releases/2026-10-04/c2-case12-preparation/retained-inventory-search/README.md",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-retained-inventory-search-v1\\README.md",
+      "bytes": 4012,
+      "sha256": "180974a8bf0d6449929422213f405252dfff3b33d9c587f7962d54fab5a91e69"
+    },
+    {
+      "path": "docs/meri/releases/2026-10-04/c2-case12-preparation/retained-inventory-search/result.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-retained-inventory-search-v1\\result.json",
+      "bytes": 15041,
+      "sha256": "426ab58b508d260bea3e259ec7e641af563fb3008eb07b38e920f127e80dda70"
+    },
+    {
+      "path": "docs/meri/releases/2026-10-04/c2-case12-preparation/retained-inventory-search/source-excerpts.md",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-retained-inventory-search-v1\\source-excerpts.md",
+      "bytes": 32420,
+      "sha256": "fce44913a9d66010f61bda81b4eedaddadbeeb9ee185d1706ffb814964b5b145"
+    }
+  ]
+}

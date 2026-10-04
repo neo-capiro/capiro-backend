@@ -1,0 +1,46 @@
+{
+  "at": "2026-10-04T07:46:50.837271+00:00",
+  "status": "PASS_AUTOMATED_CANDIDATE_RELEASE_QUALIFICATION",
+  "sourceSha": "945179d44223882f9fe1da2fb4e41213bf5813c2",
+  "releaseQualificationSha256": "48fa688aadf19ede1ad4908113d656ce5ecf8bdad3fc8fcdd74668323d3491eb",
+  "hermesReviewSha256": "fbff3af965854978baa98d5145072037c46931457313f759c09b8a2cca5a4407",
+  "hermesExecutionSha256": "1f4b6e482978f06fccd2daae17314c14ff1f8d9adeba2d62cc9383aa8d4056d4",
+  "hermesModel": "openai/gpt-6-luna",
+  "hermesProvider": "openrouter",
+  "hermesModelOrProviderOverride": false,
+  "independentLocalChecks": {
+    "count": 116,
+    "sha256": "3ce11f203568e9bbf35f5414386d9290a4faef8d726417fc57177ce79b5bb918",
+    "allPassed": true,
+    "fullBuildLogsComparedToOriginals": true,
+    "copiedArtifactRecords": 27,
+    "mergedSourcePinsVerifiedAgainstGitBlobs": 45,
+    "schemaReceiptsReconstructed": true,
+    "privateSchemaInputInspectedForScopeOnly": "No task role, only four DB secret refs, no provider credential names; values not emitted or bundled."
+  },
+  "archiveFileCount": 31,
+  "archiveDrift": [],
+  "journal": {
+    "events": 26,
+    "bytes": 17588,
+    "sha256": "816b04a47be56432846d1ee602370c3bea985eb497a7de9e899aee4d53f8b39e",
+    "unchanged": true
+  },
+  "findings": [],
+  "minorReportClarifications": [
+    "Raw Hermes report says served-baseline.json and source qualification both pin journal26; journal authority actually comes from release-qualification.json, source qualification, schema/journal-preserved.json and the independently reread exact live journal bytes. served-baseline.json is configuration/service evidence. This does not change the automated qualification result."
+  ],
+  "limitations": [
+    "Review validates retained observations and exact candidate artifacts; it does not independently refresh cloud state.",
+    "Human approval remains null; deployableManifest false; no deployment or service update performed by reviewer.",
+    "Root must create fresh candidate-bound manifests/rollback packet and obtain the required exact approval before promotion.",
+    "Mixed API/orchestrator release identities cannot qualify acceptance captures.",
+    "Old failed Case14/consumed claims remain unchanged; no replay/reset authority created.",
+    "Full C2/CD/human/original prompt/final recall UI requirements remain open."
+  ],
+  "humanApproval": null,
+  "deploymentByReviewer": false,
+  "acceptancePromoted": false,
+  "repoEditsByReviewer": false,
+  "cloudCallsByReviewer": 0
+}

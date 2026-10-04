@@ -1,0 +1,357 @@
+{
+  "kind": "case12-next-prerequisites-independent-codex-review",
+  "at": "2026-10-04T07:48:53.314055+00:00",
+  "reviewer": "Codex delegated supervisor",
+  "disposition": "RESEARCH_USABLE_WITH_EXPLICIT_CLARIFICATIONS",
+  "sourceHeadAtInputFreeze": "945179d44223882f9fe1da2fb4e41213bf5813c2",
+  "hermesReport": {
+    "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-next-prerequisites-hermes-v1\\case12-next-prerequisites.md",
+    "bytes": 15769,
+    "sha256": "3299b04ff8bcd814318683aca565f23e4b506d3cc8ff3c169dda9971dcfbd17e"
+  },
+  "hermesExecution": {
+    "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-next-prerequisites-hermes-v1\\execution.json",
+    "bytes": 988,
+    "sha256": "7de7424e71226f9dc9fb12d0a5ccce1d3d9a5fe8504fb69bd4579ca69c2ad8ef"
+  },
+  "hermesUsage": {
+    "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-next-prerequisites-hermes-v1\\usage.json",
+    "bytes": 483,
+    "sha256": "75a50f4a9d1feed2abffa1a5373e248e89afaa047d3139f21932e8b8c3349a71"
+  },
+  "hermesRoute": {
+    "model": "openai/gpt-6-luna",
+    "provider": "openrouter",
+    "sessionId": "20261004_034132_e610e0",
+    "modelOverride": null,
+    "providerOverride": null,
+    "completed": true,
+    "researchApiCalls": 6,
+    "estimatedResearchCostUsd": 0.008597625000000001,
+    "costStatus": "estimated"
+  },
+  "clarifications": [
+    "The Hermes final go/no-go paragraph is a combined readiness-and-completion checklist. Original-prompt response, full passage/citation/terminal receipt, deterministic result and human rubric are post-capture acceptance evidence, not prerequisites that can already exist before the first capture. This review does not impose a new user approval gate.",
+    "Inspect retained exact fixture-instance/seed inventory and current canonical ownership before selecting reuse or creation. Current live MA510/corpus existence is unknown. The historical 510-row probe retired and rolled back its rows; it is not a reusable live corpus. Do not seed merely because that local probe was historical.",
+    "The existing createMemoryCaptureBindingRuntime is an explicit Case01-only pattern (line 50) and unconditionally returns fixtureReady:false with missing negative-corpus/seed/reset evidence (153-176). It is not a missing ready-to-use Case12 adapter.",
+    "An ordinary search/read tool can call queryEmbedding before its scoped DB read (adapter line 140). Keep future no-provider fixture census at a source-owned canonical inspection seam; do not call the search tool as a supposedly free preflight. Its current eligibility/read checks still need to be proven in the future read context.",
+    "Case12 is not one of the appendix Standard/Deep stratified subset cases. Preserve the actual original Case12 contract without adding a second paid mode obligation from other rows."
+  ],
+  "orderedNextWork": [
+    {
+      "order": 1,
+      "phase": "local preparation",
+      "work": "Locate retained exact manifest/fixture-instance and seed inventory, if any, and prepare a source-owned non-mutating inspection adapter for MA510 plus at least 500 distinct newer eligible Aster rows. Bind physical IDs, candidate/item versions, current ownership/approval, ordinary Pat scope and current source authority. Unknown inventory is not live absence."
+    },
+    {
+      "order": 2,
+      "phase": "local implementation/qualification",
+      "work": "Compose the actual approved-memory runtime with full application schema and isolated inert projection sinks in an explicitly owned disposable local environment, if necessary. Qualify Case12 current owner/readback and age/eligibility proof before any case-list changes. Do not resurrect retired fixture instances."
+    },
+    {
+      "order": 3,
+      "phase": "local implementation/qualification",
+      "work": "Add Case12-specific native capture binding and one-process collector, semantic-clock issue/readback plus compiler/tool joins, canonical per-call memory source proof, provider-budget/embedding plan and native aggregate admission. Test missing/foreign/stale owners, wrong tenant/client/version, late policy, replaced JSON capabilities and replay. Existing 01/14/20 capabilities cannot be relabeled."
+    },
+    {
+      "order": 4,
+      "phase": "future lead-owned live preflight",
+      "work": "After source qualification and required shipping, re-read actual runtime/auth/current corpus and then-current original aggregate. Either verify exact non-retired existing fixture reuse or separately qualify/account for new source-owned setup/projection. Reserve combined task scope at no more than min(15 USD, then-current available); retained event26 available is 13.799091 USD. Review rates through actual deadline. This research grants no admission."
+    },
+    {
+      "order": 5,
+      "phase": "future single capture and acceptance",
+      "work": "Run exactly the original question through ordinary governed recall under the issued Case12 policy; retain discovery evidence and stable full passage/version/canonical owner/citation joins, terminal signed receipt, UI/raw evidence, cleanup and cost settlement. Grade original deterministic predicate and obtain actual human source-dependent rubric. A direct known-ID read alone cannot pass recall. Case12 stays NOT_RUN until performed; no percentage or slice pass."
+    }
+  ],
+  "budget": {
+    "retainedJournalEventCount": 26,
+    "retainedJournalSha256": "816b04a47be56432846d1ee602370c3bea985eb497a7de9e899aee4d53f8b39e",
+    "aggregateCeilingMicros": 30000000,
+    "knownCostMicros": 15200909,
+    "conservativeApprovalCommitmentMicros": 1000000,
+    "approvalBilledActualMicros": null,
+    "totalCommittedMicros": 16200909,
+    "availableMicros": 13799091,
+    "perCaseCeilingMicros": 15000000,
+    "concurrency": 1,
+    "newCase12Admission": false,
+    "currentNativeJournalReadThisLane": false,
+    "source": {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-next-prerequisites-inputs-v1\\actual-event26-cost-closure.json",
+      "bytes": 599,
+      "sha256": "3d32560aa9e725249db594b4cff6547dcba95fc82188e8d6858d0d9f7459391a"
+    }
+  },
+  "supplementalSourcePins": [
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\fixture-provisioning\\capture-binding-runtime.mjs",
+      "bytes": 7753,
+      "sha256": "527fc5358eec0884b7159ddbdde07abd14736a299fb08d8f3c4e918ae2f7e17a",
+      "relativePath": "evals/meri/live-v1/fixture-provisioning/capture-binding-runtime.mjs",
+      "ranges": [
+        [
+          13,
+          57
+        ],
+        [
+          153,
+          185
+        ]
+      ]
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\fixture-provisioning\\approved-memory-retirement-owner.mjs",
+      "bytes": 6106,
+      "sha256": "84ce879940d2edf83004faf690739e6a9fef4091675fb640980a1d370529f668",
+      "relativePath": "evals/meri/live-v1/fixture-provisioning/approved-memory-retirement-owner.mjs",
+      "ranges": [
+        [
+          21,
+          65
+        ],
+        [
+          108,
+          134
+        ]
+      ]
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\apps\\api\\src\\retrieval\\adapters\\institutional-knowledge-retrieval.adapter.ts",
+      "bytes": 36320,
+      "sha256": "bde82251b71fb7d2e86fee9d6928bd4b3fc686b4385f16be19057c864817b819",
+      "relativePath": "apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.ts",
+      "ranges": [
+        [
+          125,
+          155
+        ]
+      ]
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\cases.mjs",
+      "bytes": 62128,
+      "sha256": "5464412ee66b73f677cc923bda09b4785a866b20ef0ee6a3410936c431c5ba0a",
+      "relativePath": "evals/meri/live-v1/cases.mjs",
+      "ranges": [
+        [
+          153,
+          165
+        ]
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "check": "frozen_input_copy",
+      "name": "manifest.json",
+      "passed": true,
+      "sha256": "df5ea100986ca055fac00d4e61248d315793a4ff883c620d5ff48b1e4605c9ca"
+    },
+    {
+      "check": "frozen_input_copy",
+      "name": "source-excerpts.md",
+      "passed": true,
+      "sha256": "e7417cc75bdf7000f85ca1e0fcaf0f0e6d90ecfc75855a0b81145326200f8132"
+    },
+    {
+      "check": "frozen_input_copy",
+      "name": "actual-event26-cost-closure.json",
+      "passed": true,
+      "sha256": "3d32560aa9e725249db594b4cff6547dcba95fc82188e8d6858d0d9f7459391a"
+    },
+    {
+      "check": "frozen_source_still_matches",
+      "path": "docs/meri/implementation/01-Meri-Foundation-Closeout-Plan-2026-10-02.md",
+      "passed": true,
+      "sha256": "10f32a3af65196d41dd7ae890f88839657bc8a25fbeaa4639065e73adca4722d"
+    },
+    {
+      "check": "frozen_source_still_matches",
+      "path": "evals/meri/live-v1/source/appendix-f.md",
+      "passed": true,
+      "sha256": "987c7417a12e1f3718db969c2519324f804fe55f4ee7d6673307b6621d98dfda"
+    },
+    {
+      "check": "frozen_source_still_matches",
+      "path": "evals/meri/live-v1/fixture.mjs",
+      "passed": true,
+      "sha256": "8915e19424520a2f97b9cd5a389fcf4b39f2823f0526573ffd04a1dfe0fbc398"
+    },
+    {
+      "check": "frozen_source_still_matches",
+      "path": "evals/meri/live-v1/deterministic-predicates.mjs",
+      "passed": true,
+      "sha256": "eae567c091417837bdb171c10b714003aa56f1ee60e4a7b1d5153124ff58cff4"
+    },
+    {
+      "check": "frozen_source_still_matches",
+      "path": "evals/meri/live-v1/fixture-provisioning/approved-memory-runtime.md",
+      "passed": true,
+      "sha256": "992ed70916c420f56595db2957e408ada7ff69b17db651eb2219a461e7c2ab9c"
+    },
+    {
+      "check": "frozen_source_still_matches",
+      "path": "evals/meri/live-v1/fixture-provisioning/approved-memory-runtime.mjs",
+      "passed": true,
+      "sha256": "b814c5f904594130d0e35bbb0d4a1f49ec77a5f96c1544fcf9e6969784f278ac"
+    },
+    {
+      "check": "frozen_source_still_matches",
+      "path": "docs/meri/implementation/01-continuation-2026-09-30.md",
+      "passed": true,
+      "sha256": "7deb31a21f4d767eef01e53b178396671f2a8b82bb66826be6759f402e0802f8"
+    },
+    {
+      "check": "frozen_source_still_matches",
+      "path": "evals/meri/live-v1/fixture-provisioning/manifest.mjs",
+      "passed": true,
+      "sha256": "8f1276ef0aaaef9b648bb1cbd0a037ee7d11d0a78db9691ab4de70b3b5db667a"
+    },
+    {
+      "check": "frozen_source_still_matches",
+      "path": "evals/meri/live-v1/case01-live-capture.mjs",
+      "passed": true,
+      "sha256": "9872ee2fb91b05547030331dd22258727bb6fbcf13537f6e3d94b6fd9f325a83"
+    },
+    {
+      "check": "frozen_source_still_matches",
+      "path": "evals/meri/live-v1/controlled-read-live-capture.mjs",
+      "passed": true,
+      "sha256": "e22e8d6022053a685276468710bb8521ae516ac21b7fabf995cc60b07e04ca63"
+    },
+    {
+      "check": "frozen_source_still_matches",
+      "path": "evals/meri/live-v1/fixture-provisioning/controlled-read-owner.mjs",
+      "passed": true,
+      "sha256": "da36d0a71b88731270dd6cfcea054f08740f49450f4d5551426b51af784e483f"
+    },
+    {
+      "check": "frozen_source_still_matches",
+      "path": "packages/meriv2-core/src/context/server-readonly-capture.ts",
+      "passed": true,
+      "sha256": "3d924a36100fb601bf943acbbb991f49bea37b91aec2d9dabf1e3c76f4f8ee3a"
+    },
+    {
+      "check": "frozen_source_still_matches",
+      "path": "packages/meriv2-core/src/context/memory-capture-source.ts",
+      "passed": true,
+      "sha256": "63b501da79d2f26454ff9050a56137df27fdaa9a7706ea9fcc9f94f3ac1dd30a"
+    },
+    {
+      "check": "frozen_source_still_matches",
+      "path": "apps/api/src/meri/meri-capture-semantic-clock.ts",
+      "passed": true,
+      "sha256": "9e3a7ed2a76ed98e0dafc4d47f489e6a53d5590e7a8a09a8813b77fd9cf2737c"
+    },
+    {
+      "check": "frozen_source_still_matches",
+      "path": "apps/api/src/meri/meri-capture-policy-readback.ts",
+      "passed": true,
+      "sha256": "3858a6f7d7212fc8f9de31f1ed165e742269db5e94a9fad37b4398f401c04e07"
+    },
+    {
+      "check": "frozen_source_still_matches",
+      "path": "apps/api/src/meri/meri-capture-clock-packets.ts",
+      "passed": true,
+      "sha256": "69827fd74b2abccdc2d1910cc5588032342acac311487a7b6854fb3629d3b455"
+    },
+    {
+      "check": "frozen_source_still_matches",
+      "path": "apps/api/src/meri/meri-capture-provider-budget.ts",
+      "passed": true,
+      "sha256": "29e6ab4ed50291a2626c132c8298ae0fb93eeac3d6a9f9f3d8c4953a56df614e"
+    },
+    {
+      "check": "frozen_source_still_matches",
+      "path": "apps/api/src/meri/meri-capture-provider-budget-install.ts",
+      "passed": true,
+      "sha256": "cec72704ca51409ced548a1acc9da37ac285d75b4b30f7b95950991f3d3ab82a"
+    },
+    {
+      "check": "frozen_source_still_matches",
+      "path": "apps/api/src/meri/meri-capture-api-provider-scope.ts",
+      "passed": true,
+      "sha256": "902572b670a3f102b41c4b02ee0486346a497fe5ebe3b8afbbd6921b2182d019"
+    },
+    {
+      "check": "frozen_source_still_matches",
+      "path": "evals/meri/live-v1/capture-spend-aggregate.mjs",
+      "passed": true,
+      "sha256": "2a7ad0acb1ca83b2f965f4f09375880cc3fc95afdff0a49bf3d138fbc025f433"
+    },
+    {
+      "check": "frozen_source_still_matches",
+      "path": "evals/meri/live-v1/lib/windows-capture-spend.py",
+      "passed": true,
+      "sha256": "9bf4efe4ebf8706e66ed48a58fe2cc5e68a73f6492831f6d28e91e73d8507e10"
+    },
+    {
+      "check": "frozen_source_still_matches",
+      "path": "apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.ts",
+      "passed": true,
+      "sha256": "bde82251b71fb7d2e86fee9d6928bd4b3fc686b4385f16be19057c864817b819"
+    },
+    {
+      "check": "frozen_source_still_matches",
+      "path": "apps/api/src/meri/meri-memory-content.helpers.ts",
+      "passed": true,
+      "sha256": "269859235ff3a5d1427f0448c366884b4b4d072e6c84f902059ed24edb567a2b"
+    },
+    {
+      "check": "frozen_source_still_matches",
+      "path": "docs/meri/releases/2026-10-04/c2-case14-approved-failed-recall/case14-terminal-cost-finalization-v2/executed-once/result.json",
+      "passed": true,
+      "sha256": "3d32560aa9e725249db594b4cff6547dcba95fc82188e8d6858d0d9f7459391a"
+    },
+    {
+      "check": "hermes_completion_file",
+      "path": "case12-next-prerequisites.md",
+      "passed": true,
+      "sha256": "3299b04ff8bcd814318683aca565f23e4b506d3cc8ff3c169dda9971dcfbd17e"
+    },
+    {
+      "check": "hermes_completion_file",
+      "path": "prompt.txt",
+      "passed": true,
+      "sha256": "4fb3782418e4aee0a51dad0c5c704dbb90f0e0e01b080c04619434c2e8465ad5"
+    },
+    {
+      "check": "hermes_completion_file",
+      "path": "response.txt",
+      "passed": true,
+      "sha256": "ab83a8daa2b62a791e16a573f6c8018d6d42d9f668e7dc05048c2abc31f4e952"
+    },
+    {
+      "check": "hermes_completion_file",
+      "path": "stderr.log",
+      "passed": true,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "check": "hermes_completion_file",
+      "path": "usage.json",
+      "passed": true,
+      "sha256": "75a50f4a9d1feed2abffa1a5373e248e89afaa047d3139f21932e8b8c3349a71"
+    },
+    {
+      "check": "configured_route_and_success",
+      "passed": true
+    }
+  ],
+  "scope": {
+    "preparationOnly": true,
+    "repositorySourceEdits": 0,
+    "cloudCalls": 0,
+    "applicationModelProviderCalls": 0,
+    "databaseCalls": 0,
+    "nativeJournalMutations": 0,
+    "fixtureSetupResetOrMutation": false,
+    "captureAuthorityGranted": false,
+    "originalCase12": "NOT_RUN",
+    "originalPrompt": "NOT_RUN",
+    "humanRubric": "NOT_RUN",
+    "currentLiveCorpus": "UNKNOWN_NOT_READ",
+    "caseClosed": false
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "service": "api",
+  "buildId": "capiro-build-web-dev:e7fa2d19-a094-4806-9c74-b592667ba1ce",
+  "sourceSha": "945179d44223882f9fe1da2fb4e41213bf5813c2",
+  "status": "IN_PROGRESS",
+  "buildspecSha256": "b69ec8d59ab4a897f177c0a99c87a7fe0f4c3680c3a2e9b62126a97dbe91f258",
+  "candidateSha256": "10351350523db52910b4f83ed67151c15a7982af3098ff985b38177253cb495b",
+  "startedAt": "2026-10-04T07:32:44.853Z",
+  "scope": "Immutable candidate build only; production release NOT_RUN"
+}

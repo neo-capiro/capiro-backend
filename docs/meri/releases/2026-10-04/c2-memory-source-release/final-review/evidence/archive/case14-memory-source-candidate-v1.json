@@ -1,0 +1,31 @@
+{
+  "kind": "case14-memory-source-two-image-candidate",
+  "at": "2026-10-04T07:32:27.052131+00:00",
+  "sourceSha": "945179d44223882f9fe1da2fb4e41213bf5813c2",
+  "mergedPullRequest": {
+    "baseRefOid": "d7437fe72532252cf3047027c53bcb6d1ef37e15",
+    "headRefOid": "9d922f4d4d6b95d7fdc779724951b9c48b79b8f1",
+    "mergeCommit": {
+      "oid": "945179d44223882f9fe1da2fb4e41213bf5813c2"
+    },
+    "mergedAt": "2026-10-04T07:31:20Z",
+    "number": 1941,
+    "state": "MERGED",
+    "url": "https://github.com/neo-capiro/capirov2/pull/1941"
+  },
+  "sourceCheckpointSha256": "0b825aaf0c2c5140d166afcc628706649428d7d7e6263e05a8f9783a72e45307",
+  "reviewSha256": "b27ce00d14003b7d46ea4178f0169f1b308a45959867a1ecd7755a394c206872",
+  "templateChecksSha256": "1dd1dbb9620f6622fd8418241a94bdc551b0938fadaa86575b458fd99c7a6b49",
+  "operatorAssessmentSha256": "0a7f15970ab378e52df467f5d6eef69ae4dd46e2db20882d86d7c17a7023c3ef",
+  "backupAuthorization": "USER_REQUEST_USE_BACKUP_SHIPPING_METHOD",
+  "services": [
+    "api",
+    "meriv2-orchestrator"
+  ],
+  "schemaChange": false,
+  "configurationChange": false,
+  "modelChange": false,
+  "deployment": "NOT_RUN",
+  "c2Complete": false,
+  "liveCaptureReplayAllowed": false
+}

@@ -1,0 +1,472 @@
+{
+  "at": "2026-10-04T07:43:53.645621+00:00",
+  "result": "PASS_LOCAL_RELEASE_ARTIFACT_JOIN",
+  "checks": [
+    {
+      "name": "release qualification exact hash",
+      "result": "PASS"
+    },
+    {
+      "name": "27 copied artifact records",
+      "result": "PASS"
+    },
+    {
+      "name": "exact copy builds/api/build-start.json",
+      "result": "PASS"
+    },
+    {
+      "name": "exact copy builds/api/build-readback.json",
+      "result": "PASS"
+    },
+    {
+      "name": "exact copy builds/api/buildspec.json",
+      "result": "PASS"
+    },
+    {
+      "name": "exact copy builds/api/build-input.json",
+      "result": "PASS"
+    },
+    {
+      "name": "exact copy builds/api/launch-intent.json",
+      "result": "PASS"
+    },
+    {
+      "name": "exact copy builds/api/build.log",
+      "result": "PASS"
+    },
+    {
+      "name": "exact copy builds/meriv2-orchestrator/build-start.json",
+      "result": "PASS"
+    },
+    {
+      "name": "exact copy builds/meriv2-orchestrator/build-readback.json",
+      "result": "PASS"
+    },
+    {
+      "name": "exact copy builds/meriv2-orchestrator/buildspec.json",
+      "result": "PASS"
+    },
+    {
+      "name": "exact copy builds/meriv2-orchestrator/build-input.json",
+      "result": "PASS"
+    },
+    {
+      "name": "exact copy builds/meriv2-orchestrator/launch-intent.json",
+      "result": "PASS"
+    },
+    {
+      "name": "exact copy builds/meriv2-orchestrator/build.log",
+      "result": "PASS"
+    },
+    {
+      "name": "exact copy case14-memory-source-candidate-v1.json",
+      "result": "PASS"
+    },
+    {
+      "name": "exact copy case14-memory-source-qualification-v1.json",
+      "result": "PASS"
+    },
+    {
+      "name": "exact copy inspect-case14-source-release-v1.mjs",
+      "result": "PASS"
+    },
+    {
+      "name": "exact copy read-case14-source-schema-v1.mjs",
+      "result": "PASS"
+    },
+    {
+      "name": "exact copy case14-source-schema-inner-v1.mjs",
+      "result": "PASS"
+    },
+    {
+      "name": "exact copy served-baseline.json",
+      "result": "PASS"
+    },
+    {
+      "name": "exact copy schema/cleanup.json",
+      "result": "PASS"
+    },
+    {
+      "name": "exact copy schema/definition-registered.json",
+      "result": "PASS"
+    },
+    {
+      "name": "exact copy schema/intent.json",
+      "result": "PASS"
+    },
+    {
+      "name": "exact copy schema/journal-preserved.json",
+      "result": "PASS"
+    },
+    {
+      "name": "exact copy schema/log-transport-pages.json",
+      "result": "PASS"
+    },
+    {
+      "name": "exact copy schema/readback-transport.json",
+      "result": "PASS"
+    },
+    {
+      "name": "exact copy schema/result.json",
+      "result": "PASS"
+    },
+    {
+      "name": "exact copy schema/schema-proof.json",
+      "result": "PASS"
+    },
+    {
+      "name": "exact copy schema/task-start.json",
+      "result": "PASS"
+    },
+    {
+      "name": "candidate merged exact source and qualification",
+      "result": "PASS"
+    },
+    {
+      "name": "candidate user backup authorization and source review",
+      "result": "PASS"
+    },
+    {
+      "name": "merged source pin apps/api/Dockerfile",
+      "result": "PASS"
+    },
+    {
+      "name": "merged source pin apps/api/prisma/schema.prisma",
+      "result": "PASS"
+    },
+    {
+      "name": "merged source pin apps/api/src/meri/meri-action-proposal.http.spec.ts",
+      "result": "PASS"
+    },
+    {
+      "name": "merged source pin apps/api/src/meri/meri-chat-attachment-transport.http.spec.ts",
+      "result": "PASS"
+    },
+    {
+      "name": "merged source pin apps/api/src/meri/meri-memory-content.helpers.spec.ts",
+      "result": "PASS"
+    },
+    {
+      "name": "merged source pin apps/api/src/meri/meri-memory-content.helpers.ts",
+      "result": "PASS"
+    },
+    {
+      "name": "merged source pin apps/api/src/meri/meri-server-readonly-capture.ts",
+      "result": "PASS"
+    },
+    {
+      "name": "merged source pin apps/api/src/meri/meri-tool-request-control.spec.ts",
+      "result": "PASS"
+    },
+    {
+      "name": "merged source pin apps/api/src/meri/meri-tool-request-control.ts",
+      "result": "PASS"
+    },
+    {
+      "name": "merged source pin apps/api/src/meri/meri-tools.memory-capture-source.spec.ts",
+      "result": "PASS"
+    },
+    {
+      "name": "merged source pin apps/api/src/meri/meri-tools.service.ts",
+      "result": "PASS"
+    },
+    {
+      "name": "merged source pin apps/api/src/meri/meri.controller.ts",
+      "result": "PASS"
+    },
+    {
+      "name": "merged source pin apps/api/src/meri/tool-service-secret.guard.ts",
+      "result": "PASS"
+    },
+    {
+      "name": "merged source pin apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.spec.ts",
+      "result": "PASS"
+    },
+    {
+      "name": "merged source pin apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.ts",
+      "result": "PASS"
+    },
+    {
+      "name": "merged source pin apps/meriv2-orchestrator/Dockerfile",
+      "result": "PASS"
+    },
+    {
+      "name": "merged source pin apps/meriv2-orchestrator/src/meri/api-tool-executor.repo.ts",
+      "result": "PASS"
+    },
+    {
+      "name": "merged source pin apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts",
+      "result": "PASS"
+    },
+    {
+      "name": "merged source pin apps/meriv2-orchestrator/src/meri/controlled-read-observations.ts",
+      "result": "PASS"
+    },
+    {
+      "name": "merged source pin apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts",
+      "result": "PASS"
+    },
+    {
+      "name": "merged source pin apps/meriv2-orchestrator/src/meri/meriv3/meriv3-capture-evidence.ts",
+      "result": "PASS"
+    },
+    {
+      "name": "merged source pin apps/meriv2-orchestrator/src/meri/meriv3/meriv3-tool-evidence.ts",
+      "result": "PASS"
+    },
+    {
+      "name": "merged source pin apps/meriv2-orchestrator/src/request/trusted-current-turn-scope.ts",
+      "result": "PASS"
+    },
+    {
+      "name": "merged source pin evals/meri/live-v1/capture-spend-aggregate.mjs",
+      "result": "PASS"
+    },
+    {
+      "name": "merged source pin evals/meri/live-v1/case01-live-capture.mjs",
+      "result": "PASS"
+    },
+    {
+      "name": "merged source pin evals/meri/live-v1/case01-receipt-joins.mjs",
+      "result": "PASS"
+    },
+    {
+      "name": "merged source pin evals/meri/live-v1/case14-approval-capture.mjs",
+      "result": "PASS"
+    },
+    {
+      "name": "merged source pin evals/meri/live-v1/case14-approval-cost-authority.mjs",
+      "result": "PASS"
+    },
+    {
+      "name": "merged source pin evals/meri/live-v1/case14-approval-cost-evidence.json",
+      "result": "PASS"
+    },
+    {
+      "name": "merged source pin evals/meri/live-v1/case14-postapproval-task-authority.mjs",
+      "result": "PASS"
+    },
+    {
+      "name": "merged source pin evals/meri/live-v1/lib/windows-capture-spend.py",
+      "result": "PASS"
+    },
+    {
+      "name": "merged source pin evals/meri/live-v1/tests/capture-spend-aggregate.test.mjs",
+      "result": "PASS"
+    },
+    {
+      "name": "merged source pin evals/meri/live-v1/tests/capture-spend-fresh.test.mjs",
+      "result": "PASS"
+    },
+    {
+      "name": "merged source pin evals/meri/live-v1/tests/capture-spend-fresh.unit.py",
+      "result": "PASS"
+    },
+    {
+      "name": "merged source pin evals/meri/live-v1/tests/capture-spend-reconciliation.test.mjs",
+      "result": "PASS"
+    },
+    {
+      "name": "merged source pin evals/meri/live-v1/tests/capture-spend-terminal.test.mjs",
+      "result": "PASS"
+    },
+    {
+      "name": "merged source pin evals/meri/live-v1/tests/capture-spend-v2.test.mjs",
+      "result": "PASS"
+    },
+    {
+      "name": "merged source pin evals/meri/live-v1/tests/case14-approval-cost-authority.test.mjs",
+      "result": "PASS"
+    },
+    {
+      "name": "merged source pin evals/meri/live-v1/tests/case14-capture.test.mjs",
+      "result": "PASS"
+    },
+    {
+      "name": "merged source pin packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "result": "PASS"
+    },
+    {
+      "name": "merged source pin packages/meriv2-core/src/context/memory-capture-source.spec.ts",
+      "result": "PASS"
+    },
+    {
+      "name": "merged source pin packages/meriv2-core/src/context/memory-capture-source.ts",
+      "result": "PASS"
+    },
+    {
+      "name": "merged source pin packages/meriv2-core/src/index.ts",
+      "result": "PASS"
+    },
+    {
+      "name": "merged source pin pnpm-lock.yaml",
+      "result": "PASS"
+    },
+    {
+      "name": "merged source pin scripts/validate-meri-build-isolation.py",
+      "result": "PASS"
+    },
+    {
+      "name": "qualified templates bound",
+      "result": "PASS"
+    },
+    {
+      "name": "api exact intent/request/candidate/source",
+      "result": "PASS"
+    },
+    {
+      "name": "api exact source checkpoint",
+      "result": "PASS"
+    },
+    {
+      "name": "api exact buildspec across request/receipt/template",
+      "result": "PASS"
+    },
+    {
+      "name": "api request project and only EXPECTED_SHA override",
+      "result": "PASS"
+    },
+    {
+      "name": "api build success exact id and candidate digest",
+      "result": "PASS"
+    },
+    {
+      "name": "api exact full log bytes",
+      "result": "PASS"
+    },
+    {
+      "name": "api all actual line-exact markers",
+      "result": "PASS"
+    },
+    {
+      "name": "api exact published source/image marker",
+      "result": "PASS"
+    },
+    {
+      "name": "api runtime/architecture",
+      "result": "PASS"
+    },
+    {
+      "name": "api/pre_build executed template decode matches reviewed script",
+      "result": "PASS"
+    },
+    {
+      "name": "api/build executed template decode matches reviewed script",
+      "result": "PASS"
+    },
+    {
+      "name": "api/post_build executed template decode matches reviewed script",
+      "result": "PASS"
+    },
+    {
+      "name": "meriv2-orchestrator exact intent/request/candidate/source",
+      "result": "PASS"
+    },
+    {
+      "name": "meriv2-orchestrator exact source checkpoint",
+      "result": "PASS"
+    },
+    {
+      "name": "meriv2-orchestrator exact buildspec across request/receipt/template",
+      "result": "PASS"
+    },
+    {
+      "name": "meriv2-orchestrator request project and only EXPECTED_SHA override",
+      "result": "PASS"
+    },
+    {
+      "name": "meriv2-orchestrator build success exact id and candidate digest",
+      "result": "PASS"
+    },
+    {
+      "name": "meriv2-orchestrator exact full log bytes",
+      "result": "PASS"
+    },
+    {
+      "name": "meriv2-orchestrator all actual line-exact markers",
+      "result": "PASS"
+    },
+    {
+      "name": "meriv2-orchestrator exact published source/image marker",
+      "result": "PASS"
+    },
+    {
+      "name": "meriv2-orchestrator runtime/architecture",
+      "result": "PASS"
+    },
+    {
+      "name": "native orchestrator exact actual counts",
+      "result": "PASS"
+    },
+    {
+      "name": "meriv2-orchestrator/pre_build executed template decode matches reviewed script",
+      "result": "PASS"
+    },
+    {
+      "name": "meriv2-orchestrator/build executed template decode matches reviewed script",
+      "result": "PASS"
+    },
+    {
+      "name": "meriv2-orchestrator/post_build executed template decode matches reviewed script",
+      "result": "PASS"
+    },
+    {
+      "name": "schema receipt exact BEGIN CHUNK END reconstruction",
+      "result": "PASS"
+    },
+    {
+      "name": "schema inner script bound",
+      "result": "PASS"
+    },
+    {
+      "name": "owned schema task/definition lineage and cleanup",
+      "result": "PASS"
+    },
+    {
+      "name": "schema task no workload role and only DB secret refs",
+      "result": "PASS"
+    },
+    {
+      "name": "schema exact read-only script executed",
+      "result": "PASS"
+    },
+    {
+      "name": "schema READ ONLY before any catalog query",
+      "result": "PASS"
+    },
+    {
+      "name": "schema609/provenance/index/retirement assertions",
+      "result": "PASS"
+    },
+    {
+      "name": "api schema/dependency/container invariant diff empty",
+      "result": "PASS"
+    },
+    {
+      "name": "meriv2-orchestrator schema/dependency/container invariant diff empty",
+      "result": "PASS"
+    },
+    {
+      "name": "web-vnext schema/dependency/container invariant diff empty",
+      "result": "PASS"
+    },
+    {
+      "name": "served API523/orch119/Web390 retained baseline",
+      "result": "PASS"
+    },
+    {
+      "name": "schedule baseline remains pinned",
+      "result": "PASS"
+    },
+    {
+      "name": "journal remains26 exactbytes",
+      "result": "PASS"
+    },
+    {
+      "name": "no false approval/deployment/acceptance promotion",
+      "result": "PASS"
+    }
+  ],
+  "scope": "Independent local full-byte/source/receipt join. No cloud query, deployment, provider capture or human approval. Snapshot readback freshness still root next step.",
+  "count": 116
+}

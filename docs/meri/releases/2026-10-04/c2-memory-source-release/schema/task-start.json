@@ -1,0 +1,6 @@
+{
+  "at": "2026-10-04T07:36:21.310Z",
+  "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/f1f7927d5466475991b1462fb4de6b08",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-c2-memory-source-schema-20261004:1",
+  "scriptSha256": "4d8808af4b92dd4133f0c74410082e876630ede11fea2d168ac50b6ffed48ac7"
+}

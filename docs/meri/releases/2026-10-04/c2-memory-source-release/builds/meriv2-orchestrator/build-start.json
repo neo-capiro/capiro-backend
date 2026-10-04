@@ -1,0 +1,10 @@
+{
+  "service": "meriv2-orchestrator",
+  "buildId": "capiro-build-web-dev:3588b57f-4e9f-4d14-8585-c3f751759a6e",
+  "sourceSha": "945179d44223882f9fe1da2fb4e41213bf5813c2",
+  "status": "IN_PROGRESS",
+  "buildspecSha256": "2c385ca184bb7dd65770573eba645ccae735387019c4aea623aebe142e4acc7a",
+  "candidateSha256": "10351350523db52910b4f83ed67151c15a7982af3098ff985b38177253cb495b",
+  "startedAt": "2026-10-04T07:32:59.023Z",
+  "scope": "Immutable candidate build only; production release NOT_RUN"
+}

@@ -1,0 +1,284 @@
+{
+  "kind": "case14-canonical-memory-source-qualification",
+  "at": "2026-10-04T07:24:57.522376+00:00",
+  "status": "SOURCE_QUALIFICATION_PASS",
+  "sourceBase": "e9828285a2a3315eca1e13e37307fe4c81027017",
+  "checks": {
+    "coreFocusedPassed": 97,
+    "coreBuild": "PASS",
+    "orchestratorFullPassed": 1570,
+    "orchestratorFullSkipped": 2,
+    "orchestratorFullSuites": 130,
+    "orchestratorTypecheck": "PASS",
+    "apiProjectionAdapterContextHttpPassed": 92,
+    "apiSourceServicePassed": 17,
+    "apiRequestControllerRegressionPassed": 17,
+    "apiFullTypecheck": "PASS 8GB --noEmit --rootDir .",
+    "independentFrozenRequestControlChecks": 16,
+    "hermesV2": "PASS_SOURCE_TRUST_BOUNDARY",
+    "backupTemplateIndependentChecks": 68
+  },
+  "sourcePins": [
+    {
+      "path": "apps/api/Dockerfile",
+      "bytes": 12443,
+      "sha256": "839f291b4baa6bc99f77f93d514ffcaeaa273e3586ab5324696dc8ed4024db6a"
+    },
+    {
+      "path": "apps/api/prisma/schema.prisma",
+      "bytes": 964030,
+      "sha256": "41fb55c8f2357b9bc2246de813d1e093e3e0bd240538048bbb514c5a4d4fe1d2"
+    },
+    {
+      "path": "apps/api/src/meri/meri-action-proposal.http.spec.ts",
+      "bytes": 16403,
+      "sha256": "bfb40e004e65e36378dfe69504123d58e6de5ad21063066ad2a6e6d61fa936cc"
+    },
+    {
+      "path": "apps/api/src/meri/meri-chat-attachment-transport.http.spec.ts",
+      "bytes": 7088,
+      "sha256": "4388e82be10c691358e99aec99d611b9b500ab7dce10f7ee5fc457d812396d70"
+    },
+    {
+      "path": "apps/api/src/meri/meri-memory-content.helpers.spec.ts",
+      "bytes": 3991,
+      "sha256": "8e91a77d5b8b3002513ac7aa2f4cc16356c7db0fad877e935e2478be06a1b31a"
+    },
+    {
+      "path": "apps/api/src/meri/meri-memory-content.helpers.ts",
+      "bytes": 5709,
+      "sha256": "269859235ff3a5d1427f0448c366884b4b4d072e6c84f902059ed24edb567a2b"
+    },
+    {
+      "path": "apps/api/src/meri/meri-server-readonly-capture.ts",
+      "bytes": 21162,
+      "sha256": "689ddc776123be123c6181ebf7459ce747ae4eb99ad841a8966d8db87210ac93"
+    },
+    {
+      "path": "apps/api/src/meri/meri-tool-request-control.spec.ts",
+      "bytes": 1584,
+      "sha256": "ce5f236ae55d84db57150cb5ef5f0dffab79ff62a1e0c6b2e9d829fa90c5eed4"
+    },
+    {
+      "path": "apps/api/src/meri/meri-tool-request-control.ts",
+      "bytes": 3365,
+      "sha256": "d7bc98fb4ece8e15d03c539b78891c06b1c68056efb03521139f462d3c6cf5b5"
+    },
+    {
+      "path": "apps/api/src/meri/meri-tools.memory-capture-source.spec.ts",
+      "bytes": 11955,
+      "sha256": "295a9fab3c7bb7474ba667588b59c942bf1f8c805830b4cb599b1f0dd0589d87"
+    },
+    {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "bytes": 408100,
+      "sha256": "6292083cf3df78314bf1bacf2afe1dc02aad916716e7608b1f9e92ac8c145352"
+    },
+    {
+      "path": "apps/api/src/meri/meri.controller.ts",
+      "bytes": 45118,
+      "sha256": "14b72090b98ac6913052cdf7d3fa5b44a43e3e71e7c80ceb7b7053e52602ffa8"
+    },
+    {
+      "path": "apps/api/src/meri/tool-service-secret.guard.ts",
+      "bytes": 2604,
+      "sha256": "75eb2806606057758c0b5e56741bcc97cdb7ef29f94f6a472d9d01ea26bf15ca"
+    },
+    {
+      "path": "apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.spec.ts",
+      "bytes": 40489,
+      "sha256": "f146bcb662abfa8b80e2feb0c82fe41da45a45b7490f5df9298372d126e78fd9"
+    },
+    {
+      "path": "apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.ts",
+      "bytes": 36320,
+      "sha256": "bde82251b71fb7d2e86fee9d6928bd4b3fc686b4385f16be19057c864817b819"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/Dockerfile",
+      "bytes": 7136,
+      "sha256": "1f4ec2752e99bfbce75877f27d36894678cc8d5bf3e504f5cc9404d1961d9d0c"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/api-tool-executor.repo.ts",
+      "bytes": 13668,
+      "sha256": "6feca0ed1e065689ec2b728d28ad17610dcd98682064c8fa5359246fd3ae784a"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts",
+      "bytes": 35811,
+      "sha256": "548bba26caebbf4368d4726ddb47774cb74187ce08ba12ed7d3f13aef7327871"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/controlled-read-observations.ts",
+      "bytes": 15612,
+      "sha256": "290512e0948ad7c955f2a7af096286dbaede1d89a879ac43ca13e34890c67682"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts",
+      "bytes": 172222,
+      "sha256": "e2c49a4356ce2cdffdef62b1abcb3e85a247630e763ac5e9d847c00f604aad6f"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-capture-evidence.ts",
+      "bytes": 11931,
+      "sha256": "de4afce7959c293b29a75d9bc94d6aaf47248fcee7ed8a9c40a99120dfd76eea"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-tool-evidence.ts",
+      "bytes": 26451,
+      "sha256": "f64fe34a5220b82e7d7ee85c85d85bd21efbf6f37da54b93ea4874afd52e9a68"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/request/trusted-current-turn-scope.ts",
+      "bytes": 4427,
+      "sha256": "60b4c10a62af06c3d95520fcfef7e4a923bb99315a8e6277517f9f1fa6ee0158"
+    },
+    {
+      "path": "evals/meri/live-v1/capture-spend-aggregate.mjs",
+      "bytes": 25625,
+      "sha256": "2a7ad0acb1ca83b2f965f4f09375880cc3fc95afdff0a49bf3d138fbc025f433"
+    },
+    {
+      "path": "evals/meri/live-v1/case01-live-capture.mjs",
+      "bytes": 25051,
+      "sha256": "9872ee2fb91b05547030331dd22258727bb6fbcf13537f6e3d94b6fd9f325a83"
+    },
+    {
+      "path": "evals/meri/live-v1/case01-receipt-joins.mjs",
+      "bytes": 14295,
+      "sha256": "89c136eeedccc448e709ad905255ac76afa12aefe502c866efacc83aef2c0ac9"
+    },
+    {
+      "path": "evals/meri/live-v1/case14-approval-capture.mjs",
+      "bytes": 33454,
+      "sha256": "fcea0961cc531ffe98104ecc8c6d3dc6d6083cc972d1879e7b340991a9e1046d"
+    },
+    {
+      "path": "evals/meri/live-v1/case14-approval-cost-authority.mjs",
+      "bytes": 10833,
+      "sha256": "c50e632592de167ad01d51a9d6b5a15972eef8de565fbdea05f9a024c8998717"
+    },
+    {
+      "path": "evals/meri/live-v1/case14-approval-cost-evidence.json",
+      "bytes": 4770,
+      "sha256": "aa63a7378883f152c1d8180cc0796fc5dc2bb4ad61e68df9030d52b9a754aa33"
+    },
+    {
+      "path": "evals/meri/live-v1/case14-postapproval-task-authority.mjs",
+      "bytes": 13156,
+      "sha256": "da8577bfd83a3a841c74720de44dd4ab826f5b29274849d69d7f7d5eca281d43"
+    },
+    {
+      "path": "evals/meri/live-v1/lib/windows-capture-spend.py",
+      "bytes": 31942,
+      "sha256": "9bf4efe4ebf8706e66ed48a58fe2cc5e68a73f6492831f6d28e91e73d8507e10"
+    },
+    {
+      "path": "evals/meri/live-v1/tests/capture-spend-aggregate.test.mjs",
+      "bytes": 10099,
+      "sha256": "68fe11ac0af4653408b4e37b3d2ce91feaa0a13db9129f8dee49ad7296a4ce35"
+    },
+    {
+      "path": "evals/meri/live-v1/tests/capture-spend-fresh.test.mjs",
+      "bytes": 14954,
+      "sha256": "9f2e2637cae9031b857e268259e760f8199835a5adf5ff87b81a4c750f6da74f"
+    },
+    {
+      "path": "evals/meri/live-v1/tests/capture-spend-fresh.unit.py",
+      "bytes": 22013,
+      "sha256": "bbdd306485ae8cd057fe19a85939ef3973c0ac6040ba053192be39e957205af6"
+    },
+    {
+      "path": "evals/meri/live-v1/tests/capture-spend-reconciliation.test.mjs",
+      "bytes": 11225,
+      "sha256": "96717a0e6b988a2eb85cac0e5c040d06fd9f3af37ffca6cc9066cf35a229a754"
+    },
+    {
+      "path": "evals/meri/live-v1/tests/capture-spend-terminal.test.mjs",
+      "bytes": 7946,
+      "sha256": "c80eb01dd920c74a1035e38d3d1e458ee672c91fb49670d7122ae38e7f3af72e"
+    },
+    {
+      "path": "evals/meri/live-v1/tests/capture-spend-v2.test.mjs",
+      "bytes": 8221,
+      "sha256": "2b9e43525af5063c0fc502bd1ccb1b8f7402c1edb442b60439e30f9736cc1e6e"
+    },
+    {
+      "path": "evals/meri/live-v1/tests/case14-approval-cost-authority.test.mjs",
+      "bytes": 3686,
+      "sha256": "6cb85c5d79b10c6426f0161ebfa3d2be8b4cb0103f4e1111242968cfc4673185"
+    },
+    {
+      "path": "evals/meri/live-v1/tests/case14-capture.test.mjs",
+      "bytes": 12461,
+      "sha256": "71af76577a0b17413842edc3cff9cebb96a59ddab86c4e149675262d1c76e35d"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "bytes": 24863,
+      "sha256": "affe70118364d44bdb5b13e55cd15edde2ce863323ecca4afa9644e0def74ab0"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/memory-capture-source.spec.ts",
+      "bytes": 6160,
+      "sha256": "a71a8222c011779e324064de717935adbccebaee3e7b74739fdf39ffdb8dd871"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/memory-capture-source.ts",
+      "bytes": 8692,
+      "sha256": "63b501da79d2f26454ff9050a56137df27fdaa9a7706ea9fcc9f94f3ac1dd30a"
+    },
+    {
+      "path": "packages/meriv2-core/src/index.ts",
+      "bytes": 4104,
+      "sha256": "0369ee78126d119ad617ea333b054180e08fd3e4d3c09df4608211c37efd37d9"
+    },
+    {
+      "path": "pnpm-lock.yaml",
+      "bytes": 723417,
+      "sha256": "c90a15fc2ca3c9405062444adfdb346293d27f51a45488476db891f4c3204586"
+    },
+    {
+      "path": "scripts/validate-meri-build-isolation.py",
+      "bytes": 9641,
+      "sha256": "3da56fd74367928cdb70be0046d41abd06764ca80f25f84b0228d38c40eef626"
+    }
+  ],
+  "sourceReviewSha256": "b27ce00d14003b7d46ea4178f0169f1b308a45959867a1ecd7755a394c206872",
+  "sourceAssessmentSha256": "c4504fc4a47facdf105ada89ce8a203ac8904d4d0aa5ec17fdc761d72293fa52",
+  "previousQualifiedCheckpointSha256": "9d56b631ac462901967b297d27111f27c0ac5b0f7faca50bfb9dd80dbe263ed9",
+  "templateChecksSha256": "1dd1dbb9620f6622fd8418241a94bdc551b0938fadaa86575b458fd99c7a6b49",
+  "productionOperations": 0,
+  "schemaChange": false,
+  "configurationChange": false,
+  "c2Complete": false,
+  "acceptancePromoted": false,
+  "captureReplayAllowed": false,
+  "limitations": [
+    "Null-client canonical memory remains UNKNOWN for current Case01/14 client-bound receipt; no tenant/client inferred.",
+    "Long citation snippets that differ from the exact proved page do not establish ownership.",
+    "Proof hashes serialize parsed JSON; they are not raw HTTP octet hashes.",
+    "API-side nonce consumption cache is not added; actual orchestrator invocation nonce prevents response substitution.",
+    "Initial context/turn coverage and semantic-date answer issue remain open.",
+    "Previous failed Case14 capture and consumed claims remain unchanged; original prompt/final recall UI/human rubric NOT_RUN."
+  ],
+  "retainedFailures": [
+    "Hermes source-authority v1 analysis only, v2 timeout124 without implementation",
+    "Initial core test type errors",
+    "Initial loopback fixture shape failure",
+    "Hermes proof v1 rejected same-policy replay; v2 repaired and passed",
+    "API new spec passed Jest but failed strict tsc; test typing corrected and rerun passed"
+  ],
+  "spendUnchanged": {
+    "events": 26,
+    "bytes": 17588,
+    "sha256": "816b04a47be56432846d1ee602370c3bea985eb497a7de9e899aee4d53f8b39e",
+    "knownUsd": 15.200909,
+    "conservativeApprovalUsd": 1,
+    "committedUsd": 16.200909,
+    "availableUsd": 13.799091
+  },
+  "builds": "NOT_RUN",
+  "deployment": "NOT_RUN"
+}

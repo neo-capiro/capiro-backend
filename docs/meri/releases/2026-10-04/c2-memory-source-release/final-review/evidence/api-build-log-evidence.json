@@ -1,0 +1,88 @@
+{
+  "service": "api",
+  "fullLogBytes": 62972,
+  "fullLogSha256": "2c2070926e59b9fdd172a00a7cf605172898c7ee58ada9c3b0dd06da67cd70c1",
+  "fullLogIndependentlyComparedToOriginal": true,
+  "selectedVerbatimLines": [
+    {
+      "line": 630,
+      "text": "OFFLINE_RUNTIME_IMPORT_PASS"
+    },
+    {
+      "line": 631,
+      "text": "OFFLINE_CASE01_CONTINUATION_IMPORT_PASS"
+    },
+    {
+      "line": 632,
+      "text": "OFFLINE_CASE01_POSTAPPROVAL_IMPORT_PASS"
+    },
+    {
+      "line": 633,
+      "text": "OFFLINE_CASE01_POSTSEED_IMPORT_PASS"
+    },
+    {
+      "line": 634,
+      "text": "OFFLINE_CASE01_FIXTURE_PACKAGE_IMPORT_PASS"
+    },
+    {
+      "line": 635,
+      "text": "EXACT_452_IMAGE_MIGRATION_HASHES_PASS"
+    },
+    {
+      "line": 636,
+      "text": "MAIL_ACTIVE_OWNER_INDEX_MIGRATION_PACKAGE_PASS"
+    },
+    {
+      "line": 637,
+      "text": "OFFLINE_PACKAGED_C2_MEMORY_PASS"
+    },
+    {
+      "line": 638,
+      "text": "OFFLINE_PACKAGED_C2_RECONCILIATION_PASS"
+    },
+    {
+      "line": 639,
+      "text": "OFFLINE_PACKAGED_C2_TERMINAL_LIFECYCLE_PASS"
+    },
+    {
+      "line": 640,
+      "text": "OFFLINE_PACKAGED_C2_TS_SOURCE_IMPORT_PASS"
+    },
+    {
+      "line": 641,
+      "text": "OFFLINE_PACKAGED_CAPTURE_RECEIPT_CONTRACT_PASS"
+    },
+    {
+      "line": 643,
+      "text": "OFFLINE_PACKAGED_SEMANTIC_CLOCK_API_CORE_PASS"
+    },
+    {
+      "line": 645,
+      "text": "OFFLINE_PACKAGED_CAPTURE_PROVIDER_API_GUARDS_PASS"
+    },
+    {
+      "line": 647,
+      "text": "OFFLINE_PACKAGED_C2_RECORDED_SOURCE_PRIVACY_PASS"
+    },
+    {
+      "line": 648,
+      "text": "OFFLINE_PACKAGED_C2_TOOL_HTTP_SUCCESS_PASS"
+    },
+    {
+      "line": 649,
+      "text": "OFFLINE_PACKAGED_C2_CANONICAL_MEMORY_SOURCE_PASS"
+    },
+    {
+      "line": 762,
+      "text": "LOCAL_REPODIGEST_ECR_MATCH_PASS"
+    },
+    {
+      "line": 763,
+      "text": "CANDIDATE_API_SOURCE_SHA=945179d44223882f9fe1da2fb4e41213bf5813c2"
+    },
+    {
+      "line": 764,
+      "text": "CANDIDATE_API_IMAGE=967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:00e8c5cac10d8b4cd3cc46a0a9a7602b51db4657e38fabe86f1f12999d2b2e31"
+    }
+  ]
+}
