@@ -1266,7 +1266,7 @@ function retrospectiveApprovalTargetHint(task: string): string | null {
 
 /** Recognize only retrospective approval questions, not approval actions or source requests. */
 function isRetrospectiveApprovalRecall(task: string): boolean {
-  if (/\b(?:documents?|files?|memos?|emails?|mail|inbox|messages?|attachments?|proposals?|contracts?|pdfs?|reports?|transcripts?|calls?|meetings?|calendar|debriefs?|notes?)\b/i.test(task))
+  if (/\b(?:documents?|files?|memos?|emails?|mail|inbox(?:es)?|messages?|attachments?|proposals?|contracts?|pdfs?|reports?|transcripts?|calls?|meetings?|calendars?|debriefs?|notes?)\b/i.test(task))
     return false;
   return /^\s*what\s+(?:did\s+we\s+approve|have\s+we\s+approved|was\s+approved)\s+about\b.+[?!.]?\s*$/iu.test(task);
 }
