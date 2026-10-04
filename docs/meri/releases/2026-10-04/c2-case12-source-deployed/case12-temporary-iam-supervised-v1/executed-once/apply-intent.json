@@ -1,0 +1,12 @@
+{
+  "at": "2026-10-04T13:58:25.411Z",
+  "packetSha256": "781b944fee40f504c744dda2f609f0f63446b9693dd2cdb661ecde756f749fc2",
+  "approvalSha256": "feeb53e0286aa407472eaf6c6fc6995379dc6441f811161dd499af95af0d4f21",
+  "roleArn": "arn:aws:iam::967807252336:role/Capiro-dev-Compute-ApiTaskRole12FAD4A7-szq3QeeZJSCQ",
+  "policyName": "MeriCase12NativeSetupReads20261004",
+  "policyBytesSha256": "173d4b8f134c2d1fac50b9df7d3db6e4e136f1e965c293a258cee6407da50d3a",
+  "policyFingerprint": "9878aa13e8b71f67227299240fa309906dc820aab405509443eb2ef8df168343",
+  "expiresAt": "2026-10-04T21:00:00Z",
+  "originalsSha256": "8e64b64488c7336dec08969c4630cc921007cf324ebf0e50a479906309e6d81b",
+  "singleAttempt": true
+}

@@ -1,0 +1,6 @@
+{
+  "tests": 46,
+  "exitCode": 0,
+  "source": "intermediate-inline-source.ts",
+  "scope": "Actual tool transcript retained; SDK/metadata/SQL controlled doubles, actual empty SDK override shape fixture"
+}

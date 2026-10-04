@@ -1,0 +1,27 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ReadTaggedCase12HelperTaskUntilCloseoutWindowEnds",
+      "Effect": "Allow",
+      "Action": "ecs:DescribeTasks",
+      "Resource": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/*",
+      "Condition": {
+        "StringEquals": { "aws:RequestedRegion": "us-east-1" },
+        "ArnEquals": { "ecs:cluster": "arn:aws:ecs:us-east-1:967807252336:cluster/capiro-dev" },
+        "Null": { "aws:ResourceTag/meri-case12-setup-owner": "false" },
+        "DateLessThan": { "aws:CurrentTime": "2026-10-04T21:00:00Z" }
+      }
+    },
+    {
+      "Sid": "ReadImmutableTaskDefinitionUntilCloseoutWindowEnds",
+      "Effect": "Allow",
+      "Action": "ecs:DescribeTaskDefinition",
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": { "aws:RequestedRegion": "us-east-1" },
+        "DateLessThan": { "aws:CurrentTime": "2026-10-04T21:00:00Z" }
+      }
+    }
+  ]
+}

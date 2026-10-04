@@ -1,0 +1,61 @@
+{
+  "status": "LOCAL_SYNTAX_LOSSLESS_TEMPLATE_ASSEMBLY_ONLY",
+  "builds": "NOT_RUN",
+  "services": {
+    "api": {
+      "path": "api/buildspec.template.json",
+      "sha256": "3c9a0c27c22daf2de53800292cee77ccf1e8f485ae600f23541dcea45f81e125",
+      "bytes": 19381,
+      "requiredMarkers": [
+        "OFFLINE_RUNTIME_IMPORT_PASS",
+        "OFFLINE_CASE01_FIXTURE_PACKAGE_IMPORT_PASS",
+        "OFFLINE_CASE01_CONTINUATION_IMPORT_PASS",
+        "OFFLINE_CASE01_POSTAPPROVAL_IMPORT_PASS",
+        "OFFLINE_CASE01_POSTSEED_IMPORT_PASS",
+        "EXACT_452_IMAGE_MIGRATION_HASHES_PASS",
+        "MAIL_ACTIVE_OWNER_INDEX_MIGRATION_PACKAGE_PASS",
+        "OFFLINE_PACKAGED_C2_MEMORY_PASS",
+        "OFFLINE_PACKAGED_C2_RECONCILIATION_PASS",
+        "OFFLINE_PACKAGED_C2_TERMINAL_LIFECYCLE_PASS",
+        "OFFLINE_PACKAGED_C2_TS_SOURCE_IMPORT_PASS",
+        "OFFLINE_PACKAGED_SEMANTIC_CLOCK_API_CORE_PASS",
+        "OFFLINE_PACKAGED_CAPTURE_RECEIPT_CONTRACT_PASS",
+        "OFFLINE_PACKAGED_CAPTURE_PROVIDER_API_GUARDS_PASS",
+        "LOCAL_REPODIGEST_ECR_MATCH_PASS",
+        "OFFLINE_PACKAGED_C2_RECORDED_SOURCE_PRIVACY_PASS",
+        "OFFLINE_PACKAGED_C2_TOOL_HTTP_SUCCESS_PASS",
+        "OFFLINE_PACKAGED_C2_CANONICAL_MEMORY_SOURCE_PASS",
+        "OFFLINE_PACKAGED_CASE12_MODULES_PASS",
+        "OFFLINE_PACKAGED_CASE12_ASSET_MANIFEST_PASS",
+        "OFFLINE_PACKAGED_CASE12_RECIPE_510_BODY_PLANNER_PASS",
+        "OFFLINE_PACKAGED_CASE12_PREHOLD_510_DERIVATION_PASS",
+        "OFFLINE_PACKAGED_CASE12_CORE_SETUP_BINDING_PASS",
+        "OFFLINE_PACKAGED_CASE12_NEGATIVE_HELPER_INGRESS_PASS",
+        "CASE12_IMAGE_ASSET_MANIFEST_MATCH_SOURCE_PASS",
+        "OFFLINE_PACKAGED_CASE12_ACTUAL_ECS_DEFAULT_PARITY_PASS"
+      ]
+    }
+  },
+  "checks": [
+    {
+      "path": "api/pre_build.sh",
+      "sha256": "b2482d882549708861cd5a761b20e05740be23b71be442887a04af778eabf427",
+      "bashSyntaxExit": 0,
+      "parentSha256": "b2482d882549708861cd5a761b20e05740be23b71be442887a04af778eabf427"
+    },
+    {
+      "path": "api/build.sh",
+      "sha256": "d7e586c79a680e72461f90104a4d8c273dc56bd6a9a69fcae47fe6eeb29f75d6",
+      "bashSyntaxExit": 0,
+      "parentSha256": "95ca0abca9ba438a23033807ae061466220ea5b2f97f2437a3cf097249863a06"
+    },
+    {
+      "path": "api/post_build.sh",
+      "sha256": "fc6034cdd9ec8f0dfaa5e9ce39617f2518a35e227e335bfea4c9b48daa9d372d",
+      "bashSyntaxExit": 0,
+      "parentSha256": "fc6034cdd9ec8f0dfaa5e9ce39617f2518a35e227e335bfea4c9b48daa9d372d"
+    }
+  ],
+  "parentTemplateChecksSha256": "d78c2662a5d61d2bbdfe06e7332c614d9ed86c3b551e3f7e39f97236fda90ea9",
+  "scope": "Unchanged qualified API CodeBuild template plus one no-network actual-compiled ECS default probe; orchestrator excluded."
+}

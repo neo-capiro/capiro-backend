@@ -1,0 +1,14 @@
+{
+  "kind": "CASE12_ACTUAL_IAM_SELF_READ_PROBE",
+  "at": "2026-10-04T14:08:23.615Z",
+  "sourceSha": "e60f37189f8c9b68ab7d5ef66e515ed3be4ec3c1",
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:202832655633f906dec412ca088a7263e8e8065cd9a602402d98e5d2b092fe22",
+  "innerSha256": "5f92354dbb845d035cbb1160e7a0a27d964ed3a19ffc398c82f3ba733085c23f",
+  "packetSha256": "781b944fee40f504c744dda2f609f0f63446b9693dd2cdb661ecde756f749fc2",
+  "registrationMarker": "a1761bcb-9573-4538-bb95-18f769212db3",
+  "previousDefinitions": [],
+  "providerCalls": 0,
+  "databaseCalls": 0,
+  "secrets": 0,
+  "automaticRetryAllowed": false
+}

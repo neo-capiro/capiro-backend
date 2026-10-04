@@ -1,0 +1,63 @@
+{
+  "kind": "case12-temporary-iam-source-qualification",
+  "status": "DISABLED_PENDING_ROOT_REVIEW_AND_EXACT_HUMAN_APPROVAL",
+  "createdAt": "2026-10-04T13:32:48.302590+00:00",
+  "packetPin": null,
+  "testsPassed": 10,
+  "testsFailed": 0,
+  "awsCalls": 0,
+  "iamMutations": 0,
+  "providerCalls": 0,
+  "journalWrites": 0,
+  "files": [
+    {
+      "path": "case12-temporary-iam-v1.mjs",
+      "sha256": "b5b24626cb5d3ffe4089f1b6455fae37dcb9adfc9bfbd514961d666af99e8530",
+      "bytes": 12730
+    },
+    {
+      "path": "tests.mjs",
+      "sha256": "fdeb0d03284b981263933bf498ac5f76ca3ea05c65100fc1253ccf8dce4b3c84",
+      "bytes": 10894
+    },
+    {
+      "path": "tests-v1.log",
+      "sha256": "063926421be82aa7551ecdffc8090c799f272b5e3ec6bf88d92ce46230f4d6bf",
+      "bytes": 1032
+    },
+    {
+      "path": "README.md",
+      "sha256": "c73d0d334bcc3e714eb4759bfaf12b637da3b6bbe39e4c761c902c131faf8448",
+      "bytes": 2875
+    },
+    {
+      "path": "freeze.py",
+      "sha256": "a1099f76482e40573e020ca319e42497ed21242a7dc0345fb95aa25b5545be41",
+      "bytes": 1381
+    }
+  ],
+  "externalSourcePins": [
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/aws-single-attempt.mjs",
+      "sha256": "86b965a0257fd56e5255e30cdfd6787bef74ba0287d23eecb86fedfae7d6fec0",
+      "bytes": 782
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-fresh-20261003/auth-preflight.mjs",
+      "sha256": "f3d757755514c478b2f7a00572883c9c696964dc13ac1a565e4c0ef61d379414",
+      "bytes": 5100
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/scripts/meri-release.mjs",
+      "sha256": "2fece407aa0f08795ac6d5d1feef99211412ab28ea6bc76125c1c49eae4412f6",
+      "bytes": 22124
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/scripts/lib/meri-release-policy.mjs",
+      "sha256": "e0518591e704ef3f051442d1b949a9f83a705a2cff40ed998dba19b57373cb5c",
+      "bytes": 9875
+    }
+  ],
+  "scope": "Local source tests and transport doubles only; actual role/helper permission not qualified",
+  "localTestRootsExcluded": true
+}

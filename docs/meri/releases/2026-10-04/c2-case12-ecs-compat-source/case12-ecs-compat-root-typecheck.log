@@ -1,0 +1,27 @@
+
+> @capiro/api@0.0.0 typecheck C:\dev\main\meri-c1-20261002\apps\api
+> tsc --noEmit --rootDir . && tsc -p tsconfig.pe-phase-a.json --noEmit && tsc -p tsconfig.pe-phase-f.json --noEmit && tsc -p tsconfig.pe-phase-g.json --noEmit && tsc -p tsconfig.pe-scripts.json --noEmit && tsc -p tsconfig.pe-scripts-catalog.json --noEmit && tsc -p tsconfig.memory-governance-backfill.json --noEmit && tsc -p tsconfig.funding-opportunities.json --noEmit && tsc -p tsconfig.hearings.json --noEmit && tsc -p tsconfig.integration-smoke.json --noEmit && tsc -p tsconfig.budget-extraction-contract.json --noEmit && tsc -p tsconfig.budget-verification-v1.json --noEmit && tsc -p tsconfig.budget-parser-router.json --noEmit && tsc -p tsconfig.rdte-phase-4.json --noEmit && tsc -p tsconfig.engagement-phase3-fixtures.json --noEmit && tsx scripts/verify-pe-phase-a-safety.ts && tsc -p tsconfig.legiwatch-phase7.json --noEmit
+
+
+<--- Last few GCs --->
+
+[33260:000001E04C319000]    99451 ms: Scavenge (interleaved) 4077.7 (4104.6) -> 4069.9 (4104.6) MB, pooled: 0 MB, 4.09 / 0.00 ms  (average mu = 0.259, current mu = 0.262) allocation failure; 
+[33260:000001E04C319000]   100717 ms: Mark-Compact (reduce) 4078.0 (4104.6) -> 4073.8 (4091.4) MB, pooled: 0 MB, 716.16 / 0.00 ms  (+ 376.5 ms in 75 steps since start of marking, biggest step 5.3 ms, walltime since start of marking 1150 ms) (average mu = 
+FATAL ERROR: Ineffective mark-compacts near heap limit Allocation failed - JavaScript heap out of memory
+----- Native stack trace -----
+
+ 1: 00007FF6D67D50BF node::OnFatalError+1343
+ 2: 00007FF6D53FDD27 v8::Function::NewInstance+423
+ 3: 00007FF6D51FE567 X509_STORE_get_lookup_certs+54423
+ 4: 00007FF6D5202274 X509_STORE_get_lookup_certs+70052
+ 5: 00007FF6D52111DC v8::internal::StrongRootAllocatorBase::deallocate_impl+16604
+ 6: 00007FF6D5210A1B v8::internal::StrongRootAllocatorBase::deallocate_impl+14619
+ 7: 00007FF6D6AF7DED node::AsyncResource::CallbackScope::CallbackScope+2124541
+ 8: 00007FF6D51FC030 X509_STORE_get_lookup_certs+44896
+ 9: 00007FF6D521688A X509_STORE_set_cleanup+5098
+10: 00007FF6D5222D26 uv_timer_set_repeat+20694
+11: 00007FF6D4DF3937 v8::CodeEvent::GetFunctionName+131959
+12: 000001E01FE775FA 
+C:\dev\main\meri-c1-20261002\apps\api:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @capiro/api@0.0.0 typecheck: `tsc --noEmit --rootDir . && tsc -p tsconfig.pe-phase-a.json --noEmit && tsc -p tsconfig.pe-phase-f.json --noEmit && tsc -p tsconfig.pe-phase-g.json --noEmit && tsc -p tsconfig.pe-scripts.json --noEmit && tsc -p tsconfig.pe-scripts-catalog.json --noEmit && tsc -p tsconfig.memory-governance-backfill.json --noEmit && tsc -p tsconfig.funding-opportunities.json --noEmit && tsc -p tsconfig.hearings.json --noEmit && tsc -p tsconfig.integration-smoke.json --noEmit && tsc -p tsconfig.budget-extraction-contract.json --noEmit && tsc -p tsconfig.budget-verification-v1.json --noEmit && tsc -p tsconfig.budget-parser-router.json --noEmit && tsc -p tsconfig.rdte-phase-4.json --noEmit && tsc -p tsconfig.engagement-phase3-fixtures.json --noEmit && tsx scripts/verify-pe-phase-a-safety.ts && tsc -p tsconfig.legiwatch-phase7.json --noEmit`
+Exit status 134

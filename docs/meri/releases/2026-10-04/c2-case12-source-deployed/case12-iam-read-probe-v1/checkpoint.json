@@ -1,0 +1,87 @@
+{
+  "kind": "case12-iam-read-probe-source-qualification",
+  "version": 1,
+  "createdAt": "2026-10-04T14:00:28.480629+00:00",
+  "status": "LOCAL_CONTROLLED_TESTS_PASS_NOT_CLOUD_EXECUTED",
+  "files": [
+    {
+      "path": "iam-read-probe-inner-v1.mjs",
+      "sha256": "5f92354dbb845d035cbb1160e7a0a27d964ed3a19ffc398c82f3ba733085c23f",
+      "bytes": 5776
+    },
+    {
+      "path": "input-pins.json",
+      "sha256": "a33aa43c9eb41bb01a62018e5fb864cf0cbe179d98a5e0d33f75199712c4d6df",
+      "bytes": 1178
+    },
+    {
+      "path": "launcher-delta.patch",
+      "sha256": "59d2a5de742ec1746ab61b3b052d5b82b0d60ebbbf33437a2db91916dc2d8b83",
+      "bytes": 25262
+    },
+    {
+      "path": "lineage-readonly-plan-v3.mjs",
+      "sha256": "57abce2a478b6ca13e768fe01d3031b48ccf6cb0b8c67570c6d80e6369934b62",
+      "bytes": 20880
+    },
+    {
+      "path": "read-case12-iam-probe-v1.mjs",
+      "sha256": "d61b0022e339796f1f525bb6d43367c52832d69a722413db492d88576ebd80db",
+      "bytes": 18594
+    },
+    {
+      "path": "README.md",
+      "sha256": "b0ae2bfeef6feb8ecc619bbd205afeafe6f28f1186ee08673b3a6f29d263e799",
+      "bytes": 3395
+    },
+    {
+      "path": "test-execution.json",
+      "sha256": "84297ea1ef9caed7e2b3cdbbaaa33c91f4128f786df997d050e2d6d4c84a0ebd",
+      "bytes": 716
+    },
+    {
+      "path": "tests-inner-final.log",
+      "sha256": "9c4753a2021805b527686717e1bf9aa3b8609cf6dd8bc26f3596736f71b62178",
+      "bytes": 1275
+    },
+    {
+      "path": "tests-inner.mjs",
+      "sha256": "128320599150ceef6924e19fc2a6648b8da2658d1fe084b4a259b0f3179fdc67",
+      "bytes": 5653
+    },
+    {
+      "path": "tests-outer-failed-v1.log",
+      "sha256": "1145ef6663d0ff0e7a55ab39adea5d1a824b1401686ce3ff391a2f2bd0b51efe",
+      "bytes": 6623
+    },
+    {
+      "path": "tests-outer-failed-v1.mjs",
+      "sha256": "87a66199fbb889889194fb0863c8984daa7b3ca3f125d5bcc59c60c5897294f5",
+      "bytes": 10227
+    },
+    {
+      "path": "tests-outer-final.log",
+      "sha256": "ceda85fdd11caedfc75ecc267bd692e49cf44fa9f1fb76c0b5b777701ebc2748",
+      "bytes": 634
+    },
+    {
+      "path": "tests-outer.mjs",
+      "sha256": "8d800cb181ff918ffc9d26597fc47f7584a8c5c6182641a794393d624cebba51",
+      "bytes": 10154
+    }
+  ],
+  "sourceSha256": "d61b0022e339796f1f525bb6d43367c52832d69a722413db492d88576ebd80db",
+  "innerSha256": "5f92354dbb845d035cbb1160e7a0a27d964ed3a19ffc398c82f3ba733085c23f",
+  "lineageSha256": "57abce2a478b6ca13e768fe01d3031b48ccf6cb0b8c67570c6d80e6369934b62",
+  "testsPassed": 24,
+  "firstFailures": "README and retained outer failed source/log; inner first failure observed in tool transcript, cross-realm fixture only.",
+  "localChildDirectoriesExcluded": true,
+  "awsCalls": 0,
+  "nativeJournalCalls": 0,
+  "dbCalls": 0,
+  "providerCalls": 0,
+  "setupExecuted": false,
+  "nativeAdmissionQualified": false,
+  "captureAuthority": false,
+  "liveAcceptance": "NOT_RUN"
+}

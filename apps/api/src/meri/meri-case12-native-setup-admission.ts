@@ -31,6 +31,21 @@ export function case12NativeTaskDefinitionHash(definition: TaskDefinition): stri
     .map(key => [key, snapshot((definition as any)[key])])));
 }
 
+/** Pure comparison for exact native readback and offline image probes. It confers no admission. */
+export function assertCase12NativeTaskOverrides(actual: unknown, expected: unknown): void {
+  need(record(actual) && record(expected));
+  const observed = actual as Record<string, unknown>;
+  // ECS DescribeTasks supplies this empty service default when RunTask omits it.
+  // No other field, nonempty inference override or coercible empty value is omitted.
+  if (Object.hasOwn(observed, 'inferenceAcceleratorOverrides')) {
+    need(Array.isArray(observed.inferenceAcceleratorOverrides) &&
+      observed.inferenceAcceleratorOverrides.length === 0);
+  }
+  const normalized = snapshot(observed);
+  delete normalized.inferenceAcceleratorOverrides;
+  need(case12SetupHash(normalized) === case12SetupHash(expected));
+}
+
 interface NativeEnvelope {
   kind: 'meri-case12-ecs-native-setup'; version: 1;
   taskDefinitionArn: string; taskDefinitionSha256: string; containerName: string;
@@ -105,7 +120,7 @@ export async function createCase12NativeSetupAdmission(rawInput: string, supplie
     const expectedOverrides = {containerOverrides: [{name: native.containerName,
       environment: [{name: INPUT_VARIABLE, value: rawInput}]}]};
     need(Buffer.byteLength(JSON.stringify(expectedOverrides), 'utf8') <= 8192 && record(task.overrides));
-    need(case12SetupHash(snapshot(task.overrides)) === case12SetupHash(expectedOverrides));
+    assertCase12NativeTaskOverrides(task.overrides, expectedOverrides);
     const definitionResult = await ecs.send(new DescribeTaskDefinitionCommand({taskDefinition: native.taskDefinitionArn, include: ['TAGS']}),
       {abortSignal: AbortSignal.timeout(5000)});
     const definition = definitionResult.taskDefinition;

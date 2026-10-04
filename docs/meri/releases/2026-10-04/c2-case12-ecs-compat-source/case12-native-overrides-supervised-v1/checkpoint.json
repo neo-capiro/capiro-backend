@@ -1,0 +1,72 @@
+{
+  "kind": "case12-native-inference-empty-default-source-correction",
+  "status": "PASS_TARGETED_SOURCE_TESTS_ONLY",
+  "at": "2026-10-04T14:22:03.342789+00:00",
+  "sourceSha256": "fbebfba2ab0fdb0314542178f4576c6ef6962f28263c3a5cfa092fd56a3688db",
+  "specSha256": "2317588bb2c82fffbeaef1252300da18e87af7923f3f362ce23fb5b657d92ef2",
+  "pins": [
+    {
+      "path": "actual-sdk-evidence.json",
+      "bytes": 629,
+      "sha256": "ab441b3d94939131e5220321d073f8b0eee098cc0160aa4f44a7dab179e4dd77"
+    },
+    {
+      "path": "baseline/apps/api/src/meri/meri-case12-native-setup-admission.spec.ts",
+      "bytes": 10238,
+      "sha256": "e6f170cb452374220b5352126502906b0631d8e5bd72d62f62d1a6725415f035"
+    },
+    {
+      "path": "baseline/apps/api/src/meri/meri-case12-native-setup-admission.ts",
+      "bytes": 11682,
+      "sha256": "28efbc49a0e23006adedb7a4bfb14edb9088ac7d476076c5630065f81a5a0b23"
+    },
+    {
+      "path": "candidate/apps/api/src/meri/meri-case12-native-setup-admission.spec.ts",
+      "bytes": 14022,
+      "sha256": "2317588bb2c82fffbeaef1252300da18e87af7923f3f362ce23fb5b657d92ef2"
+    },
+    {
+      "path": "candidate/apps/api/src/meri/meri-case12-native-setup-admission.ts",
+      "bytes": 12643,
+      "sha256": "fbebfba2ab0fdb0314542178f4576c6ef6962f28263c3a5cfa092fd56a3688db"
+    },
+    {
+      "path": "intermediate-inline-source.ts",
+      "bytes": 12332,
+      "sha256": "3f0b1389c823d11207ed5cfdb2938ee6252c23ba18125e998a5e6be5fc24202a"
+    },
+    {
+      "path": "intermediate-test-result.json",
+      "bytes": 210,
+      "sha256": "41ee202cd34be0814bb8a86e7963954a09a8176f77d8c83b2cf3351cb972cc64"
+    },
+    {
+      "path": "jest.config.cjs",
+      "bytes": 443,
+      "sha256": "35dc594bb8c9fc5eaee26b3f47e78ad6db3a309ec22c3698125af5f43cb2f50d"
+    },
+    {
+      "path": "proposed.patch",
+      "bytes": 6628,
+      "sha256": "acd108245bf0c778db5c2ed2640edcde45ccc6aba666f5d389cd1c4dc9a43661"
+    },
+    {
+      "path": "README.md",
+      "bytes": 1460,
+      "sha256": "1f13dced47b7acf891f9a91587184d7a8b6b1962c8210ebae0a2ff4dbeefb606"
+    },
+    {
+      "path": "tests-v2.log",
+      "bytes": 7444,
+      "sha256": "fb487d19714ea11ee91bd817d1b48cbbd8f047f4021d710216ef7886a5d1096f"
+    }
+  ],
+  "tests": 47,
+  "testExitCode": 0,
+  "fullTypecheck": "ROOT_INTEGRATION_PENDING",
+  "actualSdkReceiptSha256": "ab441b3d94939131e5220321d073f8b0eee098cc0160aa4f44a7dab179e4dd77",
+  "nativeAdmission": "NOT_RUN",
+  "providerCalls": 0,
+  "journalWrites": 0,
+  "repoEdits": 0
+}

@@ -1,0 +1,22 @@
+{
+  "status": "ACTUAL_IAM_SELF_READS_AND_OWNED_CLEANUP_CAPTURED",
+  "at": "2026-10-04T14:10:35.940Z",
+  "sourceSha": "e60f37189f8c9b68ab7d5ef66e515ed3be4ec3c1",
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:202832655633f906dec412ca088a7263e8e8065cd9a602402d98e5d2b092fe22",
+  "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/2c12fa6a72654b0485ab4ee1f02f2bdf",
+  "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-c2-case12-iam-probe-20261004:1",
+  "startedAt": "2026-10-04T10:09:37.129000-04:00",
+  "stoppedAt": "2026-10-04T10:10:05.425000-04:00",
+  "exitCode": 0,
+  "innerSha256": "5f92354dbb845d035cbb1160e7a0a27d964ed3a19ffc398c82f3ba733085c23f",
+  "registrationMarker": "a1761bcb-9573-4538-bb95-18f769212db3",
+  "providerCalls": 0,
+  "databaseCalls": 0,
+  "secrets": 0,
+  "journalUnchanged": true,
+  "bothPromotedServicesHealthy": true,
+  "setupExecuted": false,
+  "nativeAdmissionQualified": false,
+  "captureAuthority": false,
+  "liveAcceptance": "NOT_RUN"
+}

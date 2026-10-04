@@ -6,7 +6,7 @@ jest.mock('@aws-sdk/client-ecs', () => ({
 }));
 import { randomUUID } from 'node:crypto';
 import { ECSClient } from '@aws-sdk/client-ecs';
-import { case12NativeTaskDefinitionHash, createCase12NativeSetupAdmission } from './meri-case12-native-setup-admission.js';
+import { assertCase12NativeTaskOverrides, case12NativeTaskDefinitionHash, createCase12NativeSetupAdmission } from './meri-case12-native-setup-admission.js';
 import { case12SetupCost, case12SetupHash, validateCase12SetupBudgetPlan } from './meri-case12-setup-budget.js';
 
 const NOW = Date.parse('2026-10-04T12:00:00.000Z');
@@ -112,3 +112,55 @@ test.each(['postHoldCheckpointSha256','costAuthoritySha256','preHoldCheckpointSh
     await expect(createCase12NativeSetupAdmission(raw, h.plan)).rejects.toThrow('denied');
     expect(fetchSpy).not.toHaveBeenCalled(); expect(mockSend).not.toHaveBeenCalled();
   });
+
+
+// Actual @aws-sdk/client-ecs 3.1141.0 DescribeTasks read on 2026-10-04:
+// the owned IAM probe omitted inference overrides at RunTask; ECS returned [].
+// Only the service-added empty field is reused below; identity/metadata/SQL stay doubles.
+const observedEcsOverrides = {"containerOverrides":[{"name":"meri-c12-iam-read-probe"}],"inferenceAcceleratorOverrides":[]};
+test('real SDK empty inference default permits exact native admission and one consume', async () => {
+  const h = fixture();
+  Object.assign(h.task.overrides, {inferenceAcceleratorOverrides: observedEcsOverrides.inferenceAcceleratorOverrides});
+  const owner = await createCase12NativeSetupAdmission(h.raw, h.plan);
+  expect(mockSend).toHaveBeenCalledTimes(2);
+  expect(await owner.consumeNativeSetupAdmissionInTx(h.tx, owner.admission, h.bindings)).toEqual(h.plan);
+  await expect(owner.consumeNativeSetupAdmissionInTx(h.tx, owner.admission, h.bindings)).rejects.toThrow('denied');
+});
+test.each([
+  ['nonempty-inference', {inferenceAcceleratorOverrides: [{deviceName: 'changed', deviceType: 'changed'}]}],
+  ['null-inference', {inferenceAcceleratorOverrides: null}],
+  ['object-inference', {inferenceAcceleratorOverrides: {length: 0}}],
+  ['string-inference', {inferenceAcceleratorOverrides: ''}],
+  ['task-role', {taskRoleArn: 'arn:aws:iam::967807252336:role/other'}],
+  ['execution-role', {executionRoleArn: 'arn:aws:iam::967807252336:role/other'}],
+  ['cpu', {cpu: '512'}],
+  ['memory', {memory: '1024'}],
+  ['ephemeral-storage', {ephemeralStorage: {sizeInGiB: 30}}],
+  ['unknown-empty', {unknown: []}],
+])('real empty inference default does not admit %s override', async (_name, additional) => {
+  const h = fixture();
+  Object.assign(h.task.overrides, {inferenceAcceleratorOverrides: []}, additional);
+  await expect(createCase12NativeSetupAdmission(h.raw, h.plan)).rejects.toThrow('denied');
+  expect(mockSend).toHaveBeenCalledTimes(1);expect(h.tx.$queryRawUnsafe).not.toHaveBeenCalled();
+});
+test.each(['cpu','memory','command','environment','environmentFiles','extraContainer'])(
+  'empty inference default does not hide changed container %s', async field => {
+    const h = fixture();Object.assign(h.task.overrides, {inferenceAcceleratorOverrides: []});
+    const c = h.task.overrides.containerOverrides[0]!;
+    if(field==='environment') c.environment.push({name: 'FOREIGN', value: 'value'});
+    else if(field==='extraContainer') h.task.overrides.containerOverrides.push({name: 'other', environment: []});
+    else Object.assign(c, {[field]: field==='command'?['execute','again']:field==='environmentFiles'?[]:1});
+    await expect(createCase12NativeSetupAdmission(h.raw, h.plan)).rejects.toThrow('denied');
+    expect(mockSend).toHaveBeenCalledTimes(1);expect(h.tx.$queryRawUnsafe).not.toHaveBeenCalled();
+  });
+
+
+test('pure exact inspector accepts actual retained SDK override bytes without authority', () => {
+  const expected = {containerOverrides: observedEcsOverrides.containerOverrides};
+  expect(() => assertCase12NativeTaskOverrides(observedEcsOverrides, expected)).not.toThrow();
+  expect(() => assertCase12NativeTaskOverrides(expected, expected)).not.toThrow();
+  for(const value of [null, '', {}, {length:0}, undefined, [{deviceName:'changed'}]])
+    expect(() => assertCase12NativeTaskOverrides({...expected,inferenceAcceleratorOverrides:value},expected)).toThrow('denied');
+  for(const key of ['taskRoleArn','executionRoleArn','cpu','command','environment','unknown'])
+    expect(() => assertCase12NativeTaskOverrides({...observedEcsOverrides,[key]:[]},expected)).toThrow('denied');
+});

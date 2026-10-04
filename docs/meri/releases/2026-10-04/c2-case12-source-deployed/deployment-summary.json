@@ -1,0 +1,96 @@
+{
+  "status": "APPROVED_EXACT_TWO_SERVICE_RELEASE_VERIFIED",
+  "at": "2026-10-04T13:57:37.697Z",
+  "sourceSha": "e60f37189f8c9b68ab7d5ef66e515ed3be4ec3c1",
+  "packetSha256": "781b944fee40f504c744dda2f609f0f63446b9693dd2cdb661ecde756f749fc2",
+  "approvalRecordedAt": "2026-10-04T13:47:29.789Z",
+  "services": [
+    {
+      "service": "api",
+      "candidateTaskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:527",
+      "rollbackTaskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:526",
+      "candidateImage": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:202832655633f906dec412ca088a7263e8e8065cd9a602402d98e5d2b092fe22",
+      "configHash": "973748a2b134b388a6027df6c5c099055a7e24f7b746eafbaae8cebad077258a",
+      "deploymentId": "ecs-svc/5723596588869930973"
+    },
+    {
+      "service": "meriv2-orchestrator",
+      "candidateTaskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:123",
+      "rollbackTaskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:122",
+      "candidateImage": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:33ecf4fcaf2f691999d14d410b5f43539c13070d44a1135d148c68f41eda3369",
+      "configHash": "3a4fabd2139e347cd8b45192579f2a3fbaaa6fc3678762b5252f727a4461951b",
+      "deploymentId": "ecs-svc/0423243475561267405"
+    }
+  ],
+  "web": "UNCHANGED_390",
+  "nightly": "UNCHANGED_136",
+  "broadWorker": "DISABLED",
+  "ordinaryIdentity": {
+    "status": "ORDINARY_IDENTITY_ROUTE_PASS",
+    "httpStatus": 200,
+    "actorUserId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+    "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+    "role": "standard_user",
+    "apiSourceSha": "e60f37189f8c9b68ab7d5ef66e515ed3be4ec3c1"
+  },
+  "ordinaryMemoryRead": {
+    "status": "ORDINARY_APPROVED_MEMORY_LIST_AND_MARKDOWN_PASS",
+    "httpStatuses": [
+      200,
+      200
+    ],
+    "actorUserId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+    "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+    "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+    "itemId": "a740d74f-2c61-4888-bb59-5c9eea502e3f",
+    "type": "client-compass",
+    "slug": "clio:70352101-16f8-42a3-9a4f-77c1c67111c9",
+    "visibility": "tenant",
+    "updatedAt": "2026-10-04T05:50:22.534Z",
+    "returnedListCount": 2,
+    "markdownBytes": 565,
+    "markdownSha256": "4f878a7ef504ca03d6c399130bba6e6bbd40a59ec51195f84ccbc7033e8c003a",
+    "path": "clients/clio:70352101-16f8-42a3-9a4f-77c1c67111c9/compass.md",
+    "apiSourceSha": "e60f37189f8c9b68ab7d5ef66e515ed3be4ec3c1",
+    "providerCalls": 0,
+    "scope": "Ordinary authenticated product read only; no search embedding, capture policy, replay, acceptance or canonical completeness assertion."
+  },
+  "sessionRevoked": true,
+  "journalEvents": 26,
+  "journalSha256": "816b04a47be56432846d1ee602370c3bea985eb497a7de9e899aee4d53f8b39e",
+  "committedUsd": "16.200909",
+  "remainingUsd": "13.799091",
+  "newApplicationProviderCalls": 0,
+  "newCaptureAuthority": false,
+  "schemaMigration": false,
+  "temporaryIam": {
+    "status": "EXACT_POLICY_PRESENT_ORIGINALS_UNCHANGED",
+    "appliedAt": "2026-10-04T13:58:39.724Z",
+    "policy": {
+      "roleArn": "arn:aws:iam::967807252336:role/Capiro-dev-Compute-ApiTaskRole12FAD4A7-szq3QeeZJSCQ",
+      "policyName": "MeriCase12NativeSetupReads20261004",
+      "policySha256": "173d4b8f134c2d1fac50b9df7d3db6e4e136f1e965c293a258cee6407da50d3a",
+      "expiresAt": "2026-10-04T21:00:00Z"
+    },
+    "originalInlinePolicyCount": 11,
+    "attachedPolicyCount": 0,
+    "removal": "PENDING_HELPER_TERMINAL_RECONCILIATION",
+    "actualHelperReadProof": "ACTUAL_SELF_ECS_READS_SUCCEEDED",
+    "actualHelperReadAt": "2026-10-04T14:10:35.940Z",
+    "actualHelperReadEvidence": "iam-probe-addendum.json"
+  },
+  "oldTaskShutdown": {
+    "status": "EXACT_PRIOR_BASELINE_TASKS_STOPPED",
+    "verifiedAt": "2026-10-04T13:57:16.094Z",
+    "exactPriorTasks": 3,
+    "proof": "case12-source-old-task-readback-v1.json"
+  },
+  "acceptance": {
+    "C2": "INCOMPLETE",
+    "file01": "01_BLOCKED",
+    "fullSuitePass": "0/75",
+    "cdPass": "0/7",
+    "case12LiveSetup": "NOT_RUN",
+    "humanAcceptanceAdded": false
+  }
+}

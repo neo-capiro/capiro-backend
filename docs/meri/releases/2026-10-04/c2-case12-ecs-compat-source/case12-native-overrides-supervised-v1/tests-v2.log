@@ -1,0 +1,63 @@
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+PASS ../../../outputs/meri-c2-20261003/case12-native-overrides-supervised-v1/candidate/apps/api/src/meri/meri-case12-native-setup-admission.spec.ts (38.765 s)
+  √ fixed native reads bind self/input/image/config before one locked durable consume (83 ms)
+  √ metadata-host fails before any durable consume (24 ms)
+  √ metadata-task fails before any durable consume (19 ms)
+  √ metadata-image fails before any durable consume (27 ms)
+  √ foreign-cluster fails before any durable consume (18 ms)
+  √ service fails before any durable consume (18 ms)
+  √ restart fails before any durable consume (17 ms)
+  √ wrong-startedBy fails before any durable consume (21 ms)
+  √ wrong-image fails before any durable consume (17 ms)
+  √ wrong-definition fails before any durable consume (19 ms)
+  √ changed-env fails before any durable consume (24 ms)
+  √ changed-command fails before any durable consume (19 ms)
+  √ missing-tag fails before any durable consume (17 ms)
+  √ not-running fails before any durable consume (16 ms)
+  √ wrong-plan fails before any durable consume (23 ms)
+  √ existing-claim consumes handle once and cannot retry a failed native admission (21 ms)
+  √ expired consumes handle once and cannot retry a failed native admission (20 ms)
+  √ changed-binding consumes handle once and cannot retry a failed native admission (18 ms)
+  √ lost-cas-readback consumes handle once and cannot retry a failed native admission (22 ms)
+  √ array-valued postHoldCheckpointSha256 is rejected before metadata or AWS reads (16 ms)
+  √ array-valued costAuthoritySha256 is rejected before metadata or AWS reads (13 ms)
+  √ array-valued preHoldCheckpointSha256 is rejected before metadata or AWS reads (13 ms)
+  √ array-valued providerPlanSha256 is rejected before metadata or AWS reads (18 ms)
+  √ array-valued taskDefinitionSha256 is rejected before metadata or AWS reads (14 ms)
+  √ array-valued setupPlanSha256 is rejected before metadata or AWS reads (16 ms)
+  √ array-valued releaseGitRevision is rejected before metadata or AWS reads (15 ms)
+  √ array-valued startedBy is rejected before metadata or AWS reads (14 ms)
+  √ array-valued registrationMarker is rejected before metadata or AWS reads (19 ms)
+  √ array-valued taskDefinitionArn is rejected before metadata or AWS reads (15 ms)
+  √ real SDK empty inference default permits exact native admission and one consume (35 ms)
+  √ real empty inference default does not admit nonempty-inference override (18 ms)
+  √ real empty inference default does not admit null-inference override (25 ms)
+  √ real empty inference default does not admit object-inference override (19 ms)
+  √ real empty inference default does not admit string-inference override (15 ms)
+  √ real empty inference default does not admit task-role override (23 ms)
+  √ real empty inference default does not admit execution-role override (18 ms)
+  √ real empty inference default does not admit cpu override (16 ms)
+  √ real empty inference default does not admit memory override (17 ms)
+  √ real empty inference default does not admit ephemeral-storage override (21 ms)
+  √ real empty inference default does not admit unknown-empty override (17 ms)
+  √ empty inference default does not hide changed container cpu (17 ms)
+  √ empty inference default does not hide changed container memory (19 ms)
+  √ empty inference default does not hide changed container command (21 ms)
+  √ empty inference default does not hide changed container environment (16 ms)
+  √ empty inference default does not hide changed container environmentFiles (15 ms)
+  √ empty inference default does not hide changed container extraContainer (19 ms)
+  √ pure exact inspector accepts actual retained SDK override bytes without authority (9 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       47 passed, 47 total
+Snapshots:   0 total
+Time:        39.498 s
+Ran all test suites.

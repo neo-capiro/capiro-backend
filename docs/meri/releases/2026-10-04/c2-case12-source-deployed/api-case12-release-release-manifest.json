@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "account": "967807252336",
+  "region": "us-east-1",
+  "cluster": "capiro-dev",
+  "service": "api",
+  "preparedAt": "2026-10-04T13:48:13.903Z",
+  "qualification": {
+    "schemaVersion": 1,
+    "service": "api",
+    "sourceSha": "e60f37189f8c9b68ab7d5ef66e515ed3be4ec3c1",
+    "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:202832655633f906dec412ca088a7263e8e8065cd9a602402d98e5d2b092fe22",
+    "buildId": "capiro-build-web-dev:77132a95-22c4-4b8a-af05-600f0427ebc3",
+    "architecture": "arm64",
+    "runtimeNode": "22.23.3",
+    "status": "qualified",
+    "reviewer": "Human user — explicit approval in current Codex chat",
+    "reviewedAt": "2026-10-04T13:47:29.789Z",
+    "expiresAt": "2026-10-05T12:47:29.789Z",
+    "schemaChange": false,
+    "evidence": [
+      "https://github.com/neo-capiro/capirov2/blob/181fee276134b7983b937583842a456d8abfd56b/docs/meri/releases/2026-10-04/c2-case12-source-release/release-qualification.json",
+      "https://github.com/neo-capiro/capirov2/blob/181fee276134b7983b937583842a456d8abfd56b/docs/meri/releases/2026-10-04/c2-case12-source-release/release-independent-review.json",
+      "https://github.com/neo-capiro/capirov2/blob/181fee276134b7983b937583842a456d8abfd56b/docs/meri/releases/2026-10-04/c2-case12-source-release/builds/api/build-readback.json"
+    ],
+    "checks": [
+      {
+        "name": "build",
+        "status": "passed",
+        "sourceSha": "e60f37189f8c9b68ab7d5ef66e515ed3be4ec3c1",
+        "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:202832655633f906dec412ca088a7263e8e8065cd9a602402d98e5d2b092fe22",
+        "buildId": "capiro-build-web-dev:77132a95-22c4-4b8a-af05-600f0427ebc3",
+        "architecture": "arm64",
+        "runtimeNode": "22.23.3",
+        "url": "https://github.com/neo-capiro/capirov2/blob/181fee276134b7983b937583842a456d8abfd56b/docs/meri/releases/2026-10-04/c2-case12-source-release/builds/api/build-readback.json"
+      },
+      {
+        "name": "automated-tests",
+        "status": "passed",
+        "sourceSha": "e60f37189f8c9b68ab7d5ef66e515ed3be4ec3c1",
+        "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:202832655633f906dec412ca088a7263e8e8065cd9a602402d98e5d2b092fe22",
+        "buildId": "capiro-build-web-dev:77132a95-22c4-4b8a-af05-600f0427ebc3",
+        "architecture": "arm64",
+        "runtimeNode": "22.23.3",
+        "url": "https://github.com/neo-capiro/capirov2/blob/181fee276134b7983b937583842a456d8abfd56b/docs/meri/releases/2026-10-04/c2-case12-source-release/release-qualification.json"
+      },
+      {
+        "name": "retirement-compatibility",
+        "status": "passed",
+        "sourceSha": "e60f37189f8c9b68ab7d5ef66e515ed3be4ec3c1",
+        "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:202832655633f906dec412ca088a7263e8e8065cd9a602402d98e5d2b092fe22",
+        "buildId": "capiro-build-web-dev:77132a95-22c4-4b8a-af05-600f0427ebc3",
+        "architecture": "arm64",
+        "runtimeNode": "22.23.3",
+        "url": "https://github.com/neo-capiro/capirov2/blob/181fee276134b7983b937583842a456d8abfd56b/docs/meri/releases/2026-10-04/c2-case12-source-release/release-qualification.json"
+      }
+    ]
+  },
+  "baseline": {
+    "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:525",
+    "serviceHash": "d05241d67971079d2e103716ec430abefb24394bc0794c4b0929af066af966d6",
+    "configHash": "973748a2b134b388a6027df6c5c099055a7e24f7b746eafbaae8cebad077258a",
+    "taskHash": "d6575633ee5e4da21cbdaddf189b89aa24c81c8908bf9367d19c4207b0d9ad75",
+    "imageDigest": "sha256:00e8c5cac10d8b4cd3cc46a0a9a7602b51db4657e38fabe86f1f12999d2b2e31",
+    "desiredCount": 2
+  }
+}

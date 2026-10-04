@@ -1,0 +1,159 @@
+{
+  "at": "2026-10-04T16:35:07.904236+00:00",
+  "status": "LOCAL_SOURCE_CORRECTION_QUALIFIED_NOT_DEPLOYED",
+  "caseId": "12",
+  "productionSourceFiles": [
+    {
+      "path": "apps/api/src/meri/meri-case12-native-setup-admission.ts",
+      "sha256": "fbebfba2ab0fdb0314542178f4576c6ef6962f28263c3a5cfa092fd56a3688db",
+      "bytes": 12643
+    },
+    {
+      "path": "apps/api/src/meri/meri-case12-native-setup-admission.spec.ts",
+      "sha256": "2317588bb2c82fffbeaef1252300da18e87af7923f3f362ce23fb5b657d92ef2",
+      "bytes": 14022
+    }
+  ],
+  "evidenceFiles": [
+    {
+      "path": "case12-native-overrides-supervised-v1/checkpoint.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-overrides-supervised-v1\\checkpoint.json",
+      "sha256": "d6719103f8e1f981df77ba23fbb1bb9b92093fda22e7179735a9e1b4048ecf74",
+      "bytes": 2581
+    },
+    {
+      "path": "case12-native-overrides-supervised-v1/README.md",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-overrides-supervised-v1\\README.md",
+      "sha256": "1f13dced47b7acf891f9a91587184d7a8b6b1962c8210ebae0a2ff4dbeefb606",
+      "bytes": 1460
+    },
+    {
+      "path": "case12-native-overrides-supervised-v1/actual-sdk-evidence.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-overrides-supervised-v1\\actual-sdk-evidence.json",
+      "sha256": "ab441b3d94939131e5220321d073f8b0eee098cc0160aa4f44a7dab179e4dd77",
+      "bytes": 629
+    },
+    {
+      "path": "case12-native-overrides-supervised-v1/proposed.patch",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-overrides-supervised-v1\\proposed.patch",
+      "sha256": "acd108245bf0c778db5c2ed2640edcde45ccc6aba666f5d389cd1c4dc9a43661",
+      "bytes": 6628
+    },
+    {
+      "path": "case12-native-overrides-supervised-v1/tests-v2.log",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-overrides-supervised-v1\\tests-v2.log",
+      "sha256": "fb487d19714ea11ee91bd817d1b48cbbd8f047f4021d710216ef7886a5d1096f",
+      "bytes": 7444
+    },
+    {
+      "path": "case12-native-overrides-supervised-v1/intermediate-inline-source.ts",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-overrides-supervised-v1\\intermediate-inline-source.ts",
+      "sha256": "3f0b1389c823d11207ed5cfdb2938ee6252c23ba18125e998a5e6be5fc24202a",
+      "bytes": 12332
+    },
+    {
+      "path": "case12-native-overrides-supervised-v1/intermediate-test-result.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-overrides-supervised-v1\\intermediate-test-result.json",
+      "sha256": "41ee202cd34be0814bb8a86e7963954a09a8176f77d8c83b2cf3351cb972cc64",
+      "bytes": 210
+    },
+    {
+      "path": "case12-native-overrides-supervisor-review-v1/independent-assessment-v2.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-overrides-supervisor-review-v1\\independent-assessment-v2.json",
+      "sha256": "e7bb81f065c57e3978be534f7ec553a51f4513553ca4b7c3247dac6ca3313d92",
+      "bytes": 3353
+    },
+    {
+      "path": "case12-ecs-compat-backup-independent-v1/independent-assessment.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-ecs-compat-backup-independent-v1\\independent-assessment.json",
+      "sha256": "b502d393337cf7b03f432645f2975576400ef7657d7706153648c83ad96128eb",
+      "bytes": 2769
+    },
+    {
+      "path": "case12-ecs-compat-root-jest.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-ecs-compat-root-jest.json",
+      "sha256": "924d1e122a2e5ba6063c2b20a98ba93bcc096de06ff15b37e05056e4710d71b9",
+      "bytes": 15706
+    },
+    {
+      "path": "case12-ecs-compat-root-jest.log",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-ecs-compat-root-jest.log",
+      "sha256": "8205d8e84a14b41c56b9af4dee25370614c4f553a83eac383dfe687dd79277a7",
+      "bytes": 4833
+    },
+    {
+      "path": "case12-ecs-compat-root-typecheck.log",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-ecs-compat-root-typecheck.log",
+      "sha256": "cb736fd0e8f564e5e1b6cf2f4a482520778f4a965bdffdef8a3d70992aa80de8",
+      "bytes": 3176
+    },
+    {
+      "path": "case12-ecs-compat-root-typecheck-v2.log",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-ecs-compat-root-typecheck-v2.log",
+      "sha256": "669df58a83864998310723f7e65640a540987d893e48464283023b5fac18e1be",
+      "bytes": 2816
+    },
+    {
+      "path": "case12-ecs-compat-root-project-typecheck.log",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-ecs-compat-root-project-typecheck.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "case12-ecs-compat-root-build.log",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-ecs-compat-root-build.log",
+      "sha256": "474834a5bd1dd45028516d03b578bddc226aa68e089024e1afd9f730d194b192",
+      "bytes": 83
+    },
+    {
+      "path": "case12-ecs-compat-root-execution.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-ecs-compat-root-execution.json",
+      "sha256": "79790de4a77471e04235b6d0ce219c90473968be09b211b5505ea69dab93b282",
+      "bytes": 907
+    },
+    {
+      "path": "case12-ecs-compat-backup-v1/actual-ecs-default-probe.cjs",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-ecs-compat-backup-v1\\actual-ecs-default-probe.cjs",
+      "sha256": "fd4b53742b8c060215dfba8da7f85fe1617a6b1dfbead994c3624e466c98582b",
+      "bytes": 1370
+    },
+    {
+      "path": "case12-ecs-compat-backup-v1/template-checks.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-ecs-compat-backup-v1\\template-checks.json",
+      "sha256": "51a278017ab6cd6bd93195f238d43fbc1f37255deefab6a71d7df0da03611980",
+      "bytes": 2783
+    }
+  ],
+  "tests": {
+    "recordedAt": "2026-10-04T16:35:00Z",
+    "jestExitCode": 0,
+    "passedTests": 47,
+    "testSuites": 1,
+    "typecheckExitCode": 0,
+    "typecheckCommand": "pnpm --filter @capiro/api exec tsc --noEmit --rootDir .",
+    "typecheckNodeHeapMiB": 8192,
+    "nestBuildExitCode": 0,
+    "compiledProbeExitCode": 0,
+    "compiledProbeMarker": "OFFLINE_PACKAGED_CASE12_ACTUAL_ECS_DEFAULT_PARITY_PASS",
+    "broaderPackageTypecheck": {
+      "firstExitCode": 134,
+      "firstFailure": "Default 4096 MiB Node heap exhausted",
+      "secondExitCode": 2,
+      "secondFailure": "Three word-extractor declaration errors in unchanged engagement files",
+      "status": "NOT_PASSING"
+    },
+    "productionSourceSha256": "fbebfba2ab0fdb0314542178f4576c6ef6962f28263c3a5cfa092fd56a3688db",
+    "specSha256": "2317588bb2c82fffbeaef1252300da18e87af7923f3f362ce23fb5b657d92ef2",
+    "providerCalls": 0,
+    "journalWrites": 0,
+    "nativeSetupExecuted": false
+  },
+  "sourceReview": "case12-native-overrides-supervisor-review-v1/independent-assessment-v2.json",
+  "sourceAuthor": "Codex supervisor correction informed by root actual SDK evidence; no new Hermes PASS invented.",
+  "schemaChange": false,
+  "modelProviderConfigurationChange": false,
+  "journalEvents": 26,
+  "setupExecuted": false,
+  "paidCaptureAuthority": false,
+  "c2Complete": false
+}

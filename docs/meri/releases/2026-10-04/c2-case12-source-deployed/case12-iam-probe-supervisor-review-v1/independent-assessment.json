@@ -1,0 +1,136 @@
+{
+  "status": "PASS_SOURCE_AND_RETAINED_CONTROLLED_EVIDENCE_ONLY",
+  "reviewer": "independent Codex supervisor",
+  "reviewedAt": "2026-10-04T14:03:22.391Z",
+  "outerSha256": "d61b0022e339796f1f525bb6d43367c52832d69a722413db492d88576ebd80db",
+  "innerSha256": "5f92354dbb845d035cbb1160e7a0a27d964ed3a19ffc398c82f3ba733085c23f",
+  "checkpointSha256": "148ca394040af78ae92b71ea26b00dd1954e89339654084e6061d3e33ed11b3c",
+  "checks": [
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-iam-read-probe-v1/iam-read-probe-inner-v1.mjs",
+      "sha256": "5f92354dbb845d035cbb1160e7a0a27d964ed3a19ffc398c82f3ba733085c23f",
+      "matched": true
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-iam-read-probe-v1/input-pins.json",
+      "sha256": "a33aa43c9eb41bb01a62018e5fb864cf0cbe179d98a5e0d33f75199712c4d6df",
+      "matched": true
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-iam-read-probe-v1/launcher-delta.patch",
+      "sha256": "59d2a5de742ec1746ab61b3b052d5b82b0d60ebbbf33437a2db91916dc2d8b83",
+      "matched": true
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-iam-read-probe-v1/lineage-readonly-plan-v3.mjs",
+      "sha256": "57abce2a478b6ca13e768fe01d3031b48ccf6cb0b8c67570c6d80e6369934b62",
+      "matched": true
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-iam-read-probe-v1/read-case12-iam-probe-v1.mjs",
+      "sha256": "d61b0022e339796f1f525bb6d43367c52832d69a722413db492d88576ebd80db",
+      "matched": true
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-iam-read-probe-v1/README.md",
+      "sha256": "b0ae2bfeef6feb8ecc619bbd205afeafe6f28f1186ee08673b3a6f29d263e799",
+      "matched": true
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-iam-read-probe-v1/test-execution.json",
+      "sha256": "84297ea1ef9caed7e2b3cdbbaaa33c91f4128f786df997d050e2d6d4c84a0ebd",
+      "matched": true
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-iam-read-probe-v1/tests-inner-final.log",
+      "sha256": "9c4753a2021805b527686717e1bf9aa3b8609cf6dd8bc26f3596736f71b62178",
+      "matched": true
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-iam-read-probe-v1/tests-inner.mjs",
+      "sha256": "128320599150ceef6924e19fc2a6648b8da2658d1fe084b4a259b0f3179fdc67",
+      "matched": true
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-iam-read-probe-v1/tests-outer-failed-v1.log",
+      "sha256": "1145ef6663d0ff0e7a55ab39adea5d1a824b1401686ce3ff391a2f2bd0b51efe",
+      "matched": true
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-iam-read-probe-v1/tests-outer-failed-v1.mjs",
+      "sha256": "87a66199fbb889889194fb0863c8984daa7b3ca3f125d5bcc59c60c5897294f5",
+      "matched": true
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-iam-read-probe-v1/tests-outer-final.log",
+      "sha256": "ceda85fdd11caedfc75ecc267bd692e49cf44fa9f1fb76c0b5b777701ebc2748",
+      "matched": true
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-iam-read-probe-v1/tests-outer.mjs",
+      "sha256": "8d800cb181ff918ffc9d26597fc47f7584a8c5c6182641a794393d624cebba51",
+      "matched": true
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/corpus-read-definition-input.json",
+      "sha256": "6c0a447dc99ed35642df735c38d09e02b12b33983fe461b707cd0c06a8a44478",
+      "bytes": 3013,
+      "matched": true
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/aws-single-attempt.mjs",
+      "sha256": "86b965a0257fd56e5255e30cdfd6787bef74ba0287d23eecb86fedfae7d6fec0",
+      "bytes": 782,
+      "matched": true
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-fresh-20261003/auth-preflight.mjs",
+      "sha256": "f3d757755514c478b2f7a00572883c9c696964dc13ac1a565e4c0ef61d379414",
+      "bytes": 5100,
+      "matched": true
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/scripts/lib/meri-release-policy.mjs",
+      "sha256": "e0518591e704ef3f051442d1b949a9f83a705a2cff40ed998dba19b57373cb5c",
+      "bytes": 9875,
+      "matched": true
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/scripts/meri-release.mjs",
+      "sha256": "2fece407aa0f08795ac6d5d1feef99211412ab28ea6bc76125c1c49eae4412f6",
+      "bytes": 22124,
+      "matched": true
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-iam-read-probe-v1/iam-read-probe-inner-v1.mjs",
+      "sha256": "5f92354dbb845d035cbb1160e7a0a27d964ed3a19ffc398c82f3ba733085c23f",
+      "bytes": 5776,
+      "matched": true
+    }
+  ],
+  "retainedTests": {
+    "inner": 17,
+    "outer": 7,
+    "independentRerun": false
+  },
+  "findings": [],
+  "verified": [
+    "Exact approved packet and unexpired scoped temporary IAM binding before mutation",
+    "Current inline policy and both release snapshots checked",
+    "No DB/provider secret references in task; exact task role for native self reads",
+    "Metadata link-local URL, bounded timeout/body and one-attempt SDK configuration",
+    "Exact task/definition/role/source/image/owner tag/startedBy joins",
+    "Exclusive fsynced intents; immutable compact JSON arguments and Windows size bound",
+    "Lost/foreign ACK ownership reconciliation does not launch twice or stop foreign resources",
+    "Exact STOPPED and INACTIVE cleanup required for success; original event26 unchanged",
+    "Retained controlled source tests exercise success, failure, unknown and foreign acknowledgments, replay and input-file TOCTOU"
+  ],
+  "limitations": [
+    "No AWS, DB, provider or native journal operation performed by this review",
+    "Actual native IAM positive proof remains a separate root-run prerequisite",
+    "Controlled tests are retained author evidence; this review independently inspected assertions and rehashed all source/evidence pins, not rerun them"
+  ],
+  "nativePermissionProven": false,
+  "setupExecuted": false,
+  "captureAuthority": false
+}
