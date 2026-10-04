@@ -17,7 +17,9 @@ GLOBAL = EXECUTE.__globals__
 LIVE = pathlib.Path(GLOBAL['FRESH_ROOT'])
 PARENT = pathlib.Path('C:/dev/main/outputs/meri-c2-20261003/fresh-journal-adapter-v1/local-tests')
 PARENT.mkdir(parents=True, exist_ok=True)
-ORIGINAL = {name: (LIVE / name).read_bytes() for name in ('run-authorization.json', 'fresh-spend.jsonl')}
+LIVE_ORIGINAL = {name: (LIVE / name).read_bytes() for name in ('run-authorization.json', 'fresh-spend.jsonl')}
+ORIGINAL = {**LIVE_ORIGINAL, 'fresh-spend.jsonl': b''.join(LIVE_ORIGINAL['fresh-spend.jsonl'].splitlines(keepends=True)[:20])}
+assert MODULE['digest'](ORIGINAL['fresh-spend.jsonl']) == MODULE['FRESH_PREFIX']
 
 
 def reserve(case='01', amount=15_000_000):
@@ -42,7 +44,7 @@ class FreshJournal(unittest.TestCase):
 
     def tearDown(self):
         GLOBAL['FRESH_ROOT'] = str(LIVE)
-        for name, value in ORIGINAL.items():
+        for name, value in LIVE_ORIGINAL.items():
             self.assertEqual((LIVE / name).read_bytes(), value, 'live evidence changed')
 
     def call(self, op, prior=None, event=None, **extra):
@@ -207,6 +209,77 @@ with contextlib.ExitStack() as s:
             child.communicate('\n', timeout=10)
         self.assertEqual(child.returncode, 0)
         self.assertEqual(self.call('read', self.first)['snapshot']['eventCount'], 20)
+
+
+class ProspectiveCase14(unittest.TestCase):
+    def setUp(self):
+        self.root = pathlib.Path(tempfile.mkdtemp(prefix='case14-native-', dir=PARENT))
+        for name, value in ORIGINAL.items():
+            (self.root / name).write_bytes(value)
+        GLOBAL['FRESH_ROOT'] = str(self.root)
+        self.prior = self.call('adopt')
+        self.wire = b''.join(LIVE_ORIGINAL['fresh-spend.jsonl'].splitlines(keepends=True)[:24])
+        self.assertEqual(MODULE['digest'](self.wire), GLOBAL['FRESH_CASE14_PREFIX'])
+        # Test-only exact historical append, retaining the native file identity.
+        (self.root / 'fresh-spend.jsonl').write_bytes(self.wire)
+        self.prior['state']['files']['fresh-spend.jsonl'].update(
+            sha256=MODULE['digest'](self.wire), bytes=len(self.wire))
+        self.prior = self.call('read', self.prior)
+
+    def tearDown(self):
+        GLOBAL['FRESH_ROOT'] = str(LIVE)
+        for name, value in LIVE_ORIGINAL.items():
+            self.assertEqual((LIVE / name).read_bytes(), value, 'live evidence changed')
+
+    call = FreshJournal.call
+
+    def test_one_new_case14_retains_exact_failed_costs_and_caps(self):
+        self.assertEqual(self.prior['snapshot']['knownSettledCostMicros'], 13_631_058)
+        event = reserve('14')
+        active = self.call('reserve', self.prior, event)
+        self.assertEqual(active['snapshot']['remainingReservationMicros'], 1_368_942)
+        self.assertTrue((self.root / 'fresh-spend.jsonl').read_bytes().startswith(self.wire))
+        for other in [reserve('14'), reserve('01'), reserve('20')]:
+            with self.assertRaises(ValueError):
+                self.call('reserve', active, other)
+        with self.assertRaises(ValueError):
+            self.call('reserve', self.prior, reserve('14'))
+        done = self.call('settle', active, settle(event, 500_000))
+        self.assertEqual(done['snapshot']['knownSettledCostMicros'], 14_131_058)
+        self.assertEqual(done['snapshot']['remainingReservationMicros'], 15_868_942)
+        with self.assertRaises(ValueError):
+            self.call('reserve', done, reserve('14'))
+
+    def test_bad_case14_caps_replays_and_settlement_leave_bytes_unchanged(self):
+        for event in [reserve('14', 15_000_001), reserve('14', 0), reserve('14', True),
+                      {**reserve('14'), 'captureRunId': json.loads(self.wire.splitlines()[0])['captureRunId']}]:
+            with self.assertRaises(ValueError):
+                self.call('reserve', self.prior, event)
+        self.assertEqual((self.root / 'fresh-spend.jsonl').read_bytes(), self.wire)
+        event = reserve('14');active = self.call('reserve', self.prior, event)
+        before = (self.root / 'fresh-spend.jsonl').read_bytes()
+        for change in [{'chargedCostMicros': 15_000_001}, {'ledgerSha256': 'forged'},
+                       {'caseId': '20'}, {'reservationId': str(uuid.uuid4())}, {'captureAuthority': True}]:
+            with self.assertRaises(ValueError):
+                self.call('settle', active, {**settle(event), **change})
+        self.assertEqual((self.root / 'fresh-spend.jsonl').read_bytes(), before)
+
+    def test_case14_cannot_use_earlier_or_edited_prefix(self):
+        event = reserve('14')
+        for count in [20, 21, 22, 23]:
+            row = {k: event[k] for k in ['caseId', 'captureRunId', 'reservationId', 'ceilingMicros']}
+            row.update(nativeCaptureVersion=1, sequence=count+1, atMs=1, event='reserved')
+            with self.assertRaises(ValueError):
+                MODULE['reduce_fresh'](b''.join(self.wire.splitlines(keepends=True)[:count])+MODULE['data'](row)+b'\n')
+        rows = self.wire.splitlines(keepends=True)
+        last = json.loads(rows[-1]);last['atMs'] += 1
+        changed = b''.join(rows[:-1])+MODULE['data'](last)+b'\n'
+        # The old reducer's semantics still accept this field; the new exact
+        # Case14 boundary must reject the mutation even if state hashes match.
+        MODULE['reduce_fresh'](changed)
+        row.update(sequence=25)
+        with self.assertRaises(ValueError):
+            MODULE['reduce_fresh'](changed+MODULE['data'](row)+b'\n')
 
 
 if __name__ == '__main__':

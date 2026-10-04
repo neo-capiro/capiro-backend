@@ -1,0 +1,40 @@
+{
+  "files": [
+    {
+      "path": "case14-native-execute-input-v1.json",
+      "sha256": "9d6bb553def112676b48125a71810c4307dd0950a7fa9f6fa63773b7fe50f167"
+    },
+    {
+      "path": "case14-native-execute-inner-v1.mjs",
+      "sha256": "42f0490e00639dd0d0a67289202c0f0e63535f5d68120c10aced5b22290ef0f9"
+    },
+    {
+      "path": "run-case14-native-execute-v1.mjs",
+      "sha256": "aeecca3dc784f20abac35f35648e82cd02960645805cac06de421e3c08168b4d"
+    },
+    {
+      "path": "case14-native-plan-v1/native-plan-readback.json",
+      "sha256": "ce733ae0c5041a9b8e1e9e50e764eb1f706d13bafbfeb64c1f2f78a1ff524f79"
+    },
+    {
+      "path": "case14-native-plan-v1/cleanup.json",
+      "sha256": "146238d5c94ff0f7eb35760ea064c64621c8c0cbdb8cfd4d597ca1837eaf1dd1"
+    },
+    {
+      "path": "combined-c2-served-readback-v1.json",
+      "sha256": "9d46bceaae9f2bea2ba76fa89ba13940c4fd49979fc601213aaa36e21357cd06"
+    },
+    {
+      "path": "apps/api/scripts/meri-pending-memory-setup.mjs",
+      "sha256": "5b960d3ef811bdeba712ab852becc8da0e528146b576e971b548cf106a5177d2"
+    },
+    {
+      "path": "evals/meri/live-v1/fixture-provisioning/memory-pending-execution.mjs",
+      "sha256": "ea14336f7405d857ebbb29201f210377db77eaf3ea4cbdc04c2f796205e81485"
+    },
+    {
+      "path": "evals/meri/live-v1/fixture-provisioning/memory-candidate-owner.mjs",
+      "sha256": "a850e4a8a68641d7118cf7f6e5abda72e64452bde6123d8e13acf5308d6bc9b7"
+    }
+  ]
+}

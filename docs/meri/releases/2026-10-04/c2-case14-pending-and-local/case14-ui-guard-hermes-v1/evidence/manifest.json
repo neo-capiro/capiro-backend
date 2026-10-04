@@ -1,0 +1,22 @@
+[
+  {
+    "path": "evals/meri/live-v1/case14-approval-capture.mjs",
+    "sha256": "6ee87a40e0bca6a8a9f1e0030ff92b2d241dbf7b2374b681ff889471ef5482b3"
+  },
+  {
+    "path": "evals/meri/live-v1/case17-readonly-guard.mjs",
+    "sha256": "6c8d3e5e0dfafba4a0132a2ff3151fcfce245e9b4cc0ad0c2b0a05ac38636b09"
+  },
+  {
+    "path": "evals/meri/live-v1/tests/case14-capture.test.mjs",
+    "sha256": "f2cca91ddb340308cfec23e227897ad1c79eb833163a4f61ab384efb10dfe794"
+  },
+  {
+    "path": "evals/meri/live-v1/tests/case14-delayed-query.test.mjs",
+    "sha256": "32d495d2504960cb1a0a129885d12b8c8317a1323b6950a1ac5feab920f7fbff"
+  },
+  {
+    "path": "evals/meri/live-v1/tests/case17-readonly-guard.test.mjs",
+    "sha256": "848f2f956274fbf2dfb894f3c8e2a6142850d2ea602c9ac0e8bd81c59d98250a"
+  }
+]

@@ -23,6 +23,7 @@ TERMINAL_CASE01_INVENTORY = '113c55d76637edfd807e5e3efced931e2b2dd73052dabba4d2e
 TERMINAL_CASE01_PROOF = 'd8555b206bf7d47630838885f8fe4fce0e8fb5f25fda851e3b8e07e54b17314f'
 FRESH_ROOT = r'C:\dev\main\outputs\meri-fresh-20261003'
 FRESH_PREFIX = 'abe458973e6998db20586c781ac5a3cbd4ca2fa565425e62722f0eb9c985210b'
+FRESH_CASE14_PREFIX = '8f20134f71dde90e32fc0c3c2aba2da2d5b93dd13fffea31b83105d1621bc3e5'
 FRESH_AUTHORIZATION = 'e07822e83a7c7b531606519ecd4fdf1027f2fa7cbaefd4bad92a2084590262fe'
 
 
@@ -220,11 +221,17 @@ def reduce_fresh(wire):
         common = {'nativeCaptureVersion', 'sequence', 'atMs', 'event', 'caseId', 'captureRunId', 'reservationId'}
         require(row.get('nativeCaptureVersion') == 1 and row.get('sequence') == sequence)
         require(type(row.get('atMs')) is int and row['atMs'] > 0)
-        key = run_key(row, {'01', '20'})
+        key = run_key(row, {'01', '14', '20'})
+        if row['caseId'] == '14':
+            # One prospective Case14 run after the exact two failed-run cost
+            # closures. Preserve historical adoption and all Case01/20 rules.
+            require(sequence > 24 and digest(b''.join(lines[:24])) == FRESH_CASE14_PREFIX)
         require(UUID.fullmatch(row.get('reservationId', '')))
         if row.get('event') == 'reserved':
             require(set(row) == common | {'ceilingMicros'})
             require(active is None and key not in runs and row['reservationId'] not in reservation_ids and row['captureRunId'] not in capture_ids)
+            if row['caseId'] == '14':
+                require(not any(run['caseId'] == '14' and not run.get('historical') for run in runs.values()))
             cost = ceiling(row['ceilingMicros'], MAX_V2_CASE)
             require(charged + cost <= MAX_TOTAL)
             runs[key], active = dict(row), key

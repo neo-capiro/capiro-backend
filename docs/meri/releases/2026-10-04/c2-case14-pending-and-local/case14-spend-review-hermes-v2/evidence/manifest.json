@@ -1,0 +1,18 @@
+[
+  {
+    "path": "evals/meri/live-v1/capture-spend-aggregate.mjs",
+    "sha256": "7a94674f017de72f67569e1d7efccb8339e68ec101272ee295d508f031e100d2"
+  },
+  {
+    "path": "evals/meri/live-v1/lib/windows-capture-spend.py",
+    "sha256": "1244c7f991302e17db800e7facf6142f6fb4ae6d6f106d2216fc45225122eb6f"
+  },
+  {
+    "path": "evals/meri/live-v1/tests/capture-spend-fresh.test.mjs",
+    "sha256": "4d9a0ca27e7dced668c2d1a5e8972da0f27fc45221e60f318535c422f11834bb"
+  },
+  {
+    "path": "evals/meri/live-v1/tests/capture-spend-fresh.unit.py",
+    "sha256": "254b9bc047b8a532bece7d38e3a1d0fc8cbe46957f3d384be87c366be8ca1d03"
+  }
+]

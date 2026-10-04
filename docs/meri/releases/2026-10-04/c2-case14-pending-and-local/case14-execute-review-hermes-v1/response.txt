@@ -1,0 +1,3 @@
+BLOCKER: I wrote the bounded operator review to C:\dev\main\outputs\meri-c2-20261003\case14-execute-review-hermes-v1\REVIEW.md.
+
+It flags one concrete gap: an ambiguous task-definition registration is recorded as unresolved but not reconciled, so cleanup of a possibly registered revision is not assured. No execution or Case14 acceptance is claimed.

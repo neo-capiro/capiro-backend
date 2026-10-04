@@ -179,7 +179,7 @@ function openCaptureSpendOwner(prior, { pythonExecutable }, recovery = null) {
     checkpoint: () => checkpoint(value),
     reserve({ caseId, captureRunId, ceilingMicros }) {
       need(!recovery);
-      if (fresh) need(['01', '20'].includes(caseId));
+      if (fresh) need(['01', '14', '20'].includes(caseId));
       const event = {
         kind: 'reserve',
         caseId,

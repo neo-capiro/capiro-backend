@@ -1,0 +1,45 @@
+{
+  "startedAt": "2026-10-04T03:57:24.437637+00:00",
+  "finishedAt": "2026-10-04T04:03:24.739346+00:00",
+  "exitCode": 124,
+  "failure": "BOUNDED_REVIEW_TIMEOUT",
+  "modelOverride": null,
+  "providerOverride": null,
+  "files": [
+    {
+      "path": "prompt.txt",
+      "bytes": 2566,
+      "sha256": "fad4a3e1d9d98d90e6cec950dc657b296b7e84fcf54b63f645a83d2382c5f459"
+    },
+    {
+      "path": "response.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "candidate\\evals\\meri\\live-v1\\capture-spend-aggregate.mjs",
+      "bytes": 18241,
+      "sha256": "7a94674f017de72f67569e1d7efccb8339e68ec101272ee295d508f031e100d2"
+    },
+    {
+      "path": "candidate\\evals\\meri\\live-v1\\lib\\windows-capture-spend.py",
+      "bytes": 26836,
+      "sha256": "8ff3e514d79ac9dcdcc02e7d9da22820838014ec8d54f8c6a10c776da83f3572"
+    },
+    {
+      "path": "candidate\\evals\\meri\\live-v1\\tests\\capture-spend-fresh.test.mjs",
+      "bytes": 8903,
+      "sha256": "d37a9615d1dd377060b941d70cb773316ce383d69eb2800269ea2683a16fc2c4"
+    },
+    {
+      "path": "candidate\\evals\\meri\\live-v1\\tests\\capture-spend-fresh.unit.py",
+      "bytes": 7521,
+      "sha256": "8c5c907f4d5e6c82d4e49db598323d013a9a5b3c07b740ce32bdb2e9a9ec6bd6"
+    }
+  ]
+}

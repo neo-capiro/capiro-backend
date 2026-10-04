@@ -1,0 +1,30 @@
+{
+  "startedAt": "2026-10-04T04:33:34.956584+00:00",
+  "finishedAt": "2026-10-04T04:34:24.660021+00:00",
+  "exitCode": 0,
+  "failure": null,
+  "modelOverride": null,
+  "providerOverride": null,
+  "files": [
+    {
+      "path": "prompt.txt",
+      "bytes": 1115,
+      "sha256": "77a0848de52f3e742f3b779e2bae96317c9754747f3b8f77d725adb54dc012db"
+    },
+    {
+      "path": "response.txt",
+      "bytes": 618,
+      "sha256": "3858a6b3a10c766a38fc11378609cfe13edd679c6e7cdfcd394011128e1a9ca9"
+    },
+    {
+      "path": "stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "usage.json",
+      "bytes": 473,
+      "sha256": "958e2f2fca1ac7dc11fc5acd1ae3813c798ccef39a6ee0497d7b727723bd8279"
+    }
+  ]
+}
