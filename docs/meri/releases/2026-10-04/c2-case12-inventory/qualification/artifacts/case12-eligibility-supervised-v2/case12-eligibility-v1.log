@@ -1,0 +1,756 @@
+(node:38828) [DEP0180] DeprecationWarning: fs.Stats constructor is deprecated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+[Nest] 38828  - 10/04/2026, 5:08:50 AM     LOG [MemoryCandidateService] memory_candidate 96d08ce6-3126-56f1-b264-782e8336fa38 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:50 AM     LOG [MemoryCandidateService] memory_candidate 4e3a515b-3742-576a-ae48-46c98686d305 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:50 AM     LOG [MemoryCandidateService] memory_candidate 65da05ba-0574-54b3-b71a-e105755abc5f pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:50 AM     LOG [MemoryCandidateService] memory_candidate 5447dc9a-71df-5c0a-b059-9f42d418fa4c pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:50 AM     LOG [MemoryCandidateService] memory_candidate f5b08bad-4821-579f-bab3-9c8bdec0598c pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:50 AM     LOG [MemoryCandidateService] memory_candidate 7866ae51-1ac0-5d56-9cfe-90e598b63cd7 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:50 AM     LOG [MemoryCandidateService] memory_candidate b49fa39f-9ae4-5729-b035-6e591d97585f pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:50 AM     LOG [MemoryCandidateService] memory_candidate 981e9a20-a2af-548f-a67a-68bd3fcf91b7 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:50 AM     LOG [MemoryCandidateService] memory_candidate d201c009-2540-5177-a9e4-cd377d81c949 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:50 AM     LOG [MemoryCandidateService] memory_candidate e0d1caa2-0caf-5374-b3fc-06ef56020431 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:50 AM     LOG [MemoryCandidateService] memory_candidate da3e014a-679d-5151-a2f9-1871fc9a8d7b pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:50 AM     LOG [MemoryCandidateService] memory_candidate 60de209c-3797-580b-b041-fdae96d63735 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:50 AM     LOG [MemoryCandidateService] memory_candidate 977e9546-062a-59af-b057-15c625e2e883 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:51 AM     LOG [MemoryCandidateService] memory_candidate 60d76017-ca74-5bda-93df-95207ed5edf4 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:51 AM     LOG [MemoryCandidateService] memory_candidate 172b7c0c-27eb-504b-a493-e30063268828 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:51 AM     LOG [MemoryCandidateService] memory_candidate e0b92d13-ca07-5bd4-8c0e-046558025e40 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:51 AM     LOG [MemoryCandidateService] memory_candidate 28130fbf-0c81-539e-abbc-9e2913c84670 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:51 AM     LOG [MemoryCandidateService] memory_candidate 92efddbb-92de-56c8-b174-57004a8e91f9 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:51 AM     LOG [MemoryCandidateService] memory_candidate dd572226-7e5b-5295-a4f7-3ea17d222205 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:51 AM     LOG [MemoryCandidateService] memory_candidate 662335ea-5912-5a5f-936f-6d7240d14af9 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:51 AM     LOG [MemoryCandidateService] memory_candidate 687c496d-a3c9-527d-878f-2348be9dbf95 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:51 AM     LOG [MemoryCandidateService] memory_candidate 39eb8fe0-0718-5132-b509-a38b20b7e9a7 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:51 AM     LOG [MemoryCandidateService] memory_candidate 16b74c91-e973-5690-a20e-d113b95b28ba pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:51 AM     LOG [MemoryCandidateService] memory_candidate 953d96a8-7c28-5d12-874e-a10e0ccf5c20 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:51 AM     LOG [MemoryCandidateService] memory_candidate 2e20ebc2-93e5-5b0a-89e3-d90f62e18aed pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:51 AM     LOG [MemoryCandidateService] memory_candidate 3ade5296-864a-5e29-9d7a-d7c3bfdeeeff pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:51 AM     LOG [MemoryCandidateService] memory_candidate 6ff1a8a7-dec2-568f-a9e6-fb7e3be11cfe pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:51 AM     LOG [MemoryCandidateService] memory_candidate 7a688afd-d8eb-5b62-b215-7b9135de37fb pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:51 AM     LOG [MemoryCandidateService] memory_candidate a704892f-71fa-5e85-9b40-81d646d47f20 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:51 AM     LOG [MemoryCandidateService] memory_candidate 0e461b50-56c5-5152-aff1-e63ce44b7261 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:51 AM     LOG [MemoryCandidateService] memory_candidate 6fc17af9-6b5e-5214-9b16-ad316858f051 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:51 AM     LOG [MemoryCandidateService] memory_candidate 271e60c2-7f91-585d-a010-2b7288ccb167 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:51 AM     LOG [MemoryCandidateService] memory_candidate 9f77bfde-847f-5b95-9e95-97c19b43ecaf pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:51 AM     LOG [MemoryCandidateService] memory_candidate 6ae3afcf-26bd-529c-9ab0-d9814b0d1611 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:51 AM     LOG [MemoryCandidateService] memory_candidate 768bc386-2a5b-5971-a85e-6fea763c3237 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:51 AM     LOG [MemoryCandidateService] memory_candidate 9b27500b-4462-5be8-ad05-b543abf3d1eb pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:51 AM     LOG [MemoryCandidateService] memory_candidate 8a10281a-f42a-551a-88c9-10cd0ecb4dad pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:52 AM     LOG [MemoryCandidateService] memory_candidate 0e5849f8-3659-543e-a539-72c21ba36152 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:52 AM     LOG [MemoryCandidateService] memory_candidate f7b8c57a-6d5f-5b17-8745-3bf9e0d4fee0 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:52 AM     LOG [MemoryCandidateService] memory_candidate 3698f95e-f4db-5b6e-b29c-96b693a1acf6 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:52 AM     LOG [MemoryCandidateService] memory_candidate eb09df13-3ef6-531a-bac6-3bef2a043096 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:52 AM     LOG [MemoryCandidateService] memory_candidate 22cc0bf1-958b-5542-89b5-1bd82b256fa6 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:52 AM     LOG [MemoryCandidateService] memory_candidate 15c356db-771f-5136-bfc7-f9997f3b497d pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:52 AM     LOG [MemoryCandidateService] memory_candidate 286cc315-629b-50be-812f-d801b6e6f6c9 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:52 AM     LOG [MemoryCandidateService] memory_candidate dd4e7720-1cb4-55a7-8a7d-03e1dd8aede6 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:52 AM     LOG [MemoryCandidateService] memory_candidate b62759d9-431a-5eb9-bc3c-b0a08870e9e2 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:52 AM     LOG [MemoryCandidateService] memory_candidate 36a576f2-c17f-56da-b67c-c2446a657737 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:52 AM     LOG [MemoryCandidateService] memory_candidate 5eb48afc-5a91-53f4-b93c-4b78b4d44b0b pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:52 AM     LOG [MemoryCandidateService] memory_candidate 643cb925-d777-5c80-913c-5e208d110a34 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:52 AM     LOG [MemoryCandidateService] memory_candidate fe2271c9-8cb0-5e43-b66a-7ee2646e8820 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:52 AM     LOG [MemoryCandidateService] memory_candidate ebd71c2f-e0b3-5e12-bf86-ef3977987d1f pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:52 AM     LOG [MemoryCandidateService] memory_candidate 8700fd01-ea5b-55c6-8811-41ec987d0e32 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:52 AM     LOG [MemoryCandidateService] memory_candidate ba9c8cb8-cc7d-58da-83ee-25848ef87ca5 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:52 AM     LOG [MemoryCandidateService] memory_candidate da0b541b-8cf9-5e30-bde5-16237f350940 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:52 AM     LOG [MemoryCandidateService] memory_candidate e2bf61ab-45c0-5f52-92ea-624bfdf592bb pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:52 AM     LOG [MemoryCandidateService] memory_candidate 258aaaf0-de31-508c-808f-ff2cd82ab6c4 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:52 AM     LOG [MemoryCandidateService] memory_candidate d6d8a3a1-209e-5c7f-a2b6-bdd1c75c48e5 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:52 AM     LOG [MemoryCandidateService] memory_candidate 14e046f4-ac90-551e-bf8d-29ac304657f4 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:52 AM     LOG [MemoryCandidateService] memory_candidate 84e2eed1-5a66-53b9-b8c0-923474bde91b pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:52 AM     LOG [MemoryCandidateService] memory_candidate 6ca9245a-f44a-51c6-a377-7e8a5265b68c pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:52 AM     LOG [MemoryCandidateService] memory_candidate 4cb4125e-c6a6-57ed-8b5c-ad3eea06f2e4 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:52 AM     LOG [MemoryCandidateService] memory_candidate 690b6b00-f4ab-58b7-8ad4-92a1b5aaa97b pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:52 AM     LOG [MemoryCandidateService] memory_candidate c1a2b798-f960-51da-a3d6-c0a306a4deb7 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:53 AM     LOG [MemoryCandidateService] memory_candidate 4310c4e6-cad5-5ba2-98ee-ae93c198723a pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:53 AM     LOG [MemoryCandidateService] memory_candidate fdc105d8-4b03-515f-ac32-535e660ed284 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:53 AM     LOG [MemoryCandidateService] memory_candidate d28656c1-fb4b-5735-ae69-9255b96b9753 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:53 AM     LOG [MemoryCandidateService] memory_candidate e1d56c99-87ae-539a-b9bb-fe8b744ec7bd pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:53 AM     LOG [MemoryCandidateService] memory_candidate 0bd2b2aa-1094-5eed-961c-9e81f5650110 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:53 AM     LOG [MemoryCandidateService] memory_candidate 0a1bd0ab-ff80-5ac9-98df-626ee71df72d pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:53 AM     LOG [MemoryCandidateService] memory_candidate 9d8f8b61-dc91-5689-a2d4-187e304aa482 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:53 AM     LOG [MemoryCandidateService] memory_candidate ced5875a-cb21-57e3-a6ba-84b49ba27f96 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:53 AM     LOG [MemoryCandidateService] memory_candidate 93ac57ef-9b74-54f3-aad8-8df93dc1965b pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:53 AM     LOG [MemoryCandidateService] memory_candidate 57abfdf6-17b5-53ad-b46c-0caed4bae984 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:53 AM     LOG [MemoryCandidateService] memory_candidate 7817d42f-02bb-58d3-9030-d1f5590215b9 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:53 AM     LOG [MemoryCandidateService] memory_candidate 0a2d2984-8143-5e1c-a75e-c41fee62c612 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:53 AM     LOG [MemoryCandidateService] memory_candidate ca3cfc82-a451-5894-98f3-1fe02f7054de pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:53 AM     LOG [MemoryCandidateService] memory_candidate f9a542ba-9be9-54cb-a850-a9fe969ba159 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:53 AM     LOG [MemoryCandidateService] memory_candidate d10b7bac-3e4a-5154-b22b-95d06350e70e pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:53 AM     LOG [MemoryCandidateService] memory_candidate 8b5a7c6e-da87-5d3f-9a1d-302170e61499 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:53 AM     LOG [MemoryCandidateService] memory_candidate fdf609e5-a89f-56f7-a3a1-a3982abad1d0 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:53 AM     LOG [MemoryCandidateService] memory_candidate 3140e3c1-1b56-5064-ab5d-4d44f18680c0 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:53 AM     LOG [MemoryCandidateService] memory_candidate 44b543be-a0ed-576d-940b-55cb08ea9b17 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:53 AM     LOG [MemoryCandidateService] memory_candidate df83179f-432d-533f-a1c9-2c86b013f273 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:53 AM     LOG [MemoryCandidateService] memory_candidate df869a90-db61-5b05-afbf-bc9ed30d0617 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:53 AM     LOG [MemoryCandidateService] memory_candidate 2698f451-447a-5c62-91b6-21dc6f7b4938 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:53 AM     LOG [MemoryCandidateService] memory_candidate 5fbd2308-9c3e-5df1-bd19-0681da2a8e85 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:54 AM     LOG [MemoryCandidateService] memory_candidate 16da5dbd-97c8-5ea7-b473-4e9899be2927 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:54 AM     LOG [MemoryCandidateService] memory_candidate adc1e857-c53e-5b82-a5d5-9c37868fe04f pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:54 AM     LOG [MemoryCandidateService] memory_candidate 8c4ba579-1de9-55b2-8897-f32e64c5ace2 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:54 AM     LOG [MemoryCandidateService] memory_candidate 1a353949-25b2-5b5f-ab32-1d0541d11114 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:54 AM     LOG [MemoryCandidateService] memory_candidate 883bc2b1-cd77-5d71-80b0-d02ae2474cf1 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:54 AM     LOG [MemoryCandidateService] memory_candidate ac59860c-b98d-5156-8c68-efb0c91017ac pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:54 AM     LOG [MemoryCandidateService] memory_candidate ee89b0e4-91c5-5f31-8dcc-ec0ac82c5803 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:54 AM     LOG [MemoryCandidateService] memory_candidate b354edc2-e84f-5df9-a60c-ccf437c736d1 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:54 AM     LOG [MemoryCandidateService] memory_candidate 1c32144b-4cb7-5618-a356-bbac62e52b1f pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:54 AM     LOG [MemoryCandidateService] memory_candidate 6f40fa31-c848-58db-88ee-db43bbebf50f pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:54 AM     LOG [MemoryCandidateService] memory_candidate 9e8920da-1348-50b6-9493-b69ee4bd7b6c pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:54 AM     LOG [MemoryCandidateService] memory_candidate 61e61d41-07a2-58bc-a859-6f9048d62575 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:54 AM     LOG [MemoryCandidateService] memory_candidate b5e513d3-495f-5b9e-acd8-9440b0bb6d79 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:54 AM     LOG [MemoryCandidateService] memory_candidate fad5e36b-7844-59b0-b1a1-faec4f6879be pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:54 AM     LOG [MemoryCandidateService] memory_candidate 35c24380-bdfc-5d9e-b526-65f869d3b5cd pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:54 AM     LOG [MemoryCandidateService] memory_candidate 689c7815-4829-53ed-be2c-c592df7321bf pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:54 AM     LOG [MemoryCandidateService] memory_candidate 706c6c44-6be6-50c0-a18c-69e2757b3a3f pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:54 AM     LOG [MemoryCandidateService] memory_candidate 657708fc-c157-5725-a954-46e60990af72 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:54 AM     LOG [MemoryCandidateService] memory_candidate 00e78be8-2775-540f-af7b-3667acd1d852 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:54 AM     LOG [MemoryCandidateService] memory_candidate 9674d392-2f05-5280-9570-0cdcc9cc592e pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:54 AM     LOG [MemoryCandidateService] memory_candidate de3c4d51-c23f-53eb-8fc0-24335efadb7e pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:54 AM     LOG [MemoryCandidateService] memory_candidate f6b7bf35-3031-55b7-82f3-73910233c337 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:54 AM     LOG [MemoryCandidateService] memory_candidate ea2055ff-98fd-51c1-9fa6-f240c49c275c pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:54 AM     LOG [MemoryCandidateService] memory_candidate cd2cc888-b15b-5c40-8a57-6bba9ee08006 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:55 AM     LOG [MemoryCandidateService] memory_candidate dfc6be37-1414-5223-b1dc-0ad42d8bb10e pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:55 AM     LOG [MemoryCandidateService] memory_candidate 1609c533-2df5-50c3-8c60-48b2ec389517 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:55 AM     LOG [MemoryCandidateService] memory_candidate 0aa26eaf-3fb5-59e9-92cd-65e97e3c9b80 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:55 AM     LOG [MemoryCandidateService] memory_candidate af60b247-1d8e-5186-8c20-d0ebceb9dd9c pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:55 AM     LOG [MemoryCandidateService] memory_candidate a08c8984-6294-533b-86e2-3c053243d926 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:55 AM     LOG [MemoryCandidateService] memory_candidate 38ec5ccf-ae65-57dc-b88d-14e2a5da795f pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:55 AM     LOG [MemoryCandidateService] memory_candidate f09ba2f8-78d5-5b2a-8ce5-d93f0d16c796 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:55 AM     LOG [MemoryCandidateService] memory_candidate 071b6d8c-643f-56e6-8133-20426c2cb635 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:55 AM     LOG [MemoryCandidateService] memory_candidate bb01981d-9047-5b48-820b-dc71135dde45 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:55 AM     LOG [MemoryCandidateService] memory_candidate 8926adb6-ea45-5961-8d9d-f17b3492c2aa pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:55 AM     LOG [MemoryCandidateService] memory_candidate 07472b23-7e7f-514b-8b5d-ffc6582241c9 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:55 AM     LOG [MemoryCandidateService] memory_candidate e631bdb4-3e01-5cc6-b6bd-81b7fbe876d0 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:55 AM     LOG [MemoryCandidateService] memory_candidate 45f26571-36fe-543b-bf7b-ed2948ebf323 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:55 AM     LOG [MemoryCandidateService] memory_candidate f59c11a7-6383-5a62-a895-048fe7807a27 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:55 AM     LOG [MemoryCandidateService] memory_candidate c8c0b000-e88c-5807-859f-ad21e19451ce pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:55 AM     LOG [MemoryCandidateService] memory_candidate 78eb22d6-ea41-516b-aa09-c6c802a99335 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:55 AM     LOG [MemoryCandidateService] memory_candidate 79fb9349-6ab0-5496-95fb-43372cb5575a pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:55 AM     LOG [MemoryCandidateService] memory_candidate f82be8a1-0712-518e-9821-adcd67ed1621 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:55 AM     LOG [MemoryCandidateService] memory_candidate 22f82441-f076-5a04-8c64-746de29f706c pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:55 AM     LOG [MemoryCandidateService] memory_candidate 3ce9dd14-279f-5331-8506-8ca8e72ca59a pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:55 AM     LOG [MemoryCandidateService] memory_candidate ed61b06f-770d-50ee-a49f-d6118a586a9c pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:55 AM     LOG [MemoryCandidateService] memory_candidate 5f9316c8-2f52-5348-8ff3-cd77374d4a53 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:55 AM     LOG [MemoryCandidateService] memory_candidate f3857968-cc47-5054-b538-a3dea09819ac pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:56 AM     LOG [MemoryCandidateService] memory_candidate 88ae3d84-3b36-5761-a6c7-236b749bf549 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:56 AM     LOG [MemoryCandidateService] memory_candidate e7129a9d-7424-5b9e-aebd-3893d134a075 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:56 AM     LOG [MemoryCandidateService] memory_candidate 430767b1-af7e-5b53-87f5-16d37455ff2c pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:56 AM     LOG [MemoryCandidateService] memory_candidate a12ee673-74a2-5948-9386-39773b435efd pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:56 AM     LOG [MemoryCandidateService] memory_candidate fd38a6bf-c591-5521-9de3-67598038ec01 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:56 AM     LOG [MemoryCandidateService] memory_candidate 48152ef6-d3f7-5feb-b686-a46ce30540f5 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:56 AM     LOG [MemoryCandidateService] memory_candidate 98162554-500e-5f1b-b346-f52e952c714a pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:56 AM     LOG [MemoryCandidateService] memory_candidate d30ac58f-fd07-5ce9-8806-51854e5e5fb2 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:56 AM     LOG [MemoryCandidateService] memory_candidate 1790e580-3423-56b0-b8c1-4cbaae9bd290 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:56 AM     LOG [MemoryCandidateService] memory_candidate 14a1cddc-c12e-56df-9284-729ca581cbe2 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:56 AM     LOG [MemoryCandidateService] memory_candidate 3cb18b45-2420-5836-9409-6ea0b1b97c91 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:56 AM     LOG [MemoryCandidateService] memory_candidate d9039ba1-d298-5194-8c93-bdf5fe4f2e72 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:56 AM     LOG [MemoryCandidateService] memory_candidate c01fe520-5a09-5d6b-81d6-a9b3b90487fa pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:56 AM     LOG [MemoryCandidateService] memory_candidate 22806139-22dd-51b2-845f-d238df384f36 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:56 AM     LOG [MemoryCandidateService] memory_candidate 4144c927-0897-5d1c-954e-8b405e0aaf39 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:56 AM     LOG [MemoryCandidateService] memory_candidate d36a65ba-dcab-5fdf-adf9-83d6371d0457 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:56 AM     LOG [MemoryCandidateService] memory_candidate fdecb41f-3eb5-5753-b4c3-c596f256725e pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:56 AM     LOG [MemoryCandidateService] memory_candidate e1330d17-fa5f-5eca-80e8-990b3b74389d pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:56 AM     LOG [MemoryCandidateService] memory_candidate ddfbfbaf-234a-5e2b-aaa8-0534dd15281e pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:56 AM     LOG [MemoryCandidateService] memory_candidate 6a01727c-8b1a-599b-9588-a8b7f3b2dc53 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:56 AM     LOG [MemoryCandidateService] memory_candidate 190cb2ef-c63e-5b6b-9d34-d4e6e8bcde6b pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:56 AM     LOG [MemoryCandidateService] memory_candidate 01d38057-d5b7-55b8-bf13-6b51069aef17 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:56 AM     LOG [MemoryCandidateService] memory_candidate c434605e-6b37-5167-b946-ec02ce3fd111 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:56 AM     LOG [MemoryCandidateService] memory_candidate a1455627-a117-52f2-bdd5-8d3b1186dca5 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:56 AM     LOG [MemoryCandidateService] memory_candidate d52a1bb6-9e8a-5031-9a93-45b286c665cf pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:57 AM     LOG [MemoryCandidateService] memory_candidate 37afafc5-0fcf-5552-819c-52e2a2682000 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:57 AM     LOG [MemoryCandidateService] memory_candidate 78811b83-2621-5893-a21f-3f9e2c87f6de pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:57 AM     LOG [MemoryCandidateService] memory_candidate 569a025d-ee78-5730-9a97-96059acd45e2 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:57 AM     LOG [MemoryCandidateService] memory_candidate d89e0273-a659-5875-9d7a-9c078467b0d4 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:57 AM     LOG [MemoryCandidateService] memory_candidate fbbfc283-33f5-55a5-b6ba-52181e114361 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:57 AM     LOG [MemoryCandidateService] memory_candidate e924ded7-cafc-5a0c-8ec0-35fb38b73830 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:57 AM     LOG [MemoryCandidateService] memory_candidate 221c8b49-bdaa-5748-bc60-5f7eee2c1810 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:57 AM     LOG [MemoryCandidateService] memory_candidate c617d366-a49f-5a7a-9938-3bb17467c6f8 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:57 AM     LOG [MemoryCandidateService] memory_candidate 38a545d0-456c-51de-ba01-b0ef750d6fc3 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:57 AM     LOG [MemoryCandidateService] memory_candidate 9f215ef4-72bf-512b-bb0d-a7a9974787b4 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:57 AM     LOG [MemoryCandidateService] memory_candidate fd8469da-e38f-5412-9eb4-d112f4b53a95 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:57 AM     LOG [MemoryCandidateService] memory_candidate 90ec757c-73f2-5898-a0ca-2b7cef60b204 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:57 AM     LOG [MemoryCandidateService] memory_candidate 93bf250e-cece-57e6-8885-d144cf9ae741 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:57 AM     LOG [MemoryCandidateService] memory_candidate 71bd1005-e4ba-55fe-988c-0b056097bfb2 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:57 AM     LOG [MemoryCandidateService] memory_candidate 38b5882a-ea98-5272-b204-d02e071afd18 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:57 AM     LOG [MemoryCandidateService] memory_candidate 7497e49c-4009-549f-9d68-b07fb1ca00b9 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:57 AM     LOG [MemoryCandidateService] memory_candidate fd2dc079-78e2-5bed-976d-2f61e3bfd74e pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:57 AM     LOG [MemoryCandidateService] memory_candidate 0bffa5a0-e1a1-54ae-ac04-d60914763e35 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:57 AM     LOG [MemoryCandidateService] memory_candidate 32ef2862-6436-52f0-a93a-33db84c8c740 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:57 AM     LOG [MemoryCandidateService] memory_candidate b24883b5-c048-51d2-8444-ae315a549ee8 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:57 AM     LOG [MemoryCandidateService] memory_candidate 711054a0-72fa-5064-bb4f-d39ed74c22f4 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:57 AM     LOG [MemoryCandidateService] memory_candidate 521a6e16-92e3-5dad-8f65-e522986c726e pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:57 AM     LOG [MemoryCandidateService] memory_candidate 8701e772-939e-56dd-b8cc-b1a320226aa1 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:57 AM     LOG [MemoryCandidateService] memory_candidate 7b23cb0f-c66b-5d55-80a0-652b9c3e38a0 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:58 AM     LOG [MemoryCandidateService] memory_candidate 1690e326-020c-59a2-a4db-bec101804678 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:58 AM     LOG [MemoryCandidateService] memory_candidate 6a5204ce-ed5f-5d45-9040-7775c6554b35 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:58 AM     LOG [MemoryCandidateService] memory_candidate 8ba6aba2-d8d4-54a3-b545-1f83e0969345 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:58 AM     LOG [MemoryCandidateService] memory_candidate e8ac0849-8b84-5bc5-b4c6-dd887db91063 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:58 AM     LOG [MemoryCandidateService] memory_candidate 2c2073f7-11bf-51bd-8e2c-fd0daea2951e pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:58 AM     LOG [MemoryCandidateService] memory_candidate 4c01366d-c8b3-5eda-bb23-506b5dc27994 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:58 AM     LOG [MemoryCandidateService] memory_candidate b3cccd5a-dc77-5c1b-8025-e0d7d0af9532 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:58 AM     LOG [MemoryCandidateService] memory_candidate 9b179972-75e0-58f6-97d0-86e087d43789 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:58 AM     LOG [MemoryCandidateService] memory_candidate c7ad6740-affb-5de8-be62-f1873f728523 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:58 AM     LOG [MemoryCandidateService] memory_candidate 5187be79-9a4a-529c-980e-5c4d5bf35969 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:58 AM     LOG [MemoryCandidateService] memory_candidate a8960511-bed9-5538-9adf-577d4eb132df pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:58 AM     LOG [MemoryCandidateService] memory_candidate 06afe557-b6b5-5911-b5cb-b1d457014aa3 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:58 AM     LOG [MemoryCandidateService] memory_candidate 72d25a7a-e1fc-5582-b750-ebb93375ec20 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:58 AM     LOG [MemoryCandidateService] memory_candidate c513da4f-5737-5320-8266-c47d24630ecc pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:58 AM     LOG [MemoryCandidateService] memory_candidate 56873360-b207-5bfa-8ebd-9fb94b7654d9 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:58 AM     LOG [MemoryCandidateService] memory_candidate a940dda2-94c7-512e-a397-5d35bad59464 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:58 AM     LOG [MemoryCandidateService] memory_candidate b0e72df6-c2cf-53d6-8a71-348c6a8c0c33 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:58 AM     LOG [MemoryCandidateService] memory_candidate ebcf2736-675c-5ce0-9403-b6d724eafc48 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:58 AM     LOG [MemoryCandidateService] memory_candidate e74f4718-1738-5131-b9a8-7c01c43f4888 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:58 AM     LOG [MemoryCandidateService] memory_candidate 061fe848-98cc-5af9-8fcc-70944c3c20b2 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:58 AM     LOG [MemoryCandidateService] memory_candidate 6080cf73-bd64-5846-b976-b19451e773bd pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:58 AM     LOG [MemoryCandidateService] memory_candidate 403a5fb3-2e16-5808-840d-9058d473737c pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:58 AM     LOG [MemoryCandidateService] memory_candidate cde107ab-11ef-52df-a90c-1f5c4ac4e15c pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:58 AM     LOG [MemoryCandidateService] memory_candidate 0fa7d292-54ec-581b-ae0a-ad971b70828a pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:59 AM     LOG [MemoryCandidateService] memory_candidate 63953575-a469-5ff9-af12-dc66e54e2d1d pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:59 AM     LOG [MemoryCandidateService] memory_candidate b95d4317-cd18-500c-adee-0753b6ad19b9 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:59 AM     LOG [MemoryCandidateService] memory_candidate 7da0a5f5-1db5-562e-bf41-089dc6f8028f pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:59 AM     LOG [MemoryCandidateService] memory_candidate 060ec5ca-0f23-5d80-9094-6bd885596aaa pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:59 AM     LOG [MemoryCandidateService] memory_candidate dcd22175-0ec6-5306-ba6c-5a2b54f09b39 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:59 AM     LOG [MemoryCandidateService] memory_candidate 6b89885c-5d4c-55d2-b915-855b22e7f898 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:59 AM     LOG [MemoryCandidateService] memory_candidate 1c7ade01-6453-569f-8744-4f4dfbb79441 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:59 AM     LOG [MemoryCandidateService] memory_candidate b5e5c11d-d90b-5ebe-86d1-a98898e915bb pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:59 AM     LOG [MemoryCandidateService] memory_candidate 190bcbe8-4dd8-5981-bf91-d9bab2c45c78 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:59 AM     LOG [MemoryCandidateService] memory_candidate e50e0f0c-94c2-5ae5-961d-8794442bb957 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:59 AM     LOG [MemoryCandidateService] memory_candidate c034178b-408b-5482-99a7-76602436ab5c pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:59 AM     LOG [MemoryCandidateService] memory_candidate 4f3e1960-00a8-5c23-9307-9aff6bb9306a pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:59 AM     LOG [MemoryCandidateService] memory_candidate 330720da-5a2e-51d5-8ad1-afcc20e3975e pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:59 AM     LOG [MemoryCandidateService] memory_candidate edf492ab-b20b-5c83-81c4-f9ee599db2a3 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:59 AM     LOG [MemoryCandidateService] memory_candidate 853f685e-1e84-524f-af1f-497964b39ec8 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:59 AM     LOG [MemoryCandidateService] memory_candidate 91ff39a5-ce9d-5fcd-ac0c-f8b2489982db pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:59 AM     LOG [MemoryCandidateService] memory_candidate fa73ed25-53f1-5eae-8fee-72ae2d47595b pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:59 AM     LOG [MemoryCandidateService] memory_candidate d4cd339e-dfad-5390-b35b-36cfb3f9d1ac pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:59 AM     LOG [MemoryCandidateService] memory_candidate c094be60-0198-5caf-ba48-cc3823bbe8e6 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:59 AM     LOG [MemoryCandidateService] memory_candidate 0ce52caa-341e-5784-9f59-1c05b46fc7f8 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:59 AM     LOG [MemoryCandidateService] memory_candidate 7d069f90-e074-5114-b910-36bcf0dd9ac3 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:59 AM     LOG [MemoryCandidateService] memory_candidate dc24b209-5ee5-50ad-83d8-efda6a5b3a9e pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:59 AM     LOG [MemoryCandidateService] memory_candidate be444dc1-a623-5b78-aa9b-df78795cbdf9 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:59 AM     LOG [MemoryCandidateService] memory_candidate f74177d0-6058-5d40-bbf3-f5222395d587 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:08:59 AM     LOG [MemoryCandidateService] memory_candidate 40f464fe-b950-5919-b873-1ed043964953 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:00 AM     LOG [MemoryCandidateService] memory_candidate a08dc150-5d96-5ed0-be4a-a24c602cf064 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:00 AM     LOG [MemoryCandidateService] memory_candidate c757bb35-4600-540a-aaf1-234b1576f5ee pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:00 AM     LOG [MemoryCandidateService] memory_candidate 921140d2-bf8e-506d-845a-b10c0de8a00d pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:00 AM     LOG [MemoryCandidateService] memory_candidate 2849526d-0746-50ea-ab94-6fa0f93d8653 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:00 AM     LOG [MemoryCandidateService] memory_candidate e1e38e91-1aaa-5caa-828e-5325664caebc pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:00 AM     LOG [MemoryCandidateService] memory_candidate e415bd77-3c37-58ea-aacd-95da8a3d8957 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:00 AM     LOG [MemoryCandidateService] memory_candidate 39e24d5c-39c7-5f9b-9302-6230da111530 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:00 AM     LOG [MemoryCandidateService] memory_candidate bc308818-359c-5cd9-aa42-9b9d045d6bf7 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:00 AM     LOG [MemoryCandidateService] memory_candidate 163ba6c4-1776-5ac6-8661-541ab4312c6d pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:00 AM     LOG [MemoryCandidateService] memory_candidate d2faebe3-5e21-5698-8bd1-9c0dbc01c8e2 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:00 AM     LOG [MemoryCandidateService] memory_candidate 56a8379b-3aae-5820-8cfc-23b89313fe01 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:00 AM     LOG [MemoryCandidateService] memory_candidate 1702095e-0394-5fba-97a0-e15f8be89b18 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:00 AM     LOG [MemoryCandidateService] memory_candidate cb00fa43-3149-5b9a-aca6-25c2491148d1 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:00 AM     LOG [MemoryCandidateService] memory_candidate 42103f3c-2fe9-5a59-9782-c1b2a57895bc pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:00 AM     LOG [MemoryCandidateService] memory_candidate 1c5bfb42-538f-5ce4-ac7b-41b278a569f4 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:00 AM     LOG [MemoryCandidateService] memory_candidate 869a9c01-2c6d-596f-b103-c750c659569b pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:00 AM     LOG [MemoryCandidateService] memory_candidate ae67d2a3-c70d-5e8b-870e-df0f437dc95c pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:00 AM     LOG [MemoryCandidateService] memory_candidate a42b3cca-bbb0-54a5-81a6-75b9ea21057d pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:00 AM     LOG [MemoryCandidateService] memory_candidate 918fff77-acc3-5dc6-9cc3-e2c5119bb4da pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:00 AM     LOG [MemoryCandidateService] memory_candidate 4fcacdc6-83e1-582d-94f5-70d7b9a70ef1 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:00 AM     LOG [MemoryCandidateService] memory_candidate 0e4dbc54-c238-5814-a6e3-21f0897bf6e3 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:00 AM     LOG [MemoryCandidateService] memory_candidate 4c8136a4-1189-566f-9d9a-2760688ca8c7 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:00 AM     LOG [MemoryCandidateService] memory_candidate 3e3b8cf6-da18-5bde-83e3-fc2847551922 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:00 AM     LOG [MemoryCandidateService] memory_candidate 5b358ec7-1208-5e9d-bc3d-5d3b4143ff4f pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:00 AM     LOG [MemoryCandidateService] memory_candidate ff3c96ce-1bc5-5bb1-be06-2b82cd537ff3 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:01 AM     LOG [MemoryCandidateService] memory_candidate fada61f8-5f83-5cb7-ab88-2eb0d9bbe7ba pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:01 AM     LOG [MemoryCandidateService] memory_candidate ff7458d1-db33-546c-b8e3-9ed8e39227f7 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:01 AM     LOG [MemoryCandidateService] memory_candidate 3a0333a7-bbf1-5a72-a8c1-c6df39a1151d pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:01 AM     LOG [MemoryCandidateService] memory_candidate ab7ef1a2-27ec-5edb-a4e6-78eaa0a1dcb3 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:01 AM     LOG [MemoryCandidateService] memory_candidate de608f17-75c6-54c9-a896-2728665b4d0a pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:01 AM     LOG [MemoryCandidateService] memory_candidate 13b8ea5e-b6c8-59e9-b356-c7d465b58953 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:01 AM     LOG [MemoryCandidateService] memory_candidate 6ef9d038-3d1b-5668-a4bb-66b19a71682f pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:01 AM     LOG [MemoryCandidateService] memory_candidate c03423a4-b35d-5de8-aa61-82c7099fdfdb pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:01 AM     LOG [MemoryCandidateService] memory_candidate 435a578a-5cd4-5307-a477-5fcb4e15759f pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:01 AM     LOG [MemoryCandidateService] memory_candidate d05092b0-9e5e-5dd4-8297-f7a111a11a57 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:01 AM     LOG [MemoryCandidateService] memory_candidate 59eca650-49ac-5e1a-b58c-f797ce88df76 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:01 AM     LOG [MemoryCandidateService] memory_candidate 71447eec-f870-5d95-a34f-8d43485c3d1d pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:01 AM     LOG [MemoryCandidateService] memory_candidate f54534d4-fa0b-5261-b060-b18c68d6da72 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:01 AM     LOG [MemoryCandidateService] memory_candidate f1c408a4-aab1-5c08-8d9b-84c08bb4ed23 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:01 AM     LOG [MemoryCandidateService] memory_candidate 80b92db1-6d81-52c6-b978-f8b58e35c520 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:01 AM     LOG [MemoryCandidateService] memory_candidate 949273bf-b628-59ff-98f3-6f01c7b63f6f pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:01 AM     LOG [MemoryCandidateService] memory_candidate a755a1c6-5dac-5a66-a197-14d4b834601d pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:01 AM     LOG [MemoryCandidateService] memory_candidate 0d8a74cb-4a01-5b04-80d2-2f0a4d192266 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:01 AM     LOG [MemoryCandidateService] memory_candidate f3547195-6ef3-5858-8220-7319fa0177a2 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:01 AM     LOG [MemoryCandidateService] memory_candidate 23e460d2-4f01-5f46-969a-822188afef79 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:01 AM     LOG [MemoryCandidateService] memory_candidate b6c51530-ac8a-5048-976a-b8e410d05f08 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:02 AM     LOG [MemoryCandidateService] memory_candidate d3859d37-2644-5fbd-bb7d-38c3890a35b3 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:02 AM     LOG [MemoryCandidateService] memory_candidate 03b0dca5-423a-5838-9315-3fe5d584139c pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:02 AM     LOG [MemoryCandidateService] memory_candidate 3505078b-c8ee-54f6-91a8-e1cba21e7150 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:02 AM     LOG [MemoryCandidateService] memory_candidate 742e8db9-deef-5ad4-9e49-262f25850d20 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:02 AM     LOG [MemoryCandidateService] memory_candidate acaa0218-358d-594d-9aa5-b7658da9c724 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:02 AM     LOG [MemoryCandidateService] memory_candidate 551d6a95-0cd0-52df-b9b6-81111f064a0f pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:02 AM     LOG [MemoryCandidateService] memory_candidate 3f76c16e-340a-5063-b6fb-55a6e2a7ddcc pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:02 AM     LOG [MemoryCandidateService] memory_candidate a4bef95f-6552-5971-8697-6b228a8dd19a pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:02 AM     LOG [MemoryCandidateService] memory_candidate 0d98b58b-51e9-520a-b6dc-c14bfba254dd pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:02 AM     LOG [MemoryCandidateService] memory_candidate 37e9470d-1025-5421-9a6b-fda50532b86f pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:02 AM     LOG [MemoryCandidateService] memory_candidate a2d729bd-6165-58d2-8817-5e86a11a3886 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:02 AM     LOG [MemoryCandidateService] memory_candidate 7aa3f7a4-1b43-534e-9d9a-0dc9fefe3656 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:02 AM     LOG [MemoryCandidateService] memory_candidate 15f762c9-e519-5214-91d2-9cc79f9433e6 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:02 AM     LOG [MemoryCandidateService] memory_candidate 1c33c3b1-4898-5bcc-90bb-7592110fb8c1 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:02 AM     LOG [MemoryCandidateService] memory_candidate f2b2e809-d134-5690-8cda-f34cb45a0987 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:02 AM     LOG [MemoryCandidateService] memory_candidate 8e58555f-fc79-5d72-8c8b-aecadd410024 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:02 AM     LOG [MemoryCandidateService] memory_candidate 2d0a206c-d269-594d-b5c0-45c21552444e pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:02 AM     LOG [MemoryCandidateService] memory_candidate b86fdb38-01f0-5f90-a045-bcf80bb59f76 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:02 AM     LOG [MemoryCandidateService] memory_candidate 6096cc2c-befd-5ce9-b890-0fa342c1ee42 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:02 AM     LOG [MemoryCandidateService] memory_candidate 8ec382fb-c6eb-5e92-844a-bb0e5be46476 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:02 AM     LOG [MemoryCandidateService] memory_candidate b89b7822-95ef-5483-83da-0ce30d267e72 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:02 AM     LOG [MemoryCandidateService] memory_candidate bd25a8df-da2c-558c-b16c-8fe233d77cf2 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:02 AM     LOG [MemoryCandidateService] memory_candidate c158bc5e-59a1-5e58-bc22-f83003d5d1ad pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:03 AM     LOG [MemoryCandidateService] memory_candidate 588a1c9d-5762-54e4-9e24-84b0b5ec8d85 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:03 AM     LOG [MemoryCandidateService] memory_candidate deaae3a7-c1bb-56e0-aa23-e62836dd82cf pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:03 AM     LOG [MemoryCandidateService] memory_candidate 26806abe-b096-5f26-8e8c-329431bf0737 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:03 AM     LOG [MemoryCandidateService] memory_candidate 845cdfc6-20fa-5a41-9f88-2c6855db5df3 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:03 AM     LOG [MemoryCandidateService] memory_candidate 0902b7ee-cd95-5978-8c02-7a926dbfa123 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:03 AM     LOG [MemoryCandidateService] memory_candidate 2ba52e4f-4119-5156-ac65-25e5fc9a0c66 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:03 AM     LOG [MemoryCandidateService] memory_candidate 88a85170-4f92-5255-b7dc-031b6665ecc4 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:03 AM     LOG [MemoryCandidateService] memory_candidate d1fe3f92-7969-59a4-9c5c-1f57d84d3b51 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:03 AM     LOG [MemoryCandidateService] memory_candidate 8e44e789-5f00-52e3-98cc-6a1a544941b9 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:03 AM     LOG [MemoryCandidateService] memory_candidate 4713c206-ffc5-5980-b894-6ff6cc243f22 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:03 AM     LOG [MemoryCandidateService] memory_candidate 07a36a8d-ff91-505f-b26c-4383b6f655a1 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:03 AM     LOG [MemoryCandidateService] memory_candidate bc0449ff-afe9-594a-8a45-565a52dad0c8 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:03 AM     LOG [MemoryCandidateService] memory_candidate 090aaf1e-36d8-54ed-985a-f742d6b509d1 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:03 AM     LOG [MemoryCandidateService] memory_candidate 80197c01-30e2-5216-9de7-5cb4afab230f pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:03 AM     LOG [MemoryCandidateService] memory_candidate 12578caa-c77b-5fc7-a1a9-a317134c455e pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:03 AM     LOG [MemoryCandidateService] memory_candidate f70209d5-db07-57fe-b63a-dbdc36be619c pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:03 AM     LOG [MemoryCandidateService] memory_candidate 9768622a-312f-5613-a172-c5ef7e3ac17d pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:03 AM     LOG [MemoryCandidateService] memory_candidate 26e3f269-7f44-5101-834f-bfbd22959d25 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:03 AM     LOG [MemoryCandidateService] memory_candidate 81d0ad72-b226-5a18-9458-deae17e3436f pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:03 AM     LOG [MemoryCandidateService] memory_candidate e82d587e-5caf-5d7b-9234-9599683e40ef pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:03 AM     LOG [MemoryCandidateService] memory_candidate f328b4b6-9e13-520d-b4b0-d1bdb584fdd2 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:03 AM     LOG [MemoryCandidateService] memory_candidate bbd4c8a4-8b8e-58f9-ba6c-b73a4fdcb914 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:04 AM     LOG [MemoryCandidateService] memory_candidate 41d02e0c-b234-5b7c-9d48-3772aa65c4bb pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:04 AM     LOG [MemoryCandidateService] memory_candidate f09afdf8-493d-5fda-b83a-8dbb3964d9de pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:04 AM     LOG [MemoryCandidateService] memory_candidate 9a40b3ad-6bd1-53d7-96ff-6e2d1717ab57 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:04 AM     LOG [MemoryCandidateService] memory_candidate 793146b8-7c05-5927-a6e5-8bfcdb138d2d pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:04 AM     LOG [MemoryCandidateService] memory_candidate 356c6cd0-b160-5fea-b26b-3ac2efbcd6e4 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:04 AM     LOG [MemoryCandidateService] memory_candidate 11399efb-9ce9-5a08-a9ca-4577a8b6bbf1 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:04 AM     LOG [MemoryCandidateService] memory_candidate 932e5542-d75a-5aaf-9982-ef2c3f51d59e pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:04 AM     LOG [MemoryCandidateService] memory_candidate d658e61d-4d8a-522a-8063-95f77a02dc2f pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:04 AM     LOG [MemoryCandidateService] memory_candidate edd17096-5e1f-5e7c-801e-0945f91e7b96 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:04 AM     LOG [MemoryCandidateService] memory_candidate 00790cc3-44d6-56fe-a17a-6d9b5b24d430 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:04 AM     LOG [MemoryCandidateService] memory_candidate c4d89bcb-c11f-5f81-ac90-3ada078bbdf9 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:04 AM     LOG [MemoryCandidateService] memory_candidate c7e1785f-58a6-5c1b-a98f-17159890c909 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:04 AM     LOG [MemoryCandidateService] memory_candidate 01b3e182-0622-5b0d-b499-e06137c804fe pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:04 AM     LOG [MemoryCandidateService] memory_candidate 1b237dc9-5207-5a66-86ec-b376e570d8e3 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:04 AM     LOG [MemoryCandidateService] memory_candidate c79d38d7-b5b5-5f08-a0e4-f23e35e99c2f pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:04 AM     LOG [MemoryCandidateService] memory_candidate 9961c5c8-417d-5d9d-9155-5edfc326a9f0 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:04 AM     LOG [MemoryCandidateService] memory_candidate 553d32d1-c678-511b-8106-e0f43867d4e5 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:04 AM     LOG [MemoryCandidateService] memory_candidate d7d86201-66d8-5bb5-9ea9-002dc5c2a3e0 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:04 AM     LOG [MemoryCandidateService] memory_candidate 8a502635-ec7d-50ed-9a1f-1608b137e194 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:04 AM     LOG [MemoryCandidateService] memory_candidate a1c23f7b-1ebe-5ca4-9dbd-31124ad9eda3 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:04 AM     LOG [MemoryCandidateService] memory_candidate 2453f69f-6492-56c0-b7df-bcb659efe700 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:04 AM     LOG [MemoryCandidateService] memory_candidate da468130-5701-51a2-98a1-1d169e0f6c28 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:04 AM     LOG [MemoryCandidateService] memory_candidate ea298583-c649-5c63-a105-a31889404056 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:04 AM     LOG [MemoryCandidateService] memory_candidate 41861c56-e4fe-52cb-83f3-30f492b2806c pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:05 AM     LOG [MemoryCandidateService] memory_candidate a5aeff16-96fc-528c-833e-e6b5450bab44 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:05 AM     LOG [MemoryCandidateService] memory_candidate 473eb621-1b5d-5dfa-b669-6af8186b3b20 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:05 AM     LOG [MemoryCandidateService] memory_candidate b4ee198d-6c49-5474-bf5e-d600c1d1e576 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:05 AM     LOG [MemoryCandidateService] memory_candidate 5b4a4b2b-b562-56ee-9998-1c8e17d4b034 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:05 AM     LOG [MemoryCandidateService] memory_candidate dba4cd42-b971-5e3f-94fc-30e5e91706b1 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:05 AM     LOG [MemoryCandidateService] memory_candidate f2a6a687-7995-5332-a9d8-0c07703c1bc7 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:05 AM     LOG [MemoryCandidateService] memory_candidate ca8ffa70-0ce3-51f1-9297-d77ca6c2edb2 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:05 AM     LOG [MemoryCandidateService] memory_candidate daae193b-7898-5f77-a515-07f22aa871c7 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:05 AM     LOG [MemoryCandidateService] memory_candidate 2d71c433-0206-508d-bfbc-2d48eb0cac4a pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:05 AM     LOG [MemoryCandidateService] memory_candidate 982d736d-37f6-5c15-92b4-5eac292ceb88 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:05 AM     LOG [MemoryCandidateService] memory_candidate 0c5804ed-1d7f-540a-a389-18098adf87eb pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:05 AM     LOG [MemoryCandidateService] memory_candidate c701bbf9-8801-5f7d-bbdb-2948bd81d25c pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:05 AM     LOG [MemoryCandidateService] memory_candidate 13df9026-7ea7-522b-b1d6-b6dad49ad6cb pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:05 AM     LOG [MemoryCandidateService] memory_candidate 6d855e87-fd06-56ca-9e6b-32bf41b5a6b4 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:05 AM     LOG [MemoryCandidateService] memory_candidate 4f143b70-a457-5435-a281-40ace6144fe2 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:05 AM     LOG [MemoryCandidateService] memory_candidate 6e083e2c-1869-5a1a-9e8c-4784d6021259 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:05 AM     LOG [MemoryCandidateService] memory_candidate bb5e9ee0-bd3b-5b27-ae20-d81a64cfe21d pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:05 AM     LOG [MemoryCandidateService] memory_candidate eba338d2-3a27-5df1-b672-953dbbcf896d pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:05 AM     LOG [MemoryCandidateService] memory_candidate 42940e72-e46a-55f8-a3b3-e906b7e847d3 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:05 AM     LOG [MemoryCandidateService] memory_candidate 10f39ff5-bdae-5e96-8f23-9352060bb1dc pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:05 AM     LOG [MemoryCandidateService] memory_candidate e9b8d647-5a2e-500e-820b-4b5d39cf8c42 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:05 AM     LOG [MemoryCandidateService] memory_candidate 0c713796-ffaf-5c47-b417-f9faff6700bd pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:05 AM     LOG [MemoryCandidateService] memory_candidate bc5b7b94-b4d2-5007-9cfe-eadb3f1ebea2 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:05 AM     LOG [MemoryCandidateService] memory_candidate c4f03f2b-80b6-5546-b208-6c8ebdb6f93c pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:06 AM     LOG [MemoryCandidateService] memory_candidate cf186164-701d-57fd-a4e3-dbf568850e49 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:06 AM     LOG [MemoryCandidateService] memory_candidate 3ffb270c-33ad-5985-83de-57bbcbecd078 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:06 AM     LOG [MemoryCandidateService] memory_candidate 5e9ad940-f3cd-593a-8d89-58609987d7b1 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:06 AM     LOG [MemoryCandidateService] memory_candidate 99bc6af9-4c5e-5fc0-baaa-92819ad0c533 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:06 AM     LOG [MemoryCandidateService] memory_candidate 4535e988-6841-578e-952c-d0263c44564d pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:06 AM     LOG [MemoryCandidateService] memory_candidate 34372a2d-19df-5e7b-a810-c8f26f819f97 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:06 AM     LOG [MemoryCandidateService] memory_candidate 23a16f98-8591-50f5-b652-f816ee99ccd1 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:06 AM     LOG [MemoryCandidateService] memory_candidate 27e765cb-f0e3-52ae-9fdf-98a6e26feeb1 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:06 AM     LOG [MemoryCandidateService] memory_candidate 1e805d96-19a5-55d2-a83b-097068dd025a pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:06 AM     LOG [MemoryCandidateService] memory_candidate e2303ee3-9d72-5a96-a46d-ff256b6f7448 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:06 AM     LOG [MemoryCandidateService] memory_candidate 5da33aa9-d5ef-5921-bac4-b106be8923f3 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:06 AM     LOG [MemoryCandidateService] memory_candidate 87c31535-bda5-55b3-9c92-d60f596b0032 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:06 AM     LOG [MemoryCandidateService] memory_candidate f8b06cbc-7782-55fb-bc22-e2f95fb3bfc4 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:06 AM     LOG [MemoryCandidateService] memory_candidate 75d59b64-94f9-554c-aa3a-743c2b84cdc2 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:06 AM     LOG [MemoryCandidateService] memory_candidate 2337be5f-dbe4-5f67-a5a7-58fd14ddd3fa pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:06 AM     LOG [MemoryCandidateService] memory_candidate a3f87247-ea1a-5744-8774-31ac6393da19 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:06 AM     LOG [MemoryCandidateService] memory_candidate bfdce76d-bbca-5896-95c4-9fc1d10068a6 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:06 AM     LOG [MemoryCandidateService] memory_candidate edc93602-b29b-579d-8c43-9565874c888f pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:06 AM     LOG [MemoryCandidateService] memory_candidate e5990baf-a009-5b4c-ba5b-4cf5b127a866 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:06 AM     LOG [MemoryCandidateService] memory_candidate ae0f3421-a5e3-5444-b328-12df52da7bf6 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:06 AM     LOG [MemoryCandidateService] memory_candidate 06568dfb-cc90-52f6-887b-73491b60bb45 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:06 AM     LOG [MemoryCandidateService] memory_candidate 1ae03a13-1b8b-5846-b51f-7e1eced9892d pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:06 AM     LOG [MemoryCandidateService] memory_candidate c9c22020-f457-50c9-8e11-9f7d95a31028 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:06 AM     LOG [MemoryCandidateService] memory_candidate ec8f5953-2061-5caf-8d06-74578617bb1e pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:07 AM     LOG [MemoryCandidateService] memory_candidate 5425f03b-63b8-5deb-8d98-bb7a99e913d5 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:07 AM     LOG [MemoryCandidateService] memory_candidate b9ac9e22-d0ff-59fe-9199-40854516cee8 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:07 AM     LOG [MemoryCandidateService] memory_candidate 9a1ee284-3d23-5472-81a2-6502981978e9 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:07 AM     LOG [MemoryCandidateService] memory_candidate e8ff6eed-6485-5551-bd4b-68de3c082f71 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:07 AM     LOG [MemoryCandidateService] memory_candidate 775dcad0-f681-5ca4-b76d-0ff0aad1a3c0 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:07 AM     LOG [MemoryCandidateService] memory_candidate a7770d17-d286-5952-921a-f7ca892b9cc7 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:07 AM     LOG [MemoryCandidateService] memory_candidate d28b0c23-1a3c-5019-ad33-1abc96940a69 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:07 AM     LOG [MemoryCandidateService] memory_candidate 0f871a70-32ba-5e7c-b7c1-b02df17a60ca pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:07 AM     LOG [MemoryCandidateService] memory_candidate 36a7414f-f207-53fe-afa5-e29555be3af6 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:07 AM     LOG [MemoryCandidateService] memory_candidate f44b2551-ad7f-5313-abe2-1d47dbd1c868 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:07 AM     LOG [MemoryCandidateService] memory_candidate 2a3afe1d-4810-5bf8-a34a-e5165af8cf53 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:07 AM     LOG [MemoryCandidateService] memory_candidate c7ba1c46-8282-51ef-affc-2d10adf82977 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:07 AM     LOG [MemoryCandidateService] memory_candidate 20156511-457f-599e-a501-75181b5904cd pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:07 AM     LOG [MemoryCandidateService] memory_candidate d9380dab-ff7e-59aa-911f-c24e950e429b pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:07 AM     LOG [MemoryCandidateService] memory_candidate b162391d-8b88-5429-8c7b-213b2662c103 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:07 AM     LOG [MemoryCandidateService] memory_candidate 093c49a1-56dd-535a-969d-852e87433ac1 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:07 AM     LOG [MemoryCandidateService] memory_candidate 0051a63d-bae4-57a4-b844-1db10e6d35d8 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:07 AM     LOG [MemoryCandidateService] memory_candidate 37847427-0d3a-5a19-a33d-f204aa06fa1f pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:07 AM     LOG [MemoryCandidateService] memory_candidate 64903019-841d-5fbd-a116-2504b65eaa11 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:07 AM     LOG [MemoryCandidateService] memory_candidate 77849593-0717-5fa3-8cd3-2b94a1f98e42 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:07 AM     LOG [MemoryCandidateService] memory_candidate 929d7a09-1c40-5ff2-872f-01eb1ae635ca pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:07 AM     LOG [MemoryCandidateService] memory_candidate cebbdd0d-3e95-558e-b9e2-409817d1dc5f pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:08 AM     LOG [MemoryCandidateService] memory_candidate 2cab6d52-2281-549c-a404-729ce8251807 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:08 AM     LOG [MemoryCandidateService] memory_candidate fba18048-e793-54c5-b3b9-8bad760db01d pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:08 AM     LOG [MemoryCandidateService] memory_candidate 49601ee9-62ee-57ba-b891-ac2d08dc6d1f pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:08 AM     LOG [MemoryCandidateService] memory_candidate d9ea413c-7c69-5bd7-bc4b-d079e842dc8e pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:08 AM     LOG [MemoryCandidateService] memory_candidate 79c32fcd-1b6c-5970-8d04-6e60d7169583 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:08 AM     LOG [MemoryCandidateService] memory_candidate 0e25ed81-879b-5925-bd98-bf199b24c95c pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:08 AM     LOG [MemoryCandidateService] memory_candidate 20480143-fcce-571a-ac4b-f291d831623b pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:08 AM     LOG [MemoryCandidateService] memory_candidate 03f2c764-4043-568e-b0c3-68e6c44d5df0 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:08 AM     LOG [MemoryCandidateService] memory_candidate 473e6aa5-b938-5a4d-bca9-a313550ade62 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:08 AM     LOG [MemoryCandidateService] memory_candidate 512cce87-6603-5b54-b6d5-5ff16bbb70f6 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:08 AM     LOG [MemoryCandidateService] memory_candidate 88b1bd70-3b52-516b-b502-ed160aecbfc0 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:08 AM     LOG [MemoryCandidateService] memory_candidate 12c30585-571f-5da1-8fbb-590794ef4604 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:08 AM     LOG [MemoryCandidateService] memory_candidate aad955bc-2bad-5ac3-a444-cdfcd8c35b72 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:08 AM     LOG [MemoryCandidateService] memory_candidate 7e505b5d-f8ed-5e3d-8173-4bd99b9408ad pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:08 AM     LOG [MemoryCandidateService] memory_candidate d0332309-d837-5382-9e35-8308c6d0609b pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:08 AM     LOG [MemoryCandidateService] memory_candidate 7764dc36-d735-55f8-9a10-f67b4440ee77 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:08 AM     LOG [MemoryCandidateService] memory_candidate 61d0a214-2720-52cf-afa9-c0975c410821 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:08 AM     LOG [MemoryCandidateService] memory_candidate 0bba5abe-4737-5f91-8615-040e8075f7ab pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:08 AM     LOG [MemoryCandidateService] memory_candidate bc83d21f-2c32-5945-b43f-57a5dbfa9a75 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:08 AM     LOG [MemoryCandidateService] memory_candidate 2cc595aa-e5f0-510c-8989-2f419abf63c9 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:08 AM     LOG [MemoryCandidateService] memory_candidate e918528c-18fe-55d1-8937-8d32b4fc9979 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:08 AM     LOG [MemoryCandidateService] memory_candidate 16c17b82-62ce-5f7f-bb23-c253e3c96b05 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:08 AM     LOG [MemoryCandidateService] memory_candidate 2b251e6c-22ba-5632-aad6-1fea5191b8a5 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:09 AM     LOG [MemoryCandidateService] memory_candidate 2e339781-7659-5662-9b42-540a402fc8e6 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:09 AM     LOG [MemoryCandidateService] memory_candidate b7088d40-b033-54d2-99af-9e686ad5a4a0 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:09 AM     LOG [MemoryCandidateService] memory_candidate 63126393-9414-55aa-bf9e-0f7498395191 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:09 AM     LOG [MemoryCandidateService] memory_candidate 9e80342d-8b98-56b3-883b-1938ff35b37f pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:09 AM     LOG [MemoryCandidateService] memory_candidate 8b0619cf-c5fb-535c-ae2c-a3fa65c0faae pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:09 AM     LOG [MemoryCandidateService] memory_candidate 5a0bd916-8e55-5710-9d88-d6e7eafe2f8e pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:09 AM     LOG [MemoryCandidateService] memory_candidate e5beb84a-7ff6-524b-aab1-06c70b357b0d pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:09 AM     LOG [MemoryCandidateService] memory_candidate 83812b50-321f-5d89-84d0-19a1c1a8acf8 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:09 AM     LOG [MemoryCandidateService] memory_candidate f3194875-0cca-52e2-88d7-24738178bdb3 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:09 AM     LOG [MemoryCandidateService] memory_candidate ac11b87d-64ec-52f2-945b-67c75aa36e65 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:09 AM     LOG [MemoryCandidateService] memory_candidate 99303ff2-c502-594c-97d4-4c48375063d4 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:09 AM     LOG [MemoryCandidateService] memory_candidate baddea0a-36f6-551e-83db-809c70ac1d25 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:09 AM     LOG [MemoryCandidateService] memory_candidate 4680f4b2-fa21-5cda-a494-dd5e0b6d5d24 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:09 AM     LOG [MemoryCandidateService] memory_candidate dabceba1-67b5-5a1a-965c-ad653514e624 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:09 AM     LOG [MemoryCandidateService] memory_candidate 0e8143a4-a17f-59d1-b49e-e7fc154cc876 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:09 AM     LOG [MemoryCandidateService] memory_candidate e8a35c04-f89d-5146-96ab-d1d0bbefae31 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:09 AM     LOG [MemoryCandidateService] memory_candidate 3dcb1bcf-ef11-5ae2-a6bc-4d6888791262 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:09 AM     LOG [MemoryCandidateService] memory_candidate 3f610495-1b2c-50f8-be1d-068ffd271bf5 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:09 AM     LOG [MemoryCandidateService] memory_candidate 4f47ea81-4f0d-55b6-b523-7dd3513d86d9 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:09 AM     LOG [MemoryCandidateService] memory_candidate 60bbfca8-d711-5a02-a0b3-e8241d7fcfb0 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:09 AM     LOG [MemoryCandidateService] memory_candidate 320a0ad4-e680-59d1-9762-587b293da211 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:09 AM     LOG [MemoryCandidateService] memory_candidate f7fb82f3-5031-5912-ba94-c58cc85e4707 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:09 AM     LOG [MemoryCandidateService] memory_candidate 1b6f8651-9ec7-5783-b198-6b8d9442c285 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:09 AM     LOG [MemoryCandidateService] memory_candidate 86b4c17c-0d20-5272-ac60-249990e86005 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:10 AM     LOG [MemoryCandidateService] memory_candidate f26acb16-4514-5b47-8ff5-b3e046237fc0 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:10 AM     LOG [MemoryCandidateService] memory_candidate 9a854f7e-779e-5189-be89-030e6fdc8a9b pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:10 AM     LOG [MemoryCandidateService] memory_candidate b64cfb7e-2f3c-551d-bd50-9a7ca85cbba7 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:10 AM     LOG [MemoryCandidateService] memory_candidate faf94ed7-d0fe-54dc-b002-97c68ceed762 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:10 AM     LOG [MemoryCandidateService] memory_candidate 366a2cf8-f47f-50f4-aa96-4dd8a6dfa789 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:10 AM     LOG [MemoryCandidateService] memory_candidate 16a3a4b5-6c12-5451-854a-12c35c956767 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:10 AM     LOG [MemoryCandidateService] memory_candidate 3f1a7e0f-dfcd-54a6-84f6-1af143366a6d pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:10 AM     LOG [MemoryCandidateService] memory_candidate eeffa8a7-46f3-513c-a133-ee8821bd5af0 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:10 AM     LOG [MemoryCandidateService] memory_candidate 5d41f8a4-4447-526e-9f9f-872fbf977da4 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:10 AM     LOG [MemoryCandidateService] memory_candidate 0b4faae4-0e86-56ef-9c70-8988a012cff6 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:10 AM     LOG [MemoryCandidateService] memory_candidate 085580c5-b5d7-597f-bbb0-74d6a420502e pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:10 AM     LOG [MemoryCandidateService] memory_candidate cad8f7dc-ac2f-5913-81e6-e5b5384ac685 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:10 AM     LOG [MemoryCandidateService] memory_candidate e5dba810-c9fb-5e06-920d-62fabcc04dbf pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:10 AM     LOG [MemoryCandidateService] memory_candidate 85eefb67-ecfa-5ab6-ae3d-d6096f8a33fd pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:10 AM     LOG [MemoryCandidateService] memory_candidate 2597e7c2-f743-5fa0-ba8f-8b8b2bf7dc74 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:10 AM     LOG [MemoryCandidateService] memory_candidate 8573d108-203d-50a8-934b-86ae194b01d6 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:10 AM     LOG [MemoryCandidateService] memory_candidate d3b48be6-6f6e-548b-9e95-858abaa71282 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:10 AM     LOG [MemoryCandidateService] memory_candidate b2a32e6f-54ea-5599-8dd8-b5c1401e1dc2 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:10 AM     LOG [MemoryCandidateService] memory_candidate 8bab4c8c-3ab6-50df-a912-ac95db90ddf1 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:10 AM     LOG [MemoryCandidateService] memory_candidate 422a51f8-5d0d-5888-a90d-ee801414334d pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:10 AM     LOG [MemoryCandidateService] memory_candidate 50be8f74-c9f4-5194-a744-40bc68e6a00d pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:10 AM     LOG [MemoryCandidateService] memory_candidate cffa824f-f2b3-5db9-9422-565895ec54b5 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:10 AM     LOG [MemoryCandidateService] memory_candidate 2d93ae7f-0d96-553a-bd13-e5e11028aee0 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:11 AM     LOG [MemoryCandidateService] memory_candidate a8c9a8ec-c85c-54d1-81ce-fc1e973dad77 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:11 AM     LOG [MemoryCandidateService] memory_candidate db9ce86a-2311-5914-bce8-73f9b8708d87 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:11 AM     LOG [MemoryCandidateService] memory_candidate f56d8c96-8d1e-5a4a-96d9-5e930c07eee8 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:11 AM     LOG [MemoryCandidateService] memory_candidate 7d84c3a0-0846-5ff4-adf1-bbcb4377c7e3 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:11 AM     LOG [MemoryCandidateService] memory_candidate 4b68d4da-547e-5a0d-bb00-bb8b68ee3662 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:11 AM     LOG [MemoryCandidateService] memory_candidate a635ee69-5ae0-5ba6-8feb-4025267ab52b pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:11 AM     LOG [MemoryCandidateService] memory_candidate aae6cb44-ede8-5bf9-a272-decf1fa8a3ee pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:11 AM     LOG [MemoryCandidateService] memory_candidate de381e30-1f3b-53c2-82ea-1ddc0f0d6657 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:11 AM     LOG [MemoryCandidateService] memory_candidate 60bb9990-3826-50ef-bb85-581ece5d89ea pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:11 AM     LOG [MemoryCandidateService] memory_candidate 0db35269-b443-580b-8cdd-f1b67087307c pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:11 AM     LOG [MemoryCandidateService] memory_candidate 346be0df-18c2-5a56-b841-3630900a7e0a pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:11 AM     LOG [MemoryCandidateService] memory_candidate 15792c8a-1059-530c-9b9a-31fefd07513d pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:11 AM     LOG [MemoryCandidateService] memory_candidate a986e5d2-aa65-5a18-a880-c97b33dc8a28 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:11 AM     LOG [MemoryCandidateService] memory_candidate 420a4ebe-8846-5395-a274-3a77d5466405 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:11 AM     LOG [MemoryCandidateService] memory_candidate 47f5fe23-2cf7-51ac-a577-44adefd7e701 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:11 AM     LOG [MemoryCandidateService] memory_candidate e88f6585-32fc-53b1-a383-c6e9fb25ad5f pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:11 AM     LOG [MemoryCandidateService] memory_candidate e7ae3341-ccb8-5976-97da-489a62fb7ee8 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:11 AM     LOG [MemoryCandidateService] memory_candidate 1cb8ee2e-a26c-5310-b55f-cdf468cfae96 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:11 AM     LOG [MemoryCandidateService] memory_candidate ba57e299-415e-54e7-86e2-cda6c1cc0245 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:11 AM     LOG [MemoryCandidateService] memory_candidate 700ba79e-6e73-56d0-a406-e3ef46980b29 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:11 AM     LOG [MemoryCandidateService] memory_candidate 51146a3f-e8fd-5db1-945f-4ca2e392f10e pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:11 AM     LOG [MemoryCandidateService] memory_candidate bac7f9ff-28be-535e-ada2-7ecfaa0276ec pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:11 AM     LOG [MemoryCandidateService] memory_candidate e9833418-8fc0-530c-950d-220cd856afd1 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+[Nest] 38828  - 10/04/2026, 5:09:11 AM     LOG [MemoryCandidateService] memory_candidate 4244313c-3e91-56e3-88b6-48974205cfd0 pending (memory.model_extraction.requires_review), tenant f2d6cf8f-057c-479a-8110-62fe5086d43f
+▶ actual canonical approval, inventory, shared eligibility and lookup SQL in one owned rollback transaction
+  ✔ native services create 510 approved owners with actual durable outbox and inert projection sink (6.1275ms)
+  ✖ actual canonical inventory guards and current SQL/postfilter qualify target plus 509 newer eligible rows (3139.625ms)
+  ✖ actual source and proposed adapters return MA510 full passage before safety cap without embedding calls (25.0136ms)
+  ✔ actual SQL/postfilter and both adapters exclude target with future effective time (16.5605ms)
+  ✔ actual SQL/postfilter and both adapters exclude target with expired record (15.1027ms)
+  ✔ actual SQL/postfilter and both adapters exclude target with elapsed valid-until (13.163ms)
+  ✔ actual SQL/postfilter and both adapters exclude target with restricted sensitivity (12.4388ms)
+  ✔ actual SQL/postfilter and both adapters exclude target with missing approval (13.3112ms)
+  ✔ actual SQL/postfilter and both adapters exclude target with revoked governance (10.3014ms)
+  ✔ actual SQL/postfilter and both adapters exclude target with legacy inactive status (8.9411ms)
+  ✔ actual SQL/postfilter and both adapters exclude target with foreign client (10.2083ms)
+  ✖ 500 eligible newer rows count, then 499 fail the threshold from actual current predicate (5.3954ms)
+  ✖ age comparison is database precise: tied timestamps do not count; one microsecond newer does (5.3496ms)
+  ✔ actual current ethical wall denies the ungranted actor (7.9815ms)
+  ✔ composed owner rejects foreign reader scope (2832.2677ms)
+  ✖ composed owner rejects changed current version (2905.9736ms)
+  ✖ composed owner rejects duplicate row (2946.4099ms)
+  ✖ composed owner rejects missing target (2807.5313ms)
+  ✖ composed owner rejects only 499 newer eligible rows (2716.7911ms)
+  ✔ malformed and foreign ordinary identities are rejected before qualification (31.705ms)
+✖ actual canonical approval, inventory, shared eligibility and lookup SQL in one owned rollback transaction (45213.5037ms)
+ℹ tests 21
+ℹ suites 0
+ℹ pass 12
+ℹ fail 9
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 45377.6443
+
+✖ failing tests:
+
+test at ..\outputs\meri-c2-20261003\case12-eligibility-supervised-v2\scratch\evals\meri\live-v1\tests\case12-eligibility.postgres.test.mjs:51:42
+✖ actual canonical inventory guards and current SQL/postfilter qualify target plus 509 newer eligible rows (3139.625ms)
+  Error: CASE12_CANONICAL_ELIGIBILITY_OBSERVATION_MISSING
+      at Object.inspectInTx (file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/fixture-provisioning/case12-memory-eligibility-owner.mjs:30:15)
+      at async TestContext.<anonymous> (file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/case12-eligibility.postgres.test.mjs:69:20)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async check (file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/case12-eligibility.postgres.test.mjs:51:34)
+      at async file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/case12-eligibility.postgres.test.mjs:68:5
+      at async prisma.$transaction.timeout (file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/approved-memory-postgres-harness.mjs:195:20)
+      at async Proxy._transactionWithCallback (C:\dev\main\meri-c1-20261002\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:130:8000)
+      at async withOwnedApprovedMemory (file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/approved-memory-postgres-harness.mjs:115:7)
+      at async TestContext.<anonymous> (file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/case12-eligibility.postgres.test.mjs:21:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+
+test at ..\outputs\meri-c2-20261003\case12-eligibility-supervised-v2\scratch\evals\meri\live-v1\tests\case12-eligibility.postgres.test.mjs:51:42
+✖ actual source and proposed adapters return MA510 full passage before safety cap without embedding calls (25.0136ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(row)
+  
+      at TestContext.<anonymous> (file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/case12-eligibility.postgres.test.mjs:79:14)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async check (file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/case12-eligibility.postgres.test.mjs:51:34)
+      at async file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/case12-eligibility.postgres.test.mjs:77:5
+      at async prisma.$transaction.timeout (file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/approved-memory-postgres-harness.mjs:195:20)
+      at async Proxy._transactionWithCallback (C:\dev\main\meri-c1-20261002\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:130:8000)
+      at async withOwnedApprovedMemory (file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/approved-memory-postgres-harness.mjs:115:7)
+      at async TestContext.<anonymous> (file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/case12-eligibility.postgres.test.mjs:21:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at ..\outputs\meri-c2-20261003\case12-eligibility-supervised-v2\scratch\evals\meri\live-v1\tests\case12-eligibility.postgres.test.mjs:51:42
+✖ 500 eligible newer rows count, then 499 fail the threshold from actual current predicate (5.3954ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  0 !== 500
+  
+      at file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/case12-eligibility.postgres.test.mjs:102:16
+      at async mutation (file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/case12-eligibility.postgres.test.mjs:56:54)
+      at async TestContext.<anonymous> (file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/case12-eligibility.postgres.test.mjs:101:7)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async check (file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/case12-eligibility.postgres.test.mjs:51:34)
+      at async file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/case12-eligibility.postgres.test.mjs:99:5
+      at async prisma.$transaction.timeout (file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/approved-memory-postgres-harness.mjs:195:20)
+      at async Proxy._transactionWithCallback (C:\dev\main\meri-c1-20261002\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:130:8000)
+      at async withOwnedApprovedMemory (file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/approved-memory-postgres-harness.mjs:115:7)
+      at async TestContext.<anonymous> (file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/case12-eligibility.postgres.test.mjs:21:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 500,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at ..\outputs\meri-c2-20261003\case12-eligibility-supervised-v2\scratch\evals\meri\live-v1\tests\case12-eligibility.postgres.test.mjs:51:42
+✖ age comparison is database precise: tied timestamps do not count; one microsecond newer does (5.3496ms)
+  TypeError: Cannot read properties of undefined (reading 'newerThanTarget')
+      at file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/case12-eligibility.postgres.test.mjs:113:80
+      at async mutation (file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/case12-eligibility.postgres.test.mjs:56:54)
+      at async TestContext.<anonymous> (file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/case12-eligibility.postgres.test.mjs:111:9)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async check (file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/case12-eligibility.postgres.test.mjs:51:34)
+      at async file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/case12-eligibility.postgres.test.mjs:108:5
+      at async prisma.$transaction.timeout (file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/approved-memory-postgres-harness.mjs:195:20)
+      at async Proxy._transactionWithCallback (C:\dev\main\meri-c1-20261002\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:130:8000)
+      at async withOwnedApprovedMemory (file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/approved-memory-postgres-harness.mjs:115:7)
+      at async TestContext.<anonymous> (file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/case12-eligibility.postgres.test.mjs:21:3)
+
+test at ..\outputs\meri-c2-20261003\case12-eligibility-supervised-v2\scratch\evals\meri\live-v1\tests\case12-eligibility.postgres.test.mjs:51:42
+✖ composed owner rejects changed current version (2905.9736ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /JOIN_MISMATCH/. Input:
+  
+  "TypeError: Cannot set properties of undefined (setting 'sourceVersion')"
+  
+      at async TestContext.<anonymous> (file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/case12-eligibility.postgres.test.mjs:127:7)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async check (file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/case12-eligibility.postgres.test.mjs:51:34)
+      at async file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/case12-eligibility.postgres.test.mjs:126:8
+      at async prisma.$transaction.timeout (file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/approved-memory-postgres-harness.mjs:195:20)
+      at async Proxy._transactionWithCallback (C:\dev\main\meri-c1-20261002\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:130:8000)
+      at async withOwnedApprovedMemory (file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/approved-memory-postgres-harness.mjs:115:7)
+      at async TestContext.<anonymous> (file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/case12-eligibility.postgres.test.mjs:21:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: TypeError: Cannot set properties of undefined (setting 'sourceVersion')
+        at file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/case12-eligibility.postgres.test.mjs:122:69
+        at file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/case12-eligibility.postgres.test.mjs:127:115
+        at async Object.inspectInTx (file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/fixture-provisioning/case12-memory-eligibility-owner.mjs:15:22)
+        at async waitForActual (node:assert:646:5)
+        at async strict.rejects (node:assert:769:25)
+        at async TestContext.<anonymous> (file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/case12-eligibility.postgres.test.mjs:127:7)
+        at async Test.run (node:internal/test_runner/test:1389:7)
+        at async check (file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/case12-eligibility.postgres.test.mjs:51:34)
+        at async file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/case12-eligibility.postgres.test.mjs:126:8
+        at async prisma.$transaction.timeout (file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/approved-memory-postgres-harness.mjs:195:20),
+    expected: /JOIN_MISMATCH/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at ..\outputs\meri-c2-20261003\case12-eligibility-supervised-v2\scratch\evals\meri\live-v1\tests\case12-eligibility.postgres.test.mjs:51:42
+✖ composed owner rejects duplicate row (2946.4099ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /JOIN_MISMATCH/. Input:
+  
+  'Error: CASE12_CANONICAL_ELIGIBILITY_OBSERVATION_MISSING'
+  
+      at async TestContext.<anonymous> (file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/case12-eligibility.postgres.test.mjs:127:7)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async check (file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/case12-eligibility.postgres.test.mjs:51:34)
+      at async file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/case12-eligibility.postgres.test.mjs:126:8
+      at async prisma.$transaction.timeout (file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/approved-memory-postgres-harness.mjs:195:20)
+      at async Proxy._transactionWithCallback (C:\dev\main\meri-c1-20261002\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:130:8000)
+      at async withOwnedApprovedMemory (file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/approved-memory-postgres-harness.mjs:115:7)
+      at async TestContext.<anonymous> (file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/case12-eligibility.postgres.test.mjs:21:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: Error: CASE12_CANONICAL_ELIGIBILITY_OBSERVATION_MISSING
+        at Object.inspectInTx (file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/fixture-provisioning/case12-memory-eligibility-owner.mjs:30:15)
+        at async waitForActual (node:assert:646:5)
+        at async strict.rejects (node:assert:769:25)
+        at async TestContext.<anonymous> (file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/case12-eligibility.postgres.test.mjs:127:7)
+        at async Test.run (node:internal/test_runner/test:1389:7)
+        at async check (file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/case12-eligibility.postgres.test.mjs:51:34)
+        at async file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/case12-eligibility.postgres.test.mjs:126:8
+        at async prisma.$transaction.timeout (file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/approved-memory-postgres-harness.mjs:195:20)
+        at async Proxy._transactionWithCallback (C:\dev\main\meri-c1-20261002\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:130:8000)
+        at async withOwnedApprovedMemory (file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/approved-memory-postgres-harness.mjs:115:7),
+    expected: /JOIN_MISMATCH/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at ..\outputs\meri-c2-20261003\case12-eligibility-supervised-v2\scratch\evals\meri\live-v1\tests\case12-eligibility.postgres.test.mjs:51:42
+✖ composed owner rejects missing target (2807.5313ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /500_CURRENT_ELIGIBLE/. Input:
+  
+  'Error: CASE12_CANONICAL_ELIGIBILITY_OBSERVATION_MISSING'
+  
+      at async TestContext.<anonymous> (file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/case12-eligibility.postgres.test.mjs:127:7)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async check (file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/case12-eligibility.postgres.test.mjs:51:34)
+      at async file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/case12-eligibility.postgres.test.mjs:126:8
+      at async prisma.$transaction.timeout (file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/approved-memory-postgres-harness.mjs:195:20)
+      at async Proxy._transactionWithCallback (C:\dev\main\meri-c1-20261002\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:130:8000)
+      at async withOwnedApprovedMemory (file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/approved-memory-postgres-harness.mjs:115:7)
+      at async TestContext.<anonymous> (file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/case12-eligibility.postgres.test.mjs:21:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: Error: CASE12_CANONICAL_ELIGIBILITY_OBSERVATION_MISSING
+        at Object.inspectInTx (file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/fixture-provisioning/case12-memory-eligibility-owner.mjs:30:15)
+        at async waitForActual (node:assert:646:5)
+        at async strict.rejects (node:assert:769:25)
+        at async TestContext.<anonymous> (file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/case12-eligibility.postgres.test.mjs:127:7)
+        at async Test.run (node:internal/test_runner/test:1389:7)
+        at async check (file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/case12-eligibility.postgres.test.mjs:51:34)
+        at async file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/case12-eligibility.postgres.test.mjs:126:8
+        at async prisma.$transaction.timeout (file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/approved-memory-postgres-harness.mjs:195:20)
+        at async Proxy._transactionWithCallback (C:\dev\main\meri-c1-20261002\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:130:8000)
+        at async withOwnedApprovedMemory (file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/approved-memory-postgres-harness.mjs:115:7),
+    expected: /500_CURRENT_ELIGIBLE/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at ..\outputs\meri-c2-20261003\case12-eligibility-supervised-v2\scratch\evals\meri\live-v1\tests\case12-eligibility.postgres.test.mjs:51:42
+✖ composed owner rejects only 499 newer eligible rows (2716.7911ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /500_CURRENT_ELIGIBLE/. Input:
+  
+  'Error: CASE12_CANONICAL_ELIGIBILITY_OBSERVATION_MISSING'
+  
+      at async TestContext.<anonymous> (file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/case12-eligibility.postgres.test.mjs:127:7)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async check (file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/case12-eligibility.postgres.test.mjs:51:34)
+      at async file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/case12-eligibility.postgres.test.mjs:126:8
+      at async prisma.$transaction.timeout (file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/approved-memory-postgres-harness.mjs:195:20)
+      at async Proxy._transactionWithCallback (C:\dev\main\meri-c1-20261002\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:130:8000)
+      at async withOwnedApprovedMemory (file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/approved-memory-postgres-harness.mjs:115:7)
+      at async TestContext.<anonymous> (file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/case12-eligibility.postgres.test.mjs:21:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: Error: CASE12_CANONICAL_ELIGIBILITY_OBSERVATION_MISSING
+        at Object.inspectInTx (file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/fixture-provisioning/case12-memory-eligibility-owner.mjs:30:15)
+        at async waitForActual (node:assert:646:5)
+        at async strict.rejects (node:assert:769:25)
+        at async TestContext.<anonymous> (file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/case12-eligibility.postgres.test.mjs:127:7)
+        at async Test.run (node:internal/test_runner/test:1389:7)
+        at async check (file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/case12-eligibility.postgres.test.mjs:51:34)
+        at async file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/case12-eligibility.postgres.test.mjs:126:8
+        at async prisma.$transaction.timeout (file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/approved-memory-postgres-harness.mjs:195:20)
+        at async Proxy._transactionWithCallback (C:\dev\main\meri-c1-20261002\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:130:8000)
+        at async withOwnedApprovedMemory (file:///C:/dev/main/outputs/meri-c2-20261003/case12-eligibility-supervised-v2/scratch/evals/meri/live-v1/tests/approved-memory-postgres-harness.mjs:115:7),
+    expected: /500_CURRENT_ELIGIBLE/,
+    operator: 'rejects',
+    diff: 'simple'
+  }

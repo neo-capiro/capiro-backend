@@ -1,0 +1,25 @@
+{
+  "kind": "full-api-typescript-check-with-readonly-four-file-source-overlay",
+  "repositoryWrites": 0,
+  "sourceOverrides": [
+    {
+      "path": "apps/api/src/retrieval/adapters/governed-memory-eligibility.helpers.ts",
+      "sha256": "3056dc2df5b4fab0cb8e95168f28cb00b55ec11c3755ee07c3b9e0b085330b6c"
+    },
+    {
+      "path": "apps/api/src/retrieval/adapters/governed-memory-eligibility.helpers.spec.ts",
+      "sha256": "6c4080419c73b5cb1be18a24aebe7d29da93de77f97f471357c5961d009ac716"
+    },
+    {
+      "path": "apps/api/src/retrieval/adapters/case12-memory-eligibility.read.ts",
+      "sha256": "0a2b4b5a68d6c13049b6548a37f062469b0bcaf276a22fc3a6bc467d1712b073"
+    },
+    {
+      "path": "apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.ts",
+      "sha256": "fb55d3582958437824c7336b1aaaae5e6e0f854e279e198f126ffb7cb47e8223"
+    }
+  ],
+  "diagnosticCount": 0,
+  "filesChecked": 6556,
+  "diagnostics": []
+}

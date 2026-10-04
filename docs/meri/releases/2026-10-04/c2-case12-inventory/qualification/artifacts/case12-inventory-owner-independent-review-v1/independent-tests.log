@@ -1,0 +1,226 @@
+TAP version 13
+# Subtest: binds MA510 to deterministic owned candidates without modifying the frozen manifest or making availability claims
+ok 1 - binds MA510 to deterministic owned candidates without modifying the frozen manifest or making availability claims
+  ---
+  duration_ms: 109.1519
+  type: 'test'
+  ...
+# Subtest: rejects a forged source map and an unbounded or insufficient distractor inventory
+ok 2 - rejects a forged source map and an unbounded or insufficient distractor inventory
+  ---
+  duration_ms: 142.7098
+  type: 'test'
+  ...
+# Subtest: successful canonical inspection verifies all owner/auth rows but never readiness or retrieval eligibility
+ok 3 - successful canonical inspection verifies all owner/auth rows but never readiness or retrieval eligibility
+  ---
+  duration_ms: 145.1827
+  type: 'test'
+  ...
+# Subtest: missing exact manifest and seed reports NOT_READY without DB reads
+ok 4 - missing exact manifest and seed reports NOT_READY without DB reads
+  ---
+  duration_ms: 41.2091
+  type: 'test'
+  ...
+# Subtest: a seed-only not-ready envelope does not imply a manifest or trigger reads
+ok 5 - a seed-only not-ready envelope does not imply a manifest or trigger reads
+  ---
+  duration_ms: 37.6552
+  type: 'test'
+  ...
+# Subtest: malformed manifest content hash rejects before inspection
+ok 6 - malformed manifest content hash rejects before inspection
+  ---
+  duration_ms: 59.214
+  type: 'test'
+  ...
+# Subtest: fixture instance is required exactly; generated/new locator is not accepted
+ok 7 - fixture instance is required exactly; generated/new locator is not accepted
+  ---
+  duration_ms: 51.5941
+  type: 'test'
+  ...
+# Subtest: receipt hash or manifest binding mismatch rejects supplied seed evidence
+ok 8 - receipt hash or manifest binding mismatch rejects supplied seed evidence
+  ---
+  duration_ms: 47.603
+  type: 'test'
+  ...
+# Subtest: duplicate logical id is rejected even with rehashed receipt
+ok 9 - duplicate logical id is rejected even with rehashed receipt
+  ---
+  duration_ms: 67.9841
+  type: 'test'
+  ...
+# Subtest: duplicate actual physical item id is rejected
+ok 10 - duplicate actual physical item id is rejected
+  ---
+  duration_ms: 73.721
+  type: 'test'
+  ...
+# Subtest: missing MA510 or distractor rejects complete inventory
+ok 11 - missing MA510 or distractor rejects complete inventory
+  ---
+  duration_ms: 130.9785
+  type: 'test'
+  ...
+# Subtest: unknown row fields and caller-claimed eligibility flags are refused
+ok 12 - unknown row fields and caller-claimed eligibility flags are refused
+  ---
+  duration_ms: 65.6488
+  type: 'test'
+  ...
+# Subtest: altered marker binding is rejected before any database call
+ok 13 - altered marker binding is rejected before any database call
+  ---
+  duration_ms: 64.3643
+  type: 'test'
+  ...
+# Subtest: proposed rather than allocated physical ID is refused
+ok 14 - proposed rather than allocated physical ID is refused
+  ---
+  duration_ms: 63.6598
+  type: 'test'
+  ...
+# Subtest: wrong case, tenant, client, actor role and reviewer role cannot inspect
+ok 15 - wrong case, tenant, client, actor role and reviewer role cannot inspect
+  ---
+  duration_ms: 64.3199
+  type: 'test'
+  ...
+# Subtest: active ordinary membership must match actor context
+ok 16 - active ordinary membership must match actor context
+  ---
+  duration_ms: 68.2441
+  type: 'test'
+  ...
+# Subtest: foreign canonical tenant row is refused with no partial inventory result
+ok 17 - foreign canonical tenant row is refused with no partial inventory result
+  ---
+  duration_ms: 72.5029
+  type: 'test'
+  ...
+# Subtest: current permission denial blocks inventory and is evaluated without denial metrics
+ok 18 - current permission denial blocks inventory and is evaluated without denial metrics
+  ---
+  duration_ms: 63.1988
+  type: 'test'
+  ...
+# Subtest: changed source row version and source identity are rejected
+ok 19 - changed source row version and source identity are rejected
+  ---
+  duration_ms: 62.4485
+  type: 'test'
+  ...
+# Subtest: retired canonical item is not treated as approved current owner
+ok 20 - retired canonical item is not treated as approved current owner
+  ---
+  duration_ms: 60.122
+  type: 'test'
+  ...
+# Subtest: fewer than 500 strictly newer rows blocks age claim; timestamp ties do not count
+ok 21 - fewer than 500 strictly newer rows blocks age claim; timestamp ties do not count
+  ---
+  duration_ms: 82.5287
+  type: 'test'
+  ...
+# Subtest: caller mutation after construction cannot alter snapshotted manifest or seed
+ok 22 - caller mutation after construction cannot alter snapshotted manifest or seed
+  ---
+  duration_ms: 87.3137
+  type: 'test'
+  ...
+# Subtest: owner exposes no seed, write, capture, provider or readiness-authority entrypoint
+ok 23 - owner exposes no seed, write, capture, provider or readiness-authority entrypoint
+  ---
+  duration_ms: 66.4191
+  type: 'test'
+  ...
+# Subtest: arbitrary seed receipt alone is not accepted as current owner proof
+ok 24 - arbitrary seed receipt alone is not accepted as current owner proof
+  ---
+  duration_ms: 96.4617
+  type: 'test'
+  ...
+# Subtest: accepts exact native receipt for 500 defined distractors only as inventory
+ok 25 - accepts exact native receipt for 500 defined distractors only as inventory
+  ---
+  duration_ms: 81.5214
+  type: 'test'
+  ...
+# Subtest: accepts exact native receipt for 600 defined distractors only as inventory
+ok 26 - accepts exact native receipt for 600 defined distractors only as inventory
+  ---
+  duration_ms: 96.7365
+  type: 'test'
+  ...
+# Subtest: requires the native receipt NOT_RUN boundary, even if the receipt otherwise hashes
+ok 27 - requires the native receipt NOT_RUN boundary, even if the receipt otherwise hashes
+  ---
+  duration_ms: 46.2775
+  type: 'test'
+  ...
+# Subtest: malformed seed cannot hide behind a missing manifest
+ok 28 - malformed seed cannot hide behind a missing manifest
+  ---
+  duration_ms: 37.1122
+  type: 'test'
+  ...
+# Subtest: all four native canonical proof fields must join, not just candidate row version
+ok 29 - all four native canonical proof fields must join, not just candidate row version
+  ---
+  duration_ms: 244.3956
+  type: 'test'
+  ...
+# Subtest: canonical helper rejection is not converted to a partial positive receipt
+ok 30 - canonical helper rejection is not converted to a partial positive receipt
+  ---
+  duration_ms: 60.6719
+  type: 'test'
+  ...
+# Subtest: foreign authorization subjects are rejected before evaluating read permission
+ok 31 - foreign authorization subjects are rejected before evaluating read permission
+  ---
+  duration_ms: 239.6965
+  type: 'test'
+  ...
+# Subtest: caller context mutation and replaced auth methods cannot change an in-flight inspection
+ok 32 - caller context mutation and replaced auth methods cannot change an in-flight inspection
+  ---
+  duration_ms: 81.9478
+  type: 'test'
+  ...
+# Subtest: a different ordinary user cannot substitute for manifest Pat
+ok 33 - a different ordinary user cannot substitute for manifest Pat
+  ---
+  duration_ms: 63.7706
+  type: 'test'
+  ...
+# Subtest: row versions outside PostgreSQL xid range reject before any native read
+ok 34 - row versions outside PostgreSQL xid range reject before any native read
+  ---
+  duration_ms: 64.8032
+  type: 'test'
+  ...
+# Subtest: missing actual canonical row cannot be reported as inspected
+ok 35 - missing actual canonical row cannot be reported as inspected
+  ---
+  duration_ms: 58.1748
+  type: 'test'
+  ...
+# Subtest: impossible or fractional newer count is refused
+ok 36 - impossible or fractional newer count is refused
+  ---
+  duration_ms: 253.7572
+  type: 'test'
+  ...
+1..36
+# tests 36
+# suites 0
+# pass 36
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3060.6142

@@ -1,0 +1,58 @@
+{
+  "at": "2026-10-04T09:25:57.404084+00:00",
+  "status": "PASS_LOCAL_QUALIFICATION_ONLY",
+  "copiedArtifactsVerified": 175,
+  "losslessCompressedDiagnostics": 2,
+  "sourceFilesVerified": 7,
+  "independentAssessmentSha256": "2622e7e4129ecd12a200528ee39dbf9d0501756a84b007642205eafe5b2f1d58",
+  "independentChecks": 447,
+  "tests": {
+    "rootApi": 73,
+    "rootInventory": 36,
+    "postgres": 24,
+    "fullApiTypecheck": "PASS"
+  },
+  "testCountsOverlap": "Supervisor71 API tests overlap root73; never sum them.",
+  "journalUnchanged": true,
+  "case12Acceptance": "NOT_RUN",
+  "fixtureReady": false,
+  "captureAuthority": false,
+  "deployed": false,
+  "sourceFiles": [
+    {
+      "path": "apps/api/src/retrieval/adapters/governed-memory-eligibility.helpers.ts",
+      "bytes": 2978,
+      "sha256": "3056dc2df5b4fab0cb8e95168f28cb00b55ec11c3755ee07c3b9e0b085330b6c"
+    },
+    {
+      "path": "apps/api/src/retrieval/adapters/governed-memory-eligibility.helpers.spec.ts",
+      "bytes": 5485,
+      "sha256": "00ec935a2b01ec8711ef4df0a74ddef114c5a7b20cf06ffab1b076b3a5b31b63"
+    },
+    {
+      "path": "apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.ts",
+      "bytes": 34441,
+      "sha256": "3de5e6ac3e64baf5b85dec6919d80f6bd2f4ab7855db56742b60f142cb547c18"
+    },
+    {
+      "path": "apps/api/src/retrieval/adapters/case12-memory-eligibility.read.ts",
+      "bytes": 4933,
+      "sha256": "a6755a96e68516257e7b511dd8a85fbb30b01358c4e6e87b815b92ad3f9257ab"
+    },
+    {
+      "path": "evals/meri/live-v1/fixture-provisioning/case12-memory-eligibility-owner.mjs",
+      "bytes": 4052,
+      "sha256": "9d829dc0e8ca012194d602949c02d757e9e4921f339eb139c30a25b599913664"
+    },
+    {
+      "path": "evals/meri/live-v1/fixture-provisioning/case12-memory-inventory-owner.mjs",
+      "bytes": 15053,
+      "sha256": "6558f5a49f7e4a4316411107c3f17f29f3bbf133466b02118e9cfbaae34fb1b9"
+    },
+    {
+      "path": "evals/meri/live-v1/tests/case12-memory-inventory-owner.test.mjs",
+      "bytes": 25025,
+      "sha256": "d8346f384b992c719c92ec1e568f3be334110409135d7e1b0711791dfcd700c0"
+    }
+  ]
+}

@@ -1,16 +1,15 @@
 import { createHash } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import {
-  filterGovernedMemory,
-  MEMORY_CLASSES,
-  type GovernedMemoryRecord,
-} from '@capiro/meriv2-core';
+import type { GovernedMemoryRecord } from '@capiro/meriv2-core';
 import { EMBEDDING_PROVIDER, type EmbeddingProvider } from '../../embeddings/embedding-provider.js';
 import { TemporalKnowledgeGraphService } from '../../knowledge/graph/temporal-knowledge-graph.service.js';
 import type { TemporalKnowledgeGraphEdge } from '../../knowledge/graph/temporal-knowledge-graph.types.js';
 import type { KnowledgeJsonObject } from '../../knowledge/knowledge.types.js';
-import { governedRecallEligibilitySql } from '../../memory/memory-recall-suppression.helpers.js';
+import {
+  canonicalMemoryEligibilitySql,
+  includeCanonicalGovernedMemoryRow,
+} from './governed-memory-eligibility.helpers.js';
 import { describeMemoryRecallContent } from '../../memory/memory-recall-content.helpers.js';
 import { clientMemoryAllowed } from '../../memory/memory-wall.helpers.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
@@ -180,33 +179,12 @@ export class InstitutionalKnowledgeRetrievalAdapter implements RetrievalSourceAd
               WHERE JSONB_TYPEOF(section.value) = 'object'
                 AND JSONB_TYPEOF(section.value -> 'body') = 'string'
             ) body_projection ON TRUE
-            WHERE mi.tenant_id = ${request.caller.tenantId}::uuid
-              AND (mi.visibility = 'tenant' OR mi.owner_user_id = ${request.caller.userId}::uuid)
-              AND mi.status = 'active'
-              ${request.memoryItemId ? Prisma.sql`AND mi.id = ${request.memoryItemId}::uuid` : Prisma.empty}
-              AND mi.memory_class IN ('institutional_authoritative', 'client_steering', 'user_preference', 'episodic_working')
-              AND (mi.memory_scope <> 'user_private' OR mi.owner_user_id = ${request.caller.userId}::uuid)
-              AND (mi.memory_scope <> 'client' OR mi.client_id = ANY(${allowedClientIds}::uuid[]))
-              AND (
-                mi.memory_class NOT IN ('institutional_authoritative', 'client_steering')
-                OR mi.approved_by_user_id IS NOT NULL
-              )
-              AND (
-                mi.source_type <> 'unknown'
-                OR mi.source_ref IS NOT NULL
-                OR mi.source_id IS NOT NULL
-              )
-              AND (
-                mi.memory_class <> 'episodic_working'
-                OR mi.expires_at IS NOT NULL
-                OR mi.valid_until IS NOT NULL
-              )
-              AND COALESCE(mi.sensitivity, 'normal') = 'normal'
-              AND (mi.expires_at IS NULL OR mi.expires_at > now())
-              AND (mi.valid_until IS NULL OR mi.valid_until > now())
-              AND (mi.effective_from IS NULL OR mi.effective_from <= now())
-              AND (mi.client_id IS NULL OR mi.client_id = ANY(${allowedClientIds}::uuid[]))
-              AND ${Prisma.raw(governedRecallEligibilitySql('mi'))}
+            WHERE ${canonicalMemoryEligibilitySql({
+              tenantId: request.caller.tenantId,
+              userId: request.caller.userId,
+              allowedClientIds,
+              memoryItemId: request.memoryItemId,
+            })}
           ), eligible AS NOT MATERIALIZED (
             SELECT mi.*, ${memoryLexicalScoreSql(request.query ?? '', 'mi')} AS recall_lexical_score
             FROM eligible_base mi
@@ -265,19 +243,12 @@ export class InstitutionalKnowledgeRetrievalAdapter implements RetrievalSourceAd
               );
             });
           const eligible = rows
-            .filter(
-              (row) =>
-                MEMORY_CLASSES.includes(row.memoryClass) &&
-                row.legacyStatus === 'active' &&
-                (row.visibility === 'tenant' || row.ownerUserId === request.caller.userId) &&
-                (!row.clientId || allowedClientIds.includes(row.clientId)) &&
-                (!row.effectiveFrom || new Date(row.effectiveFrom).getTime() <= Date.now()) &&
-                filterGovernedMemory(row, {
-                  tenantId: request.caller.tenantId,
-                  userId: request.caller.userId,
-                  clientId: row.clientId,
-                  ethicalWallAllowed: !!row.clientId && allowedClientIds.includes(row.clientId),
-                }).include,
+            .filter((row) =>
+              includeCanonicalGovernedMemoryRow(row, {
+                tenantId: request.caller.tenantId,
+                userId: request.caller.userId,
+                allowedClientIds,
+              }),
             )
             .map((row) => ({
               ...row,

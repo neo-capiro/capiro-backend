@@ -1,0 +1,21 @@
+(node:60088) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS src/retrieval/adapters/institutional-knowledge-retrieval.adapter.pglite.spec.ts (16.532 s)
+  ● Console
+
+    console.log
+      MEMORY_SQL_EVIDENCE {"engine":"@electric-sql/pglite@0.5.8","fixtureMemoryRows":1009,"governedEligibleRows":1003,"candidateRows":501,"adapterWallMs":160.099,"planningTimeMs":1.564,"executionTimeMs":1789.667,"rootNode":"Nested Loop","actualRows":501,"planRows":1}
+
+      at Object.<anonymous> (src/retrieval/adapters/institutional-knowledge-retrieval.adapter.pglite.spec.ts:321:13)
+
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+PASS src/retrieval/adapters/governed-memory-eligibility.helpers.spec.ts (8.228 s)
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+PASS src/retrieval/adapters/institutional-knowledge-retrieval.adapter.spec.ts
+
+Test Suites: 3 passed, 3 total
+Tests:       73 passed, 73 total
+Snapshots:   0 total
+Time:        26.649 s, estimated 27 s
+Ran all test suites within paths "src/retrieval/adapters/governed-memory-eligibility.helpers.spec.ts", "src/retrieval/adapters/institutional-knowledge-retrieval.adapter.spec.ts", "src/retrieval/adapters/institutional-knowledge-retrieval.adapter.pglite.spec.ts".
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?

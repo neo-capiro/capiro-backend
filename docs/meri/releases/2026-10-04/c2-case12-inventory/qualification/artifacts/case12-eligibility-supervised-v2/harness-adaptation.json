@@ -1,0 +1,18 @@
+{
+  "baselinePins": [
+    {
+      "path": "evals/meri/live-v1/tests/approved-memory-postgres-harness.mjs",
+      "sha256": "e9423f5e819c33a628c104ef9137c76708aa05ef0b7c5cdb4a42793dd4959c8d"
+    },
+    {
+      "path": "evals/meri/live-v1/tests/approved-memory-schema.mjs",
+      "sha256": "07d41fccf6ad21123f29521a7aa0a2816cf6ea4a76e74f8125ff449b828a94ab"
+    }
+  ],
+  "changes": [
+    "Resolve actual API services/dependencies/tsconfig from the fixed read-only repository source location",
+    "Add explicit Pat/Priya bindings to new rollback-only test manifest",
+    "Add production review_cadence_days column selected by actual adapter to reduced local schema"
+  ],
+  "scope": "No production RLS/full schema/application acceptance claim"
+}

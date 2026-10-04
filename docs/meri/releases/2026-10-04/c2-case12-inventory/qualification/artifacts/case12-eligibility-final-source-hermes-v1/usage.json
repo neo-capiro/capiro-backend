@@ -1,0 +1,18 @@
+{
+  "estimated_cost_usd": 0.013734725,
+  "cost_status": "estimated",
+  "cost_source": "provider_models_api",
+  "input_tokens": 21,
+  "output_tokens": 7481,
+  "cache_read_tokens": 192750,
+  "cache_write_tokens": 64517,
+  "reasoning_tokens": 4306,
+  "total_tokens": 264769,
+  "api_calls": 7,
+  "model": "openai/gpt-6-luna",
+  "provider": "openrouter",
+  "session_id": "20261004_051602_29ba5c",
+  "completed": true,
+  "failed": false,
+  "service_tier": null
+}

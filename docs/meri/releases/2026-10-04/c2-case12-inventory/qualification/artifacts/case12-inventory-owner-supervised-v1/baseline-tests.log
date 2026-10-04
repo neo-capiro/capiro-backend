@@ -1,0 +1,10 @@
+✔ binds MA510 to deterministic owned candidates without modifying the frozen manifest or making availability claims (197.5574ms)
+✔ rejects a forged source map and an unbounded or insufficient distractor inventory (128.1112ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 454.3541

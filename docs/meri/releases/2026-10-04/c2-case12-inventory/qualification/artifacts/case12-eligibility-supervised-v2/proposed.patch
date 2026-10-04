@@ -1,0 +1,419 @@
+--- /dev/null
++++ b/apps/api/src/retrieval/adapters/governed-memory-eligibility.helpers.ts
+@@ -0,0 +1,84 @@
++import { Prisma } from '@prisma/client';
++import {
++  filterGovernedMemory,
++  MEMORY_CLASSES,
++  type GovernedMemoryRecord,
++} from '@capiro/meriv2-core';
++import { governedRecallEligibilitySql } from '../../memory/memory-recall-suppression.helpers.js';
++
++export interface CanonicalMemoryEligibilityInput {
++  tenantId: string;
++  userId: string;
++  allowedClientIds: string[];
++  memoryItemId?: string;
++}
++
++/** The canonical memory_items WHERE predicate used by governed retrieval. */
++export function canonicalMemoryEligibilitySql({
++  tenantId,
++  userId,
++  allowedClientIds,
++  memoryItemId,
++}: CanonicalMemoryEligibilityInput): Prisma.Sql {
++  return Prisma.sql`
++    mi.tenant_id = ${tenantId}::uuid
++    AND (mi.visibility = 'tenant' OR mi.owner_user_id = ${userId}::uuid)
++    AND mi.status = 'active'
++    ${memoryItemId ? Prisma.sql`AND mi.id = ${memoryItemId}::uuid` : Prisma.empty}
++    AND mi.memory_class IN ('institutional_authoritative', 'client_steering', 'user_preference', 'episodic_working')
++    AND (mi.memory_scope <> 'user_private' OR mi.owner_user_id = ${userId}::uuid)
++    AND (mi.memory_scope <> 'client' OR mi.client_id = ANY(${allowedClientIds}::uuid[]))
++    AND (
++      mi.memory_class NOT IN ('institutional_authoritative', 'client_steering')
++      OR mi.approved_by_user_id IS NOT NULL
++    )
++    AND (
++      mi.source_type <> 'unknown'
++      OR mi.source_ref IS NOT NULL
++      OR mi.source_id IS NOT NULL
++    )
++    AND (
++      mi.memory_class <> 'episodic_working'
++      OR mi.expires_at IS NOT NULL
++      OR mi.valid_until IS NOT NULL
++    )
++    AND COALESCE(mi.sensitivity, 'normal') = 'normal'
++    AND (mi.expires_at IS NULL OR mi.expires_at > now())
++    AND (mi.valid_until IS NULL OR mi.valid_until > now())
++    AND (mi.effective_from IS NULL OR mi.effective_from <= now())
++    AND (mi.client_id IS NULL OR mi.client_id = ANY(${allowedClientIds}::uuid[]))
++    AND ${Prisma.raw(governedRecallEligibilitySql('mi'))}
++  `;
++}
++
++export interface CanonicalGovernedMemoryRow extends GovernedMemoryRecord {
++  visibility: string;
++  legacyStatus: string;
++  clientId: string | null;
++}
++
++export interface CanonicalGovernedMemoryAccess {
++  tenantId: string;
++  userId: string;
++  allowedClientIds: string[];
++}
++
++/** Mirrors the adapter's post-SQL defense-in-depth filter and its evaluation order. */
++export function includeCanonicalGovernedMemoryRow(
++  row: CanonicalGovernedMemoryRow,
++  { tenantId, userId, allowedClientIds }: CanonicalGovernedMemoryAccess,
++): boolean {
++  return (
++    MEMORY_CLASSES.includes(row.memoryClass) &&
++    row.legacyStatus === 'active' &&
++    (row.visibility === 'tenant' || row.ownerUserId === userId) &&
++    (!row.clientId || allowedClientIds.includes(row.clientId)) &&
++    (!row.effectiveFrom || new Date(row.effectiveFrom).getTime() <= Date.now()) &&
++    filterGovernedMemory(row, {
++      tenantId,
++      userId,
++      clientId: row.clientId,
++      ethicalWallAllowed: !!row.clientId && allowedClientIds.includes(row.clientId),
++    }).include
++  );
++}
+--- /dev/null
++++ b/apps/api/src/retrieval/adapters/governed-memory-eligibility.helpers.spec.ts
+@@ -0,0 +1,106 @@
++import { includeCanonicalGovernedMemoryRow, canonicalMemoryEligibilitySql, type CanonicalGovernedMemoryRow } from './governed-memory-eligibility.helpers.js';
++
++const tenantId = '11111111-1111-4111-8111-111111111111';
++const userId = '22222222-2222-4222-8222-222222222222';
++const clientId = '33333333-3333-4333-8333-333333333333';
++const now = new Date('2026-10-04T12:00:00.000Z');
++
++function validRow(overrides: Partial<CanonicalGovernedMemoryRow> = {}): CanonicalGovernedMemoryRow {
++  return {
++    id: '44444444-4444-4444-8444-444444444444',
++    tenantId,
++    ownerUserId: userId,
++    clientId,
++    memoryClass: 'client_steering',
++    authority: 'client_approved',
++    scope: 'client',
++    status: 'active',
++    legacyStatus: 'active',
++    visibility: 'tenant',
++    conflictStatus: 'none',
++    sensitivity: 'normal',
++    sourceType: 'client_record',
++    sourceId: 'source-1',
++    approvedByUserId: userId,
++    approvedAt: now,
++    ...overrides,
++  };
++}
++
++const access = { tenantId, userId, allowedClientIds: [clientId] };
++
++describe('canonical governed-memory eligibility SQL', () => {
++  it('contains the source tenant, visibility, status, class, scope, governance, provenance, sensitivity, temporal, client, and lifecycle clauses', () => {
++    const sql = canonicalMemoryEligibilitySql({ tenantId, userId, allowedClientIds: [] });
++    expect(sql.text).toContain('mi.tenant_id = $1::uuid');
++    for (const clause of [
++      "(mi.visibility = 'tenant' OR mi.owner_user_id = $2::uuid)",
++      "mi.status = 'active'",
++      "mi.memory_class IN ('institutional_authoritative', 'client_steering', 'user_preference', 'episodic_working')",
++      "mi.memory_scope <> 'user_private' OR mi.owner_user_id = $3::uuid",
++      "mi.memory_scope <> 'client' OR mi.client_id = ANY(",
++      "mi.memory_class NOT IN ('institutional_authoritative', 'client_steering')",
++      'mi.approved_by_user_id IS NOT NULL',
++      "mi.source_type <> 'unknown'",
++      "mi.memory_class <> 'episodic_working'",
++      "COALESCE(mi.sensitivity, 'normal') = 'normal'",
++      'mi.expires_at > now()',
++      'mi.valid_until > now()',
++      'mi.effective_from <= now()',
++      'mi.client_id IS NULL OR mi.client_id = ANY(',
++      "mi.governed_status IN ('active', 'stale')",
++      "mi.governed_status = 'conflicted'",
++    ]) expect(sql.text).toContain(clause);
++    expect(sql.text).not.toContain('WHERE');
++    expect(sql.values).toEqual([tenantId, userId, userId, [], []]);
++  });
++
++  it('adds an exact item selector only when present and parameterizes its value', () => {
++    const absent = canonicalMemoryEligibilitySql({ tenantId, userId, allowedClientIds: [] });
++    const selected = canonicalMemoryEligibilitySql({ tenantId, userId, allowedClientIds: [], memoryItemId: "x' OR TRUE --" });
++    expect(absent.text).not.toContain('mi.id =');
++    expect(selected.text).toContain('mi.id = $3::uuid');
++    expect(selected.values).toEqual([tenantId, userId, "x' OR TRUE --", userId, [], []]);
++    expect(selected.text).not.toContain("x' OR TRUE --");
++  });
++
++  it('keeps empty allowed-client arrays as bound parameters', () => {
++    const sql = canonicalMemoryEligibilitySql({ tenantId, userId, allowedClientIds: [] });
++    expect(sql.values.filter((value) => Array.isArray(value))).toEqual([[], []]);
++    expect(sql.text).toContain('ANY($4::uuid[])');
++  });
++});
++
++describe('includeCanonicalGovernedMemoryRow', () => {
++  beforeEach(() => { jest.useFakeTimers(); jest.setSystemTime(now); });
++  afterEach(() => { jest.useRealTimers(); jest.restoreAllMocks(); });
++
++  it('accepts an approved, current client-steering record through the real governance filter', () => {
++    jest.spyOn(Date, 'now').mockReturnValue(now.getTime());
++    expect(includeCanonicalGovernedMemoryRow(validRow(), access)).toBe(true);
++  });
++
++  it.each([
++    ['foreign tenant', { tenantId: '99999999-9999-4999-8999-999999999999' }],
++    ['foreign user-private owner', { memoryClass: 'user_preference' as const, authority: 'user_asserted' as const, scope: 'user_private' as const, ownerUserId: '99999999-9999-4999-8999-999999999999' }],
++    ['wrong client', { clientId: '99999999-9999-4999-8999-999999999999' }],
++    ['expired', { expiresAt: new Date('2026-10-04T11:59:59.000Z') }],
++    ['future effective time', { effectiveFrom: new Date('2026-10-04T12:00:01.000Z') }],
++    ['revoked', { status: 'revoked' as const }],
++    ['stale legacy status', { legacyStatus: 'stale' }],
++    ['unknown class', { memoryClass: 'legacy_unclassified' as const }],
++    ['visibility denied', { visibility: 'private', ownerUserId: '99999999-9999-4999-8999-999999999999' }],
++    ['missing approval', { approvedByUserId: null, approvedAt: null }],
++    ['denied sensitivity', { sensitivity: 'restricted' as const }],
++    ['missing unknown provenance', { sourceType: 'unknown' as const, sourceId: null, sourceRef: null }],
++  ])('rejects %s using existing filter contracts', (_label, overrides) => {
++    jest.spyOn(Date, 'now').mockReturnValue(now.getTime());
++    expect(includeCanonicalGovernedMemoryRow(validRow(overrides), access)).toBe(false);
++  });
++
++  it('rejects client steering when its source client is outside the allowed set', () => {
++    jest.spyOn(Date, 'now').mockReturnValue(now.getTime());
++    expect(includeCanonicalGovernedMemoryRow(validRow(), { ...access, allowedClientIds: [] })).toBe(false);
++  });
++});
++
+--- a/apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.ts
++++ b/apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.ts
+@@ -1,16 +1,12 @@
+ import { createHash } from 'node:crypto';
+ import { Inject, Injectable } from '@nestjs/common';
+ import { Prisma } from '@prisma/client';
+-import {
+-  filterGovernedMemory,
+-  MEMORY_CLASSES,
+-  type GovernedMemoryRecord,
+-} from '@capiro/meriv2-core';
++import type { GovernedMemoryRecord } from '@capiro/meriv2-core';
+ import { EMBEDDING_PROVIDER, type EmbeddingProvider } from '../../embeddings/embedding-provider.js';
+ import { TemporalKnowledgeGraphService } from '../../knowledge/graph/temporal-knowledge-graph.service.js';
+ import type { TemporalKnowledgeGraphEdge } from '../../knowledge/graph/temporal-knowledge-graph.types.js';
+ import type { KnowledgeJsonObject } from '../../knowledge/knowledge.types.js';
+-import { governedRecallEligibilitySql } from '../../memory/memory-recall-suppression.helpers.js';
++import { canonicalMemoryEligibilitySql, includeCanonicalGovernedMemoryRow } from './governed-memory-eligibility.helpers.js';
+ import { describeMemoryRecallContent } from '../../memory/memory-recall-content.helpers.js';
+ import { clientMemoryAllowed } from '../../memory/memory-wall.helpers.js';
+ import { PrismaService } from '../../prisma/prisma.service.js';
+@@ -180,33 +176,12 @@
+               WHERE JSONB_TYPEOF(section.value) = 'object'
+                 AND JSONB_TYPEOF(section.value -> 'body') = 'string'
+             ) body_projection ON TRUE
+-            WHERE mi.tenant_id = ${request.caller.tenantId}::uuid
+-              AND (mi.visibility = 'tenant' OR mi.owner_user_id = ${request.caller.userId}::uuid)
+-              AND mi.status = 'active'
+-              ${request.memoryItemId ? Prisma.sql`AND mi.id = ${request.memoryItemId}::uuid` : Prisma.empty}
+-              AND mi.memory_class IN ('institutional_authoritative', 'client_steering', 'user_preference', 'episodic_working')
+-              AND (mi.memory_scope <> 'user_private' OR mi.owner_user_id = ${request.caller.userId}::uuid)
+-              AND (mi.memory_scope <> 'client' OR mi.client_id = ANY(${allowedClientIds}::uuid[]))
+-              AND (
+-                mi.memory_class NOT IN ('institutional_authoritative', 'client_steering')
+-                OR mi.approved_by_user_id IS NOT NULL
+-              )
+-              AND (
+-                mi.source_type <> 'unknown'
+-                OR mi.source_ref IS NOT NULL
+-                OR mi.source_id IS NOT NULL
+-              )
+-              AND (
+-                mi.memory_class <> 'episodic_working'
+-                OR mi.expires_at IS NOT NULL
+-                OR mi.valid_until IS NOT NULL
+-              )
+-              AND COALESCE(mi.sensitivity, 'normal') = 'normal'
+-              AND (mi.expires_at IS NULL OR mi.expires_at > now())
+-              AND (mi.valid_until IS NULL OR mi.valid_until > now())
+-              AND (mi.effective_from IS NULL OR mi.effective_from <= now())
+-              AND (mi.client_id IS NULL OR mi.client_id = ANY(${allowedClientIds}::uuid[]))
+-              AND ${Prisma.raw(governedRecallEligibilitySql('mi'))}
++            WHERE ${canonicalMemoryEligibilitySql({
++              tenantId: request.caller.tenantId,
++              userId: request.caller.userId,
++              allowedClientIds,
++              memoryItemId: request.memoryItemId,
++            })}
+           ), eligible AS NOT MATERIALIZED (
+             SELECT mi.*, ${memoryLexicalScoreSql(request.query ?? '', 'mi')} AS recall_lexical_score
+             FROM eligible_base mi
+@@ -265,20 +240,11 @@
+               );
+             });
+           const eligible = rows
+-            .filter(
+-              (row) =>
+-                MEMORY_CLASSES.includes(row.memoryClass) &&
+-                row.legacyStatus === 'active' &&
+-                (row.visibility === 'tenant' || row.ownerUserId === request.caller.userId) &&
+-                (!row.clientId || allowedClientIds.includes(row.clientId)) &&
+-                (!row.effectiveFrom || new Date(row.effectiveFrom).getTime() <= Date.now()) &&
+-                filterGovernedMemory(row, {
+-                  tenantId: request.caller.tenantId,
+-                  userId: request.caller.userId,
+-                  clientId: row.clientId,
+-                  ethicalWallAllowed: !!row.clientId && allowedClientIds.includes(row.clientId),
+-                }).include,
+-            )
++            .filter((row) => includeCanonicalGovernedMemoryRow(row, {
++              tenantId: request.caller.tenantId,
++              userId: request.caller.userId,
++              allowedClientIds,
++            }))
+             .map((row) => ({
+               ...row,
+               sections: memorySections(row.sections),
+--- /dev/null
++++ b/apps/api/src/retrieval/adapters/case12-memory-eligibility.read.ts
+@@ -0,0 +1,73 @@
++import { Prisma } from '@prisma/client';
++import { clientMemoryAllowed } from '../../memory/memory-wall.helpers.js';
++import {
++  canonicalMemoryEligibilitySql,
++  includeCanonicalGovernedMemoryRow,
++} from './governed-memory-eligibility.helpers.js';
++
++const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
++type CurrentRow = Parameters<typeof includeCanonicalGovernedMemoryRow>[0] & {
++  id: string; tenantId: string; clientId: string | null;
++  rowVersion: string; newerThanTarget: boolean;
++  databaseTransactionStartedAt: Date; databaseObservedAt: Date; databaseSnapshot: string;
++};
++
++/** Internal source composition only. No connection, provider call or capture authority. */
++export async function readCase12CanonicalEligibilityInTx(
++  tx: Prisma.TransactionClient,
++  suppliedContext: { tenantId: string; userId: string; role: string },
++  input: { clientId: string; targetItemId: string; inventoryItemIds: string[] },
++) {
++  const ctx = structuredClone(suppliedContext);
++  const { clientId, targetItemId, inventoryItemIds } = structuredClone(input);
++  const processStartedAt = new Date().toISOString();
++  if (ctx.role !== 'standard_user' || ![ctx.tenantId, ctx.userId, clientId, targetItemId].every(v => UUID.test(v)) ||
++      !Array.isArray(inventoryItemIds) || inventoryItemIds.length < 501 || inventoryItemIds.length > 601 ||
++      inventoryItemIds.some(v => !UUID.test(v)) || new Set(inventoryItemIds).size !== inventoryItemIds.length ||
++      !inventoryItemIds.includes(targetItemId)) throw new Error('CASE12_ELIGIBILITY_INPUT_INVALID');
++  if (!(await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, clientId)))
++    throw new Error('CASE12_ELIGIBILITY_CLIENT_WALL_DENIED');
++  const access = { tenantId: ctx.tenantId, userId: ctx.userId, allowedClientIds: [clientId] };
++  const rows = await tx.$queryRaw<CurrentRow[]>(Prisma.sql`
++    SELECT mi.id::text AS id,mi.tenant_id::text AS "tenantId",mi.client_id::text AS "clientId",
++      mi.owner_user_id::text AS "ownerUserId",mi.visibility,mi.status AS "legacyStatus",
++      mi.memory_class AS "memoryClass",mi.memory_authority AS authority,
++      mi.memory_scope AS scope,mi.governed_status AS status,
++      mi.conflict_status AS "conflictStatus",mi.controlling_item_id::text AS "controllingItemId",
++      mi.sensitivity,mi.source_type AS "sourceType",mi.source_id AS "sourceId",mi.source_ref AS "sourceRef",
++      mi.source_content_hash AS "sourceContentHash",mi.source_version AS "sourceVersion",
++      mi.asserted_by_user_id::text AS "assertedByUserId",mi.approved_by_user_id::text AS "approvedByUserId",
++      mi.approved_at AS "approvedAt",mi.second_approved_by_user_id::text AS "secondApprovedByUserId",
++      mi.second_approved_at AS "secondApprovedAt",mi.effective_from AS "effectiveFrom",
++      mi.valid_until AS "validUntil",mi.expires_at AS "expiresAt",mi.xmin::text AS "rowVersion",
++      transaction_timestamp() AS "databaseTransactionStartedAt",statement_timestamp() AS "databaseObservedAt",
++      txid_current_snapshot()::text AS "databaseSnapshot",
++      (mi.id<>target.id AND mi.created_at>target.created_at AND mi.updated_at>target.updated_at) AS "newerThanTarget"
++    FROM memory_items mi
++    JOIN memory_items target ON target.id=${targetItemId}::uuid
++      AND target.tenant_id=${ctx.tenantId}::uuid AND target.client_id=${clientId}::uuid
++    WHERE ${canonicalMemoryEligibilitySql(access)}
++      AND mi.id=ANY(${inventoryItemIds}::uuid[]) AND mi.client_id=${clientId}::uuid
++  `);
++  const eligible = rows.filter(row => includeCanonicalGovernedMemoryRow(row, access));
++  const observation = rows[0] ? {
++    databaseTransactionStartedAt: rows[0].databaseTransactionStartedAt.toISOString(),
++    databaseObservedAt: rows[0].databaseObservedAt.toISOString(), databaseSnapshot: rows[0].databaseSnapshot,
++    processStartedAt, processCompletedAt: new Date().toISOString(),
++  } : null;
++  if (observation && rows.some(row => row.databaseSnapshot !== observation.databaseSnapshot ||
++      row.databaseObservedAt.toISOString() !== observation.databaseObservedAt ||
++      row.databaseTransactionStartedAt.toISOString() !== observation.databaseTransactionStartedAt))
++    throw new Error('CASE12_ELIGIBILITY_DATABASE_SNAPSHOT_MISMATCH');
++  return {
++    kind: 'case12-current-canonical-retrieval-eligibility',
++    tenantId: ctx.tenantId, actorUserId: ctx.userId, clientId, targetItemId,
++    comparisonClock: 'CURRENT_DATABASE_AND_PROCESS_CLOCK', semanticClockQualified: false,
++    observation,
++    observations: eligible.map(row => ({
++      physicalId: row.id, tenantId: row.tenantId, clientId: row.clientId,
++      itemRowVersion: row.rowVersion, sourceVersion: row.sourceVersion,
++      sourceContentSha256: row.sourceContentHash, newerThanTarget: row.newerThanTarget,
++    })),
++  };
++}
+--- /dev/null
++++ b/evals/meri/live-v1/fixture-provisioning/case12-memory-eligibility-owner.mjs
+@@ -0,0 +1,57 @@
++import { createCase12MemoryInventoryOwner } from './case12-memory-inventory-owner.mjs';
++import { sha256Stable } from '../lib/stable.mjs';
++
++/** Internal transaction-bound source composition, never a JSON capture capability. */
++export function createCase12MemoryEligibilityOwner({ readCase12CanonicalEligibilityInTx, ...inventoryDependencies }) {
++  if (typeof readCase12CanonicalEligibilityInTx !== 'function')
++    throw new Error('CASE12_CANONICAL_ELIGIBILITY_OWNER_REQUIRED');
++  const inventory = createCase12MemoryInventoryOwner(inventoryDependencies);
++  return Object.freeze({
++    async inspectInTx(tx, suppliedContext, suppliedRequest) {
++      const ctx = structuredClone(suppliedContext), request = structuredClone(suppliedRequest);
++      const current = await inventory.inspectInTx(tx, ctx, request);
++      if (!current.inventoryVerified) return current;
++      const target = current.observations.find(row => row.logicalId === 'MA510');
++      const native = await readCase12CanonicalEligibilityInTx(tx, ctx, {
++        clientId: current.clientId, targetItemId: target.physicalId,
++        inventoryItemIds: current.observations.map(row => row.physicalId),
++      });
++      if (native?.kind !== 'case12-current-canonical-retrieval-eligibility' ||
++          native.tenantId !== current.tenantId || native.actorUserId !== current.actorUserId ||
++          native.clientId !== current.clientId || native.targetItemId !== target.physicalId ||
++          native.comparisonClock !== 'CURRENT_DATABASE_AND_PROCESS_CLOCK' || native.semanticClockQualified !== false ||
++          !Array.isArray(native.observations)) throw new Error('CASE12_CANONICAL_ELIGIBILITY_SCOPE_MISMATCH');
++      const clock = native.observation;
++      const timestamps = ['databaseTransactionStartedAt','databaseObservedAt','processStartedAt','processCompletedAt'];
++      if (!clock || !/^\d+:\d+:(?:\d+(?:,\d+)*)?$/u.test(clock.databaseSnapshot ?? '') ||
++          timestamps.some(key => typeof clock[key] !== 'string' || !Number.isFinite(Date.parse(clock[key]))) ||
++          Date.parse(clock.databaseTransactionStartedAt) > Date.parse(clock.databaseObservedAt) ||
++          Date.parse(clock.processStartedAt) > Date.parse(clock.processCompletedAt))
++        throw new Error('CASE12_CANONICAL_ELIGIBILITY_OBSERVATION_MISSING');
++      const known = new Map(current.observations.map(row => [row.physicalId, row])), seen = new Set();
++      let newerEligible = 0;
++      for (const row of native.observations) {
++        const expected = known.get(row.physicalId);
++        if (!expected || seen.has(row.physicalId) || row.tenantId !== expected.tenantId ||
++            row.clientId !== expected.clientId || row.itemRowVersion !== expected.itemRowVersion ||
++            row.sourceVersion !== expected.sourceVersion || row.sourceContentSha256 !== expected.sourceContentSha256 ||
++            typeof row.newerThanTarget !== 'boolean' || (row.physicalId === target.physicalId && row.newerThanTarget))
++          throw new Error('CASE12_CANONICAL_ELIGIBILITY_JOIN_MISMATCH');
++        seen.add(row.physicalId);
++        if (row.newerThanTarget) newerEligible++;
++      }
++      if (!seen.has(target.physicalId) || newerEligible < 500)
++        throw new Error('CASE12_OLDER_THAN_500_CURRENT_ELIGIBLE_ROWS_NOT_VERIFIED');
++      return {
++        ...current,
++        retrievalEligibility: 'CURRENT_CANONICAL_SOURCE_QUALIFIED',
++        olderThan500CurrentEligibleRowsVerified: true,
++        newerCurrentEligibleRecordCount: newerEligible,
++        currentEligibility: native,
++        currentEligibilitySha256: sha256Stable(native),
++        missing: ['CASE12_SEMANTIC_CLOCK_NOT_QUALIFIED', 'CASE12_CAPTURE_AND_LIVE_ACCEPTANCE_NOT_RUN'],
++        fixtureReady: false, captureAuthority: false, liveAcceptance: 'NOT_RUN',
++      };
++    },
++  });
++}

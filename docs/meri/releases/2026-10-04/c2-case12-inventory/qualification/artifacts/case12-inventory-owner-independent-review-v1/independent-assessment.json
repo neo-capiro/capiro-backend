@@ -1,0 +1,70 @@
+{
+  "at": "2026-10-04T08:56:28.494Z",
+  "status": "PASS_MOCKED_INTERNAL_CASE12_INVENTORY_ONLY",
+  "findings": [],
+  "checkpointSha256": "1fbea7bac853ea116f212264974e1fd2a24cf5df9733b535abaf09f26acc1727",
+  "proposalSha256": "4b81403cfd404ca4ed48ae6f4171fb136179f7df912c5ae3fecf8c8fccd1d204",
+  "sourceFiles": [
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-inventory-owner-supervised-v1\\proposed\\evals\\meri\\live-v1\\fixture-provisioning\\case12-memory-inventory-owner.mjs",
+      "bytes": 15053,
+      "sha256": "6558f5a49f7e4a4316411107c3f17f29f3bbf133466b02118e9cfbaae34fb1b9"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-inventory-owner-supervised-v1\\proposed\\evals\\meri\\live-v1\\tests\\case12-memory-inventory-owner.test.mjs",
+      "bytes": 25025,
+      "sha256": "d8346f384b992c719c92ec1e568f3be334110409135d7e1b0711791dfcd700c0"
+    }
+  ],
+  "checkpointPinsVerified": 120,
+  "sourceDrift": [],
+  "independentTests": {
+    "exitCode": 0,
+    "passed": 36,
+    "failed": 0,
+    "skipped": 0,
+    "logSha256": "7f7af2e0309d5718ba35e9fa6a9b1a3baa72999ca870bb3f53e9405fc64762ee",
+    "composition": "34 proposed owner mock boundary tests plus 2 unchanged approved-memory definition tests; copied scratch closure only."
+  },
+  "patch": {
+    "exactAddedFileTextMatches": true,
+    "gitApplyCheckExitCode": 0
+  },
+  "confirmed": [
+    "Manifest and native seed envelope are cloned, hash-bound, exact-field checked, and complete for source-defined MA510 plus 500–600 distractors; allocated item IDs remain distinct from proposals/candidates and unique.",
+    "Only ordinary manifest Pat in T1/Aster can inspect; current active membership is checked against exact tenant slug and locked.",
+    "Every item requires exact candidate proposer/row-version query, native four-field canonical ownership proof, current read authorization subject/decision, actual scoped item row/version/source shape, and no partial result on failure.",
+    "The actual native canonical helper inspected independently checks candidate payload, active governed lifecycle, full item sections/source content/governance and projection provenance; injected helpers remain trusted internal composition inputs.",
+    "Strict PostgreSQL timestamp comparison and distinct count use only individually verified scoped receipt IDs, exclude MA510, require at least 500 newer rows, and refuse ties/impossible counts.",
+    "A positive result remains inventory-only: fixtureReady=false, captureAuthority=false, retrieval eligibility unqualified, liveAcceptance=NOT_RUN.",
+    "No discovery, shared database connection, seeding, approval, model, capture, or live capability entrypoint is exposed by the proposed owner."
+  ],
+  "retainedBoundaries": [
+    "Source-only internal owner proposal. No exact original MA510 manifest/seed inventory was located; current live inventory remains unknown. No discovery, connection, seed, reset, approval or capture entrypoint is added.",
+    "Tests use real manifest/definitions/hash functions and mocked transaction/canonical-helper/auth seams. No PostgreSQL execution, RLS integration or served inspection was run. SQL timestamp ordering is source-reviewed and mocked; it is not actual live age proof.",
+    "A positive inventory result means current canonical guard/read-permission checks and SQL age count would have passed for that transaction. It explicitly leaves retrieval eligibility unqualified: read permission is not the full retrieval eligibility predicate or semantic-clock proof.",
+    "Case12 still requires source-owned real eligibility/age proof and its own capture/clock/source/provider/native aggregate admission, actual original prompt/full-passage evidence, and human rubric. fixtureReady and captureAuthority remain false; liveAcceptance remains NOT_RUN.",
+    "The original canonical guard is supplied by trusted application source composition, not JSON. This module does not create a WeakMap live capability or authenticate runtime/server identity; a future native adapter must bind the real services and transaction.",
+    "Actual Hermes file-only implementation timed out after720s with no final response/usage receipt. Its two raw files and notes remain unchanged. Codex repaired and expanded the proposal and ran the tests. This is not an independent Hermes PASS review.",
+    "The initial precompletion draft run failed11of22 tests; its log is preserved. That intermediate test-file byte snapshot was not separately frozen before correction, so it is diagnostic only. Final proposed bytes and complete final test logs are pinned below."
+  ],
+  "hermesDraft": {
+    "exitCode": 124,
+    "failure": "BOUNDED_REVIEW_TIMEOUT",
+    "usageReceiptAvailable": false,
+    "rawFilesUnchanged": true,
+    "independentHermesPass": false
+  },
+  "nextIntegrationLimits": [
+    "Use real private application composition and actual PostgreSQL/RLS integration before claiming native inventory proof.",
+    "Current read permission is not complete retrieval eligibility; real source-owned eligibility and semantic-clock predicates need separate qualification.",
+    "No original live MA510 manifest/seed inventory was found; the mock fixture is not original live evidence.",
+    "Actual original prompt/full passage, independent capture/clock/provider/budget admission and human rubric remain required; this review grants none."
+  ],
+  "cloudCalls": 0,
+  "databaseCalls": 0,
+  "applicationProviderCalls": 0,
+  "repositoryEdits": 0,
+  "fixtureMutations": false,
+  "journalWrites": false
+}

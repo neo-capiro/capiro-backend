@@ -1,0 +1,21 @@
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+node:internal/process/promises:394
+    triggerUncaughtException(err, true /* fromPromise */);
+    ^
+
+TypeError: A dynamic import callback was invoked without --experimental-vm-modules
+    at importModuleDynamicallyCallback (node:internal/modules/esm/utils:277:11)
+    at Object.N_ (C:\dev\main\meri-c1-20261002\node_modules\.pnpm\@electric-sql+pglite@0.5.8\node_modules\@electric-sql\pglite-utils\src\utils.ts:86:30)
+    at _e.options (C:\dev\main\meri-c1-20261002\node_modules\.pnpm\@electric-sql+pglite@0.5.8\node_modules\@electric-sql\pglite\src\pglite.ts:334:9)
+    at _e.create (C:\dev\main\meri-c1-20261002\node_modules\.pnpm\@electric-sql+pglite@0.5.8\node_modules\@electric-sql\pglite\src\pglite.ts:267:5)
+    at Object.<anonymous> (C:\dev\main\meri-c1-20261002\apps\api\src\retrieval\adapters\institutional-knowledge-retrieval.adapter.pglite.spec.ts:179:10) {
+  code: 'ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING_FLAG'
+}
+
+Node.js v24.19.0

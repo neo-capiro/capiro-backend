@@ -1,0 +1,117 @@
+{
+  "kind": "lead-integrated-case12-source-qualification",
+  "at": "2026-10-04T09:20:53.854927+00:00",
+  "status": "PASS_SOURCE_TESTS_TYPECHECK",
+  "sourceBase": "015514e894945a75c9a10ba2a55b2986c5cb3cd6",
+  "sourceFiles": [
+    {
+      "path": "apps/api/src/retrieval/adapters/governed-memory-eligibility.helpers.ts",
+      "bytes": 2978,
+      "sha256": "3056dc2df5b4fab0cb8e95168f28cb00b55ec11c3755ee07c3b9e0b085330b6c"
+    },
+    {
+      "path": "apps/api/src/retrieval/adapters/governed-memory-eligibility.helpers.spec.ts",
+      "bytes": 5485,
+      "sha256": "00ec935a2b01ec8711ef4df0a74ddef114c5a7b20cf06ffab1b076b3a5b31b63"
+    },
+    {
+      "path": "apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.ts",
+      "bytes": 34441,
+      "sha256": "3de5e6ac3e64baf5b85dec6919d80f6bd2f4ab7855db56742b60f142cb547c18"
+    },
+    {
+      "path": "apps/api/src/retrieval/adapters/case12-memory-eligibility.read.ts",
+      "bytes": 4933,
+      "sha256": "a6755a96e68516257e7b511dd8a85fbb30b01358c4e6e87b815b92ad3f9257ab"
+    },
+    {
+      "path": "evals/meri/live-v1/fixture-provisioning/case12-memory-eligibility-owner.mjs",
+      "bytes": 4052,
+      "sha256": "9d829dc0e8ca012194d602949c02d757e9e4921f339eb139c30a25b599913664"
+    },
+    {
+      "path": "evals/meri/live-v1/fixture-provisioning/case12-memory-inventory-owner.mjs",
+      "bytes": 15053,
+      "sha256": "6558f5a49f7e4a4316411107c3f17f29f3bbf133466b02118e9cfbaae34fb1b9"
+    },
+    {
+      "path": "evals/meri/live-v1/tests/case12-memory-inventory-owner.test.mjs",
+      "bytes": 25025,
+      "sha256": "d8346f384b992c719c92ec1e568f3be334110409135d7e1b0711791dfcd700c0"
+    }
+  ],
+  "tests": [
+    {
+      "name": "API helper, existing adapter and PGlite database regressions",
+      "exitCode": 0,
+      "suites": 3,
+      "passed": 73,
+      "failed": 0,
+      "skipped": 0,
+      "command": "node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.cjs --runInBand --forceExit --runTestsByPath src/retrieval/adapters/governed-memory-eligibility.helpers.spec.ts src/retrieval/adapters/institutional-knowledge-retrieval.adapter.spec.ts src/retrieval/adapters/institutional-knowledge-retrieval.adapter.pglite.spec.ts",
+      "cwd": "apps/api",
+      "log": {
+        "path": "api-focused-v2.log",
+        "bytes": 2157,
+        "sha256": "0b794f841f33c00ffe671ad5c75f7646c8f6615a981f0e94a1ec85d0133e038f"
+      }
+    },
+    {
+      "name": "Case12 inventory owner and native definitions",
+      "exitCode": 0,
+      "passed": 36,
+      "failed": 0,
+      "skipped": 0,
+      "command": "node --test evals/meri/live-v1/tests/case12-memory-inventory-owner.test.mjs evals/meri/live-v1/tests/approved-memory-runtime.test.mjs",
+      "cwd": ".",
+      "log": {
+        "path": "inventory-owner.log",
+        "bytes": 3303,
+        "sha256": "f903106426f4feaa6ea7311ecfc51632e681d57901cfb720b92ac603e5b63202"
+      }
+    },
+    {
+      "name": "Full API TypeScript check including specs",
+      "exitCode": 0,
+      "diagnostics": 0,
+      "command": "node --max-old-space-size=8192 node_modules/typescript/bin/tsc --noEmit --incremental false --rootDir .",
+      "cwd": "apps/api",
+      "log": {
+        "path": "api-typecheck-v2.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    }
+  ],
+  "retainedFailedAttempts": [
+    {
+      "name": "Initial Jest command omitted Node VM module flag required by PGlite",
+      "exitCode": 1,
+      "log": {
+        "path": "api-focused.log",
+        "bytes": 3638,
+        "sha256": "54171a35cfa7059e855bb7b3ad8fd2a369e16b6b7ef654e6bf4c5001d308f28f"
+      }
+    },
+    {
+      "name": "Initial full API typecheck exhausted default local Node heap",
+      "exitCode": 134,
+      "log": {
+        "path": "api-typecheck.log",
+        "bytes": 1264,
+        "sha256": "e5893e434cc4e9c1ba8932302afdfa882cffaca5838ad0422a3d69f22af88c3b"
+      }
+    }
+  ],
+  "nodeVersion": "v24.19.0",
+  "providerCalls": 0,
+  "cloudCalls": 0,
+  "captureAuthority": false,
+  "fixtureReady": false,
+  "liveAcceptance": "NOT_RUN",
+  "limits": [
+    "Mocked owner tests and PGlite tests do not prove original live Case12 readiness.",
+    "Separate actual PostgreSQL qualification and final independent review are recorded in their own receipts.",
+    "No application image was built or deployed for these new Case12 source changes."
+  ]
+}

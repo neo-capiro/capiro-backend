@@ -1,0 +1,62 @@
+{
+  "at": "2026-10-04T09:07:11.618Z",
+  "status": "FAIL_STATIC_DISCOVERY_REVIEW",
+  "files": [
+    {
+      "name": "case12-live-discovery-inner-v1.mjs",
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-live-discovery-inner-v1.mjs",
+      "sha256": "88d38980b5d802f4b5f0edc7dd02fb564dc40c367260fdbff4ec2696e818d364",
+      "bytes": 6502
+    },
+    {
+      "name": "read-case12-live-discovery-v1.mjs",
+      "path": "C:/dev/main/outputs/meri-c2-20261003/read-case12-live-discovery-v1.mjs",
+      "sha256": "612df59edc8a86ded568956d4427d5eb64ad5d2c827e541b5e9d31888ecb5090",
+      "bytes": 12770
+    }
+  ],
+  "findings": [
+    {
+      "id": "wrong_canonical_item_join",
+      "priority": "P1",
+      "file": "C:/dev/main/outputs/meri-c2-20261003/case12-live-discovery-inner-v1.mjs",
+      "line": 37,
+      "summary": "Candidate-to-item join uses clio projection ID instead of the canonical item ID.",
+      "evidence": [
+        "schema.prisma identifies committed_memory_id as clio_memory and committed_memory_item_id as the MemoryCandidateCommittedItem FK to memory_items.",
+        "synthetic-approved-memory.helpers.ts joins canonical item using committed_memory_item_id and uses committed_memory_id separately as clioId."
+      ],
+      "impact": "Matching approved candidates can have false-null canonical item metadata despite an existing item. Candidate key counts would still match, so existing count-completeness assertions do not catch this.",
+      "requiredChange": "Use mi.id=mc.committed_memory_item_id and rebind the outer script to the new inner bytes."
+    }
+  ],
+  "execution": false,
+  "cloudCalls": 0,
+  "sourcePins": [
+    {
+      "path": "apps/api/prisma/schema.prisma",
+      "bytes": 964030,
+      "sha256": "41fb55c8f2357b9bc2246de813d1e093e3e0bd240538048bbb514c5a4d4fe1d2"
+    },
+    {
+      "path": "apps/api/src/memory/synthetic-approved-memory.helpers.ts",
+      "bytes": 13474,
+      "sha256": "8451534ad56fdda936c7ce5c1961c68e0172d61ab2be45872e6d1b93da21ba22"
+    },
+    {
+      "path": "apps/api/src/prisma/prisma.service.ts",
+      "bytes": 12476,
+      "sha256": "fb3886df5f2732a0412342627a3a6156f159718913479cdc2325fa602bfdd86e"
+    },
+    {
+      "path": "evals/meri/live-v1/fixture-provisioning/approved-memory-runtime.mjs",
+      "bytes": 14972,
+      "sha256": "b814c5f904594130d0e35bbb0d4a1f49ec77a5f96c1544fcf9e6969784f278ac"
+    },
+    {
+      "path": "evals/meri/live-v1/fixture-provisioning/memory-candidate-owner.mjs",
+      "bytes": 14006,
+      "sha256": "a850e4a8a68641d7118cf7f6e5abda72e64452bde6123d8e13acf5308d6bc9b7"
+    }
+  ]
+}

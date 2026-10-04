@@ -1,0 +1,221 @@
+✖ successful canonical inspection verifies all owner/auth rows but never readiness or retrieval eligibility (91.5984ms)
+✔ missing exact manifest and seed reports NOT_READY without DB reads (33.8392ms)
+✔ a seed-only not-ready envelope does not imply a manifest or trigger reads (34.3991ms)
+✖ malformed manifest content hash rejects before inspection (27.715ms)
+✖ fixture instance is required exactly; generated/new locator is not accepted (27.3571ms)
+✔ receipt hash or manifest binding mismatch rejects supplied seed evidence (55.3251ms)
+✔ duplicate logical id is rejected even with rehashed receipt (62.9709ms)
+✔ duplicate actual physical item id is rejected (58.863ms)
+✔ missing MA510 or distractor rejects complete inventory (117.976ms)
+✔ unknown row fields and caller-claimed eligibility flags are refused (58.6012ms)
+✔ altered marker binding is rejected before any database call (67.5132ms)
+✔ proposed rather than allocated physical ID is refused (57.2504ms)
+✔ wrong case, tenant, client, actor role and reviewer role cannot inspect (54.7512ms)
+✖ active ordinary membership must match actor context (59.0799ms)
+✖ foreign canonical tenant row is refused with no partial inventory result (54.1212ms)
+✖ current permission denial blocks inventory and is evaluated without denial metrics (56.3094ms)
+✖ changed source row version and source identity are rejected (53.4873ms)
+✖ retired canonical item is not treated as approved current owner (55.0336ms)
+✖ fewer than 500 strictly newer rows blocks age claim; timestamp ties do not count (54.4405ms)
+✖ caller mutation after construction cannot alter snapshotted manifest or seed (54.9581ms)
+✔ owner exposes no seed, write, capture, provider or readiness-authority entrypoint (56.3895ms)
+✖ arbitrary seed receipt alone is not accepted as current owner proof (90.4055ms)
+ℹ tests 22
+ℹ suites 0
+ℹ pass 11
+ℹ fail 11
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1393.3859
+
+✖ failing tests:
+
+test at outputs\meri-c2-20261003\case12-inventory-owner-supervised-v1\scratch\evals\meri\live-v1\tests\case12-memory-inventory-owner.test.mjs:201:1
+✖ successful canonical inspection verifies all owner/auth rows but never readiness or retrieval eligibility (91.5984ms)
+  Error [FixtureProvisioningError]: CASE12_ORDINARY_ACTOR_SCOPE_MISMATCH
+      at fail (file:///C:/dev/main/outputs/meri-c2-20261003/case12-inventory-owner-supervised-v1/scratch/evals/meri/live-v1/fixture-provisioning/case12-memory-inventory-owner.mjs:12:9)
+      at Object.inspectInTx (file:///C:/dev/main/outputs/meri-c2-20261003/case12-inventory-owner-supervised-v1/scratch/evals/meri/live-v1/fixture-provisioning/case12-memory-inventory-owner.mjs:148:7)
+      at TestContext.<anonymous> (file:///C:/dev/main/outputs/meri-c2-20261003/case12-inventory-owner-supervised-v1/scratch/evals/meri/live-v1/tests/case12-memory-inventory-owner.test.mjs:205:30)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    code: 'CASE12_ORDINARY_ACTOR_SCOPE_MISMATCH',
+    details: undefined
+  }
+
+test at outputs\meri-c2-20261003\case12-inventory-owner-supervised-v1\scratch\evals\meri\live-v1\tests\case12-memory-inventory-owner.test.mjs:249:1
+✖ malformed manifest content hash rejects before inspection (27.715ms)
+  TypeError: Cannot assign to read only property 'contentSha256' of object '#<Object>'
+      at TestContext.<anonymous> (file:///C:/dev/main/outputs/meri-c2-20261003/case12-inventory-owner-supervised-v1/scratch/evals/meri/live-v1/tests/case12-memory-inventory-owner.test.mjs:251:31)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at outputs\meri-c2-20261003\case12-inventory-owner-supervised-v1\scratch\evals\meri\live-v1\tests\case12-memory-inventory-owner.test.mjs:257:1
+✖ fixture instance is required exactly; generated/new locator is not accepted (27.3571ms)
+  TypeError: Cannot delete property 'fixtureInstanceId' of #<Object>
+      at TestContext.<anonymous> (file:///C:/dev/main/outputs/meri-c2-20261003/case12-inventory-owner-supervised-v1/scratch/evals/meri/live-v1/tests/case12-memory-inventory-owner.test.mjs:259:15)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at outputs\meri-c2-20261003\case12-inventory-owner-supervised-v1\scratch\evals\meri\live-v1\tests\case12-memory-inventory-owner.test.mjs:339:1
+✖ active ordinary membership must match actor context (59.0799ms)
+  AssertionError [ERR_ASSERTION]: The validation function is expected to return "true". Received false
+  
+  Caught error:
+  
+  FixtureProvisioningError: CASE12_ORDINARY_ACTOR_SCOPE_MISMATCH
+      at async expectFailure (file:///C:/dev/main/outputs/meri-c2-20261003/case12-inventory-owner-supervised-v1/scratch/evals/meri/live-v1/tests/case12-memory-inventory-owner.test.mjs:198:3)
+      at async TestContext.<anonymous> (file:///C:/dev/main/outputs/meri-c2-20261003/case12-inventory-owner-supervised-v1/scratch/evals/meri/live-v1/tests/case12-memory-inventory-owner.test.mjs:343:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: FixtureProvisioningError: CASE12_ORDINARY_ACTOR_SCOPE_MISMATCH
+        at fail (file:///C:/dev/main/outputs/meri-c2-20261003/case12-inventory-owner-supervised-v1/scratch/evals/meri/live-v1/fixture-provisioning/case12-memory-inventory-owner.mjs:12:9)
+        at Object.inspectInTx (file:///C:/dev/main/outputs/meri-c2-20261003/case12-inventory-owner-supervised-v1/scratch/evals/meri/live-v1/fixture-provisioning/case12-memory-inventory-owner.mjs:148:7)
+        at TestContext.<anonymous> (file:///C:/dev/main/outputs/meri-c2-20261003/case12-inventory-owner-supervised-v1/scratch/evals/meri/live-v1/tests/case12-memory-inventory-owner.test.mjs:343:29)
+        at async Test.run (node:internal/test_runner/test:1389:7)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:960:7),
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at outputs\meri-c2-20261003\case12-inventory-owner-supervised-v1\scratch\evals\meri\live-v1\tests\case12-memory-inventory-owner.test.mjs:347:1
+✖ foreign canonical tenant row is refused with no partial inventory result (54.1212ms)
+  AssertionError [ERR_ASSERTION]: The validation function is expected to return "true". Received false
+  
+  Caught error:
+  
+  FixtureProvisioningError: CASE12_ORDINARY_ACTOR_SCOPE_MISMATCH
+      at async expectFailure (file:///C:/dev/main/outputs/meri-c2-20261003/case12-inventory-owner-supervised-v1/scratch/evals/meri/live-v1/tests/case12-memory-inventory-owner.test.mjs:198:3)
+      at async TestContext.<anonymous> (file:///C:/dev/main/outputs/meri-c2-20261003/case12-inventory-owner-supervised-v1/scratch/evals/meri/live-v1/tests/case12-memory-inventory-owner.test.mjs:352:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: FixtureProvisioningError: CASE12_ORDINARY_ACTOR_SCOPE_MISMATCH
+        at fail (file:///C:/dev/main/outputs/meri-c2-20261003/case12-inventory-owner-supervised-v1/scratch/evals/meri/live-v1/fixture-provisioning/case12-memory-inventory-owner.mjs:12:9)
+        at Object.inspectInTx (file:///C:/dev/main/outputs/meri-c2-20261003/case12-inventory-owner-supervised-v1/scratch/evals/meri/live-v1/fixture-provisioning/case12-memory-inventory-owner.mjs:148:7)
+        at TestContext.<anonymous> (file:///C:/dev/main/outputs/meri-c2-20261003/case12-inventory-owner-supervised-v1/scratch/evals/meri/live-v1/tests/case12-memory-inventory-owner.test.mjs:352:29)
+        at async Test.run (node:internal/test_runner/test:1389:7)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:960:7),
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at outputs\meri-c2-20261003\case12-inventory-owner-supervised-v1\scratch\evals\meri\live-v1\tests\case12-memory-inventory-owner.test.mjs:356:1
+✖ current permission denial blocks inventory and is evaluated without denial metrics (56.3094ms)
+  AssertionError [ERR_ASSERTION]: The validation function is expected to return "true". Received false
+  
+  Caught error:
+  
+  FixtureProvisioningError: CASE12_ORDINARY_ACTOR_SCOPE_MISMATCH
+      at async expectFailure (file:///C:/dev/main/outputs/meri-c2-20261003/case12-inventory-owner-supervised-v1/scratch/evals/meri/live-v1/tests/case12-memory-inventory-owner.test.mjs:198:3)
+      at async TestContext.<anonymous> (file:///C:/dev/main/outputs/meri-c2-20261003/case12-inventory-owner-supervised-v1/scratch/evals/meri/live-v1/tests/case12-memory-inventory-owner.test.mjs:361:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: FixtureProvisioningError: CASE12_ORDINARY_ACTOR_SCOPE_MISMATCH
+        at fail (file:///C:/dev/main/outputs/meri-c2-20261003/case12-inventory-owner-supervised-v1/scratch/evals/meri/live-v1/fixture-provisioning/case12-memory-inventory-owner.mjs:12:9)
+        at Object.inspectInTx (file:///C:/dev/main/outputs/meri-c2-20261003/case12-inventory-owner-supervised-v1/scratch/evals/meri/live-v1/fixture-provisioning/case12-memory-inventory-owner.mjs:148:7)
+        at TestContext.<anonymous> (file:///C:/dev/main/outputs/meri-c2-20261003/case12-inventory-owner-supervised-v1/scratch/evals/meri/live-v1/tests/case12-memory-inventory-owner.test.mjs:361:29)
+        at async Test.run (node:internal/test_runner/test:1389:7)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:960:7),
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at outputs\meri-c2-20261003\case12-inventory-owner-supervised-v1\scratch\evals\meri\live-v1\tests\case12-memory-inventory-owner.test.mjs:366:1
+✖ changed source row version and source identity are rejected (53.4873ms)
+  AssertionError [ERR_ASSERTION]: The validation function is expected to return "true". Received false
+  
+  Caught error:
+  
+  FixtureProvisioningError: CASE12_ORDINARY_ACTOR_SCOPE_MISMATCH
+      at async expectFailure (file:///C:/dev/main/outputs/meri-c2-20261003/case12-inventory-owner-supervised-v1/scratch/evals/meri/live-v1/tests/case12-memory-inventory-owner.test.mjs:198:3)
+      at async TestContext.<anonymous> (file:///C:/dev/main/outputs/meri-c2-20261003/case12-inventory-owner-supervised-v1/scratch/evals/meri/live-v1/tests/case12-memory-inventory-owner.test.mjs:371:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: FixtureProvisioningError: CASE12_ORDINARY_ACTOR_SCOPE_MISMATCH
+        at fail (file:///C:/dev/main/outputs/meri-c2-20261003/case12-inventory-owner-supervised-v1/scratch/evals/meri/live-v1/fixture-provisioning/case12-memory-inventory-owner.mjs:12:9)
+        at Object.inspectInTx (file:///C:/dev/main/outputs/meri-c2-20261003/case12-inventory-owner-supervised-v1/scratch/evals/meri/live-v1/fixture-provisioning/case12-memory-inventory-owner.mjs:148:7)
+        at TestContext.<anonymous> (file:///C:/dev/main/outputs/meri-c2-20261003/case12-inventory-owner-supervised-v1/scratch/evals/meri/live-v1/tests/case12-memory-inventory-owner.test.mjs:371:29)
+        at async Test.run (node:internal/test_runner/test:1389:7)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:960:7),
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at outputs\meri-c2-20261003\case12-inventory-owner-supervised-v1\scratch\evals\meri\live-v1\tests\case12-memory-inventory-owner.test.mjs:374:1
+✖ retired canonical item is not treated as approved current owner (55.0336ms)
+  AssertionError [ERR_ASSERTION]: The validation function is expected to return "true". Received false
+  
+  Caught error:
+  
+  FixtureProvisioningError: CASE12_ORDINARY_ACTOR_SCOPE_MISMATCH
+      at async expectFailure (file:///C:/dev/main/outputs/meri-c2-20261003/case12-inventory-owner-supervised-v1/scratch/evals/meri/live-v1/tests/case12-memory-inventory-owner.test.mjs:198:3)
+      at async TestContext.<anonymous> (file:///C:/dev/main/outputs/meri-c2-20261003/case12-inventory-owner-supervised-v1/scratch/evals/meri/live-v1/tests/case12-memory-inventory-owner.test.mjs:384:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: FixtureProvisioningError: CASE12_ORDINARY_ACTOR_SCOPE_MISMATCH
+        at fail (file:///C:/dev/main/outputs/meri-c2-20261003/case12-inventory-owner-supervised-v1/scratch/evals/meri/live-v1/fixture-provisioning/case12-memory-inventory-owner.mjs:12:9)
+        at Object.inspectInTx (file:///C:/dev/main/outputs/meri-c2-20261003/case12-inventory-owner-supervised-v1/scratch/evals/meri/live-v1/fixture-provisioning/case12-memory-inventory-owner.mjs:148:7)
+        at TestContext.<anonymous> (file:///C:/dev/main/outputs/meri-c2-20261003/case12-inventory-owner-supervised-v1/scratch/evals/meri/live-v1/tests/case12-memory-inventory-owner.test.mjs:384:29)
+        at async Test.run (node:internal/test_runner/test:1389:7)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:960:7),
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at outputs\meri-c2-20261003\case12-inventory-owner-supervised-v1\scratch\evals\meri\live-v1\tests\case12-memory-inventory-owner.test.mjs:387:1
+✖ fewer than 500 strictly newer rows blocks age claim; timestamp ties do not count (54.4405ms)
+  AssertionError [ERR_ASSERTION]: The validation function is expected to return "true". Received false
+  
+  Caught error:
+  
+  FixtureProvisioningError: CASE12_ORDINARY_ACTOR_SCOPE_MISMATCH
+      at async expectFailure (file:///C:/dev/main/outputs/meri-c2-20261003/case12-inventory-owner-supervised-v1/scratch/evals/meri/live-v1/tests/case12-memory-inventory-owner.test.mjs:198:3)
+      at async TestContext.<anonymous> (file:///C:/dev/main/outputs/meri-c2-20261003/case12-inventory-owner-supervised-v1/scratch/evals/meri/live-v1/tests/case12-memory-inventory-owner.test.mjs:391:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: FixtureProvisioningError: CASE12_ORDINARY_ACTOR_SCOPE_MISMATCH
+        at fail (file:///C:/dev/main/outputs/meri-c2-20261003/case12-inventory-owner-supervised-v1/scratch/evals/meri/live-v1/fixture-provisioning/case12-memory-inventory-owner.mjs:12:9)
+        at Object.inspectInTx (file:///C:/dev/main/outputs/meri-c2-20261003/case12-inventory-owner-supervised-v1/scratch/evals/meri/live-v1/fixture-provisioning/case12-memory-inventory-owner.mjs:148:7)
+        at TestContext.<anonymous> (file:///C:/dev/main/outputs/meri-c2-20261003/case12-inventory-owner-supervised-v1/scratch/evals/meri/live-v1/tests/case12-memory-inventory-owner.test.mjs:391:29)
+        at async Test.run (node:internal/test_runner/test:1389:7)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:960:7),
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at outputs\meri-c2-20261003\case12-inventory-owner-supervised-v1\scratch\evals\meri\live-v1\tests\case12-memory-inventory-owner.test.mjs:395:1
+✖ caller mutation after construction cannot alter snapshotted manifest or seed (54.9581ms)
+  Error [FixtureProvisioningError]: CASE12_ORDINARY_ACTOR_SCOPE_MISMATCH
+      at fail (file:///C:/dev/main/outputs/meri-c2-20261003/case12-inventory-owner-supervised-v1/scratch/evals/meri/live-v1/fixture-provisioning/case12-memory-inventory-owner.mjs:12:9)
+      at Object.inspectInTx (file:///C:/dev/main/outputs/meri-c2-20261003/case12-inventory-owner-supervised-v1/scratch/evals/meri/live-v1/fixture-provisioning/case12-memory-inventory-owner.mjs:148:7)
+      at TestContext.<anonymous> (file:///C:/dev/main/outputs/meri-c2-20261003/case12-inventory-owner-supervised-v1/scratch/evals/meri/live-v1/tests/case12-memory-inventory-owner.test.mjs:401:30)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    code: 'CASE12_ORDINARY_ACTOR_SCOPE_MISMATCH',
+    details: undefined
+  }
+
+test at outputs\meri-c2-20261003\case12-inventory-owner-supervised-v1\scratch\evals\meri\live-v1\tests\case12-memory-inventory-owner.test.mjs:419:1
+✖ arbitrary seed receipt alone is not accepted as current owner proof (90.4055ms)
+  AssertionError [ERR_ASSERTION]: Missing expected exception.
+      at TestContext.<anonymous> (file:///C:/dev/main/outputs/meri-c2-20261003/case12-inventory-owner-supervised-v1/scratch/evals/meri/live-v1/tests/case12-memory-inventory-owner.test.mjs:426:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    operator: 'throws',
+    diff: 'simple'
+  }

@@ -1,0 +1,37 @@
+{
+  "kind": "lead-case12-reviewed-candidate-integration",
+  "base": "015514e894945a75c9a10ba2a55b2986c5cb3cd6",
+  "independentFinalReview": "PENDING",
+  "sourceFiles": [
+    {
+      "path": "apps/api/src/retrieval/adapters/governed-memory-eligibility.helpers.ts",
+      "sha256": "3056dc2df5b4fab0cb8e95168f28cb00b55ec11c3755ee07c3b9e0b085330b6c",
+      "bytes": 2978,
+      "priorSha256": null
+    },
+    {
+      "path": "apps/api/src/retrieval/adapters/governed-memory-eligibility.helpers.spec.ts",
+      "sha256": "6c4080419c73b5cb1be18a24aebe7d29da93de77f97f471357c5961d009ac716",
+      "bytes": 5421,
+      "priorSha256": null
+    },
+    {
+      "path": "apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.ts",
+      "sha256": "fb55d3582958437824c7336b1aaaae5e6e0f854e279e198f126ffb7cb47e8223",
+      "bytes": 35315,
+      "priorSha256": "bde82251b71fb7d2e86fee9d6928bd4b3fc686b4385f16be19057c864817b819"
+    },
+    {
+      "path": "apps/api/src/retrieval/adapters/case12-memory-eligibility.read.ts",
+      "sha256": "0a2b4b5a68d6c13049b6548a37f062469b0bcaf276a22fc3a6bc467d1712b073",
+      "bytes": 4774,
+      "priorSha256": null
+    },
+    {
+      "path": "evals/meri/live-v1/fixture-provisioning/case12-memory-eligibility-owner.mjs",
+      "sha256": "ff06b33c3895a2ccbbabf876583c4186ca9118c37ef8a34aa2523fa196800a8a",
+      "bytes": 3782,
+      "priorSha256": null
+    }
+  ]
+}

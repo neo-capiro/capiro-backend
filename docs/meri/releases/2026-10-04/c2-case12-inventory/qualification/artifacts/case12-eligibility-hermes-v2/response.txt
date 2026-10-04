@@ -1,0 +1,12 @@
+Created:
+
+- `C:\dev\main\outputs\meri-c2-20261003\case12-eligibility-hermes-v2\candidate\apps\api\src\retrieval\adapters\governed-memory-eligibility.helpers.ts`
+- `C:\dev\main\outputs\meri-c2-20261003\case12-eligibility-hermes-v2\candidate\apps\api\src\retrieval\adapters\governed-memory-eligibility.helpers.spec.ts`
+- `C:\dev\main\outputs\meri-c2-20261003\case12-eligibility-hermes-v2\IMPLEMENTATION.md`
+
+NOTRUN: tests and type-checks were not run.
+
+Incomplete: I did not produce the candidate adapter file, so the adapter does not yet call these helpers. `IMPLEMENTATION.md` records the minimal integration needed and the remaining Case12 limitations.
+
+⚠️ File-mutation verifier: 1 file(s) were NOT modified this turn despite any wording above that may suggest otherwise. Run `git status` or `read_file` to confirm.
+  • `candidate/apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.ts` — [patch] Failed to read file: `C:\dev\main\outputs\meri-c2-20261003\case12-eligibility-hermes-v2\candidate\apps\api\src\retrieval\adapters\institutional-knowledge-retrieval.adapter.ts`
