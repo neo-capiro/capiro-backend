@@ -1,0 +1,18 @@
+[
+  {
+    "path": "evals/meri/live-v1/case14-approval-capture.mjs",
+    "sha256": "1d5f67d5f1d8088fee585321f0c15a4c8c9a331339310061b4881bb713d9033d"
+  },
+  {
+    "path": "evals/meri/live-v1/case14-approval-write-guard.mjs",
+    "sha256": "4aff57265d0fe414221f8d168e53ddd0940bca1ca76c6f86cb2669e7b16d5a34"
+  },
+  {
+    "path": "evals/meri/live-v1/case17-readonly-guard.mjs",
+    "sha256": "6c8d3e5e0dfafba4a0132a2ff3151fcfce245e9b4cc0ad0c2b0a05ac38636b09"
+  },
+  {
+    "path": "evals/meri/live-v1/tests/case14-approval-write-guard.test.mjs",
+    "sha256": "9b9658f6ec8f787b62263852cd326b5c526767ce2b5b8d784256fbf4ccad1f58"
+  }
+]

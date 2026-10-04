@@ -9,6 +9,14 @@ import { assertWindowsArtifactStorage } from './windows-artifact-storage.mjs';
 import { sha256Bytes, sha256Stable, stableJson } from './artifact-collector.mjs';
 import { currentCase14RecallAuthority } from './case01-live-capture.mjs';
 import { nativeMeriCaptureHeaders } from './lib/native-http.mjs';
+import {
+  createCase17WriteAccounting,
+  inspectCase17WriteAccounting,
+} from './case17-readonly-guard.mjs';
+import {
+  createCase14ApprovalWriteGuard,
+  inspectCase14WriteEvidence,
+} from './case14-approval-write-guard.mjs';
 const ORIGIN = 'https://os.capiro.ai',
   CLERK = 'https://clerk.app.capiro.ai';
 const outcomes = new WeakMap();
@@ -63,10 +71,10 @@ export function inspectCase14ApprovalEvidence(e) {
       e.caseId === '14' &&
       e.applicationApprovalSubmissions === 1 &&
       e.synthesisSubmissionCount === 0 &&
-      e.blockedWrites === 0 &&
       e.sessionRevoked === true,
     'BOUNDS',
   );
+  inspectCase14WriteEvidence(e);
   const before = e.before?.fixtureEvidence,
     after = e.after?.fixtureEvidence;
   need(
@@ -281,13 +289,11 @@ export async function collectCase14ApprovalCapture({
   need(selected.reviewerUserId === config.reviewer.userId, 'FROZEN_REVIEWER');
   const builds = await readCase17BuildAuthority(config.deployment);
   const { chromium } = createRequire(import.meta.url)('playwright');
+  const writeGuard = createCase14ApprovalWriteGuard(candidateId);
   let browser,
     page,
     sessionId,
     timer,
-    armed = false,
-    submissions = 0,
-    blockedWrites = 0,
     cleaned = false,
     evidence;
   const deadline = Date.now() + 240000;
@@ -302,23 +308,7 @@ export async function collectCase14ApprovalCapture({
     await context.route('**/*', async (route) => {
       const request = route.request(),
         url = new URL(request.url());
-      if (!['GET', 'HEAD', 'OPTIONS'].includes(request.method()) && url.origin !== CLERK) {
-        if (
-          armed &&
-          submissions === 0 &&
-          request.method() === 'POST' &&
-          url.origin === ORIGIN &&
-          url.pathname === `/api/memory/review/candidates/${candidateId}/approve` &&
-          !url.search &&
-          request.postData() === '{}'
-        ) {
-          submissions++;
-          armed = false;
-          return route.continue();
-        }
-        blockedWrites++;
-        return route.abort();
-      }
+      if (writeGuard.decide(request) === 'abort') return route.abort();
       if (
         request.isNavigationRequest() &&
         (request.frame() === page.mainFrame()
@@ -369,6 +359,7 @@ export async function collectCase14ApprovalCapture({
         before.fixtureEvidence.manifestContentSha256 === manifest.contentSha256,
       'PENDING_OWNER',
     );
+    writeGuard.panelPhase('initial');
     await page.goto(ORIGIN + '/meri/new', { waitUntil: 'domcontentloaded' });
     await openCase14MemoryPanel(page);
     await web(page, config.deployment.webSha);
@@ -384,6 +375,7 @@ export async function collectCase14ApprovalCapture({
       artifactStorage.writeBytes('case14-approval/pending.png', await card.screenshot()),
     ];
     need(Date.now() < deadline && Date.now() - builds.observedAt < 60000, 'PRESUBMIT_FRESHNESS');
+    writeGuard.assertBeforeIntent();
     const pending = page.waitForResponse(
       (response) =>
         response.request().method() === 'POST' &&
@@ -401,10 +393,10 @@ export async function collectCase14ApprovalCapture({
         }),
       ),
     );
-    armed = true;
+    writeGuard.arm();
     await button.click();
     const response = await pending;
-    armed = false;
+    writeGuard.disarm();
     const bytes = await response.body();
     need(bytes.length <= 262144, 'RESPONSE_BOUND');
     await writeCaptureHttpObservation(
@@ -435,6 +427,7 @@ export async function collectCase14ApprovalCapture({
       artifactStorage.writeBytes('case14-approval/confirmed.png', await section.screenshot()),
     );
     const after = await get(`/api/memory/review/inbox/candidates/${candidateId}`);
+    writeGuard.panelPhase('afterReload');
     await page.reload({ waitUntil: 'domcontentloaded' });
     await openCase14MemoryPanel(page);
     await web(page, config.deployment.webSha);
@@ -490,9 +483,8 @@ export async function collectCase14ApprovalCapture({
       response: ack,
       screenshots,
       ui: { pendingVisible: true, confirmedVisible: true, reloadedReceiptVisible: true },
-      applicationApprovalSubmissions: submissions,
+      ...writeGuard.snapshot(),
       synthesisSubmissionCount: 0,
-      blockedWrites,
     };
   } catch (error) {
     artifactStorage.writeBytes(
@@ -501,10 +493,11 @@ export async function collectCase14ApprovalCapture({
         stableJson({
           caseId: '14',
           captureRunId: config.captureRunId,
-          status: submissions ? 'RECONCILIATION_REQUIRED' : 'BLOCKED',
-          applicationApprovalSubmissions: submissions,
+          status: writeGuard.snapshot().applicationApprovalSubmissions
+            ? 'RECONCILIATION_REQUIRED'
+            : 'BLOCKED',
+          ...writeGuard.snapshot(),
           synthesisSubmissionCount: 0,
-          blockedWrites,
         }),
       ),
     );
@@ -514,7 +507,8 @@ export async function collectCase14ApprovalCapture({
         : 'CASE14_APPROVAL_CAPTURE_FAILED',
     );
   } finally {
-    armed = false;
+    writeGuard.disarm();
+    writeGuard.panelPhase('outsidePanel');
     if (sessionId && page)
       try {
         await page.evaluate((id) => window.Clerk.signOut({ sessionId: id }), sessionId);
@@ -529,6 +523,7 @@ export async function collectCase14ApprovalCapture({
     await browser?.close().catch(() => {});
   }
   need(cleaned && evidence, 'CLEANUP');
+  Object.assign(evidence, writeGuard.snapshot());
   evidence.sessionRevoked = true;
   evidence.completedAt = Date.now();
   inspectCase14ApprovalEvidence(evidence);
@@ -582,12 +577,12 @@ export async function collectCase14RecallUi({
   );
   const builds = await readCase17BuildAuthority(config.deployment),
     { chromium } = createRequire(import.meta.url)('playwright');
+  const writeAccounting = createCase17WriteAccounting();
   let browser,
     page,
     sessionId,
     timer,
     cleaned = false,
-    blockedWrites = 0,
     screenshot;
   try {
     browser = await chromium.launch({ headless: true });
@@ -600,10 +595,7 @@ export async function collectCase14RecallUi({
     await context.route('**/*', async (route) => {
       const r = route.request(),
         u = new URL(r.url());
-      if (!['GET', 'HEAD', 'OPTIONS'].includes(r.method()) && u.origin !== CLERK) {
-        blockedWrites++;
-        return route.abort();
-      }
+      if (writeAccounting.deny(r)) return route.abort();
       if (
         r.isNavigationRequest() &&
         (r.frame() === page.mainFrame()
@@ -650,6 +642,7 @@ export async function collectCase14RecallUi({
         me.role === 'user_admin',
       'CURRENT_IDENTITY',
     );
+    writeAccounting.panelPhase('initial');
     await page.goto(`${ORIGIN}/meri/t/${inputs.expected.conversationId}`, {
       waitUntil: 'domcontentloaded',
     });
@@ -666,12 +659,28 @@ export async function collectCase14RecallUi({
       await response.screenshot(),
     );
     need(
-      blockedWrites === 0 &&
+      inspectCase17WriteAccounting(writeAccounting.snapshot()) &&
         sha256Stable(builds.services) ===
           sha256Stable((await readCase17BuildAuthority(config.deployment)).services),
       'RECALL_READ_ONLY',
     );
+  } catch (error) {
+    artifactStorage.writeBytes(
+      'case14-recall-ui/interrupted.json',
+      Buffer.from(
+        stableJson({
+          caseId: '14',
+          captureRunId: config.captureRunId,
+          status: 'RECALL_UI_BLOCKED',
+          applicationWrites: 0,
+          synthesisSubmissionCount: 0,
+          ...writeAccounting.snapshot(),
+        }),
+      ),
+    );
+    throw error;
   } finally {
+    writeAccounting.panelPhase('outsidePanel');
     if (sessionId && page)
       try {
         await page.evaluate((id) => window.Clerk.signOut({ sessionId: id }), sessionId);
@@ -686,6 +695,7 @@ export async function collectCase14RecallUi({
     await browser?.close().catch(() => {});
   }
   need(cleaned && screenshot, 'CLEANUP');
+  inspectCase17WriteAccounting(writeAccounting.snapshot());
   const evidence = {
     kind: 'meri-case14-recall-ui-readonly',
     captureRunId: config.captureRunId,
@@ -695,6 +705,7 @@ export async function collectCase14RecallUi({
     sessionRevoked: true,
     applicationWrites: 0,
     synthesisSubmissionCount: 0,
+    ...writeAccounting.snapshot(),
     completedAt: Date.now(),
     builds,
     screenshot,

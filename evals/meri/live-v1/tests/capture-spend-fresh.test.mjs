@@ -10,12 +10,20 @@ const liveRoot = 'C:/dev/main/outputs/meri-fresh-20261003';
 const parent = 'C:/dev/main/outputs/meri-c2-20261003/fresh-journal-adapter-v1/local-tests';
 const moduleUrl = new URL('../capture-spend-aggregate.mjs', import.meta.url);
 const source = readFileSync(moduleUrl, 'utf8');
-const original = Object.fromEntries(
+const liveOriginal = Object.fromEntries(
   ['run-authorization.json', 'fresh-spend.jsonl'].map((name) => [
     name,
     readFileSync(join(liveRoot, name)),
   ]),
 );
+// Historical adoption tests use the immutable original prefix even as the
+// live journal advances. Retain and verify the complete live bytes separately.
+const original = {
+  ...liveOriginal,
+  'fresh-spend.jsonl': Buffer.from(
+    liveOriginal['fresh-spend.jsonl'].toString('utf8').split('\n').slice(0, 20).join('\n') + '\n',
+  ),
+};
 const hash = (bytes) => createHash('sha256').update(bytes).digest('hex');
 assert.equal(
   hash(original['fresh-spend.jsonl']),
@@ -66,7 +74,7 @@ const expected = (r) => ({
   promptSha256: 'c'.repeat(64),
 });
 test.after(() => {
-  for (const [name, bytes] of Object.entries(original))
+  for (const [name, bytes] of Object.entries(liveOriginal))
     assert.deepEqual(readFileSync(join(liveRoot, name)), bytes, 'live evidence changed');
 });
 
@@ -170,4 +178,47 @@ test('existing original owner still reserves with its original ceiling and rejec
     ),
   );
   assert.deepEqual(readFileSync(join(f.root, 'fresh-spend.jsonl')), original['fresh-spend.jsonl']);
+});
+
+async function currentCase14Fixture() {
+  const f = await fixture();
+  const prior = structuredClone(f.module.adoptExistingFreshCaptureSpend({ pythonExecutable }));
+  const wire = Buffer.from(
+    liveOriginal['fresh-spend.jsonl'].toString('utf8').split('\n').slice(0, 24).join('\n') + '\n',
+  );
+  assert.equal(hash(wire), '8f20134f71dde90e32fc0c3c2aba2da2d5b93dd13fffea31b83105d1621bc3e5');
+  // Isolated test setup only: retain the native file identity and append the
+  // exact recorded events. Production must resume its persisted checkpoint.
+  writeFileSync(join(f.root, 'fresh-spend.jsonl'), wire);
+  Object.assign(prior.state.files['fresh-spend.jsonl'], { sha256: hash(wire), bytes: wire.length });
+  return { ...f, prior, wire };
+}
+
+test('Case14 resumes exact24 checkpoint; fake outcome cannot release its new ceiling', async () => {
+  const f = await currentCase14Fixture();
+  const owner = f.module.openCaptureSpendAggregate(f.prior, { pythonExecutable });
+  assert.equal(owner.checkpoint().snapshot.knownSettledCostMicros, 13_631_058);
+  assert.equal(owner.checkpoint().snapshot.remainingReservationMicros, 16_368_942);
+  const reservation = owner.reserve({ ...reserve(), caseId: '14' });
+  f.module.claimCaptureSpendReservation(reservation, expected(reservation));
+  const before = readFileSync(join(f.root, 'fresh-spend.jsonl'));
+  for (const outcome of [{ status: 'CAPTURE_COMPLETE' }, { chargedCostMicros: 0, evidence: {} }])
+    assert.throws(() => owner.settleCaptured(reservation, outcome));
+  assert.deepEqual(readFileSync(join(f.root, 'fresh-spend.jsonl')), before);
+  assert.equal(owner.checkpoint().snapshot.remainingReservationMicros, 1_368_942);
+  assert.throws(() => f.module.openCaptureSpendAggregate(f.prior, { pythonExecutable }));
+  assert.throws(() => f.module.adoptExistingFreshCaptureSpend({ pythonExecutable }));
+});
+
+test('Case14 owner contention preserves concurrency one at the exact24 boundary', async () => {
+  const f = await currentCase14Fixture();
+  const first = f.module.openCaptureSpendAggregate(f.prior, { pythonExecutable });
+  const second = f.module.openCaptureSpendAggregate(f.prior, { pythonExecutable });
+  first.reserve({ ...reserve(), caseId: '14' });
+  assert.throws(() => second.reserve({ ...reserve(), caseId: '14' }));
+  assert.throws(() => second.reserve({ ...reserve(), caseId: '14' }));
+  assert.equal(
+    readFileSync(join(f.root, 'fresh-spend.jsonl'), 'utf8').trim().split('\n').length,
+    25,
+  );
 });

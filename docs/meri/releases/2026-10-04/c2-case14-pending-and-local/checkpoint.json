@@ -1,0 +1,22 @@
+{
+  "at": "2026-10-04T04:37:48.892911+00:00",
+  "status": "PENDING_FIXTURE_CREATED_LOCAL_QUALIFICATION_PASS_APPROVAL_NOT_RUN",
+  "sourceBase": "603f3da44ac36cbce67e84f61823f9f6b89d0755",
+  "servedSource": "c0f393f863bf73bd4e65e7a94e17c073e7be021e",
+  "fixtureInstanceId": "dee4e90e-8e91-4782-9488-10b8e52a2146",
+  "candidateId": "6f4545a1-dcd5-5eba-8606-db2043b238ac",
+  "nativeReadbackSha256": "d7abbfabf218c5a1fc65ec508edef6ce3105da18b0be038f72ea162c43972433",
+  "setupReceiptSha256": "c2c80bdef51e6b8b22d13c809e77e76c61eb680fa10aca88372f258d53a155f8",
+  "nodeTestsPassed": 80,
+  "nativeWindowsTestsPassed": 15,
+  "failed": 0,
+  "skipped": 0,
+  "applicationApprovalSubmissions": 0,
+  "recallSubmissions": 0,
+  "providerCallsDuringNativeSetup": 0,
+  "journalSha256": "8f20134f71dde90e32fc0c3c2aba2da2d5b93dd13fffea31b83105d1621bc3e5",
+  "knownFreshCostMicros": 13631058,
+  "liveAdmission": "NOT_QUALIFIED_APPROVAL_EMBEDDING_BOUND_UNRESOLVED",
+  "fullCase14Acceptance": false,
+  "fullFile01Acceptance": false
+}

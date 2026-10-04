@@ -1,0 +1,68 @@
+{
+  "at": "2026-10-04T04:33:25.284163+00:00",
+  "sourceFiles": [
+    {
+      "path": "evals/meri/live-v1/case14-approval-capture.mjs",
+      "sha256": "1d5f67d5f1d8088fee585321f0c15a4c8c9a331339310061b4881bb713d9033d"
+    },
+    {
+      "path": "evals/meri/live-v1/case14-approval-write-guard.mjs",
+      "sha256": "4aff57265d0fe414221f8d168e53ddd0940bca1ca76c6f86cb2669e7b16d5a34"
+    },
+    {
+      "path": "evals/meri/live-v1/case17-readonly-guard.mjs",
+      "sha256": "6c8d3e5e0dfafba4a0132a2ff3151fcfce245e9b4cc0ad0c2b0a05ac38636b09"
+    },
+    {
+      "path": "evals/meri/live-v1/capture-spend-aggregate.mjs",
+      "sha256": "7a94674f017de72f67569e1d7efccb8339e68ec101272ee295d508f031e100d2"
+    },
+    {
+      "path": "evals/meri/live-v1/lib/windows-capture-spend.py",
+      "sha256": "1244c7f991302e17db800e7facf6142f6fb4ae6d6f106d2216fc45225122eb6f"
+    },
+    {
+      "path": "evals/meri/live-v1/tests/case14-approval-write-guard.test.mjs",
+      "sha256": "9b9658f6ec8f787b62263852cd326b5c526767ce2b5b8d784256fbf4ccad1f58"
+    },
+    {
+      "path": "evals/meri/live-v1/tests/case14-capture.test.mjs",
+      "sha256": "f2cca91ddb340308cfec23e227897ad1c79eb833163a4f61ab384efb10dfe794"
+    },
+    {
+      "path": "evals/meri/live-v1/tests/case14-delayed-query.test.mjs",
+      "sha256": "32d495d2504960cb1a0a129885d12b8c8317a1323b6950a1ac5feab920f7fbff"
+    },
+    {
+      "path": "evals/meri/live-v1/tests/case17-readonly-guard.test.mjs",
+      "sha256": "848f2f956274fbf2dfb894f3c8e2a6142850d2ea602c9ac0e8bd81c59d98250a"
+    },
+    {
+      "path": "evals/meri/live-v1/tests/capture-spend-fresh.test.mjs",
+      "sha256": "51a754a5c634ff1701b4c531ee0d9e5eeb5c320e8c24b0817b777141e2ee1ff0"
+    },
+    {
+      "path": "evals/meri/live-v1/tests/capture-spend-fresh.unit.py",
+      "sha256": "254b9bc047b8a532bece7d38e3a1d0fc8cbe46957f3d384be87c366be8ca1d03"
+    }
+  ],
+  "runs": [
+    {
+      "name": "node-tests",
+      "exitCode": 0,
+      "logSha256": "402eda9cfcb810d4331c6f7aedb45602b812fba6c7941df8f0decc3eb47c888f"
+    },
+    {
+      "name": "native-tests",
+      "exitCode": 0,
+      "logSha256": "5dc7aec8a2405fca7c10e726c89c1153aceaff058aeb19968d20acfc96d15d90"
+    }
+  ],
+  "status": "PASS",
+  "journalUnchanged": true,
+  "journalSha256": "8f20134f71dde90e32fc0c3c2aba2da2d5b93dd13fffea31b83105d1621bc3e5",
+  "cloudActions": 0,
+  "approvalSubmissions": 0,
+  "recallSubmissions": 0,
+  "liveAdmission": "NOT_QUALIFIED_APPROVAL_PROVIDER_BOUNDARY_UNRESOLVED"
+}

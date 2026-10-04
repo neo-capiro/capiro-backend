@@ -1,0 +1,12 @@
+Minimal prospective Case14 collector change:
+- Added a local Case14 route-guard helper that reuses the unchanged Case17 read-only accounting helper. Exact preference PUTs are tallied and always aborted; other application writes remain denied.
+- Preserved the exact single armed approval POST. The guard checks accounting before intent/arming and immediately before allowing approval; unexpected earlier writes block approval.
+- Approval evidence inspection accepts bounded exact preference accounting and historical evidence only when blockedWrites is strictly zero and no accounting fields are present.
+- Approval success/interruption and recall UI evidence now include bounded accounting. Added focused tests for preference classification, unexpected prior writes, overbound/malformed/foreign/query variants, and duplicate approvals.
+
+Tests still needing lead execution:
+- Run candidate-focused node test and existing Case14/Case17 tests in the owning repository/worktree.
+- Run real Chromium collector coverage; verify served preference PUTs stay aborted while Case14 capture succeeds.
+- Root/lead should integrate this prospective candidate and run normal artifact/canonical-grade checks.
+
+No tests or Chromium runs were executed here. No shell, cloud, network, or source-repository writes were performed.

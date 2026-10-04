@@ -1,0 +1,41 @@
+{
+  "kind": "read-only copies; no live authority",
+  "files": [
+    {
+      "path": "evals/meri/live-v1/capture-spend-aggregate.mjs",
+      "sha256": "c2de81c8cd264a723a73d24aab4d2ca550eb9c15555011370ea7ca2e65755e48"
+    },
+    {
+      "path": "evals/meri/live-v1/lib/windows-capture-spend.py",
+      "sha256": "12c0428b25d616ee2d3969d7b41f4c804ee2fa52c509dc9ec01876bd18856fdc"
+    },
+    {
+      "path": "evals/meri/live-v1/tests/capture-spend-fresh.unit.py",
+      "sha256": "1073171aa3e893ebc3c328ef18cce3426be842523f933aac40d46c2a3f371ece"
+    },
+    {
+      "path": "evals/meri/live-v1/tests/capture-spend-fresh.test.mjs",
+      "sha256": "c0dfa869f90afb9d623859cf53c4fdfc19cf1d8835a32581d36b46581d68b5d6"
+    },
+    {
+      "path": "evals/meri/live-v1/case01-live-capture.mjs",
+      "sha256": "4136d20e10ec9e0e635fefc0ccf8a4609f12a36a410dba3f3eb4f828469ea029"
+    },
+    {
+      "path": "evals/meri/live-v1/case14-approval-capture.mjs",
+      "sha256": "6ee87a40e0bca6a8a9f1e0030ff92b2d241dbf7b2374b681ff889471ef5482b3"
+    },
+    {
+      "path": "evals/meri/live-v1/grade-case14-capture.mjs",
+      "sha256": "5e82810195e282d44b90a3cca920267939a560d3c33f4ecaf9a78570625e884f"
+    },
+    {
+      "path": "run-authorization.json",
+      "sha256": "e07822e83a7c7b531606519ecd4fdf1027f2fa7cbaefd4bad92a2084590262fe"
+    },
+    {
+      "path": "fresh-spend.jsonl",
+      "sha256": "8f20134f71dde90e32fc0c3c2aba2da2d5b93dd13fffea31b83105d1621bc3e5"
+    }
+  ]
+}

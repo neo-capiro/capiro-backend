@@ -1,0 +1,5 @@
+PASS — local collector correctness review. No shell, cloud, or application-source changes were made.
+
+Review: C:\dev\main\outputs\meri-c2-20261003\case14-ui-review-hermes-v2\evidence\REVIEW.md
+
+The review found the exact armed approval exception and bounded preference-write accounting in place; unexpected writes invalidate approval qualification, and recall UI remains read-only. This is static review only: the reported tests are lead claims, and final combined qualification was still running. The separate embedding-provider budget blocker remains unresolved; this review does not authorize live approval.
