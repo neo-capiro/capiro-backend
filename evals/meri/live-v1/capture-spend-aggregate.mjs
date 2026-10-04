@@ -12,6 +12,7 @@ import {
 import { currentMemoryReadUsageAuthority } from './memory-read-budget-authority.mjs';
 import { currentReviewedCaptureSpendReconciliation } from './capture-spend-reconciliation.mjs';
 import { consumeCase01PresubmissionRecoveryAuthority } from './case01-presubmission-recovery-authority.mjs';
+import { consumeCase20PresubmissionRecoveryAuthority } from './case20-presubmission-recovery-authority.mjs';
 import { consumeCase01FailedReceiptCostAuthority } from './case01-failed-receipt-cost-authority.mjs';
 import {
   currentCase01CaptureAuthority,
@@ -93,6 +94,16 @@ export function restoreCase01PresubmissionCaptureSpend(
 ) {
   need(invocation === 'RESTORE_SAME_CASE01_UNSUBMITTED_RESERVATION_ONCE');
   const recovery = consumeCase01PresubmissionRecoveryAuthority(authority);
+  return openCaptureSpendOwner(recovery.checkpoint, { pythonExecutable }, recovery);
+}
+
+/** Restore only the separately authenticated, fixed Case20 pre-submission failure. */
+export function restoreCase20PresubmissionCaptureSpend(
+  authority,
+  { pythonExecutable, invocation },
+) {
+  need(invocation === 'RESTORE_SAME_CASE20_UNSUBMITTED_RESERVATION_ONCE');
+  const recovery = consumeCase20PresubmissionRecoveryAuthority(authority);
   return openCaptureSpendOwner(recovery.checkpoint, { pythonExecutable }, recovery);
 }
 

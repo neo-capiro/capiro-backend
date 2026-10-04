@@ -204,6 +204,49 @@ export function assertControlledReadSyntheticIdentity({
   );
   return { actor, tenant };
 }
+async function waitForControlledReadBrowserIdentity(page, actor, tenant, sessionId) {
+  try {
+    await page.waitForFunction(
+      ({ userId, orgId, sessionId }) =>
+        window.Clerk?.loaded === true &&
+        window.Clerk.session?.id === sessionId &&
+        typeof window.Clerk.session?.getToken === 'function' &&
+        window.Clerk.user?.id === userId &&
+        window.Clerk.organization?.id === orgId,
+      { userId: actor.clerkUserId, orgId: tenant.clerkOrgId, sessionId },
+      { timeout: 45000 },
+    );
+  } catch {
+    // Browser diagnostics may contain auth details; preserve only this fixed code.
+    need(false, 'BROWSER_IDENTITY_NOT_READY');
+  }
+}
+async function readControlledReadBrowserBearer(page, actor, tenant, sessionId) {
+  await waitForControlledReadBrowserIdentity(page, actor, tenant, sessionId);
+  let bearer;
+  try {
+    bearer = await page.evaluate(
+      ({ userId, orgId, sessionId }) => {
+        const clerk = window.Clerk;
+        // Recheck in the token evaluation in case identity changed after the wait.
+        if (
+          clerk?.loaded !== true ||
+          clerk.session?.id !== sessionId ||
+          typeof clerk.session?.getToken !== 'function' ||
+          clerk.user?.id !== userId ||
+          clerk.organization?.id !== orgId
+        )
+          return null;
+        return clerk.session.getToken({ template: 'capiro', skipCache: true });
+      },
+      { userId: actor.clerkUserId, orgId: tenant.clerkOrgId, sessionId },
+    );
+  } catch {
+    need(false, 'CAPTURE_BEARER_UNAVAILABLE');
+  }
+  need(typeof bearer === 'string' && bearer.length > 0, 'CAPTURE_BEARER_UNAVAILABLE');
+  return bearer;
+}
 async function verifyWeb(page, expectedWebSha) {
   const current = await page.evaluate(() => {
     const config = window.__CAPIRO_CONFIG__;
@@ -292,6 +335,7 @@ export async function runControlledReadOperator(args = process.argv.slice(2)) {
       'run-controlled-read.mjs',
       'controlled-read-live-capture.mjs',
       'case01-live-capture.mjs',
+      'case20-presubmission-recovery-authority.mjs',
       'capture-spend-aggregate.mjs',
       'lib/windows-capture-spend.py',
       'tests/capture-spend-aggregate.test.mjs',
@@ -299,6 +343,7 @@ export async function runControlledReadOperator(args = process.argv.slice(2)) {
       'tests/capture-spend-fresh.unit.py',
       'CONTROLLED-READ-OPERATOR.md',
       'tests/controlled-read-operator.test.mjs',
+      'tests/case20-presubmission-recovery.test.mjs',
     ]);
     need(
       git('diff', '--name-only', config.deployment.apiSha + '..HEAD')
@@ -447,17 +492,9 @@ export async function runControlledReadOperator(args = process.argv.slice(2)) {
       session: createdSessionId,
       organization: tenant.clerkOrgId,
     });
-    await page.waitForFunction(
-      ({ userId, orgId }) =>
-        window.Clerk?.loaded &&
-        window.Clerk.user?.id === userId &&
-        window.Clerk.organization?.id === orgId,
-      { userId: actor.clerkUserId, orgId: tenant.clerkOrgId },
-    );
     await verifyWeb(page, expectedWebSha);
     need(!routeFailure, routeFailure);
-    let bearer = await page.evaluate(() => window.Clerk.session.getToken({ template: 'capiro' }));
-    need(typeof bearer === 'string' && bearer.length > 0, 'CAPTURE_BEARER_UNAVAILABLE');
+    let bearer = await readControlledReadBrowserBearer(page, actor, tenant, createdSessionId);
     const builds = await readCase01BuildAuthority(config.deployment);
     const transport = creationTransport(config, bearer);
     const me = (await transport.call('/api/me')).value;
@@ -525,10 +562,7 @@ export async function runControlledReadOperator(args = process.argv.slice(2)) {
     });
     await verifyWeb(page, expectedWebSha);
     need(!routeFailure, routeFailure);
-    bearer = await page.evaluate(() =>
-      window.Clerk.session.getToken({ template: 'capiro', skipCache: true }),
-    );
-    need(typeof bearer === 'string' && bearer.length > 0, 'CAPTURE_BEARER_UNAVAILABLE');
+    bearer = await readControlledReadBrowserBearer(page, actor, tenant, createdSessionId);
     const runRoot = join(outRoot, 'artifacts');
     const storage = createWindowsArtifactStorage(runRoot, {
       pythonExecutable,
@@ -538,6 +572,10 @@ export async function runControlledReadOperator(args = process.argv.slice(2)) {
       runRoot,
       artifactStorage: storage,
       spendReservation,
+      bearerSupplier: async () => {
+        need(!routeFailure, routeFailure);
+        return readControlledReadBrowserBearer(page, actor, tenant, createdSessionId);
+      },
       env: { MERI_LIVE_BEARER_TOKEN: bearer },
     });
     summary.capturePrepared = true;
