@@ -1,0 +1,23 @@
+{
+  "packetSha256": "5d67f443a71180e7aa49e775f3f979a585348d5b6480a7e83b76432bef7bfbdf",
+  "packetBytesSha256": "27b3b8cda6fe1fee90800b149e7b2bfc1c851ba8637a7edc838073b5b6ae891f",
+  "approvalSha256": "729b82ae4787aecce9687d4b08da188071e06bf58e8f4b1a1831239f89d5b88c",
+  "approvalScope": "EXACT_C2_CAPTURE_CONTRACT_RELEASE",
+  "callerArn": "arn:aws:iam::967807252336:user/capirocli",
+  "qualificationSha256": "f671227abd9cdafc95f93a88f9031bc1e100eef9ff53bca3bd9b7f379f83dba3",
+  "qualificationBytesSha256": "7419f96474e42b23f33abd98e9c00aa8f02ca0bd143030a8e7088f21f768cae9",
+  "services": {
+    "api": {
+      "sourceSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:23f529da3c1c00d401968811575dc075bced6c60669baa9a09e9c23575c9c452",
+      "receiptSha256": "7a97570e67eb9d775da52521d2dc874d0a5bde3e76690e2bc892e744459b6fa4",
+      "candidateTaskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:521"
+    },
+    "meriv2-orchestrator": {
+      "sourceSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:1c491a5ac46ea320195fe8ab367322ad2ebbd0949d69530b5ccfba2de84eb491",
+      "receiptSha256": "fa30d9ff3883055dc3d681c3c7aaf4b67fde282ef38567800f85e5299cc68607",
+      "candidateTaskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:117"
+    }
+  }
+}

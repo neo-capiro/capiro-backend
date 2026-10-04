@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "kind": "meri-case17-visual-review",
+  "caseId": "17",
+  "captureRunId": "83fc19ac-5da2-49e7-b368-bcdb4704c3d5",
+  "evidenceSha256": "a67703b8d4f9e6ea6894c32fb2e166866581788c007333e212128a6a722b71ed",
+  "reviewedAt": "2026-10-04T00:40:01.237Z",
+  "reviewer": "Codex root",
+  "reference": "Root inspected saved afterReload PNGs A through F in this chat; all12 files were hash-checked and each initial PNG equals its corresponding reload PNG.",
+  "rationale": "All six cards show pending review, distinct A-F proposal labels and values, Source: model extraction, and a visible Withdraw action. A/B/C target Aster Defense; D targets Bluehaven Robotics; E is Firm memory; F is Personal memory. Scope, value, source-kind label and action are readable. This checks only the existing source-kind display; the cards have no distinct-source provenance navigation. Original prompt and human rubric remain unrun.",
+  "screenshotSha256s": [
+    "f797e247677f0e1fc25fe5f9c6a1d49fbc4aa30174bd3c2ec1f07cf90c1c8298",
+    "0c439c0d72d3f4a81afb5b339d66599a1b4c8ff3ce49924c131d89e8ea560037",
+    "aa917881747c65a85608c1a7f87461b66f62629d40cc1ae4cf3cda2e75b8d3d8",
+    "b432d973e963469e33497833932d241caeaeb9746c6187eeb7f728cf19171d55",
+    "9c121e93d9d99fd6a6fdb8417315519a540d5df88987e0df372df7ec3e87fd4a",
+    "ac32c33de7c630f4edf4e74c06acb7785399e5848185d113185cb22999abd9f9",
+    "f797e247677f0e1fc25fe5f9c6a1d49fbc4aa30174bd3c2ec1f07cf90c1c8298",
+    "0c439c0d72d3f4a81afb5b339d66599a1b4c8ff3ce49924c131d89e8ea560037",
+    "aa917881747c65a85608c1a7f87461b66f62629d40cc1ae4cf3cda2e75b8d3d8",
+    "b432d973e963469e33497833932d241caeaeb9746c6187eeb7f728cf19171d55",
+    "9c121e93d9d99fd6a6fdb8417315519a540d5df88987e0df372df7ec3e87fd4a",
+    "ac32c33de7c630f4edf4e74c06acb7785399e5848185d113185cb22999abd9f9"
+  ],
+  "allSixCardsVisibleWithCorrectScopeAndProvenance": true,
+  "allSixActionsVisibleAfterReload": true,
+  "provenanceFieldScope": "Visible source-kind label only; distinct-source provenance navigation NOT_DEMONSTRATED",
+  "humanRubric": "NOT_RUN",
+  "fullOriginalRow17Acceptance": false
+}

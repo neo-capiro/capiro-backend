@@ -1,0 +1,19 @@
+{
+  "kind": "SYNTAX_ONLY",
+  "toolChunk": "844577",
+  "checks": [
+    {
+      "path": "supervised-candidate/run-case20-native-setup.mjs",
+      "command": "node --check",
+      "exitCode": 0,
+      "sha256": "9f81d8f0b5aec4211d2e03bb94dc27c93fd4d7f12bc38f70ed5c7773f03699f2"
+    },
+    {
+      "path": "supervised-candidate/case20-native-setup-inner.mjs",
+      "command": "node --check",
+      "exitCode": 0,
+      "sha256": "36e6c8021e8033f282be2534767e0a1ea94c27fdc98af08aadab0c26b25b15de"
+    }
+  ],
+  "mainExecuted": false
+}

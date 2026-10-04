@@ -1,0 +1,50 @@
+import assert from 'node:assert/strict';
+import {readFileSync,writeFileSync,openSync,fsyncSync,closeSync} from 'node:fs';
+import {createHash} from 'node:crypto';
+import {controlledReadBudgetPlanInput,controlledReadBudgetInstallInput,controlledReadLiveConfig} from '../../meri-c1-20261002/evals/meri/live-v1/controlled-read-operator-input.mjs';
+const root='C:/dev/main/outputs/meri-c2-20261003',mode=process.argv[2];
+assert.equal(process.argv.length,3);assert.ok(['plan','install'].includes(mode));
+const path=`${root}/case20-native-budget-${mode}-v1`;
+const sha=b=>createHash('sha256').update(b).digest('hex');
+const read=p=>JSON.parse(readFileSync(p,'utf8'));
+const bytes=readFileSync(path+'/result.json'),result=JSON.parse(bytes);
+assert.equal(result.mode,mode);assert.equal(result.status,mode==='plan'?'BUDGET_PLAN_ONLY':'BUDGET_QUALIFICATION_INSTALLED');
+assert.equal(result.exitCode,0);assert.equal(result.childExitCode,0);assert.equal(result.taskExitCode,0);
+assert.equal(result.sourceSha,'4f0253874357c272fda1ae2a5271ee4af645f0bc');
+assert.equal(result.candidateImage,'967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:23f529da3c1c00d401968811575dc075bced6c60669baa9a09e9c23575c9c452');
+assert.equal(result.packetSha256,'5d67f443a71180e7aa49e775f3f979a585348d5b6480a7e83b76432bef7bfbdf');
+assert.equal(result.outerScriptSha256,'cd4d7e506f7b26ab04fcc2013964bb7dbd843c72028c734376b577cc21b50c69');
+assert.equal(result.innerScriptSha256,'f0314af18590f8a3ec5503cc6c39d2d9045b042d5b817482320339c6d38286dc');
+assert.equal(result.inputSha256,'a72c2d69bebb9694edb38bc4131a60a093e6488f8cd3528fafd92db7f84a082d');
+assert.equal(result.setupReceiptSha256,'9ac732d7a5d4b066cea584804218f2f68083a445c016092b4f72d8f8a92f2cfd');
+assert.equal(result.ratesSha256,'3531e09dfcce9f66b4ea2b3564db47bd72dc507cdcf1aecdda277b838007704e');
+assert.equal(result.cleanup.taskStopped,true);assert.equal(result.cleanup.taskDefinitionInactive,true);
+assert.deepEqual(read(path+'/cleanup.json'),result.cleanup);
+assert.equal(result.evidencePersistenceFailed,false);assert.ok(result.observations.every(o=>!o.fatal));
+assert.equal(result.liveAcceptance,'NOT_RUN');assert.equal(result.providerCalls,0);
+assert.equal(result.sharedSourceCorpusWrites,0);assert.equal(result.automaticRetryAllowed,false);
+const raw=readFileSync(path+'/inner-owner-receipt.json');
+assert.equal(result.ownerReceipt.path,path+'/inner-owner-receipt.json');
+assert.equal(result.ownerReceipt.sha256,sha(raw));assert.equal(result.ownerReceipt.bytes,raw.length);
+const transport=read(path+'/inner-owner-transport.json');
+assert.equal(transport.sha256,sha(raw));assert.equal(transport.byteLength,raw.length);
+assert.equal(transport.ownerOutput,'OWNER_SUCCESS');assert.equal(transport.childExitCode,0);assert.equal(transport.childSignal,null);
+assert.equal(transport.mode,mode);assert.equal(transport.sourceSha,result.sourceSha);assert.equal(transport.scriptSha256,result.innerScriptSha256);
+assert.equal(transport.captureRunId,'f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b');assert.equal(transport.taskStopped,true);
+const owner=JSON.parse(raw),input=read(root+'/case20-local-preparation-v1/setup-plan-input.json');
+const setup=read(root+'/case20-native-setup-execute-v1/inner-owner-receipt.json');
+const rates=read(root+'/reviewed-rates-c2-v2-20261003.json'),ownerInput=read(path+'/owner-input.json');
+assert.equal(sha(Buffer.from(JSON.stringify(ownerInput)+'\n')),result.ownerInputSha256);
+assert.equal(transport.ownerInputSha256,result.ownerInputSha256);
+if(mode==='plan') {
+ assert.deepEqual(ownerInput,controlledReadBudgetPlanInput(input,setup));
+ controlledReadBudgetInstallInput(input,setup,owner,rates);
+} else {
+ const plan=read(root+'/case20-native-budget-plan-v1/inner-owner-receipt.json');
+ assert.deepEqual(ownerInput,controlledReadBudgetInstallInput(input,setup,plan,rates));
+ controlledReadLiveConfig(input,setup,ownerInput,owner,read(root+'/case20-deployment-input-v1.json'));
+}
+const wrapper={status:'VERIFIED',containerExitCode:0,ownerReceipts:[owner],evidence:{resultPath:path+'/result.json',resultSha256:sha(bytes),ownerReceiptSha256:sha(raw),ownerInputSha256:result.ownerInputSha256,sourceSha:result.sourceSha,taskArn:result.taskArn,taskDefinitionArn:result.taskDefinitionArn,cleanup:result.cleanup},liveAcceptance:'NOT_RUN'};
+const out=path+'/materializer-receipt.json';writeFileSync(out,JSON.stringify(wrapper,null,2)+'\n',{flag:'wx',mode:0o600});
+const fd=openSync(out,'r+');try{fsyncSync(fd);}finally{closeSync(fd);}
+console.log(JSON.stringify({status:'ACTUAL_BUDGET_RECEIPT_VERIFIED',mode,receiptSha256:sha(raw),wrapperSha256:sha(readFileSync(out)),liveAcceptance:'NOT_RUN'}));

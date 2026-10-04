@@ -1,0 +1,38 @@
+{
+  "kind": "FINAL_SOURCE_LOCAL_QUALIFICATION",
+  "observedAt": "2026-10-04T00:46:36.431325+00:00",
+  "sources": [
+    {
+      "path": "supervised-candidate/run-case20-native-budget.mjs",
+      "sha256": "cd4d7e506f7b26ab04fcc2013964bb7dbd843c72028c734376b577cc21b50c69",
+      "bytes": 58164
+    },
+    {
+      "path": "supervised-candidate/case20-native-budget-inner.mjs",
+      "sha256": "f0314af18590f8a3ec5503cc6c39d2d9045b042d5b817482320339c6d38286dc",
+      "bytes": 14842
+    }
+  ],
+  "receipt": {
+    "path": "final-exact-input/receipt.json",
+    "sha256": "a99510bf2a33149895526f77c23a82b16aeb7a2f8870a45b80644226d286a3f4",
+    "bytes": 3914
+  },
+  "passed": 29,
+  "failed": 0,
+  "syntax": [
+    {
+      "path": "supervised-candidate/run-case20-native-budget.mjs",
+      "exitCode": 0,
+      "toolChunk": "b23ec4"
+    },
+    {
+      "path": "supervised-candidate/case20-native-budget-inner.mjs",
+      "exitCode": 0,
+      "receipt": "final-qualification-receipt.json",
+      "unchangedSinceSyntaxCheck": true
+    }
+  ],
+  "mainsExecuted": false,
+  "liveActions": false
+}

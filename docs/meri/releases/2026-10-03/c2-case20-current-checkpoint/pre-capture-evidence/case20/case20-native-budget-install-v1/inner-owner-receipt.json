@@ -1,0 +1,15 @@
+{
+  "status": "PROVIDER_QUALIFICATION_INSTALLED",
+  "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+  "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+  "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+  "currentVerifySha256": "925c4735e4d435ab06c40b31ee590b0ce4e7d9220b742155c67e4115b1bc6516",
+  "captureBindingSha256": "0162b3bfc6fe8a2906a732d1b7b469cb7cc0eeca5b957905bfd8917adaa8b5ed",
+  "qualificationSha256": "47d64a19fdf3a718eddefee998247173f98f9b1d3f24703f31d8b4dee779c9af",
+  "priorQualificationSha256": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+  "tenantRowVersion": "114801800",
+  "maxCostMicros": 15000000,
+  "rateEvidenceSha256": "a1a179383c8451495336169f46025eb8cee8ec95487f1a43017078387b768b11",
+  "rateEvidenceExpiresAt": "2026-10-04T05:29:01.587Z",
+  "liveAcceptance": "NOT_RUN"
+}

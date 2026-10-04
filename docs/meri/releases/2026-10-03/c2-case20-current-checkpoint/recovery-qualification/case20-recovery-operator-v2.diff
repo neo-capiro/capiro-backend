@@ -1,0 +1,54 @@
+--- case20-recovery-v1-unexecuted
++++ case20-recovery-v2
+@@ -19,8 +19,8 @@
+ const fixedRun = 'f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b';
+ const fixedConversation = 'db0e01ac-60a1-4e3c-b8ba-66748d087a2e';
+ const originalRoot = root + '/case20-native-' + fixedRun;
+-const fixedOutput = root + '/case20-native-recovery-v1-' + fixedRun;
+-const reviewPath = root + '/case20-native-recovery-v1-reviewed-input.json';
++const fixedOutput = root + '/case20-native-recovery-v2-' + fixedRun;
++const reviewPath = root + '/case20-native-recovery-v2-reviewed-input.json';
+ const previousOperator = 'af7aa8aff4777a2d4809e882c2b797fbb2cd51a2';
+ const origin = 'https://os.capiro.ai';
+ const pythonExecutable = 'C:/Users/neoma/AppData/Local/hermes/hermes-agent/venv/Scripts/python.exe';
+@@ -190,8 +190,21 @@
+       { userId: actor.clerkUserId, orgId: tenant.clerkOrgId, sessionId: createdSessionId }, { timeout: 45000 });
+     await verifyWeb(page, expectedWebSha);
+     need(!routeFailure, 'CASE20_BROWSER_REQUEST_BLOCKED');
+-    const bearer = await page.evaluate(() => window.Clerk.session.getToken({ template: 'capiro', skipCache: true }));
+-    need(typeof bearer === 'string' && bearer.length > 0, 'CASE20_CAPTURE_BEARER_UNAVAILABLE');
++    const refreshOwnedBearer = async () => {
++      await page.waitForFunction(({ userId, orgId, sessionId }) => window.Clerk?.loaded &&
++        window.Clerk.session?.id === sessionId && window.Clerk.user?.id === userId && window.Clerk.organization?.id === orgId,
++        { userId: actor.clerkUserId, orgId: tenant.clerkOrgId, sessionId: createdSessionId }, { timeout: 45000 });
++      need(!routeFailure, 'CASE20_BROWSER_REQUEST_BLOCKED');
++      const token = await page.evaluate(({ userId, orgId, sessionId }) => {
++        if (!window.Clerk?.loaded || window.Clerk.session?.id !== sessionId ||
++            window.Clerk.user?.id !== userId || window.Clerk.organization?.id !== orgId)
++          throw new Error('CASE20_BROWSER_IDENTITY_NOT_READY');
++        return window.Clerk.session.getToken({ template: 'capiro', skipCache: true });
++      }, { userId: actor.clerkUserId, orgId: tenant.clerkOrgId, sessionId: createdSessionId });
++      need(typeof token === 'string' && token.length > 0, 'CASE20_CAPTURE_BEARER_UNAVAILABLE');
++      return token;
++    };
++    const bearer = await refreshOwnedBearer();
+     summary.stage = 'QUALIFY_EXISTING_RESERVATION'; persist();
+     const authority = await acquireCase20PresubmissionRecoveryAuthority({ bearer,
+       invocation: 'QUALIFY_SAME_CASE20_UNSUBMITTED_RESERVATION_ONCE' });
+@@ -212,6 +225,7 @@
+       runRoot,
+       artifactStorage: storage,
+       spendReservation,
++      bearerSupplier: refreshOwnedBearer,
+       env: { MERI_LIVE_BEARER_TOKEN: bearer },
+     });
+     summary.capturePrepared = true;
+@@ -226,7 +240,7 @@
+       'CASE20_NATIVE_SETUP_CHANGED');
+     // Recovery proof repeats actual empty-conversation/no-admission reads once;
+     // native execution then checks current fixture, budget, messages and spend.
+-    await recheckCase20PresubmissionRecoveryAuthority({ authority, bearer,
++    await recheckCase20PresubmissionRecoveryAuthority({ authority, bearer: await refreshOwnedBearer(),
+       invocation: 'RECHECK_SAME_CASE20_BEFORE_FIRST_SUBMISSION_ONCE' });
+     summary.recoveryProof = inspectCase20PresubmissionRecoveryAuthority(authority);
+     need(!routeFailure, 'CASE20_BROWSER_REQUEST_BLOCKED');

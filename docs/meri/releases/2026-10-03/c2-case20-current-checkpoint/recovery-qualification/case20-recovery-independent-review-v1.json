@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "status": "PASS_BOUNDED_SOURCE_AND_COMPOSITION_REVIEW",
+  "reviewer": "/root/mail_defaults_review",
+  "reviewedAt": "2026-10-04T01:10:49.2232676Z",
+  "authorityCheckpoint": {
+    "path": "case20-presubmission-recovery-v1/checkpoint.json",
+    "sha256": "58ef5990df45131ed040f2a411e73240362362b7dee7ba04b81436649b2d5376",
+    "sourcePairsVerified": 3,
+    "evidenceFilesVerified": 14,
+    "retainedAndCurrentInputPinsVerified": 16,
+    "mismatches": 0
+  },
+  "sources": [
+    {
+      "path": "evals/meri/live-v1/case20-presubmission-recovery-authority.mjs",
+      "sha256": "cd2225d5be0d81ad359964d454c7329594f211d9e9e999ad36babc05cc426ac9"
+    },
+    {
+      "path": "evals/meri/live-v1/capture-spend-aggregate.mjs",
+      "sha256": "c1c389c96a6cd47133d2d5976a518ad4e5ca76b6f0d545f539037cb69e118823"
+    },
+    {
+      "path": "evals/meri/live-v1/tests/case20-presubmission-recovery.test.mjs",
+      "sha256": "3fed119bb1ab9ed74f68a646c42702b09b24f107aef79172b5be932626ae64bb"
+    }
+  ],
+  "operator": {
+    "path": "run-case20-native-recovery-v2.mjs",
+    "sha256": "c7bdbacd9f5cfef151c5d950d0e34c486dd7c795ccdb61c6dcd2e26418ecb2e8",
+    "predecessorPreserved": "run-case20-native-recovery-v1.mjs",
+    "result": "PASS_SOURCE_COMPOSITION",
+    "finalReviewedInput": "PENDING_EXACT_POST_COMMIT_BINDING"
+  },
+  "runnerReview": {
+    "path": "controlled-read-browser-readiness-v1/independent-review.json",
+    "sha256": "b21393e4bebada5ec2ba78147cb286d13449a91eca484394ca65c65ee7918fba"
+  },
+  "existingScope": {
+    "caseId": "20",
+    "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+    "conversationId": "db0e01ac-60a1-4e3c-b8ba-66748d087a2e",
+    "reservationId": "7ea73cdc-526e-4b31-8c28-b0636ea8d2ae",
+    "ceilingMicros": 15000000,
+    "journalEvents": 23,
+    "journalSha256": "d6213af1fd8330e9e97a688d903a3c1852b5f40265a66eafb6aa2bf1cfa2060b",
+    "apiAndOrchestratorSource": "4f0253874357c272fda1ae2a5271ee4af645f0bc"
+  },
+  "qualification": {
+    "receipt": "case20-presubmission-recovery-v1/focused-final.receipt.json",
+    "receiptSha256": "79b1e6d2fc885341f54e4d191403ba2f0bde6e2757a89b7da9daca3abc0035b8",
+    "log": "case20-presubmission-recovery-v1/focused-final.log",
+    "logSha256": "dcc9f97e140adda6098abf02eea54c6705f715c97559bdbce75960ad32f28ede",
+    "passed": 59,
+    "failed": 0,
+    "skipped": 0,
+    "syntaxChecks": 3,
+    "diffCheckExit": 0,
+    "independentlyRerun": false
+  },
+  "findings": [],
+  "conclusions": [
+    "Fixed evidence and original failure/history/claim/scope/setup/budget/source/current-journal pins are checked before the recovery claim and again through submission/settlement ownership.",
+    "Only authenticated fixed-origin GETs can mint the opaque authority. Current actor, tenant, selected client, exact source fixture, READY admission, qualification ceiling, empty messages and pristine metadata are required. Null or unknown metadata keys refuse.",
+    "Exclusive fsynced recovery claim precedes minting. Private restoration and recheck are consumed once; failed recheck poisons authority. JSON lookalikes, changed evidence and duplicate submissions refuse.",
+    "The aggregate delta adds one Case20 restore entry to the existing owner. Native fresh_read requires exact current checkpoint and same active reservation. No new reserve, adopt, refund, reducer or settlement path is introduced.",
+    "The output operator keeps the same conversation/run/scope, checks clean reviewed source, uses the existing controlled collector, waits and refreshes only its exact owned session, records uncertainty before one execute, retains the outcome before later assertions and independently cleans up its own session/browser."
+  ],
+  "limits": [
+    "This is source and retained-test qualification, not authorization or proof of a live continuation. Final reviewed-input bytes and clean committed source remain runtime gates.",
+    "The authenticated absence checks are point-in-time observations paired with a stopped original operator and exclusive local recovery claim; they do not claim a server-wide lock.",
+    "The browser diagnostic reproduces the readiness gap but does not identify the original unrecorded exception with certainty.",
+    "Permanent tests use inline sanitized fixtures and private VM collaborators. Native filesystem tests use disposable copies and a test-only outcome authority; they do not mint live capture authority.",
+    "The initial 48-pass/1-fail run is explicitly a fixture-shape failure, not product red evidence.",
+    "No new cloud/auth/provider/DB/capture/journal actions, test reruns or application source edits were performed for this review. Original Case01 failure, prior costs, original acceptance and human grading remain unchanged."
+  ],
+  "humanReleaseApproval": false,
+  "liveActions": 0,
+  "testsRerun": false
+}

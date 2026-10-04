@@ -1,0 +1,41 @@
+Archived from the already completed exec_command output (chunk 01e698).
+This is a saved transcript of that tool result; tests were not rerun for archival.
+Working directory: C:/dev/main/meri-c1-20261002
+Command: "C:/Program Files/nodejs/node.exe" --test evals/meri/live-v1/tests/controlled-read-operator.test.mjs evals/meri/live-v1/tests/controlled-read-refresh.test.mjs
+Exit code: 0
+
+✔ creation native HTTPS sends QA User-Agent and retains TLS, auth and one-write bounds (2.7836ms)
+✔ capture native HTTPS sends QA User-Agent and retains TLS, auth and one-write bounds (4.0487ms)
+✔ case20 input chain preserves fixed source and exact owner/CAS/budget/build identities (6.7805ms)
+✔ case72 input chain preserves fixed source and exact owner/CAS/budget/build identities (2.7582ms)
+✔ new reviewed500k rate sheet selects15USD while prior200k qualification remains3USD (3.1014ms)
+✔ rejects other cases/tenants and plans with modified fixed mappings or stale hash (1.2543ms)
+✔ seed/reset proof rejects swapped run, actor, client, operation and fabricated source/hash (1.886ms)
+✔ rates/installation require current bounded exact CAS and qualification joins (3.4738ms)
+✔ ordinary synthetic Clerk identity rejects wrong instance/org/member role and foreign user (1.5976ms)
+✔ browser cannot mutate application or leave canonical origin, while Clerk auth is allowed (0.3203ms)
+✔ post-navigation token read waits through unloaded Clerk and missing session for exact identity (1.6634ms)
+✔ wrong browser session, actor, org or unavailable token method blocks before token with sanitized failure (3.1283ms)
+✔ native bearer supplier refreshes the same session and rejects a later foreign session before token access (1.0529ms)
+✔ identity changes between readiness and token evaluation fail closed without token or capture preparation (2.3413ms)
+✔ native conversation readback requires new exact owned empty active row with no previous ledger (1.192ms)
+✔ materializer CLI refuses failed oneoff receipts and existing output; never starts auth on import (290.331ms)
+✔ submission observation preserves native zero/one and treats absent or invalid attempted outcomes as unknown (1.7411ms)
+✔ execution intent is fsynced before one native call and thrown-after-submission remains unknown (8.4503ms)
+✔ failed intent persistence prevents native dispatch without retry or swallowed error (2.4138ms)
+✔ native 0 is durably preserved before a failing final checkpoint (12.0266ms)
+✔ native 1 is durably preserved before a failing final checkpoint (10.7091ms)
+✔ fresh bearer per native call retains source header, TLS, tenant and exactly one POST (3.7348ms)
+✔ scope violations are refused before refreshing or networking (0.7653ms)
+✔ empty and header-injecting bearers never reach network (2.3872ms)
+✔ unresolved refresh uses existing deadline and performs no network/retry (35.2445ms)
+✔ existing static bearer callers still work (0.9871ms)
+✔ prepare exposes only optional trusted supplier and forwards it to private transport (0.2027ms)
+ℹ tests 27
+ℹ suites 0
+ℹ pass 27
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 502.5557

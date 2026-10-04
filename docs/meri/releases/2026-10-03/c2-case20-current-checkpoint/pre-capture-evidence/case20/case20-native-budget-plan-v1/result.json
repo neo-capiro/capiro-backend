@@ -1,0 +1,133 @@
+{
+  "at": "2026-10-04T00:48:53.236Z",
+  "mode": "plan",
+  "status": "BUDGET_PLAN_ONLY",
+  "exitCode": 0,
+  "sourceSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+  "candidateImage": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:23f529da3c1c00d401968811575dc075bced6c60669baa9a09e9c23575c9c452",
+  "packetSha256": "5d67f443a71180e7aa49e775f3f979a585348d5b6480a7e83b76432bef7bfbdf",
+  "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-c2-case20-budget-20261003:1",
+  "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/36f92924b12e4fd5acd4e7e915312102",
+  "inputSha256": "a72c2d69bebb9694edb38bc4131a60a093e6488f8cd3528fafd92db7f84a082d",
+  "innerScriptSha256": "f0314af18590f8a3ec5503cc6c39d2d9045b042d5b817482320339c6d38286dc",
+  "outerScriptSha256": "cd4d7e506f7b26ab04fcc2013964bb7dbd843c72028c734376b577cc21b50c69",
+  "wrapperSha256": "6c0972c6d042cc7e52cc0e8be87f9e1c367f49847f499820412e4e8ac83ba6d8",
+  "ownerReceipt": {
+    "path": "C:/dev/main/outputs/meri-c2-20261003/case20-native-budget-plan-v1/inner-owner-receipt.json",
+    "sha256": "f61c0e81ecfb2cf5567eb5069879139a710ec8cf52dcdb7eeda45212ee216260",
+    "bytes": 474
+  },
+  "ownerPlan": {
+    "path": "C:/dev/main/outputs/meri-c2-20261003/case20-native-budget-plan-v1/inner-owner-receipt.json",
+    "sha256": "f61c0e81ecfb2cf5567eb5069879139a710ec8cf52dcdb7eeda45212ee216260",
+    "bytes": 474,
+    "kind": "READY_FOR_RATE_QUALIFICATION",
+    "planSha256": "0772ae234776fe5317494792c41ddff7dfcf2c3f4f30e64dc5b81df0825caab2",
+    "sourceSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+    "scriptSha256": "f0314af18590f8a3ec5503cc6c39d2d9045b042d5b817482320339c6d38286dc",
+    "inputSha256": "a72c2d69bebb9694edb38bc4131a60a093e6488f8cd3528fafd92db7f84a082d",
+    "run": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+    "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-c2-case20-budget-20261003:1",
+    "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/36f92924b12e4fd5acd4e7e915312102",
+    "cleanup": {
+      "taskStopped": true,
+      "taskDefinitionInactive": true
+    }
+  },
+  "priorPlan": null,
+  "innerObservedStatus": "READY_FOR_RATE_QUALIFICATION",
+  "qualificationInstallation": "NOT_ATTEMPTED",
+  "setupReceiptSha256": "9ac732d7a5d4b066cea584804218f2f68083a445c016092b4f72d8f8a92f2cfd",
+  "ratesSha256": "3531e09dfcce9f66b4ea2b3564db47bd72dc507cdcf1aecdda277b838007704e",
+  "ownerInputSha256": "116670b45a6529cff0c526a336d29f40927eb4b04b2d3ee548af24060027639e",
+  "childExitCode": 0,
+  "taskExitCode": 0,
+  "events": [],
+  "failures": [],
+  "rawFrameRecords": [
+    {
+      "phase": "BEGIN",
+      "version": 1,
+      "kind": "case20-native-budget-json",
+      "mode": "plan",
+      "sourceSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+      "inputSha256": "a72c2d69bebb9694edb38bc4131a60a093e6488f8cd3528fafd92db7f84a082d",
+      "scriptSha256": "f0314af18590f8a3ec5503cc6c39d2d9045b042d5b817482320339c6d38286dc",
+      "ownerInputSha256": "116670b45a6529cff0c526a336d29f40927eb4b04b2d3ee548af24060027639e",
+      "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+      "outputPath": "/dev/shm/case20-native-budget-plan-owner.json",
+      "byteLength": 474,
+      "base64Length": 632,
+      "chunks": 1,
+      "sha256": "f61c0e81ecfb2cf5567eb5069879139a710ec8cf52dcdb7eeda45212ee216260",
+      "childExitCode": 0,
+      "childSignal": null,
+      "ownerOutput": "OWNER_SUCCESS"
+    },
+    {
+      "phase": "CHUNK",
+      "sha256": "f61c0e81ecfb2cf5567eb5069879139a710ec8cf52dcdb7eeda45212ee216260",
+      "index": 1,
+      "data": "ewogICJzdGF0dXMiOiAiUkVBRFlfRk9SX1JBVEVfUVVBTElGSUNBVElPTiIsCiAgImNhc2VJZCI6ICIyMCIsCiAgImNhcHR1cmVSdW5JZCI6ICJmNGJiMzBiYi1lYmI0LTRmYmEtODlhOS1kNDlhZWFmZWZkMWIiLAogICJjdXJyZW50VmVyaWZ5U2hhMjU2IjogIjkyNWM0NzM1ZTRkNDM1YWIwNmM0MGIzMWVlNTkwYjBjZTRlN2Q5MjIwYjc0MjE1NWM2N2U0MTE1YjFiYzY1MTYiLAogICJjYXB0dXJlQmluZGluZ1NoYTI1NiI6ICIwMTYyYjNiZmM2ZmU4YTI5MDZhNzMyZDFiN2I0NjljYjdjYzBlZWNhNWI5NTc5MDViZmQ4OTE3YWRhYThiNWVkIiwKICAicHJpb3JRdWFsaWZpY2F0aW9uU2hhMjU2IjogIjc0MjM0ZTk4YWZlNzQ5OGZiNWRhZjFmMzZhYzJkNzhhY2MzMzk0NjRmOTUwNzAzYjhjMDE5ODkyZjk4MmI5MGIiLAogICJ0ZW5hbnRSb3dWZXJzaW9uIjogIjExNDc0NzA0NyIsCiAgImxpdmVBY2NlcHRhbmNlIjogIk5PVF9SVU4iCn0K"
+    },
+    {
+      "phase": "END",
+      "version": 1,
+      "kind": "case20-native-budget-json",
+      "mode": "plan",
+      "sourceSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+      "inputSha256": "a72c2d69bebb9694edb38bc4131a60a093e6488f8cd3528fafd92db7f84a082d",
+      "scriptSha256": "f0314af18590f8a3ec5503cc6c39d2d9045b042d5b817482320339c6d38286dc",
+      "ownerInputSha256": "116670b45a6529cff0c526a336d29f40927eb4b04b2d3ee548af24060027639e",
+      "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+      "outputPath": "/dev/shm/case20-native-budget-plan-owner.json",
+      "byteLength": 474,
+      "base64Length": 632,
+      "chunks": 1,
+      "sha256": "f61c0e81ecfb2cf5567eb5069879139a710ec8cf52dcdb7eeda45212ee216260",
+      "childExitCode": 0,
+      "childSignal": null,
+      "ownerOutput": "OWNER_SUCCESS"
+    }
+  ],
+  "observations": [],
+  "postOperationSnapshots": {
+    "api": {
+      "baseline": {
+        "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:521",
+        "serviceHash": "793302143e44176b8dd4cd79f914ef57c50567f5665b06ff65cca32b0071ef0c",
+        "configHash": "973748a2b134b388a6027df6c5c099055a7e24f7b746eafbaae8cebad077258a",
+        "taskHash": "b6108d13d2558e5cf4dd762a81406574aab92546736606b870da283af45b4170",
+        "imageDigest": "sha256:23f529da3c1c00d401968811575dc075bced6c60669baa9a09e9c23575c9c452",
+        "desiredCount": 2
+      },
+      "serviceName": "capiro-dev-api",
+      "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:521"
+    },
+    "meriv2-orchestrator": {
+      "baseline": {
+        "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:117",
+        "serviceHash": "70aea1ca7863f98f9c8febcc25c048ab68067e3491abc3b836fea8e44238db44",
+        "configHash": "3a4fabd2139e347cd8b45192579f2a3fbaaa6fc3678762b5252f727a4461951b",
+        "taskHash": "7444417aec330d62f970880153f12e1dae52bded0a9a2aaf475385eb24c9e56e",
+        "imageDigest": "sha256:1c491a5ac46ea320195fe8ab367322ad2ebbd0949d69530b5ccfba2de84eb491",
+        "desiredCount": 1
+      },
+      "serviceName": "capiro-dev-meriv2-orchestrator",
+      "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:117"
+    }
+  },
+  "cleanup": {
+    "taskStopped": true,
+    "stopAttempted": false,
+    "taskDefinitionInactive": true,
+    "deregisterAttempted": true
+  },
+  "budgetOnly": true,
+  "liveAcceptance": "NOT_RUN",
+  "budgetInstallation": "NOT_ATTEMPTED",
+  "providerCalls": 0,
+  "sharedSourceCorpusWrites": 0,
+  "automaticRetryAllowed": false,
+  "evidencePersistenceFailed": false
+}

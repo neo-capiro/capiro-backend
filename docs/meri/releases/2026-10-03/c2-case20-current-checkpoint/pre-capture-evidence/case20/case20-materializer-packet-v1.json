@@ -1,0 +1,11 @@
+{
+  "inputPath": "C:/dev/main/outputs/meri-c2-20261003/case20-local-preparation-v1/setup-plan-input.json",
+  "setupPlanPath": "C:/dev/main/outputs/meri-c2-20261003/case20-native-setup-plan-v1/materializer-receipt.json",
+  "setupReceiptPath": "C:/dev/main/outputs/meri-c2-20261003/case20-native-setup-execute-v1/materializer-receipt.json",
+  "budgetPlanPath": "C:/dev/main/outputs/meri-c2-20261003/case20-native-budget-plan-v1/materializer-receipt.json",
+  "reviewedRatesPath": "C:/dev/main/outputs/meri-c2-20261003/reviewed-rates-c2-v2-20261003.json",
+  "budgetInstallInputPath": "C:/dev/main/outputs/meri-c2-20261003/case20-native-budget-install-v1/owner-input.json",
+  "budgetInstallReceiptPath": "C:/dev/main/outputs/meri-c2-20261003/case20-native-budget-install-v1/materializer-receipt.json",
+  "deploymentPath": "C:/dev/main/outputs/meri-c2-20261003/case20-deployment-input-v1.json",
+  "aggregateCheckpointPath": "C:/dev/main/outputs/meri-c2-20261003/case01-terminal-cost-executed-v1/aggregate-checkpoint.json"
+}

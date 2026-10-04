@@ -1,0 +1,118 @@
+{
+  "at": "2026-10-04T00:36:15.163Z",
+  "mode": "execute",
+  "status": "SETUP_ONLY_COMPLETE",
+  "exitCode": 0,
+  "sourceSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+  "candidateImage": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:23f529da3c1c00d401968811575dc075bced6c60669baa9a09e9c23575c9c452",
+  "packetSha256": "5d67f443a71180e7aa49e775f3f979a585348d5b6480a7e83b76432bef7bfbdf",
+  "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-c2-case20-setup-20261003:2",
+  "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/5d7e41d822e64c77b1278f1fa237bef3",
+  "inputSha256": "a72c2d69bebb9694edb38bc4131a60a093e6488f8cd3528fafd92db7f84a082d",
+  "innerScriptSha256": "36e6c8021e8033f282be2534767e0a1ea94c27fdc98af08aadab0c26b25b15de",
+  "outerScriptSha256": "9f81d8f0b5aec4211d2e03bb94dc27c93fd4d7f12bc38f70ed5c7773f03699f2",
+  "wrapperSha256": "b11b331dcc0bc4a7a6286902015f2e39670177a171b830a49aef14223e847c02",
+  "ownerReceipt": {
+    "path": "C:/dev/main/outputs/meri-c2-20261003/case20-native-setup-execute-v1/inner-owner-receipt.json",
+    "sha256": "9ac732d7a5d4b066cea584804218f2f68083a445c016092b4f72d8f8a92f2cfd",
+    "bytes": 2742
+  },
+  "ownerPlan": null,
+  "priorPlan": {
+    "resultPath": "C:/dev/main/outputs/meri-c2-20261003/case20-native-setup-plan-v1/result.json",
+    "resultSha256": "aa57f83930da0848410e97e50efae812fa7b79fe5df6aaa311953f8a529d373b",
+    "receiptPath": "C:/dev/main/outputs/meri-c2-20261003/case20-native-setup-plan-v1/inner-owner-receipt.json",
+    "receiptSha256": "1d1ebb9412e82a18c4c30e32466480fe3a6c124d60147242f2bc8c1ed5c05b31",
+    "planSha256": "b3e4b74baa4d11c605f7f64f9116afcaaaa61f1d2dedffa3f3484e56a7b95b4f"
+  },
+  "innerObservedStatus": "CONTROLLED_READ_BOUND",
+  "priorBudgetQualification": "CLEARED_BY_EXISTING_NATIVE_OWNER",
+  "childExitCode": 0,
+  "taskExitCode": 0,
+  "events": [],
+  "failures": [],
+  "rawFrameRecords": [
+    {
+      "phase": "BEGIN",
+      "version": 1,
+      "kind": "case20-native-setup-json",
+      "mode": "execute",
+      "sourceSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+      "inputSha256": "a72c2d69bebb9694edb38bc4131a60a093e6488f8cd3528fafd92db7f84a082d",
+      "scriptSha256": "36e6c8021e8033f282be2534767e0a1ea94c27fdc98af08aadab0c26b25b15de",
+      "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+      "outputPath": "/dev/shm/case20-native-setup-execute-owner.json",
+      "byteLength": 2742,
+      "base64Length": 3656,
+      "chunks": 1,
+      "sha256": "9ac732d7a5d4b066cea584804218f2f68083a445c016092b4f72d8f8a92f2cfd",
+      "childExitCode": 0,
+      "childSignal": null,
+      "ownerOutput": "OWNER_SUCCESS"
+    },
+    {
+      "phase": "CHUNK",
+      "sha256": "9ac732d7a5d4b066cea584804218f2f68083a445c016092b4f72d8f8a92f2cfd",
+      "index": 1,
+      "data": "ewogICJzdGF0dXMiOiAiQ09OVFJPTExFRF9SRUFEX0JPVU5EIiwKICAib3BlcmF0aW9uSWQiOiAiNjg2YjAwZTktNmVlOS00ZTQ0LWIyOWItYTcyODc5NWYwZDgzIiwKICAiYmluZGluZyI6IHsKICAgICJjYXNlSWQiOiAiMjAiLAogICAgImNhcHR1cmVSdW5JZCI6ICJmNGJiMzBiYi1lYmI0LTRmYmEtODlhOS1kNDlhZWFmZWZkMWIiLAogICAgImZpeHR1cmVWZXJzaW9uIjogIm1lcmktbGl2ZS12MS0yMDI2LTA5LTI2LjEiLAogICAgInBoeXNpY2FsTWFwU2hhMjU2IjogIjkyOWViYjQzMzg4NmMwMzVjZmJjYmNmOGE1MzdhY2RlMjE1N2JlYzg2NjM0YmZjMzg0YjU5NGRmYmNhMDU4NjEiLAogICAgInNlZWRSZWNlaXB0SWQiOiAibWVyaS1zeW50aGV0aWMtZml4dHVyZS1zZWVkLXJlY2VpcHQ6c2hhMjU2OmRiZGE1MmRiZDllMTczMjA1MTlkNGNjNDBiY2Q3Mzk3NWZiZjBjZTBmYWUyMTM0MWExZGU1MzU2NDRmNjE5ZTgiLAogICAgInJlc2V0UmVjZWlwdElkIjogIm1lcmktc3ludGhldGljLWZpeHR1cmUtcmVzZXQtcmVjZWlwdDpzaGEyNTY6Mjg2MzBlYzlmODY3MzczMDk0NTgzZThmMTZlYWY1MjFmOGJlMDA1MDhkMDNiN2I3MTNjMTE3ODRhYjIxNGRlMCIsCiAgICAiZml4dHVyZU5hbWVzcGFjZSI6ICJtZXJpLWZvdW5kYXRpb24tMjAyNjA5MjgiLAogICAgImFjdG9yVXNlcklkIjogImIxZjc1OGZjLTE3YmQtNDBmOC1iZWYyLWZhMmQyMzgwMzAwZiIsCiAgICAiY2xpZW50SWQiOiAiNDFmOWVjNjMtMzk2My00NzlmLWI3NDctNTlhMzc2N2VmNDRiIiwKICAgICJjdXJyZW50VmVyaWZ5U2hhMjU2IjogIjkyNWM0NzM1ZTRkNDM1YWIwNmM0MGIzMWVlNTkwYjBjZTRlN2Q5MjIwYjc0MjE1NWM2N2U0MTE1YjFiYzY1MTYiCiAgfSwKICAic291cmNlTWFwIjogewogICAgIlIyLTI3IjogewogICAgICAiZnJvemVuRml4dHVyZUlkIjogIlIyLTI3IiwKICAgICAgInBoeXNpY2FsSWQiOiAiMmQwYzAxNmUtOGRhZC01ZjZlLTgwZGQtZTM2NzQwZmZmN2VlIiwKICAgICAgInRlbmFudFBoeXNpY2FsSWQiOiAiZjJkNmNmOGYtMDU3Yy00NzlhLTgxMTAtNjJmZTUwODZkNDNmIiwKICAgICAgImNsaWVudFBoeXNpY2FsSWQiOiBudWxsLAogICAgICAia2luZCI6ICJidWRnZXRfZG9jdW1lbnQiLAogICAgICAidmVyc2lvbiI6ICJ2MSIKICAgIH0KICB9LAogICJjdXJyZW50VmVyaWZ5U2hhMjU2IjogIjkyNWM0NzM1ZTRkNDM1YWIwNmM0MGIzMWVlNTkwYjBjZTRlN2Q5MjIwYjc0MjE1NWM2N2U0MTE1YjFiYzY1MTYiLAogICJzZWVkUmVjZWlwdCI6IHsKICAgICJzY2hlbWFWZXJzaW9uIjogMSwKICAgICJjb250cmFjdFZlcnNpb24iOiAibWVyaS1zeW50aGV0aWMtZml4dHVyZS1wcm92aXNpb25pbmctdjEiLAogICAgImtpbmQiOiAibWVyaS1zeW50aGV0aWMtZml4dHVyZS1zZWVkLXJlY2VpcHQiLAogICAgIm93bmVyIjogIm1lcmlfY29udHJvbGxlZF9yZWFkX3YxIiwKICAgICJvcGVyYXRpb25JZCI6ICI2ODZiMDBlOS02ZWU5LTRlNDQtYjI5Yi1hNzI4Nzk1ZjBkODMiLAogICAgInRlbmFudElkIjogImYyZDZjZjhmLTA1N2MtNDc5YS04MTEwLTYyZmU1MDg2ZDQzZiIsCiAgICAiYWN0b3JVc2VySWQiOiAiYjFmNzU4ZmMtMTdiZC00MGY4LWJlZjItZmEyZDIzODAzMDBmIiwKICAgICJjYXNlSWQiOiAiMjAiLAogICAgImNsaWVudElkIjogIjQxZjllYzYzLTM5NjMtNDc5Zi1iNzQ3LTU5YTM3NjdlZjQ0YiIsCiAgICAiY2FwdHVyZVJ1bklkIjogImY0YmIzMGJiLWViYjQtNGZiYS04OWE5LWQ0OWFlYWZlZmQxYiIsCiAgICAiZGVmaW5pdGlvblNoYTI1NiI6ICJiZmI3YWY5ZDYwN2Q2YmEwYmQ4MTQ3OWM3MmMyODJlYTUwZjA4MmE1ZjljZWNjN2VhMWQ4OTE1NTAzYjQ5M2Y5IiwKICAgICJwaHlzaWNhbE1hcFNoYTI1NiI6ICI5MjllYmI0MzM4ODZjMDM1Y2ZiY2JjZjhhNTM3YWNkZTIxNTdiZWM4NjYzNGJmYzM4NGI1OTRkZmJjYTA1ODYxIiwKICAgICJzb3VyY2VTdG9yYWdlIjogImltbXV0YWJsZV9zb3VyY2Vfb3duZWRfY29udHJvbGxlZF9hZGFwdGVyIiwKICAgICJzaGFyZWRDb3JwdXNXcml0ZXMiOiAwLAogICAgImNvbnRlbnRTaGEyNTYiOiAiZGJkYTUyZGJkOWUxNzMyMDUxOWQ0Y2M0MGJjZDczOTc1ZmJmMGNlMGZhZTIxMzQxYTFkZTUzNTY0NGY2MTllOCIKICB9LAogICJyZXNldFJlY2VpcHQiOiB7CiAgICAic2NoZW1hVmVyc2lvbiI6IDEsCiAgICAiY29udHJhY3RWZXJzaW9uIjogIm1lcmktc3ludGhldGljLWZpeHR1cmUtcHJvdmlzaW9uaW5nLXYxIiwKICAgICJraW5kIjogIm1lcmktc3ludGhldGljLWZpeHR1cmUtcmVzZXQtcmVjZWlwdCIsCiAgICAib3duZXIiOiAibWVyaV9jb250cm9sbGVkX3JlYWRfdjEiLAogICAgIm9wZXJhdGlvbklkIjogIjY4NmIwMGU5LTZlZTktNGU0NC1iMjliLWE3Mjg3OTVmMGQ4MyIsCiAgICAic2NvcGUiOiAicmVwbGFjZV9vd25lZF9jYXB0dXJlX2JpbmRpbmdfYW5kX2NvbnRyb2xsZWRfbG9jYXRvcl9vbmx5IiwKICAgICJwcmlvclNldHRpbmdzU2hhMjU2IjogImE0MjRkMWQ2Njk3Zjc0MzRjMDVhN2Q1M2VmY2QyNzAzY2MwZDEzZDc2ZGFkMmE2OTMwMzUyMmQ0ODZkYWI0MDkiLAogICAgInNoYXJlZENvcnB1c1dyaXRlcyI6IDAsCiAgICAiY29udGVudFNoYTI1NiI6ICIyODYzMGVjOWY4NjczNzMwOTQ1ODNlOGYxNmVhZjUyMWY4YmUwMDUwOGQwM2I3YjcxM2MxMTc4NGFiMjE0ZGUwIgogIH0sCiAgInNoYXJlZENvcnB1c1dyaXRlcyI6IDAsCiAgImxpdmVBY2NlcHRhbmNlIjogIk5PVF9SVU4iCn0K"
+    },
+    {
+      "phase": "END",
+      "version": 1,
+      "kind": "case20-native-setup-json",
+      "mode": "execute",
+      "sourceSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+      "inputSha256": "a72c2d69bebb9694edb38bc4131a60a093e6488f8cd3528fafd92db7f84a082d",
+      "scriptSha256": "36e6c8021e8033f282be2534767e0a1ea94c27fdc98af08aadab0c26b25b15de",
+      "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+      "outputPath": "/dev/shm/case20-native-setup-execute-owner.json",
+      "byteLength": 2742,
+      "base64Length": 3656,
+      "chunks": 1,
+      "sha256": "9ac732d7a5d4b066cea584804218f2f68083a445c016092b4f72d8f8a92f2cfd",
+      "childExitCode": 0,
+      "childSignal": null,
+      "ownerOutput": "OWNER_SUCCESS"
+    }
+  ],
+  "observations": [],
+  "postOperationSnapshots": {
+    "api": {
+      "baseline": {
+        "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:521",
+        "serviceHash": "793302143e44176b8dd4cd79f914ef57c50567f5665b06ff65cca32b0071ef0c",
+        "configHash": "973748a2b134b388a6027df6c5c099055a7e24f7b746eafbaae8cebad077258a",
+        "taskHash": "b6108d13d2558e5cf4dd762a81406574aab92546736606b870da283af45b4170",
+        "imageDigest": "sha256:23f529da3c1c00d401968811575dc075bced6c60669baa9a09e9c23575c9c452",
+        "desiredCount": 2
+      },
+      "serviceName": "capiro-dev-api",
+      "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:521"
+    },
+    "meriv2-orchestrator": {
+      "baseline": {
+        "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:117",
+        "serviceHash": "70aea1ca7863f98f9c8febcc25c048ab68067e3491abc3b836fea8e44238db44",
+        "configHash": "3a4fabd2139e347cd8b45192579f2a3fbaaa6fc3678762b5252f727a4461951b",
+        "taskHash": "7444417aec330d62f970880153f12e1dae52bded0a9a2aaf475385eb24c9e56e",
+        "imageDigest": "sha256:1c491a5ac46ea320195fe8ab367322ad2ebbd0949d69530b5ccfba2de84eb491",
+        "desiredCount": 1
+      },
+      "serviceName": "capiro-dev-meriv2-orchestrator",
+      "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:117"
+    }
+  },
+  "cleanup": {
+    "taskStopped": true,
+    "stopAttempted": false,
+    "taskDefinitionInactive": true,
+    "deregisterAttempted": true
+  },
+  "setupOnly": true,
+  "liveAcceptance": "NOT_RUN",
+  "budgets": "NOT_INSTALLED",
+  "providerCalls": 0,
+  "sharedSourceCorpusWrites": 0,
+  "automaticRetryAllowed": false,
+  "evidencePersistenceFailed": false
+}

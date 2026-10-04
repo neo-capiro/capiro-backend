@@ -1,0 +1,14 @@
+{
+  "checkedAt": "2026-10-04T00:31:32.763Z",
+  "files": {
+    "run-authorization.json": {
+      "sha256": "e07822e83a7c7b531606519ecd4fdf1027f2fa7cbaefd4bad92a2084590262fe",
+      "bytes": 489
+    },
+    "fresh-spend.jsonl": {
+      "sha256": "a8c8101a4d806ef8080e1648c9e46568a55b7b5f93cb0f053a3d601404bfe3b5",
+      "bytes": 14139
+    }
+  },
+  "readOnly": true
+}

@@ -1,0 +1,149 @@
+{
+  "status": "ORIGINAL_CASE17_LOCATOR_RECOVERED_NO_NEW_FIXTURE",
+  "at": "2026-10-04T00:35:50.462Z",
+  "sourceSha": "af7aa8aff4777a2d4809e882c2b797fbb2cd51a2",
+  "config": {
+    "schemaVersion": 1,
+    "caseId": "17",
+    "target": "https://os.capiro.ai",
+    "captureRunId": "83fc19ac-5da2-49e7-b368-bcdb4704c3d5",
+    "recipe": {
+      "schemaVersion": 1,
+      "target": "capiro-dev",
+      "fixtureNamespace": "meri-foundation-20260928",
+      "caseId": "17",
+      "fixtureInstanceId": "63c7bb50-1971-49df-96b9-c6c94c562078",
+      "ctx": {
+        "role": "user_admin",
+        "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+        "tenantSlug": "meri-foundation-20260928-t1",
+        "userId": "fb218bf5-2674-4ced-bca3-7a5d0c01592f"
+      },
+      "clerkUserId": "user_3Jw2G2jbyyDlrrg6zCNd4gYUDfH",
+      "actors": {
+        "PAT": {
+          "tenantId": "T1",
+          "physicalId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f"
+        },
+        "PRIYA": {
+          "tenantId": "T1",
+          "physicalId": "fb218bf5-2674-4ced-bca3-7a5d0c01592f"
+        },
+        "ELI": {
+          "tenantId": "T1",
+          "physicalId": "c81e97df-a6e8-4dea-9de0-33bc7b393ca8"
+        }
+      },
+      "clients": {
+        "ASTER": {
+          "tenantId": "T1",
+          "physicalId": "41f9ec63-3963-479f-b747-59a3767ef44b"
+        },
+        "BLUEHAVEN": {
+          "tenantId": "T1",
+          "physicalId": "494f6834-d09e-4723-8a64-b2df57c683e8"
+        },
+        "CEDAR": {
+          "tenantId": "T2",
+          "physicalId": "d966c570-5729-44e6-9d28-8e9c1833aea1"
+        }
+      }
+    },
+    "clerkOrganizationId": "org_3Jw2G4KLYzp2j3xg0OXhyvbItRM",
+    "deployment": {
+      "apiSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+      "webSha": "78ad5805679a3045b1fc10fb19beafa7f76e4e64",
+      "builds": {
+        "api": {
+          "service": "api",
+          "sourceSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+          "imageDigest": "sha256:23f529da3c1c00d401968811575dc075bced6c60669baa9a09e9c23575c9c452",
+          "buildId": "capiro-build-web-dev:5ca674e3-f986-46fa-bb05-2ca8e14d1d67",
+          "buildspecSha256": "61cc399b632b885b2c17dfb692a536ba493246465573fb83469669c6267e2811"
+        },
+        "web-vnext": {
+          "service": "web-vnext",
+          "sourceSha": "78ad5805679a3045b1fc10fb19beafa7f76e4e64",
+          "imageDigest": "sha256:a048aceec01c207b514f76fb447d4fb8bdb5ed17278642480008a1510a12de4c",
+          "buildId": "capiro-build-web-dev:f2d89683-bcc5-48dc-a4da-849ced167860",
+          "buildspecSha256": "0fce5b86940b9599702942ff25c462a51977ef7e6106f6af59dfe22b54f1daf6"
+        }
+      }
+    },
+    "limits": {
+      "concurrency": 1,
+      "maxSynthesisSubmissions": 0,
+      "maxApplicationWrites": 0
+    }
+  },
+  "sourceFiles": [
+    {
+      "path": "evals/meri/live-v1/case17-live-capture.mjs",
+      "sha256": "7957589436d62483246b23a29d96c5d4a5d017789f83b9f0dee594498c46b18b"
+    },
+    {
+      "path": "evals/meri/live-v1/case17-memory-ui.mjs",
+      "sha256": "351af0ae5ab6a5ce78f1e8642985c02384f02bd24bab36fbe52f8a8cbc5b706b"
+    },
+    {
+      "path": "evals/meri/live-v1/case17-readonly-guard.mjs",
+      "sha256": "6c8d3e5e0dfafba4a0132a2ff3151fcfce245e9b4cc0ad0c2b0a05ac38636b09"
+    },
+    {
+      "path": "evals/meri/live-v1/case17-saved-checks.mjs",
+      "sha256": "cd5d8b8bb91099928508f4aaa5db74275c3c874388d51042f21bd98f567dd301"
+    },
+    {
+      "path": "evals/meri/live-v1/case17-build-authority.mjs",
+      "sha256": "dc068e2f3aa0aae7bea5802a80cf0e511397a92160b39f698b453bf372a15021"
+    },
+    {
+      "path": "evals/meri/live-v1/grade-case17-capture.mjs",
+      "sha256": "13586eda4b84f83aaf335ed6262e9e8a4b9456ede942692c032466e878550be5"
+    },
+    {
+      "path": "evals/meri/live-v1/windows-artifact-storage.mjs",
+      "sha256": "8b03eeccad53a92fc4cf7bcf4976522ecf7ed2126591449e28a6a70948ac01c4"
+    },
+    {
+      "path": "evals/meri/live-v1/fixture-provisioning/manifest.mjs",
+      "sha256": "8f1276ef0aaaef9b648bb1cbd0a037ee7d11d0a78db9691ab4de70b3b5db667a"
+    },
+    {
+      "path": "evals/meri/live-v1/fixture-provisioning/memory-pending-fixture-plan.mjs",
+      "sha256": "7d683e5594bf4a76ee20d2ed9c926773436d63a87aff6f33ef0a69292d38968e"
+    },
+    {
+      "path": "evals/meri/live-v1/fixture-provisioning/contract.mjs",
+      "sha256": "301f39229b64b3878d2fa9783d2cac5cd716fdf8acb125a2e758dc698e36076e"
+    },
+    {
+      "path": "evals/meri/live-v1/lib/stable.mjs",
+      "sha256": "03bba6f6dd1c48bf206ed32c628e1f9ce2038d75a9560d33d044950261f45c23"
+    },
+    {
+      "path": "evals/meri/live-v1/lib/windows-artifact-protocol.py",
+      "sha256": "3a30f6a211a5a7815c7f721dbb09871a33f316e7ecd8fbac0b4b1cf95ead33db"
+    }
+  ],
+  "originalRecipeSha256": "853dbf7f1e839639658e6cb9e2575fd4ef31fccf9d67b339d8ae4894537807d6",
+  "priorCaptureSha256": "1ddc03c596f800ab30f849b0dafbd7b04c21ce16280653e5286b476b1a4a1202",
+  "originalPromptSubmission": "NOT_RUN",
+  "fullOriginalRow17Acceptance": false,
+  "applicationWrites": 0,
+  "providerCalls": 0,
+  "credentialsSaved": false,
+  "previousAttempt": {
+    "path": "case17-regression-v2-result.json",
+    "sha256": "e0259a172f38e5b59ba18cca7725142d963ebe01029ed68bd7ac4a7007b2a99b",
+    "status": "UI_SLICE_PASS"
+  },
+  "provenanceNavigation": {
+    "status": "UNAVAILABLE_IN_SERVED_UI_SOURCE",
+    "sourcePath": "apps/web/src/vnext/meri/MeriMemoryTab.tsx",
+    "sourceSha256": "a9dfd1b22f9172846f43bec00601b67f07379aa32bd496263f967b9b61e06cc9",
+    "reason": "Owned proposal cards expose plain source-kind text and Withdraw; no source-navigation link or control. Existing collector observes the cards without inventing a navigation target.",
+    "canonicalSourceBinding": "Distinct ownership markers are checked by existing current-owner joins; this is not distinct-source UI navigation."
+  },
+  "servedReadbackSha256": "8552a710a602df8a38eaea900dda61ec7162423ef5a3f6422471c76ad5432552"
+}

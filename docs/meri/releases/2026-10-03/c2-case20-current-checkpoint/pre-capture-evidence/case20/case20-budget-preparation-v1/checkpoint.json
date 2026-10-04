@@ -1,0 +1,177 @@
+{
+  "kind": "CASE20_CANONICAL_BUDGET_FROZEN_CANDIDATE",
+  "frozenAt": "2026-10-04T00:46:36.431325+00:00",
+  "candidateSource": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+  "runId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+  "sources": [
+    {
+      "path": "supervised-candidate/run-case20-native-budget.mjs",
+      "sha256": "cd4d7e506f7b26ab04fcc2013964bb7dbd843c72028c734376b577cc21b50c69",
+      "bytes": 58164
+    },
+    {
+      "path": "supervised-candidate/case20-native-budget-inner.mjs",
+      "sha256": "f0314af18590f8a3ec5503cc6c39d2d9045b042d5b817482320339c6d38286dc",
+      "bytes": 14842
+    }
+  ],
+  "evidence": [
+    {
+      "path": "README.md",
+      "sha256": "82dc5f7b4e1333338c10e0a1f43d74e8f160c29521fc51fe23df15c2e9cd83e4",
+      "bytes": 4605
+    },
+    {
+      "path": "qualify-budget-delta.mjs",
+      "sha256": "89f3fbde42fb70f0f3e9d9b5e7d07343a7f9c0312e7ee667de0fca2bbf94bd19",
+      "bytes": 12433
+    },
+    {
+      "path": "setup-v3-to-budget.diff",
+      "sha256": "0481908f2958ab949dd822d5f0241d06d6b6a18550f2f4eeb4ed68ceb3a0bc24",
+      "bytes": 34277
+    },
+    {
+      "path": "hermes-inner-supervisor.diff",
+      "sha256": "4e059a66730ddf9259433c08d6abf8ef3b04de142779acbc286fbfe9f4054f07",
+      "bytes": 1314
+    },
+    {
+      "path": "test-loader-failure.json",
+      "sha256": "5484d704cbf4845136848f71e80b116b16d8a47a4f93c678fe230bd72a411cc6",
+      "bytes": 296
+    },
+    {
+      "path": "red-hermes/receipt.json",
+      "sha256": "62fc52d220c308d2882473f6915f4a3c29ca2712eec1db232f87adef278e75a5",
+      "bytes": 3786
+    },
+    {
+      "path": "green-supervised/receipt.json",
+      "sha256": "7958ed15b841c20489fe88c7457d90fe6698707e333c345b94d517a7d8627dc5",
+      "bytes": 3656
+    },
+    {
+      "path": "final-red-hermes/receipt.json",
+      "sha256": "806970c57e95ee70661643bb20a0acf981238d1061f42f2fea9d0a4e63439ef4",
+      "bytes": 4044
+    },
+    {
+      "path": "final-green/receipt.json",
+      "sha256": "f9df7e93b021180a30127de391d20b067f8e9529efd5a1695bcde2c23e299566",
+      "bytes": 3914
+    },
+    {
+      "path": "final-green.log",
+      "sha256": "6b65bb44d10279c78c94d71d57847c9f483549eccaef65d73a042320b0dee685",
+      "bytes": 1711
+    },
+    {
+      "path": "final-qualification-receipt.json",
+      "sha256": "bafc09c5e5e08563628a108109ce21a97209904521bc90ed98eb25711c820b9c",
+      "bytes": 1243
+    },
+    {
+      "path": "final-exact-input/receipt.json",
+      "sha256": "a99510bf2a33149895526f77c23a82b16aeb7a2f8870a45b80644226d286a3f4",
+      "bytes": 3914
+    },
+    {
+      "path": "final-source-qualification.json",
+      "sha256": "1a57768182b4cad664f04fcfa322b37231984b948cfcab2e914493b7ef71b8b5",
+      "bytes": 1082
+    },
+    {
+      "path": "supervised-candidate/case20-native-budget-inner.mjs.hermes-original",
+      "sha256": "337f84bd9e2c8c17243f46b18e64fa24d7a88bfffcd96c669b38128d81fd2162",
+      "bytes": 14614
+    },
+    {
+      "path": "run-hermes-budget-inner.py",
+      "sha256": "8ec30c241553dc414113f9e71c2c24ec67f6f18bd0ad02ce3de2cdc589633c4f",
+      "bytes": 1804
+    },
+    {
+      "path": "hermes-draft/hermes-prompt.txt",
+      "sha256": "494aa51ae919404b68047a6cb570cdb82be65a95bc3a49bc54ed677e3f5ce76e",
+      "bytes": 3929
+    },
+    {
+      "path": "hermes-draft/hermes-intent.json",
+      "sha256": "a6bde7017275f656ada869b2258e20b9048a37527f14432edf173d5ed4c22371",
+      "bytes": 478
+    },
+    {
+      "path": "hermes-draft/hermes-response.txt",
+      "sha256": "20592b591cad2dce42c4a1474ec9e54c07c7c089f600502268abd0f9b15a708e",
+      "bytes": 557
+    },
+    {
+      "path": "hermes-draft/hermes-execution.json",
+      "sha256": "123d29bb2fc2ed7e5cc9d6876c65942df0f09d84730f1d51cbe4625fa0cbc337",
+      "bytes": 1388
+    },
+    {
+      "path": "hermes-draft/hermes-usage.json",
+      "sha256": "df697b3d62a4ebb4c1206e2a2a5531eeb7e9fd07b97ac2898771f2b6538c2f57",
+      "bytes": 488
+    },
+    {
+      "path": "hermes-draft/REVIEW.md",
+      "sha256": "13a877f09d576a3a8d3f4598f955581af83af268311bf6ec5d70e992fc588eec",
+      "bytes": 2275
+    }
+  ],
+  "transportPredecessor": {
+    "path": "../case20-setup-preparation-v3/checkpoint.json",
+    "sha256": "58d451f530476cf6e7513b88baee1d4dd5f004001ac918ee705819b24b8d39bc"
+  },
+  "qualification": {
+    "finalLocalTestsPass": 29,
+    "fail": 0,
+    "syntaxExitCodes": [
+      0,
+      0
+    ],
+    "actualSavedSetupLocalJoin": true,
+    "budgetExamples": "SYNTHETIC_NO_AUTHORITY",
+    "actualOwnerOrCloudExecuted": false
+  },
+  "hermes": {
+    "estimated_cost_usd": 0.03408153499999999,
+    "cost_status": "estimated",
+    "cost_source": "provider_models_api",
+    "input_tokens": 96,
+    "output_tokens": 26902,
+    "cache_read_tokens": 1244706,
+    "cache_write_tokens": 65391,
+    "reasoning_tokens": 15236,
+    "total_tokens": 1337095,
+    "api_calls": 32,
+    "model": "openai/gpt-6-luna",
+    "provider": "openrouter",
+    "session_id": "20261003_203228_43eeac",
+    "completed": true,
+    "failed": false,
+    "service_tier": null
+  },
+  "runtimePaths": {
+    "plan": "../case20-native-budget-plan-v1",
+    "install": "../case20-native-budget-install-v1",
+    "modes": [
+      "plan",
+      "install"
+    ],
+    "ownerInput": "owner-input.json",
+    "nativeReceipt": "inner-owner-receipt.json",
+    "materializerWrapper": "materializer-receipt.json"
+  },
+  "limits": [
+    "Source preparation only; independent review and all real runtime gates precede invocation.",
+    "No paid capture, journal mutation, second fixture binding, model/config changes or budget reservation.",
+    "Same unchanged15M/500k/32 ceilings; reviewed rates expire05:29:01.587Z.",
+    "Current file/service fences are point-in-time, not exclusive distributed authority.",
+    "At-most-once mutations/no automatic replay; incomplete outcomes require reconciliation."
+  ],
+  "paidCaptureAuthority": false
+}

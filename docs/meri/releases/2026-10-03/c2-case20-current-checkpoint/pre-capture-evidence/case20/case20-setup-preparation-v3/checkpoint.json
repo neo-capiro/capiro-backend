@@ -1,0 +1,77 @@
+{
+  "kind": "CASE20_SETUP_FROZEN_REVIEW_CORRECTION",
+  "frozenAt": "2026-10-04T00:29:35.472971+00:00",
+  "priorCheckpoint": {
+    "path": "../case20-setup-preparation-v2/checkpoint.json",
+    "sha256": "3de1b0edbfe0b7aae44a784f6c6966872cff497856406db53820c77615f50c22"
+  },
+  "candidateSource": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+  "runId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+  "sources": [
+    {
+      "path": "supervised-candidate/run-case20-native-setup.mjs",
+      "sha256": "9f81d8f0b5aec4211d2e03bb94dc27c93fd4d7f12bc38f70ed5c7773f03699f2",
+      "bytes": 51569
+    },
+    {
+      "path": "supervised-candidate/case20-native-setup-inner.mjs",
+      "sha256": "36e6c8021e8033f282be2534767e0a1ea94c27fdc98af08aadab0c26b25b15de",
+      "bytes": 9343
+    }
+  ],
+  "evidence": [
+    {
+      "path": "README.md",
+      "sha256": "b0a6b31e1bf046f0292e3bee7e29c4e1390b352f45b131b6766c3e0fdb273eb7",
+      "bytes": 1729
+    },
+    {
+      "path": "v2-to-v3.diff",
+      "sha256": "7cee8e9b8f789b5c7977a28e6d830ed7dceb6171724503733d6f87705fca33ef",
+      "bytes": 4100
+    },
+    {
+      "path": "qualify-supervised-candidate.mjs",
+      "sha256": "556e83d8530efee3993873ff0187700c9f5df20ca16890bd656bdacc26ec2a00",
+      "bytes": 19129
+    },
+    {
+      "path": "red-v2/receipt.json",
+      "sha256": "6714a98bc39f7f9f0f346193f1b4742878e8fcdde4a664da3751c0b1f1a0ed8a",
+      "bytes": 5499
+    },
+    {
+      "path": "green-v3/receipt.json",
+      "sha256": "d53e598f28c6800f51ae4d2835e0f9a1fe052c9d11672d3e6672bd5bd264da95",
+      "bytes": 4475
+    },
+    {
+      "path": "syntax-receipt.json",
+      "sha256": "fe25fa8df0a87582505516e63529f46e8f5583c71bd8a77e4b91e0976ffe81fe",
+      "bytes": 530
+    }
+  ],
+  "qualification": {
+    "sameTestBytes": true,
+    "baselinePass": 29,
+    "baselineFail": 7,
+    "candidatePass": 36,
+    "candidateFail": 0,
+    "syntaxExitCodes": [
+      0,
+      0
+    ]
+  },
+  "resolvedFindings": [
+    "Current accounting files rechecked against pinned saved checkpoint before registration and RunTask.",
+    "Budget-clearance claim requires validated successful native owner receipt."
+  ],
+  "limits": [
+    "Local extracted-function tests only; dispatcher main never imported or executed.",
+    "Actual AWS, database, canonical owner, image/runtime, approval and deployment are not qualified by these injected tests.",
+    "No live journal read/write, cloud, auth, fixture or product provider actions.",
+    "Current file comparison is point-in-time only; no distributed lock.",
+    "No budget plan/install or paid capture authority."
+  ],
+  "frozen": true
+}

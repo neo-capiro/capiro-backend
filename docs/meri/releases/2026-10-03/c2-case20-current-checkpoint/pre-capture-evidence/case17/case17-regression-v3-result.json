@@ -1,0 +1,50 @@
+{
+  "status": "UI_SLICE_PASS",
+  "at": "2026-10-04T00:37:20.883Z",
+  "caseId": "17",
+  "captureRunId": "83fc19ac-5da2-49e7-b368-bcdb4704c3d5",
+  "apiSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+  "webSha": "78ad5805679a3045b1fc10fb19beafa7f76e4e64",
+  "operatorSourceSha": "af7aa8aff4777a2d4809e882c2b797fbb2cd51a2",
+  "preparedSha256": "7e809606611bc8d19a09b4a7e76bbe118ef6784225fe8e58af0930a5b2067b25",
+  "sessionCreated": true,
+  "sessionRevoked": true,
+  "applicationWrites": 0,
+  "synthesisSubmissionCount": 0,
+  "providerCalls": 0,
+  "originalPromptSubmission": "NOT_RUN",
+  "humanRubric": "NOT_RUN",
+  "fullOriginalRow17Acceptance": false,
+  "fullFile01Acceptance": false,
+  "provenanceNavigation": {
+    "status": "UNAVAILABLE_IN_SERVED_UI_SOURCE",
+    "sourcePath": "apps/web/src/vnext/meri/MeriMemoryTab.tsx",
+    "sourceSha256": "a9dfd1b22f9172846f43bec00601b67f07379aa32bd496263f967b9b61e06cc9",
+    "reason": "Owned proposal cards expose plain source-kind text and Withdraw; no source-navigation link or control. Existing collector observes the cards without inventing a navigation target.",
+    "canonicalSourceBinding": "Distinct ownership markers are checked by existing current-owner joins; this is not distinct-source UI navigation."
+  },
+  "outcome": {
+    "caseId": "17",
+    "captureRunId": "83fc19ac-5da2-49e7-b368-bcdb4704c3d5",
+    "status": "CAPTURE_COMPLETE",
+    "evidence": {
+      "ref": "case17/evidence.json",
+      "sha256": "a67703b8d4f9e6ea6894c32fb2e166866581788c007333e212128a6a722b71ed",
+      "bytes": 34309
+    },
+    "synthesisSubmissionCount": 0
+  },
+  "grading": {
+    "caseId": "17",
+    "captureRunId": "83fc19ac-5da2-49e7-b368-bcdb4704c3d5",
+    "evidenceSha256": "a67703b8d4f9e6ea6894c32fb2e166866581788c007333e212128a6a722b71ed",
+    "deterministicStatus": "PASS",
+    "synthesisSubmissionCount": 0,
+    "applicationWrites": 0,
+    "fullFile01Acceptance": false,
+    "status": "PASS",
+    "reason": "CASE17_ONLY"
+  },
+  "visualReviewer": "Codex root saved-image inspection; not human rubric",
+  "completedAt": "2026-10-04T00:40:19.471Z"
+}

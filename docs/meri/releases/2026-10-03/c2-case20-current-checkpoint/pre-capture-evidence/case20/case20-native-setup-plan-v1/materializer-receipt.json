@@ -1,0 +1,48 @@
+{
+  "status": "VERIFIED",
+  "containerExitCode": 0,
+  "ownerReceipts": [
+    {
+      "kind": "meri-controlled-read-setup-plan",
+      "version": 1,
+      "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+      "actorUserId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+      "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+      "caseId": "20",
+      "captureRunId": "f4bb30bb-ebb4-4fba-89a9-d49aeafefd1b",
+      "tenantRowVersion": "114685615",
+      "priorSettingsSha256": "a424d1d6697f7434c05a7d53efcd2703cc0d13d76dad2a69303522d486dab409",
+      "definitionSha256": "bfb7af9d607d6ba0bd81479c72c282ea50f082a5f9cecc7ea1d8915503b493f9",
+      "physicalMapSha256": "929ebb433886c035cfbcbcf8a537acde2157bec86634bfc384b594dfbca05861",
+      "sourceMap": {
+        "R2-27": {
+          "frozenFixtureId": "R2-27",
+          "physicalId": "2d0c016e-8dad-5f6e-80dd-e36740fff7ee",
+          "tenantPhysicalId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+          "clientPhysicalId": null,
+          "kind": "budget_document",
+          "version": "v1"
+        }
+      },
+      "sourceStorage": "immutable_source_owned_controlled_adapter",
+      "sharedCorpusWrites": 0,
+      "liveAcceptance": "NOT_RUN",
+      "planSha256": "b3e4b74baa4d11c605f7f64f9116afcaaaa61f1d2dedffa3f3484e56a7b95b4f"
+    }
+  ],
+  "evidence": {
+    "resultPath": "C:/dev/main/outputs/meri-c2-20261003/case20-native-setup-plan-v1/result.json",
+    "resultSha256": "aa57f83930da0848410e97e50efae812fa7b79fe5df6aaa311953f8a529d373b",
+    "ownerReceiptSha256": "1d1ebb9412e82a18c4c30e32466480fe3a6c124d60147242f2bc8c1ed5c05b31",
+    "sourceSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+    "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/0dd7abca0edc42b494f9e8fb677acd4a",
+    "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-c2-case20-setup-20261003:1",
+    "cleanup": {
+      "taskStopped": true,
+      "stopAttempted": false,
+      "taskDefinitionInactive": true,
+      "deregisterAttempted": true
+    }
+  },
+  "liveAcceptance": "NOT_RUN"
+}

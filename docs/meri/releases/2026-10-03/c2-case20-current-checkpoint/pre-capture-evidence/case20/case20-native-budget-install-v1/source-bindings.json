@@ -1,0 +1,29 @@
+{
+  "outerScriptSha256": "cd4d7e506f7b26ab04fcc2013964bb7dbd843c72028c734376b577cc21b50c69",
+  "innerScriptSha256": "f0314af18590f8a3ec5503cc6c39d2d9045b042d5b817482320339c6d38286dc",
+  "runtimeSources": {
+    "apps/api/scripts/meri-capture-provider-budget.mjs": "956c7544e058ef4dd4398ecda957f6de131b18460717e61af0d3a41913fe6dae",
+    "apps/api/src/meri/meri-capture-provider-budget-install.ts": "cec72704ca51409ced548a1acc9da37ac285d75b4b30f7b95950991f3d3ab82a",
+    "apps/api/scripts/lib/pe-compose-database-url.js": "aafd61a7509ad9428ea54bf5bf13332b1517bccdc271a667b11a5350dc20c6d1",
+    "evals/meri/live-v1/fixture-provisioning/controlled-read-owner.mjs": "da36d0a71b88731270dd6cfcea054f08740f49450f4d5551426b51af784e483f",
+    "evals/meri/live-v1/fixture-provisioning/controlled-read-definitions.mjs": "56a6f30e198e78db778c1ac2b02a00a4f6eae17646d56bc94f8ece66d63adf05",
+    "evals/meri/live-v1/controlled-read-operator-input.mjs": "ce6244bb6ffc52e0c1661779290995aad53ab287023f0706480509414ee5ef2a",
+    "scripts/meri-release.mjs": "2fece407aa0f08795ac6d5d1feef99211412ab28ea6bc76125c1c49eae4412f6",
+    "scripts/lib/meri-release-policy.mjs": "e0518591e704ef3f051442d1b949a9f83a705a2cff40ed998dba19b57373cb5c"
+  },
+  "setupReceiptSha256": "9ac732d7a5d4b066cea584804218f2f68083a445c016092b4f72d8f8a92f2cfd",
+  "setupEvidenceFiles": {
+    "C:/dev/main/outputs/meri-c2-20261003/case20-native-setup-execute-v1/result.json": "0632a6b540c3f4d72528d3469206f0570e5e394ade82fe9dd93f12d426ee86ca",
+    "C:/dev/main/outputs/meri-c2-20261003/case20-native-setup-execute-v1/cleanup.json": "a5ccdef57192ab1f1d84711a49d38c11a10d49b1ce0c89c43bc232484a6a219c",
+    "C:/dev/main/outputs/meri-c2-20261003/case20-native-setup-execute-v1/inner-owner-receipt.json": "9ac732d7a5d4b066cea584804218f2f68083a445c016092b4f72d8f8a92f2cfd",
+    "C:/dev/main/outputs/meri-c2-20261003/case20-native-setup-execute-v1/inner-owner-transport.json": "81d3573e067474964e9c0fbaea8a42b87a6f417df1479032986b50313bfe9569",
+    "C:/dev/main/outputs/meri-c2-20261003/case20-native-setup-execute-v1/materializer-receipt.json": "72c6da16d7be893fa1cb2b5726f110a06ebb9774b2d5c67bb1dc4cb0c5d16123"
+  },
+  "ratesSha256": "3531e09dfcce9f66b4ea2b3564db47bd72dc507cdcf1aecdda277b838007704e",
+  "ownerInputSha256": "04abc6e9e338ddc2b34f5e211554268bb3f9d8683f8f78d36a73350eb9b8fb42",
+  "inputSha256": "a72c2d69bebb9694edb38bc4131a60a093e6488f8cd3528fafd92db7f84a082d",
+  "checkpointSha256": "dfa616afc2622d01d3380bd373cbce3886157fbbb9123297d2a834c189fd734d",
+  "journalSha256": "a8c8101a4d806ef8080e1648c9e46568a55b7b5f93cb0f053a3d601404bfe3b5",
+  "wrapperSha256": "78befeb7d372457495a270514430497e19773117137ccfd4e93dffad677e2f3c",
+  "sourceSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc"
+}

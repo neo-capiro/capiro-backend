@@ -1,0 +1,132 @@
+{
+  "kind": "LOCAL_ONLY_BUDGET_DELTA_QUALIFICATION",
+  "sourceSha256": "cd4d7e506f7b26ab04fcc2013964bb7dbd843c72028c734376b577cc21b50c69",
+  "innerSha256": "f0314af18590f8a3ec5503cc6c39d2d9045b042d5b817482320339c6d38286dc",
+  "testSha256": "89f3fbde42fb70f0f3e9d9b5e7d07343a7f9c0312e7ee667de0fca2bbf94bd19",
+  "pass": 29,
+  "fail": 0,
+  "results": [
+    {
+      "name": "actual saved setup bytes and materializer join via existing canonical helper",
+      "status": "PASS"
+    },
+    {
+      "name": "setup result reporting or materializer tampering refuses before budget owner",
+      "status": "PASS"
+    },
+    {
+      "name": "exact reviewed two rates accepted and altered bytes refused",
+      "status": "PASS"
+    },
+    {
+      "name": "canonical plan input excludes case/run top-level and adapter accepts",
+      "status": "PASS"
+    },
+    {
+      "name": "canonical 15M 500k 32 attempt install input is accepted",
+      "status": "PASS"
+    },
+    {
+      "name": "adapter refuses wrong client",
+      "status": "PASS"
+    },
+    {
+      "name": "adapter refuses wrong actor",
+      "status": "PASS"
+    },
+    {
+      "name": "adapter refuses new cap",
+      "status": "PASS"
+    },
+    {
+      "name": "adapter refuses extra field",
+      "status": "PASS"
+    },
+    {
+      "name": "adapter refuses wrong current proof",
+      "status": "PASS"
+    },
+    {
+      "name": "adapter refuses expired rates",
+      "status": "PASS"
+    },
+    {
+      "name": "adapter refuses substituted internally consistent provider prices",
+      "status": "PASS"
+    },
+    {
+      "name": "native plan receipt matches exact adapter contract",
+      "status": "PASS"
+    },
+    {
+      "name": "native install receipt has no caseId and passes exact adapter and host joins",
+      "status": "PASS"
+    },
+    {
+      "name": "installed receipt refuses changed tenantId",
+      "status": "PASS"
+    },
+    {
+      "name": "installed receipt refuses changed clientId",
+      "status": "PASS"
+    },
+    {
+      "name": "installed receipt refuses changed captureRunId",
+      "status": "PASS"
+    },
+    {
+      "name": "installed receipt refuses changed currentVerifySha256",
+      "status": "PASS"
+    },
+    {
+      "name": "installed receipt refuses changed captureBindingSha256",
+      "status": "PASS"
+    },
+    {
+      "name": "installed receipt refuses changed qualificationSha256",
+      "status": "PASS"
+    },
+    {
+      "name": "installed receipt refuses changed priorQualificationSha256",
+      "status": "PASS"
+    },
+    {
+      "name": "installed receipt refuses changed maxCostMicros",
+      "status": "PASS"
+    },
+    {
+      "name": "installed receipt refuses changed rateEvidenceSha256",
+      "status": "PASS"
+    },
+    {
+      "name": "installed receipt refuses changed rateEvidenceExpiresAt",
+      "status": "PASS"
+    },
+    {
+      "name": "budget plan exact input hash is part of byte transport",
+      "status": "PASS"
+    },
+    {
+      "name": "budget install exact input hash is part of byte transport",
+      "status": "PASS"
+    },
+    {
+      "name": "wrapper stages canonical input hash and no setup executable",
+      "status": "PASS"
+    },
+    {
+      "name": "prior successful budget plan uses same actual setup and canonical install input",
+      "status": "PASS"
+    },
+    {
+      "name": "prior budget plan with changed setup bytes or fatal uncertainty refuses",
+      "status": "PASS"
+    }
+  ],
+  "limits": [
+    "Actual saved setup receipt and exact rates were read locally; no actual budget owner plan/install exists in this test.",
+    "Canonical helper generates local consistency input from a synthetic budget plan; no authority minted.",
+    "Dispatcher/inner main never imported or executed; extracted declarations only, subprocess and remote reads denied.",
+    "No cloud, database, authentication, journal, fixture, provider, reservation or capture action."
+  ]
+}

@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "status": "FROZEN_LOCAL_SOURCE_REVIEW_PASS",
+  "frozenAt": "2026-10-04T01:03:32.9933905Z",
+  "repository": "C:/dev/main/meri-c1-20261002",
+  "repositoryHead": "af7aa8aff4777a2d4809e882c2b797fbb2cd51a2",
+  "sourceMirrors": [
+    {
+      "path": "evals/meri/live-v1/run-controlled-read.mjs",
+      "sourcePath": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\run-controlled-read.mjs",
+      "mirrorPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\controlled-read-browser-readiness-v1\\source\\evals\\meri\\live-v1\\run-controlled-read.mjs",
+      "sha256": "05f47f19162c702255580b0e27c6c4d2579a6d79ce20da66223f35d8cad14e84"
+    },
+    {
+      "path": "evals/meri/live-v1/tests/controlled-read-operator.test.mjs",
+      "sourcePath": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\tests\\controlled-read-operator.test.mjs",
+      "mirrorPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\controlled-read-browser-readiness-v1\\source\\evals\\meri\\live-v1\\tests\\controlled-read-operator.test.mjs",
+      "sha256": "338652e7e6052f9b346c607b7ba289874f98c60b7f321761561fba9099f7f7d6"
+    }
+  ],
+  "diagnostic": {
+    "path": "C:/dev/main/outputs/meri-c2-20261003/case20-browser-readiness-diagnostic-v1.json",
+    "sha256": "ba3d94226245e8d6c84e3e42ed6434dc9ec398fb6478bb8ae87a5f86426786c2",
+    "finding": "Immediately after navigation Clerk was not loaded and session was absent; readiness wait restored loaded session and available token."
+  },
+  "independentReview": {
+    "reviewer": "/root",
+    "status": "PASS",
+    "basis": "Root message confirmed exact runner 05f47f19162c702255580b0e27c6c4d2579a6d79ce20da66223f35d8cad14e84 and test 338652e7e6052f9b346c607b7ba289874f98c60b7f321761561fba9099f7f7d6."
+  },
+  "testResult": {
+    "command": "\"C:/Program Files/nodejs/node.exe\" --test evals/meri/live-v1/tests/controlled-read-operator.test.mjs evals/meri/live-v1/tests/controlled-read-refresh.test.mjs",
+    "status": "PASS",
+    "tests": 27,
+    "passed": 27,
+    "failed": 0,
+    "exitCode": 0,
+    "toolChunkId": "01e698",
+    "rerunForArchive": false,
+    "transcriptPath": "test-result.txt",
+    "transcriptSha256": "468268bf441cb1b0bb9d3788c5c757f82da272dee2b5da7a24478b622785be03",
+    "transcriptKind": "Saved transcript of prior exec_command output; no separate raw test logfile was created by that run."
+  },
+  "syntaxCheck": {
+    "commands": [
+      "node --check evals/meri/live-v1/run-controlled-read.mjs",
+      "node --check evals/meri/live-v1/tests/controlled-read-operator.test.mjs"
+    ],
+    "status": "PASS",
+    "exitCode": 0,
+    "toolChunkId": "be4877"
+  },
+  "whitespaceCheck": {
+    "command": "git diff --check",
+    "status": "PASS",
+    "exitCode": 0,
+    "toolChunkId": "e47ba7",
+    "note": "Git emitted only the separate aggregate file CRLF normalization warning."
+  },
+  "liveActions": 0,
+  "applicationWrites": 0,
+  "providerCalls": 0,
+  "journalMutations": 0,
+  "provenanceProductPatch": "Remains outside repository, unchanged."
+}
