@@ -1,0 +1,29 @@
+{
+  "kind": "meri-case12-source-final-independent-review",
+  "version": 1,
+  "caseId": "12",
+  "sourceSha": "e60f37189f8c9b68ab7d5ef66e515ed3be4ec3c1",
+  "status": "PASS_SOURCE_ONLY",
+  "sourceCheckpointSha256": "60b60d1dbbf8a3457b9233868d0223d506cef31d211efc9dda97ad1591640170",
+  "recordedAt": "2026-10-04T12:50:50.242950+00:00",
+  "sourceTree": "82574493d6f8d084d89fe99763ff828c41b657bb",
+  "reviewedCommit": "b8f1b6d9f0d7ef1329c9b46ded2c32daea69eea1",
+  "mergedTreeEqualsReviewedTree": true,
+  "sourcePinsVerified": 72,
+  "sourceBlobsVerified": 72,
+  "workingTreeClean": true,
+  "archiveQualificationSha256": "6cc7cad1445cd507d26f9b81641a2504c0dc672932961b55abbe277840acc071",
+  "sourceArchiveIndependentReview": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-source-archive-independent-v2\\independent-assessment.json",
+  "sourceArchiveIndependentReviewSha256": "7a597871e2d3470b751a1ee85a48ef9feda8633c5dd44bbe38d96e429621a996",
+  "journalSha256": "816b04a47be56432846d1ee602370c3bea985eb497a7de9e899aee4d53f8b39e",
+  "journalEvents": 26,
+  "newModelRun": false,
+  "assessment": "Thin exact merged-source/build binding over the prior independently reviewed source archive; all source bytes and full Git tree remain unchanged. Existing configured Hermes reviews and preserved failures retain their original scopes.",
+  "limits": [
+    "No CodeBuild/image qualification inferred.",
+    "No IAM/deploy/live setup/provider/journal/capture/original-prompt/human acceptance authority.",
+    "Windows fixed-port/unknown/cost/dispatcher follow-on candidates are excluded; C2 remains incomplete."
+  ],
+  "captureAuthority": false,
+  "c2Complete": false
+}

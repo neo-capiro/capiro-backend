@@ -1,0 +1,157 @@
+{
+  "service": "meriv2-orchestrator",
+  "status": "SUCCEEDED",
+  "qualification": "IMMUTABLE_BUILD_AND_OFFLINE_PROBES_PASS",
+  "sourceSha": "e60f37189f8c9b68ab7d5ef66e515ed3be4ec3c1",
+  "resolvedSourceSha": "e60f37189f8c9b68ab7d5ef66e515ed3be4ec3c1",
+  "buildId": "capiro-build-web-dev:f49f5f95-d06e-4950-8220-8e9cf2acba6c",
+  "startedAt": "2026-10-04T08:54:40.986000-04:00",
+  "finishedAt": "2026-10-04T09:02:09.801000-04:00",
+  "phases": [
+    {
+      "phase": "SUBMITTED",
+      "status": "SUCCEEDED",
+      "durationSeconds": 0
+    },
+    {
+      "phase": "QUEUED",
+      "status": "SUCCEEDED",
+      "durationSeconds": 0
+    },
+    {
+      "phase": "PROVISIONING",
+      "status": "SUCCEEDED",
+      "durationSeconds": 8,
+      "contexts": [
+        {
+          "statusCode": "",
+          "message": ""
+        }
+      ]
+    },
+    {
+      "phase": "DOWNLOAD_SOURCE",
+      "status": "SUCCEEDED",
+      "durationSeconds": 11,
+      "contexts": [
+        {
+          "statusCode": "",
+          "message": ""
+        }
+      ]
+    },
+    {
+      "phase": "INSTALL",
+      "status": "SUCCEEDED",
+      "durationSeconds": 0,
+      "contexts": [
+        {
+          "statusCode": "",
+          "message": ""
+        }
+      ]
+    },
+    {
+      "phase": "PRE_BUILD",
+      "status": "SUCCEEDED",
+      "durationSeconds": 25,
+      "contexts": [
+        {
+          "statusCode": "",
+          "message": ""
+        }
+      ]
+    },
+    {
+      "phase": "BUILD",
+      "status": "SUCCEEDED",
+      "durationSeconds": 328,
+      "contexts": [
+        {
+          "statusCode": "",
+          "message": ""
+        }
+      ]
+    },
+    {
+      "phase": "POST_BUILD",
+      "status": "SUCCEEDED",
+      "durationSeconds": 72,
+      "contexts": [
+        {
+          "statusCode": "",
+          "message": ""
+        }
+      ]
+    },
+    {
+      "phase": "UPLOAD_ARTIFACTS",
+      "status": "SUCCEEDED",
+      "durationSeconds": 0,
+      "contexts": [
+        {
+          "statusCode": "",
+          "message": ""
+        }
+      ]
+    },
+    {
+      "phase": "FINALIZING",
+      "status": "SUCCEEDED",
+      "durationSeconds": 0,
+      "contexts": [
+        {
+          "statusCode": "",
+          "message": ""
+        }
+      ]
+    },
+    {
+      "phase": "COMPLETED"
+    }
+  ],
+  "buildspecSha256": "65ec74c0087816e66400cd11cf625dc6093fc8709030d6510a1a0327df89baf3",
+  "candidateSha256": "8248d8cbcf794eff92ab932abc1ccf954ae8723a76a970bf9beb0e8a2634e1ae",
+  "launchIntentSha256": "0bfea6e34d730e26af4970ebb586a04d1f9ef251457acba57dfafb7deeb4929d",
+  "checkpointSha256": "60b60d1dbbf8a3457b9233868d0223d506cef31d211efc9dda97ad1591640170",
+  "buildLogSha256": "a32be2686779e54199b2e8c56acd9594fae9559b0a995da05464b445bbffd340",
+  "buildLogEvents": 2451,
+  "serviceMutations": 0,
+  "databaseMutations": 0,
+  "providerCalls": 0,
+  "tests": {
+    "numTotalTests": 1573,
+    "numPassedTests": 1571,
+    "numFailedTests": 0,
+    "numPendingTests": 2,
+    "numTotalTestSuites": 130,
+    "numPassedTestSuites": 130,
+    "numFailedTestSuites": 0,
+    "numPendingTestSuites": 0
+  },
+  "pendingTests": [
+    "MeriV2 scoping parity (SC0.7) cross-tenant + row-set parity (live, gated) cross-tenant token (tenant-A JWT, tenant-B clientId) → 403",
+    "MeriV2 scoping parity (SC0.7) cross-tenant + row-set parity (live, gated) returns exactly the rows current Meri returns for each fixed (user, tenant)"
+  ],
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:33ecf4fcaf2f691999d14d410b5f43539c13070d44a1135d148c68f41eda3369",
+  "imagePublishedAt": "2026-10-04T09:02:07.816000-04:00",
+  "architecture": "arm64",
+  "runtimeNode": "20.16.0",
+  "passedMarkers": [
+    "ORCHESTRATOR_CAPTURE_CONTRACT_LOOPBACK_TESTS_PASS",
+    "OFFLINE_PACKAGED_ENTRYPOINT_HEALTH_AUTH_PASS",
+    "OFFLINE_C1_CLASSIFICATION_REPAIRS_PASS",
+    "OFFLINE_PACKAGED_MAIL_DEFAULTS_PASS",
+    "OFFLINE_PACKAGED_NO_TOOLS_DIRECTIVE_PASS",
+    "OFFLINE_PACKAGED_SEMANTIC_CLOCK_ORCHESTRATOR_PASS",
+    "OFFLINE_PACKAGED_CAPTURE_PROVIDER_ORCHESTRATOR_GUARDS_PASS",
+    "LOCAL_REPODIGEST_ECR_MATCH_PASS",
+    "CORE_CASE20_SOURCE_PROOF_NATIVE_TESTS_PASS",
+    "ORCHESTRATOR_CASE20_SOURCE_PROOF_NATIVE_TESTS_PASS",
+    "CORE_CANONICAL_MEMORY_SOURCE_NATIVE_TESTS_PASS",
+    "ORCHESTRATOR_CANONICAL_MEMORY_SOURCE_LOOPBACK_PASS",
+    "CORE_CASE12_FIVE_SUITE_191_TESTS_PASS",
+    "ORCHESTRATOR_CASE12_CONTROLLED_HTTP_MEMORY_LOOPBACK_PASS",
+    "ORCHESTRATOR_EXACT_EXISTING_LIVE_SKIPS_PASS"
+  ]
+}

@@ -1,0 +1,276 @@
+{
+  "sourceSha": "e60f37189f8c9b68ab7d5ef66e515ed3be4ec3c1",
+  "copiedFiles": [
+    {
+      "path": "builds/api/build-start.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\api-case12-source-build-v1\\build-start.json",
+      "bytes": 569,
+      "sha256": "b8cd4e3025587adef036fc70e11a6841841081d3f98acee0b913e762f270468c"
+    },
+    {
+      "path": "builds/api/build-readback.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\api-case12-source-build-v1\\build-readback.json",
+      "bytes": 4347,
+      "sha256": "d011c3b4ceee1b16228aab5b470a28b1bb7149fe5d79441a9938cbd8d8c56b00"
+    },
+    {
+      "path": "builds/api/buildspec.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\api-case12-source-build-v1\\buildspec.json",
+      "bytes": 18805,
+      "sha256": "ea7ed52f8bad7e2c752e364e39a9809d4997a9dba32f2ef0b9230f7fb6f9405c"
+    },
+    {
+      "path": "builds/api/build-input.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\api-case12-source-build-v1\\build-input.json",
+      "bytes": 19247,
+      "sha256": "7cff1af7311f9cd56d562821d187cbdfa4d59d0c3410146d7c16510aa9d8b915"
+    },
+    {
+      "path": "builds/api/launch-intent.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\api-case12-source-build-v1\\launch-intent.json",
+      "bytes": 954,
+      "sha256": "0f95e77d6c87c2f222f10816834abbdda292facc7611adbb91289c1b3fcf5591"
+    },
+    {
+      "path": "builds/api/build.log",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\api-case12-source-build-v1\\build.log",
+      "bytes": 68748,
+      "sha256": "5d149b944fc934ed60acbfe4b73636efccc5e9fe2b7671a29cb70bf6e8227fd2"
+    },
+    {
+      "path": "builds/meriv2-orchestrator/build-start.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\meriv2-orchestrator-case12-source-build-v1\\build-start.json",
+      "bytes": 585,
+      "sha256": "ed21bd74d5fcba4cda2f29698496b8e3649148a9d2206f4d6b53f770d1ae88a5"
+    },
+    {
+      "path": "builds/meriv2-orchestrator/build-readback.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\meriv2-orchestrator-case12-source-build-v1\\build-readback.json",
+      "bytes": 4484,
+      "sha256": "43a1eeea55c4d0ac2f8517fa8c173fc9032803a7cdf8a13eae04f12f7c7ec54a"
+    },
+    {
+      "path": "builds/meriv2-orchestrator/buildspec.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\meriv2-orchestrator-case12-source-build-v1\\buildspec.json",
+      "bytes": 13129,
+      "sha256": "65ec74c0087816e66400cd11cf625dc6093fc8709030d6510a1a0327df89baf3"
+    },
+    {
+      "path": "builds/meriv2-orchestrator/build-input.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\meriv2-orchestrator-case12-source-build-v1\\build-input.json",
+      "bytes": 13571,
+      "sha256": "7315c1d1e6c1bea1865aaae49bd4e36368ffb0902e6572ffab5cfbb96f26a052"
+    },
+    {
+      "path": "builds/meriv2-orchestrator/launch-intent.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\meriv2-orchestrator-case12-source-build-v1\\launch-intent.json",
+      "bytes": 970,
+      "sha256": "0bfea6e34d730e26af4970ebb586a04d1f9ef251457acba57dfafb7deeb4929d"
+    },
+    {
+      "path": "builds/meriv2-orchestrator/build.log",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\meriv2-orchestrator-case12-source-build-v1\\build.log",
+      "bytes": 768790,
+      "sha256": "a32be2686779e54199b2e8c56acd9594fae9559b0a995da05464b445bbffd340"
+    },
+    {
+      "path": "case12-source-candidate-v1.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-source-candidate-v1.json",
+      "bytes": 511,
+      "sha256": "8248d8cbcf794eff92ab932abc1ccf954ae8723a76a970bf9beb0e8a2634e1ae"
+    },
+    {
+      "path": "case12-source-qualification-v1.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-source-qualification-v1.json",
+      "bytes": 15430,
+      "sha256": "60b60d1dbbf8a3457b9233868d0223d506cef31d211efc9dda97ad1591640170"
+    },
+    {
+      "path": "inspect-case12-source-release-v1.mjs",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\inspect-case12-source-release-v1.mjs",
+      "bytes": 8066,
+      "sha256": "611ca0044498452267cbd06e9e7018e0cab2fcf41a3995aaf312d89f86ee1045"
+    },
+    {
+      "path": "read-case12-source-schema-v1.mjs",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\read-case12-source-schema-v1.mjs",
+      "bytes": 12707,
+      "sha256": "44e384b5eced803123f51df0f0696a36e4df77dbc8290005e810306ff6fea97d"
+    },
+    {
+      "path": "case12-source-schema-inner-v1.mjs",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-source-schema-inner-v1.mjs",
+      "bytes": 4385,
+      "sha256": "a839d8b13ad5e50e53e35b2cbfd7c9da9d3d8feba1f0ee782382fe588a161cae"
+    },
+    {
+      "path": "served-baseline.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-source-release-preparation-v1\\served-baseline.json",
+      "bytes": 14532,
+      "sha256": "e3425f96b8738451cd2dc2ad2d95c6e03de6c273e350e09d0f861cc6c37047cc"
+    },
+    {
+      "path": "case12-source-final-review-v1.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-source-final-review-v1.json",
+      "bytes": 1684,
+      "sha256": "c512a2d70a6cf64d45811f57d7c265622b90c0105c8aa85ce8fb9269eb1b9fb8"
+    },
+    {
+      "path": "case12-backup-operator-binding-v1.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-backup-operator-binding-v1.json",
+      "bytes": 1945,
+      "sha256": "1ba3a69e4fa966922e229b5986b49852ae9a864880524e7bda2dff7d7f2a9328"
+    },
+    {
+      "path": "case12-native-iam-preflight-v1.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-iam-preflight-v1.json",
+      "bytes": 3529,
+      "sha256": "4942f24c68fb402805de768d9c7f6f63a4a09152d0d61571a5e0adc6b9b485d4"
+    },
+    {
+      "path": "case12-native-iam-policy-candidate-v1.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-iam-policy-candidate-v1.json",
+      "bytes": 935,
+      "sha256": "173d4b8f134c2d1fac50b9df7d3db6e4e136f1e965c293a258cee6407da50d3a"
+    },
+    {
+      "path": "case12-native-iam-policy-candidate-qualification-v1.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-iam-policy-candidate-qualification-v1.json",
+      "bytes": 2342,
+      "sha256": "b898f260b230f9744f66009f9175d60c00ca90c752c3053ac7ddf76db2025565"
+    },
+    {
+      "path": "check-case12-native-iam-candidate-v1.py",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\check-case12-native-iam-candidate-v1.py",
+      "bytes": 3547,
+      "sha256": "ec23ad7eec1ec841682820b489aff03b78cfc240cba89a3336195b3566e30f84"
+    },
+    {
+      "path": "iam/independent-assessment.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-iam-independent-review-v1\\independent-assessment.json",
+      "bytes": 6593,
+      "sha256": "9f937320c1455d7e075e5a5be50e9b2e35e77b6e6ee9fa973c682a7b86d67a9e"
+    },
+    {
+      "path": "backup/independent-assessment.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-backup-independent-v3\\final-assessment.json",
+      "bytes": 1540,
+      "sha256": "36d4b126dc288054ed06a56b0091595971c9261977149b302773423b071686f3"
+    },
+    {
+      "path": "backup/checkpoint-v2.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-backup-build-preparation-v2\\checkpoint-v2.json",
+      "bytes": 7829,
+      "sha256": "242e0ab02c82ba31d24460f9ce454a3184916f083384b7701fdc2c0d8a2f0f57"
+    },
+    {
+      "path": "backup/hermes-review.md",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-backup-build-final-hermes-v3\\evidence\\REVIEW.md",
+      "bytes": 5943,
+      "sha256": "aa729d638de2eca0d81394651ecb2cab2727fe02a338b66a44496b16a46a2d40"
+    },
+    {
+      "path": "iam/case12-iam-simulation-expired-definition.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-simulation-expired-definition.json",
+      "bytes": 1667,
+      "sha256": "cd8d2038d5ee34a7809976f86b0e5c11e92399a1080a06e9c4474f0495a5e2e2"
+    },
+    {
+      "path": "iam/case12-iam-simulation-expired-task.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-simulation-expired-task.json",
+      "bytes": 1740,
+      "sha256": "8876017a4f60ec43b728e27f9c53ba411cdfa2f2b99aa6ec6f5cd90ac3859901"
+    },
+    {
+      "path": "iam/case12-iam-simulation-foreign-region-definition.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-simulation-foreign-region-definition.json",
+      "bytes": 1667,
+      "sha256": "e38c647ae1a0d7c9885544760b79e8141f874d65a7cbb60f815c6bf09bd38702"
+    },
+    {
+      "path": "iam/case12-iam-simulation-no-run-task.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-simulation-no-run-task.json",
+      "bytes": 1735,
+      "sha256": "348bd5d51effd37119957f7166a4c44254263addb0cd0f74eed8a049cab21d88"
+    },
+    {
+      "path": "iam/case12-iam-simulation-tagged-helper-task.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-simulation-tagged-helper-task.json",
+      "bytes": 1740,
+      "sha256": "d13ea68f47c180753e961daa562b80ad977e8fbd816dc16604b41f0500be970f"
+    },
+    {
+      "path": "iam/case12-iam-simulation-task-definition-read.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-simulation-task-definition-read.json",
+      "bytes": 1667,
+      "sha256": "c1de3b55edffd7f0d082182b3fe96b5627fe47086ccdae2acdac9d2dc0c71c32"
+    },
+    {
+      "path": "iam/case12-iam-simulation-untagged-task.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-simulation-untagged-task.json",
+      "bytes": 1587,
+      "sha256": "f8012185cbabf6be192197f6d41c3d51dc2b6d498c6cf6b51c816aa82b8f6ae2"
+    },
+    {
+      "path": "iam/case12-iam-simulation-wrong-cluster.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-simulation-wrong-cluster.json",
+      "bytes": 1746,
+      "sha256": "2a2b92433a4a00fb1bbb1444ac272e26ed64de3deae82675b141ba9c58d487f3"
+    },
+    {
+      "path": "schema/cleanup.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-source-schema-read-v1\\cleanup.json",
+      "bytes": 361,
+      "sha256": "96deb6e0dad1f7d4260de7045dbf24e4d89d3c3f1b125d269d0b4425880a2e85"
+    },
+    {
+      "path": "schema/definition-registered.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-source-schema-read-v1\\definition-registered.json",
+      "bytes": 164,
+      "sha256": "0130b9bc5d467472520572a893e1192314506f374751cf03ad3cb410a2e1a016"
+    },
+    {
+      "path": "schema/intent.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-source-schema-read-v1\\intent.json",
+      "bytes": 557,
+      "sha256": "4a234d90dbe12757a8942e62d523088d8208a608687729f4105d06cdc5a9b70d"
+    },
+    {
+      "path": "schema/journal-preserved.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-source-schema-read-v1\\journal-preserved.json",
+      "bytes": 104,
+      "sha256": "60ad10d5db4da943317b1681f443d9cbba6e33056c659dacd967f38ecd34f3d3"
+    },
+    {
+      "path": "schema/log-transport-pages.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-source-schema-read-v1\\log-transport-pages.json",
+      "bytes": 709,
+      "sha256": "db11652539a34cad9147932a722ccd57259a4325bf2f6c5df3bd5e934f567f2d"
+    },
+    {
+      "path": "schema/readback-transport.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-source-schema-read-v1\\readback-transport.json",
+      "bytes": 134,
+      "sha256": "519201074eb7d0430a70b055be096ac4e24f73d1ea701823015c642f98662df2"
+    },
+    {
+      "path": "schema/result.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-source-schema-read-v1\\result.json",
+      "bytes": 2160,
+      "sha256": "56054338e4368cc75dd51528d3b006e67155b0bf40881fee31b10c78b0bfe98b"
+    },
+    {
+      "path": "schema/schema-proof.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-source-schema-read-v1\\schema-proof.json",
+      "bytes": 892,
+      "sha256": "1ccdae969822877dd03ed589f2b6b0f6d37e509e34561fee412f976f29b76172"
+    },
+    {
+      "path": "schema/task-start.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-source-schema-read-v1\\task-start.json",
+      "bytes": 350,
+      "sha256": "b2bc1a27b61b5185b25719d33376e4cd5a9028938553510b8225b465bfb79273"
+    }
+  ],
+  "exclusions": "Private task definition/run inputs with infrastructure configuration; no secret values archived."
+}

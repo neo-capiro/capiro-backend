@@ -1,0 +1,227 @@
+{
+  "kind": "case12-backup-build-preparation-qualification-v1",
+  "status": "PASS_LOCAL_PREPARATION_ONLY",
+  "author": "supervisor",
+  "files": [
+    {
+      "path": "api/build.sh",
+      "sha256": "95ca0abca9ba438a23033807ae061466220ea5b2f97f2437a3cf097249863a06",
+      "bytes": 45330
+    },
+    {
+      "path": "api/buildspec.template.json",
+      "sha256": "ea7ed52f8bad7e2c752e364e39a9809d4997a9dba32f2ef0b9230f7fb6f9405c",
+      "bytes": 18805
+    },
+    {
+      "path": "api/post_build.sh",
+      "sha256": "fc6034cdd9ec8f0dfaa5e9ce39617f2518a35e227e335bfea4c9b48daa9d372d",
+      "bytes": 863
+    },
+    {
+      "path": "api/pre_build.sh",
+      "sha256": "b2482d882549708861cd5a761b20e05740be23b71be442887a04af778eabf427",
+      "bytes": 880
+    },
+    {
+      "path": "case12-packaged-api-probe.mjs",
+      "sha256": "3386bb251bc585d78d3f629411d711192941c5541797576af09861843fc94207",
+      "bytes": 11737
+    },
+    {
+      "path": "case12-source-candidate.template.json",
+      "sha256": "9c5ed7bb6303d2bd2239ae535a66c6d14d76ea239f7933bb2bdbc0d7b0f1485e",
+      "bytes": 360
+    },
+    {
+      "path": "collect-case12-source-backup-build-v1.mjs",
+      "sha256": "15eb45c280623a81ec1d20bd98c98f6f4998bbbfa446993f9537cf6da56defee",
+      "bytes": 10170
+    },
+    {
+      "path": "input/case14-backup-build-preparation-v2/api/build.sh",
+      "sha256": "9ceea86487ac7508f926a493cd86a8bc98dd2c8b42aa72896bf7f7bfbbe6a35c",
+      "bytes": 32970
+    },
+    {
+      "path": "input/case14-backup-build-preparation-v2/api/buildspec.template.json",
+      "sha256": "b69ec8d59ab4a897f177c0a99c87a7fe0f4c3680c3a2e9b62126a97dbe91f258",
+      "bytes": 13997
+    },
+    {
+      "path": "input/case14-backup-build-preparation-v2/api/post_build.sh",
+      "sha256": "fc6034cdd9ec8f0dfaa5e9ce39617f2518a35e227e335bfea4c9b48daa9d372d",
+      "bytes": 863
+    },
+    {
+      "path": "input/case14-backup-build-preparation-v2/api/pre_build.sh",
+      "sha256": "b2482d882549708861cd5a761b20e05740be23b71be442887a04af778eabf427",
+      "bytes": 880
+    },
+    {
+      "path": "input/case14-backup-build-preparation-v2/meriv2-orchestrator/build.sh",
+      "sha256": "0389dd21eeca07408010f15f55d64012eb21f0e0ab3983fef1a48ec1ec8ab7a7",
+      "bytes": 23479
+    },
+    {
+      "path": "input/case14-backup-build-preparation-v2/meriv2-orchestrator/buildspec.template.json",
+      "sha256": "2c385ca184bb7dd65770573eba645ccae735387019c4aea623aebe142e4acc7a",
+      "bytes": 12525
+    },
+    {
+      "path": "input/case14-backup-build-preparation-v2/meriv2-orchestrator/post_build.sh",
+      "sha256": "20b5e9bb3ba9f445f70dbaa058e126ef736992331e71b3cae5ee5dd6bfbc4d9d",
+      "bytes": 971
+    },
+    {
+      "path": "input/case14-backup-build-preparation-v2/meriv2-orchestrator/pre_build.sh",
+      "sha256": "7214275629cfe2732e11020877ba4e0717d67711fe649f5eddb6f7b1b8d7c317",
+      "bytes": 1493
+    },
+    {
+      "path": "input/case14-backup-build-preparation-v2/template-checks.json",
+      "sha256": "1dd1dbb9620f6622fd8418241a94bdc551b0938fadaa86575b458fd99c7a6b49",
+      "bytes": 3452
+    },
+    {
+      "path": "input/collect-case14-source-backup-build-v2.mjs",
+      "sha256": "8323f0dfd6839decfb327d686a5d6c090cf60eee5114d7fc1b8b7e5932c2f1e6",
+      "bytes": 6723
+    },
+    {
+      "path": "input/prepare-case14-backup-build-v2.py",
+      "sha256": "558025c6450937ee65f73dd9c2511d3ac5cfc0996d4d4fa24178d644d045e9fc",
+      "bytes": 4100
+    },
+    {
+      "path": "input/scoping-parity.e2e-spec.ts",
+      "sha256": "04d02a75da389e778f89f5d79f3454d297c13064cc7a67e2eba33d3bf48fa345",
+      "bytes": 3199
+    },
+    {
+      "path": "input/start-case14-source-backup-build-v1.mjs",
+      "sha256": "a89de666439e631d26f639cf3bab560f77142eda01fde59c3ca08037732108b3",
+      "bytes": 5183
+    },
+    {
+      "path": "local-compiled-probe.log",
+      "sha256": "f9d9f3a0acb936d8bce7cba437e190a9a2067673f6834b382460170f82ca4559",
+      "bytes": 390
+    },
+    {
+      "path": "local-execution.json",
+      "sha256": "72e3958c39a853908823329f5b305b1e282e9305b6b8cdb5d68f4ba23e3fd04f",
+      "bytes": 782
+    },
+    {
+      "path": "local-probe-input-pins.json",
+      "sha256": "7ae700517a6a9e006d195177b2b029e96f853beaa71633b9c853e0154f28cd49",
+      "bytes": 789009
+    },
+    {
+      "path": "meriv2-orchestrator/build.sh",
+      "sha256": "6b836a7377dfd63cc5cb2872c8e68dd0924ecdd509cce5d963a1300b272ca3ec",
+      "bytes": 24967
+    },
+    {
+      "path": "meriv2-orchestrator/buildspec.template.json",
+      "sha256": "65ec74c0087816e66400cd11cf625dc6093fc8709030d6510a1a0327df89baf3",
+      "bytes": 13129
+    },
+    {
+      "path": "meriv2-orchestrator/post_build.sh",
+      "sha256": "20b5e9bb3ba9f445f70dbaa058e126ef736992331e71b3cae5ee5dd6bfbc4d9d",
+      "bytes": 971
+    },
+    {
+      "path": "meriv2-orchestrator/pre_build.sh",
+      "sha256": "7214275629cfe2732e11020877ba4e0717d67711fe649f5eddb6f7b1b8d7c317",
+      "bytes": 1493
+    },
+    {
+      "path": "NOTES.md",
+      "sha256": "07fb77f4063159463b0509b18a4bdb368e37f1ed8fdd7391f3f5ce0145240dd5",
+      "bytes": 4623
+    },
+    {
+      "path": "operator-candidates.test.mjs",
+      "sha256": "a157473bd86608ae3b5f8435999804e4c24690963fb8d8ca5c6568c1c1eb81cf",
+      "bytes": 13213
+    },
+    {
+      "path": "operator-tests.log",
+      "sha256": "364d946a8382b4cbb9c324ee2d5a5e900c787e61e804940e6a789611b0202bcf",
+      "bytes": 2543
+    },
+    {
+      "path": "prepare-case12-backup-build-v2.py",
+      "sha256": "ec2941bc4a4d728cd5b5b2c23e0a379613c4f3b703c19599d12b293c2fa290eb",
+      "bytes": 6537
+    },
+    {
+      "path": "prepare-case12-backup-operators-v2.py",
+      "sha256": "e0d4f3543c370484997c43bcb732cc5432e4d0ab26e52d283d7f26d4dc67832c",
+      "bytes": 8020
+    },
+    {
+      "path": "start-case12-source-backup-build-v1.mjs",
+      "sha256": "cc3c24069e5d30f525efaf0ef97ee5f23f3322a6980dc9738173dd95005a1dd9",
+      "bytes": 6473
+    },
+    {
+      "path": "template-checks.json",
+      "sha256": "d78c2662a5d61d2bbdfe06e7332c614d9ed86c3b551e3f7e39f97236fda90ea9",
+      "bytes": 4277
+    },
+    {
+      "path": "template-contract.test.py",
+      "sha256": "0e91926089a4829b24d5103676352393e683525fbf06650d39119ee6b244a25e",
+      "bytes": 5550
+    },
+    {
+      "path": "template-tests.log",
+      "sha256": "108273481047bc4a187eb7849c41c48c02d4f8271dd5d24ec45e0347544f0d5c",
+      "bytes": 1093
+    }
+  ],
+  "localTests": [
+    {
+      "name": "operator-tests",
+      "count": 34,
+      "startedAt": "2026-10-04T12:47:33.103440+00:00",
+      "finishedAt": "2026-10-04T12:47:33.421869+00:00",
+      "exitCode": 0
+    },
+    {
+      "name": "template-tests",
+      "count": 8,
+      "startedAt": "2026-10-04T12:47:33.421869+00:00",
+      "finishedAt": "2026-10-04T12:47:33.610110+00:00",
+      "exitCode": 0
+    },
+    {
+      "name": "local-compiled-probe",
+      "count": null,
+      "startedAt": "2026-10-04T12:47:33.610110+00:00",
+      "finishedAt": "2026-10-04T12:47:34.538691+00:00",
+      "exitCode": 0
+    }
+  ],
+  "hermesDesign": {
+    "path": "../case12-backup-build-hermes-v1/DESIGN.md",
+    "sha256": "52d472e80429f69cc0456928b80c03eaa2bb7d3f04322fce4f7ec7c7df63ff97",
+    "session": "20261004_081656_08caca",
+    "exitCode": 0,
+    "model": "openai/gpt-6-luna",
+    "provider": "openrouter",
+    "estimatedSourceCostUsd": 0.011057045
+  },
+  "finalActualHermesReview": "PENDING",
+  "binding": "LITERAL_NULL_DISABLED",
+  "mergedSourceSha": null,
+  "finalSourceQualificationSha256": null,
+  "cloudBuilds": "NOT_RUN",
+  "imageQualification": "NOT_RUN",
+  "liveAcceptance": "NOT_RUN",
+  "captureAuthority": false
+}

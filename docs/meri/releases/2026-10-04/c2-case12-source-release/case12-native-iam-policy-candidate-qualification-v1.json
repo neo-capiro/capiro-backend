@@ -1,0 +1,74 @@
+{
+  "kind": "case12-native-iam-proposed-policy-simulation",
+  "version": 1,
+  "status": "PASS_SIMULATION_ONLY",
+  "observedAt": "2026-10-04T12:07:29.635266+00:00",
+  "policySha256": "173d4b8f134c2d1fac50b9df7d3db6e4e136f1e965c293a258cee6407da50d3a",
+  "checks": [
+    {
+      "name": "tagged-helper-task",
+      "action": "ecs:DescribeTasks",
+      "expected": "allowed",
+      "actual": "allowed",
+      "missingContextValues": []
+    },
+    {
+      "name": "untagged-task",
+      "action": "ecs:DescribeTasks",
+      "expected": "implicitDeny",
+      "actual": "implicitDeny",
+      "missingContextValues": [
+        "aws:ResourceTag/meri-case12-setup-owner"
+      ]
+    },
+    {
+      "name": "wrong-cluster",
+      "action": "ecs:DescribeTasks",
+      "expected": "implicitDeny",
+      "actual": "implicitDeny",
+      "missingContextValues": []
+    },
+    {
+      "name": "expired-task",
+      "action": "ecs:DescribeTasks",
+      "expected": "implicitDeny",
+      "actual": "implicitDeny",
+      "missingContextValues": []
+    },
+    {
+      "name": "task-definition-read",
+      "action": "ecs:DescribeTaskDefinition",
+      "expected": "allowed",
+      "actual": "allowed",
+      "missingContextValues": []
+    },
+    {
+      "name": "foreign-region-definition",
+      "action": "ecs:DescribeTaskDefinition",
+      "expected": "implicitDeny",
+      "actual": "implicitDeny",
+      "missingContextValues": []
+    },
+    {
+      "name": "expired-definition",
+      "action": "ecs:DescribeTaskDefinition",
+      "expected": "implicitDeny",
+      "actual": "implicitDeny",
+      "missingContextValues": []
+    },
+    {
+      "name": "no-run-task",
+      "action": "ecs:RunTask",
+      "expected": "implicitDeny",
+      "actual": "implicitDeny",
+      "missingContextValues": []
+    }
+  ],
+  "iamMutation": false,
+  "roleArn": "arn:aws:iam::967807252336:role/Capiro-dev-Compute-ApiTaskRole12FAD4A7-szq3QeeZJSCQ",
+  "proposedPolicyName": "MeriCase12NativeSetupReads20261004",
+  "expiresAt": "2026-10-04T21:00:00Z",
+  "documentedLimitation": "DescribeTaskDefinition has no resource-level IAM restriction; required Resource * is constrained by region and expiration.",
+  "actualEcsHelperAccess": "NOT_RUN",
+  "deploymentAuthorization": "NOT_GRANTED_BY_THIS_ARTIFACT"
+}

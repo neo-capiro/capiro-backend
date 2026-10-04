@@ -1,0 +1,139 @@
+{
+  "kind": "C2 Case12 setup and capture two-image release qualification",
+  "status": "AUTOMATED_QUALIFICATION_PASSED_HUMAN_RELEASE_REVIEW_PENDING",
+  "at": "2026-10-04T13:17:23.303036+00:00",
+  "sourceSha": "e60f37189f8c9b68ab7d5ef66e515ed3be4ec3c1",
+  "sourcePullRequest": "https://github.com/neo-capiro/capirov2/pull/1945",
+  "sourceArchive": "https://github.com/neo-capiro/capirov2/blob/e60f37189f8c9b68ab7d5ef66e515ed3be4ec3c1/docs/meri/releases/2026-10-04/c2-case12-setup-capture-source/README.md",
+  "candidates": {
+    "api": {
+      "sourceSha": "e60f37189f8c9b68ab7d5ef66e515ed3be4ec3c1",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:202832655633f906dec412ca088a7263e8e8065cd9a602402d98e5d2b092fe22",
+      "buildId": "capiro-build-web-dev:77132a95-22c4-4b8a-af05-600f0427ebc3",
+      "architecture": "arm64",
+      "runtimeNode": "22.23.3"
+    },
+    "meriv2-orchestrator": {
+      "sourceSha": "e60f37189f8c9b68ab7d5ef66e515ed3be4ec3c1",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:33ecf4fcaf2f691999d14d410b5f43539c13070d44a1135d148c68f41eda3369",
+      "buildId": "capiro-build-web-dev:f49f5f95-d06e-4950-8220-8e9cf2acba6c",
+      "architecture": "arm64",
+      "runtimeNode": "20.16.0"
+    }
+  },
+  "sourceCheckpointSha256": "60b60d1dbbf8a3457b9233868d0223d506cef31d211efc9dda97ad1591640170",
+  "currentSchema": {
+    "status": "VERIFIED_READ_ONLY",
+    "ledgerRows": 609,
+    "activeFinished": 509,
+    "rolledBack": 100,
+    "prior608Sha256": "9a82cbc9dcecc3b049c312ad4e39ec5a96eb33c6e5af033a3339d1e292c06e90",
+    "newMigration": "20281007010000_mail_messages_owned_connection_active",
+    "newMigrationSha256": "ef10ab58b4eef6825652690a098ab160a374fb30c4cc0af9f15793edb7237242",
+    "retirementTablesAbsent": true,
+    "indices": [
+      {
+        "name": "mail_messages_tenant_connection_active_idx",
+        "ready": true,
+        "definitionSha256": "23d2b35e8097cea6c5620ce2c9c1cab68467e9de09dba5e3337f6fca0a170688"
+      },
+      {
+        "name": "mail_threads_tenant_connection_id_cover_idx",
+        "ready": true,
+        "definitionSha256": "7097d64ec1650dfa8e004e89a1e2f6f267cb7924e869993bb44fb235e9716c9e"
+      }
+    ],
+    "migrationExecution": false,
+    "sourceSha": "945179d44223882f9fe1da2fb4e41213bf5813c2",
+    "observedAt": "2026-10-04T13:16:39.869Z",
+    "providerCalls": 0,
+    "businessWrites": 0,
+    "acceptanceAuthority": false,
+    "readOnlyTransaction": true
+  },
+  "schemaChange": false,
+  "retirementCompatibility": {
+    "status": "PASS",
+    "evidence": [
+      "Current served schema609 with retired tables absent",
+      "No candidate migration/Prisma schema/lockfile/package.json delta; API Dockerfile has exactly two reviewed COPY lines for Case12 setup assets",
+      "Actual packaged imports/source tests and source proof probes pass",
+      "Ordinary reads retain shape; Case12 fixture setup and capture proof require explicit case-bound authorities"
+    ],
+    "rollingWindow": "Do not submit acceptance captures while API/orchestrator have mixed release identities. Ordinary reads are unchanged."
+  },
+  "budgetCheckpoint": {
+    "events": 26,
+    "journalSha256": "816b04a47be56432846d1ee602370c3bea985eb497a7de9e899aee4d53f8b39e",
+    "knownUsd": 15.200909,
+    "conservativeApprovalUsd": 1,
+    "committedUsd": 16.200909,
+    "remainingUsd": 13.799091,
+    "activeReservation": false
+  },
+  "acceptance": {
+    "fullSuitePassed": 0,
+    "fullSuiteTotal": 75,
+    "cdPassed": 0,
+    "cdTotal": 7,
+    "c2Complete": false,
+    "case14": "CAPTURE_UNCERTAIN_FAILED_RUN_PRESERVED",
+    "humanRubric": "NOT_RUN",
+    "replayAuthority": false
+  },
+  "scope": {
+    "serviceUpdates": 0,
+    "databaseWrites": 0,
+    "providerCalls": 0,
+    "schemaChange": false,
+    "modelChange": false,
+    "configurationChange": false,
+    "webChange": false,
+    "scheduleChange": false,
+    "capacityChange": false
+  },
+  "humanApproval": null,
+  "deployableManifest": false,
+  "next": "Independent exact image/release and separate IAM review, then concrete human approval packet. No image or IAM activation from this archive.",
+  "packagedValidation": {
+    "api": "All 25 exact markers passed, actual Case12 modules/assets/510-row and 1020-request planner joins; seven assets match",
+    "orchestrator": {
+      "passed": 1571,
+      "total": 1573,
+      "suites": 130,
+      "failed": 0,
+      "existingLiveSkipped": 2,
+      "coreSuites": 5,
+      "corePassed": 191
+    },
+    "fresh510CreationOnFinalImage": "NOT_RUN",
+    "authenticatedLiveCapture": "NOT_RUN"
+  },
+  "iamProposal": {
+    "status": "UNACTIVATED_SEPARATE_EXPLICIT_REVIEW_REQUIRED",
+    "roleArn": "arn:aws:iam::967807252336:role/Capiro-dev-Compute-ApiTaskRole12FAD4A7-szq3QeeZJSCQ",
+    "policyName": "MeriCase12NativeSetupReads20261004",
+    "policyPath": "case12-native-iam-policy-candidate-v1.json",
+    "policySha256": "173d4b8f134c2d1fac50b9df7d3db6e4e136f1e965c293a258cee6407da50d3a",
+    "expiresAt": "2026-10-04T21:00:00Z",
+    "effect": "Adds DescribeTasks for capiro-dev tasks with owner tag present, and DescribeTaskDefinition region-wide. Shared API role consumers receive these read permissions during the bounded window.",
+    "doesNotAdd": [
+      "RunTask",
+      "IAM writes",
+      "database writes",
+      "provider calls"
+    ],
+    "existingPermissions": "Role already has a separate Senate RunTask policy; this proposal does not remove it.",
+    "runtimeGate": "Actual intended helper credentials must prove both native reads before setup execution; simulations are not runtime proof.",
+    "removal": "Remove only this named inline policy after terminal reconciliation, or before expiry if no helper can proceed; verify original 11 inline-policy hashes and no attached-policy drift.",
+    "approval": null,
+    "applied": false
+  },
+  "remainingCase12Work": [
+    "Actual immutable-image read-only plan provenance",
+    "Final Windows native plan/cost/journal/dispatcher composition",
+    "Actual helper IAM positive read test",
+    "Bounded 510-row live setup and authenticated capture",
+    "Original prompt and human rubric"
+  ]
+}

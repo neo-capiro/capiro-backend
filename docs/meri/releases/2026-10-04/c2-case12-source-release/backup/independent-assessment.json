@@ -1,0 +1,27 @@
+{
+  "kind": "case12-backup-preparation-final-independent-review",
+  "version": 1,
+  "status": "PASS_LOCAL_SOURCE_ONLY",
+  "caseId": "12",
+  "recordedAt": "2026-10-04T12:55:13.406183+00:00",
+  "preparationCheckpointSha256": "242e0ab02c82ba31d24460f9ce454a3184916f083384b7701fdc2c0d8a2f0f57",
+  "independentStaticReviewSha256": "07d04a85f94812e5977f8e89c1b8f80d30669749b216953a0149db161a143355",
+  "hermesReviewSha256": "aa729d638de2eca0d81394651ecb2cab2727fe02a338b66a44496b16a46a2d40",
+  "hermesExecutionSha256": "2dc0b74ba32c9c5aa8ce2295bcdef13ddb9d5ee23c85223c60295234e6066b5e",
+  "hermesSession": "20261004_084754_f9012a",
+  "independentTests": {
+    "VM": 34,
+    "staticLossless": 8,
+    "failed": 0
+  },
+  "preservedAttempt": "case12-backup-independent-v2/templates.log retained: seven PASS, Unicode title check failed under default Windows decoding; exact unchanged tests pass with PYTHONUTF8=1, equivalent to supervisor explicit -X utf8 -I. No source/template correction required.",
+  "artifactPinsUnchanged": 36,
+  "findings": [],
+  "limits": [
+    "All runs are local source/controlled VM only; no AWS, CodeBuild, ECR, deploy, DB, provider or journal operation by reviewer.",
+    "Literal-null candidate templates remain disabled; root must bind exact reviewed merged source/qualification/review/template hashes in retained operator copies.",
+    "This preparation review grants no image/native setup/capture/human acceptance or C2 completion."
+  ],
+  "captureAuthority": false,
+  "c2Complete": false
+}

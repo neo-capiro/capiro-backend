@@ -1,0 +1,153 @@
+{
+  "service": "api",
+  "status": "SUCCEEDED",
+  "qualification": "IMMUTABLE_BUILD_AND_OFFLINE_PROBES_PASS",
+  "sourceSha": "e60f37189f8c9b68ab7d5ef66e515ed3be4ec3c1",
+  "resolvedSourceSha": "e60f37189f8c9b68ab7d5ef66e515ed3be4ec3c1",
+  "buildId": "capiro-build-web-dev:77132a95-22c4-4b8a-af05-600f0427ebc3",
+  "startedAt": "2026-10-04T08:54:30.982000-04:00",
+  "finishedAt": "2026-10-04T09:01:25.709000-04:00",
+  "phases": [
+    {
+      "phase": "SUBMITTED",
+      "status": "SUCCEEDED",
+      "durationSeconds": 0
+    },
+    {
+      "phase": "QUEUED",
+      "status": "SUCCEEDED",
+      "durationSeconds": 0
+    },
+    {
+      "phase": "PROVISIONING",
+      "status": "SUCCEEDED",
+      "durationSeconds": 7,
+      "contexts": [
+        {
+          "statusCode": "",
+          "message": ""
+        }
+      ]
+    },
+    {
+      "phase": "DOWNLOAD_SOURCE",
+      "status": "SUCCEEDED",
+      "durationSeconds": 12,
+      "contexts": [
+        {
+          "statusCode": "",
+          "message": ""
+        }
+      ]
+    },
+    {
+      "phase": "INSTALL",
+      "status": "SUCCEEDED",
+      "durationSeconds": 0,
+      "contexts": [
+        {
+          "statusCode": "",
+          "message": ""
+        }
+      ]
+    },
+    {
+      "phase": "PRE_BUILD",
+      "status": "SUCCEEDED",
+      "durationSeconds": 14,
+      "contexts": [
+        {
+          "statusCode": "",
+          "message": ""
+        }
+      ]
+    },
+    {
+      "phase": "BUILD",
+      "status": "SUCCEEDED",
+      "durationSeconds": 281,
+      "contexts": [
+        {
+          "statusCode": "",
+          "message": ""
+        }
+      ]
+    },
+    {
+      "phase": "POST_BUILD",
+      "status": "SUCCEEDED",
+      "durationSeconds": 97,
+      "contexts": [
+        {
+          "statusCode": "",
+          "message": ""
+        }
+      ]
+    },
+    {
+      "phase": "UPLOAD_ARTIFACTS",
+      "status": "SUCCEEDED",
+      "durationSeconds": 0,
+      "contexts": [
+        {
+          "statusCode": "",
+          "message": ""
+        }
+      ]
+    },
+    {
+      "phase": "FINALIZING",
+      "status": "SUCCEEDED",
+      "durationSeconds": 0,
+      "contexts": [
+        {
+          "statusCode": "",
+          "message": ""
+        }
+      ]
+    },
+    {
+      "phase": "COMPLETED"
+    }
+  ],
+  "buildspecSha256": "ea7ed52f8bad7e2c752e364e39a9809d4997a9dba32f2ef0b9230f7fb6f9405c",
+  "candidateSha256": "8248d8cbcf794eff92ab932abc1ccf954ae8723a76a970bf9beb0e8a2634e1ae",
+  "launchIntentSha256": "0f95e77d6c87c2f222f10816834abbdda292facc7611adbb91289c1b3fcf5591",
+  "checkpointSha256": "60b60d1dbbf8a3457b9233868d0223d506cef31d211efc9dda97ad1591640170",
+  "buildLogSha256": "5d149b944fc934ed60acbfe4b73636efccc5e9fe2b7671a29cb70bf6e8227fd2",
+  "buildLogEvents": 749,
+  "serviceMutations": 0,
+  "databaseMutations": 0,
+  "providerCalls": 0,
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:202832655633f906dec412ca088a7263e8e8065cd9a602402d98e5d2b092fe22",
+  "imagePublishedAt": "2026-10-04T09:01:24.222000-04:00",
+  "architecture": "arm64",
+  "runtimeNode": "22.23.3",
+  "passedMarkers": [
+    "OFFLINE_RUNTIME_IMPORT_PASS",
+    "OFFLINE_CASE01_FIXTURE_PACKAGE_IMPORT_PASS",
+    "OFFLINE_CASE01_CONTINUATION_IMPORT_PASS",
+    "OFFLINE_CASE01_POSTAPPROVAL_IMPORT_PASS",
+    "OFFLINE_CASE01_POSTSEED_IMPORT_PASS",
+    "EXACT_452_IMAGE_MIGRATION_HASHES_PASS",
+    "MAIL_ACTIVE_OWNER_INDEX_MIGRATION_PACKAGE_PASS",
+    "OFFLINE_PACKAGED_C2_MEMORY_PASS",
+    "OFFLINE_PACKAGED_C2_RECONCILIATION_PASS",
+    "OFFLINE_PACKAGED_C2_TERMINAL_LIFECYCLE_PASS",
+    "OFFLINE_PACKAGED_C2_TS_SOURCE_IMPORT_PASS",
+    "OFFLINE_PACKAGED_SEMANTIC_CLOCK_API_CORE_PASS",
+    "OFFLINE_PACKAGED_CAPTURE_RECEIPT_CONTRACT_PASS",
+    "OFFLINE_PACKAGED_CAPTURE_PROVIDER_API_GUARDS_PASS",
+    "LOCAL_REPODIGEST_ECR_MATCH_PASS",
+    "OFFLINE_PACKAGED_C2_RECORDED_SOURCE_PRIVACY_PASS",
+    "OFFLINE_PACKAGED_C2_TOOL_HTTP_SUCCESS_PASS",
+    "OFFLINE_PACKAGED_C2_CANONICAL_MEMORY_SOURCE_PASS",
+    "OFFLINE_PACKAGED_CASE12_MODULES_PASS",
+    "OFFLINE_PACKAGED_CASE12_ASSET_MANIFEST_PASS",
+    "OFFLINE_PACKAGED_CASE12_RECIPE_510_BODY_PLANNER_PASS",
+    "OFFLINE_PACKAGED_CASE12_PREHOLD_510_DERIVATION_PASS",
+    "OFFLINE_PACKAGED_CASE12_CORE_SETUP_BINDING_PASS",
+    "OFFLINE_PACKAGED_CASE12_NEGATIVE_HELPER_INGRESS_PASS",
+    "CASE12_IMAGE_ASSET_MANIFEST_MATCH_SOURCE_PASS"
+  ]
+}
