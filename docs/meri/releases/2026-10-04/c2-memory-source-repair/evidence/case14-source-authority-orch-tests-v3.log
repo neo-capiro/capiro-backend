@@ -1,0 +1,26 @@
+[Nest] 56588  - 10/04/2026, 3:11:58 AM    WARN [ApiToolExecutorRepo] Delegated read "read_client_documents" -> failed
+[Nest] 56588  - 10/04/2026, 3:11:58 AM    WARN [ApiToolExecutorRepo] Delegated tool "search_memory" -> 503
+[Nest] 56588  - 10/04/2026, 3:11:58 AM    WARN [ApiToolExecutorRepo] Delegated tool "list_memory_proposals" -> 500
+PASS src/meri/controlled-read-observations.spec.ts (12.259 s)
+[Nest] 56588  - 10/04/2026, 3:11:58 AM    WARN [ApiToolExecutorRepo] Delegated read "read_client_documents" -> failed
+[Nest] 56588  - 10/04/2026, 3:11:58 AM    WARN [ApiToolExecutorRepo] Delegated read "read_client_documents" -> failed
+[Nest] 56588  - 10/04/2026, 3:11:58 AM    WARN [ApiToolExecutorRepo] Delegated read "read_client_documents" -> failed
+[Nest] 56588  - 10/04/2026, 3:12:02 AM    WARN [ApiToolExecutorRepo] Delegated tool "query_tasks" -> 403
+[Nest] 56588  - 10/04/2026, 3:12:02 AM    WARN [ApiToolExecutorRepo] Delegated tool "get_email_thread" -> 403
+[Nest] 56588  - 10/04/2026, 3:12:02 AM    WARN [ApiToolExecutorRepo] Delegated tool "save_note" -> 403
+[Nest] 56588  - 10/04/2026, 3:12:02 AM    WARN [ApiToolExecutorRepo] Delegated tool "list_emails" -> 403
+[Nest] 56588  - 10/04/2026, 3:12:02 AM    WARN [ApiToolExecutorRepo] Delegated read "get_email_thread" -> failed
+[Nest] 56588  - 10/04/2026, 3:12:02 AM    WARN [ApiToolExecutorRepo] Delegated read "read_client_documents" -> unavailable
+[Nest] 56588  - 10/04/2026, 3:12:02 AM    WARN [ApiToolExecutorRepo] Delegated read "get_client_context" -> failed
+[Nest] 56588  - 10/04/2026, 3:12:02 AM    WARN [ApiToolExecutorRepo] Delegated read "get_client_context" -> failed
+[Nest] 56588  - 10/04/2026, 3:12:02 AM    WARN [ApiToolExecutorRepo] Delegated tool "list_emails" -> 503
+PASS src/meri/api-tool-executor.repo.spec.ts
+PASS src/meri/meriv3/meriv3-tool-evidence.spec.ts
+PASS src/meri/meriv3/meriv3-capture-evidence.spec.ts
+
+Test Suites: 4 passed, 4 total
+Tests:       92 passed, 92 total
+Snapshots:   0 total
+Time:        16.814 s, estimated 23 s
+Ran all test suites matching /src\\meri\\controlled-read-observations.spec.ts|src\\meri\\meriv3\\meriv3-tool-evidence.spec.ts|src\\meri\\meriv3\\meriv3-capture-evidence.spec.ts|src\\meri\\api-tool-executor.repo.spec.ts/i.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?

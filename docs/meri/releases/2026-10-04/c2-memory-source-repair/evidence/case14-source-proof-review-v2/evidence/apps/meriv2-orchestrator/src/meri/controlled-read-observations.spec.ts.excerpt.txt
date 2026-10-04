@@ -1,0 +1,221 @@
+SOURCE apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts LINES 1-220
+1: import { createServer, type Server } from 'node:http';
+2: import { createHash } from 'node:crypto';
+3: import { MERI_CAPABILITY_REGISTRY, extractCitationsFromToolResult, type MeriCitation } from '@capiro/shared';
+4: import {
+5:   meriCaptureClockExecutionBlockers,
+6:   signMeriMemoryCaptureSources,
+7:   decodeMeriMemoryCaptureRequest,
+8:   MERI_MEMORY_CAPTURE_REQUEST_HEADER,
+9:   type MeriServerReadonlyCapturePolicy,
+10:   type MeriContext,
+11: } from '@capiro/meriv2-core';
+12: import { withTrustedCurrentTurnScope } from '../request/trusted-current-turn-scope.js';
+13: import { RequestCredentialsStore } from '../request/request-credentials.store.js';
+14: import { ApiToolExecutorRepo } from './api-tool-executor.repo.js';
+15: import { MeriRunBudget } from './meriv3/meriv3-run-budget.js';
+16: import {
+17:   observeMeriV3CaptureExecution,
+18:   buildSignedOrchestratorCaptureEvidence,
+19: } from './meriv3/meriv3-capture-evidence.js';
+20: import {
+21:   withControlledReadInvocation,
+22:   observeControlledReadHttpResponse,
+23:   readControlledReadHttpObservations,
+24:   readCaptureClockInvocations,
+25:   readMemoryCaptureHttpObservations,
+26: } from './controlled-read-observations.js';
+27: import { projectMeriToolEvidence } from './meriv3/meriv3-tool-evidence.js';
+28: import { observeMeriTurnToolCoverage } from './meriv3/meriv3-turn-coverage.js';
+29: 
+30: const id = (n: number) =>
+31:   `${n}`.repeat(8) +
+32:   '-' +
+33:   `${n}`.repeat(4) +
+34:   '-4' +
+35:   `${n}`.repeat(3) +
+36:   '-8' +
+37:   `${n}`.repeat(3) +
+38:   '-' +
+39:   `${n}`.repeat(12);
+40: const hash = (s: string) => createHash('sha256').update(s).digest('hex');
+41: function policy(caseId = '72'): MeriServerReadonlyCapturePolicy {
+42:   return {
+43:     version: 1,
+44:     kind: 'server_readonly_acceptance_capture',
+45:     policyId: id(1),
+46:     requestId: 'request',
+47:     traceId: 'trace',
+48:     turnId: id(2),
+49:     caseId,
+50:     captureRunId: id(3),
+51:     fixtureVersion: 'test',
+52:     physicalMapSha256: 'a'.repeat(64),
+53:     resetReceiptId: 'reset',
+54:     seedReceiptId: 'seed',
+55:     fixtureNamespace: 'meri-foundation-20260928',
+56:     tenantId: id(4),
+57:     tenantSlug: 'meri-foundation-20260928-t1',
+58:     actorUserId: id(5),
+59:     conversationId: id(6),
+60:     clientId: id(7),
+61:     issuedAt: Date.now() - 1000,
+62:     expiresAt: Date.now() + 60000,
+63:     toolAuthority: 'shared_static_registry_read_only',
+64:     toolCatalogSha256: hash(
+65:       MERI_CAPABILITY_REGISTRY.filter((t) => t.readOnly)
+66:         .map((t) => t.name)
+67:         .sort()
+68:         .join('\n'),
+69:     ),
+70:     dynamicMcpAllowed: false,
+71:     incidentalWriters: 'suppressed',
+72:     expectedCaptureWrites: [
+73:       'context_packet_and_evidence',
+74:       'conversation_user_message',
+75:       'conversation_assistant_message',
+76:       'provider_budget_ledger',
+77:     ],
+78:   };
+79: }
+80: function scope<T>(p: MeriServerReadonlyCapturePolicy, fn: () => T): T {
+81:   return withTrustedCurrentTurnScope(
+82:     {
+83:       tenantId: p.tenantId,
+84:       userId: p.actorUserId,
+85:       conversationId: p.conversationId,
+86:       selectedClientId: p.clientId,
+87:       capturePolicy: p,
+88:     },
+89:     fn,
+90:   );
+91: }
+92: function payload(p: MeriServerReadonlyCapturePolicy): {
+93:   error?: string;
+94:   records?: Array<{ id: string; text: string }>;
+95:   controlledRead: Record<string, any>;
+96: } {
+97:   const text = 'R2-27, page 14. PE 0912345T. FY27 President\u2019s Budget request: $42M.';
+98:   return {
+99:     ...(p.caseId === '72' ? { error: 'document unavailable' } : { records: [{ id: id(8), text }] }),
+100:     controlledRead: {
+101:       owner: 'meri_controlled_read_v1',
+102:       ...Object.fromEntries(
+103:         [
+104:           'caseId',
+105:           'captureRunId',
+106:           'requestId',
+107:           'traceId',
+108:           'turnId',
+109:           'tenantId',
+110:           'actorUserId',
+111:           'clientId',
+112:           'conversationId',
+113:           'physicalMapSha256',
+114:         ].map((k) => [k, (p as any)[k]]),
+115:       ),
+116:       sourceTenantId: p.tenantId,
+117:       sourceClientId: p.caseId === '20' ? null : p.clientId,
+118:       currentVerifySha256: 'b'.repeat(64),
+119:       sourceId: id(8),
+120:       logicalSourceId: p.caseId === '20' ? 'R2-27' : 'MEMO-A-LATEST',
+121:       sourceVersion: 'v1',
+122:       contentSha256: hash(p.caseId === '20' ? text : ''),
+123:     },
+124:   };
+125: }
+126: 
+127: describe('controlled read actual HTTP observations', () => {
+128:   let server: Server | undefined;
+129:   afterEach(async () => {
+130:     if (server) {
+131:       server.closeAllConnections();
+132:       await new Promise<void>((resolve) => server!.close(() => resolve()));
+133:       server = undefined;
+134:     }
+135:   });
+136:   test.each(['01', '14'])('canonical memory owner joins actual Case%s HTTP bytes without exposing proof to model', async (caseId) => {
+137:     const p = policy(caseId);
+138:     p.fixtureVersion = 'meri-live-v1-2026-09-26.1';
+139:     p.semanticClock = {version:1,kind:'qualified_original_fixture_semantic_clock',instant:'2026-09-26T16:00:00.000Z',timeZone:'America/New_York',caseId:caseId as '01'|'14',captureRunId:p.captureRunId!,currentVerifySha256:'b'.repeat(64),observedAt:p.issuedAt};
+140:     const text = 'Approved Aster source text.', sourceVersion = 'candidate:'+id(9);
+141:     const record = {domain:'institutional_knowledge',recordId:id(8),
+142:       provenance:{source:'memory_items',recordId:id(8),canonicalTenantId:p.tenantId,sourceVersion},
+143:       payload:{sourceKind:'governed_memory',memoryItemId:id(8),clientId:p.clientId,contentStatus:'available',value:text,
+144:         content:{hash:hash(text+'\0'+sourceVersion),offset:0,endOffset:text.length,totalCharacters:text.length,truncated:false,nextRead:null}}};
+145:     const packet = {packetId:id(9),persisted:true,clockUse:{instant:p.semanticClock.instant,timeZone:p.semanticClock.timeZone,eligibilityAt:new Date().toISOString(),scoring:'used'}};
+146:     const secret = 'synthetic-memory-source-secret';
+147:     const body = {tool:'search_memory',records:[record],results:[{id:record.recordId}],nextCursor:null,contextPacket:packet,contextPackets:[packet],
+148:       contentStatus:'available',factContentUnavailableCount:0,contentTruncated:false,
+149:       coverage:{complete:true,paginationComplete:true,sources:[{domain:'institutional_knowledge',sourceStatus:'healthy',hasMore:false,truncated:false,paginationComplete:true,coverageComplete:true}]},
+150:       memoryCaptureSources:null as ReturnType<typeof signMeriMemoryCaptureSources>|null};
+151:     let hits = 0;
+152:     server = createServer((req,res)=>{hits++;let raw='';req.on('data',chunk=>raw+=chunk);req.on('end',()=>{
+153:       const binding=decodeMeriMemoryCaptureRequest(p,req.headers[MERI_MEMORY_CAPTURE_REQUEST_HEADER],JSON.parse(raw),secret);
+154:       // Second response deliberately replays the first call's valid signed bytes.
+155:       if(hits===1)body.memoryCaptureSources=signMeriMemoryCaptureSources(p,[record],secret,binding);
+156:       res.writeHead(200,{'content-type':'application/json'});res.end(JSON.stringify(body));
+157:     });});
+158:     await new Promise<void>(resolve=>server!.listen(0,'127.0.0.1',resolve));
+159:     const repo = new ApiToolExecutorRepo({get:(key:string)=>({MERIV2_API_BASE_URL:`http://127.0.0.1:${(server!.address() as {port:number}).port}`,INTERNAL_SERVICE_SECRET:secret})[key]} as never);
+160:     const priorSecret = process.env.INTERNAL_SERVICE_SECRET;
+161:     process.env.INTERNAL_SERVICE_SECRET = secret;
+162:     try {
+163:       await scope(p,()=>RequestCredentialsStore.run({bearerToken:'synthetic-bearer'},async()=>{
+164:         const response = await withControlledReadInvocation('memory-call',()=>repo.execute({} as MeriContext,'search_memory',{}),'search_memory');
+165:         const visible = projectMeriToolEvidence({result:response,maxCharacters:20000,readOnly:true});
+166:         expect(JSON.stringify(visible)).not.toContain('memoryCaptureSources');
+167:         expect(JSON.stringify(visible)).not.toContain('canonicalTenantId');
+168:         expect(JSON.stringify(visible)).not.toContain(body.memoryCaptureSources!.signature);
+169:         const citations = extractCitationsFromToolResult('search_memory',visible,1);
+170:         expect(citations).toHaveLength(1);
+171:         const args = {callId:'memory-call',tool:'search_memory',readOnly:true,result:visible,citations,coverage:observeMeriTurnToolCoverage('search_memory',visible)};
+172:         expect(observeMeriV3CaptureExecution(args).sources[0]).toMatchObject({sourceId:id(8),toolCallId:'memory-call',tenantId:{status:'OBSERVED',value:p.tenantId},clientId:{status:'OBSERVED',value:p.clientId},fullRead:{status:'OBSERVED',value:true},byteSha256:{status:'OBSERVED',value:hash(text)}});
+173:         expect(readMemoryCaptureHttpObservations()[0]).toMatchObject({callId:'memory-call',responseSha256:hash(JSON.stringify(body))});
+174:         for (const citations of [args.citations.map(c=>({...c,snippet:'modified'})),args.citations.map(c=>({...c,source:{...c.source!,version:'changed'}}))]) {
+175:           expect(observeMeriV3CaptureExecution({...args,citations}).sources[0]!.tenantId.status).toBe('UNKNOWN');
+176:         }
+177:         expect(observeMeriV3CaptureExecution({...args,callId:'unobserved-call'}).sources[0]!.tenantId.status).toBe('UNKNOWN');
+178:         await scope({...p},async()=>{expect(readMemoryCaptureHttpObservations()).toEqual([]);expect(observeMeriV3CaptureExecution(args).sources[0]!.tenantId.status).toBe('UNKNOWN');});
+179:         await expect(withControlledReadInvocation('replay-call',()=>repo.execute({} as MeriContext,'search_memory',{}),'search_memory')).rejects.toThrow('meri_memory_capture_source_unproved');
+180:         expect(readMemoryCaptureHttpObservations().map(row=>row.callId)).toEqual(['memory-call']);
+181:       }));
+182:       expect(hits).toBe(2);
+183:       expect(readMemoryCaptureHttpObservations()).toEqual([]);
+184:     } finally {
+185:       if(priorSecret===undefined)delete process.env.INTERNAL_SERVICE_SECRET;
+186:       else process.env.INTERNAL_SERVICE_SECRET=priorSecret;
+187:     }
+188:   });
+189:   test.each(['unwrapped', 'missing-call-id', 'wrong-tool'])(
+190:     'refused %s execution poisons the clock census even when its caller catches the error',
+191:     async (boundary) => {
+192:       const p = policy('01');
+193:       p.fixtureVersion = 'meri-live-v1-2026-09-26.1';
+194:       p.semanticClock = {
+195:         version: 1,
+196:         kind: 'qualified_original_fixture_semantic_clock',
+197:         instant: '2026-09-26T16:00:00.000Z',
+198:         timeZone: 'America/New_York',
+199:         caseId: '01',
+200:         captureRunId: p.captureRunId!,
+201:         currentVerifySha256: 'b'.repeat(64),
+202:         observedAt: p.issuedAt,
+203:       };
+204:       const repo = new ApiToolExecutorRepo({
+205:         get: (key: string) =>
+206:           (
+207:             ({
+208:               MERIV2_API_BASE_URL: 'http://127.0.0.1:1',
+209:               INTERNAL_SERVICE_SECRET: 'synthetic-secret',
+210:             }) as Record<string, string>
+211:           )[key],
+212:       } as never);
+213:       const fetchSpy = jest.spyOn(globalThis, 'fetch');
+214:       try {
+215:         await scope(p, () =>
+216:           RequestCredentialsStore.run({ bearerToken: 'synthetic-bearer' }, async () => {
+217:             const invoke = () => repo.execute({} as MeriContext, 'search_memory', {});
+218:             const refused =
+219:               boundary === 'unwrapped'
+220:                 ? invoke()

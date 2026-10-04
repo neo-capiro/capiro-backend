@@ -72,7 +72,8 @@ function sanitizeValue(value: unknown): unknown {
   if (!object(value)) return value;
   const keys = new Set<string>();
   return Object.fromEntries(
-    Object.entries(value).map(([key, entry], index) => {
+    // Capture authority is consumed at the HTTP boundary, never by the model.
+    Object.entries(value).filter(([key]) => key !== 'memoryCaptureSources' && key !== 'canonicalTenantId').map(([key, entry], index) => {
       const sanitized = sanitizeToolResultText(key, Number.MAX_SAFE_INTEGER);
       // Filtering two different hostile keys must not overwrite either value.
       let unique = sanitized;

@@ -1,0 +1,311 @@
+SOURCE apps/meriv2-orchestrator/src/meri/api-tool-executor.repo.ts LINES 1-105
+1: import { observeControlledReadHttpResponse, observeCaptureClockHttpAttempt, memoryCaptureRequestHeaders,
+2:   observeCaptureClockHttpResponse } from './controlled-read-observations.js';
+3: import { Injectable, Logger } from '@nestjs/common';
+4: import { ConfigService } from '@nestjs/config';
+5: import {
+6:   encodeMeriCapturePolicyTransport,
+7:   MERI_CAPTURE_POLICY_HEADER,
+8:   type MeriContext,
+9:   type ToolExecutor,
+10:   type ToolExecutionControl,
+11: } from '@capiro/meriv2-core';
+12: import { createMeriExecutionControl } from './meri-execution-control.js';
+13: import { classifyApiToolReadOutcome } from './api-tool-read-outcome.js';
+14: import { RequestCredentialsStore } from '../request/request-credentials.store.js';
+15: import {
+16:   assertServerReadonlyCaptureToolAllowed,
+17:   currentGovernedArtifactCapturePolicy,
+18:   currentTrustedCurrentTurnScope,
+19: } from '../request/trusted-current-turn-scope.js';
+20: import {
+21:   bindCurrentConversationToolInput,
+22:   isCurrentConversationResearchPortfolioTool,
+23: } from './current-turn-tool-scope.js';
+24: import { buildResearchPortfolioToolTransport } from './rp-tool-transport.js';
+25: import {
+26:   emitMeriOrchestratorTelemetry,
+27:   withMeriOrchestratorTelemetrySpan,
+28:   meriOrchestratorTelemetryHeaders,
+29: } from '../telemetry/meri-telemetry.runtime.js';
+30: 
+31: const RETRYABLE_MAIL_READS = new Set(['list_emails', 'search_emails', 'get_email_thread']);
+32: const MAX_MAIL_RETRY_DELAY_MS = 5_000;
+33: 
+34: function canonicalMailReadInput(toolName: string, input: Record<string, unknown>) {
+35:   if (toolName !== 'list_emails' && toolName !== 'search_emails') return input;
+36:   // Spell out the canonical owner's existing defaults on the wire. Explicit
+37:   // non-null values still reach owner validation unchanged, including errors.
+38:   return { ...input, folder: input.folder ?? 'all', offset: input.offset ?? 0 };
+39: }
+40: 
+41: /** Only the API's explicit database-capacity response is safe to retry here. */
+42: function mailCapacityRetryDelay(toolName: string, response: Response, body: string): number | null {
+43:   if (!RETRYABLE_MAIL_READS.has(toolName) || response.status !== 503) return null;
+44:   let payload: unknown;
+45:   try {
+46:     payload = JSON.parse(body);
+47:   } catch {
+48:     return null;
+49:   }
+50:   if (
+51:     !payload ||
+52:     typeof payload !== 'object' ||
+53:     (payload as Record<string, unknown>).statusCode !== 503 ||
+54:     (payload as Record<string, unknown>).message !==
+55:       'The database is temporarily busy. Please retry.'
+56:   ) {
+57:     return null;
+58:   }
+59:   const retryAfter = response.headers?.get('retry-after')?.trim();
+60:   if (!retryAfter) return null;
+61:   const delay = /^\d+$/.test(retryAfter)
+62:     ? Number(retryAfter) * 1_000
+63:     : Date.parse(retryAfter) - Date.now();
+64:   // Honor the server's delay; do not shorten a long Retry-After and hammer it.
+65:   return Number.isFinite(delay) && delay >= 0 && delay <= MAX_MAIL_RETRY_DELAY_MS
+66:     ? Math.max(100, delay)
+67:     : null;
+68: }
+69: 
+70: function waitForMailRetry(delayMs: number, signal: AbortSignal): Promise<void> {
+71:   return new Promise((resolve, reject) => {
+72:     if (signal.aborted) {
+73:       reject(signal.reason);
+74:       return;
+75:     }
+76:     const onAbort = () => {
+77:       clearTimeout(timer);
+78:       signal.removeEventListener('abort', onAbort);
+79:       reject(signal.reason);
+80:     };
+81:     const timer = setTimeout(() => {
+82:       signal.removeEventListener('abort', onAbort);
+83:       resolve();
+84:     }, delayMs);
+85:     signal.addEventListener('abort', onAbort, { once: true });
+86:   });
+87: }
+88: 
+89: /**
+90:  * `ToolExecutor` that delegates a named tool to apps/api's existing
+91:  * authenticated executor: `POST /api/clio/tools/:name`, backed by
+92:  * MeriToolsService.executeFromAuthenticatedUser (the ONE tenant-scoped
+93:  * implementation + BYOK path). Forwards the caller's verified Bearer token, so
+94:  * apps/api re-derives the full TenantContext and applies its own field
+95:  * validation + scoping — no SQL duplicated, no behavior drift. Same bridge
+96:  * pattern as ApiClientContextRepo, generalized to any tool.
+97:  *
+98:  * This runs INSIDE a real user request (the registry invoke path), so the
+99:  * forwarded user Bearer is always present; non-user callers (hearing backfill)
+100:  * are out of scope here and require the separate service-auth path.
+101:  */
+102: @Injectable()
+103: export class ApiToolExecutorRepo implements ToolExecutor {
+104:   private readonly logger = new Logger(ApiToolExecutorRepo.name);
+105:   private readonly apiBaseUrl: string;
+
+SOURCE apps/meriv2-orchestrator/src/meri/api-tool-executor.repo.ts LINES 112-314
+112:   private readonly serviceSecret?: string;
+113: 
+114:   constructor(config: ConfigService) {
+115:     this.apiBaseUrl = (
+116:       config.get<string>('MERIV2_API_BASE_URL') ?? 'http://localhost:3000'
+117:     ).replace(/\/+$/, '');
+118:     this.timeoutMs = Number.parseInt(config.get<string>('MERIV2_TOOL_TIMEOUT_MS') ?? '60000', 10);
+119:     this.serviceSecret = config.get<string>('INTERNAL_SERVICE_SECRET') || undefined;
+120:   }
+121: 
+122:   async execute(
+123:     _ctx: MeriContext,
+124:     toolName: string,
+125:     input: Record<string, unknown>,
+126:     control?: ToolExecutionControl,
+127:   ): Promise<unknown> {
+128:     const creds = RequestCredentialsStore.get();
+129:     if (!creds?.bearerToken) {
+130:       throw new Error(`No forwarded credential available for delegated tool "${toolName}"`);
+131:     }
+132:     const currentTurn = currentTrustedCurrentTurnScope();
+133:     if (currentGovernedArtifactCapturePolicy())
+134:       throw new Error('meri_case46_canonical_proposal_required');
+135:     assertServerReadonlyCaptureToolAllowed(toolName);
+136:     const boundedInput = bindCurrentConversationToolInput(toolName, input, currentTurn);
+137:     const researchPortfolioTool = isCurrentConversationResearchPortfolioTool(toolName);
+138:     if (researchPortfolioTool && !this.serviceSecret) {
+139:       throw new Error(
+140:         `INTERNAL_SERVICE_SECRET is not configured for Research Portfolio tool "${toolName}"`,
+141:       );
+142:     }
+143:     if (toolName === 'read_chat_attachments') {
+144:       if (!this.serviceSecret) {
+145:         throw new Error('Internal service identity is not configured for chat attachment reads');
+146:       }
+147:       if (!currentTurn?.conversationId) {
+148:         throw new Error('Trusted current conversation is unavailable for chat attachment reads');
+149:       }
+150:       if (
+151:         boundedInput.conversationId !== undefined &&
+152:         boundedInput.conversationId !== currentTurn.conversationId
+153:       ) {
+154:         throw new Error('Chat attachment reads cannot target another conversation');
+155:       }
+156:     }
+157:     const execution = createMeriExecutionControl(control, this.timeoutMs);
+158:     try {
+159:       execution.assertActive();
+160:       const url = `${this.apiBaseUrl}/api/clio/tools/${encodeURIComponent(toolName)}`;
+161:       const request = {
+162:         method: 'POST',
+163:         headers: {
+164:           authorization: `Bearer ${creds.bearerToken}`,
+165:           'content-type': 'application/json',
+166:           accept: 'application/json',
+167:           ...(execution.deadlineAt ? { 'x-meri-deadline-at': String(execution.deadlineAt) } : {}),
+168:           // Service identity: proves this call came from the orchestrator (after
+169:           // its compliance gate), so apps/api can reject a rogue user hitting the
+170:           // raw tool endpoint directly. See ToolServiceSecretGuard.
+171:           ...(this.serviceSecret ? { 'x-internal-service-secret': this.serviceSecret } : {}),
+172:           ...(currentTurn?.capturePolicy
+173:             ? {
+174:                 [MERI_CAPTURE_POLICY_HEADER]: encodeMeriCapturePolicyTransport(
+175:                   currentTurn.capturePolicy,
+176:                   'tool',
+177:                   toolName,
+178:                   this.serviceSecret,
+179:                 ),
+180:               }
+181:             : {}),
+182:           // Impersonation passthrough (2.5): re-send the effective-tenant header
+183:           // so apps/api scopes THIS delegated tool call to the impersonated
+184:           // tenant (it re-validates the caller's impersonation rights).
+185:           ...(creds.impersonateTenantId
+186:             ? { 'x-capiro-impersonate-tenant': creds.impersonateTenantId }
+187:             : {}),
+188:         },
+189:         body: JSON.stringify(
+190:           toolName === 'read_chat_attachments'
+191:             ? {
+192:                 version: 1,
+193:                 input: { ...boundedInput, conversationId: currentTurn!.conversationId },
+194:                 currentTurn: {
+195:                   tenantId: currentTurn!.tenantId,
+196:                   userId: currentTurn!.userId,
+197:                   conversationId: currentTurn!.conversationId,
+198:                   selectedClientId: currentTurn!.selectedClientId,
+199:                 },
+200:               }
+201:             : researchPortfolioTool
+202:               ? buildResearchPortfolioToolTransport(toolName, boundedInput, currentTurn)
+203:               : canonicalMailReadInput(toolName, boundedInput),
+204:         ),
+205:         signal: execution.signal,
+206:       } satisfies RequestInit;
+207:       // One retry only, inside the original deadline and cancellation signal.
+208:       // Failed writes and business/authorization refusals always retain the
+209:       // existing single-attempt path; a 503 alone is not transient evidence.
+210:       for (let attempt = 0; ; attempt += 1) {
+211:         execution.assertActive();
+212:         const attemptStartedAt = Date.now();
+213:         const result = await withMeriOrchestratorTelemetrySpan<
+214:           { retryDelay: number; payload?: never } | { retryDelay: null; payload: unknown }
+215:         >(
+216:           {
+217:             name: 'meri.tool.attempt',
+218:             boundary: 'orchestrator_tool',
+219:             invokedTools: [toolName],
+220:             attempt: attempt + 1,
+221:             retry: attempt > 0,
+222:           },
+223:           async () => {
+224:             let res: Response;
+225:             try {
+226:               observeCaptureClockHttpAttempt(toolName);
+227:               res = await fetch(url, {
+228:                 ...request,
+229:                 headers: { ...request.headers, ...meriOrchestratorTelemetryHeaders(), ...memoryCaptureRequestHeaders(toolName, request.body, this.serviceSecret) },
+230:               });
+231:             } catch (error) {
+232:               emitMeriOrchestratorTelemetry({
+233:                 name: 'meri.tool.attempt.finalized',
+234:                 boundary: 'orchestrator_tool',
+235:                 invokedTools: [toolName],
+236:                 attempt: attempt + 1,
+237:                 retry: attempt > 0,
+238:                 outcome: execution.signal.aborted ? 'aborted' : 'error',
+239:                 durationMs: Date.now() - attemptStartedAt,
+240:               });
+241:               throw error;
+242:             }
+243:             if (res.ok) {
+244:               const payload = (await res.json()) as unknown;
+245:               observeControlledReadHttpResponse(toolName, res.status, payload);
+246:               observeCaptureClockHttpResponse(toolName, res.status, payload);
+247:               const outcome = classifyApiToolReadOutcome(toolName, payload);
+248:               if (outcome?.kind === 'failed' || outcome?.kind === 'unavailable') {
+249:                 emitMeriOrchestratorTelemetry({
+250:                   name: 'meri.tool.attempt.finalized',
+251:                   boundary: 'orchestrator_tool',
+252:                   invokedTools: [toolName],
+253:                   attempt: attempt + 1,
+254:                   retry: attempt > 0,
+255:                   outcome: outcome.kind,
+256:                   durationMs: Date.now() - attemptStartedAt,
+257:                 });
+258:                 this.logger.warn(`Delegated read "${toolName}" -> ${outcome.kind}`);
+259:                 throw new Error(
+260:                   `Delegated read "${toolName}" ${outcome.kind}: ${(outcome.reason ?? 'owner_result_unavailable').slice(0, 200)}`,
+261:                 );
+262:               }
+263:               emitMeriOrchestratorTelemetry({
+264:                 name: 'meri.tool.attempt.finalized',
+265:                 boundary: 'orchestrator_tool',
+266:                 invokedTools: [toolName],
+267:                 attempt: attempt + 1,
+268:                 retry: attempt > 0,
+269:                 outcome: 'completed',
+270:                 durationMs: Date.now() - attemptStartedAt,
+271:               });
+272:               return { retryDelay: null, payload };
+273:             }
+274:             const body = await res.text().catch(() => '');
+275:             this.logger.warn(`Delegated tool "${toolName}" -> ${res.status}`);
+276:             const retryDelay = attempt === 0 ? mailCapacityRetryDelay(toolName, res, body) : null;
+277:             if (
+278:               retryDelay !== null &&
+279:               (execution.deadlineAt === undefined || Date.now() + retryDelay < execution.deadlineAt)
+280:             ) {
+281:               emitMeriOrchestratorTelemetry({
+282:                 name: 'meri.tool.attempt.finalized',
+283:                 boundary: 'orchestrator_tool',
+284:                 invokedTools: [toolName],
+285:                 attempt: attempt + 1,
+286:                 retry: false,
+287:                 outcome: 'retry_scheduled',
+288:                 durationMs: Date.now() - attemptStartedAt,
+289:               });
+290:               return { retryDelay };
+291:             }
+292:             emitMeriOrchestratorTelemetry({
+293:               name: 'meri.tool.attempt.finalized',
+294:               boundary: 'orchestrator_tool',
+295:               invokedTools: [toolName],
+296:               attempt: attempt + 1,
+297:               retry: attempt > 0,
+298:               outcome: 'error',
+299:               durationMs: Date.now() - attemptStartedAt,
+300:             });
+301:             throw new Error(
+302:               `Delegated tool "${toolName}" failed: ${res.status} ${res.statusText} ${body.slice(0, 200)}`,
+303:             );
+304:           },
+305:           'client',
+306:         );
+307:         if (result.retryDelay !== null) {
+308:           await waitForMailRetry(result.retryDelay, execution.signal);
+309:           continue;
+310:         }
+311:         return result.payload;
+312:       }
+313:     } finally {
+314:       execution.dispose();

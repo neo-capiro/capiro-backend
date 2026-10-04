@@ -1,0 +1,134 @@
+{
+  "checkedAt": "2026-10-04T07:18:20.357564+00:00",
+  "result": "PASS_SOURCE_TRUST_BOUNDARY",
+  "scope": "Independent source review and 16 local frozen-source request-control/core checks; not live API/database/model/capture/deployment/acceptance proof.",
+  "hermesExecutionFile": "execution.json",
+  "hermesReviewSha256": "b27ce00d14003b7d46ea4178f0169f1b308a45959867a1ecd7755a394c206872",
+  "manifestSha256": "80422d21d4a30229331b65ef4ffc8dd794156d68890882ee897d702c793eade5",
+  "independentChecksSha256": "0fc98e268e7261888818e58cadff7d65a35057eca703ad397059998bd42825db",
+  "priorFinding": {
+    "id": "same_policy_cross_call_replay",
+    "status": "CLOSED_IN_FROZEN_V2_SOURCE",
+    "evidence": "Actual fetch requires first invocation attempt and mints unique nonce bound to call and outgoing body. API admits policy then validates signed request against parsed body before entering ALS; signing uses only that authenticated ALS request. Raw response verifier compares exact expected private current request; response readout matches unique completed call and semantic response JSON SHA. Same-policy A response cannot verify against B request."
+  },
+  "checks": {
+    "count": 16,
+    "result": "PASS",
+    "owner": "independent-review-agent, not Hermes",
+    "implementation": "Frozen TypeScript transpiled in memory; actual core helper and API request-control source loaded, actual Node crypto/EventEmitter/AsyncLocalStorage, native current core cancellation helper. No repository edits.",
+    "limitations": [
+      "Not a complete Nest HTTP controller/guard/database integration test.",
+      "Test policy stub intentionally exercises proof/request-control; pre-existing controller admission validates policy separately.",
+      "Root owns final package test/typecheck/source qualification and build/deploy."
+    ]
+  },
+  "noAdditionalDemonstratedTrustBypass": true,
+  "intentionalLimitations": [
+    "Canonical null client is not inferred from selected client. It remains UNKNOWN in receipt and cannot pass Case01/14 client-bound acceptance.",
+    "Proof/hash identity covers JSON serialization of parsed response/request data; not raw original HTTP wire octets.",
+    "No API nonce consumption cache; authentic same-request replay can still execute a read at API, but cannot be substituted into a distinct current orchestrator invocation.",
+    "Missing proof leaves canonical ownership UNKNOWN rather than inferring it.",
+    "Exported signer needs internal secret and valid request shape; actual service invokes with authenticated ALS binding. No inspected caller-input path supplies arbitrary source records."
+  ],
+  "sourceDriftAfterReview": [],
+  "currentHead": "e9828285a2a3315eca1e13e37307fe4c81027017",
+  "currentSourcePins": [
+    {
+      "source": "packages/meriv2-core/src/context/memory-capture-source.ts",
+      "sha256": "63b501da79d2f26454ff9050a56137df27fdaa9a7706ea9fcc9f94f3ac1dd30a",
+      "bytes": 8692
+    },
+    {
+      "source": "packages/meriv2-core/src/context/memory-capture-source.spec.ts",
+      "sha256": "a71a8222c011779e324064de717935adbccebaee3e7b74739fdf39ffdb8dd871",
+      "bytes": 6160
+    },
+    {
+      "source": "apps/meriv2-orchestrator/src/meri/controlled-read-observations.ts",
+      "sha256": "290512e0948ad7c955f2a7af096286dbaede1d89a879ac43ca13e34890c67682",
+      "bytes": 15612
+    },
+    {
+      "source": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-capture-evidence.ts",
+      "sha256": "de4afce7959c293b29a75d9bc94d6aaf47248fcee7ed8a9c40a99120dfd76eea",
+      "bytes": 11931
+    },
+    {
+      "source": "apps/api/src/meri/meri-memory-content.helpers.ts",
+      "sha256": "269859235ff3a5d1427f0448c366884b4b4d072e6c84f902059ed24edb567a2b",
+      "bytes": 5709
+    },
+    {
+      "source": "apps/api/src/meri/meri-tool-request-control.ts",
+      "sha256": "d7bc98fb4ece8e15d03c539b78891c06b1c68056efb03521139f462d3c6cf5b5",
+      "bytes": 3365
+    },
+    {
+      "source": "apps/api/src/meri/meri-tool-request-control.spec.ts",
+      "sha256": "ce5f236ae55d84db57150cb5ef5f0dffab79ff62a1e0c6b2e9d829fa90c5eed4",
+      "bytes": 1584
+    },
+    {
+      "source": "apps/api/src/meri/meri-server-readonly-capture.ts",
+      "sha256": "689ddc776123be123c6181ebf7459ce747ae4eb99ad841a8966d8db87210ac93",
+      "bytes": 21162
+    },
+    {
+      "source": "apps/api/src/meri/tool-service-secret.guard.ts",
+      "sha256": "75eb2806606057758c0b5e56741bcc97cdb7ef29f94f6a472d9d01ea26bf15ca",
+      "bytes": 2604
+    },
+    {
+      "source": "apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.ts",
+      "sha256": "bde82251b71fb7d2e86fee9d6928bd4b3fc686b4385f16be19057c864817b819",
+      "bytes": 36320
+    },
+    {
+      "source": "apps/api/src/meri/meri-tools.service.ts",
+      "sha256": "6292083cf3df78314bf1bacf2afe1dc02aad916716e7608b1f9e92ac8c145352",
+      "bytes": 408100
+    },
+    {
+      "source": "apps/api/src/meri/meri.controller.ts",
+      "sha256": "14b72090b98ac6913052cdf7d3fa5b44a43e3e71e7c80ceb7b7053e52602ffa8",
+      "bytes": 45118
+    },
+    {
+      "source": "packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "sha256": "affe70118364d44bdb5b13e55cd15edde2ce863323ecca4afa9644e0def74ab0",
+      "bytes": 24863
+    },
+    {
+      "source": "apps/meriv2-orchestrator/src/meri/api-tool-executor.repo.ts",
+      "sha256": "6feca0ed1e065689ec2b728d28ad17610dcd98682064c8fa5359246fd3ae784a",
+      "bytes": 13668
+    },
+    {
+      "source": "apps/meriv2-orchestrator/src/request/trusted-current-turn-scope.ts",
+      "sha256": "60b4c10a62af06c3d95520fcfef7e4a923bb99315a8e6277517f9f1fa6ee0158",
+      "bytes": 4427
+    },
+    {
+      "source": "apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts",
+      "sha256": "548bba26caebbf4368d4726ddb47774cb74187ce08ba12ed7d3f13aef7327871",
+      "bytes": 35811
+    },
+    {
+      "source": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-tool-evidence.ts",
+      "sha256": "f64fe34a5220b82e7d7ee85c85d85bd21efbf6f37da54b93ea4874afd52e9a68",
+      "bytes": 26451
+    },
+    {
+      "source": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts",
+      "sha256": "e2c49a4356ce2cdffdef62b1abcb3e85a247630e763ac5e9d847c00f604aad6f",
+      "bytes": 172222
+    }
+  ],
+  "repoEditsByReviewer": false,
+  "reviewerCreatedFiles": [
+    "independent-request-control-checks.cjs",
+    "independent-request-control-checks.json",
+    "independent-assessment.json"
+  ],
+  "preserveV1Fail": true
+}

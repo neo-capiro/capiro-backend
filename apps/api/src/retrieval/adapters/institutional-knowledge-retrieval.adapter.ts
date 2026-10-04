@@ -718,6 +718,7 @@ function memoryRecord(row: GovernedMemoryRow, semanticScore: number | null): Ret
     provenance: {
       source: 'memory_items',
       recordId: row.id,
+      canonicalTenantId: row.tenantId,
       sourceType: row.sourceType,
       sourceId: row.sourceId ?? null,
       sourceRef: row.sourceRef ?? null,

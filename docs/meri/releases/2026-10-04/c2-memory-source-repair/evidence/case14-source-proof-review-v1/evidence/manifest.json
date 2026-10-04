@@ -1,0 +1,109 @@
+{
+  "frozenAt": "2026-10-04T07:05:07.659822+00:00",
+  "head": "e9828285a2a3315eca1e13e37307fe4c81027017",
+  "files": [
+    {
+      "source": "packages/meriv2-core/src/context/memory-capture-source.ts",
+      "sha256": "917e1d36c70177f6dfc28bdf237f08b59407960a5c3cb2f9f3807032bf810823",
+      "bytes": 5438,
+      "bundle": "packages/meriv2-core/src/context/memory-capture-source.ts",
+      "fullFile": true
+    },
+    {
+      "source": "packages/meriv2-core/src/context/memory-capture-source.spec.ts",
+      "sha256": "aecc7b743ea16284def35cfd07b38a08f2d5296151a5ce2e5761f8d12f41a2b4",
+      "bytes": 3936,
+      "bundle": "packages/meriv2-core/src/context/memory-capture-source.spec.ts",
+      "fullFile": true
+    },
+    {
+      "source": "apps/meriv2-orchestrator/src/meri/controlled-read-observations.ts",
+      "sha256": "a0bc2dcabf39c7edee4cb740e59ab1f4fe31273578efd315b35e09a85905f41a",
+      "bytes": 14446,
+      "bundle": "apps/meriv2-orchestrator/src/meri/controlled-read-observations.ts",
+      "fullFile": true
+    },
+    {
+      "source": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-capture-evidence.ts",
+      "sha256": "de4afce7959c293b29a75d9bc94d6aaf47248fcee7ed8a9c40a99120dfd76eea",
+      "bytes": 11931,
+      "bundle": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-capture-evidence.ts",
+      "fullFile": true
+    },
+    {
+      "source": "apps/api/src/meri/meri-memory-content.helpers.ts",
+      "sha256": "269859235ff3a5d1427f0448c366884b4b4d072e6c84f902059ed24edb567a2b",
+      "bytes": 5709,
+      "bundle": "apps/api/src/meri/meri-memory-content.helpers.ts",
+      "fullFile": true
+    },
+    {
+      "source": "apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.ts",
+      "sha256": "bde82251b71fb7d2e86fee9d6928bd4b3fc686b4385f16be19057c864817b819",
+      "bytes": 36320,
+      "bundle": "apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.ts.excerpt.txt",
+      "ranges": [
+        [
+          138,
+          329
+        ],
+        [
+          655,
+          745
+        ]
+      ]
+    },
+    {
+      "source": "apps/api/src/meri/meri-tools.service.ts",
+      "sha256": "be827f0dce96db885f1a239e1c0f27ea7b3f6ba667ca5cf873a89c1533bf0794",
+      "bytes": 408029,
+      "bundle": "apps/api/src/meri/meri-tools.service.ts.excerpt.txt",
+      "ranges": [
+        [
+          3457,
+          3595
+        ]
+      ]
+    },
+    {
+      "source": "packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "sha256": "affe70118364d44bdb5b13e55cd15edde2ce863323ecca4afa9644e0def74ab0",
+      "bytes": 24863,
+      "bundle": "packages/meriv2-core/src/context/capture-evidence-receipt.ts.excerpt.txt",
+      "ranges": [
+        [
+          247,
+          347
+        ],
+        [
+          462,
+          511
+        ]
+      ]
+    },
+    {
+      "source": "apps/meriv2-orchestrator/src/meri/api-tool-executor.repo.ts",
+      "sha256": "8c04bae85e105c43c972b53f75a293e329544e0795229ee5ef7e21984612b058",
+      "bytes": 13563,
+      "bundle": "apps/meriv2-orchestrator/src/meri/api-tool-executor.repo.ts.excerpt.txt",
+      "ranges": [
+        [
+          1,
+          65
+        ]
+      ]
+    },
+    {
+      "source": "apps/meriv2-orchestrator/src/request/trusted-current-turn-scope.ts",
+      "sha256": "60b4c10a62af06c3d95520fcfef7e4a923bb99315a8e6277517f9f1fa6ee0158",
+      "bytes": 4427,
+      "bundle": "apps/meriv2-orchestrator/src/request/trusted-current-turn-scope.ts.excerpt.txt",
+      "ranges": [
+        [
+          1,
+          250
+        ]
+      ]
+    }
+  ]
+}

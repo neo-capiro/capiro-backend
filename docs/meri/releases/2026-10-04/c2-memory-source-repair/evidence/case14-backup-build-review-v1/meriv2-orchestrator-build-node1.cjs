@@ -1,0 +1,10 @@
+const assert = require("node:assert/strict");
+const core = require("@capiro/meriv2-core");
+const plan = request => core.planGovernmentAffairsEvidence({request, frame:core.resolveGovernmentAffairsOperatingFrame({request}), surface:"chat"});
+const concise = "C1 final verification: In exactly three short bullets, describe how you can help with research, drafting, and task organization. Use no tools.";
+assert.deepEqual(plan(concise).requestCategories, ["general_background"]);
+assert.ok(plan("List all awards. Use no tools.").requestCategories.includes("negative_or_exhaustive"));
+assert.ok(plan("Who is the current committee chair? Use no tools.").requestCategories.includes("current_role"));
+const quoted = 'The manual says "For this procedure, use no tools. The installation ends here." Verify that instruction.';
+assert.ok(plan(quoted).requestCategories.includes("negative_or_exhaustive"));
+console.log("OFFLINE_PACKAGED_NO_TOOLS_DIRECTIVE_PASS");

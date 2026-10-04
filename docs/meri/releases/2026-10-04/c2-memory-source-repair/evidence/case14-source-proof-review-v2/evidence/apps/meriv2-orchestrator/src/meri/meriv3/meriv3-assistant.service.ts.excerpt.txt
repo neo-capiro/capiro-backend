@@ -1,0 +1,132 @@
+SOURCE apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts LINES 1498-1544
+1498:             resolveCurrentDiscoverySchemas,
+1499:             authorizeCurrentDiscoverySchema,
+1500:           })
+1501:         : [];
+1502:       for (const execution of leafExecutions) {
+1503:         executionByCallId.set(execution.call.call_id, execution);
+1504:       }
+1505:       const executions = calls.flatMap((call) => {
+1506:         const execution = executionByCallId.get(call.call_id);
+1507:         return execution ? [execution] : [];
+1508:       });
+1509:       gatheredToolOutput = gatheredToolOutput || leafExecutions.length > 0;
+1510:       for (const execution of executions) {
+1511:         const discoveryControl = progressiveDiscovery.handles(execution.call.name);
+1512:         if (!discoveryControl) MeriV3ResearchRuntimeStore.observeToolResult(execution.result);
+1513:         input.push({
+1514:           type: 'function_call_output',
+1515:           call_id: execution.call.call_id,
+1516:           output: execution.serialized,
+1517:         });
+1518:         const executionCitations = extractCitationsFromToolResult(
+1519:           execution.call.name,
+1520:           execution.result,
+1521:           1,
+1522:         );
+1523:         const executionCoverage = observeMeriTurnToolCoverage(
+1524:           execution.call.name,
+1525:           execution.result,
+1526:         );
+1527:         const capture = observeMeriV3CaptureExecution({
+1528:           callId: execution.call.call_id,
+1529:           tool: execution.call.name,
+1530:           readOnly: discoveryControl || this.registry.get(execution.call.name)?.readOnly === true,
+1531:           ...(discoveryControl ? { localDiscovery: true as const } : {}),
+1532:           result: execution.result,
+1533:           citations: executionCitations,
+1534:           coverage: executionCoverage,
+1535:         });
+1536:         captureToolCalls.push(...capture.toolCalls);
+1537:         captureSources.push(...capture.sources);
+1538:         if (discoveryControl) continue;
+1539:         // The observer receives the same bounded evidence that the model sees.
+1540:         try {
+1541:           documentCompletion?.observe(
+1542:             execution.call.name,
+1543:             parseArguments(execution.call.arguments),
+1544:             execution.result,
+
+SOURCE apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts LINES 3737-3818
+3737:           if (replay.dispatchAllowed === false)
+3738:             throw new Error(
+3739:               'The durable attempt was already spent or its replay proof failed; no second dispatch is allowed.',
+3740:             );
+3741:           await this.assertCurrentProcedureAuthority(args.conversationId, args.name, args.control);
+3742:           const reservation = await this.researchSafeReadRequest(
+3743:             args.researchRun,
+3744:             'reservations',
+3745:             {
+3746:               providerCallId: args.providerCallId,
+3747:               tool: args.name,
+3748:               input: args.input,
+3749:             },
+3750:             args.control,
+3751:           );
+3752:           if (
+3753:             reservation.dispatchAllowed !== true ||
+3754:             typeof reservation.reservationId !== 'string' ||
+3755:             reservation.tool !== args.name ||
+3756:             reservation.toolVersion !== toolVersion
+3757:           )
+3758:             throw new Error('Research tool attempt was not admitted for dispatch.');
+3759:           dispatchedReservationId = reservation.reservationId;
+3760:           result = await withControlledReadInvocation(args.providerCallId, () =>
+3761:             this.registry.invoke(args.name, args.input, args.ctx, args.control),
+3762:             args.name,
+3763:           );
+3764:           const classification = classifyApiToolReadOutcome(args.name, result);
+3765:           if (
+3766:             !classification ||
+3767:             (classification.kind !== 'complete' && classification.kind !== 'empty')
+3768:           ) {
+3769:             dispatchedReservationId = undefined;
+3770:             await this.researchSafeReadRequest(
+3771:               args.researchRun,
+3772:               'failures',
+3773:               {
+3774:                 reservationId: reservation.reservationId,
+3775:                 code: classification?.kind ?? 'unknown_owner_result',
+3776:               },
+3777:               args.control,
+3778:             );
+3779:             const detail = `Read result was not durably qualified (${classification?.kind ?? 'unknown'}).`;
+3780:             args.steps.push({ tool: args.name, label, status: 'error', detail });
+3781:             args.emit({ type: 'tool_done', tool: args.name, label, status: 'error', detail });
+3782:             return result;
+3783:           }
+3784:           const executionId = reservation.reservationId;
+3785:           const receipt = await this.researchSafeReadRequest(
+3786:             args.researchRun,
+3787:             'outcomes',
+3788:             {
+3789:               reservationId: executionId,
+3790:               executionId,
+3791:               providerCallId: args.providerCallId,
+3792:               tool: args.name,
+3793:               toolVersion,
+3794:               input: args.input,
+3795:               result,
+3796:             },
+3797:             args.control,
+3798:           );
+3799:           durableSafeRead = this.durableOutcome({ ...receipt, replayed: false });
+3800:         }
+3801:       } else {
+3802:         await this.assertCurrentProcedureAuthority(args.conversationId, args.name, args.control);
+3803:         result = await withControlledReadInvocation(args.providerCallId, () =>
+3804:           this.registry.invoke(args.name, args.input, args.ctx, args.control),
+3805:           args.name,
+3806:         );
+3807:       }
+3808:       if (durableSafeRead) args.captureDurableSafeRead(durableSafeRead);
+3809:       args.steps.push({ tool: args.name, label, status: 'done', durableSafeRead });
+3810:       args.emit({
+3811:         type: 'tool_done',
+3812:         tool: args.name,
+3813:         label,
+3814:         status: 'done',
+3815:         durableSafeRead,
+3816:         ...(durableSafeRead ? { ownerResult: result } : {}),
+3817:       });
+3818:       return result;

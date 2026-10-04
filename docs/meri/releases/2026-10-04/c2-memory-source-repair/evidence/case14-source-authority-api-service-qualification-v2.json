@@ -1,0 +1,51 @@
+{
+  "kind": "api-memory-source-service-strict-qualification",
+  "at": "2026-10-04T07:22:57.089496+00:00",
+  "status": "PASS",
+  "source": {
+    "path": "C:/dev/main/meri-c1-20261002/apps/api/src/meri/meri-tools.memory-capture-source.spec.ts",
+    "bytes": 11955,
+    "sha256": "295a9fab3c7bb7474ba667588b59c942bf1f8c805830b4cb599b1f0dd0589d87"
+  },
+  "focusedServiceTests": {
+    "passed": 17,
+    "failed": 0,
+    "exitCode": 0
+  },
+  "fullApiTypecheck": {
+    "command": "NODE_OPTIONS=--max-old-space-size=8192 pnpm --filter @capiro/api exec tsc --noEmit --rootDir .",
+    "exitCode": 0,
+    "stdoutEmpty": true
+  },
+  "existingRequestControlAndActionProposalHttpRegressions": {
+    "suites": 2,
+    "passed": 17,
+    "failed": 0,
+    "exitCode": 0
+  },
+  "priorStrictFailurePreserved": true,
+  "otherSourceEdits": 0,
+  "committed": false,
+  "logs": [
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case14-source-authority-api-service-tests-v2.log",
+      "bytes": 2367,
+      "sha256": "1a96ce80b54be1aece38368962be4dc7d7ec60c97cbdc59f0ab6ec4819aba0be"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case14-source-authority-api-typecheck-v3.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case14-source-authority-api-controller-regression-v1.log",
+      "bytes": 5859,
+      "sha256": "48c2249480a1fa1bf6f7fe38090b46b85c9c059bddb3a719a1d594b6b9bed8e6"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case14-source-authority-api-typecheck-v2.log",
+      "bytes": 807,
+      "sha256": "b941f7f76a64c6f8a6e591eb7adacd79a2009fb9af70a8731ec11c6c5653a3ec"
+    }
+  ]
+}

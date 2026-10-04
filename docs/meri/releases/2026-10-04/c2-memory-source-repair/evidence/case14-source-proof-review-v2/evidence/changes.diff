@@ -1,0 +1,339 @@
+diff --git a/apps/api/src/meri/meri-memory-content.helpers.ts b/apps/api/src/meri/meri-memory-content.helpers.ts
+index 6448fe667..206af36d7 100644
+--- a/apps/api/src/meri/meri-memory-content.helpers.ts
++++ b/apps/api/src/meri/meri-memory-content.helpers.ts
+@@ -22,6 +22,7 @@ export function projectMemoryContent(
+     memoryItemId?: string;
+     contentCursor?: string;
+     maxJsonChars?: number;
++    captureSourceOwner?: boolean;
+   },
+ ): RetrievalRecord {
+   if (input.memoryItemId && record.recordId !== input.memoryItemId) {
+@@ -87,6 +88,7 @@ export function projectMemoryContent(
+       provenance: {
+         source: 'memory_items',
+         recordId: record.recordId,
++        ...(input.captureSourceOwner ? { canonicalTenantId: provenance.canonicalTenantId ?? null } : {}),
+         startOffset: offset,
+         endOffset,
+         sourceType: provenance.sourceType ?? null,
+diff --git a/apps/api/src/meri/meri-tool-request-control.ts b/apps/api/src/meri/meri-tool-request-control.ts
+index 9e0ae81c3..bcc27d4e2 100644
+--- a/apps/api/src/meri/meri-tool-request-control.ts
++++ b/apps/api/src/meri/meri-tool-request-control.ts
+@@ -2,9 +2,11 @@ import { AsyncLocalStorage } from 'node:async_hooks';
+ import type { Request } from 'express';
+ import { assertToolExecutionActive, type ToolExecutionControl } from '@capiro/meriv2-core';
+ import type { MeriServerReadonlyCapturePolicy } from '@capiro/meriv2-core';
++import { decodeMeriMemoryCaptureRequest, memoryCaptureSourcePolicyEnabled, MERI_MEMORY_CAPTURE_REQUEST_HEADER, type MeriMemoryCaptureRequest } from '@capiro/meriv2-core';
+ 
+ interface MeriToolRequestState extends ToolExecutionControl {
+   capturePolicy?: MeriServerReadonlyCapturePolicy;
++  memoryCaptureRequest?: MeriMemoryCaptureRequest;
+ }
+ 
+ const execution = new AsyncLocalStorage<MeriToolRequestState>();
+@@ -21,6 +23,9 @@ export function meriToolRequestControl(): ToolExecutionControl | undefined {
+ export function currentMeriToolCapturePolicy(): MeriServerReadonlyCapturePolicy | null {
+   return execution.getStore()?.capturePolicy ?? null;
+ }
++export function currentMeriMemoryCaptureRequest(): MeriMemoryCaptureRequest | undefined {
++  return execution.getStore()?.memoryCaptureRequest;
++}
+ 
+ export async function withMeriToolExecutionControl<T>(
+   control: ToolExecutionControl,
+@@ -37,6 +42,9 @@ export async function withMeriToolRequestControl<T>(
+   run: () => Promise<T>,
+   capturePolicy?: MeriServerReadonlyCapturePolicy | null,
+ ): Promise<T> {
++  const memoryCaptureRequest = memoryCaptureSourcePolicyEnabled(capturePolicy) && req.params?.name === 'search_memory'
++    ? decodeMeriMemoryCaptureRequest(capturePolicy, req.headers[MERI_MEMORY_CAPTURE_REQUEST_HEADER], req.body, process.env.INTERNAL_SERVICE_SECRET)
++    : undefined;
+   const controller = new AbortController();
+   const raw = req.headers['x-meri-deadline-at'];
+   const parsed = typeof raw === 'string' && /^\d+$/.test(raw) ? Number(raw) : undefined;
+@@ -62,6 +70,7 @@ export async function withMeriToolRequestControl<T>(
+         signal: controller.signal,
+         deadlineAt,
+         ...(capturePolicy ? { capturePolicy } : {}),
++        ...(memoryCaptureRequest ? { memoryCaptureRequest } : {}),
+       },
+       async () => {
+         assertMeriToolRequestActive();
+diff --git a/apps/api/src/meri/meri-tools.service.ts b/apps/api/src/meri/meri-tools.service.ts
+index 99cd743af..a1542047e 100644
+--- a/apps/api/src/meri/meri-tools.service.ts
++++ b/apps/api/src/meri/meri-tools.service.ts
+@@ -1,3 +1,4 @@
++import { memoryCaptureSourcePolicyEnabled, signMeriMemoryCaptureSources } from '@capiro/meriv2-core';
+ import { assertTextArtifactCurrentProposal, type TextArtifactCurrentAction } from './meri-text-artifact-current-proposal.js';
+ import { assertCase46ArtifactEffectInTx } from './meri-case46-action-authority.js';
+ import { researchPortfolioManagementSchema, parseResearchPortfolioManagementInput } from '../research-portfolios/research-portfolio-management.js';
+@@ -18,6 +19,7 @@ import {
+ import {
+   assertMeriToolRequestActive,
+   currentMeriToolCapturePolicy,
++  currentMeriMemoryCaptureRequest,
+   meriToolRequestControl,
+ } from './meri-tool-request-control.js';
+ import { currentMeriServerReadonlyCapturePolicy } from './meri-context-plane-runtime.js';
+@@ -3505,6 +3507,7 @@ export class MeriToolsService {
+     const project = () =>
+       evidence.records.map((record) =>
+         projectMemoryContent(ctx, record, {
++          captureSourceOwner: memoryCaptureSourcePolicyEnabled(capturePolicy),
+           clientId: clientId ?? undefined,
+           memoryItemId: memoryItemId ?? undefined,
+           contentCursor: contentCursor ?? undefined,
+@@ -3537,6 +3540,9 @@ export class MeriToolsService {
+     return {
+       ...envelope,
+       tool: 'search_memory',
++      ...(memoryCaptureSourcePolicyEnabled(capturePolicy)
++        ? { memoryCaptureSources: signMeriMemoryCaptureSources(capturePolicy, records, process.env.INTERNAL_SERVICE_SECRET, currentMeriMemoryCaptureRequest()!) }
++        : {}),
+       ...(capturePolicy?.semanticClock ? { contextPackets } : {}),
+       summary: records.length
+         ? `${records.length} governed memory item(s) returned. Follow content.nextRead for complete approved content; coverage describes the search.`
+diff --git a/apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.ts b/apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.ts
+index 4db1a6f59..e7b0056e4 100644
+--- a/apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.ts
++++ b/apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.ts
+@@ -718,6 +718,7 @@ function memoryRecord(row: GovernedMemoryRow, semanticScore: number | null): Ret
+     provenance: {
+       source: 'memory_items',
+       recordId: row.id,
++      canonicalTenantId: row.tenantId,
+       sourceType: row.sourceType,
+       sourceId: row.sourceId ?? null,
+       sourceRef: row.sourceRef ?? null,
+diff --git a/apps/meriv2-orchestrator/src/meri/api-tool-executor.repo.ts b/apps/meriv2-orchestrator/src/meri/api-tool-executor.repo.ts
+index 0b8a49177..f8bf4118a 100644
+--- a/apps/meriv2-orchestrator/src/meri/api-tool-executor.repo.ts
++++ b/apps/meriv2-orchestrator/src/meri/api-tool-executor.repo.ts
+@@ -1,4 +1,4 @@
+-import { observeControlledReadHttpResponse, observeCaptureClockHttpAttempt,
++import { observeControlledReadHttpResponse, observeCaptureClockHttpAttempt, memoryCaptureRequestHeaders,
+   observeCaptureClockHttpResponse } from './controlled-read-observations.js';
+ import { Injectable, Logger } from '@nestjs/common';
+ import { ConfigService } from '@nestjs/config';
+@@ -226,7 +226,7 @@ export class ApiToolExecutorRepo implements ToolExecutor {
+               observeCaptureClockHttpAttempt(toolName);
+               res = await fetch(url, {
+                 ...request,
+-                headers: { ...request.headers, ...meriOrchestratorTelemetryHeaders() },
++                headers: { ...request.headers, ...meriOrchestratorTelemetryHeaders(), ...memoryCaptureRequestHeaders(toolName, request.body, this.serviceSecret) },
+               });
+             } catch (error) {
+               emitMeriOrchestratorTelemetry({
+diff --git a/apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts b/apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts
+index c97f98e3d..71510b1d5 100644
+--- a/apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts
++++ b/apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts
+@@ -1,8 +1,11 @@
+ import { createServer, type Server } from 'node:http';
+ import { createHash } from 'node:crypto';
+-import { MERI_CAPABILITY_REGISTRY, type MeriCitation } from '@capiro/shared';
++import { MERI_CAPABILITY_REGISTRY, extractCitationsFromToolResult, type MeriCitation } from '@capiro/shared';
+ import {
+   meriCaptureClockExecutionBlockers,
++  signMeriMemoryCaptureSources,
++  decodeMeriMemoryCaptureRequest,
++  MERI_MEMORY_CAPTURE_REQUEST_HEADER,
+   type MeriServerReadonlyCapturePolicy,
+   type MeriContext,
+ } from '@capiro/meriv2-core';
+@@ -19,6 +22,7 @@ import {
+   observeControlledReadHttpResponse,
+   readControlledReadHttpObservations,
+   readCaptureClockInvocations,
++  readMemoryCaptureHttpObservations,
+ } from './controlled-read-observations.js';
+ import { projectMeriToolEvidence } from './meriv3/meriv3-tool-evidence.js';
+ import { observeMeriTurnToolCoverage } from './meriv3/meriv3-turn-coverage.js';
+@@ -129,6 +133,59 @@ describe('controlled read actual HTTP observations', () => {
+       server = undefined;
+     }
+   });
++  test.each(['01', '14'])('canonical memory owner joins actual Case%s HTTP bytes without exposing proof to model', async (caseId) => {
++    const p = policy(caseId);
++    p.fixtureVersion = 'meri-live-v1-2026-09-26.1';
++    p.semanticClock = {version:1,kind:'qualified_original_fixture_semantic_clock',instant:'2026-09-26T16:00:00.000Z',timeZone:'America/New_York',caseId:caseId as '01'|'14',captureRunId:p.captureRunId!,currentVerifySha256:'b'.repeat(64),observedAt:p.issuedAt};
++    const text = 'Approved Aster source text.', sourceVersion = 'candidate:'+id(9);
++    const record = {domain:'institutional_knowledge',recordId:id(8),
++      provenance:{source:'memory_items',recordId:id(8),canonicalTenantId:p.tenantId,sourceVersion},
++      payload:{sourceKind:'governed_memory',memoryItemId:id(8),clientId:p.clientId,contentStatus:'available',value:text,
++        content:{hash:hash(text+'\0'+sourceVersion),offset:0,endOffset:text.length,totalCharacters:text.length,truncated:false,nextRead:null}}};
++    const packet = {packetId:id(9),persisted:true,clockUse:{instant:p.semanticClock.instant,timeZone:p.semanticClock.timeZone,eligibilityAt:new Date().toISOString(),scoring:'used'}};
++    const secret = 'synthetic-memory-source-secret';
++    const body = {tool:'search_memory',records:[record],results:[{id:record.recordId}],nextCursor:null,contextPacket:packet,contextPackets:[packet],
++      contentStatus:'available',factContentUnavailableCount:0,contentTruncated:false,
++      coverage:{complete:true,paginationComplete:true,sources:[{domain:'institutional_knowledge',sourceStatus:'healthy',hasMore:false,truncated:false,paginationComplete:true,coverageComplete:true}]},
++      memoryCaptureSources:null as ReturnType<typeof signMeriMemoryCaptureSources>|null};
++    let hits = 0;
++    server = createServer((req,res)=>{hits++;let raw='';req.on('data',chunk=>raw+=chunk);req.on('end',()=>{
++      const binding=decodeMeriMemoryCaptureRequest(p,req.headers[MERI_MEMORY_CAPTURE_REQUEST_HEADER],JSON.parse(raw),secret);
++      // Second response deliberately replays the first call's valid signed bytes.
++      if(hits===1)body.memoryCaptureSources=signMeriMemoryCaptureSources(p,[record],secret,binding);
++      res.writeHead(200,{'content-type':'application/json'});res.end(JSON.stringify(body));
++    });});
++    await new Promise<void>(resolve=>server!.listen(0,'127.0.0.1',resolve));
++    const repo = new ApiToolExecutorRepo({get:(key:string)=>({MERIV2_API_BASE_URL:`http://127.0.0.1:${(server!.address() as {port:number}).port}`,INTERNAL_SERVICE_SECRET:secret})[key]} as never);
++    const priorSecret = process.env.INTERNAL_SERVICE_SECRET;
++    process.env.INTERNAL_SERVICE_SECRET = secret;
++    try {
++      await scope(p,()=>RequestCredentialsStore.run({bearerToken:'synthetic-bearer'},async()=>{
++        const response = await withControlledReadInvocation('memory-call',()=>repo.execute({} as MeriContext,'search_memory',{}),'search_memory');
++        const visible = projectMeriToolEvidence({result:response,maxCharacters:20000,readOnly:true});
++        expect(JSON.stringify(visible)).not.toContain('memoryCaptureSources');
++        expect(JSON.stringify(visible)).not.toContain('canonicalTenantId');
++        expect(JSON.stringify(visible)).not.toContain(body.memoryCaptureSources!.signature);
++        const citations = extractCitationsFromToolResult('search_memory',visible,1);
++        expect(citations).toHaveLength(1);
++        const args = {callId:'memory-call',tool:'search_memory',readOnly:true,result:visible,citations,coverage:observeMeriTurnToolCoverage('search_memory',visible)};
++        expect(observeMeriV3CaptureExecution(args).sources[0]).toMatchObject({sourceId:id(8),toolCallId:'memory-call',tenantId:{status:'OBSERVED',value:p.tenantId},clientId:{status:'OBSERVED',value:p.clientId},fullRead:{status:'OBSERVED',value:true},byteSha256:{status:'OBSERVED',value:hash(text)}});
++        expect(readMemoryCaptureHttpObservations()[0]).toMatchObject({callId:'memory-call',responseSha256:hash(JSON.stringify(body))});
++        for (const citations of [args.citations.map(c=>({...c,snippet:'modified'})),args.citations.map(c=>({...c,source:{...c.source!,version:'changed'}}))]) {
++          expect(observeMeriV3CaptureExecution({...args,citations}).sources[0]!.tenantId.status).toBe('UNKNOWN');
++        }
++        expect(observeMeriV3CaptureExecution({...args,callId:'unobserved-call'}).sources[0]!.tenantId.status).toBe('UNKNOWN');
++        await scope({...p},async()=>{expect(readMemoryCaptureHttpObservations()).toEqual([]);expect(observeMeriV3CaptureExecution(args).sources[0]!.tenantId.status).toBe('UNKNOWN');});
++        await expect(withControlledReadInvocation('replay-call',()=>repo.execute({} as MeriContext,'search_memory',{}),'search_memory')).rejects.toThrow('meri_memory_capture_source_unproved');
++        expect(readMemoryCaptureHttpObservations().map(row=>row.callId)).toEqual(['memory-call']);
++      }));
++      expect(hits).toBe(2);
++      expect(readMemoryCaptureHttpObservations()).toEqual([]);
++    } finally {
++      if(priorSecret===undefined)delete process.env.INTERNAL_SERVICE_SECRET;
++      else process.env.INTERNAL_SERVICE_SECRET=priorSecret;
++    }
++  });
+   test.each(['unwrapped', 'missing-call-id', 'wrong-tool'])(
+     'refused %s execution poisons the clock census even when its caller catches the error',
+     async (boundary) => {
+diff --git a/apps/meriv2-orchestrator/src/meri/controlled-read-observations.ts b/apps/meriv2-orchestrator/src/meri/controlled-read-observations.ts
+index 4bab96af7..92e16bf6d 100644
+--- a/apps/meriv2-orchestrator/src/meri/controlled-read-observations.ts
++++ b/apps/meriv2-orchestrator/src/meri/controlled-read-observations.ts
+@@ -1,5 +1,6 @@
+ import { AsyncLocalStorage } from 'node:async_hooks';
+-import { createHash } from 'node:crypto';
++import { createHash, randomUUID } from 'node:crypto';
++import { memoryCaptureSourcePolicyEnabled, verifyMeriMemoryCaptureSources, encodeMeriMemoryCaptureRequest, MERI_MEMORY_CAPTURE_REQUEST_HEADER, type MeriMemoryCaptureRequest, type MeriMemoryCaptureSource } from '@capiro/meriv2-core';
+ import {
+   classifyApiToolReadOutcome,
+   type MeriPendingMemoryProposalRead,
+@@ -15,8 +16,10 @@ const invocations = new AsyncLocalStorage<{
+   policy: MeriServerReadonlyCapturePolicy;
+   callId: string;
+   clock?: MeriCaptureClockInvocation;
++  memoryRequest?: MeriMemoryCaptureRequest;
+ }>();
+ const observations = new WeakMap<MeriServerReadonlyCapturePolicy, MeriControlledReadAttempt[]>();
++const memoryObservations = new WeakMap<MeriServerReadonlyCapturePolicy, Array<MeriMemoryCaptureSource & { callId: string; responseSha256: string }>>();
+ const clockInvocations = new WeakMap<
+   MeriServerReadonlyCapturePolicy,
+   MeriCaptureClockInvocation[]
+@@ -98,6 +101,19 @@ export function observeCaptureClockHttpAttempt(tool: string): void {
+   invocation.clock.httpAttempts++;
+ }
+ 
++/** Mint once at the actual fetch boundary; the API authenticates this exact input. */
++export function memoryCaptureRequestHeaders(tool: string, body: string, secret: string | undefined): Record<string,string> {
++  const policy = currentServerReadonlyCapturePolicy();
++  if(tool !== 'search_memory' || !memoryCaptureSourcePolicyEnabled(policy))return {};
++  const invocation = invocations.getStore();
++  if(invocation?.policy !== policy || invocation.clock?.tool !== tool || invocation.clock.httpAttempts !== 1 || invocation.memoryRequest)
++    throw new Error('Memory capture request invocation unproved.');
++  const request = {callId:invocation.callId,nonce:randomUUID(),inputSha256:createHash('sha256').update(body,'utf8').digest('hex')};
++  const encoded = encodeMeriMemoryCaptureRequest(policy,request,secret);
++  invocation.memoryRequest = request;
++  return {[MERI_MEMORY_CAPTURE_REQUEST_HEADER]:encoded};
++}
++
+ /** Raw API response metadata is retained independently of model projection. */
+ export function observeCaptureClockHttpResponse(
+   tool: string,
+@@ -121,6 +137,17 @@ export function observeCaptureClockHttpResponse(
+     )
+       throw new Error('Capture clock compiler packets missing.');
+     row.packets = structuredClone(value.contextPackets);
++    if (memoryCaptureSourcePolicyEnabled(policy) && value.memoryCaptureSources !== undefined) {
++      const outcome = classifyApiToolReadOutcome(tool, payload);
++      if (status !== 200 || !outcome || !['complete', 'empty', 'partial'].includes(outcome.kind) ||
++        value.tool !== 'search_memory' || value.error || value.blocked ||
++        invocations.getStore()?.policy !== policy)
++        throw new Error('Memory capture source HTTP outcome unproved.');
++      const sources = verifyMeriMemoryCaptureSources(policy, value.records, value.memoryCaptureSources, process.env.INTERNAL_SERVICE_SECRET, invocations.getStore()!.memoryRequest!);
++      const prior = memoryObservations.get(policy) ?? [];
++      if (prior.some(s => s.callId === row.callId)) throw new Error('Memory capture source duplicate response.');
++      memoryObservations.set(policy, [...prior, ...sources.map(s => ({ ...s, callId: row.callId, responseSha256: row.responseSha256! }))]);
++    }
+   } else if (tool === 'list_memory_proposals') {
+     const value = payload as MeriPendingMemoryProposalRead | null;
+     const outcome = classifyApiToolReadOutcome(tool, payload);
+@@ -162,6 +189,15 @@ export function readCaptureClockInvocations(): MeriCaptureClockInvocation[] | un
+   const policy = currentServerReadonlyCapturePolicy();
+   return clockEnabled(policy) ? structuredClone(clockInvocations.get(policy) ?? []) : undefined;
+ }
++/** Only verified actual API responses in this completed turn's policy scope. */
++export function readMemoryCaptureHttpObservations() {
++  const policy = currentServerReadonlyCapturePolicy();
++  if (!memoryCaptureSourcePolicyEnabled(policy)) return [];
++  const completed = (clockInvocations.get(policy) ?? []).filter(row =>
++    row.tool === 'search_memory' && row.outcome === 'returned' && row.httpAttempts === 1 && row.httpStatus === 200);
++  return structuredClone((memoryObservations.get(policy) ?? []).filter(source =>
++    completed.filter(row => row.callId === source.callId && row.responseSha256 === source.responseSha256).length === 1));
++}
+ /** Runs at the actual HTTP response boundary BEFORE logical-error classification
+  * throws. It stores only scoped source identity, hashes and actual transport facts.
+  */
+diff --git a/apps/meriv2-orchestrator/src/meri/meriv3/meriv3-capture-evidence.ts b/apps/meriv2-orchestrator/src/meri/meriv3/meriv3-capture-evidence.ts
+index 7f56d0520..4e1506f6a 100644
+--- a/apps/meriv2-orchestrator/src/meri/meriv3/meriv3-capture-evidence.ts
++++ b/apps/meriv2-orchestrator/src/meri/meriv3/meriv3-capture-evidence.ts
+@@ -1,4 +1,4 @@
+-import { readControlledReadHttpObservations } from '../controlled-read-observations.js';
++import { readControlledReadHttpObservations, readMemoryCaptureHttpObservations } from '../controlled-read-observations.js';
+ import type { MeriControlledReadAttempt } from '@capiro/meriv2-core';
+ import { createHash } from 'node:crypto';
+ import type { MeriCitation } from '@capiro/shared';
+@@ -107,6 +107,22 @@ export function observeMeriV3CaptureExecution(args: {
+     .filter((citation) => citation.id)
+     .map((citation): MeriCaptureSourceObservation => {
+       const matchingCoverage = args.coverage.find((entry) => entry.tool === args.tool);
++      const memory = args.tool === 'search_memory' && args.readOnly
++        ? readMemoryCaptureHttpObservations().find(row => row.callId === args.callId &&
++            row.sourceId === citation.id && citation.source?.kind === 'memory' &&
++            citation.source.recordId === row.sourceId && citation.source.version === row.currentVersion &&
++            (citation.source.clientId ?? null) === row.clientId &&
++            typeof citation.snippet === 'string' && row.passageSha256 === sha256(citation.snippet))
++        : undefined;
++      if (memory) return {
++        sourceId: memory.sourceId, toolCallId: args.callId,
++        tenantId: observed(memory.tenantId), clientId: memory.clientId === null
++          ? unknown('canonical_memory_has_no_client') : observed(memory.clientId),
++        currentVersion: observed(memory.currentVersion), fullRead: observed(memory.fullRead),
++        locator: observed(`characters ${memory.offset}-${memory.endOffset}`),
++        passageSha256: observed(memory.passageSha256),
++        byteSha256: memory.fullRead ? observed(memory.passageSha256) : unknown('canonical_memory_content_is_partial'),
++      };
+       const controlled = readControlledReadHttpObservations()?.find(
+         (row) =>
+           row.callId === args.callId &&
+diff --git a/apps/meriv2-orchestrator/src/meri/meriv3/meriv3-tool-evidence.ts b/apps/meriv2-orchestrator/src/meri/meriv3/meriv3-tool-evidence.ts
+index fa9c3bff0..81f1d5ecc 100644
+--- a/apps/meriv2-orchestrator/src/meri/meriv3/meriv3-tool-evidence.ts
++++ b/apps/meriv2-orchestrator/src/meri/meriv3/meriv3-tool-evidence.ts
+@@ -72,7 +72,8 @@ function sanitizeValue(value: unknown): unknown {
+   if (!object(value)) return value;
+   const keys = new Set<string>();
+   return Object.fromEntries(
+-    Object.entries(value).map(([key, entry], index) => {
++    // Capture authority is consumed at the HTTP boundary, never by the model.
++    Object.entries(value).filter(([key]) => key !== 'memoryCaptureSources' && key !== 'canonicalTenantId').map(([key, entry], index) => {
+       const sanitized = sanitizeToolResultText(key, Number.MAX_SAFE_INTEGER);
+       // Filtering two different hostile keys must not overwrite either value.
+       let unique = sanitized;

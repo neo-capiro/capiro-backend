@@ -1,5 +1,6 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
+import { memoryCaptureSourcePolicyEnabled, verifyMeriMemoryCaptureSources, encodeMeriMemoryCaptureRequest, MERI_MEMORY_CAPTURE_REQUEST_HEADER, type MeriMemoryCaptureRequest, type MeriMemoryCaptureSource } from '@capiro/meriv2-core';
 import {
   classifyApiToolReadOutcome,
   type MeriPendingMemoryProposalRead,
@@ -15,8 +16,10 @@ const invocations = new AsyncLocalStorage<{
   policy: MeriServerReadonlyCapturePolicy;
   callId: string;
   clock?: MeriCaptureClockInvocation;
+  memoryRequest?: MeriMemoryCaptureRequest;
 }>();
 const observations = new WeakMap<MeriServerReadonlyCapturePolicy, MeriControlledReadAttempt[]>();
+const memoryObservations = new WeakMap<MeriServerReadonlyCapturePolicy, Array<MeriMemoryCaptureSource & { callId: string; responseSha256: string }>>();
 const clockInvocations = new WeakMap<
   MeriServerReadonlyCapturePolicy,
   MeriCaptureClockInvocation[]
@@ -98,6 +101,19 @@ export function observeCaptureClockHttpAttempt(tool: string): void {
   invocation.clock.httpAttempts++;
 }
 
+/** Mint once at the actual fetch boundary; the API authenticates this exact input. */
+export function memoryCaptureRequestHeaders(tool: string, body: string, secret: string | undefined): Record<string,string> {
+  const policy = currentServerReadonlyCapturePolicy();
+  if(tool !== 'search_memory' || !memoryCaptureSourcePolicyEnabled(policy))return {};
+  const invocation = invocations.getStore();
+  if(invocation?.policy !== policy || invocation.clock?.tool !== tool || invocation.clock.httpAttempts !== 1 || invocation.memoryRequest)
+    throw new Error('Memory capture request invocation unproved.');
+  const request = {callId:invocation.callId,nonce:randomUUID(),inputSha256:createHash('sha256').update(body,'utf8').digest('hex')};
+  const encoded = encodeMeriMemoryCaptureRequest(policy,request,secret);
+  invocation.memoryRequest = request;
+  return {[MERI_MEMORY_CAPTURE_REQUEST_HEADER]:encoded};
+}
+
 /** Raw API response metadata is retained independently of model projection. */
 export function observeCaptureClockHttpResponse(
   tool: string,
@@ -121,6 +137,17 @@ export function observeCaptureClockHttpResponse(
     )
       throw new Error('Capture clock compiler packets missing.');
     row.packets = structuredClone(value.contextPackets);
+    if (memoryCaptureSourcePolicyEnabled(policy) && value.memoryCaptureSources !== undefined) {
+      const outcome = classifyApiToolReadOutcome(tool, payload);
+      if (status !== 200 || !outcome || !['complete', 'empty', 'partial'].includes(outcome.kind) ||
+        value.tool !== 'search_memory' || value.error || value.blocked ||
+        invocations.getStore()?.policy !== policy)
+        throw new Error('Memory capture source HTTP outcome unproved.');
+      const sources = verifyMeriMemoryCaptureSources(policy, value.records, value.memoryCaptureSources, process.env.INTERNAL_SERVICE_SECRET, invocations.getStore()!.memoryRequest!);
+      const prior = memoryObservations.get(policy) ?? [];
+      if (prior.some(s => s.callId === row.callId)) throw new Error('Memory capture source duplicate response.');
+      memoryObservations.set(policy, [...prior, ...sources.map(s => ({ ...s, callId: row.callId, responseSha256: row.responseSha256! }))]);
+    }
   } else if (tool === 'list_memory_proposals') {
     const value = payload as MeriPendingMemoryProposalRead | null;
     const outcome = classifyApiToolReadOutcome(tool, payload);
@@ -161,6 +188,15 @@ export function observeCaptureClockHttpResponse(
 export function readCaptureClockInvocations(): MeriCaptureClockInvocation[] | undefined {
   const policy = currentServerReadonlyCapturePolicy();
   return clockEnabled(policy) ? structuredClone(clockInvocations.get(policy) ?? []) : undefined;
+}
+/** Only verified actual API responses in this completed turn's policy scope. */
+export function readMemoryCaptureHttpObservations() {
+  const policy = currentServerReadonlyCapturePolicy();
+  if (!memoryCaptureSourcePolicyEnabled(policy)) return [];
+  const completed = (clockInvocations.get(policy) ?? []).filter(row =>
+    row.tool === 'search_memory' && row.outcome === 'returned' && row.httpAttempts === 1 && row.httpStatus === 200);
+  return structuredClone((memoryObservations.get(policy) ?? []).filter(source =>
+    completed.filter(row => row.callId === source.callId && row.responseSha256 === source.responseSha256).length === 1));
 }
 /** Runs at the actual HTTP response boundary BEFORE logical-error classification
  * throws. It stores only scoped source identity, hashes and actual transport facts.

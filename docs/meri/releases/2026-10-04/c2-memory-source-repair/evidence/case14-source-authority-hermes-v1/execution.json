@@ -1,0 +1,35 @@
+{
+  "startedAt": "2026-10-04T06:29:09.972604+00:00",
+  "finishedAt": "2026-10-04T06:32:24.058556+00:00",
+  "exitCode": 0,
+  "failure": null,
+  "modelOverride": null,
+  "providerOverride": null,
+  "files": [
+    {
+      "path": "analysis.md",
+      "bytes": 9741,
+      "sha256": "acaf56e3c7470318d7c7ed18cb082c170e27746ac186ba5fcc237b28c4d11967"
+    },
+    {
+      "path": "prompt.txt",
+      "bytes": 1378,
+      "sha256": "d2afcf802246e5361eaa0a9087691c452ad97227311d30899a9d0a057b908139"
+    },
+    {
+      "path": "response.txt",
+      "bytes": 656,
+      "sha256": "bfc5fe68a1c458a27099412bf6c833c40f0426fddb85df3c84bc32962ed0e278"
+    },
+    {
+      "path": "stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "case14-source-authority-hermes-v1\\usage.json",
+      "bytes": 477,
+      "sha256": "82f78aec70ad11350602f6563ab7a131774b6e0bb1439855b65cea3e460b07f8"
+    }
+  ]
+}

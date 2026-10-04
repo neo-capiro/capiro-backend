@@ -1,0 +1,53 @@
+PASS src/meri/meriv3/meriv3-tool-evidence.spec.ts (7.255 s)
+PASS src/meri/meriv3/meriv3-capture-evidence.spec.ts
+[Nest] 34736  - 10/04/2026, 3:06:19 AM    WARN [ApiToolExecutorRepo] Delegated read "read_client_documents" -> failed
+[Nest] 34736  - 10/04/2026, 3:06:19 AM    WARN [ApiToolExecutorRepo] Delegated tool "search_memory" -> 503
+FAIL src/meri/controlled-read-observations.spec.ts (6.479 s)
+  ● controlled read actual HTTP observations › canonical memory owner joins actual Case01 HTTP bytes without exposing proof to model
+
+    Memory capture source HTTP outcome unproved.
+
+      129 |         value.tool !== 'search_memory' || value.error || value.blocked ||
+      130 |         invocations.getStore()?.policy !== policy)
+    > 131 |         throw new Error('Memory capture source HTTP outcome unproved.');
+          |               ^
+      132 |       const sources = verifyMeriMemoryCaptureSources(policy, value.records, value.memoryCaptureSources, process.env.INTERNAL_SERVICE_SECRET);
+      133 |       const prior = memoryObservations.get(policy) ?? [];
+      134 |       if (prior.some(s => s.callId === row.callId)) throw new Error('Memory capture source duplicate response.');
+
+      at observeCaptureClockHttpResponse (src/meri/controlled-read-observations.ts:131:15)
+      at src/meri/api-tool-executor.repo.ts:246:46
+      at ApiToolExecutorRepo.execute (src/meri/api-tool-executor.repo.ts:213:24)
+      at src/meri/controlled-read-observations.ts:81:22
+      at src/meri/controlled-read-observations.spec.ts:157:26
+      at src/meri/controlled-read-observations.spec.ts:156:7
+
+  ● controlled read actual HTTP observations › canonical memory owner joins actual Case14 HTTP bytes without exposing proof to model
+
+    Memory capture source HTTP outcome unproved.
+
+      129 |         value.tool !== 'search_memory' || value.error || value.blocked ||
+      130 |         invocations.getStore()?.policy !== policy)
+    > 131 |         throw new Error('Memory capture source HTTP outcome unproved.');
+          |               ^
+      132 |       const sources = verifyMeriMemoryCaptureSources(policy, value.records, value.memoryCaptureSources, process.env.INTERNAL_SERVICE_SECRET);
+      133 |       const prior = memoryObservations.get(policy) ?? [];
+      134 |       if (prior.some(s => s.callId === row.callId)) throw new Error('Memory capture source duplicate response.');
+
+      at observeCaptureClockHttpResponse (src/meri/controlled-read-observations.ts:131:15)
+      at src/meri/api-tool-executor.repo.ts:246:46
+      at ApiToolExecutorRepo.execute (src/meri/api-tool-executor.repo.ts:213:24)
+      at src/meri/controlled-read-observations.ts:81:22
+      at src/meri/controlled-read-observations.spec.ts:157:26
+      at src/meri/controlled-read-observations.spec.ts:156:7
+
+Test Suites: 1 failed, 2 passed, 3 total
+Tests:       2 failed, 65 passed, 67 total
+Snapshots:   0 total
+Time:        14.314 s
+Ran all test suites matching /src\\meri\\controlled-read-observations.spec.ts|src\\meri\\meriv3\\meriv3-tool-evidence.spec.ts|src\\meri\\meriv3\\meriv3-capture-evidence.spec.ts/i.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?
+undefined
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command "jest" not found
+
+Did you mean "pnpm exec jest"?

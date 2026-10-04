@@ -1,0 +1,154 @@
+SOURCE packages/meriv2-core/src/context/capture-evidence-receipt.ts LINES 247-347
+247: ): string[] {
+248:   const clock = receipt.semanticClock;
+249:   if (!clock) return [];
+250:   const failures = new Set<string>();
+251:   const { binding, prompt, invocations } = clock;
+252:   try {
+253:     validateMeriFixtureSemanticClock(binding, { caseId: receipt.caseId,
+254:       captureRunId: receipt.captureRunId, issuedAt: binding.observedAt });
+255:   } catch { failures.add('semantic_clock_binding_unproved'); }
+256:   if (prompt.status !== 'OBSERVED' || !prompt.value ||
+257:     prompt.value.instant !== binding.instant || prompt.value.timeZone !== binding.timeZone ||
+258:     prompt.value.date !== '2026-09-26' || !Number.isSafeInteger(prompt.value.renderedAt) ||
+259:     prompt.value.renderedAt < receipt.startedAt || prompt.value.renderedAt > receipt.completedAt ||
+260:     !/^[a-f0-9]{64}$/.test(prompt.value.groundingSha256))
+261:     failures.add('semantic_clock_prompt_unproved');
+262:   if (!Array.isArray(invocations)) return [...failures, 'semantic_clock_invocations_unproved'];
+263:   const allowed = receipt.caseId === '01' || receipt.caseId === '14' ? ['search_memory', 'list_memory_proposals']
+264:     : receipt.caseId === '20' ? ['search_program_elements', 'get_program_element', 'get_pe_budget_timeline']
+265:     : receipt.caseId === '72' ? ['read_client_documents'] : [];
+266:   if (!allowed.length) failures.add('semantic_clock_case_not_admitted');
+267:   const calls = new Map<string, MeriCaptureToolCallObservation>();
+268:   for (const call of receipt.toolCalls) {
+269:     if (!call.callId?.trim() || calls.has(call.callId) || !call.readOnly || call.attempt !== 1)
+270:       failures.add('semantic_clock_logical_calls_invalid');
+271:     calls.set(call.callId, call);
+272:   }
+273:   const seen = new Set<string>();
+274:   const packets = new Set<string>();
+275:   for (const attempt of invocations) {
+276:     if (!attempt || typeof attempt.callId !== 'string' || !Array.isArray(attempt.packets)) {
+277:       failures.add('semantic_clock_invocation_join_unproved');
+278:       continue;
+279:     }
+280:     const call = calls.get(attempt.callId);
+281:     const controlled = receipt.controlledReadAttempts?.filter(row => row.callId === attempt.callId) ?? [];
+282:     const expectedUnavailable = receipt.caseId === '72' && controlled.length === 1 &&
+283:       controlled[0]!.logicalError === 'document unavailable';
+284:     if (!call || call.localDiscovery || seen.has(attempt.callId) || call.name !== attempt.tool ||
+285:       !allowed.includes(attempt.tool) || attempt.httpAttempts !== 1 || attempt.httpStatus !== 200 ||
+286:       !/^[a-f0-9]{64}$/.test(attempt.responseSha256 ?? '') ||
+287:       (attempt.outcome !== 'returned' && !(expectedUnavailable && attempt.outcome === 'threw')) ||
+288:       !(expectedUnavailable ? ['failed', 'unavailable'] : ['complete', 'empty', 'partial']).includes(call.status))
+289:       failures.add('semantic_clock_invocation_join_unproved');
+290:     seen.add(attempt.callId);
+291:     if (attempt.tool !== 'list_memory_proposals' && attempt.proposalRead !== undefined)
+292:       failures.add('semantic_clock_proposal_read_unproved');
+293:     if (attempt.tool === 'search_memory') {
+294:       if (!Array.isArray(attempt.packets) || !attempt.packets.length || attempt.packets.length > 2)
+295:         failures.add('semantic_clock_tool_packets_unproved');
+296:       for (const packet of attempt.packets ?? []) {
+297:         if (!validClockPacket(packet, binding, receipt) || packets.has(packet.packetId))
+298:           failures.add('semantic_clock_tool_packets_unproved');
+299:         if (packet?.packetId) packets.add(packet.packetId);
+300:       }
+301:       if (controlled.length) failures.add('semantic_clock_unexpected_controlled_read');
+302:     } else if (attempt.tool === 'list_memory_proposals') {
+303:       const proof = attempt.proposalRead;
+304:       if (
+305:         !proof ||
+306:         proof.authority !== 'own_pending_proposals' ||
+307:         proof.tenantId !== receipt.tenantId ||
+308:         proof.actorUserId !== receipt.actorUserId ||
+309:         typeof receipt.clientId !== 'string' ||
+310:         !receipt.clientId.trim() ||
+311:         proof.clientId !== receipt.clientId ||
+312:         proof.semanticTime !== 'not_used' ||
+313:         proof.compiler !== 'not_run' ||
+314:         proof.claimsAreApprovedFacts !== false ||
+315:         !['complete', 'empty'].includes(proof.coverage) ||
+316:         // The generic logical observer calls an empty `candidates` page complete;
+317:         // only the actual proposal response establishes that its owned queue is empty.
+318:         (proof.coverage === 'empty'
+319:           ? !['complete', 'empty'].includes(call?.status ?? '')
+320:           : proof.coverage !== call?.status) ||
+321:         attempt.packets.length !== 0 ||
+322:         controlled.length !== 0 ||
+323:         !Array.isArray(call?.sourceIds) ||
+324:         call.sourceIds.length !== 0 ||
+325:         receipt.sources.some((source) => source.toolCallId === attempt.callId)
+326:       )
+327:         failures.add('semantic_clock_proposal_read_unproved');
+328:     } else {
+329:       const row = controlled[0];
+330:       if (attempt.packets?.length !== 0 || controlled.length !== 1 || !row ||
+331:         row.tool !== attempt.tool || row.httpStatus !== 200 || row.caseId !== receipt.caseId ||
+332:         row.requestId !== receipt.requestId || row.traceId !== receipt.traceId ||
+333:         row.turnId !== receipt.turnId || row.captureRunId !== receipt.captureRunId ||
+334:         row.responseSha256 !== attempt.responseSha256 || (row.logicalError && !expectedUnavailable))
+335:         failures.add('semantic_clock_controlled_read_join_unproved');
+336:     }
+337:   }
+338:   for (const call of calls.values()) {
+339:     if (call.localDiscovery) {
+340:       if (!['tool_search', 'tool_describe'].includes(call.name) || call.status !== 'complete' || seen.has(call.callId))
+341:         failures.add('semantic_clock_local_discovery_unproved');
+342:     } else if (!seen.has(call.callId)) failures.add('semantic_clock_invocation_missing');
+343:   }
+344:   if (receipt.controlledReadAttempts?.some(row => !seen.has(row.callId)))
+345:     failures.add('semantic_clock_controlled_read_extra');
+346:   return [...failures];
+347: }
+
+SOURCE packages/meriv2-core/src/context/capture-evidence-receipt.ts LINES 462-511
+462:     )
+463:       blockers.add('provider_budget_malformed');
+464:     if (budget.status !== 'SETTLED') blockers.add('provider_budget_usage_unsettled');
+465:     if (budget.turnId !== receipt.turnId) blockers.add('provider_budget_turn_mismatch');
+466:     if (budget.unaccountedBoundaries.length)
+467:       blockers.add('provider_budget_api_ingress_unaccounted');
+468:   } else if (receipt.caseId) {
+469:     blockers.add('provider_budget_not_run');
+470:   }
+471:   for (const [name, value] of requiredValues) {
+472:     if (value.status !== 'OBSERVED' || value.value === null) blockers.add(`${name}_unproved`);
+473:   }
+474:   for (const source of receipt.sources) {
+475:     if (source.tenantId.status !== 'OBSERVED' || source.tenantId.value !== receipt.tenantId) {
+476:       blockers.add(`source_tenant_authority_unproved:${source.sourceId}`);
+477:     }
+478:     if (
+479:       (source.clientId.status !== 'OBSERVED' || source.clientId.value !== receipt.clientId) &&
+480:       !qualifiedCase20PublicSource(receipt, source)
+481:     ) {
+482:       blockers.add(`source_client_authority_unproved:${source.sourceId}`);
+483:     }
+484:     if (source.currentVersion.status !== 'OBSERVED')
+485:       blockers.add(`source_version_unproved:${source.sourceId}`);
+486:     if (source.fullRead.status !== 'OBSERVED')
+487:       blockers.add(`source_coverage_unproved:${source.sourceId}`);
+488:     if (
+489:       source.locator.status !== 'OBSERVED' &&
+490:       source.passageSha256.status !== 'OBSERVED' &&
+491:       source.byteSha256.status !== 'OBSERVED'
+492:     ) {
+493:       blockers.add(`source_location_or_hash_unproved:${source.sourceId}`);
+494:     }
+495:   }
+496:   const callIds = new Set(receipt.toolCalls.map((call) => call.callId));
+497:   for (const source of receipt.sources) {
+498:     if (!callIds.has(source.toolCallId))
+499:       blockers.add(`source_tool_join_missing:${source.sourceId}`);
+500:   }
+501:   if (receipt.toolCalls.some((call) => !call.readOnly)) blockers.add('non_read_only_tool_observed');
+502:   if (receipt.effects.logicalEffects.some((effect) => effect.status !== 'observed')) {
+503:     blockers.add('logical_effect_not_authoritatively_observed');
+504:   }
+505:   if (receipt.effects.writes.some((write) => write.status === 'unexpected')) {
+506:     blockers.add('unexpected_write_observed');
+507:   }
+508:   return [...blockers].sort();
+509: }
+510: 
+511: export function completeMeriCaptureEvidenceReceipt(

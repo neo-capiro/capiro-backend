@@ -1,0 +1,60 @@
+import {readFileSync,writeFileSync,existsSync,mkdirSync} from 'node:fs';
+import {createHash,randomUUID} from 'node:crypto';
+import {execFileSync} from 'node:child_process';
+import assert from 'node:assert/strict';
+import {aws} from '../meri-fresh-20261003/auth-preflight.mjs';
+import {awsSingleAttempt} from './aws-single-attempt.mjs';
+const parent='C:/dev/main/outputs/meri-c2-20261003',repo='C:/dev/main/meri-c1-20261002';
+const hash=b=>createHash('sha256').update(b).digest('hex');
+const read=p=>JSON.parse(readFileSync(p,'utf8'));
+const [service,...extra]=process.argv.slice(2);
+assert.ok(['api','meriv2-orchestrator'].includes(service)&&!extra.length,'EXACT_SERVICE_REQUIRED');
+const candidatePath=parent+'/case14-memory-source-candidate-v1.json';
+const candidate=read(candidatePath), sha=candidate.sourceSha;
+assert.match(sha,/^[a-f0-9]{40}$/);
+assert.equal(candidate.backupAuthorization,'USER_REQUEST_USE_BACKUP_SHIPPING_METHOD');
+assert.equal(candidate.reviewSha256,'b27ce00d14003b7d46ea4178f0169f1b308a45959867a1ecd7755a394c206872');
+const checkpointPath=parent+'/case14-memory-source-qualification-v1.json';
+assert.equal(hash(readFileSync(checkpointPath)),candidate.sourceCheckpointSha256);
+const checkpoint=read(checkpointPath);
+assert.equal(checkpoint.status,'SOURCE_QUALIFICATION_PASS');
+assert.equal(checkpoint.productionOperations,0);
+assert.equal(checkpoint.schemaChange,false);
+assert.equal(checkpoint.c2Complete,false);
+assert.equal(hash(readFileSync(parent+'/case14-source-proof-review-v2/review.md')),candidate.reviewSha256);
+const preparation=parent+'/case14-backup-build-preparation-v2';
+assert.equal(hash(readFileSync(preparation+'/template-checks.json')),candidate.templateChecksSha256);
+const template=read(preparation+'/template-checks.json').services[service];
+const buildspec=readFileSync(preparation+'/'+template.path,'utf8');
+assert.equal(hash(buildspec),template.sha256);assert.ok(Buffer.byteLength(buildspec)<25600);
+const git=args=>execFileSync('git',args,{cwd:repo,encoding:'utf8',windowsHide:true}).trim();
+assert.equal(git(['rev-parse','HEAD']),sha);assert.equal(git(['status','--porcelain']),'');
+const main=JSON.parse(execFileSync('C:/Program Files/GitHub CLI/gh.exe',['api','repos/neo-capiro/capirov2/git/ref/heads/main'],{encoding:'utf8',windowsHide:true}));
+assert.equal(main.object.sha,sha);
+assert.ok(checkpoint.sourcePins.length>=30);
+for(const pin of checkpoint.sourcePins){
+  assert.ok(typeof pin.path==='string'&&!pin.path.includes('..')&&!pin.path.startsWith('/')&&!pin.path.includes('\\'));
+  assert.match(pin.sha256,/^[a-f0-9]{64}$/);assert.equal(hash(readFileSync(repo+'/'+pin.path)),pin.sha256,pin.path);
+}
+const root=parent+'/'+service+'-case14-source-build-v1';
+assert.equal(existsSync(root),false,'PRIOR_INTENT_REQUIRES_RECONCILIATION');
+const identity=aws(['sts','get-caller-identity']);
+assert.equal(identity.Account,'967807252336');assert.equal(identity.Arn,'arn:aws:iam::967807252336:user/capirocli');
+const project=aws(['codebuild','batch-get-projects','--names','capiro-build-web-dev']).projects?.[0];
+assert.equal(project?.source.type,'GITHUB');assert.equal(project.source.location,'https://github.com/neo-capiro/capirov2.git');
+assert.equal(project.environment.type,'ARM_CONTAINER');assert.equal(project.environment.privilegedMode,true);
+const images=aws(['ecr','list-images','--repository-name','capiro/dev/'+service,'--filter','tagStatus=TAGGED']);
+assert.ok(!images.nextToken&&!images.imageIds.some(i=>i.imageTag===sha),'CANDIDATE_TAG_MUST_BE_ABSENT');
+const request={projectName:project.name,sourceVersion:sha,buildspecOverride:buildspec,environmentVariablesOverride:[{name:'EXPECTED_SHA',value:sha,type:'PLAINTEXT'}],idempotencyToken:randomUUID(),timeoutInMinutesOverride:45};
+mkdirSync(root);
+const save=(name,v)=>writeFileSync(root+'/'+name,JSON.stringify(v,null,2)+'\n',{flag:'wx'});
+writeFileSync(root+'/buildspec.json',buildspec,{flag:'wx'});save('build-input.json',request);
+save('launch-intent.json',{recordedAt:new Date().toISOString(),service,sourceSha:sha,buildspecSha256:hash(buildspec),candidateSha256:hash(readFileSync(candidatePath)),checkpointSha256:candidate.sourceCheckpointSha256,requestSha256:hash(readFileSync(root+'/build-input.json')),idempotencyToken:request.idempotencyToken,callerArn:identity.Arn,authorization:candidate.backupAuthorization,scope:'One immutable ARM image build and ECR publication; no service/config/database/provider mutation'});
+try {
+  const result=awsSingleAttempt(['codebuild','start-build','--cli-input-json','file://'+root+'/build-input.json']);
+  assert.ok(result.build?.id);assert.equal(result.build.sourceVersion,sha);
+  const receipt={service,buildId:result.build.id,sourceSha:sha,status:result.build.buildStatus,buildspecSha256:hash(buildspec),candidateSha256:hash(readFileSync(candidatePath)),startedAt:new Date().toISOString(),scope:'Immutable candidate build only; production release NOT_RUN'};
+  save('build-start.json',receipt);console.log(JSON.stringify(receipt));
+} catch(error) {
+  save('launch-failure.json',{at:new Date().toISOString(),errorClass:error.name,status:'LAUNCH_OUTCOME_REQUIRES_RECONCILIATION',automaticRetryAllowed:false});throw error;
+}

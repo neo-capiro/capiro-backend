@@ -1,0 +1,1003 @@
+{
+  "kind": "exact-memory-source-repair-archive",
+  "at": "2026-10-04T07:24:57.522376+00:00",
+  "files": [
+    {
+      "path": "evidence/aws-single-attempt.mjs",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\aws-single-attempt.mjs",
+      "bytes": 782,
+      "sha256": "86b965a0257fd56e5255e30cdfd6787bef74ba0287d23eecb86fedfae7d6fec0"
+    },
+    {
+      "path": "evidence/case14-backup-build-preparation-v2/api/build.sh",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-backup-build-preparation-v2\\api\\build.sh",
+      "bytes": 32970,
+      "sha256": "9ceea86487ac7508f926a493cd86a8bc98dd2c8b42aa72896bf7f7bfbbe6a35c"
+    },
+    {
+      "path": "evidence/case14-backup-build-preparation-v2/api/buildspec.template.json",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-backup-build-preparation-v2\\api\\buildspec.template.json",
+      "bytes": 13997,
+      "sha256": "b69ec8d59ab4a897f177c0a99c87a7fe0f4c3680c3a2e9b62126a97dbe91f258"
+    },
+    {
+      "path": "evidence/case14-backup-build-preparation-v2/api/post_build.sh",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-backup-build-preparation-v2\\api\\post_build.sh",
+      "bytes": 863,
+      "sha256": "fc6034cdd9ec8f0dfaa5e9ce39617f2518a35e227e335bfea4c9b48daa9d372d"
+    },
+    {
+      "path": "evidence/case14-backup-build-preparation-v2/api/pre_build.sh",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-backup-build-preparation-v2\\api\\pre_build.sh",
+      "bytes": 880,
+      "sha256": "b2482d882549708861cd5a761b20e05740be23b71be442887a04af778eabf427"
+    },
+    {
+      "path": "evidence/case14-backup-build-preparation-v2/meriv2-orchestrator/build.sh",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-backup-build-preparation-v2\\meriv2-orchestrator\\build.sh",
+      "bytes": 23479,
+      "sha256": "0389dd21eeca07408010f15f55d64012eb21f0e0ab3983fef1a48ec1ec8ab7a7"
+    },
+    {
+      "path": "evidence/case14-backup-build-preparation-v2/meriv2-orchestrator/buildspec.template.json",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-backup-build-preparation-v2\\meriv2-orchestrator\\buildspec.template.json",
+      "bytes": 12525,
+      "sha256": "2c385ca184bb7dd65770573eba645ccae735387019c4aea623aebe142e4acc7a"
+    },
+    {
+      "path": "evidence/case14-backup-build-preparation-v2/meriv2-orchestrator/post_build.sh",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-backup-build-preparation-v2\\meriv2-orchestrator\\post_build.sh",
+      "bytes": 971,
+      "sha256": "20b5e9bb3ba9f445f70dbaa058e126ef736992331e71b3cae5ee5dd6bfbc4d9d"
+    },
+    {
+      "path": "evidence/case14-backup-build-preparation-v2/meriv2-orchestrator/pre_build.sh",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-backup-build-preparation-v2\\meriv2-orchestrator\\pre_build.sh",
+      "bytes": 1493,
+      "sha256": "7214275629cfe2732e11020877ba4e0717d67711fe649f5eddb6f7b1b8d7c317"
+    },
+    {
+      "path": "evidence/case14-backup-build-preparation-v2/template-checks.json",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-backup-build-preparation-v2\\template-checks.json",
+      "bytes": 3452,
+      "sha256": "1dd1dbb9620f6622fd8418241a94bdc551b0938fadaa86575b458fd99c7a6b49"
+    },
+    {
+      "path": "evidence/case14-backup-build-review-v1/api-build-node0.cjs",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-backup-build-review-v1\\api-build-node0.cjs",
+      "bytes": 2652,
+      "sha256": "772d816712248f1ce3ef381df66dbfda415d47e536fa136a60e303d216254f55"
+    },
+    {
+      "path": "evidence/case14-backup-build-review-v1/api-build-node1.mjs",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-backup-build-review-v1\\api-build-node1.mjs",
+      "bytes": 1636,
+      "sha256": "203dec344804fac11607fc0bbea153f3743a403ff1d9800b86d2d2edbfd914e0"
+    },
+    {
+      "path": "evidence/case14-backup-build-review-v1/api-build-node2.mjs",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-backup-build-review-v1\\api-build-node2.mjs",
+      "bytes": 2853,
+      "sha256": "350a3823c40e5225914a05f27b4ddff4685f3f99894f0cb949b572ff7e8c5430"
+    },
+    {
+      "path": "evidence/case14-backup-build-review-v1/api-build-node3.cjs",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-backup-build-review-v1\\api-build-node3.cjs",
+      "bytes": 7921,
+      "sha256": "212263616d1e94650d91020105ac40a74fed1041f5450ac0a888985eb478007a"
+    },
+    {
+      "path": "evidence/case14-backup-build-review-v1/api-build-node4.cjs",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-backup-build-review-v1\\api-build-node4.cjs",
+      "bytes": 2531,
+      "sha256": "a1c145db04e0cedae21ce6deb436ed47a4db604934a048e95254099745ad95cf"
+    },
+    {
+      "path": "evidence/case14-backup-build-review-v1/api-build-node5.cjs",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-backup-build-review-v1\\api-build-node5.cjs",
+      "bytes": 4479,
+      "sha256": "f159b657623890b6bcf3f6066a9f3de517d380db8afb96f88ab19dc40c12b8f2"
+    },
+    {
+      "path": "evidence/case14-backup-build-review-v1/api-build-node6.cjs",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-backup-build-review-v1\\api-build-node6.cjs",
+      "bytes": 555,
+      "sha256": "08f2bc6f608693f2e65b5a839c9b4fa634775e66022f2d37a98e5667ac910cc2"
+    },
+    {
+      "path": "evidence/case14-backup-build-review-v1/api-build-node7.cjs",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-backup-build-review-v1\\api-build-node7.cjs",
+      "bytes": 4011,
+      "sha256": "21a0417b183916a9157acb8965e128d5282e057d0a670dcd4d48a495014791dc"
+    },
+    {
+      "path": "evidence/case14-backup-build-review-v1/independent-review.json",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-backup-build-review-v1\\independent-review.json",
+      "bytes": 10868,
+      "sha256": "844b46a0263be47c0a6e77189dffd8bc863d78e7819edb1d838db2529cbe26a6"
+    },
+    {
+      "path": "evidence/case14-backup-build-review-v1/meriv2-orchestrator-build-node0.cjs",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-backup-build-review-v1\\meriv2-orchestrator-build-node0.cjs",
+      "bytes": 1334,
+      "sha256": "e5917721c8b8cb4e8a36abf9a00d266b784e48437753933077d533480334a1ee"
+    },
+    {
+      "path": "evidence/case14-backup-build-review-v1/meriv2-orchestrator-build-node1.cjs",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-backup-build-review-v1\\meriv2-orchestrator-build-node1.cjs",
+      "bytes": 962,
+      "sha256": "0f3abb28dfc7a048fe8011da3a02426506e6e1974022d534e3ad8ee30ae4a724"
+    },
+    {
+      "path": "evidence/case14-backup-build-review-v1/meriv2-orchestrator-build-node2.cjs",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-backup-build-review-v1\\meriv2-orchestrator-build-node2.cjs",
+      "bytes": 6217,
+      "sha256": "f337caf4455220564d1a67ee41807039eefd9999b594ffb6863d6538cc7e1316"
+    },
+    {
+      "path": "evidence/case14-backup-build-review-v1/meriv2-orchestrator-build-node3.cjs",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-backup-build-review-v1\\meriv2-orchestrator-build-node3.cjs",
+      "bytes": 3154,
+      "sha256": "83d396dae9f70d607f7b500c84fb2ac36e7a7d892cc89321e8167dc20b31e3f0"
+    },
+    {
+      "path": "evidence/case14-memory-source-packaged-probe-v1.cjs",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-memory-source-packaged-probe-v1.cjs",
+      "bytes": 3962,
+      "sha256": "4508e681b2c335cbec72156e02037c3f9b1e3f9d71704651ff28ff7a65c78ac5"
+    },
+    {
+      "path": "evidence/case14-memory-source-qualification-v1.json",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-memory-source-qualification-v1.json",
+      "bytes": 11395,
+      "sha256": "0b825aaf0c2c5140d166afcc628706649428d7d7e6263e05a8f9783a72e45307"
+    },
+    {
+      "path": "evidence/case14-source-authority-api-controller-regression-v1.log",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-authority-api-controller-regression-v1.log",
+      "bytes": 5859,
+      "sha256": "48c2249480a1fa1bf6f7fe38090b46b85c9c059bddb3a719a1d594b6b9bed8e6"
+    },
+    {
+      "path": "evidence/case14-source-authority-api-service-qualification-v2.json",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-authority-api-service-qualification-v2.json",
+      "bytes": 1786,
+      "sha256": "60231f41624a48295423651a4a9735ca1a2eab6ae08d84b985b8505026314e6c"
+    },
+    {
+      "path": "evidence/case14-source-authority-api-service-tests-v1.log",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-authority-api-service-tests-v1.log",
+      "bytes": 7185,
+      "sha256": "4dd056e34e7eddc94d9c01f2c0303ea692d828311acb41cea341b3cfd2fc4db4"
+    },
+    {
+      "path": "evidence/case14-source-authority-api-service-tests-v2.log",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-authority-api-service-tests-v2.log",
+      "bytes": 2367,
+      "sha256": "1a96ce80b54be1aece38368962be4dc7d7ec60c97cbdc59f0ab6ec4819aba0be"
+    },
+    {
+      "path": "evidence/case14-source-authority-api-tests-v1.log",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-authority-api-tests-v1.log",
+      "bytes": 8284,
+      "sha256": "d30ddbc49092fe34649c72a071909e3e5bb4887c2e0a009d1e8f055367075a5c"
+    },
+    {
+      "path": "evidence/case14-source-authority-api-typecheck-v1.log",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-authority-api-typecheck-v1.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/case14-source-authority-api-typecheck-v2.log",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-authority-api-typecheck-v2.log",
+      "bytes": 807,
+      "sha256": "b941f7f76a64c6f8a6e591eb7adacd79a2009fb9af70a8731ec11c6c5653a3ec"
+    },
+    {
+      "path": "evidence/case14-source-authority-api-typecheck-v3.log",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-authority-api-typecheck-v3.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/case14-source-authority-core-build-v1.log",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-authority-core-build-v1.log",
+      "bytes": 658,
+      "sha256": "9209a0497daad6fba838f203e83f8968b5e357073134a9c4d3dc63c89ba03f3e"
+    },
+    {
+      "path": "evidence/case14-source-authority-core-build-v2.log",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-authority-core-build-v2.log",
+      "bytes": 113,
+      "sha256": "3b050d4996f6e2a7e46851df328e05ecb31c0e7d0fd05a710f83c08e2b42dc77"
+    },
+    {
+      "path": "evidence/case14-source-authority-core-build-v3.log",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-authority-core-build-v3.log",
+      "bytes": 113,
+      "sha256": "3b050d4996f6e2a7e46851df328e05ecb31c0e7d0fd05a710f83c08e2b42dc77"
+    },
+    {
+      "path": "evidence/case14-source-authority-core-build-v4.log",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-authority-core-build-v4.log",
+      "bytes": 113,
+      "sha256": "3b050d4996f6e2a7e46851df328e05ecb31c0e7d0fd05a710f83c08e2b42dc77"
+    },
+    {
+      "path": "evidence/case14-source-authority-core-tests-v1.log",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-authority-core-tests-v1.log",
+      "bytes": 1189,
+      "sha256": "829d321623faf546fa72d28ca045689d4e201edca04e89ad399dd4bd90f0b6d9"
+    },
+    {
+      "path": "evidence/case14-source-authority-core-tests-v2.log",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-authority-core-tests-v2.log",
+      "bytes": 476,
+      "sha256": "63157d2a043ea26dd6b5b562fbefef8dfefdd7c40e9558f2a82378beb38028ec"
+    },
+    {
+      "path": "evidence/case14-source-authority-core-tests-v3.log",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-authority-core-tests-v3.log",
+      "bytes": 491,
+      "sha256": "26302d09701ab7c35c5c5bccd7ae3373cf6756b231a43d77e9b02ab861082657"
+    },
+    {
+      "path": "evidence/case14-source-authority-core-tests-v4.log",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-authority-core-tests-v4.log",
+      "bytes": 476,
+      "sha256": "25882b9886553ea27a695ab3cd432b8c20587218023234024952cdb5e026ffe9"
+    },
+    {
+      "path": "evidence/case14-source-authority-hermes-v1/analysis.md",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-authority-hermes-v1\\analysis.md",
+      "bytes": 9741,
+      "sha256": "acaf56e3c7470318d7c7ed18cb082c170e27746ac186ba5fcc237b28c4d11967"
+    },
+    {
+      "path": "evidence/case14-source-authority-hermes-v1/case14-source-authority-hermes-v1/usage.json",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-authority-hermes-v1\\case14-source-authority-hermes-v1\\usage.json",
+      "bytes": 477,
+      "sha256": "82f78aec70ad11350602f6563ab7a131774b6e0bb1439855b65cea3e460b07f8"
+    },
+    {
+      "path": "evidence/case14-source-authority-hermes-v1/execution.json",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-authority-hermes-v1\\execution.json",
+      "bytes": 1005,
+      "sha256": "4a314dccf548b87b2747ea8be85fa8bb96199e84808722522d2e4aa291cd80e2"
+    },
+    {
+      "path": "evidence/case14-source-authority-hermes-v1/prompt.txt",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-authority-hermes-v1\\prompt.txt",
+      "bytes": 1378,
+      "sha256": "d2afcf802246e5361eaa0a9087691c452ad97227311d30899a9d0a057b908139"
+    },
+    {
+      "path": "evidence/case14-source-authority-hermes-v1/response.txt",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-authority-hermes-v1\\response.txt",
+      "bytes": 656,
+      "sha256": "bfc5fe68a1c458a27099412bf6c833c40f0426fddb85df3c84bc32962ed0e278"
+    },
+    {
+      "path": "evidence/case14-source-authority-hermes-v1/stderr.log",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-authority-hermes-v1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/case14-source-authority-hermes-v2/execution.json",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-authority-hermes-v2\\execution.json",
+      "bytes": 690,
+      "sha256": "f0009e778577175633c5ae6953ca2483ea94011a6ee5d1d5e11a515564e75172"
+    },
+    {
+      "path": "evidence/case14-source-authority-hermes-v2/prompt.txt",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-authority-hermes-v2\\prompt.txt",
+      "bytes": 1523,
+      "sha256": "19d85e698ad769b446a159ba440abb375b7ac2bd4cfdde59815a1185178b324b"
+    },
+    {
+      "path": "evidence/case14-source-authority-hermes-v2/response.txt",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-authority-hermes-v2\\response.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/case14-source-authority-hermes-v2/stderr.log",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-authority-hermes-v2\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/case14-source-authority-orch-full-v1.json",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-authority-orch-full-v1.json",
+      "bytes": 680461,
+      "sha256": "c4083c9db32aa2f1ae488ebac5d1c9bd64a0ff8a3e8ff610c521aa77b766c41f"
+    },
+    {
+      "path": "evidence/case14-source-authority-orch-full-v1.log",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-authority-orch-full-v1.log",
+      "bytes": 630148,
+      "sha256": "ba68fb0d33bce9e79a3693f3abbea6c8030584753f46339dc1d45c3524e1bcac"
+    },
+    {
+      "path": "evidence/case14-source-authority-orch-tests-v1.log",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-authority-orch-tests-v1.log",
+      "bytes": 1401,
+      "sha256": "0863a1e0023b1ae0fe2112a290cded559450eb362b3adf5baa4355974e01219a"
+    },
+    {
+      "path": "evidence/case14-source-authority-orch-tests-v2.log",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-authority-orch-tests-v2.log",
+      "bytes": 3414,
+      "sha256": "0bd03958142b3b497da68b86c923c524d0d0634ecefa000fceea5242c27c3f60"
+    },
+    {
+      "path": "evidence/case14-source-authority-orch-tests-v3.log",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-authority-orch-tests-v3.log",
+      "bytes": 2409,
+      "sha256": "3a52e211ecffce57645b32b5c2e36f52277ad14c52ede4f092832f080706c819"
+    },
+    {
+      "path": "evidence/case14-source-authority-orch-typecheck-v1.log",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-authority-orch-typecheck-v1.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/case14-source-proof-review-v1/evidence/apps/api/src/meri/meri-memory-content.helpers.ts",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-proof-review-v1\\evidence\\apps\\api\\src\\meri\\meri-memory-content.helpers.ts",
+      "bytes": 5709,
+      "sha256": "269859235ff3a5d1427f0448c366884b4b4d072e6c84f902059ed24edb567a2b"
+    },
+    {
+      "path": "evidence/case14-source-proof-review-v1/evidence/apps/api/src/meri/meri-tools.service.ts.excerpt.txt",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-proof-review-v1\\evidence\\apps\\api\\src\\meri\\meri-tools.service.ts.excerpt.txt",
+      "bytes": 7302,
+      "sha256": "419f5a0f9abd232480482bf6c2f2fdb41056069ce554bbf7e69849c7ea1b05c9"
+    },
+    {
+      "path": "evidence/case14-source-proof-review-v1/evidence/apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.ts.excerpt.txt",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-proof-review-v1\\evidence\\apps\\api\\src\\retrieval\\adapters\\institutional-knowledge-retrieval.adapter.ts.excerpt.txt",
+      "bytes": 15056,
+      "sha256": "11050ff0a07e97de609988eb561bf7e29e44bf2279561e7bc934fb3b8875a552"
+    },
+    {
+      "path": "evidence/case14-source-proof-review-v1/evidence/apps/meriv2-orchestrator/src/meri/api-tool-executor.repo.ts.boundary.txt",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-proof-review-v1\\evidence\\apps\\meriv2-orchestrator\\src\\meri\\api-tool-executor.repo.ts.boundary.txt",
+      "bytes": 11240,
+      "sha256": "d74b596219febb00800a9f944e396d5899544fee0c791be2f0d067d1cbc8664e"
+    },
+    {
+      "path": "evidence/case14-source-proof-review-v1/evidence/apps/meriv2-orchestrator/src/meri/api-tool-executor.repo.ts.excerpt.txt",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-proof-review-v1\\evidence\\apps\\meriv2-orchestrator\\src\\meri\\api-tool-executor.repo.ts.excerpt.txt",
+      "bytes": 3137,
+      "sha256": "d8e9eef90bf7a4fa23bbdf0965e90ad1a9a13e750a3c098aaffc64fa634a89e3"
+    },
+    {
+      "path": "evidence/case14-source-proof-review-v1/evidence/apps/meriv2-orchestrator/src/meri/controlled-read-observations.ts",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-proof-review-v1\\evidence\\apps\\meriv2-orchestrator\\src\\meri\\controlled-read-observations.ts",
+      "bytes": 14446,
+      "sha256": "a0bc2dcabf39c7edee4cb740e59ab1f4fe31273578efd315b35e09a85905f41a"
+    },
+    {
+      "path": "evidence/case14-source-proof-review-v1/evidence/apps/meriv2-orchestrator/src/meri/meriv3/meriv3-capture-evidence.ts",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-proof-review-v1\\evidence\\apps\\meriv2-orchestrator\\src\\meri\\meriv3\\meriv3-capture-evidence.ts",
+      "bytes": 11931,
+      "sha256": "de4afce7959c293b29a75d9bc94d6aaf47248fcee7ed8a9c40a99120dfd76eea"
+    },
+    {
+      "path": "evidence/case14-source-proof-review-v1/evidence/apps/meriv2-orchestrator/src/request/trusted-current-turn-scope.ts.excerpt.txt",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-proof-review-v1\\evidence\\apps\\meriv2-orchestrator\\src\\request\\trusted-current-turn-scope.ts.excerpt.txt",
+      "bytes": 5102,
+      "sha256": "bea64718ac338596cfe181cfa02b0a9290ff472d1d867d1c698fafed62ddafc7"
+    },
+    {
+      "path": "evidence/case14-source-proof-review-v1/evidence/changes.diff",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-proof-review-v1\\evidence\\changes.diff",
+      "bytes": 8983,
+      "sha256": "6f7f1ad0f683310eb9415fe4c2d233cea6878d153fe161192044a4b01f688452"
+    },
+    {
+      "path": "evidence/case14-source-proof-review-v1/evidence/manifest.json",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-proof-review-v1\\evidence\\manifest.json",
+      "bytes": 3665,
+      "sha256": "b6f2ee363663c990cfbc4571aac584d4591588c7a474a943e4755506896e1f80"
+    },
+    {
+      "path": "evidence/case14-source-proof-review-v1/evidence/packages/meriv2-core/src/context/capture-evidence-receipt.ts.excerpt.txt",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-proof-review-v1\\evidence\\packages\\meriv2-core\\src\\context\\capture-evidence-receipt.ts.excerpt.txt",
+      "bytes": 9058,
+      "sha256": "a106744616cbd74756d83bd0ae28a1718e2a13c29cc568b49aa598b26884ff60"
+    },
+    {
+      "path": "evidence/case14-source-proof-review-v1/evidence/packages/meriv2-core/src/context/memory-capture-source.spec.ts",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-proof-review-v1\\evidence\\packages\\meriv2-core\\src\\context\\memory-capture-source.spec.ts",
+      "bytes": 3936,
+      "sha256": "aecc7b743ea16284def35cfd07b38a08f2d5296151a5ce2e5761f8d12f41a2b4"
+    },
+    {
+      "path": "evidence/case14-source-proof-review-v1/evidence/packages/meriv2-core/src/context/memory-capture-source.ts",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-proof-review-v1\\evidence\\packages\\meriv2-core\\src\\context\\memory-capture-source.ts",
+      "bytes": 5438,
+      "sha256": "917e1d36c70177f6dfc28bdf237f08b59407960a5c3cb2f9f3807032bf810823"
+    },
+    {
+      "path": "evidence/case14-source-proof-review-v1/execution.json",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-proof-review-v1\\execution.json",
+      "bytes": 968,
+      "sha256": "f8c076cfe337e4153c2d1f79ab772caca77c7e7718db50642b1e149285030fbb"
+    },
+    {
+      "path": "evidence/case14-source-proof-review-v1/independent-assessment.json",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-proof-review-v1\\independent-assessment.json",
+      "bytes": 3916,
+      "sha256": "e1cf35e71161cd61857636099daabd572f7347a251cfd38191b58ef1c3ea7c90"
+    },
+    {
+      "path": "evidence/case14-source-proof-review-v1/prompt.txt",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-proof-review-v1\\prompt.txt",
+      "bytes": 1400,
+      "sha256": "2406c7086faa356471cb3b469614c9ab919c98f7601795bba22e8028dd6462a8"
+    },
+    {
+      "path": "evidence/case14-source-proof-review-v1/response.txt",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-proof-review-v1\\response.txt",
+      "bytes": 525,
+      "sha256": "7b11dd02f49abd15c1c19cdc77182255315d8285b7e1bf7eb6b6c6befac91eeb"
+    },
+    {
+      "path": "evidence/case14-source-proof-review-v1/review.md",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-proof-review-v1\\review.md",
+      "bytes": 7468,
+      "sha256": "d45cf9d145c895c110f973750b61937d5612d51c7f122003700de18df197050d"
+    },
+    {
+      "path": "evidence/case14-source-proof-review-v1/stderr.log",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-proof-review-v1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/case14-source-proof-review-v1/usage.json",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-proof-review-v1\\usage.json",
+      "bytes": 472,
+      "sha256": "23562a78793a3fc3a5b8729ec4ae1e93543a709c0aaca18daaed988e80ca90da"
+    },
+    {
+      "path": "evidence/case14-source-proof-review-v2/evidence/apps/api/src/meri/meri-memory-content.helpers.ts",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-proof-review-v2\\evidence\\apps\\api\\src\\meri\\meri-memory-content.helpers.ts",
+      "bytes": 5709,
+      "sha256": "269859235ff3a5d1427f0448c366884b4b4d072e6c84f902059ed24edb567a2b"
+    },
+    {
+      "path": "evidence/case14-source-proof-review-v2/evidence/apps/api/src/meri/meri-server-readonly-capture.ts",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-proof-review-v2\\evidence\\apps\\api\\src\\meri\\meri-server-readonly-capture.ts",
+      "bytes": 21162,
+      "sha256": "689ddc776123be123c6181ebf7459ce747ae4eb99ad841a8966d8db87210ac93"
+    },
+    {
+      "path": "evidence/case14-source-proof-review-v2/evidence/apps/api/src/meri/meri-tool-request-control.spec.ts",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-proof-review-v2\\evidence\\apps\\api\\src\\meri\\meri-tool-request-control.spec.ts",
+      "bytes": 1584,
+      "sha256": "ce5f236ae55d84db57150cb5ef5f0dffab79ff62a1e0c6b2e9d829fa90c5eed4"
+    },
+    {
+      "path": "evidence/case14-source-proof-review-v2/evidence/apps/api/src/meri/meri-tool-request-control.ts",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-proof-review-v2\\evidence\\apps\\api\\src\\meri\\meri-tool-request-control.ts",
+      "bytes": 3365,
+      "sha256": "d7bc98fb4ece8e15d03c539b78891c06b1c68056efb03521139f462d3c6cf5b5"
+    },
+    {
+      "path": "evidence/case14-source-proof-review-v2/evidence/apps/api/src/meri/meri-tools.service.ts.excerpt.txt",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-proof-review-v2\\evidence\\apps\\api\\src\\meri\\meri-tools.service.ts.excerpt.txt",
+      "bytes": 8979,
+      "sha256": "d6a92832344f33cf087f1bb41a83c0aae9eb4ef8235d89cf938ad6d0872297f5"
+    },
+    {
+      "path": "evidence/case14-source-proof-review-v2/evidence/apps/api/src/meri/meri.controller.ts.excerpt.txt",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-proof-review-v2\\evidence\\apps\\api\\src\\meri\\meri.controller.ts.excerpt.txt",
+      "bytes": 3412,
+      "sha256": "d976c2cb3a08a3065e5ceb83a53a16c3dbd1c3f3d385d14cb5f95a21a49b23b3"
+    },
+    {
+      "path": "evidence/case14-source-proof-review-v2/evidence/apps/api/src/meri/tool-service-secret.guard.ts",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-proof-review-v2\\evidence\\apps\\api\\src\\meri\\tool-service-secret.guard.ts",
+      "bytes": 2604,
+      "sha256": "75eb2806606057758c0b5e56741bcc97cdb7ef29f94f6a472d9d01ea26bf15ca"
+    },
+    {
+      "path": "evidence/case14-source-proof-review-v2/evidence/apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.ts.excerpt.txt",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-proof-review-v2\\evidence\\apps\\api\\src\\retrieval\\adapters\\institutional-knowledge-retrieval.adapter.ts.excerpt.txt",
+      "bytes": 15056,
+      "sha256": "11050ff0a07e97de609988eb561bf7e29e44bf2279561e7bc934fb3b8875a552"
+    },
+    {
+      "path": "evidence/case14-source-proof-review-v2/evidence/apps/meriv2-orchestrator/src/meri/api-tool-executor.repo.ts.excerpt.txt",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-proof-review-v2\\evidence\\apps\\meriv2-orchestrator\\src\\meri\\api-tool-executor.repo.ts.excerpt.txt",
+      "bytes": 15118,
+      "sha256": "1cec8ae0d5aaae36a64565d954d46f7b778c8b24905e1fbec88d24ea7d81bf53"
+    },
+    {
+      "path": "evidence/case14-source-proof-review-v2/evidence/apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts.excerpt.txt",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-proof-review-v2\\evidence\\apps\\meriv2-orchestrator\\src\\meri\\controlled-read-observations.spec.ts.excerpt.txt",
+      "bytes": 12024,
+      "sha256": "201a26833ea4765aca3d14ea16040e1237cea041ec4f1dacb655ed06e7e075a6"
+    },
+    {
+      "path": "evidence/case14-source-proof-review-v2/evidence/apps/meriv2-orchestrator/src/meri/controlled-read-observations.ts",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-proof-review-v2\\evidence\\apps\\meriv2-orchestrator\\src\\meri\\controlled-read-observations.ts",
+      "bytes": 15612,
+      "sha256": "290512e0948ad7c955f2a7af096286dbaede1d89a879ac43ca13e34890c67682"
+    },
+    {
+      "path": "evidence/case14-source-proof-review-v2/evidence/apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts.excerpt.txt",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-proof-review-v2\\evidence\\apps\\meriv2-orchestrator\\src\\meri\\meriv3\\meriv3-assistant.service.ts.excerpt.txt",
+      "bytes": 6428,
+      "sha256": "9fe1576814a71813155131caeae50bc442ac6d0b752e01f2daecc81d9dc305da"
+    },
+    {
+      "path": "evidence/case14-source-proof-review-v2/evidence/apps/meriv2-orchestrator/src/meri/meriv3/meriv3-capture-evidence.ts",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-proof-review-v2\\evidence\\apps\\meriv2-orchestrator\\src\\meri\\meriv3\\meriv3-capture-evidence.ts",
+      "bytes": 11931,
+      "sha256": "de4afce7959c293b29a75d9bc94d6aaf47248fcee7ed8a9c40a99120dfd76eea"
+    },
+    {
+      "path": "evidence/case14-source-proof-review-v2/evidence/apps/meriv2-orchestrator/src/meri/meriv3/meriv3-tool-evidence.ts.excerpt.txt",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-proof-review-v2\\evidence\\apps\\meriv2-orchestrator\\src\\meri\\meriv3\\meriv3-tool-evidence.ts.excerpt.txt",
+      "bytes": 4003,
+      "sha256": "bd151b82467ca95497a8ef1fe6b7a4acaf045ac3c08c26b48e628c073241f026"
+    },
+    {
+      "path": "evidence/case14-source-proof-review-v2/evidence/apps/meriv2-orchestrator/src/request/trusted-current-turn-scope.ts.excerpt.txt",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-proof-review-v2\\evidence\\apps\\meriv2-orchestrator\\src\\request\\trusted-current-turn-scope.ts.excerpt.txt",
+      "bytes": 5102,
+      "sha256": "bea64718ac338596cfe181cfa02b0a9290ff472d1d867d1c698fafed62ddafc7"
+    },
+    {
+      "path": "evidence/case14-source-proof-review-v2/evidence/changes.diff",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-proof-review-v2\\evidence\\changes.diff",
+      "bytes": 22275,
+      "sha256": "934adcd3fc1e065e5d6acfa12b39cf0028811b11bbf3cb606372e39d8ac0705d"
+    },
+    {
+      "path": "evidence/case14-source-proof-review-v2/evidence/manifest.json",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-proof-review-v2\\evidence\\manifest.json",
+      "bytes": 6525,
+      "sha256": "80422d21d4a30229331b65ef4ffc8dd794156d68890882ee897d702c793eade5"
+    },
+    {
+      "path": "evidence/case14-source-proof-review-v2/evidence/packages/meriv2-core/src/context/capture-evidence-receipt.ts.excerpt.txt",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-proof-review-v2\\evidence\\packages\\meriv2-core\\src\\context\\capture-evidence-receipt.ts.excerpt.txt",
+      "bytes": 9058,
+      "sha256": "a106744616cbd74756d83bd0ae28a1718e2a13c29cc568b49aa598b26884ff60"
+    },
+    {
+      "path": "evidence/case14-source-proof-review-v2/evidence/packages/meriv2-core/src/context/memory-capture-source.spec.ts",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-proof-review-v2\\evidence\\packages\\meriv2-core\\src\\context\\memory-capture-source.spec.ts",
+      "bytes": 6160,
+      "sha256": "a71a8222c011779e324064de717935adbccebaee3e7b74739fdf39ffdb8dd871"
+    },
+    {
+      "path": "evidence/case14-source-proof-review-v2/evidence/packages/meriv2-core/src/context/memory-capture-source.ts",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-proof-review-v2\\evidence\\packages\\meriv2-core\\src\\context\\memory-capture-source.ts",
+      "bytes": 8692,
+      "sha256": "63b501da79d2f26454ff9050a56137df27fdaa9a7706ea9fcc9f94f3ac1dd30a"
+    },
+    {
+      "path": "evidence/case14-source-proof-review-v2/evidence/v1-review-preserved.md",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-proof-review-v2\\evidence\\v1-review-preserved.md",
+      "bytes": 7468,
+      "sha256": "d45cf9d145c895c110f973750b61937d5612d51c7f122003700de18df197050d"
+    },
+    {
+      "path": "evidence/case14-source-proof-review-v2/execution.json",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-proof-review-v2\\execution.json",
+      "bytes": 1326,
+      "sha256": "2af9dff85ae061d6d6a7fa9c25581daaa1e9be379223f5bf079277d6770d3fdb"
+    },
+    {
+      "path": "evidence/case14-source-proof-review-v2/independent-assessment.json",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-proof-review-v2\\independent-assessment.json",
+      "bytes": 6611,
+      "sha256": "c4504fc4a47facdf105ada89ce8a203ac8904d4d0aa5ec17fdc761d72293fa52"
+    },
+    {
+      "path": "evidence/case14-source-proof-review-v2/independent-request-control-checks.cjs",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-proof-review-v2\\independent-request-control-checks.cjs",
+      "bytes": 7447,
+      "sha256": "957d1fb53089e3dd31d91805af5230ce3f4ba84cff961e9d8bf744478259c9ce"
+    },
+    {
+      "path": "evidence/case14-source-proof-review-v2/independent-request-control-checks.json",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-proof-review-v2\\independent-request-control-checks.json",
+      "bytes": 2320,
+      "sha256": "0fc98e268e7261888818e58cadff7d65a35057eca703ad397059998bd42825db"
+    },
+    {
+      "path": "evidence/case14-source-proof-review-v2/prompt.txt",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-proof-review-v2\\prompt.txt",
+      "bytes": 2270,
+      "sha256": "bb50306ab0622ce9d566e386c8ca8afebb68789228fa8023351b31da5e0147d0"
+    },
+    {
+      "path": "evidence/case14-source-proof-review-v2/response.txt",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-proof-review-v2\\response.txt",
+      "bytes": 733,
+      "sha256": "94d3dfc2c57a2f39fbf77caabf89051ccc173992400e13e5962e8ac27b3fdee8"
+    },
+    {
+      "path": "evidence/case14-source-proof-review-v2/review.md",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-proof-review-v2\\review.md",
+      "bytes": 15599,
+      "sha256": "b27ce00d14003b7d46ea4178f0169f1b308a45959867a1ecd7755a394c206872"
+    },
+    {
+      "path": "evidence/case14-source-proof-review-v2/stderr.log",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-proof-review-v2\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/case14-source-proof-review-v2/usage.json",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-source-proof-review-v2\\usage.json",
+      "bytes": 476,
+      "sha256": "c16ae900402b2c2f7640f7703fc9d890e819f12cf35d08aac6e90e5a1a09c1a4"
+    },
+    {
+      "path": "evidence/collect-case14-source-backup-build-v1.mjs",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\collect-case14-source-backup-build-v1.mjs",
+      "bytes": 4837,
+      "sha256": "10c21a374417883045f02c857d871c2a725d0b7f5397d95bf81faca1d6339db5"
+    },
+    {
+      "path": "evidence/prepare-case14-backup-build-v2.py",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\prepare-case14-backup-build-v2.py",
+      "bytes": 4100,
+      "sha256": "558025c6450937ee65f73dd9c2511d3ac5cfc0996d4d4fa24178d644d045e9fc"
+    },
+    {
+      "path": "evidence/start-case14-source-backup-build-v1.mjs",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\start-case14-source-backup-build-v1.mjs",
+      "bytes": 5183,
+      "sha256": "a89de666439e631d26f639cf3bab560f77142eda01fde59c3ca08037732108b3"
+    },
+    {
+      "path": "qualified-source/apps/api/Dockerfile",
+      "source": "C:\\dev\\main\\meri-c1-20261002\\apps\\api\\Dockerfile",
+      "bytes": 12443,
+      "sha256": "839f291b4baa6bc99f77f93d514ffcaeaa273e3586ab5324696dc8ed4024db6a"
+    },
+    {
+      "path": "qualified-source/apps/api/prisma/schema.prisma",
+      "source": "C:\\dev\\main\\meri-c1-20261002\\apps\\api\\prisma\\schema.prisma",
+      "bytes": 964030,
+      "sha256": "41fb55c8f2357b9bc2246de813d1e093e3e0bd240538048bbb514c5a4d4fe1d2"
+    },
+    {
+      "path": "qualified-source/apps/api/src/meri/meri-action-proposal.http.spec.ts",
+      "source": "C:\\dev\\main\\meri-c1-20261002\\apps\\api\\src\\meri\\meri-action-proposal.http.spec.ts",
+      "bytes": 16403,
+      "sha256": "bfb40e004e65e36378dfe69504123d58e6de5ad21063066ad2a6e6d61fa936cc"
+    },
+    {
+      "path": "qualified-source/apps/api/src/meri/meri-chat-attachment-transport.http.spec.ts",
+      "source": "C:\\dev\\main\\meri-c1-20261002\\apps\\api\\src\\meri\\meri-chat-attachment-transport.http.spec.ts",
+      "bytes": 7088,
+      "sha256": "4388e82be10c691358e99aec99d611b9b500ab7dce10f7ee5fc457d812396d70"
+    },
+    {
+      "path": "qualified-source/apps/api/src/meri/meri-memory-content.helpers.spec.ts",
+      "source": "C:\\dev\\main\\meri-c1-20261002\\apps\\api\\src\\meri\\meri-memory-content.helpers.spec.ts",
+      "bytes": 3991,
+      "sha256": "8e91a77d5b8b3002513ac7aa2f4cc16356c7db0fad877e935e2478be06a1b31a"
+    },
+    {
+      "path": "qualified-source/apps/api/src/meri/meri-memory-content.helpers.ts",
+      "source": "C:\\dev\\main\\meri-c1-20261002\\apps\\api\\src\\meri\\meri-memory-content.helpers.ts",
+      "bytes": 5709,
+      "sha256": "269859235ff3a5d1427f0448c366884b4b4d072e6c84f902059ed24edb567a2b"
+    },
+    {
+      "path": "qualified-source/apps/api/src/meri/meri-server-readonly-capture.ts",
+      "source": "C:\\dev\\main\\meri-c1-20261002\\apps\\api\\src\\meri\\meri-server-readonly-capture.ts",
+      "bytes": 21162,
+      "sha256": "689ddc776123be123c6181ebf7459ce747ae4eb99ad841a8966d8db87210ac93"
+    },
+    {
+      "path": "qualified-source/apps/api/src/meri/meri-tool-request-control.spec.ts",
+      "source": "C:\\dev\\main\\meri-c1-20261002\\apps\\api\\src\\meri\\meri-tool-request-control.spec.ts",
+      "bytes": 1584,
+      "sha256": "ce5f236ae55d84db57150cb5ef5f0dffab79ff62a1e0c6b2e9d829fa90c5eed4"
+    },
+    {
+      "path": "qualified-source/apps/api/src/meri/meri-tool-request-control.ts",
+      "source": "C:\\dev\\main\\meri-c1-20261002\\apps\\api\\src\\meri\\meri-tool-request-control.ts",
+      "bytes": 3365,
+      "sha256": "d7bc98fb4ece8e15d03c539b78891c06b1c68056efb03521139f462d3c6cf5b5"
+    },
+    {
+      "path": "qualified-source/apps/api/src/meri/meri-tools.memory-capture-source.spec.ts",
+      "source": "C:\\dev\\main\\meri-c1-20261002\\apps\\api\\src\\meri\\meri-tools.memory-capture-source.spec.ts",
+      "bytes": 11955,
+      "sha256": "295a9fab3c7bb7474ba667588b59c942bf1f8c805830b4cb599b1f0dd0589d87"
+    },
+    {
+      "path": "qualified-source/apps/api/src/meri/meri-tools.service.ts",
+      "source": "C:\\dev\\main\\meri-c1-20261002\\apps\\api\\src\\meri\\meri-tools.service.ts",
+      "bytes": 408100,
+      "sha256": "6292083cf3df78314bf1bacf2afe1dc02aad916716e7608b1f9e92ac8c145352"
+    },
+    {
+      "path": "qualified-source/apps/api/src/meri/meri.controller.ts",
+      "source": "C:\\dev\\main\\meri-c1-20261002\\apps\\api\\src\\meri\\meri.controller.ts",
+      "bytes": 45118,
+      "sha256": "14b72090b98ac6913052cdf7d3fa5b44a43e3e71e7c80ceb7b7053e52602ffa8"
+    },
+    {
+      "path": "qualified-source/apps/api/src/meri/tool-service-secret.guard.ts",
+      "source": "C:\\dev\\main\\meri-c1-20261002\\apps\\api\\src\\meri\\tool-service-secret.guard.ts",
+      "bytes": 2604,
+      "sha256": "75eb2806606057758c0b5e56741bcc97cdb7ef29f94f6a472d9d01ea26bf15ca"
+    },
+    {
+      "path": "qualified-source/apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.spec.ts",
+      "source": "C:\\dev\\main\\meri-c1-20261002\\apps\\api\\src\\retrieval\\adapters\\institutional-knowledge-retrieval.adapter.spec.ts",
+      "bytes": 40489,
+      "sha256": "f146bcb662abfa8b80e2feb0c82fe41da45a45b7490f5df9298372d126e78fd9"
+    },
+    {
+      "path": "qualified-source/apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.ts",
+      "source": "C:\\dev\\main\\meri-c1-20261002\\apps\\api\\src\\retrieval\\adapters\\institutional-knowledge-retrieval.adapter.ts",
+      "bytes": 36320,
+      "sha256": "bde82251b71fb7d2e86fee9d6928bd4b3fc686b4385f16be19057c864817b819"
+    },
+    {
+      "path": "qualified-source/apps/meriv2-orchestrator/Dockerfile",
+      "source": "C:\\dev\\main\\meri-c1-20261002\\apps\\meriv2-orchestrator\\Dockerfile",
+      "bytes": 7136,
+      "sha256": "1f4ec2752e99bfbce75877f27d36894678cc8d5bf3e504f5cc9404d1961d9d0c"
+    },
+    {
+      "path": "qualified-source/apps/meriv2-orchestrator/src/meri/api-tool-executor.repo.ts",
+      "source": "C:\\dev\\main\\meri-c1-20261002\\apps\\meriv2-orchestrator\\src\\meri\\api-tool-executor.repo.ts",
+      "bytes": 13668,
+      "sha256": "6feca0ed1e065689ec2b728d28ad17610dcd98682064c8fa5359246fd3ae784a"
+    },
+    {
+      "path": "qualified-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts",
+      "source": "C:\\dev\\main\\meri-c1-20261002\\apps\\meriv2-orchestrator\\src\\meri\\controlled-read-observations.spec.ts",
+      "bytes": 35811,
+      "sha256": "548bba26caebbf4368d4726ddb47774cb74187ce08ba12ed7d3f13aef7327871"
+    },
+    {
+      "path": "qualified-source/apps/meriv2-orchestrator/src/meri/controlled-read-observations.ts",
+      "source": "C:\\dev\\main\\meri-c1-20261002\\apps\\meriv2-orchestrator\\src\\meri\\controlled-read-observations.ts",
+      "bytes": 15612,
+      "sha256": "290512e0948ad7c955f2a7af096286dbaede1d89a879ac43ca13e34890c67682"
+    },
+    {
+      "path": "qualified-source/apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts",
+      "source": "C:\\dev\\main\\meri-c1-20261002\\apps\\meriv2-orchestrator\\src\\meri\\meriv3\\meriv3-assistant.service.ts",
+      "bytes": 172222,
+      "sha256": "e2c49a4356ce2cdffdef62b1abcb3e85a247630e763ac5e9d847c00f604aad6f"
+    },
+    {
+      "path": "qualified-source/apps/meriv2-orchestrator/src/meri/meriv3/meriv3-capture-evidence.ts",
+      "source": "C:\\dev\\main\\meri-c1-20261002\\apps\\meriv2-orchestrator\\src\\meri\\meriv3\\meriv3-capture-evidence.ts",
+      "bytes": 11931,
+      "sha256": "de4afce7959c293b29a75d9bc94d6aaf47248fcee7ed8a9c40a99120dfd76eea"
+    },
+    {
+      "path": "qualified-source/apps/meriv2-orchestrator/src/meri/meriv3/meriv3-tool-evidence.ts",
+      "source": "C:\\dev\\main\\meri-c1-20261002\\apps\\meriv2-orchestrator\\src\\meri\\meriv3\\meriv3-tool-evidence.ts",
+      "bytes": 26451,
+      "sha256": "f64fe34a5220b82e7d7ee85c85d85bd21efbf6f37da54b93ea4874afd52e9a68"
+    },
+    {
+      "path": "qualified-source/apps/meriv2-orchestrator/src/request/trusted-current-turn-scope.ts",
+      "source": "C:\\dev\\main\\meri-c1-20261002\\apps\\meriv2-orchestrator\\src\\request\\trusted-current-turn-scope.ts",
+      "bytes": 4427,
+      "sha256": "60b4c10a62af06c3d95520fcfef7e4a923bb99315a8e6277517f9f1fa6ee0158"
+    },
+    {
+      "path": "qualified-source/evals/meri/live-v1/capture-spend-aggregate.mjs",
+      "source": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\capture-spend-aggregate.mjs",
+      "bytes": 25625,
+      "sha256": "2a7ad0acb1ca83b2f965f4f09375880cc3fc95afdff0a49bf3d138fbc025f433"
+    },
+    {
+      "path": "qualified-source/evals/meri/live-v1/case01-live-capture.mjs",
+      "source": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\case01-live-capture.mjs",
+      "bytes": 25051,
+      "sha256": "9872ee2fb91b05547030331dd22258727bb6fbcf13537f6e3d94b6fd9f325a83"
+    },
+    {
+      "path": "qualified-source/evals/meri/live-v1/case01-receipt-joins.mjs",
+      "source": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\case01-receipt-joins.mjs",
+      "bytes": 14295,
+      "sha256": "89c136eeedccc448e709ad905255ac76afa12aefe502c866efacc83aef2c0ac9"
+    },
+    {
+      "path": "qualified-source/evals/meri/live-v1/case14-approval-capture.mjs",
+      "source": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\case14-approval-capture.mjs",
+      "bytes": 33454,
+      "sha256": "fcea0961cc531ffe98104ecc8c6d3dc6d6083cc972d1879e7b340991a9e1046d"
+    },
+    {
+      "path": "qualified-source/evals/meri/live-v1/case14-approval-cost-authority.mjs",
+      "source": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\case14-approval-cost-authority.mjs",
+      "bytes": 10833,
+      "sha256": "c50e632592de167ad01d51a9d6b5a15972eef8de565fbdea05f9a024c8998717"
+    },
+    {
+      "path": "qualified-source/evals/meri/live-v1/case14-approval-cost-evidence.json",
+      "source": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\case14-approval-cost-evidence.json",
+      "bytes": 4770,
+      "sha256": "aa63a7378883f152c1d8180cc0796fc5dc2bb4ad61e68df9030d52b9a754aa33"
+    },
+    {
+      "path": "qualified-source/evals/meri/live-v1/case14-postapproval-task-authority.mjs",
+      "source": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\case14-postapproval-task-authority.mjs",
+      "bytes": 13156,
+      "sha256": "da8577bfd83a3a841c74720de44dd4ab826f5b29274849d69d7f7d5eca281d43"
+    },
+    {
+      "path": "qualified-source/evals/meri/live-v1/lib/windows-capture-spend.py",
+      "source": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\lib\\windows-capture-spend.py",
+      "bytes": 31942,
+      "sha256": "9bf4efe4ebf8706e66ed48a58fe2cc5e68a73f6492831f6d28e91e73d8507e10"
+    },
+    {
+      "path": "qualified-source/evals/meri/live-v1/tests/capture-spend-aggregate.test.mjs",
+      "source": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\tests\\capture-spend-aggregate.test.mjs",
+      "bytes": 10099,
+      "sha256": "68fe11ac0af4653408b4e37b3d2ce91feaa0a13db9129f8dee49ad7296a4ce35"
+    },
+    {
+      "path": "qualified-source/evals/meri/live-v1/tests/capture-spend-fresh.test.mjs",
+      "source": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\tests\\capture-spend-fresh.test.mjs",
+      "bytes": 14954,
+      "sha256": "9f2e2637cae9031b857e268259e760f8199835a5adf5ff87b81a4c750f6da74f"
+    },
+    {
+      "path": "qualified-source/evals/meri/live-v1/tests/capture-spend-fresh.unit.py",
+      "source": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\tests\\capture-spend-fresh.unit.py",
+      "bytes": 22013,
+      "sha256": "bbdd306485ae8cd057fe19a85939ef3973c0ac6040ba053192be39e957205af6"
+    },
+    {
+      "path": "qualified-source/evals/meri/live-v1/tests/capture-spend-reconciliation.test.mjs",
+      "source": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\tests\\capture-spend-reconciliation.test.mjs",
+      "bytes": 11225,
+      "sha256": "96717a0e6b988a2eb85cac0e5c040d06fd9f3af37ffca6cc9066cf35a229a754"
+    },
+    {
+      "path": "qualified-source/evals/meri/live-v1/tests/capture-spend-terminal.test.mjs",
+      "source": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\tests\\capture-spend-terminal.test.mjs",
+      "bytes": 7946,
+      "sha256": "c80eb01dd920c74a1035e38d3d1e458ee672c91fb49670d7122ae38e7f3af72e"
+    },
+    {
+      "path": "qualified-source/evals/meri/live-v1/tests/capture-spend-v2.test.mjs",
+      "source": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\tests\\capture-spend-v2.test.mjs",
+      "bytes": 8221,
+      "sha256": "2b9e43525af5063c0fc502bd1ccb1b8f7402c1edb442b60439e30f9736cc1e6e"
+    },
+    {
+      "path": "qualified-source/evals/meri/live-v1/tests/case14-approval-cost-authority.test.mjs",
+      "source": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\tests\\case14-approval-cost-authority.test.mjs",
+      "bytes": 3686,
+      "sha256": "6cb85c5d79b10c6426f0161ebfa3d2be8b4cb0103f4e1111242968cfc4673185"
+    },
+    {
+      "path": "qualified-source/evals/meri/live-v1/tests/case14-capture.test.mjs",
+      "source": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\tests\\case14-capture.test.mjs",
+      "bytes": 12461,
+      "sha256": "71af76577a0b17413842edc3cff9cebb96a59ddab86c4e149675262d1c76e35d"
+    },
+    {
+      "path": "qualified-source/packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "source": "C:\\dev\\main\\meri-c1-20261002\\packages\\meriv2-core\\src\\context\\capture-evidence-receipt.ts",
+      "bytes": 24863,
+      "sha256": "affe70118364d44bdb5b13e55cd15edde2ce863323ecca4afa9644e0def74ab0"
+    },
+    {
+      "path": "qualified-source/packages/meriv2-core/src/context/memory-capture-source.spec.ts",
+      "source": "C:\\dev\\main\\meri-c1-20261002\\packages\\meriv2-core\\src\\context\\memory-capture-source.spec.ts",
+      "bytes": 6160,
+      "sha256": "a71a8222c011779e324064de717935adbccebaee3e7b74739fdf39ffdb8dd871"
+    },
+    {
+      "path": "qualified-source/packages/meriv2-core/src/context/memory-capture-source.ts",
+      "source": "C:\\dev\\main\\meri-c1-20261002\\packages\\meriv2-core\\src\\context\\memory-capture-source.ts",
+      "bytes": 8692,
+      "sha256": "63b501da79d2f26454ff9050a56137df27fdaa9a7706ea9fcc9f94f3ac1dd30a"
+    },
+    {
+      "path": "qualified-source/packages/meriv2-core/src/index.ts",
+      "source": "C:\\dev\\main\\meri-c1-20261002\\packages\\meriv2-core\\src\\index.ts",
+      "bytes": 4104,
+      "sha256": "0369ee78126d119ad617ea333b054180e08fd3e4d3c09df4608211c37efd37d9"
+    },
+    {
+      "path": "qualified-source/pnpm-lock.yaml",
+      "source": "C:\\dev\\main\\meri-c1-20261002\\pnpm-lock.yaml",
+      "bytes": 723417,
+      "sha256": "c90a15fc2ca3c9405062444adfdb346293d27f51a45488476db891f4c3204586"
+    },
+    {
+      "path": "qualified-source/scripts/validate-meri-build-isolation.py",
+      "source": "C:\\dev\\main\\meri-c1-20261002\\scripts\\validate-meri-build-isolation.py",
+      "bytes": 9641,
+      "sha256": "3da56fd74367928cdb70be0046d41abd06764ca80f25f84b0228d38c40eef626"
+    },
+    {
+      "path": "evidence/collect-case14-source-backup-build-v2.mjs",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\collect-case14-source-backup-build-v2.mjs",
+      "bytes": 6723,
+      "sha256": "8323f0dfd6839decfb327d686a5d6c090cf60eee5114d7fc1b8b7e5932c2f1e6"
+    },
+    {
+      "path": "evidence/case14-backup-operator-review-v1/aws-single-attempt.mjs",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-backup-operator-review-v1\\aws-single-attempt.mjs",
+      "bytes": 782,
+      "sha256": "86b965a0257fd56e5255e30cdfd6787bef74ba0287d23eecb86fedfae7d6fec0"
+    },
+    {
+      "path": "evidence/case14-backup-operator-review-v1/collect-case14-source-backup-build-v1.mjs",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-backup-operator-review-v1\\collect-case14-source-backup-build-v1.mjs",
+      "bytes": 4837,
+      "sha256": "10c21a374417883045f02c857d871c2a725d0b7f5397d95bf81faca1d6339db5"
+    },
+    {
+      "path": "evidence/case14-backup-operator-review-v1/independent-review.json",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-backup-operator-review-v1\\independent-review.json",
+      "bytes": 3688,
+      "sha256": "5c1b74c3d40ea59b99dc8a0c2d419d70d8044c905f14866281cb474e70f3c519"
+    },
+    {
+      "path": "evidence/case14-backup-operator-review-v1/start-case14-source-backup-build-v1.mjs",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-backup-operator-review-v1\\start-case14-source-backup-build-v1.mjs",
+      "bytes": 5183,
+      "sha256": "a89de666439e631d26f639cf3bab560f77142eda01fde59c3ca08037732108b3"
+    },
+    {
+      "path": "evidence/case14-backup-operator-review-v2/aws-single-attempt.mjs",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-backup-operator-review-v2\\aws-single-attempt.mjs",
+      "bytes": 782,
+      "sha256": "86b965a0257fd56e5255e30cdfd6787bef74ba0287d23eecb86fedfae7d6fec0"
+    },
+    {
+      "path": "evidence/case14-backup-operator-review-v2/cache-fault-harness.cjs",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-backup-operator-review-v2\\cache-fault-harness.cjs",
+      "bytes": 8810,
+      "sha256": "d37ee5784888ffd34e8400351dc0a7f97346e449bc3aa3a74fe496ea1c97c0fa"
+    },
+    {
+      "path": "evidence/case14-backup-operator-review-v2/case14-memory-source-qualification-v1.json",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-backup-operator-review-v2\\case14-memory-source-qualification-v1.json",
+      "bytes": 11395,
+      "sha256": "0b825aaf0c2c5140d166afcc628706649428d7d7e6263e05a8f9783a72e45307"
+    },
+    {
+      "path": "evidence/case14-backup-operator-review-v2/collect-case14-source-backup-build-v2.mjs",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-backup-operator-review-v2\\collect-case14-source-backup-build-v2.mjs",
+      "bytes": 6723,
+      "sha256": "8323f0dfd6839decfb327d686a5d6c090cf60eee5114d7fc1b8b7e5932c2f1e6"
+    },
+    {
+      "path": "evidence/case14-backup-operator-review-v2/independent-review.json",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-backup-operator-review-v2\\independent-review.json",
+      "bytes": 16319,
+      "sha256": "0a7f15970ab378e52df467f5d6eef69ae4dd46e2db20882d86d7c17a7023c3ef"
+    },
+    {
+      "path": "evidence/case14-backup-operator-review-v2/start-case14-source-backup-build-v1.mjs",
+      "source": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case14-backup-operator-review-v2\\start-case14-source-backup-build-v1.mjs",
+      "bytes": 5183,
+      "sha256": "a89de666439e631d26f639cf3bab560f77142eda01fde59c3ca08037732108b3"
+    }
+  ],
+  "excluded": "Early abandoned Hermes input bundles are not duplicated; their execution/analysis/timeout receipts remain. Source review v1/v2 bundles are complete. No auth files, task definitions or credential values included."
+}

@@ -1,0 +1,29 @@
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+PASS src/meri/meri-tools.memory-capture-source.spec.ts (25.745 s)
+  Meri memory tool canonical capture source proof
+    √ keeps a search excerpt partial while an exact governed read proves the full source (1 ms)
+    searchMemory
+      √ signs the actual projected canonical record for case 01 (16 ms)
+      √ signs the actual projected canonical record for case 14 (5 ms)
+      √ refuses missing-owner instead of substituting request/policy ownership (4 ms)
+      √ refuses foreign-owner instead of substituting request/policy ownership (1 ms)
+      √ refuses foreign-client instead of substituting request/policy ownership (1 ms)
+      √ rejects a header signed for different input before the service callback (2 ms)
+      √ requires the signed per-call header before entering a capture callback (1 ms)
+      √ preserves the ordinary projected response without proof or owner fields (1 ms)
+    readGovernedMemorySource
+      √ signs the actual projected canonical record for case 01 (1 ms)
+      √ signs the actual projected canonical record for case 14 (1 ms)
+      √ refuses missing-owner instead of substituting request/policy ownership (1 ms)
+      √ refuses foreign-owner instead of substituting request/policy ownership (1 ms)
+      √ refuses foreign-client instead of substituting request/policy ownership (1 ms)
+      √ rejects a header signed for different input before the service callback (1 ms)
+      √ requires the signed per-call header before entering a capture callback
+      √ preserves the ordinary projected response without proof or owner fields (1 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       17 passed, 17 total
+Snapshots:   0 total
+Time:        26.025 s, estimated 33 s
+Ran all test suites matching /src\\meri\\meri-tools.memory-capture-source.spec.ts/i.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?

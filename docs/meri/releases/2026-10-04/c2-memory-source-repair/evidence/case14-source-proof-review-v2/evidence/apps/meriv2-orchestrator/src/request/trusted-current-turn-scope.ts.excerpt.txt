@@ -1,0 +1,117 @@
+SOURCE apps/meriv2-orchestrator/src/request/trusted-current-turn-scope.ts LINES 1-250
+1: import { AsyncLocalStorage } from 'node:async_hooks';
+2: import { createHash } from 'node:crypto';
+3: import { MERI_CAPABILITY_REGISTRY } from '@capiro/shared';
+4: import type { MeriServerReadonlyCapturePolicy } from '@capiro/meriv2-core';
+5: import {
+6:   validateMeriGovernedArtifactPolicy,
+7:   validateMeriSyntheticReadBudgetGuard,
+8:   validateMeriFixtureSemanticClock,
+9:   type MeriGovernedArtifactCapturePolicy,
+10: } from '@capiro/meriv2-core';
+11: 
+12: /**
+13:  * Immutable identity/scope established by the V3 controller only after the
+14:  * API-issued governed context has been authenticated. This is transport
+15:  * context, not an authorization grant; apps/api re-authorizes every read.
+16:  */
+17: export interface TrustedCurrentTurnScope {
+18:   tenantId: string;
+19:   userId: string;
+20:   conversationId: string | null;
+21:   selectedClientId: string | null;
+22:   capturePolicy?: MeriServerReadonlyCapturePolicy;
+23:   governedArtifactPolicy?: MeriGovernedArtifactCapturePolicy;
+24: }
+25: 
+26: const storage = new AsyncLocalStorage<TrustedCurrentTurnScope>();
+27: 
+28: export function currentTrustedCurrentTurnScope(): TrustedCurrentTurnScope | undefined {
+29:   return storage.getStore();
+30: }
+31: 
+32: export function withTrustedCurrentTurnScope<T>(scope: TrustedCurrentTurnScope, run: () => T): T {
+33:   return storage.run(Object.freeze({ ...scope }), run);
+34: }
+35: 
+36: export function currentServerReadonlyCapturePolicy(): MeriServerReadonlyCapturePolicy | null {
+37:   return currentTrustedCurrentTurnScope()?.capturePolicy ?? null;
+38: }
+39: 
+40: /** Distinct governed write capability; never a read-only policy exemption. */
+41: export function currentGovernedArtifactCapturePolicy(): MeriGovernedArtifactCapturePolicy | null {
+42:   const current = currentTrustedCurrentTurnScope();
+43:   if (!current?.governedArtifactPolicy) return null;
+44:   if (current.capturePolicy || !current.conversationId || !current.selectedClientId)
+45:     throw new Error('meri_governed_artifact_scope_invalid');
+46:   const policy = validateMeriGovernedArtifactPolicy(current.governedArtifactPolicy, {
+47:     tenantId: current.tenantId,
+48:     actorUserId: current.userId,
+49:     conversationId: current.conversationId,
+50:     clientId: current.selectedClientId,
+51:   });
+52:   if (!policy.turnId) throw new Error('meri_governed_artifact_turn_unbound');
+53:   return policy;
+54: }
+55: 
+56: export function validateServerReadonlyCapturePolicy(
+57:   policy: MeriServerReadonlyCapturePolicy,
+58:   binding: {
+59:     tenantId: string;
+60:     actorUserId: string;
+61:     conversationId: string | null;
+62:     clientId: string | null;
+63:   },
+64:   now = Date.now(),
+65: ): void {
+66:   validateMeriSyntheticReadBudgetGuard(policy);
+67:   const clockQualified = !policy.syntheticReadBudget && policy.fixtureVersion === 'meri-live-v1-2026-09-26.1' &&
+68:     ['01', '14', '20', '72'].includes(policy.caseId ?? '');
+69:   if (clockQualified !== Boolean(policy.semanticClock))
+70:     throw new Error('meri_fixture_semantic_clock_policy_mismatch');
+71:   if (policy.semanticClock) validateMeriFixtureSemanticClock(policy.semanticClock, policy);
+72:   const catalogSha256 = createHash('sha256')
+73:     .update(
+74:       MERI_CAPABILITY_REGISTRY.filter((tool) => tool.readOnly === true)
+75:         .map((tool) => tool.name)
+76:         .sort()
+77:         .join('\n'),
+78:     )
+79:     .digest('hex');
+80:   if (
+81:     policy.expiresAt <= now ||
+82:     policy.issuedAt > now + 30_000 ||
+83:     policy.toolCatalogSha256 !== catalogSha256 ||
+84:     policy.tenantId !== binding.tenantId ||
+85:     policy.actorUserId !== binding.actorUserId ||
+86:     policy.conversationId !== binding.conversationId ||
+87:     policy.clientId !== binding.clientId ||
+88:     !policy.requestId.trim() ||
+89:     !policy.traceId.trim() ||
+90:     !policy.turnId?.trim() ||
+91:     policy.dynamicMcpAllowed !== false ||
+92:     policy.incidentalWriters !== 'suppressed'
+93:   ) {
+94:     throw new Error('Server-owned read-only capture policy is stale or scope-mismatched.');
+95:   }
+96: }
+97: 
+98: export function assertServerReadonlyCaptureToolAllowed(name: string, now = Date.now()): void {
+99:   const current = currentTrustedCurrentTurnScope();
+100:   const policy = current?.capturePolicy;
+101:   if (!policy || !current) return;
+102:   validateServerReadonlyCapturePolicy(
+103:     policy,
+104:     {
+105:       tenantId: current.tenantId,
+106:       actorUserId: current.userId,
+107:       conversationId: current.conversationId,
+108:       clientId: current.selectedClientId,
+109:     },
+110:     now,
+111:   );
+112:   const capability = MERI_CAPABILITY_REGISTRY.find((tool) => tool.name === name);
+113:   if (!capability || capability.readOnly !== true || name === 'run_analysis') {
+114:     throw new Error('Server-owned read-only capture denied tool dispatch.');
+115:   }
+116: }

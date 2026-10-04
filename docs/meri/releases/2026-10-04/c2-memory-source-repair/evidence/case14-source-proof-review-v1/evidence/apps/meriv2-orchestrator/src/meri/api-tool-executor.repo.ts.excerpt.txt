@@ -1,0 +1,66 @@
+SOURCE apps/meriv2-orchestrator/src/meri/api-tool-executor.repo.ts LINES 1-65
+1: import { observeControlledReadHttpResponse, observeCaptureClockHttpAttempt,
+2:   observeCaptureClockHttpResponse } from './controlled-read-observations.js';
+3: import { Injectable, Logger } from '@nestjs/common';
+4: import { ConfigService } from '@nestjs/config';
+5: import {
+6:   encodeMeriCapturePolicyTransport,
+7:   MERI_CAPTURE_POLICY_HEADER,
+8:   type MeriContext,
+9:   type ToolExecutor,
+10:   type ToolExecutionControl,
+11: } from '@capiro/meriv2-core';
+12: import { createMeriExecutionControl } from './meri-execution-control.js';
+13: import { classifyApiToolReadOutcome } from './api-tool-read-outcome.js';
+14: import { RequestCredentialsStore } from '../request/request-credentials.store.js';
+15: import {
+16:   assertServerReadonlyCaptureToolAllowed,
+17:   currentGovernedArtifactCapturePolicy,
+18:   currentTrustedCurrentTurnScope,
+19: } from '../request/trusted-current-turn-scope.js';
+20: import {
+21:   bindCurrentConversationToolInput,
+22:   isCurrentConversationResearchPortfolioTool,
+23: } from './current-turn-tool-scope.js';
+24: import { buildResearchPortfolioToolTransport } from './rp-tool-transport.js';
+25: import {
+26:   emitMeriOrchestratorTelemetry,
+27:   withMeriOrchestratorTelemetrySpan,
+28:   meriOrchestratorTelemetryHeaders,
+29: } from '../telemetry/meri-telemetry.runtime.js';
+30: 
+31: const RETRYABLE_MAIL_READS = new Set(['list_emails', 'search_emails', 'get_email_thread']);
+32: const MAX_MAIL_RETRY_DELAY_MS = 5_000;
+33: 
+34: function canonicalMailReadInput(toolName: string, input: Record<string, unknown>) {
+35:   if (toolName !== 'list_emails' && toolName !== 'search_emails') return input;
+36:   // Spell out the canonical owner's existing defaults on the wire. Explicit
+37:   // non-null values still reach owner validation unchanged, including errors.
+38:   return { ...input, folder: input.folder ?? 'all', offset: input.offset ?? 0 };
+39: }
+40: 
+41: /** Only the API's explicit database-capacity response is safe to retry here. */
+42: function mailCapacityRetryDelay(toolName: string, response: Response, body: string): number | null {
+43:   if (!RETRYABLE_MAIL_READS.has(toolName) || response.status !== 503) return null;
+44:   let payload: unknown;
+45:   try {
+46:     payload = JSON.parse(body);
+47:   } catch {
+48:     return null;
+49:   }
+50:   if (
+51:     !payload ||
+52:     typeof payload !== 'object' ||
+53:     (payload as Record<string, unknown>).statusCode !== 503 ||
+54:     (payload as Record<string, unknown>).message !==
+55:       'The database is temporarily busy. Please retry.'
+56:   ) {
+57:     return null;
+58:   }
+59:   const retryAfter = response.headers?.get('retry-after')?.trim();
+60:   if (!retryAfter) return null;
+61:   const delay = /^\d+$/.test(retryAfter)
+62:     ? Number(retryAfter) * 1_000
+63:     : Date.parse(retryAfter) - Date.now();
+64:   // Honor the server's delay; do not shorten a long Retry-After and hammer it.
+65:   return Number.isFinite(delay) && delay >= 0 && delay <= MAX_MAIL_RETRY_DELAY_MS

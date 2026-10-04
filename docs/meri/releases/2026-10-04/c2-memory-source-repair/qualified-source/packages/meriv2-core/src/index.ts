@@ -1,0 +1,96 @@
+// @capiro/meriv2-core â€” the shared MeriV2 orchestrator core.
+// Pure, importable logic: tool registry, scoping wrapper, intent router, and
+// claim-map grounding. Hosted over HTTP by `apps/meriv2-orchestrator`.
+export * from './registry/types';
+export * from './context/governed-evidence-auth';
+export * from './context/research-plan-execution';
+export * from './context/server-readonly-capture';
+export * from './context/synthetic-read-budget';
+export * from './context/capture-evidence-receipt';
+export * from './context/memory-capture-source';
+export * from './context/meri-explicit-subject';
+export * from './registry/tool-registry';
+export * from './registry/tool-execution-metadata';
+export * from './registry/tool-execution-control';
+export * from './registry/in-editor-tools';
+export * from './compliance/approval-gate';
+export * from './compliance/compliance-rules';
+export * from './compliance/action-approval';
+export * from './alerts/alert';
+export * from './ids/canonical-ids';
+export * from './scoping/scoping-wrapper';
+export * from './intent/intent-router';
+export * from './intent/action-intent';
+export * from './grounding/claim-map';
+export * from './grounding/grounded-json';
+export * from './grounding/auditor';
+export * from './grounding/evidence';
+export * from './grounding/claim-gate';
+export * from './grounding/claim-inventory';
+export * from './grounding/exact-source';
+export * from './grounding/match-label';
+export * from './grounding/match-label-extractor';
+export * from './grounding/status-provenance';
+export * from './grounding/skeptic';
+export * from './grounding/skeptic-audit';
+export * from './context/contract';
+export * from './context/layers';
+export * from './context/coverage-aware-packet';
+export * from './context/operation-enforcement';
+export * from './context/compiler';
+export * from './context/truthful-compiler';
+export * from './context/context-rollout';
+export * from './context/token-budget';
+export * from './context/surface-policy';
+export * from './context/context-release-switch';
+export * from './context/governed-columns';
+export * from './memory/governance';
+export * from './memory/governance-rollout';
+export * from './learning/contract';
+export * from './learning/rollout';
+export * from './learning/candidate-contract';
+export * from './learning/conflict-contract';
+export * from './quality-telemetry/contract';
+export * from './evaluation/contract';
+export * from './assurance/index';
+export * from './rollout/capability-rollout';
+export * from './rollout/evidence-accuracy';
+export * from './rollout/claim-assessment';
+export * from './rollout/auto-correction';
+export * from './rollout/coverage-retrieval';
+export * from './rollout/passage-selection';
+export * from './rollout/match-label';
+export * from './rollout/status-provenance';
+export * from './rollout/jev-cache';
+export * from './rollout/evidence-profiles';
+export * from './jev/index';
+export * from './repair/types';
+export {
+  DeduplicatingToolExecutor,
+  RecordingToolExecutor,
+  ReplayToolExecutor,
+  toolRecordingKey,
+  type RecordedToolResult,
+  type ToolExecutor as RepairToolExecutor,
+} from './repair/tool-executor';
+export * from './repair/revise';
+export * from './repair/run-repair';
+export * from './canary/limits';
+export * from './canary/canary-report';
+export * from './llm/llm-client';
+export * from './tools/client/get-client-context';
+export * from './tools/delegated/delegated-tool';
+export * from './domain/domain-primer';
+export * from './domain/government-affairs-output';
+export * from './tools/hearing/tag-live-policy-mentions';
+export * from './tools/hearing/generate-post-hearing-summary';
+export * from './tools/hearing/generate-published-record-brief';
+export * from './verifier/confidence';
+export * from './verifier/verifier-claims';
+export * from './verifier/pe-structural';
+export * from './verifier/grounding-sources';
+export * from './security/tool-result-wrap';
+export * from './observability/meri-joined-telemetry';
+
+export * from './tools/hearing/generate-editorial-brief';
+export * from './context/governed-artifact-capture';

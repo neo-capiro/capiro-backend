@@ -1,0 +1,26 @@
+FAIL src/meri/controlled-read-observations.spec.ts
+  ● Test suite failed to run
+
+    src/meri/controlled-read-observations.spec.ts:162:27 - error TS2554: Expected 3-4 arguments, but got 2.
+
+    162         const citations = extractCitationsFromToolResult('search_memory',visible);
+                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+      ../../packages/shared/dist/index.d.ts:898:92
+        898 export declare function extractCitationsFromToolResult(toolName: string, payload: unknown, startN: number, maxPerTool?: number): MeriCitation[];
+                                                                                                       ~~~~~~~~~~~~~~
+        An argument for 'startN' was not provided.
+
+PASS src/meri/meriv3/meriv3-tool-evidence.spec.ts
+PASS src/meri/meriv3/meriv3-capture-evidence.spec.ts
+
+Test Suites: 1 failed, 2 passed, 3 total
+Tests:       23 passed, 23 total
+Snapshots:   0 total
+Time:        14.638 s
+Ran all test suites matching /src\\meri\\controlled-read-observations.spec.ts|src\\meri\\meriv3\\meriv3-tool-evidence.spec.ts|src\\meri\\meriv3\\meriv3-capture-evidence.spec.ts/i.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?
+undefined
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command "jest" not found
+
+Did you mean "pnpm exec jest"?

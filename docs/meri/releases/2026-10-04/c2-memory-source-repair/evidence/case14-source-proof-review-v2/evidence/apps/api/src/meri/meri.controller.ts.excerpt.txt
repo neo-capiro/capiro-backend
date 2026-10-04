@@ -1,0 +1,79 @@
+SOURCE apps/api/src/meri/meri.controller.ts LINES 496-573
+496:   // ToolServiceSecretGuard: this endpoint runs write tools with no compliance
+497:   // gate (that gate is in the orchestrator), so it must only be reachable by the
+498:   // orchestrator (post-gate), never a rogue user bearer. Requires the internal
+499:   // service secret in addition to the user JWT. Production and staging always
+500:   // enforce it; development/test observe by default unless
+501:   // MERI_TOOLS_REQUIRE_SERVICE_SECRET=true. @CurrentTenant (user JWT) unchanged.
+502:   @Post('tools/:name')
+503:   @HttpCode(200)
+504:   @UseGuards(ToolServiceSecretGuard)
+505:   async executeTool(
+506:     @CurrentTenant() ctx: TenantContext,
+507:     @Param('name') name: string,
+508:     @Body() body: Record<string, unknown>,
+509:     @Req() req: Request,
+510:   ) {
+511:     const capturePolicy = admitMeriServerReadonlyCaptureTransport({
+512:       ctx,
+513:       req,
+514:       purpose: 'tool',
+515:       toolName: name,
+516:     });
+517:     const admittedAttachment = admitMeriChatAttachmentTransport(name, body, ctx, req);
+518:     const admittedRp = admitMeriResearchPortfolioToolTransport(
+519:       name,
+520:       admittedAttachment.input,
+521:       ctx,
+522:       req,
+523:     );
+524:     const telemetry = admitMeriInternalTelemetry(req, ctx);
+525:     return runWithMeriApiTelemetry(
+526:       telemetry,
+527:       (line) => this.logger.log(line),
+528:       async () => {
+529:         const startedAt = Date.now();
+530:         emitMeriApiTelemetry({
+531:           name: 'meri.api.tool.started',
+532:           boundary: 'api_tool',
+533:           invokedTools: [name],
+534:           outcome: 'started',
+535:         });
+536:         try {
+537:           const result = await withMeriToolRequestControl(
+538:             req,
+539:             () => {
+540:               const execute = () =>
+541:                 this.tools.executeFromAuthenticatedUser(ctx, name, admittedRp.input);
+542:               const executeRp = () =>
+543:                 admittedRp.scope
+544:                   ? withMeriResearchPortfolioToolTurnScope(admittedRp.scope, execute)
+545:                   : execute();
+546:               return admittedAttachment.scope
+547:                 ? withMeriChatAttachmentReadScope(admittedAttachment.scope, executeRp)
+548:                 : executeRp();
+549:             },
+550:             capturePolicy,
+551:           );
+552:           emitMeriApiTelemetry({
+553:             name: 'meri.api.tool.finalized',
+554:             boundary: 'api_tool',
+555:             invokedTools: [name],
+556:             outcome: classifyApiToolReadOutcome(name, result)?.kind ?? 'returned',
+557:             durationMs: Date.now() - startedAt,
+558:           });
+559:           const controlledStatus = meriControlledReadHttpStatus(result);
+560:           if (controlledStatus !== undefined) req.res?.status(controlledStatus);
+561:           return result;
+562:         } catch (error) {
+563:           emitMeriApiTelemetry({
+564:             name: 'meri.api.tool.finalized',
+565:             boundary: 'api_tool',
+566:             invokedTools: [name],
+567:             outcome: 'error',
+568:             durationMs: Date.now() - startedAt,
+569:           });
+570:           throw error;
+571:         }
+572:       },
+573:     );

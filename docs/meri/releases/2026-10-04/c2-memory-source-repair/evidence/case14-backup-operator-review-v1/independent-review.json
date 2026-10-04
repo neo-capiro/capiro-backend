@@ -1,0 +1,71 @@
+{
+  "checkedAt": "2026-10-04T07:24:39.139Z",
+  "result": "FAIL_CACHED_COLLECTOR_BINDING_AND_STATUS",
+  "scope": "Static review plus VM execution of frozen collector against synthetic in-memory fs/AWS; no real filesystem artifacts read through collector, cloud calls, Docker builds or launches.",
+  "pins": [
+    {
+      "name": "start-case14-source-backup-build-v1.mjs",
+      "sha256": "a89de666439e631d26f639cf3bab560f77142eda01fde59c3ca08037732108b3",
+      "bytes": 5183
+    },
+    {
+      "name": "collect-case14-source-backup-build-v1.mjs",
+      "sha256": "10c21a374417883045f02c857d871c2a725d0b7f5397d95bf81faca1d6339db5",
+      "bytes": 4837
+    },
+    {
+      "name": "aws-single-attempt.mjs",
+      "sha256": "86b965a0257fd56e5255e30cdfd6787bef74ba0287d23eecb86fedfae7d6fec0",
+      "bytes": 782
+    }
+  ],
+  "syntax": "PASS for all three files",
+  "reproductions": [
+    {
+      "name": "stale cached PASS for different source",
+      "reproduced": true,
+      "exitCode": 0,
+      "cloudReads": 0,
+      "returnedReadback": {
+        "sourceSha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "qualification": "IMMUTABLE_BUILD_AND_OFFLINE_PROBES_PASS",
+        "status": "SUCCEEDED"
+      }
+    },
+    {
+      "name": "cached FAILED exits as successful process",
+      "reproduced": true,
+      "exitCode": 0,
+      "cloudReads": 0,
+      "returnedReadback": {
+        "sourceSha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "qualification": "FAILED",
+        "status": "FAILED"
+      }
+    }
+  ],
+  "findings": [
+    {
+      "priority": "P2",
+      "id": "cached_readback_before_binding",
+      "path": "collect-case14-source-backup-build-v1.mjs",
+      "line": 12,
+      "problem": "Cached readback is returned before source/start/template/log verification, so mismatched source proof can be returned for current candidate. Every cached result uses process.exit(0), including FAILED.",
+      "repair": "Validate cached service/source/build ID/buildspec/candidate/checkpoint/log bindings after local start/template checks. Require accepted qualification/status shape, and exit nonzero for FAILED. Preserve explicit reconciliation for incomplete log/readback writes."
+    }
+  ],
+  "passingChecks": [
+    "Start checks exact source SHA, clean HEAD and current GitHub main.",
+    "Start requires qualification checkpoint bytes, review hash, template-checks hash, exact template bytes and sourcePins. Final candidate/checkpoint data still pending separate validation.",
+    "Exact account/user/GitHub source/ARM/privileged project and candidate tag absence are checked before any mutation.",
+    "Fixed per-service root, atomic mkdir and wx writes prevent reuse. Launch intent and full request with random idempotency token exist before start-build.",
+    "Only start-build uses awsSingleAttempt; it forces AWS_MAX_ATTEMPTS=1 and AWS_RETRY_MODE=standard, has one bounded CLI invocation, and exposes no automatic retry. Unknown result writes failure and prior root blocks rerun.",
+    "Fresh collector verifies exact source/resolved source/project/buildspec/env, SUCCEEDED, line-exact required markers, >=1570 orchestrator tests/130 suites/2 skips, and immutable ECR digest echo.",
+    "No Actions dispatch, production deployment, database, schedule, provider or live-capture call in these operators."
+  ],
+  "limitations": [
+    "No build launched; candidate/qualification JSON do not exist yet.",
+    "Local candidate pins and request-input/intent lineage must be rechecked after source freeze.",
+    "Cloud project source/environment checks and ECR publication are only performed by root authorized later; this audit does not attest current cloud state."
+  ]
+}
