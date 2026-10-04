@@ -1,0 +1,190 @@
+{
+  "version": 1,
+  "status": "AUTOMATED_QUALIFICATION_PASSED_HUMAN_RELEASE_REVIEW_PENDING",
+  "recordedAt": "2026-10-04T03:17:53.365459+00:00",
+  "sourceSha": "c0f393f863bf73bd4e65e7a94e17c073e7be021e",
+  "sourcePr": "https://github.com/neo-capiro/capirov2/pull/1937",
+  "candidates": {
+    "api": {
+      "sourceSha": "c0f393f863bf73bd4e65e7a94e17c073e7be021e",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:024fcc82a2db7701f4a3e3311598a9a1d0933b3fe4fcf73751bf0e3fb866d8ce"
+    },
+    "meriv2-orchestrator": {
+      "sourceSha": "c0f393f863bf73bd4e65e7a94e17c073e7be021e",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:5329e61c0234a5baca60b4475e49a88adf4d15c78dc555fd4d46a94b01f74b1a"
+    },
+    "web-vnext": {
+      "sourceSha": "c0f393f863bf73bd4e65e7a94e17c073e7be021e",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:fb594dabc437723fa6a28a7a6adcd54b13f813fcc52130f8458692aac2e9c8c6"
+    }
+  },
+  "tests": {
+    "nativeOrchestrator": {
+      "numTotalTests": 1570,
+      "numPassedTests": 1568,
+      "numFailedTests": 0,
+      "numPendingTests": 2,
+      "numTotalTestSuites": 130,
+      "numPassedTestSuites": 130,
+      "numFailedTestSuites": 0,
+      "numPendingTestSuites": 0
+    },
+    "web": {
+      "passed": 175,
+      "testFiles": 11
+    },
+    "case20Source": {
+      "core": 78,
+      "api": 38,
+      "orchestrator": 191
+    },
+    "case17Source": {
+      "api": 25,
+      "web": 37,
+      "typingFollowup": 65
+    },
+    "overlap": "Focused counts overlap native suites; none is a live benchmark pass."
+  },
+  "builds": {
+    "api": {
+      "buildId": "capiro-build-web-dev:b91bc32a-8016-4b7a-ac6b-c34a46d7807e",
+      "buildspecSha256": "cf24c5952b4bb2e458935d6678c26982d61677e6537d48798fe92fa4aad60b5f",
+      "buildLogSha256": "754d665cffdaf65d26be55a3f7f897a56e8eae3535362d61287a73c840d3f90d",
+      "markers": [
+        "OFFLINE_RUNTIME_IMPORT_PASS",
+        "OFFLINE_CASE01_FIXTURE_PACKAGE_IMPORT_PASS",
+        "OFFLINE_CASE01_CONTINUATION_IMPORT_PASS",
+        "OFFLINE_CASE01_POSTAPPROVAL_IMPORT_PASS",
+        "OFFLINE_CASE01_POSTSEED_IMPORT_PASS",
+        "EXACT_452_IMAGE_MIGRATION_HASHES_PASS",
+        "MAIL_ACTIVE_OWNER_INDEX_MIGRATION_PACKAGE_PASS",
+        "OFFLINE_PACKAGED_C2_MEMORY_PASS",
+        "OFFLINE_PACKAGED_C2_RECONCILIATION_PASS",
+        "OFFLINE_PACKAGED_C2_TERMINAL_LIFECYCLE_PASS",
+        "OFFLINE_PACKAGED_C2_TS_SOURCE_IMPORT_PASS",
+        "OFFLINE_PACKAGED_SEMANTIC_CLOCK_API_CORE_PASS",
+        "OFFLINE_PACKAGED_CAPTURE_RECEIPT_CONTRACT_PASS",
+        "OFFLINE_PACKAGED_CAPTURE_PROVIDER_API_GUARDS_PASS",
+        "LOCAL_REPODIGEST_ECR_MATCH_PASS",
+        "OFFLINE_PACKAGED_C2_RECORDED_SOURCE_PRIVACY_PASS"
+      ],
+      "architecture": "arm64"
+    },
+    "meriv2-orchestrator": {
+      "buildId": "capiro-build-web-dev:6fcbfb1c-a003-401d-af01-4067d11f2954",
+      "buildspecSha256": "67617283cc66959285174b78493e95b7d491bbfcb916b8592eb0980fd0aa3e0b",
+      "buildLogSha256": "454a8b453bd33ed47c13d71dba4122bfeafee04777c55f6f9689d030b1407b13",
+      "markers": [
+        "ORCHESTRATOR_CAPTURE_CONTRACT_LOOPBACK_TESTS_PASS",
+        "OFFLINE_PACKAGED_ENTRYPOINT_HEALTH_AUTH_PASS",
+        "OFFLINE_C1_CLASSIFICATION_REPAIRS_PASS",
+        "OFFLINE_PACKAGED_MAIL_DEFAULTS_PASS",
+        "OFFLINE_PACKAGED_NO_TOOLS_DIRECTIVE_PASS",
+        "OFFLINE_PACKAGED_SEMANTIC_CLOCK_ORCHESTRATOR_PASS",
+        "OFFLINE_PACKAGED_CAPTURE_PROVIDER_ORCHESTRATOR_GUARDS_PASS",
+        "LOCAL_REPODIGEST_ECR_MATCH_PASS",
+        "CORE_CASE20_SOURCE_PROOF_NATIVE_TESTS_PASS",
+        "ORCHESTRATOR_CASE20_SOURCE_PROOF_NATIVE_TESTS_PASS"
+      ],
+      "architecture": "arm64"
+    },
+    "web-vnext": {
+      "buildId": "capiro-build-web-dev:d12e01ed-3f15-4d52-9c9a-ad3e0209ae02",
+      "buildspecSha256": "604d019ef9b54936de5cf7d9a5fb46f878d998b19549b2257de4a842edef9899",
+      "buildLogSha256": "b72b933d6825e170d62ed4e953bd84098d576c99f4eda839dd46bd29fc86a44c",
+      "markers": [
+        "NATIVE_WEB_SOURCE_TESTS_TYPES_BUILD_PASS",
+        "LOCAL_REPODIGEST_ECR_MATCH_PASS",
+        "OFFLINE_PACKAGED_C2_RECORDED_SOURCE_WEB_BYTES_PASS"
+      ],
+      "architecture": "arm64"
+    }
+  },
+  "currentSchema": {
+    "status": "VERIFIED_READ_ONLY",
+    "ledgerRows": 609,
+    "activeFinished": 509,
+    "rolledBack": 100,
+    "prior608Sha256": "9a82cbc9dcecc3b049c312ad4e39ec5a96eb33c6e5af033a3339d1e292c06e90",
+    "newMigration": "20281007010000_mail_messages_owned_connection_active",
+    "newMigrationSha256": "ef10ab58b4eef6825652690a098ab160a374fb30c4cc0af9f15793edb7237242",
+    "retirementTablesAbsent": true,
+    "indices": [
+      {
+        "name": "mail_messages_tenant_connection_active_idx",
+        "ready": true,
+        "definitionSha256": "23d2b35e8097cea6c5620ce2c9c1cab68467e9de09dba5e3337f6fca0a170688"
+      },
+      {
+        "name": "mail_threads_tenant_connection_id_cover_idx",
+        "ready": true,
+        "definitionSha256": "7097d64ec1650dfa8e004e89a1e2f6f267cb7924e869993bb44fb235e9716c9e"
+      }
+    ],
+    "migrationExecution": false,
+    "sourceSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+    "observedAt": "2026-10-04T03:06:22.453Z",
+    "providerCalls": 0,
+    "businessWrites": 0,
+    "acceptanceAuthority": false,
+    "readOnlyTransaction": true
+  },
+  "servedBaselineSha256": "317c00a3cb59368e8f6391b3d67375a8e447d0f7ce980fa5f2fc4b5d079507bf",
+  "sourceReviews": {
+    "case17": "../c2-case17-provenance-source/README.md",
+    "case20": "../c2-case20-receipt-repair/README.md",
+    "combinedHermes": "combined-bundled-hermes-review-v3/REVIEW.md",
+    "leadReview": "release-independent-review.json"
+  },
+  "retirementCompatibility": {
+    "schemaChange": false,
+    "retiredTablesAbsent": true,
+    "migrationDependencyContainerFilesUnchanged": true,
+    "productionImportsUnchanged": true,
+    "rollingOrder": "API then orchestrator then web; capture qualification waits for the exact served pair. Optional recordedSource is ignored by old web and absent-safe in new web. Missing joins remain blocked.",
+    "rollback": "Current API521/orchestrator117/Web388 exact digests. Retain schema, nightly136, disabled broad worker and completed maintenance."
+  },
+  "scope": {
+    "change": "Three service images and release identity only",
+    "schemaChange": false,
+    "modelConfigurationChange": false,
+    "providerConfigurationChange": false,
+    "featureFlagChange": false,
+    "nightlyChange": false,
+    "capacityChange": false,
+    "newProviderCalls": 0,
+    "newCaptureAuthority": false,
+    "captureBindingWrite": false,
+    "budgetInstallation": false,
+    "journalMutation": false
+  },
+  "failureHistory": {
+    "actions": "User explicitly requested existing CodeBuild backup because Actions is broken; no additional Actions dispatch attempted.",
+    "apiFirstBuild": "Failed added offline harness lacked canonical tenant scope/cohort. No image published. Corrected harness retains assertions and adds dark/offcohort checks; original failure retained.",
+    "localProbe": "First local probe failed against stale compiled dist. Fresh current source Nest build and identical probe passed; failed evidence retained.",
+    "reviewPreparation": "First Hermes compatibility lane lacked exact build/source files; first bundled run had incomplete inputs. Both limitations retained, complete v3 bundle supersedes them."
+  },
+  "schemaChange": false,
+  "humanApproval": null,
+  "deployableManifest": false,
+  "acceptance": {
+    "original75": 0,
+    "cd": 0,
+    "cw": 0,
+    "failedCase01": "CAPTURE_UNCERTAIN; consumed; no replay",
+    "failedCase20": "CAPTURE_UNCERTAIN / NOT_EVALUATED; consumed; accounting only closed",
+    "case14": "Native plan captured; no pending candidate created, no approval/capture/recall acceptance"
+  },
+  "budgetCheckpoint": {
+    "journalSha256": "8f20134f71dde90e32fc0c3c2aba2da2d5b93dd13fffea31b83105d1621bc3e5",
+    "events": 24,
+    "knownCostMicros": 13631058,
+    "remainingMicros": 16368942,
+    "activeRun": null,
+    "admittedCases": [
+      "01",
+      "20"
+    ],
+    "newCaptureAuthority": false
+  }
+}

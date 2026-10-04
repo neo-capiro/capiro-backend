@@ -1,0 +1,3 @@
+BLOCKED: the required manifest, exact production delta, and `evidence/source/...` mirrors were not readable in this directory. I did not consult another checkout. I reviewed the available corrected API probe and current orchestrator/Web build evidence, but they cannot replace that source-level review; API immutable image qualification also remains pending.
+
+The review is saved at `C:\dev\main\outputs\meri-c2-20261003\combined-bundled-hermes-review-v2\REVIEW.md`. No inputs were edited, and no deployment, live capture, human attestation, or C2 acceptance is claimed.

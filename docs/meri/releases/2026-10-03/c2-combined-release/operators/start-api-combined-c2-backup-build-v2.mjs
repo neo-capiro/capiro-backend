@@ -1,0 +1,44 @@
+import {readFileSync,writeFileSync,existsSync,mkdirSync} from 'node:fs';
+import {createHash,randomUUID} from 'node:crypto';
+import {execFileSync} from 'node:child_process';
+import {aws,need} from '../meri-fresh-20261003/auth-preflight.mjs';
+import {awsSingleAttempt} from './aws-single-attempt.mjs';
+const parent='C:/dev/main/outputs/meri-c2-20261003',repo='C:/dev/main/meri-c1-20261002';
+const candidateBytes=readFileSync(parent+'/combined-c2-candidate-v1.json');
+const candidate=JSON.parse(candidateBytes);
+const sha=candidate.sourceSha,hash=b=>createHash('sha256').update(b).digest('hex');
+need(/^[a-f0-9]{40}$/.test(sha),'SOURCE_REQUIRED');
+need(candidate.backupAuthorization==='USER_REQUEST_2026_10_03_USE_BACKUP_SHIPPING_METHOD','BACKUP_AUTHORITY_REQUIRED');
+need(candidate.case20CheckpointSha256==='c9bf23e861e8a41b8b18d2a944e83178b12fdd875bb503becf194b44f3f42a21','SOURCE_QUALIFICATION_REQUIRED');
+need(candidate.case20ReviewSha256==='b8422c5c40bc3e0cb4e5f209921a6a228463ae3d15d51b07ff5119077d17f122','SOURCE_REVIEW_REQUIRED');
+const specs={api:'cf24c5952b4bb2e458935d6678c26982d61677e6537d48798fe92fa4aad60b5f','meriv2-orchestrator':'67617283cc66959285174b78493e95b7d491bbfcb916b8592eb0980fd0aa3e0b','web-vnext':'604d019ef9b54936de5cf7d9a5fb46f878d998b19549b2257de4a842edef9899'};
+const [service,...extra]=process.argv.slice(2);need(Object.hasOwn(specs,service)&&extra.length===0,'EXACT_SERVICE_REQUIRED');
+need(service==='api','API_REBUILD_ONLY');
+const failed=JSON.parse(readFileSync(parent+'/api-combined-c2-build-v1/build-readback.json'));need(failed.status==='FAILED'&&failed.sourceSha===sha&&failed.buildId==='capiro-build-web-dev:5be3a3b7-0971-4bb0-b6c9-3ae209773b16','FAILED_FIRST_BUILD_REQUIRED');
+const root=parent+'/'+service+'-combined-c2-build-v2';need(!existsSync(root),'PRIOR_INTENT_REQUIRES_RECONCILIATION');
+const git=args=>execFileSync('git',args,{cwd:repo,encoding:'utf8',windowsHide:true}).trim();
+need(git(['rev-parse','HEAD'])===sha&&git(['status','--porcelain'])==='','CLEAN_EXACT_CANDIDATE_REQUIRED');
+const main=JSON.parse(execFileSync('gh',['api','repos/neo-capiro/capirov2/git/ref/heads/main'],{encoding:'utf8',windowsHide:true}));
+need(main.object.sha===sha,'REMOTE_MAIN_DRIFT');
+const pinBytes=readFileSync(parent+'/combined-c2-source-pins-v1.json');
+need(hash(pinBytes)==='57d8505bf40dee4987e9f1104909ee0afb3f4c102b7814a35c4d2985ad85d518','REVIEWED_SOURCE_PIN_MANIFEST_REQUIRED');
+const expectedPins=JSON.parse(pinBytes);
+need(Array.isArray(candidate.sourcePins)&&candidate.sourcePins.length===23&&JSON.stringify(candidate.sourcePins)===JSON.stringify(expectedPins),'EXACT_REVIEWED_SOURCE_PINS_REQUIRED');
+for(const row of candidate.sourcePins){need(typeof row.path==='string'&&!row.path.includes('..')&&!row.path.startsWith('/')&&/^[a-f0-9]{64}$/.test(row.sha256),'SOURCE_PIN_SCHEMA');const b=readFileSync(repo+'/'+row.path);need(hash(b)===row.sha256,'SOURCE_BYTES_DRIFT');}
+const identity=aws(['sts','get-caller-identity']);need(identity.Account==='967807252336'&&identity.Arn==='arn:aws:iam::967807252336:user/capirocli','EXACT_CALLER_REQUIRED');
+const project=aws(['codebuild','batch-get-projects','--names','capiro-build-web-dev']).projects?.[0];
+need(project?.source.type==='GITHUB'&&project.source.location==='https://github.com/neo-capiro/capirov2.git'&&project.environment.type==='ARM_CONTAINER'&&project.environment.privilegedMode===true,'PROJECT_DRIFT');
+const images=aws(['ecr','list-images','--repository-name','capiro/dev/'+service,'--filter','tagStatus=TAGGED']);need(!images.nextToken&&!images.imageIds.some(i=>i.imageTag===sha),'CANDIDATE_TAG_MUST_BE_ABSENT');
+const buildspec=readFileSync(parent+'/api-build-probe-supervised-v2/buildspec.template.json','utf8');
+const specHash=hash(buildspec);need(specHash===specs[service]&&Buffer.byteLength(buildspec)<25600,'BUILDSPEC_DRIFT');
+const request={projectName:project.name,sourceVersion:sha,buildspecOverride:buildspec,environmentVariablesOverride:[{name:'EXPECTED_SHA',value:sha,type:'PLAINTEXT'}],idempotencyToken:randomUUID(),timeoutInMinutesOverride:45};
+mkdirSync(root);
+const save=(name,value)=>writeFileSync(root+'/'+name,JSON.stringify(value,null,2)+'\n',{flag:'wx'});
+writeFileSync(root+'/buildspec.yml',buildspec,{flag:'wx'});save('build-input.json',request);
+save('launch-intent.json',{recordedAt:new Date().toISOString(),service,sourceSha:sha,buildspecSha256:specHash,candidateSha256:hash(candidateBytes),sourcePinsSha256:hash(pinBytes),callerArn:identity.Arn,requestSha256:hash(readFileSync(root+'/build-input.json')),idempotencyToken:request.idempotencyToken,backupAuthorization:candidate.backupAuthorization,scope:'Immutable ARM image build and ECR publication only; no service/config/database/provider mutation'});
+try{
+ const result=awsSingleAttempt(['codebuild','start-build','--cli-input-json','file://'+root+'/build-input.json']);
+ need(result.build?.id&&result.build.sourceVersion===sha,'BUILD_START_UNCONFIRMED_RECONCILE_INTENT');
+ const receipt={service,buildId:result.build.id,sourceSha:sha,status:result.build.buildStatus,buildspecSha256:specHash,callerArn:identity.Arn,startedAt:new Date().toISOString(),backupAuthorization:candidate.backupAuthorization,scope:'Three-image C2 qualification; no live release'};
+ save('build-start.json',receipt);console.log(JSON.stringify(receipt));
+}catch(e){save('launch-failure.json',{at:new Date().toISOString(),errorClass:e.name,status:'LAUNCH_OUTCOME_REQUIRES_RECONCILIATION',automaticRetryAllowed:false});throw e;}

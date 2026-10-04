@@ -1,0 +1,11 @@
+{
+  "service": "web-vnext",
+  "buildId": "capiro-build-web-dev:d12e01ed-3f15-4d52-9c9a-ad3e0209ae02",
+  "sourceSha": "c0f393f863bf73bd4e65e7a94e17c073e7be021e",
+  "status": "IN_PROGRESS",
+  "buildspecSha256": "604d019ef9b54936de5cf7d9a5fb46f878d998b19549b2257de4a842edef9899",
+  "callerArn": "arn:aws:iam::967807252336:user/capirocli",
+  "startedAt": "2026-10-04T02:50:13.147Z",
+  "backupAuthorization": "USER_REQUEST_2026_10_03_USE_BACKUP_SHIPPING_METHOD",
+  "scope": "Three-image C2 qualification; no live release"
+}

@@ -1,0 +1,40 @@
+{
+  "startedAt": "2026-10-04T02:47:41.071497+00:00",
+  "finishedAt": "2026-10-04T02:49:27.366455+00:00",
+  "exitCode": 0,
+  "failure": null,
+  "modelOverride": null,
+  "providerOverride": null,
+  "files": [
+    {
+      "path": "NOTES.md",
+      "bytes": 6708,
+      "sha256": "80b4beb52b0d018efbd07733169907adda5b729f88e21c4fe73ff3dee40277c6"
+    },
+    {
+      "path": "prompt.txt",
+      "bytes": 2648,
+      "sha256": "14739213b153c513e885fc0985d240b34fd5867ebadc5727b898fc6682fd41c9"
+    },
+    {
+      "path": "prospective-recipe.template.json",
+      "bytes": 1187,
+      "sha256": "0ffd5f765ad06a62b60b5c11edcb28f7c96a837bd4287ed7ffda701cd4c7bd82"
+    },
+    {
+      "path": "response.txt",
+      "bytes": 825,
+      "sha256": "0b48129f53e782a119e27050ec17555dd27b7411ed5bb5f2515ac457fcab4d5b"
+    },
+    {
+      "path": "stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "usage.json",
+      "bytes": 475,
+      "sha256": "5483217afaf5878eeecb8d6b40157ef2638552bab03f803180f25b52f13cdfe4"
+    }
+  ]
+}

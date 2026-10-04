@@ -1,0 +1,280 @@
+{
+  "version": 1,
+  "status": "CURRENT_SERVED_BASELINE_AND_CONFIG_VERIFIED_READ_ONLY",
+  "observedAt": "2026-10-04T03:06:16.632Z",
+  "candidateSourceSha": "c0f393f863bf73bd4e65e7a94e17c073e7be021e",
+  "callerArn": "arn:aws:iam::967807252336:user/capirocli",
+  "services": [
+    {
+      "service": "api",
+      "baseline": {
+        "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:521",
+        "serviceHash": "793302143e44176b8dd4cd79f914ef57c50567f5665b06ff65cca32b0071ef0c",
+        "configHash": "973748a2b134b388a6027df6c5c099055a7e24f7b746eafbaae8cebad077258a",
+        "taskHash": "b6108d13d2558e5cf4dd762a81406574aab92546736606b870da283af45b4170",
+        "imageDigest": "sha256:23f529da3c1c00d401968811575dc075bced6c60669baa9a09e9c23575c9c452",
+        "desiredCount": 2
+      },
+      "sourceSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:23f529da3c1c00d401968811575dc075bced6c60669baa9a09e9c23575c9c452",
+      "health": "ALL_RUNNING_TASKS_AND_ALB_TARGETS_VERIFIED",
+      "modelsAndFlags": {
+        "AWS_REGION_DEFAULT": "us-east-1",
+        "OPENAI_MODEL": "gpt-6-astra",
+        "MERI_JEV_MODEL": "jev-1.13.0",
+        "MERI_JEV_PROVIDER_MODE": "shadow",
+        "MERI_JEV_PROVIDER_SURFACES": "research",
+        "MERI_JEV_TASKS": "bd_entity,bd_signal",
+        "MERIV3_ENABLED": "true"
+      },
+      "presenceOnly": {
+        "AWS_ENDPOINT_URL": {
+          "plainEntries": 0,
+          "secretReferencePresent": false
+        },
+        "AWS_ENDPOINT_URL_BEDROCK_RUNTIME": {
+          "plainEntries": 0,
+          "secretReferencePresent": false
+        },
+        "AWS_IGNORE_CONFIGURED_ENDPOINT_URLS": {
+          "plainEntries": 0,
+          "secretReferencePresent": false
+        },
+        "NVIDIA_API_KEY": {
+          "plainEntries": 0,
+          "secretReferencePresent": false
+        },
+        "NVIDIA_RERANK_URL": {
+          "plainEntries": 0,
+          "secretReferencePresent": false
+        },
+        "NVIDIA_RERANK_BASE_URL": {
+          "plainEntries": 0,
+          "secretReferencePresent": false
+        },
+        "NVIDIA_BASE_URL": {
+          "plainEntries": 0,
+          "secretReferencePresent": false
+        },
+        "OPENAI_BASE_URL": {
+          "plainEntries": 0,
+          "secretReferencePresent": false
+        },
+        "OPENAI_API_BASE": {
+          "plainEntries": 0,
+          "secretReferencePresent": false
+        },
+        "OPENAI_SERVICE_TIER": {
+          "plainEntries": 0,
+          "secretReferencePresent": false
+        }
+      },
+      "environmentFiles": 0
+    },
+    {
+      "service": "meriv2-orchestrator",
+      "baseline": {
+        "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:117",
+        "serviceHash": "70aea1ca7863f98f9c8febcc25c048ab68067e3491abc3b836fea8e44238db44",
+        "configHash": "3a4fabd2139e347cd8b45192579f2a3fbaaa6fc3678762b5252f727a4461951b",
+        "taskHash": "7444417aec330d62f970880153f12e1dae52bded0a9a2aaf475385eb24c9e56e",
+        "imageDigest": "sha256:1c491a5ac46ea320195fe8ab367322ad2ebbd0949d69530b5ccfba2de84eb491",
+        "desiredCount": 1
+      },
+      "sourceSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:1c491a5ac46ea320195fe8ab367322ad2ebbd0949d69530b5ccfba2de84eb491",
+      "health": "ALL_RUNNING_TASKS_AND_ALB_TARGETS_VERIFIED",
+      "modelsAndFlags": {
+        "OPENAI_MODEL": "gpt-6-astra",
+        "MERIV3_MODEL": "gpt-6-astra",
+        "MERIV3_FAST_MODEL": "gpt-6-astra",
+        "MERIV3_DEEP_MODEL": "gpt-6-astra",
+        "MERIV3_MAX_MODEL": "gpt-6-astra",
+        "MERI_JEV_MODEL": "jev-1.13.0",
+        "MERI_JEV_PROVIDER_MODE": "enforce",
+        "MERI_JEV_PROVIDER_SURFACES": "chat",
+        "MERI_JEV_TASKS": "claim_support,passage_relevance",
+        "MERIV3_ENABLED": "true"
+      },
+      "presenceOnly": {
+        "AWS_ENDPOINT_URL": {
+          "plainEntries": 0,
+          "secretReferencePresent": false
+        },
+        "AWS_ENDPOINT_URL_BEDROCK_RUNTIME": {
+          "plainEntries": 0,
+          "secretReferencePresent": false
+        },
+        "AWS_IGNORE_CONFIGURED_ENDPOINT_URLS": {
+          "plainEntries": 0,
+          "secretReferencePresent": false
+        },
+        "NVIDIA_API_KEY": {
+          "plainEntries": 0,
+          "secretReferencePresent": false
+        },
+        "NVIDIA_RERANK_URL": {
+          "plainEntries": 0,
+          "secretReferencePresent": false
+        },
+        "NVIDIA_RERANK_BASE_URL": {
+          "plainEntries": 0,
+          "secretReferencePresent": false
+        },
+        "NVIDIA_BASE_URL": {
+          "plainEntries": 0,
+          "secretReferencePresent": false
+        },
+        "OPENAI_BASE_URL": {
+          "plainEntries": 0,
+          "secretReferencePresent": false
+        },
+        "OPENAI_API_BASE": {
+          "plainEntries": 0,
+          "secretReferencePresent": false
+        },
+        "OPENAI_SERVICE_TIER": {
+          "plainEntries": 0,
+          "secretReferencePresent": false
+        }
+      },
+      "environmentFiles": 0
+    },
+    {
+      "service": "web-vnext",
+      "baseline": {
+        "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web-vnext:388",
+        "serviceHash": "16238627fc523b6470c76cbd86c6a54bca422f86d72f2a7ba0312cc326d139e2",
+        "configHash": "453a3d5aedc3da7d989370b97669abf0c1b14efbacd2d1597990b9cac7d50ab7",
+        "taskHash": "ce2035e6773a77eeda0adcf86dd4a7043624b3d75d8d32a74000f3d930f55211",
+        "imageDigest": "sha256:a048aceec01c207b514f76fb447d4fb8bdb5ed17278642480008a1510a12de4c",
+        "desiredCount": 1
+      },
+      "sourceSha": "78ad5805679a3045b1fc10fb19beafa7f76e4e64",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:a048aceec01c207b514f76fb447d4fb8bdb5ed17278642480008a1510a12de4c",
+      "health": "ALL_RUNNING_TASKS_AND_ALB_TARGETS_VERIFIED",
+      "modelsAndFlags": {},
+      "presenceOnly": {
+        "AWS_ENDPOINT_URL": {
+          "plainEntries": 0,
+          "secretReferencePresent": false
+        },
+        "AWS_ENDPOINT_URL_BEDROCK_RUNTIME": {
+          "plainEntries": 0,
+          "secretReferencePresent": false
+        },
+        "AWS_IGNORE_CONFIGURED_ENDPOINT_URLS": {
+          "plainEntries": 0,
+          "secretReferencePresent": false
+        },
+        "NVIDIA_API_KEY": {
+          "plainEntries": 0,
+          "secretReferencePresent": false
+        },
+        "NVIDIA_RERANK_URL": {
+          "plainEntries": 0,
+          "secretReferencePresent": false
+        },
+        "NVIDIA_RERANK_BASE_URL": {
+          "plainEntries": 0,
+          "secretReferencePresent": false
+        },
+        "NVIDIA_BASE_URL": {
+          "plainEntries": 0,
+          "secretReferencePresent": false
+        },
+        "OPENAI_BASE_URL": {
+          "plainEntries": 0,
+          "secretReferencePresent": false
+        },
+        "OPENAI_API_BASE": {
+          "plainEntries": 0,
+          "secretReferencePresent": false
+        },
+        "OPENAI_SERVICE_TIER": {
+          "plainEntries": 0,
+          "secretReferencePresent": false
+        }
+      },
+      "environmentFiles": 0
+    }
+  ],
+  "retainedNightly": {
+    "rule": "capiro-dev-refresh-memory-graph",
+    "targetId": "refresh-memory-graph-target",
+    "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api-migrate:136",
+    "sourceSha": "f00e5dfb4fd3e47ac6aa4aca741023cc02f6314f",
+    "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:1a4aef121151bb5da7f70417539ece2faff392842809e6b557370c2d6cf8a49d",
+    "ruleSha256": "4a9376120b272c60388f6986a7a20aa00bfa78a8feb3b44a3a804fd93c617947",
+    "targetSha256": "e5b98fe865035a7dfa2add1472df1617101714e08f65232fd232c606c4f2475a",
+    "taskInputSha256": "0b362cc5b50895bcc69d70536e2496b848c0ee7bc805d9d17c1c6f85261263a5",
+    "change": "NONE"
+  },
+  "broadProjectionWorker": {
+    "state": "DISABLED",
+    "change": "NONE"
+  },
+  "comparison": [
+    {
+      "service": "api",
+      "baselineSourceSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+      "candidateSourceSha": "c0f393f863bf73bd4e65e7a94e17c073e7be021e",
+      "unchangedMigrationDependencyAndContainerPaths": [
+        "pnpm-lock.yaml",
+        "apps/api/prisma",
+        "apps/api/Dockerfile",
+        "apps/api/package.json"
+      ],
+      "changedRuntimePaths": [
+        "apps/api/src/memory/governed-memory-candidate.service.spec.ts",
+        "apps/api/src/memory/governed-memory-candidate.service.ts",
+        "apps/api/src/meri/meri-capture-clock-packets.spec.ts",
+        "apps/api/src/meri/meri-controlled-read-fixture.spec.ts",
+        "apps/api/src/meri/meri-controlled-read-fixture.ts",
+        "apps/api/src/meri/meri-memory-proposal-read.spec.ts",
+        "packages/meriv2-core/src/context/capture-evidence-receipt.spec.ts",
+        "packages/meriv2-core/src/context/capture-evidence-receipt.ts"
+      ]
+    },
+    {
+      "service": "meriv2-orchestrator",
+      "baselineSourceSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+      "candidateSourceSha": "c0f393f863bf73bd4e65e7a94e17c073e7be021e",
+      "unchangedMigrationDependencyAndContainerPaths": [
+        "pnpm-lock.yaml",
+        "apps/api/prisma",
+        "apps/meriv2-orchestrator/Dockerfile",
+        "apps/meriv2-orchestrator/package.json"
+      ],
+      "changedRuntimePaths": [
+        "apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts",
+        "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.spec.ts",
+        "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts",
+        "packages/meriv2-core/src/context/capture-evidence-receipt.spec.ts",
+        "packages/meriv2-core/src/context/capture-evidence-receipt.ts"
+      ]
+    },
+    {
+      "service": "web-vnext",
+      "baselineSourceSha": "78ad5805679a3045b1fc10fb19beafa7f76e4e64",
+      "candidateSourceSha": "c0f393f863bf73bd4e65e7a94e17c073e7be021e",
+      "unchangedMigrationDependencyAndContainerPaths": [
+        "pnpm-lock.yaml",
+        "apps/web/Dockerfile",
+        "apps/web/package.json"
+      ],
+      "changedRuntimePaths": [
+        "apps/web/src/components/memory-queue-shared.ts",
+        "apps/web/src/vnext/meri/MeriMemoryTab.targets.test.tsx",
+        "apps/web/src/vnext/meri/MeriMemoryTab.tsx"
+      ]
+    }
+  ],
+  "awsWrites": 0,
+  "providerCalls": 0,
+  "limits": [
+    "Configuration readback contains allowlisted model/flag values and presence only for endpoint/tier/key names; no secret values or full environment arrays were fetched from secret storage or persisted.",
+    "NVIDIA absence is task configuration evidence, not hosted-account billing entitlement or an independent process-environment inspection.",
+    "This snapshot is a drift fence, not a distributed deployment lock. Fresh candidate-bound checks and human release review remain required."
+  ]
+}

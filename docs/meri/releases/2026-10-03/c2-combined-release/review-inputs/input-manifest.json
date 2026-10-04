@@ -1,0 +1,206 @@
+{
+  "sourceSha": "c0f393f863bf73bd4e65e7a94e17c073e7be021e",
+  "baselineSha": "4f0253874357c272fda1ae2a5271ee4af645f0bc",
+  "files": [
+    {
+      "path": "collect-api-combined-c2-build-v2.mjs",
+      "sha256": "2c329754019bde49098db4d41959676e5d36c965967e56cd99510c37be654c70",
+      "bytes": 5264
+    },
+    {
+      "path": "combined-c2-candidate-v1.json",
+      "sha256": "7c03b93cc894fe6e017b51dc2e814bd2d9dd99feab3ca7647c013179ce8ef746",
+      "bytes": 5103
+    },
+    {
+      "path": "combined-c2-source-pins-v1.json",
+      "sha256": "57d8505bf40dee4987e9f1104909ee0afb3f4c102b7814a35c4d2985ad85d518",
+      "bytes": 3751
+    },
+    {
+      "path": "exact-production-delta.patch",
+      "sha256": "4b32d1ef9f5b566d56c5143bc0c604086062367fb0d4ab7dcb74112c35758615",
+      "bytes": 10763
+    },
+    {
+      "path": "served-baseline.json",
+      "sha256": "317c00a3cb59368e8f6391b3d67375a8e447d0f7ce980fa5f2fc4b5d079507bf",
+      "bytes": 11062
+    },
+    {
+      "path": "start-api-combined-c2-backup-build-v2.mjs",
+      "sha256": "e5131784c1643cb1964d80dcfdc67ee09f99986b56a6d6f064f2bbb057b49e87",
+      "bytes": 5484
+    },
+    {
+      "path": "builds/meriv2-orchestrator/build-readback.json",
+      "sha256": "015e72cae880dc927011ceaa3f945c87dc6d71b6f03f1d1414537112103573ed",
+      "bytes": 3617
+    },
+    {
+      "path": "builds/meriv2-orchestrator/build.log",
+      "sha256": "454a8b453bd33ed47c13d71dba4122bfeafee04777c55f6f9689d030b1407b13",
+      "bytes": 771172
+    },
+    {
+      "path": "builds/web-vnext/build-readback.json",
+      "sha256": "4e381886c9166de11c39264b18f7701ba7533336ebe22046df7dfede010491e3",
+      "bytes": 2980
+    },
+    {
+      "path": "builds/web-vnext/build.log",
+      "sha256": "b72b933d6825e170d62ed4e953bd84098d576c99f4eda839dd46bd29fc86a44c",
+      "bytes": 101713
+    },
+    {
+      "path": "case17/README.md",
+      "sha256": "7d5c9003d48eb648396133050e7b20f8e21f980e36baef497635239243a5d35f",
+      "bytes": 1568
+    },
+    {
+      "path": "case17/case17-api-typecheck-followup-v1/checkpoint.json",
+      "sha256": "e666b82818a64fffcaec9974fbc3bfb80d074b6cf8c344a5d1dec8fc1480c686",
+      "bytes": 5405
+    },
+    {
+      "path": "case17/case17-api-typecheck-followup-v1/independent-review.json",
+      "sha256": "2a276183d9d7abcf4728dd78ae1f6da3122dff6a23ab4495eeaf19b16dd287bb",
+      "bytes": 1721
+    },
+    {
+      "path": "case17/case17-provenance-native-v1/checkpoint.json",
+      "sha256": "c7bd52428514ac1e826b1a7b8b2e16e1f4681e4a5afc65e56a301f848f4b0032",
+      "bytes": 10324
+    },
+    {
+      "path": "case17/case17-provenance-native-v1/independent-review.json",
+      "sha256": "b52404dbe921b6f6d07e1dc3672c03ea36df81cc0440baead7a79f91beaac27e",
+      "bytes": 1865
+    },
+    {
+      "path": "case20/README.md",
+      "sha256": "f562ad52fcb58afc55cc56ed863bc707846753a335f6c89ae15273b4962ecf8b",
+      "bytes": 1707
+    },
+    {
+      "path": "case20/case20-receipt-repair-v1/checkpoint.json",
+      "sha256": "c9bf23e861e8a41b8b18d2a944e83178b12fdd875bb503becf194b44f3f42a21",
+      "bytes": 21739
+    },
+    {
+      "path": "case20/case20-receipt-repair-v1/independent-review.json",
+      "sha256": "b8422c5c40bc3e0cb4e5f209921a6a228463ae3d15d51b07ff5119077d17f122",
+      "bytes": 6294
+    },
+    {
+      "path": "probe/api-recorded-source.sh",
+      "sha256": "8c7cc7d2ffc44ee15e15005be2ea139608584fa79d8e9545872de86b61b54047",
+      "bytes": 4589
+    },
+    {
+      "path": "probe/build.sh",
+      "sha256": "4523be8984c8ee637afe5302eb74f5638da604ee528202cfdc1167dc17c316b3",
+      "bytes": 28101
+    },
+    {
+      "path": "probe/buildspec.template.json",
+      "sha256": "cf24c5952b4bb2e458935d6678c26982d61677e6537d48798fe92fa4aad60b5f",
+      "bytes": 12385
+    },
+    {
+      "path": "probe/candidate-local-build.log",
+      "sha256": "474834a5bd1dd45028516d03b578bddc226aa68e089024e1afd9f730d194b192",
+      "bytes": 83
+    },
+    {
+      "path": "probe/checkpoint.json",
+      "sha256": "7f6aa463bedf3594903e5bb254dd97b492787c58fa6f385b96d6095eda43554e",
+      "bytes": 1286
+    },
+    {
+      "path": "probe/delta.patch",
+      "sha256": "7f240a298bdf70807b379ad144c1d41d66320f299c721d337f7d2b209f30933c",
+      "bytes": 3822
+    },
+    {
+      "path": "probe/local-probe-current-candidate.log",
+      "sha256": "0e506873eb64e6c565a3afb6ac1b031f11b11925296e6aa7fd4b9c7ff0009331",
+      "bytes": 50
+    },
+    {
+      "path": "probe/local-probe.cjs",
+      "sha256": "8bd4d6dd84eeefbbe5fc5976c08d503770e2a09d419d72b65246e4a8d8977f3f",
+      "bytes": 4478
+    },
+    {
+      "path": "probe/local-probe.log",
+      "sha256": "3ec48a8df765c58cc3d7d9c6bbba6f9c658a64908a4ec960cc4475f9afe55603",
+      "bytes": 792
+    },
+    {
+      "path": "probe/post_build.sh",
+      "sha256": "fc6034cdd9ec8f0dfaa5e9ce39617f2518a35e227e335bfea4c9b48daa9d372d",
+      "bytes": 863
+    },
+    {
+      "path": "probe/pre_build.sh",
+      "sha256": "b2482d882549708861cd5a761b20e05740be23b71be442887a04af778eabf427",
+      "bytes": 880
+    },
+    {
+      "path": "schema/cleanup.json",
+      "sha256": "8ede4101aa95117d335882d348004b6a22d13a465631cfc31700389bc9d1a605",
+      "bytes": 347
+    },
+    {
+      "path": "schema/schema-proof.json",
+      "sha256": "263f15eca2dd00957dcd07beecad946644d93a2563d6ac304acdd78c59d9829f",
+      "bytes": 892
+    },
+    {
+      "path": "source/apps/api/src/memory/governed-memory-candidate.service.ts",
+      "sha256": "761007d0d3ca1c8408a559db7f8bc52eea24d84d016cb79519dae2f52542077a",
+      "bytes": 22048
+    },
+    {
+      "path": "source/apps/api/src/memory/memory-governance-tenant-scope.ts",
+      "sha256": "2c56f023b7e5f7b26e71b6473d26b850cfa27a8a8566e9c9412396a662202f84",
+      "bytes": 1450
+    },
+    {
+      "path": "source/apps/api/src/memory/memory-review-switch.ts",
+      "sha256": "5d80d21bdb3f9f06fbf4ed9c980939295b5f61916f89994ffffd9e3e51958ecb",
+      "bytes": 878
+    },
+    {
+      "path": "source/apps/api/src/meri/meri-controlled-read-fixture.ts",
+      "sha256": "a375f1b7031282fc8c7e9eabcada67cca31530da683d8b593521c4cb7e978893",
+      "bytes": 13577
+    },
+    {
+      "path": "source/apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts",
+      "sha256": "e2c49a4356ce2cdffdef62b1abcb3e85a247630e763ac5e9d847c00f604aad6f",
+      "bytes": 172222
+    },
+    {
+      "path": "source/apps/web/src/components/memory-queue-shared.ts",
+      "sha256": "4afca32e9c80b6503330517cbb4c1f99b398bae657e008d9bc8a9da3a9b38822",
+      "bytes": 6413
+    },
+    {
+      "path": "source/apps/web/src/vnext/meri/MeriMemoryTab.tsx",
+      "sha256": "1855144be86307d19a6ecc9834c27f6f79640f461b19209e4fe3293f76b3416b",
+      "bytes": 44524
+    },
+    {
+      "path": "source/docs/meri/deployment-prerequisite.md",
+      "sha256": "a18a90c1fb413355df390a8a603b46e642ad0b59c19f4d24b02e071ff8ea4849",
+      "bytes": 20169
+    },
+    {
+      "path": "source/packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "sha256": "affe70118364d44bdb5b13e55cd15edde2ce863323ecca4afa9644e0def74ab0",
+      "bytes": 24863
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "at": "2026-10-04T03:06:56.926Z",
+  "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/ff99eebdd8d841fc93278d29dc96c2ad",
+  "taskStopped": true,
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-c2-schema-20261003:1",
+  "status": "INACTIVE",
+  "cleanupErrors": [],
+  "cleanupComplete": true
+}

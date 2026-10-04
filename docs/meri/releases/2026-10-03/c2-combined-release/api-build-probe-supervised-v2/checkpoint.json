@@ -1,0 +1,40 @@
+{
+  "status": "FAIL",
+  "exitCode": 1,
+  "buildspecSha256": "cf24c5952b4bb2e458935d6678c26982d61677e6537d48798fe92fa4aad60b5f",
+  "files": [
+    {
+      "path": "api-recorded-source.sh",
+      "sha256": "8c7cc7d2ffc44ee15e15005be2ea139608584fa79d8e9545872de86b61b54047"
+    },
+    {
+      "path": "build.sh",
+      "sha256": "4523be8984c8ee637afe5302eb74f5638da604ee528202cfdc1167dc17c316b3"
+    },
+    {
+      "path": "buildspec.template.json",
+      "sha256": "cf24c5952b4bb2e458935d6678c26982d61677e6537d48798fe92fa4aad60b5f"
+    },
+    {
+      "path": "delta.patch",
+      "sha256": "7f240a298bdf70807b379ad144c1d41d66320f299c721d337f7d2b209f30933c"
+    },
+    {
+      "path": "local-probe.cjs",
+      "sha256": "8bd4d6dd84eeefbbe5fc5976c08d503770e2a09d419d72b65246e4a8d8977f3f"
+    },
+    {
+      "path": "local-probe.log",
+      "sha256": "3ec48a8df765c58cc3d7d9c6bbba6f9c658a64908a4ec960cc4475f9afe55603"
+    },
+    {
+      "path": "post_build.sh",
+      "sha256": "fc6034cdd9ec8f0dfaa5e9ce39617f2518a35e227e335bfea4c9b48daa9d372d"
+    },
+    {
+      "path": "pre_build.sh",
+      "sha256": "b2482d882549708861cd5a761b20e05740be23b71be442887a04af778eabf427"
+    }
+  ],
+  "limitation": "Local compiled collaborators only; actual immutable ARM packaged probe is still required."
+}

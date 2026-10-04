@@ -1,0 +1,11 @@
+{
+  "service": "meriv2-orchestrator",
+  "buildId": "capiro-build-web-dev:6fcbfb1c-a003-401d-af01-4067d11f2954",
+  "sourceSha": "c0f393f863bf73bd4e65e7a94e17c073e7be021e",
+  "status": "IN_PROGRESS",
+  "buildspecSha256": "67617283cc66959285174b78493e95b7d491bbfcb916b8592eb0980fd0aa3e0b",
+  "callerArn": "arn:aws:iam::967807252336:user/capirocli",
+  "startedAt": "2026-10-04T02:50:07.332Z",
+  "backupAuthorization": "USER_REQUEST_2026_10_03_USE_BACKUP_SHIPPING_METHOD",
+  "scope": "Three-image C2 qualification; no live release"
+}

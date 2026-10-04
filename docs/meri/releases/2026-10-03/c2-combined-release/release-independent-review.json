@@ -1,0 +1,38 @@
+{
+  "result": "PASS",
+  "reviewedAt": "2026-10-04T03:21:56.071651+00:00",
+  "reviewer": "Codex lead, corroborated by independent Codex cost_supervision and actual configured Hermes file-only sessions",
+  "reviewType": "AUTOMATED_SOURCE_AND_EVIDENCE_REVIEW_NOT_HUMAN_ATTESTATION",
+  "sourceSha": "c0f393f863bf73bd4e65e7a94e17c073e7be021e",
+  "qualificationBytesSha256": "a3a8d153ed0129e1c3ce78178caa924e228d817300465a978667192f581bab83",
+  "packetOperatorSha256": "56654325125a4067ace5951ec831e71e1d642637f37067437e4e8286560c876a",
+  "humanReleaseApproval": false,
+  "deployableManifest": false,
+  "checks": {
+    "archiveProvenance": "101 copied files match archived SHA/length; original prior-current-docs bytes intentionally precede current status update",
+    "sourcePins": "23 exact candidate Git objects verified",
+    "builds": "3 successful resolved-source-matching ARM builds; API16/orchestrator10/Web3 whole-line markers and exact image lines verified",
+    "source": "Actual configured Hermes v3 bounded PASS; API final immutable evidence separately independently checked after that review",
+    "schema": "Fresh READ ONLY ledger609/prior608/index/retired-table proof, no migration",
+    "baseline": "Fresh healthy API521/orchestrator117/Web388 and unchanged configuration/nightly136/disabled broad worker",
+    "case14": "Native plan only; no pending fixture created or approval/capture claimed; helper stopped/inactive",
+    "spend": "Journal24 unchanged; accounting-only event already committed; no new admission/claim"
+  },
+  "resolvedReviewFindings": [
+    "API offline harness now uses explicit cohort and canonical tenant scope; paged disabled nextCursor restored in expected shape, privacy assertions retained.",
+    "Schema outer expects schema proof instead of copied native-plan predicate.",
+    "Web invariants compare Web package/container/lockfile against its own baseline; API schema compares against current served API source4f.",
+    "Fresh packet checks exact journal SHA and24line count before creation.",
+    "Incomplete earlier Hermes evidence bundles preserved; complete v3 source review used exact local bundle, not another checkout."
+  ],
+  "wordingClarifications": [
+    "The paged disabled nextCursor:null branch was already present in the served source; it is preserved, not newly added by this delta.",
+    "Fresh schema proof was collected during this continuation from the current served API image; no new schema/migration is proposed.",
+    "Final API immutable qualification is now present; the prior bounded Hermes review correctly left it pending at review time."
+  ],
+  "limits": [
+    "Source/offline image probes use synthetic collaborators; no new benchmark capture or human grading.",
+    "No live service promotion or original acceptance inferred.",
+    "This is not human release review; exact candidate attestation/promotion remain pending."
+  ]
+}

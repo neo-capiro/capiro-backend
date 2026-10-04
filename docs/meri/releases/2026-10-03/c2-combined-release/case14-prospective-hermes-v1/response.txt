@@ -1,0 +1,8 @@
+Prepared the bounded Case14 prospective setup package in:
+
+C:\dev\main\outputs\meri-c2-20261003\case14-prospective-hermes-v1\prospective-recipe.template.json
+C:\dev\main\outputs\meri-c2-20261003\case14-prospective-hermes-v1\NOTES.md
+
+The template uses the grounded T1/Pat/Priya/Aster identities and the existing Case14 recipe schema. Its `fixtureInstanceId` remains `NEW_UUID_V4_REQUIRED`; no fixture or authority is implied. The notes record the exact native `plan` command, Pat’s `standard_user` execution context, plan fields and read-only-with-locks behavior, reconciliation stop conditions, and the separate execute boundary.
+
+No native plan was run. No repository, journal, fixture, provider, cloud, or database operation was performed. Current preparation does not authorize execution, approval, or capture.

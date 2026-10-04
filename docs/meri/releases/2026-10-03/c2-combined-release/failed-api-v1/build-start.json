@@ -1,0 +1,11 @@
+{
+  "service": "api",
+  "buildId": "capiro-build-web-dev:5be3a3b7-0971-4bb0-b6c9-3ae209773b16",
+  "sourceSha": "c0f393f863bf73bd4e65e7a94e17c073e7be021e",
+  "status": "IN_PROGRESS",
+  "buildspecSha256": "d18f2a129bd8f4619849a190e28172b8d2f6d0cec259c2b2962fc97f3d9113a5",
+  "callerArn": "arn:aws:iam::967807252336:user/capirocli",
+  "startedAt": "2026-10-04T02:50:01.971Z",
+  "backupAuthorization": "USER_REQUEST_2026_10_03_USE_BACKUP_SHIPPING_METHOD",
+  "scope": "Three-image C2 qualification; no live release"
+}
