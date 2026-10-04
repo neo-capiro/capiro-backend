@@ -1,0 +1,791 @@
+{
+  "version": 1,
+  "files": [
+    {
+      "path": "reviews/case12-budget-hooks-independent-hermes-v3/independent-assessment.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-budget-hooks-independent-hermes-v3/independent-assessment.json",
+      "sha256": "6b3fe26f0c03c486b38774093ad3cbd00400c69a9221b545de2b6143db690040",
+      "bytes": 25511
+    },
+    {
+      "path": "reviews/case12-budget-hooks-independent-hermes-v3/review.md",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-budget-hooks-independent-hermes-v3/review.md",
+      "sha256": "f33f7bb11d432c813fa28b90271c6ecb8fa73ee8ab716ac61afb94e8af590bba",
+      "bytes": 6198
+    },
+    {
+      "path": "reviews/case12-budget-hooks-independent-hermes-v3/execution.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-budget-hooks-independent-hermes-v3/execution.json",
+      "sha256": "b80ac0523c5d5133fbdabd32be3fa5e273a821a6ccb50971d765ea6fb10fc525",
+      "bytes": 968
+    },
+    {
+      "path": "reviews/case12-budget-hooks-independent-hermes-v3/usage.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-budget-hooks-independent-hermes-v3/usage.json",
+      "sha256": "abd53b7e72e220d09ccc7331a8869d4c429fcab60e417a3597b7dd0465759caf",
+      "bytes": 472
+    },
+    {
+      "path": "reviews/case12-budget-hooks-independent-hermes-v3/response.txt",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-budget-hooks-independent-hermes-v3/response.txt",
+      "sha256": "27fa8cccdabea9208c2b0e0c338e948c5fe9b3d10d5dc6477d4d564e1d5efd56",
+      "bytes": 386
+    },
+    {
+      "path": "reviews/case12-budget-plan-independent-review-v1/independent-assessment.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-budget-plan-independent-review-v1/independent-assessment.json",
+      "sha256": "a0e81ff5b5e56439410fb298c80ae0a8fbf481103826f3177311f0cce431edc8",
+      "bytes": 10634
+    },
+    {
+      "path": "reviews/case12-cli-plan-independent-review-v1/independent-assessment.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-cli-plan-independent-review-v1/independent-assessment.json",
+      "sha256": "df44720601c702ebe8149d2a34e65821a5511b4c889a4f7aad315e74f607c102",
+      "bytes": 454646
+    },
+    {
+      "path": "reviews/case12-owner-clock-independent-review-v2/independent-assessment.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-owner-clock-independent-review-v2/independent-assessment.json",
+      "sha256": "92b77f4610a865a606fb1b1ee440958a16fd93012afa5634cc0a7c03ca09d3fb",
+      "bytes": 163319
+    },
+    {
+      "path": "reviews/case12-scope-inspector-independent-review-v1/independent-assessment.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-scope-inspector-independent-review-v1/independent-assessment.json",
+      "sha256": "08fc21dd8b3dc58565be6f5f45ecad4defb0fef7886b436f533175c614f8cb9b",
+      "bytes": 16849
+    },
+    {
+      "path": "reviews/case12-current-owner-independent-hermes-v1/independent-assessment.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-current-owner-independent-hermes-v1/independent-assessment.json",
+      "sha256": "e8a122ddaf87258f04bd74670cee95b4bc765d29eb7787238e15fc24352dd4bf",
+      "bytes": 87416
+    },
+    {
+      "path": "reviews/case12-current-owner-independent-hermes-v1/review.md",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-current-owner-independent-hermes-v1/review.md",
+      "sha256": "d6dfd1926cfa5c9b0b692df3f37445a86217192fa9f26c8db1a0882eb6cb9129",
+      "bytes": 8336
+    },
+    {
+      "path": "reviews/case12-current-owner-independent-hermes-v1/execution.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-current-owner-independent-hermes-v1/execution.json",
+      "sha256": "20100a304e70e2ca7336884f2901454aed006e01b5f29d24ddd6452372698099",
+      "bytes": 1293
+    },
+    {
+      "path": "reviews/case12-current-owner-independent-hermes-v1/usage.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-current-owner-independent-hermes-v1/usage.json",
+      "sha256": "8c93f8ae27fa629544994655d86baa4b47f410d73ca7867a7ab48e7e4383e7a8",
+      "bytes": 485
+    },
+    {
+      "path": "reviews/case12-current-owner-independent-hermes-v1/response.txt",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-current-owner-independent-hermes-v1/response.txt",
+      "sha256": "1c348f5e697a0dfc65cb2b8fc79b46562aa848f4dd0b225fbde2f7e26671e27e",
+      "bytes": 404
+    },
+    {
+      "path": "reviews/case12-setup-provenance-independent-review-v1/independent-assessment.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-setup-provenance-independent-review-v1/independent-assessment.json",
+      "sha256": "da3f988397046657cef37ff4a9038c84585edbaa12fcb3aea57e067296b67232",
+      "bytes": 9974
+    },
+    {
+      "path": "reviews/case12-behavior-independent-hermes-v2/independent-assessment.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-behavior-independent-hermes-v2/independent-assessment.json",
+      "sha256": "9ed752035285a915c233e1566fc9214fda09d23132383561b367da14fb54c28f",
+      "bytes": 6864
+    },
+    {
+      "path": "reviews/case12-behavior-independent-hermes-v2/review.md",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-behavior-independent-hermes-v2/review.md",
+      "sha256": "9e5d6f4553ffedd0cf4240b84652271b74d2bc629550d6d55eade26c15e8716c",
+      "bytes": 9154
+    },
+    {
+      "path": "reviews/case12-behavior-independent-hermes-v2/execution.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-behavior-independent-hermes-v2/execution.json",
+      "sha256": "58abcd1d55bf7a58e3360433786eb140af6f4d9b6ba036148bf3ffc9ffb30668",
+      "bytes": 968
+    },
+    {
+      "path": "reviews/case12-behavior-independent-hermes-v2/usage.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-behavior-independent-hermes-v2/usage.json",
+      "sha256": "24465cab06290fff97aa7749f34de69b9bdbed009bda5147a4de8de681325c49",
+      "bytes": 485
+    },
+    {
+      "path": "reviews/case12-behavior-independent-hermes-v2/response.txt",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-behavior-independent-hermes-v2/response.txt",
+      "sha256": "a6dbc1d896c58e4743076f1f222ebb17777b7165d6c369bb8b797c92be15d642",
+      "bytes": 336
+    },
+    {
+      "path": "reviews/case12-completion-capture-independent-hermes-v2/independent-assessment.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-completion-capture-independent-hermes-v2/independent-assessment.json",
+      "sha256": "1d18055203c3b50dab9da06ffb4491f1d731db6ff1c710a1692a133f41363712",
+      "bytes": 11675
+    },
+    {
+      "path": "reviews/case12-completion-capture-independent-hermes-v2/review.md",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-completion-capture-independent-hermes-v2/review.md",
+      "sha256": "c64bead60a18eb73ec8fc09de5b2f78d4491bbde8bba74ab042ff5e3082d564d",
+      "bytes": 12272
+    },
+    {
+      "path": "reviews/case12-completion-capture-independent-hermes-v2/execution.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-completion-capture-independent-hermes-v2/execution.json",
+      "sha256": "eab094f567cc493b734f9f45691ceb32e17026d854f98046f3342e67ff050b0e",
+      "bytes": 969
+    },
+    {
+      "path": "reviews/case12-completion-capture-independent-hermes-v2/usage.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-completion-capture-independent-hermes-v2/usage.json",
+      "sha256": "904ca7282fbc5c27aa0553aafa4983d34970cfa63baac5817bb07587ffa588c7",
+      "bytes": 476
+    },
+    {
+      "path": "reviews/case12-completion-capture-independent-hermes-v2/response.txt",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-completion-capture-independent-hermes-v2/response.txt",
+      "sha256": "e40326b1334acf9572b1e0c1541ef44de59e0549690e1dfd6fe749128ab340dc",
+      "bytes": 555
+    },
+    {
+      "path": "reviews/case12-install-readback-independent-hermes-v2/independent-assessment.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-install-readback-independent-hermes-v2/independent-assessment.json",
+      "sha256": "48cd7c5fbcfa373fae7f9d995c40ac8362733d070084c1d9b3387621edf84ec8",
+      "bytes": 9292
+    },
+    {
+      "path": "reviews/case12-install-readback-independent-hermes-v2/review.md",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-install-readback-independent-hermes-v2/review.md",
+      "sha256": "5f8440423e929b80da89ca159df049f68a7fe38a6d3dc91ff3fc30622cabcf1b",
+      "bytes": 7756
+    },
+    {
+      "path": "reviews/case12-install-readback-independent-hermes-v2/execution.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-install-readback-independent-hermes-v2/execution.json",
+      "sha256": "ed4229f91e1f8166afe38440c863b4669bbb36c8e21d446f70978b757c2b5e5c",
+      "bytes": 968
+    },
+    {
+      "path": "reviews/case12-install-readback-independent-hermes-v2/usage.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-install-readback-independent-hermes-v2/usage.json",
+      "sha256": "44a586887a28ed81155dc6c0a0fb8ab50a69470e9c655572fc8dbbd8100692c5",
+      "bytes": 484
+    },
+    {
+      "path": "reviews/case12-install-readback-independent-hermes-v2/response.txt",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-install-readback-independent-hermes-v2/response.txt",
+      "sha256": "db0deab0e5b98bf373e8f57a17a6dfc3c6ef188f0c239071762d0f00ab64467b",
+      "bytes": 372
+    },
+    {
+      "path": "reviews/case12-factory-execute-independent-review-v1/independent-assessment.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-factory-execute-independent-review-v1/independent-assessment.json",
+      "sha256": "ed34bf67a6b9acd90a7be9e7e90867b3104a628046122105d41a29a14db9a676",
+      "bytes": 3680
+    },
+    {
+      "path": "reviews/case12-batch-independent-hermes-v1/independent-assessment.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-independent-hermes-v1/independent-assessment.json",
+      "sha256": "913033686809d94bbad87896ebabef4ba4610d9c2844bc347fde5e6afbbf453d",
+      "bytes": 168946
+    },
+    {
+      "path": "reviews/case12-batch-independent-hermes-v1/review.md",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-independent-hermes-v1/review.md",
+      "sha256": "47981ec4383d18be93fd3be66110741fe4f6c97b048c60183e253737dba75d22",
+      "bytes": 11453
+    },
+    {
+      "path": "reviews/case12-batch-independent-hermes-v1/execution.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-independent-hermes-v1/execution.json",
+      "sha256": "e4c7d8d6aa3d316e9864f2bf85f8012d2e5720262936a37b93538c7465e4ec6a",
+      "bytes": 969
+    },
+    {
+      "path": "reviews/case12-batch-independent-hermes-v1/usage.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-independent-hermes-v1/usage.json",
+      "sha256": "764a08286c7b9b50fe53485d679f38f950bc86bc44f096163b824d3abb99bdc8",
+      "bytes": 476
+    },
+    {
+      "path": "reviews/case12-batch-independent-hermes-v1/response.txt",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-independent-hermes-v1/response.txt",
+      "sha256": "90c1ff96727a55ac861683754d4078e074768853c1ab2236af2101fcd19ba61b",
+      "bytes": 609
+    },
+    {
+      "path": "reviews/case12-batch-independent-hermes-v1/INDEPENDENT-README.md",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-independent-hermes-v1/INDEPENDENT-README.md",
+      "sha256": "d80a01effece41c83859ddcb2ca8ec860ff4060eb68f89e2313f6e3ced056066",
+      "bytes": 608
+    },
+    {
+      "path": "reviews/case12-native-admission-independent-hermes-v1/independent-assessment.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-native-admission-independent-hermes-v1/independent-assessment.json",
+      "sha256": "507656899b303ed5cd47827d3865c10c63883df6179c9a71379f7b5e27f18ec8",
+      "bytes": 12491
+    },
+    {
+      "path": "reviews/case12-native-admission-independent-hermes-v1/review.md",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-native-admission-independent-hermes-v1/review.md",
+      "sha256": "9415cd883e826c1ce099c5d97c903fa02b5b0c7a6f697247cd2ab7f57a3e3a82",
+      "bytes": 9046
+    },
+    {
+      "path": "reviews/case12-native-admission-independent-hermes-v1/execution.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-native-admission-independent-hermes-v1/execution.json",
+      "sha256": "d6ebc73949c3c168fed147ae234379d087dba7cfa0a48b925b1420b5e7c806c2",
+      "bytes": 968
+    },
+    {
+      "path": "reviews/case12-native-admission-independent-hermes-v1/usage.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-native-admission-independent-hermes-v1/usage.json",
+      "sha256": "e240ec5d36fcb62b6953a9777a1e857d19440f0d480078f0ffc54493697c0cf3",
+      "bytes": 483
+    },
+    {
+      "path": "reviews/case12-native-admission-independent-hermes-v1/response.txt",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-native-admission-independent-hermes-v1/response.txt",
+      "sha256": "48d8b919f037548b6c77424550232f195d3571314908b359660f7220189b7f66",
+      "bytes": 634
+    },
+    {
+      "path": "reviews/case12-native-admission-independent-hermes-v1/INDEPENDENT-README.md",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-native-admission-independent-hermes-v1/INDEPENDENT-README.md",
+      "sha256": "7f2bd3f53b4947d6296d11d80425023a6657dd219b4c8acc36573af05d6e15b7",
+      "bytes": 607
+    },
+    {
+      "path": "reviews/case12-native-helper-independent-hermes-v1/independent-assessment.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-native-helper-independent-hermes-v1/independent-assessment.json",
+      "sha256": "3e5699e20f529648cb2b26741c0080fe9ecb60387a35c5be27ecb0f86d4758d2",
+      "bytes": 17098
+    },
+    {
+      "path": "reviews/case12-native-helper-independent-hermes-v1/review.md",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-native-helper-independent-hermes-v1/review.md",
+      "sha256": "80fca1221f0e1b08fa40bea320ffe3a85557bb7f9033327205e4df917aeb1528",
+      "bytes": 8149
+    },
+    {
+      "path": "reviews/case12-native-helper-independent-hermes-v1/execution.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-native-helper-independent-hermes-v1/execution.json",
+      "sha256": "cc69dfec9ea0801f786d67300a0486c3376162e2d4c3bb4282a7eb66ee99991f",
+      "bytes": 968
+    },
+    {
+      "path": "reviews/case12-native-helper-independent-hermes-v1/usage.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-native-helper-independent-hermes-v1/usage.json",
+      "sha256": "123dda9138559946c947239dc6b5035662f2a66b9164062ec42a30cfba3855a3",
+      "bytes": 475
+    },
+    {
+      "path": "reviews/case12-native-helper-independent-hermes-v1/response.txt",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-native-helper-independent-hermes-v1/response.txt",
+      "sha256": "48666de95ea4ff7eccfa0f5a3270e0a1991a53309a450ab9378937778a6dafbb",
+      "bytes": 418
+    },
+    {
+      "path": "reviews/case12-native-helper-independent-hermes-v1/INDEPENDENT-README.md",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-native-helper-independent-hermes-v1/INDEPENDENT-README.md",
+      "sha256": "b654517aad960533ce70037ae0a011ede1d530a2adc876b777deb61b4496956d",
+      "bytes": 1852
+    },
+    {
+      "path": "reviews/case12-private-owner-independent-hermes-v1/independent-assessment.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-private-owner-independent-hermes-v1/independent-assessment.json",
+      "sha256": "851c5b40eff3524bcdef0c79500c698cda119f82d326fdb0721becb9bdf2ea70",
+      "bytes": 16643
+    },
+    {
+      "path": "reviews/case12-private-owner-independent-hermes-v1/review.md",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-private-owner-independent-hermes-v1/review.md",
+      "sha256": "09bdeb539d25345b7385e3923d1dfce96253daa55c76ed46afe12cb6de8fb1a1",
+      "bytes": 9152
+    },
+    {
+      "path": "reviews/case12-private-owner-independent-hermes-v1/execution.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-private-owner-independent-hermes-v1/execution.json",
+      "sha256": "e3bd51f6b8b4b0b7461e395b34f4b6ea77d5aea261f740ded61cbefc0f77a683",
+      "bytes": 968
+    },
+    {
+      "path": "reviews/case12-private-owner-independent-hermes-v1/usage.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-private-owner-independent-hermes-v1/usage.json",
+      "sha256": "78e1b006fb3352cf8aba1f541026bbb1a983fc81b3255a4356d71f02b6d8c625",
+      "bytes": 473
+    },
+    {
+      "path": "reviews/case12-private-owner-independent-hermes-v1/response.txt",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-private-owner-independent-hermes-v1/response.txt",
+      "sha256": "e81610d8012bde39ac36789e1d55014e54a512c5cbd3530b8df27c8c35c5c361",
+      "bytes": 435
+    },
+    {
+      "path": "reviews/case12-private-owner-independent-hermes-v1/INDEPENDENT-README.md",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-private-owner-independent-hermes-v1/INDEPENDENT-README.md",
+      "sha256": "19e085602cab81012ea670a7cec04344bcf294911af4951f73ceae4db28e0e1c",
+      "bytes": 560
+    },
+    {
+      "path": "reviews/case12-private-owner-independent-hermes-v2/independent-assessment.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-private-owner-independent-hermes-v2/independent-assessment.json",
+      "sha256": "d28240c353227a8629075a8a990ad1dfd9a625383d113de90c61b57e87797825",
+      "bytes": 18901
+    },
+    {
+      "path": "reviews/case12-private-owner-independent-hermes-v2/review.md",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-private-owner-independent-hermes-v2/review.md",
+      "sha256": "e6f5f9e28f55678d1dbd6095711bdb5f584b0ecf3703f800426aa63135113621",
+      "bytes": 7021
+    },
+    {
+      "path": "reviews/case12-private-owner-independent-hermes-v2/execution.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-private-owner-independent-hermes-v2/execution.json",
+      "sha256": "e3eeb6e99ae1f7c158668a83a42f4b889041318292e8f6ce50281078dfab4c30",
+      "bytes": 968
+    },
+    {
+      "path": "reviews/case12-private-owner-independent-hermes-v2/usage.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-private-owner-independent-hermes-v2/usage.json",
+      "sha256": "0a2bdb335c4ccfd184d736a972e05cc46540bb7d0cbf387a0eb700e067bafa97",
+      "bytes": 474
+    },
+    {
+      "path": "reviews/case12-private-owner-independent-hermes-v2/response.txt",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-private-owner-independent-hermes-v2/response.txt",
+      "sha256": "7175517b2136fd1b02455366ce92f02652db1d25ade31b6c4e68f3d4579e5a21",
+      "bytes": 521
+    },
+    {
+      "path": "reviews/case12-private-owner-independent-hermes-v2/INDEPENDENT-README.md",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-private-owner-independent-hermes-v2/INDEPENDENT-README.md",
+      "sha256": "51eeba095b25b1acabbc001a5f0cf931b97b49e282f468e538387882b965f9c4",
+      "bytes": 1794
+    },
+    {
+      "path": "reviews/case12-native-iam-independent-review-v1/independent-assessment.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-native-iam-independent-review-v1/independent-assessment.json",
+      "sha256": "9f937320c1455d7e075e5a5be50e9b2e35e77b6e6ee9fa973c682a7b86d67a9e",
+      "bytes": 6593
+    },
+    {
+      "path": "reviews/case12-compiled-native-independent-hermes-v1/independent-assessment.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-compiled-native-independent-hermes-v1/independent-assessment.json",
+      "sha256": "148114016919f0cdf1e33e845b5cedc015da3d76e7306413ac93cc00558c5435",
+      "bytes": 1423081
+    },
+    {
+      "path": "reviews/case12-compiled-native-independent-hermes-v1/review.md",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-compiled-native-independent-hermes-v1/review.md",
+      "sha256": "04c660bacb3b928274e247a22b75755b160684cb4506a138c042ff473341c9b3",
+      "bytes": 7209
+    },
+    {
+      "path": "reviews/case12-compiled-native-independent-hermes-v1/execution.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-compiled-native-independent-hermes-v1/execution.json",
+      "sha256": "384a7b173a569f4958a68db312099aecff33fc1f5f2d7dbbbd33076d50d2165e",
+      "bytes": 968
+    },
+    {
+      "path": "reviews/case12-compiled-native-independent-hermes-v1/usage.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-compiled-native-independent-hermes-v1/usage.json",
+      "sha256": "38e03d3a224c1797e64f5e8972758f52d73682098e70b685dea15685bff32040",
+      "bytes": 484
+    },
+    {
+      "path": "reviews/case12-compiled-native-independent-hermes-v1/response.txt",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-compiled-native-independent-hermes-v1/response.txt",
+      "sha256": "8e3ef8c8960892bfb521a7a4721d0f237f44159874fcf19c1c8ea7766c5cd30e",
+      "bytes": 427
+    },
+    {
+      "path": "reviews/case12-compiled-native-independent-hermes-v1/INDEPENDENT-README.md",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-compiled-native-independent-hermes-v1/INDEPENDENT-README.md",
+      "sha256": "236ee298d7e8ab32bef9d94f30a71dfd3a84c501b5199b8901b5d9b22694dc73",
+      "bytes": 2238
+    },
+    {
+      "path": "reviews/case12-plan-entrypoint-independent-adjunct-v1/independent-assessment.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-plan-entrypoint-independent-adjunct-v1/independent-assessment.json",
+      "sha256": "216691f07a870c2650e079730e55d0cf5b8179333c4270b85239c03bdd0668ef",
+      "bytes": 1487
+    },
+    {
+      "path": "reviews/case12-eol-independent-adjunct-v1/independent-assessment.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-eol-independent-adjunct-v1/independent-assessment.json",
+      "sha256": "01051418aa4ab6e51d8aa02e93e96bbe84d234341fd3f28d8ee0c62385fa6724",
+      "bytes": 4851
+    },
+    {
+      "path": "reviews/case12-provider-rows-independent-hermes-v1/independent-assessment.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-provider-rows-independent-hermes-v1/independent-assessment.json",
+      "sha256": "da09705243ffd99fa8e59d32b43d5011a04315d7305e1c7b1fc62d7b08dd97d9",
+      "bytes": 95242
+    },
+    {
+      "path": "reviews/case12-provider-rows-independent-hermes-v1/review.md",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-provider-rows-independent-hermes-v1/review.md",
+      "sha256": "2773fc390d7df255e6cd23df3b39b1a515e01d73b22f9a9f2e3223c779aca42f",
+      "bytes": 2994
+    },
+    {
+      "path": "reviews/case12-provider-rows-independent-hermes-v1/execution.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-provider-rows-independent-hermes-v1/execution.json",
+      "sha256": "b316075518f88bf3d15ee87557390d17c4ef5b32c5ab1c183938a3b6a12b4b4f",
+      "bytes": 968
+    },
+    {
+      "path": "reviews/case12-provider-rows-independent-hermes-v1/usage.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-provider-rows-independent-hermes-v1/usage.json",
+      "sha256": "318e6c21ef360e9afc21e1687ba41d04b8a26c37579c17b11d4b1cee2a78d8ef",
+      "bytes": 475
+    },
+    {
+      "path": "reviews/case12-provider-rows-independent-hermes-v1/response.txt",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-provider-rows-independent-hermes-v1/response.txt",
+      "sha256": "d61e1db013a8c357811fcc5bf4064f525ebc507dcf1d1c5cd3d26a653f2fe981",
+      "bytes": 786
+    },
+    {
+      "path": "reviews/case12-provider-rows-independent-hermes-v1/INDEPENDENT-README.md",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-provider-rows-independent-hermes-v1/INDEPENDENT-README.md",
+      "sha256": "9ef84be99558ac007b234ab6e1116faa03124e8b372742a65dc92c11b3cf060a",
+      "bytes": 315
+    },
+    {
+      "path": "root/case12-integrated-core-v1.log",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-integrated-core-v1.log",
+      "sha256": "113cbd83d0dd752cfcdfea4997e45fe9492ac71cbf5ac11b1909cc5d4df5d83d",
+      "bytes": 601
+    },
+    {
+      "path": "root/case12-integrated-api-v1.log",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-integrated-api-v1.log",
+      "sha256": "0849ab7d58b6ab09a36df6d98b17b7bf45812affcfcc02126e2847e4ec4c0d40",
+      "bytes": 20813
+    },
+    {
+      "path": "root/case12-integrated-orchestrator-v1.log",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-integrated-orchestrator-v1.log",
+      "sha256": "eba28e2178c8cb7390b0ec1f38a870b9111e658aa1a56e9f72685672442f4c12",
+      "bytes": 5252
+    },
+    {
+      "path": "root/case12-integrated-typecheck-v1.log",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-integrated-typecheck-v1.log",
+      "sha256": "dd16e65b2180181b569693e0bfe4c331f30e055deed54c0a13188c0cca8acc7a",
+      "bytes": 4164
+    },
+    {
+      "path": "root/case12-integrated-api-typecheck-v2.log",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-integrated-api-typecheck-v2.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "root/case12-integrated-orchestrator-typecheck-v1.log",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-integrated-orchestrator-typecheck-v1.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "root/case12-integrated-test-repairs-v2.log",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-integrated-test-repairs-v2.log",
+      "sha256": "ac251310f510b8c21d0635e0efc42159f07339abcc07b6fbc4a7c1ea604b9c1b",
+      "bytes": 1617
+    },
+    {
+      "path": "root/case12-readback-tests-v1.log",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-readback-tests-v1.log",
+      "sha256": "d63ff92ed01cd8c0a57ce5dfec7fe24187b7f2c6c8d594442793e38b9fb1145c",
+      "bytes": 8231
+    },
+    {
+      "path": "root/case12-readback-typecheck-v1.log",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-readback-typecheck-v1.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "root/case12-capture-install-typecheck-v1.log",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-capture-install-typecheck-v1.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "root/case12-native-admission-tests-v2.log",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-native-admission-tests-v2.log",
+      "sha256": "a19f2912bba962a7061a69071e3442ba87f07e1214a669a7445ea7a1c9f426ea",
+      "bytes": 3258
+    },
+    {
+      "path": "root/case12-native-helper-ingress-v1.log",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-native-helper-ingress-v1.log",
+      "sha256": "f6ad574edc8b2efef83ffed3d28ca5c312587c93076463fa9bd360001c0eca53",
+      "bytes": 880
+    },
+    {
+      "path": "root/case12-native-helper-ingress.test.mjs",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-native-helper-ingress.test.mjs",
+      "sha256": "9cfc118633cb52df9e99f9d6abc56d456daa5f6f63370dc0fc2818ba47578f6a",
+      "bytes": 1924
+    },
+    {
+      "path": "root/case12-integrated-batch-typecheck-v1.log",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-integrated-batch-typecheck-v1.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "root/case12-integrated-api-build-v3.log",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-integrated-api-build-v3.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "root/case12-integrated-memory-regression-v1.log",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-integrated-memory-regression-v1.log",
+      "sha256": "4aa813eeaa9d49dc86ef2e02bb681b3723a45ac6c06ae75f780c0e09311678ad",
+      "bytes": 9784
+    },
+    {
+      "path": "root/case12-private-owner-root-tests-v4.log",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-private-owner-root-tests-v4.log",
+      "sha256": "f1afef8573a1925cf6928c1cbe1e78ca57e095d1ec250b5c409fdbf9022dc4c2",
+      "bytes": 6205
+    },
+    {
+      "path": "root/case12-root-continuation-v1.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-root-continuation-v1.json",
+      "sha256": "652ff282ae4f9c91e542b5d42ae2d0cd2bf12dc5312d0ab5f59ff2e276b2eef5",
+      "bytes": 18987
+    },
+    {
+      "path": "root/case12-batch-root-integration-v1.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-root-integration-v1.json",
+      "sha256": "c49c2995b764a0399dae2c506d81a1dd246b772c6fefab0756fb99f1e3ff8ac3",
+      "bytes": 1699
+    },
+    {
+      "path": "root/case12-private-owner-root-integration-v4.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-private-owner-root-integration-v4.json",
+      "sha256": "4ccbbc3ecf0dd182d7b51814c513698a4c1dc91c02bb17ecbad0111c343562ae",
+      "bytes": 1880
+    },
+    {
+      "path": "root/case12-native-iam-preflight-v1.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-native-iam-preflight-v1.json",
+      "sha256": "4942f24c68fb402805de768d9c7f6f63a4a09152d0d61571a5e0adc6b9b485d4",
+      "bytes": 3529
+    },
+    {
+      "path": "root/case12-native-iam-policy-candidate-v1.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-native-iam-policy-candidate-v1.json",
+      "sha256": "173d4b8f134c2d1fac50b9df7d3db6e4e136f1e965c293a258cee6407da50d3a",
+      "bytes": 935
+    },
+    {
+      "path": "root/case12-native-iam-policy-candidate-qualification-v1.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-native-iam-policy-candidate-qualification-v1.json",
+      "sha256": "b898f260b230f9744f66009f9175d60c00ca90c752c3053ac7ddf76db2025565",
+      "bytes": 2342
+    },
+    {
+      "path": "root/case12-source-eol-normalization-v1.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-source-eol-normalization-v1.json",
+      "sha256": "9e4ffeefb4ce591f627505423e6883f58dadffb4faf7e496b1c8b848958962e2",
+      "bytes": 1778
+    },
+    {
+      "path": "root/case12-provider-rows-root-integration-v1.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-provider-rows-root-integration-v1.json",
+      "sha256": "39024f2723bbeb0d90e09c7d1b263990a93a569c91e5a935b00add127ea15bfc",
+      "bytes": 446
+    },
+    {
+      "path": "root/case12-provider-rows-portable-root-integration-v1.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-provider-rows-portable-root-integration-v1.json",
+      "sha256": "e8d5d73f8c73fa2f7eec680ba9890feb40641f0d2fcf4f62264256e7357281b7",
+      "bytes": 456
+    },
+    {
+      "path": "root/case12-provider-rows-root-tests-v1.log",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-provider-rows-root-tests-v1.log",
+      "sha256": "2710e18bccd7cce5cb73cfa11e20926e92961dcfe7fea3f0014010759bdb2c9a",
+      "bytes": 1403
+    },
+    {
+      "path": "provider-rows/checkpoint.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-provider-rows-extraction-v1/checkpoint.json",
+      "sha256": "02cc774f98d3e8f638feeb37494cfdcb8cc1113a95001c1cbe84e6c0c511cc6b",
+      "bytes": 61372
+    },
+    {
+      "path": "provider-rows/baseline-input-manifest.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-provider-rows-extraction-v1/baseline-input-manifest.json",
+      "sha256": "ae284aa199702095a20bff0c3601716172d75567bedf3c1a5c6ca7f73246bf01",
+      "bytes": 4239
+    },
+    {
+      "path": "provider-rows/proposed.patch",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-provider-rows-extraction-v1/proposed.patch",
+      "sha256": "131e2b0f4b81e36290804496204674897dcee4df0ce2e37daee663387df4c341",
+      "bytes": 3988
+    },
+    {
+      "path": "provider-rows/provider-rows.test.mjs",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-provider-rows-extraction-v1/provider-rows.test.mjs",
+      "sha256": "ffbe512f13913ad94af4034384981babc8bf44292466c13435d214e25df3c05b",
+      "bytes": 11784
+    },
+    {
+      "path": "provider-rows/tests-v1.log",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-provider-rows-extraction-v1/tests-v1.log",
+      "sha256": "82ff871caf39e4419d6b8b28b078f8493fc3b0a5c6be0f9b39b5490f26198ffa",
+      "bytes": 2509
+    },
+    {
+      "path": "provider-rows/README.md",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-provider-rows-extraction-v1/README.md",
+      "sha256": "104ffe42084647c1ca9aee74d180b99bfda86fab9b201b7246273f868d1881ca",
+      "bytes": 1655
+    },
+    {
+      "path": "native/root-container-cleanup.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-pgvector-local-v1/root-cleanup-proof.json",
+      "sha256": "4f43180dcbf5032f27e6f1a9843cb7e6c2f24bf5c084a8495165048069103afe",
+      "bytes": 1270
+    },
+    {
+      "path": "batch/checkpoint.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/checkpoint.json",
+      "sha256": "7f84a37cc4a68300c9ed94b60f9623882399f541cfc90ae2bf3c02ce897d2d76",
+      "bytes": 100727
+    },
+    {
+      "path": "batch/candidate-source-freeze.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/candidate-source-freeze.json",
+      "sha256": "76c71d5bbd1174a3d557592f7f821d0b260118f5bc76cf47036b307d7a045f2e",
+      "bytes": 1583
+    },
+    {
+      "path": "batch/baseline-pins.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/baseline-pins.json",
+      "sha256": "53f4e365d42376235275ad60df6378dfae5ff7817a24b528437816c8d2af45cc",
+      "bytes": 2050
+    },
+    {
+      "path": "batch/native-differential-result-v1.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/native-differential-result-v1.json",
+      "sha256": "f3676ae4f14f9e30e81e798ec2e1aabb3ff9ba91a8f9a064afd0a08f0a65b467",
+      "bytes": 12793
+    },
+    {
+      "path": "batch/native-differential-v1.log",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/native-differential-v1.log",
+      "sha256": "fb1862c617fced9cf723d337e20af0f172dafec81b24dfa3c58f17027358706c",
+      "bytes": 2158
+    },
+    {
+      "path": "native/checkpoint.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-compiled-native-composition-local-v1/checkpoint.json",
+      "sha256": "e80c0a54a80ef3eb4b2330359372b905d4b2d756a1e3b3ccc0d5984315aed854",
+      "bytes": 920180
+    },
+    {
+      "path": "native/build-pins.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-compiled-native-composition-local-v1/build-pins.json",
+      "sha256": "0df546a627043599be18bf6068a72b91a0110d57db14f933ae44b96c7e0fb897",
+      "bytes": 515994
+    },
+    {
+      "path": "native/cleanup-readback.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-compiled-native-composition-local-v1/cleanup-readback.json",
+      "sha256": "5fc5859abdfd41d415fa3e5bdd7819b7ee4583057519f9e0c8ac9379f355ebe7",
+      "bytes": 668
+    },
+    {
+      "path": "native/compiled-factory-harness.mjs",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-compiled-native-composition-local-v1/compiled-factory-harness.mjs",
+      "sha256": "227fa09665d6c2e03d683c347b3446f457f007119c5490d4d8a9968b9943f8bb",
+      "bytes": 6902
+    },
+    {
+      "path": "native/native-composition.test.mjs",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-compiled-native-composition-local-v1/native-composition.test.mjs",
+      "sha256": "c45de6cb924c759f15c0f7c4a2fccc7b11323191fef5d57b8dad7eb1818bddab",
+      "bytes": 15436
+    },
+    {
+      "path": "native/native-admission-rollback.test.mjs",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-compiled-native-composition-local-v1/native-admission-rollback.test.mjs",
+      "sha256": "83b75f0a55ff09db9714ca6cb4650c751d4bf707c134aa098bf80bee433d1042",
+      "bytes": 9349
+    },
+    {
+      "path": "native/restore-local-corpus.mjs",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-compiled-native-composition-local-v1/restore-local-corpus.mjs",
+      "sha256": "1b739473369f49f7dc72727930274200f44c665e3fc4b694b7da19b3f68b0b05",
+      "bytes": 5152
+    },
+    {
+      "path": "native/native-composition-v1.log",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-compiled-native-composition-local-v1/native-composition-v1.log",
+      "sha256": "0f45218c3c5f234bd192d30dfb220ae1880d3a20d848401cf462fdc15779501c",
+      "bytes": 11534
+    },
+    {
+      "path": "native/native-composition-v2.log",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-compiled-native-composition-local-v1/native-composition-v2.log",
+      "sha256": "a7933826b89ac2bdc9784c29c344ed0ea5179c53151e09fba3485270a3899132",
+      "bytes": 6978
+    },
+    {
+      "path": "native/native-composition-v3.log",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-compiled-native-composition-local-v1/native-composition-v3.log",
+      "sha256": "ea5a5c4bce5b1cc94bfa18a102b97fa9644f4dfa84cf9967ded1f8c185a6672c",
+      "bytes": 1330
+    },
+    {
+      "path": "native/run-v1-disposition.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-compiled-native-composition-local-v1/run-v1-disposition.json",
+      "sha256": "8b98992d5b10f1b50c34282e6e89ef1f4f46963562d488c42bf2be9f85581e50",
+      "bytes": 859
+    },
+    {
+      "path": "native/runs/run-v1/qualification.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-compiled-native-composition-local-v1/runs/run-v1/qualification.json",
+      "sha256": "d8d38b0bd3f53f3ca34b0da8b6d057881af81f96d18da30c9561f6d5ec5905a6",
+      "bytes": 437265
+    },
+    {
+      "path": "native/runs/run-v1/native-admission-rollback-qualification.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-compiled-native-composition-local-v1/runs/run-v1/native-admission-rollback-qualification.json",
+      "sha256": "ff70f621d155a23641766469f24385aa80a380f187a727727a88d378a557fccf",
+      "bytes": 5709
+    },
+    {
+      "path": "native/runs/run-v3/qualification.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-compiled-native-composition-local-v1/runs/run-v3/qualification.json",
+      "sha256": "073c03cfde5194b0dc5519827ae1834c577fa3651ce1ade02c0c710e9b5ac5de",
+      "bytes": 444305
+    },
+    {
+      "path": "prior-factory-failure/checkpoint.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-actual-factory-owner-local-v1/final-checkpoint-v1/checkpoint.json",
+      "sha256": "ac1209715d31f0a2bd3cbf473b33ce97ec730d92ccec4ebfd7edacf315f1e578",
+      "bytes": 688
+    },
+    {
+      "path": "prior-factory-failure/qualification.json",
+      "source": "C:/dev/main/outputs/meri-c2-20261003/case12-actual-factory-owner-local-v1/final-checkpoint-v1/qualification.json",
+      "sha256": "cdde6449ad1fc3d0e49c1cce49d2b6cfd55c9bbaebaa2634e636ed16900616e6",
+      "bytes": 4454
+    }
+  ]
+}

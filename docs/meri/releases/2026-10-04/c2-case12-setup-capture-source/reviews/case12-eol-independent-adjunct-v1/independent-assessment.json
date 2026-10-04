@@ -1,0 +1,66 @@
+{
+  "at": "2026-10-04T12:34:23.801813+00:00",
+  "status": "PASS_CRLF_TO_LF_ONLY_ADJUNCT",
+  "normalizationReceiptSha256": "9e4ffeefb4ce591f627505423e6883f58dadffb4faf7e496b1c8b848958962e2",
+  "checks": [
+    {
+      "path": "apps/api/src/meri/meri-case12-setup-budget-owner.ts",
+      "beforeSha256": "46f4fb5ca4426bf74bf5e759bd40e2621e8582a873f2e460c024847d97f088a8",
+      "afterSha256": "91a9421064cd92713f7faa21f2f2ae2f3a7e168edf3da43f255f58f7b6d9f523",
+      "removedCrBytes": 400,
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\meri\\meri-case12-setup-budget-owner.ts",
+      "currentPath": "C:\\dev\\main\\meri-c1-20261002\\apps\\api\\src\\meri\\meri-case12-setup-budget-owner.ts",
+      "copiedPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-eol-independent-adjunct-v1\\normalized-source\\apps\\api\\src\\meri\\meri-case12-setup-budget-owner.ts",
+      "normalizedBytesExactlyEqual": true
+    },
+    {
+      "path": "apps/api/src/meri/meri-tools.case12-execute.spec.ts",
+      "beforeSha256": "e78c801cef9e5e43a62c5ad67a3ae32061b85528a23a1284fd5827443cc0b4c9",
+      "afterSha256": "64c65c962c7fdd834fec6a06f2c4b37c7f7a8222347f365c84f9444ea8cb4fd7",
+      "removedCrBytes": 147,
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-compiled-native-composition-local-v1\\runtime-snapshot\\apps\\api\\src\\meri\\meri-tools.case12-execute.spec.ts",
+      "currentPath": "C:\\dev\\main\\meri-c1-20261002\\apps\\api\\src\\meri\\meri-tools.case12-execute.spec.ts",
+      "copiedPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-eol-independent-adjunct-v1\\normalized-source\\apps\\api\\src\\meri\\meri-tools.case12-execute.spec.ts",
+      "normalizedBytesExactlyEqual": true
+    },
+    {
+      "path": "evals/meri/live-v1/case12-setup-native-census.mjs",
+      "beforeSha256": "ba44d0c89175654da6f624e2a444b5f0e21cfc70fe41879d84ef1e1ecbd08aac",
+      "afterSha256": "8eea057af2d9a3f627d83d83b3ef4abf9feb74a70dde4389bbcbfc1fda2a14a0",
+      "removedCrBytes": 57,
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-private-reservation-supervised-v4\\candidate\\case12-setup-native-census.mjs",
+      "currentPath": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\case12-setup-native-census.mjs",
+      "copiedPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-eol-independent-adjunct-v1\\normalized-source\\evals\\meri\\live-v1\\case12-setup-native-census.mjs",
+      "normalizedBytesExactlyEqual": true
+    },
+    {
+      "path": "evals/meri/live-v1/case12-setup-reservation-owner.mjs",
+      "beforeSha256": "e56bacef6c6c6cbee954797ad9aba9451cef713d03e153becc238d3a6146dba5",
+      "afterSha256": "292fefad52713c69df3f581bdbf7fe728afb8fa357a1f7c7c755219ec52032b6",
+      "removedCrBytes": 132,
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-fixed-python-port-supervised-v2\\candidate\\case12-setup-reservation-owner.mjs",
+      "currentPath": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\case12-setup-reservation-owner.mjs",
+      "copiedPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-eol-independent-adjunct-v1\\normalized-source\\evals\\meri\\live-v1\\case12-setup-reservation-owner.mjs",
+      "normalizedBytesExactlyEqual": true
+    },
+    {
+      "path": "evals/meri/live-v1/tests/case12-setup-reservation.fixtures.mjs",
+      "beforeSha256": "1368189407c56c562f2bd65640ed60b7f4073e1d3ca2032a4169877f6108eac8",
+      "afterSha256": "33988609c841afc14830b93f70aa3326569313f433b796b8db1b1816e864b4fc",
+      "removedCrBytes": 37,
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-fixed-python-port-supervised-v2\\supervisor-fixture.mjs",
+      "currentPath": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\tests\\case12-setup-reservation.fixtures.mjs",
+      "copiedPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-eol-independent-adjunct-v1\\normalized-source\\evals\\meri\\live-v1\\tests\\case12-setup-reservation.fixtures.mjs",
+      "normalizedBytesExactlyEqual": true
+    }
+  ],
+  "facts": [
+    "All5 old frozen source hashes and current source hashes verified independently. Each current file equals exact old bytes with CRLF replaced by LF, with removed byte counts matching.",
+    "No executable token/content edits beyond source line endings. Prior native compiled/source snapshots retained unchanged; this bridges exact reviewed implementation to Git LF representation."
+  ],
+  "limitations": [
+    "This does not relabel old compiled image/source hash as new bytes. Release manifest must pin current LF bytes.",
+    "No rerun tests needed for exact line-ending-only delta; no repo writes or live action."
+  ],
+  "captureAuthority": false
+}

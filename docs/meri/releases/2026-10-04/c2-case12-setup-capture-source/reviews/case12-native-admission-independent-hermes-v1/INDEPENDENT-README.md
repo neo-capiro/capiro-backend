@@ -1,0 +1,3 @@
+Independent source-only conditional PASS.
+
+Actual configured Hermes completed with a source/image recipe-binding finding, retained unchanged. Independent adjudication identifies the explicitly separate authenticated release/operator boundary: fixture recipes describe corpus content; source/image/rate identities come from the approved native hold/dispatch envelope. This review does not qualify that absent Windows operator or actual ECS/IAM/database admission. The 29 recorded tests use controlled native response doubles; actual transaction rollback/commit and runtime composition are still required.

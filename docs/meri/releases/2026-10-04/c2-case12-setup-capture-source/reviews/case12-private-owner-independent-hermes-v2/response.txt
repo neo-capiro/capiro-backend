@@ -1,0 +1,6 @@
+PASS_SOURCE_LOCAL_PORTS_ONLY
+
+Review written to:
+C:\dev\main\outputs\meri-c2-20261003\case12-private-owner-independent-hermes-v2\review.md
+
+The review confirms the v4 checkpoint accounting and census corrections against the bundled Python protocol and recorded local evidence. It preserves the earlier Hermes findings and timeout provenance. Root dispatch authentication and production native ports/planner remain prerequisites; no native qualification, setup, capture, shipping, or readiness authority is granted.

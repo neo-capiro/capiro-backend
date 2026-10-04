@@ -25,6 +25,7 @@ TERMINAL_CASE01_PROOF = 'd8555b206bf7d47630838885f8fe4fce0e8fb5f25fda851e3b8e07e
 FRESH_ROOT = r'C:\dev\main\outputs\meri-fresh-20261003'
 FRESH_PREFIX = 'abe458973e6998db20586c781ac5a3cbd4ca2fa565425e62722f0eb9c985210b'
 FRESH_CASE14_PREFIX = '8f20134f71dde90e32fc0c3c2aba2da2d5b93dd13fffea31b83105d1621bc3e5'
+FRESH_CASE12_PREFIX26 = '816b04a47be56432846d1ee602370c3bea985eb497a7de9e899aee4d53f8b39e'
 # DRAFT: set only after independently reviewed authentic postdeadline proof.
 CASE14_TERMINAL_PROOF_SHA256 = '1bd0de197e10510a119e9da6e1e41b3a27c40421ebc421d1014926750577c893'
 CASE14_TERMINAL_PREFIX25 = '139b6d7199038ca752c553289bf1ebe9c45f14e65956710f82a48301b132e673'
@@ -230,6 +231,51 @@ def reduce_fresh(wire):
         common = {'nativeCaptureVersion', 'sequence', 'atMs', 'event', 'caseId', 'captureRunId', 'reservationId'}
         require(row.get('nativeCaptureVersion') == 1 and row.get('sequence') == sequence)
         require(type(row.get('atMs')) is int and row['atMs'] > 0)
+        if row.get('caseId') == '12':
+            # Prospective setup-only extension. The exact26 prior events remain
+            # immutable; no capture envelope, generic reserve or replay is admitted.
+            require(sequence >= 27 and digest(b''.join(lines[:26])) == FRESH_CASE12_PREFIX26)
+            common = {'nativeCaptureVersion', 'sequence', 'atMs', 'event', 'caseId', 'setupRunId', 'reservationId'}
+            require(UUID.fullmatch(row.get('setupRunId', '')) and UUID.fullmatch(row.get('reservationId', '')))
+            key = '12:' + row['setupRunId']
+            if row.get('event') == 'case12_setup_reserved':
+                require(set(row) == common | {'ceilingMicros', 'setupPlanSha256', 'fixtureInstanceId', 'providerDeadlineAtMs', 'captureAuthority'})
+                require(active is None and key not in runs and not any(r['caseId'] == '12' for r in runs.values()))
+                require(row['setupRunId'] not in capture_ids and row['reservationId'] not in reservation_ids)
+                require(valid_hash(row['setupPlanSha256']) and UUID.fullmatch(row['fixtureInstanceId']))
+                require(type(row['providerDeadlineAtMs']) is int and row['atMs'] < row['providerDeadlineAtMs'] <= row['atMs'] + 86_400_000)
+                require(row['captureAuthority'] is False)
+                cost = ceiling(row['ceilingMicros'], MAX_V2_CASE)
+                require(charged + conservative_approval + cost <= MAX_TOTAL)
+                runs[key], active = dict(row), key
+                capture_ids.add(row['setupRunId']); reservation_ids.add(row['reservationId'])
+            else:
+                require(row.get('event') == 'case12_setup_settled' and active == key)
+                require(set(row) == common | {'proof'})
+                held, proof = runs[key], row['proof']
+                require(held['reservationId'] == row['reservationId'])
+                require(set(proof) == {'kind', 'caseId', 'setupRunId', 'reservationId', 'fixtureInstanceId', 'setupPlanSha256',
+                    'ledgerSha256', 'authenticatedReadbackSha256', 'projectionTerminalSha256', 'helperCleanupSha256', 'censusSha256',
+                    'chargedCostMicros', 'providerAttempts', 'pendingProviderAttempts', 'completedRows', 'completedAtMs', 'observedAtMs',
+                    'providerDeadlineAtMs', 'captureAuthority', 'liveAcceptance', 'allCostKnown', 'allOwnedOutboxTerminal', 'bothVectorBranchesVerified'})
+                require(proof['kind'] == 'meri-case12-setup-cost-terminal' and proof['caseId'] == '12')
+                require(all(proof[k] == held[k] for k in ('setupRunId', 'reservationId', 'fixtureInstanceId', 'setupPlanSha256', 'providerDeadlineAtMs')))
+                for field in ('ledgerSha256', 'authenticatedReadbackSha256', 'projectionTerminalSha256', 'helperCleanupSha256', 'censusSha256'):
+                    require(valid_hash(proof[field]))
+                require(type(proof['chargedCostMicros']) is int and 0 < proof['chargedCostMicros'] <= held['ceilingMicros'])
+                require(type(proof['providerAttempts']) is int and proof['providerAttempts'] == 1020)
+                require(type(proof['pendingProviderAttempts']) is int and proof['pendingProviderAttempts'] == 0)
+                require(type(proof['completedRows']) is int and proof['completedRows'] == 510)
+                require(type(proof['completedAtMs']) is int and type(proof['observedAtMs']) is int)
+                require(held['atMs'] <= proof['completedAtMs'] <= proof['observedAtMs'] <= row['atMs'])
+                require(proof['captureAuthority'] is False and proof['liveAcceptance'] == 'NOT_RUN')
+                require(proof['allCostKnown'] is True and proof['allOwnedOutboxTerminal'] is True and proof['bothVectorBranchesVerified'] is True)
+                charged += proof['chargedCostMicros']
+                runs[key] = {**held, 'chargedCostMicros': proof['chargedCostMicros'], 'setupCostSettled': True,
+                             'terminalProofSha256': digest(data(proof)), 'captureAuthority': False}
+                active = None
+            require(charged + conservative_approval + (runs[active]['ceilingMicros'] if active else 0) <= MAX_TOTAL)
+            continue
         key = run_key(row, {'01', '14', '20'})
         if row['caseId'] == '14':
             require(sequence >= 25 and digest(b''.join(lines[:24])) == FRESH_CASE14_PREFIX)
@@ -326,16 +372,22 @@ def reduce_fresh(wire):
             active = None
     committed = charged + conservative_approval + (runs[active]['ceilingMicros'] if active else 0)
     require(committed <= MAX_TOTAL)
-    return {'protocolVersion': 3, 'eventCount': len(events), 'runs': runs, 'activeRun': active,
+    result = {'protocolVersion': 3, 'eventCount': len(events), 'runs': runs, 'activeRun': active,
             'knownSettledCostMicros': charged, 'conservativeApprovalCostMicros': conservative_approval,
             'committedCostMicros': committed, 'remainingReservationMicros': MAX_TOTAL - committed,
             'perCaseMaxCostMicros': MAX_V2_CASE, 'historicalPrefixSha256': FRESH_PREFIX,
             'olderCosts': 'UNRESOLVED_SEPARATE_NOT_REPLACED'}
+    case12 = [r for r in runs.values() if r['caseId'] == '12']
+    if case12:
+        used = sum(r.get('chargedCostMicros', r['ceilingMicros']) for r in case12)
+        require(used <= MAX_V2_CASE)
+        result.update({'case12CommittedCostMicros': used, 'case12RemainingCostMicros': MAX_V2_CASE-used})
+    return result
 
 
 def execute_fresh(request):
     op, root = request['op'], request['root']
-    require(root == FRESH_ROOT and op in {'fresh_adopt', 'fresh_read', 'fresh_reserve', 'fresh_settle', 'fresh_reconcile_terminal'})
+    require(root == FRESH_ROOT and op in {'fresh_adopt', 'fresh_read', 'fresh_reserve', 'fresh_settle', 'fresh_reconcile_terminal', 'fresh_case12_setup_reserve', 'fresh_case12_setup_settle'})
     adopt = op == 'fresh_adopt'
     old = request.get('state')
     require(adopt or (type(old) is dict and old.get('freshVersion') == 1 and old.get('root') == root))
@@ -355,7 +407,7 @@ def execute_fresh(request):
         contents, handles = {}, {}
         for name in ('run-authorization.json', 'fresh-spend.jsonl'):
             handle = retain(native['open_child'](parent, name, False,
-                            write=name == 'fresh-spend.jsonl' and op in {'fresh_reserve', 'fresh_settle', 'fresh_reconcile_terminal'}))
+                            write=name == 'fresh-spend.jsonl' and op in {'fresh_reserve', 'fresh_settle', 'fresh_reconcile_terminal', 'fresh_case12_setup_reserve', 'fresh_case12_setup_settle'}))
             value = native['read_bytes'](handle)
             descriptor = {'identity': native['inspect'](handle)['identity'], 'sha256': digest(value), 'bytes': len(value)}
             require(adopt or old['files'].get(name) == descriptor)
@@ -370,8 +422,13 @@ def execute_fresh(request):
             return {'state': state, 'snapshot': snapshot}
         event = request['event']
         kind = op.removeprefix('fresh_')
-        fields = {'kind', 'caseId', 'captureRunId', 'reservationId'}
-        if kind == 'reserve':
+        setup = kind in {'case12_setup_reserve', 'case12_setup_settle'}
+        fields = {'kind', 'caseId', 'setupRunId' if setup else 'captureRunId', 'reservationId'}
+        if kind == 'case12_setup_reserve':
+            fields |= {'ceilingMicros', 'setupPlanSha256', 'fixtureInstanceId', 'providerDeadlineAtMs', 'captureAuthority'}
+        elif kind == 'case12_setup_settle':
+            fields |= {'proof'}
+        elif kind == 'reserve':
             fields |= {'ceilingMicros'}
             if event.get('caseId') == '14':
                 fields |= {'approvalCeilingMicros', 'recallCeilingMicros', 'approvalBoundSha256'}
@@ -382,10 +439,16 @@ def execute_fresh(request):
             if event.get('caseId') == '14':
                 fields |= {'conservativeApprovalCostMicros', 'approvalBoundSha256', 'approvalOutcomeSha256', 'projectionTerminalSha256'}
         require(set(event) == fields and event['kind'] == kind)
-        row = {k: event[k] for k in ('caseId', 'captureRunId', 'reservationId')}
+        row = {k: event[k] for k in ('caseId', 'setupRunId' if setup else 'captureRunId', 'reservationId')}
         row.update({'nativeCaptureVersion': 1, 'sequence': snapshot['eventCount'] + 1,
                     'atMs': int(time.time()*1000), 'event': 'reserved' if kind == 'reserve' else 'settled'})
-        if kind == 'reserve':
+        if kind == 'case12_setup_reserve':
+            row['event'] = 'case12_setup_reserved'
+            row.update({k: event[k] for k in ('ceilingMicros', 'setupPlanSha256', 'fixtureInstanceId', 'providerDeadlineAtMs', 'captureAuthority')})
+        elif kind == 'case12_setup_settle':
+            row['event'] = 'case12_setup_settled'
+            row['proof'] = event['proof']
+        elif kind == 'reserve':
             row['ceilingMicros'] = event['ceilingMicros']
             if event['caseId'] == '14':
                 row.update({k: event[k] for k in ('approvalCeilingMicros', 'recallCeilingMicros', 'approvalBoundSha256')})

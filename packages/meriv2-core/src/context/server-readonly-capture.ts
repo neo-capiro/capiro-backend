@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
+import { validateMeriCase12SetupPolicyBinding, type MeriCase12SetupBinding } from './case12-setup-binding.js';
 import {
   validateMeriSyntheticReadBudgetGuard,
   type MeriSyntheticReadBudgetBinding,
@@ -22,7 +23,7 @@ export interface MeriFixtureSemanticClock {
   kind: 'qualified_original_fixture_semantic_clock';
   instant: typeof MERI_FIXTURE_SEMANTIC_INSTANT;
   timeZone: typeof MERI_FIXTURE_SEMANTIC_ZONE;
-  caseId: '01' | '14' | '20' | '46' | '72';
+  caseId: '01' | '12' | '14' | '20' | '46' | '72';
   captureRunId: string;
   currentVerifySha256: string;
   /** Real observation time; never used to rewind authority, expiry or deadlines. */
@@ -37,7 +38,7 @@ export function validateMeriFixtureSemanticClock(value: MeriFixtureSemanticClock
     Object.keys(value).sort().join('|') !== 'captureRunId|caseId|currentVerifySha256|instant|kind|observedAt|timeZone|version' ||
     value.version !== 1 || value.kind !== 'qualified_original_fixture_semantic_clock' ||
     value.instant !== MERI_FIXTURE_SEMANTIC_INSTANT || value.timeZone !== MERI_FIXTURE_SEMANTIC_ZONE ||
-    !['01', '14', '20', '46', '72'].includes(value.caseId) || value.caseId !== binding.caseId ||
+    !['01', '12', '14', '20', '46', '72'].includes(value.caseId) || value.caseId !== binding.caseId ||
     value.captureRunId !== binding.captureRunId ||
     !/^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(value.captureRunId) ||
     !/^[a-f0-9]{64}$/.test(value.currentVerifySha256) ||
@@ -48,6 +49,7 @@ export function validateMeriFixtureSemanticClock(value: MeriFixtureSemanticClock
 }
 
 export interface MeriServerReadonlyCapturePolicy {
+  case12Setup?: MeriCase12SetupBinding;
   semanticClock?: MeriFixtureSemanticClock;
   /** Independent accounting identity; all source/fixture fields remain null. */
   syntheticReadBudget?: MeriSyntheticReadBudgetBinding;
@@ -216,6 +218,7 @@ export function decodeAndVerifyMeriCapturePolicyTransport(
     throw new Error('meri_capture_transport_authentication_failed');
   }
   validateMeriSyntheticReadBudgetGuard(policy);
+  validateMeriCase12SetupPolicyBinding(policy);
   if (policy.semanticClock) validateMeriFixtureSemanticClock(policy.semanticClock, policy);
   return policy;
 }

@@ -1,3 +1,4 @@
+import { assertMeriCase12BindingInTx } from './meri-case12-capture-authority.js';
 import {
   MERI_FIXTURE_SEMANTIC_INSTANT,
   MERI_FIXTURE_SEMANTIC_ZONE,
@@ -49,7 +50,7 @@ export async function qualifyMeriCaptureSemanticClock(args: {
     )
       return undefined;
     // The clock adds no new admitted case, source or provider capability.
-    if (!['01', '14', '20', '72'].includes(policy.caseId))
+    if (!['01', '12', '14', '20', '72'].includes(policy.caseId))
       throw new Error('meri_fixture_semantic_clock_case_not_qualified');
     await assertMeriServerReadonlyCaptureCurrentAuthority({ prisma, ctx, policy });
     const proof: { currentVerifySha256: string } =
@@ -59,6 +60,8 @@ export async function qualifyMeriCaptureSemanticClock(args: {
             ctx.tenantId,
             ctx.userId,
             async (tx) => {
+              if (policy.caseId === '12')
+                return await assertMeriCase12BindingInTx(prisma, tx, ctx, policy);
               if (policy.caseId === '14')
                 return await assertMeriCase14BindingInTx(prisma, tx, ctx, policy);
               return await assertMeriControlledReadBindingInTx(tx, ctx, policy);

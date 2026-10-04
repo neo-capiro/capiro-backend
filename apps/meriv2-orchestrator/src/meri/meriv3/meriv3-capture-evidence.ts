@@ -272,6 +272,7 @@ export function buildSignedOrchestratorCaptureEvidence(args: {
       ),
       resetReceiptId: fixtureValue(policy.resetReceiptId, 'fixture_reset_receipt_binding_pending'),
       seedReceiptId: fixtureValue(policy.seedReceiptId, 'fixture_seed_receipt_binding_pending'),
+      ...(policy.case12Setup ? { case12Setup: observed(structuredClone(policy.case12Setup)) } : {}),
     },
     effects: {
       boundary: 'bounded_capture_path_hooks',

@@ -5,6 +5,7 @@ export * from './registry/types';
 export * from './context/governed-evidence-auth';
 export * from './context/research-plan-execution';
 export * from './context/server-readonly-capture';
+export * from './context/case12-setup-binding';
 export * from './context/synthetic-read-budget';
 export * from './context/capture-evidence-receipt';
 export * from './context/memory-capture-source';

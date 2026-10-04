@@ -75,7 +75,12 @@ export class ResearchToolBudgetError extends Error {
 }
 
 export type ResearchProviderAttemptKind =
-  'openai_responses' | 'anthropic_messages' | 'jev' | 'bedrock_embeddings' | 'nvidia_rerank';
+  | 'openai_responses'
+  | 'openai_embeddings'
+  | 'anthropic_messages'
+  | 'jev'
+  | 'bedrock_embeddings'
+  | 'nvidia_rerank';
 
 export interface ResearchProviderBudgetLimitsV1 {
   maxAttempts: number;
@@ -756,6 +761,7 @@ function parseProviderAttempt(value: unknown): ResearchProviderAttemptV1 {
     !(retryOfAttemptId === null || boundedString(retryOfAttemptId, MAX_ATTEMPT_KEY_CHARS)) ||
     ![
       'openai_responses',
+      'openai_embeddings',
       'anthropic_messages',
       'jev',
       'bedrock_embeddings',
@@ -816,6 +822,7 @@ function validateProviderBinding(binding: ResearchProviderReservationBinding): v
     ) ||
     ![
       'openai_responses',
+      'openai_embeddings',
       'anthropic_messages',
       'jev',
       'bedrock_embeddings',

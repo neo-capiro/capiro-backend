@@ -1,0 +1,85 @@
+--- a/evals/meri/live-v1/fixture-provisioning/case12-setup-budget-plan.mjs
++++ b/evals/meri/live-v1/fixture-provisioning/case12-setup-budget-plan.mjs
+@@ -10,22 +10,12 @@
+ const keys = (value) => (record(value) ? Object.keys(value).sort().join('|') : '');
+ const hashBytes = (body) => createHash('sha256').update(body, 'utf8').digest('hex');
+ 
+-/** Deterministic planning with verified local fixture asset reads. This performs
+- * no database calls, writes, reservations or provider calls. Native admission must own the
+- * envelope, bind its journal hold and supply the actual compiled native functions.
+- * Neither the returned JSON nor injected planning functions mint authority. */
+-export async function buildCase12SetupProviderPlan({ recipe, setupPlan, envelope }, native) {
+-  need(
+-    typeof native?.canonicalProjectionSnapshot === 'function' &&
+-      typeof native.validateCase12SetupBudgetPlan === 'function' &&
+-      typeof native.case12SetupCost === 'function' &&
+-      native.CASE12_SETUP_MAX_INPUT_TOKENS === 8192,
+-  );
+-  need(
+-    keys(envelope) ===
+-      'admittedAt|aggregateCheckpointSha256|aggregateReservationId|deadlineAt|imageSha256|rateEvidenceSha256|rates|ratesExpiresAt|runId|sourceSha256',
+-  );
+-  const input = structuredClone({ recipe, setupPlan, envelope });
++/** Derive fixed request identities from verified local fixture assets and a
++ * native read-only setup plan. This returns data only: no reservation, price,
++ * deadline, readiness or capture authority is created. */
++export async function deriveCase12SetupProviderRows({ recipe, setupPlan }, native) {
++  need(typeof native?.canonicalProjectionSnapshot === 'function');
++  const input = structuredClone({ recipe, setupPlan });
+   const spec = await resolveCase12SetupRecipe(input.recipe);
+   const plan = input.setupPlan;
+   need(
+@@ -102,14 +92,7 @@
+       ),
+     };
+   });
+-  need(keys(input.envelope.rates) === 'bedrock_embeddings|openai_embeddings');
+-  const maxCostMicros =
+-    rows.length *
+-    ['openai_embeddings', 'bedrock_embeddings'].reduce(
+-      (total, kind) => total + native.case12SetupCost(input.envelope.rates[kind]?.inputPerM, 8192),
+-      0,
+-    );
+-  return native.validateCase12SetupBudgetPlan({
++  return {
+     version: 1,
+     caseId: '12',
+     fixtureNamespace: spec.input.fixtureNamespace,
+@@ -121,6 +104,37 @@
+     setupPlanSha256: planSha256,
+     recipeSha256: plan.recipeSha256,
+     orderedDefinitionSha256: plan.orderedDefinitionSha256,
++    rows,
++  };
++}
++
++/** Deterministic planning with verified local fixture asset reads. This performs
++ * no database calls, writes, reservations or provider calls. Native admission must own the
++ * envelope, bind its journal hold and supply the actual compiled native functions.
++ * Neither the returned JSON nor injected planning functions mint authority. */
++export async function buildCase12SetupProviderPlan({ recipe, setupPlan, envelope }, native) {
++  need(
++    typeof native?.canonicalProjectionSnapshot === 'function' &&
++      typeof native.validateCase12SetupBudgetPlan === 'function' &&
++      typeof native.case12SetupCost === 'function' &&
++      native.CASE12_SETUP_MAX_INPUT_TOKENS === 8192,
++  );
++  need(
++    keys(envelope) ===
++      'admittedAt|aggregateCheckpointSha256|aggregateReservationId|deadlineAt|imageSha256|rateEvidenceSha256|rates|ratesExpiresAt|runId|sourceSha256',
++  );
++  const input = structuredClone({ recipe, setupPlan, envelope });
++  const derived = await deriveCase12SetupProviderRows(input, native);
++  const { rows, ...identity } = derived;
++  need(keys(input.envelope.rates) === 'bedrock_embeddings|openai_embeddings');
++  const maxCostMicros =
++    rows.length *
++    ['openai_embeddings', 'bedrock_embeddings'].reduce(
++      (total, kind) => total + native.case12SetupCost(input.envelope.rates[kind]?.inputPerM, 8192),
++      0,
++    );
++  return native.validateCase12SetupBudgetPlan({
++    ...identity,
+     ...input.envelope,
+     maxCostMicros,
+     rows,

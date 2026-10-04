@@ -1,0 +1,106 @@
+{
+  "kind": "case12-behavior-v2-independent-assessment",
+  "at": "2026-10-04T11:17:17.004894+00:00",
+  "status": "PASS_LOCAL_BEHAVIOR_AND_SUPPLEMENTAL_SOURCE_TESTS_ONLY",
+  "candidateCheckpoint": {
+    "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-behavior-supervised-v2\\checkpoint-v2.json",
+    "sha256": "433f8d1367f9adba2eb1397b8ae95379335a9fcb6e066294f072d584ef90a3b3",
+    "bytes": 11879
+  },
+  "candidatePatch": {
+    "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-behavior-supervised-v2\\candidate.patch",
+    "sha256": "22f9e6ca3bc5e8a09653f780b8e59e298f1c00857983414601c08a68ab252f26",
+    "bytes": 31583
+  },
+  "inputManifest": {
+    "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-behavior-independent-input-v2\\manifest.json",
+    "sha256": "5edfa7faf070a4eb0222f92de4a2b3b5ca21bed0c8b3242428166bea77fd37cb",
+    "bytes": 10222
+  },
+  "hermes": {
+    "execution": {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-behavior-independent-hermes-v2\\execution.json",
+      "sha256": "58abcd1d55bf7a58e3360433786eb140af6f4d9b6ba036148bf3ffc9ffb30668",
+      "bytes": 968
+    },
+    "review": {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-behavior-independent-hermes-v2\\review.md",
+      "sha256": "9e5d6f4553ffedd0cf4240b84652271b74d2bc629550d6d55eade26c15e8716c",
+      "bytes": 9154
+    },
+    "usage": {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-behavior-independent-hermes-v2\\usage.json",
+      "sha256": "24465cab06290fff97aa7749f34de69b9bdbed009bda5147a4de8de681325c49",
+      "bytes": 485
+    },
+    "sessionId": "20261004_071043_7b3fa0",
+    "rawVerdict": "PASS_LOCAL_BEHAVIOR_ONLY",
+    "adjudication": "Accepted within frozen local-source/transport scope. No concrete defect found. Hermes did not see the later API test supplement. Native owner implementation was absent from the bundle and is mandatory; test-only throw-on-load/mock seams must not integrate."
+  },
+  "pinChecks": {
+    "file": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-behavior-independent-hermes-v2\\independent-pin-checks.json",
+    "sha256": "feeaf78fedc47bac02c135cb69643f1c4f6d8216b7f15c197f201a45ddd271a0",
+    "count": 4278,
+    "originalBehaviorPins": 586,
+    "supplementRuntimePins": 3615
+  },
+  "independentSourceFindings": [
+    "The exact 16-file integration list comprises 10 source and 6 tests. Candidate directory also contains unchanged dependencies; integrate only listed changes. Root five-field setup provenance/helper is baseline, not a behavior delta.",
+    "Case12 setup tuple shape is checked at governed-context and trusted-turn ingress. Whole-context HMAC binds the entire policy. Case12-only conditional addition to source-policy binding preserves prior Case01/14 signature material.",
+    "Request HMAC binds policy, callId, random nonce and exact serialized input SHA. Response proof binds actual canonical record owner/version/text/page fields and current request. Loopback exercise uses actual ApiToolExecutorRepo but an emulated API; replayed same-policy response is rejected and proof fields stripped before model projection.",
+    "Case12 has its own case12_memory_turn provider boundary and search_memory-only qualified receipt path. Existing read-only dispatch allowlist remains; proposal execution cannot qualify a Case12 receipt.",
+    "Native current-owner calls bracket semantic issuance, actual tool execution and context search. Packet finalization performs two full current-owner calls in the same transaction. No reviewed behavior source backdates approval or replaces live admission expiry with semantic scoring time.",
+    "Receipt packet joins remain exact over policy/request/turn/client/actor/clock metadata, with real observed/created/eligibility timestamps. Missing, duplicate, wrong-clock, wrong-boundary, retry, bad-HTTP and citation/source mismatches fail closed.",
+    "Supplemental two-file test patch independently checked: actual ContextPlane gateway/resolver/retrieval and source projection/HMAC methods, controlled owner/Prisma/compiler/adapters; native denial prevents retrieval and post-gateway owner drift rejects output. Direct MeriTools methods do not prove full execute wrapper. Global fetch is forbidden."
+  ],
+  "recordedTests": {
+    "coreBehavior": {
+      "passed": 124,
+      "suites": 3,
+      "source": "unchanged v1 frozen modules"
+    },
+    "mockedApiClockPacket": {
+      "passed": 13,
+      "suites": 1
+    },
+    "wholeContextAuthentication": {
+      "passed": 48,
+      "suites": 1
+    },
+    "orchestratorHttpObservation": {
+      "passed": 45,
+      "suites": 1,
+      "overlap": "Earlier 3 loopback subset is included, not additive"
+    },
+    "apiSourceSupplement": {
+      "passed": 43,
+      "suites": 2,
+      "checkpoint": {
+        "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-api-search-source-tests-v1\\checkpoint-v1.json",
+        "sha256": "b371697e4b3dad9247f052d5f3194ec6ae60386fd82bfe7c53b091ac2366e7b5",
+        "bytes": 3500
+      },
+      "reviewedBy": "independent source reviewer after Hermes bundle freeze"
+    },
+    "verification": "Saved logs/execution receipts and exact test/runtime source pins checked; no test rerun claimed by this assessment. Failed resolver/dependency attempts retained."
+  },
+  "requiredQualificationGates": [
+    "Real assertMeriCase12BindingInTx composition binding completed setup, durable current budget ledger, claim and all510 current canonical rows; absent from this frozen behavior packet.",
+    "Actual API/database owner, RLS/default transaction limits, precise MA510 current full-passage final readback and source/citation joins. Emulated HTTP or owner doubles cannot prove them.",
+    "Default-timeout measurement of final packet wrapper: two complete same-transaction corpus scans may be expensive. No measured failure is asserted. One-scan optimization would require retained real-time expiry checks plus explicit current predicate and phantom/worker concurrency reasoning; row locks alone do not prove global absence.",
+    "Full integrated builds/typechecks and complete execute wrapper with genuine native owner. Supplemental source tests improve coverage but are transpile-only and do not close this gate.",
+    "Native spend/setup/capture admission remains separate. This review neither grants live authority nor changes readiness or acceptance."
+  ],
+  "nativeJournal": {
+    "sha256": "816b04a47be56432846d1ee602370c3bea985eb497a7de9e899aee4d53f8b39e",
+    "bytes": 17588,
+    "events": 26,
+    "unchanged": true
+  },
+  "captureAuthority": false,
+  "fixtureReadinessPromoted": false,
+  "liveAcceptance": "NOT_RUN",
+  "repoEdits": false,
+  "cloudActions": false,
+  "databaseActions": false
+}

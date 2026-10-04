@@ -1,0 +1,1625 @@
+{
+  "kind": "case12-batch-owner-local-qualification",
+  "status": "PASS_LOCAL_NATIVE_DIFFERENTIAL_PENDING_COMPILED_COMPOSITION",
+  "recordedAt": "2026-10-04T11:56:46.302630+00:00",
+  "productionChanges": [
+    {
+      "path": "apps/api/scripts/meri-case01-setup-dependencies.mjs",
+      "sha256": "18905be36fa4c2873485379ebbebaaefdc23d336afe73cc8d8e4998fcbcd1778",
+      "bytes": 11048
+    },
+    {
+      "path": "apps/api/src/memory/case12-synthetic-approved-memory-set.read.ts",
+      "sha256": "59cbbdbf30adae760874ac3e49888904559c5b4eeadfc7aeab96f5317113cf97",
+      "bytes": 16316
+    },
+    {
+      "path": "apps/api/src/memory/memory-authorization.service.ts",
+      "sha256": "65331cb6735a79d8589bee389c3b2ebba1bd088ef89ec10c71f864bbe6699320",
+      "bytes": 12831
+    },
+    {
+      "path": "evals/meri/live-v1/fixture-provisioning/case12-memory-current-owner.mjs",
+      "sha256": "8707b5598f861048eda384168c4da5e6230343891280fd2c833ad1fbaff2b529",
+      "bytes": 25222
+    },
+    {
+      "path": "evals/meri/live-v1/fixture-provisioning/case12-memory-inventory-owner.mjs",
+      "sha256": "aca6c6a9185d2d3fbc71b8a17971bd433e005b90327218cb4fdee5858e6b33e2",
+      "bytes": 18411
+    },
+    {
+      "path": "evals/meri/live-v1/fixture-provisioning/case12-memory-setup.mjs",
+      "sha256": "81ff660984df31d841f551d559eefde8af67ba1bd0d12dca3fc1ca128c5c0a31",
+      "bytes": 36481
+    }
+  ],
+  "checks": {
+    "nativeSmoke": 1,
+    "nativeDifferentialIncludingParent": 38,
+    "legacy": 88,
+    "strictProductionTypeScriptDiagnostics": 0
+  },
+  "currentOwnerTransactions": [
+    {
+      "name": "current-owner-once",
+      "durationMs": 553.2461999999978,
+      "queries": 21,
+      "timeoutOverride": null
+    },
+    {
+      "name": "current-owner-twice-same-tx",
+      "durationMs": 1047.1520000000019,
+      "queries": 42,
+      "timeoutOverride": null
+    }
+  ],
+  "limitations": [
+    "Restored test data with new PostgreSQL row versions; no original native authority",
+    "Reduced local schema and namespace shim; no production RLS claim",
+    "Final compiled factory/hydration/completion/capture composition pending",
+    "Hermes implementation timed out; no final verdict",
+    "No live calls or journal changes; Case12 original prompt and human grading NOT_RUN"
+  ],
+  "excludedPrivateInput": {
+    "path": "C:/dev/main/outputs/meri-c2-20261003/case12-actual-factory-owner-local-v1/full510-disposable-state.private.json",
+    "sha256": "282079bf1130cf4a6609bd37e2ab677d993d2bae17012de9708c896078b87db8",
+    "bytes": 13900465
+  },
+  "files": [
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/baseline/apps/api/scripts/meri-case01-setup-dependencies.mjs",
+      "sha256": "6de3f94669bcacac1c8a79e4ceb34acc5fa5d5359d6c17744b1ba1e10a9c16ec",
+      "bytes": 10834,
+      "relativePath": "baseline/apps/api/scripts/meri-case01-setup-dependencies.mjs"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/baseline/apps/api/src/memory/memory-authorization.service.ts",
+      "sha256": "eefa7645c2b181e46a7a90441a7d59e4eac607350ef7c0841410cdc30a80892f",
+      "bytes": 9173,
+      "relativePath": "baseline/apps/api/src/memory/memory-authorization.service.ts"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/baseline/apps/api/src/memory/synthetic-approved-memory.helpers.ts",
+      "sha256": "8451534ad56fdda936c7ce5c1961c68e0172d61ab2be45872e6d1b93da21ba22",
+      "bytes": 13474,
+      "relativePath": "baseline/apps/api/src/memory/synthetic-approved-memory.helpers.ts"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/baseline/evals/meri/live-v1/fixture-provisioning/case12-memory-current-owner.mjs",
+      "sha256": "272e0759fb6e5f3aafb613e20874828060ce533f241315ff22f391810f6ee2e6",
+      "bytes": 23151,
+      "relativePath": "baseline/evals/meri/live-v1/fixture-provisioning/case12-memory-current-owner.mjs"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/baseline/evals/meri/live-v1/fixture-provisioning/case12-memory-inventory-owner.mjs",
+      "sha256": "6558f5a49f7e4a4316411107c3f17f29f3bbf133466b02118e9cfbaae34fb1b9",
+      "bytes": 15053,
+      "relativePath": "baseline/evals/meri/live-v1/fixture-provisioning/case12-memory-inventory-owner.mjs"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/baseline/evals/meri/live-v1/fixture-provisioning/case12-memory-setup.mjs",
+      "sha256": "ba5ca5dc5aa33171ce8236b27e7116eceba2617fdd616b5c9626f5a6cf4b905d",
+      "bytes": 34967,
+      "relativePath": "baseline/evals/meri/live-v1/fixture-provisioning/case12-memory-setup.mjs"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/baseline-pins.json",
+      "sha256": "53f4e365d42376235275ad60df6378dfae5ff7817a24b528437816c8d2af45cc",
+      "bytes": 2050,
+      "relativePath": "baseline-pins.json"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/candidate-loader.mjs",
+      "sha256": "841103076c3cc1598251822e3ecaea03ac7f91386b9cf1860c4e0a9d40edec32",
+      "bytes": 1214,
+      "relativePath": "candidate-loader.mjs"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/candidate-source-freeze.json",
+      "sha256": "76c71d5bbd1174a3d557592f7f821d0b260118f5bc76cf47036b307d7a045f2e",
+      "bytes": 1583,
+      "relativePath": "candidate-source-freeze.json"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/cleanup-readback.json",
+      "sha256": "6b143fcff08fcccf5e7760aba18993b62801b12dad066b744de6f56d152a5c76",
+      "bytes": 668,
+      "relativePath": "cleanup-readback.json"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/compose-batch-mjs.py",
+      "sha256": "9b77de6c07f8d5d747ea061ec06f077c3c4024341d1bf3227d97303441e94f56",
+      "bytes": 9735,
+      "relativePath": "compose-batch-mjs.py"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/current-owner-once-v1.json",
+      "sha256": "e3d4255189dbfe01ec22832a7bf56f70ad9e82e95be530d74534d34cc3d3ccde",
+      "bytes": 574528,
+      "relativePath": "current-owner-once-v1.json"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/current-owner-twice-v1.json",
+      "sha256": "367307700ed4065ad0b437aafdaefab431be65bfe71c56e5faaf9484be4fe764",
+      "bytes": 1194233,
+      "relativePath": "current-owner-twice-v1.json"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-manifest.json",
+      "sha256": "583bcaac2bab55673c6d6e8f652a7313b716c0198fb48e595ad05f498df99440",
+      "bytes": 66203,
+      "relativePath": "dependency-manifest.json"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/outputs/case12-actual-factory-owner-local-v1/owned-harness.mjs",
+      "sha256": "e740ceef6f9aa8a35eb7a8b0e42a8c408bfb5fdff1e233357cd38cacf181fff2",
+      "bytes": 12067,
+      "relativePath": "dependency-snapshot/outputs/case12-actual-factory-owner-local-v1/owned-harness.mjs"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/outputs/case12-batch-owner-supervised-v1/candidate-loader.mjs",
+      "sha256": "841103076c3cc1598251822e3ecaea03ac7f91386b9cf1860c4e0a9d40edec32",
+      "bytes": 1214,
+      "relativePath": "dependency-snapshot/outputs/case12-batch-owner-supervised-v1/candidate-loader.mjs"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/outputs/case12-batch-owner-supervised-v1/restored-local-harness.mjs",
+      "sha256": "2809bd82bcf4df3d5db16de09e14749c0437bfbc1b667f489b17022e7395155b",
+      "bytes": 4969,
+      "relativePath": "dependency-snapshot/outputs/case12-batch-owner-supervised-v1/restored-local-harness.mjs"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/outputs/case12-budget-owner-supervised-v1/scratch/evals/meri/live-v1/contract-lock.json",
+      "sha256": "fc2fe9da90938d476e46007782a0b7d4471c1254e2a189180f62e3fbbde8fb6e",
+      "bytes": 6168,
+      "relativePath": "dependency-snapshot/outputs/case12-budget-owner-supervised-v1/scratch/evals/meri/live-v1/contract-lock.json"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/outputs/case12-budget-owner-supervised-v1/scratch/evals/meri/live-v1/fixture-provisioning/approved-memory-retirement-owner.mjs",
+      "sha256": "84ce879940d2edf83004faf690739e6a9fef4091675fb640980a1d370529f668",
+      "bytes": 6106,
+      "relativePath": "dependency-snapshot/outputs/case12-budget-owner-supervised-v1/scratch/evals/meri/live-v1/fixture-provisioning/approved-memory-retirement-owner.mjs"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/outputs/case12-budget-owner-supervised-v1/scratch/evals/meri/live-v1/fixture-provisioning/approved-memory-runtime.mjs",
+      "sha256": "b814c5f904594130d0e35bbb0d4a1f49ec77a5f96c1544fcf9e6969784f278ac",
+      "bytes": 14972,
+      "relativePath": "dependency-snapshot/outputs/case12-budget-owner-supervised-v1/scratch/evals/meri/live-v1/fixture-provisioning/approved-memory-runtime.mjs"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/outputs/case12-budget-owner-supervised-v1/scratch/evals/meri/live-v1/fixture-provisioning/canonical-owner-adapter.mjs",
+      "sha256": "a9e68e7f12e60253d8402108dbc2ecc0cf6688863ca42c6412c13e371c61fa40",
+      "bytes": 8502,
+      "relativePath": "dependency-snapshot/outputs/case12-budget-owner-supervised-v1/scratch/evals/meri/live-v1/fixture-provisioning/canonical-owner-adapter.mjs"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/outputs/case12-budget-owner-supervised-v1/scratch/evals/meri/live-v1/fixture-provisioning/contract.mjs",
+      "sha256": "301f39229b64b3878d2fa9783d2cac5cd716fdf8acb125a2e758dc698e36076e",
+      "bytes": 5295,
+      "relativePath": "dependency-snapshot/outputs/case12-budget-owner-supervised-v1/scratch/evals/meri/live-v1/fixture-provisioning/contract.mjs"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/outputs/case12-budget-owner-supervised-v1/scratch/evals/meri/live-v1/fixture-provisioning/manifest.mjs",
+      "sha256": "8f1276ef0aaaef9b648bb1cbd0a037ee7d11d0a78db9691ab4de70b3b5db667a",
+      "bytes": 20549,
+      "relativePath": "dependency-snapshot/outputs/case12-budget-owner-supervised-v1/scratch/evals/meri/live-v1/fixture-provisioning/manifest.mjs"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/outputs/case12-budget-owner-supervised-v1/scratch/evals/meri/live-v1/fixture-provisioning/memory-candidate-owner.mjs",
+      "sha256": "a850e4a8a68641d7118cf7f6e5abda72e64452bde6123d8e13acf5308d6bc9b7",
+      "bytes": 14006,
+      "relativePath": "dependency-snapshot/outputs/case12-budget-owner-supervised-v1/scratch/evals/meri/live-v1/fixture-provisioning/memory-candidate-owner.mjs"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/outputs/case12-budget-owner-supervised-v1/scratch/evals/meri/live-v1/fixture.mjs",
+      "sha256": "8915e19424520a2f97b9cd5a389fcf4b39f2823f0526573ffd04a1dfe0fbc398",
+      "bytes": 17294,
+      "relativePath": "dependency-snapshot/outputs/case12-budget-owner-supervised-v1/scratch/evals/meri/live-v1/fixture.mjs"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/outputs/case12-budget-owner-supervised-v1/scratch/evals/meri/live-v1/lib/stable.mjs",
+      "sha256": "03bba6f6dd1c48bf206ed32c628e1f9ce2038d75a9560d33d044950261f45c23",
+      "bytes": 1146,
+      "relativePath": "dependency-snapshot/outputs/case12-budget-owner-supervised-v1/scratch/evals/meri/live-v1/lib/stable.mjs"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/outputs/case12-budget-owner-supervised-v1/scratch/evals/meri/live-v1/source-binaries/asset-manifest.json",
+      "sha256": "6512b1ad5f9a154e517e2702f329bc52ab8276ccde9f7a1d2609872c8ea1889d",
+      "bytes": 7757,
+      "relativePath": "dependency-snapshot/outputs/case12-budget-owner-supervised-v1/scratch/evals/meri/live-v1/source-binaries/asset-manifest.json"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/outputs/case12-budget-owner-supervised-v1/scratch/evals/meri/live-v1/tests/approved-memory-postgres-harness.mjs",
+      "sha256": "7c45dfa9c25dfacc4fca15df56b10c2e78c2695437ae6d9fcbbea17102b68bec",
+      "bytes": 9495,
+      "relativePath": "dependency-snapshot/outputs/case12-budget-owner-supervised-v1/scratch/evals/meri/live-v1/tests/approved-memory-postgres-harness.mjs"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/outputs/case12-budget-owner-supervised-v1/scratch/evals/meri/live-v1/tests/approved-memory-schema.mjs",
+      "sha256": "0ed9fae4f9f30cb06c14b33f619a346bca42af2a05fc1f9a9894a231d744df19",
+      "bytes": 6188,
+      "relativePath": "dependency-snapshot/outputs/case12-budget-owner-supervised-v1/scratch/evals/meri/live-v1/tests/approved-memory-schema.mjs"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/outputs/case12-budget-owner-supervised-v1/scratch/evals/meri/live-v1/tests/case12-projection-schema.mjs",
+      "sha256": "84dcd483628d1d5a48d6e2248f7ed0f1db6a002d44be235d7ccaba71f181b4c9",
+      "bytes": 6992,
+      "relativePath": "dependency-snapshot/outputs/case12-budget-owner-supervised-v1/scratch/evals/meri/live-v1/tests/case12-projection-schema.mjs"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/apps/api/dist/prisma/prisma.service.js",
+      "sha256": "3049f5b3311b0d2c6317405c2cbfaf6c41b87037826f3f3411ce05bdb63aa991",
+      "bytes": 12619,
+      "relativePath": "dependency-snapshot/repo/apps/api/dist/prisma/prisma.service.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/apps/api/package.json",
+      "sha256": "ba6d55f9d9e63ecd3293387b45f4328157e0188479ef588bf8867461d5ceb819",
+      "bytes": 28441,
+      "relativePath": "dependency-snapshot/repo/apps/api/package.json"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/apps/api/scripts/meri-case01-setup-dependencies.mjs",
+      "sha256": "6de3f94669bcacac1c8a79e4ceb34acc5fa5d5359d6c17744b1ba1e10a9c16ec",
+      "bytes": 10834,
+      "relativePath": "dependency-snapshot/repo/apps/api/scripts/meri-case01-setup-dependencies.mjs"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/apps/api/src/memory/memory-authorization.helpers.ts",
+      "sha256": "a0c2ece14a7d8164d3a7c7a2f028ffe75a486c91f6fdda8b11fa48cab66c60e7",
+      "bytes": 7526,
+      "relativePath": "dependency-snapshot/repo/apps/api/src/memory/memory-authorization.helpers.ts"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/apps/api/src/memory/memory-authorization.service.ts",
+      "sha256": "eefa7645c2b181e46a7a90441a7d59e4eac607350ef7c0841410cdc30a80892f",
+      "bytes": 9173,
+      "relativePath": "dependency-snapshot/repo/apps/api/src/memory/memory-authorization.service.ts"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/apps/api/src/memory/memory-canonical-activation.helpers.ts",
+      "sha256": "fec784b019bb6300845fc5d8e3779d38e2e9fdbbe296852ea845e7a51633c58e",
+      "bytes": 12693,
+      "relativePath": "dependency-snapshot/repo/apps/api/src/memory/memory-canonical-activation.helpers.ts"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/apps/api/src/memory/memory-clio-adapter.helpers.ts",
+      "sha256": "41102353e8e4e304be8b89611892193716f08f6da1f22d0a80c85d5428f086ed",
+      "bytes": 7604,
+      "relativePath": "dependency-snapshot/repo/apps/api/src/memory/memory-clio-adapter.helpers.ts"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/apps/api/src/memory/memory-governance-lifecycle.helpers.ts",
+      "sha256": "6f983d9f0bc388464dc0be27e9edba1aeb9bfdaec9c7ab16830882db286770b7",
+      "bytes": 11288,
+      "relativePath": "dependency-snapshot/repo/apps/api/src/memory/memory-governance-lifecycle.helpers.ts"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/apps/api/src/memory/memory-governance-tenant-scope.ts",
+      "sha256": "2c56f023b7e5f7b26e71b6473d26b850cfa27a8a8566e9c9412396a662202f84",
+      "bytes": 1450,
+      "relativePath": "dependency-snapshot/repo/apps/api/src/memory/memory-governance-tenant-scope.ts"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/apps/api/src/memory/memory-recall-suppression.helpers.ts",
+      "sha256": "f1a049bf5362c540098adea8ba885b25b579ab70f2a51b322abb3060eab647f2",
+      "bytes": 2449,
+      "relativePath": "dependency-snapshot/repo/apps/api/src/memory/memory-recall-suppression.helpers.ts"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/apps/api/src/memory/memory-review-admin-policy.ts",
+      "sha256": "ce7d9b36b52b7b63d1a8bdcaf0bab2acf3c57187dedc5752a80f8e95f733adc3",
+      "bytes": 687,
+      "relativePath": "dependency-snapshot/repo/apps/api/src/memory/memory-review-admin-policy.ts"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/apps/api/src/memory/memory-wall.helpers.ts",
+      "sha256": "91961048fd944885b8a06d229009259cf4866a4d40338d09685b1608f29a9255",
+      "bytes": 7833,
+      "relativePath": "dependency-snapshot/repo/apps/api/src/memory/memory-wall.helpers.ts"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/apps/api/src/memory/memory.types.ts",
+      "sha256": "76d9db994650ac7bd6a099d7843774080aacdcfed6992cb7518969423e5709f7",
+      "bytes": 9492,
+      "relativePath": "dependency-snapshot/repo/apps/api/src/memory/memory.types.ts"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/apps/api/src/memory/synthetic-approved-memory.helpers.ts",
+      "sha256": "8451534ad56fdda936c7ce5c1961c68e0172d61ab2be45872e6d1b93da21ba22",
+      "bytes": 13474,
+      "relativePath": "dependency-snapshot/repo/apps/api/src/memory/synthetic-approved-memory.helpers.ts"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/apps/api/src/memory/synthetic-candidate-withdrawal.helpers.ts",
+      "sha256": "6e5aecf6f62eab12c4a9575f5f5efb5565f39fc50e18d351ea0a8a93a28b350d",
+      "bytes": 8457,
+      "relativePath": "dependency-snapshot/repo/apps/api/src/memory/synthetic-candidate-withdrawal.helpers.ts"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/apps/api/src/prisma/prisma.service.ts",
+      "sha256": "fb3886df5f2732a0412342627a3a6156f159718913479cdc2325fa602bfdd86e",
+      "bytes": 12476,
+      "relativePath": "dependency-snapshot/repo/apps/api/src/prisma/prisma.service.ts"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/apps/api/src/retrieval/adapters/case12-memory-eligibility.read.ts",
+      "sha256": "a6755a96e68516257e7b511dd8a85fbb30b01358c4e6e87b815b92ad3f9257ab",
+      "bytes": 4933,
+      "relativePath": "dependency-snapshot/repo/apps/api/src/retrieval/adapters/case12-memory-eligibility.read.ts"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/apps/api/src/retrieval/adapters/governed-memory-eligibility.helpers.ts",
+      "sha256": "3056dc2df5b4fab0cb8e95168f28cb00b55ec11c3755ee07c3b9e0b085330b6c",
+      "bytes": 2978,
+      "relativePath": "dependency-snapshot/repo/apps/api/src/retrieval/adapters/governed-memory-eligibility.helpers.ts"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/apps/api/tsconfig.build.json",
+      "sha256": "82b0f27140205492fc41d757c026455fc2d82a5c2fefb43dc27cbd951d06afaf",
+      "bytes": 351,
+      "relativePath": "dependency-snapshot/repo/apps/api/tsconfig.build.json"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/apps/api/tsconfig.json",
+      "sha256": "b88cdad4cb543156858c394422a89bd66b34b956d9a8e46c697d2c591a3bd220",
+      "bytes": 624,
+      "relativePath": "dependency-snapshot/repo/apps/api/tsconfig.json"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/evals/meri/live-v1/contract-lock.json",
+      "sha256": "fc2fe9da90938d476e46007782a0b7d4471c1254e2a189180f62e3fbbde8fb6e",
+      "bytes": 6168,
+      "relativePath": "dependency-snapshot/repo/evals/meri/live-v1/contract-lock.json"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/evals/meri/live-v1/fixture-provisioning/approved-memory-retirement-owner.mjs",
+      "sha256": "84ce879940d2edf83004faf690739e6a9fef4091675fb640980a1d370529f668",
+      "bytes": 6106,
+      "relativePath": "dependency-snapshot/repo/evals/meri/live-v1/fixture-provisioning/approved-memory-retirement-owner.mjs"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/evals/meri/live-v1/fixture-provisioning/approved-memory-runtime.mjs",
+      "sha256": "b814c5f904594130d0e35bbb0d4a1f49ec77a5f96c1544fcf9e6969784f278ac",
+      "bytes": 14972,
+      "relativePath": "dependency-snapshot/repo/evals/meri/live-v1/fixture-provisioning/approved-memory-runtime.mjs"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/evals/meri/live-v1/fixture-provisioning/canonical-owner-adapter.mjs",
+      "sha256": "a9e68e7f12e60253d8402108dbc2ecc0cf6688863ca42c6412c13e371c61fa40",
+      "bytes": 8502,
+      "relativePath": "dependency-snapshot/repo/evals/meri/live-v1/fixture-provisioning/canonical-owner-adapter.mjs"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/evals/meri/live-v1/fixture-provisioning/case12-memory-current-owner.mjs",
+      "sha256": "272e0759fb6e5f3aafb613e20874828060ce533f241315ff22f391810f6ee2e6",
+      "bytes": 23151,
+      "relativePath": "dependency-snapshot/repo/evals/meri/live-v1/fixture-provisioning/case12-memory-current-owner.mjs"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/evals/meri/live-v1/fixture-provisioning/case12-memory-eligibility-owner.mjs",
+      "sha256": "9d829dc0e8ca012194d602949c02d757e9e4921f339eb139c30a25b599913664",
+      "bytes": 4052,
+      "relativePath": "dependency-snapshot/repo/evals/meri/live-v1/fixture-provisioning/case12-memory-eligibility-owner.mjs"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/evals/meri/live-v1/fixture-provisioning/case12-memory-inventory-owner.mjs",
+      "sha256": "6558f5a49f7e4a4316411107c3f17f29f3bbf133466b02118e9cfbaae34fb1b9",
+      "bytes": 15053,
+      "relativePath": "dependency-snapshot/repo/evals/meri/live-v1/fixture-provisioning/case12-memory-inventory-owner.mjs"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/evals/meri/live-v1/fixture-provisioning/case12-memory-setup.mjs",
+      "sha256": "ba5ca5dc5aa33171ce8236b27e7116eceba2617fdd616b5c9626f5a6cf4b905d",
+      "bytes": 34967,
+      "relativePath": "dependency-snapshot/repo/evals/meri/live-v1/fixture-provisioning/case12-memory-setup.mjs"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/evals/meri/live-v1/fixture-provisioning/contract.mjs",
+      "sha256": "301f39229b64b3878d2fa9783d2cac5cd716fdf8acb125a2e758dc698e36076e",
+      "bytes": 5295,
+      "relativePath": "dependency-snapshot/repo/evals/meri/live-v1/fixture-provisioning/contract.mjs"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/evals/meri/live-v1/fixture-provisioning/manifest.mjs",
+      "sha256": "8f1276ef0aaaef9b648bb1cbd0a037ee7d11d0a78db9691ab4de70b3b5db667a",
+      "bytes": 20549,
+      "relativePath": "dependency-snapshot/repo/evals/meri/live-v1/fixture-provisioning/manifest.mjs"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/evals/meri/live-v1/fixture-provisioning/memory-candidate-owner.mjs",
+      "sha256": "a850e4a8a68641d7118cf7f6e5abda72e64452bde6123d8e13acf5308d6bc9b7",
+      "bytes": 14006,
+      "relativePath": "dependency-snapshot/repo/evals/meri/live-v1/fixture-provisioning/memory-candidate-owner.mjs"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/evals/meri/live-v1/fixture.mjs",
+      "sha256": "8915e19424520a2f97b9cd5a389fcf4b39f2823f0526573ffd04a1dfe0fbc398",
+      "bytes": 17294,
+      "relativePath": "dependency-snapshot/repo/evals/meri/live-v1/fixture.mjs"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/evals/meri/live-v1/lib/stable.mjs",
+      "sha256": "03bba6f6dd1c48bf206ed32c628e1f9ce2038d75a9560d33d044950261f45c23",
+      "bytes": 1146,
+      "relativePath": "dependency-snapshot/repo/evals/meri/live-v1/lib/stable.mjs"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/evals/meri/live-v1/source-binaries/asset-manifest.json",
+      "sha256": "6512b1ad5f9a154e517e2702f329bc52ab8276ccde9f7a1d2609872c8ea1889d",
+      "bytes": 7757,
+      "relativePath": "dependency-snapshot/repo/evals/meri/live-v1/source-binaries/asset-manifest.json"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/alerts/alert.js",
+      "sha256": "15e6ec24aa43d39f3878032012f6d383e19b292c0ba538a6d409d9281f3683ca",
+      "bytes": 1082,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/alerts/alert.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/assurance/checks.js",
+      "sha256": "b2a120daf57a263a62d360af296179be3d79eb718af6be74400848793301b24c",
+      "bytes": 14871,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/assurance/checks.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/assurance/claim-ledger.js",
+      "sha256": "f6c8fc69af4a6e90ef9b2b62a60d3a8b49f65176a3956cb0e8ab241e4639b8cf",
+      "bytes": 11475,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/assurance/claim-ledger.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/assurance/control-metrics.js",
+      "sha256": "9af46b952bc7899a3957bfc63ddf4289842cf53b9ecf955f6c6f6d4e70ec24c0",
+      "bytes": 5427,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/assurance/control-metrics.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/assurance/deterministic-evaluation.js",
+      "sha256": "7dd4ed2da24d535352532545ac9bc79856d6803f9bc5d62e03c70f201a020c70",
+      "bytes": 2084,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/assurance/deterministic-evaluation.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/assurance/envelope.js",
+      "sha256": "bf8943613bd251073540d57a7df93b0c0f15714c409a603eccee877f248c3005",
+      "bytes": 6114,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/assurance/envelope.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/assurance/eval-gate.js",
+      "sha256": "b23414295755dcc417aea365345d673a7ed245d5eaf3641a2fbb32ab17cec49f",
+      "bytes": 7089,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/assurance/eval-gate.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/assurance/evidence-dates.js",
+      "sha256": "36b475d688b6c1c935491886ca604b6dd9e945d83d2ce8817ce81ad6aea6f3f8",
+      "bytes": 2354,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/assurance/evidence-dates.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/assurance/evidence-plan.js",
+      "sha256": "cec58a68b4dc3ef108f6f4fb6968b16eaa738d19170ed251b2e4f2fbf6b92be4",
+      "bytes": 19811,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/assurance/evidence-plan.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/assurance/evidence-profile-control.js",
+      "sha256": "e3c1f13e12eef68ec7b770b9bb9c9eac3d0b398c53fbc5f373900ef11bb89580",
+      "bytes": 1408,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/assurance/evidence-profile-control.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/assurance/exact-comparison.js",
+      "sha256": "4519df7cd720d5260337c7b8348f7f25f85dcd75a508bdcc1b2f15bfac36a628",
+      "bytes": 6032,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/assurance/exact-comparison.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/assurance/feedback-fixtures.js",
+      "sha256": "e74f9401051b3d6a160f428dd82582825095dd76722564e5d6abc42845cdcc02",
+      "bytes": 6341,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/assurance/feedback-fixtures.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/assurance/freshness.js",
+      "sha256": "ebfa6aa481eece69f2dc5c00d0bd00ef110db8c78977c083de20d0b6ee8cc546",
+      "bytes": 6024,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/assurance/freshness.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/assurance/generation.js",
+      "sha256": "f0f895495d38be205d26418bb1a38cd43c57f3eac752d238e4bb836295a34408",
+      "bytes": 1193,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/assurance/generation.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/assurance/index.js",
+      "sha256": "c7b1159f02a32c9bd4047b56ab9926e5a6eb294b0c2811b786deaa9b64d18a57",
+      "bytes": 1932,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/assurance/index.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/assurance/observability.js",
+      "sha256": "7387ffab3bfa549cc92d9b112ad2967f81dadd225aa146bf14bfc27c0cc78ef4",
+      "bytes": 2193,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/assurance/observability.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/assurance/operating-frame.js",
+      "sha256": "82e2b8bc890673d5a79318bf0b8bbfb4100e8841a1c4f3f7be123aef77b11813",
+      "bytes": 12506,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/assurance/operating-frame.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/assurance/policy-pack.js",
+      "sha256": "e934e4169107aaa48a06a73494ac79ff3ab5ab3a507f715d8eaeafb8fa40ca0f",
+      "bytes": 21533,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/assurance/policy-pack.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/assurance/prompt-block.js",
+      "sha256": "fd95c10084ca7fa6488792017b7981759dd43909f9084528037c6b64d3e347c8",
+      "bytes": 5440,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/assurance/prompt-block.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/assurance/recommendation.js",
+      "sha256": "1e8814b203d7b9727a09897d4ea0b65ea45ae9baebaf19ba8b2ec1e5b361a4ca",
+      "bytes": 3443,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/assurance/recommendation.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/assurance/request-scope.js",
+      "sha256": "c6d9678052eb44e59f091b7e2ecff5207206ddba6df3746e7a99f7fbea94895e",
+      "bytes": 1033,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/assurance/request-scope.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/assurance/risk-gate.js",
+      "sha256": "bb4176f88f0edf8f35c71746fb5991aadeeffe29b441665056bc4019a4207a93",
+      "bytes": 9627,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/assurance/risk-gate.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/assurance/rollout.js",
+      "sha256": "62d0104e7ed69a101a2de5f7370a863f16221e840e95f09b2620338558306ea9",
+      "bytes": 2597,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/assurance/rollout.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/assurance/tool-ledger-adapter.js",
+      "sha256": "fcea9efe974da417b0509527fe3bbd95d83075ad8db8ec8a079aca3aaaf22e1f",
+      "bytes": 30276,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/assurance/tool-ledger-adapter.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/canary/canary-report.js",
+      "sha256": "435fb5f3f014253064d7b043e8af76328ffc24fe32abe43bb9a562f1fdeb5677",
+      "bytes": 16871,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/canary/canary-report.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/canary/limits.js",
+      "sha256": "95c0f55090b3bb1c62802edc9d9354820ce5736e5d9c3a296d744f8f94837fdf",
+      "bytes": 1129,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/canary/limits.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/compliance/action-approval.js",
+      "sha256": "b11b6c60a6978a4a6045b00e0d51f93d615fb6b6e0b48f79332cc9cd9fc6a6ed",
+      "bytes": 4834,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/compliance/action-approval.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/compliance/approval-gate.js",
+      "sha256": "6a6b8a907cdcbbaaaf69f7949f4d8abbabbb70962706f8b61099e2c7d835d261",
+      "bytes": 4395,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/compliance/approval-gate.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/compliance/compliance-rules.js",
+      "sha256": "1222f15bc0e8af8fecf2df153fc9c3314d1e8e45dcb6e1f861bc636a479bfeff",
+      "bytes": 8914,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/compliance/compliance-rules.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/context/capture-evidence-receipt.js",
+      "sha256": "25bff66bb5aaecf5ffccff721a9ec7259250db52dcd179febca30cf548888455",
+      "bytes": 20364,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/context/capture-evidence-receipt.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/context/case12-setup-binding.js",
+      "sha256": "83eba9c5f77b4b4f884990cb490436710ec842ab34fd15860605baec712001dc",
+      "bytes": 1999,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/context/case12-setup-binding.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/context/compiler.js",
+      "sha256": "77a7ead9fe7adb729369835ba277f66f5e6d6d6aff0fc50a4407d056559783ac",
+      "bytes": 28519,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/context/compiler.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/context/context-release-switch.js",
+      "sha256": "c6753566dc5e6fdfd8f97af73cad0f829db0b6e8a4900ef84b04b2d03d7450c6",
+      "bytes": 4357,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/context/context-release-switch.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/context/context-rollout.js",
+      "sha256": "c45e73f840eeb6dac2b3a708cc960509b76d10199129683a4749141f3d479bcd",
+      "bytes": 12651,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/context/context-rollout.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/context/contract.js",
+      "sha256": "0fc5d04145b411c063a7af3d8a704afd1d542da32a283c94708dd15eadff431d",
+      "bytes": 1360,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/context/contract.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/context/coverage-aware-packet.js",
+      "sha256": "9c47f79b66d028b7f286313f2669bd1371f6dc3af6f85191188f96986b300bfd",
+      "bytes": 7399,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/context/coverage-aware-packet.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/context/governed-artifact-capture.js",
+      "sha256": "1107093f39090cc44e484fa60fd581096988801ad1a129c70a88af0ffd1cc2bd",
+      "bytes": 7072,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/context/governed-artifact-capture.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/context/governed-columns.js",
+      "sha256": "b93291d0dd99abeec576edcfa18442e0be5ed67d8af8f46dbc1fe41f3c6a6c6e",
+      "bytes": 3635,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/context/governed-columns.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/context/governed-evidence-auth.js",
+      "sha256": "ff2e942d1c26695de50eecd9d90606543d2e3904566bded6c233d35934ca427e",
+      "bytes": 5315,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/context/governed-evidence-auth.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/context/layers.js",
+      "sha256": "7ccc6c40b2147d7b1bc1a0b548d50cbea18d26671c5558c5fdf27342ae8da163",
+      "bytes": 3196,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/context/layers.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/context/memory-capture-source.js",
+      "sha256": "64d3570d0ac849d5d1ed3b26d717aca1a170fbff85d32d3dfd95d74b8584c184",
+      "bytes": 8208,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/context/memory-capture-source.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/context/meri-explicit-subject.js",
+      "sha256": "64116a58e3845f427663ef0a4bb55a7a930ddf6b85d333823b64937e248c9bff",
+      "bytes": 6579,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/context/meri-explicit-subject.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/context/operation-enforcement.js",
+      "sha256": "8f720993cc1a7944f249cc521a383cd3a0deffa8413091985740b4a104d3bbb9",
+      "bytes": 5543,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/context/operation-enforcement.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/context/research-plan-execution.js",
+      "sha256": "e42e971100c8977e13429c7a5405164a81cbacba09c7ba6cb645c28205272bda",
+      "bytes": 4657,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/context/research-plan-execution.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/context/server-readonly-capture.js",
+      "sha256": "785a409ce18730c9335172c16e6cf2d2d46de0c485c575c3cb203deb10577b08",
+      "bytes": 6099,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/context/server-readonly-capture.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/context/surface-policy.js",
+      "sha256": "a623435eaf48d0d94a3cb5bf9c8672540fc7fcfadb3893ec447bc82a3750dcc4",
+      "bytes": 7866,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/context/surface-policy.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/context/synthetic-read-budget.js",
+      "sha256": "b89724313aa0298b1cbb1e5dc9e3f231c2bff149e7ef6a581a622f2905f7b2e6",
+      "bytes": 1368,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/context/synthetic-read-budget.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/context/token-budget.js",
+      "sha256": "9b204a454cb3e873abff80037bdc0a0d08f6a0e61973bd0ef61005aa28db9a63",
+      "bytes": 2239,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/context/token-budget.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/context/truthful-compiler.js",
+      "sha256": "9fcddfb24e3243ad7baa76c070ff40a38b9cb3ad7c1da3a9cbf55c57f83422e5",
+      "bytes": 5062,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/context/truthful-compiler.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/domain/domain-primer.js",
+      "sha256": "487d49227e10befef2924a35177820e9a65b1f16418374b186688fc47b45ad14",
+      "bytes": 4958,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/domain/domain-primer.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/domain/government-affairs-output.js",
+      "sha256": "267c0647f1bda745b5fb07a6483db2a8a0a2b40ef5f980ac6d81cd3d3bd7f29e",
+      "bytes": 10056,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/domain/government-affairs-output.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/evaluation/contract.js",
+      "sha256": "e3b9efbb75d7a684e5912276e22e8cb8c70159b73e8dcd39ce25bc436075e27f",
+      "bytes": 10939,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/evaluation/contract.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/grounding/auditor.js",
+      "sha256": "3e4aff0845b40a9f1626c7b9ec32c3fca92d621a3792149d44a4c3604b2566ff",
+      "bytes": 53171,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/grounding/auditor.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/grounding/claim-gate.js",
+      "sha256": "e27928a928185c4a5d0f13355eff23c8cec4f5ddd0baf1374c18f181e654a1ff",
+      "bytes": 9833,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/grounding/claim-gate.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/grounding/claim-inventory.js",
+      "sha256": "d8161b88f942dcb398ae0546046d205579295f9f03ae91a87fd2bb50c70972bf",
+      "bytes": 8868,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/grounding/claim-inventory.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/grounding/claim-map.js",
+      "sha256": "fc3f6311a7a09fd362883e3b04d18fe06364392e35e0514570352b67e79ad6f1",
+      "bytes": 851,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/grounding/claim-map.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/grounding/evidence.js",
+      "sha256": "703623ee694b99df796be757f109f813480750a283abdfd785f305a2c23c684e",
+      "bytes": 14142,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/grounding/evidence.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/grounding/exact-source.js",
+      "sha256": "0d83cc8f0ca8185f8f4238ecc2cc5dd7f8b1a8cb9c9f8786f108b360802eda37",
+      "bytes": 6270,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/grounding/exact-source.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/grounding/grounded-json.js",
+      "sha256": "fe1a59dc3a5d4547689c62b5fed62b96e912c510faf70ea76f09c7352d90634b",
+      "bytes": 6997,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/grounding/grounded-json.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/grounding/match-label-extractor.js",
+      "sha256": "4da68f15d2c9f481352feeb8cc7c701eac5cadd30a6746e945f17b5b4966422a",
+      "bytes": 1851,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/grounding/match-label-extractor.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/grounding/match-label.js",
+      "sha256": "8a0f87bb6c3b6d062fde27a7bc46018c7dfa131750e864654587185ab197f55c",
+      "bytes": 5376,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/grounding/match-label.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/grounding/skeptic-audit.js",
+      "sha256": "5674189ea958c55239ff72a817aef68e28b6b7e2a765eb05810d0d73bb502012",
+      "bytes": 8394,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/grounding/skeptic-audit.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/grounding/skeptic.js",
+      "sha256": "08483abbcdc7a7a7a7a4cac4c67787cc2a14a0cea5e9ff3ce0b50e43aa7a65f0",
+      "bytes": 6664,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/grounding/skeptic.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/grounding/status-provenance.js",
+      "sha256": "96a690b968fd91edd70fa8ef5b3ac6bea8fc25914b97482ac0ef35ddbf9f640b",
+      "bytes": 7954,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/grounding/status-provenance.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/ids/canonical-ids.js",
+      "sha256": "653befa2c2ffd3a7c3d9db98453803258ad4945af261efd07e3470fbfe494bbb",
+      "bytes": 2734,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/ids/canonical-ids.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/index.js",
+      "sha256": "0e76cd022c0926ee1a7762fd4af4d94d2647559b2e9e33cdd97ac9fb59fb7066",
+      "bytes": 7032,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/index.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/intent/action-intent.js",
+      "sha256": "7658cf77c01e1ce4498766845e57a6d029a6d65a41f8569b6d3ff3cf10cf4141",
+      "bytes": 6646,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/intent/action-intent.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/intent/intent-router.js",
+      "sha256": "f653c30a8caf1e4b7f77a3f25378ffcd54dc3b14a2d95179405fb2a1545bb727",
+      "bytes": 3933,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/intent/intent-router.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/jev/bd-claim-question.js",
+      "sha256": "7300dc5de8943053944dc9df23db3c4d49794de471be70eb7c47bc5df673aaef",
+      "bytes": 8092,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/jev/bd-claim-question.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/jev/bd-entity-question.js",
+      "sha256": "6f2f506881667ebdc7fa74a7a98fc2392d7c3d6fbf27de800c6b6af5ccbddaf4",
+      "bytes": 4953,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/jev/bd-entity-question.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/jev/bd-fixture-schema.js",
+      "sha256": "027b6efa272c6e270f71f4109dc906f835994191b3b2dca3fa54568e0c2b4a07",
+      "bytes": 14617,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/jev/bd-fixture-schema.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/jev/bd-signal-question.js",
+      "sha256": "11b52806eb50b6e3963a69d873d325f4eed9fe6d74edd1a3b401b7118b055b86",
+      "bytes": 5765,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/jev/bd-signal-question.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/jev/calibrated-cascade.js",
+      "sha256": "c67fa91d17019b053d310eb9b8ddcdf752040ad31a718ebb113dc81148b1f6e7",
+      "bytes": 6545,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/jev/calibrated-cascade.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/jev/claim-support-question.js",
+      "sha256": "1b189047ba72bb348a4af0b7275ecb95cbcb125c0f34ca98febcb5a7278dfbd7",
+      "bytes": 2294,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/jev/claim-support-question.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/jev/client-fit-provider.js",
+      "sha256": "81e0d133e6a840548d07cec56cef402a81f58d69c3d06b26a65b9ab3b2a55cb1",
+      "bytes": 4053,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/jev/client-fit-provider.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/jev/client-fit-question.js",
+      "sha256": "7ade897219a1ff2f2a165f34b2a539248b5cea04ff857079384239251598e3f9",
+      "bytes": 4420,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/jev/client-fit-question.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/jev/decision-cache.js",
+      "sha256": "52fdd5a8c164f672069eec219d84a65d5299998bfc344301a633019dfb763c35",
+      "bytes": 3335,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/jev/decision-cache.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/jev/decision-contract.js",
+      "sha256": "b849ecefad304d667c3d58f53de3e072ab70ba49ca6bc9a6a688b2b40c42ae1c",
+      "bytes": 4258,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/jev/decision-contract.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/jev/evaluation/bd-task-gate.js",
+      "sha256": "132b559058030446ac31067e2a50095675922339e2f09483783126a9074b8d5d",
+      "bytes": 18591,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/jev/evaluation/bd-task-gate.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/jev/evaluation/calibration.js",
+      "sha256": "9239fd69b58d60788cbd2aa4f8ba8fb42351fdc4603b63b662f2083e20f44aec",
+      "bytes": 2314,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/jev/evaluation/calibration.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/jev/evaluation/package9-economics.js",
+      "sha256": "bbb4a3abca514234fc5434b1ebaa58ae7f3b4e0709b4e8f265b94c2311cd1518",
+      "bytes": 6795,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/jev/evaluation/package9-economics.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/jev/evaluation/shadow-events.js",
+      "sha256": "7947e56421d6a46e744ee4f8f404a848699c782041b9a251a8c3f887f5383fe1",
+      "bytes": 7128,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/jev/evaluation/shadow-events.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/jev/evaluation/shadow-report.js",
+      "sha256": "7fcf82d25f85b7d6c68e507833c24d834bb8f63a882cc581f1401aeb1e4802e5",
+      "bytes": 10826,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/jev/evaluation/shadow-report.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/jev/evaluation/task-paired-evaluation.js",
+      "sha256": "18e1d99de72b50e3923d54aff0133d19151d7c8ff71be8729ada1e3587b0c74f",
+      "bytes": 5030,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/jev/evaluation/task-paired-evaluation.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/jev/evidence-envelope.js",
+      "sha256": "7ef94eec037b5a295c5bac5b9f984db28318dfef8473f3d744fd3e26314881bc",
+      "bytes": 7890,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/jev/evidence-envelope.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/jev/evidence-selection-question.js",
+      "sha256": "130a322a3f7817d0cff28919385216e1741e1f39107eb698bb3306ba567aabfb",
+      "bytes": 3595,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/jev/evidence-selection-question.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/jev/fixture-schema.js",
+      "sha256": "82184a91cfcf580e9ed87cf8163df3bc1a9598570180a1d7df06cda5476c5f4b",
+      "bytes": 1982,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/jev/fixture-schema.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/jev/index.js",
+      "sha256": "e084b7fdf85e6671aac98771715e3b2dee39c131c402f5456ac6a1ab089c6555",
+      "bytes": 2739,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/jev/index.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/jev/jev-client.js",
+      "sha256": "700753ff79bf05ab6803f289fa2d4fe81297fd1cf1a278961008236ba299f7df",
+      "bytes": 14139,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/jev/jev-client.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/jev/jev-config.js",
+      "sha256": "29d39255fb1c608ba731e6b1b7d1bdc4935db92019401fdc69c567decce4acc4",
+      "bytes": 3108,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/jev/jev-config.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/jev/jev-decision-provider.js",
+      "sha256": "616ffbedca99d2468e67a52153a63229e52a4da88bffe6d25d272dbc02c4a99f",
+      "bytes": 3689,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/jev/jev-decision-provider.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/jev/mention-scope-question.js",
+      "sha256": "d3f61507b51b65b7abf1d9aaeef4bc5f19f51849877b32f8bd07bcd45abc464f",
+      "bytes": 3386,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/jev/mention-scope-question.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/jev/program-identity-question.js",
+      "sha256": "d9a0a930df8a76e725c96c89d4e49ab1d5d72f9b936046e4daec61aa321e6257",
+      "bytes": 3318,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/jev/program-identity-question.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/jev/replay/paired-evaluation.js",
+      "sha256": "d9007e14c25f36a94f643068c155bbd25caa7988e45dcb0c49c0bf73403f5231",
+      "bytes": 4201,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/jev/replay/paired-evaluation.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/jev/replay/recorded-decision-store.js",
+      "sha256": "4d5e223b5198b1796310cf3ebf380ed4b4f32aedcc566c06d19b76e036e909e3",
+      "bytes": 3194,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/jev/replay/recorded-decision-store.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/jev/replay/recording-decision-provider.js",
+      "sha256": "e47faf296883bd4c66620c6a89da2aec07449243262eb1f6c1b0f7a9f0f4ff56",
+      "bytes": 1712,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/jev/replay/recording-decision-provider.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/jev/replay/replay-decision-provider.js",
+      "sha256": "db100a9ba5e7aac1777347ce060c188ff61af1e075a26c15a315427b5abb811d",
+      "bytes": 3145,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/jev/replay/replay-decision-provider.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/jev/skeptic-adapter.js",
+      "sha256": "db03b22df362d6afbb4d26298535ba513b5cb6abecfe6155797bca51b8f13622",
+      "bytes": 2269,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/jev/skeptic-adapter.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/jev/status-selection-question.js",
+      "sha256": "2c39b76e0406937fb02753625313b639ec0efbb5bfe773ac05b3cdd2167209e1",
+      "bytes": 1988,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/jev/status-selection-question.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/jev/task-choice-provider.js",
+      "sha256": "3c279896a2abee2e97b8cbee44bf8833680a94570570f5effd927d093782d224",
+      "bytes": 10226,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/jev/task-choice-provider.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/jev/task-evaluation-fixture.js",
+      "sha256": "e29539a5eb4c2a00f39b0e58c045ed93ce5891beab93dc5d1dfb4a4be8599e4a",
+      "bytes": 5000,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/jev/task-evaluation-fixture.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/jev/task-registry.js",
+      "sha256": "37cff1f0762bd43df5cd5b6ef2c56e78e69b858ad463b4b526fbe608e06ba319",
+      "bytes": 26279,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/jev/task-registry.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/learning/candidate-contract.js",
+      "sha256": "091024e5e1fde9989437667c83f68460097ed7aeb796e88dd185dcafd18211bf",
+      "bytes": 5941,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/learning/candidate-contract.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/learning/conflict-contract.js",
+      "sha256": "7bbd9e7f00692c2fd4d21fdc50b7159f1179c9b396bf4b1f33eb3327117e03b7",
+      "bytes": 5045,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/learning/conflict-contract.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/learning/contract.js",
+      "sha256": "07b225849d10ee7d0186ab3d56b881c9172ebfbb01172d5703b64c098207fee0",
+      "bytes": 8806,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/learning/contract.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/learning/rollout.js",
+      "sha256": "1ccf5c1a7929b535604420d8cc9e1dd889c0a8c761eee69bda26586331c1761a",
+      "bytes": 2613,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/learning/rollout.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/llm/llm-client.js",
+      "sha256": "35793aaf6c92cc4802f79ee132c162f41fef2cf97074d6207bd8387186b106b7",
+      "bytes": 27829,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/llm/llm-client.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/llm/openai-responses-adapter.js",
+      "sha256": "549a8909ba8626fc59bb1101f165a965b16dc2eb379d02e752ea3bde3489d14d",
+      "bytes": 4233,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/llm/openai-responses-adapter.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/memory/governance-rollout.js",
+      "sha256": "6a2a039fedf340c6474e97d5142c46dc41ae286bab68d256dded6e17ba7de4bd",
+      "bytes": 1615,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/memory/governance-rollout.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/memory/governance.js",
+      "sha256": "a09c970326c112b881419946728b993464093e284b7de062b45d833295801eec",
+      "bytes": 19774,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/memory/governance.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/observability/meri-joined-telemetry.js",
+      "sha256": "7e991e746fbb582d989f90ec2bd229b995b9dec1fb7130162eb20e214bad8790",
+      "bytes": 14074,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/observability/meri-joined-telemetry.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/observability/meri-otel.js",
+      "sha256": "8acee2934ca43267e57a735669b6c0e939575c85ef857d6f3ba2263cbf6c6af2",
+      "bytes": 10950,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/observability/meri-otel.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/quality-telemetry/contract.js",
+      "sha256": "5971c41678f7d5630ecd74bc02d261c5e87c880556e50fc40c49b1f3ecc8f3fa",
+      "bytes": 7626,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/quality-telemetry/contract.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/registry/in-editor-tools.js",
+      "sha256": "c9bcd59329830a024888109357b6cb5147d73dcbf204162b27ca5320cc737cb4",
+      "bytes": 4899,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/registry/in-editor-tools.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/registry/tool-execution-control.js",
+      "sha256": "13224ff9fc8f63335c7bb7dea8881eebdda4f88599470a4e5d74e63d2faf77c3",
+      "bytes": 530,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/registry/tool-execution-control.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/registry/tool-execution-metadata.js",
+      "sha256": "8786b8b3ff58864a5c3912395308bb31afd04180c65f3127d11efe5b487286cb",
+      "bytes": 5012,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/registry/tool-execution-metadata.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/registry/tool-registry.js",
+      "sha256": "2c6fdf20a17509887f2ad070ab03f38778b159ec63d633cf9afdb352cc543ed9",
+      "bytes": 2420,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/registry/tool-registry.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/registry/types.js",
+      "sha256": "c24c29be942f22453c81e6c456f90706d39bce69a728b214ebb5d8c96f781061",
+      "bytes": 1590,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/registry/types.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/repair/assemble.js",
+      "sha256": "acd684a029777e77b2cba73a0821a0bd05dc76e72c075aebbd18d072931d766c",
+      "bytes": 2297,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/repair/assemble.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/repair/index.js",
+      "sha256": "4ab9c2e2bb1f25fe960f44d4f53604826112ea106b5483c5146cb2178b4d4498",
+      "bytes": 1116,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/repair/index.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/repair/plan-remedy.js",
+      "sha256": "ae78f51b2765ceb1d030a26733ff22c4f7550a6e8367c1618650c61ef8595b91",
+      "bytes": 5451,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/repair/plan-remedy.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/repair/recheck.js",
+      "sha256": "1736d9dfebe4133315cbe9920ed96f5e66ae354ffe75fec25740fc50317607ac",
+      "bytes": 5148,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/repair/recheck.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/repair/revise.js",
+      "sha256": "c115311fdeef8a0d9a922ddfa2721294deb746446977e6e45b9ee77fc5859273",
+      "bytes": 2252,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/repair/revise.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/repair/run-repair.js",
+      "sha256": "fe0b012e1f14585088389a7361166c4d40fc95e3173a76427c794aca9b2a66d0",
+      "bytes": 20271,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/repair/run-repair.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/repair/tool-executor.js",
+      "sha256": "12ea56714166b20cc5de5b357b5d86ff979556da3ebda0da56f1484b7ff2c9da",
+      "bytes": 2188,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/repair/tool-executor.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/repair/types.js",
+      "sha256": "b0d2bc4142d0c62d43f996aaeb64f22c4889ac853f8a3765758b505d972d0149",
+      "bytes": 110,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/repair/types.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/rollout/auto-correction.js",
+      "sha256": "030807b0221b0e79e8fb19bc1164a358e421cbe330f1f60e91c9e31e563e60b0",
+      "bytes": 1870,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/rollout/auto-correction.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/rollout/capability-rollout.js",
+      "sha256": "41ec9f084b46d91fad5a9d0ba9a3a3636b8ff51ec2eb9bd1348a103e8054615d",
+      "bytes": 2953,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/rollout/capability-rollout.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/rollout/claim-assessment.js",
+      "sha256": "25ae6c40ec32f1a0da6ce9b6a043bb0d039ecf0cb705e056c694cbbbc810241a",
+      "bytes": 685,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/rollout/claim-assessment.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/rollout/coverage-retrieval.js",
+      "sha256": "a04ae25a4e0cde414be33c4cbb0586db68bea66f28af178c60ba72e7b6510588",
+      "bytes": 869,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/rollout/coverage-retrieval.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/rollout/evidence-accuracy.js",
+      "sha256": "b57c73afd916dfc7154ed5e3a6f946426aa744ad4f218b6921a63272ee810d77",
+      "bytes": 896,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/rollout/evidence-accuracy.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/rollout/evidence-profiles.js",
+      "sha256": "a75c68a016dbe9dac5178ba6cab451aa7fae8123da16e73fc838cc1aaa61dd71",
+      "bytes": 857,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/rollout/evidence-profiles.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/rollout/jev-cache.js",
+      "sha256": "ce6ac3372afcea3d57bf279ca9d272e063380e1f4d9a5a493ec30e9a6274d148",
+      "bytes": 733,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/rollout/jev-cache.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/rollout/match-label.js",
+      "sha256": "00105870e8fafdfc174d16d432346784648d4936eb3a38bea6c55b183fde0650",
+      "bytes": 862,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/rollout/match-label.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/rollout/passage-selection.js",
+      "sha256": "fc21472a46e16e82c9cb9c6ff635a5397a4f305cf15ec1b1ae4005129f4380d5",
+      "bytes": 857,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/rollout/passage-selection.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/rollout/status-provenance.js",
+      "sha256": "684289f7f21586b36b34a54f029ed71abb9749eed19f104d62239908d3763381",
+      "bytes": 1037,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/rollout/status-provenance.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/rollout/tokens.js",
+      "sha256": "13781bbe6c9165e2014d53ecfb67af6b375e7da4cf16cee43df2504dfa70c079",
+      "bytes": 349,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/rollout/tokens.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/scoping/scoping-wrapper.js",
+      "sha256": "ed64ef1abe339198e7111fcee0d256bc3f2d037dac34d75ec77d63d06a5b74c3",
+      "bytes": 1712,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/scoping/scoping-wrapper.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/security/tool-result-wrap.js",
+      "sha256": "7d4381e869436a302adf6ab6d9b260db7037fe2599a573c4707f02cf27b3532c",
+      "bytes": 5042,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/security/tool-result-wrap.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/tools/client/get-client-context.js",
+      "sha256": "00db975064085f105bd3e0147735ee62ffbe2765f8a5dfafe17e2bd6ee27539e",
+      "bytes": 1936,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/tools/client/get-client-context.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/tools/delegated/delegated-tool.js",
+      "sha256": "168807c8035bf15a9dc9776a30be25addc81e6c397de614653268b21af7aefa3",
+      "bytes": 1274,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/tools/delegated/delegated-tool.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/tools/hearing/generate-editorial-brief.js",
+      "sha256": "77f7bc5663f1ecac3e131e7659a933a715816aa3f5dc41f18b150af6c2a00727",
+      "bytes": 5834,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/tools/hearing/generate-editorial-brief.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/tools/hearing/generate-post-hearing-summary.js",
+      "sha256": "00ca7bb16690e3ac7931d8554c1c810739f32b4b67ec8b20340a845c8a646be1",
+      "bytes": 46857,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/tools/hearing/generate-post-hearing-summary.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/tools/hearing/generate-published-record-brief.js",
+      "sha256": "f6e574ee9663c58f2bea28058192239a1c59701e13d64fa3b802f13060ed3dd7",
+      "bytes": 11356,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/tools/hearing/generate-published-record-brief.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/tools/hearing/tag-live-policy-mentions.js",
+      "sha256": "bf29c33122450bb228dc36dd9e62660319f1ead47a2325242130320ea8cd6e58",
+      "bytes": 5199,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/tools/hearing/tag-live-policy-mentions.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/verifier/confidence.js",
+      "sha256": "defd602d251e49e4b3196b7d2e663fa25fde453a71d5ba9da2de8346de9cc62c",
+      "bytes": 1175,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/verifier/confidence.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/verifier/grounding-sources.js",
+      "sha256": "2dd19f83a380f5e38522c59d2a296040cfea78e783dafc20c176689e7aec1f69",
+      "bytes": 3585,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/verifier/grounding-sources.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/verifier/pe-structural.js",
+      "sha256": "eab22fcec145e72d5c1fa36177f9c4014cf23efadbd182b403d67d6fbb40a882",
+      "bytes": 7713,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/verifier/pe-structural.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/dist/verifier/verifier-claims.js",
+      "sha256": "b6c7e1230a3e55dbecacf74265850ee209e10563960dea75224ccef8e31fd949",
+      "bytes": 3000,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/dist/verifier/verifier-claims.js"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/packages/meriv2-core/package.json",
+      "sha256": "f0a5a46d51feb96fa87cff1987d1da50f7303edac912ffb6d9b07f9d75f048af",
+      "bytes": 4362,
+      "relativePath": "dependency-snapshot/repo/packages/meriv2-core/package.json"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/dependency-snapshot/repo/pnpm-lock.yaml",
+      "sha256": "c90a15fc2ca3c9405062444adfdb346293d27f51a45488476db891f4c3204586",
+      "bytes": 723417,
+      "relativePath": "dependency-snapshot/repo/pnpm-lock.yaml"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/finalize-composition.mjs",
+      "sha256": "92373eb7e9fcbe8942dce5c75497e126e448fbb470fc006c45944aed2b53c871",
+      "bytes": 2703,
+      "relativePath": "finalize-composition.mjs"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/freeze-packet.py",
+      "sha256": "d5bc70001c1c17e03524b28263f767986b929c29a10b908eff655460d0ceaa53",
+      "bytes": 8912,
+      "relativePath": "freeze-packet.py"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/generated/case12-memory-current-owner-harness.mjs",
+      "sha256": "e3823c245b69a6b1cd238855264754d0f2066e892b894f6114f314b34762aa7c",
+      "bytes": 11255,
+      "relativePath": "generated/case12-memory-current-owner-harness.mjs"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/generated/case12-memory-current-owner.mjs",
+      "sha256": "abd23a41d09fddce34c5acab312e1a693d1cb64307805fd19b4de08ea7968f9f",
+      "bytes": 25597,
+      "relativePath": "generated/case12-memory-current-owner.mjs"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/generated/case12-memory-current-owner.test.mjs",
+      "sha256": "faec29a8ee190b083e98d4e778d6c769a6bab39f3b784ab4986bec3e5177849c",
+      "bytes": 7733,
+      "relativePath": "generated/case12-memory-current-owner.test.mjs"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/generated/case12-memory-eligibility-owner.mjs",
+      "sha256": "2d4273241ae9a919be379e2aa56072ef34add9087e1113c889b0566fcc807fbe",
+      "bytes": 4191,
+      "relativePath": "generated/case12-memory-eligibility-owner.mjs"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/generated/case12-memory-inventory-owner.mjs",
+      "sha256": "75647629fd0a9d6a0ee036b8917c898dec4611438d5c4d35cf69210feb1efa22",
+      "bytes": 18764,
+      "relativePath": "generated/case12-memory-inventory-owner.mjs"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/generated/case12-memory-inventory-owner.test.mjs",
+      "sha256": "7ab5b80abef927985e7fab9b44fdb93459f72e411490fd73b422226ddf05712e",
+      "bytes": 25354,
+      "relativePath": "generated/case12-memory-inventory-owner.test.mjs"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/generated/case12-memory-setup.mjs",
+      "sha256": "cdb55c2654636d82cc7ee17c4ba070761c2cb52a4be97db95cf1c2ecd85da592",
+      "bytes": 36920,
+      "relativePath": "generated/case12-memory-setup.mjs"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/generated/case12-memory-setup.test.mjs",
+      "sha256": "c0789371bb9947676f60e3182959610bdab360e61831498913fe2c70092935cd",
+      "bytes": 5077,
+      "relativePath": "generated/case12-memory-setup.test.mjs"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/guard-typecheck-v1-failed.ts",
+      "sha256": "37ba3b49c508368ad104774c305184ab3b86481626fb15e40e2a0aac4a1fdc92",
+      "bytes": 16320,
+      "relativePath": "guard-typecheck-v1-failed.ts"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/hermes-supervisor-disposition-v2.json",
+      "sha256": "0da5dd751cf5f8b45bfc861f199ed15fd9e95015d7e9eb61a9c9252f630003b2",
+      "bytes": 1589,
+      "relativePath": "hermes-supervisor-disposition-v2.json"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/hermes-supervisor-disposition.json",
+      "sha256": "eb901c1be982fbe264a693eba31e78cd8c9a1cee20917007b366f9d14d6a2392",
+      "bytes": 557,
+      "relativePath": "hermes-supervisor-disposition.json"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/legacy-regression-v1.log",
+      "sha256": "a69ab728e40d3a96863a0730a6e5f7571281802c01ed5a6f730fed0ab4b2f47a",
+      "bytes": 33902,
+      "relativePath": "legacy-regression-v1.log"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/legacy-regression-v2.log",
+      "sha256": "a8532520af7af71addae9849b7c353378c665f68d26cb3a392a9dbb1cba684da",
+      "bytes": 6080,
+      "relativePath": "legacy-regression-v2.log"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/legacy-test-loader-map.json",
+      "sha256": "65750a6ca58ec804eab253c6a81c5d01583cdf8bcf8a6db221024dc680e1dc2c",
+      "bytes": 1972,
+      "relativePath": "legacy-test-loader-map.json"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/mjs-test-loader-map.json",
+      "sha256": "79dd1dd43a1f2a428395905e6a20c8e1916489f10d9e1cb882bb320f9dbea422",
+      "bytes": 2059,
+      "relativePath": "mjs-test-loader-map.json"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/native-batch-differential.test.mjs",
+      "sha256": "467361a5edcce883618e03046494bc2a8bfdcb187623dede7a26c82ab4546f11",
+      "bytes": 10932,
+      "relativePath": "native-batch-differential.test.mjs"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/native-batch-smoke-result-v1.json",
+      "sha256": "9f219ef0770e973fe054babc2a87df77923b00774e3ac68e255d46372d708545",
+      "bytes": 991,
+      "relativePath": "native-batch-smoke-result-v1.json"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/native-batch-smoke-v1.log",
+      "sha256": "d8d8d70edae7e0ec166bde7d275cc327ca704e9850c9a875ce325cf348d32d49",
+      "bytes": 396,
+      "relativePath": "native-batch-smoke-v1.log"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/native-batch-smoke.test.mjs",
+      "sha256": "bdfb861fa3990d2976ed5c0214c33a0973e901816d4a41238955e753b8f04db7",
+      "bytes": 3572,
+      "relativePath": "native-batch-smoke.test.mjs"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/native-differential-progress-v1.json",
+      "sha256": "54c041491590c508e3199fe1c55753bb18367c0d4632b9cd3dab01e178da9ce8",
+      "bytes": 3469,
+      "relativePath": "native-differential-progress-v1.json"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/native-differential-result-v1.json",
+      "sha256": "f3676ae4f14f9e30e81e798ec2e1aabb3ff9ba91a8f9a064afd0a08f0a65b467",
+      "bytes": 12793,
+      "relativePath": "native-differential-result-v1.json"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/native-differential-v1.log",
+      "sha256": "fb1862c617fced9cf723d337e20af0f172dafec81b24dfa3c58f17027358706c",
+      "bytes": 2158,
+      "relativePath": "native-differential-v1.log"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/prepare-mjs-test-loaders.mjs",
+      "sha256": "080865fdd8a52becb22b903cc41956d84b77682cd6a9ec280db8593e89a2d746",
+      "bytes": 1549,
+      "relativePath": "prepare-mjs-test-loaders.mjs"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/proposed.patch",
+      "sha256": "4a6e31973ebe0731d3e279b32d1325418c74e263e4bfb62b4d088ef0756fdcd2",
+      "bytes": 35910,
+      "relativePath": "proposed.patch"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/README.md",
+      "sha256": "21c51125fa738addb054622993de6a4aac1a29f20b3b90cdba56d5a6cbfcfe88",
+      "bytes": 3118,
+      "relativePath": "README.md"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/restoration-readback-differential-v1.json",
+      "sha256": "678e9576376381d9a5ab057def5ef1e689321ae8cb60292ca1069970db844e76",
+      "bytes": 10593,
+      "relativePath": "restoration-readback-differential-v1.json"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/restoration-readback.json",
+      "sha256": "1ff77aaff567ee76c61251617c32d45ddbc76c4862d3c1a44a94c2f14be05e3c",
+      "bytes": 2242,
+      "relativePath": "restoration-readback.json"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/restored-local-harness.mjs",
+      "sha256": "2809bd82bcf4df3d5db16de09e14749c0437bfbc1b667f489b17022e7395155b",
+      "bytes": 4969,
+      "relativePath": "restored-local-harness.mjs"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/scratch/apps/api/scripts/meri-case01-setup-dependencies.mjs",
+      "sha256": "18905be36fa4c2873485379ebbebaaefdc23d336afe73cc8d8e4998fcbcd1778",
+      "bytes": 11048,
+      "relativePath": "scratch/apps/api/scripts/meri-case01-setup-dependencies.mjs"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/scratch/apps/api/src/memory/case12-synthetic-approved-memory-set.read.ts",
+      "sha256": "59cbbdbf30adae760874ac3e49888904559c5b4eeadfc7aeab96f5317113cf97",
+      "bytes": 16316,
+      "relativePath": "scratch/apps/api/src/memory/case12-synthetic-approved-memory-set.read.ts"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/scratch/apps/api/src/memory/memory-authorization.service.ts",
+      "sha256": "65331cb6735a79d8589bee389c3b2ebba1bd088ef89ec10c71f864bbe6699320",
+      "bytes": 12831,
+      "relativePath": "scratch/apps/api/src/memory/memory-authorization.service.ts"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/scratch/apps/api/src/memory/synthetic-approved-memory.helpers.ts",
+      "sha256": "8451534ad56fdda936c7ce5c1961c68e0172d61ab2be45872e6d1b93da21ba22",
+      "bytes": 13474,
+      "relativePath": "scratch/apps/api/src/memory/synthetic-approved-memory.helpers.ts"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/scratch/evals/meri/live-v1/fixture-provisioning/case12-memory-current-owner.mjs",
+      "sha256": "8707b5598f861048eda384168c4da5e6230343891280fd2c833ad1fbaff2b529",
+      "bytes": 25222,
+      "relativePath": "scratch/evals/meri/live-v1/fixture-provisioning/case12-memory-current-owner.mjs"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/scratch/evals/meri/live-v1/fixture-provisioning/case12-memory-inventory-owner.mjs",
+      "sha256": "aca6c6a9185d2d3fbc71b8a17971bd433e005b90327218cb4fdee5858e6b33e2",
+      "bytes": 18411,
+      "relativePath": "scratch/evals/meri/live-v1/fixture-provisioning/case12-memory-inventory-owner.mjs"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/scratch/evals/meri/live-v1/fixture-provisioning/case12-memory-setup.mjs",
+      "sha256": "81ff660984df31d841f551d559eefde8af67ba1bd0d12dca3fc1ca128c5c0a31",
+      "bytes": 36481,
+      "relativePath": "scratch/evals/meri/live-v1/fixture-provisioning/case12-memory-setup.mjs"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/supervise-hermes-guard.mjs",
+      "sha256": "99e81895089757bf250185854de4b030e7911b723f372a77a6e564fd5a2b4963",
+      "bytes": 2256,
+      "relativePath": "supervise-hermes-guard.mjs"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/typecheck-overlay-v1.json",
+      "sha256": "ba3526901da8d099c0e491a748d28ada07898fe28258996ed7473e443b87b3a6",
+      "bytes": 5731,
+      "relativePath": "typecheck-overlay-v1.json"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/typecheck-overlay-v1.log",
+      "sha256": "3b377b9229c4116fd329021838eb2d7e392ca15df7a3cc6d6fdc35b9aa24b97c",
+      "bytes": 4750,
+      "relativePath": "typecheck-overlay-v1.log"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/typecheck-overlay-v2.json",
+      "sha256": "d956c7c0735246bea8600f8f6c6ceb8685a176d851b89a52520ed5de720c6c74",
+      "bytes": 68,
+      "relativePath": "typecheck-overlay-v2.json"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/typecheck-overlay-v2.log",
+      "sha256": "fde024dc38fd8c5ee9bdec4880a493f08fae4152315f2d6d9ca0a6abc6f84451",
+      "bytes": 56,
+      "relativePath": "typecheck-overlay-v2.log"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/typecheck-overlay.mjs",
+      "sha256": "df96558c87cfc4962981e5648f6a7fc102330f92a34521b448e76b6492eb1292",
+      "bytes": 1787,
+      "relativePath": "typecheck-overlay.mjs"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-batch-owner-supervised-v1/verify-owned-cleanup.mjs",
+      "sha256": "2d88745e383245b202cef0b742bfa782a0afb3540a018347ece9d2b18f537887",
+      "bytes": 2253,
+      "relativePath": "verify-owned-cleanup.mjs"
+    }
+  ]
+}

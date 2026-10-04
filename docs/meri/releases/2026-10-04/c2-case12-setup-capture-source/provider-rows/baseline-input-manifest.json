@@ -1,0 +1,117 @@
+[
+  {
+    "path": "apps/api/package.json",
+    "sha256": "ba6d55f9d9e63ecd3293387b45f4328157e0188479ef588bf8867461d5ceb819",
+    "bytes": 28441
+  },
+  {
+    "path": "evals/meri/live-v1/contract-lock.json",
+    "sha256": "fc2fe9da90938d476e46007782a0b7d4471c1254e2a189180f62e3fbbde8fb6e",
+    "bytes": 6168
+  },
+  {
+    "path": "evals/meri/live-v1/fixture-provisioning/approved-memory-retirement-owner.mjs",
+    "sha256": "84ce879940d2edf83004faf690739e6a9fef4091675fb640980a1d370529f668",
+    "bytes": 6106
+  },
+  {
+    "path": "evals/meri/live-v1/fixture-provisioning/approved-memory-runtime.mjs",
+    "sha256": "b814c5f904594130d0e35bbb0d4a1f49ec77a5f96c1544fcf9e6969784f278ac",
+    "bytes": 14972
+  },
+  {
+    "path": "evals/meri/live-v1/fixture-provisioning/canonical-owner-adapter.mjs",
+    "sha256": "a9e68e7f12e60253d8402108dbc2ecc0cf6688863ca42c6412c13e371c61fa40",
+    "bytes": 8502
+  },
+  {
+    "path": "evals/meri/live-v1/fixture-provisioning/case12-memory-eligibility-owner.mjs",
+    "sha256": "9d829dc0e8ca012194d602949c02d757e9e4921f339eb139c30a25b599913664",
+    "bytes": 4052
+  },
+  {
+    "path": "evals/meri/live-v1/fixture-provisioning/case12-memory-inventory-owner.mjs",
+    "sha256": "aca6c6a9185d2d3fbc71b8a17971bd433e005b90327218cb4fdee5858e6b33e2",
+    "bytes": 18411
+  },
+  {
+    "path": "evals/meri/live-v1/fixture-provisioning/case12-memory-setup.mjs",
+    "sha256": "81ff660984df31d841f551d559eefde8af67ba1bd0d12dca3fc1ca128c5c0a31",
+    "bytes": 36481
+  },
+  {
+    "path": "evals/meri/live-v1/fixture-provisioning/case12-setup-budget-plan.mjs",
+    "sha256": "1ca0ec48fc645352c78dd7201f80d0a47e06b33aa46dbcc2db5a0e7dfd0b0f80",
+    "bytes": 5668
+  },
+  {
+    "path": "evals/meri/live-v1/fixture-provisioning/contract.mjs",
+    "sha256": "301f39229b64b3878d2fa9783d2cac5cd716fdf8acb125a2e758dc698e36076e",
+    "bytes": 5295
+  },
+  {
+    "path": "evals/meri/live-v1/fixture-provisioning/manifest.mjs",
+    "sha256": "8f1276ef0aaaef9b648bb1cbd0a037ee7d11d0a78db9691ab4de70b3b5db667a",
+    "bytes": 20549
+  },
+  {
+    "path": "evals/meri/live-v1/fixture-provisioning/memory-candidate-owner.mjs",
+    "sha256": "a850e4a8a68641d7118cf7f6e5abda72e64452bde6123d8e13acf5308d6bc9b7",
+    "bytes": 14006
+  },
+  {
+    "path": "evals/meri/live-v1/fixture.mjs",
+    "sha256": "8915e19424520a2f97b9cd5a389fcf4b39f2823f0526573ffd04a1dfe0fbc398",
+    "bytes": 17294
+  },
+  {
+    "path": "evals/meri/live-v1/lib/stable.mjs",
+    "sha256": "03bba6f6dd1c48bf206ed32c628e1f9ce2038d75a9560d33d044950261f45c23",
+    "bytes": 1146
+  },
+  {
+    "path": "evals/meri/live-v1/source-binaries/asset-manifest.json",
+    "sha256": "6512b1ad5f9a154e517e2702f329bc52ab8276ccde9f7a1d2609872c8ea1889d",
+    "bytes": 7757
+  },
+  {
+    "path": "evals/meri/live-v1/source-binaries/D-A-1.pdf",
+    "sha256": "da882da4ae603b15d8b21072a034a2daf302071856743fd842ad3198a003d0fc",
+    "bytes": 3269
+  },
+  {
+    "path": "evals/meri/live-v1/source-binaries/DECK-A-1.pptx",
+    "sha256": "cc12bfaa119ab3d99f210d4f3169a693be269b2d4d98b76fbb42f78aff2cd4bb",
+    "bytes": 25954
+  },
+  {
+    "path": "evals/meri/live-v1/source-binaries/FILE-B-1-restricted.pdf",
+    "sha256": "161c88788ac2214e3ce4bc0c7627d413331e0ecff721ffb9c73cbeb66ebde6f3",
+    "bytes": 1887
+  },
+  {
+    "path": "evals/meri/live-v1/source-binaries/generator.mjs",
+    "sha256": "59ab97021f98ed828815250fe5b5f4dc5ae420d0a1883de5c0fefc2b47822c2a",
+    "bytes": 15767
+  },
+  {
+    "path": "evals/meri/live-v1/source-binaries/PDF-PENDING-1.pdf",
+    "sha256": "759ba31674a35f47324cada809abc52c411dd3fd649df36b4b12e91549705bcc",
+    "bytes": 1899
+  },
+  {
+    "path": "evals/meri/live-v1/source-binaries/REPORT-A-v1.pdf",
+    "sha256": "24d2374a09cbb012418bed2dfa562015ef7a200c22f6c3a0ac425e8ceeb487a7",
+    "bytes": 38597
+  },
+  {
+    "path": "evals/meri/live-v1/source-binaries/REPORT-A-v2.pdf",
+    "sha256": "f06ebef24465eb837a4de37964ad0630859323bf34292d9f6dec2a9264f8f848",
+    "bytes": 38734
+  },
+  {
+    "path": "evals/meri/live-v1/source-binaries/SHEET-A-1.xlsx",
+    "sha256": "debd2c837dbd1c33c329ce8d96f98a702a879c4a4e4829df740fdc6dd58924df",
+    "bytes": 6557
+  }
+]

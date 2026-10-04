@@ -1,0 +1,160 @@
+{
+  "kind": "case12-native-completion-capture-budget-independent-assessment",
+  "at": "2026-10-04T11:33:45.053806+00:00",
+  "status": "PASS_SOURCE_ONLY_WITH_RUNTIME_BLOCKER",
+  "inputManifest": {
+    "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-completion-capture-independent-input-v2\\manifest.json",
+    "sha256": "c1168fab21f1af171bcb35c7d917f0fa3994fbbed51efc83a1d5561fb78bb70a",
+    "bytes": 11129
+  },
+  "sourceCandidate": [
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\apps\\api\\src\\meri\\meri-case12-setup-completion.read.ts",
+      "frozenSha256": "88381c1dbe356e106b537340218278c10eb6542f8bce7ea81b1215d2707560cc",
+      "currentSha256": "88381c1dbe356e106b537340218278c10eb6542f8bce7ea81b1215d2707560cc",
+      "unchanged": true
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\apps\\api\\src\\meri\\meri-case12-capture-authority.ts",
+      "frozenSha256": "060f2e667239e981f584f06a17cce9a66074cc77de3fc6b975ccbecc814a701d",
+      "currentSha256": "3d2dc0b7be36facb0673b98d5b6bd3e25cea3cd1a5f6423a896a5a470fcc7b5a",
+      "unchanged": false,
+      "disposition": "Root announced follow-on refactor/install/readback delta; NOT qualified by this frozen review."
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\apps\\api\\src\\meri\\meri-capture-provider-budget.ts",
+      "frozenSha256": "35e935dde156f1d1794d9c23cc3594ef3cca7171f5a3e4376e6c80cd8e36fe8a",
+      "currentSha256": "35e935dde156f1d1794d9c23cc3594ef3cca7171f5a3e4376e6c80cd8e36fe8a",
+      "unchanged": true
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\apps\\api\\src\\meri\\meri-capture-provider-budget-owner.ts",
+      "frozenSha256": "2b185dd9844b90e05a4d0b681ecb50670770a2baac41c9fb94cc8f3b33b9e7d4",
+      "currentSha256": "2b185dd9844b90e05a4d0b681ecb50670770a2baac41c9fb94cc8f3b33b9e7d4",
+      "unchanged": true
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\apps\\api\\src\\meri\\meri-capture-api-provider-scope.ts",
+      "frozenSha256": "29c100968be01e52dd9086721616ea3c144ff5b2a69ce181481be93c806a9c6e",
+      "currentSha256": "29c100968be01e52dd9086721616ea3c144ff5b2a69ce181481be93c806a9c6e",
+      "unchanged": true
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\apps\\api\\src\\meri\\meri-capture-policy-readback.ts",
+      "frozenSha256": "8c2eb732085488283ce2530b1e460d6114e5209d9ea79310e3e2756237992928",
+      "currentSha256": "8c2eb732085488283ce2530b1e460d6114e5209d9ea79310e3e2756237992928",
+      "unchanged": true
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\apps\\api\\src\\meri\\meri-case12-capture-budget.spec.ts",
+      "frozenSha256": "eb0ce370b5d73eb73f5f7c2466d98ff00f0b442d4654c459e44bcf62d69b8203",
+      "currentSha256": "998fdaa876b6bfb1be20bc6d92908704228746b967353e2c52b8873fc4c0298c",
+      "unchanged": false
+    }
+  ],
+  "hermes": [
+    {
+      "version": "v1",
+      "execution": {
+        "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-completion-capture-independent-hermes-v1\\execution.json",
+        "sha256": "1411787745481cbd0eff9d62735f1de84f17eb368faf38e937d4f73b254f163c",
+        "bytes": 969
+      },
+      "review": {
+        "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-completion-capture-independent-hermes-v1\\review.md",
+        "sha256": "f1fb4b8f0e80653b344097dc18ff4e980e366e8c17c73314b70b0bca243d5abf",
+        "bytes": 14233
+      },
+      "usage": {
+        "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-completion-capture-independent-hermes-v1\\usage.json",
+        "sha256": "d64e157d58d02b3bb78c547eef6d7259f7575b7f557e9b938be462997d02f4c3",
+        "bytes": 487
+      },
+      "sessionId": "20261004_072317_76af97",
+      "estimatedDevelopmentCostUsd": 0.029159224999999997
+    },
+    {
+      "version": "v2",
+      "execution": {
+        "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-completion-capture-independent-hermes-v2\\execution.json",
+        "sha256": "eab094f567cc493b734f9f45691ceb32e17026d854f98046f3342e67ff050b0e",
+        "bytes": 969
+      },
+      "review": {
+        "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-completion-capture-independent-hermes-v2\\review.md",
+        "sha256": "c64bead60a18eb73ec8fc09de5b2f78d4491bbde8bba74ab042ff5e3082d564d",
+        "bytes": 12272
+      },
+      "usage": {
+        "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-completion-capture-independent-hermes-v2\\usage.json",
+        "sha256": "904ca7282fbc5c27aa0553aafa4983d34970cfa63baac5817bb07587ffa588c7",
+        "bytes": 476
+      },
+      "sessionId": "20261004_072823_1c468a",
+      "estimatedDevelopmentCostUsd": 0.019041595
+    }
+  ],
+  "pinChecks": {
+    "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-completion-capture-independent-hermes-v2\\independent-pin-checks.json",
+    "sha256": "cada34f86f77927e53d6dbdccc710e31720d37efbbe4661a115da6198457b4ec",
+    "bytes": 25038
+  },
+  "adjudication": [
+    {
+      "finding": "V1 F1 historic terminal proof does not compare current xmin",
+      "disposition": "REJECT_CHANGED_CONTENT_EXPLOIT;RETAIN_VERSION_CONTINUITY_BOUNDARY",
+      "evidence": "Current owner intentionally rereads current candidate/item versions and rebuilds fixed recipe expected payload. Inventory invokes actual assertSyntheticApprovedMemoryInTx. Its SQL requires exact expected candidate payload/provenance and canonical title/sections/source hash/source version; Clio key/value also checked. Updating body plus source_content_hash cannot pass this real guard. Historical completion remains provenance of setup, while current proof may legitimately observe a new xmin for unchanged canonical content. No DB reproduction asserted."
+    },
+    {
+      "finding": "V1 F2 exact fixture content not shown",
+      "disposition": "RESOLVED_BY_DEPENDENCY_CLOSURE_NOT_SOURCE_FIX",
+      "evidence": "First compact review bundle omitted native helper implementation. Added pinned actual guard, candidate/approved-definition builders, fixed recipe and canonical governance helper. Exact canonical sections array and key+NUL+value hash derive from fixed fixture candidate payload, rather than the current row being its own sole expectation. Raw v1 verdict and narrowed final F2 are preserved."
+    },
+    {
+      "finding": "V1 F3 adjacent hashes do not authenticate arbitrary settings rewrites",
+      "disposition": "TRUSTED_WRITER_LIMITATION;NO_LOWER_TRUST_BYPASS_ESTABLISHED",
+      "evidence": "Correct as a boundary: these are consistency/content commitments, not signatures or protection against DB-administrator tampering. Durable owner captures native admission/terminal ports, requires opaque WeakMap handle and writes proof with completed state in owned locked transaction. No reviewed API accepts caller-provided stored ledger/proof as native authority. Deployment settings-writer trust and actual same-journal admission/settlement are still mandatory external gates, not proven by the checksum reader."
+    }
+  ],
+  "independentSourceConclusions": [
+    "Completion reads on supplied tenant transaction, checks exact fixed tenant/namespace/current ordinary actor and corpus joins, complete claim hash/identity/progress,510 ordered definitions and terminal proof rows, and validates full budget state by replaying each child reservation/settlement with strict plan/request identities. It requires1020 known-settled attempts, no reconciliation flag or pending child, bounded charges, and historical proof-to-saved-binding joins.",
+    "Completion returns setupRun/fixture/plan/claim/ledger five-field binding. It neither grants provider permission nor rechecks every vector/outbox row; native terminal history, durable writer boundary and subsequent current corpus proof have distinct scopes.",
+    "Capture authority uses fixed module path and native authorization/fixture/eligibility ports on caller transaction. It binds current sourceMap/currentVerify to policy and tenant capture settings plus completed tuple; actual MA510 item/title/sections/current version/hash are checked before exact approved text/passage hash is returned. No current source owner is inferred from caller policy.",
+    "Capture budget uses own case12_memory_turn boundary, whole-policy identity including five-field setup tuple, existing per-turn caps/replay/accounting and native current Case12 guard before ledger inspection or mutation. Scope accepts only selected-client institutional_knowledge retrieval and rejects setup-provider overlap. Existing01/14 semantics remain additive.",
+    "Reserve owner is awaited before dispatch and durable settlement is awaited. Native revocation/error may leave conservative outstanding hold; this review does not claim automatic aggregate reconciliation or permission to replay. Setup spend and capture spend must both remain within existing native aggregate/case budget; separate15-dollar allowances cannot be invented."
+  ],
+  "testsAndRuntime": {
+    "frozenMockBudgetLog": {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-completion-capture-independent-input-v2\\case12-capture-budget-tests-v1.log",
+      "sha256": "86c8059bde0fc06af5fc542120c9f8e9276fe3d1b161eb2077c7c9430e261772",
+      "bytes": 7737
+    },
+    "recorded": "33tests/3suites including7 newCase12 cases; current native authority mocked. No independent rerun or nativeDB PASS claimed.",
+    "testFollowon": "Root reported explicit callback types/non-null indexes, readonly tuple replacement and metadata matcher corrections after integrated noEmit failures. New budget spec delta captured separately. During final receipt fence root announced new capture-authority/refactor/install/readback work; current sourceCandidate records exact unchanged/changed paths. This review qualifies the frozen input only, not that newer head. Final repaired test/typecheck receipt not inferred from source review.",
+    "factoryAndExecuteSupplement": {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-factory-execute-independent-review-v1\\independent-assessment.json",
+      "sha256": "ed34bf67a6b9acd90a7be9e7e90867b3104a628046122105d41a29a14db9a676",
+      "bytes": 3680
+    },
+    "runtimeBlocker": "Actual native Nest factory setup510/1020transport doubles completed; subsequent hydration expired default5s transaction withP2028 at5012.5077ms. Full510 test exit1. Current corpus, completion and capture readers NOT_RUN. Original320 public factory artifacts independently verified; concurrent core rebuild leaves loaded-runtime byte identity limitation. Exact details in separate independent receipt.",
+    "remaining": [
+      "Default-timeout hydration fix and exact revised source/native rerun",
+      "Native current corpus+completion+capture composition under real default limits/RLS schema conditions",
+      "Final packet double full-corpus census measurement; still unmeasured, not same as recorded hydration failure",
+      "Native same-journal setup admission/settlement, current budget remaining, worker/helper census and immutable image/source qualification",
+      "Full integrated final typecheck/build receipts; original prompt, capture and human acceptance remain NOT_RUN"
+    ]
+  },
+  "journal": {
+    "sha256": "816b04a47be56432846d1ee602370c3bea985eb497a7de9e899aee4d53f8b39e",
+    "bytes": 17588,
+    "events": 26,
+    "unchanged": true
+  },
+  "repoEdits": false,
+  "cloudActions": false,
+  "databaseActions": false,
+  "captureAuthority": false,
+  "fixtureReadinessPromoted": false,
+  "liveAcceptance": "NOT_RUN"
+}

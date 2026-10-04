@@ -1,0 +1,41 @@
+{
+  "scope": "Output-only supervisor optimization preparation after real default5s P2028; no authority",
+  "files": [
+    {
+      "path": "apps/api/src/memory/memory-authorization.service.ts",
+      "source": "C:\\dev\\main\\meri-c1-20261002\\apps\\api\\src\\memory\\memory-authorization.service.ts",
+      "sha256": "eefa7645c2b181e46a7a90441a7d59e4eac607350ef7c0841410cdc30a80892f",
+      "bytes": 9173
+    },
+    {
+      "path": "apps/api/src/memory/synthetic-approved-memory.helpers.ts",
+      "source": "C:\\dev\\main\\meri-c1-20261002\\apps\\api\\src\\memory\\synthetic-approved-memory.helpers.ts",
+      "sha256": "8451534ad56fdda936c7ce5c1961c68e0172d61ab2be45872e6d1b93da21ba22",
+      "bytes": 13474
+    },
+    {
+      "path": "evals/meri/live-v1/fixture-provisioning/case12-memory-inventory-owner.mjs",
+      "source": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\fixture-provisioning\\case12-memory-inventory-owner.mjs",
+      "sha256": "6558f5a49f7e4a4316411107c3f17f29f3bbf133466b02118e9cfbaae34fb1b9",
+      "bytes": 15053
+    },
+    {
+      "path": "evals/meri/live-v1/fixture-provisioning/case12-memory-setup.mjs",
+      "source": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\fixture-provisioning\\case12-memory-setup.mjs",
+      "sha256": "ba5ca5dc5aa33171ce8236b27e7116eceba2617fdd616b5c9626f5a6cf4b905d",
+      "bytes": 34967
+    },
+    {
+      "path": "evals/meri/live-v1/fixture-provisioning/case12-memory-current-owner.mjs",
+      "source": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\fixture-provisioning\\case12-memory-current-owner.mjs",
+      "sha256": "272e0759fb6e5f3aafb613e20874828060ce533f241315ff22f391810f6ee2e6",
+      "bytes": 23151
+    },
+    {
+      "path": "apps/api/scripts/meri-case01-setup-dependencies.mjs",
+      "source": "C:\\dev\\main\\meri-c1-20261002\\apps\\api\\scripts\\meri-case01-setup-dependencies.mjs",
+      "sha256": "6de3f94669bcacac1c8a79e4ceb34acc5fa5d5359d6c17744b1ba1e10a9c16ec",
+      "bytes": 10834
+    }
+  ]
+}

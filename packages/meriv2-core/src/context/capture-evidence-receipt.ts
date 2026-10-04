@@ -1,3 +1,5 @@
+import { readMeriCase12SetupBinding, type MeriCase12SetupBinding } from './case12-setup-binding.js';
+
 export interface MeriControlledReadAttempt {
   callId: string;
   tool: string;
@@ -181,6 +183,7 @@ export interface MeriCaptureEvidenceReceipt {
     physicalMapSha256: MeriCaptureObservedValue<string>;
     resetReceiptId: MeriCaptureObservedValue<string>;
     seedReceiptId: MeriCaptureObservedValue<string>;
+    case12Setup?: MeriCaptureObservedValue<MeriCase12SetupBinding>;
   };
   effects: {
     boundary: 'bounded_capture_path_hooks';
@@ -204,7 +207,7 @@ export interface MeriCaptureEvidenceReceipt {
   /** API-owned durable ledger; a primary-model usage estimate is not this proof. */
   providerBudget?: {
     version: 1;
-    boundary: 'case01_memory_turn' | 'case14_memory_turn' | 'case20_controlled_read_turn' | 'case72_controlled_read_turn';
+    boundary: 'case01_memory_turn' | 'case12_memory_turn' | 'case14_memory_turn' | 'case20_controlled_read_turn' | 'case72_controlled_read_turn';
     status: 'SETTLED' | 'UNSETTLED';
     admissionId: string;
     turnId: string;
@@ -261,6 +264,7 @@ export function meriCaptureClockExecutionBlockers(
     failures.add('semantic_clock_prompt_unproved');
   if (!Array.isArray(invocations)) return [...failures, 'semantic_clock_invocations_unproved'];
   const allowed = receipt.caseId === '01' || receipt.caseId === '14' ? ['search_memory', 'list_memory_proposals']
+    : receipt.caseId === '12' ? ['search_memory']
     : receipt.caseId === '20' ? ['search_program_elements', 'get_program_element', 'get_pe_budget_timeline']
     : receipt.caseId === '72' ? ['read_client_documents'] : [];
   if (!allowed.length) failures.add('semantic_clock_case_not_admitted');
@@ -423,8 +427,6 @@ export function meriCaptureReceiptBlockers(
   const requiredValues: Array<[string, MeriCaptureObservedValue<unknown>]> = [
     ['fixture_version', receipt.fixture.version],
     ['fixture_physical_map', receipt.fixture.physicalMapSha256],
-    ['fixture_reset_receipt', receipt.fixture.resetReceiptId],
-    ['fixture_seed_receipt', receipt.fixture.seedReceiptId],
     ['api_release', receipt.releases.api.releaseRevision],
     ['orchestrator_release', receipt.releases.orchestrator.releaseRevision],
     ['provider', receipt.usage.provider],
@@ -432,6 +434,23 @@ export function meriCaptureReceiptBlockers(
     ['input_tokens', receipt.usage.inputTokens],
     ['output_tokens', receipt.usage.outputTokens],
   ];
+  if (receipt.caseId === '12') {
+    const setup = receipt.fixture.case12Setup;
+    try {
+      if (setup?.status !== 'OBSERVED') throw new Error('setup_unobserved');
+      const binding = readMeriCase12SetupBinding(setup.value);
+      if (binding.setupRunId === receipt.captureRunId ||
+          receipt.fixture.resetReceiptId.status === 'OBSERVED' || receipt.fixture.resetReceiptId.value !== null ||
+          receipt.fixture.seedReceiptId.status === 'OBSERVED' || receipt.fixture.seedReceiptId.value !== null)
+        throw new Error('setup_mixed_provenance');
+    } catch {
+      blockers.add('fixture_case12_setup_unproved');
+    }
+  } else {
+    requiredValues.push(['fixture_reset_receipt', receipt.fixture.resetReceiptId],
+      ['fixture_seed_receipt', receipt.fixture.seedReceiptId]);
+    if (Object.hasOwn(receipt.fixture, 'case12Setup')) blockers.add('fixture_case12_setup_foreign_case');
+  }
   if (!receipt.caseId) blockers.add('case_id_missing');
   if (!receipt.captureRunId) blockers.add('capture_run_id_missing');
   if (!receipt.turnId) blockers.add('turn_id_missing');
@@ -441,6 +460,7 @@ export function meriCaptureReceiptBlockers(
       budget.version !== 1 ||
       !(
         (receipt.caseId === '01' && budget.boundary === 'case01_memory_turn') ||
+        (receipt.caseId === '12' && budget.boundary === 'case12_memory_turn') ||
         (receipt.caseId === '14' && budget.boundary === 'case14_memory_turn') ||
         (receipt.caseId === '20' && budget.boundary === 'case20_controlled_read_turn') ||
         (receipt.caseId === '72' && budget.boundary === 'case72_controlled_read_turn')

@@ -1,0 +1,100 @@
+{
+  "kind": "meri-case12-native-helper-iam-preflight",
+  "version": 1,
+  "observedAt": "2026-10-04T12:01:55.203913+00:00",
+  "status": "MISSING_REQUIRED_ECS_READ_PERMISSIONS",
+  "roleArn": "arn:aws:iam::967807252336:role/Capiro-dev-Compute-ApiTaskRole12FAD4A7-szq3QeeZJSCQ",
+  "baselineApiDefinition": "capiro-dev-api:525",
+  "inlinePolicies": [
+    {
+      "name": "ApiTaskRoleDefaultPolicyBEF5D530",
+      "policySha256": "62ddf9e10f1a2fc0d63bf19094a16883f1ab5eafca7db46ba81842e12f3a7790",
+      "ecsStatements": []
+    },
+    {
+      "name": "BedrockTitanEmbedV2",
+      "policySha256": "c0fdc03f06934952c91878ef0c1e97be5f1c250e38dbef4843d466c2d9ef29d8",
+      "ecsStatements": []
+    },
+    {
+      "name": "CapiroDemoRequestSesSendEmail",
+      "policySha256": "b5ab665bf8fe47a18f48c8600f8cff2e63e6c6513d17d7c0497b87d2638f8656",
+      "ecsStatements": []
+    },
+    {
+      "name": "HelpAssetsReadHotfix",
+      "policySha256": "594255eea3231187381ff9e1d7a7122d01c12dd606a44a6c153a2509a615c680",
+      "ecsStatements": []
+    },
+    {
+      "name": "LegiWatchPhase4PrivateHearingAudio",
+      "policySha256": "0c271a179ff03c70ffc61f39fed1deee182e9a91bf834d9c3c57fd6412d43525",
+      "ecsStatements": []
+    },
+    {
+      "name": "MeriPhase4StagedArtifacts",
+      "policySha256": "e57cfe2b6cacf898b8dbf3ef91b5de0220ae8eeae726c2b53bbbe3b2a64d7a8b",
+      "ecsStatements": []
+    },
+    {
+      "name": "SenateAutoCapturePollLaunch",
+      "policySha256": "382055bd2bc06345a6dc4455bb65552ae26170912bad274ef4975523e32434c0",
+      "ecsStatements": [
+        {
+          "Sid": "PollLaunchCaptureRunTask",
+          "Effect": "Allow",
+          "Action": "ecs:RunTask",
+          "Resource": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-intel-api-capture:*"
+        }
+      ]
+    },
+    {
+      "name": "district-boundary-artifacts-s3-write",
+      "policySha256": "44bdd0f6f5118ce828a4b7a53245a1dc89711aedc2c03800db50d230bf480189",
+      "ecsStatements": []
+    },
+    {
+      "name": "legistorm-directory-s3-write",
+      "policySha256": "59b45ffbcb5dc541c632bcbdb8154eabbeeb36e767d26752f4886d7a7be1de37",
+      "ecsStatements": []
+    },
+    {
+      "name": "pe-enrichment-secrets-read",
+      "policySha256": "bd446cb3197afbd8024b1526152bf8f56e8d8a3b46da6d34d966efc91dca0942",
+      "ecsStatements": []
+    },
+    {
+      "name": "pe-watch-defense-budget-s3-kms",
+      "policySha256": "bbcc0f81bfb4f637498ac806c78bc3372d1d7c1af32cf0509d3f83959c341b4c",
+      "ecsStatements": []
+    }
+  ],
+  "attachedPolicies": [],
+  "simulation": [
+    {
+      "action": "ecs:DescribeTasks",
+      "decision": "implicitDeny",
+      "missingContextValues": [
+        "s3:prefix",
+        "iam:PassedToService"
+      ]
+    },
+    {
+      "action": "ecs:DescribeTaskDefinition",
+      "decision": "implicitDeny",
+      "missingContextValues": [
+        "s3:prefix",
+        "iam:PassedToService"
+      ]
+    }
+  ],
+  "actualHelperEcsRequest": "NOT_RUN",
+  "iamMutation": false,
+  "case12Activation": "BLOCKED_PENDING_QUALIFIED_NATIVE_PERMISSION",
+  "documentation": "https://docs.aws.amazon.com/service-authorization/latest/reference/list_ecs.html",
+  "notes": [
+    "Simulation is not a successful runtime API call.",
+    "No role/policy/trust/resource/service/schedule changes performed.",
+    "Current helper needs DescribeTasks and DescribeTaskDefinition. Do not replace native authentication with caller JSON."
+  ]
+}

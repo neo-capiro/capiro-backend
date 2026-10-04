@@ -1,0 +1,1528 @@
+{
+  "kind": "case12-current-corpus-owner-independent-source-review",
+  "at": "2026-10-04T10:58:30.691311+00:00",
+  "status": "PASS_LOCAL_SOURCE_ONLY",
+  "findings": [],
+  "sourceSha256": "272e0759fb6e5f3aafb613e20874828060ce533f241315ff22f391810f6ee2e6",
+  "checkpointSha256": "bae363003f8455105f8b398372ae1752d327021f36cd6481d58fcf5b9f685017",
+  "pinChecks": [
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\case12-memory-current-owner.mjs",
+      "sha256": "272e0759fb6e5f3aafb613e20874828060ce533f241315ff22f391810f6ee2e6",
+      "bytes": 23151
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\case12-memory-current-owner.test.mjs",
+      "sha256": "346c97d756e1afd716f9e5e0b99136f53e3be23d571ef27e4059971f67c6c169",
+      "bytes": 7530
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\case12-memory-current-owner-harness.mjs",
+      "sha256": "da982be678b9d7009be80811002df19e8860563b43cb81bdeabce9e56a62f35e",
+      "bytes": 11032
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\baseline-manifest.json",
+      "sha256": "9f7d9e9e4db3848d6e05c32c640b2c0ce5e6557371753ddd4121b5f69cdac48b",
+      "bytes": 39726
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\binary-inputs.json",
+      "sha256": "89f12c59f88d31b4d3b5ea39f59c5ff0057201fcae10f08626e32ed66cb095cf",
+      "bytes": 1133
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\unit-tests-v1.log",
+      "sha256": "09d699b932e11512228c99b87210461e38a04345ce1d22d7b5e774e78e14f8fc",
+      "bytes": 63314
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\unit-tests-v2.log",
+      "sha256": "a8e8b4ecf6e534cba2fdfd8d569105cad5edd3b3abc7534df41938fb3d74d9e8",
+      "bytes": 1892
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\unit-tests-v2-execution.json",
+      "sha256": "5a34739fb95ba7d04778768f2909542fc089043081930fdce13357ce848b5630",
+      "bytes": 128
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\unit-tests-v3.log",
+      "sha256": "68ff3e98cfbb73c57854bd553d971c437b746560dbaa827a5b31e915820593d9",
+      "bytes": 1897
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\supervisor-changes.json",
+      "sha256": "70231b7e92f90c0980c54f5494b0e1f67d02b28c517e336ae61cca1fbd2ce4ec",
+      "bytes": 814
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\artifact-collector.mjs",
+      "sha256": "64725c9b2fc66efb6578461e755efcbf62b77e18833dc6221831ee7e21ececae",
+      "bytes": 15744
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\artifact-reader.mjs",
+      "sha256": "7a3135fe230ea821df6b60cf4fcdcdbde0b21b6af80c777544f67f14e3a0aed3",
+      "bytes": 8891
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\artifact-schemas.mjs",
+      "sha256": "1f473e8f69d096636b1204c10e685bcade19ce7477e8767f3e866396099fa5e8",
+      "bytes": 14978
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\capture-adapter.mjs",
+      "sha256": "770f3e42289d4a6baef10af9e766bcbbc659d43becaf1102c35c2ba721c81346",
+      "bytes": 5656
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\capture-cli.mjs",
+      "sha256": "e99a63f77aed6679b552119ff3c41795cb66cc5d7a103b68d5f22c087d069528",
+      "bytes": 2749
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\capture-http-observation.mjs",
+      "sha256": "bdf0f4f96aef5e57eed34e6076e111b82d38f6b92e638b6ae4a43147d00b671c",
+      "bytes": 2244
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\capture-scope.example.json",
+      "sha256": "2f4b05a57ef225497391494545a86f49f6ab8f8f69e8391d26c7495a174c0353",
+      "bytes": 2285
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\capture-spend-aggregate.mjs",
+      "sha256": "2a7ad0acb1ca83b2f965f4f09375880cc3fc95afdff0a49bf3d138fbc025f433",
+      "bytes": 25625
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\capture-spend-reconciliation.mjs",
+      "sha256": "fee573186e368a44e837345a8e18aee4d3c25bc28530603527d304f58c1a8b8a",
+      "bytes": 15147
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\capture-transport.mjs",
+      "sha256": "888ad26b94971424b3d5db199ce646617cfc82b927a697fdb9a1475bc2de0669",
+      "bytes": 33422
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\capture.schema.json",
+      "sha256": "fcc3b7b466143b8d36431d546f674c91707fdb4312906837dc8fb3d754016150",
+      "bytes": 17488
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\case01-build-authority.mjs",
+      "sha256": "3cd0353c62743d0dbf5d2511678f9dbb2aca01620e648365c353f1751a3bc065",
+      "bytes": 5460
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\case01-failed-receipt-cost-authority.mjs",
+      "sha256": "8b685fb5f4a837edcda13de49fd182b6d83e904698f9c88974a9b67ad9c6f819",
+      "bytes": 10701
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\case01-failed-receipt-cost-pins.mjs",
+      "sha256": "b637aff67c5b10d251a952b720b102fa9018df589007a1f6e678794972e54e70",
+      "bytes": 4123
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\case01-live-capture.mjs",
+      "sha256": "9872ee2fb91b05547030331dd22258727bb6fbcf13537f6e3d94b6fd9f325a83",
+      "bytes": 25051
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\case01-presubmission-recovery-authority.mjs",
+      "sha256": "83128b97926129a178d53863039f99a6fc1c7a65e77d9083c201b39f1e321237",
+      "bytes": 21899
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\case01-receipt-joins.mjs",
+      "sha256": "89c136eeedccc448e709ad905255ac76afa12aefe502c866efacc83aef2c0ac9",
+      "bytes": 14295
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\case01-scope.example.json",
+      "sha256": "a08fea75914e46c909714bbe14e958b4e1ce9175f0b50834eff58f7a80b7e815",
+      "bytes": 2816
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\case01-terminal-spend-authority.mjs",
+      "sha256": "132ee81d974fb771dab328a57cfa1b1a71348039306cbbe690d6e3e2acc7692a",
+      "bytes": 8735
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\case14-approval-capture.mjs",
+      "sha256": "fcea0961cc531ffe98104ecc8c6d3dc6d6083cc972d1879e7b340991a9e1046d",
+      "bytes": 33454
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\case14-approval-cost-authority.mjs",
+      "sha256": "c50e632592de167ad01d51a9d6b5a15972eef8de565fbdea05f9a024c8998717",
+      "bytes": 10833
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\case14-approval-cost-evidence.json",
+      "sha256": "aa63a7378883f152c1d8180cc0796fc5dc2bb4ad61e68df9030d52b9a754aa33",
+      "bytes": 4770
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\case14-approval-write-guard.mjs",
+      "sha256": "4aff57265d0fe414221f8d168e53ddd0940bca1ca76c6f86cb2669e7b16d5a34",
+      "bytes": 2551
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\case14-postapproval-task-authority.mjs",
+      "sha256": "da8577bfd83a3a841c74720de44dd4ab826f5b29274849d69d7f7d5eca281d43",
+      "bytes": 13156
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\case17-build-authority.mjs",
+      "sha256": "dc068e2f3aa0aae7bea5802a80cf0e511397a92160b39f698b453bf372a15021",
+      "bytes": 5530
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\case17-live-capture.mjs",
+      "sha256": "7957589436d62483246b23a29d96c5d4a5d017789f83b9f0dee594498c46b18b",
+      "bytes": 13269
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\case17-memory-ui.mjs",
+      "sha256": "e98ae2cc417db901e9288e3d85a95044b11693b897c0df7fd066625da5b9be55",
+      "bytes": 17811
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\case17-readonly-guard.mjs",
+      "sha256": "6c8d3e5e0dfafba4a0132a2ff3151fcfce245e9b4cc0ad0c2b0a05ac38636b09",
+      "bytes": 2720
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\case17-saved-checks.mjs",
+      "sha256": "f883bc4cbfc1c9dcc22ec148beb6453ec5a0f0a78f0e8b3b7ac1205aba7338f0",
+      "bytes": 3346
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\case20-presubmission-recovery-authority.mjs",
+      "sha256": "cd2225d5be0d81ad359964d454c7329594f211d9e9e999ad36babc05cc426ac9",
+      "bytes": 23439
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\case20-terminal-cost-authority.mjs",
+      "sha256": "c67970c36192625203019ca9d0da19c8480c29783f2622072523650ccb4f8f7d",
+      "bytes": 15205
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\case20-terminal-cost-pins.mjs",
+      "sha256": "9591737cbf0fe53a81795a62eb6a28f19dd878a45408cff03c68f1dee0e20d6a",
+      "bytes": 7881
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\case46-artifact-evidence.mjs",
+      "sha256": "9abd6c2e10421cffbf937052271fe3b87bc6af08b82ec9654dc101372e33b06c",
+      "bytes": 4964
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\case46-artifact-ui.md",
+      "sha256": "c05a2060e569a0dc4e78dc99bcad4febac1b6d9c557cbe3837684f9ce6e976ae",
+      "bytes": 3352
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\case46-artifact-ui.mjs",
+      "sha256": "edc53ae170faf64bd242f2a7552e1dc985d8c89e0d7a359d4a29a96dc656ec28",
+      "bytes": 9559
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\case46-governed-capture.md",
+      "sha256": "e8642439036b3e04417a57c2c11f630035d5a264beb91c9611c85f89a0bb9b26",
+      "bytes": 13167
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\case46-live-capture.mjs",
+      "sha256": "925f926a5c2f72ad9b6bb114847d7140cd769a6e510d85c5fe80d0c6656a2b66",
+      "bytes": 14952
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\case46-native-capture.md",
+      "sha256": "59b42e8e62ab0bc185e35693d86ad4bf0b664c691acc30f6a5113cc10f6ebc2b",
+      "bytes": 4549
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\case46-receipt-joins.mjs",
+      "sha256": "68f3d4404359091ced225f79ea09b7a2f504a57d2fefd9d7fcf0d1bcf562823e",
+      "bytes": 9277
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\cases.mjs",
+      "sha256": "5464412ee66b73f677cc923bda09b4785a866b20ef0ee6a3410936c431c5ba0a",
+      "bytes": 62128
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\contract-lock.json",
+      "sha256": "fc2fe9da90938d476e46007782a0b7d4471c1254e2a189180f62e3fbbde8fb6e",
+      "bytes": 6168
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\CONTROLLED-BUDGET-EXPANSION.md",
+      "sha256": "ebbc78ad2bee1c49d59db54a74af87ec4d87f894232ed8f4ccdabf9af89d688f",
+      "bytes": 3306
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\controlled-budget-predicates.mjs",
+      "sha256": "bbe21a08a4569df30d92ded6a2897756f532da9c356b84bf4a185eb696039dea",
+      "bytes": 3400
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\controlled-capture-receipt.mjs",
+      "sha256": "b49ba3887d83698ba4829c0fd39197d5cb7b4959824c5e0453f63499f59a90ec",
+      "bytes": 8198
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\controlled-read-live-capture.mjs",
+      "sha256": "e22e8d6022053a685276468710bb8521ae516ac21b7fabf995cc60b07e04ca63",
+      "bytes": 25015
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\controlled-read-operator-input.mjs",
+      "sha256": "ce6244bb6ffc52e0c1661779290995aad53ab287023f0706480509414ee5ef2a",
+      "bytes": 12097
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\CONTROLLED-READ-OPERATOR.md",
+      "sha256": "657b6c4a4c33bafeed8f811843e89a60376f602ee9fd9cc3901404e8b3a5fc29",
+      "bytes": 15891
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\controlled-read-receipt-joins.mjs",
+      "sha256": "d09ecb5f4fd4dee86bab14f1b2e257dd9d66c83f21405c3bad1989657686a273",
+      "bytes": 19035
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\CONTROLLED-READS.md",
+      "sha256": "e8999409e30071d2995178bf6c779477de50d7bf567da6c44d262f266bd60c8a",
+      "bytes": 7046
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\derive-lock.mjs",
+      "sha256": "5c0497baa8092be207913a72bc0fc55274a6444f870ef87760a08988bf08b8b1",
+      "bytes": 1745
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\deterministic-predicates.mjs",
+      "sha256": "eae567c091417837bdb171c10b714003aa56f1ee60e4a7b1d5153124ff58cff4",
+      "bytes": 24833
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\execution-requirements.mjs",
+      "sha256": "75b1570ede6d2167ab49d10b81c6aa327cb299adbf9fef273599dec8a08d59d2",
+      "bytes": 6404
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\fixture.mjs",
+      "sha256": "8915e19424520a2f97b9cd5a389fcf4b39f2823f0526573ffd04a1dfe0fbc398",
+      "bytes": 17294
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\grade-case01-capture.mjs",
+      "sha256": "b2ec25f9d39cbadad6c176f2ca00fb50857c5552b3eed50cc877728a95c1a441",
+      "bytes": 4269
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\grade-case14-capture.mjs",
+      "sha256": "5e82810195e282d44b90a3cca920267939a560d3c33f4ecaf9a78570625e884f",
+      "bytes": 3386
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\grade-case17-capture.mjs",
+      "sha256": "13586eda4b84f83aaf335ed6262e9e8a4b9456ede942692c032466e878550be5",
+      "bytes": 2572
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\grade-case46-capture.mjs",
+      "sha256": "39aac7cd4b8e97dee2d09d3e6531a00d031727e3ea19f784a7aba24a756c1371",
+      "bytes": 3368
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\grade-controlled-read-capture.mjs",
+      "sha256": "eba0cc2634547e59bc8f5129d92697b21474076785b2cad5d22c4d97016992b7",
+      "bytes": 6251
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\materialize-controlled-read.mjs",
+      "sha256": "af1f7d6bbb29c220e861566a8771613cdbe16c0c9a86d09c96fed9b808ce15a3",
+      "bytes": 2797
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\memory-read-budget-authority.mjs",
+      "sha256": "6efc3d2ada6f8f5b73a914ec33a274995e36fcde8e81f8889f6e698e0a429c06",
+      "bytes": 7159
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\memory-read-http.mjs",
+      "sha256": "3a9e1387303b163a790b69972166800867da2a5ad3591199c513665c38cf02e3",
+      "bytes": 5530
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\MEMORY-READ-PROTOCOL.md",
+      "sha256": "efd420a41270b7eb4d901b4bbde4f9c5dec49d33c1a719101fd3e8051849a6ad",
+      "bytes": 8827
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\memory-read-protocol.mjs",
+      "sha256": "aaa9e781af07d72aa90bb16601b9bb1058ca7c087cc9d17f3911d69e1e46491f",
+      "bytes": 13066
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\memory-read-spend.mjs",
+      "sha256": "0991502138afa292057ea4f70a3cf165f25ded20da4d5fc3f94662bc60bfc3d1",
+      "bytes": 2250
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\memory-row-predicates.mjs",
+      "sha256": "4facef6349f2103ee5646cd5f39cb670cdbb6968af613d451dbf2ec9690a7884",
+      "bytes": 20714
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\package.json",
+      "sha256": "584b3732b9883a2c27b1ac6a70e1c4de3fe5fe0faaba407ed7931a5f668bbff2",
+      "bytes": 578
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\README.md",
+      "sha256": "a62802e2440d0e3162be14a35b889ad5960c062cac087cfb867428695c2abf44",
+      "bytes": 17528
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\recorded-provider.mjs",
+      "sha256": "a4ce67a680fdfc13205aca4715cb2795d2bef4d4ee4e48afcf6744e15731e47c",
+      "bytes": 1621
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\report.mjs",
+      "sha256": "edc65dc0fe034e4594a661aa53c9defed99cca3ba5208f6f6d74fda84f3257ba",
+      "bytes": 4138
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\run-controlled-read.mjs",
+      "sha256": "05f47f19162c702255580b0e27c6c4d2579a6d79ce20da66223f35d8cad14e84",
+      "bytes": 25490
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\saved-evidence-predicates.mjs",
+      "sha256": "d777bb7131b678fe94fcf6fe51e1ccd53a189a97727ca9427f1fa296abc866fe",
+      "bytes": 37858
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\SHARED-READ-BUDGET.md",
+      "sha256": "5cf856844baf134450dfb9f30777e839560c38424d8fb4db3160adf3cc37dccc",
+      "bytes": 5066
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\validate-contract.mjs",
+      "sha256": "4f38368e8d20d7dfc1fadf150267fb4bd2418f1f6639442cf605687058dcc84d",
+      "bytes": 7406
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\verify-capture.mjs",
+      "sha256": "24e61f13095d2a4a682dd210b763d4a4a14ff736e63997bcc16b02c9d0b37390",
+      "bytes": 20553
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\windows-artifact-storage.mjs",
+      "sha256": "8b03eeccad53a92fc4cf7bcf4976522ecf7ed2126591449e28a6a70948ac01c4",
+      "bytes": 3415
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\evidence\\live-contract-report.json",
+      "sha256": "c93e0d3bc50c90f00182391637af879a2503810c07cb4539dcc01689b967eb7b",
+      "bytes": 9338
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\evidence\\live-contract-report.md",
+      "sha256": "b06161f981538718b161b6cced38abdbbb652073d624026df1bc5eabad2a711c",
+      "bytes": 2972
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\evidence\\no-live-run.json",
+      "sha256": "4dc550c8f540faca80b73c0557c37c903b6134263bf14e8bb3a5a4a11bda0f27",
+      "bytes": 1618
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\approved-memory-retirement-owner.mjs",
+      "sha256": "84ce879940d2edf83004faf690739e6a9fef4091675fb640980a1d370529f668",
+      "bytes": 6106
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\approved-memory-runtime.md",
+      "sha256": "992ed70916c420f56595db2957e408ada7ff69b17db651eb2219a461e7c2ab9c",
+      "bytes": 4617
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\approved-memory-runtime.mjs",
+      "sha256": "b814c5f904594130d0e35bbb0d4a1f49ec77a5f96c1544fcf9e6969784f278ac",
+      "bytes": 14972
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\canonical-owner-adapter.mjs",
+      "sha256": "a9e68e7f12e60253d8402108dbc2ecc0cf6688863ca42c6412c13e371c61fa40",
+      "bytes": 8502
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\capture-binding-owner.mjs",
+      "sha256": "ccb2a2387fd6c276621b14a95f4219aa1bb9d50e000390b3cfbeb22aca23a83d",
+      "bytes": 7862
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\capture-binding-runtime.mjs",
+      "sha256": "527fc5358eec0884b7159ddbdde07abd14736a299fb08d8f3c4e918ae2f7e17a",
+      "bytes": 7753
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\capture-provider-budget.md",
+      "sha256": "424be10b138d89095988f0ee8aac1ea963cf6461225936817a5aaf7b31f1c348",
+      "bytes": 7264
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\case01-execution-setup.mjs",
+      "sha256": "4c00fd6add2cd92f4e51c95d5f43e0fef7b66da8d2f40c8299b3b92f8b8366a3",
+      "bytes": 52168
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\case01-execution.md",
+      "sha256": "c6804e9981d3ee00ec738a4573b40b76c800541a4d6e04e5dbe15ef49345cc2d",
+      "bytes": 6579
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\case01-memory-hydration.mjs",
+      "sha256": "15b9699413c2662192fad7509b7917353aa49ed6920ebd5af2bd2da52d8d2aec",
+      "bytes": 5725
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\case01-memory-owner.mjs",
+      "sha256": "1dc0a488c08341073d6b5506d3c3ffa559d1bd42e6f30127743b14f0a55b1de3",
+      "bytes": 9821
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\case01-memory-projection-cleanup.mjs",
+      "sha256": "a7438aac98f7d77d9e4074f3ce81f06d7e63934f48540e21eeba8641b3399e7e",
+      "bytes": 8616
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\case01-memory-reconciliation.mjs",
+      "sha256": "29a924932e9ed683f6840afc2a8c056497dd6a1c300f850d122f3707544214b8",
+      "bytes": 8995
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\case01-memory-runtime.mjs",
+      "sha256": "c289d3ecb2426ca1bbdfcedaf3307be54aef00265e2beed119299aec09f1aadc",
+      "bytes": 19355
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\case12-memory-eligibility-owner.mjs",
+      "sha256": "9d829dc0e8ca012194d602949c02d757e9e4921f339eb139c30a25b599913664",
+      "bytes": 4052
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\case12-memory-inventory-owner.mjs",
+      "sha256": "6558f5a49f7e4a4316411107c3f17f29f3bbf133466b02118e9cfbaae34fb1b9",
+      "bytes": 15053
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\case12-memory-setup.mjs",
+      "sha256": "cbd275e92de26b47ab84b4b9a4ddc0f799186a33943b628f31edab635a9e582e",
+      "bytes": 32721
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\case12-setup-budget-plan.mjs",
+      "sha256": "1ca0ec48fc645352c78dd7201f80d0a47e06b33aa46dbcc2db5a0e7dfd0b0f80",
+      "bytes": 5668
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\case14-memory-owner.mjs",
+      "sha256": "14ec0d38eb4d294e966400a68b6371965b47eb67544a6e2df5aaba04fb4a329d",
+      "bytes": 15558
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\cli.mjs",
+      "sha256": "85c8d6281f849a9d3f74a96bb7a63b2ebf06598e043a7270ff7cb1ba1b64a6e8",
+      "bytes": 7344
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\client-document-deletion-owner.mjs",
+      "sha256": "9be218e5522b0de90bef966d3ce5624dcfcd7d3bc9a2380fd34cf1fb87bbd018",
+      "bytes": 4830
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\client-document-owner-reader.mjs",
+      "sha256": "8e3cd6d5b21be7b689d4b24f6289da1f4424c13b24d993239e9e4a275bbf738a",
+      "bytes": 8110
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\client-document-runtime.mjs",
+      "sha256": "85ccc43f558d134c3af9ef7489c388e4d1ed324edb50a6ea6f9ca0a9fa4edc59",
+      "bytes": 6891
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\config.example.json",
+      "sha256": "76dee04e215291edd97d6e9d7752ddd23391677c0cb66c29ba50d257413e5e5e",
+      "bytes": 1293
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\contract.mjs",
+      "sha256": "301f39229b64b3878d2fa9783d2cac5cd716fdf8acb125a2e758dc698e36076e",
+      "bytes": 5295
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\controlled-budget-definitions.mjs",
+      "sha256": "36c7286f8177df416ccb3d47f384942e67e90142e42f82855e4fbfe191d261ea",
+      "bytes": 4967
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\controlled-read-definitions.mjs",
+      "sha256": "56a6f30e198e78db778c1ac2b02a00a4f6eae17646d56bc94f8ece66d63adf05",
+      "bytes": 3956
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\controlled-read-owner.mjs",
+      "sha256": "da36d0a71b88731270dd6cfcea054f08740f49450f4d5551426b51af784e483f",
+      "bytes": 12977
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\manifest.mjs",
+      "sha256": "8f1276ef0aaaef9b648bb1cbd0a037ee7d11d0a78db9691ab4de70b3b5db667a",
+      "bytes": 20549
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\memory-candidate-owner.mjs",
+      "sha256": "a850e4a8a68641d7118cf7f6e5abda72e64452bde6123d8e13acf5308d6bc9b7",
+      "bytes": 14006
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\memory-candidate-runtime.mjs",
+      "sha256": "c283f21aaf619a42d60c07bbde7b562cc7c4185e84fd2be2c504cce69bd34bb2",
+      "bytes": 5058
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\memory-pending-execution.mjs",
+      "sha256": "ea14336f7405d857ebbb29201f210377db77eaf3ea4cbdc04c2f796205e81485",
+      "bytes": 12918
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\memory-pending-fixture-plan.mjs",
+      "sha256": "7d683e5594bf4a76ee20d2ed9c926773436d63a87aff6f33ef0a69292d38968e",
+      "bytes": 1941
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\pending-memory-execution.md",
+      "sha256": "141cb8fee89bb8f30ce439388e3a261689c456ea8cd5b83989b6c83a61109b43",
+      "bytes": 6038
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\provisioner.mjs",
+      "sha256": "92cc5599d9a30aa28f67807b56a543003bf811f06d176634e0d828c4e832a605",
+      "bytes": 19887
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\retirement.mjs",
+      "sha256": "73d2e5ffb27e49dc06dc6432f49912b263a8e1def1c324e3a383294fdfac2afa",
+      "bytes": 15039
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\lib\\native-http.mjs",
+      "sha256": "c31fa2d1e643c91517c9328f397c0cc311b4a2381606cf0589537d230256a64c",
+      "bytes": 497
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\lib\\schema-validator.mjs",
+      "sha256": "6aef9d53ab3bd678bc5732e445973292e92a35b5f65c923132ebbdcff58ef85b",
+      "bytes": 3973
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\lib\\stable.mjs",
+      "sha256": "03bba6f6dd1c48bf206ed32c628e1f9ce2038d75a9560d33d044950261f45c23",
+      "bytes": 1146
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\source\\appendix-f.md",
+      "sha256": "987c7417a12e1f3718db969c2519324f804fe55f4ee7d6673307b6621d98dfda",
+      "bytes": 28776
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\source-binaries\\asset-manifest.json",
+      "sha256": "6512b1ad5f9a154e517e2702f329bc52ab8276ccde9f7a1d2609872c8ea1889d",
+      "bytes": 7757
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\source-binaries\\generator.mjs",
+      "sha256": "59ab97021f98ed828815250fe5b5f4dc5ae420d0a1883de5c0fefc2b47822c2a",
+      "bytes": 15767
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\approved-memory-postgres-harness.mjs",
+      "sha256": "e9423f5e819c33a628c104ef9137c76708aa05ef0b7c5cdb4a42793dd4959c8d",
+      "bytes": 9208
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\approved-memory-runtime.postgres.test.mjs",
+      "sha256": "754f4f6ba70a2dea2784dc1c040c94b35a306d3196fdc940f765e63e4e80405f",
+      "bytes": 14922
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\approved-memory-runtime.test.mjs",
+      "sha256": "6f4bbc3c6f873a69666b1969f538064db98d3f8d36bb4b048a41178e94d94847",
+      "bytes": 2781
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\approved-memory-schema.mjs",
+      "sha256": "07d41fccf6ad21123f29521a7aa0a2816cf6ea4a76e74f8125ff449b828a94ab",
+      "bytes": 6093
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\capture-binding-lock.postgres.test.mjs",
+      "sha256": "906b882b46fee2c7bc813b589b0a68caade75c7d88f4376319bb0de2a071b5ec",
+      "bytes": 9673
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\capture-binding-owner.test.mjs",
+      "sha256": "b926efac7de5ed1f2dae78d24d9ebdb9f88b67e0ddc677af600a45d7b69d99ac",
+      "bytes": 8944
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\capture-binding-runtime.postgres.test.mjs",
+      "sha256": "d4d5eaa1916ed09f6008d088f4dd70ade2b797f53889c54554ef0cda91b87dc8",
+      "bytes": 6718
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\capture-clock-receipt-jsonb.postgres.test.mjs",
+      "sha256": "0534d2c82efaca14a7d9f66cd2399192b3a400ccf4f1693300473a825d64d5e2",
+      "bytes": 11355
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\capture-collector.test.mjs",
+      "sha256": "915c55c549ac3f10aa7771f6b0ec78d6d9d49eda26af27f41a3f176cb3b0a684",
+      "bytes": 34009
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\capture-http-observation.test.mjs",
+      "sha256": "2a15ff44d4ad2a6f61dafe5b09f40b9b16560f0a40339c183b1850e42ed7f389",
+      "bytes": 9597
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\capture-provider-budget-cli-harness.mjs",
+      "sha256": "de1294d1416caa220ae20fe86a6422ce829fd42b62054ae3e955a281f796f1e7",
+      "bytes": 3811
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\capture-provider-budget-install.postgres.test.mjs",
+      "sha256": "d14cf12b213e770a7141b89d801dc396bf3fe3edcd853aec029a6e5f6a828b77",
+      "bytes": 11835
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\capture-provider-budget.postgres.test.mjs",
+      "sha256": "4683de5db2303f952b99e28a7a16ef843c7be5ac2b2671304f1e43317c222ac3",
+      "bytes": 17129
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\capture-receipt-jsonb.postgres.test.mjs",
+      "sha256": "24a4fd4397debdd967030460c6faddae919462517878f631d2a01b58ec02ce75",
+      "bytes": 9104
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\capture-spend-aggregate.test.mjs",
+      "sha256": "68fe11ac0af4653408b4e37b3d2ce91feaa0a13db9129f8dee49ad7296a4ce35",
+      "bytes": 10099
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\capture-spend-fresh.test.mjs",
+      "sha256": "9f2e2637cae9031b857e268259e760f8199835a5adf5ff87b81a4c750f6da74f",
+      "bytes": 14954
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\capture-spend-reconciliation.test.mjs",
+      "sha256": "96717a0e6b988a2eb85cac0e5c040d06fd9f3af37ffca6cc9066cf35a229a754",
+      "bytes": 11225
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\capture-spend-terminal.test.mjs",
+      "sha256": "c80eb01dd920c74a1035e38d3d1e458ee672c91fb49670d7122ae38e7f3af72e",
+      "bytes": 7946
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\capture-spend-v2.test.mjs",
+      "sha256": "2b9e43525af5063c0fc502bd1ccb1b8f7402c1edb442b60439e30f9736cc1e6e",
+      "bytes": 8221
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\capture-tenant-contract.test.mjs",
+      "sha256": "ce33977e08a24efe153714fda5956a36b062dc53d40b554f7251df1b1cd4f5e9",
+      "bytes": 967
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\case01-approved-memory.postgres.test.mjs",
+      "sha256": "fc4361b3ca3b018252ddbd071d0f87c67656682dde43107cb27ce5cafa8d7754",
+      "bytes": 4585
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\case01-approved-memory.test.mjs",
+      "sha256": "e208bc637dfaa30eaa8edbc3e8c5e661c8c97c14449b9936b882e62d8981d31f",
+      "bytes": 3049
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\case01-authority.test.mjs",
+      "sha256": "4deaf24f46934de83277cc5fa5cf311407e192d91d950141f9f63bc21c9f5c5e",
+      "bytes": 17715
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\case01-caller-authority.test.mjs",
+      "sha256": "0da0e9f6ade5b7fb337b39b132863085810d6a743bedfb5099af62f24e5df2d3",
+      "bytes": 1232
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\case01-execution-setup.postgres.test.mjs",
+      "sha256": "e87c75ec724cf5b045f2b037c02625601510e7f4c6f43ebfa9d19c8ff6b0d04c",
+      "bytes": 46802
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\case01-failed-receipt-cost.test.mjs",
+      "sha256": "b32981f6df677f8360f8c8827068d4c3c45942e7b26d40e94f0b79637ec0faa8",
+      "bytes": 5335
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\case01-memory-hydration.postgres.test.mjs",
+      "sha256": "9d1e7c4642b5f7b9e4931e419bb6d7c0ed17ec3ec5f967fcd205d7e0603e3747",
+      "bytes": 20209
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\case01-memory-lifecycle.postgres.test.mjs",
+      "sha256": "4ad502fb68aaefe866365d17d9f1e6bb2a1e80af8ae8b1cfdeb1f08d6537e2ee",
+      "bytes": 14012
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\case01-memory-packaging.test.mjs",
+      "sha256": "cd60649778c2a98e50654e215aed101d0701c55382ad13d0fa63adb811f69e4a",
+      "bytes": 3822
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\case01-operator-input.test.mjs",
+      "sha256": "ac5f8f069affe50b2c3c075ea7e7a927da91db35fca2a9149aeb0d0dc389b76c",
+      "bytes": 1829
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\case01-presubmission-recovery.test.mjs",
+      "sha256": "71905a03919e61f7aa34536aea2fa2f9c3153999e6cd2f78db81da2ae1951642",
+      "bytes": 22311
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\case01-projection-cleanup-exercises.mjs",
+      "sha256": "a3bc2e86e6113ee8e0a4f305a1f205525ed74fbf95f9ee328b9dcccc1f476890",
+      "bytes": 13258
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\case01-recovery-real-transactions.test.mjs",
+      "sha256": "582c3d012a6e23e76ce40d64bc885863d0c7ae55605a6123b65304b9a456ad8b",
+      "bytes": 21806
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\case12-memory-inventory-owner.test.mjs",
+      "sha256": "d8346f384b992c719c92ec1e568f3be334110409135d7e1b0711791dfcd700c0",
+      "bytes": 25025
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\case12-memory-setup.test.mjs",
+      "sha256": "b93d8b1486f6b98729ac9d3ec2c75c3e63294704d1d5c4cc82ff80a1fc782dc5",
+      "bytes": 4960
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\case12-setup-budget-plan.test.mjs",
+      "sha256": "d78d360e2c53c3b83e7e0bc034accb9220465b0320635af3f1a61ba6417cc02d",
+      "bytes": 6943
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\case14-approval-cost-authority.test.mjs",
+      "sha256": "6cb85c5d79b10c6426f0161ebfa3d2be8b4cb0103f4e1111242968cfc4673185",
+      "bytes": 3686
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\case14-approval-write-guard.test.mjs",
+      "sha256": "9b9658f6ec8f787b62263852cd326b5c526767ce2b5b8d784256fbf4ccad1f58",
+      "bytes": 5444
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\case14-capture.test.mjs",
+      "sha256": "71af76577a0b17413842edc3cff9cebb96a59ddab86c4e149675262d1c76e35d",
+      "bytes": 12461
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\case14-delayed-query.test.mjs",
+      "sha256": "32d495d2504960cb1a0a129885d12b8c8317a1323b6950a1ac5feab920f7fbff",
+      "bytes": 4561
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\case14-memory-owner.postgres.test.mjs",
+      "sha256": "199bd661d83f4ab161f879ee9f418405f9b126580097cb82142b7a10b45c69ed",
+      "bytes": 13571
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\case17-authority.test.mjs",
+      "sha256": "474e3ab45e7fdce9ac23b65074fd3933dfc7ca9225c8bf17a0c49358069ebd1a",
+      "bytes": 7185
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\case17-caller-authority.test.mjs",
+      "sha256": "8d57e1268ecdf56a81746a3e548fe6a517e17a1be82e0130642e31c316c26ae2",
+      "bytes": 1232
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\case17-memory-ui-delayed-mount.test.mjs",
+      "sha256": "939ca062ba2309adf1ed54293a86a6337e7048ed59d5ef95944fab37c7fe6336",
+      "bytes": 3314
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\case17-memory-ui-query.test.mjs",
+      "sha256": "a48e14a96246554f9db461aed87e609269d5ce352982a98e93fb5d18be9b42a8",
+      "bytes": 3396
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\case17-memory-ui.test.mjs",
+      "sha256": "60c778aecff7711cb03c9dd1f651039c065a66b0d22d5de68431cea739e51eb7",
+      "bytes": 5281
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\case17-readonly-guard.test.mjs",
+      "sha256": "848f2f956274fbf2dfb894f3c8e2a6142850d2ea602c9ac0e8bd81c59d98250a",
+      "bytes": 7965
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\case17-saved-checks.test.mjs",
+      "sha256": "8bbd979cc1c4f16803435a531964633426c6d51bd4dbf08a19156520a048c2d5",
+      "bytes": 15478
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\case20-presubmission-recovery.test.mjs",
+      "sha256": "3fed119bb1ab9ed74f68a646c42702b09b24f107aef79172b5be932626ae64bb",
+      "bytes": 46395
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\case20-terminal-cost.test.mjs",
+      "sha256": "27300b66229ae2e34baac70a91b84d5a650fad96986120ddd9e0bd99e9118314",
+      "bytes": 5628
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\case46-artifact-evidence.test.mjs",
+      "sha256": "11648ef8eb1cf265caeefe7fe4bd8b18870f20a20876ed982b69667314ef264a",
+      "bytes": 4634
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\case46-artifact-ui.test.mjs",
+      "sha256": "44df80dcee18c6a42d6b034c54301d8f697162833c5460d95ad04eb9e4d2ab66",
+      "bytes": 6123
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\case46-fixture.mjs",
+      "sha256": "83c25d721a3e16d917406731b73d69b1bb37fd3c629954ea765e664b8de1b8c5",
+      "bytes": 4954
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\case46-native-composition.test.mjs",
+      "sha256": "d1edefe123c3174c9536e56d3ecb7798cabc8708d11ded5c4a501a681c9cf58b",
+      "bytes": 10266
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\case46-provider-budget.postgres.test.mjs",
+      "sha256": "d33aba75db2e98c73db46d76963e2d18dbd6d6cf6d07e263219c643abd40c6dd",
+      "bytes": 44248
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\case46-receipt-joins.test.mjs",
+      "sha256": "4acde27012bba324e8b53efb2d547b4ec472775124c50a29867224431ce49e5b",
+      "bytes": 4984
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\client-document-owner.postgres.test.mjs",
+      "sha256": "d1bed8582952c2ad5f8a855b83f1d1297cafef0291281e56b9bfa52d4fa0da92",
+      "bytes": 38451
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\client-document-runtime.test.mjs",
+      "sha256": "1edf06c51028bc2bd51aa522f91381b2a3a4934e003dfeddf7780c2d9945c9c6",
+      "bytes": 2000
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\context-clock-jsonb.postgres.test.mjs",
+      "sha256": "ced9cb625252fde286fcc046ad4e696d192209f95fd053ad6bc690163d59cb2d",
+      "bytes": 13047
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\contract.test.mjs",
+      "sha256": "33cddeb93274acafaae97e1c629f7b429343e4ed53a2be013a597b678c033316",
+      "bytes": 3011
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\controlled-budget-definitions.test.mjs",
+      "sha256": "73600696fb95ce4c92245b65c4147a192c4b353f19777988149177d6f31da8ba",
+      "bytes": 3269
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\controlled-budget-receipts.test.mjs",
+      "sha256": "a91fef74a86772b4f724276edacba154e4fdda6b9e4d6bb86f76a429111ab082",
+      "bytes": 7518
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\controlled-budget.postgres.test.mjs",
+      "sha256": "ca6e609c2a1eef7994ff26412282cf6eb3d94084b06be94117fe6fdc5e34183f",
+      "bytes": 7321
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\controlled-capture-receipt-fixtures.mjs",
+      "sha256": "f6ed10e2296ab4fda5d8843b2a67283d3cfc07cc7f07399dfadc2e73dbd24c1f",
+      "bytes": 4310
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\controlled-capture-receipt.test.mjs",
+      "sha256": "208cc82b04b0d04f4c84dac4109313755684a4f47098c35de753a134bcb6a220",
+      "bytes": 9236
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\controlled-read-authority.test.mjs",
+      "sha256": "54e0e87d81b70ead3b4a131dea9950caef8e014c598e9647d7f3f78379692b99",
+      "bytes": 11443
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\controlled-read-definitions.test.mjs",
+      "sha256": "b16fd394b6e894988faa7e38d09d0c1538afec9845c2c8279011debbd8e8a2b3",
+      "bytes": 2711
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\controlled-read-operator.test.mjs",
+      "sha256": "338652e7e6052f9b346c607b7ba289874f98c60b7f321761561fba9099f7f7d6",
+      "bytes": 32348
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\controlled-read-owner.test.mjs",
+      "sha256": "e2d34e863d7843e87fce02cb4c8a644bc800a9e7637e9536cd986908cbf25f22",
+      "bytes": 6966
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\controlled-read-refresh.test.mjs",
+      "sha256": "363d43ddb9feb43a7a92316eaa74254c959004f338c90fb04f34a361b1355e12",
+      "bytes": 4803
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\controlled-read.postgres.test.mjs",
+      "sha256": "68754def642ea2dd2df5bd9d87148a54121109140f7454e0487318b90401c09b",
+      "bytes": 12603
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\fixture-cli.test.mjs",
+      "sha256": "24cc58236d7ad873781f7aaffa43966b83acd57cbd93f771801426d583e38117",
+      "bytes": 3962
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\fixture-content-contract.test.mjs",
+      "sha256": "2c13ef51d06b31098fa66ab8fd40fae6fedbe16f3a03a3ed79e4a58a11d4184b",
+      "bytes": 5165
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\fixture-instance.test.mjs",
+      "sha256": "1058a26b0a999d8189ac066a86f8d485655085c946ec62737910dbd162360da5",
+      "bytes": 5429
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\fixture-provisioning.postgres.test.mjs",
+      "sha256": "8aac20fa2976ba8d71ee8830e86cb156037cdd991ccccf7e2d14e7a63523c1e1",
+      "bytes": 9478
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\fixture-provisioning.test.mjs",
+      "sha256": "21393d234270129bc6e6de261916575567a4020ce75c6f4724e1cf2ac75a0e7a",
+      "bytes": 23001
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\fixture-retirement.test.mjs",
+      "sha256": "e4083a51c529bc1e0c7d75236c84b72cbb0566da545cb29deb4affbd3ad88332",
+      "bytes": 14311
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\fixture-runtime.test.mjs",
+      "sha256": "24450d39d0a37ea93dca4c4660e643c6ae6885614e0ae5b23abc111877c2734e",
+      "bytes": 3066
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\grade-case01-capture.test.mjs",
+      "sha256": "8e6a5413f97625413c10270f4a91db13c3ddd4ec4449eb5ed9f1ca9ec3eb790d",
+      "bytes": 4049
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\helpers.mjs",
+      "sha256": "cd75e6f49f5659136318c7303f3d1015fd3205675836a119dfb961d8a9ca509c",
+      "bytes": 24141
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\memory-candidate-owner.postgres.test.mjs",
+      "sha256": "2415de47b5fba09e43ea10ef37a910df5841f9d5ca1e46628de4f318c24fa906",
+      "bytes": 57720
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\memory-pending-execution.postgres.test.mjs",
+      "sha256": "f4ddb23e89e2091c44d582f5801b1a26378bef36c22b098cf4d0b997198da202",
+      "bytes": 11616
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\memory-pending-fixture-plan.test.mjs",
+      "sha256": "346972d7f02748249d00e31508dcb874389f5a6b74ab63dc8a7cc039e13aab84",
+      "bytes": 2876
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\memory-projection-governance.postgres.test.mjs",
+      "sha256": "0b3a62dc30bfc8aec6e22387c2cc2a3340d6bbb64b61f2741f743901040d36b7",
+      "bytes": 9354
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\memory-read-budget.test.mjs",
+      "sha256": "9c8c00205c7bd8f36b9f1507ac52a4124ec2f74187b1f7ff74b5113671913516",
+      "bytes": 6098
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\memory-read-protocol.test.mjs",
+      "sha256": "26247d894471a678409e65b0d09de8f32e6d8cb9a7b32407f39f2751ae0ec396",
+      "bytes": 11005
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\memory-read-reconciliation.test.mjs",
+      "sha256": "36bd07fbc7f70107899ba4cea5d330aad79723ca4999f05a5cb9e1f3d708f7db",
+      "bytes": 10563
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\memory-read-refresh.test.mjs",
+      "sha256": "e7c8ca74fd0fe8c4fef1fcf9c37d957868134be63d962f0678253dd42a1d51a0",
+      "bytes": 2513
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\memory-review-lock.postgres.test.mjs",
+      "sha256": "4650e7e0c62e33270900789db2dfec743b7a01afcdd2f5ebc78d7c407feb91ce",
+      "bytes": 8601
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\memory-revocation-lock.postgres.test.mjs",
+      "sha256": "ce2e55b04eb10a6f74ba25730dd5aaae1bac0958b3f14c40095950a238674b48",
+      "bytes": 8784
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\memory-row-predicates.test.mjs",
+      "sha256": "dae487d74fa6133c3b059000eb9f717fbc13c6523a75783ef4ae51b5a02a4e5c",
+      "bytes": 16366
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\own-pending-proposals.postgres.test.mjs",
+      "sha256": "e1edcc0804d5769fb8bbda29881ea34d814c532b5b3ecc910cb9ec34477c7433",
+      "bytes": 5026
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\saved-evidence-fixtures.mjs",
+      "sha256": "6f0ce480002c9e68c5b0bf3cd33659c845f7cc8026904ad6952076016aea83ce",
+      "bytes": 15436
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\source-binaries.test.mjs",
+      "sha256": "72dccab6499a8afb2feedbf81c4a67fea060ee1bba7d198edcf873ce58947b02",
+      "bytes": 10630
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\synthetic-document-deletion-enum.postgres.test.mjs",
+      "sha256": "eae8cf0caf6e9508cec3078fa7705550c0e469baad619eff1bb2dbcf7fee8f43",
+      "bytes": 11414
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\synthetic-read-budget.postgres.test.mjs",
+      "sha256": "fa61d17c14c212f08688239317c113ba99ba0684c5914ca485f58654ec6b8395",
+      "bytes": 29077
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\task-scope.postgres.test.mjs",
+      "sha256": "72ce7d6834cc5db1028fb142787fa7e8eeb64ce8a9d9e742920a65bb6eb09f18",
+      "bytes": 9514
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\verifier.test.mjs",
+      "sha256": "f780ab526f9c0efdb77fca2f4275a870a20ad454aaa021f2b869597e86cdc4fa",
+      "bytes": 31680
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\windows-artifact-storage.test.mjs",
+      "sha256": "35ba061d3fda7f4632f6bd9cc4425cd14fdc45d0a638c1dca059ed7b6d5040b5",
+      "bytes": 9983
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\fixtures\\case01-failed-receipt-authorization.unit.json",
+      "sha256": "e07822e83a7c7b531606519ecd4fdf1027f2fa7cbaefd4bad92a2084590262fe",
+      "bytes": 489
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\fixtures\\case01-failed-receipt-cost-proof.unit.json",
+      "sha256": "ef153e852ac2a1717603c6a05fcffc679666a294342704de790210e98c8a8758",
+      "bytes": 1018
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\fixtures\\case01-failed-receipt-cost.unit.json",
+      "sha256": "8e00f9b412a76d299d439bf874c49c893e6bc015ffd7c24e3d1ab3dca2d00aeb",
+      "bytes": 75241
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\fixtures\\case01-terminal-reconciliation.unit.json",
+      "sha256": "ac475942ae15c4f92d6649600e9e5b083f7bda29903dca76edc4b3287bb8162b",
+      "bytes": 9694
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\fixtures\\case20-terminal-cost-proof.unit.json",
+      "sha256": "1e45641ee993aa75fa6d2a56b4e7bc2fb2b7666e66c2806167a2cf8bc437a62e",
+      "bytes": 1017
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\fixtures\\case20-terminal-cost.unit.json",
+      "sha256": "ac03c1707773f929cb56fb2f6c35f3311d9d1691e65348a6bc3816c5603a2388",
+      "bytes": 132382
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\source-binaries\\asset-manifest.json",
+      "sha256": "6512b1ad5f9a154e517e2702f329bc52ab8276ccde9f7a1d2609872c8ea1889d",
+      "bytes": 7757
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\source-binaries\\D-A-1.pdf",
+      "sha256": "da882da4ae603b15d8b21072a034a2daf302071856743fd842ad3198a003d0fc",
+      "bytes": 3269
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\source-binaries\\DECK-A-1.pptx",
+      "sha256": "cc12bfaa119ab3d99f210d4f3169a693be269b2d4d98b76fbb42f78aff2cd4bb",
+      "bytes": 25954
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\source-binaries\\FILE-B-1-restricted.pdf",
+      "sha256": "161c88788ac2214e3ce4bc0c7627d413331e0ecff721ffb9c73cbeb66ebde6f3",
+      "bytes": 1887
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\source-binaries\\generator.mjs",
+      "sha256": "59ab97021f98ed828815250fe5b5f4dc5ae420d0a1883de5c0fefc2b47822c2a",
+      "bytes": 15767
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\source-binaries\\PDF-PENDING-1.pdf",
+      "sha256": "759ba31674a35f47324cada809abc52c411dd3fd649df36b4b12e91549705bcc",
+      "bytes": 1899
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\source-binaries\\REPORT-A-v1.pdf",
+      "sha256": "24d2374a09cbb012418bed2dfa562015ef7a200c22f6c3a0ac425e8ceeb487a7",
+      "bytes": 38597
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\source-binaries\\REPORT-A-v2.pdf",
+      "sha256": "f06ebef24465eb837a4de37964ad0630859323bf34292d9f6dec2a9264f8f848",
+      "bytes": 38734
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\source-binaries\\SHEET-A-1.xlsx",
+      "sha256": "debd2c837dbd1c33c329ce8d96f98a702a879c4a4e4829df740fdc6dd58924df",
+      "bytes": 6557
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-current-owner-independent-input-v1\\checkpoint-v1.json",
+      "sha256": "bae363003f8455105f8b398372ae1752d327021f36cd6481d58fcf5b9f685017",
+      "bytes": 3020
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-current-owner-independent-hermes-v1\\evidence\\checkpoint-v1.json",
+      "sha256": "bae363003f8455105f8b398372ae1752d327021f36cd6481d58fcf5b9f685017",
+      "bytes": 3020
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\checkpoint-v1.json",
+      "sha256": "bae363003f8455105f8b398372ae1752d327021f36cd6481d58fcf5b9f685017",
+      "bytes": 3020
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-current-owner-independent-input-v1\\unit-tests-v3.log",
+      "sha256": "68ff3e98cfbb73c57854bd553d971c437b746560dbaa827a5b31e915820593d9",
+      "bytes": 1897
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-current-owner-independent-hermes-v1\\evidence\\unit-tests-v3.log",
+      "sha256": "68ff3e98cfbb73c57854bd553d971c437b746560dbaa827a5b31e915820593d9",
+      "bytes": 1897
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\unit-tests-v3.log",
+      "sha256": "68ff3e98cfbb73c57854bd553d971c437b746560dbaa827a5b31e915820593d9",
+      "bytes": 1897
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-current-owner-independent-input-v1\\evals\\meri\\live-v1\\fixture-provisioning\\case12-memory-current-owner.mjs",
+      "sha256": "272e0759fb6e5f3aafb613e20874828060ce533f241315ff22f391810f6ee2e6",
+      "bytes": 23151
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-current-owner-independent-hermes-v1\\evidence\\evals\\meri\\live-v1\\fixture-provisioning\\case12-memory-current-owner.mjs",
+      "sha256": "272e0759fb6e5f3aafb613e20874828060ce533f241315ff22f391810f6ee2e6",
+      "bytes": 23151
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\case12-memory-current-owner.mjs",
+      "sha256": "272e0759fb6e5f3aafb613e20874828060ce533f241315ff22f391810f6ee2e6",
+      "bytes": 23151
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-current-owner-independent-input-v1\\evals\\meri\\live-v1\\fixture-provisioning\\case12-memory-setup.mjs",
+      "sha256": "cbd275e92de26b47ab84b4b9a4ddc0f799186a33943b628f31edab635a9e582e",
+      "bytes": 32721
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-current-owner-independent-hermes-v1\\evidence\\evals\\meri\\live-v1\\fixture-provisioning\\case12-memory-setup.mjs",
+      "sha256": "cbd275e92de26b47ab84b4b9a4ddc0f799186a33943b628f31edab635a9e582e",
+      "bytes": 32721
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\case12-memory-setup.mjs",
+      "sha256": "cbd275e92de26b47ab84b4b9a4ddc0f799186a33943b628f31edab635a9e582e",
+      "bytes": 32721
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-current-owner-independent-input-v1\\evals\\meri\\live-v1\\fixture-provisioning\\case12-memory-inventory-owner.mjs",
+      "sha256": "6558f5a49f7e4a4316411107c3f17f29f3bbf133466b02118e9cfbaae34fb1b9",
+      "bytes": 15053
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-current-owner-independent-hermes-v1\\evidence\\evals\\meri\\live-v1\\fixture-provisioning\\case12-memory-inventory-owner.mjs",
+      "sha256": "6558f5a49f7e4a4316411107c3f17f29f3bbf133466b02118e9cfbaae34fb1b9",
+      "bytes": 15053
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\case12-memory-inventory-owner.mjs",
+      "sha256": "6558f5a49f7e4a4316411107c3f17f29f3bbf133466b02118e9cfbaae34fb1b9",
+      "bytes": 15053
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-current-owner-independent-input-v1\\evals\\meri\\live-v1\\fixture-provisioning\\case12-memory-eligibility-owner.mjs",
+      "sha256": "9d829dc0e8ca012194d602949c02d757e9e4921f339eb139c30a25b599913664",
+      "bytes": 4052
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-current-owner-independent-hermes-v1\\evidence\\evals\\meri\\live-v1\\fixture-provisioning\\case12-memory-eligibility-owner.mjs",
+      "sha256": "9d829dc0e8ca012194d602949c02d757e9e4921f339eb139c30a25b599913664",
+      "bytes": 4052
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\case12-memory-eligibility-owner.mjs",
+      "sha256": "9d829dc0e8ca012194d602949c02d757e9e4921f339eb139c30a25b599913664",
+      "bytes": 4052
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-current-owner-independent-input-v1\\evals\\meri\\live-v1\\tests\\case12-memory-current-owner.test.mjs",
+      "sha256": "346c97d756e1afd716f9e5e0b99136f53e3be23d571ef27e4059971f67c6c169",
+      "bytes": 7530
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-current-owner-independent-hermes-v1\\evidence\\evals\\meri\\live-v1\\tests\\case12-memory-current-owner.test.mjs",
+      "sha256": "346c97d756e1afd716f9e5e0b99136f53e3be23d571ef27e4059971f67c6c169",
+      "bytes": 7530
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\case12-memory-current-owner.test.mjs",
+      "sha256": "346c97d756e1afd716f9e5e0b99136f53e3be23d571ef27e4059971f67c6c169",
+      "bytes": 7530
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-current-owner-independent-input-v1\\evals\\meri\\live-v1\\tests\\case12-memory-current-owner-harness.mjs",
+      "sha256": "da982be678b9d7009be80811002df19e8860563b43cb81bdeabce9e56a62f35e",
+      "bytes": 11032
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-current-owner-independent-hermes-v1\\evidence\\evals\\meri\\live-v1\\tests\\case12-memory-current-owner-harness.mjs",
+      "sha256": "da982be678b9d7009be80811002df19e8860563b43cb81bdeabce9e56a62f35e",
+      "bytes": 11032
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\case12-memory-current-owner-harness.mjs",
+      "sha256": "da982be678b9d7009be80811002df19e8860563b43cb81bdeabce9e56a62f35e",
+      "bytes": 11032
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-current-owner-independent-input-v1\\apps\\api\\src\\retrieval\\adapters\\case12-memory-eligibility.read.ts",
+      "sha256": "a6755a96e68516257e7b511dd8a85fbb30b01358c4e6e87b815b92ad3f9257ab",
+      "bytes": 4933
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-current-owner-independent-hermes-v1\\evidence\\apps\\api\\src\\retrieval\\adapters\\case12-memory-eligibility.read.ts",
+      "sha256": "a6755a96e68516257e7b511dd8a85fbb30b01358c4e6e87b815b92ad3f9257ab",
+      "bytes": 4933
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\apps\\api\\src\\retrieval\\adapters\\case12-memory-eligibility.read.ts",
+      "sha256": "a6755a96e68516257e7b511dd8a85fbb30b01358c4e6e87b815b92ad3f9257ab",
+      "bytes": 4933
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-current-owner-independent-input-v1\\apps\\api\\src\\retrieval\\adapters\\governed-memory-eligibility.helpers.ts",
+      "sha256": "3056dc2df5b4fab0cb8e95168f28cb00b55ec11c3755ee07c3b9e0b085330b6c",
+      "bytes": 2978
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-current-owner-independent-hermes-v1\\evidence\\apps\\api\\src\\retrieval\\adapters\\governed-memory-eligibility.helpers.ts",
+      "sha256": "3056dc2df5b4fab0cb8e95168f28cb00b55ec11c3755ee07c3b9e0b085330b6c",
+      "bytes": 2978
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\apps\\api\\src\\retrieval\\adapters\\governed-memory-eligibility.helpers.ts",
+      "sha256": "3056dc2df5b4fab0cb8e95168f28cb00b55ec11c3755ee07c3b9e0b085330b6c",
+      "bytes": 2978
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-current-owner-independent-input-v1\\apps\\api\\src\\memory\\synthetic-approved-memory.helpers.ts",
+      "sha256": "8451534ad56fdda936c7ce5c1961c68e0172d61ab2be45872e6d1b93da21ba22",
+      "bytes": 13474
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-current-owner-independent-hermes-v1\\evidence\\apps\\api\\src\\memory\\synthetic-approved-memory.helpers.ts",
+      "sha256": "8451534ad56fdda936c7ce5c1961c68e0172d61ab2be45872e6d1b93da21ba22",
+      "bytes": 13474
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\apps\\api\\src\\memory\\synthetic-approved-memory.helpers.ts",
+      "sha256": "8451534ad56fdda936c7ce5c1961c68e0172d61ab2be45872e6d1b93da21ba22",
+      "bytes": 13474
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-current-owner-independent-hermes-v1\\extra-tests.log",
+      "sha256": "0b4f822042b702895460157ed1e3321d8db5f0b86312a22fe8fc1233ca46d8e9",
+      "bytes": 1214
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-current-owner-independent-hermes-v1\\original-tests-independent.log",
+      "sha256": "355de073fdcb2921d7f0d2472b3e242ea5bbaf2c17ece809e5cfe4e4635e502e",
+      "bytes": 1932
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-current-owner-independent-hermes-v1\\prompt.txt",
+      "sha256": "c400ffbe81e9fa5f7c3aa24ae69b05e1795ca54618b513e4732717e838170b79",
+      "bytes": 1768
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-current-owner-independent-hermes-v1\\response.txt",
+      "sha256": "1c348f5e697a0dfc65cb2b8fc79b46562aa848f4dd0b225fbde2f7e26671e27e",
+      "bytes": 404
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-current-owner-independent-hermes-v1\\review.md",
+      "sha256": "d6dfd1926cfa5c9b0b692df3f37445a86217192fa9f26c8db1a0882eb6cb9129",
+      "bytes": 8336
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-current-owner-independent-hermes-v1\\stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-current-owner-independent-hermes-v1\\usage.json",
+      "sha256": "8c93f8ae27fa629544994655d86baa4b47f410d73ca7867a7ab48e7e4383e7a8",
+      "bytes": 485
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-current-owner-independent-hermes-v1\\extra-tests.log",
+      "sha256": "0b4f822042b702895460157ed1e3321d8db5f0b86312a22fe8fc1233ca46d8e9",
+      "bytes": 1214
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-current-owner-independent-hermes-v1\\original-tests-independent.log",
+      "sha256": "355de073fdcb2921d7f0d2472b3e242ea5bbaf2c17ece809e5cfe4e4635e502e",
+      "bytes": 1932
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-hermes-v1\\prompt.txt",
+      "sha256": "9838b195f4e6eb5605f291ca1ccdc9cf0dbd339b607da06864c6fab6dcb54e90",
+      "bytes": 5259
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-hermes-v1\\response.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-hermes-v1\\stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-hermes-v1\\candidate\\NOTES.md",
+      "sha256": "7f02b4cfe7538a32ce36d4051377f129b12829a65bcda8af28af5f01b811c291",
+      "bytes": 3065
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-capture-owner-hermes-v1\\candidate\\evals\\meri\\live-v1\\fixture-provisioning\\case12-memory-current-owner.mjs",
+      "sha256": "8cbad9e77c33c0daaf64376afe4a5f67b7115e8e4f83a3377509464a3775bbe5",
+      "bytes": 20719
+    }
+  ],
+  "hermes": {
+    "session": "20261004_065537_65fef2",
+    "model": "openai/gpt-6-luna",
+    "provider": "openrouter",
+    "exitCode": 0,
+    "estimatedCostUsd": 0.008893209999999999,
+    "reviewSha256": "d6dfd1926cfa5c9b0b692df3f37445a86217192fa9f26c8db1a0882eb6cb9129",
+    "rawVerdict": "PASS_LOCAL_SOURCE_ONLY",
+    "noModelOrProviderOverrides": true
+  },
+  "independentTests": {
+    "original34Rerun": {
+      "pass": 34,
+      "fail": 0,
+      "exitCode": 0,
+      "sha256": "355de073fdcb2921d7f0d2472b3e242ea5bbaf2c17ece809e5cfe4e4635e502e"
+    },
+    "additional13": {
+      "pass": 13,
+      "fail": 0,
+      "exitCode": 0,
+      "sourceSha256": "7e9b6b9167211034aee574805004cdf228496a074ce81860ded9c01036e42e85",
+      "logSha256": "0b4f822042b702895460157ed1e3321d8db5f0b86312a22fe8fc1233ca46d8e9"
+    },
+    "scope": "SQL result and native-port doubles only. Local frozen fixture asset reads; no DB/cloud/provider/journal actions."
+  },
+  "verified": [
+    "Exact current tenant claim locator rebuilt through fixed recipe/510 definitions; claim/progress hashes bind locators, while actual native ownership and ordinary read authorization establish current source rows.",
+    "For every510 definition, current candidate committed-item/tenant/client/proposer/reviewer/marker/key/status/source/version join is locked and validated. Candidate and item versions are refreshed from native rows; saved old versions are not relabeled current.",
+    "Existing inventory/eligibility owners independently guard all510 canonical rows, ordinary Pat read access, current SQL and JS predicates, exact target membership and >=500 newer currently eligible rows. PostgreSQL compares both created and updated timestamps including native precision.",
+    "currentVerify includes all510 candidate/item versions, source/content/sections hashes, real approval/effective/expiry values, eligible member IDs/flags/count, target and claim/plan identity. Volatile database observation/snapshot/process windows are kept outside stable hash.",
+    "Original34 tests and independent13 checks cover exact500, supporting version/content/sections and membership digest drift, duplicate/stale/foreign/malformed native eligibility, and exact same transaction across1532 native port calls.",
+    "New module snapshots methods/context/scope, opens no nested transaction, writes no DB data, and returns no semantic/fixture/capture authority.",
+    "Native October candidate approval may follow item approval; preserves separately observed native timestamps and requires observation after real approvals. No timestamp rewrites or frozen benchmark clock injection."
+  ],
+  "rawImplementationComparison": {
+    "executionSha256": "86c19a15133bcf2c57e2a2f654a2ecba6d5c92d6666548cdc6d226c33c3d7db6",
+    "exitCode": 124,
+    "failure": "BOUNDED_REVIEW_TIMEOUT",
+    "finalRawSha256": "8cbad9e77c33c0daaf64376afe4a5f67b7115e8e4f83a3377509464a3775bbe5",
+    "supervisedSourceDerivedFromEarlierRawSnapshot": "932d86df97cb40d22f8711420d8a7294a273267ac41a449dd4ecdfb8cee2bdc6",
+    "assessment": "Late raw candidate added duplicate/type/eligibility joins that are already enforced by frozen existing eligibility owner before the new owner receives inventory. Independent negative tests confirm duplicate, tenant/client/version/content, target-newer and nonboolean-newer rejection. No need to merge late timed-out raw draft. Supervisor corrections and successful independent Hermes review remain separately attributed."
+  },
+  "remainingNativeQualification": [
+    "Actual candidate committed-item/source/ownership/date joins with real canonical service graph and current SQL/JS predicates.",
+    "Native expiry/effective precision and exact500/499 currently eligible boundary; native guard content/sections rejection.",
+    "Current-source/stable-hash repeated read and native row change using actual factory/default transactions; transaction timeout/RLS/lock behavior.",
+    "Root-owned setup provenance/admission/semantic clock/tool/source/packet/receipt composition; this module cannot independently establish capture readiness."
+  ],
+  "limits": [
+    "Additional sections/content mutation test verifies stable-hash binding of supplied native observations; its doubles do not claim mutated content would pass the real canonical guard.",
+    "No production RLS/transaction or native factory qualification, immutable image/deployment proof, paid setup authority, or acceptance promotion.",
+    "Original draft timeout and prior failed unit logs retained; no raw Hermes completion or usage fabricated."
+  ],
+  "journal": {
+    "events": 26,
+    "sha256": "816b04a47be56432846d1ee602370c3bea985eb497a7de9e899aee4d53f8b39e",
+    "mutations": 0
+  },
+  "captureAuthority": false,
+  "fixtureReady": false,
+  "semanticClockQualified": false,
+  "liveAcceptance": "NOT_RUN"
+}

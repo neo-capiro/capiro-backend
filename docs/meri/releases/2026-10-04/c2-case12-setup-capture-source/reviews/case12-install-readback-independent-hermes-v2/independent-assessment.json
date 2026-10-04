@@ -1,0 +1,135 @@
+{
+  "kind": "case12-install-readback-independent-review",
+  "at": "2026-10-04T11:40:31.254394+00:00",
+  "status": "PASS_SOURCE_AND_CONTROLLED_CAS_TESTS_WITH_RUNTIME_BLOCKER",
+  "manifest": {
+    "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-install-readback-independent-input-v2\\manifest.json",
+    "sha256": "d65f4f4d33934ec5981b41afad220aeffc5c2eda81a5f31b1928d1ea2accaae3",
+    "bytes": 6723
+  },
+  "hermes": {
+    "execution": {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-install-readback-independent-hermes-v2\\execution.json",
+      "sha256": "ed4229f91e1f8166afe38440c863b4669bbb36c8e21d446f70978b757c2b5e5c",
+      "bytes": 968
+    },
+    "review": {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-install-readback-independent-hermes-v2\\review.md",
+      "sha256": "5f8440423e929b80da89ca159df049f68a7fe38a6d3dc91ff3fc30622cabcf1b",
+      "bytes": 7756
+    },
+    "usage": {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-install-readback-independent-hermes-v2\\usage.json",
+      "sha256": "44a586887a28ed81155dc6c0a0fb8ab50a69470e9c655572fc8dbbd8100692c5",
+      "bytes": 484
+    },
+    "sessionId": "20261004_073607_d54292",
+    "verdict": "PASS_SOURCE_ONLY_WITH_RUNTIME_BLOCKER",
+    "estimatedDevelopmentCostUsd": 0.016626980000000003,
+    "adjudication": "Accepted within exact frozen source scope; no concrete defect found. Independently added18 CAS tests were not in the Hermes input and are qualified separately below."
+  },
+  "currentCandidateFence": [
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\apps\\api\\src\\meri\\meri-case12-capture-readback.ts",
+      "frozenSha256": "496fb5390774ce93843eab647d05260d04fcec8989df980ddbd4444164e8de56",
+      "currentSha256": "496fb5390774ce93843eab647d05260d04fcec8989df980ddbd4444164e8de56",
+      "unchanged": true
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\apps\\api\\src\\meri\\meri-case12-capture-readback.spec.ts",
+      "frozenSha256": "cf6728ae9fb2d6faadf7619de4c73528a0decac7d15bd084992916d8f8b5e4db",
+      "currentSha256": "cf6728ae9fb2d6faadf7619de4c73528a0decac7d15bd084992916d8f8b5e4db",
+      "unchanged": true
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\apps\\api\\src\\meri\\meri-case12-capture-install.ts",
+      "frozenSha256": "dd4283ce9748190b545a76f941c53082c6c7e4927ab6468aae35a9aeb5a6ed51",
+      "currentSha256": "dd4283ce9748190b545a76f941c53082c6c7e4927ab6468aae35a9aeb5a6ed51",
+      "unchanged": true
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\apps\\api\\src\\meri\\meri-capture-provider-budget-install.ts",
+      "frozenSha256": "830987f41650571817c23d52c7de06818993365af2516a3d704bc9158b33e289",
+      "currentSha256": "830987f41650571817c23d52c7de06818993365af2516a3d704bc9158b33e289",
+      "unchanged": true
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\apps\\api\\src\\meri\\meri-case12-capture-authority.ts",
+      "frozenSha256": "3d2dc0b7be36facb0673b98d5b6bd3e25cea3cd1a5f6423a896a5a470fcc7b5a",
+      "currentSha256": "3d2dc0b7be36facb0673b98d5b6bd3e25cea3cd1a5f6423a896a5a470fcc7b5a",
+      "unchanged": true
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\apps\\api\\src\\meri\\meri.service.ts",
+      "frozenSha256": "6ba4ac947f075e72106f8e1f083c6ce77b8b740466ae0cdb9dd6e04477882e29",
+      "currentSha256": "6ba4ac947f075e72106f8e1f083c6ce77b8b740466ae0cdb9dd6e04477882e29",
+      "unchanged": true
+    }
+  ],
+  "pins": {
+    "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-install-readback-independent-hermes-v2\\independent-pin-checks.json",
+    "sha256": "59d7dfec6e2a766276333c9bc0f0940c03e4a1dbc37b0db99f25299ce96edfba",
+    "bytes": 17394
+  },
+  "findings": [],
+  "sourceConclusions": [
+    "Install plan binds native current corpus/completion, tenant xmin, exact prior binding and prior provider qualification plus actor/client/new capture run. Reinspection repeats native owner before mutation; literal confirmation and expected plan SHA are required. Existing Case12 binding is rejected even for a new run, so this API is not recovery/replay authority.",
+    "CAS update uses tenant row version and changes only captureEvidence while removing old captureProviderBudget. Returned exact binding hash and null old qualification are required. Unrelated settings and setup claim/ledger preserved. Thrown post-write mismatch must propagate to caller-owned transaction rollback; the InTx function has no route or autonomous transaction boundary.",
+    "Provider-rate Case12 branch calls actual current capture binding owner, joins actor/client/currentVerify, and reuses existing four-value CAS/rate evidence validation. It does not borrow Case01 seed/reset qualification. Exact price evidence/native aggregate admission remains a separate trusted operator prerequisite.",
+    "Capture-authority refactor moves native current corpus and completed setup into a private reusable pre-install seam. Adds explicit actual-string Clerk identity check and native user-row join. Narrower TypeScript policy Pick does not remove runtime Case12 tuple/current storedbinding/MA510 exact passage guards.",
+    "Custom readback first verifies policy/receipt shape,HMAC and identity, then native current setup/corpus and provider readiness. Exact full MA510 source requires one matching physical ID, observed tenant/client, content-version hash, full locator, fullRead true, matching passage and byte hashes, one complete readonly search_memory attempt and one returned singleHTTP200 invocation. Signed excerpts or mismatched sources remain BLOCKED.",
+    "Real MeriService listMessages queries owned tenant/user/conversation rows and calls generic authorizeMeriCaptureMessageReadback BEFORE Case12 custom reader. Generic owner verifies current actor/turn, canonical providerledger hash/admission/turn/cap and message effect IDs. Custom helper is not a standalone message authorization replacement.",
+    "Read-only admission/readback produce observations, not spend reservation or human acceptance. Confirmation literal, plan hashes and installation status are not human approval. No live setup/capture authority inferred."
+  ],
+  "tests": {
+    "rootReadback": {
+      "log": {
+        "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-install-readback-independent-input-v2\\case12-readback-tests-v1.log",
+        "sha256": "d63ff92ed01cd8c0a57ce5dfec7fe24187b7f2c6c8d594442793e38b9fb1145c",
+        "bytes": 8231
+      },
+      "passed": 64,
+      "suites": 3,
+      "scope": "20Case12 actual HMAC positive/16 signed-negative plus neighboring5Case46/39readonly tests; native owner/Prisma/provider boundaries mocked; saved execution log inspected, not independently rerun"
+    },
+    "independentInstallation": {
+      "qualification": {
+        "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-install-independent-cas-v1\\qualification.json",
+        "sha256": "25571d49e1cb0e74fca3cd12b2ac8c5b317c348131d345ef5f1cffd6fab7dfb8",
+        "bytes": 3730
+      },
+      "script": {
+        "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-install-independent-cas-v1.cjs",
+        "sha256": "e2dc29e4f77839aa42fb943930405980052fdf914ece0af9e6a62959b6075605",
+        "bytes": 9840
+      },
+      "passed": 18,
+      "scope": "Actual frozen install/plan source, actual setup tuple validator and canonical hash. Controlled native-owner/taggedSQL doubles; parameterized CAS query/text and outputs checked. No DB lock/isolation/rollback/timeout proof."
+    }
+  },
+  "priorNativeFailure": {
+    "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-completion-capture-independent-hermes-v2\\independent-assessment.json",
+    "sha256": "1d18055203c3b50dab9da06ffb4491f1d731db6ff1c710a1692a133f41363712",
+    "bytes": 11675
+  },
+  "requiredGates": [
+    "Fix and qualify real default5s hydration failure before paid setup/capture",
+    "Actual native current corpus/completion/capture binding/installation under default transaction limits; previous follow-on NOT_RUN",
+    "Actual transaction rollback on failed installation readback and concurrent state changes",
+    "Native same-journal setup admission/settlement, aggregate budget, worker/helper census, immutable compiled/image/source qualification",
+    "Final integrated noEmit/build receipt and live prompt/capture/human grading remain separate; empty typecheck log alone not asserted as exit0 evidence here"
+  ],
+  "preparationHistory": "Initial v1 input preparation failed Windows default cp1252 decoding of service source; subsequent launcher stopped before invoking Hermes because prompt had not been written. Incomplete v1 directories retained. V2 explicitly decodes UTF8 and actual Hermes execution receipt is complete.",
+  "journal": {
+    "sha256": "816b04a47be56432846d1ee602370c3bea985eb497a7de9e899aee4d53f8b39e",
+    "events": 26,
+    "bytes": 17588,
+    "unchanged": true
+  },
+  "repoEdits": false,
+  "cloudActions": false,
+  "databaseActions": false,
+  "providerCalls": "Configured development Hermes review only; no application provider calls",
+  "captureAuthority": false,
+  "liveAcceptance": "NOT_RUN"
+}

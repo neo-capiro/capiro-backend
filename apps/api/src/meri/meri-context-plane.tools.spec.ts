@@ -1,3 +1,5 @@
+import { assertMeriCase12BindingInTx } from './meri-case12-capture-authority.js';
+jest.mock('./meri-case12-capture-authority.js',()=>({assertMeriCase12BindingInTx:jest.fn()}));
 import { ForbiddenException, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { MeriContextPlaneService } from './meri-context-plane.service.js';
@@ -27,6 +29,10 @@ jest.mock('../knowledge/entities/universal-entity-resolution-orchestrator.servic
   UniversalEntityResolutionOrchestratorService: class {},
 }));
 jest.mock('../prisma/prisma.service.js', () => ({ PrismaService: class {} }));
+
+let forbiddenFetch: jest.SpyInstance;
+beforeEach(()=>{jest.mocked(assertMeriCase12BindingInTx).mockReset().mockResolvedValue({currentVerifySha256:'a'.repeat(64)} as never); forbiddenFetch=jest.spyOn(globalThis,'fetch').mockRejectedValue(new Error('Network forbidden in Case12 context-plane tests'));});
+afterEach(()=>{expect(forbiddenFetch).not.toHaveBeenCalled();forbiddenFetch.mockRestore();});
 
 const ctx = { tenantId: 'tenant-a', userId: 'user-a' } as TenantContext;
 const clientId = '11111111-1111-4111-8111-111111111111';
@@ -78,12 +84,14 @@ function harness(adapters: RetrievalSourceAdapter[]) {
     audit as never,
   );
   const requestContext = jest.spyOn(gateway, 'requestContext');
-  const service = new MeriContextPlaneService({} as never, gateway);
+  const capturePrisma = {withTenantUser: jest.fn(async (_tenant: string, _actor: string, fn: (tx: object)=>unknown)=>fn({}))};
+  const service = new MeriContextPlaneService(capturePrisma as never, gateway);
   const security = jest
     .spyOn(service, 'securityEnvelope')
     .mockResolvedValue({ authorizedClientIds: [clientId], authorizedMailboxConnectionIds: [] });
   return {
     service,
+    capturePrisma,
     retrieval,
     retrieve,
     gateway,
@@ -97,7 +105,7 @@ function harness(adapters: RetrievalSourceAdapter[]) {
 }
 
 describe('qualified search_memory compiler clock', () => {
-  function capture(caseId: '01' | '14' = '01') {
+  function capture(caseId: '01' | '12' | '14' = '01') {
     const issuedAt = Date.now();
     const policy = {
       version: 1, kind: 'server_readonly_acceptance_capture', policyId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
@@ -110,6 +118,7 @@ describe('qualified search_memory compiler clock', () => {
         caseId, captureRunId: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
         observedAt: issuedAt, currentVerifySha256: 'a'.repeat(64) },
     } as MeriServerReadonlyCapturePolicy;
+    if(caseId==='12'){policy.resetReceiptId=null;policy.seedReceiptId=null;policy.case12Setup={setupRunId:'99999999-9999-4999-8999-999999999999',fixtureInstanceId:'88888888-8888-4888-8888-888888888888',setupPlanSha256:'a'.repeat(64),setupClaimSha256:'b'.repeat(64),setupLedgerSha256:'c'.repeat(64)};}
     return { policy, tool: 'search_memory' as const };
   }
   const toolInput = { query: 'approved constraints', domains: ['institutional_knowledge'],
@@ -127,7 +136,7 @@ describe('qualified search_memory compiler clock', () => {
     return { ...h, source, packet };
   }
 
-  it.each(['01', '14'] as const)('uses the qualified instant and retains actual compiler metadata for case %s', async caseId => {
+  it.each(['01', '12', '14'] as const)('uses the qualified instant and retains actual compiler metadata for case %s', async caseId => {
     const h = fixture();
     const bound = capture(caseId);
     const result = await searchCapiroData(ctx, toolInput, h.service, bound);
@@ -147,8 +156,20 @@ describe('qualified search_memory compiler clock', () => {
       clockUse: h.packet.clockUse });
     expect(result.contextPacket!.clockUse).not.toBe(h.packet.clockUse);
     expect(result.records[0]!.payload.text).toBe(evidence);
+    expect(assertMeriCase12BindingInTx).toHaveBeenCalledTimes(caseId==='12'?2:0);
+    if(caseId==='12')expect(h.capturePrisma.withTenantUser).toHaveBeenCalledTimes(2);
   });
 
+  it('Case12 native owner denial stops before gateway or retrieval',async()=>{
+    const h=fixture();jest.mocked(assertMeriCase12BindingInTx).mockRejectedValueOnce(new Error('CASE12_CURRENT_DENIED'));
+    await expect(searchCapiroData(ctx,toolInput,h.service,capture('12'))).rejects.toThrow('CASE12_CURRENT_DENIED');
+    expect(h.security).not.toHaveBeenCalled();expect(h.requestContext).not.toHaveBeenCalled();expect(h.retrieve).not.toHaveBeenCalled();
+  });
+  it('Case12 owner drift after actual gateway rejects returned packet',async()=>{
+    const h=fixture();jest.mocked(assertMeriCase12BindingInTx).mockResolvedValueOnce({currentVerifySha256:'a'.repeat(64)} as never).mockRejectedValueOnce(new Error('CASE12_CHANGED'));
+    await expect(searchCapiroData(ctx,toolInput,h.service,capture('12'))).rejects.toThrow('CASE12_CHANGED');
+    expect(h.requestContext).toHaveBeenCalledTimes(1);expect(h.retrieve).toHaveBeenCalledTimes(1);expect(h.packets.compile).toHaveBeenCalledTimes(1);
+  });
   it('preserves an actually returned V1/not_run observation', async () => {
     const h = fixture();
     h.compiler.modeFor.mockResolvedValue('off');
@@ -188,7 +209,7 @@ describe('qualified search_memory compiler clock', () => {
     }
   });
 
-  it.each(['01', '14'] as const)('rejects a missing tool client before retrieval for case %s', async caseId => {
+  it.each(['01', '12', '14'] as const)('rejects a missing tool client before retrieval for case %s', async caseId => {
     const h = fixture();
     await expect(searchCapiroData(ctx, { ...toolInput, clientId: undefined }, h.service, capture(caseId)))
       .rejects.toThrow('meri_fixture_semantic_clock_tool_binding_mismatch');
@@ -197,7 +218,7 @@ describe('qualified search_memory compiler clock', () => {
     expect(h.retrieve).not.toHaveBeenCalled();
   });
 
-  it.each(['01', '14'] as const)('rejects another already-authorized client before retrieval for case %s', async caseId => {
+  it.each(['01', '12', '14'] as const)('rejects another already-authorized client before retrieval for case %s', async caseId => {
     const h = fixture();
     const otherClientId = '33333333-3333-4333-8333-333333333333';
     h.security.mockResolvedValue({ authorizedClientIds: [clientId, otherClientId], authorizedMailboxConnectionIds: [] });

@@ -19,6 +19,10 @@ import {
   type MeriCaptureTransportPurpose,
   unknown,
   validateMeriSyntheticReadBudgetGuard,
+  validateMeriCase12SetupPolicyBinding,
+  readMeriCase12SetupBinding,
+  meriCase12SetupBindingsEqual,
+  type MeriCase12SetupBinding,
   verifyMeriCaptureEvidenceReceipt,
 } from '@capiro/meriv2-core';
 import type { PrismaService } from '../prisma/prisma.service.js';
@@ -133,7 +137,7 @@ export async function issueMeriServerReadonlyCapturePolicy(args: {
     throw captureDenied('controlled_budget_expansion_not_live_qualified');
   if (
     !budgetOnly &&
-    ['14', '20', '72'].includes(conversation?.captureBinding.caseId ?? '') &&
+    ['12', '14', '20', '72'].includes(conversation?.captureBinding.caseId ?? '') &&
     !conversation?.captureBudgetQualified
   )
     throw captureDenied('controlled_provider_qualification_required');
@@ -150,6 +154,7 @@ export async function issueMeriServerReadonlyCapturePolicy(args: {
     physicalMapSha256: conversation?.captureBinding.physicalMapSha256 ?? null,
     resetReceiptId: conversation?.captureBinding.resetReceiptId ?? null,
     seedReceiptId: conversation?.captureBinding.seedReceiptId ?? null,
+    ...(conversation?.captureBinding.case12Setup ? { case12Setup: conversation.captureBinding.case12Setup } : {}),
     fixtureNamespace: MERI_CAPTURE_POLICY_NAMESPACE,
     tenantId: args.ctx.tenantId,
     tenantSlug: expectedSlug,
@@ -240,7 +245,9 @@ export async function assertMeriServerReadonlyCaptureCurrentAuthority(args: {
     conversation.captureBinding.fixtureVersion !== policy.fixtureVersion ||
     conversation.captureBinding.physicalMapSha256 !== policy.physicalMapSha256 ||
     conversation.captureBinding.resetReceiptId !== policy.resetReceiptId ||
-    conversation.captureBinding.seedReceiptId !== policy.seedReceiptId
+    conversation.captureBinding.seedReceiptId !== policy.seedReceiptId ||
+    Object.hasOwn(conversation.captureBinding, 'case12Setup') !== Object.hasOwn(policy, 'case12Setup') ||
+    (policy.caseId === '12' && !meriCase12SetupBindingsEqual(conversation.captureBinding.case12Setup, policy.case12Setup))
   ) {
     throw captureDenied('server_current_conversation_or_client_authority_missing');
   }
@@ -463,6 +470,7 @@ export async function currentCaptureAuthorityRows(
     physicalMapSha256: string | null;
     resetReceiptId: string | null;
     seedReceiptId: string | null;
+    case12Setup?: MeriCase12SetupBinding;
   };
 } | null> {
   return prisma.withTenant(ctx.tenantId, async (tx) => {
@@ -541,6 +549,8 @@ export async function currentCaptureAuthorityRows(
         physicalMapSha256: captureString(captureBinding?.physicalMapSha256, /^[a-f0-9]{64}$/),
         resetReceiptId: captureString(captureBinding?.resetReceiptId),
         seedReceiptId: captureString(captureBinding?.seedReceiptId),
+        ...(captureBinding && Object.hasOwn(captureBinding, 'case12Setup')
+          ? { case12Setup: readMeriCase12SetupBinding(captureBinding.case12Setup) } : {}),
       },
     };
   });
@@ -558,6 +568,7 @@ function assertExactCapturePolicy(
   now = Date.now(),
 ): void {
   validateMeriSyntheticReadBudgetGuard(policy);
+  validateMeriCase12SetupPolicyBinding(policy);
   if (
     policy.version !== 1 ||
     policy.kind !== 'server_readonly_acceptance_capture' ||

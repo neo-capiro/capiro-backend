@@ -1,0 +1,9 @@
+PASS_SOURCE_COMPOSITION_WITH_RUNTIME_GATES
+
+Explicit execute only, exact compact environment shape, recipe validation before zero-argument canonical factory import; caller fullplan/serialized capability and injected ports absent.
+Fresh read-only inspection and deterministic510 provider plan join held native input hashes; compiled native one-use admission is consumed within same supplied transaction as budget/claim CAS before any row provider scope.
+Per-row native current scope, exact candidate/request payloads and terminal proof inspector use compiled graph; final actual current-corpus/completion verifies510 rows1020 settled attempts0 pending and exact setup binding.
+Failure, uncertain close and terminal output acknowledgment produce nonzero fixed error code; durable records remain authority, pipe progress is not receipt. Successful terminal emitted afterclose, hashes exact prehash JSON and explicitly grants no capture/aggregate settlement/human/live acceptance.
+New entrypoint verb explicit only; Docker scripts/dist/MJS destinations match helper fixed paths. Eight actual negative-ingress process tests prove their invalid forms fail beforefactory/compiled-native import; no positive runtime inference.
+
+Limits: Positive compiled factory/helper admission/CAS rollback and whole setup hydration/completion/capture/provider ALS graph still need actual runtime proof. Actual ECS/IAM task qualification remains absent; root subsequently reported implicit denial in current-role preflight and is preparing an unactivated remedy, not covered by source PASS. Fixed Windows native release/sourceManifest64/Git40/ECR/template/rates/cost hold/census and dispatch-byte/registration/task acknowledgment authentication remain required. No root-held journal settlement, live setup/capture or human acceptance is authorized by source review.

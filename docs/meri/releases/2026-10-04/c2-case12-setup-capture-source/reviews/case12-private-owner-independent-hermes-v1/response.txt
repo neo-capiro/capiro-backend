@@ -1,0 +1,3 @@
+Findings recorded in C:\dev\main\outputs\meri-c2-20261003\case12-private-owner-independent-hermes-v1\review.md.
+
+The review identifies two reachable inspector/owner validation defects and a dispatch-binding gap that the real root composition must close. No live calls or source edits were made. The packet’s 38 passing tests remain synthetic/local evidence; no native PASS, live authority, readiness, or promotion is established.

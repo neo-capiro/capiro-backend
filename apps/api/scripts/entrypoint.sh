@@ -351,6 +351,16 @@ case "${1:-serve}" in
     echo "Running qualify-defense-budget-drain-image-v1 (isolated Postgres+MinIO only; never touches production)"
     exec ./node_modules/.bin/tsx scripts/qualify-defense-budget-drain-image-v1.ts "$@"
     ;;
+  meri-case12-setup-plan)
+    shift
+    compose_database_url
+    exec node scripts/meri-case12-setup-plan.mjs "$@"
+    ;;
+  meri-case12-setup-native)
+    shift
+    compose_database_url
+    exec node scripts/meri-case12-setup-native.mjs "$@"
+    ;;
   meri-case14-recall-setup)
     shift
     compose_database_url

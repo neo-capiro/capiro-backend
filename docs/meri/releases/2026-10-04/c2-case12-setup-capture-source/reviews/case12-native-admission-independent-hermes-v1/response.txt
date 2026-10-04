@@ -1,0 +1,6 @@
+Concrete finding F-1: the native admission binds `sourceSha256` and `imageSha256` to the supplied budget plan and ECS observations, but the durable owner’s `validateAdmittedPlan` does not bind those digests to its frozen recipe/plan snapshot. The review records an exact controlled-double reproduction and the required checks.
+
+Review saved to:
+C:\dev\main\outputs\meri-c2-20261003\case12-native-admission-independent-hermes-v1\review.md
+
+The saved 29-test log is evidence from controlled doubles, not a fresh run or real ECS/DB/rollback proof. The v2 full-typecheck log is empty. No source edits or external calls were made.

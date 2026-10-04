@@ -1,0 +1,49 @@
+(node:42548) [DEP0180] DeprecationWarning: fs.Stats constructor is deprecated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+▶ native differential predicates and full current-owner composition use default5s on explicitly copied local corpus
+  ✔ all510 scalar audits and read decisions equal ordered native sets (6915.9905ms)
+  ✔ candidate-owner (281.5367ms)
+  ✔ candidate-reviewer (31.2372ms)
+  ✔ candidate-status (49.1441ms)
+  ✔ candidate-governed (50.2363ms)
+  ✔ candidate-source (35.8937ms)
+  ✔ candidate-marker (166.7063ms)
+  ✔ candidate-decision (26.0812ms)
+  ✔ candidate-hold (22.1726ms)
+  ✔ candidate-instructions (24.9951ms)
+  ✔ candidate-confidence (25.4242ms)
+  ✔ candidate-revision (23.2788ms)
+  ✔ candidate-conflict (24.0243ms)
+  ✔ candidate-retention (23.8649ms)
+  ✔ candidate-expiry (22.6097ms)
+  ✔ candidate-payload (139.3659ms)
+  ✔ candidate-provenance (265.6306ms)
+  ✔ item-title (289.0552ms)
+  ✔ item-body (287.099ms)
+  ✔ item-hash (258.1648ms)
+  ✔ item-lifecycle (235.6394ms)
+  ✔ item-review-state (282.8413ms)
+  ✔ item-confirmation (239.8455ms)
+  ✔ item-sensitivity (229.6634ms)
+  ✔ item-schema (199.4975ms)
+  ✔ item-aliases (186.0787ms)
+  ✔ item-tags (209.735ms)
+  ✔ item-valid-until (214.3407ms)
+  ✔ item-second-review (279.0638ms)
+  ✔ projection-value (293.7561ms)
+  ✔ projection-source (273.0847ms)
+  ✔ projection-excerpt (288.2137ms)
+  ✔ projection-version (327.6272ms)
+  ✔ wall decision is refreshed within one supplied transaction (33.4661ms)
+  ✔ input ordering and asynchronous mutation cannot substitute authority (539.8667ms)
+  ✔ one full native current owner read qualifies current510 locally under default5s (557.4729ms)
+  ✔ two full current owner reads share one default5s transaction and real current clocks (1052.7063ms)
+✔ native differential predicates and full current-owner composition use default5s on explicitly copied local corpus (20480.3363ms)
+ℹ tests 38
+ℹ suites 0
+ℹ pass 38
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 21250.65

@@ -3,6 +3,7 @@ import {
   qualifyMeriControlledReadInTx,
 } from './meri-controlled-read-fixture.js';
 import { qualifyMeriCase14RecallInTx } from './meri-case14-capture-authority.js';
+import { assertMeriCase12BindingInTx, type MeriCase12CaptureBinding } from './meri-case12-capture-authority.js';
 import type { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import {
@@ -105,6 +106,18 @@ async function currentState(
   if (rows.length !== 1) fail('tenant_missing');
   const fixture = record(record(rows[0]!.settings).meriFoundationFixture);
   const binding = record(fixture.captureEvidence);
+  // Case12 has completed-setup provenance rather than legacy reset/seed
+  // receipts. Re-read that native owner before any rate installation.
+  if (binding.caseId === '12') {
+    const proof = await assertMeriCase12BindingInTx(dependencies.prisma, tx, ctx,
+      {...binding, tenantId: ctx.tenantId} as MeriCase12CaptureBinding);
+    if (binding.clientId !== clientId || binding.actorUserId !== ctx.userId ||
+        binding.currentVerifySha256 !== proof.currentVerifySha256) fail('current_binding_missing');
+    return {caseId: '12', captureRunId: String(binding.captureRunId),
+      currentVerifySha256: proof.currentVerifySha256, captureBindingSha256: captureBudgetHash(binding),
+      priorQualificationSha256: captureBudgetHash(fixture.captureProviderBudget ?? null),
+      tenantRowVersion: rows[0]!.version};
+  }
   const qualified = record(
     binding.caseId === '14'
       ? await qualifyMeriCase14RecallInTx(dependencies.prisma, tx, ctx, { caseId:'14',clientId,captureRunId:String(binding.captureRunId??'') })

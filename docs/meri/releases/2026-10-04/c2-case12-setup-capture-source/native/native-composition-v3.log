@@ -1,0 +1,20 @@
+(node:7612) [DEP0180] DeprecationWarning: fs.Stats constructor is deprecated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+▶ restored local510 uses freshly compiled native factory, default transactions and real signed source joins
+  ✔ actual complete setup hydration uses unchanged default transaction limits (25122.3531ms)
+  ✔ native current corpus plus complete510 ledger is read from current database (933.011ms)
+  ✔ binding exact plan and stale CAS are native, then install exactly once (2845.8489ms)
+  ✔ native provider qualification current source checks and stale CAS protect installation (2804.8263ms)
+  ✔ ordinary current conversation authority issues policy and actual native semantic clock (3212.6424ms)
+  ✔ native local ledger reserves and settles a transcript attempt without transport (3132.669ms)
+  ✔ real persisted packet census performs two current-source checks in one default transaction (1742.879ms)
+  ✔ genuine HMAC receipt verifies exact current MA510 and rejects signed partial passage (4126.9469ms)
+✔ restored local510 uses freshly compiled native factory, default transactions and real signed source joins (51408.2183ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 51706.212

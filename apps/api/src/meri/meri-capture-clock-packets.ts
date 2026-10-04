@@ -1,3 +1,4 @@
+import { assertMeriCase12BindingInTx } from './meri-case12-capture-authority.js';
 import { isDeepStrictEqual } from 'node:util';
 import type { TenantContext } from '@capiro/shared';
 import {
@@ -32,7 +33,7 @@ export async function readMeriCaptureClockPackets(args: {
     if (
       policy.syntheticReadBudget ||
       policy.fixtureVersion !== 'meri-live-v1-2026-09-26.1' ||
-      !['01', '14', '20', '72'].includes(policy.caseId ?? '') ||
+      !['01', '12', '14', '20', '72'].includes(policy.caseId ?? '') ||
       !turnId ||
       ctx.tenantId !== policy.tenantId ||
       ctx.userId !== policy.actorUserId ||
@@ -64,6 +65,8 @@ export async function readMeriCaptureClockPackets(args: {
     )
       return null;
     return await args.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      if (policy.caseId === '12')
+        await assertMeriCase12BindingInTx(args.prisma, tx, ctx, policy);
       // Census all packets claiming this capture identity, plus same-conversation
       // packets since admission. Do not hide foreign-client or shadow extras by
       // filtering them out of the read; validate every row below.
@@ -156,6 +159,8 @@ export async function readMeriCaptureClockPackets(args: {
           clockUse: structuredClone(use) as MeriCaptureCompilerPacket['clockUse'],
         });
       }
+      if (policy.caseId === '12')
+        await assertMeriCase12BindingInTx(args.prisma, tx, ctx, policy);
       if (policy.expiresAt <= Date.now()) return null;
       return { initial: actual[0]!, tools: actual.slice(1), relativeToolWindows: 'NOT_APPLICABLE' };
     });

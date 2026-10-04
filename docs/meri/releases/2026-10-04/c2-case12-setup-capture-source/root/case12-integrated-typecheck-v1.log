@@ -1,0 +1,22 @@
+src/meri/meri-case12-capture-budget.spec.ts(33,27): error TS2339: Property 'unrelated' does not exist on type '{ serverCaptureProviderBudget: { ledger: ResearchProviderBudgetV1; version: 1; admissionId: string; turnId: string | null; policySha256: string; qualification: CaptureProviderBudgetQualification; qualificationSha256: string; }; }'.
+src/meri/meri-case12-clock-composition.spec.ts(22,206): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/meri/meri-case12-clock-composition.spec.ts(22,208): error TS7006: Parameter 'u' implicitly has an 'any' type.
+src/meri/meri-case12-clock-composition.spec.ts(22,210): error TS7006: Parameter 'fn' implicitly has an 'any' type.
+src/meri/meri-case12-clock-composition.spec.ts(23,351): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/meri/meri-case12-clock-composition.spec.ts(23,353): error TS7006: Parameter 'u' implicitly has an 'any' type.
+src/meri/meri-case12-clock-composition.spec.ts(23,355): error TS7006: Parameter 'fn' implicitly has an 'any' type.
+src/meri/meri-case12-clock-composition.spec.ts(24,1919): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/meri/meri-case12-clock-composition.spec.ts(24,1921): error TS7006: Parameter 'u' implicitly has an 'any' type.
+src/meri/meri-case12-clock-composition.spec.ts(24,1923): error TS7006: Parameter 'fn' implicitly has an 'any' type.
+src/meri/meri-case12-clock-composition.spec.ts(25,419): error TS2367: This comparison appears to be unintentional because the types 'TransactionClient' and '{ contextPacket: { findMany: jest.Mock<Promise<{ id: string; tenantId: string; effectiveTenantId: string; userId: string; actorUserId: string; clientId: string; surface: string; packetVersion: number; traceId: string; createdAt: Date; modelPolicy: { ...; }; ref: { ...; }; }[]>, [], any>; }; }' have no overlap.
+src/meri/meri-case12-clock-composition.spec.ts(26,226): error TS2322: Type '{ id: string; tenantId: string; effectiveTenantId: string; userId: string; actorUserId: string; clientId: string; surface: string; packetVersion: number; traceId: string; createdAt: Date; modelPolicy: { ...; }; ref: { ...; }; } | undefined' is not assignable to type '{ id: string; tenantId: string; effectiveTenantId: string; userId: string; actorUserId: string; clientId: string; surface: string; packetVersion: number; traceId: string; createdAt: Date; modelPolicy: { ...; }; ref: { ...; }; }'.
+  Type 'undefined' is not assignable to type '{ id: string; tenantId: string; effectiveTenantId: string; userId: string; actorUserId: string; clientId: string; surface: string; packetVersion: number; traceId: string; createdAt: Date; modelPolicy: { ...; }; ref: { ...; }; }'.
+src/meri/meri-case12-clock-composition.spec.ts(26,277): error TS2345: Argument of type '{ id: string; tenantId?: string | undefined; effectiveTenantId?: string | undefined; userId?: string | undefined; actorUserId?: string | undefined; clientId?: string | undefined; surface?: string | undefined; ... 4 more ...; ref?: { ...; } | undefined; }' is not assignable to parameter of type '{ id: string; tenantId: string; effectiveTenantId: string; userId: string; actorUserId: string; clientId: string; surface: string; packetVersion: number; traceId: string; createdAt: Date; modelPolicy: { ...; }; ref: { ...; }; }'.
+  Types of property 'tenantId' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+src/meri/meri-case12-clock-composition.spec.ts(26,329): error TS2532: Object is possibly 'undefined'.
+src/meri/meri-case12-clock-composition.spec.ts(26,378): error TS2532: Object is possibly 'undefined'.
+src/meri/meri-case12-clock-composition.spec.ts(26,491): error TS2532: Object is possibly 'undefined'.
+src/meri/meri-case12-clock-composition.spec.ts(26,554): error TS2532: Object is possibly 'undefined'.
+src/meri/meri-tools.case12-execute.spec.ts(85,33): error TS2339: Property 'push' does not exist on type 'readonly ["context_packet_and_evidence", "conversation_user_message", "conversation_assistant_message", ("provider_budget_ledger" | undefined)?]'.

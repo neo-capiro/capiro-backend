@@ -1,0 +1,220 @@
+{
+  "status": "PASS_COMPILED_NATIVE_ADMISSION_LOCAL_DB_ECS_DOUBLES",
+  "checks": [
+    "JSON substitute rejected before DB",
+    "native DB rollback with non-reusable consumed handle",
+    "lost readback aborted actual local transaction",
+    "concurrent handle native transaction single consumption",
+    "completed fixture cannot receive fresh admission"
+  ],
+  "controlledEcsReads": [
+    {
+      "kind": "metadata",
+      "fixture": "182cac34-c76b-43b6-b9b0-35577a42ba8e"
+    },
+    {
+      "kind": "DescribeTasks",
+      "fixture": "182cac34-c76b-43b6-b9b0-35577a42ba8e"
+    },
+    {
+      "kind": "DescribeTaskDefinition",
+      "fixture": "182cac34-c76b-43b6-b9b0-35577a42ba8e"
+    },
+    {
+      "kind": "metadata",
+      "fixture": "4232303f-b606-4f44-9f89-1adb9d365067"
+    },
+    {
+      "kind": "DescribeTasks",
+      "fixture": "4232303f-b606-4f44-9f89-1adb9d365067"
+    },
+    {
+      "kind": "DescribeTaskDefinition",
+      "fixture": "4232303f-b606-4f44-9f89-1adb9d365067"
+    },
+    {
+      "kind": "metadata",
+      "fixture": "7c79b1b6-4210-4df2-9645-742f168ce14d"
+    },
+    {
+      "kind": "DescribeTasks",
+      "fixture": "7c79b1b6-4210-4df2-9645-742f168ce14d"
+    },
+    {
+      "kind": "DescribeTaskDefinition",
+      "fixture": "7c79b1b6-4210-4df2-9645-742f168ce14d"
+    },
+    {
+      "kind": "metadata",
+      "fixture": "5faee418-fa6c-428f-a4c5-fe163db08906"
+    },
+    {
+      "kind": "DescribeTasks",
+      "fixture": "5faee418-fa6c-428f-a4c5-fe163db08906"
+    },
+    {
+      "kind": "DescribeTaskDefinition",
+      "fixture": "5faee418-fa6c-428f-a4c5-fe163db08906"
+    },
+    {
+      "kind": "metadata",
+      "fixture": "a0518230-431a-4883-8273-bdd469f0b9fd"
+    },
+    {
+      "kind": "DescribeTasks",
+      "fixture": "a0518230-431a-4883-8273-bdd469f0b9fd"
+    },
+    {
+      "kind": "DescribeTaskDefinition",
+      "fixture": "a0518230-431a-4883-8273-bdd469f0b9fd"
+    }
+  ],
+  "transactions": [
+    {
+      "phase": "LOCAL_SCHEMA_COMPLEMENT",
+      "method": "withTenantUser",
+      "durationMs": 18.170500000000175,
+      "queries": 1,
+      "timeoutOverride": null
+    },
+    {
+      "phase": "LOCAL_SCHEMA_COMPLEMENT",
+      "method": "withTenantUser",
+      "durationMs": 50.63980000000083,
+      "queries": 5,
+      "timeoutOverride": null
+    },
+    {
+      "phase": "READ_PRISTINE_SETTINGS",
+      "method": "withTenantUser",
+      "durationMs": 11.015400000000227,
+      "queries": 1,
+      "timeoutOverride": null
+    },
+    {
+      "phase": "READ_PRISTINE_SETTINGS",
+      "method": "withTenantUser",
+      "durationMs": 80.3643000000011,
+      "queries": 1,
+      "timeoutOverride": null
+    },
+    {
+      "phase": "NATIVE_CONSUME_OUTER_ROLLBACK",
+      "method": "withTenantUser",
+      "durationMs": 11.267900000000736,
+      "queries": 1,
+      "timeoutOverride": null
+    },
+    {
+      "phase": "NATIVE_CONSUME_OUTER_ROLLBACK",
+      "method": "withTenantUser",
+      "durationMs": 35.762399999999616,
+      "queries": 4,
+      "timeoutOverride": null
+    },
+    {
+      "phase": "READ_PRISTINE_SETTINGS",
+      "method": "withTenantUser",
+      "durationMs": 9.578599999998914,
+      "queries": 1,
+      "timeoutOverride": null
+    },
+    {
+      "phase": "READ_PRISTINE_SETTINGS",
+      "method": "withTenantUser",
+      "durationMs": 68.70199999999932,
+      "queries": 1,
+      "timeoutOverride": null
+    },
+    {
+      "phase": "NATIVE_LOST_WRITE_READBACK",
+      "method": "withTenantUser",
+      "durationMs": 8.88379999999961,
+      "queries": 1,
+      "timeoutOverride": null
+    },
+    {
+      "phase": "NATIVE_LOST_WRITE_READBACK",
+      "method": "withTenantUser",
+      "durationMs": 20.048899999999776,
+      "queries": 3,
+      "timeoutOverride": null
+    },
+    {
+      "phase": "READ_PRISTINE_SETTINGS",
+      "method": "withTenantUser",
+      "durationMs": 10.96310000000085,
+      "queries": 1,
+      "timeoutOverride": null
+    },
+    {
+      "phase": "READ_PRISTINE_SETTINGS",
+      "method": "withTenantUser",
+      "durationMs": 77.01389999999992,
+      "queries": 1,
+      "timeoutOverride": null
+    },
+    {
+      "phase": "NATIVE_CONCURRENT_HANDLE",
+      "method": "withTenantUser",
+      "durationMs": 13.9312000000009,
+      "queries": 1,
+      "timeoutOverride": null
+    },
+    {
+      "phase": "NATIVE_CONCURRENT_HANDLE",
+      "method": "withTenantUser",
+      "durationMs": 18.78189999999995,
+      "queries": 3,
+      "timeoutOverride": null
+    },
+    {
+      "phase": "READ_PRISTINE_SETTINGS",
+      "method": "withTenantUser",
+      "durationMs": 9.188000000000102,
+      "queries": 1,
+      "timeoutOverride": null
+    },
+    {
+      "phase": "READ_PRISTINE_SETTINGS",
+      "method": "withTenantUser",
+      "durationMs": 71.20219999999972,
+      "queries": 1,
+      "timeoutOverride": null
+    },
+    {
+      "phase": "EXISTING_NATIVE_SETUP_DENY",
+      "method": "withTenantUser",
+      "durationMs": 9.537600000001476,
+      "queries": 1,
+      "timeoutOverride": null
+    },
+    {
+      "phase": "EXISTING_NATIVE_SETUP_DENY",
+      "method": "withTenantUser",
+      "durationMs": 92.95620000000054,
+      "queries": 1,
+      "timeoutOverride": null
+    },
+    {
+      "phase": "READ_PRISTINE_SETTINGS",
+      "method": "withTenantUser",
+      "durationMs": 9.21600000000035,
+      "queries": 1,
+      "timeoutOverride": null
+    },
+    {
+      "phase": "READ_PRISTINE_SETTINGS",
+      "method": "withTenantUser",
+      "durationMs": 76.22550000000047,
+      "queries": 1,
+      "timeoutOverride": null
+    }
+  ],
+  "awsNetworkCalls": 0,
+  "liveProviderCalls": 0,
+  "originalSnapshotSlotsPreserved": true,
+  "originalPrompt": "NOT_RUN",
+  "liveAcceptance": "NOT_RUN",
+  "nativeLiveAdmissionQualified": false
+}

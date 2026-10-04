@@ -84,6 +84,9 @@ export async function createCase01SetupDependencies() {
   const { assertSyntheticApprovedMemoryInTx, readSyntheticMemoryRetirementInTx } = source(
     'memory/synthetic-approved-memory.helpers',
   );
+  const { assertCase12SyntheticApprovedMemorySetInTx } = source(
+    'memory/case12-synthetic-approved-memory-set.read',
+  );
   const { readSyntheticCorrectionInTx, readSyntheticCorrectionRetirementInTx } = source(
     'memory/synthetic-memory-version.helpers',
   );
@@ -145,6 +148,7 @@ export async function createCase01SetupDependencies() {
       runWithMemoryGovernanceTenant,
       assertSyntheticCandidateWithdrawalInTx,
       assertSyntheticApprovedMemoryInTx,
+      assertSyntheticApprovedMemorySetInTx: assertCase12SyntheticApprovedMemorySetInTx,
       readSyntheticMemoryRetirementInTx,
       readSyntheticCorrectionInTx,
       readSyntheticCorrectionRetirementInTx,

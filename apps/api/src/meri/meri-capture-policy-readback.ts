@@ -4,6 +4,8 @@ import {
   verifyMeriCaptureEvidenceReceipt,
   validateMeriSyntheticReadBudgetGuard,
   validateMeriFixtureSemanticClock,
+  validateMeriCase12SetupPolicyBinding,
+  meriCase12SetupBindingsEqual,
   type MeriServerReadonlyCapturePolicy,
   type SignedMeriCaptureEvidenceReceipt,
 } from '@capiro/meriv2-core';
@@ -58,11 +60,13 @@ export function validateMeriCapturePolicyPair(
     const fields = [...POLICY_FIELDS,
       ...(Object.hasOwn(value, 'syntheticReadBudget') ? ['syntheticReadBudget'] : []),
       ...(Object.hasOwn(value, 'semanticClock') ? ['semanticClock'] : []),
+      ...(Object.hasOwn(value, 'case12Setup') ? ['case12Setup'] : []),
     ].sort();
     if (JSON.stringify(Object.keys(value).sort()) !== JSON.stringify(fields)) denied();
     validateMeriSyntheticReadBudgetGuard(policy);
+    validateMeriCase12SetupPolicyBinding(policy);
     const clockQualified = !policy.syntheticReadBudget && policy.fixtureVersion === 'meri-live-v1-2026-09-26.1' &&
-      ['01', '14', '20', '72'].includes(policy.caseId ?? '');
+      ['01', '12', '14', '20', '72'].includes(policy.caseId ?? '');
     if (clockQualified !== Boolean(policy.semanticClock)) denied();
     if (Object.hasOwn(value, 'semanticClock')) validateMeriFixtureSemanticClock(policy.semanticClock!, policy);
     if (
@@ -85,6 +89,10 @@ export function validateMeriCapturePolicyPair(
       now,
     );
     if (receipt.fixture.namespace !== policy.fixtureNamespace) denied();
+    if (policy.caseId === '12') {
+      if (receipt.fixture.case12Setup?.status !== 'OBSERVED' ||
+          !meriCase12SetupBindingsEqual(receipt.fixture.case12Setup.value, policy.case12Setup)) denied();
+    } else if (Object.hasOwn(receipt.fixture, 'case12Setup')) denied();
     for (const [key, expected] of [
       ['version', policy.fixtureVersion],
       ['physicalMapSha256', policy.physicalMapSha256],

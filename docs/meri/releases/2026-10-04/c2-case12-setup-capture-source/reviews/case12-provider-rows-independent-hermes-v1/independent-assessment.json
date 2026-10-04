@@ -1,0 +1,1689 @@
+{
+  "at": "2026-10-04T12:32:47.326341+00:00",
+  "status": "PASS_PURE_EXTRACTION_WITH_LIMITATIONS",
+  "checkpointSha256": "02cc774f98d3e8f638feeb37494cfdcb8cc1113a95001c1cbe84e6c0c511cc6b",
+  "candidateSha256": "9b524b043c0bbb185d70f5e16393ab3e98ddcee1e5aa086619e32068cac5d28a",
+  "baselineSha256": "1ca0ec48fc645352c78dd7201f80d0a47e06b33aa46dbcc2db5a0e7dfd0b0f80",
+  "inputManifestSha256": "8e98743896528d7557fd942f434d84e00787de855431672f66b24361711f5d62",
+  "actualHermes": {
+    "exitCode": 0,
+    "sessionId": "20261004_082814_59e118",
+    "model": "openai/gpt-6-luna",
+    "provider": "openrouter",
+    "reviewSha256": "2773fc390d7df255e6cd23df3b39b1a515e01d73b22f9a9f2e3223c779aca42f",
+    "estimatedDevelopmentCostUsd": 0.007754665,
+    "overrides": null
+  },
+  "independentFindings": [],
+  "facts": [
+    "All306 public artifacts rehashed before review and finalization, including copied pure source and compiled runtime dependencies.",
+    "Extraction preserves original fixed recipe/setup-plan/manifest/actor/510definitions predicates and request body bytes. New12-field data result omits cost/reservation/checkpoint/run/deadline/rates/readiness/capture authority.",
+    "Full builder keeps native functions/8192 bound and envelope exact checks, clones recipe/setup/envelope before await, derives then reconstructs identity/envelope/maxCost/rows in original property order. Native validator still validates final full plan.",
+    "30 saved tests cover actual native projection/reducer510+1020 body hashes/bytes, baseline JSON byte equality, clone isolation, exact output fields and malformed predicate parity. Reviewer read tests/log and rehashed source/runtime; did not rerun test that writes its original runtime manifest.",
+    "Implementation is Codex-supervised; prior Hermes was design-only. Actual independent configured Hermes completed on exact implementation bundle."
+  ],
+  "limitations": [
+    "Pure planner local file asset reads only; valid hash proves self-consistency, not source/native task/current DB plan authority.",
+    "Source release/image/rate evidence, authenticated plan task and native privatecost owner must precede any hold.",
+    "No database/provider/cloud/journal calls or source edits by review; no new compiled composition inference for this later MJS delta. Full builder equality is the bounded delta qualification.",
+    "No capture/live acceptance/admission authority."
+  ],
+  "checks": [
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-independent-input-v1\\manifest.json",
+      "sha256": "8e98743896528d7557fd942f434d84e00787de855431672f66b24361711f5d62",
+      "bytes": 2862
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-independent-input-v1\\independent-pin-summary.json",
+      "sha256": "a0084d26812c27283d493e1b94f3649449e6ebcb3f94f6fc623d0d8bfb5e0961",
+      "bytes": 87038
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-independent-input-v1\\resolve-recipe-excerpt.mjs",
+      "sha256": "86795415333af3b801a498994a50ffc317d5810660583b3bbec069873606636e",
+      "bytes": 5884
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\checkpoint.json",
+      "sha256": "02cc774f98d3e8f638feeb37494cfdcb8cc1113a95001c1cbe84e6c0c511cc6b",
+      "bytes": 61372
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\baseline-input-manifest.json",
+      "sha256": "ae284aa199702095a20bff0c3601716172d75567bedf3c1a5c6ca7f73246bf01",
+      "bytes": 4239
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\freeze.py",
+      "sha256": "40d8873873cab67e90edcf93be0fe6d846841fed23fa46969bf74717b9025113",
+      "bytes": 2960
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\prepare-tests.py",
+      "sha256": "0bd7a58d7962b8fb6da74e400d15f069be54b3f56be7c04bd2edad3ec18b44ad",
+      "bytes": 6088
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\prepare.py",
+      "sha256": "64aeabc7d252d6e760e24784402b1fc565d533c8760d57c3b651fc4e4b87255f",
+      "bytes": 3134
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\proposed.patch",
+      "sha256": "131e2b0f4b81e36290804496204674897dcee4df0ce2e37daee663387df4c341",
+      "bytes": 3988
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\provider-rows.test.mjs",
+      "sha256": "ffbe512f13913ad94af4034384981babc8bf44292466c13435d214e25df3c05b",
+      "bytes": 11784
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\README.md",
+      "sha256": "104ffe42084647c1ca9aee74d180b99bfda86fab9b201b7246273f868d1881ca",
+      "bytes": 1655
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\common\\internal-clio-artifact.js",
+      "sha256": "d353582597c348032dba8c7a4b7afbf2c1849fc6a80e1cbf2a0091c9c326bbc2",
+      "bytes": 1123
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\context\\context-compiler.service.js",
+      "sha256": "8db86f265bc956108fd733bbce421d08ecd2e0fb78642c3680d4b30cd883ef5a",
+      "bytes": 11925
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\context\\context-layer.service.js",
+      "sha256": "3b049d6b9a430f944fc816f6e6442a926fddcd544a592c56d2005e6f9e075548",
+      "bytes": 5457
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\context\\context-packet-v2.service.js",
+      "sha256": "2d8d21b4be543988a6cd4d8a36d541ef8ef05e5b39cd45071c268aca1c0c9bb9",
+      "bytes": 13000
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\context\\context-persistence-boundary.service.js",
+      "sha256": "c8fc014760a919ad6a84d569f22d2e7df92db193e4f07d62dfbb1ae0380cf8f8",
+      "bytes": 2347
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\context\\context-plane-audit.service.js",
+      "sha256": "d5c5b806af21493056b6ddbdd31c1e3fb83b5253b1813d18079bfc329603a0f8",
+      "bytes": 5521
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\context\\context-plane-gateway.service.js",
+      "sha256": "ddaad9f9a8a8f6bc9cea3bd115051d98dd0aa6920d5828f65c55268839ae0fbe",
+      "bytes": 18877
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\context\\context-plane-operation-registry.js",
+      "sha256": "3af091e5b3c28b97c888d4d08acf015566fae7c84c9b91974e907be942c484ab",
+      "bytes": 2879
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\context\\context-resolver.service.js",
+      "sha256": "bb04c936821af4bdd302f83ed7a627a591dabb4c8d5f1a62830f506a1f591b47",
+      "bytes": 21152
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\context\\context-stage-timer.service.js",
+      "sha256": "163a9d85148d1fe31b1533f0fc736931cddb22822789ec4b4fdf455813063961",
+      "bytes": 5498
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\context\\meetings-context-plane.runtime.js",
+      "sha256": "271b6f1f33511f03e83b45371d3df00260b09ddc5bcff7cf55a303416cf740d2",
+      "bytes": 33110
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\embeddings\\embedder.js",
+      "sha256": "0cf79ed71054f23b23a1f02cd35b5b20e1ad48a101afcc9c1c7d3b1ba30dab9c",
+      "bytes": 10901
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\embeddings\\embedding-provider.factory.js",
+      "sha256": "0eb72c0f76d56d5d0e2b223fe7355c3b517a37caa44fc9c75b207e436c8c3a7a",
+      "bytes": 718
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\embeddings\\embedding-provider.js",
+      "sha256": "15ba30072c2e0d148e48b6537f18e67c0741d0f5aeff4495fa90fdf5c9760af1",
+      "bytes": 822
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\embeddings\\titan-embedding.provider.js",
+      "sha256": "3d15408f47c61d1f04730d09b44227b74bed8b801906f9b7efe56a9b33786620",
+      "bytes": 7758
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\engagement\\meeting-context-runtime.js",
+      "sha256": "131bd29a5de8c97672bc24e39ebb01873d4baeebd0c28b9377b009a63645c516",
+      "bytes": 1327
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\engagement\\meeting-notes-crypto.service.js",
+      "sha256": "3d550992abb2d62e9e9cd9147bb609caa500be6b0ee1a8537c93ad39ee858ca6",
+      "bytes": 3344
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\engagement\\meeting-prep-job-runtime.js",
+      "sha256": "b8cb7c8e1863e33b228f693a602910a01bff470f7d3be954d59471bc35269f11",
+      "bytes": 964
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\knowledge\\entities\\canonical-entity-registration.repository.js",
+      "sha256": "055c2a8529b79e302d4cbc6bcb17a1073e2b1aedd059694b2dd182b28ebd3c63",
+      "bytes": 17738
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\knowledge\\entities\\canonical-entity-registration.service.js",
+      "sha256": "0856f92b6ece77c64b14f37207a826526a0e472fafbd700270a9a2a4fa0a3b32",
+      "bytes": 5788
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\knowledge\\entities\\canonical-entity-registration.types.js",
+      "sha256": "88b8881411a9e7507c66f1c0eb9f5c49d81f8e1b60817f4d6eceb78cdd4458e6",
+      "bytes": 1253
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\knowledge\\entities\\canonical-entity.repository.js",
+      "sha256": "4971a57b3abde24938ed4637b4dc00d12c6371031d754e5551ab9c3bc5887a43",
+      "bytes": 19050
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\knowledge\\entities\\entity-normalization.js",
+      "sha256": "4932b89d6a7c57cf38e45eb5399b54e8014e9fe7ce5649252f5b3acafec5cf98",
+      "bytes": 4601
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\knowledge\\entities\\entity-resolution-stage-policy.js",
+      "sha256": "080e3be51a3be88fe141dbd0bb510e33e9636d129cb406f602617437a1673611",
+      "bytes": 5187
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\knowledge\\entities\\universal-entity-resolution-orchestrator.service.js",
+      "sha256": "35bfc585063383b02a0f16faafc65111d62479528fef5f51c74af475100ff4c8",
+      "bytes": 23830
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\knowledge\\entities\\universal-entity-resolution-orchestrator.types.js",
+      "sha256": "9a48985d34b0e98bab25ffecbc039ac450e4753a33b95f36cb424aea5ab0fc45",
+      "bytes": 301
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\knowledge\\entities\\universal-entity-resolution.service.js",
+      "sha256": "4da0cb8cf5d32322645aa8cd5c1ebd0a11c478cfeea0bebc6ffbb4e810b8c7dd",
+      "bytes": 12663
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\memory\\case12-synthetic-approved-memory-set.read.js",
+      "sha256": "56063967da833621cc3cd429ad7cb717d3499a29ebe3535008857a9f32e17193",
+      "bytes": 15514
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\memory\\case14-fixture-evidence.js",
+      "sha256": "183c319b103386cc44fa48300c3d9fd51b0ac2e3b64a0704de19adbbef1dfe45",
+      "bytes": 2763
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\memory\\case14-reviewer-preflight.js",
+      "sha256": "dd06cfafae43e152cd6c22ad9c87b8ccd1fa80d56a8cdce59ec4837aa4116a70",
+      "bytes": 3377
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\memory\\memory-authorization.helpers.js",
+      "sha256": "36aae349fd9e7765fddb6fa3e369190110a6793574be038f86bf57952e8f7168",
+      "bytes": 6714
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\memory\\memory-authorization.service.js",
+      "sha256": "1880a598665f60548c94b24c928e53edf44779963e1ca41b8ff417901e6ba19a",
+      "bytes": 12461
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\memory\\memory-canonical-activation.helpers.js",
+      "sha256": "2aa5b1594be9e447692ca8e3ac00e3ac6f53f931be2f9437644c76ec399c3276",
+      "bytes": 11342
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\memory\\memory-catalog.js",
+      "sha256": "4c251474aef337b318212218164ec1a2bee5f95a70a23668b857bfe3ca2d4e15",
+      "bytes": 14681
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\memory\\memory-cleanup-outbox.service.js",
+      "sha256": "bd85397b6db2f146e6cc972c11fbff8be2ba97cc25b86579346d1ee04cd43574",
+      "bytes": 15185
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\memory\\memory-clio-adapter.helpers.js",
+      "sha256": "fed1cbe52a8f77dd0fc6da39f7c6cc98e8e9c9c43be82dec23ba9e347cea79c8",
+      "bytes": 6827
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\memory\\memory-embedding-lifecycle.js",
+      "sha256": "ce1595b1347631b854bde0fabf5a34528050194483fe4173685bd1fef4f362c2",
+      "bytes": 3984
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\memory\\memory-governance-center.switch.js",
+      "sha256": "3555a5d05e7937a1d5354f9e21c7cd9b8e578022189b9fe0a547f5ee0ece7d65",
+      "bytes": 1106
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\memory\\memory-governance-lifecycle.helpers.js",
+      "sha256": "075769ddc2e630862ad1783fd42ecec9b834a297c068f8e8fee9ec9049a2422c",
+      "bytes": 9735
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\memory\\memory-governance-tenant-scope.js",
+      "sha256": "23778bfa1734e84ca4df721cc4191610e33813000368802a31a6f5a60e303112",
+      "bytes": 1812
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\memory\\memory-ingest.helpers.js",
+      "sha256": "0b1b072e8ae08e1d930ec36acc23b51f13f0a0dced5c3b8326e06d57b34fd299",
+      "bytes": 6486
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\memory\\memory-ingest.service.js",
+      "sha256": "7934eb11442a687bff3751ce2c2c9039e47144b2367d1b518c89e63c422aae4e",
+      "bytes": 23576
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\memory\\memory-mutation-auth.js",
+      "sha256": "2d1db98d2a55ca2b2991a4869ac26c75d1b98568de420c0e65a00b62f876cf46",
+      "bytes": 1776
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\memory\\memory-parse.helpers.js",
+      "sha256": "f58fc65942f877055ef2c079803c9eb2aa0a2cc3b085757e6c69a3cf3e4de3aa",
+      "bytes": 6677
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\memory\\memory-recall-suppression.helpers.js",
+      "sha256": "8e853cafdaf395686f2dd9231dc3917f5a6ea5bef7d68ee541d497be2192af15",
+      "bytes": 2839
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\memory\\memory-render.helpers.js",
+      "sha256": "97472625255c4e43c277b64c9f59443a4774851c04c6266e01d58a586f2d91c1",
+      "bytes": 5634
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\memory\\memory-review-admin-policy.js",
+      "sha256": "17469b61582d8816e7b1883738181fd2d5ab83b90ba82af6023219e67065e478",
+      "bytes": 716
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\memory\\memory-review-switch.js",
+      "sha256": "23c0af195fbb3be4a354d4c9ff53d4514c735d17bf65a9dfcf5b1f17b2fc78b8",
+      "bytes": 1160
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\memory\\memory-store.service.js",
+      "sha256": "2285f79f5c708271caaaf31b131db5a842e781f448ea39075c05a398c74fc234",
+      "bytes": 54609
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\memory\\memory-transition-audit.service.js",
+      "sha256": "c40e52c43ca1ec4775f6eb968cd7d96f7e7aa0035a5087821fd77dad46b932ee",
+      "bytes": 3995
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\memory\\memory-version.helpers.js",
+      "sha256": "13843c4c34350b09f84b2e21844c6b140e6c31aa5644f9fabc9d354d418afefa",
+      "bytes": 5418
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\memory\\memory-wall.helpers.js",
+      "sha256": "090aa8cde0191ab562b4b93fcc714c99b6507309a1d26c3dbeaaba77208e61ca",
+      "bytes": 6525
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\memory\\memory.types.js",
+      "sha256": "93e3430afabcfab576e5decebb0686d695b9a66af72163ff711784730e16b2c7",
+      "bytes": 2402
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\memory\\strict-memory-projector.service.js",
+      "sha256": "8c6657dbafd7dcbe56445b9fbe29448c6a81c7cc637a95b23f1b2587a858d191",
+      "bytes": 11392
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\memory\\synthetic-approved-memory.helpers.js",
+      "sha256": "8d160a6dfa6f433edf92a75763ad044ce6ee86b5b48387252aa16da539842203",
+      "bytes": 12553
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\memory\\synthetic-candidate-withdrawal.helpers.js",
+      "sha256": "c7aafbdcc96b5d1d836db77aa439002c698f537da00f0da9a4c8c1c2353dcb55",
+      "bytes": 8514
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\memory\\synthetic-memory-version.helpers.js",
+      "sha256": "1e9623ef27689d7f84d7e003737375a2aea59f4a63f06dda2bb521a6c81c231b",
+      "bytes": 15693
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\meri\\meri-capture-api-provider-scope.js",
+      "sha256": "7e6d5579b74484842f8b6ef17ed78ac0c43349a9bd0b0096cae1ef1a6c322e89",
+      "bytes": 4729
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\meri\\meri-capture-policy-readback.js",
+      "sha256": "7b5d28e415bd0b97e184daa93092396755d99c3f4bb575d08e97bfb6d26c44a9",
+      "bytes": 8566
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\meri\\meri-capture-provider-budget-install.js",
+      "sha256": "3f454dff86db754436fbb7fff0d811904fac8f7441ae768ee22206e84185a5d2",
+      "bytes": 8965
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\meri\\meri-capture-provider-budget-owner.js",
+      "sha256": "e4d1edaa90aa6c2d1d221ec2ac7ad08f85628f2073c685e4f0b85ca49322a39b",
+      "bytes": 8872
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\meri\\meri-capture-provider-budget.js",
+      "sha256": "8760b3077b1f9ef3f613ccad0c915f9364cf337d3ad3b4a4d0ca542e210cd7be",
+      "bytes": 11104
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\meri\\meri-capture-semantic-clock.js",
+      "sha256": "29e7f4364633c03b1c89607dc58f5c1c1fb7b72185c526423ced566fe79e2746",
+      "bytes": 4335
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\meri\\meri-case01-capture-authority.js",
+      "sha256": "018540120a93272451e0e9bf69171c482a14d40389d1b40d489823c8f5fc3b39",
+      "bytes": 10458
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\meri\\meri-case01-fixture-authority-registry.js",
+      "sha256": "7a301fa23d9507a47a4ff43f2fbbf838c05246cb0227464d257bf50a110d0cfa",
+      "bytes": 925
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\meri\\meri-case01-fixture-loader.js",
+      "sha256": "3aeb26b00d84b51d99b50009a759d72eddb454c7265c20041f0838d365564143",
+      "bytes": 2456
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\meri\\meri-case12-capture-authority.js",
+      "sha256": "f9eb7ce2b7d39eacb74e971492cda8493592a057938495152075ecfdd22b2780",
+      "bytes": 8498
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\meri\\meri-case12-setup-budget.js",
+      "sha256": "4024d629b578048be537153d4f2bf8208908f24896c92c3322dfd4d1382cb2a2",
+      "bytes": 15601
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\meri\\meri-case12-setup-completion.read.js",
+      "sha256": "2fcdbf77f18ed751b577fc1462f4b63c9f5b53ed7ab7a144542af34a1a262dcf",
+      "bytes": 6947
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\meri\\meri-case12-setup-provider-scope.js",
+      "sha256": "91288e3bdb22aff0cdca89696c949f2e7423564c1340081715444e08beb26608",
+      "bytes": 3591
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\meri\\meri-case14-capture-authority.js",
+      "sha256": "5ead362257f5532d96e90b86428766141313724da9362b8c62d015451a91f78d",
+      "bytes": 6946
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\meri\\meri-case46-action-authority.js",
+      "sha256": "637296b0a35873793cfe39af097533f21d034dd34c39c54fee3ee9175610e3db",
+      "bytes": 10450
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\meri\\meri-case46-api-provider-scope.js",
+      "sha256": "b934723b671e1cf2221ff9044478b2425b6f2a145f8e6e678bf026a8ac3a956c",
+      "bytes": 2293
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\meri\\meri-case46-authority.js",
+      "sha256": "3d3a53d1f4b2bfd383007f1ba327e9aa8a418d96c50f32799d640ec75a4e6047",
+      "bytes": 14905
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\meri\\meri-case46-provider-budget-owner.js",
+      "sha256": "f7795aaa4f65323c7c12ca40feb9ba8e8d5a518f50a77d2541ac0b27f96de0a4",
+      "bytes": 6188
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\meri\\meri-case46-provider-budget.js",
+      "sha256": "94d8e7f213e103df2c131fc123496661165a550795ab493b705de72c6a0be04d",
+      "bytes": 11500
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\meri\\meri-case46-turn-owner.js",
+      "sha256": "ed0903e8ff3e8ab00e003afcf60ed34d63584513a920498dfe22151769a5a414",
+      "bytes": 3351
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\meri\\meri-context-plane-runtime.js",
+      "sha256": "7e0e57ad6d212d4878969eaac7c6a9d3927cd86d334ab171284f8dd74f54eb00",
+      "bytes": 13694
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\meri\\meri-context-plane.service.js",
+      "sha256": "8e9d250b4e6de89230a75e0dfb1fbdccdf4a1c43675a8521d2f7d1b33eed0529",
+      "bytes": 54009
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\meri\\meri-controlled-budget-result.js",
+      "sha256": "d9e1ef93ac93d2a4a1202ffb9572b0cebc570575b58e0d5ce9f442fb1515de4e",
+      "bytes": 5058
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\meri\\meri-controlled-read-fixture.js",
+      "sha256": "7f8cd641575442f0072cf79108b0a0a98ba975814091d2ca21c9c26d6a57d47b",
+      "bytes": 13428
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\meri\\meri-defense-budget-tool.helpers.js",
+      "sha256": "8bceebad4bb333f9e665a9d0794476b79ed06a9d5bbcd93fa797a4d803e0fe59",
+      "bytes": 7341
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\meri\\meri-document-read.helpers.js",
+      "sha256": "d29c4b3768b981cb015192f486e5474bfcbaf8f856edc6c3cc1dd7ac0991100b",
+      "bytes": 9711
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\meri\\meri-research-durable-result.js",
+      "sha256": "eec729562a9a6aac5aed9e2c89479732d134864ea8e59f552e5a91ddbc663036",
+      "bytes": 4492
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\meri\\meri-research-durable-step.js",
+      "sha256": "8f5d1d30ddeb912e1fe2c582636510c8a56ad39f4c7093c8a750e71101f452f4",
+      "bytes": 5682
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\meri\\meri-research-run-state.js",
+      "sha256": "25ab7550186136cab989370fc24e6dbcdb15ae975d24c0e111ef97830e40f22e",
+      "bytes": 3998
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\meri\\meri-research-tool-budget.js",
+      "sha256": "88e77dac3d3f92bd10cc26d7106c960d0e2499c6b023c52f6383789390104f80",
+      "bytes": 30621
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\meri\\meri-server-readonly-capture.js",
+      "sha256": "66c76494f31c3671afc82a179ba87ec8978acb91f67b77eefc4f98c17e905aee",
+      "bytes": 22118
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\meri\\meri-synthetic-read-budget-owner.js",
+      "sha256": "e5e42282c1caba6d67ea050b50201749d1b4633e9a40e79e7234f3ae2ef51814",
+      "bytes": 20641
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\meri\\meri-synthetic-read-budget.js",
+      "sha256": "752a3cfb4897e431e0dc077e128acb73623e3004d81e3f268f87bed4a8a30e7f",
+      "bytes": 11092
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\meri\\meri-tool-request-control.js",
+      "sha256": "4d6d16303d70497d78081a76434754348d6829f56c0f6c65edb38cc728937f51",
+      "bytes": 3303
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\meri\\meri-turn.helpers.js",
+      "sha256": "41845100d98c0a9fcfbcb419f7ad409fcdb280682839ea3a05dcc12ae6860d10",
+      "bytes": 1649
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\prisma\\prisma.service.js",
+      "sha256": "3049f5b3311b0d2c6317405c2cbfaf6c41b87037826f3f3411ce05bdb63aa991",
+      "bytes": 12619
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\reranking\\reranking-provider.js",
+      "sha256": "ec76c1a83f49ec6bcb24901da4052dd36a2c812f0ff6923299276fe14ae772a2",
+      "bytes": 819
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\retrieval\\adapters\\case12-memory-eligibility.read.js",
+      "sha256": "cf14f39d068aaecf6ca88509a6f62467848880959bf777ffea06687db3a52e86",
+      "bytes": 4945
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\retrieval\\adapters\\governed-memory-eligibility.helpers.js",
+      "sha256": "4c035258226f3c21bead6906c21a3ed5c4ca3202eab7fab0dfb2aee3e2c5291c",
+      "bytes": 2823
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\retrieval\\coverage-manifest.js",
+      "sha256": "948e4f35b2271c097b1a879919a8dcb595606856444ad2d7e5b3e17b22b898e6",
+      "bytes": 4260
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\retrieval\\data-catalog\\semantic-data-catalog.service.js",
+      "sha256": "e6b7fadd7ec5862cd05f3584f6c344f8a9957ffaa1dc850fa043e1c0a0ff1a4a",
+      "bytes": 15708
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\retrieval\\exact-lexical-retrieval.service.js",
+      "sha256": "833c35405707512607c5e516921203e04ec31d9c84562fbaf72c50ad3ecb30ac",
+      "bytes": 35006
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\retrieval\\retrieval-planner-v2.service.js",
+      "sha256": "401d5e3e00e00902391a53649f68f049df8f3add738a86c21352cc4b2511a588",
+      "bytes": 2724
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\retrieval\\retrieval-reranker.service.js",
+      "sha256": "0e0af69def604d6e039e0654c10e8a3f37efeac3f173bdfc3587b129a179d8c3",
+      "bytes": 8339
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\retrieval\\retrieval-scoring.service.js",
+      "sha256": "977597e7f7994ec3b9797581b0108f94203202cdfed0f3a77e42217ab63bd128",
+      "bytes": 11482
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\retrieval\\retrieval-source.adapter.js",
+      "sha256": "e03d436a5eab5de723377b9da8337edd24c6e9e1d0cb224c785261f89988dc2d",
+      "bytes": 246
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\retrieval\\retrieval-v2.service.js",
+      "sha256": "42e67a217dd594c74201924a3ecb36f4cf282382303edd153c6ec5a941db513b",
+      "bytes": 12596
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\retrieval\\retrieval-v2.types.js",
+      "sha256": "9f2d32da78302360827a991b470897259b634309c8d0c206254a1743e62ab11e",
+      "bytes": 1580
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\apps\\api\\dist\\tenant\\tenant-context.store.js",
+      "sha256": "c7cafed205d4c17fdd38ae714d23bc3bc4ba2458f7d6fa98bd1ece3086996e82",
+      "bytes": 1728
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\alerts\\alert.js",
+      "sha256": "15e6ec24aa43d39f3878032012f6d383e19b292c0ba538a6d409d9281f3683ca",
+      "bytes": 1082
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\assurance\\checks.js",
+      "sha256": "b2a120daf57a263a62d360af296179be3d79eb718af6be74400848793301b24c",
+      "bytes": 14871
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\assurance\\claim-ledger.js",
+      "sha256": "f6c8fc69af4a6e90ef9b2b62a60d3a8b49f65176a3956cb0e8ab241e4639b8cf",
+      "bytes": 11475
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\assurance\\control-metrics.js",
+      "sha256": "9af46b952bc7899a3957bfc63ddf4289842cf53b9ecf955f6c6f6d4e70ec24c0",
+      "bytes": 5427
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\assurance\\deterministic-evaluation.js",
+      "sha256": "7dd4ed2da24d535352532545ac9bc79856d6803f9bc5d62e03c70f201a020c70",
+      "bytes": 2084
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\assurance\\envelope.js",
+      "sha256": "bf8943613bd251073540d57a7df93b0c0f15714c409a603eccee877f248c3005",
+      "bytes": 6114
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\assurance\\eval-gate.js",
+      "sha256": "b23414295755dcc417aea365345d673a7ed245d5eaf3641a2fbb32ab17cec49f",
+      "bytes": 7089
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\assurance\\evidence-dates.js",
+      "sha256": "36b475d688b6c1c935491886ca604b6dd9e945d83d2ce8817ce81ad6aea6f3f8",
+      "bytes": 2354
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\assurance\\evidence-plan.js",
+      "sha256": "cec58a68b4dc3ef108f6f4fb6968b16eaa738d19170ed251b2e4f2fbf6b92be4",
+      "bytes": 19811
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\assurance\\evidence-profile-control.js",
+      "sha256": "e3c1f13e12eef68ec7b770b9bb9c9eac3d0b398c53fbc5f373900ef11bb89580",
+      "bytes": 1408
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\assurance\\exact-comparison.js",
+      "sha256": "4519df7cd720d5260337c7b8348f7f25f85dcd75a508bdcc1b2f15bfac36a628",
+      "bytes": 6032
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\assurance\\feedback-fixtures.js",
+      "sha256": "e74f9401051b3d6a160f428dd82582825095dd76722564e5d6abc42845cdcc02",
+      "bytes": 6341
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\assurance\\freshness.js",
+      "sha256": "ebfa6aa481eece69f2dc5c00d0bd00ef110db8c78977c083de20d0b6ee8cc546",
+      "bytes": 6024
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\assurance\\index.js",
+      "sha256": "c7b1159f02a32c9bd4047b56ab9926e5a6eb294b0c2811b786deaa9b64d18a57",
+      "bytes": 1932
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\assurance\\observability.js",
+      "sha256": "7387ffab3bfa549cc92d9b112ad2967f81dadd225aa146bf14bfc27c0cc78ef4",
+      "bytes": 2193
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\assurance\\operating-frame.js",
+      "sha256": "82e2b8bc890673d5a79318bf0b8bbfb4100e8841a1c4f3f7be123aef77b11813",
+      "bytes": 12506
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\assurance\\policy-pack.js",
+      "sha256": "e934e4169107aaa48a06a73494ac79ff3ab5ab3a507f715d8eaeafb8fa40ca0f",
+      "bytes": 21533
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\assurance\\prompt-block.js",
+      "sha256": "fd95c10084ca7fa6488792017b7981759dd43909f9084528037c6b64d3e347c8",
+      "bytes": 5440
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\assurance\\recommendation.js",
+      "sha256": "1e8814b203d7b9727a09897d4ea0b65ea45ae9baebaf19ba8b2ec1e5b361a4ca",
+      "bytes": 3443
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\assurance\\request-scope.js",
+      "sha256": "c6d9678052eb44e59f091b7e2ecff5207206ddba6df3746e7a99f7fbea94895e",
+      "bytes": 1033
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\assurance\\risk-gate.js",
+      "sha256": "bb4176f88f0edf8f35c71746fb5991aadeeffe29b441665056bc4019a4207a93",
+      "bytes": 9627
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\assurance\\rollout.js",
+      "sha256": "62d0104e7ed69a101a2de5f7370a863f16221e840e95f09b2620338558306ea9",
+      "bytes": 2597
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\assurance\\tool-ledger-adapter.js",
+      "sha256": "fcea9efe974da417b0509527fe3bbd95d83075ad8db8ec8a079aca3aaaf22e1f",
+      "bytes": 30276
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\canary\\canary-report.js",
+      "sha256": "435fb5f3f014253064d7b043e8af76328ffc24fe32abe43bb9a562f1fdeb5677",
+      "bytes": 16871
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\canary\\limits.js",
+      "sha256": "95c0f55090b3bb1c62802edc9d9354820ce5736e5d9c3a296d744f8f94837fdf",
+      "bytes": 1129
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\compliance\\action-approval.js",
+      "sha256": "b11b6c60a6978a4a6045b00e0d51f93d615fb6b6e0b48f79332cc9cd9fc6a6ed",
+      "bytes": 4834
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\compliance\\approval-gate.js",
+      "sha256": "6a6b8a907cdcbbaaaf69f7949f4d8abbabbb70962706f8b61099e2c7d835d261",
+      "bytes": 4395
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\compliance\\compliance-rules.js",
+      "sha256": "1222f15bc0e8af8fecf2df153fc9c3314d1e8e45dcb6e1f861bc636a479bfeff",
+      "bytes": 8914
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\context\\capture-evidence-receipt.js",
+      "sha256": "25bff66bb5aaecf5ffccff721a9ec7259250db52dcd179febca30cf548888455",
+      "bytes": 20364
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\context\\case12-setup-binding.js",
+      "sha256": "83eba9c5f77b4b4f884990cb490436710ec842ab34fd15860605baec712001dc",
+      "bytes": 1999
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\context\\compiler.js",
+      "sha256": "77a7ead9fe7adb729369835ba277f66f5e6d6d6aff0fc50a4407d056559783ac",
+      "bytes": 28519
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\context\\context-release-switch.js",
+      "sha256": "c6753566dc5e6fdfd8f97af73cad0f829db0b6e8a4900ef84b04b2d03d7450c6",
+      "bytes": 4357
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\context\\context-rollout.js",
+      "sha256": "c45e73f840eeb6dac2b3a708cc960509b76d10199129683a4749141f3d479bcd",
+      "bytes": 12651
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\context\\contract.js",
+      "sha256": "0fc5d04145b411c063a7af3d8a704afd1d542da32a283c94708dd15eadff431d",
+      "bytes": 1360
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\context\\coverage-aware-packet.js",
+      "sha256": "9c47f79b66d028b7f286313f2669bd1371f6dc3af6f85191188f96986b300bfd",
+      "bytes": 7399
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\context\\governed-artifact-capture.js",
+      "sha256": "1107093f39090cc44e484fa60fd581096988801ad1a129c70a88af0ffd1cc2bd",
+      "bytes": 7072
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\context\\governed-columns.js",
+      "sha256": "b93291d0dd99abeec576edcfa18442e0be5ed67d8af8f46dbc1fe41f3c6a6c6e",
+      "bytes": 3635
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\context\\governed-evidence-auth.js",
+      "sha256": "ff2e942d1c26695de50eecd9d90606543d2e3904566bded6c233d35934ca427e",
+      "bytes": 5315
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\context\\layers.js",
+      "sha256": "7ccc6c40b2147d7b1bc1a0b548d50cbea18d26671c5558c5fdf27342ae8da163",
+      "bytes": 3196
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\context\\memory-capture-source.js",
+      "sha256": "64d3570d0ac849d5d1ed3b26d717aca1a170fbff85d32d3dfd95d74b8584c184",
+      "bytes": 8208
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\context\\meri-explicit-subject.js",
+      "sha256": "64116a58e3845f427663ef0a4bb55a7a930ddf6b85d333823b64937e248c9bff",
+      "bytes": 6579
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\context\\operation-enforcement.js",
+      "sha256": "8f720993cc1a7944f249cc521a383cd3a0deffa8413091985740b4a104d3bbb9",
+      "bytes": 5543
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\context\\research-plan-execution.js",
+      "sha256": "e42e971100c8977e13429c7a5405164a81cbacba09c7ba6cb645c28205272bda",
+      "bytes": 4657
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\context\\server-readonly-capture.js",
+      "sha256": "785a409ce18730c9335172c16e6cf2d2d46de0c485c575c3cb203deb10577b08",
+      "bytes": 6099
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\context\\surface-policy.js",
+      "sha256": "a623435eaf48d0d94a3cb5bf9c8672540fc7fcfadb3893ec447bc82a3750dcc4",
+      "bytes": 7866
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\context\\synthetic-read-budget.js",
+      "sha256": "b89724313aa0298b1cbb1e5dc9e3f231c2bff149e7ef6a581a622f2905f7b2e6",
+      "bytes": 1368
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\context\\token-budget.js",
+      "sha256": "9b204a454cb3e873abff80037bdc0a0d08f6a0e61973bd0ef61005aa28db9a63",
+      "bytes": 2239
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\context\\truthful-compiler.js",
+      "sha256": "9fcddfb24e3243ad7baa76c070ff40a38b9cb3ad7c1da3a9cbf55c57f83422e5",
+      "bytes": 5062
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\domain\\domain-primer.js",
+      "sha256": "487d49227e10befef2924a35177820e9a65b1f16418374b186688fc47b45ad14",
+      "bytes": 4958
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\domain\\government-affairs-output.js",
+      "sha256": "267c0647f1bda745b5fb07a6483db2a8a0a2b40ef5f980ac6d81cd3d3bd7f29e",
+      "bytes": 10056
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\evaluation\\contract.js",
+      "sha256": "e3b9efbb75d7a684e5912276e22e8cb8c70159b73e8dcd39ce25bc436075e27f",
+      "bytes": 10939
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\grounding\\auditor.js",
+      "sha256": "3e4aff0845b40a9f1626c7b9ec32c3fca92d621a3792149d44a4c3604b2566ff",
+      "bytes": 53171
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\grounding\\claim-gate.js",
+      "sha256": "e27928a928185c4a5d0f13355eff23c8cec4f5ddd0baf1374c18f181e654a1ff",
+      "bytes": 9833
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\grounding\\claim-inventory.js",
+      "sha256": "d8161b88f942dcb398ae0546046d205579295f9f03ae91a87fd2bb50c70972bf",
+      "bytes": 8868
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\grounding\\claim-map.js",
+      "sha256": "fc3f6311a7a09fd362883e3b04d18fe06364392e35e0514570352b67e79ad6f1",
+      "bytes": 851
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\grounding\\evidence.js",
+      "sha256": "703623ee694b99df796be757f109f813480750a283abdfd785f305a2c23c684e",
+      "bytes": 14142
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\grounding\\exact-source.js",
+      "sha256": "0d83cc8f0ca8185f8f4238ecc2cc5dd7f8b1a8cb9c9f8786f108b360802eda37",
+      "bytes": 6270
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\grounding\\grounded-json.js",
+      "sha256": "fe1a59dc3a5d4547689c62b5fed62b96e912c510faf70ea76f09c7352d90634b",
+      "bytes": 6997
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\grounding\\match-label-extractor.js",
+      "sha256": "4da68f15d2c9f481352feeb8cc7c701eac5cadd30a6746e945f17b5b4966422a",
+      "bytes": 1851
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\grounding\\match-label.js",
+      "sha256": "8a0f87bb6c3b6d062fde27a7bc46018c7dfa131750e864654587185ab197f55c",
+      "bytes": 5376
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\grounding\\skeptic-audit.js",
+      "sha256": "5674189ea958c55239ff72a817aef68e28b6b7e2a765eb05810d0d73bb502012",
+      "bytes": 8394
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\grounding\\skeptic.js",
+      "sha256": "08483abbcdc7a7a7a7a4cac4c67787cc2a14a0cea5e9ff3ce0b50e43aa7a65f0",
+      "bytes": 6664
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\grounding\\status-provenance.js",
+      "sha256": "96a690b968fd91edd70fa8ef5b3ac6bea8fc25914b97482ac0ef35ddbf9f640b",
+      "bytes": 7954
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\ids\\canonical-ids.js",
+      "sha256": "653befa2c2ffd3a7c3d9db98453803258ad4945af261efd07e3470fbfe494bbb",
+      "bytes": 2734
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\index.js",
+      "sha256": "0e76cd022c0926ee1a7762fd4af4d94d2647559b2e9e33cdd97ac9fb59fb7066",
+      "bytes": 7032
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\intent\\action-intent.js",
+      "sha256": "7658cf77c01e1ce4498766845e57a6d029a6d65a41f8569b6d3ff3cf10cf4141",
+      "bytes": 6646
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\intent\\intent-router.js",
+      "sha256": "f653c30a8caf1e4b7f77a3f25378ffcd54dc3b14a2d95179405fb2a1545bb727",
+      "bytes": 3933
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\jev\\bd-claim-question.js",
+      "sha256": "7300dc5de8943053944dc9df23db3c4d49794de471be70eb7c47bc5df673aaef",
+      "bytes": 8092
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\jev\\bd-entity-question.js",
+      "sha256": "6f2f506881667ebdc7fa74a7a98fc2392d7c3d6fbf27de800c6b6af5ccbddaf4",
+      "bytes": 4953
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\jev\\bd-fixture-schema.js",
+      "sha256": "027b6efa272c6e270f71f4109dc906f835994191b3b2dca3fa54568e0c2b4a07",
+      "bytes": 14617
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\jev\\bd-signal-question.js",
+      "sha256": "11b52806eb50b6e3963a69d873d325f4eed9fe6d74edd1a3b401b7118b055b86",
+      "bytes": 5765
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\jev\\calibrated-cascade.js",
+      "sha256": "c67fa91d17019b053d310eb9b8ddcdf752040ad31a718ebb113dc81148b1f6e7",
+      "bytes": 6545
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\jev\\claim-support-question.js",
+      "sha256": "1b189047ba72bb348a4af0b7275ecb95cbcb125c0f34ca98febcb5a7278dfbd7",
+      "bytes": 2294
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\jev\\client-fit-provider.js",
+      "sha256": "81e0d133e6a840548d07cec56cef402a81f58d69c3d06b26a65b9ab3b2a55cb1",
+      "bytes": 4053
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\jev\\client-fit-question.js",
+      "sha256": "7ade897219a1ff2f2a165f34b2a539248b5cea04ff857079384239251598e3f9",
+      "bytes": 4420
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\jev\\decision-cache.js",
+      "sha256": "52fdd5a8c164f672069eec219d84a65d5299998bfc344301a633019dfb763c35",
+      "bytes": 3335
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\jev\\decision-contract.js",
+      "sha256": "b849ecefad304d667c3d58f53de3e072ab70ba49ca6bc9a6a688b2b40c42ae1c",
+      "bytes": 4258
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\jev\\evaluation\\bd-task-gate.js",
+      "sha256": "132b559058030446ac31067e2a50095675922339e2f09483783126a9074b8d5d",
+      "bytes": 18591
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\jev\\evaluation\\calibration.js",
+      "sha256": "9239fd69b58d60788cbd2aa4f8ba8fb42351fdc4603b63b662f2083e20f44aec",
+      "bytes": 2314
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\jev\\evaluation\\package9-economics.js",
+      "sha256": "bbb4a3abca514234fc5434b1ebaa58ae7f3b4e0709b4e8f265b94c2311cd1518",
+      "bytes": 6795
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\jev\\evaluation\\shadow-events.js",
+      "sha256": "7947e56421d6a46e744ee4f8f404a848699c782041b9a251a8c3f887f5383fe1",
+      "bytes": 7128
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\jev\\evaluation\\shadow-report.js",
+      "sha256": "7fcf82d25f85b7d6c68e507833c24d834bb8f63a882cc581f1401aeb1e4802e5",
+      "bytes": 10826
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\jev\\evaluation\\task-paired-evaluation.js",
+      "sha256": "18e1d99de72b50e3923d54aff0133d19151d7c8ff71be8729ada1e3587b0c74f",
+      "bytes": 5030
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\jev\\evidence-envelope.js",
+      "sha256": "7ef94eec037b5a295c5bac5b9f984db28318dfef8473f3d744fd3e26314881bc",
+      "bytes": 7890
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\jev\\evidence-selection-question.js",
+      "sha256": "130a322a3f7817d0cff28919385216e1741e1f39107eb698bb3306ba567aabfb",
+      "bytes": 3595
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\jev\\fixture-schema.js",
+      "sha256": "82184a91cfcf580e9ed87cf8163df3bc1a9598570180a1d7df06cda5476c5f4b",
+      "bytes": 1982
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\jev\\index.js",
+      "sha256": "e084b7fdf85e6671aac98771715e3b2dee39c131c402f5456ac6a1ab089c6555",
+      "bytes": 2739
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\jev\\jev-client.js",
+      "sha256": "700753ff79bf05ab6803f289fa2d4fe81297fd1cf1a278961008236ba299f7df",
+      "bytes": 14139
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\jev\\jev-config.js",
+      "sha256": "29d39255fb1c608ba731e6b1b7d1bdc4935db92019401fdc69c567decce4acc4",
+      "bytes": 3108
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\jev\\jev-decision-provider.js",
+      "sha256": "616ffbedca99d2468e67a52153a63229e52a4da88bffe6d25d272dbc02c4a99f",
+      "bytes": 3689
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\jev\\mention-scope-question.js",
+      "sha256": "d3f61507b51b65b7abf1d9aaeef4bc5f19f51849877b32f8bd07bcd45abc464f",
+      "bytes": 3386
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\jev\\program-identity-question.js",
+      "sha256": "d9a0a930df8a76e725c96c89d4e49ab1d5d72f9b936046e4daec61aa321e6257",
+      "bytes": 3318
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\jev\\replay\\paired-evaluation.js",
+      "sha256": "d9007e14c25f36a94f643068c155bbd25caa7988e45dcb0c49c0bf73403f5231",
+      "bytes": 4201
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\jev\\replay\\recorded-decision-store.js",
+      "sha256": "4d5e223b5198b1796310cf3ebf380ed4b4f32aedcc566c06d19b76e036e909e3",
+      "bytes": 3194
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\jev\\replay\\recording-decision-provider.js",
+      "sha256": "e47faf296883bd4c66620c6a89da2aec07449243262eb1f6c1b0f7a9f0f4ff56",
+      "bytes": 1712
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\jev\\replay\\replay-decision-provider.js",
+      "sha256": "db100a9ba5e7aac1777347ce060c188ff61af1e075a26c15a315427b5abb811d",
+      "bytes": 3145
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\jev\\skeptic-adapter.js",
+      "sha256": "db03b22df362d6afbb4d26298535ba513b5cb6abecfe6155797bca51b8f13622",
+      "bytes": 2269
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\jev\\status-selection-question.js",
+      "sha256": "2c39b76e0406937fb02753625313b639ec0efbb5bfe773ac05b3cdd2167209e1",
+      "bytes": 1988
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\jev\\task-choice-provider.js",
+      "sha256": "3c279896a2abee2e97b8cbee44bf8833680a94570570f5effd927d093782d224",
+      "bytes": 10226
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\jev\\task-evaluation-fixture.js",
+      "sha256": "e29539a5eb4c2a00f39b0e58c045ed93ce5891beab93dc5d1dfb4a4be8599e4a",
+      "bytes": 5000
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\jev\\task-registry.js",
+      "sha256": "37cff1f0762bd43df5cd5b6ef2c56e78e69b858ad463b4b526fbe608e06ba319",
+      "bytes": 26279
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\learning\\candidate-contract.js",
+      "sha256": "091024e5e1fde9989437667c83f68460097ed7aeb796e88dd185dcafd18211bf",
+      "bytes": 5941
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\learning\\conflict-contract.js",
+      "sha256": "7bbd9e7f00692c2fd4d21fdc50b7159f1179c9b396bf4b1f33eb3327117e03b7",
+      "bytes": 5045
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\learning\\contract.js",
+      "sha256": "07b225849d10ee7d0186ab3d56b881c9172ebfbb01172d5703b64c098207fee0",
+      "bytes": 8806
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\learning\\rollout.js",
+      "sha256": "1ccf5c1a7929b535604420d8cc9e1dd889c0a8c761eee69bda26586331c1761a",
+      "bytes": 2613
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\llm\\llm-client.js",
+      "sha256": "35793aaf6c92cc4802f79ee132c162f41fef2cf97074d6207bd8387186b106b7",
+      "bytes": 27829
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\llm\\openai-responses-adapter.js",
+      "sha256": "549a8909ba8626fc59bb1101f165a965b16dc2eb379d02e752ea3bde3489d14d",
+      "bytes": 4233
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\memory\\governance-rollout.js",
+      "sha256": "6a2a039fedf340c6474e97d5142c46dc41ae286bab68d256dded6e17ba7de4bd",
+      "bytes": 1615
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\memory\\governance.js",
+      "sha256": "a09c970326c112b881419946728b993464093e284b7de062b45d833295801eec",
+      "bytes": 19774
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\observability\\meri-joined-telemetry.js",
+      "sha256": "7e991e746fbb582d989f90ec2bd229b995b9dec1fb7130162eb20e214bad8790",
+      "bytes": 14074
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\quality-telemetry\\contract.js",
+      "sha256": "5971c41678f7d5630ecd74bc02d261c5e87c880556e50fc40c49b1f3ecc8f3fa",
+      "bytes": 7626
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\registry\\in-editor-tools.js",
+      "sha256": "c9bcd59329830a024888109357b6cb5147d73dcbf204162b27ca5320cc737cb4",
+      "bytes": 4899
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\registry\\tool-execution-control.js",
+      "sha256": "13224ff9fc8f63335c7bb7dea8881eebdda4f88599470a4e5d74e63d2faf77c3",
+      "bytes": 530
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\registry\\tool-execution-metadata.js",
+      "sha256": "8786b8b3ff58864a5c3912395308bb31afd04180c65f3127d11efe5b487286cb",
+      "bytes": 5012
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\registry\\tool-registry.js",
+      "sha256": "2c6fdf20a17509887f2ad070ab03f38778b159ec63d633cf9afdb352cc543ed9",
+      "bytes": 2420
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\registry\\types.js",
+      "sha256": "c24c29be942f22453c81e6c456f90706d39bce69a728b214ebb5d8c96f781061",
+      "bytes": 1590
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\repair\\assemble.js",
+      "sha256": "acd684a029777e77b2cba73a0821a0bd05dc76e72c075aebbd18d072931d766c",
+      "bytes": 2297
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\repair\\plan-remedy.js",
+      "sha256": "ae78f51b2765ceb1d030a26733ff22c4f7550a6e8367c1618650c61ef8595b91",
+      "bytes": 5451
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\repair\\recheck.js",
+      "sha256": "1736d9dfebe4133315cbe9920ed96f5e66ae354ffe75fec25740fc50317607ac",
+      "bytes": 5148
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\repair\\revise.js",
+      "sha256": "c115311fdeef8a0d9a922ddfa2721294deb746446977e6e45b9ee77fc5859273",
+      "bytes": 2252
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\repair\\run-repair.js",
+      "sha256": "fe0b012e1f14585088389a7361166c4d40fc95e3173a76427c794aca9b2a66d0",
+      "bytes": 20271
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\repair\\tool-executor.js",
+      "sha256": "12ea56714166b20cc5de5b357b5d86ff979556da3ebda0da56f1484b7ff2c9da",
+      "bytes": 2188
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\repair\\types.js",
+      "sha256": "b0d2bc4142d0c62d43f996aaeb64f22c4889ac853f8a3765758b505d972d0149",
+      "bytes": 110
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\rollout\\auto-correction.js",
+      "sha256": "030807b0221b0e79e8fb19bc1164a358e421cbe330f1f60e91c9e31e563e60b0",
+      "bytes": 1870
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\rollout\\capability-rollout.js",
+      "sha256": "41ec9f084b46d91fad5a9d0ba9a3a3636b8ff51ec2eb9bd1348a103e8054615d",
+      "bytes": 2953
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\rollout\\claim-assessment.js",
+      "sha256": "25ae6c40ec32f1a0da6ce9b6a043bb0d039ecf0cb705e056c694cbbbc810241a",
+      "bytes": 685
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\rollout\\coverage-retrieval.js",
+      "sha256": "a04ae25a4e0cde414be33c4cbb0586db68bea66f28af178c60ba72e7b6510588",
+      "bytes": 869
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\rollout\\evidence-accuracy.js",
+      "sha256": "b57c73afd916dfc7154ed5e3a6f946426aa744ad4f218b6921a63272ee810d77",
+      "bytes": 896
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\rollout\\evidence-profiles.js",
+      "sha256": "a75c68a016dbe9dac5178ba6cab451aa7fae8123da16e73fc838cc1aaa61dd71",
+      "bytes": 857
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\rollout\\jev-cache.js",
+      "sha256": "ce6ac3372afcea3d57bf279ca9d272e063380e1f4d9a5a493ec30e9a6274d148",
+      "bytes": 733
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\rollout\\match-label.js",
+      "sha256": "00105870e8fafdfc174d16d432346784648d4936eb3a38bea6c55b183fde0650",
+      "bytes": 862
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\rollout\\passage-selection.js",
+      "sha256": "fc21472a46e16e82c9cb9c6ff635a5397a4f305cf15ec1b1ae4005129f4380d5",
+      "bytes": 857
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\rollout\\status-provenance.js",
+      "sha256": "684289f7f21586b36b34a54f029ed71abb9749eed19f104d62239908d3763381",
+      "bytes": 1037
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\rollout\\tokens.js",
+      "sha256": "13781bbe6c9165e2014d53ecfb67af6b375e7da4cf16cee43df2504dfa70c079",
+      "bytes": 349
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\scoping\\scoping-wrapper.js",
+      "sha256": "ed64ef1abe339198e7111fcee0d256bc3f2d037dac34d75ec77d63d06a5b74c3",
+      "bytes": 1712
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\security\\tool-result-wrap.js",
+      "sha256": "7d4381e869436a302adf6ab6d9b260db7037fe2599a573c4707f02cf27b3532c",
+      "bytes": 5042
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\tools\\client\\get-client-context.js",
+      "sha256": "00db975064085f105bd3e0147735ee62ffbe2765f8a5dfafe17e2bd6ee27539e",
+      "bytes": 1936
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\tools\\delegated\\delegated-tool.js",
+      "sha256": "168807c8035bf15a9dc9776a30be25addc81e6c397de614653268b21af7aefa3",
+      "bytes": 1274
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\tools\\hearing\\generate-editorial-brief.js",
+      "sha256": "77f7bc5663f1ecac3e131e7659a933a715816aa3f5dc41f18b150af6c2a00727",
+      "bytes": 5834
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\tools\\hearing\\generate-post-hearing-summary.js",
+      "sha256": "00ca7bb16690e3ac7931d8554c1c810739f32b4b67ec8b20340a845c8a646be1",
+      "bytes": 46857
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\tools\\hearing\\generate-published-record-brief.js",
+      "sha256": "f6e574ee9663c58f2bea28058192239a1c59701e13d64fa3b802f13060ed3dd7",
+      "bytes": 11356
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\tools\\hearing\\tag-live-policy-mentions.js",
+      "sha256": "bf29c33122450bb228dc36dd9e62660319f1ead47a2325242130320ea8cd6e58",
+      "bytes": 5199
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\verifier\\confidence.js",
+      "sha256": "defd602d251e49e4b3196b7d2e663fa25fde453a71d5ba9da2de8346de9cc62c",
+      "bytes": 1175
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\verifier\\grounding-sources.js",
+      "sha256": "2dd19f83a380f5e38522c59d2a296040cfea78e783dafc20c176689e7aec1f69",
+      "bytes": 3585
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\verifier\\pe-structural.js",
+      "sha256": "eab22fcec145e72d5c1fa36177f9c4014cf23efadbd182b403d67d6fbb40a882",
+      "bytes": 7713
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\meriv2-core\\dist\\verifier\\verifier-claims.js",
+      "sha256": "b6c7e1230a3e55dbecacf74265850ee209e10563960dea75224ccef8e31fd949",
+      "bytes": 3000
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\shared\\dist\\ai-model-policy.js",
+      "sha256": "4e922c30f93b0314e845a346072a81848047c3e40078f69c8affc91b7b24e41a",
+      "bytes": 4634
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\shared\\dist\\defense-budget-line.js",
+      "sha256": "28b6bcd7e3fe89786c1ec54a3df96ced742d416c2b4c76915beb75e94b34ffd6",
+      "bytes": 5399
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\shared\\dist\\defense-research.js",
+      "sha256": "77a6ef9f90af110b57ca5348741e344a5b82b295bafd536ddcb172be35083c7a",
+      "bytes": 121
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\shared\\dist\\funding-claim.js",
+      "sha256": "f425e8691cdd73331fe670e7bd42b25d9b1132d9df1194d4a802823ca6ee29be",
+      "bytes": 17500
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\shared\\dist\\funding-opportunities-v2-detail.js",
+      "sha256": "523a280ddb7650826c2b0a3dbc76eaafa227b8bd19354583ca058449c98809bd",
+      "bytes": 136
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\shared\\dist\\funding-opportunities-v2-workflow.js",
+      "sha256": "633d9329afa90fe37ab7dbb986e21d84fe1f73e77d306cf9a53a35be5c18325f",
+      "bytes": 138
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\shared\\dist\\funding-opportunities-v2.js",
+      "sha256": "349f734882d845f19265b3dfe09924d26a7e16b38c7f276a5b2e67f62cb7bfb3",
+      "bytes": 8937
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\shared\\dist\\funding-priorities.js",
+      "sha256": "6696f2c66af59584ff1d34c62259b4afda3e654f126c38cde407c041470b2ede",
+      "bytes": 1616
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\shared\\dist\\index.js",
+      "sha256": "eb8d964a7652c9c5726c85a9f6e208b5a1dab5236ef00be335252860f33fb9ab",
+      "bytes": 242203
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\shared\\dist\\legislative-research.js",
+      "sha256": "fff1ac3bee939da4aea1407cb06325c29295948060d4c269116e6b4ce18e6196",
+      "bytes": 13461
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\shared\\dist\\legiwatch-phase8.js",
+      "sha256": "08df345fb7c85d878fa4ffedf19d869087db31868bb4788282ee8166cf8553b9",
+      "bytes": 7924
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\shared\\dist\\legiwatch-query.js",
+      "sha256": "cacc99ab453f9b1a512215d67f6e4a2b9c3a677872910563795a76de7ab34cbc",
+      "bytes": 10705
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\shared\\dist\\meri-document-request.js",
+      "sha256": "7fbbae53ed8bca566050e5c7ceaf93ff10335ef7ed6bbf87f6bd9ebe3692c551",
+      "bytes": 2382
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\shared\\dist\\meri-read-outcome.js",
+      "sha256": "d888b07137037715566ab13741da1dead144f66b642558e3d2c2689f0e15f915",
+      "bytes": 34893
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\shared\\dist\\pe-source-coverage.js",
+      "sha256": "a3590a61d3fefd6944d53e8f994aceceb410bd5770928b8c7cb3645a7c803e97",
+      "bytes": 7755
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\shared\\dist\\research-portfolios.js",
+      "sha256": "af52b4368370552ce8fbf718cec52eb2aa9550008f61181c607fbfd4e5dc400e",
+      "bytes": 124
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\shared\\dist\\schedule\\deadline.js",
+      "sha256": "006f9c41adb8a1fb6e9bbca3316a47b7799bf6629b904b7a335524f8f69f9490",
+      "bytes": 2398
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\shared\\dist\\schedule\\synthesis.js",
+      "sha256": "98c2d27eb74736d7f9053a3ce645c4fd9d6eb97bcc11ae043119e850d20eb8e1",
+      "bytes": 7073
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\shared\\dist\\schedule\\time-zone.js",
+      "sha256": "97994beda998267b4faa5d41ab93eac0fff780ca50d4da50a6e03be28034f42f",
+      "bytes": 3269
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\shared\\dist\\schedule\\validate.js",
+      "sha256": "589bf0a9de4a85a0fefe7557bc2addcb2bd07f79a33b4ccc29b31ef91bac9f64",
+      "bytes": 4364
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime\\packages\\shared\\dist\\us-states.js",
+      "sha256": "fddbd41da19003c6b3a8dc63fb867e2779d49ce264ea192db49668c46b3ae9e9",
+      "bytes": 1829
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\runtime-input-manifest.json",
+      "sha256": "8243dd6e3d95f7f3d864a463f6a7f8d0e1e52c4ff95a631674322c60cf6a8f44",
+      "bytes": 58420
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\scratch\\apps\\api\\package.json",
+      "sha256": "ba6d55f9d9e63ecd3293387b45f4328157e0188479ef588bf8867461d5ceb819",
+      "bytes": 28441
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\scratch\\evals\\meri\\live-v1\\contract-lock.json",
+      "sha256": "fc2fe9da90938d476e46007782a0b7d4471c1254e2a189180f62e3fbbde8fb6e",
+      "bytes": 6168
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\approved-memory-retirement-owner.mjs",
+      "sha256": "84ce879940d2edf83004faf690739e6a9fef4091675fb640980a1d370529f668",
+      "bytes": 6106
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\approved-memory-runtime.mjs",
+      "sha256": "b814c5f904594130d0e35bbb0d4a1f49ec77a5f96c1544fcf9e6969784f278ac",
+      "bytes": 14972
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\canonical-owner-adapter.mjs",
+      "sha256": "a9e68e7f12e60253d8402108dbc2ecc0cf6688863ca42c6412c13e371c61fa40",
+      "bytes": 8502
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\case12-memory-eligibility-owner.mjs",
+      "sha256": "9d829dc0e8ca012194d602949c02d757e9e4921f339eb139c30a25b599913664",
+      "bytes": 4052
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\case12-memory-inventory-owner.mjs",
+      "sha256": "aca6c6a9185d2d3fbc71b8a17971bd433e005b90327218cb4fdee5858e6b33e2",
+      "bytes": 18411
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\case12-memory-setup.mjs",
+      "sha256": "81ff660984df31d841f551d559eefde8af67ba1bd0d12dca3fc1ca128c5c0a31",
+      "bytes": 36481
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\case12-setup-budget-plan.baseline.mjs",
+      "sha256": "1ca0ec48fc645352c78dd7201f80d0a47e06b33aa46dbcc2db5a0e7dfd0b0f80",
+      "bytes": 5668
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\case12-setup-budget-plan.mjs",
+      "sha256": "9b524b043c0bbb185d70f5e16393ab3e98ddcee1e5aa086619e32068cac5d28a",
+      "bytes": 6248
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\contract.mjs",
+      "sha256": "301f39229b64b3878d2fa9783d2cac5cd716fdf8acb125a2e758dc698e36076e",
+      "bytes": 5295
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\manifest.mjs",
+      "sha256": "8f1276ef0aaaef9b648bb1cbd0a037ee7d11d0a78db9691ab4de70b3b5db667a",
+      "bytes": 20549
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\memory-candidate-owner.mjs",
+      "sha256": "a850e4a8a68641d7118cf7f6e5abda72e64452bde6123d8e13acf5308d6bc9b7",
+      "bytes": 14006
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\scratch\\evals\\meri\\live-v1\\fixture.mjs",
+      "sha256": "8915e19424520a2f97b9cd5a389fcf4b39f2823f0526573ffd04a1dfe0fbc398",
+      "bytes": 17294
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\scratch\\evals\\meri\\live-v1\\lib\\stable.mjs",
+      "sha256": "03bba6f6dd1c48bf206ed32c628e1f9ce2038d75a9560d33d044950261f45c23",
+      "bytes": 1146
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\scratch\\evals\\meri\\live-v1\\source-binaries\\asset-manifest.json",
+      "sha256": "6512b1ad5f9a154e517e2702f329bc52ab8276ccde9f7a1d2609872c8ea1889d",
+      "bytes": 7757
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\scratch\\evals\\meri\\live-v1\\source-binaries\\D-A-1.pdf",
+      "sha256": "da882da4ae603b15d8b21072a034a2daf302071856743fd842ad3198a003d0fc",
+      "bytes": 3269
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\scratch\\evals\\meri\\live-v1\\source-binaries\\DECK-A-1.pptx",
+      "sha256": "cc12bfaa119ab3d99f210d4f3169a693be269b2d4d98b76fbb42f78aff2cd4bb",
+      "bytes": 25954
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\scratch\\evals\\meri\\live-v1\\source-binaries\\FILE-B-1-restricted.pdf",
+      "sha256": "161c88788ac2214e3ce4bc0c7627d413331e0ecff721ffb9c73cbeb66ebde6f3",
+      "bytes": 1887
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\scratch\\evals\\meri\\live-v1\\source-binaries\\generator.mjs",
+      "sha256": "59ab97021f98ed828815250fe5b5f4dc5ae420d0a1883de5c0fefc2b47822c2a",
+      "bytes": 15767
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\scratch\\evals\\meri\\live-v1\\source-binaries\\PDF-PENDING-1.pdf",
+      "sha256": "759ba31674a35f47324cada809abc52c411dd3fd649df36b4b12e91549705bcc",
+      "bytes": 1899
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\scratch\\evals\\meri\\live-v1\\source-binaries\\REPORT-A-v1.pdf",
+      "sha256": "24d2374a09cbb012418bed2dfa562015ef7a200c22f6c3a0ac425e8ceeb487a7",
+      "bytes": 38597
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\scratch\\evals\\meri\\live-v1\\source-binaries\\REPORT-A-v2.pdf",
+      "sha256": "f06ebef24465eb837a4de37964ad0630859323bf34292d9f6dec2a9264f8f848",
+      "bytes": 38734
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\scratch\\evals\\meri\\live-v1\\source-binaries\\SHEET-A-1.xlsx",
+      "sha256": "debd2c837dbd1c33c329ce8d96f98a702a879c4a4e4829df740fdc6dd58924df",
+      "bytes": 6557
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-extraction-v1\\tests-v1.log",
+      "sha256": "82ff871caf39e4419d6b8b28b078f8493fc3b0a5c6be0f9b39b5490f26198ffa",
+      "bytes": 2509
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-independent-input-v1\\proposed.patch",
+      "sha256": "131e2b0f4b81e36290804496204674897dcee4df0ce2e37daee663387df4c341",
+      "bytes": 3988
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-independent-hermes-v1\\evidence\\proposed.patch",
+      "sha256": "131e2b0f4b81e36290804496204674897dcee4df0ce2e37daee663387df4c341",
+      "bytes": 3988
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-independent-input-v1\\provider-rows.test.mjs",
+      "sha256": "ffbe512f13913ad94af4034384981babc8bf44292466c13435d214e25df3c05b",
+      "bytes": 11784
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-independent-hermes-v1\\evidence\\provider-rows.test.mjs",
+      "sha256": "ffbe512f13913ad94af4034384981babc8bf44292466c13435d214e25df3c05b",
+      "bytes": 11784
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-independent-input-v1\\README.md",
+      "sha256": "104ffe42084647c1ca9aee74d180b99bfda86fab9b201b7246273f868d1881ca",
+      "bytes": 1655
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-independent-hermes-v1\\evidence\\README.md",
+      "sha256": "104ffe42084647c1ca9aee74d180b99bfda86fab9b201b7246273f868d1881ca",
+      "bytes": 1655
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-independent-input-v1\\tests-v1.log",
+      "sha256": "82ff871caf39e4419d6b8b28b078f8493fc3b0a5c6be0f9b39b5490f26198ffa",
+      "bytes": 2509
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-independent-hermes-v1\\evidence\\tests-v1.log",
+      "sha256": "82ff871caf39e4419d6b8b28b078f8493fc3b0a5c6be0f9b39b5490f26198ffa",
+      "bytes": 2509
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-independent-input-v1\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\case12-setup-budget-plan.mjs",
+      "sha256": "9b524b043c0bbb185d70f5e16393ab3e98ddcee1e5aa086619e32068cac5d28a",
+      "bytes": 6248
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-independent-hermes-v1\\evidence\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\case12-setup-budget-plan.mjs",
+      "sha256": "9b524b043c0bbb185d70f5e16393ab3e98ddcee1e5aa086619e32068cac5d28a",
+      "bytes": 6248
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-independent-input-v1\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\case12-setup-budget-plan.baseline.mjs",
+      "sha256": "1ca0ec48fc645352c78dd7201f80d0a47e06b33aa46dbcc2db5a0e7dfd0b0f80",
+      "bytes": 5668
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-independent-hermes-v1\\evidence\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\case12-setup-budget-plan.baseline.mjs",
+      "sha256": "1ca0ec48fc645352c78dd7201f80d0a47e06b33aa46dbcc2db5a0e7dfd0b0f80",
+      "bytes": 5668
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-independent-input-v1\\scratch\\evals\\meri\\live-v1\\lib\\stable.mjs",
+      "sha256": "03bba6f6dd1c48bf206ed32c628e1f9ce2038d75a9560d33d044950261f45c23",
+      "bytes": 1146
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-independent-hermes-v1\\evidence\\scratch\\evals\\meri\\live-v1\\lib\\stable.mjs",
+      "sha256": "03bba6f6dd1c48bf206ed32c628e1f9ce2038d75a9560d33d044950261f45c23",
+      "bytes": 1146
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-independent-input-v1\\runtime\\apps\\api\\dist\\meri\\meri-case12-setup-budget.js",
+      "sha256": "4024d629b578048be537153d4f2bf8208908f24896c92c3322dfd4d1382cb2a2",
+      "bytes": 15601
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-independent-hermes-v1\\evidence\\runtime\\apps\\api\\dist\\meri\\meri-case12-setup-budget.js",
+      "sha256": "4024d629b578048be537153d4f2bf8208908f24896c92c3322dfd4d1382cb2a2",
+      "bytes": 15601
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-independent-hermes-v1\\prompt.txt",
+      "sha256": "dd7b2ce4ccfb3a48ae0751d8744007a80f8e42c36377e46415675e78ccc090c7",
+      "bytes": 1377
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-independent-hermes-v1\\response.txt",
+      "sha256": "d61e1db013a8c357811fcc5bf4064f525ebc507dcf1d1c5cd3d26a653f2fe981",
+      "bytes": 786
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-independent-hermes-v1\\review.md",
+      "sha256": "2773fc390d7df255e6cd23df3b39b1a515e01d73b22f9a9f2e3223c779aca42f",
+      "bytes": 2994
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-independent-hermes-v1\\stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-independent-hermes-v1\\usage.json",
+      "sha256": "318e6c21ef360e9afc21e1687ba41d04b8a26c37579c17b11d4b1cee2a78d8ef",
+      "bytes": 475
+    }
+  ],
+  "captureAuthority": false
+}

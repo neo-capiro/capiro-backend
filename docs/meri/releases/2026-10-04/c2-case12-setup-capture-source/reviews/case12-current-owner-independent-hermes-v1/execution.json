@@ -1,0 +1,45 @@
+{
+  "startedAt": "2026-10-04T10:55:26.637678+00:00",
+  "finishedAt": "2026-10-04T10:56:51.827765+00:00",
+  "exitCode": 0,
+  "failure": null,
+  "modelOverride": null,
+  "providerOverride": null,
+  "files": [
+    {
+      "path": "extra-tests.log",
+      "bytes": 1214,
+      "sha256": "0b4f822042b702895460157ed1e3321d8db5f0b86312a22fe8fc1233ca46d8e9"
+    },
+    {
+      "path": "original-tests-independent.log",
+      "bytes": 1932,
+      "sha256": "355de073fdcb2921d7f0d2472b3e242ea5bbaf2c17ece809e5cfe4e4635e502e"
+    },
+    {
+      "path": "prompt.txt",
+      "bytes": 1768,
+      "sha256": "c400ffbe81e9fa5f7c3aa24ae69b05e1795ca54618b513e4732717e838170b79"
+    },
+    {
+      "path": "response.txt",
+      "bytes": 404,
+      "sha256": "1c348f5e697a0dfc65cb2b8fc79b46562aa848f4dd0b225fbde2f7e26671e27e"
+    },
+    {
+      "path": "review.md",
+      "bytes": 8336,
+      "sha256": "d6dfd1926cfa5c9b0b692df3f37445a86217192fa9f26c8db1a0882eb6cb9129"
+    },
+    {
+      "path": "stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "usage.json",
+      "bytes": 485,
+      "sha256": "8c93f8ae27fa629544994655d86baa4b47f410d73ca7867a7ab48e7e4383e7a8"
+    }
+  ]
+}

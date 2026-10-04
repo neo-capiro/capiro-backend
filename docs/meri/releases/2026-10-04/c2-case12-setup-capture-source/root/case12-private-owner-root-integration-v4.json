@@ -1,0 +1,47 @@
+{
+  "kind": "case12-private-owner-root-integration",
+  "version": 4,
+  "reviewSha256": "d28240c353227a8629075a8a990ad1dfd9a625383d113de90c61b57e87797825",
+  "files": [
+    {
+      "path": "evals/meri/live-v1/case12-setup-reservation-owner.mjs",
+      "sourcePath": "candidate/case12-setup-reservation-owner.mjs",
+      "sha256": "e56bacef6c6c6cbee954797ad9aba9451cef713d03e153becc238d3a6146dba5",
+      "bytes": 14074
+    },
+    {
+      "path": "evals/meri/live-v1/case12-setup-native-census.mjs",
+      "sourcePath": "candidate/case12-setup-native-census.mjs",
+      "sha256": "ba44d0c89175654da6f624e2a444b5f0e21cfc70fe41879d84ef1e1ecbd08aac",
+      "bytes": 7972
+    },
+    {
+      "path": "evals/meri/live-v1/tests/case12-setup-reservation.fixtures.mjs",
+      "sourcePath": "supervisor-fixture.mjs",
+      "sha256": "1368189407c56c562f2bd65640ed60b7f4073e1d3ca2032a4169877f6108eac8",
+      "bytes": 5787
+    },
+    {
+      "path": "evals/meri/live-v1/tests/case12-setup-reservation-owner.test.mjs",
+      "sourcePath": "supervisor-independent.test.mjs",
+      "sha256": "7660a6df34bb2c61fb041515bef66c100b6adf5a2143f31a534abdff916719fe",
+      "bytes": 8436
+    },
+    {
+      "path": "evals/meri/live-v1/tests/case12-setup-native-census.test.mjs",
+      "sourcePath": "native-census.test.mjs",
+      "sha256": "2b228560012f8c457841a75fec92f97745a278addc6b607d3e315cd8444671c3",
+      "bytes": 7890
+    },
+    {
+      "path": "evals/meri/live-v1/tests/case12-setup-checkpoint.test.mjs",
+      "sourcePath": "checkpoint-regression.test.mjs",
+      "sha256": "5775710365fe855c33ad2046acb90a0c124d1cf8415892385a9edc984405ea23",
+      "bytes": 3087
+    }
+  ],
+  "productionBytesUnchanged": true,
+  "testChanges": "Only relative import paths for repository layout",
+  "nativeWindowsPorts": "NOT_RUN",
+  "liveAcceptance": "NOT_RUN"
+}

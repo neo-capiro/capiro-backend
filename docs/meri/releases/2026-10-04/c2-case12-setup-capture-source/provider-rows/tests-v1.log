@@ -1,0 +1,38 @@
+✔ all 510 exact fixed rows derive both wire bodies using actual native projection and reducer (76.1924ms)
+✔ plan output does not retain mutable input references (48.1884ms)
+✔ rejects unhashed setup change (25.6688ms)
+✔ rejects wrong current definitions (32.0127ms)
+✔ rejects caller-supplied body (0.4937ms)
+✔ rejects caller-supplied ceiling (0.2025ms)
+✔ rejects changed model price exceeds case ceiling (36.0797ms)
+✔ rejects array run ID (37.2228ms)
+✔ rejects expired plan window (38.2056ms)
+✔ rejects source text injection (0.7934ms)
+✔ rejects different actor (0.279ms)
+✔ missing native planning functions cannot silently substitute a wire plan (0.1061ms)
+✔ full builder is byte-exact versus frozen pre-extraction baseline (122.6836ms)
+✔ derivation needs only real projection and never calls budget or reservation methods (38.4202ms)
+✔ clones fixture/plan before asynchronous local reads and returns independent rows (74.7648ms)
+✔ full builder clones envelope before asynchronous local reads (80.2983ms)
+✔ original and extraction reject same fixture/plan boundary: extra recipe source (0.4727ms)
+✔ original and extraction reject same fixture/plan boundary: wrong actor (0.186ms)
+✔ original and extraction reject same fixture/plan boundary: bad plan hash (67.7947ms)
+✔ original and extraction reject same fixture/plan boundary: wrong ordered definitions (92.9386ms)
+✔ original and extraction reject same fixture/plan boundary: readiness escalation (93.4364ms)
+✔ original and extraction reject same fixture/plan boundary: extra plan field (67.2081ms)
+✔ original and extraction reject same fixture/plan boundary: wrong first logical ID (97.651ms)
+✔ original and extraction reject same fixture/plan boundary: foreign actor scope (109.2213ms)
+✔ original and full builder preserve admission envelope rejection: extra envelope row (0.4154ms)
+✔ original and full builder preserve admission envelope rejection: wrong token bound (0.1037ms)
+✔ original and full builder preserve admission envelope rejection: excessive price (74.8583ms)
+✔ original and full builder preserve admission envelope rejection: array run (73.1129ms)
+✔ original and full builder preserve admission envelope rejection: expired window (72.7671ms)
+✔ all actual compiled modules remain byte-identical during qualification (18.5062ms)
+ℹ tests 30
+ℹ suites 0
+ℹ pass 30
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2386.2838

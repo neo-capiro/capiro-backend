@@ -1,0 +1,2932 @@
+{
+  "kind": "case12-owner-native-reservation-clock-independent-delta-review",
+  "at": "2026-10-04T10:53:00.332610+00:00",
+  "status": "PASS_LOCAL_NATIVE_RESERVATION_CLOCK_DELTA",
+  "findings": [],
+  "checkpointSha256": "a4571b3010a6b50e88b938dc5b1294a3a63cbd5fc610e5f9ea2145e4049951de",
+  "sourceSha256": "46f4fb5ca4426bf74bf5e759bd40e2621e8582a873f2e460c024847d97f088a8",
+  "priorSourceSha256": "2178563d94e2b179530ad2e7d29d803eadd891ed2d43e5e58bac8eadd7154182",
+  "pins": [
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\meri\\meri-case12-setup-budget-owner.ts",
+      "sha256": "46f4fb5ca4426bf74bf5e759bd40e2621e8582a873f2e460c024847d97f088a8",
+      "bytes": 26065
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\clock-only.diff",
+      "sha256": "2a9ae0cd66f8c9b323734e235a82207edfe51d98f23c12329e64f8e98e67188c",
+      "bytes": 1028
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\final-supplement-v1\\checkpoint.json",
+      "sha256": "58edd881ae516b92defaa651ff0951e4394e8d8a3abe8b5288025e3937335acd",
+      "bytes": 3582
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\manifest.json",
+      "sha256": "972deba9143fdd5924a5d6a5871a0bb3350950255145e77cb9dbb47f21563ee4",
+      "bytes": 74427
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\cleanup-readback.json",
+      "sha256": "b876cb7cd0b476671b14df3759ca0b324443fb32904fa6b4fb7291272594f3ad",
+      "bytes": 668
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\database-clock-qualification.json",
+      "sha256": "f87adc6ea8f52ee370bff592d38d9978f821d7a4cf7f6ffd6c3973c623a5add6",
+      "bytes": 1160
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\cleanup-readback.json",
+      "sha256": "b876cb7cd0b476671b14df3759ca0b324443fb32904fa6b4fb7291272594f3ad",
+      "bytes": 668
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\cleanup-readback.log",
+      "sha256": "637743cc020f5e4f070c1043526dbc31ae31128e1b2fc09ca3c246da0f16ff6b",
+      "bytes": 68
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\clock-only.diff",
+      "sha256": "2a9ae0cd66f8c9b323734e235a82207edfe51d98f23c12329e64f8e98e67188c",
+      "bytes": 1028
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\database-clock-qualification.json",
+      "sha256": "f87adc6ea8f52ee370bff592d38d9978f821d7a4cf7f6ffd6c3973c623a5add6",
+      "bytes": 1160
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\database-clock-test-before-injection-correction.mjs",
+      "sha256": "54e1eaeebef64b36f18ae9d8f103f86baece8fa5cc2a8741ed45637c13700c92",
+      "bytes": 2087
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\database-clock-tests-v1.log",
+      "sha256": "8b9cbbe9f360ff1eabd24be4d5fadb0130f3f7950b0a34d4d98d3015f75f9bf1",
+      "bytes": 1725
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\database-clock-tests-v2.log",
+      "sha256": "271287a090e41fa8a07b3ff32ae00ee6124c49ba493534526d21765ece0082c5",
+      "bytes": 595
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\database-clock.test.mjs",
+      "sha256": "91fe0bb5f28c13ae85b345b773cafb91c2620621a60ccbc077d235f7a367f543",
+      "bytes": 2315
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\native-checks-progress-v2.json",
+      "sha256": "c65eb3dd903e3dd3fb08b3aa1a403985865a286ae141ae8e27838ff5686afa8e",
+      "bytes": 70302
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\native-qualification-v2.json",
+      "sha256": "b099b5f2753808d063e6a85af33304ce5c30f61c770809d9d8badee038992474",
+      "bytes": 78560
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\native-tests-v1.log",
+      "sha256": "6c69fab0a0a13e3f713049911d2e1c2bdc007cfb49ff83c5070a83161f448bdc",
+      "bytes": 3193
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\proposed.patch",
+      "sha256": "22d6375036e89e04352581b53010b1df03ac9931850384ae2bf16fd5cb291395",
+      "bytes": 26700
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\source-delta.json",
+      "sha256": "8ddcbe5c1317b1b258ff77e2865aa3e27db9862ba4df00f1a2f98e7c467c1790",
+      "bytes": 729
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\typecheck-v1.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\verify-owned-cleanup.mjs",
+      "sha256": "0d8fa5c753fffed9d8b5a2729955944f548f5fbf360dcc191191bc7dc23e2122",
+      "bytes": 2251
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\tsconfig.base.json",
+      "sha256": "8ee4b594732f7ae6ffba44e3d591be59060a818720d2627fb14cfd3deec63aa7",
+      "bytes": 471
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\package.json",
+      "sha256": "ba6d55f9d9e63ecd3293387b45f4328157e0188479ef588bf8867461d5ceb819",
+      "bytes": 28441
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\tsconfig.json",
+      "sha256": "b88cdad4cb543156858c394422a89bd66b34b956d9a8e46c697d2c591a3bd220",
+      "bytes": 624
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\ai-credentials\\ai-credential-resolver.service.ts",
+      "sha256": "cebdbc57107909d42997add8216c57970bec161ad4d3b788bd875c922a09ca9f",
+      "bytes": 9338
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\client-documents\\case46-source-indexing.ts",
+      "sha256": "53d56e77aad9a2766e9c1bffd335e50f118dc7c21a663ec4fb1669adbc5d7eab",
+      "bytes": 3150
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\clients\\district-code.util.ts",
+      "sha256": "e508fe4641164dceb77ebdc137b62a677d39eef1ae47e87a8c28a5221a943172",
+      "bytes": 464
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\clients\\representation-resolver.service.ts",
+      "sha256": "79777d7fca14ff4ebb591f1dd0f54a288a81ddb7f2ef2f8e98dce66048eeeafd",
+      "bytes": 17327
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\common\\auditor-mode.ts",
+      "sha256": "e750156dbd588013325d18a7ec890fc93c47c8e50d066061687e8c3cc7fe7b6f",
+      "bytes": 1072
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\common\\district-code.util.ts",
+      "sha256": "9b6099aecebf20f393ac021420e2d30af55cc3d03a6b035a0c4775d1189e8ce9",
+      "bytes": 10783
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\common\\internal-clio-artifact.ts",
+      "sha256": "f5b7697f145949c8ef27ef975fd36e766c31617fd7b203a635255a90ff603ddb",
+      "bytes": 1076
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\common\\meri-evidence-accuracy-flags.ts",
+      "sha256": "8ad0a799f03ebdc11301969123c48b817d0669efc8240d7be154ff3745ade161",
+      "bytes": 943
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\common\\sanitize-signature.ts",
+      "sha256": "dc6bc9d6847df8a125dfa422835544d03f2cdbb9e96b88f94fb1a07bd61cafaa",
+      "bytes": 7053
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\common\\secret-crypto.ts",
+      "sha256": "6d351c2d7765294081a4d2b917d252fb9f8ba03f2c73a83bd9c982acfde4531d",
+      "bytes": 1730
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\common\\tenant-flags.ts",
+      "sha256": "1bb5d8b90e2b5cab261164d03ac6ff263b935062a6934b78c496ad2ad7d2339b",
+      "bytes": 28059
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\common\\text-distance.ts",
+      "sha256": "391fbae5ace42f3d16a6f7d11fca888bb7f01042760c82b7c3dbcac2f6ce87dc",
+      "bytes": 2404
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\common\\us-congressional-districts.ts",
+      "sha256": "b189bbc458ab3b65de1a5da02c59d0744211bb3177c61950e649c7f3376486bf",
+      "bytes": 4045
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\common\\us-states.ts",
+      "sha256": "f080718a458d1ac24e75b1b99315b30faea6ee0ab2234ce2c1a49dbd6026ae74",
+      "bytes": 2792
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\config\\config.schema.ts",
+      "sha256": "8f98802e64d7b87eaf7c1187a9dd6533788bdcd7424bc4ee49d8ae9c4f2a72e9",
+      "bytes": 75844
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\context\\context-compiler.service.ts",
+      "sha256": "82eaa0e1b012602217ba2c054a63b949cd9c016e6549d675b8cdad3c4a8ba7c2",
+      "bytes": 11047
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\context\\context-layer.service.ts",
+      "sha256": "35723bd1fcc5199d2c9d829ce18c0b9169cab14664d0b0a2422e2fe49e79ea6f",
+      "bytes": 5186
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\context\\context-packet-v2.service.ts",
+      "sha256": "34eb9db4812145a87423755f99315e7f414f9f4223324bd26f95d0e99a554ae6",
+      "bytes": 13120
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\context\\context-persistence-boundary.service.ts",
+      "sha256": "21bdf2d100bcf29733f415bf787e44a1f24a4082b6189a5d55aa6a89ba8c7221",
+      "bytes": 1450
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\context\\context-plane-audit.service.ts",
+      "sha256": "bfdbd1a361d6a3b73b5fe184bef671b18b7096ae2a10b629dc10459224d85d84",
+      "bytes": 6136
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\context\\context-plane-gateway.service.ts",
+      "sha256": "6f4146b23c8261f4a2b9693a79db22f62d6833a8149bf26eab379dc4a28614c5",
+      "bytes": 17331
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\context\\context-plane-operation-registry.ts",
+      "sha256": "f87964159043e7c0886ff2a48ce20e609e99e136a5595760746ef434aabad3f3",
+      "bytes": 3390
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\context\\context-resolver.service.ts",
+      "sha256": "ed7791b71c52332dddca9114fd8ea18029e6f05d3c0f7887699ec6a2ddbfe47a",
+      "bytes": 20136
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\context\\context-resolver.types.ts",
+      "sha256": "da2362e716c813a5bf41a3d6b3944ae35908789acfa93bcbf693175bf7aeaf4f",
+      "bytes": 5788
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\context\\context-stage-timer.service.ts",
+      "sha256": "4813ed4086ec8a05c6e60df3371a56691b27a8908d4157962d3aef778ffad714",
+      "bytes": 5820
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\context\\meetings-context-plane.runtime.ts",
+      "sha256": "0ce8b2a5a3b541783479726e173dd3d3b35d23761e040eecd134f21c36049ecb",
+      "bytes": 34265
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\directory\\boundary-artifact.util.ts",
+      "sha256": "bc655cc89949ad14504223d894705db3666460607d62070bbd24afece3132046",
+      "bytes": 20349
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\directory\\directory-detail.types.ts",
+      "sha256": "cb971b9b4c4a4c92915a03e4177e23503e1d06ab2cd6c762a7657688ffccdd72",
+      "bytes": 9625
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\directory\\directory-indexes.ts",
+      "sha256": "758687f1e3b901ea74ff55573bb8accfba0668b7ce3d0b6113c06b2e38c621ed",
+      "bytes": 16060
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\directory\\directory-photo.ts",
+      "sha256": "6f3c12f8cbc281cb41472ea8d6091d22152f109b0ac28c091c5fca50db8ea68e",
+      "bytes": 4391
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\directory\\directory.service.ts",
+      "sha256": "eeb60d50ffa8492330055bb085a10763363a7959185c6f7ae996b6ac134a1b47",
+      "bytes": 143874
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\embeddings\\client-kb.helpers.ts",
+      "sha256": "cb5b40f787b50e0c457cf5512f3a1d4a4e1b6820185a28cb7be0ff0998db9fa4",
+      "bytes": 10559
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\embeddings\\client-kb.service.ts",
+      "sha256": "37b3be16b4afaf3e5d0133451c5e61b2b1a1ce8bfbf4867ab4599d64b27801a4",
+      "bytes": 29407
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\embeddings\\embedder.ts",
+      "sha256": "78a8354cf07166e5c60ad657bf5126888f62114a33fa46eb8cc7abd529909150",
+      "bytes": 13098
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\embeddings\\embedding-provider.factory.ts",
+      "sha256": "ce8639af21b4ae40c634f410873e573a75e01bb39dfd4b829b06132e430647cf",
+      "bytes": 590
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\embeddings\\embedding-provider.ts",
+      "sha256": "07b80b7ad2d24873da8b4d5336bf3d59c439cdaa2d744e828006f0ef625dcb79",
+      "bytes": 1797
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\embeddings\\titan-embedding.provider.ts",
+      "sha256": "288c831794e0afceb8d6ca52780e61738cc55edb0d3a0a706872f3ba71ba0465",
+      "bytes": 7471
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\ai-credential-resolver.service.ts",
+      "sha256": "9054ccd4860c39089afe0734f097df35dada3add50042c12aa543f973e0db152",
+      "bytes": 153
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\attachment-content.service.ts",
+      "sha256": "936ff6699956d253823a88ec74bf9ac69a6f8477f295d2211a1a594351757636",
+      "bytes": 18046
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\attachment-context-extract.ts",
+      "sha256": "8b767bde38dae78fd44ce998a88eac97306920669e10c8b0cb91c03d7d82310b",
+      "bytes": 18615
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\attachment-pdf-vision.ts",
+      "sha256": "ac5a8a5406ab7e0a82a35e9f1ee05ff98cf14e7a62db8e944761cb7a08c7e944",
+      "bytes": 6245
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\attachment-scanner.service.ts",
+      "sha256": "4bd88fdfe136799e4eaf833986744f655ed2c06d101cc62cbc17a0dcf6aa86ef",
+      "bytes": 7250
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\attachment-section-extract.ts",
+      "sha256": "c364b85f12386f6bc4e61fb6de68bad1c7a5a83e891cdb7545e960fd367070e6",
+      "bytes": 4876
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\client-association.service.ts",
+      "sha256": "2b9e27e5d43cd3dbfa3ce21f070c77ef2833bcfeeb6896eb43dee4e899f7cff3",
+      "bytes": 12313
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\contact-harvest.ts",
+      "sha256": "f0f40c745f6412bd75b48709b7afd3839804a2737e06a8d93cde27eb5edc2c92",
+      "bytes": 4773
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\engagement-access.helpers.ts",
+      "sha256": "a7d28dcb3db441049d7f93a89b54cc21b097af3757a66f2934b0e5a2a560d0bf",
+      "bytes": 5101
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\engagement-ai.service.ts",
+      "sha256": "4c886e6c9ac051c1c0458c9b3b1e0ab621833cf7cc692e38e885f6c3b081f817",
+      "bytes": 92904
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\engagement.service.ts",
+      "sha256": "71940d04ccd213fa698ec536bff238927555306077cdcfba5bfbddab5c13036b",
+      "bytes": 499118
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\hearing-record-document-access.ts",
+      "sha256": "f51b042f4b73f9607efa2bea947118fdac0ab0c8cd4244f1817cab836d0105a4",
+      "bytes": 3100
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\llm-completion.service.ts",
+      "sha256": "017a3eb3189c9beba4334b14abbf798354671123a457ae6ea46c9a626465329a",
+      "bytes": 29567
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\mail-message-state.ts",
+      "sha256": "121422b52fedf561c6c385081282e05a5cb70390d738b4d0e0c06c2ce0a64970",
+      "bytes": 4403
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\mail-query-deadline.ts",
+      "sha256": "cb90d145a96d006785ad4c0a5a768ddeddf843b351638db199aad360850c138b",
+      "bytes": 1705
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\mail-query.ts",
+      "sha256": "b32e25f106e3a2d9e69ac50e37b6fde8b26cea51a08be24adcdf5cfc69ad34c8",
+      "bytes": 12869
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\mail-rewrite-verifier.ts",
+      "sha256": "a7e1f86f28ff585d7f311a381cff010e9116922c0815cffaf39cd91e3a374085",
+      "bytes": 5901
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\mail-send-result.ts",
+      "sha256": "e0afb9adb336dff7657995d3fbd4181e664ebe81fced44f11bfb1c0d03ae4791",
+      "bytes": 3447
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\mail-sender.service.ts",
+      "sha256": "b37db847ef3182c7315eeb8a86b2098b119fbc96840478eff77b8cc16f30e603",
+      "bytes": 5232
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\mail-sync-coverage.ts",
+      "sha256": "fdad6a158c7fc61b9c8a15cf06ba57b73d829bc219b369c6593e6e31b1e310e1",
+      "bytes": 5414
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\meeting-context-runtime.ts",
+      "sha256": "ae6903f125af905dddee99c805c2e92656ef6242810ce1bd1e15d703a31cced5",
+      "bytes": 1867
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\meeting-notes-crypto.service.ts",
+      "sha256": "72b9506b806353cadcc9929b631e4a68be445a5408a2758535d00d4842b6303e",
+      "bytes": 2442
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\meeting-prep-comprehensive.ts",
+      "sha256": "9eb2f8f81a8201877fd6c5dec4eb9476847df03d6b790f8034d898391ead6004",
+      "bytes": 25135
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\meeting-prep-grounding.ts",
+      "sha256": "aaa0d17e67b67d03320b536ea1fb96b4c82b24fe0d77a7f22e61f786d83a88d0",
+      "bytes": 7607
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\meeting-prep-job-runtime.ts",
+      "sha256": "bbc47da24f0a9a08a93fd653f0cf263396330f04e95930674b1f491ae0520b24",
+      "bytes": 1261
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\meeting-prep-pdf.ts",
+      "sha256": "80863c87589426425458c0eda08e8dc851a6c6f8eb01efc6e0b75eff30835a17",
+      "bytes": 6369
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\meeting-prep-policy.ts",
+      "sha256": "a1e9e4b0a3c8cfcb96987442fec54952f27f55fadcabc247332f025d17585c5d",
+      "bytes": 1820
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\meeting-prep-source-access.ts",
+      "sha256": "7ec2dc05680454538432f58edd7a4c10d95c273049caf3085857c2eab661cdc8",
+      "bytes": 9848
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\outreach-audience-types.ts",
+      "sha256": "76e22d237f5685e82756ed717a83ef1dad3a7de9240d2269bc96eeedd5a07a46",
+      "bytes": 1037
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\outreach-context-enrichment.ts",
+      "sha256": "43998c69005b79df2112e093f62412238860c445b7a35c97c994e556f1ef9f5b",
+      "bytes": 13662
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\outreach-draft-audit.service.ts",
+      "sha256": "ef8c3eac35fd760dabdc4698903dc19fb6603a1228ae0121e9796c29a3529724",
+      "bytes": 28825
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\outreach-draft.service.ts",
+      "sha256": "7677904ffc0cad75fbf7e7d67e0df8ba78b1da80ce7af67f846bfe356fd727c2",
+      "bytes": 41077
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\outreach-draft.types.ts",
+      "sha256": "ec609c98e242abdd7056b8025e924ab2d0ce3ab1eb64c51147e8256a4f0c727f",
+      "bytes": 7038
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\outreach-email-renderer.ts",
+      "sha256": "3f705161eafdefd4797e2de298be1a25d7cf08650410bf411bcb0d6adb9940da",
+      "bytes": 2899
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\outreach-hold.ts",
+      "sha256": "f8fc9f090914bd710e060f9f5b42570b47178761cff1247c03c9db332a7a9f0c",
+      "bytes": 2851
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\pptx-extract.ts",
+      "sha256": "0452c2f3ca127ab86fc82fcd9dfe73f94ad6c76cd4f739413a52384d5af41bb0",
+      "bytes": 12828
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\report-targets.ts",
+      "sha256": "cc833db5267c9f178e4e74edb0250490725ad09f466478eb66f061b8ebd493bf",
+      "bytes": 17752
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\research-portfolio-task-access.ts",
+      "sha256": "3d4db8050ca7b8581c65acfc5255d140f3d4a7c8cdb4d4937443842cba69daa5",
+      "bytes": 1052
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\synthetic-document-deletion.helpers.ts",
+      "sha256": "917346f6ef74cad4610b27c4e66e0b092cd0be9140d039aa423edd242504b2fb",
+      "bytes": 7686
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\xlsx-extract.ts",
+      "sha256": "841811f8f6d94ce348bcdd845754dec6b663a8db02e3abcccbfed40dd00f9789",
+      "bytes": 2401
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\generation\\alert-packet-client.service.ts",
+      "sha256": "b8e54a375272b37014f83b070758aab48069aaf8806cd9de0576b062c8560799",
+      "bytes": 11159
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\generation\\author-style-profile.service.ts",
+      "sha256": "1437c868261e097c8bae4e3da02c3663c7ff3605f0490dfe6c4f98fe7a3bc410",
+      "bytes": 16388
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\generation\\content-skeleton.ts",
+      "sha256": "ec7771b53d9d7a6213b446edaca4b0a16691f2f3cad5d5f75826d68d742ed319",
+      "bytes": 19721
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\generation\\evidence-freshness.ts",
+      "sha256": "16d6b0651b445c1b370a4f564eec2f67689c5bf76b1e68d01d6470bb61e0484e",
+      "bytes": 3300
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\generation\\evidence-packet.service.ts",
+      "sha256": "21ba916bafd1b7a9984c0da79eb23452089c341981f582c204d2af559afb984e",
+      "bytes": 19092
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\generation\\evidence-packet.types.ts",
+      "sha256": "cff9dc6f348b0919df2ec43557c37c391a34719fabc303d319cde65cb092e245",
+      "bytes": 12758
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\generation\\evidence-source.service.ts",
+      "sha256": "3165ca15de6699f127a1f7f68648bf67f26ef0267d95005f0e05328a619b0536",
+      "bytes": 61936
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\generation\\gateway-prompt.ts",
+      "sha256": "6f784a0855eb0271daa598d9d6991ad2e09c303b692fe9b6929c65716957853f",
+      "bytes": 29392
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\generation\\generation-gateway.service.ts",
+      "sha256": "fae4c94c2a134420b15a4ca918d11eadd81f7ad021b3ae134d5868c2f8a5b792",
+      "bytes": 43293
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\generation\\generation-gateway.types.ts",
+      "sha256": "cfc0366affa59fb0ad8ec99b7e764683cff40b886d2802bf5eb017a5fbad1e07",
+      "bytes": 9976
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\generation\\generation-verifier.service.ts",
+      "sha256": "8025b2e16d165bcf50492c94756e7811d9669124000754375c2b914ec88df6f4",
+      "bytes": 27611
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\generation\\json-extract.ts",
+      "sha256": "782c57cab26989a586f55ca41e89256c579b86c8781a3be2e3f582dda0b73f8f",
+      "bytes": 1288
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\generation\\message-plan.schema.ts",
+      "sha256": "74230f025f286b7deef4babe81b3b4a4847d997dbd6881e9ef0a61465282204f",
+      "bytes": 8763
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\generation\\message-plan.service.ts",
+      "sha256": "fe8c9a790a0458a921791b05859dc954d44e23e32ae83d65cb2ed98d48fee1bc",
+      "bytes": 32807
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\generation\\outreach-context-plane.service.ts",
+      "sha256": "bc745e4f1b087e83cc60c74955c1e7ca31d49236f89e08da192705dd460a153f",
+      "bytes": 23737
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\generation\\outreach-evaluation.runner.ts",
+      "sha256": "ad6c3e2e911beb37a94133a2a50a58d2e65c85760b8f136d70e57ac0483b9497",
+      "bytes": 15338
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\generation\\outreach-truth.service.ts",
+      "sha256": "db54b9bd0d299e2fe0a85cda4f257a7b2eeca0ed073296901ae87967b8c1c125",
+      "bytes": 10848
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\generation\\outreach-v3-live-preview.service.ts",
+      "sha256": "4264c68169b47a0921a6e17ec8beb02c735302bf07fd6c7b82e4d24c4e53e8da",
+      "bytes": 3088
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\generation\\reasoning-effort.ts",
+      "sha256": "856c70924aedefa1cdc4f3e961525e6c21bcfe8fef0b9c5508943e2ab0519f54",
+      "bytes": 4785
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\generation\\relevant-email-ranker.ts",
+      "sha256": "9d32a5ee6582b949eed1d0e2649537c83e903ea2ded36737cde5b8640a789d12",
+      "bytes": 13886
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\generation\\streaming-json-field.ts",
+      "sha256": "bd8911bee7147cee300c981e62db8f11ff2ff659e75a9c2c8d6e3769db57b63b",
+      "bytes": 3968
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\google\\gmail-send.service.ts",
+      "sha256": "f82f8675e9f3b0a719cefaa17f262f25c86ebc027e99b1a13257a8ad7850164a",
+      "bytes": 13645
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\google\\google-oauth.service.ts",
+      "sha256": "b11e277707e40beaf0e0ee4235e9d00afc46681b7c8b5fda00a3f04017c2af64",
+      "bytes": 20027
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\google\\google-token.service.ts",
+      "sha256": "69b5fe7077490aa5fbfec754c266ac7af75858030cf2d11b5b7506463f4a314b",
+      "bytes": 7588
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\microsoft\\microsoft-graph-sync.service.ts",
+      "sha256": "75718ab26ec54e191be8a6e12880aa7897aedef96c935e729e1277e8b4191316",
+      "bytes": 102193
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\microsoft\\microsoft-mail-folders.util.ts",
+      "sha256": "ecc4b0de96aa99508880a95a05eb1361389a4965e1617fd0f63edc56374668d9",
+      "bytes": 4464
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\microsoft\\microsoft-oauth-constants.ts",
+      "sha256": "e360e348dd5fe744e051e23061dcbdd6052ec973cc70c92dbb20df927cadbb72",
+      "bytes": 1085
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\microsoft\\token-crypto.service.ts",
+      "sha256": "c0ed2b5177f2497d9b9ca6c748d0ba00127ea2fe08d5e0af6b258decb3d25380",
+      "bytes": 2479
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\outreach-prompt\\prompt-spec-v2.ts",
+      "sha256": "2899961fe0977e04119a8c25d194c97b4a58d053e2a63b3f38180c1a0f3f9275",
+      "bytes": 27548
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\runtime\\engagement-runtime-env.ts",
+      "sha256": "fde61a0d07b72c9679ec68cadf5922a089fca0cb0997c84a489a644ed42d51f3",
+      "bytes": 7305
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\runtime\\engagement-runtime-policy.service.ts",
+      "sha256": "89874c258aa2680637262d649ebc26b03d047fb0bce9cc67fa29bb9bef5e2036",
+      "bytes": 7459
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\engagement\\runtime\\engagement-runtime.types.ts",
+      "sha256": "12b5c5f8bbf2dfa66dff70b7eb6ab479995bfecaedba14bd349f622459495ff5",
+      "bytes": 1629
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\evaluation\\evaluation-capture.service.ts",
+      "sha256": "7dc6b57e75a79fae2b1ba2700c1cfd87ef9e0ed6152925c44cd978cd9fcffe76",
+      "bytes": 9322
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\federal-spending\\federal-spending.service.ts",
+      "sha256": "58c1457d235a0207705d5de674fd030f44755c2720a156c8dc1c9b4aadb12776",
+      "bytes": 12376
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\intelligence\\fec-disclaimer.ts",
+      "sha256": "7ac393b89d56d89852b373ff35da6b4ee27a0ed4b45fe74336d3f17b55659c9d",
+      "bytes": 1433
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\intelligence\\office-recommender.service.ts",
+      "sha256": "3fbb158bc395d6946e5071d7fe31d34b8facdcf82fce4e0576f5ded475c035f8",
+      "bytes": 10948
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\intelligence\\time-bounds.ts",
+      "sha256": "514b87ab881cd6472bf841237f9ab29d1599676428968540b91eaa6fcc14e6c1",
+      "bytes": 2506
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\knowledge\\knowledge.types.ts",
+      "sha256": "af823f3ba72d84db1bd199896e8b9360f61b5489c79e31335d518d4802e498df",
+      "bytes": 5768
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\knowledge\\entities\\canonical-entity-registration.repository.ts",
+      "sha256": "0e52289d50dd9a68b8176c6f2b9ca5308ef22b3c8619e39756d3279fbead530f",
+      "bytes": 18123
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\knowledge\\entities\\canonical-entity-registration.service.ts",
+      "sha256": "2f3abe9d9ffc834157f2b3ecf1a123517521070a276d39ec6069130473870d46",
+      "bytes": 4791
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\knowledge\\entities\\canonical-entity-registration.types.ts",
+      "sha256": "6e3237820fd6dbdcf8e3690d8d4c67aec380e3d351ce25f15fd992a71fb237a5",
+      "bytes": 2295
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\knowledge\\entities\\canonical-entity.repository.ts",
+      "sha256": "5d1cca71e1744fcac0aa3ce7aec93aaf7f7d39a94eab1e981a268a048f6e292c",
+      "bytes": 19434
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\knowledge\\entities\\entity-normalization.ts",
+      "sha256": "922388f9da5cfab8d7719d312ad4945dd6ef66109f879a74ee178ed58731c408",
+      "bytes": 4049
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\knowledge\\entities\\entity-resolution-stage-policy.ts",
+      "sha256": "b2704e526341ae836d5d293d6f3c6e1d976758d77cae7f6c098b78cfb1fa4f8c",
+      "bytes": 5810
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\knowledge\\entities\\entity-resolution.types.ts",
+      "sha256": "b814eaaa1f63bf5f438d0f5a139c886bbb1ea620f181a059aea4392d9ba16d28",
+      "bytes": 4217
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\knowledge\\entities\\universal-entity-resolution-orchestrator.service.ts",
+      "sha256": "5a643dfb07709981c1437b347492c9e9771718df5d6f80ed55401b394a3d788b",
+      "bytes": 23900
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\knowledge\\entities\\universal-entity-resolution-orchestrator.types.ts",
+      "sha256": "08ba0664b60873cb3eb597a35e9a0314b5f5c998232f6bcb387cf9a754ea7d58",
+      "bytes": 3929
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\knowledge\\entities\\universal-entity-resolution.service.ts",
+      "sha256": "45732f4b28c81d53e090617eee5b101bfa2f816abfdcd49c37026779f17254f2",
+      "bytes": 11841
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\knowledge\\graph\\temporal-knowledge-graph.types.ts",
+      "sha256": "6ee2696be42227bd4fdc345312c44b043701a389e724bc9a3fb98cd90c3fc005",
+      "bytes": 2709
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\lobby-intel\\lobby-intel.service.ts",
+      "sha256": "edfb5602f3209631b9605e657a1e9dfef89622f3ce934942dbc4186743b83e4b",
+      "bytes": 17375
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\memory\\case12-setup-terminal.read.ts",
+      "sha256": "5f3894aacd7a10cdc4bbd5d23617088bc5c5c20b2f9ae0602b394d24e48bfcbc",
+      "bytes": 11615
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\memory\\case14-fixture-evidence.ts",
+      "sha256": "94337f5deefb57a7ffdc5c205e20ca23d3e50856e46be1020f76f9bf9e67e300",
+      "bytes": 5492
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\memory\\case14-reviewer-preflight.ts",
+      "sha256": "4b2b3f830d9e9cc3027aa62e846914893644a78a1bc878b76393fe463d657189",
+      "bytes": 3795
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\memory\\exact-memory-cleanup-outbox.service.ts",
+      "sha256": "8b6843696943c30feab19d271680ff2429effcbc8399ea67ee9e7045c365154d",
+      "bytes": 6981
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\memory\\governed-memory-candidate.service.ts",
+      "sha256": "761007d0d3ca1c8408a559db7f8bc52eea24d84d016cb79519dae2f52542077a",
+      "bytes": 22048
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\memory\\governed-memory-ingest.service.ts",
+      "sha256": "122164ca67d8e47d0037a1e1ab2fa606e1ddea036810f42877c1cbe3f63cf612",
+      "bytes": 6868
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\memory\\immutable-memory-version.service.ts",
+      "sha256": "1c4a72447ae8b15681c7918de480c7792ef082b83fb8c2fe03c5c6e868a8139c",
+      "bytes": 49462
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\memory\\memory-authorization.helpers.ts",
+      "sha256": "a0c2ece14a7d8164d3a7c7a2f028ffe75a486c91f6fdda8b11fa48cab66c60e7",
+      "bytes": 7526
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\memory\\memory-authorization.service.ts",
+      "sha256": "eefa7645c2b181e46a7a90441a7d59e4eac607350ef7c0841410cdc30a80892f",
+      "bytes": 9173
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\memory\\memory-candidate-rules.ts",
+      "sha256": "17f48ff5ca477057ed622afca0412481e0ba9220c6891df12d21bf5f1c87ceaf",
+      "bytes": 6467
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\memory\\memory-candidate.service.ts",
+      "sha256": "45c3ebf00a2f42795fb27a299d1a0d028cb6b03dd5f091de7768e920ebbdb46d",
+      "bytes": 41455
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\memory\\memory-canonical-activation.helpers.ts",
+      "sha256": "fec784b019bb6300845fc5d8e3779d38e2e9fdbbe296852ea845e7a51633c58e",
+      "bytes": 12693
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\memory\\memory-catalog.ts",
+      "sha256": "a7c31b108d3774e846a43d9144de5228362e0560d6cf8a1a8ab4f50ad585c2af",
+      "bytes": 13711
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\memory\\memory-cleanup-outbox.service.ts",
+      "sha256": "c3d0bbbaa85b79fed444dd35978e3d03042111fdda6abb7375c4959d9165f805",
+      "bytes": 14872
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\memory\\memory-clio-adapter.helpers.ts",
+      "sha256": "41102353e8e4e304be8b89611892193716f08f6da1f22d0a80c85d5428f086ed",
+      "bytes": 7604
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\memory\\memory-embedding-lifecycle.ts",
+      "sha256": "69bfdeb9664b219f80fb890d5ed3e5ce3f03fc552da00c1334c693398c06c83d",
+      "bytes": 4414
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\memory\\memory-governance-center.switch.ts",
+      "sha256": "af87e4c57369187de17799250d9720b3ca25ab6027feaf3ec94991bc5948a1b4",
+      "bytes": 833
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\memory\\memory-governance-lifecycle.helpers.ts",
+      "sha256": "6f983d9f0bc388464dc0be27e9edba1aeb9bfdaec9c7ab16830882db286770b7",
+      "bytes": 11288
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\memory\\memory-governance-tenant-scope.ts",
+      "sha256": "2c56f023b7e5f7b26e71b6473d26b850cfa27a8a8566e9c9412396a662202f84",
+      "bytes": 1450
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\memory\\memory-ingest.helpers.ts",
+      "sha256": "111bb23b6dfa6fcf5fbe2e5c1696f8240fecb80b6c4bcb924f3032b4eddf15c2",
+      "bytes": 8125
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\memory\\memory-ingest.service.ts",
+      "sha256": "4dbf7707b6d89ecb72f231e90dfce05815ba8ffcb304a053d3eb10b378e6c750",
+      "bytes": 22603
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\memory\\memory-mutation-auth.ts",
+      "sha256": "8e24cc1cdb2477a16738a15325087ae1111a71193badd0d70e2cea2ae07fecc2",
+      "bytes": 2298
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\memory\\memory-parse.helpers.ts",
+      "sha256": "70abb96e2e6b587b843d4fee86fd8efd081a1a6e993fc09e8436091aaa640dbe",
+      "bytes": 6720
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\memory\\memory-recall-suppression.helpers.ts",
+      "sha256": "f1a049bf5362c540098adea8ba885b25b579ab70f2a51b322abb3060eab647f2",
+      "bytes": 2449
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\memory\\memory-render.helpers.ts",
+      "sha256": "8398391a77739c778135b22e80a6e5c261ca4ffa934c7f156d4032175c407103",
+      "bytes": 5379
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\memory\\memory-review-admin-policy.ts",
+      "sha256": "ce7d9b36b52b7b63d1a8bdcaf0bab2acf3c57187dedc5752a80f8e95f733adc3",
+      "bytes": 687
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\memory\\memory-review-switch.ts",
+      "sha256": "5d80d21bdb3f9f06fbf4ed9c980939295b5f61916f89994ffffd9e3e51958ecb",
+      "bytes": 878
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\memory\\memory-store.service.ts",
+      "sha256": "12689bf6b538457d46047e22373ef08ae7e6393c940943dc852ce043cc0c2b2f",
+      "bytes": 54918
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\memory\\memory-transition-audit.service.ts",
+      "sha256": "698e73cf8033e074e419c75ff79d67b4191f4f2a750f71d72df61edb9c958ee0",
+      "bytes": 4688
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\memory\\memory-version.helpers.ts",
+      "sha256": "6fe4466b76fb02b05febeee5f5ce433e6273328a71ce985f185742c13fce5118",
+      "bytes": 5645
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\memory\\memory-wall.helpers.ts",
+      "sha256": "91961048fd944885b8a06d229009259cf4866a4d40338d09685b1608f29a9255",
+      "bytes": 7833
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\memory\\memory.types.ts",
+      "sha256": "76d9db994650ac7bd6a099d7843774080aacdcfed6992cb7518969423e5709f7",
+      "bytes": 9492
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\memory\\pending-memory-fixture-evidence.ts",
+      "sha256": "0d135b50c3255d9a4ca1d41443f23e83dee49a2f9e9fc1752299b56563faa60e",
+      "bytes": 1924
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\memory\\strict-memory-projector.service.ts",
+      "sha256": "29d580fc0bc8c1a40b08a04a79da5200adca823582e750ad313b7b367693bcf2",
+      "bytes": 11689
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\memory\\synthetic-approved-memory.helpers.ts",
+      "sha256": "8451534ad56fdda936c7ce5c1961c68e0172d61ab2be45872e6d1b93da21ba22",
+      "bytes": 13474
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\memory\\synthetic-candidate-withdrawal.helpers.ts",
+      "sha256": "6e5aecf6f62eab12c4a9575f5f5efb5565f39fc50e18d351ea0a8a93a28b350d",
+      "bytes": 8457
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\memory\\synthetic-memory-version.helpers.ts",
+      "sha256": "57287acdd4aaae0de0e8a3e307c1af85f2c72783b89e1d60c85c4db5127151ac",
+      "bytes": 16669
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\meri\\memory-confidence.helpers.ts",
+      "sha256": "18a1482d11df9f98a66d3d106de2400956f5c092e2a91723b3e37814c681ed6c",
+      "bytes": 1135
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\meri\\meri-attachment-extract.ts",
+      "sha256": "370dbade7c8e62b52c1a0fcd8953bbd6563c9c5df49bbdc61636bee4948d4892",
+      "bytes": 5369
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\meri\\meri-attachment.helpers.ts",
+      "sha256": "f5f65b2e39931e25767da9fc64b9ab473308ca58e0398ef21b13fe0dd27c8fed",
+      "bytes": 14153
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\meri\\meri-capture-api-provider-scope.ts",
+      "sha256": "fbcbb2a2c923b5b6bff6e6bd1a8ece077810872bbfe6dce11006a740307fc227",
+      "bytes": 4576
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\meri\\meri-capture-policy-readback.ts",
+      "sha256": "3858a6f7d7212fc8f9de31f1ed165e742269db5e94a9fad37b4398f401c04e07",
+      "bytes": 7784
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\meri\\meri-capture-provider-budget-install.ts",
+      "sha256": "cec72704ca51409ced548a1acc9da37ac285d75b4b30f7b95950991f3d3ab82a",
+      "bytes": 8344
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\meri\\meri-capture-provider-budget-owner.ts",
+      "sha256": "fcc9340906e8c2b1a36266a42173d589073b37bca9b99a5a1080fc1890de1c87",
+      "bytes": 8219
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\meri\\meri-capture-provider-budget.ts",
+      "sha256": "29e6ab4ed50291a2626c132c8298ae0fb93eeac3d6a9f9f3d8c4953a56df614e",
+      "bytes": 11934
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\meri\\meri-capture-semantic-clock.ts",
+      "sha256": "9e3a7ed2a76ed98e0dafc4d47f489e6a53d5590e7a8a09a8813b77fd9cf2737c",
+      "bytes": 4133
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\meri\\meri-case01-capture-authority.ts",
+      "sha256": "c573122dab6c1800c6190f8d187aae7515cadeb137783775658f3be17bc76ffc",
+      "bytes": 9612
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\meri\\meri-case01-fixture-authority-registry.ts",
+      "sha256": "5cc3a9330410de18bb9f6a5b165416c0d2126fbdddc30cf370e1afa43014119c",
+      "bytes": 1097
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\meri\\meri-case01-fixture-loader.ts",
+      "sha256": "cea9ed21f5265401db80eec628cbbcecfc8e22856ab78f13d4f81fbc23350285",
+      "bytes": 3388
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\meri\\meri-case12-setup-budget-owner.ts",
+      "sha256": "46f4fb5ca4426bf74bf5e759bd40e2621e8582a873f2e460c024847d97f088a8",
+      "bytes": 26065
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\meri\\meri-case12-setup-budget.ts",
+      "sha256": "785da5e7945f13675b1f64df613792f9541225a9c68236bef372c02d401c96ab",
+      "bytes": 15809
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\meri\\meri-case12-setup-provider-scope.ts",
+      "sha256": "e66fbcc3e619168eade0ebc3d50d26435304af74255e6438faefc457a41ad4e5",
+      "bytes": 3726
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\meri\\meri-case14-capture-authority.ts",
+      "sha256": "6bc41c4107eec92466070088595240d7fc4868bc9b63b1a253b9d0ac14859f95",
+      "bytes": 6659
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\meri\\meri-case46-action-authority.ts",
+      "sha256": "f22dc4a30be2e8e4fed2d2032d4bacc46115f9090076a43f212c3041bbc211f2",
+      "bytes": 10113
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\meri\\meri-case46-api-provider-scope.ts",
+      "sha256": "4150c63535afdb3997d6e34dff6887a8968282a6173b1424958f5546a402e624",
+      "bytes": 2354
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\meri\\meri-case46-authority.ts",
+      "sha256": "dd3bd28ed1e9999e057599d40942dcbaaac5a5ae829c71863857e7137641af80",
+      "bytes": 14667
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\meri\\meri-case46-provider-budget-owner.ts",
+      "sha256": "227a02ab7125313ad096f52243cb5599913b0ef6fa7c1c0230fde99754e54c6a",
+      "bytes": 6044
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\meri\\meri-case46-provider-budget.ts",
+      "sha256": "57f6783ffcea4cc3cfcb1ba6fef0fc78923051224279d5540447d6d93097c879",
+      "bytes": 12534
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\meri\\meri-case46-turn-owner.ts",
+      "sha256": "27c4b8b28d28344e683f2ede329086f288ee0b7457c08e22e8bda91330c3c51a",
+      "bytes": 3497
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\meri\\meri-context-plane-runtime.ts",
+      "sha256": "0f63ef56f80f013b750c46902a2213a6e856d3706511456624f55aefbe85239e",
+      "bytes": 11559
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\meri\\meri-context-plane.service.ts",
+      "sha256": "50d1d1b7a01ae91c5a09ddf2ce3eeb47100dd66cbb5827bf833907313bd51453",
+      "bytes": 53475
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\meri\\meri-controlled-budget-result.ts",
+      "sha256": "2f444433fa55d2b3225140c6df86a38f7472b36a84a8f23cd6e62a0bfd4c1cf3",
+      "bytes": 4589
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\meri\\meri-controlled-read-fixture.ts",
+      "sha256": "a375f1b7031282fc8c7e9eabcada67cca31530da683d8b593521c4cb7e978893",
+      "bytes": 13577
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\meri\\meri-defense-budget-tool.helpers.ts",
+      "sha256": "debfa5525c2cc48a280e907646cbd802e3a83c54b3d1ad9997e1e448ee5a4b0c",
+      "bytes": 8205
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\meri\\meri-document-read.helpers.ts",
+      "sha256": "2d96116443207cfc1c5a1c21a01fa88e2ab51a32635e9b9838320acc2c350d41",
+      "bytes": 9656
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\meri\\meri-managed-mcp.helpers.ts",
+      "sha256": "4087853a87a49994ed78a71f50a2be3c952acfa1e50e6c0b91e275c00a264bb8",
+      "bytes": 7333
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\meri\\meri-research-durable-result.ts",
+      "sha256": "c88958f730a7c79195b3df2104f107cb07bd6aa4a91292678399a8d4d26f81cc",
+      "bytes": 4509
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\meri\\meri-research-durable-step.ts",
+      "sha256": "8d07312ea3ae32257fe6cc795736b0caedea1ed9d7c728efcbe7e935c739537b",
+      "bytes": 6911
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\meri\\meri-research-plan.ts",
+      "sha256": "564881d323c6a356afed612e79f6f8608dedc6db7f2c0472ff55f462b518acda",
+      "bytes": 17994
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\meri\\meri-research-run-state.ts",
+      "sha256": "ffa878891817176f336d8556c7b83126df7b78b51c0df7884c303926f5ea1886",
+      "bytes": 4418
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\meri\\meri-research-tool-budget.ts",
+      "sha256": "5e8f03eaaf8d14a5a2076ed95cb9dc228fe9ad1f0733145806b987b5ddb92978",
+      "bytes": 33086
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\meri\\meri-server-readonly-capture.ts",
+      "sha256": "689ddc776123be123c6181ebf7459ce747ae4eb99ad841a8966d8db87210ac93",
+      "bytes": 21162
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\meri\\meri-synthetic-read-budget-owner.ts",
+      "sha256": "3b276fe638f0d9a2f85f4f4bea7fb102a4443c640ede3ea4b1ac247859e95d00",
+      "bytes": 19733
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\meri\\meri-synthetic-read-budget.ts",
+      "sha256": "79a18eb3afd24af775efc05b9b5fd08285e9714ce495ab8185d20f130c1e2462",
+      "bytes": 12463
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\meri\\meri-tool-request-control.ts",
+      "sha256": "d7bc98fb4ece8e15d03c539b78891c06b1c68056efb03521139f462d3c6cf5b5",
+      "bytes": 3365
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\meri\\meri-turn.helpers.ts",
+      "sha256": "aac3bda40be7e78727f296783acdca4eda78887d6c403e0408ded440fdfd53b8",
+      "bytes": 1953
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\prisma\\prisma.service.ts",
+      "sha256": "fb3886df5f2732a0412342627a3a6156f159718913479cdc2325fa602bfdd86e",
+      "bytes": 12476
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\quality-telemetry\\edit-metrics.helpers.ts",
+      "sha256": "aeeeaae551a7ede175fd2069099445bc8a9ce7dfd5a77ac9f762775d414c3506",
+      "bytes": 2327
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\quality-telemetry\\quality-telemetry-capture.service.ts",
+      "sha256": "e67fd26890f2db6dc87cffc159e53db4614d24d191bf391a5e4b2a4bc07afbe7",
+      "bytes": 7633
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\quality-telemetry\\adapters\\meeting-prep.telemetry-adapter.ts",
+      "sha256": "6edbef6bed83d25735a3088bab665620cdc9116d664ce14ce982c92f4d78e514",
+      "bytes": 1931
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\quality-telemetry\\adapters\\outreach.telemetry-adapter.ts",
+      "sha256": "ab909123f2065a45314f47f3cdedcb46e7996954f648e6d6eb5fb0ab135f06d4",
+      "bytes": 2653
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\reranking\\reranking-provider.ts",
+      "sha256": "4e38acad29686de0a147089b1da24d3a4e5fe6ed174c377d4c72a89ef7ad7cbe",
+      "bytes": 1872
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\research-portfolios\\research-portfolio-access.ts",
+      "sha256": "927d3292d437c944d80ccb9be6f9e7f77a15906eb9408eb9b3aa1ca259fb7e08",
+      "bytes": 1833
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\research-portfolios\\research-portfolio-artifact-authority.ts",
+      "sha256": "d6700f4e06e24b894e7b3d8b7c940faf22b1d595d974ad015d375f0c166f4924",
+      "bytes": 4785
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\research-portfolios\\research-portfolio-meri-scope.service.ts",
+      "sha256": "35417378d7cdd373ccab8ecfc72f6e0c52ce521d80f93b52a8790c1e998e0ea9",
+      "bytes": 6332
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\retrieval\\coverage-manifest.ts",
+      "sha256": "71912119efaf73bd6d375e8b8252ec7063fd2dca89081b8c7fe061156d9f4698",
+      "bytes": 3992
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\retrieval\\exact-lexical-retrieval.service.ts",
+      "sha256": "669c7ed8aad7fabbba71ca4cb619b186a1ae7d8732d6cbc4b58383267e3fdf85",
+      "bytes": 34002
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\retrieval\\retrieval-planner-v2.service.ts",
+      "sha256": "90a1f86ed5920567449f5453715d1b96bff1129cecc479f398ffeb7a153d034e",
+      "bytes": 1419
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\retrieval\\retrieval-reranker.service.ts",
+      "sha256": "2d70d950c4336c44e360daa0aa064cad0ca4ff799aff390298977990cf51bfe3",
+      "bytes": 6661
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\retrieval\\retrieval-scoring.service.ts",
+      "sha256": "bbc433f993b2be415212c7c06a717931bc3eb3f18cdd840351ccf7bd3e5c0b02",
+      "bytes": 11040
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\retrieval\\retrieval-source.adapter.ts",
+      "sha256": "661983a016798b12a4aca9438153f193fdd20f90fcd9407d9367c5316d1d5780",
+      "bytes": 479
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\retrieval\\retrieval-v2.service.ts",
+      "sha256": "bf347134c6a88ea73b404c0a975f366372309319ec113ba9b349b97efafbc5ed",
+      "bytes": 12003
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\retrieval\\retrieval-v2.types.ts",
+      "sha256": "95f388145594c5a9052318e4fa0f215de0b10fb92757bbcca8adb17120890fb8",
+      "bytes": 11082
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\retrieval\\data-catalog\\semantic-data-catalog.service.ts",
+      "sha256": "7bc2926e0343ff215b14c527de82ed56e774fb08f7b1f6ac0493439ff6b01fba",
+      "bytes": 14427
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\apps\\api\\src\\tenant\\tenant-context.store.ts",
+      "sha256": "33b46f43722694f12986ff4d535e1ee31f8834c2e8cec0d70e319cfe91be5181",
+      "bytes": 884
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\evals\\meri\\live-v1\\artifact-collector.mjs",
+      "sha256": "64725c9b2fc66efb6578461e755efcbf62b77e18833dc6221831ee7e21ececae",
+      "bytes": 15744
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\evals\\meri\\live-v1\\cases.mjs",
+      "sha256": "5464412ee66b73f677cc923bda09b4785a866b20ef0ee6a3410936c431c5ba0a",
+      "bytes": 62128
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\evals\\meri\\live-v1\\contract-lock.json",
+      "sha256": "fc2fe9da90938d476e46007782a0b7d4471c1254e2a189180f62e3fbbde8fb6e",
+      "bytes": 6168
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\evals\\meri\\live-v1\\fixture.mjs",
+      "sha256": "8915e19424520a2f97b9cd5a389fcf4b39f2823f0526573ffd04a1dfe0fbc398",
+      "bytes": 17294
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\evals\\meri\\live-v1\\windows-artifact-storage.mjs",
+      "sha256": "8b03eeccad53a92fc4cf7bcf4976522ecf7ed2126591449e28a6a70948ac01c4",
+      "bytes": 3415
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\approved-memory-retirement-owner.mjs",
+      "sha256": "84ce879940d2edf83004faf690739e6a9fef4091675fb640980a1d370529f668",
+      "bytes": 6106
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\approved-memory-runtime.mjs",
+      "sha256": "b814c5f904594130d0e35bbb0d4a1f49ec77a5f96c1544fcf9e6969784f278ac",
+      "bytes": 14972
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\canonical-owner-adapter.mjs",
+      "sha256": "a9e68e7f12e60253d8402108dbc2ecc0cf6688863ca42c6412c13e371c61fa40",
+      "bytes": 8502
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\capture-binding-runtime.mjs",
+      "sha256": "527fc5358eec0884b7159ddbdde07abd14736a299fb08d8f3c4e918ae2f7e17a",
+      "bytes": 7753
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\case12-memory-eligibility-owner.mjs",
+      "sha256": "ff06b33c3895a2ccbbabf876583c4186ca9118c37ef8a34aa2523fa196800a8a",
+      "bytes": 3782
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\case12-memory-inventory-owner.mjs",
+      "sha256": "6558f5a49f7e4a4316411107c3f17f29f3bbf133466b02118e9cfbaae34fb1b9",
+      "bytes": 15053
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\case12-memory-setup.mjs",
+      "sha256": "1eea57f16dd492e52ef1416824d9a44824e1501b606be5675cedd76c330067bf",
+      "bytes": 30169
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\case12-setup-budget-plan.mjs",
+      "sha256": "1ca0ec48fc645352c78dd7201f80d0a47e06b33aa46dbcc2db5a0e7dfd0b0f80",
+      "bytes": 5668
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\contract.mjs",
+      "sha256": "301f39229b64b3878d2fa9783d2cac5cd716fdf8acb125a2e758dc698e36076e",
+      "bytes": 5295
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\manifest.mjs",
+      "sha256": "8f1276ef0aaaef9b648bb1cbd0a037ee7d11d0a78db9691ab4de70b3b5db667a",
+      "bytes": 20549
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\memory-candidate-owner.mjs",
+      "sha256": "a850e4a8a68641d7118cf7f6e5abda72e64452bde6123d8e13acf5308d6bc9b7",
+      "bytes": 14006
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\evals\\meri\\live-v1\\lib\\stable.mjs",
+      "sha256": "03bba6f6dd1c48bf206ed32c628e1f9ce2038d75a9560d33d044950261f45c23",
+      "bytes": 1146
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\evals\\meri\\live-v1\\source-binaries\\asset-manifest.json",
+      "sha256": "6512b1ad5f9a154e517e2702f329bc52ab8276ccde9f7a1d2609872c8ea1889d",
+      "bytes": 7757
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\evals\\meri\\live-v1\\source-binaries\\D-A-1.pdf",
+      "sha256": "da882da4ae603b15d8b21072a034a2daf302071856743fd842ad3198a003d0fc",
+      "bytes": 3269
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\evals\\meri\\live-v1\\source-binaries\\DECK-A-1.pptx",
+      "sha256": "cc12bfaa119ab3d99f210d4f3169a693be269b2d4d98b76fbb42f78aff2cd4bb",
+      "bytes": 25954
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\evals\\meri\\live-v1\\source-binaries\\FILE-B-1-restricted.pdf",
+      "sha256": "161c88788ac2214e3ce4bc0c7627d413331e0ecff721ffb9c73cbeb66ebde6f3",
+      "bytes": 1887
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\evals\\meri\\live-v1\\source-binaries\\PDF-PENDING-1.pdf",
+      "sha256": "759ba31674a35f47324cada809abc52c411dd3fd649df36b4b12e91549705bcc",
+      "bytes": 1899
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\evals\\meri\\live-v1\\source-binaries\\REPORT-A-v1.pdf",
+      "sha256": "24d2374a09cbb012418bed2dfa562015ef7a200c22f6c3a0ac425e8ceeb487a7",
+      "bytes": 38597
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\evals\\meri\\live-v1\\source-binaries\\REPORT-A-v2.pdf",
+      "sha256": "f06ebef24465eb837a4de37964ad0630859323bf34292d9f6dec2a9264f8f848",
+      "bytes": 38734
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\evals\\meri\\live-v1\\source-binaries\\SHEET-A-1.xlsx",
+      "sha256": "debd2c837dbd1c33c329ce8d96f98a702a879c4a4e4829df740fdc6dd58924df",
+      "bytes": 6557
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\evals\\meri\\live-v1\\tests\\approved-memory-postgres-harness.mjs",
+      "sha256": "7c45dfa9c25dfacc4fca15df56b10c2e78c2695437ae6d9fcbbea17102b68bec",
+      "bytes": 9495
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\evals\\meri\\live-v1\\tests\\approved-memory-postgres-independent-harness.mjs",
+      "sha256": "185e2abef32b0fbad8248d33cf17cfd71ca9cd719b922c4747e64ab4b90bf355",
+      "bytes": 7837
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\evals\\meri\\live-v1\\tests\\approved-memory-runtime.test.mjs",
+      "sha256": "6f4bbc3c6f873a69666b1969f538064db98d3f8d36bb4b048a41178e94d94847",
+      "bytes": 2781
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\evals\\meri\\live-v1\\tests\\approved-memory-schema.mjs",
+      "sha256": "0ed9fae4f9f30cb06c14b33f619a346bca42af2a05fc1f9a9894a231d744df19",
+      "bytes": 6188
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\evals\\meri\\live-v1\\tests\\case12-budget-owner-scenario.mjs",
+      "sha256": "9cc797e7e85b513b4abdd85363811c792351d45a5d544b0cd77d8c885b7885f9",
+      "bytes": 13673
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\evals\\meri\\live-v1\\tests\\case12-budget-owner.full510.test.mjs",
+      "sha256": "19aa9e18deba63514fc26be973c0f37c9183264e1ba2c165ec369f94aba532ef",
+      "bytes": 3132
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\evals\\meri\\live-v1\\tests\\case12-budget-owner.postgres.test.mjs",
+      "sha256": "2c353b98966082d2c37e4bdb6a7eefa9aff3f525c4da987a2c81a1c3f7cd3bad",
+      "bytes": 7478
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\evals\\meri\\live-v1\\tests\\case12-eligibility.postgres.test.mjs",
+      "sha256": "3b3e19c21d9611fda5d46c8047643a03f8e135098c14a894cae0507abc98d2e2",
+      "bytes": 13118
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\evals\\meri\\live-v1\\tests\\case12-memory-inventory-owner.test.mjs",
+      "sha256": "d8346f384b992c719c92ec1e568f3be334110409135d7e1b0711791dfcd700c0",
+      "bytes": 25025
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\evals\\meri\\live-v1\\tests\\case12-memory-setup.postgres.test.mjs",
+      "sha256": "fc52d25fee20fe0d08ed8157d310832fe6f32d45b25f16c27555d95d57c7f481",
+      "bytes": 13502
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\evals\\meri\\live-v1\\tests\\case12-memory-setup.test.mjs",
+      "sha256": "5fec92e18b11b9d66f863e6fd61e8cfa4f4669fcbcf721035ca8ef1d2e2436c1",
+      "bytes": 3910
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\evals\\meri\\live-v1\\tests\\case12-projection-native-harness.mjs",
+      "sha256": "cfe4492ece6fa67cb6bd04006fb22bb53c3b5be230f7aff4f4105f6d0a9ffdce",
+      "bytes": 11361
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\evals\\meri\\live-v1\\tests\\case12-projection-schema.mjs",
+      "sha256": "84dcd483628d1d5a48d6e2248f7ed0f1db6a002d44be235d7ccaba71f181b4c9",
+      "bytes": 6992
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\evals\\meri\\live-v1\\tests\\case12-projection.postgres.test.mjs",
+      "sha256": "abc65c7c1465f7c755e537a1686d93ca9dd611f87994132d87479ffe9fe55a81",
+      "bytes": 15109
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\evals\\meri\\live-v1\\tests\\case12-setup-native-harness.mjs",
+      "sha256": "339960f9bba7d066324bed337f21267eb2c92a961a4501ac858454d192cbc297",
+      "bytes": 9304
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-clock-v2\\scratch\\evals\\meri\\live-v1\\tests\\case12-setup-schema.mjs",
+      "sha256": "06ebd3a83eed3951625370599d9b52cc9d3110b27f3e9a101fdd9c31b0fda7df",
+      "bytes": 6344
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\native-graph-inputs.json",
+      "sha256": "d007190af9d22b85ab0543912122472d8de3dcc497d54860bd18312b3ec3ec3f",
+      "bytes": 36240
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\native-qualification-v1.json",
+      "sha256": "9b170c3a123c69c668d5e27c3dca09a1e0e0b690eb84e46099b18871fcda460d",
+      "bytes": 64243
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\native-qualification-v2.json",
+      "sha256": "b09f1d217c6653a59339e7f5ce3b75fcacc1a042c7862ece7518e11842e04130",
+      "bytes": 77558
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\native-tests-source-v1.mjs",
+      "sha256": "76957c06fd42ccc12f1468f5558c132be7da66c2409a5bb398e690236192fc63",
+      "bytes": 6806
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\native-tests-v1.log",
+      "sha256": "2bb5a8d2c594466cc487829c4eb56db0cdeb3c549b10fc7626911afc2095d26d",
+      "bytes": 2871
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\native-tests-v2.log",
+      "sha256": "e9c6b640494e0e219e85bd8db2babc6a57b8e6b0b304d0216f6e11e4561cdc1a",
+      "bytes": 3192
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\owner-before-deadline-review.ts.txt",
+      "sha256": "6d15d19dc48a66adbe624b2b80ef7763fa47177fda9acdeec1eaf38527360709",
+      "bytes": 25513
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\planner-source-pin.json",
+      "sha256": "50ba4f2de382d880be185aea96e86c9ce659c6e65f648cd5aa0ca1ef2338a1e0",
+      "bytes": 224
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\preparation.json",
+      "sha256": "e92ee689cda4375a8f94bcf920d21ad0e6719e41bab693eef3831a6a596cba74",
+      "bytes": 1630
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\package.json",
+      "sha256": "ba6d55f9d9e63ecd3293387b45f4328157e0188479ef588bf8867461d5ceb819",
+      "bytes": 28441
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\ai-credentials\\ai-credential-resolver.service.ts",
+      "sha256": "cebdbc57107909d42997add8216c57970bec161ad4d3b788bd875c922a09ca9f",
+      "bytes": 9338
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\client-documents\\case46-source-indexing.ts",
+      "sha256": "53d56e77aad9a2766e9c1bffd335e50f118dc7c21a663ec4fb1669adbc5d7eab",
+      "bytes": 3150
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\clients\\district-code.util.ts",
+      "sha256": "e508fe4641164dceb77ebdc137b62a677d39eef1ae47e87a8c28a5221a943172",
+      "bytes": 464
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\clients\\representation-resolver.service.ts",
+      "sha256": "79777d7fca14ff4ebb591f1dd0f54a288a81ddb7f2ef2f8e98dce66048eeeafd",
+      "bytes": 17327
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\common\\auditor-mode.ts",
+      "sha256": "e750156dbd588013325d18a7ec890fc93c47c8e50d066061687e8c3cc7fe7b6f",
+      "bytes": 1072
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\common\\district-code.util.ts",
+      "sha256": "9b6099aecebf20f393ac021420e2d30af55cc3d03a6b035a0c4775d1189e8ce9",
+      "bytes": 10783
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\common\\internal-clio-artifact.ts",
+      "sha256": "f5b7697f145949c8ef27ef975fd36e766c31617fd7b203a635255a90ff603ddb",
+      "bytes": 1076
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\common\\meri-evidence-accuracy-flags.ts",
+      "sha256": "8ad0a799f03ebdc11301969123c48b817d0669efc8240d7be154ff3745ade161",
+      "bytes": 943
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\common\\sanitize-signature.ts",
+      "sha256": "dc6bc9d6847df8a125dfa422835544d03f2cdbb9e96b88f94fb1a07bd61cafaa",
+      "bytes": 7053
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\common\\secret-crypto.ts",
+      "sha256": "6d351c2d7765294081a4d2b917d252fb9f8ba03f2c73a83bd9c982acfde4531d",
+      "bytes": 1730
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\common\\tenant-flags.ts",
+      "sha256": "1bb5d8b90e2b5cab261164d03ac6ff263b935062a6934b78c496ad2ad7d2339b",
+      "bytes": 28059
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\common\\text-distance.ts",
+      "sha256": "391fbae5ace42f3d16a6f7d11fca888bb7f01042760c82b7c3dbcac2f6ce87dc",
+      "bytes": 2404
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\common\\us-congressional-districts.ts",
+      "sha256": "b189bbc458ab3b65de1a5da02c59d0744211bb3177c61950e649c7f3376486bf",
+      "bytes": 4045
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\common\\us-states.ts",
+      "sha256": "f080718a458d1ac24e75b1b99315b30faea6ee0ab2234ce2c1a49dbd6026ae74",
+      "bytes": 2792
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\config\\config.schema.ts",
+      "sha256": "8f98802e64d7b87eaf7c1187a9dd6533788bdcd7424bc4ee49d8ae9c4f2a72e9",
+      "bytes": 75844
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\context\\context-compiler.service.ts",
+      "sha256": "82eaa0e1b012602217ba2c054a63b949cd9c016e6549d675b8cdad3c4a8ba7c2",
+      "bytes": 11047
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\context\\context-layer.service.ts",
+      "sha256": "35723bd1fcc5199d2c9d829ce18c0b9169cab14664d0b0a2422e2fe49e79ea6f",
+      "bytes": 5186
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\context\\context-packet-v2.service.ts",
+      "sha256": "34eb9db4812145a87423755f99315e7f414f9f4223324bd26f95d0e99a554ae6",
+      "bytes": 13120
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\context\\context-persistence-boundary.service.ts",
+      "sha256": "21bdf2d100bcf29733f415bf787e44a1f24a4082b6189a5d55aa6a89ba8c7221",
+      "bytes": 1450
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\context\\context-plane-audit.service.ts",
+      "sha256": "bfdbd1a361d6a3b73b5fe184bef671b18b7096ae2a10b629dc10459224d85d84",
+      "bytes": 6136
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\context\\context-plane-gateway.service.ts",
+      "sha256": "6f4146b23c8261f4a2b9693a79db22f62d6833a8149bf26eab379dc4a28614c5",
+      "bytes": 17331
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\context\\context-plane-operation-registry.ts",
+      "sha256": "f87964159043e7c0886ff2a48ce20e609e99e136a5595760746ef434aabad3f3",
+      "bytes": 3390
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\context\\context-resolver.service.ts",
+      "sha256": "ed7791b71c52332dddca9114fd8ea18029e6f05d3c0f7887699ec6a2ddbfe47a",
+      "bytes": 20136
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\context\\context-resolver.types.ts",
+      "sha256": "da2362e716c813a5bf41a3d6b3944ae35908789acfa93bcbf693175bf7aeaf4f",
+      "bytes": 5788
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\context\\context-stage-timer.service.ts",
+      "sha256": "4813ed4086ec8a05c6e60df3371a56691b27a8908d4157962d3aef778ffad714",
+      "bytes": 5820
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\context\\meetings-context-plane.runtime.ts",
+      "sha256": "0ce8b2a5a3b541783479726e173dd3d3b35d23761e040eecd134f21c36049ecb",
+      "bytes": 34265
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\directory\\boundary-artifact.util.ts",
+      "sha256": "bc655cc89949ad14504223d894705db3666460607d62070bbd24afece3132046",
+      "bytes": 20349
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\directory\\directory-detail.types.ts",
+      "sha256": "cb971b9b4c4a4c92915a03e4177e23503e1d06ab2cd6c762a7657688ffccdd72",
+      "bytes": 9625
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\directory\\directory-indexes.ts",
+      "sha256": "758687f1e3b901ea74ff55573bb8accfba0668b7ce3d0b6113c06b2e38c621ed",
+      "bytes": 16060
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\directory\\directory-photo.ts",
+      "sha256": "6f3c12f8cbc281cb41472ea8d6091d22152f109b0ac28c091c5fca50db8ea68e",
+      "bytes": 4391
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\directory\\directory.service.ts",
+      "sha256": "eeb60d50ffa8492330055bb085a10763363a7959185c6f7ae996b6ac134a1b47",
+      "bytes": 143874
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\embeddings\\client-kb.helpers.ts",
+      "sha256": "cb5b40f787b50e0c457cf5512f3a1d4a4e1b6820185a28cb7be0ff0998db9fa4",
+      "bytes": 10559
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\embeddings\\client-kb.service.ts",
+      "sha256": "37b3be16b4afaf3e5d0133451c5e61b2b1a1ce8bfbf4867ab4599d64b27801a4",
+      "bytes": 29407
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\embeddings\\embedder.ts",
+      "sha256": "78a8354cf07166e5c60ad657bf5126888f62114a33fa46eb8cc7abd529909150",
+      "bytes": 13098
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\embeddings\\embedding-provider.factory.ts",
+      "sha256": "ce8639af21b4ae40c634f410873e573a75e01bb39dfd4b829b06132e430647cf",
+      "bytes": 590
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\embeddings\\embedding-provider.ts",
+      "sha256": "07b80b7ad2d24873da8b4d5336bf3d59c439cdaa2d744e828006f0ef625dcb79",
+      "bytes": 1797
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\embeddings\\titan-embedding.provider.ts",
+      "sha256": "288c831794e0afceb8d6ca52780e61738cc55edb0d3a0a706872f3ba71ba0465",
+      "bytes": 7471
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\ai-credential-resolver.service.ts",
+      "sha256": "9054ccd4860c39089afe0734f097df35dada3add50042c12aa543f973e0db152",
+      "bytes": 153
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\attachment-content.service.ts",
+      "sha256": "936ff6699956d253823a88ec74bf9ac69a6f8477f295d2211a1a594351757636",
+      "bytes": 18046
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\attachment-context-extract.ts",
+      "sha256": "8b767bde38dae78fd44ce998a88eac97306920669e10c8b0cb91c03d7d82310b",
+      "bytes": 18615
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\attachment-pdf-vision.ts",
+      "sha256": "ac5a8a5406ab7e0a82a35e9f1ee05ff98cf14e7a62db8e944761cb7a08c7e944",
+      "bytes": 6245
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\attachment-scanner.service.ts",
+      "sha256": "4bd88fdfe136799e4eaf833986744f655ed2c06d101cc62cbc17a0dcf6aa86ef",
+      "bytes": 7250
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\attachment-section-extract.ts",
+      "sha256": "c364b85f12386f6bc4e61fb6de68bad1c7a5a83e891cdb7545e960fd367070e6",
+      "bytes": 4876
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\client-association.service.ts",
+      "sha256": "2b9e27e5d43cd3dbfa3ce21f070c77ef2833bcfeeb6896eb43dee4e899f7cff3",
+      "bytes": 12313
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\contact-harvest.ts",
+      "sha256": "f0f40c745f6412bd75b48709b7afd3839804a2737e06a8d93cde27eb5edc2c92",
+      "bytes": 4773
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\engagement-access.helpers.ts",
+      "sha256": "a7d28dcb3db441049d7f93a89b54cc21b097af3757a66f2934b0e5a2a560d0bf",
+      "bytes": 5101
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\engagement-ai.service.ts",
+      "sha256": "4c886e6c9ac051c1c0458c9b3b1e0ab621833cf7cc692e38e885f6c3b081f817",
+      "bytes": 92904
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\engagement.service.ts",
+      "sha256": "71940d04ccd213fa698ec536bff238927555306077cdcfba5bfbddab5c13036b",
+      "bytes": 499118
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\generation\\alert-packet-client.service.ts",
+      "sha256": "b8e54a375272b37014f83b070758aab48069aaf8806cd9de0576b062c8560799",
+      "bytes": 11159
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\generation\\author-style-profile.service.ts",
+      "sha256": "1437c868261e097c8bae4e3da02c3663c7ff3605f0490dfe6c4f98fe7a3bc410",
+      "bytes": 16388
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\generation\\content-skeleton.ts",
+      "sha256": "ec7771b53d9d7a6213b446edaca4b0a16691f2f3cad5d5f75826d68d742ed319",
+      "bytes": 19721
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\generation\\evidence-freshness.ts",
+      "sha256": "16d6b0651b445c1b370a4f564eec2f67689c5bf76b1e68d01d6470bb61e0484e",
+      "bytes": 3300
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\generation\\evidence-packet.service.ts",
+      "sha256": "21ba916bafd1b7a9984c0da79eb23452089c341981f582c204d2af559afb984e",
+      "bytes": 19092
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\generation\\evidence-packet.types.ts",
+      "sha256": "cff9dc6f348b0919df2ec43557c37c391a34719fabc303d319cde65cb092e245",
+      "bytes": 12758
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\generation\\evidence-source.service.ts",
+      "sha256": "3165ca15de6699f127a1f7f68648bf67f26ef0267d95005f0e05328a619b0536",
+      "bytes": 61936
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\generation\\gateway-prompt.ts",
+      "sha256": "6f784a0855eb0271daa598d9d6991ad2e09c303b692fe9b6929c65716957853f",
+      "bytes": 29392
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\generation\\generation-gateway.service.ts",
+      "sha256": "fae4c94c2a134420b15a4ca918d11eadd81f7ad021b3ae134d5868c2f8a5b792",
+      "bytes": 43293
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\generation\\generation-gateway.types.ts",
+      "sha256": "cfc0366affa59fb0ad8ec99b7e764683cff40b886d2802bf5eb017a5fbad1e07",
+      "bytes": 9976
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\generation\\generation-verifier.service.ts",
+      "sha256": "8025b2e16d165bcf50492c94756e7811d9669124000754375c2b914ec88df6f4",
+      "bytes": 27611
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\generation\\json-extract.ts",
+      "sha256": "782c57cab26989a586f55ca41e89256c579b86c8781a3be2e3f582dda0b73f8f",
+      "bytes": 1288
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\generation\\message-plan.schema.ts",
+      "sha256": "74230f025f286b7deef4babe81b3b4a4847d997dbd6881e9ef0a61465282204f",
+      "bytes": 8763
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\generation\\message-plan.service.ts",
+      "sha256": "fe8c9a790a0458a921791b05859dc954d44e23e32ae83d65cb2ed98d48fee1bc",
+      "bytes": 32807
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\generation\\outreach-context-plane.service.ts",
+      "sha256": "bc745e4f1b087e83cc60c74955c1e7ca31d49236f89e08da192705dd460a153f",
+      "bytes": 23737
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\generation\\outreach-evaluation.runner.ts",
+      "sha256": "ad6c3e2e911beb37a94133a2a50a58d2e65c85760b8f136d70e57ac0483b9497",
+      "bytes": 15338
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\generation\\outreach-truth.service.ts",
+      "sha256": "db54b9bd0d299e2fe0a85cda4f257a7b2eeca0ed073296901ae87967b8c1c125",
+      "bytes": 10848
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\generation\\outreach-v3-live-preview.service.ts",
+      "sha256": "4264c68169b47a0921a6e17ec8beb02c735302bf07fd6c7b82e4d24c4e53e8da",
+      "bytes": 3088
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\generation\\reasoning-effort.ts",
+      "sha256": "856c70924aedefa1cdc4f3e961525e6c21bcfe8fef0b9c5508943e2ab0519f54",
+      "bytes": 4785
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\generation\\relevant-email-ranker.ts",
+      "sha256": "9d32a5ee6582b949eed1d0e2649537c83e903ea2ded36737cde5b8640a789d12",
+      "bytes": 13886
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\generation\\streaming-json-field.ts",
+      "sha256": "bd8911bee7147cee300c981e62db8f11ff2ff659e75a9c2c8d6e3769db57b63b",
+      "bytes": 3968
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\google\\gmail-send.service.ts",
+      "sha256": "f82f8675e9f3b0a719cefaa17f262f25c86ebc027e99b1a13257a8ad7850164a",
+      "bytes": 13645
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\google\\google-oauth.service.ts",
+      "sha256": "b11e277707e40beaf0e0ee4235e9d00afc46681b7c8b5fda00a3f04017c2af64",
+      "bytes": 20027
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\google\\google-token.service.ts",
+      "sha256": "69b5fe7077490aa5fbfec754c266ac7af75858030cf2d11b5b7506463f4a314b",
+      "bytes": 7588
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\hearing-record-document-access.ts",
+      "sha256": "f51b042f4b73f9607efa2bea947118fdac0ab0c8cd4244f1817cab836d0105a4",
+      "bytes": 3100
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\llm-completion.service.ts",
+      "sha256": "017a3eb3189c9beba4334b14abbf798354671123a457ae6ea46c9a626465329a",
+      "bytes": 29567
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\mail-message-state.ts",
+      "sha256": "121422b52fedf561c6c385081282e05a5cb70390d738b4d0e0c06c2ce0a64970",
+      "bytes": 4403
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\mail-query-deadline.ts",
+      "sha256": "cb90d145a96d006785ad4c0a5a768ddeddf843b351638db199aad360850c138b",
+      "bytes": 1705
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\mail-query.ts",
+      "sha256": "b32e25f106e3a2d9e69ac50e37b6fde8b26cea51a08be24adcdf5cfc69ad34c8",
+      "bytes": 12869
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\mail-rewrite-verifier.ts",
+      "sha256": "a7e1f86f28ff585d7f311a381cff010e9116922c0815cffaf39cd91e3a374085",
+      "bytes": 5901
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\mail-send-result.ts",
+      "sha256": "e0afb9adb336dff7657995d3fbd4181e664ebe81fced44f11bfb1c0d03ae4791",
+      "bytes": 3447
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\mail-sender.service.ts",
+      "sha256": "b37db847ef3182c7315eeb8a86b2098b119fbc96840478eff77b8cc16f30e603",
+      "bytes": 5232
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\mail-sync-coverage.ts",
+      "sha256": "fdad6a158c7fc61b9c8a15cf06ba57b73d829bc219b369c6593e6e31b1e310e1",
+      "bytes": 5414
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\meeting-context-runtime.ts",
+      "sha256": "ae6903f125af905dddee99c805c2e92656ef6242810ce1bd1e15d703a31cced5",
+      "bytes": 1867
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\meeting-notes-crypto.service.ts",
+      "sha256": "72b9506b806353cadcc9929b631e4a68be445a5408a2758535d00d4842b6303e",
+      "bytes": 2442
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\meeting-prep-comprehensive.ts",
+      "sha256": "9eb2f8f81a8201877fd6c5dec4eb9476847df03d6b790f8034d898391ead6004",
+      "bytes": 25135
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\meeting-prep-grounding.ts",
+      "sha256": "aaa0d17e67b67d03320b536ea1fb96b4c82b24fe0d77a7f22e61f786d83a88d0",
+      "bytes": 7607
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\meeting-prep-job-runtime.ts",
+      "sha256": "bbc47da24f0a9a08a93fd653f0cf263396330f04e95930674b1f491ae0520b24",
+      "bytes": 1261
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\meeting-prep-pdf.ts",
+      "sha256": "80863c87589426425458c0eda08e8dc851a6c6f8eb01efc6e0b75eff30835a17",
+      "bytes": 6369
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\meeting-prep-policy.ts",
+      "sha256": "a1e9e4b0a3c8cfcb96987442fec54952f27f55fadcabc247332f025d17585c5d",
+      "bytes": 1820
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\meeting-prep-source-access.ts",
+      "sha256": "7ec2dc05680454538432f58edd7a4c10d95c273049caf3085857c2eab661cdc8",
+      "bytes": 9848
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\microsoft\\microsoft-graph-sync.service.ts",
+      "sha256": "75718ab26ec54e191be8a6e12880aa7897aedef96c935e729e1277e8b4191316",
+      "bytes": 102193
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\microsoft\\microsoft-mail-folders.util.ts",
+      "sha256": "ecc4b0de96aa99508880a95a05eb1361389a4965e1617fd0f63edc56374668d9",
+      "bytes": 4464
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\microsoft\\microsoft-oauth-constants.ts",
+      "sha256": "e360e348dd5fe744e051e23061dcbdd6052ec973cc70c92dbb20df927cadbb72",
+      "bytes": 1085
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\microsoft\\token-crypto.service.ts",
+      "sha256": "c0ed2b5177f2497d9b9ca6c748d0ba00127ea2fe08d5e0af6b258decb3d25380",
+      "bytes": 2479
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\outreach-audience-types.ts",
+      "sha256": "76e22d237f5685e82756ed717a83ef1dad3a7de9240d2269bc96eeedd5a07a46",
+      "bytes": 1037
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\outreach-context-enrichment.ts",
+      "sha256": "43998c69005b79df2112e093f62412238860c445b7a35c97c994e556f1ef9f5b",
+      "bytes": 13662
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\outreach-draft-audit.service.ts",
+      "sha256": "ef8c3eac35fd760dabdc4698903dc19fb6603a1228ae0121e9796c29a3529724",
+      "bytes": 28825
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\outreach-draft.service.ts",
+      "sha256": "7677904ffc0cad75fbf7e7d67e0df8ba78b1da80ce7af67f846bfe356fd727c2",
+      "bytes": 41077
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\outreach-draft.types.ts",
+      "sha256": "ec609c98e242abdd7056b8025e924ab2d0ce3ab1eb64c51147e8256a4f0c727f",
+      "bytes": 7038
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\outreach-email-renderer.ts",
+      "sha256": "3f705161eafdefd4797e2de298be1a25d7cf08650410bf411bcb0d6adb9940da",
+      "bytes": 2899
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\outreach-hold.ts",
+      "sha256": "f8fc9f090914bd710e060f9f5b42570b47178761cff1247c03c9db332a7a9f0c",
+      "bytes": 2851
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\outreach-prompt\\prompt-spec-v2.ts",
+      "sha256": "2899961fe0977e04119a8c25d194c97b4a58d053e2a63b3f38180c1a0f3f9275",
+      "bytes": 27548
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\pptx-extract.ts",
+      "sha256": "0452c2f3ca127ab86fc82fcd9dfe73f94ad6c76cd4f739413a52384d5af41bb0",
+      "bytes": 12828
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\report-targets.ts",
+      "sha256": "cc833db5267c9f178e4e74edb0250490725ad09f466478eb66f061b8ebd493bf",
+      "bytes": 17752
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\research-portfolio-task-access.ts",
+      "sha256": "3d4db8050ca7b8581c65acfc5255d140f3d4a7c8cdb4d4937443842cba69daa5",
+      "bytes": 1052
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\runtime\\engagement-runtime-env.ts",
+      "sha256": "fde61a0d07b72c9679ec68cadf5922a089fca0cb0997c84a489a644ed42d51f3",
+      "bytes": 7305
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\runtime\\engagement-runtime-policy.service.ts",
+      "sha256": "89874c258aa2680637262d649ebc26b03d047fb0bce9cc67fa29bb9bef5e2036",
+      "bytes": 7459
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\runtime\\engagement-runtime.types.ts",
+      "sha256": "12b5c5f8bbf2dfa66dff70b7eb6ab479995bfecaedba14bd349f622459495ff5",
+      "bytes": 1629
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\synthetic-document-deletion.helpers.ts",
+      "sha256": "917346f6ef74cad4610b27c4e66e0b092cd0be9140d039aa423edd242504b2fb",
+      "bytes": 7686
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\engagement\\xlsx-extract.ts",
+      "sha256": "841811f8f6d94ce348bcdd845754dec6b663a8db02e3abcccbfed40dd00f9789",
+      "bytes": 2401
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\evaluation\\evaluation-capture.service.ts",
+      "sha256": "7dc6b57e75a79fae2b1ba2700c1cfd87ef9e0ed6152925c44cd978cd9fcffe76",
+      "bytes": 9322
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\federal-spending\\federal-spending.service.ts",
+      "sha256": "58c1457d235a0207705d5de674fd030f44755c2720a156c8dc1c9b4aadb12776",
+      "bytes": 12376
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\intelligence\\fec-disclaimer.ts",
+      "sha256": "7ac393b89d56d89852b373ff35da6b4ee27a0ed4b45fe74336d3f17b55659c9d",
+      "bytes": 1433
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\intelligence\\office-recommender.service.ts",
+      "sha256": "3fbb158bc395d6946e5071d7fe31d34b8facdcf82fce4e0576f5ded475c035f8",
+      "bytes": 10948
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\intelligence\\time-bounds.ts",
+      "sha256": "514b87ab881cd6472bf841237f9ab29d1599676428968540b91eaa6fcc14e6c1",
+      "bytes": 2506
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\knowledge\\entities\\canonical-entity-registration.repository.ts",
+      "sha256": "0e52289d50dd9a68b8176c6f2b9ca5308ef22b3c8619e39756d3279fbead530f",
+      "bytes": 18123
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\knowledge\\entities\\canonical-entity-registration.service.ts",
+      "sha256": "2f3abe9d9ffc834157f2b3ecf1a123517521070a276d39ec6069130473870d46",
+      "bytes": 4791
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\knowledge\\entities\\canonical-entity-registration.types.ts",
+      "sha256": "6e3237820fd6dbdcf8e3690d8d4c67aec380e3d351ce25f15fd992a71fb237a5",
+      "bytes": 2295
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\knowledge\\entities\\canonical-entity.repository.ts",
+      "sha256": "5d1cca71e1744fcac0aa3ce7aec93aaf7f7d39a94eab1e981a268a048f6e292c",
+      "bytes": 19434
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\knowledge\\entities\\entity-normalization.ts",
+      "sha256": "922388f9da5cfab8d7719d312ad4945dd6ef66109f879a74ee178ed58731c408",
+      "bytes": 4049
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\knowledge\\entities\\entity-resolution-stage-policy.ts",
+      "sha256": "b2704e526341ae836d5d293d6f3c6e1d976758d77cae7f6c098b78cfb1fa4f8c",
+      "bytes": 5810
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\knowledge\\entities\\entity-resolution.types.ts",
+      "sha256": "b814eaaa1f63bf5f438d0f5a139c886bbb1ea620f181a059aea4392d9ba16d28",
+      "bytes": 4217
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\knowledge\\entities\\universal-entity-resolution-orchestrator.service.ts",
+      "sha256": "5a643dfb07709981c1437b347492c9e9771718df5d6f80ed55401b394a3d788b",
+      "bytes": 23900
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\knowledge\\entities\\universal-entity-resolution-orchestrator.types.ts",
+      "sha256": "08ba0664b60873cb3eb597a35e9a0314b5f5c998232f6bcb387cf9a754ea7d58",
+      "bytes": 3929
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\knowledge\\entities\\universal-entity-resolution.service.ts",
+      "sha256": "45732f4b28c81d53e090617eee5b101bfa2f816abfdcd49c37026779f17254f2",
+      "bytes": 11841
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\knowledge\\graph\\temporal-knowledge-graph.types.ts",
+      "sha256": "6ee2696be42227bd4fdc345312c44b043701a389e724bc9a3fb98cd90c3fc005",
+      "bytes": 2709
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\knowledge\\knowledge.types.ts",
+      "sha256": "af823f3ba72d84db1bd199896e8b9360f61b5489c79e31335d518d4802e498df",
+      "bytes": 5768
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\lobby-intel\\lobby-intel.service.ts",
+      "sha256": "edfb5602f3209631b9605e657a1e9dfef89622f3ce934942dbc4186743b83e4b",
+      "bytes": 17375
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\memory\\case12-setup-terminal.read.ts",
+      "sha256": "5f3894aacd7a10cdc4bbd5d23617088bc5c5c20b2f9ae0602b394d24e48bfcbc",
+      "bytes": 11615
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\memory\\case14-fixture-evidence.ts",
+      "sha256": "94337f5deefb57a7ffdc5c205e20ca23d3e50856e46be1020f76f9bf9e67e300",
+      "bytes": 5492
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\memory\\case14-reviewer-preflight.ts",
+      "sha256": "4b2b3f830d9e9cc3027aa62e846914893644a78a1bc878b76393fe463d657189",
+      "bytes": 3795
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\memory\\exact-memory-cleanup-outbox.service.ts",
+      "sha256": "8b6843696943c30feab19d271680ff2429effcbc8399ea67ee9e7045c365154d",
+      "bytes": 6981
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\memory\\governed-memory-candidate.service.ts",
+      "sha256": "761007d0d3ca1c8408a559db7f8bc52eea24d84d016cb79519dae2f52542077a",
+      "bytes": 22048
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\memory\\governed-memory-ingest.service.ts",
+      "sha256": "122164ca67d8e47d0037a1e1ab2fa606e1ddea036810f42877c1cbe3f63cf612",
+      "bytes": 6868
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\memory\\immutable-memory-version.service.ts",
+      "sha256": "1c4a72447ae8b15681c7918de480c7792ef082b83fb8c2fe03c5c6e868a8139c",
+      "bytes": 49462
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\memory\\memory-authorization.helpers.ts",
+      "sha256": "a0c2ece14a7d8164d3a7c7a2f028ffe75a486c91f6fdda8b11fa48cab66c60e7",
+      "bytes": 7526
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\memory\\memory-authorization.service.ts",
+      "sha256": "eefa7645c2b181e46a7a90441a7d59e4eac607350ef7c0841410cdc30a80892f",
+      "bytes": 9173
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\memory\\memory-candidate-rules.ts",
+      "sha256": "17f48ff5ca477057ed622afca0412481e0ba9220c6891df12d21bf5f1c87ceaf",
+      "bytes": 6467
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\memory\\memory-candidate.service.ts",
+      "sha256": "45c3ebf00a2f42795fb27a299d1a0d028cb6b03dd5f091de7768e920ebbdb46d",
+      "bytes": 41455
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\memory\\memory-canonical-activation.helpers.ts",
+      "sha256": "fec784b019bb6300845fc5d8e3779d38e2e9fdbbe296852ea845e7a51633c58e",
+      "bytes": 12693
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\memory\\memory-catalog.ts",
+      "sha256": "a7c31b108d3774e846a43d9144de5228362e0560d6cf8a1a8ab4f50ad585c2af",
+      "bytes": 13711
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\memory\\memory-cleanup-outbox.service.ts",
+      "sha256": "c3d0bbbaa85b79fed444dd35978e3d03042111fdda6abb7375c4959d9165f805",
+      "bytes": 14872
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\memory\\memory-clio-adapter.helpers.ts",
+      "sha256": "41102353e8e4e304be8b89611892193716f08f6da1f22d0a80c85d5428f086ed",
+      "bytes": 7604
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\memory\\memory-embedding-lifecycle.ts",
+      "sha256": "69bfdeb9664b219f80fb890d5ed3e5ce3f03fc552da00c1334c693398c06c83d",
+      "bytes": 4414
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\memory\\memory-governance-center.switch.ts",
+      "sha256": "af87e4c57369187de17799250d9720b3ca25ab6027feaf3ec94991bc5948a1b4",
+      "bytes": 833
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\memory\\memory-governance-lifecycle.helpers.ts",
+      "sha256": "6f983d9f0bc388464dc0be27e9edba1aeb9bfdaec9c7ab16830882db286770b7",
+      "bytes": 11288
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\memory\\memory-governance-tenant-scope.ts",
+      "sha256": "2c56f023b7e5f7b26e71b6473d26b850cfa27a8a8566e9c9412396a662202f84",
+      "bytes": 1450
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\memory\\memory-ingest.helpers.ts",
+      "sha256": "111bb23b6dfa6fcf5fbe2e5c1696f8240fecb80b6c4bcb924f3032b4eddf15c2",
+      "bytes": 8125
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\memory\\memory-ingest.service.ts",
+      "sha256": "4dbf7707b6d89ecb72f231e90dfce05815ba8ffcb304a053d3eb10b378e6c750",
+      "bytes": 22603
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\memory\\memory-mutation-auth.ts",
+      "sha256": "8e24cc1cdb2477a16738a15325087ae1111a71193badd0d70e2cea2ae07fecc2",
+      "bytes": 2298
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\memory\\memory-parse.helpers.ts",
+      "sha256": "70abb96e2e6b587b843d4fee86fd8efd081a1a6e993fc09e8436091aaa640dbe",
+      "bytes": 6720
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\memory\\memory-recall-suppression.helpers.ts",
+      "sha256": "f1a049bf5362c540098adea8ba885b25b579ab70f2a51b322abb3060eab647f2",
+      "bytes": 2449
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\memory\\memory-render.helpers.ts",
+      "sha256": "8398391a77739c778135b22e80a6e5c261ca4ffa934c7f156d4032175c407103",
+      "bytes": 5379
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\memory\\memory-review-admin-policy.ts",
+      "sha256": "ce7d9b36b52b7b63d1a8bdcaf0bab2acf3c57187dedc5752a80f8e95f733adc3",
+      "bytes": 687
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\memory\\memory-review-switch.ts",
+      "sha256": "5d80d21bdb3f9f06fbf4ed9c980939295b5f61916f89994ffffd9e3e51958ecb",
+      "bytes": 878
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\memory\\memory-store.service.ts",
+      "sha256": "12689bf6b538457d46047e22373ef08ae7e6393c940943dc852ce043cc0c2b2f",
+      "bytes": 54918
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\memory\\memory-transition-audit.service.ts",
+      "sha256": "698e73cf8033e074e419c75ff79d67b4191f4f2a750f71d72df61edb9c958ee0",
+      "bytes": 4688
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\memory\\memory-version.helpers.ts",
+      "sha256": "6fe4466b76fb02b05febeee5f5ce433e6273328a71ce985f185742c13fce5118",
+      "bytes": 5645
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\memory\\memory-wall.helpers.ts",
+      "sha256": "91961048fd944885b8a06d229009259cf4866a4d40338d09685b1608f29a9255",
+      "bytes": 7833
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\memory\\memory.types.ts",
+      "sha256": "76d9db994650ac7bd6a099d7843774080aacdcfed6992cb7518969423e5709f7",
+      "bytes": 9492
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\memory\\pending-memory-fixture-evidence.ts",
+      "sha256": "0d135b50c3255d9a4ca1d41443f23e83dee49a2f9e9fc1752299b56563faa60e",
+      "bytes": 1924
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\memory\\strict-memory-projector.service.ts",
+      "sha256": "29d580fc0bc8c1a40b08a04a79da5200adca823582e750ad313b7b367693bcf2",
+      "bytes": 11689
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\memory\\synthetic-approved-memory.helpers.ts",
+      "sha256": "8451534ad56fdda936c7ce5c1961c68e0172d61ab2be45872e6d1b93da21ba22",
+      "bytes": 13474
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\memory\\synthetic-candidate-withdrawal.helpers.ts",
+      "sha256": "6e5aecf6f62eab12c4a9575f5f5efb5565f39fc50e18d351ea0a8a93a28b350d",
+      "bytes": 8457
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\memory\\synthetic-memory-version.helpers.ts",
+      "sha256": "57287acdd4aaae0de0e8a3e307c1af85f2c72783b89e1d60c85c4db5127151ac",
+      "bytes": 16669
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\meri\\memory-confidence.helpers.ts",
+      "sha256": "18a1482d11df9f98a66d3d106de2400956f5c092e2a91723b3e37814c681ed6c",
+      "bytes": 1135
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\meri\\meri-attachment-extract.ts",
+      "sha256": "370dbade7c8e62b52c1a0fcd8953bbd6563c9c5df49bbdc61636bee4948d4892",
+      "bytes": 5369
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\meri\\meri-attachment.helpers.ts",
+      "sha256": "f5f65b2e39931e25767da9fc64b9ab473308ca58e0398ef21b13fe0dd27c8fed",
+      "bytes": 14153
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\meri\\meri-capture-api-provider-scope.ts",
+      "sha256": "fbcbb2a2c923b5b6bff6e6bd1a8ece077810872bbfe6dce11006a740307fc227",
+      "bytes": 4576
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\meri\\meri-capture-policy-readback.ts",
+      "sha256": "3858a6f7d7212fc8f9de31f1ed165e742269db5e94a9fad37b4398f401c04e07",
+      "bytes": 7784
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\meri\\meri-capture-provider-budget-install.ts",
+      "sha256": "cec72704ca51409ced548a1acc9da37ac285d75b4b30f7b95950991f3d3ab82a",
+      "bytes": 8344
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\meri\\meri-capture-provider-budget-owner.ts",
+      "sha256": "fcc9340906e8c2b1a36266a42173d589073b37bca9b99a5a1080fc1890de1c87",
+      "bytes": 8219
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\meri\\meri-capture-provider-budget.ts",
+      "sha256": "29e6ab4ed50291a2626c132c8298ae0fb93eeac3d6a9f9f3d8c4953a56df614e",
+      "bytes": 11934
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\meri\\meri-capture-semantic-clock.ts",
+      "sha256": "9e3a7ed2a76ed98e0dafc4d47f489e6a53d5590e7a8a09a8813b77fd9cf2737c",
+      "bytes": 4133
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\meri\\meri-case01-capture-authority.ts",
+      "sha256": "c573122dab6c1800c6190f8d187aae7515cadeb137783775658f3be17bc76ffc",
+      "bytes": 9612
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\meri\\meri-case01-fixture-authority-registry.ts",
+      "sha256": "5cc3a9330410de18bb9f6a5b165416c0d2126fbdddc30cf370e1afa43014119c",
+      "bytes": 1097
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\meri\\meri-case01-fixture-loader.ts",
+      "sha256": "cea9ed21f5265401db80eec628cbbcecfc8e22856ab78f13d4f81fbc23350285",
+      "bytes": 3388
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\meri\\meri-case12-setup-budget-owner.ts",
+      "sha256": "2178563d94e2b179530ad2e7d29d803eadd891ed2d43e5e58bac8eadd7154182",
+      "bytes": 25795
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\meri\\meri-case12-setup-budget.ts",
+      "sha256": "785da5e7945f13675b1f64df613792f9541225a9c68236bef372c02d401c96ab",
+      "bytes": 15809
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\meri\\meri-case12-setup-provider-scope.ts",
+      "sha256": "e66fbcc3e619168eade0ebc3d50d26435304af74255e6438faefc457a41ad4e5",
+      "bytes": 3726
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\meri\\meri-case14-capture-authority.ts",
+      "sha256": "6bc41c4107eec92466070088595240d7fc4868bc9b63b1a253b9d0ac14859f95",
+      "bytes": 6659
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\meri\\meri-case46-action-authority.ts",
+      "sha256": "f22dc4a30be2e8e4fed2d2032d4bacc46115f9090076a43f212c3041bbc211f2",
+      "bytes": 10113
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\meri\\meri-case46-api-provider-scope.ts",
+      "sha256": "4150c63535afdb3997d6e34dff6887a8968282a6173b1424958f5546a402e624",
+      "bytes": 2354
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\meri\\meri-case46-authority.ts",
+      "sha256": "dd3bd28ed1e9999e057599d40942dcbaaac5a5ae829c71863857e7137641af80",
+      "bytes": 14667
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\meri\\meri-case46-provider-budget-owner.ts",
+      "sha256": "227a02ab7125313ad096f52243cb5599913b0ef6fa7c1c0230fde99754e54c6a",
+      "bytes": 6044
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\meri\\meri-case46-provider-budget.ts",
+      "sha256": "57f6783ffcea4cc3cfcb1ba6fef0fc78923051224279d5540447d6d93097c879",
+      "bytes": 12534
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\meri\\meri-case46-turn-owner.ts",
+      "sha256": "27c4b8b28d28344e683f2ede329086f288ee0b7457c08e22e8bda91330c3c51a",
+      "bytes": 3497
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\meri\\meri-context-plane-runtime.ts",
+      "sha256": "0f63ef56f80f013b750c46902a2213a6e856d3706511456624f55aefbe85239e",
+      "bytes": 11559
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\meri\\meri-context-plane.service.ts",
+      "sha256": "50d1d1b7a01ae91c5a09ddf2ce3eeb47100dd66cbb5827bf833907313bd51453",
+      "bytes": 53475
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\meri\\meri-controlled-budget-result.ts",
+      "sha256": "2f444433fa55d2b3225140c6df86a38f7472b36a84a8f23cd6e62a0bfd4c1cf3",
+      "bytes": 4589
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\meri\\meri-controlled-read-fixture.ts",
+      "sha256": "a375f1b7031282fc8c7e9eabcada67cca31530da683d8b593521c4cb7e978893",
+      "bytes": 13577
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\meri\\meri-defense-budget-tool.helpers.ts",
+      "sha256": "debfa5525c2cc48a280e907646cbd802e3a83c54b3d1ad9997e1e448ee5a4b0c",
+      "bytes": 8205
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\meri\\meri-document-read.helpers.ts",
+      "sha256": "2d96116443207cfc1c5a1c21a01fa88e2ab51a32635e9b9838320acc2c350d41",
+      "bytes": 9656
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\meri\\meri-managed-mcp.helpers.ts",
+      "sha256": "4087853a87a49994ed78a71f50a2be3c952acfa1e50e6c0b91e275c00a264bb8",
+      "bytes": 7333
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\meri\\meri-research-durable-result.ts",
+      "sha256": "c88958f730a7c79195b3df2104f107cb07bd6aa4a91292678399a8d4d26f81cc",
+      "bytes": 4509
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\meri\\meri-research-durable-step.ts",
+      "sha256": "8d07312ea3ae32257fe6cc795736b0caedea1ed9d7c728efcbe7e935c739537b",
+      "bytes": 6911
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\meri\\meri-research-plan.ts",
+      "sha256": "564881d323c6a356afed612e79f6f8608dedc6db7f2c0472ff55f462b518acda",
+      "bytes": 17994
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\meri\\meri-research-run-state.ts",
+      "sha256": "ffa878891817176f336d8556c7b83126df7b78b51c0df7884c303926f5ea1886",
+      "bytes": 4418
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\meri\\meri-research-tool-budget.ts",
+      "sha256": "5e8f03eaaf8d14a5a2076ed95cb9dc228fe9ad1f0733145806b987b5ddb92978",
+      "bytes": 33086
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\meri\\meri-server-readonly-capture.ts",
+      "sha256": "689ddc776123be123c6181ebf7459ce747ae4eb99ad841a8966d8db87210ac93",
+      "bytes": 21162
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\meri\\meri-synthetic-read-budget-owner.ts",
+      "sha256": "3b276fe638f0d9a2f85f4f4bea7fb102a4443c640ede3ea4b1ac247859e95d00",
+      "bytes": 19733
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\meri\\meri-synthetic-read-budget.ts",
+      "sha256": "79a18eb3afd24af775efc05b9b5fd08285e9714ce495ab8185d20f130c1e2462",
+      "bytes": 12463
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\meri\\meri-tool-request-control.ts",
+      "sha256": "d7bc98fb4ece8e15d03c539b78891c06b1c68056efb03521139f462d3c6cf5b5",
+      "bytes": 3365
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\meri\\meri-turn.helpers.ts",
+      "sha256": "aac3bda40be7e78727f296783acdca4eda78887d6c403e0408ded440fdfd53b8",
+      "bytes": 1953
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\prisma\\prisma.service.ts",
+      "sha256": "fb3886df5f2732a0412342627a3a6156f159718913479cdc2325fa602bfdd86e",
+      "bytes": 12476
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\quality-telemetry\\adapters\\meeting-prep.telemetry-adapter.ts",
+      "sha256": "6edbef6bed83d25735a3088bab665620cdc9116d664ce14ce982c92f4d78e514",
+      "bytes": 1931
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\quality-telemetry\\adapters\\outreach.telemetry-adapter.ts",
+      "sha256": "ab909123f2065a45314f47f3cdedcb46e7996954f648e6d6eb5fb0ab135f06d4",
+      "bytes": 2653
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\quality-telemetry\\edit-metrics.helpers.ts",
+      "sha256": "aeeeaae551a7ede175fd2069099445bc8a9ce7dfd5a77ac9f762775d414c3506",
+      "bytes": 2327
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\quality-telemetry\\quality-telemetry-capture.service.ts",
+      "sha256": "e67fd26890f2db6dc87cffc159e53db4614d24d191bf391a5e4b2a4bc07afbe7",
+      "bytes": 7633
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\reranking\\reranking-provider.ts",
+      "sha256": "4e38acad29686de0a147089b1da24d3a4e5fe6ed174c377d4c72a89ef7ad7cbe",
+      "bytes": 1872
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\research-portfolios\\research-portfolio-access.ts",
+      "sha256": "927d3292d437c944d80ccb9be6f9e7f77a15906eb9408eb9b3aa1ca259fb7e08",
+      "bytes": 1833
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\research-portfolios\\research-portfolio-artifact-authority.ts",
+      "sha256": "d6700f4e06e24b894e7b3d8b7c940faf22b1d595d974ad015d375f0c166f4924",
+      "bytes": 4785
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\research-portfolios\\research-portfolio-meri-scope.service.ts",
+      "sha256": "35417378d7cdd373ccab8ecfc72f6e0c52ce521d80f93b52a8790c1e998e0ea9",
+      "bytes": 6332
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\retrieval\\coverage-manifest.ts",
+      "sha256": "71912119efaf73bd6d375e8b8252ec7063fd2dca89081b8c7fe061156d9f4698",
+      "bytes": 3992
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\retrieval\\data-catalog\\semantic-data-catalog.service.ts",
+      "sha256": "7bc2926e0343ff215b14c527de82ed56e774fb08f7b1f6ac0493439ff6b01fba",
+      "bytes": 14427
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\retrieval\\exact-lexical-retrieval.service.ts",
+      "sha256": "669c7ed8aad7fabbba71ca4cb619b186a1ae7d8732d6cbc4b58383267e3fdf85",
+      "bytes": 34002
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\retrieval\\retrieval-planner-v2.service.ts",
+      "sha256": "90a1f86ed5920567449f5453715d1b96bff1129cecc479f398ffeb7a153d034e",
+      "bytes": 1419
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\retrieval\\retrieval-reranker.service.ts",
+      "sha256": "2d70d950c4336c44e360daa0aa064cad0ca4ff799aff390298977990cf51bfe3",
+      "bytes": 6661
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\retrieval\\retrieval-scoring.service.ts",
+      "sha256": "bbc433f993b2be415212c7c06a717931bc3eb3f18cdd840351ccf7bd3e5c0b02",
+      "bytes": 11040
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\retrieval\\retrieval-source.adapter.ts",
+      "sha256": "661983a016798b12a4aca9438153f193fdd20f90fcd9407d9367c5316d1d5780",
+      "bytes": 479
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\retrieval\\retrieval-v2.service.ts",
+      "sha256": "bf347134c6a88ea73b404c0a975f366372309319ec113ba9b349b97efafbc5ed",
+      "bytes": 12003
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\retrieval\\retrieval-v2.types.ts",
+      "sha256": "95f388145594c5a9052318e4fa0f215de0b10fb92757bbcca8adb17120890fb8",
+      "bytes": 11082
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\src\\tenant\\tenant-context.store.ts",
+      "sha256": "33b46f43722694f12986ff4d535e1ee31f8834c2e8cec0d70e319cfe91be5181",
+      "bytes": 884
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\apps\\api\\tsconfig.json",
+      "sha256": "b88cdad4cb543156858c394422a89bd66b34b956d9a8e46c697d2c591a3bd220",
+      "bytes": 624
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\artifact-collector.mjs",
+      "sha256": "64725c9b2fc66efb6578461e755efcbf62b77e18833dc6221831ee7e21ececae",
+      "bytes": 15744
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\cases.mjs",
+      "sha256": "5464412ee66b73f677cc923bda09b4785a866b20ef0ee6a3410936c431c5ba0a",
+      "bytes": 62128
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\contract-lock.json",
+      "sha256": "fc2fe9da90938d476e46007782a0b7d4471c1254e2a189180f62e3fbbde8fb6e",
+      "bytes": 6168
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\approved-memory-retirement-owner.mjs",
+      "sha256": "84ce879940d2edf83004faf690739e6a9fef4091675fb640980a1d370529f668",
+      "bytes": 6106
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\approved-memory-runtime.mjs",
+      "sha256": "b814c5f904594130d0e35bbb0d4a1f49ec77a5f96c1544fcf9e6969784f278ac",
+      "bytes": 14972
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\canonical-owner-adapter.mjs",
+      "sha256": "a9e68e7f12e60253d8402108dbc2ecc0cf6688863ca42c6412c13e371c61fa40",
+      "bytes": 8502
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\capture-binding-runtime.mjs",
+      "sha256": "527fc5358eec0884b7159ddbdde07abd14736a299fb08d8f3c4e918ae2f7e17a",
+      "bytes": 7753
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\case12-memory-eligibility-owner.mjs",
+      "sha256": "ff06b33c3895a2ccbbabf876583c4186ca9118c37ef8a34aa2523fa196800a8a",
+      "bytes": 3782
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\case12-memory-inventory-owner.mjs",
+      "sha256": "6558f5a49f7e4a4316411107c3f17f29f3bbf133466b02118e9cfbaae34fb1b9",
+      "bytes": 15053
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\case12-memory-setup.mjs",
+      "sha256": "1eea57f16dd492e52ef1416824d9a44824e1501b606be5675cedd76c330067bf",
+      "bytes": 30169
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\case12-setup-budget-plan.mjs",
+      "sha256": "1ca0ec48fc645352c78dd7201f80d0a47e06b33aa46dbcc2db5a0e7dfd0b0f80",
+      "bytes": 5668
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\contract.mjs",
+      "sha256": "301f39229b64b3878d2fa9783d2cac5cd716fdf8acb125a2e758dc698e36076e",
+      "bytes": 5295
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\manifest.mjs",
+      "sha256": "8f1276ef0aaaef9b648bb1cbd0a037ee7d11d0a78db9691ab4de70b3b5db667a",
+      "bytes": 20549
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\fixture-provisioning\\memory-candidate-owner.mjs",
+      "sha256": "a850e4a8a68641d7118cf7f6e5abda72e64452bde6123d8e13acf5308d6bc9b7",
+      "bytes": 14006
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\fixture.mjs",
+      "sha256": "8915e19424520a2f97b9cd5a389fcf4b39f2823f0526573ffd04a1dfe0fbc398",
+      "bytes": 17294
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\lib\\stable.mjs",
+      "sha256": "03bba6f6dd1c48bf206ed32c628e1f9ce2038d75a9560d33d044950261f45c23",
+      "bytes": 1146
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\source-binaries\\D-A-1.pdf",
+      "sha256": "da882da4ae603b15d8b21072a034a2daf302071856743fd842ad3198a003d0fc",
+      "bytes": 3269
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\source-binaries\\DECK-A-1.pptx",
+      "sha256": "cc12bfaa119ab3d99f210d4f3169a693be269b2d4d98b76fbb42f78aff2cd4bb",
+      "bytes": 25954
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\source-binaries\\FILE-B-1-restricted.pdf",
+      "sha256": "161c88788ac2214e3ce4bc0c7627d413331e0ecff721ffb9c73cbeb66ebde6f3",
+      "bytes": 1887
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\source-binaries\\PDF-PENDING-1.pdf",
+      "sha256": "759ba31674a35f47324cada809abc52c411dd3fd649df36b4b12e91549705bcc",
+      "bytes": 1899
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\source-binaries\\REPORT-A-v1.pdf",
+      "sha256": "24d2374a09cbb012418bed2dfa562015ef7a200c22f6c3a0ac425e8ceeb487a7",
+      "bytes": 38597
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\source-binaries\\REPORT-A-v2.pdf",
+      "sha256": "f06ebef24465eb837a4de37964ad0630859323bf34292d9f6dec2a9264f8f848",
+      "bytes": 38734
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\source-binaries\\SHEET-A-1.xlsx",
+      "sha256": "debd2c837dbd1c33c329ce8d96f98a702a879c4a4e4829df740fdc6dd58924df",
+      "bytes": 6557
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\source-binaries\\asset-manifest.json",
+      "sha256": "6512b1ad5f9a154e517e2702f329bc52ab8276ccde9f7a1d2609872c8ea1889d",
+      "bytes": 7757
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\approved-memory-postgres-harness.mjs",
+      "sha256": "7c45dfa9c25dfacc4fca15df56b10c2e78c2695437ae6d9fcbbea17102b68bec",
+      "bytes": 9495
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\approved-memory-postgres-independent-harness.mjs",
+      "sha256": "185e2abef32b0fbad8248d33cf17cfd71ca9cd719b922c4747e64ab4b90bf355",
+      "bytes": 7837
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\approved-memory-runtime.test.mjs",
+      "sha256": "6f4bbc3c6f873a69666b1969f538064db98d3f8d36bb4b048a41178e94d94847",
+      "bytes": 2781
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\approved-memory-schema.mjs",
+      "sha256": "0ed9fae4f9f30cb06c14b33f619a346bca42af2a05fc1f9a9894a231d744df19",
+      "bytes": 6188
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\case12-budget-owner-scenario.mjs",
+      "sha256": "89de05d052ff5d742ff7a9f370c60cc668c6091d4805baa9c5bdc41514d8cf64",
+      "bytes": 13173
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\case12-budget-owner.full510.test.mjs",
+      "sha256": "19aa9e18deba63514fc26be973c0f37c9183264e1ba2c165ec369f94aba532ef",
+      "bytes": 3132
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\case12-budget-owner.postgres.test.mjs",
+      "sha256": "f6a5d580ff330f614fb966365156d2888cc1c9aa3193292d771b953d97fd92b7",
+      "bytes": 7483
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\case12-eligibility.postgres.test.mjs",
+      "sha256": "3b3e19c21d9611fda5d46c8047643a03f8e135098c14a894cae0507abc98d2e2",
+      "bytes": 13118
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\case12-memory-inventory-owner.test.mjs",
+      "sha256": "d8346f384b992c719c92ec1e568f3be334110409135d7e1b0711791dfcd700c0",
+      "bytes": 25025
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\case12-memory-setup.postgres.test.mjs",
+      "sha256": "fc52d25fee20fe0d08ed8157d310832fe6f32d45b25f16c27555d95d57c7f481",
+      "bytes": 13502
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\case12-memory-setup.test.mjs",
+      "sha256": "5fec92e18b11b9d66f863e6fd61e8cfa4f4669fcbcf721035ca8ef1d2e2436c1",
+      "bytes": 3910
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\case12-projection-native-harness.mjs",
+      "sha256": "e4efc6bbf26d2e1e7d4fc81c2871e630a91f984c09f914307db5f1433b529d26",
+      "bytes": 11376
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\case12-projection-schema.mjs",
+      "sha256": "84dcd483628d1d5a48d6e2248f7ed0f1db6a002d44be235d7ccaba71f181b4c9",
+      "bytes": 6992
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\case12-projection.postgres.test.mjs",
+      "sha256": "abc65c7c1465f7c755e537a1686d93ca9dd611f87994132d87479ffe9fe55a81",
+      "bytes": 15109
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\case12-setup-native-harness.mjs",
+      "sha256": "339960f9bba7d066324bed337f21267eb2c92a961a4501ac858454d192cbc297",
+      "bytes": 9304
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\tests\\case12-setup-schema.mjs",
+      "sha256": "06ebd3a83eed3951625370599d9b52cc9d3110b27f3e9a101fdd9c31b0fda7df",
+      "bytes": 6344
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\evals\\meri\\live-v1\\windows-artifact-storage.mjs",
+      "sha256": "8b03eeccad53a92fc4cf7bcf4976522ecf7ed2126591449e28a6a70948ac01c4",
+      "bytes": 3415
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\scratch\\tsconfig.base.json",
+      "sha256": "8ee4b594732f7ae6ffba44e3d591be59060a818720d2627fb14cfd3deec63aa7",
+      "bytes": 471
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\typecheck-v1.log",
+      "sha256": "e727128a9e7c30f8655bf910332bac3cc1dec8eaa2ccb03971b079e8d42033c1",
+      "bytes": 464
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\typecheck-v2.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\typecheck-v3.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\typecheck-v4.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\full510-tests-v1.log",
+      "sha256": "da5c375d4c4a736d98eb6abc50db74eb64975551d665260bf02f5377243746f6",
+      "bytes": 113092
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\full510-qualification.json",
+      "sha256": "57a50879a8fdceb0ace1a5271d3eb7d410909ea02acd599a9580a86bed28b19f",
+      "bytes": 5337
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\full510-progress.json",
+      "sha256": "7ed0a9eb621a3eab6e8eecc5dbda138f3e3171f4a75b49a531a6079fecabc5be",
+      "bytes": 2539
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\binding-shape-delta.test.mjs",
+      "sha256": "a7c5b8bb5aebec4bba39a60e271a6b35850f6916ab569488ae3abf2efadbf4f2",
+      "bytes": 683
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\binding-shape-delta.log",
+      "sha256": "bc0e5a245c8225b68aac99e0d264295098f1195158a8b61ad764bc081e0b1f78",
+      "bytes": 365
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\verify-owned-cleanup.mjs",
+      "sha256": "d822fad7d05b5233525b7ea236825a0f41476ee9f13102082b1a3f2e0e3251a4",
+      "bytes": 2256
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\cleanup-readback.json",
+      "sha256": "e205c5899dc876f2f6b252ec0cc6a877d991e7e9400316f79fed42acfa845666",
+      "bytes": 668
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\cleanup-readback.log",
+      "sha256": "637743cc020f5e4f070c1043526dbc31ae31128e1b2fc09ca3c246da0f16ff6b",
+      "bytes": 68
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-budget-owner-supervised-v1\\proposed.patch",
+      "sha256": "49d49958eb71ca266bc6d8d7373be701e412d034789679e3c694836a162bd1de",
+      "bytes": 26427
+    }
+  ],
+  "newManifestFileCount": 281,
+  "prior279AndFinal9PinsUnchanged": true,
+  "deltaVerified": "Exact byte replacement only adds same-locked-transaction clock_timestamp read, finite Date check and explicit Date argument to existing reducer. All other owner semantics and postcommit host ACK gate unchanged.",
+  "timingFindingResolution": "The accepted narrower H1 DB/process reserve timing gap from prior independent assessment6306ba96 is resolved. Every attempted reservation now obtains actual DB current time within its tenant-row-locked native transaction before admission. Existing shared reducer enforces admittedAt <= that time < deadlineAt. A late process clock cannot independently admit a later child after DB deadline.",
+  "regressionEvidence": "Actual native canonical/OpenAI/Titan branch with local transports. First OpenAI reservation/known settlement completes. Titan branch is delayed past actual DB deadline; process Date is then shifted1s behind immediately before actual Titan reserve. Test checks DB time >=deadline and process time <deadline, exactly one known OpenAI charge, no second reservation or Titan dispatch, reconciliation and poisoned-handle replay rejection.",
+  "tests": {
+    "existingNativeBoundaryAndFailure": 10,
+    "newActualDatabaseProcessLag": 1,
+    "strictOwnerTypecheckExitCode": 0,
+    "full510Rerun": false,
+    "prior510Source": "2178563d94e2b179530ad2e7d29d803eadd891ed2d43e5e58bac8eadd7154182"
+  },
+  "retainedFailure": "First process-lag injection occurred before OpenAI settlement; it conservatively left reserved charge and failed expected settled assertion. Original test and failed log remain pinned. Corrected test isolates late Titan reservation; product delta was not hidden or relabeled.",
+  "cleanup": {
+    "kind": "case12-pgvector-owned-schema-cleanup-readback",
+    "observedAt": "2026-10-04T10:51:04.349Z",
+    "containerId": "b3ce26339efe78e77492938d613ab66e9cd3b82833c9da5977412bcd2708bab0",
+    "ownerMarker": "20b2a791-9805-4c6c-9087-680d79b8d1f7",
+    "imageId": "sha256:ccc6e83d6e35e931dc7c5def2022729d5a6c370318d099181995567ff1fb4d6b",
+    "host": "127.0.0.1",
+    "port": 55434,
+    "database": "postgres",
+    "databaseOwner": "meri_c12_owner",
+    "postgresVersion": "16.15 (Debian 16.15-1.pgdg12+2)",
+    "remainingOwnedTestSchemas": 0,
+    "containerLeftForRootCleanup": true,
+    "primaryContainerTouched": false,
+    "cloudCalls": 0,
+    "providerCalls": 0,
+    "databaseWrites": 0
+  },
+  "reviewMethod": "Focused independent static source/diff review, native test-assertion inspection and full byte-pin verification only. No DB/cloud/provider rerun; earlier actual configured Hermes raw FINDINGS/adjudication preserved. No new Hermes run for exact3-line delta.",
+  "limits": [
+    "Provider admission-before-deadline is the qualified timing contract; no absolute no-dispatch-after-arbitrary-process-pause guarantee is claimed.",
+    "Prior terminal predicate phantom/global lock ordering limitation remains; worker/helper census and real composition must close required production boundary.",
+    "Native aggregate admission absent, local manual service/reduced-schema/transport-double proof; actual factory execution/default timeouts/RLS separate.",
+    "Old510 proof remains bound to old source2178563d; current46f4fb5c has focused11 native tests only, not relabeled full510 proof.",
+    "No paid setup, application journal change, fixture readiness/capture authority or acceptance promotion."
+  ],
+  "journal": {
+    "events": 26,
+    "sha256": "816b04a47be56432846d1ee602370c3bea985eb497a7de9e899aee4d53f8b39e",
+    "mutations": 0
+  },
+  "captureAuthority": false,
+  "liveAcceptance": "NOT_RUN"
+}

@@ -1,0 +1,240 @@
+{
+  "kind": "case12-budget-plan-independent-review",
+  "at": "2026-10-04T10:25:37.740Z",
+  "status": "PASS_DETERMINISTIC_PLANNING_ONLY",
+  "checks": [
+    {
+      "name": "exact root qualification checkpoint",
+      "passed": true
+    },
+    {
+      "name": "final source evals/meri/live-v1/fixture-provisioning/case12-setup-budget-plan.mjs",
+      "passed": true
+    },
+    {
+      "name": "final source evals/meri/live-v1/tests/case12-setup-budget-plan.test.mjs",
+      "passed": true
+    },
+    {
+      "name": "reconstructed prior source matches exact pre-comment SHA",
+      "passed": true
+    },
+    {
+      "name": "comment-only revision AST equivalent",
+      "passed": true
+    },
+    {
+      "name": "retained planner test log case12-provider-plan-tests-v1.log",
+      "passed": true
+    },
+    {
+      "name": "retained planner test log case12-provider-plan-tests-v2.log",
+      "passed": true
+    },
+    {
+      "name": "retained planner test log case12-provider-plan-tests-v3.log",
+      "passed": true
+    },
+    {
+      "name": "12 tests all510 rows1020wire hashes root qualification",
+      "passed": true
+    },
+    {
+      "name": "frozen local fixture asset D-A-1.pdf",
+      "passed": true
+    },
+    {
+      "name": "frozen local fixture asset DECK-A-1.pptx",
+      "passed": true
+    },
+    {
+      "name": "frozen local fixture asset SHEET-A-1.xlsx",
+      "passed": true
+    },
+    {
+      "name": "frozen local fixture asset FILE-B-1-restricted.pdf",
+      "passed": true
+    },
+    {
+      "name": "frozen local fixture asset PDF-PENDING-1.pdf",
+      "passed": true
+    },
+    {
+      "name": "frozen local fixture asset REPORT-A-v1.pdf",
+      "passed": true
+    },
+    {
+      "name": "frozen local fixture asset REPORT-A-v2.pdf",
+      "passed": true
+    },
+    {
+      "name": "journal exact26 unchanged",
+      "passed": true
+    }
+  ],
+  "pins": [
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-terminal-plan-root-v1/checkpoint.json",
+      "bytes": 4368,
+      "sha256": "640fb9bc29b55b9462c788bf34b5ef854f08e58801c38e34f3f88e22cc246030"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/fixture-provisioning/case12-setup-budget-plan.mjs",
+      "bytes": 5668,
+      "sha256": "1ca0ec48fc645352c78dd7201f80d0a47e06b33aa46dbcc2db5a0e7dfd0b0f80"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-terminal-plan-root-v1/source/evals/meri/live-v1/fixture-provisioning/case12-setup-budget-plan.mjs",
+      "bytes": 5668,
+      "sha256": "1ca0ec48fc645352c78dd7201f80d0a47e06b33aa46dbcc2db5a0e7dfd0b0f80"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/case12-setup-budget-plan.test.mjs",
+      "bytes": 6943,
+      "sha256": "d78d360e2c53c3b83e7e0bc034accb9220465b0320635af3f1a61ba6417cc02d"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-terminal-plan-root-v1/source/evals/meri/live-v1/tests/case12-setup-budget-plan.test.mjs",
+      "bytes": 6943,
+      "sha256": "d78d360e2c53c3b83e7e0bc034accb9220465b0320635af3f1a61ba6417cc02d"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-provider-plan-tests-v1.log",
+      "bytes": 1978,
+      "sha256": "3e5202fa03dad6d1e5db831798fd266ef3e7bba77e0a9dec1664b57bebb31da1"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-provider-plan-tests-v2.log",
+      "bytes": 973,
+      "sha256": "cb0cf140784c31f45afa426a04c0d9582192260bef07fde1afd366846845234b"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-provider-plan-tests-v3.log",
+      "bytes": 974,
+      "sha256": "fc260ba9494e95683451f440cbfc06407cb78b06c2f349c01ed215630f1fc7b3"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/fixture-provisioning/case12-memory-setup.mjs",
+      "bytes": 32721,
+      "sha256": "cbd275e92de26b47ab84b4b9a4ddc0f799186a33943b628f31edab635a9e582e"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/fixture-provisioning/manifest.mjs",
+      "bytes": 20549,
+      "sha256": "8f1276ef0aaaef9b648bb1cbd0a037ee7d11d0a78db9691ab4de70b3b5db667a"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/fixture-provisioning/memory-candidate-owner.mjs",
+      "bytes": 14006,
+      "sha256": "a850e4a8a68641d7118cf7f6e5abda72e64452bde6123d8e13acf5308d6bc9b7"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/lib/stable.mjs",
+      "bytes": 1146,
+      "sha256": "03bba6f6dd1c48bf206ed32c628e1f9ce2038d75a9560d33d044950261f45c23"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/fixture.mjs",
+      "bytes": 17294,
+      "sha256": "8915e19424520a2f97b9cd5a389fcf4b39f2823f0526573ffd04a1dfe0fbc398"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/contract-lock.json",
+      "bytes": 6168,
+      "sha256": "fc2fe9da90938d476e46007782a0b7d4471c1254e2a189180f62e3fbbde8fb6e"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/apps/api/src/meri/meri-case12-setup-budget.ts",
+      "bytes": 15809,
+      "sha256": "785da5e7945f13675b1f64df613792f9541225a9c68236bef372c02d401c96ab"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/apps/api/src/memory/strict-memory-projector.service.ts",
+      "bytes": 11689,
+      "sha256": "29d580fc0bc8c1a40b08a04a79da5200adca823582e750ad313b7b367693bcf2"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/apps/api/src/memory/memory-candidate.service.ts",
+      "bytes": 41455,
+      "sha256": "45c3ebf00a2f42795fb27a299d1a0d028cb6b03dd5f091de7768e920ebbdb46d"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/apps/api/src/embeddings/titan-embedding.provider.ts",
+      "bytes": 7471,
+      "sha256": "288c831794e0afceb8d6ca52780e61738cc55edb0d3a0a706872f3ba71ba0465"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/source-binaries/asset-manifest.json",
+      "bytes": 7757,
+      "sha256": "6512b1ad5f9a154e517e2702f329bc52ab8276ccde9f7a1d2609872c8ea1889d"
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\source-binaries\\D-A-1.pdf",
+      "bytes": 3269,
+      "sha256": "da882da4ae603b15d8b21072a034a2daf302071856743fd842ad3198a003d0fc"
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\source-binaries\\DECK-A-1.pptx",
+      "bytes": 25954,
+      "sha256": "cc12bfaa119ab3d99f210d4f3169a693be269b2d4d98b76fbb42f78aff2cd4bb"
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\source-binaries\\SHEET-A-1.xlsx",
+      "bytes": 6557,
+      "sha256": "debd2c837dbd1c33c329ce8d96f98a702a879c4a4e4829df740fdc6dd58924df"
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\source-binaries\\FILE-B-1-restricted.pdf",
+      "bytes": 1887,
+      "sha256": "161c88788ac2214e3ce4bc0c7627d413331e0ecff721ffb9c73cbeb66ebde6f3"
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\source-binaries\\PDF-PENDING-1.pdf",
+      "bytes": 1899,
+      "sha256": "759ba31674a35f47324cada809abc52c411dd3fd649df36b4b12e91549705bcc"
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\source-binaries\\REPORT-A-v1.pdf",
+      "bytes": 38597,
+      "sha256": "24d2374a09cbb012418bed2dfa562015ef7a200c22f6c3a0ac425e8ceeb487a7"
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\source-binaries\\REPORT-A-v2.pdf",
+      "bytes": 38734,
+      "sha256": "f06ebef24465eb837a4de37964ad0630859323bf34292d9f6dec2a9264f8f848"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-fresh-20261003/fresh-spend.jsonl",
+      "bytes": 17588,
+      "sha256": "816b04a47be56432846d1ee602370c3bea985eb497a7de9e899aee4d53f8b39e"
+    }
+  ],
+  "findings": [],
+  "resolvedDocumentationFinding": {
+    "priorSha256": "b5ea2acfcc4d23af049ad666de13993ce1ddf22561bcb991d3f215cc9c54a811",
+    "finalSha256": "1ca0ec48fc645352c78dd7201f80d0a47e06b33aa46dbcc2db5a0e7dfd0b0f80",
+    "details": "Original no-reads comment was false: resolveCase12SetupRecipe calls buildFixtureManifest/loadAssets and reads verified local fixture asset bytes. Comment now states those reads. Prior byte stream reconstructed by restoring exact two comment lines and verified against supplied original hash; executable AST unchanged, so prior12 tests remain applicable."
+  },
+  "sourceReview": [
+    "Recipe is rebuilt through fixed source definitions and expected actor/client identities; caller-defined rows/body/ceiling are excluded by exact setup-plan/envelope key sets.",
+    "Setup plan hash, fixed manifest hash, ordered candidate definition hash, row count/order, actor scope, prior settings hash and tenant row version bind the planned data; these are data bindings only, not native authority.",
+    "Both request bodies follow actual existing native wire shapes. Canonical item ID is allocated later; only canonical text-producing title/sections participate in Titan body planning. Each510 row gets both exact UTF8 byte lengths/SHA hashes.",
+    "Full8192-per-call bound is calculated using actual native cost/reducer functions and then validated; test prices are synthetic, no live pricing evidence.",
+    "Structured clone avoids retaining mutable caller input; missing native functions reject. Native functions are trusted private planning dependencies, never JSON capability or admission proof."
+  ],
+  "tests": {
+    "rootPassed": 12,
+    "rows": 510,
+    "requestHashes": 1020,
+    "actualNativeProjectionAndReducer": true,
+    "testsRepeatedByReviewer": false,
+    "reason": "No executable delta; source/test/log pins and AST equality verified instead of redundant rerun."
+  },
+  "limitations": [
+    "No actual configured Hermes session specifically for this small planner; this is independent local source/pin/AST review. The concurrent Hermes pgvector review did not cover this later module.",
+    "Planner reads verified frozen local fixture assets via recipe construction. It does not perform database calls, writes, provider calls or native journal reservations.",
+    "Real admission must independently bind current canonical setup plan, authenticated rates/image/source and exact same-journal hold; output JSON and supplied native callbacks grant no setup/provider/fixture/capture authority.",
+    "Does not qualify production DI/RLS, whole510 actual approvals/providers, native terminal settlement, deployment or C2 acceptance.",
+    "First planner launcher failure retained; source/test evidence not rewritten. No repo/cloud/DB/provider/journal mutations by reviewer."
+  ]
+}

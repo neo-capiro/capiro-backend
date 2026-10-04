@@ -1,0 +1,16 @@
+{
+  "kind": "case12-actual-factory-qualification-checkpoint",
+  "status": "SETUP_PASS_HYDRATION_DEFAULT_TIMEOUT_FAIL",
+  "qualification": {
+    "path": "C:/dev/main/outputs/meri-c2-20261003/case12-actual-factory-owner-local-v1/final-checkpoint-v1/qualification.json",
+    "sha256": "cdde6449ad1fc3d0e49c1cce49d2b6cfd55c9bbaebaa2634e636ed16900616e6"
+  },
+  "manifest": {
+    "path": "C:/dev/main/outputs/meri-c2-20261003/case12-actual-factory-owner-local-v1/final-checkpoint-v1/manifest.json",
+    "sha256": "bf62215f83e5e9f19f0898862f20e78d7f7e6d5ae075bba53f5dfafed4d435a6"
+  },
+  "pinCount": 320,
+  "privateExcludedCount": 1,
+  "captureAuthority": false,
+  "liveAcceptance": "NOT_RUN"
+}

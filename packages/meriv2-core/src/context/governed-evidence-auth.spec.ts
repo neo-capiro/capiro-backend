@@ -212,7 +212,7 @@ describe('qualified fixture semantic clock transport', () => {
   const instant = '2026-09-26T16:00:00.000Z';
   const timeZone = 'America/New_York';
   const run = '11111111-1111-4111-8111-111111111111';
-  function fixture(caseId: '01' | '14' | '20' | '72' = '01') {
+  function fixture(caseId: '01' | '12' | '14' | '20' | '72' = '01') {
     const c = context();
     c.semanticClock = { version: 1, kind: 'qualified_original_fixture_semantic_clock',
       instant, timeZone, caseId, captureRunId: run,
@@ -232,6 +232,13 @@ describe('qualified fixture semantic clock transport', () => {
   it.each(['01', '14', '20', '72'] as const)('keeps case %s within existing readonly authority', (caseId) => {
     expect(() => verify(fixture(caseId))).not.toThrow();
   });
+
+  function case12(){ const c=fixture('12'),p=c.serverReadonlyCapturePolicy!;
+    p.resetReceiptId=null;p.seedReceiptId=null;
+    p.case12Setup={setupRunId:'22222222-2222-4222-8222-222222222222',fixtureInstanceId:'33333333-3333-4333-8333-333333333333',setupPlanSha256:'a'.repeat(64),setupClaimSha256:'b'.repeat(64),setupLedgerSha256:'c'.repeat(64)};return c; }
+  it('authenticates Case12 clock only with its own setup identity shape',()=>{expect(()=>verify(case12())).not.toThrow();const c=case12();delete c.serverReadonlyCapturePolicy!.case12Setup;expect(()=>verify(c)).toThrow('case12_setup_binding');});
+  it.each(['setupRunId','fixtureInstanceId','setupPlanSha256','setupClaimSha256','setupLedgerSha256'] as const)('rejects Case12 %s tampering after authentication',key=>{const c=case12(),signed=attestMeriGovernedContext(c,binding,secret,now);signed.serverReadonlyCapturePolicy!.case12Setup![key]=key==='setupRunId'||key==='fixtureInstanceId'?'99999999-9999-4999-8999-999999999999':'f'.repeat(64);expect(()=>verifyMeriGovernedContext(signed,binding,actor,secret,now)).toThrow('authentication_failed');});
+  it.each(['setupRunId','fixtureInstanceId','setupPlanSha256','setupClaimSha256','setupLedgerSha256'] as const)('rejects authenticated malformed Case12 %s',key=>{const c=case12();c.serverReadonlyCapturePolicy!.case12Setup![key]=['a'.repeat(64)] as never;expect(()=>verify(c)).toThrow('case12_setup_binding');});
   it('keeps case46 on its separate governed artifact authority and current proof', () => {
     const c = fixture();
     delete c.serverReadonlyCapturePolicy;
@@ -273,7 +280,7 @@ describe('qualified fixture semantic clock transport', () => {
       if (change === 'compiler-missing') delete (c.contextPacket as any).clockUse;
       if (change === 'compiler-mismatch') (c.contextPacket as any).clockUse.instant = '2026-09-27T16:00:00.000Z';
       if (change === 'arbitrary-date') (c.semanticClock as any).instant = '2020-01-01T00:00:00.000Z';
-      if (change === 'closed-case') c.serverReadonlyCapturePolicy!.caseId = '12';
+      if (change === 'closed-case') c.serverReadonlyCapturePolicy!.caseId = '21';
       expect(() => verify(c)).toThrow();
     },
   );

@@ -1,3 +1,4 @@
+jest.mock('./meri-case12-capture-authority.js',()=>({assertMeriCase12BindingInTx:jest.fn()}));
 import { createHash } from 'node:crypto';
 import { EventEmitter } from 'node:events';
 import type { Request } from 'express';
@@ -35,7 +36,7 @@ const text = 'The approved client constraint is to retain the existing launch da
 const sourceVersion = `candidate:${id(5)}`;
 type Method = 'searchMemory' | 'readGovernedMemorySource';
 
-function policy(caseId: '01' | '14'): MeriServerReadonlyCapturePolicy {
+function policy(caseId: '01' | '12' | '14'): MeriServerReadonlyCapturePolicy {
   const issuedAt = Date.now();
   return {
     version: 1,
@@ -48,8 +49,9 @@ function policy(caseId: '01' | '14'): MeriServerReadonlyCapturePolicy {
     captureRunId: id(9),
     fixtureVersion: 'meri-live-v1-2026-09-26.1',
     physicalMapSha256: 'a'.repeat(64),
-    resetReceiptId: id(5),
-    seedReceiptId: id(6),
+    resetReceiptId: caseId==='12'?null:id(5),
+    seedReceiptId: caseId==='12'?null:id(6),
+    ...(caseId==='12'?{case12Setup:{setupRunId:id(6),fixtureInstanceId:id(8),setupPlanSha256:'a'.repeat(64),setupClaimSha256:'b'.repeat(64),setupLedgerSha256:'c'.repeat(64)}}:{}),
     fixtureNamespace: 'meri-foundation-20260928',
     tenantId: ctx.tenantId,
     tenantSlug: 'meri-foundation-20260928-t1',
@@ -160,7 +162,7 @@ describe('Meri memory tool canonical capture source proof', () => {
   });
 
   describe.each<Method>(['searchMemory', 'readGovernedMemorySource'])('%s', method => {
-    it.each(['01', '14'] as const)('signs the actual projected canonical record for case %s', async caseId => {
+    it.each(['01', '12', '14'] as const)('signs the actual projected canonical record for case %s', async caseId => {
       const capture = policy(caseId);
       const input = inputFor(method);
       const { req, binding } = request(input, capture);

@@ -159,6 +159,75 @@ export class MemoryAuthorizationService {
     return decision;
   }
 
+  /** Private Case12 set read. Reuses the scalar subject normalization and
+   * authorization policy; only shared database reads are coalesced. No cached
+   * decision, write, nested transaction, or authority is returned. */
+  async readCase12ItemsWithDecisionsInTx(
+    tx: Prisma.TransactionClient,
+    suppliedContext: Pick<TenantContext, 'tenantId' | 'userId' | 'role'>,
+    request: {clientId: string; itemIds: readonly string[]},
+  ): Promise<Array<{subject: GovernedMemorySubjectRow; decision: MemoryAuthorizationDecision}>> {
+    const ctx = {...suppliedContext};
+    const clientId = request?.clientId;
+    const ids = Array.isArray(request?.itemIds) ? [...request.itemIds] : [];
+    const uuid = (v: unknown): v is string => typeof v === 'string' &&
+      /^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/iu.test(v);
+    if (ctx.tenantId !== 'f2d6cf8f-057c-479a-8110-62fe5086d43f' ||
+        ctx.role !== 'standard_user' || !uuid(ctx.userId) || !uuid(clientId) ||
+        ids.length !== 510 || ids.some(id => !uuid(id)) || new Set(ids).size !== ids.length)
+      throw new ForbiddenException('Case12 current authorization set scope invalid');
+    const rows = await tx.$queryRaw<Array<GovernedMemorySubjectRow>>(Prisma.sql`
+      SELECT mi.id::text AS id,
+             mi.tenant_id::text AS "tenantId",
+             mi.client_id::text AS "clientId",
+             mi.owner_user_id::text AS "ownerUserId",
+             mi.memory_class AS "memoryClass",
+             mi.memory_scope AS scope,
+             mi.governed_status AS status,
+             mi.legal_hold AS "legalHold",
+             c.status AS "clientStatus"
+      FROM memory_items mi
+      JOIN clients c ON c.id = mi.client_id AND c.tenant_id = mi.tenant_id
+      WHERE mi.tenant_id = ${ctx.tenantId}::uuid AND mi.client_id = ${clientId}::uuid
+        AND mi.id = ANY(${ids}::uuid[])
+      ORDER BY mi.id FOR SHARE OF mi,c
+    `);
+    const byId = new Map(rows.map(row => [row.id, row]));
+    if (rows.length !== ids.length || byId.size !== ids.length || ids.some(id => !byId.has(id)))
+      throw new ForbiddenException('Case12 current authorization item set missing');
+    // Hold exactly the same access rows as the native approved-memory guard.
+    // Their absence remains an absence; this does not claim phantom protection.
+    await tx.$queryRaw`SELECT user_id FROM client_memory_access
+      WHERE tenant_id=${ctx.tenantId}::uuid AND client_id=${clientId}::uuid
+        AND user_id=${ctx.userId}::uuid FOR SHARE`;
+    await tx.$queryRaw`SELECT id FROM memory_access_grant
+      WHERE tenant_id=${ctx.tenantId}::uuid AND client_id=${clientId}::uuid
+        AND user_id=${ctx.userId}::uuid FOR SHARE`;
+    const ethicalWallAllowed = await clientMemoryAllowed(tx,ctx.tenantId,ctx.userId,clientId);
+    const grants = await tx.$queryRaw<Array<{permissions: string[]}>>(Prisma.sql`
+      SELECT permissions
+      FROM memory_access_grant
+      WHERE tenant_id = ${ctx.tenantId}::uuid
+        AND client_id = ${clientId}::uuid
+        AND user_id = ${ctx.userId}::uuid
+        AND status = 'active'
+        AND expires_at IS NOT NULL
+        AND expires_at > now()
+        AND reason IS NOT NULL
+        AND btrim(reason) <> ''
+      ORDER BY created_at DESC
+      LIMIT 1
+    `);
+    const grantPermissions = grants[0]?.permissions ?? [];
+    return ids.map(id => {
+      const subject = normalizeSubject(byId.get(id))!;
+      return {subject,decision:evaluateGovernedMemoryAuthorization({
+        userId:ctx.userId,role:ctx.role,operation:'read',subject,
+        ethicalWallAllowed,clientStatus:subject.clientStatus,grantPermissions,
+      })};
+    });
+  }
+
   async loadItemInTx(
     tx: Prisma.TransactionClient,
     tenantId: string,

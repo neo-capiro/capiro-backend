@@ -1,0 +1,9 @@
+{
+  "kind": "case12-provider-rows-root-integration",
+  "recordedAt": "2026-10-04T12:31:52.109919+00:00",
+  "path": "evals/meri/live-v1/fixture-provisioning/case12-setup-budget-plan.mjs",
+  "beforeSha256": "1ca0ec48fc645352c78dd7201f80d0a47e06b33aa46dbcc2db5a0e7dfd0b0f80",
+  "afterSha256": "9b524b043c0bbb185d70f5e16393ab3e98ddcee1e5aa086619e32068cac5d28a",
+  "compiledApiChange": false,
+  "priorNativeRuntimeSnapshotsPreserved": true
+}

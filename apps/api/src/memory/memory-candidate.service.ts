@@ -1,4 +1,10 @@
 import {
+  case12SetupProviderScopeActive,
+  reserveCase12SetupProviderAttempt,
+  settleCase12SetupProviderAttempt,
+} from '../meri/meri-case12-setup-provider-scope.js';
+import { captureApiProviderScopeActive } from '../meri/meri-capture-api-provider-scope.js';
+import {
   Injectable,
   Logger,
   NotFoundException,
@@ -927,19 +933,65 @@ export class MemoryCandidateService {
     requireSettlement = false,
   ): Promise<void> {
     const openaiKey = this.config.get('OPENAI_API_KEY', { infer: true });
-    if (!openaiKey) return;
-    const res = await fetch('https://api.openai.com/v1/embeddings', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${openaiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'text-embedding-3-small', input: `${key}: ${value}` }),
-      // The optional legacy Clio vector is not institutional-index authority.
-      // A guarded fixture caller nevertheless must not hang on this side branch.
-      ...(requireSettlement ? { signal: AbortSignal.timeout(20_000) } : {}),
-    });
-    if (!res.ok) return;
-    const json = (await res.json()) as { data?: Array<{ embedding?: number[] }> };
-    const embedding = json.data?.[0]?.embedding;
-    if (!embedding || embedding.length !== 1536) return;
+    const setup = case12SetupProviderScopeActive();
+    if (setup && captureApiProviderScopeActive())
+      throw new Error('meri_case12_setup_provider_capture_overlap');
+    if (!openaiKey) {
+      if (setup) throw new Error('meri_case12_setup_provider_openai_configuration_missing');
+      return;
+    }
+    const body = JSON.stringify({ model: 'text-embedding-3-small', input: `${key}: ${value}` });
+    const reservation = setup
+      ? await reserveCase12SetupProviderAttempt({
+          kind: 'openai_embeddings',
+          provider: 'openai',
+          model: 'text-embedding-3-small',
+          endpoint: 'https://api.openai.com/v1/embeddings',
+          body,
+        })
+      : null;
+    let embedding: number[] | undefined;
+    let outcome: { kind: 'known'; inputTokens: number; outputTokens: 0 } | { kind: 'uncertain' } = {
+      kind: 'uncertain',
+    };
+    try {
+      const res = await fetch('https://api.openai.com/v1/embeddings', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${openaiKey}`, 'Content-Type': 'application/json' },
+        body,
+        // The optional legacy Clio vector is not institutional-index authority.
+        // A guarded fixture caller nevertheless must not hang on this side branch.
+        ...(requireSettlement || setup ? { signal: AbortSignal.timeout(20_000) } : {}),
+        ...(setup ? { redirect: 'error' as const } : {}),
+      });
+      if (!res.ok) {
+        if (setup) throw new Error('meri_case12_setup_provider_openai_http_failed');
+        return;
+      }
+      const json = (await res.json()) as {
+        data?: Array<{ embedding?: number[] }>;
+        usage?: { prompt_tokens?: number; total_tokens?: number };
+      };
+      embedding = json.data?.[0]?.embedding;
+      if (
+        !embedding ||
+        embedding.length !== 1536 ||
+        (setup && (!Array.isArray(embedding) || embedding.some((v) => !Number.isFinite(v))))
+      ) {
+        if (setup) throw new Error('meri_case12_setup_provider_openai_vector_invalid');
+        return;
+      }
+      if (
+        Number.isSafeInteger(json.usage?.prompt_tokens) &&
+        json.usage!.prompt_tokens! >= 0 &&
+        json.usage!.prompt_tokens === json.usage!.total_tokens
+      )
+        outcome = { kind: 'known', inputTokens: json.usage!.prompt_tokens!, outputTokens: 0 };
+    } catch (error) {
+      if (setup) await settleCase12SetupProviderAttempt(reservation, { kind: 'uncertain' });
+      throw error;
+    }
+    if (setup) await settleCase12SetupProviderAttempt(reservation, outcome);
     const vecStr = `[${embedding.join(',')}]`;
     await this.prisma.withTenant(tenantId, (tx) =>
       tx.$executeRawUnsafe(

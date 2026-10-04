@@ -1,0 +1,308 @@
+{
+  "at": "2026-10-04T12:09:34.389323+00:00",
+  "status": "PASS_SOURCE_COMPOSITION_WITH_RUNTIME_GATES",
+  "inputManifestSha256": "aab642b4074ecf305e7d247744fef74f6c9fab63bd4ca48f90f700c8db21331a",
+  "actualHermes": {
+    "exitCode": 0,
+    "sessionId": "20261004_080501_2b8a9a",
+    "model": "openai/gpt-6-luna",
+    "provider": "openrouter",
+    "reviewSha256": "80fca1221f0e1b08fa40bea320ffe3a85557bb7f9033327205e4df917aeb1528",
+    "estimatedDevelopmentCostUsd": 0.016196265,
+    "overrides": null
+  },
+  "independentFindings": [],
+  "independentSourceFacts": [
+    "Explicit execute only, exact compact environment shape, recipe validation before zero-argument canonical factory import; caller fullplan/serialized capability and injected ports absent.",
+    "Fresh read-only inspection and deterministic510 provider plan join held native input hashes; compiled native one-use admission is consumed within same supplied transaction as budget/claim CAS before any row provider scope.",
+    "Per-row native current scope, exact candidate/request payloads and terminal proof inspector use compiled graph; final actual current-corpus/completion verifies510 rows1020 settled attempts0 pending and exact setup binding.",
+    "Failure, uncertain close and terminal output acknowledgment produce nonzero fixed error code; durable records remain authority, pipe progress is not receipt. Successful terminal emitted afterclose, hashes exact prehash JSON and explicitly grants no capture/aggregate settlement/human/live acceptance.",
+    "New entrypoint verb explicit only; Docker scripts/dist/MJS destinations match helper fixed paths. Eight actual negative-ingress process tests prove their invalid forms fail beforefactory/compiled-native import; no positive runtime inference."
+  ],
+  "evidence": {
+    "helperSha256": "f2d96171f23e4e3b4fb9bafb0a88a7400abc91a583c2cf7107ab2ee161947d6c",
+    "entrypointSha256": "df77c23ec4ec7e092ca27aba3f034be55eaf35b443092ce905fd2f1477ecb7ab",
+    "rootActualNegativeIngressProcesses": 8,
+    "positiveHelperRuntime": "NOT_RUN",
+    "captureAuthority": false
+  },
+  "limitations": [
+    "Positive compiled factory/helper admission/CAS rollback and whole setup hydration/completion/capture/provider ALS graph still need actual runtime proof.",
+    "Actual ECS/IAM task qualification remains absent; root subsequently reported implicit denial in current-role preflight and is preparing an unactivated remedy, not covered by source PASS.",
+    "Fixed Windows native release/sourceManifest64/Git40/ECR/template/rates/cost hold/census and dispatch-byte/registration/task acknowledgment authentication remain required.",
+    "No root-held journal settlement, live setup/capture or human acceptance is authorized by source review."
+  ],
+  "currentOriginalDrift": [],
+  "checks": [
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-helper-independent-input-v1\\manifest.json",
+      "sha256": "aab642b4074ecf305e7d247744fef74f6c9fab63bd4ca48f90f700c8db21331a",
+      "bytes": 5228
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-helper-independent-input-v1\\source\\meri-case12-setup-native.mjs",
+      "sha256": "f2d96171f23e4e3b4fb9bafb0a88a7400abc91a583c2cf7107ab2ee161947d6c",
+      "bytes": 6755
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-helper-independent-hermes-v1\\evidence\\source\\meri-case12-setup-native.mjs",
+      "sha256": "f2d96171f23e4e3b4fb9bafb0a88a7400abc91a583c2cf7107ab2ee161947d6c",
+      "bytes": 6755
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\apps\\api\\scripts\\meri-case12-setup-native.mjs",
+      "sha256": "f2d96171f23e4e3b4fb9bafb0a88a7400abc91a583c2cf7107ab2ee161947d6c",
+      "bytes": 6755
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-helper-independent-input-v1\\source\\entrypoint.sh",
+      "sha256": "df77c23ec4ec7e092ca27aba3f034be55eaf35b443092ce905fd2f1477ecb7ab",
+      "bytes": 17305
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-helper-independent-hermes-v1\\evidence\\source\\entrypoint.sh",
+      "sha256": "df77c23ec4ec7e092ca27aba3f034be55eaf35b443092ce905fd2f1477ecb7ab",
+      "bytes": 17305
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\apps\\api\\scripts\\entrypoint.sh",
+      "sha256": "df77c23ec4ec7e092ca27aba3f034be55eaf35b443092ce905fd2f1477ecb7ab",
+      "bytes": 17305
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-helper-independent-input-v1\\tests\\ingress.test.mjs",
+      "sha256": "9cfc118633cb52df9e99f9d6abc56d456daa5f6f63370dc0fc2818ba47578f6a",
+      "bytes": 1924
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-helper-independent-hermes-v1\\evidence\\tests\\ingress.test.mjs",
+      "sha256": "9cfc118633cb52df9e99f9d6abc56d456daa5f6f63370dc0fc2818ba47578f6a",
+      "bytes": 1924
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-helper-ingress.test.mjs",
+      "sha256": "9cfc118633cb52df9e99f9d6abc56d456daa5f6f63370dc0fc2818ba47578f6a",
+      "bytes": 1924
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-helper-independent-input-v1\\tests\\ingress.log",
+      "sha256": "f6ad574edc8b2efef83ffed3d28ca5c312587c93076463fa9bd360001c0eca53",
+      "bytes": 880
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-helper-independent-hermes-v1\\evidence\\tests\\ingress.log",
+      "sha256": "f6ad574edc8b2efef83ffed3d28ca5c312587c93076463fa9bd360001c0eca53",
+      "bytes": 880
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-helper-ingress-v1.log",
+      "sha256": "f6ad574edc8b2efef83ffed3d28ca5c312587c93076463fa9bd360001c0eca53",
+      "bytes": 880
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-helper-independent-input-v1\\dependencies\\apps\\api\\scripts\\meri-case01-setup-dependencies.mjs",
+      "sha256": "18905be36fa4c2873485379ebbebaaefdc23d336afe73cc8d8e4998fcbcd1778",
+      "bytes": 11048
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-helper-independent-hermes-v1\\evidence\\dependencies\\apps\\api\\scripts\\meri-case01-setup-dependencies.mjs",
+      "sha256": "18905be36fa4c2873485379ebbebaaefdc23d336afe73cc8d8e4998fcbcd1778",
+      "bytes": 11048
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\apps\\api\\scripts\\meri-case01-setup-dependencies.mjs",
+      "sha256": "18905be36fa4c2873485379ebbebaaefdc23d336afe73cc8d8e4998fcbcd1778",
+      "bytes": 11048
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-helper-independent-input-v1\\dependencies\\apps\\api\\Dockerfile",
+      "sha256": "911845ea4ad62fe8fadaeab26a1ff9f82e8e7c641c697303793bed4d31d71515",
+      "bytes": 12944
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-helper-independent-hermes-v1\\evidence\\dependencies\\apps\\api\\Dockerfile",
+      "sha256": "911845ea4ad62fe8fadaeab26a1ff9f82e8e7c641c697303793bed4d31d71515",
+      "bytes": 12944
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\apps\\api\\Dockerfile",
+      "sha256": "911845ea4ad62fe8fadaeab26a1ff9f82e8e7c641c697303793bed4d31d71515",
+      "bytes": 12944
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-helper-independent-input-v1\\dependencies\\apps\\api\\src\\meri\\meri-case12-native-setup-admission.ts",
+      "sha256": "28efbc49a0e23006adedb7a4bfb14edb9088ac7d476076c5630065f81a5a0b23",
+      "bytes": 11682
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-helper-independent-hermes-v1\\evidence\\dependencies\\apps\\api\\src\\meri\\meri-case12-native-setup-admission.ts",
+      "sha256": "28efbc49a0e23006adedb7a4bfb14edb9088ac7d476076c5630065f81a5a0b23",
+      "bytes": 11682
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\apps\\api\\src\\meri\\meri-case12-native-setup-admission.ts",
+      "sha256": "28efbc49a0e23006adedb7a4bfb14edb9088ac7d476076c5630065f81a5a0b23",
+      "bytes": 11682
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-helper-independent-input-v1\\dependencies\\apps\\api\\src\\meri\\meri-case12-setup-budget.ts",
+      "sha256": "785da5e7945f13675b1f64df613792f9541225a9c68236bef372c02d401c96ab",
+      "bytes": 15809
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-helper-independent-hermes-v1\\evidence\\dependencies\\apps\\api\\src\\meri\\meri-case12-setup-budget.ts",
+      "sha256": "785da5e7945f13675b1f64df613792f9541225a9c68236bef372c02d401c96ab",
+      "bytes": 15809
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\apps\\api\\src\\meri\\meri-case12-setup-budget.ts",
+      "sha256": "785da5e7945f13675b1f64df613792f9541225a9c68236bef372c02d401c96ab",
+      "bytes": 15809
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-helper-independent-input-v1\\dependencies\\apps\\api\\src\\meri\\meri-case12-setup-budget-owner.ts",
+      "sha256": "46f4fb5ca4426bf74bf5e759bd40e2621e8582a873f2e460c024847d97f088a8",
+      "bytes": 26065
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-helper-independent-hermes-v1\\evidence\\dependencies\\apps\\api\\src\\meri\\meri-case12-setup-budget-owner.ts",
+      "sha256": "46f4fb5ca4426bf74bf5e759bd40e2621e8582a873f2e460c024847d97f088a8",
+      "bytes": 26065
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\apps\\api\\src\\meri\\meri-case12-setup-budget-owner.ts",
+      "sha256": "46f4fb5ca4426bf74bf5e759bd40e2621e8582a873f2e460c024847d97f088a8",
+      "bytes": 26065
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-helper-independent-input-v1\\dependencies\\apps\\api\\src\\memory\\case12-setup-terminal.read.ts",
+      "sha256": "5f3894aacd7a10cdc4bbd5d23617088bc5c5c20b2f9ae0602b394d24e48bfcbc",
+      "bytes": 11615
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-helper-independent-hermes-v1\\evidence\\dependencies\\apps\\api\\src\\memory\\case12-setup-terminal.read.ts",
+      "sha256": "5f3894aacd7a10cdc4bbd5d23617088bc5c5c20b2f9ae0602b394d24e48bfcbc",
+      "bytes": 11615
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\apps\\api\\src\\memory\\case12-setup-terminal.read.ts",
+      "sha256": "5f3894aacd7a10cdc4bbd5d23617088bc5c5c20b2f9ae0602b394d24e48bfcbc",
+      "bytes": 11615
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-helper-independent-input-v1\\dependencies\\apps\\api\\src\\meri\\meri-case12-capture-authority.ts",
+      "sha256": "e2ec157afc0d2910055049044ce8fcd462da907949b2be36be109f9f03178cc1",
+      "bytes": 9285
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-helper-independent-hermes-v1\\evidence\\dependencies\\apps\\api\\src\\meri\\meri-case12-capture-authority.ts",
+      "sha256": "e2ec157afc0d2910055049044ce8fcd462da907949b2be36be109f9f03178cc1",
+      "bytes": 9285
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\apps\\api\\src\\meri\\meri-case12-capture-authority.ts",
+      "sha256": "e2ec157afc0d2910055049044ce8fcd462da907949b2be36be109f9f03178cc1",
+      "bytes": 9285
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-helper-independent-input-v1\\dependencies\\apps\\api\\src\\meri\\meri-case12-setup-completion.read.ts",
+      "sha256": "88381c1dbe356e106b537340218278c10eb6542f8bce7ea81b1215d2707560cc",
+      "bytes": 6725
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-helper-independent-hermes-v1\\evidence\\dependencies\\apps\\api\\src\\meri\\meri-case12-setup-completion.read.ts",
+      "sha256": "88381c1dbe356e106b537340218278c10eb6542f8bce7ea81b1215d2707560cc",
+      "bytes": 6725
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\apps\\api\\src\\meri\\meri-case12-setup-completion.read.ts",
+      "sha256": "88381c1dbe356e106b537340218278c10eb6542f8bce7ea81b1215d2707560cc",
+      "bytes": 6725
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-helper-independent-input-v1\\dependencies\\evals\\meri\\live-v1\\fixture-provisioning\\case12-memory-setup.mjs",
+      "sha256": "81ff660984df31d841f551d559eefde8af67ba1bd0d12dca3fc1ca128c5c0a31",
+      "bytes": 36481
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-helper-independent-hermes-v1\\evidence\\dependencies\\evals\\meri\\live-v1\\fixture-provisioning\\case12-memory-setup.mjs",
+      "sha256": "81ff660984df31d841f551d559eefde8af67ba1bd0d12dca3fc1ca128c5c0a31",
+      "bytes": 36481
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\fixture-provisioning\\case12-memory-setup.mjs",
+      "sha256": "81ff660984df31d841f551d559eefde8af67ba1bd0d12dca3fc1ca128c5c0a31",
+      "bytes": 36481
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-helper-independent-input-v1\\dependencies\\evals\\meri\\live-v1\\fixture-provisioning\\case12-setup-budget-plan.mjs",
+      "sha256": "1ca0ec48fc645352c78dd7201f80d0a47e06b33aa46dbcc2db5a0e7dfd0b0f80",
+      "bytes": 5668
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-helper-independent-hermes-v1\\evidence\\dependencies\\evals\\meri\\live-v1\\fixture-provisioning\\case12-setup-budget-plan.mjs",
+      "sha256": "1ca0ec48fc645352c78dd7201f80d0a47e06b33aa46dbcc2db5a0e7dfd0b0f80",
+      "bytes": 5668
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\fixture-provisioning\\case12-setup-budget-plan.mjs",
+      "sha256": "1ca0ec48fc645352c78dd7201f80d0a47e06b33aa46dbcc2db5a0e7dfd0b0f80",
+      "bytes": 5668
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-helper-independent-input-v1\\prior-review\\case12-native-admission-independent-hermes-v1.json",
+      "sha256": "507656899b303ed5cd47827d3865c10c63883df6179c9a71379f7b5e27f18ec8",
+      "bytes": 12491
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-helper-independent-hermes-v1\\evidence\\prior-review\\case12-native-admission-independent-hermes-v1.json",
+      "sha256": "507656899b303ed5cd47827d3865c10c63883df6179c9a71379f7b5e27f18ec8",
+      "bytes": 12491
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-admission-independent-hermes-v1\\independent-assessment.json",
+      "sha256": "507656899b303ed5cd47827d3865c10c63883df6179c9a71379f7b5e27f18ec8",
+      "bytes": 12491
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-helper-independent-input-v1\\prior-review\\case12-batch-independent-hermes-v1.json",
+      "sha256": "913033686809d94bbad87896ebabef4ba4610d9c2844bc347fde5e6afbbf453d",
+      "bytes": 168946
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-helper-independent-hermes-v1\\evidence\\prior-review\\case12-batch-independent-hermes-v1.json",
+      "sha256": "913033686809d94bbad87896ebabef4ba4610d9c2844bc347fde5e6afbbf453d",
+      "bytes": 168946
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-batch-independent-hermes-v1\\independent-assessment.json",
+      "sha256": "913033686809d94bbad87896ebabef4ba4610d9c2844bc347fde5e6afbbf453d",
+      "bytes": 168946
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-helper-independent-hermes-v1\\prompt.txt",
+      "sha256": "b888e3234a4f2f7f9f7b8f3e34206ed2ffdcf023764b4f2c991e60a465b8643d",
+      "bytes": 1936
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-helper-independent-hermes-v1\\response.txt",
+      "sha256": "48666de95ea4ff7eccfa0f5a3270e0a1991a53309a450ab9378937778a6dafbb",
+      "bytes": 418
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-helper-independent-hermes-v1\\review.md",
+      "sha256": "80fca1221f0e1b08fa40bea320ffe3a85557bb7f9033327205e4df917aeb1528",
+      "bytes": 8149
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-helper-independent-hermes-v1\\stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-helper-independent-hermes-v1\\usage.json",
+      "sha256": "123dda9138559946c947239dc6b5035662f2a66b9164062ec42a30cfba3855a3",
+      "bytes": 475
+    }
+  ]
+}

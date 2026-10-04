@@ -1,0 +1,38 @@
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+PASS src/meri/meri-case12-native-setup-admission.spec.ts (23.301 s)
+  √ fixed native reads bind self/input/image/config before one locked durable consume (72 ms)
+  √ metadata-host fails before any durable consume (26 ms)
+  √ metadata-task fails before any durable consume (17 ms)
+  √ metadata-image fails before any durable consume (20 ms)
+  √ foreign-cluster fails before any durable consume (21 ms)
+  √ service fails before any durable consume (25 ms)
+  √ restart fails before any durable consume (25 ms)
+  √ wrong-startedBy fails before any durable consume (17 ms)
+  √ wrong-image fails before any durable consume (23 ms)
+  √ wrong-definition fails before any durable consume (18 ms)
+  √ changed-env fails before any durable consume (26 ms)
+  √ changed-command fails before any durable consume (18 ms)
+  √ missing-tag fails before any durable consume (18 ms)
+  √ not-running fails before any durable consume (16 ms)
+  √ wrong-plan fails before any durable consume (18 ms)
+  √ existing-claim consumes handle once and cannot retry a failed native admission (17 ms)
+  √ expired consumes handle once and cannot retry a failed native admission (25 ms)
+  √ changed-binding consumes handle once and cannot retry a failed native admission (21 ms)
+  √ lost-cas-readback consumes handle once and cannot retry a failed native admission (14 ms)
+  √ array-valued postHoldCheckpointSha256 is rejected before metadata or AWS reads (18 ms)
+  √ array-valued costAuthoritySha256 is rejected before metadata or AWS reads (16 ms)
+  √ array-valued preHoldCheckpointSha256 is rejected before metadata or AWS reads (14 ms)
+  √ array-valued providerPlanSha256 is rejected before metadata or AWS reads (17 ms)
+  √ array-valued taskDefinitionSha256 is rejected before metadata or AWS reads (14 ms)
+  √ array-valued setupPlanSha256 is rejected before metadata or AWS reads (18 ms)
+  √ array-valued releaseGitRevision is rejected before metadata or AWS reads (14 ms)
+  √ array-valued startedBy is rejected before metadata or AWS reads (20 ms)
+  √ array-valued registrationMarker is rejected before metadata or AWS reads (13 ms)
+  √ array-valued taskDefinitionArn is rejected before metadata or AWS reads (12 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       29 passed, 29 total
+Snapshots:   0 total
+Time:        23.55 s, estimated 28 s
+Ran all test suites within paths "src/meri/meri-case12-native-setup-admission.spec.ts".

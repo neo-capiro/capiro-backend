@@ -1,0 +1,586 @@
+{
+  "status": "PASS_RESTORED_LOCAL_DIFFERENTIAL_AND_CURRENT_OWNER",
+  "checks": [
+    {
+      "name": "all510-scalar-parity",
+      "auditsSha256": "b1c994b3f248172f597c02da34f5e5caf925ce9a09edd685038d4bbf0bdc1fb8",
+      "decisionsSha256": "1d1880784df98adf61d195d36e2039cd36fd56a85a9b43dd7533128bcb02cff4"
+    },
+    {
+      "name": "candidate-owner",
+      "scalar": "DENY",
+      "set": "DENY"
+    },
+    {
+      "name": "candidate-reviewer",
+      "scalar": "DENY",
+      "set": "DENY"
+    },
+    {
+      "name": "candidate-status",
+      "scalar": "DENY",
+      "set": "DENY"
+    },
+    {
+      "name": "candidate-governed",
+      "scalar": "DENY",
+      "set": "DENY"
+    },
+    {
+      "name": "candidate-source",
+      "scalar": "DENY",
+      "set": "DENY"
+    },
+    {
+      "name": "candidate-marker",
+      "scalar": "DENY",
+      "set": "DENY"
+    },
+    {
+      "name": "candidate-decision",
+      "scalar": "DENY",
+      "set": "DENY"
+    },
+    {
+      "name": "candidate-hold",
+      "scalar": "DENY",
+      "set": "DENY"
+    },
+    {
+      "name": "candidate-instructions",
+      "scalar": "DENY",
+      "set": "DENY"
+    },
+    {
+      "name": "candidate-confidence",
+      "scalar": "DENY",
+      "set": "DENY"
+    },
+    {
+      "name": "candidate-revision",
+      "scalar": "DENY",
+      "set": "DENY"
+    },
+    {
+      "name": "candidate-conflict",
+      "scalar": "DENY",
+      "set": "DENY"
+    },
+    {
+      "name": "candidate-retention",
+      "scalar": "DENY",
+      "set": "DENY"
+    },
+    {
+      "name": "candidate-expiry",
+      "scalar": "DENY",
+      "set": "DENY"
+    },
+    {
+      "name": "candidate-payload",
+      "scalar": "DENY",
+      "set": "DENY"
+    },
+    {
+      "name": "candidate-provenance",
+      "scalar": "DENY",
+      "set": "DENY"
+    },
+    {
+      "name": "item-title",
+      "scalar": "DENY",
+      "set": "DENY"
+    },
+    {
+      "name": "item-body",
+      "scalar": "DENY",
+      "set": "DENY"
+    },
+    {
+      "name": "item-hash",
+      "scalar": "DENY",
+      "set": "DENY"
+    },
+    {
+      "name": "item-lifecycle",
+      "scalar": "DENY",
+      "set": "DENY"
+    },
+    {
+      "name": "item-review-state",
+      "scalar": "DENY",
+      "set": "DENY"
+    },
+    {
+      "name": "item-confirmation",
+      "scalar": "DENY",
+      "set": "DENY"
+    },
+    {
+      "name": "item-sensitivity",
+      "scalar": "DENY",
+      "set": "DENY"
+    },
+    {
+      "name": "item-schema",
+      "scalar": "DENY",
+      "set": "DENY"
+    },
+    {
+      "name": "item-aliases",
+      "scalar": "DENY",
+      "set": "DENY"
+    },
+    {
+      "name": "item-tags",
+      "scalar": "DENY",
+      "set": "DENY"
+    },
+    {
+      "name": "item-valid-until",
+      "scalar": "DENY",
+      "set": "DENY"
+    },
+    {
+      "name": "item-second-review",
+      "scalar": "DENY",
+      "set": "DENY"
+    },
+    {
+      "name": "projection-value",
+      "scalar": "DENY",
+      "set": "DENY"
+    },
+    {
+      "name": "projection-source",
+      "scalar": "DENY",
+      "set": "DENY"
+    },
+    {
+      "name": "projection-excerpt",
+      "scalar": "DENY",
+      "set": "DENY"
+    },
+    {
+      "name": "projection-version",
+      "scalar": "DENY",
+      "set": "DENY"
+    },
+    {
+      "name": "wall-refresh",
+      "bothReadPolicies": "CURRENT_DENY_AFTER_WALL_CHANGE"
+    },
+    {
+      "name": "order-and-mutation",
+      "ordered": true,
+      "inputSnapshot": true
+    },
+    {
+      "name": "current-owner-once"
+    },
+    {
+      "name": "current-owner-twice-same-tx"
+    }
+  ],
+  "transactions": [
+    {
+      "name": "reobserve-restored-versions",
+      "durationMs": 135.2437,
+      "queries": 1,
+      "timeoutOverride": null
+    },
+    {
+      "name": "bulk-positive510",
+      "durationMs": 677.1625000000004,
+      "queries": 5,
+      "timeoutOverride": null
+    },
+    {
+      "name": "bulk-policy510",
+      "durationMs": 35.844999999999345,
+      "queries": 5,
+      "timeoutOverride": null
+    },
+    {
+      "name": "scalar-parity-0",
+      "durationMs": 492.14270000000033,
+      "queries": 220,
+      "timeoutOverride": null
+    },
+    {
+      "name": "scalar-parity-20",
+      "durationMs": 362.4989000000005,
+      "queries": 220,
+      "timeoutOverride": null
+    },
+    {
+      "name": "scalar-parity-40",
+      "durationMs": 269.78780000000006,
+      "queries": 220,
+      "timeoutOverride": null
+    },
+    {
+      "name": "scalar-parity-60",
+      "durationMs": 282.5137999999997,
+      "queries": 220,
+      "timeoutOverride": null
+    },
+    {
+      "name": "scalar-parity-80",
+      "durationMs": 241.33109999999942,
+      "queries": 220,
+      "timeoutOverride": null
+    },
+    {
+      "name": "scalar-parity-100",
+      "durationMs": 240.00820000000022,
+      "queries": 220,
+      "timeoutOverride": null
+    },
+    {
+      "name": "scalar-parity-120",
+      "durationMs": 243.97599999999875,
+      "queries": 220,
+      "timeoutOverride": null
+    },
+    {
+      "name": "scalar-parity-140",
+      "durationMs": 255.41140000000087,
+      "queries": 220,
+      "timeoutOverride": null
+    },
+    {
+      "name": "scalar-parity-160",
+      "durationMs": 251.22620000000097,
+      "queries": 220,
+      "timeoutOverride": null
+    },
+    {
+      "name": "scalar-parity-180",
+      "durationMs": 235.8724000000002,
+      "queries": 220,
+      "timeoutOverride": null
+    },
+    {
+      "name": "scalar-parity-200",
+      "durationMs": 235.5082999999995,
+      "queries": 220,
+      "timeoutOverride": null
+    },
+    {
+      "name": "scalar-parity-220",
+      "durationMs": 230.96450000000004,
+      "queries": 220,
+      "timeoutOverride": null
+    },
+    {
+      "name": "scalar-parity-240",
+      "durationMs": 261.79190000000017,
+      "queries": 220,
+      "timeoutOverride": null
+    },
+    {
+      "name": "scalar-parity-260",
+      "durationMs": 226.77910000000156,
+      "queries": 220,
+      "timeoutOverride": null
+    },
+    {
+      "name": "scalar-parity-280",
+      "durationMs": 226.07150000000001,
+      "queries": 220,
+      "timeoutOverride": null
+    },
+    {
+      "name": "scalar-parity-300",
+      "durationMs": 233.39789999999994,
+      "queries": 220,
+      "timeoutOverride": null
+    },
+    {
+      "name": "scalar-parity-320",
+      "durationMs": 298.3061000000016,
+      "queries": 220,
+      "timeoutOverride": null
+    },
+    {
+      "name": "scalar-parity-340",
+      "durationMs": 291.46099999999933,
+      "queries": 220,
+      "timeoutOverride": null
+    },
+    {
+      "name": "scalar-parity-360",
+      "durationMs": 272.7426999999989,
+      "queries": 220,
+      "timeoutOverride": null
+    },
+    {
+      "name": "scalar-parity-380",
+      "durationMs": 232.42669999999998,
+      "queries": 220,
+      "timeoutOverride": null
+    },
+    {
+      "name": "scalar-parity-400",
+      "durationMs": 261.9969000000001,
+      "queries": 220,
+      "timeoutOverride": null
+    },
+    {
+      "name": "scalar-parity-420",
+      "durationMs": 243.0176999999985,
+      "queries": 220,
+      "timeoutOverride": null
+    },
+    {
+      "name": "scalar-parity-440",
+      "durationMs": 242.7512999999999,
+      "queries": 220,
+      "timeoutOverride": null
+    },
+    {
+      "name": "scalar-parity-460",
+      "durationMs": 277.6700000000001,
+      "queries": 220,
+      "timeoutOverride": null
+    },
+    {
+      "name": "scalar-parity-480",
+      "durationMs": 306.10339999999997,
+      "queries": 220,
+      "timeoutOverride": null
+    },
+    {
+      "name": "scalar-parity-500",
+      "durationMs": 194.54830000000038,
+      "queries": 110,
+      "timeoutOverride": null
+    },
+    {
+      "name": "candidate-owner",
+      "durationMs": 279.82440000000133,
+      "queries": 11,
+      "timeoutOverride": null
+    },
+    {
+      "name": "candidate-reviewer",
+      "durationMs": 30.033399999998437,
+      "queries": 4,
+      "timeoutOverride": null
+    },
+    {
+      "name": "candidate-status",
+      "durationMs": 47.920899999999165,
+      "queries": 4,
+      "timeoutOverride": null
+    },
+    {
+      "name": "candidate-governed",
+      "durationMs": 48.96560000000136,
+      "queries": 4,
+      "timeoutOverride": null
+    },
+    {
+      "name": "candidate-source",
+      "durationMs": 34.5565000000006,
+      "queries": 4,
+      "timeoutOverride": null
+    },
+    {
+      "name": "candidate-marker",
+      "durationMs": 165.5746999999992,
+      "queries": 11,
+      "timeoutOverride": null
+    },
+    {
+      "name": "candidate-decision",
+      "durationMs": 24.891700000000128,
+      "queries": 4,
+      "timeoutOverride": null
+    },
+    {
+      "name": "candidate-hold",
+      "durationMs": 21.06999999999971,
+      "queries": 4,
+      "timeoutOverride": null
+    },
+    {
+      "name": "candidate-instructions",
+      "durationMs": 23.63000000000102,
+      "queries": 4,
+      "timeoutOverride": null
+    },
+    {
+      "name": "candidate-confidence",
+      "durationMs": 24.422499999998763,
+      "queries": 4,
+      "timeoutOverride": null
+    },
+    {
+      "name": "candidate-revision",
+      "durationMs": 22.1903999999995,
+      "queries": 4,
+      "timeoutOverride": null
+    },
+    {
+      "name": "candidate-conflict",
+      "durationMs": 22.94839999999931,
+      "queries": 4,
+      "timeoutOverride": null
+    },
+    {
+      "name": "candidate-retention",
+      "durationMs": 22.77390000000014,
+      "queries": 4,
+      "timeoutOverride": null
+    },
+    {
+      "name": "candidate-expiry",
+      "durationMs": 21.538000000000466,
+      "queries": 4,
+      "timeoutOverride": null
+    },
+    {
+      "name": "candidate-payload",
+      "durationMs": 138.19720000000052,
+      "queries": 11,
+      "timeoutOverride": null
+    },
+    {
+      "name": "candidate-provenance",
+      "durationMs": 264.47869999999966,
+      "queries": 11,
+      "timeoutOverride": null
+    },
+    {
+      "name": "item-title",
+      "durationMs": 287.7518,
+      "queries": 13,
+      "timeoutOverride": null
+    },
+    {
+      "name": "item-body",
+      "durationMs": 285.9403000000002,
+      "queries": 13,
+      "timeoutOverride": null
+    },
+    {
+      "name": "item-hash",
+      "durationMs": 257.1867999999995,
+      "queries": 13,
+      "timeoutOverride": null
+    },
+    {
+      "name": "item-lifecycle",
+      "durationMs": 234.52210000000014,
+      "queries": 13,
+      "timeoutOverride": null
+    },
+    {
+      "name": "item-review-state",
+      "durationMs": 281.3715000000011,
+      "queries": 13,
+      "timeoutOverride": null
+    },
+    {
+      "name": "item-confirmation",
+      "durationMs": 238.27869999999893,
+      "queries": 13,
+      "timeoutOverride": null
+    },
+    {
+      "name": "item-sensitivity",
+      "durationMs": 228.52599999999802,
+      "queries": 13,
+      "timeoutOverride": null
+    },
+    {
+      "name": "item-schema",
+      "durationMs": 198.2616999999991,
+      "queries": 13,
+      "timeoutOverride": null
+    },
+    {
+      "name": "item-aliases",
+      "durationMs": 184.90309999999954,
+      "queries": 13,
+      "timeoutOverride": null
+    },
+    {
+      "name": "item-tags",
+      "durationMs": 208.62000000000262,
+      "queries": 13,
+      "timeoutOverride": null
+    },
+    {
+      "name": "item-valid-until",
+      "durationMs": 212.90230000000156,
+      "queries": 13,
+      "timeoutOverride": null
+    },
+    {
+      "name": "item-second-review",
+      "durationMs": 278.07890000000043,
+      "queries": 13,
+      "timeoutOverride": null
+    },
+    {
+      "name": "projection-value",
+      "durationMs": 292.6880000000019,
+      "queries": 15,
+      "timeoutOverride": null
+    },
+    {
+      "name": "projection-source",
+      "durationMs": 272.1286,
+      "queries": 15,
+      "timeoutOverride": null
+    },
+    {
+      "name": "projection-excerpt",
+      "durationMs": 287.0144,
+      "queries": 15,
+      "timeoutOverride": null
+    },
+    {
+      "name": "projection-version",
+      "durationMs": 326.7394999999997,
+      "queries": 15,
+      "timeoutOverride": null
+    },
+    {
+      "name": "wall-refresh",
+      "durationMs": 32.16019999999844,
+      "queries": 14,
+      "timeoutOverride": null
+    },
+    {
+      "name": "reverse-order",
+      "durationMs": 250.97109999999884,
+      "queries": 5,
+      "timeoutOverride": null
+    },
+    {
+      "name": "mutation-during-await",
+      "durationMs": 287.09889999999723,
+      "queries": 5,
+      "timeoutOverride": null
+    },
+    {
+      "name": "current-owner-once",
+      "durationMs": 553.2461999999978,
+      "queries": 21,
+      "timeoutOverride": null
+    },
+    {
+      "name": "current-owner-twice-same-tx",
+      "durationMs": 1047.1520000000019,
+      "queries": 42,
+      "timeoutOverride": null
+    }
+  ],
+  "scope": "Copied local test data; new xmin observations; not original setup authority",
+  "captureAuthority": false,
+  "liveAcceptance": "NOT_RUN"
+}
