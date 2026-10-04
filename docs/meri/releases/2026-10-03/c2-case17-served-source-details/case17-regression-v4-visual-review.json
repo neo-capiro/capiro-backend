@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "kind": "meri-case17-visual-review",
+  "caseId": "17",
+  "captureRunId": "c27ae741-8e3d-454d-a126-d16273002d04",
+  "evidenceSha256": "f3d3a1d4b4aa5442ebb813ca0f6ee6f7215b0fa74ff2d7cdf98352007669c267",
+  "reviewedAt": "2026-10-04T03:55:37.596Z",
+  "reviewer": "Codex root",
+  "reference": "Root inspected saved afterReload PNGs A through F in this chat. All12 files were independently hash-checked, and each initial PNG is byte-identical to its corresponding reload PNG.",
+  "rationale": "All six complete unclipped cards show PENDING REVIEW, distinct A-F labels and values, the expanded Source details control, Source type: Synthetic fixture, a different complete recorded source reference matching its canonical marker, and a visible Withdraw action. A/B/C target Aster Defense, D targets Bluehaven Robotics, E is Firm memory and F is Personal memory. Each reference wraps visibly within the card without clipping. The deterministic native collector and saved checks join exact markers to physical fixture records in both rounds. This proves the read-only source-details/reload slice; original prompt and human rubric remain unrun.",
+  "screenshotSha256s": [
+    "985f462b1934c3c04f9d31caa04b1e6ee508598001173adc444d6031a9defcb2",
+    "658e6174b021d1f98c104e5bb49b195f924e5a5d383402b989c48465c23fc4c1",
+    "5ff61388d5822df9c98a71768b93d99b4808762b2869d19ee669623eb8b3b014",
+    "e5a021856d69bb80a0fd0b563a08d4cf38880c4e4d6a16539cef5f45215a1ae8",
+    "f3787f527addf0df21d74c1bc86c03318b6dc781f936144f301e08fd7633c89f",
+    "a9b4b5611fbd9582171169ef49d4088d1c10a7ec76981b0ea2549895056a24e8",
+    "985f462b1934c3c04f9d31caa04b1e6ee508598001173adc444d6031a9defcb2",
+    "658e6174b021d1f98c104e5bb49b195f924e5a5d383402b989c48465c23fc4c1",
+    "5ff61388d5822df9c98a71768b93d99b4808762b2869d19ee669623eb8b3b014",
+    "e5a021856d69bb80a0fd0b563a08d4cf38880c4e4d6a16539cef5f45215a1ae8",
+    "f3787f527addf0df21d74c1bc86c03318b6dc781f936144f301e08fd7633c89f",
+    "a9b4b5611fbd9582171169ef49d4088d1c10a7ec76981b0ea2549895056a24e8"
+  ],
+  "allSixCardsVisibleWithCorrectScopeAndProvenance": true,
+  "allSixActionsVisibleAfterReload": true,
+  "provenanceFieldScope": "Expanded recorded source type and exact canonical fixture reference, before and after reload; no external navigation claim.",
+  "humanRubric": "NOT_RUN",
+  "fullOriginalRow17Acceptance": false
+}

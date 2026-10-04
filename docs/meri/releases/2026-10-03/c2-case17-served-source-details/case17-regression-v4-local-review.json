@@ -1,0 +1,15 @@
+{
+  "status": "PREPARED_NOT_EXECUTED",
+  "operatorSourceSha": "a922a9525bdfc704d8812b19aff23daa78ecd384",
+  "apiSourceSha": "c0f393f863bf73bd4e65e7a94e17c073e7be021e",
+  "webSourceSha": "c0f393f863bf73bd4e65e7a94e17c073e7be021e",
+  "captureRunId": "c27ae741-8e3d-454d-a126-d16273002d04",
+  "recipeSha256": "853dbf7f1e839639658e6cb9e2575fd4ef31fccf9d67b339d8ae4894537807d6",
+  "preparedSha256": "4ea1a7c5450b7861d1c47a96691fd32cc04c629f5e9e1d94a49f0cb001d6c980",
+  "driverSha256": "e8be0c305addea709236a5ff8db115851b48267c6d51f2d9efb6697196f21953",
+  "applicationWrites": 0,
+  "providerCalls": 0,
+  "originalPromptSubmission": "NOT_RUN",
+  "humanRubric": "NOT_RUN",
+  "fullOriginalRow17Acceptance": false
+}

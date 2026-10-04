@@ -1,0 +1,19 @@
+{
+  "status": "PASS_UI_SOURCE_DETAILS_SLICE_ONLY",
+  "reviewer": "Independent Codex cost_supervision; separate root visual inspection",
+  "humanReviewer": false,
+  "evidenceSha256": "f3d3a1d4b4aa5442ebb813ca0f6ee6f7215b0fa74ff2d7cdf98352007669c267",
+  "preparedSha256": "4ea1a7c5450b7861d1c47a96691fd32cc04c629f5e9e1d94a49f0cb001d6c980",
+  "checks": [
+    "Frozen six-record selection rebuilt and exact canonical owner/physical row/source marker joins checked in both rounds",
+    "Owner before and after bytes/versions identical",
+    "All12PNG bytes, sizes and signatures verified; six initial/reload pairs byte-identical",
+    "Both reviewers inspected saved afterReload A-F images; exact references and actions visible, no clipping",
+    "12operator source pins match a922a9525 Git objects; API523/Web390/build/digest/task bindings match approved served c0",
+    "3preferencePUTs blocked,0application/synthesis/provider writes; own session revoked"
+  ],
+  "metadataNote": "Original result retains preparation provenanceNavigation awaiting-capture metadata. Its final UI_SLICE_PASS and actual evidence supersede that preparation state; original bytes retained.",
+  "originalPrompt": "NOT_RUN",
+  "humanRubric": "NOT_RUN",
+  "fullOriginalCase17Acceptance": false
+}

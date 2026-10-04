@@ -1,0 +1,51 @@
+{
+  "status": "UI_SLICE_PASS",
+  "at": "2026-10-04T03:53:10.744Z",
+  "caseId": "17",
+  "captureRunId": "c27ae741-8e3d-454d-a126-d16273002d04",
+  "apiSha": "c0f393f863bf73bd4e65e7a94e17c073e7be021e",
+  "webSha": "c0f393f863bf73bd4e65e7a94e17c073e7be021e",
+  "operatorSourceSha": "a922a9525bdfc704d8812b19aff23daa78ecd384",
+  "preparedSha256": "4ea1a7c5450b7861d1c47a96691fd32cc04c629f5e9e1d94a49f0cb001d6c980",
+  "sessionCreated": true,
+  "sessionRevoked": true,
+  "applicationWrites": 0,
+  "synthesisSubmissionCount": 0,
+  "providerCalls": 0,
+  "originalPromptSubmission": "NOT_RUN",
+  "humanRubric": "NOT_RUN",
+  "fullOriginalRow17Acceptance": false,
+  "fullFile01Acceptance": false,
+  "provenanceNavigation": {
+    "status": "SOURCE_DISCLOSURE_QUALIFIED_AWAITING_SERVED_CAPTURE",
+    "sourcePath": "apps/web/src/vnext/meri/MeriMemoryTab.tsx",
+    "sourceSha256": "1855144be86307d19a6ecc9834c27f6f79640f461b19209e4fe3293f76b3416b",
+    "reason": "Existing Source details disclosure shows bounded recorded type and exact reference; no external navigation authority.",
+    "canonicalSourceBinding": "Each of six references must match its canonical fixture ownership marker and remain visible after reload.",
+    "operatorSourceSha": "a922a9525bdfc704d8812b19aff23daa78ecd384"
+  },
+  "outcome": {
+    "caseId": "17",
+    "captureRunId": "c27ae741-8e3d-454d-a126-d16273002d04",
+    "status": "CAPTURE_COMPLETE",
+    "evidence": {
+      "ref": "case17/evidence.json",
+      "sha256": "f3d3a1d4b4aa5442ebb813ca0f6ee6f7215b0fa74ff2d7cdf98352007669c267",
+      "bytes": 39891
+    },
+    "synthesisSubmissionCount": 0
+  },
+  "grading": {
+    "caseId": "17",
+    "captureRunId": "c27ae741-8e3d-454d-a126-d16273002d04",
+    "evidenceSha256": "f3d3a1d4b4aa5442ebb813ca0f6ee6f7215b0fa74ff2d7cdf98352007669c267",
+    "deterministicStatus": "PASS",
+    "synthesisSubmissionCount": 0,
+    "applicationWrites": 0,
+    "fullFile01Acceptance": false,
+    "status": "PASS",
+    "reason": "CASE17_ONLY"
+  },
+  "visualReviewer": "Codex root saved-image inspection; not human rubric",
+  "completedAt": "2026-10-04T03:55:40.414Z"
+}
