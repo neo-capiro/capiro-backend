@@ -1,0 +1,11 @@
+{
+  "at": "2026-10-04T17:03:16.640Z",
+  "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-c2-case12-setup-20261004:1",
+  "definitionInactive": true,
+  "cleanupComplete": true,
+  "errors": [],
+  "journalUnchanged": true,
+  "journalSha256": "816b04a47be56432846d1ee602370c3bea985eb497a7de9e899aee4d53f8b39e",
+  "taskLaunch": false,
+  "spendHold": false
+}

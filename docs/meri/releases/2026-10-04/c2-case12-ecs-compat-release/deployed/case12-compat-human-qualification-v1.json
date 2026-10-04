@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "service": "api",
+  "sourceSha": "478a1826afc7e4d599c66bfe5fb7a9759b0a4582",
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:ef27f66af273ded53ce0a8d7b0a941ad51e415a50e70a3a0293cce59e2c3381e",
+  "status": "qualified",
+  "reviewer": "Human user in current Codex chat; scoped source approval bound by root to qualified immutable image",
+  "reviewedAt": "2026-10-04T16:45:38.0499787Z",
+  "expiresAt": "2026-10-04T18:00:33.921Z",
+  "schemaChange": false,
+  "evidence": [
+    "https://github.com/neo-capiro/capirov2/blob/14030720eeec4959abe111f2c85407577374d2d8/docs/meri/releases/2026-10-04/c2-case12-ecs-compat-release/release-qualification.json",
+    "https://github.com/neo-capiro/capirov2/blob/14030720eeec4959abe111f2c85407577374d2d8/docs/meri/releases/2026-10-04/c2-case12-ecs-compat-release/case12-ecs-compat-scope-approval-v1.json"
+  ],
+  "checks": [
+    {
+      "name": "build",
+      "status": "passed",
+      "sourceSha": "478a1826afc7e4d599c66bfe5fb7a9759b0a4582",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:ef27f66af273ded53ce0a8d7b0a941ad51e415a50e70a3a0293cce59e2c3381e",
+      "url": "https://github.com/neo-capiro/capirov2/blob/14030720eeec4959abe111f2c85407577374d2d8/docs/meri/releases/2026-10-04/c2-case12-ecs-compat-release/build/build-readback.json"
+    },
+    {
+      "name": "automated-tests",
+      "status": "passed",
+      "sourceSha": "478a1826afc7e4d599c66bfe5fb7a9759b0a4582",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:ef27f66af273ded53ce0a8d7b0a941ad51e415a50e70a3a0293cce59e2c3381e",
+      "url": "https://github.com/neo-capiro/capirov2/blob/14030720eeec4959abe111f2c85407577374d2d8/docs/meri/releases/2026-10-04/c2-case12-ecs-compat-release/release-qualification.json"
+    },
+    {
+      "name": "retirement-compatibility",
+      "status": "passed",
+      "sourceSha": "478a1826afc7e4d599c66bfe5fb7a9759b0a4582",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:ef27f66af273ded53ce0a8d7b0a941ad51e415a50e70a3a0293cce59e2c3381e",
+      "url": "https://github.com/neo-capiro/capirov2/blob/14030720eeec4959abe111f2c85407577374d2d8/docs/meri/releases/2026-10-04/c2-case12-ecs-compat-release/release-qualification.json"
+    }
+  ]
+}

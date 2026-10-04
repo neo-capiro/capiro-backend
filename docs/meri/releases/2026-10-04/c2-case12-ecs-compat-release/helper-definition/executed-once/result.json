@@ -1,0 +1,17 @@
+{
+  "status": "EXACT_NATIVE_HELPER_DEFINITION_ROUNDTRIP_AND_CLEANUP_VERIFIED",
+  "at": "2026-10-04T17:03:16.644Z",
+  "qualificationSha256": "4e11f6a278d68874182335a1d8d9ca99dc43ff2ec81f3a5ab40720ec159d3f0b",
+  "definitionSha256": "d145d92ca91a198372f74d3ec98ad84ba7da110733a02c2bad0a99a1481b1669",
+  "nativeDefinitionSha256": "fde21f7fe1f6136c4422c2b5ad4976359d90d7886c5a702b00411d4212697bec",
+  "releaseGitRevision": "478a1826afc7e4d599c66bfe5fb7a9759b0a4582",
+  "imageSha256": "ef27f66af273ded53ce0a8d7b0a941ad51e415a50e70a3a0293cce59e2c3381e",
+  "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-c2-case12-setup-20261004:1",
+  "registrationMarker": "c3bd5dd8-44a8-4b08-8ba1-9cedd930cfc8",
+  "taskLaunch": false,
+  "providerCalls": 0,
+  "databaseCalls": 0,
+  "journalMutations": 0,
+  "spendHold": false,
+  "captureAuthority": false
+}

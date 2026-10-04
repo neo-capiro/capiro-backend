@@ -1,0 +1,9 @@
+{
+  "at": "2026-10-04T17:01:54.250Z",
+  "packetSha256": "3ff96be0af74d1c0211191b5ae8790d95da674b8f1c4abdc3939b9679a355749",
+  "manifestSha256": "19800b6be834db85bfbd9aced860f3cc14fb7b5e9bdd195c6694e3a177264a67",
+  "approvalSha256": "9f6cd00ecd0c30a693603f7072b6f9062552248be77a36f366ac769475563c8f",
+  "approvalBasis": "Existing scoped human approval bound only to the qualified immutable reviewed-source image",
+  "awsMaxAttempts": 1,
+  "noAutomaticRetry": true
+}
