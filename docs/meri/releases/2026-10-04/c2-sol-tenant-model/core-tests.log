@@ -1,0 +1,45 @@
+PASS src/llm/quality-model-upgrade.spec.ts
+  quality model migration
+    √ upgrades saved OpenAI selection gpt-4.1 (2 ms)
+    √ upgrades saved OpenAI selection gpt-4.1-mini
+    √ upgrades saved OpenAI selection gpt-4.1-nano
+    √ upgrades saved OpenAI selection gpt-4o
+    √ upgrades saved OpenAI selection gpt-4o-mini
+    √ upgrades saved OpenAI selection gpt-4o-2024-08-06
+    √ upgrades saved OpenAI selection gpt-5
+    √ upgrades saved OpenAI selection gpt-5-mini (1 ms)
+    √ upgrades saved OpenAI selection gpt-5.6
+    √ upgrades saved OpenAI selection gpt-5.6-luna
+    √ upgrades saved OpenAI selection gpt-5.6-terra
+    √ upgrades saved OpenAI selection gpt-5.6-sol
+    √ upgrades saved OpenAI selection o3
+    √ upgrades saved OpenAI selection o4-mini
+    √ upgrades saved OpenAI selection o4-mini-2025-04-16
+    √ upgrades saved Claude selection claude-3-haiku-20240307
+    √ upgrades saved Claude selection claude-3-5-haiku-20241022 (1 ms)
+    √ upgrades saved Claude selection claude-3-5-sonnet-20241022
+    √ upgrades saved Claude selection claude-sonnet-4-5
+    √ upgrades saved Claude selection claude-sonnet-4-5-20250929
+    √ upgrades saved Claude selection claude-sonnet-4-6
+    √ upgrades saved Claude selection claude-haiku-4-5-20251001
+    √ preserves claude-opus-4-8
+    √ preserves text-embedding-3-small
+    √ preserves whisper-1
+    √ preserves nova-3
+    √ preserves amazon.titan-embed-text-v2:0
+    √ preserves gpt-image-1-mini
+    √ preserves custom-deployment
+    √ removes incompatible GPT-6 parameters without changing tools or max effort (1 ms)
+    √ uses adaptive Sonnet thinking with output headroom and text-block parsing (1 ms)
+    √ preserves forced schema output by disabling incompatible implicit thinking (2 ms)
+    √ sends GPT-6 schema calls through Responses and returns parsed arguments and usage (2 ms)
+    √ replays encrypted gpt-6-astra state and assistant phase across actual tool rounds (1 ms)
+    √ replays encrypted gpt-6.1-sol state and assistant phase across actual tool rounds (1 ms)
+    √ preserves function call IDs and outputs across GPT-6 tool rounds (1 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       36 passed, 36 total
+Snapshots:   0 total
+Time:        1.745 s, estimated 2 s
+Ran all test suites matching /src\\llm\\quality-model-upgrade.spec.ts/i.
+Test results written to: ..\..\..\outputs\meri-c2-20261003\sol-core-final-tests-v1.json

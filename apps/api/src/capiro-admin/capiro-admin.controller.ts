@@ -20,6 +20,7 @@ import { BillingService } from '../billing/billing.service.js';
 import { AI_PROVIDERS } from '../ai-usage/ai-credential-store.service.js';
 import type { AiProvider } from '../engagement/ai-credential-resolver.service.js';
 import {
+  Allow,
   IsBoolean,
   IsEmail,
   IsIn,
@@ -151,6 +152,25 @@ class SetTenantAiCredentialDto {
   modelOverride?: string;
 }
 
+class UpdateTenantAiCredentialModelDto {
+  @IsIn(['openai'])
+  provider!: 'openai';
+
+  @IsOptional()
+  @IsIn(['gpt-6.1-sol'])
+  modelOverride?: 'gpt-6.1-sol';
+
+  @IsOptional()
+  @IsBoolean()
+  restoreDefault?: boolean;
+
+  @Allow()
+  expectedModelOverride!: string | null;
+
+  @Allow()
+  expectedUpdatedAt!: string;
+}
+
 class QuarantineListQueryDto {
   @IsIn(['program_element', 'acquisition_personnel'])
   type!: 'program_element' | 'acquisition_personnel';
@@ -269,6 +289,69 @@ export class CapiroAdminController {
   @Get('tenants/:tenantId/ai-credential')
   listTenantAiCredentials(@Param('tenantId', ParseUUIDPipe) tenantId: string) {
     return this.service.listTenantAiCredentials(tenantId);
+  }
+
+  @Post('tenants/:tenantId/ai-credential/model')
+  updateTenantAiCredentialModel(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('tenantId', ParseUUIDPipe) tenantId: string,
+    @Body() body: UpdateTenantAiCredentialModelDto,
+  ) {
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
+      throw new BadRequestException('Request body must be an object');
+    }
+    const allowedFields = new Set([
+      'provider',
+      'modelOverride',
+      'restoreDefault',
+      'expectedModelOverride',
+      'expectedUpdatedAt',
+    ]);
+    if (Object.keys(body).some((key) => !allowedFields.has(key))) {
+      throw new BadRequestException('Request body contains unsupported fields');
+    }
+    if (body.provider !== 'openai') {
+      throw new BadRequestException('provider must be openai');
+    }
+    const hasModelOverride = body.modelOverride !== undefined;
+    const hasExpectedOverride = body.expectedModelOverride !== undefined;
+    if (
+      (body.restoreDefault !== undefined && typeof body.restoreDefault !== 'boolean') ||
+      (body.restoreDefault === true
+        ? hasModelOverride
+        : body.restoreDefault === undefined && body.modelOverride !== 'gpt-6.1-sol') ||
+      (body.restoreDefault === false && body.modelOverride !== 'gpt-6.1-sol')
+    ) {
+      throw new BadRequestException(
+        'Provide either modelOverride=gpt-6.1-sol or restoreDefault=true',
+      );
+    }
+    if (
+      !hasExpectedOverride ||
+      (body.expectedModelOverride !== null &&
+        (typeof body.expectedModelOverride !== 'string' ||
+          body.expectedModelOverride.length < 1 ||
+          body.expectedModelOverride.length > 80))
+    ) {
+      throw new BadRequestException('expectedModelOverride must be a string or null');
+    }
+    // Require the canonical UTC value returned by the credential readback.
+    // Comparing its roundtrip also rejects JavaScript's invalid-date rollover.
+    if (
+      typeof body.expectedUpdatedAt !== 'string' ||
+      !Number.isFinite(Date.parse(body.expectedUpdatedAt)) ||
+      new Date(body.expectedUpdatedAt).toISOString() !== body.expectedUpdatedAt
+    ) {
+      throw new BadRequestException(
+        'expectedUpdatedAt must match the UTC credential readback timestamp',
+      );
+    }
+    return this.service.updateTenantAiCredentialModel(ctx, tenantId, {
+      provider: body.provider,
+      expectedModelOverride: body.expectedModelOverride,
+      expectedUpdatedAt: new Date(body.expectedUpdatedAt),
+      modelOverride: body.restoreDefault === true ? null : 'gpt-6.1-sol',
+    });
   }
 
   @Post('tenants/:tenantId/ai-credential')

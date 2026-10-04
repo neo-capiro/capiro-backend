@@ -1,0 +1,3 @@
+Qualified pass. I wrote the independent review to C:\dev\main\outputs\meri-c2-20261003\sol-policy-root-review-long-v1-hermes\REVIEW.md.
+
+It records no source-level blocker in the supplied evidence and one non-blocking coverage recommendation: add an orchestrator-level test for an explicit tenant `gpt-6.1-sol` override, including the Responses route and reserved output-token bound. The review distinguishes root-reported tests from independently verified results and does not claim live provider inference proof.

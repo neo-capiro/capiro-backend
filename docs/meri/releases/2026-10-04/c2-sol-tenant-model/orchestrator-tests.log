@@ -1,0 +1,24 @@
+[Nest] 59016  - 10/04/2026, 5:54:43 PM    WARN [OpenAiResponsesClient] MeriV3 model gpt-6-astra rejected the reasoning parameter on this request; retrying the same turn without it.
+[Nest] 59016  - 10/04/2026, 5:54:43 PM    WARN [OpenAiResponsesClient] MeriV3 model gpt-6-astra rejected the reasoning parameter on this request; retrying the same turn without it.
+[Nest] 59016  - 10/04/2026, 5:54:43 PM    WARN [OpenAiResponsesClient] MeriV3 model gpt-6-astra rejected the reasoning parameter on this request; retrying the same turn without it.
+[Nest] 59016  - 12/31/1969, 7:00:01 PM    WARN [OpenAiResponsesClient] MeriV3 model gpt-6-astra rejected max reasoning on this request; retrying the same turn with xhigh effort.
+[Nest] 59016  - 10/04/2026, 5:54:43 PM    WARN [OpenAiResponsesClient] MeriV3 OpenAI retry 1/2 after OpenAI Responses HTTP 503: Temporary failure
+[Nest] 59016  - 10/04/2026, 5:54:43 PM    WARN [OpenAiResponsesClient] MeriV3 OpenAI retry 1/2 after OpenAI Responses HTTP 503: temporary capacity
+PASS src/meri/meriv3/openai-responses.client.spec.ts (9.458 s)
+[Nest] 59016  - 10/04/2026, 5:54:44 PM   DEBUG [RequestScopedLlmClient] LLM schema completion (provider=openai, model=gpt-6-astra, usedTenantKey=true)
+[Nest] 59016  - 10/04/2026, 5:54:44 PM   DEBUG [RequestScopedLlmClient] LLM schema completion (provider=openai, model=gpt-6-astra, usedTenantKey=true)
+[Nest] 59016  - 10/04/2026, 5:54:44 PM   DEBUG [RequestScopedLlmClient] LLM completion (provider=openai, model=gpt-6-astra, usedTenantKey=true)
+PASS src/meri/meri-capture-provider-wire.spec.ts
+
+Test Suites: 2 passed, 2 total
+Tests:       58 passed, 58 total
+Snapshots:   0 total
+Time:        10.78 s, estimated 15 s
+Ran all test suites matching /src\\meri\\meriv3\\openai-responses.client.spec.ts|src\\meri\\meri-capture-provider-wire.spec.ts/i.
+Test results written to: ..\..\..\outputs\meri-c2-20261003\sol-orchestrator-final-tests-v1.json
+[Nest] 59016  - 10/04/2026, 5:54:45 PM   DEBUG [RequestScopedLlmClient] LLM completion (provider=openai, model=gpt-6-astra, usedTenantKey=true)
+[Nest] 59016  - 10/04/2026, 5:54:45 PM   DEBUG [RequestScopedLlmClient] LLM schema completion (provider=anthropic, model=claude-sonnet-5, usedTenantKey=false)
+[Nest] 59016  - 10/04/2026, 5:54:45 PM    WARN [RequestScopedLlmClient] LLM anthropic LLM schema completion failed (Anthropic request failed (402): insufficient credit); failing over to global openai
+[Nest] 59016  - 10/04/2026, 5:54:45 PM   DEBUG [RequestScopedLlmClient] LLM schema completion (provider=openai, model=gpt-6-astra, usedTenantKey=false)
+[Nest] 59016  - 10/04/2026, 5:54:45 PM   DEBUG [RequestScopedLlmClient] LLM completion (provider=anthropic, model=claude-sonnet-5, usedTenantKey=false)
+[Nest] 59016  - 10/04/2026, 5:54:45 PM   DEBUG [RequestScopedLlmClient] LLM completion (provider=openai, model=gpt-6-astra, usedTenantKey=true)

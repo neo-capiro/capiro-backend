@@ -1,0 +1,22 @@
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+PASS src/capiro-admin/capiro-admin.service.spec.ts (26.273 s)
+[Nest] 59068  - 10/04/2026, 5:53:36 PM     LOG [CapiroAdminService] Purged 2 S3 object version(s) under tenants/00000000-0000-0000-0000-0000000000c1/
+[Nest] 59068  - 10/04/2026, 5:53:36 PM     LOG [CapiroAdminService] Deleted tenant 00000000-0000-0000-0000-0000000000c1 (acme)
+[Nest] 59068  - 10/04/2026, 5:53:36 PM     LOG [CapiroAdminService] Purged 2 S3 object version(s) under tenants/00000000-0000-0000-0000-0000000000c1/
+[Nest] 59068  - 10/04/2026, 5:53:36 PM     LOG [CapiroAdminService] Deleted tenant 00000000-0000-0000-0000-0000000000c1 (acme)
+[Nest] 59068  - 10/04/2026, 5:53:37 PM    WARN [CapiroAdminService] ASSETS_BUCKET unset — skipping S3 purge for tenant 00000000-0000-0000-0000-0000000000c1
+[Nest] 59068  - 10/04/2026, 5:53:37 PM     LOG [CapiroAdminService] Deleted tenant 00000000-0000-0000-0000-0000000000c1 (acme)
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+PASS src/ai-usage/ai-model-policy.sol.spec.ts
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+PASS src/ai-usage/ai-credential-store.service.spec.ts
+
+Test Suites: 3 passed, 3 total
+Tests:       53 passed, 53 total
+Snapshots:   0 total
+Time:        28.526 s, estimated 51 s
+Ran all test suites matching /src\\ai-usage\\ai-credential-store.service.spec.ts|src\\capiro-admin\\capiro-admin.service.spec.ts|src\\ai-usage\\ai-model-policy.sol.spec.ts/i.
+Test results written to: ..\..\..\outputs\meri-c2-20261003\sol-api-final-tests-v1.json

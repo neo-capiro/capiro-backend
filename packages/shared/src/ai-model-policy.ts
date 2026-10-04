@@ -25,7 +25,12 @@ export function upgradeTextModel(model: string): string {
 }
 
 export function isGpt6(model: string): boolean {
-  return /^gpt-6-astra(?:-\d{4}-\d{2}-\d{2})?$/.test(model);
+  return /^gpt-6-astra(?:-\d{4}-\d{2}-\d{2})?$/.test(model) || model === 'gpt-6.1-sol';
+}
+
+/** Exact Sol model id for Responses normalization; do not infer dated snapshots. */
+function isGpt61Sol(model: string): boolean {
+  return model === 'gpt-6.1-sol';
 }
 
 function record(value: unknown): Record<string, unknown> {
@@ -40,20 +45,28 @@ export function prepareOpenAiResponsesRequest(
   options: { defaultReasoning?: boolean } = {},
 ): Record<string, unknown> {
   const body = { ...input, model: upgradeTextModel(String(input.model ?? '')) };
-  if (!isGpt6(body.model)) return body;
+  const gpt6 = isGpt6(body.model);
+  const gpt61Sol = isGpt61Sol(body.model);
+  if (!gpt6) return body;
   const out: Record<string, unknown> = body;
   for (const key of ['temperature', 'top_p', 'top_logprobs', 'logprobs']) delete out[key];
   const reasoning = record(out.reasoning);
   if (out.reasoning !== undefined || options.defaultReasoning !== false) {
-    out.reasoning = {
-      ...reasoning,
-      effort:
-        !reasoning.effort || ['none', 'minimal'].includes(String(reasoning.effort))
+    const effort = String(reasoning.effort ?? '');
+    const normalizedEffort = gpt61Sol
+      ? !effort || !['low', 'medium', 'high', 'xhigh', 'max'].includes(effort)
+        ? effort === 'none' || effort === 'minimal'
           ? 'low'
-          : reasoning.effort,
-    };
+          : 'medium'
+        : effort
+      : !effort || ['none', 'minimal'].includes(effort)
+        ? 'low'
+        : reasoning.effort;
+    out.reasoning = { ...reasoning, effort: normalizedEffort };
   }
-  if (typeof out.max_output_tokens === 'number') {
+  // Astra requires this floor. Sol's caller limit is a bounded capture and
+  // budget reservation; never silently raise it here.
+  if (gpt6 && !gpt61Sol && typeof out.max_output_tokens === 'number') {
     out.max_output_tokens = Math.max(out.max_output_tokens, 8192);
   }
   if (out.prompt_cache_retention !== undefined) {

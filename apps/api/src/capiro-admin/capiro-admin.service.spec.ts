@@ -1,5 +1,5 @@
 import { describe, expect, jest, test, beforeEach } from '@jest/globals';
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 
 // @clerk/backend pulls in a `#crypto` subpath import that jest's resolver can't
 // follow. CapiroAdminService imports clerk.service transitively (constructor dep),
@@ -74,7 +74,10 @@ describe('CapiroAdminService — analyst console (Step 3.5)', () => {
       { invalidate: jest.fn() } as never,
       // IdentityOutboxService — de-provisioning is enqueued in-transaction and
       // the Clerk call happens outside it, so these specs only need the seam.
-      { enqueueClerkMembershipDelete: jest.fn(async () => null), attemptNow: jest.fn(async () => true) } as never,
+      {
+        enqueueClerkMembershipDelete: jest.fn(async () => null),
+        attemptNow: jest.fn(async () => true),
+      } as never,
     );
   });
 
@@ -410,6 +413,7 @@ describe('CapiroAdminService — AI keys & usage console', () => {
   let aiCredentials: {
     list: ReturnType<typeof jest.fn>;
     upsert: ReturnType<typeof jest.fn>;
+    updateModelOverride: ReturnType<typeof jest.fn>;
     remove: ReturnType<typeof jest.fn>;
   };
   let service: CapiroAdminService;
@@ -438,6 +442,12 @@ describe('CapiroAdminService — AI keys & usage console', () => {
         modelOverride: null,
         status: 'active',
       })),
+      updateModelOverride: jest.fn(async (_tenantId, _provider, _expected, modelOverride) => ({
+        provider: 'openai',
+        last4: '9876',
+        modelOverride,
+        status: 'active',
+      })),
       remove: jest.fn(async () => ({ removed: true })),
     };
     service = new CapiroAdminService(
@@ -450,7 +460,10 @@ describe('CapiroAdminService — AI keys & usage console', () => {
       aiUsage as never,
       aiCredentials as never,
       { invalidate: jest.fn() } as never,
-      { enqueueClerkMembershipDelete: jest.fn(async () => null), attemptNow: jest.fn(async () => true) } as never,
+      {
+        enqueueClerkMembershipDelete: jest.fn(async () => null),
+        attemptNow: jest.fn(async () => true),
+      } as never,
     );
   });
 
@@ -478,6 +491,113 @@ describe('CapiroAdminService — AI keys & usage console', () => {
     });
     // The audit row must never contain key material — last4 only.
     expect(JSON.stringify(mock.store.auditLog)).not.toContain('supersecret');
+  });
+
+  test('model-only update is restricted to capiro-internal and audits without key material', async () => {
+    const internalId = '17b63099-bc0f-4ac5-b596-496161e9481e';
+    mock.store.tenant.push({ id: internalId, slug: 'capiro-internal' });
+    const internalCtx = { ...CTX, tenantId: internalId, tenantSlug: 'capiro-internal' };
+    const expectedUpdatedAt = new Date('2026-10-04T10:00:00.000Z');
+
+    await expect(
+      service.updateTenantAiCredentialModel(internalCtx, internalId, {
+        provider: 'openai',
+        expectedModelOverride: null,
+        expectedUpdatedAt,
+        modelOverride: 'gpt-6.1-sol',
+      }),
+    ).resolves.toMatchObject({ modelOverride: 'gpt-6.1-sol' });
+    expect(aiCredentials.updateModelOverride).toHaveBeenCalledWith(
+      internalId,
+      'openai',
+      { modelOverride: null, updatedAt: expectedUpdatedAt },
+      'gpt-6.1-sol',
+    );
+    expect(mock.store.auditLog[0]).toMatchObject({
+      action: 'ai_credential.model_override.update',
+      entityType: 'tenant_ai_credential',
+      entityId: `${internalId}:openai`,
+      actorRole: 'capiro_admin',
+    });
+    expect(JSON.stringify(mock.store.auditLog)).not.toContain(SECRET_KEY);
+
+    await expect(
+      service.updateTenantAiCredentialModel(CTX, internalId, {
+        provider: 'openai',
+        expectedModelOverride: null,
+        expectedUpdatedAt,
+        modelOverride: null,
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(aiCredentials.updateModelOverride).toHaveBeenCalledTimes(1);
+  });
+
+  test('model-only update rejects an actor whose context tenant id is not the verified internal tenant', async () => {
+    const internalId = '17b63099-bc0f-4ac5-b596-496161e9481e';
+    mock.store.tenant.push({ id: internalId, slug: 'capiro-internal' });
+    const expectedUpdatedAt = new Date('2026-10-04T10:00:00.000Z');
+    await expect(
+      service.updateTenantAiCredentialModel({ ...CTX, tenantSlug: 'capiro-internal' }, internalId, {
+        provider: 'openai',
+        expectedModelOverride: null,
+        expectedUpdatedAt,
+        modelOverride: null,
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(aiCredentials.updateModelOverride).not.toHaveBeenCalled();
+    expect(mock.store.auditLog).toHaveLength(0);
+  });
+
+  test('model-only update rejects a different tenant target even for the internal admin context', async () => {
+    const internalId = '17b63099-bc0f-4ac5-b596-496161e9481e';
+    mock.store.tenant.push({ id: internalId, slug: 'capiro-internal' });
+    await expect(
+      service.updateTenantAiCredentialModel(
+        { ...CTX, tenantId: internalId, tenantSlug: 'capiro-internal' },
+        TENANT_B,
+        {
+          provider: 'openai',
+          expectedModelOverride: null,
+          expectedUpdatedAt: new Date('2026-10-04T10:00:00.000Z'),
+          modelOverride: null,
+        },
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(aiCredentials.updateModelOverride).not.toHaveBeenCalled();
+    expect(mock.store.auditLog).toHaveLength(0);
+  });
+
+  test('failed credential mutation writes no success audit row', async () => {
+    const internalId = '17b63099-bc0f-4ac5-b596-496161e9481e';
+    mock.store.tenant.push({ id: internalId, slug: 'capiro-internal' });
+    const internalCtx = { ...CTX, tenantId: internalId, tenantSlug: 'capiro-internal' };
+    aiCredentials.updateModelOverride.mockRejectedValueOnce(new Error('stale CAS'));
+    await expect(
+      service.updateTenantAiCredentialModel(internalCtx, internalId, {
+        provider: 'openai',
+        expectedModelOverride: null,
+        expectedUpdatedAt: new Date('2026-10-04T10:00:00.000Z'),
+        modelOverride: 'gpt-6.1-sol',
+      }),
+    ).rejects.toThrow(/stale CAS/);
+    expect(mock.store.auditLog).toHaveLength(0);
+  });
+
+  test('model-only update rejects an unknown target tenant', async () => {
+    const internalId = '17b63099-bc0f-4ac5-b596-496161e9481e';
+    await expect(
+      service.updateTenantAiCredentialModel(
+        { ...CTX, tenantId: internalId, tenantSlug: 'capiro-internal' },
+        internalId,
+        {
+          provider: 'openai',
+          expectedModelOverride: null,
+          expectedUpdatedAt: new Date(),
+          modelOverride: null,
+        },
+      ),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(aiCredentials.updateModelOverride).not.toHaveBeenCalled();
   });
 
   test('removeTenantAiCredential removes and audit-logs', async () => {
@@ -508,6 +628,68 @@ describe('CapiroAdminService — AI keys & usage console', () => {
     const { ROLES_KEY } = await import('../auth/roles.decorator.js');
     expect(Reflect.getMetadata(ROLES_KEY, CapiroAdminController)).toEqual(['capiro_admin']);
   });
+
+  test('model-only controller rejects invalid provider/model/body and malformed CAS values', async () => {
+    const { CapiroAdminController } = await import('./capiro-admin.controller.js');
+    const delegate = jest.fn(async () => ({}));
+    const controller = new CapiroAdminController(
+      {
+        updateTenantAiCredentialModel: delegate,
+      } as never,
+      {} as never,
+    );
+    const call = (body: unknown) =>
+      controller.updateTenantAiCredentialModel(
+        CTX,
+        '17b63099-bc0f-4ac5-b596-496161e9481e',
+        body as never,
+      );
+    const validBase = {
+      provider: 'openai',
+      expectedModelOverride: null,
+      expectedUpdatedAt: '2026-10-04T10:00:00.000Z',
+    };
+    expect(() => call(null)).toThrow(BadRequestException);
+    expect(() =>
+      call({ ...validBase, provider: 'anthropic', modelOverride: 'gpt-6.1-sol' }),
+    ).toThrow(BadRequestException);
+    expect(() => call({ ...validBase, modelOverride: 'gpt-6-astra' })).toThrow(BadRequestException);
+    expect(() =>
+      call({ ...validBase, expectedModelOverride: 7, modelOverride: 'gpt-6.1-sol' }),
+    ).toThrow(BadRequestException);
+    expect(() =>
+      call({ ...validBase, expectedUpdatedAt: 'not-a-date', modelOverride: 'gpt-6.1-sol' }),
+    ).toThrow(BadRequestException);
+    expect(() =>
+      call({
+        ...validBase,
+        expectedUpdatedAt: '2026-02-30T10:00:00Z',
+        modelOverride: 'gpt-6.1-sol',
+      }),
+    ).toThrow(BadRequestException);
+    expect(() => call({ ...validBase, restoreDefault: 'yes' })).toThrow(BadRequestException);
+    expect(() =>
+      call({ ...validBase, modelOverride: 'gpt-6.1-sol', apiKey: 'must-not-be-accepted' }),
+    ).toThrow(BadRequestException);
+    expect(() =>
+      call({ ...validBase, restoreDefault: true, modelOverride: 'gpt-6.1-sol' }),
+    ).toThrow(BadRequestException);
+    expect(delegate).not.toHaveBeenCalled();
+    await call({ ...validBase, modelOverride: 'gpt-6.1-sol' });
+    expect(delegate).toHaveBeenLastCalledWith(CTX, '17b63099-bc0f-4ac5-b596-496161e9481e', {
+      provider: 'openai',
+      modelOverride: 'gpt-6.1-sol',
+      expectedModelOverride: null,
+      expectedUpdatedAt: new Date(validBase.expectedUpdatedAt),
+    });
+    await call({ ...validBase, expectedModelOverride: 'gpt-6.1-sol', restoreDefault: true });
+    expect(delegate).toHaveBeenLastCalledWith(CTX, '17b63099-bc0f-4ac5-b596-496161e9481e', {
+      provider: 'openai',
+      modelOverride: null,
+      expectedModelOverride: 'gpt-6.1-sol',
+      expectedUpdatedAt: new Date(validBase.expectedUpdatedAt),
+    });
+  });
 });
 
 describe('CapiroAdminService — deleteTenant S3 purge (DPA/GDPR)', () => {
@@ -531,7 +713,10 @@ describe('CapiroAdminService — deleteTenant S3 purge (DPA/GDPR)', () => {
       { invalidate: jest.fn() } as never,
       // IdentityOutboxService — de-provisioning is enqueued in-transaction and
       // the Clerk call happens outside it, so these specs only need the seam.
-      { enqueueClerkMembershipDelete: jest.fn(async () => null), attemptNow: jest.fn(async () => true) } as never,
+      {
+        enqueueClerkMembershipDelete: jest.fn(async () => null),
+        attemptNow: jest.fn(async () => true),
+      } as never,
     );
     s3send = jest.fn();
     // Replace the real S3Client built in the constructor with a send() spy.
@@ -624,7 +809,10 @@ describe('CapiroAdminService — deleteTenant S3 purge (DPA/GDPR)', () => {
       { invalidate: jest.fn() } as never,
       // IdentityOutboxService — de-provisioning is enqueued in-transaction and
       // the Clerk call happens outside it, so these specs only need the seam.
-      { enqueueClerkMembershipDelete: jest.fn(async () => null), attemptNow: jest.fn(async () => true) } as never,
+      {
+        enqueueClerkMembershipDelete: jest.fn(async () => null),
+        attemptNow: jest.fn(async () => true),
+      } as never,
     );
     const send = jest.fn();
     (svc as unknown as { s3: { send: typeof send } }).s3 = { send };

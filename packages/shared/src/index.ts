@@ -3590,6 +3590,9 @@ export const AI_PRICING: Record<string, ModelPrice> = {
   // Public base rates verified 2026-09-15. Existing estimates do not apply
   // cache discounts or long-context surcharges; old rows remain interpretable.
   'gpt-6-astra': { inputPerM: 10.0, outputPerM: 50.0 },
+  // Sol standard rates verified 2026-10-04. Cache savings remain excluded from
+  // this legacy estimate; governed capture uses its separately qualified rates.
+  'gpt-6.1-sol': { inputPerM: 2.0, outputPerM: 10.0 },
   'claude-sonnet-5': { inputPerM: 2.0, outputPerM: 10.0 },
   // OpenAI
   'gpt-5': { inputPerM: 1.25, outputPerM: 10.0 },
@@ -3607,8 +3610,11 @@ export const AI_PRICING: Record<string, ModelPrice> = {
 export function computeAiCostUsd(model: string, inputTokens: number, outputTokens: number): number {
   const price = AI_PRICING[model] ?? AI_PRICING[model.replace(/-\d{8}$/, '')];
   if (!price) return 0;
+  // Sol's long-context rates apply to the full request above 272K input tokens.
+  const longSolContext = model === 'gpt-6.1-sol' && inputTokens > 272_000;
   return (
-    (inputTokens / 1_000_000) * price.inputPerM + (outputTokens / 1_000_000) * price.outputPerM
+    (inputTokens / 1_000_000) * price.inputPerM * (longSolContext ? 2 : 1) +
+    (outputTokens / 1_000_000) * price.outputPerM * (longSolContext ? 1.5 : 1)
   );
 }
 

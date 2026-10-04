@@ -397,8 +397,7 @@ export class CapiroAdminService {
 
   private defaultInvitationRedirectUrl(): string {
     const override = this.config.get('INVITATION_REDIRECT_URL', { infer: true }) as
-      | string
-      | undefined;
+      string | undefined;
     if (override) return override;
     const rawOrigin = this.config.get('WEB_ORIGIN', { infer: true }) as string | undefined;
     const firstOrigin = rawOrigin?.split(',')[0]?.trim();
@@ -832,6 +831,73 @@ export class CapiroAdminService {
   async listTenantAiCredentials(tenantId: string) {
     await this.requireTenant(tenantId);
     return this.aiCredentials.list(tenantId);
+  }
+
+  /** Model-only benchmark override for the specifically verified capiro-internal tenant. */
+  async updateTenantAiCredentialModel(
+    ctx: TenantContext,
+    tenantId: string,
+    input: {
+      provider: string;
+      expectedModelOverride: string | null;
+      expectedUpdatedAt: Date;
+      modelOverride: 'gpt-6.1-sol' | null;
+    },
+  ) {
+    const internalId = '17b63099-bc0f-4ac5-b596-496161e9481e';
+    if (
+      !input ||
+      typeof input !== 'object' ||
+      input.provider !== 'openai' ||
+      !Object.prototype.hasOwnProperty.call(input, 'modelOverride') ||
+      (input.modelOverride !== null && input.modelOverride !== 'gpt-6.1-sol') ||
+      !Object.prototype.hasOwnProperty.call(input, 'expectedModelOverride') ||
+      (input.expectedModelOverride !== null &&
+        (typeof input.expectedModelOverride !== 'string' ||
+          input.expectedModelOverride.length < 1 ||
+          input.expectedModelOverride.length > 80)) ||
+      !(input.expectedUpdatedAt instanceof Date) ||
+      !Number.isFinite(input.expectedUpdatedAt.getTime())
+    ) {
+      throw new BadRequestException('Invalid model-only credential update');
+    }
+    if (
+      ctx.tenantId !== internalId ||
+      ctx.tenantSlug !== 'capiro-internal' ||
+      tenantId !== internalId
+    ) {
+      throw new BadRequestException(
+        'Model-only update is restricted to the verified capiro-internal tenant',
+      );
+    }
+    const tenant = await this.prisma.withSystem((tx) =>
+      tx.tenant.findUnique({ where: { id: tenantId }, select: { id: true, slug: true } }),
+    );
+    if (!tenant || tenant.id !== internalId || tenant.slug !== 'capiro-internal') {
+      throw new NotFoundException('Verified capiro-internal tenant not found');
+    }
+    const saved = await this.aiCredentials.updateModelOverride(
+      tenantId,
+      input.provider,
+      { modelOverride: input.expectedModelOverride, updatedAt: input.expectedUpdatedAt },
+      input.modelOverride,
+    );
+    await this.writeAudit(ctx, {
+      action: 'ai_credential.model_override.update',
+      entityType: 'tenant_ai_credential',
+      entityId: `${tenantId}:${input.provider}`,
+      before: {
+        modelOverride: input.expectedModelOverride,
+        updatedAt: input.expectedUpdatedAt.toISOString(),
+      },
+      after: {
+        tenantId,
+        provider: saved.provider,
+        modelOverride: saved.modelOverride,
+        status: saved.status,
+      },
+    });
+    return saved;
   }
 
   /**

@@ -1,0 +1,114 @@
+{
+  "kind": "meri-sol-scoped-model-source-qualification",
+  "version": 1,
+  "recordedAt": "2026-10-04T21:57:26.655834+00:00",
+  "status": "SOURCE_TESTS_AND_REVIEW_PASS",
+  "c2Complete": false,
+  "schemaChange": false,
+  "providerCalls": 0,
+  "tenantConfigurationApplied": false,
+  "liveInference": "NOT_RUN",
+  "tests": [
+    {
+      "component": "api",
+      "passed": 53,
+      "failed": 0,
+      "report": "api-tests.json",
+      "sha256": "bdc0a4ceefbd80413ea4617ec654d829b382f4185d9d0ff4dffd999e5ca21978"
+    },
+    {
+      "component": "core",
+      "passed": 36,
+      "failed": 0,
+      "report": "core-tests.json",
+      "sha256": "2cb9d1f1365673c8754fe84ffd7df151f543cd4576ddbd9be78ab42ffb853616"
+    },
+    {
+      "component": "orchestrator",
+      "passed": 58,
+      "failed": 0,
+      "report": "orchestrator-tests.json",
+      "sha256": "98b164d8e2877a389d4177ab5032401a804d788839a76da29946002d3023f678"
+    }
+  ],
+  "totalTestsPassed": 147,
+  "typechecks": {
+    "api": {
+      "command": "pnpm exec tsc --noEmit --rootDir .",
+      "exitCode": 0
+    },
+    "core": {
+      "command": "pnpm --filter @capiro/meriv2-core typecheck",
+      "exitCode": 0
+    },
+    "orchestrator": {
+      "command": "pnpm exec tsc --noEmit -p tsconfig.json",
+      "exitCode": 0
+    }
+  },
+  "builds": {
+    "shared": "PASS",
+    "core": "PASS",
+    "immutableImages": "NOT_RUN"
+  },
+  "sourcePins": [
+    {
+      "path": "packages/shared/src/ai-model-policy.ts",
+      "sha256Lf": "d2470de73f4b049329e9aaf59e75f0280f998766b6b769dacbbcb2fbdb9e66b5"
+    },
+    {
+      "path": "packages/shared/src/index.ts",
+      "sha256Lf": "1ddaa3886beb906a12db4bd194dcf055e2605997d8de81c325939016debe94b3"
+    },
+    {
+      "path": "packages/meriv2-core/src/llm/quality-model-upgrade.spec.ts",
+      "sha256Lf": "b9c38d0b8ffa40db0f66fb34af98a33b197e4311df682704b09ae5e8379689d6"
+    },
+    {
+      "path": "apps/api/src/ai-usage/ai-model-policy.sol.spec.ts",
+      "sha256Lf": "3f89630bf4526cda95f2e579f52b4833a13b555f56b8ace7972c276f46a65ef0"
+    },
+    {
+      "path": "apps/api/src/ai-usage/ai-credential-store.service.ts",
+      "sha256Lf": "36beed5d25d77de74a90865f54cc399306329f3aaa546ebdd3be847da270f88a"
+    },
+    {
+      "path": "apps/api/src/ai-usage/ai-credential-store.service.spec.ts",
+      "sha256Lf": "28d9f7a21c61fbb8288d1cc673b73aec7b08474848483fcc434c4f1d5619fc3e"
+    },
+    {
+      "path": "apps/api/src/capiro-admin/capiro-admin.controller.ts",
+      "sha256Lf": "0e34c775eb8be2938bdbf6e5d0fe4b29606e05654675237c5a58e464903b2206"
+    },
+    {
+      "path": "apps/api/src/capiro-admin/capiro-admin.service.ts",
+      "sha256Lf": "6700bb1e11e61e13d4a26755e4809020e16d0420fb381798fbca68684d473f61"
+    },
+    {
+      "path": "apps/api/src/capiro-admin/capiro-admin.service.spec.ts",
+      "sha256Lf": "e80c3b57b314fdfcd63d4c672d614d508c37a230ec58ddadcda6def085ba70f5"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/openai-responses.client.spec.ts",
+      "sha256Lf": "837b44300d74ab41423dd6b3840065e361ff3c884454231ad4f5dcf57eb87fa0"
+    }
+  ],
+  "tenant": {
+    "id": "17b63099-bc0f-4ac5-b596-496161e9481e",
+    "slug": "capiro-internal",
+    "oldModelOverride": null,
+    "newModel": "gpt-6.1-sol",
+    "modelMetadataAccess": "MODEL_METADATA_ACCESS_VERIFIED"
+  },
+  "rootReview": {
+    "policyReview": "hermes-policy/REVIEW.md",
+    "modelOwnerReview": "hermes-model-owner/REVIEW.md",
+    "disposition": "Both source reviews qualified pass. Root added and passed exact Sol orchestrator reservation/endpoint test. Existing separate audit transaction is retained; operator must verify masked configuration and audit after mutation and never automatically replay an uncertain update. Fixed tenant UUID prevents cross-tenant effects; slug recheck assumes stable internal tenant naming."
+  },
+  "acceptance": {
+    "originalFullyAccepted": 0,
+    "cdFullyAccepted": 0,
+    "sourceTestsAreAcceptance": false
+  },
+  "archivedEvidenceNormalization": "Source pins use LF. Archived console logs normalize CRLF/trailing whitespace; original execution outputs remain unchanged under outputs/meri-c2-20261003. Hermes execution manifests retain original runtime output hashes; review documents are versioned Git text."
+}

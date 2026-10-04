@@ -170,72 +170,81 @@ describe('quality model migration', () => {
     expect(sent.store).toBe(false);
     expect(result).toEqual({ input: { ok: true }, usage: { inputTokens: 12, outputTokens: 24 } });
   });
-  it('replays encrypted GPT-6 state and assistant phase across actual tool rounds', async () => {
-    const output = [
-      { type: 'reasoning', id: 'rs_1', summary: [], encrypted_content: 'opaque-provider-state' },
-      {
-        type: 'message',
-        id: 'msg_1',
-        role: 'assistant',
-        phase: 'commentary',
-        content: [{ type: 'output_text', text: 'Checking.' }],
-      },
-      {
-        type: 'function_call',
-        id: 'fc_1',
-        call_id: 'call_1',
-        name: 'lookup',
-        arguments: '{"id":7}',
-      },
-    ];
-    const requests: Array<Record<string, unknown>> = [];
-    const client = new OpenAiLlmClient({
-      apiKey: 'test-only',
-      model: 'gpt-6-astra',
-      fetchImpl: (async (_url, init) => {
-        requests.push(JSON.parse(String(init?.body)));
-        return new Response(
-          JSON.stringify({
-            status: 'completed',
-            output:
-              requests.length === 1
-                ? output
-                : [{ type: 'message', content: [{ type: 'output_text', text: 'Verified.' }] }],
-          }),
-        );
-      }) as typeof fetch,
-    });
-    const params = {
-      system: 'Use evidence.',
-      maxTokens: 4000,
-      tools: [{ name: 'lookup', description: 'Lookup', input_schema: { type: 'object' } }],
-    };
-    const first = await client.completeWithTools({
-      ...params,
-      messages: [{ role: 'user', content: 'Find 7.' }],
-    });
-    expect(first.content.filter((b) => b.type === 'text')).toEqual([
-      { type: 'text', text: 'Checking.' },
-    ]);
-    const messages = [
-      { role: 'assistant' as const, content: first.content },
-      {
-        role: 'user' as const,
-        content: [{ type: 'tool_result', tool_use_id: 'call_1', content: 'found' }],
-      },
-    ];
-    const second = await client.completeWithTools({ ...params, messages });
-    expect(requests[1]!.include).toContain('reasoning.encrypted_content');
-    expect(requests[1]!.input).toEqual([
-      { role: 'system', content: 'Use evidence.' },
-      ...output,
-      { type: 'function_call_output', call_id: 'call_1', output: 'found' },
-    ]);
-    expect(second.content).toEqual([{ type: 'text', text: 'Verified.' }]);
-    const anthropic = prepareAnthropicRequest({ model: 'claude-sonnet-5', messages });
-    expect(JSON.stringify(anthropic)).not.toContain('opaque-provider-state');
-    expect(JSON.stringify(anthropic)).toContain('tool_use');
-  });
+  it.each(['gpt-6-astra', 'gpt-6.1-sol'])(
+    'replays encrypted %s state and assistant phase across actual tool rounds',
+    async (model) => {
+      const output = [
+        { type: 'reasoning', id: 'rs_1', summary: [], encrypted_content: 'opaque-provider-state' },
+        {
+          type: 'message',
+          id: 'msg_1',
+          role: 'assistant',
+          phase: 'commentary',
+          content: [{ type: 'output_text', text: 'Checking.' }],
+        },
+        {
+          type: 'function_call',
+          id: 'fc_1',
+          call_id: 'call_1',
+          name: 'lookup',
+          arguments: '{"id":7}',
+        },
+      ];
+      const requests: Array<Record<string, unknown>> = [];
+      const client = new OpenAiLlmClient({
+        apiKey: 'test-only',
+        model,
+        fetchImpl: (async (url, init) => {
+          expect(String(url)).toBe('https://api.openai.com/v1/responses');
+          requests.push(JSON.parse(String(init?.body)));
+          return new Response(
+            JSON.stringify({
+              status: 'completed',
+              output:
+                requests.length === 1
+                  ? output
+                  : [{ type: 'message', content: [{ type: 'output_text', text: 'Verified.' }] }],
+            }),
+          );
+        }) as typeof fetch,
+      });
+      const params = {
+        system: 'Use evidence.',
+        maxTokens: 4000,
+        tools: [{ name: 'lookup', description: 'Lookup', input_schema: { type: 'object' } }],
+      };
+      const first = await client.completeWithTools({
+        ...params,
+        messages: [{ role: 'user', content: 'Find 7.' }],
+      });
+      expect(first.content.filter((b) => b.type === 'text')).toEqual([
+        { type: 'text', text: 'Checking.' },
+      ]);
+      const messages = [
+        { role: 'assistant' as const, content: first.content },
+        {
+          role: 'user' as const,
+          content: [{ type: 'tool_result', tool_use_id: 'call_1', content: 'found' }],
+        },
+      ];
+      const second = await client.completeWithTools({ ...params, messages });
+      expect(requests).toHaveLength(2);
+      for (const request of requests) {
+        expect(request.model).toBe(model);
+        expect(request.max_output_tokens).toBe(model === 'gpt-6.1-sol' ? 4000 : 8192);
+      }
+      expect(requests[1]!.include).toContain('reasoning.encrypted_content');
+      expect(requests[1]!.input).toEqual([
+        { role: 'system', content: 'Use evidence.' },
+        ...output,
+        { type: 'function_call_output', call_id: 'call_1', output: 'found' },
+      ]);
+      expect(second.content).toEqual([{ type: 'text', text: 'Verified.' }]);
+      const anthropic = prepareAnthropicRequest({ model: 'claude-sonnet-5', messages });
+      expect(JSON.stringify(anthropic)).not.toContain('opaque-provider-state');
+      expect(JSON.stringify(anthropic)).toContain('tool_use');
+    },
+  );
   it('preserves function call IDs and outputs across GPT-6 tool rounds', async () => {
     let sent: Record<string, unknown> = {};
     const client = new OpenAiLlmClient({

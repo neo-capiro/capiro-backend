@@ -247,6 +247,71 @@ describe('OpenAiResponsesClient', () => {
     expect(reserve).toHaveBeenCalledWith(expect.objectContaining({ maxOutputTokens: 8192 }));
   });
 
+  test('keeps a tenant Sol request and its reservation within the configured output ceiling', async () => {
+    const reserve = jest.fn(async () => ({
+      reservationId: 'sol-reservation',
+      dispatchAllowed: true,
+      deadlineAt: new Date(Date.now() + 60_000).toISOString(),
+    }));
+    const budget = MeriRunBudget.fromToolRoundCeiling(
+      10,
+      {},
+      {
+        reserve,
+        settle: jest.fn(async () => {}),
+      },
+    );
+    const fetchMock = jest.fn(async (..._args: Parameters<typeof fetch>) => {
+      expect(reserve).toHaveBeenCalledTimes(1);
+      return new Response(JSON.stringify({ ...responseBody, model: 'gpt-6.1-sol' }), {
+        status: 200,
+      });
+    });
+    global.fetch = fetchMock as typeof fetch;
+    const profile = resolveMeriV3ReasoningProfile('standard', {
+      MERIV3_STANDARD_MAX_OUTPUT_TOKENS: '2048',
+    });
+    const result = await RequestCredentialsStore.run(
+      {
+        bearerToken: 'unit-token',
+        aiProvider: {
+          provider: 'openai',
+          apiKey: 'unit-key',
+          model: 'gpt-6.1-sol',
+          usedTenantKey: true,
+          modelOverridden: true,
+        },
+      },
+      () =>
+        new OpenAiResponsesClient().complete({
+          profile,
+          instructions: 'Use evidence.',
+          input: [{ role: 'user', content: 'Find the record.' }],
+          tools: [
+            {
+              type: 'function',
+              name: 'lookup',
+              description: 'Lookup',
+              parameters: { type: 'object', properties: {} },
+            },
+          ],
+          budget,
+        }),
+    );
+    const wire = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
+    expect(wire).toMatchObject({ model: 'gpt-6.1-sol', max_output_tokens: 2048, store: false });
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('https://api.openai.com/v1/responses');
+    expect(wire.tools).toEqual([expect.objectContaining({ name: 'lookup' })]);
+    expect(reserve).toHaveBeenCalledWith(
+      expect.objectContaining({ model: 'gpt-6.1-sol', maxOutputTokens: 2048 }),
+    );
+    expect(result.telemetry).toMatchObject({
+      requestedModel: 'gpt-6.1-sol',
+      effectiveModel: 'gpt-6.1-sol',
+    });
+    expect(profile.model).toBe('gpt-6-astra');
+  });
+
   test('retries once without reasoning when the provider rejects reasoning.effort, then succeeds', async () => {
     process.env.OPENAI_API_KEY = 'global-openai-key';
     const rejection = JSON.stringify({
