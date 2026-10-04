@@ -522,7 +522,8 @@ export function planMeriTurn(input: {
     };
   }
 
-  const explicitTarget = explicitMeriSubjectHint(task, Boolean(input.uiClientId));
+  const explicitTarget =
+    explicitMeriSubjectHint(task, Boolean(input.uiClientId)) ?? retrospectiveApprovalTargetHint(task);
   const targetIsUiClient =
     !!explicitTarget &&
     !!input.uiClientName &&
@@ -537,7 +538,8 @@ export function planMeriTurn(input: {
       : 'general';
   const targetHint = subjectScope === 'external_entity' ? explicitTarget : null;
 
-  if (PERSONAL_MEMORY_RE.test(lower)) {
+  if (PERSONAL_MEMORY_RE.test(lower) ||
+    (subjectScope === 'client' && explicitTarget && targetIsUiClient && isRetrospectiveApprovalRecall(task))) {
     return {
       subjectScope,
       targetHint,
@@ -1248,6 +1250,27 @@ function normalizeEntityName(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
+/** Extract only the possessive subject of a narrow retrospective approval question.
+ * This supplements (and does not broaden) the shared explicit-subject helper. */
+function retrospectiveApprovalTargetHint(task: string): string | null {
+  if (!isRetrospectiveApprovalRecall(task)) return null;
+  // Keep the extraction to one plain, single-sentence possessive phrase. The
+  // selected-client/authorized-name check below remains the authority boundary.
+  if (/\b(?:and|or|but|also|compare|versus|vs|instead|rather|except|not)\b/i.test(task) ||
+    /[,;\r\n]|[.!?]\s*\S/u.test(task)) return null;
+  const target = /^\s*what\s+(?:did\s+we\s+approve|have\s+we\s+approved|was\s+approved)\s+about\s+(.+?)\s*[?!.]?\s*$/iu.exec(task)?.[1]?.trim();
+  if (!target || !/^[\p{L}\p{N}][\p{L}\p{N}& -]{1,60}?['’]s\s+[\p{L}\p{N}][\p{L}\p{N} -]{1,100}$/u.test(target))
+    return null;
+  return target;
+}
+
+/** Recognize only retrospective approval questions, not approval actions or source requests. */
+function isRetrospectiveApprovalRecall(task: string): boolean {
+  if (/\b(?:documents?|files?|memos?|emails?|mail|inbox(?:es)?|messages?|attachments?|proposals?|contracts?|pdfs?|reports?|transcripts?|calls?|meetings?|calendars?|debriefs?|notes?)\b/i.test(task))
+    return false;
+  return /^\s*what\s+(?:did\s+we\s+approve|have\s+we\s+approved|was\s+approved)\s+about\b.+[?!.]?\s*$/iu.test(task);
+}
+
 /** A possessive memory attribute names its owner, not a new organization.
  * Shorthand needs a unique whole-word prefix in current authorized names; it
  * cannot manufacture an alias from the selected name alone or widen access. */
@@ -1257,15 +1280,18 @@ function isSelectedClientMemoryPossessive(input: {
   uiClientName: string | null;
   authorizedClientNames?: readonly string[];
 }): boolean {
+  const approvalRecall = isRetrospectiveApprovalRecall(input.task);
   if (
     !input.uiClientName ||
     /\b(?:and|or|but|also|compare|versus|vs|instead|rather|except|not)\b/i.test(input.task) ||
     /[,;\r\n]|[.!?]\s*\S/u.test(input.task)
   )
     return false;
-  const owner = /^(.+?)['’]s\s+(?:[\p{L}\p{N}-]+\s+){0,3}(?:preferences?|nickname|voice|tone|memor(?:y|ies))$/iu.exec(
-    input.explicitTarget,
-  )?.[1];
+  const owner = approvalRecall
+    ? /^(.+?)['’]s\s+.+$/iu.exec(input.explicitTarget)?.[1]
+    : /^(.+?)['’]s\s+(?:[\p{L}\p{N}-]+\s+){0,3}(?:preferences?|nickname|voice|tone|memor(?:y|ies))$/iu.exec(
+        input.explicitTarget,
+      )?.[1];
   if (!owner) return false;
   const words = (value: string) => value.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
   const ownerName = words(owner);

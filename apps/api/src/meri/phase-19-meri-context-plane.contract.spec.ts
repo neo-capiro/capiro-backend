@@ -75,7 +75,8 @@ describe('Knowledge Plane Phase 19 Meri adoption contract', () => {
     );
 
     expect(v3Retrieval).toContain('currentGovernedMeriContext');
-    expect(v3Retrieval).toContain("currentGovernedMeriContext()\n        ? []");
+    expect(v3Retrieval).toContain('const governed = currentGovernedMeriContext();');
+    expect(v3Retrieval).toMatch(/const recipes = governed\s*\? \[\]/);
     expect(v3Retrieval).toContain('if (governed)');
     expect(v3Retrieval).toContain('super.run');
   });
@@ -94,8 +95,13 @@ describe('Knowledge Plane Phase 19 Meri adoption contract', () => {
     expect(adapter).toContain('FROM memory_items mi');
     expect(adapter).not.toContain('clioMemory.findMany');
     expect(adapter).toContain('clientMemoryAllowed');
-    expect(adapter).toContain('governedRecallEligibilitySql');
-    expect(adapter).toContain('filterGovernedMemory');
+    const eligibility = read(
+      join(API_ROOT, 'src/retrieval/adapters/governed-memory-eligibility.helpers.ts'),
+    );
+    expect(adapter).toContain('canonicalMemoryEligibilitySql({');
+    expect(adapter).toContain('includeCanonicalGovernedMemoryRow(row, {');
+    expect(eligibility).toContain("governedRecallEligibilitySql('mi')");
+    expect(eligibility).toContain('filterGovernedMemory(row, {');
     expect(catalog).toContain("'semantic_recall'");
     expect(catalog).toContain("'governed_memory'");
   });
