@@ -24,6 +24,7 @@ export interface OwnedMemoryCandidate {
   createdAt: string;
   decidedAt: string | null;
   restricted: boolean;
+  recordedSource?: { sourceType: string; sourceId: string };
   proposal: {
     key: string | null;
     value: string | null;

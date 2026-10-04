@@ -159,6 +159,12 @@ function sourceLabel(sourceKind: string): string {
   return sourceKind.replace(/_/g, ' ');
 }
 
+function recordedSourceLabel(sourceType: string): string {
+  if (sourceType === 'meri_synthetic_fixture') return 'Synthetic fixture';
+  if (sourceType === 'chat') return 'Conversation';
+  return sourceLabel(sourceType);
+}
+
 function reviewBody(candidate: ReviewableMemoryCandidate): Array<{ heading: string; body: string }> {
   const canonical = candidate.proposal.canonicalItem;
   if (canonical?.sections.length) {
@@ -1025,6 +1031,17 @@ export function MeriMemoryTab({ packet }: { packet: MeriContextPacket | null }) 
               <div style={{ marginTop: 8, color: '#667085', fontSize: 10.5 }}>
                 Source: {sourceLabel(candidate.sourceKind)}
               </div>
+              {!candidate.restricted && candidate.recordedSource ? (
+                <details style={{ marginTop: 7, color: '#667085', fontSize: 10.5 }}>
+                  <summary style={{ cursor: 'pointer' }}>Source details</summary>
+                  <div style={{ marginTop: 5, lineHeight: 1.45 }}>
+                    <div>Source type: {recordedSourceLabel(candidate.recordedSource.sourceType)}</div>
+                    <div style={{ overflowWrap: 'anywhere' }}>
+                      Recorded source reference: {candidate.recordedSource.sourceId}
+                    </div>
+                  </div>
+                </details>
+              ) : null}
               {candidate.status !== 'pending' ? (
                 <div
                   aria-label="Memory decision receipt"

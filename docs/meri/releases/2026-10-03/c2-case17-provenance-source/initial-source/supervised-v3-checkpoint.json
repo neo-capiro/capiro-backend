@@ -1,0 +1,78 @@
+{
+  "status": "V3_UI_COPY_PENDING_INCREMENTAL_REVIEW_NATIVE_TESTS",
+  "baseSourceSha": "af7aa8aff4777a2d4809e882c2b797fbb2cd51a2",
+  "patchSha256": "5937399b67bcc0b3b9c8a411ff0a1485bc1ffcf82e73f3a9606847c51cbafb32",
+  "files": [
+    {
+      "path": "apps/api/src/memory/governed-memory-candidate.service.ts",
+      "baseSha256": "1176c2d16ca4af24dda1d5add3aea6f9d9c226c0130c194e7a402e18aab0e056",
+      "priorSha256": "761007d0d3ca1c8408a559db7f8bc52eea24d84d016cb79519dae2f52542077a",
+      "sha256": "761007d0d3ca1c8408a559db7f8bc52eea24d84d016cb79519dae2f52542077a",
+      "bytes": 22048
+    },
+    {
+      "path": "apps/api/src/memory/governed-memory-candidate.service.spec.ts",
+      "baseSha256": "7ae448a761ca88e516c4bc2e40399e4b218cc8da1f9e1e61c6d0af20b5c257d8",
+      "priorSha256": "13b1740afac6fb92f6b2bbe4de7632e981024d40a14f6d3806cd443f5d641c74",
+      "sha256": "13b1740afac6fb92f6b2bbe4de7632e981024d40a14f6d3806cd443f5d641c74",
+      "bytes": 20958
+    },
+    {
+      "path": "apps/web/src/components/memory-queue-shared.ts",
+      "baseSha256": "47f42f5936ec41fd1adb38136d50d29bdf2f0cb2061b3fe0e7c1c9913f073196",
+      "priorSha256": "4afca32e9c80b6503330517cbb4c1f99b398bae657e008d9bc8a9da3a9b38822",
+      "sha256": "4afca32e9c80b6503330517cbb4c1f99b398bae657e008d9bc8a9da3a9b38822",
+      "bytes": 6413
+    },
+    {
+      "path": "apps/web/src/vnext/meri/MeriMemoryTab.tsx",
+      "baseSha256": "a9dfd1b22f9172846f43bec00601b67f07379aa32bd496263f967b9b61e06cc9",
+      "priorSha256": "c81a38d64753f2650256357fd705d2c7c39d472dfb15287c5a90af6fd9c476be",
+      "sha256": "1855144be86307d19a6ecc9834c27f6f79640f461b19209e4fe3293f76b3416b",
+      "bytes": 44524
+    },
+    {
+      "path": "apps/web/src/vnext/meri/MeriMemoryTab.targets.test.tsx",
+      "baseSha256": "7a46ae921987a38efd8a8748e7fb70f459fb8c6defb1fb3ab195f1d66b82a5f7",
+      "priorSha256": "f525691869b07c00b23f83ce751d20780b26be7ee776fba10f3186efb34b386e",
+      "sha256": "3bd026aee7cfe26fa569fb05f40bddac3b93a378167e8d4f14b7b069feeceead",
+      "bytes": 38018
+    }
+  ],
+  "hermesUsage": {
+    "estimated_cost_usd": 0.02180352,
+    "cost_status": "estimated",
+    "cost_source": "provider_models_api",
+    "input_tokens": 48,
+    "output_tokens": 13935,
+    "cache_read_tokens": 737672,
+    "cache_write_tokens": 59636,
+    "reasoning_tokens": 6141,
+    "total_tokens": 811291,
+    "api_calls": 16,
+    "model": "openai/gpt-6-luna",
+    "provider": "openrouter",
+    "session_id": "20261003_204436_06457c",
+    "completed": true,
+    "failed": false,
+    "service_tier": null
+  },
+  "corrections": [
+    "Reject trailing newline in source type/ID",
+    "Meaningful restricted-row absence assertion",
+    "Positive UUID and malformed/bounded metadata cases",
+    "Correct UI sourceKind and asynchronous remount/actual visible text checks"
+  ],
+  "tests": "NOT_RUN; syntactic validation separate; Web uses Vitest not raw Hermes suggested Jest",
+  "repoMutations": 0,
+  "applicationWrites": 0,
+  "productProviderCalls": 0,
+  "originalPromptSubmission": "NOT_RUN",
+  "humanRubric": "NOT_RUN",
+  "priorPatchSha256": "6ecf6d9cea79ab46bf6e31c5bcb74a4a485755727a17ae9ff564ba31184fe50f",
+  "v3Changes": [
+    "Friendly known source-type labels Synthetic fixture/Conversation",
+    "Removed unnecessary negative content-access boilerplate",
+    "Actual native summary/open/visible assertions; existing no-link/no-write/remount coverage retained"
+  ]
+}

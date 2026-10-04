@@ -1,0 +1,234 @@
+{
+  "status": "SOURCE_QUALIFIED_NOT_DEPLOYED",
+  "recordedAt": "2026-10-04T01:37:57.314Z",
+  "files": [
+    {
+      "path": "case17-provenance-native-v1/api-jest-final.log",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-provenance-native-v1\\api-jest-final.log",
+      "sha256": "be150e4e72dd1ca16b91717fd75ea8d3fd124fa41a71f302c00da168d5c4b292",
+      "bytes": 2725
+    },
+    {
+      "path": "case17-provenance-native-v1/api-jest-initial.log",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-provenance-native-v1\\api-jest-initial.log",
+      "sha256": "c2463990dac09a1eae75b0edd9f049132edffbc0cf5e23b02e209f2bca1766bb",
+      "bytes": 4253
+    },
+    {
+      "path": "case17-provenance-native-v1/api-typecheck-8gb.log",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-provenance-native-v1\\api-typecheck-8gb.log",
+      "sha256": "27807659d4e5234dd39a747f7b8df8aa5e4b5e89c2d6dff40cfdfacb2dad3286",
+      "bytes": 5490
+    },
+    {
+      "path": "case17-provenance-native-v1/api-typecheck-final.log",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-provenance-native-v1\\api-typecheck-final.log",
+      "sha256": "bdceb69593b19c6b44b51382f010e24da347ec81147cd7f105261b11da5e4688",
+      "bytes": 2028
+    },
+    {
+      "path": "case17-provenance-native-v1/api-typecheck-initial.log",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-provenance-native-v1\\api-typecheck-initial.log",
+      "sha256": "0227d4fd6095a022f5d9e5186c819385701eb18f49483af9fa2b991d9305a03e",
+      "bytes": 1264
+    },
+    {
+      "path": "case17-provenance-native-v1/candidate.patch",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-provenance-native-v1\\candidate.patch",
+      "sha256": "5814b9230114bdffec9c50488370353b46e0897040185699e2fbd19415fd8108",
+      "bytes": 15683
+    },
+    {
+      "path": "case17-provenance-native-v1/checkpoint.json",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-provenance-native-v1\\checkpoint.json",
+      "sha256": "c7bd52428514ac1e826b1a7b8b2e16e1f4681e4a5afc65e56a301f848f4b0032",
+      "bytes": 10324
+    },
+    {
+      "path": "case17-provenance-native-v1/checks.json",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-provenance-native-v1\\checks.json",
+      "sha256": "4b1002e1f9caa30cd83df366a04fe894d1b306746cd97d2433ac24a35ba88942",
+      "bytes": 3046
+    },
+    {
+      "path": "case17-provenance-native-v1/diff-check.log",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-provenance-native-v1\\diff-check.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "case17-provenance-native-v1/freeze.py",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-provenance-native-v1\\freeze.py",
+      "sha256": "fe356b8f55510443f0f58d890068c91d88ed121144db0f760f4a12e9de21b224",
+      "bytes": 4397
+    },
+    {
+      "path": "case17-provenance-native-v1/independent-review.json",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-provenance-native-v1\\independent-review.json",
+      "sha256": "b52404dbe921b6f6d07e1dc3672c03ea36df81cc0440baead7a79f91beaac27e",
+      "bytes": 1865
+    },
+    {
+      "path": "case17-provenance-native-v1/source/apps/api/src/memory/governed-memory-candidate.service.spec.ts",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-provenance-native-v1\\source\\apps\\api\\src\\memory\\governed-memory-candidate.service.spec.ts",
+      "sha256": "585b078a7d4d3672a14d8523b7dcd286a5d93d957e23879744e5b4586bf0cf92",
+      "bytes": 21120
+    },
+    {
+      "path": "case17-provenance-native-v1/source/apps/api/src/memory/governed-memory-candidate.service.ts",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-provenance-native-v1\\source\\apps\\api\\src\\memory\\governed-memory-candidate.service.ts",
+      "sha256": "761007d0d3ca1c8408a559db7f8bc52eea24d84d016cb79519dae2f52542077a",
+      "bytes": 22048
+    },
+    {
+      "path": "case17-provenance-native-v1/source/apps/web/src/components/memory-queue-shared.ts",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-provenance-native-v1\\source\\apps\\web\\src\\components\\memory-queue-shared.ts",
+      "sha256": "4afca32e9c80b6503330517cbb4c1f99b398bae657e008d9bc8a9da3a9b38822",
+      "bytes": 6413
+    },
+    {
+      "path": "case17-provenance-native-v1/source/apps/web/src/vnext/meri/MeriMemoryTab.targets.test.tsx",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-provenance-native-v1\\source\\apps\\web\\src\\vnext\\meri\\MeriMemoryTab.targets.test.tsx",
+      "sha256": "3bd026aee7cfe26fa569fb05f40bddac3b93a378167e8d4f14b7b069feeceead",
+      "bytes": 38018
+    },
+    {
+      "path": "case17-provenance-native-v1/source/apps/web/src/vnext/meri/MeriMemoryTab.tsx",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-provenance-native-v1\\source\\apps\\web\\src\\vnext\\meri\\MeriMemoryTab.tsx",
+      "sha256": "1855144be86307d19a6ecc9834c27f6f79640f461b19209e4fe3293f76b3416b",
+      "bytes": 44524
+    },
+    {
+      "path": "case17-provenance-native-v1/web-typecheck-initial.log",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-provenance-native-v1\\web-typecheck-initial.log",
+      "sha256": "17b816c0f73fdfedd14cb1c0952677cde147c440d5b1b5b228fb8f7277a789f6",
+      "bytes": 106
+    },
+    {
+      "path": "case17-provenance-native-v1/web-vitest-initial.log",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-provenance-native-v1\\web-vitest-initial.log",
+      "sha256": "f71eb190b9d2918c2319b0e1edea61c013b0156002ff9a25009a297541d87169",
+      "bytes": 382
+    },
+    {
+      "path": "case17-api-typecheck-followup-v1/api-jest-final.log",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-api-typecheck-followup-v1\\api-jest-final.log",
+      "sha256": "8203eb1dea7e678557d0a7a00a767c5eff97238029f1f4175a53217aa0c6eeed",
+      "bytes": 2403
+    },
+    {
+      "path": "case17-api-typecheck-followup-v1/api-typecheck-final.log",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-api-typecheck-followup-v1\\api-typecheck-final.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "case17-api-typecheck-followup-v1/base/apps/api/src/meri/meri-capture-clock-packets.spec.ts",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-api-typecheck-followup-v1\\base\\apps\\api\\src\\meri\\meri-capture-clock-packets.spec.ts",
+      "sha256": "655f564716160bed9f20bfa32450f46a9adb9989009a321782e11d235140e828",
+      "bytes": 13059
+    },
+    {
+      "path": "case17-api-typecheck-followup-v1/base/apps/api/src/meri/meri-memory-proposal-read.spec.ts",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-api-typecheck-followup-v1\\base\\apps\\api\\src\\meri\\meri-memory-proposal-read.spec.ts",
+      "sha256": "9a68bf1b46654c86afddaf51b0c47f78e81aa982f82cb8a8cd3d5b373db17352",
+      "bytes": 10876
+    },
+    {
+      "path": "case17-api-typecheck-followup-v1/candidate.patch",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-api-typecheck-followup-v1\\candidate.patch",
+      "sha256": "624e6dc588f41ac9e276ae5973017e7d8d5fc4f0f70e12638633333917262f26",
+      "bytes": 2885
+    },
+    {
+      "path": "case17-api-typecheck-followup-v1/check-runtime-equivalence.cjs",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-api-typecheck-followup-v1\\check-runtime-equivalence.cjs",
+      "sha256": "edf85fad2b92915c1ebe129ded03c12424268a482d6829a796cf94fb6c84f889",
+      "bytes": 1842
+    },
+    {
+      "path": "case17-api-typecheck-followup-v1/checkpoint.json",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-api-typecheck-followup-v1\\checkpoint.json",
+      "sha256": "e666b82818a64fffcaec9974fbc3bfb80d074b6cf8c344a5d1dec8fc1480c686",
+      "bytes": 5405
+    },
+    {
+      "path": "case17-api-typecheck-followup-v1/diff-check.log",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-api-typecheck-followup-v1\\diff-check.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "case17-api-typecheck-followup-v1/freeze.py",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-api-typecheck-followup-v1\\freeze.py",
+      "sha256": "a2fbd3e635ae8066029eef9d8e57b9e1f7e485c106348fd8b2d384c6bf5f14b2",
+      "bytes": 2659
+    },
+    {
+      "path": "case17-api-typecheck-followup-v1/independent-review.json",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-api-typecheck-followup-v1\\independent-review.json",
+      "sha256": "2a276183d9d7abcf4728dd78ae1f6da3122dff6a23ab4495eeaf19b16dd287bb",
+      "bytes": 1721
+    },
+    {
+      "path": "case17-api-typecheck-followup-v1/preparation.json",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-api-typecheck-followup-v1\\preparation.json",
+      "sha256": "e804803478352d61f1332b31a2cc756c28388b191c55397c0df8c2e86e8d0c2b",
+      "bytes": 1397
+    },
+    {
+      "path": "case17-api-typecheck-followup-v1/prepare.py",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-api-typecheck-followup-v1\\prepare.py",
+      "sha256": "a3cb977a024236ab21fc2a23519cba1dcc350fb1f120503e325b64c3e88f16ad",
+      "bytes": 2232
+    },
+    {
+      "path": "case17-api-typecheck-followup-v1/runtime-equivalence.json",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-api-typecheck-followup-v1\\runtime-equivalence.json",
+      "sha256": "4e368f2cd44dae086dd4ee8ded4d6429007b9cd992ff1196e85ef1c9afd1c89b",
+      "bytes": 1816
+    },
+    {
+      "path": "case17-api-typecheck-followup-v1/source/apps/api/src/meri/meri-capture-clock-packets.spec.ts",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-api-typecheck-followup-v1\\source\\apps\\api\\src\\meri\\meri-capture-clock-packets.spec.ts",
+      "sha256": "e955d72df1ab150997f6e78e73c982821c3c9c38b699df1fdbb6af9f1d94bf55",
+      "bytes": 13134
+    },
+    {
+      "path": "case17-api-typecheck-followup-v1/source/apps/api/src/meri/meri-memory-proposal-read.spec.ts",
+      "originalPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case17-api-typecheck-followup-v1\\source\\apps\\api\\src\\meri\\meri-memory-proposal-read.spec.ts",
+      "sha256": "b58297bd8cd4b5e243293cc4b69843af12aae109ce38eb25418655da1a563b91",
+      "bytes": 10767
+    },
+    {
+      "path": "initial-source/independent-source-review-v3.json",
+      "originalPath": "C:/dev/main/outputs/meri-c2-20261003/case17-provenance-draft-v1/independent-source-review-v3.json",
+      "sha256": "3a397421349831836df617431a9a644b7cfeadcd2b09ba8fc6420456699c32f7",
+      "bytes": 3782
+    },
+    {
+      "path": "initial-source/supervised-v3-checkpoint.json",
+      "originalPath": "C:/dev/main/outputs/meri-c2-20261003/case17-provenance-draft-v1/supervised-v3-checkpoint.json",
+      "sha256": "2e4b50dff8a1772dfa963467af3aec837224965f995681e6f2749458bc14971b",
+      "bytes": 3504
+    },
+    {
+      "path": "initial-source/hermes-draft/hermes-usage.json",
+      "originalPath": "C:/dev/main/outputs/meri-c2-20261003/case17-provenance-draft-v1/hermes-draft/hermes-usage.json",
+      "sha256": "041b9bced9a875644f6af83172892320044aad7340714f3267f86b13eb260117",
+      "bytes": 476
+    },
+    {
+      "path": "initial-source/hermes-draft/hermes-prompt.txt",
+      "originalPath": "C:/dev/main/outputs/meri-c2-20261003/case17-provenance-draft-v1/hermes-draft/hermes-prompt.txt",
+      "sha256": "d990371f056fc211adecb033748b54efc2cc6a0e71904b766e6a12d41c117e3e",
+      "bytes": 4406
+    },
+    {
+      "path": "initial-source/hermes-draft/hermes-response.txt",
+      "originalPath": "C:/dev/main/outputs/meri-c2-20261003/case17-provenance-draft-v1/hermes-draft/hermes-response.txt",
+      "sha256": "c487005f3c433748f3333838290f706b1ba0ee7d7000d83319b96870cc776906",
+      "bytes": 1060
+    }
+  ]
+}

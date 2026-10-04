@@ -69,6 +69,11 @@ interface OwnCandidateRow {
   decidedAt: Date | null;
 }
 
+interface RecordedProposalSource {
+  sourceType: string;
+  sourceId: string;
+}
+
 export interface OwnProposalPageInput {
   cursor?: string;
   limit?: string | number;
@@ -93,6 +98,7 @@ export interface OwnedMemoryCandidate {
   createdAt: string;
   decidedAt: string | null;
   restricted: boolean;
+  recordedSource?: RecordedProposalSource;
   proposal: {
     key: string | null;
     value: string | null;
@@ -291,10 +297,13 @@ export class GovernedMemoryCandidateService extends MemoryCandidateService {
           : true;
         const payloadRow = contentAllowed
           ? await tx.memoryCandidate.findFirst({
-              where: { id: row.id, tenantId: ctx.tenantId },
-              select: { payload: true },
+              where: { id: row.id, tenantId: ctx.tenantId, proposedBy: ctx.userId },
+              select: { payload: true, sourceType: true, sourceId: true },
             })
           : null;
+        const recordedSource = contentAllowed && payloadRow
+          ? recordedProposalSource(payloadRow.sourceType, payloadRow.sourceId)
+          : undefined;
         own.push({
           id: row.id,
           scope: row.scope,
@@ -304,6 +313,7 @@ export class GovernedMemoryCandidateService extends MemoryCandidateService {
           createdAt: row.createdAt.toISOString(),
           decidedAt: row.decidedAt?.toISOString() ?? null,
           restricted: !contentAllowed,
+          ...(recordedSource ? { recordedSource } : {}),
           proposal: payloadRow ? proposalFromPayload(payloadRow.payload) : null,
           capabilities: { withdraw: row.status === 'pending' },
         });
@@ -503,6 +513,20 @@ export class GovernedMemoryCandidateService extends MemoryCandidateService {
       });
     }
   }
+}
+
+function recordedProposalSource(sourceType: unknown, sourceId: unknown): RecordedProposalSource | undefined {
+  if (
+    typeof sourceType !== 'string' ||
+    sourceType === 'unknown' ||
+    sourceType.trim() !== sourceType ||
+    sourceType.length > 40 ||
+    !/^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$/.test(sourceType) ||
+    typeof sourceId !== 'string' ||
+    !((sourceId.length === 36 && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(sourceId)) ||
+      (sourceId.length === 64 && /^[0-9a-f]{64}$/.test(sourceId)))
+  ) return undefined;
+  return { sourceType, sourceId };
 }
 
 function parseOwnProposalPageSize(value: unknown): number {

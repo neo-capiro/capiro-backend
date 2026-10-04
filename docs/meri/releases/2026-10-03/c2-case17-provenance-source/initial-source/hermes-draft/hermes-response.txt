@@ -1,0 +1,8 @@
+Draft patch is complete in the copied files only. Review text: C:\dev\main\outputs\meri-c2-20261003\case17-provenance-draft-v1\hermes-draft\REVIEW.md
+
+Changed the five permitted files:
+- API own-proposal listing selects recorded source type/ID only after the existing content gate, scoped to tenant and current proposer. It omits malformed or unsupported metadata, and restricted rows receive no source metadata.
+- Web own-proposal cards keep the existing Source label and add an accessible, read-only expander for plain-text recorded metadata. No links or writes were added.
+- Existing API and Web tests now cover distinct references, query scoping, malformed values, restricted-row suppression, non-copying of payload provenance, card-specific display, and remount behavior.
+
+NOT RUN: tests, builds, commands, original prompt/human rubric, and original-row acceptance. Automatic lint checks were skipped or unavailable. Suggested test commands and remaining qualification are recorded in REVIEW.md. This remains a draft; no acceptance claim is made.
