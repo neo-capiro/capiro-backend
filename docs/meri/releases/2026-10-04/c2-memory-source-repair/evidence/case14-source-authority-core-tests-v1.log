@@ -1,0 +1,24 @@
+FAIL src/context/memory-capture-source.spec.ts
+  ● Test suite failed to run
+
+    src/context/memory-capture-source.spec.ts:23:10 - error TS2532: Object is possibly 'undefined'.
+
+    23   expect(signMeriMemoryCaptureSources(p,[record],secret).sources[0].clientId).toBeNull();
+                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    src/context/memory-capture-source.spec.ts:45:10 - error TS2532: Object is possibly 'undefined'.
+
+    45   expect(verifyMeriMemoryCaptureSources(p,[record],proof,secret)[0].fullRead).toBe(false);
+                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+PASS src/context/capture-evidence-receipt.spec.ts
+
+Test Suites: 1 failed, 1 passed, 2 total
+Tests:       78 passed, 78 total
+Snapshots:   0 total
+Time:        3.393 s
+Ran all test suites matching /src\\context\\memory-capture-source.spec.ts|src\\context\\capture-evidence-receipt.spec.ts/i.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?
+undefined
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command "jest" not found
+
+Did you mean "pnpm exec jest"?

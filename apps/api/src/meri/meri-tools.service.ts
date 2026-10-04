@@ -1,3 +1,4 @@
+import { memoryCaptureSourcePolicyEnabled, signMeriMemoryCaptureSources } from '@capiro/meriv2-core';
 import { assertTextArtifactCurrentProposal, type TextArtifactCurrentAction } from './meri-text-artifact-current-proposal.js';
 import { assertCase46ArtifactEffectInTx } from './meri-case46-action-authority.js';
 import { researchPortfolioManagementSchema, parseResearchPortfolioManagementInput } from '../research-portfolios/research-portfolio-management.js';
@@ -18,6 +19,7 @@ import {
 import {
   assertMeriToolRequestActive,
   currentMeriToolCapturePolicy,
+  currentMeriMemoryCaptureRequest,
   meriToolRequestControl,
 } from './meri-tool-request-control.js';
 import { currentMeriServerReadonlyCapturePolicy } from './meri-context-plane-runtime.js';
@@ -3505,6 +3507,7 @@ export class MeriToolsService {
     const project = () =>
       evidence.records.map((record) =>
         projectMemoryContent(ctx, record, {
+          captureSourceOwner: memoryCaptureSourcePolicyEnabled(capturePolicy),
           clientId: clientId ?? undefined,
           memoryItemId: memoryItemId ?? undefined,
           contentCursor: contentCursor ?? undefined,
@@ -3537,6 +3540,9 @@ export class MeriToolsService {
     return {
       ...envelope,
       tool: 'search_memory',
+      ...(memoryCaptureSourcePolicyEnabled(capturePolicy)
+        ? { memoryCaptureSources: signMeriMemoryCaptureSources(capturePolicy, records, process.env.INTERNAL_SERVICE_SECRET, currentMeriMemoryCaptureRequest()!) }
+        : {}),
       ...(capturePolicy?.semanticClock ? { contextPackets } : {}),
       summary: records.length
         ? `${records.length} governed memory item(s) returned. Follow content.nextRead for complete approved content; coverage describes the search.`

@@ -4,6 +4,7 @@ import { randomUUID, createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync, mkdtempSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { createWindowsArtifactStorage } from '../windows-artifact-storage.mjs';
 
 const pythonExecutable = 'C:/Users/neoma/AppData/Local/hermes/hermes-agent/venv/Scripts/python.exe';
 const liveRoot = 'C:/dev/main/outputs/meri-fresh-20261003';
@@ -48,6 +49,28 @@ async function fixture() {
       `try:\n r=m['execute'](json.load(sys.stdin));print(json.dumps({'ok':True,**r}))\n` +
       `except Exception:\n print(json.dumps({'ok':False}));sys.exit(1)\n`,
   );
+  const costUrl = new URL('../case14-approval-cost-authority.mjs', import.meta.url);
+  let costCopy = readFileSync(costUrl, 'utf8')
+    .replace(/from '(\.[^']+)'/gu, (_all, ref) => `from '${new URL(ref, costUrl).href}'`)
+    .replace(
+      "new URL('./case14-approval-cost-evidence.json', import.meta.url)",
+      `new URL('${new URL('../case14-approval-cost-evidence.json', import.meta.url).href}')`,
+    );
+  // Isolated source copy only: replace network reads with the recorded native
+  // census. The real WeakMap, validation and NTFS artifact owner still run.
+  const censusStart = costCopy.indexOf('async function readCensus('),
+    censusEnd = costCopy.indexOf('/** Fixed reviewed', censusStart);
+  assert.ok(censusStart > 0 && censusEnd > censusStart);
+  costCopy =
+    costCopy.slice(0, censusStart) +
+    `async function readCensus(deadlineAtMs) {
+    const census = JSON.parse(readFileSync('C:/dev/main/outputs/meri-c2-20261003/case14-cost-census-source-v1.private.json'));
+    return {observedAtMs:Date.now(),censusSha256:sha256Stable(census),...inspectCase14ApprovalCostCensus(census,deadlineAtMs)};
+  }\n` +
+    costCopy.slice(censusEnd);
+  costCopy = costCopy.replaceAll('Date.now()', "Date.parse('2026-10-04T05:12:14.897Z')");
+  const costPath = join(root, 'unit-cost-owner.mjs');
+  writeFileSync(costPath, costCopy);
   const copy = source
     .replace(/from '(\.\/[^']+)'/gu, (_all, ref) => `from '${new URL(ref, moduleUrl).href}'`)
     .replace(
@@ -57,11 +80,20 @@ async function fixture() {
     .replace(
       "const helper = fileURLToPath(new URL('./lib/windows-capture-spend.py', import.meta.url));",
       `const helper = ${JSON.stringify(wrapper)};`,
-    );
+    )
+    .replace(
+      new URL('../case14-approval-cost-authority.mjs', import.meta.url).href,
+      pathToFileURL(costPath).href,
+    )
+    .replaceAll('Date.now()', "Date.parse('2026-10-04T05:12:14.897Z')");
   assert.notEqual(copy, source);
   const modulePath = join(root, 'unit-owner.mjs');
   writeFileSync(modulePath, copy);
-  return { root, module: await import(pathToFileURL(modulePath).href) };
+  return {
+    root,
+    module: await import(pathToFileURL(modulePath).href),
+    cost: await import(pathToFileURL(costPath).href),
+  };
 }
 const reserve = () => ({ caseId: '01', captureRunId: randomUUID(), ceilingMicros: 15_000_000 });
 const expected = (r) => ({
@@ -194,13 +226,77 @@ async function currentCase14Fixture() {
   return { ...f, prior, wire };
 }
 
+async function case14Cost(f) {
+  const recipe = JSON.parse(
+    readFileSync('C:/dev/main/outputs/meri-c2-20261003/case14-native-execute-input-v1.json'),
+  ).recipe;
+  const config = {
+    caseId: '14',
+    captureRunId: randomUUID(),
+    recipe,
+    reviewer: {
+      role: 'user_admin',
+      userId: recipe.actors.PRIYA.physicalId,
+      tenantId: recipe.ctx.tenantId,
+    },
+    deployment: {
+      apiSha: 'c0f393f863bf73bd4e65e7a94e17c073e7be021e',
+      webSha: 'c0f393f863bf73bd4e65e7a94e17c073e7be021e',
+    },
+  };
+  const storage = createWindowsArtifactStorage(join(f.root, 'artifacts-' + config.captureRunId), {
+    pythonExecutable,
+  });
+  storage.init(Buffer.from('unit14 owner'), Buffer.from(config.captureRunId));
+  return { config, costAuthority: await f.cost.readCase14ApprovalCostAuthority(config, storage) };
+}
+
 test('Case14 resumes exact24 checkpoint; fake outcome cannot release its new ceiling', async () => {
   const f = await currentCase14Fixture();
   const owner = f.module.openCaptureSpendAggregate(f.prior, { pythonExecutable });
   assert.equal(owner.checkpoint().snapshot.knownSettledCostMicros, 13_631_058);
   assert.equal(owner.checkpoint().snapshot.remainingReservationMicros, 16_368_942);
-  const reservation = owner.reserve({ ...reserve(), caseId: '14' });
-  f.module.claimCaptureSpendReservation(reservation, expected(reservation));
+  assert.throws(() => owner.reserve({ ...reserve(), caseId: '14' }));
+  assert.throws(() =>
+    owner.reserveCase14Approval({
+      captureRunId: randomUUID(),
+      costAuthority: { approvalBoundSha256: 'a'.repeat(64) },
+    }),
+  );
+  const { config, costAuthority } = await case14Cost(f);
+  const reservation = owner.reserveCase14Approval({
+    captureRunId: config.captureRunId,
+    costAuthority,
+  });
+  assert.equal(reservation.ceilingMicros, 14_000_000);
+  assert.equal(reservation.combinedCeilingMicros, 15_000_000);
+  assert.throws(() => f.module.claimCaptureSpendReservation(reservation, expected(reservation)));
+  assert.throws(() =>
+    f.module.claimCase14ApprovalSpendReservation(
+      { ...reservation },
+      config,
+      '6f4545a1-dcd5-5eba-8606-db2043b238ac',
+    ),
+  );
+  f.module.claimCase14ApprovalSpendReservation(
+    reservation,
+    config,
+    '6f4545a1-dcd5-5eba-8606-db2043b238ac',
+  );
+  assert.throws(() =>
+    f.module.claimCase14ApprovalSpendReservation(
+      reservation,
+      config,
+      '6f4545a1-dcd5-5eba-8606-db2043b238ac',
+    ),
+  );
+  await f.module.refreshCase14ApprovalSpendReservation(reservation);
+  f.module.assertCase14ApprovalSpendReservation(reservation, { submit: true });
+  assert.throws(() => f.module.assertCase14ApprovalSpendReservation(reservation, { submit: true }));
+  assert.throws(() =>
+    f.module.bindCase14ApprovalSpendOutcome(reservation, { status: 'APPROVAL_CAPTURE_COMPLETE' }),
+  );
+  assert.throws(() => f.module.claimCaptureSpendReservation(reservation, expected(reservation)));
   const before = readFileSync(join(f.root, 'fresh-spend.jsonl'));
   for (const outcome of [{ status: 'CAPTURE_COMPLETE' }, { chargedCostMicros: 0, evidence: {} }])
     assert.throws(() => owner.settleCaptured(reservation, outcome));
@@ -214,9 +310,24 @@ test('Case14 owner contention preserves concurrency one at the exact24 boundary'
   const f = await currentCase14Fixture();
   const first = f.module.openCaptureSpendAggregate(f.prior, { pythonExecutable });
   const second = f.module.openCaptureSpendAggregate(f.prior, { pythonExecutable });
-  first.reserve({ ...reserve(), caseId: '14' });
-  assert.throws(() => second.reserve({ ...reserve(), caseId: '14' }));
-  assert.throws(() => second.reserve({ ...reserve(), caseId: '14' }));
+  const a = await case14Cost(f),
+    b = await case14Cost(f);
+  first.reserveCase14Approval({
+    captureRunId: a.config.captureRunId,
+    costAuthority: a.costAuthority,
+  });
+  assert.throws(() =>
+    second.reserveCase14Approval({
+      captureRunId: b.config.captureRunId,
+      costAuthority: b.costAuthority,
+    }),
+  );
+  assert.throws(() =>
+    second.reserveCase14Approval({
+      captureRunId: b.config.captureRunId,
+      costAuthority: b.costAuthority,
+    }),
+  );
   assert.equal(
     readFileSync(join(f.root, 'fresh-spend.jsonl'), 'utf8').trim().split('\n').length,
     25,

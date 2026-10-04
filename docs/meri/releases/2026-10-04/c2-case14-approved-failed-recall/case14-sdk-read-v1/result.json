@@ -1,0 +1,29 @@
+{
+  "at": "2026-10-04T04:46:54.544Z",
+  "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/e69540e42007496bb057c7bd9d023a37",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-c2-case14-sdk-read-20261004:1",
+  "exitCode": 0,
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:024fcc82a2db7701f4a3e3311598a9a1d0933b3fe4fcf73751bf0e3fb866d8ce",
+  "scriptSha256": "c60821733feb6696ac95136b49294078513e865f50cc969ea81a459a418d5abb",
+  "receipts": [
+    {
+      "phase": "BEGIN",
+      "sha256": "713b761d129f33cd95f23ca0e87831f182a156141affc30bd102f0af30d21583",
+      "bytes": 610,
+      "chunks": 1
+    },
+    {
+      "phase": "CHUNK",
+      "index": 0,
+      "data": "eyJraW5kIjoiY2FzZTE0LW9yZGluYXJ5LWVtYmVkZGluZy1zZGstcmVhZGJhY2siLCJzdGF0dXMiOiJTREtfQ09ORklHVVJBVElPTl9SRUFEX05PX1BST1ZJREVSX0RJU1BBVENIIiwic291cmNlU2hhIjoiYzBmMzkzZjg2M2JmNzNiZDRlNjVlN2E5NGUxN2MwNzNlN2JlMDIxZSIsIm1ldGFkYXRhIjp7InByb3ZpZGVyIjoiYXdzLWJlZHJvY2siLCJtb2RlbCI6ImFtYXpvbi50aXRhbi1lbWJlZC10ZXh0LXYyOjAiLCJtb2RlbFZlcnNpb24iOiJ2MiIsImRpbWVuc2lvbnMiOjEwMjR9LCJyZWdpb24iOiJ1cy1lYXN0LTEiLCJtYXhBdHRlbXB0cyI6MywicmV0cnlNb2RlIjoic3RhbmRhcmQiLCJ1c2VGaXBzRW5kcG9pbnQiOmZhbHNlLCJ1c2VEdWFsc3RhY2tFbmRwb2ludCI6ZmFsc2UsIm92ZXJyaWRlS2V5cyI6W10sImV4cGxpY2l0RW5kcG9pbnRDb25maWd1cmVkIjpmYWxzZSwicHJvdmlkZXJDYWxscyI6MCwiZGF0YWJhc2VDYWxscyI6MCwiY2FuZGlkYXRlQ3JlYXRpb25zIjowLCJyZXZpZXdEZWNpc2lvbnMiOjAsInJlY2FsbFN1Ym1pc3Npb25zIjowLCJhY2NlcHRhbmNlQXV0aG9yaXR5IjpmYWxzZSwib2JzZXJ2ZWRBdCI6IjIwMjYtMTAtMDRUMDQ6NDY6MTkuMzg1WiJ9Cg=="
+    },
+    {
+      "phase": "END",
+      "sha256": "713b761d129f33cd95f23ca0e87831f182a156141affc30bd102f0af30d21583",
+      "bytes": 610,
+      "chunks": 1
+    }
+  ],
+  "providerCalls": 0,
+  "fixtureScope": "EXACT_API_PUBLIC_ENV_SDK_READ_ONLY"
+}

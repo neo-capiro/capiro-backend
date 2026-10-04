@@ -1,0 +1,9 @@
+{
+  "status": "CAPTURE_UNCERTAIN",
+  "acceptanceStatus": "NOT_RUN",
+  "reason": "CASE01_SOURCE_TOOL_JOIN_MISMATCH",
+  "caseId": "14",
+  "captureRunId": "5f4312a2-6aa9-4ec8-820d-5717a88402df",
+  "requestCount": 10,
+  "synthesisSubmissionCount": 1
+}

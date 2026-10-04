@@ -1,0 +1,10 @@
+
+> @capiro/meriv2-core@0.0.0 build C:\dev\main\meri-c1-20261002\packages\meriv2-core
+> tsc -p tsconfig.json
+
+src/context/memory-capture-source.ts(81,3): error TS2322: Type '{ signature: string; version: 1; purpose: string; policyBinding: string; sources: MeriMemoryCaptureSource[]; }' is not assignable to type 'MeriMemoryCaptureSourceProof'.
+  Types of property 'purpose' are incompatible.
+    Type 'string' is not assignable to type '"capiro:meri:canonical-memory-capture-source:v1"'.
+C:\dev\main\meri-c1-20261002\packages\meriv2-core:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @capiro/meriv2-core@0.0.0 build: `tsc -p tsconfig.json`
+Exit status 2

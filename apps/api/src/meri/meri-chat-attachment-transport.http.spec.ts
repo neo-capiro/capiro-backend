@@ -148,7 +148,7 @@ describe('served attachment real API controller dispatch', () => {
   it('runs controller -> canonical dispatch -> dedicated reader with server-derived conversation', async () => {
     const first = await post(
       envelope({ attachmentId: '55555555-5555-4555-8555-555555555555' }),
-    ).expect(201);
+    ).expect(200);
     expect(first.body).toMatchObject({
       tool: 'read_chat_attachments',
       ctx: { tenantId: TENANT, userId: USER },
@@ -158,7 +158,7 @@ describe('served attachment real API controller dispatch', () => {
       },
       scope: currentTurn(),
     });
-    const repeated = await post(envelope({ limit: 10 })).expect(201);
+    const repeated = await post(envelope({ limit: 10 })).expect(200);
     expect(repeated.body.input.conversationId).toBe(CONVERSATION);
     expect(read).toHaveBeenCalledTimes(2);
     expect(currentMeriChatAttachmentReadScope()).toBeUndefined();

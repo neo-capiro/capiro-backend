@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "kind": "meri-live-read-capture-manifest",
+  "captureRunId": "5f4312a2-6aa9-4ec8-820d-5717a88402df",
+  "owner": {
+    "ref": "bundle-owner.json",
+    "sha256": "5ca6361451640380242ca23bdb00c36f74467526404523d582d641bbe744a7d9"
+  },
+  "summary": {
+    "status": "CAPTURE_UNCERTAIN",
+    "acceptanceStatus": "NOT_RUN",
+    "reason": "CASE01_SOURCE_TOOL_JOIN_MISMATCH",
+    "caseId": "14",
+    "captureRunId": "5f4312a2-6aa9-4ec8-820d-5717a88402df",
+    "requestCount": 10,
+    "synthesisSubmissionCount": 1
+  },
+  "artifacts": [
+    {
+      "ref": "admission.json",
+      "sha256": "3c4393ad305cfe43a5cb4760ae3f9908d42074b319604b4aebf266fae07c0190",
+      "bytes": 2781
+    },
+    {
+      "ref": "blocked.json",
+      "sha256": "a7621895fde183cdd338f875f40f29e110f8c3cba1431fe863f56911099ce178",
+      "bytes": 248
+    },
+    {
+      "ref": "bundle-owner.json",
+      "sha256": "5ca6361451640380242ca23bdb00c36f74467526404523d582d641bbe744a7d9",
+      "bytes": 410
+    },
+    {
+      "ref": "immutable-builds.json",
+      "sha256": "f06f8605a4835dcd50103edbde14779fbe7a947c9886797135cd156fded16038",
+      "bytes": 1476
+    },
+    {
+      "ref": "saved-messages-observation.json",
+      "sha256": "8a65e30939fa18178cfcc480ae3c513df511bb86e01b502032ba777b94bc5d25",
+      "bytes": 20078
+    },
+    {
+      "ref": "stream-response-observation.json",
+      "sha256": "dd15420d3b67a79e5559cc46c10225ab6477c98807dc33aadedcc1c7466c6f34",
+      "bytes": 19083
+    },
+    {
+      "ref": "submission-intent.json",
+      "sha256": "4eae8e20145267430ab8d5ad4d43f1e6334fed8ef0c89388acb51d04f824aa00",
+      "bytes": 254
+    }
+  ]
+}

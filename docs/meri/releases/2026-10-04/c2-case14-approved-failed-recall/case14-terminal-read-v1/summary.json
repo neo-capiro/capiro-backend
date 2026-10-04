@@ -1,0 +1,30 @@
+{
+  "at": "2026-10-04T05:57:35.837Z",
+  "captureRunId": "5f4312a2-6aa9-4ec8-820d-5717a88402df",
+  "conversationId": "88603ac2-bfbf-42dc-9e3b-85e4bea173b8",
+  "kind": "case14-existing-terminal-diagnostic-read",
+  "applicationWrites": 0,
+  "providerCalls": 0,
+  "newTurns": 0,
+  "captureAuthority": false,
+  "acceptanceStatus": "NOT_RUN",
+  "budget": {
+    "status": "SETTLED",
+    "turnId": "d0284dec-ab0c-471c-8b17-1792a769cd2e",
+    "version": 1,
+    "attempts": 3,
+    "boundary": "case14_memory_turn",
+    "admissionId": "25760a30-713d-4e8a-bb0d-c4d14b7265bb",
+    "ledgerSha256": "eb6de264b55a1d79c27fb7b925c12841c44663c91f80e07e4c1623fe1281e99e",
+    "chargedTokens": 62396,
+    "maxCostMicros": 14000000,
+    "chargedCostMicros": 1569851,
+    "qualificationSha256": "b0552df040a303d65eb1573c8a8ec0bebd76e198361a3421e241256713240353",
+    "unaccountedBoundaries": []
+  },
+  "blockers": [
+    "semantic_clock_api_tool_join_pending",
+    "semantic_clock_invocation_join_unproved",
+    "source_tenant_authority_unproved:a740d74f-2c61-4888-bb59-5c9eea502e3f"
+  ]
+}

@@ -330,6 +330,7 @@ describe('InstitutionalKnowledgeRetrievalAdapter', () => {
         recordId: 'memory-1',
         contentHash: 'canonical-hash',
         sourceVersion: 'candidate:approved',
+        canonicalTenantId: 'tenant-1',
       },
     });
     expect(result.coverageComplete).toBe(true);

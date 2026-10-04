@@ -1,0 +1,82 @@
+SOURCE apps/meriv2-orchestrator/src/meri/meriv3/meriv3-tool-evidence.ts LINES 63-88
+63: ];
+64: 
+65: function object(value: unknown): value is Record<string, unknown> {
+66:   return value !== null && typeof value === 'object' && !Array.isArray(value);
+67: }
+68: 
+69: function sanitizeValue(value: unknown): unknown {
+70:   if (typeof value === 'string') return sanitizeToolResultText(value, Number.MAX_SAFE_INTEGER);
+71:   if (Array.isArray(value)) return value.map(sanitizeValue);
+72:   if (!object(value)) return value;
+73:   const keys = new Set<string>();
+74:   return Object.fromEntries(
+75:     // Capture authority is consumed at the HTTP boundary, never by the model.
+76:     Object.entries(value).filter(([key]) => key !== 'memoryCaptureSources' && key !== 'canonicalTenantId').map(([key, entry], index) => {
+77:       const sanitized = sanitizeToolResultText(key, Number.MAX_SAFE_INTEGER);
+78:       // Filtering two different hostile keys must not overwrite either value.
+79:       let unique = sanitized;
+80:       while (keys.has(unique)) unique = `${unique} [field ${index}]`;
+81:       keys.add(unique);
+82:       return [unique, sanitizeValue(entry)];
+83:     }),
+84:   );
+85: }
+86: 
+87: function usdDisplay(minorUnits: unknown): string | null {
+88:   if (typeof minorUnits !== 'string' || !/^-?\d+$/.test(minorUnits)) return null;
+
+SOURCE apps/meriv2-orchestrator/src/meri/meriv3/meriv3-tool-evidence.ts LINES 588-640
+588: export function projectMeriToolEvidence(args: {
+589:   result: unknown;
+590:   maxCharacters: number;
+591:   readOnly: boolean;
+592:   inputProperties?: Record<string, unknown>;
+593: }): unknown {
+594:   let serialized: string;
+595:   try {
+596:     serialized = JSON.stringify(args.result ?? null);
+597:   } catch {
+598:     return { error: 'tool_result_not_serializable', projection: { truncated: true } };
+599:   }
+600:   // Apply the existing injection defense before constructing the ledger too.
+601:   const result = sanitizeValue(JSON.parse(serialized));
+602:   const safe = JSON.stringify(result);
+603:   const original = object(result) ? result : {};
+604:   if (args.readOnly) {
+605:     const fiscal = projectFloridaBudgetEvidence(original, args.maxCharacters);
+606:     if (fiscal) return fiscal;
+607:     const document = projectClientDocumentEvidence(original, args.maxCharacters, safe.length);
+608:     if (document) return document;
+609:     const mail = projectMailInventoryEvidence(original, args.maxCharacters, safe.length);
+610:     if (mail) return mail;
+611:     const thread = projectMailThreadEvidence(original, args.maxCharacters, safe.length);
+612:     if (thread) return thread;
+613:   }
+614:   if (safe.length <= args.maxCharacters) return result;
+615: 
+616:   if (args.readOnly) {
+617:     const profile = projectClientProfileEvidence(original, args.maxCharacters, safe.length);
+618:     if (profile) return profile;
+619:   }
+620:   const rowKey = ROW_KEYS.find((key) => Array.isArray(original[key]));
+621:   const rows = rowKey ? (original[rowKey] as unknown[]) : Array.isArray(result) ? result : [];
+622:   const key = rowKey ?? (Array.isArray(result) ? 'data' : undefined);
+623:   const shown: unknown[] = [];
+624:   const metadata: Record<string, unknown> = {};
+625:   for (const field of META_KEYS) {
+626:     const value = original[field];
+627:     if (value === undefined || JSON.stringify(value).length > 1_600) continue;
+628:     if (
+629:       JSON.stringify({ ...metadata, [field]: value }).length >
+630:       Math.min(3_000, args.maxCharacters / 4)
+631:     )
+632:       continue;
+633:     metadata[field] = value;
+634:   }
+635:   const overrides: Record<string, number> = {};
+636:   for (const field of ['pageSize', 'limit', 'k', 'topK']) {
+637:     if (args.inputProperties?.[field]) overrides[field] = 1;
+638:   }
+639:   if (args.inputProperties?.maxChars) overrides.maxChars = 6_000;
+640:   const projected: Record<string, unknown> = {

@@ -1,8 +1,11 @@
 import { createServer, type Server } from 'node:http';
 import { createHash } from 'node:crypto';
-import { MERI_CAPABILITY_REGISTRY, type MeriCitation } from '@capiro/shared';
+import { MERI_CAPABILITY_REGISTRY, extractCitationsFromToolResult, type MeriCitation } from '@capiro/shared';
 import {
   meriCaptureClockExecutionBlockers,
+  signMeriMemoryCaptureSources,
+  decodeMeriMemoryCaptureRequest,
+  MERI_MEMORY_CAPTURE_REQUEST_HEADER,
   type MeriServerReadonlyCapturePolicy,
   type MeriContext,
 } from '@capiro/meriv2-core';
@@ -19,6 +22,7 @@ import {
   observeControlledReadHttpResponse,
   readControlledReadHttpObservations,
   readCaptureClockInvocations,
+  readMemoryCaptureHttpObservations,
 } from './controlled-read-observations.js';
 import { projectMeriToolEvidence } from './meriv3/meriv3-tool-evidence.js';
 import { observeMeriTurnToolCoverage } from './meriv3/meriv3-turn-coverage.js';
@@ -127,6 +131,59 @@ describe('controlled read actual HTTP observations', () => {
       server.closeAllConnections();
       await new Promise<void>((resolve) => server!.close(() => resolve()));
       server = undefined;
+    }
+  });
+  test.each(['01', '14'])('canonical memory owner joins actual Case%s HTTP bytes without exposing proof to model', async (caseId) => {
+    const p = policy(caseId);
+    p.fixtureVersion = 'meri-live-v1-2026-09-26.1';
+    p.semanticClock = {version:1,kind:'qualified_original_fixture_semantic_clock',instant:'2026-09-26T16:00:00.000Z',timeZone:'America/New_York',caseId:caseId as '01'|'14',captureRunId:p.captureRunId!,currentVerifySha256:'b'.repeat(64),observedAt:p.issuedAt};
+    const text = 'Approved Aster source text.', sourceVersion = 'candidate:'+id(9);
+    const record = {domain:'institutional_knowledge',recordId:id(8),
+      provenance:{source:'memory_items',recordId:id(8),canonicalTenantId:p.tenantId,sourceVersion},
+      payload:{sourceKind:'governed_memory',memoryItemId:id(8),clientId:p.clientId,contentStatus:'available',value:text,
+        content:{hash:hash(text+'\0'+sourceVersion),offset:0,endOffset:text.length,totalCharacters:text.length,truncated:false,nextRead:null}}};
+    const packet = {packetId:id(9),persisted:true,clockUse:{instant:p.semanticClock.instant,timeZone:p.semanticClock.timeZone,eligibilityAt:new Date().toISOString(),scoring:'used'}};
+    const secret = 'synthetic-memory-source-secret';
+    const body = {tool:'search_memory',records:[record],results:[{id:record.recordId}],nextCursor:null,contextPacket:packet,contextPackets:[packet],
+      contentStatus:'available',factContentUnavailableCount:0,contentTruncated:false,
+      coverage:{complete:true,paginationComplete:true,sources:[{domain:'institutional_knowledge',sourceStatus:'healthy',hasMore:false,truncated:false,paginationComplete:true,coverageComplete:true}]},
+      memoryCaptureSources:null as ReturnType<typeof signMeriMemoryCaptureSources>|null};
+    let hits = 0;
+    server = createServer((req,res)=>{hits++;let raw='';req.on('data',chunk=>raw+=chunk);req.on('end',()=>{
+      const binding=decodeMeriMemoryCaptureRequest(p,req.headers[MERI_MEMORY_CAPTURE_REQUEST_HEADER],JSON.parse(raw),secret);
+      // Second response deliberately replays the first call's valid signed bytes.
+      if(hits===1)body.memoryCaptureSources=signMeriMemoryCaptureSources(p,[record],secret,binding);
+      res.writeHead(200,{'content-type':'application/json'});res.end(JSON.stringify(body));
+    });});
+    await new Promise<void>(resolve=>server!.listen(0,'127.0.0.1',resolve));
+    const repo = new ApiToolExecutorRepo({get:(key:string)=>({MERIV2_API_BASE_URL:`http://127.0.0.1:${(server!.address() as {port:number}).port}`,INTERNAL_SERVICE_SECRET:secret})[key]} as never);
+    const priorSecret = process.env.INTERNAL_SERVICE_SECRET;
+    process.env.INTERNAL_SERVICE_SECRET = secret;
+    try {
+      await scope(p,()=>RequestCredentialsStore.run({bearerToken:'synthetic-bearer'},async()=>{
+        const response = await withControlledReadInvocation('memory-call',()=>repo.execute({} as MeriContext,'search_memory',{}),'search_memory');
+        const visible = projectMeriToolEvidence({result:response,maxCharacters:20000,readOnly:true});
+        expect(JSON.stringify(visible)).not.toContain('memoryCaptureSources');
+        expect(JSON.stringify(visible)).not.toContain('canonicalTenantId');
+        expect(JSON.stringify(visible)).not.toContain(body.memoryCaptureSources!.signature);
+        const citations = extractCitationsFromToolResult('search_memory',visible,1);
+        expect(citations).toHaveLength(1);
+        const args = {callId:'memory-call',tool:'search_memory',readOnly:true,result:visible,citations,coverage:observeMeriTurnToolCoverage('search_memory',visible)};
+        expect(observeMeriV3CaptureExecution(args).sources[0]).toMatchObject({sourceId:id(8),toolCallId:'memory-call',tenantId:{status:'OBSERVED',value:p.tenantId},clientId:{status:'OBSERVED',value:p.clientId},fullRead:{status:'OBSERVED',value:true},byteSha256:{status:'OBSERVED',value:hash(text)}});
+        expect(readMemoryCaptureHttpObservations()[0]).toMatchObject({callId:'memory-call',responseSha256:hash(JSON.stringify(body))});
+        for (const citations of [args.citations.map(c=>({...c,snippet:'modified'})),args.citations.map(c=>({...c,source:{...c.source!,version:'changed'}}))]) {
+          expect(observeMeriV3CaptureExecution({...args,citations}).sources[0]!.tenantId.status).toBe('UNKNOWN');
+        }
+        expect(observeMeriV3CaptureExecution({...args,callId:'unobserved-call'}).sources[0]!.tenantId.status).toBe('UNKNOWN');
+        await scope({...p},async()=>{expect(readMemoryCaptureHttpObservations()).toEqual([]);expect(observeMeriV3CaptureExecution(args).sources[0]!.tenantId.status).toBe('UNKNOWN');});
+        await expect(withControlledReadInvocation('replay-call',()=>repo.execute({} as MeriContext,'search_memory',{}),'search_memory')).rejects.toThrow('meri_memory_capture_source_unproved');
+        expect(readMemoryCaptureHttpObservations().map(row=>row.callId)).toEqual(['memory-call']);
+      }));
+      expect(hits).toBe(2);
+      expect(readMemoryCaptureHttpObservations()).toEqual([]);
+    } finally {
+      if(priorSecret===undefined)delete process.env.INTERNAL_SERVICE_SECRET;
+      else process.env.INTERNAL_SERVICE_SECRET=priorSecret;
     }
   });
   test.each(['unwrapped', 'missing-call-id', 'wrong-tool'])(

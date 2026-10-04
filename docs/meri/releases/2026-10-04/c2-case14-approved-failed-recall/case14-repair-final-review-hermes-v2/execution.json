@@ -1,0 +1,35 @@
+{
+  "startedAt": "2026-10-04T06:30:04.845270+00:00",
+  "finishedAt": "2026-10-04T06:31:41.703110+00:00",
+  "exitCode": 0,
+  "failure": null,
+  "modelOverride": null,
+  "providerOverride": null,
+  "files": [
+    {
+      "path": "prompt.txt",
+      "bytes": 551,
+      "sha256": "0fd48949dff411ecfb2785c118cc78acc44776f148ea81463e2365c67c919b98"
+    },
+    {
+      "path": "response.txt",
+      "bytes": 441,
+      "sha256": "94063ed9a13b42e8bdc07639c8b23b08b954005a41792d15cc784630102d00d3"
+    },
+    {
+      "path": "review.md",
+      "bytes": 1866,
+      "sha256": "7437085db3d21170dcfb87ad543cace2c598612093f765e6d7268d553377aa3c"
+    },
+    {
+      "path": "stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "case14-repair-final-review-hermes-v2\\usage.json",
+      "bytes": 484,
+      "sha256": "26e5e00410aa2ef0e30fcf59ea3f33cb04853ed7053ed06cf34043ce65636bf5"
+    }
+  ]
+}

@@ -1,0 +1,56 @@
+{
+  "observation": {
+    "path": "/api/clio/sources?kind=memory&version=content%3A663dadd36e2a7a58c434215a3f19fdec12b07f7d1152a90a0f4a5b53fd8ca50b&clientId=41f9ec63-3963-479f-b747-59a3767ef44b&recordId=a740d74f-2c61-4888-bb59-5c9eea502e3f",
+    "status": 200,
+    "apiReleaseSha": "c0f393f863bf73bd4e65e7a94e17c073e7be021e",
+    "observedAt": "2026-10-04T06:03:27.433Z",
+    "bodySha256": "2ddd54c36c0353aab0ccecf806cbec10569b4c8338137f7808c5425d321b42bb",
+    "bodyBytes": 1879
+  },
+  "value": {
+    "kind": "memory",
+    "status": "available",
+    "recordId": "a740d74f-2c61-4888-bb59-5c9eea502e3f",
+    "title": "meri-foundation-20260928:dee4e90e-8e91-4782-9488-10b8e52a2146:MEM-PROPOSAL-14",
+    "text": "Synthetic Aster candidate for approval",
+    "governance": {
+      "memoryClass": "client_steering",
+      "authority": "analyst_verified",
+      "status": "active",
+      "conflictStatus": "none",
+      "controllingItemId": null,
+      "approvedByUserId": "fb218bf5-2674-4ced-bca3-7a5d0c01592f",
+      "approvedAt": "2026-10-04T05:50:22.542Z",
+      "asOf": "2026-10-04T05:50:22.542Z",
+      "effectiveFrom": "2026-10-04T05:50:22.542Z",
+      "validUntil": null,
+      "expiresAt": null,
+      "lastConfirmedAt": "2026-10-04T05:50:22.542Z",
+      "reviewDueAt": null,
+      "stale": false,
+      "instructionsAllowed": false
+    },
+    "contentStatus": "available",
+    "notice": null,
+    "sourceVersion": "candidate:6f4545a1-dcd5-5eba-8606-db2043b238ac",
+    "updatedAt": "2026-10-04T05:50:22.534Z",
+    "provenance": {
+      "source": "memory_items",
+      "recordId": "a740d74f-2c61-4888-bb59-5c9eea502e3f",
+      "startOffset": 0,
+      "endOffset": 38,
+      "sourceType": "steward_extraction",
+      "sourceId": "6f4545a1-dcd5-5eba-8606-db2043b238ac",
+      "sourceRef": "meri_synthetic_fixture",
+      "sourceExcerpt": "{\"ownership\":{\"marker\":{\"contractVersion\":\"meri-synthetic-fixture-provisioning-v1\",\"fixtureInstanceId\":\"dee4e90e-8e91-4782-9488-10b8e52a2146\",\"fixtureNamespace\":\"meri-foundation-20260928\",\"fixtureVersion\":\"meri-live-v1-2026-09-26.1\",\"logicalId\":\"MEM-PROPOSAL-14\",\"owner\":\"memory_candidate\",\"tenantId\":\"f2d6cf8f-057c-479a-8110-62fe5086d43f\"},\"markerSha256\":\"48b95413d7b876a412e3c5352ac4e3fecfea5eb8b26",
+      "contentHash": "e398859f2cda473be80da00d8e849a958646f9b105292823f005c848938af8cc",
+      "sourceVersion": "candidate:6f4545a1-dcd5-5eba-8606-db2043b238ac",
+      "metadataTruncated": true
+    },
+    "offset": 0,
+    "totalCharacters": 38,
+    "nextCursor": null,
+    "currentVersion": "content:663dadd36e2a7a58c434215a3f19fdec12b07f7d1152a90a0f4a5b53fd8ca50b",
+    "versionStatus": "matches_cited_version"
+  }
+}

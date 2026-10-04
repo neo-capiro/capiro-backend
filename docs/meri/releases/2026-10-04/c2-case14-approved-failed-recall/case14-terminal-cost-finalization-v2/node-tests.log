@@ -1,0 +1,21 @@
+✔ actual corrected postdeadline produces exact original failure/cost proof (19.9164ms)
+✔ production capability remains disabled without real root review (0.382ms)
+✔ forged and JSON-cloned capabilities never qualify (148.0448ms)
+✔ all copied evidence mutations reject minting (532.3621ms)
+✔ original retained evidence is re-read before mint and consume (127.8002ms)
+✔ actual original postdeadline evidence is re-read before consume (130.3088ms)
+✔ all nine source and three native dependency pins fence drift (338.3265ms)
+✔ review replacement and consume-time drift reject (138.183ms)
+✔ production append and dry CLI refuse before output intent/live read (165.4274ms)
+✔ one-process authority/bridge/operator dry run appends only disposable NTFS (584.6405ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2279.1349
+
+exit_code=0
+

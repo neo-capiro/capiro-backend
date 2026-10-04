@@ -1,0 +1,12 @@
+{
+  "at": "2026-10-04T04:45:18.723Z",
+  "kind": "EXACT_API_PUBLIC_ENV_SDK_READ_ONLY",
+  "serviceRevision": 523,
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:024fcc82a2db7701f4a3e3311598a9a1d0933b3fe4fcf73751bf0e3fb866d8ce",
+  "sourceSha": "c0f393f863bf73bd4e65e7a94e17c073e7be021e",
+  "scriptSha256": "c60821733feb6696ac95136b49294078513e865f50cc969ea81a459a418d5abb",
+  "providerSecrets": 0,
+  "workloadTaskRole": null,
+  "allowedMutation": "NONE_READ_ONLY_SDK_CONFIGURATION",
+  "cloudActions": "one bounded SDK configuration read task; stop and deregister owned definition"
+}

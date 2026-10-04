@@ -1,0 +1,40 @@
+{
+  "kind": "meri-capture-reviewed-provider-rates",
+  "version": 1,
+  "priceKind": "qualified_text_token_upper_bound",
+  "maxTokens": 500000,
+  "observedAt": "2026-10-04T05:09:44.838Z",
+  "expiresAt": "2026-10-04T11:09:44.838Z",
+  "rates": [
+    {
+      "kind": "openai_responses",
+      "provider": "openai",
+      "model": "gpt-6-astra",
+      "inputMicrosPerMillion": 25000000,
+      "outputMicrosPerMillion": 75000000
+    },
+    {
+      "kind": "bedrock_embeddings",
+      "provider": "aws-bedrock",
+      "model": "amazon.titan-embed-text-v2:0",
+      "inputMicrosPerMillion": 20000,
+      "outputMicrosPerMillion": 0
+    }
+  ],
+  "sources": [
+    {
+      "kind": "openai_responses",
+      "provider": "openai",
+      "model": "gpt-6-astra",
+      "url": "https://developers.openai.com/api/docs/pricing",
+      "unitContract": "Official OpenAI Standard pricing re-opened2026-10-04 in this session: gpt-6-astra long-context input USD20/M, cache-write USD25/M, output USD75/M; retained conservative input25/output75 for every request under cumulative500000token cap. Only exact api.openai.com/v1/responses and explicit service_tier default, store false, reviewed text/function/reasoning replay, no hosted tools/image/audio/external response state. Actual serialized UTF8 bytes and prepared max_output_tokens are reserved before each main/core attempt and fallback. Unmatched Typesafe JEV, Anthropic, NVIDIA or other model/provider remains rejected before dispatch. This is an accounting upper bound, not actual invoiced billing. No regional/FedRAMP endpoint."
+    },
+    {
+      "kind": "bedrock_embeddings",
+      "provider": "aws-bedrock",
+      "model": "amazon.titan-embed-text-v2:0",
+      "url": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonBedrock/current/us-east-1/index.json",
+      "unitContract": "AWS signed Price List Query API read2026-10-04T04:44:33.843Z, us-east-1, version20261003001138, SKU EDNQYEHQ3XQ8N7EY, On-demand InvokeModelInference USD0.0000200000/1000inputtokens = USD0.02/M, effective2026-10-01. Only reviewed capture path with canonical Bedrock runtime endpoint, us-east-1 and amazon.titan-embed-text-v2:0, explicit maxAttempts1. Serialized UTF8 request bytes reserve input; inputTextTokenCount settles actual tokens. Output vector has no text-output charge. Ordinary approval embeddings are separately covered by combined-case conservative envelope; these recall rates do not claim approval has zero cost."
+    }
+  ]
+}

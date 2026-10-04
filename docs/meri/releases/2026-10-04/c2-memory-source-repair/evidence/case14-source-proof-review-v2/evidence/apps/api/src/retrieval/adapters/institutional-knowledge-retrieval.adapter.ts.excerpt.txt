@@ -1,0 +1,286 @@
+SOURCE apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.ts LINES 138-329
+138:     // Only the user's query is sent; canonical facts and access checks are read
+139:     // freshly after this bounded attempt, including on every continuation.
+140:     const vector = await this.queryEmbedding(request);
+141:     try {
+142:       return await this.prisma.withTenantUser(
+143:         request.caller.tenantId,
+144:         request.caller.userId,
+145:         async (tx) => {
+146:           const allowedClientIds: string[] = [];
+147:           for (const clientId of requestedClientIds) {
+148:             if (
+149:               await clientMemoryAllowed(
+150:                 tx,
+151:                 request.caller.tenantId,
+152:                 request.caller.userId,
+153:                 clientId,
+154:               )
+155:             ) {
+156:               allowedClientIds.push(clientId);
+157:             }
+158:           }
+159:           if (allowedClientIds.length !== requestedClientIds.length) {
+160:             return this.memoryUnauthorized(
+161:               dataset,
+162:               requestedEntityCount,
+163:               'requested_client_scope_failed_ethical_wall',
+164:             );
+165:           }
+166: 
+167:           const rows = await tx.$queryRaw<GovernedMemoryRow[]>(Prisma.sql`
+168:           WITH eligible_base AS NOT MATERIALIZED (
+169:             SELECT mi.*,
+170:                    COALESCE(body_projection.body, '') AS recall_body
+171:             FROM memory_items mi
+172:             LEFT JOIN LATERAL (
+173:               SELECT STRING_AGG(section.value ->> 'body', E'\n\n' ORDER BY section.ordinality) AS body
+174:               FROM JSONB_ARRAY_ELEMENTS(
+175:                 CASE
+176:                   WHEN JSONB_TYPEOF(mi.sections_jsonb) = 'array' THEN mi.sections_jsonb
+177:                   ELSE '[]'::jsonb
+178:                 END
+179:               ) WITH ORDINALITY AS section(value, ordinality)
+180:               WHERE JSONB_TYPEOF(section.value) = 'object'
+181:                 AND JSONB_TYPEOF(section.value -> 'body') = 'string'
+182:             ) body_projection ON TRUE
+183:             WHERE mi.tenant_id = ${request.caller.tenantId}::uuid
+184:               AND (mi.visibility = 'tenant' OR mi.owner_user_id = ${request.caller.userId}::uuid)
+185:               AND mi.status = 'active'
+186:               ${request.memoryItemId ? Prisma.sql`AND mi.id = ${request.memoryItemId}::uuid` : Prisma.empty}
+187:               AND mi.memory_class IN ('institutional_authoritative', 'client_steering', 'user_preference', 'episodic_working')
+188:               AND (mi.memory_scope <> 'user_private' OR mi.owner_user_id = ${request.caller.userId}::uuid)
+189:               AND (mi.memory_scope <> 'client' OR mi.client_id = ANY(${allowedClientIds}::uuid[]))
+190:               AND (
+191:                 mi.memory_class NOT IN ('institutional_authoritative', 'client_steering')
+192:                 OR mi.approved_by_user_id IS NOT NULL
+193:               )
+194:               AND (
+195:                 mi.source_type <> 'unknown'
+196:                 OR mi.source_ref IS NOT NULL
+197:                 OR mi.source_id IS NOT NULL
+198:               )
+199:               AND (
+200:                 mi.memory_class <> 'episodic_working'
+201:                 OR mi.expires_at IS NOT NULL
+202:                 OR mi.valid_until IS NOT NULL
+203:               )
+204:               AND COALESCE(mi.sensitivity, 'normal') = 'normal'
+205:               AND (mi.expires_at IS NULL OR mi.expires_at > now())
+206:               AND (mi.valid_until IS NULL OR mi.valid_until > now())
+207:               AND (mi.effective_from IS NULL OR mi.effective_from <= now())
+208:               AND (mi.client_id IS NULL OR mi.client_id = ANY(${allowedClientIds}::uuid[]))
+209:               AND ${Prisma.raw(governedRecallEligibilitySql('mi'))}
+210:           ), eligible AS NOT MATERIALIZED (
+211:             SELECT mi.*, ${memoryLexicalScoreSql(request.query ?? '', 'mi')} AS recall_lexical_score
+212:             FROM eligible_base mi
+213:           ), lexical_candidates AS (
+214:             SELECT mi.id,
+215:                    ROW_NUMBER() OVER (
+216:                      ORDER BY mi.recall_lexical_score DESC, mi.updated_at DESC, mi.id ASC
+217:                    ) AS lexical_rank
+218:             FROM eligible mi
+219:             ORDER BY mi.recall_lexical_score DESC, mi.updated_at DESC, mi.id ASC
+220:             LIMIT ${MEMORY_CANDIDATE_LOOKAHEAD}
+221:           ),
+222:           ${memorySemanticCandidatesSql(vector, embeddingModel(this.embeddingProvider))},
+223:           candidate_ids AS (
+224:             SELECT id FROM lexical_candidates
+225:             UNION
+226:             SELECT id FROM semantic_candidates
+227:           )
+228:           SELECT mi.id::text AS id, mi.tenant_id::text AS "tenantId",
+229:                  mi.client_id::text AS "clientId", mi.owner_user_id::text AS "ownerUserId",
+230:                  mi.title AS key, mi.type, mi.slug, mi.sections_jsonb AS sections,
+231:                  mi.visibility, mi.status AS "legacyStatus", mi.created_at AS "createdAt", mi.updated_at AS "updatedAt",
+232:                  mi.memory_class AS "memoryClass", mi.memory_authority AS authority,
+233:                  mi.memory_scope AS scope, mi.governed_status AS status,
+234:                  mi.conflict_status AS "conflictStatus", mi.controlling_item_id::text AS "controllingItemId",
+235:                  mi.sensitivity, mi.source_type AS "sourceType", mi.source_id AS "sourceId",
+236:                  mi.source_ref AS "sourceRef", mi.source_excerpt AS "sourceExcerpt",
+237:                  mi.source_content_hash AS "sourceContentHash", mi.source_version AS "sourceVersion",
+238:                  mi.asserted_by_user_id::text AS "assertedByUserId",
+239:                  mi.approved_by_user_id::text AS "approvedByUserId", mi.approved_at AS "approvedAt",
+240:                  mi.second_approved_by_user_id::text AS "secondApprovedByUserId",
+241:                  mi.second_approved_at AS "secondApprovedAt", mi.as_of AS "asOf",
+242:                  mi.effective_from AS "effectiveFrom", mi.valid_until AS "validUntil",
+243:                  mi.expires_at AS "expiresAt", mi.last_confirmed_at AS "lastConfirmedAt",
+244:                  mi.review_due_at AS "reviewDueAt", mi.review_cadence_days AS "reviewCadenceDays",
+245:                  mi.instructions_allowed AS "instructionsAllowed",
+246:                  mi.recall_lexical_score AS "lexicalScore",
+247:                  lexical_candidates.lexical_rank AS "lexicalRank",
+248:                  semantic_candidates.semantic_score AS "semanticScore",
+249:                  semantic_candidates.semantic_rank AS "semanticRank",
+250:                  semantic_candidates.embedding_content_hash AS "embeddingContentHash"
+251:           FROM eligible mi
+252:           JOIN candidate_ids ON candidate_ids.id = mi.id
+253:           LEFT JOIN lexical_candidates ON lexical_candidates.id = mi.id
+254:           LEFT JOIN semantic_candidates ON semantic_candidates.id = mi.id
+255:         `);
+256: 
+257:           const hardTruncated =
+258:             rows.length > MAX_MEMORY_ROWS_PER_CALL ||
+259:             rows.some((row) => {
+260:               const lexicalRank = finiteMemoryNumber(row.lexicalRank);
+261:               const semanticRank = finiteMemoryNumber(row.semanticRank);
+262:               return (
+263:                 (lexicalRank !== null && lexicalRank > MAX_MEMORY_ROWS_PER_CALL) ||
+264:                 (semanticRank !== null && semanticRank > MAX_MEMORY_ROWS_PER_CALL)
+265:               );
+266:             });
+267:           const eligible = rows
+268:             .filter(
+269:               (row) =>
+270:                 MEMORY_CLASSES.includes(row.memoryClass) &&
+271:                 row.legacyStatus === 'active' &&
+272:                 (row.visibility === 'tenant' || row.ownerUserId === request.caller.userId) &&
+273:                 (!row.clientId || allowedClientIds.includes(row.clientId)) &&
+274:                 (!row.effectiveFrom || new Date(row.effectiveFrom).getTime() <= Date.now()) &&
+275:                 filterGovernedMemory(row, {
+276:                   tenantId: request.caller.tenantId,
+277:                   userId: request.caller.userId,
+278:                   clientId: row.clientId,
+279:                   ethicalWallAllowed: !!row.clientId && allowedClientIds.includes(row.clientId),
+280:                 }).include,
+281:             )
+282:             .map((row) => ({
+283:               ...row,
+284:               sections: memorySections(row.sections),
+285:               value: memorySections(row.sections)
+286:                 .map((section) => section.body)
+287:                 .join('\n\n'),
+288:             }));
+289: 
+290:           const rankedCandidates = this.rankMemories(request, eligible, vector);
+291:           const ranked = rankedCandidates.slice(0, MAX_MEMORY_ROWS_PER_CALL);
+292:           const snapshot = memorySnapshot(
+293:             request,
+294:             allowedClientIds,
+295:             embeddingProjection(this.embeddingProvider),
+296:             ranked,
+297:           );
+298:           if (parsedCursor.snapshot && parsedCursor.snapshot !== snapshot) {
+299:             return {
+300:               ...this.unsupported(
+301:                 dataset,
+302:                 requestedEntityCount,
+303:                 'governed_memory_changed_restart_search',
+304:               ),
+305:               sourceStatus: 'degraded' as const,
+306:             };
+307:           }
+308:           const pageRows = ranked.slice(offset, offset + pageSize);
+309:           const hasMore = offset + pageSize < ranked.length;
+310:           const nextCursor = hasMore ? `memory:v3:${offset + pageSize}:${snapshot}` : undefined;
+311:           // Degraded means the SEMANTIC PROJECTION itself could not run (the
+312:           // embedding provider returned no usable vector), not that a sparse
+313:           // subset of rows lacks an embedding. A single un-embedded approved row
+314:           // must not poison coverage for the whole scan — it falls back to
+315:           // lexical ranking and stays available (see rankMemories).
+316:           const semanticDegraded =
+317:             request.metadata?.memorySemanticFallback === true ||
+318:             (request.queryClass === 'semantic_recall' &&
+319:               ranked.some((entry) => entry.semanticUnavailable));
+320:           const sourceDegraded = hardTruncated || semanticDegraded;
+321:           const paginationComplete = !hasMore && !hardTruncated;
+322:           const records = pageRows.map(({ row, semanticScore }) =>
+323:             memoryRecord(row, semanticScore),
+324:           );
+325:           const lastSyncAt = eligible.reduce<Date | undefined>(
+326:             (latest, row) => (!latest || row.updatedAt > latest ? row.updatedAt : latest),
+327:             undefined,
+328:           );
+329: 
+
+SOURCE apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.ts LINES 655-745
+655: function memoryRecord(row: GovernedMemoryRow, semanticScore: number | null): RetrievalRecord {
+656:   const content = describeMemoryRecallContent({
+657:     title: row.key,
+658:     value: row.value,
+659:     sourceType: row.sourceType,
+660:   });
+661:   const reviewBase = row.lastConfirmedAt ?? row.createdAt;
+662:   const reviewDueAt =
+663:     row.reviewDueAt ??
+664:     (reviewBase && row.reviewCadenceDays && row.reviewCadenceDays > 0
+665:       ? new Date(new Date(reviewBase).getTime() + row.reviewCadenceDays * 86_400_000)
+666:       : null);
+667:   return {
+668:     domain: 'institutional_knowledge',
+669:     recordId: row.id,
+670:     ...(row.clientId ? { entityRef: { type: 'client', id: row.clientId } } : {}),
+671:     updatedAt: row.updatedAt,
+672:     payload: {
+673:       sourceKind: 'governed_memory',
+674:       key: row.key,
+675:       scope: row.scope,
+676:       clientId: row.clientId,
+677:       memoryItemId: row.id,
+678:       title: content.title,
+679:       contentStatus: content.contentStatus,
+680:       contentLimitation: content.contentLimitation,
+681:       type: row.type,
+682:       slug: row.slug,
+683:       sectionCount: row.sections.length,
+684:       contentRead: {
+685:         tool: 'search_memory',
+686:         arguments: {
+687:           query: 'Read this approved memory',
+688:           memoryItemId: row.id,
+689:           ...(row.clientId ? { clientId: row.clientId } : {}),
+690:         },
+691:       },
+692:       governance: {
+693:         memoryClass: row.memoryClass,
+694:         authority: row.authority,
+695:         status: row.status,
+696:         conflictStatus: row.conflictStatus ?? null,
+697:         controllingItemId: row.controllingItemId ?? null,
+698:         approvedByUserId: row.approvedByUserId ?? null,
+699:         approvedAt: isoDate(row.approvedAt),
+700:         asOf: isoDate(row.asOf),
+701:         effectiveFrom: isoDate(row.effectiveFrom),
+702:         validUntil: isoDate(row.validUntil),
+703:         expiresAt: isoDate(row.expiresAt),
+704:         lastConfirmedAt: isoDate(row.lastConfirmedAt),
+705:         reviewDueAt: isoDate(reviewDueAt),
+706:         stale:
+707:           row.status === 'stale' ||
+708:           (!!reviewDueAt && new Date(reviewDueAt).getTime() <= Date.now()),
+709:         instructionsAllowed: row.instructionsAllowed ?? false,
+710:       },
+711:       value: row.value,
+712:       sections: row.sections.map((section) => ({
+713:         key: section.key,
+714:         heading: section.heading,
+715:         characters: section.body.length,
+716:       })),
+717:     },
+718:     provenance: {
+719:       source: 'memory_items',
+720:       recordId: row.id,
+721:       canonicalTenantId: row.tenantId,
+722:       sourceType: row.sourceType,
+723:       sourceId: row.sourceId ?? null,
+724:       sourceRef: row.sourceRef ?? null,
+725:       sourceExcerpt: row.sourceExcerpt ?? null,
+726:       contentHash: row.sourceContentHash ?? null,
+727:       sourceVersion: row.sourceVersion ?? null,
+728:     },
+729:     retrievalSignals: {
+730:       ...(semanticScore !== null ? { semanticSimilarity: semanticScore } : {}),
+731:     },
+732:   };
+733: }
+734: 
+735: function parseMemoryCursor(cursor?: string): { offset: number; snapshot?: string } | null {
+736:   if (!cursor) return { offset: 0 };
+737:   const match = /^memory:v3:(\d+):([a-f0-9]{64})$/.exec(cursor);
+738:   if (!match) return null;
+739:   const offset = Number(match[1]);
+740:   return Number.isSafeInteger(offset) && offset >= 0 ? { offset, snapshot: match[2] } : null;
+741: }
+742: 
+743: function memorySnapshot(
+744:   request: RetrievalRequest,
+745:   allowedClientIds: readonly string[],

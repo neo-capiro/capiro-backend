@@ -1,0 +1,12 @@
+{
+  "at": "2026-10-04T05:50:54.184Z",
+  "kind": "EXACT_CASE14_OWNED_POSTAPPROVAL_SETUP",
+  "serviceRevision": 523,
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:024fcc82a2db7701f4a3e3311598a9a1d0933b3fe4fcf73751bf0e3fb866d8ce",
+  "sourceSha": "c0f393f863bf73bd4e65e7a94e17c073e7be021e",
+  "scriptSha256": "48f79bd617b4d42afeb0cd19500014284c2fa1cc281853d6486f354a229b1a81",
+  "providerSecrets": 0,
+  "workloadTaskRole": null,
+  "allowedMutation": "READ_EXACT_PROJECTION_THEN_BIND_APPROVED_MEMORY_AND_INSTALL_RECALL_BUDGET",
+  "cloudActions": "one bounded native setup task; stop and deregister owned definition"
+}

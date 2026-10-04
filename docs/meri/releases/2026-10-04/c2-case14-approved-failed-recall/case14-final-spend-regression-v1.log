@@ -1,0 +1,27 @@
+✔ explicit fresh adoption does not append and returns exact cost/history state (554.6205ms)
+✔ only same-process native reservation can claim; arbitrary future settlement JSON cannot release cost (1224.4941ms)
+✔ two opened owners cannot both reserve; failed stale owner remains poisoned (1119.7157ms)
+✔ unsupported cases and kind/format confusion cannot acquire a fresh reservation (352.4932ms)
+✔ existing original owner still reserves with its original ceiling and rejects fresh substitution (741.3535ms)
+✔ Case14 resumes exact24 checkpoint; fake outcome cannot release its new ceiling (1886.9166ms)
+✔ Case14 owner contention preserves concurrency one at the exact24 boundary (1517.4041ms)
+✔ budget-only reconciliation accepts terminal FAILED answer without citations or model usage (18.5848ms)
+✔ wrong scope/release/prompt/turn, inflight, bad costs, unaccounted providers and no positive terminal receipt fail closed (1.7276ms)
+✔ reviewed bytes are hash-bound; no local cost override or JSON authority accepted (2.2748ms)
+✔ actual native legacy journal settles once, retains entire ceiling and immutable old event, denies reuse/stale checkpoint (1682.9801ms)
+✔ uncertain terminal attempts consume full ceiling; reserved/inflight still cannot close after deadline (927.0375ms)
+✔ source terminal classifier joins recorded error and current zero-attempt owner; absent Orc events are not its authority (3.4758ms)
+✔ active request, provider attempt, wrong source/actor, nonempty turn/messages and stale readback refuse closure (1.9291ms)
+✔ native append-only terminal closure retains full ceiling and UNKNOWN cost while ending only active run (817.3225ms)
+✔ repeat close, stale checkpoint, late settlement and same-run reserve cannot reclaim the charged ceiling (1264.4024ms)
+✔ primitive close rejects altered proof, inflight flag, alternate run, refund and cost-zero substitution (1729.8247ms)
+✔ terminal event tampering cannot reopen the original ledger (683.59ms)
+✔ JS closure refuses JSON lookalike authority and omitted explicit root invocation before write (536.4917ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 19
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7494.8466

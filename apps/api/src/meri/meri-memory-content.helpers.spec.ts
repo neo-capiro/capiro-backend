@@ -16,6 +16,13 @@ const record: RetrievalRecord = {
 };
 
 describe('governed memory content continuation', () => {
+  it('carries only canonical row ownership for capture and never fills it from caller scope', () => {
+    const canonical = { ...record, provenance: { ...record.provenance, canonicalTenantId: 'row-owner' } };
+    expect(projectMemoryContent(ctx, canonical, {}).provenance).not.toHaveProperty('canonicalTenantId');
+    expect(projectMemoryContent(ctx, canonical, {captureSourceOwner:true}).provenance?.canonicalTenantId).toBe('row-owner');
+    expect(projectMemoryContent({...ctx,tenantId:'another-caller'}, canonical, {captureSourceOwner:true}).provenance?.canonicalTenantId).toBe('row-owner');
+    expect(projectMemoryContent(ctx, record, {captureSourceOwner:true}).provenance?.canonicalTenantId).toBeNull();
+  });
   it('reads the full long approved body with escaped JSON pages below6k and stable hash/offset references', () => {
     let input: Parameters<typeof projectMemoryContent>[2] = {
       clientId: 'client-a',

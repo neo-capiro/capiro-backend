@@ -1,0 +1,5 @@
+FAIL — the review found a same-policy replay gap: a valid signed memory response can be attached to a different tool call because the proof is policy-bound but not call-bound.
+
+The concise report, including reproduction reasoning, passing checks, missing tests, and review limitations, is at `C:\dev\main\outputs\meri-c2-20261003\case14-source-proof-review-v1\review.md`.
+
+Reviewed only the frozen `evidence/` bundle. No external files or live systems were accessed; no code, provider settings, or costs were changed.

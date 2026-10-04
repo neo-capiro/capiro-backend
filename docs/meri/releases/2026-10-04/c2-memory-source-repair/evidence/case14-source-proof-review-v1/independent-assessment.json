@@ -1,0 +1,66 @@
+{
+  "checkedAt": "2026-10-04T07:08:09.654296+00:00",
+  "result": "BLOCKED_SAME_POLICY_CROSS_CALL_REPLAY",
+  "scope": "Independent source review; no live capture/provider/data mutation. Parent independently runs tests.",
+  "hermesExecution": {
+    "startedAt": "2026-10-04T07:05:08.133602+00:00",
+    "finishedAt": "2026-10-04T07:06:27.692388+00:00",
+    "exitCode": 0,
+    "failure": null,
+    "modelOverride": null,
+    "providerOverride": null,
+    "files": [
+      {
+        "path": "prompt.txt",
+        "bytes": 1400,
+        "sha256": "2406c7086faa356471cb3b469614c9ab919c98f7601795bba22e8028dd6462a8"
+      },
+      {
+        "path": "response.txt",
+        "bytes": 525,
+        "sha256": "7b11dd02f49abd15c1c19cdc77182255315d8285b7e1bf7eb6b6c6befac91eeb"
+      },
+      {
+        "path": "review.md",
+        "bytes": 7468,
+        "sha256": "d45cf9d145c895c110f973750b61937d5612d51c7f122003700de18df197050d"
+      },
+      {
+        "path": "stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "usage.json",
+        "bytes": 472,
+        "sha256": "23562a78793a3fc3a5b8729ec4ae1e93543a709c0aaca18daaed988e80ca90da"
+      }
+    ]
+  },
+  "hermesReviewSha256": "d45cf9d145c895c110f973750b61937d5612d51c7f122003700de18df197050d",
+  "manifestSha256": "b6f2ee363663c990cfbc4571aac584d4591588c7a474a943e4755506896e1f80",
+  "findings": [
+    {
+      "priority": "P1",
+      "id": "same_policy_cross_call_replay",
+      "confirmed": true,
+      "mechanics": "Proof contains policyBinding and sources only, with no active callId or per-HTTP nonce/input hash. Verification accepts any exact previously signed response in the same policy. Actual raw HTTP observer adds the currently active callId after verification. Distinct calls A/B both pass final unique-call census if the same signed body is delivered as both HTTP responses.",
+      "threatBoundary": "Requires substitution/replay at the raw trusted HTTP response boundary. Model/citation/caller result JSON alone does not enter the WeakMap or mint tenant authority. Not a demonstrated remote attacker path.",
+      "requiredRepair": "Bind the actual invocation/request identity into a trusted request transport, include it in API proof signature, and compare it to the active HTTP invocation on receive; include same-policy distinct-call replay tests."
+    }
+  ],
+  "passingEvidence": [
+    "CanonicalTenantId originates from mi.tenant_id selected in SQL and memoryRecord(row); client originates row.clientId. No missing row tenant fallback to request exists.",
+    "HMAC verified against recomputed sources; full page hash binds text and source version; wrong policy/tenant/version/text fail closed.",
+    "Raw response storage precedes model projection, uses policy WeakMap and requires actual pending invocation/attempt; readout requires returned one-attempt HTTP200.",
+    "Source join checks citation id/kind/record/version/client/snippet hash. Partial pages are fullRead false and full byte hash UNKNOWN.",
+    "Final semantic clock join rejects duplicate call identities and failed/multiattempt/non200 invocations, but cannot distinguish two distinct call IDs relabeled over one same-policy signed body."
+  ],
+  "otherNotes": [
+    "Some nonfatal malformed values may pass intermediate JS coercions, but they cannot create a valid unknown HMAC or bypass tenant/client string comparisons. Explicit type checks are optional hardening.",
+    "Nullable canonical client intentionally stays UNKNOWN and receipt remains blocked; no policy owner inference.",
+    "All-record signing rejects any unavailable/empty/missing-owner row; operational behavior is fail closed and may reduce successful coverage; not a trust bypass."
+  ],
+  "sourceDriftAfterReview": [],
+  "repoEditsByReviewer": false
+}

@@ -1,0 +1,62 @@
+[
+  {
+    "path": "evals/meri/live-v1/case01-receipt-joins.mjs",
+    "sha256": "c4556ba2da76c5c83de511c852f1f403f81dd4bf44160cbf8e6e14115e448aa9"
+  },
+  {
+    "path": "evals/meri/live-v1/tests/case14-capture.test.mjs",
+    "sha256": "f2cca91ddb340308cfec23e227897ad1c79eb833163a4f61ab384efb10dfe794"
+  },
+  {
+    "path": "evals/meri/live-v1/tests/case01-authority.test.mjs",
+    "sha256": "4deaf24f46934de83277cc5fa5cf311407e192d91d950141f9f63bc21c9f5c5e"
+  },
+  {
+    "path": "apps/api/src/meri/meri.controller.ts",
+    "sha256": "3195d6e7d40fa21dbd3afea876a4300b9a003809ff395571d2f3e28edfd42a52"
+  },
+  {
+    "path": "apps/api/src/meri/meri-source.service.ts",
+    "sha256": "06f56776d28fb8c95565647df95ede9510603900f0b998103347ced255fd7b7a"
+  },
+  {
+    "path": "apps/api/src/meri/meri-source.service.spec.ts",
+    "sha256": "16323c8a3893656075141052741012886c8f2396f78707177b31e1914f8e5e17"
+  },
+  {
+    "path": "apps/api/src/meri/meri-capture-clock-packets.ts",
+    "sha256": "69827fd74b2abccdc2d1910cc5588032342acac311487a7b6854fb3629d3b455"
+  },
+  {
+    "path": "apps/api/src/meri/meri-capture-clock-packets.spec.ts",
+    "sha256": "e955d72df1ab150997f6e78e73c982821c3c9c38b699df1fdbb6af9f1d94bf55"
+  },
+  {
+    "path": "apps/api/src/meri/meri-context-plane.tools.spec.ts",
+    "sha256": "fa2437b38adc04476dfde1f8373d22e63651d779a4cb04c1a78396bf34a18393"
+  },
+  {
+    "path": "packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+    "sha256": "affe70118364d44bdb5b13e55cd15edde2ce863323ecca4afa9644e0def74ab0"
+  },
+  {
+    "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-capture-evidence.ts",
+    "sha256": "e456b816724dd62fab1d165f2494c88072a9ffcf0a5b0aac434819043f05e1b8"
+  },
+  {
+    "path": "observed-source.json",
+    "sha256": "e5a24d30489364dcaf6105259e5690254ada73e38fe0667cbc364294aa44e64a"
+  },
+  {
+    "path": "observed-messages.json",
+    "sha256": "5280f584e8f4bffaf0d8c8b7e7cad7f1108aadb9b296c88c12ee1b3bd078249a"
+  },
+  {
+    "path": "observed-conversation.json",
+    "sha256": "9040a1125125597951f832050042d182abeb729c088cce5bbe8003fe4326845a"
+  },
+  {
+    "path": "observed-summary.json",
+    "sha256": "01aa9f1eda048a5dc610bd81f9c41576d6cbcd6673f3d3757248dfcc196efc5c"
+  }
+]

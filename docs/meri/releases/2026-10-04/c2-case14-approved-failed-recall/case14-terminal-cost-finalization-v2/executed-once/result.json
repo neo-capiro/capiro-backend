@@ -1,0 +1,16 @@
+{
+  "status": "COST_ONLY_RECONCILED",
+  "at": "2026-10-04T06:32:17.358Z",
+  "journalBeforeSha256": "139b6d7199038ca752c553289bf1ebe9c45f14e65956710f82a48301b132e673",
+  "journalAfterSha256": "816b04a47be56432846d1ee602370c3bea985eb497a7de9e899aee4d53f8b39e",
+  "knownRecallCostMicros": 1569851,
+  "conservativeApprovalCostMicros": 1000000,
+  "approvalBilledActualMicros": null,
+  "remainingReservationMicros": 13799091,
+  "captureAuthority": false,
+  "captureStatus": "CAPTURE_UNCERTAIN",
+  "answerGrade": "NOT_EVALUATED",
+  "automaticRetryAllowed": false,
+  "cloudCalls": 0,
+  "providerCalls": 0
+}

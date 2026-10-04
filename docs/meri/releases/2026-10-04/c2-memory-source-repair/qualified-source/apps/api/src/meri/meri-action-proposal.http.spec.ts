@@ -1,0 +1,401 @@
+import { GoneException, NotFoundException, ValidationPipe } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { Test } from '@nestjs/testing';
+import type { INestApplication } from '@nestjs/common';
+import request from 'supertest';
+import type { TenantContext } from '@capiro/shared';
+import { RolesGuard } from '../auth/roles.guard.js';
+import type { AppConfig } from '../config/config.schema.js';
+import { PrismaService } from '../prisma/prisma.service.js';
+import { ClientKbService } from '../embeddings/client-kb.service.js';
+import { MeriActionProposalController } from './meri-action-proposal.controller.js';
+import { MeriActionProposalService } from './meri-action-proposal.service.js';
+import { MeriApprovalService } from './meri-approval.service.js';
+import { MeriComplianceAuditService } from './meri-compliance-audit.service.js';
+import { MeriController } from './meri.controller.js';
+import { MeriFirmSkillsService } from './meri-firm-skills.service.js';
+import { MeriProcedureRuntimeValidationService } from './meri-procedure-runtime-validation.service.js';
+import { MeriMcpOAuthService } from './meri-mcp-oauth.service.js';
+import { MeriMcpService } from './meri-mcp.service.js';
+import { MeriClaimWriterService } from './meri-claim-writer.js';
+import { MeriResearchService } from './meri-research.service.js';
+import { MeriService } from './meri.service.js';
+import { MeriToolsService } from './meri-tools.service.js';
+import { ToolServiceSecretGuard } from './tool-service-secret.guard.js';
+import { MERI_CASE46, MERI_GOVERNED_ARTIFACT_HEADER, encodeMeriGovernedArtifactTransport } from '@capiro/meriv2-core';
+import { case46BudgetTestFixture } from './meri-case46-provider-budget.spec-helper.js';
+
+const TENANT = '11111111-1111-4111-8111-111111111111';
+const USER = '22222222-2222-4222-8222-222222222222';
+const PROPOSAL = '33333333-3333-4333-8333-333333333333';
+const OTHER = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+const SECRET = 'phase0-internal-secret';
+
+function tenantContext(headers: Record<string, unknown>): TenantContext {
+  const tenant = typeof headers['x-test-tenant'] === 'string' ? headers['x-test-tenant'] : TENANT;
+  const user = typeof headers['x-test-user'] === 'string' ? headers['x-test-user'] : USER;
+  return {
+    tenantId: tenant,
+    tenantSlug: 'test',
+    userId: user,
+    clerkUserId: `clerk_${user}`,
+    role: 'standard_user',
+  };
+}
+
+/**
+ * HTTP/controller-layer proof: real Nest wiring (ValidationPipe, guards,
+ * @CurrentTenant()) in front of a HAND-MOCKED MeriActionProposalService. This
+ * proves the DTO whitelist genuinely rejects a client-supplied tool/payload/
+ * fingerprint/tenant/status (real ValidationPipe, not mocked), that ctx flows
+ * from the authenticated request into the service call, and that whatever the
+ * service decides maps to the right HTTP status/body without leaking a
+ * different code for "not yours" vs "doesn't exist". It does NOT prove the
+ * service's own tenant/user isolation query logic is correct — `approve`'s
+ * mock reimplements that check by hand, so a regression in the real
+ * `owned()`/`approveAndExecute` scoping would not fail here. That proof lives
+ * in meri-action-proposal.service.spec.ts, against the real service.
+ */
+describe('MeriV2 Phase 0 HTTP adversarial boundary', () => {
+  let app: INestApplication;
+  const executeTool = jest.fn().mockResolvedValue({ ok: true });
+  const createProposal = jest.fn().mockResolvedValue({
+    proposalId: PROPOSAL,
+    status: 'proposed',
+    preview: { label: 'Send email', fields: {}, counts: {}, reason: 'Approval required' },
+    expiresAt: new Date(Date.now() + 60_000).toISOString(),
+  });
+  const validateProcedureRuntime = jest.fn().mockResolvedValue({
+    authorized: true,
+    identity: {
+      source: 'firm',
+      recordId: 'procedure-row-1',
+      canonicalId: 'commitments_audit',
+      version: 3,
+    },
+    manifestDigest: 'a'.repeat(64),
+  });
+  const approve = jest.fn(async (ctx: TenantContext, proposalId: string) => {
+    if (ctx.tenantId !== TENANT || ctx.userId !== USER || proposalId !== PROPOSAL) {
+      throw new NotFoundException('Action proposal not found.');
+    }
+    return { proposalId, status: 'succeeded' };
+  });
+  const proposalService = {
+    create: createProposal,
+    list: jest.fn().mockResolvedValue([]),
+    approveAndExecute: approve,
+    dismiss: jest.fn().mockResolvedValue({ proposalId: PROPOSAL, status: 'dismissed' }),
+  };
+
+  beforeAll(async () => {
+    const legacyApproval = new MeriApprovalService({
+      withTenant: jest.fn((_tenantId: string, fn: (tx: unknown) => unknown) =>
+        fn({ meriActionApproval: { findMany: jest.fn().mockResolvedValue([]) } }),
+      ),
+    } as unknown as PrismaService);
+
+    const moduleRef = await Test.createTestingModule({
+      controllers: [MeriController, MeriActionProposalController],
+      providers: [
+        ToolServiceSecretGuard,
+        {
+          provide: ConfigService,
+          useValue: {
+            get: (key: keyof AppConfig) =>
+              key === 'NODE_ENV'
+                ? 'production'
+                : key === 'INTERNAL_SERVICE_SECRET'
+                  ? SECRET
+                  : key === 'MERI_TOOLS_REQUIRE_SERVICE_SECRET'
+                    ? false
+                    : undefined,
+          },
+        },
+        { provide: MeriActionProposalService, useValue: proposalService },
+        { provide: MeriApprovalService, useValue: legacyApproval },
+        {
+          provide: MeriToolsService,
+          useValue: {
+            executeFromAuthenticatedUser: executeTool,
+            manifest: jest.fn().mockReturnValue([]),
+            anthropicToolSchemas: jest.fn().mockReturnValue([]),
+            checkClientRef: jest.fn(),
+          },
+        },
+        { provide: MeriService, useValue: {} },
+        { provide: MeriResearchService, useValue: {} },
+        { provide: ClientKbService, useValue: {} },
+        { provide: MeriMcpService, useValue: {} },
+        { provide: MeriMcpOAuthService, useValue: {} },
+        { provide: MeriFirmSkillsService, useValue: {} },
+        {
+          provide: MeriProcedureRuntimeValidationService,
+          useValue: { validate: validateProcedureRuntime },
+        },
+        { provide: MeriComplianceAuditService, useValue: {} },
+        { provide: MeriClaimWriterService, useValue: {} },
+      ],
+    })
+      .overrideGuard(RolesGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
+
+    app = moduleRef.createNestApplication();
+    app.setGlobalPrefix('api');
+    app.use((req: { headers: Record<string, unknown>; tenantContext?: TenantContext }, _res: unknown, next: () => void) => {
+      req.tenantContext = tenantContext(req.headers);
+      next();
+    });
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+        transformOptions: { enableImplicitConversion: false },
+      }),
+    );
+    await app.init();
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  beforeEach(() => {
+    executeTool.mockClear();
+    createProposal.mockClear();
+    approve.mockClear();
+    proposalService.list.mockClear();
+    validateProcedureRuntime.mockClear();
+  });
+
+  it('normal user cannot POST arbitrary legacy pending action data', async () => {
+    const response = await request(app.getHttpServer()).post('/api/clio/pending-actions').send({
+      fingerprint: 'f'.repeat(64),
+      tool: 'send_email',
+      input: { to: 'victim@example.com', body: 'attacker controlled' },
+    });
+    expect(response.status).toBe(new GoneException().getStatus());
+    expect(executeTool).not.toHaveBeenCalled();
+  });
+
+  it('real DTO and internal guard preserve the exact distinct case46 admission through HTTP', async () => {
+    const prior = process.env.INTERNAL_SERVICE_SECRET;
+    process.env.INTERNAL_SERVICE_SECRET = SECRET;
+    try {
+      const { p } = case46BudgetTestFixture();
+      const body = { tool:'create_word', surface:'chat', conversationId:p.conversationId,
+        input:{title:MERI_CASE46.title,format:'txt',text:MERI_CASE46.text,conversationId:p.conversationId,clientId:p.clientId} };
+      await request(app.getHttpServer()).post('/api/clio/action-proposals')
+        .set('x-internal-service-secret',SECRET).set('x-test-tenant',p.tenantId).set('x-test-user',p.actorUserId)
+        .set(MERI_GOVERNED_ARTIFACT_HEADER,encodeMeriGovernedArtifactTransport(p,'action_proposal',SECRET))
+        .send(body).expect(201);
+      expect(createProposal).toHaveBeenCalledWith(expect.objectContaining({tenantId:p.tenantId,userId:p.actorUserId}),body,undefined,p);
+      expect(executeTool).not.toHaveBeenCalled();
+    } finally { if(prior === undefined) delete process.env.INTERNAL_SERVICE_SECRET; else process.env.INTERNAL_SERVICE_SECRET=prior; }
+  });
+
+  it('raw write tool rejects a valid user route without or with wrong service identity', async () => {
+    await request(app.getHttpServer())
+      .post('/api/clio/tools/send_email')
+      .send({ to: 'victim@example.com', body: 'test' })
+      .expect(403);
+    await request(app.getHttpServer())
+      .post('/api/clio/tools/send_email')
+      .set('x-internal-service-secret', 'wrong')
+      .send({ to: 'victim@example.com', body: 'test' })
+      .expect(403);
+    expect(executeTool).not.toHaveBeenCalled();
+  });
+
+  it('correct service identity plus effective user context reaches the delegated service', async () => {
+    await request(app.getHttpServer())
+      .post('/api/clio/tools/send_email')
+      .set('x-internal-service-secret', SECRET)
+      .send({ to: 'victim@example.com', body: 'test' })
+      .expect(200);
+    expect(executeTool).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: TENANT, userId: USER }),
+      'send_email',
+      { to: 'victim@example.com', body: 'test' },
+    );
+  });
+
+  it('returns HTTP 200 for an ordinary memory tool and preserves its response body', async () => {
+    const result = { records: [{ id: 'approved-memory', text: 'Approved memory text.' }] };
+    executeTool.mockResolvedValueOnce(result);
+    const response = await request(app.getHttpServer())
+      .post('/api/clio/tools/search_memory')
+      .set('x-internal-service-secret', SECRET)
+      .send({ query: 'recently approved memory' })
+      .expect(200);
+    expect(response.body).toEqual(result);
+    expect(executeTool).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: TENANT, userId: USER }),
+      'search_memory',
+      { query: 'recently approved memory' },
+    );
+  });
+
+  it('preserves memory tool service-identity rejection and thrown HTTP errors', async () => {
+    await request(app.getHttpServer())
+      .post('/api/clio/tools/search_memory')
+      .send({ query: 'memory' })
+      .expect(403);
+    expect(executeTool).not.toHaveBeenCalled();
+    executeTool.mockRejectedValueOnce(new NotFoundException('Memory not found.'));
+    const response = await request(app.getHttpServer())
+      .post('/api/clio/tools/search_memory')
+      .set('x-internal-service-secret', SECRET)
+      .send({ query: 'memory' })
+      .expect(404);
+    expect(response.body.message).toBe('Memory not found.');
+  });
+
+  it('requires service identity and accepts only bounded procedure validation fields', async () => {
+    const body = {
+      conversationId: '33333333-3333-4333-8333-333333333333',
+      clientId: '44444444-4444-4444-8444-444444444444',
+      scope: 'client',
+      recordId: 'procedure-row-1',
+      canonicalId: 'commitments_audit',
+      procedureVersion: 3,
+      manifestDigest: 'a'.repeat(64),
+      toolName: 'query_tasks',
+    };
+    await request(app.getHttpServer())
+      .post('/api/clio/procedure-runtime/validate')
+      .send(body)
+      .expect(403);
+    await request(app.getHttpServer())
+      .post('/api/clio/procedure-runtime/validate')
+      .set('x-internal-service-secret', 'wrong')
+      .send(body)
+      .expect(403);
+    expect(validateProcedureRuntime).not.toHaveBeenCalled();
+
+    await request(app.getHttpServer())
+      .post('/api/clio/procedure-runtime/validate')
+      .set('x-internal-service-secret', SECRET)
+      .send(body)
+      .expect(201);
+    expect(validateProcedureRuntime).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: TENANT, userId: USER }),
+      body,
+    );
+
+    validateProcedureRuntime.mockClear();
+    await request(app.getHttpServer())
+      .post('/api/clio/procedure-runtime/validate')
+      .set('x-internal-service-secret', SECRET)
+      .send({ ...body, tenantId: OTHER, userId: OTHER, allowedTools: ['send_email'] })
+      .expect(400);
+    expect(validateProcedureRuntime).not.toHaveBeenCalled();
+  });
+
+  it('browser cannot create a trusted proposal without service identity', async () => {
+    const body = {
+      tool: 'send_email',
+      input: { to: 'victim@example.com', body: 'test' },
+      surface: 'chat',
+    };
+    await request(app.getHttpServer()).post('/api/clio/action-proposals').send(body).expect(403);
+    await request(app.getHttpServer())
+      .post('/api/clio/action-proposals')
+      .set('x-internal-service-secret', 'wrong')
+      .send(body)
+      .expect(403);
+    expect(createProposal).not.toHaveBeenCalled();
+  });
+
+  it('orchestrator identity can submit only tool/input/conversation/surface fields', async () => {
+    const body = {
+      tool: 'send_email',
+      input: { to: 'victim@example.com', body: 'test' },
+      surface: 'chat',
+    };
+    await request(app.getHttpServer())
+      .post('/api/clio/action-proposals')
+      .set('x-internal-service-secret', SECRET)
+      .send(body)
+      .expect(201);
+    expect(createProposal).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: TENANT, userId: USER }),
+      body,
+    );
+    await request(app.getHttpServer())
+      .post('/api/clio/action-proposals')
+      .set('x-internal-service-secret', SECRET)
+      .send({ ...body, fingerprint: 'f'.repeat(64), tenantId: OTHER, policyDecision: 'WARN' })
+      .expect(400);
+  });
+
+  it('approval body rejects tool, payload, fingerprint, tenant, and status fields', async () => {
+    await request(app.getHttpServer())
+      .post(`/api/clio/action-proposals/${PROPOSAL}/approve`)
+      .send({
+        tool: 'send_email',
+        input: { to: 'victim@example.com' },
+        fingerprint: 'f'.repeat(64),
+        tenantId: OTHER,
+        status: 'succeeded',
+      })
+      .expect(400);
+    expect(approve).not.toHaveBeenCalled();
+  });
+
+  it('controller maps another-owner denial to a bare 404, with ctx sourced from the request', async () => {
+    await request(app.getHttpServer())
+      .post(`/api/clio/action-proposals/${PROPOSAL}/approve`)
+      .set('x-test-user', OTHER)
+      .send({})
+      .expect(404);
+    await request(app.getHttpServer())
+      .post(`/api/clio/action-proposals/${PROPOSAL}/approve`)
+      .set('x-test-tenant', OTHER)
+      .send({})
+      .expect(404);
+    expect(executeTool).not.toHaveBeenCalled();
+  });
+
+  it('owner approval sends no browser authority beyond proposal id', async () => {
+    await request(app.getHttpServer())
+      .post(`/api/clio/action-proposals/${PROPOSAL}/approve`)
+      .send({})
+      .expect(201)
+      .expect(({ body }) => expect(body).toEqual({ proposalId: PROPOSAL, status: 'succeeded' }));
+    expect(approve).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: TENANT, userId: USER }),
+      PROPOSAL,
+    );
+  });
+
+  it('passes an authorized exact-receipt filter through the existing list route', async () => {
+    await request(app.getHttpServer())
+      .get(`/api/clio/action-proposals?conversationId=${OTHER}&proposalId=${PROPOSAL}`)
+      .expect(200);
+
+    expect(proposalService.list).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: TENANT, userId: USER }),
+      OTHER,
+      PROPOSAL,
+    );
+  });
+
+  it('rejects malformed exact-receipt ids before the list service runs', async () => {
+    await request(app.getHttpServer())
+      .get(`/api/clio/action-proposals?conversationId=${OTHER}&proposalId=not-a-proposal-id`)
+      .expect(400);
+
+    expect(proposalService.list).not.toHaveBeenCalled();
+  });
+
+  it('requires the conversation authorization fence for an exact receipt', async () => {
+    await request(app.getHttpServer())
+      .get(`/api/clio/action-proposals?proposalId=${PROPOSAL}`)
+      .expect(400);
+
+    expect(proposalService.list).not.toHaveBeenCalled();
+  });
+});

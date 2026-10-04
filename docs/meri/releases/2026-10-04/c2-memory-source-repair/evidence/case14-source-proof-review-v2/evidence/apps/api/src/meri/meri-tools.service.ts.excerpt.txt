@@ -1,0 +1,172 @@
+SOURCE apps/api/src/meri/meri-tools.service.ts LINES 1-30
+1: import { memoryCaptureSourcePolicyEnabled, signMeriMemoryCaptureSources } from '@capiro/meriv2-core';
+2: import { assertTextArtifactCurrentProposal, type TextArtifactCurrentAction } from './meri-text-artifact-current-proposal.js';
+3: import { assertCase46ArtifactEffectInTx } from './meri-case46-action-authority.js';
+4: import { researchPortfolioManagementSchema, parseResearchPortfolioManagementInput } from '../research-portfolios/research-portfolio-management.js';
+5: import { federalHearingWhere } from '../hearing-discovery/hearing-geography.js';
+6: import {
+7:   controlledReadToolAllowed,
+8:   tryExecuteMeriControlledRead,
+9: } from './meri-controlled-read-fixture.js';
+10: import { captureBudgetRequired } from './meri-capture-provider-budget.js';
+11: import { withCaptureApiProviderScope } from './meri-capture-api-provider-scope.js';
+12: import {
+13:   deadlineStatus as structuredDeadlineStatus,
+14:   daysUntil as structuredDaysUntil,
+15:   MERI_CAPABILITY_REGISTRY,
+16:   MERI_CORE_TOOL_DEFINITIONS,
+17:   normalizeDeadline,
+18: } from '@capiro/shared';
+19: import {
+20:   assertMeriToolRequestActive,
+21:   currentMeriToolCapturePolicy,
+22:   currentMeriMemoryCaptureRequest,
+23:   meriToolRequestControl,
+24: } from './meri-tool-request-control.js';
+25: import { currentMeriServerReadonlyCapturePolicy } from './meri-context-plane-runtime.js';
+26: import {
+27:   assertMeriServerReadonlyCaptureCurrentAuthority,
+28:   assertMeriServerReadonlyCaptureToolAllowed,
+29: } from './meri-server-readonly-capture.js';
+30: import {
+
+SOURCE apps/api/src/meri/meri-tools.service.ts LINES 3457-3595
+3457:       contentCursor?: string;
+3458:     },
+3459:   ) {
+3460:     return this.searchMemory(ctx, { ...input, query: 'Read this governed memory' });
+3461:   }
+3462: 
+3463:   private async searchMemory(ctx: TenantContext, input: Record<string, unknown>) {
+3464:     const capturePolicy = currentMeriToolCapturePolicy() ?? currentMeriServerReadonlyCapturePolicy();
+3465:     const query = optionalString(input, 'query', 400);
+3466:     if (!query) return { error: 'Provide a search query.' };
+3467:     const clientId = optionalString(input, 'clientId', 80);
+3468:     if (clientId && !CLIENT_ID_UUID_RE.test(clientId)) {
+3469:       return { error: 'clientId must be a client UUID — pass the exact id, or omit it.' };
+3470:     }
+3471:     const kRaw = typeof input.k === 'number' ? input.k : parseInt(String(input.k ?? ''), 10);
+3472:     const k = Number.isFinite(kRaw) ? Math.min(15, Math.max(1, Math.floor(kRaw))) : 8;
+3473:     const cursor = optionalString(input, 'cursor', 8192);
+3474:     const memoryItemId = optionalString(input, 'memoryItemId', 80);
+3475:     const contentCursor = optionalString(input, 'contentCursor', 1024);
+3476:     if (memoryItemId && !CLIENT_ID_UUID_RE.test(memoryItemId)) {
+3477:       throw new BadRequestException('memoryItemId must be the exact canonical memory UUID');
+3478:     }
+3479:     if (contentCursor && !memoryItemId)
+3480:       throw new BadRequestException('contentCursor requires memoryItemId');
+3481:     if (memoryItemId && cursor)
+3482:       throw new BadRequestException('Use contentCursor for an exact memory read');
+3483:     let pageSize = memoryItemId ? 1 : Math.min(k, 3);
+3484:     // One canonical recall path for automatic context and explicit search. The
+3485:     // shared adapter reads approved memory_items content and checks the current
+3486:     // tenant/user/client wall on every page, including when embeddings are down.
+3487:     const contextPackets: NonNullable<Awaited<ReturnType<typeof searchCapiroData>>['contextPacket']>[] = [];
+3488:     const readPage = async () => {
+3489:       const result = await searchCapiroData(
+3490:         ctx,
+3491:         {
+3492:           query,
+3493:           domains: ['institutional_knowledge'],
+3494:           queryClass: memoryItemId ? 'lookup' : 'semantic_recall',
+3495:           pageSize,
+3496:           ...(memoryItemId ? { memoryItemId } : {}),
+3497:           ...(clientId ? { clientId } : {}),
+3498:           ...(cursor ? { cursors: { institutional_knowledge: cursor } } : {}),
+3499:         },
+3500:         this.contextPlane,
+3501:         capturePolicy ? { policy: capturePolicy, tool: 'search_memory' } : undefined,
+3502:       );
+3503:       if (capturePolicy?.semanticClock && result.contextPacket) contextPackets.push(result.contextPacket);
+3504:       return result;
+3505:     };
+3506:     let evidence = await readPage();
+3507:     const project = () =>
+3508:       evidence.records.map((record) =>
+3509:         projectMemoryContent(ctx, record, {
+3510:           captureSourceOwner: memoryCaptureSourcePolicyEnabled(capturePolicy),
+3511:           clientId: clientId ?? undefined,
+3512:           memoryItemId: memoryItemId ?? undefined,
+3513:           contentCursor: contentCursor ?? undefined,
+3514:           maxJsonChars: memoryItemId
+3515:             ? 6000
+3516:             : Math.floor(7200 / Math.max(1, evidence.records.length)),
+3517:         }),
+3518:       );
+3519:     let records;
+3520:     try {
+3521:       records = project();
+3522:     } catch (error) {
+3523:       if (
+3524:         pageSize <= 1 ||
+3525:         !(error instanceof BadRequestException) ||
+3526:         error.message !== 'Memory metadata exceeds the safe content-page budget'
+3527:       )
+3528:         throw error;
+3529:       // A metadata-heavy page must not skip rows when it is narrowed. Read the
+3530:       // SAME source cursor again with one item so the adapter issues the correct
+3531:       // nextCursor and rechecks current authorization.
+3532:       pageSize = 1;
+3533:       evidence = await readPage();
+3534:       records = project();
+3535:     }
+3536:     const source = evidence.coverage.sources.find(
+3537:       (entry) => entry.domain === 'institutional_knowledge',
+3538:     );
+3539:     const { records: _fullRecords, ...envelope } = evidence;
+3540:     return {
+3541:       ...envelope,
+3542:       tool: 'search_memory',
+3543:       ...(memoryCaptureSourcePolicyEnabled(capturePolicy)
+3544:         ? { memoryCaptureSources: signMeriMemoryCaptureSources(capturePolicy, records, process.env.INTERNAL_SERVICE_SECRET, currentMeriMemoryCaptureRequest()!) }
+3545:         : {}),
+3546:       ...(capturePolicy?.semanticClock ? { contextPackets } : {}),
+3547:       summary: records.length
+3548:         ? `${records.length} governed memory item(s) returned. Follow content.nextRead for complete approved content; coverage describes the search.`
+3549:         : 'No eligible memory was returned. Coverage distinguishes an empty result from unavailable recall.',
+3550:       requestedPageSize: k,
+3551:       effectivePageSize: pageSize,
+3552:       nextCursor: source?.nextCursor ?? null,
+3553:       governanceCoverage: {
+3554:         searched:
+3555:           'Eligible active governed memory, including stale or controlling conflicted records when policy allows',
+3556:         excluded:
+3557:           'Pending proposals, rejected, withdrawn, revoked, superseded and non-controlling conflicts are not active recall. Their absence here does not establish that no such proposals or historical records exist.',
+3558:       },
+3559:       factContentUnavailableCount: records.filter(
+3560:         (record) => record.payload.contentStatus !== 'available',
+3561:       ).length,
+3562:       contentStatus: records.length
+3563:         ? records.every((record) => record.payload.contentStatus === 'metadata_only')
+3564:           ? 'metadata_only'
+3565:           : 'available'
+3566:         : memoryItemId
+3567:           ? 'unavailable_or_ineligible'
+3568:           : source?.sourceStatus === 'healthy'
+3569:             ? 'empty'
+3570:             : 'unavailable',
+3571:       contentTruncated: records.some(
+3572:         (record) =>
+3573:           (record.payload.content as { truncated?: boolean } | undefined)?.truncated === true,
+3574:       ),
+3575:       results: records.map((record) => ({
+3576:         id: record.recordId,
+3577:         memoryItemId: record.recordId,
+3578:         title: record.payload.title,
+3579:         type: record.payload.type,
+3580:         clientId: record.payload.clientId,
+3581:         relevance: record.retrievalSignals?.semanticSimilarity ?? null,
+3582:       })),
+3583:       records,
+3584:     };
+3585:   }
+3586: 
+3587:   private async queryIntelligence(input: Record<string, unknown>) {
+3588:     const clientName = optionalString(input, 'clientName', 200);
+3589:     const parts: string[] = [];
+3590: 
+3591:     // Lobby intel surging issues & trends
+3592:     try {
+3593:       const lobbyCtx = await this.lobbyIntel.getAiContext();
+3594:       if (lobbyCtx.surgingIssues.length) {
+3595:         const surge = lobbyCtx.surgingIssues

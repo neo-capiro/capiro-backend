@@ -1,0 +1,81 @@
+{
+  "finishedAt": "2026-10-04T07:17:03.289Z",
+  "result": "PASS",
+  "scope": "Offline frozen-source API request-control and core proof checks; no live API/database/provider/capture; real EventEmitter/ALS and crypto, native core cancellation helper",
+  "checks": [
+    {
+      "name": "Actual API request-control authenticates then exposes binding only inside ALS",
+      "result": "PASS"
+    },
+    {
+      "name": "API refuses missing header before dispatch",
+      "result": "PASS"
+    },
+    {
+      "name": "API refuses body drift before dispatch",
+      "result": "PASS"
+    },
+    {
+      "name": "API refuses policy turn drift before dispatch",
+      "result": "PASS"
+    },
+    {
+      "name": "API refuses malformed header before dispatch",
+      "result": "PASS"
+    },
+    {
+      "name": "API refuses raw caller binding JSON before dispatch",
+      "result": "PASS"
+    },
+    {
+      "name": "Ordinary non-capture API request ignores capture header and preserves normal flow",
+      "result": "PASS"
+    },
+    {
+      "name": "Capture non-memory request does not require memory binding",
+      "result": "PASS"
+    },
+    {
+      "name": "Direct signer with no request refuses proof",
+      "result": "PASS"
+    },
+    {
+      "name": "Response rejects same-policy callId replay",
+      "result": "PASS"
+    },
+    {
+      "name": "Response rejects same-policy nonce replay",
+      "result": "PASS"
+    },
+    {
+      "name": "Response rejects same-policy inputSha256 replay",
+      "result": "PASS"
+    },
+    {
+      "name": "API response verification requires caller expected request",
+      "result": "PASS"
+    },
+    {
+      "name": "Missing or foreign canonical owner fails signer",
+      "result": "PASS"
+    },
+    {
+      "name": "Partial page has false fullRead and passage-specific hash",
+      "result": "PASS"
+    },
+    {
+      "name": "Canonical null client remains null rather than inferred from policy",
+      "result": "PASS"
+    }
+  ],
+  "loaded": [
+    {
+      "path": "packages/meriv2-core/src/context/memory-capture-source.ts",
+      "sha256": "63b501da79d2f26454ff9050a56137df27fdaa9a7706ea9fcc9f94f3ac1dd30a"
+    },
+    {
+      "path": "apps/api/src/meri/meri-tool-request-control.ts",
+      "sha256": "d7bc98fb4ece8e15d03c539b78891c06b1c68056efb03521139f462d3c6cf5b5"
+    }
+  ]
+}

@@ -1,0 +1,206 @@
+{
+  "observation": {
+    "path": "/api/clio/conversations/88603ac2-bfbf-42dc-9e3b-85e4bea173b8",
+    "status": 200,
+    "apiReleaseSha": null,
+    "observedAt": "2026-10-04T05:57:35.244Z",
+    "bodySha256": "c861727612d0530a220b151efd00d2837b04c261f2c927f1c9ab22253f9aa4be",
+    "bodyBytes": 6201
+  },
+  "value": {
+    "id": "88603ac2-bfbf-42dc-9e3b-85e4bea173b8",
+    "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+    "userId": "fb218bf5-2674-4ced-bca3-7a5d0c01592f",
+    "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+    "workspaceId": null,
+    "workspaceKey": "workspace",
+    "title": "meri-foundation-20260928 case14 5f4312a2-6aa9-4ec8-820d-5717a88402df",
+    "status": "active",
+    "nanoclawPlatformId": null,
+    "nanoclawAgentGroupId": null,
+    "metadata": {
+      "brand": "Meri",
+      "runtime": "Hermes",
+      "userEmail": "meri-foundation-20260928.priya@example.com",
+      "serverCaptureProviderBudget": {
+        "ledger": {
+          "limits": {
+            "maxTokens": 500000,
+            "deadlineAt": "2026-10-04T06:23:21.190Z",
+            "maxAttempts": 32,
+            "maxCostMicros": 14000000
+          },
+          "version": 1,
+          "attempts": [
+            {
+              "kind": "bedrock_embeddings",
+              "model": "amazon.titan-embed-text-v2:0",
+              "phase": "api_retrieval",
+              "runId": "25760a30-713d-4e8a-bb0d-c4d14b7265bb",
+              "status": "settled",
+              "version": 1,
+              "provider": "aws-bedrock",
+              "attemptId": "e2bebc96-d372-4b04-a177-780dc408e3ff",
+              "settledAt": "2026-10-04T05:53:21.820Z",
+              "leaseEpoch": 1,
+              "priceKnown": true,
+              "reservedAt": "2026-10-04T05:53:21.610Z",
+              "reservationId": "4bc51b28-c881-42b8-8d7b-58f02b27e721",
+              "actualCostMicros": 1,
+              "retryOfAttemptId": null,
+              "actualInputTokens": 14,
+              "actualOutputTokens": 0,
+              "logicalOperationId": "e2bebc96-d372-4b04-a177-780dc408e3ff",
+              "reservedCostMicros": 3,
+              "reservedInputTokens": 111,
+              "reservedOutputTokens": 0
+            },
+            {
+              "kind": "openai_responses",
+              "model": "gpt-6-astra",
+              "phase": "acquisition",
+              "runId": "25760a30-713d-4e8a-bb0d-c4d14b7265bb",
+              "status": "settled",
+              "version": 1,
+              "provider": "openai",
+              "attemptId": "openai-responses:9b9add8491e34a31f2f720050b6a2be2cd96a8ea96275ab28c3067d898f0e257:0",
+              "settledAt": "2026-10-04T05:53:27.428Z",
+              "leaseEpoch": 1,
+              "priceKnown": true,
+              "reservedAt": "2026-10-04T05:53:23.609Z",
+              "reservationId": "6b588a7d-962c-458f-80b6-a470b755671c",
+              "actualCostMicros": 758325,
+              "retryOfAttemptId": null,
+              "actualInputTokens": 30102,
+              "actualOutputTokens": 77,
+              "logicalOperationId": "openai-responses:9b9add8491e34a31f2f720050b6a2be2cd96a8ea96275ab28c3067d898f0e257",
+              "reservedCostMicros": 5146125,
+              "reservedInputTokens": 156693,
+              "reservedOutputTokens": 16384
+            },
+            {
+              "kind": "openai_responses",
+              "model": "gpt-6-astra",
+              "phase": "acquisition",
+              "runId": "25760a30-713d-4e8a-bb0d-c4d14b7265bb",
+              "status": "settled",
+              "version": 1,
+              "provider": "openai",
+              "attemptId": "openai-responses:a9594189d63c5d0eae56c1a122fc1b34635051112881a058ad0327871fefb649:0",
+              "settledAt": "2026-10-04T05:53:31.736Z",
+              "leaseEpoch": 1,
+              "priceKnown": true,
+              "reservedAt": "2026-10-04T05:53:27.712Z",
+              "reservationId": "e1e77f63-d610-441e-80b8-e489f50220b6",
+              "actualCostMicros": 811525,
+              "retryOfAttemptId": null,
+              "actualInputTokens": 32074,
+              "actualOutputTokens": 129,
+              "logicalOperationId": "openai-responses:a9594189d63c5d0eae56c1a122fc1b34635051112881a058ad0327871fefb649",
+              "reservedCostMicros": 5310975,
+              "reservedInputTokens": 163287,
+              "reservedOutputTokens": 16384
+            }
+          ],
+          "activation": "enforced",
+          "chargedTokens": 62396,
+          "chargedAttempts": 3,
+          "chargedCostMicros": 1569851
+        },
+        "turnId": "d0284dec-ab0c-471c-8b17-1792a769cd2e",
+        "version": 1,
+        "admissionId": "25760a30-713d-4e8a-bb0d-c4d14b7265bb",
+        "policySha256": "78b231b0dd3f55f9377a9d2f4b4ab3d83562c266e694fb82aec0155297d9febf",
+        "qualification": {
+          "rates": [
+            {
+              "kind": "openai_responses",
+              "model": "gpt-6-astra",
+              "provider": "openai",
+              "inputMicrosPerMillion": 25000000,
+              "outputMicrosPerMillion": 75000000
+            },
+            {
+              "kind": "bedrock_embeddings",
+              "model": "amazon.titan-embed-text-v2:0",
+              "provider": "aws-bedrock",
+              "inputMicrosPerMillion": 20000,
+              "outputMicrosPerMillion": 0
+            }
+          ],
+          "caseId": "14",
+          "version": 1,
+          "maxTokens": 500000,
+          "priceKind": "qualified_text_token_upper_bound",
+          "maxAttempts": 32,
+          "captureRunId": "5f4312a2-6aa9-4ec8-820d-5717a88402df",
+          "maxCostMicros": 14000000,
+          "rateEvidenceSha256": "1c9106e5d98f73b061f0de9918bf33c8fb28b0f0bc5be5ae4bc7d20e0da2a348",
+          "currentVerifySha256": "269f120e553fa77feb70d83c76103c89e1db4ae921d086b14c232242b501373e",
+          "rateEvidenceExpiresAt": "2026-10-04T11:09:44.838Z"
+        },
+        "qualificationSha256": "b0552df040a303d65eb1573c8a8ec0bebd76e198361a3421e241256713240353"
+      }
+    },
+    "summary": null,
+    "summaryUpToMessageId": null,
+    "summaryTokens": null,
+    "createdAt": "2026-10-04T05:53:02.905Z",
+    "updatedAt": "2026-10-04T05:53:31.674Z",
+    "archivedAt": null,
+    "client": {
+      "id": "41f9ec63-3963-479f-b747-59a3767ef44b",
+      "name": "Aster Defense"
+    },
+    "captureAdmission": {
+      "schemaVersion": 1,
+      "kind": "meri-case14-authenticated-admission",
+      "status": "READY",
+      "caseId": "14",
+      "captureRunId": "5f4312a2-6aa9-4ec8-820d-5717a88402df",
+      "conversationId": "88603ac2-bfbf-42dc-9e3b-85e4bea173b8",
+      "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+      "actorUserId": "fb218bf5-2674-4ced-bca3-7a5d0c01592f",
+      "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+      "issuedAt": 1791093452809,
+      "expiresAt": 1791093512809,
+      "apiReleaseSha": "c0f393f863bf73bd4e65e7a94e17c073e7be021e",
+      "toolAuthority": "shared_static_registry_read_only",
+      "toolCatalogSha256": "1a08b2447cdb77040470bbd1ee52426720f8da602b9909a2a880e095ed0c6678",
+      "dynamicMcpAllowed": false,
+      "incidentalWriters": "suppressed",
+      "fixture": {
+        "fixtureNamespace": "meri-foundation-20260928",
+        "fixtureVersion": "meri-live-v1-2026-09-26.1",
+        "physicalMapSha256": "886c4b2b5e069133c1c246cceb570353347b3354afe49d1657cf67083f9eb69f",
+        "currentVerifySha256": "269f120e553fa77feb70d83c76103c89e1db4ae921d086b14c232242b501373e",
+        "seedReceiptId": "meri-synthetic-fixture-seed-receipt:sha256:c5ab663ae34589d4fd3ad3076fdf10a9f1fb680c6b913b1c1de058aef9b22129",
+        "resetReceiptId": "meri-synthetic-fixture-reset-receipt:sha256:e43edc1d1804f362245168f10b98611f6e6680ffe6cf9406b5eeb5963fcd9512",
+        "decision": {
+          "transitionAuditId": "c6a57ea9-429a-4692-9ab0-dc3f04eaf4e8",
+          "actorUserId": "fb218bf5-2674-4ced-bca3-7a5d0c01592f",
+          "decision": "approved"
+        },
+        "candidateId": "6f4545a1-dcd5-5eba-8606-db2043b238ac",
+        "approvedText": "Synthetic Aster candidate for approval",
+        "sources": [
+          {
+            "logicalId": "MEM-PROPOSAL-14",
+            "physicalId": "a740d74f-2c61-4888-bb59-5c9eea502e3f",
+            "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+            "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+            "sourceVersion": "candidate:6f4545a1-dcd5-5eba-8606-db2043b238ac",
+            "contentSha256": "e398859f2cda473be80da00d8e849a958646f9b105292823f005c848938af8cc"
+          }
+        ]
+      },
+      "providerBudget": {
+        "ready": true,
+        "qualificationSha256": "b0552df040a303d65eb1573c8a8ec0bebd76e198361a3421e241256713240353",
+        "currentVerifySha256": "269f120e553fa77feb70d83c76103c89e1db4ae921d086b14c232242b501373e",
+        "maxCostMicros": 14000000,
+        "coverage": "case14_memory_turn"
+      }
+    }
+  }
+}

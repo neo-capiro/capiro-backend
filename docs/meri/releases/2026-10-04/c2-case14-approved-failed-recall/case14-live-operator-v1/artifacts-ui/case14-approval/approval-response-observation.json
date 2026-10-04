@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "kind": "meri-http-response-observation",
+  "captureAuthority": false,
+  "acceptanceStatus": "NOT_RUN",
+  "status": 201,
+  "releaseSha": "c0f393f863bf73bd4e65e7a94e17c073e7be021e",
+  "bodyBytes": 163,
+  "bodySha256": "9b438011820dab1e2bfc11a4b161b649f3c124c1c4448e229cd6355f2293723d",
+  "redacted": false,
+  "text": "{\"ok\":true,\"candidateId\":\"6f4545a1-dcd5-5eba-8606-db2043b238ac\",\"candidateKind\":\"standard\",\"outcome\":\"activated\",\"memoryId\":\"70352101-16f8-42a3-9a4f-77c1c67111c9\"}"
+}

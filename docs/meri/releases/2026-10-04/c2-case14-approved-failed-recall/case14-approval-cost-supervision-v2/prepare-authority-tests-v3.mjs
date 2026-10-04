@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import {readFileSync,writeFileSync,mkdirSync} from 'node:fs';
+const root='C:/dev/main/outputs/meri-c2-20261003',out=root+'/case14-postapproval-authority-supervision-v3';
+mkdirSync(out);
+const source=readFileSync(root+'/case14-postapproval-preparation-v2/test-case14-postapproval-inner-v2.mjs','utf8');
+const begin=source.indexOf('function projectMock('),end=source.indexOf('const success=await sequence(',begin);assert.ok(begin>0&&end>begin);
+let fixture=source.slice(0,source.indexOf('const passed=[];'))+source.slice(begin,end)+'\nexport {input,now,nativeMock,projectMock};\n';
+fixture=fixture.replace("'./case14-postapproval-inner-v2.mjs'","'../case14-postapproval-preparation-v2/case14-postapproval-inner-v2.mjs'");
+fixture=fixture.replace("new URL('./reviewed-rates-retained.json',import.meta.url)","new URL('../case14-postapproval-preparation-v2/reviewed-rates-retained.json',import.meta.url)");
+writeFileSync(out+'/reviewed-sequence-fixture.mjs',fixture,{flag:'wx'});
+console.log(out);

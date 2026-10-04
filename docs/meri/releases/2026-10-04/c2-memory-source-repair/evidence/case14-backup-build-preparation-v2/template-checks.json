@@ -1,0 +1,87 @@
+{
+  "status": "LOCAL_SYNTAX_LOSSLESS_TEMPLATE_ASSEMBLY_ONLY",
+  "builds": "NOT_RUN",
+  "services": {
+    "api": {
+      "path": "api\\buildspec.template.json",
+      "sha256": "b69ec8d59ab4a897f177c0a99c87a7fe0f4c3680c3a2e9b62126a97dbe91f258",
+      "bytes": 13997,
+      "requiredMarkers": [
+        "OFFLINE_RUNTIME_IMPORT_PASS",
+        "OFFLINE_CASE01_FIXTURE_PACKAGE_IMPORT_PASS",
+        "OFFLINE_CASE01_CONTINUATION_IMPORT_PASS",
+        "OFFLINE_CASE01_POSTAPPROVAL_IMPORT_PASS",
+        "OFFLINE_CASE01_POSTSEED_IMPORT_PASS",
+        "EXACT_452_IMAGE_MIGRATION_HASHES_PASS",
+        "MAIL_ACTIVE_OWNER_INDEX_MIGRATION_PACKAGE_PASS",
+        "OFFLINE_PACKAGED_C2_MEMORY_PASS",
+        "OFFLINE_PACKAGED_C2_RECONCILIATION_PASS",
+        "OFFLINE_PACKAGED_C2_TERMINAL_LIFECYCLE_PASS",
+        "OFFLINE_PACKAGED_C2_TS_SOURCE_IMPORT_PASS",
+        "OFFLINE_PACKAGED_SEMANTIC_CLOCK_API_CORE_PASS",
+        "OFFLINE_PACKAGED_CAPTURE_RECEIPT_CONTRACT_PASS",
+        "OFFLINE_PACKAGED_CAPTURE_PROVIDER_API_GUARDS_PASS",
+        "LOCAL_REPODIGEST_ECR_MATCH_PASS",
+        "OFFLINE_PACKAGED_C2_RECORDED_SOURCE_PRIVACY_PASS",
+        "OFFLINE_PACKAGED_C2_TOOL_HTTP_SUCCESS_PASS",
+        "OFFLINE_PACKAGED_C2_CANONICAL_MEMORY_SOURCE_PASS"
+      ]
+    },
+    "meriv2-orchestrator": {
+      "path": "meriv2-orchestrator\\buildspec.template.json",
+      "sha256": "2c385ca184bb7dd65770573eba645ccae735387019c4aea623aebe142e4acc7a",
+      "bytes": 12525,
+      "requiredMarkers": [
+        "ORCHESTRATOR_CAPTURE_CONTRACT_LOOPBACK_TESTS_PASS",
+        "OFFLINE_PACKAGED_ENTRYPOINT_HEALTH_AUTH_PASS",
+        "OFFLINE_C1_CLASSIFICATION_REPAIRS_PASS",
+        "OFFLINE_PACKAGED_MAIL_DEFAULTS_PASS",
+        "OFFLINE_PACKAGED_NO_TOOLS_DIRECTIVE_PASS",
+        "OFFLINE_PACKAGED_SEMANTIC_CLOCK_ORCHESTRATOR_PASS",
+        "OFFLINE_PACKAGED_CAPTURE_PROVIDER_ORCHESTRATOR_GUARDS_PASS",
+        "LOCAL_REPODIGEST_ECR_MATCH_PASS",
+        "CORE_CASE20_SOURCE_PROOF_NATIVE_TESTS_PASS",
+        "ORCHESTRATOR_CASE20_SOURCE_PROOF_NATIVE_TESTS_PASS",
+        "CORE_CANONICAL_MEMORY_SOURCE_NATIVE_TESTS_PASS",
+        "ORCHESTRATOR_CANONICAL_MEMORY_SOURCE_LOOPBACK_PASS"
+      ]
+    }
+  },
+  "checks": [
+    {
+      "path": "api\\pre_build.sh",
+      "bashSyntaxExit": 0,
+      "sha256": "b2482d882549708861cd5a761b20e05740be23b71be442887a04af778eabf427"
+    },
+    {
+      "path": "api\\build.sh",
+      "bashSyntaxExit": 0,
+      "sha256": "9ceea86487ac7508f926a493cd86a8bc98dd2c8b42aa72896bf7f7bfbbe6a35c"
+    },
+    {
+      "path": "api\\post_build.sh",
+      "bashSyntaxExit": 0,
+      "sha256": "fc6034cdd9ec8f0dfaa5e9ce39617f2518a35e227e335bfea4c9b48daa9d372d"
+    },
+    {
+      "path": "meriv2-orchestrator\\pre_build.sh",
+      "bashSyntaxExit": 0,
+      "sha256": "7214275629cfe2732e11020877ba4e0717d67711fe649f5eddb6f7b1b8d7c317"
+    },
+    {
+      "path": "meriv2-orchestrator\\build.sh",
+      "bashSyntaxExit": 0,
+      "sha256": "0389dd21eeca07408010f15f55d64012eb21f0e0ab3983fef1a48ec1ec8ab7a7"
+    },
+    {
+      "path": "meriv2-orchestrator\\post_build.sh",
+      "bashSyntaxExit": 0,
+      "sha256": "20b5e9bb3ba9f445f70dbaa058e126ef736992331e71b3cae5ee5dd6bfbc4d9d"
+    }
+  ],
+  "probeNodeSyntaxExit": 0,
+  "backupAuthorization": "USER_REQUEST_2026_10_04_USE_BACKUP_SHIPPING_METHOD",
+  "cloudMutations": 0,
+  "schemaChange": false,
+  "configurationChange": false
+}

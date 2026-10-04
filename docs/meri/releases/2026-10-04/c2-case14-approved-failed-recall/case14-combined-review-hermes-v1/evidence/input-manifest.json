@@ -1,0 +1,46 @@
+[
+  {
+    "path": "evals/meri/live-v1/lib/windows-capture-spend.py",
+    "sha256": "d9fefeda594bee5c69eaa596de2d0a41ad8bab7fbfaf8ee3ce2e7d9a4564277d"
+  },
+  {
+    "path": "evals/meri/live-v1/tests/capture-spend-fresh.unit.py",
+    "sha256": "bbdd306485ae8cd057fe19a85939ef3973c0ac6040ba053192be39e957205af6"
+  },
+  {
+    "path": "evals/meri/live-v1/capture-spend-aggregate.mjs",
+    "sha256": "207173e264edffea41bacc3323b6b10890edc7d17cab1fc860b3803434b719a7"
+  },
+  {
+    "path": "evals/meri/live-v1/case14-approval-cost-authority.mjs",
+    "sha256": "bf83036605dc2ceaacede635bbc394cc17d3c769bc64e47d41626b6758edc5c8"
+  },
+  {
+    "path": "evals/meri/live-v1/case14-approval-cost-evidence.json",
+    "sha256": "aa63a7378883f152c1d8180cc0796fc5dc2bb4ad61e68df9030d52b9a754aa33"
+  },
+  {
+    "path": "evals/meri/live-v1/case14-approval-capture.mjs",
+    "sha256": "cadc7d7533de483d46deb3d28bc621909e3cfca548576d63c2b2fe9a75750ed4"
+  },
+  {
+    "path": "evals/meri/live-v1/case14-approval-write-guard.mjs",
+    "sha256": "4aff57265d0fe414221f8d168e53ddd0940bca1ca76c6f86cb2669e7b16d5a34"
+  },
+  {
+    "path": "apps/api/src/memory/memory-candidate.service.ts",
+    "sha256": "411f943b59aa74f2791acd68c32b6eae5fec587bf2e2b669e0dadfde0be776ce"
+  },
+  {
+    "path": "apps/api/src/memory/governed-memory-ingest.service.ts",
+    "sha256": "122164ca67d8e47d0037a1e1ab2fa606e1ddea036810f42877c1cbe3f63cf612"
+  },
+  {
+    "path": "apps/api/src/memory/strict-memory-projector.service.ts",
+    "sha256": "29d580fc0bc8c1a40b08a04a79da5200adca823582e750ad313b7b367693bcf2"
+  },
+  {
+    "path": "apps/api/src/memory/exact-memory-cleanup-outbox.service.ts",
+    "sha256": "8b6843696943c30feab19d271680ff2429effcbc8399ea67ee9e7045c365154d"
+  }
+]

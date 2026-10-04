@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import {readFileSync,writeFileSync} from 'node:fs';
+import {createHash} from 'node:crypto';
+const root='C:/dev/main/outputs/meri-c2-20261003';
+const helper=readFileSync(root+'/case14-approval-cost-supervision-v2/projection-terminal-inner-v1.mjs');
+const helperSha=createHash('sha256').update(helper).digest('hex');
+const file=root+'/case14-postapproval-preparation-v2/case14-postapproval-inner-v2.mjs';
+let source=readFileSync(file,'utf8');
+assert.equal(source.includes('const PROJECTION_MODULE_B64 ='),false);
+source=source.replace("export const PIN = Object.freeze({",`// Fixed local read-only module. Both raw bytes and code are pinned into this adapter.\nconst PROJECTION_SOURCE_SHA256 = '${helperSha}';\nconst PROJECTION_MODULE_B64 = '${helper.toString('base64')}';\n\nexport const PIN = Object.freeze({`);
+writeFileSync(file,source);console.log(JSON.stringify({status:'LOCAL_INNER_EMBEDDED_NOT_RUN',projectionSourceSha256:helperSha,innerSha256:createHash('sha256').update(source).digest('hex')}));

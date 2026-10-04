@@ -1,0 +1,26 @@
+{
+  "action": "COST_ONLY_FIXED_FAILED_CASE14",
+  "evidencePinsSha256": "5869eeac81658a0a8208dbe4637bd4da95f8c965534a8a4b43e5ba49ff3f5bb9",
+  "proofSha256": "1bd0de197e10510a119e9da6e1e41b3a27c40421ebc421d1014926750577c893",
+  "sourcePinsSha256": "cc931336933c4222aaa11810a49b2408a3a373a3c9576d42cb095a7cbf3840ee",
+  "captureAuthority": false,
+  "answerGrade": "NOT_EVALUATED",
+  "approvalBilledActualMicros": null,
+  "status": "PASS",
+  "reviewer": "Codex root independent of cost-supervision author",
+  "reviewedAt": "2026-10-04T06:31:25.731326+00:00",
+  "scope": "Exact failed Case14 cost-only closure; not capture/retry/grading authority",
+  "checks": [
+    "Authentic original predeadline raw messages and postdeadline ordinary me/conversation observations pinned; release c0 and identity/state joins retained",
+    "Recall arithmetic3settled attempts1569851micros; approval1Mconservative retained separately, actualnull",
+    "Native exact25prefix/fileidentity/one append; original failedcapture preserved",
+    "WeakMap one-use and consume-time source/evidence revalidation; no caller JSON restore",
+    "10Node and8NTFS actual-proof qualification logs independently inspected",
+    "No changed models/rates/budgetcaps or new paid submission; no reapproval"
+  ],
+  "limitations": [
+    "Original CAPTURE_UNCERTAIN remains",
+    "Approval actual unmeasured;1Mconservative cost notrefund",
+    "Historical cost-bound artifact invalidJSON is pinned opaque bytes"
+  ]
+}

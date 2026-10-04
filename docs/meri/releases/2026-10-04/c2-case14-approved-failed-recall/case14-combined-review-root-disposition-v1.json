@@ -1,0 +1,9 @@
+{
+  "status": "PASS_ACTUAL_SOURCE_NO_PARSE_DEFECT",
+  "sha256": "411f943b59aa74f2791acd68c32b6eae5fec587bf2e2b669e0dadfde0be776ce",
+  "copyByteEquivalent": true,
+  "parseDiagnostics": 0,
+  "actualLine": "    private readonly authorization: MemoryAuthorizationService = new MemoryAuthorizationService(",
+  "hermesFinding": "FALSE_POSITIVE_OR_TOOL_REDACTION; API source unchanged",
+  "sourceModified": false
+}

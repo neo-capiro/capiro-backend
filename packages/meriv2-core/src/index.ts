@@ -7,6 +7,7 @@ export * from './context/research-plan-execution';
 export * from './context/server-readonly-capture';
 export * from './context/synthetic-read-budget';
 export * from './context/capture-evidence-receipt';
+export * from './context/memory-capture-source';
 export * from './context/meri-explicit-subject';
 export * from './registry/tool-registry';
 export * from './registry/tool-execution-metadata';

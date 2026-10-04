@@ -1,4 +1,4 @@
-import { observeControlledReadHttpResponse, observeCaptureClockHttpAttempt,
+import { observeControlledReadHttpResponse, observeCaptureClockHttpAttempt, memoryCaptureRequestHeaders,
   observeCaptureClockHttpResponse } from './controlled-read-observations.js';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -226,7 +226,7 @@ export class ApiToolExecutorRepo implements ToolExecutor {
               observeCaptureClockHttpAttempt(toolName);
               res = await fetch(url, {
                 ...request,
-                headers: { ...request.headers, ...meriOrchestratorTelemetryHeaders() },
+                headers: { ...request.headers, ...meriOrchestratorTelemetryHeaders(), ...memoryCaptureRequestHeaders(toolName, request.body, this.serviceSecret) },
               });
             } catch (error) {
               emitMeriOrchestratorTelemetry({

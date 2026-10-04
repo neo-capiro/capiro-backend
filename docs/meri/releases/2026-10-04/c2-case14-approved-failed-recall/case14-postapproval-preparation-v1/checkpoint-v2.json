@@ -1,0 +1,91 @@
+{
+  "kind": "case14-postapproval-codex-preparation",
+  "version": 2,
+  "status": "LOCAL_DRAFT_NOT_LIVE_QUALIFIED",
+  "preparedBy": "Codex (not Hermes)",
+  "createdAt": "2026-10-04T04:46:12.367Z",
+  "files": {
+    "case14-postapproval-inner-v1.mjs": {
+      "sha256": "54f42c6742edab6750140a04bcee811b95df8381e8628816365df26ef25b5886",
+      "bytes": 19594
+    },
+    "build-case14-postapproval-input-v1.mjs": {
+      "sha256": "a37e0f73b4af38885953d8ff17b88373b0d4d99fdc6b276e51584f6fe1355b51",
+      "bytes": 2070
+    },
+    "test-case14-postapproval-inner-v1.mjs": {
+      "sha256": "567520bccf5b22d656cb3c02729031efc794a5ee640c64c78612196ac7d99bae",
+      "bytes": 8495
+    },
+    "reviewed-rates-retained.json": {
+      "sha256": "3531e09dfcce9f66b4ea2b3564db47bd72dc507cdcf1aecdda277b838007704e",
+      "bytes": 2770
+    },
+    "local-synthetic-qualification-v2.json": {
+      "sha256": "f9dd5692037ccb958be2b1799c19202410ce682f0920fbaada909af71dc0ea51",
+      "bytes": 924
+    }
+  },
+  "sourceSha": "c0f393f863bf73bd4e65e7a94e17c073e7be021e",
+  "fixtureInstanceId": "dee4e90e-8e91-4782-9488-10b8e52a2146",
+  "candidateId": "6f4545a1-dcd5-5eba-8606-db2043b238ac",
+  "inputsRequired": [
+    "Actual in-process owned Case14 approvalOutcome with original same-run canonical owner, screenshots and revoked session",
+    "Explicit reviewed recall maxCostMicros from lead; aggregate approval-envelope design is separate",
+    "Use builder in same attended Node process to write one new input file; outer pins exact byte SHA256",
+    "Outer supplies RELEASE_SHA/GIT_SHA, identical reviewed API memory flags/cohort, namespace, four DB fields and original DB connection settings; no provider credentials or task role needed"
+  ],
+  "nativePhases": [
+    "meri-case14-recall-setup.mjs plan",
+    "meri-case14-recall-setup.mjs bind with exact plan and BIND_EXISTING_CASE14_CANONICAL_APPROVAL",
+    "meri-capture-provider-budget.mjs plan",
+    "meri-capture-provider-budget.mjs install with four fresh fences"
+  ],
+  "transport": {
+    "prefix": "C2_CASE14_POSTAPPROVAL ",
+    "phases": [
+      "INTENT",
+      "RECEIPT",
+      "VERIFIED",
+      "COMPLETE",
+      "FAILURE",
+      "FATAL"
+    ],
+    "receiptFormat": "One bounded base64 exact receipt with byte SHA256 per completed native CLI, emitted before the next phase; child stdout/stderr never printed",
+    "outputRoot": "/dev/shm/case14-postapproval-<actual captureRunId>",
+    "partialFailure": "Already emitted receipts remain usable for read-only reconciliation; no automatic retry or rollback"
+  },
+  "rateEvidence": {
+    "originalPath": "C:/dev/main/outputs/meri-c2-20261003/reviewed-rates-c2-v2-20261003.json",
+    "retainedByteHash": "3531e09dfcce9f66b4ea2b3564db47bd72dc507cdcf1aecdda277b838007704e",
+    "semanticSha256": "a1a179383c8451495336169f46025eb8cee8ec95487f1a43017078387b768b11",
+    "expiresAt": "2026-10-04T05:29:01.587Z",
+    "unchanged": true,
+    "minimumValidityMinutes": 45,
+    "lastPermittedPhaseStartBefore": "2026-10-04T04:44:01.587Z",
+    "coversApprovalEmbedding": false,
+    "usableAtCheckpoint": false,
+    "reason": "Less than required 45-minute remaining validity; original expiry not extended"
+  },
+  "validation": {
+    "syntax": "PASS",
+    "mockedSequenceTests": 13,
+    "nativeCliExecution": "NOT_RUN",
+    "cloudCalls": 0,
+    "databaseCalls": 0,
+    "providerCalls": 0,
+    "journalMutations": 0,
+    "repoSourceMutations": 0,
+    "inlineImport": "SIDE_EFFECT_FREE_PASS"
+  },
+  "limitations": [
+    "Approval itself can dispatch unaccounted OpenAI and Titan embedding work; draft neither approves nor accounts for those effects",
+    "Cannot be used until bounded approval cost authority is qualified",
+    "Rate evidence is never refreshed or extended by this draft; expiration or insufficient remaining validity fails closed",
+    "Independent parent and actual Hermes review still required before use",
+    "No live input created; UUID and owner derive from eventual actual owned approval evidence"
+  ],
+  "liveAcceptance": "NOT_RUN",
+  "acceptanceAuthority": false,
+  "supersedes": "checkpoint.json"
+}

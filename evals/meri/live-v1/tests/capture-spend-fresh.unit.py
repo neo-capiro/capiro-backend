@@ -22,15 +22,25 @@ ORIGINAL = {**LIVE_ORIGINAL, 'fresh-spend.jsonl': b''.join(LIVE_ORIGINAL['fresh-
 assert MODULE['digest'](ORIGINAL['fresh-spend.jsonl']) == MODULE['FRESH_PREFIX']
 
 
-def reserve(case='01', amount=15_000_000):
-    return {'kind': 'reserve', 'caseId': case, 'captureRunId': str(uuid.uuid4()),
-            'reservationId': str(uuid.uuid4()), 'ceilingMicros': amount}
+def reserve(case='01', amount=15_000_000, **extra):
+    event = {'kind': 'reserve', 'caseId': case, 'captureRunId': str(uuid.uuid4()),
+             'reservationId': str(uuid.uuid4()), 'ceilingMicros': amount}
+    if case == '14':
+        event.update(approvalCeilingMicros=1_000_000, recallCeilingMicros=14_000_000,
+                     approvalBoundSha256='c'*64)
+    event.update(extra)
+    return event
 
 
 def settle(event, amount=100):
-    return {**{k: event[k] for k in ('caseId', 'captureRunId', 'reservationId')},
-            'kind': 'settle', 'chargedCostMicros': amount,
-            'ledgerSha256': 'a'*64, 'envelopeSha256': 'b'*64}
+    fields = {k: event[k] for k in ('caseId', 'captureRunId', 'reservationId')}
+    result = {**fields, 'kind': 'settle', 'chargedCostMicros': amount,
+              'ledgerSha256': 'a'*64, 'envelopeSha256': 'b'*64}
+    if event['caseId'] == '14':
+        result.update(conservativeApprovalCostMicros=1_000_000,
+                      approvalBoundSha256=event['approvalBoundSha256'],
+                      approvalOutcomeSha256='d'*64, projectionTerminalSha256='e'*64)
+    return result
 
 
 class FreshJournal(unittest.TestCase):
@@ -246,7 +256,7 @@ class ProspectiveCase14(unittest.TestCase):
             self.call('reserve', self.prior, reserve('14'))
         done = self.call('settle', active, settle(event, 500_000))
         self.assertEqual(done['snapshot']['knownSettledCostMicros'], 14_131_058)
-        self.assertEqual(done['snapshot']['remainingReservationMicros'], 15_868_942)
+        self.assertEqual(done['snapshot']['remainingReservationMicros'], 14_868_942)
         with self.assertRaises(ValueError):
             self.call('reserve', done, reserve('14'))
 
@@ -280,6 +290,101 @@ class ProspectiveCase14(unittest.TestCase):
         row.update(sequence=25)
         with self.assertRaises(ValueError):
             MODULE['reduce_fresh'](changed+MODULE['data'](row)+b'\n')
+
+    def test_case14_fixed_partition_and_known_vs_conservative_accounting(self):
+        event = reserve('14')
+        active = self.call('reserve', self.prior, event)
+        reserved = active['snapshot']
+        self.assertEqual(reserved['eventCount'], 25)
+        self.assertEqual(reserved['knownSettledCostMicros'], 13_631_058)
+        self.assertEqual(reserved['conservativeApprovalCostMicros'], 0)
+        self.assertEqual(reserved['committedCostMicros'], 28_631_058)
+        self.assertEqual(reserved['remainingReservationMicros'], 1_368_942)
+        row = json.loads((self.root / 'fresh-spend.jsonl').read_bytes().splitlines()[-1])
+        self.assertEqual({k: row[k] for k in ('ceilingMicros', 'approvalCeilingMicros', 'recallCeilingMicros')},
+                         {'ceilingMicros': 15_000_000, 'approvalCeilingMicros': 1_000_000,
+                          'recallCeilingMicros': 14_000_000})
+        self.assertEqual(row['approvalBoundSha256'], event['approvalBoundSha256'])
+        actual_recall = 500_000
+        done = self.call('settle', active, settle(event, actual_recall))
+        snap = done['snapshot']
+        self.assertEqual(snap['knownSettledCostMicros'], 13_631_058 + actual_recall)
+        self.assertEqual(snap['conservativeApprovalCostMicros'], 1_000_000)
+        self.assertEqual(snap['committedCostMicros'], 13_631_058 + actual_recall + 1_000_000)
+        self.assertEqual(snap['remainingReservationMicros'], 30_000_000 - snap['committedCostMicros'])
+        run = snap['runs']['14:'+event['captureRunId']]
+        self.assertEqual(run['chargedCostMicros'], actual_recall)
+        self.assertEqual(run['conservativeApprovalCostMicros'], 1_000_000)
+        self.assertEqual(run['approvalOutcomeSha256'], 'd'*64)
+        self.assertEqual(run['projectionTerminalSha256'], 'e'*64)
+        self.assertTrue(snap['runs']['01:'+json.loads(self.wire.splitlines()[0])['captureRunId']]['historical'])
+        with self.assertRaises(ValueError):
+            self.call('reserve', done, reserve('14'))
+
+    def test_case14_bad_partition_bound_and_malformed_settlement_reject_without_append(self):
+        for changes in [{'ceilingMicros': 14_999_999}, {'ceilingMicros': True},
+                        {'approvalCeilingMicros': 999_999}, {'approvalCeilingMicros': 1000000.0}, {'recallCeilingMicros': 14000000.0}, {'recallCeilingMicros': 13_999_999},
+                        {'approvalBoundSha256': 'C'*64}, {'approvalBoundSha256': 'bad'},
+                        {'approvalBoundSha256': None}, {'unexpected': 1}]:
+            event = reserve('14')
+            event.update(changes)
+            with self.subTest(changes=changes), self.assertRaises(ValueError):
+                self.call('reserve', self.prior, event)
+        self.assertEqual((self.root / 'fresh-spend.jsonl').read_bytes(), self.wire)
+        event = reserve('14')
+        active = self.call('reserve', self.prior, event)
+        before = (self.root / 'fresh-spend.jsonl').read_bytes()
+        good = settle(event, 100)
+        changesets = [
+            {'chargedCostMicros': 14_000_001}, {'chargedCostMicros': True},
+            {'ledgerSha256': ''}, {'envelopeSha256': 'x'},
+            {'conservativeApprovalCostMicros': 999_999}, {'conservativeApprovalCostMicros': True},
+            {'approvalBoundSha256': 'f'*64}, {'approvalOutcomeSha256': 'bad'},
+            {'projectionTerminalSha256': None}, {'captureAuthority': False}, {'extra': 1},
+        ]
+        for change in changesets:
+            with self.subTest(change=change), self.assertRaises(ValueError):
+                self.call('settle', active, {**good, **change})
+        self.assertEqual((self.root / 'fresh-spend.jsonl').read_bytes(), before)
+        read = self.call('read', active)
+        self.assertEqual(read['snapshot']['activeRun'], '14:'+event['captureRunId'])
+        self.assertEqual(read['snapshot']['committedCostMicros'], 28_631_058)
+
+    def test_settlement_missing_any_proof_fails_and_never_releases_hold(self):
+        event = reserve('14')
+        active = self.call('reserve', self.prior, event)
+        before = (self.root / 'fresh-spend.jsonl').read_bytes()
+        good = settle(event, 14_000_000)
+        for field in ('ledgerSha256', 'envelopeSha256', 'approvalBoundSha256',
+                      'approvalOutcomeSha256', 'projectionTerminalSha256',
+                      'conservativeApprovalCostMicros'):
+            broken = dict(good)
+            del broken[field]
+            with self.subTest(field=field), self.assertRaises(ValueError):
+                self.call('settle', active, broken)
+        self.assertEqual((self.root / 'fresh-spend.jsonl').read_bytes(), before)
+        snap = self.call('read', active)['snapshot']
+        self.assertEqual(snap['activeRun'], '14:'+event['captureRunId'])
+        self.assertEqual(snap['committedCostMicros'], 28_631_058)
+        self.assertEqual(snap['conservativeApprovalCostMicros'], 0)
+
+    def test_premature_mutated_prefix_duplicate_and_second_case14_rejected(self):
+        event = reserve('14')
+        for count in (20, 21, 22, 23):
+            row = {k: event[k] for k in ('caseId', 'captureRunId', 'reservationId', 'ceilingMicros',
+                                         'approvalCeilingMicros', 'recallCeilingMicros', 'approvalBoundSha256')}
+            row.update(nativeCaptureVersion=1, sequence=count+1, atMs=1, event='reserved')
+            with self.subTest(count=count), self.assertRaises(ValueError):
+                MODULE['reduce_fresh'](b''.join(self.wire.splitlines(keepends=True)[:count]) + MODULE['data'](row) + b'\n')
+        rows = self.wire.splitlines(keepends=True)
+        altered = json.loads(rows[23]); altered['atMs'] += 1
+        changed = b''.join(rows[:23]) + MODULE['data'](altered) + b'\n'
+        with self.assertRaises(ValueError):
+            MODULE['reduce_fresh'](changed + MODULE['data']({**json.loads(MODULE['data'](row)), 'sequence': 25}) + b'\n')
+        active = self.call('reserve', self.prior, event)
+        done = self.call('settle', active, settle(event, 0))
+        with self.assertRaises(ValueError):
+            self.call('reserve', done, reserve('14'))
 
 
 if __name__ == '__main__':

@@ -1,0 +1,5 @@
+Review completed and saved to C:\dev\main\outputs\meri-c2-20261003\case14-source-proof-review-v2\review.md.
+
+Disposition: PASS for closing v1’s same-policy cross-call response replay. The supplied fetch-to-observer path binds the proof to a fresh invocation request and verifies that binding before accepting source evidence. Acceptance caveat: tenant-wide memory with a null client is preserved as null, but cannot satisfy the current Case 01/14 receipt’s client check.
+
+I read only the frozen evidence bundle and did not run tests; the reported loopback status and pending final rerun are documented, not independently verified. The prior failed Case 14 run remains failed; this source review does not change that status.

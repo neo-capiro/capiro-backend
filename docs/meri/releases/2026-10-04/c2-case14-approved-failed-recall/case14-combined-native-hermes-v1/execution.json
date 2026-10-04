@@ -1,0 +1,45 @@
+{
+  "startedAt": "2026-10-04T04:55:54.578891+00:00",
+  "finishedAt": "2026-10-04T04:58:47.163900+00:00",
+  "exitCode": 0,
+  "failure": null,
+  "modelOverride": null,
+  "providerOverride": null,
+  "files": [
+    {
+      "path": "prompt.txt",
+      "bytes": 2962,
+      "sha256": "4b610fd8d804d51f68445ab36d64c5b241259bd15478daf347935a449a8dede4"
+    },
+    {
+      "path": "response.txt",
+      "bytes": 996,
+      "sha256": "d50f4520d37d85970ba5b77395100c486f3bce134e543f3e55037e9cb7fbd524"
+    },
+    {
+      "path": "stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "usage.json",
+      "bytes": 477,
+      "sha256": "78e1df550cd88b08ff79a817bd2bf99e1f175e724f69f641efec1d658d9378a4"
+    },
+    {
+      "path": "candidate\\evals\\meri\\live-v1\\IMPLEMENTATION.md",
+      "bytes": 3729,
+      "sha256": "07ad6ea0faf2153e8b5ffb3c1b633c70a9a31d2a6a01c694a39e2f233192726c"
+    },
+    {
+      "path": "candidate\\evals\\meri\\live-v1\\lib\\windows-capture-spend.py",
+      "bytes": 29405,
+      "sha256": "452731ca1411d895a896754ae6a87495a0b6d21e0cf9e69d8b46e30cd4f6c9a3"
+    },
+    {
+      "path": "candidate\\evals\\meri\\live-v1\\tests\\capture-spend-fresh.unit.py",
+      "bytes": 13527,
+      "sha256": "a6c02945786a793da756aff2140cc6903aa97f6a972fb48f0a538c60dc994040"
+    }
+  ]
+}

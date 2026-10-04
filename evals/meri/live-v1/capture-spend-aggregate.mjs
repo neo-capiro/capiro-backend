@@ -15,6 +15,13 @@ import { consumeCase01PresubmissionRecoveryAuthority } from './case01-presubmiss
 import { consumeCase20PresubmissionRecoveryAuthority } from './case20-presubmission-recovery-authority.mjs';
 import { consumeCase01FailedReceiptCostAuthority } from './case01-failed-receipt-cost-authority.mjs';
 import { consumeCase20TerminalCostAuthority } from './case20-terminal-cost-authority.mjs';
+import { currentCase14ApprovalAuthority } from './case14-approval-capture.mjs';
+import {
+  consumeCase14ApprovalCostAuthority,
+  assertCase14ApprovalCostAuthority,
+  refreshCase14ApprovalCostAuthority,
+} from './case14-approval-cost-authority.mjs';
+import { currentCase14PostApprovalTaskAuthority } from './case14-postapproval-task-authority.mjs';
 import {
   currentCase01CaptureAuthority,
   currentCase14RecallAuthority,
@@ -71,24 +78,44 @@ export function adoptExistingFreshCaptureSpend({ pythonExecutable }) {
 export function reconcileCase01FailedReceiptCost(authority, { pythonExecutable, invocation }) {
   need(invocation === 'RECONCILE_FAILED_CASE01_PROVIDER_COST_ONCE');
   const { proof, checkpoint: prior } = consumeCase01FailedReceiptCostAuthority(authority);
-  need(prior.kind === 'meri-fresh-capture-spend-checkpoint' && prior.state.root === resolve(freshRoot));
-  return checkpoint(native(freshRoot, pythonExecutable, {
-    op: 'fresh_reconcile_terminal', state: prior.state,
-    event: { kind: 'reconcile_terminal', caseId: proof.caseId, captureRunId: proof.captureRunId,
-      reservationId: proof.reservationId, proof },
-  }));
+  need(
+    prior.kind === 'meri-fresh-capture-spend-checkpoint' && prior.state.root === resolve(freshRoot),
+  );
+  return checkpoint(
+    native(freshRoot, pythonExecutable, {
+      op: 'fresh_reconcile_terminal',
+      state: prior.state,
+      event: {
+        kind: 'reconcile_terminal',
+        caseId: proof.caseId,
+        captureRunId: proof.captureRunId,
+        reservationId: proof.reservationId,
+        proof,
+      },
+    }),
+  );
 }
 
 /** Exact Case20 event24 cost closure; preserves its failed capture and claims. */
 export function reconcileCase20TerminalCost(authority, { pythonExecutable, invocation }) {
   need(invocation === 'RECONCILE_FAILED_CASE20_PROVIDER_COST_ONCE');
   const { proof, checkpoint: prior } = consumeCase20TerminalCostAuthority(authority);
-  need(prior.kind === 'meri-fresh-capture-spend-checkpoint' && prior.state.root === resolve(freshRoot));
-  return checkpoint(native(freshRoot, pythonExecutable, {
-    op: 'fresh_reconcile_terminal', state: prior.state,
-    event: { kind: 'reconcile_terminal', caseId: proof.caseId, captureRunId: proof.captureRunId,
-      reservationId: proof.reservationId, proof },
-  }));
+  need(
+    prior.kind === 'meri-fresh-capture-spend-checkpoint' && prior.state.root === resolve(freshRoot),
+  );
+  return checkpoint(
+    native(freshRoot, pythonExecutable, {
+      op: 'fresh_reconcile_terminal',
+      state: prior.state,
+      event: {
+        kind: 'reconcile_terminal',
+        caseId: proof.caseId,
+        captureRunId: proof.captureRunId,
+        reservationId: proof.reservationId,
+        proof,
+      },
+    }),
+  );
 }
 
 /** A trusted operator passes the pinned last checkpoint, not model/user content.
@@ -154,11 +181,25 @@ function openCaptureSpendOwner(prior, { pythonExecutable }, recovery = null) {
       throw new Error('CAPTURE_SPEND_AGGREGATE_REJECTED');
     }
   };
-  const capabilityFor = (event) => {
+  const capabilityFor = (event, approval = null) => {
     const { caseId, captureRunId, ceilingMicros, reservationId } = event;
-    const capability = Object.freeze({ caseId, captureRunId, ceilingMicros, reservationId });
+    const capability = Object.freeze({
+      caseId,
+      captureRunId,
+      ceilingMicros: approval ? event.recallCeilingMicros : ceilingMicros,
+      reservationId,
+      ...(approval
+        ? {
+            combinedCeilingMicros: ceilingMicros,
+            approvalCeilingMicros: event.approvalCeilingMicros,
+            approvalBoundSha256: event.approvalBoundSha256,
+            deadlineAtMs: approval.proof.deadlineAtMs,
+          }
+        : {}),
+    });
     reservations.set(capability, {
       owner,
+      approval,
       settled: false,
       expected: null,
       requiredExpected: recovery ? sha256Stable(recovery.expected) : null,
@@ -179,7 +220,9 @@ function openCaptureSpendOwner(prior, { pythonExecutable }, recovery = null) {
     checkpoint: () => checkpoint(value),
     reserve({ caseId, captureRunId, ceilingMicros }) {
       need(!recovery);
-      if (fresh) need(['01', '14', '20'].includes(caseId));
+      // Fresh14 has a mandatory preapproval envelope; generic recall-only
+      // reservations cannot pay for its ordinary approval provider work.
+      if (fresh) need(['01', '20'].includes(caseId));
       const event = {
         kind: 'reserve',
         caseId,
@@ -189,6 +232,29 @@ function openCaptureSpendOwner(prior, { pythonExecutable }, recovery = null) {
       };
       advance('reserve', event);
       return capabilityFor(event);
+    },
+    reserveCase14Approval({ captureRunId, costAuthority }) {
+      need(fresh && !recovery && !poisoned);
+      const proof = consumeCase14ApprovalCostAuthority(costAuthority, captureRunId);
+      const event = {
+        kind: 'reserve',
+        caseId: '14',
+        captureRunId,
+        ceilingMicros: 15000000,
+        approvalCeilingMicros: 1000000,
+        recallCeilingMicros: 14000000,
+        approvalBoundSha256: proof.approvalBoundSha256,
+        reservationId: randomUUID(),
+      };
+      advance('reserve', event);
+      return capabilityFor(event, {
+        proof,
+        costAuthority,
+        claimed: false,
+        submitted: false,
+        outcome: null,
+        projectionTerminal: null,
+      });
     },
     settleCaptured(reservation, outcome) {
       const binding = reservations.get(reservation);
@@ -235,6 +301,15 @@ function openCaptureSpendOwner(prior, { pythonExecutable }, recovery = null) {
       need(sha256Stable(expected) === binding.expected);
       const receipt = inputs.envelope.receipt;
       const budget = receipt.providerBudget;
+      if (binding.approval) {
+        need(
+          binding.approval.submitted &&
+            binding.approval.outcome &&
+            binding.approval.projectionTerminal,
+        );
+        const approved = currentCase14ApprovalAuthority(binding.approval.outcome);
+        need(approved.captureRunId === reservation.captureRunId);
+      }
       need(
         receipt.caseId === reservation.caseId &&
           receipt.captureRunId === reservation.captureRunId &&
@@ -255,6 +330,16 @@ function openCaptureSpendOwner(prior, { pythonExecutable }, recovery = null) {
         chargedCostMicros: budget.chargedCostMicros,
         ledgerSha256: budget.ledgerSha256,
         envelopeSha256: sha256Stable(inputs.envelope),
+        ...(binding.approval
+          ? {
+              conservativeApprovalCostMicros: 1000000,
+              approvalBoundSha256: reservation.approvalBoundSha256,
+              approvalOutcomeSha256: sha256Stable(
+                currentCase14ApprovalAuthority(binding.approval.outcome),
+              ),
+              projectionTerminalSha256: binding.approval.projectionTerminal,
+            }
+          : {}),
       });
       binding.settled = true;
       return result;
@@ -402,9 +487,145 @@ export function claimCaptureSpendReservation(reservation, expected) {
       expected.captureRunId === reservation.captureRunId &&
       expected.maxSpendMicros === reservation.ceilingMicros,
   );
+  if (binding.approval)
+    need(
+      binding.approval.outcome &&
+        binding.approval.projectionTerminal &&
+        binding.approval.submitted &&
+        Date.now() < binding.approval.proof.deadlineAtMs,
+    );
   need(binding.requiredExpected === null || binding.requiredExpected === sha256Stable(expected));
   binding.recheck();
   binding.expected = sha256Stable(expected);
+}
+
+/** Same process approval gate. Copying the reservation/config cannot create or
+ * restore this single submission claim; the full combined hold already exists. */
+export function claimCase14ApprovalSpendReservation(reservation, config, candidateId) {
+  const b = reservations.get(reservation),
+    a = b?.approval;
+  need(
+    a &&
+      !b.settled &&
+      !a.claimed &&
+      config.caseId === '14' &&
+      config.captureRunId === reservation.captureRunId &&
+      sha256Stable(config) === a.proof.scopeSha256 &&
+      candidateId === a.proof.candidateId,
+  );
+  b.recheck();
+  a.claimed = true;
+}
+
+export async function refreshCase14ApprovalSpendReservation(reservation) {
+  const b = reservations.get(reservation),
+    a = b?.approval;
+  need(a && a.claimed && !a.submitted && !b.settled);
+  b.recheck();
+  await refreshCase14ApprovalCostAuthority(a.costAuthority);
+}
+
+export function assertCase14ApprovalSpendReservation(reservation, { submit = false } = {}) {
+  const b = reservations.get(reservation),
+    a = b?.approval;
+  need(a && a.claimed && !a.submitted && !b.settled);
+  b.recheck();
+  assertCase14ApprovalCostAuthority(a.costAuthority);
+  if (submit) a.submitted = true;
+}
+
+export function bindCase14ApprovalSpendOutcome(reservation, outcome) {
+  const b = reservations.get(reservation),
+    a = b?.approval;
+  need(a && a.submitted && !a.outcome && !b.settled);
+  const evidence = currentCase14ApprovalAuthority(outcome);
+  need(
+    evidence.captureRunId === reservation.captureRunId &&
+      evidence.after.fixtureEvidence.candidateId === a.proof.candidateId &&
+      evidence.after.fixtureEvidence.recipeSha256 === a.proof.recipeSha256,
+  );
+  b.recheck();
+  a.outcome = outcome;
+}
+
+/** Gate the trusted native setup dispatcher, before it performs cloud writes.
+ * A serialized outcome or reservation cannot authorize another native setup. */
+export function claimCase14PostApprovalSetup(reservation, outcome) {
+  const b = reservations.get(reservation),
+    a = b?.approval;
+  need(
+    a &&
+      a.outcome === outcome &&
+      !a.postApprovalClaimed &&
+      !b.settled &&
+      Date.now() < a.proof.deadlineAtMs,
+  );
+  currentCase14ApprovalAuthority(outcome);
+  b.recheck();
+  a.postApprovalClaimed = true;
+  a.dispatch = {
+    registrationMarker: randomUUID(),
+    startedBy: 'meri-c2-receipt-' + randomUUID().slice(0, 18),
+  };
+  return currentCase14PostApprovalSpendScope(reservation, outcome);
+}
+export function bindCase14PostApprovalDispatch(reservation, outcome, dispatch) {
+  currentCase14PostApprovalSpendScope(reservation, outcome);
+  const a = reservations.get(reservation).approval;
+  need(
+    !a.dispatch.taskDefinitionArn &&
+      /^arn:aws:ecs:us-east-1:967807252336:task-definition\/capiro-dev-meri-c2-case14-postapproval-20261004:[1-9][0-9]*$/u.test(
+        dispatch.taskDefinitionArn,
+      ) &&
+      /^[a-f0-9]{64}$/u.test(dispatch.inputByteSha256),
+  );
+  Object.assign(a.dispatch, {
+    taskDefinitionArn: dispatch.taskDefinitionArn,
+    inputByteSha256: dispatch.inputByteSha256,
+  });
+}
+export function bindCase14PostApprovalTask(reservation, outcome, taskArn) {
+  currentCase14PostApprovalSpendScope(reservation, outcome);
+  const a = reservations.get(reservation).approval;
+  need(
+    a.dispatch.taskDefinitionArn &&
+      !a.dispatch.taskArn &&
+      /^arn:aws:ecs:us-east-1:967807252336:task\/capiro-dev\/[a-f0-9]{32}$/u.test(taskArn),
+  );
+  a.dispatch.taskArn = taskArn;
+}
+export function currentCase14PostApprovalSpendScope(reservation, outcome) {
+  const b = reservations.get(reservation),
+    a = b?.approval;
+  need(
+    a &&
+      a.outcome === outcome &&
+      a.postApprovalClaimed &&
+      !b.settled &&
+      Date.now() < a.proof.deadlineAtMs,
+  );
+  currentCase14ApprovalAuthority(outcome);
+  b.recheck();
+  return Object.freeze({
+    captureRunId: reservation.captureRunId,
+    approvalBoundSha256: reservation.approvalBoundSha256,
+    approvalWindow: Object.freeze({
+      startedAtMs: a.proof.deadlineAtMs - 900000,
+      deadlineAtMs: a.proof.deadlineAtMs,
+    }),
+    maxCostMicros: reservation.ceilingMicros,
+    dispatch: Object.freeze({ ...a.dispatch }),
+  });
+}
+
+export function bindCase14PostApprovalSetup(reservation, outcome, authority) {
+  const b = reservations.get(reservation),
+    a = b?.approval;
+  currentCase14PostApprovalSpendScope(reservation, outcome);
+  need(!a.projectionTerminal);
+  const proof = currentCase14PostApprovalTaskAuthority(authority, reservation, outcome);
+  a.projectionTerminal = sha256Stable(proof.value.results['projection-terminal']);
+  return proof;
 }
 
 /** Revalidate immediately before the single provider submission. A journal
@@ -412,6 +633,7 @@ export function claimCaptureSpendReservation(reservation, expected) {
 export function assertCaptureSpendReservation(reservation, expected) {
   const binding = reservations.get(reservation);
   need(binding && !binding.settled && binding.expected === sha256Stable(expected));
+  if (binding.approval) need(Date.now() < binding.approval.proof.deadlineAtMs);
   binding.recheck();
   binding.assertSubmission?.();
 }

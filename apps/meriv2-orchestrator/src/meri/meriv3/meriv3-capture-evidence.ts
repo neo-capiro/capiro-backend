@@ -1,4 +1,4 @@
-import { readControlledReadHttpObservations } from '../controlled-read-observations.js';
+import { readControlledReadHttpObservations, readMemoryCaptureHttpObservations } from '../controlled-read-observations.js';
 import type { MeriControlledReadAttempt } from '@capiro/meriv2-core';
 import { createHash } from 'node:crypto';
 import type { MeriCitation } from '@capiro/shared';
@@ -107,6 +107,22 @@ export function observeMeriV3CaptureExecution(args: {
     .filter((citation) => citation.id)
     .map((citation): MeriCaptureSourceObservation => {
       const matchingCoverage = args.coverage.find((entry) => entry.tool === args.tool);
+      const memory = args.tool === 'search_memory' && args.readOnly
+        ? readMemoryCaptureHttpObservations().find(row => row.callId === args.callId &&
+            row.sourceId === citation.id && citation.source?.kind === 'memory' &&
+            citation.source.recordId === row.sourceId && citation.source.version === row.currentVersion &&
+            (citation.source.clientId ?? null) === row.clientId &&
+            typeof citation.snippet === 'string' && row.passageSha256 === sha256(citation.snippet))
+        : undefined;
+      if (memory) return {
+        sourceId: memory.sourceId, toolCallId: args.callId,
+        tenantId: observed(memory.tenantId), clientId: memory.clientId === null
+          ? unknown('canonical_memory_has_no_client') : observed(memory.clientId),
+        currentVersion: observed(memory.currentVersion), fullRead: observed(memory.fullRead),
+        locator: observed(`characters ${memory.offset}-${memory.endOffset}`),
+        passageSha256: observed(memory.passageSha256),
+        byteSha256: memory.fullRead ? observed(memory.passageSha256) : unknown('canonical_memory_content_is_partial'),
+      };
       const controlled = readControlledReadHttpObservations()?.find(
         (row) =>
           row.callId === args.callId &&

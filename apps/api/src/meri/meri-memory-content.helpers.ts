@@ -22,6 +22,7 @@ export function projectMemoryContent(
     memoryItemId?: string;
     contentCursor?: string;
     maxJsonChars?: number;
+    captureSourceOwner?: boolean;
   },
 ): RetrievalRecord {
   if (input.memoryItemId && record.recordId !== input.memoryItemId) {
@@ -87,6 +88,7 @@ export function projectMemoryContent(
       provenance: {
         source: 'memory_items',
         recordId: record.recordId,
+        ...(input.captureSourceOwner ? { canonicalTenantId: provenance.canonicalTenantId ?? null } : {}),
         startOffset: offset,
         endOffset,
         sourceType: provenance.sourceType ?? null,

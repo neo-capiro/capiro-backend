@@ -1,0 +1,25 @@
+{
+  "preparedBy": "Codex",
+  "status": "PASS",
+  "tests": 13,
+  "checks": [
+    "four ordered native phases, exact binding plan and four fresh install fences",
+    "reject wrong role",
+    "reject wrong candidate",
+    "reject changed rates",
+    "reject extended expiry",
+    "reject wrong owner hash",
+    "reject overspend",
+    "reject insufficient unchanged rate lifetime",
+    "stop once and retain completed receipts after recall-plan unknown failure",
+    "stop once and retain completed receipts after recall-bind unknown failure",
+    "stop once and retain completed receipts after budget-plan unknown failure",
+    "stop once and retain completed receipts after budget-install unknown failure",
+    "wrong live approved owner blocks binding before write"
+  ],
+  "execution": "LOCAL_SYNTHETIC_ONLY",
+  "cloudCalls": 0,
+  "databaseCalls": 0,
+  "providerCalls": 0,
+  "journalMutations": 0
+}

@@ -1,0 +1,54 @@
+{
+  "kind": "case14-combined-owned-live-operator-result",
+  "status": "BLOCKED_RECONCILE_BEFORE_RETRY",
+  "startedAt": "2026-10-04T05:49:51.364Z",
+  "captureRunId": "5f4312a2-6aa9-4ec8-820d-5717a88402df",
+  "preparedSha256": "9df8efe27601aa1e4482c6232d9b9ecf1a5c651c4f6151eb1830ab30216c4cb9",
+  "approvalSubmissions": 1,
+  "recallSubmissions": 1,
+  "approvalBilledActualMicros": null,
+  "conservativeApprovalCeilingMicros": 1000000,
+  "recallCeilingMicros": 14000000,
+  "combinedHoldMicros": 15000000,
+  "originalPromptSubmission": "NOT_RUN",
+  "humanRubric": "NOT_RUN",
+  "fullOriginalRow14Acceptance": false,
+  "fullFile01Acceptance": false,
+  "automaticRetryAllowed": false,
+  "apiSessionCreated": true,
+  "apiSessionRevoked": true,
+  "browserSessionsCreated": 1,
+  "browserSessionsCleaned": 1,
+  "phase": "CLEANUP_OWNED_BROWSER_SESSIONS",
+  "phaseAt": "2026-10-04T05:53:35.616Z",
+  "lastWorkPhase": "EXECUTE_SINGLE_RECALL",
+  "approvalOutcome": {
+    "caseId": "14",
+    "captureRunId": "5f4312a2-6aa9-4ec8-820d-5717a88402df",
+    "status": "APPROVAL_CAPTURE_COMPLETE",
+    "evidence": {
+      "ref": "case14-approval/evidence.json",
+      "sha256": "344f8450abdc80e52b39867a908c0d6e0e3add04c5fcc6b8c345140e18bf2fc6",
+      "bytes": 9904
+    },
+    "synthesisSubmissionCount": 0
+  },
+  "recallOutcome": {
+    "status": "CAPTURE_UNCERTAIN",
+    "acceptanceStatus": "NOT_RUN",
+    "reason": "CASE01_SOURCE_TOOL_JOIN_MISMATCH",
+    "caseId": "14",
+    "captureRunId": "5f4312a2-6aa9-4ec8-820d-5717a88402df",
+    "requestCount": 10,
+    "synthesisSubmissionCount": 1
+  },
+  "failurePhase": "EXECUTE_SINGLE_RECALL",
+  "failureCode": "AssertionError",
+  "failureStackFrames": [
+    "file:///C:/dev/main/outputs/meri-c2-20261003/case14-live-operator-v1/operator.mjs:125:12",
+    "file:///C:/dev/main/outputs/meri-c2-20261003/case14-live-operator-v1/auth-owner.mjs:46:12",
+    "file:///C:/dev/main/outputs/meri-c2-20261003/case14-live-operator-v1/operator.mjs:74:3",
+    "file:///C:/dev/main/outputs/meri-c2-20261003/case14-live-operator-v1/operator.mjs:157:39"
+  ],
+  "completedAt": "2026-10-04T05:53:35.912Z"
+}

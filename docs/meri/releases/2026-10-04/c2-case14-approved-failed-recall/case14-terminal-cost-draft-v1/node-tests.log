@@ -1,0 +1,37 @@
+✔ UNIT postdeadline observations can qualify cost arithmetic only (15.55ms)
+✔ draft has no mintable capability, even after valid pure inspection (0.5065ms)
+✔ early postdeadline GET refuses (3.9697ms)
+✔ wrong source header refuses (3.7696ms)
+✔ wrong actor refuses (3.2933ms)
+✔ wrong role refuses (8.0381ms)
+✔ wrong tenant refuses (5.3136ms)
+✔ wrong conversation refuses (3.5698ms)
+✔ wrong client refuses (3.6991ms)
+✔ wrong raw body digest refuses (4.0911ms)
+✔ extra provider attempt refuses (5.481ms)
+✔ inflight provider refuses (4.6817ms)
+✔ numeric tokens redacted refuses (6.5153ms)
+✔ rate drift refuses (3.6031ms)
+✔ qualification drift refuses (3.6855ms)
+✔ cost changed refuses (3.7624ms)
+✔ not revoked refuses (3.8103ms)
+✔ journal mutated refuses (3.6783ms)
+✔ different prior checkpoint refuses (3.4384ms)
+✔ different prior signed raw messages refuses (3.12ms)
+✔ attempted writes refuses (2.9933ms)
+✔ attempted submission refuses (2.8909ms)
+✔ authority promotion refuses (3.3401ms)
+✔ expired message read refuses (3.1154ms)
+✔ every original evidence pin detects mutation/deletion (35.3934ms)
+✔ actual v1 null-header/early diagnostic cannot be substituted (4.6613ms)
+ℹ tests 26
+ℹ suites 0
+ℹ pass 26
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 312.1892
+
+exit_code=0
+

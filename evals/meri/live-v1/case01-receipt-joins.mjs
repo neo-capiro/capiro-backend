@@ -200,14 +200,20 @@ function assertMemoryReceiptJoins(
     'CASE01_SOURCE_TOOL_JOIN_MISSING',
   );
   const captureSource = receipt.sources[0];
+  const receiptCurrentVersion = captureSource?.currentVersion;
+  const versionJoinValid =
+    caseId === '14'
+      ? observedString(receiptCurrentVersion) &&
+        /^content:[a-f0-9]{64}$/u.test(receiptCurrentVersion.value)
+      : observed(receiptCurrentVersion, source.sourceVersion) ||
+        observed(receiptCurrentVersion, `content:${source.contentSha256}`);
   need(
     captureSource.sourceId === source.physicalId &&
       calls.some(
         (call) =>
           call.callId === captureSource.toolCallId && call.sourceIds.includes(source.physicalId),
       ) &&
-      (observed(captureSource.currentVersion, source.sourceVersion) ||
-        observed(captureSource.currentVersion, `content:${source.contentSha256}`)) &&
+      versionJoinValid &&
       observedString(captureSource.passageSha256) &&
       HASH.test(captureSource.passageSha256.value),
     'CASE01_SOURCE_TOOL_JOIN_MISMATCH',
@@ -222,17 +228,31 @@ function assertMemoryReceiptJoins(
       'CASE01_SOURCE_AUTHORITY_CONTRADICTION',
     );
   }
-  need(
+  const sourceReadbackMatches =
     sourceReadback?.kind === 'memory' &&
-      sourceReadback.status === 'available' &&
-      sourceReadback.recordId === source.physicalId &&
-      sourceReadback.sourceVersion === source.sourceVersion &&
-      sourceReadback.nextCursor === null &&
-      sourceReadback.offset === 0 &&
-      typeof sourceReadback.text === 'string' &&
-      sha256Bytes(sourceReadback.text) === source.contentSha256,
-    'CASE01_CANONICAL_SOURCE_BYTES_MISMATCH',
-  );
+    sourceReadback.status === 'available' &&
+    sourceReadback.recordId === source.physicalId &&
+    sourceReadback.sourceVersion === source.sourceVersion &&
+    sourceReadback.nextCursor === null &&
+    sourceReadback.offset === 0 &&
+    typeof sourceReadback.text === 'string' &&
+    (caseId === '14'
+      ? sourceReadback.contentStatus === 'available' &&
+        sourceReadback.text === fixture.approvedText &&
+        sourceReadback.totalCharacters === sourceReadback.text.length &&
+        sourceReadback.provenance?.recordId === source.physicalId &&
+        sourceReadback.provenance?.sourceId === fixture.candidateId &&
+        sourceReadback.provenance?.sourceVersion === source.sourceVersion &&
+        sourceReadback.provenance?.contentHash === source.contentSha256 &&
+        observed(captureSource.fullRead, true) &&
+        // The API hashes text plus source version; provenance retains the
+        // distinct canonical database hash, joined above to the owner receipt.
+        sourceReadback.currentVersion ===
+          `content:${sha256Bytes(sourceReadback.text + '\0' + source.sourceVersion)}` &&
+        sourceReadback.currentVersion === captureSource.currentVersion.value &&
+        sourceReadback.versionStatus === 'matches_cited_version'
+      : sha256Bytes(sourceReadback.text) === source.contentSha256);
+  need(sourceReadbackMatches, 'CASE01_CANONICAL_SOURCE_BYTES_MISMATCH');
   need(Array.isArray(citations) && citations.length === 1, 'CASE01_CITATION_JOIN_MISSING');
   const citation = citations[0];
   need(
@@ -245,7 +265,10 @@ function assertMemoryReceiptJoins(
         citation.snippet.endsWith('…') ? citation.snippet.slice(0, -1) : citation.snippet,
       ) &&
       citation.source?.recordId === source.physicalId &&
-      citation.source?.version === captureSource.currentVersion.value,
+      citation.source?.version === captureSource.currentVersion.value &&
+      (caseId !== '14' ||
+        (citation.snippet === fixture.approvedText &&
+          citation.source?.version === sourceReadback.currentVersion)),
     'CASE01_CITATION_BYTES_MISMATCH',
   );
   const effects = receipt.effects;

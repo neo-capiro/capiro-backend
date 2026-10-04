@@ -1,0 +1,7 @@
+src/meri/meri-tools.memory-capture-source.spec.ts(200,47): error TS18048: 'record.provenance' is possibly 'undefined'.
+src/meri/meri-tools.memory-capture-source.spec.ts(201,40): error TS18048: 'record.provenance' is possibly 'undefined'.
+src/meri/meri-tools.memory-capture-source.spec.ts(204,16): error TS18048: 'projected.provenance' is possibly 'undefined'.
+src/meri/meri-tools.memory-capture-source.spec.ts(205,52): error TS18048: 'record.provenance' is possibly 'undefined'.
+src/meri/meri-tools.memory-capture-source.spec.ts(267,14): error TS18048: 'proof' is possibly 'undefined'.
+src/meri/meri-tools.memory-capture-source.spec.ts(268,14): error TS18048: 'proof' is possibly 'undefined'.
+src/meri/meri-tools.memory-capture-source.spec.ts(269,14): error TS18048: 'proof' is possibly 'undefined'.

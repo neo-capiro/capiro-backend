@@ -1,0 +1,146 @@
+{
+  "kind": "case14-approval-failed-recall-and-source-repair-checkpoint",
+  "at": "2026-10-04T06:36:22.022857+00:00",
+  "sourceBase": "d7437fe72532252cf3047027c53bcb6d1ef37e15",
+  "servedSource": "c0f393f863bf73bd4e65e7a94e17c073e7be021e",
+  "status": "LOCAL_REPAIRS_PASS_FAILED_CAPTURE_PRESERVED",
+  "checks": {
+    "nodeRepair": 81,
+    "apiFocused": 29,
+    "apiFullTypecheck": "PASS --noEmit --rootDir .;8GB",
+    "nativeFinalRegression": 19,
+    "spendNodeFinalRegression": 19,
+    "costPredicateNode": 26,
+    "costFinalNode": 10,
+    "costFinalNtfs": 8,
+    "hermesFinalSourceReview": "case14-repair-final-review-hermes-v2/review.md PASS sourceonly"
+  },
+  "retainedFailures": [
+    "Live CAPTURE_UNCERTAIN CASE01_SOURCE_TOOL_JOIN_MISMATCH",
+    "Original signedreceipt HTTP201 clockjoin and sourceTenantUNKNOWN",
+    "Initialcontext andturncoveragepartial",
+    "Actualanswer semanticdate inconsistency",
+    "Originalprompt/humanrubricNOT_RUN",
+    "InitialAPItypecheckOOM;rerun8GBPASS",
+    "Initialrepairpartialdraft timeout and wrongsourceversionwrappedshape",
+    "Initialrepairreview rejectedwrongDBtextSHAassumption; exactproductioncounterevidence accepted",
+    "Invalidcost-boundJSON retainedopaque, futureoptionalsnormalized"
+  ],
+  "spend": {
+    "status": "COST_ONLY_RECONCILED",
+    "at": "2026-10-04T06:32:17.358Z",
+    "journalBeforeSha256": "139b6d7199038ca752c553289bf1ebe9c45f14e65956710f82a48301b132e673",
+    "journalAfterSha256": "816b04a47be56432846d1ee602370c3bea985eb497a7de9e899aee4d53f8b39e",
+    "knownRecallCostMicros": 1569851,
+    "conservativeApprovalCostMicros": 1000000,
+    "approvalBilledActualMicros": null,
+    "remainingReservationMicros": 13799091,
+    "captureAuthority": false,
+    "captureStatus": "CAPTURE_UNCERTAIN",
+    "answerGrade": "NOT_EVALUATED",
+    "automaticRetryAllowed": false,
+    "cloudCalls": 0,
+    "providerCalls": 0
+  },
+  "sourcePins": [
+    {
+      "path": "apps/api/src/meri/meri-action-proposal.http.spec.ts",
+      "bytes": 16403,
+      "sha256": "bfb40e004e65e36378dfe69504123d58e6de5ad21063066ad2a6e6d61fa936cc"
+    },
+    {
+      "path": "apps/api/src/meri/meri-chat-attachment-transport.http.spec.ts",
+      "bytes": 7088,
+      "sha256": "4388e82be10c691358e99aec99d611b9b500ab7dce10f7ee5fc457d812396d70"
+    },
+    {
+      "path": "apps/api/src/meri/meri.controller.ts",
+      "bytes": 45118,
+      "sha256": "14b72090b98ac6913052cdf7d3fa5b44a43e3e71e7c80ceb7b7053e52602ffa8"
+    },
+    {
+      "path": "evals/meri/live-v1/capture-spend-aggregate.mjs",
+      "bytes": 25625,
+      "sha256": "2a7ad0acb1ca83b2f965f4f09375880cc3fc95afdff0a49bf3d138fbc025f433"
+    },
+    {
+      "path": "evals/meri/live-v1/case01-live-capture.mjs",
+      "bytes": 25051,
+      "sha256": "9872ee2fb91b05547030331dd22258727bb6fbcf13537f6e3d94b6fd9f325a83"
+    },
+    {
+      "path": "evals/meri/live-v1/case01-receipt-joins.mjs",
+      "bytes": 14295,
+      "sha256": "89c136eeedccc448e709ad905255ac76afa12aefe502c866efacc83aef2c0ac9"
+    },
+    {
+      "path": "evals/meri/live-v1/case14-approval-capture.mjs",
+      "bytes": 33454,
+      "sha256": "fcea0961cc531ffe98104ecc8c6d3dc6d6083cc972d1879e7b340991a9e1046d"
+    },
+    {
+      "path": "evals/meri/live-v1/lib/windows-capture-spend.py",
+      "bytes": 32453,
+      "sha256": "51e29c01fd630d4d3f7da13450e7b0adb3aa79e2d5a18c045e78531e1672c237"
+    },
+    {
+      "path": "evals/meri/live-v1/tests/capture-spend-aggregate.test.mjs",
+      "bytes": 10099,
+      "sha256": "68fe11ac0af4653408b4e37b3d2ce91feaa0a13db9129f8dee49ad7296a4ce35"
+    },
+    {
+      "path": "evals/meri/live-v1/tests/capture-spend-fresh.test.mjs",
+      "bytes": 14954,
+      "sha256": "9f2e2637cae9031b857e268259e760f8199835a5adf5ff87b81a4c750f6da74f"
+    },
+    {
+      "path": "evals/meri/live-v1/tests/capture-spend-fresh.unit.py",
+      "bytes": 22013,
+      "sha256": "bbdd306485ae8cd057fe19a85939ef3973c0ac6040ba053192be39e957205af6"
+    },
+    {
+      "path": "evals/meri/live-v1/tests/capture-spend-reconciliation.test.mjs",
+      "bytes": 11225,
+      "sha256": "96717a0e6b988a2eb85cac0e5c040d06fd9f3af37ffca6cc9066cf35a229a754"
+    },
+    {
+      "path": "evals/meri/live-v1/tests/capture-spend-terminal.test.mjs",
+      "bytes": 7946,
+      "sha256": "c80eb01dd920c74a1035e38d3d1e458ee672c91fb49670d7122ae38e7f3af72e"
+    },
+    {
+      "path": "evals/meri/live-v1/tests/capture-spend-v2.test.mjs",
+      "bytes": 8221,
+      "sha256": "2b9e43525af5063c0fc502bd1ccb1b8f7402c1edb442b60439e30f9736cc1e6e"
+    },
+    {
+      "path": "evals/meri/live-v1/tests/case14-capture.test.mjs",
+      "bytes": 12461,
+      "sha256": "71af76577a0b17413842edc3cff9cebb96a59ddab86c4e149675262d1c76e35d"
+    },
+    {
+      "path": "evals/meri/live-v1/case14-approval-cost-authority.mjs",
+      "bytes": 10833,
+      "sha256": "c50e632592de167ad01d51a9d6b5a15972eef8de565fbdea05f9a024c8998717"
+    },
+    {
+      "path": "evals/meri/live-v1/case14-approval-cost-evidence.json",
+      "bytes": 4770,
+      "sha256": "aa63a7378883f152c1d8180cc0796fc5dc2bb4ad61e68df9030d52b9a754aa33"
+    },
+    {
+      "path": "evals/meri/live-v1/case14-postapproval-task-authority.mjs",
+      "bytes": 13156,
+      "sha256": "da8577bfd83a3a841c74720de44dd4ab826f5b29274849d69d7f7d5eca281d43"
+    },
+    {
+      "path": "evals/meri/live-v1/tests/case14-approval-cost-authority.test.mjs",
+      "bytes": 3686,
+      "sha256": "6cb85c5d79b10c6426f0161ebfa3d2be8b4cb0103f4e1111242968cfc4673185"
+    }
+  ],
+  "fullCase14Acceptance": false,
+  "fullC2Acceptance": false,
+  "remainingSourceAuthorityWork": "Hermes implementationinprogress;notincludedinthischeckpoint",
+  "replayAllowed": false
+}
