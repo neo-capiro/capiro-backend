@@ -180,6 +180,71 @@ test('case74 cannot reuse controlled-read provider ingress', async () => {
     ).toThrow('unqualified');
   });
 });
+test('case12 retrospective approval recall naturally plans selected authorized client memory only', async () => {
+  await withCaptureApiProviderScope({} as never, ctx, { ...policy, caseId: '12' }, async () => {
+    const base = {
+      uiClientId: '33333333-3333-4333-8333-333333333333',
+      uiClientName: 'Aster Defense',
+      authorizedClientNames: ['Aster Defense', 'Bluehaven Robotics'],
+    };
+    const positivePrompts = [
+      'What did we approve about Aster Defense’s autonomous maritime demo?',
+      "What did we approve about Aster Defense's autonomous maritime demo?",
+      'What did we approve about Aster’s autonomous maritime demo?',
+      "What did we approve about Aster's autonomous maritime demo?",
+    ];
+    for (const task of positivePrompts) {
+      const nativePlan = planMeriTurn({ ...base, task });
+      expect(nativePlan).toMatchObject({
+        subjectScope: 'client',
+        targetHint: null,
+        queryClass: 'semantic_recall',
+        requestedDomains: ['institutional_knowledge'],
+      });
+      expect(() => assertCaptureApiRetrievalPlan(nativePlan)).not.toThrow();
+    }
+
+    // Exercise the exact preserved wording through the ordinary native planner.
+    const originalNativePlan = planMeriTurn({
+      ...base,
+      task: 'What did we approve about Aster’s autonomous maritime demo?',
+    });
+    expect(originalNativePlan.requestedDomains).toEqual(['institutional_knowledge']);
+
+    const notMemoryOnly = (task: string, overrides: Record<string, unknown> = {}) =>
+      planMeriTurn({ ...base, ...overrides, task } as Parameters<typeof planMeriTurn>[0]);
+    for (const task of [
+      'What did we approve about Bluehaven’s autonomous maritime demo?',
+      'What did we approve about Aster’s autonomous maritime demo and Bluehaven’s demo?',
+      'What did we approve about Aster’s autonomous maritime demo, but not its payload?',
+      'What did we approve about Aster’s autonomous maritime demo? Check the launch date.',
+      'What did we approve about Aster’s autonomous maritime demo in the email?',
+      'What did we approve about Aster’s autonomous maritime demo in the document?',
+      'Approve Aster’s autonomous maritime demo.',
+    ])
+      expect(notMemoryOnly(task).requestedDomains).not.toEqual(['institutional_knowledge']);
+
+    expect(notMemoryOnly('What did we approve about Aster’s autonomous maritime demo?', {
+      authorizedClientNames: ['Aster Defense', 'Aster Maritime', 'Bluehaven Robotics'],
+    }).requestedDomains).not.toEqual(['institutional_knowledge']);
+    expect(notMemoryOnly('What did we approve about Aster’s autonomous maritime demo?', {
+      authorizedClientNames: ['Bluehaven Robotics'],
+    }).requestedDomains).not.toEqual(['institutional_knowledge']);
+    expect(notMemoryOnly('What did we approve about Aster’s autonomous maritime demo?', {
+      uiClientId: '44444444-4444-4444-8444-444444444444',
+      uiClientName: 'Bluehaven Robotics',
+    }).requestedDomains).not.toEqual(['institutional_knowledge']);
+    expect(notMemoryOnly('What did we approve about Aster’s autonomous maritime demo?', {
+      uiClientId: null,
+      uiClientName: null,
+    }).requestedDomains).not.toEqual(['institutional_knowledge']);
+    expect(notMemoryOnly('What did we approve about Aster Maritime’s autonomous maritime demo?').requestedDomains)
+      .not.toEqual(['institutional_knowledge']);
+    expect(notMemoryOnly('What did we approve about Aster’s autonomous maritime demo in the email?').requestedDomains)
+      .toContain('mail');
+  });
+});
+
 test('case14 next-turn recall uses the real memory-only plan and cannot admit approval or mail retrieval', async () => {
   await withCaptureApiProviderScope({} as never, ctx, { ...policy, caseId: '14' }, async () => {
     const nativePlan = planMeriTurn({
