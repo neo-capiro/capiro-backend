@@ -1,0 +1,84 @@
+{
+  "service": "meriv2-orchestrator",
+  "fullLogBytes": 766564,
+  "fullLogSha256": "f957e81f4e9968f5847c2813046f30bf51d104d5fe16c1172f158547dae20d61",
+  "fullLogIndependentlyComparedToOriginal": true,
+  "selectedVerbatimLines": [
+    {
+      "line": 289,
+      "text": "Test Suites: 2 passed, 2 total"
+    },
+    {
+      "line": 290,
+      "text": "Tests:       97 passed, 97 total"
+    },
+    {
+      "line": 295,
+      "text": "CORE_CASE20_SOURCE_PROOF_NATIVE_TESTS_PASS"
+    },
+    {
+      "line": 296,
+      "text": "CORE_CANONICAL_MEMORY_SOURCE_NATIVE_TESTS_PASS"
+    },
+    {
+      "line": 1860,
+      "text": "Test Suites: 130 passed, 130 total"
+    },
+    {
+      "line": 1861,
+      "text": "Tests:       2 skipped, 1570 passed, 1572 total"
+    },
+    {
+      "line": 1866,
+      "text": "ORCHESTRATOR_CASE20_SOURCE_PROOF_NATIVE_TESTS_PASS"
+    },
+    {
+      "line": 1867,
+      "text": "ORCHESTRATOR_CANONICAL_MEMORY_SOURCE_LOOPBACK_PASS"
+    },
+    {
+      "line": 1868,
+      "text": "ORCHESTRATOR_CAPTURE_CONTRACT_LOOPBACK_TESTS_PASS"
+    },
+    {
+      "line": 1869,
+      "text": "ORCHESTRATOR_SOURCE_TEST_COUNTS={\"numTotalTests\": 1572, \"numPassedTests\": 1570, \"numFailedTests\": 0, \"numPendingTests\": 2, \"numTotalTestSuites\": 130, \"numPassedTestSuites\": 130, \"numFailedTestSuites\": 0, \"numPendingTestSuites\": 0}"
+    },
+    {
+      "line": 2414,
+      "text": "OFFLINE_PACKAGED_ENTRYPOINT_HEALTH_AUTH_PASS"
+    },
+    {
+      "line": 2415,
+      "text": "OFFLINE_C1_CLASSIFICATION_REPAIRS_PASS"
+    },
+    {
+      "line": 2416,
+      "text": "OFFLINE_PACKAGED_MAIL_DEFAULTS_PASS"
+    },
+    {
+      "line": 2417,
+      "text": "OFFLINE_PACKAGED_NO_TOOLS_DIRECTIVE_PASS"
+    },
+    {
+      "line": 2418,
+      "text": "OFFLINE_PACKAGED_SEMANTIC_CLOCK_ORCHESTRATOR_PASS"
+    },
+    {
+      "line": 2420,
+      "text": "OFFLINE_PACKAGED_CAPTURE_PROVIDER_ORCHESTRATOR_GUARDS_PASS"
+    },
+    {
+      "line": 2500,
+      "text": "LOCAL_REPODIGEST_ECR_MATCH_PASS"
+    },
+    {
+      "line": 2501,
+      "text": "CANDIDATE_ORCHESTRATOR_SOURCE_SHA=945179d44223882f9fe1da2fb4e41213bf5813c2"
+    },
+    {
+      "line": 2502,
+      "text": "CANDIDATE_ORCHESTRATOR_IMAGE=967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:94c82ec438a0cfee0da3869af284e107ae6aeff6157c8c0ff2f97dc991f6c5bf"
+    }
+  ]
+}

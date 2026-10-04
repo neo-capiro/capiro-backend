@@ -1,0 +1,379 @@
+{
+  "kind": "case12-retained-inventory-bounded-local-search",
+  "at": "2026-10-04T07:55:35.013156+00:00",
+  "status": "NO_EXACT_MA510_CORPUS_INVENTORY_FOUND_IN_EXAMINED_FILES",
+  "candidatePathsAndHashes": [
+    {
+      "path": "C:\\dev\\main\\meri-closeout-c0-20261002\\docs\\meri\\releases\\2026-10-02\\original75-first-attempt\\oct02-original-eval\\original75-readiness-20261002.json",
+      "bytes": 88999,
+      "sha256": "c2158997d08ff9daa8a30caffd54f84c34e978ea000effa5bf7cbb2cc2dbe942",
+      "classification": "PLANNING_OR_READINESS_REFERENCE_ONLY",
+      "exactBindingInventoryCount": 0,
+      "physicalMA510BindingCount": 0,
+      "exactMA510ManifestCount": 0
+    },
+    {
+      "path": "C:\\dev\\main\\meri-closeout-c0-20261002\\docs\\meri\\releases\\2026-10-02\\reply-only\\original-eval\\original-acceptance-inventory.json",
+      "bytes": 51661,
+      "sha256": "5e212b2bc0b815de83d04e55ac28b816b09fab868b37098286408f69f1e78a0e",
+      "classification": "PLANNING_OR_READINESS_REFERENCE_ONLY",
+      "exactBindingInventoryCount": 0,
+      "physicalMA510BindingCount": 0,
+      "exactMA510ManifestCount": 0
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\c2-next-owner-map-v1\\owner-map.json",
+      "bytes": 14760,
+      "sha256": "6a9a5047a1aa0c13ffd62c74d0df7499208199081e8aa9f820a50af2799ef320",
+      "classification": "PLANNING_OR_READINESS_REFERENCE_ONLY",
+      "exactBindingInventoryCount": 0,
+      "physicalMA510BindingCount": 0,
+      "exactMA510ManifestCount": 0
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\c2-next-work-inventory-20261004\\inventory.json",
+      "bytes": 73822,
+      "sha256": "52c57c72284d392b846c901c45d4538380820dbde1a8be542c641ef22789c601",
+      "classification": "PLANNING_OR_READINESS_REFERENCE_ONLY",
+      "exactBindingInventoryCount": 0,
+      "physicalMA510BindingCount": 0,
+      "exactMA510ManifestCount": 0
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\hermes-c2-execution-matrix-v1\\hermes-matrix.raw.json",
+      "bytes": 42719,
+      "sha256": "945b680518524046d57c34f5d76dc662c1607e2e749c0e2375bd03f3759b16b9",
+      "classification": "PLANNING_OR_READINESS_REFERENCE_ONLY",
+      "exactBindingInventoryCount": 0,
+      "physicalMA510BindingCount": 0,
+      "exactMA510ManifestCount": 0
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\hermes-c2-execution-matrix-v1\\matrix.reviewed.json",
+      "bytes": 61478,
+      "sha256": "0e609190e93f23fb5c38cfc9a248f46e47ec8b6f98a591b109c8c2f843ed8749",
+      "classification": "PLANNING_OR_READINESS_REFERENCE_ONLY",
+      "exactBindingInventoryCount": 0,
+      "physicalMA510BindingCount": 0,
+      "exactMA510ManifestCount": 0
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\next-c2-readiness-v1.json",
+      "bytes": 16907,
+      "sha256": "2aebb3349810b27983a26584a6ac023d302b3cc8df6794885af9d90d20ffea38",
+      "classification": "PLANNING_OR_READINESS_REFERENCE_ONLY",
+      "exactBindingInventoryCount": 0,
+      "physicalMA510BindingCount": 0,
+      "exactMA510ManifestCount": 0
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\docs\\meri\\releases\\2026-10-02\\original75-first-attempt\\oct02-original-eval\\original75-readiness-20261002.json",
+      "bytes": 88999,
+      "sha256": "c2158997d08ff9daa8a30caffd54f84c34e978ea000effa5bf7cbb2cc2dbe942",
+      "classification": "PLANNING_OR_READINESS_REFERENCE_ONLY",
+      "exactBindingInventoryCount": 0,
+      "physicalMA510BindingCount": 0,
+      "exactMA510ManifestCount": 0
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\docs\\meri\\releases\\2026-10-02\\reply-only\\original-eval\\original-acceptance-inventory.json",
+      "bytes": 51661,
+      "sha256": "5e212b2bc0b815de83d04e55ac28b816b09fab868b37098286408f69f1e78a0e",
+      "classification": "PLANNING_OR_READINESS_REFERENCE_ONLY",
+      "exactBindingInventoryCount": 0,
+      "physicalMA510BindingCount": 0,
+      "exactMA510ManifestCount": 0
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\docs\\meri\\releases\\2026-10-03\\c2-native-case01-checkpoint\\next-c2-readiness-v1.json",
+      "bytes": 16907,
+      "sha256": "2aebb3349810b27983a26584a6ac023d302b3cc8df6794885af9d90d20ffea38",
+      "classification": "PLANNING_OR_READINESS_REFERENCE_ONLY",
+      "exactBindingInventoryCount": 0,
+      "physicalMA510BindingCount": 0,
+      "exactMA510ManifestCount": 0
+    }
+  ],
+  "actualRetainedFixtureInstanceId": null,
+  "actualRetainedMA510PhysicalId": null,
+  "currentLiveCorpus": "UNKNOWN_NOT_READ",
+  "historicalEvidencePath": {
+    "path": "C:\\dev\\cap-meri-foundation-evidence\\file01-parallel-20260930",
+    "existsAtRecordedPath": false,
+    "basis": "01-continuation-2026-09-30.md:67; absence on disk is not a claim about database state"
+  },
+  "historicalProbeDisposition": "Source uses random fixtureInstanceId, creates/inspects/retires 510 rows inside a rollback-only transaction, and checks owned schema absence. It cannot supply a current reusable live corpus.",
+  "search": {
+    "roots": [
+      {
+        "path": "C:/dev/main/outputs",
+        "exists": true
+      },
+      {
+        "path": "C:\\dev\\main\\meri-c1-20261002\\evals",
+        "exists": true
+      },
+      {
+        "path": "C:\\dev\\main\\meri-c1-20261002\\docs\\meri",
+        "exists": true
+      },
+      {
+        "path": "C:\\dev\\main\\meri-c1-20261002\\.artifacts",
+        "exists": true
+      },
+      {
+        "path": "C:/dev/main/meri-review-live",
+        "exists": true
+      },
+      {
+        "path": "C:/dev/main/meri-review2-live",
+        "exists": true
+      },
+      {
+        "path": "C:/dev/main/meri-eval-release",
+        "exists": true
+      },
+      {
+        "path": "C:/dev/main/meri-closeout-c0-20261002",
+        "exists": true
+      },
+      {
+        "path": "C:/dev/main/artifacts",
+        "exists": true
+      },
+      {
+        "path": "C:/dev/main/tmp",
+        "exists": true
+      },
+      {
+        "path": "C:/dev/main/qa_runs",
+        "exists": true
+      },
+      {
+        "path": "C:/dev/cap-meri-foundation-evidence",
+        "exists": true
+      }
+    ],
+    "patterns": [
+      "MA510",
+      "meri-approved-memory-local-bindings"
+    ],
+    "extensions": [
+      "json",
+      "jsonl",
+      "yaml",
+      "yml"
+    ],
+    "excludedGlobs": [
+      "**/.git/**",
+      "**/node_modules/**",
+      "**/.next/**",
+      "**/dist/**",
+      "**/pgvector-data/**",
+      "**/runtime/runs/**",
+      "**/case12-next-prerequisites*/**",
+      "**/case12-retained-inventory-search-v1/**"
+    ],
+    "includesIgnoredAndHiddenFiles": true,
+    "privateNamedPathsExcluded": false,
+    "exitCode": 0,
+    "matchedFileCount": 10,
+    "credentialValuesPrintedOrCopied": false,
+    "limitations": "Bounded listed roots only; compressed/binary artifacts and unrelated roots were not exhaustively searched. Matching source code/test definitions are not serialized fixture receipts. No database/remote inventory was queried."
+  },
+  "inspectionPrerequisites": [
+    {
+      "id": "exact_locator",
+      "required": "Original validated fixture manifest: fixtureInstanceId, fixtureVersion/contentSha256, T1 tenant, ASTER client, proposer/reviewer physical identities, and original synthetic ownership definitions. Candidate IDs depend on this exact fixture instance. Do not generate a new UUID and call it reuse."
+    },
+    {
+      "id": "retained_inventory",
+      "required": "Original kind=meri-approved-memory-local-bindings receipt with matching fixtureMapSha256 and bindingsSha256, MA510 plus at least 500 distinct newer eligible owned items. Retain actual allocated physicalId, candidateId, candidate/item row versions, ownership marker and payload hashes. Prospective item IDs are not allocations."
+    },
+    {
+      "id": "server_and_scope",
+      "required": "For any later lead-owned inspection, verify exact intended runtime/database and current source build, tenant/client and current memberships/reviewer role; use native Prisma/tenantContext and current canonical owner helpers. Preserve current ordinary Pat read authorization separately from reviewer membership."
+    },
+    {
+      "id": "nonmutating_seam",
+      "required": "Use runtime.inspect(logicalId) -> retirement.inspect(candidate) -> native memoryStore.inspectSyntheticFixture, or an equivalently bound source-owned inspection composition. Never call create/createDataset/retire/reapprove as a discovery fallback. Native inspection can take row locks; do not add a PostgreSQL READ ONLY transaction mode that breaks existing owner guard locking."
+    },
+    {
+      "id": "canonical_current_owner",
+      "required": "Revalidate approved candidate, exact proposer/payload/version/owner marker, committed item join under same tenant, canonical item and projection source/version/content/approval/lifecycle, and current actor/client governed read permission. Null, stale, retired, mixed-owner or unknown observations block reuse; a retained seed JSON alone is not current authority."
+    },
+    {
+      "id": "older_than_500",
+      "required": "Read source-owned current eligible Aster population with stable item IDs and real ordering evidence: MA510 predates at least 500 distinct currently eligible newer items. Setup ordinal 510 must join to actual timestamps/order, not a fabricated array ordinal. Canonical owner inspection alone does not establish this corpus-count/ordering condition."
+    },
+    {
+      "id": "no_free_search",
+      "required": "Do not use ordinary search_memory/direct retrieval as a provider-free census: queryEmbedding runs before the scoped DB read. This local search did not issue any application request. Source-owned inspection does not grant Case12 clock, capture, provider or journal admission."
+    }
+  ],
+  "nextEligibleStep": "Recover an original manifest/seed inventory from a retained non-retired owned instance if one is available elsewhere. Until then, prepare and locally qualify a Case12-specific canonical inspection adapter; any later live locator recovery/read or new setup must be separately source-qualified and lead-owned. Do not infer absence or automatically reseed.",
+  "sourcePins": [
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\docs\\meri\\implementation\\01-continuation-2026-09-30.md",
+      "bytes": 15394,
+      "sha256": "7deb31a21f4d767eef01e53b178396671f2a8b82bb66826be6759f402e0802f8",
+      "relativePath": "docs/meri/implementation/01-continuation-2026-09-30.md",
+      "ranges": [
+        [
+          31,
+          37
+        ],
+        [
+          67,
+          85
+        ]
+      ]
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\fixture-provisioning\\approved-memory-runtime.mjs",
+      "bytes": 14972,
+      "sha256": "b814c5f904594130d0e35bbb0d4a1f49ec77a5f96c1544fcf9e6969784f278ac",
+      "relativePath": "evals/meri/live-v1/fixture-provisioning/approved-memory-runtime.mjs",
+      "ranges": [
+        [
+          16,
+          45
+        ],
+        [
+          109,
+          127
+        ],
+        [
+          230,
+          267
+        ],
+        [
+          348,
+          364
+        ]
+      ]
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\fixture-provisioning\\approved-memory-retirement-owner.mjs",
+      "bytes": 6106,
+      "sha256": "84ce879940d2edf83004faf690739e6a9fef4091675fb640980a1d370529f668",
+      "relativePath": "evals/meri/live-v1/fixture-provisioning/approved-memory-retirement-owner.mjs",
+      "ranges": [
+        [
+          21,
+          65
+        ],
+        [
+          108,
+          134
+        ]
+      ]
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\tests\\approved-memory-runtime.postgres.test.mjs",
+      "bytes": 14922,
+      "sha256": "754f4f6ba70a2dea2784dc1c040c94b35a306d3196fdc940f765e63e4e80405f",
+      "relativePath": "evals/meri/live-v1/tests/approved-memory-runtime.postgres.test.mjs",
+      "ranges": [
+        [
+          20,
+          36
+        ],
+        [
+          76,
+          92
+        ]
+      ]
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\tests\\approved-memory-postgres-harness.mjs",
+      "bytes": 9208,
+      "sha256": "e9423f5e819c33a628c104ef9137c76708aa05ef0b7c5cdb4a42793dd4959c8d",
+      "relativePath": "evals/meri/live-v1/tests/approved-memory-postgres-harness.mjs",
+      "ranges": [
+        [
+          171,
+          187
+        ],
+        [
+          200,
+          225
+        ]
+      ]
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\apps\\api\\src\\memory\\synthetic-approved-memory.helpers.ts",
+      "bytes": 13474,
+      "sha256": "8451534ad56fdda936c7ce5c1961c68e0172d61ab2be45872e6d1b93da21ba22",
+      "relativePath": "apps/api/src/memory/synthetic-approved-memory.helpers.ts",
+      "ranges": [
+        [
+          124,
+          173
+        ],
+        [
+          188,
+          229
+        ]
+      ]
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\fixture-provisioning\\capture-binding-runtime.mjs",
+      "bytes": 7753,
+      "sha256": "527fc5358eec0884b7159ddbdde07abd14736a299fb08d8f3c4e918ae2f7e17a",
+      "relativePath": "evals/meri/live-v1/fixture-provisioning/capture-binding-runtime.mjs",
+      "ranges": [
+        [
+          13,
+          57
+        ],
+        [
+          153,
+          176
+        ]
+      ]
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\apps\\api\\src\\retrieval\\adapters\\institutional-knowledge-retrieval.adapter.ts",
+      "bytes": 36320,
+      "sha256": "bde82251b71fb7d2e86fee9d6928bd4b3fc686b4385f16be19057c864817b819",
+      "relativePath": "apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.ts",
+      "ranges": [
+        [
+          137,
+          155
+        ],
+        [
+          167,
+          220
+        ]
+      ]
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\evals\\meri\\live-v1\\deterministic-predicates.mjs",
+      "bytes": 24833,
+      "sha256": "eae567c091417837bdb171c10b714003aa56f1ee60e4a7b1d5153124ff58cff4",
+      "relativePath": "evals/meri/live-v1/deterministic-predicates.mjs",
+      "ranges": [
+        [
+          254,
+          264
+        ]
+      ]
+    }
+  ],
+  "scope": {
+    "localPreparationOnly": true,
+    "repositoryEdits": 0,
+    "cloudCalls": 0,
+    "applicationCalls": 0,
+    "providerCalls": 0,
+    "databaseCalls": 0,
+    "journalReads": 0,
+    "journalWrites": 0,
+    "fixtureMutations": 0,
+    "case12CaptureAuthority": false,
+    "originalCase12": "NOT_RUN",
+    "humanRubric": "NOT_RUN"
+  }
+}

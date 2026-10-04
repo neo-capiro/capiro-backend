@@ -1,0 +1,13 @@
+{
+  "recordedAt": "2026-10-04T07:32:58.041Z",
+  "service": "meriv2-orchestrator",
+  "sourceSha": "945179d44223882f9fe1da2fb4e41213bf5813c2",
+  "buildspecSha256": "2c385ca184bb7dd65770573eba645ccae735387019c4aea623aebe142e4acc7a",
+  "candidateSha256": "10351350523db52910b4f83ed67151c15a7982af3098ff985b38177253cb495b",
+  "checkpointSha256": "0b825aaf0c2c5140d166afcc628706649428d7d7e6263e05a8f9783a72e45307",
+  "requestSha256": "57c6bd4ebc818dbbab0295c56daa62fb7965a4910dc498ff1490b237c8b4018e",
+  "idempotencyToken": "ce6e688f-8a0b-4530-84f9-9055444bff8a",
+  "callerArn": "arn:aws:iam::967807252336:user/capirocli",
+  "authorization": "USER_REQUEST_USE_BACKUP_SHIPPING_METHOD",
+  "scope": "One immutable ARM image build and ECR publication; no service/config/database/provider mutation"
+}

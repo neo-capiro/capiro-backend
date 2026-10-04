@@ -1,0 +1,532 @@
+{
+  "checkedAt": "2026-10-04T07:28:59.437Z",
+  "result": "PASS_CACHE_BINDING_REPAIR_AND_SOURCE_FREEZE",
+  "scope": "Static review, syntax checks, actual source hash verification and in-memory cached-collector fault tests; no cloud calls, builds or actual candidate launch.",
+  "priorFindingClosed": "cached_readback_before_binding",
+  "pins": [
+    {
+      "name": "start-case14-source-backup-build-v1.mjs",
+      "sha256": "a89de666439e631d26f639cf3bab560f77142eda01fde59c3ca08037732108b3",
+      "bytes": 5183
+    },
+    {
+      "name": "collect-case14-source-backup-build-v2.mjs",
+      "sha256": "8323f0dfd6839decfb327d686a5d6c090cf60eee5114d7fc1b8b7e5932c2f1e6",
+      "bytes": 6723
+    },
+    {
+      "name": "aws-single-attempt.mjs",
+      "sha256": "86b965a0257fd56e5255e30cdfd6787bef74ba0287d23eecb86fedfae7d6fec0",
+      "bytes": 782
+    },
+    {
+      "name": "case14-memory-source-qualification-v1.json",
+      "sha256": "0b825aaf0c2c5140d166afcc628706649428d7d7e6263e05a8f9783a72e45307",
+      "bytes": 11395
+    }
+  ],
+  "cacheCases": [
+    {
+      "service": "api",
+      "name": "matching PASS",
+      "result": "PASS",
+      "observed": 0,
+      "cloudReads": 0,
+      "writes": 0
+    },
+    {
+      "service": "api",
+      "name": "stale source",
+      "result": "PASS",
+      "observed": "REJECTED",
+      "cloudReads": 0,
+      "writes": 0
+    },
+    {
+      "service": "api",
+      "name": "cached candidate drift",
+      "result": "PASS",
+      "observed": "REJECTED",
+      "cloudReads": 0,
+      "writes": 0
+    },
+    {
+      "service": "api",
+      "name": "actual candidate drift",
+      "result": "PASS",
+      "observed": "REJECTED",
+      "cloudReads": 0,
+      "writes": 0
+    },
+    {
+      "service": "api",
+      "name": "cached checkpoint drift",
+      "result": "PASS",
+      "observed": "REJECTED",
+      "cloudReads": 0,
+      "writes": 0
+    },
+    {
+      "service": "api",
+      "name": "checkpoint bytes drift",
+      "result": "PASS",
+      "observed": "REJECTED",
+      "cloudReads": 0,
+      "writes": 0
+    },
+    {
+      "service": "api",
+      "name": "log bytes drift",
+      "result": "PASS",
+      "observed": "REJECTED",
+      "cloudReads": 0,
+      "writes": 0
+    },
+    {
+      "service": "api",
+      "name": "template bytes drift",
+      "result": "PASS",
+      "observed": "REJECTED",
+      "cloudReads": 0,
+      "writes": 0
+    },
+    {
+      "service": "api",
+      "name": "cached build ID drift",
+      "result": "PASS",
+      "observed": "REJECTED",
+      "cloudReads": 0,
+      "writes": 0
+    },
+    {
+      "service": "api",
+      "name": "cached service drift",
+      "result": "PASS",
+      "observed": "REJECTED",
+      "cloudReads": 0,
+      "writes": 0
+    },
+    {
+      "service": "api",
+      "name": "cached image drift",
+      "result": "PASS",
+      "observed": "REJECTED",
+      "cloudReads": 0,
+      "writes": 0
+    },
+    {
+      "service": "api",
+      "name": "cached resolved SHA drift",
+      "result": "PASS",
+      "observed": "REJECTED",
+      "cloudReads": 0,
+      "writes": 0
+    },
+    {
+      "service": "api",
+      "name": "cached unknown qualification",
+      "result": "PASS",
+      "observed": "REJECTED",
+      "cloudReads": 0,
+      "writes": 0
+    },
+    {
+      "service": "api",
+      "name": "cached FAILED retains exit1",
+      "result": "PASS",
+      "observed": 1,
+      "cloudReads": 0,
+      "writes": 0
+    },
+    {
+      "service": "api",
+      "name": "missing marker even with changed log hash",
+      "result": "PASS",
+      "observed": "REJECTED",
+      "cloudReads": 0,
+      "writes": 0
+    },
+    {
+      "service": "meriv2-orchestrator",
+      "name": "matching PASS",
+      "result": "PASS",
+      "observed": 0,
+      "cloudReads": 0,
+      "writes": 0
+    },
+    {
+      "service": "meriv2-orchestrator",
+      "name": "stale source",
+      "result": "PASS",
+      "observed": "REJECTED",
+      "cloudReads": 0,
+      "writes": 0
+    },
+    {
+      "service": "meriv2-orchestrator",
+      "name": "cached candidate drift",
+      "result": "PASS",
+      "observed": "REJECTED",
+      "cloudReads": 0,
+      "writes": 0
+    },
+    {
+      "service": "meriv2-orchestrator",
+      "name": "actual candidate drift",
+      "result": "PASS",
+      "observed": "REJECTED",
+      "cloudReads": 0,
+      "writes": 0
+    },
+    {
+      "service": "meriv2-orchestrator",
+      "name": "cached checkpoint drift",
+      "result": "PASS",
+      "observed": "REJECTED",
+      "cloudReads": 0,
+      "writes": 0
+    },
+    {
+      "service": "meriv2-orchestrator",
+      "name": "checkpoint bytes drift",
+      "result": "PASS",
+      "observed": "REJECTED",
+      "cloudReads": 0,
+      "writes": 0
+    },
+    {
+      "service": "meriv2-orchestrator",
+      "name": "log bytes drift",
+      "result": "PASS",
+      "observed": "REJECTED",
+      "cloudReads": 0,
+      "writes": 0
+    },
+    {
+      "service": "meriv2-orchestrator",
+      "name": "template bytes drift",
+      "result": "PASS",
+      "observed": "REJECTED",
+      "cloudReads": 0,
+      "writes": 0
+    },
+    {
+      "service": "meriv2-orchestrator",
+      "name": "cached build ID drift",
+      "result": "PASS",
+      "observed": "REJECTED",
+      "cloudReads": 0,
+      "writes": 0
+    },
+    {
+      "service": "meriv2-orchestrator",
+      "name": "cached service drift",
+      "result": "PASS",
+      "observed": "REJECTED",
+      "cloudReads": 0,
+      "writes": 0
+    },
+    {
+      "service": "meriv2-orchestrator",
+      "name": "cached image drift",
+      "result": "PASS",
+      "observed": "REJECTED",
+      "cloudReads": 0,
+      "writes": 0
+    },
+    {
+      "service": "meriv2-orchestrator",
+      "name": "cached resolved SHA drift",
+      "result": "PASS",
+      "observed": "REJECTED",
+      "cloudReads": 0,
+      "writes": 0
+    },
+    {
+      "service": "meriv2-orchestrator",
+      "name": "cached unknown qualification",
+      "result": "PASS",
+      "observed": "REJECTED",
+      "cloudReads": 0,
+      "writes": 0
+    },
+    {
+      "service": "meriv2-orchestrator",
+      "name": "cached FAILED retains exit1",
+      "result": "PASS",
+      "observed": 1,
+      "cloudReads": 0,
+      "writes": 0
+    },
+    {
+      "service": "meriv2-orchestrator",
+      "name": "missing marker even with changed log hash",
+      "result": "PASS",
+      "observed": "REJECTED",
+      "cloudReads": 0,
+      "writes": 0
+    },
+    {
+      "service": "meriv2-orchestrator",
+      "name": "cached test count below1570 with matching log",
+      "result": "PASS",
+      "observed": "REJECTED",
+      "cloudReads": 0,
+      "writes": 0
+    },
+    {
+      "service": "meriv2-orchestrator",
+      "name": "cached test/log discrepancy",
+      "result": "PASS",
+      "observed": "REJECTED",
+      "cloudReads": 0,
+      "writes": 0
+    }
+  ],
+  "cacheCaseCount": 32,
+  "sourceQualification": {
+    "sha256": "0b825aaf0c2c5140d166afcc628706649428d7d7e6263e05a8f9783a72e45307",
+    "sourcePinCount": 45,
+    "allSourcePinsMatch": true,
+    "hermesReviewedSources": 18,
+    "allHermesPinsMatch": true,
+    "reviewAndAssessmentHashesMatch": true,
+    "templateChecksHashMatches": true
+  },
+  "sourcePins": [
+    {
+      "path": "apps/api/Dockerfile",
+      "sha256": "839f291b4baa6bc99f77f93d514ffcaeaa273e3586ab5324696dc8ed4024db6a",
+      "result": "MATCH"
+    },
+    {
+      "path": "apps/api/prisma/schema.prisma",
+      "sha256": "41fb55c8f2357b9bc2246de813d1e093e3e0bd240538048bbb514c5a4d4fe1d2",
+      "result": "MATCH"
+    },
+    {
+      "path": "apps/api/src/meri/meri-action-proposal.http.spec.ts",
+      "sha256": "bfb40e004e65e36378dfe69504123d58e6de5ad21063066ad2a6e6d61fa936cc",
+      "result": "MATCH"
+    },
+    {
+      "path": "apps/api/src/meri/meri-chat-attachment-transport.http.spec.ts",
+      "sha256": "4388e82be10c691358e99aec99d611b9b500ab7dce10f7ee5fc457d812396d70",
+      "result": "MATCH"
+    },
+    {
+      "path": "apps/api/src/meri/meri-memory-content.helpers.spec.ts",
+      "sha256": "8e91a77d5b8b3002513ac7aa2f4cc16356c7db0fad877e935e2478be06a1b31a",
+      "result": "MATCH"
+    },
+    {
+      "path": "apps/api/src/meri/meri-memory-content.helpers.ts",
+      "sha256": "269859235ff3a5d1427f0448c366884b4b4d072e6c84f902059ed24edb567a2b",
+      "result": "MATCH"
+    },
+    {
+      "path": "apps/api/src/meri/meri-server-readonly-capture.ts",
+      "sha256": "689ddc776123be123c6181ebf7459ce747ae4eb99ad841a8966d8db87210ac93",
+      "result": "MATCH"
+    },
+    {
+      "path": "apps/api/src/meri/meri-tool-request-control.spec.ts",
+      "sha256": "ce5f236ae55d84db57150cb5ef5f0dffab79ff62a1e0c6b2e9d829fa90c5eed4",
+      "result": "MATCH"
+    },
+    {
+      "path": "apps/api/src/meri/meri-tool-request-control.ts",
+      "sha256": "d7bc98fb4ece8e15d03c539b78891c06b1c68056efb03521139f462d3c6cf5b5",
+      "result": "MATCH"
+    },
+    {
+      "path": "apps/api/src/meri/meri-tools.memory-capture-source.spec.ts",
+      "sha256": "295a9fab3c7bb7474ba667588b59c942bf1f8c805830b4cb599b1f0dd0589d87",
+      "result": "MATCH"
+    },
+    {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "sha256": "6292083cf3df78314bf1bacf2afe1dc02aad916716e7608b1f9e92ac8c145352",
+      "result": "MATCH"
+    },
+    {
+      "path": "apps/api/src/meri/meri.controller.ts",
+      "sha256": "14b72090b98ac6913052cdf7d3fa5b44a43e3e71e7c80ceb7b7053e52602ffa8",
+      "result": "MATCH"
+    },
+    {
+      "path": "apps/api/src/meri/tool-service-secret.guard.ts",
+      "sha256": "75eb2806606057758c0b5e56741bcc97cdb7ef29f94f6a472d9d01ea26bf15ca",
+      "result": "MATCH"
+    },
+    {
+      "path": "apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.spec.ts",
+      "sha256": "f146bcb662abfa8b80e2feb0c82fe41da45a45b7490f5df9298372d126e78fd9",
+      "result": "MATCH"
+    },
+    {
+      "path": "apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.ts",
+      "sha256": "bde82251b71fb7d2e86fee9d6928bd4b3fc686b4385f16be19057c864817b819",
+      "result": "MATCH"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/Dockerfile",
+      "sha256": "1f4ec2752e99bfbce75877f27d36894678cc8d5bf3e504f5cc9404d1961d9d0c",
+      "result": "MATCH"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/api-tool-executor.repo.ts",
+      "sha256": "6feca0ed1e065689ec2b728d28ad17610dcd98682064c8fa5359246fd3ae784a",
+      "result": "MATCH"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts",
+      "sha256": "548bba26caebbf4368d4726ddb47774cb74187ce08ba12ed7d3f13aef7327871",
+      "result": "MATCH"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/controlled-read-observations.ts",
+      "sha256": "290512e0948ad7c955f2a7af096286dbaede1d89a879ac43ca13e34890c67682",
+      "result": "MATCH"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts",
+      "sha256": "e2c49a4356ce2cdffdef62b1abcb3e85a247630e763ac5e9d847c00f604aad6f",
+      "result": "MATCH"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-capture-evidence.ts",
+      "sha256": "de4afce7959c293b29a75d9bc94d6aaf47248fcee7ed8a9c40a99120dfd76eea",
+      "result": "MATCH"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-tool-evidence.ts",
+      "sha256": "f64fe34a5220b82e7d7ee85c85d85bd21efbf6f37da54b93ea4874afd52e9a68",
+      "result": "MATCH"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/request/trusted-current-turn-scope.ts",
+      "sha256": "60b4c10a62af06c3d95520fcfef7e4a923bb99315a8e6277517f9f1fa6ee0158",
+      "result": "MATCH"
+    },
+    {
+      "path": "evals/meri/live-v1/capture-spend-aggregate.mjs",
+      "sha256": "2a7ad0acb1ca83b2f965f4f09375880cc3fc95afdff0a49bf3d138fbc025f433",
+      "result": "MATCH"
+    },
+    {
+      "path": "evals/meri/live-v1/case01-live-capture.mjs",
+      "sha256": "9872ee2fb91b05547030331dd22258727bb6fbcf13537f6e3d94b6fd9f325a83",
+      "result": "MATCH"
+    },
+    {
+      "path": "evals/meri/live-v1/case01-receipt-joins.mjs",
+      "sha256": "89c136eeedccc448e709ad905255ac76afa12aefe502c866efacc83aef2c0ac9",
+      "result": "MATCH"
+    },
+    {
+      "path": "evals/meri/live-v1/case14-approval-capture.mjs",
+      "sha256": "fcea0961cc531ffe98104ecc8c6d3dc6d6083cc972d1879e7b340991a9e1046d",
+      "result": "MATCH"
+    },
+    {
+      "path": "evals/meri/live-v1/case14-approval-cost-authority.mjs",
+      "sha256": "c50e632592de167ad01d51a9d6b5a15972eef8de565fbdea05f9a024c8998717",
+      "result": "MATCH"
+    },
+    {
+      "path": "evals/meri/live-v1/case14-approval-cost-evidence.json",
+      "sha256": "aa63a7378883f152c1d8180cc0796fc5dc2bb4ad61e68df9030d52b9a754aa33",
+      "result": "MATCH"
+    },
+    {
+      "path": "evals/meri/live-v1/case14-postapproval-task-authority.mjs",
+      "sha256": "da8577bfd83a3a841c74720de44dd4ab826f5b29274849d69d7f7d5eca281d43",
+      "result": "MATCH"
+    },
+    {
+      "path": "evals/meri/live-v1/lib/windows-capture-spend.py",
+      "sha256": "9bf4efe4ebf8706e66ed48a58fe2cc5e68a73f6492831f6d28e91e73d8507e10",
+      "result": "MATCH"
+    },
+    {
+      "path": "evals/meri/live-v1/tests/capture-spend-aggregate.test.mjs",
+      "sha256": "68fe11ac0af4653408b4e37b3d2ce91feaa0a13db9129f8dee49ad7296a4ce35",
+      "result": "MATCH"
+    },
+    {
+      "path": "evals/meri/live-v1/tests/capture-spend-fresh.test.mjs",
+      "sha256": "9f2e2637cae9031b857e268259e760f8199835a5adf5ff87b81a4c750f6da74f",
+      "result": "MATCH"
+    },
+    {
+      "path": "evals/meri/live-v1/tests/capture-spend-fresh.unit.py",
+      "sha256": "bbdd306485ae8cd057fe19a85939ef3973c0ac6040ba053192be39e957205af6",
+      "result": "MATCH"
+    },
+    {
+      "path": "evals/meri/live-v1/tests/capture-spend-reconciliation.test.mjs",
+      "sha256": "96717a0e6b988a2eb85cac0e5c040d06fd9f3af37ffca6cc9066cf35a229a754",
+      "result": "MATCH"
+    },
+    {
+      "path": "evals/meri/live-v1/tests/capture-spend-terminal.test.mjs",
+      "sha256": "c80eb01dd920c74a1035e38d3d1e458ee672c91fb49670d7122ae38e7f3af72e",
+      "result": "MATCH"
+    },
+    {
+      "path": "evals/meri/live-v1/tests/capture-spend-v2.test.mjs",
+      "sha256": "2b9e43525af5063c0fc502bd1ccb1b8f7402c1edb442b60439e30f9736cc1e6e",
+      "result": "MATCH"
+    },
+    {
+      "path": "evals/meri/live-v1/tests/case14-approval-cost-authority.test.mjs",
+      "sha256": "6cb85c5d79b10c6426f0161ebfa3d2be8b4cb0103f4e1111242968cfc4673185",
+      "result": "MATCH"
+    },
+    {
+      "path": "evals/meri/live-v1/tests/case14-capture.test.mjs",
+      "sha256": "71af76577a0b17413842edc3cff9cebb96a59ddab86c4e149675262d1c76e35d",
+      "result": "MATCH"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "sha256": "affe70118364d44bdb5b13e55cd15edde2ce863323ecca4afa9644e0def74ab0",
+      "result": "MATCH"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/memory-capture-source.spec.ts",
+      "sha256": "a71a8222c011779e324064de717935adbccebaee3e7b74739fdf39ffdb8dd871",
+      "result": "MATCH"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/memory-capture-source.ts",
+      "sha256": "63b501da79d2f26454ff9050a56137df27fdaa9a7706ea9fcc9f94f3ac1dd30a",
+      "result": "MATCH"
+    },
+    {
+      "path": "packages/meriv2-core/src/index.ts",
+      "sha256": "0369ee78126d119ad617ea333b054180e08fd3e4d3c09df4608211c37efd37d9",
+      "result": "MATCH"
+    },
+    {
+      "path": "pnpm-lock.yaml",
+      "sha256": "c90a15fc2ca3c9405062444adfdb346293d27f51a45488476db891f4c3204586",
+      "result": "MATCH"
+    },
+    {
+      "path": "scripts/validate-meri-build-isolation.py",
+      "sha256": "3da56fd74367928cdb70be0046d41abd06764ca80f25f84b0228d38c40eef626",
+      "result": "MATCH"
+    }
+  ],
+  "findings": [],
+  "limitations": [
+    "Final merged source SHA/candidate JSON not yet available; final launch binding remains root responsibility.",
+    "Cache returns a verified retained local build receipt, not a new live cloud/ECR observation.",
+    "Cached FAILED now exits1 and still requires reconciliation rather than automatic rebuild.",
+    "Partial build.log without readback refuses wx overwrite; manual reconciliation required.",
+    "No new authority for paid captures, resets or deployments."
+  ],
+  "v1FailurePreserved": true
+}

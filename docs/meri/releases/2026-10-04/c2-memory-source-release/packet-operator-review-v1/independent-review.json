@@ -1,0 +1,44 @@
+{
+  "at": "2026-10-04T07:51:46.938908+00:00",
+  "result": "BLOCKED_REVIEW_BINDING_BEFORE_PACKET_PREPARATION",
+  "operator": {
+    "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\prepare-case14-source-packet-v1.mjs",
+    "sha256": "78b24eac81429234064dacd7c5259084ad8e89e4d1c0baba0d47b0aa294d5ce7",
+    "bytes": 9478,
+    "nodeSyntax": "PASS"
+  },
+  "reviewType": "Static source/call-graph inspection only; did not execute generator or cloud calls or produce final packet.",
+  "findings": [
+    {
+      "priority": "P2",
+      "id": "stale_pass_review_unbound",
+      "path": "prepare-case14-source-packet-v1.mjs",
+      "line": 15,
+      "detail": "Only result PASS and humanReleaseApproval false are checked. The versioned review is not tied to qualificationBytesSha256, sourceSha or packetOperatorSha256. Versioned artifacts coexist in one commit but that alone does not prove the PASS review covers those exact qualification/operator bytes.",
+      "repair": "Read exact versioned qualification bytes and compare SHA to review.qualificationBytesSha256 and expected48fa688aadf19ede1ad4908113d656ce5ecf8bdad3fc8fcdd74668323d3491eb; require review.sourceSha and qualification.sourceSha945179d44223882f9fe1da2fb4e41213bf5813c2; compare actual operator bytes to review.packetOperatorSha256."
+    },
+    {
+      "priority": "P2",
+      "id": "journal_can_drift_during_read_sequence",
+      "path": "prepare-case14-source-packet-v1.mjs",
+      "line": 16,
+      "detail": "Journal is checked only before multi-service/ECR/nightly readback. Final saved packet can continue to label budget26 current if the journal changes during those reads.",
+      "repair": "Re-read actual journal bytes immediately before saving and require exact equality with checked beginning bytes/hash."
+    }
+  ],
+  "passingChecks": [
+    "All direct AWS calls are STS/ECR/EventBridge/ECS reads; releaseOperator.snapshot transitively calls only ECS/ELB read APIs. No prepare/promote/update/register method is invoked.",
+    "candidateTask is pure: copies current writable task input, changes only named service image plus release-identity fields for candidate; rollback omits sourceSha and retains baseline identity.",
+    "Both candidate source fields are fixed945179d4 and build qualification/image fields are checked; live ECR tag+digest and rollback digest are read.",
+    "API/orchestrator/Web snapshot baseline fields are compared exactly to versioned baseline; actual task/ALB health is part of snapshot.",
+    "Nightly rule/target/task definition hashes and active definition are compared; broad projection worker must remain disabled.",
+    "Human approval null, deployableManifest false, no capture/reset/replay/journal mutation authority, expected future human gate correctly represented.",
+    "Local final packet files use exclusive create and fsync."
+  ],
+  "pendingEvidence": [
+    "release-independent-review.json is not yet present in archive working tree; expected bridge fields inferred from repository precedent c2-combined-release/release-independent-review.json. Root must create/version it before generator use."
+  ],
+  "cloudCalls": 0,
+  "finalPacketGenerated": false,
+  "repoEdits": false
+}

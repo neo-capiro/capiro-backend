@@ -1,0 +1,98 @@
+{
+  "kind": "C2 canonical memory source two-image release qualification",
+  "status": "AUTOMATED_QUALIFICATION_PASSED_HUMAN_RELEASE_REVIEW_PENDING",
+  "at": "2026-10-04T07:41:07.206280+00:00",
+  "sourceSha": "945179d44223882f9fe1da2fb4e41213bf5813c2",
+  "sourcePullRequest": "https://github.com/neo-capiro/capirov2/pull/1941",
+  "sourceArchive": "https://github.com/neo-capiro/capirov2/blob/945179d44223882f9fe1da2fb4e41213bf5813c2/docs/meri/releases/2026-10-04/c2-memory-source-repair/README.md",
+  "candidates": {
+    "api": {
+      "sourceSha": "945179d44223882f9fe1da2fb4e41213bf5813c2",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:00e8c5cac10d8b4cd3cc46a0a9a7602b51db4657e38fabe86f1f12999d2b2e31",
+      "buildId": "capiro-build-web-dev:e7fa2d19-a094-4806-9c74-b592667ba1ce",
+      "architecture": "arm64",
+      "runtimeNode": "22.23.3"
+    },
+    "meriv2-orchestrator": {
+      "sourceSha": "945179d44223882f9fe1da2fb4e41213bf5813c2",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:94c82ec438a0cfee0da3869af284e107ae6aeff6157c8c0ff2f97dc991f6c5bf",
+      "buildId": "capiro-build-web-dev:3588b57f-4e9f-4d14-8585-c3f751759a6e",
+      "architecture": "arm64",
+      "runtimeNode": "20.16.0"
+    }
+  },
+  "sourceCheckpointSha256": "0b825aaf0c2c5140d166afcc628706649428d7d7e6263e05a8f9783a72e45307",
+  "currentSchema": {
+    "status": "VERIFIED_READ_ONLY",
+    "ledgerRows": 609,
+    "activeFinished": 509,
+    "rolledBack": 100,
+    "prior608Sha256": "9a82cbc9dcecc3b049c312ad4e39ec5a96eb33c6e5af033a3339d1e292c06e90",
+    "newMigration": "20281007010000_mail_messages_owned_connection_active",
+    "newMigrationSha256": "ef10ab58b4eef6825652690a098ab160a374fb30c4cc0af9f15793edb7237242",
+    "retirementTablesAbsent": true,
+    "indices": [
+      {
+        "name": "mail_messages_tenant_connection_active_idx",
+        "ready": true,
+        "definitionSha256": "23d2b35e8097cea6c5620ce2c9c1cab68467e9de09dba5e3337f6fca0a170688"
+      },
+      {
+        "name": "mail_threads_tenant_connection_id_cover_idx",
+        "ready": true,
+        "definitionSha256": "7097d64ec1650dfa8e004e89a1e2f6f267cb7924e869993bb44fb235e9716c9e"
+      }
+    ],
+    "migrationExecution": false,
+    "sourceSha": "c0f393f863bf73bd4e65e7a94e17c073e7be021e",
+    "observedAt": "2026-10-04T07:37:34.591Z",
+    "providerCalls": 0,
+    "businessWrites": 0,
+    "acceptanceAuthority": false,
+    "readOnlyTransaction": true
+  },
+  "schemaChange": false,
+  "retirementCompatibility": {
+    "status": "PASS",
+    "evidence": [
+      "Current served schema609 with retired tables absent",
+      "No candidate migration/Prisma schema/lockfile/Dockerfile/package.json delta from current served source",
+      "Actual packaged imports/source tests and source proof probes pass",
+      "Ordinary reads retain shape; new capture proof is confined to qualified Case01/14 policies"
+    ],
+    "rollingWindow": "Do not submit acceptance captures while API/orchestrator have mixed release identities. Ordinary reads are unchanged."
+  },
+  "budgetCheckpoint": {
+    "events": 26,
+    "journalSha256": "816b04a47be56432846d1ee602370c3bea985eb497a7de9e899aee4d53f8b39e",
+    "knownUsd": 15.200909,
+    "conservativeApprovalUsd": 1,
+    "committedUsd": 16.200909,
+    "remainingUsd": 13.799091,
+    "activeReservation": false
+  },
+  "acceptance": {
+    "fullSuitePassed": 0,
+    "fullSuiteTotal": 75,
+    "cdPassed": 0,
+    "cdTotal": 7,
+    "c2Complete": false,
+    "case14": "CAPTURE_UNCERTAIN_FAILED_RUN_PRESERVED",
+    "humanRubric": "NOT_RUN",
+    "replayAuthority": false
+  },
+  "scope": {
+    "serviceUpdates": 0,
+    "databaseWrites": 0,
+    "providerCalls": 0,
+    "schemaChange": false,
+    "modelChange": false,
+    "configurationChange": false,
+    "webChange": false,
+    "scheduleChange": false,
+    "capacityChange": false
+  },
+  "humanApproval": null,
+  "deployableManifest": false,
+  "next": "Independent complete packet review, then exact human release approval before invoking promotion."
+}

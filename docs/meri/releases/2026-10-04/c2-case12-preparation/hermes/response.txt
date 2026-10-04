@@ -1,0 +1,5 @@
+Created the prerequisite plan at:
+
+C:\dev\main\outputs\meri-c2-20261003\case12-next-prerequisites-hermes-v1\case12-next-prerequisites.md
+
+Case12 remains NOT_RUN; no new authority was created. The plan does not claim the live corpus is absent—no live read was performed.

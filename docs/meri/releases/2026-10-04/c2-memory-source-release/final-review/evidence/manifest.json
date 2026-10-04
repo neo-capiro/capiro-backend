@@ -1,0 +1,193 @@
+{
+  "frozenAt": "2026-10-04T07:43:53.645621+00:00",
+  "sourceSha": "945179d44223882f9fe1da2fb4e41213bf5813c2",
+  "archiveFiles": [
+    {
+      "archivePath": ".gitattributes",
+      "sha256": "e623d756671de4e5c6cff5f575affab19983a05cd2b4af9b525f6a8c167c5699",
+      "bytes": 58,
+      "includedInHermesBundle": true
+    },
+    {
+      "archivePath": "case14-memory-source-candidate-v1.json",
+      "sha256": "10351350523db52910b4f83ed67151c15a7982af3098ff985b38177253cb495b",
+      "bytes": 1242,
+      "includedInHermesBundle": true
+    },
+    {
+      "archivePath": "case14-memory-source-qualification-v1.json",
+      "sha256": "0b825aaf0c2c5140d166afcc628706649428d7d7e6263e05a8f9783a72e45307",
+      "bytes": 11395,
+      "includedInHermesBundle": true
+    },
+    {
+      "archivePath": "case14-source-schema-inner-v1.mjs",
+      "sha256": "4d8808af4b92dd4133f0c74410082e876630ede11fea2d168ac50b6ffed48ac7",
+      "bytes": 4385,
+      "includedInHermesBundle": true
+    },
+    {
+      "archivePath": "inspect-case14-source-release-v1.mjs",
+      "sha256": "c2c90b4b9ff5d4f19aaf956846187cd664f02f9eb68dcce6fdd75bdf98533fa6",
+      "bytes": 6792,
+      "includedInHermesBundle": true
+    },
+    {
+      "archivePath": "provenance.json",
+      "sha256": "618f5ce1099b904782be7c18a797da52b25a5fe4a62265abf6e9fb4604e0c959",
+      "bytes": 7917,
+      "includedInHermesBundle": true
+    },
+    {
+      "archivePath": "read-case14-source-schema-v1.mjs",
+      "sha256": "a4b28e308992e2c654ed89ea8bfff5c2e7b1ff06fc91bdbfa3ceceb0cb791dd0",
+      "bytes": 12707,
+      "includedInHermesBundle": true
+    },
+    {
+      "archivePath": "README.md",
+      "sha256": "02cd2869af73d2baefd6d6a055645fac8ed0c475090287f85ca325854a763b1d",
+      "bytes": 2041,
+      "includedInHermesBundle": true
+    },
+    {
+      "archivePath": "release-qualification.json",
+      "sha256": "48fa688aadf19ede1ad4908113d656ce5ecf8bdad3fc8fcdd74668323d3491eb",
+      "bytes": 4161,
+      "includedInHermesBundle": true
+    },
+    {
+      "archivePath": "served-baseline.json",
+      "sha256": "c1647bbe88c55240aefc6da2a1df10f013d24c2ecbd0ad73a544bd7d5aaef3af",
+      "bytes": 11369,
+      "includedInHermesBundle": true
+    },
+    {
+      "archivePath": "builds/api/build-input.json",
+      "sha256": "99718e3c38541bf050f712947b7b4e8fab439657db4470d94bff28f2a2ed9110",
+      "bytes": 14439,
+      "includedInHermesBundle": true
+    },
+    {
+      "archivePath": "builds/api/build-readback.json",
+      "sha256": "61c446715f2bb00200b632c11a84a6befdf30188d7d9770b1a75b8fefa9f25ec",
+      "bytes": 3872,
+      "includedInHermesBundle": true
+    },
+    {
+      "archivePath": "builds/api/build-start.json",
+      "sha256": "7a9bcb73253284d5e5784f2ae35df9e77225dd8b59c39b644b09e70a26e1b75c",
+      "bytes": 477,
+      "includedInHermesBundle": true
+    },
+    {
+      "archivePath": "builds/api/build.log",
+      "sha256": "2c2070926e59b9fdd172a00a7cf605172898c7ee58ada9c3b0dd06da67cd70c1",
+      "bytes": 62972,
+      "includedInHermesBundle": false
+    },
+    {
+      "archivePath": "builds/api/buildspec.json",
+      "sha256": "b69ec8d59ab4a897f177c0a99c87a7fe0f4c3680c3a2e9b62126a97dbe91f258",
+      "bytes": 13997,
+      "includedInHermesBundle": true
+    },
+    {
+      "archivePath": "builds/api/launch-intent.json",
+      "sha256": "df323f1092bc463ed89d6ea745723e76ad78d47555d6ab3c18caba37a3dc4474",
+      "bytes": 774,
+      "includedInHermesBundle": true
+    },
+    {
+      "archivePath": "builds/meriv2-orchestrator/build-input.json",
+      "sha256": "57c6bd4ebc818dbbab0295c56daa62fb7965a4910dc498ff1490b237c8b4018e",
+      "bytes": 12967,
+      "includedInHermesBundle": true
+    },
+    {
+      "archivePath": "builds/meriv2-orchestrator/build-readback.json",
+      "sha256": "fa09afc90e20195dbfd9e96e9c9e0a5af2f956150058db85c11688c48318b982",
+      "bytes": 3909,
+      "includedInHermesBundle": true
+    },
+    {
+      "archivePath": "builds/meriv2-orchestrator/build-start.json",
+      "sha256": "ff824af732c9174f4e21d7567cd04b14b4ae16f6b57967b3209b7249b75be30c",
+      "bytes": 493,
+      "includedInHermesBundle": true
+    },
+    {
+      "archivePath": "builds/meriv2-orchestrator/build.log",
+      "sha256": "f957e81f4e9968f5847c2813046f30bf51d104d5fe16c1172f158547dae20d61",
+      "bytes": 766564,
+      "includedInHermesBundle": false
+    },
+    {
+      "archivePath": "builds/meriv2-orchestrator/buildspec.json",
+      "sha256": "2c385ca184bb7dd65770573eba645ccae735387019c4aea623aebe142e4acc7a",
+      "bytes": 12525,
+      "includedInHermesBundle": true
+    },
+    {
+      "archivePath": "builds/meriv2-orchestrator/launch-intent.json",
+      "sha256": "fcdc32d80b49862351b6c6290507292fc40ab78148df9ded15cc41f82075c25d",
+      "bytes": 790,
+      "includedInHermesBundle": true
+    },
+    {
+      "archivePath": "schema/cleanup.json",
+      "sha256": "a7a0dd53aca6f0bac5bb6de5fa5c8caacf11e74c881e407bf57af5a69a742a72",
+      "bytes": 361,
+      "includedInHermesBundle": true
+    },
+    {
+      "archivePath": "schema/definition-registered.json",
+      "sha256": "a90c8272054de70642e76ace2dfa4e5ec9c85f05b9141dfadc4ad448ec0b5c95",
+      "bytes": 164,
+      "includedInHermesBundle": true
+    },
+    {
+      "archivePath": "schema/intent.json",
+      "sha256": "977ea0c980fb85e9fcd2132f9d03c691078432fa4a2369df90c7d61aab974d66",
+      "bytes": 557,
+      "includedInHermesBundle": true
+    },
+    {
+      "archivePath": "schema/journal-preserved.json",
+      "sha256": "60ad10d5db4da943317b1681f443d9cbba6e33056c659dacd967f38ecd34f3d3",
+      "bytes": 104,
+      "includedInHermesBundle": true
+    },
+    {
+      "archivePath": "schema/log-transport-pages.json",
+      "sha256": "f2d9a5ac196b81f55986edb7025eb658809eb585d55747f8bd23af86670efb80",
+      "bytes": 709,
+      "includedInHermesBundle": true
+    },
+    {
+      "archivePath": "schema/readback-transport.json",
+      "sha256": "d35aa4814c68cb06c834d755da290b5e1d7b81ba49fdcda359fbe4f1495b6a88",
+      "bytes": 134,
+      "includedInHermesBundle": true
+    },
+    {
+      "archivePath": "schema/result.json",
+      "sha256": "a05619c749031e375a83132495ff6fbeb0df717460ecb853c38de77fb82a9761",
+      "bytes": 2160,
+      "includedInHermesBundle": true
+    },
+    {
+      "archivePath": "schema/schema-proof.json",
+      "sha256": "49415c213e4c74c8f8fd46753319ac1287f378410383a07e197614f59efd4118",
+      "bytes": 892,
+      "includedInHermesBundle": true
+    },
+    {
+      "archivePath": "schema/task-start.json",
+      "sha256": "16932ce59e0ae75c2ac52e1014c3ff8ae0e0218752a3cafea6bc047eeb6bdbef",
+      "bytes": 350,
+      "includedInHermesBundle": true
+    }
+  ],
+  "omittedFullLogs": "Full originals independently hash-checked; verbatim line evidence and full SHA/bytes supplied. No other archive files omitted."
+}

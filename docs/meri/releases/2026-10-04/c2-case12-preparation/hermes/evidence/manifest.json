@@ -1,0 +1,371 @@
+{
+  "kind": "case12-primary-source-excerpts",
+  "at": "2026-10-04T07:41:15.529206+00:00",
+  "sourceHead": "945179d44223882f9fe1da2fb4e41213bf5813c2",
+  "preparationOnly": true,
+  "liveAuthorityGranted": false,
+  "files": [
+    {
+      "path": "docs/meri/implementation/01-Meri-Foundation-Closeout-Plan-2026-10-02.md",
+      "absolutePath": "C:/dev/main/meri-c1-20261002/docs/meri/implementation/01-Meri-Foundation-Closeout-Plan-2026-10-02.md",
+      "sourceBytes": 44388,
+      "sourceSha256": "10f32a3af65196d41dd7ae890f88839657bc8a25fbeaa4639065e73adca4722d",
+      "ranges": [
+        [
+          66,
+          85
+        ],
+        [
+          101,
+          128
+        ]
+      ],
+      "excerptSha256": "da01483a4a8f6bb1d09ed36142e28737713f76e7943ce6a6730d36c57002ec51"
+    },
+    {
+      "path": "evals/meri/live-v1/source/appendix-f.md",
+      "absolutePath": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/source/appendix-f.md",
+      "sourceBytes": 28776,
+      "sourceSha256": "987c7417a12e1f3718db969c2519324f804fe55f4ee7d6673307b6621d98dfda",
+      "ranges": [
+        [
+          1,
+          19
+        ],
+        [
+          31,
+          44
+        ]
+      ],
+      "excerptSha256": "9ec5b836c3197262870bed8cfa2cccaaf1327e96fe6b7bf339fba84dedc57702"
+    },
+    {
+      "path": "evals/meri/live-v1/fixture.mjs",
+      "absolutePath": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/fixture.mjs",
+      "sourceBytes": 17294,
+      "sourceSha256": "8915e19424520a2f97b9cd5a389fcf4b39f2823f0526573ffd04a1dfe0fbc398",
+      "ranges": [
+        [
+          99,
+          108
+        ]
+      ],
+      "excerptSha256": "d3ca0ea6d938375f32a06a0bfb3a4676dccd6cd3a8e7cd0374555872420fe383"
+    },
+    {
+      "path": "evals/meri/live-v1/deterministic-predicates.mjs",
+      "absolutePath": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/deterministic-predicates.mjs",
+      "sourceBytes": 24833,
+      "sourceSha256": "eae567c091417837bdb171c10b714003aa56f1ee60e4a7b1d5153124ff58cff4",
+      "ranges": [
+        [
+          238,
+          264
+        ]
+      ],
+      "excerptSha256": "d9b887214f24f4b711fb1d212b712cdff5a542850642daf32610e556b5399546"
+    },
+    {
+      "path": "evals/meri/live-v1/fixture-provisioning/approved-memory-runtime.md",
+      "absolutePath": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/fixture-provisioning/approved-memory-runtime.md",
+      "sourceBytes": 4617,
+      "sourceSha256": "992ed70916c420f56595db2957e408ada7ff69b17db651eb2219a461e7c2ab9c",
+      "ranges": [
+        [
+          1,
+          80
+        ]
+      ],
+      "excerptSha256": "f7a5a79c125fe030cf5b6b30461e934df54d7939b9a1ae4b47588e0eab505571"
+    },
+    {
+      "path": "evals/meri/live-v1/fixture-provisioning/approved-memory-runtime.mjs",
+      "absolutePath": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/fixture-provisioning/approved-memory-runtime.mjs",
+      "sourceBytes": 14972,
+      "sourceSha256": "b814c5f904594130d0e35bbb0d4a1f49ec77a5f96c1544fcf9e6969784f278ac",
+      "ranges": [
+        [
+          103,
+          185
+        ],
+        [
+          228,
+          301
+        ],
+        [
+          348,
+          383
+        ]
+      ],
+      "excerptSha256": "35193298ee7740e8d1b57241ca9c26920f6df628bcf84766fa7c6185f132777d"
+    },
+    {
+      "path": "docs/meri/implementation/01-continuation-2026-09-30.md",
+      "absolutePath": "C:/dev/main/meri-c1-20261002/docs/meri/implementation/01-continuation-2026-09-30.md",
+      "sourceBytes": 15394,
+      "sourceSha256": "7deb31a21f4d767eef01e53b178396671f2a8b82bb66826be6759f402e0802f8",
+      "ranges": [
+        [
+          31,
+          37
+        ],
+        [
+          79,
+          86
+        ]
+      ],
+      "excerptSha256": "12ec88736f5d6e8d1c744ce85a6396fe909bd10ee8c30936043b6dd5b9d70d6a"
+    },
+    {
+      "path": "evals/meri/live-v1/fixture-provisioning/manifest.mjs",
+      "absolutePath": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/fixture-provisioning/manifest.mjs",
+      "sourceBytes": 20549,
+      "sourceSha256": "8f1276ef0aaaef9b648bb1cbd0a037ee7d11d0a78db9691ab4de70b3b5db667a",
+      "ranges": [
+        [
+          110,
+          115
+        ],
+        [
+          137,
+          151
+        ],
+        [
+          184,
+          188
+        ],
+        [
+          267,
+          282
+        ]
+      ],
+      "excerptSha256": "78efc0659b258730bbf4aa6ca500b0cffcda97b82e6989ef48c3bbdf03abf203"
+    },
+    {
+      "path": "evals/meri/live-v1/case01-live-capture.mjs",
+      "absolutePath": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/case01-live-capture.mjs",
+      "sourceBytes": 25051,
+      "sourceSha256": "9872ee2fb91b05547030331dd22258727bb6fbcf13537f6e3d94b6fd9f325a83",
+      "ranges": [
+        [
+          23,
+          58
+        ],
+        [
+          160,
+          175
+        ],
+        [
+          502,
+          520
+        ],
+        [
+          680,
+          690
+        ]
+      ],
+      "excerptSha256": "496b148ddc17f30064f4aa76fb674c2fdb8521fb8f1d4bcb8f722d7b569b4781"
+    },
+    {
+      "path": "evals/meri/live-v1/controlled-read-live-capture.mjs",
+      "absolutePath": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/controlled-read-live-capture.mjs",
+      "sourceBytes": 25015,
+      "sourceSha256": "e22e8d6022053a685276468710bb8521ae516ac21b7fabf995cc60b07e04ca63",
+      "ranges": [
+        [
+          30,
+          45
+        ]
+      ],
+      "excerptSha256": "5b22d8c92c18fe17bdf5748e007b3a650ce11bb7773dbfd4388a2e248f1263e6"
+    },
+    {
+      "path": "evals/meri/live-v1/fixture-provisioning/controlled-read-owner.mjs",
+      "absolutePath": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/fixture-provisioning/controlled-read-owner.mjs",
+      "sourceBytes": 12977,
+      "sourceSha256": "da36d0a71b88731270dd6cfcea054f08740f49450f4d5551426b51af784e483f",
+      "ranges": [
+        [
+          18,
+          38
+        ]
+      ],
+      "excerptSha256": "c59bc1744f55fc6a38cdbc4cabf2692f94d0282e7cd5400e438bdb64bd6033a8"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/server-readonly-capture.ts",
+      "absolutePath": "C:/dev/main/meri-c1-20261002/packages/meriv2-core/src/context/server-readonly-capture.ts",
+      "sourceBytes": 8607,
+      "sourceSha256": "3d924a36100fb601bf943acbbb991f49bea37b91aec2d9dabf1e3c76f4f8ee3a",
+      "ranges": [
+        [
+          11,
+          46
+        ]
+      ],
+      "excerptSha256": "b31a10a346e1accccb8cae066677586f9fe5ef0a0967c2488bdbe87434066310"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/memory-capture-source.ts",
+      "absolutePath": "C:/dev/main/meri-c1-20261002/packages/meriv2-core/src/context/memory-capture-source.ts",
+      "sourceBytes": 8692,
+      "sourceSha256": "63b501da79d2f26454ff9050a56137df27fdaa9a7706ea9fcc9f94f3ac1dd30a",
+      "ranges": [
+        [
+          108,
+          145
+        ]
+      ],
+      "excerptSha256": "af4b9689f9887f558c788f6d56e06775fc85568059ca77bae94b3f79585ca036"
+    },
+    {
+      "path": "apps/api/src/meri/meri-capture-semantic-clock.ts",
+      "absolutePath": "C:/dev/main/meri-c1-20261002/apps/api/src/meri/meri-capture-semantic-clock.ts",
+      "sourceBytes": 4133,
+      "sourceSha256": "9e3a7ed2a76ed98e0dafc4d47f489e6a53d5590e7a8a09a8813b77fd9cf2737c",
+      "ranges": [
+        [
+          20,
+          86
+        ]
+      ],
+      "excerptSha256": "03481377f2ff2a4ea5fc22da76b4e6096988fd6d2eb26e35c545522c789c2a47"
+    },
+    {
+      "path": "apps/api/src/meri/meri-capture-policy-readback.ts",
+      "absolutePath": "C:/dev/main/meri-c1-20261002/apps/api/src/meri/meri-capture-policy-readback.ts",
+      "sourceBytes": 7784,
+      "sourceSha256": "3858a6f7d7212fc8f9de31f1ed165e742269db5e94a9fad37b4398f401c04e07",
+      "ranges": [
+        [
+          53,
+          72
+        ]
+      ],
+      "excerptSha256": "0e3206e189de535ea3b8af53bd146bc8b7f2f1e0a2dc0eb66f6842ff51407c20"
+    },
+    {
+      "path": "apps/api/src/meri/meri-capture-clock-packets.ts",
+      "absolutePath": "C:/dev/main/meri-c1-20261002/apps/api/src/meri/meri-capture-clock-packets.ts",
+      "sourceBytes": 6712,
+      "sourceSha256": "69827fd74b2abccdc2d1910cc5588032342acac311487a7b6854fb3629d3b455",
+      "ranges": [
+        [
+          20,
+          46
+        ]
+      ],
+      "excerptSha256": "161f3445a7d4d6ddebe38f177f54d9ca13de0de9b77f4d2d01a7082a28c01cd0"
+    },
+    {
+      "path": "apps/api/src/meri/meri-capture-provider-budget.ts",
+      "absolutePath": "C:/dev/main/meri-c1-20261002/apps/api/src/meri/meri-capture-provider-budget.ts",
+      "sourceBytes": 11934,
+      "sourceSha256": "29e6ab4ed50291a2626c132c8298ae0fb93eeac3d6a9f9f3d8c4953a56df614e",
+      "ranges": [
+        [
+          70,
+          97
+        ]
+      ],
+      "excerptSha256": "601d9152781c0c6769dbbea30190be7e05a711d1d9acef8ec8beb8eaf2d0587c"
+    },
+    {
+      "path": "apps/api/src/meri/meri-capture-provider-budget-install.ts",
+      "absolutePath": "C:/dev/main/meri-c1-20261002/apps/api/src/meri/meri-capture-provider-budget-install.ts",
+      "sourceBytes": 8344,
+      "sourceSha256": "cec72704ca51409ced548a1acc9da37ac285d75b4b30f7b95950991f3d3ab82a",
+      "ranges": [
+        [
+          97,
+          144
+        ]
+      ],
+      "excerptSha256": "3c34a5a82f44e7481da3526e737a434a2b75ae282ae55347ded308294dd8696b"
+    },
+    {
+      "path": "apps/api/src/meri/meri-capture-api-provider-scope.ts",
+      "absolutePath": "C:/dev/main/meri-c1-20261002/apps/api/src/meri/meri-capture-api-provider-scope.ts",
+      "sourceBytes": 4381,
+      "sourceSha256": "902572b670a3f102b41c4b02ee0486346a497fe5ebe3b8afbbd6921b2182d019",
+      "ranges": [
+        [
+          1,
+          65
+        ]
+      ],
+      "excerptSha256": "6823b8797f083d5245b269c2b635350f7725639cd32003e55399cfcd67b4c988"
+    },
+    {
+      "path": "evals/meri/live-v1/capture-spend-aggregate.mjs",
+      "absolutePath": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/capture-spend-aggregate.mjs",
+      "sourceBytes": 25625,
+      "sourceSha256": "2a7ad0acb1ca83b2f965f4f09375880cc3fc95afdff0a49bf3d138fbc025f433",
+      "ranges": [
+        [
+          214,
+          252
+        ]
+      ],
+      "excerptSha256": "fbc4c32bbdbf5edd62146a0032339883df26b8c062662cfbc76a9bddb8dcdf75"
+    },
+    {
+      "path": "evals/meri/live-v1/lib/windows-capture-spend.py",
+      "absolutePath": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/lib/windows-capture-spend.py",
+      "sourceBytes": 31942,
+      "sourceSha256": "9bf4efe4ebf8706e66ed48a58fe2cc5e68a73f6492831f6d28e91e73d8507e10",
+      "ranges": [
+        [
+          12,
+          21
+        ],
+        [
+          217,
+          259
+        ]
+      ],
+      "excerptSha256": "0db14c53f3418127212d3a3e9037ecb72c99f03f3a8601c7fed853c0f8cb0ff1"
+    },
+    {
+      "path": "apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.ts",
+      "absolutePath": "C:/dev/main/meri-c1-20261002/apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.ts",
+      "sourceBytes": 36320,
+      "sourceSha256": "bde82251b71fb7d2e86fee9d6928bd4b3fc686b4385f16be19057c864817b819",
+      "ranges": [
+        [
+          140,
+          226
+        ],
+        [
+          667,
+          728
+        ]
+      ],
+      "excerptSha256": "283a4988e32bffa8e2f8e08c02fead3490198aff3a573381ca52da2fb2999692"
+    },
+    {
+      "path": "apps/api/src/meri/meri-memory-content.helpers.ts",
+      "absolutePath": "C:/dev/main/meri-c1-20261002/apps/api/src/meri/meri-memory-content.helpers.ts",
+      "sourceBytes": 5709,
+      "sourceSha256": "269859235ff3a5d1427f0448c366884b4b4d072e6c84f902059ed24edb567a2b",
+      "ranges": [
+        [
+          17,
+          39
+        ],
+        [
+          77,
+          134
+        ]
+      ],
+      "excerptSha256": "ab54b55203ab84c71f007fbb8d3de68c827f48f8d738368b60f92b35438dde83"
+    },
+    {
+      "path": "docs/meri/releases/2026-10-04/c2-case14-approved-failed-recall/case14-terminal-cost-finalization-v2/executed-once/result.json",
+      "absolutePath": "C:/dev/main/meri-c1-20261002/docs/meri/releases/2026-10-04/c2-case14-approved-failed-recall/case14-terminal-cost-finalization-v2/executed-once/result.json",
+      "sourceBytes": 599,
+      "sourceSha256": "3d32560aa9e725249db594b4cff6547dcba95fc82188e8d6858d0d9f7459391a",
+      "copiedAs": "actual-event26-cost-closure.json"
+    }
+  ]
+}

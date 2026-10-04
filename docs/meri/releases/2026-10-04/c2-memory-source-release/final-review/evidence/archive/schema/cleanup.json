@@ -1,0 +1,9 @@
+{
+  "at": "2026-10-04T07:38:06.555Z",
+  "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/f1f7927d5466475991b1462fb4de6b08",
+  "taskStopped": true,
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-c2-memory-source-schema-20261004:1",
+  "status": "INACTIVE",
+  "cleanupErrors": [],
+  "cleanupComplete": true
+}
