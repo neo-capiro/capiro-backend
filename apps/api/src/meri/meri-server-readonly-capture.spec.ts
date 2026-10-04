@@ -1209,6 +1209,25 @@ describe('server-owned read-only acceptance capture boundary', () => {
     );
   });
 
+  test('Case12 receipt readback binds the separate completed setup without promoting capture', () => {
+    const current = policy({caseId: '12', turnId: 'message-user', resetReceiptId: null, seedReceiptId: null,
+      captureRunId: '33333333-3333-4333-8333-333333333333', case12Setup: {
+        setupRunId: '11111111-1111-4111-8111-111111111111', fixtureInstanceId: '22222222-2222-4222-8222-222222222222',
+        setupPlanSha256: 'a'.repeat(64), setupClaimSha256: 'b'.repeat(64), setupLedgerSha256: 'c'.repeat(64),
+      }});
+    const envelope = buildApiOnlyMeriServerCaptureEvidence({policy: current, userMessageId: 'message-user',
+      assistantMessageId: 'message-assistant', citations: [], usage: null, secret: SECRET});
+    expect(validateMeriCapturePolicyPair(current, envelope)).toEqual(current);
+    expect(envelope.receipt.status).toBe('BLOCKED');
+    expect(envelope.receipt.fixture.case12Setup?.value).toEqual(current.case12Setup);
+    const changed = structuredClone(envelope.receipt);
+    changed.fixture.case12Setup!.value!.setupLedgerSha256 = 'd'.repeat(64);
+    expect(() => validateMeriCapturePolicyPair(current, signMeriCaptureEvidenceReceipt(changed, SECRET))).toThrow('policy_readback_denied');
+    const missing = structuredClone(envelope.receipt); delete missing.fixture.case12Setup;
+    expect(() => validateMeriCapturePolicyPair(current, signMeriCaptureEvidenceReceipt(missing, SECRET))).toThrow('policy_readback_denied');
+    expect(() => validateMeriCapturePolicyPair({...current, caseId: '14'}, envelope)).toThrow('policy_readback_denied');
+  });
+
   test('clock readback allows only the exact field and independently matches the receipt binding', () => {
     const current = policy({ turnId: 'message-user', fixtureVersion: 'meri-live-v1-2026-09-26.1',
       captureRunId: '11111111-1111-4111-8111-111111111111' });

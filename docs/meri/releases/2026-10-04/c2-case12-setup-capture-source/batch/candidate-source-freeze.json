@@ -1,0 +1,42 @@
+{
+  "kind": "case12-batch-candidate-source-freeze",
+  "scope": "OUTPUT_ONLY_NO_LIVE_AUTHORITY",
+  "frozenAt": "2026-10-04T11:54:52.9321539Z",
+  "files": [
+    {
+      "path": "apps/api/scripts/meri-case01-setup-dependencies.mjs",
+      "sha256": "18905be36fa4c2873485379ebbebaaefdc23d336afe73cc8d8e4998fcbcd1778",
+      "bytes": 11048
+    },
+    {
+      "path": "apps/api/src/memory/case12-synthetic-approved-memory-set.read.ts",
+      "sha256": "59cbbdbf30adae760874ac3e49888904559c5b4eeadfc7aeab96f5317113cf97",
+      "bytes": 16316
+    },
+    {
+      "path": "apps/api/src/memory/memory-authorization.service.ts",
+      "sha256": "65331cb6735a79d8589bee389c3b2ebba1bd088ef89ec10c71f864bbe6699320",
+      "bytes": 12831
+    },
+    {
+      "path": "apps/api/src/memory/synthetic-approved-memory.helpers.ts",
+      "sha256": "8451534ad56fdda936c7ce5c1961c68e0172d61ab2be45872e6d1b93da21ba22",
+      "bytes": 13474
+    },
+    {
+      "path": "evals/meri/live-v1/fixture-provisioning/case12-memory-current-owner.mjs",
+      "sha256": "8707b5598f861048eda384168c4da5e6230343891280fd2c833ad1fbaff2b529",
+      "bytes": 25222
+    },
+    {
+      "path": "evals/meri/live-v1/fixture-provisioning/case12-memory-inventory-owner.mjs",
+      "sha256": "aca6c6a9185d2d3fbc71b8a17971bd433e005b90327218cb4fdee5858e6b33e2",
+      "bytes": 18411
+    },
+    {
+      "path": "evals/meri/live-v1/fixture-provisioning/case12-memory-setup.mjs",
+      "sha256": "81ff660984df31d841f551d559eefde8af67ba1bd0d12dca3fc1ca128c5c0a31",
+      "bytes": 36481
+    }
+  ]
+}

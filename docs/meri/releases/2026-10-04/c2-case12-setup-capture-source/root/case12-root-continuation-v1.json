@@ -1,0 +1,420 @@
+{
+  "schemaVersion": 1,
+  "kind": "meri-case12-root-continuation-checkpoint",
+  "observedAt": "2026-10-04T11:35:01.577Z",
+  "branch": "codex/meri-c2-case12-capture-20261004",
+  "head": "041f2164dbd26382cced1e0c8a66b640c635ddf0",
+  "sourcePins": [
+    {
+      "path": "C:/dev/main/meri-c1-20261002/apps/api/Dockerfile",
+      "bytes": 12944,
+      "sha256": "911845ea4ad62fe8fadaeab26a1ff9f82e8e7c641c697303793bed4d31d71515"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/apps/api/scripts/meri-case12-setup-plan.mjs",
+      "bytes": 2125,
+      "sha256": "b41e9e4da07764517adca213983497b60919f853c7084091ff239ae6aac0c3d7"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/apps/api/scripts/meri-operator-json-input.mjs",
+      "bytes": 1535,
+      "sha256": "1f169000281a68f3c1290242082d4e3fd8f9a276da3accfc9007d7e822904fb3"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/apps/api/src/embeddings/titan-embedding.provider.ts",
+      "bytes": 7471,
+      "sha256": "288c831794e0afceb8d6ca52780e61738cc55edb0d3a0a706872f3ba71ba0465"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/apps/api/src/memory/case12-setup-terminal.read.spec.ts",
+      "bytes": 3434,
+      "sha256": "cded949ec661e06d8431d4159f767608e03813f219d56a16c2698b85d22a6d90"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/apps/api/src/memory/case12-setup-terminal.read.ts",
+      "bytes": 11615,
+      "sha256": "5f3894aacd7a10cdc4bbd5d23617088bc5c5c20b2f9ae0602b394d24e48bfcbc"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/apps/api/src/memory/memory-candidate.service.ts",
+      "bytes": 41455,
+      "sha256": "45c3ebf00a2f42795fb27a299d1a0d028cb6b03dd5f091de7768e920ebbdb46d"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/apps/api/src/meri/meri-capture-api-provider-scope.ts",
+      "bytes": 4582,
+      "sha256": "29c100968be01e52dd9086721616ea3c144ff5b2a69ce181481be93c806a9c6e"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/apps/api/src/meri/meri-capture-clock-packets.ts",
+      "bytes": 7014,
+      "sha256": "5a6cb60226638b44438bbb178d58ea99819c190ebd2ce10eeead080bc528e473"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/apps/api/src/meri/meri-capture-policy-readback.ts",
+      "bytes": 8259,
+      "sha256": "8c2eb732085488283ce2530b1e460d6114e5209d9ea79310e3e2756237992928"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/apps/api/src/meri/meri-capture-provider-budget-install.ts",
+      "bytes": 9279,
+      "sha256": "830987f41650571817c23d52c7de06818993365af2516a3d704bc9158b33e289"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/apps/api/src/meri/meri-capture-provider-budget-owner.ts",
+      "bytes": 8531,
+      "sha256": "2b185dd9844b90e05a4d0b681ecb50670770a2baac41c9fb94cc8f3b33b9e7d4"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/apps/api/src/meri/meri-capture-provider-budget.ts",
+      "bytes": 12165,
+      "sha256": "35e935dde156f1d1794d9c23cc3594ef3cca7171f5a3e4376e6c80cd8e36fe8a"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/apps/api/src/meri/meri-capture-semantic-clock.ts",
+      "bytes": 4346,
+      "sha256": "ec36f0b1215101c406ef38d4b9db589d8bf09586178f151edb81991546c28975"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/apps/api/src/meri/meri-case12-capture-authority.ts",
+      "bytes": 9082,
+      "sha256": "3d2dc0b7be36facb0673b98d5b6bd3e25cea3cd1a5f6423a896a5a470fcc7b5a"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/apps/api/src/meri/meri-case12-capture-budget.spec.ts",
+      "bytes": 4883,
+      "sha256": "998fdaa876b6bfb1be20bc6d92908704228746b967353e2c52b8873fc4c0298c"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/apps/api/src/meri/meri-case12-capture-install.ts",
+      "bytes": 4387,
+      "sha256": "dd4283ce9748190b545a76f941c53082c6c7e4927ab6468aae35a9aeb5a6ed51"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/apps/api/src/meri/meri-case12-capture-readback.spec.ts",
+      "bytes": 9461,
+      "sha256": "cf6728ae9fb2d6faadf7619de4c73528a0decac7d15bd084992916d8f8b5e4db"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/apps/api/src/meri/meri-case12-capture-readback.ts",
+      "bytes": 6458,
+      "sha256": "496fb5390774ce93843eab647d05260d04fcec8989df980ddbd4444164e8de56"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/apps/api/src/meri/meri-case12-clock-composition.spec.ts",
+      "bytes": 8120,
+      "sha256": "d15739288cfb3e5718b5265bb9a889af5959883843cd213a8f8ca8eefd703990"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/apps/api/src/meri/meri-case12-setup-budget-owner.ts",
+      "bytes": 26065,
+      "sha256": "46f4fb5ca4426bf74bf5e759bd40e2621e8582a873f2e460c024847d97f088a8"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/apps/api/src/meri/meri-case12-setup-budget.spec.ts",
+      "bytes": 9045,
+      "sha256": "340a2157e903446cd45252e57de6f0371c05efa948aef1ee2d8b9e843d25ebe5"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/apps/api/src/meri/meri-case12-setup-budget.ts",
+      "bytes": 15809,
+      "sha256": "785da5e7945f13675b1f64df613792f9541225a9c68236bef372c02d401c96ab"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/apps/api/src/meri/meri-case12-setup-completion.read.ts",
+      "bytes": 6725,
+      "sha256": "88381c1dbe356e106b537340218278c10eb6542f8bce7ea81b1215d2707560cc"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/apps/api/src/meri/meri-case12-setup-provider-scope.spec.ts",
+      "bytes": 10489,
+      "sha256": "8c8b2a7bd0a5fe69c1095e2427795666dcc364873d0cca840141f069fc27a64c"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/apps/api/src/meri/meri-case12-setup-provider-scope.ts",
+      "bytes": 3726,
+      "sha256": "e66fbcc3e619168eade0ebc3d50d26435304af74255e6438faefc457a41ad4e5"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/apps/api/src/meri/meri-context-plane.service.ts",
+      "bytes": 53919,
+      "sha256": "1c2d4c926248d21be66e38b18580d118285da972ae2c0679f4ac86897693db1b"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/apps/api/src/meri/meri-context-plane.tools.spec.ts",
+      "bytes": 23486,
+      "sha256": "f2d7ecdf1463bc71a8fc4f17ec904291551b0aeb42133c5833d8633c4d30a001"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/apps/api/src/meri/meri-research-tool-budget.ts",
+      "bytes": 33086,
+      "sha256": "5e8f03eaaf8d14a5a2076ed95cb9dc228fe9ad1f0733145806b987b5ddb92978"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/apps/api/src/meri/meri-server-capture-evidence.ts",
+      "bytes": 10260,
+      "sha256": "0042d05130426cb9c7ba39ae7897a273cc158fb6d3421500d583a69c34d15a96"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/apps/api/src/meri/meri-server-readonly-capture.spec.ts",
+      "bytes": 48968,
+      "sha256": "412c7635ea65d2ce63fe3e26baad626353bfa5dec1ec1b42702d17ed68ecadd2"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/apps/api/src/meri/meri-server-readonly-capture.ts",
+      "bytes": 21904,
+      "sha256": "7b2860346cd4869ebed894c2b610a97f1da6fd952c1e5b7c697a7f26b05ff39b"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/apps/api/src/meri/meri-tools.case12-execute.spec.ts",
+      "bytes": 9774,
+      "sha256": "e78c801cef9e5e43a62c5ad67a3ae32061b85528a23a1284fd5827443cc0b4c9"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/apps/api/src/meri/meri-tools.memory-capture-source.spec.ts",
+      "bytes": 12281,
+      "sha256": "acfc2cac1ae7dd74640cf2f6bac5ae8d32f4c045ecdf511113ed36e2c2afa3e7"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/apps/api/src/meri/meri-tools.service.ts",
+      "bytes": 408665,
+      "sha256": "be1b608fe47a17330c10b3c65d392f8b13737a2ba0de49501902c8fca629ea25"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/apps/api/src/meri/meri.service.ts",
+      "bytes": 298152,
+      "sha256": "6ba4ac947f075e72106f8e1f083c6ce77b8b740466ae0cdb9dd6e04477882e29"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts",
+      "bytes": 36076,
+      "sha256": "94cfc3cc79a8aac8e3aa92ef4502e97a81f4d1e85de6ca4f97c14a3a04cbe988"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/apps/meriv2-orchestrator/src/meri/controlled-read-observations.ts",
+      "bytes": 15618,
+      "sha256": "487bc5edee20fed19994c24d3d6995dd142b8583d9ea962e39b63ae5423d136b"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/apps/meriv2-orchestrator/src/meri/meriv3/meriv3-capture-evidence.ts",
+      "bytes": 12032,
+      "sha256": "b74f0f3bb845111049a8a09c5d98091d53d3dffa52bb165e1448b208814083b2"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/apps/meriv2-orchestrator/src/request/trusted-current-turn-scope.ts",
+      "bytes": 4557,
+      "sha256": "6c52cb35108bbcd080da42c084c92be146087cddb468f1b407e994327060c50f"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/docs/meri/implementation/01-handover.md",
+      "bytes": 16414,
+      "sha256": "9950c17b1cb588a6e2e0197b65baf8943568228dba4e8c80720327d0db74cd70"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/docs/meri/implementation/01-requirements.md",
+      "bytes": 55750,
+      "sha256": "0e657eec573e6b4e4fd22462c5f0adb1dfe7253bd3fd046643bc806b78da0ffc"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/docs/meri/implementation/STATUS.md",
+      "bytes": 8434,
+      "sha256": "b22cc8554289b60462e2fdc6a97ec70553eee2951743ea42e24c8c0aaf35f228"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/fixture-provisioning/case12-memory-current-owner.mjs",
+      "bytes": 23151,
+      "sha256": "272e0759fb6e5f3aafb613e20874828060ce533f241315ff22f391810f6ee2e6"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/fixture-provisioning/case12-memory-setup.mjs",
+      "bytes": 34967,
+      "sha256": "ba5ca5dc5aa33171ce8236b27e7116eceba2617fdd616b5c9626f5a6cf4b905d"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/fixture-provisioning/case12-setup-budget-plan.mjs",
+      "bytes": 5668,
+      "sha256": "1ca0ec48fc645352c78dd7201f80d0a47e06b33aa46dbcc2db5a0e7dfd0b0f80"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/lib/windows-capture-spend.py",
+      "bytes": 37440,
+      "sha256": "5849b4edd89c429ebbc9b9d0e82f0726640683c994f9141d5fef7fc24569c2a3"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/case12-memory-setup.test.mjs",
+      "bytes": 4960,
+      "sha256": "b93d8b1486f6b98729ac9d3ec2c75c3e63294704d1d5c4cc82ff80a1fc782dc5"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/case12-setup-budget-plan.test.mjs",
+      "bytes": 6943,
+      "sha256": "d78d360e2c53c3b83e7e0bc034accb9220465b0320635af3f1a61ba6417cc02d"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/case12-setup-spend.unit.py",
+      "bytes": 9660,
+      "sha256": "932d1cea9ddbd0402a702779fbf28ba1591d55554db87ddd9c67f97fcb72ac11"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/packages/meriv2-core/src/context/capture-evidence-receipt.spec.ts",
+      "bytes": 30264,
+      "sha256": "f7cb9acdd7c944fa269e4cff2ed4092c5d20d445dc63ae6c0fc09371bdb6a961"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "bytes": 25968,
+      "sha256": "d9c324d9504eaa97a9e54e472e89422363840f7711a3ff969142680c83b99c6b"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/packages/meriv2-core/src/context/case12-setup-binding.spec.ts",
+      "bytes": 4203,
+      "sha256": "dd421900257d14ea95a11c2db26f16509467dd2930dcf734f49a836d5b03142d"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/packages/meriv2-core/src/context/case12-setup-binding.ts",
+      "bytes": 2282,
+      "sha256": "b962ec4db5e3050c817133a6c1480a35174e923d6fdca57556db90ee8be87170"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/packages/meriv2-core/src/context/governed-evidence-auth.spec.ts",
+      "bytes": 14413,
+      "sha256": "31ae1b3b69e88b6e48f8785b3b6159845902e7daf610da5b2a096d9b5982c25c"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/packages/meriv2-core/src/context/governed-evidence-auth.ts",
+      "bytes": 5425,
+      "sha256": "76f1f5865eb2672aeab198da78e84e22007f9cb3a08286b8e0d9cb2e8de73a19"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/packages/meriv2-core/src/context/memory-capture-source.spec.ts",
+      "bytes": 7944,
+      "sha256": "a81cccf9c0cf66a749da79c98b6202337a8d45c44f3fb3290928ae558277f9ba"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/packages/meriv2-core/src/context/memory-capture-source.ts",
+      "bytes": 8942,
+      "sha256": "e27af6aa57f515b5c67138bf1944002d9561ca270dee97fda9331e4ed26461ac"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/packages/meriv2-core/src/context/semantic-clock.spec.ts",
+      "bytes": 1844,
+      "sha256": "9b7d7db022682068ff9ac7a374db2e3f43d8d47b40ca5815eb823d6539441f79"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/packages/meriv2-core/src/context/server-readonly-capture.ts",
+      "bytes": 8819,
+      "sha256": "616ebe8aabe11560b890c116c1d0b00691f57e91b19ba2aac2f1805272fcffd8"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/packages/meriv2-core/src/index.ts",
+      "bytes": 4152,
+      "sha256": "4aada17320ad93c5e75849ac23dd1a6ac41f43f251304ac1a416fbd804c7b41e"
+    }
+  ],
+  "checks": [
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-integrated-core-v1.log",
+      "bytes": 601,
+      "sha256": "113cbd83d0dd752cfcdfea4997e45fe9492ac71cbf5ac11b1909cc5d4df5d83d",
+      "scope": "191 tests / 5 suites; integrated provenance and behavior"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-integrated-api-v1.log",
+      "bytes": 20813,
+      "sha256": "0849ab7d58b6ab09a36df6d98b17b7bf45812affcfcc02126e2847e4ec4c0d40",
+      "scope": "103 tests / 5 suites; integrated API behavior (later test-only typing fixes)"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-integrated-orchestrator-v1.log",
+      "bytes": 5252,
+      "sha256": "eba28e2178c8cb7390b0ec1f38a870b9111e658aa1a56e9f72685672442f4c12",
+      "scope": "45 tests / 1 suite; actual local HTTP/HMAC observation boundary"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-integrated-typecheck-v1.log",
+      "bytes": 4164,
+      "sha256": "dd16e65b2180181b569693e0bfe4c331f30e055deed54c0a13188c0cca8acc7a",
+      "scope": "FAIL retained: test-only typing defects; no product diagnostic"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-integrated-api-typecheck-v2.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "scope": "PASS exit 0 after type-only repairs; before root readback/install"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-integrated-orchestrator-typecheck-v1.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "scope": "PASS exit 0"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-integrated-test-repairs-v2.log",
+      "bytes": 1617,
+      "sha256": "ac251310f510b8c21d0635e0efc42159f07339abcc07b6fbc4a7c1ea604b9c1b",
+      "scope": "28 tests / 3 suites; corrected fixtures"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-readback-tests-v1.log",
+      "bytes": 8231,
+      "sha256": "d63ff92ed01cd8c0a57ce5dfec7fe24187b7f2c6c8d594442793e38b9fb1145c",
+      "scope": "64 tests / 3 suites; new20 readback tests plus existing39/5"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-readback-typecheck-v1.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "scope": "PASS exit 0 after readback addition"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-capture-install-typecheck-v1.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "scope": "PASS exit 0 after current-corpus refactor and operator install source"
+    }
+  ],
+  "reviews": [
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-behavior-independent-hermes-v2/independent-assessment.json",
+      "bytes": 6864,
+      "sha256": "9ed752035285a915c233e1566fc9214fda09d23132383561b367da14fb54c28f"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-factory-execute-independent-review-v1/independent-assessment.json",
+      "bytes": 3680,
+      "sha256": "ed34bf67a6b9acd90a7be9e7e90867b3104a628046122105d41a29a14db9a676"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-completion-capture-independent-hermes-v2/independent-assessment.json",
+      "bytes": 11675,
+      "sha256": "1d18055203c3b50dab9da06ffb4491f1d731db6ff1c710a1692a133f41363712"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-actual-factory-owner-local-v1/final-checkpoint-v1/checkpoint.json",
+      "bytes": 688,
+      "sha256": "ac1209715d31f0a2bd3cbf473b33ce97ec730d92ccec4ebfd7edacf315f1e578"
+    }
+  ],
+  "journal": {
+    "path": "C:/dev/main/outputs/meri-fresh-20261003/fresh-spend.jsonl",
+    "bytes": 17588,
+    "sha256": "816b04a47be56432846d1ee602370c3bea985eb497a7de9e899aee4d53f8b39e"
+  },
+  "limitations": [
+    "Snapshot of current uncommitted source, not immutable release or acceptance.",
+    "Test groups overlap; do not sum them as unique tests.",
+    "The latest root install/refactor has passed full API typecheck but its independent review and native database tests remain pending.",
+    "Actual factory setup510/1020 simulated provider wires completed; final hydration P2028 failed at5012.5ms with normal5s timeout.",
+    "Current corpus/completion/capture native followon NOT_RUN. The private full-state snapshot is excluded and not native authority.",
+    "Core dist rebuilt during loaded factory process; app/dist and owner source pins remained fixed. No full runtime closure immutability claim.",
+    "Original approved API525/orchestrator121 release already complete. No new image, deployment, liveCase12setup, paid app provider call, capture, or journal append.",
+    "Native setup bridge/durable task admission/terminal settlement remain incomplete. No JSON ready flag or injected local proof port is live authority.",
+    "C2 active and unfinished; File01 BLOCKED; human acceptance NOT_RUN."
+  ],
+  "next": [
+    "Qualify batched native reads under default5s and preserve exact SQL/authorization semantics.",
+    "Finish independent install/readback review and native factory reader qualification.",
+    "Finish private Windows reservation and real native ECS admission/settlement composition.",
+    "Archive qualified source/evidence, then use CodeBuild backup shipping for an immutable candidate."
+  ]
+}

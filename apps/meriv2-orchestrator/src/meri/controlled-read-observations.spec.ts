@@ -133,10 +133,14 @@ describe('controlled read actual HTTP observations', () => {
       server = undefined;
     }
   });
-  test.each(['01', '14'])('canonical memory owner joins actual Case%s HTTP bytes without exposing proof to model', async (caseId) => {
+  test.each(['01', '12', '14'])('canonical memory owner joins actual Case%s HTTP bytes without exposing proof to model', async (caseId) => {
     const p = policy(caseId);
     p.fixtureVersion = 'meri-live-v1-2026-09-26.1';
-    p.semanticClock = {version:1,kind:'qualified_original_fixture_semantic_clock',instant:'2026-09-26T16:00:00.000Z',timeZone:'America/New_York',caseId:caseId as '01'|'14',captureRunId:p.captureRunId!,currentVerifySha256:'b'.repeat(64),observedAt:p.issuedAt};
+    p.semanticClock = {version:1,kind:'qualified_original_fixture_semantic_clock',instant:'2026-09-26T16:00:00.000Z',timeZone:'America/New_York',caseId:caseId as '01'|'12'|'14',captureRunId:p.captureRunId!,currentVerifySha256:'b'.repeat(64),observedAt:p.issuedAt};
+    if (caseId === '12') {
+      p.resetReceiptId = null; p.seedReceiptId = null;
+      p.case12Setup = {setupRunId:id(9), fixtureInstanceId:id(8), setupPlanSha256:'a'.repeat(64), setupClaimSha256:'b'.repeat(64), setupLedgerSha256:'c'.repeat(64)};
+    }
     const text = 'Approved Aster source text.', sourceVersion = 'candidate:'+id(9);
     const record = {domain:'institutional_knowledge',recordId:id(8),
       provenance:{source:'memory_items',recordId:id(8),canonicalTenantId:p.tenantId,sourceVersion},

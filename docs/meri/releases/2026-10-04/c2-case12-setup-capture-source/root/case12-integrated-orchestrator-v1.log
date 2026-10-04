@@ -1,0 +1,59 @@
+[Nest] 19068  - 10/04/2026, 7:23:14 AM    WARN [ApiToolExecutorRepo] Delegated read "read_client_documents" -> failed
+[Nest] 19068  - 10/04/2026, 7:23:14 AM    WARN [ApiToolExecutorRepo] Delegated tool "search_memory" -> 503
+[Nest] 19068  - 10/04/2026, 7:23:14 AM    WARN [ApiToolExecutorRepo] Delegated tool "list_memory_proposals" -> 500
+[Nest] 19068  - 10/04/2026, 7:23:14 AM    WARN [ApiToolExecutorRepo] Delegated read "read_client_documents" -> failed
+[Nest] 19068  - 10/04/2026, 7:23:14 AM    WARN [ApiToolExecutorRepo] Delegated read "read_client_documents" -> failed
+[Nest] 19068  - 10/04/2026, 7:23:14 AM    WARN [ApiToolExecutorRepo] Delegated read "read_client_documents" -> failed
+PASS src/meri/controlled-read-observations.spec.ts (18.077 s)
+  controlled read actual HTTP observations
+    √ canonical memory owner joins actual Case01 HTTP bytes without exposing proof to model (788 ms)
+    √ canonical memory owner joins actual Case12 HTTP bytes without exposing proof to model (113 ms)
+    √ canonical memory owner joins actual Case14 HTTP bytes without exposing proof to model (22 ms)
+    √ refused unwrapped execution poisons the clock census even when its caller catches the error (47 ms)
+    √ refused missing-call-id execution poisons the clock census even when its caller catches the error (2 ms)
+    √ refused wrong-tool execution poisons the clock census even when its caller catches the error (3 ms)
+    √ retains actual 01 HTTP clock evidence before truncation (19 ms)
+    √ retains actual 14 HTTP clock evidence before truncation (12 ms)
+    √ retains actual 20 HTTP clock evidence before truncation (10 ms)
+    √ retains actual 72 HTTP clock evidence before truncation (10 ms)
+    √ retains actual failed HTTP clock evidence before truncation (8 ms)
+    √ observes the actual own-proposal response as a bounded no-clock-consumer read: 01-empty (6 ms)
+    √ observes the actual own-proposal response as a bounded no-clock-consumer read: 01-complete (8 ms)
+    √ observes the actual own-proposal response as a bounded no-clock-consumer read: 01-partial (7 ms)
+    √ observes the actual own-proposal response as a bounded no-clock-consumer read: 14-complete (7 ms)
+    √ observes the actual own-proposal response as a bounded no-clock-consumer read: tenant (6 ms)
+    √ observes the actual own-proposal response as a bounded no-clock-consumer read: actor (6 ms)
+    √ observes the actual own-proposal response as a bounded no-clock-consumer read: client (10 ms)
+    √ observes the actual own-proposal response as a bounded no-clock-consumer read: missing-client (10 ms)
+    √ observes the actual own-proposal response as a bounded no-clock-consumer read: compiler (8 ms)
+    √ observes the actual own-proposal response as a bounded no-clock-consumer read: approved (7 ms)
+    √ observes the actual own-proposal response as a bounded no-clock-consumer read: disabled (7 ms)
+    √ observes the actual own-proposal response as a bounded no-clock-consumer read: http-failure (6 ms)
+    √ one actual loopback HTTP response captures two independent passages under one provider call (6 ms)
+    √ multi-source observation refuses duplicate before recording anything (2 ms)
+    √ multi-source observation refuses missing before recording anything (1 ms)
+    √ multi-source observation refuses hash before recording anything (1 ms)
+    √ multi-source observation refuses foreign before recording anything (1 ms)
+    √ multi-source observation refuses coverage before recording anything
+    √ native API executor observes HTTP200 logical errors before failure and native no-progress suppresses call four (30 ms)
+    √ actual full passage joins call/source/hash and records tenant-global null client (1 ms)
+    √ Case20 search_program_elements preserves exact source completion and refuses projection-truncated completion (14 ms)
+    √ Case20 get_program_element preserves exact source completion and refuses projection-truncated completion (1 ms)
+    √ Case20 get_pe_budget_timeline preserves exact source completion and refuses projection-truncated completion (1 ms)
+    √ rejects mismatched captureRunId before accepting HTTP evidence
+    √ rejects mismatched requestId before accepting HTTP evidence
+    √ rejects mismatched traceId before accepting HTTP evidence (1 ms)
+    √ rejects mismatched turnId before accepting HTTP evidence
+    √ rejects mismatched tenantId before accepting HTTP evidence (1 ms)
+    √ rejects mismatched actorUserId before accepting HTTP evidence
+    √ rejects mismatched clientId before accepting HTTP evidence (1 ms)
+    √ rejects mismatched conversationId before accepting HTTP evidence
+    √ rejects mismatched physicalMapSha256 before accepting HTTP evidence
+    √ rejects absent real call identity, non200 transport, modified full text, and wrong source client (2 ms)
+    √ ordinary and case01 requests are unchanged and cannot access another request observations
+
+Test Suites: 1 passed, 1 total
+Tests:       45 passed, 45 total
+Snapshots:   0 total
+Time:        18.419 s
+Ran all test suites within paths "src/meri/controlled-read-observations.spec.ts".

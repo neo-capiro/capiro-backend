@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { MeriServerReadonlyCapturePolicy } from '@capiro/meriv2-core';
+import { validateMeriCase12SetupPolicyBinding } from '@capiro/meriv2-core';
 import { researchJsonSha256 } from './meri-research-durable-result.js';
 import {
   admitResearchProviderBudget,
@@ -75,7 +76,7 @@ export function validateCaptureBudgetQualification(
   if (
     !q ||
     q.version !== 1 ||
-    !['01', '14', '20', '72'].includes(q.caseId) ||
+    !['01', '12', '14', '20', '72'].includes(q.caseId) ||
     q.caseId !== policy.caseId ||
     q.captureRunId !== policy.captureRunId ||
     !HASH.test(q.currentVerifySha256) ||
@@ -124,12 +125,12 @@ export function validateCaptureBudgetQualification(
   return structuredClone(q);
 }
 function policyIdentity(policy: MeriServerReadonlyCapturePolicy) {
+  validateMeriCase12SetupPolicyBinding(policy);
   if (
     !policy.caseId ||
     !policy.captureRunId ||
     !policy.fixtureVersion ||
-    !policy.seedReceiptId ||
-    !policy.resetReceiptId ||
+    (policy.caseId !== '12' && (!policy.seedReceiptId || !policy.resetReceiptId)) ||
     !policy.physicalMapSha256
   )
     fail('fixture_binding_missing');
@@ -315,8 +316,9 @@ export function settleCaptureProviderAttempt(
 /** Only paths whose native ingress/tool boundaries are accounted by this owner. */
 export function captureProviderBudgetCoverage(
   caseId: string | null,
-): 'case01_memory_turn' | 'case14_memory_turn' | 'case20_controlled_read_turn' | 'case72_controlled_read_turn' {
+): 'case01_memory_turn' | 'case12_memory_turn' | 'case14_memory_turn' | 'case20_controlled_read_turn' | 'case72_controlled_read_turn' {
   if (caseId === '01') return 'case01_memory_turn';
+  if (caseId === '12') return 'case12_memory_turn';
   if (caseId === '14') return 'case14_memory_turn';
   if (caseId === '20') return 'case20_controlled_read_turn';
   if (caseId === '72') return 'case72_controlled_read_turn';

@@ -13,3 +13,13 @@ test('only the fixed qualified clock shape and exact capture tuple are valid', (
   }
   expect(() => validateMeriFixtureSemanticClock(clock, { ...binding, syntheticReadBudget: {} })).toThrow('semantic_clock');
 });
+
+
+test('Case12 fixed scoring clock retains actual current observation and exact run verification binding', () => {
+ const c={...clock,caseId:'12' as const}, b={...binding,caseId:'12'};
+ expect(validateMeriFixtureSemanticClock(c,b)).toBe(c);
+ expect(c.instant).toBe('2026-09-26T16:00:00.000Z');
+ expect(c.observedAt).toBeGreaterThan(Date.parse(c.instant));
+ for(const change of [{caseId:'14'}, {captureRunId:'99999999-9999-4999-8999-999999999999'}, {issuedAt:c.observedAt-1}])
+  expect(()=>validateMeriFixtureSemanticClock(c,{...b,...change})).toThrow();
+});

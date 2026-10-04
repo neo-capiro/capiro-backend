@@ -166,3 +166,18 @@ test('request transport authenticates policy, exact input and bounded call ident
     encodeMeriMemoryCaptureRequest(p, { ...bound, callId: ' '.repeat(300) }, secret),
   ).toThrow();
 });
+
+
+describe('Case12 exact setup provenance request/source signatures',()=>{
+ function case12(){const f=fixture();f.p.caseId='12';f.p.semanticClock={...f.p.semanticClock!,caseId:'12'};f.p.resetReceiptId=null;f.p.seedReceiptId=null;
+ f.p.case12Setup={setupRunId:id(8),fixtureInstanceId:id(9),setupPlanSha256:'1'.repeat(64),setupClaimSha256:'2'.repeat(64),setupLedgerSha256:'3'.repeat(64)};return f;}
+ test('native setup shape is mandatory even with Case12 semantic clock',()=>{const {p}=case12();expect(memoryCaptureSourcePolicyEnabled(p)).toBe(true);delete p.case12Setup;expect(memoryCaptureSourcePolicyEnabled(p)).toBe(false);});
+ test.each(['setupRunId','fixtureInstanceId','setupPlanSha256','setupClaimSha256','setupLedgerSha256'] as const)('request and source proof refuse changed %s',key=>{
+ const {p,record}=case12(), input={query:'autonomous maritime demo',clientId:p.clientId};const bound={...request,inputSha256:hash(JSON.stringify(input))};
+ const req=encodeMeriMemoryCaptureRequest(p,bound,secret),proof=signMeriMemoryCaptureSources(p,[record],secret,bound);
+ expect(decodeMeriMemoryCaptureRequest(p,req,input,secret)).toEqual(bound);expect(verifyMeriMemoryCaptureSources(p,[record],proof,secret,bound)[0]!.sourceId).toBe(record.recordId);
+ p.case12Setup![key]=key==='setupRunId'||key==='fixtureInstanceId'?id(6):'f'.repeat(64);
+ expect(()=>decodeMeriMemoryCaptureRequest(p,req,input,secret)).toThrow();expect(()=>verifyMeriMemoryCaptureSources(p,[record],proof,secret,bound)).toThrow();
+ });
+ test('borrowed seed/reset and same setup/capture run are denied',()=>{for(const change of [ {resetReceiptId:'borrowed'}, {seedReceiptId:'borrowed'}, {captureRunId:id(8)} ]){const {p}=case12();Object.assign(p,change);expect(memoryCaptureSourcePolicyEnabled(p)).toBe(false);}});
+});

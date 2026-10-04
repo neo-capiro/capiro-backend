@@ -1,0 +1,7 @@
+PASS_PURE_EXTRACTION_WITH_LIMITATIONS
+
+The file-only review found no concrete correctness, regression, or evidence issue within the narrow extraction scope. The saved qualification reports 30/30 tests passing, including baseline byte-equality, row parity, mutation isolation, and rejection checks. I did not rerun tests or invoke external/native systems.
+
+The plan hash proves self-consistency, not provenance. Authentic current plan/source provenance and native read-only task provenance must be established before any cost hold or native admission. This review does not qualify a live fixture, image, rates, cost authority, capture authority, or production execution.
+
+Review written to C:\dev\main\outputs\meri-c2-20261003\case12-provider-rows-independent-hermes-v1\review.md

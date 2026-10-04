@@ -1,0 +1,116 @@
+(node:13684) [DEP0180] DeprecationWarning: fs.Stats constructor is deprecated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+▶ compiled ECS admission private handles share actual default DB transaction rollback (ECS doubles only)
+  ✔ untrusted JSON cannot replace authenticated private handle (62.5716ms)
+  ✔ valid native consume writes inside supplied tx, outer rollback undoes DB but not handle burn (160.3417ms)
+  ✔ lost native write readback aborts real tx and retains one-use failure (143.7966ms)
+  ✔ concurrent same handle allows one DB writer and cannot replay after rollback (137.5547ms)
+  ✔ existing actual completed setup rejects fresh admission without changing slots (211.6699ms)
+✔ compiled ECS admission private handles share actual default DB transaction rollback (ECS doubles only) (15078.1516ms)
+(node:59040) [DEP0180] DeprecationWarning: fs.Stats constructor is deprecated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+▶ restored local510 uses freshly compiled native factory, default transactions and real signed source joins
+  ✔ actual complete setup hydration uses unchanged default transaction limits (25035.9381ms)
+  ✔ native current corpus plus complete510 ledger is read from current database (891.0705ms)
+  ✔ binding exact plan and stale CAS are native, then install exactly once (2901.3508ms)
+  ✔ native provider qualification current source checks and stale CAS protect installation (2694.1687ms)
+  ✖ ordinary current conversation authority issues policy and actual native semantic clock (127.9087ms)
+  ✖ native local ledger reserves and settles a transcript attempt without transport (11.8196ms)
+  ✖ real persisted packet census performs two current-source checks in one default transaction (7.2937ms)
+  ✖ genuine HMAC receipt verifies exact current MA510 and rejects signed partial passage (1.2651ms)
+✖ restored local510 uses freshly compiled native factory, default transactions and real signed source joins (38939.2784ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 10
+ℹ fail 5
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 54523.4306
+
+✖ failing tests:
+
+test at ..\outputs\meri-c2-20261003\case12-compiled-native-composition-local-v1\native-composition.test.mjs:50:11
+✖ ordinary current conversation authority issues policy and actual native semantic clock (127.9087ms)
+  PrismaClientUnknownRequestError: 
+  Invalid `tx.tenant.findUnique()` invocation in
+  C:\dev\main\meri-c1-20261002\apps\api\src\meri\meri-server-readonly-capture.ts:478:17
+  
+    475 } | null> {
+    476   return prisma.withTenant(ctx.tenantId, async (tx) => {
+    477     const [tenant, actor, membership, conversation] = await Promise.all([
+  → 478       tx.tenant.findUnique(
+  Error in batch request 2: Error occurred during query execution:
+  ConnectorError(ConnectorError { user_facing_error: None, kind: QueryError(PostgresError { code: "42704", message: "type \"meri_approved_d768f26cb98f4fc99091f09580aaacd5.membership_status\" does not exist", severity: "ERROR", detail: None, column: None, hint: None }), transient: false })
+      at $n.handleRequestError (C:\dev\main\meri-c1-20261002\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:121:7505)
+      at $n.handleAndLogRequestError (C:\dev\main\meri-c1-20261002\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:121:6623)
+      at $n.request (C:\dev\main\meri-c1-20261002\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:121:6307)
+      at async l (C:\dev\main\meri-c1-20261002\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:130:9633)
+      at async Promise.all (index 0)
+      at async C:\dev\main\meri-c1-20261002\apps\api\src\meri\meri-server-readonly-capture.ts:477:55
+      at async Proxy._transactionWithCallback (C:\dev\main\meri-c1-20261002\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:130:8000)
+      at async Proxy.factory.deps.prisma.<computed> (file:///C:/dev/main/outputs/meri-c2-20261003/case12-compiled-native-composition-local-v1/compiled-factory-harness.mjs:43:17)
+      at async Object.issueMeriServerReadonlyCapturePolicy (C:\dev\main\meri-c1-20261002\apps\api\src\meri\meri-server-readonly-capture.ts:124:24)
+      at async stage (file:///C:/dev/main/outputs/meri-c2-20261003/case12-compiled-native-composition-local-v1/native-composition.test.mjs:9:101)
+      at async TestContext.<anonymous> (file:///C:/dev/main/outputs/meri-c2-20261003/case12-compiled-native-composition-local-v1/native-composition.test.mjs:55:17)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async file:///C:/dev/main/outputs/meri-c2-20261003/case12-compiled-native-composition-local-v1/native-composition.test.mjs:50:3
+      at async file:///C:/dev/main/outputs/meri-c2-20261003/case12-compiled-native-composition-local-v1/compiled-factory-harness.mjs:61:17
+      at async file:///C:/dev/main/outputs/meri-c2-20261003/case12-compiled-native-composition-local-v1/restore-local-corpus.mjs:50:17
+      at async withOwnedApprovedMemory (file:///C:/dev/main/outputs/meri-c2-20261003/case12-actual-factory-owner-local-v1/owned-harness.mjs:94:12)
+
+test at ..\outputs\meri-c2-20261003\case12-compiled-native-composition-local-v1\native-composition.test.mjs:67:11
+✖ native local ledger reserves and settles a transcript attempt without transport (11.8196ms)
+  TypeError: Cannot read properties of undefined (reading 'caseId')
+      at Object.captureProviderBudgetOwner (C:\dev\main\meri-c1-20261002\apps\api\src\meri\meri-capture-provider-budget-owner.ts:85:13)
+      at file:///C:/dev/main/outputs/meri-c2-20261003/case12-compiled-native-composition-local-v1/native-composition.test.mjs:69:52
+      at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+      at TenantContextStore.run (C:\dev\main\meri-c1-20261002\apps\api\src\tenant\tenant-context.store.ts:17:21)
+      at file:///C:/dev/main/meri-c1-20261002/apps/api/scripts/meri-case01-setup-dependencies.mjs:193:78
+      at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+      at runWithMemoryGovernanceTenant (C:\dev\main\meri-c1-20261002\apps\api\src\memory\memory-governance-tenant-scope.ts:16:22)
+      at Object.runWithTenant (file:///C:/dev/main/meri-c1-20261002/apps/api/scripts/meri-case01-setup-dependencies.mjs:193:14)
+      at async stage (file:///C:/dev/main/outputs/meri-c2-20261003/case12-compiled-native-composition-local-v1/native-composition.test.mjs:9:101)
+      at async TestContext.<anonymous> (file:///C:/dev/main/outputs/meri-c2-20261003/case12-compiled-native-composition-local-v1/native-composition.test.mjs:69:4)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async file:///C:/dev/main/outputs/meri-c2-20261003/case12-compiled-native-composition-local-v1/native-composition.test.mjs:67:3
+      at async file:///C:/dev/main/outputs/meri-c2-20261003/case12-compiled-native-composition-local-v1/compiled-factory-harness.mjs:61:17
+      at async file:///C:/dev/main/outputs/meri-c2-20261003/case12-compiled-native-composition-local-v1/restore-local-corpus.mjs:50:17
+      at async withOwnedApprovedMemory (file:///C:/dev/main/outputs/meri-c2-20261003/case12-actual-factory-owner-local-v1/owned-harness.mjs:94:12)
+      at async withRestoredLocalCorpus (file:///C:/dev/main/outputs/meri-c2-20261003/case12-compiled-native-composition-local-v1/restore-local-corpus.mjs:27:13)
+
+test at ..\outputs\meri-c2-20261003\case12-compiled-native-composition-local-v1\native-composition.test.mjs:77:11
+✖ real persisted packet census performs two current-source checks in one default transaction (7.2937ms)
+  TypeError: Cannot read properties of undefined (reading 'semanticClock')
+      at TestContext.<anonymous> (file:///C:/dev/main/outputs/meri-c2-20261003/case12-compiled-native-composition-local-v1/native-composition.test.mjs:78:35)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at TestContext.test (node:internal/test_runner/test:394:20)
+      at file:///C:/dev/main/outputs/meri-c2-20261003/case12-compiled-native-composition-local-v1/native-composition.test.mjs:77:11
+      at async file:///C:/dev/main/outputs/meri-c2-20261003/case12-compiled-native-composition-local-v1/compiled-factory-harness.mjs:61:17
+      at async file:///C:/dev/main/outputs/meri-c2-20261003/case12-compiled-native-composition-local-v1/restore-local-corpus.mjs:50:17
+      at async withOwnedApprovedMemory (file:///C:/dev/main/outputs/meri-c2-20261003/case12-actual-factory-owner-local-v1/owned-harness.mjs:94:12)
+      at async withRestoredLocalCorpus (file:///C:/dev/main/outputs/meri-c2-20261003/case12-compiled-native-composition-local-v1/restore-local-corpus.mjs:27:13)
+      at async TestContext.<anonymous> (file:///C:/dev/main/outputs/meri-c2-20261003/case12-compiled-native-composition-local-v1/native-composition.test.mjs:8:15)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+
+test at ..\outputs\meri-c2-20261003\case12-compiled-native-composition-local-v1\native-composition.test.mjs:96:11
+✖ genuine HMAC receipt verifies exact current MA510 and rejects signed partial passage (1.2651ms)
+  TypeError: Cannot read properties of undefined (reading 'semanticClock')
+      at meriCaptureReceiptBlockers (C:\dev\main\meri-c1-20261002\packages\meriv2-core\src\context\capture-evidence-receipt.ts:417:15)
+      at Object.completeMeriCaptureEvidenceReceipt (C:\dev\main\meri-c1-20261002\packages\meriv2-core\src\context\capture-evidence-receipt.ts:534:20)
+      at TestContext.<anonymous> (file:///C:/dev/main/outputs/meri-c2-20261003/case12-compiled-native-composition-local-v1/native-composition.test.mjs:97:23)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at TestContext.test (node:internal/test_runner/test:394:20)
+      at file:///C:/dev/main/outputs/meri-c2-20261003/case12-compiled-native-composition-local-v1/native-composition.test.mjs:96:11
+      at async file:///C:/dev/main/outputs/meri-c2-20261003/case12-compiled-native-composition-local-v1/compiled-factory-harness.mjs:61:17
+      at async file:///C:/dev/main/outputs/meri-c2-20261003/case12-compiled-native-composition-local-v1/restore-local-corpus.mjs:50:17
+      at async withOwnedApprovedMemory (file:///C:/dev/main/outputs/meri-c2-20261003/case12-actual-factory-owner-local-v1/owned-harness.mjs:94:12)
+      at async withRestoredLocalCorpus (file:///C:/dev/main/outputs/meri-c2-20261003/case12-compiled-native-composition-local-v1/restore-local-corpus.mjs:27:13)
+      at async TestContext.<anonymous> (file:///C:/dev/main/outputs/meri-c2-20261003/case12-compiled-native-composition-local-v1/native-composition.test.mjs:8:15)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)

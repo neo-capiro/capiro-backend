@@ -1,0 +1,27 @@
+(node:55976) [DEP0180] DeprecationWarning: fs.Stats constructor is deprecated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+✔ all 510 exact fixed rows derive both wire bodies using actual native projection and reducer (70.9543ms)
+✔ plan output does not retain mutable input references (42.9943ms)
+✔ rejects unhashed setup change (27.3788ms)
+✔ rejects wrong current definitions (30.7003ms)
+✔ rejects caller-supplied body (0.7975ms)
+✔ rejects caller-supplied ceiling (0.1337ms)
+✔ rejects changed model price exceeds case ceiling (41.175ms)
+✔ rejects array run ID (34.2586ms)
+✔ rejects expired plan window (38.1915ms)
+✔ rejects source text injection (0.7912ms)
+✔ rejects different actor (0.4922ms)
+✔ missing native planning functions cannot silently substitute a wire plan (0.1665ms)
+✔ derived request identities require no envelope and join the full plan exactly (78.067ms)
+✔ derivation clones recipe and plan before asynchronous asset reads (93.0982ms)
+✔ full builder clones the budget envelope before asynchronous asset reads (45.1956ms)
+✔ Unicode projection material hashes exact UTF-8 bytes rather than string length (36.7343ms)
+✔ derivation rejects changed current definition joins and source-text injection (32.5684ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2895.7936

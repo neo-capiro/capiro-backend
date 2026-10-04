@@ -1,3 +1,4 @@
+import { validateMeriCase12SetupPolicyBinding } from './case12-setup-binding.js';
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import type { MeriServerReadonlyCapturePolicy } from './server-readonly-capture';
 
@@ -111,11 +112,14 @@ export function decodeMeriMemoryCaptureRequest(
 export function memoryCaptureSourcePolicyEnabled(
   p: MeriServerReadonlyCapturePolicy | null | undefined,
 ): p is MeriServerReadonlyCapturePolicy {
+  if (p?.caseId === '12') {
+    try { validateMeriCase12SetupPolicyBinding(p); } catch { return false; }
+  }
   return (
     !!p?.semanticClock &&
     !p.syntheticReadBudget &&
     p.fixtureVersion === 'meri-live-v1-2026-09-26.1' &&
-    ['01', '14'].includes(p.caseId ?? '')
+    ['01', '12', '14'].includes(p.caseId ?? '')
   );
 }
 
@@ -137,6 +141,7 @@ function policyBinding(p: MeriServerReadonlyCapturePolicy): string {
       p.expiresAt,
       p.physicalMapSha256,
       p.semanticClock,
+      ...(p.caseId === '12' ? [p.case12Setup] : []),
     ]),
   );
 }

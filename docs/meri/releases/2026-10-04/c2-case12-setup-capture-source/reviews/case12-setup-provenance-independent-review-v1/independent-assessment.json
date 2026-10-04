@@ -1,0 +1,158 @@
+{
+  "kind": "case12-root-setup-provenance-independent-review",
+  "at": "2026-10-04T11:08:45.896734+00:00",
+  "status": "PASS_LOCAL_SHAPE_TRANSPORT_AND_READBACK_ONLY",
+  "findings": [],
+  "frozenManifestSha256": "5afcc6ee1296f2db904d46d5a2dbc51e5da94659b80cdb9c8ca7e41ebce0c300",
+  "pins": [
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-setup-provenance-independent-input-v1\\source\\packages\\meriv2-core\\src\\context\\case12-setup-binding.ts",
+      "sha256": "b962ec4db5e3050c817133a6c1480a35174e923d6fdca57556db90ee8be87170",
+      "bytes": 2282
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-setup-provenance-independent-input-v1\\source\\packages\\meriv2-core\\src\\context\\case12-setup-binding.spec.ts",
+      "sha256": "dd421900257d14ea95a11c2db26f16509467dd2930dcf734f49a836d5b03142d",
+      "bytes": 4203
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-setup-provenance-independent-input-v1\\source\\packages\\meriv2-core\\src\\context\\server-readonly-capture.ts",
+      "sha256": "0280e4f7023420db200bc10d670129ac7ed5e85ecf8c81dbde3e1c5482d28ff4",
+      "bytes": 8806
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-setup-provenance-independent-input-v1\\baseline\\packages\\meriv2-core\\src\\context\\server-readonly-capture.ts",
+      "sha256": "3d924a36100fb601bf943acbbb991f49bea37b91aec2d9dabf1e3c76f4f8ee3a",
+      "bytes": 8607
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-setup-provenance-independent-input-v1\\source\\packages\\meriv2-core\\src\\context\\capture-evidence-receipt.ts",
+      "sha256": "c2da24c2babd9291bf8bc6a67a09659656be819702ff99c2af134481755a4b4f",
+      "bytes": 25814
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-setup-provenance-independent-input-v1\\baseline\\packages\\meriv2-core\\src\\context\\capture-evidence-receipt.ts",
+      "sha256": "affe70118364d44bdb5b13e55cd15edde2ce863323ecca4afa9644e0def74ab0",
+      "bytes": 24863
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-setup-provenance-independent-input-v1\\source\\packages\\meriv2-core\\src\\context\\capture-evidence-receipt.spec.ts",
+      "sha256": "84078e7df9cdf52e6920b060375a9071a9958f241af6ca76f6165ccb9fa9f4b6",
+      "bytes": 28185
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-setup-provenance-independent-input-v1\\baseline\\packages\\meriv2-core\\src\\context\\capture-evidence-receipt.spec.ts",
+      "sha256": "eaf9c739b07a027adfa0e55537c799208712d8e97659d94a6f9d0975c9ea9e62",
+      "bytes": 25998
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-setup-provenance-independent-input-v1\\source\\packages\\meriv2-core\\src\\index.ts",
+      "sha256": "4aada17320ad93c5e75849ac23dd1a6ac41f43f251304ac1a416fbd804c7b41e",
+      "bytes": 4152
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-setup-provenance-independent-input-v1\\baseline\\packages\\meriv2-core\\src\\index.ts",
+      "sha256": "0369ee78126d119ad617ea333b054180e08fd3e4d3c09df4608211c37efd37d9",
+      "bytes": 4104
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-setup-provenance-independent-input-v1\\source\\apps\\api\\src\\meri\\meri-server-readonly-capture.ts",
+      "sha256": "7b2860346cd4869ebed894c2b610a97f1da6fd952c1e5b7c697a7f26b05ff39b",
+      "bytes": 21904
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-setup-provenance-independent-input-v1\\baseline\\apps\\api\\src\\meri\\meri-server-readonly-capture.ts",
+      "sha256": "689ddc776123be123c6181ebf7459ce747ae4eb99ad841a8966d8db87210ac93",
+      "bytes": 21162
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-setup-provenance-independent-input-v1\\source\\apps\\api\\src\\meri\\meri-capture-policy-readback.ts",
+      "sha256": "a92c353bbdcdab122146437d7725864541ff937168ad19e414ce51fc2ea4a2a0",
+      "bytes": 8253
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-setup-provenance-independent-input-v1\\baseline\\apps\\api\\src\\meri\\meri-capture-policy-readback.ts",
+      "sha256": "3858a6f7d7212fc8f9de31f1ed165e742269db5e94a9fad37b4398f401c04e07",
+      "bytes": 7784
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-setup-provenance-independent-input-v1\\source\\apps\\api\\src\\meri\\meri-server-capture-evidence.ts",
+      "sha256": "0042d05130426cb9c7ba39ae7897a273cc158fb6d3421500d583a69c34d15a96",
+      "bytes": 10260
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-setup-provenance-independent-input-v1\\baseline\\apps\\api\\src\\meri\\meri-server-capture-evidence.ts",
+      "sha256": "2fa95657d16ed7e88d4d8edb0b59c8ac39bbd63f045e13f1b7b343e730d0c377",
+      "bytes": 10159
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-setup-provenance-independent-input-v1\\source\\apps\\api\\src\\meri\\meri-server-readonly-capture.spec.ts",
+      "sha256": "412c7635ea65d2ce63fe3e26baad626353bfa5dec1ec1b42702d17ed68ecadd2",
+      "bytes": 48968
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-setup-provenance-independent-input-v1\\baseline\\apps\\api\\src\\meri\\meri-server-readonly-capture.spec.ts",
+      "sha256": "31247fd9118c1b35bedbed4c4e1cb2286e4f9d6dac1ee3d351cb0ef4b20a00e3",
+      "bytes": 47390
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-setup-provenance-independent-input-v1\\source\\apps\\meriv2-orchestrator\\src\\meri\\meriv3\\meriv3-capture-evidence.ts",
+      "sha256": "b74f0f3bb845111049a8a09c5d98091d53d3dffa52bb165e1448b208814083b2",
+      "bytes": 12032
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-setup-provenance-independent-input-v1\\baseline\\apps\\meriv2-orchestrator\\src\\meri\\meriv3\\meriv3-capture-evidence.ts",
+      "sha256": "de4afce7959c293b29a75d9bc94d6aaf47248fcee7ed8a9c40a99120dfd76eea",
+      "bytes": 11931
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-setup-provenance-independent-input-v1\\case12-setup-binding-core-tests-v1.log",
+      "sha256": "203dc88150a12805388906c9ab8418ba9e847fb2abe3b0eb989b3d459ac07cce",
+      "bytes": 336
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-setup-provenance-independent-input-v1\\case12-setup-binding-core-build-v1.log",
+      "sha256": "3b050d4996f6e2a7e46851df328e05ecb31c0e7d0fd05a710f83c08e2b42dc77",
+      "bytes": 113
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-setup-provenance-independent-input-v1\\case12-setup-binding-api-tests-v1.log",
+      "sha256": "78adb7990852a1617a7b6669615839dddc42a79371b9c673fa7ba8efedc114ee",
+      "bytes": 25045
+    }
+  ],
+  "scope": "Exactly11 root files frozen before agent behavior integration. Excludes unfinished native setup-completion/capture authority files and behavior candidate.",
+  "verified": [
+    "Exact5field string binding with UUID4 run/fixture and lowercase SHA256 hashes; no array coercion/extra keys; parsed copy frozen.",
+    "Case12 requires setup provenance, separate capture UUID, null legacy seed/reset IDs and no synthetic budget. Other cases reject own case12Setup field. Existing synthetic guard runs first and also rejects false/null malformed synthetic field.",
+    "Policy transport HMAC signs whole policy, including setup tuple; decode validates shape after HMAC. Independent unsigned tamper of all5 fields fails; signed malformed/mixed/foreign/reused bindings fail.",
+    "API current conversation read parses setup binding; issued policy includes it; current authority requires property-presence equality and all5field equality. These joins do not establish native completed setup by themselves.",
+    "API and orchestrator receipt builders clone observed setup tuple. Case12 fixture blocker requires observed exact tuple and absent/unobserved null legacy provenance; existing cases retain reset/seed requirements and reject Case12 tuple.",
+    "API readback authenticates receipt then requires exact observed tuple equal to independently stored policy; validly re-signed changed ledger or missing tuple and foreign case fail. Other fixture/current authority/write checks retained.",
+    "Shape-only API receipt test remains BLOCKED. No source result upgrades paid admission, semantic clock, fixture or capture readiness."
+  ],
+  "tests": {
+    "rootCoreTests": 103,
+    "rootCoreSuites": 2,
+    "rootApiTests": 39,
+    "rootApiSuites": 1,
+    "rootCoreBuildLogPinned": true,
+    "independentPureTransportCases": 19,
+    "reproSha256": "b09327f999fad0341625df1e8ae87e0c0ddaae3d97f6a01fb0206313f6844640",
+    "reproScriptSha256": "736f5c6471ac771efc9f22d1d5bb11062127dccc81704da31e9805f6ae60803f"
+  },
+  "limits": [
+    "Root test totals describe this frozen snapshot only; do not sum overlapping later behavior tests.",
+    "Native completed setup/durable ledger/current corpus joins, capture budget admission, Case12 semantic/tools/source and final acceptance remain separate in-progress composition.",
+    "This review verifies shape/provenance and exact readback binding, not that a correctly shaped hash is authority.",
+    "Core receipt verification authenticates signed data; independent API readback performs fixture-to-policy exact joins. Existing placement preserved.",
+    "No new Hermes run for this bounded root delta; configured Hermes behavior review will include the helper as dependency."
+  ],
+  "journal": {
+    "events": 26,
+    "sha256": "816b04a47be56432846d1ee602370c3bea985eb497a7de9e899aee4d53f8b39e",
+    "mutations": 0
+  },
+  "captureAuthority": false,
+  "liveAcceptance": "NOT_RUN"
+}

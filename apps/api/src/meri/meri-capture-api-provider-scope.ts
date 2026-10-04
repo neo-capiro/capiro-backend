@@ -1,5 +1,6 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { randomUUID } from 'node:crypto';
+import { case12SetupProviderScopeActive } from './meri-case12-setup-provider-scope.js';
 import type { MeriServerReadonlyCapturePolicy } from '@capiro/meriv2-core';
 import type { TenantContext } from '@capiro/shared';
 import type { PrismaService } from '../prisma/prisma.service.js';
@@ -45,7 +46,7 @@ export function assertCaptureApiRetrievalPlan(plan: {
           plan.requestedDomains.every((domain) =>
             ['clients', 'contacts', 'strategies_work', 'institutional_knowledge'].includes(domain),
           )
-        : ['01', '14'].includes(scope.getStore()!.policy.caseId ?? '')
+        : ['01', '12', '14'].includes(scope.getStore()!.policy.caseId ?? '')
           ? plan.requestedDomains.length === 1 &&
             plan.requestedDomains[0] === 'institutional_knowledge'
           : ['20', '72'].includes(scope.getStore()!.policy.caseId ?? '') &&
@@ -66,6 +67,8 @@ export async function reserveCaptureApiProviderAttempt(input: {
   model: string;
   inputBytes: number;
 }) {
+  if (case12SetupProviderScopeActive())
+    throw new Error('meri_case12_setup_provider_capture_overlap');
   const current = scope.getStore();
   if (!current) return reserveCase46ApiProviderAttempt(input);
   if (case46ApiProviderScopeActive()) throw new Error('meri_capture_provider_scope_ambiguous');

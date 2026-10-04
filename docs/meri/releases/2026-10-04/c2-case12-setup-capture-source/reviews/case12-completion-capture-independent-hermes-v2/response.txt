@@ -1,0 +1,3 @@
+Review written to C:\dev\main\outputs\meri-c2-20261003\case12-completion-capture-independent-hermes-v2\review.md
+
+Verdict: PASS_SOURCE_ONLY_WITH_RUNTIME_BLOCKER. The review rejects F1’s changed-content exploit and F2’s source qualification gap based on the complete native call graph, and narrows F3 to a trusted-writer and aggregate-admission limitation. It preserves the prior v1 verdict for comparison and makes no full-native PASS claim: hydration timed out at 5 seconds, later readers were not reached, and mandatory gates remain outstanding.

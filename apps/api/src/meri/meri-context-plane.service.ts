@@ -1,3 +1,4 @@
+import { assertMeriCase12BindingInTx } from './meri-case12-capture-authority.js';
 import { Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { assertCaptureApiRetrievalPlan } from './meri-capture-api-provider-scope.js';
 import { createHash } from 'node:crypto';
@@ -102,7 +103,7 @@ export class MeriContextPlaneService {
   }> {
     const policy = capture?.policy;
     const qualified = policy && !policy.syntheticReadBudget &&
-      policy.fixtureVersion === 'meri-live-v1-2026-09-26.1' && ['01', '14'].includes(policy.caseId ?? '');
+      policy.fixtureVersion === 'meri-live-v1-2026-09-26.1' && ['01', '12', '14'].includes(policy.caseId ?? '');
     const semanticClock = policy?.semanticClock;
     if (qualified || semanticClock) {
       if (!qualified || !semanticClock || capture?.tool !== 'search_memory' ||
@@ -114,6 +115,9 @@ export class MeriContextPlaneService {
         throw new Error('meri_fixture_semantic_clock_tool_binding_mismatch');
       }
       validateMeriFixtureSemanticClock(semanticClock, policy);
+      if (policy.caseId === '12')
+        await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, tx =>
+          assertMeriCase12BindingInTx(this.prisma, tx, ctx, policy));
     }
     const security = await this.securityEnvelope(ctx);
     if (input.clientId && !security.authorizedClientIds.includes(input.clientId)) {
@@ -174,6 +178,9 @@ export class MeriContextPlaneService {
         !['used', 'not_run'].includes(packet.clockUse.scoring) || policy!.expiresAt <= Date.now()) {
         throw new Error('meri_fixture_semantic_clock_tool_compiler_unproved');
       }
+      if (policy!.caseId === '12')
+        await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, tx =>
+          assertMeriCase12BindingInTx(this.prisma, tx, ctx, policy!));
       return { ...result.context.retrieval, contextPacket: {
         packetId: packet.packetId, persisted: packet.persisted, clockUse: { ...packet.clockUse },
       } };

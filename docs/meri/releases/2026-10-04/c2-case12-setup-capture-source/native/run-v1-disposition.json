@@ -1,0 +1,16 @@
+{
+  "run": "run-v1",
+  "processExit": 1,
+  "status": "FAIL_LOCAL_SCHEMA_MEMBERSHIP_STATUS_MISSING",
+  "invalidQualificationPath": "runs/run-v1/qualification.json",
+  "invalidQualificationSha256": "d8d38b0bd3f53f3ca34b0da8b6d057881af81f96d18da30c9561f6d5ec5905a6",
+  "reason": "Node child subtest failures do not reject the awaited parent test promise. The unguarded parent continued and wrote PASS; this receipt must not qualify composition.",
+  "validObservedSubtests": [
+    "Admission rollback 5+parent PASS",
+    "Full compiled hydration CURRENT_HYDRATED",
+    "Completed current corpus and setup ledger",
+    "Capture binding CAS install and replay denial",
+    "Provider qualification CAS install"
+  ],
+  "correction": "Add fail-fast child propagation and source-derived local membership_status enum; preserve all original artifacts."
+}

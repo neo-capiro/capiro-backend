@@ -1,3 +1,4 @@
+import { assertMeriCase12BindingInTx } from './meri-case12-capture-authority.js';
 import { memoryCaptureSourcePolicyEnabled, signMeriMemoryCaptureSources } from '@capiro/meriv2-core';
 import { assertTextArtifactCurrentProposal, type TextArtifactCurrentAction } from './meri-text-artifact-current-proposal.js';
 import { assertCase46ArtifactEffectInTx } from './meri-case46-action-authority.js';
@@ -2543,11 +2544,21 @@ export class MeriToolsService {
       !(policy?.syntheticReadBudget && (name === 'search_memory' || name === 'list_memory_proposals')) &&
       !(['01', '14'].includes(policy?.caseId ?? '') &&
         (name === 'search_memory' || name === 'list_memory_proposals')) &&
+      !(policy?.caseId === '12' && name === 'search_memory') &&
       !controlledReadToolAllowed(policy?.caseId ?? null, name)
     ) {
       throw new Error('meri_capture_provider_budget_unqualified_tool');
     }
-    return withCaptureApiProviderScope(this.prisma, ctx, policy, () => this.executeScoped(ctx, name, input, execution));
+    return withCaptureApiProviderScope(this.prisma, ctx, policy, async () => {
+      if (policy?.caseId === '12')
+        await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, tx =>
+          assertMeriCase12BindingInTx(this.prisma, tx, ctx, policy));
+      const result = await this.executeScoped(ctx, name, input, execution);
+      if (policy?.caseId === '12')
+        await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, tx =>
+          assertMeriCase12BindingInTx(this.prisma, tx, ctx, policy));
+      return result;
+    });
   }
 
   private async executeScoped(

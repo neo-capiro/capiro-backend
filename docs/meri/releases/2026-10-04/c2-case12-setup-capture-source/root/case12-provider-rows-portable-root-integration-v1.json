@@ -1,0 +1,8 @@
+{
+  "path": "evals/meri/live-v1/tests/case12-setup-budget-plan.test.mjs",
+  "beforeSha256": "d78d360e2c53c3b83e7e0bc034accb9220465b0320635af3f1a61ba6417cc02d",
+  "afterSha256": "76ebee3adb86ce6b1258114b100050d1d685a8abf795bfd4961a062a28607f98",
+  "testsExitCode": 0,
+  "logSha256": "2710e18bccd7cce5cb73cfa11e20926e92961dcfe7fea3f0014010759bdb2c9a",
+  "logPath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-provider-rows-root-tests-v1.log"
+}

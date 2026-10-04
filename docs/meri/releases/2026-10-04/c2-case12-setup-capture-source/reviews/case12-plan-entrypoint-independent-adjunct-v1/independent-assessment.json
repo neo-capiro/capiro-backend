@@ -1,0 +1,26 @@
+{
+  "at": "2026-10-04T12:29:25.762975+00:00",
+  "status": "PASS_NARROW_PLAN_ENTRYPOINT_DELTA_SOURCE_ONLY",
+  "oldEntrypointSha256": "df77c23ec4ec7e092ca27aba3f034be55eaf35b443092ce905fd2f1477ecb7ab",
+  "newEntrypointSha256": "f7e51e5b683185381ab8152379ea87f3d33a2aefc37c50fb68d6fe80f904b62d",
+  "planCliSha256": "b41e9e4da07764517adca213983497b60919f853c7084091ff239ae6aac0c3d7",
+  "nativeHelperUnchangedSha256": "f2d96171f23e4e3b4fb9bafb0a88a7400abc91a583c2cf7107ab2ee161947d6c",
+  "syntax": {
+    "command": [
+      "C:/Program Files/Git/bin/bash.exe",
+      "-n",
+      "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-plan-entrypoint-independent-adjunct-v1\\entrypoint.sh"
+    ],
+    "exitCode": 0
+  },
+  "facts": [
+    "Only new exact plan verb added, shifts verb then composes existing DATABASE_URL and execs fixed previously qualified plan CLI with quoted argv.",
+    "Prior native execute branch/default serve and all other entrypoint behavior byte-equivalent after removing new block.",
+    "Existing plan CLI still exact plan-only args/recipe validation before canonical factory; read-only inspect, exclusive output, explicit false capture/fixture readiness and NOT_RUN live acceptance."
+  ],
+  "limits": [
+    "Static delta and bash syntax only; no container image execution or actual task/IAM/native cost provenance.",
+    "Does not relabel old compiled entrypoint pin; future image must contain new exact hash."
+  ],
+  "captureAuthority": false
+}

@@ -1,0 +1,5 @@
+PASS_V3_CORRECTIONS_SOURCE_ONLY_PENDING_QUALIFICATION
+
+Wrote the bounded source-only review to C:\dev\main\outputs\meri-c2-20261003\case12-budget-hooks-independent-hermes-v3\review.md.
+
+It explicitly records that the previous Hermes v2 review missed F1–F3 and does not describe v2 as defect-free. No tests or external systems were run; integration qualification remains pending.

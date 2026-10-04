@@ -1,0 +1,42 @@
+{
+  "kind": "case12-factory-failure-and-execute-ordering-independent-assessment",
+  "at": "2026-10-04T11:30:06.325995+00:00",
+  "status": "FACTORY_SETUP_PASSED_HYDRATION_BLOCKED;EXECUTE_ORDERING_PASS_WITH_DOUBLES",
+  "factoryCheckpointSha256": "ac1209715d31f0a2bd3cbf473b33ce97ec730d92ccec4ebfd7edacf315f1e578",
+  "executeCheckpointSha256": "8616f5cd00dd2adde5ac012872c1b411d8f148abfb5f9d5815f4c42163ed5c72",
+  "pinChecks": {
+    "count": 3951,
+    "sha256": "27cac6977ebc848f3edb28d596e94a47175886dadba6fc3e97bf703e788733f9"
+  },
+  "factory": {
+    "observed": "Actual zero-argument Case01 Nest dependency factory, compiled current setup owner, native default Prisma limits; namespace-only SET LOCAL shim preserves native tenant scoping/default options. Three boundary tests passed.510 setup rows,510 native terminal proofs,1020 exact transport doubles completed in799878.3639ms. This is not a completed full test: subsequent hydration failed.",
+    "blocker": "READ_ONLY_HYDRATION returned RECONCILIATION_REQUIRED. Locked transaction expired P2028 at5012.5077ms against default5000ms, after1306 observed unsafe queries; tagged native helper queries are additional. Whole hydration duration32886.8741ms. Full510 test exit1 with explicit CURRENT_HYDRATED assertion failure; no success override.",
+    "followon": "Current corpus owner, completion reader, capture authority and planned private pg_dump follow-on NOT_RUN because hydration assertion failed. Do not call these native-qualified.",
+    "runtimePins": "320 public artifacts verified. App11 source+8 compiled post-failure pin receipt retained. Core rebuilt during loaded setup process:174 later disk pins cannot establish earlier loaded bytes; cached-runtime follow-on did not run. This limitation is material and explicit.",
+    "private": "One private full-state JSON excluded from public artifact manifest. Its contents were not opened, copied or independently rehashed in this review; listed hash is only a producer declaration, not independent validation.",
+    "cleanup": "Saved owned-schema cleanup readback confirms0 remaining owned test schemas and root-owned container retained. No independent DB query by reviewer.",
+    "limits": [
+      "Reduced owned schema; production migrations/RLS not proven",
+      "Native aggregate admission replaced by a local identity-opaque test port",
+      "Providers replaced only at transports; simulated usage/prices do not qualify live rates or spend",
+      "No live capture/prompt/human acceptance run"
+    ]
+  },
+  "executeSupplement": {
+    "status": "PASS_LOCAL_EXECUTE_ORDERING_ONLY",
+    "testCount": 8,
+    "suites": 1,
+    "observations": [
+      "Actual execute wrapper enters actual request-policy/provider ALS; exact same policy object reaches actual reserve method and controlled budget owner",
+      "Before-owner denial prevents callback/reserve/wire; after-owner denial rejects returned result; invalid proposal/save tool denied first;Case01/14 allowance preserved",
+      "Test intentionally uses non-search request route name to isolate wrapper ordering; request HMAC codec not exercised here and has separate source/HTTP tests",
+      "Native owner, Prisma, capture-budget owner and inner executeScoped are doubles; counted wire spy and forbidden global fetch; no nativeDB/provider/typecheck claim"
+    ],
+    "rootTestFollowon": "Root reports integrated test-only typing repairs after this freeze; this assessment pins original test evidence, not unseen repaired bytes."
+  },
+  "repoEdits": false,
+  "cloudActions": false,
+  "databaseActions": false,
+  "captureAuthority": false,
+  "liveAcceptance": "NOT_RUN"
+}

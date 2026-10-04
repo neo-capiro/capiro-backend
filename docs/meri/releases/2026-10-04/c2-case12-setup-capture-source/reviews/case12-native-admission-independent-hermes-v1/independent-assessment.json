@@ -1,0 +1,214 @@
+{
+  "at": "2026-10-04T11:58:11.404380+00:00",
+  "status": "PASS_SOURCE_ONLY_CONDITIONAL_ON_SEPARATE_AUTHENTICATED_RELEASE_OPERATOR",
+  "sourceSha256": "28efbc49a0e23006adedb7a4bfb14edb9088ac7d476076c5630065f81a5a0b23",
+  "inputManifestSha256": "ce19ba45b744d63aceafa4114df8b115dd7a6ea66f2ddc8b280c4a1b08f348ab",
+  "actualHermes": {
+    "exitCode": 0,
+    "sessionId": "20261004_075413_b42a7f",
+    "model": "openai/gpt-6-luna",
+    "provider": "openrouter",
+    "reviewSha256": "9415cd883e826c1ce099c5d97c903fa02b5b0c7a6f697247cd2ab7f57a3e3a82",
+    "rawDisposition": "CONCRETE_FINDING",
+    "estimatedDevelopmentCostUsd": 0.008483184999999999,
+    "overrides": null
+  },
+  "adjudication": [
+    {
+      "id": "F-1",
+      "disposition": "EXTERNAL_APPROVED_RELEASE_BOUNDARY_REQUIRED_NOT_A_FIXTURE_RECIPE_DEFECT",
+      "reason": "The fixture recipe and deterministic setup plan bind fixed corpus identities/content; they do not contain approved build/image identities. The budget source/image/rate fields are a separate release/cost envelope, authenticated by the mandatory Windows native owner. This helper cross-checks real native task image, task definition configuration, deployment Git environment and exact raw task override against that held envelope. Consistently replacing both envelope and controlled AWS doubles shows those trust inputs must be genuine; it does not show that unauthenticated caller JSON bypasses the fixed native reads or that fixture recipe fields are missing. Raw Hermes finding is retained unchanged, and no real operator composition is qualified here."
+    }
+  ],
+  "independentSourceChecks": [
+    "All native non-discriminator envelope fields require actual strings before regex, metadata or AWS calls; prior array coercion boundary closed.",
+    "Fixed link-local metadata endpoint, fixed account/region/cluster SDK, maxAttempts=1, exact task identity, registration tag, task definition configuration, sole container/image/restart and exact input override checks.",
+    "Plan bytes and source/image fields are consistency evidence, not independent admission; approved manifest64/Git40/ECR image/definition/rates and actual aggregate hold require separate native Windows operator.",
+    "Private object identity is consumed before first await; malformed binding, SQL error or uncertain write cannot be retried using the same handle.",
+    "Tenant FOR UPDATE plus database clock checks precede admission-slot CAS and exact receipt readback; existing setup/admission/budget slot denies.",
+    "Durable owner snapshots and validates recipe/plan/ordered510 rows and current scope around this port; the port is not a replacement for whole-owner validation.",
+    "Errors after a durable write escape to caller; actual same-transaction rollback and commit acknowledgment remain composition proof obligations."
+  ],
+  "qualification": {
+    "rootTests": 29,
+    "testScope": "Actual parser/validator/hash/closure with controlled metadata/ECS/SQL doubles",
+    "currentFullApiTypecheck": "PENDING_AT_REVIEW; earlier full tsc predates strict delta",
+    "actualAwsIamTaskProbe": "NOT_RUN",
+    "actualDatabaseAdmissionRollback": "NOT_RUN",
+    "cliComposition": "SEPARATE_PENDING",
+    "liveAcceptance": "NOT_RUN",
+    "captureAuthority": false
+  },
+  "requiredBeforeLive": [
+    "Fixed Windows owner must authenticate approved source manifest SHA256, deployment Git40, ECR digest and exact task-template/rate pins before native aggregate hold and one dispatch.",
+    "Serialize exact final input bytes and AWS override <=8192 bytes; bind actual RegisterTaskDefinition and RunTask acknowledgment to that one claim; no uncertain dispatch replay.",
+    "Native helper must rebuild deterministic plan from held compact input and real factory, then consume this capability within the same locked transaction as durable budget/setup owner; qualify actual rollback and task/IAM behavior."
+  ],
+  "checks": [
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-admission-independent-input-v1\\manifest.json",
+      "sha256": "ce19ba45b744d63aceafa4114df8b115dd7a6ea66f2ddc8b280c4a1b08f348ab",
+      "bytes": 3061
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-admission-independent-input-v1\\source\\meri-case12-native-setup-admission.ts",
+      "sha256": "28efbc49a0e23006adedb7a4bfb14edb9088ac7d476076c5630065f81a5a0b23",
+      "bytes": 11682
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-admission-independent-hermes-v1\\evidence\\source\\meri-case12-native-setup-admission.ts",
+      "sha256": "28efbc49a0e23006adedb7a4bfb14edb9088ac7d476076c5630065f81a5a0b23",
+      "bytes": 11682
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\apps\\api\\src\\meri\\meri-case12-native-setup-admission.ts",
+      "sha256": "28efbc49a0e23006adedb7a4bfb14edb9088ac7d476076c5630065f81a5a0b23",
+      "bytes": 11682
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-admission-independent-input-v1\\source\\meri-case12-native-setup-admission.spec.ts",
+      "sha256": "e6f170cb452374220b5352126502906b0631d8e5bd72d62f62d1a6725415f035",
+      "bytes": 10238
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-admission-independent-hermes-v1\\evidence\\source\\meri-case12-native-setup-admission.spec.ts",
+      "sha256": "e6f170cb452374220b5352126502906b0631d8e5bd72d62f62d1a6725415f035",
+      "bytes": 10238
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\apps\\api\\src\\meri\\meri-case12-native-setup-admission.spec.ts",
+      "sha256": "e6f170cb452374220b5352126502906b0631d8e5bd72d62f62d1a6725415f035",
+      "bytes": 10238
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-admission-independent-input-v1\\dependencies\\meri-case12-setup-budget.ts",
+      "sha256": "785da5e7945f13675b1f64df613792f9541225a9c68236bef372c02d401c96ab",
+      "bytes": 15809
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-admission-independent-hermes-v1\\evidence\\dependencies\\meri-case12-setup-budget.ts",
+      "sha256": "785da5e7945f13675b1f64df613792f9541225a9c68236bef372c02d401c96ab",
+      "bytes": 15809
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\apps\\api\\src\\meri\\meri-case12-setup-budget.ts",
+      "sha256": "785da5e7945f13675b1f64df613792f9541225a9c68236bef372c02d401c96ab",
+      "bytes": 15809
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-admission-independent-input-v1\\dependencies\\meri-case12-setup-budget-owner.ts",
+      "sha256": "46f4fb5ca4426bf74bf5e759bd40e2621e8582a873f2e460c024847d97f088a8",
+      "bytes": 26065
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-admission-independent-hermes-v1\\evidence\\dependencies\\meri-case12-setup-budget-owner.ts",
+      "sha256": "46f4fb5ca4426bf74bf5e759bd40e2621e8582a873f2e460c024847d97f088a8",
+      "bytes": 26065
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\apps\\api\\src\\meri\\meri-case12-setup-budget-owner.ts",
+      "sha256": "46f4fb5ca4426bf74bf5e759bd40e2621e8582a873f2e460c024847d97f088a8",
+      "bytes": 26065
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-admission-independent-input-v1\\dependencies\\meri-case12-setup-provider-scope.ts",
+      "sha256": "e66fbcc3e619168eade0ebc3d50d26435304af74255e6438faefc457a41ad4e5",
+      "bytes": 3726
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-admission-independent-hermes-v1\\evidence\\dependencies\\meri-case12-setup-provider-scope.ts",
+      "sha256": "e66fbcc3e619168eade0ebc3d50d26435304af74255e6438faefc457a41ad4e5",
+      "bytes": 3726
+    },
+    {
+      "path": "C:\\dev\\main\\meri-c1-20261002\\apps\\api\\src\\meri\\meri-case12-setup-provider-scope.ts",
+      "sha256": "e66fbcc3e619168eade0ebc3d50d26435304af74255e6438faefc457a41ad4e5",
+      "bytes": 3726
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-admission-independent-input-v1\\tests-v2.log",
+      "sha256": "a19f2912bba962a7061a69071e3442ba87f07e1214a669a7445ea7a1c9f426ea",
+      "bytes": 3258
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-admission-independent-hermes-v1\\evidence\\tests-v2.log",
+      "sha256": "a19f2912bba962a7061a69071e3442ba87f07e1214a669a7445ea7a1c9f426ea",
+      "bytes": 3258
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-admission-tests-v2.log",
+      "sha256": "a19f2912bba962a7061a69071e3442ba87f07e1214a669a7445ea7a1c9f426ea",
+      "bytes": 3258
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-admission-independent-input-v1\\prior-qualification\\case12-native-admission-tests-v1.log",
+      "sha256": "d449771e1f3b99eb629de6d9db518f0bf0945543e60df92b7405f5a90e4f230c",
+      "bytes": 2362
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-admission-independent-hermes-v1\\evidence\\prior-qualification\\case12-native-admission-tests-v1.log",
+      "sha256": "d449771e1f3b99eb629de6d9db518f0bf0945543e60df92b7405f5a90e4f230c",
+      "bytes": 2362
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-admission-tests-v1.log",
+      "sha256": "d449771e1f3b99eb629de6d9db518f0bf0945543e60df92b7405f5a90e4f230c",
+      "bytes": 2362
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-admission-independent-input-v1\\prior-qualification\\case12-native-admission-typecheck-v1.log",
+      "sha256": "02ea28aece6105af83c7fdc7606db51b66e855a14dc2ce8a59c7cb0b053ca245",
+      "bytes": 287
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-admission-independent-hermes-v1\\evidence\\prior-qualification\\case12-native-admission-typecheck-v1.log",
+      "sha256": "02ea28aece6105af83c7fdc7606db51b66e855a14dc2ce8a59c7cb0b053ca245",
+      "bytes": 287
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-admission-typecheck-v1.log",
+      "sha256": "02ea28aece6105af83c7fdc7606db51b66e855a14dc2ce8a59c7cb0b053ca245",
+      "bytes": 287
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-admission-independent-input-v1\\prior-qualification\\case12-native-admission-typecheck-v2.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-admission-independent-hermes-v1\\evidence\\prior-qualification\\case12-native-admission-typecheck-v2.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-admission-typecheck-v2.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-admission-independent-hermes-v1\\prompt.txt",
+      "sha256": "9e31bdba41f5176ec1334265656480846f3fc76eaf4df36c622b9d51b0da6e45",
+      "bytes": 1663
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-admission-independent-hermes-v1\\response.txt",
+      "sha256": "48d8b919f037548b6c77424550232f195d3571314908b359660f7220189b7f66",
+      "bytes": 634
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-admission-independent-hermes-v1\\review.md",
+      "sha256": "9415cd883e826c1ce099c5d97c903fa02b5b0c7a6f697247cd2ab7f57a3e3a82",
+      "bytes": 9046
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-admission-independent-hermes-v1\\stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-admission-independent-hermes-v1\\usage.json",
+      "sha256": "e240ec5d36fcb62b6953a9777a1e857d19440f0d480078f0ffc54493697c0cf3",
+      "bytes": 483
+    }
+  ]
+}

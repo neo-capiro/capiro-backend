@@ -1,3 +1,4 @@
+import { validateMeriCase12SetupPolicyBinding } from './case12-setup-binding.js';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import type { MeriGovernedTurnContext } from '../registry/types';
 import type { MeriResearchPlanExecutionEnvelopeV1 } from './research-plan-execution';
@@ -94,12 +95,13 @@ export function resolveMeriGovernedSemanticClock(
   now = Date.now(),
 ): MeriFixtureSemanticClock | undefined {
   const policy = context.serverReadonlyCapturePolicy;
+  if (policy) validateMeriCase12SetupPolicyBinding(policy);
   const artifact = context.governedArtifactCapturePolicy;
   const clock = context.semanticClock;
   const compiler = context.contextPacket.clockUse;
   const qualifiedRead = policy && !policy.syntheticReadBudget &&
     policy.fixtureVersion === 'meri-live-v1-2026-09-26.1' &&
-    ['01', '14', '20', '72'].includes(policy.caseId ?? '');
+    ['01', '12', '14', '20', '72'].includes(policy.caseId ?? '');
   const fail = (): never => { throw new Error('meri_fixture_semantic_clock_context_mismatch'); };
   if (!qualifiedRead && !artifact) {
     if (clock || policy?.semanticClock || compiler) fail();

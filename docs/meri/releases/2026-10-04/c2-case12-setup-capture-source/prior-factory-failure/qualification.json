@@ -1,0 +1,95 @@
+{
+  "kind": "case12-actual-factory-owner-qualification",
+  "at": "2026-10-04T11:24:12.936Z",
+  "status": "SETUP_PASS_HYDRATION_DEFAULT_TIMEOUT_FAIL",
+  "boundaryTests": {
+    "passed": 3,
+    "log": "factory-owner-tests-v8.log"
+  },
+  "full510": {
+    "testExitCode": 1,
+    "setupStatus": "SETUP_COMPLETE",
+    "setupDurationMs": 799878.3639,
+    "verifiedRows": 510,
+    "terminalProofs": 510,
+    "wireTransportDoubleCalls": 1020,
+    "setupBudgetBytes": 1759276,
+    "tenantSettingsBytes": 2160469
+  },
+  "hydration": {
+    "status": "RECONCILIATION_REQUIRED",
+    "durationMs": 32886.8740999999,
+    "failure": {
+      "stage": "READ_ONLY_HYDRATION",
+      "errorClass": "PrismaClientKnownRequestError",
+      "code": null
+    },
+    "transactions": [
+      {
+        "stage": "hydration-locked-510",
+        "durationMs": 5012.507699999958,
+        "queries": 1306,
+        "status": "FAILED",
+        "code": "P2028",
+        "knownMessage": null,
+        "stackFrames": [
+          "Invalid `prisma.$queryRaw()` invocation:",
+          "",
+          "",
+          "Transaction API error: Transaction already closed: A query cannot be executed on an expired transaction. The timeout for this transaction was 5000 ms, however 5002 ms passed since the start of the transaction. Consider increasing the interactive transaction timeout or doing less work in the transaction.",
+          "    at $n.handleRequestError (C:\\dev\\main\\meri-c1-20261002\\node_modules\\.pnpm\\@prisma+client@5.22.0_prisma@5.22.0\\node_modules\\@prisma\\client\\runtime\\library.js:121:7315)",
+          "    at $n.handleAndLogRequestError (C:\\dev\\main\\meri-c1-20261002\\node_modules\\.pnpm\\@prisma+client@5.22.0_prisma@5.22.0\\node_modules\\@prisma\\client\\runtime\\library.js:121:6623)",
+          "    at $n.request (C:\\dev\\main\\meri-c1-20261002\\node_modules\\.pnpm\\@prisma+client@5.22.0_prisma@5.22.0\\node_modules\\@prisma\\client\\runtime\\library.js:121:6307)"
+        ],
+        "timeoutOverride": null
+      }
+    ]
+  },
+  "transactions": {
+    "count": 12245,
+    "committed": 12244,
+    "medianMs": 9.320899999991525,
+    "p95Ms": 373.54920000000857,
+    "maxCommittedMs": 650.7989999999991,
+    "timeoutOverrides": 0,
+    "queryCounterScope": "Observed $queryRawUnsafe only; tagged native helper queries are additional and were not counted"
+  },
+  "followon": {
+    "currentCorpusOwner": "NOT_RUN",
+    "completionReader": "NOT_RUN",
+    "captureBindingReader": "NOT_RUN",
+    "privatePgDump": "NOT_RUN_NOT_CREATED",
+    "reason": "Hydration assertion failed before dynamic followon; exact JSON snapshot saved before hydration"
+  },
+  "cleanup": {
+    "kind": "case12-pgvector-owned-schema-cleanup-readback",
+    "observedAt": "2026-10-04T11:21:42.357Z",
+    "containerId": "b3ce26339efe78e77492938d613ab66e9cd3b82833c9da5977412bcd2708bab0",
+    "ownerMarker": "20b2a791-9805-4c6c-9087-680d79b8d1f7",
+    "imageId": "sha256:ccc6e83d6e35e931dc7c5def2022729d5a6c370318d099181995567ff1fb4d6b",
+    "host": "127.0.0.1",
+    "port": 55434,
+    "database": "postgres",
+    "databaseOwner": "meri_c12_owner",
+    "postgresVersion": "16.15 (Debian 16.15-1.pgdg12+2)",
+    "remainingOwnedTestSchemas": 0,
+    "containerLeftForRootCleanup": true,
+    "primaryContainerTouched": false,
+    "cloudCalls": 0,
+    "providerCalls": 0,
+    "databaseWrites": 0
+  },
+  "limits": [
+    "Actual zero-argument Nest graph and default Prisma timeouts; reduced owned schema, not production migrations/RLS.",
+    "Exact owned-schema SET LOCAL search_path shim adds public vector type after native transactions/scoping.",
+    "Only local opaque test admission and provider transport doubles; no native aggregate admission or live providers.",
+    "App 11 source +8 compiled pins independently rechecked after failure before root rebuild; original callback final pin guard was not reached.",
+    "Root rebuilt core context package during setup; pre-build core bytes were not pinned. A174-file current disk snapshot exists; followon cached runtime observation was NOT_RUN.",
+    "Private full state includes row contents and persisted claim/ledger; PostgreSQL xmin is not portable through restore. It cannot recreate original authority without explicit local rebasing.",
+    "No full Case12 capture, semantic clock, original prompt or human acceptance qualification."
+  ],
+  "cloudCalls": 0,
+  "liveProviderCalls": 0,
+  "captureAuthority": false,
+  "liveAcceptance": "NOT_RUN"
+}

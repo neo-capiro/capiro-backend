@@ -1,0 +1,18 @@
+{
+  "kind": "case12-pgvector-owned-schema-cleanup-readback",
+  "observedAt": "2026-10-04T12:11:55.062Z",
+  "containerId": "b3ce26339efe78e77492938d613ab66e9cd3b82833c9da5977412bcd2708bab0",
+  "ownerMarker": "20b2a791-9805-4c6c-9087-680d79b8d1f7",
+  "imageId": "sha256:ccc6e83d6e35e931dc7c5def2022729d5a6c370318d099181995567ff1fb4d6b",
+  "host": "127.0.0.1",
+  "port": 55434,
+  "database": "postgres",
+  "databaseOwner": "meri_c12_owner",
+  "postgresVersion": "16.15 (Debian 16.15-1.pgdg12+2)",
+  "remainingOwnedTestSchemas": 0,
+  "containerLeftForRootCleanup": true,
+  "primaryContainerTouched": false,
+  "cloudCalls": 0,
+  "providerCalls": 0,
+  "databaseWrites": 0
+}

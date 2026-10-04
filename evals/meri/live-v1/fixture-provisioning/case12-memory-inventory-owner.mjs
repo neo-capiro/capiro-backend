@@ -135,6 +135,7 @@ export function createCase12MemoryInventoryOwner({
   seedInventory,
   proposerForTenant,
   assertSyntheticApprovedMemoryInTx,
+  assertSyntheticApprovedMemorySetInTx,
   memoryAuthorization,
 } = {}) {
   // Clone before validation or asynchronous composition so later caller mutation
@@ -180,6 +181,11 @@ export function createCase12MemoryInventoryOwner({
     fail('CASE12_CANONICAL_INSPECTION_HELPERS_INCOMPLETE');
   }
 
+  const batchGuard = typeof assertSyntheticApprovedMemorySetInTx === 'function'
+    ? assertSyntheticApprovedMemorySetInTx : null;
+  const batchAuthorization = typeof memoryAuthorization.readCase12ItemsWithDecisionsInTx === 'function'
+    ? memoryAuthorization.readCase12ItemsWithDecisionsInTx.bind(memoryAuthorization) : null;
+  if (Boolean(batchGuard) !== Boolean(batchAuthorization)) fail('CASE12_NATIVE_SET_PORTS_INCOMPLETE');
   const loadItemInTx = memoryAuthorization.loadItemInTx.bind(memoryAuthorization);
   const evaluateInTx = memoryAuthorization.evaluateInTx.bind(memoryAuthorization);
   const inspectInTx = async (tx, suppliedContext, { caseId, clientId } = {}) => {
@@ -231,6 +237,42 @@ export function createCase12MemoryInventoryOwner({
 
     const orderedDefinitions = [...definitionsById.values()];
     const observations = [];
+    let bulk = null;
+    if (batchGuard) {
+      if (orderedDefinitions.length !== 510) fail('CASE12_NATIVE_SET_EXACT_510_REQUIRED');
+      const proposerIds = new Map(), guards = [];
+      for (const definition of orderedDefinitions) {
+        const candidate = definition.candidate, seeded = bindingsById.get(definition.logicalId);
+        const proposer = await proposerForTenant(tenantId);
+        if (typeof proposer !== 'string' || !UUID.test(proposer)) fail('CASE12_PROPOSER_ID_INVALID');
+        proposerIds.set(definition.logicalId, proposer);
+        guards.push({itemId:seeded.physicalId,guard:{candidateId:candidate.physicalId,
+          expectedRowVersion:seeded.candidateRowVersion,expectedItemRowVersion:seeded.itemRowVersion,
+          expectedPayload:expectedMemoryCandidatePayload(candidate,proposer,
+            stableJson({ownership:candidate.ownership,payload:candidate.payload}))}});
+      }
+      const exactMap = (rows, key, expected) => {
+        if (!Array.isArray(rows) || rows.length !== expected.length) fail('CASE12_NATIVE_SET_CARDINALITY');
+        const map = new Map(rows.map(row=>[row?.[key],row]));
+        if (map.size !== expected.length || expected.some(id=>!map.has(id))) fail('CASE12_NATIVE_SET_IDENTITY');
+        return map;
+      };
+      const candidateIds = guards.map(e=>e.guard.candidateId), itemIds = guards.map(e=>e.itemId);
+      const proposerRows = await tx.$queryRawUnsafe(
+        `SELECT id::text AS id,proposed_by::text AS proposed_by,xmin::text AS row_version FROM memory_candidate
+         WHERE tenant_id=$1::uuid AND id=ANY($2::uuid[]) ORDER BY id FOR UPDATE`,tenantId,candidateIds);
+      const proposers = exactMap(proposerRows,'id',candidateIds);
+      const audits = exactMap(await batchGuard(tx,ctx,guards),'syntheticFixtureCandidateId',candidateIds);
+      const authRows = await batchAuthorization(tx,ctx,{clientId,itemIds});
+      const auth = exactMap(authRows.map(row=>({...row,id:row?.subject?.id})),'id',itemIds);
+      const itemRows = await tx.$queryRawUnsafe(
+        `SELECT id::text AS id, tenant_id::text AS tenant_id, client_id::text AS client_id,
+                status, source_version, source_content_hash, sections_jsonb,
+                xmin::text AS row_version, created_at, updated_at
+         FROM memory_items WHERE tenant_id=$1::uuid AND client_id=$2::uuid AND id=ANY($3::uuid[])
+         ORDER BY id FOR UPDATE`,tenantId,clientId,itemIds);
+      bulk = {proposerIds,proposers,audits,auth,items:exactMap(itemRows,'id',itemIds)};
+    }
     for (const definition of orderedDefinitions) {
       const logicalId = definition.logicalId;
       const candidate = definition.candidate;
@@ -244,9 +286,9 @@ export function createCase12MemoryInventoryOwner({
       ) {
         fail('CASE12_SEED_SCOPE_MISMATCH', logicalId);
       }
-      const proposerId = await proposerForTenant(tenantId);
+      const proposerId = bulk ? bulk.proposerIds.get(logicalId) : await proposerForTenant(tenantId);
       if (!UUID.test(proposerId ?? '')) fail('CASE12_PROPOSER_ID_INVALID', logicalId);
-      const proposers = await tx.$queryRawUnsafe(
+      const proposers = bulk ? [bulk.proposers.get(seeded.candidateId)] : await tx.$queryRawUnsafe(
         `SELECT proposed_by::text AS proposed_by FROM memory_candidate
          WHERE tenant_id=$1::uuid AND id=$2::uuid AND proposed_by=$3::uuid
            AND xmin::text=$4 FOR UPDATE`,
@@ -255,7 +297,8 @@ export function createCase12MemoryInventoryOwner({
         proposerId,
         seeded.candidateRowVersion,
       );
-      if (proposers.length !== 1 || proposers[0].proposed_by !== proposerId)
+      if (proposers.length !== 1 || proposers[0]?.proposed_by !== proposerId ||
+          (bulk && proposers[0].row_version !== seeded.candidateRowVersion))
         fail('CASE12_CANDIDATE_OWNER_OR_VERSION_CHANGED', logicalId);
       const guard = {
         candidateId: candidate.physicalId,
@@ -267,7 +310,7 @@ export function createCase12MemoryInventoryOwner({
           stableJson({ ownership: candidate.ownership, payload: candidate.payload }),
         ),
       };
-      const ownership = await assertSyntheticApprovedMemoryInTx(tx, ctx, seeded.physicalId, guard);
+      const ownership = bulk ? bulk.audits.get(seeded.candidateId) : await assertSyntheticApprovedMemoryInTx(tx, ctx, seeded.physicalId, guard);
       if (
         !ownership ||
         ownership.syntheticFixtureCandidateRowVersion !== seeded.candidateRowVersion ||
@@ -277,7 +320,7 @@ export function createCase12MemoryInventoryOwner({
       ) {
         fail('CASE12_CANONICAL_APPROVAL_OWNER_MISMATCH', logicalId);
       }
-      const subject = await loadItemInTx(tx, tenantId, seeded.physicalId);
+      const subject = bulk ? bulk.auth.get(seeded.physicalId)?.subject : await loadItemInTx(tx, tenantId, seeded.physicalId);
       if (
         !subject ||
         subject.id !== seeded.physicalId ||
@@ -285,7 +328,7 @@ export function createCase12MemoryInventoryOwner({
         subject.clientId !== clientId ||
         subject.status !== 'active' ||
         (
-          await evaluateInTx(tx, ctx, subject, 'read', {
+          bulk ? bulk.auth.get(seeded.physicalId)?.decision : await evaluateInTx(tx, ctx, subject, 'read', {
             emitDenialMetrics: false,
           })
         )?.allowed !== true
@@ -294,7 +337,7 @@ export function createCase12MemoryInventoryOwner({
 
       // Select by physical id, then verify actual returned scope. The transaction
       // and established owner helpers may lock rows; no READ ONLY mode is imposed.
-      const actualRows = await tx.$queryRawUnsafe(
+      const actualRows = bulk ? [bulk.items.get(seeded.physicalId)] : await tx.$queryRawUnsafe(
         `SELECT id::text AS id, tenant_id::text AS tenant_id, client_id::text AS client_id,
                 status, source_version, source_content_hash, sections_jsonb,
                 xmin::text AS row_version, created_at, updated_at

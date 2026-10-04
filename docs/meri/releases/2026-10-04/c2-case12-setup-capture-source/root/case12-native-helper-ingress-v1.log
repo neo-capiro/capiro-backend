@@ -1,0 +1,16 @@
+✔ missing execute fails before importing factory or compiled native modules (94.1135ms)
+✔ extra command arguments fails before importing factory or compiled native modules (86.7653ms)
+✔ missing input environment fails before importing factory or compiled native modules (89.86ms)
+✔ invalid JSON fails before importing factory or compiled native modules (90.5762ms)
+✔ oversized input fails before importing factory or compiled native modules (83.8032ms)
+✔ array envelope fails before importing factory or compiled native modules (82.9016ms)
+✔ serialized authority or caller plan fails before importing factory or compiled native modules (82.1377ms)
+✔ invalid recipe fails before importing factory or compiled native modules (92.6396ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 782.3651

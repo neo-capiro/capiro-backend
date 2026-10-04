@@ -1,0 +1,573 @@
+{
+  "kind": "case12-budget-foundation-independent-final-v3",
+  "at": "2026-10-04T10:09:55.141Z",
+  "status": "PASS_LOCAL_FOUNDATION_ONLY",
+  "findings": [],
+  "resolvedFindings": [
+    "F1 synchronous capability consumption prevents concurrent or post-failure settlement reuse",
+    "F2 actual-string UUID/hash validation rejects identity-coercion arrays",
+    "F3 post-await uncertainty fence blocks delayed reservation from returning to wire"
+  ],
+  "qualificationChecks": 45,
+  "postHermesChecks": 53,
+  "checks": [
+    {
+      "name": "45 final qualification checks",
+      "passed": true
+    },
+    {
+      "name": "post-Hermes qualification zero drift C:/dev/main/outputs/meri-c2-20261003/case12-budget-foundation-root-qualification-v3.json",
+      "passed": true
+    },
+    {
+      "name": "post-Hermes qualification zero drift C:/dev/main/outputs/meri-c2-20261003/case12-budget-hooks-frozen-v3/manifest.json",
+      "passed": true
+    },
+    {
+      "name": "post-Hermes qualification zero drift C:/dev/main/meri-c1-20261002/apps/api/src/meri/meri-case12-setup-budget.ts",
+      "passed": true
+    },
+    {
+      "name": "post-Hermes qualification zero drift C:/dev/main/outputs/meri-c2-20261003/case12-budget-hooks-frozen-v3/source/apps/api/src/meri/meri-case12-setup-budget.ts",
+      "passed": true
+    },
+    {
+      "name": "post-Hermes qualification zero drift C:/dev/main/meri-c1-20261002/apps/api/src/meri/meri-case12-setup-budget.spec.ts",
+      "passed": true
+    },
+    {
+      "name": "post-Hermes qualification zero drift C:/dev/main/outputs/meri-c2-20261003/case12-budget-hooks-frozen-v3/source/apps/api/src/meri/meri-case12-setup-budget.spec.ts",
+      "passed": true
+    },
+    {
+      "name": "post-Hermes qualification zero drift C:/dev/main/meri-c1-20261002/apps/api/src/meri/meri-case12-setup-provider-scope.ts",
+      "passed": true
+    },
+    {
+      "name": "post-Hermes qualification zero drift C:/dev/main/outputs/meri-c2-20261003/case12-budget-hooks-frozen-v3/source/apps/api/src/meri/meri-case12-setup-provider-scope.ts",
+      "passed": true
+    },
+    {
+      "name": "post-Hermes qualification zero drift C:/dev/main/meri-c1-20261002/apps/api/src/meri/meri-case12-setup-provider-scope.spec.ts",
+      "passed": true
+    },
+    {
+      "name": "post-Hermes qualification zero drift C:/dev/main/outputs/meri-c2-20261003/case12-budget-hooks-frozen-v3/source/apps/api/src/meri/meri-case12-setup-provider-scope.spec.ts",
+      "passed": true
+    },
+    {
+      "name": "post-Hermes qualification zero drift C:/dev/main/meri-c1-20261002/apps/api/src/meri/meri-research-tool-budget.ts",
+      "passed": true
+    },
+    {
+      "name": "post-Hermes qualification zero drift C:/dev/main/outputs/meri-c2-20261003/case12-budget-hooks-frozen-v3/source/apps/api/src/meri/meri-research-tool-budget.ts",
+      "passed": true
+    },
+    {
+      "name": "post-Hermes qualification zero drift C:/dev/main/meri-c1-20261002/apps/api/src/meri/meri-capture-api-provider-scope.ts",
+      "passed": true
+    },
+    {
+      "name": "post-Hermes qualification zero drift C:/dev/main/outputs/meri-c2-20261003/case12-budget-hooks-frozen-v3/source/apps/api/src/meri/meri-capture-api-provider-scope.ts",
+      "passed": true
+    },
+    {
+      "name": "post-Hermes qualification zero drift C:/dev/main/meri-c1-20261002/apps/api/src/embeddings/titan-embedding.provider.ts",
+      "passed": true
+    },
+    {
+      "name": "post-Hermes qualification zero drift C:/dev/main/outputs/meri-c2-20261003/case12-budget-hooks-frozen-v3/source/apps/api/src/embeddings/titan-embedding.provider.ts",
+      "passed": true
+    },
+    {
+      "name": "post-Hermes qualification zero drift C:/dev/main/meri-c1-20261002/apps/api/src/memory/memory-candidate.service.ts",
+      "passed": true
+    },
+    {
+      "name": "post-Hermes qualification zero drift C:/dev/main/outputs/meri-c2-20261003/case12-budget-hooks-frozen-v3/source/apps/api/src/memory/memory-candidate.service.ts",
+      "passed": true
+    },
+    {
+      "name": "post-Hermes qualification zero drift C:/dev/main/meri-c1-20261002/evals/meri/live-v1/lib/windows-capture-spend.py",
+      "passed": true
+    },
+    {
+      "name": "post-Hermes qualification zero drift C:/dev/main/outputs/meri-c2-20261003/case12-budget-hooks-frozen-v3/source/evals/meri/live-v1/lib/windows-capture-spend.py",
+      "passed": true
+    },
+    {
+      "name": "post-Hermes qualification zero drift C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/case12-setup-spend.unit.py",
+      "passed": true
+    },
+    {
+      "name": "post-Hermes qualification zero drift C:/dev/main/outputs/meri-c2-20261003/case12-budget-hooks-frozen-v3/source/evals/meri/live-v1/tests/case12-setup-spend.unit.py",
+      "passed": true
+    },
+    {
+      "name": "post-Hermes qualification zero drift C:/dev/main/outputs/meri-c2-20261003/case12-budget-hooks-tests-v1.log",
+      "passed": true
+    },
+    {
+      "name": "post-Hermes qualification zero drift C:/dev/main/outputs/meri-c2-20261003/case12-budget-hooks-tests-v2.log",
+      "passed": true
+    },
+    {
+      "name": "post-Hermes qualification zero drift C:/dev/main/outputs/meri-c2-20261003/case12-budget-hooks-tests-v3-delta.log",
+      "passed": true
+    },
+    {
+      "name": "post-Hermes qualification zero drift C:/dev/main/outputs/meri-c2-20261003/case12-budget-hooks-typecheck-v4.log",
+      "passed": true
+    },
+    {
+      "name": "post-Hermes qualification zero drift C:/dev/main/outputs/meri-c2-20261003/case12-budget-hooks-typecheck-v5.log",
+      "passed": true
+    },
+    {
+      "name": "post-Hermes qualification zero drift C:/dev/main/outputs/meri-c2-20261003/case12-setup-spend-tests-v1.log",
+      "passed": true
+    },
+    {
+      "name": "post-Hermes qualification zero drift C:/dev/main/outputs/meri-c2-20261003/case12-spend-existing-regression-v1.log",
+      "passed": true
+    },
+    {
+      "name": "post-Hermes qualification zero drift C:/dev/main/outputs/meri-c2-20261003/case12-setup-root-unit-v1.log",
+      "passed": true
+    },
+    {
+      "name": "post-Hermes qualification zero drift C:/dev/main/outputs/meri-c2-20261003/case12-budget-hooks-typecheck-v2.log",
+      "passed": true
+    },
+    {
+      "name": "post-Hermes qualification zero drift C:/dev/main/outputs/meri-c2-20261003/case12-budget-hooks-typecheck-v3.log",
+      "passed": true
+    },
+    {
+      "name": "post-Hermes qualification zero drift C:/dev/main/outputs/meri-c2-20261003/case12-setup-supervised-v1/scratch/evals/meri/live-v1/fixture-provisioning/case12-memory-setup.mjs",
+      "passed": true
+    },
+    {
+      "name": "post-Hermes qualification zero drift C:/dev/main/meri-c1-20261002/evals/meri/live-v1/fixture-provisioning/case12-memory-setup.mjs",
+      "passed": true
+    },
+    {
+      "name": "post-Hermes qualification zero drift C:/dev/main/outputs/meri-c2-20261003/case12-setup-supervised-v1/scratch/evals/meri/live-v1/tests/case12-memory-setup.test.mjs",
+      "passed": true
+    },
+    {
+      "name": "post-Hermes qualification zero drift C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/case12-memory-setup.test.mjs",
+      "passed": true
+    },
+    {
+      "name": "post-Hermes qualification zero drift C:/dev/main/outputs/meri-fresh-20261003/fresh-spend.jsonl",
+      "passed": true
+    },
+    {
+      "name": "Hermes frozen evidence frozen-v3.json",
+      "passed": true
+    },
+    {
+      "name": "Hermes frozen evidence frozen-v2.json",
+      "passed": true
+    },
+    {
+      "name": "Hermes frozen evidence source/apps/api/src/meri/meri-case12-setup-budget.ts",
+      "passed": true
+    },
+    {
+      "name": "Hermes frozen evidence diffs/meri-case12-setup-budget.ts.diff",
+      "passed": true
+    },
+    {
+      "name": "Hermes frozen evidence source/apps/api/src/meri/meri-case12-setup-budget.spec.ts",
+      "passed": true
+    },
+    {
+      "name": "Hermes frozen evidence diffs/meri-case12-setup-budget.spec.ts.diff",
+      "passed": true
+    },
+    {
+      "name": "Hermes frozen evidence source/apps/api/src/meri/meri-case12-setup-provider-scope.ts",
+      "passed": true
+    },
+    {
+      "name": "Hermes frozen evidence diffs/meri-case12-setup-provider-scope.ts.diff",
+      "passed": true
+    },
+    {
+      "name": "Hermes frozen evidence source/apps/api/src/meri/meri-case12-setup-provider-scope.spec.ts",
+      "passed": true
+    },
+    {
+      "name": "Hermes frozen evidence diffs/meri-case12-setup-provider-scope.spec.ts.diff",
+      "passed": true
+    },
+    {
+      "name": "Hermes frozen evidence previous-hermes-review.md",
+      "passed": true
+    },
+    {
+      "name": "Hermes frozen evidence independent-v2-findings.json",
+      "passed": true
+    },
+    {
+      "name": "Hermes frozen evidence independent-v3-repros.json",
+      "passed": true
+    },
+    {
+      "name": "actual configured Hermes completed",
+      "passed": true
+    },
+    {
+      "name": "Hermes delta verdict acknowledges original misses",
+      "passed": true
+    }
+  ],
+  "pins": [
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-budget-hooks-independent-delta-v3/qualification-precheck.json",
+      "bytes": 14601,
+      "sha256": "6596adc5f5ae3a1cde32cca01e1ec858ff96e44ff4c630d5db59df2dc0b7991d"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-budget-foundation-root-qualification-v3.json",
+      "bytes": 7010,
+      "sha256": "9605ea6feb9f35fc8401c230aeeac58aab13e4bb42282d23a669b6ee297a9b1f"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-budget-hooks-frozen-v3/manifest.json",
+      "bytes": 3442,
+      "sha256": "439608a30745948dc0117e8790a838ecb85219e15f17b43dade9193a7c4491d8"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/apps/api/src/meri/meri-case12-setup-budget.ts",
+      "bytes": 15809,
+      "sha256": "785da5e7945f13675b1f64df613792f9541225a9c68236bef372c02d401c96ab"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-budget-hooks-frozen-v3/source/apps/api/src/meri/meri-case12-setup-budget.ts",
+      "bytes": 15809,
+      "sha256": "785da5e7945f13675b1f64df613792f9541225a9c68236bef372c02d401c96ab"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/apps/api/src/meri/meri-case12-setup-budget.spec.ts",
+      "bytes": 9045,
+      "sha256": "340a2157e903446cd45252e57de6f0371c05efa948aef1ee2d8b9e843d25ebe5"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-budget-hooks-frozen-v3/source/apps/api/src/meri/meri-case12-setup-budget.spec.ts",
+      "bytes": 9045,
+      "sha256": "340a2157e903446cd45252e57de6f0371c05efa948aef1ee2d8b9e843d25ebe5"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/apps/api/src/meri/meri-case12-setup-provider-scope.ts",
+      "bytes": 3726,
+      "sha256": "e66fbcc3e619168eade0ebc3d50d26435304af74255e6438faefc457a41ad4e5"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-budget-hooks-frozen-v3/source/apps/api/src/meri/meri-case12-setup-provider-scope.ts",
+      "bytes": 3726,
+      "sha256": "e66fbcc3e619168eade0ebc3d50d26435304af74255e6438faefc457a41ad4e5"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/apps/api/src/meri/meri-case12-setup-provider-scope.spec.ts",
+      "bytes": 10489,
+      "sha256": "8c8b2a7bd0a5fe69c1095e2427795666dcc364873d0cca840141f069fc27a64c"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-budget-hooks-frozen-v3/source/apps/api/src/meri/meri-case12-setup-provider-scope.spec.ts",
+      "bytes": 10489,
+      "sha256": "8c8b2a7bd0a5fe69c1095e2427795666dcc364873d0cca840141f069fc27a64c"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/apps/api/src/meri/meri-research-tool-budget.ts",
+      "bytes": 33086,
+      "sha256": "5e8f03eaaf8d14a5a2076ed95cb9dc228fe9ad1f0733145806b987b5ddb92978"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-budget-hooks-frozen-v3/source/apps/api/src/meri/meri-research-tool-budget.ts",
+      "bytes": 33086,
+      "sha256": "5e8f03eaaf8d14a5a2076ed95cb9dc228fe9ad1f0733145806b987b5ddb92978"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/apps/api/src/meri/meri-capture-api-provider-scope.ts",
+      "bytes": 4576,
+      "sha256": "fbcbb2a2c923b5b6bff6e6bd1a8ece077810872bbfe6dce11006a740307fc227"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-budget-hooks-frozen-v3/source/apps/api/src/meri/meri-capture-api-provider-scope.ts",
+      "bytes": 4576,
+      "sha256": "fbcbb2a2c923b5b6bff6e6bd1a8ece077810872bbfe6dce11006a740307fc227"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/apps/api/src/embeddings/titan-embedding.provider.ts",
+      "bytes": 7471,
+      "sha256": "288c831794e0afceb8d6ca52780e61738cc55edb0d3a0a706872f3ba71ba0465"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-budget-hooks-frozen-v3/source/apps/api/src/embeddings/titan-embedding.provider.ts",
+      "bytes": 7471,
+      "sha256": "288c831794e0afceb8d6ca52780e61738cc55edb0d3a0a706872f3ba71ba0465"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/apps/api/src/memory/memory-candidate.service.ts",
+      "bytes": 41455,
+      "sha256": "45c3ebf00a2f42795fb27a299d1a0d028cb6b03dd5f091de7768e920ebbdb46d"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-budget-hooks-frozen-v3/source/apps/api/src/memory/memory-candidate.service.ts",
+      "bytes": 41455,
+      "sha256": "45c3ebf00a2f42795fb27a299d1a0d028cb6b03dd5f091de7768e920ebbdb46d"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/lib/windows-capture-spend.py",
+      "bytes": 37440,
+      "sha256": "5849b4edd89c429ebbc9b9d0e82f0726640683c994f9141d5fef7fc24569c2a3"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-budget-hooks-frozen-v3/source/evals/meri/live-v1/lib/windows-capture-spend.py",
+      "bytes": 37440,
+      "sha256": "5849b4edd89c429ebbc9b9d0e82f0726640683c994f9141d5fef7fc24569c2a3"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/case12-setup-spend.unit.py",
+      "bytes": 9660,
+      "sha256": "932d1cea9ddbd0402a702779fbf28ba1591d55554db87ddd9c67f97fcb72ac11"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-budget-hooks-frozen-v3/source/evals/meri/live-v1/tests/case12-setup-spend.unit.py",
+      "bytes": 9660,
+      "sha256": "932d1cea9ddbd0402a702779fbf28ba1591d55554db87ddd9c67f97fcb72ac11"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-budget-hooks-tests-v1.log",
+      "bytes": 16640,
+      "sha256": "3837f708fead5ba16a4c5aec3292db79c59aa30c563afddaa03d977580e929b2"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-budget-hooks-tests-v2.log",
+      "bytes": 12002,
+      "sha256": "718e1cd03687384aaa5f019f42efc6256db9744b9d5531fbceb9323b018cafc8"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-budget-hooks-tests-v3-delta.log",
+      "bytes": 4357,
+      "sha256": "09e600097d98a1548c14d08ab3566a06b83782ec8edc8cf5f855d86ddd6ff693"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-budget-hooks-typecheck-v4.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-budget-hooks-typecheck-v5.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-setup-spend-tests-v1.log",
+      "bytes": 1183,
+      "sha256": "bde3e554c1e2729398d4055805517231351077dffb5a748ab664c5521d299048"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-spend-existing-regression-v1.log",
+      "bytes": 3025,
+      "sha256": "3d69648c99fca9833b8d589f306c3c8f7fc1780617f1d437062ebd18abd1135f"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-setup-root-unit-v1.log",
+      "bytes": 1325,
+      "sha256": "18bedaa3223b51fa2cb658aa1a193a8024b2885670556addf599bc695a48b54a"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-budget-hooks-typecheck-v2.log",
+      "bytes": 614,
+      "sha256": "0debb735c36bb21940c0bba9a2c62f48bdbbeb4084a71afc89743ba95dde5302"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-budget-hooks-typecheck-v3.log",
+      "bytes": 1863,
+      "sha256": "28198f20ab034647cf9dbe872e2bec3361300105364244f7e42f67e2da9d9b7d"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-setup-supervised-v1/scratch/evals/meri/live-v1/fixture-provisioning/case12-memory-setup.mjs",
+      "bytes": 30169,
+      "sha256": "1eea57f16dd492e52ef1416824d9a44824e1501b606be5675cedd76c330067bf"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/fixture-provisioning/case12-memory-setup.mjs",
+      "bytes": 32721,
+      "sha256": "cbd275e92de26b47ab84b4b9a4ddc0f799186a33943b628f31edab635a9e582e"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-setup-supervised-v1/scratch/evals/meri/live-v1/tests/case12-memory-setup.test.mjs",
+      "bytes": 3910,
+      "sha256": "5fec92e18b11b9d66f863e6fd61e8cfa4f4669fcbcf721035ca8ef1d2e2436c1"
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/evals/meri/live-v1/tests/case12-memory-setup.test.mjs",
+      "bytes": 4960,
+      "sha256": "b93d8b1486f6b98729ac9d3ec2c75c3e63294704d1d5c4cc82ff80a1fc782dc5"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-fresh-20261003/fresh-spend.jsonl",
+      "bytes": 17588,
+      "sha256": "816b04a47be56432846d1ee602370c3bea985eb497a7de9e899aee4d53f8b39e"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-budget-hooks-independent-hermes-v3/evidence/frozen-v3.json",
+      "bytes": 3442,
+      "sha256": "439608a30745948dc0117e8790a838ecb85219e15f17b43dade9193a7c4491d8"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-budget-hooks-independent-hermes-v3/evidence/frozen-v2.json",
+      "bytes": 3367,
+      "sha256": "213d13a7fe834ec9715810c9bec60f64baacb1e7b45381de3b37cece5622987f"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-budget-hooks-independent-hermes-v3/evidence/source/apps/api/src/meri/meri-case12-setup-budget.ts",
+      "bytes": 15809,
+      "sha256": "785da5e7945f13675b1f64df613792f9541225a9c68236bef372c02d401c96ab"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-budget-hooks-independent-hermes-v3/evidence/diffs/meri-case12-setup-budget.ts.diff",
+      "bytes": 2653,
+      "sha256": "25b1b6d8c40b723d3e05568e26a20689a4892dbf4ab1cb6d3c953764ab9a2280"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-budget-hooks-independent-hermes-v3/evidence/source/apps/api/src/meri/meri-case12-setup-budget.spec.ts",
+      "bytes": 9045,
+      "sha256": "340a2157e903446cd45252e57de6f0371c05efa948aef1ee2d8b9e843d25ebe5"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-budget-hooks-independent-hermes-v3/evidence/diffs/meri-case12-setup-budget.spec.ts.diff",
+      "bytes": 1401,
+      "sha256": "d7950dcea34c7f3f9c77538b28dda1f9531178fc2ab689f87d0f289d875ec751"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-budget-hooks-independent-hermes-v3/evidence/source/apps/api/src/meri/meri-case12-setup-provider-scope.ts",
+      "bytes": 3726,
+      "sha256": "e66fbcc3e619168eade0ebc3d50d26435304af74255e6438faefc457a41ad4e5"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-budget-hooks-independent-hermes-v3/evidence/diffs/meri-case12-setup-provider-scope.ts.diff",
+      "bytes": 1832,
+      "sha256": "4e2ca8b853fa92ede59f66cc4f7941c970531f1c735e0ac3ba1d92a950092fc4"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-budget-hooks-independent-hermes-v3/evidence/source/apps/api/src/meri/meri-case12-setup-provider-scope.spec.ts",
+      "bytes": 10489,
+      "sha256": "8c8b2a7bd0a5fe69c1095e2427795666dcc364873d0cca840141f069fc27a64c"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-budget-hooks-independent-hermes-v3/evidence/diffs/meri-case12-setup-provider-scope.spec.ts.diff",
+      "bytes": 2566,
+      "sha256": "07b6180322e1d521efa9e289cdc67bddbbb45c76a47f08d9854a5e1ce613dde5"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-budget-hooks-independent-hermes-v3/evidence/previous-hermes-review.md",
+      "bytes": 7572,
+      "sha256": "1b40bdeb362536579a9d51ee795af759582d25b4bed2af73abac683fd74f1952"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-budget-hooks-independent-hermes-v3/evidence/independent-v2-findings.json",
+      "bytes": 15474,
+      "sha256": "3d5f60a048d7254d3dc23e985fc00653807af1d890c03ee87fee44d614160ddd"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-budget-hooks-independent-hermes-v3/evidence/independent-v3-repros.json",
+      "bytes": 4180,
+      "sha256": "7b3d994179bfe0b19358db41cd0c3d97d39d145ec5329bbde3ddd12692be5f0d"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-budget-hooks-independent-hermes-v3/review.md",
+      "bytes": 6198,
+      "sha256": "f33f7bb11d432c813fa28b90271c6ecb8fa73ee8ab716ac61afb94e8af590bba"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-budget-hooks-independent-hermes-v3/execution.json",
+      "bytes": 968,
+      "sha256": "b80ac0523c5d5133fbdabd32be3fa5e273a821a6ccb50971d765ea6fb10fc525"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-budget-hooks-independent-hermes-v3/usage.json",
+      "bytes": 472,
+      "sha256": "abd53b7e72e220d09ccc7331a8869d4c429fcab60e417a3597b7dd0465759caf"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-budget-hooks-independent-hermes-v3/response.txt",
+      "bytes": 386,
+      "sha256": "27fa8cccdabea9208c2b0e0c338e948c5fe9b3d10d5dc6477d4d564e1d5efd56"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-budget-hooks-independent-hermes-v3/prompt.txt",
+      "bytes": 2657,
+      "sha256": "2fc7425c46aa42094b9861aa42ab488cc839848d8fcbce7b3dc9b35f5cdd0bc8"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-budget-hooks-independent-hermes-v1/independent-assessment.json",
+      "bytes": 15474,
+      "sha256": "3d5f60a048d7254d3dc23e985fc00653807af1d890c03ee87fee44d614160ddd"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-budget-hooks-independent-delta-v3/repro-results.json",
+      "bytes": 4180,
+      "sha256": "7b3d994179bfe0b19358db41cd0c3d97d39d145ec5329bbde3ddd12692be5f0d"
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/case12-budget-hooks-independent-delta-v3/precheck-attempt-v1-failure.json",
+      "bytes": 667,
+      "sha256": "c73386134e6f5e43321f004c4738a6cfdbf5df165ca5b4454fec755144403d20"
+    }
+  ],
+  "hermes": {
+    "reviewSha256": "f33f7bb11d432c813fa28b90271c6ecb8fa73ee8ab716ac61afb94e8af590bba",
+    "sessionId": "20261004_060716_73fa29",
+    "model": "openai/gpt-6-luna",
+    "provider": "openrouter",
+    "estimatedCostUsd": 0.00697526,
+    "startedAt": "2026-10-04T10:07:11.122848+00:00",
+    "finishedAt": "2026-10-04T10:08:08.243587+00:00",
+    "exitCode": 0,
+    "scope": "Actual configured bounded v3 correction/delta review; prior full v2 source review retained and superseded on three independent findings."
+  },
+  "evidence": {
+    "independentDeltaChecks": 23,
+    "rootV3Tests": {
+      "passed": 37,
+      "skipped": 1,
+      "suites": 2
+    },
+    "rootV2Tests": {
+      "passed": 31,
+      "suites": 2,
+      "fullOrderedRows": 510,
+      "fullAttempts": 1020,
+      "maxInputTokensPerWire": 8192
+    },
+    "initialRegressionTests": 65,
+    "pythonTests": {
+      "new": 7,
+      "existing": 19
+    },
+    "rootFullApiTypecheck": "v5 exit0 per exact root qualification receipt; pinned empty log",
+    "note": "Overlapping counts not summed. V3 changes strict types and scope race fences only; full arithmetic run retained from exact frozen v2."
+  },
+  "limitations": [
+    "Trusted durable DB owner/CAS, real same-journal admission, terminal evidence authentication/helper cleanup/census composition remain unqualified and absent from this reviewed foundation.",
+    "New terminal reader/native vector package is outside current review. Inclusion in root tsc is not semantic qualification.",
+    "Plans, state JSON, prospective journal proof hashes and test callback objects do not grant setup/provider/capture authority.",
+    "Provider wire tests use transport doubles; no live provider call, DB action, cloud mutation or live journal append by reviewer. Development Hermes cost is separate from the application26-event journal.",
+    "Full model token bounds are code-reviewed; current pricing and external primary-doc contents were not independently browsed here.",
+    "Root setup source/test integration bytes are verified, but AST equality is root-reported support and not newly claimed by this foundation assessment.",
+    "Retained independent checker v3 first attempt failed only because it assumed TAP # markers instead of Node spec information-symbol markers; corrected checker v3b verifies the same unmodified20/20/0 log.",
+    "C2 live acceptance/human rubric/capture completion are not established."
+  ],
+  "journal": {
+    "events": 26,
+    "bytes": 17588,
+    "sha256": "816b04a47be56432846d1ee602370c3bea985eb497a7de9e899aee4d53f8b39e",
+    "unchanged": true
+  }
+}

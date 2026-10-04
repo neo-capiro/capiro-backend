@@ -1,0 +1,75 @@
+(node:40052) [DEP0180] DeprecationWarning: fs.Stats constructor is deprecated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+▶ restored local510 uses freshly compiled native factory, default transactions and real signed source joins
+  ✔ actual complete setup hydration uses unchanged default transaction limits (26013.9567ms)
+  ✔ native current corpus plus complete510 ledger is read from current database (1019.1029ms)
+  ✔ binding exact plan and stale CAS are native, then install exactly once (3132.361ms)
+  ✔ native provider qualification current source checks and stale CAS protect installation (3042.6826ms)
+  ✖ ordinary current conversation authority issues policy and actual native semantic clock (138.1841ms)
+✖ restored local510 uses freshly compiled native factory, default transactions and real signed source joins (40613.7333ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 4
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 40885.209
+
+✖ failing tests:
+
+test at ..\outputs\meri-c2-20261003\case12-compiled-native-composition-local-v1\native-composition.test.mjs:8:51
+✖ ordinary current conversation authority issues policy and actual native semantic clock (138.1841ms)
+  PrismaClientKnownRequestError: 
+  Invalid `tx.tenant.findUnique()` invocation in
+  C:\dev\main\meri-c1-20261002\apps\api\src\meri\meri-server-readonly-capture.ts:478:17
+  
+    475 } | null> {
+    476   return prisma.withTenant(ctx.tenantId, async (tx) => {
+    477     const [tenant, actor, membership, conversation] = await Promise.all([
+  → 478       tx.tenant.findUnique(
+  The column `client_memory_access.id` does not exist in the current database.
+      at $n.handleRequestError (C:\dev\main\meri-c1-20261002\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:121:7315)
+      at $n.handleAndLogRequestError (C:\dev\main\meri-c1-20261002\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:121:6623)
+      at $n.request (C:\dev\main\meri-c1-20261002\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:121:6307)
+      at async l (C:\dev\main\meri-c1-20261002\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:130:9633)
+      at async Promise.all (index 0)
+      at async C:\dev\main\meri-c1-20261002\apps\api\src\meri\meri-server-readonly-capture.ts:477:55
+      at async Proxy._transactionWithCallback (C:\dev\main\meri-c1-20261002\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:130:8000)
+      at async Proxy.factory.deps.prisma.<computed> (file:///C:/dev/main/outputs/meri-c2-20261003/case12-compiled-native-composition-local-v1/compiled-factory-harness.mjs:43:17)
+      at async Object.issueMeriServerReadonlyCapturePolicy (C:\dev\main\meri-c1-20261002\apps\api\src\meri\meri-server-readonly-capture.ts:124:24)
+      at async stage (file:///C:/dev/main/outputs/meri-c2-20261003/case12-compiled-native-composition-local-v1/native-composition.test.mjs:10:101)
+      at async file:///C:/dev/main/outputs/meri-c2-20261003/case12-compiled-native-composition-local-v1/native-composition.test.mjs:56:17
+      at async TestContext.<anonymous> (file:///C:/dev/main/outputs/meri-c2-20261003/case12-compiled-native-composition-local-v1/native-composition.test.mjs:8:75)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async check (file:///C:/dev/main/outputs/meri-c2-20261003/case12-compiled-native-composition-local-v1/native-composition.test.mjs:8:43)
+      at async file:///C:/dev/main/outputs/meri-c2-20261003/case12-compiled-native-composition-local-v1/native-composition.test.mjs:51:3
+      at async file:///C:/dev/main/outputs/meri-c2-20261003/case12-compiled-native-composition-local-v1/compiled-factory-harness.mjs:63:17
+
+test at ..\outputs\meri-c2-20261003\case12-compiled-native-composition-local-v1\native-composition.test.mjs:7:1
+✖ restored local510 uses freshly compiled native factory, default transactions and real signed source joins (40613.7333ms)
+  PrismaClientKnownRequestError: 
+  Invalid `tx.tenant.findUnique()` invocation in
+  C:\dev\main\meri-c1-20261002\apps\api\src\meri\meri-server-readonly-capture.ts:478:17
+  
+    475 } | null> {
+    476   return prisma.withTenant(ctx.tenantId, async (tx) => {
+    477     const [tenant, actor, membership, conversation] = await Promise.all([
+  → 478       tx.tenant.findUnique(
+  The column `client_memory_access.id` does not exist in the current database.
+      at $n.handleRequestError (C:\dev\main\meri-c1-20261002\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:121:7315)
+      at $n.handleAndLogRequestError (C:\dev\main\meri-c1-20261002\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:121:6623)
+      at $n.request (C:\dev\main\meri-c1-20261002\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:121:6307)
+      at async l (C:\dev\main\meri-c1-20261002\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:130:9633)
+      at async Promise.all (index 0)
+      at async C:\dev\main\meri-c1-20261002\apps\api\src\meri\meri-server-readonly-capture.ts:477:55
+      at async Proxy._transactionWithCallback (C:\dev\main\meri-c1-20261002\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:130:8000)
+      at async Proxy.factory.deps.prisma.<computed> (file:///C:/dev/main/outputs/meri-c2-20261003/case12-compiled-native-composition-local-v1/compiled-factory-harness.mjs:43:17)
+      at async Object.issueMeriServerReadonlyCapturePolicy (C:\dev\main\meri-c1-20261002\apps\api\src\meri\meri-server-readonly-capture.ts:124:24)
+      at async stage (file:///C:/dev/main/outputs/meri-c2-20261003/case12-compiled-native-composition-local-v1/native-composition.test.mjs:10:101)
+      at async file:///C:/dev/main/outputs/meri-c2-20261003/case12-compiled-native-composition-local-v1/native-composition.test.mjs:56:17
+      at async TestContext.<anonymous> (file:///C:/dev/main/outputs/meri-c2-20261003/case12-compiled-native-composition-local-v1/native-composition.test.mjs:8:75)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async check (file:///C:/dev/main/outputs/meri-c2-20261003/case12-compiled-native-composition-local-v1/native-composition.test.mjs:8:43)
+      at async file:///C:/dev/main/outputs/meri-c2-20261003/case12-compiled-native-composition-local-v1/native-composition.test.mjs:51:3
+      at async file:///C:/dev/main/outputs/meri-c2-20261003/case12-compiled-native-composition-local-v1/compiled-factory-harness.mjs:63:17

@@ -1,0 +1,39 @@
+{
+  "kind": "case12-reviewed-source-git-eol-normalization",
+  "recordedAt": "2026-10-04T12:31:13.181404+00:00",
+  "operation": "CRLF to LF only; exact decoded line equality; repository text eol=lf",
+  "semanticChange": false,
+  "files": [
+    {
+      "path": "apps/api/src/meri/meri-case12-setup-budget-owner.ts",
+      "beforeSha256": "46f4fb5ca4426bf74bf5e759bd40e2621e8582a873f2e460c024847d97f088a8",
+      "afterSha256": "91a9421064cd92713f7faa21f2f2ae2f3a7e168edf3da43f255f58f7b6d9f523",
+      "removedCrBytes": 400
+    },
+    {
+      "path": "apps/api/src/meri/meri-tools.case12-execute.spec.ts",
+      "beforeSha256": "e78c801cef9e5e43a62c5ad67a3ae32061b85528a23a1284fd5827443cc0b4c9",
+      "afterSha256": "64c65c962c7fdd834fec6a06f2c4b37c7f7a8222347f365c84f9444ea8cb4fd7",
+      "removedCrBytes": 147
+    },
+    {
+      "path": "evals/meri/live-v1/case12-setup-native-census.mjs",
+      "beforeSha256": "ba44d0c89175654da6f624e2a444b5f0e21cfc70fe41879d84ef1e1ecbd08aac",
+      "afterSha256": "8eea057af2d9a3f627d83d83b3ef4abf9feb74a70dde4389bbcbfc1fda2a14a0",
+      "removedCrBytes": 57
+    },
+    {
+      "path": "evals/meri/live-v1/case12-setup-reservation-owner.mjs",
+      "beforeSha256": "e56bacef6c6c6cbee954797ad9aba9451cef713d03e153becc238d3a6146dba5",
+      "afterSha256": "292fefad52713c69df3f581bdbf7fe728afb8fa357a1f7c7c755219ec52032b6",
+      "removedCrBytes": 132
+    },
+    {
+      "path": "evals/meri/live-v1/tests/case12-setup-reservation.fixtures.mjs",
+      "beforeSha256": "1368189407c56c562f2bd65640ed60b7f4073e1d3ca2032a4169877f6108eac8",
+      "afterSha256": "33988609c841afc14830b93f70aa3326569313f433b796b8db1b1816e864b4fc",
+      "removedCrBytes": 37
+    }
+  ],
+  "priorNativeSnapshotsPreserved": true
+}

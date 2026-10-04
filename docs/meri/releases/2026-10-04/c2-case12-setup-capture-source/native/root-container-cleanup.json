@@ -1,0 +1,23 @@
+{
+  "kind": "case12-owned-local-postgres-cleanup",
+  "recordedAt": "2026-10-04T12:35:03.167568+00:00",
+  "containerId": "b3ce26339efe78e77492938d613ab66e9cd3b82833c9da5977412bcd2708bab0",
+  "containerName": "meri-case12-pg-20b2a791",
+  "ownerMarker": "20b2a791-9805-4c6c-9087-680d79b8d1f7",
+  "imageId": "sha256:ccc6e83d6e35e931dc7c5def2022729d5a6c370318d099181995567ff1fb4d6b",
+  "ownedSchemasBeforeStop": 0,
+  "nonSystemSchemasBeforeStop": [
+    "public"
+  ],
+  "stoppedExactOwnedContainer": true,
+  "containerAbsentAfterStop": true,
+  "loopbackPortClosed": true,
+  "existingPrimaryContainerTouched": false,
+  "cloudCalls": 0,
+  "providerCalls": 0,
+  "journalAppends": 0,
+  "startProofSha256": "8d6449812e2d5a04971f58f77c238ca2aaae75142b22edff418fe8a2777d3f63",
+  "initialCleanupScriptSha256": "9371769d2a62a7803b9c7aeed5387298352f7716f1192699875f1e3c672c62e1",
+  "initialCleanupExitCode": 1,
+  "initialCleanupDisposition": "Exact ownership/image/tmpfs/port/no-mount and schemas assertions passed; exact-ID Docker stop returned exit0. Subsequent stdout-equals-ID assertion failed at line20. No stop retried; read-only ID/name census and port check independently prove cleanup. Stop stdout was not retained, so its formatting is not asserted."
+}

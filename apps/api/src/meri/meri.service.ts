@@ -8,6 +8,7 @@ import { authorizeMeriCaptureMessageReadback } from './meri-capture-policy-readb
 import { authorizeSyntheticReadBudgetConversationReadback } from './meri-synthetic-read-budget-owner.js';
 import { readMeriCase01CaptureAdmission, readMeriCase01CaptureReadback } from './meri-case01-capture-authority.js';
 import { readMeriCase14CaptureAdmission, readMeriCase14CaptureReadback } from './meri-case14-capture-authority.js';
+import { readMeriCase12CaptureAdmission, readMeriCase12CaptureReadback } from './meri-case12-capture-readback.js';
 import { CASE46_AUTHORITY_DEPENDENCIES } from './meri-case46-action-authority.js';
 import type { Case46AuthorityDependencies } from './meri-case46-authority.js';
 import { publicCase46ConversationMetadata, readCase46CaptureAdmission, readCase46CaptureMessage } from './meri-case46-capture-readback.js';
@@ -580,6 +581,7 @@ export class MeriService implements MeriTurnMaintenance {
         conversationId, conversationMetadata: conversation.metadata })) ??
       (await readMeriControlledCaptureAdmission({ prisma: this.prisma, ctx, conversationId })) ??
       (await readMeriCase14CaptureAdmission({ prisma: this.prisma, ctx, conversationId })) ??
+      (await readMeriCase12CaptureAdmission({ prisma: this.prisma, ctx, conversationId })) ??
       (await readMeriCase01CaptureAdmission({ prisma: this.prisma, ctx, conversationId }));
     const visible = { ...conversation, metadata: publicCase46ConversationMetadata(conversation.metadata) };
     return captureAdmission ? { ...visible, captureAdmission } : visible;
@@ -745,6 +747,9 @@ export class MeriService implements MeriTurnMaintenance {
       }
       const case14Authority=await readMeriCase14CaptureReadback({prisma:this.prisma,ctx,conversationId,message});
       if(case14Authority) message.metadata={...(message.metadata as Prisma.JsonObject),case14CaptureAuthority:JSON.parse(JSON.stringify(case14Authority)) as Prisma.JsonValue};
+      const case12Authority = await readMeriCase12CaptureReadback({prisma:this.prisma,ctx,conversationId,message});
+      if (case12Authority) message.metadata = {...(message.metadata as Prisma.JsonObject),
+        case12CaptureAuthority: JSON.parse(JSON.stringify(case12Authority)) as Prisma.JsonValue};
       const case46Authority = await readCase46CaptureMessage({ prisma: this.prisma, deps: this.case46Dependencies,
         ctx, conversationId, conversationMetadata: conversation.metadata, message });
       if (case46Authority) message.metadata = { ...(message.metadata as Prisma.JsonObject),

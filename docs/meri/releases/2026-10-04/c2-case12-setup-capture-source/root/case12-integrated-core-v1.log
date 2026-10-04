@@ -1,0 +1,11 @@
+PASS src/context/case12-setup-binding.spec.ts
+PASS src/context/capture-evidence-receipt.spec.ts
+PASS src/context/memory-capture-source.spec.ts
+PASS src/context/governed-evidence-auth.spec.ts
+PASS src/context/semantic-clock.spec.ts
+
+Test Suites: 5 passed, 5 total
+Tests:       191 passed, 191 total
+Snapshots:   0 total
+Time:        6 s
+Ran all test suites within paths "src/context/case12-setup-binding.spec.ts", "src/context/semantic-clock.spec.ts", "src/context/memory-capture-source.spec.ts", "src/context/capture-evidence-receipt.spec.ts", "src/context/governed-evidence-auth.spec.ts".

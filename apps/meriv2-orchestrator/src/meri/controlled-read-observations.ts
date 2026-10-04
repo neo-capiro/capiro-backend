@@ -30,7 +30,7 @@ const clockEnabled = (
   !!p?.semanticClock &&
   !p.syntheticReadBudget &&
   p.fixtureVersion === 'meri-live-v1-2026-09-26.1' &&
-  ['01', '14', '20', '72'].includes(p.caseId ?? '');
+  ['01', '12', '14', '20', '72'].includes(p.caseId ?? '');
 const enabled = (p: MeriServerReadonlyCapturePolicy | null): p is MeriServerReadonlyCapturePolicy =>
   !!p && ['20', '21', '22', '23', '24', '26', '27', '72'].includes(p.caseId ?? '');
 

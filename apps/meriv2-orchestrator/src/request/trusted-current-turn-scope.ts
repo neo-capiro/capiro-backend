@@ -1,3 +1,4 @@
+import { validateMeriCase12SetupPolicyBinding } from '@capiro/meriv2-core';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { createHash } from 'node:crypto';
 import { MERI_CAPABILITY_REGISTRY } from '@capiro/shared';
@@ -64,8 +65,9 @@ export function validateServerReadonlyCapturePolicy(
   now = Date.now(),
 ): void {
   validateMeriSyntheticReadBudgetGuard(policy);
+  validateMeriCase12SetupPolicyBinding(policy);
   const clockQualified = !policy.syntheticReadBudget && policy.fixtureVersion === 'meri-live-v1-2026-09-26.1' &&
-    ['01', '14', '20', '72'].includes(policy.caseId ?? '');
+    ['01', '12', '14', '20', '72'].includes(policy.caseId ?? '');
   if (clockQualified !== Boolean(policy.semanticClock))
     throw new Error('meri_fixture_semantic_clock_policy_mismatch');
   if (policy.semanticClock) validateMeriFixtureSemanticClock(policy.semanticClock, policy);
