@@ -1,0 +1,27 @@
+{
+  "status": "PASS_ACTUAL_CURRENT_IMAGE_NATIVE_PLAN_AND_COST_BODY_JOINS",
+  "at": "2026-10-04T17:13:16.857Z",
+  "checks": [
+    "executed launcher exact frozen source",
+    "actual caller account and identity",
+    "exact image/source/entrypoint/input/zero-provider privilege definition",
+    "immutable registration argument and exact actual definition readback",
+    "exact count-one immutable launch and scoped ownership markers",
+    "current exact owned stopped task and zero exit",
+    "all retained CloudWatch log response event bytes join deduplicated log evidence",
+    "actual scoped native plan hashes and fresh fixture bind original510 definitions",
+    "exact inactive definition and owned cleanup confirmation",
+    "event26 unchanged and service baseline unchanged, no readiness promotion",
+    "current reviewed rates and actual compiled full model ceiling",
+    "new cost candidate exact derived 510 bodies and all source/raw joins"
+  ],
+  "sourceSha": "478a1826afc7e4d599c66bfe5fb7a9759b0a4582",
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:ef27f66af273ded53ce0a8d7b0a941ad51e415a50e70a3a0293cce59e2c3381e",
+  "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/8fa69f5dafa34471b812f164e6ef848a",
+  "setupPlanSha256": "9b1b847044832ab3403dcc95321a234de0f2d8e2266e66b82eb9b21a6e3e8056",
+  "maxCostMicros": 167280,
+  "cloudCalls": 0,
+  "providerCalls": 0,
+  "journalWrites": 0,
+  "setupAdmission": false
+}

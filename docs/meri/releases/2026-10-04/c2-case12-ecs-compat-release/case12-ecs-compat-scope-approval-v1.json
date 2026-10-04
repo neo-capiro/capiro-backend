@@ -1,0 +1,31 @@
+{
+  "status": "APPROVED_SCOPED_CORRECTION",
+  "scope": "C2_CASE12_API_ECS_OVERRIDE_COMPATIBILITY_FIX",
+  "recordedAt": "2026-10-04T16:45:38.0499787Z",
+  "reviewer": "Human user in current Codex chat",
+  "answer": "Approve",
+  "approvalSource": "Two direct Approve messages after the described narrow API compatibility correction and API-only CodeBuild shipping plan",
+  "approvedSourceChange": {
+    "implementationSha256": "fbebfba2ab0fdb0314542178f4576c6ef6962f28263c3a5cfa092fd56a3688db",
+    "mergedSourceSha": "478a1826afc7e4d599c66bfe5fb7a9759b0a4582",
+    "regressionSpecSha256": "2317588bb2c82fffbeaef1252300da18e87af7923f3f362ce23fb5b657d92ef2",
+    "pullRequest": "https://github.com/neo-capiro/capirov2/pull/1948"
+  },
+  "candidateDigestAvailableAtApproval": false,
+  "bindingCondition": "Only the immutable image built from this exact reviewed source after all 26 required packaged checks pass, using the existing reviewed release operator; authenticated served verification required",
+  "service": "api",
+  "preserve": [
+    "orchestrator123",
+    "Web390",
+    "models",
+    "provider configuration",
+    "feature flags",
+    "capacity",
+    "schema",
+    "nightly136",
+    "budget and journal",
+    "original failed captures"
+  ],
+  "additionalIamChange": false,
+  "setupOrCaptureAdmissionCreatedByThisApproval": false
+}

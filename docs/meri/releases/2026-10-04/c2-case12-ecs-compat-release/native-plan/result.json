@@ -1,0 +1,22 @@
+{
+  "status": "OWNED_NATIVE_PLAN_AND_CLEANUP_CAPTURED",
+  "at": "2026-10-04T16:49:48.423Z",
+  "sourceSha": "478a1826afc7e4d599c66bfe5fb7a9759b0a4582",
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:ef27f66af273ded53ce0a8d7b0a941ad51e415a50e70a3a0293cce59e2c3381e",
+  "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/8fa69f5dafa34471b812f164e6ef848a",
+  "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-c2-case12-plan-20261004:2",
+  "startedAt": "2026-10-04T12:49:05.040000-04:00",
+  "stoppedAt": "2026-10-04T12:49:32.178000-04:00",
+  "exitCode": 0,
+  "inputSha256": "b398f80cc2973573721075de7a41d13a500a59c1f86de76b9ab77c7872a0b7f3",
+  "setupPlanSha256": "9b1b847044832ab3403dcc95321a234de0f2d8e2266e66b82eb9b21a6e3e8056",
+  "fixtureInstanceId": "d64dfeb7-3bfd-40d9-b8bb-f94c448bfe7a",
+  "providerCalls": 0,
+  "businessWrites": 0,
+  "journalUnchanged": true,
+  "serviceBaselineUnchanged": true,
+  "fixtureReady": false,
+  "captureAuthority": false,
+  "liveAcceptance": "NOT_RUN",
+  "costAuthority": "NOT_MINTED_REQUIRES_ROOT_REVIEW_OF_NATIVE_EVIDENCE"
+}

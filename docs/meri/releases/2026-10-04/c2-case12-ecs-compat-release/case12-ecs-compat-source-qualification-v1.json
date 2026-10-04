@@ -1,0 +1,430 @@
+{
+  "kind": "meri-case12-merged-source-qualification",
+  "version": 1,
+  "status": "SOURCE_QUALIFICATION_PASS",
+  "caseId": "12",
+  "recordedAt": "2026-10-04T16:39:46.108543+00:00",
+  "sourceSha": "478a1826afc7e4d599c66bfe5fb7a9759b0a4582",
+  "sourceTree": "ada4fc085b8225f14b249af7e9d97c922154615b",
+  "reviewedCommit": "58da59d4ce783346e98fac0799c0f7eabbfeba38",
+  "mergedTreeEqualsReviewedTree": true,
+  "pullRequest": "https://github.com/neo-capiro/capirov2/pull/1948",
+  "sourcePins": [
+    {
+      "path": "apps/api/Dockerfile",
+      "sha256": "911845ea4ad62fe8fadaeab26a1ff9f82e8e7c641c697303793bed4d31d71515",
+      "bytes": 12944
+    },
+    {
+      "path": "apps/api/scripts/entrypoint.sh",
+      "sha256": "f7e51e5b683185381ab8152379ea87f3d33a2aefc37c50fb68d6fe80f904b62d",
+      "bytes": 17427
+    },
+    {
+      "path": "apps/api/scripts/meri-case01-setup-dependencies.mjs",
+      "sha256": "18905be36fa4c2873485379ebbebaaefdc23d336afe73cc8d8e4998fcbcd1778",
+      "bytes": 11048
+    },
+    {
+      "path": "apps/api/scripts/meri-case12-setup-native.mjs",
+      "sha256": "f2d96171f23e4e3b4fb9bafb0a88a7400abc91a583c2cf7107ab2ee161947d6c",
+      "bytes": 6755
+    },
+    {
+      "path": "apps/api/scripts/meri-case12-setup-plan.mjs",
+      "sha256": "b41e9e4da07764517adca213983497b60919f853c7084091ff239ae6aac0c3d7",
+      "bytes": 2125
+    },
+    {
+      "path": "apps/api/scripts/meri-operator-json-input.mjs",
+      "sha256": "1f169000281a68f3c1290242082d4e3fd8f9a276da3accfc9007d7e822904fb3",
+      "bytes": 1535
+    },
+    {
+      "path": "apps/api/src/embeddings/titan-embedding.provider.ts",
+      "sha256": "288c831794e0afceb8d6ca52780e61738cc55edb0d3a0a706872f3ba71ba0465",
+      "bytes": 7471
+    },
+    {
+      "path": "apps/api/src/memory/case12-setup-terminal.read.spec.ts",
+      "sha256": "cded949ec661e06d8431d4159f767608e03813f219d56a16c2698b85d22a6d90",
+      "bytes": 3434
+    },
+    {
+      "path": "apps/api/src/memory/case12-setup-terminal.read.ts",
+      "sha256": "5f3894aacd7a10cdc4bbd5d23617088bc5c5c20b2f9ae0602b394d24e48bfcbc",
+      "bytes": 11615
+    },
+    {
+      "path": "apps/api/src/memory/case12-synthetic-approved-memory-set.read.ts",
+      "sha256": "59cbbdbf30adae760874ac3e49888904559c5b4eeadfc7aeab96f5317113cf97",
+      "bytes": 16316
+    },
+    {
+      "path": "apps/api/src/memory/memory-authorization.service.ts",
+      "sha256": "65331cb6735a79d8589bee389c3b2ebba1bd088ef89ec10c71f864bbe6699320",
+      "bytes": 12831
+    },
+    {
+      "path": "apps/api/src/memory/memory-candidate.service.ts",
+      "sha256": "45c3ebf00a2f42795fb27a299d1a0d028cb6b03dd5f091de7768e920ebbdb46d",
+      "bytes": 41455
+    },
+    {
+      "path": "apps/api/src/meri/meri-capture-api-provider-scope.ts",
+      "sha256": "29c100968be01e52dd9086721616ea3c144ff5b2a69ce181481be93c806a9c6e",
+      "bytes": 4582
+    },
+    {
+      "path": "apps/api/src/meri/meri-capture-clock-packets.ts",
+      "sha256": "5a6cb60226638b44438bbb178d58ea99819c190ebd2ce10eeead080bc528e473",
+      "bytes": 7014
+    },
+    {
+      "path": "apps/api/src/meri/meri-capture-policy-readback.ts",
+      "sha256": "8c2eb732085488283ce2530b1e460d6114e5209d9ea79310e3e2756237992928",
+      "bytes": 8259
+    },
+    {
+      "path": "apps/api/src/meri/meri-capture-provider-budget-install.ts",
+      "sha256": "830987f41650571817c23d52c7de06818993365af2516a3d704bc9158b33e289",
+      "bytes": 9279
+    },
+    {
+      "path": "apps/api/src/meri/meri-capture-provider-budget-owner.ts",
+      "sha256": "2b185dd9844b90e05a4d0b681ecb50670770a2baac41c9fb94cc8f3b33b9e7d4",
+      "bytes": 8531
+    },
+    {
+      "path": "apps/api/src/meri/meri-capture-provider-budget.ts",
+      "sha256": "35e935dde156f1d1794d9c23cc3594ef3cca7171f5a3e4376e6c80cd8e36fe8a",
+      "bytes": 12165
+    },
+    {
+      "path": "apps/api/src/meri/meri-capture-semantic-clock.ts",
+      "sha256": "ec36f0b1215101c406ef38d4b9db589d8bf09586178f151edb81991546c28975",
+      "bytes": 4346
+    },
+    {
+      "path": "apps/api/src/meri/meri-case12-capture-authority.ts",
+      "sha256": "e2ec157afc0d2910055049044ce8fcd462da907949b2be36be109f9f03178cc1",
+      "bytes": 9285
+    },
+    {
+      "path": "apps/api/src/meri/meri-case12-capture-budget.spec.ts",
+      "sha256": "998fdaa876b6bfb1be20bc6d92908704228746b967353e2c52b8873fc4c0298c",
+      "bytes": 4883
+    },
+    {
+      "path": "apps/api/src/meri/meri-case12-capture-install.ts",
+      "sha256": "dd4283ce9748190b545a76f941c53082c6c7e4927ab6468aae35a9aeb5a6ed51",
+      "bytes": 4387
+    },
+    {
+      "path": "apps/api/src/meri/meri-case12-capture-readback.spec.ts",
+      "sha256": "cf6728ae9fb2d6faadf7619de4c73528a0decac7d15bd084992916d8f8b5e4db",
+      "bytes": 9461
+    },
+    {
+      "path": "apps/api/src/meri/meri-case12-capture-readback.ts",
+      "sha256": "496fb5390774ce93843eab647d05260d04fcec8989df980ddbd4444164e8de56",
+      "bytes": 6458
+    },
+    {
+      "path": "apps/api/src/meri/meri-case12-clock-composition.spec.ts",
+      "sha256": "d15739288cfb3e5718b5265bb9a889af5959883843cd213a8f8ca8eefd703990",
+      "bytes": 8120
+    },
+    {
+      "path": "apps/api/src/meri/meri-case12-native-setup-admission.spec.ts",
+      "sha256": "2317588bb2c82fffbeaef1252300da18e87af7923f3f362ce23fb5b657d92ef2",
+      "bytes": 14022
+    },
+    {
+      "path": "apps/api/src/meri/meri-case12-native-setup-admission.ts",
+      "sha256": "fbebfba2ab0fdb0314542178f4576c6ef6962f28263c3a5cfa092fd56a3688db",
+      "bytes": 12643
+    },
+    {
+      "path": "apps/api/src/meri/meri-case12-setup-budget-owner.ts",
+      "sha256": "91a9421064cd92713f7faa21f2f2ae2f3a7e168edf3da43f255f58f7b6d9f523",
+      "bytes": 25665
+    },
+    {
+      "path": "apps/api/src/meri/meri-case12-setup-budget.spec.ts",
+      "sha256": "340a2157e903446cd45252e57de6f0371c05efa948aef1ee2d8b9e843d25ebe5",
+      "bytes": 9045
+    },
+    {
+      "path": "apps/api/src/meri/meri-case12-setup-budget.ts",
+      "sha256": "785da5e7945f13675b1f64df613792f9541225a9c68236bef372c02d401c96ab",
+      "bytes": 15809
+    },
+    {
+      "path": "apps/api/src/meri/meri-case12-setup-completion.read.ts",
+      "sha256": "88381c1dbe356e106b537340218278c10eb6542f8bce7ea81b1215d2707560cc",
+      "bytes": 6725
+    },
+    {
+      "path": "apps/api/src/meri/meri-case12-setup-provider-scope.spec.ts",
+      "sha256": "8c8b2a7bd0a5fe69c1095e2427795666dcc364873d0cca840141f069fc27a64c",
+      "bytes": 10489
+    },
+    {
+      "path": "apps/api/src/meri/meri-case12-setup-provider-scope.ts",
+      "sha256": "e66fbcc3e619168eade0ebc3d50d26435304af74255e6438faefc457a41ad4e5",
+      "bytes": 3726
+    },
+    {
+      "path": "apps/api/src/meri/meri-context-plane.service.ts",
+      "sha256": "1c2d4c926248d21be66e38b18580d118285da972ae2c0679f4ac86897693db1b",
+      "bytes": 53919
+    },
+    {
+      "path": "apps/api/src/meri/meri-context-plane.tools.spec.ts",
+      "sha256": "f2d7ecdf1463bc71a8fc4f17ec904291551b0aeb42133c5833d8633c4d30a001",
+      "bytes": 23486
+    },
+    {
+      "path": "apps/api/src/meri/meri-research-tool-budget.ts",
+      "sha256": "5e8f03eaaf8d14a5a2076ed95cb9dc228fe9ad1f0733145806b987b5ddb92978",
+      "bytes": 33086
+    },
+    {
+      "path": "apps/api/src/meri/meri-server-capture-evidence.ts",
+      "sha256": "0042d05130426cb9c7ba39ae7897a273cc158fb6d3421500d583a69c34d15a96",
+      "bytes": 10260
+    },
+    {
+      "path": "apps/api/src/meri/meri-server-readonly-capture.spec.ts",
+      "sha256": "412c7635ea65d2ce63fe3e26baad626353bfa5dec1ec1b42702d17ed68ecadd2",
+      "bytes": 48968
+    },
+    {
+      "path": "apps/api/src/meri/meri-server-readonly-capture.ts",
+      "sha256": "7b2860346cd4869ebed894c2b610a97f1da6fd952c1e5b7c697a7f26b05ff39b",
+      "bytes": 21904
+    },
+    {
+      "path": "apps/api/src/meri/meri-tools.case12-execute.spec.ts",
+      "sha256": "64c65c962c7fdd834fec6a06f2c4b37c7f7a8222347f365c84f9444ea8cb4fd7",
+      "bytes": 9627
+    },
+    {
+      "path": "apps/api/src/meri/meri-tools.memory-capture-source.spec.ts",
+      "sha256": "acfc2cac1ae7dd74640cf2f6bac5ae8d32f4c045ecdf511113ed36e2c2afa3e7",
+      "bytes": 12281
+    },
+    {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "sha256": "be1b608fe47a17330c10b3c65d392f8b13737a2ba0de49501902c8fca629ea25",
+      "bytes": 408665
+    },
+    {
+      "path": "apps/api/src/meri/meri.service.ts",
+      "sha256": "6ba4ac947f075e72106f8e1f083c6ce77b8b740466ae0cdb9dd6e04477882e29",
+      "bytes": 298152
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts",
+      "sha256": "94cfc3cc79a8aac8e3aa92ef4502e97a81f4d1e85de6ca4f97c14a3a04cbe988",
+      "bytes": 36076
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/controlled-read-observations.ts",
+      "sha256": "487bc5edee20fed19994c24d3d6995dd142b8583d9ea962e39b63ae5423d136b",
+      "bytes": 15618
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-capture-evidence.ts",
+      "sha256": "b74f0f3bb845111049a8a09c5d98091d53d3dffa52bb165e1448b208814083b2",
+      "bytes": 12032
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/request/trusted-current-turn-scope.ts",
+      "sha256": "6c52cb35108bbcd080da42c084c92be146087cddb468f1b407e994327060c50f",
+      "bytes": 4557
+    },
+    {
+      "path": "evals/meri/live-v1/case12-setup-native-census.mjs",
+      "sha256": "8eea057af2d9a3f627d83d83b3ef4abf9feb74a70dde4389bbcbfc1fda2a14a0",
+      "bytes": 7915
+    },
+    {
+      "path": "evals/meri/live-v1/case12-setup-reservation-owner.mjs",
+      "sha256": "292fefad52713c69df3f581bdbf7fe728afb8fa357a1f7c7c755219ec52032b6",
+      "bytes": 13942
+    },
+    {
+      "path": "evals/meri/live-v1/fixture-provisioning/case12-memory-current-owner.mjs",
+      "sha256": "8707b5598f861048eda384168c4da5e6230343891280fd2c833ad1fbaff2b529",
+      "bytes": 25222
+    },
+    {
+      "path": "evals/meri/live-v1/fixture-provisioning/case12-memory-inventory-owner.mjs",
+      "sha256": "aca6c6a9185d2d3fbc71b8a17971bd433e005b90327218cb4fdee5858e6b33e2",
+      "bytes": 18411
+    },
+    {
+      "path": "evals/meri/live-v1/fixture-provisioning/case12-memory-setup.mjs",
+      "sha256": "81ff660984df31d841f551d559eefde8af67ba1bd0d12dca3fc1ca128c5c0a31",
+      "bytes": 36481
+    },
+    {
+      "path": "evals/meri/live-v1/fixture-provisioning/case12-setup-budget-plan.mjs",
+      "sha256": "9b524b043c0bbb185d70f5e16393ab3e98ddcee1e5aa086619e32068cac5d28a",
+      "bytes": 6248
+    },
+    {
+      "path": "evals/meri/live-v1/lib/windows-capture-spend.py",
+      "sha256": "5849b4edd89c429ebbc9b9d0e82f0726640683c994f9141d5fef7fc24569c2a3",
+      "bytes": 37440
+    },
+    {
+      "path": "evals/meri/live-v1/tests/case12-memory-setup.test.mjs",
+      "sha256": "b93d8b1486f6b98729ac9d3ec2c75c3e63294704d1d5c4cc82ff80a1fc782dc5",
+      "bytes": 4960
+    },
+    {
+      "path": "evals/meri/live-v1/tests/case12-setup-budget-plan.test.mjs",
+      "sha256": "76ebee3adb86ce6b1258114b100050d1d685a8abf795bfd4961a062a28607f98",
+      "bytes": 10650
+    },
+    {
+      "path": "evals/meri/live-v1/tests/case12-setup-checkpoint.test.mjs",
+      "sha256": "5775710365fe855c33ad2046acb90a0c124d1cf8415892385a9edc984405ea23",
+      "bytes": 3087
+    },
+    {
+      "path": "evals/meri/live-v1/tests/case12-setup-native-census.test.mjs",
+      "sha256": "2b228560012f8c457841a75fec92f97745a278addc6b607d3e315cd8444671c3",
+      "bytes": 7890
+    },
+    {
+      "path": "evals/meri/live-v1/tests/case12-setup-reservation-owner.test.mjs",
+      "sha256": "7660a6df34bb2c61fb041515bef66c100b6adf5a2143f31a534abdff916719fe",
+      "bytes": 8436
+    },
+    {
+      "path": "evals/meri/live-v1/tests/case12-setup-reservation.fixtures.mjs",
+      "sha256": "33988609c841afc14830b93f70aa3326569313f433b796b8db1b1816e864b4fc",
+      "bytes": 5750
+    },
+    {
+      "path": "evals/meri/live-v1/tests/case12-setup-spend.unit.py",
+      "sha256": "932d1cea9ddbd0402a702779fbf28ba1591d55554db87ddd9c67f97fcb72ac11",
+      "bytes": 9660
+    },
+    {
+      "path": "packages/meriv2-core/src/context/capture-evidence-receipt.spec.ts",
+      "sha256": "f7cb9acdd7c944fa269e4cff2ed4092c5d20d445dc63ae6c0fc09371bdb6a961",
+      "bytes": 30264
+    },
+    {
+      "path": "packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "sha256": "d9c324d9504eaa97a9e54e472e89422363840f7711a3ff969142680c83b99c6b",
+      "bytes": 25968
+    },
+    {
+      "path": "packages/meriv2-core/src/context/case12-setup-binding.spec.ts",
+      "sha256": "dd421900257d14ea95a11c2db26f16509467dd2930dcf734f49a836d5b03142d",
+      "bytes": 4203
+    },
+    {
+      "path": "packages/meriv2-core/src/context/case12-setup-binding.ts",
+      "sha256": "b962ec4db5e3050c817133a6c1480a35174e923d6fdca57556db90ee8be87170",
+      "bytes": 2282
+    },
+    {
+      "path": "packages/meriv2-core/src/context/governed-evidence-auth.spec.ts",
+      "sha256": "31ae1b3b69e88b6e48f8785b3b6159845902e7daf610da5b2a096d9b5982c25c",
+      "bytes": 14413
+    },
+    {
+      "path": "packages/meriv2-core/src/context/governed-evidence-auth.ts",
+      "sha256": "76f1f5865eb2672aeab198da78e84e22007f9cb3a08286b8e0d9cb2e8de73a19",
+      "bytes": 5425
+    },
+    {
+      "path": "packages/meriv2-core/src/context/memory-capture-source.spec.ts",
+      "sha256": "a81cccf9c0cf66a749da79c98b6202337a8d45c44f3fb3290928ae558277f9ba",
+      "bytes": 7944
+    },
+    {
+      "path": "packages/meriv2-core/src/context/memory-capture-source.ts",
+      "sha256": "e27af6aa57f515b5c67138bf1944002d9561ca270dee97fda9331e4ed26461ac",
+      "bytes": 8942
+    },
+    {
+      "path": "packages/meriv2-core/src/context/semantic-clock.spec.ts",
+      "sha256": "9b7d7db022682068ff9ac7a374db2e3f43d8d47b40ca5815eb823d6539441f79",
+      "bytes": 1844
+    },
+    {
+      "path": "packages/meriv2-core/src/context/server-readonly-capture.ts",
+      "sha256": "616ebe8aabe11560b890c116c1d0b00691f57e91b19ba2aac2f1805272fcffd8",
+      "bytes": 8819
+    },
+    {
+      "path": "packages/meriv2-core/src/index.ts",
+      "sha256": "4aada17320ad93c5e75849ac23dd1a6ac41f43f251304ac1a416fbd804c7b41e",
+      "bytes": 4152
+    }
+  ],
+  "deltaFromPreviousQualification": [
+    {
+      "before": {
+        "path": "apps/api/src/meri/meri-case12-native-setup-admission.spec.ts",
+        "sha256": "e6f170cb452374220b5352126502906b0631d8e5bd72d62f62d1a6725415f035",
+        "bytes": 10238
+      },
+      "after": {
+        "path": "apps/api/src/meri/meri-case12-native-setup-admission.spec.ts",
+        "sha256": "2317588bb2c82fffbeaef1252300da18e87af7923f3f362ce23fb5b657d92ef2",
+        "bytes": 14022
+      }
+    },
+    {
+      "before": {
+        "path": "apps/api/src/meri/meri-case12-native-setup-admission.ts",
+        "sha256": "28efbc49a0e23006adedb7a4bfb14edb9088ac7d476076c5630065f81a5a0b23",
+        "bytes": 11682
+      },
+      "after": {
+        "path": "apps/api/src/meri/meri-case12-native-setup-admission.ts",
+        "sha256": "fbebfba2ab0fdb0314542178f4576c6ef6962f28263c3a5cfa092fd56a3688db",
+        "bytes": 12643
+      }
+    }
+  ],
+  "priorQualificationSha256": "60b60d1dbbf8a3457b9233868d0223d506cef31d211efc9dda97ad1591640170",
+  "sourceArchiveQualificationSha256": "ea24eeddf6ad525b00761331dc1221215d15915623a24e82953587439f5c0069",
+  "productionOperations": 0,
+  "schemaChange": false,
+  "c2Complete": false,
+  "validation": {
+    "recordedAt": "2026-10-04T16:35:00Z",
+    "jestExitCode": 0,
+    "passedTests": 47,
+    "testSuites": 1,
+    "typecheckExitCode": 0,
+    "typecheckCommand": "pnpm --filter @capiro/api exec tsc --noEmit --rootDir .",
+    "typecheckNodeHeapMiB": 8192,
+    "nestBuildExitCode": 0,
+    "compiledProbeExitCode": 0,
+    "compiledProbeMarker": "OFFLINE_PACKAGED_CASE12_ACTUAL_ECS_DEFAULT_PARITY_PASS",
+    "broaderPackageTypecheck": {
+      "firstExitCode": 134,
+      "firstFailure": "Default 4096 MiB Node heap exhausted",
+      "secondExitCode": 2,
+      "secondFailure": "Three word-extractor declaration errors in unchanged engagement files",
+      "status": "NOT_PASSING"
+    },
+    "productionSourceSha256": "fbebfba2ab0fdb0314542178f4576c6ef6962f28263c3a5cfa092fd56a3688db",
+    "specSha256": "2317588bb2c82fffbeaef1252300da18e87af7923f3f362ce23fb5b657d92ef2",
+    "providerCalls": 0,
+    "journalWrites": 0,
+    "nativeSetupExecuted": false
+  },
+  "scope": "Only native override comparator and regression spec changed among prior72 source pins; broader package typecheck failure remains explicit. Source correction, not image or release authority."
+}

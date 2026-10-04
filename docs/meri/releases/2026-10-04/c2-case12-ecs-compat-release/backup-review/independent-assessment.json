@@ -1,0 +1,68 @@
+{
+  "status": "PASS_LOCAL_TEMPLATE_AND_EXACT_OPERATOR_DELTA_ONLY",
+  "at": "2026-10-04T14:24:38.588481+00:00",
+  "templateChecksSha256": "51a278017ab6cd6bd93195f238d43fbc1f37255deefab6a71d7df0da03611980",
+  "pins": [
+    {
+      "path": "actual-ecs-default-probe.cjs",
+      "sha256": "fd4b53742b8c060215dfba8da7f85fe1617a6b1dfbead994c3624e466c98582b",
+      "bytes": 1370
+    },
+    {
+      "path": "api/build.sh",
+      "sha256": "d7e586c79a680e72461f90104a4d8c273dc56bd6a9a69fcae47fe6eeb29f75d6",
+      "bytes": 46866
+    },
+    {
+      "path": "api/buildspec.template.json",
+      "sha256": "3c9a0c27c22daf2de53800292cee77ccf1e8f485ae600f23541dcea45f81e125",
+      "bytes": 19381
+    },
+    {
+      "path": "api/post_build.sh",
+      "sha256": "fc6034cdd9ec8f0dfaa5e9ce39617f2518a35e227e335bfea4c9b48daa9d372d",
+      "bytes": 863
+    },
+    {
+      "path": "api/pre_build.sh",
+      "sha256": "b2482d882549708861cd5a761b20e05740be23b71be442887a04af778eabf427",
+      "bytes": 880
+    },
+    {
+      "path": "collect-case12-ecs-compat-build-v1.mjs",
+      "sha256": "b2c68a1773291b3562cb2b8f0d320aa1e37b833c21c86b0965f70d9e1246aa85",
+      "bytes": 10174
+    },
+    {
+      "path": "start-case12-ecs-compat-build-v1.mjs",
+      "sha256": "7fcf6efca8372fcbe8a2ed7824f4289dba6501ba803113e7717213a87ebdb3e5",
+      "bytes": 6447
+    },
+    {
+      "path": "template-checks.json",
+      "sha256": "51a278017ab6cd6bd93195f238d43fbc1f37255deefab6a71d7df0da03611980",
+      "bytes": 2783
+    }
+  ],
+  "bashSyntaxPass": [
+    "pre_build",
+    "build",
+    "post_build"
+  ],
+  "losslessCompressedTemplates": true,
+  "baselinePrePostUnchanged": true,
+  "onlyBuildAddition": "One --network none compiled pure assertCase12NativeTaskOverrides probe; all25 prior markers retained plus exact26th.",
+  "operatorDelta": "API-only paths/service guard plus immutable JSON argv; other start/collector code byte identical after literal substitutions. Exact fresh/cached receipt/source/buildspec/image/marker checks and singleattempt/no-replay unchanged.",
+  "windowsArgv": {
+    "status": "PASS_BENIGN_WINDOWS_IMMUTABLE_ARGV_ROUNDTRIP",
+    "requestBytes": 19760,
+    "requestSha256": "e72b87b8ed19537be0a893188568cd955ed7e29889b409884e9ed974546d802e",
+    "awsCalls": 0
+  },
+  "sourceIntegration": "Both root source/spec match reviewed fbebfba2/2317588 bytes at review time.",
+  "limits": [
+    "No build started, ECR write, cloud/provider/database action or deployment by reviewer.",
+    "Source gates null; exact merged-source qualification and final image results remain required.",
+    "No repeated full parent VM suite: new delta checked directly; previous34 tests retained for unchanged collector logic."
+  ]
+}

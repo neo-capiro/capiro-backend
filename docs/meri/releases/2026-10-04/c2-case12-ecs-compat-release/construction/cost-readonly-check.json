@@ -1,0 +1,15 @@
+{
+  "status": "ACTUAL_CURRENT_COST_QUALIFICATION_AND_COMPILED_DERIVATION_PASS",
+  "at": "2026-10-04T17:16:34.262Z",
+  "sourceSha256": "da7fd5298906b9a9888a19624106345fd2f61678a9defa9e6b60f323235369f3",
+  "files": 1184,
+  "rows": 510,
+  "cost": 167280,
+  "actualFilesystemAndCompiledModules": true,
+  "qualificationGateReboundOnlyInIsolatedVm": true,
+  "productionGate": null,
+  "nativeProcesses": 0,
+  "providerCalls": 0,
+  "journalWrites": 0,
+  "costAuthorityMinted": false
+}

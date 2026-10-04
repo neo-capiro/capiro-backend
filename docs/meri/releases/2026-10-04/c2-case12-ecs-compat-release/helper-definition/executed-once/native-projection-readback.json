@@ -1,0 +1,6 @@
+{
+  "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-c2-case12-setup-20261004:1",
+  "expected": "fde21f7fe1f6136c4422c2b5ad4976359d90d7886c5a702b00411d4212697bec",
+  "actual": "fde21f7fe1f6136c4422c2b5ad4976359d90d7886c5a702b00411d4212697bec",
+  "exact": true
+}

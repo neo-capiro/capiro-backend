@@ -1,0 +1,22 @@
+{
+  "status": "EXACT_CURRENT_RELEASE_NATIVE_PLAN_AND_REGISTERED_DEFINITION_BOUND_DISABLED",
+  "recordedAt": "2026-10-04T17:11:53.868Z",
+  "releaseGitRevision": "478a1826afc7e4d599c66bfe5fb7a9759b0a4582",
+  "imageSha256": "ef27f66af273ded53ce0a8d7b0a941ad51e415a50e70a3a0293cce59e2c3381e",
+  "sourceSha256": "da7fd5298906b9a9888a19624106345fd2f61678a9defa9e6b60f323235369f3",
+  "nativeDefinitionSha256": "fde21f7fe1f6136c4422c2b5ad4976359d90d7886c5a702b00411d4212697bec",
+  "sourcePins": 1184,
+  "nativePlanArtifacts": 14,
+  "maximumWindowMs": 2700000,
+  "maxSetupCostMicros": 167280,
+  "rateExpiresAt": "2026-10-04T18:58:05.428Z",
+  "latest45MinuteAdmission": "2026-10-04T18:13:05.428Z",
+  "activation": false,
+  "journalMutations": 0,
+  "remainingPrerequisites": [
+    "Root review of fresh native-plan raw join",
+    "Qualified native terminal operator and known settlement path",
+    "Final native Windows composition and cost-before-dispatcher pin binding",
+    "Fresh census at authority read and consume"
+  ]
+}

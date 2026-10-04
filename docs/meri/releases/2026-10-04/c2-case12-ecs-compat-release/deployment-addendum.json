@@ -1,0 +1,110 @@
+{
+  "at": "2026-10-04T17:17:45.073719+00:00",
+  "status": "EXACT_API_COMPATIBILITY_RELEASE_ORDINARY_READ_AND_OLD_TASK_CLEANUP_VERIFIED",
+  "artifactPins": [
+    {
+      "path": "deployed/case12-compat-release-packet-v1.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-compat-release-packet-v1.json",
+      "bytes": 3863,
+      "sha256": "d91ceb5a830552158a8d8deaac8ffe4a61d3bac5ca6376a57c3050ba5735342a"
+    },
+    {
+      "path": "deployed/case12-compat-human-qualification-v1.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-compat-human-qualification-v1.json",
+      "bytes": 2327,
+      "sha256": "c21fbdd0f6caa40bdf7ea18c38f0981792cb496dc519a9bb430bc430823a5187"
+    },
+    {
+      "path": "deployed/case12-compat-release-manifest-v1.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-compat-release-manifest-v1.json",
+      "bytes": 3083,
+      "sha256": "a147c4960da71fbfa5e922574d70f32ae6ea7b5a576e93ce210ac8c4d5f2b9f4"
+    },
+    {
+      "path": "deployed/case12-compat-promotion-authorization-v1.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-compat-promotion-authorization-v1.json",
+      "bytes": 465,
+      "sha256": "0a1e828527bca8028236f8a82a048451618f36b9b07fb05b129800db3226486f"
+    },
+    {
+      "path": "deployed/case12-compat-promotion-receipt-v1.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-compat-promotion-receipt-v1.json",
+      "bytes": 1034,
+      "sha256": "a560b279dbd536eda7df02fe272a4fa9a52129a97f3cd556c95c50b1a805ccfc"
+    },
+    {
+      "path": "deployed/case12-compat-served-readback-v1.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-compat-served-readback-v1.json",
+      "bytes": 5010,
+      "sha256": "a668baea084bc493635fcd7020f1d488de752f94d3726ca52c1aeb0c507b4266"
+    },
+    {
+      "path": "deployed/prepare-case12-compat-promotion-v1.mjs",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\prepare-case12-compat-promotion-v1.mjs",
+      "bytes": 5318,
+      "sha256": "98c8bbc1fd593cb6955ec74045921c71c0e670d84a939d9e71d60b9a2e7fe6c0"
+    },
+    {
+      "path": "deployed/promote-case12-compat-bound-v1.mjs",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\promote-case12-compat-bound-v1.mjs",
+      "bytes": 4352,
+      "sha256": "b693efa2385e5152dc4fe39f4d1fa70bc71331409a9e746205d5e972fc9925c9"
+    },
+    {
+      "path": "deployed/verify-case12-compat-served-v1.mjs",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\verify-case12-compat-served-v1.mjs",
+      "bytes": 7384,
+      "sha256": "3a3d348c7e68331b07e8692670d97d7e8ccc33695cbdc05d8a5cf6b2d6c1e8dd"
+    },
+    {
+      "path": "helper-definition/binding-v1.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-registration-only-qualifier-v1\\binding-v1.json",
+      "bytes": 738,
+      "sha256": "984f9a486fa22f549b4680cf5db23f728b0fe03bfcc51b14758a8406b6a1f44f"
+    },
+    {
+      "path": "helper-definition/executed-once/result.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-registration-only-qualifier-v1\\executed-once\\result.json",
+      "bytes": 875,
+      "sha256": "1cdce96c36b966f4a4993c32b2db962dd155167b9001d73199752a16c8ee5d05"
+    },
+    {
+      "path": "helper-definition/executed-once/cleanup.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-registration-only-qualifier-v1\\executed-once\\cleanup.json",
+      "bytes": 392,
+      "sha256": "b355cd1a8f0aef125b269beb637aad76c391fd76c4cf3825564a19055dae2869"
+    },
+    {
+      "path": "helper-definition/executed-once/native-projection-readback.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-registration-only-qualifier-v1\\executed-once\\native-projection-readback.json",
+      "bytes": 302,
+      "sha256": "d809d56289ee5d8162d1734a83a5af14b40f4e5290da799954857c6d034df640"
+    },
+    {
+      "path": "native-plan/current-image-root-audit.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-native-plan-audit-v2\\assessment.json",
+      "bytes": 1468,
+      "sha256": "665482ee24a4dc6d4b21d20ccab12c8bb1c8ae363a264932f7f5085c19b29ac8"
+    },
+    {
+      "path": "construction/checkpoint.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-setup-construction-v3\\checkpoint.json",
+      "bytes": 1017,
+      "sha256": "2ea8cc39adfb9e45d352141d7ffa88dd86a8e105df66072917b88e8b90131d83"
+    },
+    {
+      "path": "construction/cost-readonly-check.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-setup-construction-v3\\cost-readonly-check.json",
+      "bytes": 477,
+      "sha256": "d3f7fef2b5b8818b4b2551d5bd51cce6e2c91db0ad60e59cca15ed3d380d7441"
+    }
+  ],
+  "sourceSha": "478a1826afc7e4d599c66bfe5fb7a9759b0a4582",
+  "releaseApproval": "Existing scoped human approval, transparently bound to reviewed-source image after its checks; no claim of earlier exact-digest review",
+  "temporaryIam": "Previously approved policy still active until cleanup; expires21:00UTC",
+  "setupOrCaptureExecuted": false,
+  "journalEvents": 26,
+  "committedUsd": 16.200909,
+  "remainingUsd": 13.799091,
+  "c2Complete": false
+}

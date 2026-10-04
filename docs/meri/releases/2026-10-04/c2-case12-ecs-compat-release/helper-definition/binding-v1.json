@@ -1,0 +1,17 @@
+{
+  "at": "2026-10-04T17:02:55.765Z",
+  "definitionSha256": "d145d92ca91a198372f74d3ec98ad84ba7da110733a02c2bad0a99a1481b1669",
+  "nativeDefinitionSha256": "fde21f7fe1f6136c4422c2b5ad4976359d90d7886c5a702b00411d4212697bec",
+  "qualificationSha256": "4e11f6a278d68874182335a1d8d9ca99dc43ff2ec81f3a5ab40720ec159d3f0b",
+  "operatorSha256": "c6d3f6cb7a764e12295271744fed00400492c6313d6a6e2a939c3c4c0df76c09",
+  "originalOperatorSha256": "4fd5066811274ca443029a5a32d9120ba669451568722192ca165a62f823644a",
+  "sourcePins": 1188,
+  "onlyDefinitionChanges": [
+    "image",
+    "GIT_SHA",
+    "RELEASE_SHA"
+  ],
+  "setupPlanSha256": "9b1b847044832ab3403dcc95321a234de0f2d8e2266e66b82eb9b21a6e3e8056",
+  "taskLaunch": false,
+  "spendHold": false
+}
