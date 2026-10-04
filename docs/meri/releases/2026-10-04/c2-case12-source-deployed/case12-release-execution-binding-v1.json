@@ -1,0 +1,24 @@
+{
+  "at": "2026-10-04T13:30:05.714Z",
+  "packetSha256": "781b944fee40f504c744dda2f609f0f63446b9693dd2cdb661ecde756f749fc2",
+  "packetExpiresAt": "2026-10-04T14:29:15.856Z",
+  "rows": [
+    {
+      "template": "record-case12-release-approval-template-v1.mjs",
+      "templateSha256": "d6c0115433594ca4c3811511845a58d9cd52ffecf933fb3e6e27988295bc67a2",
+      "bound": "record-case12-release-approval-bound-v1.mjs",
+      "boundSha256": "5f768f636b60bb49a5f5d63cffb6c153d0ed12d0a022a1f3aca0db2407f4036b",
+      "change": "Only null packet literal replaced with exact reviewed packet fingerprint"
+    },
+    {
+      "template": "promote-case12-release-service-template-v1.mjs",
+      "templateSha256": "2a3fff31c25d3c958f0039c5324ef0411c1882a4b45ee4099cbba04ff8e46a2d",
+      "bound": "promote-case12-release-service-bound-v1.mjs",
+      "boundSha256": "0401f7ed739f98b2b05f812fe1c836abc69aeb80d456dd66634b3a90a6d3c9e8",
+      "change": "Only null packet literal replaced with exact reviewed packet fingerprint"
+    }
+  ],
+  "executed": false,
+  "humanApprovalCreated": false,
+  "cloudWrites": 0
+}

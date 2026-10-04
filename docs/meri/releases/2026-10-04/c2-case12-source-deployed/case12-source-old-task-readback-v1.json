@@ -1,0 +1,67 @@
+{
+  "status": "EXACT_PRIOR_BASELINE_TASKS_STOPPED",
+  "recordedAt": "2026-10-04T13:57:16.094Z",
+  "packetSha256": "781b944fee40f504c744dda2f609f0f63446b9693dd2cdb661ecde756f749fc2",
+  "services": [
+    {
+      "service": "api",
+      "currentDeploymentId": "ecs-svc/5723596588869930973",
+      "currentTaskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:527",
+      "baselineDesiredCount": 2,
+      "stopEvents": [
+        {
+          "id": "dff387f7-62a3-4698-aabf-3d47b0c7e1e6",
+          "createdAt": "2026-10-04T09:50:37.181000-04:00",
+          "message": "(service capiro-dev-api) has stopped 2 running tasks: (task 53e47bd1dadc4105af2c5affb5142df5) (task 4883491d5c004f44affc7e59d98d87cc)."
+        }
+      ],
+      "oldTasks": [
+        {
+          "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/53e47bd1dadc4105af2c5affb5142df5",
+          "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:525",
+          "lastStatus": "STOPPED",
+          "desiredStatus": "STOPPED",
+          "imageDigest": "sha256:00e8c5cac10d8b4cd3cc46a0a9a7602b51db4657e38fabe86f1f12999d2b2e31",
+          "stoppedAt": "2026-10-04T09:57:03.341000-04:00",
+          "stopCode": "ServiceSchedulerInitiated"
+        },
+        {
+          "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/4883491d5c004f44affc7e59d98d87cc",
+          "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:525",
+          "lastStatus": "STOPPED",
+          "desiredStatus": "STOPPED",
+          "imageDigest": "sha256:00e8c5cac10d8b4cd3cc46a0a9a7602b51db4657e38fabe86f1f12999d2b2e31",
+          "stoppedAt": "2026-10-04T09:57:07.342000-04:00",
+          "stopCode": "ServiceSchedulerInitiated"
+        }
+      ]
+    },
+    {
+      "service": "meriv2-orchestrator",
+      "currentDeploymentId": "ecs-svc/0423243475561267405",
+      "currentTaskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:123",
+      "baselineDesiredCount": 1,
+      "stopEvents": [
+        {
+          "id": "e6837336-8b8c-43be-8255-64924ae968ba",
+          "createdAt": "2026-10-04T09:54:58.569000-04:00",
+          "message": "(service capiro-dev-meriv2-orchestrator) has stopped 1 running tasks: (task 46f8288c36d24fdaab098719576acb04)."
+        }
+      ],
+      "oldTasks": [
+        {
+          "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/46f8288c36d24fdaab098719576acb04",
+          "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:121",
+          "lastStatus": "STOPPED",
+          "desiredStatus": "STOPPED",
+          "imageDigest": "sha256:94c82ec438a0cfee0da3869af284e107ae6aeff6157c8c0ff2f97dc991f6c5bf",
+          "stoppedAt": "2026-10-04T09:56:13.762000-04:00",
+          "stopCode": "ServiceSchedulerInitiated"
+        }
+      ]
+    }
+  ],
+  "providerCalls": 0,
+  "awsWrites": 0,
+  "scope": "Exact prior task identities supplement the served readback; a STOPPED-list response alone cannot establish their shutdown. Current service stop events locate exact prior task ARNs; describe-tasks verifies every expected prior baseline revision/digest and actual STOPPED state."
+}

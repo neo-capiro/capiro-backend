@@ -1,0 +1,83 @@
+{
+  "kind": "case12-temporary-iam-independent-review",
+  "version": 1,
+  "status": "PASS_DISABLED_SOURCE_AND_CONTROLLED_LOCAL_TEST_SCOPE",
+  "createdAt": "2026-10-04T13:34:16.902512+00:00",
+  "sourceSha256": "b5b24626cb5d3ffe4089f1b6455fae37dcb9adfc9bfbd514961d666af99e8530",
+  "checkpointSha256": "2865f5214bbf0f82c77e50a260227c1ac62768b588a89be600db5003467161e5",
+  "pinsCheckedBeforeAndAfter": [
+    {
+      "path": "case12-temporary-iam-v1.mjs",
+      "sha256": "b5b24626cb5d3ffe4089f1b6455fae37dcb9adfc9bfbd514961d666af99e8530",
+      "bytes": 12730
+    },
+    {
+      "path": "tests.mjs",
+      "sha256": "fdeb0d03284b981263933bf498ac5f76ca3ea05c65100fc1253ccf8dce4b3c84",
+      "bytes": 10894
+    },
+    {
+      "path": "tests-v1.log",
+      "sha256": "063926421be82aa7551ecdffc8090c799f272b5e3ec6bf88d92ce46230f4d6bf",
+      "bytes": 1032
+    },
+    {
+      "path": "README.md",
+      "sha256": "c73d0d334bcc3e714eb4759bfaf12b637da3b6bbe39e4c761c902c131faf8448",
+      "bytes": 2875
+    },
+    {
+      "path": "freeze.py",
+      "sha256": "a1099f76482e40573e020ca319e42497ed21242a7dc0345fb95aa25b5545be41",
+      "bytes": 1381
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-c2-20261003/aws-single-attempt.mjs",
+      "sha256": "86b965a0257fd56e5255e30cdfd6787bef74ba0287d23eecb86fedfae7d6fec0",
+      "bytes": 782
+    },
+    {
+      "path": "C:/dev/main/outputs/meri-fresh-20261003/auth-preflight.mjs",
+      "sha256": "f3d757755514c478b2f7a00572883c9c696964dc13ac1a565e4c0ef61d379414",
+      "bytes": 5100
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/scripts/meri-release.mjs",
+      "sha256": "2fece407aa0f08795ac6d5d1feef99211412ab28ea6bc76125c1c49eae4412f6",
+      "bytes": 22124
+    },
+    {
+      "path": "C:/dev/main/meri-c1-20261002/scripts/lib/meri-release-policy.mjs",
+      "sha256": "e0518591e704ef3f051442d1b949a9f83a705a2cff40ed998dba19b57373cb5c",
+      "bytes": 9875
+    }
+  ],
+  "tests": {
+    "command": [
+      "C:/Program Files/nodejs/node.exe",
+      "--test",
+      "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-temporary-iam-independent-v1\\tests.mjs"
+    ],
+    "exitCode": 0,
+    "passed": 10,
+    "logSha256": "033087761fa3d02bd061352e01c8fcff9e9a075c10052b2da6ce6835233a4310",
+    "copies": "Import paths and controlled local child output location only; original frozen source and tests unchanged."
+  },
+  "independentFindings": [],
+  "verifiedControls": [
+    "Null packet gate rejects before reads/mutations; no caller/environment activation override.",
+    "Raw immutable archive qualification, policy, and prior-role file hashes are pinned. Explicit exact packet approval includes the temporary IAM grant and approved timestamp.",
+    "Apply checks current eleven inline policies/zero attached policies and both promoted candidate service snapshots through the existing native release snapshot function, including exact immutable image/task input/config/source and API role.",
+    "Apply re-reads binding/originals immediately before immutable policy JSON argv dispatch; durable exclusive apply intent and output directory prevent replay.",
+    "Empty/lost put/delete acknowledgment is treated as uncertain and resolved by exact readback, without repeating mutation.",
+    "Remove requires this packet/approval/role/name/policy/originals-bound apply intent; only exact temporary policy is removed, and unchanged original eleven hashes/no attached policies are checked before and after.",
+    "Expiry prevents apply; removal of the exact owned grant remains allowed after expiry. Existing remove intent blocks repeating unresolved deletion."
+  ],
+  "limits": [
+    "No actual IAM mutation, cloud read, task probe, DB/provider operation or journal write occurred in this review.",
+    "Tests use synthetic local approval/policy originals and controlled AWS/git/release snapshots. They do not demonstrate native IAM permission or actual helper access.",
+    "Existing policy is a temporary shared-role read grant: DescribeTaskDefinition Resource * in us-east-1 until 21:00Z; DescribeTasks restricted to capiro-dev tasks bearing the owner tag. It is not scoped to a single helper session and must remain explicit in the human approval packet.",
+    "Literal reviewed packet binding and actual human approval are still required for activation; approval was not manufactured by this review.",
+    "Known IAM read eventual consistency can leave reconciliation unresolved. The wrapper deliberately does not retry mutations or call that outcome success."
+  ]
+}

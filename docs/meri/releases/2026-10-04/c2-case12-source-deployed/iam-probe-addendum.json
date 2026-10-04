@@ -1,0 +1,448 @@
+{
+  "at": "2026-10-04T14:13:26.999772+00:00",
+  "status": "ACTUAL_IAM_SELF_READS_AND_OWNED_CLEANUP_CAPTURED",
+  "copiedFiles": [
+    {
+      "path": "case12-iam-read-probe-v1/checkpoint.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\checkpoint.json",
+      "bytes": 2985,
+      "sha256": "148ca394040af78ae92b71ea26b00dd1954e89339654084e6061d3e33ed11b3c"
+    },
+    {
+      "path": "case12-iam-read-probe-v1/read-case12-iam-probe-v1.mjs",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\read-case12-iam-probe-v1.mjs",
+      "bytes": 18594,
+      "sha256": "d61b0022e339796f1f525bb6d43367c52832d69a722413db492d88576ebd80db"
+    },
+    {
+      "path": "case12-iam-read-probe-v1/iam-read-probe-inner-v1.mjs",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\iam-read-probe-inner-v1.mjs",
+      "bytes": 5776,
+      "sha256": "5f92354dbb845d035cbb1160e7a0a27d964ed3a19ffc398c82f3ba733085c23f"
+    },
+    {
+      "path": "case12-iam-read-probe-v1/README.md",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\README.md",
+      "bytes": 3395,
+      "sha256": "b0ae2bfeef6feb8ecc619bbd205afeafe6f28f1186ee08673b3a6f29d263e799"
+    },
+    {
+      "path": "case12-iam-probe-supervisor-review-v1/independent-assessment.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-probe-supervisor-review-v1\\independent-assessment.json",
+      "bytes": 5999,
+      "sha256": "4e078be984c634330997c24bd8aecd4832f58cf1d1b6b03848642ebc0edbdba9"
+    },
+    {
+      "path": "case12-iam-read-probe-v1/executed-once/intent.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\intent.json",
+      "bytes": 649,
+      "sha256": "2570036e13100f300d808d9c529aab01749f40e22e7ed1abc8003d5374e9fb9f"
+    },
+    {
+      "path": "case12-iam-read-probe-v1/executed-once/launch-intent.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\launch-intent.json",
+      "bytes": 384,
+      "sha256": "84efbf39bdd3b8dcec0a7850a8bed054f64d9689d8a8814a65bd9379bfd5ee7a"
+    },
+    {
+      "path": "case12-iam-read-probe-v1/executed-once/task-start.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\task-start.json",
+      "bytes": 315,
+      "sha256": "315cdf4a7127197088465140f5bc7b7c787f001b0cc07c64bd81592192f775d1"
+    },
+    {
+      "path": "case12-iam-read-probe-v1/executed-once/result.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\result.json",
+      "bytes": 1050,
+      "sha256": "73c12e9b0021412770ab8f5b2cd5f325b0dc5dc54e4cc1f58b366aed6ada123e"
+    },
+    {
+      "path": "case12-iam-read-probe-v1/executed-once/iam-probe-receipt.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\iam-probe-receipt.json",
+      "bytes": 897,
+      "sha256": "22298a5a6dc5164cdeb83fb4dda3d9ddc9e15fa9ce506a7bc52f81d827e9e5aa"
+    },
+    {
+      "path": "case12-iam-read-probe-v1/executed-once/cleanup.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\cleanup.json",
+      "bytes": 360,
+      "sha256": "2169629adf4ab57552383fdd6bcef78c5fb10856e1411745f576070857d18666"
+    },
+    {
+      "path": "case12-iam-read-probe-v1/executed-once/journal-preserved.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\journal-preserved.json",
+      "bytes": 247,
+      "sha256": "35bee9e7908747da94eb530b8b899ab0542b77594b188449404c23a2049979cd"
+    }
+  ],
+  "privateLocalRawEvidence": [
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\cleanup-inactive-definition.private.json",
+      "bytes": 9389,
+      "sha256": "df6cf75d9622bce1169aa427190b3af6433466404e2337f97e7518eaba331df6"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\cleanup-stopped-task.private.json",
+      "bytes": 3370,
+      "sha256": "6cc8c9d5699c98292dd8928130f0ed92ed13eff5e2a3416e5666fd8905321a18"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\definition-input.private.json",
+      "bytes": 7286,
+      "sha256": "9b021f37b36fe989f01c5116978a3297e654bdc1a4384281f4f0f31c2134b232"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\healthy-api-after.private.json",
+      "bytes": 56865,
+      "sha256": "af4da40985c4c41cb6646aefe579de8dff2d7127dc55bf22d109a43fdcc825b8"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\healthy-api-before.private.json",
+      "bytes": 56865,
+      "sha256": "af4da40985c4c41cb6646aefe579de8dff2d7127dc55bf22d109a43fdcc825b8"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\healthy-meriv2-orchestrator-after.private.json",
+      "bytes": 42436,
+      "sha256": "32743b955f11bdaaa5345785f421e01c0e8a8de673aa700107f571c3a8601443"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\healthy-meriv2-orchestrator-before.private.json",
+      "bytes": 42436,
+      "sha256": "32743b955f11bdaaa5345785f421e01c0e8a8de673aa700107f571c3a8601443"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\log-events.private.json",
+      "bytes": 1079,
+      "sha256": "62d774e844e058ffddfbc3c2906e95c980cefcea4e899ec9de8d1ec21044496a"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\mutation-017-intent.private.json",
+      "bytes": 7639,
+      "sha256": "5dc1bbfad1315a26b22705a647d2715880b0b509f777dc8ad59299293af5ee30"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\mutation-019-intent.private.json",
+      "bytes": 811,
+      "sha256": "e6ee59467fa4cb7fcff50450224f0a9d2a655d4811df3ce755f0617e2281f565"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\mutation-043-intent.private.json",
+      "bytes": 264,
+      "sha256": "d27391b5bf76007825ae16bc36e296e1e91a74b069a23c2808e95071a301e5ae"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\raw-001-sts-get-caller-identity.private.json",
+      "bytes": 235,
+      "sha256": "7873ff586baad6f3612656b3e2e519059fa231b2f525a893d047a45054ef8b4f"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\raw-002-iam-get-role-policy.private.json",
+      "bytes": 1592,
+      "sha256": "0a098d0c16b091fc24de19ab59629191fcaf1bf956364f5c718ce620c1b51faa"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\raw-003-ecs-describe-services.private.json",
+      "bytes": 32526,
+      "sha256": "a434f96792f9f7c88432bf059b7c2c28577462f9b9a2ea725b15ddc6949a9c3f"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\raw-004-ecs-describe-task-definition.private.json",
+      "bytes": 28316,
+      "sha256": "178c6a628c595a13c0b8c0df20b8df16e03d56f009645aaf40a3aa2190d02e64"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\raw-005-ecs-list-tasks.private.json",
+      "bytes": 429,
+      "sha256": "7c7582d782816aabcfaedacf907457f7366dd1511354aead64a13c36e6bbd3bf"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\raw-006-ecs-describe-tasks.private.json",
+      "bytes": 7585,
+      "sha256": "87118d34d3d5f808ea0b4baf5dfc2affd28539ffc7f369161af9dca9a6801d7c"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\raw-007-elbv2-describe-target-groups.private.json",
+      "bytes": 1187,
+      "sha256": "b0a7058d658d769d250369c1767e4c508b44dc19fd216a7c4c12866dcdf879d4"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\raw-008-elbv2-describe-target-health.private.json",
+      "bytes": 1193,
+      "sha256": "d7f82d6b1cabb5ef4cb698ab1516cd843ac8c11f54e91a0b430f4d81f7b95c3b"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\raw-009-ecs-describe-services.private.json",
+      "bytes": 33666,
+      "sha256": "251af193187b363741512633fce5f2bee063bf35473808f8029cd8dbee07a13b"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\raw-010-ecs-describe-task-definition.private.json",
+      "bytes": 11921,
+      "sha256": "5538495c6d88e013b9682b652c27ecef5a3ee93a598746a49112edaedf34fe7d"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\raw-011-ecs-list-tasks.private.json",
+      "bytes": 352,
+      "sha256": "930d126c3beab3536a5e24709d5ae8b7ac346ecf0b29c20db2bb388fa033f99a"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\raw-012-ecs-describe-tasks.private.json",
+      "bytes": 3804,
+      "sha256": "cd73964d6977540e7ccca72558833d12c97bc5e1646f6faa18f39c3930612592"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\raw-013-elbv2-describe-target-groups.private.json",
+      "bytes": 1220,
+      "sha256": "44d5750a993f22aa7f96ef081eca93d412e4be58c755bdf1b4637efe21e879b5"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\raw-014-elbv2-describe-target-health.private.json",
+      "bytes": 748,
+      "sha256": "37c06159578a13d942f84c8977fc0c776bfd9ef514c4e7572016efafd5c9c303"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\raw-015-ecs-list-task-definitions.private.json",
+      "bytes": 268,
+      "sha256": "6d6bb0ea695dc61d69edd5fad84b766bf0ba30d4266aa25d4ed27873b393c4be"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\raw-016-ecs-list-task-definitions.private.json",
+      "bytes": 270,
+      "sha256": "54693da93124d700645eebf91b7cc522c0fb2740e97eb4ba3142c4e471c08180"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\raw-017-ecs-register-task-definition.private.json",
+      "bytes": 17190,
+      "sha256": "814442493ceae4a0053de4bb144936ed1038ad832edb0bc2364f341fe6afd3eb"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\raw-018-ecs-describe-task-definition.private.json",
+      "bytes": 9842,
+      "sha256": "373ae41a119839e1dc5e0e86358f142a51294ef87f7a500994fcd248bed9f146"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\raw-019-ecs-run-task.private.json",
+      "bytes": 3306,
+      "sha256": "690b2aceee1805c5637a2f107504394591bf377abdcd6987e32d31589d143730"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\raw-020-ecs-describe-tasks.private.json",
+      "bytes": 2861,
+      "sha256": "04ae60d569773674387631b713fdbbf3b9fb30c3a65ab64ecd3f0a3795a817b8"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\raw-021-ecs-describe-tasks.private.json",
+      "bytes": 3516,
+      "sha256": "a2a3ca8be23ef919dc7f659ee7012b842f5c8ddd2f82f559560838c45d811894"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\raw-022-ecs-describe-tasks.private.json",
+      "bytes": 3517,
+      "sha256": "63cf15a51b2558bde58445071ea1dc6817f53f17dc5614667f7c596a10d1899d"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\raw-023-ecs-describe-tasks.private.json",
+      "bytes": 3512,
+      "sha256": "115f9db7ee92d2d490b21d96e83521e552d2f13e4aea36dd5676f5bcdfb22a72"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\raw-024-ecs-describe-tasks.private.json",
+      "bytes": 3512,
+      "sha256": "964ad5241b8c91b172b8022beeba6a0155e0f9cfa44501442bf322df9b74fbc7"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\raw-025-ecs-describe-tasks.private.json",
+      "bytes": 3512,
+      "sha256": "4e813f84fe8f0808b820a220dda4c73d7cfb5a49c8fd9425a6e9d811fb6845d7"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\raw-026-ecs-describe-tasks.private.json",
+      "bytes": 3512,
+      "sha256": "5a4e9b7aafe2317251acb20cf0c820e07cb11d18b73622ee7bcfbebae4369d5d"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\raw-027-ecs-describe-tasks.private.json",
+      "bytes": 3512,
+      "sha256": "3ee27a175abff41e146a402b4e7e6d953ce50f47c757f1ce67555a0116795a59"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\raw-028-ecs-describe-tasks.private.json",
+      "bytes": 3512,
+      "sha256": "8ffe9ab723a96593fbe54b2976d53663136eaed39f8980cb827c81acec04db10"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\raw-029-ecs-describe-tasks.private.json",
+      "bytes": 3512,
+      "sha256": "3faca286b562fdde5ca796938e1ac3a2504ecb1861ac2dd2d8f015df7a14dfc1"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\raw-030-ecs-describe-tasks.private.json",
+      "bytes": 3512,
+      "sha256": "e463469008108c92f5ad0478a872198830f8cb3e6134a3dc1e880dc4e8a9b900"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\raw-031-ecs-describe-tasks.private.json",
+      "bytes": 3512,
+      "sha256": "72a149b73b4a715aee935e614840a17ac6a8399176641c6c95e6a87d322fc098"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\raw-032-ecs-describe-tasks.private.json",
+      "bytes": 3999,
+      "sha256": "f13747cf5db8fa227215da54df923feb8e721af878d412c9683466a9a3fe7af3"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\raw-033-ecs-describe-tasks.private.json",
+      "bytes": 3999,
+      "sha256": "6720029d48075c81df20fa589db928f8896b686b6eacf4334e3988286d470e8c"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\raw-034-ecs-describe-tasks.private.json",
+      "bytes": 4268,
+      "sha256": "d4b8e7714efd3610808bdf7c570c0206208c945921f99a2546f859dc943ee180"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\raw-035-ecs-describe-tasks.private.json",
+      "bytes": 4269,
+      "sha256": "4f10e7029c1d6f458f3556837a23ec49bbbca1c8911dadfb73c0d73eff9ab48e"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\raw-036-ecs-describe-tasks.private.json",
+      "bytes": 4268,
+      "sha256": "2dfb4db071050d5de033855350ae77c715b72ba399e827f68dfeedfe33862fb7"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\raw-037-ecs-describe-tasks.private.json",
+      "bytes": 4317,
+      "sha256": "2e170407351c94d56cabe92981ea828164f78fc263f183beb5d4b40c81eab274"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\raw-038-logs-get-log-events.private.json",
+      "bytes": 1600,
+      "sha256": "809b618a6e49430082648feae023d824df995cf8059a4a51426da3b6fedf0723"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\raw-039-logs-get-log-events.private.json",
+      "bytes": 588,
+      "sha256": "5fa76a532304ed2fc94833b1bc18e1aef541e5bf8a9bce3893094744022555f9"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\raw-040-logs-get-log-events.private.json",
+      "bytes": 588,
+      "sha256": "9acf0e2c32dbfc52ea213aa314be2ff6e9f2948c2279bce3b2b810fcc39c489a"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\raw-041-ecs-describe-tasks.private.json",
+      "bytes": 4317,
+      "sha256": "e551d043aad6e8e7eb53511507b567678d0ede5f5e69fc486bc4a60ff52b557b"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\raw-042-ecs-describe-task-definition.private.json",
+      "bytes": 9842,
+      "sha256": "5e6d411b3de2a0de39901ef6db35c238f90d5d265cc6368b762f602326ee9f91"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\raw-043-ecs-deregister-task-definition.private.json",
+      "bytes": 9682,
+      "sha256": "0a78cd53cbf7daf91c000e4631b8c8bfebca1c0f836064328c35d71f2af02cec"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\raw-044-ecs-describe-task-definition.private.json",
+      "bytes": 9904,
+      "sha256": "bcca62f66126edfaac3b7ce2bc9ca9cdd942235195b6719c80f1c58547cf473e"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\raw-045-ecs-describe-services.private.json",
+      "bytes": 32526,
+      "sha256": "a60b9803c40d8b452eb29d915a47c2936c374150e9305b6880ef77ca4580c9f2"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\raw-046-ecs-describe-task-definition.private.json",
+      "bytes": 28316,
+      "sha256": "6d05521ef6cd1d735e9efcdd0f1536303db4ba74bbb835ac49e75ac4e82f0e0f"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\raw-047-ecs-list-tasks.private.json",
+      "bytes": 429,
+      "sha256": "40fefe047e42e1ed7c143610a3910a78a655a9460e0f768f0dc74225acbdfa82"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\raw-048-ecs-describe-tasks.private.json",
+      "bytes": 7585,
+      "sha256": "f61e464b15d7066c1a70b189fbbc127a29b1576e3340e322f7220824bf85c881"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\raw-049-elbv2-describe-target-groups.private.json",
+      "bytes": 1187,
+      "sha256": "2f64d629d0b5351807caff8a378aa48496e8de977937c69b993cbebb20ae5a43"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\raw-050-elbv2-describe-target-health.private.json",
+      "bytes": 1193,
+      "sha256": "e5441bdd6d8a24857c3d72ad32d90fb47bd97fc93f539a5996f542e6a6ec9936"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\raw-051-ecs-describe-services.private.json",
+      "bytes": 33666,
+      "sha256": "3e2fb178a650305119b2c6f4083a9e4b5d77dec0f16f5c9b3524ba06159df4dd"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\raw-052-ecs-describe-task-definition.private.json",
+      "bytes": 11921,
+      "sha256": "d2c8f9b221d330fd4ffa85232b380c3ea73d9e2ed1efb92d2d5c7609f9694b4b"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\raw-053-ecs-list-tasks.private.json",
+      "bytes": 352,
+      "sha256": "a9cc55afeedc6008c0c436500f0e84b8d52bd482a111323b4c00a7c80573b6f3"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\raw-054-ecs-describe-tasks.private.json",
+      "bytes": 3804,
+      "sha256": "acf666350fb2576dd1a7e796cf1f69c5eebf294ec41f4c2a2b2d051767f95972"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\raw-055-elbv2-describe-target-groups.private.json",
+      "bytes": 1220,
+      "sha256": "d0052397606cb4e0e800e38470b08d274b19057df122b0180b650431f2c061a1"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\raw-056-elbv2-describe-target-health.private.json",
+      "bytes": 748,
+      "sha256": "afbc4771fc566a9fe8ed06ef1690ecd08e27709df52f513aec789a98f28d71c8"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\stopped-task.private.json",
+      "bytes": 3370,
+      "sha256": "6cc8c9d5699c98292dd8928130f0ed92ed13eff5e2a3416e5666fd8905321a18"
+    },
+    {
+      "path": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-iam-read-probe-v1\\executed-once\\task-input.private.json",
+      "bytes": 608,
+      "sha256": "384d7b8a3451ffe30eef5fe58202d3029bf251df9bfceb0694c64c3154bc2e9d"
+    }
+  ],
+  "result": {
+    "status": "ACTUAL_IAM_SELF_READS_AND_OWNED_CLEANUP_CAPTURED",
+    "at": "2026-10-04T14:10:35.940Z",
+    "sourceSha": "e60f37189f8c9b68ab7d5ef66e515ed3be4ec3c1",
+    "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:202832655633f906dec412ca088a7263e8e8065cd9a602402d98e5d2b092fe22",
+    "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/2c12fa6a72654b0485ab4ee1f02f2bdf",
+    "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-c2-case12-iam-probe-20261004:1",
+    "startedAt": "2026-10-04T10:09:37.129000-04:00",
+    "stoppedAt": "2026-10-04T10:10:05.425000-04:00",
+    "exitCode": 0,
+    "innerSha256": "5f92354dbb845d035cbb1160e7a0a27d964ed3a19ffc398c82f3ba733085c23f",
+    "registrationMarker": "a1761bcb-9573-4538-bb95-18f769212db3",
+    "providerCalls": 0,
+    "databaseCalls": 0,
+    "secrets": 0,
+    "journalUnchanged": true,
+    "bothPromotedServicesHealthy": true,
+    "setupExecuted": false,
+    "nativeAdmissionQualified": false,
+    "captureAuthority": false,
+    "liveAcceptance": "NOT_RUN"
+  },
+  "scope": "Actual intended task-role SDK reads only; full native setup admission and live acceptance remain unqualified."
+}

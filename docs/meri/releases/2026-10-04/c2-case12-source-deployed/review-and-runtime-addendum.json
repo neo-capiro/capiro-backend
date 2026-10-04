@@ -1,0 +1,25 @@
+{
+  "files": [
+    {
+      "path": "independent-review.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-deployed-archive-independent-v1\\independent-assessment.json",
+      "bytes": 26395,
+      "sha256": "92830559da892d93ffcf3b822d2b022c669cc42f2a9a84631ac171fb305544e1"
+    },
+    {
+      "path": "native-runtime/actual-sdk-overrides.json",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\case12-actual-sdk-overrides-v1.json",
+      "bytes": 629,
+      "sha256": "ab441b3d94939131e5220321d073f8b0eee098cc0160aa4f44a7dab179e4dd77"
+    },
+    {
+      "path": "native-runtime/read-actual-sdk-overrides.mjs",
+      "sourcePath": "C:\\dev\\main\\outputs\\meri-c2-20261003\\read-case12-actual-sdk-overrides-v1.mjs",
+      "bytes": 1620,
+      "sha256": "7b5b897a5ae1980a42890d00b5c662bf03659407a3a8993c3b7e1aefb7f7c6f8"
+    }
+  ],
+  "assessment": "Prior independent review covers deployed/IAM archive before this addendum. Runtime proof establishes a new native admission incompatibility, not a failed paid setup.",
+  "nativeSetupExecuted": false,
+  "journalEvents": 26
+}

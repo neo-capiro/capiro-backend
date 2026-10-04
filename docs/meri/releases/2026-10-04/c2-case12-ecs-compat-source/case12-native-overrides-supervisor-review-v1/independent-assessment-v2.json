@@ -1,0 +1,81 @@
+{
+  "status": "PASS_NARROW_SOURCE_AND_RETAINED47TESTS",
+  "reviewer": "independent Codex supervisor",
+  "at": "2026-10-04T14:23:33.783301+00:00",
+  "checkpointSha256": "d6719103f8e1f981df77ba23fbb1bb9b92093fda22e7179735a9e1b4048ecf74",
+  "sourceSha256": "fbebfba2ab0fdb0314542178f4576c6ef6962f28263c3a5cfa092fd56a3688db",
+  "filesChecked": [
+    {
+      "path": "actual-sdk-evidence.json",
+      "bytes": 629,
+      "sha256": "ab441b3d94939131e5220321d073f8b0eee098cc0160aa4f44a7dab179e4dd77"
+    },
+    {
+      "path": "baseline/apps/api/src/meri/meri-case12-native-setup-admission.spec.ts",
+      "bytes": 10238,
+      "sha256": "e6f170cb452374220b5352126502906b0631d8e5bd72d62f62d1a6725415f035"
+    },
+    {
+      "path": "baseline/apps/api/src/meri/meri-case12-native-setup-admission.ts",
+      "bytes": 11682,
+      "sha256": "28efbc49a0e23006adedb7a4bfb14edb9088ac7d476076c5630065f81a5a0b23"
+    },
+    {
+      "path": "candidate/apps/api/src/meri/meri-case12-native-setup-admission.spec.ts",
+      "bytes": 14022,
+      "sha256": "2317588bb2c82fffbeaef1252300da18e87af7923f3f362ce23fb5b657d92ef2"
+    },
+    {
+      "path": "candidate/apps/api/src/meri/meri-case12-native-setup-admission.ts",
+      "bytes": 12643,
+      "sha256": "fbebfba2ab0fdb0314542178f4576c6ef6962f28263c3a5cfa092fd56a3688db"
+    },
+    {
+      "path": "intermediate-inline-source.ts",
+      "bytes": 12332,
+      "sha256": "3f0b1389c823d11207ed5cfdb2938ee6252c23ba18125e998a5e6be5fc24202a"
+    },
+    {
+      "path": "intermediate-test-result.json",
+      "bytes": 210,
+      "sha256": "41ee202cd34be0814bb8a86e7963954a09a8176f77d8c83b2cf3351cb972cc64"
+    },
+    {
+      "path": "jest.config.cjs",
+      "bytes": 443,
+      "sha256": "35dc594bb8c9fc5eaee26b3f47e78ad6db3a309ec22c3698125af5f43cb2f50d"
+    },
+    {
+      "path": "proposed.patch",
+      "bytes": 6628,
+      "sha256": "acd108245bf0c778db5c2ed2640edcde45ccc6aba666f5d389cd1c4dc9a43661"
+    },
+    {
+      "path": "README.md",
+      "bytes": 1460,
+      "sha256": "1f13dced47b7acf891f9a91587184d7a8b6b1962c8210ebae0a2ff4dbeefb606"
+    },
+    {
+      "path": "tests-v2.log",
+      "bytes": 7444,
+      "sha256": "fb487d19714ea11ee91bd817d1b48cbbd8f047f4021d710216ef7886a5d1096f"
+    }
+  ],
+  "findings": [],
+  "verified": [
+    "Pure exported comparison permits only absent or exactly empty inferenceAcceleratorOverrides",
+    "Same comparison is called once in existing native admission exact override guard",
+    "No other top-level or container override discarded; role/cpu/memory/environment deltas reject",
+    "Actual root SDK3.1141.0 empty field evidence retained",
+    "47 passing tests retained; test assertions inspected, not independently rerun in this lane"
+  ],
+  "limitations": [
+    "No image deployment or actual helper admission qualified by source review",
+    "Final new compiled image/build/native plan and fixed source closure still required"
+  ],
+  "awsCalls": 0,
+  "providerCalls": 0,
+  "journalWrites": 0,
+  "priorPinInventoryCorrection": "First receipt inspected files key and reported0 checked; this additive final receipt uses actual pins key and verifies all11 artifacts. Source review conclusion unchanged.",
+  "supersedesSha256": "1b0c804595aaf255e5819262bf322dbc69ffcb501f46bec02772245c67c37ab5"
+}

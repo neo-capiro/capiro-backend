@@ -1,0 +1,8 @@
+{
+  "at": "2026-10-04T14:08:25.809Z",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meri-c2-case12-iam-probe-20261004:1",
+  "startedBy": "c12-a1761bcb95734538bb9518f769212db3",
+  "clientToken": "0044cfb0-6908-4e4c-a344-f231f05e52c4",
+  "requestSha256": "0ce4903b294def3bb471d889a23330bf18e6be4f38c0725be65879f522c02512",
+  "singleAttempt": true
+}

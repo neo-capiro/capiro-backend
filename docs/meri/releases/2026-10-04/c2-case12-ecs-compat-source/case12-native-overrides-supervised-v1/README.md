@@ -1,0 +1,7 @@
+# Native ECS empty override default correction
+
+Output-only product source and spec delta. Actual SDK3.1141.0 read of the owned IAM probe includes top-level inferenceAcceleratorOverrides:[] although RunTask omitted it. Existing native source28efbc49 rejects the exact normal AWS response. No setup hold or fixture write occurred.
+
+Export assertCase12NativeTaskOverrides(actual,expected) is a pure comparison for offline image checks. The existing native admission constructs expected exact input internally and now calls it. Only missing versus empty top-level inferenceAcceleratorOverrides is treated equivalently; nonempty/null/string/object inference and other task/container/role/environment/command changes reject. It creates no handle and makes no I/O. Definition/source/image/metadata/durable admission behavior is unchanged.
+
+47 targeted Jest tests PASS, including29 original cases, actual observed SDK empty shape,16 negative full admission cases, and pure probe checks. ECS,metadata and SQL are controlled doubles. The actual retained SDK proof establishes only response shape; these tests are not real native admission/setup/provider qualification. Intermediate inline46PASS code is retained; final source only moves comparison into the exported pure helper and adds its test. No repo changes, AWS calls, provider or journal calls by this lane. Root must perform integrated full typecheck/build and exact final-image probe before deployment.

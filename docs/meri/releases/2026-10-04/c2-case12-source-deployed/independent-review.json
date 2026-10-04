@@ -1,0 +1,475 @@
+{
+  "status": "PASS_RETAINED_DEPLOYMENT_AND_IAM_EVIDENCE_ONLY",
+  "at": "2026-10-04T14:15:49.951664+00:00",
+  "sourceSha": "e60f37189f8c9b68ab7d5ef66e515ed3be4ec3c1",
+  "packetSha256": "781b944fee40f504c744dda2f609f0f63446b9693dd2cdb661ecde756f749fc2",
+  "checks": [
+    "public bytejoin api-case12-release-human-qualification.json",
+    "public bytejoin api-case12-release-release-manifest.json",
+    "public bytejoin api-case12-release-promotion-authorization.json",
+    "public bytejoin api-case12-release-promotion-receipt.json",
+    "public bytejoin meriv2-orchestrator-case12-release-human-qualification.json",
+    "public bytejoin meriv2-orchestrator-case12-release-release-manifest.json",
+    "public bytejoin meriv2-orchestrator-case12-release-promotion-authorization.json",
+    "public bytejoin meriv2-orchestrator-case12-release-promotion-receipt.json",
+    "public bytejoin case12-source-release-packet-v1.json",
+    "public bytejoin case12-source-release-packet-v1.md",
+    "public bytejoin case12-release-human-approval.json",
+    "public bytejoin record-case12-release-approval-bound-v1.mjs",
+    "public bytejoin promote-case12-release-service-bound-v1.mjs",
+    "public bytejoin case12-release-execution-binding-v1.json",
+    "public bytejoin verify-case12-source-served-v1.mjs",
+    "public bytejoin case12-source-served-readback-v1.json",
+    "public bytejoin verify-case12-source-old-tasks-v1.mjs",
+    "public bytejoin case12-source-old-task-readback-v1.json",
+    "public bytejoin case12-native-iam-policy-candidate-v1.json",
+    "public bytejoin case12-iam-execution-binding-v1.json",
+    "public bytejoin case12-temporary-iam-supervised-v1/case12-temporary-iam-bound-v1.mjs",
+    "public bytejoin case12-temporary-iam-supervised-v1/checkpoint.json",
+    "public bytejoin case12-temporary-iam-independent-v1/independent-assessment.json",
+    "public bytejoin case12-temporary-iam-supervised-v1/executed-once/apply-intent.json",
+    "public bytejoin case12-temporary-iam-supervised-v1/executed-once/apply-dispatch.json",
+    "public bytejoin case12-temporary-iam-supervised-v1/executed-once/apply-readback.json",
+    "public bytejoin case12-iam-read-probe-v1/checkpoint.json",
+    "public bytejoin case12-iam-read-probe-v1/read-case12-iam-probe-v1.mjs",
+    "public bytejoin case12-iam-read-probe-v1/iam-read-probe-inner-v1.mjs",
+    "public bytejoin case12-iam-read-probe-v1/README.md",
+    "public bytejoin case12-iam-probe-supervisor-review-v1/independent-assessment.json",
+    "public bytejoin case12-iam-read-probe-v1/executed-once/intent.json",
+    "public bytejoin case12-iam-read-probe-v1/executed-once/launch-intent.json",
+    "public bytejoin case12-iam-read-probe-v1/executed-once/task-start.json",
+    "public bytejoin case12-iam-read-probe-v1/executed-once/result.json",
+    "public bytejoin case12-iam-read-probe-v1/executed-once/iam-probe-receipt.json",
+    "public bytejoin case12-iam-read-probe-v1/executed-once/cleanup.json",
+    "public bytejoin case12-iam-read-probe-v1/executed-once/journal-preserved.json",
+    "local private pin cleanup-inactive-definition.private.json",
+    "local private pin cleanup-stopped-task.private.json",
+    "local private pin definition-input.private.json",
+    "local private pin healthy-api-after.private.json",
+    "local private pin healthy-api-before.private.json",
+    "local private pin healthy-meriv2-orchestrator-after.private.json",
+    "local private pin healthy-meriv2-orchestrator-before.private.json",
+    "local private pin log-events.private.json",
+    "local private pin mutation-017-intent.private.json",
+    "local private pin mutation-019-intent.private.json",
+    "local private pin mutation-043-intent.private.json",
+    "local private pin raw-001-sts-get-caller-identity.private.json",
+    "local private pin raw-002-iam-get-role-policy.private.json",
+    "local private pin raw-003-ecs-describe-services.private.json",
+    "local private pin raw-004-ecs-describe-task-definition.private.json",
+    "local private pin raw-005-ecs-list-tasks.private.json",
+    "local private pin raw-006-ecs-describe-tasks.private.json",
+    "local private pin raw-007-elbv2-describe-target-groups.private.json",
+    "local private pin raw-008-elbv2-describe-target-health.private.json",
+    "local private pin raw-009-ecs-describe-services.private.json",
+    "local private pin raw-010-ecs-describe-task-definition.private.json",
+    "local private pin raw-011-ecs-list-tasks.private.json",
+    "local private pin raw-012-ecs-describe-tasks.private.json",
+    "local private pin raw-013-elbv2-describe-target-groups.private.json",
+    "local private pin raw-014-elbv2-describe-target-health.private.json",
+    "local private pin raw-015-ecs-list-task-definitions.private.json",
+    "local private pin raw-016-ecs-list-task-definitions.private.json",
+    "local private pin raw-017-ecs-register-task-definition.private.json",
+    "local private pin raw-018-ecs-describe-task-definition.private.json",
+    "local private pin raw-019-ecs-run-task.private.json",
+    "local private pin raw-020-ecs-describe-tasks.private.json",
+    "local private pin raw-021-ecs-describe-tasks.private.json",
+    "local private pin raw-022-ecs-describe-tasks.private.json",
+    "local private pin raw-023-ecs-describe-tasks.private.json",
+    "local private pin raw-024-ecs-describe-tasks.private.json",
+    "local private pin raw-025-ecs-describe-tasks.private.json",
+    "local private pin raw-026-ecs-describe-tasks.private.json",
+    "local private pin raw-027-ecs-describe-tasks.private.json",
+    "local private pin raw-028-ecs-describe-tasks.private.json",
+    "local private pin raw-029-ecs-describe-tasks.private.json",
+    "local private pin raw-030-ecs-describe-tasks.private.json",
+    "local private pin raw-031-ecs-describe-tasks.private.json",
+    "local private pin raw-032-ecs-describe-tasks.private.json",
+    "local private pin raw-033-ecs-describe-tasks.private.json",
+    "local private pin raw-034-ecs-describe-tasks.private.json",
+    "local private pin raw-035-ecs-describe-tasks.private.json",
+    "local private pin raw-036-ecs-describe-tasks.private.json",
+    "local private pin raw-037-ecs-describe-tasks.private.json",
+    "local private pin raw-038-logs-get-log-events.private.json",
+    "local private pin raw-039-logs-get-log-events.private.json",
+    "local private pin raw-040-logs-get-log-events.private.json",
+    "local private pin raw-041-ecs-describe-tasks.private.json",
+    "local private pin raw-042-ecs-describe-task-definition.private.json",
+    "local private pin raw-043-ecs-deregister-task-definition.private.json",
+    "local private pin raw-044-ecs-describe-task-definition.private.json",
+    "local private pin raw-045-ecs-describe-services.private.json",
+    "local private pin raw-046-ecs-describe-task-definition.private.json",
+    "local private pin raw-047-ecs-list-tasks.private.json",
+    "local private pin raw-048-ecs-describe-tasks.private.json",
+    "local private pin raw-049-elbv2-describe-target-groups.private.json",
+    "local private pin raw-050-elbv2-describe-target-health.private.json",
+    "local private pin raw-051-ecs-describe-services.private.json",
+    "local private pin raw-052-ecs-describe-task-definition.private.json",
+    "local private pin raw-053-ecs-list-tasks.private.json",
+    "local private pin raw-054-ecs-describe-tasks.private.json",
+    "local private pin raw-055-elbv2-describe-target-groups.private.json",
+    "local private pin raw-056-elbv2-describe-target-health.private.json",
+    "local private pin stopped-task.private.json",
+    "local private pin task-input.private.json",
+    "private filename excluded .gitattributes",
+    "credential pattern absent .gitattributes",
+    "private filename excluded api-case12-release-human-qualification.json",
+    "credential pattern absent api-case12-release-human-qualification.json",
+    "private filename excluded api-case12-release-promotion-authorization.json",
+    "credential pattern absent api-case12-release-promotion-authorization.json",
+    "private filename excluded api-case12-release-promotion-receipt.json",
+    "credential pattern absent api-case12-release-promotion-receipt.json",
+    "private filename excluded api-case12-release-release-manifest.json",
+    "credential pattern absent api-case12-release-release-manifest.json",
+    "private filename excluded case12-iam-execution-binding-v1.json",
+    "credential pattern absent case12-iam-execution-binding-v1.json",
+    "private filename excluded case12-native-iam-policy-candidate-v1.json",
+    "credential pattern absent case12-native-iam-policy-candidate-v1.json",
+    "private filename excluded case12-release-execution-binding-v1.json",
+    "credential pattern absent case12-release-execution-binding-v1.json",
+    "private filename excluded case12-release-human-approval.json",
+    "credential pattern absent case12-release-human-approval.json",
+    "private filename excluded case12-source-old-task-readback-v1.json",
+    "credential pattern absent case12-source-old-task-readback-v1.json",
+    "private filename excluded case12-source-release-packet-v1.json",
+    "credential pattern absent case12-source-release-packet-v1.json",
+    "private filename excluded case12-source-release-packet-v1.md",
+    "credential pattern absent case12-source-release-packet-v1.md",
+    "private filename excluded case12-source-served-readback-v1.json",
+    "credential pattern absent case12-source-served-readback-v1.json",
+    "private filename excluded deployment-summary.json",
+    "credential pattern absent deployment-summary.json",
+    "private filename excluded iam-probe-addendum.json",
+    "credential pattern absent iam-probe-addendum.json",
+    "private filename excluded meriv2-orchestrator-case12-release-human-qualification.json",
+    "credential pattern absent meriv2-orchestrator-case12-release-human-qualification.json",
+    "private filename excluded meriv2-orchestrator-case12-release-promotion-authorization.json",
+    "credential pattern absent meriv2-orchestrator-case12-release-promotion-authorization.json",
+    "private filename excluded meriv2-orchestrator-case12-release-promotion-receipt.json",
+    "credential pattern absent meriv2-orchestrator-case12-release-promotion-receipt.json",
+    "private filename excluded meriv2-orchestrator-case12-release-release-manifest.json",
+    "credential pattern absent meriv2-orchestrator-case12-release-release-manifest.json",
+    "private filename excluded promote-case12-release-service-bound-v1.mjs",
+    "credential pattern absent promote-case12-release-service-bound-v1.mjs",
+    "private filename excluded provenance.json",
+    "credential pattern absent provenance.json",
+    "private filename excluded README.md",
+    "credential pattern absent README.md",
+    "private filename excluded record-case12-release-approval-bound-v1.mjs",
+    "credential pattern absent record-case12-release-approval-bound-v1.mjs",
+    "private filename excluded verify-case12-source-old-tasks-v1.mjs",
+    "credential pattern absent verify-case12-source-old-tasks-v1.mjs",
+    "private filename excluded verify-case12-source-served-v1.mjs",
+    "credential pattern absent verify-case12-source-served-v1.mjs",
+    "private filename excluded independent-assessment.json",
+    "credential pattern absent independent-assessment.json",
+    "private filename excluded checkpoint.json",
+    "credential pattern absent checkpoint.json",
+    "private filename excluded iam-read-probe-inner-v1.mjs",
+    "credential pattern absent iam-read-probe-inner-v1.mjs",
+    "private filename excluded read-case12-iam-probe-v1.mjs",
+    "credential pattern absent read-case12-iam-probe-v1.mjs",
+    "private filename excluded README.md",
+    "credential pattern absent README.md",
+    "private filename excluded cleanup.json",
+    "credential pattern absent cleanup.json",
+    "private filename excluded iam-probe-receipt.json",
+    "credential pattern absent iam-probe-receipt.json",
+    "private filename excluded intent.json",
+    "credential pattern absent intent.json",
+    "private filename excluded journal-preserved.json",
+    "credential pattern absent journal-preserved.json",
+    "private filename excluded launch-intent.json",
+    "credential pattern absent launch-intent.json",
+    "private filename excluded result.json",
+    "credential pattern absent result.json",
+    "private filename excluded task-start.json",
+    "credential pattern absent task-start.json",
+    "private filename excluded independent-assessment.json",
+    "credential pattern absent independent-assessment.json",
+    "private filename excluded case12-temporary-iam-bound-v1.mjs",
+    "credential pattern absent case12-temporary-iam-bound-v1.mjs",
+    "private filename excluded checkpoint.json",
+    "credential pattern absent checkpoint.json",
+    "private filename excluded apply-dispatch.json",
+    "credential pattern absent apply-dispatch.json",
+    "private filename excluded apply-intent.json",
+    "credential pattern absent apply-intent.json",
+    "private filename excluded apply-readback.json",
+    "credential pattern absent apply-readback.json",
+    "packet canonical fingerprint",
+    "actual approval bound",
+    "served old summary packet",
+    "api manifest fingerprint",
+    "api exact image",
+    "api source qualified health only",
+    "api exact taskhash",
+    "api preserved config",
+    "api actual healthy definition",
+    "api direct stopped prior tasks",
+    "meriv2-orchestrator manifest fingerprint",
+    "meriv2-orchestrator exact image",
+    "meriv2-orchestrator source qualified health only",
+    "meriv2-orchestrator exact taskhash",
+    "meriv2-orchestrator preserved config",
+    "meriv2-orchestrator actual healthy definition",
+    "meriv2-orchestrator direct stopped prior tasks",
+    "ordinary read identity and cleanup",
+    "acceptance limits retained",
+    "actual IAM result addendum exact",
+    "probe exact self task",
+    "probe exact definition",
+    "probe actual cleanup",
+    "probe zero secrets public env",
+    "probe exact reviewed inner executed",
+    "probe actual intended role",
+    "actual CloudWatch receipt exact",
+    "narrow IAM permission scope",
+    "journal current read unchanged26",
+    "STATUS.md historical table rows unchanged",
+    "STATUS.md current claims/lower bounds",
+    "01-handover.md historical table rows unchanged",
+    "01-handover.md current claims/lower bounds",
+    "01-requirements.md historical table rows unchanged",
+    "01-requirements.md current claims/lower bounds"
+  ],
+  "publicCopiedFiles": 38,
+  "privateLocalHashesVerified": 69,
+  "archiveFiles": [
+    {
+      "path": "docs\\meri\\releases\\2026-10-04\\c2-case12-source-deployed\\.gitattributes",
+      "sha256": "e623d756671de4e5c6cff5f575affab19983a05cd2b4af9b525f6a8c167c5699",
+      "bytes": 58
+    },
+    {
+      "path": "docs\\meri\\releases\\2026-10-04\\c2-case12-source-deployed\\api-case12-release-human-qualification.json",
+      "sha256": "d35dfd8b703c30b1c11b916bb8c2e022e9959b1ddd34bcc4801d06a65837f308",
+      "bytes": 2984
+    },
+    {
+      "path": "docs\\meri\\releases\\2026-10-04\\c2-case12-source-deployed\\api-case12-release-promotion-authorization.json",
+      "sha256": "c5c293eeee60f42e11bb0f5c22fc702c2b770d9dfc1505d39e37b462625a2485",
+      "bytes": 482
+    },
+    {
+      "path": "docs\\meri\\releases\\2026-10-04\\c2-case12-source-deployed\\api-case12-release-promotion-receipt.json",
+      "sha256": "6720dc0a6c05de77d21abc28385fc1232984806652eef1d3701dd60e25444c48",
+      "bytes": 1034
+    },
+    {
+      "path": "docs\\meri\\releases\\2026-10-04\\c2-case12-source-deployed\\api-case12-release-release-manifest.json",
+      "sha256": "8d02da627461fd6fb8606d3510a36ae280454975a7b8f3f1f44b773e3824fbe9",
+      "bytes": 3766
+    },
+    {
+      "path": "docs\\meri\\releases\\2026-10-04\\c2-case12-source-deployed\\case12-iam-execution-binding-v1.json",
+      "sha256": "4b9b3b03c73bf563425aa2e757cc436cac41a531238b1a1ec26715e45885bfd9",
+      "bytes": 797
+    },
+    {
+      "path": "docs\\meri\\releases\\2026-10-04\\c2-case12-source-deployed\\case12-native-iam-policy-candidate-v1.json",
+      "sha256": "173d4b8f134c2d1fac50b9df7d3db6e4e136f1e965c293a258cee6407da50d3a",
+      "bytes": 935
+    },
+    {
+      "path": "docs\\meri\\releases\\2026-10-04\\c2-case12-source-deployed\\case12-release-execution-binding-v1.json",
+      "sha256": "7b5cbeed738c68154647eacf3ed20af70cae9f5079d70491c12af0dc55dc0fa8",
+      "bytes": 1094
+    },
+    {
+      "path": "docs\\meri\\releases\\2026-10-04\\c2-case12-source-deployed\\case12-release-human-approval.json",
+      "sha256": "1d75421dc921fc809545995c20ead5e4a1262a14f0ee7fab7083faf614b3764e",
+      "bytes": 2089
+    },
+    {
+      "path": "docs\\meri\\releases\\2026-10-04\\c2-case12-source-deployed\\case12-source-old-task-readback-v1.json",
+      "sha256": "97e5975a122c7d4d4c393815425c4d5a957648462de7a76bbdc338313067d76e",
+      "bytes": 3273
+    },
+    {
+      "path": "docs\\meri\\releases\\2026-10-04\\c2-case12-source-deployed\\case12-source-release-packet-v1.json",
+      "sha256": "9c915467cf237852283b1e4d1c1c344cf0fbf56d4625e1ee53613af80123817a",
+      "bytes": 10246
+    },
+    {
+      "path": "docs\\meri\\releases\\2026-10-04\\c2-case12-source-deployed\\case12-source-release-packet-v1.md",
+      "sha256": "c561373d167dab43f02f0721cfa34ee946ce3b9c81432319c7d4ea6458072779",
+      "bytes": 3220
+    },
+    {
+      "path": "docs\\meri\\releases\\2026-10-04\\c2-case12-source-deployed\\case12-source-served-readback-v1.json",
+      "sha256": "4ba9e25b2d3247417ac085d90556d132568502b8d733cc05506c7f9a47cec892",
+      "bytes": 4703
+    },
+    {
+      "path": "docs\\meri\\releases\\2026-10-04\\c2-case12-source-deployed\\deployment-summary.json",
+      "sha256": "8a5df3d2e9203bbdd964e83e749efe80ae39a88d22970c2d2b352d53da48d23f",
+      "bytes": 4386
+    },
+    {
+      "path": "docs\\meri\\releases\\2026-10-04\\c2-case12-source-deployed\\iam-probe-addendum.json",
+      "sha256": "6a65f9335d7462943314a21c7568bb95fd6449c9046685fbf29f19aa99513ff0",
+      "bytes": 23361
+    },
+    {
+      "path": "docs\\meri\\releases\\2026-10-04\\c2-case12-source-deployed\\meriv2-orchestrator-case12-release-human-qualification.json",
+      "sha256": "ce68bc5b8f973829edc152d29daea3fe0ede55ed10e52ba7360fae67ddd0a8d0",
+      "bytes": 3096
+    },
+    {
+      "path": "docs\\meri\\releases\\2026-10-04\\c2-case12-source-deployed\\meriv2-orchestrator-case12-release-promotion-authorization.json",
+      "sha256": "e041e685135084a12dc0126ce9dad5d405f403ae379ab86e4a6a18e83dc7e8bb",
+      "bytes": 482
+    },
+    {
+      "path": "docs\\meri\\releases\\2026-10-04\\c2-case12-source-deployed\\meriv2-orchestrator-case12-release-promotion-receipt.json",
+      "sha256": "92d9e7cac04c0e4d7ea7432156443f97929783beef16e8b156fae1071a587d53",
+      "bytes": 1114
+    },
+    {
+      "path": "docs\\meri\\releases\\2026-10-04\\c2-case12-source-deployed\\meriv2-orchestrator-case12-release-release-manifest.json",
+      "sha256": "5279f9ea78f4cc3b42f75e451b274e7b2248369ac263d0c06fd8edd23f50abb1",
+      "bytes": 3910
+    },
+    {
+      "path": "docs\\meri\\releases\\2026-10-04\\c2-case12-source-deployed\\promote-case12-release-service-bound-v1.mjs",
+      "sha256": "0401f7ed739f98b2b05f812fe1c836abc69aeb80d456dd66634b3a90a6d3c9e8",
+      "bytes": 8370
+    },
+    {
+      "path": "docs\\meri\\releases\\2026-10-04\\c2-case12-source-deployed\\provenance.json",
+      "sha256": "0e7d0507a7919a61d40d4c52ed92007f291434878ec8502e3fbafdee0daaa07f",
+      "bytes": 8009
+    },
+    {
+      "path": "docs\\meri\\releases\\2026-10-04\\c2-case12-source-deployed\\README.md",
+      "sha256": "db94a000ff810c99229bbf8c802035e18ca5abf23f2ca6890821adcde561b2fb",
+      "bytes": 3318
+    },
+    {
+      "path": "docs\\meri\\releases\\2026-10-04\\c2-case12-source-deployed\\record-case12-release-approval-bound-v1.mjs",
+      "sha256": "5f768f636b60bb49a5f5d63cffb6c153d0ed12d0a022a1f3aca0db2407f4036b",
+      "bytes": 2116
+    },
+    {
+      "path": "docs\\meri\\releases\\2026-10-04\\c2-case12-source-deployed\\verify-case12-source-old-tasks-v1.mjs",
+      "sha256": "38ca7ea2e268d9741b45fec086c187530c5e4ac4cdf68bc5a9d73ecf916034a5",
+      "bytes": 3671
+    },
+    {
+      "path": "docs\\meri\\releases\\2026-10-04\\c2-case12-source-deployed\\verify-case12-source-served-v1.mjs",
+      "sha256": "e85b1e8878710f93cf0f721db1de84663bec549a97962b2bdc0b39bf462ea0f7",
+      "bytes": 7800
+    },
+    {
+      "path": "docs\\meri\\releases\\2026-10-04\\c2-case12-source-deployed\\case12-iam-probe-supervisor-review-v1\\independent-assessment.json",
+      "sha256": "4e078be984c634330997c24bd8aecd4832f58cf1d1b6b03848642ebc0edbdba9",
+      "bytes": 5999
+    },
+    {
+      "path": "docs\\meri\\releases\\2026-10-04\\c2-case12-source-deployed\\case12-iam-read-probe-v1\\checkpoint.json",
+      "sha256": "148ca394040af78ae92b71ea26b00dd1954e89339654084e6061d3e33ed11b3c",
+      "bytes": 2985
+    },
+    {
+      "path": "docs\\meri\\releases\\2026-10-04\\c2-case12-source-deployed\\case12-iam-read-probe-v1\\iam-read-probe-inner-v1.mjs",
+      "sha256": "5f92354dbb845d035cbb1160e7a0a27d964ed3a19ffc398c82f3ba733085c23f",
+      "bytes": 5776
+    },
+    {
+      "path": "docs\\meri\\releases\\2026-10-04\\c2-case12-source-deployed\\case12-iam-read-probe-v1\\read-case12-iam-probe-v1.mjs",
+      "sha256": "d61b0022e339796f1f525bb6d43367c52832d69a722413db492d88576ebd80db",
+      "bytes": 18594
+    },
+    {
+      "path": "docs\\meri\\releases\\2026-10-04\\c2-case12-source-deployed\\case12-iam-read-probe-v1\\README.md",
+      "sha256": "b0ae2bfeef6feb8ecc619bbd205afeafe6f28f1186ee08673b3a6f29d263e799",
+      "bytes": 3395
+    },
+    {
+      "path": "docs\\meri\\releases\\2026-10-04\\c2-case12-source-deployed\\case12-iam-read-probe-v1\\executed-once\\cleanup.json",
+      "sha256": "2169629adf4ab57552383fdd6bcef78c5fb10856e1411745f576070857d18666",
+      "bytes": 360
+    },
+    {
+      "path": "docs\\meri\\releases\\2026-10-04\\c2-case12-source-deployed\\case12-iam-read-probe-v1\\executed-once\\iam-probe-receipt.json",
+      "sha256": "22298a5a6dc5164cdeb83fb4dda3d9ddc9e15fa9ce506a7bc52f81d827e9e5aa",
+      "bytes": 897
+    },
+    {
+      "path": "docs\\meri\\releases\\2026-10-04\\c2-case12-source-deployed\\case12-iam-read-probe-v1\\executed-once\\intent.json",
+      "sha256": "2570036e13100f300d808d9c529aab01749f40e22e7ed1abc8003d5374e9fb9f",
+      "bytes": 649
+    },
+    {
+      "path": "docs\\meri\\releases\\2026-10-04\\c2-case12-source-deployed\\case12-iam-read-probe-v1\\executed-once\\journal-preserved.json",
+      "sha256": "35bee9e7908747da94eb530b8b899ab0542b77594b188449404c23a2049979cd",
+      "bytes": 247
+    },
+    {
+      "path": "docs\\meri\\releases\\2026-10-04\\c2-case12-source-deployed\\case12-iam-read-probe-v1\\executed-once\\launch-intent.json",
+      "sha256": "84efbf39bdd3b8dcec0a7850a8bed054f64d9689d8a8814a65bd9379bfd5ee7a",
+      "bytes": 384
+    },
+    {
+      "path": "docs\\meri\\releases\\2026-10-04\\c2-case12-source-deployed\\case12-iam-read-probe-v1\\executed-once\\result.json",
+      "sha256": "73c12e9b0021412770ab8f5b2cd5f325b0dc5dc54e4cc1f58b366aed6ada123e",
+      "bytes": 1050
+    },
+    {
+      "path": "docs\\meri\\releases\\2026-10-04\\c2-case12-source-deployed\\case12-iam-read-probe-v1\\executed-once\\task-start.json",
+      "sha256": "315cdf4a7127197088465140f5bc7b7c787f001b0cc07c64bd81592192f775d1",
+      "bytes": 315
+    },
+    {
+      "path": "docs\\meri\\releases\\2026-10-04\\c2-case12-source-deployed\\case12-temporary-iam-independent-v1\\independent-assessment.json",
+      "sha256": "31ec0154927c2e58e1b4aa704b6bffe75fba483f4b8fd19b3c76dc8b9b833e27",
+      "bytes": 4596
+    },
+    {
+      "path": "docs\\meri\\releases\\2026-10-04\\c2-case12-source-deployed\\case12-temporary-iam-supervised-v1\\case12-temporary-iam-bound-v1.mjs",
+      "sha256": "f856a70c94903832dd2884b81ba5bd92227c9799b0420a463741eb28a227ce11",
+      "bytes": 12792
+    },
+    {
+      "path": "docs\\meri\\releases\\2026-10-04\\c2-case12-source-deployed\\case12-temporary-iam-supervised-v1\\checkpoint.json",
+      "sha256": "2865f5214bbf0f82c77e50a260227c1ac62768b588a89be600db5003467161e5",
+      "bytes": 2088
+    },
+    {
+      "path": "docs\\meri\\releases\\2026-10-04\\c2-case12-source-deployed\\case12-temporary-iam-supervised-v1\\executed-once\\apply-dispatch.json",
+      "sha256": "7f693c9d92ccbb5e2a29d3343356906daa7fe81d7a580dafc4291ea91426caf4",
+      "bytes": 238
+    },
+    {
+      "path": "docs\\meri\\releases\\2026-10-04\\c2-case12-source-deployed\\case12-temporary-iam-supervised-v1\\executed-once\\apply-intent.json",
+      "sha256": "65fd2faf195650cdfe7fda545df36b0b679007eb1c5154985a70d80b37df5357",
+      "bytes": 701
+    },
+    {
+      "path": "docs\\meri\\releases\\2026-10-04\\c2-case12-source-deployed\\case12-temporary-iam-supervised-v1\\executed-once\\apply-readback.json",
+      "sha256": "7f2a11c35d9f9d53c4103ffa9afcc2e53ddb095a8d594fe390957d5e6c1b6b4e",
+      "bytes": 394
+    }
+  ],
+  "currentDocs": [
+    {
+      "path": "docs/meri/implementation/STATUS.md",
+      "sha256": "b7891f2ebfda7b1ad0faf96065da9e836f120b90ecf065e2df1826016592db33"
+    },
+    {
+      "path": "docs/meri/implementation/01-handover.md",
+      "sha256": "84eb01cc38f14e764142696ac6df9e49608bc05b368aa6447082a6890b6deae2"
+    },
+    {
+      "path": "docs/meri/implementation/01-requirements.md",
+      "sha256": "72fc7b86e07e3884dc9530970b533220034e550e9215dd7a9ff9c38e09d92c91"
+    }
+  ],
+  "limits": [
+    "Independent read-only local artifact joins; no cloud calls, no new model verdict.",
+    "Actual helper SDK reads establish intended-role ECS read permissions only; full setup admission and capture are separate.",
+    "Temporary IAM removal remains pending; exact approved expiry21:00Z recorded.",
+    "C2 and File01 incomplete; original acceptance counts0/75 and0/7 unchanged."
+  ]
+}

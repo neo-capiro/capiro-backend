@@ -1,0 +1,198 @@
+{
+  "kind": "C2 Case12 source release and separate temporary IAM review packet",
+  "version": 1,
+  "status": "AWAITING_HUMAN_REVIEW",
+  "preparedAt": "2026-10-04T13:29:15.855Z",
+  "expiresAt": "2026-10-04T14:29:15.856Z",
+  "evidenceCommit": "181fee276134b7983b937583842a456d8abfd56b",
+  "evidence": [
+    "https://github.com/neo-capiro/capirov2/blob/181fee276134b7983b937583842a456d8abfd56b/docs/meri/releases/2026-10-04/c2-case12-source-release/README.md",
+    "https://github.com/neo-capiro/capirov2/blob/181fee276134b7983b937583842a456d8abfd56b/docs/meri/releases/2026-10-04/c2-case12-source-release/release-qualification.json",
+    "https://github.com/neo-capiro/capirov2/blob/181fee276134b7983b937583842a456d8abfd56b/docs/meri/releases/2026-10-04/c2-case12-source-release/release-independent-review.json"
+  ],
+  "qualificationSha256": "185863f58f9713c122d4974f62fcf64ea0726e31fb3af7c4e3786206363102b3",
+  "qualificationBytesSha256": "b303465cf34f4c42567fb772f3ad21e0457146ae04ca0601c8a22fd72028ef9e",
+  "reviewBytesSha256": "ad2d8825c5f5f9576215e3a9ba64be6ee349c0ce09adbcd0699be81c2ff169c1",
+  "packetOperatorSha256": "bcd0ff35524d2a04f3c90cdaa044880e55653dbcc24843a183175ce1c5a778b5",
+  "services": [
+    {
+      "service": "api",
+      "change": "IMAGE_AND_RELEASE_IDENTITY_ONLY",
+      "candidate": {
+        "sourceSha": "e60f37189f8c9b68ab7d5ef66e515ed3be4ec3c1",
+        "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:202832655633f906dec412ca088a7263e8e8065cd9a602402d98e5d2b092fe22",
+        "buildId": "capiro-build-web-dev:77132a95-22c4-4b8a-af05-600f0427ebc3",
+        "architecture": "arm64",
+        "runtimeNode": "22.23.3"
+      },
+      "baseline": {
+        "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:525",
+        "serviceHash": "d05241d67971079d2e103716ec430abefb24394bc0794c4b0929af066af966d6",
+        "configHash": "973748a2b134b388a6027df6c5c099055a7e24f7b746eafbaae8cebad077258a",
+        "taskHash": "d6575633ee5e4da21cbdaddf189b89aa24c81c8908bf9367d19c4207b0d9ad75",
+        "imageDigest": "sha256:00e8c5cac10d8b4cd3cc46a0a9a7602b51db4657e38fabe86f1f12999d2b2e31",
+        "desiredCount": 2
+      },
+      "candidateTaskSha256": "8e30ffd9d3a884e4e54286f09485d41bf5a0852b45a9505b484e0e68ccc4196e",
+      "rollbackImage": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:00e8c5cac10d8b4cd3cc46a0a9a7602b51db4657e38fabe86f1f12999d2b2e31",
+      "rollbackTaskSha256": "d6575633ee5e4da21cbdaddf189b89aa24c81c8908bf9367d19c4207b0d9ad75",
+      "configurationPreserved": true,
+      "buildEvidence": "builds/api/build-readback.json"
+    },
+    {
+      "service": "meriv2-orchestrator",
+      "change": "IMAGE_AND_RELEASE_IDENTITY_ONLY",
+      "candidate": {
+        "sourceSha": "e60f37189f8c9b68ab7d5ef66e515ed3be4ec3c1",
+        "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:33ecf4fcaf2f691999d14d410b5f43539c13070d44a1135d148c68f41eda3369",
+        "buildId": "capiro-build-web-dev:f49f5f95-d06e-4950-8220-8e9cf2acba6c",
+        "architecture": "arm64",
+        "runtimeNode": "20.16.0"
+      },
+      "baseline": {
+        "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:121",
+        "serviceHash": "9546878c15f6c1738888798f44d97528bd00ac8a6951c33415294c979401cd63",
+        "configHash": "3a4fabd2139e347cd8b45192579f2a3fbaaa6fc3678762b5252f727a4461951b",
+        "taskHash": "240d885469db96b5505428b9cd3d325bb9d7d15b7af5d9d1dea9e0fc935d1981",
+        "imageDigest": "sha256:94c82ec438a0cfee0da3869af284e107ae6aeff6157c8c0ff2f97dc991f6c5bf",
+        "desiredCount": 1
+      },
+      "candidateTaskSha256": "b97c3f9a891cea7412d0ade96eae537bd2433a8d8e6adb782d953d7829934242",
+      "rollbackImage": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:94c82ec438a0cfee0da3869af284e107ae6aeff6157c8c0ff2f97dc991f6c5bf",
+      "rollbackTaskSha256": "240d885469db96b5505428b9cd3d325bb9d7d15b7af5d9d1dea9e0fc935d1981",
+      "configurationPreserved": true,
+      "buildEvidence": "builds/meriv2-orchestrator/build-readback.json"
+    }
+  ],
+  "unchangedWebBaseline": {
+    "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web-vnext:390",
+    "serviceHash": "3493c2e6107a77aab2653bc923119b3300e4899310e11b81e1c3be351240254c",
+    "configHash": "453a3d5aedc3da7d989370b97669abf0c1b14efbacd2d1597990b9cac7d50ab7",
+    "taskHash": "2ffa123e80c546c0bb03083e2aadb39b8118377efbf6de0b685f758c3abfb3c4",
+    "imageDigest": "sha256:fb594dabc437723fa6a28a7a6adcd54b13f813fcc52130f8458692aac2e9c8c6",
+    "desiredCount": 1
+  },
+  "retainedNightly": {
+    "rule": "capiro-dev-refresh-memory-graph",
+    "targetId": "refresh-memory-graph-target",
+    "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api-migrate:136",
+    "sourceSha": "f00e5dfb4fd3e47ac6aa4aca741023cc02f6314f",
+    "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:1a4aef121151bb5da7f70417539ece2faff392842809e6b557370c2d6cf8a49d",
+    "ruleSha256": "4a9376120b272c60388f6986a7a20aa00bfa78a8feb3b44a3a804fd93c617947",
+    "targetSha256": "e5b98fe865035a7dfa2add1472df1617101714e08f65232fd232c606c4f2475a",
+    "taskInputSha256": "0b362cc5b50895bcc69d70536e2496b848c0ee7bc805d9d17c1c6f85261263a5",
+    "change": "NONE"
+  },
+  "temporaryIam": {
+    "status": "UNACTIVATED_SEPARATE_EXPLICIT_REVIEW_REQUIRED",
+    "roleArn": "arn:aws:iam::967807252336:role/Capiro-dev-Compute-ApiTaskRole12FAD4A7-szq3QeeZJSCQ",
+    "policyName": "MeriCase12NativeSetupReads20261004",
+    "policyPath": "case12-native-iam-policy-candidate-v1.json",
+    "policySha256": "173d4b8f134c2d1fac50b9df7d3db6e4e136f1e965c293a258cee6407da50d3a",
+    "expiresAt": "2026-10-04T21:00:00Z",
+    "effect": "Adds DescribeTasks for capiro-dev tasks with owner tag present, and DescribeTaskDefinition region-wide. Shared API role consumers receive these read permissions during the bounded window.",
+    "doesNotAdd": [
+      "RunTask",
+      "IAM writes",
+      "database writes",
+      "provider calls"
+    ],
+    "existingPermissions": "Role already has a separate Senate RunTask policy; this proposal does not remove it.",
+    "runtimeGate": "Actual intended helper credentials must prove both native reads before setup execution; simulations are not runtime proof.",
+    "removal": "Remove only this named inline policy after terminal reconciliation, or before expiry if no helper can proceed; verify original 11 inline-policy hashes and no attached-policy drift.",
+    "approval": null,
+    "applied": false,
+    "baselineRecheckedAt": "2026-10-04T13:29:15.994Z",
+    "originalInlinePolicyCount": 11,
+    "originalAttachedPolicies": [],
+    "policyDocument": {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Sid": "ReadTaggedCase12HelperTaskUntilCloseoutWindowEnds",
+          "Effect": "Allow",
+          "Action": "ecs:DescribeTasks",
+          "Resource": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/*",
+          "Condition": {
+            "StringEquals": {
+              "aws:RequestedRegion": "us-east-1"
+            },
+            "ArnEquals": {
+              "ecs:cluster": "arn:aws:ecs:us-east-1:967807252336:cluster/capiro-dev"
+            },
+            "Null": {
+              "aws:ResourceTag/meri-case12-setup-owner": "false"
+            },
+            "DateLessThan": {
+              "aws:CurrentTime": "2026-10-04T21:00:00Z"
+            }
+          }
+        },
+        {
+          "Sid": "ReadImmutableTaskDefinitionUntilCloseoutWindowEnds",
+          "Effect": "Allow",
+          "Action": "ecs:DescribeTaskDefinition",
+          "Resource": "*",
+          "Condition": {
+            "StringEquals": {
+              "aws:RequestedRegion": "us-east-1"
+            },
+            "DateLessThan": {
+              "aws:CurrentTime": "2026-10-04T21:00:00Z"
+            }
+          }
+        }
+      ]
+    }
+  },
+  "executionOrder": [
+    "Promote API and verify exact tasks/digest and ALB health",
+    "Promote orchestrator and verify exact tasks/digest and ALB health",
+    "Verify authenticated served release identities and ordinary memory reads",
+    "Apply the separately approved temporary read-only IAM policy, verify actual native helper access before setup, remove the policy after terminal reconciliation",
+    "Continue separately qualified C2 setup and capture work; this packet does not reserve spend or authorize arbitrary fixture writes"
+  ],
+  "changeWindow": "One attended owner; concurrent service/scaling/configuration changes require reconciliation.",
+  "rollback": {
+    "application": "Current API525 and orchestrator121 exact digests, listed per service.",
+    "database": "Retain migration452 and ledger609; no migration.",
+    "memory": "Retain approved candidate, failed captures, consumed claims and native26-event journal. No reset/replay."
+  },
+  "scope": {
+    "schemaChange": false,
+    "modelConfigurationChange": false,
+    "providerConfigurationChange": false,
+    "featureFlagChange": false,
+    "nightlyChange": false,
+    "webChange": false,
+    "capacityChange": false,
+    "newProviderCalls": 0,
+    "newCaptureAuthority": false,
+    "captureBindingWrite": false,
+    "budgetInstallation": false,
+    "journalMutation": false
+  },
+  "budget": {
+    "events": 26,
+    "journalSha256": "816b04a47be56432846d1ee602370c3bea985eb497a7de9e899aee4d53f8b39e",
+    "knownUsd": 15.200909,
+    "conservativeApprovalUsd": 1,
+    "committedUsd": 16.200909,
+    "remainingUsd": 13.799091,
+    "activeReservation": false
+  },
+  "acceptance": {
+    "fullSuitePassed": 0,
+    "fullSuiteTotal": 75,
+    "cdPassed": 0,
+    "cdTotal": 7,
+    "c2Complete": false,
+    "case14": "CAPTURE_UNCERTAIN_FAILED_RUN_PRESERVED",
+    "humanRubric": "NOT_RUN",
+    "replayAuthority": false
+  },
+  "awsWrites": 0,
+  "humanReleaseApproval": null,
+  "deployableManifest": false,
+  "approvalRequirement": "docs/meri/deployment-prerequisite.md: Qualification is an explicit human-reviewed attestation. These new digests and the separately scoped temporary IAM change were not included in the previous completed release approval."
+}

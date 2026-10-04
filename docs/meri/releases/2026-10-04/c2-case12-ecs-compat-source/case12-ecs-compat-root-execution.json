@@ -1,0 +1,24 @@
+{
+  "recordedAt": "2026-10-04T16:35:00Z",
+  "jestExitCode": 0,
+  "passedTests": 47,
+  "testSuites": 1,
+  "typecheckExitCode": 0,
+  "typecheckCommand": "pnpm --filter @capiro/api exec tsc --noEmit --rootDir .",
+  "typecheckNodeHeapMiB": 8192,
+  "nestBuildExitCode": 0,
+  "compiledProbeExitCode": 0,
+  "compiledProbeMarker": "OFFLINE_PACKAGED_CASE12_ACTUAL_ECS_DEFAULT_PARITY_PASS",
+  "broaderPackageTypecheck": {
+    "firstExitCode": 134,
+    "firstFailure": "Default 4096 MiB Node heap exhausted",
+    "secondExitCode": 2,
+    "secondFailure": "Three word-extractor declaration errors in unchanged engagement files",
+    "status": "NOT_PASSING"
+  },
+  "productionSourceSha256": "fbebfba2ab0fdb0314542178f4576c6ef6962f28263c3a5cfa092fd56a3688db",
+  "specSha256": "2317588bb2c82fffbeaef1252300da18e87af7923f3f362ce23fb5b657d92ef2",
+  "providerCalls": 0,
+  "journalWrites": 0,
+  "nativeSetupExecuted": false
+}

@@ -1,0 +1,36 @@
+{
+  "status": "APPROVED",
+  "scope": "EXACT_C2_CASE12_RELEASE_AND_TEMPORARY_IAM",
+  "reviewer": "Human user — explicit approval in current Codex chat",
+  "approvedAt": "2026-10-04T13:47:29.789Z",
+  "packetSha256": "781b944fee40f504c744dda2f609f0f63446b9693dd2cdb661ecde756f749fc2",
+  "answer": "Approved",
+  "approvalSource": "Direct human reply Approved to the immediately preceding exact API20283265/orchestrator33ecf4fc and temporary IAM packet approval request in this Codex chat",
+  "originalSnapshotExpiresAt": "2026-10-04T14:29:15.856Z",
+  "executionCondition": "Exact packet candidates and baseline through the existing one-service release operator; API then orchestrator, health verification after each. Preserve models, service configuration and benchmark budget. Separately apply and remove only the exact temporary IAM policy in the reviewed packet; require actual helper access before setup.",
+  "scopeDetails": [
+    {
+      "service": "api",
+      "sourceSha": "e60f37189f8c9b68ab7d5ef66e515ed3be4ec3c1",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:202832655633f906dec412ca088a7263e8e8065cd9a602402d98e5d2b092fe22",
+      "buildId": "capiro-build-web-dev:77132a95-22c4-4b8a-af05-600f0427ebc3",
+      "architecture": "arm64",
+      "runtimeNode": "22.23.3"
+    },
+    {
+      "service": "meriv2-orchestrator",
+      "sourceSha": "e60f37189f8c9b68ab7d5ef66e515ed3be4ec3c1",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:33ecf4fcaf2f691999d14d410b5f43539c13070d44a1135d148c68f41eda3369",
+      "buildId": "capiro-build-web-dev:f49f5f95-d06e-4950-8220-8e9cf2acba6c",
+      "architecture": "arm64",
+      "runtimeNode": "20.16.0"
+    }
+  ],
+  "temporaryIam": {
+    "roleArn": "arn:aws:iam::967807252336:role/Capiro-dev-Compute-ApiTaskRole12FAD4A7-szq3QeeZJSCQ",
+    "policyName": "MeriCase12NativeSetupReads20261004",
+    "policySha256": "173d4b8f134c2d1fac50b9df7d3db6e4e136f1e965c293a258cee6407da50d3a",
+    "expiresAt": "2026-10-04T21:00:00Z"
+  },
+  "paidCaptureAuthority": false
+}

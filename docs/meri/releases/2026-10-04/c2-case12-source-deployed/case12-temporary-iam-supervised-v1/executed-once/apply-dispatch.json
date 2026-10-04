@@ -1,0 +1,6 @@
+{
+  "at": "2026-10-04T13:58:26.458Z",
+  "acknowledgement": "UNKNOWN_ACK_REQUIRES_READBACK",
+  "retryAllowed": false,
+  "note": "Existing single-attempt wrapper parses JSON; ordinary IAM empty output is also an unknown acknowledgement."
+}

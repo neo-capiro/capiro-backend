@@ -1,0 +1,11 @@
+{
+  "at": "2026-10-04T13:58:39.724Z",
+  "status": "EXACT_POLICY_PRESENT_ORIGINALS_UNCHANGED",
+  "acknowledgement": "UNKNOWN_ACK_REQUIRES_READBACK",
+  "originalInlinePolicyCount": 11,
+  "attachedPolicyCount": 0,
+  "temporaryPresent": true,
+  "originalsUnchanged": true,
+  "packetSha256": "781b944fee40f504c744dda2f609f0f63446b9693dd2cdb661ecde756f749fc2",
+  "actualHelperAccess": "NOT_PROVEN"
+}
