@@ -1,0 +1,224 @@
+{
+  "at": "2026-10-04T08:34:16.966Z",
+  "status": "PASS_EXACT_APPROVED_RELEASE_WRAPPER_REVIEW",
+  "findings": [],
+  "files": [
+    {
+      "path": "record-memory-source-approval-v1.mjs",
+      "bytes": 1600,
+      "sha256": "4ca5a6b7544fed230a7c79f2fe1e65d2961f89c6fada828649f7a9d420d76a75"
+    },
+    {
+      "path": "promote-memory-source-service-v1.mjs",
+      "bytes": 8173,
+      "sha256": "b5878ec26c54ca63c90be7665a2c5c82b7159c0655dbc89c4bc0bc485336cf1c"
+    },
+    {
+      "path": "memory-source-human-approval.json",
+      "bytes": 1629,
+      "sha256": "1b32e7a79b23a3ebc9a8dabf4f059e27b616fb2e41fdbf276eed95016f58eb7f"
+    },
+    {
+      "path": "case14-source-release-packet-v2.json",
+      "bytes": 7327,
+      "sha256": "e7aafeaf64550e1601b89ff8b12493454b49055a16c4cc7d68b7ec012e90a437"
+    }
+  ],
+  "operatorFiles": [
+    {
+      "path": "scripts/meri-release.mjs",
+      "sha256": "2fece407aa0f08795ac6d5d1feef99211412ab28ea6bc76125c1c49eae4412f6"
+    },
+    {
+      "path": "scripts/lib/meri-release-policy.mjs",
+      "sha256": "e0518591e704ef3f051442d1b949a9f83a705a2cff40ed998dba19b57373cb5c"
+    }
+  ],
+  "approvedPacketSha256": "1dba538b156ddbdac729dbc0c647d0d3c4b4f38bb3a583a8edc08ef6b0f2b5e2",
+  "approvedAt": "2026-10-04T08:30:57.472Z",
+  "evidenceCommit": "e4217c653f197945f5e5b17faeb5a598d0818503",
+  "versionedArtifactPinsVerified": 30,
+  "checks": [
+    {
+      "name": "matching exact packet",
+      "result": "PASS",
+      "expected": "accept"
+    },
+    {
+      "name": "unapproved status",
+      "result": "PASS",
+      "expected": "reject"
+    },
+    {
+      "name": "wrong approval scope",
+      "result": "PASS",
+      "expected": "reject"
+    },
+    {
+      "name": "wrong approved packet hash",
+      "result": "PASS",
+      "expected": "reject"
+    },
+    {
+      "name": "altered candidate image",
+      "result": "PASS",
+      "expected": "reject"
+    },
+    {
+      "name": "expired snapshot",
+      "result": "PASS",
+      "expected": "reject"
+    },
+    {
+      "name": "future approval timestamp",
+      "result": "PASS",
+      "expected": "reject"
+    },
+    {
+      "name": "blank reviewer",
+      "result": "PASS",
+      "expected": "reject"
+    },
+    {
+      "name": "changed journal bytes",
+      "result": "PASS",
+      "expected": "reject"
+    },
+    {
+      "name": "unsupported service",
+      "result": "PASS",
+      "expected": "reject"
+    },
+    {
+      "name": "matching versioned evidence",
+      "result": "PASS",
+      "expected": "accept"
+    },
+    {
+      "name": "qualification byte drift",
+      "result": "PASS",
+      "expected": "reject"
+    },
+    {
+      "name": "independent review byte drift",
+      "result": "PASS",
+      "expected": "reject"
+    },
+    {
+      "name": "retained artifact byte drift",
+      "result": "PASS",
+      "expected": "reject"
+    },
+    {
+      "name": "API baseline ready",
+      "result": "PASS",
+      "expected": "accept"
+    },
+    {
+      "name": "orchestrator after healthy API",
+      "result": "PASS",
+      "expected": "accept"
+    },
+    {
+      "name": "orchestrator rejects missing API receipt",
+      "result": "PASS",
+      "expected": "reject"
+    },
+    {
+      "name": "orchestrator rejects incomplete API receipt",
+      "result": "PASS",
+      "expected": "reject"
+    },
+    {
+      "name": "orchestrator rejects wrong API receipt image",
+      "result": "PASS",
+      "expected": "reject"
+    },
+    {
+      "name": "orchestrator rejects live API config drift",
+      "result": "PASS",
+      "expected": "reject"
+    },
+    {
+      "name": "API rejects baseline task drift",
+      "result": "PASS",
+      "expected": "reject"
+    },
+    {
+      "name": "fresh artifact names accepted",
+      "result": "PASS",
+      "expected": "accept"
+    },
+    {
+      "name": "existing human-qualification prevents replay",
+      "result": "PASS",
+      "expected": "reject"
+    },
+    {
+      "name": "existing release-manifest prevents replay",
+      "result": "PASS",
+      "expected": "reject"
+    },
+    {
+      "name": "existing promotion-authorization prevents replay",
+      "result": "PASS",
+      "expected": "reject"
+    },
+    {
+      "name": "existing promotion-receipt prevents replay",
+      "result": "PASS",
+      "expected": "reject"
+    },
+    {
+      "name": "exact receipt accepted",
+      "result": "PASS",
+      "expected": "accept"
+    },
+    {
+      "name": "receipt rejects changed status",
+      "result": "PASS",
+      "expected": "reject"
+    },
+    {
+      "name": "receipt rejects changed candidateImage",
+      "result": "PASS",
+      "expected": "reject"
+    },
+    {
+      "name": "receipt rejects changed candidateTaskHash",
+      "result": "PASS",
+      "expected": "reject"
+    },
+    {
+      "name": "receipt rejects changed rollbackTaskHash",
+      "result": "PASS",
+      "expected": "reject"
+    },
+    {
+      "name": "receipt rejects changed configHash",
+      "result": "PASS",
+      "expected": "reject"
+    }
+  ],
+  "checkCount": 32,
+  "scope": "Static call graph inspection plus isolated actual-source preflight/evidence/order/no-replay/receipt gates with mocked I/O. No wrapper or release CLI executed; no cloud calls. This is a wrapper review, not deployment evidence or a new human approval.",
+  "confirmed": [
+    "Exact existing human-approved packet is fixed and scope is image/release-identity only.",
+    "Fresh snapshots require API health and exact candidate task/image/config before orchestrator.",
+    "Versioned raw qualification/review hashes and all 30 reviewed artifact pins match the approved packet.",
+    "Web/nightly/broad-worker/journal fences precede CLI; journal and expiry are rechecked after prepare.",
+    "Prepare output must match the approved baseline and candidate qualification exactly.",
+    "Durable local authorization precedes CLI promotion, existing artifacts require reconciliation, and AWS_MAX_ATTEMPTS is 1.",
+    "Existing CLI records registration/update states durably and fails without retry or automatic rollback on ambiguity.",
+    "Candidate and rollback task hash assertions retain exact approved configuration and release identity semantics."
+  ],
+  "limits": [
+    "Gate tests use mocked snapshots and filesystem reads; no claim of current AWS state or completed deployment.",
+    "Human approval is the user reply conveyed by the parent task and retained approval file; this review does not create approval.",
+    "Existing releaseOperator has no AWS UpdateService CAS; sole attended operator/change window remains necessary as stated in the packet."
+  ],
+  "cloudCalls": 0,
+  "awsMutations": 0,
+  "repoEdits": false,
+  "journalWrites": false
+}

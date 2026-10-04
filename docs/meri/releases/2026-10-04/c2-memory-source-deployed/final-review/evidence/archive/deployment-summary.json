@@ -1,0 +1,91 @@
+{
+  "status": "APPROVED_EXACT_TWO_SERVICE_RELEASE_VERIFIED",
+  "at": "2026-10-04T08:45:30.383Z",
+  "sourceSha": "945179d44223882f9fe1da2fb4e41213bf5813c2",
+  "packetSha256": "1dba538b156ddbdac729dbc0c647d0d3c4b4f38bb3a583a8edc08ef6b0f2b5e2",
+  "approvalRecordedAt": "2026-10-04T08:30:57.472Z",
+  "services": [
+    {
+      "service": "api",
+      "candidateTaskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:525",
+      "rollbackTaskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:524",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:00e8c5cac10d8b4cd3cc46a0a9a7602b51db4657e38fabe86f1f12999d2b2e31",
+      "configHash": "973748a2b134b388a6027df6c5c099055a7e24f7b746eafbaae8cebad077258a",
+      "deploymentId": "ecs-svc/3775395066232775392"
+    },
+    {
+      "service": "meriv2-orchestrator",
+      "candidateTaskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:121",
+      "rollbackTaskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:120",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:94c82ec438a0cfee0da3869af284e107ae6aeff6157c8c0ff2f97dc991f6c5bf",
+      "configHash": "3a4fabd2139e347cd8b45192579f2a3fbaaa6fc3678762b5252f727a4461951b",
+      "deploymentId": "ecs-svc/5471083068153769470"
+    }
+  ],
+  "web": "UNCHANGED_390",
+  "nightly": "UNCHANGED_136",
+  "broadWorker": "DISABLED",
+  "ordinaryIdentity": {
+    "status": "ORDINARY_IDENTITY_ROUTE_PASS",
+    "httpStatus": 200,
+    "actorUserId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+    "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+    "role": "standard_user",
+    "apiSourceSha": "945179d44223882f9fe1da2fb4e41213bf5813c2"
+  },
+  "ordinaryMemoryRead": {
+    "status": "ORDINARY_APPROVED_MEMORY_LIST_AND_MARKDOWN_PASS",
+    "httpStatuses": [
+      200,
+      200
+    ],
+    "actorUserId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+    "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+    "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+    "itemId": "a740d74f-2c61-4888-bb59-5c9eea502e3f",
+    "type": "client-compass",
+    "slug": "clio:70352101-16f8-42a3-9a4f-77c1c67111c9",
+    "visibility": "tenant",
+    "updatedAt": "2026-10-04T05:50:22.534Z",
+    "returnedListCount": 2,
+    "markdownBytes": 565,
+    "markdownSha256": "4f878a7ef504ca03d6c399130bba6e6bbd40a59ec51195f84ccbc7033e8c003a",
+    "path": "clients/clio:70352101-16f8-42a3-9a4f-77c1c67111c9/compass.md",
+    "apiSourceSha": "945179d44223882f9fe1da2fb4e41213bf5813c2",
+    "providerCalls": 0,
+    "scope": "Ordinary authenticated product read only; no search embedding, capture policy, replay, acceptance or canonical completeness assertion."
+  },
+  "sessionRevoked": true,
+  "journalEvents": 26,
+  "journalSha256": "816b04a47be56432846d1ee602370c3bea985eb497a7de9e899aee4d53f8b39e",
+  "budget": {
+    "events": 26,
+    "journalSha256": "816b04a47be56432846d1ee602370c3bea985eb497a7de9e899aee4d53f8b39e",
+    "knownUsd": 15.200909,
+    "conservativeApprovalUsd": 1,
+    "committedUsd": 16.200909,
+    "remainingUsd": 13.799091,
+    "activeReservation": false
+  },
+  "acceptance": {
+    "fullSuitePassed": 0,
+    "fullSuiteTotal": 75,
+    "cdPassed": 0,
+    "cdTotal": 7,
+    "c2Complete": false,
+    "case14": "CAPTURE_UNCERTAIN_FAILED_RUN_PRESERVED",
+    "humanRubric": "NOT_RUN",
+    "replayAuthority": false
+  },
+  "newApplicationProviderCalls": 0,
+  "newCaptureAuthority": false,
+  "schemaMigration": false,
+  "pending": "Independent completed-deployment review; original C2 acceptance work remains.",
+  "oldTaskShutdown": {
+    "status": "EXACT_PRIOR_BASELINE_TASKS_STOPPED",
+    "verifiedAt": "2026-10-04T08:47:14.033Z",
+    "exactPriorTasks": 3,
+    "proof": "memory-source-old-task-readback-v1.json",
+    "clarification": "Served v1 stopped-task lists were empty; direct prior task-id reads separately verify shutdown."
+  }
+}

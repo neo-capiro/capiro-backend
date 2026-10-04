@@ -1,0 +1,238 @@
+{
+  "at": "2026-10-04T08:51:16.279Z",
+  "sourceSha": "945179d44223882f9fe1da2fb4e41213bf5813c2",
+  "archive": "C:/dev/main/meri-c1-20261002/docs/meri/releases/2026-10-04/c2-memory-source-deployed",
+  "archiveFiles": [
+    {
+      "path": ".gitattributes",
+      "bytes": 58,
+      "sha256": "e623d756671de4e5c6cff5f575affab19983a05cd2b4af9b525f6a8c167c5699"
+    },
+    {
+      "path": "README.md",
+      "bytes": 1990,
+      "sha256": "c0be5cb8131c3c82c70f3182995309781f2702c783032ab414b92c2142f1d827"
+    },
+    {
+      "path": "api-memory-source-execution-v1.log",
+      "bytes": 1405,
+      "sha256": "9ec9d4fc243730e63ad640105e124f7435caccb77732a094faa27bee84e6c657"
+    },
+    {
+      "path": "api-memory-source-human-qualification.json",
+      "bytes": 2984,
+      "sha256": "c91e81ec7dcb063e61eebcb7a08ef2410d44c61cd95dca05cd89160c5290951b"
+    },
+    {
+      "path": "api-memory-source-promotion-authorization.json",
+      "bytes": 482,
+      "sha256": "8d6464fbb8eb9fdd2135b412fb9c7ce4df2126638a23b89362a0e92e6d5a439b"
+    },
+    {
+      "path": "api-memory-source-promotion-receipt.json",
+      "bytes": 1034,
+      "sha256": "003f531631759617a77759b1aa069bec1bb2a9c047cd6e49cc378f3ee6dd3e78"
+    },
+    {
+      "path": "api-memory-source-release-manifest.json",
+      "bytes": 3766,
+      "sha256": "a1787992e5646cc707fc78de632194034daa2a8686976a7377d69752daaca7d2"
+    },
+    {
+      "path": "case14-execution-wrapper-review-v1/case14-source-release-packet-v2.json",
+      "bytes": 7327,
+      "sha256": "e7aafeaf64550e1601b89ff8b12493454b49055a16c4cc7d68b7ec012e90a437"
+    },
+    {
+      "path": "case14-execution-wrapper-review-v1/local-gate-harness-failed.mjs",
+      "bytes": 10955,
+      "sha256": "d1429dbf17d619041acb54426521e1701df82de972157cc4d20af216ee210a33"
+    },
+    {
+      "path": "case14-execution-wrapper-review-v1/memory-source-human-approval.json",
+      "bytes": 1629,
+      "sha256": "1b32e7a79b23a3ebc9a8dabf4f059e27b616fb2e41fdbf276eed95016f58eb7f"
+    },
+    {
+      "path": "case14-execution-wrapper-review-v1/promote-memory-source-service-v1.mjs",
+      "bytes": 8173,
+      "sha256": "b5878ec26c54ca63c90be7665a2c5c82b7159c0655dbc89c4bc0bc485336cf1c"
+    },
+    {
+      "path": "case14-execution-wrapper-review-v1/record-memory-source-approval-v1.mjs",
+      "bytes": 1600,
+      "sha256": "4ca5a6b7544fed230a7c79f2fe1e65d2961f89c6fada828649f7a9d420d76a75"
+    },
+    {
+      "path": "case14-execution-wrapper-review-v1b/case14-source-release-packet-v2.json",
+      "bytes": 7327,
+      "sha256": "e7aafeaf64550e1601b89ff8b12493454b49055a16c4cc7d68b7ec012e90a437"
+    },
+    {
+      "path": "case14-execution-wrapper-review-v1b/independent-review.json",
+      "bytes": 6655,
+      "sha256": "534c2499f08753bb2353e265d48cfd7df5f332875c9a5812bc3de79a3b2c90f3"
+    },
+    {
+      "path": "case14-execution-wrapper-review-v1b/local-gate-harness.mjs",
+      "bytes": 10961,
+      "sha256": "f96daabbca31378717ced37ddfb25a55d62a0aee62bf7fd6f0f16cf2085544f7"
+    },
+    {
+      "path": "case14-execution-wrapper-review-v1b/memory-source-human-approval.json",
+      "bytes": 1629,
+      "sha256": "1b32e7a79b23a3ebc9a8dabf4f059e27b616fb2e41fdbf276eed95016f58eb7f"
+    },
+    {
+      "path": "case14-execution-wrapper-review-v1b/promote-memory-source-service-v1.mjs",
+      "bytes": 8173,
+      "sha256": "b5878ec26c54ca63c90be7665a2c5c82b7159c0655dbc89c4bc0bc485336cf1c"
+    },
+    {
+      "path": "case14-execution-wrapper-review-v1b/record-memory-source-approval-v1.mjs",
+      "bytes": 1600,
+      "sha256": "4ca5a6b7544fed230a7c79f2fe1e65d2961f89c6fada828649f7a9d420d76a75"
+    },
+    {
+      "path": "case14-served-verifier-review-v1/independent-review.json",
+      "bytes": 3097,
+      "sha256": "04609a16c327f39cd2073af55f4c8e8558719d94c322b9959a595dcc4b01dc18"
+    },
+    {
+      "path": "case14-served-verifier-review-v1/verify-memory-source-served-v1.mjs",
+      "bytes": 7787,
+      "sha256": "c90efa9aa4435aede0d932af05faba74dac42f0bf5c4d9d52cf2215582d9b350"
+    },
+    {
+      "path": "case14-source-release-packet-v2.json",
+      "bytes": 7327,
+      "sha256": "e7aafeaf64550e1601b89ff8b12493454b49055a16c4cc7d68b7ec012e90a437"
+    },
+    {
+      "path": "case14-source-release-packet-v2.md",
+      "bytes": 2811,
+      "sha256": "d35c470ac673fdef66652c9e40170d94a23f5d2f24c46e06364c0559a6ea6324"
+    },
+    {
+      "path": "deployment-summary.json",
+      "bytes": 4110,
+      "sha256": "83c6ada2e287ef219b446604e9e864c1db2fe0f44bc2a6b7759ea366750466bf"
+    },
+    {
+      "path": "memory-source-human-approval.json",
+      "bytes": 1629,
+      "sha256": "1b32e7a79b23a3ebc9a8dabf4f059e27b616fb2e41fdbf276eed95016f58eb7f"
+    },
+    {
+      "path": "memory-source-old-task-execution-v1.log",
+      "bytes": 3545,
+      "sha256": "37c7faa8dc99b2477c6129aa2216f2d769e3b3db4f47335e6aa5cd551e13db64"
+    },
+    {
+      "path": "memory-source-old-task-readback-v1.json",
+      "bytes": 3473,
+      "sha256": "d831b26890453959fc99375f63233c11b13a1998ff054b996e3d764652648a44"
+    },
+    {
+      "path": "memory-source-served-execution-v1.log",
+      "bytes": 4806,
+      "sha256": "3002b973d7629ad3fefc3e3b515250040982ca407c953527d73bebd556e20132"
+    },
+    {
+      "path": "memory-source-served-readback-v1.json",
+      "bytes": 4703,
+      "sha256": "1e6473584221f0f0ad14041a6ae674501983dde7906c44683ee1181ead006b64"
+    },
+    {
+      "path": "meriv2-orchestrator-memory-source-execution-v1.log",
+      "bytes": 1517,
+      "sha256": "f9101e13380bbef1e894ad4a88143820aec3816efe308821068b680683ecf8c3"
+    },
+    {
+      "path": "meriv2-orchestrator-memory-source-human-qualification.json",
+      "bytes": 3096,
+      "sha256": "60a8f998e86e43b12be038d9932cd7e2aedaab82d74ce542af187071467aea54"
+    },
+    {
+      "path": "meriv2-orchestrator-memory-source-promotion-authorization.json",
+      "bytes": 482,
+      "sha256": "6e42b73af7c3bb95fb38a6679b0fa64c1fa61bfc55ec79a3a27fba3f409ff0d5"
+    },
+    {
+      "path": "meriv2-orchestrator-memory-source-promotion-receipt.json",
+      "bytes": 1114,
+      "sha256": "cd4a5dc4373bcec6368580cfa718fddf45576a6a106689208555b399955c983d"
+    },
+    {
+      "path": "meriv2-orchestrator-memory-source-release-manifest.json",
+      "bytes": 3910,
+      "sha256": "e91cd5032bc952e6aa8ec437ddd36be4d32f39910b0e85f7a67b880191d9132f"
+    },
+    {
+      "path": "promote-memory-source-service-v1.mjs",
+      "bytes": 8173,
+      "sha256": "b5878ec26c54ca63c90be7665a2c5c82b7159c0655dbc89c4bc0bc485336cf1c"
+    },
+    {
+      "path": "provenance.json",
+      "bytes": 10686,
+      "sha256": "fe23f3b65809e23a7891cef389dd0ad3a10f34800518ac7961437dfab90ec340"
+    },
+    {
+      "path": "record-memory-source-approval-v1.mjs",
+      "bytes": 1600,
+      "sha256": "4ca5a6b7544fed230a7c79f2fe1e65d2961f89c6fada828649f7a9d420d76a75"
+    },
+    {
+      "path": "verify-memory-source-old-tasks-v1.mjs",
+      "bytes": 3655,
+      "sha256": "ef65a82503c702ffdf175da5fca775a4509e62f3d4ef0c6532a64977483df117"
+    },
+    {
+      "path": "verify-memory-source-served-v1.mjs",
+      "bytes": 7787,
+      "sha256": "c90efa9aa4435aede0d932af05faba74dac42f0bf5c4d9d52cf2215582d9b350"
+    }
+  ],
+  "originalFilesVerified": 34,
+  "priorVersionedQualificationPins": 30,
+  "mergedSourcePins": 45,
+  "approvedPacketSha256": "1dba538b156ddbdac729dbc0c647d0d3c4b4f38bb3a583a8edc08ef6b0f2b5e2",
+  "journal": {
+    "sha256": "816b04a47be56432846d1ee602370c3bea985eb497a7de9e899aee4d53f8b39e",
+    "bytes": 17588,
+    "events": 26
+  },
+  "supportFiles": [
+    {
+      "path": "auth-preflight.mjs",
+      "bytes": 5100,
+      "sha256": "f3d757755514c478b2f7a00572883c9c696964dc13ac1a565e4c0ef61d379414"
+    },
+    {
+      "path": "meri-release-policy.mjs",
+      "bytes": 9875,
+      "sha256": "e0518591e704ef3f051442d1b949a9f83a705a2cff40ed998dba19b57373cb5c"
+    },
+    {
+      "path": "meri-release.mjs",
+      "bytes": 22124,
+      "sha256": "2fece407aa0f08795ac6d5d1feef99211412ab28ea6bc76125c1c49eae4412f6"
+    },
+    {
+      "path": "prior-hermes-release-review.md",
+      "bytes": 11409,
+      "sha256": "fbff3af965854978baa98d5145072037c46931457313f759c09b8a2cca5a4407"
+    },
+    {
+      "path": "prior-release-independent-review.json",
+      "bytes": 30608,
+      "sha256": "e9fc6ea5ec7e3f382844765e1a0c4a401d16a34042bca2d0868aecd6a0045b80"
+    },
+    {
+      "path": "prior-release-qualification.json",
+      "bytes": 4161,
+      "sha256": "48fa688aadf19ede1ad4908113d656ce5ecf8bdad3fc8fcdd74668323d3491eb"
+    }
+  ]
+}

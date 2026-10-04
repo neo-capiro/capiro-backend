@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "service": "meriv2-orchestrator",
+  "sourceSha": "945179d44223882f9fe1da2fb4e41213bf5813c2",
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:94c82ec438a0cfee0da3869af284e107ae6aeff6157c8c0ff2f97dc991f6c5bf",
+  "buildId": "capiro-build-web-dev:3588b57f-4e9f-4d14-8585-c3f751759a6e",
+  "architecture": "arm64",
+  "runtimeNode": "20.16.0",
+  "status": "qualified",
+  "reviewer": "Human user — explicit approval in current Codex chat",
+  "reviewedAt": "2026-10-04T08:30:57.472Z",
+  "expiresAt": "2026-10-05T07:30:57.472Z",
+  "schemaChange": false,
+  "evidence": [
+    "https://github.com/neo-capiro/capirov2/blob/e4217c653f197945f5e5b17faeb5a598d0818503/docs/meri/releases/2026-10-04/c2-memory-source-release/release-qualification.json",
+    "https://github.com/neo-capiro/capirov2/blob/e4217c653f197945f5e5b17faeb5a598d0818503/docs/meri/releases/2026-10-04/c2-memory-source-release/release-independent-review.json",
+    "https://github.com/neo-capiro/capirov2/blob/e4217c653f197945f5e5b17faeb5a598d0818503/docs/meri/releases/2026-10-04/c2-memory-source-release/builds/meriv2-orchestrator/build-readback.json"
+  ],
+  "checks": [
+    {
+      "name": "build",
+      "status": "passed",
+      "sourceSha": "945179d44223882f9fe1da2fb4e41213bf5813c2",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:94c82ec438a0cfee0da3869af284e107ae6aeff6157c8c0ff2f97dc991f6c5bf",
+      "buildId": "capiro-build-web-dev:3588b57f-4e9f-4d14-8585-c3f751759a6e",
+      "architecture": "arm64",
+      "runtimeNode": "20.16.0",
+      "url": "https://github.com/neo-capiro/capirov2/blob/e4217c653f197945f5e5b17faeb5a598d0818503/docs/meri/releases/2026-10-04/c2-memory-source-release/builds/meriv2-orchestrator/build-readback.json"
+    },
+    {
+      "name": "automated-tests",
+      "status": "passed",
+      "sourceSha": "945179d44223882f9fe1da2fb4e41213bf5813c2",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:94c82ec438a0cfee0da3869af284e107ae6aeff6157c8c0ff2f97dc991f6c5bf",
+      "buildId": "capiro-build-web-dev:3588b57f-4e9f-4d14-8585-c3f751759a6e",
+      "architecture": "arm64",
+      "runtimeNode": "20.16.0",
+      "url": "https://github.com/neo-capiro/capirov2/blob/e4217c653f197945f5e5b17faeb5a598d0818503/docs/meri/releases/2026-10-04/c2-memory-source-release/release-qualification.json"
+    },
+    {
+      "name": "retirement-compatibility",
+      "status": "passed",
+      "sourceSha": "945179d44223882f9fe1da2fb4e41213bf5813c2",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:94c82ec438a0cfee0da3869af284e107ae6aeff6157c8c0ff2f97dc991f6c5bf",
+      "buildId": "capiro-build-web-dev:3588b57f-4e9f-4d14-8585-c3f751759a6e",
+      "architecture": "arm64",
+      "runtimeNode": "20.16.0",
+      "url": "https://github.com/neo-capiro/capirov2/blob/e4217c653f197945f5e5b17faeb5a598d0818503/docs/meri/releases/2026-10-04/c2-memory-source-release/release-qualification.json"
+    }
+  ]
+}

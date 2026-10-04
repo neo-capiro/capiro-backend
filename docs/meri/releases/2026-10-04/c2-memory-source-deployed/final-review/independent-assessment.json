@@ -1,0 +1,60 @@
+{
+  "at": "2026-10-04T08:53:44.115Z",
+  "status": "PASS_INDEPENDENT_COMPLETED_DEPLOYMENT_REVIEW",
+  "sourceSha": "945179d44223882f9fe1da2fb4e41213bf5813c2",
+  "approvedPacketSha256": "1dba538b156ddbdac729dbc0c647d0d3c4b4f38bb3a583a8edc08ef6b0f2b5e2",
+  "findings": [],
+  "independentChecks": 131,
+  "originalFilesVerified": 34,
+  "archiveFilesFrozen": 38,
+  "archiveDrift": [],
+  "priorVersionedQualificationPins": 30,
+  "mergedSourcePins": 45,
+  "manifestSha256": "a4fc27b4f53e3facb71784571d8eb5d155552cf5929fa78e0b7ca8a91481f735",
+  "precheckSha256": "bd2376edaed9d8a2e18197e9f1b96f23cef177edc9175b12e49dfcb059ce03b1",
+  "hermes": {
+    "result": "PASS",
+    "reviewSha256": "aceef04398653ce527851cb0dffc2c2c0c5904cae72d272e4d31d6482ff23d4b",
+    "executionSha256": "f0093e7433fd0d82e44cb17a0345c76d6cfdee19701b5cec0699cc3c64647ab5",
+    "usageSha256": "0d4c8f081abc373056037142f737270d60effd73ca678f2817c9f90cee698400",
+    "startedAt": "2026-10-04T08:51:26.039224+00:00",
+    "finishedAt": "2026-10-04T08:52:47.107459+00:00",
+    "exitCode": 0,
+    "model": "openai/gpt-6-luna",
+    "provider": "openrouter",
+    "sessionId": "20261004_045130_c6fe33",
+    "modelOverride": null,
+    "providerOverride": null,
+    "estimatedCostUsd": 0.011634425
+  },
+  "journal": {
+    "sha256": "816b04a47be56432846d1ee602370c3bea985eb497a7de9e899aee4d53f8b39e",
+    "bytes": 17588,
+    "events": 26
+  },
+  "disposition": "Exact approved API525 and orchestrator121 deployment evidence consistently joins packet, authorization, qualification, manifests, candidate/rollback tasks, receipts, logs, served ordinary access and preserved configuration. Supplemental direct old-task readback verifies all three prior baseline task identities in STOPPED state; empty served-v1 lists remain non-probative and preserved.",
+  "retainedLimits": [
+    "Readback is root-executed evidence checked against its source, joins and original bytes; reviewer made no cloud calls.",
+    "Served-v1 empty stopped lists do not prove prior identities. Separate exact old-task readback supplies the three task identities and STOPPED checks.",
+    "Human approval is the explicit user response conveyed by the parent task and recorded in the retained approval; no review-generated approval.",
+    "C2 acceptance and failed capture receipts are unchanged."
+  ],
+  "clarifications": [
+    "The 131 prechecks were independently performed locally by this review agent; deployed state is root-executed readback evidence, not new live verification by this lane.",
+    "Hermes report no-provider-calls wording concerns additional operational/model actions during its file review. The review itself was an actual configured OpenRouter/gpt-6-luna provider session recorded in usage.json, separate from the unchanged application benchmark journal.",
+    "The prior packet pending/null approval fields were retained as historical preparation state. Later exact user approval is recorded separately; this review creates no human approval."
+  ],
+  "c2Acceptance": {
+    "fullSuitePassed": 0,
+    "fullSuiteTotal": 75,
+    "cdPassed": 0,
+    "cdTotal": 7,
+    "c2Complete": false,
+    "humanRubric": "NOT_RUN",
+    "replayAuthority": false,
+    "newCaptureAuthority": false
+  },
+  "reviewerCloudCalls": 0,
+  "reviewerDeploymentWrites": 0,
+  "repoEdits": false
+}

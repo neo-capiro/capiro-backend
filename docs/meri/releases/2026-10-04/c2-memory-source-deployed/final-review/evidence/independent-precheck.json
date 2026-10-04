@@ -1,0 +1,539 @@
+{
+  "status": "PASS_INDEPENDENT_DEPLOYMENT_ARCHIVE_PRECHECK",
+  "facts": [
+    {
+      "name": "original archive bytes api-memory-source-human-qualification.json",
+      "status": "PASS"
+    },
+    {
+      "name": "original archive bytes api-memory-source-release-manifest.json",
+      "status": "PASS"
+    },
+    {
+      "name": "original archive bytes api-memory-source-promotion-authorization.json",
+      "status": "PASS"
+    },
+    {
+      "name": "original archive bytes api-memory-source-promotion-receipt.json",
+      "status": "PASS"
+    },
+    {
+      "name": "original archive bytes api-memory-source-execution-v1.log",
+      "status": "PASS"
+    },
+    {
+      "name": "original archive bytes meriv2-orchestrator-memory-source-human-qualification.json",
+      "status": "PASS"
+    },
+    {
+      "name": "original archive bytes meriv2-orchestrator-memory-source-release-manifest.json",
+      "status": "PASS"
+    },
+    {
+      "name": "original archive bytes meriv2-orchestrator-memory-source-promotion-authorization.json",
+      "status": "PASS"
+    },
+    {
+      "name": "original archive bytes meriv2-orchestrator-memory-source-promotion-receipt.json",
+      "status": "PASS"
+    },
+    {
+      "name": "original archive bytes meriv2-orchestrator-memory-source-execution-v1.log",
+      "status": "PASS"
+    },
+    {
+      "name": "original archive bytes case14-source-release-packet-v2.json",
+      "status": "PASS"
+    },
+    {
+      "name": "original archive bytes case14-source-release-packet-v2.md",
+      "status": "PASS"
+    },
+    {
+      "name": "original archive bytes memory-source-human-approval.json",
+      "status": "PASS"
+    },
+    {
+      "name": "original archive bytes record-memory-source-approval-v1.mjs",
+      "status": "PASS"
+    },
+    {
+      "name": "original archive bytes promote-memory-source-service-v1.mjs",
+      "status": "PASS"
+    },
+    {
+      "name": "original archive bytes verify-memory-source-served-v1.mjs",
+      "status": "PASS"
+    },
+    {
+      "name": "original archive bytes memory-source-served-readback-v1.json",
+      "status": "PASS"
+    },
+    {
+      "name": "original archive bytes memory-source-served-execution-v1.log",
+      "status": "PASS"
+    },
+    {
+      "name": "original archive bytes verify-memory-source-old-tasks-v1.mjs",
+      "status": "PASS"
+    },
+    {
+      "name": "original archive bytes memory-source-old-task-readback-v1.json",
+      "status": "PASS"
+    },
+    {
+      "name": "original archive bytes memory-source-old-task-execution-v1.log",
+      "status": "PASS"
+    },
+    {
+      "name": "original archive bytes case14-execution-wrapper-review-v1/case14-source-release-packet-v2.json",
+      "status": "PASS"
+    },
+    {
+      "name": "original archive bytes case14-execution-wrapper-review-v1/local-gate-harness-failed.mjs",
+      "status": "PASS"
+    },
+    {
+      "name": "original archive bytes case14-execution-wrapper-review-v1/memory-source-human-approval.json",
+      "status": "PASS"
+    },
+    {
+      "name": "original archive bytes case14-execution-wrapper-review-v1/promote-memory-source-service-v1.mjs",
+      "status": "PASS"
+    },
+    {
+      "name": "original archive bytes case14-execution-wrapper-review-v1/record-memory-source-approval-v1.mjs",
+      "status": "PASS"
+    },
+    {
+      "name": "original archive bytes case14-execution-wrapper-review-v1b/case14-source-release-packet-v2.json",
+      "status": "PASS"
+    },
+    {
+      "name": "original archive bytes case14-execution-wrapper-review-v1b/independent-review.json",
+      "status": "PASS"
+    },
+    {
+      "name": "original archive bytes case14-execution-wrapper-review-v1b/local-gate-harness.mjs",
+      "status": "PASS"
+    },
+    {
+      "name": "original archive bytes case14-execution-wrapper-review-v1b/memory-source-human-approval.json",
+      "status": "PASS"
+    },
+    {
+      "name": "original archive bytes case14-execution-wrapper-review-v1b/promote-memory-source-service-v1.mjs",
+      "status": "PASS"
+    },
+    {
+      "name": "original archive bytes case14-execution-wrapper-review-v1b/record-memory-source-approval-v1.mjs",
+      "status": "PASS"
+    },
+    {
+      "name": "original archive bytes case14-served-verifier-review-v1/independent-review.json",
+      "status": "PASS"
+    },
+    {
+      "name": "original archive bytes case14-served-verifier-review-v1/verify-memory-source-served-v1.mjs",
+      "status": "PASS"
+    },
+    {
+      "name": "summary exact raw hash",
+      "status": "PASS"
+    },
+    {
+      "name": "packet exact human approved semantic fingerprint",
+      "status": "PASS"
+    },
+    {
+      "name": "approval scope and time",
+      "status": "PASS"
+    },
+    {
+      "name": "versioned release qualification and review binding",
+      "status": "PASS"
+    },
+    {
+      "name": "prior qualification artifact .gitattributes",
+      "status": "PASS"
+    },
+    {
+      "name": "prior qualification artifact case14-memory-source-candidate-v1.json",
+      "status": "PASS"
+    },
+    {
+      "name": "prior qualification artifact case14-memory-source-qualification-v1.json",
+      "status": "PASS"
+    },
+    {
+      "name": "prior qualification artifact case14-source-schema-inner-v1.mjs",
+      "status": "PASS"
+    },
+    {
+      "name": "prior qualification artifact inspect-case14-source-release-v1.mjs",
+      "status": "PASS"
+    },
+    {
+      "name": "prior qualification artifact provenance.json",
+      "status": "PASS"
+    },
+    {
+      "name": "prior qualification artifact read-case14-source-schema-v1.mjs",
+      "status": "PASS"
+    },
+    {
+      "name": "prior qualification artifact release-qualification.json",
+      "status": "PASS"
+    },
+    {
+      "name": "prior qualification artifact served-baseline.json",
+      "status": "PASS"
+    },
+    {
+      "name": "prior qualification artifact builds/api/build-input.json",
+      "status": "PASS"
+    },
+    {
+      "name": "prior qualification artifact builds/api/build-readback.json",
+      "status": "PASS"
+    },
+    {
+      "name": "prior qualification artifact builds/api/build-start.json",
+      "status": "PASS"
+    },
+    {
+      "name": "prior qualification artifact builds/api/build.log",
+      "status": "PASS"
+    },
+    {
+      "name": "prior qualification artifact builds/api/buildspec.json",
+      "status": "PASS"
+    },
+    {
+      "name": "prior qualification artifact builds/api/launch-intent.json",
+      "status": "PASS"
+    },
+    {
+      "name": "prior qualification artifact builds/meriv2-orchestrator/build-input.json",
+      "status": "PASS"
+    },
+    {
+      "name": "prior qualification artifact builds/meriv2-orchestrator/build-readback.json",
+      "status": "PASS"
+    },
+    {
+      "name": "prior qualification artifact builds/meriv2-orchestrator/build-start.json",
+      "status": "PASS"
+    },
+    {
+      "name": "prior qualification artifact builds/meriv2-orchestrator/build.log",
+      "status": "PASS"
+    },
+    {
+      "name": "prior qualification artifact builds/meriv2-orchestrator/buildspec.json",
+      "status": "PASS"
+    },
+    {
+      "name": "prior qualification artifact builds/meriv2-orchestrator/launch-intent.json",
+      "status": "PASS"
+    },
+    {
+      "name": "prior qualification artifact schema/cleanup.json",
+      "status": "PASS"
+    },
+    {
+      "name": "prior qualification artifact schema/definition-registered.json",
+      "status": "PASS"
+    },
+    {
+      "name": "prior qualification artifact schema/intent.json",
+      "status": "PASS"
+    },
+    {
+      "name": "prior qualification artifact schema/journal-preserved.json",
+      "status": "PASS"
+    },
+    {
+      "name": "prior qualification artifact schema/log-transport-pages.json",
+      "status": "PASS"
+    },
+    {
+      "name": "prior qualification artifact schema/readback-transport.json",
+      "status": "PASS"
+    },
+    {
+      "name": "prior qualification artifact schema/result.json",
+      "status": "PASS"
+    },
+    {
+      "name": "prior qualification artifact schema/schema-proof.json",
+      "status": "PASS"
+    },
+    {
+      "name": "prior qualification artifact schema/task-start.json",
+      "status": "PASS"
+    },
+    {
+      "name": "merged source blob apps/api/Dockerfile",
+      "status": "PASS"
+    },
+    {
+      "name": "merged source blob apps/api/prisma/schema.prisma",
+      "status": "PASS"
+    },
+    {
+      "name": "merged source blob apps/api/src/meri/meri-action-proposal.http.spec.ts",
+      "status": "PASS"
+    },
+    {
+      "name": "merged source blob apps/api/src/meri/meri-chat-attachment-transport.http.spec.ts",
+      "status": "PASS"
+    },
+    {
+      "name": "merged source blob apps/api/src/meri/meri-memory-content.helpers.spec.ts",
+      "status": "PASS"
+    },
+    {
+      "name": "merged source blob apps/api/src/meri/meri-memory-content.helpers.ts",
+      "status": "PASS"
+    },
+    {
+      "name": "merged source blob apps/api/src/meri/meri-server-readonly-capture.ts",
+      "status": "PASS"
+    },
+    {
+      "name": "merged source blob apps/api/src/meri/meri-tool-request-control.spec.ts",
+      "status": "PASS"
+    },
+    {
+      "name": "merged source blob apps/api/src/meri/meri-tool-request-control.ts",
+      "status": "PASS"
+    },
+    {
+      "name": "merged source blob apps/api/src/meri/meri-tools.memory-capture-source.spec.ts",
+      "status": "PASS"
+    },
+    {
+      "name": "merged source blob apps/api/src/meri/meri-tools.service.ts",
+      "status": "PASS"
+    },
+    {
+      "name": "merged source blob apps/api/src/meri/meri.controller.ts",
+      "status": "PASS"
+    },
+    {
+      "name": "merged source blob apps/api/src/meri/tool-service-secret.guard.ts",
+      "status": "PASS"
+    },
+    {
+      "name": "merged source blob apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.spec.ts",
+      "status": "PASS"
+    },
+    {
+      "name": "merged source blob apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.ts",
+      "status": "PASS"
+    },
+    {
+      "name": "merged source blob apps/meriv2-orchestrator/Dockerfile",
+      "status": "PASS"
+    },
+    {
+      "name": "merged source blob apps/meriv2-orchestrator/src/meri/api-tool-executor.repo.ts",
+      "status": "PASS"
+    },
+    {
+      "name": "merged source blob apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts",
+      "status": "PASS"
+    },
+    {
+      "name": "merged source blob apps/meriv2-orchestrator/src/meri/controlled-read-observations.ts",
+      "status": "PASS"
+    },
+    {
+      "name": "merged source blob apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts",
+      "status": "PASS"
+    },
+    {
+      "name": "merged source blob apps/meriv2-orchestrator/src/meri/meriv3/meriv3-capture-evidence.ts",
+      "status": "PASS"
+    },
+    {
+      "name": "merged source blob apps/meriv2-orchestrator/src/meri/meriv3/meriv3-tool-evidence.ts",
+      "status": "PASS"
+    },
+    {
+      "name": "merged source blob apps/meriv2-orchestrator/src/request/trusted-current-turn-scope.ts",
+      "status": "PASS"
+    },
+    {
+      "name": "merged source blob evals/meri/live-v1/capture-spend-aggregate.mjs",
+      "status": "PASS"
+    },
+    {
+      "name": "merged source blob evals/meri/live-v1/case01-live-capture.mjs",
+      "status": "PASS"
+    },
+    {
+      "name": "merged source blob evals/meri/live-v1/case01-receipt-joins.mjs",
+      "status": "PASS"
+    },
+    {
+      "name": "merged source blob evals/meri/live-v1/case14-approval-capture.mjs",
+      "status": "PASS"
+    },
+    {
+      "name": "merged source blob evals/meri/live-v1/case14-approval-cost-authority.mjs",
+      "status": "PASS"
+    },
+    {
+      "name": "merged source blob evals/meri/live-v1/case14-approval-cost-evidence.json",
+      "status": "PASS"
+    },
+    {
+      "name": "merged source blob evals/meri/live-v1/case14-postapproval-task-authority.mjs",
+      "status": "PASS"
+    },
+    {
+      "name": "merged source blob evals/meri/live-v1/lib/windows-capture-spend.py",
+      "status": "PASS"
+    },
+    {
+      "name": "merged source blob evals/meri/live-v1/tests/capture-spend-aggregate.test.mjs",
+      "status": "PASS"
+    },
+    {
+      "name": "merged source blob evals/meri/live-v1/tests/capture-spend-fresh.test.mjs",
+      "status": "PASS"
+    },
+    {
+      "name": "merged source blob evals/meri/live-v1/tests/capture-spend-fresh.unit.py",
+      "status": "PASS"
+    },
+    {
+      "name": "merged source blob evals/meri/live-v1/tests/capture-spend-reconciliation.test.mjs",
+      "status": "PASS"
+    },
+    {
+      "name": "merged source blob evals/meri/live-v1/tests/capture-spend-terminal.test.mjs",
+      "status": "PASS"
+    },
+    {
+      "name": "merged source blob evals/meri/live-v1/tests/capture-spend-v2.test.mjs",
+      "status": "PASS"
+    },
+    {
+      "name": "merged source blob evals/meri/live-v1/tests/case14-approval-cost-authority.test.mjs",
+      "status": "PASS"
+    },
+    {
+      "name": "merged source blob evals/meri/live-v1/tests/case14-capture.test.mjs",
+      "status": "PASS"
+    },
+    {
+      "name": "merged source blob packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "status": "PASS"
+    },
+    {
+      "name": "merged source blob packages/meriv2-core/src/context/memory-capture-source.spec.ts",
+      "status": "PASS"
+    },
+    {
+      "name": "merged source blob packages/meriv2-core/src/context/memory-capture-source.ts",
+      "status": "PASS"
+    },
+    {
+      "name": "merged source blob packages/meriv2-core/src/index.ts",
+      "status": "PASS"
+    },
+    {
+      "name": "merged source blob pnpm-lock.yaml",
+      "status": "PASS"
+    },
+    {
+      "name": "merged source blob scripts/validate-meri-build-isolation.py",
+      "status": "PASS"
+    },
+    {
+      "name": "api manifest qualification and approval joins",
+      "status": "PASS"
+    },
+    {
+      "name": "api final receipt matches approved image task rollback config",
+      "status": "PASS"
+    },
+    {
+      "name": "api execution log contains exact final receipt and authorization",
+      "status": "PASS"
+    },
+    {
+      "name": "api served exact candidate and preserved capacity",
+      "status": "PASS"
+    },
+    {
+      "name": "api supplemental exact old identities and completed rollout",
+      "status": "PASS"
+    },
+    {
+      "name": "meriv2-orchestrator manifest qualification and approval joins",
+      "status": "PASS"
+    },
+    {
+      "name": "meriv2-orchestrator final receipt matches approved image task rollback config",
+      "status": "PASS"
+    },
+    {
+      "name": "meriv2-orchestrator execution log contains exact final receipt and authorization",
+      "status": "PASS"
+    },
+    {
+      "name": "meriv2-orchestrator served exact candidate and preserved capacity",
+      "status": "PASS"
+    },
+    {
+      "name": "meriv2-orchestrator supplemental exact old identities and completed rollout",
+      "status": "PASS"
+    },
+    {
+      "name": "served proof and supplement exact packet joins",
+      "status": "PASS"
+    },
+    {
+      "name": "Web nightly broad worker retained",
+      "status": "PASS"
+    },
+    {
+      "name": "ordinary fixture identity and memory metadata",
+      "status": "PASS"
+    },
+    {
+      "name": "acceptance and spending not promoted by deployment",
+      "status": "PASS"
+    },
+    {
+      "name": "actual journal exact 26-event checkpoint",
+      "status": "PASS"
+    },
+    {
+      "name": "execution matches reviewed promote-memory-source-service-v1.mjs",
+      "status": "PASS"
+    },
+    {
+      "name": "execution matches reviewed verify-memory-source-served-v1.mjs",
+      "status": "PASS"
+    },
+    {
+      "name": "supplement syntax valid",
+      "status": "PASS"
+    }
+  ],
+  "checkCount": 131,
+  "findings": [],
+  "limits": [
+    "Readback is root-executed evidence checked against its source, joins and original bytes; reviewer made no cloud calls.",
+    "Served-v1 empty stopped lists do not prove prior identities. Separate exact old-task readback supplies the three task identities and STOPPED checks.",
+    "Human approval is the explicit user response conveyed by the parent task and recorded in the retained approval; no review-generated approval.",
+    "C2 acceptance and failed capture receipts are unchanged."
+  ],
+  "cloudCalls": 0,
+  "repoEdits": false
+}

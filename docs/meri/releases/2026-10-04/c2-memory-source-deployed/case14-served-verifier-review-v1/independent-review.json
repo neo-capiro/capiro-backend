@@ -1,0 +1,51 @@
+{
+  "at": "2026-10-04T08:35:46.388Z",
+  "status": "PASS_SERVED_VERIFIER_STATIC_REVIEW",
+  "findings": [],
+  "verifier": {
+    "path": "C:/dev/main/outputs/meri-c2-20261003/verify-memory-source-served-v1.mjs",
+    "sha256": "c90efa9aa4435aede0d932af05faba74dac42f0bf5c4d9d52cf2215582d9b350",
+    "bytes": 7787,
+    "nodeSyntax": "PASS"
+  },
+  "sourceSha": "945179d44223882f9fe1da2fb4e41213bf5813c2",
+  "inspectedSource": [
+    {
+      "path": "apps/api/src/memory/memory.controller.ts",
+      "sha256": "218cd1bdc957ddc7464919b51caf88a2b6b66a9e595d0a0458d21ac4bf8d7ba0",
+      "matchesMergedCandidate": true
+    },
+    {
+      "path": "apps/api/src/memory/memory-store.service.ts",
+      "sha256": "12689bf6b538457d46047e22373ef08ae7e6393c940943dc852ce043cc0c2b2f",
+      "matchesMergedCandidate": true
+    },
+    {
+      "path": "apps/api/src/memory/memory-wall.helpers.ts",
+      "sha256": "91961048fd944885b8a06d229009259cf4866a4d40338d09685b1608f29a9255",
+      "matchesMergedCandidate": true
+    }
+  ],
+  "authHelper": {
+    "path": "C:/dev/main/outputs/meri-fresh-20261003/auth-preflight.mjs",
+    "sha256": "f3d757755514c478b2f7a00572883c9c696964dc13ac1a565e4c0ef61d379414"
+  },
+  "confirmed": [
+    "Current ECS task and ALB health comes from the previously reviewed snapshot function; candidate task/image/config/release identity must equal the approved packet.",
+    "Web remains at the exact approved unchanged baseline; nightly rule/target/task and disabled broad worker are checked.",
+    "STOPPED-list pagination, identity uniqueness, complete describe readback, cluster/service ownership and actual STOPPED status are required before reporting old-task completion.",
+    "Ordinary identity response requires exact fixture tenant/user/standard_user role and API source response header.",
+    "Only GET /memory/items?clientId=... and GET /memory/items/:type/:slug/markdown are used for product memory verification. Candidate-source controller/store routes perform scoped SELECT queries and pure Markdown projection; no embedding/model/capture route is invoked.",
+    "Exact listed memory id, slug, tenant/client frontmatter and known synthetic text are checked; only hashes and metadata are retained, not response bodies or auth tokens.",
+    "Temporary ordinary authentication is revoked in withAuth finally, with a required revoked status; proof writing occurs only after successful helper completion.",
+    "Journal hash must remain the approved 26-event bytes. The final proof expressly leaves original acceptance unchanged."
+  ],
+  "limits": [
+    "Static review only; the verifier was not executed by this review and no current cloud state is independently claimed yet.",
+    "The operator will create and revoke a temporary ordinary auth session; this is distinct from business data, fixture, model, capture or journal mutation.",
+    "The output validates ordinary product read access, not end-to-end capture receipts, canonical evidence completeness, original Case14 prompt/final UI, or human grading."
+  ],
+  "cloudCalls": 0,
+  "repoEdits": false,
+  "journalWrites": false
+}

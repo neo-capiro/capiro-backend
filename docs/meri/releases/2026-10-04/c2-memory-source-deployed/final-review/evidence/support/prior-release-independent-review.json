@@ -1,0 +1,938 @@
+{
+  "kind": "Root independent final backup release evidence verification",
+  "at": "2026-10-04T07:57:25.499556+00:00",
+  "result": "PASS",
+  "sourceSha": "945179d44223882f9fe1da2fb4e41213bf5813c2",
+  "releaseQualificationSha256": "48fa688aadf19ede1ad4908113d656ce5ecf8bdad3fc8fcdd74668323d3491eb",
+  "hermesReviewSha256": "fbff3af965854978baa98d5145072037c46931457313f759c09b8a2cca5a4407",
+  "delegatedAssessmentSha256": "aeed91fad4a8111839597e05ea233f626babc3b0834da7349d1808821b1d1ee8",
+  "packetOperatorSha256": "f09ad7bef80df79f823bfb0f5967ec4c6758f0052036565b05e6c803c4c3d488",
+  "qualifiedArtifactPins": [
+    {
+      "path": ".gitattributes",
+      "bytes": 58,
+      "sha256": "e623d756671de4e5c6cff5f575affab19983a05cd2b4af9b525f6a8c167c5699"
+    },
+    {
+      "path": "case14-memory-source-candidate-v1.json",
+      "bytes": 1242,
+      "sha256": "10351350523db52910b4f83ed67151c15a7982af3098ff985b38177253cb495b"
+    },
+    {
+      "path": "case14-memory-source-qualification-v1.json",
+      "bytes": 11395,
+      "sha256": "0b825aaf0c2c5140d166afcc628706649428d7d7e6263e05a8f9783a72e45307"
+    },
+    {
+      "path": "case14-source-schema-inner-v1.mjs",
+      "bytes": 4385,
+      "sha256": "4d8808af4b92dd4133f0c74410082e876630ede11fea2d168ac50b6ffed48ac7"
+    },
+    {
+      "path": "inspect-case14-source-release-v1.mjs",
+      "bytes": 6792,
+      "sha256": "c2c90b4b9ff5d4f19aaf956846187cd664f02f9eb68dcce6fdd75bdf98533fa6"
+    },
+    {
+      "path": "provenance.json",
+      "bytes": 7917,
+      "sha256": "618f5ce1099b904782be7c18a797da52b25a5fe4a62265abf6e9fb4604e0c959"
+    },
+    {
+      "path": "read-case14-source-schema-v1.mjs",
+      "bytes": 12707,
+      "sha256": "a4b28e308992e2c654ed89ea8bfff5c2e7b1ff06fc91bdbfa3ceceb0cb791dd0"
+    },
+    {
+      "path": "release-qualification.json",
+      "bytes": 4161,
+      "sha256": "48fa688aadf19ede1ad4908113d656ce5ecf8bdad3fc8fcdd74668323d3491eb"
+    },
+    {
+      "path": "served-baseline.json",
+      "bytes": 11369,
+      "sha256": "c1647bbe88c55240aefc6da2a1df10f013d24c2ecbd0ad73a544bd7d5aaef3af"
+    },
+    {
+      "path": "builds/api/build-input.json",
+      "bytes": 14439,
+      "sha256": "99718e3c38541bf050f712947b7b4e8fab439657db4470d94bff28f2a2ed9110"
+    },
+    {
+      "path": "builds/api/build-readback.json",
+      "bytes": 3872,
+      "sha256": "61c446715f2bb00200b632c11a84a6befdf30188d7d9770b1a75b8fefa9f25ec"
+    },
+    {
+      "path": "builds/api/build-start.json",
+      "bytes": 477,
+      "sha256": "7a9bcb73253284d5e5784f2ae35df9e77225dd8b59c39b644b09e70a26e1b75c"
+    },
+    {
+      "path": "builds/api/build.log",
+      "bytes": 62972,
+      "sha256": "2c2070926e59b9fdd172a00a7cf605172898c7ee58ada9c3b0dd06da67cd70c1"
+    },
+    {
+      "path": "builds/api/buildspec.json",
+      "bytes": 13997,
+      "sha256": "b69ec8d59ab4a897f177c0a99c87a7fe0f4c3680c3a2e9b62126a97dbe91f258"
+    },
+    {
+      "path": "builds/api/launch-intent.json",
+      "bytes": 774,
+      "sha256": "df323f1092bc463ed89d6ea745723e76ad78d47555d6ab3c18caba37a3dc4474"
+    },
+    {
+      "path": "builds/meriv2-orchestrator/build-input.json",
+      "bytes": 12967,
+      "sha256": "57c6bd4ebc818dbbab0295c56daa62fb7965a4910dc498ff1490b237c8b4018e"
+    },
+    {
+      "path": "builds/meriv2-orchestrator/build-readback.json",
+      "bytes": 3909,
+      "sha256": "fa09afc90e20195dbfd9e96e9c9e0a5af2f956150058db85c11688c48318b982"
+    },
+    {
+      "path": "builds/meriv2-orchestrator/build-start.json",
+      "bytes": 493,
+      "sha256": "ff824af732c9174f4e21d7567cd04b14b4ae16f6b57967b3209b7249b75be30c"
+    },
+    {
+      "path": "builds/meriv2-orchestrator/build.log",
+      "bytes": 766564,
+      "sha256": "f957e81f4e9968f5847c2813046f30bf51d104d5fe16c1172f158547dae20d61"
+    },
+    {
+      "path": "builds/meriv2-orchestrator/buildspec.json",
+      "bytes": 12525,
+      "sha256": "2c385ca184bb7dd65770573eba645ccae735387019c4aea623aebe142e4acc7a"
+    },
+    {
+      "path": "builds/meriv2-orchestrator/launch-intent.json",
+      "bytes": 790,
+      "sha256": "fcdc32d80b49862351b6c6290507292fc40ab78148df9ded15cc41f82075c25d"
+    },
+    {
+      "path": "schema/cleanup.json",
+      "bytes": 361,
+      "sha256": "a7a0dd53aca6f0bac5bb6de5fa5c8caacf11e74c881e407bf57af5a69a742a72"
+    },
+    {
+      "path": "schema/definition-registered.json",
+      "bytes": 164,
+      "sha256": "a90c8272054de70642e76ace2dfa4e5ec9c85f05b9141dfadc4ad448ec0b5c95"
+    },
+    {
+      "path": "schema/intent.json",
+      "bytes": 557,
+      "sha256": "977ea0c980fb85e9fcd2132f9d03c691078432fa4a2369df90c7d61aab974d66"
+    },
+    {
+      "path": "schema/journal-preserved.json",
+      "bytes": 104,
+      "sha256": "60ad10d5db4da943317b1681f443d9cbba6e33056c659dacd967f38ecd34f3d3"
+    },
+    {
+      "path": "schema/log-transport-pages.json",
+      "bytes": 709,
+      "sha256": "f2d9a5ac196b81f55986edb7025eb658809eb585d55747f8bd23af86670efb80"
+    },
+    {
+      "path": "schema/readback-transport.json",
+      "bytes": 134,
+      "sha256": "d35aa4814c68cb06c834d755da290b5e1d7b81ba49fdcda359fbe4f1495b6a88"
+    },
+    {
+      "path": "schema/result.json",
+      "bytes": 2160,
+      "sha256": "a05619c749031e375a83132495ff6fbeb0df717460ecb853c38de77fb82a9761"
+    },
+    {
+      "path": "schema/schema-proof.json",
+      "bytes": 892,
+      "sha256": "49415c213e4c74c8f8fd46753319ac1287f378410383a07e197614f59efd4118"
+    },
+    {
+      "path": "schema/task-start.json",
+      "bytes": 350,
+      "sha256": "16932ce59e0ae75c2ac52e1014c3ff8ae0e0218752a3cafea6bc047eeb6bdbef"
+    }
+  ],
+  "checks": [
+    {
+      "name": "Independent complete release review PASS",
+      "result": "PASS"
+    },
+    {
+      "name": "Exact final Hermes review",
+      "result": "PASS"
+    },
+    {
+      "name": "Exact final Hermes execution",
+      "result": "PASS"
+    },
+    {
+      "name": "Reviewed archive unchanged .gitattributes",
+      "result": "PASS"
+    },
+    {
+      "name": "Reviewed archive unchanged case14-memory-source-candidate-v1.json",
+      "result": "PASS"
+    },
+    {
+      "name": "Reviewed archive unchanged case14-memory-source-qualification-v1.json",
+      "result": "PASS"
+    },
+    {
+      "name": "Reviewed archive unchanged case14-source-schema-inner-v1.mjs",
+      "result": "PASS"
+    },
+    {
+      "name": "Reviewed archive unchanged inspect-case14-source-release-v1.mjs",
+      "result": "PASS"
+    },
+    {
+      "name": "Reviewed archive unchanged provenance.json",
+      "result": "PASS"
+    },
+    {
+      "name": "Reviewed archive unchanged read-case14-source-schema-v1.mjs",
+      "result": "PASS"
+    },
+    {
+      "name": "Reviewed archive unchanged README.md",
+      "result": "PASS"
+    },
+    {
+      "name": "Reviewed archive unchanged release-qualification.json",
+      "result": "PASS"
+    },
+    {
+      "name": "Reviewed archive unchanged served-baseline.json",
+      "result": "PASS"
+    },
+    {
+      "name": "Reviewed archive unchanged builds/api/build-input.json",
+      "result": "PASS"
+    },
+    {
+      "name": "Reviewed archive unchanged builds/api/build-readback.json",
+      "result": "PASS"
+    },
+    {
+      "name": "Reviewed archive unchanged builds/api/build-start.json",
+      "result": "PASS"
+    },
+    {
+      "name": "Reviewed archive unchanged builds/api/build.log",
+      "result": "PASS"
+    },
+    {
+      "name": "Reviewed archive unchanged builds/api/buildspec.json",
+      "result": "PASS"
+    },
+    {
+      "name": "Reviewed archive unchanged builds/api/launch-intent.json",
+      "result": "PASS"
+    },
+    {
+      "name": "Reviewed archive unchanged builds/meriv2-orchestrator/build-input.json",
+      "result": "PASS"
+    },
+    {
+      "name": "Reviewed archive unchanged builds/meriv2-orchestrator/build-readback.json",
+      "result": "PASS"
+    },
+    {
+      "name": "Reviewed archive unchanged builds/meriv2-orchestrator/build-start.json",
+      "result": "PASS"
+    },
+    {
+      "name": "Reviewed archive unchanged builds/meriv2-orchestrator/build.log",
+      "result": "PASS"
+    },
+    {
+      "name": "Reviewed archive unchanged builds/meriv2-orchestrator/buildspec.json",
+      "result": "PASS"
+    },
+    {
+      "name": "Reviewed archive unchanged builds/meriv2-orchestrator/launch-intent.json",
+      "result": "PASS"
+    },
+    {
+      "name": "Reviewed archive unchanged schema/cleanup.json",
+      "result": "PASS"
+    },
+    {
+      "name": "Reviewed archive unchanged schema/definition-registered.json",
+      "result": "PASS"
+    },
+    {
+      "name": "Reviewed archive unchanged schema/intent.json",
+      "result": "PASS"
+    },
+    {
+      "name": "Reviewed archive unchanged schema/journal-preserved.json",
+      "result": "PASS"
+    },
+    {
+      "name": "Reviewed archive unchanged schema/log-transport-pages.json",
+      "result": "PASS"
+    },
+    {
+      "name": "Reviewed archive unchanged schema/readback-transport.json",
+      "result": "PASS"
+    },
+    {
+      "name": "Reviewed archive unchanged schema/result.json",
+      "result": "PASS"
+    },
+    {
+      "name": "Reviewed archive unchanged schema/schema-proof.json",
+      "result": "PASS"
+    },
+    {
+      "name": "Reviewed archive unchanged schema/task-start.json",
+      "result": "PASS"
+    },
+    {
+      "name": "Original/copy/hash builds/api/build-start.json",
+      "result": "PASS"
+    },
+    {
+      "name": "Original/copy/hash builds/api/build-readback.json",
+      "result": "PASS"
+    },
+    {
+      "name": "Original/copy/hash builds/api/buildspec.json",
+      "result": "PASS"
+    },
+    {
+      "name": "Original/copy/hash builds/api/build-input.json",
+      "result": "PASS"
+    },
+    {
+      "name": "Original/copy/hash builds/api/launch-intent.json",
+      "result": "PASS"
+    },
+    {
+      "name": "Original/copy/hash builds/api/build.log",
+      "result": "PASS"
+    },
+    {
+      "name": "Original/copy/hash builds/meriv2-orchestrator/build-start.json",
+      "result": "PASS"
+    },
+    {
+      "name": "Original/copy/hash builds/meriv2-orchestrator/build-readback.json",
+      "result": "PASS"
+    },
+    {
+      "name": "Original/copy/hash builds/meriv2-orchestrator/buildspec.json",
+      "result": "PASS"
+    },
+    {
+      "name": "Original/copy/hash builds/meriv2-orchestrator/build-input.json",
+      "result": "PASS"
+    },
+    {
+      "name": "Original/copy/hash builds/meriv2-orchestrator/launch-intent.json",
+      "result": "PASS"
+    },
+    {
+      "name": "Original/copy/hash builds/meriv2-orchestrator/build.log",
+      "result": "PASS"
+    },
+    {
+      "name": "Original/copy/hash case14-memory-source-candidate-v1.json",
+      "result": "PASS"
+    },
+    {
+      "name": "Original/copy/hash case14-memory-source-qualification-v1.json",
+      "result": "PASS"
+    },
+    {
+      "name": "Original/copy/hash inspect-case14-source-release-v1.mjs",
+      "result": "PASS"
+    },
+    {
+      "name": "Original/copy/hash read-case14-source-schema-v1.mjs",
+      "result": "PASS"
+    },
+    {
+      "name": "Original/copy/hash case14-source-schema-inner-v1.mjs",
+      "result": "PASS"
+    },
+    {
+      "name": "Original/copy/hash served-baseline.json",
+      "result": "PASS"
+    },
+    {
+      "name": "Original/copy/hash schema/cleanup.json",
+      "result": "PASS"
+    },
+    {
+      "name": "Original/copy/hash schema/definition-registered.json",
+      "result": "PASS"
+    },
+    {
+      "name": "Original/copy/hash schema/intent.json",
+      "result": "PASS"
+    },
+    {
+      "name": "Original/copy/hash schema/journal-preserved.json",
+      "result": "PASS"
+    },
+    {
+      "name": "Original/copy/hash schema/log-transport-pages.json",
+      "result": "PASS"
+    },
+    {
+      "name": "Original/copy/hash schema/readback-transport.json",
+      "result": "PASS"
+    },
+    {
+      "name": "Original/copy/hash schema/result.json",
+      "result": "PASS"
+    },
+    {
+      "name": "Original/copy/hash schema/schema-proof.json",
+      "result": "PASS"
+    },
+    {
+      "name": "Original/copy/hash schema/task-start.json",
+      "result": "PASS"
+    },
+    {
+      "name": "Release qualification unchanged",
+      "result": "PASS"
+    },
+    {
+      "name": "Merged source blob apps/api/Dockerfile",
+      "result": "PASS"
+    },
+    {
+      "name": "Merged source blob apps/api/prisma/schema.prisma",
+      "result": "PASS"
+    },
+    {
+      "name": "Merged source blob apps/api/src/meri/meri-action-proposal.http.spec.ts",
+      "result": "PASS"
+    },
+    {
+      "name": "Merged source blob apps/api/src/meri/meri-chat-attachment-transport.http.spec.ts",
+      "result": "PASS"
+    },
+    {
+      "name": "Merged source blob apps/api/src/meri/meri-memory-content.helpers.spec.ts",
+      "result": "PASS"
+    },
+    {
+      "name": "Merged source blob apps/api/src/meri/meri-memory-content.helpers.ts",
+      "result": "PASS"
+    },
+    {
+      "name": "Merged source blob apps/api/src/meri/meri-server-readonly-capture.ts",
+      "result": "PASS"
+    },
+    {
+      "name": "Merged source blob apps/api/src/meri/meri-tool-request-control.spec.ts",
+      "result": "PASS"
+    },
+    {
+      "name": "Merged source blob apps/api/src/meri/meri-tool-request-control.ts",
+      "result": "PASS"
+    },
+    {
+      "name": "Merged source blob apps/api/src/meri/meri-tools.memory-capture-source.spec.ts",
+      "result": "PASS"
+    },
+    {
+      "name": "Merged source blob apps/api/src/meri/meri-tools.service.ts",
+      "result": "PASS"
+    },
+    {
+      "name": "Merged source blob apps/api/src/meri/meri.controller.ts",
+      "result": "PASS"
+    },
+    {
+      "name": "Merged source blob apps/api/src/meri/tool-service-secret.guard.ts",
+      "result": "PASS"
+    },
+    {
+      "name": "Merged source blob apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.spec.ts",
+      "result": "PASS"
+    },
+    {
+      "name": "Merged source blob apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.ts",
+      "result": "PASS"
+    },
+    {
+      "name": "Merged source blob apps/meriv2-orchestrator/Dockerfile",
+      "result": "PASS"
+    },
+    {
+      "name": "Merged source blob apps/meriv2-orchestrator/src/meri/api-tool-executor.repo.ts",
+      "result": "PASS"
+    },
+    {
+      "name": "Merged source blob apps/meriv2-orchestrator/src/meri/controlled-read-observations.spec.ts",
+      "result": "PASS"
+    },
+    {
+      "name": "Merged source blob apps/meriv2-orchestrator/src/meri/controlled-read-observations.ts",
+      "result": "PASS"
+    },
+    {
+      "name": "Merged source blob apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts",
+      "result": "PASS"
+    },
+    {
+      "name": "Merged source blob apps/meriv2-orchestrator/src/meri/meriv3/meriv3-capture-evidence.ts",
+      "result": "PASS"
+    },
+    {
+      "name": "Merged source blob apps/meriv2-orchestrator/src/meri/meriv3/meriv3-tool-evidence.ts",
+      "result": "PASS"
+    },
+    {
+      "name": "Merged source blob apps/meriv2-orchestrator/src/request/trusted-current-turn-scope.ts",
+      "result": "PASS"
+    },
+    {
+      "name": "Merged source blob evals/meri/live-v1/capture-spend-aggregate.mjs",
+      "result": "PASS"
+    },
+    {
+      "name": "Merged source blob evals/meri/live-v1/case01-live-capture.mjs",
+      "result": "PASS"
+    },
+    {
+      "name": "Merged source blob evals/meri/live-v1/case01-receipt-joins.mjs",
+      "result": "PASS"
+    },
+    {
+      "name": "Merged source blob evals/meri/live-v1/case14-approval-capture.mjs",
+      "result": "PASS"
+    },
+    {
+      "name": "Merged source blob evals/meri/live-v1/case14-approval-cost-authority.mjs",
+      "result": "PASS"
+    },
+    {
+      "name": "Merged source blob evals/meri/live-v1/case14-approval-cost-evidence.json",
+      "result": "PASS"
+    },
+    {
+      "name": "Merged source blob evals/meri/live-v1/case14-postapproval-task-authority.mjs",
+      "result": "PASS"
+    },
+    {
+      "name": "Merged source blob evals/meri/live-v1/lib/windows-capture-spend.py",
+      "result": "PASS"
+    },
+    {
+      "name": "Merged source blob evals/meri/live-v1/tests/capture-spend-aggregate.test.mjs",
+      "result": "PASS"
+    },
+    {
+      "name": "Merged source blob evals/meri/live-v1/tests/capture-spend-fresh.test.mjs",
+      "result": "PASS"
+    },
+    {
+      "name": "Merged source blob evals/meri/live-v1/tests/capture-spend-fresh.unit.py",
+      "result": "PASS"
+    },
+    {
+      "name": "Merged source blob evals/meri/live-v1/tests/capture-spend-reconciliation.test.mjs",
+      "result": "PASS"
+    },
+    {
+      "name": "Merged source blob evals/meri/live-v1/tests/capture-spend-terminal.test.mjs",
+      "result": "PASS"
+    },
+    {
+      "name": "Merged source blob evals/meri/live-v1/tests/capture-spend-v2.test.mjs",
+      "result": "PASS"
+    },
+    {
+      "name": "Merged source blob evals/meri/live-v1/tests/case14-approval-cost-authority.test.mjs",
+      "result": "PASS"
+    },
+    {
+      "name": "Merged source blob evals/meri/live-v1/tests/case14-capture.test.mjs",
+      "result": "PASS"
+    },
+    {
+      "name": "Merged source blob packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "result": "PASS"
+    },
+    {
+      "name": "Merged source blob packages/meriv2-core/src/context/memory-capture-source.spec.ts",
+      "result": "PASS"
+    },
+    {
+      "name": "Merged source blob packages/meriv2-core/src/context/memory-capture-source.ts",
+      "result": "PASS"
+    },
+    {
+      "name": "Merged source blob packages/meriv2-core/src/index.ts",
+      "result": "PASS"
+    },
+    {
+      "name": "Merged source blob pnpm-lock.yaml",
+      "result": "PASS"
+    },
+    {
+      "name": "Merged source blob scripts/validate-meri-build-isolation.py",
+      "result": "PASS"
+    },
+    {
+      "name": "api exact successful source/image/log",
+      "result": "PASS"
+    },
+    {
+      "name": "api full log marker OFFLINE_RUNTIME_IMPORT_PASS",
+      "result": "PASS"
+    },
+    {
+      "name": "api full log marker OFFLINE_CASE01_FIXTURE_PACKAGE_IMPORT_PASS",
+      "result": "PASS"
+    },
+    {
+      "name": "api full log marker OFFLINE_CASE01_CONTINUATION_IMPORT_PASS",
+      "result": "PASS"
+    },
+    {
+      "name": "api full log marker OFFLINE_CASE01_POSTAPPROVAL_IMPORT_PASS",
+      "result": "PASS"
+    },
+    {
+      "name": "api full log marker OFFLINE_CASE01_POSTSEED_IMPORT_PASS",
+      "result": "PASS"
+    },
+    {
+      "name": "api full log marker EXACT_452_IMAGE_MIGRATION_HASHES_PASS",
+      "result": "PASS"
+    },
+    {
+      "name": "api full log marker MAIL_ACTIVE_OWNER_INDEX_MIGRATION_PACKAGE_PASS",
+      "result": "PASS"
+    },
+    {
+      "name": "api full log marker OFFLINE_PACKAGED_C2_MEMORY_PASS",
+      "result": "PASS"
+    },
+    {
+      "name": "api full log marker OFFLINE_PACKAGED_C2_RECONCILIATION_PASS",
+      "result": "PASS"
+    },
+    {
+      "name": "api full log marker OFFLINE_PACKAGED_C2_TERMINAL_LIFECYCLE_PASS",
+      "result": "PASS"
+    },
+    {
+      "name": "api full log marker OFFLINE_PACKAGED_C2_TS_SOURCE_IMPORT_PASS",
+      "result": "PASS"
+    },
+    {
+      "name": "api full log marker OFFLINE_PACKAGED_SEMANTIC_CLOCK_API_CORE_PASS",
+      "result": "PASS"
+    },
+    {
+      "name": "api full log marker OFFLINE_PACKAGED_CAPTURE_RECEIPT_CONTRACT_PASS",
+      "result": "PASS"
+    },
+    {
+      "name": "api full log marker OFFLINE_PACKAGED_CAPTURE_PROVIDER_API_GUARDS_PASS",
+      "result": "PASS"
+    },
+    {
+      "name": "api full log marker LOCAL_REPODIGEST_ECR_MATCH_PASS",
+      "result": "PASS"
+    },
+    {
+      "name": "api full log marker OFFLINE_PACKAGED_C2_RECORDED_SOURCE_PRIVACY_PASS",
+      "result": "PASS"
+    },
+    {
+      "name": "api full log marker OFFLINE_PACKAGED_C2_TOOL_HTTP_SUCCESS_PASS",
+      "result": "PASS"
+    },
+    {
+      "name": "api full log marker OFFLINE_PACKAGED_C2_CANONICAL_MEMORY_SOURCE_PASS",
+      "result": "PASS"
+    },
+    {
+      "name": "meriv2-orchestrator exact successful source/image/log",
+      "result": "PASS"
+    },
+    {
+      "name": "meriv2-orchestrator full log marker ORCHESTRATOR_CAPTURE_CONTRACT_LOOPBACK_TESTS_PASS",
+      "result": "PASS"
+    },
+    {
+      "name": "meriv2-orchestrator full log marker OFFLINE_PACKAGED_ENTRYPOINT_HEALTH_AUTH_PASS",
+      "result": "PASS"
+    },
+    {
+      "name": "meriv2-orchestrator full log marker OFFLINE_C1_CLASSIFICATION_REPAIRS_PASS",
+      "result": "PASS"
+    },
+    {
+      "name": "meriv2-orchestrator full log marker OFFLINE_PACKAGED_MAIL_DEFAULTS_PASS",
+      "result": "PASS"
+    },
+    {
+      "name": "meriv2-orchestrator full log marker OFFLINE_PACKAGED_NO_TOOLS_DIRECTIVE_PASS",
+      "result": "PASS"
+    },
+    {
+      "name": "meriv2-orchestrator full log marker OFFLINE_PACKAGED_SEMANTIC_CLOCK_ORCHESTRATOR_PASS",
+      "result": "PASS"
+    },
+    {
+      "name": "meriv2-orchestrator full log marker OFFLINE_PACKAGED_CAPTURE_PROVIDER_ORCHESTRATOR_GUARDS_PASS",
+      "result": "PASS"
+    },
+    {
+      "name": "meriv2-orchestrator full log marker LOCAL_REPODIGEST_ECR_MATCH_PASS",
+      "result": "PASS"
+    },
+    {
+      "name": "meriv2-orchestrator full log marker CORE_CASE20_SOURCE_PROOF_NATIVE_TESTS_PASS",
+      "result": "PASS"
+    },
+    {
+      "name": "meriv2-orchestrator full log marker ORCHESTRATOR_CASE20_SOURCE_PROOF_NATIVE_TESTS_PASS",
+      "result": "PASS"
+    },
+    {
+      "name": "meriv2-orchestrator full log marker CORE_CANONICAL_MEMORY_SOURCE_NATIVE_TESTS_PASS",
+      "result": "PASS"
+    },
+    {
+      "name": "meriv2-orchestrator full log marker ORCHESTRATOR_CANONICAL_MEMORY_SOURCE_LOOPBACK_PASS",
+      "result": "PASS"
+    },
+    {
+      "name": "Read-only schema/cleanup",
+      "result": "PASS"
+    },
+    {
+      "name": "Native journal26 exact unchanged",
+      "result": "PASS"
+    },
+    {
+      "name": "case14-source-release-hermes-v1 completed configured route",
+      "result": "PASS"
+    },
+    {
+      "name": "case14-source-release-hermes-v1 execution pin prompt.txt",
+      "result": "PASS"
+    },
+    {
+      "name": "case14-source-release-hermes-v1 execution pin response.txt",
+      "result": "PASS"
+    },
+    {
+      "name": "case14-source-release-hermes-v1 execution pin review.md",
+      "result": "PASS"
+    },
+    {
+      "name": "case14-source-release-hermes-v1 execution pin stderr.log",
+      "result": "PASS"
+    },
+    {
+      "name": "case14-source-release-hermes-v1 execution pin usage.json",
+      "result": "PASS"
+    },
+    {
+      "name": "case12-next-prerequisites-hermes-v1 completed configured route",
+      "result": "PASS"
+    },
+    {
+      "name": "case12-next-prerequisites-hermes-v1 execution pin case12-next-prerequisites.md",
+      "result": "PASS"
+    },
+    {
+      "name": "case12-next-prerequisites-hermes-v1 execution pin prompt.txt",
+      "result": "PASS"
+    },
+    {
+      "name": "case12-next-prerequisites-hermes-v1 execution pin response.txt",
+      "result": "PASS"
+    },
+    {
+      "name": "case12-next-prerequisites-hermes-v1 execution pin stderr.log",
+      "result": "PASS"
+    },
+    {
+      "name": "case12-next-prerequisites-hermes-v1 execution pin usage.json",
+      "result": "PASS"
+    },
+    {
+      "name": "Case12 primary source docs/meri/implementation/01-Meri-Foundation-Closeout-Plan-2026-10-02.md",
+      "result": "PASS"
+    },
+    {
+      "name": "Case12 primary source evals/meri/live-v1/source/appendix-f.md",
+      "result": "PASS"
+    },
+    {
+      "name": "Case12 primary source evals/meri/live-v1/fixture.mjs",
+      "result": "PASS"
+    },
+    {
+      "name": "Case12 primary source evals/meri/live-v1/deterministic-predicates.mjs",
+      "result": "PASS"
+    },
+    {
+      "name": "Case12 primary source evals/meri/live-v1/fixture-provisioning/approved-memory-runtime.md",
+      "result": "PASS"
+    },
+    {
+      "name": "Case12 primary source evals/meri/live-v1/fixture-provisioning/approved-memory-runtime.mjs",
+      "result": "PASS"
+    },
+    {
+      "name": "Case12 primary source docs/meri/implementation/01-continuation-2026-09-30.md",
+      "result": "PASS"
+    },
+    {
+      "name": "Case12 primary source evals/meri/live-v1/fixture-provisioning/manifest.mjs",
+      "result": "PASS"
+    },
+    {
+      "name": "Case12 primary source evals/meri/live-v1/case01-live-capture.mjs",
+      "result": "PASS"
+    },
+    {
+      "name": "Case12 primary source evals/meri/live-v1/controlled-read-live-capture.mjs",
+      "result": "PASS"
+    },
+    {
+      "name": "Case12 primary source evals/meri/live-v1/fixture-provisioning/controlled-read-owner.mjs",
+      "result": "PASS"
+    },
+    {
+      "name": "Case12 primary source packages/meriv2-core/src/context/server-readonly-capture.ts",
+      "result": "PASS"
+    },
+    {
+      "name": "Case12 primary source packages/meriv2-core/src/context/memory-capture-source.ts",
+      "result": "PASS"
+    },
+    {
+      "name": "Case12 primary source apps/api/src/meri/meri-capture-semantic-clock.ts",
+      "result": "PASS"
+    },
+    {
+      "name": "Case12 primary source apps/api/src/meri/meri-capture-policy-readback.ts",
+      "result": "PASS"
+    },
+    {
+      "name": "Case12 primary source apps/api/src/meri/meri-capture-clock-packets.ts",
+      "result": "PASS"
+    },
+    {
+      "name": "Case12 primary source apps/api/src/meri/meri-capture-provider-budget.ts",
+      "result": "PASS"
+    },
+    {
+      "name": "Case12 primary source apps/api/src/meri/meri-capture-provider-budget-install.ts",
+      "result": "PASS"
+    },
+    {
+      "name": "Case12 primary source apps/api/src/meri/meri-capture-api-provider-scope.ts",
+      "result": "PASS"
+    },
+    {
+      "name": "Case12 primary source evals/meri/live-v1/capture-spend-aggregate.mjs",
+      "result": "PASS"
+    },
+    {
+      "name": "Case12 primary source evals/meri/live-v1/lib/windows-capture-spend.py",
+      "result": "PASS"
+    },
+    {
+      "name": "Case12 primary source apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.ts",
+      "result": "PASS"
+    },
+    {
+      "name": "Case12 primary source apps/api/src/meri/meri-memory-content.helpers.ts",
+      "result": "PASS"
+    },
+    {
+      "name": "Case12 primary source docs/meri/releases/2026-10-04/c2-case14-approved-failed-recall/case14-terminal-cost-finalization-v2/executed-once/result.json",
+      "result": "PASS"
+    },
+    {
+      "name": "Case12 reviewed exact report",
+      "result": "PASS"
+    },
+    {
+      "name": "Read-only packet v2 independently qualified",
+      "result": "PASS"
+    },
+    {
+      "name": "Bounded Case12 inventory search exact result",
+      "result": "PASS"
+    },
+    {
+      "name": "Case12 inventory candidate C:\\dev\\main\\meri-closeout-c0-20261002\\docs\\meri\\releases\\2026-10-02\\original75-first-attempt\\oct02-original-eval\\original75-readiness-20261002.json",
+      "result": "PASS"
+    },
+    {
+      "name": "Case12 inventory candidate C:\\dev\\main\\meri-closeout-c0-20261002\\docs\\meri\\releases\\2026-10-02\\reply-only\\original-eval\\original-acceptance-inventory.json",
+      "result": "PASS"
+    },
+    {
+      "name": "Case12 inventory candidate C:\\dev\\main\\outputs\\meri-c2-20261003\\c2-next-owner-map-v1\\owner-map.json",
+      "result": "PASS"
+    },
+    {
+      "name": "Case12 inventory candidate C:\\dev\\main\\outputs\\meri-c2-20261003\\c2-next-work-inventory-20261004\\inventory.json",
+      "result": "PASS"
+    },
+    {
+      "name": "Case12 inventory candidate C:\\dev\\main\\outputs\\meri-c2-20261003\\hermes-c2-execution-matrix-v1\\hermes-matrix.raw.json",
+      "result": "PASS"
+    },
+    {
+      "name": "Case12 inventory candidate C:\\dev\\main\\outputs\\meri-c2-20261003\\hermes-c2-execution-matrix-v1\\matrix.reviewed.json",
+      "result": "PASS"
+    },
+    {
+      "name": "Case12 inventory candidate C:\\dev\\main\\outputs\\meri-c2-20261003\\next-c2-readiness-v1.json",
+      "result": "PASS"
+    },
+    {
+      "name": "Case12 inventory candidate C:\\dev\\main\\meri-c1-20261002\\docs\\meri\\releases\\2026-10-02\\original75-first-attempt\\oct02-original-eval\\original75-readiness-20261002.json",
+      "result": "PASS"
+    },
+    {
+      "name": "Case12 inventory candidate C:\\dev\\main\\meri-c1-20261002\\docs\\meri\\releases\\2026-10-02\\reply-only\\original-eval\\original-acceptance-inventory.json",
+      "result": "PASS"
+    },
+    {
+      "name": "Case12 inventory candidate C:\\dev\\main\\meri-c1-20261002\\docs\\meri\\releases\\2026-10-03\\c2-native-case01-checkpoint\\next-c2-readiness-v1.json",
+      "result": "PASS"
+    }
+  ],
+  "humanReleaseApproval": false,
+  "serviceUpdates": 0,
+  "acceptancePromoted": false,
+  "limitations": [
+    "Review validates retained observations and exact candidate artifacts; it does not independently refresh cloud state.",
+    "Human approval remains null; deployableManifest false; no deployment or service update performed by reviewer.",
+    "Root must create fresh candidate-bound manifests/rollback packet and obtain the required exact approval before promotion.",
+    "Mixed API/orchestrator release identities cannot qualify acceptance captures.",
+    "Old failed Case14/consumed claims remain unchanged; no replay/reset authority created.",
+    "Full C2/CD/human/original prompt/final recall UI requirements remain open."
+  ],
+  "clarifications": [
+    "Raw Hermes report says served-baseline.json and source qualification both pin journal26; journal authority actually comes from release-qualification.json, source qualification, schema/journal-preserved.json and the independently reread exact live journal bytes. served-baseline.json is configuration/service evidence. This does not change the automated qualification result."
+  ]
+}
