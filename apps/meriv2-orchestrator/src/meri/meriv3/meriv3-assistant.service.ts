@@ -679,6 +679,21 @@ export function resetMeriV3RolloutDiagnosticsForTest(): void {
   rolloutDiagnosticsLogged.clear();
 }
 
+/**
+ * The API appends each attachment's extracted text to the user's turn
+ * ("Attached document …", filing references, unavailable notices, and the
+ * compaction carry-over). Classification and planning must use what the user
+ * typed: a spreadsheet's "Cost ($M)" header made a page-4 capability question a
+ * budget-amount claim with an unrelated limitation (Stage 1 T4). The model
+ * still receives the full turn, attachments included.
+ */
+export function userRequestText(text: string): string {
+  const marker =
+    /\n\n(?:Attached (?:document|image) |Attachment "|Documents uploaded earlier in this chat \(retained after chat summary\):)/;
+  const match = marker.exec(text);
+  return match ? text.slice(0, match.index) : text;
+}
+
 @Injectable()
 export class MeriV3AssistantService {
   private readonly logger = new Logger(MeriV3AssistantService.name);
@@ -3032,11 +3047,13 @@ export class MeriV3AssistantService {
   }
 
   private lastUserText(dto: MeriV3ChatInput): string {
-    return String(
-      [...(dto.messages ?? [])]
-        .reverse()
-        .find((message) => message?.role === 'user' && typeof message.text === 'string')?.text ??
-        '',
+    return userRequestText(
+      String(
+        [...(dto.messages ?? [])]
+          .reverse()
+          .find((message) => message?.role === 'user' && typeof message.text === 'string')
+          ?.text ?? '',
+      ),
     );
   }
 
