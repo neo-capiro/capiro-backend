@@ -10,7 +10,9 @@ import type { MeriProcedureCapability, MeriProcedureManifest, MeriSkill } from '
  * unresolved owner/date handling, and modality preservation. It does not copy
  * scripts or an execution engine. Upstream is MIT (Copyright 2025 Nous
  * Research); the per-slice notice/test disposition is recorded in the P1B
- * evidence report.
+ * evidence report. The pin, slice and license are tracked as H5 in
+ * docs/meri/implementation/01-source-acquisition.md. This is source
+ * provenance only: the Hermes runtime is decommissioned (program plan D8).
  */
 
 export const COMMITMENTS_AUDIT_STATUSES = [
