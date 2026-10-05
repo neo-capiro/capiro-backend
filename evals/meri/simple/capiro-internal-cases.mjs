@@ -4,6 +4,8 @@
 // the second client used for scope checks). State-changing setup only ever uses
 // the test client "ZZ-QA-Meri1651-Test-DoNotUse". `mode` is LIVE, TEST or PENDING
 // (adaptation needs setup not yet seeded).
+import { programTasks } from './program-tasks.mjs';
+
 export const PRIMARY = 'L3 Harris';
 export const SECOND = 'Anduril';
 export const QA_CLIENT = 'ZZ-QA-Meri1651-Test-DoNotUse';
@@ -158,4 +160,5 @@ export const internalCases = [
       { prompt: 'Export that briefing and give me the file.', attach: ['qa-briefing.txt'] },
       { action: 'approve_proposal' },
     ] },
+  ...programTasks,
 ];

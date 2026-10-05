@@ -9,7 +9,7 @@ import { mkdirSync, writeFileSync, appendFileSync, readdirSync, readFileSync } f
 import { randomUUID } from 'node:crypto';
 import { cases as originals } from '../live-v1/cases.mjs';
 import { internalCases, QA_CLIENT } from './capiro-internal-cases.mjs';
-import { withTestAccount, TENANT } from './auth.mjs';
+import { withTestAccount, withSecondReviewer, TENANT } from './auth.mjs';
 import { runChecks } from './checks.mjs';
 import { turnCostMicros } from './cost.mjs';
 
@@ -102,6 +102,18 @@ async function runAction(session, step, clientId, clientName) {
     const item = await findItem(session, clientId, step.match);
     return { action: step.action, id: item.id, result: await session.json(`/api/memory/governance/items/${item.id}/revoke`, 'POST', { reason: step.reason }) };
   }
+  if (step.action === 'approve_own_candidate_as_reviewer') {
+    // Self-approval is blocked, so the synthetic second reviewer (D9) approves
+    // the proposer's own pending client candidate created during this case.
+    const own = await findOwnPendingCandidate(session, clientId, step.match, step.since);
+    const decided = await withSecondReviewer(async (reviewer) => {
+      const me = await reviewer.json('/api/me');
+      const role = me?.membership?.role ?? me?.role ?? null;
+      const result = await reviewer.json(`/api/memory/review/candidates/${own.id}/approve`, 'POST', {});
+      return { reviewer: me?.user?.email ?? null, role, result };
+    });
+    return { action: step.action, id: own.id, ...decided };
+  }
   throw new Error(`UNKNOWN_ACTION_${step.action}`);
 }
 
@@ -126,7 +138,7 @@ async function runCase(c, session, clients) {
     if (turn.newConversation) conversations.push(await open(conversations.length + 1));
     const conversation = conversations.at(-1);
     if (turn.action) {
-      const done = await runAction(session, { ...turn, conversationId: conversation.id }, clientId, c.client);
+      const done = await runAction(session, { ...turn, conversationId: conversation.id, since: caseStartedAt }, clientId, c.client);
       actions.push({ ...done, at: new Date().toISOString() });
       save(adir, `action-${index + 1}.json`, done);
       continue;
