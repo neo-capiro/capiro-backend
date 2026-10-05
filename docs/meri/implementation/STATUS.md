@@ -1,5 +1,7 @@
 # Meri File01 checkpoint — C0/C1 complete, C2 active
 
+**Program plan, October 5, 2026 (controls execution from here):** read [00-Meri-Program-Plan-2026-10-05.md](00-Meri-Program-Plan-2026-10-05.md) first. It supersedes the execution sections of files 01, 02 and 03 and the whole closeout plan; their annexes remain the requirement reference. Decisions recorded with Neo: all four Cowork traits (delegated jobs with deliverables; stop, steer, resume; files and connectors behind permission gates; scheduled and proactive work); OpenAI default with Claude as a second provider; build around V3, not inside it; delete V1 and V2 chat after the kill switch is proven; done means 10 to 15 real tasks with Neo's verdict and safety-only automatic checks. Files 02 and 03 are now committed beside file 01. The checkpoint below is history for Stage 1 context.
+
 **Session handover, October 5, 2026 (~16:30Z):** read [HANDOVER-2026-10-05.md](HANDOVER-2026-10-05.md) first.
 
 - **Served:** API551 (`d7303eadf`), orchestrator139 (`a442cafb3`), Web390.
