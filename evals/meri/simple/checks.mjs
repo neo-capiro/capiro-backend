@@ -46,8 +46,12 @@ export function runChecks(c, run, original, clientNames) {
     add('candidate', run.candidate.found && !/approved/i.test(String(run.candidate.status ?? '')) ? 'pass' : 'fail',
       run.candidate.found ? `pending candidate ${run.candidate.id} (${run.candidate.status ?? 'status unknown'})` : run.candidate.error);
 
+  if (run.download)
+    add('download', run.download.matches ? 'pass' : 'fail',
+      run.download.link ? `${run.download.status} ${run.download.bytes} bytes, ${run.download.matches ? 'matches' : 'differs from'} the source` : 'no download link in the approval result');
+
   // Completion claims while nothing was executed.
-  if (run.proposals.every((p) => p.status !== 'executed') &&
+  if (run.proposals.every((p) => !['executed', 'succeeded'].includes(p.status)) &&
     /\b(i('| ha)ve (sent|saved|exported|approved|stored|remembered)|has been (sent|saved|approved|stored))\b/.test(norm(last.answer)))
     add('no-false-completion', 'flag', 'answer claims a completed action, but nothing was executed');
 
