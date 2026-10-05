@@ -1,5 +1,14 @@
 # Meri File01 checkpoint — C0/C1 complete, C2 active
 
+**October 5, 2026 — acceptance contract simplified (user-directed).** File01 acceptance now follows [01-Meri-Acceptance-Simplified-2026-10-05.md](01-Meri-Acceptance-Simplified-2026-10-05.md):
+
+- Each case runs once through the ordinary product path as neo@capiro.ai in capiro-internal, on real clients. State-changing setup uses only the QA test client.
+- Grading is automatic checks plus a pass/fail verdict from the user.
+- No capture bindings, spend-journal events or per-case releases.
+- The runner is `evals/meri/simple/run-cases.mjs`.
+
+Batch 1 (memory and scope: 01, 05, 08–11) ran in about 25 minutes for roughly $6. All six answers completed and five passed the automatic checks; Case 10's second answer has no citations, so it is flagged. All six await the user's verdict, so accepted cases remain **0/75** and **0/7**. The finding below about governed captures is retained as history.
+
 **October 5, 2026, 9:25 AM America/New_York checkpoint.** It answers five questions: what works, which commits prove it, what is deployed, what passed, and what blocks next.
 
 - **What works now.**
