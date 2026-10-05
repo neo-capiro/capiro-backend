@@ -1551,6 +1551,11 @@ export class MeriToolsService {
           ttlDays: int(
             'Optional: make this EPHEMERAL working memory that expires after N days (1-365) instead of durable memory. Use for task-scoped context ("use once / this week only").',
           ),
+          // Server-set: the chat loop supplies the conversation's client for
+          // client scope; any other value is replaced or refused upstream.
+          clientId: str(
+            'Set by the server from the current conversation. Do not supply it; it is ignored if it differs.',
+          ),
         },
         ['content'],
       ),

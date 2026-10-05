@@ -533,6 +533,25 @@ describe('Meri tool registration', () => {
     );
   });
 
+  it('accepts the server-set conversation client on a memory save and validates it', () => {
+    const service = Object.create(MeriToolsService.prototype) as MeriToolsService;
+    const clientId = '0e1036ae-be13-4197-a357-fb1b3e26a6c6';
+    expect(
+      service.validateSideEffectingInput('save_memory', {
+        content: 'Briefs should include the program office.',
+        scope: 'client',
+        clientId,
+      }),
+    ).toMatchObject({
+      content: 'Briefs should include the program office.',
+      scope: 'client',
+      clientId,
+    });
+    expect(() =>
+      service.validateSideEffectingInput('save_memory', { content: 'x', clientId: 'L3 Harris' }),
+    ).toThrow();
+  });
+
   it('registers and dispatches own pending proposals separately from approved recall', async () => {
     const ctx = { tenantId: 'tenant', userId: 'actor', role: 'standard_user' } as never;
     const listOwnProposals = jest.fn(async () => ({
