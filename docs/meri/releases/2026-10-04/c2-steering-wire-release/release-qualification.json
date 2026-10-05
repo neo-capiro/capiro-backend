@@ -1,0 +1,86 @@
+{
+  "kind": "meri-steering-wire-release-qualification",
+  "version": 1,
+  "status": "IMMUTABLE_IMAGES_TESTS_AND_RETIREMENT_COMPATIBILITY_PASS",
+  "at": "2026-10-05T02:15:47.962169+00:00",
+  "candidates": [
+    {
+      "service": "api",
+      "sourceSha": "a2c5e7b915e8af2ab712303b2b7e5880a0de02c3",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:667c5e3c146c1a55cd3885ff57ea46cd4dd7ccf6a64127d09a9b0e07078059f6",
+      "buildId": "capiro-build-web-dev:5f26d89d-3505-42a4-96ed-4226cbc1068c",
+      "packagedMarkersPassed": 31
+    }
+  ],
+  "schemaChange": false,
+  "providerCalls": 0,
+  "c2Complete": false,
+  "authorizationBasis": "User authorized continuing C2, established CodeBuild backup shipping and doing necessary work to advance real cases. Hermes stopped at user request.",
+  "reviewer": "Root source integration and packaged build verification",
+  "sourceEvidence": "https://github.com/neo-capiro/capirov2/blob/a2c5e7b915e8af2ab712303b2b7e5880a0de02c3/docs/meri/releases/2026-10-04/c2-steering-wire-bound/qualification.json",
+  "validation": {
+    "focusedSourceTestsPassed": 104,
+    "typechecks": [
+      "API"
+    ],
+    "packagedProbesPassed": 31,
+    "retirementCompatibility": "Current API537 verified. Schema, package lock and API runtime setup unchanged. Orchestrator125, Web390 and worker configuration retained."
+  },
+  "artifactPins": [
+    {
+      "path": "api/build-readback.json",
+      "bytes": 5953,
+      "sha256": "9a1f4a8bbb5908f27e98e8284ebbd662350045a38cd178321616f13d619c4109"
+    },
+    {
+      "path": "api/build.log",
+      "bytes": 74013,
+      "sha256": "5a61e067308914e0457798ddb9861afb58ab905343157985011b7efbed51887b"
+    },
+    {
+      "path": "api/buildspec.json",
+      "bytes": 22626,
+      "sha256": "b456441b0b0505f1822978a4f78c9d58275a4e771492fb7d713c4b3b2c19a70e"
+    },
+    {
+      "path": "api/image-manifest.json",
+      "bytes": 8461,
+      "sha256": "667c5e3c146c1a55cd3885ff57ea46cd4dd7ccf6a64127d09a9b0e07078059f6"
+    },
+    {
+      "path": "api/launch-intent.json",
+      "bytes": 812,
+      "sha256": "417f327f9c4c1c124a90ac912e7c85419e70145372269064a7fd0b9223e06635"
+    },
+    {
+      "path": "api/build-start.json",
+      "bytes": 1951,
+      "sha256": "223e1e6354adf36f5b65a5d363e0cfd75341ad1b8f247e0eede3d4cad76a107f"
+    },
+    {
+      "path": "served-baseline.json",
+      "bytes": 3920,
+      "sha256": "04907a3e3abb6a3b4fb300c08dd88203c3c804285af30b9b2b461b6d9987af04"
+    },
+    {
+      "path": "case46-close/proof.json",
+      "bytes": 643,
+      "sha256": "df90662b3136f3a6aab7fe6d94e8b57fc93727004106cd9129735a8cb19255e5"
+    },
+    {
+      "path": "case46-close/close-intent.json",
+      "bytes": 317,
+      "sha256": "2f8eeab4394f4f6306ab14534a34b549f2e7b7d08dc4f2693aa9bca6865fea6d"
+    },
+    {
+      "path": "case46-close/close-result.json",
+      "bytes": 358,
+      "sha256": "2e7fcfa96f95f48f01d4275dcc09f7db45a98e76ebf2db5bae70323f83033315"
+    },
+    {
+      "path": "case46-close/close-ack.json",
+      "bytes": 13786,
+      "sha256": "39a43c46a35be30a38c16db2448f44d5d495b9493b0f4650b0eef94885554847"
+    }
+  ]
+}
