@@ -23,6 +23,12 @@ export const CASE46_RETIRED_SETUP_KEY_2 = 'case46RetiredExecutionSetup2';
 export const CASE46_REMEDIATION_PROOF_3 =
   'db04f809d08a7dd545a2430b506ac0cd7e7259cb427fa343ba2fe628478acbf6';
 export const CASE46_RETIRED_SETUP_KEY_3 = 'case46RetiredExecutionSetup3';
+/** Fourth failure (journal46): run 97c6fd26 reached the model; its export was
+ * refused for a trailing-newline mismatch and its follow-up document read was
+ * refused by the executor, so no proposal was created. Settled cost retained. */
+export const CASE46_REMEDIATION_PROOF_4 =
+  '0969ad8c8873ce43dd842b226e626b7f373c2ddb4917661743691b210be6f4dc';
+export const CASE46_RETIRED_SETUP_KEY_4 = 'case46RetiredExecutionSetup4';
 
 interface Case46RemediationGeneration {
   proof: string;
@@ -92,6 +98,32 @@ const GENERATIONS: readonly Case46RemediationGeneration[] = [
       {
         key: CASE46_RETIRED_SETUP_KEY_2,
         sha256: '848e21925ae24107f860ee5760081a632e7f0a98f19f3eb9abf11a732f671cc5',
+      },
+    ],
+  },
+  {
+    proof: CASE46_REMEDIATION_PROOF_4,
+    retiredKey: CASE46_RETIRED_SETUP_KEY_4,
+    failedRun: '97c6fd26-641a-431f-8798-31f3323feb8a',
+    failedConversation: 'f10c4bed-c807-4713-917e-527a9eba6b58',
+    failedTurn: 'b5ec602a-4575-44a9-8581-c13516e0bc7e',
+    failedClaimSha: 'c4c40d5e5fe17ac5288dfcecf64c662837f82345ff69da08eb82f94be290d1e9',
+    failedBudgetSha: '87ad55df8686c249ca8b5aaa624eaf0c93f3947c93a2c63fc7694be266edfb7f',
+    expiredAt: Date.parse('2026-10-05T11:49:04.112Z'),
+    messages: 2n,
+    knownCostMicros: 3603300,
+    priorRetired: [
+      {
+        key: CASE46_RETIRED_SETUP_KEY,
+        sha256: 'f61c82f5b748684000dc26bef3e4e6131cf059ddf21cc25df39a8e1ecdb25a7e',
+      },
+      {
+        key: CASE46_RETIRED_SETUP_KEY_2,
+        sha256: '848e21925ae24107f860ee5760081a632e7f0a98f19f3eb9abf11a732f671cc5',
+      },
+      {
+        key: CASE46_RETIRED_SETUP_KEY_3,
+        sha256: '90a162713b27f443ec8aa05f5a36123340edfa351450d7d9d4efd0bd93af2914',
       },
     ],
   },
