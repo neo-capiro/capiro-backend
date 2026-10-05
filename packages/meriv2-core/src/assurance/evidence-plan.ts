@@ -446,11 +446,21 @@ export function inferClaimCategories(request: string): ClaimCategory[] {
   // in a roll-call requirement, an extra floor-vote search and an unrelated
   // member-vote limitation on a budget answer (simplified acceptance case 21).
   addIf(categories, /\b(?:vote[sd]?|roll\s*call|yeas?|nays?)\b/i.test(text), 'member_vote');
+  // A role title is a role claim on its own. "Current", "now" or "today" is one
+  // only next to a person or role word: "List every recommendation in the
+  // current 80-page report" is not a roster question, yet it required a dated
+  // roster and appended an unrelated roster limitation (simplified case 45).
+  const explicitRole =
+    /\b(?:chair|ranking\s+member|committee\s+member|chief\s+of\s+staff|director|secretary)\b/i.test(
+      text,
+    );
+  const roleContext =
+    /\b(?:chair(?:man|woman|person|s)?|members?|staff(?:ers?)?|role|position|title|serves?|serving|holds?|sits?\s+on|represents?|senators?|representatives?|congress(?:man|woman|person)|officials?|leads?|heads?|who\s+(?:is|are))\b/i.test(
+      text,
+    );
   addIf(
     categories,
-    /\b(?:current|now|today|chair|ranking\s+member|committee\s+member|chief\s+of\s+staff|director|secretary)\b/i.test(
-      text,
-    ),
+    explicitRole || (/\b(?:current|now|today)\b/i.test(text) && roleContext),
     'current_role',
   );
   addIf(

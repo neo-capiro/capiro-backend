@@ -230,6 +230,26 @@ describe('budget deltas require financial context', () => {
     expect(plan(request).requiredRequirementIds).toContain('member-vote.roll-call');
   });
 
+  it.each([
+    'List every recommendation in the current 80-page report.',
+    'Summarize the current draft.',
+    'What changed today?',
+  ])('"current", "now" or "today" alone is not a role claim: %s', (request) => {
+    expect(inferClaimCategories(request)).not.toContain('current_role');
+    expect(plan(request).requiredRequirementIds).not.toContain('current-role.roster');
+  });
+
+  it.each([
+    'Who is the current chair of HASC?',
+    'Who is the program director?',
+    'Is Senator Reed still on the committee today?',
+    'Who represents the district now?',
+    'Name the chief of staff.',
+  ])('a role or person question still requires a dated roster: %s', (request) => {
+    expect(inferClaimCategories(request)).toContain('current_role');
+    expect(plan(request).requiredRequirementIds).toContain('current-role.roster');
+  });
+
   it('does not add a generic budget delta to a routed chamber-position comparison', () => {
     const result = plan('Compare House vs Senate positions on PE 0603851F.');
     expect(result.requestCategories).not.toContain('budget_delta');
