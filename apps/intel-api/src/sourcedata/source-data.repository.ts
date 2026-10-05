@@ -1590,8 +1590,24 @@ export class SourceDataRepository {
       ),
     );
     const out = new Map<string, string>();
-    for (const r of rows) if (r.name) out.set(r.id, r.name);
+    for (const r of rows) if (r.name) {
+      out.set(r.id.toLowerCase(), r.name);
+      out.set(r.id.toUpperCase(), r.name);
+    }
     return out;
+  }
+
+  /** Same visible-client scope as Portfolio; errors must not widen the feed. */
+  async getPortfolioClientIds(tenantId: string): Promise<string[]> {
+    const rows = await this.prisma.withSystem((tx) =>
+      tx.$queryRawUnsafe<Array<{ id: string }>>(
+        `SELECT id::text AS id FROM clients
+         WHERE tenant_id = $1::uuid AND status IS DISTINCT FROM 'archived'`,
+        tenantId,
+      ),
+    );
+    // Historical intel rows stored UUIDs as text, sometimes upper case.
+    return [...new Set(rows.flatMap((r) => [r.id.toLowerCase(), r.id.toUpperCase()]))];
   }
 
   /** A client's capability rows (tags + sector) for watchlist seed-suggestions. */

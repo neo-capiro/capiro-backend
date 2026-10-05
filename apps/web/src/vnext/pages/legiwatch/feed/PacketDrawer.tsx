@@ -270,11 +270,16 @@ function PacketDrawerContent({
                   <p className="lw-state__body" style={{ maxWidth: 'none' }}>
                     Matched <span className="lw-mono" style={{ fontSize: 11 }}>{it.evidence.match.matchedTags.join(' · ')}</span>
                   </p>
-                ) : (
+                  ) : it.evidence?.match?.topicLabel ? (
+                    <p className="lw-state__body">Watchlist topic: {it.evidence.match.topicLabel}. A detailed match trace was not retained.</p>
+                  ) : (
                   <p className="lw-state__body" style={{ maxWidth: 'none' }}>
-                    The server did not return a match trace for this packet.
+                    {it.evidence?.match?.why || 'Client relevance has not been verified. Review this update before acting on it.'}
                   </p>
                 )}
+                  {!it.evidence?.match?.details?.length && (
+                    <p className="lw-state__body">Priority reflects the stored alert ranking. Its client match has not been verified against a detailed trace.</p>
+                  )}
               </section>
 
               {/* Confidence + Unknowns side by side */}
@@ -348,7 +353,7 @@ function readableStage(stage: string | null | undefined): string {
 
 function readableField(value: string): string {
   const label = value.split('.').at(-1) ?? value;
-  return label.replaceAll('_', ' ');
+  return label.replace(/([a-z])([A-Z])/g, '$1 $2').replaceAll('_', ' ').toLowerCase();
 }
 
 function evidenceStatus(value: string | null | undefined): string {

@@ -33,6 +33,7 @@ function harness() {
     null as never,
     null as never,
     notifications as never,
+    { reconcileFollowedLifecycle: jest.fn().mockResolvedValue(3) } as never,
   );
   return { jobs, notifications, runtime };
 }
@@ -45,6 +46,7 @@ describe('committee notification scheduled job', () => {
       committees: 2,
       inserted: 4,
       sent: 1,
+      lifecycleInserted: 3,
     });
     expect(notifications.syncFollow.mock.calls).toEqual([
       [{ committeeSystemCode: 'hsqa' }],

@@ -34,6 +34,7 @@ import {
   LegiWatchPhase9RuntimeService,
 } from './legiwatch-phase9-runtime.service.js';
 import { LegiWatchCommitteeNotificationService } from '../legiwatch-committee-notification.service.js';
+import { LegiWatchLifecycleNotificationService } from '../legiwatch-lifecycle-notification.service.js';
 import type {
   LegiWatchPhase9EvidenceSource,
   LegiWatchPhase9Mode,
@@ -70,6 +71,7 @@ export class LegiWatchPhase9JobsService {
     private readonly officialTimeObservation: LegiWatchPhase9OfficialTimeObservationService,
     private readonly metrics: LegiWatchPhase9MetricsService,
     private readonly committeeNotifications: LegiWatchCommitteeNotificationService,
+    private readonly lifecycleNotifications: LegiWatchLifecycleNotificationService,
   ) {}
 
   async run(input: {
@@ -195,11 +197,17 @@ export class LegiWatchPhase9JobsService {
           });
         }
         if (input.job === 'notification-drain') {
+          const failures: string[] = [];
+          let lifecycleInserted = 0;
+          try {
+            lifecycleInserted = await this.lifecycleNotifications.reconcileFollowedLifecycle();
+          } catch (error) {
+            failures.push(`Hearing lifecycle: ${error instanceof Error ? error.message : String(error)}`);
+          }
           const codes = await this.prisma.withSystem(
             (tx) => tx.$queryRaw<Array<{ code: string }>>`
             SELECT DISTINCT committee_system_code AS code FROM legiwatch_committee_follow`,
           );
-          const failures: string[] = [];
           let inserted = 0;
           for (const row of codes) {
             try {
@@ -217,7 +225,7 @@ export class LegiWatchPhase9JobsService {
           // runtime heartbeat so the next tick can reconcile missed observations.
           if (failures.length)
             throw new Error(`Committee notification intake failed: ${failures.join('; ')}`);
-          return { committees: codes.length, inserted, ...drained };
+          return { committees: codes.length, inserted, lifecycleInserted, ...drained };
         }
         if (input.job === 'metrics') return this.metrics.emit();
         if (input.job === 'provenance-backfill') {

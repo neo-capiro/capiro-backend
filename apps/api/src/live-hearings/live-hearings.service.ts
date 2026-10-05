@@ -29,6 +29,7 @@ import {
 } from '../hearing-discovery/hearing-committee-identity.js';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
+import { resolveCommittee } from '@capiro/shared';
 import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
@@ -60,6 +61,7 @@ export interface CalendarEvent {
   congress: number | null;
   chamber: string;
   committeeName: string;
+  subcommitteeName?: string | null;
   committeeSystemCode: string | null;
   subcommitteeSystemCode: string | null;
   title: string;
@@ -503,6 +505,7 @@ export class LiveHearingsService {
     const relatedLegacyBodies = relatedLegacyBodiesForOfficial(body, legacyRows);
     const sourceRecords = [body, ...legacyRows];
     const sourceCommitteeIds = [...new Set(sourceRecords.map((row) => row.id))];
+    const referredBillWhere = stateCommitteeReferralWhere(body, sourceRecords);
     const members = mergeStateCommitteeMembers(sourceRecords);
     const directoryProfile = floridaCommitteeDirectoryProfile(sourceRecords);
 
@@ -569,7 +572,7 @@ export class LiveHearingsService {
           take: coverageChambers.length * 8,
         }),
         this.prisma.stateBill.findMany({
-          where: { state: 'FL', currentCommitteeId: { in: sourceCommitteeIds } },
+          where: referredBillWhere,
           orderBy: [{ latestActionDate: 'desc' }, { identifier: 'asc' }],
           take: 25,
           select: {
@@ -601,7 +604,7 @@ export class LiveHearingsService {
           },
         }),
         this.prisma.stateBill.count({
-          where: { state: 'FL', currentCommitteeId: { in: sourceCommitteeIds } },
+          where: referredBillWhere,
         }),
         this.prisma.committeeSiteUpdate.findMany({
           where: { committeeSystemCode: { in: stateCommitteeKeys } },
@@ -811,6 +814,23 @@ export class LiveHearingsService {
     const pageSize = clampPageSize(query.pageSize);
     const page = Math.max(1, query.page ?? 1);
     const where = buildWhere(query);
+    // Legacy imports sometimes have a display name but no committee code.
+    // A code-backed filter must keep those exact same-body variants visible.
+    if (/^[hsj][a-z]{3}\d{2}$/i.test(query.committee ?? '')) {
+      const directory = await this.prisma.congressCommittee.findMany({
+        where: { systemCode: query.committee!.toLowerCase() },
+        select: { name: true, chamber: true },
+      });
+      if (directory.length === 1) {
+        const body = directory[0]!;
+        const name = body.name.replace(/^(House|Senate|Joint)\s+/i, '').replace(/^Committee on\s+(?:the\s+)?/i, '').replace(/\s+Committee$/i, '');
+        const chamber = displayChamberFilter(body.chamber);
+        where.OR = [...(where.OR ?? []), {
+          committeeSystemCode: null, committeeCode: null, chamber,
+          committeeName: { in: [name, `${name} Committee`, `Committee on ${name}`, `Committee on the ${name}`, `${chamber} ${name}`, `${chamber} ${name} Committee`, `${chamber} Committee on ${name}`, `${chamber} Committee on the ${name}`], mode: 'insensitive' },
+        }];
+      }
+    }
     if (query.jurisdiction && query.jurisdiction !== 'US')
       await requireStateCalendar(this.prisma, ctx.tenantId);
     const selection: Prisma.CommitteeHearingWhereInput[] = [];
@@ -1008,7 +1028,7 @@ export class LiveHearingsService {
     const ids = rows.map((r) => String(r.id));
     if (ids.length === 0) return [];
 
-    const [captures, candidates, subscriptions, follows] = await Promise.all([
+    const [captures, candidates, subscriptions, follows, committees] = await Promise.all([
       this.prisma.publicHearingCapture.findMany({ where: { hearingId: { in: ids } } }),
       this.prisma.hearingStreamCandidate.findMany({
         where: { hearingId: { in: ids } },
@@ -1025,6 +1045,9 @@ export class LiveHearingsService {
           select: { hearingId: true },
         }),
       ),
+      this.prisma.congressCommittee.findMany({
+        select: { systemCode: true, name: true, chamber: true, parentSystemCode: true },
+      }),
     ]);
 
     const captureByHearing = new Map(captures.map((c) => [c.hearingId, c]));
@@ -1072,6 +1095,20 @@ export class LiveHearingsService {
       const capture = captureByHearing.get(row.id) ?? null;
       const sub = subByHearing.get(row.id) ?? null;
       const hearingCandidates = candidatesByHearing.get(row.id) ?? [];
+      const identity = storedCommitteeIdentity(row);
+      const committee = (!row.geographicJurisdiction || row.geographicJurisdiction === 'US')
+        ? resolveCommittee({
+            committeeCode: identity.committeeSystemCode,
+            committeeName: row.committeeName ?? '',
+            chamber: row.chamber.toLowerCase(),
+          }, committees)
+        : null;
+      const parentCommittee = committee?.parentSystemCode
+        ? committees.find((candidate) => candidate.systemCode === committee.parentSystemCode)
+        : committee;
+      const subcommittee = identity.subcommitteeSystemCode
+        ? committees.find((candidate) => candidate.systemCode === identity.subcommitteeSystemCode)
+        : committee?.parentSystemCode ? committee : null;
       const playback = selectOfficialPlaybackSource({
         hearingUrl: row.url,
         candidates: hearingCandidates.map((candidate) => ({
@@ -1108,8 +1145,12 @@ export class LiveHearingsService {
         })),
         congress: row.congress,
         chamber: row.chamber,
-        committeeName: row.committeeName,
-        ...storedCommitteeIdentity(row),
+        committeeName: parentCommittee?.name ?? row.committeeName,
+        subcommitteeName: subcommittee?.name ?? null,
+        ...(committee && !identity.committeeSystemCode ? {
+          committeeSystemCode: committee.parentSystemCode ?? committee.systemCode,
+          subcommitteeSystemCode: committee.parentSystemCode ? committee.systemCode : null,
+        } : identity),
         title: row.title,
         eventType: row.type,
         eventStatus: row.eventStatus,
@@ -1165,6 +1206,35 @@ export class LiveHearingsService {
       };
     });
   }
+}
+
+/** A room includes recorded referrals even after a bill leaves committee.
+ * Match complete publisher list entries, never substrings such as Commerce
+ * inside Commerce and Tourism. Chamber and session bound the historical join. */
+export function stateCommitteeReferralWhere(
+  body: { chamber: string | null; legislativeSession: string | null },
+  sources: Array<{ id: string; name: string }>,
+): Prisma.StateBillWhereInput {
+  const names = [...new Set(sources.flatMap((row) => [row.name, row.name.replace(/ Committee$/i, '')]))];
+  const chambers = /^(house|lower)$/i.test(body.chamber ?? '')
+    ? ['H', 'House', 'house', 'lower'] : /^(senate|upper)$/i.test(body.chamber ?? '')
+      ? ['S', 'Senate', 'senate', 'upper'] : [];
+  const history: Prisma.StateBillWhereInput[] = chambers.length && body.legislativeSession ? [{
+    actions: { some: {
+      chamber: { in: chambers },
+      OR: names.flatMap((name) => [
+        { text: { equals: `Referred to ${name}`, mode: 'insensitive' as const } },
+        { text: { startsWith: `Referred to ${name};`, mode: 'insensitive' as const } },
+        { text: { startsWith: 'Referred to ', contains: `; ${name};`, mode: 'insensitive' as const } },
+        { text: { startsWith: 'Referred to ', endsWith: `; ${name}`, mode: 'insensitive' as const } },
+      ]),
+    } },
+  }] : [];
+  return {
+    state: 'FL',
+    ...(body.legislativeSession ? { sessionKey: body.legislativeSession } : {}),
+    OR: [{ currentCommitteeId: { in: sources.map((row) => row.id) } }, ...history],
+  };
 }
 
 function clampPageSize(raw: number | undefined): number {

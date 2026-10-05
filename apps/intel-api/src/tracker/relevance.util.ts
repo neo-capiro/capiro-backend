@@ -84,7 +84,19 @@ function buildTermMatcher(t: string): TermMatcher | null {
     return { test: (_lower, original) => (original === undefined ? false : re.test(original)) };
   }
   const re = new RegExp(`\\b${esc(t.toLowerCase())}\\b`);
-  return { test: (lower) => re.test(lower) };
+  return { test: (lower) => {
+    // "Defense" alone is ambiguous. Remove legal/self-defense senses before
+    // matching it; explicit phrases such as "indigent defense" still work.
+    const text = /^defen[cs]e$/i.test(t)
+      ? lower.replace(/\b(?:self[\s-]+defen[cs]e|indigent defen[cs]e(?: compensation)?|defen[cs]e costs|criminal defen[cs]e|legal defen[cs]e)\b/g, ' ')
+      : lower;
+    return re.test(text);
+  } };
+}
+
+/** Keep issue phrases intact: Homeland Security must not match food security. */
+export function issueAreaHit(lower: string, area: string, original?: string): boolean {
+  return area.split(/\s+(?:and|&)\s+/i).some((phrase) => wholeWordHit(lower, phrase.trim(), original));
 }
 
 export interface RelevanceBill {
@@ -234,11 +246,7 @@ export function explainMatch(bill: RelevanceBill, watchlist: WatchlistLike): Mat
 
   let areaHit: string | null = null;
   for (const area of watchlist.issueAreas ?? []) {
-    const tokens = area
-      .toLowerCase()
-      .split(/[^a-z]+/)
-      .filter((w) => w.length >= MIN_TERM_LEN && w !== 'and');
-    if (tokens.some((tok) => wholeWordHit(hay, tok, hayOrig))) {
+    if (issueAreaHit(hay, area, hayOrig)) {
       matchedTags.push(area);
       areaHit = areaHit ?? area;
     }

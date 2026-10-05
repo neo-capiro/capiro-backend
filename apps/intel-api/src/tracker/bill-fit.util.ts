@@ -7,7 +7,7 @@
  *   fit = clamp01( 0.40·semantic + 0.30·textMatch + 0.15·exactEntity
  *                + 0.10·subjectMatch + 0.05·priorityBoost )
  */
-import { billHaystack, billHaystackOriginal, wholeWordHit, MIN_TERM_LEN, type RelevanceBill } from './relevance.util.js';
+import { billHaystack, billHaystackOriginal, issueAreaHit, type RelevanceBill } from './relevance.util.js';
 import { matchTerms, routeFor, type RoutableTerm } from '../watchlist/term-routing.js';
 
 export const RECOMMENDATION_FLOOR = 0.45;
@@ -208,15 +208,14 @@ export function scoreBillFit(
     }
   }
   for (const area of issueAreas) {
-    const tokens = area.toLowerCase().split(/[^a-z]+/).filter((w) => w.length >= MIN_TERM_LEN && w !== 'and');
-    if (tokens.some((tok) => wholeWordHit(hay, tok, hayOrig))) {
+    if (issueAreaHit(hay, area, hayOrig)) {
       matchedTags.push(area);
       subjectMatch = true;
       if (!topTagLabel) topTagLabel = area;
       reasons.push({ kind: 'issue_code', detail: `In your issue area "${area}".` });
     }
   }
-  if (keywordHit && !topicTextMatch) {
+  if (keywordHit && !topicTextMatch && subjectMatch) {
     textMatchWeight = Math.max(textMatchWeight, 1);
     reasons.push({ kind: 'keyword', detail: "Matches this client's tracked issue areas." });
   }

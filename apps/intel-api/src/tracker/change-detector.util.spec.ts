@@ -10,6 +10,9 @@ import {
 } from './change-detector.util.js';
 
 describe('classifyStateStatusChange (State Legislation Platform S4.3)', () => {
+  it('classifies substitution as a companion development, not enactment', () => {
+    expect(classifyStateStatusChange('superseded')).toMatchObject({ triggerKey: 'companion', severity: 'notable', tone: 'info' });
+  });
   it('maps the 5 terminal statuses to enactedFailed', () => {
     for (const s of ['enacted', 'vetoed', 'failed', 'dead_by_deadline']) {
       const cls = classifyStateStatusChange(s);

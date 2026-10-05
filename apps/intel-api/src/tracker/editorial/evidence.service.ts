@@ -230,15 +230,32 @@ export class Phase8EvidenceService {
       >`SELECT p.*,COALESCE(t.removed=false,false) AS saved,t.version AS tracking_version FROM florida_budget_project p LEFT JOIN intel_legiwatch_evidence_tracking t ON t.tenant_id=${ctx.tenantId} AND t.owner_clerk_id=${ctx.clerkUserId} AND t.kind='budget' AND t.source_id=p.id AND t.folder_id=${scope.folderId} WHERE p.fiscal_year=${fiscalYear} AND (${query}='' OR p.title ILIKE ${'%' + query + '%'} OR p.id ILIKE ${'%' + query + '%'}) AND (${id}='' OR p.id=${id}) ORDER BY p.title,p.id LIMIT 101 OFFSET ${offset}`;
       const documents =
         await tx.$queryRaw`SELECT id,publisher,source_url,content_hash,title,fiscal_year,session_key,chamber,stage,role,offer,publication_date,observed_at,complete,metadata FROM florida_budget_document WHERE fiscal_year=${fiscalYear} AND (${scope.sessionKey}='' OR session_key=${scope.sessionKey}) ORDER BY observed_at DESC,id LIMIT 101`;
+      const projectIds = projects.slice(0, 100).map((project) => String(project.id));
       const amounts = id
         ? await tx.$queryRaw`SELECT id,observation FROM florida_budget_amount WHERE project_id=${id} ORDER BY observed_at,id LIMIT 501`
+        : [];
+      // One bounded lateral lookup per displayed project; preserve each source
+      // observation rather than adding incompatible chamber proposals together.
+      const projectAmounts = projectIds.length
+        ? await tx.$queryRaw<Array<{ project_id: string; id: string; observation: unknown }>>`
+            SELECT a.project_id,a.id,a.observation FROM unnest(${projectIds}::text[]) p(id)
+            CROSS JOIN LATERAL (
+              SELECT a.project_id,a.id,a.observation FROM florida_budget_amount a
+              JOIN florida_budget_document d ON d.id=a.document_id
+              WHERE a.project_id=p.id
+                AND (${scope.sessionKey}='' OR d.session_key=${scope.sessionKey})
+              ORDER BY a.observed_at DESC,a.id DESC LIMIT 4
+            ) a`
         : [];
       const events =
         await tx.$queryRaw`SELECT e.*,d.title,d.source_url,d.stage,d.fiscal_year FROM florida_budget_event e JOIN florida_budget_document d ON d.id=e.document_id WHERE d.fiscal_year=${fiscalYear} AND (${id}='' OR e.project_id=${id}) ORDER BY e.observed_at DESC,e.id LIMIT 101`;
       return {
         scope,
         fiscalYear,
-        projects: projects.slice(0, 100),
+        projects: projects.slice(0, 100).map((project) => ({
+          ...project,
+          recentAmounts: projectAmounts.filter((amount) => amount.project_id === project.id),
+        })),
         nextOffset: projects.length > 100 ? offset + 100 : null,
         documents,
         amounts,

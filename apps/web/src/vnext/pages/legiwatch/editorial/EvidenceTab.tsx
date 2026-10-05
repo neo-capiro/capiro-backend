@@ -21,6 +21,8 @@ import {
 } from './evidence-api.js';
 import './evidence.css';
 const option = (value: string, label = value) => ({ value, label });
+const budgetLabel = (value: unknown) => String(value ?? 'Not stated').replaceAll('_', ' ').replace(/^./, (c) => c.toUpperCase());
+const amountLabel = (r: Row) => `${budgetLabel(r.chamber)} · ${budgetLabel(r.stage)} · ${budgetLabel(r.fund)} · ${budgetLabel(r.basis)} · ${r.state === 'amount' ? money(r.minorUnits) : budgetLabel(r.state)}`;
 const time = (v: unknown) => (v ? new Date(String(v)).toLocaleString() : 'Date not stated');
 export function EvidenceTab({ lane }: { lane: 'news' | 'budget' }) {
   const enabled = useIntelFeatureEnabled(PHASE8_FEATURES[lane]),
@@ -663,6 +665,7 @@ function EvidenceView({ lane }: { lane: 'news' | 'budget' }) {
                     <tr>
                       <th>Project</th>
                       <th>Request identities</th>
+                      <th>Latest source amounts</th>
                       <th>Tracking</th>
                     </tr>
                   </thead>
@@ -685,14 +688,18 @@ function EvidenceView({ lane }: { lane: 'news' | 'budget' }) {
                             <small key={`${x.chamber}:${x.id}`}>
                               {sourceUrl(x.sourceUrl) ? (
                                 <a href={sourceUrl(x.sourceUrl)!} target="_blank" rel="noreferrer">
-                                  {x.chamber} {x.kind} {x.id}
+                                  {budgetLabel(x.chamber)} {budgetLabel(x.kind)} {x.id}
                                 </a>
                               ) : (
-                                `${x.chamber} ${x.kind} ${x.id}`
+                                `${budgetLabel(x.chamber)} ${budgetLabel(x.kind)} ${x.id}`
                               )}{' '}
                               · {x.fiscalYear}
                             </small>
                           ))}
+                        </td>
+                        <td>
+                          {(row.recentAmounts ?? []).map((amount: Row) => <small key={amount.id}>{amountLabel(amount.observation)}</small>)}
+                          {!row.recentAmounts?.length && <small>No published amount recorded</small>}
                         </td>
                         <td>
                           <CapiroButton
@@ -737,6 +744,9 @@ function EvidenceView({ lane }: { lane: 'news' | 'budget' }) {
                     All projects
                   </CapiroButton>
                   <h3>Compare exact source observations</h3>
+                  <ul aria-label="Published budget amounts">
+                    {(budget.data?.amounts ?? []).map((r: Row) => <li key={r.id}>{amountLabel(r.observation)}</li>)}
+                  </ul>
                   <div className="lw-evidence-toolbar">
                     {[
                       ['Left observation', left, setLeft],
@@ -751,7 +761,7 @@ function EvidenceView({ lane }: { lane: 'news' | 'budget' }) {
                           ...(budget.data?.amounts ?? []).map((r: Row) =>
                             option(
                               r.id,
-                              `${r.observation.chamber} · ${r.observation.stage} · ${r.observation.fund} · ${r.observation.basis} · ${r.observation.state === 'amount' ? money(r.observation.minorUnits) : r.observation.state}`,
+                              amountLabel(r.observation),
                             ),
                           ),
                         ]}

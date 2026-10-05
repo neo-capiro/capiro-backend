@@ -537,7 +537,11 @@ export function HearingsTab({ scope }: { scope: string }) {
   const filtered = liveOnly ? rows.filter((event) => isLiveEvent(event)) : rows;
 
   const committees = useMemo(
-    () => Array.from(new Set(rows.map((e) => e.committee?.name ?? '').filter(Boolean))).sort(),
+    () => [...new Map(rows.filter((e) => e.committee?.name).map((e) => [
+      e.committee!.systemCode ?? e.committee!.name,
+      { value: e.committee!.systemCode ?? e.committee!.name,
+        label: `${e.chamber} · ${e.committee!.name}` },
+    ])).values()].sort((a, b) => a.label.localeCompare(b.label)),
     [rows],
   );
 
@@ -742,7 +746,7 @@ export function HearingsTab({ scope }: { scope: string }) {
           onChange={(e) => setCommittee(e.target.value)}
         >
           <option value="">All committees</option>
-          {committees.map((name) => <option key={name} value={name}>{name}</option>)}
+          {committees.map((committee) => <option key={committee.value} value={committee.value}>{committee.label}</option>)}
         </select>
         <ChevronDown size={14} className="lw-select__caret" aria-hidden="true" />
       </div>

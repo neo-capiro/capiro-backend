@@ -394,7 +394,7 @@ export class TrackerBoardService {
   private stateStatusToBoardStage(status: string | null): BillStage {
     if (status === 'enacted' || status === 'veto_overridden') return 'enacted';
     if (status === 'vetoed') return 'passed';
-    if (status === 'failed' || status === 'dead_by_deadline' || status === null) {
+    if (status === 'failed' || status === 'dead_by_deadline' || status === 'superseded' || status === null) {
       return 'introduced';
     }
     // 'floor', 'committee', 'reported', and any rank>=4 positive status.
@@ -525,7 +525,7 @@ export class TrackerBoardService {
     status: string | null | undefined,
   ): boolean {
     if (!isStateBillKey(billId) || !status) return false;
-    return status === 'vetoed' || status === 'failed' || status === 'dead_by_deadline';
+    return status === 'vetoed' || status === 'failed' || status === 'dead_by_deadline' || status === 'superseded';
   }
 
   private displayNumFor(billId: string): string {

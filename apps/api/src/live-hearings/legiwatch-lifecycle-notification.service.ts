@@ -36,6 +36,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { RELEVANCE_BAND_FLOORS } from './legiwatch-wave1-relevance.js';
 
 /** The lifecycle transitions Wave 1 emits. */
 export type LegiWatchLifecycleEvent =
@@ -279,6 +280,68 @@ export class LegiWatchLifecycleNotificationService {
   }
 
   constructor(private readonly prisma: PrismaService) {}
+
+  /** Reconcile durable lifecycle facts into the inbox. Runs in the existing
+   * notification drain; retries claim the same event rather than sending again.
+   * No provider calls or email delivery occur here. */
+  async reconcileFollowedLifecycle(): Promise<number> {
+    return this.prisma.withSystem(async (tx) => {
+      const rows = await tx.$queryRaw<Array<{ id: string }>>`
+        WITH followers AS (
+          SELECT f.*,u.id::text AS account_id,COALESCE(h.canonical_hearing_id,h.id) AS canonical_id
+          FROM hearing_follow f
+          JOIN users u ON (u.id::text=f.user_id OR u.clerk_user_id=f.user_id)
+          JOIN tenant_memberships m ON m.user_id=u.id AND m.tenant_id=f.tenant_id AND m.status::text='active'
+          JOIN committee_hearing h ON h.id=f.hearing_id
+        ), events AS (
+          SELECT f.tenant_id,f.account_id,h.id AS hearing_id,h.committee_system_code,
+            e.event_type,e.title,e.body,e.event_key,e.client_id,e.occurred_at
+          FROM followers f JOIN committee_hearing h ON h.id=f.canonical_id AND h.visibility='public'
+          CROSS JOIN LATERAL (
+            SELECT 'hearing_starting'::text AS event_type,'Starting: '||h.title AS title,
+              'The published start time has arrived.'::text AS body,
+              'hearing_starting:'||h.id||':'||h.starts_at::text AS event_key,NULL::uuid AS client_id,h.starts_at AS occurred_at
+            WHERE f.notify_on_hearing_starting AND h.event_status IN ('scheduled','in_progress')
+              AND h.starts_at BETWEEN now()-interval '15 minutes' AND now()
+              AND h.starts_at>=f.created_at
+            UNION ALL
+            SELECT 'schedule_changed','Schedule changed: '||h.title,
+              'The official schedule or event status changed. Open the hearing for the latest source record.',
+              'calendar_transition:'||t.id::text,NULL::uuid,t.observed_at
+            FROM legislative_calendar_transition t WHERE t.hearing_id=h.id
+              AND f.notify_on_schedule_change AND t.observed_at>=f.created_at AND t.before IS NOT NULL
+              AND t.changed_fields && ARRAY['time','status']::text[]
+            UNION ALL
+            SELECT 'transcript_ready','Transcript ready: '||h.title,
+              'The captured transcript is available.',
+              'transcript_ready:'||h.id||':'||c.id,NULL::uuid,c.actual_end
+            FROM public_hearing_capture c WHERE c.hearing_id=h.id AND c.status='ended'
+              AND f.notify_on_transcript_ready AND c.actual_end>=f.created_at
+              AND EXISTS(SELECT 1 FROM public_hearing_transcript_segment s WHERE s.capture_id=c.id AND s.is_final AND length(trim(s.text))>0)
+            UNION ALL
+            SELECT 'high_priority_match','Client match: '||h.title,r.rationale,
+              'high_priority_match:'||h.id||':'||r.insight_id||':'||r.client_id::text,r.client_id,r.created_at
+            FROM tenant_hearing_relevance r
+            JOIN clients client ON client.id=r.client_id AND client.tenant_id=f.tenant_id AND client.status IS DISTINCT FROM 'archived'
+            WHERE r.tenant_id=f.tenant_id AND r.hearing_id=h.id
+              AND f.notify_on_high_priority_match AND r.client_id=ANY(f.client_ids)
+              AND r.score>=${RELEVANCE_BAND_FLOORS.HIGH} AND r.created_at>=f.created_at
+          ) e
+        ), pending AS (
+          SELECT DISTINCT ON (e.tenant_id,e.account_id,e.event_key) e.* FROM events e
+          WHERE NOT EXISTS (SELECT 1 FROM legiwatch_notification_event n
+            WHERE n.tenant_id=e.tenant_id AND n.user_id=e.account_id AND n.dedup_key=e.event_key)
+          ORDER BY e.tenant_id,e.account_id,e.event_key
+          LIMIT 500
+        )
+        INSERT INTO legiwatch_notification_event
+          (tenant_id,user_id,event_type,hearing_id,committee_system_code,client_id,title,body,deep_link,dedup_key)
+        SELECT tenant_id,account_id,event_type,hearing_id,committee_system_code,client_id,
+          left(title,500),body,'/legiwatch/hearings/'||hearing_id,event_key FROM pending
+        ON CONFLICT (tenant_id,user_id,dedup_key) DO NOTHING RETURNING id::text`;
+      return rows.length;
+    });
+  }
 
   /**
    * Emit one lifecycle event to every eligible follower.

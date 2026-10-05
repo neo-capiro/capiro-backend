@@ -22,7 +22,7 @@
  */
 import { config as dotenvConfig } from 'dotenv';
 import { PrismaClient } from '@prisma/client';
-import { deriveStateBillStatus, classifyStateVoteMotion } from '@capiro/shared';
+import { deriveStateBillStatus, classifyStateVoteMotion, stateBillReplacement } from '@capiro/shared';
 import { runWithSyncRun } from '../src/ingestion/sync-run.helper.js';
 dotenvConfig();
 
@@ -157,6 +157,8 @@ function actionEstablishesStatus(status: string, text: string): boolean {
   const value = text.trim();
   if (!value) return false;
   switch (status) {
+    case 'superseded':
+      return stateBillReplacement(value) !== null;
     case 'enacted':
       return /\b(chaptered|enacted|became law|signed by (?:the )?governor|governor (?:signed|approved))\b/i.test(
         value,

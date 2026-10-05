@@ -243,6 +243,8 @@ export function Bill360Drawer({
                 <PathVotesTab d={d} />
               ) : tab === 'Funding' ? (
                 <FundingTab d={d} />
+              ) : d.bill.isState && (tab === 'Provisions' || tab === 'Impact') ? (
+                <BillSourceRecords key={`${billId}:${tab}`} billId={billId} initialSection="documents" />
               ) : tab === 'Provisions' ? (
                 <PlaceholderTab
                   label="Provisions"

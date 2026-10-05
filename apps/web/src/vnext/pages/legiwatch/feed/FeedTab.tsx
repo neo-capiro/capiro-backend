@@ -37,6 +37,7 @@ import { LwPill, LwSeg, LwButton } from '../lib/primitives.js';
 import { LwStateLoading, LwStateEmpty, LwStateUnavailable, LwStateAllClear } from '../states/SystemStates.js';
 import { PacketDrawer } from './PacketDrawer.js';
 import { feedHearingDetailHref } from '../lib/feed-hearing-link.js';
+import { groupFeedEvents } from './group-feed-events.js';
 
 type Arrange = 'stream' | 'byClient';
 
@@ -90,7 +91,7 @@ function ScopedFeedTab({ scope, clients, suppressAlert }: { scope: string; clien
   // Selected scope-lens client (null on All clients); ID-matched display
   // fallback only — the client-scoped feed omits clientName by design.
   const selectedClient = useMemo(
-    () => clients.find((c) => c.id === scope) ?? null,
+    () => clients.find((c) => c.id.toLowerCase() === scope.toLowerCase()) ?? null,
     [clients, scope],
   );
 
@@ -125,13 +126,12 @@ function ScopedFeedTab({ scope, clients, suppressAlert }: { scope: string; clien
     const map = new Map<string, FeedItem[]>();
     for (const it of filtered) {
       // Same ID-matched rule as the row label.
-      const key = it.clientName
-        ?? (selectedClient && it.clientId === selectedClient.id ? selectedClient.name : it.clientId);
+      const key = clientAttribution(it, clients.find((c) => c.id.toLowerCase() === it.clientId.toLowerCase()));
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(it);
     }
     return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-  }, [filtered, arrange, selectedClient]);
+  }, [filtered, arrange, clients]);
 
   const setAlert = (id: string | null) => {
     setSearchParams(
@@ -242,6 +242,8 @@ function ScopedFeedTab({ scope, clients, suppressAlert }: { scope: string; clien
         <div className="lw-prow__main">
           <div className="lw-prow__meta">
             <LwPill tone={tone} size="22">{band}</LwPill>
+            {it.severity === 'critical' && !it.evidence?.match?.details?.length && <span>Client match needs review</span>}
+            {it.evidence?.bill?.displayNum && <span>{it.evidence.bill.displayNum}{it.evidence.provenance?.jurisdiction && it.evidence.provenance.jurisdiction !== 'US' ? ` · ${it.evidence.provenance.jurisdiction}` : ''}{it.evidence.bill.stage ? ` · ${it.evidence.bill.stage}` : ''}</span>}
             <span className="lw-prow__src">{ageLabel(it.createdAt)}</span>
           </div>
           <button
@@ -371,7 +373,15 @@ function ScopedFeedTab({ scope, clients, suppressAlert }: { scope: string; clien
               </div>
             ))
           ) : (
-            filtered.map(row)
+            groupFeedEvents(filtered).map((list) => list.length === 1 ? row(list[0]!) : (
+              <div key={list[0]!.id} className="lw-feed-list__group">
+                {row(list[0]!)}
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', padding: 12 }} aria-label="Affected clients">
+                  {list.map((it) => <LwButton key={it.id} size="36" onClick={() => openDrawer(it)}>{clientAttribution(it, clients.find((c) => c.id.toLowerCase() === it.clientId.toLowerCase()))}</LwButton>)}
+                </div>
+                <details><summary>{list.length - 1} more client alerts for this update</summary>{list.slice(1).map(row)}</details>
+              </div>
+            ))
           )}
           {feed.hasNextPage ? (
             <div style={{ padding: 14, display: 'flex', justifyContent: 'center' }}>
@@ -504,7 +514,7 @@ function ScopedFeedTab({ scope, clients, suppressAlert }: { scope: string; clien
 
 
 function observedChange(item: FeedItem): string {
-  if (item.evidence?.bill?.actionText) return item.evidence.bill.actionText;
+  if (item.evidence?.bill?.actionText) return item.evidence.bill.actionText.replace(/\s*\(fit\s+[\d.]+\)/gi, '');
   switch (item.kind) {
     case 'bill_text_changed': return 'Bill text changed';
     case 'bill_new_match': return 'New bill match';

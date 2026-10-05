@@ -945,7 +945,7 @@ function PublishedRecords({
             )}
             {referred.total > referred.rows.length ? (
               <p className="lwcr-provenance">
-                Showing {referred.rows.length} of {referred.total} currently referred bills.
+                Showing {referred.rows.length} of {referred.total} bills with current or recorded referrals.
               </p>
             ) : null}
           </>

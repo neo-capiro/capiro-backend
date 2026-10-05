@@ -23,6 +23,17 @@ function buildService() {
 }
 
 describe('Bill 360 truth layer — H.R. 8800 failed governing rule', () => {
+  it('does not let an earlier failed rule override subsequent passage', async () => {
+    const src = makeHr8800SourceData();
+    const previous = await src.getBillDossierIdentity(HR_8800_ID);
+    const service = new BillDossierService({} as never, {
+      ...src,
+      getBillDossierIdentity: async () => ({ ...previous, status: 'passed_chamber', latestActionText: 'Received in the Senate.' }),
+    } as never, {} as never);
+    const d = await service.getGlobalDossier(HR_8800_ID);
+    expect(d.overview.officialNextStep?.text).not.toMatch(/stalled|rule failed/i);
+    expect(d.bill.stage).toBe('passed_chamber');
+  });
   it('reports a canonical stalled / rule_failed status (never fabricated)', async () => {
     const d = await buildService().getGlobalDossier(HR_8800_ID);
     expect(d.bill.stage).toBe('rule_failed');

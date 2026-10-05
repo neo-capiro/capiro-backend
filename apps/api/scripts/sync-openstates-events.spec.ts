@@ -13,9 +13,28 @@ import {
   qualifiedCommitteeChamber,
   repairedOpenstatesSourceMetadata,
   shouldProbeFloridaCrossProvider,
+  sessionQualifiedCommitteeRows,
   type OpenstatesEvent,
 } from './sync-openstates-events.js';
 import { floridaOpenstatesEventLockIdentity } from '../src/hearing-discovery/florida-openstates-concurrency.js';
+
+describe('Florida committee join QA regressions', () => {
+  it('inherits session through a verified alias for a sessionless OpenStates roster', () => {
+    const legacy = { id: 'FL-lower-commerce', officialSourceKey: null, legislativeSession: null,
+      sourceEvidence: { openstates: { committeeId: 'ocd-organization/commerce' } } };
+    const official = { id: 'official-commerce', officialSourceKey: 'FL:2026:fl:house:committee:3285', legislativeSession: '2026',
+      sourceEvidence: { directory: { aliasIds: [legacy.id], active: true } } };
+    expect(sessionQualifiedCommitteeRows([legacy, official])).toContainEqual({ ...legacy, legislativeSession: '2026' });
+    expect(sessionQualifiedCommitteeRows([legacy])).toEqual([]);
+    expect(sessionQualifiedCommitteeRows([legacy, { ...official, sourceEvidence: { directory: { aliasIds: [], active: true } } }]))
+      .not.toContainEqual({ ...legacy, legislativeSession: '2026' });
+  });
+  it('uses exact House publisher committee IDs and rejects conflicting identities', () => {
+    const event = { sources: [{ url: 'https://www.flhouse.gov/Sections/Committees/committeesdetail.aspx?CommitteeId=3285' }] } as OpenstatesEvent;
+    expect(floridaOfficialCommitteeEvidenceFromEvent(event)).toEqual({ key: 'fl:house:committee:3285', ambiguous: false });
+    expect(floridaOfficialCommitteeEvidenceFromEvent({ ...event, links: [{ url: 'https://flhouse.gov/Sections/Committees/committeesdetail.aspx?CommitteeId=3286' }] }).ambiguous).toBe(true);
+  });
+});
 
 const EVENT: OpenstatesEvent = {
   id: 'ocd-event/709f2430-b337-4039-a48b-15618e3c2576',

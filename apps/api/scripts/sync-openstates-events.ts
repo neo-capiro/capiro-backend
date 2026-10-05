@@ -232,6 +232,12 @@ export function floridaOfficialCommitteeEvidenceFromEvent(event: OpenstatesEvent
         const match = /\/Committees\/Show\/([^/]+)(?:\/|$)/i.exec(url.pathname);
         if (match?.[1]) identities.add(`fl:senate:${decodeURIComponent(match[1]).toUpperCase()}`);
       }
+      if (host === 'flhouse.gov' || host === 'www.flhouse.gov' || host === 'myfloridahouse.gov' || host === 'www.myfloridahouse.gov') {
+        const committeeId = [...url.searchParams].find(([key]) => key.toLowerCase() === 'committeeid')?.[1];
+        if (/\/Sections\/Committees\//i.test(url.pathname) && committeeId && /^\d+$/.test(committeeId)) {
+          identities.add(`fl:house:committee:${committeeId}`);
+        }
+      }
     } catch {
       // Malformed provider links prove nothing and cannot become identity.
     }
@@ -576,6 +582,20 @@ function directoryAliasIds(sourceEvidence: unknown): string[] {
     : [];
 }
 
+/** Legacy OpenStates directory rows are intentionally sessionless. Only a
+ * verified official alias supplies their session; never infer it from a name. */
+export function sessionQualifiedCommitteeRows<T extends {
+  id: string; officialSourceKey: string | null; legislativeSession: string | null; sourceEvidence: unknown;
+}>(rows: T[]): T[] {
+  return rows.flatMap((row) => {
+    if (row.legislativeSession) return [row];
+    const sessions = new Set(rows.filter((official) => official.officialSourceKey && official.legislativeSession &&
+      record(record(official.sourceEvidence)?.directory)?.active !== false &&
+      directoryAliasIds(official.sourceEvidence).includes(row.id)).map((official) => official.legislativeSession!));
+    return [...sessions].map((session) => ({ ...row, legislativeSession: session }));
+  });
+}
+
 function officialBodySourceKey(officialSourceKey: string | null, session: string | null) {
   if (!officialSourceKey || !session) return null;
   const prefix = `FL:${session}:`;
@@ -815,7 +835,7 @@ export async function syncFloridaOpenstatesEvents(
   }
   const committees = new Map<string, CommitteeCrosswalk>();
   const ambiguousCommitteeIdentities = new Set<string>();
-  for (const row of committeeRows) {
+  for (const row of sessionQualifiedCommitteeRows(committeeRows)) {
     const id = openstatesCommitteeIdentity(row.sourceEvidence);
     if (!id || !row.legislativeSession) continue;
     const identity = sessionIdentity(row.legislativeSession, id);
