@@ -1,5 +1,27 @@
 # File01 implementation handover — C0/C1 complete, C2 active
 
+## Stage 1 handover (program plan §4.7), October 5, 2026
+
+**Label: `01_READY_FOR_02`.** Every §4.7 exit condition holds. The one remaining step is named: merge the §4.3 PRs on or after 2026-10-12, then roll orchestrator and API and confirm one live turn each.
+
+| Exit condition (§4.7) | State |
+| --- | --- |
+| V3 is the only runtime that can serve a user; kill-switch drill recorded | Holds. #2003 live since API 559; T15 drill passed 2026-10-05 about 20:40 UTC (refusal persisted, alarm fired, restored). |
+| §4.2 merged | Holds (#2004; alarms and WAF codified in #2021). |
+| §4.4 merged and deployed | Holds (#2022, live in API 561 and orchestrator 143 onward). |
+| §4.3 merged and deployed, or PRs open with green gates and the remaining step named | Holds. Orchestrator [#2032](https://github.com/neo-capiro/capirov2/pull/2032) and API [#2035](https://github.com/neo-capiro/capirov2/pull/2035) are open; typechecks pass and the focused specs pass apart from suites that fail identically on main. Remaining step: merge on or after 2026-10-12 if there were zero `meri_unavailable` refusals outside the drill, then roll orchestrator and API and confirm one live turn each. |
+| §4.8 steps 1 to 3 | Holds. Hermes AWS residue removed; the OpenRouter secret was kept by Neo's choice. |
+| Stage 1 tasks have verdicts with no open fail on walls, approvals or truthfulness | Holds. Neo passed T1, T2, T3, T4 and T15 on the [review page](https://claude.ai/artifact/TSUzMTxNxPh71L8duExZQU). |
+
+**Served at handover:** orchestrator 147 (`24325c5ee`), API 561 (`94c84fc03`).
+
+**What changed for users:** a closed tenant or a global `MERIV3_ENABLED=false` now answers "Meri is unavailable" instead of silently running an older runtime; budget and bill answers can cite the Capiro record (and congress.gov for bills); budget "how did" questions, "current report" requests, "budget brief" questions, a "strategy deck" and attachment text no longer trigger unrelated evidence limitations; a request that names a slide or page is answered as a targeted read instead of a partial whole-file review; Word exports report their download; the provider's Retry-After is honored; PowerPoint and spreadsheet uploads work; fixture tenants run the ordinary path.
+
+**Accepted as removed:** the capture and receipt harness and `evals/meri/live-v1/` (cases moved to `evals/meri/simple/original-cases.mjs`); the MeriV2 release scripts; the Hermes CLI QA tooling.
+
+**Carried into Stage 2:** the budget-data normalization defect (PE rows storing a $0 request against non-zero source values, e.g. PE 0603203F); the per-turn input-token tail (90th percentile 570,000; ceiling deferred, see [s1-turn-cost-measurement.md](s1-turn-cost-measurement.md)); `verify-migrations.ts --live` no longer runs against the current diag task definition.
+
+
 **Current checkpoint, October 4, 2026, 6:38 PM America/New_York:** C0/C1 retain their recorded boundaries. C2 remains open, File01 is `01_BLOCKED`, and full acceptance remains **0/75 original cases and 0/7 CD cases**. No human rubric ratings were inferred.
 
 **Served:** API533 and orchestrator125 run source `4b228386df0ddd2f34aea8f4bc1fcc1d1a8f985e`, including the prior Case12 planner repair. Immutable CodeBuild images passed 28 API and 16 orchestrator packaged probes; 147 focused source tests and API/core/orchestrator typechecks passed; the orchestrator build passed 1,572 tests with two existing gated tests pending. Counts overlap. Exact task/image/source/configuration, actual ALB health, prior-task retirement, and ordinary Pat/T1 identity plus approved Aster memory list (512 rows)/markdown reads passed. Web390, nightly task136 and the disabled broad projection worker are unchanged. Rollbacks are API532/orchestrator124. [Release and live evidence](../releases/2026-10-04/c2-sol-release/README.md).
