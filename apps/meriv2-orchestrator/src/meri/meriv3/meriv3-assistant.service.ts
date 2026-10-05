@@ -27,6 +27,7 @@ import {
 import {
   AUTO_CORRECTION_CAPABILITY,
   assertMeriCase46ToolInput,
+  describeMeriCase46ExportMismatch,
   bindCitationToLedgerEntries,
   COVERAGE_RETRIEVAL_CAPABILITY,
   PASSAGE_SELECTION_CAPABILITY,
@@ -3337,6 +3338,7 @@ export class MeriV3AssistantService {
         if (!exactExport) {
           // No proposal is created; the model may read the source and retry
           // within the same bounded turn instead of the turn failing outright.
+          const reasons = describeMeriCase46ExportMismatch(artifactCapture, augmented.input);
           args.steps.push({
             tool: call.name,
             label: toolLabel(call.name),
@@ -3350,11 +3352,8 @@ export class MeriV3AssistantService {
             status: 'blocked',
             detail: GOVERNED_EXPORT_MISMATCH_DETAIL,
           });
-          executions.push({
-            call,
-            result: { blocked: true, error: GOVERNED_EXPORT_MISMATCH_DETAIL },
-            serialized: JSON.stringify({ blocked: true, error: GOVERNED_EXPORT_MISMATCH_DETAIL }),
-          });
+          const blocked = { blocked: true, error: GOVERNED_EXPORT_MISMATCH_DETAIL, mismatches: reasons };
+          executions.push({ call, result: blocked, serialized: JSON.stringify(blocked) });
           logDispatch(call, 'blocked_inexact_export', false);
           continue;
         }

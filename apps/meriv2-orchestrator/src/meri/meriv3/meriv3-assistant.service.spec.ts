@@ -2378,6 +2378,10 @@ describe('MeriV3AssistantService', () => {
     expect(exposed).not.toContain('send_email');
     expect(invoke).toHaveBeenCalledTimes(1);
     expect(invoke.mock.calls[0]?.[0]).toBe('read_client_documents');
+    // The blocked result tells the model which field differed from the source.
+    expect(JSON.stringify(complete.mock.calls[1]?.[0])).toContain(
+      'copy the text returned by the document read exactly',
+    );
     expect(createProposal).toHaveBeenCalledTimes(1);
     expect(createProposal.mock.calls[0]?.[0]).toEqual({
       tool: 'create_word',
