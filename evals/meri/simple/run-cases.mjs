@@ -183,7 +183,11 @@ async function runCase(c, session, clients) {
   save(adir, 'proposals.json', allProposals);
   let download = null;
   if (c.expectDownloadText || c.expectDownloadKind) {
-    const text = JSON.stringify(actions.map((a) => a.result));
+    // The link comes from an approval result or, for a direct export, from the
+    // artifact frame of the last turn's stream.
+    const lastPrompt = c.turns.reduce((last, t, i) => (t.action ? last : i), -1);
+    const lastStream = lastPrompt >= 0 ? readFileSync(`${adir}/stream-${lastPrompt + 1}.txt`, 'utf8') : '';
+    const text = JSON.stringify(actions.map((a) => a.result)) + lastStream;
     const link = text.match(/\/api\/clio\/artifacts\/[A-Za-z0-9-]+\/download/)?.[0];
     if (link) {
       const got = await session.download(link);
