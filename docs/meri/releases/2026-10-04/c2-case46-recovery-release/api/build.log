@@ -1,0 +1,753 @@
+[Container] 2026/10/05 02:31:45.183930 Running on CodeBuild On-demand
+[Container] 2026/10/05 02:31:45.183946 Waiting for agent ping
+[Container] 2026/10/05 02:31:45.333675 Waiting for DOWNLOAD_SOURCE
+[Container] 2026/10/05 02:31:56.381528 Phase is DOWNLOAD_SOURCE
+[Container] 2026/10/05 02:31:56.448656 CODEBUILD_SRC_DIR=/codebuild/output/src3556332374/src/github.com/neo-capiro/capirov2
+[Container] 2026/10/05 02:31:56.449258 YAML location is /codebuild/readonly/buildspec.yml
+[Container] 2026/10/05 02:31:56.450146 Selecting shell bash as specified in buildspec.
+[Container] 2026/10/05 02:31:56.452154 Setting HTTP client timeout to higher timeout for Github and GitHub Enterprise sources
+[Container] 2026/10/05 02:31:56.452242 Processing environment variables
+[Container] 2026/10/05 02:31:56.688999 No runtime version selected in buildspec.
+[Container] 2026/10/05 02:31:56.713141 Moving to directory /codebuild/output/src3556332374/src/github.com/neo-capiro/capirov2
+[Container] 2026/10/05 02:31:56.713169 Cache is not defined in the buildspec
+[Container] 2026/10/05 02:31:56.753638 Skip cache due to: no paths specified to be cached
+[Container] 2026/10/05 02:31:56.753864 Registering with agent
+[Container] 2026/10/05 02:31:56.791054 Phases found in YAML: 3
+[Container] 2026/10/05 02:31:56.791075  PRE_BUILD: 1 commands
+[Container] 2026/10/05 02:31:56.791079  BUILD: 1 commands
+[Container] 2026/10/05 02:31:56.791081  POST_BUILD: 1 commands
+[Container] 2026/10/05 02:31:56.791288 Phase complete: DOWNLOAD_SOURCE State: SUCCEEDED
+[Container] 2026/10/05 02:31:56.791307 Phase context status code:  Message: 
+[Container] 2026/10/05 02:31:56.907548 Entering phase INSTALL
+[Container] 2026/10/05 02:31:56.944112 Phase complete: INSTALL State: SUCCEEDED
+[Container] 2026/10/05 02:31:56.944130 Phase context status code:  Message: 
+[Container] 2026/10/05 02:31:56.986588 Entering phase PRE_BUILD
+[Container] 2026/10/05 02:31:57.025063 Running command set -euo pipefail
+printf '%s' 'H4sIAAAAAAACCpVSbU8aQRD+fr9iQkzUD3tQUKwkxFC4KIkpDaBtQqiZ3g3H1r3b7e4celr627t3rVQb+6Hf9mWel3lmHDEIKjQYaWiFUgU9aOw9Rp8+RMN5NLqZXQx6Z47RsvhSSJVAVjgGg84BrwnoHmOGjGxKichQ5uAB20awWHiW5yQN6P+Az4uWOEWxWj4etbZ7sFwGTJ7N6w0no+jd1fjS106upsPo5jqazsaT9z2x9ci/uV6BTaPZ5PI6+j/8QSoZLG2EQesILqLB6PCf5eLhCeHj4MKBEEbbmFTVtRBFzhbjWx/DSipy/Vwf/tEpcswIRFazI9p43T3afeKd85QOUmIRo1JkhUwoZ8ml5/1WkC1hEMfaK/i7LtgUDEz3XLOddk/etk7ax+1Op/uCkmILSjoWMsOUKruWUqlzKJwg9O9v6iejnWRtS1FbjNFIq5sJbZr+5At8M0wWGNNZ3XV/Pjg/j0Y7Yw1Fecrrg1pknLjFWX2aY9rv77/co+3+0jvedfDV6bzuoBWYktc674CLrTTsmhtUMkEm4RdL/to7IZ1WyN5/aMrArbF93HVFBmiMq6w2R9qHb6vsweQmE8rfwxIzFTyFUeWrdCpzUa3vnbbJa5l8DwCSmgvq4mq0jmydzuDjrJr6b7RwnPj/5wMIk1sbeq1wxxdihg869x7CWGdB8BPbhQyrcAMAAA==' | base64 -d | gzip -dc | bash
+PASS: 9 SHA-only build workflows, protected bypasses retired, CI qualification wired
+911845ea4ad62fe8fadaeab26a1ff9f82e8e7c641c697303793bed4d31d71515  apps/api/Dockerfile
+c90a15fc2ca3c9405062444adfdb346293d27f51a45488476db891f4c3204586  pnpm-lock.yaml
+
+WARNING! Your credentials are stored unencrypted in '/root/.docker/config.json'.
+Configure a credential helper to remove this warning. See
+https://docs.docker.com/go/credential-store/
+
+Login Succeeded
+
+[Container] 2026/10/05 02:32:12.945029 Phase complete: PRE_BUILD State: SUCCEEDED
+[Container] 2026/10/05 02:32:12.945045 Phase context status code:  Message: 
+[Container] 2026/10/05 02:32:12.999967 Entering phase BUILD
+[Container] 2026/10/05 02:32:13.000950 Running command set -euo pipefail
+printf '%s' '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' | base64 -d | gzip -dc | bash
+#0 building with "default" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 12.98kB done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for public.ecr.aws/docker/library/node:22.23.3-bookworm-slim
+#2 DONE 0.3s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 135B done
+#3 DONE 0.0s
+
+#4 [base 1/3] FROM public.ecr.aws/docker/library/node:22.23.3-bookworm-slim@sha256:43ac6c60b8f89723f746e8a92ce91abd5017e627ce1ddfe4238355d3a30b772c
+#4 resolve public.ecr.aws/docker/library/node:22.23.3-bookworm-slim@sha256:43ac6c60b8f89723f746e8a92ce91abd5017e627ce1ddfe4238355d3a30b772c done
+#4 sha256:78175922b1739c305f3832562c569a07cbc0005b39db6b97a4a3ac328b9fae94 6.79kB / 6.79kB done
+#4 sha256:333125b5cee9fb6718bdcb523fc93b4adc71b7c37ada6146a20c193430e549b9 13.63MB / 28.12MB 0.1s
+#4 sha256:443f150fdaaf3900597eb42593ffd9da89872a7ddf30e2bf9d29116973a8e2f7 3.31kB / 3.31kB 0.0s done
+#4 sha256:7f33852fe56d4b3372c04540761702d58a08c946f7b28022b6b11abffba903c7 12.58MB / 49.96MB 0.1s
+#4 sha256:7a718d416e6a5f2e01d91a59faca4813e603709ecfb0b64ca0df2319ce19bc37 1.71MB / 1.71MB 0.1s done
+#4 sha256:43ac6c60b8f89723f746e8a92ce91abd5017e627ce1ddfe4238355d3a30b772c 5.22kB / 5.22kB done
+#4 sha256:a0ddbc73510e98f5e824fd64266ffe1c2c343ba9cf260d95ca2985ad632a3f3e 1.93kB / 1.93kB done
+#4 sha256:333125b5cee9fb6718bdcb523fc93b4adc71b7c37ada6146a20c193430e549b9 28.12MB / 28.12MB 0.2s done
+#4 sha256:7f33852fe56d4b3372c04540761702d58a08c946f7b28022b6b11abffba903c7 44.04MB / 49.96MB 0.2s
+#4 sha256:e036486ceb4f744447e52d2b06825d6dd848d2e26affe04ef5a1c5b17a7e2626 449B / 449B 0.1s done
+#4 sha256:7f33852fe56d4b3372c04540761702d58a08c946f7b28022b6b11abffba903c7 49.96MB / 49.96MB 0.3s
+#4 extracting sha256:333125b5cee9fb6718bdcb523fc93b4adc71b7c37ada6146a20c193430e549b9 0.1s
+#4 sha256:7f33852fe56d4b3372c04540761702d58a08c946f7b28022b6b11abffba903c7 49.96MB / 49.96MB 0.3s done
+#4 ...
+
+#5 [internal] load build context
+#5 transferring context: 112.18MB 0.6s done
+#5 DONE 0.6s
+
+#4 [base 1/3] FROM public.ecr.aws/docker/library/node:22.23.3-bookworm-slim@sha256:43ac6c60b8f89723f746e8a92ce91abd5017e627ce1ddfe4238355d3a30b772c
+#4 extracting sha256:333125b5cee9fb6718bdcb523fc93b4adc71b7c37ada6146a20c193430e549b9 0.8s done
+#4 extracting sha256:443f150fdaaf3900597eb42593ffd9da89872a7ddf30e2bf9d29116973a8e2f7 done
+#4 extracting sha256:7f33852fe56d4b3372c04540761702d58a08c946f7b28022b6b11abffba903c7
+#4 extracting sha256:7f33852fe56d4b3372c04540761702d58a08c946f7b28022b6b11abffba903c7 0.7s done
+#4 extracting sha256:7a718d416e6a5f2e01d91a59faca4813e603709ecfb0b64ca0df2319ce19bc37
+#4 extracting sha256:7a718d416e6a5f2e01d91a59faca4813e603709ecfb0b64ca0df2319ce19bc37 0.1s done
+#4 extracting sha256:e036486ceb4f744447e52d2b06825d6dd848d2e26affe04ef5a1c5b17a7e2626
+#4 extracting sha256:e036486ceb4f744447e52d2b06825d6dd848d2e26affe04ef5a1c5b17a7e2626 done
+#4 DONE 2.2s
+
+#6 [runtime  2/35] RUN groupadd --system --gid 1001 capiro  && useradd --system --uid 1001 --gid capiro --shell /usr/sbin/nologin capiro  && apt-get update  && apt-get install -y --no-install-recommends wget ca-certificates dumb-init openssl  && rm -rf /var/lib/apt/lists/*
+#6 0.676 useradd warning: capiro's uid 1001 is greater than SYS_UID_MAX 999
+#6 0.698 Get:1 http://deb.debian.org/debian bookworm InRelease [151 kB]
+#6 0.704 Get:2 http://deb.debian.org/debian bookworm-updates InRelease [55.4 kB]
+#6 0.704 Get:3 http://deb.debian.org/debian-security bookworm-security InRelease [34.8 kB]
+#6 0.749 Get:4 http://deb.debian.org/debian bookworm/main arm64 Packages [8689 kB]
+#6 0.790 Get:5 http://deb.debian.org/debian bookworm-updates/main arm64 Packages [6936 B]
+#6 0.833 Get:6 http://deb.debian.org/debian-security bookworm-security/main arm64 Packages [346 kB]
+#6 1.584 Fetched 9284 kB in 1s (10.4 MB/s)
+#6 1.584 Reading package lists...
+#6 2.083 Reading package lists...
+#6 ...
+
+#7 [base 2/3] RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
+#7 0.782 Preparing pnpm@9.12.0 for immediate activation...
+#7 DONE 2.5s
+
+#8 [base 3/3] WORKDIR /workspace
+#8 DONE 0.1s
+
+#6 [runtime  2/35] RUN groupadd --system --gid 1001 capiro  && useradd --system --uid 1001 --gid capiro --shell /usr/sbin/nologin capiro  && apt-get update  && apt-get install -y --no-install-recommends wget ca-certificates dumb-init openssl  && rm -rf /var/lib/apt/lists/*
+#6 2.083 Reading package lists...
+#6 2.576 Building dependency tree...
+#6 2.718 Reading state information...
+#6 2.875 The following additional packages will be installed:
+#6 2.876   libpsl5 libssl3
+#6 2.877 Recommended packages:
+#6 2.877   publicsuffix
+#6 2.911 The following NEW packages will be installed:
+#6 2.911   ca-certificates dumb-init libpsl5 libssl3 openssl wget
+#6 2.932 0 upgraded, 6 newly installed, 0 to remove and 2 not upgraded.
+#6 2.932 Need to get 4394 kB of archives.
+#6 2.932 After this operation, 12.7 MB of additional disk space will be used.
+#6 2.932 Get:1 http://deb.debian.org/debian-security bookworm-security/main arm64 libssl3 arm64 3.0.22-1~deb12u1 [1828 kB]
+#6 2.948 Get:2 http://deb.debian.org/debian-security bookworm-security/main arm64 openssl arm64 3.0.22-1~deb12u1 [1410 kB]
+#6 2.952 Get:3 http://deb.debian.org/debian-security bookworm-security/main arm64 ca-certificates all 20250419~deb12u1 [162 kB]
+#6 2.952 Get:4 http://deb.debian.org/debian bookworm/main arm64 libpsl5 arm64 0.21.2-1 [58.6 kB]
+#6 2.952 Get:5 http://deb.debian.org/debian bookworm/main arm64 wget arm64 1.21.3-1+deb12u1 [922 kB]
+#6 2.957 Get:6 http://deb.debian.org/debian bookworm/main arm64 dumb-init arm64 1.2.5-2 [13.9 kB]
+#6 3.045 debconf: delaying package configuration, since apt-utils is not installed
+#6 3.070 Fetched 4394 kB in 0s (108 MB/s)
+#6 3.101 Selecting previously unselected package libssl3:arm64.
+#6 3.101 (Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 6090 files and directories currently installed.)
+#6 3.103 Preparing to unpack .../0-libssl3_3.0.22-1~deb12u1_arm64.deb ...
+#6 3.112 Unpacking libssl3:arm64 (3.0.22-1~deb12u1) ...
+#6 3.229 Selecting previously unselected package openssl.
+#6 3.230 Preparing to unpack .../1-openssl_3.0.22-1~deb12u1_arm64.deb ...
+#6 3.234 Unpacking openssl (3.0.22-1~deb12u1) ...
+#6 3.334 Selecting previously unselected package ca-certificates.
+#6 3.335 Preparing to unpack .../2-ca-certificates_20250419~deb12u1_all.deb ...
+#6 3.339 Unpacking ca-certificates (20250419~deb12u1) ...
+#6 3.384 Selecting previously unselected package libpsl5:arm64.
+#6 3.385 Preparing to unpack .../3-libpsl5_0.21.2-1_arm64.deb ...
+#6 3.389 Unpacking libpsl5:arm64 (0.21.2-1) ...
+#6 3.414 Selecting previously unselected package wget.
+#6 3.415 Preparing to unpack .../4-wget_1.21.3-1+deb12u1_arm64.deb ...
+#6 3.418 Unpacking wget (1.21.3-1+deb12u1) ...
+#6 3.483 Selecting previously unselected package dumb-init.
+#6 3.484 Preparing to unpack .../5-dumb-init_1.2.5-2_arm64.deb ...
+#6 3.487 Unpacking dumb-init (1.2.5-2) ...
+#6 3.513 Setting up dumb-init (1.2.5-2) ...
+#6 3.525 Setting up libpsl5:arm64 (0.21.2-1) ...
+#6 3.536 Setting up wget (1.21.3-1+deb12u1) ...
+#6 3.550 Setting up libssl3:arm64 (3.0.22-1~deb12u1) ...
+#6 3.561 Setting up openssl (3.0.22-1~deb12u1) ...
+#6 3.577 Setting up ca-certificates (20250419~deb12u1) ...
+#6 3.635 debconf: unable to initialize frontend: Dialog
+#6 3.635 debconf: (TERM is not set, so the dialog frontend is not usable.)
+#6 3.635 debconf: falling back to frontend: Readline
+#6 3.635 debconf: unable to initialize frontend: Readline
+#6 3.635 debconf: (Can't locate Term/ReadLine.pm in @INC (you may need to install the Term::ReadLine module) (@INC contains: /etc/perl /usr/local/lib/aarch64-linux-gnu/perl/5.36.0 /usr/local/share/perl/5.36.0 /usr/lib/aarch64-linux-gnu/perl5/5.36 /usr/share/perl5 /usr/lib/aarch64-linux-gnu/perl-base /usr/lib/aarch64-linux-gnu/perl/5.36 /usr/share/perl/5.36 /usr/local/lib/site_perl) at /usr/share/perl5/Debconf/FrontEnd/Readline.pm line 7.)
+#6 3.635 debconf: falling back to frontend: Teletype
+#6 3.883 Updating certificates in /etc/ssl/certs...
+#6 4.231 150 added, 0 removed; done.
+#6 4.256 Processing triggers for libc-bin (2.36-9+deb12u14) ...
+#6 4.271 Processing triggers for ca-certificates (20250419~deb12u1) ...
+#6 4.277 Updating certificates in /etc/ssl/certs...
+#6 4.546 0 added, 0 removed; done.
+#6 4.546 Running hooks in /etc/ca-certificates/update.d...
+#6 4.547 done.
+#6 DONE 4.9s
+
+#9 [runtime  3/35] RUN mkdir -p /app/tmp /tmp  && chmod 1777 /tmp  && chown capiro:capiro /app/tmp
+#9 DONE 0.7s
+
+#10 [runtime  4/35] WORKDIR /app
+#10 DONE 0.1s
+
+#11 [build  1/29] RUN apt-get update  && apt-get install -y --no-install-recommends openssl ca-certificates  && rm -rf /var/lib/apt/lists/*
+#11 0.307 Get:1 http://deb.debian.org/debian bookworm InRelease [151 kB]
+#11 0.314 Get:2 http://deb.debian.org/debian bookworm-updates InRelease [55.4 kB]
+#11 0.314 Get:3 http://deb.debian.org/debian-security bookworm-security InRelease [34.8 kB]
+#11 0.357 Get:4 http://deb.debian.org/debian bookworm/main arm64 Packages [8689 kB]
+#11 0.400 Get:5 http://deb.debian.org/debian bookworm-updates/main arm64 Packages [6936 B]
+#11 0.434 Get:6 http://deb.debian.org/debian-security bookworm-security/main arm64 Packages [346 kB]
+#11 1.199 Fetched 9284 kB in 1s (10.4 MB/s)
+#11 1.199 Reading package lists...
+#11 1.707 Reading package lists...
+#11 2.201 Building dependency tree...
+#11 2.341 Reading state information...
+#11 2.508 The following additional packages will be installed:
+#11 2.509   libssl3
+#11 2.524 The following NEW packages will be installed:
+#11 2.524   ca-certificates libssl3 openssl
+#11 2.642 0 upgraded, 3 newly installed, 0 to remove and 2 not upgraded.
+#11 2.642 Need to get 3400 kB of archives.
+#11 2.642 After this operation, 8942 kB of additional disk space will be used.
+#11 2.642 Get:1 http://deb.debian.org/debian-security bookworm-security/main arm64 libssl3 arm64 3.0.22-1~deb12u1 [1828 kB]
+#11 2.654 Get:2 http://deb.debian.org/debian-security bookworm-security/main arm64 openssl arm64 3.0.22-1~deb12u1 [1410 kB]
+#11 2.658 Get:3 http://deb.debian.org/debian-security bookworm-security/main arm64 ca-certificates all 20250419~deb12u1 [162 kB]
+#11 2.743 debconf: delaying package configuration, since apt-utils is not installed
+#11 2.769 Fetched 3400 kB in 0s (26.4 MB/s)
+#11 2.791 Selecting previously unselected package libssl3:arm64.
+#11 2.791 (Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 6090 files and directories currently installed.)
+#11 2.794 Preparing to unpack .../libssl3_3.0.22-1~deb12u1_arm64.deb ...
+#11 2.802 Unpacking libssl3:arm64 (3.0.22-1~deb12u1) ...
+#11 2.921 Selecting previously unselected package openssl.
+#11 2.922 Preparing to unpack .../openssl_3.0.22-1~deb12u1_arm64.deb ...
+#11 2.926 Unpacking openssl (3.0.22-1~deb12u1) ...
+#11 3.025 Selecting previously unselected package ca-certificates.
+#11 3.026 Preparing to unpack .../ca-certificates_20250419~deb12u1_all.deb ...
+#11 3.030 Unpacking ca-certificates (20250419~deb12u1) ...
+#11 3.073 Setting up libssl3:arm64 (3.0.22-1~deb12u1) ...
+#11 3.084 Setting up openssl (3.0.22-1~deb12u1) ...
+#11 3.100 Setting up ca-certificates (20250419~deb12u1) ...
+#11 3.157 debconf: unable to initialize frontend: Dialog
+#11 3.157 debconf: (TERM is not set, so the dialog frontend is not usable.)
+#11 3.157 debconf: falling back to frontend: Readline
+#11 3.157 debconf: unable to initialize frontend: Readline
+#11 3.157 debconf: (Can't locate Term/ReadLine.pm in @INC (you may need to install the Term::ReadLine module) (@INC contains: /etc/perl /usr/local/lib/aarch64-linux-gnu/perl/5.36.0 /usr/local/share/perl/5.36.0 /usr/lib/aarch64-linux-gnu/perl5/5.36 /usr/share/perl5 /usr/lib/aarch64-linux-gnu/perl-base /usr/lib/aarch64-linux-gnu/perl/5.36 /usr/share/perl/5.36 /usr/local/lib/site_perl) at /usr/share/perl5/Debconf/FrontEnd/Readline.pm line 7.)
+#11 3.157 debconf: falling back to frontend: Teletype
+#11 3.393 Updating certificates in /etc/ssl/certs...
+#11 3.733 150 added, 0 removed; done.
+#11 3.758 Processing triggers for libc-bin (2.36-9+deb12u14) ...
+#11 3.773 Processing triggers for ca-certificates (20250419~deb12u1) ...
+#11 3.779 Updating certificates in /etc/ssl/certs...
+#11 4.039 0 added, 0 removed; done.
+#11 4.039 Running hooks in /etc/ca-certificates/update.d...
+#11 4.040 done.
+#11 DONE 4.4s
+
+#12 [build  2/29] COPY pnpm-workspace.yaml package.json pnpm-lock.yaml* tsconfig.base.json ./
+#12 DONE 0.6s
+
+#13 [build  3/29] COPY apps/api/package.json apps/api/package.json
+#13 DONE 0.1s
+
+#14 [build  4/29] COPY packages/shared/package.json packages/shared/package.json
+#14 DONE 0.1s
+
+#15 [build  5/29] COPY packages/meriv2-core/package.json packages/meriv2-core/package.json
+#15 DONE 0.2s
+
+#16 [build  6/29] COPY packages/defense-contracts/package.json packages/defense-contracts/package.json
+#16 DONE 0.2s
+
+#17 [build  7/29] COPY packages/defense-domain/package.json packages/defense-domain/package.json
+#17 DONE 0.1s
+
+#18 [build  8/29] RUN --mount=type=cache,id=pnpm,target=/pnpm/store     pnpm install --frozen-lockfile --filter=@capiro/api... --filter=@capiro/shared... --filter=@capiro/meriv2-core... --filter=@capiro/defense-contracts... --filter=@capiro/defense-domain...
+#18 0.748 Scope: 5 of 6 workspace projects
+#18 0.842 Lockfile is up to date, resolution step is skipped
+#18 0.939 Progress: resolved 1, reused 0, downloaded 0, added 0
+#18 1.074 .                                        |    +1421 ++++++++++++++++++++++++++++
+#18 1.233 
+#18 1.233    ╭──────────────────────────────────────────────────────────────────╮
+#18 1.233    │                                                                  │
+#18 1.233    │                Update available! 9.12.0 → 12.9.1.                │
+#18 1.233    │   Changelog: https://github.com/pnpm/pnpm/releases/tag/v12.9.1   │
+#18 1.233    │         Run "corepack install -g pnpm@12.9.1" to update.         │
+#18 1.233    │                                                                  │
+#18 1.233    │         Follow @pnpmjs for updates: https://x.com/pnpmjs         │
+#18 1.233    │                                                                  │
+#18 1.233    ╰──────────────────────────────────────────────────────────────────╯
+#18 1.233 
+#18 1.941 Progress: resolved 1421, reused 0, downloaded 86, added 79
+#18 2.942 Progress: resolved 1421, reused 0, downloaded 222, added 216
+#18 3.942 Progress: resolved 1421, reused 0, downloaded 375, added 368
+#18 4.942 Progress: resolved 1421, reused 0, downloaded 526, added 527
+#18 5.943 Progress: resolved 1421, reused 0, downloaded 739, added 741
+#18 6.944 Progress: resolved 1421, reused 0, downloaded 878, added 870
+#18 7.945 Progress: resolved 1421, reused 0, downloaded 1001, added 1001
+#18 8.948 Progress: resolved 1421, reused 0, downloaded 1071, added 1070
+#18 9.949 Progress: resolved 1421, reused 0, downloaded 1092, added 1085
+#18 10.95 Progress: resolved 1421, reused 0, downloaded 1113, added 1108
+#18 11.95 Progress: resolved 1421, reused 0, downloaded 1141, added 1133
+#18 12.95 Progress: resolved 1421, reused 0, downloaded 1185, added 1179
+#18 13.95 Progress: resolved 1421, reused 0, downloaded 1196, added 1189
+#18 16.18 Progress: resolved 1421, reused 0, downloaded 1197, added 1189
+#18 17.18 Progress: resolved 1421, reused 0, downloaded 1198, added 1194
+#18 27.67 Progress: resolved 1421, reused 0, downloaded 1198, added 1195
+#18 28.67 Progress: resolved 1421, reused 0, downloaded 1204, added 1198
+#18 29.67 Progress: resolved 1421, reused 0, downloaded 1207, added 1199
+#18 30.67 Progress: resolved 1421, reused 0, downloaded 1207, added 1200
+#18 31.73 Progress: resolved 1421, reused 0, downloaded 1208, added 1200
+#18 32.73 Progress: resolved 1421, reused 0, downloaded 1209, added 1200
+#18 33.73 Progress: resolved 1421, reused 0, downloaded 1210, added 1203
+#18 34.73 Progress: resolved 1421, reused 0, downloaded 1222, added 1212
+#18 35.73 Progress: resolved 1421, reused 0, downloaded 1225, added 1215
+#18 36.73 Progress: resolved 1421, reused 0, downloaded 1230, added 1223
+#18 37.73 Progress: resolved 1421, reused 0, downloaded 1231, added 1223
+#18 38.73 Progress: resolved 1421, reused 0, downloaded 1236, added 1229
+#18 39.73 Progress: resolved 1421, reused 0, downloaded 1239, added 1232
+#18 41.24 Progress: resolved 1421, reused 0, downloaded 1240, added 1232
+#18 42.24 Progress: resolved 1421, reused 0, downloaded 1240, added 1233
+#18 44.29 Progress: resolved 1421, reused 0, downloaded 1240, added 1234
+#18 45.30 Progress: resolved 1421, reused 0, downloaded 1245, added 1240
+#18 47.21 Progress: resolved 1421, reused 0, downloaded 1246, added 1240
+#18 48.22 Progress: resolved 1421, reused 0, downloaded 1249, added 1243
+#18 49.22 Progress: resolved 1421, reused 0, downloaded 1254, added 1246
+#18 50.22 Progress: resolved 1421, reused 0, downloaded 1257, added 1247
+#18 51.34 Progress: resolved 1421, reused 0, downloaded 1257, added 1248
+#18 52.34 Progress: resolved 1421, reused 0, downloaded 1262, added 1253
+#18 53.81 Progress: resolved 1421, reused 0, downloaded 1262, added 1254
+#18 54.81 Progress: resolved 1421, reused 0, downloaded 1268, added 1259
+#18 55.81 Progress: resolved 1421, reused 0, downloaded 1270, added 1263
+#18 56.82 Progress: resolved 1421, reused 0, downloaded 1280, added 1269
+#18 57.82 Progress: resolved 1421, reused 0, downloaded 1283, added 1272
+#18 58.82 Progress: resolved 1421, reused 0, downloaded 1287, added 1276
+#18 60.99 Progress: resolved 1421, reused 0, downloaded 1287, added 1277
+#18 61.99 Progress: resolved 1421, reused 0, downloaded 1292, added 1283
+#18 62.99 Progress: resolved 1421, reused 0, downloaded 1292, added 1284
+#18 64.01 Progress: resolved 1421, reused 0, downloaded 1292, added 1285
+#18 65.01 Progress: resolved 1421, reused 0, downloaded 1298, added 1290
+#18 66.53 Progress: resolved 1421, reused 0, downloaded 1298, added 1291
+#18 67.53 Progress: resolved 1421, reused 0, downloaded 1300, added 1292
+#18 68.54 Progress: resolved 1421, reused 0, downloaded 1310, added 1302
+#18 69.54 Progress: resolved 1421, reused 0, downloaded 1330, added 1322
+#18 72.16 Progress: resolved 1421, reused 0, downloaded 1331, added 1322
+#18 73.16 Progress: resolved 1421, reused 0, downloaded 1385, added 1378
+#18 74.16 Progress: resolved 1421, reused 0, downloaded 1415, added 1412
+#18 75.16 Progress: resolved 1421, reused 0, downloaded 1415, added 1416
+#18 76.16 Progress: resolved 1421, reused 0, downloaded 1416, added 1417
+#18 77.16 Progress: resolved 1421, reused 0, downloaded 1417, added 1418
+#18 78.16 Progress: resolved 1421, reused 0, downloaded 1417, added 1419
+#18 79.70 Progress: resolved 1421, reused 0, downloaded 1417, added 1420
+#18 80.12 Progress: resolved 1421, reused 0, downloaded 1417, added 1421, done
+#18 80.54 .../node_modules/@prisma/engines postinstall$ node scripts/postinstall.js
+#18 80.54 .../node_modules/onnxruntime-node postinstall$ node ./script/install
+#18 80.54 .../node_modules/protobufjs postinstall$ node scripts/postinstall
+#18 80.64 .../@playwright/browser-chromium install$ node install.js
+#18 80.64 .../esbuild@0.28.2/node_modules/esbuild postinstall$ node install.js
+#18 80.72 .../node_modules/protobufjs postinstall: Done
+#18 80.72 .../node_modules/onnxruntime-node postinstall: Done
+#18 80.73 .../esbuild@0.28.2/node_modules/esbuild postinstall: Done
+#18 80.74 .../node_modules/@swc/core postinstall$ node postinstall.js
+#18 80.79 .../node_modules/@clerk/shared postinstall$ node ./scripts/postinstall.mjs
+#18 80.85 .../node_modules/@swc/core postinstall: Done
+#18 80.88 .../node_modules/@clerk/shared postinstall: Attention: Clerk now collects telemetry data from its SDKs when connected to development instances.
+#18 80.88 .../node_modules/@clerk/shared postinstall: The data collected is used to inform Clerk's product roadmap.
+#18 80.88 .../node_modules/@clerk/shared postinstall: To learn more, including how to opt-out from the telemetry program, visit: https://clerk.com/docs/telemetry.
+#18 80.88 .../node_modules/@clerk/shared postinstall: Done
+#18 81.02 .../@playwright/browser-chromium install: Downloading Chrome for Testing 153.0.8010.12 (playwright chromium v1243) from https://cdn.playwright.dev/builds/cft/153.0.8010.12/linux-arm64/chrome-linux-arm64.zip
+#18 81.08 .../node_modules/@prisma/engines postinstall: Done
+#18 81.38 .../@playwright/browser-chromium install: |                                                                                |   0% of 186.8 MiB
+#18 81.50 .../@playwright/browser-chromium install: |■■■■■■■■                                                                        |  10% of 186.8 MiB
+#18 81.57 .../@playwright/browser-chromium install: |■■■■■■■■■■■■■■■■                                                                |  20% of 186.8 MiB
+#18 81.62 .../@playwright/browser-chromium install: |■■■■■■■■■■■■■■■■■■■■■■■■                                                        |  30% of 186.8 MiB
+#18 81.69 .../@playwright/browser-chromium install: |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                                |  40% of 186.8 MiB
+#18 81.77 .../@playwright/browser-chromium install: |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                        |  50% of 186.8 MiB
+#18 81.84 .../@playwright/browser-chromium install: |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                |  60% of 186.8 MiB
+#18 81.91 .../@playwright/browser-chromium install: |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                        |  70% of 186.8 MiB
+#18 81.98 .../@playwright/browser-chromium install: |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                |  80% of 186.8 MiB
+#18 82.06 .../@playwright/browser-chromium install: |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■        |  90% of 186.8 MiB
+#18 82.11 .../@playwright/browser-chromium install: |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■| 100% of 186.8 MiB
+#18 84.15 .../@playwright/browser-chromium install: Chrome for Testing 153.0.8010.12 (playwright chromium v1243) downloaded to /root/.cache/ms-playwright/chromium-1243
+#18 84.15 .../@playwright/browser-chromium install: Downloading Chrome Headless Shell 153.0.8010.12 (playwright chromium-headless-shell v1243) from https://cdn.playwright.dev/builds/cft/153.0.8010.12/linux-arm64/chrome-headless-shell-linux-arm64.zip
+#18 84.51 .../@playwright/browser-chromium install: |                                                                                |   0% of 114.7 MiB
+#18 84.59 .../@playwright/browser-chromium install: |■■■■■■■■                                                                        |  10% of 114.7 MiB
+#18 84.64 .../@playwright/browser-chromium install: |■■■■■■■■■■■■■■■■                                                                |  20% of 114.7 MiB
+#18 84.71 .../@playwright/browser-chromium install: |■■■■■■■■■■■■■■■■■■■■■■■■                                                        |  30% of 114.7 MiB
+#18 84.77 .../@playwright/browser-chromium install: |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                                |  40% of 114.7 MiB
+#18 84.81 .../@playwright/browser-chromium install: |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                        |  50% of 114.7 MiB
+#18 84.84 .../@playwright/browser-chromium install: |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                |  60% of 114.7 MiB
+#18 84.88 .../@playwright/browser-chromium install: |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                        |  70% of 114.7 MiB
+#18 84.91 .../@playwright/browser-chromium install: |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                |  80% of 114.7 MiB
+#18 84.94 .../@playwright/browser-chromium install: |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■        |  90% of 114.7 MiB
+#18 84.98 .../@playwright/browser-chromium install: |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■| 100% of 114.7 MiB
+#18 86.44 .../@playwright/browser-chromium install: Chrome Headless Shell 153.0.8010.12 (playwright chromium-headless-shell v1243) downloaded to /root/.cache/ms-playwright/chromium_headless_shell-1243
+#18 86.44 .../@playwright/browser-chromium install: Downloading FFmpeg (playwright ffmpeg v1011) from https://cdn.playwright.dev/dbazure/download/playwright/builds/ffmpeg/1011/ffmpeg-linux-arm64.zip
+#18 86.77 .../@playwright/browser-chromium install: |                                                                                |   0% of 1.6 MiB
+#18 86.77 .../@playwright/browser-chromium install: |■■■■■■■■                                                                        |  10% of 1.6 MiB
+#18 86.77 .../@playwright/browser-chromium install: |■■■■■■■■■■■■■■■■                                                                |  20% of 1.6 MiB
+#18 86.77 .../@playwright/browser-chromium install: |■■■■■■■■■■■■■■■■■■■■■■■■                                                        |  30% of 1.6 MiB
+#18 86.77 .../@playwright/browser-chromium install: |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                                |  40% of 1.6 MiB
+#18 86.77 .../@playwright/browser-chromium install: |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                        |  50% of 1.6 MiB
+#18 86.77 .../@playwright/browser-chromium install: |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                |  60% of 1.6 MiB
+#18 86.78 .../@playwright/browser-chromium install: |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                        |  70% of 1.6 MiB
+#18 86.78 .../@playwright/browser-chromium install: |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                |  80% of 1.6 MiB
+#18 86.78 .../@playwright/browser-chromium install: |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■        |  90% of 1.6 MiB
+#18 86.78 .../@playwright/browser-chromium install: |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■| 100% of 1.6 MiB
+#18 86.82 .../@playwright/browser-chromium install: FFmpeg (playwright ffmpeg v1011) downloaded to /root/.cache/ms-playwright/ffmpeg-1011
+#18 86.83 .../@playwright/browser-chromium install: Done
+#18 86.84 .../prisma@5.22.0/node_modules/prisma preinstall$ node scripts/preinstall-entry.js
+#18 86.89 .../prisma@5.22.0/node_modules/prisma preinstall: Done
+#18 86.94 .../node_modules/@prisma/client postinstall$ node scripts/postinstall.js
+#18 87.34 .../node_modules/@prisma/client postinstall: prisma:warn We could not find your Prisma schema in the default locations (see: https://pris.ly/d/prisma-schema-location).
+#18 87.34 .../node_modules/@prisma/client postinstall: If you have a Prisma schema file in a custom path, you will need to run
+#18 87.34 .../node_modules/@prisma/client postinstall: `prisma generate --schema=./path/to/your/schema.prisma` to generate Prisma Client.
+#18 87.34 .../node_modules/@prisma/client postinstall: If you do not have a Prisma schema file yet, you can ignore this message.
+#18 87.35 .../node_modules/@prisma/client postinstall: Done
+#18 87.38 The following dependencies have build scripts that were ignored: @nestjs/core
+#18 87.66 Done in 1m 27.3s
+#18 DONE 90.2s
+
+#19 [build  9/29] COPY packages/shared/src packages/shared/src
+#19 DONE 0.1s
+
+#20 [build 10/29] COPY packages/shared/tsconfig.json packages/shared/tsconfig.json
+#20 DONE 0.2s
+
+#21 [build 11/29] COPY packages/meriv2-core/src packages/meriv2-core/src
+#21 DONE 0.1s
+
+#22 [build 12/29] COPY packages/meriv2-core/tsconfig.json packages/meriv2-core/tsconfig.json
+#22 DONE 0.1s
+
+#23 [build 13/29] COPY packages/defense-contracts/src packages/defense-contracts/src
+#23 DONE 0.2s
+
+#24 [build 14/29] COPY packages/defense-contracts/tsconfig.json packages/defense-contracts/tsconfig.json
+#24 DONE 0.1s
+
+#25 [build 15/29] COPY packages/defense-domain/src packages/defense-domain/src
+#25 DONE 0.2s
+
+#26 [build 16/29] COPY packages/defense-domain/tsconfig.json packages/defense-domain/tsconfig.json
+#26 DONE 0.2s
+
+#27 [build 17/29] COPY apps/api/src apps/api/src
+#27 DONE 0.4s
+
+#28 [build 18/29] COPY apps/api/tsconfig.json apps/api/tsconfig.build.json apps/api/nest-cli.json apps/api/
+#28 DONE 0.3s
+
+#29 [build 19/29] COPY apps/api/prisma apps/api/prisma
+#29 DONE 0.2s
+
+#30 [build 20/29] COPY apps/api/scripts apps/api/scripts
+#30 DONE 0.2s
+
+#31 [build 21/29] COPY apps/api/data apps/api/data
+#31 DONE 0.2s
+
+#32 [build 22/29] COPY apps/web/public/florida-directory/portraits apps/api/data/florida-legislative-directory/portraits
+#32 DONE 0.1s
+
+#33 [build 23/29] RUN pnpm --filter @capiro/shared build
+#33 0.588 
+#33 0.588 > @capiro/shared@0.0.0 build /workspace/packages/shared
+#33 0.588 > tsc -p tsconfig.json
+#33 0.588 
+#33 DONE 2.7s
+
+#34 [build 24/29] RUN pnpm --filter @capiro/meriv2-core build
+#34 0.734 
+#34 0.734 > @capiro/meriv2-core@0.0.0 build /workspace/packages/meriv2-core
+#34 0.734 > tsc -p tsconfig.json
+#34 0.734 
+#34 DONE 6.1s
+
+#35 [build 25/29] RUN pnpm --filter @capiro/defense-contracts build
+#35 0.690 
+#35 0.690 > @capiro/defense-contracts@0.0.0 build /workspace/packages/defense-contracts
+#35 0.690 > tsc -p tsconfig.json
+#35 0.690 
+#35 DONE 1.6s
+
+#36 [build 26/29] RUN pnpm --filter @capiro/defense-domain build
+#36 0.782 
+#36 0.782 > @capiro/defense-domain@0.0.0 build /workspace/packages/defense-domain
+#36 0.782 > tsc -p tsconfig.json
+#36 0.782 
+#36 DONE 3.1s
+
+#37 [build 27/29] RUN pnpm --filter @capiro/api exec prisma generate
+#37 1.190 Prisma schema loaded from prisma/schema.prisma
+#37 10.80 
+#37 10.80 ✔ Generated Prisma Client (v5.22.0) to ./../../node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/@prisma/client in 6.00s
+#37 10.80 
+#37 10.80 Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+#37 10.80 
+#37 10.80 Tip: Need your database queries to be 1000x faster? Accelerate offers you that and more: https://pris.ly/tip-2-accelerate
+#37 10.80 
+#37 DONE 11.5s
+
+#38 [build 28/29] RUN NODE_OPTIONS=--max-old-space-size=4096 pnpm --filter @capiro/api build
+#38 0.793 
+#38 0.793 > @capiro/api@0.0.0 build /workspace/apps/api
+#38 0.793 > nest build
+#38 0.793 
+#38 DONE 71.3s
+
+#39 [build 29/29] RUN --mount=type=cache,id=pnpm,target=/pnpm/store     pnpm install --frozen-lockfile --prod --filter=@capiro/api... --filter=@capiro/shared... --filter=@capiro/meriv2-core... --filter=@capiro/defense-contracts... --filter=@capiro/defense-domain...
+#39 0.683 Scope: 5 of 6 workspace projects
+#39 0.720 [?25l[36m?[39m [1mThe modules directories will be removed and reinstalled from scratch. Proceed?[22m [2m(Y/n)[22m [2m‣[22m [36mtrue[39m[4D[?25h
+#39 DONE 0.9s
+
+#40 [runtime  5/35] COPY --chown=capiro:capiro --from=build /workspace/node_modules /app/node_modules
+#40 DONE 14.9s
+
+#41 [runtime  6/35] COPY --chown=capiro:capiro --from=build /workspace/packages/shared/dist /app/packages/shared/dist
+#41 DONE 0.4s
+
+#42 [runtime  7/35] COPY --chown=capiro:capiro --from=build /workspace/packages/shared/package.json /app/packages/shared/package.json
+#42 DONE 0.3s
+
+#43 [runtime  8/35] COPY --chown=capiro:capiro --from=build /workspace/packages/meriv2-core/dist /app/packages/meriv2-core/dist
+#43 DONE 0.4s
+
+#44 [runtime  9/35] COPY --chown=capiro:capiro --from=build /workspace/packages/meriv2-core/package.json /app/packages/meriv2-core/package.json
+#44 DONE 0.4s
+
+#45 [runtime 10/35] COPY --chown=capiro:capiro --from=build /workspace/packages/meriv2-core/node_modules /app/packages/meriv2-core/node_modules
+#45 DONE 0.4s
+
+#46 [runtime 11/35] COPY --chown=capiro:capiro --from=build /workspace/packages/defense-contracts/dist /app/packages/defense-contracts/dist
+#46 DONE 0.5s
+
+#47 [runtime 12/35] COPY --chown=capiro:capiro --from=build /workspace/packages/defense-contracts/package.json /app/packages/defense-contracts/package.json
+#47 DONE 0.4s
+
+#48 [runtime 13/35] COPY --chown=capiro:capiro --from=build /workspace/packages/defense-domain/dist /app/packages/defense-domain/dist
+#48 DONE 0.6s
+
+#49 [runtime 14/35] COPY --chown=capiro:capiro --from=build /workspace/packages/defense-domain/package.json /app/packages/defense-domain/package.json
+#49 DONE 0.4s
+
+#50 [runtime 15/35] COPY --chown=capiro:capiro --from=build /workspace/packages/defense-domain/node_modules /app/packages/defense-domain/node_modules
+#50 DONE 0.4s
+
+#51 [runtime 16/35] COPY --chown=capiro:capiro --from=build /workspace/apps/api/dist /app/apps/api/dist
+#51 DONE 0.6s
+
+#52 [runtime 17/35] COPY --chown=capiro:capiro --from=build /workspace/apps/api/node_modules /app/apps/api/node_modules
+#52 DONE 0.4s
+
+#53 [runtime 18/35] COPY --chown=capiro:capiro --from=build /workspace/apps/api/prisma /app/apps/api/prisma
+#53 DONE 0.5s
+
+#54 [runtime 19/35] COPY --chown=capiro:capiro --from=build /workspace/apps/api/data /app/apps/api/data
+#54 DONE 0.3s
+
+#55 [runtime 20/35] COPY --chown=capiro:capiro --from=build /workspace/apps/api/package.json /app/apps/api/package.json
+#55 DONE 0.4s
+
+#56 [runtime 21/35] COPY --chown=capiro:capiro --from=build /workspace/apps/api/scripts /app/apps/api/scripts
+#56 DONE 0.5s
+
+#57 [runtime 22/35] COPY --chown=capiro:capiro --from=build /workspace/apps/api/src /app/apps/api/src
+#57 DONE 0.6s
+
+#58 [runtime 23/35] COPY --chown=capiro:capiro evals/meri/live-v1/artifact-collector.mjs evals/meri/live-v1/windows-artifact-storage.mjs evals/meri/live-v1/fixture.mjs evals/meri/live-v1/cases.mjs evals/meri/live-v1/contract-lock.json /app/evals/meri/live-v1/
+#58 DONE 1.5s
+
+#59 [runtime 24/35] COPY --chown=capiro:capiro evals/meri/live-v1/lib/stable.mjs evals/meri/live-v1/lib/windows-artifact-protocol.py /app/evals/meri/live-v1/lib/
+#59 DONE 0.6s
+
+#60 [runtime 25/35] COPY --chown=capiro:capiro evals/meri/live-v1/fixture-provisioning/case14-memory-owner.mjs evals/meri/live-v1/fixture-provisioning/memory-pending-execution.mjs evals/meri/live-v1/fixture-provisioning/memory-pending-fixture-plan.mjs evals/meri/live-v1/fixture-provisioning/controlled-budget-definitions.mjs evals/meri/live-v1/fixture-provisioning/controlled-read-definitions.mjs evals/meri/live-v1/fixture-provisioning/controlled-read-owner.mjs evals/meri/live-v1/fixture-provisioning/case01-execution-setup.mjs evals/meri/live-v1/fixture-provisioning/capture-binding-owner.mjs evals/meri/live-v1/fixture-provisioning/case01-memory-owner.mjs evals/meri/live-v1/fixture-provisioning/case01-memory-reconciliation.mjs evals/meri/live-v1/fixture-provisioning/case01-memory-projection-cleanup.mjs evals/meri/live-v1/fixture-provisioning/case01-memory-runtime.mjs evals/meri/live-v1/fixture-provisioning/case01-memory-hydration.mjs evals/meri/live-v1/fixture-provisioning/manifest.mjs evals/meri/live-v1/fixture-provisioning/contract.mjs evals/meri/live-v1/fixture-provisioning/canonical-owner-adapter.mjs evals/meri/live-v1/fixture-provisioning/approved-memory-runtime.mjs evals/meri/live-v1/fixture-provisioning/approved-memory-retirement-owner.mjs evals/meri/live-v1/fixture-provisioning/memory-candidate-owner.mjs /app/evals/meri/live-v1/fixture-provisioning/
+#60 DONE 5.3s
+
+#61 [runtime 26/35] COPY --chown=capiro:capiro evals/meri/live-v1/fixture-provisioning/case12-memory-inventory-owner.mjs evals/meri/live-v1/fixture-provisioning/case12-memory-eligibility-owner.mjs evals/meri/live-v1/fixture-provisioning/case12-memory-setup.mjs evals/meri/live-v1/fixture-provisioning/case12-setup-budget-plan.mjs /app/evals/meri/live-v1/fixture-provisioning/
+#61 DONE 1.2s
+
+#62 [runtime 27/35] COPY --chown=capiro:capiro evals/meri/live-v1/fixture-provisioning/case12-memory-current-owner.mjs /app/evals/meri/live-v1/fixture-provisioning/
+#62 DONE 0.3s
+
+#63 [runtime 28/35] COPY --chown=capiro:capiro evals/meri/live-v1/source-binaries/asset-manifest.json evals/meri/live-v1/source-binaries/D-A-1.pdf evals/meri/live-v1/source-binaries/DECK-A-1.pptx evals/meri/live-v1/source-binaries/FILE-B-1-restricted.pdf evals/meri/live-v1/source-binaries/PDF-PENDING-1.pdf evals/meri/live-v1/source-binaries/REPORT-A-v1.pdf evals/meri/live-v1/source-binaries/REPORT-A-v2.pdf evals/meri/live-v1/source-binaries/SHEET-A-1.xlsx /app/evals/meri/live-v1/source-binaries/
+#63 DONE 2.4s
+
+#64 [runtime 29/35] COPY --chown=capiro:capiro --from=build /workspace/tsconfig.base.json /app/tsconfig.base.json
+#64 DONE 0.4s
+
+#65 [runtime 30/35] COPY --chown=capiro:capiro --from=build /workspace/apps/api/tsconfig.json /app/apps/api/tsconfig.json
+#65 DONE 0.3s
+
+#66 [runtime 31/35] COPY --chown=capiro:capiro apps/api/scripts/entrypoint-legacy.sh /usr/local/lib/capiro/entrypoint-legacy.sh
+#66 DONE 0.4s
+
+#67 [runtime 32/35] COPY --chown=capiro:capiro apps/api/scripts/entrypoint.sh /usr/local/bin/entrypoint.sh
+#67 DONE 0.4s
+
+#68 [runtime 33/35] RUN chmod 0644 /usr/local/lib/capiro/entrypoint-legacy.sh  && chmod 0755 /usr/local/bin/entrypoint.sh
+#68 DONE 0.6s
+
+#69 [runtime 34/35] WORKDIR /app/apps/api
+#69 DONE 0.3s
+
+#70 [runtime 35/35] RUN --network=none node -e "const assert=require('node:assert/strict'); const sanitize=require('sanitize-html'); assert.equal(sanitize('<strong>safe</strong><script>unsafe</script>'), '<strong>safe</strong>'); require('./dist/meri/meri-tools.service.js'); require('./dist/memory/memory-candidate.service.js');"
+#70 DONE 1.9s
+
+#71 exporting to image
+#71 exporting layers
+#71 exporting layers 11.0s done
+#71 writing image sha256:1b895fcd22a4b231db47eb044817b1e4a0fe52ac09a0279d852bf58452c02577 done
+#71 naming to 967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api:bf896b666dcdb33a3d603d10319235046039cadb done
+#71 DONE 11.1s
+OFFLINE_RUNTIME_IMPORT_PASS
+OFFLINE_CASE01_CONTINUATION_IMPORT_PASS
+OFFLINE_CASE01_POSTAPPROVAL_IMPORT_PASS
+OFFLINE_CASE01_POSTSEED_IMPORT_PASS
+OFFLINE_CASE01_FIXTURE_PACKAGE_IMPORT_PASS
+EXACT_452_IMAGE_MIGRATION_HASHES_PASS
+MAIL_ACTIVE_OWNER_INDEX_MIGRATION_PACKAGE_PASS
+OFFLINE_PACKAGED_C2_MEMORY_PASS
+OFFLINE_PACKAGED_C2_RECONCILIATION_PASS
+OFFLINE_PACKAGED_C2_TERMINAL_LIFECYCLE_PASS
+OFFLINE_PACKAGED_C2_TS_SOURCE_IMPORT_PASS
+OFFLINE_PACKAGED_CAPTURE_RECEIPT_CONTRACT_PASS
+Synthetic owner collaborator only; no actual DB, provider, human acceptance or admitted budget is claimed.
+OFFLINE_PACKAGED_SEMANTIC_CLOCK_API_CORE_PASS
+Compiler store is in-memory; no database persistence or live capture qualification is claimed.
+OFFLINE_PACKAGED_CAPTURE_PROVIDER_API_GUARDS_PASS
+Actual packaged scope and adapter guards with local transport stubs; no database, provider pricing or live capture qualification.
+OFFLINE_PACKAGED_C2_RECORDED_SOURCE_PRIVACY_PASS
+OFFLINE_PACKAGED_C2_TOOL_HTTP_SUCCESS_PASS
+OFFLINE_PACKAGED_C2_CANONICAL_MEMORY_SOURCE_PASS
+OFFLINE_PACKAGED_CASE12_MODULES_PASS
+CASE12_PACKAGED_ASSET_MANIFEST_SHA256=6512b1ad5f9a154e517e2702f329bc52ab8276ccde9f7a1d2609872c8ea1889d
+OFFLINE_PACKAGED_CASE12_ASSET_MANIFEST_PASS
+OFFLINE_PACKAGED_CASE12_RECIPE_510_BODY_PLANNER_PASS
+OFFLINE_PACKAGED_CASE12_PREHOLD_510_DERIVATION_PASS
+OFFLINE_PACKAGED_CASE12_CORE_SETUP_BINDING_PASS
+OFFLINE_PACKAGED_CASE12_NEGATIVE_HELPER_INGRESS_PASS
+CASE12_IMAGE_ASSET_MANIFEST_MATCH_SOURCE_PASS
+OFFLINE_PACKAGED_CASE12_ACTUAL_ECS_DEFAULT_PARITY_PASS
+OFFLINE_PACKAGED_RETROSPECTIVE_APPROVAL_PLANNER_PASS
+OFFLINE_PACKAGED_SOL_POLICY_AND_PRICE_PASS
+OFFLINE_CASE12_REMEDIATION_OWNER_AND_CONVERSATION_FENCE_PASS
+OFFLINE_PACKAGED_MERI_COMPATIBILITY_CONTEXT_BOUND_PASS
+OFFLINE_PACKAGED_MERI_SERIALIZED_STEERING_BOUND_PASS
+OFFLINE_PACKAGED_CASE46_RECONCILED_RECOVERY_GATES_PASS
+
+[Container] 2026/10/05 02:36:57.241926 Phase complete: BUILD State: SUCCEEDED
+[Container] 2026/10/05 02:36:57.241943 Phase context status code:  Message: 
+[Container] 2026/10/05 02:36:57.291404 Entering phase POST_BUILD
+[Container] 2026/10/05 02:36:57.292332 Running command set -euo pipefail
+printf '%s' 'H4sIAAAAAAACCqVRXW/aMBR996+wIiSDNgcoK11RMy1LLBqJlogPaRVikZdcIGuJXdvpxhD77TOJirppe+pLdO/1ybnn3KPBYAqlwDKXsOL5AzKgDXYa+2Acsk/zaBQm9Xc6DwLGwuh2OKCdg4M93EX5lq/Bcy77F+87F2fnZ71e383ulQupcktNgWtDuy7f8p+i4N+1m4ptO+UyV6KdwVPbVoPGnn2OWTBjdsO1f3BQJtJ7UFiWemNlVBtOw6rDeaElpOb0iildCbXlBpP9/psWBXYnIEWYr60VfTgQ/KGig4wqO6dZ/eAeoahuPKfRtAKxFY4z0KnKvwKt2LVlV7DOLevJUTWSQudGqB0t+Bbwn64soPqZ5pnGTlXO+Nr726uFPZagdphUkBCMDUAvOku37itpxKJEaWRpsIEfpuWgxcJar3XbGH7hL3rDz877g0WHXnK6Wu777w4NvFwiuTMbUfQwfYG/uiLxHbHJSaEMPp7grd7p5zPY0uVq/bToLpGxBRiPvCLdj+RNTYy41mD31Zw2wWqz+yB41hQSiib5X0Ck1UJS5YVpktE48EfJhMXjMBqy6SxhwSS58WfBdRL70ylpofgOQboR2An82zAK/RlL/DhKpuP5JGDHm3uNlwk4/0RHN/6Qea9x/XxshH4DWf+tWl8DAAA=' | base64 -d | gzip -dc | bash
+The push refers to repository [967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api]
+36ba6a22ab2e: Preparing
+5f70bf18a086: Preparing
+c8d74a4a3089: Preparing
+47465ed51c70: Preparing
+9c4f499e14e1: Preparing
+dcd3e705c7de: Preparing
+ce929486c81d: Preparing
+307b6de6efca: Preparing
+0266316d6991: Preparing
+7caa7dfd01b7: Preparing
+ec19e977010e: Preparing
+f41eaf6a331b: Preparing
+ae7a68e6bf86: Preparing
+c122bae9d3ae: Preparing
+86430b9f3d2f: Preparing
+8629ccefe621: Preparing
+269e63fc2050: Preparing
+0266316d6991: Waiting
+8cbe6428fe7d: Preparing
+ce929486c81d: Waiting
+7caa7dfd01b7: Waiting
+5b75bb0e4a55: Preparing
+4eec9a59c492: Preparing
+307b6de6efca: Waiting
+3fe1792d1b55: Preparing
+ae7a68e6bf86: Waiting
+ec19e977010e: Waiting
+725f0be3db63: Preparing
+c122bae9d3ae: Waiting
+f41eaf6a331b: Waiting
+86430b9f3d2f: Waiting
+8629ccefe621: Waiting
+e9043efad568: Preparing
+8cbe6428fe7d: Waiting
+269e63fc2050: Waiting
+e05a7b39c492: Preparing
+5b75bb0e4a55: Waiting
+f4dbded43899: Preparing
+4eec9a59c492: Waiting
+725f0be3db63: Waiting
+f0695e2670ba: Preparing
+5a9e39925d61: Preparing
+3fe1792d1b55: Waiting
+7e7226fdb14c: Preparing
+e9043efad568: Waiting
+36220627a4a8: Preparing
+e05a7b39c492: Waiting
+c7049300bd64: Preparing
+f4dbded43899: Waiting
+f0695e2670ba: Waiting
+8ab5e890d863: Preparing
+5f70bf18a086: Preparing
+789bde38fbfc: Preparing
+5a9e39925d61: Waiting
+90f80fd45c1e: Preparing
+7e7226fdb14c: Waiting
+9eca295c8e23: Preparing
+36220627a4a8: Waiting
+04d8fdb4da71: Preparing
+67d9755a1c39: Preparing
+c7049300bd64: Waiting
+c1f5e9322c68: Preparing
+055ab12bd547: Preparing
+8ab5e890d863: Waiting
+789bde38fbfc: Waiting
+90f80fd45c1e: Waiting
+9eca295c8e23: Waiting
+04d8fdb4da71: Waiting
+dcd3e705c7de: Waiting
+055ab12bd547: Waiting
+67d9755a1c39: Waiting
+c1f5e9322c68: Waiting
+5f70bf18a086: Pushed
+47465ed51c70: Pushed
+36ba6a22ab2e: Pushed
+9c4f499e14e1: Pushed
+c8d74a4a3089: Pushed
+7caa7dfd01b7: Pushed
+ce929486c81d: Pushed
+dcd3e705c7de: Pushed
+0266316d6991: Pushed
+307b6de6efca: Pushed
+f41eaf6a331b: Pushed
+ae7a68e6bf86: Pushed
+ec19e977010e: Pushed
+8629ccefe621: Pushed
+269e63fc2050: Pushed
+8cbe6428fe7d: Pushed
+5b75bb0e4a55: Pushed
+3fe1792d1b55: Pushed
+725f0be3db63: Pushed
+86430b9f3d2f: Pushed
+e9043efad568: Pushed
+f4dbded43899: Pushed
+e05a7b39c492: Pushed
+c122bae9d3ae: Pushed
+f0695e2670ba: Pushed
+5a9e39925d61: Pushed
+36220627a4a8: Pushed
+4eec9a59c492: Pushed
+7e7226fdb14c: Pushed
+9eca295c8e23: Layer already exists
+04d8fdb4da71: Layer already exists
+c7049300bd64: Pushed
+67d9755a1c39: Layer already exists
+c1f5e9322c68: Layer already exists
+789bde38fbfc: Pushed
+90f80fd45c1e: Pushed
+055ab12bd547: Pushed
+8ab5e890d863: Pushed
+bf896b666dcdb33a3d603d10319235046039cadb: digest: sha256:2a9d5aef7c299bfd533bac44cd0d69919b146658eab1b59743835365c36cef8e size: 8461
+LOCAL_REPODIGEST_ECR_MATCH_PASS
+CANDIDATE_API_SOURCE_SHA=bf896b666dcdb33a3d603d10319235046039cadb
+CANDIDATE_API_IMAGE=967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:2a9d5aef7c299bfd533bac44cd0d69919b146658eab1b59743835365c36cef8e
+
+[Container] 2026/10/05 02:38:34.919995 Phase complete: POST_BUILD State: SUCCEEDED
+[Container] 2026/10/05 02:38:34.920012 Phase context status code:  Message: 
+[Container] 2026/10/05 02:38:34.974490 Set report auto-discover timeout to 5 seconds
+[Container] 2026/10/05 02:38:34.974544 Expanding base directory path:  .
+[Container] 2026/10/05 02:38:34.977656 Assembling file list
+[Container] 2026/10/05 02:38:34.977666 Expanding .
+[Container] 2026/10/05 02:38:34.980666 Expanding file paths for base directory .
+[Container] 2026/10/05 02:38:34.980676 Assembling file list
+[Container] 2026/10/05 02:38:34.980678 Expanding **/*
+[Container] 2026/10/05 02:38:35.031330 Found 1 file(s)
+[Container] 2026/10/05 02:38:35.031381 Report auto-discover file discovery took 0.056891 seconds
+[Container] 2026/10/05 02:38:35.032002 Phase complete: UPLOAD_ARTIFACTS State: SUCCEEDED
+[Container] 2026/10/05 02:38:35.032015 Phase context status code:  Message: 
