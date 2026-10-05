@@ -590,7 +590,43 @@ export async function discoverFloridaCalendar(
   return results;
 }
 
-async function resolveFloridaAgenda(prisma: PrismaClient, observation: LegislativeObservation) {
+export async function resolveFloridaAgenda(
+  prisma: PrismaClient,
+  observation: LegislativeObservation,
+) {
+  // Older House notices omit CommitteeId. A unique, exact directory name in
+  // the same official session/chamber can qualify the body; no fuzzy matching.
+  if (
+    observation.bodySourceKey.includes('unresolved-body') &&
+    observation.session &&
+    ['house', 'senate'].includes(observation.chamber)
+  ) {
+    const normalize = (name: string) =>
+      name
+        .toLowerCase()
+        .replace(/^(?:house|senate)\s+/, '')
+        .replace(/\s+committee$/, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    const prefix = `FL:${observation.session}:fl:${observation.chamber}:`;
+    const directory = await prisma.stateCommittee.findMany({
+      where: {
+        state: 'FL',
+        legislativeSession: observation.session,
+        officialSourceKey: { startsWith: prefix },
+      },
+    });
+    const matches = directory.filter(
+      (row) =>
+        normalize(row.name) === normalize(observation.bodyName) &&
+        (row.sourceEvidence as { directory?: { active?: boolean } } | null)?.directory?.active !==
+          false,
+    );
+    if (matches.length === 1)
+      observation.bodySourceKey = matches[0]!.officialSourceKey!.slice(
+        `FL:${observation.session}:`.length,
+      );
+  }
   // Register a directory body only from a first-party body identifier. These
   // identities remain separate from unresolved vendor crosswalks and never
   // acquire a roster by matching people's display names.
