@@ -7,6 +7,7 @@ jest.mock('@modelcontextprotocol/sdk/client/auth.js', () => ({ auth: jest.fn() }
 function make() {
   let nonce: string | null = 'one-use';
   const tx = {
+    tenant: { findUnique: jest.fn(async () => ({ slug: 'other-firm', settings: { clioFeatureFlags: { 'notetaker.krisp.enabled': true } } })) },
     clioMcpOAuthCredential: {
       deleteMany: jest.fn(async () => ({ count: 1 })),
       updateMany: jest.fn(async ({ where }: { where: { stateNonce: string } }) => {
@@ -179,4 +180,23 @@ describe('managed OAuth scopes and cancellation state', () => {
       expect(tx.clioMcpOAuthCredential.updateMany).not.toHaveBeenCalled();
     },
   );
+});
+
+
+describe('Krisp OAuth pilot restriction', () => {
+  test('Krisp requests confidential registration and read-only scopes', () => {
+    const { service } = make();
+    const provider = service.buildProvider({ id: 'server', tenantId: 'tenant', name: 'Krisp', catalogId: 'meriv3-krisp' });
+    expect(provider.clientMetadata.token_endpoint_auth_method).toBe('client_secret_post');
+    expect(provider.clientMetadata.scope).toContain('user::meetings:transcripts::read');
+    expect(provider.clientMetadata.scope).not.toMatch(/write|import/);
+  });
+  test('non-pilot tenants cannot exchange a Krisp OAuth callback even if manually flagged', async () => {
+    const { service, tx, state } = make();
+    tx.clioMcpServer.findFirst.mockResolvedValue({ id: 'server', scope: 'user', ownerUserId: 'owner',
+      name: 'meriv3-krisp', catalogId: 'meriv3-krisp', endpoint: 'https://mcp.krisp.ai/mcp', authType: 'oauth', enabled: true } as never);
+    jest.mocked(auth).mockClear();
+    await expect(service.handleCallback({ code: 'code', state: state() })).rejects.toThrow('not enabled');
+    expect(auth).not.toHaveBeenCalled();
+  });
 });

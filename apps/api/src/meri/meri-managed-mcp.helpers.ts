@@ -1,4 +1,4 @@
-export const MERIV3_MANAGED_APP_IDS = ['hubspot', 'airtable', 'monday', 'google-drive'] as const;
+export const MERIV3_MANAGED_APP_IDS = ['hubspot', 'airtable', 'monday', 'google-drive', 'krisp'] as const;
 export type MeriV3ManagedAppId = (typeof MERIV3_MANAGED_APP_IDS)[number];
 
 export const MERIV3_HUBSPOT_CATALOG_ID = 'meriv3-hubspot';
@@ -83,6 +83,14 @@ export interface ManagedMcpDefinition {
 }
 
 export const MANAGED_MCP_APPS: Record<MeriV3ManagedAppId, ManagedMcpDefinition> = {
+  krisp: {
+    id: 'krisp', catalogId: 'meriv3-krisp', name: 'Krisp',
+    description: 'Automatically create Meri meeting notes and debriefs from your Krisp transcripts.',
+    endpoint: 'https://mcp.krisp.ai/mcp',
+    oauthScopes: ['user::me::read', 'user::meetings:metadata::read', 'user::meetings:notes::read', 'user::meetings:transcripts::read', 'user::meetings::list'],
+    readOnlyTools: new Set(['search_meetings', 'get_multiple_documents', 'list_folders']),
+    enabledEnv: 'MERI_MCP_KRISP_ENABLED', enabledByDefault: true,
+  },
   hubspot: {
     id: 'hubspot',
     catalogId: MERIV3_HUBSPOT_CATALOG_ID,

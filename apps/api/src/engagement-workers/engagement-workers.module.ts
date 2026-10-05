@@ -1,3 +1,4 @@
+import { KrispNotetakerWorkerService } from './krisp-notetaker-worker.service.js';
 import { Module } from '@nestjs/common';
 import { CapabilitiesModule } from '../capabilities/capabilities.module.js';
 import { PrismaModule } from '../prisma/prisma.module.js';
@@ -18,6 +19,7 @@ import { OutreachV3FullGenerationWorkerService } from './outreach-v3-full-genera
   // on the legacy main API).
   imports: [CapabilitiesModule, PrismaModule, EngagementModule],
   providers: [
+    KrispNotetakerWorkerService,
     EngagementSyncSchedulerService,
     OutreachJobWorkerService,
     MeetingPrepWorkerService,
