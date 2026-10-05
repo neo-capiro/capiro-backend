@@ -1,0 +1,13 @@
+{
+  "at": "2026-10-05T14:55:56.532Z",
+  "sourceSha": "1382903005aeb1e0a31e9659f8cd5a89664c6f64",
+  "service": "meriv2-orchestrator",
+  "requestSha256": "da40e60591acbc80a82fd6ac71931ae9939b4a7f148bc5be32999a7994c446b5",
+  "sourceEvidence": "https://github.com/neo-capiro/capirov2/commit/1382903005aeb1e0a31e9659f8cd5a89664c6f64",
+  "pullRequest": "https://github.com/neo-capiro/capirov2/pull/1964",
+  "buildspecSha256": "b88e9cd13e08bb291297208b371841dd4179b03d562e094eb8f2d1ad2765c74e",
+  "priorBuildspecDelta": "Receipt probe asserts maxCostMicros>15000000 and charged>declared are no longer malformed (maxCostMicros<=0 still is); adds OFFLINE_PACKAGED_CAPTURE_LEDGER_ONLY_PASS.",
+  "idempotencyToken": "ac04d530-93f4-4419-8ab5-a2051ac174f1",
+  "authorization": "USER_AUTHORIZED_ESTABLISHED_CODEBUILD_BACKUP_SHIPPING",
+  "scope": "Immutable image build and ECR push; no service/config/schema/provider mutation"
+}
