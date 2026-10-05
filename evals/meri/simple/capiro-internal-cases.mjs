@@ -155,10 +155,11 @@ export const internalCases = [
     turns: [{ prompt: 'List every recommendation in the current 80-page report.', attach: ['qa-annual-report-80p.pdf'] }] },
   { id: '46', mode: 'LIVE', client: QA_CLIENT, op: 'artifact_create',
     expectDownloadText: 'Synthetic QA briefing v1\nThis briefing is synthetic test content for the ZZ-QA client.\n',
-    reference: 'One export proposal, approved in Meri; the downloaded file contains exactly the uploaded briefing text.',
+    // Full chat runs create_word at once (one succeeded proposal, no approval
+    // step); the link comes from the turn's artifact frame.
+    reference: 'One export, executed in Meri; the downloaded file contains exactly the uploaded briefing text.',
     turns: [
       { prompt: 'Export that briefing and give me the file.', attach: ['qa-briefing.txt'] },
-      { action: 'approve_proposal' },
     ] },
   ...programTasks,
 ];
