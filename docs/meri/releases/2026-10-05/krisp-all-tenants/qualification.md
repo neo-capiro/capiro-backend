@@ -1,5 +1,13 @@
 # Krisp all-tenant activation
 
+Completed October 5 at 21:41 UTC. Engagement worker revision 133 passed the
+guarded promotion's ECS/task/digest/ALB health checks; rollback revision is 132.
+The separate configuration transaction committed successfully: 17 of 17 existing
+tenants enabled, 15 flags changed, other settings preserved, user preferences
+unchanged. The transaction also verified every tenant's effective flag through
+the live API image's packaged helper. Public Integrations and health return 200;
+unauthenticated Krisp access still returns 401. Receipts are included here.
+
 Application change: PR #2014, merged source fdf1ccecf504ea495b27bfff759a31cd16b10686.
 The tenant flag still defaults off and rejects missing/non-boolean values. The
 slug restriction has been removed from OAuth/connector access and worker selection.
@@ -39,6 +47,6 @@ require explicit flag enablement. No transcript or token values are inspected.
 The user explicitly requested all-tenant activation after authorizing merge/AWS
 shipment. The implementing agent reviewed the source, test outcomes, and immutable
 image evidence under that authorization; this is not independent human review.
-Use the guarded release operator for the worker, then apply the scoped flag update.
+The guarded release operator promoted the worker before the scoped flag update.
 ECS health and flag readback do not establish a completed provider import. Live
 OAuth and note-sync acceptance are reported separately from rollout evidence.

@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "account": "967807252336",
+  "region": "us-east-1",
+  "cluster": "capiro-dev",
+  "service": "engagement-api",
+  "preparedAt": "2026-10-05T21:36:10.147Z",
+  "qualification": {
+    "schemaVersion": 1,
+    "service": "engagement-api",
+    "sourceSha": "fdf1ccecf504ea495b27bfff759a31cd16b10686",
+    "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/engagement-api@sha256:38d0b7c91b00bc34d0d12928ede41f00f04dca9509832c057921f3bf1a14b5b8",
+    "status": "qualified",
+    "reviewer": "Codex release agent under explicit owner authorization to enable Krisp for every tenant",
+    "reviewedAt": "2026-10-05T21:36:00.800Z",
+    "expiresAt": "2026-10-06T09:36:00.801Z",
+    "schemaChange": false,
+    "evidence": [
+      "https://github.com/neo-capiro/capirov2/blob/62fcce70e16ec121e370a0add1b2e387df225940/docs/meri/releases/2026-10-05/krisp-all-tenants/qualification.md"
+    ],
+    "checks": [
+      {
+        "name": "build",
+        "status": "passed",
+        "sourceSha": "fdf1ccecf504ea495b27bfff759a31cd16b10686",
+        "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/engagement-api@sha256:38d0b7c91b00bc34d0d12928ede41f00f04dca9509832c057921f3bf1a14b5b8",
+        "url": "https://github.com/neo-capiro/capirov2/blob/62fcce70e16ec121e370a0add1b2e387df225940/docs/meri/releases/2026-10-05/krisp-all-tenants/qualification.md"
+      },
+      {
+        "name": "automated-tests",
+        "status": "passed",
+        "sourceSha": "fdf1ccecf504ea495b27bfff759a31cd16b10686",
+        "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/engagement-api@sha256:38d0b7c91b00bc34d0d12928ede41f00f04dca9509832c057921f3bf1a14b5b8",
+        "url": "https://github.com/neo-capiro/capirov2/blob/62fcce70e16ec121e370a0add1b2e387df225940/docs/meri/releases/2026-10-05/krisp-all-tenants/qualification.md"
+      },
+      {
+        "name": "retirement-compatibility",
+        "status": "passed",
+        "sourceSha": "fdf1ccecf504ea495b27bfff759a31cd16b10686",
+        "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/engagement-api@sha256:38d0b7c91b00bc34d0d12928ede41f00f04dca9509832c057921f3bf1a14b5b8",
+        "url": "https://github.com/neo-capiro/capirov2/blob/62fcce70e16ec121e370a0add1b2e387df225940/docs/meri/releases/2026-10-05/krisp-all-tenants/qualification.md"
+      }
+    ]
+  },
+  "baseline": {
+    "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-engagement-api:131",
+    "serviceHash": "dec444be2e8248f665481ead3e5c0ab68c49eb9a5fbe8a5a43fa792734057154",
+    "configHash": "e9334676af8901afefb274207fbe152d2cc296ec0b6d6dc807639640e656fdc2",
+    "taskHash": "9edcf32b460e7b08adeed01906f0aff21d1f801d3731a5345c2204124525df7d",
+    "imageDigest": "sha256:6beba60479aeb70d572de9cbfdbc989cc094790c611f5637a6d6e7a51f49b7cd",
+    "desiredCount": 2
+  }
+}

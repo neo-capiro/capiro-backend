@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "service": "engagement-api",
+  "sourceSha": "fdf1ccecf504ea495b27bfff759a31cd16b10686",
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/engagement-api@sha256:38d0b7c91b00bc34d0d12928ede41f00f04dca9509832c057921f3bf1a14b5b8",
+  "status": "qualified",
+  "reviewer": "Codex release agent under explicit owner authorization to enable Krisp for every tenant",
+  "reviewedAt": "2026-10-05T21:36:00.800Z",
+  "expiresAt": "2026-10-06T09:36:00.801Z",
+  "schemaChange": false,
+  "evidence": [
+    "https://github.com/neo-capiro/capirov2/blob/62fcce70e16ec121e370a0add1b2e387df225940/docs/meri/releases/2026-10-05/krisp-all-tenants/qualification.md"
+  ],
+  "checks": [
+    {
+      "name": "build",
+      "status": "passed",
+      "sourceSha": "fdf1ccecf504ea495b27bfff759a31cd16b10686",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/engagement-api@sha256:38d0b7c91b00bc34d0d12928ede41f00f04dca9509832c057921f3bf1a14b5b8",
+      "url": "https://github.com/neo-capiro/capirov2/blob/62fcce70e16ec121e370a0add1b2e387df225940/docs/meri/releases/2026-10-05/krisp-all-tenants/qualification.md"
+    },
+    {
+      "name": "automated-tests",
+      "status": "passed",
+      "sourceSha": "fdf1ccecf504ea495b27bfff759a31cd16b10686",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/engagement-api@sha256:38d0b7c91b00bc34d0d12928ede41f00f04dca9509832c057921f3bf1a14b5b8",
+      "url": "https://github.com/neo-capiro/capirov2/blob/62fcce70e16ec121e370a0add1b2e387df225940/docs/meri/releases/2026-10-05/krisp-all-tenants/qualification.md"
+    },
+    {
+      "name": "retirement-compatibility",
+      "status": "passed",
+      "sourceSha": "fdf1ccecf504ea495b27bfff759a31cd16b10686",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/engagement-api@sha256:38d0b7c91b00bc34d0d12928ede41f00f04dca9509832c057921f3bf1a14b5b8",
+      "url": "https://github.com/neo-capiro/capirov2/blob/62fcce70e16ec121e370a0add1b2e387df225940/docs/meri/releases/2026-10-05/krisp-all-tenants/qualification.md"
+    }
+  ]
+}
