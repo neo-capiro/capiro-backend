@@ -67,6 +67,51 @@ export function documentPageReceipt(value: unknown): DocumentPageReceipt | undef
   };
 }
 
+/** The same receipt for a section read from an attachment on this chat. */
+export function attachmentPageReceipt(value: unknown): DocumentPageReceipt | undefined {
+  const result = object(value),
+    coverage = object(result?.coverage),
+    source = object(result?.source),
+    locator = object(coverage?.locator);
+  const payload = object(result?.records?.[0]?.payload);
+  if (
+    coverage?.mode !== 'section' ||
+    typeof source?.attachmentId !== 'string' ||
+    typeof source.originalBytesHash !== 'string'
+  )
+    return undefined;
+  const { sectionCount, sectionCharacters, characterStart: start, characterEnd: end } = coverage;
+  const section = locator?.section;
+  if (
+    ![section, sectionCount, sectionCharacters, start, end].every(Number.isSafeInteger) ||
+    section < 1 ||
+    sectionCount < section ||
+    sectionCount > 10_000 ||
+    start < 0 ||
+    end < start ||
+    end > sectionCharacters
+  )
+    return undefined;
+  return {
+    documentId: source.attachmentId,
+    contentHash: source.originalBytesHash,
+    section,
+    sectionCount,
+    sectionCharacters,
+    start,
+    end,
+    query: coverage.query ?? null,
+    readable:
+      coverage.extractionStatus === 'complete' &&
+      !result?.projection?.truncated &&
+      (end === start ||
+        (typeof payload?.text === 'string' &&
+          payload.characterStart === start &&
+          payload.characterEnd === end &&
+          payload.text.length === end - start)),
+  };
+}
+
 /** A last page alone does not close a document. Require contiguous, version-bound
  * coverage from the start of every section, including any empty/unreadable pages. */
 export function completeDocumentPages(pages: readonly DocumentPageReceipt[]): boolean {
@@ -112,6 +157,7 @@ export class MeriDocumentCompletion {
   private contactsRead = false;
   private attempted = new Set<string>();
   private listingNext: Record<string, unknown> | null = null;
+  private attachmentRead = false;
   private listingTruncated = false;
   constructor(
     readonly task: MeriDocumentRequest,
@@ -120,6 +166,22 @@ export class MeriDocumentCompletion {
 
   observe(tool: string, args: Record<string, unknown>, value: unknown): void {
     const result = object(value);
+    // A file the user attached to this chat is read with read_chat_attachments;
+    // those reads count toward the same document coverage.
+    if (tool === 'read_chat_attachments') {
+      const page = attachmentPageReceipt(value);
+      if (!result || result.error || !page) return;
+      if (this.task.completeRead && page.query) return;
+      const state = this.documents.get(page.documentId) ?? {
+        pages: [],
+        next: null,
+        name: String(object(result.source)?.filename ?? page.documentId),
+      };
+      this.documents.set(page.documentId, state);
+      state.pages.push(page);
+      this.attachmentRead = true;
+      return;
+    }
     if (tool !== 'read_client_documents') {
       if (
         [
@@ -206,7 +268,9 @@ export class MeriDocumentCompletion {
 
   gaps(): string[] {
     const gaps: string[] = [];
-    if (!this.listSucceeded)
+    if (this.attachmentRead) {
+      // The user's own attachment is the subject; the client file list is not.
+    } else if (!this.listSucceeded)
       gaps.push(
         'The client file list could not be verified. This does not establish that an upload failed.',
       );
@@ -216,8 +280,9 @@ export class MeriDocumentCompletion {
       gaps.push(
         'The client files were listed, but the relevant document contents have not been read.',
       );
-    if (this.listingNext) gaps.push('More client files remain to be listed.');
-    if (this.listingTruncated)
+    if (this.listingNext && !this.attachmentRead)
+      gaps.push('More client files remain to be listed.');
+    if (this.listingTruncated && !this.attachmentRead)
       gaps.push('Part of the client file list was omitted from the available evidence.');
     for (const state of this.documents.values()) {
       if (
