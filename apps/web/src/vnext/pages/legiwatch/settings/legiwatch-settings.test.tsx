@@ -241,11 +241,12 @@ describe('LW-QA-013 — LegiWatch Settings (read/write over real per-user storag
     expect(within(chamber).getByText('Senate').getAttribute('aria-selected')).toBe('true');
   });
 
-  it('unsupported preferences render "Not available yet" and are never fake-enabled', async () => {
+  it('directs users to the per-hearing lifecycle preferences', async () => {
     renderSettings();
     await screen.findByLabelText('LegiWatch settings');
     const notifications = screen.getByLabelText('Notifications');
-    expect(notifications.textContent).toMatch(/Not available yet/);
+    expect(notifications.textContent).toMatch(/In-app · set per followed hearing/);
+    expect(within(notifications).getByRole('button', { name: 'Manage followed hearings' })).toBeTruthy();
     // No interactive control pretends to toggle them.
     expect(within(notifications).queryAllByRole('checkbox').length).toBe(0);
   });

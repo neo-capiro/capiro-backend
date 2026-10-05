@@ -23,6 +23,7 @@ import {
   inferVisibility,
   isoDay,
   matchKeys,
+  observationIdentityCompatible,
   normalizeChamber,
   normalizeEventStatus,
   normalizeEventType,
@@ -155,7 +156,7 @@ describe('matchKeys', () => {
 
   it('offers a natural (committee + day + ET clock) rung so a Senate feed row can find the Congress.gov row', () => {
     const keys = matchKeys(
-      event({ chamber: 'senate', committeeSystemCode: 'ssas00' }),
+      event({ chamber: 'senate', committeeSystemCode: 'ssas00', externalEventId: '' }),
       SENATE_SCHEDULE_ADAPTER,
     );
     const natural = keys.find((k) => k.kind === 'natural');
@@ -182,8 +183,36 @@ describe('matchKeys', () => {
   });
 
   it('orders rungs from strongest to weakest evidence', () => {
-    const keys = matchKeys(event(), CONGRESS_GOV_ADAPTER).map((k) => k.kind);
+    const keys = matchKeys(event({ externalEventId: '' }), CONGRESS_GOV_ADAPTER).map((k) => k.kind);
     expect(keys).toEqual(['id', 'natural', 'day', 'title']);
+  });
+  it('never falls back to committee/date similarity for an official event ID', () => {
+    expect(
+      matchKeys(event({ chamber: 'senate', externalEventId: '338783' }), SENATE_SCHEDULE_ADAPTER),
+    ).toEqual([
+      { kind: 'id', id: 'sen-119-338783' },
+      { kind: 'id', id: 'cm-119-338783' },
+    ]);
+    expect(
+      observationIdentityCompatible(
+        event({ externalEventId: '338783' }),
+        SENATE_SCHEDULE_ADAPTER,
+        'sen-119-338784',
+      ),
+    ).toBe(false);
+    expect(
+      observationIdentityCompatible(
+        event({ externalEventId: '338783' }),
+        SENATE_SCHEDULE_ADAPTER,
+        'cm-119-338783',
+      ),
+    ).toBe(true);
+    expect(
+      canonicalHearingId(
+        event({ chamber: 'joint', externalEventId: '338796' }),
+        SENATE_SCHEDULE_ADAPTER,
+      ),
+    ).toBe('cm-119-338796');
   });
 });
 

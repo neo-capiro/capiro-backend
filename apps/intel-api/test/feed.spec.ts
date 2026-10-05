@@ -8,7 +8,11 @@ const NO_CRYPTO = { configured: false, decrypt: () => '' } as any;
 const NO_ACTIONS = { summaryForAlerts: async () => new Map() } as any;
 // SourceData stub: no client-name resolution (P11 global roll-up dep). Per-client
 // tests never hit it (clientId short-circuits name resolution).
-const NO_SOURCE_DATA = { getClientNames: async () => new Map() } as any;
+const PORTFOLIO_IDS = ['c1', 'cA', 'cB'];
+const NO_SOURCE_DATA = {
+  getPortfolioClientIds: async () => PORTFOLIO_IDS,
+  getClientNames: async () => new Map(),
+} as any;
 // WorkState stub: FeedService's 5th constructor dep (AlertWorkStateService).
 // None of the tests above pass a userId, so `forAlerts`/`hiddenAlertIds` are
 // never dereferenced on this stub — it exists only so the constructor call is
@@ -100,7 +104,7 @@ describe('FeedService.getFeed', () => {
     await new FeedService(prisma, NO_CRYPTO, NO_ACTIONS, NO_SOURCE_DATA, NO_WORK_STATE).getFeed('t1', 'c1', {});
     const w = getArgs().where;
     expect(w.tenantId).toBe('t1');
-    expect(w.clientId).toBe('c1');
+    expect(w.clientId).toEqual({ in: ['c1'] });
     expect(w.status).toEqual({ in: DEFAULT_STATUSES });
   });
 
@@ -355,7 +359,25 @@ describe('FeedService.getFeed — facet counts respect the filter (MP-07)', () =
 });
 
 describe('FeedService.getFeed tenant-wide roll-up (P11)', () => {
-  it('drops the clientId predicate when clientId is null (still tenant-scoped)', async () => {
+  it('fails closed for an archived, unknown or foreign client selection', async () => {
+    const { prisma, getArgs } = mockPrisma([]);
+    await new FeedService(prisma, NO_CRYPTO, NO_ACTIONS, NO_SOURCE_DATA, NO_WORK_STATE).getFeed('t1', 'foreign-client', {});
+    expect(getArgs().where.clientId).toEqual({ in: [] });
+    expect(getArgs().where.tenantId).toBe('t1');
+  });
+  it('accepts uppercase historical client identifiers within the same portfolio', async () => {
+    const { prisma, getArgs } = mockPrisma([]);
+    await new FeedService(prisma, NO_CRYPTO, NO_ACTIONS, NO_SOURCE_DATA, NO_WORK_STATE).getFeed('t1', 'CA', {});
+    expect(getArgs().where.clientId).toEqual({ in: ['cA'] });
+  });
+  it('honors prior dismissals stored with uppercase client IDs in a scoped feed', async () => {
+    const { prisma, getArgs } = mockPrisma([]);
+    const workState = makeWorkStateStub({ hiddenAlertIds: async (_tenant, _user, scope) => scope === 'CA' ? ['dismissed-upper'] : [] });
+    const source = { ...NO_SOURCE_DATA, getPortfolioClientIds: async () => ['ca', 'CA'] };
+    await new FeedService(prisma, NO_CRYPTO, NO_ACTIONS, source, workState as any).getFeed('t1', 'ca', { userId: 'user' });
+    expect(getArgs().where.id).toEqual({ notIn: ['dismissed-upper'] });
+  });
+  it('restricts tenant-wide alerts to the portfolio client registry', async () => {
     const { prisma, getArgs } = mockPrisma(
       [mkRow(1, 0.5, 'cA'), mkRow(2, 0.4, 'cB')],
       [{ sourceType: 'bill', _count: 2 }],
@@ -363,7 +385,7 @@ describe('FeedService.getFeed tenant-wide roll-up (P11)', () => {
     await new FeedService(prisma, NO_CRYPTO, NO_ACTIONS, NO_SOURCE_DATA, NO_WORK_STATE).getFeed('t1', null, {});
     const w = getArgs().where;
     expect(w.tenantId).toBe('t1');
-    expect(w.clientId).toBeUndefined();
+    expect(w.clientId).toEqual({ in: PORTFOLIO_IDS });
     expect(w.status).toEqual({ in: DEFAULT_STATUSES });
   });
 
@@ -379,7 +401,7 @@ describe('FeedService.getFeed tenant-wide roll-up (P11)', () => {
       cursor,
     });
     const a = getArgs();
-    expect(a.where.clientId).toBeUndefined();
+    expect(a.where.clientId).toEqual({ in: PORTFOLIO_IDS });
     expect(a.orderBy).toEqual([{ createdAt: 'desc' }, { id: 'desc' }]);
     expect(a.where.OR).toHaveLength(2);
     expect(a.skip).toBeUndefined(); // keyset, never OFFSET
@@ -388,11 +410,12 @@ describe('FeedService.getFeed tenant-wide roll-up (P11)', () => {
   it('labels each alert with its clientId + resolved clientName', async () => {
     const { prisma } = mockPrisma([mkRow(1, 0.5, 'cA'), mkRow(2, 0.4, 'cB')]);
     const sourceData = {
+      ...NO_SOURCE_DATA,
       getClientNames: async (_t: string, ids: string[]) => {
         expect(ids).toEqual(['cA', 'cB']);
         return new Map([
-          ['cA', 'Acme Defense'],
-          ['cB', 'Beacon AI'],
+          ['ca', 'Acme Defense'],
+          ['cb', 'Beacon AI'],
         ]);
       },
     } as any;
@@ -402,21 +425,21 @@ describe('FeedService.getFeed tenant-wide roll-up (P11)', () => {
     expect((r.items[1] as any).clientName).toBe('Beacon AI');
   });
 
-  it('does not resolve names for the per-client view (clientName null)', async () => {
+  it('resolves the name in per-client views too', async () => {
     const { prisma } = mockPrisma([mkRow(1, 0.5, 'c1')]);
     const sourceData = {
-      getClientNames: async () => {
-        throw new Error('should not be called for a per-client feed');
-      },
+      ...NO_SOURCE_DATA,
+      getClientNames: async () => new Map([['c1', 'Acme Defense']]),
     } as any;
     const r = await new FeedService(prisma, NO_CRYPTO, NO_ACTIONS, sourceData, NO_WORK_STATE).getFeed('t1', 'c1', {});
-    expect((r.items[0] as any).clientName).toBeNull();
+    expect((r.items[0] as any).clientName).toBe('Acme Defense');
   });
 });
 
 describe('FeedService decrypt-on-read', () => {
   const encRow = () => ({
     id: 'a1',
+    clientId: 'c1',
     sourceType: 'hearing',
     kind: 'hearing_mention',
     severity: 'notable',

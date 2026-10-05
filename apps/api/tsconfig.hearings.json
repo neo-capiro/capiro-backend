@@ -46,6 +46,7 @@
     "scripts/detect-committee-site-updates.ts",
     "scripts/probe-committee-sources.ts",
     "scripts/reconcile-hearing-archives.ts",
+    "scripts/repair-official-hearing-observations.ts",
     "scripts/audit-hearing-coverage.ts",
     "scripts/verify-legiwatch-phase3.ts",
     "src/types/word-extractor.d.ts"

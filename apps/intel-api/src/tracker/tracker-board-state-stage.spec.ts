@@ -281,6 +281,7 @@ describe('state stage/outcome mapping — track path (trackStateStage → persis
     // negative outcomes claim NO reached stage (no history proof available).
     ['failed', 'introduced'],
     ['dead_by_deadline', 'introduced'],
+    ['superseded', 'introduced'],
     [null, 'introduced'],
   ];
 

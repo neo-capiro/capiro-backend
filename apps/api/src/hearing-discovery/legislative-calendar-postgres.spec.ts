@@ -217,6 +217,36 @@ describe('Phase 3 calendar persistence on PostgreSQL', () => {
       await prisma.committeeHearing.findUniqueOrThrow({ where: { id: refinementId } }),
     ).toMatchObject({ legislativeSession: '2096', stateCommitteeId: bodyId });
   });
+  it('refines a retained first-party notice already attached to a legacy archive body', async () => {
+    const unresolved = { ...refinement, session: '2096' };
+    await prisma.hearingSourceObservation.update({
+      where: { sourceId_externalEventId: { sourceId: source.id, externalEventId: 'refinement' } },
+      data: { sourceMetadata: JSON.parse(JSON.stringify({ legislative: unresolved })) },
+    });
+    await prisma.committeeHearing.update({
+      where: { id: refinementId },
+      data: { stateCommitteeId: null, bodySourceKey: 'fl:senate:tfc:retained-archive' },
+    });
+    const qualified = {
+      ...unresolved,
+      bodySourceKey: 'fl:senate:qualified',
+      stateCommitteeId: bodyId,
+    };
+    await expect(
+      repo.reconcile(
+        source,
+        'refinement',
+        { ...qualified, officialIdentity: 'different-notice' },
+        now,
+      ),
+    ).rejects.toThrow('identity');
+    expect((await repo.reconcile(source, 'refinement', qualified, now)).hearingId).toBe(
+      refinementId,
+    );
+    expect(
+      await prisma.committeeHearing.findUniqueOrThrow({ where: { id: refinementId } }),
+    ).toMatchObject({ stateCommitteeId: bodyId, bodySourceKey: 'fl:senate:qualified' });
+  });
   it('retains LegiScan version identities, separates time collisions, and records disappearance without cancellation', async () => {
     const raw = [
       { date: '2096-01-02', time: '9:00 AM', location: 'A', type: 'hearing', description: 'First' },

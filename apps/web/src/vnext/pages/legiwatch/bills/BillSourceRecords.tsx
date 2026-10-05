@@ -5,6 +5,7 @@ import { useApiScope } from '../../../../lib/use-api-scope.js';
 import { CapiroButton } from '../../../components/actions/index.js';
 import { CapiroSelect } from '../../../components/fields/index.js';
 import { folderKey } from './folder-api.js';
+import { BillTextComparison } from './BillTextComparison.js';
 
 interface RecordPage {
   rows: Array<{
@@ -91,6 +92,7 @@ export function BillSourceRecords({
           setVoteId(null);
         }}
       />
+      {section === 'documents' && <BillTextComparison key={billId} billId={billId} />}
       {records.isPending ? (
         <p role="status">Loading records…</p>
       ) : records.isError ? (

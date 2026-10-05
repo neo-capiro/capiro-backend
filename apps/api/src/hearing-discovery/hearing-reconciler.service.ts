@@ -22,6 +22,7 @@ import { StreamCandidateRepository } from './stream-candidate.repository.js';
 import { projectCanonical } from './canonical-diff.js';
 import type { SourceDescriptor, SourceEvent } from './hearing-discovery.types.js';
 import { LegislativeCalendarRepository } from './legislative-calendar.repository.js';
+import { observationIdentityCompatible } from './hearing-identity.js';
 
 export interface ReconcileOutcome {
   hearingId: string;
@@ -94,12 +95,14 @@ export class HearingReconcilerService {
     // synthetic id is derived from the schedule. Skipping this rung forked a
     // duplicate canonical row every time a Senate hearing moved (found by the
     // disposable-Postgres verification, section H, before this existed).
-    const match: MatchOutcome = observation.existingHearingId
-      ? {
-          kind: 'observation',
-          hearingId: await this.hearings.resolveAlias(observation.existingHearingId),
-        }
-      : await this.hearings.resolveHearingId(event, source.adapterKey);
+    const match: MatchOutcome =
+      observation.existingHearingId &&
+      observationIdentityCompatible(event, source.adapterKey, observation.existingHearingId)
+        ? {
+            kind: 'observation',
+            hearingId: await this.hearings.resolveAlias(observation.existingHearingId),
+          }
+        : await this.hearings.resolveHearingId(event, source.adapterKey);
     await this.observations.linkToHearing(observation.observationId, match.hearingId);
 
     // Project over the WHOLE ledger for this hearing, not just this event, so a

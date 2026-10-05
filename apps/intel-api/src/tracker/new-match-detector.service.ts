@@ -165,7 +165,7 @@ export class NewMatchDetectorService {
               whyKind: rec.whyKind,
               stage: cls.label,
               actionText:
-                `Now matches your watchlist (fit ${rec.fit.toFixed(2)})` +
+                `Now matches your watchlist` +
                 `${rec.title ? ` — ${rec.title}` : ''}`,
               actionDate: rec.latestActionDate
                 ? rec.latestActionDate.toISOString().slice(0, 10)

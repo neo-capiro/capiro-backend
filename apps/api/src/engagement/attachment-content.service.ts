@@ -1,3 +1,4 @@
+/// <reference path="../types/word-extractor.d.ts" />
 /**
  * Attachment readiness + BOUNDED extraction (Phase 1 §3.h1 / §3.h3).
  *

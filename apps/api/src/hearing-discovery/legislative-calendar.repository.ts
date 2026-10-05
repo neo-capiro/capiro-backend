@@ -113,9 +113,21 @@ export class LegislativeCalendarRepository {
         const legacyUnresolvedOpenstatesBody =
           existing?.stateCommitteeId === null &&
           existing.bodySourceKey?.startsWith('openstates:') === true;
+        const retainedNotice = (
+          priorObservation?.sourceMetadata as { legislative?: LegislativeObservation } | null
+        )?.legislative;
+        const retainedNoticeRefinement =
+          existing?.stateCommitteeId === null &&
+          /^fl:(?:house|senate):tfc:/.test(existing.bodySourceKey ?? '') &&
+          retainedNotice?.officialIdentity === observation.officialIdentity &&
+          retainedNotice?.bodySourceKey.includes('unresolved-body') &&
+          retainedNotice?.jurisdiction === observation.jurisdiction &&
+          retainedNotice?.chamber === observation.chamber &&
+          retainedNotice?.session === observation.session;
         const qualifiedBodyRefinement =
           (existing?.bodySourceKey?.includes('unresolved-body') ||
-            legacyUnresolvedOpenstatesBody) &&
+            legacyUnresolvedOpenstatesBody ||
+            retainedNoticeRefinement) &&
           observation.stateCommitteeId;
         const unresolvedBody =
           observation.bodySourceKey.includes('unresolved-body') ||

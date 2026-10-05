@@ -444,11 +444,7 @@ function LegiWatchPreferences() {
           Alert triggers, materiality, email/SMS channels and quiet hours are configured per client
           with your client's monitoring model — open the client's tracking settings to change them.
         </p>
-        {/* Honest states (§13): the backend has no user-global hearing-start /
-            hearing-change / transcript-ready / intelligence-ready delivery yet
-            (hearing_subscription.notify_on_start exists per subscription but no
-            user-level contract; intel-alert triggers cover bill/PE sources).
-            These render DISABLED with the reason — never a fake toggle. */}
+        <p>Hearing notifications appear in your inbox. Choose each trigger in a hearing’s Follow settings.</p>
         <div
           style={{
             display: 'grid',
@@ -461,18 +457,19 @@ function LegiWatchPreferences() {
         >
           <span>Notify when a followed hearing starts</span>
           <span style={{ color: 'var(--lw-meta)', fontSize: 12 }}>
-            Not available yet — set per hearing when you schedule it
+            In-app · set per followed hearing
           </span>
           <span>Hearing schedule changes</span>
-          <span style={{ color: 'var(--lw-meta)', fontSize: 12 }}>Not available yet</span>
+          <span style={{ color: 'var(--lw-meta)', fontSize: 12 }}>In-app · set per followed hearing</span>
           <span>Transcript ready</span>
-          <span style={{ color: 'var(--lw-meta)', fontSize: 12 }}>Not available yet</span>
+          <span style={{ color: 'var(--lw-meta)', fontSize: 12 }}>In-app · set per followed hearing</span>
           <span>Intelligence / client match ready</span>
           <span style={{ color: 'var(--lw-meta)', fontSize: 12 }}>
-            Not available yet — per-client alert prefs exist under each client
+            In-app · high-priority matches for the clients selected on a follow
           </span>
         </div>
         <div style={{ marginTop: 14 }}>
+          <LwButton size="36" onClick={() => navigate('/legiwatch?tab=hearings&following=true')}>Manage followed hearings</LwButton>
           <LwButton size="36" onClick={() => navigate(watchlistSetupPath(scope))}>
             Open watchlist / monitoring setup
           </LwButton>

@@ -36,6 +36,25 @@ export const COMMITTEE_SITE_ADAPTER = 'committee-site';
  */
 const EVENT_ID_ADAPTERS = new Set<string>([CONGRESS_GOV_ADAPTER, HOUSE_REPOSITORY_ADAPTER]);
 
+export function hasOfficialEventId(event: SourceEvent, adapterKey: string): boolean {
+  return (
+    /^\d+$/.test(event.externalEventId) &&
+    (EVENT_ID_ADAPTERS.has(adapterKey) || adapterKey === SENATE_SCHEDULE_ADAPTER)
+  );
+}
+
+export function observationIdentityCompatible(
+  event: SourceEvent,
+  adapterKey: string,
+  hearingId: string,
+): boolean {
+  if (!hasOfficialEventId(event, adapterKey)) return true;
+  const retained = /^(?:cm|sen)-(\d+)-(\d+)$/.exec(hearingId);
+  return (
+    !retained || (Number(retained[1]) === event.congress && retained[2] === event.externalEventId)
+  );
+}
+
 /** YYYYMMDD of a `@db.Date`-style UTC-midnight day. */
 export function dayKey(d: Date): string {
   const y = d.getUTCFullYear();
@@ -155,7 +174,7 @@ export function canonicalHearingId(event: SourceEvent, adapterKey: string): stri
       // Congress.gov's senate-event and this feed share the identifier. Both
       // new writers use sen-* to retain canonical schedule-update ownership;
       // matchKeys still recognizes the historical cm-* rows.
-      return `sen-${congress}-${event.externalEventId}`;
+      return `${event.chamber === 'joint' ? 'cm' : 'sen'}-${congress}-${event.externalEventId}`;
     }
     return `sen-${congress}-${body}-${day}-${clock}`;
   }
@@ -228,6 +247,9 @@ export function matchKeys(event: SourceEvent, adapterKey: string): MatchKey[] {
   ) {
     keys.push({ kind: 'id', id: `cm-${event.congress ?? 0}-${event.externalEventId}` });
   }
+  // A known publisher ID is stronger than committee/day/time similarity.
+  // Two distinct Judiciary events on one day must never overwrite each other.
+  if (hasOfficialEventId(event, adapterKey)) return keys;
   const calendarDate = event.calendarDate;
   if (!calendarDate) return keys;
 

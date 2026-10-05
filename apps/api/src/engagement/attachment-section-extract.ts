@@ -1,3 +1,4 @@
+/// <reference path="../types/word-extractor.d.ts" />
 import { BadRequestException } from '@nestjs/common';
 import mammoth from 'mammoth';
 import WordExtractor from 'word-extractor';

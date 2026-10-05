@@ -5,6 +5,8 @@ import {
   classifyVoteResult,
   humanizeBillId,
   humanizeStateBillKey,
+  stateBillStatusLabel,
+  stateBillReplacement,
   isStateBillKey,
   type ExpectedConfidenceLevel,
   type ExpectedMilestoneType,
@@ -520,7 +522,11 @@ export class BillDossierService {
     }));
     const noVote = votes.length === 0 ? NO_TARGET_VOTE : null;
 
-    const statusLabel = b.status ? prettifyStatus(b.status) : 'Status unavailable';
+    const replacement = stateBillReplacement(b.latestActionText);
+    // Read repair while the scheduled derivation backfills persisted statuses.
+    const status = replacement && !['enacted', 'vetoed', 'veto_overridden'].includes(b.status ?? '')
+      ? 'superseded' : b.status;
+    const statusLabel = status ? stateBillStatusLabel(status) : 'Status unavailable';
     const latest: LatestAction = { text: b.latestActionText, date: toIso(b.latestActionDate) };
     const milestones = buildActionMilestones(actions, 10);
 
@@ -536,8 +542,8 @@ export class BillDossierService {
       introduced: null,
       statusLabel,
       statusSev: 'neutral' as DossierSeverity,
-      statusAt: toIso(b.statusAt),
-      stage: b.status,
+      statusAt: toIso(status === 'superseded' ? b.latestActionDate : b.statusAt),
+      stage: status,
       jurisdiction: b.state?.toUpperCase() ?? b.id.split('-')[0]?.toUpperCase() ?? null,
       isState: true,
       url: b.stateUrl ?? b.url,
@@ -578,7 +584,7 @@ export class BillDossierService {
             ? humanizeStateBillKey(c.relatedBillKey as string)
             : (c.relatedDisplay ?? (c.relatedBillKey as string)),
           title: c.relatedDisplay,
-          role: c.linkType,
+          role: `${c.linkType}${c.relatedStatus ? ` · ${stateBillStatusLabel(c.relatedStatus)}` : ''}${replacement?.chapter && replacement.billNumber === humanizeStateBillKey(c.relatedBillKey as string).replace(/^FL /, '') ? ` · Chapter ${replacement.chapter}` : ''}`,
         })),
       hearings: [],
       alerts: [],
@@ -1833,7 +1839,7 @@ function sevForAlert(severity: string | null): DossierSeverity {
  * vote and the truth layer must not imply one (plan §5 edge case 2/3, §0.4).
  */
 function officialNextStepText(status: string | null, ruleFailed: boolean): string {
-  if (ruleFailed || status === 'rule_failed') {
+  if (status === 'rule_failed' || (ruleFailed && !['passed_chamber', 'resolving', 'to_president', 'enacted', 'vetoed', 'failed'].includes(status ?? ''))) {
     return 'The governing rule failed; the measure is stalled pending a new rule or an alternative path to the floor.';
   }
   switch (status) {

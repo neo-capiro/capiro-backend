@@ -18,6 +18,7 @@ import {
   mergeStateCommitteeMembers,
   relatedLegacyBodiesForOfficial,
   officialDirectoryBodyForAlias,
+  stateCommitteeReferralWhere,
 } from './live-hearings.service.js';
 
 const TENANT_A = '00000000-0000-0000-0000-00000000000a';
@@ -249,6 +250,47 @@ function makeService(seed: Parameters<typeof makePrisma>[0]) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return { service: new LiveHearingsService(prisma as any), prisma };
 }
+
+describe('QA committee identity and referrals', () => {
+  it('keeps parent and subcommittee names attached to their own codes', async () => {
+    const { service } = makeService({
+      hearings: [hearing({ committeeName: '', committeeCode: 'ssas17', committeeSystemCode: null, chamber: 'Senate' })],
+      committees: [
+        { systemCode: 'ssas00', name: 'Armed Services', chamber: 'senate', parentSystemCode: null },
+        { systemCode: 'ssas17', name: 'Strategic Forces', chamber: 'senate', parentSystemCode: 'ssas00' },
+      ],
+    });
+    expect(await service.event(ctxA, 'cm-119-119504')).toMatchObject({
+      committeeName: 'Armed Services', committeeSystemCode: 'ssas00',
+      subcommitteeName: 'Strategic Forces', subcommitteeSystemCode: 'ssas17',
+    });
+  });
+  it('keeps legacy committee-name variants in a code-filtered calendar', async () => {
+    const { service } = makeService({
+      hearings: [hearing({ committeeName: 'Senate Committee on the Judiciary', committeeCode: null, committeeSystemCode: null, chamber: 'Senate' })],
+      committees: [{ systemCode: 'ssju00', name: 'Judiciary', chamber: 'senate', parentSystemCode: null }],
+    });
+    const result = await service.calendar(ctxA, { committee: 'ssju00' });
+    expect(result.total).toBe(1);
+    expect(result.rows[0]?.committeeName).toBe('Judiciary');
+    expect(result.rows[0]?.committeeSystemCode).toBe('ssju00');
+  });
+  it('hydrates a missing display name from the exact official code', async () => {
+    const { service } = makeService({
+      hearings: [hearing({ committeeName: '', committeeCode: 'ssas00', committeeSystemCode: null, chamber: 'Senate' })],
+      committees: [{ systemCode: 'ssas00', name: 'Armed Services', chamber: 'senate', parentSystemCode: null }],
+    });
+    expect((await service.event(ctxA, 'cm-119-119504'))?.committeeName).toBe('Armed Services');
+  });
+  it('includes historical referrals in the same session and chamber without substring matches', () => {
+    const where = stateCommitteeReferralWhere({ chamber: 'house', legislativeSession: '2026' }, [{ id: 'FL-lower-commerce', name: 'Commerce Committee' }]);
+    expect(where.sessionKey).toBe('2026');
+    const historical = (where.OR?.[1]?.actions?.some) as any;
+    expect(historical.chamber.in).toContain('H');
+    expect(historical.OR).toContainEqual({ text: { equals: 'Referred to Commerce', mode: 'insensitive' } });
+    expect(historical.OR).not.toContainEqual({ text: { contains: 'Commerce', mode: 'insensitive' } });
+  });
+});
 
 describe('LiveHearingsService — tenant isolation', () => {
   const seed = {

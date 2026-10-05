@@ -1506,6 +1506,7 @@ export function classifyVoteResult(result: string | null | undefined): 'pass' | 
 // ─────────────────────────────────────────────────────────────────────────
 
 export type StateBillStatus =
+  | 'superseded'
   | 'introduced'
   | 'committee'
   | 'reported'
@@ -1520,6 +1521,7 @@ export type StateBillStatus =
   | 'dead_by_deadline';
 
 const STATE_BILL_STATUS_META: Record<StateBillStatus, { label: string; rank: number }> = {
+  superseded: { label: 'Laid on table — companion substituted', rank: 9 },
   introduced: { label: 'Introduced', rank: 0 },
   committee: { label: 'In committee', rank: 1 },
   reported: { label: 'Reported out of committee', rank: 2 },
@@ -1594,6 +1596,9 @@ export function deriveStateBillStatus(input: {
   if (input.overridden || progress.some((p) => p.event === 7)) return mk('veto_overridden');
   // 3. Status 5 (Vetoed) or an explicit vetoed flag -> vetoed.
   if (input.legiscanStatus === 5 || input.vetoed) return mk('vetoed');
+  // A companion's passage/chapter is not enactment of this vehicle. Florida
+  // also tables earlier prints under Rule 7.18(a); those are not dispositions.
+  if (stateBillReplacement(input.latestActionText)) return mk('superseded');
   // 4. Status 6 (Failed) or progress 11 (Report DNP) are LegiScan's own
   //    coded facts about the BILL and are unconditionally terminal.
   if (input.legiscanStatus === 6 || progress.some((p) => p.event === 11)) {
@@ -1656,7 +1661,26 @@ export function classifyStateVoteMotion(motion: string | null | undefined): bool
 export function humanizeStateBillKey(key: string): string {
   const m = key.match(/^([a-z]{2})-[a-z0-9]+-([a-z]+)(\d+[a-z]?)$/i);
   if (!m || !m[1] || !m[2] || !m[3]) return key;
-  return `${m[1].toUpperCase()} ${m[2].toUpperCase()} ${m[3]}`;
+  const state = m[1].toUpperCase();
+  const type = m[2].toUpperCase();
+  const displayType = state === 'FL' && (type === 'H' || type === 'S') ? `${type}B` : type;
+  return `${state} ${displayType} ${m[3].replace(/^0+(?=\d)/, '')}`;
+}
+
+/** Explicit replacement evidence, never inferred merely from a related bill. */
+export function stateBillReplacement(text: string | null | undefined): {
+  billNumber: string | null;
+  chapter: string | null;
+} | null {
+  const value = text ?? '';
+  if (!/\blaid on (?:the )?table\b/i.test(value) || /under rule 7\.18/i.test(value)) return null;
+  if (!/companion bills?(?:\(s\))? passed|companion bill\(s\) passed|\brefer to\s+(?:CS\/)*(?:SB|HB)\s*\d/i.test(value)) return null;
+  const vehicle = /\b(?:SB|HB)\s*0*(\d+)/i.exec(value);
+  const chamber = vehicle ? /^(SB|HB)/i.exec(vehicle[0])?.[1]?.toUpperCase() : null;
+  return {
+    billNumber: vehicle && chamber ? `${chamber} ${Number(vehicle[1])}` : null,
+    chapter: /\b(?:Ch\.|Chapter(?: No\.)?)\s*(\d{4}-\d+)/i.exec(value)?.[1] ?? null,
+  };
 }
 
 /** "2025" -> "2025"; "2025x1987" -> "2025 (special session)" — display label for a DD1 sessionKey. */
@@ -1899,7 +1923,7 @@ export function normalizeCommitteeName(name: string): string {
   return name
     .toLowerCase()
     .replace(/^(house|senate|joint)\s+/, '')
-    .replace(/^committee on\s+/, '')
+    .replace(/^committee on\s+(?:the\s+)?/, '')
     .replace(/\s+committee$/, '')
     .replace(/[^a-z0-9]+/g, ' ')
     .trim();

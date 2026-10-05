@@ -217,6 +217,6 @@ export function clientAttribution(
   // is not in the current tenant directory (archived/renamed/deleted client —
   // PR C §16): keep the honest "Historical client" label; never fabricate.
   if (item.clientName) return item.clientName;
-  if (selectedClient && item.clientId === selectedClient.id) return selectedClient.name;
+  if (selectedClient && item.clientId.toLowerCase() === selectedClient.id.toLowerCase()) return selectedClient.name;
   return 'Historical client';
 }

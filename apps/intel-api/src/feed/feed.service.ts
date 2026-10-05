@@ -273,6 +273,10 @@ export class FeedService {
     const order: 'date' | 'score' = q.order === 'score' ? 'score' : 'date';
     const limit = Math.min(Math.max(q.limit ?? DEFAULT_LIMIT, 1), MAX_LIMIT);
     const statuses = q.statuses?.length ? q.statuses : DEFAULT_STATUSES;
+    const portfolioIds = await this.sourceData.getPortfolioClientIds(tenantId);
+    const visibleClientIds = clientId
+      ? portfolioIds.filter((id) => id.toLowerCase() === clientId.toLowerCase())
+      : portfolioIds;
 
     // Shared filters (also used for counts, minus the sourceType facet). clientId
     // is added ONLY for the per-client view; omitted → tenant-wide roll-up.
@@ -280,7 +284,7 @@ export class FeedService {
       tenantId,
       status: { in: statuses },
     };
-    if (clientId) baseWhere['clientId'] = clientId;
+    baseWhere['clientId'] = { in: visibleClientIds };
     if (q.alertId) baseWhere['id'] = q.alertId;
     if (q.severities?.length) baseWhere['severity'] = { in: q.severities };
     if (q.since || q.until) {
@@ -315,9 +319,11 @@ export class FeedService {
     // adds `@@index([tenantId, userId, state])` to close this for `_all`.
     const workFilter = q.workStates?.[0];
     if (q.userId && workFilter !== 'all') {
+      const workIds = async (read: (scope: string | null) => Promise<string[]>) =>
+        [...new Set((await Promise.all((clientId ? visibleClientIds : [null]).map(read))).flat())];
       if (!workFilter) {
         // Default view: exclude this user's dismissed / actively-snoozed alerts.
-        const hidden = await this.workState.hiddenAlertIds(tenantId, q.userId, clientId ?? null);
+        const hidden = await workIds((scope) => this.workState.hiddenAlertIds(tenantId, q.userId!, scope));
         if (hidden.length) {
           where['id'] = { notIn: hidden };
           facetWhere['id'] = { notIn: hidden };
@@ -326,12 +332,12 @@ export class FeedService {
         // Anti-join: no row for this user, OR an explicit state='new' row.
         // Expired snoozes are NOT excluded here (RB-01 c-2 decision) — an
         // expired snooze is default-visible again, same as every other view.
-        const notNew = await this.workState.alertIdsInState(
+        const notNew = await workIds((scope) => this.workState.alertIdsInState(
           tenantId,
-          q.userId,
-          clientId ?? null,
+          q.userId!,
+          scope,
           NOT_NEW_STATES,
-        );
+        ));
         if (notNew.length) {
           where['id'] = { notIn: notNew };
           facetWhere['id'] = { notIn: notNew };
@@ -341,12 +347,12 @@ export class FeedService {
         // Always set `id: { in }` even when empty — an empty positive match set
         // must return ZERO rows, never fall through to "no id filter" (which
         // would silently behave like `default` — the exact RB-01 failure mode).
-        const matching = await this.workState.alertIdsInState(
+        const matching = await workIds((scope) => this.workState.alertIdsInState(
           tenantId,
-          q.userId,
-          clientId ?? null,
+          q.userId!,
+          scope,
           [workFilter as WorkStateValue],
-        );
+        ));
         where['id'] = { in: matching };
         facetWhere['id'] = { in: matching };
       }
@@ -438,6 +444,7 @@ export class FeedService {
         ? this.workStateBucketCounts({
             tenantId,
             clientId: clientId ?? null,
+            visibleClientIds,
             userId: q.userId,
             statuses,
             severities: q.severities,
@@ -501,13 +508,10 @@ export class FeedService {
         )
       : new Map<string, string>();
 
-    // Global roll-up: resolve display names for the page's client ids in one
-    // tenant-scoped read so each card can label its client (no-op/skip for the
-    // per-client view — it already knows the name from the URL). Never blocks the
-    // feed: a name that can't be resolved just renders as its id upstream.
-    const clientNames = clientId
-      ? new Map<string, string>()
-      : await this.sourceData
+    // Resolve display names in one tenant-scoped read for both the global and
+    // per-client views. A failed display-name lookup does not widen the
+    // Portfolio scope, which was resolved above before querying any alerts.
+    const clientNames = await this.sourceData
           .getClientNames(
             tenantId,
             items.map((i) => i.clientId),
@@ -531,7 +535,7 @@ export class FeedService {
       return {
         ...it,
         evidence,
-        clientName: clientNames.get(it.clientId) ?? null,
+        clientName: clientNames.get(it.clientId.toLowerCase()) ?? null,
         // deriveTag reads the RAW row on purpose — it runs independently of
         // normalization and reads the stored flat `matchedTags` key directly.
         tag: deriveTag(it, termTagById),
@@ -595,6 +599,7 @@ export class FeedService {
   private async workStateBucketCounts(input: {
     tenantId: string;
     clientId: string | null;
+    visibleClientIds: string[];
     userId: string;
     statuses: string[];
     severities?: string[];
@@ -622,7 +627,7 @@ export class FeedService {
          AND ws.user_id = ${input.userId}
         WHERE a.tenant_id = ${input.tenantId}
           AND a.status = ANY(${input.statuses})
-          AND (${input.clientId}::text IS NULL OR a.client_id = ${input.clientId})
+          AND a.client_id = ANY(${input.visibleClientIds}::text[])
           AND (${input.severities ?? null}::text[] IS NULL OR a.severity = ANY(${input.severities ?? null}))
           AND (${input.sourceTypes ?? null}::text[] IS NULL OR a.source_type = ANY(${input.sourceTypes ?? null}))
           AND (${input.sourceRef ?? null}::text IS NULL OR a.source_ref = ${input.sourceRef ?? null})

@@ -47,6 +47,7 @@ function harness() {
     {} as never,
     {} as never,
     {} as never,
+    {} as never,
   );
   return { service, runtime };
 }

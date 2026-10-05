@@ -98,10 +98,9 @@ describe('scoreBillFit', () => {
     expect(r.matchedTopicIds).toEqual([]);
   });
 
-  it('falls back to keywordHit for textMatch when no topic term hits', () => {
+  it('does not promote an unverified broad SQL keyword hit when no topic term hits', () => {
     const r = scoreBillFit(bill('Unrelated title'), topics, [], 0.6, true);
-    // 0.4*0.6 + 0.3 = 0.54
-    expect(r.fit).toBeCloseTo(0.54, 9);
+    expect(r.fit).toBeCloseTo(0.24, 9);
   });
 
   it('caps matchedTags at 10 (Gate K c-5, raised from 4 now that ids make each entry cheap) and dedupes', () => {
