@@ -87,7 +87,25 @@ export async function withTestAccount(work) {
     };
     const me = await json('/api/me');
     need(me.tenant?.id === TENANT.id, 'ORDINARY_TENANT_MISMATCH');
-    return await work({ me, request, json });
+    const upload = async (path, filename, bytes, mime) => {
+      const form = new FormData();
+      form.append('file', new Blob([bytes], { type: mime }), filename);
+      const r = await fetch(API + path, {
+        method: 'POST', redirect: 'error', signal: AbortSignal.timeout(120000), body: form,
+        headers: { Authorization: 'Bearer ' + (await token()), 'x-capiro-tenant': TENANT.slug, 'User-Agent': 'Capiro-Meri-Authorized-QA/1.0' },
+      });
+      const text = await r.text();
+      if (!r.ok) throw new Error(`UPLOAD_${r.status}: ${text.slice(0, 200)}`);
+      return JSON.parse(text);
+    };
+    const download = async (path) => {
+      const r = await fetch(path.startsWith('http') ? path : API + path, {
+        redirect: 'follow', signal: AbortSignal.timeout(120000),
+        headers: { Authorization: 'Bearer ' + (await token()), 'x-capiro-tenant': TENANT.slug, 'User-Agent': 'Capiro-Meri-Authorized-QA/1.0' },
+      });
+      return { status: r.status, contentType: r.headers.get('content-type'), bytes: Buffer.from(await r.arrayBuffer()) };
+    };
+    return await work({ me, request, json, upload, download });
   } finally {
     if (session?.id) await clerk('POST', `/sessions/${session.id}/revoke`);
     else if (ticket?.id) await clerk('POST', `/sign_in_tokens/${ticket.id}/revoke`);

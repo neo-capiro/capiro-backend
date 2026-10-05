@@ -5,7 +5,7 @@
 // One turn at a time. Never approves or dismisses anything.
 //
 //   node evals/meri/simple/run-cases.mjs --cases 01,05 --out C:/dev/main/outputs/meri-simple-20261005/capiro-internal
-import { mkdirSync, writeFileSync, appendFileSync, readdirSync } from 'node:fs';
+import { mkdirSync, writeFileSync, appendFileSync, readdirSync, readFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { cases as originals } from '../live-v1/cases.mjs';
 import { internalCases, QA_CLIENT } from './capiro-internal-cases.mjs';
@@ -18,6 +18,9 @@ const arg = (name, fallback) => {
   return at > 0 ? process.argv[at + 1] : fallback;
 };
 const out = arg('out', 'C:/dev/main/outputs/meri-simple-20261005/capiro-internal');
+const FILES = 'C:/dev/main/outputs/meri-simple-20261005/files';
+const MIME = { pdf: 'application/pdf', txt: 'text/plain', xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' };
 const wanted = new Set(arg('cases', '').split(',').filter(Boolean));
 const selected = internalCases.filter((c) => wanted.has(c.id));
 if (!selected.length) throw new Error('no cases selected (--cases 01,05)');
@@ -73,6 +76,13 @@ async function runAction(session, step, clientId, clientName) {
     const c = await findCandidate(session, clientId, step.match);
     return { action: step.action, id: c.id, result: await session.json(`/api/memory/review/candidates/${c.id}/reject`, 'POST', { reason: step.reason }) };
   }
+  if (step.action === 'approve_proposal') {
+    const listed = (await session.json(`/api/clio/action-proposals?conversationId=${step.conversationId}`)) ?? [];
+    const rows = (Array.isArray(listed) ? listed : listed.items ?? []).filter((p) => !['succeeded', 'executed', 'dismissed', 'failed'].includes(p.status));
+    if (rows.length !== 1) throw new Error(`PROPOSAL_MATCH_${rows.length}`);
+    const id = rows[0].proposalId ?? rows[0].id;
+    return { action: step.action, id, result: await session.json(`/api/clio/action-proposals/${id}/approve`, 'POST', {}) };
+  }
   if (step.action === 'revoke_item') {
     const item = await findItem(session, clientId, step.match);
     return { action: step.action, id: item.id, result: await session.json(`/api/memory/governance/items/${item.id}/revoke`, 'POST', { reason: step.reason }) };
@@ -99,7 +109,7 @@ async function runCase(c, session, clients) {
     if (turn.newConversation) conversations.push(await open(conversations.length + 1));
     const conversation = conversations.at(-1);
     if (turn.action) {
-      const done = await runAction(session, turn, clientId, c.client);
+      const done = await runAction(session, { ...turn, conversationId: conversation.id }, clientId, c.client);
       actions.push({ ...done, at: new Date().toISOString() });
       save(adir, `action-${index + 1}.json`, done);
       continue;
@@ -109,9 +119,15 @@ async function runCase(c, session, clients) {
       if (!next) throw new Error(`CLIENT_NOT_FOUND_${turn.switchClient}`);
       await session.json(`/api/clio/conversations/${conversation.id}`, 'PATCH', { clientId: next });
     }
+    const attachmentIds = [];
+    for (const name of turn.attach ?? []) {
+      if (c.client !== QA_CLIENT) throw new Error('UPLOADS_ONLY_ON_QA_CLIENT');
+      const uploaded = await session.upload('/api/clio/attachments', name, readFileSync(`${FILES}/${name}`), MIME[name.split('.').pop()]);
+      attachmentIds.push(uploaded.id ?? uploaded.attachmentId);
+    }
     const startedAt = new Date().toISOString();
     const response = await session.request(`/api/clio/conversations/${conversation.id}/stream`, 'POST',
-      { body: turn.prompt }, 15 * 60_000);
+      { body: turn.prompt, ...(attachmentIds.length ? { attachmentIds } : {}) }, 15 * 60_000);
     const raw = await response.text();
     save(adir, `stream-${index + 1}.txt`, raw);
     const parsed = parseStream(raw);
@@ -136,6 +152,18 @@ async function runCase(c, session, clients) {
     allProposals.push(...(Array.isArray(proposals) ? proposals : proposals.items ?? []));
   }
   save(adir, 'proposals.json', allProposals);
+  let download = null;
+  if (c.expectDownloadText) {
+    const text = JSON.stringify(actions.map((a) => a.result));
+    const link = text.match(/\/api\/clio\/artifacts\/[A-Za-z0-9-]+\/download/)?.[0];
+    if (link) {
+      const got = await session.download(link);
+      writeFileSync(`${adir}/download.bin`, got.bytes);
+      const norm = (v) => v.replace(/\r\n/g, '\n').trim();
+      download = { link, status: got.status, contentType: got.contentType, bytes: got.bytes.length,
+        matches: norm(got.bytes.toString('utf8')) === norm(c.expectDownloadText) };
+    } else download = { link: null, matches: false };
+  }
   let candidate = null;
   if (c.expectCandidate) {
     try {
@@ -149,7 +177,7 @@ async function runCase(c, session, clients) {
     caseId: c.id, attempt, tenant: TENANT.slug, client: c.client, conversationId: conversations[0].id,
     conversationIds: conversations.map((x) => x.id),
     originalPrompt: original?.prompt, passCondition: original?.hardGates?.[1]?.assertion, reference: c.reference ?? null,
-    turns, actions, candidate,
+    turns, actions, candidate, download,
     estimatedCostMicros: turns.reduce((n, t) => n + turnCostMicros(t.done?.model, t.usage), 0),
     proposals: allProposals.map((p) => ({ id: p.proposalId ?? p.id, tool: p.tool ?? p.kind, status: p.status })),
     finishedAt: new Date().toISOString(),
