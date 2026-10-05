@@ -1,0 +1,13 @@
+Running prisma migrate deploy (failed migration history is never auto-resolved)
+Prisma schema loaded from prisma/schema.prisma
+Datasource "db": PostgreSQL database "capiro", schema "public" at "capiro-dev-data-auroracluster23d869c0-ltmz40k47ewv.cluster-csryw28ai752.us-east-1.rds.amazonaws.com:5432"
+455 migrations found in prisma/migrations
+Applying migration `20281008010000_clio_research_sessions_jobs`
+The following migration(s) have been applied:
+migrations/
+  └─ 20281008010000_clio_research_sessions_jobs/
+    └─ migration.sql
+      
+All migrations have been successfully applied.
+Seeding workflow templates
+Workflow-template seed skipped (legacy table removed).

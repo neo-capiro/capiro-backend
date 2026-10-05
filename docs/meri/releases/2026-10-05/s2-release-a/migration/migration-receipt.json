@@ -1,0 +1,21 @@
+{
+  "migrate": {
+    "task": "db4ae8c4b4914c9b83f22bb9d6f11328",
+    "taskDefinition": "capiro-dev-api-admin-migrate:85",
+    "exitCode": 0,
+    "logStream": "api/api-admin-migrate/db4ae8c4b4914c9b83f22bb9d6f11328",
+    "appliedJobs": true,
+    "seeded": true
+  },
+  "status": {
+    "task": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/06378148f5ef4937ab8048388a46a811",
+    "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api-admin-migrate:86",
+    "exitCode": 0,
+    "stoppedReason": "Essential container in task exited",
+    "logStream": "api/api-admin-migrate/06378148f5ef4937ab8048388a46a811",
+    "lines": 5,
+    "upToDate": true
+  },
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:b9924eadcfae40929033c03b58612881cb4da6fa7e10c65dd75b7c01ad16741a",
+  "sourceSha": "f39bf04768f2d4906d55c784f16d6c6a82f89f78"
+}
