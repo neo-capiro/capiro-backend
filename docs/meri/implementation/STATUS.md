@@ -1,5 +1,11 @@
 # Meri File01 checkpoint — C0/C1 complete, C2 active
 
+**October 4, 2026, 9:56 PM America/New_York update:** API537 is deployed and verified (source `2bb149e981ee1c6c15c47cf8fb1460a2b0aa1697`; PR1957 archives release evidence). Case12's failed retry was closed conservatively after its deadline, retaining the full $13.797053 ceiling in journal34. Case46 setup completed and its original export prompt was submitted once, but the token reservation failed before model dispatch. There is no export proposal or artifact to approve. Journal36 retains its $3 hold; total committed, including conservative holds, is $34.01, leaving $465.99. Full acceptance remains **0/75 original and 0/7 CD**.
+
+The native Case46 audit found 512 steering records with only35,768 body characters. A new offline regression reproduced479,638 serialized prompt bytes from512short records before adding remaining instructions/tools: metadata and citations bypassed the earlier body-only limit. The working-tree fix bounds serialized steering evidence including citations and discloses omitted records. Validation/deployment remain pending. The user explicitly authorized the Playwright approval/download/reload test, which awaits a valid proposal from a new qualified run. Do not replay Case46 setup/reservation/submission. Current evidence: `C:/dev/main/outputs/meri-c2-20261003/case46-api-execution-v2/`, `case46-context-audit-v1/`, and `STEERING-WIRE-CHECKPOINT.md`.
+
+The older checkpoint below is retained as history; its served version, spend and Case46-not-run statements are superseded by this update.
+
 **Current checkpoint, October 4, 2026, 8:38 PM America/New_York:** C0/C1 retain their recorded boundaries. C2 remains open, File01 is `01_BLOCKED`, and full acceptance remains **0/75 original cases and 0/7 CD cases**. No human rubric ratings were inferred.
 
 **Served:** API535 now runs source `89402fd7cb60ef1e1a5c7cbb9e6a112a6defd544`, including the one-time Case12 remediation owner. Its 29 packaged probes and native task/image/source/configuration, ALB health, old-task retirement and ordinary Pat memory reads passed. Rollback534 preserves API533. Orchestrator125, Web390, nightly136 and disabled broad projection remain unchanged. [Live release evidence](../releases/2026-10-04/c2-case12-context-bound/served-readback.json).
