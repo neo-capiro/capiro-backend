@@ -1,0 +1,43 @@
+{
+  "kind": "meri-stage1-roll1-api2-release-qualification",
+  "version": 1,
+  "status": "IMMUTABLE_IMAGE_AND_TESTS_PASS",
+  "at": "2026-10-05T19:46:46.402698+00:00",
+  "candidates": [
+    {
+      "service": "api",
+      "sourceSha": "33174828a227bffc15829a3202e011593f2afc2d",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:b89597cfb40abeb3e76c067a3b34d8485b7547d2598f37888539d1bb00db3d98",
+      "buildId": "capiro-build-web-dev:d7cbc182-b585-45d9-be46-a2f552396df8"
+    }
+  ],
+  "schemaChange": false,
+  "migrationsInImageNotApplied": [
+    "20261005160000_krisp_notetaker",
+    "20281007020000_clio_attachments_xlsx_kind"
+  ],
+  "change": "Stage 1 roll 1 from main c805ed15c: two-key V3 kill switch with an honest meri_unavailable refusal (#2003), Case 45 attachment coverage (#2001), structured budget/bill citations (#2005), budget how-did not a vote (#2006), OpenAI Retry-After (#2007). Orchestrator first, then API. Code only; the two pending migrations are applied separately with Neo's OK. API rebuilt from main 33174828a because LegiWatch #1967 deployed API 557 (ccd28769d) mid-release; the rebuild contains both.",
+  "sourceEvidence": [
+    "https://github.com/neo-capiro/capirov2/pull/2001",
+    "https://github.com/neo-capiro/capirov2/pull/2003",
+    "https://github.com/neo-capiro/capirov2/pull/2004",
+    "https://github.com/neo-capiro/capirov2/pull/2005",
+    "https://github.com/neo-capiro/capirov2/pull/2006",
+    "https://github.com/neo-capiro/capirov2/pull/2007"
+  ],
+  "validation": {
+    "typechecks": [
+      "API (8 GB heap)",
+      "orchestrator",
+      "meriv2-core",
+      "shared",
+      "infra/cdk"
+    ],
+    "orchestratorFullSuite": "130 suites, 1584 passed, 2 known skips (Case 45 branch); focused specs on every later PR",
+    "meriv2CoreFullSuite": "117 suites, 1674 passed",
+    "apiFocusedSpecs": "kill switch 152 + proxy 63 + users 12 passed; citation consumers pass; one pre-existing Case46 sizing failure reproduced on main",
+    "imageSmoke": "IMAGE_SMOKE_PASS in both images (gate, refusal method, migrations present, citations, Retry-After, classifier)"
+  },
+  "reviewer": "Lead agent (Stage 1): focused specs, typechecks, image smoke and served baseline review",
+  "authorizationBasis": "Neo: \"implement stage 1\" (2026-10-05); program plan \u00a710 release path. Migration apply, WAF, flag drill and Hermes deletions are asked separately."
+}
