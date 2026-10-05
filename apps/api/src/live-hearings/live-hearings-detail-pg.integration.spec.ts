@@ -291,7 +291,7 @@ describeDb('Live Hearings canonical detail stack (Postgres integration, PR B §4
     expect(event).not.toBeNull();
     expect(event!.id).toBe(H_MAIN);
     expect(event!.title).toContain('Shipbuilding industrial base');
-    expect(event!.committeeName).toBe('House Armed Services');
+    expect(event!.committeeName).toBe('Armed Services Committee (detail test)');
     expect(event!.committeeSystemCode).toBe('hs00-lwdt');
     expect(event!.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(event!.startsAt).toBeTruthy();

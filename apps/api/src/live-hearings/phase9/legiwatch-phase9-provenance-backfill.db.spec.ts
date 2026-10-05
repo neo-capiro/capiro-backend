@@ -55,7 +55,7 @@ function recentHearingDate(): Date {
 function event(overrides: Partial<SourceEvent> = {}): SourceEvent {
   const recent = recentHearingDate();
   return {
-    externalEventId: '338649',
+    externalEventId: '938649',
     congress: 119,
     chamber: 'senate',
     committeeSystemCode: 'ssju00',
@@ -67,7 +67,7 @@ function event(overrides: Partial<SourceEvent> = {}): SourceEvent {
     calendarDate: recent,
     displayTime: '9:00 AM',
     location: 'SD-226',
-    officialPageUrl: 'https://www.congress.gov/event/119th-Congress/senate-event/338649',
+    officialPageUrl: 'https://www.congress.gov/event/119th-Congress/senate-event/938649',
     witnesses: [],
     agendaBillIds: [],
     streamCandidates: [],
@@ -121,7 +121,7 @@ describeDb('LegiWatch Phase 9 provenance backfill (disposable PG)', () => {
     }
   }
 
-  /** Seed one canonical hearing shaped like the legacy sync rows. */
+  /** Use the exact official-ID shape written by legacy sync, not a test prefix. */
   async function seedHearing(
     id: string,
     overrides: Partial<{
@@ -155,7 +155,7 @@ describeDb('LegiWatch Phase 9 provenance backfill (disposable PG)', () => {
       date.toISOString().slice(0, 10),
       startsAt,
       overrides.eventStatus ?? 'scheduled',
-      overrides.url ?? 'https://www.congress.gov/event/119th-Congress/senate-event/338649',
+      overrides.url ?? 'https://www.congress.gov/event/119th-Congress/senate-event/938649',
       overrides.chamber === 'House'
         ? 'House Committee on the Judiciary'
         : 'Senate Committee on the Judiciary',
@@ -189,10 +189,10 @@ describeDb('LegiWatch Phase 9 provenance backfill (disposable PG)', () => {
   }
 
   it('A: links a real SourceEvent to the EXISTING canonical hearing without duplicating it', async () => {
-    await seedHearing('provbf-A-cm-119-338649');
+    await seedHearing('cm-119-938649');
     expect(
       await new CanonicalHearingRepository(prisma).resolveHearingId(event(), ADAPTER_KEY),
-    ).toMatchObject({ hearingId: 'provbf-A-cm-119-338649' });
+    ).toMatchObject({ hearingId: 'cm-119-938649' });
     const result = await service().run({
       manual: true,
       lookbackDays: 60,
@@ -203,26 +203,26 @@ describeDb('LegiWatch Phase 9 provenance backfill (disposable PG)', () => {
     expect(result).toMatchObject({
       candidates: expect.arrayContaining([
         expect.objectContaining({
-          hearingId: 'provbf-A-cm-119-338649',
+          hearingId: 'cm-119-938649',
           classification: 'OBSERVED',
         }),
       ]),
       observationCreated: 1,
     });
     expect(result.newHearingsCreated).toBe(0);
-    expect(await reconciledCount('provbf-A-cm-119-338649')).toBe(1);
+    expect(await reconciledCount('cm-119-938649')).toBe(1);
     const rows = await prisma.$queryRawUnsafe<Array<{ n: number; cm: number }>>(
       `SELECT COUNT(*)::int AS n,
-              COUNT(*) FILTER (WHERE id = 'cm-119-338649')::int AS cm
-       FROM committee_hearing WHERE id LIKE '%cm-119-338649%'`,
+              COUNT(*) FILTER (WHERE id = 'sen-119-938649')::int AS cm
+       FROM committee_hearing WHERE id IN ('cm-119-938649', 'sen-119-938649')`,
     );
-    // exactly the seeded canonical row — no fork, no bare cm- id minted
+    // Exactly the official numeric ID seeded above; no Senate-prefix fork.
     expect(rows[0]?.n).toBe(1);
     expect(rows[0]?.cm).toBe(0);
   });
 
   it('B: a repeated run is a no-op — provenance-exist rows are no longer selected', async () => {
-    await seedHearing('provbf-B-cm-119-338649');
+    await seedHearing('cm-119-938649');
     const opts = {
       manual: true,
       lookbackDays: 60,
@@ -235,14 +235,14 @@ describeDb('LegiWatch Phase 9 provenance backfill (disposable PG)', () => {
     expect(first.observationCreated).toBe(1);
     // second run: the hearing now HAS reconciled provenance → not selected at all
     expect(
-      second.candidates.some((candidate) => candidate.hearingId === 'provbf-B-cm-119-338649'),
+      second.candidates.some((candidate) => candidate.hearingId === 'cm-119-938649'),
     ).toBe(false);
     expect(second.observationCreated).toBe(0);
-    expect(await observationCount('provbf-B-cm-119-338649')).toBe(1);
+    expect(await observationCount('cm-119-938649')).toBe(1);
   });
 
   it('C: a changed official payload refreshes the SAME ledger row (no duplicate)', async () => {
-    await seedHearing('provbf-C-cm-119-338649');
+    await seedHearing('cm-119-938649');
     await service().run({
       manual: true,
       lookbackDays: 60,
@@ -264,16 +264,16 @@ describeDb('LegiWatch Phase 9 provenance backfill (disposable PG)', () => {
     );
     expect(res.created).toBe(false);
     expect(res.contentChanged).toBe(true);
-    expect(await observationCount('provbf-C-cm-119-338649')).toBe(1);
+    expect(await observationCount('cm-119-938649')).toBe(1);
     const rows = await prisma.$queryRawUnsafe<Array<{ observed_title: string }>>(
       `SELECT observed_title FROM hearing_source_observation WHERE hearing_id = $1`,
-      'provbf-C-cm-119-338649',
+      'cm-119-938649',
     );
     expect(rows[0]?.observed_title).toContain('of Florida');
   });
 
   it('D: ambiguous identity is skipped — no merge, no new canonical hearing', async () => {
-    await seedHearing('provbf-D-cm-119-338649');
+    await seedHearing('cm-119-938649');
     const result = await service().run({
       manual: true,
       lookbackDays: 60,
@@ -284,7 +284,7 @@ describeDb('LegiWatch Phase 9 provenance backfill (disposable PG)', () => {
       observeEvent: async () => {
         const nextDay = new Date(recentHearingDate().getTime() + 86_400_000);
         return event({
-          externalEventId: '338650',
+          externalEventId: '938650',
           title: 'An Entirely Different Proceeding About Something Else',
           calendarDate: nextDay,
           startsAt: new Date(nextDay.getTime() + 14 * 3_600_000),
@@ -294,16 +294,16 @@ describeDb('LegiWatch Phase 9 provenance backfill (disposable PG)', () => {
     expect(result.identityConflicts).toBe(1);
     expect(result.observed).toBe(0);
     expect(result.newHearingsCreated).toBe(0);
-    expect(await observationCount('provbf-D-cm-119-338649')).toBe(0);
+    expect(await observationCount('cm-119-938649')).toBe(0);
     const rows = await prisma.$queryRawUnsafe<Array<{ n: number }>>(
-      `SELECT COUNT(*)::int AS n FROM committee_hearing WHERE id LIKE 'provbf-D%' OR id = 'cm-119-338650'`,
+      `SELECT COUNT(*)::int AS n FROM committee_hearing WHERE id IN ('cm-119-938649', 'cm-119-938650', 'sen-119-938650')`,
     );
     expect(rows[0]?.n).toBe(1);
   });
 
   it('E: a future hearing inside the lookahead links correctly', async () => {
     const future = new Date(new Date().getTime() + 10 * 86_400_000);
-    await seedHearing('provbf-E-cm-119-338649', {
+    await seedHearing('cm-119-938649', {
       date: future,
       startsAt: future,
       eventStatus: 'scheduled',
@@ -323,11 +323,11 @@ describeDb('LegiWatch Phase 9 provenance backfill (disposable PG)', () => {
         }),
     });
     expect(result.observed).toBe(1);
-    expect(await reconciledCount('provbf-E-cm-119-338649')).toBe(1);
+    expect(await reconciledCount('cm-119-938649')).toBe(1);
   });
 
   it('F: a completed hearing links correctly', async () => {
-    await seedHearing('provbf-F-cm-119-338649', { eventStatus: 'completed' });
+    await seedHearing('cm-119-938649', { eventStatus: 'completed' });
     const result = await service().run({
       manual: true,
       lookbackDays: 60,
@@ -336,11 +336,11 @@ describeDb('LegiWatch Phase 9 provenance backfill (disposable PG)', () => {
       observeEvent: async () => event({ eventStatus: 'completed' }),
     });
     expect(result.observed).toBe(1);
-    expect(await reconciledCount('provbf-F-cm-119-338649')).toBe(1);
+    expect(await reconciledCount('cm-119-938649')).toBe(1);
   });
 
   it('G: advertised stream candidates flow through the normal candidate repository', async () => {
-    await seedHearing('provbf-G-cm-119-338649');
+    await seedHearing('cm-119-938649');
     await service().run({
       manual: true,
       lookbackDays: 60,
@@ -351,7 +351,7 @@ describeDb('LegiWatch Phase 9 provenance backfill (disposable PG)', () => {
           streamCandidates: [
             {
               provider: 'senate-isvp',
-              officialPageUrl: 'https://www.congress.gov/event/119th-Congress/senate-event/338649',
+              officialPageUrl: 'https://www.congress.gov/event/119th-Congress/senate-event/938649',
               mediaUrl: 'https://d117c1d0akamaized.net/example/manifest.m3u8',
               mediaType: 'hls',
             },
@@ -360,7 +360,7 @@ describeDb('LegiWatch Phase 9 provenance backfill (disposable PG)', () => {
     });
     const rows = await prisma.$queryRawUnsafe<Array<{ n: number; id: string }>>(
       `SELECT COUNT(*)::int AS n, MIN(id) AS id FROM hearing_stream_candidate WHERE hearing_id = $1`,
-      'provbf-G-cm-119-338649',
+      'cm-119-938649',
     );
     expect(rows[0]?.n).toBe(1);
   });
