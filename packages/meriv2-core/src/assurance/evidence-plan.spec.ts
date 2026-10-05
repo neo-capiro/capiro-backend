@@ -212,6 +212,24 @@ describe('budget deltas require financial context', () => {
     expect(plan(request).requiredRequirementIds).toContain('budget-delta.comparable-positions');
   });
 
+  it.each([
+    'How did this PE change from FY26 enacted to FY27 requested?',
+    'How did funding increase from FY2025 to FY2026?',
+    'How did the program element fare in the Senate mark?',
+  ])('a budget "how did" question is not a member vote: %s', (request) => {
+    expect(inferClaimCategories(request)).not.toContain('member_vote');
+    expect(plan(request).requiredRequirementIds).not.toContain('member-vote.roll-call');
+  });
+
+  it.each([
+    'How did Senator Reed vote on the NDAA?',
+    'Did the member vote yes on H.R. 100?',
+    'Show me the roll call on the rule.',
+  ])('a real vote question still requires the roll call: %s', (request) => {
+    expect(inferClaimCategories(request)).toContain('member_vote');
+    expect(plan(request).requiredRequirementIds).toContain('member-vote.roll-call');
+  });
+
   it('does not add a generic budget delta to a routed chamber-position comparison', () => {
     const result = plan('Compare House vs Senate positions on PE 0603851F.');
     expect(result.requestCategories).not.toContain('budget_delta');

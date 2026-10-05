@@ -441,11 +441,11 @@ export function inferClaimCategories(request: string): ClaimCategory[] {
       ),
     'bill_status',
   );
-  addIf(
-    categories,
-    /\b(?:how\s+did|vote[sd]?|roll\s*call|yeas?|nays?)\b/i.test(text),
-    'member_vote',
-  );
+  // "How did X vote" is already covered by `vote`. A bare "how did" is not a
+  // vote: "How did this PE change from FY26 enacted to FY27 requested?" pulled
+  // in a roll-call requirement, an extra floor-vote search and an unrelated
+  // member-vote limitation on a budget answer (simplified acceptance case 21).
+  addIf(categories, /\b(?:vote[sd]?|roll\s*call|yeas?|nays?)\b/i.test(text), 'member_vote');
   addIf(
     categories,
     /\b(?:current|now|today|chair|ranking\s+member|committee\s+member|chief\s+of\s+staff|director|secretary)\b/i.test(
