@@ -1,0 +1,16 @@
+{
+  "kind": "meri-case46-failed-turn-known-cost",
+  "captureRunId": "c719d6b9-e87a-4540-880f-37b1422b0060",
+  "reservationId": "06daea03-0134-4ec1-9661-49ee90a6a54c",
+  "conversationId": "38b9059d-fd72-4dee-b9ac-2aa3221b8aeb",
+  "readbackSha256": "067951b67e38655fc140ad00f018bf5f4af0f4aff549b84fcf82f674c3781f67",
+  "ledgerSha256": "02aba66dfa8864aa7f7fbe017895ecf79414861fd6f96ea8e1097af480bd614f",
+  "chargedCostMicros": 2867130,
+  "providerAttempts": 3,
+  "pendingProviderAttempts": 0,
+  "providerDeadlineAtMs": 1791203712184,
+  "observedAtMs": 1791203826989,
+  "captureAuthority": false,
+  "answerGrade": "FAILED",
+  "failure": "both exports blocked: the served runtime citation normalization (MeriV3CleanAssistantService.prepareArtifactInput) trims create_word text, removing the source final newline; no proposal"
+}

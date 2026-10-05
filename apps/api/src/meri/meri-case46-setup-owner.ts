@@ -15,11 +15,7 @@ import {
   type Case46ProviderBudgetQualification,
 } from './meri-case46-provider-budget.js';
 import type { createCase46SetupDependencies } from './meri-case46-setup-dependencies.js';
-import {
-  assertCase46RemediationInTx,
-  case46RetiredSetupEntry,
-  CASE46_REMEDIATION_PROOFS,
-} from './meri-case46-remediation.js';
+import { assertCase46RemediationInTx } from './meri-case46-remediation.js';
 
 const KEY = 'case46ExecutionSetup';
 const HASH = /^[a-f0-9]{64}$/;
@@ -29,9 +25,9 @@ const inputSchema = z
     caseId: z.literal('46'),
     fixtureNamespace: z.literal(f.namespace),
     captureRunId: z.string().uuid(),
-    remediationProofSha256: z
-      .enum([CASE46_REMEDIATION_PROOFS[0]!, ...CASE46_REMEDIATION_PROOFS.slice(1)])
-      .optional(),
+    // A fixed generation's proof or, from generation five, the operator's native
+    // close proof; eligibility is derived from retained state either way.
+    remediationProofSha256: z.string().regex(HASH).optional(),
     ctx: z
       .object({
         tenantId: z.literal(f.tenantId),
@@ -136,8 +132,9 @@ async function planInTx(
   fixture: Record<string, unknown>,
 ) {
   await assertCase46CurrentActorInTx(tx, input.ctx);
+  let retirement: Record<string, unknown> = {};
   if (input.remediationProofSha256)
-    await assertCase46RemediationInTx(tx, input.ctx, fixture, input);
+    retirement = await assertCase46RemediationInTx(tx, input.ctx, fixture, input);
   else if (fixture[KEY] !== undefined) fail('existing_claim_requires_reconciliation');
   const identity = case46SourceIdentity(input.captureRunId);
   const title = `${f.namespace} case46 ${input.captureRunId}`;
@@ -166,6 +163,8 @@ async function planInTx(
       'create_empty_owned_conversation',
       'install_sealed_capture_binding',
     ],
+    // The exact retirement entry is part of the approved plan hash.
+    ...(input.remediationProofSha256 ? { retirement } : {}),
     chatTurns: 0,
     outputArtifacts: 0,
     liveAcceptance: 'NOT_RUN',
@@ -224,9 +223,7 @@ export async function executeCase46Setup(
         ...current.settings,
         meriFoundationFixture: {
           ...current.fixture,
-          ...(input.remediationProofSha256
-            ? case46RetiredSetupEntry(current.fixture, input.remediationProofSha256)
-            : {}),
+          ...(plan.retirement ?? {}),
           [KEY]: claim,
         },
       };
