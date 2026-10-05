@@ -705,6 +705,19 @@ export class ComputeStack extends cdk.Stack {
       MERIV2_ENABLED: 'true',
       MERIV2_ORCHESTRATOR_URL: `https://${cfg.appHost}`,
       MERI_AUDITOR_MODE: 'enforce',
+      // MeriV3 is the only chat runtime (program plan 2026-10-05 §4.1/§4.2).
+      // MERIV3_ENABLED is the global kill switch: the code default is ON, and an
+      // explicit 'false' answers "Meri is unavailable" for every tenant. It was
+      // applied OUT-OF-BAND; codified here so a future deploy keeps it explicit.
+      // MERIV3_CANARY_TENANT_SLUGS is no longer read (two-key gate) and is
+      // deliberately NOT codified. MERIV2_ENABLED and MERIV2_ORCHESTRATOR_URL
+      // above stay: the V3 chat client and the narrow assistants read them.
+      // The three MERIV2_* controls below match the live task definition
+      // (capiro-dev-api:553, verified 2026-10-05).
+      MERIV3_ENABLED: 'true',
+      MERIV2_ACTION_PROPOSALS_ENABLED: 'true',
+      MERIV2_CONTROL_METRICS: 'on',
+      MERIV2_CONTEXT_PACKET_V2: 'enforce',
       // Business Development Phase 3 Jev controls are deliberately dark in
       // the managed baseline. A reviewed deployment may register a task
       // definition with a tenant-scoped shadow override, but a later CDK
@@ -1324,6 +1337,25 @@ export class ComputeStack extends cdk.Stack {
       // Phase-0 client-context delegation target (api /api/engagement/context/:id).
       MERIV2_API_BASE_URL: `https://${cfg.appHost}`,
       ANTHROPIC_MODEL: 'claude-sonnet-5',
+      // MeriV3 runtime settings, matching the live task definition
+      // (capiro-dev-meriv2-orchestrator:139, verified 2026-10-05) where they were
+      // applied OUT-OF-BAND. MERIV3_ENABLED mirrors the API kill switch (default
+      // ON in code). Model and effort values equal the code defaults today; they
+      // are explicit so a provider or default change stays a reviewed edit.
+      // MERIV3_CANARY_TENANT_SLUGS is no longer read and is not codified.
+      MERIV3_ENABLED: 'true',
+      MERIV3_MODEL: 'gpt-6-astra',
+      MERIV3_FAST_MODEL: 'gpt-6-astra',
+      MERIV3_DEEP_MODEL: 'gpt-6-astra',
+      MERIV3_MAX_MODEL: 'gpt-6-astra',
+      MERIV3_FAST_REASONING_EFFORT: 'low',
+      MERIV3_STANDARD_REASONING_EFFORT: 'medium',
+      MERIV3_DEEP_REASONING_EFFORT: 'high',
+      MERIV3_MAX_REASONING_EFFORT: 'max',
+      OPENAI_MODEL: 'gpt-6-astra',
+      MERIV2_WORKSPACE_BASE_URL: `https://${cfg.appHost}`,
+      MERIV2_TIMEOUT_MS: '170000',
+      MERIV2_CONTEXT_PACKET_V2: 'enforce',
       // Post-hoc grounding auditor. Matches the LIVE prod posture (both api and
       // orchestrator run 'enforce' as of 2026-07-14) so a cdk deploy does not
       // regress it — the code default is 'off', so OMITTING this here would
