@@ -31,4 +31,45 @@ export const internalCases = [
   },
   live('11', PRIMARY, 'Did L3 Harris win the award today, based on what we remember?'),
   test('12', 'retrieval past a 500-candidate cap needs 500 seeded candidates'),
+
+  // Budget and Program Elements: real PE 0603203F (AF Advanced Aerospace Sensors).
+  // Reference from Capiro's own data (GET /api/program-elements/0603203F/timeline, 2026-10-05).
+  live('20', PRIMARY, 'Find PE 0603203F and give me its FY27 request.', { citations: true,
+    reference: 'FY27 President’s Budget request $0.0M. Marks are separate: HASC $72.2M, SASC $75.2M (authorization), HAC-D $85.2M (appropriations); none enacted. FY28 $73.2M is an outyear projection, not the request.' }),
+  live('21', PRIMARY, 'How did PE 0603203F change from FY26 enacted to FY27 requested?', { citations: true,
+    reference: 'No FY26 enacted figure is recorded (FY26: request $0.0M; HASC, SASC and NDAA conference $69.7M, authorization only). FY27 request $0.0M. The answer must not invent an FY26 enactment.' }),
+  live('22', PRIMARY, 'What did the House and Senate each recommend for PE 0603203F in FY27?', { citations: true,
+    reference: 'HASC $72.2M and SASC $75.2M (authorization; $3.0M apart). HAC-D $85.2M (appropriations); no SAC-D mark recorded. Authorization and appropriations must not be merged.' }),
+  live('23', PRIMARY, 'How much was enacted for PE 0603203F in FY27?', { citations: true,
+    reference: 'FY27 enactment is not established. The latest figure is the HAC-D $85.2M mark, not law.' }),
+  live('24', PRIMARY, 'The $69.7M figure is the FY27 request for PE 0603203F, correct?', { citations: true,
+    reference: 'No. $69.7M is the FY26 HASC/SASC/NDAA conference authorization figure. The FY27 request is $0.0M.' }),
+  test('25', '45-turn constraint with 20 large prior outputs'),
+  pending('26', 'needs a real PE with two distinct cost rows to total'),
+  live('27', null, 'Find PE 0999999Z in the FY27 Navy book.', {
+    reference: 'PE 0999999Z does not exist. The answer must not invent it and should state the searched scope.' }),
+
+  // Bills: real H.R. 10646 (119th Congress), from GET /api/intelligence/clients/:id/bills (2026-10-05).
+  live('28', PRIMARY, 'What is the status of H.R. 10646?', { citations: true,
+    reference: '119th Congress. Introduced October 1, 2026 by Rep. Joyce Beatty (D-OH-3); referred to the House Armed Services Committee. No later action recorded.' }),
+  pending('29', 'needs a real bill with introduced and reported text versions'),
+  pending('30', 'needs a real committee-adopted amendment on an unenacted bill'),
+  live('31', PRIMARY, 'Did yesterday’s hearing advance H.R. 10646?', { citations: true,
+    reference: 'No hearing, markup or vote is recorded for H.R. 10646 after its October 1 referral. The answer must not invent a hearing or claim advancement.' }),
+  live('32', PRIMARY, 'What do the House and Senate NDAA marks disagree about for PE 0603203F in FY27?', { citations: true,
+    reference: 'HASC $72.2M versus SASC $75.2M (authorization), a $3.0M difference; FY27 request $0.0M. Unresolved until conference; HAC-D $85.2M is appropriations, a different vehicle.' }),
+  pending('33', 'needs a real House/Senate companion pair with differing text'),
+  live('34', PRIMARY, 'What should L3 Harris do next about H.R. 10646?', { citations: true,
+    reference: 'Current stage: referred to House Armed Services (October 1, 2026). A good answer gives a direct finding, the client implication, an owner or office, and a concrete next deliverable.' }),
+
+  // Opportunities: real SAM.gov notice CM26127005 (DLA, NSN 6665-01-415-4957 Sensor Assembly).
+  live('35', PRIMARY, 'Which funding opportunities can L3 Harris apply for now?', { citations: true,
+    reference: 'Open and eligible notices must be separated from forecast and closed ones; nothing forecast may be called open. Small-business set-asides do not fit L3Harris as a prime.' }),
+  live('36', PRIMARY, 'Is L3 Harris eligible for solicitation CM26127005?', { citations: true,
+    reference: 'CM26127005 is a total small business set-aside (SBA), presolicitation, NAICS 334519. L3Harris is a large business, so it is not eligible as prime; the cached source states no other eligibility facts.' }),
+  live('37', null, 'When is solicitation CM26127005 due here in Eastern time?', { citations: true,
+    reference: 'Response deadline October 5, 2026 at 3:00 p.m. EDT (source 2026-10-05T15:00:00-04:00).' }),
+  live('38', PRIMARY, 'Why does solicitation CM26127005 match L3 Harris?', { citations: true,
+    reference: 'The answer must separate the evidence for a match (sensor assembly, NAICS 334519) from unknowns, and say a topical match is not eligibility (small business set-aside).' }),
+  pending('39', 'needs two real feed rows for one notice'),
 ];

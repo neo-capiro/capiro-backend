@@ -21,6 +21,7 @@ for (const dir of readdirSync(src).filter((d) => d.startsWith('case-')).sort()) 
   const doc = {
     family: family(r.caseId), client: r.client ?? null, attempt: r.attempt, costUsd: +(r.estimatedCostMicros / 1e6).toFixed(2),
     originalPrompt: o?.prompt ?? null, passCondition: r.passCondition ?? o?.hardGates?.[1]?.assertion ?? null,
+    reference: r.reference ?? null,
     turns: r.turns.map((t) => ({ prompt: t.prompt, client: t.client ?? null, answer: String(t.answer ?? '').slice(0, 60000),
       citations: (t.citations ?? []).length, tools: t.tools ?? [] })),
     checks: r.checks, autoVerdict: r.verdict, conversationId: r.conversationId, finishedAt: r.finishedAt,
