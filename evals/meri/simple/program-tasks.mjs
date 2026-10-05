@@ -32,14 +32,15 @@ export const programTasks = [
     // Synthetic files from make-files.mjs: page 4 of the PDF states the capability
     // ("unmanned maritime sensors for littoral surveillance"); the sheet's cost
     // column is Sensors 1.25, Integration 2.50, Testing 3.75 ($M), total 7.50.
-    id: 'T4', mode: 'LIVE', client: QA_CLIENT, op: 'artifact_create', expectDownloadKind: 'docx',
-    reference: 'Answers from both files (page 4 capability; total 7.50 $M; Testing 3.75 is the largest line), then one Word export proposal, approved in Meri, whose download opens as a .docx.',
+    // A Word export is a generated file, not an external effect: full chat
+    // creates it directly (no proposal), and the turn carries its download link.
+    id: 'T4', mode: 'LIVE', client: QA_CLIENT, op: 'read', expectDownloadKind: 'docx',
+    reference: 'Answers from both files (page 4 capability; total 7.50 $M; Testing 3.75 is the largest line), then a Word document whose download opens as a .docx.',
     turns: [
       { prompt: 'What capability does the attached PDF describe on page 4?', attach: ['qa-capability-profile.pdf', 'qa-cost-sheet.xlsx'] },
       { prompt: 'What is the total of the cost column in the attached spreadsheet?' },
       { prompt: 'Which cost line is the largest, and how does it relate to the capability on page 4?' },
       { prompt: 'Export that answer as a Word document.' },
-      { action: 'approve_proposal' },
     ],
   },
 ];
