@@ -463,11 +463,17 @@ export function inferClaimCategories(request: string): ClaimCategory[] {
     explicitRole || (/\b(?:current|now|today)\b/i.test(text) && roleContext),
     'current_role',
   );
-  addIf(
-    categories,
-    /(?:\$|\bdollars?\b|\bamount\b|\bfunding\b|\bbudget\b|\brequest\b|\bmark\b)/i.test(text),
-    'budget_amount',
-  );
+  // "Budget", "request" and "mark" are amounts only in a budget context:
+  // "Who should receive this client's budget briefs first?" required budget
+  // exhibits and appended an unrelated budget-amount limitation (Stage 1 T3).
+  const amountWord =
+    /(?:\$|\bdollars?\b|\bamounts?\b|\bhow\s+much\b|\bfunding\b|\bappropriations?\b)/i.test(text);
+  const ambiguousBudgetWord = /\b(?:budget|requests?|requested|marks?)\b/i.test(text);
+  const budgetContext =
+    /\b(?:fy[\s-]?\d{2,4}|fiscal\s+years?|program\s+elements?|pe\s?\d{6,8}[a-z]{0,2}|\d{7}[a-z]{1,2}|line\s+items?|budget\s+(?:lines?|requests?|levels?|activit(?:y|ies))|levels?|figures?|totals?|enacted|president(?:['’]s)?\s+budget|(?:house|senate|chamber|committee|hasc|sasc|hac-?d|sac-?d)\s+marks?|marks?\s+up)\b/i.test(
+      text,
+    );
+  addIf(categories, amountWord || (ambiguousBudgetWord && budgetContext), 'budget_amount');
   const financialComparisonContext =
     /(?:\$|\b(?:dollars?|currency|budgets?|fund(?:ing|s)?|appropriat(?:ions?|ed|ing)|obligat(?:ions?|ed|ing)|outlays?|spending|expenditures?|revenues?|costs?|prices?|expenses?|financial|fiscal(?:\s+year)?|fy[\s-]?\d{2,4}|program\s+elements?|pe\s?\d{6,8}[a-z]?|\d{7}[a-z]|(?:house|senate|congressional)\s+mark|president(?:['’]s)?\s+request)\b)/i.test(
       text,
