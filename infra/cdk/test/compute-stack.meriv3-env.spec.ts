@@ -194,3 +194,30 @@ describe('MeriV3 runtime env (Stage 1 §4.2)', () => {
     expect(orchestrator.MERIV2_API_BASE_URL).toBe('https://app.capiro.ai');
   });
 });
+
+describe('Meri alarms (Stage 1 §4.1)', () => {
+  const template = synthComputeStack(baseConfig());
+
+  test('two metric filters on the API log group feed two alarms on the platform topic', () => {
+    template.hasResourceProperties('AWS::Logs::MetricFilter', {
+      FilterName: 'capiro-meri-unavailable',
+      FilterPattern: '"meri_unavailable"',
+    });
+    template.hasResourceProperties('AWS::Logs::MetricFilter', {
+      FilterName: 'capiro-meri-orchestrator-failure',
+      FilterPattern: '"meri_orchestrator_failure"',
+    });
+    const topic = 'arn:aws:sns:us-east-1:123456789012:capiro-dev-platform-alarms';
+    template.hasResourceProperties('AWS::CloudWatch::Alarm', {
+      AlarmName: 'Capiro-Meri-Unavailable',
+      Threshold: 1,
+      AlarmActions: [topic],
+      OKActions: [topic],
+    });
+    template.hasResourceProperties('AWS::CloudWatch::Alarm', {
+      AlarmName: 'Capiro-Meri-Orchestrator-Failure',
+      Threshold: 3,
+      AlarmActions: [topic],
+    });
+  });
+});

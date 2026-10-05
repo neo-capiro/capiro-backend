@@ -259,3 +259,29 @@ in-editor and workspace-gen assistants), `MERIV2_PORT`, `MERIV2_API_BASE_URL`,
 `MERIV2_LOG_LEVEL`, `MERIV2_TIMEOUT_MS`, `MERIV2_WORKSPACE_BASE_URL`.
 
 No `cdk deploy` was run; the Compute stack remains frozen.
+
+## WAF — live `capiro-dev-waf` vs the CDK `WebAcl` (recorded 2026-10-05)
+
+The web ACL serving the live ALB is `capiro-dev-waf` (`95dc2979-45e1-4c94-9ea8-650dfb21c516`),
+created out-of-band. The CDK `WebAcl` construct is CloudFormation-managed and differs:
+
+| Rule | Live `capiro-dev-waf` | CDK `WebAcl` |
+| --- | --- | --- |
+| `allow-msgraph-webhook-validation` (0) | yes | codified 2026-10-05 |
+| Common rule set exclusions | `SizeRestrictions_QUERYSTRING`, `_URIPATH`, `_BODY` | codified 2026-10-05 |
+| `CrossSiteScripting_BODY` scoped to everything except `POST /api/clio/attachments` | applied 2026-10-05 with Neo's OK (program plan D10, §4.5); PPTX and XLSX uploads verified 201/parsed | codified 2026-10-05 |
+| Known bad inputs (2) | yes | yes |
+| SQLi rule set (3) | yes | no |
+| IP reputation list | no | yes (3) |
+| Per-IP rate limit 2,000 | no | yes (10) |
+
+A future reconciliation must decide the SQLi, IP-reputation and rate-limit rules
+deliberately; a `cdk deploy` would otherwise attach a differently configured ACL.
+
+## Meri alarms (created live 2026-10-05, codified the same day)
+
+Metric filters on `/capiro/dev/api`: `capiro-meri-unavailable` (`"meri_unavailable"`) and
+`capiro-meri-orchestrator-failure` (`"meri_orchestrator_failure"`), namespace `Capiro/Meri`.
+Alarms `Capiro-Meri-Unavailable` (Sum >= 1 in 5 minutes) and `Capiro-Meri-Orchestrator-Failure`
+(Sum >= 3 in 5 minutes) notify `capiro-dev-platform-alarms`. The T15 kill-switch drill on
+2026-10-05 moved `Capiro-Meri-Unavailable` from OK to ALARM on its single refused turn, as intended.
