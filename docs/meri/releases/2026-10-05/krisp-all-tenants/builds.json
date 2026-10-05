@@ -1,0 +1,24 @@
+[
+  {
+    "service": "api",
+    "sourceSha": "fdf1ccecf504ea495b27bfff759a31cd16b10686",
+    "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:0a857e401157dc5df959b9799943c179b9a5a973731d75599494fc2420ced7dc",
+    "buildId": "capiro-build-web-dev:bae961db-c4f7-447b-bea8-5cf1e3ad75f6",
+    "status": "SUCCEEDED",
+    "startedAt": "2026-10-05T16:06:19.701000-04:00",
+    "endedAt": "2026-10-05T16:13:03.438000-04:00",
+    "packagedProbePassed": true,
+    "packagedMigrationsMatched": 454
+  },
+  {
+    "service": "engagement-api",
+    "sourceSha": "fdf1ccecf504ea495b27bfff759a31cd16b10686",
+    "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/engagement-api@sha256:38d0b7c91b00bc34d0d12928ede41f00f04dca9509832c057921f3bf1a14b5b8",
+    "buildId": "capiro-build-web-dev:de0669fc-f512-4b90-9c1e-99188f0889a8",
+    "status": "SUCCEEDED",
+    "startedAt": "2026-10-05T16:06:20.821000-04:00",
+    "endedAt": "2026-10-05T16:12:52.721000-04:00",
+    "packagedProbePassed": true,
+    "packagedMigrationsMatched": 454
+  }
+]
