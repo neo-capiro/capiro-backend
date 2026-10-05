@@ -3,21 +3,69 @@ import type { TenantContext } from '@capiro/shared';
 import { MERI_CASE46 } from '@capiro/meriv2-core';
 import { case46BudgetHash } from './meri-case46-provider-budget.js';
 
-// This one failed capture was reconciled after expiry in native journal37.
-// Its full $3 ceiling remains charged conservatively. No public route accepts
-// this proof; the fixed fixture operator must also reserve a fresh run.
+// Each reconciled, expired zero-dispatch failure gets exactly one retained-
+// history recovery, bound to that failure's run, conversation, turn, claim,
+// ledger and expiry. Its full $3 ceiling stays charged conservatively in the
+// native journal. No public route accepts a proof; the fixed fixture operator
+// must also reserve a fresh run. A later generation requires every earlier
+// retirement record to be present and unchanged.
 export const CASE46_REMEDIATION_PROOF =
   'df90662b3136f3a6aab7fe6d94e8b57fc93727004106cd9129735a8cb19255e5';
 export const CASE46_RETIRED_SETUP_KEY = 'case46RetiredExecutionSetup';
-const FAILED_RUN = 'e9ac5e1a-6562-49b6-b59b-139bd7ba8325';
-const FAILED_CONVERSATION = '3da337f0-975d-4787-822b-961f7bee37a1';
-const FAILED_TURN = '37f19804-9462-45c3-b51f-78a9ffe64a4b';
-const FAILED_CLAIM_SHA = '0de12eb3226c0f24b7330d3c1b2847263eaabd4ddad2c14de63f6b5cdac1bed3';
-const FAILED_BUDGET_SHA = 'c1c674509fa9909798960f2cf80d9279b5e83398c7f158debd24d026bd2c1bf2';
-const EXPIRED_AT = Date.parse('2026-10-05T01:25:09.429Z');
+/** Second failure (journal40): run 3a5b5609 rejected the provider reservation
+ * on the former $3 capture ceiling before dispatch; one user turn retained. */
+export const CASE46_REMEDIATION_PROOF_2 =
+  '0d7ecf1e7768161398d995d3de1549a6d022e18bbaaa1306cd67d5aef9bf0795';
+export const CASE46_RETIRED_SETUP_KEY_2 = 'case46RetiredExecutionSetup2';
+
+interface Case46RemediationGeneration {
+  proof: string;
+  retiredKey: string;
+  failedRun: string;
+  failedConversation: string;
+  failedTurn: string;
+  failedClaimSha: string;
+  failedBudgetSha: string;
+  expiredAt: number;
+  /** Earlier retirements that must still be present, byte-for-byte. */
+  priorRetired: ReadonlyArray<{ key: string; sha256: string }>;
+}
+const GENERATIONS: readonly Case46RemediationGeneration[] = [
+  {
+    proof: CASE46_REMEDIATION_PROOF,
+    retiredKey: CASE46_RETIRED_SETUP_KEY,
+    failedRun: 'e9ac5e1a-6562-49b6-b59b-139bd7ba8325',
+    failedConversation: '3da337f0-975d-4787-822b-961f7bee37a1',
+    failedTurn: '37f19804-9462-45c3-b51f-78a9ffe64a4b',
+    failedClaimSha: '0de12eb3226c0f24b7330d3c1b2847263eaabd4ddad2c14de63f6b5cdac1bed3',
+    failedBudgetSha: 'c1c674509fa9909798960f2cf80d9279b5e83398c7f158debd24d026bd2c1bf2',
+    expiredAt: Date.parse('2026-10-05T01:25:09.429Z'),
+    priorRetired: [],
+  },
+  {
+    proof: CASE46_REMEDIATION_PROOF_2,
+    retiredKey: CASE46_RETIRED_SETUP_KEY_2,
+    failedRun: '3a5b5609-c689-4cfd-bfd9-234b9607848c',
+    failedConversation: '1f4bc759-1186-4584-8886-1d47a3c183fb',
+    failedTurn: 'd8262711-8275-4f8e-aed7-825957484c2f',
+    failedClaimSha: 'd8137fa4999ba29936bcc946d93f3f2c9c6977a9088ea9debe6d0e21e8a5037f',
+    failedBudgetSha: 'a59aca054b9404da543cb81f0f92efd5a961afd4a815342353e0e6c72bb82841',
+    expiredAt: Date.parse('2026-10-05T03:40:14.876Z'),
+    priorRetired: [
+      {
+        key: CASE46_RETIRED_SETUP_KEY,
+        sha256: 'f61c82f5b748684000dc26bef3e4e6131cf059ddf21cc25df39a8e1ecdb25a7e',
+      },
+    ],
+  },
+];
+export const CASE46_REMEDIATION_PROOFS = GENERATIONS.map((g) => g.proof);
 const fail = (): never => {
   throw new Error('meri_case46_setup_remediation_not_eligible');
 };
+function generation(proof: unknown): Case46RemediationGeneration {
+  return GENERATIONS.find((g) => g.proof === proof) ?? fail();
+}
 
 /** Read-only eligibility is repeated under the tenant claim lock at execution.
  * The old conversation, source, messages, binding and budget are never changed. */
@@ -27,36 +75,40 @@ export async function assertCase46RemediationInTx(
   fixture: Record<string, unknown>,
   input: { captureRunId: string; remediationProofSha256?: string },
 ): Promise<void> {
+  const g = generation(input.remediationProofSha256);
   if (
-    input.remediationProofSha256 !== CASE46_REMEDIATION_PROOF ||
-    input.captureRunId === FAILED_RUN ||
+    GENERATIONS.some((other) => other.failedRun === input.captureRunId) ||
     ctx.tenantId !== MERI_CASE46.tenantId ||
     ctx.userId !== MERI_CASE46.actorUserId ||
     ctx.role !== 'standard_user' ||
     fixture.fixtureNamespace !== MERI_CASE46.namespace ||
-    fixture[CASE46_RETIRED_SETUP_KEY] !== undefined ||
+    fixture[g.retiredKey] !== undefined ||
+    g.priorRetired.some(
+      (prior) =>
+        fixture[prior.key] === undefined || case46BudgetHash(fixture[prior.key]) !== prior.sha256,
+    ) ||
     !fixture.case46ExecutionSetup ||
-    case46BudgetHash(fixture.case46ExecutionSetup) !== FAILED_CLAIM_SHA ||
-    Date.now() <= EXPIRED_AT
+    case46BudgetHash(fixture.case46ExecutionSetup) !== g.failedClaimSha ||
+    Date.now() <= g.expiredAt
   )
     fail();
   const rows = await tx.$queryRaw<Array<{ metadata: Record<string, unknown> }>>`
     SELECT metadata_jsonb AS metadata FROM clio_conversations
-    WHERE id=${FAILED_CONVERSATION}::uuid AND tenant_id=${ctx.tenantId}::uuid
+    WHERE id=${g.failedConversation}::uuid AND tenant_id=${ctx.tenantId}::uuid
       AND user_id=${ctx.userId}::uuid AND client_id=${MERI_CASE46.clientId}::uuid
       AND archived_at IS NULL AND status='active' FOR SHARE`;
   const budget = rows[0]?.metadata?.governedArtifactProviderBudget;
-  if (rows.length !== 1 || !budget || case46BudgetHash(budget) !== FAILED_BUDGET_SHA) fail();
+  if (rows.length !== 1 || !budget || case46BudgetHash(budget) !== g.failedBudgetSha) fail();
   const counts = await tx.$queryRaw<
     Array<{ messages: bigint; original: bigint; proposals: bigint; artifacts: bigint }>
   >`
     SELECT
-      (SELECT count(*) FROM clio_messages WHERE tenant_id=${ctx.tenantId}::uuid AND conversation_id=${FAILED_CONVERSATION}::uuid) AS messages,
-      (SELECT count(*) FROM clio_messages WHERE tenant_id=${ctx.tenantId}::uuid AND conversation_id=${FAILED_CONVERSATION}::uuid
-        AND user_id=${ctx.userId}::uuid AND id=${FAILED_TURN}::uuid AND role='user'
+      (SELECT count(*) FROM clio_messages WHERE tenant_id=${ctx.tenantId}::uuid AND conversation_id=${g.failedConversation}::uuid) AS messages,
+      (SELECT count(*) FROM clio_messages WHERE tenant_id=${ctx.tenantId}::uuid AND conversation_id=${g.failedConversation}::uuid
+        AND user_id=${ctx.userId}::uuid AND id=${g.failedTurn}::uuid AND role='user'
         AND body='Export that briefing and give me the file.') AS original,
-      (SELECT count(*) FROM meri_action_proposals WHERE tenant_id=${ctx.tenantId}::uuid AND conversation_id=${FAILED_CONVERSATION}::uuid) AS proposals,
-      (SELECT count(*) FROM clio_artifacts WHERE tenant_id=${ctx.tenantId}::uuid AND conversation_id=${FAILED_CONVERSATION}::uuid) AS artifacts`;
+      (SELECT count(*) FROM meri_action_proposals WHERE tenant_id=${ctx.tenantId}::uuid AND conversation_id=${g.failedConversation}::uuid) AS proposals,
+      (SELECT count(*) FROM clio_artifacts WHERE tenant_id=${ctx.tenantId}::uuid AND conversation_id=${g.failedConversation}::uuid) AS artifacts`;
   if (
     counts.length !== 1 ||
     counts[0]!.messages !== 1n ||
@@ -67,13 +119,19 @@ export async function assertCase46RemediationInTx(
     fail();
 }
 
-export function case46RetiredSetup(fixture: Record<string, unknown>) {
+/** The retirement record written beside the new claim; earlier generations'
+ * records are preserved by the caller's fixture spread. */
+export function case46RetiredSetup(fixture: Record<string, unknown>, proof?: string) {
+  const g = generation(proof ?? CASE46_REMEDIATION_PROOF);
   return {
     priorClaim: fixture.case46ExecutionSetup,
-    failedConversationId: FAILED_CONVERSATION,
-    terminalProofSha256: CASE46_REMEDIATION_PROOF,
+    failedConversationId: g.failedConversation,
+    terminalProofSha256: g.proof,
     conservativeCostMicros: 3_000_000,
     actualCostMicros: null,
     acceptanceAuthority: false,
   };
+}
+export function case46RetiredSetupEntry(fixture: Record<string, unknown>, proof: string) {
+  return { [generation(proof).retiredKey]: case46RetiredSetup(fixture, proof) };
 }
