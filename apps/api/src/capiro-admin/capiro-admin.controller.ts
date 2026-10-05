@@ -15,7 +15,11 @@ import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
 import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
 import { CapiroAdminService } from './capiro-admin.service.js';
-import { MERIV2_FLAGS, type MeriV2FlagKey } from '../common/tenant-flags.js';
+import {
+  adminSettableMeriFlags,
+  type MeriJobFlagKey,
+  type MeriV2FlagKey,
+} from '../common/tenant-flags.js';
 import { BillingService } from '../billing/billing.service.js';
 import { AI_PROVIDERS } from '../ai-usage/ai-credential-store.service.js';
 import type { AiProvider } from '../engagement/ai-credential-resolver.service.js';
@@ -200,8 +204,8 @@ class QuarantineListQueryDto {
  * `capiro-internal` synthetic tenant; data access is via prisma.withSystem.
  */
 class SetMeriV2FlagDto {
-  @IsIn(Object.values(MERIV2_FLAGS))
-  flag!: MeriV2FlagKey;
+  @IsIn(adminSettableMeriFlags())
+  flag!: MeriV2FlagKey | MeriJobFlagKey;
 
   @IsBoolean()
   enabled!: boolean;

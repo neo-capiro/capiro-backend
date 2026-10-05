@@ -20,7 +20,11 @@ import { AcquisitionPersonnelWriterService } from '../acquisition-personnel/acqu
 import type { PersonRecordInput } from '../acquisition-personnel/types.js';
 import { AiUsageService } from '../ai-usage/ai-usage.service.js';
 import { MeriFeatureFlagsService } from '../meri/meri-feature-flags.service.js';
-import { MERIV2_FLAGS, type MeriV2FlagKey } from '../common/tenant-flags.js';
+import {
+  adminSettableMeriFlags,
+  type MeriJobFlagKey,
+  type MeriV2FlagKey,
+} from '../common/tenant-flags.js';
 import {
   AiCredentialStoreService,
   type UpsertAiCredentialInput,
@@ -102,8 +106,8 @@ export class CapiroAdminService {
    * cache with no invalidate — the instant cross-service rollback lever remains
    * the MERIV2_ENABLED env kill-switch (checked per-call on both services).
    */
-  async setMeriV2Flag(tenantId: string, flag: MeriV2FlagKey, enabled: boolean) {
-    if (!Object.values(MERIV2_FLAGS).includes(flag)) {
+  async setMeriV2Flag(tenantId: string, flag: MeriV2FlagKey | MeriJobFlagKey, enabled: boolean) {
+    if (!adminSettableMeriFlags().includes(flag)) {
       throw new BadRequestException(`Unknown MeriV2 flag: ${flag}`);
     }
     const flags = await this.prisma.withSystem(async (tx) => {

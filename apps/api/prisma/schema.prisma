@@ -2228,8 +2228,14 @@ model ClioResearchSession {
   clientId            String?  @map("client_id") @db.Uuid
   title               String
   topic               String   @db.Text
-  /// plan | awaiting_clarification | researching | complete | failed
+  /// plan | awaiting_clarification | researching | complete | failed | cancelled
   status              String   @default("plan")
+  /// Job kind (Stage 2 §5.1): research | deliverable | audit | scheduled.
+  kind                String   @default("research")
+  /// Mirror of metadata.durableCoordinator.goalRevision, written with each accepted steer.
+  goalRevision        Int      @default(0) @map("goal_revision")
+  /// Requested outputs: [{ format, title, artifactId? }], artifact ids once produced.
+  deliverables        Json     @default("[]") @map("deliverables_jsonb")
   /// AI-proposed clarifying questions (string[]) awaiting answers.
   clarifyingQuestions Json     @default("[]") @map("clarifying_questions_jsonb")
   /// User answers to the clarifying questions (keyed by question index).
@@ -2250,6 +2256,8 @@ model ClioResearchSession {
 
   @@index([tenantId, userId, updatedAt(sort: Desc)], map: "clio_research_sessions_tenant_user_updated_idx")
   @@index([tenantId, clientId, updatedAt(sort: Desc)], map: "clio_research_sessions_tenant_client_updated_idx")
+  @@index([tenantId, userId, kind, updatedAt(sort: Desc)], map: "clio_research_sessions_tenant_user_kind_updated_idx")
+  // clio_research_sessions_live_run_heartbeat_idx is a partial expression index (migration 20281008010000).
   @@map("clio_research_sessions")
 }
 

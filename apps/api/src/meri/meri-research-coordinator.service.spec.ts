@@ -156,6 +156,8 @@ describe('MeriResearchService coordinator HTTP contract', () => {
       status: 'interrupted',
       readyToStart: true,
     });
+    // The job column mirrors the accepted goal revision (Stage 2 §5.1).
+    expect(f.getSession().goalRevision).toBe(1);
 
     const replay = await f.service.steerRun(ctx, 'session-1', {
       version: 1,
