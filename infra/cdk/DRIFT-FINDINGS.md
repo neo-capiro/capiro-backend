@@ -285,3 +285,21 @@ Metric filters on `/capiro/dev/api`: `capiro-meri-unavailable` (`"meri_unavailab
 Alarms `Capiro-Meri-Unavailable` (Sum >= 1 in 5 minutes) and `Capiro-Meri-Orchestrator-Failure`
 (Sum >= 3 in 5 minutes) notify `capiro-dev-platform-alarms`. The T15 kill-switch drill on
 2026-10-05 moved `Capiro-Meri-Unavailable` from OK to ALARM on its single refused turn, as intended.
+
+## Hermes pilot residue removed (2026-10-05, Neo's OK; program plan §4.8)
+
+Read-only reference check first: no ECS service, running task, EventBridge rule, Scheduler schedule
+or other security-group rule referenced any of these; the IAM roles were last used 2026-09-20 and the
+log group's last event was 2026-09-20.
+
+| Resource | Action |
+| --- | --- |
+| `capiro-hermesval-worker:1..5`, `capiro-hermesval-worker-v4a:1`, `capiro-hermesval-worker-v5:1` | deregistered (INACTIVE) |
+| EFS `fs-0a641cad57e8bff4e` (worker home at `/opt/data`, 72 MB), its access point and 3 mount targets | deleted |
+| Security groups `sg-0c488a0562b1d271a`, `sg-036302af841a987f6` | deleted |
+| IAM roles `capiro-hermesval-worker-exec`, `capiro-hermesval-worker-task` (policies detached/deleted first) | deleted |
+| ECR repository `capiro/dev/meri-hermes-worker` (4 images) | deleted |
+| Secret `hermes/jumpbox/openrouter-api-key` | kept (Neo's choice) |
+| Log group `/capiro/dev/meri-hermes-worker` | kept; expires under its 30-day retention |
+
+No database change. Approvals and journal history are untouched.
