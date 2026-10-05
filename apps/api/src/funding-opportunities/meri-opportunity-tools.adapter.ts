@@ -1,3 +1,4 @@
+import { samSetAsideDescription } from './sam-set-aside.js';
 import { Injectable, Logger } from '@nestjs/common';
 import {
   deadlineStatus,
@@ -895,6 +896,8 @@ export interface OpportunityFacts extends OpportunityBrief {
   pscCodes: string[];
   setAside: string | null;
   setAsideCode: string | null;
+  /** Published meaning of the SAM.gov set-aside code, when known. */
+  setAsideDescription: string | null;
   eligibleApplicantTypes: string[];
   fundingInstrument: string | null;
   category: string | null;
@@ -1168,6 +1171,7 @@ export function toFacts(
     pscCodes: row.pscCodes,
     setAside: row.setAside,
     setAsideCode: row.setAsideCode,
+    setAsideDescription: samSetAsideDescription(row.setAsideCode ?? row.setAside),
     eligibleApplicantTypes: row.eligibleApplicantTypes,
     assistanceListings: row.assistanceListings,
     fundingInstrument: row.fundingInstrument,
