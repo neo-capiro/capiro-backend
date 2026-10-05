@@ -20,8 +20,12 @@ export function inspectCase46Stream(text, scope) {
   need(parsed.issues.length === 0 && events.filter(e => e.type === 'turn_accepted').length === 1 &&
     events.filter(e => e.type === 'done').length === 1 && events.filter(e => e.type === 'pending_approval').length === 1 &&
     !events.some(e => ['error', 'page_write', 'draft_updated', 'workflow_updated'].includes(e.type)), 'STREAM_UNCERTAIN');
+  // Reading the client's documents to find the source is allowed; the only
+  // write is exactly one export, and it is the last tool call of the turn.
   const tools = events.filter(e => e.type === 'tool_call');
-  need(tools.length === 1 && tools[0].tool === 'create_word', 'STREAM_TOOL_SCOPE');
+  const exports = tools.filter(e => e.tool === 'create_word');
+  need(exports.length === 1 && tools.length <= 5 && tools.at(-1) === exports[0] &&
+    tools.every(e => e.tool === 'create_word' || e.tool === 'read_client_documents'), 'STREAM_TOOL_SCOPE');
   const proposal = events.find(e => e.type === 'pending_approval'), done = events.find(e => e.type === 'done');
   need(proposal.tool === 'create_word' && typeof proposal.proposalId === 'string' &&
     typeof done.messageId === 'string' && !done.serverCaptureEvidenceReceipt && !done.serverReadonlyCaptureReceipt,

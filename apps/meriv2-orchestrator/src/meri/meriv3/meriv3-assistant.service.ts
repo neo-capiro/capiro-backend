@@ -229,6 +229,14 @@ const AUTO_CORRECTION_BUDGET = {
 /** Promoted material claims assessed per turn; later claims stay byte-identical. */
 const AUTO_CORRECTION_MAX_CLAIMS = 12;
 const PAGE_WRITE_DRAFT_TOOLS = new Set(['draft_policy_memo', 'create_meeting_brief']);
+// A governed export may read the client's documents (ACL-checked, read-only)
+// to find and reproduce its source; the only write remains the guarded export.
+const GOVERNED_ARTIFACT_CAPTURE_TOOLS: ReadonlySet<string> = new Set([
+  'create_word',
+  'read_client_documents',
+]);
+const GOVERNED_EXPORT_MISMATCH_DETAIL =
+  'This export was not proposed: exporting an existing document must reproduce it exactly. Read the document first, use its file name without the extension as the title, keep its format (format txt for a .txt file, with an empty sections array) and pass its exact text unchanged.';
 const UNKNOWN_PUBLIC_TOOL = {
   tool: 'unknown_tool',
   label: 'Unavailable tool',
@@ -1105,7 +1113,8 @@ export class MeriV3AssistantService {
         : (await this.fetchToolSchemas(opts)).filter(
             (schema) =>
               (dto.toolPolicy !== 'read-only' || readOnlyNames.has(schema.name)) &&
-              (!currentGovernedArtifactCapturePolicy() || schema.name === 'create_word') &&
+              (!currentGovernedArtifactCapturePolicy() ||
+                GOVERNED_ARTIFACT_CAPTURE_TOOLS.has(schema.name)) &&
               (!admittedReadCapabilities || admittedReadCapabilities.has(schema.name)),
           );
     // This tool reads a research snapshot, not client Files. Its session comes
@@ -1165,7 +1174,8 @@ export class MeriV3AssistantService {
                     canonical &&
                     canonical.readOnly === definition.readOnly &&
                     (dto.toolPolicy !== 'read-only' || definition.readOnly === true) &&
-                    (!currentGovernedArtifactCapturePolicy() || schema.name === 'create_word') &&
+                    (!currentGovernedArtifactCapturePolicy() ||
+                GOVERNED_ARTIFACT_CAPTURE_TOOLS.has(schema.name)) &&
                     (!currentAdmitted || currentAdmitted.has(schema.name)) &&
                     (schema.name !== 'get_research_evidence' || dto.researchRun) &&
                     (!currentServerReadonlyCapturePolicy() || schema.name !== 'run_analysis'),
@@ -1217,7 +1227,8 @@ export class MeriV3AssistantService {
           canonical.readOnly !== definition.readOnly ||
           dto.toolPolicy === 'none' ||
           (dto.toolPolicy === 'read-only' && definition.readOnly !== true) ||
-          (currentGovernedArtifactCapturePolicy() && schema.name !== 'create_word') ||
+          (currentGovernedArtifactCapturePolicy() &&
+            !GOVERNED_ARTIFACT_CAPTURE_TOOLS.has(schema.name)) ||
           (admittedReadCapabilities && !admittedReadCapabilities.has(schema.name)) ||
           (schema.name === 'get_research_evidence' && !dto.researchRun) ||
           (currentServerReadonlyCapturePolicy() && schema.name === 'run_analysis')
@@ -3314,7 +3325,40 @@ export class MeriV3AssistantService {
         schema,
       );
       const artifactCapture = currentGovernedArtifactCapturePolicy();
-      if (artifactCapture) assertMeriCase46ToolInput(artifactCapture, call.name, augmented.input);
+      if (artifactCapture && call.name !== 'read_client_documents') {
+        let exactExport = true;
+        try {
+          assertMeriCase46ToolInput(artifactCapture, call.name, augmented.input);
+        } catch (error) {
+          // Anything but the guarded export remains a capability violation.
+          if (call.name !== 'create_word') throw error;
+          exactExport = false;
+        }
+        if (!exactExport) {
+          // No proposal is created; the model may read the source and retry
+          // within the same bounded turn instead of the turn failing outright.
+          args.steps.push({
+            tool: call.name,
+            label: toolLabel(call.name),
+            status: 'blocked',
+            detail: GOVERNED_EXPORT_MISMATCH_DETAIL,
+          });
+          args.emit({
+            type: 'tool_done',
+            tool: call.name,
+            label: toolLabel(call.name),
+            status: 'blocked',
+            detail: GOVERNED_EXPORT_MISMATCH_DETAIL,
+          });
+          executions.push({
+            call,
+            result: { blocked: true, error: GOVERNED_EXPORT_MISMATCH_DETAIL },
+            serialized: JSON.stringify({ blocked: true, error: GOVERNED_EXPORT_MISMATCH_DETAIL }),
+          });
+          logDispatch(call, 'blocked_inexact_export', false);
+          continue;
+        }
+      }
       if (call.name === 'get_research_evidence' && args.dto.researchRun) {
         augmented.input.sessionId = args.dto.researchRun.sessionId;
       }
