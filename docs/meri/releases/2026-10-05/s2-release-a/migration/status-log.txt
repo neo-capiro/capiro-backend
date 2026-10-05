@@ -1,0 +1,5 @@
+Running prisma migrate status (READ-ONLY; migration history is never edited)
+Prisma schema loaded from prisma/schema.prisma
+Datasource "db": PostgreSQL database "capiro", schema "public" at "capiro-dev-data-auroracluster23d869c0-ltmz40k47ewv.cluster-csryw28ai752.us-east-1.rds.amazonaws.com:5432"
+455 migrations found in prisma/migrations
+Database schema is up to date!
