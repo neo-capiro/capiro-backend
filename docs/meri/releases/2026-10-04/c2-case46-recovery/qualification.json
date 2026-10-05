@@ -1,0 +1,38 @@
+{
+  "status": "SOURCE_TESTS_AND_REVIEW_PASS",
+  "totalTestsPassed": 66,
+  "typechecks": [
+    "API_PASS",
+    "ORCHESTRATOR_PASS"
+  ],
+  "schemaChange": false,
+  "c2Complete": false,
+  "sourcePins": [
+    {
+      "path": "apps/api/src/meri/meri-case46-remediation.ts",
+      "sha256Lf": "c33f32f054703b909a32161867f6dac030f14eaa7927593571904d59b2589578"
+    },
+    {
+      "path": "apps/api/src/meri/meri-case46-remediation.spec.ts",
+      "sha256Lf": "f35fe4180e5c54fff66e42432c1928efab7c370eddfe1d8cd3bf14c8ffcebf97"
+    },
+    {
+      "path": "apps/api/src/meri/meri-case46-setup-owner.ts",
+      "sha256Lf": "bc09c77b3f5ee169e1903b4c91b649c9306ced7c388120879e83405a932fc8b9"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meri-capture-provider-wire.ts",
+      "sha256Lf": "a35fc76d36514bf871753184ea7b96232ce07174f03e2949aba4f33303043343"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meri-capture-provider-wire.spec.ts",
+      "sha256Lf": "39bd1a593d044c4655f3cd66a4cf3206692304fc64f72bc9df9704fae69c6e6a"
+    }
+  ],
+  "scope": "One reconciled Case46 zero-dispatch failure; preserve prior claim/conversation/source/budget; require new capture identity and reservation. Governed artifact requests select reviewed default tier before wire hashing/reservation.",
+  "validation": "26 API eligibility/replay/budget tests and40 orchestrator wire/accounting tests; both typechecks pass. No provider calls from tests.",
+  "liveAcceptance": "NOT_RUN_AFTER_RECOVERY_FIX",
+  "requiredNextCaptureMode": "fast for the trivial text export, without changing global or tenant defaults",
+  "priorFailedRun": "e9ac5e1a-6562-49b6-b59b-139bd7ba8325",
+  "terminalProofSha256": "df90662b3136f3a6aab7fe6d94e8b57fc93727004106cd9129735a8cb19255e5"
+}
